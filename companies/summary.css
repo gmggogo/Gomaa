@@ -1,0 +1,105 @@
+.content {
+  padding: 24px;
+  background: #f4f6f9;
+}
+
+.billing-box {
+  background: #ffffff;
+  border-left: 6px solid #facc15;
+  padding: 18px 22px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.billing-box h3 {
+  margin-bottom: 6px;
+}
+
+.billing-box ul {
+  padding-left: 18px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.summary-search {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.summary-search .field {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+
+.summary-search input {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+}
+
+.summary-search button {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.summary-search #resetBtn {
+  background: #6b7280;
+}
+
+.summary-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.summary-actions button {
+  background: #0f172a;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.table-wrapper {
+  background: #ffffff;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead {
+  background: #0f172a;
+  color: white;
+}
+
+th, td {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+td:first-child {
+  text-align: left;
+}
+
+small {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+}

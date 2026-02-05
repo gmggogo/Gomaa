@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Trip</title>
+  <link rel="stylesheet" href="layout.css">
+
+  <style>
+    section {
+      background: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+    }
+
+    .logo img { height: 40px; }
+
+    .header-center {
+      text-align: center;
+      flex: 1;
+    }
+
+    .header-center h2 {
+      color: #0f172a;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    #greeting {
+      color: #475569;
+      font-size: 14px;
+    }
+
+    #clock {
+      color: #0f172a;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    textarea { min-height: 80px; }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .btn-save-entry { background: #2563eb; color: #fff; }
+    .btn-edit-entry { background: #64748b; color: #fff; }
+    .btn-save-trip { background: #64748b; color: #fff; }
+    .btn-submit-trip { background: #22c55e; color: #000; }
+    .btn-add-stop { background: #0ea5e9; color: #fff; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">
+    <img src="../assets/logo.png" alt="Sunbeam">
+  </div>
+
+  <div class="header-center">
+    <h2 id="companyTitle"></h2>
+    <div id="greeting"></div>
+  </div>
+
+  <div id="clock"></div>
+</header>
+
+<div class="layout">
+
+<aside class="sidebar">
+  <h3>Company Panel</h3>
+
+  <a href="dashboard.html">Dashboard</a>
+  <a href="add-trip.html">Add Trip</a>
+  <a href="review.html">Review Trips</a>
+  <a href="summary.html">Summary</a>
+  <a href="taxes.html">Taxes</a>
+
+  <hr>
+
+  <a href="#" onclick="logout()" class="logout">Logout</a>
+</aside>
+
+  <main class="content">
+
+    <!-- ENTRY INFO -->
+    <section>
+      <h3>Entry Information</h3>
+      <div class="form-grid">
+        <input id="entryName" placeholder="Data Entry Name">
+        <input id="entryPhone" placeholder="Phone Number">
+      </div>
+      <div class="actions">
+        <button id="saveEntry" class="btn-save-entry">Save</button>
+        <button id="editEntry" class="btn-edit-entry" style="display:none">Edit</button>
+      </div>
+    </section>
+
+    <!-- CLIENT INFO -->
+    <section>
+      <h3>Client Information</h3>
+      <div class="form-grid">
+        <input id="clientName" placeholder="Client Name">
+        <input id="clientPhone" placeholder="Client Phone">
+      </div>
+    </section>
+
+    <!-- TRIP DETAILS -->
+    <section>
+      <h3>Trip Details</h3>
+      <div class="form-grid">
+        <input id="pickup" placeholder="Pickup Address">
+        <input id="dropoff" placeholder="Dropoff Address">
+        <input id="tripDate" type="date">
+        <input id="tripTime" type="time">
+      </div>
+
+      <div id="stops"></div>
+      <button type="button" class="btn-add-stop" onclick="addStop()">+ Add Stop</button>
+
+      <textarea id="notes" placeholder="Notes"></textarea>
+    </section>
+
+    <div class="actions">
+      <button id="saveTrip" class="btn-save-trip">Save Trip</button>
+      <button id="submitTrip" class="btn-submit-trip">Submit Trip</button>
+    </div>
+
+  </main>
+</div>
+
+<script src="add-trip.js"></script>
+</body>
+</html>

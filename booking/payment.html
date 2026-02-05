@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payment | Sunbeam Transportation</title>
+
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#f4f6fa;
+      margin:0;
+      padding:20px;
+    }
+
+    .card{
+      max-width:520px;
+      margin:auto;
+      background:#fff;
+      padding:20px;
+      border-radius:10px;
+      box-shadow:0 10px 25px rgba(0,0,0,.1);
+    }
+
+    h2{
+      margin-top:0;
+    }
+
+    .row{
+      margin-bottom:10px;
+      font-size:14px;
+    }
+
+    .row b{
+      color:#334155;
+    }
+
+    .total{
+      margin-top:15px;
+      font-size:18px;
+      font-weight:bold;
+      color:#1e40af;
+    }
+
+    button{
+      width:100%;
+      padding:12px;
+      margin-top:15px;
+      background:#2563eb;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      font-size:16px;
+      cursor:pointer;
+    }
+
+    button:hover{
+      background:#1d4ed8;
+    }
+
+    .success{
+      margin-top:15px;
+      background:#ecfeff;
+      border:1px solid #67e8f9;
+      padding:12px;
+      border-radius:6px;
+      color:#155e75;
+      font-size:14px;
+      display:none;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>Payment</h2>
+
+  <div id="summary"></div>
+
+  <div class="total" id="totalAmount"></div>
+
+  <button onclick="payNow()">Pay Now (Dummy)</button>
+
+  <div class="success" id="successMsg"></div>
+</div>
+
+<script src="./payment.js"></script>
+</body>
+</html>

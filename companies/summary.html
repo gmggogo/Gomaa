@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Company Summary</title>
+  <link rel="stylesheet" href="layout.css">
+  <link rel="stylesheet" href="summary.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">Sunbeam</div>
+  <div class="company-name" id="companyName"></div>
+  <div class="datetime">
+    <div id="greeting"></div>
+    <div id="clock"></div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <h3>Company Panel</h3>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="review.html">Review Trips</a>
+    <a href="summary.html" class="active">Summary</a>
+    <a href="taxes.html">Taxes</a>
+  </aside>
+
+  <main class="content">
+
+    <!-- Billing Explanation -->
+    <div class="billing-box">
+      <h3>Company Billing Summary</h3>
+      <p>This page shows how each trip total is calculated.</p>
+      <ul>
+        <li>$30 covers the first 10 miles</li>
+        <li>$2 per mile after 10 miles</li>
+        <li>$5 per stop</li>
+        <li>$15 No Show fee</li>
+        <li>$15 Cancellation within 2 hours</li>
+        <li>$1 per minute delay after 15 minutes</li>
+      </ul>
+    </div>
+
+    <!-- Search -->
+    <div class="summary-search">
+      <div class="field">
+        <label>Trip Number (Full)</label>
+        <input id="searchTrip" placeholder="TRP-1729458734923">
+      </div>
+
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="searchDate">
+      </div>
+
+      <button id="searchBtn">Search</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <!-- Actions -->
+    <div class="summary-actions">
+      <button onclick="window.print()">🖨 Print</button>
+      <button onclick="sendEmail()">✉ Send Email</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Trip</th>
+            <th>Miles</th>
+            <th>Stops</th>
+            <th>Delay</th>
+            <th>No Show</th>
+            <th>Cancelled</th>
+            <th>Total ($)</th>
+          </tr>
+        </thead>
+        <tbody id="summaryBody"></tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<script src="summary.js"></script>
+</body>
+</html>
