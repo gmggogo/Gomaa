@@ -1,5 +1,4 @@
-const API = `${location.protocol}//${location.hostname}:4000/api/users`;
-
+const API = "/api/users";
 let currentRole = "company";
 
 const table = document.getElementById("usersTable");
