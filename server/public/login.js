@@ -1,4 +1,4 @@
-function login() {
+async function login() {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
 
@@ -7,42 +7,46 @@ function login() {
     return;
   }
 
-  // كل المستخدمين محفوظين من admin/users.html
-  const users = JSON.parse(localStorage.getItem("users")) || [];
+  try {
+    // نجيب كل اليوزرز من نفس السيرفر
+    const res = await fetch("/api/users");
 
-  const user = users.find(
-    u =>
-      u.username === username &&
-      u.password === password &&
-      u.active === true
-  );
+    if (!res.ok) {
+      throw new Error("Failed to fetch users");
+    }
 
-  if (!user) {
-    alert("Wrong username or password");
-    return;
-  }
+    const users = await res.json();
 
-  localStorage.setItem("loggedUser", JSON.stringify(user));
+    const user = users.find(
+      u =>
+        u.username === username &&
+        u.password === password &&
+        u.active === true
+    );
 
-  // توجيه حسب الدور
-  switch (user.role) {
-    case "company":
+    if (!user) {
+      alert("Wrong username or password");
+      return;
+    }
+
+    // نخزن المستخدم الحالي فقط
+    localStorage.setItem("loggedUser", JSON.stringify(user));
+
+    // توجيه حسب الدور الحقيقي
+    if (user.role === "company") {
       location.href = "companies/dashboard.html";
-      break;
-
-    case "admin":
+    } else if (user.role === "admin") {
       location.href = "admin/dashboard.html";
-      break;
-
-    case "dispatcher":
+    } else if (user.role === "dispatcher") {
       location.href = "dispatcher/dashboard.html";
-      break;
-
-    case "driver":
+    } else if (user.role === "driver") {
       location.href = "driver/dashboard.html";
-      break;
-
-    default:
+    } else {
       alert("Unknown role");
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Login error – check console");
   }
 }
