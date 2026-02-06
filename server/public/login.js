@@ -1,4 +1,4 @@
-async function login() {
+function login() {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
 
@@ -7,57 +7,42 @@ async function login() {
     return;
   }
 
-  try {
-    // جلب كل المستخدمين من السيرفر الحقيقي (Fly.io)
-    const res = await fetch("https://server-bold-snow-4676.fly.dev/api/users");
+  // كل المستخدمين محفوظين من admin/users.html
+  const users = JSON.parse(localStorage.getItem("users")) || [];
 
-    if (!res.ok) {
-      throw new Error("Failed to fetch users");
-    }
+  const user = users.find(
+    u =>
+      u.username === username &&
+      u.password === password &&
+      u.active === true
+  );
 
-    const users = await res.json();
-    console.log("LOGIN USERS:", users);
+  if (!user) {
+    alert("Wrong username or password");
+    return;
+  }
 
-    // البحث عن المستخدم
-    const user = users.find(
-      u =>
-        u.username === username &&
-        u.password === password &&
-        u.active === true
-    );
+  localStorage.setItem("loggedUser", JSON.stringify(user));
 
-    if (!user) {
-      alert("Wrong username or password");
-      return;
-    }
+  // توجيه حسب الدور
+  switch (user.role) {
+    case "company":
+      location.href = "companies/dashboard.html";
+      break;
 
-    // حفظ المستخدم الحالي
-    localStorage.setItem("loggedUser", JSON.stringify(user));
+    case "admin":
+      location.href = "admin/dashboard.html";
+      break;
 
-    // التوجيه حسب الدور
-    switch (user.role) {
-      case "company":
-        window.location.href = "companies/dashboard.html";
-        break;
+    case "dispatcher":
+      location.href = "dispatcher/dashboard.html";
+      break;
 
-      case "admin":
-        window.location.href = "admin/dashboard.html";
-        break;
+    case "driver":
+      location.href = "driver/dashboard.html";
+      break;
 
-      case "dispatcher":
-        window.location.href = "dispatcher/dashboard.html";
-        break;
-
-      case "driver":
-        window.location.href = "driver/dashboard.html";
-        break;
-
-      default:
-        alert("Unknown role");
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert("Server error – check console");
+    default:
+      alert("Unknown role");
   }
 }
