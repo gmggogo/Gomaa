@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sunbeam Driver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f172a, #2563eb);
+      color: #facc15;
+      text-align: center;
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    header span {
+      display: block;
+      font-size: 14px;
+      color: #e5e7eb;
+      margin-top: 4px;
+    }
+
+    main {
+      padding: 16px;
+      padding-bottom: 90px;
+    }
+
+    .card {
+      background: white;
+      padding: 16px;
+      margin-bottom: 14px;
+      border-radius: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      color: #2563eb;
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      display: flex;
+      border-top: 1px solid #ddd;
+      height: 64px;
+    }
+
+    nav button {
+      flex: 1;
+      border: none;
+      background: none;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    nav button.active {
+      color: #2563eb;
+      font-weight: bold;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- 🔒 AUTH PROTECTION -->
+<script>
+  const user = JSON.parse(localStorage.getItem("loggedUser"));
+
+  if (!user || user.role !== "driver") {
+    window.location.href = "/driver/login.html";
+  }
+</script>
+
+<header>
+  Sunbeam Driver
+  <span id="driverName"></span>
+</header>
+
+<main>
+
+  <section id="home" class="section active">
+    <div class="card">
+      <h3>Status</h3>
+      <p>You are currently <strong>Online</strong></p>
+    </div>
+  </section>
+
+  <section id="trips" class="section">
+    <div class="card">
+      <h3>Your Trips</h3>
+      <p>No trips assigned yet.</p>
+    </div>
+  </section>
+
+  <section id="hours" class="section">
+    <div class="card">
+      <h3>Work Hours</h3>
+      <p>Today: 0 hrs</p>
+      <p>This Week: 0 hrs</p>
+    </div>
+  </section>
+
+  <section id="earnings" class="section">
+    <div class="card">
+      <h3>Earnings</h3>
+      <p>This Week: $0</p>
+    </div>
+  </section>
+
+  <section id="logout" class="section">
+    <div class="card">
+      <button class="btn btn-danger" onclick="logout()">Logout</button>
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="active" onclick="showSection('home', this)">Home</button>
+  <button onclick="showSection('trips', this)">Trips</button>
+  <button onclick="showSection('hours', this)">Hours</button>
+  <button onclick="showSection('earnings', this)">Earnings</button>
+  <button onclick="showSection('logout', this)">Logout</button>
+</nav>
+
+<script>
+  document.getElementById("driverName").innerText =
+    user.name || user.username || "Driver";
+
+  function showSection(id, btn) {
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    btn.classList.add("active");
+  }
+
+  function logout() {
+    localStorage.removeItem("loggedUser");
+    window.location.href = "/driver/login.html";
+  }
+</script>
+
+</body>
+</html>

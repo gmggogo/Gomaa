@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Driver Map</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f5f5f5;
+}
+
+#map{
+  height:70vh;
+}
+
+.controls{
+  padding:10px;
+  background:#fff;
+  display:flex;
+  gap:10px;
+}
+
+button{
+  flex:1;
+  padding:12px;
+  font-size:16px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.hidden{display:none}
+
+textarea{
+  width:100%;
+  height:80px;
+  margin-top:10px;
+  padding:10px;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div class="controls">
+  <button onclick="openGoogleMaps()">Google Maps</button>
+
+  <button id="arrivedBtn" onclick="arrived()">Arrived</button>
+
+  <button id="startBtn" class="hidden" onclick="startTrip()">Start Trip</button>
+
+  <button id="noShowBtn" class="hidden" onclick="openNoShow()">No Show</button>
+
+  <button id="completeBtn" class="hidden" onclick="completeTrip()">Complete</button>
+</div>
+
+<div id="noShowBox" class="hidden" style="padding:10px;background:#fff">
+  <textarea id="noShowNote" placeholder="No Show reason (required)"></textarea>
+  <button onclick="submitNoShow()">Submit No Show</button>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="map.js"></script>
+
+</body>
+</html>

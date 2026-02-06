@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trips</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Trips original CSS (لا نلمسه) -->
+<link rel="stylesheet" href="trips.css">
+
+<style>
+:root{
+  --blue:#0f172a;
+  --gold:#facc15;
+}
+
+/* نفس مقاس Dashboard */
+body{
+  margin:0;
+  padding-top:85px;
+  background:#f8fafc;
+}
+
+/* ===== HEADER (Dashboard size) ===== */
+.page-header{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:85px;
+  background:linear-gradient(90deg,var(--blue),#1e293b);
+  display:flex;
+  align-items:center;
+  padding:0 20px;
+  color:#fff;
+  z-index:999;
+  border-bottom:3px solid var(--gold);
+}
+
+.header-left{
+  width:25%;
+  display:flex;
+  align-items:center;
+}
+
+.back-btn{
+  background:var(--gold);
+  border:none;
+  border-radius:8px;
+  padding:6px 12px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.header-center{
+  width:50%;
+  text-align:center;
+  line-height:1.2;
+}
+
+.header-center h1{
+  margin:0;
+  font-size:18px;
+  color:var(--gold);
+}
+
+.header-center p{
+  margin:4px 0 0;
+  font-size:12px;
+  opacity:.9;
+}
+
+.header-right{
+  width:25%;
+  text-align:right;
+  font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="page-header">
+  <div class="header-left">
+    <button class="back-btn" onclick="goBack()">← Back</button>
+  </div>
+
+  <div class="header-center">
+    <h1>Trips</h1>
+    <p id="adminName">Welcome</p>
+  </div>
+
+  <div class="header-right">
+    <span id="clock"></span>
+  </div>
+</header>
+
+<!-- ===== ORIGINAL TRIPS CONTENT (بدون أي تغيير) ===== -->
+<div class="top-bar">
+  <input id="searchBox" placeholder="Search name / phone / address">
+</div>
+
+<div id="tripsContainer"></div>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+/* Back */
+function goBack(){
+  location.href = "dashboard.html";
+}
+
+/* Admin name */
+const admin = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
+if(admin && (admin.name || admin.username)){
+  document.getElementById("adminName").innerText =
+    "Welcome, " + (admin.name || admin.username);
+}
+
+/* Arizona clock */
+function updateClock(){
+  const now = new Date().toLocaleString("en-US",{
+    timeZone:"America/Phoenix",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit",
+    month:"short",
+    day:"2-digit",
+    year:"numeric"
+  });
+  document.getElementById("clock").innerText = now;
+}
+setInterval(updateClock,1000);
+updateClock();
+</script>
+
+<script src="trips.js"></script>
+</body>
+</html>

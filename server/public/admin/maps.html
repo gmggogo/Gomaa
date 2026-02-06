@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Driver Locations</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Leaflet -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<link rel="stylesheet" href="maps.css">
+</head>
+
+<body>
+
+<!-- ===== HEADER (نفس الأدمن) ===== -->
+<div class="header">
+  <button class="back-btn" onclick="history.back()">← Back</button>
+
+  <div class="title">
+    <div class="main">Sunbeam Transportation</div>
+    <div class="sub">Driver Locations</div>
+    <div class="role">Admin</div>
+  </div>
+
+  <button class="logout">Logout</button>
+</div>
+
+<!-- ===== CONTENT ===== -->
+<div class="content">
+
+  <h3>Active Drivers (Arizona)</h3>
+
+  <select id="driverSelect">
+    <option value="">Select Driver</option>
+  </select>
+
+  <div id="map"></div>
+
+  <button class="save-btn" onclick="saveLocation()">Save Location</button>
+
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="maps.js"></script>
+</body>
+</html>

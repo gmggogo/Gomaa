@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trips Summary | Sunbeam</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{margin:0;background:#f4f6fa}
+
+/* HEADER */
+.header{
+position:fixed;top:0;left:0;right:0;height:55px;
+background:#3f51b5;color:#fff;
+display:flex;align-items:center;justify-content:space-between;
+padding:0 20px;z-index:1000;font-size:14px
+}
+
+/* SIDEBAR */
+.sidebar{
+position:fixed;top:55px;left:0;bottom:0;width:220px;
+background:#1e293b;color:#fff;padding-top:10px
+}
+.sidebar a{
+display:block;padding:12px 18px;color:#cbd5e1;
+text-decoration:none;font-size:14px
+}
+.sidebar a:hover,.sidebar a.active{background:#334155;color:#fff}
+
+/* CONTENT */
+.content{
+margin-left:220px;margin-top:55px;padding:25px
+}
+
+h1{color:#3f51b5;margin-bottom:5px}
+.subtitle{color:#666;margin-bottom:15px}
+
+/* FILTERS */
+.filters{
+display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px
+}
+.filters input,.filters select,.filters button{
+padding:7px;border:1px solid #ccc;border-radius:4px
+}
+.filters button{
+background:#3f51b5;color:#fff;border:none;cursor:pointer
+}
+.filters button:hover{opacity:.9}
+
+/* TABLE */
+table{
+width:100%;border-collapse:collapse;background:#fff;
+border-radius:6px;overflow:hidden
+}
+th{
+background:#3f51b5;color:#fff;padding:10px;font-size:13px
+}
+td{
+padding:10px;font-size:13px;border-bottom:1px solid #eee;text-align:center
+}
+tr:hover{background:#f1f5f9}
+
+.status-completed{color:green;font-weight:bold}
+.status-noshow{color:#eab308;font-weight:bold}
+.status-cancel{color:#ef4444;font-weight:bold}
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header">
+<div>🌞 Sunbeam Transportation</div>
+<div id="welcome">Welcome, Gomaa Hassanein – Have a great day 🌤</div>
+<div id="clock"></div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+<a href="dashboard.html">🏠 Dashboard</a>
+<a class="active" href="summary.html">📊 Trips Summary</a>
+<a href="trips.html">🚗 Trips</a>
+<a href="drivers.html">🧍 Drivers</a>
+<a href="drivers-map.html">🗺 Live Map</a>
+<a href="facilities.html">🏥 Facilities</a>
+<a href="users.html">👥 Users</a>
+<a href="payment.html">💳 Payments</a>
+<a href="taxes.html">🧾 Taxes</a>
+<a href="chat.html">💬 Chat</a>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<h1>Trips Summary</h1>
+<div class="subtitle">Completed • No Show • Cancelled Trips – Full Pricing Breakdown</div>
+
+<!-- FILTERS -->
+<div class="filters">
+<input type="date" id="dateFilter">
+<input type="text" id="searchText" placeholder="Search by name / company">
+<select id="typeFilter">
+<option value="">All Types</option>
+<option value="Individual">Individual</option>
+<option value="Company">Company</option>
+</select>
+<button onclick="applyFilter()">Search</button>
+</div>
+
+<!-- TABLE -->
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Time</th>
+<th>Client / Company</th>
+<th>Phone</th>
+<th>Type</th>
+<th>Miles</th>
+<th>Stops ($)</th>
+<th>Delay ($)</th>
+<th>Status</th>
+<th>Total ($)</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+</div>
+
+<script>
+// CLOCK
+function updateClock(){
+const d=new Date();
+document.getElementById("clock").innerText=
+d.toLocaleDateString()+" | "+d.toLocaleTimeString();
+}
+setInterval(updateClock,1000);updateClock();
+
+// DATA
+const trips=[
+{date:"2026-01-23",time:"10:30 AM",name:"John Smith",phone:"602-555-3321",type:"Individual",miles:18,stops:1,delay:5,status:"Completed"},
+{date:"2026-01-23",time:"2:00 PM",name:"Banner Health",phone:"480-222-9911",type:"Company",miles:6,stops:0,delay:0,status:"No Show"},
+{date:"2026-01-24",time:"9:00 AM",name:"Mayo Clinic",phone:"520-111-8833",type:"Company",miles:12,stops:2,delay:0,status:"Cancelled"}
+];
+
+// CALC
+function calcTotal(t){
+if(t.status==="No Show") return 30;
+if(t.status==="Cancelled") return 15;
+
+let total=30;
+if(t.miles>10) total+=(t.miles-10)*2;
+total+=t.stops*5;
+total+=t.delay;
+return total;
+}
+
+// RENDER
+function render(data){
+const tb=document.getElementById("tableBody");
+tb.innerHTML="";
+data.forEach(t=>{
+tb.innerHTML+=`
+<tr>
+<td>${t.date}</td>
+<td>${t.time}</td>
+<td>${t.name}</td>
+<td>${t.phone}</td>
+<td>${t.type}</td>
+<td>${t.miles}</td>
+<td>$${t.stops*5}</td>
+<td>$${t.delay}</td>
+<td class="${
+t.status==="Completed"?"status-completed":
+t.status==="No Show"?"status-noshow":"status-cancel"
+}">${t.status}</td>
+<td>$${calcTotal(t)}</td>
+</tr>`;
+});
+}
+
+// FILTER
+function applyFilter(){
+const d=document.getElementById("dateFilter").value;
+const s=document.getElementById("searchText").value.toLowerCase();
+const t=document.getElementById("typeFilter").value;
+
+render(trips.filter(x=>
+(!d||x.date===d)&&
+(!s||x.name.toLowerCase().includes(s))&&
+(!t||x.type===t)
+));
+}
+
+render(trips);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Company Trips Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* ===============================
+   GLOBAL
+================================ */
+body{
+  margin:0;
+  padding:12px;
+  font-family: Arial, Helvetica, sans-serif;
+  background:#f4f8fb;
+  font-size:12px;
+  color:#0f172a;
+}
+
+/* ===============================
+   TOP BAR
+================================ */
+.top-bar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.top-bar button{
+  background:#3b82f6;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  padding:6px 10px;
+  font-size:12px;
+  cursor:pointer;
+  transition:.15s;
+}
+
+.top-bar button:hover{ opacity:.9; }
+.top-bar button:active{ transform:scale(.95); }
+
+#searchBox{
+  flex:1;
+  padding:6px 8px;
+  font-size:12px;
+  border:1px solid #93c5fd;
+  border-radius:6px;
+}
+
+#searchBox:focus{
+  outline:none;
+  border-color:#3b82f6;
+  box-shadow:0 0 0 2px rgba(59,130,246,.15);
+}
+
+/* ===============================
+   TABLE
+================================ */
+.trip-table{
+  width:100%;
+  border-collapse:collapse;
+  background:#ffffff;
+  margin-bottom:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);
+}
+
+.trip-table th{
+  background:#e0f2fe;     /* لبني */
+  color:#0f172a;          /* أزرق غامق */
+  padding:6px;
+  font-size:11px;
+  white-space:nowrap;
+  text-align:center;
+  font-weight:600;
+}
+
+.trip-table td{
+  padding:4px;
+  border-bottom:1px solid #e5e7eb;
+  text-align:center;
+}
+
+.trip-table tr:nth-child(even){
+  background:#f8fafc;
+}
+
+.trip-table tr:hover{
+  background:#eef6ff;
+}
+
+/* ===============================
+   INPUTS
+================================ */
+.trip-table input{
+  width:100%;
+  font-size:11px;
+  padding:3px 4px;
+  border:1px solid #d1d5db;
+  border-radius:4px;
+  color:#0f172a;
+}
+
+.trip-table input:disabled{
+  background:#f9fafb;
+  border:none;
+}
+
+/* ===============================
+   ACTIONS
+================================ */
+.actions{
+  display:flex;
+  gap:6px;
+  justify-content:center;
+  white-space:nowrap;
+}
+
+.actions button{
+  border:none;
+  border-radius:4px;
+  padding:4px 7px;
+  font-size:11px;
+  cursor:pointer;
+  color:#fff;
+  transition:transform .12s, box-shadow .12s, opacity .12s;
+}
+
+.actions button:hover{
+  opacity:.9;
+  transform:translateY(-1px);
+}
+
+.actions button:active{
+  transform:scale(.95);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.25);
+}
+
+.btn-confirm{ background:#22c55e; }
+.btn-edit{ background:#3b82f6; }
+.btn-delete{ background:#ef4444; }
+.btn-cancel{ background:#f59e0b; }
+
+/* ===============================
+   STATUS
+================================ */
+.cancelled{ color:#ef4444; font-weight:bold; }
+.closed{ color:#6b7280; font-weight:bold; }
+
+/* ===============================
+   DAY TITLE
+================================ */
+.day-title{
+  font-size:13px;
+  margin:14px 0 6px;
+  color:#0f172a;
+}
+</style>
+</head>
+
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <button onclick="history.back()">⬅ Back</button>
+  <input id="searchBox" placeholder="Search name / phone / trip #" oninput="filterTrips && filterTrips()">
+</div>
+
+<!-- TABLE CONTAINER -->
+<div id="tripsContainer"></div>
+
+<!-- JS -->
+<script src="review.js"></script>
+
+</body>
+</html>

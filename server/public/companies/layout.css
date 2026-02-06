@@ -1,0 +1,230 @@
+/* ===== RESET ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
+}
+
+body {
+  background: #f6f7f9; /* فضي فاتح */
+  color: #0f172a;      /* كحلي غامق */
+}
+
+/* ===== TOP BAR ===== */
+.topbar {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 26px;
+
+  background: linear-gradient(
+    90deg,
+    #f6e7b8 0%,
+    #e9cf77 40%,
+    #f1dea0 70%,
+    #e4c86a 100%
+  ); /* دهبي متالك */
+
+  border-bottom: 1px solid #d4b24c;
+}
+
+.topbar .logo img {
+  height: 44px;
+}
+
+/* اسم الشركة في النص */
+.topbar .company-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+
+/* الترحيب + الساعة */
+.topbar .datetime {
+  text-align: right;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.topbar .datetime #greeting {
+  font-weight: 600;
+  color: #334155;
+}
+
+/* ===== LAYOUT ===== */
+.layout {
+  display: flex;
+  min-height: calc(100vh - 72px);
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: 240px;
+  background: linear-gradient(
+    180deg,
+    #f3e4b0 0%,
+    #ead17a 50%,
+    #dfc25f 100%
+  ); /* دهبي متالك هادي */
+
+  border-right: 1px solid #d6b95e;
+  padding: 18px 0;
+}
+
+.sidebar h3 {
+  text-align: center;
+  margin-bottom: 18px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sidebar a {
+  display: block;
+  padding: 14px 24px;
+  font-size: 14px;
+  color: #0f172a;
+  text-decoration: none;
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.sidebar a:hover {
+  background: rgba(255, 255, 255, 0.45);
+  border-left-color: #b8961e;
+}
+
+.sidebar a.active {
+  background: rgba(255, 255, 255, 0.7);
+  border-left-color: #9f7f12;
+  font-weight: 600;
+}
+
+/* ===== CONTENT ===== */
+.content {
+  flex: 1;
+  padding: 28px;
+  background: #f9fafb;
+}
+
+/* ===== SECTIONS ===== */
+section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+section h3 {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ===== FORMS ===== */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  background: #ffffff;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #caa636;
+  box-shadow: 0 0 0 2px rgba(202, 166, 54, 0.2);
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* ===== BUTTONS ===== */
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-save-entry {
+  background: #64748b;
+  color: #ffffff;
+}
+
+.btn-edit-entry {
+  background: #475569;
+  color: #ffffff;
+}
+
+.btn-save-trip {
+  background: #94a3b8;
+  color: #0f172a;
+}
+
+.btn-submit-trip {
+  background: linear-gradient(
+    90deg,
+    #f0d47b,
+    #e2be4a
+  );
+  color: #0f172a;
+}
+
+/* ===== STOPS ===== */
+.btn-add-stop {
+  margin-top: 10px;
+  background: #e2be4a;
+  color: #0f172a;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .sidebar a {
+    flex: 1;
+    text-align: center;
+    padding: 14px;
+  }
+}
+.stop {
+  background: #eef2ff;
+  border-color: #818cf8;
+}

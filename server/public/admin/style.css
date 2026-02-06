@@ -1,0 +1,115 @@
+* {
+  box-sizing: border-box;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f4f6fa;
+  color: #1f2937;
+}
+
+/* ===== HEADER ===== */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(90deg, #3f51b5, #2563eb);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 1000;
+}
+
+.header .logo {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.header .welcome {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.header .clock {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  bottom: 0;
+  width: 230px;
+  background: #1e293b;
+  padding-top: 10px;
+}
+
+.sidebar a {
+  display: block;
+  padding: 12px 20px;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background: #334155;
+  color: #fff;
+}
+
+/* ===== CONTENT ===== */
+.content {
+  margin-left: 230px;
+  margin-top: 60px;
+  padding: 25px;
+}
+
+h1 {
+  margin: 0 0 5px;
+  font-size: 22px;
+  color: #1e40af;
+}
+
+.subtitle {
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+/* ===== DASHBOARD CARDS ===== */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  border-left: 5px solid #3f51b5;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.card span {
+  display: block;
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: bold;
+  color: #1e40af;
+}

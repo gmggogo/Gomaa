@@ -1,0 +1,89 @@
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f4f6fa;
+}
+
+/* Header */
+.app-header {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: white;
+  padding: 18px 15px;
+  text-align: center;
+}
+
+.brand {
+  font-size: 26px;
+  font-weight: bold;
+}
+
+.brand .sun {
+  color: #facc15; /* دهبي */
+}
+
+.brand .beam {
+  color: #ffffff;
+}
+
+.sub {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* Main */
+main {
+  padding: 16px;
+  padding-bottom: 90px;
+}
+
+/* Cards */
+.card {
+  background: white;
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  font-size: 15px;
+}
+
+/* Bottom Nav */
+nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  display: flex;
+  border-top: 1px solid #e5e7eb;
+}
+
+nav button {
+  flex: 1;
+  padding: 14px 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+nav button.active {
+  color: #2563eb;
+  font-weight: bold;
+}
+
+/* Sections */
+.section { display: none; }
+.section.active { display: block; }
+
+/* Logout */
+.logout {
+  background: #dc2626;
+  color: white;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+}
+</style>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Driver Schedule</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body{
+      margin:0;
+      padding-top:90px;
+      background:#f3f4f6;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+
+    /* ===== HEADER ===== */
+    .admin-header{
+      position:fixed;
+      top:0;left:0;
+      width:100%;
+      height:90px;
+      background:linear-gradient(90deg,#111827,#374151);
+      display:flex;
+      align-items:center;
+      padding:0 25px;
+      color:#fff;
+      border-bottom:3px solid #d4af37;
+      z-index:999;
+    }
+
+    .header-left{width:25%}
+    .header-center{width:50%;text-align:center}
+    .header-right{width:25%;text-align:right}
+
+    .back-btn{
+      background:#d4af37;
+      border:none;
+      padding:8px 14px;
+      border-radius:8px;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    .company-name{color:#d4af37;font-size:20px;font-weight:bold}
+    .page-name{font-size:14px}
+    .admin-name{font-size:13px;opacity:.8}
+
+    .clock{font-size:13px;margin-right:10px}
+
+    .logout-btn{
+      background:#d4af37;
+      border:none;
+      padding:6px 14px;
+      border-radius:6px;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    /* ===== PAGE ===== */
+    .page{
+      max-width:1300px;
+      margin:auto;
+      padding:20px;
+    }
+
+    .add-btn{
+      background:#16a34a;
+      color:#fff;
+      border:none;
+      padding:8px 16px;
+      border-radius:8px;
+      font-weight:bold;
+      cursor:pointer;
+      margin-bottom:12px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      background:#fff;
+    }
+
+    th,td{
+      border:1px solid #d1d5db;
+      padding:6px;
+      text-align:center;
+      font-size:13px;
+    }
+
+    th{
+      background:#3f3f46;
+      color:#fff;
+    }
+
+    .week-box{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:6px;
+    }
+
+    .day-box{
+      border:1px solid #d1d5db;
+      padding:6px;
+      border-radius:6px;
+      background:#f9fafb;
+      font-size:11px;
+    }
+
+    .day-label{font-weight:bold;margin-bottom:4px}
+
+    .action-btn{
+      border:none;
+      padding:4px 8px;
+      border-radius:6px;
+      cursor:pointer;
+      font-size:12px;
+      font-weight:bold;
+    }
+
+    .edit{background:#2563eb;color:#fff}
+    .save{background:#16a34a;color:#fff}
+    .delete{background:#dc2626;color:#fff}
+  </style>
+</head>
+
+<body>
+
+<header class="admin-header">
+  <div class="header-left">
+    <button class="back-btn" onclick="history.back()">← Back</button>
+  </div>
+
+  <div class="header-center">
+    <div class="company-name">Sunbeam Transportation</div>
+    <div class="page-name">Driver Schedule</div>
+    <div class="admin-name" id="adminName">Admin</div>
+  </div>
+
+  <div class="header-right">
+    <span class="clock" id="clock"></span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="page">
+  <button class="add-btn" onclick="addRow()">+ Add Driver</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Driver Name</th>
+        <th>Phone</th>
+        <th>Address</th>
+        <th id="weekTitle"></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- ⚠️ ده السطر الوحيد للـ JavaScript -->
+<script src="driver-schedule.js"></script>
+
+</body>
+</html>
