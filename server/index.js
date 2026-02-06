@@ -1,23 +1,26 @@
 const express = require("express");
+const cors = require("cors");
+const path = require("path");
+
 const app = express();
 
-// مهم جدًا لRender
-const PORT = process.env.PORT || 3000;
-
-// middleware
+app.use(cors());
 app.use(express.json());
 
-// test route
-app.get("/", (req, res) => {
-  res.send("Sunbeam Server is running ✅");
-});
+// serve public folder
+app.use(express.static(path.join(__dirname, "public")));
 
 // health check
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.send("Sunbeam server running");
 });
 
-// لازم listen على PORT
+// fallback
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
