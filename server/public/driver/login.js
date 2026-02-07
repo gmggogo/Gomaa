@@ -1,7 +1,7 @@
 // ===============================
 // CONFIG
 // ===============================
-const API_BASE = "http://192.168.12.209:4000/api";
+const API_BASE = "/api";
 
 // ===============================
 // DOM READY
@@ -28,60 +28,34 @@ async function login() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-
+    // نجيب كل اليوزرز من نفس السيرفر
+    const res = await fetch(`${API_BASE}/users`);
     if (!res.ok) {
-      alert("Invalid login");
+      alert("Server error");
       return;
     }
 
-    const data = await res.json();
-    if (!data.success || !data.user) {
-      alert("Login failed");
+    const users = await res.json();
+
+    // نفلتر السواقين بس
+    const user = users.find(
+      u =>
+        u.role === "driver" &&
+        u.username === username &&
+        u.password === password &&
+        u.active === true
+    );
+
+    if (!user) {
+      alert("Invalid driver login");
       return;
     }
 
-    const user = data.user;
-
-    // ===============================
-    // DRIVER LOGIN
-    // ===============================
-    if (user.role === "driver") {
-      if (!user.id) {
-        alert("Driver ID missing");
-        return;
-      }
-
-      localStorage.setItem("loggedDriver", JSON.stringify(user));
-      window.location.href = "dashboard.html"; // ✅ مهم جدًا
-      return;
-    }
-
-    // ===============================
-    // OTHER ROLES
-    // ===============================
+    // نخزن بنفس نظام باقي المشروع
     localStorage.setItem("loggedUser", JSON.stringify(user));
 
-    switch (user.role) {
-      case "admin":
-        window.location.href = "/admin/index.html";
-        break;
-
-      case "dispatcher":
-        window.location.href = "/dispatcher/dashboard.html";
-        break;
-
-      case "company":
-        window.location.href = "/companies/dashboard.html";
-        break;
-
-      default:
-        alert("Unknown role");
-    }
+    // تحويل مباشر لداشبورد السواق
+    window.location.href = "dashboard.html";
 
   } catch (err) {
     console.error(err);
