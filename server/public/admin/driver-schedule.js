@@ -1,104 +1,94 @@
 /* ================= CONFIG ================= */
-const API = "/api/users?role=driver";   // ✅ نفس السيرفر
-const META_KEY = "driverScheduleMeta";
+const API = "/api/users?role=driver";
+const STORAGE_KEY = "driverSchedule";
 
-/* ================= STORAGE ================= */
-let meta = JSON.parse(localStorage.getItem(META_KEY)) || {};
+/* ================= STATE ================= */
+let schedule = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 const tbody = document.getElementById("tbody");
 
 /* ================= AZ DATE ================= */
-function azNow(){
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
-  );
+function azDate(d = new Date()) {
+  return new Date(d.toLocaleString("en-US", { timeZone: "America/Phoenix" }));
 }
 
-/* ================= WEEK (AZ) ================= */
-const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const start = azNow();
-const week = [];
+/* ================= BUILD WEEK ================= */
+function buildWeek() {
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const start = azDate();
+  const week = [];
 
-for(let i=0;i<7;i++){
-  const d = new Date(start);
-  d.setDate(start.getDate() + i);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    week.push({
+      label: days[d.getDay()],
+      key: d.toISOString().slice(0,10),
+      date: `${d.getMonth()+1}/${d.getDate()}`
+    });
+  }
 
-  week.push({
-    label: dayNames[d.getDay()],
-    date: `${d.getMonth()+1}/${d.getDate()}`,
-    key: d.toISOString().slice(0,10) // YYYY-MM-DD
-  });
+  document.getElementById("weekTitle").innerText =
+    `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
+
+  return week;
 }
 
-const weekTitle = document.getElementById("weekTitle");
-if (weekTitle) {
-  weekTitle.innerText = `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
-}
+const week = buildWeek();
 
 /* ================= LOAD DRIVERS ================= */
-async function loadDrivers(){
+async function loadDrivers() {
   const res = await fetch(API);
-  if(!res.ok) throw new Error("Drivers API error");
-  return await res.json(); // [{id,name,username,role}]
+  if (!res.ok) throw new Error("API failed");
+  return await res.json();
 }
 
-/* ================= SAVE META ================= */
-function saveMeta(){
-  localStorage.setItem(META_KEY, JSON.stringify(meta));
+/* ================= SAVE ================= */
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
 }
 
 /* ================= RENDER ================= */
-async function render(){
+async function render() {
   tbody.innerHTML = "";
 
   let drivers = [];
   try {
     drivers = await loadDrivers();
-  } catch (e) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" style="color:red;text-align:center">
-          ❌ Failed to load drivers
-        </td>
-      </tr>`;
-    console.error(e);
+  } catch {
+    tbody.innerHTML =
+      `<tr><td colspan="6">Failed to load drivers</td></tr>`;
     return;
   }
 
   if (!drivers.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align:center">
-          No drivers found
-        </td>
-      </tr>`;
+    tbody.innerHTML =
+      `<tr><td colspan="6">No drivers found</td></tr>`;
     return;
   }
 
   drivers.forEach((d, i) => {
-    if(!meta[d.id]){
-      meta[d.id] = {
+    if (!schedule[d.id]) {
+      schedule[d.id] = {
         address: "",
         days: {},
-        editing: false
+        edit: false
       };
     }
 
-    const m = meta[d.id];
-    const tr = document.createElement("tr");
+    const s = schedule[d.id];
 
+    const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${i + 1}</td>
-
       <td>${d.name}</td>
-
       <td>${d.username}</td>
 
       <td>
         <input
-          value="${m.address || ""}"
-          ${!m.editing ? "disabled" : ""}
-          onchange="meta[${d.id}].address = this.value"
-        />
+          value="${s.address}"
+          ${!s.edit ? "disabled" : ""}
+          onchange="schedule[${d.id}].address=this.value"
+        >
       </td>
 
       <td>
@@ -108,10 +98,10 @@ async function render(){
               <span>${w.label} ${w.date}</span>
               <input
                 type="checkbox"
-                ${m.days[w.key] ? "checked" : ""}
-                ${!m.editing ? "disabled" : ""}
-                onchange="meta[${d.id}].days['${w.key}'] = this.checked"
-              />
+                ${s.days[w.key] ? "checked" : ""}
+                ${!s.edit ? "disabled" : ""}
+                onchange="schedule[${d.id}].days['${w.key}']=this.checked"
+              >
             </label>
           `).join("")}
         </div>
@@ -119,9 +109,9 @@ async function render(){
 
       <td>
         ${
-          m.editing
-          ? `<button class="action-btn save" onclick="saveDriver(${d.id})">Save</button>`
-          : `<button class="action-btn edit" onclick="editDriver(${d.id})">Edit</button>`
+          s.edit
+            ? `<button onclick="saveDriver(${d.id})">Save</button>`
+            : `<button onclick="editDriver(${d.id})">Edit</button>`
         }
       </td>
     `;
@@ -129,18 +119,18 @@ async function render(){
     tbody.appendChild(tr);
   });
 
-  saveMeta();
+  save();
 }
 
 /* ================= ACTIONS ================= */
-function editDriver(id){
-  meta[id].editing = true;
+function editDriver(id) {
+  schedule[id].edit = true;
   render();
 }
 
-function saveDriver(id){
-  meta[id].editing = false;
-  saveMeta();
+function saveDriver(id) {
+  schedule[id].edit = false;
+  save();
   render();
 }
 
