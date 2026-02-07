@@ -1,62 +1,56 @@
-console.log("✅ Admin Map Loaded");
-
-let map;
-const markers = {}; // driverId => marker
+console.log("✅ Admin map.js loaded");
 
 /* ===============================
    INIT MAP
 =============================== */
-function initMap() {
-  map = L.map("map").setView([33.4484, -112.0740], 11); // Phoenix
+const map = L.map("map").setView([33.4484, -112.0740], 11); // Phoenix
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap"
-  }).addTo(map);
-
-  loadDriverLocations();
-  setInterval(loadDriverLocations, 5000); // تحديث كل 5 ثواني
-}
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap"
+}).addTo(map);
 
 /* ===============================
    DRIVER ICON
 =============================== */
 const driverIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/741/741407.png",
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-  popupAnchor: [0, -18]
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/194/194640.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32]
 });
 
 /* ===============================
-   LOAD ALL DRIVER LOCATIONS
+   MARKERS STORAGE
 =============================== */
-function loadDriverLocations() {
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
+const markers = {};
 
-    if (!key.startsWith("driverLocation_")) continue;
+/* ===============================
+   LOAD DRIVERS LOCATIONS
+=============================== */
+function loadDrivers() {
+  Object.keys(localStorage).forEach(key => {
+    if (!key.startsWith("driverLocation_")) return;
 
     const data = JSON.parse(localStorage.getItem(key));
-    if (!data || !data.lat || !data.lng) continue;
+    if (!data || !data.lat || !data.lng) return;
 
-    const id = data.id;
-    const latlng = [data.lat, data.lng];
-
-    if (!markers[id]) {
-      markers[id] = L.marker(latlng, { icon: driverIcon })
+    if (!markers[data.driverId]) {
+      markers[data.driverId] = L.marker(
+        [data.lat, data.lng],
+        { icon: driverIcon }
+      )
         .addTo(map)
         .bindPopup(
           `<b>${data.name}</b><br>
-           Lat: ${data.lat.toFixed(5)}<br>
-           Lng: ${data.lng.toFixed(5)}`
+           ${new Date(data.updatedAt).toLocaleTimeString()}`
         );
     } else {
-      markers[id].setLatLng(latlng);
+      markers[data.driverId].setLatLng([data.lat, data.lng]);
     }
-  }
+  });
 }
 
 /* ===============================
-   INIT
+   AUTO REFRESH
 =============================== */
-initMap();
+loadDrivers();
+setInterval(loadDrivers, 5000);
