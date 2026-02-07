@@ -1,5 +1,5 @@
 /* ================= CONFIG ================= */
-const API = `${location.protocol}//${location.hostname}:4000/api/users?role=driver`;
+const API = "/api/users?role=driver";   // ✅ نفس السيرفر
 const META_KEY = "driverScheduleMeta";
 
 /* ================= STORAGE ================= */
@@ -13,7 +13,7 @@ function azNow(){
   );
 }
 
-/* ================= WEEK (AZ DYNAMIC) ================= */
+/* ================= WEEK (AZ) ================= */
 const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const start = azNow();
 const week = [];
@@ -25,18 +25,20 @@ for(let i=0;i<7;i++){
   week.push({
     label: dayNames[d.getDay()],
     date: `${d.getMonth()+1}/${d.getDate()}`,
-    key: d.toISOString().slice(0,10) // YYYY-MM-DD (AZ)
+    key: d.toISOString().slice(0,10) // YYYY-MM-DD
   });
 }
 
-document.getElementById("weekTitle").innerText =
-  `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
+const weekTitle = document.getElementById("weekTitle");
+if (weekTitle) {
+  weekTitle.innerText = `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
+}
 
 /* ================= LOAD DRIVERS ================= */
 async function loadDrivers(){
   const res = await fetch(API);
   if(!res.ok) throw new Error("Drivers API error");
-  return await res.json(); // [{id,name,username}]
+  return await res.json(); // [{id,name,username,role}]
 }
 
 /* ================= SAVE META ================= */
@@ -51,8 +53,24 @@ async function render(){
   let drivers = [];
   try {
     drivers = await loadDrivers();
-  } catch {
-    tbody.innerHTML = `<tr><td colspan="6">Failed to load drivers</td></tr>`;
+  } catch (e) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="color:red;text-align:center">
+          ❌ Failed to load drivers
+        </td>
+      </tr>`;
+    console.error(e);
+    return;
+  }
+
+  if (!drivers.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center">
+          No drivers found
+        </td>
+      </tr>`;
     return;
   }
 
@@ -69,7 +87,7 @@ async function render(){
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td>${i+1}</td>
+      <td>${i + 1}</td>
 
       <td>${d.name}</td>
 
@@ -77,24 +95,24 @@ async function render(){
 
       <td>
         <input
-          value="${m.address}"
+          value="${m.address || ""}"
           ${!m.editing ? "disabled" : ""}
           onchange="meta[${d.id}].address = this.value"
-        >
+        />
       </td>
 
       <td>
         <div class="week-box">
           ${week.map(w => `
-            <div class="day-box">
-              <div class="day-label">${w.label} ${w.date}</div>
+            <label class="day-box">
+              <span>${w.label} ${w.date}</span>
               <input
                 type="checkbox"
                 ${m.days[w.key] ? "checked" : ""}
                 ${!m.editing ? "disabled" : ""}
                 onchange="meta[${d.id}].days['${w.key}'] = this.checked"
-              >
-            </div>
+              />
+            </label>
           `).join("")}
         </div>
       </td>
