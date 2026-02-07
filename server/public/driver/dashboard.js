@@ -1,14 +1,28 @@
 // ===============================
-// DRIVER AUTH CHECK
+// DRIVER AUTH CHECK (SAFE)
 // ===============================
-const driver = JSON.parse(localStorage.getItem("loggedDriver"));
+const raw = localStorage.getItem("loggedDriver");
 
-if (!driver) {
-  window.location.href = "login.html";
+if (!raw) {
+  window.location.replace("../login.html");
+  throw new Error("Driver not logged in");
+}
+
+let driver;
+try {
+  driver = JSON.parse(raw);
+} catch (e) {
+  localStorage.removeItem("loggedDriver");
+  window.location.replace("../login.html");
+  throw new Error("Invalid driver data");
 }
 
 // ===============================
-// BASIC DRIVER INFO
+// PAGE READY
 // ===============================
-document.getElementById("welcomeText").innerText =
-  `Welcome ${driver.name || "Driver"}`;
+document.addEventListener("DOMContentLoaded", () => {
+  const welcome = document.getElementById("welcomeText");
+  if (welcome) {
+    welcome.innerText = `Welcome ${driver.name || "Driver"}`;
+  }
+});

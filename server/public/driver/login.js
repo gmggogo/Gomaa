@@ -1,7 +1,7 @@
 // ===============================
-// CONFIG
+// CONFIG (Same Origin - works on Render + Local)
 // ===============================
-const API_BASE = "/api";
+const API_BASE = `${location.origin}/api`;
 
 // ===============================
 // DOM READY
@@ -28,33 +28,45 @@ async function login() {
   }
 
   try {
-    // نجيب كل اليوزرز من نفس السيرفر
-    const res = await fetch(`${API_BASE}/users`);
+    const res = await fetch(`${API_BASE}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    // اقرأ الرد كنص الأول عشان لو السيرفر رجّع HTML نفهم
+    const text = await res.text();
+
     if (!res.ok) {
-      alert("Server error");
+      // لو السيرفر بيرجع رسالة
+      alert(text || "Invalid login");
       return;
     }
 
-    const users = await res.json();
-
-    // نفلتر السواقين بس
-    const user = users.find(
-      u =>
-        u.role === "driver" &&
-        u.username === username &&
-        u.password === password &&
-        u.active === true
-    );
-
-    if (!user) {
-      alert("Invalid driver login");
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      alert("Server returned non-JSON (routing/server issue)");
       return;
     }
 
-    // نخزن بنفس نظام باقي المشروع
-    localStorage.setItem("loggedUser", JSON.stringify(user));
+    if (!data.success || !data.user) {
+      alert("Login failed");
+      return;
+    }
 
-    // تحويل مباشر لداشبورد السواق
+    const user = data.user;
+
+    if (user.role !== "driver") {
+      alert("This login is for drivers only");
+      return;
+    }
+
+    // IMPORTANT: نفس المفتاح اللي الداشبورد بيقرأه
+    localStorage.setItem("loggedDriver", JSON.stringify(user));
+
+    // مهم: مسار صحيح داخل فولدر driver
     window.location.href = "dashboard.html";
 
   } catch (err) {
