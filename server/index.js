@@ -34,10 +34,43 @@ function nextId(list) {
   return list.length ? Math.max(...list.map(u => Number(u.id) || 0)) + 1 : 1;
 }
 
-// health
+// ===============================
+// HEALTH
+// ===============================
 app.get("/health", (req, res) => res.send("OK"));
 
-// ====== API: /api/users ======
+// ===============================
+// LOGIN  ✅ (المهم)
+// ===============================
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Missing credentials" });
+  }
+
+  const users = readUsers();
+
+  const user = users.find(
+    u =>
+      u.username === username &&
+      u.password === password &&
+      u.active === true
+  );
+
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Invalid login" });
+  }
+
+  res.json({
+    success: true,
+    user
+  });
+});
+
+// ===============================
+// USERS CRUD
+// ===============================
 app.get("/api/users", (req, res) => {
   const role = (req.query.role || "").toLowerCase();
   let users = readUsers();
@@ -52,7 +85,11 @@ app.post("/api/users", (req, res) => {
   }
 
   const users = readUsers();
-  const exists = users.some(u => (u.username || "").toLowerCase() === String(username).toLowerCase() && (u.role || "").toLowerCase() === String(role).toLowerCase());
+  const exists = users.some(
+    u =>
+      u.username.toLowerCase() === username.toLowerCase() &&
+      u.role.toLowerCase() === role.toLowerCase()
+  );
   if (exists) return res.status(409).send("User already exists");
 
   const user = {
@@ -97,7 +134,9 @@ app.delete("/api/users/:id", (req, res) => {
   res.json({ ok: true });
 });
 
-// IMPORTANT: no wildcard redirect to index.html
+// ===============================
+// START SERVER
+// ===============================
 app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
 });
