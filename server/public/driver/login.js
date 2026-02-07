@@ -1,4 +1,6 @@
-async function login() {
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
 
@@ -14,29 +16,27 @@ async function login() {
       body: JSON.stringify({ username, password })
     });
 
-    const data = await res.json();
-
-    if (!data.success || !data.user) {
+    if (!res.ok) {
       alert("Invalid login");
       return;
     }
 
-    const user = data.user;
+    const data = await res.json();
 
-    // 🔴 شرط السواق
-    if (user.role !== "driver") {
+    // 🔒 تأكيد إنه Driver
+    if (!data.user || data.user.role !== "driver") {
       alert("Not a driver account");
       return;
     }
 
     // ✅ التخزين الصح
-    localStorage.setItem("loggedDriver", JSON.stringify(user));
+    localStorage.setItem("loggedDriver", JSON.stringify(data.user));
 
-    // ✅ التحويل الصح
-    window.location.href = "dashboard.html";
+    // ✅ تحويل مباشر
+    window.location.href = "/driver/dashboard.html";
 
   } catch (err) {
     console.error(err);
     alert("Server error");
   }
-}
+});
