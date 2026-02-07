@@ -94,11 +94,19 @@
 
 <body>
 
-<!-- 🔒 AUTH PROTECTION -->
+<!-- 🔒 DRIVER AUTH -->
 <script>
-  const user = JSON.parse(localStorage.getItem("loggedUser"));
+  const driverRaw = localStorage.getItem("loggedDriver");
 
-  if (!user || user.role !== "driver") {
+  if (!driverRaw) {
+    window.location.href = "/driver/login.html";
+  }
+
+  let driver;
+  try {
+    driver = JSON.parse(driverRaw);
+  } catch {
+    localStorage.removeItem("loggedDriver");
     window.location.href = "/driver/login.html";
   }
 </script>
@@ -157,7 +165,7 @@
 
 <script>
   document.getElementById("driverName").innerText =
-    user.name || user.username || "Driver";
+    driver.name || driver.username || "Driver";
 
   function showSection(id, btn) {
     document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
@@ -167,7 +175,7 @@
   }
 
   function logout() {
-    localStorage.removeItem("loggedUser");
+    localStorage.removeItem("loggedDriver");
     window.location.href = "/driver/login.html";
   }
 </script>
