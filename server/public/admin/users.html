@@ -2,34 +2,160 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admins</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Admin – Users</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      background: #f3f4f6;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #111827;
+      color: white;
+      padding: 15px;
+    }
+
+    .sidebar h3 {
+      color: #facc15;
+      margin-top: 0;
+    }
+
+    .sidebar button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 6px;
+      border: none;
+      background: #1f2937;
+      color: white;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .sidebar button.active {
+      background: #2563eb;
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      padding: 20px;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    input {
+      padding: 6px;
+      margin-right: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      margin-top: 15px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #e5e7eb;
+    }
+
+    .btn {
+      padding: 5px 8px;
+      margin-right: 4px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .edit {
+      background: #facc15;
+    }
+
+    .save {
+      background: #22c55e;
+      color: white;
+    }
+
+    .delete {
+      background: #ef4444;
+      color: white;
+    }
+
+    .toggle {
+      background: #3b82f6;
+      color: white;
+    }
+  </style>
 </head>
+
 <body>
 
-<header class="top">
-  <button onclick="history.back()">← Back</button>
-  <h1>Sunbeam Transportation – Admins</h1>
-</header>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h3>Users</h3>
 
-<div class="box">
-  <input id="inputName" placeholder="Name">
-  <input id="inputUsername" placeholder="Username">
-  <input id="inputPassword" placeholder="Password">
-  <button onclick="addUser()">Add</button>
-</div>
+    <button onclick="switchRole('company')" id="btn-company">
+      Companies
+    </button>
 
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Username</th>
-      <th>Status</th>
-    </tr>
-  </thead>
-  <tbody id="list"></tbody>
-</table>
+    <button onclick="switchRole('admin')" id="btn-admin">
+      Admins
+    </button>
 
-<script src="users.js"></script>
+    <button onclick="switchRole('dispatcher')" id="btn-dispatcher">
+      Dispatchers
+    </button>
+
+    <button onclick="switchRole('driver')" id="btn-driver">
+      Drivers
+    </button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <h2 id="pageTitle"></h2>
+
+    <!-- FORM -->
+    <div>
+      <input id="inputName" placeholder="Name">
+      <input id="inputUsername" placeholder="Username">
+      <input id="inputPassword" placeholder="Password">
+      <button class="btn save" onclick="addUser()">Add</button>
+    </div>
+
+    <!-- TABLE -->
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Password</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody id="usersTable"></tbody>
+    </table>
+  </div>
+
+  <!-- JS -->
+  <script src="users.js"></script>
 </body>
 </html>
