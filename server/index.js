@@ -1,53 +1,56 @@
 const express = require("express");
-const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// ===============================
+// MIDDLEWARE
+// ===============================
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ===============================
 // STATIC FILES
 // ===============================
-app.use(express.static(path.join(__dirname, "public")));
+const PUBLIC_DIR = path.join(__dirname, "public");
+app.use(express.static(PUBLIC_DIR));
 
 // ===============================
-// USERS DB (واحد بس)
+// DATABASE
 // ===============================
-const DB_PATH = path.join(__dirname, "data", "users.json");
+const DATA_DIR = path.join(__dirname, "data");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
+
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "[]");
 
 function readUsers() {
-  try {
-    return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
-  } catch {
-    return [];
-  }
+  return JSON.parse(fs.readFileSync(USERS_FILE, "utf-8"));
+}
+
+function writeUsers(users) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+function nextId(users) {
+  return users.length ? Math.max(...users.map(u => u.id)) + 1 : 1;
 }
 
 // ===============================
-// HEALTH
-// ===============================
-app.get("/health", (req, res) => res.send("OK"));
-
-// ===============================
-// LOGIN API  ✅ صح
+// API – LOGIN
 // ===============================
 app.post("/api/login", (req, res) => {
-  const { username, password } = req.body || {};
-
-  if (!username || !password) {
-    return res.status(400).json({ success: false });
-  }
-
+  const { username, password } = req.body;
   const users = readUsers();
 
   const user = users.find(
     u =>
-      String(u.username).toLowerCase() === String(username).toLowerCase() &&
-      String(u.password) === String(password) &&
+      u.username === username &&
+      u.password === password &&
       u.active !== false
   );
 
@@ -60,29 +63,62 @@ app.post("/api/login", (req, res) => {
     user: {
       id: user.id,
       name: user.name,
-      username: user.username,
       role: user.role
     }
   });
 });
 
 // ===============================
-// USERS API (للديسبتش/الأدمن)
+// API – USERS (CRUD)
 // ===============================
 app.get("/api/users", (req, res) => {
-  const role = (req.query.role || "").toLowerCase();
-  let users = readUsers();
+  res.json(readUsers());
+});
 
-  if (role) {
-    users = users.filter(u => (u.role || "").toLowerCase() === role);
+app.post("/api/users", (req, res) => {
+  const { name, username, password, role } = req.body;
+
+  if (!name || !username || !password || !role) {
+    return res.status(400).json({ message: "Missing fields" });
   }
 
-  res.json(users);
+  const users = readUsers();
+
+  if (users.some(u => u.username === username && u.role === role)) {
+    return res.status(409).json({ message: "User exists" });
+  }
+
+  const user = {
+    id: nextId(users),
+    name,
+    username,
+    password,
+    role,
+    active: true
+  };
+
+  users.push(user);
+  writeUsers(users);
+  res.json(user);
+});
+
+// ===============================
+// HEALTH
+// ===============================
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
+
+// ===============================
+// FALLBACK
+// ===============================
+app.use((req, res) => {
+  res.status(404).send("Not Found");
 });
 
 // ===============================
 // START
 // ===============================
 app.listen(PORT, () => {
-  console.log("🚀 Sunbeam running on port", PORT);
+  console.log("🚀 Sunbeam server running on", PORT);
 });

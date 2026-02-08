@@ -1,66 +1,10 @@
 [
   {
-    "id": 1769594347651,
-    "name": "sun",
-    "username": "sun",
-    "password": "1234",
-    "role": "company",
-    "active": true
-  },
-  {
-    "id": 1769594566129,
-    "name": "now",
-    "username": "now",
-    "password": "1234",
-    "role": "company",
-    "active": true
-  },
-  {
-    "id": 1769594796006,
-    "name": "GOMAA HASSANEIN",
-    "username": "fathy",
+    "id": 1,
+    "name": "Admin",
+    "username": "admin",
     "password": "1234",
     "role": "admin",
-    "active": true
-  },
-  {
-    "id": 1769596719338,
-    "name": "ana",
-    "username": "ana",
-    "password": "1234",
-    "role": "company",
-    "active": true
-  },
-  {
-    "id": 1769596772670,
-    "name": "ahmed",
-    "username": "ahmed2025",
-    "password": "1234",
-    "role": "admin",
-    "active": true
-  },
-  {
-    "id": 1770197514806,
-    "name": "hassan ahmed",
-    "username": "hassan",
-    "password": "1234",
-    "role": "driver",
-    "active": true
-  },
-  {
-    "id": 1770197531421,
-    "name": "mohmed gomaa",
-    "username": "mohamed",
-    "password": "1234",
-    "role": "driver",
-    "active": true
-  },
-  {
-    "id": 1770197541862,
-    "name": "adel ",
-    "username": "adel ",
-    "password": "1234",
-    "role": "driver",
     "active": true
   }
 ]
