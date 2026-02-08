@@ -13,84 +13,101 @@ app.use(express.static(path.join(__dirname, "public")));
 /* =========================
    HELPERS
 ========================= */
-function readJSON(file) {
-  return JSON.parse(
-    fs.readFileSync(path.join(__dirname, "data", file), "utf8")
+const dataDir = path.join(__dirname, "data");
+
+function read(file) {
+  return JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
+}
+
+function write(file, data) {
+  fs.writeFileSync(
+    path.join(dataDir, file),
+    JSON.stringify(data, null, 2)
   );
 }
 
 /* =========================
-   LOGIN ROUTES
+   GENERIC CRUD
 ========================= */
+function crud(file) {
+  const r = express.Router();
 
-// ADMIN LOGIN
-app.post("/api/login/admin", (req, res) => {
-  const { username, password } = req.body;
-  const admins = readJSON("admins.json");
+  r.get("/", (req, res) => {
+    res.json(read(file));
+  });
 
-  const user = admins.find(
-    u => u.username === username && u.password === password && u.active
-  );
+  r.post("/", (req, res) => {
+    const list = read(file);
+    const item = {
+      id: Date.now(),
+      active: true,
+      ...req.body
+    };
+    list.push(item);
+    write(file, list);
+    res.json(item);
+  });
 
-  if (!user) return res.status(401).json({ error: "Invalid admin login" });
+  r.put("/:id", (req, res) => {
+    const list = read(file);
+    const i = list.findIndex(x => x.id == req.params.id);
+    if (i === -1) return res.status(404).json({ error: "Not found" });
 
-  res.json({ success: true, user });
-});
+    list[i] = { ...list[i], ...req.body };
+    write(file, list);
+    res.json(list[i]);
+  });
 
-// DRIVER LOGIN
-app.post("/api/login/driver", (req, res) => {
-  const { username, password } = req.body;
-  const drivers = readJSON("drivers.json");
+  r.delete("/:id", (req, res) => {
+    const list = read(file).filter(x => x.id != req.params.id);
+    write(file, list);
+    res.json({ success: true });
+  });
 
-  const user = drivers.find(
-    u => u.username === username && u.password === password && u.active
-  );
-
-  if (!user) return res.status(401).json({ error: "Invalid driver login" });
-
-  res.json({ success: true, user });
-});
-
-// COMPANY LOGIN
-app.post("/api/login/company", (req, res) => {
-  const { username, password } = req.body;
-  const companies = readJSON("companies.json");
-
-  const user = companies.find(
-    u => u.username === username && u.password === password && u.active
-  );
-
-  if (!user) return res.status(401).json({ error: "Invalid company login" });
-
-  res.json({ success: true, user });
-});
+  return r;
+}
 
 /* =========================
-   USERS LIST (ADMIN)
+   API ROUTES (FINAL)
 ========================= */
-
-app.get("/api/admin/drivers", (req, res) => {
-  res.json(readJSON("drivers.json"));
-});
-
-app.get("/api/admin/companies", (req, res) => {
-  res.json(readJSON("companies.json"));
-});
-
-app.get("/api/admin/dispatchers", (req, res) => {
-  res.json(readJSON("dispatchers.json"));
-});
+app.use("/api/admins", crud("admins.json"));
+app.use("/api/companies", crud("companies.json"));
+app.use("/api/drivers", crud("drivers.json"));
+app.use("/api/dispatchers", crud("dispatchers.json"));
 
 /* =========================
-   FALLBACK
+   LOGIN (SAFE – NO MIXING)
 ========================= */
-app.use((req, res) => {
-  res.status(404).json({ error: "API Not Found" });
+app.post("/api/login/:role", (req, res) => {
+  const { role } = req.params;
+  const { username, password } = req.body;
+
+  const map = {
+    admin: "admins.json",
+    company: "companies.json",
+    driver: "drivers.json",
+    dispatcher: "dispatchers.json"
+  };
+
+  if (!map[role]) return res.status(400).json({ error: "Invalid role" });
+
+  const users = read(map[role]);
+  const user = users.find(
+    u => u.username === username && u.password === password && u.active
+  );
+
+  if (!user) return res.status(401).json({ error: "Invalid login" });
+
+  res.json({
+    id: user.id,
+    name: user.name,
+    role
+  });
 });
 
 /* =========================
    START
 ========================= */
 app.listen(PORT, () => {
-  console.log("✅ Sunbeam Server running on port", PORT);
+  console.log("SERVER RUNNING ON", PORT);
 });
