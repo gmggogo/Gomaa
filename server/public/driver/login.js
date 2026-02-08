@@ -1,16 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
-
   const form = document.getElementById("loginForm");
   const usernameInput = document.getElementById("username");
   const passwordInput = document.getElementById("password");
 
   if (!form || !usernameInput || !passwordInput) {
-    console.error("Login form elements missing");
+    console.error("Login elements not found");
     return;
   }
 
   form.addEventListener("submit", async (e) => {
-    e.preventDefault(); // ❗ يمنع الريفريش
+    e.preventDefault();
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
@@ -37,9 +36,11 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.setItem("loggedUser", JSON.stringify(data.user));
 
       if (data.user.role === "driver") {
-        location.href = "/driver/dashboard.html";
+        window.location.href = "/driver/dashboard.html";
+      } else if (data.user.role === "admin") {
+        window.location.href = "/admin/dashboard.html";
       } else {
-        alert("Not a driver account");
+        alert("Unknown role");
       }
 
     } catch (err) {
@@ -47,5 +48,4 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Server error");
     }
   });
-
 });
