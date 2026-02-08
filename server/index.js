@@ -10,104 +10,103 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-/* =========================
+/* ======================
    HELPERS
-========================= */
-const dataDir = path.join(__dirname, "data");
-
-function read(file) {
-  return JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
+====================== */
+function readJSON(file) {
+  return JSON.parse(
+    fs.readFileSync(path.join(__dirname, "data", file), "utf8")
+  );
 }
 
-function write(file, data) {
+function writeJSON(file, data) {
   fs.writeFileSync(
-    path.join(dataDir, file),
+    path.join(__dirname, "data", file),
     JSON.stringify(data, null, 2)
   );
 }
 
-/* =========================
-   GENERIC CRUD
-========================= */
-function crud(file) {
-  const r = express.Router();
+/* ======================
+   USERS API
+====================== */
+app.get("/api/users", (req, res) => {
+  const role = req.query.role;
+  if (!role) return res.json([]);
 
-  r.get("/", (req, res) => {
-    res.json(read(file));
-  });
-
-  r.post("/", (req, res) => {
-    const list = read(file);
-    const item = {
-      id: Date.now(),
-      active: true,
-      ...req.body
-    };
-    list.push(item);
-    write(file, list);
-    res.json(item);
-  });
-
-  r.put("/:id", (req, res) => {
-    const list = read(file);
-    const i = list.findIndex(x => x.id == req.params.id);
-    if (i === -1) return res.status(404).json({ error: "Not found" });
-
-    list[i] = { ...list[i], ...req.body };
-    write(file, list);
-    res.json(list[i]);
-  });
-
-  r.delete("/:id", (req, res) => {
-    const list = read(file).filter(x => x.id != req.params.id);
-    write(file, list);
-    res.json({ success: true });
-  });
-
-  return r;
-}
-
-/* =========================
-   API ROUTES (FINAL)
-========================= */
-app.use("/api/admins", crud("admins.json"));
-app.use("/api/companies", crud("companies.json"));
-app.use("/api/drivers", crud("drivers.json"));
-app.use("/api/dispatchers", crud("dispatchers.json"));
-
-/* =========================
-   LOGIN (SAFE – NO MIXING)
-========================= */
-app.post("/api/login/:role", (req, res) => {
-  const { role } = req.params;
-  const { username, password } = req.body;
-
-  const map = {
-    admin: "admins.json",
-    company: "companies.json",
-    driver: "drivers.json",
-    dispatcher: "dispatchers.json"
-  };
-
-  if (!map[role]) return res.status(400).json({ error: "Invalid role" });
-
-  const users = read(map[role]);
-  const user = users.find(
-    u => u.username === username && u.password === password && u.active
-  );
-
-  if (!user) return res.status(401).json({ error: "Invalid login" });
-
-  res.json({
-    id: user.id,
-    name: user.name,
-    role
-  });
+  try {
+    const users = readJSON(`${role}s.json`);
+    res.json(users);
+  } catch {
+    res.status(404).json({ error: "Role not found" });
+  }
 });
 
-/* =========================
-   START
-========================= */
+app.post("/api/users", (req, res) => {
+  const { name, username, password, role } = req.body;
+  if (!name || !username || !password || !role) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const file = `${role}s.json`;
+  const users = readJSON(file);
+
+  const user = {
+    id: Date.now(),
+    name,
+    username,
+    password,
+    role,
+    active: true
+  };
+
+  users.push(user);
+  writeJSON(file, users);
+  res.json(user);
+});
+
+app.put("/api/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { role, ...updates } = req.body;
+
+  const files = ["admins.json", "companies.json", "dispatchers.json", "drivers.json"];
+
+  for (const file of files) {
+    const users = readJSON(file);
+    const index = users.findIndex(u => u.id === id);
+    if (index !== -1) {
+      users[index] = { ...users[index], ...updates };
+      writeJSON(file, users);
+      return res.json(users[index]);
+    }
+  }
+
+  res.status(404).json({ error: "User not found" });
+});
+
+app.delete("/api/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const files = ["admins.json", "companies.json", "dispatchers.json", "drivers.json"];
+
+  for (const file of files) {
+    let users = readJSON(file);
+    const len = users.length;
+    users = users.filter(u => u.id !== id);
+    if (users.length !== len) {
+      writeJSON(file, users);
+      return res.json({ success: true });
+    }
+  }
+
+  res.status(404).json({ error: "User not found" });
+});
+
+/* ======================
+   FALLBACK
+====================== */
+app.use((req, res) => {
+  res.status(404).json({ error: "API Not Found" });
+});
+
 app.listen(PORT, () => {
   console.log("SERVER RUNNING ON", PORT);
 });
