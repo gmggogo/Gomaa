@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Admin – Users</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
     body {
@@ -14,7 +14,6 @@
       background: #f3f4f6;
     }
 
-    /* Sidebar */
     .sidebar {
       width: 220px;
       background: #111827;
@@ -42,7 +41,6 @@
       background: #2563eb;
     }
 
-    /* Content */
     .content {
       flex: 1;
       padding: 20px;
@@ -76,16 +74,15 @@
 
     .btn {
       padding: 5px 8px;
-      margin-right: 4px;
       border: none;
       cursor: pointer;
       border-radius: 4px;
+      margin-right: 4px;
     }
 
-    .edit { background:#facc15 }
-    .save { background:#22c55e; color:white }
-    .delete { background:#ef4444; color:white }
-    .toggle { background:#3b82f6; color:white }
+    .edit { background: #facc15; }
+    .save { background: #22c55e; color: white; }
+    .delete { background: #ef4444; color: white; }
   </style>
 </head>
 
@@ -93,19 +90,17 @@
 
   <div class="sidebar">
     <h3>Users</h3>
-    <button onclick="switchRole('company')" id="btn-company">Companies</button>
-    <button onclick="switchRole('admin')" id="btn-admin">Admins</button>
-    <button onclick="switchRole('dispatcher')" id="btn-dispatcher">Dispatchers</button>
-    <button onclick="switchRole('driver')" id="btn-driver">Drivers</button>
+    <button class="active">Admins</button>
   </div>
 
   <div class="content">
-    <h2 id="pageTitle"></h2>
+    <button onclick="history.back()">⬅ Back</button>
+    <h2>Admins</h2>
 
     <div>
-      <input id="inputName" placeholder="Name">
-      <input id="inputUsername" placeholder="Username">
-      <input id="inputPassword" placeholder="Password">
+      <input id="name" placeholder="Name">
+      <input id="username" placeholder="Username">
+      <input id="password" placeholder="Password">
       <button class="btn save" onclick="addUser()">Add</button>
     </div>
 
@@ -115,11 +110,10 @@
           <th>Name</th>
           <th>Username</th>
           <th>Password</th>
-          <th>Status</th>
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody id="usersTable"></tbody>
+      <tbody id="table"></tbody>
     </table>
   </div>
 
