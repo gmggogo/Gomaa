@@ -1,5 +1,4 @@
-const API = "/api/users";
-let currentRole = "company";
+let currentRole = "companies";
 
 const table = document.getElementById("usersTable");
 const title = document.getElementById("pageTitle");
@@ -8,49 +7,28 @@ const inputName = document.getElementById("inputName");
 const inputUsername = document.getElementById("inputUsername");
 const inputPassword = document.getElementById("inputPassword");
 
+/* =========================
+   ROLE → API MAP
+========================= */
+const API_MAP = {
+  admins: "/api/admins",
+  companies: "/api/companies",
+  drivers: "/api/drivers",
+  dispatchers: "/api/dispatchers"
+};
+
 document.addEventListener("DOMContentLoaded", () => {
-  switchRole("company");
+  switchRole("companies");
 });
 
 /* =========================
-   LocalStorage mirror for Company Login
-   - we only mirror "company" role
-========================= */
-function saveCompanyUsersToLocalStorage(serverUsers) {
-  if (!Array.isArray(serverUsers)) return;
-
-  // Company login expects: [{name, username, password, active}]
-  const companyUsers = serverUsers
-    .filter(u => u && (u.role === "company" || currentRole === "company"))
-    .map(u => ({
-      name: u.name || "",
-      username: u.username || "",
-      password: u.password || "",
-      active: !!u.active
-    }));
-
-  localStorage.setItem("companyUsers", JSON.stringify(companyUsers));
-}
-
-/* =========================
-   Safe JSON fetch helper
+   Fetch helper
 ========================= */
 async function fetchJson(url, options = {}) {
   const res = await fetch(url, options);
-
-  const contentType = res.headers.get("content-type") || "";
   const text = await res.text();
 
-  if (!res.ok) {
-    // show server message if any
-    throw new Error(text || `Request failed: ${res.status}`);
-  }
-
-  // If server returned HTML, this will prevent "Unexpected token <"
-  if (!contentType.includes("application/json")) {
-    throw new Error("Server returned non-JSON response (HTML). Check API route / server.");
-  }
-
+  if (!res.ok) throw new Error(text);
   return JSON.parse(text);
 }
 
@@ -59,9 +37,11 @@ async function fetchJson(url, options = {}) {
 ========================= */
 function switchRole(role) {
   currentRole = role;
-  title.innerText = role.toUpperCase() + " USERS";
+  title.innerText = role.toUpperCase();
 
-  document.querySelectorAll(".sidebar button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".sidebar button")
+    .forEach(b => b.classList.remove("active"));
+
   document.getElementById("btn-" + role).classList.add("active");
 
   loadUsers();
@@ -74,36 +54,29 @@ async function loadUsers() {
   table.innerHTML = "";
 
   try {
-    const users = await fetchJson(`${API}?role=${currentRole}`);
-
-    // Mirror company users to localStorage for company-login
-    if (currentRole === "company") {
-      saveCompanyUsersToLocalStorage(users);
-    }
+    const users = await fetchJson(API_MAP[currentRole]);
 
     users.forEach(u => {
       const tr = document.createElement("tr");
-
       tr.innerHTML = `
-        <td><input value="${u.name ?? ""}" disabled></td>
-        <td><input value="${u.username ?? ""}" disabled></td>
-        <td><input type="password" value="${u.password ?? ""}" disabled></td>
+        <td><input value="${u.name}" disabled></td>
+        <td><input value="${u.username}" disabled></td>
+        <td><input type="password" value="${u.password}" disabled></td>
         <td>${u.active ? "Active" : "Disabled"}</td>
         <td>
-          <button class="btn edit" onclick="editRow(this)">Edit</button>
-          <button class="btn save" style="display:none" onclick="saveRow(this, ${u.id})">Save</button>
-          <button class="btn toggle" onclick="toggleUser(${u.id}, ${u.active})">
+          <button onclick="editRow(this)">Edit</button>
+          <button style="display:none" onclick="saveRow(this, ${u.id})">Save</button>
+          <button onclick="toggleUser(${u.id}, ${u.active})">
             ${u.active ? "Disable" : "Enable"}
           </button>
-          <button class="btn delete" onclick="deleteUser(${u.id})">Delete</button>
+          <button onclick="deleteUser(${u.id})">Delete</button>
         </td>
       `;
-
       table.appendChild(tr);
     });
 
   } catch (e) {
-    alert("Server not reachable / API error:\n" + e.message);
+    alert(e.message);
   }
 }
 
@@ -117,14 +90,14 @@ async function addUser() {
   }
 
   try {
-    await fetchJson(API, {
+    await fetchJson(API_MAP[currentRole], {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: inputName.value,
         username: inputUsername.value,
         password: inputPassword.value,
-        role: currentRole
+        active: true
       })
     });
 
@@ -134,7 +107,7 @@ async function addUser() {
 
     loadUsers();
   } catch (e) {
-    alert("Add user failed:\n" + e.message);
+    alert(e.message);
   }
 }
 
@@ -153,7 +126,7 @@ async function saveRow(btn, id) {
   const inputs = row.querySelectorAll("input");
 
   try {
-    await fetchJson(`${API}/${id}`, {
+    await fetchJson(`${API_MAP[currentRole]}/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -165,7 +138,7 @@ async function saveRow(btn, id) {
 
     loadUsers();
   } catch (e) {
-    alert("Save failed:\n" + e.message);
+    alert(e.message);
   }
 }
 
@@ -174,7 +147,7 @@ async function saveRow(btn, id) {
 ========================= */
 async function toggleUser(id, active) {
   try {
-    await fetchJson(`${API}/${id}`, {
+    await fetchJson(`${API_MAP[currentRole]}/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ active: !active })
@@ -182,7 +155,7 @@ async function toggleUser(id, active) {
 
     loadUsers();
   } catch (e) {
-    alert("Toggle failed:\n" + e.message);
+    alert(e.message);
   }
 }
 
@@ -193,9 +166,9 @@ async function deleteUser(id) {
   if (!confirm("Delete this user?")) return;
 
   try {
-    await fetchJson(`${API}/${id}`, { method: "DELETE" });
+    await fetchJson(`${API_MAP[currentRole]}/${id}`, { method: "DELETE" });
     loadUsers();
   } catch (e) {
-    alert("Delete failed:\n" + e.message);
+    alert(e.message);
   }
 }
