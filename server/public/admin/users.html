@@ -1,128 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Admin – Users</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- MAIN CSS -->
+  <link rel="stylesheet" href="../style.css" />
 
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
+      background: #f4f6f8;
+    }
+
+    .layout {
       display: flex;
       height: 100vh;
-      background: #f3f4f6;
+      overflow: hidden;
     }
 
-    /* Sidebar */
+    /* SIDEBAR */
     .sidebar {
       width: 220px;
-      background: #111827;
-      color: white;
+      background: #1f2937;
+      color: #fff;
       padding: 15px;
+      display: flex;
+      flex-direction: column;
     }
 
-    .sidebar h3 {
-      color: #facc15;
-      margin-top: 0;
+    .sidebar h2 {
+      margin: 0 0 15px;
+      font-size: 18px;
     }
 
     .sidebar button {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 6px;
+      background: none;
       border: none;
-      background: #1f2937;
-      color: white;
+      color: #fff;
+      padding: 10px;
+      text-align: left;
       cursor: pointer;
-      border-radius: 6px;
+      border-radius: 4px;
     }
 
-    .sidebar button.active {
+    .sidebar button.active,
+    .sidebar button:hover {
       background: #2563eb;
     }
 
-    /* Content */
+    /* CONTENT */
     .content {
       flex: 1;
-      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
-    h2 {
-      margin-top: 0;
+    /* HEADER */
+    .header {
+      height: 55px;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
-    input {
+    .header button {
+      padding: 6px 12px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* PAGE */
+    .page {
+      padding: 15px;
+      overflow: auto;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .form-row input {
       padding: 6px;
-      margin-right: 6px;
+      flex: 1;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      background: white;
-      margin-top: 15px;
+      background: #fff;
     }
 
     th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
       text-align: left;
     }
 
     th {
-      background: #e5e7eb;
+      background: #f1f5f9;
     }
 
     .btn {
-      padding: 5px 8px;
-      margin-right: 4px;
+      padding: 5px 10px;
       border: none;
-      cursor: pointer;
       border-radius: 4px;
+      cursor: pointer;
     }
 
-    .edit { background:#facc15 }
-    .save { background:#22c55e; color:white }
-    .delete { background:#ef4444; color:white }
-    .toggle { background:#3b82f6; color:white }
+    .btn-add {
+      background: #16a34a;
+      color: #fff;
+    }
+
+    .btn-del {
+      background: #dc2626;
+      color: #fff;
+    }
   </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <h3>Users</h3>
-  <button onclick="switchRole('companies')" id="btn-companies">Companies</button>
-  <button onclick="switchRole('admins')" id="btn-admins">Admins</button>
-  <button onclick="switchRole('dispatchers')" id="btn-dispatchers">Dispatchers</button>
-  <button onclick="switchRole('drivers')" id="btn-drivers">Drivers</button>
-</div>
+<div class="layout">
 
-  <div class="content">
-    <h2 id="pageTitle"></h2>
-
-    <div>
-      <input id="inputName" placeholder="Name">
-      <input id="inputUsername" placeholder="Username">
-      <input id="inputPassword" placeholder="Password">
-      <button class="btn save" onclick="addUser()">Add</button>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Username</th>
-          <th>Password</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="usersTable"></tbody>
-    </table>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>Users</h2>
+    <button onclick="switchRole('companies')">Companies</button>
+    <button class="active" onclick="switchRole('admins')">Admins</button>
+    <button onclick="switchRole('dispatchers')">Dispatchers</button>
+    <button onclick="switchRole('drivers')">Drivers</button>
   </div>
 
-  <script src="users.js"></script>
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- HEADER -->
+    <div class="header">
+      <strong id="pageTitle">Admins</strong>
+      <button onclick="goBack()">⬅ Back</button>
+    </div>
+
+    <!-- PAGE -->
+    <div class="page">
+
+      <div class="form-row">
+        <input id="name" placeholder="Name">
+        <input id="username" placeholder="Username">
+        <input id="password" placeholder="Password">
+        <button class="btn btn-add" onclick="addUser()">Add</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+
+    </div>
+  </div>
+</div>
+
+<script src="users.js"></script>
 </body>
 </html>

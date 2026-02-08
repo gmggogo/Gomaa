@@ -1,41 +1,25 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
 const cors = require("cors");
-const bcrypt = require("bcryptjs");
+const path = require("path");
+const bcrypt = require("bcryptjs"); // ✅ مهم
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+/* ======================
+   IN-MEMORY USERS (TEMP)
+====================== */
+const admins = [];
 
-function filePath(name) {
-  return path.join(dataDir, name);
-}
-
-function read(file) {
-  if (!fs.existsSync(filePath(file))) return [];
-  return JSON.parse(fs.readFileSync(filePath(file), "utf8"));
-}
-
-function write(file, data) {
-  fs.writeFileSync(filePath(file), JSON.stringify(data, null, 2));
-}
-
-function crud(file) {
-  const api = `/api/${file.replace(".json", "")}`;
-
-  app.get(api, (req, res) => {
-    res.json(read(file));
-  });
-
-  app.post(api, async (req, res) => {
-    const list = read(file);
+/* ======================
+   ADD ADMIN
+====================== */
+app.post("/api/admins", async (req, res) => {
+  try {
     const { name, username, password } = req.body;
 
     if (!name || !username || !password) {
@@ -44,31 +28,31 @@ function crud(file) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    const user = {
+    admins.push({
       id: Date.now(),
       name,
       username,
       password: hash,
-      active: true
-    };
+      status: "active"
+    });
 
-    list.push(user);
-    write(file, list);
-    res.json(user);
-  });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("ADD ADMIN ERROR:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
-  app.delete(`${api}/:id`, (req, res) => {
-    const list = read(file).filter(u => u.id != req.params.id);
-    write(file, list);
-    res.json({ ok: true });
-  });
-}
+/* ======================
+   GET ADMINS
+====================== */
+app.get("/api/admins", (req, res) => {
+  res.json(admins);
+});
 
-crud("admins.json");
-crud("companies.json");
-crud("drivers.json");
-crud("dispatchers.json");
-
+/* ======================
+   START SERVER
+====================== */
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
