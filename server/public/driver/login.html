@@ -37,14 +37,6 @@
       text-align: center;
     }
 
-    /* 🔥 الصورة */
-    .logo {
-      width: 90px;
-      height: 90px;
-      object-fit: contain;
-      margin-bottom: 10px;
-    }
-
     h1 {
       margin: 0;
       font-size: 26px;
@@ -70,11 +62,6 @@
       font-size: 15px;
     }
 
-    input:focus {
-      outline: none;
-      border-color: #2563eb;
-    }
-
     button {
       width: 100%;
       padding: 13px;
@@ -98,21 +85,23 @@
 <body>
 
   <div class="login-box">
-
-
     <h1>Sunbeam <span>Driver</span></h1>
     <p>Driver Login</p>
 
-    <input id="username" type="text" placeholder="Username">
-    <input id="password" type="password" placeholder="Password">
+    <!-- ✅ FORM مهم جدًا -->
+    <form id="loginForm">
+      <input id="username" type="text" placeholder="Username" required>
+      <input id="password" type="password" placeholder="Password" required>
 
-    <button id="loginBtn">LOGIN</button>
+      <button type="submit">LOGIN</button>
+    </form>
 
     <div class="footer">
       © Sunbeam Transportation
     </div>
   </div>
 
-  <script src="login.js"></script>
+  <!-- ✅ كسر الكاش -->
+  <script src="login.js?v=2"></script>
 </body>
 </html>
