@@ -1,87 +1,81 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const bcrypt = require("bcryptjs");
-const cors = require("cors");
-
 const app = express();
-const PORT = process.env.PORT || 3000;
+const path = require("path");
 
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const ADMINS_FILE = path.join(__dirname, "data/admins.json");
+/* ======================
+   ROUTES
+====================== */
+const authRoutes = require("./routes/auth");
 
-function readAdmins() {
-  if (!fs.existsSync(ADMINS_FILE)) return [];
-  return JSON.parse(fs.readFileSync(ADMINS_FILE, "utf8"));
+app.use("/api/auth", authRoutes);
+
+/* ======================
+   USERS API (ADMIN)
+====================== */
+const fs = require("fs");
+
+function readData(file) {
+  const filePath = path.join(__dirname, "data", file);
+  if (!fs.existsSync(filePath)) return [];
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function writeAdmins(data) {
-  fs.writeFileSync(ADMINS_FILE, JSON.stringify(data, null, 2));
+function writeData(file, data) {
+  const filePath = path.join(__dirname, "data", file);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-/* =========================
-   ADD ADMIN
-========================= */
-app.post("/api/admins", async (req, res) => {
-  const { name, username, password } = req.body;
-  if (!name || !username || !password) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const admins = readAdmins();
-  if (admins.find(a => a.username === username)) {
-    return res.status(400).json({ error: "Username exists" });
-  }
-
-  const hash = await bcrypt.hash(password, 10);
-  admins.push({ name, username, password: hash });
-
-  writeAdmins(admins);
-  res.json({ success: true });
-});
-
-/* =========================
-   GET ADMINS
-========================= */
 app.get("/api/admins", (req, res) => {
-  const admins = readAdmins().map(a => ({
-    name: a.name,
-    username: a.username
-  }));
-  res.json(admins);
+  res.json(readData("admins.json"));
 });
 
-/* =========================
-   DELETE ADMIN
-========================= */
-app.delete("/api/admins/:username", (req, res) => {
-  const admins = readAdmins().filter(
-    a => a.username !== req.params.username
-  );
-  writeAdmins(admins);
+app.post("/api/admins", (req, res) => {
+  const list = readData("admins.json");
+  list.push({ ...req.body, id: Date.now(), active: true });
+  writeData("admins.json", list);
   res.json({ success: true });
 });
 
-/* =========================
-   LOGIN
-========================= */
-app.post("/api/admin/login", async (req, res) => {
-  const { username, password } = req.body;
-  const admins = readAdmins();
-
-  const admin = admins.find(a => a.username === username);
-  if (!admin) return res.status(401).json({ error: "Invalid login" });
-
-  const ok = await bcrypt.compare(password, admin.password);
-  if (!ok) return res.status(401).json({ error: "Invalid login" });
-
-  res.json({ name: admin.name, username: admin.username });
+app.get("/api/companies", (req, res) => {
+  res.json(readData("companies.json"));
 });
 
-/* ========================= */
+app.post("/api/companies", (req, res) => {
+  const list = readData("companies.json");
+  list.push({ ...req.body, id: Date.now(), active: true });
+  writeData("companies.json", list);
+  res.json({ success: true });
+});
+
+app.get("/api/dispatchers", (req, res) => {
+  res.json(readData("dispatchers.json"));
+});
+
+app.post("/api/dispatchers", (req, res) => {
+  const list = readData("dispatchers.json");
+  list.push({ ...req.body, id: Date.now(), active: true });
+  writeData("dispatchers.json", list);
+  res.json({ success: true });
+});
+
+app.get("/api/drivers", (req, res) => {
+  res.json(readData("drivers.json"));
+});
+
+app.post("/api/drivers", (req, res) => {
+  const list = readData("drivers.json");
+  list.push({ ...req.body, id: Date.now(), active: true });
+  writeData("drivers.json", list);
+  res.json({ success: true });
+});
+
+/* ======================
+   START
+====================== */
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
