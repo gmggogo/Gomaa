@@ -1,34 +1,19 @@
-let role = "admins";
+const nameInput = document.getElementById("inputName");
+const usernameInput = document.getElementById("inputUsername");
+const passwordInput = document.getElementById("inputPassword");
+const list = document.getElementById("list");
 
-function switchRole(r) {
-  role = r;
-  document.getElementById("pageTitle").innerText =
-    r.charAt(0).toUpperCase() + r.slice(1);
-  loadUsers();
-}
-
-function goBack() {
-  location.href = "../dashboard.html";
-}
-
-async function loadUsers() {
-  const res = await fetch(`/api/${role}`);
+async function load() {
+  const res = await fetch("/api/admins");
   const data = await res.json();
-
-  const body = document.getElementById("tableBody");
-  body.innerHTML = "";
-
-  data.forEach(u => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${u.name || ""}</td>
-      <td>${u.username || ""}</td>
-      <td>${u.active ? "Active" : "Disabled"}</td>
-      <td>
-        <button class="btn btn-del" onclick="deleteUser(${u.id})">Delete</button>
-      </td>
-    `;
-    body.appendChild(tr);
+  list.innerHTML = "";
+  data.forEach(a => {
+    list.innerHTML += `
+      <tr>
+        <td>${a.name}</td>
+        <td>${a.username}</td>
+        <td>${a.status}</td>
+      </tr>`;
   });
 }
 
@@ -42,23 +27,22 @@ async function addUser() {
     return;
   }
 
-  await fetch(`/api/${role}`, {
+  const res = await fetch("/api/admins", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, username, password })
   });
 
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error);
+    return;
+  }
+
   nameInput.value = "";
   usernameInput.value = "";
   passwordInput.value = "";
-
-  loadUsers();
+  load();
 }
 
-async function deleteUser(id) {
-  if (!confirm("Delete user?")) return;
-  await fetch(`/api/${role}/${id}`, { method: "DELETE" });
-  loadUsers();
-}
-
-loadUsers();
+load();

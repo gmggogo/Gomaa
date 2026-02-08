@@ -1,7 +1,8 @@
 const express = require("express");
-const cors = require("cors");
+const fs = require("fs");
 const path = require("path");
-const bcrypt = require("bcryptjs"); // ✅ مهم
+const bcrypt = require("bcryptjs");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,49 +11,45 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-/* ======================
-   IN-MEMORY USERS (TEMP)
-====================== */
-const admins = [];
+const ADMINS_FILE = path.join(__dirname, "data/admins.json");
 
-/* ======================
-   ADD ADMIN
-====================== */
-app.post("/api/admins", async (req, res) => {
-  try {
-    const { name, username, password } = req.body;
+function readAdmins() {
+  if (!fs.existsSync(ADMINS_FILE)) return [];
+  return JSON.parse(fs.readFileSync(ADMINS_FILE));
+}
 
-    if (!name || !username || !password) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
+function writeAdmins(data) {
+  fs.writeFileSync(ADMINS_FILE, JSON.stringify(data, null, 2));
+}
 
-    const hash = await bcrypt.hash(password, 10);
-
-    admins.push({
-      id: Date.now(),
-      name,
-      username,
-      password: hash,
-      status: "active"
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("ADD ADMIN ERROR:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-/* ======================
-   GET ADMINS
-====================== */
 app.get("/api/admins", (req, res) => {
-  res.json(admins);
+  res.json(readAdmins());
 });
 
-/* ======================
-   START SERVER
-====================== */
+app.post("/api/admins", async (req, res) => {
+  const { name, username, password } = req.body;
+  if (!name || !username || !password) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const admins = readAdmins();
+  if (admins.find(a => a.username === username)) {
+    return res.status(400).json({ error: "Username exists" });
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  admins.push({
+    id: Date.now(),
+    name,
+    username,
+    password: hash,
+    status: "active"
+  });
+
+  writeAdmins(admins);
+  res.json({ success: true });
+});
+
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
