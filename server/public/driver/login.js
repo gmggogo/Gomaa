@@ -1,32 +1,19 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById("loginForm");
-  const usernameEl = document.getElementById("username");
-  const passwordEl = document.getElementById("password");
-  const errorBox = document.getElementById("error");
+  const btn = document.getElementById("loginBtn");
+  const userEl = document.getElementById("username");
+  const passEl = document.getElementById("password");
 
-  if (!form || !usernameEl || !passwordEl || !errorBox) {
+  if (!btn || !userEl || !passEl) {
     console.error("Driver login elements missing");
     return;
   }
 
-  // لو السواق عامل لوجن قبل كده
-  try {
-    const saved = JSON.parse(localStorage.getItem("loggedDriver"));
-    if (saved && saved.role === "driver") {
-      window.location.href = "/driver/dashboard.html";
-      return;
-    }
-  } catch {}
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    errorBox.innerText = "";
-
-    const username = usernameEl.value.trim();
-    const password = passwordEl.value.trim();
+  btn.addEventListener("click", async () => {
+    const username = userEl.value.trim();
+    const password = passEl.value.trim();
 
     if (!username || !password) {
-      errorBox.innerText = "Enter username and password";
+      alert("Enter username and password");
       return;
     }
 
@@ -40,29 +27,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        errorBox.innerText = "Wrong username or password";
+        alert("Wrong username or password");
         return;
       }
 
       if (data.role !== "driver") {
-        errorBox.innerText = "This account is not a driver";
+        alert("This account is not a driver");
         return;
       }
 
-      // ✅ تخزين جلسة السواق فقط
-      localStorage.setItem("loggedDriver", JSON.stringify({
-        id: data.id,
-        username: data.username,
-        name: data.name,
-        role: "driver",
-        loginAt: Date.now()
-      }));
+      // ✅ نحفظ السواق
+      localStorage.setItem("loggedDriver", JSON.stringify(data));
 
+      // دخول على داشبورد السواق
       window.location.href = "/driver/dashboard.html";
 
-    } catch (err) {
-      console.error(err);
-      errorBox.innerText = "Server error";
+    } catch (e) {
+      console.error(e);
+      alert("Server error");
     }
   });
 });
