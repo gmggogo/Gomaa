@@ -1,21 +1,35 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("loginForm");
-  const usernameInput = document.getElementById("username");
-  const passwordInput = document.getElementById("password");
+  const usernameEl = document.getElementById("username");
+  const passwordEl = document.getElementById("password");
+  const errorBox = document.getElementById("error");
 
-  if (!form || !usernameInput || !passwordInput) {
-    console.error("Login elements not found");
+  if (!form || !usernameEl || !passwordEl) {
+    console.error("Login elements missing");
     return;
+  }
+
+  // لو السواق داخل قبل كده
+  const saved = localStorage.getItem("loggedDriver");
+  if (saved) {
+    try {
+      const d = JSON.parse(saved);
+      if (d.role === "driver") {
+        location.href = "/driver/dashboard.html";
+        return;
+      }
+    } catch {}
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    errorBox.innerText = "";
 
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value.trim();
+    const username = usernameEl.value.trim();
+    const password = passwordEl.value.trim();
 
     if (!username || !password) {
-      alert("Enter username and password");
+      errorBox.innerText = "Enter username and password";
       return;
     }
 
@@ -28,24 +42,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await res.json();
 
-      if (!data.success) {
-        alert(data.message || "Login failed");
+      if (!res.ok || !data.success) {
+        errorBox.innerText = "Wrong username or password";
         return;
       }
 
-      localStorage.setItem("loggedUser", JSON.stringify(data.user));
-
-      if (data.user.role === "driver") {
-        window.location.href = "/driver/dashboard.html";
-      } else if (data.user.role === "admin") {
-        window.location.href = "/admin/dashboard.html";
-      } else {
-        alert("Unknown role");
+      if (data.role !== "driver") {
+        errorBox.innerText = "This account is not a driver";
+        return;
       }
+
+      // session السواق فقط
+      localStorage.setItem("loggedDriver", JSON.stringify({
+        id: data.id || null,
+        username: data.username,
+        name: data.name,
+        role: "driver",
+        loginAt: Date.now()
+      }));
+
+      // نمسح أي لوجن تاني
+      localStorage.removeItem("loggedCompany");
+      localStorage.removeItem("loggedUser");
+
+      location.href = "/driver/dashboard.html";
 
     } catch (err) {
       console.error(err);
-      alert("Server error");
+      errorBox.innerText = "Server error";
     }
   });
 });

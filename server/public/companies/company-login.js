@@ -1,42 +1,31 @@
 const form = document.getElementById("loginForm");
 const errorBox = document.getElementById("error");
 
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", (e) => {
   e.preventDefault();
-  errorBox.innerText = "";
 
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
 
-  if (!username || !password) {
-    errorBox.innerText = "Enter username and password";
+  const users = JSON.parse(localStorage.getItem("companyUsers")) || [];
+
+  const company = users.find(u =>
+    u.username === username &&
+    u.password === password &&
+    u.active === true
+  );
+
+  if (!company) {
+    errorBox.innerText = "Invalid login or account disabled";
     return;
   }
 
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
+  // نخزن الشركة اللي دخلت
+  localStorage.setItem("loggedCompany", JSON.stringify({
+    name: company.name,
+    username: company.username
+  }));
 
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      errorBox.innerText = "Invalid login or account disabled";
-      return;
-    }
-
-    if (data.user.role !== "company") {
-      errorBox.innerText = "This account is not a company";
-      return;
-    }
-
-    localStorage.setItem("loggedCompany", JSON.stringify(data.user));
-    window.location.href = "dashboard.html";
-
-  } catch (err) {
-    console.error(err);
-    errorBox.innerText = "Server error";
-  }
+  // دخول على داشبورد الشركات
+  window.location.href = "dashboard.html";
 });
