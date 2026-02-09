@@ -1,81 +1,112 @@
 const express = require("express");
-const app = express();
+const cors = require("cors");
 const path = require("path");
-
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
-
-/* ======================
-   ROUTES
-====================== */
-const authRoutes = require("./routes/auth");
-
-app.use("/api/auth", authRoutes);
-
-/* ======================
-   USERS API (ADMIN)
-====================== */
 const fs = require("fs");
 
-function readData(file) {
-  const filePath = path.join(__dirname, "data", file);
-  if (!fs.existsSync(filePath)) return [];
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function writeData(file, data) {
-  const filePath = path.join(__dirname, "data", file);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-app.get("/api/admins", (req, res) => {
-  res.json(readData("admins.json"));
-});
-
-app.post("/api/admins", (req, res) => {
-  const list = readData("admins.json");
-  list.push({ ...req.body, id: Date.now(), active: true });
-  writeData("admins.json", list);
-  res.json({ success: true });
-});
-
-app.get("/api/companies", (req, res) => {
-  res.json(readData("companies.json"));
-});
-
-app.post("/api/companies", (req, res) => {
-  const list = readData("companies.json");
-  list.push({ ...req.body, id: Date.now(), active: true });
-  writeData("companies.json", list);
-  res.json({ success: true });
-});
-
-app.get("/api/dispatchers", (req, res) => {
-  res.json(readData("dispatchers.json"));
-});
-
-app.post("/api/dispatchers", (req, res) => {
-  const list = readData("dispatchers.json");
-  list.push({ ...req.body, id: Date.now(), active: true });
-  writeData("dispatchers.json", list);
-  res.json({ success: true });
-});
-
-app.get("/api/drivers", (req, res) => {
-  res.json(readData("drivers.json"));
-});
-
-app.post("/api/drivers", (req, res) => {
-  const list = readData("drivers.json");
-  list.push({ ...req.body, id: Date.now(), active: true });
-  writeData("drivers.json", list);
-  res.json({ success: true });
-});
-
-/* ======================
-   START
-====================== */
+const app = express();
 const PORT = process.env.PORT || 10000;
+
+app.use(cors());
+app.use(express.json());
+
+/* =========================
+   STATIC FILES
+========================= */
+app.use(express.static(path.join(__dirname, "public")));
+
+/* =========================
+   DATABASE (users.json)
+========================= */
+const DB_PATH = path.join(__dirname, "users.json");
+
+function readUsers() {
+  if (!fs.existsSync(DB_PATH)) return [];
+  return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+}
+
+function saveUsers(users) {
+  fs.writeFileSync(DB_PATH, JSON.stringify(users, null, 2));
+}
+
+/* =========================
+   ADMIN USERS API (USED BY users.js)
+========================= */
+app.get("/api/admin/users", (req, res) => {
+  const role = req.query.role;
+  const users = readUsers();
+  const filtered = role ? users.filter(u => u.role === role) : users;
+  res.json(filtered);
+});
+
+app.post("/api/admin/users", (req, res) => {
+  const { name, username, password, role } = req.body;
+  if (!name || !username || !password || !role) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const users = readUsers();
+  if (users.find(u => u.username === username)) {
+    return res.status(400).json({ error: "Username already exists" });
+  }
+
+  const newUser = {
+    id: Date.now(),
+    name,
+    username,
+    password,
+    role,
+    active: true
+  };
+
+  users.push(newUser);
+  saveUsers(users);
+  res.json(newUser);
+});
+
+app.put("/api/admin/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const users = readUsers();
+  const user = users.find(u => u.id === id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  Object.assign(user, req.body);
+  saveUsers(users);
+  res.json(user);
+});
+
+app.delete("/api/admin/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const users = readUsers().filter(u => u.id !== id);
+  saveUsers(users);
+  res.json({ success: true });
+});
+
+/* =========================
+   LOGIN API
+========================= */
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+  const users = readUsers();
+
+  const user = users.find(
+    u => u.username === username && u.password === password && u.active
+  );
+
+  if (!user) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  res.json({
+    success: true,
+    username: user.username,
+    role: user.role,
+    name: user.name
+  });
+});
+
+/* =========================
+   START SERVER
+========================= */
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("🚀 Sunbeam server running on port", PORT);
 });

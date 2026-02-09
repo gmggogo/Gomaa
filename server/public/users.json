@@ -1,0 +1,66 @@
+[
+  {
+    "id": 1769476673759,
+    "name": "Adam",
+    "username": "Adam",
+    "password": "1234",
+    "role": "driver",
+    "active": true
+  },
+  {
+    "id": 1769476684708,
+    "name": "Ahmed",
+    "username": "Ahmed",
+    "password": "1234",
+    "role": "driver",
+    "active": true
+  },
+  {
+    "id": 1769594347651,
+    "name": "sun",
+    "username": "sun",
+    "password": "1234",
+    "role": "company",
+    "active": true
+  },
+  {
+    "id": 1769594566129,
+    "name": "now",
+    "username": "now",
+    "password": "1234",
+    "role": "company",
+    "active": true
+  },
+  {
+    "id": 1769594796006,
+    "name": "GOMAA HASSANEIN",
+    "username": "fathy",
+    "password": "1234",
+    "role": "admin",
+    "active": true
+  },
+  {
+    "id": 1769596719338,
+    "name": "ana",
+    "username": "ana",
+    "password": "1234",
+    "role": "company",
+    "active": true
+  },
+  {
+    "id": 1769596772670,
+    "name": "ahmed",
+    "username": "ahmed2025",
+    "password": "1234",
+    "role": "admin",
+    "active": true
+  },
+  {
+    "id": 1769600000000,
+    "name": "Jason",
+    "username": "jason",
+    "password": "1234",
+    "role": "driver",
+    "active": true
+  }
+]
