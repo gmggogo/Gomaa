@@ -1,50 +1,61 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("loginBtn");
-  const userEl = document.getElementById("username");
-  const passEl = document.getElementById("password");
+  const form = document.getElementById("loginForm");
+  const errorBox = document.getElementById("error");
 
-  if (!btn || !userEl || !passEl) {
-    console.error("Driver login elements missing");
+  if (!form) {
+    console.error("loginForm not found");
     return;
   }
 
-  btn.addEventListener("click", async () => {
-    const username = userEl.value.trim();
-    const password = passEl.value.trim();
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorBox.innerText = "";
+
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
 
     if (!username || !password) {
-      alert("Enter username and password");
+      errorBox.innerText = "Enter username and password";
       return;
     }
 
     try {
       const res = await fetch("/api/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({ username, password })
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        alert("Wrong username or password");
+        errorBox.innerText = "Invalid username or password";
         return;
       }
 
+      // ✅ نتأكد إن الحساب Driver
       if (data.role !== "driver") {
-        alert("This account is not a driver");
+        errorBox.innerText = "This account is not a driver";
         return;
       }
 
-      // ✅ نحفظ السواق
-      localStorage.setItem("loggedDriver", JSON.stringify(data));
+      // ✅ نخزن Session السواق (زي الشركات)
+      localStorage.setItem("loggedDriver", JSON.stringify({
+        id: data.id || null,
+        name: data.name,
+        username: data.username,
+        role: data.role,
+        loginAt: Date.now()
+      }));
 
-      // دخول على داشبورد السواق
-      window.location.href = "/driver/dashboard.html";
+      // دخول داشبورد السواق
+      window.location.href = "dashboard.html";
 
-    } catch (e) {
-      console.error(e);
-      alert("Server error");
+    } catch (err) {
+      console.error(err);
+      errorBox.innerText = "Server error";
     }
   });
 });
