@@ -4,22 +4,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const passwordEl = document.getElementById("password");
   const errorBox = document.getElementById("error");
 
-  if (!form || !usernameEl || !passwordEl) {
-    console.error("Login elements missing");
+  if (!form || !usernameEl || !passwordEl || !errorBox) {
+    console.error("Driver login elements missing");
     return;
   }
 
-  // لو السواق داخل قبل كده
-  const saved = localStorage.getItem("loggedDriver");
-  if (saved) {
-    try {
-      const d = JSON.parse(saved);
-      if (d.role === "driver") {
-        location.href = "/driver/dashboard.html";
-        return;
-      }
-    } catch {}
-  }
+  // لو السواق عامل لوجن قبل كده
+  try {
+    const saved = JSON.parse(localStorage.getItem("loggedDriver"));
+    if (saved && saved.role === "driver") {
+      window.location.href = "/driver/dashboard.html";
+      return;
+    }
+  } catch {}
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -52,20 +49,16 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // session السواق فقط
+      // ✅ تخزين جلسة السواق فقط
       localStorage.setItem("loggedDriver", JSON.stringify({
-        id: data.id || null,
+        id: data.id,
         username: data.username,
         name: data.name,
         role: "driver",
         loginAt: Date.now()
       }));
 
-      // نمسح أي لوجن تاني
-      localStorage.removeItem("loggedCompany");
-      localStorage.removeItem("loggedUser");
-
-      location.href = "/driver/dashboard.html";
+      window.location.href = "/driver/dashboard.html";
 
     } catch (err) {
       console.error(err);
