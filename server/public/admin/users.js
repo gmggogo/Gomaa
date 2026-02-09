@@ -1,8 +1,8 @@
 // =========================
-// ONLINE API (Render-safe)
+// ADMIN USERS (SAFE VERSION)
 // =========================
-const API = "/api/admin/users";
 
+const API = "/api/admin/users";
 let currentRole = "company";
 
 const table = document.getElementById("usersTable");
@@ -17,21 +17,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* =========================
-   Fetch helper (JSON safe)
+   Fetch helper
 ========================= */
 async function fetchJson(url, options = {}) {
   const res = await fetch(url, options);
   const text = await res.text();
 
   if (!res.ok) {
-    throw new Error(text || `Request failed ${res.status}`);
+    throw new Error(text || "Request failed");
   }
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("Invalid JSON response from server");
-  }
+  return text ? JSON.parse(text) : {};
 }
 
 /* =========================
@@ -62,9 +58,9 @@ async function loadUsers() {
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
-        <td><input value="${u.name || ""}" disabled></td>
-        <td><input value="${u.username || ""}" disabled></td>
-        <td><input type="password" value="${u.password || ""}" disabled></td>
+        <td><input value="${u.name}" disabled></td>
+        <td><input value="${u.username}" disabled></td>
+        <td><input type="password" value="********" disabled></td>
         <td>${u.active ? "Active" : "Disabled"}</td>
         <td>
           <button class="btn edit" onclick="editRow(this)">Edit</button>
@@ -80,12 +76,12 @@ async function loadUsers() {
     });
 
   } catch (err) {
-    alert("Failed to load users:\n" + err.message);
+    alert("Load users failed:\n" + err.message);
   }
 }
 
 /* =========================
-   Add User
+   Add User (ONLY place for password)
 ========================= */
 async function addUser() {
   if (!inputName.value || !inputUsername.value || !inputPassword.value) {
@@ -117,11 +113,14 @@ async function addUser() {
 }
 
 /* =========================
-   Edit / Save
+   Edit / Save (NO PASSWORD)
 ========================= */
 function editRow(btn) {
   const row = btn.closest("tr");
-  row.querySelectorAll("input").forEach(i => i.disabled = false);
+  row.querySelectorAll("input").forEach((i, idx) => {
+    if (idx < 2) i.disabled = false; // name + username فقط
+  });
+
   btn.style.display = "none";
   btn.nextElementSibling.style.display = "inline-block";
 }
@@ -135,9 +134,8 @@ async function saveRow(btn, id) {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: inputs[0].value,
-        username: inputs[1].value,
-        password: inputs[2].value
+        name: inputs[0].value.trim(),
+        username: inputs[1].value.trim()
       })
     });
 
