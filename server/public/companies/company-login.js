@@ -9,7 +9,7 @@ form.addEventListener("submit", async (e) => {
   const password = document.getElementById("password").value.trim();
 
   if (!username || !password) {
-    errorBox.innerText = "اكتب اليوزر والباسورد";
+    errorBox.innerText = "Please enter username and password";
     return;
   }
 
@@ -23,17 +23,17 @@ form.addEventListener("submit", async (e) => {
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      errorBox.innerText = "اليوزر او الباسورد غلط";
+      errorBox.innerText = "Wrong username or password";
       return;
     }
 
-    // ✅ تأكيد إن الحساب Company
+    // ✅ Make sure this is a company account
     if (data.role !== "company") {
-      errorBox.innerText = "الحساب ده مش شركة";
+      errorBox.innerText = "This account is not a company";
       return;
     }
 
-    // ✅ تخزين الشركة
+    // ✅ Save logged company
     localStorage.setItem("loggedCompany", JSON.stringify({
       username: data.username,
       name: data.name,
@@ -41,7 +41,7 @@ form.addEventListener("submit", async (e) => {
       loginAt: Date.now()
     }));
 
-    // (اختياري) تنظيف أي جلسة تانية
+    // (Optional) clear other sessions
     localStorage.removeItem("loggedDriver");
     localStorage.removeItem("loggedUser");
 
@@ -49,6 +49,6 @@ form.addEventListener("submit", async (e) => {
 
   } catch (err) {
     console.error(err);
-    errorBox.innerText = "مشكلة في الاتصال بالسيرفر";
+    errorBox.innerText = "Server connection error";
   }
 });
