@@ -15,16 +15,24 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   DATABASE (users.json)
+   DATABASE (users.json)  ✅ PERSISTENT DISK
 ========================= */
-const DB_PATH = path.join(__dirname, "users.json");
+const DB_PATH = "/var/data/users.json";
+
+// تأكد إن الملف موجود
+function ensureDB() {
+  const dir = "/var/data";
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, JSON.stringify([]));
+}
 
 function readUsers() {
-  if (!fs.existsSync(DB_PATH)) return [];
+  ensureDB();
   return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
 }
 
 function saveUsers(users) {
+  ensureDB();
   fs.writeFileSync(DB_PATH, JSON.stringify(users, null, 2));
 }
 
@@ -63,13 +71,17 @@ app.post("/api/admin/users", (req, res) => {
   res.json(newUser);
 });
 
+/* ✅ تعديل مهم: ممنوع overwrite للباسورد لو مش جاي */
 app.put("/api/admin/users/:id", (req, res) => {
   const id = Number(req.params.id);
   const users = readUsers();
   const user = users.find(u => u.id === id);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  Object.assign(user, req.body);
+  if (typeof req.body.name === "string") user.name = req.body.name;
+  if (typeof req.body.username === "string") user.username = req.body.username;
+  if (typeof req.body.active === "boolean") user.active = req.body.active;
+
   saveUsers(users);
   res.json(user);
 });
@@ -93,7 +105,7 @@ app.post("/api/login", (req, res) => {
   );
 
   if (!user) {
-    return res.status(401).json({ error: "Invalid credentials" });
+    return res.status(401).json({ success: false });
   }
 
   res.json({

@@ -1,113 +1,177 @@
-const fs = require("fs");
-const path = require("path");
-const express = require("express");
-
-const app = express();
-app.use(express.json());
-
 // =========================
-// USERS STORAGE (PERSISTENT)
+// ADMIN USERS (SAFE VERSION)
 // =========================
-const DATA_DIR = "/var/data";
-const USERS_FILE = path.join(DATA_DIR, "users.json");
 
-// تأكد إن الفولدر موجود
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+const API = "/api/admin/users";
+let currentRole = "company";
 
-// تأكد إن الملف موجود
-if (!fs.existsSync(USERS_FILE)) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify([]));
-}
+const table = document.getElementById("usersTable");
+const title = document.getElementById("pageTitle");
 
-function loadUsers() {
-  return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
-}
+const inputName = document.getElementById("inputName");
+const inputUsername = document.getElementById("inputUsername");
+const inputPassword = document.getElementById("inputPassword");
 
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-}
-
-// =========================
-// ADMIN USERS API
-// =========================
-app.get("/api/admin/users", (req, res) => {
-  const role = req.query.role;
-  const users = loadUsers();
-  res.json(role ? users.filter(u => u.role === role) : users);
+document.addEventListener("DOMContentLoaded", () => {
+  switchRole("company");
 });
 
-app.post("/api/admin/users", (req, res) => {
-  const { name, username, password, role } = req.body;
-  if (!name || !username || !password || !role) {
-    return res.status(400).json({ error: "Missing fields" });
+/* =========================
+   Fetch helper
+========================= */
+async function fetchJson(url, options = {}) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+
+  if (!res.ok) {
+    throw new Error(text || "Request failed");
   }
 
-  const users = loadUsers();
-  if (users.find(u => u.username === username)) {
-    return res.status(400).json({ error: "Username exists" });
+  return text ? JSON.parse(text) : {};
+}
+
+/* =========================
+   Switch Role
+========================= */
+function switchRole(role) {
+  currentRole = role;
+  title.innerText = role.toUpperCase() + " USERS";
+
+  document.querySelectorAll(".sidebar button")
+    .forEach(b => b.classList.remove("active"));
+
+  document.getElementById("btn-" + role).classList.add("active");
+
+  loadUsers();
+}
+
+/* =========================
+   Load Users
+========================= */
+async function loadUsers() {
+  table.innerHTML = "";
+
+  try {
+    const users = await fetchJson(`${API}?role=${currentRole}`);
+
+    users.forEach(u => {
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td><input value="${u.name}" disabled></td>
+        <td><input value="${u.username}" disabled></td>
+        <td><input type="password" value="********" disabled></td>
+        <td>${u.active ? "Active" : "Disabled"}</td>
+        <td>
+          <button class="btn edit" onclick="editRow(this)">Edit</button>
+          <button class="btn save" style="display:none" onclick="saveRow(this, ${u.id})">Save</button>
+          <button class="btn toggle" onclick="toggleUser(${u.id}, ${u.active})">
+            ${u.active ? "Disable" : "Enable"}
+          </button>
+          <button class="btn delete" onclick="deleteUser(${u.id})">Delete</button>
+        </td>
+      `;
+
+      table.appendChild(tr);
+    });
+
+  } catch (err) {
+    alert("Load users failed:\n" + err.message);
+  }
+}
+
+/* =========================
+   Add User (ONLY place for password)
+========================= */
+async function addUser() {
+  if (!inputName.value || !inputUsername.value || !inputPassword.value) {
+    alert("Fill all fields");
+    return;
   }
 
-  const user = {
-    id: Date.now(),
-    name,
-    username,
-    password,
-    role,
-    active: true
-  };
+  try {
+    await fetchJson(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: inputName.value.trim(),
+        username: inputUsername.value.trim(),
+        password: inputPassword.value.trim(),
+        role: currentRole,
+        active: true
+      })
+    });
 
-  users.push(user);
-  saveUsers(users);
-  res.json(user);
-});
+    inputName.value = "";
+    inputUsername.value = "";
+    inputPassword.value = "";
 
-app.put("/api/admin/users/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const users = loadUsers();
-  const user = users.find(u => u.id === id);
-  if (!user) return res.status(404).json({ error: "Not found" });
-
-  Object.assign(user, req.body);
-  saveUsers(users);
-  res.json(user);
-});
-
-app.delete("/api/admin/users/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const users = loadUsers().filter(u => u.id !== id);
-  saveUsers(users);
-  res.json({ success: true });
-});
-
-// =========================
-// LOGIN
-// =========================
-app.post("/api/login", (req, res) => {
-  const { username, password } = req.body;
-  const users = loadUsers();
-
-  const user = users.find(
-    u => u.username === username && u.password === password && u.active
-  );
-
-  if (!user) {
-    return res.status(401).json({ success: false });
+    loadUsers();
+  } catch (err) {
+    alert("Add user failed:\n" + err.message);
   }
+}
 
-  res.json({
-    success: true,
-    username: user.username,
-    name: user.name,
-    role: user.role
+/* =========================
+   Edit / Save (NO PASSWORD)
+========================= */
+function editRow(btn) {
+  const row = btn.closest("tr");
+  row.querySelectorAll("input").forEach((i, idx) => {
+    if (idx < 2) i.disabled = false; // name + username فقط
   });
-});
 
-// =========================
-// START
-// =========================
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log("Server running on", PORT);
-});
+  btn.style.display = "none";
+  btn.nextElementSibling.style.display = "inline-block";
+}
+
+async function saveRow(btn, id) {
+  const row = btn.closest("tr");
+  const inputs = row.querySelectorAll("input");
+
+  try {
+    await fetchJson(`${API}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: inputs[0].value.trim(),
+        username: inputs[1].value.trim()
+      })
+    });
+
+    loadUsers();
+  } catch (err) {
+    alert("Save failed:\n" + err.message);
+  }
+}
+
+/* =========================
+   Enable / Disable
+========================= */
+async function toggleUser(id, active) {
+  try {
+    await fetchJson(`${API}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: !active })
+    });
+
+    loadUsers();
+  } catch (err) {
+    alert("Toggle failed:\n" + err.message);
+  }
+}
+
+/* =========================
+   Delete User
+========================= */
+async function deleteUser(id) {
+  if (!confirm("Delete this user?")) return;
+
+  try {
+    await fetchJson(`${API}/${id}`, { method: "DELETE" });
+    loadUsers();
+  } catch (err) {
+    alert("Delete failed:\n" + err.message);
+  }
+}
