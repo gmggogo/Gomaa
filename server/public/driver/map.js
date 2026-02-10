@@ -1,20 +1,19 @@
 // =======================
-// AUTH (اختياري)
+// AUTH
 // =======================
 const rawDriver = localStorage.getItem("loggedDriver");
 if (!rawDriver) location.href = "../login.html";
 const driver = JSON.parse(rawDriver);
 
 // =======================
-// TRIP DATA (مثال)
+// SAMPLE TRIP
 // =======================
 const tripId = 1;
-
-const pickup  = { lat: 33.3528, lng: -111.7890 };
+const pickup = { lat: 33.3528, lng: -111.7890 };
 const dropoff = { lat: 33.3700, lng: -111.8200 };
 
 // =======================
-// MAP INIT
+// MAP INIT (SAFE)
 // =======================
 const map = L.map("map").setView(pickup, 13);
 
@@ -22,26 +21,29 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
-setTimeout(() => map.invalidateSize(), 300);
+// ⚠️ مهم للموبايل
+setTimeout(() => {
+  map.invalidateSize();
+}, 300);
 
 let driverPos = null;
 let driverMarker = L.marker(pickup).addTo(map);
 let routeLine = null;
-let currentStage = "pickup"; // pickup | waiting | dropoff
+let currentRoute = "pickup";
 
 // =======================
-// UI ELEMENTS
+// UI
 // =======================
-const goPickupBtn  = document.getElementById("goPickupBtn");
-const arrivedBtn   = document.getElementById("arrivedBtn");
+const goPickupBtn = document.getElementById("goPickupBtn");
+const arrivedBtn = document.getElementById("arrivedBtn");
 const startTripBtn = document.getElementById("startTripBtn");
-const noShowBtn    = document.getElementById("noShowBtn");
-const dropoffBtn   = document.getElementById("dropoffBtn");
-const openGoogleBtn= document.getElementById("openGoogleBtn");
-const timerBox     = document.getElementById("timer");
+const noShowBtn = document.getElementById("noShowBtn");
+const dropoffBtn = document.getElementById("dropoffBtn");
+const openGoogleBtn = document.getElementById("openGoogleBtn");
+const timerBox = document.getElementById("timer");
 
 // =======================
-// DISTANCE (Miles)
+// DISTANCE
 // =======================
 function distanceMiles(a, b) {
   const R = 3958.8;
@@ -59,7 +61,7 @@ function distanceMiles(a, b) {
 }
 
 // =======================
-// ROUTE DRAW
+// ROUTE
 // =======================
 async function drawRoute(from, to) {
   if (routeLine) map.removeLayer(routeLine);
@@ -76,58 +78,58 @@ async function drawRoute(from, to) {
 }
 
 // =======================
-// LIVE LOCATION
+// LOCATION (MOBILE SAFE)
 // =======================
-navigator.geolocation.watchPosition(
-  pos => {
-    driverPos = {
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude
-    };
+if ("geolocation" in navigator) {
+  navigator.geolocation.watchPosition(
+    pos => {
+      driverPos = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
 
-    driverMarker.setLatLng(driverPos);
+      driverMarker.setLatLng(driverPos);
 
-    // إرسال اللوكيشن للإدمن/الديسبتشر
-    fetch("/api/driver/location", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        driverId: driver.id,
-        tripId,
-        lat: driverPos.lat,
-        lng: driverPos.lng
-      })
-    });
+      const target = currentRoute === "pickup" ? pickup : dropoff;
+      const dist = distanceMiles(driverPos, target);
 
-    const target = currentStage === "dropoff" ? dropoff : pickup;
-    const dist = distanceMiles(driverPos, target);
-
-    // ===== PICKUP LOGIC =====
-    if (currentStage === "pickup") {
-      if (dist > 1) {
-        goPickupBtn.classList.remove("hidden");
-        arrivedBtn.classList.add("hidden");
-      } else {
-        goPickupBtn.classList.add("hidden");
-        arrivedBtn.classList.remove("hidden");
+      if (currentRoute === "pickup") {
+        if (dist > 1) {
+          goPickupBtn.classList.remove("hidden");
+          arrivedBtn.classList.add("hidden");
+        } else {
+          goPickupBtn.classList.add("hidden");
+          arrivedBtn.classList.remove("hidden");
+        }
       }
-    }
 
-    // ===== DROPOFF LOGIC =====
-    if (currentStage === "dropoff") {
-      if (dist <= 2) dropoffBtn.classList.remove("hidden");
-      else dropoffBtn.classList.add("hidden");
-    }
-  },
-  err => alert("Location permission required"),
-  { enableHighAccuracy: true }
-);
+      if (currentRoute === "dropoff") {
+        dropoffBtn.classList.toggle("hidden", dist > 2);
+      }
+    },
+    err => {
+      console.warn("GPS ERROR", err);
+      // fallback
+      driverPos = pickup;
+      driverMarker.setLatLng(pickup);
+    },
+    { enableHighAccuracy: true }
+  );
+} else {
+  alert("Location not supported");
+}
 
 // =======================
-// BUTTON ACTIONS
+// BUTTONS
 // =======================
 goPickupBtn.onclick = async () => {
-  await drawRoute(driverPos, pickup);
+  await drawRoute(driverPos || pickup, pickup);
+};
+
+openGoogleBtn.onclick = () => {
+  const target = currentRoute === "pickup" ? pickup : dropoff;
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${driverPos.lat},${driverPos.lng}&destination=${target.lat},${target.lng}`;
+  window.open(url, "_blank");
 };
 
 arrivedBtn.onclick = () => {
@@ -137,34 +139,19 @@ arrivedBtn.onclick = () => {
   startTimer();
 };
 
-startTripBtn.onclick = async () => {
-  clearInterval(timer);
-  timerBox.style.display = "none";
-  currentStage = "dropoff";
-
+startTripBtn.onclick = () => {
+  currentRoute = "dropoff";
   startTripBtn.classList.add("hidden");
   noShowBtn.classList.add("hidden");
-
-  await drawRoute(driverPos, dropoff);
+  drawRoute(driverPos, dropoff);
 };
 
 dropoffBtn.onclick = () => {
   alert("Trip Completed");
-  dropoffBtn.classList.add("hidden");
 };
 
 // =======================
-// GOOGLE MAPS
-// =======================
-openGoogleBtn.onclick = () => {
-  if (!driverPos) return;
-  const target = currentStage === "dropoff" ? dropoff : pickup;
-  const url = `https://www.google.com/maps/dir/?api=1&origin=${driverPos.lat},${driverPos.lng}&destination=${target.lat},${target.lng}&travelmode=driving`;
-  window.open(url, "_blank");
-};
-
-// =======================
-// TIMER (20 MIN)
+// TIMER
 // =======================
 let timer;
 function startTimer() {
@@ -173,9 +160,9 @@ function startTimer() {
 
   timer = setInterval(() => {
     time--;
-    const m = Math.floor(time / 60);
-    const s = time % 60;
-    timerBox.innerText = `${m}:${s.toString().padStart(2, "0")}`;
+    timerBox.innerText =
+      `${Math.floor(time / 60)}:${String(time % 60).padStart(2, "0")}`;
+
     if (time <= 0) clearInterval(timer);
   }, 1000);
 }
@@ -183,5 +170,5 @@ function startTimer() {
 noShowBtn.onclick = () => {
   clearInterval(timer);
   const note = prompt("Enter No Show Note:");
-  if (note !== null) alert("No Show Completed");
+  if (note) alert("No Show Completed");
 };

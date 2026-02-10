@@ -5,10 +5,7 @@
 <title>Driver Live Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 html, body {
@@ -20,9 +17,7 @@ html, body {
 }
 
 #map {
-  width: 100%;
-  height: 65vh;
-  min-height: 300px;
+  height: calc(100% - 140px);
 }
 
 .actions {
@@ -46,11 +41,11 @@ html, body {
   cursor: pointer;
 }
 
-.btn-blue   { background: #2563eb; color: white; }
-.btn-green  { background: #22c55e; color: black; }
+.btn-blue { background: #2563eb; color: white; }
+.btn-green { background: #22c55e; color: black; }
 .btn-yellow { background: #facc15; color: black; }
-.btn-red    { background: #ef4444; color: white; }
-.btn-dark   { background: #020617; color: #facc15; grid-column: span 2; }
+.btn-red { background: #ef4444; color: white; }
+.btn-dark { background: #020617; color: #facc15; grid-column: span 2; }
 
 .hidden { display: none; }
 
@@ -65,7 +60,6 @@ html, body {
   border-radius: 10px;
   font-weight: bold;
   display: none;
-  z-index: 999;
 }
 </style>
 </head>
@@ -83,7 +77,6 @@ html, body {
   <button id="noShowBtn" class="btn-red hidden">NO SHOW</button>
 
   <button id="dropoffBtn" class="btn-green hidden">DROP OFF</button>
-
   <button id="openGoogleBtn" class="btn-dark">OPEN IN GOOGLE MAPS</button>
 </div>
 
