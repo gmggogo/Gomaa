@@ -10,7 +10,6 @@
   --blue:#0b1f3a;
   --blue2:#123a7a;
   --gold:#facc15;
-  --dark:#020617;
 }
 
 *{
@@ -23,7 +22,6 @@ body{
   background:linear-gradient(180deg,var(--blue),var(--blue2));
   color:#fff;
   min-height:100vh;
-  padding-bottom:90px; /* مهم عشان البار */
 }
 
 /* ===== HEADER ===== */
@@ -35,15 +33,15 @@ body{
 
 .top-datetime{
   position:absolute;
-  top:6px;
+  top:8px;
   left:12px;
-  font-size:11px;
+  font-size:12px;
   color:#cbd5e1;
 }
 
 .logo{
   width:90px;
-  margin-bottom:8px;
+  margin-bottom:10px;
 }
 
 .company-name{
@@ -56,13 +54,14 @@ body{
   margin-top:6px;
   font-size:15px;
   color:#e5e7eb;
+  letter-spacing:.5px;
 }
 
 /* ===== STATUS ===== */
 .status{
   margin:20px;
   padding:16px;
-  background:var(--dark);
+  background:#020617;
   border-radius:16px;
   font-size:18px;
 }
@@ -81,7 +80,7 @@ body{
 }
 
 .card{
-  background:var(--dark);
+  background:#020617;
   border-radius:20px;
   padding:30px 20px;
   text-align:center;
@@ -90,11 +89,11 @@ body{
 }
 
 .card:hover{
-  transform:scale(1.04);
+  transform:scale(1.03);
 }
 
 .card .icon{
-  font-size:38px;
+  font-size:40px;
   margin-bottom:10px;
 }
 
@@ -107,48 +106,35 @@ body{
 .summary{
   margin:20px;
   padding:30px;
-  background:var(--dark);
+  background:#020617;
   border-radius:20px;
   text-align:center;
   font-size:20px;
 }
 
-/* ===== FIXED BOTTOM NAV ===== */
+/* ===== BOTTOM NAV ===== */
 .nav{
   position:fixed;
   bottom:0;
   left:0;
   right:0;
-  height:70px;
-  background:var(--dark);
+  background:#020617;
   display:flex;
   justify-content:space-around;
-  align-items:center;
-  z-index:9999;
-  border-top:1px solid rgba(250,204,21,.25);
-  padding-bottom:env(safe-area-inset-bottom);
+  padding:10px 0;
 }
 
 .nav button{
   background:none;
   border:none;
   color:#9ca3af;
-  font-size:11px;
+  font-size:13px;
   cursor:pointer;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
-  transition:.2s;
-}
-
-.nav button span{
-  font-size:20px;
 }
 
 .nav button.active{
   color:var(--gold);
-  transform:translateY(-2px);
+  font-weight:bold;
 }
 </style>
 </head>
@@ -161,7 +147,7 @@ body{
 
   <img src="../assets/logo.png" alt="Sunbeam Transportation" class="logo">
   <div class="company-name">Sunbeam Transportation</div>
-  <div class="driver-name" id="driverName">Driver</div>
+  <div class="driver-name" id="driverName"></div>
 </div>
 
 <!-- STATUS -->
@@ -197,51 +183,15 @@ body{
   📊 Summary
 </div>
 
-<!-- FIXED NAV -->
+<!-- NAV -->
 <div class="nav">
-  <button class="active">
-    <span>🏠</span>
-    Home
-  </button>
-
-  <button onclick="go('trips')">
-    <span>🚗</span>
-    Trips
-  </button>
-
-  <button onclick="go('map')">
-    <span>🗺️</span>
-    Map
-  </button>
-
-  <button onclick="go('chat')">
-    <span>💬</span>
-    Chat
-  </button>
-
-  <button onclick="logout()">
-    <span>🚪</span>
-    Logout
-  </button>
+  <button class="active">Home</button>
+  <button onclick="go('trips')">Trips</button>
+  <button onclick="go('map')">Map</button>
+  <button onclick="go('chat')">Chat</button>
+  <button onclick="logout()">Logout</button>
 </div>
 
-<script>
-function go(page){
-  alert("Go to: " + page);
-}
-
-function logout(){
-  alert("Logout");
-}
-
-function updateTime(){
-  const d = new Date();
-  document.getElementById("datetime").innerText =
-    d.toLocaleDateString() + " " + d.toLocaleTimeString();
-}
-setInterval(updateTime,1000);
-updateTime();
-</script>
-
+<script src="dashboard.js"></script>
 </body>
 </html>
