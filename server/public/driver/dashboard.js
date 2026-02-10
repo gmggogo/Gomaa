@@ -1,68 +1,49 @@
-// ===============================
-// DRIVER AUTH CHECK (FINAL & SAFE)
-// ===============================
+// ===== AUTH CHECK =====
 const rawDriver = localStorage.getItem("loggedDriver");
 
 if (!rawDriver) {
-  window.location.href = "/driver/login.html";
-  throw new Error("Driver not logged in");
+  location.href = "/driver/login.html";
+  throw new Error("Not logged in");
 }
 
 let driver;
-
 try {
   driver = JSON.parse(rawDriver);
-} catch (err) {
+} catch {
   localStorage.removeItem("loggedDriver");
-  window.location.href = "/driver/login.html";
-  throw new Error("Invalid driver data");
+  location.href = "/driver/login.html";
 }
 
-// ===============================
-// PAGE READY
-// ===============================
-document.addEventListener("DOMContentLoaded", () => {
+// ===== DATE & TIME (AZ) =====
+function updateTime(){
+  const now = new Date().toLocaleString("en-US",{
+    timeZone:"America/Phoenix",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit",
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit"
+  });
+  document.getElementById("datetime").innerText = now + " (AZ)";
+}
+setInterval(updateTime,1000);
+updateTime();
 
-  // Header name
-  const headerName = document.getElementById("driverName");
-  if (headerName) {
-    headerName.innerText = driver.name || driver.username || "Driver";
+// ===== NAVIGATION =====
+function go(page){
+  switch(page){
+    case "trips": location.href="/driver/trips.html"; break;
+    case "map": location.href="/driver/map.html"; break;
+    case "hours": location.href="/driver/hours.html"; break;
+    case "earnings": location.href="/driver/earnings.html"; break;
+    case "summary": location.href="/driver/summary.html"; break;
+    case "chat": location.href="/driver/chat.html"; break;
   }
-
-  // Profile data
-  const profileName = document.getElementById("profileName");
-  if (profileName) {
-    profileName.innerText = driver.name || "—";
-  }
-
-  const profileUser = document.getElementById("profileUser");
-  if (profileUser) {
-    profileUser.innerText = driver.username || "—";
-  }
-
-  console.log("✅ Logged Driver:", driver);
-});
-
-// ===============================
-// NAVIGATION (APP STYLE)
-// ===============================
-function showSection(id, btn) {
-  document.querySelectorAll(".section")
-    .forEach(s => s.classList.remove("active"));
-
-  document.querySelectorAll("nav button")
-    .forEach(b => b.classList.remove("active"));
-
-  const section = document.getElementById(id);
-  if (section) section.classList.add("active");
-
-  if (btn) btn.classList.add("active");
 }
 
-// ===============================
-// LOGOUT
-// ===============================
-function logout() {
+// ===== LOGOUT =====
+function logout(){
   localStorage.removeItem("loggedDriver");
-  window.location.href = "/driver/login.html";
+  location.href="/driver/login.html";
 }
