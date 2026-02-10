@@ -11,43 +11,100 @@
 />
 
 <style>
+:root{
+  --gold:#facc15;
+  --dark:#020617;
+}
+
 html, body {
   margin: 0;
   height: 100%;
-  background: #020617;
+  background: var(--dark);
+  font-family: Arial, sans-serif;
+  color:#fff;
 }
-#map {
-  height: 100%;
-}
+
+/* ===== TOP LABEL ===== */
 .top {
   position: fixed;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
   background: black;
-  color: #facc15;
+  color: var(--gold);
   padding: 8px 14px;
   border-radius: 10px;
-  z-index: 999;
+  z-index: 1000;
   font-weight: bold;
 }
-.bottom {
+
+/* ===== MAP ===== */
+/* مهم: نخلي الماب يخلص قبل منطقة الأزرار + الـ nav */
+#map{
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 140px; /* 70px Google bar + 70px nav */
+  z-index: 1;
+}
+
+/* ===== GOOGLE BAR (ABOVE NAV) ===== */
+.bottom{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 70px; /* فوق الـ nav مباشرة */
+  background: var(--dark);
+  padding: 10px 12px;
+  z-index: 9998;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.bottom button{
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* ===== BOTTOM NAV (SAME STYLE) ===== */
+.nav{
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: #020617;
-  padding: 10px;
-  z-index: 999;
+  height: 70px;
+  background: var(--dark);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid rgba(255,255,255,.08);
+  z-index: 9999;
 }
-.bottom button {
-  width: 100%;
-  padding: 14px;
+
+.nav button{
+  background: none;
   border: none;
-  border-radius: 10px;
-  background: #2563eb;
-  color: white;
-  font-weight: bold;
+  color: #9ca3af;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav button span{
+  font-size: 20px;
+}
+
+.nav button.active{
+  color: var(--gold);
 }
 </style>
 </head>
@@ -55,13 +112,28 @@ html, body {
 <body>
 
 <div class="top">LIVE DRIVER MAP</div>
+
 <div id="map"></div>
 
+<!-- GOOGLE BUTTON (kept exactly as your page logic) -->
 <div class="bottom">
   <button onclick="openGoogle()">OPEN IN GOOGLE MAPS</button>
 </div>
 
+<!-- SAME BOTTOM NAV AS DASHBOARD -->
+<div class="nav">
+  <button onclick="go('home')"><span>🏠</span>Home</button>
+  <button onclick="go('trips')"><span>🚗</span>Trips</button>
+  <button class="active"><span>🗺️</span>Map</button>
+  <button onclick="go('chat')"><span>💬</span>Chat</button>
+  <button onclick="logout()"><span>🚪</span>Logout</button>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="map.js"></script>
+
+<!-- عشان go() و logout() يشتغلوا زي الداشبورد -->
+<script src="dashboard.js"></script>
+
 </body>
 </html>
