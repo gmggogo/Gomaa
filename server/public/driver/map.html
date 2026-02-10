@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Driver Live Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
 
 <style>
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: #0f172a;
+  background: #020617;
   font-family: Arial, sans-serif;
 }
 
 #map {
-  height: calc(100% - 140px);
+  height: calc(100% - 130px);
 }
 
 .actions {
@@ -35,31 +37,37 @@ html, body {
 .actions button {
   padding: 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
 }
 
-.btn-blue { background: #2563eb; color: white; }
-.btn-green { background: #22c55e; color: black; }
-.btn-yellow { background: #facc15; color: black; }
-.btn-red { background: #ef4444; color: white; }
-.btn-dark { background: #020617; color: #facc15; grid-column: span 2; }
+.btn-blue   { background: #2563eb; color: #fff; }
+.btn-green  { background: #22c55e; color: #000; }
+.btn-yellow { background: #facc15; color: #000; }
+.btn-red    { background: #ef4444; color: #fff; }
+.btn-dark   {
+  background: #020617;
+  color: #facc15;
+  grid-column: span 2;
+  border: 1px solid #facc15;
+}
 
 .hidden { display: none; }
 
 #timer {
   position: fixed;
-  top: 10px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  background: black;
+  background: #000;
   color: #facc15;
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 8px 16px;
+  border-radius: 12px;
   font-weight: bold;
   display: none;
+  z-index: 999;
 }
 </style>
 </head>
@@ -77,6 +85,7 @@ html, body {
   <button id="noShowBtn" class="btn-red hidden">NO SHOW</button>
 
   <button id="dropoffBtn" class="btn-green hidden">DROP OFF</button>
+
   <button id="openGoogleBtn" class="btn-dark">OPEN IN GOOGLE MAPS</button>
 </div>
 
