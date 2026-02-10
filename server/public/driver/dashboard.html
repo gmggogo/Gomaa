@@ -1,59 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Sunbeam Driver Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 :root{
-  --blue1:#0b1d3a;
-  --blue2:#133a8a;
-  --gold:#f5c542;
-  --text:#ffffff;
+  --blue:#0b1f3a;
+  --blue2:#123a7a;
+  --gold:#facc15;
 }
 
-*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+*{
+  box-sizing:border-box;
+  font-family: Arial, sans-serif;
+}
 
 body{
   margin:0;
-  background:linear-gradient(180deg,var(--blue1),var(--blue2));
-  color:var(--text);
+  background:linear-gradient(180deg,var(--blue),var(--blue2));
+  color:#fff;
+  min-height:100vh;
 }
 
 /* ===== HEADER ===== */
 .header{
-  padding:20px;
-  text-align:center;
   position:relative;
+  padding:40px 20px 20px;
+  text-align:center;
 }
 
-.header img{
-  width:120px;
+.top-datetime{
+  position:absolute;
+  top:8px;
+  left:12px;
+  font-size:12px;
+  color:#cbd5e1;
+}
+
+.logo{
+  width:90px;
   margin-bottom:10px;
 }
 
-.company{
-  font-size:28px;
+.company-name{
+  font-size:26px;
   font-weight:bold;
   color:var(--gold);
 }
 
-.datetime{
-  position:absolute;
-  top:20px;
-  left:20px;
-  text-align:left;
-  font-size:14px;
+.driver-name{
+  margin-top:6px;
+  font-size:15px;
   color:#e5e7eb;
+  letter-spacing:.5px;
 }
 
 /* ===== STATUS ===== */
 .status{
   margin:20px;
-  padding:15px;
-  border-radius:14px;
-  background:rgba(0,0,0,.25);
+  padding:16px;
+  background:#020617;
+  border-radius:16px;
+  font-size:18px;
 }
 
 .status span{
@@ -61,18 +71,18 @@ body{
   font-weight:bold;
 }
 
-/* ===== BUTTONS ===== */
+/* ===== GRID ===== */
 .grid{
+  padding:10px 20px;
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:15px;
-  padding:20px;
+  gap:16px;
 }
 
 .card{
-  background:rgba(0,0,0,.35);
-  border-radius:18px;
-  padding:22px;
+  background:#020617;
+  border-radius:20px;
+  padding:30px 20px;
   text-align:center;
   cursor:pointer;
   transition:.2s;
@@ -80,17 +90,26 @@ body{
 
 .card:hover{
   transform:scale(1.03);
-  background:rgba(0,0,0,.5);
 }
 
 .card .icon{
-  font-size:34px;
-  margin-bottom:8px;
+  font-size:40px;
+  margin-bottom:10px;
 }
 
 .card .title{
-  font-size:16px;
+  font-size:18px;
   font-weight:bold;
+}
+
+/* ===== SUMMARY ===== */
+.summary{
+  margin:20px;
+  padding:30px;
+  background:#020617;
+  border-radius:20px;
+  text-align:center;
+  font-size:20px;
 }
 
 /* ===== BOTTOM NAV ===== */
@@ -99,9 +118,9 @@ body{
   bottom:0;
   left:0;
   right:0;
+  background:#020617;
   display:flex;
   justify-content:space-around;
-  background:#020617;
   padding:10px 0;
 }
 
@@ -110,6 +129,7 @@ body{
   border:none;
   color:#9ca3af;
   font-size:13px;
+  cursor:pointer;
 }
 
 .nav button.active{
@@ -123,10 +143,11 @@ body{
 
 <!-- HEADER -->
 <div class="header">
-  <div class="datetime" id="datetime"></div>
+  <div class="top-datetime" id="datetime"></div>
 
   <img src="../assets/logo.png" alt="Sunbeam Transportation" class="logo">
-  <div class="company">Sunbeam Transportation</div>
+  <div class="company-name">Sunbeam Transportation</div>
+  <div class="driver-name" id="driverName"></div>
 </div>
 
 <!-- STATUS -->
@@ -134,7 +155,7 @@ body{
   Status: <span>ONLINE</span>
 </div>
 
-<!-- MAIN BUTTONS -->
+<!-- MAIN GRID -->
 <div class="grid">
   <div class="card" onclick="go('trips')">
     <div class="icon">🚗</div>
@@ -155,14 +176,14 @@ body{
     <div class="icon">💰</div>
     <div class="title">Earnings</div>
   </div>
-
-  <div class="card" onclick="go('summary')" style="grid-column:span 2">
-    <div class="icon">📊</div>
-    <div class="title">Summary</div>
-  </div>
 </div>
 
-<!-- BOTTOM NAV -->
+<!-- SUMMARY -->
+<div class="summary">
+  📊 Summary
+</div>
+
+<!-- NAV -->
 <div class="nav">
   <button class="active">Home</button>
   <button onclick="go('trips')">Trips</button>
