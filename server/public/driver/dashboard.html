@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Driver Dashboard</title>
+<title>Sunbeam Driver</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -14,7 +14,7 @@
 
 *{
   box-sizing:border-box;
-  font-family: Arial, sans-serif;
+  font-family:Arial, sans-serif;
 }
 
 body{
@@ -22,20 +22,21 @@ body{
   background:linear-gradient(180deg,var(--blue),var(--blue2));
   color:#fff;
   min-height:100vh;
+  padding-bottom:90px; /* مهم */
 }
 
 /* ===== HEADER ===== */
 .header{
   position:relative;
-  padding:40px 20px 20px;
+  padding:38px 20px 20px;
   text-align:center;
 }
 
 .top-datetime{
   position:absolute;
-  top:8px;
-  left:12px;
-  font-size:12px;
+  top:6px;
+  left:10px;
+  font-size:11px;
   color:#cbd5e1;
 }
 
@@ -54,7 +55,6 @@ body{
   margin-top:6px;
   font-size:15px;
   color:#e5e7eb;
-  letter-spacing:.5px;
 }
 
 /* ===== STATUS ===== */
@@ -69,6 +69,15 @@ body{
 .status span{
   color:#22c55e;
   font-weight:bold;
+}
+
+/* ===== SECTIONS ===== */
+.section{
+  display:none;
+}
+
+.section.active{
+  display:block;
 }
 
 /* ===== GRID ===== */
@@ -113,26 +122,35 @@ body{
 }
 
 /* ===== BOTTOM NAV ===== */
-.nav{
+.bottom-nav{
   position:fixed;
   bottom:0;
   left:0;
   right:0;
+  height:70px;
   background:#020617;
   display:flex;
   justify-content:space-around;
-  padding:10px 0;
+  align-items:center;
+  z-index:9999;
+  box-shadow:0 -4px 20px rgba(0,0,0,.5);
 }
 
-.nav button{
+.bottom-nav button{
   background:none;
   border:none;
   color:#9ca3af;
-  font-size:13px;
+  text-align:center;
+  font-size:12px;
   cursor:pointer;
 }
 
-.nav button.active{
+.bottom-nav button span{
+  display:block;
+  font-size:22px;
+}
+
+.bottom-nav button.active{
   color:var(--gold);
   font-weight:bold;
 }
@@ -141,57 +159,132 @@ body{
 
 <body>
 
-<!-- HEADER -->
+<!-- ===== AUTH ===== -->
+<script>
+const rawDriver = localStorage.getItem("loggedDriver");
+if(!rawDriver){
+  location.href="/driver/login.html";
+}
+const driver = JSON.parse(rawDriver);
+</script>
+
+<!-- ===== HEADER ===== -->
 <div class="header">
   <div class="top-datetime" id="datetime"></div>
 
-  <img src="../assets/logo.png" alt="Sunbeam Transportation" class="logo">
+  <!-- مسار اللوجو -->
+  <img src="../assets/logo.png" class="logo">
   <div class="company-name">Sunbeam Transportation</div>
   <div class="driver-name" id="driverName"></div>
 </div>
 
-<!-- STATUS -->
-<div class="status">
-  Status: <span>ONLINE</span>
-</div>
-
-<!-- MAIN GRID -->
-<div class="grid">
-  <div class="card" onclick="go('trips')">
-    <div class="icon">🚗</div>
-    <div class="title">Trips</div>
+<!-- ===== HOME ===== -->
+<div id="home" class="section active">
+  <div class="status">
+    Status: <span>ONLINE</span>
   </div>
 
-  <div class="card" onclick="go('map')">
-    <div class="icon">🗺️</div>
-    <div class="title">Live Map</div>
+  <div class="grid">
+    <div class="card" onclick="show('trips')">
+      <div class="icon">🚗</div>
+      <div class="title">Trips</div>
+    </div>
+
+    <div class="card" onclick="show('map')">
+      <div class="icon">🗺️</div>
+      <div class="title">Live Map</div>
+    </div>
+
+    <div class="card" onclick="show('hours')">
+      <div class="icon">⏱️</div>
+      <div class="title">Work Hours</div>
+    </div>
+
+    <div class="card" onclick="show('earnings')">
+      <div class="icon">💰</div>
+      <div class="title">Earnings</div>
+    </div>
   </div>
 
-  <div class="card" onclick="go('hours')">
-    <div class="icon">⏱️</div>
-    <div class="title">Work Hours</div>
-  </div>
-
-  <div class="card" onclick="go('earnings')">
-    <div class="icon">💰</div>
-    <div class="title">Earnings</div>
-  </div>
+  <div class="summary">📊 Summary</div>
 </div>
 
-<!-- SUMMARY -->
-<div class="summary">
-  📊 Summary
+<!-- ===== TRIPS ===== -->
+<div id="trips" class="section">
+  <div class="summary">No trips yet</div>
 </div>
 
-<!-- NAV -->
-<div class="nav">
-  <button class="active">Home</button>
-  <button onclick="go('trips')">Trips</button>
-  <button onclick="go('map')">Map</button>
-  <button onclick="go('chat')">Chat</button>
-  <button onclick="logout()">Logout</button>
+<!-- ===== MAP ===== -->
+<div id="map" class="section">
+  <div class="summary">Live map will be here</div>
 </div>
 
-<script src="dashboard.js"></script>
+<!-- ===== HOURS ===== -->
+<div id="hours" class="section">
+  <div class="summary">Work hours</div>
+</div>
+
+<!-- ===== EARNINGS ===== -->
+<div id="earnings" class="section">
+  <div class="summary">Earnings</div>
+</div>
+
+<!-- ===== CHAT ===== -->
+<div id="chat" class="section">
+  <div class="summary">Chat coming soon</div>
+</div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<div class="bottom-nav">
+  <button class="active" onclick="show('home',this)">
+    <span>🏠</span>
+    Home
+  </button>
+  <button onclick="show('trips',this)">
+    <span>🚗</span>
+    Trips
+  </button>
+  <button onclick="show('map',this)">
+    <span>🗺️</span>
+    Map
+  </button>
+  <button onclick="show('chat',this)">
+    <span>💬</span>
+    Chat
+  </button>
+  <button onclick="logout()">
+    <span>⏻</span>
+    Logout
+  </button>
+</div>
+
+<script>
+document.getElementById("driverName").innerText =
+  driver.name || driver.username || "Driver";
+
+/* DATE & TIME (Arizona) */
+setInterval(()=>{
+  const d=new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+  document.getElementById("datetime").innerText=d;
+},1000);
+
+/* NAV */
+function show(id,btn){
+  document.querySelectorAll(".section")
+    .forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+
+  document.querySelectorAll(".bottom-nav button")
+    .forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+}
+
+/* LOGOUT */
+function logout(){
+  localStorage.removeItem("loggedDriver");
+  location.href="/driver/login.html";
+}
+</script>
+
 </body>
 </html>
