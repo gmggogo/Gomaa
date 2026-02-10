@@ -20,7 +20,9 @@ html, body {
 }
 
 #map {
-  height: calc(100% - 140px);
+  width: 100%;
+  height: 65vh;
+  min-height: 300px;
 }
 
 .actions {
@@ -44,11 +46,11 @@ html, body {
   cursor: pointer;
 }
 
-.btn-blue { background: #2563eb; color: white; }
-.btn-green { background: #22c55e; color: black; }
+.btn-blue   { background: #2563eb; color: white; }
+.btn-green  { background: #22c55e; color: black; }
 .btn-yellow { background: #facc15; color: black; }
-.btn-red { background: #ef4444; color: white; }
-.btn-dark { background: #020617; color: #facc15; grid-column: span 2; }
+.btn-red    { background: #ef4444; color: white; }
+.btn-dark   { background: #020617; color: #facc15; grid-column: span 2; }
 
 .hidden { display: none; }
 
@@ -63,6 +65,7 @@ html, body {
   border-radius: 10px;
   font-weight: bold;
   display: none;
+  z-index: 999;
 }
 </style>
 </head>

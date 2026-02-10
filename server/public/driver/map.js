@@ -1,16 +1,16 @@
 // =======================
-// AUTH
+// AUTH (اختياري)
 // =======================
 const rawDriver = localStorage.getItem("loggedDriver");
 if (!rawDriver) location.href = "../login.html";
 const driver = JSON.parse(rawDriver);
 
 // =======================
-// TRIP DATA (SAMPLE)
+// TRIP DATA (مثال)
 // =======================
 const tripId = 1;
 
-const pickup = { lat: 33.3528, lng: -111.7890 };
+const pickup  = { lat: 33.3528, lng: -111.7890 };
 const dropoff = { lat: 33.3700, lng: -111.8200 };
 
 // =======================
@@ -22,23 +22,23 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
+setTimeout(() => map.invalidateSize(), 300);
+
 let driverPos = null;
 let driverMarker = L.marker(pickup).addTo(map);
 let routeLine = null;
-
-let stage = "TO_PICKUP"; 
-// TO_PICKUP | ARRIVED | ON_TRIP | COMPLETED
+let currentStage = "pickup"; // pickup | waiting | dropoff
 
 // =======================
 // UI ELEMENTS
 // =======================
-const goPickupBtn = document.getElementById("goPickupBtn");
-const arrivedBtn = document.getElementById("arrivedBtn");
+const goPickupBtn  = document.getElementById("goPickupBtn");
+const arrivedBtn   = document.getElementById("arrivedBtn");
 const startTripBtn = document.getElementById("startTripBtn");
-const noShowBtn = document.getElementById("noShowBtn");
-const dropoffBtn = document.getElementById("dropoffBtn");
-const openGoogleBtn = document.getElementById("openGoogleBtn");
-const timerBox = document.getElementById("timer");
+const noShowBtn    = document.getElementById("noShowBtn");
+const dropoffBtn   = document.getElementById("dropoffBtn");
+const openGoogleBtn= document.getElementById("openGoogleBtn");
+const timerBox     = document.getElementById("timer");
 
 // =======================
 // DISTANCE (Miles)
@@ -76,79 +76,61 @@ async function drawRoute(from, to) {
 }
 
 // =======================
-// UI RESET
-// =======================
-function hideAllButtons() {
-  goPickupBtn.classList.add("hidden");
-  arrivedBtn.classList.add("hidden");
-  startTripBtn.classList.add("hidden");
-  noShowBtn.classList.add("hidden");
-  dropoffBtn.classList.add("hidden");
-}
-
-// =======================
 // LIVE LOCATION
 // =======================
-navigator.geolocation.watchPosition(pos => {
-  driverPos = {
-    lat: pos.coords.latitude,
-    lng: pos.coords.longitude
-  };
+navigator.geolocation.watchPosition(
+  pos => {
+    driverPos = {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude
+    };
 
-  driverMarker.setLatLng(driverPos);
+    driverMarker.setLatLng(driverPos);
 
-  // 🔴 SEND LOCATION TO SERVER
-  fetch("/api/driver/location", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      driverId: driver.id,
-      tripId,
-      lat: driverPos.lat,
-      lng: driverPos.lng
-    })
-  });
+    // إرسال اللوكيشن للإدمن/الديسبتشر
+    fetch("/api/driver/location", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        driverId: driver.id,
+        tripId,
+        lat: driverPos.lat,
+        lng: driverPos.lng
+      })
+    });
 
-  hideAllButtons();
+    const target = currentStage === "dropoff" ? dropoff : pickup;
+    const dist = distanceMiles(driverPos, target);
 
-  // =======================
-  // LOGIC
-  // =======================
-  if (stage === "TO_PICKUP") {
-    const dist = distanceMiles(driverPos, pickup);
-
-    if (dist > 1) {
-      goPickupBtn.classList.remove("hidden");
-    } else {
-      arrivedBtn.classList.remove("hidden");
+    // ===== PICKUP LOGIC =====
+    if (currentStage === "pickup") {
+      if (dist > 1) {
+        goPickupBtn.classList.remove("hidden");
+        arrivedBtn.classList.add("hidden");
+      } else {
+        goPickupBtn.classList.add("hidden");
+        arrivedBtn.classList.remove("hidden");
+      }
     }
-  }
 
-  if (stage === "ON_TRIP") {
-    const dist = distanceMiles(driverPos, dropoff);
-    if (dist <= 2) {
-      dropoffBtn.classList.remove("hidden");
+    // ===== DROPOFF LOGIC =====
+    if (currentStage === "dropoff") {
+      if (dist <= 2) dropoffBtn.classList.remove("hidden");
+      else dropoffBtn.classList.add("hidden");
     }
-  }
-});
+  },
+  err => alert("Location permission required"),
+  { enableHighAccuracy: true }
+);
 
 // =======================
 // BUTTON ACTIONS
 // =======================
 goPickupBtn.onclick = async () => {
-  if (!driverPos) return;
   await drawRoute(driverPos, pickup);
 };
 
-openGoogleBtn.onclick = () => {
-  if (!driverPos) return;
-  const target = stage === "ON_TRIP" ? dropoff : pickup;
-  const url = `https://www.google.com/maps/dir/?api=1&origin=${driverPos.lat},${driverPos.lng}&destination=${target.lat},${target.lng}&travelmode=driving`;
-  window.open(url, "_blank");
-};
-
 arrivedBtn.onclick = () => {
-  stage = "ARRIVED";
   arrivedBtn.classList.add("hidden");
   startTripBtn.classList.remove("hidden");
   noShowBtn.classList.remove("hidden");
@@ -156,18 +138,29 @@ arrivedBtn.onclick = () => {
 };
 
 startTripBtn.onclick = async () => {
-  stage = "ON_TRIP";
   clearInterval(timer);
   timerBox.style.display = "none";
+  currentStage = "dropoff";
+
   startTripBtn.classList.add("hidden");
   noShowBtn.classList.add("hidden");
+
   await drawRoute(driverPos, dropoff);
 };
 
 dropoffBtn.onclick = () => {
-  stage = "COMPLETED";
   alert("Trip Completed");
   dropoffBtn.classList.add("hidden");
+};
+
+// =======================
+// GOOGLE MAPS
+// =======================
+openGoogleBtn.onclick = () => {
+  if (!driverPos) return;
+  const target = currentStage === "dropoff" ? dropoff : pickup;
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${driverPos.lat},${driverPos.lng}&destination=${target.lat},${target.lng}&travelmode=driving`;
+  window.open(url, "_blank");
 };
 
 // =======================
@@ -183,7 +176,6 @@ function startTimer() {
     const m = Math.floor(time / 60);
     const s = time % 60;
     timerBox.innerText = `${m}:${s.toString().padStart(2, "0")}`;
-
     if (time <= 0) clearInterval(timer);
   }, 1000);
 }
@@ -191,8 +183,5 @@ function startTimer() {
 noShowBtn.onclick = () => {
   clearInterval(timer);
   const note = prompt("Enter No Show Note:");
-  if (note !== null) {
-    alert("No Show Completed");
-    stage = "COMPLETED";
-  }
+  if (note !== null) alert("No Show Completed");
 };
