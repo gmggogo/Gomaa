@@ -1,75 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Driver Map</title>
-
+<meta charset="UTF-8" />
+<title>Driver Live Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
 
 <style>
-body{
-  margin:0;
-  font-family:Arial;
-  background:#f5f5f5;
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0f172a;
+  font-family: Arial, sans-serif;
 }
 
-#map{
-  height:70vh;
+#map {
+  height: calc(100% - 140px);
 }
 
-.controls{
-  padding:10px;
-  background:#fff;
-  display:flex;
-  gap:10px;
+.actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #020617;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-button{
-  flex:1;
-  padding:12px;
-  font-size:16px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
+.actions button {
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-.hidden{display:none}
+.btn-blue { background: #2563eb; color: white; }
+.btn-green { background: #22c55e; color: black; }
+.btn-yellow { background: #facc15; color: black; }
+.btn-red { background: #ef4444; color: white; }
+.btn-dark { background: #020617; color: #facc15; grid-column: span 2; }
 
-textarea{
-  width:100%;
-  height:80px;
-  margin-top:10px;
-  padding:10px;
-  font-size:14px;
+.hidden { display: none; }
+
+#timer {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: black;
+  color: #facc15;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: bold;
+  display: none;
 }
 </style>
 </head>
 
 <body>
 
+<div id="timer">20:00</div>
 <div id="map"></div>
 
-<div class="controls">
-  <button onclick="openGoogleMaps()">Google Maps</button>
+<div class="actions">
+  <button id="goPickupBtn" class="btn-blue hidden">GO TO PICKUP LOCATION</button>
+  <button id="arrivedBtn" class="btn-yellow hidden">ARRIVED</button>
 
-  <button id="arrivedBtn" onclick="arrived()">Arrived</button>
+  <button id="startTripBtn" class="btn-green hidden">START TRIP</button>
+  <button id="noShowBtn" class="btn-red hidden">NO SHOW</button>
 
-  <button id="startBtn" class="hidden" onclick="startTrip()">Start Trip</button>
+  <button id="dropoffBtn" class="btn-green hidden">DROP OFF</button>
 
-  <button id="noShowBtn" class="hidden" onclick="openNoShow()">No Show</button>
-
-  <button id="completeBtn" class="hidden" onclick="completeTrip()">Complete</button>
+  <button id="openGoogleBtn" class="btn-dark">OPEN IN GOOGLE MAPS</button>
 </div>
 
-<div id="noShowBox" class="hidden" style="padding:10px;background:#fff">
-  <textarea id="noShowNote" placeholder="No Show reason (required)"></textarea>
-  <button onclick="submitNoShow()">Submit No Show</button>
-</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="map.js"></script>
-
 </body>
 </html>

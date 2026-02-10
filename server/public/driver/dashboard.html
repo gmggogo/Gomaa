@@ -1,183 +1,293 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sunbeam Driver</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Sunbeam Driver</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    * { box-sizing: border-box; }
+<style>
+:root{
+  --blue:#2563eb;
+  --dark:#0f172a;
+  --gold:#facc15;
+  --bg:#f3f4f6;
+  --card:#ffffff;
+}
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      color: #111;
-    }
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:#111;
+}
 
-    header {
-      background: linear-gradient(135deg, #0f172a, #2563eb);
-      color: #facc15;
-      text-align: center;
-      padding: 16px;
-      font-size: 20px;
-      font-weight: bold;
-    }
+/* ===== HEADER (قديم) ===== */
+header{
+  background:linear-gradient(135deg,var(--dark),var(--blue));
+  color:#fff;
+  padding:14px 12px 12px;
+  text-align:center;
+}
+header img{
+  height:44px;
+  display:block;
+  margin:0 auto 6px;
+}
+#driverName{
+  font-size:16px;
+  font-weight:bold;
+}
+#azTime{
+  font-size:13px;
+  color:var(--gold);
+  margin-top:2px;
+}
 
-    header span {
-      display: block;
-      font-size: 14px;
-      color: #e5e7eb;
-      margin-top: 4px;
-    }
+/* ===== MAIN ===== */
+main{
+  padding:16px;
+  padding-bottom:92px;
+}
+.section{display:none}
+.section.active{display:block}
 
-    main {
-      padding: 16px;
-      padding-bottom: 90px;
-    }
+.card{
+  background:var(--card);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:14px;
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
+}
+.card h3{
+  margin:0 0 10px;
+  color:var(--blue);
+}
 
-    .card {
-      background: white;
-      padding: 16px;
-      margin-bottom: 14px;
-      border-radius: 14px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-    }
+/* ===== STATUS BUTTON ===== */
+.status-btn{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-size:16px;
+  color:#fff;
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+}
+.status-btn.off{
+  background:linear-gradient(135deg,#ef4444,#b91c1c);
+}
 
-    .card h3 {
-      margin: 0 0 10px;
-      color: #2563eb;
-    }
+/* ===== CHAT ===== */
+.chat-box{
+  height:260px;
+  overflow:auto;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  padding:10px;
+  background:#fafafa;
+  margin-bottom:10px;
+}
+.chat-msg{
+  margin-bottom:8px;
+  font-size:14px;
+}
+.chat-input{
+  display:flex; gap:8px;
+}
+.chat-input input{
+  flex:1;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #d1d5db;
+}
+.chat-input button{
+  padding:12px 14px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(135deg,var(--blue),#1d4ed8);
+  color:#fff;
+}
 
-    .section { display: none; }
-    .section.active { display: block; }
+/* ===== NAV (قديم – متلوّن + أيقونات) ===== */
+nav{
+  position:fixed; bottom:0; left:0; right:0;
+  height:70px;
+  background:#fff;
+  display:flex;
+  border-top:1px solid #e5e7eb;
+}
+nav button{
+  flex:1;
+  border:none;
+  background:none;
+  font-size:12px;
+  color:#374151;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+}
+nav button .ico{
+  font-size:20px;
+}
+nav button.active{
+  color:var(--blue);
+}
+nav button.active .ico{
+  color:var(--gold);
+}
 
-    nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #ffffff;
-      display: flex;
-      border-top: 1px solid #ddd;
-      height: 64px;
-    }
-
-    nav button {
-      flex: 1;
-      border: none;
-      background: none;
-      font-size: 13px;
-      color: #374151;
-    }
-
-    nav button.active {
-      color: #2563eb;
-      font-weight: bold;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      cursor: pointer;
-    }
-
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-  </style>
+/* ===== SETTINGS ===== */
+.btn-danger{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-size:16px;
+  color:#fff;
+  background:linear-gradient(135deg,#ef4444,#b91c1c);
+}
+</style>
 </head>
 
 <body>
 
-<!-- 🔒 DRIVER AUTH -->
 <script>
-  const driverRaw = localStorage.getItem("loggedDriver");
-
-  if (!driverRaw) {
-    window.location.href = "/driver/login.html";
-  }
-
-  let driver;
-  try {
-    driver = JSON.parse(driverRaw);
-  } catch {
-    localStorage.removeItem("loggedDriver");
-    window.location.href = "/driver/login.html";
-  }
+// ===== AUTH =====
+const raw=localStorage.getItem("loggedDriver");
+if(!raw){location.href="login.html";}
+let driver;
+try{driver=JSON.parse(raw);}catch{
+  localStorage.removeItem("loggedDriver");
+  location.href="login.html";
+}
 </script>
 
 <header>
-  Sunbeam Driver
-  <span id="driverName"></span>
+  <!-- اللوجو الحقيقي -->
+  <img src="../assets/logo.png" alt="Sunbeam Transportation">
+  <div id="driverName"></div>
+  <div id="azTime"></div>
 </header>
 
 <main>
 
-  <section id="home" class="section active">
-    <div class="card">
-      <h3>Status</h3>
-      <p>You are currently <strong>Online</strong></p>
-    </div>
-  </section>
+<section id="home" class="section active">
+  <div class="card">
+    <h3>Status</h3>
+    <button id="statusBtn" class="status-btn" onclick="toggleStatus()">Online</button>
+  </div>
+</section>
 
-  <section id="trips" class="section">
-    <div class="card">
-      <h3>Your Trips</h3>
-      <p>No trips assigned yet.</p>
-    </div>
-  </section>
+<section id="trips" class="section">
+  <div class="card">
+    <h3>Trips</h3>
+    <p>No trips assigned.</p>
+  </div>
+</section>
 
-  <section id="hours" class="section">
-    <div class="card">
-      <h3>Work Hours</h3>
-      <p>Today: 0 hrs</p>
-      <p>This Week: 0 hrs</p>
-    </div>
-  </section>
+<section id="map" class="section">
+  <div class="card">
+    <h3>Map</h3>
+    <p>Live map will appear here.</p>
+  </div>
+</section>
 
-  <section id="earnings" class="section">
-    <div class="card">
-      <h3>Earnings</h3>
-      <p>This Week: $0</p>
-    </div>
-  </section>
+<section id="summary" class="section">
+  <div class="card">
+    <h3>Summary</h3>
+    <p>Hours Today: 0</p>
+    <p>Earnings: $0</p>
+  </div>
+</section>
 
-  <section id="logout" class="section">
-    <div class="card">
-      <button class="btn btn-danger" onclick="logout()">Logout</button>
+<section id="chat" class="section">
+  <div class="card">
+    <h3>Chat</h3>
+    <div id="chatBox" class="chat-box"></div>
+    <div class="chat-input">
+      <input id="chatText" placeholder="Type message">
+      <button onclick="sendMsg()">Send</button>
     </div>
-  </section>
+  </div>
+</section>
+
+<section id="settings" class="section">
+  <div class="card">
+    <h3>Settings</h3>
+    <button class="btn-danger" onclick="logout()">Logout</button>
+  </div>
+</section>
 
 </main>
 
 <nav>
-  <button class="active" onclick="showSection('home', this)">Home</button>
-  <button onclick="showSection('trips', this)">Trips</button>
-  <button onclick="showSection('hours', this)">Hours</button>
-  <button onclick="showSection('earnings', this)">Earnings</button>
-  <button onclick="showSection('logout', this)">Logout</button>
+  <button class="active" onclick="show('home',this)">
+    <div class="ico">🏠</div><div>Home</div>
+  </button>
+  <button onclick="show('trips',this)">
+    <div class="ico">🧾</div><div>Trips</div>
+  </button>
+  <button onclick="show('map',this)">
+    <div class="ico">🗺️</div><div>Map</div>
+  </button>
+  <button onclick="show('summary',this)">
+    <div class="ico">📊</div><div>Summary</div>
+  </button>
+  <button onclick="show('chat',this)">
+    <div class="ico">💬</div><div>Chat</div>
+  </button>
+  <button onclick="show('settings',this)">
+    <div class="ico">⚙️</div><div>Settings</div>
+  </button>
 </nav>
 
 <script>
-  document.getElementById("driverName").innerText =
-    driver.name || driver.username || "Driver";
+// ===== INIT =====
+document.getElementById("driverName").innerText =
+  driver.name || driver.username || "Driver";
 
-  function showSection(id, btn) {
-    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
-    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
-    btn.classList.add("active");
-  }
+// Arizona Time
+function updateTime(){
+  const t=new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+  document.getElementById("azTime").innerText = t + " (AZ)";
+}
+setInterval(updateTime,1000); updateTime();
 
-  function logout() {
-    localStorage.removeItem("loggedDriver");
-    window.location.href = "/driver/login.html";
-  }
+// NAV
+function show(id,btn){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  btn.classList.add("active");
+}
+
+// STATUS
+let online=true;
+function toggleStatus(){
+  online=!online;
+  const b=document.getElementById("statusBtn");
+  b.textContent = online ? "Online" : "Offline";
+  b.classList.toggle("off",!online);
+}
+
+// CHAT (واجهة فقط)
+function sendMsg(){
+  const t=document.getElementById("chatText");
+  if(!t.value) return;
+  const box=document.getElementById("chatBox");
+  box.innerHTML += `<div class="chat-msg"><b>You:</b> ${t.value}</div>`;
+  t.value="";
+  box.scrollTop=box.scrollHeight;
+}
+
+// LOGOUT
+function logout(){
+  localStorage.removeItem("loggedDriver");
+  location.href="login.html";
+}
 </script>
 
 </body>
