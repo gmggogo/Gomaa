@@ -10,6 +10,7 @@
   --blue:#0b1f3a;
   --blue2:#123a7a;
   --gold:#facc15;
+  --dark:#020617;
 }
 
 *{
@@ -22,6 +23,7 @@ body{
   background:linear-gradient(180deg,var(--blue),var(--blue2));
   color:#fff;
   min-height:100vh;
+  padding-bottom:90px;
 }
 
 /* ===== HEADER ===== */
@@ -54,14 +56,13 @@ body{
   margin-top:6px;
   font-size:15px;
   color:#e5e7eb;
-  letter-spacing:.5px;
 }
 
 /* ===== STATUS ===== */
 .status{
   margin:20px;
   padding:16px;
-  background:#020617;
+  background:var(--dark);
   border-radius:16px;
   font-size:18px;
 }
@@ -80,36 +81,46 @@ body{
 }
 
 .card{
-  background:#020617;
-  border-radius:20px;
-  padding:30px 20px;
+  background:var(--dark);
+  border-radius:18px;
+  padding:28px 20px;
   text-align:center;
   cursor:pointer;
   transition:.2s;
+  border:1px solid rgba(255,255,255,.05);
 }
 
 .card:hover{
-  transform:scale(1.03);
+  transform:translateY(-3px);
+  border-color:var(--gold);
 }
 
 .card .icon{
-  font-size:40px;
+  font-size:36px;
   margin-bottom:10px;
 }
 
 .card .title{
-  font-size:18px;
+  font-size:16px;
   font-weight:bold;
 }
 
-/* ===== SUMMARY ===== */
+/* ===== SUMMARY (BUTTON) ===== */
 .summary{
   margin:20px;
-  padding:30px;
-  background:#020617;
-  border-radius:20px;
+  padding:18px;
+  background:var(--dark);
+  border-radius:16px;
   text-align:center;
-  font-size:20px;
+  font-size:17px;
+  cursor:pointer;
+  transition:.2s;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.summary:hover{
+  background:#020617;
+  border-color:var(--gold);
 }
 
 /* ===== BOTTOM NAV ===== */
@@ -118,23 +129,32 @@ body{
   bottom:0;
   left:0;
   right:0;
-  background:#020617;
+  height:70px;
+  background:var(--dark);
   display:flex;
   justify-content:space-around;
-  padding:10px 0;
+  align-items:center;
+  border-top:1px solid rgba(255,255,255,.08);
 }
 
 .nav button{
   background:none;
   border:none;
   color:#9ca3af;
-  font-size:13px;
+  font-size:11px;
   cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+}
+
+.nav button span{
+  font-size:20px;
 }
 
 .nav button.active{
   color:var(--gold);
-  font-weight:bold;
 }
 </style>
 </head>
@@ -144,10 +164,9 @@ body{
 <!-- HEADER -->
 <div class="header">
   <div class="top-datetime" id="datetime"></div>
-
-  <img src="../assets/logo.png" alt="Sunbeam Transportation" class="logo">
+  <img src="../assets/logo.png" class="logo">
   <div class="company-name">Sunbeam Transportation</div>
-  <div class="driver-name" id="driverName"></div>
+  <div class="driver-name" id="driverName">Driver</div>
 </div>
 
 <!-- STATUS -->
@@ -155,7 +174,7 @@ body{
   Status: <span>ONLINE</span>
 </div>
 
-<!-- MAIN GRID -->
+<!-- GRID -->
 <div class="grid">
   <div class="card" onclick="go('trips')">
     <div class="icon">🚗</div>
@@ -178,18 +197,18 @@ body{
   </div>
 </div>
 
-<!-- SUMMARY -->
-<div class="summary">
-  📊 Summary
+<!-- SUMMARY BUTTON -->
+<div class="summary" onclick="go('summary')">
+  📊 View Summary
 </div>
 
-<!-- NAV -->
+<!-- BOTTOM NAV -->
 <div class="nav">
-  <button class="active">Home</button>
-  <button onclick="go('trips')">Trips</button>
-  <button onclick="go('map')">Map</button>
-  <button onclick="go('chat')">Chat</button>
-  <button onclick="logout()">Logout</button>
+  <button class="active"><span>🏠</span>Home</button>
+  <button onclick="go('trips')"><span>🚗</span>Trips</button>
+  <button onclick="go('map')"><span>🗺️</span>Map</button>
+  <button onclick="go('chat')"><span>💬</span>Chat</button>
+  <button onclick="logout()"><span>🚪</span>Logout</button>
 </div>
 
 <script src="dashboard.js"></script>
