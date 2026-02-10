@@ -3,109 +3,162 @@
 <head>
 <meta charset="UTF-8">
 <title>Driver Live Map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 :root{
   --gold:#facc15;
   --dark:#020617;
+  --blue:#2563eb;
 }
 
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--dark);
-  font-family: Arial, sans-serif;
+html, body{
+  margin:0;
+  height:100%;
+  background:var(--dark);
+  font-family:Arial, sans-serif;
   color:#fff;
 }
 
 /* ===== TOP LABEL ===== */
-.top {
-  position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: black;
-  color: var(--gold);
-  padding: 8px 14px;
-  border-radius: 10px;
-  z-index: 1000;
-  font-weight: bold;
+.top{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  background:black;
+  color:var(--gold);
+  padding:8px 14px;
+  border-radius:10px;
+  z-index:1000;
+  font-weight:bold;
 }
 
 /* ===== MAP ===== */
-/* مهم: نخلي الماب يخلص قبل منطقة الأزرار + الـ nav */
+/* مهم: الماب يخلص قبل (Trip Panel + Google Bar + Nav) */
 #map{
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 140px; /* 70px Google bar + 70px nav */
-  z-index: 1;
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom: 210px; /* 70 (trip) + 70 (google) + 70 (nav) */
+  z-index:1;
+}
+
+/* ===== TRIP ACTION PANEL (ABOVE GOOGLE BAR) ===== */
+.trip-panel{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:140px; /* فوق google bar */
+  padding:10px 12px;
+  background:var(--dark);
+  border-top:1px solid rgba(255,255,255,.08);
+  z-index:9997;
+  display:none; /* map.js هو اللي هيظهره */
+}
+
+.trip-panel button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-bottom:8px;
+}
+
+.timer{
+  text-align:center;
+  font-weight:bold;
+  color:var(--gold);
+  margin-bottom:8px;
+  display:none;
+}
+
+/* Buttons (app style) */
+.btn-go{ background:#2563eb; color:#fff; display:none; }
+.btn-arrived{ background:#16a34a; color:#fff; display:none; }
+.btn-start{ background:#22c55e; color:#000; display:none; }
+.btn-noshow{ background:#dc2626; color:#fff; display:none; }
+.btn-dropoff{ background:#facc15; color:#000; display:none; opacity:.6; }
+.btn-dropoff.enabled{ opacity:1; }
+
+/* ===== NO SHOW NOTES ===== */
+.no-show-box{
+  display:none;
+}
+
+.no-show-box textarea{
+  width:100%;
+  height:90px;
+  border-radius:10px;
+  border:none;
+  padding:10px;
+  margin-bottom:8px;
+  outline:none;
+}
+
+.btn-complete{
+  background:#7c3aed;
+  color:#fff;
+  display:block;
 }
 
 /* ===== GOOGLE BAR (ABOVE NAV) ===== */
 .bottom{
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 70px; /* فوق الـ nav مباشرة */
-  background: var(--dark);
-  padding: 10px 12px;
-  z-index: 9998;
-  border-top: 1px solid rgba(255,255,255,.08);
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:70px; /* فوق الـ nav مباشرة */
+  background:var(--dark);
+  padding:10px 12px;
+  z-index:9998;
+  border-top:1px solid rgba(255,255,255,.08);
 }
 
 .bottom button{
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 12px;
-  background: #2563eb;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:var(--blue);
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
 }
 
 /* ===== BOTTOM NAV (SAME STYLE) ===== */
 .nav{
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 70px;
-  background: var(--dark);
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  border-top: 1px solid rgba(255,255,255,.08);
-  z-index: 9999;
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:70px;
+  background:var(--dark);
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  border-top:1px solid rgba(255,255,255,.08);
+  z-index:9999;
 }
 
 .nav button{
-  background: none;
-  border: none;
-  color: #9ca3af;
-  font-size: 11px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  background:none;
+  border:none;
+  color:#9ca3af;
+  font-size:11px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
 }
 
-.nav button span{
-  font-size: 20px;
-}
-
-.nav button.active{
-  color: var(--gold);
-}
+.nav button span{ font-size:20px; }
+.nav button.active{ color:var(--gold); }
 </style>
 </head>
 
@@ -115,7 +168,29 @@ html, body {
 
 <div id="map"></div>
 
-<!-- GOOGLE BUTTON (kept exactly as your page logic) -->
+<!-- ===== TRIP ACTIONS (Uber/Lyft Flow) ===== -->
+<div class="trip-panel" id="tripPanel">
+
+  <div class="timer" id="waitTimer">20:00</div>
+
+  <button class="btn-go" id="btnGoPickup" onclick="goToPickup()">GO TO PICKUP LOCATION</button>
+
+  <button class="btn-arrived" id="btnArrived" onclick="arrived()">ARRIVED</button>
+
+  <button class="btn-start" id="btnStart" onclick="startTrip()">START TRIP</button>
+
+  <button class="btn-noshow" id="btnNoShow" onclick="noShow()">NO SHOW</button>
+
+  <button class="btn-dropoff" id="btnDropoff" onclick="dropoff()">DROP OFF</button>
+
+  <div class="no-show-box" id="noShowBox">
+    <textarea id="noShowNotes" placeholder="Reason for No Show (required)"></textarea>
+    <button class="btn-complete" id="btnComplete" onclick="completeNoShow()">COMPLETE</button>
+  </div>
+
+</div>
+
+<!-- GOOGLE BUTTON (kept like your original logic) -->
 <div class="bottom">
   <button onclick="openGoogle()">OPEN IN GOOGLE MAPS</button>
 </div>
@@ -131,8 +206,6 @@ html, body {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="map.js"></script>
-
-<!-- عشان go() و logout() يشتغلوا زي الداشبورد -->
 <script src="dashboard.js"></script>
 
 </body>
