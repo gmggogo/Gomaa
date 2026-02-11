@@ -5,76 +5,67 @@
 <title>Admin Live Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body,html{
+html,body{
   margin:0;
   height:100%;
   background:#020617;
+  font-family:Arial;
   color:#fff;
-  font-family:Arial, sans-serif;
-}
-
-header{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:10px;
-  background:#020617;
-  border-bottom:1px solid #222;
-}
-
-header h1{
-  flex:1;
-  text-align:center;
-  font-size:16px;
-  color:#facc15;
-  margin:0;
-}
-
-header button{
-  background:#facc15;
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:bold;
 }
 
 #map{
-  height:100%;
-}
-
-.search-box{
   position:absolute;
   top:60px;
-  right:10px;
-  z-index:999;
+  left:0;
+  right:0;
+  bottom:0;
 }
 
-.search-box input{
-  padding:8px;
+.header{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:60px;
+  background:#020617;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 15px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+
+.search{
+  padding:6px 10px;
   border-radius:8px;
   border:none;
+}
+
+.back{
+  background:#facc15;
+  border:none;
+  padding:6px 12px;
+  border-radius:8px;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-  <button onclick="goBack()">⬅ Back</button>
-  <h1>ADMIN LIVE MAP</h1>
-</header>
-
-<div class="search-box">
-  <input id="searchInput" placeholder="Search driver"/>
+<div class="header">
+  <button class="back" onclick="location.href='dashboard.html'">Back</button>
+  <b>ADMIN LIVE MAP</b>
+  <input id="searchDriver" class="search" placeholder="Search driver">
 </div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="maps.js"></script>
+
 </body>
 </html>
