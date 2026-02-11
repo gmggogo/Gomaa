@@ -10,7 +10,7 @@ try {
 
 if (!loggedCompany) {
   window.location.href = "company-login.html";
-} else {
+} else if (companyTitle) {
   companyTitle.innerText = loggedCompany.name || "";
 }
 
@@ -21,10 +21,19 @@ function updateTime() {
   const now = new Date();
   const h = now.getHours();
 
-  document.getElementById("greeting").innerText =
-    h < 12 ? "Good Morning" : h < 18 ? "Good Afternoon" : "Good Evening";
+  const greetingEl = document.getElementById("greeting");
+  const clockEl = document.getElementById("clock");
 
-  document.getElementById("clock").innerText = now.toLocaleString();
+  if (greetingEl) {
+    greetingEl.innerText =
+      h < 12 ? "Good Morning" :
+      h < 18 ? "Good Afternoon" :
+      "Good Evening";
+  }
+
+  if (clockEl) {
+    clockEl.innerText = now.toLocaleString();
+  }
 }
 setInterval(updateTime, 1000);
 updateTime();
@@ -37,29 +46,37 @@ const entryPhone = document.getElementById("entryPhone");
 const saveEntry  = document.getElementById("saveEntry");
 const editEntry  = document.getElementById("editEntry");
 
-const savedEntry = JSON.parse(localStorage.getItem("entryInfo"));
-if (savedEntry) {
-  entryName.value  = savedEntry.name || "";
-  entryPhone.value = savedEntry.phone || "";
-  lockEntry();
+try {
+  const savedEntry = JSON.parse(localStorage.getItem("entryInfo"));
+  if (savedEntry) {
+    entryName.value  = savedEntry.name || "";
+    entryPhone.value = savedEntry.phone || "";
+    lockEntry();
+  }
+} catch {}
+
+if (saveEntry) {
+  saveEntry.onclick = () => {
+    if (!entryName.value || !entryPhone.value) {
+      alert("Please enter entry name & phone");
+      return;
+    }
+
+    localStorage.setItem(
+      "entryInfo",
+      JSON.stringify({
+        name: entryName.value,
+        phone: entryPhone.value
+      })
+    );
+
+    lockEntry();
+  };
 }
 
-saveEntry.onclick = () => {
-  if (!entryName.value || !entryPhone.value) {
-    alert("Please enter entry name & phone");
-    return;
-  }
-  localStorage.setItem(
-    "entryInfo",
-    JSON.stringify({
-      name: entryName.value,
-      phone: entryPhone.value
-    })
-  );
-  lockEntry();
-};
-
-editEntry.onclick = unlockEntry;
+if (editEntry) {
+  editEntry.onclick = unlockEntry;
+}
 
 function lockEntry() {
   entryName.disabled = true;
@@ -79,6 +96,7 @@ function unlockEntry() {
    STOPS MANAGEMENT
 ================================ */
 let stopCount = 0;
+
 function addStop(value = "") {
   stopCount++;
   const input = document.createElement("input");
@@ -88,7 +106,7 @@ function addStop(value = "") {
 }
 
 /* ===============================
-   TRIP NUMBER (COMPANY)
+   TRIP NUMBER (SAFE)
 ================================ */
 function generateTripNumber() {
   const key = "lastCompanyTrip";
@@ -99,7 +117,7 @@ function generateTripNumber() {
 }
 
 /* ===============================
-   TIME VALIDATION (120 MIN)
+   TIME VALIDATION
 ================================ */
 function isWithin120Minutes(tripDate, tripTime) {
   if (!tripDate || !tripTime) return false;
@@ -118,58 +136,78 @@ const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
 /* ===============================
+   SAFE LOAD STORAGE
+================================ */
+function getTrips() {
+  try {
+    return JSON.parse(localStorage.getItem("companyTrips")) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTrips(list) {
+  localStorage.setItem("companyTrips", JSON.stringify(list));
+}
+
+/* ===============================
    SAVE DRAFT
 ================================ */
-saveTripBtn.onclick = () => {
-  localStorage.setItem(
-    "draftTrip",
-    JSON.stringify(collectTripData(false))
-  );
-  saveTripBtn.style.background = "#22c55e";
-};
-
-/* ===============================
-   SUBMIT TRIP (FINAL)
-================================ */
-submitTripBtn.onclick = () => {
-  const tripDateVal = tripDate.value;
-  const tripTimeVal = tripTime.value;
-
-  // ⚠️ Warning ONLY if within 120 minutes
-  if (isWithin120Minutes(tripDateVal, tripTimeVal)) {
-    const ok = confirm(
-      "⚠️ Important Notice\n\n" +
-      "This trip is within 120 minutes of its scheduled time.\n" +
-      "You will NOT be able to edit it after submission.\n\n" +
-      "Do you want to continue?"
+if (saveTripBtn) {
+  saveTripBtn.onclick = () => {
+    localStorage.setItem(
+      "draftTrip",
+      JSON.stringify(collectTripData(false))
     );
-    if (!ok) return;
-  }
-
-  const trips = JSON.parse(localStorage.getItem("companyTrips")) || [];
-  const trip  = collectTripData(true);
-
-  trip.status = "Scheduled";
-  trips.push(trip);
-
-  localStorage.setItem("companyTrips", JSON.stringify(trips));
-  localStorage.removeItem("draftTrip");
-
-  clearTripFields();
-  alert("Trip added successfully ✔");
-};
+    saveTripBtn.style.background = "#22c55e";
+  };
+}
 
 /* ===============================
-   COLLECT TRIP DATA
+   SUBMIT TRIP
 ================================ */
-const draftTrip = JSON.parse(localStorage.getItem("draftTrip"));
+if (submitTripBtn) {
+  submitTripBtn.onclick = () => {
 
+    const tripDateVal = tripDate.value;
+    const tripTimeVal = tripTime.value;
+
+    if (isWithin120Minutes(tripDateVal, tripTimeVal)) {
+      const ok = confirm(
+        "⚠️ Important Notice\n\n" +
+        "This trip is within 120 minutes.\n" +
+        "You will NOT be able to edit it after submission.\n\n" +
+        "Continue?"
+      );
+      if (!ok) return;
+    }
+
+    let trips = getTrips();
+
+    const trip = collectTripData(true);
+
+    trip.status = "Scheduled";
+
+    trips.push(trip);
+    saveTrips(trips);
+
+    localStorage.removeItem("draftTrip");
+    clearTripFields();
+
+    alert("Trip added successfully ✔");
+  };
+}
+
+/* ===============================
+   COLLECT TRIP DATA (FIXED)
+================================ */
 function collectTripData(finalSubmit) {
-  const tripDateVal = tripDate.value;
+
+  const draft = JSON.parse(localStorage.getItem("draftTrip") || "null");
 
   return {
     tripNumber: finalSubmit
-      ? (draftTrip?.tripNumber || generateTripNumber())
+      ? (draft?.tripNumber || generateTripNumber())
       : "",
 
     type: "Company",
@@ -188,13 +226,14 @@ function collectTripData(finalSubmit) {
       .map(i => i.value.trim())
       .filter(Boolean),
 
-    tripDate: tripDateVal || "",
+    tripDate: tripDate.value || "",
     tripTime: tripTime.value || "",
 
     notes: notes.value || "",
 
     status: finalSubmit ? "Scheduled" : "Draft",
-    createdAt: new Date().toISOString(),
+
+    createdAt: draft?.createdAt || new Date().toISOString(),
     bookedAt: finalSubmit ? new Date().toISOString() : ""
   };
 }
@@ -210,24 +249,31 @@ function clearTripFields() {
   tripDate.value = "";
   tripTime.value = "";
   notes.value = "";
+
   document.getElementById("stops").innerHTML = "";
   stopCount = 0;
-  saveTripBtn.style.background = "#64748b";
+
+  if (saveTripBtn)
+    saveTripBtn.style.background = "#64748b";
 }
 
 /* ===============================
-   LOAD DRAFT IF EXISTS
+   LOAD DRAFT
 ================================ */
-if (draftTrip) {
-  clientName.value = draftTrip.clientName || "";
-  clientPhone.value = draftTrip.clientPhone || "";
-  pickup.value = draftTrip.pickup || "";
-  dropoff.value = draftTrip.dropoff || "";
-  tripDate.value = draftTrip.tripDate || "";
-  tripTime.value = draftTrip.tripTime || "";
-  notes.value = draftTrip.notes || "";
+try {
+  const draftTrip = JSON.parse(localStorage.getItem("draftTrip"));
 
-  if (Array.isArray(draftTrip.stops)) {
-    draftTrip.stops.forEach(s => addStop(s));
+  if (draftTrip) {
+    clientName.value = draftTrip.clientName || "";
+    clientPhone.value = draftTrip.clientPhone || "";
+    pickup.value = draftTrip.pickup || "";
+    dropoff.value = draftTrip.dropoff || "";
+    tripDate.value = draftTrip.tripDate || "";
+    tripTime.value = draftTrip.tripTime || "";
+    notes.value = draftTrip.notes || "";
+
+    if (Array.isArray(draftTrip.stops)) {
+      draftTrip.stops.forEach(s => addStop(s));
+    }
   }
-}
+} catch {}
