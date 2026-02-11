@@ -1,28 +1,28 @@
+/* ===============================
+   PAGE
+=============================== */
 .page {
-  padding: 20px;
+  padding: 14px;
 }
 
+/* ===============================
+   HEADER
+=============================== */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 h2 {
   margin: 0;
+  font-size: 18px;
 }
 
-.add-btn {
-  background: #16a34a;
-  color: #fff;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
+/* ===============================
+   TABLE
+=============================== */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -31,105 +31,130 @@ table {
 
 th, td {
   border: 1px solid #ddd;
-  padding: 6px;
+  padding: 5px;                 /* ⬅️ أصغر */
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;              /* ⬅️ أصغر */
 }
 
 th {
   background: #020617;
   color: #facc15;
-}
-
-input, select {
-  width: 100%;
-  padding: 4px;
   font-size: 12px;
 }
 
-input:disabled,
-select:disabled {
+/* ===============================
+   INPUTS
+=============================== */
+input {
+  width: 100%;
+  padding: 3px;                 /* ⬅️ أصغر */
+  font-size: 11px;
+}
+
+input:disabled {
   background: #f1f1f1;
 }
 
-.day-select {
-  background: #fff7cc;
-}
-
-.action-btn {
-  padding: 4px 8px;
-  margin: 1px;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.edit { background: #2563eb; color: #fff; }
-.save { background: #16a34a; color: #fff; }
-.delete { background: #dc2626; color: #fff; }
-
-/* ===== DAY STATES ===== */
-.day-box{
-  transition:0.2s;
-  cursor:pointer;
-}
-
-/* OFF */
-.day-off{
-  background:#e5e7eb; /* رمادي */
-  border-color:#d1d5db;
-}
-
-/* ON */
-.day-on{
-  background:#22c55e; /* أخضر */
-  border-color:#15803d;
-  color:#000;
-}
-
-/* TODAY */
-.day-today{
-  outline:3px solid #2563eb; /* أزرق */
-}
-
-/* ===== WORK DAYS ===== */
+/* ===============================
+   WEEK GRID
+=============================== */
 .week-box{
   display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:6px;
+  grid-template-columns: repeat(7, 1fr);
+  gap:4px;                      /* ⬅️ أصغر */
 }
 
+/* ===============================
+   DAY BOX (DEFAULT)
+=============================== */
 .day-box{
   border:1px solid #d1d5db;
-  padding:6px;
-  border-radius:6px;
-  font-size:11px;
+  padding:4px;                  /* ⬅️ أصغر */
+  border-radius:5px;
+  font-size:10px;               /* ⬅️ أصغر */
   text-align:center;
+  background:#e5e7eb;
+  color:#6b7280;
   cursor:pointer;
-  background:#f3f4f6;
+  transition:0.15s;
 }
 
-/* اليوم شغال */
+/* ===============================
+   DAY ACTIVE (CHECKED)
+=============================== */
 .day-box.on{
-  background:#22c55e;
-  color:#fff;
+  background:#22c55e;           /* أخضر */
+  color:#ffffff;
   border-color:#16a34a;
+  font-weight:bold;
 }
 
-/* اليوم مش شغال */
+/* ===============================
+   DAY INACTIVE
+=============================== */
 .day-box.off{
   background:#e5e7eb;
   color:#6b7280;
 }
 
-/* ===== STATUS ===== */
+/* ===============================
+   TODAY HIGHLIGHT
+=============================== */
+.day-box.today{
+  outline:2px solid #2563eb;    /* أزرق */
+}
+
+/* ===============================
+   STATUS
+=============================== */
 .active{
   color:#16a34a;
   font-weight:bold;
+  font-size:12px;
 }
 
 .inactive{
   color:#dc2626;
   font-weight:bold;
+  font-size:12px;
+}
+
+/* ===============================
+   ACTION BUTTONS
+=============================== */
+.btn{
+  padding:4px 8px;              /* ⬅️ أصغر */
+  border-radius:4px;
+  border:none;
+  cursor:pointer;
+  font-size:11px;
+  margin:1px;
+}
+
+.btn.edit{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn.save{
+  background:#16a34a;
+  color:#fff;
+}
+
+.btn.disable{
+  background:#dc2626;
+  color:#fff;
+}
+
+.btn.enable{
+  background:#16a34a;
+  color:#fff;
+}
+
+/* ===============================
+   DISABLED DRIVER ROW
+=============================== */
+tr.disabled{
+  opacity:0.35;
+  pointer-events:none;
 }
