@@ -17,26 +17,48 @@ html,body{
   color:#fff;
 }
 
-#map{
-  position:absolute;
-  top:60px;
-  left:0;
-  right:0;
-  bottom:0;
-}
-
+/* ================= HEADER ================= */
 .header{
   position:fixed;
   top:0;
   left:0;
   right:0;
-  height:60px;
-  background:#020617;
+  height:80px;
+  background:linear-gradient(90deg,#0b1f3a,#123a7a);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:0 20px;
+  border-bottom:2px solid #facc15;
+  z-index:9999;
+}
+
+.header-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.title-box{
+  text-align:center;
+  flex:1;
+}
+
+.title-box h2{
+  margin:0;
+  font-size:18px;
+  color:#facc15;
+}
+
+.title-box span{
+  font-size:13px;
+  color:#fff;
+}
+
+.right-box{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  padding:0 15px;
-  border-bottom:1px solid rgba(255,255,255,.1);
+  gap:10px;
 }
 
 .search{
@@ -48,8 +70,19 @@ html,body{
 .back{
   background:#facc15;
   border:none;
-  padding:6px 12px;
+  padding:6px 14px;
   border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* ================= MAP ================= */
+#map{
+  position:absolute;
+  top:80px;
+  left:0;
+  right:0;
+  bottom:0;
 }
 </style>
 </head>
@@ -57,15 +90,42 @@ html,body{
 <body>
 
 <div class="header">
-  <button class="back" onclick="location.href='dashboard.html'">Back</button>
-  <b>ADMIN LIVE MAP</b>
-  <input id="searchDriver" class="search" placeholder="Search driver">
+
+  <div class="header-top">
+    <button class="back" onclick="goBack()">Back</button>
+
+    <div class="title-box">
+      <h2>Sunbeam Transportation</h2>
+      <span>DRIVERS MAP</span>
+    </div>
+
+    <div class="right-box">
+      <span id="liveTime"></span>
+      <input id="searchDriver" class="search" placeholder="Search driver">
+    </div>
+  </div>
+
 </div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="maps.js"></script>
+
+<script>
+function goBack(){
+  window.location.href = "dashboard.html";
+}
+
+function updateTime(){
+  const now = new Date();
+  document.getElementById("liveTime").innerText =
+    now.toLocaleDateString() + " | " +
+    now.toLocaleTimeString();
+}
+setInterval(updateTime,1000);
+updateTime();
+</script>
 
 </body>
 </html>
