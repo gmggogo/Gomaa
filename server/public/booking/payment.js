@@ -1,123 +1,44 @@
-/* ===============================
-   LOAD PENDING BOOKING
-================================ */
-const booking = JSON.parse(localStorage.getItem("pendingBooking"));
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment – Sunbeam</title>
+<style>
+body{font-family:Arial;background:#f8fafc;margin:0;padding:20px}
+.box{background:#fff;padding:20px;border-radius:8px;max-width:500px;margin:auto;text-align:center}
+button{padding:10px 16px;border:none;border-radius:6px;background:#22c55e;color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
 
-if (!booking) {
-  alert("No booking data found.");
-  window.location.href = "./index.html";
-}
+<div class="box">
+<h2>Payment Simulation</h2>
+<p>Click below to simulate payment success.</p>
+<button onclick="completePayment()">Complete Payment</button>
+</div>
 
-/* ===============================
-   SHOW SUMMARY
-================================ */
-document.getElementById("summary").innerHTML = `
-  <div class="row"><b>Passenger:</b> ${booking.passenger.name}</div>
-  <div class="row"><b>Phone:</b> ${booking.passenger.phone}</div>
-  <div class="row"><b>Pickup:</b> ${booking.pickup}</div>
-  <div class="row"><b>Dropoff:</b> ${booking.dropoff}</div>
-  <div class="row"><b>Date:</b> ${booking.date}</div>
-  <div class="row"><b>Time:</b> ${booking.time}</div>
-`;
+<script>
+function completePayment(){
+  const booking=JSON.parse(localStorage.getItem("pendingBooking"));
+  if(!booking){alert("No booking found");return;}
 
-document.getElementById("totalAmount").innerText =
-  `Total Amount: $${booking.price}`;
+  let hub=JSON.parse(localStorage.getItem("tripsHub"))||[];
 
-/* ===============================
-   TRIP NUMBER (INDIVIDUAL)
-   JA-101, FE-102, ...
-================================ */
-function generateTripNumber(tripDate) {
-  const d = new Date(tripDate);
+  booking.tripNumber="IND-"+Date.now();
+  booking.bookedAt=new Date().toISOString();
+  booking.type="Individual";
 
-  // أول حرفين من اسم الشهر بالإنجليزي
-  const monthPrefix = d
-    .toLocaleString("en-US", { month: "short" })
-    .substring(0, 2)
-    .toUpperCase(); // JA, FE, MA...
+  hub.push(booking);
 
-  // عدّاد منفصل لكل شهر
-  const key = "lastIndividualTrip_" + monthPrefix;
-
-  let last = parseInt(localStorage.getItem(key) || "99", 10);
-  last++;
-  localStorage.setItem(key, last);
-
-  return monthPrefix + "-" + last;
-}
-
-/* ===============================
-   PAY NOW (DUMMY)
-================================ */
-function payNow() {
-
-  // ✅ هنا بس التعديل: بنبعت تاريخ الرحلة للدالة
-  const tripNumber = generateTripNumber(booking.date);
-
-  const finalTrip = {
-    tripNumber: tripNumber,
-    id: tripNumber,
-
-    type: "Individual",            // مهم للألوان
-    source: "Booking",
-    status: "Booked",              // في Trips Hub دايمًا Booked
-    paymentStatus: "Paid",
-
-    company: "-",                  // فردي
-    bookerName: booking.passenger.name,
-    bookerPhone: booking.passenger.phone,
-
-    clientName: booking.passenger.name,
-
-    pickup: booking.pickup,
-    dropoff: booking.dropoff,
-    stops: booking.stops || [],
-
-    tripDate: booking.date,
-    tripTime: booking.time,
-
-    bookedAt: new Date().toISOString()
-  };
-
-  /* ===============================
-     SAVE TO TRIPS HUB
-  ================================ */
-  const tripsHub =
-    JSON.parse(localStorage.getItem("tripsHub")) || [];
-
-  tripsHub.push(finalTrip);
-
-  localStorage.setItem("tripsHub", JSON.stringify(tripsHub));
-
-  /* ===============================
-     CLEAN TEMP DATA
-  ================================ */
+  localStorage.setItem("tripsHub",JSON.stringify(hub));
   localStorage.removeItem("pendingBooking");
   localStorage.removeItem("tripData");
 
-  /* ===============================
-     SUCCESS MESSAGE
-  ================================ */
-  const box = document.getElementById("successMsg");
-
-  box.innerText = `
-Payment successful.
-
-You will receive a receipt on your mobile number.
-
-Trip Details:
-Passenger: ${finalTrip.clientName}
-Trip Date: ${finalTrip.tripDate} at ${finalTrip.tripTime}
-Amount Paid: $${booking.price}
-Trip Number: ${tripNumber}
-`;
-
-  box.style.display = "block";
-
-  /* ===============================
-     REDIRECT TO TRIPS HUB
-  ================================ */
-  setTimeout(() => {
-    window.location.href = "../admin/trips-hub.html";
-  }, 2000);
+  alert("Payment successful ✔");
+  location.href="../../admin/trips-hub.html";
 }
+</script>
+
+</body>
+</html>
