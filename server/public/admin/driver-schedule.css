@@ -92,3 +92,44 @@ select:disabled {
 .day-today{
   outline:3px solid #2563eb; /* أزرق */
 }
+
+/* ===== WORK DAYS ===== */
+.week-box{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+}
+
+.day-box{
+  border:1px solid #d1d5db;
+  padding:6px;
+  border-radius:6px;
+  font-size:11px;
+  text-align:center;
+  cursor:pointer;
+  background:#f3f4f6;
+}
+
+/* اليوم شغال */
+.day-box.on{
+  background:#22c55e;
+  color:#fff;
+  border-color:#16a34a;
+}
+
+/* اليوم مش شغال */
+.day-box.off{
+  background:#e5e7eb;
+  color:#6b7280;
+}
+
+/* ===== STATUS ===== */
+.active{
+  color:#16a34a;
+  font-weight:bold;
+}
+
+.inactive{
+  color:#dc2626;
+  font-weight:bold;
+}
