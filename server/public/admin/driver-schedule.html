@@ -63,17 +63,6 @@
       padding:20px;
     }
 
-    .add-btn{
-      background:#16a34a;
-      color:#fff;
-      border:none;
-      padding:8px 16px;
-      border-radius:8px;
-      font-weight:bold;
-      cursor:pointer;
-      margin-bottom:12px;
-    }
-
     table{
       width:100%;
       border-collapse:collapse;
@@ -92,6 +81,7 @@
       color:#fff;
     }
 
+    /* ===== WEEK ===== */
     .week-box{
       display:grid;
       grid-template-columns:repeat(7,1fr);
@@ -99,27 +89,49 @@
     }
 
     .day-box{
-      border:1px solid #d1d5db;
-      padding:6px;
       border-radius:6px;
-      background:#f9fafb;
+      padding:6px;
       font-size:11px;
+      cursor:pointer;
+      transition:0.2s;
     }
 
-    .day-label{font-weight:bold;margin-bottom:4px}
+    .day-label{
+      font-weight:bold;
+      margin-bottom:4px;
+      display:block;
+    }
+
+    /* STATES */
+    .day-off{
+      background:#e5e7eb;
+      border:1px solid #d1d5db;
+    }
+
+    .day-on{
+      background:#22c55e;
+      border:1px solid #15803d;
+      color:#000;
+    }
+
+    .day-today{
+      outline:3px solid #2563eb;
+    }
+
+    input[type="checkbox"]{
+      margin-top:4px;
+    }
 
     .action-btn{
       border:none;
-      padding:4px 8px;
+      padding:4px 10px;
       border-radius:6px;
       cursor:pointer;
       font-size:12px;
       font-weight:bold;
+      background:#2563eb;
+      color:#fff;
     }
-
-    .edit{background:#2563eb;color:#fff}
-    .save{background:#16a34a;color:#fff}
-    .delete{background:#dc2626;color:#fff}
   </style>
 </head>
 
@@ -133,18 +145,16 @@
   <div class="header-center">
     <div class="company-name">Sunbeam Transportation</div>
     <div class="page-name">Driver Schedule</div>
-    <div class="admin-name" id="adminName">Admin</div>
+    <div class="admin-name">Admin</div>
   </div>
 
   <div class="header-right">
     <span class="clock" id="clock"></span>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="logout-btn">Logout</button>
   </div>
 </header>
 
 <div class="page">
-  <button class="add-btn" onclick="addRow()">+ Add Driver</button>
-
   <table>
     <thead>
       <tr>
@@ -153,15 +163,13 @@
         <th>Phone</th>
         <th>Address</th>
         <th id="weekTitle"></th>
-        <th>Actions</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
   </table>
 </div>
 
-<!-- ⚠️ ده السطر الوحيد للـ JavaScript -->
 <script src="driver-schedule.js"></script>
-
 </body>
 </html>

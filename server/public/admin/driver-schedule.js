@@ -1,5 +1,5 @@
 /* ================= CONFIG ================= */
-const API = "/api/users?role=driver";
+const API = "/api/admin/users?role=driver";
 const STORAGE_KEY = "driverSchedule";
 
 /* ================= STATE ================= */
@@ -66,53 +66,55 @@ async function render() {
     return;
   }
 
+  const todayKey = azDate().toISOString().slice(0,10);
+
   drivers.forEach((d, i) => {
     if (!schedule[d.id]) {
       schedule[d.id] = {
         address: "",
-        days: {},
-        edit: false
+        days: {}
       };
     }
 
     const s = schedule[d.id];
-
     const tr = document.createElement("tr");
+
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td>${d.name}</td>
       <td>${d.username}</td>
 
       <td>
-        <input
-          value="${s.address}"
-          ${!s.edit ? "disabled" : ""}
-          onchange="schedule[${d.id}].address=this.value"
-        >
+        <input value="${s.address}" disabled>
       </td>
 
       <td>
         <div class="week-box">
-          ${week.map(w => `
-            <label class="day-box">
-              <span>${w.label} ${w.date}</span>
-              <input
-                type="checkbox"
-                ${s.days[w.key] ? "checked" : ""}
-                ${!s.edit ? "disabled" : ""}
-                onchange="schedule[${d.id}].days['${w.key}']=this.checked"
-              >
-            </label>
-          `).join("")}
+          ${week.map(w => {
+            const isOn = s.days[w.key];
+            let cls = isOn ? "day-on" : "day-off";
+            if (w.key === todayKey) cls += " day-today";
+
+            return `
+              <label class="day-box ${cls}">
+                <span class="day-label">${w.label} ${w.date}</span>
+                <input
+                  type="checkbox"
+                  ${isOn ? "checked" : ""}
+                  onchange="
+                    schedule[${d.id}].days['${w.key}']=this.checked;
+                    save();
+                    render();
+                  "
+                >
+              </label>
+            `;
+          }).join("")}
         </div>
       </td>
 
       <td>
-        ${
-          s.edit
-            ? `<button onclick="saveDriver(${d.id})">Save</button>`
-            : `<button onclick="editDriver(${d.id})">Edit</button>`
-        }
+        <button disabled>Auto</button>
       </td>
     `;
 
@@ -120,18 +122,6 @@ async function render() {
   });
 
   save();
-}
-
-/* ================= ACTIONS ================= */
-function editDriver(id) {
-  schedule[id].edit = true;
-  render();
-}
-
-function saveDriver(id) {
-  schedule[id].edit = false;
-  save();
-  render();
 }
 
 /* ================= INIT ================= */

@@ -68,3 +68,27 @@ select:disabled {
 .edit { background: #2563eb; color: #fff; }
 .save { background: #16a34a; color: #fff; }
 .delete { background: #dc2626; color: #fff; }
+
+/* ===== DAY STATES ===== */
+.day-box{
+  transition:0.2s;
+  cursor:pointer;
+}
+
+/* OFF */
+.day-off{
+  background:#e5e7eb; /* رمادي */
+  border-color:#d1d5db;
+}
+
+/* ON */
+.day-on{
+  background:#22c55e; /* أخضر */
+  border-color:#15803d;
+  color:#000;
+}
+
+/* TODAY */
+.day-today{
+  outline:3px solid #2563eb; /* أزرق */
+}
