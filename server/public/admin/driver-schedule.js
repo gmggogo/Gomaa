@@ -1,33 +1,44 @@
 /* ===============================
-   AUTH + ADMIN NAME
-================================ */
-const userRaw = localStorage.getItem("loggedUser");
-if (!userRaw) location.href = "login.html";
-const admin = JSON.parse(userRaw);
+   DRIVER SCHEDULE – FINAL STABLE
+   Sunbeam Transportation
+=============================== */
 
-document.getElementById("adminName").innerText = admin.name;
+/* ===============================
+   AUTH (Admin name)
+=============================== */
+const adminRaw = localStorage.getItem("loggedUser");
+const admin = adminRaw ? JSON.parse(adminRaw) : null;
+if (!admin) location.href = "login.html";
+
+const adminNameEl = document.getElementById("adminName");
+if (adminNameEl) adminNameEl.innerText = admin.name;
 
 /* ===============================
    API
-================================ */
-const DRIVERS_API = "/api/admin/users?role=driver";
+=============================== */
+const API_DRIVERS = "/api/admin/users?role=driver";
 
 /* ===============================
    STORAGE
-================================ */
+=============================== */
 const STORAGE_KEY = "driverSchedule";
 let schedule = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 
 /* ===============================
-   DATE (ARIZONA)
-================================ */
+   DOM
+=============================== */
+const tbody = document.getElementById("tbody");
+
+/* ===============================
+   DATE (Arizona)
+=============================== */
 function azDate(d = new Date()) {
   return new Date(d.toLocaleString("en-US", { timeZone: "America/Phoenix" }));
 }
 
 /* ===============================
-   BUILD WEEK (DATES)
-================================ */
+   BUILD WEEK
+=============================== */
 function buildWeek() {
   const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const start = azDate();
@@ -36,6 +47,7 @@ function buildWeek() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
+
     week.push({
       label: days[d.getDay()],
       key: d.toISOString().slice(0,10),
@@ -49,36 +61,44 @@ function buildWeek() {
   return week;
 }
 
-const week = buildWeek();
+const WEEK = buildWeek();
 
 /* ===============================
-   FETCH DRIVERS
-================================ */
+   LOAD DRIVERS
+=============================== */
 async function loadDrivers() {
-  const res = await fetch(DRIVERS_API);
+  const res = await fetch(API_DRIVERS);
   if (!res.ok) throw new Error("Failed to load drivers");
   return await res.json();
 }
 
 /* ===============================
    SAVE
-================================ */
+=============================== */
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+  syncWithMap();
+}
+
+/* ===============================
+   MAP SYNC (IMPORTANT)
+=============================== */
+function syncWithMap() {
+  localStorage.setItem("driverScheduleForMap", JSON.stringify(schedule));
 }
 
 /* ===============================
    RENDER
-================================ */
+=============================== */
 async function render() {
-  const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
 
   let drivers = [];
   try {
     drivers = await loadDrivers();
-  } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7">Failed to load drivers</td></tr>`;
+  } catch {
+    tbody.innerHTML =
+      `<tr><td colspan="7">Failed to load drivers</td></tr>`;
     return;
   }
 
@@ -88,58 +108,61 @@ async function render() {
         phone: "",
         address: "",
         days: {},
-        edit: false,
-        enabled: true
+        enabled: true,
+        edit: false
       };
     }
 
     const s = schedule[d.id];
-    const isActiveToday = s.days[new Date().toISOString().slice(0,10)];
-    const statusText = s.enabled && isActiveToday ? "ACTIVE" : "NOT ACTIVE";
+    const todayKey = azDate().toISOString().slice(0,10);
+    const activeToday = s.enabled && s.days[todayKey];
 
     const tr = document.createElement("tr");
     if (!s.enabled) tr.style.opacity = "0.4";
 
     tr.innerHTML = `
-      <td>${i+1}</td>
-      <td>${d.name}</td>
+      <td>${i + 1}</td>
+      <td><strong>${d.name}</strong></td>
 
       <td>
-        <input value="${s.phone}"
-          ${!s.edit ? "disabled" : ""}
+        <input value="${s.phone}" ${!s.edit ? "disabled" : ""}
           onchange="schedule[${d.id}].phone=this.value">
       </td>
 
       <td>
-        <input value="${s.address}"
-          ${!s.edit ? "disabled" : ""}
+        <input value="${s.address}" ${!s.edit ? "disabled" : ""}
           onchange="schedule[${d.id}].address=this.value">
       </td>
 
       <td>
         <div class="week-box">
-          ${week.map(w => `
-            <label class="day-box ${s.days[w.key] ? "on" : "off"}">
-              ${w.text}
-              <input type="checkbox"
-                ${s.days[w.key] ? "checked" : ""}
-                ${!s.edit ? "disabled" : ""}
-                onchange="toggleDay(${d.id}, '${w.key}', this.checked)">
-            </label>
-          `).join("")}
+          ${WEEK.map(w => {
+            const checked = !!s.days[w.key];
+            return `
+              <label class="day-box ${checked ? "on" : "off"}">
+                ${w.text}
+                <input type="checkbox"
+                  ${checked ? "checked" : ""}
+                  ${!s.edit || !s.enabled ? "disabled" : ""}
+                  onchange="toggleDay(${d.id}, '${w.key}', this.checked)">
+              </label>
+            `;
+          }).join("")}
         </div>
       </td>
 
-      <td class="${statusText === "ACTIVE" ? "active" : "inactive"}">
-        ${statusText}
+      <td class="${activeToday ? "active" : "inactive"}">
+        ${activeToday ? "ACTIVE" : "NOT ACTIVE"}
       </td>
 
       <td>
-        ${s.edit
-          ? `<button onclick="saveRow(${d.id})">Save</button>`
-          : `<button onclick="editRow(${d.id})">Edit</button>`
+        ${
+          s.edit
+            ? `<button class="btn save" onclick="saveDriver(${d.id})">Save</button>`
+            : `<button class="btn edit" onclick="editDriver(${d.id})">Edit</button>`
         }
-        <button onclick="toggleEnable(${d.id})">
+        <button class="btn ${s.enabled ? "disable" : "enable"}"
+          onclick="toggleEnable(${d.id})">
           ${s.enabled ? "Disable" : "Enable"}
         </button>
       </td>
@@ -153,20 +176,22 @@ async function render() {
 
 /* ===============================
    ACTIONS
-================================ */
-function editRow(id) {
+=============================== */
+function editDriver(id) {
   schedule[id].edit = true;
   render();
 }
 
-function saveRow(id) {
+function saveDriver(id) {
   schedule[id].edit = false;
   save();
   render();
 }
 
-function toggleDay(id, day, checked) {
-  schedule[id].days[day] = checked;
+function toggleDay(id, key, val) {
+  schedule[id].days[key] = val;
+  save();
+  render();
 }
 
 function toggleEnable(id) {
@@ -177,5 +202,5 @@ function toggleEnable(id) {
 
 /* ===============================
    INIT
-================================ */
+=============================== */
 render();
