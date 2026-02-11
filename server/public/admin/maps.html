@@ -1,74 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Admin Live Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Admin Live Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <style>
-    body {
-      margin: 0;
-      background: #0b1f3a;
-      color: #fff;
-      font-family: Arial, sans-serif;
-    }
+<style>
+:root{
+  --dark:#020617;
+  --gold:#facc15;
+}
 
-    /* Search bar */
-    .map-search {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      background: rgba(0,0,0,0.75);
-      padding: 8px 12px;
-      border-radius: 8px;
-      display: flex;
-      gap: 6px;
-    }
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:var(--dark);
+  color:#fff;
+  font-family:Arial, sans-serif;
+}
 
-    .map-search input {
-      padding: 6px 10px;
-      border-radius: 5px;
-      border: none;
-      outline: none;
-      width: 200px;
-    }
+/* HEADER */
+header{
+  height:60px;
+  background:#000;
+  color:var(--gold);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+}
 
-    .map-search button {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      background: #facc15;
-      font-weight: bold;
-    }
+/* BACK BUTTON */
+.back-btn{
+  position:fixed;
+  top:70px;
+  left:10px;
+  z-index:9999;
+  background:#111827;
+  color:#fff;
+  border:none;
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:14px;
+  cursor:pointer;
+}
 
-    #map {
-      width: 100vw;
-      height: 100vh;
-    }
-  </style>
+/* LAYOUT */
+.main{
+  display:flex;
+  height:calc(100vh - 60px);
+}
+
+#map{
+  flex:1;
+}
+
+/* SIDE PANEL */
+.side{
+  width:320px;
+  background:var(--dark);
+  border-left:1px solid rgba(255,255,255,.1);
+  padding:10px;
+  overflow-y:auto;
+}
+
+.search{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  outline:none;
+  margin-bottom:10px;
+}
+
+.driver-card{
+  background:#0b1220;
+  padding:8px;
+  border-radius:8px;
+  margin-bottom:6px;
+  cursor:pointer;
+}
+
+/* MOBILE */
+@media(max-width:900px){
+  .main{ flex-direction:column; }
+
+  .side{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    height:40vh;
+    border-left:none;
+    border-top:1px solid rgba(255,255,255,.15);
+    border-radius:16px 16px 0 0;
+    z-index:9998;
+  }
+
+  .back-btn{
+    top:70px;
+    left:8px;
+  }
+}
+</style>
 </head>
+
 <body>
 
-  <!-- Search -->
-  <div class="map-search">
-    <input id="searchInput" type="text" placeholder="Driver name or ID">
-    <button onclick="focusDriver()">Search</button>
-  </div>
+<header>ADMIN LIVE MAP</header>
 
-  <!-- Map -->
+<button class="back-btn" onclick="goBack()">⬅ رجوع</button>
+
+<div class="main">
   <div id="map"></div>
 
-  <!-- Leaflet -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="maps.js"></script>
+  <div class="side">
+    <input
+      id="searchDriver"
+      class="search"
+      placeholder="Search driver by name..."
+    />
+
+    <h4>Drivers (Active Today)</h4>
+    <div id="driversList"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="maps.js"></script>
 </body>
 </html>

@@ -1,112 +1,115 @@
-/* =========================
-   MAP INIT
-========================= */
-const map = L.map("map").setView([33.3062, -111.8413], 12);
+// ===============================
+// BACK
+// ===============================
+function goBack(){
+  location.href = "/admin/dashboard.html";
+}
+
+// ===============================
+// MAP INIT
+// ===============================
+const map = L.map("map").setView([33.4484, -112.074], 11);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19
+  maxZoom:19
 }).addTo(map);
 
-/* =========================
-   DRIVERS STORE
-========================= */
-// driverId => { marker, data }
-const drivers = {};
+// ===============================
+// DATA
+// ===============================
+const today = new Date().toISOString().slice(0,10);
 
-/* =========================
-   ICON FACTORY
-========================= */
-function driverIcon(color, label) {
+const activeByDate = JSON.parse(
+  localStorage.getItem("activeDriversByDate") || "{}"
+);
+
+const activeDriverIds = activeByDate[today] || [];
+
+const driversOnline = JSON.parse(
+  localStorage.getItem("driversOnline") || "[]"
+);
+
+// فلترة السواقين اللي شغالين النهارده
+let activeDrivers = driversOnline.filter(d =>
+  activeDriverIds.includes(d.id)
+);
+
+// ===============================
+// UI
+// ===============================
+const driversList = document.getElementById("driversList");
+const searchInput = document.getElementById("searchDriver");
+
+let markers = [];
+
+// ===============================
+// ICONS
+// ===============================
+const colors = ["red","blue","green","orange","purple","yellow"];
+
+function carIcon(color, name){
   return L.divIcon({
-    className: "",
-    html: `
-      <div style="
-        background:${color};
-        color:#000;
-        padding:4px 6px;
-        border-radius:6px;
-        font-size:12px;
-        font-weight:bold;
-        border:2px solid #000;
-        white-space:nowrap;
-      ">
-        ${label}
+    className:"",
+    html:`
+      <div style="text-align:center">
+        <div style="font-size:11px;color:white;margin-bottom:2px">
+          ${name}
+        </div>
+        <div style="
+          width:28px;
+          height:28px;
+          background:${color};
+          border-radius:50%;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:16px;
+        ">🚗</div>
       </div>
-    `
+    `,
+    iconSize:[40,50],
+    iconAnchor:[20,40]
   });
 }
 
-/* =========================
-   UPDATE / ADD DRIVER
-========================= */
-function updateDriver(driver) {
-  const { id, name, lat, lng, status } = driver;
+// ===============================
+// RENDER
+// ===============================
+function render(list){
+  markers.forEach(m=>map.removeLayer(m));
+  markers = [];
+  driversList.innerHTML = "";
 
-  let color = "#9ca3af"; // gray
-  if (status === "available") color = "#22c55e";
-  if (status === "ontrip") color = "#facc15";
-  if (status === "problem") color = "#ef4444";
+  list.forEach((d,i)=>{
+    const color = colors[i % colors.length];
 
-  if (!drivers[id]) {
-    const marker = L.marker([lat, lng], {
-      icon: driverIcon(color, name)
+    const marker = L.marker([d.lat, d.lng], {
+      icon: carIcon(color, d.name)
     }).addTo(map);
 
-    marker.bindPopup(`
-      <b>${name}</b><br>
-      ID: ${id}<br>
-      Status: ${status}
-    `);
+    markers.push(marker);
 
-    drivers[id] = { marker, data: driver };
-  } else {
-    drivers[id].marker.setLatLng([lat, lng]);
-    drivers[id].marker.setIcon(driverIcon(color, name));
-    drivers[id].data = driver;
-  }
+    const card = document.createElement("div");
+    card.className = "driver-card";
+    card.innerText = d.name;
+    card.onclick = ()=>{
+      map.setView([d.lat, d.lng], 15);
+    };
+
+    driversList.appendChild(card);
+  });
 }
 
-/* =========================
-   SEARCH / FOCUS
-========================= */
-function focusDriver() {
-  const q = document.getElementById("searchInput").value.toLowerCase();
-  if (!q) return;
+// ===============================
+// SEARCH
+// ===============================
+searchInput.oninput = ()=>{
+  const q = searchInput.value.toLowerCase();
+  const filtered = activeDrivers.filter(d =>
+    d.name.toLowerCase().includes(q)
+  );
+  render(filtered);
+};
 
-  for (const id in drivers) {
-    const d = drivers[id].data;
-    if (
-      d.name.toLowerCase().includes(q) ||
-      id.toLowerCase() === q
-    ) {
-      map.setView(drivers[id].marker.getLatLng(), 15);
-      drivers[id].marker.openPopup();
-      break;
-    }
-  }
-}
-
-/* =========================
-   DEMO LIVE DATA (TEMP)
-   هتشيل ده لما نربط بالسواقين
-========================= */
-setInterval(() => {
-  const demoDrivers = [
-    {
-      id: "D1",
-      name: "Ahmed",
-      lat: 33.3062 + Math.random() * 0.01,
-      lng: -111.8413 + Math.random() * 0.01,
-      status: "available"
-    },
-    {
-      id: "D2",
-      name: "Mohamed",
-      lat: 33.31 + Math.random() * 0.01,
-      lng: -111.85 + Math.random() * 0.01,
-      status: "ontrip"
-    }
-  ];
-
-  demoDrivers.forEach(updateDriver);
-}, 3000);
+// ===============================
+render(activeDrivers);
