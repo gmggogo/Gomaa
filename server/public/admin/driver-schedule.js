@@ -47,7 +47,6 @@ function buildWeek() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
-
     week.push({
       label: days[d.getDay()],
       key: d.toISOString().slice(0,10),
@@ -73,17 +72,10 @@ async function loadDrivers() {
 }
 
 /* ===============================
-   SAVE
+   SAVE + MAP SYNC
 =============================== */
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
-  syncWithMap();
-}
-
-/* ===============================
-   MAP SYNC (IMPORTANT)
-=============================== */
-function syncWithMap() {
   localStorage.setItem("driverScheduleForMap", JSON.stringify(schedule));
 }
 
@@ -97,8 +89,7 @@ async function render() {
   try {
     drivers = await loadDrivers();
   } catch {
-    tbody.innerHTML =
-      `<tr><td colspan="7">Failed to load drivers</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">Failed to load drivers</td></tr>`;
     return;
   }
 
@@ -118,50 +109,64 @@ async function render() {
     const activeToday = s.enabled && s.days[todayKey];
 
     const tr = document.createElement("tr");
-    if (!s.enabled) tr.style.opacity = "0.4";
+    if (!s.enabled) tr.style.opacity = "0.35";
 
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td><strong>${d.name}</strong></td>
 
       <td>
-        <input value="${s.phone}" ${!s.edit ? "disabled" : ""}
+        <input style="height:26px;font-size:12px"
+          value="${s.phone}"
+          ${!s.edit ? "disabled" : ""}
           onchange="schedule[${d.id}].phone=this.value">
       </td>
 
       <td>
-        <input value="${s.address}" ${!s.edit ? "disabled" : ""}
+        <input style="height:26px;font-size:12px"
+          value="${s.address}"
+          ${!s.edit ? "disabled" : ""}
           onchange="schedule[${d.id}].address=this.value">
       </td>
 
       <td>
-        <div class="week-box">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
           ${WEEK.map(w => {
             const checked = !!s.days[w.key];
             return `
-              <label class="day-box ${checked ? "on" : "off"}">
-                ${w.text}
+              <label
+                style="
+                  font-size:11px;
+                  padding:4px 6px;
+                  border-radius:4px;
+                  cursor:pointer;
+                  background:${checked ? '#16a34a' : '#e5e7eb'};
+                  color:${checked ? '#fff' : '#000'};
+                ">
+                ${w.label}
                 <input type="checkbox"
+                  style="display:none"
                   ${checked ? "checked" : ""}
                   ${!s.edit || !s.enabled ? "disabled" : ""}
-                  onchange="toggleDay(${d.id}, '${w.key}', this.checked)">
+                  onchange="toggleDay(${d.id}, '${w.key}', this)">
               </label>
             `;
           }).join("")}
         </div>
       </td>
 
-      <td class="${activeToday ? "active" : "inactive"}">
+      <td style="font-weight:bold;color:${activeToday ? '#16a34a' : '#dc2626'}">
         ${activeToday ? "ACTIVE" : "NOT ACTIVE"}
       </td>
 
       <td>
         ${
           s.edit
-            ? `<button class="btn save" onclick="saveDriver(${d.id})">Save</button>`
-            : `<button class="btn edit" onclick="editDriver(${d.id})">Edit</button>`
+            ? `<button style="background:#16a34a;color:#fff" onclick="saveDriver(${d.id})">Save</button>`
+            : `<button style="background:#2563eb;color:#fff" onclick="editDriver(${d.id})">Edit</button>`
         }
-        <button class="btn ${s.enabled ? "disable" : "enable"}"
+        <button
+          style="background:${s.enabled ? '#dc2626' : '#16a34a'};color:#fff"
           onclick="toggleEnable(${d.id})">
           ${s.enabled ? "Disable" : "Enable"}
         </button>
@@ -175,7 +180,7 @@ async function render() {
 }
 
 /* ===============================
-   ACTIONS
+   ACTIONS (NO RE-RENDER BUG)
 =============================== */
 function editDriver(id) {
   schedule[id].edit = true;
@@ -187,13 +192,13 @@ function saveDriver(id) {
   save();
   render();
 }
-function toggleDay(id, key, checked, el) {
-  schedule[id].days[key] = checked;
 
-  // تغيير اللون فورًا
-  const box = el.closest(".day-box");
-  box.classList.toggle("on", checked);
-  box.classList.toggle("off", !checked);
+function toggleDay(id, key, checkbox) {
+  schedule[id].days[key] = checkbox.checked;
+
+  const label = checkbox.parentElement;
+  label.style.background = checkbox.checked ? "#16a34a" : "#e5e7eb";
+  label.style.color = checkbox.checked ? "#fff" : "#000";
 
   save();
 }
