@@ -5,62 +5,40 @@ const rawDriver = localStorage.getItem("loggedDriver");
 if (!rawDriver) location.href = "/driver/login.html";
 
 let driver = {};
-try {
-  driver = JSON.parse(rawDriver);
-} catch {
-  location.href = "/driver/login.html";
-}
+try { driver = JSON.parse(rawDriver); }
+catch { location.href = "/driver/login.html"; }
 
 const DRIVER_NAME = driver.name || driver.username || "Driver";
 
 // ===============================
 // MAP INIT (UBER STYLE)
 // ===============================
-const map = L.map("map", {
-  zoomControl: false,
-  attributionControl: false
-}).setView([0, 0], 15);
+const map = L.map("map", { zoomControl:false, attributionControl:false }).setView([0,0], 15);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19
+  maxZoom:19
 }).addTo(map);
 
-// ===============================
-// DRIVER MARKER
-// ===============================
 let driverMarker = null;
 let firstFix = true;
 
 // ===============================
-// SAVE LIVE LOCATION (ADMIN SOURCE)
+// SEND LIVE LOCATION TO SERVER
 // ===============================
-function saveLiveLocation(lat, lng){
-  let liveDrivers = {};
-
-  try {
-    liveDrivers = JSON.parse(
-      localStorage.getItem("driversLive") || "{}"
-    );
-  } catch {
-    liveDrivers = {};
+async function sendLiveLocation(lat, lng){
+  try{
+    await fetch("/api/driver/location", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ name: DRIVER_NAME, lat, lng })
+    });
+  }catch(e){
+    console.error("Live location error", e);
   }
-
-  liveDrivers[DRIVER_NAME] = {
-    name: DRIVER_NAME,
-    lat: lat,
-    lng: lng,
-    updated: Date.now(),
-    status: tripStatus
-  };
-
-  localStorage.setItem(
-    "driversLive",
-    JSON.stringify(liveDrivers)
-  );
 }
 
 // ===============================
-// GPS TRACKING (REAL)
+// GPS TRACKING
 // ===============================
 if ("geolocation" in navigator) {
   navigator.geolocation.watchPosition(
@@ -68,48 +46,37 @@ if ("geolocation" in navigator) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
 
-      if (!driverMarker) {
-        driverMarker = L.marker([lat, lng]).addTo(map);
-      } else {
-        driverMarker.setLatLng([lat, lng]);
-      }
+      if (!driverMarker)
+        driverMarker = L.marker([lat,lng]).addTo(map);
+      else
+        driverMarker.setLatLng([lat,lng]);
 
-      if (firstFix) {
-        map.setView([lat, lng], 16);
+      if (firstFix){
+        map.setView([lat,lng],16);
         firstFix = false;
       }
 
-      saveLiveLocation(lat, lng);
+      sendLiveLocation(lat,lng);
     },
-    err => {
-      console.error("GPS error:", err);
-      alert("Please enable location services");
-    },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 1000,
-      timeout: 10000
-    }
+    err => alert("Enable location services"),
+    { enableHighAccuracy:true, maximumAge:1000, timeout:10000 }
   );
-} else {
-  alert("Geolocation not supported");
 }
 
-// =====================================================
-// =============== TRIP BUTTON POLICY ==================
-// =====================================================
-
-let tripStatus = "idle"; 
-// idle → going → arrived → started → completed → noshow
-
-const btnGo      = document.getElementById("btnGoPickup");
-const btnArrived = document.getElementById("btnArrived");
-const btnStart   = document.getElementById("btnStart");
-const btnNoShow  = document.getElementById("btnNoShow");
-const btnDropoff = document.getElementById("btnDropoff");
+// ===============================
+// TRIP BUTTON POLICY
+// ===============================
+const btnGo       = document.getElementById("btnGoPickup");
+const btnArrived  = document.getElementById("btnArrived");
+const btnStart    = document.getElementById("btnStart");
+const btnNoShow   = document.getElementById("btnNoShow");
+const btnDropoff  = document.getElementById("btnDropoff");
+const noShowBox   = document.getElementById("noShowBox");
 const btnComplete = document.getElementById("btnComplete");
-const noShowBox  = document.getElementById("noShowBox");
-const timerEl    = document.getElementById("waitTimer");
+const timerEl     = document.getElementById("waitTimer");
+
+let waitInterval = null;
+let waitSeconds  = 1200; // 20 minutes
 
 function resetButtons(){
   btnGo.style.display = "none";
@@ -119,85 +86,74 @@ function resetButtons(){
   btnDropoff.style.display = "none";
   noShowBox.style.display = "none";
   timerEl.style.display = "none";
+  if(waitInterval) clearInterval(waitInterval);
 }
 
-// ===============================
-// START FLOW
-// ===============================
-function loadTrip(){
+function showGo(){
   resetButtons();
   btnGo.style.display = "block";
-  tripStatus = "idle";
 }
 
-loadTrip();
-
-// ===============================
 function goToPickup(){
-  resetButtons();
+  btnGo.style.display = "none";
   btnArrived.style.display = "block";
-  tripStatus = "going";
 }
-
-// ===============================
-let waitTimerInterval = null;
-let waitSeconds = 1200; // 20 minutes
 
 function arrived(){
-  resetButtons();
+  btnArrived.style.display = "none";
   btnStart.style.display = "block";
   btnNoShow.style.display = "block";
+
   timerEl.style.display = "block";
-
-  tripStatus = "arrived";
-
   waitSeconds = 1200;
 
-  waitTimerInterval = setInterval(()=>{
+  waitInterval = setInterval(()=>{
     waitSeconds--;
-    let min = Math.floor(waitSeconds/60);
-    let sec = waitSeconds%60;
+    const min = Math.floor(waitSeconds/60);
+    const sec = waitSeconds%60;
     timerEl.innerText =
       `${String(min).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
 
     if(waitSeconds <= 0){
-      clearInterval(waitTimerInterval);
+      clearInterval(waitInterval);
+      btnNoShow.style.display = "none";
     }
   },1000);
 }
 
-// ===============================
 function startTrip(){
-  resetButtons();
+  btnStart.style.display = "none";
+  btnNoShow.style.display = "none";
+  timerEl.style.display = "none";
+  clearInterval(waitInterval);
+
   btnDropoff.style.display = "block";
   btnDropoff.classList.add("enabled");
-
-  tripStatus = "started";
-  clearInterval(waitTimerInterval);
 }
 
-// ===============================
 function dropoff(){
-  tripStatus = "completed";
-  resetButtons();
   alert("Trip Completed");
+  resetButtons();
 }
 
-// ===============================
 function noShow(){
   noShowBox.style.display = "block";
-  tripStatus = "noshow";
 }
 
-// ===============================
 function completeNoShow(){
   const notes = document.getElementById("noShowNotes").value.trim();
   if(!notes){
-    alert("Reason required");
+    alert("Please enter reason");
     return;
   }
 
-  tripStatus = "completed";
-  resetButtons();
   alert("No Show Completed");
+  resetButtons();
 }
+
+// ===============================
+// AUTO SIMULATION (لما تيجي رحلة)
+// ===============================
+setTimeout(()=>{
+  showGo();
+},2000);

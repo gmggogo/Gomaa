@@ -15,29 +15,51 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   DATABASE (users.json)  ✅ PERSISTENT DISK
+   DATABASE (users.json)
 ========================= */
-const DB_PATH = "/var/data/users.json";
+const USERS_DB = "/var/data/users.json";
 
-// تأكد إن الملف موجود
-function ensureDB() {
+function ensureUsersDB() {
   const dir = "/var/data";
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, JSON.stringify([]));
+  if (!fs.existsSync(USERS_DB))
+    fs.writeFileSync(USERS_DB, JSON.stringify([]));
 }
 
 function readUsers() {
-  ensureDB();
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+  ensureUsersDB();
+  return JSON.parse(fs.readFileSync(USERS_DB, "utf8"));
 }
 
 function saveUsers(users) {
-  ensureDB();
-  fs.writeFileSync(DB_PATH, JSON.stringify(users, null, 2));
+  ensureUsersDB();
+  fs.writeFileSync(USERS_DB, JSON.stringify(users, null, 2));
 }
 
 /* =========================
-   ADMIN USERS API (USED BY users.js)
+   LIVE LOCATION DB
+========================= */
+const LOCATION_DB = "/var/data/locations.json";
+
+function ensureLocationDB() {
+  const dir = "/var/data";
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(LOCATION_DB))
+    fs.writeFileSync(LOCATION_DB, JSON.stringify({}));
+}
+
+function readLocations() {
+  ensureLocationDB();
+  return JSON.parse(fs.readFileSync(LOCATION_DB, "utf8"));
+}
+
+function saveLocations(data) {
+  ensureLocationDB();
+  fs.writeFileSync(LOCATION_DB, JSON.stringify(data, null, 2));
+}
+
+/* =========================
+   ADMIN USERS API
 ========================= */
 app.get("/api/admin/users", (req, res) => {
   const role = req.query.role;
@@ -48,11 +70,13 @@ app.get("/api/admin/users", (req, res) => {
 
 app.post("/api/admin/users", (req, res) => {
   const { name, username, password, role } = req.body;
+
   if (!name || !username || !password || !role) {
     return res.status(400).json({ error: "Missing fields" });
   }
 
   const users = readUsers();
+
   if (users.find(u => u.username === username)) {
     return res.status(400).json({ error: "Username already exists" });
   }
@@ -68,14 +92,15 @@ app.post("/api/admin/users", (req, res) => {
 
   users.push(newUser);
   saveUsers(users);
+
   res.json(newUser);
 });
 
-/* ✅ تعديل مهم: ممنوع overwrite للباسورد لو مش جاي */
 app.put("/api/admin/users/:id", (req, res) => {
   const id = Number(req.params.id);
   const users = readUsers();
   const user = users.find(u => u.id === id);
+
   if (!user) return res.status(404).json({ error: "User not found" });
 
   if (typeof req.body.name === "string") user.name = req.body.name;
@@ -94,7 +119,7 @@ app.delete("/api/admin/users/:id", (req, res) => {
 });
 
 /* =========================
-   LOGIN API
+   LOGIN
 ========================= */
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
@@ -104,9 +129,7 @@ app.post("/api/login", (req, res) => {
     u => u.username === username && u.password === password && u.active
   );
 
-  if (!user) {
-    return res.status(401).json({ success: false });
-  }
+  if (!user) return res.status(401).json({ success: false });
 
   res.json({
     success: true,
@@ -114,6 +137,45 @@ app.post("/api/login", (req, res) => {
     role: user.role,
     name: user.name
   });
+});
+
+/* =========================
+   DRIVER SAVE LOCATION
+========================= */
+app.post("/api/driver/location", (req, res) => {
+  const { name, lat, lng } = req.body;
+
+  if (!name || !lat || !lng) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const locations = readLocations();
+
+  locations[name] = {
+    name,
+    lat,
+    lng,
+    updated: Date.now()
+  };
+
+  saveLocations(locations);
+
+  res.json({ success: true });
+});
+
+/* =========================
+   ADMIN GET LIVE DRIVERS
+========================= */
+app.get("/api/admin/live-drivers", (req, res) => {
+  const locations = readLocations();
+  const now = Date.now();
+
+  // رجع بس السواقين اللي بعتوا خلال آخر 30 ثانية
+  const active = Object.values(locations).filter(
+    d => now - d.updated < 30000
+  );
+
+  res.json(active);
 });
 
 /* =========================
