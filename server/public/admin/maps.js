@@ -1,77 +1,69 @@
-// ==========================
+// ===============================
+// ADMIN AUTH
+// ===============================
+const rawAdmin = localStorage.getItem("loggedUser");
+if (!rawAdmin) location.href = "/admin/login.html";
+
+// ===============================
 // MAP INIT
-// ==========================
+// ===============================
 const map = L.map("map").setView([33.4484, -112.0740], 11);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19
+  maxZoom: 18
 }).addTo(map);
 
-// ==========================
-// FAKE DATA (replace later)
-// ==========================
-const drivers = [
-  {
-    id:1,
-    name:"MIDO",
-    lat:33.45,
-    lng:-112.07,
-    car:"🚗",
-    color:"red",
-    active:true
-  },
-  {
-    id:2,
-    name:"OMDA",
-    lat:33.48,
-    lng:-112.12,
-    car:"🚙",
-    color:"blue",
-    active:true
-  }
-];
+const markers = {};
 
-// ==========================
-// MARKERS
-// ==========================
-const markers = [];
+// ===============================
+// GET ACTIVE DRIVERS FROM SCHEDULE
+// ===============================
+function getActiveDriversToday(){
+  const schedule = JSON.parse(localStorage.getItem("driverSchedule") || "{}");
+  const today = new Date().toLocaleDateString("en-US", { weekday: "short" });
 
-function renderDrivers(filter=""){
-  markers.forEach(m=>map.removeLayer(m));
-  markers.length = 0;
+  const active = [];
 
-  drivers.forEach(d=>{
-    if(!d.active) return;
-    if(filter && !d.name.toLowerCase().includes(filter)) return;
+  Object.values(schedule).forEach(d => {
+    if (d.days && d.days[today] === true) {
+      active.push(d.name);
+    }
+  });
 
-    const icon = L.divIcon({
-      html: `
-        <div style="text-align:center">
-          <div style="font-size:26px">${d.car}</div>
-          <div style="font-size:11px;color:${d.color}">${d.name}</div>
-        </div>
-      `,
-      className:"",
-      iconSize:[40,40]
-    });
+  return active;
+}
 
-    const marker = L.marker([d.lat,d.lng],{icon}).addTo(map);
-    markers.push(marker);
+// ===============================
+// LOAD LIVE LOCATIONS
+// ===============================
+function renderDrivers(){
+  const activeDrivers = getActiveDriversToday();
+  const live = JSON.parse(localStorage.getItem("driversLive") || "{}");
+
+  activeDrivers.forEach(name => {
+    const d = live[name];
+    if (!d) return; // مفيش لوكيشن = مفيش marker
+
+    if (!markers[name]) {
+      markers[name] = L.marker([d.lat, d.lng])
+        .addTo(map)
+        .bindPopup(`<b>${d.name}</b><br>${d.car}`);
+    } else {
+      markers[name].setLatLng([d.lat, d.lng]);
+    }
+  });
+
+  // شيل أي سواق بطل شغل
+  Object.keys(markers).forEach(name => {
+    if (!activeDrivers.includes(name)) {
+      map.removeLayer(markers[name]);
+      delete markers[name];
+    }
   });
 }
 
+// ===============================
+// AUTO REFRESH
+// ===============================
 renderDrivers();
-
-// ==========================
-// SEARCH
-// ==========================
-document.getElementById("searchInput").addEventListener("input",e=>{
-  renderDrivers(e.target.value.toLowerCase());
-});
-
-// ==========================
-// BACK
-// ==========================
-function goBack(){
-  location.href="/admin/dashboard.html";
-}
+setInterval(renderDrivers, 3000);
