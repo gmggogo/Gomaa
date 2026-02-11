@@ -1,5 +1,5 @@
 /* ===============================
-   DRIVER SCHEDULE – RESTORED SQUARES
+   DRIVER SCHEDULE – RESTORED SQUARES (SMALLER)
 =============================== */
 
 /* ========== AUTH (Admin name) ========== */
@@ -36,7 +36,7 @@ function buildWeek(){
     week.push({
       label: days[d.getDay()],
       key: d.toISOString().slice(0,10),
-      date: `${d.getMonth()+1}/${d.getDate()}` // تاريخ صغير داخل المربع
+      date: `${d.getMonth()+1}/${d.getDate()}`
     });
   }
 
@@ -85,19 +85,19 @@ async function render(){
       <td><strong>${d.name}</strong></td>
 
       <td>
-        <input style="height:26px;font-size:12px"
+        <input style="height:24px;font-size:11px"
           value="${s.phone}" ${!s.edit?"disabled":""}
           onchange="schedule[${d.id}].phone=this.value">
       </td>
 
       <td>
-        <input style="height:26px;font-size:12px"
+        <input style="height:24px;font-size:11px"
           value="${s.address}" ${!s.edit?"disabled":""}
           onchange="schedule[${d.id}].address=this.value">
       </td>
 
       <td>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
           ${WEEK.map(w=>{
             const checked = !!s.days[w.key];
             return `
@@ -106,9 +106,14 @@ async function render(){
                 data-id="${d.id}"
                 data-key="${w.key}"
                 style="
-                  width:72px;height:52px;
-                  border:1px solid #d1d5db;border-radius:6px;
-                  display:flex;flex-direction:column;align-items:center;justify-content:center;
+                  width:58px;               /* ⬅️ أصغر */
+                  height:42px;              /* ⬅️ أصغر */
+                  border:1px solid #d1d5db;
+                  border-radius:5px;        /* ⬅️ أصغر */
+                  display:flex;
+                  flex-direction:column;
+                  align-items:center;
+                  justify-content:center;
                   background:${checked?'#16a34a':'#f3f4f6'};
                   color:${checked?'#fff':'#111'};
                   cursor:${(!s.edit||!s.enabled)?'not-allowed':'pointer'};
@@ -119,10 +124,10 @@ async function render(){
                 <input type="checkbox"
                   ${checked?'checked':''}
                   ${(!s.edit||!s.enabled)?'disabled':''}
-                  style="margin:0 0 4px 0"
+                  style="margin:0 0 2px 0; transform:scale(0.8)"  /* ⬅️ أصغر */
                 >
-                <div style="font-size:10px;opacity:.9">${w.label}</div>
-                <div style="font-size:10px;opacity:.8">${w.date}</div>
+                <div style="font-size:9px;line-height:1;opacity:.9">${w.label}</div>
+                <div style="font-size:9px;line-height:1;opacity:.8">${w.date}</div>
               </div>
             `;
           }).join("")}
@@ -136,11 +141,11 @@ async function render(){
       <td>
         ${
           s.edit
-            ? `<button style="background:#16a34a;color:#fff" onclick="saveDriver(${d.id})">Save</button>`
-            : `<button style="background:#2563eb;color:#fff" onclick="editDriver(${d.id})">Edit</button>`
+            ? `<button style="background:#16a34a;color:#fff;font-size:11px;padding:4px 8px" onclick="saveDriver(${d.id})">Save</button>`
+            : `<button style="background:#2563eb;color:#fff;font-size:11px;padding:4px 8px" onclick="editDriver(${d.id})">Edit</button>`
         }
         <button
-          style="background:${s.enabled?'#dc2626':'#16a34a'};color:#fff"
+          style="background:${s.enabled?'#dc2626':'#16a34a'};color:#fff;font-size:11px;padding:4px 8px"
           onclick="toggleEnable(${d.id})">
           ${s.enabled?'Disable':'Enable'}
         </button>
