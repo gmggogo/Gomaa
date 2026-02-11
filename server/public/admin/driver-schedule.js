@@ -187,11 +187,15 @@ function saveDriver(id) {
   save();
   render();
 }
+function toggleDay(id, key, checked, el) {
+  schedule[id].days[key] = checked;
 
-function toggleDay(id, key, val) {
-  schedule[id].days[key] = val;
+  // تغيير اللون فورًا
+  const box = el.closest(".day-box");
+  box.classList.toggle("on", checked);
+  box.classList.toggle("off", !checked);
+
   save();
-  render();
 }
 
 function toggleEnable(id) {
