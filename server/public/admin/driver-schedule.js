@@ -1,153 +1,128 @@
-/* =====================
-   AUTH + ADMIN NAME
-===================== */
-const userRaw = localStorage.getItem("loggedUser");
-if (!userRaw) location.href = "login.html";
-const user = JSON.parse(userRaw);
-document.getElementById("adminName").innerText = user.name;
+/* ================= AUTH ================= */
+const raw = localStorage.getItem("loggedUser");
+if(!raw) location.href="login.html";
+const admin = JSON.parse(raw);
+document.getElementById("adminName").innerText = admin.name;
 
-/* =====================
-   CONFIG
-===================== */
-const API = "/api/admin/users?role=driver";
-const STORAGE_KEY = "driverSchedule";
+/* ================= CLOCK ================= */
+function clock(){
+  document.getElementById("clock").innerText =
+    new Date().toLocaleDateString()+" | "+new Date().toLocaleTimeString();
+}
+setInterval(clock,1000); clock();
 
-/* =====================
-   STATE
-===================== */
-let schedule = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+/* ================= STORAGE ================= */
+const DRIVERS_KEY = "drivers";
+const SCHEDULE_KEY = "driverSchedule";
+
+const drivers = JSON.parse(localStorage.getItem(DRIVERS_KEY)) || [];
+let schedule = JSON.parse(localStorage.getItem(SCHEDULE_KEY)) || {};
 const tbody = document.getElementById("tbody");
 
-/* =====================
-   AZ DATE
-===================== */
-function azDate(d=new Date()){
-  return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}));
-}
-
-/* =====================
-   BUILD WEEK (REAL DATES)
-===================== */
+/* ================= WEEK ================= */
 function buildWeek(){
-  const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const start=azDate();
-  const week=[];
+  const start = new Date();
+  const days = [];
+  const labels=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   for(let i=0;i<7;i++){
     const d=new Date(start);
     d.setDate(start.getDate()+i);
-    week.push({
-      label:days[d.getDay()],
+    days.push({
       key:d.toISOString().slice(0,10),
-      date:`${d.getMonth()+1}/${d.getDate()}`
+      label:`${labels[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`
     });
   }
-  document.getElementById("weekTitle").innerText=
-    `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
-  return week;
+  document.getElementById("weekTitle").innerText =
+    `Week: ${days[0].label.split(" ")[1]} → ${days[6].label.split(" ")[1]} (Arizona)`;
+  return days;
 }
-const week=buildWeek();
+const week = buildWeek();
 
-/* =====================
-   LOAD DRIVERS
-===================== */
-async function loadDrivers(){
-  const res=await fetch(API);
-  if(!res.ok) throw new Error("API failed");
-  return await res.json();
-}
-
-/* =====================
-   SAVE
-===================== */
+/* ================= SAVE ================= */
 function save(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(schedule));
+  localStorage.setItem(SCHEDULE_KEY,JSON.stringify(schedule));
 }
 
-/* =====================
-   RENDER
-===================== */
-async function render(){
+/* ================= RENDER ================= */
+function render(){
   tbody.innerHTML="";
-  let drivers=[];
-  try{
-    drivers=await loadDrivers();
-  }catch{
-    tbody.innerHTML=`<tr><td colspan="7">Failed to load drivers</td></tr>`;
-    return;
-  }
-
-  const todayKey=azDate().toISOString().slice(0,10);
 
   drivers.forEach((d,i)=>{
     if(!schedule[d.id]){
-      schedule[d.id]={ phone:"", address:"", days:{}, edit:false, enabled:true };
+      schedule[d.id]={
+        phone:d.username||"",
+        address:"",
+        days:{},
+        edit:false,
+        enabled:true
+      };
     }
     const s=schedule[d.id];
-
-    const workingToday = s.days[todayKey] === true;
     const tr=document.createElement("tr");
-
-    if(!s.enabled) tr.classList.add("disabled");
+    if(!s.enabled) tr.classList.add("row-disabled");
 
     tr.innerHTML=`
       <td>${i+1}</td>
       <td>${d.name}</td>
 
       <td>
-        <input value="${s.phone}" ${!s.edit||!s.enabled?"disabled":""}
-          onchange="schedule[${d.id}].phone=this.value">
+        <input value="${s.phone}"
+        ${!s.edit?"disabled":""}
+        onchange="schedule['${d.id}'].phone=this.value">
       </td>
 
       <td>
-        <input value="${s.address}" ${!s.edit||!s.enabled?"disabled":""}
-          onchange="schedule[${d.id}].address=this.value">
+        <input value="${s.address}"
+        ${!s.edit?"disabled":""}
+        onchange="schedule['${d.id}'].address=this.value">
       </td>
 
       <td>
         <div class="week-box">
           ${week.map(w=>{
-            const isOn=s.days[w.key];
-            let cls="day-box";
-            if(isOn) cls+=" day-on";
-            if(w.key===todayKey) cls+=" day-today";
-            return`
-              <label class="${cls}">
-                ${w.label} ${w.date}<br>
+            const checked=s.days[w.key];
+            return `
+              <label class="day-box ${checked?"active":""}">
+                ${w.label}<br>
                 <input type="checkbox"
-                  ${isOn?"checked":""}
-                  ${!s.edit||!s.enabled?"disabled":""}
-                  onchange="schedule[${d.id}].days['${w.key}']=this.checked">
-              </label>
-            `;
+                  ${checked?"checked":""}
+                  ${!s.edit?"disabled":""}
+                  onchange="
+                    schedule['${d.id}'].days['${w.key}']=this.checked;
+                    render();
+                  ">
+              </label>`;
           }).join("")}
         </div>
       </td>
 
-      <td class="${workingToday?"status-active":"status-off"}">
-        ${workingToday?"ACTIVE":"NOT ACTIVE"}
-      </td>
+      <td>${isActiveToday(s)?"ACTIVE":"NOT ACTIVE"}</td>
 
       <td>
         ${
-          s.edit && s.enabled
-          ? `<button class="btn btn-save" onclick="saveRow(${d.id})">Save</button>`
-          : `<button class="btn btn-edit" onclick="editRow(${d.id})" ${!s.enabled?"disabled":""}>Edit</button>`
+          s.edit
+          ? `<button class="action-btn save" onclick="saveRow('${d.id}')">Save</button>`
+          : `<button class="action-btn edit" onclick="editRow('${d.id}')">Edit</button>`
         }
         ${
           s.enabled
-          ? `<button class="btn btn-disable" onclick="toggleEnable(${d.id})">Disable</button>`
-          : `<button class="btn btn-enable" onclick="toggleEnable(${d.id})">Enable</button>`
+          ? `<button class="action-btn disable" onclick="toggle('${d.id}')">Disable</button>`
+          : `<button class="action-btn enable" onclick="toggle('${d.id}')">Enable</button>`
         }
       </td>
     `;
     tbody.appendChild(tr);
   });
+
   save();
 }
 
-/* =====================
-   ACTIONS
-===================== */
+/* ================= LOGIC ================= */
+function isActiveToday(s){
+  const today=new Date().toISOString().slice(0,10);
+  return s.enabled && s.days[today];
+}
+
 function editRow(id){
   schedule[id].edit=true;
   render();
@@ -159,21 +134,16 @@ function saveRow(id){
   render();
 }
 
-function toggleEnable(id){
+function toggle(id){
   schedule[id].enabled=!schedule[id].enabled;
   save();
   render();
 }
 
-/* =====================
-   LOGOUT
-===================== */
+/* ================= LOGOUT ================= */
 function logout(){
   localStorage.removeItem("loggedUser");
   location.href="login.html";
 }
 
-/* =====================
-   INIT
-===================== */
 render();
