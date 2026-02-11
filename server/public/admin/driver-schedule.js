@@ -1,167 +1,136 @@
 /* ===============================
-   DRIVER SCHEDULE – FINAL FIXED
+   DRIVER SCHEDULE – RESTORED SQUARES
 =============================== */
 
-/* ===============================
-   AUTH (Admin name)
-=============================== */
+/* ========== AUTH (Admin name) ========== */
 const adminRaw = localStorage.getItem("loggedUser");
 const admin = adminRaw ? JSON.parse(adminRaw) : null;
 if (!admin) location.href = "login.html";
-
 const adminNameEl = document.getElementById("adminName");
 if (adminNameEl) adminNameEl.innerText = admin.name;
 
-/* ===============================
-   API
-=============================== */
+/* ========== API ========== */
 const API_DRIVERS = "/api/admin/users?role=driver";
 
-/* ===============================
-   STORAGE
-=============================== */
+/* ========== STORAGE ========== */
 const STORAGE_KEY = "driverSchedule";
 let schedule = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 
-/* ===============================
-   DOM
-=============================== */
+/* ========== DOM ========== */
 const tbody = document.getElementById("tbody");
 
-/* ===============================
-   DATE (Arizona)
-=============================== */
-function azDate(d = new Date()) {
-  return new Date(d.toLocaleString("en-US", { timeZone: "America/Phoenix" }));
+/* ========== DATE (Arizona) ========== */
+function azDate(d = new Date()){
+  return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}));
 }
 
-/* ===============================
-   BUILD WEEK
-=============================== */
-function buildWeek() {
+/* ========== BUILD WEEK ========== */
+function buildWeek(){
   const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const start = azDate();
   const week = [];
 
-  for (let i = 0; i < 7; i++) {
+  for(let i=0;i<7;i++){
     const d = new Date(start);
-    d.setDate(start.getDate() + i);
+    d.setDate(start.getDate()+i);
     week.push({
       label: days[d.getDay()],
       key: d.toISOString().slice(0,10),
-      text: `${days[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`
+      date: `${d.getMonth()+1}/${d.getDate()}` // تاريخ صغير داخل المربع
     });
   }
 
-  const weekTitle = document.getElementById("weekTitle");
-  if (weekTitle) {
-    weekTitle.innerText =
-      `Week: ${week[0].text} → ${week[6].text} (Arizona)`;
-  }
-
+  const wt = document.getElementById("weekTitle");
+  if (wt) wt.innerText = `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
   return week;
 }
-
 const WEEK = buildWeek();
 
-/* ===============================
-   LOAD DRIVERS
-=============================== */
-async function loadDrivers() {
+/* ========== LOAD DRIVERS ========== */
+async function loadDrivers(){
   const res = await fetch(API_DRIVERS);
-  if (!res.ok) throw new Error("Failed to load drivers");
+  if(!res.ok) throw new Error("Failed to load drivers");
   return await res.json();
 }
 
-/* ===============================
-   SAVE + MAP SYNC
-=============================== */
-function save() {
+/* ========== SAVE + MAP SYNC ========== */
+function save(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
   localStorage.setItem("driverScheduleForMap", JSON.stringify(schedule));
 }
 
-/* ===============================
-   RENDER
-=============================== */
-async function render() {
+/* ========== RENDER ========== */
+async function render(){
   tbody.innerHTML = "";
-
   let drivers = [];
-  try {
-    drivers = await loadDrivers();
-  } catch {
+  try { drivers = await loadDrivers(); }
+  catch {
     tbody.innerHTML = `<tr><td colspan="7">Failed to load drivers</td></tr>`;
     return;
   }
 
-  drivers.forEach((d, i) => {
-    if (!schedule[d.id]) {
-      schedule[d.id] = {
-        phone: "",
-        address: "",
-        days: {},
-        enabled: true,
-        edit: false
-      };
+  drivers.forEach((d,i)=>{
+    if(!schedule[d.id]){
+      schedule[d.id] = { phone:"", address:"", days:{}, enabled:true, edit:false };
     }
-
     const s = schedule[d.id];
     const todayKey = azDate().toISOString().slice(0,10);
-    const activeToday = s.enabled && s.days[todayKey];
+    const activeToday = s.enabled && !!s.days[todayKey];
 
     const tr = document.createElement("tr");
-    if (!s.enabled) tr.style.opacity = "0.35";
+    if(!s.enabled) tr.style.opacity = "0.35";
 
     tr.innerHTML = `
-      <td>${i + 1}</td>
+      <td>${i+1}</td>
       <td><strong>${d.name}</strong></td>
 
       <td>
-        <input
-          style="height:26px;font-size:12px"
-          value="${s.phone}"
-          ${!s.edit ? "disabled" : ""}
+        <input style="height:26px;font-size:12px"
+          value="${s.phone}" ${!s.edit?"disabled":""}
           onchange="schedule[${d.id}].phone=this.value">
       </td>
 
       <td>
-        <input
-          style="height:26px;font-size:12px"
-          value="${s.address}"
-          ${!s.edit ? "disabled" : ""}
+        <input style="height:26px;font-size:12px"
+          value="${s.address}" ${!s.edit?"disabled":""}
           onchange="schedule[${d.id}].address=this.value">
       </td>
 
       <td>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">
-          ${WEEK.map(w => {
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${WEEK.map(w=>{
             const checked = !!s.days[w.key];
             return `
-              <label
+              <div
+                class="day-square"
+                data-id="${d.id}"
+                data-key="${w.key}"
                 style="
-                  font-size:11px;
-                  padding:4px 6px;
-                  border-radius:4px;
-                  cursor:pointer;
+                  width:72px;height:52px;
+                  border:1px solid #d1d5db;border-radius:6px;
+                  display:flex;flex-direction:column;align-items:center;justify-content:center;
+                  background:${checked?'#16a34a':'#f3f4f6'};
+                  color:${checked?'#fff':'#111'};
+                  cursor:${(!s.edit||!s.enabled)?'not-allowed':'pointer'};
                   user-select:none;
-                  background:${checked ? '#16a34a' : '#e5e7eb'};
-                  color:${checked ? '#fff' : '#000'};
-                ">
-                ${w.label}
+                "
+                onclick="squareToggle(event, ${d.id}, '${w.key}')"
+              >
                 <input type="checkbox"
-                  style="display:none"
-                  ${checked ? "checked" : ""}
-                  ${!s.edit || !s.enabled ? "disabled" : ""}
-                  onchange="toggleDay(${d.id}, '${w.key}', this)">
-              </label>
+                  ${checked?'checked':''}
+                  ${(!s.edit||!s.enabled)?'disabled':''}
+                  style="margin:0 0 4px 0"
+                >
+                <div style="font-size:10px;opacity:.9">${w.label}</div>
+                <div style="font-size:10px;opacity:.8">${w.date}</div>
+              </div>
             `;
           }).join("")}
         </div>
       </td>
 
-      <td style="font-weight:bold;color:${activeToday ? '#16a34a' : '#dc2626'}">
-        ${activeToday ? "ACTIVE" : "NOT ACTIVE"}
+      <td style="font-weight:bold;color:${activeToday?'#16a34a':'#dc2626'}">
+        ${activeToday?'ACTIVE':'NOT ACTIVE'}
       </td>
 
       <td>
@@ -171,50 +140,48 @@ async function render() {
             : `<button style="background:#2563eb;color:#fff" onclick="editDriver(${d.id})">Edit</button>`
         }
         <button
-          style="background:${s.enabled ? '#dc2626' : '#16a34a'};color:#fff"
+          style="background:${s.enabled?'#dc2626':'#16a34a'};color:#fff"
           onclick="toggleEnable(${d.id})">
-          ${s.enabled ? "Disable" : "Enable"}
+          ${s.enabled?'Disable':'Enable'}
         </button>
       </td>
     `;
-
     tbody.appendChild(tr);
   });
 
   save();
 }
 
-/* ===============================
-   ACTIONS
-=============================== */
-function editDriver(id) {
+/* ========== ACTIONS ========== */
+function editDriver(id){
   schedule[id].edit = true;
   render();
 }
-
-function saveDriver(id) {
+function saveDriver(id){
   schedule[id].edit = false;
   save();
   render();
 }
-
-function toggleDay(id, key, checkbox) {
-  schedule[id].days[key] = checkbox.checked;
-
-  const label = checkbox.parentElement;
-  label.style.background = checkbox.checked ? "#16a34a" : "#e5e7eb";
-  label.style.color = checkbox.checked ? "#fff" : "#000";
-
-  save();
-}
-
-function toggleEnable(id) {
+function toggleEnable(id){
   schedule[id].enabled = !schedule[id].enabled;
   save();
   render();
 }
 
-/* ===============================
-   INIT
-=============================== */
+/* مربع واحد — تلوين فوري + Checkbox */
+function squareToggle(e, id, key){
+  const box = e.currentTarget;
+  const chk = box.querySelector("input[type=checkbox]");
+  if (chk.disabled) return;
+
+  chk.checked = !chk.checked;
+  schedule[id].days[key] = chk.checked;
+
+  box.style.background = chk.checked ? "#16a34a" : "#f3f4f6";
+  box.style.color = chk.checked ? "#fff" : "#111";
+
+  save();
+}
+
+/* ========== INIT ========== */
 render();
