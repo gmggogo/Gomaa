@@ -90,6 +90,8 @@ th{
   border-radius:6px;
   padding:6px;
   font-size:11px;
+  border:1px solid #d1d5db;
+  background:#e5e7eb;
 }
 
 .day-on{
@@ -98,13 +100,13 @@ th{
   color:#000;
 }
 
-.day-off{
-  background:#e5e7eb;
-  border:1px solid #d1d5db;
-}
-
 .day-today{
   outline:3px solid #2563eb;
+}
+
+/* ===== ROW STATES ===== */
+tr.disabled{
+  opacity:0.35;
 }
 
 /* ===== ACTIONS ===== */
@@ -148,7 +150,7 @@ th{
   </div>
 
   <div class="header-right">
-    <button class="logout-btn">Logout</button>
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 </header>
 

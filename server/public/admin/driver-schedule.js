@@ -1,27 +1,33 @@
-/* ================= CONFIG ================= */
+/* =====================
+   AUTH + ADMIN NAME
+===================== */
+const userRaw = localStorage.getItem("loggedUser");
+if (!userRaw) location.href = "login.html";
+const user = JSON.parse(userRaw);
+document.getElementById("adminName").innerText = user.name;
+
+/* =====================
+   CONFIG
+===================== */
 const API = "/api/admin/users?role=driver";
 const STORAGE_KEY = "driverSchedule";
 
-/* ================= STATE ================= */
+/* =====================
+   STATE
+===================== */
 let schedule = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 const tbody = document.getElementById("tbody");
 
-/* ================= ADMIN NAME ================= */
-(function(){
-  try{
-    const admin = JSON.parse(localStorage.getItem("loggedAdmin"));
-    if(admin && admin.name){
-      document.getElementById("adminName").innerText = admin.name;
-    }
-  }catch(e){}
-})();
-
-/* ================= AZ DATE ================= */
+/* =====================
+   AZ DATE
+===================== */
 function azDate(d=new Date()){
   return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}));
 }
 
-/* ================= BUILD WEEK ================= */
+/* =====================
+   BUILD WEEK (REAL DATES)
+===================== */
 function buildWeek(){
   const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const start=azDate();
@@ -36,24 +42,30 @@ function buildWeek(){
     });
   }
   document.getElementById("weekTitle").innerText=
-    `Week: ${week[0].date} → ${week[6].date}`;
+    `Week: ${week[0].date} → ${week[6].date} (Arizona)`;
   return week;
 }
 const week=buildWeek();
 
-/* ================= LOAD ================= */
+/* =====================
+   LOAD DRIVERS
+===================== */
 async function loadDrivers(){
   const res=await fetch(API);
   if(!res.ok) throw new Error("API failed");
   return await res.json();
 }
 
-/* ================= SAVE ================= */
+/* =====================
+   SAVE
+===================== */
 function save(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(schedule));
 }
 
-/* ================= RENDER ================= */
+/* =====================
+   RENDER
+===================== */
 async function render(){
   tbody.innerHTML="";
   let drivers=[];
@@ -73,21 +85,21 @@ async function render(){
     const s=schedule[d.id];
 
     const workingToday = s.days[todayKey] === true;
-    const statusText = workingToday ? "ACTIVE" : "NOT ACTIVE";
-    const statusClass = workingToday ? "status-active" : "status-off";
-
     const tr=document.createElement("tr");
+
+    if(!s.enabled) tr.classList.add("disabled");
+
     tr.innerHTML=`
       <td>${i+1}</td>
       <td>${d.name}</td>
 
       <td>
-        <input value="${s.phone}" ${!s.edit?"disabled":""}
+        <input value="${s.phone}" ${!s.edit||!s.enabled?"disabled":""}
           onchange="schedule[${d.id}].phone=this.value">
       </td>
 
       <td>
-        <input value="${s.address}" ${!s.edit?"disabled":""}
+        <input value="${s.address}" ${!s.edit||!s.enabled?"disabled":""}
           onchange="schedule[${d.id}].address=this.value">
       </td>
 
@@ -95,14 +107,15 @@ async function render(){
         <div class="week-box">
           ${week.map(w=>{
             const isOn=s.days[w.key];
-            let cls=isOn?"day-on":"day-off";
+            let cls="day-box";
+            if(isOn) cls+=" day-on";
             if(w.key===todayKey) cls+=" day-today";
             return`
-              <label class="day-box ${cls}">
-                ${w.label} ${w.date}
+              <label class="${cls}">
+                ${w.label} ${w.date}<br>
                 <input type="checkbox"
                   ${isOn?"checked":""}
-                  ${!s.edit?"disabled":""}
+                  ${!s.edit||!s.enabled?"disabled":""}
                   onchange="schedule[${d.id}].days['${w.key}']=this.checked">
               </label>
             `;
@@ -110,13 +123,15 @@ async function render(){
         </div>
       </td>
 
-      <td class="${statusClass}">${statusText}</td>
+      <td class="${workingToday?"status-active":"status-off"}">
+        ${workingToday?"ACTIVE":"NOT ACTIVE"}
+      </td>
 
       <td>
         ${
-          s.edit
+          s.edit && s.enabled
           ? `<button class="btn btn-save" onclick="saveRow(${d.id})">Save</button>`
-          : `<button class="btn btn-edit" onclick="editRow(${d.id})">Edit</button>`
+          : `<button class="btn btn-edit" onclick="editRow(${d.id})" ${!s.enabled?"disabled":""}>Edit</button>`
         }
         ${
           s.enabled
@@ -130,7 +145,9 @@ async function render(){
   save();
 }
 
-/* ================= ACTIONS ================= */
+/* =====================
+   ACTIONS
+===================== */
 function editRow(id){
   schedule[id].edit=true;
   render();
@@ -148,5 +165,15 @@ function toggleEnable(id){
   render();
 }
 
-/* ================= INIT ================= */
+/* =====================
+   LOGOUT
+===================== */
+function logout(){
+  localStorage.removeItem("loggedUser");
+  location.href="login.html";
+}
+
+/* =====================
+   INIT
+===================== */
 render();
