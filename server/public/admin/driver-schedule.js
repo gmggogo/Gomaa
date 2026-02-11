@@ -1,6 +1,5 @@
 /* ===============================
-   DRIVER SCHEDULE – FINAL STABLE
-   Sunbeam Transportation
+   DRIVER SCHEDULE – FINAL FIXED
 =============================== */
 
 /* ===============================
@@ -54,8 +53,11 @@ function buildWeek() {
     });
   }
 
-  document.getElementById("weekTitle").innerText =
-    `Week: ${week[0].text} → ${week[6].text} (Arizona)`;
+  const weekTitle = document.getElementById("weekTitle");
+  if (weekTitle) {
+    weekTitle.innerText =
+      `Week: ${week[0].text} → ${week[6].text} (Arizona)`;
+  }
 
   return week;
 }
@@ -116,14 +118,16 @@ async function render() {
       <td><strong>${d.name}</strong></td>
 
       <td>
-        <input style="height:26px;font-size:12px"
+        <input
+          style="height:26px;font-size:12px"
           value="${s.phone}"
           ${!s.edit ? "disabled" : ""}
           onchange="schedule[${d.id}].phone=this.value">
       </td>
 
       <td>
-        <input style="height:26px;font-size:12px"
+        <input
+          style="height:26px;font-size:12px"
           value="${s.address}"
           ${!s.edit ? "disabled" : ""}
           onchange="schedule[${d.id}].address=this.value">
@@ -140,6 +144,7 @@ async function render() {
                   padding:4px 6px;
                   border-radius:4px;
                   cursor:pointer;
+                  user-select:none;
                   background:${checked ? '#16a34a' : '#e5e7eb'};
                   color:${checked ? '#fff' : '#000'};
                 ">
@@ -180,7 +185,7 @@ async function render() {
 }
 
 /* ===============================
-   ACTIONS (NO RE-RENDER BUG)
+   ACTIONS
 =============================== */
 function editDriver(id) {
   schedule[id].edit = true;
