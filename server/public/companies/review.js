@@ -113,21 +113,9 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ===============================
-     AUTO CONFIRM
+     GROUP BY TRIP DATE
   ================================ */
-  function autoConfirmIfNeeded(t){
-    if (t.status === "Cancelled") return;
-    if (t.status !== "Confirmed") {
-      t.status = "Confirmed";
-      upsertHub(t);
-      saveTrips();
-    }
-  }
-
-  /* ===============================
-     GROUP BY TRIP DATE  ✅ FIXED
-  ================================ */
-  function groupByCreatedDate(list){
+  function groupByDate(list){
     const g = {};
     list.forEach(t=>{
       const d = t.tripDate || "No Date";
@@ -158,7 +146,7 @@ window.addEventListener("DOMContentLoaded", () => {
   function render(){
     container.innerHTML = "";
 
-    const grouped = groupByCreatedDate(filteredTrips());
+    const grouped = groupByDate(filteredTrips());
 
     Object.keys(grouped).sort().forEach(day=>{
       const h = document.createElement("h3");
@@ -178,12 +166,13 @@ window.addEventListener("DOMContentLoaded", () => {
       `;
 
       grouped[day].forEach(t=>{
-        const i = trips.indexOf(t);
+        // ✅ FIX: reliable index (no indexOf reference bug)
+        const i = trips.findIndex(x => x.tripNumber === t.tripNumber);
         const tr = document.createElement("tr");
 
         let actions = "";
         if (withinTwoHours(t)) {
-          autoConfirmIfNeeded(t);
+          // داخل 120 دقيقة: Cancel فقط (نفس نظامك)
           actions = `<button class="btn cancel" onclick="cancelTrip(${i})">Cancel</button>`;
         } else {
           actions = `
@@ -198,15 +187,20 @@ window.addEventListener("DOMContentLoaded", () => {
         tr.innerHTML = `
           <td>${i+1}</td>
           <td>${t.tripNumber||"-"}</td>
+
           <td><input class="editable" disabled value="${t.entryName||""}"></td>
           <td><input class="editable" disabled value="${t.entryPhone||""}"></td>
+
           <td><input class="editable" disabled value="${t.clientName||""}"></td>
           <td><input class="editable" disabled value="${t.clientPhone||""}"></td>
+
           <td><input class="editable" disabled value="${t.pickup||""}"></td>
           <td><input class="editable" disabled value="${(t.stops||[]).join(" → ")}"></td>
           <td><input class="editable" disabled value="${t.dropoff||""}"></td>
+
           <td><input type="date" class="editable" disabled value="${t.tripDate||""}"></td>
           <td><input type="time" class="editable" disabled value="${t.tripTime||""}"></td>
+
           <td>${t.status||"Scheduled"}</td>
           <td>${actions}</td>
         `;
@@ -218,33 +212,89 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ===============================
+     EDIT (YOUR POLICY)
+     - Edit opens fields (except trip number)
+     - Save -> status back to Scheduled
+     - Remove from Hub so it won't be sent until Confirm again
+  ================================ */
+  function editRow(i, btn){
+    const trip = trips[i];
+    if (!trip) return;
+
+    if (withinTwoHours(trip)) return; // نفس السياسة
+
+    const row = btn.closest("tr");
+    const inputs = row.querySelectorAll("input.editable");
+
+    if (btn.textContent.trim() === "Edit") {
+      inputs.forEach(x => x.disabled = false);
+      btn.textContent = "Save";
+
+      // 🚫 stop sharing to hub while editing
+      if (trip.tripNumber) removeFromHub(trip.tripNumber);
+      return;
+    }
+
+    // Save
+    trip.entryName   = inputs[0].value;
+    trip.entryPhone  = inputs[1].value;
+    trip.clientName  = inputs[2].value;
+    trip.clientPhone = inputs[3].value;
+    trip.pickup      = inputs[4].value;
+    trip.stops       = inputs[5].value.split("→").map(s=>s.trim()).filter(Boolean);
+    trip.dropoff     = inputs[6].value;
+    trip.tripDate    = inputs[7].value;
+    trip.tripTime    = inputs[8].value;
+
+    // 🔁 Back to Scheduled after edit
+    trip.status = "Scheduled";
+
+    inputs.forEach(x => x.disabled = true);
+    btn.textContent = "Edit";
+
+    // 🚫 keep out of hub until Confirm is pressed again
+    if (trip.tripNumber) removeFromHub(trip.tripNumber);
+
+    saveTrips();
+    render();
+  }
+
+  /* ===============================
      ACTIONS
   ================================ */
   function confirmTrip(i){
     const t = trips[i];
+    if (!t) return;
+
     t.status = "Confirmed";
-    upsertHub(t);
+    upsertHub(t); // ✅ send to hub only here
     saveTrips();
     render();
   }
 
   function cancelTrip(i){
     const t = trips[i];
+    if (!t) return;
+
     t.status = "Cancelled";
-    upsertHub(t);
+    upsertHub(t); // نظامك القديم كان بيحدث الهب في cancel
     saveTrips();
     render();
   }
 
   function deleteTrip(i){
     if(!confirm("Delete trip?")) return;
-    const num = trips[i].tripNumber;
+    const num = trips[i]?.tripNumber;
     trips.splice(i,1);
     saveTrips();
     if(num) removeFromHub(num);
     render();
   }
 
+  /* ===============================
+     EXPOSE (FULL)
+  ================================ */
+  window.editRow = editRow;
   window.confirmTrip = confirmTrip;
   window.cancelTrip = cancelTrip;
   window.deleteTrip = deleteTrip;
