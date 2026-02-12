@@ -7,6 +7,14 @@ window.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("companyTrips", JSON.stringify(trips));
   }
 
+  function getHub(){
+    return JSON.parse(localStorage.getItem("tripsHub")) || [];
+  }
+
+  function saveHub(list){
+    localStorage.setItem("tripsHub", JSON.stringify(list));
+  }
+
   /* ================= KEEP LAST 7 DAYS ================= */
   function keepLast7Days(){
     const now = new Date();
@@ -18,7 +26,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     saveTrips();
   }
-
   keepLast7Days();
 
   /* ================= ARIZONA TIME ================= */
@@ -47,37 +54,33 @@ window.addEventListener("DOMContentLoaded", () => {
     return diff !== null && diff > 0 && diff <= 120;
   }
 
+  /* ================= SYNC FUNCTION ================= */
+  function syncToHub(trip){
+
+    let hubTrips = getHub();
+
+    const index = hubTrips.findIndex(h => h.tripNumber === trip.tripNumber);
+
+    if(index > -1){
+      hubTrips[index] = {...trip};
+    }else{
+      hubTrips.push({...trip});
+    }
+
+    saveHub(hubTrips);
+  }
+
+  function removeFromHub(tripNumber){
+    let hubTrips = getHub();
+    hubTrips = hubTrips.filter(h => h.tripNumber !== tripNumber);
+    saveHub(hubTrips);
+  }
+
   /* ================= RENDER ================= */
   function render(){
 
     container.innerHTML = "";
 
-    /* ===== DAILY HEADER ===== */
-    const headerBar = document.createElement("div");
-    headerBar.style.display = "flex";
-    headerBar.style.justifyContent = "space-between";
-    headerBar.style.alignItems = "center";
-    headerBar.style.padding = "10px";
-    headerBar.style.background = "#f8fafc";
-    headerBar.style.border = "1px solid #e2e8f0";
-    headerBar.style.marginBottom = "10px";
-    headerBar.style.fontSize = "14px";
-
-    const today = new Date().toLocaleDateString("en-US", {
-      timeZone: "America/Phoenix",
-      year: "numeric",
-      month: "short",
-      day: "2-digit"
-    });
-
-    headerBar.innerHTML = `
-      <strong>📅 Today: ${today}</strong>
-      <span>Arizona Time</span>
-    `;
-
-    container.appendChild(headerBar);
-
-    /* ===== TABLE ===== */
     const table = document.createElement("table");
     table.style.width = "100%";
     table.style.tableLayout = "fixed";
@@ -136,6 +139,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
         <td><input class="editField clientName" disabled value="${t.clientName||""}"></td>
         <td><input class="editField clientPhone" disabled value="${t.clientPhone||""}"></td>
+
         <td><input class="editField pickup" disabled value="${t.pickup||""}"></td>
         <td><input class="editField dropoff" disabled value="${t.dropoff||""}"></td>
 
@@ -175,7 +179,6 @@ ${(t.stops || []).join(", ")}
 
     const newDate = row.querySelector(".tripDate").value;
     const newTime = row.querySelector(".tripTime").value;
-
     const tempTrip = { tripDate:newDate, tripTime:newTime };
 
     if(within120(tempTrip)){
@@ -191,17 +194,14 @@ ${(t.stops || []).join(", ")}
     t.clientPhone = row.querySelector(".clientPhone").value;
     t.pickup      = row.querySelector(".pickup").value;
     t.dropoff     = row.querySelector(".dropoff").value;
-
-    t.stops = row.querySelector(".stops").value
-      .split(",")
-      .map(s=>s.trim())
-      .filter(Boolean);
-
+    t.stops = row.querySelector(".stops").value.split(",").map(s=>s.trim()).filter(Boolean);
     t.tripDate = newDate;
     t.tripTime = newTime;
     t.notes    = row.querySelector(".notes").value;
 
     t.status = "Scheduled";
+
+    syncToHub(t);
 
     inputs.forEach(x=>x.disabled=true);
     btn.innerText = "Edit";
@@ -212,19 +212,24 @@ ${(t.stops || []).join(", ")}
 
   window.confirmTrip = function(i){
     trips[i].status = "Confirmed";
+    syncToHub(trips[i]);
     saveTrips();
     render();
   }
 
   window.cancelTrip = function(i){
     trips[i].status = "Cancelled";
+    syncToHub(trips[i]);
     saveTrips();
     render();
   }
 
   window.deleteTrip = function(i){
     if(!confirm("Delete this trip?")) return;
+
+    removeFromHub(trips[i].tripNumber);
     trips.splice(i,1);
+
     saveTrips();
     render();
   }
