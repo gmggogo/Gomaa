@@ -1,168 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Add Trip</title>
-  <link rel="stylesheet" href="layout.css">
+<meta charset="UTF-8">
+<title>Sunbeam – Add Trip</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    section {
-      background: #fff;
-      padding: 16px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
-    }
+<style>
+body{
+  margin:0;
+  font-family:Arial, Helvetica, sans-serif;
+  background:#f1f5f9;
+}
 
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 20px;
-    }
+.header{
+  background:linear-gradient(90deg,#0f172a,#1e293b);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+  font-size:13px;
+}
 
-    .logo img { height: 40px; }
+.header-left{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
 
-    .header-center {
-      text-align: center;
-      flex: 1;
-    }
+.logo{ height:32px; }
 
-    .header-center h2 {
-      color: #0f172a;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
+.company-name{
+  font-weight:600;
+  font-size:13px;
+}
 
-    #greeting {
-      color: #475569;
-      font-size: 14px;
-    }
+.header-center{
+  display:flex;
+  gap:20px;
+}
 
-    #clock {
-      color: #0f172a;
-      font-weight: 600;
-      font-size: 14px;
-    }
+.header-center a{
+  color:#e2e8f0;
+  text-decoration:none;
+  font-size:13px;
+  padding:5px 8px;
+  border-radius:6px;
+  transition:.2s;
+}
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
+.header-center a:hover{ background:#1e293b; }
+.header-center .active{ background:#1e293b; }
 
-    input, textarea {
-      width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-      margin-top: 8px;
-    }
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:12px;
+}
 
-    textarea { min-height: 80px; }
+.logout{
+  background:#ef4444;
+  border:none;
+  padding:5px 8px;
+  border-radius:6px;
+  color:#fff;
+  font-size:12px;
+  cursor:pointer;
+}
 
-    button {
-      padding: 10px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      margin-top: 10px;
-    }
+.container{
+  padding:20px;
+  max-width:1000px;
+  margin:auto;
+}
 
-    .btn-save-entry { background: #2563eb; color: #fff; }
-    .btn-edit-entry { background: #64748b; color: #fff; }
-    .btn-save-trip { background: #64748b; color: #fff; }
-    .btn-submit-trip { background: #22c55e; color: #000; }
-    .btn-add-stop { background: #0ea5e9; color: #fff; }
+section{
+  background:#fff;
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:20px;
+  box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
 
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 12px;
-    }
-  </style>
+section h3{
+  margin-bottom:10px;
+  font-size:14px;
+  color:#0f172a;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+
+input, textarea{
+  width:100%;
+  padding:8px;
+  font-size:12px;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+}
+
+textarea{ min-height:70px; }
+
+.actions{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+button{
+  padding:6px 12px;
+  border:none;
+  border-radius:6px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.btn-blue{ background:#3b82f6; color:#fff; }
+.btn-green{ background:#22c55e; color:#000; }
+.btn-gray{ background:#64748b; color:#fff; }
+.btn-light{ background:#0ea5e9; color:#fff; }
+
+@media(max-width:768px){
+  .form-grid{ grid-template-columns:1fr; }
+  .header{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .header-center{ flex-wrap:wrap; gap:10px; }
+  .actions{ flex-direction:column; }
+}
+</style>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="logo">
-    <img src="../assets/logo.png" alt="Sunbeam">
+<div class="header">
+  <div class="header-left">
+    <img src="../assets/logo.png" class="logo">
+    <div class="company-name" id="companyName"></div>
   </div>
 
   <div class="header-center">
-    <h2 id="companyTitle"></h2>
-    <div id="greeting"></div>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="add-trip.html" class="active">Add Trip</a>
+    <a href="review.html">Review</a>
+    <a href="summary.html">Summary</a>
+    <a href="taxes.html">Taxes</a>
   </div>
 
-  <div id="clock"></div>
-</header>
-
-<div class="layout">
-
-<aside class="sidebar">
-  <h3>Company Panel</h3>
-
-  <a href="dashboard.html">Dashboard</a>
-  <a href="add-trip.html">Add Trip</a>
-  <a href="review.html">Review Trips</a>
-  <a href="summary.html">Summary</a>
-  <a href="taxes.html">Taxes</a>
-
-  <hr>
-
-  <a href="#" onclick="logout()" class="logout">Logout</a>
-</aside>
-
-  <main class="content">
-
-    <!-- ENTRY INFO -->
-    <section>
-      <h3>Entry Information</h3>
-      <div class="form-grid">
-        <input id="entryName" placeholder="Data Entry Name">
-        <input id="entryPhone" placeholder="Phone Number">
-      </div>
-      <div class="actions">
-        <button id="saveEntry" class="btn-save-entry">Save</button>
-        <button id="editEntry" class="btn-edit-entry" style="display:none">Edit</button>
-      </div>
-    </section>
-
-    <!-- CLIENT INFO -->
-    <section>
-      <h3>Client Information</h3>
-      <div class="form-grid">
-        <input id="clientName" placeholder="Client Name">
-        <input id="clientPhone" placeholder="Client Phone">
-      </div>
-    </section>
-
-    <!-- TRIP DETAILS -->
-    <section>
-      <h3>Trip Details</h3>
-      <div class="form-grid">
-        <input id="pickup" placeholder="Pickup Address">
-        <input id="dropoff" placeholder="Dropoff Address">
-        <input id="tripDate" type="date">
-        <input id="tripTime" type="time">
-      </div>
-
-      <div id="stops"></div>
-      <button type="button" class="btn-add-stop" onclick="addStop()">+ Add Stop</button>
-
-      <textarea id="notes" placeholder="Notes"></textarea>
-    </section>
-
-    <div class="actions">
-      <button id="saveTrip" class="btn-save-trip">Save Trip</button>
-      <button id="submitTrip" class="btn-submit-trip">Submit Trip</button>
-    </div>
-
-  </main>
+  <div class="header-right">
+    <div id="azDateTime"></div>
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
 </div>
 
-<script src="add-trip.js"></script>
+<div class="container">
+
+<section>
+<h3>Entry Information</h3>
+<div class="form-grid">
+  <input id="entryName" placeholder="Data Entry Name">
+  <input id="entryPhone" placeholder="Phone Number">
+</div>
+<div class="actions">
+  <button class="btn-blue" id="saveEntry">Save</button>
+  <button class="btn-gray" id="editEntry" style="display:none;">Edit</button>
+</div>
+</section>
+
+<section>
+<h3>Client Information</h3>
+<div class="form-grid">
+  <input id="clientName" placeholder="Client Name">
+  <input id="clientPhone" placeholder="Client Phone">
+</div>
+</section>
+
+<section>
+<h3>Trip Details</h3>
+<div class="form-grid">
+  <input id="pickup" placeholder="Pickup Address">
+  <input id="dropoff" placeholder="Dropoff Address">
+  <input id="tripDate" type="date">
+  <input id="tripTime" type="time">
+</div>
+
+<div id="stops" style="margin-top:10px;"></div>
+<button class="btn-light" id="addStopBtn" type="button">+ Add Stop</button>
+
+<textarea id="notes" placeholder="Notes"></textarea>
+</section>
+
+<div class="actions">
+  <button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
+  <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+</div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+let loggedCompany = JSON.parse(localStorage.getItem("loggedCompany"));
+if(!loggedCompany){ location.href="company-login.html"; return; }
+document.getElementById("companyName").innerText = loggedCompany.name;
+
+function updateArizonaTime(){
+  const now = new Date();
+  const options = {timeZone:"America/Phoenix",year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"};
+  document.getElementById("azDateTime").innerText =
+    new Intl.DateTimeFormat("en-US", options).format(now);
+}
+setInterval(updateArizonaTime,1000);
+updateArizonaTime();
+
+const entryName=document.getElementById("entryName");
+const entryPhone=document.getElementById("entryPhone");
+const saveEntry=document.getElementById("saveEntry");
+const editEntry=document.getElementById("editEntry");
+
+const clientName=document.getElementById("clientName");
+const clientPhone=document.getElementById("clientPhone");
+const pickup=document.getElementById("pickup");
+const dropoff=document.getElementById("dropoff");
+const tripDate=document.getElementById("tripDate");
+const tripTime=document.getElementById("tripTime");
+const notes=document.getElementById("notes");
+const stopsBox=document.getElementById("stops");
+const saveTripBtn=document.getElementById("saveTrip");
+const submitTripBtn=document.getElementById("submitTrip");
+
+function lockEntry(){ entryName.disabled=true; entryPhone.disabled=true; saveEntry.style.display="none"; editEntry.style.display="inline-block"; }
+function unlockEntry(){ entryName.disabled=false; entryPhone.disabled=false; saveEntry.style.display="inline-block"; editEntry.style.display="none"; }
+
+let savedEntry=JSON.parse(localStorage.getItem("entryInfo")||"null");
+if(savedEntry){ entryName.value=savedEntry.name; entryPhone.value=savedEntry.phone; lockEntry(); }
+
+saveEntry.addEventListener("click",function(){
+  if(!entryName.value||!entryPhone.value){ alert("Enter Entry Name & Phone"); return; }
+  localStorage.setItem("entryInfo",JSON.stringify({name:entryName.value,phone:entryPhone.value}));
+  lockEntry();
+});
+editEntry.addEventListener("click",unlockEntry);
+
+document.getElementById("addStopBtn").addEventListener("click",function(){
+  const input=document.createElement("input");
+  input.placeholder="Stop";
+  stopsBox.appendChild(input);
+});
+
+function getTrips(){ return JSON.parse(localStorage.getItem("companyTrips")||"[]"); }
+function saveTrips(list){ localStorage.setItem("companyTrips",JSON.stringify(list)); }
+
+function generateTripNumber(){
+  let last=parseInt(localStorage.getItem("lastCompanyTrip")||"200");
+  last++;
+  localStorage.setItem("lastCompanyTrip",last);
+  return "GH-"+last;
+}
+
+function getAZNow(){ return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})); }
+
+function isWithin120Minutes(d,t){
+  if(!d||!t)return false;
+  const tripDT=new Date(new Date(`${d}T${t}`).toLocaleString("en-US",{timeZone:"America/Phoenix"}));
+  return (tripDT-getAZNow())/60000<=120 && (tripDT-getAZNow())>0;
+}
+
+function collect(status){
+  return{
+    tripNumber:generateTripNumber(),
+    entryName:entryName.value,
+    entryPhone:entryPhone.value,
+    clientName:clientName.value,
+    clientPhone:clientPhone.value,
+    pickup:pickup.value,
+    dropoff:dropoff.value,
+    stops:[...document.querySelectorAll("#stops input")].map(i=>i.value).filter(Boolean),
+    tripDate:tripDate.value,
+    tripTime:tripTime.value,
+    notes:notes.value,
+    status:status,
+    createdAt:new Date().toISOString()
+  };
+}
+
+function clearForm(){
+  clientName.value="";
+  clientPhone.value="";
+  pickup.value="";
+  dropoff.value="";
+  tripDate.value="";
+  tripTime.value="";
+  notes.value="";
+  stopsBox.innerHTML="";
+}
+
+function glowSave(){
+  saveTripBtn.style.background="#22c55e";
+  saveTripBtn.style.color="#000";
+  setTimeout(()=>{ saveTripBtn.style.background="#64748b"; saveTripBtn.style.color="#fff"; },1000);
+}
+
+saveTripBtn.addEventListener("click",function(){
+  if(!tripDate.value||!tripTime.value){ alert("Select trip date & time"); return; }
+  const trips=getTrips();
+  trips.push(collect("Draft"));
+  saveTrips(trips);
+  glowSave();
+});
+
+submitTripBtn.addEventListener("click",function(){
+  if(!entryName.value||!entryPhone.value){ alert("Complete Entry Info"); return; }
+  if(!tripDate.value||!tripTime.value){ alert("Select trip date & time"); return; }
+  if(isWithin120Minutes(tripDate.value,tripTime.value)){
+    if(!confirm("⚠️ Within 120 minutes. After submission no modification allowed.\nContinue?")) return;
+  }
+  const trips=getTrips();
+  trips.push(collect("Scheduled"));
+  saveTrips(trips);
+  alert("Trip submitted ✔");
+  clearForm();
+});
+
+});
+
+function logout(){
+  localStorage.removeItem("loggedCompany");
+  location.href="company-login.html";
+}
+</script>
+
 </body>
 </html>

@@ -1,7 +1,8 @@
+document.addEventListener("DOMContentLoaded", function(){
+
 /* ===============================
-   AUTH / COMPANY INFO
+   AUTH
 ================================ */
-const companyTitle = document.getElementById("companyTitle");
 let loggedCompany = null;
 
 try {
@@ -10,103 +11,117 @@ try {
 
 if (!loggedCompany) {
   window.location.href = "company-login.html";
-} else if (companyTitle) {
-  companyTitle.innerText = loggedCompany.name || "";
 }
 
 /* ===============================
-   GREETING + LIVE CLOCK
+   ARIZONA TIME
 ================================ */
-function updateTime() {
-  const now = new Date();
-  const h = now.getHours();
-
-  const greetingEl = document.getElementById("greeting");
-  const clockEl = document.getElementById("clock");
-
-  if (greetingEl) {
-    greetingEl.innerText =
-      h < 12 ? "Good Morning" :
-      h < 18 ? "Good Afternoon" :
-      "Good Evening";
-  }
-
-  if (clockEl) {
-    clockEl.innerText = now.toLocaleString();
-  }
+function getAZNow(){
+  return new Date(
+    new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" })
+  );
 }
-setInterval(updateTime, 1000);
-updateTime();
+
+function isWithin120Minutes(tripDate, tripTime) {
+  if (!tripDate || !tripTime) return false;
+
+  const tripDT = new Date(
+    new Date(`${tripDate}T${tripTime}`)
+    .toLocaleString("en-US",{ timeZone:"America/Phoenix" })
+  );
+
+  const diffMinutes = (tripDT - getAZNow()) / 60000;
+  return diffMinutes > 0 && diffMinutes <= 120;
+}
 
 /* ===============================
-   ENTRY INFO (LOCK / EDIT)
+   DOM ELEMENTS
 ================================ */
 const entryName  = document.getElementById("entryName");
 const entryPhone = document.getElementById("entryPhone");
 const saveEntry  = document.getElementById("saveEntry");
 const editEntry  = document.getElementById("editEntry");
 
-try {
-  const savedEntry = JSON.parse(localStorage.getItem("entryInfo"));
-  if (savedEntry) {
-    entryName.value  = savedEntry.name || "";
-    entryPhone.value = savedEntry.phone || "";
+const clientName = document.getElementById("clientName");
+const clientPhone = document.getElementById("clientPhone");
+const pickup = document.getElementById("pickup");
+const dropoff = document.getElementById("dropoff");
+const tripDate = document.getElementById("tripDate");
+const tripTime = document.getElementById("tripTime");
+const notes = document.getElementById("notes");
+const stopsContainer = document.getElementById("stops");
+
+const saveTripBtn   = document.getElementById("saveTrip");
+const submitTripBtn = document.getElementById("submitTrip");
+
+/* ===============================
+   ENTRY SAVE / EDIT
+================================ */
+function loadEntry() {
+  const saved = JSON.parse(localStorage.getItem("entryInfo") || "null");
+
+  if (saved) {
+    entryName.value  = saved.name || "";
+    entryPhone.value = saved.phone || "";
     lockEntry();
+  } else {
+    unlockEntry();
   }
-} catch {}
-
-if (saveEntry) {
-  saveEntry.onclick = () => {
-    if (!entryName.value || !entryPhone.value) {
-      alert("Please enter entry name & phone");
-      return;
-    }
-
-    localStorage.setItem(
-      "entryInfo",
-      JSON.stringify({
-        name: entryName.value,
-        phone: entryPhone.value
-      })
-    );
-
-    lockEntry();
-  };
 }
-
-if (editEntry) {
-  editEntry.onclick = unlockEntry;
-}
+loadEntry();
 
 function lockEntry() {
   entryName.disabled = true;
   entryPhone.disabled = true;
-  saveEntry.style.display = "none";
-  editEntry.style.display = "inline-block";
+  if(saveEntry) saveEntry.style.display = "none";
+  if(editEntry) editEntry.style.display = "inline-block";
 }
 
 function unlockEntry() {
   entryName.disabled = false;
   entryPhone.disabled = false;
-  saveEntry.style.display = "inline-block";
-  editEntry.style.display = "none";
+  if(saveEntry) saveEntry.style.display = "inline-block";
+  if(editEntry) editEntry.style.display = "none";
+}
+
+if (saveEntry) {
+  saveEntry.addEventListener("click", function(e){
+    e.preventDefault();
+
+    if (!entryName.value || !entryPhone.value) {
+      alert("Please enter Entry Name and Phone.");
+      return;
+    }
+
+    localStorage.setItem("entryInfo", JSON.stringify({
+      name: entryName.value,
+      phone: entryPhone.value
+    }));
+
+    lockEntry();
+  });
+}
+
+if (editEntry) {
+  editEntry.addEventListener("click", function(e){
+    e.preventDefault();
+    unlockEntry();
+  });
 }
 
 /* ===============================
-   STOPS MANAGEMENT
+   STORAGE
 ================================ */
-let stopCount = 0;
+function getTrips() {
+  return JSON.parse(localStorage.getItem("companyTrips") || "[]");
+}
 
-function addStop(value = "") {
-  stopCount++;
-  const input = document.createElement("input");
-  input.placeholder = `Stop ${stopCount}`;
-  input.value = value;
-  document.getElementById("stops").appendChild(input);
+function saveTrips(list) {
+  localStorage.setItem("companyTrips", JSON.stringify(list));
 }
 
 /* ===============================
-   TRIP NUMBER (SAFE)
+   TRIP NUMBER
 ================================ */
 function generateTripNumber() {
   const key = "lastCompanyTrip";
@@ -117,163 +132,115 @@ function generateTripNumber() {
 }
 
 /* ===============================
-   TIME VALIDATION
+   COLLECT DATA
 ================================ */
-function isWithin120Minutes(tripDate, tripTime) {
-  if (!tripDate || !tripTime) return false;
-
-  const tripDT = new Date(`${tripDate}T${tripTime}`);
-  const now = new Date();
-  const diffMinutes = (tripDT - now) / 60000;
-
-  return diffMinutes > 0 && diffMinutes <= 120;
-}
-
-/* ===============================
-   BUTTONS
-================================ */
-const saveTripBtn   = document.getElementById("saveTrip");
-const submitTripBtn = document.getElementById("submitTrip");
-
-/* ===============================
-   SAFE LOAD STORAGE
-================================ */
-function getTrips() {
-  try {
-    return JSON.parse(localStorage.getItem("companyTrips")) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveTrips(list) {
-  localStorage.setItem("companyTrips", JSON.stringify(list));
-}
-
-/* ===============================
-   SAVE DRAFT
-================================ */
-if (saveTripBtn) {
-  saveTripBtn.onclick = () => {
-    localStorage.setItem(
-      "draftTrip",
-      JSON.stringify(collectTripData(false))
-    );
-    saveTripBtn.style.background = "#22c55e";
-  };
-}
-
-/* ===============================
-   SUBMIT TRIP
-================================ */
-if (submitTripBtn) {
-  submitTripBtn.onclick = () => {
-
-    const tripDateVal = tripDate.value;
-    const tripTimeVal = tripTime.value;
-
-    if (isWithin120Minutes(tripDateVal, tripTimeVal)) {
-      const ok = confirm(
-        "⚠️ Important Notice\n\n" +
-        "This trip is within 120 minutes.\n" +
-        "You will NOT be able to edit it after submission.\n\n" +
-        "Continue?"
-      );
-      if (!ok) return;
-    }
-
-    let trips = getTrips();
-
-    const trip = collectTripData(true);
-
-    trip.status = "Scheduled";
-
-    trips.push(trip);
-    saveTrips(trips);
-
-    localStorage.removeItem("draftTrip");
-    clearTripFields();
-
-    alert("Trip added successfully ✔");
-  };
-}
-
-/* ===============================
-   COLLECT TRIP DATA (FIXED)
-================================ */
-function collectTripData(finalSubmit) {
-
-  const draft = JSON.parse(localStorage.getItem("draftTrip") || "null");
+function collectTripData(statusType) {
 
   return {
-    tripNumber: finalSubmit
-      ? (draft?.tripNumber || generateTripNumber())
-      : "",
-
+    tripNumber: generateTripNumber(),
     type: "Company",
-    company: loggedCompany.name || "",
+    company: loggedCompany?.name || "",
 
-    entryName: entryName.value || "",
-    entryPhone: entryPhone.value || "",
+    entryName: entryName.value,
+    entryPhone: entryPhone.value,
 
-    clientName: clientName.value || "",
-    clientPhone: clientPhone.value || "",
-
-    pickup: pickup.value || "",
-    dropoff: dropoff.value || "",
+    clientName: clientName.value,
+    clientPhone: clientPhone.value,
+    pickup: pickup.value,
+    dropoff: dropoff.value,
 
     stops: [...document.querySelectorAll("#stops input")]
       .map(i => i.value.trim())
       .filter(Boolean),
 
-    tripDate: tripDate.value || "",
-    tripTime: tripTime.value || "",
+    tripDate: tripDate.value,
+    tripTime: tripTime.value,
 
-    notes: notes.value || "",
+    notes: notes.value,
 
-    status: finalSubmit ? "Scheduled" : "Draft",
-
-    createdAt: draft?.createdAt || new Date().toISOString(),
-    bookedAt: finalSubmit ? new Date().toISOString() : ""
+    status: statusType,
+    createdAt: new Date().toISOString()
   };
 }
 
 /* ===============================
    CLEAR FORM
 ================================ */
-function clearTripFields() {
+function clearForm() {
+
+  // Client Info
   clientName.value = "";
   clientPhone.value = "";
+
+  // Trip Details
   pickup.value = "";
   dropoff.value = "";
   tripDate.value = "";
   tripTime.value = "";
   notes.value = "";
 
-  document.getElementById("stops").innerHTML = "";
-  stopCount = 0;
+  // Stops
+  stopsContainer.innerHTML = "";
 
-  if (saveTripBtn)
-    saveTripBtn.style.background = "#64748b";
+  // لا نمسح entryName و entryPhone
 }
 
 /* ===============================
-   LOAD DRAFT
+   SAVE TRIP (Draft)
 ================================ */
-try {
-  const draftTrip = JSON.parse(localStorage.getItem("draftTrip"));
+if (saveTripBtn) {
+  saveTripBtn.addEventListener("click", function(e){
 
-  if (draftTrip) {
-    clientName.value = draftTrip.clientName || "";
-    clientPhone.value = draftTrip.clientPhone || "";
-    pickup.value = draftTrip.pickup || "";
-    dropoff.value = draftTrip.dropoff || "";
-    tripDate.value = draftTrip.tripDate || "";
-    tripTime.value = draftTrip.tripTime || "";
-    notes.value = draftTrip.notes || "";
+    e.preventDefault();
 
-    if (Array.isArray(draftTrip.stops)) {
-      draftTrip.stops.forEach(s => addStop(s));
+    if (!tripDate.value || !tripTime.value) {
+      alert("Please select trip date and time.");
+      return;
     }
-  }
-} catch {}
+
+    let trips = getTrips();
+    trips.push(collectTripData("Draft"));
+    saveTrips(trips);
+
+    alert("Trip saved as Draft ✔");
+    clearForm();
+  });
+}
+
+/* ===============================
+   SUBMIT TRIP
+================================ */
+if (submitTripBtn) {
+  submitTripBtn.addEventListener("click", function(e){
+
+    e.preventDefault();
+
+    if (!entryName.value || !entryPhone.value) {
+      alert("Please complete Entry Name and Phone first.");
+      return;
+    }
+
+    if (!tripDate.value || !tripTime.value) {
+      alert("Please select trip date and time.");
+      return;
+    }
+
+    if (isWithin120Minutes(tripDate.value, tripTime.value)) {
+      const ok = confirm(
+        "⚠️ This booking is within 120 minutes of the scheduled pickup time.\n" +
+        "After submission, you will NOT be allowed to modify this trip.\n\n" +
+        "Do you want to continue?"
+      );
+      if (!ok) return;
+    }
+
+    let trips = getTrips();
+    trips.push(collectTripData("Scheduled"));
+    saveTrips(trips);
+
+    alert("Trip submitted successfully ✔");
+    clearForm();
+  });
+}
+
+});

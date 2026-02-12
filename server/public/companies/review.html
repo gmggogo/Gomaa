@@ -2,176 +2,251 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Company Trips Review</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunbeam – Review Trips</title>
 
 <style>
-/* ===============================
-   GLOBAL
-================================ */
-body{
-  margin:0;
-  padding:12px;
-  font-family: Arial, Helvetica, sans-serif;
-  background:#f4f8fb;
-  font-size:12px;
-  color:#0f172a;
+
+/* ================= HEADER ================= */
+.header{
+  background:linear-gradient(90deg,#0f172a,#1e293b);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
 }
 
-/* ===============================
-   TOP BAR
-================================ */
-.top-bar{
+.header-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.logo{
+  height:36px;
+}
+
+.company-name{
+  font-size:15px;
+  font-weight:bold;
+}
+
+.header-center{
+  display:flex;
+  gap:25px;
+}
+
+.header-center a{
+  color:#e2e8f0;
+  text-decoration:none;
+  font-size:14px;
+  transition:.2s;
+}
+
+.header-center a:hover{
+  color:#facc15;
+}
+
+.header-center a.active{
+  color:#facc15;
+  font-weight:bold;
+}
+
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+
+.time-box{
   display:flex;
   gap:10px;
-  align-items:center;
-  margin-bottom:12px;
+  font-size:13px;
 }
 
-.top-bar button{
-  background:#3b82f6;
-  color:#fff;
+.logout{
+  background:#ef4444;
   border:none;
-  border-radius:6px;
   padding:6px 10px;
-  font-size:12px;
+  border-radius:6px;
+  color:#fff;
   cursor:pointer;
-  transition:.15s;
+  font-size:12px;
 }
 
-.top-bar button:hover{ opacity:.9; }
-.top-bar button:active{ transform:scale(.95); }
+.logout:active{
+  transform:scale(.95);
+}
+
+/* ================= BODY ================= */
+body{
+  margin:0;
+  font-family:Arial, Helvetica, sans-serif;
+  background:#f4f8fb;
+  font-size:11px;
+}
+
+.container{
+  padding:15px;
+}
 
 #searchBox{
-  flex:1;
+  width:100%;
   padding:6px 8px;
-  font-size:12px;
+  font-size:11px;
   border:1px solid #93c5fd;
   border-radius:6px;
+  margin-bottom:15px;
 }
 
-#searchBox:focus{
-  outline:none;
-  border-color:#3b82f6;
-  box-shadow:0 0 0 2px rgba(59,130,246,.15);
-}
-
-/* ===============================
-   TABLE
-================================ */
-.trip-table{
+/* ================= TABLE ================= */
+table{
   width:100%;
   border-collapse:collapse;
-  background:#ffffff;
-  margin-bottom:18px;
-  box-shadow:0 1px 4px rgba(0,0,0,.05);
+  background:#fff;
+  table-layout:fixed;
 }
 
-.trip-table th{
-  background:#e0f2fe;     /* لبني */
-  color:#0f172a;          /* أزرق غامق */
-  padding:6px;
-  font-size:11px;
-  white-space:nowrap;
+th{
+  background:#e0f2fe;
+  padding:5px;
+  font-size:10px;
+  border:1px solid #e2e8f0;
+}
+
+td{
+  padding:3px;
+  border:1px solid #e2e8f0;
   text-align:center;
-  font-weight:600;
+  font-size:10px;
 }
 
-.trip-table td{
-  padding:4px;
-  border-bottom:1px solid #e5e7eb;
-  text-align:center;
-}
-
-.trip-table tr:nth-child(even){
-  background:#f8fafc;
-}
-
-.trip-table tr:hover{
-  background:#eef6ff;
-}
-
-/* ===============================
-   INPUTS
-================================ */
-.trip-table input{
+.editField{
   width:100%;
-  font-size:11px;
-  padding:3px 4px;
-  border:1px solid #d1d5db;
+  height:24px;
+  font-size:10px;
+  padding:2px 4px;
+  border:1px solid #cbd5e1;
   border-radius:4px;
-  color:#0f172a;
+  box-sizing:border-box;
 }
 
-.trip-table input:disabled{
-  background:#f9fafb;
-  border:none;
+textarea.editField{
+  height:32px;
+  resize:none;
 }
 
-/* ===============================
-   ACTIONS
-================================ */
 .actions{
   display:flex;
-  gap:6px;
+  gap:5px;
   justify-content:center;
-  white-space:nowrap;
 }
 
-.actions button{
+.btn{
   border:none;
   border-radius:4px;
-  padding:4px 7px;
-  font-size:11px;
+  padding:3px 6px;
+  font-size:10px;
   cursor:pointer;
   color:#fff;
-  transition:transform .12s, box-shadow .12s, opacity .12s;
 }
 
-.actions button:hover{
-  opacity:.9;
-  transform:translateY(-1px);
-}
+.btn.confirm{background:#22c55e;}
+.btn.edit{background:#3b82f6;}
+.btn.delete{background:#ef4444;}
+.btn.cancel{background:#f59e0b;}
 
-.actions button:active{
-  transform:scale(.95);
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.25);
-}
+/* ===== Column Sizes ===== */
+th:nth-child(1), td:nth-child(1){width:35px;}
+th:nth-child(2), td:nth-child(2){width:75px;}
+th:nth-child(10), td:nth-child(10){width:95px;}
+th:nth-child(11), td:nth-child(11){width:75px;}
 
-.btn-confirm{ background:#22c55e; }
-.btn-edit{ background:#3b82f6; }
-.btn-delete{ background:#ef4444; }
-.btn-cancel{ background:#f59e0b; }
-
-/* ===============================
-   STATUS
-================================ */
-.cancelled{ color:#ef4444; font-weight:bold; }
-.closed{ color:#6b7280; font-weight:bold; }
-
-/* ===============================
-   DAY TITLE
-================================ */
-.day-title{
-  font-size:13px;
-  margin:14px 0 6px;
-  color:#0f172a;
-}
 </style>
 </head>
 
 <body>
 
-<!-- TOP BAR -->
-<div class="top-bar">
-  <button onclick="history.back()">⬅ Back</button>
-  <input id="searchBox" placeholder="Search name / phone / trip #" oninput="filterTrips && filterTrips()">
+<!-- ================= HEADER ================= -->
+<div class="header">
+
+  <div class="header-left">
+    <img src="../assets/logo.png" class="logo">
+    <div class="company-name" id="companyName">Sunbeam Transportation</div>
+  </div>
+
+  <div class="header-center">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="add-trip.html">Add Trip</a>
+    <a href="review.html" class="active">Review</a>
+    <a href="summary.html">Summary</a>
+    <a href="taxes.html">Taxes</a>
+  </div>
+
+  <div class="header-right">
+    <div class="time-box">
+      <div id="azDate"></div>
+      <div id="azTime"></div>
+    </div>
+    <button class="logout" onclick="logout()">Logout</button>
+  </div>
+
 </div>
 
-<!-- TABLE CONTAINER -->
-<div id="tripsContainer"></div>
+<!-- ================= CONTENT ================= -->
+<div class="container">
 
-<!-- JS -->
+  <input id="searchBox" placeholder="Search name / phone / trip #">
+
+  <div id="tripsContainer"></div>
+
+</div>
+
+<!-- ================= JS ================= -->
+<script>
+
+/* ===== Arizona Time ===== */
+function updateArizonaTime(){
+  const now = new Date();
+
+  const date = now.toLocaleDateString("en-US",{
+    timeZone:"America/Phoenix",
+    year:"numeric",
+    month:"short",
+    day:"numeric"
+  });
+
+  const time = now.toLocaleTimeString("en-US",{
+    timeZone:"America/Phoenix",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit"
+  });
+
+  document.getElementById("azDate").innerText = date;
+  document.getElementById("azTime").innerText = time;
+}
+
+setInterval(updateArizonaTime,1000);
+updateArizonaTime();
+
+/* ===== Company Name ===== */
+try{
+  const loggedCompany = JSON.parse(localStorage.getItem("loggedCompany"));
+  if(loggedCompany){
+    document.getElementById("companyName").innerText = loggedCompany.name;
+  }
+}catch{}
+
+function logout(){
+  localStorage.removeItem("loggedCompany");
+  window.location.href="company-login.html";
+}
+
+</script>
+
 <script src="review.js"></script>
 
 </body>
