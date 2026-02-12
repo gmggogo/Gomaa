@@ -12,12 +12,12 @@ try {
 
 const container   = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
-const addBtn      = document.getElementById("addManualTripBtn"); // top button
+const addBtn      = document.getElementById("addManualTripBtn");
 
 if (!container) console.error("Missing #hubContainer in HTML");
 
 /* ===============================
-   SMALL STYLE (optional inline)
+   SMALL STYLE
 ================================ */
 (function injectTinyStyle(){
   const s = document.createElement("style");
@@ -31,7 +31,7 @@ if (!container) console.error("Missing #hubContainer in HTML");
     .hub-actions{display:flex;gap:6px;justify-content:center;align-items:center}
     .hub-btn{
       border:none;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;
-      color:#fff;opacity:.65
+      color:#fff;opacity:.8
     }
     .hub-btn:active{transform:scale(.97)}
     .hub-btn.edit{background:#3b82f6}
@@ -40,13 +40,6 @@ if (!container) console.error("Missing #hubContainer in HTML");
   `;
   document.head.appendChild(s);
 })();
-
-/* ===============================
-   NAV
-================================ */
-function goBack(){
-  window.location.href = "dashboard.html";
-}
 
 /* ===============================
    FORMAT DATE
@@ -63,50 +56,53 @@ function formatDate(iso){
 }
 
 /* ===============================
-   MIGRATION (READ ONLY)
-================================ */
-(function migrateIndividualTripNumbers(){
-  let changed = false;
-
-  hubTrips.forEach(t => {
-    if (t && t.type === "Individual" && (!t.tripNumber || String(t.tripNumber).trim() === "") && t.id) {
-      t.tripNumber = t.id;
-      changed = true;
-    }
-  });
-
-  if (changed) localStorage.setItem(hubKey, JSON.stringify(hubTrips));
-})();
-
-/* ===============================
-   GET TRIP NUMBER (READ ONLY)
+   GET TRIP NUMBER
 ================================ */
 function getTripNumber(t){
-  if (t && t.tripNumber && String(t.tripNumber).trim() !== "") return String(t.tripNumber);
-  if (t && t.id && String(t.id).trim() !== "") return String(t.id);
-  if (t && t.bookingNumber && String(t.bookingNumber).trim() !== "") return String(t.bookingNumber);
+  if (t && t.tripNumber) return String(t.tripNumber);
+  if (t && t.id) return String(t.id);
+  if (t && t.bookingNumber) return String(t.bookingNumber);
   return "-";
 }
 
 /* ===============================
-   ARIZONA DATE (YYYY-MM-DD)
+   CHECK IF TRIP EXPIRED
 ================================ */
-function phoenixISODate(){
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Phoenix",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(new Date());
+function isTripExpired(t){
+  if(!t || !t.tripDate || !t.tripTime) return false;
 
-  const y = parts.find(p=>p.type==="year").value;
-  const m = parts.find(p=>p.type==="month").value;
-  const d = parts.find(p=>p.type==="day").value;
-  return `${y}-${m}-${d}`;
+  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
+  if(isNaN(tripDateTime)) return false;
+
+  const now = new Date();
+
+  return now >= tripDateTime;
 }
 
 /* ===============================
-   RESERVED TRIP NUMBER (RE-)
+   COLORS
+================================ */
+function rowColor(tr, t){
+
+  if(isTripExpired(t)){
+    tr.style.backgroundColor = "#ffe5e5";
+    tr.style.borderLeft = "4px solid #dc2626";
+    return;
+  }
+
+  if (t && t.type === "Individual") {
+    tr.style.backgroundColor = "#e8f4ff";
+  }
+  else if (t && t.type === "Company") {
+    tr.style.backgroundColor = "#fff6d6";
+  }
+  else if (t && t.type === "Reserved") {
+    tr.style.backgroundColor = "#ecfdf5";
+  }
+}
+
+/* ===============================
+   NEXT RESERVED NUMBER
 ================================ */
 function nextReservedNumber(){
   const key = "lastReservedRE";
@@ -117,7 +113,7 @@ function nextReservedNumber(){
 }
 
 /* ===============================
-   ADD RESERVED TRIP (INLINE)
+   ADD RESERVED TRIP
 ================================ */
 function addReservedTripInline(){
   const newTrip = {
@@ -131,7 +127,7 @@ function addReservedTripInline(){
     pickup: "",
     stops: [],
     dropoff: "",
-    tripDate: phoenixISODate(),
+    tripDate: "",
     tripTime: "",
     status: "Booked",
     bookedAt: new Date().toISOString()
@@ -140,11 +136,6 @@ function addReservedTripInline(){
   hubTrips.unshift(newTrip);
   localStorage.setItem(hubKey, JSON.stringify(hubTrips));
   render(hubTrips);
-
-  const firstEditBtn = container.querySelector(
-    `button[data-trip="${newTrip.tripNumber}"].editBtn`
-  );
-  if(firstEditBtn) firstEditBtn.click();
 }
 
 if(addBtn){
@@ -155,43 +146,9 @@ if(addBtn){
 }
 
 /* ===============================
-   SEND TODAY & TOMORROW
-================================ */
-function sendTodayAndTomorrowTrips(){
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(today.getDate() + 2);
-
-  const filtered = hubTrips.filter(t => {
-    if(!t || !t.tripDate) return false;
-    const d = new Date(t.tripDate);
-    if(isNaN(d)) return false;
-    d.setHours(0,0,0,0);
-    return d >= today && d < dayAfterTomorrow;
-  });
-
-  localStorage.setItem("adminTrips", JSON.stringify(filtered));
-  localStorage.setItem("dispatcherTrips", JSON.stringify(filtered));
-
-  return filtered;
-}
-
-/* ===============================
-   COLORS
-================================ */
-function rowColor(tr, t){
-  if (t && t.type === "Individual") tr.style.backgroundColor = "#e8f4ff";
-  else if (t && t.type === "Company") tr.style.backgroundColor = "#fff6d6";
-  else if (t && t.type === "Reserved") tr.style.backgroundColor = "#ecfdf5";
-}
-
-/* ===============================
    RENDER
 ================================ */
 function render(list){
-  if(!container) return;
 
   container.innerHTML = "";
 
@@ -210,22 +167,17 @@ function render(list){
         <th>Trip #</th>
         <th>Type</th>
         <th>Company</th>
-
         <th>Entry Name</th>
         <th>Entry Phone</th>
-
         <th>Client</th>
         <th>Client Phone</th>
-
         <th>Pickup</th>
         <th>Stops</th>
         <th>Dropoff</th>
-
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
         <th>Booked At</th>
-
         <th>Actions</th>
       </tr>
     </thead>
@@ -235,61 +187,35 @@ function render(list){
   const tbody = table.querySelector("tbody");
 
   list.forEach((t, i) => {
+
     const tr = document.createElement("tr");
     rowColor(tr, t);
 
     const tripNum = getTripNumber(t);
-    const stopsStr = Array.isArray(t.stops) && t.stops.length ? t.stops.join(" → ") : "";
+    const stopsStr = Array.isArray(t.stops) && t.stops.length
+      ? t.stops.join(" → ")
+      : "";
 
     tr.innerHTML = `
-      <td>${i + 1}</td>
-
-      <td>
-        <input value="${tripNum}" disabled data-locked="true">
-      </td>
-
-      <td>
-        <input value="${t.type || "-"}" disabled data-locked="true">
-      </td>
-
-      <td><input class="editField" value="${t.company || ""}" disabled></td>
-
-      <td><input class="editField" value="${t.entryName || ""}" disabled></td>
-      <td><input class="editField" value="${t.entryPhone || ""}" disabled></td>
-
-      <td><input class="editField" value="${t.clientName || ""}" disabled></td>
-      <td><input class="editField" value="${t.clientPhone || ""}" disabled></td>
-
-      <td><input class="editField" value="${t.pickup || ""}" disabled></td>
+      <td>${i+1}</td>
+      <td><input value="${tripNum}" disabled></td>
+      <td><input value="${t.type||"-"}" disabled></td>
+      <td><input class="editField" value="${t.company||""}" disabled></td>
+      <td><input class="editField" value="${t.entryName||""}" disabled></td>
+      <td><input class="editField" value="${t.entryPhone||""}" disabled></td>
+      <td><input class="editField" value="${t.clientName||""}" disabled></td>
+      <td><input class="editField" value="${t.clientPhone||""}" disabled></td>
+      <td><input class="editField" value="${t.pickup||""}" disabled></td>
       <td><input class="editField" value="${stopsStr}" disabled></td>
-      <td><input class="editField" value="${t.dropoff || ""}" disabled></td>
-
-      <td><input class="editField" type="date" value="${t.tripDate || ""}" disabled></td>
-      <td><input class="editField" type="time" value="${t.tripTime || ""}" disabled></td>
-
-      <td>
-        <select class="editField" disabled>
-          ${["Booked","Scheduled","On Board","Arrived","Completed","No Show","Cancelled"]
-            .map(s=>`<option ${s===t.status?"selected":""}>${s}</option>`).join("")}
-        </select>
-      </td>
-
+      <td><input class="editField" value="${t.dropoff||""}" disabled></td>
+      <td><input class="editField" type="date" value="${t.tripDate||""}" disabled></td>
+      <td><input class="editField" type="time" value="${t.tripTime||""}" disabled></td>
+      <td>${t.status||"Booked"}</td>
       <td>${formatDate(t.bookedAt)}</td>
-
       <td>
         <div class="hub-actions">
-          <button type="button"
-            class="hub-btn edit editBtn"
-            data-trip="${tripNum}"
-            onclick="editTripInline(this,'${tripNum}')"
-            title="Edit (with confirmation)"
-          >✏️ Edit</button>
-
-          <button type="button"
-            class="hub-btn delete"
-            onclick="deleteTripConfirm('${tripNum}')"
-            title="Delete (with confirmation)"
-          >🗑 Delete</button>
+          <button class="hub-btn edit" onclick="editTripInline(this,'${tripNum}')">✏️ Edit</button>
+          <button class="hub-btn delete" onclick="deleteTripConfirm('${tripNum}')">🗑 Delete</button>
         </div>
       </td>
     `;
@@ -301,60 +227,52 @@ function render(list){
 }
 
 /* ===============================
-   EDIT INLINE (WITH CONFIRM)
+   EDIT
 ================================ */
 function editTripInline(btn, tripNumber){
-  if(btn.dataset.mode !== "edit"){
-    const ok = confirm("⚠️ Are you sure you want to edit this trip?");
-    if(!ok) return;
-  }
 
   const row = btn.closest("tr");
   const fields = row.querySelectorAll(".editField");
 
   if(btn.dataset.mode !== "edit"){
+
+    const ok = confirm("⚠️ Edit this trip?");
+    if(!ok) return;
+
     fields.forEach(el => el.disabled = false);
 
     btn.dataset.mode = "edit";
     btn.classList.remove("edit");
     btn.classList.add("save");
-    btn.style.opacity = "1";
     btn.innerText = "💾 Save";
+
   } else {
-    const inputs = row.querySelectorAll("input.editField, select.editField");
 
-    const company     = inputs[0].value;
-    const entryName   = inputs[1].value;
-    const entryPhone  = inputs[2].value;
-    const clientName  = inputs[3].value;
-    const clientPhone = inputs[4].value;
-    const pickup      = inputs[5].value;
-    const stopsText   = inputs[6].value;
-    const dropoff     = inputs[7].value;
-    const tripDate    = inputs[8].value;
-    const tripTime    = inputs[9].value;
-    const status      = inputs[10].value;
+    const inputs = row.querySelectorAll("input.editField");
 
-    const stopsArr = stopsText
-      ? stopsText.split("→").map(x=>x.trim()).filter(Boolean)
+    const stopsArr = inputs[6].value
+      ? inputs[6].value.split("→").map(x=>x.trim()).filter(Boolean)
       : [];
 
-    const idx = hubTrips.findIndex(x => String(getTripNumber(x)) === String(tripNumber));
+    const idx = hubTrips.findIndex(x =>
+      String(getTripNumber(x)) === String(tripNumber)
+    );
+
     if(idx !== -1){
       hubTrips[idx] = {
         ...hubTrips[idx],
-        company,
-        entryName,
-        entryPhone,
-        clientName,
-        clientPhone,
-        pickup,
+        company: inputs[0].value,
+        entryName: inputs[1].value,
+        entryPhone: inputs[2].value,
+        clientName: inputs[3].value,
+        clientPhone: inputs[4].value,
+        pickup: inputs[5].value,
         stops: stopsArr,
-        dropoff,
-        tripDate,
-        tripTime,
-        status
+        dropoff: inputs[7].value,
+        tripDate: inputs[8].value,
+        tripTime: inputs[9].value
       };
+
       localStorage.setItem(hubKey, JSON.stringify(hubTrips));
     }
 
@@ -363,7 +281,6 @@ function editTripInline(btn, tripNumber){
     btn.dataset.mode = "";
     btn.classList.remove("save");
     btn.classList.add("edit");
-    btn.style.opacity = "1";
     btn.innerText = "✏️ Edit";
 
     render(hubTrips);
@@ -371,41 +288,42 @@ function editTripInline(btn, tripNumber){
 }
 
 /* ===============================
-   DELETE (WITH CONFIRM)
+   DELETE
 ================================ */
 function deleteTripConfirm(tripNumber){
-  const ok = confirm("⚠️ Are you sure you want to delete this trip?");
+  const ok = confirm("Delete this trip?");
   if(!ok) return;
 
-  hubTrips = hubTrips.filter(t => String(getTripNumber(t)) !== String(tripNumber));
-  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
+  hubTrips = hubTrips.filter(t =>
+    String(getTripNumber(t)) !== String(tripNumber)
+  );
 
+  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
   render(hubTrips);
-  sendTodayAndTomorrowTrips();
 }
 
 /* ===============================
    SEARCH
 ================================ */
 if(searchInput){
-  searchInput.addEventListener("input", () => {
-    const v = (searchInput.value || "").toLowerCase();
+  searchInput.addEventListener("input", ()=>{
+    const v = searchInput.value.toLowerCase();
     render(
-      hubTrips.filter(t => JSON.stringify(t).toLowerCase().includes(v))
+      hubTrips.filter(t =>
+        JSON.stringify(t).toLowerCase().includes(v)
+      )
     );
   });
-} else {
-  console.error("Missing #searchInput in HTML");
 }
 
 /* ===============================
-   EXPOSE
+   AUTO REFRESH COLOR
 ================================ */
-window.editTripInline = editTripInline;
-window.deleteTripConfirm = deleteTripConfirm;
+setInterval(()=>{
+  render(hubTrips);
+},60000);
 
 /* ===============================
    INIT
 ================================ */
 render(hubTrips);
-sendTodayAndTomorrowTrips();
