@@ -70,39 +70,31 @@ function getTripNumber(t){
 }
 
 /* ===============================
-   CHECK IF TRIP EXPIRED
+   CHECK IF TRIP PASSED (RED IMMEDIATELY)
 ================================ */
-function isTripExpired(t){
+function isTripPassed(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
 
   const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
   if(isNaN(tripDateTime)) return false;
 
   const now = new Date();
-
   return now >= tripDateTime;
 }
 
 /* ===============================
-   REMOVE AFTER 24 HOURS
+   CHECK IF TRIP SHOULD BE REMOVED (AFTER 24 HOURS)
 ================================ */
-function removeTripsAfter24Hours(){
+function shouldRemoveTrip(t){
+  if(!t || !t.tripDate || !t.tripTime) return false;
+
+  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
+  if(isNaN(tripDateTime)) return false;
 
   const now = new Date();
+  const diffHours = (now - tripDateTime) / (1000 * 60 * 60);
 
-  hubTrips = hubTrips.filter(t => {
-
-    if(!t || !t.tripDate || !t.tripTime) return true;
-
-    const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-    if(isNaN(tripDateTime)) return true;
-
-    const diffHours = (now - tripDateTime) / (1000 * 60 * 60);
-
-    return diffHours < 24;
-  });
-
-  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
+  return diffHours >= 24;
 }
 
 /* ===============================
@@ -110,10 +102,9 @@ function removeTripsAfter24Hours(){
 ================================ */
 function rowColor(tr, t){
 
-  if(isTripExpired(t)){
+  if(isTripPassed(t)){
     tr.style.backgroundColor = "#ffe5e5";
     tr.style.borderLeft = "4px solid #dc2626";
-    return;
   }
 
   if (t && t.type === "Individual") {
@@ -166,7 +157,7 @@ function addReservedTripInline(){
 }
 
 if(addBtn){
-  addBtn.addEventListener("click", (e)=>{
+  addBtn.addEventListener("click", function(e){
     e.preventDefault();
     addReservedTripInline();
   });
@@ -177,9 +168,15 @@ if(addBtn){
 ================================ */
 function render(list){
 
+  /* حذف الرحلات بعد 24 ساعة */
+  hubTrips = hubTrips.filter(function(t){
+    return !shouldRemoveTrip(t);
+  });
+  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
+
   container.innerHTML = "";
 
-  if(!list || !list.length){
+  if(!hubTrips || !hubTrips.length){
     container.innerHTML = "<p>No trips found</p>";
     return;
   }
@@ -214,7 +211,7 @@ function render(list){
 
   const tbody = table.querySelector("tbody");
 
-  list.forEach((t, i) => {
+  hubTrips.forEach(function(t, i){
 
     const tr = document.createElement("tr");
     rowColor(tr, t);
@@ -256,15 +253,108 @@ function render(list){
 }
 
 /* ===============================
-   AUTO REFRESH + AUTO CLEAN
+   EDIT
 ================================ */
-setInterval(()=>{
-  removeTripsAfter24Hours();
+function editTripInline(btn, tripNumber){
+
+  const row = btn.closest("tr");
+  const fields = row.querySelectorAll(".editField");
+
+  if(btn.dataset.mode !== "edit"){
+
+    const ok = confirm("⚠️ Edit this trip?");
+    if(!ok) return;
+
+    fields.forEach(function(el){
+      el.disabled = false;
+    });
+
+    btn.dataset.mode = "edit";
+    btn.classList.remove("edit");
+    btn.classList.add("save");
+    btn.innerText = "💾 Save";
+
+  } else {
+
+    const inputs = row.querySelectorAll(".editField");
+
+    const stopsArr = inputs[6].value
+      ? inputs[6].value.split("→").map(function(x){ return x.trim(); }).filter(Boolean)
+      : [];
+
+    const idx = hubTrips.findIndex(function(x){
+      return String(getTripNumber(x)) === String(tripNumber);
+    });
+
+    if(idx !== -1){
+      hubTrips[idx] = {
+        ...hubTrips[idx],
+        company: inputs[0].value,
+        entryName: inputs[1].value,
+        entryPhone: inputs[2].value,
+        clientName: inputs[3].value,
+        clientPhone: inputs[4].value,
+        pickup: inputs[5].value,
+        stops: stopsArr,
+        dropoff: inputs[7].value,
+        notes: inputs[8].value,
+        tripDate: inputs[9].value,
+        tripTime: inputs[10].value
+      };
+
+      localStorage.setItem(hubKey, JSON.stringify(hubTrips));
+    }
+
+    fields.forEach(function(el){
+      el.disabled = true;
+    });
+
+    btn.dataset.mode = "";
+    btn.classList.remove("save");
+    btn.classList.add("edit");
+    btn.innerText = "✏️ Edit";
+
+    render(hubTrips);
+  }
+}
+
+/* ===============================
+   DELETE
+================================ */
+function deleteTripConfirm(tripNumber){
+  const ok = confirm("Delete this trip?");
+  if(!ok) return;
+
+  hubTrips = hubTrips.filter(function(t){
+    return String(getTripNumber(t)) !== String(tripNumber);
+  });
+
+  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
+  render(hubTrips);
+}
+
+/* ===============================
+   SEARCH
+================================ */
+if(searchInput){
+  searchInput.addEventListener("input", function(){
+    const v = searchInput.value.toLowerCase();
+    render(
+      hubTrips.filter(function(t){
+        return JSON.stringify(t).toLowerCase().includes(v);
+      })
+    );
+  });
+}
+
+/* ===============================
+   AUTO REFRESH
+================================ */
+setInterval(function(){
   render(hubTrips);
 },60000);
 
 /* ===============================
    INIT
 ================================ */
-removeTripsAfter24Hours();
 render(hubTrips);
