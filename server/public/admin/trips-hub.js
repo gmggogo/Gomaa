@@ -70,7 +70,7 @@ function getTripNumber(t){
 }
 
 /* ===============================
-   CHECK IF TRIP EXPIRED
+   CHECK IF TRIP EXPIRED (AFTER 24 HOURS)
 ================================ */
 function isTripExpired(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
@@ -79,7 +79,9 @@ function isTripExpired(t){
   if(isNaN(tripDateTime)) return false;
 
   const now = new Date();
-  return now >= tripDateTime;
+  const diffHours = (now - tripDateTime) / (1000 * 60 * 60);
+
+  return diffHours >= 24;
 }
 
 /* ===============================
