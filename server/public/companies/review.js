@@ -1,39 +1,59 @@
 window.addEventListener("DOMContentLoaded", () => {
 
-  let trips = JSON.parse(localStorage.getItem("companyTrips")) || [];
+  const API_URL = "/api/trips";
+
+  let trips = [];
   const container = document.getElementById("tripsContainer");
 
-  function saveTrips(){
-    localStorage.setItem("companyTrips", JSON.stringify(trips));
+  /* ================= LOAD / SAVE (SERVER) ================= */
+  async function loadTrips(){
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      trips = Array.isArray(data) ? data : [];
+    }catch{
+      trips = [];
+    }
   }
 
-  function getHub(){
-    return JSON.parse(localStorage.getItem("tripsHub")) || [];
-  }
-
-  function saveHub(list){
-    localStorage.setItem("tripsHub", JSON.stringify(list));
+  async function saveTrips(){
+    // نفس اسم الدالة القديمة عشان ميكسرش أي حاجة
+    try{
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(trips)
+      });
+    }catch(e){
+      console.error("Save failed", e);
+    }
   }
 
   /* ================= KEEP LAST 30 DAYS ================= */
-  function keepLast30Days(){
+  async function keepLast30Days(){
     const now = new Date();
+    const before = trips.length;
+
     trips = trips.filter(t=>{
       if(!t.createdAt) return true;
       const created = new Date(t.createdAt);
       const diffDays = (now - created) / (1000*60*60*24);
       return diffDays <= 30;
     });
-    saveTrips();
+
+    if(trips.length !== before){
+      await saveTrips();
+    }
   }
-  keepLast30Days();
 
   /* ================= SORT NEW FIRST ================= */
-  trips.sort((a,b)=>{
-    const d1 = new Date(a.createdAt || 0);
-    const d2 = new Date(b.createdAt || 0);
-    return d2 - d1;
-  });
+  function sortTrips(){
+    trips.sort((a,b)=>{
+      const d1 = new Date(a.createdAt || 0);
+      const d2 = new Date(b.createdAt || 0);
+      return d2 - d1;
+    });
+  }
 
   /* ================= ARIZONA TIME ================= */
   function getAZNow(){
@@ -59,24 +79,6 @@ window.addEventListener("DOMContentLoaded", () => {
   function within120(t){
     const diff = minutesToTrip(t);
     return diff !== null && diff > 0 && diff <= 120;
-  }
-
-  /* ================= SYNC FUNCTION ================= */
-  function syncToHub(trip){
-    let hubTrips = getHub();
-    const index = hubTrips.findIndex(h => h.tripNumber === trip.tripNumber);
-    if(index > -1){
-      hubTrips[index] = {...trip};
-    }else{
-      hubTrips.push({...trip});
-    }
-    saveHub(hubTrips);
-  }
-
-  function removeFromHub(tripNumber){
-    let hubTrips = getHub();
-    hubTrips = hubTrips.filter(h => h.tripNumber !== tripNumber);
-    saveHub(hubTrips);
   }
 
   /* ================= RENDER ================= */
@@ -202,7 +204,7 @@ ${(t.stops || []).join(", ")}
   }
 
   /* ================= EDIT ================= */
-  window.editTrip = function(i,btn){
+  window.editTrip = async function(i,btn){
 
     const t = trips[i];
     const row = btn.closest("tr");
@@ -238,36 +240,38 @@ ${(t.stops || []).join(", ")}
 
     t.status = "Scheduled";
 
-    syncToHub(t);
-
     inputs.forEach(x=>x.disabled=true);
     btn.innerText = "Edit";
 
-    saveTrips();
+    await saveTrips();
     render();
-  }
+  };
 
-  window.confirmTrip = function(i){
+  window.confirmTrip = async function(i){
     trips[i].status = "Confirmed";
-    syncToHub(trips[i]);
-    saveTrips();
+    await saveTrips();
     render();
-  }
+  };
 
-  window.cancelTrip = function(i){
+  window.cancelTrip = async function(i){
     trips[i].status = "Cancelled";
-    syncToHub(trips[i]);
-    saveTrips();
+    await saveTrips();
     render();
-  }
+  };
 
-  window.deleteTrip = function(i){
+  window.deleteTrip = async function(i){
     if(!confirm("Delete this trip?")) return;
-    removeFromHub(trips[i].tripNumber);
     trips.splice(i,1);
-    saveTrips();
+    await saveTrips();
     render();
-  }
+  };
 
-  render();
+  /* ================= INIT ================= */
+  (async function(){
+    await loadTrips();
+    await keepLast30Days();
+    sortTrips();
+    render();
+  })();
+
 });
