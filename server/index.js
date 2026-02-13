@@ -212,21 +212,29 @@ app.get("/api/trips", (req, res) => {
 ========================= */
 app.post("/api/trips", (req, res) => {
 
-  const trip = req.body;
+  const data = req.body;
 
-  if (!trip || !trip.tripNumber) {
-    return res.status(400).json({ error: "Invalid trip data" });
+  if (!data) {
+    return res.status(400).json({ error: "No data received" });
+  }
+
+  // لو جاله Array كامل
+  if (Array.isArray(data)) {
+    saveTrips(data);
+    return res.json({ success: true });
+  }
+
+  // لو جاله Trip واحدة
+  if (!data.tripNumber) {
+    return res.status(400).json({ error: "Missing tripNumber" });
   }
 
   const trips = readTrips();
-
-  trips.unshift(trip);
-
+  trips.unshift(data);
   saveTrips(trips);
 
   res.json({ success: true });
 });
-
 /* =========================
    START SERVER
 ========================= */

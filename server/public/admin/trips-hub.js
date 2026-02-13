@@ -18,14 +18,6 @@ async function loadHubTrips(){
   }
 }
 
-async function saveHubTrips(){
-  await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(hubTrips)
-  });
-}
-
 const container   = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
 const addBtn      = document.getElementById("addManualTripBtn");
@@ -139,7 +131,7 @@ function nextReservedNumber(){
 }
 
 /* ===============================
-   ADD RESERVED
+   ADD RESERVED (ONLINE)
 ================================ */
 async function addReservedTripInline(){
 
@@ -158,11 +150,17 @@ async function addReservedTripInline(){
     tripDate: "",
     tripTime: "",
     status: "Booked",
+    createdAt: new Date().toISOString(),
     bookedAt: new Date().toISOString()
   };
 
-  hubTrips.unshift(newTrip);
-  await saveHubTrips();
+  await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(newTrip)
+  });
+
+  await loadHubTrips();
   render();
 }
 
@@ -174,15 +172,31 @@ if(addBtn){
 }
 
 /* ===============================
-   RENDER
+   DELETE
 ================================ */
-async function render(){
+async function deleteTripConfirm(tripNumber){
 
-  hubTrips = hubTrips.filter(function(t){
-    return !shouldRemoveTrip(t);
+  const ok = confirm("Delete this trip?");
+  if(!ok) return;
+
+  hubTrips = hubTrips.filter(t => String(getTripNumber(t)) !== String(tripNumber));
+
+  await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(hubTrips)
   });
 
-  await saveHubTrips();
+  await loadHubTrips();
+  render();
+}
+
+/* ===============================
+   RENDER
+================================ */
+function render(){
+
+  hubTrips = hubTrips.filter(t => !shouldRemoveTrip(t));
 
   container.innerHTML = "";
 
@@ -233,22 +247,21 @@ async function render(){
       <td>${i+1}</td>
       <td><input value="${tripNum}" disabled></td>
       <td><input value="${t.type||"-"}" disabled></td>
-      <td><input class="editField" value="${t.company||""}" disabled></td>
-      <td><input class="editField" value="${t.entryName||""}" disabled></td>
-      <td><input class="editField" value="${t.entryPhone||""}" disabled></td>
-      <td><input class="editField" value="${t.clientName||""}" disabled></td>
-      <td><input class="editField" value="${t.clientPhone||""}" disabled></td>
-      <td><input class="editField" value="${t.pickup||""}" disabled></td>
-      <td><input class="editField" value="${stopsStr}" disabled></td>
-      <td><input class="editField" value="${t.dropoff||""}" disabled></td>
-      <td><textarea class="editField" disabled>${t.notes||""}</textarea></td>
-      <td><input class="editField" type="date" value="${t.tripDate||""}" disabled></td>
-      <td><input class="editField" type="time" value="${t.tripTime||""}" disabled></td>
+      <td><input value="${t.company||""}" disabled></td>
+      <td><input value="${t.entryName||""}" disabled></td>
+      <td><input value="${t.entryPhone||""}" disabled></td>
+      <td><input value="${t.clientName||""}" disabled></td>
+      <td><input value="${t.clientPhone||""}" disabled></td>
+      <td><input value="${t.pickup||""}" disabled></td>
+      <td><input value="${stopsStr}" disabled></td>
+      <td><input value="${t.dropoff||""}" disabled></td>
+      <td><textarea disabled>${t.notes||""}</textarea></td>
+      <td><input type="date" value="${t.tripDate||""}" disabled></td>
+      <td><input type="time" value="${t.tripTime||""}" disabled></td>
       <td>${t.status||"Booked"}</td>
       <td>${formatDate(t.bookedAt)}</td>
       <td>
         <div class="hub-actions">
-          <button class="hub-btn edit" onclick="editTripInline(this,'${tripNum}')">✏️ Edit</button>
           <button class="hub-btn delete" onclick="deleteTripConfirm('${tripNum}')">🗑 Delete</button>
         </div>
       </td>
@@ -261,9 +274,31 @@ async function render(){
 }
 
 /* ===============================
+   SEARCH
+================================ */
+if(searchInput){
+  searchInput.addEventListener("input", function(){
+    const v = searchInput.value.toLowerCase();
+    const filtered = hubTrips.filter(t =>
+      JSON.stringify(t).toLowerCase().includes(v)
+    );
+    hubTrips = filtered;
+    render();
+  });
+}
+
+/* ===============================
+   AUTO REFRESH
+================================ */
+setInterval(async function(){
+  await loadHubTrips();
+  render();
+},60000);
+
+/* ===============================
    INIT
 ================================ */
 (async function(){
   await loadHubTrips();
-  await render();
+  render();
 })();
