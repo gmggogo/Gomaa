@@ -89,7 +89,7 @@ body{
   </div>
 </header>
 
-<!-- ================= PAGE CONTENT (زي ما هو) ================= -->
+<!-- ================= PAGE CONTENT ================= -->
 
 <div style="margin-bottom:12px; display:flex; gap:8px; align-items:center;">
   <button
@@ -111,7 +111,6 @@ body{
 
 <script src="trips-hub.js"></script>
 
-<!-- نفس منطق الداشبورد -->
 <script>
 /* ===== Admin Name ===== */
 const adminRaw = localStorage.getItem("loggedAdmin");
@@ -130,6 +129,11 @@ function updateClock(){
 }
 setInterval(updateClock,1000);
 updateClock();
+
+/* ===== Back ===== */
+function goBack(){
+  window.history.back();
+}
 </script>
 
 </body>

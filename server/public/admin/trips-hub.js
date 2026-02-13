@@ -28,6 +28,10 @@ if (!container) console.error("Missing #hubContainer in HTML");
     .hub-table input,.hub-table select{
       width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box
     }
+    .hub-table textarea{
+      width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box;
+      resize:vertical;
+    }
     .hub-actions{display:flex;gap:6px;justify-content:center;align-items:center}
     .hub-btn{
       border:none;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;
@@ -75,7 +79,6 @@ function isTripExpired(t){
   if(isNaN(tripDateTime)) return false;
 
   const now = new Date();
-
   return now >= tripDateTime;
 }
 
@@ -127,6 +130,7 @@ function addReservedTripInline(){
     pickup: "",
     stops: [],
     dropoff: "",
+    notes: "",
     tripDate: "",
     tripTime: "",
     status: "Booked",
@@ -174,6 +178,7 @@ function render(list){
         <th>Pickup</th>
         <th>Stops</th>
         <th>Dropoff</th>
+        <th>Notes</th>
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
@@ -208,6 +213,7 @@ function render(list){
       <td><input class="editField" value="${t.pickup||""}" disabled></td>
       <td><input class="editField" value="${stopsStr}" disabled></td>
       <td><input class="editField" value="${t.dropoff||""}" disabled></td>
+      <td><textarea class="editField" disabled>${t.notes||""}</textarea></td>
       <td><input class="editField" type="date" value="${t.tripDate||""}" disabled></td>
       <td><input class="editField" type="time" value="${t.tripTime||""}" disabled></td>
       <td>${t.status||"Booked"}</td>
@@ -248,7 +254,7 @@ function editTripInline(btn, tripNumber){
 
   } else {
 
-    const inputs = row.querySelectorAll("input.editField");
+    const inputs = row.querySelectorAll(".editField");
 
     const stopsArr = inputs[6].value
       ? inputs[6].value.split("→").map(x=>x.trim()).filter(Boolean)
@@ -269,8 +275,9 @@ function editTripInline(btn, tripNumber){
         pickup: inputs[5].value,
         stops: stopsArr,
         dropoff: inputs[7].value,
-        tripDate: inputs[8].value,
-        tripTime: inputs[9].value
+        notes: inputs[8].value,
+        tripDate: inputs[9].value,
+        tripTime: inputs[10].value
       };
 
       localStorage.setItem(hubKey, JSON.stringify(hubTrips));
