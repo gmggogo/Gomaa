@@ -70,7 +70,7 @@ function getTripNumber(t){
 }
 
 /* ===============================
-   CHECK IF TRIP EXPIRED (AFTER 24 HOURS)
+   CHECK IF TRIP EXPIRED
 ================================ */
 function isTripExpired(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
@@ -79,9 +79,30 @@ function isTripExpired(t){
   if(isNaN(tripDateTime)) return false;
 
   const now = new Date();
-  const diffHours = (now - tripDateTime) / (1000 * 60 * 60);
 
-  return diffHours >= 24;
+  return now >= tripDateTime;
+}
+
+/* ===============================
+   REMOVE AFTER 24 HOURS
+================================ */
+function removeTripsAfter24Hours(){
+
+  const now = new Date();
+
+  hubTrips = hubTrips.filter(t => {
+
+    if(!t || !t.tripDate || !t.tripTime) return true;
+
+    const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
+    if(isNaN(tripDateTime)) return true;
+
+    const diffHours = (now - tripDateTime) / (1000 * 60 * 60);
+
+    return diffHours < 24;
+  });
+
+  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
 }
 
 /* ===============================
@@ -235,104 +256,15 @@ function render(list){
 }
 
 /* ===============================
-   EDIT
-================================ */
-function editTripInline(btn, tripNumber){
-
-  const row = btn.closest("tr");
-  const fields = row.querySelectorAll(".editField");
-
-  if(btn.dataset.mode !== "edit"){
-
-    const ok = confirm("⚠️ Edit this trip?");
-    if(!ok) return;
-
-    fields.forEach(el => el.disabled = false);
-
-    btn.dataset.mode = "edit";
-    btn.classList.remove("edit");
-    btn.classList.add("save");
-    btn.innerText = "💾 Save";
-
-  } else {
-
-    const inputs = row.querySelectorAll(".editField");
-
-    const stopsArr = inputs[6].value
-      ? inputs[6].value.split("→").map(x=>x.trim()).filter(Boolean)
-      : [];
-
-    const idx = hubTrips.findIndex(x =>
-      String(getTripNumber(x)) === String(tripNumber)
-    );
-
-    if(idx !== -1){
-      hubTrips[idx] = {
-        ...hubTrips[idx],
-        company: inputs[0].value,
-        entryName: inputs[1].value,
-        entryPhone: inputs[2].value,
-        clientName: inputs[3].value,
-        clientPhone: inputs[4].value,
-        pickup: inputs[5].value,
-        stops: stopsArr,
-        dropoff: inputs[7].value,
-        notes: inputs[8].value,
-        tripDate: inputs[9].value,
-        tripTime: inputs[10].value
-      };
-
-      localStorage.setItem(hubKey, JSON.stringify(hubTrips));
-    }
-
-    fields.forEach(el => el.disabled = true);
-
-    btn.dataset.mode = "";
-    btn.classList.remove("save");
-    btn.classList.add("edit");
-    btn.innerText = "✏️ Edit";
-
-    render(hubTrips);
-  }
-}
-
-/* ===============================
-   DELETE
-================================ */
-function deleteTripConfirm(tripNumber){
-  const ok = confirm("Delete this trip?");
-  if(!ok) return;
-
-  hubTrips = hubTrips.filter(t =>
-    String(getTripNumber(t)) !== String(tripNumber)
-  );
-
-  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
-  render(hubTrips);
-}
-
-/* ===============================
-   SEARCH
-================================ */
-if(searchInput){
-  searchInput.addEventListener("input", ()=>{
-    const v = searchInput.value.toLowerCase();
-    render(
-      hubTrips.filter(t =>
-        JSON.stringify(t).toLowerCase().includes(v)
-      )
-    );
-  });
-}
-
-/* ===============================
-   AUTO REFRESH COLOR
+   AUTO REFRESH + AUTO CLEAN
 ================================ */
 setInterval(()=>{
+  removeTripsAfter24Hours();
   render(hubTrips);
 },60000);
 
 /* ===============================
    INIT
 ================================ */
+removeTripsAfter24Hours();
 render(hubTrips);
