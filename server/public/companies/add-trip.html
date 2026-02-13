@@ -394,19 +394,46 @@ document.addEventListener("DOMContentLoaded", function(){
     return true;
   }
 
-  /* ===============================
-     SAVE TRIP (Draft -> SERVER)
-  ================================ */
-  saveTripBtn.addEventListener("click", async function(){
-    if(!tripDate.value||!tripTime.value){ alert("Select trip date & time"); return; }
+ /* ===============================
+   SAVE TRIP (Draft -> SERVER) FIXED
+================================ */
+if (saveTripBtn) {
 
-    try{
-      await sendTripToServer(collect("Draft"));
-      glowSave();
-    }catch(e){
-      alert("Server Error: " + e.message);
+  saveTripBtn.onclick = async function(e){
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (saveTripBtn.dataset.loading === "1") return;
+    saveTripBtn.dataset.loading = "1";
+
+    if (!tripDate.value || !tripTime.value) {
+      alert("Select trip date & time");
+      saveTripBtn.dataset.loading = "0";
+      return;
     }
-  });
+
+    try {
+
+      const tripData = collect("Draft");
+
+      await sendTripToServer(tripData);
+
+      glowSave();
+
+    } catch (err) {
+
+      alert("Server Error: " + err.message);
+
+    } finally {
+
+      saveTripBtn.dataset.loading = "0";
+
+    }
+
+  };
+
+}
 
   /* ===============================
      SUBMIT TRIP (Scheduled -> SERVER)
