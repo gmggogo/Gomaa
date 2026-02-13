@@ -1,13 +1,29 @@
 /* ===============================
-   LOAD HUB TRIPS
+   API
 ================================ */
-const hubKey = "tripsHub";
+const API_URL = "/api/tripsHub";
+
+/* ===============================
+   LOAD HUB TRIPS (ONLINE)
+================================ */
 let hubTrips = [];
 
-try {
-  hubTrips = JSON.parse(localStorage.getItem(hubKey)) || [];
-} catch {
-  hubTrips = [];
+async function loadHubTrips(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    hubTrips = Array.isArray(data) ? data : [];
+  }catch{
+    hubTrips = [];
+  }
+}
+
+async function saveHubTrips(){
+  await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(hubTrips)
+  });
 }
 
 const container   = document.getElementById("hubContainer");
@@ -52,7 +68,6 @@ function formatDate(iso){
   if(!iso) return "-";
   const d = new Date(iso);
   if (isNaN(d)) return "-";
-
   return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit"
@@ -70,30 +85,23 @@ function getTripNumber(t){
 }
 
 /* ===============================
-   CHECK IF TRIP PASSED (RED IMMEDIATELY)
+   CHECK PASSED
 ================================ */
 function isTripPassed(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
-
   const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
   if(isNaN(tripDateTime)) return false;
-
-  const now = new Date();
-  return now >= tripDateTime;
+  return new Date() >= tripDateTime;
 }
 
 /* ===============================
-   CHECK IF TRIP SHOULD BE REMOVED (AFTER 24 HOURS)
+   REMOVE AFTER 24H
 ================================ */
 function shouldRemoveTrip(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
-
   const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
   if(isNaN(tripDateTime)) return false;
-
-  const now = new Date();
-  const diffHours = (now - tripDateTime) / (1000 * 60 * 60);
-
+  const diffHours = (new Date() - tripDateTime) / (1000 * 60 * 60);
   return diffHours >= 24;
 }
 
@@ -105,6 +113,7 @@ function rowColor(tr, t){
   if(isTripPassed(t)){
     tr.style.backgroundColor = "#ffe5e5";
     tr.style.borderLeft = "4px solid #dc2626";
+    return;
   }
 
   if (t && t.type === "Individual") {
@@ -130,9 +139,10 @@ function nextReservedNumber(){
 }
 
 /* ===============================
-   ADD RESERVED TRIP
+   ADD RESERVED
 ================================ */
-function addReservedTripInline(){
+async function addReservedTripInline(){
+
   const newTrip = {
     tripNumber: nextReservedNumber(),
     type: "Reserved",
@@ -152,31 +162,31 @@ function addReservedTripInline(){
   };
 
   hubTrips.unshift(newTrip);
-  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
-  render(hubTrips);
+  await saveHubTrips();
+  render();
 }
 
 if(addBtn){
-  addBtn.addEventListener("click", function(e){
+  addBtn.addEventListener("click", async function(e){
     e.preventDefault();
-    addReservedTripInline();
+    await addReservedTripInline();
   });
 }
 
 /* ===============================
    RENDER
 ================================ */
-function render(list){
+async function render(){
 
-  /* حذف الرحلات بعد 24 ساعة */
   hubTrips = hubTrips.filter(function(t){
     return !shouldRemoveTrip(t);
   });
-  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
+
+  await saveHubTrips();
 
   container.innerHTML = "";
 
-  if(!hubTrips || !hubTrips.length){
+  if(!hubTrips.length){
     container.innerHTML = "<p>No trips found</p>";
     return;
   }
@@ -217,9 +227,7 @@ function render(list){
     rowColor(tr, t);
 
     const tripNum = getTripNumber(t);
-    const stopsStr = Array.isArray(t.stops) && t.stops.length
-      ? t.stops.join(" → ")
-      : "";
+    const stopsStr = Array.isArray(t.stops) ? t.stops.join(" → ") : "";
 
     tr.innerHTML = `
       <td>${i+1}</td>
@@ -253,108 +261,9 @@ function render(list){
 }
 
 /* ===============================
-   EDIT
-================================ */
-function editTripInline(btn, tripNumber){
-
-  const row = btn.closest("tr");
-  const fields = row.querySelectorAll(".editField");
-
-  if(btn.dataset.mode !== "edit"){
-
-    const ok = confirm("⚠️ Edit this trip?");
-    if(!ok) return;
-
-    fields.forEach(function(el){
-      el.disabled = false;
-    });
-
-    btn.dataset.mode = "edit";
-    btn.classList.remove("edit");
-    btn.classList.add("save");
-    btn.innerText = "💾 Save";
-
-  } else {
-
-    const inputs = row.querySelectorAll(".editField");
-
-    const stopsArr = inputs[6].value
-      ? inputs[6].value.split("→").map(function(x){ return x.trim(); }).filter(Boolean)
-      : [];
-
-    const idx = hubTrips.findIndex(function(x){
-      return String(getTripNumber(x)) === String(tripNumber);
-    });
-
-    if(idx !== -1){
-      hubTrips[idx] = {
-        ...hubTrips[idx],
-        company: inputs[0].value,
-        entryName: inputs[1].value,
-        entryPhone: inputs[2].value,
-        clientName: inputs[3].value,
-        clientPhone: inputs[4].value,
-        pickup: inputs[5].value,
-        stops: stopsArr,
-        dropoff: inputs[7].value,
-        notes: inputs[8].value,
-        tripDate: inputs[9].value,
-        tripTime: inputs[10].value
-      };
-
-      localStorage.setItem(hubKey, JSON.stringify(hubTrips));
-    }
-
-    fields.forEach(function(el){
-      el.disabled = true;
-    });
-
-    btn.dataset.mode = "";
-    btn.classList.remove("save");
-    btn.classList.add("edit");
-    btn.innerText = "✏️ Edit";
-
-    render(hubTrips);
-  }
-}
-
-/* ===============================
-   DELETE
-================================ */
-function deleteTripConfirm(tripNumber){
-  const ok = confirm("Delete this trip?");
-  if(!ok) return;
-
-  hubTrips = hubTrips.filter(function(t){
-    return String(getTripNumber(t)) !== String(tripNumber);
-  });
-
-  localStorage.setItem(hubKey, JSON.stringify(hubTrips));
-  render(hubTrips);
-}
-
-/* ===============================
-   SEARCH
-================================ */
-if(searchInput){
-  searchInput.addEventListener("input", function(){
-    const v = searchInput.value.toLowerCase();
-    render(
-      hubTrips.filter(function(t){
-        return JSON.stringify(t).toLowerCase().includes(v);
-      })
-    );
-  });
-}
-
-/* ===============================
-   AUTO REFRESH
-================================ */
-setInterval(function(){
-  render(hubTrips);
-},60000);
-
-/* ===============================
    INIT
 ================================ */
-render(hubTrips);
+(async function(){
+  await loadHubTrips();
+  await render();
+})();

@@ -55,7 +55,7 @@ const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
 /* ===============================
-   ENTRY SAVE / EDIT
+   ENTRY SAVE / EDIT (LOCAL ONLY)
 ================================ */
 function loadEntry() {
   const saved = JSON.parse(localStorage.getItem("entryInfo") || "null");
@@ -110,25 +110,10 @@ if (editEntry) {
 }
 
 /* ===============================
-   STORAGE
-================================ */
-function getTrips() {
-  return JSON.parse(localStorage.getItem("companyTrips") || "[]");
-}
-
-function saveTrips(list) {
-  localStorage.setItem("companyTrips", JSON.stringify(list));
-}
-
-/* ===============================
-   TRIP NUMBER
+   GENERATE TRIP NUMBER
 ================================ */
 function generateTripNumber() {
-  const key = "lastCompanyTrip";
-  let last = parseInt(localStorage.getItem(key) || "200", 10);
-  last++;
-  localStorage.setItem(key, last);
-  return "GH-" + last;
+  return "GH-" + Date.now();
 }
 
 /* ===============================
@@ -168,28 +153,50 @@ function collectTripData(statusType) {
 ================================ */
 function clearForm() {
 
-  // Client Info
   clientName.value = "";
   clientPhone.value = "";
-
-  // Trip Details
   pickup.value = "";
   dropoff.value = "";
   tripDate.value = "";
   tripTime.value = "";
   notes.value = "";
-
-  // Stops
   stopsContainer.innerHTML = "";
-
-  // لا نمسح entryName و entryPhone
 }
 
 /* ===============================
-   SAVE TRIP (Draft)
+   SEND TO SERVER
+================================ */
+async function sendTripToServer(tripData){
+
+  try{
+
+    const response = await fetch("/api/trips", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(tripData)
+    });
+
+    const result = await response.json();
+
+    if(!response.ok){
+      throw new Error(result.message || "Server error");
+    }
+
+    return true;
+
+  }catch(error){
+    alert("Server Error: " + error.message);
+    return false;
+  }
+}
+
+/* ===============================
+   SAVE TRIP (Draft → Online)
 ================================ */
 if (saveTripBtn) {
-  saveTripBtn.addEventListener("click", function(e){
+  saveTripBtn.addEventListener("click", async function(e){
 
     e.preventDefault();
 
@@ -198,20 +205,22 @@ if (saveTripBtn) {
       return;
     }
 
-    let trips = getTrips();
-    trips.push(collectTripData("Draft"));
-    saveTrips(trips);
+    const trip = collectTripData("Draft");
 
-    alert("Trip saved as Draft ✔");
-    clearForm();
+    const ok = await sendTripToServer(trip);
+
+    if(ok){
+      alert("Trip saved as Draft ✔");
+      clearForm();
+    }
   });
 }
 
 /* ===============================
-   SUBMIT TRIP
+   SUBMIT TRIP (Scheduled → Online)
 ================================ */
 if (submitTripBtn) {
-  submitTripBtn.addEventListener("click", function(e){
+  submitTripBtn.addEventListener("click", async function(e){
 
     e.preventDefault();
 
@@ -227,19 +236,19 @@ if (submitTripBtn) {
 
     if (isWithin120Minutes(tripDate.value, tripTime.value)) {
       const ok = confirm(
-        "⚠️ This booking is within 120 minutes of the scheduled pickup time.\n" +
-        "After submission, you will NOT be allowed to modify this trip.\n\n" +
-        "Do you want to continue?"
+        "⚠️ This booking is within 120 minutes.\nAfter submission, you cannot modify it.\nContinue?"
       );
       if (!ok) return;
     }
 
-    let trips = getTrips();
-    trips.push(collectTripData("Scheduled"));
-    saveTrips(trips);
+    const trip = collectTripData("Scheduled");
 
-    alert("Trip submitted successfully ✔");
-    clearForm();
+    const ok = await sendTripToServer(trip);
+
+    if(ok){
+      alert("Trip submitted successfully ✔");
+      clearForm();
+    }
   });
 }
 

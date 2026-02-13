@@ -15,18 +15,25 @@ window.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("tripsHub", JSON.stringify(list));
   }
 
-  /* ================= KEEP LAST 7 DAYS ================= */
-  function keepLast7Days(){
+  /* ================= KEEP LAST 30 DAYS ================= */
+  function keepLast30Days(){
     const now = new Date();
     trips = trips.filter(t=>{
       if(!t.createdAt) return true;
       const created = new Date(t.createdAt);
       const diffDays = (now - created) / (1000*60*60*24);
-      return diffDays <= 7;
+      return diffDays <= 30;
     });
     saveTrips();
   }
-  keepLast7Days();
+  keepLast30Days();
+
+  /* ================= SORT NEW FIRST ================= */
+  trips.sort((a,b)=>{
+    const d1 = new Date(a.createdAt || 0);
+    const d2 = new Date(b.createdAt || 0);
+    return d2 - d1;
+  });
 
   /* ================= ARIZONA TIME ================= */
   function getAZNow(){
@@ -56,17 +63,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   /* ================= SYNC FUNCTION ================= */
   function syncToHub(trip){
-
     let hubTrips = getHub();
-
     const index = hubTrips.findIndex(h => h.tripNumber === trip.tripNumber);
-
     if(index > -1){
       hubTrips[index] = {...trip};
     }else{
       hubTrips.push({...trip});
     }
-
     saveHub(hubTrips);
   }
 
@@ -85,6 +88,8 @@ window.addEventListener("DOMContentLoaded", () => {
     table.style.width = "100%";
     table.style.tableLayout = "fixed";
     table.style.borderCollapse = "collapse";
+
+    let lastDateHeader = "";
 
     table.innerHTML = `
       <tr>
@@ -107,7 +112,39 @@ window.addEventListener("DOMContentLoaded", () => {
 
     trips.forEach((t,index)=>{
 
+      const createdDate = t.createdAt
+        ? new Date(t.createdAt).toLocaleDateString()
+        : "No Date";
+
+      if(createdDate !== lastDateHeader){
+        const headerRow = document.createElement("tr");
+        headerRow.innerHTML = `
+          <td colspan="14" style="
+            background:#111827;
+            color:white;
+            font-weight:bold;
+            text-align:center;
+            padding:6px;
+          ">
+            ${createdDate}
+          </td>
+        `;
+        table.appendChild(headerRow);
+        lastDateHeader = createdDate;
+      }
+
       const tr = document.createElement("tr");
+
+      /* ===== RED IF TIME PASSED ===== */
+      const tripDT = getTripDateTime(t);
+      if(tripDT){
+        const now = getAZNow();
+        if(now > tripDT){
+          tr.style.backgroundColor = "#ffe5e5";
+          tr.style.borderLeft = "4px solid red";
+        }
+      }
+
       const inside120 = within120(t);
 
       let actions = "";
@@ -226,10 +263,8 @@ ${(t.stops || []).join(", ")}
 
   window.deleteTrip = function(i){
     if(!confirm("Delete this trip?")) return;
-
     removeFromHub(trips[i].tripNumber);
     trips.splice(i,1);
-
     saveTrips();
     render();
   }
