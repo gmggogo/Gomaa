@@ -1,7 +1,7 @@
 /* ===============================
    API
 ================================ */
-const API_URL = "/api/tripsHub";
+const API_URL = "/api/trips";
 
 /* ===============================
    LOAD HUB TRIPS (ONLINE)
