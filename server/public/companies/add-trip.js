@@ -11,6 +11,7 @@ try {
 
 if (!loggedCompany) {
   window.location.href = "company-login.html";
+  return;
 }
 
 /* ===============================
@@ -55,7 +56,7 @@ const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
 /* ===============================
-   ENTRY SAVE / EDIT (LOCAL ONLY)
+   ENTRY SAVE / EDIT
 ================================ */
 function loadEntry() {
   const saved = JSON.parse(localStorage.getItem("entryInfo") || "null");
@@ -110,8 +111,7 @@ if (editEntry) {
 }
 
 /* ===============================
-   GENERATE TRIP NUMBER
-   (تعديل بسيط: ضمان uniqueness عشان السيرفر مايرفضش)
+   GENERATE UNIQUE TRIP NUMBER
 ================================ */
 function generateTripNumber() {
   return "GH-" + Date.now() + "-" + Math.floor(Math.random()*1000);
@@ -125,7 +125,7 @@ function collectTripData(statusType) {
   return {
     tripNumber: generateTripNumber(),
     type: "Company",
-    company: loggedCompany?.name || "",
+    company: loggedCompany.name,
 
     entryName: entryName.value,
     entryPhone: entryPhone.value,
@@ -153,7 +153,6 @@ function collectTripData(statusType) {
    CLEAR FORM
 ================================ */
 function clearForm() {
-
   clientName.value = "";
   clientPhone.value = "";
   pickup.value = "";
@@ -165,31 +164,33 @@ function clearForm() {
 }
 
 /* ===============================
-   SEND TO SERVER
-   (تعديل مهم: قراءة error صح + اظهار تفاصيل)
+   PREVENT DOUBLE SUBMIT
+================================ */
+let isSending = false;
+
+/* ===============================
+   SEND TO SERVER (ONLY SCHEDULED)
 ================================ */
 async function sendTripToServer(tripData){
 
-  try{
+  if(isSending) return false;
+  isSending = true;
 
-    console.log("Sending trip:", tripData);
+  if(saveTripBtn) saveTripBtn.disabled = true;
+  if(submitTripBtn) submitTripBtn.disabled = true;
+
+  try{
 
     const response = await fetch("/api/trips", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(tripData)
     });
 
-    const text = await response.text();
-    let result = {};
-    try { result = JSON.parse(text); } catch { result = { raw: text }; }
-
-    console.log("Server reply:", response.status, result);
+    const result = await response.json();
 
     if(!response.ok){
-      throw new Error(result.error || result.message || "Server error");
+      throw new Error(result.error || "Server error");
     }
 
     return true;
@@ -197,14 +198,19 @@ async function sendTripToServer(tripData){
   }catch(error){
     alert("Server Error: " + error.message);
     return false;
+
+  }finally{
+    isSending = false;
+    if(saveTripBtn) saveTripBtn.disabled = false;
+    if(submitTripBtn) submitTripBtn.disabled = false;
   }
 }
 
 /* ===============================
-   SAVE TRIP (Draft → Online)
+   SAVE TRIP (DRAFT LOCAL ONLY)
 ================================ */
 if (saveTripBtn) {
-  saveTripBtn.addEventListener("click", async function(e){
+  saveTripBtn.addEventListener("click", function(e){
 
     e.preventDefault();
 
@@ -215,17 +221,14 @@ if (saveTripBtn) {
 
     const trip = collectTripData("Draft");
 
-    const ok = await sendTripToServer(trip);
+    localStorage.setItem("draftTrip", JSON.stringify(trip));
 
-    if(ok){
-      alert("Trip saved as Draft ✔");
-      clearForm();
-    }
+    alert("Trip saved locally as Draft ✔");
   });
 }
 
 /* ===============================
-   SUBMIT TRIP (Scheduled → Online)
+   SUBMIT TRIP (ONLY THIS GOES TO SERVER)
 ================================ */
 if (submitTripBtn) {
   submitTripBtn.addEventListener("click", async function(e){
@@ -243,10 +246,10 @@ if (submitTripBtn) {
     }
 
     if (isWithin120Minutes(tripDate.value, tripTime.value)) {
-      const ok = confirm(
+      const okConfirm = confirm(
         "⚠️ This booking is within 120 minutes.\nAfter submission, you cannot modify it.\nContinue?"
       );
-      if (!ok) return;
+      if (!okConfirm) return;
     }
 
     const trip = collectTripData("Scheduled");
@@ -256,6 +259,7 @@ if (submitTripBtn) {
     if(ok){
       alert("Trip submitted successfully ✔");
       clearForm();
+      localStorage.removeItem("draftTrip");
     }
   });
 }
