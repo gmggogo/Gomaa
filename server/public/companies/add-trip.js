@@ -111,9 +111,10 @@ if (editEntry) {
 
 /* ===============================
    GENERATE TRIP NUMBER
+   (تعديل بسيط: ضمان uniqueness عشان السيرفر مايرفضش)
 ================================ */
 function generateTripNumber() {
-  return "GH-" + Date.now();
+  return "GH-" + Date.now() + "-" + Math.floor(Math.random()*1000);
 }
 
 /* ===============================
@@ -165,10 +166,13 @@ function clearForm() {
 
 /* ===============================
    SEND TO SERVER
+   (تعديل مهم: قراءة error صح + اظهار تفاصيل)
 ================================ */
 async function sendTripToServer(tripData){
 
   try{
+
+    console.log("Sending trip:", tripData);
 
     const response = await fetch("/api/trips", {
       method: "POST",
@@ -178,10 +182,14 @@ async function sendTripToServer(tripData){
       body: JSON.stringify(tripData)
     });
 
-    const result = await response.json();
+    const text = await response.text();
+    let result = {};
+    try { result = JSON.parse(text); } catch { result = { raw: text }; }
+
+    console.log("Server reply:", response.status, result);
 
     if(!response.ok){
-      throw new Error(result.message || "Server error");
+      throw new Error(result.error || result.message || "Server error");
     }
 
     return true;
