@@ -6,81 +6,6 @@
 <title>Sunbeam – Review Trips</title>
 
 <style>
-
-/* ================= HEADER ================= */
-.header{
-  background:linear-gradient(90deg,#0f172a,#1e293b);
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 20px;
-  box-shadow:0 2px 8px rgba(0,0,0,.2);
-}
-
-.header-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.logo{
-  height:36px;
-}
-
-.company-name{
-  font-size:15px;
-  font-weight:bold;
-}
-
-.header-center{
-  display:flex;
-  gap:25px;
-}
-
-.header-center a{
-  color:#e2e8f0;
-  text-decoration:none;
-  font-size:14px;
-  transition:.2s;
-}
-
-.header-center a:hover{
-  color:#facc15;
-}
-
-.header-center a.active{
-  color:#facc15;
-  font-weight:bold;
-}
-
-.header-right{
-  display:flex;
-  align-items:center;
-  gap:20px;
-}
-
-.time-box{
-  display:flex;
-  gap:10px;
-  font-size:13px;
-}
-
-.logout{
-  background:#ef4444;
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
-  color:#fff;
-  cursor:pointer;
-  font-size:12px;
-}
-
-.logout:active{
-  transform:scale(.95);
-}
-
-/* ================= BODY ================= */
 body{
   margin:0;
   font-family:Arial, Helvetica, sans-serif;
@@ -101,12 +26,11 @@ body{
   margin-bottom:15px;
 }
 
-/* ================= TABLE ================= */
+/* ================= TABLE (DESKTOP) ================= */
 table{
   width:100%;
   border-collapse:collapse;
   background:#fff;
-  table-layout:fixed;
 }
 
 th{
@@ -117,137 +41,243 @@ th{
 }
 
 td{
-  padding:3px;
+  padding:4px;
   border:1px solid #e2e8f0;
   text-align:center;
   font-size:10px;
 }
 
-.editField{
-  width:100%;
-  height:24px;
-  font-size:10px;
-  padding:2px 4px;
-  border:1px solid #cbd5e1;
-  border-radius:4px;
-  box-sizing:border-box;
+/* ================= MOBILE CARD ================= */
+.mobile-card{
+  display:none;
+  background:#fff;
+  padding:12px;
+  margin-bottom:12px;
+  border-radius:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+  font-size:13px;
 }
 
-textarea.editField{
-  height:32px;
-  resize:none;
-}
-
-.actions{
+.mobile-row{
   display:flex;
-  gap:5px;
-  justify-content:center;
+  justify-content:space-between;
+  margin-bottom:6px;
 }
 
-.btn{
-  border:none;
-  border-radius:4px;
-  padding:3px 6px;
-  font-size:10px;
-  cursor:pointer;
-  color:#fff;
+.mobile-label{
+  color:#64748b;
+  font-weight:600;
 }
 
-.btn.confirm{background:#22c55e;}
-.btn.edit{background:#3b82f6;}
-.btn.delete{background:#ef4444;}
-.btn.cancel{background:#f59e0b;}
+.mobile-value{
+  text-align:right;
+  font-weight:500;
+  word-break:break-word;
+}
 
-/* ===== Column Sizes ===== */
-th:nth-child(1), td:nth-child(1){width:35px;}
-th:nth-child(2), td:nth-child(2){width:75px;}
-th:nth-child(10), td:nth-child(10){width:95px;}
-th:nth-child(11), td:nth-child(11){width:75px;}
+.passed{
+  background:#ffe5e5 !important;
+  border-left:4px solid #dc2626;
+}
 
+/* ================= RESPONSIVE ================= */
+@media(max-width:768px){
+
+  table{
+    display:none;
+  }
+
+  .mobile-card{
+    display:block;
+  }
+
+}
 </style>
 </head>
 
 <body>
 
-<!-- ================= HEADER ================= -->
-<div class="header">
-
-  <div class="header-left">
-    <img src="../assets/logo.png" class="logo">
-    <div class="company-name" id="companyName">Sunbeam Transportation</div>
-  </div>
-
-  <div class="header-center">
-    <a href="dashboard.html">Dashboard</a>
-    <a href="add-trip.html">Add Trip</a>
-    <a href="review.html" class="active">Review</a>
-    <a href="summary.html">Summary</a>
-    <a href="taxes.html">Taxes</a>
-  </div>
-
-  <div class="header-right">
-    <div class="time-box">
-      <div id="azDate"></div>
-      <div id="azTime"></div>
-    </div>
-    <button class="logout" onclick="logout()">Logout</button>
-  </div>
-
-</div>
-
-<!-- ================= CONTENT ================= -->
 <div class="container">
 
-  <input id="searchBox" placeholder="Search name / phone / trip #">
+<input id="searchBox" placeholder="Search name / phone / trip #">
 
-  <div id="tripsContainer"></div>
+<div id="tripsContainer"></div>
 
 </div>
 
-<!-- ================= JS ================= -->
 <script>
+/* ===============================
+   API
+================================ */
+const API_URL = "/api/trips";
 
-/* ===== Arizona Time ===== */
-function updateArizonaTime(){
-  const now = new Date();
+let trips = [];
+const container = document.getElementById("tripsContainer");
+const searchBox = document.getElementById("searchBox");
 
-  const date = now.toLocaleDateString("en-US",{
-    timeZone:"America/Phoenix",
-    year:"numeric",
-    month:"short",
-    day:"numeric"
-  });
-
-  const time = now.toLocaleTimeString("en-US",{
-    timeZone:"America/Phoenix",
-    hour:"2-digit",
-    minute:"2-digit",
-    second:"2-digit"
-  });
-
-  document.getElementById("azDate").innerText = date;
-  document.getElementById("azTime").innerText = time;
-}
-
-setInterval(updateArizonaTime,1000);
-updateArizonaTime();
-
-/* ===== Company Name ===== */
-try{
-  const loggedCompany = JSON.parse(localStorage.getItem("loggedCompany"));
-  if(loggedCompany){
-    document.getElementById("companyName").innerText = loggedCompany.name;
+/* ===============================
+   LOAD
+================================ */
+async function loadTrips(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    trips = Array.isArray(data) ? data : [];
+  }catch{
+    trips = [];
   }
-}catch{}
-
-function logout(){
-  localStorage.removeItem("loggedCompany");
-  window.location.href="company-login.html";
 }
 
-</script>
+/* ===============================
+   SAVE
+================================ */
+async function saveTrips(){
+  await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(trips)
+  });
+}
 
-<script src="review.js"></script>
+/* ===============================
+   PASSED CHECK
+================================ */
+function isTripPassed(t){
+  if(!t.tripDate || !t.tripTime) return false;
+  const tripDT = new Date(`${t.tripDate}T${t.tripTime}`);
+  if(isNaN(tripDT)) return false;
+  return new Date() >= tripDT;
+}
+
+/* ===============================
+   REMOVE AFTER 30 DAYS
+================================ */
+function isExpired30Days(t){
+  if(!t.tripDate || !t.tripTime) return false;
+  const tripDT = new Date(`${t.tripDate}T${t.tripTime}`);
+  if(isNaN(tripDT)) return false;
+  const diffDays = (new Date() - tripDT) / (1000*60*60*24);
+  return diffDays >= 30;
+}
+
+/* ===============================
+   SEARCH FILTER
+================================ */
+function filteredTrips(){
+  if(!searchBox.value) return trips;
+
+  const q = searchBox.value.toLowerCase();
+  return trips.filter(t =>
+    (t.tripNumber||"").toLowerCase().includes(q) ||
+    (t.clientName||"").toLowerCase().includes(q) ||
+    (t.clientPhone||"").includes(q)
+  );
+}
+
+/* ===============================
+   RENDER
+================================ */
+async function render(){
+
+  trips = trips.filter(t => !isExpired30Days(t));
+  await saveTrips();
+
+  container.innerHTML = "";
+
+  if(!trips.length){
+    container.innerHTML = "<p>No trips found</p>";
+    return;
+  }
+
+  /* ===== DESKTOP TABLE ===== */
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <tr>
+      <th>#</th>
+      <th>Trip #</th>
+      <th>Company</th>
+      <th>Client</th>
+      <th>Phone</th>
+      <th>Pickup</th>
+      <th>Dropoff</th>
+      <th>Date</th>
+      <th>Time</th>
+      <th>Status</th>
+    </tr>
+  `;
+
+  filteredTrips().forEach((t,i)=>{
+
+    /* ==== DESKTOP ROW ==== */
+    const tr = document.createElement("tr");
+    if(isTripPassed(t)) tr.classList.add("passed");
+
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${t.tripNumber||"-"}</td>
+      <td>${t.company||"-"}</td>
+      <td>${t.clientName||"-"}</td>
+      <td>${t.clientPhone||"-"}</td>
+      <td>${t.pickup||"-"}</td>
+      <td>${t.dropoff||"-"}</td>
+      <td>${t.tripDate||"-"}</td>
+      <td>${t.tripTime||"-"}</td>
+      <td>${t.status||"-"}</td>
+    `;
+    table.appendChild(tr);
+
+    /* ==== MOBILE CARD ==== */
+    const card = document.createElement("div");
+    card.className = "mobile-card";
+    if(isTripPassed(t)) card.classList.add("passed");
+
+    card.innerHTML = `
+      <div class="mobile-row">
+        <div class="mobile-label">Trip #</div>
+        <div class="mobile-value">${t.tripNumber||"-"}</div>
+      </div>
+      <div class="mobile-row">
+        <div class="mobile-label">Client</div>
+        <div class="mobile-value">${t.clientName||"-"}</div>
+      </div>
+      <div class="mobile-row">
+        <div class="mobile-label">Phone</div>
+        <div class="mobile-value">${t.clientPhone||"-"}</div>
+      </div>
+      <div class="mobile-row">
+        <div class="mobile-label">Pickup</div>
+        <div class="mobile-value">${t.pickup||"-"}</div>
+      </div>
+      <div class="mobile-row">
+        <div class="mobile-label">Dropoff</div>
+        <div class="mobile-value">${t.dropoff||"-"}</div>
+      </div>
+      <div class="mobile-row">
+        <div class="mobile-label">Date</div>
+        <div class="mobile-value">${t.tripDate||"-"} ${t.tripTime||""}</div>
+      </div>
+      <div class="mobile-row">
+        <div class="mobile-label">Status</div>
+        <div class="mobile-value">${t.status||"-"}</div>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+
+  container.prepend(table);
+}
+
+/* ===============================
+   INIT
+================================ */
+searchBox.addEventListener("input", render);
+
+(async function(){
+  await loadTrips();
+  await render();
+})();
+</script>
 
 </body>
 </html>
