@@ -59,6 +59,28 @@ function saveLocations(data) {
 }
 
 /* =========================
+   TRIPS DATABASE (NEW)
+========================= */
+const TRIPS_DB = "/var/data/trips.json";
+
+function ensureTripsDB() {
+  const dir = "/var/data";
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(TRIPS_DB))
+    fs.writeFileSync(TRIPS_DB, JSON.stringify([]));
+}
+
+function readTrips() {
+  ensureTripsDB();
+  return JSON.parse(fs.readFileSync(TRIPS_DB, "utf8"));
+}
+
+function saveTrips(trips) {
+  ensureTripsDB();
+  fs.writeFileSync(TRIPS_DB, JSON.stringify(trips, null, 2));
+}
+
+/* =========================
    ADMIN USERS API
 ========================= */
 app.get("/api/admin/users", (req, res) => {
@@ -170,12 +192,39 @@ app.get("/api/admin/live-drivers", (req, res) => {
   const locations = readLocations();
   const now = Date.now();
 
-  // رجع بس السواقين اللي بعتوا خلال آخر 30 ثانية
   const active = Object.values(locations).filter(
     d => now - d.updated < 30000
   );
 
   res.json(active);
+});
+
+/* =========================
+   GET ALL TRIPS (NEW)
+========================= */
+app.get("/api/trips", (req, res) => {
+  const trips = readTrips();
+  res.json(trips);
+});
+
+/* =========================
+   ADD NEW TRIP (NEW)
+========================= */
+app.post("/api/trips", (req, res) => {
+
+  const trip = req.body;
+
+  if (!trip || !trip.tripNumber) {
+    return res.status(400).json({ error: "Invalid trip data" });
+  }
+
+  const trips = readTrips();
+
+  trips.unshift(trip);
+
+  saveTrips(trips);
+
+  res.json({ success: true });
 });
 
 /* =========================
