@@ -16,17 +16,63 @@
   padding:10px 20px;
   box-shadow:0 2px 8px rgba(0,0,0,.2);
 }
-.header-left{display:flex;align-items:center;gap:10px;}
-.logo{height:36px;}
-.company-name{font-size:15px;font-weight:bold;}
-.header-center{display:flex;gap:25px;}
-.header-center a{color:#e2e8f0;text-decoration:none;font-size:14px;transition:.2s;}
-.header-center a:hover{color:#facc15;}
-.header-center a.active{color:#facc15;font-weight:bold;}
-.header-right{display:flex;align-items:center;gap:20px;}
-.time-box{display:flex;gap:10px;font-size:13px;}
-.logout{background:#ef4444;border:none;padding:6px 10px;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;}
-.logout:active{transform:scale(.95);}
+
+.header-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.logo{ height:36px; }
+
+.company-name{
+  font-size:15px;
+  font-weight:bold;
+}
+
+.header-center{
+  display:flex;
+  gap:25px;
+}
+
+.header-center a{
+  color:#e2e8f0;
+  text-decoration:none;
+  font-size:14px;
+  transition:.2s;
+  padding:6px 10px;
+  border-radius:6px;
+}
+
+.header-center a:hover{ color:#facc15; }
+.header-center a.active{
+  color:#0f172a;
+  background:#facc15;
+  font-weight:bold;
+}
+
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+
+.time-box{
+  display:flex;
+  gap:10px;
+  font-size:13px;
+}
+
+.logout{
+  background:#ef4444;
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+  color:#fff;
+  cursor:pointer;
+  font-size:12px;
+}
+.logout:active{ transform:scale(.95); }
 
 /* ================= BODY ================= */
 body{
@@ -35,7 +81,9 @@ body{
   background:#f4f8fb;
   font-size:11px;
 }
-.container{padding:15px;}
+
+.container{ padding:15px; }
+
 #searchBox{
   width:100%;
   padding:6px 8px;
@@ -45,33 +93,38 @@ body{
   margin-bottom:15px;
 }
 
-/* ================= TABLE (DESKTOP) ================= */
-.dayTitle{
-  margin:16px 0 8px;
-  color:#0f172a;
-  font-size:13px;
-  font-weight:bold;
+/* ================= TABLE ================= */
+.table-wrap{
+  width:100%;
+  overflow-x:auto;           /* ✅ mobile fix */
+  -webkit-overflow-scrolling:touch;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
 }
 
 table{
   width:100%;
   border-collapse:collapse;
-  background:#fff;
   table-layout:fixed;
-  margin-bottom:14px;
+  min-width:1100px;          /* ✅ keep desktop layout, mobile scroll */
+  background:#fff;
 }
+
 th{
   background:#e0f2fe;
   padding:5px;
   font-size:10px;
   border:1px solid #e2e8f0;
 }
+
 td{
   padding:3px;
   border:1px solid #e2e8f0;
   text-align:center;
   font-size:10px;
 }
+
 .editField{
   width:100%;
   height:24px;
@@ -80,7 +133,9 @@ td{
   border:1px solid #cbd5e1;
   border-radius:4px;
   box-sizing:border-box;
+  background:#fff;
 }
+
 textarea.editField{
   height:32px;
   resize:none;
@@ -101,65 +156,27 @@ textarea.editField{
   cursor:pointer;
   color:#fff;
 }
+.btn:active{ transform:scale(.97); }
+
 .btn.confirm{background:#22c55e;}
 .btn.edit{background:#3b82f6;}
 .btn.save{background:#16a34a;}
 .btn.delete{background:#ef4444;}
 .btn.cancel{background:#f59e0b;}
 
-.passedRow{
-  background:#ffe5e5 !important;
-  border-left:4px solid #dc2626;
-}
-
-/* ===== Column Sizes (keep your desktop clean) ===== */
-th:nth-child(1),  td:nth-child(1) {width:35px;}
-th:nth-child(2),  td:nth-child(2) {width:75px;}
-th:nth-child(10), td:nth-child(10){width:95px;}
-th:nth-child(11), td:nth-child(11){width:75px;}
-th:nth-child(13), td:nth-child(13){width:120px;}
-
-/* ================= MOBILE CARDS ================= */
-.mobileWrap{display:none;}
-
-.mobileDayTitle{
-  margin:14px 0 8px;
-  font-size:13px;
+.date-bar{
+  background:#0f172a;
+  color:#fff;
   font-weight:bold;
-  color:#0f172a;
+  text-align:center;
+  padding:7px;
+  font-size:11px;
 }
 
-.mobileCard{
-  background:#fff;
-  border:1px solid #e2e8f0;
-  border-radius:10px;
-  padding:10px;
-  margin-bottom:10px;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);
-}
-.mobileCard.passedRow{
-  background:#ffe5e5;
-  border-left:4px solid #dc2626;
-}
-.mobileRow{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:6px;
-}
-.mobileKey{font-weight:bold;color:#334155;}
-.mobileVal{color:#0f172a;text-align:right;word-break:break-word;}
-.mobileActions{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-  margin-top:8px;
-}
-
-/* ================= RESPONSIVE SWITCH ================= */
-@media (max-width: 820px){
-  table{display:none;}
-  .mobileWrap{display:block;}
+@media(max-width:768px){
+  .header{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .header-center{ flex-wrap:wrap; gap:10px; }
+  .time-box{ font-size:12px; }
 }
 </style>
 </head>
@@ -168,6 +185,7 @@ th:nth-child(13), td:nth-child(13){width:120px;}
 
 <!-- ================= HEADER ================= -->
 <div class="header">
+
   <div class="header-left">
     <img src="../assets/logo.png" class="logo">
     <div class="company-name" id="companyName">Sunbeam Transportation</div>
@@ -188,28 +206,43 @@ th:nth-child(13), td:nth-child(13){width:120px;}
     </div>
     <button class="logout" onclick="logout()">Logout</button>
   </div>
+
 </div>
 
 <!-- ================= CONTENT ================= -->
 <div class="container">
+
   <input id="searchBox" placeholder="Search name / phone / trip #">
+
   <div id="tripsContainer"></div>
-  <div id="mobileContainer" class="mobileWrap"></div>
+
 </div>
 
+<!-- ================= JS (Arizona clock + company + logout) ================= -->
 <script>
-/* ===== Arizona Time ===== */
 function updateArizonaTime(){
   const now = new Date();
-  const date = now.toLocaleDateString("en-US",{ timeZone:"America/Phoenix", year:"numeric", month:"short", day:"numeric" });
-  const time = now.toLocaleTimeString("en-US",{ timeZone:"America/Phoenix", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+
+  const date = now.toLocaleDateString("en-US",{
+    timeZone:"America/Phoenix",
+    year:"numeric",
+    month:"short",
+    day:"numeric"
+  });
+
+  const time = now.toLocaleTimeString("en-US",{
+    timeZone:"America/Phoenix",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit"
+  });
+
   document.getElementById("azDate").innerText = date;
   document.getElementById("azTime").innerText = time;
 }
 setInterval(updateArizonaTime,1000);
 updateArizonaTime();
 
-/* ===== Company Name ===== */
 try{
   const loggedCompany = JSON.parse(localStorage.getItem("loggedCompany"));
   if(loggedCompany){
@@ -223,464 +256,7 @@ function logout(){
 }
 </script>
 
-<script>
-/* ===============================
-   API
-================================ */
-const API_URL = "/api/trips";
-
-/* ===============================
-   DOM
-================================ */
-const container   = document.getElementById("tripsContainer");
-const mobileBox   = document.getElementById("mobileContainer");
-const searchBox   = document.getElementById("searchBox");
-
-/* ===============================
-   DATA
-================================ */
-let trips = [];
-
-/* ===============================
-   LOAD
-================================ */
-async function loadTrips(){
-  try{
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    trips = Array.isArray(data) ? data : [];
-  }catch{
-    trips = [];
-  }
-}
-
-/* ===============================
-   SAVE (FULL ARRAY)
-================================ */
-async function saveTrips(){
-  await fetch(API_URL,{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify(trips)
-  });
-}
-
-/* ===============================
-   TIME HELPERS
-================================ */
-function getTripDT(t){
-  if(!t || !t.tripDate || !t.tripTime) return null;
-  const d = new Date(`${t.tripDate}T${t.tripTime}`);
-  if(isNaN(d)) return null;
-  return d;
-}
-
-function isTripPassed(t){
-  const d = getTripDT(t);
-  if(!d) return false;
-  return new Date() >= d;
-}
-
-function within120(t){
-  const d = getTripDT(t);
-  if(!d) return false;
-  const diffMin = (d - new Date()) / 60000;
-  return diffMin > 0 && diffMin <= 120;
-}
-
-/* ===============================
-   REMOVE AFTER 30 DAYS (AUTO DAILY)
-================================ */
-function isExpired30Days(t){
-  const d = getTripDT(t);
-  if(!d) return false;
-  const diffDays = (new Date() - d) / (1000*60*60*24);
-  return diffDays >= 30;
-}
-
-/* ===============================
-   GROUP BY BOOKING DAY (createdAt)
-================================ */
-function bookingDay(t){
-  if(!t || !t.createdAt) return "Unknown";
-  const d = new Date(t.createdAt);
-  if(isNaN(d)) return "Unknown";
-  return d.toISOString().split("T")[0];
-}
-
-function groupByDay(list){
-  const g = {};
-  list.forEach(t=>{
-    const day = bookingDay(t);
-    if(!g[day]) g[day] = [];
-    g[day].push(t);
-  });
-  return g;
-}
-
-/* ===============================
-   SEARCH FILTER
-================================ */
-function filteredTrips(){
-  if(!searchBox || !searchBox.value) return trips;
-  const q = searchBox.value.toLowerCase();
-  return trips.filter(t=>{
-    return (
-      String(t.tripNumber||"").toLowerCase().includes(q) ||
-      String(t.clientName||"").toLowerCase().includes(q) ||
-      String(t.clientPhone||"").includes(q) ||
-      String(t.pickup||"").toLowerCase().includes(q) ||
-      String(t.dropoff||"").toLowerCase().includes(q) ||
-      String(t.entryName||"").toLowerCase().includes(q) ||
-      String(t.entryPhone||"").includes(q)
-    );
-  });
-}
-
-/* ===============================
-   FIND TRIP INDEX (by tripNumber)
-================================ */
-function findIndexByTripNumber(num){
-  return trips.findIndex(t => String(t.tripNumber) === String(num));
-}
-
-/* ===============================
-   ACTIONS
-================================ */
-async function confirmTrip(num){
-  const idx = findIndexByTripNumber(num);
-  if(idx === -1) return;
-  trips[idx].status = "Confirmed";
-  await saveTrips();
-  await render();
-}
-
-async function cancelTrip(num){
-  const idx = findIndexByTripNumber(num);
-  if(idx === -1) return;
-  trips[idx].status = "Cancelled";
-  await saveTrips();
-  await render();
-}
-
-async function deleteTrip(num){
-  const ok = confirm("Delete this trip?");
-  if(!ok) return;
-  trips = trips.filter(t => String(t.tripNumber) !== String(num));
-  await saveTrips();
-  await render();
-}
-
-function enableRowEdit(row){
-  const fields = row.querySelectorAll(".editField");
-  fields.forEach(el => el.disabled = false);
-}
-
-function disableRowEdit(row){
-  const fields = row.querySelectorAll(".editField");
-  fields.forEach(el => el.disabled = true);
-}
-
-async function toggleEdit(btn, num){
-  const idx = findIndexByTripNumber(num);
-  if(idx === -1) return;
-
-  // ممنوع تعديل داخل 120 دقيقة
-  if(within120(trips[idx])){
-    alert("⚠️ This trip is within 120 minutes. Editing is not allowed.");
-    return;
-  }
-
-  const row = btn.closest("tr");
-  if(!row) return;
-
-  if(btn.dataset.mode !== "edit"){
-    enableRowEdit(row);
-    btn.dataset.mode = "edit";
-    btn.classList.remove("edit");
-    btn.classList.add("save");
-    btn.innerText = "Save";
-    return;
-  }
-
-  const inputs = row.querySelectorAll(".editField");
-
-  // ترتيب الحقول نفس الجدول
-  trips[idx].entryName   = inputs[0].value;
-  trips[idx].entryPhone  = inputs[1].value;
-  trips[idx].clientName  = inputs[2].value;
-  trips[idx].clientPhone = inputs[3].value;
-  trips[idx].pickup      = inputs[4].value;
-  trips[idx].dropoff     = inputs[5].value;
-  trips[idx].stops       = String(inputs[6].value||"").split("→").map(s=>s.trim()).filter(Boolean);
-  trips[idx].tripDate    = inputs[7].value;
-  trips[idx].tripTime    = inputs[8].value;
-  trips[idx].notes       = inputs[9].value;
-
-  // بعد التعديل رجّعها Scheduled
-  if(trips[idx].status !== "Cancelled"){
-    trips[idx].status = "Scheduled";
-  }
-
-  disableRowEdit(row);
-  btn.dataset.mode = "";
-  btn.classList.remove("save");
-  btn.classList.add("edit");
-  btn.innerText = "Edit";
-
-  await saveTrips();
-  await render();
-}
-
-/* ===============================
-   RENDER (DESKTOP + MOBILE)
-================================ */
-async function render(){
-
-  // حذف القديم بعد 30 يوم
-  const before = trips.length;
-  trips = trips.filter(t => !isExpired30Days(t));
-  if(trips.length !== before){
-    await saveTrips();
-  }
-
-  container.innerHTML = "";
-  mobileBox.innerHTML = "";
-
-  const list = filteredTrips();
-  if(!list.length){
-    container.innerHTML = "<p>No trips found</p>";
-    mobileBox.innerHTML = "<p>No trips found</p>";
-    return;
-  }
-
-  const grouped = groupByDay(list);
-  const days = Object.keys(grouped).sort().reverse(); // الجديد فوق
-
-  days.forEach(day => {
-
-    /* ===== DAY TITLE ===== */
-    const title = document.createElement("div");
-    title.className = "dayTitle";
-    title.innerText = day;
-    container.appendChild(title);
-
-    const mobileTitle = document.createElement("div");
-    mobileTitle.className = "mobileDayTitle";
-    mobileTitle.innerText = day;
-    mobileBox.appendChild(mobileTitle);
-
-    /* ===== TABLE ===== */
-    const table = document.createElement("table");
-    table.innerHTML = `
-      <tr>
-        <th>#</th>
-        <th>Trip #</th>
-        <th>Entry</th>
-        <th>Entry Phone</th>
-        <th>Client</th>
-        <th>Phone</th>
-        <th>Pickup</th>
-        <th>Drop</th>
-        <th>Stops</th>
-        <th>Date</th>
-        <th>Time</th>
-        <th>Status</th>
-        <th>Actions</th>
-      </tr>
-    `;
-
-    grouped[day].forEach((t, i) => {
-
-      const passed = isTripPassed(t);
-      const tripNum = t.tripNumber || ("NO-" + i);
-
-      /* ===== Actions Policy =====
-         - Cancelled: no actions
-         - within120 AND Confirmed: show Cancel only
-         - otherwise: Confirm + Edit + Delete
-      */
-      let actionsHTML = "";
-      if(String(t.status) === "Cancelled"){
-        actionsHTML = "";
-      }else if(within120(t) && String(t.status) === "Confirmed"){
-        actionsHTML = `<button class="btn cancel" onclick="cancelTrip('${tripNum}')">Cancel</button>`;
-      }else{
-        actionsHTML = `
-          <div class="actions">
-            <button class="btn confirm" onclick="confirmTrip('${tripNum}')">Confirm</button>
-            <button class="btn edit" data-mode="" onclick="toggleEdit(this,'${tripNum}')">Edit</button>
-            <button class="btn delete" onclick="deleteTrip('${tripNum}')">Delete</button>
-          </div>
-        `;
-      }
-
-      const tr = document.createElement("tr");
-      if(passed) tr.classList.add("passedRow");
-
-      const stopsStr = Array.isArray(t.stops) ? t.stops.join(" → ") : "";
-
-      tr.innerHTML = `
-        <td>${i+1}</td>
-        <td>${tripNum}</td>
-
-        <td><input class="editField" disabled value="${t.entryName||""}"></td>
-        <td><input class="editField" disabled value="${t.entryPhone||""}"></td>
-
-        <td><input class="editField" disabled value="${t.clientName||""}"></td>
-        <td><input class="editField" disabled value="${t.clientPhone||""}"></td>
-
-        <td><input class="editField" disabled value="${t.pickup||""}"></td>
-        <td><input class="editField" disabled value="${t.dropoff||""}"></td>
-
-        <td><input class="editField" disabled value="${stopsStr}"></td>
-
-        <td><input type="date" class="editField" disabled value="${t.tripDate||""}"></td>
-        <td><input type="time" class="editField" disabled value="${t.tripTime||""}"></td>
-
-        <td>${t.status || "Scheduled"}</td>
-        <td>${actionsHTML}</td>
-      `;
-
-      table.appendChild(tr);
-
-      /* ===== MOBILE CARD ===== */
-      const card = document.createElement("div");
-      card.className = "mobileCard";
-      if(passed) card.classList.add("passedRow");
-
-      const mobileStops = stopsStr || "-";
-
-      let mobileActions = "";
-      if(String(t.status) === "Cancelled"){
-        mobileActions = "";
-      }else if(within120(t) && String(t.status) === "Confirmed"){
-        mobileActions = `
-          <div class="mobileActions">
-            <button class="btn cancel" onclick="cancelTrip('${tripNum}')">Cancel</button>
-          </div>
-        `;
-      }else{
-        mobileActions = `
-          <div class="mobileActions">
-            <button class="btn confirm" onclick="confirmTrip('${tripNum}')">Confirm</button>
-            <button class="btn edit" onclick="openMobileEdit('${tripNum}')">Edit</button>
-            <button class="btn delete" onclick="deleteTrip('${tripNum}')">Delete</button>
-          </div>
-        `;
-      }
-
-      card.innerHTML = `
-        <div class="mobileRow"><div class="mobileKey">Trip #</div><div class="mobileVal">${tripNum}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Client</div><div class="mobileVal">${t.clientName||"-"}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Phone</div><div class="mobileVal">${t.clientPhone||"-"}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Pickup</div><div class="mobileVal">${t.pickup||"-"}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Dropoff</div><div class="mobileVal">${t.dropoff||"-"}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Stops</div><div class="mobileVal">${mobileStops}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Date</div><div class="mobileVal">${t.tripDate||"-"} ${t.tripTime||""}</div></div>
-        <div class="mobileRow"><div class="mobileKey">Status</div><div class="mobileVal">${t.status||"Scheduled"}</div></div>
-        ${mobileActions}
-      `;
-
-      mobileBox.appendChild(card);
-    });
-
-    container.appendChild(table);
-  });
-}
-
-/* ===============================
-   MOBILE EDIT (SIMPLE PROMPTS)
-   - عشان مايبقاش فيه تداخل inputs على الموبايل
-================================ */
-async function openMobileEdit(num){
-  const idx = findIndexByTripNumber(num);
-  if(idx === -1) return;
-
-  if(within120(trips[idx])){
-    alert("⚠️ This trip is within 120 minutes. Editing is not allowed.");
-    return;
-  }
-
-  const t = trips[idx];
-
-  const entryName   = prompt("Entry Name:", t.entryName||"");
-  if(entryName === null) return;
-  const entryPhone  = prompt("Entry Phone:", t.entryPhone||"");
-  if(entryPhone === null) return;
-
-  const clientName  = prompt("Client Name:", t.clientName||"");
-  if(clientName === null) return;
-  const clientPhone = prompt("Client Phone:", t.clientPhone||"");
-  if(clientPhone === null) return;
-
-  const pickup      = prompt("Pickup:", t.pickup||"");
-  if(pickup === null) return;
-  const dropoff     = prompt("Dropoff:", t.dropoff||"");
-  if(dropoff === null) return;
-
-  const stops       = prompt("Stops (use → between stops):", Array.isArray(t.stops)?t.stops.join(" → "):"");
-  if(stops === null) return;
-
-  const tripDate    = prompt("Trip Date (YYYY-MM-DD):", t.tripDate||"");
-  if(tripDate === null) return;
-  const tripTime    = prompt("Trip Time (HH:MM):", t.tripTime||"");
-  if(tripTime === null) return;
-
-  const notes       = prompt("Notes:", t.notes||"");
-  if(notes === null) return;
-
-  t.entryName   = entryName;
-  t.entryPhone  = entryPhone;
-  t.clientName  = clientName;
-  t.clientPhone = clientPhone;
-  t.pickup      = pickup;
-  t.dropoff     = dropoff;
-  t.stops       = String(stops||"").split("→").map(s=>s.trim()).filter(Boolean);
-  t.tripDate    = tripDate;
-  t.tripTime    = tripTime;
-  t.notes       = notes;
-
-  if(t.status !== "Cancelled"){
-    t.status = "Scheduled";
-  }
-
-  await saveTrips();
-  await render();
-}
-
-/* ===============================
-   EXPOSE
-================================ */
-window.confirmTrip = confirmTrip;
-window.cancelTrip  = cancelTrip;
-window.deleteTrip  = deleteTrip;
-window.toggleEdit  = toggleEdit;
-window.openMobileEdit = openMobileEdit;
-
-/* ===============================
-   EVENTS
-================================ */
-if(searchBox){
-  searchBox.addEventListener("input", render);
-}
-
-/* ===============================
-   AUTO REFRESH
-================================ */
-setInterval(async ()=>{
-  await loadTrips();
-  await render();
-}, 60000);
-
-/* ===============================
-   INIT
-================================ */
-(async function(){
-  await loadTrips();
-  await render();
-})();
-</script>
+<script src="review.js"></script>
 
 </body>
 </html>
