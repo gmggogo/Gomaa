@@ -3,123 +3,116 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SUNBEAM TRANSPORTATION – Add Trip</title>
+<title>Sunbeam – Add Trip</title>
 
 <style>
 
-/* 1️⃣ BODY */
+/* ===== BODY ===== */
 body{
   margin:0;
-  font-family:'Segoe UI', Arial, sans-serif;
-  background:linear-gradient(180deg,#1e3a8a 0%, #f4f8fb 280px);
+  font-family:Arial, Helvetica, sans-serif;
+  background:#f1f5f9;
 }
 
-/* 2️⃣ HEADER */
+/* ===== HEADER ===== */
 .header{
-  background:linear-gradient(90deg,#0f172a,#1e3a8a);
+  background:linear-gradient(90deg,#0f172a,#1e293b);
   color:#fff;
-  padding:20px 50px;
-}
-
-/* 3️⃣ TOP SECTION */
-.top-section{
   display:flex;
-  justify-content:space-between;
   align-items:center;
-}
-
-/* 4️⃣ LEFT INFO */
-.logged-company{
-  font-size:20px;
-  font-weight:700;
-  color:#facc15;
-}
-.greeting,.clock{
+  justify-content:space-between;
+  padding:10px 20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
   font-size:13px;
-  margin-top:4px;
 }
 
-/* 5️⃣ LOGO RIGHT */
-.logo{ height:75px; }
-
-/* 6️⃣ NAV */
-.nav{
+.header-left{
   display:flex;
-  justify-content:center;
-  gap:40px;
-  background:#000;
-  padding:12px 0;
-  margin-top:20px;
-}
-.nav a{
-  color:#fff;
-  text-decoration:none;
-  font-size:14px;
-  padding:6px 16px;
-  border-radius:8px;
-}
-.nav a.active{
-  background:#facc15;
-  color:#000;
-  font-weight:700;
+  align-items:center;
+  gap:8px;
 }
 
-/* 7️⃣ CONTENT */
+.logo{ height:32px; }
+
+.company-name{
+  font-weight:600;
+  font-size:13px;
+}
+
+.header-center{
+  display:flex;
+  gap:20px;
+}
+
+.header-center a{
+  color:#e2e8f0;
+  text-decoration:none;
+  font-size:13px;
+  padding:5px 8px;
+  border-radius:6px;
+  transition:.2s;
+}
+
+.header-center a:hover{ background:#1e293b; }
+.header-center .active{ background:#1e293b; }
+
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:12px;
+}
+
+/* ===== CONTENT ===== */
 .container{
-  max-width:900px;
-  margin:0 auto;
-  padding:30px 20px 50px;
+  padding:20px;
+  max-width:1000px;
+  margin:auto;
 }
 
 section{
   background:#fff;
-  padding:22px;
-  border-radius:14px;
-  margin-bottom:22px;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:20px;
+  box-shadow:0 2px 6px rgba(0,0,0,.05);
 }
 
 section h3{
-  margin-bottom:16px;
-  font-size:17px;
+  margin-bottom:10px;
+  font-size:14px;
   color:#0f172a;
 }
 
-/* 8️⃣ GRID */
 .form-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:16px;
+  gap:10px;
 }
 
-input,textarea{
+input, textarea{
   width:100%;
-  padding:11px;
+  padding:8px;
+  font-size:12px;
   border:1px solid #cbd5e1;
-  border-radius:10px;
-  font-size:14px;
+  border-radius:6px;
+  box-sizing:border-box;
 }
 
-textarea{
-  min-height:90px;
-  margin-top:12px;
-}
+textarea{ min-height:70px; }
 
-/* 9️⃣ BUTTONS */
 .actions{
   display:flex;
-  justify-content:center;
-  gap:18px;
-  margin-top:20px;
+  gap:10px;
+  margin-top:10px;
 }
 
 button{
-  padding:10px 22px;
+  padding:6px 12px;
   border:none;
-  border-radius:10px;
-  font-size:14px;
+  border-radius:6px;
+  font-size:12px;
   cursor:pointer;
-  font-weight:600;
 }
 
 .btn-blue{ background:#3b82f6; color:#fff; }
@@ -127,31 +120,32 @@ button{
 .btn-gray{ background:#64748b; color:#fff; }
 
 @media(max-width:768px){
-  .form-grid{grid-template-columns:1fr;}
+  .form-grid{ grid-template-columns:1fr; }
+  .header{ flex-direction:column; align-items:flex-start; gap:10px; }
+  .header-center{ flex-wrap:wrap; gap:10px; }
+  .actions{ flex-direction:column; }
 }
 
 </style>
 </head>
-
 <body>
 
-<!-- HEADER -->
 <div class="header">
-  <div class="top-section">
-    <div>
-      <div class="logged-company" id="loggedCompanyName"></div>
-      <div class="greeting" id="greetingText"></div>
-      <div class="clock" id="azClock"></div>
-    </div>
+  <div class="header-left">
     <img src="../assets/logo.png" class="logo">
+    <div class="company-name" id="companyName"></div>
   </div>
 
-  <div class="nav">
+  <div class="header-center">
     <a href="dashboard.html">Dashboard</a>
     <a href="add-trip.html" class="active">Add Trip</a>
     <a href="review.html">Review</a>
     <a href="summary.html">Summary</a>
     <a href="taxes.html">Taxes</a>
+  </div>
+
+  <div class="header-right">
+    <div id="azClock"></div>
   </div>
 </div>
 
@@ -162,11 +156,6 @@ button{
 <div class="form-grid">
   <input id="entryName" placeholder="Data Entry Name">
   <input id="entryPhone" placeholder="Phone Number">
-</div>
-
-<div class="actions">
-  <button class="btn-blue" id="saveEntry">Save</button>
-  <button class="btn-gray" id="editEntry" style="display:none;">Edit</button>
 </div>
 </section>
 
@@ -180,19 +169,15 @@ button{
 
 <section>
 <h3>Trip Details</h3>
-
 <div class="form-grid">
   <input id="pickup" placeholder="Pickup Address">
   <input id="dropoff" placeholder="Dropoff Address">
-</div>
-
-<div id="stops" style="margin-top:14px;"></div>
-<button class="btn-blue" id="addStopBtn" type="button" style="margin-top:10px;">+ Add Stop</button>
-
-<div class="form-grid" style="margin-top:18px;">
   <input id="tripDate" type="date">
   <input id="tripTime" type="time">
 </div>
+
+<div id="stops" style="margin-top:10px;"></div>
+<button class="btn-blue" id="addStopBtn" type="button">+ Add Stop</button>
 
 <textarea id="notes" placeholder="Notes"></textarea>
 </section>
@@ -206,80 +191,35 @@ button{
 
 <script>
 
-/* LOAD COMPANY */
+/* COMPANY */
 let loggedCompany=null;
-try{loggedCompany=JSON.parse(localStorage.getItem("loggedCompany"));}catch{}
-if(loggedCompany){
-  document.getElementById("loggedCompanyName").innerText=loggedCompany.name||"";
-}
-
-/* GREETING */
-function setGreeting(){
-  const h=new Date().getHours();
-  document.getElementById("greetingText").innerText=
-    h<12?"Good Morning ☀️":h<18?"Good Afternoon 🌤":"Good Evening 🌙";
-}
-setGreeting();
+try{ loggedCompany=JSON.parse(localStorage.getItem("loggedCompany")); }catch{}
+if(!loggedCompany){ location.href="company-login.html"; }
+document.getElementById("companyName").innerText = loggedCompany?.name || "";
 
 /* CLOCK */
 function updateClock(){
   const now=new Date();
-  const time=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
-  hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(now);
-  const date=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
-  year:"numeric",month:"short",day:"2-digit"}).format(now);
-  document.getElementById("azClock").innerText=time+" | "+date;
+  document.getElementById("azClock").innerText=
+  new Intl.DateTimeFormat("en-US",{
+    timeZone:"America/Phoenix",
+    hour:"2-digit",minute:"2-digit",second:"2-digit"
+  }).format(now);
 }
 setInterval(updateClock,1000);
 updateClock();
 
-/* ENTRY SAVE */
+/* DOM */
 const entryName=document.getElementById("entryName");
 const entryPhone=document.getElementById("entryPhone");
-const saveEntry=document.getElementById("saveEntry");
-const editEntry=document.getElementById("editEntry");
-
-saveEntry.onclick=function(){
-  if(!entryName.value||!entryPhone.value){
-    alert("Enter Entry Info first.");
-    return;
-  }
-  localStorage.setItem("entryInfo",JSON.stringify({
-    name:entryName.value,
-    phone:entryPhone.value
-  }));
-  entryName.disabled=true;
-  entryPhone.disabled=true;
-  saveEntry.style.display="none";
-  editEntry.style.display="inline-block";
-};
-
-editEntry.onclick=function(){
-  entryName.disabled=false;
-  entryPhone.disabled=false;
-  saveEntry.style.display="inline-block";
-  editEntry.style.display="none";
-};
-
-/* LOAD ENTRY */
-const savedEntry=JSON.parse(localStorage.getItem("entryInfo")||"null");
-if(savedEntry){
-  entryName.value=savedEntry.name;
-  entryPhone.value=savedEntry.phone;
-  entryName.disabled=true;
-  entryPhone.disabled=true;
-  saveEntry.style.display="none";
-  editEntry.style.display="inline-block";
-}
-
-/* STOPS */
+const clientName=document.getElementById("clientName");
+const clientPhone=document.getElementById("clientPhone");
+const pickup=document.getElementById("pickup");
+const dropoff=document.getElementById("dropoff");
+const tripDate=document.getElementById("tripDate");
+const tripTime=document.getElementById("tripTime");
+const notes=document.getElementById("notes");
 const stopsBox=document.getElementById("stops");
-document.getElementById("addStopBtn").onclick=function(){
-  const input=document.createElement("input");
-  input.placeholder="Stop address";
-  input.style.marginTop="8px";
-  stopsBox.appendChild(input);
-};
 
 /* 120 MIN CHECK */
 function isWithin120(date,time){
@@ -289,7 +229,7 @@ function isWithin120(date,time){
   return diff>0 && diff<=120;
 }
 
-/* SAVE DRAFT */
+/* SAVE LOCAL */
 document.getElementById("saveTrip").onclick=function(){
   const draft={
     clientName:clientName.value,
@@ -304,7 +244,7 @@ document.getElementById("saveTrip").onclick=function(){
   alert("Draft saved ✔");
 };
 
-/* SUBMIT (Review Only) */
+/* SUBMIT TO REVIEW */
 document.getElementById("submitTrip").onclick=async function(){
 
   if(!entryName.value||!entryPhone.value){
@@ -351,7 +291,6 @@ document.getElementById("submitTrip").onclick=async function(){
     tripTime.value="";
     notes.value="";
     stopsBox.innerHTML="";
-    localStorage.removeItem("draftTrip");
 
   }catch(err){
     alert("Server Error: "+err.message);
