@@ -10,7 +10,7 @@
 /* 1️⃣ BODY */
 body{
   margin:0;
-  font-family:Arial, Helvetica, sans-serif;
+  font-family:'Segoe UI', Arial, sans-serif;
   background:#f4f8fb;
 }
 
@@ -18,149 +18,149 @@ body{
 .header{
   background:linear-gradient(90deg,#0f172a,#1e3a8a);
   color:#fff;
-  display:flex;
-  flex-direction:column;
-  padding:12px 40px;
+  padding:15px 40px;
 }
 
-/* 3️⃣ TOP BAR */
-.top-bar{
+/* 3️⃣ TOP SECTION */
+.top-section{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  width:100%;
 }
 
-.brand-area{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.logo{
-  height:42px;
-}
-
-.brand{
-  font-size:13px;
-  font-weight:bold;
-  color:#facc15;
-  letter-spacing:1px;
-}
-
-/* 4️⃣ CLOCK */
-.clock{
-  text-align:right;
-  font-size:13px;
-}
-
-/* 5️⃣ NAVIGATION */
-.nav{
-  display:flex;
-  justify-content:center;
-  gap:20px;
-  margin-top:12px;
-}
-
-.nav a{
-  color:#fff;
-  text-decoration:none;
-  padding:6px 14px;
-  border-radius:6px;
-  font-size:13px;
-  transition:.2s;
-}
-
-.nav a:hover{ background:#1e293b; }
-
-.nav a.active{
-  background:#facc15;
-  color:#0f172a;
-  font-weight:bold;
-}
-
-/* 6️⃣ COMPANY BOX */
-.company-box{
-  text-align:center;
-  margin:20px 0;
+/* 4️⃣ LEFT SIDE */
+.left-info{
+  text-align:left;
 }
 
 .logged-company{
   font-size:16px;
-  font-weight:bold;
-  color:#1e3a8a;
-  padding:8px 18px;
-  border:2px solid #1e3a8a;
-  border-radius:8px;
-  display:inline-block;
+  font-weight:700;
+  color:#facc15;
 }
 
 .greeting{
-  margin-top:6px;
   font-size:13px;
-  color:#64748b;
+  opacity:.85;
+  margin-top:4px;
 }
 
-/* 7️⃣ CONTAINER */
+/* 5️⃣ RIGHT SIDE */
+.right-info{
+  text-align:right;
+}
+
+.main-company{
+  font-size:16px;
+  font-weight:700;
+  color:#facc15;
+}
+
+.clock{
+  font-size:13px;
+  margin-top:4px;
+  opacity:.85;
+}
+
+/* 6️⃣ LOGO CENTER */
+.logo-box{
+  text-align:center;
+  margin-top:15px;
+}
+
+.logo{
+  height:55px;
+}
+
+/* 7️⃣ NAV */
+.nav{
+  display:flex;
+  justify-content:center;
+  gap:30px;
+  margin-top:15px;
+}
+
+.nav a{
+  color:#e2e8f0;
+  text-decoration:none;
+  font-size:14px;
+  padding:6px 14px;
+  border-radius:8px;
+}
+
+.nav a:hover{
+  background:rgba(250,204,21,.2);
+}
+
+.nav a.active{
+  background:#facc15;
+  color:#0f172a;
+  font-weight:700;
+}
+
+/* 8️⃣ CONTENT */
 .container{
   max-width:900px;
   margin:auto;
-  padding:20px;
+  padding:30px 20px;
 }
 
 section{
   background:#fff;
-  padding:18px;
-  border-radius:10px;
+  padding:20px;
+  border-radius:12px;
   margin-bottom:20px;
-  box-shadow:0 2px 8px rgba(0,0,0,.05);
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
 }
 
 section h3{
-  margin-bottom:12px;
-  font-size:15px;
+  margin-bottom:15px;
+  font-size:16px;
   color:#0f172a;
 }
 
-/* 8️⃣ FORM GRID */
+/* 9️⃣ FORM GRID */
 .form-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:12px;
+  gap:14px;
 }
 
 input, textarea{
   width:100%;
-  padding:8px;
+  padding:10px;
   border:1px solid #cbd5e1;
-  border-radius:6px;
+  border-radius:8px;
   font-size:13px;
 }
 
-textarea{ min-height:70px; }
+textarea{
+  min-height:80px;
+  margin-top:10px;
+}
 
-/* 9️⃣ BUTTONS */
+/* 🔟 BUTTONS */
 .actions{
   display:flex;
   justify-content:center;
-  gap:12px;
-  margin-top:15px;
+  gap:15px;
+  margin-top:18px;
 }
 
 button{
-  padding:8px 16px;
+  padding:8px 18px;
   border:none;
-  border-radius:6px;
+  border-radius:8px;
   font-size:13px;
   cursor:pointer;
-  transition:.2s;
+  font-weight:600;
 }
 
 .btn-blue{ background:#3b82f6; color:#fff; }
 .btn-green{ background:#22c55e; color:#000; }
 .btn-gray{ background:#64748b; color:#fff; }
 
-button:hover{opacity:.85;}
+button:hover{opacity:.9;}
 
 @media(max-width:768px){
   .form-grid{grid-template-columns:1fr;}
@@ -171,18 +171,25 @@ button:hover{opacity:.85;}
 
 <body>
 
-<!-- 🔟 HEADER -->
+<!-- 🔵 HEADER -->
 <div class="header">
 
-  <div class="top-bar">
+  <div class="top-section">
 
-    <div class="brand-area">
-      <img src="../assets/logo.png" class="logo">
-      <div class="brand">SUNBEAM TRANSPORTATION</div>
+    <div class="left-info">
+      <div class="logged-company" id="loggedCompanyName"></div>
+      <div class="greeting" id="greetingText"></div>
     </div>
 
-    <div class="clock" id="azClock"></div>
+    <div class="right-info">
+      <div class="main-company">SUNBEAM TRANSPORTATION</div>
+      <div class="clock" id="azClock"></div>
+    </div>
 
+  </div>
+
+  <div class="logo-box">
+    <img src="../assets/logo.png" class="logo">
   </div>
 
   <div class="nav">
@@ -195,13 +202,7 @@ button:hover{opacity:.85;}
 
 </div>
 
-<!-- 1️⃣1️⃣ COMPANY BOX -->
-<div class="company-box">
-  <div class="logged-company" id="loggedCompanyName"></div>
-  <div class="greeting" id="greetingText"></div>
-</div>
-
-<!-- 1️⃣2️⃣ CONTENT -->
+<!-- 🔵 CONTENT -->
 <div class="container">
 
 <section>
@@ -248,14 +249,14 @@ button:hover{opacity:.85;}
 
 <script>
 
-/* 1️⃣3️⃣ COMPANY NAME */
+/* SHOW COMPANY */
 let loggedCompany=null;
 try{ loggedCompany=JSON.parse(localStorage.getItem("loggedCompany")); }catch{}
 if(loggedCompany){
   document.getElementById("loggedCompanyName").innerText=loggedCompany.name||"";
 }
 
-/* 1️⃣4️⃣ GREETING */
+/* GREETING */
 function setGreeting(){
   const hour=new Date().getHours();
   let msg="";
@@ -266,19 +267,21 @@ function setGreeting(){
 }
 setGreeting();
 
-/* 1️⃣5️⃣ ARIZONA CLOCK */
+/* ARIZONA CLOCK */
 function updateClock(){
   const now=new Date();
   const time=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
-  hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(now);
+  hour:"2-digit",minute:"2-digit"}).format(now);
+
   const date=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
   year:"numeric",month:"short",day:"2-digit"}).format(now);
+
   document.getElementById("azClock").innerText=time+" | "+date;
 }
 setInterval(updateClock,1000);
 updateClock();
 
-/* 1️⃣6️⃣ ENTRY LOCK */
+/* ENTRY LOCK */
 const entryName=document.getElementById("entryName");
 const entryPhone=document.getElementById("entryPhone");
 const saveEntry=document.getElementById("saveEntry");
@@ -290,7 +293,6 @@ function lockEntry(){
   saveEntry.style.display="none";
   editEntry.style.display="inline-block";
 }
-
 function unlockEntry(){
   entryName.disabled=false;
   entryPhone.disabled=false;
@@ -308,7 +310,7 @@ saveEntry.onclick=function(){
 
 editEntry.onclick=function(){unlockEntry();};
 
-/* 1️⃣7️⃣ ADD STOP */
+/* ADD STOP */
 const stopsBox=document.getElementById("stops");
 document.getElementById("addStopBtn").onclick=function(){
   const input=document.createElement("input");
@@ -316,7 +318,7 @@ document.getElementById("addStopBtn").onclick=function(){
   stopsBox.appendChild(input);
 };
 
-/* 1️⃣8️⃣ CHECK 120 MIN */
+/* CHECK 120 */
 function isWithin120(date,time){
   if(!date||!time) return false;
   const trip=new Date(`${date}T${time}`);
@@ -325,7 +327,7 @@ function isWithin120(date,time){
   return diff>0&&diff<=120;
 }
 
-/* 1️⃣9️⃣ SUBMIT */
+/* SUBMIT */
 document.getElementById("submitTrip").onclick=function(){
 
   if(!entryName.value||!entryPhone.value){
@@ -350,7 +352,6 @@ document.getElementById("submitTrip").onclick=function(){
   stopsBox.innerHTML="";
 };
 
-/* 2️⃣0️⃣ SAVE */
 document.getElementById("saveTrip").onclick=function(){
   alert("Saved successfully ✔");
 };
