@@ -1,262 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sunbeam – Review Trips</title>
+window.addEventListener("DOMContentLoaded", () => {
 
-<style>
-/* ================= HEADER ================= */
-.header{
-  background:linear-gradient(90deg,#0f172a,#1e293b);
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 20px;
-  box-shadow:0 2px 8px rgba(0,0,0,.2);
-}
+  const API_URL = "/api/trips";
+  let trips = [];
+  const container = document.getElementById("tripsContainer");
 
-.header-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.logo{ height:36px; }
-
-.company-name{
-  font-size:15px;
-  font-weight:bold;
-}
-
-.header-center{
-  display:flex;
-  gap:25px;
-}
-
-.header-center a{
-  color:#e2e8f0;
-  text-decoration:none;
-  font-size:14px;
-  transition:.2s;
-  padding:6px 10px;
-  border-radius:6px;
-}
-
-.header-center a:hover{ color:#facc15; }
-.header-center a.active{
-  color:#0f172a;
-  background:#facc15;
-  font-weight:bold;
-}
-
-.header-right{
-  display:flex;
-  align-items:center;
-  gap:20px;
-}
-
-.time-box{
-  display:flex;
-  gap:10px;
-  font-size:13px;
-}
-
-.logout{
-  background:#ef4444;
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
-  color:#fff;
-  cursor:pointer;
-  font-size:12px;
-}
-.logout:active{ transform:scale(.95); }
-
-/* ================= BODY ================= */
-body{
-  margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#f4f8fb;
-  font-size:11px;
-}
-
-.container{ padding:15px; }
-
-#searchBox{
-  width:100%;
-  padding:6px 8px;
-  font-size:11px;
-  border:1px solid #93c5fd;
-  border-radius:6px;
-  margin-bottom:15px;
-}
-
-/* ================= TABLE ================= */
-.table-wrap{
-  width:100%;
-  overflow-x:auto;           /* ✅ mobile fix */
-  -webkit-overflow-scrolling:touch;
-  background:#fff;
-  border-radius:10px;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  table-layout:fixed;
-  min-width:1100px;          /* ✅ keep desktop layout, mobile scroll */
-  background:#fff;
-}
-
-th{
-  background:#e0f2fe;
-  padding:5px;
-  font-size:10px;
-  border:1px solid #e2e8f0;
-}
-
-td{
-  padding:3px;
-  border:1px solid #e2e8f0;
-  text-align:center;
-  font-size:10px;
-}
-
-.editField{
-  width:100%;
-  height:24px;
-  font-size:10px;
-  padding:2px 4px;
-  border:1px solid #cbd5e1;
-  border-radius:4px;
-  box-sizing:border-box;
-  background:#fff;
-}
-
-textarea.editField{
-  height:32px;
-  resize:none;
-}
-
-.actions{
-  display:flex;
-  gap:5px;
-  justify-content:center;
-  flex-wrap:wrap;
-}
-
-.btn{
-  border:none;
-  border-radius:4px;
-  padding:3px 6px;
-  font-size:10px;
-  cursor:pointer;
-  color:#fff;
-}
-.btn:active{ transform:scale(.97); }
-
-.btn.confirm{background:#22c55e;}
-.btn.edit{background:#3b82f6;}
-.btn.save{background:#16a34a;}
-.btn.delete{background:#ef4444;}
-.btn.cancel{background:#f59e0b;}
-
-.date-bar{
-  background:#0f172a;
-  color:#fff;
-  font-weight:bold;
-  text-align:center;
-  padding:7px;
-  font-size:11px;
-}
-
-@media(max-width:768px){
-  .header{ flex-direction:column; align-items:flex-start; gap:10px; }
-  .header-center{ flex-wrap:wrap; gap:10px; }
-  .time-box{ font-size:12px; }
-}
-</style>
-</head>
-
-<body>
-
-<!-- ================= HEADER ================= -->
-<div class="header">
-
-  <div class="header-left">
-    <img src="../assets/logo.png" class="logo">
-    <div class="company-name" id="companyName">Sunbeam Transportation</div>
-  </div>
-
-  <div class="header-center">
-    <a href="dashboard.html">Dashboard</a>
-    <a href="add-trip.html">Add Trip</a>
-    <a href="review.html" class="active">Review</a>
-    <a href="summary.html">Summary</a>
-    <a href="taxes.html">Taxes</a>
-  </div>
-
-  <div class="header-right">
-    <div class="time-box">
-      <div id="azDate"></div>
-      <div id="azTime"></div>
-    </div>
-    <button class="logout" onclick="logout()">Logout</button>
-  </div>
-
-</div>
-
-<!-- ================= CONTENT ================= -->
-<div class="container">
-
-  <input id="searchBox" placeholder="Search name / phone / trip #">
-
-  <div id="tripsContainer"></div>
-
-</div>
-
-<!-- ================= JS (Arizona clock + company + logout) ================= -->
-<script>
-function updateArizonaTime(){
-  const now = new Date();
-
-  const date = now.toLocaleDateString("en-US",{
-    timeZone:"America/Phoenix",
-    year:"numeric",
-    month:"short",
-    day:"numeric"
-  });
-
-  const time = now.toLocaleTimeString("en-US",{
-    timeZone:"America/Phoenix",
-    hour:"2-digit",
-    minute:"2-digit",
-    second:"2-digit"
-  });
-
-  document.getElementById("azDate").innerText = date;
-  document.getElementById("azTime").innerText = time;
-}
-setInterval(updateArizonaTime,1000);
-updateArizonaTime();
-
-try{
-  const loggedCompany = JSON.parse(localStorage.getItem("loggedCompany"));
-  if(loggedCompany){
-    document.getElementById("companyName").innerText = loggedCompany.name;
+  /* ================= LOAD ================= */
+  async function loadTrips(){
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      trips = Array.isArray(data) ? data : [];
+    }catch{
+      trips = [];
+    }
   }
-}catch{}
 
-function logout(){
-  localStorage.removeItem("loggedCompany");
-  window.location.href="company-login.html";
-}
-</script>
+  /* ================= SAVE ================= */
+  async function saveTrips(){
+    try{
+      await fetch(API_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(trips)
+      });
+    }catch(e){
+      console.error("Save failed",e);
+    }
+  }
 
-<script src="review.js"></script>
+  /* ================= KEEP 30 DAYS ================= */
+  async function keepLast30Days(){
+    const now = new Date();
+    const before = trips.length;
 
-</body>
-</html>
+    trips = trips.filter(t=>{
+      if(!t.createdAt) return true;
+      const created = new Date(t.createdAt);
+      const diffDays = (now-created)/(1000*60*60*24);
+      return diffDays <= 30;
+    });
+
+    if(trips.length !== before){
+      await saveTrips();
+    }
+  }
+
+  /* ================= SORT ================= */
+  function sortTrips(){
+    trips.sort((a,b)=>{
+      const d1 = new Date(a.createdAt || 0);
+      const d2 = new Date(b.createdAt || 0);
+      return d2-d1;
+    });
+  }
+
+  /* ================= TIME ================= */
+  function getAZNow(){
+    return new Date(
+      new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    );
+  }
+
+  function getTripDateTime(t){
+    if(!t.tripDate || !t.tripTime) return null;
+    return new Date(
+      new Date(`${t.tripDate}T${t.tripTime}`)
+      .toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    );
+  }
+
+  function minutesToTrip(t){
+    const dt = getTripDateTime(t);
+    if(!dt) return null;
+    return (dt - getAZNow()) / 60000;
+  }
+
+  function inside120(t){
+    const diff = minutesToTrip(t);
+    return diff !== null && diff > 0 && diff <= 120;
+  }
+
+  function tripPassed(t){
+    const diff = minutesToTrip(t);
+    return diff !== null && diff <= 0;
+  }
+
+  /* ================= RENDER ================= */
+  function render(){
+
+    container.innerHTML = "";
+
+    const table = document.createElement("table");
+    table.style.width="100%";
+    table.style.tableLayout="fixed";
+    table.style.borderCollapse="collapse";
+
+    table.innerHTML = `
+      <tr>
+        <th>#</th>
+        <th>Trip #</th>
+        <th>Client</th>
+        <th>Phone</th>
+        <th>Pickup</th>
+        <th>Drop</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    `;
+
+    trips.forEach((t,index)=>{
+
+      const tr = document.createElement("tr");
+
+      if(tripPassed(t)){
+        tr.style.background="#ffe5e5";
+        tr.style.borderLeft="4px solid red";
+      }
+
+      /* ===== BUTTON POLICY ===== */
+
+      let actions="";
+
+      if(t.status==="Cancelled"){
+        actions="";
+      }
+      else if(tripPassed(t)){
+        actions="";
+      }
+      else if(inside120(t) && t.status==="Confirmed"){
+        actions=`
+          <button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>
+        `;
+      }
+      else{
+        actions=`
+          ${t.status!=="Confirmed"
+            ? `<button class="btn confirm" onclick="confirmTrip(${index})">Confirm</button>`
+            : ""}
+          <button class="btn edit" onclick="editTrip(${index},this)">Edit</button>
+          <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
+        `;
+      }
+
+      tr.innerHTML=`
+        <td>${index+1}</td>
+        <td>${t.tripNumber||""}</td>
+        <td>${t.clientName||""}</td>
+        <td>${t.clientPhone||""}</td>
+        <td>${t.pickup||""}</td>
+        <td>${t.dropoff||""}</td>
+        <td>${t.tripDate||""}</td>
+        <td>${t.tripTime||""}</td>
+        <td>${t.status||"Scheduled"}</td>
+        <td>${actions}</td>
+      `;
+
+      table.appendChild(tr);
+    });
+
+    container.appendChild(table);
+  }
+
+  /* ================= ACTIONS ================= */
+
+  window.confirmTrip = async function(i){
+    if(tripPassed(trips[i])){
+      alert("Trip already passed.");
+      return;
+    }
+    trips[i].status="Confirmed";
+    await saveTrips();
+    render();
+  };
+
+  window.cancelTrip = async function(i){
+    trips[i].status="Cancelled";
+    await saveTrips();
+    render();
+  };
+
+  window.deleteTrip = async function(i){
+    if(!confirm("Delete this trip?")) return;
+    trips.splice(i,1);
+    await saveTrips();
+    render();
+  };
+
+  window.editTrip = async function(i,btn){
+
+    const t = trips[i];
+
+    if(tripPassed(t)){
+      alert("Trip already passed.");
+      return;
+    }
+
+    const newDate = prompt("New Date (YYYY-MM-DD)", t.tripDate);
+    if(!newDate) return;
+
+    const newTime = prompt("New Time (HH:MM)", t.tripTime);
+    if(!newTime) return;
+
+    const temp={tripDate:newDate,tripTime:newTime};
+
+    if(inside120(temp)){
+      if(!confirm("⚠️ Within 120 minutes.\nContinue?")) return;
+    }
+
+    t.tripDate=newDate;
+    t.tripTime=newTime;
+    t.status="Scheduled";
+
+    await saveTrips();
+    render();
+  };
+
+  /* ================= INIT ================= */
+  (async function(){
+    await loadTrips();
+    await keepLast30Days();
+    sortTrips();
+    render();
+  })();
+
+});
