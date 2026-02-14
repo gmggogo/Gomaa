@@ -13,7 +13,6 @@ window.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       trips = Array.isArray(data) ? data : [];
     }catch(e){
-      console.error("Load failed", e);
       trips = [];
     }
   }
@@ -27,7 +26,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ================= HUB ================= */
+  /* ================= SEND TO HUB ================= */
   async function sendToHub(trip){
     await fetch(HUB_URL,{
       method:"POST",
@@ -36,27 +35,38 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ================= CLEAN & SORT ================= */
+  /* ================= NORMALIZE ================= */
+  function normalizeTrips(){
+    const nowISO = new Date().toISOString();
+    trips.forEach(t=>{
+      if(!t.createdAt) t.createdAt = nowISO;
+      if(!t.status) t.status = "Scheduled";
+      if(typeof t.editing !== "boolean") t.editing = false;
+
+      if(!t.enteredBy) t.enteredBy="";
+      if(!t.enteredPhone) t.enteredPhone="";
+      if(!t.clientName) t.clientName="";
+      if(!t.clientPhone) t.clientPhone="";
+      if(!t.pickup) t.pickup="";
+      if(!t.dropoff) t.dropoff="";
+      if(!t.tripDate) t.tripDate="";
+      if(!t.tripTime) t.tripTime="";
+      if(!t.tripNumber) t.tripNumber="";
+    });
+  }
+
+  /* ================= 30 DAYS ================= */
   async function keepLast30Days(){
     const now = new Date();
-    const before = trips.length;
-
     trips = trips.filter(t=>{
-      if(!t.createdAt) return true;
       const created = new Date(t.createdAt);
-      const diffDays = (now - created) / (1000*60*60*24);
-      return diffDays <= 30;
+      const diff = (now - created)/(1000*60*60*24);
+      return diff <= 30;
     });
-
-    if(trips.length !== before){
-      await saveTrips();
-    }
   }
 
   function sortTrips(){
-    trips.sort((a,b)=>{
-      return new Date(b.createdAt||0) - new Date(a.createdAt||0);
-    });
+    trips.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
   }
 
   /* ================= TIME ENGINE ================= */
@@ -66,23 +76,23 @@ window.addEventListener("DOMContentLoaded", () => {
     const [y,m,d] = t.tripDate.split("-");
     const [h,min] = t.tripTime.split(":");
 
-    return new Date(Number(y), Number(m)-1, Number(d), Number(h), Number(min));
+    return new Date(Number(y),Number(m)-1,Number(d),Number(h),Number(min));
   }
 
   function minutesToTrip(t){
     const dt = getTripDateTime(t);
     if(!dt) return null;
-    return (dt - new Date()) / 60000;
+    return (dt - new Date())/60000;
   }
 
   function inside120(t){
     const m = minutesToTrip(t);
-    return m !== null && m > 0 && m <= 120;
+    return m!==null && m>0 && m<=120;
   }
 
   function passed(t){
     const m = minutesToTrip(t);
-    return m !== null && m <= 0;
+    return m!==null && m<=0;
   }
 
   function anyEditing(){
@@ -92,19 +102,21 @@ window.addEventListener("DOMContentLoaded", () => {
   /* ================= RENDER ================= */
   function render(){
 
-    container.innerHTML = "";
+    container.innerHTML="";
 
     const table = document.createElement("table");
     table.style.width="100%";
     table.style.borderCollapse="collapse";
     table.style.tableLayout="fixed";
 
-    table.innerHTML = `
+    table.innerHTML=`
       <tr>
         <th>#</th>
         <th>Trip #</th>
+        <th>Entered By</th>
+        <th>Entered Phone</th>
         <th>Client</th>
-        <th>Phone</th>
+        <th>Client Phone</th>
         <th>Pickup</th>
         <th>Drop</th>
         <th>Date</th>
@@ -117,31 +129,28 @@ window.addEventListener("DOMContentLoaded", () => {
     trips.forEach((t,index)=>{
 
       const tr = document.createElement("tr");
-
-      const isPassed = passed(t);
       const in120 = inside120(t);
+      const isPassed = passed(t);
+      const editing = t.editing===true;
 
       if(isPassed){
         tr.style.background="#ffcccc";
-      } else if(in120){
+      }else if(in120){
         tr.style.background="#fff3cd";
       }
 
-      const editing = t.editing === true;
-
-      const client = editing ? `<input class="edit-client" value="${t.clientName||""}"/>` : (t.clientName||"");
-      const phone  = editing ? `<input class="edit-phone" value="${t.clientPhone||""}"/>` : (t.clientPhone||"");
-      const pickup = editing ? `<input class="edit-pickup" value="${t.pickup||""}"/>` : (t.pickup||"");
-      const drop   = editing ? `<input class="edit-drop" value="${t.dropoff||""}"/>` : (t.dropoff||"");
-      const date   = editing ? `<input type="date" class="edit-date" value="${t.tripDate||""}"/>` : (t.tripDate||"");
-      const time   = editing ? `<input type="time" class="edit-time" value="${t.tripTime||""}"/>` : (t.tripTime||"");
+      const cell = (value,cls,type="text")=>{
+        return editing
+          ? `<input type="${type}" class="edit ${cls}" value="${value||""}" />`
+          : (value||"");
+      };
 
       let actions="";
 
       if(!isPassed){
 
         if(t.status==="Scheduled"){
-          actions = `
+          actions=`
             <button class="btn edit" onclick="editTrip(${index})">${editing?"Save":"Edit"}</button>
             <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
             <button class="btn confirm" onclick="confirmTrip(${index})">Confirm</button>
@@ -150,9 +159,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
         if(t.status==="Confirmed"){
           if(in120){
-            actions = `<button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>`;
-          } else {
-            actions = `
+            actions=`<button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>`;
+          }else{
+            actions=`
               <button class="btn edit" onclick="editTrip(${index})">${editing?"Save":"Edit"}</button>
               <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
               <button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>
@@ -161,16 +170,18 @@ window.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      tr.innerHTML = `
+      tr.innerHTML=`
         <td>${index+1}</td>
-        <td>${t.tripNumber||""}</td>
-        <td>${client}</td>
-        <td>${phone}</td>
-        <td>${pickup}</td>
-        <td>${drop}</td>
-        <td>${date}</td>
-        <td>${time}</td>
-        <td>${t.status||"Scheduled"}</td>
+        <td>${t.tripNumber}</td>
+        <td>${cell(t.enteredBy,"edit-enteredby")}</td>
+        <td>${cell(t.enteredPhone,"edit-enteredphone")}</td>
+        <td>${cell(t.clientName,"edit-client")}</td>
+        <td>${cell(t.clientPhone,"edit-clientphone")}</td>
+        <td>${cell(t.pickup,"edit-pickup")}</td>
+        <td>${cell(t.dropoff,"edit-drop")}</td>
+        <td>${cell(t.tripDate,"edit-date","date")}</td>
+        <td>${cell(t.tripTime,"edit-time","time")}</td>
+        <td>${t.status}</td>
         <td>${actions}</td>
       `;
 
@@ -185,7 +196,7 @@ window.addEventListener("DOMContentLoaded", () => {
   window.confirmTrip = async function(i){
     const t = trips[i];
     if(passed(t)){
-      alert("Trip time has already passed.");
+      alert("Trip already passed.");
       return;
     }
     t.status="Confirmed";
@@ -225,19 +236,21 @@ window.addEventListener("DOMContentLoaded", () => {
     const newDate = row.querySelector(".edit-date").value;
     const newTime = row.querySelector(".edit-time").value;
 
-    const tempTrip = { ...t, tripDate:newDate, tripTime:newTime };
-    const mins = minutesToTrip(tempTrip);
+    const tempTrip={...t,tripDate:newDate,tripTime:newTime};
+    const mins=minutesToTrip(tempTrip);
 
-    if(mins !== null && mins > 0 && mins <= 120){
-      if(!confirm("Trip is within 120 minutes. Continue editing?")) return;
+    if(mins!==null && mins>0 && mins<=120){
+      if(!confirm("Trip is within 120 minutes. Continue?")) return;
     }
 
-    t.clientName  = row.querySelector(".edit-client").value;
-    t.clientPhone = row.querySelector(".edit-phone").value;
-    t.pickup      = row.querySelector(".edit-pickup").value;
-    t.dropoff     = row.querySelector(".edit-drop").value;
-    t.tripDate    = newDate;
-    t.tripTime    = newTime;
+    t.enteredBy = row.querySelector(".edit-enteredby").value;
+    t.enteredPhone = row.querySelector(".edit-enteredphone").value;
+    t.clientName = row.querySelector(".edit-client").value;
+    t.clientPhone = row.querySelector(".edit-clientphone").value;
+    t.pickup = row.querySelector(".edit-pickup").value;
+    t.dropoff = row.querySelector(".edit-drop").value;
+    t.tripDate = newDate;
+    t.tripTime = newTime;
 
     t.status="Scheduled";
     t.editing=false;
@@ -250,6 +263,7 @@ window.addEventListener("DOMContentLoaded", () => {
   setInterval(async ()=>{
     if(!anyEditing()){
       await loadTrips();
+      normalizeTrips();
       await keepLast30Days();
       sortTrips();
       render();
@@ -259,6 +273,7 @@ window.addEventListener("DOMContentLoaded", () => {
   /* ================= INIT ================= */
   (async function(){
     await loadTrips();
+    normalizeTrips();
     await keepLast30Days();
     sortTrips();
     render();
