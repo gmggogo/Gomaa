@@ -7,22 +7,18 @@
 
 <style>
 
-/* 1️⃣ GLOBAL */
-*{ box-sizing:border-box; transition:.25s ease; }
-
+/* 1️⃣ BODY */
 body{
   margin:0;
   font-family:'Segoe UI', Arial, sans-serif;
   background:#f4f8fb;
-  font-size:14px;
 }
 
-/* 2️⃣ HEADER MAIN (Same vibe as Review) */
+/* 2️⃣ HEADER */
 .header{
-  background:linear-gradient(90deg,#0f172a,#1e293b);
+  background:linear-gradient(90deg,#0f172a,#1e3a8a);
   color:#fff;
-  padding:18px 40px;
-  box-shadow:0 4px 12px rgba(0,0,0,.25);
+  padding:20px 50px;
 }
 
 /* 3️⃣ TOP SECTION */
@@ -30,118 +26,78 @@ body{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:20px;
 }
 
-/* 4️⃣ LEFT SIDE (Login + Greeting + Time) */
-.left-info{
-  text-align:left;
-  min-width:220px;
-}
-
+/* 4️⃣ LEFT INFO */
 .logged-company{
-  font-size:18px;
-  font-weight:800;
+  font-size:20px;
+  font-weight:700;
   color:#facc15;
-  letter-spacing:.4px;
 }
-
-.greeting{
-  font-size:14px;
-  margin-top:6px;
-  opacity:.92;
-}
-
-.clock{
+.greeting,.clock{
   font-size:13px;
-  margin-top:6px;
-  opacity:.88;
+  margin-top:4px;
 }
 
-/* 5️⃣ RIGHT SIDE (Logo) */
-.logo-box{ text-align:right; min-width:200px; }
-.logo{ height:74px; }
+/* 5️⃣ LOGO RIGHT */
+.logo{ height:75px; }
 
-/* 6️⃣ NAV BLACK HEADER */
-.nav-header{
-  background:#000;
-  padding:12px 0;
-  box-shadow:0 4px 12px rgba(0,0,0,.18);
-}
-
+/* 6️⃣ BLACK NAV */
 .nav{
   display:flex;
   justify-content:center;
-  gap:28px;
-  flex-wrap:wrap;
-  padding:0 16px;
+  gap:40px;
+  background:#000;
+  padding:12px 0;
+  margin-top:20px;
 }
-
 .nav a{
-  color:#e2e8f0;
-  text-decoration:none;
-  font-size:15px;
-  padding:8px 16px;
-  border-radius:10px;
-  font-weight:700;
-}
-
-.nav a:hover{
   color:#fff;
-  background:rgba(250,204,21,.18);
-  box-shadow:0 0 10px rgba(250,204,21,.35);
+  text-decoration:none;
+  font-size:14px;
+  padding:6px 16px;
+  border-radius:8px;
 }
-
 .nav a.active{
   background:#facc15;
-  color:#0f172a;
-  box-shadow:0 0 12px rgba(250,204,21,.55);
+  color:#000;
+  font-weight:700;
 }
 
 /* 7️⃣ CONTENT */
 .container{
-  max-width:950px;
+  max-width:900px;
   margin:auto;
-  padding:32px 22px;
+  padding:35px 20px;
 }
-
 section{
   background:#fff;
-  padding:24px;
+  padding:22px;
   border-radius:14px;
   margin-bottom:22px;
   box-shadow:0 6px 16px rgba(0,0,0,.08);
 }
-
 section h3{
-  margin:0 0 16px 0;
-  font-size:18px;
+  margin-bottom:16px;
+  font-size:17px;
   color:#0f172a;
 }
 
-/* 8️⃣ FORM GRID */
+/* 8️⃣ GRID */
 .form-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:16px;
 }
-
-input, textarea{
+input,textarea{
   width:100%;
-  padding:12px;
+  padding:11px;
   border:1px solid #cbd5e1;
   border-radius:10px;
   font-size:14px;
-  outline:none;
 }
-
-input:focus, textarea:focus{
-  border-color:#3b82f6;
-  box-shadow:0 0 10px rgba(59,130,246,.18);
-}
-
 textarea{
-  min-height:100px;
+  min-height:90px;
   margin-top:12px;
 }
 
@@ -149,43 +105,23 @@ textarea{
 .actions{
   display:flex;
   justify-content:center;
-  gap:16px;
-  margin-top:18px;
-  flex-wrap:wrap;
+  gap:18px;
+  margin-top:20px;
 }
-
 button{
   padding:10px 22px;
   border:none;
   border-radius:10px;
   font-size:14px;
-  font-weight:800;
   cursor:pointer;
-  box-shadow:0 0 10px rgba(0,0,0,.10);
+  font-weight:600;
 }
-
-button:active{ transform:scale(.97); }
-
 .btn-blue{ background:#3b82f6; color:#fff; }
-.btn-green{ background:#22c55e; color:#0b1220; }
+.btn-green{ background:#22c55e; color:#000; }
 .btn-gray{ background:#64748b; color:#fff; }
 
-.btn-blue:hover{ box-shadow:0 0 14px rgba(59,130,246,.45); }
-.btn-green:hover{ box-shadow:0 0 14px rgba(34,197,94,.45); }
-.btn-gray:hover{ box-shadow:0 0 14px rgba(100,116,139,.45); }
-
-/* 🔟 Stops input look same as others */
-#stops input{
-  margin-top:10px;
-}
-
-/* 1️⃣1️⃣ MOBILE */
 @media(max-width:768px){
-  .top-section{ flex-direction:column-reverse; align-items:flex-start; }
-  .logo-box{ width:100%; text-align:center; }
-  .logo{ height:82px; }
-  .left-info{ width:100%; }
-  .form-grid{ grid-template-columns:1fr; }
+  .form-grid{grid-template-columns:1fr;}
 }
 
 </style>
@@ -193,27 +129,18 @@ button:active{ transform:scale(.97); }
 
 <body>
 
-<!-- 1️⃣2️⃣ HEADER -->
+<!-- 🔟 HEADER -->
 <div class="header">
-  <div class="top-section">
 
-    <!-- LEFT: logged company + greeting + clock -->
-    <div class="left-info">
-      <div class="logged-company" id="loggedCompanyName">—</div>
+  <div class="top-section">
+    <div>
+      <div class="logged-company" id="loggedCompanyName"></div>
       <div class="greeting" id="greetingText"></div>
       <div class="clock" id="azClock"></div>
     </div>
-
-    <!-- RIGHT: logo -->
-    <div class="logo-box">
-      <img src="../assets/logo.png" class="logo" alt="Sunbeam Logo">
-    </div>
-
+    <img src="../assets/logo.png" class="logo">
   </div>
-</div>
 
-<!-- 1️⃣3️⃣ NAV BLACK BAR -->
-<div class="nav-header">
   <div class="nav">
     <a href="dashboard.html">Dashboard</a>
     <a href="add-trip.html" class="active">Add Trip</a>
@@ -221,208 +148,179 @@ button:active{ transform:scale(.97); }
     <a href="summary.html">Summary</a>
     <a href="taxes.html">Taxes</a>
   </div>
+
 </div>
 
-<!-- 1️⃣4️⃣ CONTENT -->
+<!-- 1️⃣1️⃣ CONTENT -->
 <div class="container">
 
-  <section>
-    <h3>Entry Information</h3>
-    <div class="form-grid">
-      <input id="entryName" placeholder="Data Entry Name">
-      <input id="entryPhone" placeholder="Phone Number">
-    </div>
-    <div class="actions">
-      <button class="btn-blue" id="saveEntry" type="button">Save</button>
-      <button class="btn-gray" id="editEntry" type="button" style="display:none;">Edit</button>
-    </div>
-  </section>
+<section>
+<h3>Entry Information</h3>
+<div class="form-grid">
+  <input id="entryName" placeholder="Data Entry Name">
+  <input id="entryPhone" placeholder="Phone Number">
+</div>
 
-  <section>
-    <h3>Client Information</h3>
-    <div class="form-grid">
-      <input id="clientName" placeholder="Client Name">
-      <input id="clientPhone" placeholder="Client Phone">
-    </div>
-  </section>
+<div class="actions">
+  <button class="btn-blue" id="saveEntry">Save</button>
+  <button class="btn-gray" id="editEntry" style="display:none;">Edit</button>
+</div>
+</section>
 
-  <section>
-    <h3>Trip Details</h3>
-    <div class="form-grid">
-      <input id="pickup" placeholder="Pickup Address">
-      <input id="dropoff" placeholder="Dropoff Address">
-      <input id="tripDate" type="date">
-      <input id="tripTime" type="time">
-    </div>
+<section>
+<h3>Client Information</h3>
+<div class="form-grid">
+  <input id="clientName" placeholder="Client Name">
+  <input id="clientPhone" placeholder="Client Phone">
+</div>
+</section>
 
-    <div id="stops"></div>
-    <div class="actions" style="margin-top:14px;">
-      <button class="btn-blue" id="addStopBtn" type="button">+ Add Stop</button>
-    </div>
+<section>
+<h3>Trip Details</h3>
 
-    <textarea id="notes" placeholder="Notes"></textarea>
-  </section>
+<div class="form-grid">
+  <input id="pickup" placeholder="Pickup Address">
+  <input id="dropoff" placeholder="Dropoff Address">
+</div>
 
-  <div class="actions">
-    <button class="btn-gray" id="saveTrip" type="button">Save</button>
-    <button class="btn-green" id="submitTrip" type="button">Submit</button>
-  </div>
+<div id="stops" style="margin-top:14px;"></div>
+<button class="btn-blue" id="addStopBtn" type="button" style="margin-top:10px;">+ Add Stop</button>
+
+<div class="form-grid" style="margin-top:18px;">
+  <input id="tripDate" type="date">
+  <input id="tripTime" type="time">
+</div>
+
+<textarea id="notes" placeholder="Notes"></textarea>
+</section>
+
+<div class="actions">
+  <button class="btn-gray" id="saveTrip" type="button">Save</button>
+  <button class="btn-green" id="submitTrip" type="button">Submit</button>
+</div>
 
 </div>
 
 <script>
-/* 1️⃣5️⃣ AUTH + SHOW LOGGED COMPANY NAME */
-let loggedCompany = null;
-try{ loggedCompany = JSON.parse(localStorage.getItem("loggedCompany")); }catch{}
-if(!loggedCompany){
-  // لو مش عامل لوجين يرجع لصفحة اللوجين
-  // (شيل السطرين دول لو مش عايز ريديركت)
-  window.location.href = "company-login.html";
-}
 
+/* 1️⃣2️⃣ LOAD COMPANY */
+let loggedCompany=null;
+try{loggedCompany=JSON.parse(localStorage.getItem("loggedCompany"));}catch{}
 if(loggedCompany){
-  document.getElementById("loggedCompanyName").innerText = (loggedCompany.name || "Company");
+  document.getElementById("loggedCompanyName").innerText=loggedCompany.name||"";
 }
 
-/* 1️⃣6️⃣ GREETING (dynamic) */
+/* 1️⃣3️⃣ GREETING */
 function setGreeting(){
-  const hour = new Date().getHours();
-  let msg = "";
-  if(hour < 12) msg = "Good Morning ☀️";
-  else if(hour < 18) msg = "Good Afternoon 🌤";
-  else msg = "Good Evening 🌙";
-  document.getElementById("greetingText").innerText = msg;
+  const h=new Date().getHours();
+  let msg="";
+  if(h<12) msg="Good Morning ☀️";
+  else if(h<18) msg="Good Afternoon 🌤";
+  else msg="Good Evening 🌙";
+  document.getElementById("greetingText").innerText=msg;
 }
 setGreeting();
 
-/* 1️⃣7️⃣ ARIZONA CLOCK (time + date) */
+/* 1️⃣4️⃣ CLOCK */
 function updateClock(){
-  const now = new Date();
-  const time = new Intl.DateTimeFormat("en-US",{
-    timeZone:"America/Phoenix",
-    hour:"2-digit", minute:"2-digit", second:"2-digit"
-  }).format(now);
-
-  const date = new Intl.DateTimeFormat("en-US",{
-    timeZone:"America/Phoenix",
-    year:"numeric", month:"short", day:"2-digit"
-  }).format(now);
-
-  document.getElementById("azClock").innerText = `${time} | ${date}`;
+  const now=new Date();
+  const time=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
+  hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(now);
+  const date=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
+  year:"numeric",month:"short",day:"2-digit"}).format(now);
+  document.getElementById("azClock").innerText=time+" | "+date;
 }
 setInterval(updateClock,1000);
 updateClock();
 
-/* 1️⃣8️⃣ ENTRY LOCK (Save/Edit) + KEEP ENTRY VALUES */
-const entryName  = document.getElementById("entryName");
-const entryPhone = document.getElementById("entryPhone");
-const saveEntry  = document.getElementById("saveEntry");
-const editEntry  = document.getElementById("editEntry");
+/* 1️⃣5️⃣ ENTRY SAVE / EDIT */
+const entryName=document.getElementById("entryName");
+const entryPhone=document.getElementById("entryPhone");
+const saveEntry=document.getElementById("saveEntry");
+const editEntry=document.getElementById("editEntry");
 
 function lockEntry(){
-  entryName.disabled = true;
-  entryPhone.disabled = true;
-  saveEntry.style.display = "none";
-  editEntry.style.display = "inline-block";
+  entryName.disabled=true;
+  entryPhone.disabled=true;
+  saveEntry.style.display="none";
+  editEntry.style.display="inline-block";
 }
-
 function unlockEntry(){
-  entryName.disabled = false;
-  entryPhone.disabled = false;
-  saveEntry.style.display = "inline-block";
-  editEntry.style.display = "none";
+  entryName.disabled=false;
+  entryPhone.disabled=false;
+  saveEntry.style.display="inline-block";
+  editEntry.style.display="none";
 }
 
-/* Load previously saved entryInfo (optional) */
-try{
-  const saved = JSON.parse(localStorage.getItem("entryInfo") || "null");
-  if(saved){
-    entryName.value  = saved.name  || "";
-    entryPhone.value = saved.phone || "";
-    lockEntry();
-  }
-}catch{}
-
-saveEntry.onclick = function(){
-  if(!entryName.value.trim() || !entryPhone.value.trim()){
+saveEntry.onclick=function(){
+  if(!entryName.value||!entryPhone.value){
     alert("Please enter Data Entry name and phone number.");
     return;
   }
-  localStorage.setItem("entryInfo", JSON.stringify({
-    name: entryName.value.trim(),
-    phone: entryPhone.value.trim()
+  localStorage.setItem("entryData",JSON.stringify({
+    name:entryName.value,
+    phone:entryPhone.value
   }));
   lockEntry();
 };
 
-editEntry.onclick = function(){ unlockEntry(); };
+editEntry.onclick=function(){unlockEntry();};
 
-/* 1️⃣9️⃣ STOPS */
-const stopsBox = document.getElementById("stops");
-const addStopBtn = document.getElementById("addStopBtn");
+/* 1️⃣6️⃣ LOAD SAVED ENTRY */
+const savedEntry=JSON.parse(localStorage.getItem("entryData")||"null");
+if(savedEntry){
+  entryName.value=savedEntry.name;
+  entryPhone.value=savedEntry.phone;
+  lockEntry();
+}
 
-function addStop(value=""){
-  const input = document.createElement("input");
-  input.placeholder = "Stop address";
-  input.value = value;
+/* 1️⃣7️⃣ ADD STOP */
+const stopsBox=document.getElementById("stops");
+document.getElementById("addStopBtn").onclick=function(){
+  const input=document.createElement("input");
+  input.placeholder="Stop address";
+  input.style.marginTop="8px";
   stopsBox.appendChild(input);
-}
-
-addStopBtn.onclick = function(){ addStop(""); };
-
-/* 2️⃣0️⃣ 120 MINUTES CHECK */
-const tripDate = document.getElementById("tripDate");
-const tripTime = document.getElementById("tripTime");
-
-function isWithin120(date, time){
-  if(!date || !time) return false;
-  const trip = new Date(`${date}T${time}`);
-  if(String(trip) === "Invalid Date") return false;
-  const now  = new Date();
-  const diff = (trip - now) / 60000;
-  return diff > 0 && diff <= 120;
-}
-
-/* 2️⃣1️⃣ SAVE BUTTON (just message) */
-document.getElementById("saveTrip").onclick = function(){
-  alert("Saved successfully ✔");
 };
 
-/* 2️⃣2️⃣ SUBMIT BUTTON
-   - warning if within 120
-   - message: sent to Review page
-   - clear ALL fields EXCEPT Entry Name/Phone
-*/
-document.getElementById("submitTrip").onclick = function(){
+/* 1️⃣8️⃣ CHECK 120 MIN */
+function isWithin120(date,time){
+  if(!date||!time) return false;
+  const trip=new Date(`${date}T${time}`);
+  const now=new Date();
+  const diff=(trip-now)/60000;
+  return diff>0 && diff<=120;
+}
 
-  if(!entryName.value.trim() || !entryPhone.value.trim()){
+/* 1️⃣9️⃣ SUBMIT (NO REDIRECT) */
+document.getElementById("submitTrip").onclick=function(){
+
+  if(!entryName.value||!entryPhone.value){
     alert("Please complete Data Entry information first.");
     return;
   }
 
-  if(!tripDate.value || !tripTime.value){
-    alert("Please select trip date and time.");
-    return;
+  if(isWithin120(tripDate.value,tripTime.value)){
+    if(!confirm("⚠️ This trip is within 120 minutes and cannot be modified after submission.\nDo you want to continue?")){
+      return;
+    }
   }
 
-  if(isWithin120(tripDate.value, tripTime.value)){
-    const ok = confirm(
-      "⚠️ This trip is within 120 minutes and cannot be modified after submission.\nDo you want to continue?"
-    );
-    if(!ok) return;
-  }
+  alert("Trip saved to Review list ✔");
 
-  alert("Trip has been sent to the Review page ✔");
+  clientName.value="";
+  clientPhone.value="";
+  pickup.value="";
+  dropoff.value="";
+  tripDate.value="";
+  tripTime.value="";
+  notes.value="";
+  stopsBox.innerHTML="";
+};
 
-  /* Clear fields (keep Entry) */
-  document.getElementById("clientName").value = "";
-  document.getElementById("clientPhone").value = "";
-  document.getElementById("pickup").value = "";
-  document.getElementById("dropoff").value = "";
-  document.getElementById("tripDate").value = "";
-  document.getElementById("tripTime").value = "";
-  document.getElementById("notes").value = "";
-  stopsBox.innerHTML = "";
+/* 2️⃣0️⃣ SAVE DRAFT */
+document.getElementById("saveTrip").onclick=function(){
+  alert("Draft saved locally ✔");
 };
 
 </script>

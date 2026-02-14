@@ -1,227 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sunbeam – Review</title>
 
-<style>
+  <!-- 1️⃣ META -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUNBEAM TRANSPORTATION – Review</title>
 
-/* 1️⃣ GLOBAL */
-body{
-  margin:0;
-  font-family:'Segoe UI', Arial, sans-serif;
-  background:#f4f8fb;
-}
+  <style>
 
-/* 2️⃣ TOP HEADER */
-.main-header{
-  background:linear-gradient(90deg,#0f172a,#1e293b);
-  color:#fff;
-  padding:20px 40px;
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-}
+  /* 2️⃣ BODY */
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:#f4f8fb;
+  }
 
-/* 3️⃣ LEFT SIDE */
-.left-box{
-  text-align:left;
-}
+  /* 3️⃣ HEADER (SAME AS ADD TRIP) */
+  .header{
+    background:linear-gradient(90deg,#0f172a,#1e3a8a);
+    color:#fff;
+    padding:20px 50px;
+  }
 
-.logged-company{
-  font-size:20px;
-  font-weight:700;
-  color:#facc15;
-}
-
-.greeting{
-  margin-top:6px;
-  font-size:14px;
-}
-
-.time-box{
-  margin-top:6px;
-  font-size:13px;
-  opacity:.85;
-}
-
-/* 4️⃣ RIGHT SIDE */
-.right-box{
-  display:flex;
-  align-items:center;
-}
-
-.logo{
-  height:75px;
-}
-
-/* 5️⃣ BLACK NAV HEADER */
-.nav-header{
-  background:#000;
-  display:flex;
-  justify-content:center;
-  gap:40px;
-  padding:14px 0;
-}
-
-.nav-header a{
-  color:#e2e8f0;
-  text-decoration:none;
-  font-size:14px;
-  padding:8px 16px;
-  border-radius:6px;
-  transition:.25s;
-}
-
-.nav-header a:hover{
-  background:#facc15;
-  color:#000;
-}
-
-.nav-header a.active{
-  background:#facc15;
-  color:#000;
-  font-weight:700;
-}
-
-/* 6️⃣ CONTENT */
-.container{
-  padding:25px;
-}
-
-/* 7️⃣ SEARCH */
-#searchBox{
-  width:100%;
-  padding:8px 12px;
-  border-radius:8px;
-  border:1px solid #93c5fd;
-  margin-bottom:20px;
-}
-
-/* 8️⃣ TABLE */
-.table-wrap{
-  width:100%;
-  overflow-x:auto;
-  background:#fff;
-  border-radius:12px;
-  box-shadow:0 4px 12px rgba(0,0,0,.08);
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  min-width:1100px;
-}
-
-th{
-  background:#e0f2fe;
-  padding:10px;
-  font-size:12px;
-  border-bottom:2px solid #cbd5e1;
-}
-
-td{
-  padding:8px;
-  border-bottom:1px solid #e2e8f0;
-  text-align:center;
-  font-size:12px;
-}
-
-tr:hover{
-  background:#f1f5f9;
-}
-
-/* 9️⃣ MOBILE */
-@media(max-width:768px){
-  .main-header{
-    flex-direction:column;
+  /* 4️⃣ TOP SECTION */
+  .top-section{
+    display:flex;
+    justify-content:space-between;
     align-items:center;
-    text-align:center;
   }
-  .nav-header{
-    flex-wrap:wrap;
-    gap:15px;
-  }
-}
 
-</style>
+  /* 5️⃣ LEFT INFO */
+  .logged-company{
+    font-size:20px;
+    font-weight:700;
+    color:#facc15;
+  }
+
+  .greeting,
+  .clock{
+    font-size:13px;
+    margin-top:4px;
+  }
+
+  /* 6️⃣ LOGO RIGHT */
+  .logo{
+    height:75px;
+  }
+
+  /* 7️⃣ BLACK NAV (IDENTICAL TO ADD TRIP) */
+  .nav{
+    display:flex;
+    justify-content:center;
+    gap:40px;
+    background:#000;
+    padding:12px 0;
+    margin-top:20px;
+  }
+
+  .nav a{
+    color:#fff;
+    text-decoration:none;
+    font-size:14px;
+    padding:6px 16px;
+    border-radius:8px;
+  }
+
+  .nav a.active{
+    background:#facc15;
+    color:#000;
+    font-weight:700;
+  }
+
+  /* 8️⃣ CONTENT */
+  .container{
+    max-width:1100px;
+    margin:auto;
+    padding:35px 20px;
+  }
+
+  /* 9️⃣ SEARCH */
+  #searchBox{
+    width:100%;
+    padding:11px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    font-size:14px;
+    margin-bottom:22px;
+  }
+
+  /* 🔟 TABLE WRAPPER (SAME SHADOW STYLE AS ADD TRIP SECTIONS) */
+  .table-wrap{
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 6px 16px rgba(0,0,0,.08);
+    overflow-x:auto;
+  }
+
+  /* 1️⃣1️⃣ TABLE */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:1100px;
+  }
+
+  th{
+    background:#e0f2fe;
+    padding:12px;
+    font-size:13px;
+    border-bottom:2px solid #cbd5e1;
+  }
+
+  td{
+    padding:10px;
+    border-bottom:1px solid #e2e8f0;
+    text-align:center;
+    font-size:13px;
+  }
+
+  tr:hover{
+    background:#f1f5f9;
+  }
+
+  /* 1️⃣2️⃣ MOBILE */
+  @media(max-width:768px){
+    .top-section{
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+    }
+  }
+
+  </style>
 </head>
 
 <body>
 
-<!-- 🔟 HEADER -->
-<div class="main-header">
+<!-- 1️⃣3️⃣ HEADER -->
+<div class="header">
 
-  <div class="left-box">
-    <div class="logged-company" id="loggedCompanyName"></div>
-    <div class="greeting" id="greetingText"></div>
-    <div class="time-box">
-      <span id="azTime"></span> |
-      <span id="azDate"></span>
+  <div class="top-section">
+
+    <div>
+      <div class="logged-company" id="loggedCompanyName"></div>
+      <div class="greeting" id="greetingText"></div>
+      <div class="clock" id="azClock"></div>
     </div>
+
+    <img src="../assets/logo.png" class="logo" alt="Sunbeam Logo">
+
   </div>
 
-  <div class="right-box">
-    <img src="../assets/logo.png" class="logo">
+  <div class="nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="add-trip.html">Add Trip</a>
+    <a href="review.html" class="active">Review</a>
+    <a href="summary.html">Summary</a>
+    <a href="taxes.html">Taxes</a>
   </div>
 
 </div>
 
-<!-- 1️⃣1️⃣ NAV -->
-<div class="nav-header">
-  <a href="dashboard.html">Dashboard</a>
-  <a href="add-trip.html">Add Trip</a>
-  <a href="review.html" class="active">Review</a>
-  <a href="summary.html">Summary</a>
-  <a href="taxes.html">Taxes</a>
-</div>
-
-<!-- 1️⃣2️⃣ CONTENT -->
+<!-- 1️⃣4️⃣ CONTENT -->
 <div class="container">
 
   <input id="searchBox" placeholder="Search name / phone / trip #">
 
-  <!-- 👇 IMPORTANT – DO NOT DELETE -->
   <div id="tripsContainer" class="table-wrap"></div>
 
 </div>
 
 <script>
 
-/* 1️⃣3️⃣ COMPANY NAME */
-let loggedCompany=null;
-try{ loggedCompany=JSON.parse(localStorage.getItem("loggedCompany")); }catch{}
-if(loggedCompany){
-  document.getElementById("loggedCompanyName").innerText=
-    loggedCompany.name||"";
-}
+  /* 1️⃣5️⃣ LOAD COMPANY */
+  let loggedCompany=null;
+  try{loggedCompany=JSON.parse(localStorage.getItem("loggedCompany"));}catch{}
+  if(loggedCompany){
+    document.getElementById("loggedCompanyName").innerText=
+      loggedCompany.name||"";
+  }
 
-/* 1️⃣4️⃣ GREETING */
-function setGreeting(){
-  const hour=new Date().getHours();
-  let msg="";
-  if(hour<12) msg="Good Morning ☀️";
-  else if(hour<18) msg="Good Afternoon 🌤";
-  else msg="Good Evening 🌙";
-  document.getElementById("greetingText").innerText=msg;
-}
-setGreeting();
+  /* 1️⃣6️⃣ GREETING */
+  function setGreeting(){
+    const h=new Date().getHours();
+    let msg="";
+    if(h<12) msg="Good Morning ☀️";
+    else if(h<18) msg="Good Afternoon 🌤";
+    else msg="Good Evening 🌙";
+    document.getElementById("greetingText").innerText=msg;
+  }
+  setGreeting();
 
-/* 1️⃣5️⃣ ARIZONA TIME */
-function updateArizonaTime(){
-  const now=new Date();
-  document.getElementById("azDate").innerText=
-    now.toLocaleDateString("en-US",{timeZone:"America/Phoenix"});
-  document.getElementById("azTime").innerText=
-    now.toLocaleTimeString("en-US",{timeZone:"America/Phoenix"});
-}
-setInterval(updateArizonaTime,1000);
-updateArizonaTime();
+  /* 1️⃣7️⃣ ARIZONA CLOCK */
+  function updateClock(){
+    const now=new Date();
+    const time=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
+      hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(now);
+
+    const date=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
+      year:"numeric",month:"short",day:"2-digit"}).format(now);
+
+    document.getElementById("azClock").innerText=time+" | "+date;
+  }
+
+  setInterval(updateClock,1000);
+  updateClock();
 
 </script>
 
-<!-- ⚠️ ده اللي بيعمل الأعمدة -->
+<!-- 1️⃣8️⃣ TABLE BUILDER -->
 <script src="review.js"></script>
 
 </body>
