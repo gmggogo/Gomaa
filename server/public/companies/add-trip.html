@@ -11,7 +11,7 @@
 body{
   margin:0;
   font-family:'Segoe UI', Arial, sans-serif;
-  background:#f4f8fb;
+  background:linear-gradient(180deg,#1e3a8a 0%, #f4f8fb 280px);
 }
 
 /* 2️⃣ HEADER */
@@ -42,7 +42,7 @@ body{
 /* 5️⃣ LOGO RIGHT */
 .logo{ height:75px; }
 
-/* 6️⃣ BLACK NAV */
+/* 6️⃣ NAV */
 .nav{
   display:flex;
   justify-content:center;
@@ -67,9 +67,10 @@ body{
 /* 7️⃣ CONTENT */
 .container{
   max-width:900px;
-  margin:auto;
-  padding:35px 20px;
+  margin:0 auto;
+  padding:30px 20px 50px;
 }
+
 section{
   background:#fff;
   padding:22px;
@@ -77,6 +78,7 @@ section{
   margin-bottom:22px;
   box-shadow:0 6px 16px rgba(0,0,0,.08);
 }
+
 section h3{
   margin-bottom:16px;
   font-size:17px;
@@ -89,6 +91,7 @@ section h3{
   grid-template-columns:repeat(2,1fr);
   gap:16px;
 }
+
 input,textarea{
   width:100%;
   padding:11px;
@@ -96,6 +99,7 @@ input,textarea{
   border-radius:10px;
   font-size:14px;
 }
+
 textarea{
   min-height:90px;
   margin-top:12px;
@@ -108,6 +112,7 @@ textarea{
   gap:18px;
   margin-top:20px;
 }
+
 button{
   padding:10px 22px;
   border:none;
@@ -116,6 +121,7 @@ button{
   cursor:pointer;
   font-weight:600;
 }
+
 .btn-blue{ background:#3b82f6; color:#fff; }
 .btn-green{ background:#22c55e; color:#000; }
 .btn-gray{ background:#64748b; color:#fff; }
@@ -129,9 +135,8 @@ button{
 
 <body>
 
-<!-- 🔟 HEADER -->
+<!-- HEADER -->
 <div class="header">
-
   <div class="top-section">
     <div>
       <div class="logged-company" id="loggedCompanyName"></div>
@@ -148,10 +153,8 @@ button{
     <a href="summary.html">Summary</a>
     <a href="taxes.html">Taxes</a>
   </div>
-
 </div>
 
-<!-- 1️⃣1️⃣ CONTENT -->
 <div class="container">
 
 <section>
@@ -203,25 +206,22 @@ button{
 
 <script>
 
-/* 1️⃣2️⃣ LOAD COMPANY */
+/* LOAD COMPANY */
 let loggedCompany=null;
 try{loggedCompany=JSON.parse(localStorage.getItem("loggedCompany"));}catch{}
 if(loggedCompany){
   document.getElementById("loggedCompanyName").innerText=loggedCompany.name||"";
 }
 
-/* 1️⃣3️⃣ GREETING */
+/* GREETING */
 function setGreeting(){
   const h=new Date().getHours();
-  let msg="";
-  if(h<12) msg="Good Morning ☀️";
-  else if(h<18) msg="Good Afternoon 🌤";
-  else msg="Good Evening 🌙";
-  document.getElementById("greetingText").innerText=msg;
+  document.getElementById("greetingText").innerText=
+    h<12?"Good Morning ☀️":h<18?"Good Afternoon 🌤":"Good Evening 🌙";
 }
 setGreeting();
 
-/* 1️⃣4️⃣ CLOCK */
+/* CLOCK */
 function updateClock(){
   const now=new Date();
   const time=new Intl.DateTimeFormat("en-US",{timeZone:"America/Phoenix",
@@ -233,48 +233,46 @@ function updateClock(){
 setInterval(updateClock,1000);
 updateClock();
 
-/* 1️⃣5️⃣ ENTRY SAVE / EDIT */
+/* ENTRY SAVE */
 const entryName=document.getElementById("entryName");
 const entryPhone=document.getElementById("entryPhone");
 const saveEntry=document.getElementById("saveEntry");
 const editEntry=document.getElementById("editEntry");
 
-function lockEntry(){
+saveEntry.onclick=function(){
+  if(!entryName.value||!entryPhone.value){
+    alert("Enter Entry Info first.");
+    return;
+  }
+  localStorage.setItem("entryInfo",JSON.stringify({
+    name:entryName.value,
+    phone:entryPhone.value
+  }));
+  entryName.disabled=true;
+  entryPhone.disabled=true;
+  saveEntry.style.display="none";
+  editEntry.style.display="inline-block";
+};
+
+editEntry.onclick=function(){
+  entryName.disabled=false;
+  entryPhone.disabled=false;
+  saveEntry.style.display="inline-block";
+  editEntry.style.display="none";
+};
+
+/* LOAD ENTRY */
+const savedEntry=JSON.parse(localStorage.getItem("entryInfo")||"null");
+if(savedEntry){
+  entryName.value=savedEntry.name;
+  entryPhone.value=savedEntry.phone;
   entryName.disabled=true;
   entryPhone.disabled=true;
   saveEntry.style.display="none";
   editEntry.style.display="inline-block";
 }
-function unlockEntry(){
-  entryName.disabled=false;
-  entryPhone.disabled=false;
-  saveEntry.style.display="inline-block";
-  editEntry.style.display="none";
-}
 
-saveEntry.onclick=function(){
-  if(!entryName.value||!entryPhone.value){
-    alert("Please enter Data Entry name and phone number.");
-    return;
-  }
-  localStorage.setItem("entryData",JSON.stringify({
-    name:entryName.value,
-    phone:entryPhone.value
-  }));
-  lockEntry();
-};
-
-editEntry.onclick=function(){unlockEntry();};
-
-/* 1️⃣6️⃣ LOAD SAVED ENTRY */
-const savedEntry=JSON.parse(localStorage.getItem("entryData")||"null");
-if(savedEntry){
-  entryName.value=savedEntry.name;
-  entryPhone.value=savedEntry.phone;
-  lockEntry();
-}
-
-/* 1️⃣7️⃣ ADD STOP */
+/* STOPS */
 const stopsBox=document.getElementById("stops");
 document.getElementById("addStopBtn").onclick=function(){
   const input=document.createElement("input");
@@ -283,44 +281,81 @@ document.getElementById("addStopBtn").onclick=function(){
   stopsBox.appendChild(input);
 };
 
-/* 1️⃣8️⃣ CHECK 120 MIN */
+/* 120 MIN CHECK */
 function isWithin120(date,time){
   if(!date||!time) return false;
   const trip=new Date(`${date}T${time}`);
-  const now=new Date();
-  const diff=(trip-now)/60000;
+  const diff=(trip-new Date())/60000;
   return diff>0 && diff<=120;
 }
 
-/* 1️⃣9️⃣ SUBMIT (NO REDIRECT) */
-document.getElementById("submitTrip").onclick=function(){
+/* SAVE DRAFT */
+document.getElementById("saveTrip").onclick=function(){
+  const draft={
+    clientName:clientName.value,
+    clientPhone:clientPhone.value,
+    pickup:pickup.value,
+    dropoff:dropoff.value,
+    tripDate:tripDate.value,
+    tripTime:tripTime.value,
+    notes:notes.value
+  };
+  localStorage.setItem("draftTrip",JSON.stringify(draft));
+  alert("Draft saved ✔");
+};
+
+/* SUBMIT (Review Only) */
+document.getElementById("submitTrip").onclick=async function(){
 
   if(!entryName.value||!entryPhone.value){
-    alert("Please complete Data Entry information first.");
+    alert("Complete Entry Info first.");
     return;
   }
 
   if(isWithin120(tripDate.value,tripTime.value)){
-    if(!confirm("⚠️ This trip is within 120 minutes and cannot be modified after submission.\nDo you want to continue?")){
+    if(!confirm("⚠️ This trip is within 120 minutes and cannot be modified after submission.\nContinue?")){
       return;
     }
   }
 
-  alert("Trip saved to Review list ✔");
+  const trip={
+    type:"Company",
+    entryName:entryName.value,
+    entryPhone:entryPhone.value,
+    clientName:clientName.value,
+    clientPhone:clientPhone.value,
+    pickup:pickup.value,
+    dropoff:dropoff.value,
+    tripDate:tripDate.value,
+    tripTime:tripTime.value,
+    notes:notes.value,
+    stops:[...stopsBox.querySelectorAll("input")].map(i=>i.value)
+  };
 
-  clientName.value="";
-  clientPhone.value="";
-  pickup.value="";
-  dropoff.value="";
-  tripDate.value="";
-  tripTime.value="";
-  notes.value="";
-  stopsBox.innerHTML="";
-};
+  try{
+    const res=await fetch("/api/trips",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify(trip)
+    });
 
-/* 2️⃣0️⃣ SAVE DRAFT */
-document.getElementById("saveTrip").onclick=function(){
-  alert("Draft saved locally ✔");
+    if(!res.ok) throw new Error("Server error");
+
+    alert("Trip sent to Review ✔");
+
+    clientName.value="";
+    clientPhone.value="";
+    pickup.value="";
+    dropoff.value="";
+    tripDate.value="";
+    tripTime.value="";
+    notes.value="";
+    stopsBox.innerHTML="";
+    localStorage.removeItem("draftTrip");
+
+  }catch(err){
+    alert("Server Error: "+err.message);
+  }
 };
 
 </script>
