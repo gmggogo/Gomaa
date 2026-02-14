@@ -31,7 +31,8 @@ body{
   color:#facc15;
 }
 
-.greeting,.clock{
+.greeting,
+.clock{
   font-size:13px;
   margin-top:4px;
 }
@@ -50,7 +51,6 @@ body{
 .nav a{
   color:#fff;
   text-decoration:none;
-  font-size:14px;
   padding:6px 16px;
   border-radius:8px;
 }
@@ -65,61 +65,70 @@ body{
 .container{
   max-width:1400px;
   margin:auto;
-  padding:35px 20px;
+  padding:30px 20px;
+}
+
+.search{
+  margin-bottom:20px;
+}
+
+.search input{
+  width:100%;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+}
+
+.date-group{
+  margin-bottom:30px;
 }
 
 .date-title{
-  margin-top:30px;
-  font-weight:700;
-  font-size:16px;
-  color:#0f172a;
+  font-weight:bold;
+  margin-bottom:8px;
+  font-size:15px;
 }
 
 table{
   width:100%;
   border-collapse:collapse;
   background:#fff;
-  margin-top:10px;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
   border-radius:12px;
   overflow:hidden;
 }
 
-th,td{
+th{
+  background:#1e293b;
+  color:#fff;
   padding:8px;
   font-size:12px;
+}
+
+td{
+  padding:6px;
+  font-size:12px;
   border-bottom:1px solid #eee;
-  text-align:left;
 }
 
-th{
-  background:#0f172a;
-  color:#fff;
-}
+tr.yellow{ background:#fff3cd; }
+tr.red{ background:#ffcccc; }
 
-tr:hover{ background:#f9fafb; }
-
-.yellow{ background:#fff3cd !important; }
-.red{ background:#ffcccc !important; }
-
-.btn{
+button{
   padding:5px 10px;
   border:none;
   border-radius:6px;
   font-size:11px;
   cursor:pointer;
-  margin-right:4px;
 }
 
-.confirm{ background:#22c55e; color:#000; }
-.edit{ background:#3b82f6; color:#fff; }
-.delete{ background:#64748b; color:#fff; }
-.cancel{ background:#ef4444; color:#fff; }
+.btn-edit{ background:#3b82f6; color:#fff; }
+.btn-delete{ background:#ef4444; color:#fff; }
+.btn-confirm{ background:#22c55e; color:#000; }
+.btn-cancel{ background:#f97316; color:#fff; }
 
 @media(max-width:768px){
-  .header{ padding:20px; }
   .top-section{ flex-direction:column; text-align:center; }
-  .logo{ margin-top:15px; height:65px; }
+  .nav{ flex-wrap:wrap; gap:15px; }
   table{ font-size:10px; }
 }
 </style>
@@ -146,190 +155,13 @@ tr:hover{ background:#f9fafb; }
   </div>
 </div>
 
-<div class="container" id="tripsContainer"></div>
+<div class="container">
+  <div class="search">
+    <input id="searchBox" placeholder="Search name / phone / trip #">
+  </div>
+  <div id="tripsContainer"></div>
+</div>
 
-<script>
-window.addEventListener("DOMContentLoaded", () => {
-
-  const API_URL="/api/trips";
-  const HUB_URL="/api/trips-hub";
-  const container=document.getElementById("tripsContainer");
-  let trips=[];
-
-  /* AUTH */
-  let loggedCompany=null;
-  try{ loggedCompany=JSON.parse(localStorage.getItem("loggedCompany")); }catch{}
-  if(!loggedCompany){ location.href="company-login.html"; return; }
-  document.getElementById("companyName").innerText=loggedCompany.name||"";
-
-  /* GREETING */
-  function setGreeting(){
-    const h=new Date().getHours();
-    let msg="";
-    if(h<12) msg="Good Morning ☀️";
-    else if(h<18) msg="Good Afternoon 🌤";
-    else msg="Good Evening 🌙";
-    document.getElementById("greetingText").innerText=msg;
-  }
-  setGreeting();
-
-  /* CLOCK */
-  function updateClock(){
-    document.getElementById("azDateTime").innerText=
-      new Intl.DateTimeFormat("en-US",{
-        timeZone:"America/Phoenix",
-        year:"numeric",month:"short",day:"2-digit",
-        hour:"2-digit",minute:"2-digit",second:"2-digit"
-      }).format(new Date());
-  }
-  setInterval(updateClock,1000);
-  updateClock();
-
-  /* TIME HELPERS */
-  function getAZNow(){
-    return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
-  }
-
-  function getTripDT(t){
-    if(!t.tripDate||!t.tripTime) return null;
-    return new Date(t.tripDate+"T"+t.tripTime);
-  }
-
-  function minutesToTrip(t){
-    const dt=getTripDT(t);
-    if(!dt) return null;
-    return (dt-getAZNow())/60000;
-  }
-
-  /* LOAD */
-  async function loadTrips(){
-    try{
-      const res=await fetch(API_URL);
-      trips=await res.json();
-      if(!Array.isArray(trips)) trips=[];
-    }catch{ trips=[]; }
-  }
-
-  /* KEEP 30 DAYS */
-  function keep30Days(){
-    const now=new Date();
-    trips=trips.filter(t=>{
-      if(!t.createdAt) return true;
-      const diff=(now-new Date(t.createdAt))/(1000*60*60*24);
-      return diff<=30;
-    });
-  }
-
-  /* GROUP BY CREATED DATE */
-  function groupByCreated(){
-    const groups={};
-    trips.forEach(t=>{
-      const d=new Date(t.createdAt||Date.now()).toLocaleDateString();
-      if(!groups[d]) groups[d]=[];
-      groups[d].push(t);
-    });
-    return groups;
-  }
-
-  /* RENDER */
-  function render(){
-    container.innerHTML="";
-    const groups=groupByCreated();
-
-    Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a))
-    .forEach(date=>{
-
-      const title=document.createElement("div");
-      title.className="date-title";
-      title.innerText=date;
-      container.appendChild(title);
-
-      const table=document.createElement("table");
-      table.innerHTML=`
-      <tr>
-        <th>#</th>
-        <th>Trip#</th>
-        <th>Entered By</th>
-        <th>Client</th>
-        <th>Pickup</th>
-        <th>Drop</th>
-        <th>Stops</th>
-        <th>Date</th>
-        <th>Time</th>
-        <th>Status</th>
-        <th>Actions</th>
-      </tr>`;
-
-      groups[date].forEach((t,i)=>{
-
-        const tr=document.createElement("tr");
-        const mins=minutesToTrip(t);
-
-        if(mins!==null && mins>0 && mins<=120) tr.classList.add("yellow");
-        if(mins!==null && mins<=0) tr.classList.add("red");
-
-        let actions="";
-        if(t.status==="Confirmed"){
-          actions=`<button class="btn cancel" onclick="cancelTrip(${t.id||i})">Cancel</button>`;
-        }else{
-          actions=`
-            <button class="btn edit" onclick="editTrip(${i})">Edit</button>
-            <button class="btn delete" onclick="deleteTrip(${i})">Delete</button>
-            <button class="btn confirm" onclick="confirmTrip(${i})">Confirm</button>`;
-        }
-
-        tr.innerHTML=`
-          <td>${i+1}</td>
-          <td>${t.tripNumber||""}</td>
-          <td>${t.enteredBy||""}</td>
-          <td>${t.clientName||""}</td>
-          <td>${t.pickup||""}</td>
-          <td>${t.dropoff||""}</td>
-          <td>${Array.isArray(t.stops)?t.stops.join(" | "):""}</td>
-          <td>${t.tripDate||""}</td>
-          <td>${t.tripTime||""}</td>
-          <td>${t.status||"Scheduled"}</td>
-          <td>${actions}</td>
-        `;
-        table.appendChild(tr);
-      });
-
-      container.appendChild(table);
-    });
-  }
-
-  /* ACTIONS */
-  window.confirmTrip=async function(i){
-    trips[i].status="Confirmed";
-    await fetch(HUB_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(trips[i])});
-    render();
-  };
-
-  window.cancelTrip=function(i){
-    trips[i].status="Cancelled";
-    render();
-  };
-
-  window.deleteTrip=function(i){
-    if(confirm("Delete this trip?")){
-      trips.splice(i,1);
-      render();
-    }
-  };
-
-  window.editTrip=function(i){
-    alert("Edit mode here (logic already in your main JS)");
-  };
-
-  /* INIT */
-  (async()=>{
-    await loadTrips();
-    keep30Days();
-    render();
-  })();
-
-});
-</script>
-
+<script src="review.js"></script>
 </body>
 </html>

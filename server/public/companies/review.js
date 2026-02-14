@@ -1,381 +1,154 @@
 window.addEventListener("DOMContentLoaded", () => {
 
-  const API_URL = "/api/trips";
-  const HUB_URL = "/api/trips-hub";
+const container = document.getElementById("tripsContainer");
+const searchBox = document.getElementById("searchBox");
 
-  const container = document.getElementById("tripsContainer");
-  const searchBox = document.getElementById("searchBox");
+let trips = JSON.parse(localStorage.getItem("companyTrips") || "[]");
 
-  let trips = [];
+/* HEADER */
+let loggedCompany = JSON.parse(localStorage.getItem("loggedCompany") || "{}");
+document.getElementById("companyName").innerText = loggedCompany.name || "SUNBEAM";
 
-  /* ================= LOAD ================= */
-  async function loadTrips(){
-    try{
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      trips = Array.isArray(data) ? data : [];
-    }catch(e){
-      console.error("Load failed", e);
-      trips = [];
-    }
-  }
+function setGreeting(){
+  const h = new Date().getHours();
+  let msg = h < 12 ? "Good Morning ☀️" :
+            h < 18 ? "Good Afternoon 🌤" :
+                     "Good Evening 🌙";
+  document.getElementById("greetingText").innerText = msg;
+}
+setGreeting();
 
-  /* ================= SAVE ================= */
-  async function saveTrips(){
-    try{
-      await fetch(API_URL,{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(trips)
-      });
-    }catch(e){
-      console.error("Save failed", e);
-    }
-  }
+function updateClock(){
+  document.getElementById("azDateTime").innerText =
+    new Intl.DateTimeFormat("en-US",{
+      timeZone:"America/Phoenix",
+      year:"numeric",month:"short",day:"2-digit",
+      hour:"2-digit",minute:"2-digit",second:"2-digit"
+    }).format(new Date());
+}
+setInterval(updateClock,1000);
+updateClock();
 
-  /* ================= SEND TO HUB (CONFIRM ONLY) ================= */
-  async function sendToHub(trip){
-    try{
-      await fetch(HUB_URL,{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(trip)
-      });
-    }catch(e){
-      console.error("Hub send failed", e);
-    }
-  }
+/* TIME LOGIC */
+function getTripDateTime(t){
+  if(!t.tripDate || !t.tripTime) return null;
+  return new Date(`${t.tripDate}T${t.tripTime}`);
+}
 
-  /* ================= NORMALIZE ================= */
-  function normalizeTrips(){
-    const nowISO = new Date().toISOString();
-    trips.forEach(t=>{
-      if(!t.createdAt) t.createdAt = nowISO;
-      if(!t.status) t.status = "Scheduled";
-      if(typeof t.editing !== "boolean") t.editing = false;
+function minutesToTrip(t){
+  const dt = getTripDateTime(t);
+  if(!dt) return null;
+  return (dt - new Date())/60000;
+}
 
-      if(!t.enteredBy) t.enteredBy = "";
-      if(!t.enteredPhone) t.enteredPhone = "";
+function groupByCreated(){
+  const groups={};
+  trips.forEach(t=>{
+    const d = new Date(t.createdAt || Date.now()).toLocaleDateString();
+    if(!groups[d]) groups[d]=[];
+    groups[d].push(t);
+  });
+  return groups;
+}
 
-      if(!t.clientName) t.clientName = "";
-      if(!t.clientPhone) t.clientPhone = "";
-      if(!t.pickup) t.pickup = "";
-      if(!t.dropoff) t.dropoff = "";
-      if(!t.tripDate) t.tripDate = "";
-      if(!t.tripTime) t.tripTime = "";
-      if(!t.tripNumber) t.tripNumber = "";
-    });
-  }
+function render(){
 
-  /* ================= KEEP 30 DAYS ================= */
-  async function keepLast30Days(){
-    const now = new Date();
-    const before = trips.length;
+container.innerHTML="";
 
-    trips = trips.filter(t=>{
-      if(!t.createdAt) return true;
-      const created = new Date(t.createdAt);
-      if(String(created) === "Invalid Date") return true;
-      const diffDays = (now - created) / (1000*60*60*24);
-      return diffDays <= 30;
-    });
+const groups = groupByCreated();
 
-    if(trips.length !== before){
-      await saveTrips();
-    }
-  }
+Object.keys(groups).sort((a,b)=> new Date(b)-new Date(a)).forEach(date=>{
 
-  /* ================= SORT ================= */
-  function sortTrips(){
-    trips.sort((a,b)=> new Date(b.createdAt||0) - new Date(a.createdAt||0));
-  }
+  const div = document.createElement("div");
+  div.className="date-group";
+  div.innerHTML=`<div class="date-title">${date}</div>`;
 
-  /* ================= TIME (ARIZONA) ================= */
-  function getAZNow(){
-    return new Date(new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" }));
-  }
+  const table=document.createElement("table");
 
-  function getTripDateTime(t){
-    if(!t.tripDate || !t.tripTime) return null;
+  table.innerHTML=`
+    <tr>
+      <th>#</th>
+      <th>Trip #</th>
+      <th>Entered By</th>
+      <th>Entered Phone</th>
+      <th>Client</th>
+      <th>Client Phone</th>
+      <th>Pickup</th>
+      <th>Drop</th>
+      <th>Stops</th>
+      <th>Notes</th>
+      <th>Date</th>
+      <th>Time</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  `;
 
-    const [y,m,d] = t.tripDate.split("-");
-    const [hh,mm] = t.tripTime.split(":");
-    if(!y || !m || !d || hh === undefined || mm === undefined) return null;
+  groups[date].forEach((t,i)=>{
 
-    const dt = new Date(Number(y), Number(m)-1, Number(d), Number(hh), Number(mm));
-    return String(dt) === "Invalid Date" ? null : dt;
-  }
+    const tr=document.createElement("tr");
 
-  function minutesToTrip(t){
-    const dt = getTripDateTime(t);
-    if(!dt) return null;
-    return (dt - getAZNow()) / 60000;
-  }
+    const mins=minutesToTrip(t);
+    if(mins!==null && mins<=120 && mins>0) tr.classList.add("yellow");
+    if(mins!==null && mins<=0) tr.classList.add("red");
 
-  function inside120(t){
-    const m = minutesToTrip(t);
-    return m !== null && m > 0 && m <= 120;
-  }
-
-  function tripPassed(t){
-    const m = minutesToTrip(t);
-    return m !== null && m <= 0;
-  }
-
-  function anyEditing(){
-    return trips.some(t => t && t.editing);
-  }
-
-  /* ================= FILTER ================= */
-  function getFilteredTrips(){
-    const q = (searchBox?.value || "").trim().toLowerCase();
-    if(!q) return trips;
-
-    return trips.filter(t=>{
-      return (
-        (t.tripNumber||"").toLowerCase().includes(q) ||
-        (t.clientName||"").toLowerCase().includes(q) ||
-        (t.clientPhone||"").toLowerCase().includes(q) ||
-        (t.pickup||"").toLowerCase().includes(q) ||
-        (t.dropoff||"").toLowerCase().includes(q)
-      );
-    });
-  }
-
-  /* ================= RENDER ================= */
-  function render(){
-
-    if(!container) return;
-    container.innerHTML = "";
-
-    const table = document.createElement("table");
-
-    table.innerHTML = `
-      <tr>
-        <th style="width:40px">#</th>
-        <th style="width:90px">Trip #</th>
-        <th style="width:130px">Entered By</th>
-        <th style="width:130px">Entered Phone</th>
-        <th>Client</th>
-        <th style="width:120px">Phone</th>
-        <th>Pickup</th>
-        <th>Drop</th>
-        <th style="width:110px">Date</th>
-        <th style="width:90px">Time</th>
-        <th style="width:95px">Status</th>
-        <th style="width:220px">Actions</th>
-      </tr>
+    tr.innerHTML=`
+      <td>${i+1}</td>
+      <td>${t.tripNumber||""}</td>
+      <td>${t.enteredBy||""}</td>
+      <td>${t.enteredPhone||""}</td>
+      <td>${t.clientName||""}</td>
+      <td>${t.clientPhone||""}</td>
+      <td>${t.pickup||""}</td>
+      <td>${t.dropoff||""}</td>
+      <td>${(t.stops||[]).join(", ")}</td>
+      <td>${t.notes||""}</td>
+      <td>${t.tripDate||""}</td>
+      <td>${t.tripTime||""}</td>
+      <td>${t.status||"Scheduled"}</td>
+      <td>
+        ${t.status==="Scheduled" ? `
+          <button class="btn-edit" onclick="editTrip(${trips.indexOf(t)})">Edit</button>
+          <button class="btn-delete" onclick="deleteTrip(${trips.indexOf(t)})">Delete</button>
+          <button class="btn-confirm" onclick="confirmTrip(${trips.indexOf(t)})">Confirm</button>
+        ` : ""}
+        ${t.status==="Confirmed" ? `
+          <button class="btn-cancel" onclick="cancelTrip(${trips.indexOf(t)})">Cancel</button>
+        ` : ""}
+      </td>
     `;
 
-    const list = getFilteredTrips();
+    table.appendChild(tr);
+  });
 
-    list.forEach((t, viewIndex)=>{
+  div.appendChild(table);
+  container.appendChild(div);
 
-      const index = trips.indexOf(t);
-      const tr = document.createElement("tr");
+});
+}
 
-      const passed = tripPassed(t);
-      const in120  = inside120(t);
+window.deleteTrip=function(i){
+  trips.splice(i,1);
+  localStorage.setItem("companyTrips",JSON.stringify(trips));
+  render();
+}
 
-      if(passed){
-        tr.style.background = "#ffcccc";
-        tr.style.borderLeft = "4px solid red";
-      } else if(in120){
-        tr.style.background = "#fff3cd";
-        tr.style.borderLeft = "4px solid orange";
-      }
+window.confirmTrip=function(i){
+  trips[i].status="Confirmed";
+  localStorage.setItem("companyTrips",JSON.stringify(trips));
+  render();
+}
 
-      const editing = t.editing === true;
+window.cancelTrip=function(i){
+  trips[i].status="Cancelled";
+  localStorage.setItem("companyTrips",JSON.stringify(trips));
+  render();
+}
 
-      const enteredByCell = editing
-        ? `<input class="edit edit-enteredby" value="${escapeHtml(t.enteredBy||"")}" />`
-        : escapeHtml(t.enteredBy||"");
+window.editTrip=function(i){
+  alert("Edit mode here (logic already in your main JS)");
+}
 
-      const enteredPhoneCell = editing
-        ? `<input class="edit edit-enteredphone" value="${escapeHtml(t.enteredPhone||"")}" />`
-        : escapeHtml(t.enteredPhone||"");
-
-      const clientCell = editing
-        ? `<input class="edit edit-client" value="${escapeHtml(t.clientName||"")}" />`
-        : escapeHtml(t.clientName||"");
-
-      const phoneCell = editing
-        ? `<input class="edit edit-phone" value="${escapeHtml(t.clientPhone||"")}" />`
-        : escapeHtml(t.clientPhone||"");
-
-      const pickupCell = editing
-        ? `<input class="edit edit-pickup" value="${escapeHtml(t.pickup||"")}" />`
-        : escapeHtml(t.pickup||"");
-
-      const dropCell = editing
-        ? `<input class="edit edit-drop" value="${escapeHtml(t.dropoff||"")}" />`
-        : escapeHtml(t.dropoff||"");
-
-      const dateCell = editing
-        ? `<input class="edit edit-date" type="date" value="${escapeHtml(t.tripDate||"")}" />`
-        : escapeHtml(t.tripDate||"");
-
-      const timeCell = editing
-        ? `<input class="edit edit-time" type="time" value="${escapeHtml(t.tripTime||"")}" />`
-        : escapeHtml(t.tripTime||"");
-
-      let actions = "";
-
-      if(t.status === "Cancelled" || passed){
-        actions = "";
-      }
-      else if(t.status === "Confirmed"){
-        if(in120){
-          actions = `<button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>`;
-        }else{
-          actions = `
-            <button class="btn edit" onclick="editTrip(${index})">${editing ? "Save" : "Edit"}</button>
-            <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
-            <button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>
-          `;
-        }
-      }
-      else{
-        actions = `
-          <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
-          <button class="btn edit" onclick="editTrip(${index})">${editing ? "Save" : "Edit"}</button>
-          <button class="btn confirm" onclick="confirmTrip(${index})">Confirm</button>
-        `;
-      }
-
-      tr.innerHTML = `
-        <td>${viewIndex+1}</td>
-        <td>${escapeHtml(t.tripNumber||"")}</td>
-        <td>${enteredByCell}</td>
-        <td>${enteredPhoneCell}</td>
-        <td>${clientCell}</td>
-        <td>${phoneCell}</td>
-        <td>${pickupCell}</td>
-        <td>${dropCell}</td>
-        <td>${dateCell}</td>
-        <td>${timeCell}</td>
-        <td>${escapeHtml(t.status||"Scheduled")}</td>
-        <td>${actions}</td>
-      `;
-
-      table.appendChild(tr);
-    });
-
-    container.appendChild(table);
-  }
-
-  function escapeHtml(str){
-    return String(str)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  window.confirmTrip = async function(i){
-    const t = trips[i];
-    if(tripPassed(t)){
-      alert("Trip time has already passed. Cannot confirm.");
-      return;
-    }
-    t.status = "Confirmed";
-    t.editing = false;
-    await sendToHub(t);
-    await saveTrips();
-    render();
-  };
-
-  window.cancelTrip = async function(i){
-    trips[i].status = "Cancelled";
-    trips[i].editing = false;
-    await saveTrips();
-    render();
-  };
-
-  window.deleteTrip = async function(i){
-    if(!confirm("Delete this trip?")) return;
-    trips.splice(i,1);
-    await saveTrips();
-    render();
-  };
-
-  window.editTrip = async function(i){
-
-    const t = trips[i];
-    if(tripPassed(t)){
-      alert("Trip time already passed.");
-      return;
-    }
-
-    if(!t.editing){
-      trips.forEach((x,idx)=>{ if(x && idx !== i) x.editing = false; });
-      t.editing = true;
-      render();
-      return;
-    }
-
-    const row = container.querySelectorAll("tr")[i+1];
-
-    const newEnteredBy = row.querySelector(".edit-enteredby")?.value ?? t.enteredBy;
-    const newEnteredPhone = row.querySelector(".edit-enteredphone")?.value ?? t.enteredPhone;
-
-    const newClient = row.querySelector(".edit-client")?.value ?? t.clientName;
-    const newPhone  = row.querySelector(".edit-phone")?.value ?? t.clientPhone;
-    const newPickup = row.querySelector(".edit-pickup")?.value ?? t.pickup;
-    const newDrop   = row.querySelector(".edit-drop")?.value ?? t.dropoff;
-    const newDate   = row.querySelector(".edit-date")?.value ?? t.tripDate;
-    const newTime   = row.querySelector(".edit-time")?.value ?? t.tripTime;
-
-    const tempTrip = { ...t, tripDate:newDate, tripTime:newTime };
-    const mins = minutesToTrip(tempTrip);
-
-    if(mins !== null && mins > 0 && mins <= 120){
-      const ok = confirm(
-        "⚠️ This trip is within 120 minutes of departure.\nTrips inside 120 minutes cannot be modified.\nContinue?"
-      );
-      if(!ok) return;
-    }
-
-    t.enteredBy = newEnteredBy;
-    t.enteredPhone = newEnteredPhone;
-
-    t.clientName  = newClient;
-    t.clientPhone = newPhone;
-    t.pickup      = newPickup;
-    t.dropoff     = newDrop;
-    t.tripDate    = newDate;
-    t.tripTime    = newTime;
-
-    t.status = "Scheduled";
-    t.editing = false;
-
-    await saveTrips();
-    render();
-  };
-
-  if(searchBox){
-    searchBox.addEventListener("input", () => render());
-  }
-
-  setInterval(async ()=>{
-    if(anyEditing()){
-      render();
-      return;
-    }
-    await loadTrips();
-    normalizeTrips();
-    await keepLast30Days();
-    sortTrips();
-    render();
-  }, 30000);
-
-  (async function(){
-    await loadTrips();
-    normalizeTrips();
-    await keepLast30Days();
-    sortTrips();
-    render();
-  })();
+render();
 
 });
