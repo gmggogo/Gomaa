@@ -22,16 +22,32 @@ function getAZNow(){
   );
 }
 
-function isWithin120Minutes(tripDate, tripTime) {
-  if (!tripDate || !tripTime) return false;
+function getTripDateTime(tripDate, tripTime){
+  if (!tripDate || !tripTime) return null;
 
-  const tripDT = new Date(
-    new Date(`${tripDate}T${tripTime}`)
-    .toLocaleString("en-US",{ timeZone:"America/Phoenix" })
-  );
+  const [y,m,d] = tripDate.split("-");
+  const [hh,mm] = tripTime.split(":");
 
-  const diffMinutes = (tripDT - getAZNow()) / 60000;
-  return diffMinutes > 0 && diffMinutes <= 120;
+  if(!y || !m || !d || hh === undefined || mm === undefined) return null;
+
+  const dt = new Date(Number(y), Number(m)-1, Number(d), Number(hh), Number(mm));
+  return String(dt) === "Invalid Date" ? null : dt;
+}
+
+function minutesToTrip(tripDate, tripTime){
+  const dt = getTripDateTime(tripDate, tripTime);
+  if(!dt) return null;
+  return (dt - getAZNow()) / 60000;
+}
+
+function isWithin120Minutes(tripDate, tripTime){
+  const mins = minutesToTrip(tripDate, tripTime);
+  return mins !== null && mins > 0 && mins <= 120;
+}
+
+function tripPassed(tripDate, tripTime){
+  const mins = minutesToTrip(tripDate, tripTime);
+  return mins !== null && mins <= 0;
 }
 
 /* ===============================
@@ -205,15 +221,14 @@ document.querySelectorAll("input, textarea").forEach(el=>{
 });
 
 /* ===============================
-   SERVER SEND
+   SERVER SEND (Review Only)
 ================================ */
 let isSending = false;
 
-async function sendTripToServer(data){
+async function sendTripToReview(data){
 
   if(isSending) return false;
   isSending = true;
-  saveTripBtn.disabled = true;
   submitTripBtn.disabled = true;
 
   try{
@@ -223,10 +238,7 @@ async function sendTripToServer(data){
       body: JSON.stringify(data)
     });
 
-    const result = await res.json();
-
-    if(!res.ok) throw new Error(result.error || "Server error");
-
+    if(!res.ok) throw new Error("Server error");
     return true;
 
   }catch(err){
@@ -235,7 +247,6 @@ async function sendTripToServer(data){
 
   }finally{
     isSending = false;
-    saveTripBtn.disabled = false;
     submitTripBtn.disabled = false;
   }
 }
@@ -245,18 +256,12 @@ async function sendTripToServer(data){
 ================================ */
 saveTripBtn.addEventListener("click", function(e){
   e.preventDefault();
-
-  if(!tripDate.value || !tripTime.value){
-    alert("Select trip date & time.");
-    return;
-  }
-
   saveDraft();
-  alert("Draft saved locally ✔");
+  alert("Saved ✔");
 });
 
 /* ===============================
-   SUBMIT
+   SUBMIT (Review Only)
 ================================ */
 submitTripBtn.addEventListener("click", async function(e){
 
@@ -272,6 +277,11 @@ submitTripBtn.addEventListener("click", async function(e){
     return;
   }
 
+  if(tripPassed(tripDate.value, tripTime.value)){
+    alert("Trip time already passed. Cannot book.");
+    return;
+  }
+
   if(isWithin120Minutes(tripDate.value, tripTime.value)){
     if(!confirm("⚠️ Within 120 minutes. No modification allowed.\nContinue?")){
       return;
@@ -280,12 +290,12 @@ submitTripBtn.addEventListener("click", async function(e){
 
   const trip = collect("Scheduled");
 
-  const ok = await sendTripToServer(trip);
+  const ok = await sendTripToReview(trip);
 
   if(ok){
-    alert("Trip submitted ✔");
+    alert("Trip sent to Review ✔");
     localStorage.removeItem(DRAFT_KEY);
-    window.location.reload();
+    window.location.href = "review.html";
   }
 });
 
