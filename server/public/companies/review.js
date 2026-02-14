@@ -1,154 +1,259 @@
 window.addEventListener("DOMContentLoaded", () => {
 
-const container = document.getElementById("tripsContainer");
-const searchBox = document.getElementById("searchBox");
+  const API_URL = "/api/trips";
+  const HUB_URL = "/api/trips-hub";
 
-let trips = JSON.parse(localStorage.getItem("companyTrips") || "[]");
+  const container = document.getElementById("tripsContainer");
+  const searchBox = document.getElementById("searchBox");
 
-/* HEADER */
-let loggedCompany = JSON.parse(localStorage.getItem("loggedCompany") || "{}");
-document.getElementById("companyName").innerText = loggedCompany.name || "SUNBEAM";
+  let trips = [];
 
-function setGreeting(){
-  const h = new Date().getHours();
-  let msg = h < 12 ? "Good Morning ☀️" :
-            h < 18 ? "Good Afternoon 🌤" :
-                     "Good Evening 🌙";
-  document.getElementById("greetingText").innerText = msg;
-}
-setGreeting();
+  /* ================= LOAD ================= */
+  async function loadTrips(){
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      trips = Array.isArray(data) ? data : [];
+    }catch(e){
+      // ✅ fallback لو السيرفر مش شغال
+      trips = JSON.parse(localStorage.getItem("companyTrips") || "[]");
+    }
+  }
 
-function updateClock(){
-  document.getElementById("azDateTime").innerText =
-    new Intl.DateTimeFormat("en-US",{
-      timeZone:"America/Phoenix",
-      year:"numeric",month:"short",day:"2-digit",
-      hour:"2-digit",minute:"2-digit",second:"2-digit"
-    }).format(new Date());
-}
-setInterval(updateClock,1000);
-updateClock();
+  /* ================= SAVE ================= */
+  async function saveTrips(){
+    try{
+      await fetch(API_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(trips)
+      });
+    }catch{
+      // ✅ لو السيرفر مش شغال نحفظ لوكال
+      localStorage.setItem("companyTrips", JSON.stringify(trips));
+    }
+  }
 
-/* TIME LOGIC */
-function getTripDateTime(t){
-  if(!t.tripDate || !t.tripTime) return null;
-  return new Date(`${t.tripDate}T${t.tripTime}`);
-}
+  /* ================= SEND TO HUB ================= */
+  async function sendToHub(trip){
+    try{
+      await fetch(HUB_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(trip)
+      });
+    }catch{}
+  }
 
-function minutesToTrip(t){
-  const dt = getTripDateTime(t);
-  if(!dt) return null;
-  return (dt - new Date())/60000;
-}
+  /* ================= NORMALIZE ================= */
+  function normalizeTrips(){
+    const nowISO = new Date().toISOString();
+    trips.forEach(t=>{
+      if(!t.createdAt) t.createdAt = nowISO;
+      if(!t.status) t.status = "Scheduled";
+      if(typeof t.editing !== "boolean") t.editing = false;
 
-function groupByCreated(){
-  const groups={};
-  trips.forEach(t=>{
-    const d = new Date(t.createdAt || Date.now()).toLocaleDateString();
-    if(!groups[d]) groups[d]=[];
-    groups[d].push(t);
-  });
-  return groups;
-}
+      t.enteredBy ||= "";
+      t.enteredPhone ||= "";
+      t.clientName ||= "";
+      t.clientPhone ||= "";
+      t.pickup ||= "";
+      t.dropoff ||= "";
+      t.tripDate ||= "";
+      t.tripTime ||= "";
+      t.tripNumber ||= "";
+      t.notes ||= "";
+      if(!Array.isArray(t.stops)) t.stops = [];
+    });
+  }
 
-function render(){
+  /* ================= KEEP 30 DAYS ================= */
+  function keepLast30Days(){
+    const now = new Date();
+    trips = trips.filter(t=>{
+      const created = new Date(t.createdAt);
+      if(String(created)==="Invalid Date") return true;
+      return ((now-created)/(1000*60*60*24)) <= 30;
+    });
+  }
 
-container.innerHTML="";
+  /* ================= TIME ================= */
+  function getTripDateTime(t){
+    if(!t.tripDate || !t.tripTime) return null;
+    return new Date(`${t.tripDate}T${t.tripTime}`);
+  }
 
-const groups = groupByCreated();
+  function minutesToTrip(t){
+    const dt = getTripDateTime(t);
+    if(!dt) return null;
+    return (dt - new Date()) / 60000;
+  }
 
-Object.keys(groups).sort((a,b)=> new Date(b)-new Date(a)).forEach(date=>{
+  function inside120(t){
+    const m = minutesToTrip(t);
+    return m !== null && m > 0 && m <= 120;
+  }
 
-  const div = document.createElement("div");
-  div.className="date-group";
-  div.innerHTML=`<div class="date-title">${date}</div>`;
+  function tripPassed(t){
+    const m = minutesToTrip(t);
+    return m !== null && m <= 0;
+  }
 
-  const table=document.createElement("table");
+  /* ================= RENDER ================= */
+  function render(){
 
-  table.innerHTML=`
-    <tr>
-      <th>#</th>
-      <th>Trip #</th>
-      <th>Entered By</th>
-      <th>Entered Phone</th>
-      <th>Client</th>
-      <th>Client Phone</th>
-      <th>Pickup</th>
-      <th>Drop</th>
-      <th>Stops</th>
-      <th>Notes</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  `;
+    if(!container) return;
+    container.innerHTML = "";
 
-  groups[date].forEach((t,i)=>{
+    const table = document.createElement("table");
 
-    const tr=document.createElement("tr");
-
-    const mins=minutesToTrip(t);
-    if(mins!==null && mins<=120 && mins>0) tr.classList.add("yellow");
-    if(mins!==null && mins<=0) tr.classList.add("red");
-
-    tr.innerHTML=`
-      <td>${i+1}</td>
-      <td>${t.tripNumber||""}</td>
-      <td>${t.enteredBy||""}</td>
-      <td>${t.enteredPhone||""}</td>
-      <td>${t.clientName||""}</td>
-      <td>${t.clientPhone||""}</td>
-      <td>${t.pickup||""}</td>
-      <td>${t.dropoff||""}</td>
-      <td>${(t.stops||[]).join(", ")}</td>
-      <td>${t.notes||""}</td>
-      <td>${t.tripDate||""}</td>
-      <td>${t.tripTime||""}</td>
-      <td>${t.status||"Scheduled"}</td>
-      <td>
-        ${t.status==="Scheduled" ? `
-          <button class="btn-edit" onclick="editTrip(${trips.indexOf(t)})">Edit</button>
-          <button class="btn-delete" onclick="deleteTrip(${trips.indexOf(t)})">Delete</button>
-          <button class="btn-confirm" onclick="confirmTrip(${trips.indexOf(t)})">Confirm</button>
-        ` : ""}
-        ${t.status==="Confirmed" ? `
-          <button class="btn-cancel" onclick="cancelTrip(${trips.indexOf(t)})">Cancel</button>
-        ` : ""}
-      </td>
+    table.innerHTML = `
+      <tr>
+        <th>#</th>
+        <th>Trip #</th>
+        <th>Entered By</th>
+        <th>Entered Phone</th>
+        <th>Client</th>
+        <th>Client Phone</th>
+        <th>Pickup</th>
+        <th>Drop</th>
+        <th>Stops</th>
+        <th>Notes</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
     `;
 
-    table.appendChild(tr);
-  });
+    trips.forEach((t, index)=>{
 
-  div.appendChild(table);
-  container.appendChild(div);
+      const tr = document.createElement("tr");
 
-});
-}
+      if(tripPassed(t)) tr.classList.add("red");
+      else if(inside120(t)) tr.classList.add("yellow");
 
-window.deleteTrip=function(i){
-  trips.splice(i,1);
-  localStorage.setItem("companyTrips",JSON.stringify(trips));
-  render();
-}
+      const editing = t.editing;
 
-window.confirmTrip=function(i){
-  trips[i].status="Confirmed";
-  localStorage.setItem("companyTrips",JSON.stringify(trips));
-  render();
-}
+      function cell(val, cls, type="text"){
+        return editing
+          ? `<input class="${cls}" type="${type}" value="${escapeHtml(val)}">`
+          : escapeHtml(val);
+      }
 
-window.cancelTrip=function(i){
-  trips[i].status="Cancelled";
-  localStorage.setItem("companyTrips",JSON.stringify(trips));
-  render();
-}
+      let actions = "";
 
-window.editTrip=function(i){
-  alert("Edit mode here (logic already in your main JS)");
-}
+      if(t.status === "Confirmed"){
+        actions = `<button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>`;
+      }
+      else{
+        actions = `
+          <button class="btn edit" onclick="editTrip(${index})">${editing?"Save":"Edit"}</button>
+          <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
+          <button class="btn confirm" onclick="confirmTrip(${index})">Confirm</button>
+        `;
+      }
 
-render();
+      tr.innerHTML = `
+        <td>${index+1}</td>
+        <td>${escapeHtml(t.tripNumber)}</td>
+        <td>${cell(t.enteredBy,"edit-enteredby")}</td>
+        <td>${cell(t.enteredPhone,"edit-enteredphone")}</td>
+        <td>${cell(t.clientName,"edit-client")}</td>
+        <td>${cell(t.clientPhone,"edit-clientphone")}</td>
+        <td>${cell(t.pickup,"edit-pickup")}</td>
+        <td>${cell(t.dropoff,"edit-drop")}</td>
+        <td>${editing
+            ? `<input class="edit-stops" value="${escapeHtml(t.stops.join(" | "))}">`
+            : escapeHtml(t.stops.join(" | "))
+        }</td>
+        <td>${cell(t.notes,"edit-notes")}</td>
+        <td>${cell(t.tripDate,"edit-date","date")}</td>
+        <td>${cell(t.tripTime,"edit-time","time")}</td>
+        <td>${escapeHtml(t.status)}</td>
+        <td>${actions}</td>
+      `;
+
+      table.appendChild(tr);
+    });
+
+    container.appendChild(table);
+  }
+
+  function escapeHtml(str){
+    return String(str||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  /* ================= ACTIONS ================= */
+
+  window.confirmTrip = async function(i){
+    const t = trips[i];
+    if(tripPassed(t)){
+      alert("Trip time passed.");
+      return;
+    }
+    t.status="Confirmed";
+    t.editing=false;
+    await sendToHub(t);
+    await saveTrips();
+    render();
+  };
+
+  window.cancelTrip = async function(i){
+    trips[i].status="Cancelled";
+    trips[i].editing=false;
+    await saveTrips();
+    render();
+  };
+
+  window.deleteTrip = async function(i){
+    if(!confirm("Delete this trip?")) return;
+    trips.splice(i,1);
+    await saveTrips();
+    render();
+  };
+
+  window.editTrip = async function(i){
+
+    const t = trips[i];
+
+    if(!t.editing){
+      trips.forEach(x=>x.editing=false);
+      t.editing=true;
+      render();
+      return;
+    }
+
+    const row = container.querySelectorAll("tr")[i+1];
+
+    t.enteredBy = row.querySelector(".edit-enteredby").value;
+    t.enteredPhone = row.querySelector(".edit-enteredphone").value;
+    t.clientName = row.querySelector(".edit-client").value;
+    t.clientPhone = row.querySelector(".edit-clientphone").value;
+    t.pickup = row.querySelector(".edit-pickup").value;
+    t.dropoff = row.querySelector(".edit-drop").value;
+    t.notes = row.querySelector(".edit-notes").value;
+    t.tripDate = row.querySelector(".edit-date").value;
+    t.tripTime = row.querySelector(".edit-time").value;
+    t.stops = row.querySelector(".edit-stops").value.split("|").map(s=>s.trim());
+
+    t.status="Scheduled";
+    t.editing=false;
+
+    await saveTrips();
+    render();
+  };
+
+  /* ================= INIT ================= */
+
+  (async function(){
+    await loadTrips();
+    normalizeTrips();
+    keepLast30Days();
+    render();
+  })();
 
 });

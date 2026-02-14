@@ -12,7 +12,7 @@ body{
   background:#f4f8fb;
 }
 
-/* HEADER */
+/* ================= HEADER ================= */
 .header{
   background:linear-gradient(90deg,#0f172a,#1e3a8a);
   color:#fff;
@@ -31,14 +31,14 @@ body{
   color:#facc15;
 }
 
-.greeting,
-.clock{
+.greeting,.clock{
   font-size:13px;
   margin-top:4px;
 }
 
 .logo{ height:75px; }
 
+/* NAV BAR */
 .nav{
   display:flex;
   justify-content:center;
@@ -51,6 +51,7 @@ body{
 .nav a{
   color:#fff;
   text-decoration:none;
+  font-size:14px;
   padding:6px 16px;
   border-radius:8px;
 }
@@ -61,75 +62,74 @@ body{
   font-weight:700;
 }
 
-/* CONTENT */
+/* ================= CONTENT ================= */
 .container{
-  max-width:1400px;
+  max-width:1500px;
   margin:auto;
-  padding:30px 20px;
+  padding:35px 20px;
 }
 
-.search{
+.search-box{
   margin-bottom:20px;
 }
 
-.search input{
+.search-box input{
   width:100%;
   padding:10px;
   border-radius:10px;
   border:1px solid #ccc;
+  font-size:13px;
 }
 
-.date-group{
-  margin-bottom:30px;
-}
-
-.date-title{
-  font-weight:bold;
-  margin-bottom:8px;
-  font-size:15px;
-}
-
+/* TABLE */
 table{
   width:100%;
   border-collapse:collapse;
   background:#fff;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
   border-radius:12px;
   overflow:hidden;
 }
 
-th{
-  background:#1e293b;
-  color:#fff;
+th,td{
   padding:8px;
   font-size:12px;
-}
-
-td{
-  padding:6px;
-  font-size:12px;
   border-bottom:1px solid #eee;
+  text-align:left;
 }
 
-tr.yellow{ background:#fff3cd; }
-tr.red{ background:#ffcccc; }
+th{
+  background:#0f172a;
+  color:#fff;
+}
 
-button{
+tr:hover{ background:#f9fafb; }
+
+.yellow{ background:#fff3cd !important; }
+.red{ background:#ffcccc !important; }
+
+/* BUTTONS */
+.btn{
   padding:5px 10px;
   border:none;
   border-radius:6px;
   font-size:11px;
   cursor:pointer;
+  margin-right:4px;
 }
 
-.btn-edit{ background:#3b82f6; color:#fff; }
-.btn-delete{ background:#ef4444; color:#fff; }
-.btn-confirm{ background:#22c55e; color:#000; }
-.btn-cancel{ background:#f97316; color:#fff; }
+.confirm{ background:#22c55e; color:#000; }
+.edit{ background:#3b82f6; color:#fff; }
+.delete{ background:#64748b; color:#fff; }
+.cancel{ background:#ef4444; color:#fff; }
 
+/* ================= MOBILE ================= */
 @media(max-width:768px){
+  .header{ padding:20px; }
   .top-section{ flex-direction:column; text-align:center; }
-  .nav{ flex-wrap:wrap; gap:15px; }
+  .logo{ margin-top:15px; height:65px; }
   table{ font-size:10px; }
+  th,td{ padding:5px; }
 }
 </style>
 </head>
@@ -156,12 +156,46 @@ button{
 </div>
 
 <div class="container">
-  <div class="search">
+
+  <div class="search-box">
     <input id="searchBox" placeholder="Search name / phone / trip #">
   </div>
+
   <div id="tripsContainer"></div>
+
 </div>
 
+<script>
+/* HEADER LOGIC */
+let loggedCompany=null;
+try{ loggedCompany=JSON.parse(localStorage.getItem("loggedCompany")); }catch{}
+if(loggedCompany){
+  document.getElementById("companyName").innerText=loggedCompany.name||"";
+}
+
+function setGreeting(){
+  const h=new Date().getHours();
+  let msg="";
+  if(h<12) msg="Good Morning ☀️";
+  else if(h<18) msg="Good Afternoon 🌤";
+  else msg="Good Evening 🌙";
+  document.getElementById("greetingText").innerText=msg;
+}
+setGreeting();
+
+function updateClock(){
+  document.getElementById("azDateTime").innerText=
+    new Intl.DateTimeFormat("en-US",{
+      timeZone:"America/Phoenix",
+      year:"numeric",month:"short",day:"2-digit",
+      hour:"2-digit",minute:"2-digit",second:"2-digit"
+    }).format(new Date());
+}
+setInterval(updateClock,1000);
+updateClock();
+</script>
+
 <script src="review.js"></script>
+
 </body>
 </html>
