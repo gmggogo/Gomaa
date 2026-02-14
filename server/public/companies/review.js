@@ -1,6 +1,7 @@
 window.addEventListener("DOMContentLoaded", () => {
 
   const API_URL = "/api/trips";
+  const HUB_URL = "/api/trips-hub";
   let trips = [];
   const container = document.getElementById("tripsContainer");
 
@@ -28,6 +29,19 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /* ================= SEND TO HUB ================= */
+  async function sendToHub(trip){
+    try{
+      await fetch(HUB_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(trip)
+      });
+    }catch(e){
+      console.error("Hub send failed",e);
+    }
+  }
+
   /* ================= KEEP 30 DAYS ================= */
   async function keepLast30Days(){
     const now = new Date();
@@ -50,7 +64,7 @@ window.addEventListener("DOMContentLoaded", () => {
     trips.sort((a,b)=>{
       const d1 = new Date(a.createdAt || 0);
       const d2 = new Date(b.createdAt || 0);
-      return d2-d1;
+      return d2 - d1;
     });
   }
 
@@ -114,33 +128,45 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const tr = document.createElement("tr");
 
-      if(tripPassed(t)){
-        tr.style.background="#ffe5e5";
+      const passed = tripPassed(t);
+      const in120 = inside120(t);
+
+      /* ===== ROW COLOR ===== */
+      if(passed){
+        tr.style.background="#ffcccc";
         tr.style.borderLeft="4px solid red";
       }
+      else if(in120){
+        tr.style.background="#fff3cd";
+        tr.style.borderLeft="4px solid orange";
+      }
 
-      /* ===== BUTTON POLICY ===== */
+      let actions = "";
 
-      let actions="";
-
-      if(t.status==="Cancelled"){
+      if(t.status==="Cancelled" || passed){
         actions="";
       }
-      else if(tripPassed(t)){
-        actions="";
+
+      else if(t.status==="Confirmed"){
+
+        if(in120){
+          actions = `
+            <button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>
+          `;
+        }else{
+          actions = `
+            <button class="btn edit" onclick="editTrip(${index})">Edit</button>
+            <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
+            <button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>
+          `;
+        }
       }
-      else if(inside120(t) && t.status==="Confirmed"){
-        actions=`
-          <button class="btn cancel" onclick="cancelTrip(${index})">Cancel</button>
-        `;
-      }
-      else{
-        actions=`
-          ${t.status!=="Confirmed"
-            ? `<button class="btn confirm" onclick="confirmTrip(${index})">Confirm</button>`
-            : ""}
-          <button class="btn edit" onclick="editTrip(${index},this)">Edit</button>
+
+      else{ // Scheduled
+        actions = `
           <button class="btn delete" onclick="deleteTrip(${index})">Delete</button>
+          <button class="btn edit" onclick="editTrip(${index})">Edit</button>
+          <button class="btn confirm" onclick="confirmTrip(${index})">Confirm</button>
         `;
       }
 
@@ -166,11 +192,16 @@ window.addEventListener("DOMContentLoaded", () => {
   /* ================= ACTIONS ================= */
 
   window.confirmTrip = async function(i){
-    if(tripPassed(trips[i])){
-      alert("Trip already passed.");
+
+    const t = trips[i];
+
+    if(tripPassed(t)){
+      alert("Trip time has already passed. Cannot confirm.");
       return;
     }
-    trips[i].status="Confirmed";
+
+    t.status="Confirmed";
+    await sendToHub(t);
     await saveTrips();
     render();
   };
@@ -188,25 +219,27 @@ window.addEventListener("DOMContentLoaded", () => {
     render();
   };
 
-  window.editTrip = async function(i,btn){
+  window.editTrip = async function(i){
 
     const t = trips[i];
 
     if(tripPassed(t)){
-      alert("Trip already passed.");
+      alert("Trip time already passed.");
       return;
     }
 
-    const newDate = prompt("New Date (YYYY-MM-DD)", t.tripDate);
+    const newDate = prompt("Enter new date (YYYY-MM-DD)", t.tripDate);
     if(!newDate) return;
 
-    const newTime = prompt("New Time (HH:MM)", t.tripTime);
+    const newTime = prompt("Enter new time (HH:MM)", t.tripTime);
     if(!newTime) return;
 
-    const temp={tripDate:newDate,tripTime:newTime};
+    const temp = { tripDate:newDate, tripTime:newTime };
 
     if(inside120(temp)){
-      if(!confirm("⚠️ Within 120 minutes.\nContinue?")) return;
+      if(!confirm("This trip is within 120 minutes and cannot be edited. Continue anyway?")){
+        return;
+      }
     }
 
     t.tripDate=newDate;
@@ -216,6 +249,9 @@ window.addEventListener("DOMContentLoaded", () => {
     await saveTrips();
     render();
   };
+
+  /* ================= AUTO REFRESH ================= */
+  setInterval(render,30000);
 
   /* ================= INIT ================= */
   (async function(){
