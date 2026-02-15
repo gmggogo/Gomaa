@@ -3,11 +3,52 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 
+/* ✅ ADD: session (important for /api/company/me + dashboard) */
+const session = require("express-session");
+const FileStore = require("session-file-store")(session);
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+/* =========================
+   CORS + JSON
+========================= */
+/*
+  ✅ مهم:
+  - لو صفحاتك و API على نفس الدومين في Render: الأمور سهلة.
+  - لو بتفتح من دومين مختلف لازم origin مضبوط + credentials.
+*/
+app.use(
+  cors({
+    origin: true,
+    credentials: true
+  })
+);
+
 app.use(express.json());
+
+/* ✅ Render behind proxy */
+app.set("trust proxy", 1);
+
+/* =========================
+   SESSION (Persist to /var/data)
+========================= */
+const SESSION_DIR = "/var/data/sessions";
+if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true });
+
+app.use(
+  session({
+    store: new FileStore({ path: SESSION_DIR }),
+    secret: process.env.SESSION_SECRET || "sunbeam_secret_2026",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production" // Render = production
+    }
+  })
+);
 
 /* =========================
    STATIC FILES
@@ -22,8 +63,7 @@ const USERS_DB = "/var/data/users.json";
 function ensureUsersDB() {
   const dir = "/var/data";
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(USERS_DB))
-    fs.writeFileSync(USERS_DB, JSON.stringify([]));
+  if (!fs.existsSync(USERS_DB)) fs.writeFileSync(USERS_DB, JSON.stringify([]));
 }
 
 function readUsers() {
@@ -44,8 +84,7 @@ const LOCATION_DB = "/var/data/locations.json";
 function ensureLocationDB() {
   const dir = "/var/data";
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(LOCATION_DB))
-    fs.writeFileSync(LOCATION_DB, JSON.stringify({}));
+  if (!fs.existsSync(LOCATION_DB)) fs.writeFileSync(LOCATION_DB, JSON.stringify({}));
 }
 
 function readLocations() {
@@ -59,15 +98,14 @@ function saveLocations(data) {
 }
 
 /* =========================
-   TRIPS DATABASE (NEW)
+   TRIPS DATABASE
 ========================= */
 const TRIPS_DB = "/var/data/trips.json";
 
 function ensureTripsDB() {
   const dir = "/var/data";
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(TRIPS_DB))
-    fs.writeFileSync(TRIPS_DB, JSON.stringify([]));
+  if (!fs.existsSync(TRIPS_DB)) fs.writeFileSync(TRIPS_DB, JSON.stringify([]));
 }
 
 function readTrips() {
@@ -141,7 +179,7 @@ app.delete("/api/admin/users/:id", (req, res) => {
 });
 
 /* =========================
-   LOGIN
+   LOGIN (UPDATED: saves session)
 ========================= */
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
@@ -153,11 +191,46 @@ app.post("/api/login", (req, res) => {
 
   if (!user) return res.status(401).json({ success: false });
 
+  // ✅ save to session (this is the key)
+  req.session.user = {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    name: user.name
+  };
+
   res.json({
     success: true,
     username: user.username,
     role: user.role,
     name: user.name
+  });
+});
+
+/* ✅ OPTIONAL: logout */
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ success: true });
+  });
+});
+
+/* =========================
+   ✅ COMPANY ME (NEW)
+   used by layout.js to show company name
+========================= */
+app.get("/api/company/me", (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "Not logged in" });
+
+  // لو عايز تقصرها على الشركات فقط
+  if (req.session.user.role !== "companies" && req.session.user.role !== "company") {
+    return res.status(403).json({ error: "Not a company account" });
+  }
+
+  res.json({
+    id: req.session.user.id,
+    username: req.session.user.username,
+    name: req.session.user.name,
+    role: req.session.user.role
   });
 });
 
@@ -200,7 +273,7 @@ app.get("/api/admin/live-drivers", (req, res) => {
 });
 
 /* =========================
-   GET ALL TRIPS (NEW)
+   GET ALL TRIPS
 ========================= */
 app.get("/api/trips", (req, res) => {
   const trips = readTrips();
@@ -208,7 +281,7 @@ app.get("/api/trips", (req, res) => {
 });
 
 /* =========================
-   ADD NEW TRIP (NEW)
+   ADD NEW TRIP
 ========================= */
 app.post("/api/trips", (req, res) => {
 
@@ -235,6 +308,76 @@ app.post("/api/trips", (req, res) => {
 
   res.json({ success: true });
 });
+
+/* =========================
+   ✅ COMPANY DASHBOARD (NEW)
+   used by dashboard.html
+========================= */
+app.get("/api/company/dashboard", (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "Not logged in" });
+
+  // لو عايز تقصرها على الشركات فقط
+  if (req.session.user.role !== "companies" && req.session.user.role !== "company") {
+    return res.status(403).json({ error: "Not a company account" });
+  }
+
+  const companyUser = req.session.user;
+
+  const tripsAll = readTrips();
+
+  // ✅ فلترة مرنة حسب اللي عندك في بيانات الرحلات
+  const trips = tripsAll.filter(t => {
+    const cId = t.companyId ?? t.companyID ?? t.company_id;
+    const cName = t.companyName ?? t.company ?? t.company_name;
+    const cUser = t.companyUsername ?? t.companyUser ?? t.company_username;
+
+    if (cId != null && Number(cId) === Number(companyUser.id)) return true;
+    if (cUser && String(cUser).toLowerCase() === String(companyUser.username).toLowerCase()) return true;
+    if (cName && String(cName).toLowerCase() === String(companyUser.name).toLowerCase()) return true;
+
+    // لو مفيش أي fields خاصة بالشركة في التريب (قديم) هنرجع false عشان ما نخلطش بيانات شركات
+    return false;
+  });
+
+  const today = new Date().toISOString().split("T")[0];
+  const month = today.slice(0, 7); // YYYY-MM
+
+  const getTripDate = (t) => t.date || t.tripDate || t.pickupDate || "";
+
+  const todayTrips = trips.filter(t => String(getTripDate(t)) === today);
+  const monthTrips = trips.filter(t => String(getTripDate(t)).startsWith(month));
+
+  const statusOf = (t) => (t.status || t.tripStatus || "").trim();
+
+  const lastTrips = trips
+    .slice(0, 200) // احتياط
+    .sort((a,b) => {
+      const da = String(getTripDate(a));
+      const db = String(getTripDate(b));
+      if (da === db) return 0;
+      return da > db ? -1 : 1;
+    })
+    .slice(0, 5)
+    .map(t => ({
+      date: getTripDate(t) || "",
+      pickup: t.pickup || t.pickupAddress || t.pickup_location || "",
+      status: statusOf(t) || "Scheduled"
+    }));
+
+  res.json({
+    today: {
+      total: todayTrips.length,
+      completed: todayTrips.filter(t => statusOf(t) === "Completed").length,
+      noShow: todayTrips.filter(t => statusOf(t) === "No Show").length,
+      cancelled: todayTrips.filter(t => statusOf(t) === "Cancelled").length
+    },
+    month: {
+      total: monthTrips.length
+    },
+    lastTrips
+  });
+});
+
 /* =========================
    START SERVER
 ========================= */
