@@ -1,160 +1,98 @@
+/* =====================================================
+   SUNBEAM TRANSPORTATION – SECURE SERVER
+   VERSION 1.0 FINAL (ROLE BASED SECURITY)
+===================================================== */
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-
-app.use(cors());
-app.use(express.json());
+const JWT_SECRET = "SUNBEAM_PRODUCTION_SECRET_CHANGE_THIS";
 
 /* =========================
-   STATIC FILES
+   ① MIDDLEWARE
 ========================= */
+app.use(cors());
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   DATABASE (users.json)
+   ② DATABASE SETUP
 ========================= */
-const USERS_DB = "/var/data/users.json";
+const DATA_DIR = "/var/data";
+const USERS_DB = path.join(DATA_DIR, "users.json");
+const TRIPS_DB = path.join(DATA_DIR, "trips.json");
+const LOCATION_DB = path.join(DATA_DIR, "locations.json");
 
-function ensureUsersDB() {
-  const dir = "/var/data";
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(USERS_DB))
-    fs.writeFileSync(USERS_DB, JSON.stringify([]));
+function ensureFile(file, defaultValue) {
+  if (!fs.existsSync(DATA_DIR))
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  if (!fs.existsSync(file))
+    fs.writeFileSync(file, JSON.stringify(defaultValue));
 }
 
-function readUsers() {
-  ensureUsersDB();
-  return JSON.parse(fs.readFileSync(USERS_DB, "utf8"));
+function readDB(file, def) {
+  ensureFile(file, def);
+  return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-function saveUsers(users) {
-  ensureUsersDB();
-  fs.writeFileSync(USERS_DB, JSON.stringify(users, null, 2));
+function saveDB(file, data) {
+  ensureFile(file, []);
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
 /* =========================
-   LIVE LOCATION DB
+   ③ AUTH MIDDLEWARE
 ========================= */
-const LOCATION_DB = "/var/data/locations.json";
+function auth(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token" });
 
-function ensureLocationDB() {
-  const dir = "/var/data";
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(LOCATION_DB))
-    fs.writeFileSync(LOCATION_DB, JSON.stringify({}));
-}
-
-function readLocations() {
-  ensureLocationDB();
-  return JSON.parse(fs.readFileSync(LOCATION_DB, "utf8"));
-}
-
-function saveLocations(data) {
-  ensureLocationDB();
-  fs.writeFileSync(LOCATION_DB, JSON.stringify(data, null, 2));
-}
-
-/* =========================
-   TRIPS DATABASE (NEW)
-========================= */
-const TRIPS_DB = "/var/data/trips.json";
-
-function ensureTripsDB() {
-  const dir = "/var/data";
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(TRIPS_DB))
-    fs.writeFileSync(TRIPS_DB, JSON.stringify([]));
-}
-
-function readTrips() {
-  ensureTripsDB();
-  return JSON.parse(fs.readFileSync(TRIPS_DB, "utf8"));
-}
-
-function saveTrips(trips) {
-  ensureTripsDB();
-  fs.writeFileSync(TRIPS_DB, JSON.stringify(trips, null, 2));
-}
-
-/* =========================
-   ADMIN USERS API
-========================= */
-app.get("/api/admin/users", (req, res) => {
-  const role = req.query.role;
-  const users = readUsers();
-  const filtered = role ? users.filter(u => u.role === role) : users;
-  res.json(filtered);
-});
-
-app.post("/api/admin/users", (req, res) => {
-  const { name, username, password, role } = req.body;
-
-  if (!name || !username || !password || !role) {
-    return res.status(400).json({ error: "Missing fields" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
   }
+}
 
-  const users = readUsers();
-
-  if (users.find(u => u.username === username)) {
-    return res.status(400).json({ error: "Username already exists" });
-  }
-
-  const newUser = {
-    id: Date.now(),
-    name,
-    username,
-    password,
-    role,
-    active: true
+function allowRoles(...roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role))
+      return res.status(403).json({ error: "Access denied" });
+    next();
   };
-
-  users.push(newUser);
-  saveUsers(users);
-
-  res.json(newUser);
-});
-
-app.put("/api/admin/users/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const users = readUsers();
-  const user = users.find(u => u.id === id);
-
-  if (!user) return res.status(404).json({ error: "User not found" });
-
-  if (typeof req.body.name === "string") user.name = req.body.name;
-  if (typeof req.body.username === "string") user.username = req.body.username;
-  if (typeof req.body.active === "boolean") user.active = req.body.active;
-
-  saveUsers(users);
-  res.json(user);
-});
-
-app.delete("/api/admin/users/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const users = readUsers().filter(u => u.id !== id);
-  saveUsers(users);
-  res.json({ success: true });
-});
+}
 
 /* =========================
-   LOGIN
+   ④ LOGIN SYSTEM
 ========================= */
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-  const users = readUsers();
+  const users = readDB(USERS_DB, []);
 
-  const user = users.find(
-    u => u.username === username && u.password === password && u.active
-  );
-
+  const user = users.find(u => u.username === username && u.active);
   if (!user) return res.status(401).json({ success: false });
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.status(401).json({ success: false });
+
+  const token = jwt.sign(
+    { username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "8h" }
+  );
 
   res.json({
     success: true,
+    token,
     username: user.username,
     role: user.role,
     name: user.name
@@ -162,82 +100,169 @@ app.post("/api/login", (req, res) => {
 });
 
 /* =========================
-   DRIVER SAVE LOCATION
+   ⑤ ADMIN USERS (ADMIN ONLY)
 ========================= */
-app.post("/api/driver/location", (req, res) => {
-  const { name, lat, lng } = req.body;
+app.get("/api/admin/users",
+  auth,
+  allowRoles("admin"),
+  (req, res) => {
 
-  if (!name || !lat || !lng) {
+  const role = req.query.role;
+  const users = readDB(USERS_DB, []);
+
+  const filtered = role
+    ? users.filter(u => u.role === role)
+    : users;
+
+  res.json(filtered.map(u => ({
+    id: u.id,
+    name: u.name,
+    username: u.username,
+    role: u.role,
+    active: u.active
+  })));
+});
+
+app.post("/api/admin/users",
+  auth,
+  allowRoles("admin"),
+  async (req, res) => {
+
+  const { name, username, password, role } = req.body;
+
+  if (!name || !username || !password || !role)
     return res.status(400).json({ error: "Missing fields" });
-  }
 
-  const locations = readLocations();
+  const users = readDB(USERS_DB, []);
 
-  locations[name] = {
+  if (users.find(u => u.username === username))
+    return res.status(400).json({ error: "Username exists" });
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  const newUser = {
+    id: Date.now(),
     name,
+    username,
+    password: hashed,
+    role,
+    active: true
+  };
+
+  users.push(newUser);
+  saveDB(USERS_DB, users);
+
+  res.json({ success: true });
+});
+
+/* =========================
+   ⑥ TRIPS SYSTEM
+========================= */
+
+/* COMPANY – See Own Trips */
+app.get("/api/company/trips",
+  auth,
+  allowRoles("company"),
+  (req, res) => {
+
+  const trips = readDB(TRIPS_DB, []);
+  const myTrips = trips.filter(t => t.company === req.user.username);
+  res.json(myTrips);
+});
+
+/* DISPATCHER – See All Trips */
+app.get("/api/dispatcher/trips",
+  auth,
+  allowRoles("dispatcher"),
+  (req, res) => {
+
+  const trips = readDB(TRIPS_DB, []);
+  res.json(trips);
+});
+
+/* ADMIN – See All Trips */
+app.get("/api/admin/trips",
+  auth,
+  allowRoles("admin"),
+  (req, res) => {
+
+  const trips = readDB(TRIPS_DB, []);
+  res.json(trips);
+});
+
+/* COMPANY – Create Trip */
+app.post("/api/company/trips",
+  auth,
+  allowRoles("company"),
+  (req, res) => {
+
+  const data = req.body;
+  if (!data.tripNumber)
+    return res.status(400).json({ error: "Missing tripNumber" });
+
+  const trips = readDB(TRIPS_DB, []);
+
+  trips.unshift({
+    ...data,
+    company: req.user.username,
+    status: "Scheduled",
+    createdAt: new Date().toISOString()
+  });
+
+  saveDB(TRIPS_DB, trips);
+  res.json({ success: true });
+});
+
+/* =========================
+   ⑦ DRIVER LIVE LOCATION
+========================= */
+app.post("/api/driver/location",
+  auth,
+  allowRoles("driver"),
+  (req, res) => {
+
+  const { lat, lng } = req.body;
+  if (!lat || !lng)
+    return res.status(400).json({ error: "Missing fields" });
+
+  const locations = readDB(LOCATION_DB, {});
+
+  locations[req.user.username] = {
     lat,
     lng,
     updated: Date.now()
   };
 
-  saveLocations(locations);
-
+  saveDB(LOCATION_DB, locations);
   res.json({ success: true });
 });
 
 /* =========================
-   ADMIN GET LIVE DRIVERS
+   ⑧ DASHBOARD STATS
 ========================= */
-app.get("/api/admin/live-drivers", (req, res) => {
-  const locations = readLocations();
-  const now = Date.now();
+app.get("/api/company/dashboard",
+  auth,
+  allowRoles("company"),
+  (req, res) => {
 
-  const active = Object.values(locations).filter(
-    d => now - d.updated < 30000
-  );
+  const trips = readDB(TRIPS_DB, []);
+  const myTrips = trips.filter(t => t.company === req.user.username);
 
-  res.json(active);
+  const today = new Date().toISOString().split("T")[0];
+
+  const todayTrips = myTrips.filter(t => t.tripDate === today);
+
+  res.json({
+    totalToday: todayTrips.length,
+    completed: todayTrips.filter(t => t.status === "Completed").length,
+    noShow: todayTrips.filter(t => t.status === "No Show").length,
+    cancelled: todayTrips.filter(t => t.status === "Cancelled").length
+  });
 });
 
 /* =========================
-   GET ALL TRIPS (NEW)
-========================= */
-app.get("/api/trips", (req, res) => {
-  const trips = readTrips();
-  res.json(trips);
-});
-
-/* =========================
-   ADD NEW TRIP (NEW)
-========================= */
-app.post("/api/trips", (req, res) => {
-
-  const data = req.body;
-
-  if (!data) {
-    return res.status(400).json({ error: "No data received" });
-  }
-
-  // لو جاله Array كامل
-  if (Array.isArray(data)) {
-    saveTrips(data);
-    return res.json({ success: true });
-  }
-
-  // لو جاله Trip واحدة
-  if (!data.tripNumber) {
-    return res.status(400).json({ error: "Missing tripNumber" });
-  }
-
-  const trips = readTrips();
-  trips.unshift(data);
-  saveTrips(trips);
-
-  res.json({ success: true });
-});
-/* =========================
-   START SERVER
+   ⑨ SERVER START
 ========================= */
 app.listen(PORT, () => {
-  console.log("🚀 Sunbeam server running on port", PORT);
+  console.log("🚀 Sunbeam Secure Server Running on port", PORT);
 });
