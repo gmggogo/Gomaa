@@ -1,83 +1,128 @@
-require("dotenv").config();
+// ======================================================
+// SUNBEAM AUTH SERVER – CLEAN VERSION
+// ======================================================
 
 const express = require("express");
-const cors = require("cors");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
+const SECRET = "SUNBEAM_SECRET_2026";
 
-app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
-// ================= DATABASE =================
-const DATA_FILE = path.join(__dirname, "users.json");
+const DB_FILE = path.join(__dirname, "users.json");
 
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify([]));
-}
+
+// ======================================================
+// READ / WRITE USERS
+// ======================================================
 
 function readUsers() {
-  return JSON.parse(fs.readFileSync(DATA_FILE));
+  if (!fs.existsSync(DB_FILE)) return [];
+  return JSON.parse(fs.readFileSync(DB_FILE));
 }
 
-function saveUsers(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+function writeUsers(data) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ================= AUTH =================
-function auth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header) return res.status(401).json({ error: "No token" });
 
-  try {
+// ======================================================
+// AUTH MIDDLEWARE
+// ======================================================
+
+function auth(roles = []) {
+  return (req, res, next) => {
+
+    const header = req.headers.authorization;
+    if (!header) return res.status(401).json({ error: "No token" });
+
     const token = header.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
-  }
+
+    try {
+      const decoded = jwt.verify(token, SECRET);
+
+      if (roles.length && !roles.includes(decoded.role)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      req.user = decoded;
+      next();
+
+    } catch {
+      res.status(401).json({ error: "Invalid token" });
+    }
+  };
 }
 
-// ================= LOGIN =================
-app.post("/api/login", async (req, res) => {
+
+// ======================================================
+// LOGIN
+// ======================================================
+
+app.post("/api/login", (req, res) => {
+
   const { username, password } = req.body;
   const users = readUsers();
 
   const user = users.find(u => u.username === username);
-  if (!user) return res.status(401).json({ error: "Wrong credentials" });
 
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ error: "Wrong credentials" });
+  if (!user) return res.status(400).json({ error: "User not found" });
+
+  const valid = bcrypt.compareSync(password, user.password);
+  if (!valid) return res.status(400).json({ error: "Wrong password" });
 
   const token = jwt.sign(
     { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "8h" }
+    SECRET,
+    { expiresIn: "1d" }
   );
 
   res.json({ token, role: user.role });
 });
 
-// ================= CREATE USER =================
-app.post("/api/users", auth, async (req, res) => {
 
-  if (req.user.role !== "admin")
-    return res.status(403).json({ error: "Only admin allowed" });
+// ======================================================
+// GET USERS (FILTER BY ROLE)
+// ======================================================
+
+app.get("/api/users", auth(["admin"]), (req, res) => {
+
+  const users = readUsers();
+  const role = req.query.role;
+
+  if (role) {
+    return res.json(users.filter(u => u.role === role));
+  }
+
+  res.json(users);
+});
+
+
+// ======================================================
+// ADD USER (ADMIN ONLY)
+// ======================================================
+
+app.post("/api/users", auth(["admin"]), (req, res) => {
 
   const { name, username, password, role } = req.body;
 
+  if (!name || !username || !password || !role) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
   const users = readUsers();
 
-  if (users.find(u => u.username === username))
+  if (users.find(u => u.username === username)) {
     return res.status(400).json({ error: "Username exists" });
+  }
 
-  const hashed = await bcrypt.hash(password, 10);
+  const hashed = bcrypt.hashSync(password, 10);
 
   users.push({
     id: Date.now(),
@@ -88,49 +133,79 @@ app.post("/api/users", auth, async (req, res) => {
     active: true
   });
 
-  saveUsers(users);
+  writeUsers(users);
+
   res.json({ success: true });
 });
 
-// ================= GET USERS BY ROLE =================
-app.get("/api/users", auth, (req, res) => {
 
-  const roleFilter = req.query.role;
+// ======================================================
+// UPDATE USER
+// ======================================================
+
+app.put("/api/users/:id", auth(["admin"]), (req, res) => {
+
+  const id = Number(req.params.id);
   const users = readUsers();
 
-  const filtered = roleFilter
-    ? users.filter(u => u.role === roleFilter)
-    : users;
+  const user = users.find(u => u.id === id);
+  if (!user) return res.status(404).json({ error: "Not found" });
 
-  res.json(filtered.map(u => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    role: u.role,
-    active: u.active
-  })));
+  if (req.body.name) user.name = req.body.name;
+  if (req.body.username) user.username = req.body.username;
+  if (req.body.active !== undefined) user.active = req.body.active;
+
+  writeUsers(users);
+
+  res.json({ success: true });
 });
 
-// ================= UPDATE PASSWORD =================
-app.put("/api/users/:id/password", auth, async (req, res) => {
 
-  if (req.user.role !== "admin")
-    return res.status(403).json({ error: "Only admin allowed" });
+// ======================================================
+// UPDATE PASSWORD
+// ======================================================
+
+app.put("/api/users/:id/password", auth(["admin"]), (req, res) => {
 
   const id = Number(req.params.id);
   const { password } = req.body;
 
+  if (!password) return res.status(400).json({ error: "No password" });
+
   const users = readUsers();
   const user = users.find(u => u.id === id);
+
   if (!user) return res.status(404).json({ error: "Not found" });
 
-  user.password = await bcrypt.hash(password, 10);
-  saveUsers(users);
+  user.password = bcrypt.hashSync(password, 10);
+
+  writeUsers(users);
 
   res.json({ success: true });
 });
 
-// ================= START =================
+
+// ======================================================
+// DELETE USER
+// ======================================================
+
+app.delete("/api/users/:id", auth(["admin"]), (req, res) => {
+
+  const id = Number(req.params.id);
+  let users = readUsers();
+
+  users = users.filter(u => u.id !== id);
+
+  writeUsers(users);
+
+  res.json({ success: true });
+});
+
+
+// ======================================================
+// START
+// ======================================================
+
 app.listen(PORT, () => {
-  console.log("Server running clean.");
+  console.log("Sunbeam server running on port", PORT);
 });
