@@ -1,80 +1,100 @@
-document.addEventListener("DOMContentLoaded", ()=>{
+document.addEventListener("DOMContentLoaded", () => {
 
-  const loggedCompany = JSON.parse(localStorage.getItem("loggedCompany"));
-  if(!loggedCompany){
-    location.href="company-login.html";
-    return;
-  }
+  const container = document.getElementById("layoutHeader");
+  if (!container) return;
 
-  /* ===============================
-     CREATE HEADER
-  ================================ */
-  const header = document.createElement("div");
-  header.className="company-header";
-
-  header.innerHTML = `
-    <div class="header-left">
-      <img src="/assets/logo.png" alt="Sunbeam Logo">
-      <div class="company-info">
-        <div class="company-name">${loggedCompany.name}</div>
-        <div class="company-time" id="azTime"></div>
+  container.innerHTML = `
+    <div class="header">
+      <div class="top-section">
+        <div>
+          <div class="logged-company" id="companyName">Loading...</div>
+          <div class="greeting" id="greetingText"></div>
+          <div class="clock" id="azDateTime"></div>
+        </div>
+        <img src="../assets/logo.png" class="logo">
       </div>
-    </div>
 
-    <div class="nav-links">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="add-trip.html">Add Trip</a>
-      <a href="review.html">Review</a>
-      <a href="summary.html">Summary</a>
-      <a href="payment.html">Payment</a>
-      <a href="taxes.html">Taxes</a>
-      <div class="logout-btn" onclick="logout()">Logout</div>
+      <div class="nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="add-trip.html">Add Trip</a>
+        <a href="review.html">Review</a>
+        <a href="summary.html">Summary</a>
+        <a href="taxes.html">Taxes</a>
+      </div>
     </div>
   `;
 
-  document.body.prepend(header);
-
   /* ===============================
-     ACTIVE PAGE HIGHLIGHT
-  ================================ */
-  const links = document.querySelectorAll(".nav-links a");
+     ACTIVE NAV LINK
+  =============================== */
   const currentPage = window.location.pathname.split("/").pop();
-
-  links.forEach(link=>{
-    if(link.getAttribute("href")===currentPage){
+  document.querySelectorAll(".nav a").forEach(link => {
+    if (link.getAttribute("href") === currentPage) {
       link.classList.add("active");
     }
   });
 
   /* ===============================
-     ARIZONA TIME
-  ================================ */
-  function updateAZTime(){
-    const now = new Date();
+     LOAD COMPANY NAME FROM SERVER
+  =============================== */
+  async function loadCompany() {
+    try {
 
-    const options = {
-      timeZone: "America/Phoenix",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    };
+      const res = await fetch("/api/company/me", {
+        credentials: "include"
+      });
 
-    const formatted = new Intl.DateTimeFormat("en-US", options).format(now);
-    document.getElementById("azTime").innerText = formatted + " (AZ)";
+      if (!res.ok) throw new Error("Not logged in");
+
+      const data = await res.json();
+
+      document.getElementById("companyName").innerText = data.name;
+
+    } catch (err) {
+
+      console.error("Company fetch error:", err);
+
+      // لو مش لوجين يرجعه للوجين
+      window.location.href = "login.html";
+    }
   }
 
-  updateAZTime();
-  setInterval(updateAZTime,1000);
+  /* ===============================
+     ARIZONA TIME + GREETING
+  =============================== */
+  function updateTime() {
+
+    const options = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+      timeZone: "America/Phoenix"
+    };
+
+    const now = new Date().toLocaleString("en-US", {
+      timeZone: "America/Phoenix"
+    });
+
+    const dateObj = new Date(now);
+    const hour = dateObj.getHours();
+
+    let greeting;
+    if (hour < 12) greeting = "Good Morning";
+    else if (hour < 18) greeting = "Good Afternoon";
+    else greeting = "Good Evening";
+
+    document.getElementById("greetingText").innerText = greeting;
+    document.getElementById("azDateTime").innerText =
+      dateObj.toLocaleString("en-US", options);
+  }
+
+  loadCompany();
+  updateTime();
+  setInterval(updateTime, 1000);
 
 });
-
-/* ===============================
-   LOGOUT
-================================ */
-function logout(){
-  localStorage.removeItem("loggedCompany");
-  location.href="company-login.html";
-}

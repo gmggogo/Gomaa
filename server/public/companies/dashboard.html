@@ -1,49 +1,159 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sunbeam Dashboard</title>
-  <link rel="stylesheet" href="layout.css">
+<meta charset="UTF-8">
+<title>SUNBEAM TRANSPORTATION – Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="layout.css">
+
+<style>
+
+/* ==============================
+   DASHBOARD STYLE
+============================== */
+
+.dashboard-wrapper{
+  max-width:1400px;
+  margin:auto;
+  padding:40px 20px;
+}
+
+.section-title{
+  font-size:22px;
+  font-weight:700;
+  color:#0f172a;
+  margin-bottom:25px;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:25px;
+}
+
+.card{
+  background:#fff;
+  padding:25px;
+  border-radius:14px;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+  transition:.3s;
+}
+
+.card:hover{
+  transform:translateY(-5px);
+}
+
+.card h3{
+  margin:0;
+  font-size:15px;
+  color:#475569;
+}
+
+.card p{
+  margin-top:15px;
+  font-size:30px;
+  font-weight:700;
+  color:#1e3a8a;
+}
+
+.refresh-btn{
+  margin-top:25px;
+  padding:10px 18px;
+  border:none;
+  border-radius:8px;
+  background:#1e3a8a;
+  color:#fff;
+  cursor:pointer;
+}
+
+.refresh-btn:hover{
+  background:#0f172a;
+}
+
+@media(max-width:768px){
+  .card p{
+    font-size:24px;
+  }
+}
+
+</style>
 </head>
+
 <body>
 
-<header class="topbar">
-  <div class="logo">
-    <img src="../assets/logo.png" alt="Sunbeam">
+<div id="layoutHeader"></div>
+
+<div class="dashboard-wrapper">
+
+  <div class="section-title">
+    Today’s Activity
   </div>
 
-  <!-- اسم الشركة من اللوجن -->
-  <div class="company-name" id="companyName"></div>
+  <div class="cards">
 
-  <div class="datetime">
-    <div id="greeting"></div>
-    <div id="clock"></div>
+    <div class="card">
+      <h3>Total Trips Today</h3>
+      <p id="totalTrips">0</p>
+    </div>
+
+    <div class="card">
+      <h3>Completed</h3>
+      <p id="completedTrips">0</p>
+    </div>
+
+    <div class="card">
+      <h3>No Show</h3>
+      <p id="noShowTrips">0</p>
+    </div>
+
+    <div class="card">
+      <h3>Cancelled</h3>
+      <p id="cancelledTrips">0</p>
+    </div>
+
   </div>
-</header>
 
-<div class="layout">
-
-<aside class="sidebar">
-  <h3>Company Panel</h3>
-
-  <a href="dashboard.html">Dashboard</a>
-  <a href="add-trip.html">Add Trip</a>
-  <a href="review.html">Review Trips</a>
-  <a href="summary.html">Summary</a>
-  <a href="taxes.html">Taxes</a>
-
-  <hr>
-
-  <a href="#" onclick="logout()" class="logout">Logout</a>
-</aside>
-
-  <main class="content">
-    <h1 id="welcomeTitle"></h1>
-    <p>Select an option from the sidebar to manage your transportation services.</p>
-  </main>
+  <button class="refresh-btn" onclick="loadTodayStats()">
+    Refresh
+  </button>
 
 </div>
 
 <script src="layout.js"></script>
+
+<script>
+
+/* ==============================
+   LOAD TODAY STATS FROM SERVER
+============================== */
+
+async function loadTodayStats(){
+
+  try {
+
+    const res = await fetch("/api/company/today-stats", {
+      credentials: "include"
+    });
+
+    if(!res.ok) throw new Error("Not authorized");
+
+    const data = await res.json();
+
+    document.getElementById("totalTrips").innerText     = data.total || 0;
+    document.getElementById("completedTrips").innerText = data.completed || 0;
+    document.getElementById("noShowTrips").innerText    = data.noShow || 0;
+    document.getElementById("cancelledTrips").innerText = data.cancelled || 0;
+
+  } catch(err) {
+    console.error("Dashboard error:", err);
+  }
+
+}
+
+loadTodayStats();
+
+</script>
+
 </body>
 </html>
