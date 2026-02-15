@@ -1,4 +1,5 @@
 async function login() {
+
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
 
@@ -8,30 +9,34 @@ async function login() {
   }
 
   try {
+
     const res = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
       alert("Wrong username or password");
       return;
     }
 
-    const data = await res.json();
-
-    // ✅ نخزن المستخدم باسمه الحقيقي
+    // ✅ نخزن زي القديم
     localStorage.setItem(
       "loggedUser",
       JSON.stringify({
-        name: data.name,        // الاسم من السيرفر
-        username: data.username,
+        name: data.name,
+        username: username,
         role: data.role
       })
     );
 
-    // توجيه حسب الدور
+    // ✅ نضيف التوكن عشان السيرفر الجديد
+    localStorage.setItem("token", data.token);
+
+    // توجيه حسب الدور (نفس القديم)
     if (data.role === "admin") {
       location.href = "/admin/dashboard.html";
     } 
