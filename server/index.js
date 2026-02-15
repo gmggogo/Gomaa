@@ -13,6 +13,9 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
+// ✅ يخدم كل ملفات الموقع من public
+app.use(express.static(path.join(__dirname, "public")));
+
 /* =========================
    DATA STORAGE (Render Safe)
 ========================= */
@@ -64,6 +67,13 @@ function auth(requiredRoles = []) {
     }
   };
 }
+
+/* =========================
+   ROOT ROUTE
+========================= */
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 /* =========================
    CREATE FIRST ADMIN
@@ -171,7 +181,7 @@ app.get("/api/admin/users",
 );
 
 /* =========================
-   SERVER START
+   START SERVER
 ========================= */
 app.listen(PORT, () => {
   console.log("🚀 Sunbeam Secure Server Running");
