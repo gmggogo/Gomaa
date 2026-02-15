@@ -103,6 +103,11 @@ tr:hover{
 
 <div class="dashboard-wrapper">
 
+  <!-- COMPANY NAME -->
+  <div class="section-title">
+    Welcome, <span id="companyName"></span>
+  </div>
+
   <!-- TODAY STATS -->
   <div class="section-title">Today's Activity</div>
 
@@ -167,15 +172,30 @@ tr:hover{
 <script>
 
 /* =================================
-   LOAD DASHBOARD DATA
+   LOAD DASHBOARD DATA (JWT)
 ================================= */
 
 async function loadDashboard(){
 
   try{
 
+    const token = localStorage.getItem("token");
+    const role  = localStorage.getItem("role");
+    const name  = localStorage.getItem("name");
+
+    if(!token || role !== "company"){
+      window.location.href = "company-login.html";
+      return;
+    }
+
+    // عرض اسم الشركة
+    document.getElementById("companyName").innerText = name || "";
+
     const res = await fetch("/api/company/dashboard", {
-      credentials:"include"
+      headers:{
+        "Authorization":"Bearer " + token,
+        "Content-Type":"application/json"
+      }
     });
 
     if(res.status === 401){

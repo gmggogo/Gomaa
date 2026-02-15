@@ -1,5 +1,5 @@
 // =========================
-// ADMIN USERS (SAFE VERSION)
+// ADMIN USERS (JWT VERSION)
 // =========================
 
 const API = "/api/admin/users";
@@ -12,14 +12,31 @@ const inputName = document.getElementById("inputName");
 const inputUsername = document.getElementById("inputUsername");
 const inputPassword = document.getElementById("inputPassword");
 
+// ✅ تأكد إن فيه توكن
 document.addEventListener("DOMContentLoaded", () => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Not authorized. Please login again.");
+    window.location.href = "login.html";
+    return;
+  }
+
   switchRole("company");
 });
 
 /* =========================
-   Fetch helper
+   Fetch helper (WITH TOKEN)
 ========================= */
 async function fetchJson(url, options = {}) {
+
+  const token = localStorage.getItem("token");
+
+  options.headers = {
+    "Content-Type": "application/json",
+    ...(token && { "Authorization": "Bearer " + token }),
+    ...options.headers
+  };
+
   const res = await fetch(url, options);
   const text = await res.text();
 
@@ -81,7 +98,7 @@ async function loadUsers() {
 }
 
 /* =========================
-   Add User (ONLY place for password)
+   Add User
 ========================= */
 async function addUser() {
   if (!inputName.value || !inputUsername.value || !inputPassword.value) {
@@ -92,13 +109,11 @@ async function addUser() {
   try {
     await fetchJson(API, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: inputName.value.trim(),
         username: inputUsername.value.trim(),
         password: inputPassword.value.trim(),
-        role: currentRole,
-        active: true
+        role: currentRole
       })
     });
 
@@ -107,6 +122,7 @@ async function addUser() {
     inputPassword.value = "";
 
     loadUsers();
+
   } catch (err) {
     alert("Add user failed:\n" + err.message);
   }
@@ -118,7 +134,7 @@ async function addUser() {
 function editRow(btn) {
   const row = btn.closest("tr");
   row.querySelectorAll("input").forEach((i, idx) => {
-    if (idx < 2) i.disabled = false; // name + username فقط
+    if (idx < 2) i.disabled = false;
   });
 
   btn.style.display = "none";
@@ -132,7 +148,6 @@ async function saveRow(btn, id) {
   try {
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: inputs[0].value.trim(),
         username: inputs[1].value.trim()
@@ -140,6 +155,7 @@ async function saveRow(btn, id) {
     });
 
     loadUsers();
+
   } catch (err) {
     alert("Save failed:\n" + err.message);
   }
@@ -152,11 +168,11 @@ async function toggleUser(id, active) {
   try {
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ active: !active })
     });
 
     loadUsers();
+
   } catch (err) {
     alert("Toggle failed:\n" + err.message);
   }
@@ -169,8 +185,12 @@ async function deleteUser(id) {
   if (!confirm("Delete this user?")) return;
 
   try {
-    await fetchJson(`${API}/${id}`, { method: "DELETE" });
+    await fetchJson(`${API}/${id}`, {
+      method: "DELETE"
+    });
+
     loadUsers();
+
   } catch (err) {
     alert("Delete failed:\n" + err.message);
   }
