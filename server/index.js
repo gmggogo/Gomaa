@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -81,10 +82,17 @@ app.get("/api/admin/users", (req, res) => {
   const role = req.query.role;
   const users = readUsers();
   const filtered = role ? users.filter(u => u.role === role) : users;
-  res.json(filtered);
+
+  res.json(filtered.map(u => ({
+    id: u.id,
+    name: u.name,
+    username: u.username,
+    role: u.role,
+    active: u.active
+  })));
 });
 
-app.post("/api/admin/users", (req, res) => {
+app.post("/api/admin/users", async (req, res) => {
   const { name, username, password, role } = req.body;
 
   if (!name || !username || !password || !role) {
@@ -97,11 +105,14 @@ app.post("/api/admin/users", (req, res) => {
     return res.status(400).json({ error: "Username already exists" });
   }
 
+  // 🔒 HASH PASSWORD
+  const hashedPassword = await bcrypt.hash(password, 10);
+
   const newUser = {
     id: Date.now(),
     name,
     username,
-    password,
+    password: hashedPassword,
     role,
     active: true
   };
@@ -135,17 +146,20 @@ app.delete("/api/admin/users/:id", (req, res) => {
 });
 
 /* =========================
-   LOGIN
+   LOGIN (COMPARE HASH)
 ========================= */
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   const users = readUsers();
 
   const user = users.find(
-    u => u.username === username && u.password === password && u.active
+    u => u.username === username && u.active
   );
 
   if (!user) return res.status(401).json({ success: false });
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.status(401).json({ success: false });
 
   res.json({
     success: true,
