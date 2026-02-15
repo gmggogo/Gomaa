@@ -1,35 +1,32 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const SECRET = "SUNBEAM_SUPER_SECRET_2026";
+const SECRET = "SUNBEAM_SECRET_KEY";
 
 app.use(express.json());
+app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
-const USERS_FILE = path.join(__dirname, "users.json");
+const usersPath = path.join(__dirname, "users.json");
 
-/* ===========================
-   HELPERS
-=========================== */
+// ===== Helpers =====
 function readUsers() {
-  return JSON.parse(fs.readFileSync(USERS_FILE));
+  return JSON.parse(fs.readFileSync(usersPath));
 }
 
 function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  fs.writeFileSync(usersPath, JSON.stringify(users, null, 2));
 }
 
-/* ===========================
-   AUTH MIDDLEWARE
-=========================== */
-function authMiddleware(req, res, next) {
-  const token = req.headers.authorization?.split(" ")[1];
-
+// ===== AUTH MIDDLEWARE =====
+function auth(req, res, next) {
+  const token = req.headers.authorization;
   if (!token) return res.status(401).json({ error: "No token" });
 
   try {
@@ -37,36 +34,31 @@ function authMiddleware(req, res, next) {
     req.user = decoded;
     next();
   } catch {
-    res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({ error: "Invalid token" });
   }
 }
 
-function roleCheck(role) {
+// ===== ROLE CHECK =====
+function requireRole(role) {
   return (req, res, next) => {
     if (req.user.role !== role)
-      return res.status(403).json({ error: "Access denied" });
+      return res.status(403).json({ error: "Forbidden" });
     next();
   };
 }
 
-/* ===========================
-   LOGIN
-=========================== */
+// ================= LOGIN =================
 app.post("/api/login", async (req, res) => {
 
   const { username, password } = req.body;
-  if (!username || !password)
-    return res.status(400).json({ error: "Missing data" });
-
   const users = readUsers();
+
   const user = users.find(u => u.username === username && u.active);
 
-  if (!user)
-    return res.status(401).json({ error: "Wrong username or password" });
+  if (!user) return res.status(401).json({ error: "Wrong credentials" });
 
   const match = await bcrypt.compare(password, user.password);
-  if (!match)
-    return res.status(401).json({ error: "Wrong username or password" });
+  if (!match) return res.status(401).json({ error: "Wrong credentials" });
 
   const token = jwt.sign(
     { id: user.id, role: user.role, name: user.name },
@@ -76,15 +68,13 @@ app.post("/api/login", async (req, res) => {
 
   res.json({
     token,
-    role: user.role,
-    name: user.name
+    name: user.name,
+    role: user.role
   });
 });
 
-/* ===========================
-   CREATE USER (ADMIN ONLY)
-=========================== */
-app.post("/api/users", authMiddleware, roleCheck("admin"), async (req, res) => {
+// ================= CREATE USER (ADMIN ONLY) =================
+app.post("/api/users", auth, requireRole("admin"), async (req, res) => {
 
   const { name, username, password, role } = req.body;
 
@@ -110,13 +100,11 @@ app.post("/api/users", authMiddleware, roleCheck("admin"), async (req, res) => {
   users.push(newUser);
   saveUsers(users);
 
-  res.json({ message: "User created" });
+  res.json({ success: true });
 });
 
-/* ===========================
-   GET USERS (ADMIN)
-=========================== */
-app.get("/api/users", authMiddleware, roleCheck("admin"), (req, res) => {
+// ================= GET USERS =================
+app.get("/api/users", auth, requireRole("admin"), (req, res) => {
   const users = readUsers();
   res.json(users.map(u => ({
     id: u.id,
@@ -127,16 +115,31 @@ app.get("/api/users", authMiddleware, roleCheck("admin"), (req, res) => {
   })));
 });
 
-/* ===========================
-   PROTECTED TEST ROUTE
-=========================== */
-app.get("/api/me", authMiddleware, (req, res) => {
-  res.json(req.user);
+// ================= DELETE USER =================
+app.delete("/api/users/:id", auth, requireRole("admin"), (req, res) => {
+  let users = readUsers();
+  users = users.filter(u => u.id != req.params.id);
+  saveUsers(users);
+  res.json({ success: true });
 });
 
-/* ===========================
-   START SERVER
-=========================== */
+// ================= UPDATE USER =================
+app.put("/api/users/:id", auth, requireRole("admin"), async (req, res) => {
+  const { name, role, password } = req.body;
+  let users = readUsers();
+
+  const user = users.find(u => u.id == req.params.id);
+  if (!user) return res.status(404).json({ error: "Not found" });
+
+  if (name) user.name = name;
+  if (role) user.role = role;
+  if (password) user.password = await bcrypt.hash(password, 10);
+
+  saveUsers(users);
+  res.json({ success: true });
+});
+
+// ================= SERVER START =================
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log("Sunbeam Server Running On Port " + PORT);
 });
