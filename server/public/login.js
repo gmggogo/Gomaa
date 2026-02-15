@@ -1,60 +1,67 @@
+// ======================================
+// LOGIN SYSTEM – CLEAN VERSION
+// ======================================
+
 async function login() {
 
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value.trim();
 
   if (!username || !password) {
-    alert("Enter username and password");
+    alert("Please enter username and password");
     return;
   }
 
   try {
 
-    const res = await fetch("/api/login", {
+    const response = await fetch("/api/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password
+      })
     });
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if (!res.ok) {
+    if (!response.ok) {
       alert("Wrong username or password");
       return;
     }
 
-    // ✅ نخزن زي القديم
-    localStorage.setItem(
-      "loggedUser",
-      JSON.stringify({
-        name: data.name,
-        username: username,
-        role: data.role
-      })
-    );
+    // ✅ نحفظ بيانات الدخول
+    localStorage.setItem("username", username);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("name", data.name);
 
-    // ✅ نضيف التوكن عشان السيرفر الجديد
-    localStorage.setItem("token", data.token);
+    // ======================================
+    // REDIRECT BY ROLE
+    // ======================================
 
-    // توجيه حسب الدور (نفس القديم)
     if (data.role === "admin") {
-      location.href = "/admin/dashboard.html";
-    } 
+      window.location.href = "/admin/dashboard.html";
+    }
     else if (data.role === "dispatcher") {
-      location.href = "/dispatcher/dashboard.html";
-    } 
+      window.location.href = "/dispatcher/dashboard.html";
+    }
     else if (data.role === "company") {
-      location.href = "/companies/dashboard.html";
-    } 
+      window.location.href = "/companies/dashboard.html";
+    }
     else if (data.role === "driver") {
-      location.href = "/driver/dashboard.html";
-    } 
+      window.location.href = "/driver/dashboard.html";
+    }
     else {
       alert("Unknown role");
     }
 
-  } catch (err) {
-    console.error(err);
-    alert("Login error");
+  } catch (error) {
+    console.error("Login error:", error);
+    alert("Server error. Try again.");
   }
 }

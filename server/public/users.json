@@ -3,7 +3,7 @@
     "id": 1,
     "name": "Main Admin",
     "username": "admin",
-    "password": "$2a$10$X9e5kP9Rj3M3gqZcXQdJ6eH1JrS5Zz0n3cR8vYlW1vLkP2qXbQ1nS",
+    "password": "1234",
     "role": "admin",
     "active": true
   }
