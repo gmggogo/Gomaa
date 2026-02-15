@@ -1,5 +1,5 @@
 // ======================================================
-// ADMIN USERS FULL VERSION – WITH PASSWORD CONTROL
+// USERS.JS – FINAL PROFESSIONAL VERSION (RBAC READY)
 // ======================================================
 
 const API = "/api/users";
@@ -14,13 +14,14 @@ const inputPassword = document.getElementById("inputPassword");
 
 
 // ======================================================
-// CHECK TOKEN
+// CHECK TOKEN ON LOAD
 // ======================================================
 document.addEventListener("DOMContentLoaded", () => {
 
   const token = localStorage.getItem("token");
+
   if (!token) {
-    alert("Please login again.");
+    alert("Session expired. Please login again.");
     window.location.href = "/login.html";
     return;
   }
@@ -30,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ======================================================
-// FETCH WITH TOKEN
+// FETCH WITH JWT
 // ======================================================
 async function fetchJson(url, options = {}) {
 
@@ -38,7 +39,7 @@ async function fetchJson(url, options = {}) {
 
   options.headers = {
     "Content-Type": "application/json",
-    ...(token && { "Authorization": "Bearer " + token }),
+    "Authorization": "Bearer " + token,
     ...options.headers
   };
 
@@ -64,14 +65,15 @@ function switchRole(role) {
   document.querySelectorAll(".sidebar button")
     .forEach(b => b.classList.remove("active"));
 
-  document.getElementById("btn-" + role).classList.add("active");
+  const btn = document.getElementById("btn-" + role);
+  if (btn) btn.classList.add("active");
 
   loadUsers();
 }
 
 
 // ======================================================
-// LOAD USERS
+// LOAD USERS (FILTER BY ROLE)
 // ======================================================
 async function loadUsers() {
 
@@ -89,7 +91,7 @@ async function loadUsers() {
         <td><input value="${u.name}" disabled></td>
         <td><input value="${u.username}" disabled></td>
         <td>
-          <input type="text" placeholder="Enter new password" disabled>
+          <input type="text" placeholder="New password" disabled>
         </td>
         <td>${u.active ? "Active" : "Disabled"}</td>
         <td>
@@ -162,7 +164,7 @@ function editRow(btn) {
 
 
 // ======================================================
-// SAVE USER (WITH PASSWORD UPDATE)
+// SAVE USER (UPDATE NAME + USERNAME + PASSWORD)
 // ======================================================
 async function saveRow(btn, id) {
 
@@ -175,7 +177,7 @@ async function saveRow(btn, id) {
 
   try {
 
-    // Update name + username
+    // 1️⃣ Update name + username
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
       body: JSON.stringify({
@@ -184,7 +186,7 @@ async function saveRow(btn, id) {
       })
     });
 
-    // If password entered → update password
+    // 2️⃣ Update password if entered
     if (newPassword) {
       await fetchJson(`${API}/${id}/password`, {
         method: "PUT",
