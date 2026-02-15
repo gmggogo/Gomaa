@@ -1,9 +1,8 @@
 // =========================
-// ADMIN USERS (JWT VERSION)
+// USERS (RBAC VERSION)
 // =========================
 
-const API = "/api/admin/users";
-let currentRole = "company";
+const API = "/api/users";
 
 const table = document.getElementById("usersTable");
 const title = document.getElementById("pageTitle");
@@ -12,7 +11,7 @@ const inputName = document.getElementById("inputName");
 const inputUsername = document.getElementById("inputUsername");
 const inputPassword = document.getElementById("inputPassword");
 
-// ✅ تأكد إن فيه توكن
+// تأكد إن فيه توكن
 document.addEventListener("DOMContentLoaded", () => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -21,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  switchRole("company");
+  loadUsers();
 });
 
 /* =========================
@@ -33,7 +32,7 @@ async function fetchJson(url, options = {}) {
 
   options.headers = {
     "Content-Type": "application/json",
-    ...(token && { "Authorization": "Bearer " + token }),
+    "Authorization": "Bearer " + token,
     ...options.headers
   };
 
@@ -48,36 +47,22 @@ async function fetchJson(url, options = {}) {
 }
 
 /* =========================
-   Switch Role
-========================= */
-function switchRole(role) {
-  currentRole = role;
-  title.innerText = role.toUpperCase() + " USERS";
-
-  document.querySelectorAll(".sidebar button")
-    .forEach(b => b.classList.remove("active"));
-
-  document.getElementById("btn-" + role).classList.add("active");
-
-  loadUsers();
-}
-
-/* =========================
    Load Users
 ========================= */
 async function loadUsers() {
   table.innerHTML = "";
 
   try {
-    const users = await fetchJson(`${API}?role=${currentRole}`);
+    const users = await fetchJson(API);
 
     users.forEach(u => {
+
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
         <td><input value="${u.name}" disabled></td>
         <td><input value="${u.username}" disabled></td>
-        <td><input type="password" value="********" disabled></td>
+        <td>${u.role}</td>
         <td>${u.active ? "Active" : "Disabled"}</td>
         <td>
           <button class="btn edit" onclick="editRow(this)">Edit</button>
@@ -101,19 +86,21 @@ async function loadUsers() {
    Add User
 ========================= */
 async function addUser() {
+
   if (!inputName.value || !inputUsername.value || !inputPassword.value) {
     alert("Fill all fields");
     return;
   }
 
   try {
+
     await fetchJson(API, {
       method: "POST",
       body: JSON.stringify({
         name: inputName.value.trim(),
         username: inputUsername.value.trim(),
         password: inputPassword.value.trim(),
-        role: currentRole
+        role: document.getElementById("roleSelect").value
       })
     });
 
@@ -129,12 +116,13 @@ async function addUser() {
 }
 
 /* =========================
-   Edit / Save (NO PASSWORD)
+   Edit / Save
 ========================= */
 function editRow(btn) {
   const row = btn.closest("tr");
-  row.querySelectorAll("input").forEach((i, idx) => {
-    if (idx < 2) i.disabled = false;
+
+  row.querySelectorAll("input").forEach(i => {
+    i.disabled = false;
   });
 
   btn.style.display = "none";
@@ -142,10 +130,12 @@ function editRow(btn) {
 }
 
 async function saveRow(btn, id) {
+
   const row = btn.closest("tr");
   const inputs = row.querySelectorAll("input");
 
   try {
+
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
       body: JSON.stringify({
@@ -165,7 +155,9 @@ async function saveRow(btn, id) {
    Enable / Disable
 ========================= */
 async function toggleUser(id, active) {
+
   try {
+
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
       body: JSON.stringify({ active: !active })
@@ -182,9 +174,11 @@ async function toggleUser(id, active) {
    Delete User
 ========================= */
 async function deleteUser(id) {
+
   if (!confirm("Delete this user?")) return;
 
   try {
+
     await fetchJson(`${API}/${id}`, {
       method: "DELETE"
     });

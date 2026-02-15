@@ -1,10 +1,1 @@
-[
-  {
-    "id": 1,
-    "name": "Admin",
-    "username": "admin",
-    "password": "$2b$10$vmJIuLot.MyDhPIryi9m4.1CqzI0REh5C5cRGMdW31CnSqueEAbKO",
-    "role": "admin",
-    "active": true
-  }
-]
+[]
