@@ -1,12 +1,8 @@
-// ======================================================
-// 1️⃣ LOAD ENV
-// ======================================================
+/********************************************************************
+  1️⃣  INITIAL SETUP
+********************************************************************/
 require("dotenv").config();
 
-
-// ======================================================
-// 2️⃣ IMPORTS
-// ======================================================
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
@@ -14,10 +10,6 @@ const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
 
-
-// ======================================================
-// 3️⃣ APP INIT
-// ======================================================
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -26,9 +18,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 
-// ======================================================
-// 4️⃣ DATABASE (Render Safe)
-// ======================================================
+/********************************************************************
+  2️⃣  DATABASE (Render Safe)
+********************************************************************/
 const DATA_DIR = "/var/data";
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -52,12 +44,19 @@ function saveUsers(users) {
 }
 
 
-// ======================================================
-// 5️⃣ AUTH MIDDLEWARE
-// ======================================================
+/********************************************************************
+  3️⃣  AUTH SYSTEM
+********************************************************************/
+function generateToken(user) {
+  return jwt.sign(
+    { id: user.id, role: user.role, name: user.name },
+    process.env.JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+}
+
 function auth(requiredRoles = []) {
   return (req, res, next) => {
-
     const header = req.headers.authorization;
     if (!header) return res.status(401).json({ error: "No token" });
 
@@ -66,29 +65,17 @@ function auth(requiredRoles = []) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      if (requiredRoles.length && !requiredRoles.includes(decoded.role)) {
+      if (requiredRoles.length &&
+          !requiredRoles.includes(decoded.role)) {
         return res.status(403).json({ error: "Access denied" });
       }
 
       req.user = decoded;
       next();
-
     } catch {
       return res.status(401).json({ error: "Invalid token" });
     }
   };
-}
-
-
-// ======================================================
-// 6️⃣ HELPERS
-// ======================================================
-function generateToken(user) {
-  return jwt.sign(
-    { id: user.id, role: user.role, name: user.name },
-    process.env.JWT_SECRET,
-    { expiresIn: "8h" }
-  );
 }
 
 function cleanUser(u) {
@@ -103,17 +90,17 @@ function cleanUser(u) {
 }
 
 
-// ======================================================
-// 7️⃣ ROOT
-// ======================================================
+/********************************************************************
+  4️⃣  ROOT
+********************************************************************/
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 
-// ======================================================
-// 8️⃣ SETUP FIRST ADMIN
-// ======================================================
+/********************************************************************
+  5️⃣  SETUP FIRST ADMIN
+********************************************************************/
 app.post("/api/setup-admin", async (req, res) => {
 
   const users = readUsers();
@@ -138,24 +125,30 @@ app.post("/api/setup-admin", async (req, res) => {
   });
 
   saveUsers(users);
-
   res.json({ success: true });
 });
 
 
-// ======================================================
-// 9️⃣ LOGIN
-// ======================================================
+/********************************************************************
+  6️⃣  LOGIN
+********************************************************************/
 app.post("/api/login", async (req, res) => {
 
   const { username, password } = req.body;
   const users = readUsers();
 
-  const user = users.find(u => u.username === username && u.active);
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
+  const user = users.find(
+    u => u.username === username && u.active
+  );
+
+  if (!user) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
 
   const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ error: "Invalid credentials" });
+  if (!match) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
 
   const token = generateToken(user);
 
@@ -167,9 +160,9 @@ app.post("/api/login", async (req, res) => {
 });
 
 
-// ======================================================
-// 🔟 CREATE USER
-// ======================================================
+/********************************************************************
+  7️⃣  CREATE USER
+********************************************************************/
 app.post("/api/users",
   auth(["admin", "company"]),
   async (req, res) => {
@@ -181,12 +174,14 @@ app.post("/api/users",
     }
 
     const users = readUsers();
+
     if (users.find(u => u.username === username)) {
       return res.status(400).json({ error: "Username exists" });
     }
 
+    // Company cannot create admin
     if (req.user.role === "company" && role === "admin") {
-      return res.status(403).json({ error: "Company cannot create admin" });
+      return res.status(403).json({ error: "Not allowed" });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -200,6 +195,7 @@ app.post("/api/users",
       active: true
     };
 
+    // If company creates user → link to company
     if (req.user.role === "company") {
       newUser.companyId = req.user.id;
     }
@@ -208,124 +204,93 @@ app.post("/api/users",
     saveUsers(users);
 
     res.json({ success: true });
-  }
-);
+});
 
 
-// ======================================================
-// 1️⃣1️⃣ GET USERS (WITH ROLE FILTER)
-// ======================================================
+/********************************************************************
+  8️⃣  GET USERS (ROLE BASED)
+********************************************************************/
 app.get("/api/users",
   auth(["admin", "company"]),
   (req, res) => {
 
     const users = readUsers();
-    const roleFilter = req.query.role;
 
-    // ADMIN
     if (req.user.role === "admin") {
-
-      let result = users;
-
-      if (roleFilter) {
-        result = users.filter(u => u.role === roleFilter);
-      }
-
-      return res.json(result.map(cleanUser));
+      return res.json(users.map(cleanUser));
     }
 
-    // COMPANY
     if (req.user.role === "company") {
-
-      let result = users.filter(
+      const filtered = users.filter(
         u => u.companyId === req.user.id
       );
-
-      if (roleFilter) {
-        result = result.filter(u => u.role === roleFilter);
-      }
-
-      return res.json(result.map(cleanUser));
+      return res.json(filtered.map(cleanUser));
     }
-  }
-);
+});
 
 
-// ======================================================
-// 1️⃣2️⃣ UPDATE USER
-// ======================================================
+/********************************************************************
+  9️⃣  UPDATE USER
+********************************************************************/
 app.put("/api/users/:id",
   auth(["admin", "company"]),
-  (req, res) => {
+  async (req, res) => {
 
     const id = Number(req.params.id);
     const users = readUsers();
     const user = users.find(u => u.id === id);
 
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-    if (req.user.role === "company" && user.companyId !== req.user.id) {
+    // Company cannot edit outside users
+    if (req.user.role === "company" &&
+        user.companyId !== req.user.id) {
       return res.status(403).json({ error: "Not allowed" });
     }
 
     if (req.body.name) user.name = req.body.name;
     if (req.body.username) user.username = req.body.username;
-    if (typeof req.body.active === "boolean") user.active = req.body.active;
 
-    saveUsers(users);
-    res.json({ success: true });
-  }
-);
-
-
-// ======================================================
-// 1️⃣3️⃣ UPDATE PASSWORD
-// ======================================================
-app.put("/api/users/:id/password",
-  auth(["admin", "company"]),
-  async (req, res) => {
-
-    const id = Number(req.params.id);
-    const { password } = req.body;
-
-    if (!password) return res.status(400).json({ error: "Missing password" });
-
-    const users = readUsers();
-    const user = users.find(u => u.id === id);
-
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    if (req.user.role === "company" && user.companyId !== req.user.id) {
-      return res.status(403).json({ error: "Not allowed" });
+    // ✅ PASSWORD UPDATE (FIXED)
+    if (req.body.password &&
+        req.body.password.trim() !== "") {
+      user.password = await bcrypt.hash(req.body.password, 10);
     }
 
-    const hashed = await bcrypt.hash(password, 10);
-    user.password = hashed;
+    if (typeof req.body.active === "boolean") {
+      user.active = req.body.active;
+    }
 
     saveUsers(users);
     res.json({ success: true });
-  }
-);
+});
 
 
-// ======================================================
-// 1️⃣4️⃣ DELETE USER
-// ======================================================
+/********************************************************************
+  🔟  DELETE USER
+********************************************************************/
 app.delete("/api/users/:id",
   auth(["admin", "company"]),
   (req, res) => {
 
     const id = Number(req.params.id);
     let users = readUsers();
-
     const user = users.find(u => u.id === id);
-    if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (user.role === "admin" && req.user.id !== user.id) {
-      return res.status(403).json({ error: "Cannot delete another admin" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    if (req.user.role === "company" && user.companyId !== req.user.id) {
+    // Cannot delete another admin
+    if (user.role === "admin" &&
+        req.user.id !== user.id) {
+      return res.status(403).json({ error: "Cannot delete admin" });
+    }
+
+    if (req.user.role === "company" &&
+        user.companyId !== req.user.id) {
       return res.status(403).json({ error: "Not allowed" });
     }
 
@@ -333,13 +298,48 @@ app.delete("/api/users/:id",
     saveUsers(users);
 
     res.json({ success: true });
-  }
-);
+});
 
 
-// ======================================================
-// 1️⃣5️⃣ START SERVER
-// ======================================================
+/********************************************************************
+  1️⃣1️⃣  DISPATCHER PROFILE
+********************************************************************/
+app.get("/api/dispatcher/me",
+  auth(["dispatcher"]),
+  (req, res) => {
+
+    const users = readUsers();
+    const user = users.find(u => u.id === req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    res.json(cleanUser(user));
+});
+
+
+/********************************************************************
+  1️⃣2️⃣  DRIVER PROFILE
+********************************************************************/
+app.get("/api/driver/me",
+  auth(["driver"]),
+  (req, res) => {
+
+    const users = readUsers();
+    const user = users.find(u => u.id === req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    res.json(cleanUser(user));
+});
+
+
+/********************************************************************
+  1️⃣3️⃣  START SERVER
+********************************************************************/
 app.listen(PORT, () => {
-  console.log("🚀 Sunbeam FULL RBAC Server Running");
+  console.log("🚀 Sunbeam RBAC Server Running");
 });
