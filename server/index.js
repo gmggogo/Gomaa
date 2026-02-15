@@ -1,5 +1,12 @@
+// ======================================================
+// 1️⃣ LOAD ENV
+// ======================================================
 require("dotenv").config();
 
+
+// ======================================================
+// 2️⃣ IMPORTS
+// ======================================================
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
@@ -7,6 +14,10 @@ const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
 
+
+// ======================================================
+// 3️⃣ APP INIT
+// ======================================================
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -14,11 +25,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-/* =========================
-   DATABASE
-========================= */
+
+// ======================================================
+// 4️⃣ DATABASE (Render Safe)
+// ======================================================
 const DATA_DIR = "/var/data";
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const USERS_DB = path.join(DATA_DIR, "users.json");
 
@@ -27,19 +41,23 @@ function ensureUsersDB() {
     fs.writeFileSync(USERS_DB, JSON.stringify([]));
   }
 }
+
 function readUsers() {
   ensureUsersDB();
   return JSON.parse(fs.readFileSync(USERS_DB));
 }
+
 function saveUsers(users) {
   fs.writeFileSync(USERS_DB, JSON.stringify(users, null, 2));
 }
 
-/* =========================
-   AUTH
-========================= */
+
+// ======================================================
+// 5️⃣ AUTH MIDDLEWARE
+// ======================================================
 function auth(requiredRoles = []) {
   return (req, res, next) => {
+
     const header = req.headers.authorization;
     if (!header) return res.status(401).json({ error: "No token" });
 
@@ -54,12 +72,17 @@ function auth(requiredRoles = []) {
 
       req.user = decoded;
       next();
+
     } catch {
       return res.status(401).json({ error: "Invalid token" });
     }
   };
 }
 
+
+// ======================================================
+// 6️⃣ HELPERS
+// ======================================================
 function generateToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role, name: user.name },
@@ -79,17 +102,20 @@ function cleanUser(u) {
   };
 }
 
-/* =========================
-   ROOT
-========================= */
+
+// ======================================================
+// 7️⃣ ROOT
+// ======================================================
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-/* =========================
-   SETUP FIRST ADMIN
-========================= */
+
+// ======================================================
+// 8️⃣ SETUP FIRST ADMIN
+// ======================================================
 app.post("/api/setup-admin", async (req, res) => {
+
   const users = readUsers();
   if (users.find(u => u.role === "admin")) {
     return res.status(400).json({ error: "Admin already exists" });
@@ -112,13 +138,16 @@ app.post("/api/setup-admin", async (req, res) => {
   });
 
   saveUsers(users);
+
   res.json({ success: true });
 });
 
-/* =========================
-   LOGIN
-========================= */
+
+// ======================================================
+// 9️⃣ LOGIN
+// ======================================================
 app.post("/api/login", async (req, res) => {
+
   const { username, password } = req.body;
   const users = readUsers();
 
@@ -129,17 +158,24 @@ app.post("/api/login", async (req, res) => {
   if (!match) return res.status(401).json({ error: "Invalid credentials" });
 
   const token = generateToken(user);
-  res.json({ token, role: user.role, name: user.name });
+
+  res.json({
+    token,
+    role: user.role,
+    name: user.name
+  });
 });
 
-/* =========================
-   CREATE USER
-========================= */
+
+// ======================================================
+// 🔟 CREATE USER
+// ======================================================
 app.post("/api/users",
   auth(["admin", "company"]),
   async (req, res) => {
 
     const { name, username, password, role } = req.body;
+
     if (!name || !username || !password || !role) {
       return res.status(400).json({ error: "Missing fields" });
     }
@@ -175,59 +211,49 @@ app.post("/api/users",
   }
 );
 
-/* =========================
-   GET USERS
-========================= */
+
+// ======================================================
+// 1️⃣1️⃣ GET USERS (WITH ROLE FILTER)
+// ======================================================
 app.get("/api/users",
   auth(["admin", "company"]),
   (req, res) => {
 
     const users = readUsers();
+    const roleFilter = req.query.role;
 
+    // ADMIN
     if (req.user.role === "admin") {
-      return res.json(users.map(cleanUser));
+
+      let result = users;
+
+      if (roleFilter) {
+        result = users.filter(u => u.role === roleFilter);
+      }
+
+      return res.json(result.map(cleanUser));
     }
 
+    // COMPANY
     if (req.user.role === "company") {
-      const filtered = users.filter(
+
+      let result = users.filter(
         u => u.companyId === req.user.id
       );
-      return res.json(filtered.map(cleanUser));
+
+      if (roleFilter) {
+        result = result.filter(u => u.role === roleFilter);
+      }
+
+      return res.json(result.map(cleanUser));
     }
   }
 );
 
-/* =========================
-   DISPATCHER PROFILE
-========================= */
-app.get("/api/dispatcher/me",
-  auth(["dispatcher"]),
-  (req, res) => {
 
-    const users = readUsers();
-    const user = users.find(u => u.id === req.user.id);
-    if (!user) return res.status(404).json({ error: "Not found" });
-
-    res.json(cleanUser(user));
-});
-
-/* =========================
-   DRIVER PROFILE
-========================= */
-app.get("/api/driver/me",
-  auth(["driver"]),
-  (req, res) => {
-
-    const users = readUsers();
-    const user = users.find(u => u.id === req.user.id);
-    if (!user) return res.status(404).json({ error: "Not found" });
-
-    res.json(cleanUser(user));
-});
-
-/* =========================
-   UPDATE USER
-========================= */
+// ======================================================
+// 1️⃣2️⃣ UPDATE USER
+// ======================================================
 app.put("/api/users/:id",
   auth(["admin", "company"]),
   (req, res) => {
@@ -242,10 +268,6 @@ app.put("/api/users/:id",
       return res.status(403).json({ error: "Not allowed" });
     }
 
-    if (req.body.role) {
-      return res.status(403).json({ error: "Role cannot be changed" });
-    }
-
     if (req.body.name) user.name = req.body.name;
     if (req.body.username) user.username = req.body.username;
     if (typeof req.body.active === "boolean") user.active = req.body.active;
@@ -255,17 +277,48 @@ app.put("/api/users/:id",
   }
 );
 
-/* =========================
-   DELETE USER
-========================= */
+
+// ======================================================
+// 1️⃣3️⃣ UPDATE PASSWORD
+// ======================================================
+app.put("/api/users/:id/password",
+  auth(["admin", "company"]),
+  async (req, res) => {
+
+    const id = Number(req.params.id);
+    const { password } = req.body;
+
+    if (!password) return res.status(400).json({ error: "Missing password" });
+
+    const users = readUsers();
+    const user = users.find(u => u.id === id);
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (req.user.role === "company" && user.companyId !== req.user.id) {
+      return res.status(403).json({ error: "Not allowed" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    user.password = hashed;
+
+    saveUsers(users);
+    res.json({ success: true });
+  }
+);
+
+
+// ======================================================
+// 1️⃣4️⃣ DELETE USER
+// ======================================================
 app.delete("/api/users/:id",
   auth(["admin", "company"]),
   (req, res) => {
 
     const id = Number(req.params.id);
     let users = readUsers();
-    const user = users.find(u => u.id === id);
 
+    const user = users.find(u => u.id === id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
     if (user.role === "admin" && req.user.id !== user.id) {
@@ -283,9 +336,10 @@ app.delete("/api/users/:id",
   }
 );
 
-/* =========================
-   START SERVER
-========================= */
+
+// ======================================================
+// 1️⃣5️⃣ START SERVER
+// ======================================================
 app.listen(PORT, () => {
-  console.log("🚀 Sunbeam Professional RBAC Server Running");
+  console.log("🚀 Sunbeam FULL RBAC Server Running");
 });

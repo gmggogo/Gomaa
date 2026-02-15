@@ -1,8 +1,8 @@
-// =========================
-// ADMIN USERS FULL VERSION
-// =========================
+// ======================================================
+// ADMIN USERS FULL VERSION – WITH PASSWORD CONTROL
+// ======================================================
 
-const API = "/api/admin/users";
+const API = "/api/users";
 let currentRole = "company";
 
 const table = document.getElementById("usersTable");
@@ -12,10 +12,12 @@ const inputName = document.getElementById("inputName");
 const inputUsername = document.getElementById("inputUsername");
 const inputPassword = document.getElementById("inputPassword");
 
-// =========================
+
+// ======================================================
 // CHECK TOKEN
-// =========================
+// ======================================================
 document.addEventListener("DOMContentLoaded", () => {
+
   const token = localStorage.getItem("token");
   if (!token) {
     alert("Please login again.");
@@ -26,9 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
   switchRole("company");
 });
 
-// =========================
+
+// ======================================================
 // FETCH WITH TOKEN
-// =========================
+// ======================================================
 async function fetchJson(url, options = {}) {
 
   const token = localStorage.getItem("token");
@@ -49,9 +52,10 @@ async function fetchJson(url, options = {}) {
   return text ? JSON.parse(text) : {};
 }
 
-// =========================
+
+// ======================================================
 // SWITCH ROLE
-// =========================
+// ======================================================
 function switchRole(role) {
 
   currentRole = role;
@@ -65,50 +69,51 @@ function switchRole(role) {
   loadUsers();
 }
 
-// =========================
+
+// ======================================================
 // LOAD USERS
-// =========================
+// ======================================================
 async function loadUsers() {
 
   table.innerHTML = "";
 
   try {
 
-    const users = await fetchJson(API);
+    const users = await fetchJson(`${API}?role=${currentRole}`);
 
-    users
-      .filter(u => u.role === currentRole)
-      .forEach(u => {
+    users.forEach(u => {
 
-        const tr = document.createElement("tr");
+      const tr = document.createElement("tr");
 
-        tr.innerHTML = `
-          <td><input value="${u.name}" disabled></td>
-          <td><input value="${u.username}" disabled></td>
-          <td>********</td>
-          <td>${u.active ? "Active" : "Disabled"}</td>
-          <td>
-            <button class="btn edit" onclick="editRow(this)">Edit</button>
-            <button class="btn save" style="display:none" onclick="saveRow(this, ${u.id})">Save</button>
-            <button class="btn toggle" onclick="toggleUser(${u.id}, ${u.active})">
-              ${u.active ? "Disable" : "Enable"}
-            </button>
-            <button class="btn delete" onclick="deleteUser(${u.id})">Delete</button>
-            <button class="btn" onclick="changePassword(${u.id})">Change Password</button>
-          </td>
-        `;
+      tr.innerHTML = `
+        <td><input value="${u.name}" disabled></td>
+        <td><input value="${u.username}" disabled></td>
+        <td>
+          <input type="text" placeholder="Enter new password" disabled>
+        </td>
+        <td>${u.active ? "Active" : "Disabled"}</td>
+        <td>
+          <button class="btn edit" onclick="editRow(this)">Edit</button>
+          <button class="btn save" style="display:none" onclick="saveRow(this, ${u.id})">Save</button>
+          <button class="btn toggle" onclick="toggleUser(${u.id}, ${u.active})">
+            ${u.active ? "Disable" : "Enable"}
+          </button>
+          <button class="btn delete" onclick="deleteUser(${u.id})">Delete</button>
+        </td>
+      `;
 
-        table.appendChild(tr);
-      });
+      table.appendChild(tr);
+    });
 
   } catch (err) {
     alert("Load failed:\n" + err.message);
   }
 }
 
-// =========================
+
+// ======================================================
 // ADD USER
-// =========================
+// ======================================================
 async function addUser() {
 
   if (!inputName.value || !inputUsername.value || !inputPassword.value) {
@@ -139,35 +144,55 @@ async function addUser() {
   }
 }
 
-// =========================
-// EDIT
-// =========================
+
+// ======================================================
+// EDIT MODE
+// ======================================================
 function editRow(btn) {
 
   const row = btn.closest("tr");
-  row.querySelectorAll("input").forEach(i => i.disabled = false);
+
+  row.querySelectorAll("input").forEach(i => {
+    i.disabled = false;
+  });
 
   btn.style.display = "none";
   btn.nextElementSibling.style.display = "inline-block";
 }
 
-// =========================
-// SAVE
-// =========================
+
+// ======================================================
+// SAVE USER (WITH PASSWORD UPDATE)
+// ======================================================
 async function saveRow(btn, id) {
 
   const row = btn.closest("tr");
   const inputs = row.querySelectorAll("input");
 
+  const newName = inputs[0].value.trim();
+  const newUsername = inputs[1].value.trim();
+  const newPassword = inputs[2].value.trim();
+
   try {
 
+    // Update name + username
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
       body: JSON.stringify({
-        name: inputs[0].value.trim(),
-        username: inputs[1].value.trim()
+        name: newName,
+        username: newUsername
       })
     });
+
+    // If password entered → update password
+    if (newPassword) {
+      await fetchJson(`${API}/${id}/password`, {
+        method: "PUT",
+        body: JSON.stringify({
+          password: newPassword
+        })
+      });
+    }
 
     loadUsers();
 
@@ -176,16 +201,19 @@ async function saveRow(btn, id) {
   }
 }
 
-// =========================
+
+// ======================================================
 // ENABLE / DISABLE
-// =========================
+// ======================================================
 async function toggleUser(id, active) {
 
   try {
 
     await fetchJson(`${API}/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ active: !active })
+      body: JSON.stringify({
+        active: !active
+      })
     });
 
     loadUsers();
@@ -195,9 +223,10 @@ async function toggleUser(id, active) {
   }
 }
 
-// =========================
-// DELETE
-// =========================
+
+// ======================================================
+// DELETE USER
+// ======================================================
 async function deleteUser(id) {
 
   if (!confirm("Delete this user?")) return;
@@ -212,27 +241,5 @@ async function deleteUser(id) {
 
   } catch (err) {
     alert("Delete failed:\n" + err.message);
-  }
-}
-
-// =========================
-// CHANGE PASSWORD
-// =========================
-async function changePassword(id) {
-
-  const newPass = prompt("Enter new password:");
-  if (!newPass) return;
-
-  try {
-
-    await fetchJson(`${API}/${id}/password`, {
-      method: "PUT",
-      body: JSON.stringify({ password: newPass })
-    });
-
-    alert("Password updated");
-
-  } catch (err) {
-    alert("Password change failed:\n" + err.message);
   }
 }
