@@ -1,132 +1,163 @@
-// ===========================================
-// SIMPLE WORKING AUTH SYSTEM – NO TOKENS
-// ===========================================
+// ============================================
+// SUNBEAM AUTH SERVER – CLEAN VERSION
+// ============================================
 
 const express = require("express");
-const fs = require("fs");
+const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+const SECRET = "sunbeam_secret_key_2026";
+
+app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
+
+
+// ============================================
+// USERS FILE (خارج public)
+// ============================================
 
 const USERS_FILE = path.join(__dirname, "users.json");
 
-// ===========================================
-// READ USERS
-// ===========================================
 function readUsers() {
   if (!fs.existsSync(USERS_FILE)) {
-    fs.writeFileSync(USERS_FILE, "[]");
+    fs.writeFileSync(USERS_FILE, JSON.stringify([]));
   }
   return JSON.parse(fs.readFileSync(USERS_FILE));
 }
 
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+function saveUsers(data) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
 }
 
-// ===========================================
+
+// ============================================
 // LOGIN
-// ===========================================
-app.post("/api/login", (req, res) => {
+// ============================================
+
+app.post("/api/login", async (req, res) => {
 
   const { username, password } = req.body;
   const users = readUsers();
 
-  const user = users.find(
-    u =>
-      u.username === username &&
-      u.password === password &&
-      u.active === true
-  );
+  const user = users.find(u => u.username === username && u.active);
 
   if (!user) {
     return res.status(401).json({ error: "Wrong username or password" });
   }
 
+  const match = await bcrypt.compare(password, user.password);
+
+  if (!match) {
+    return res.status(401).json({ error: "Wrong username or password" });
+  }
+
+  const token = jwt.sign(
+    { id: user.id, role: user.role, name: user.name },
+    SECRET,
+    { expiresIn: "8h" }
+  );
+
   res.json({
-    name: user.name,
-    role: user.role
+    token,
+    role: user.role,
+    name: user.name
   });
 });
 
-// ===========================================
-// GET USERS BY ROLE
-// ===========================================
-app.get("/api/users", (req, res) => {
 
-  const role = req.query.role;
-  const users = readUsers();
+// ============================================
+// AUTH MIDDLEWARE
+// ============================================
 
-  const filtered = users.filter(u => u.role === role);
+function auth(requiredRole) {
+  return (req, res, next) => {
 
-  res.json(filtered);
-});
+    const header = req.headers.authorization;
+    if (!header) return res.status(401).json({ error: "No token" });
 
-// ===========================================
-// ADD USER
-// ===========================================
-app.post("/api/users", (req, res) => {
+    const token = header.split(" ")[1];
+
+    try {
+      const decoded = jwt.verify(token, SECRET);
+
+      if (requiredRole && decoded.role !== requiredRole) {
+        return res.status(403).json({ error: "Not allowed" });
+      }
+
+      req.user = decoded;
+      next();
+
+    } catch {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+  };
+}
+
+
+// ============================================
+// CREATE USER (ADMIN ONLY)
+// ============================================
+
+app.post("/api/users", auth("admin"), async (req, res) => {
 
   const { name, username, password, role } = req.body;
+
+  if (!name || !username || !password || !role) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
   const users = readUsers();
 
   if (users.find(u => u.username === username)) {
     return res.status(400).json({ error: "Username exists" });
   }
 
-  const newUser = {
+  const hashed = await bcrypt.hash(password, 10);
+
+  users.push({
     id: Date.now(),
     name,
     username,
-    password,
+    password: hashed,
     role,
     active: true
-  };
+  });
 
-  users.push(newUser);
   saveUsers(users);
 
   res.json({ success: true });
 });
 
-// ===========================================
-// UPDATE USER
-// ===========================================
-app.put("/api/users/:id", (req, res) => {
 
+// ============================================
+// GET USERS (ADMIN ONLY)
+// ============================================
+
+app.get("/api/users", auth("admin"), (req, res) => {
   const users = readUsers();
-  const id = parseInt(req.params.id);
 
-  const user = users.find(u => u.id === id);
-  if (!user) return res.status(404).json({ error: "Not found" });
+  const safe = users.map(u => ({
+    id: u.id,
+    name: u.name,
+    username: u.username,
+    role: u.role,
+    active: u.active
+  }));
 
-  user.name = req.body.name ?? user.name;
-  user.username = req.body.username ?? user.username;
-  user.password = req.body.password ?? user.password;
-  user.active = req.body.active ?? user.active;
-
-  saveUsers(users);
-
-  res.json({ success: true });
+  res.json(safe);
 });
 
-// ===========================================
-// DELETE USER
-// ===========================================
-app.delete("/api/users/:id", (req, res) => {
 
-  let users = readUsers();
-  const id = parseInt(req.params.id);
+// ============================================
+// START
+// ============================================
 
-  users = users.filter(u => u.id !== id);
-  saveUsers(users);
-
-  res.json({ success: true });
-});
-
-// ===========================================
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(PORT, () => {
+  console.log("🚀 Sunbeam Server Running Clean");
 });

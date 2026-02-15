@@ -1,67 +1,48 @@
-// ======================================
-// LOGIN SYSTEM – CLEAN VERSION
-// ======================================
-
 async function login() {
 
-  const usernameInput = document.getElementById("username");
-  const passwordInput = document.getElementById("password");
-
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value.trim();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
 
   if (!username || !password) {
-    alert("Please enter username and password");
+    alert("Enter username and password");
     return;
   }
 
   try {
 
-    const response = await fetch("/api/login", {
+    const res = await fetch("/api/login", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        username: username,
-        password: password
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
     });
 
-    const data = await response.json();
+    const data = await res.json();
 
-    if (!response.ok) {
-      alert("Wrong username or password");
+    if (!res.ok) {
+      alert(data.error || "Login failed");
       return;
     }
 
-    // ✅ نحفظ بيانات الدخول
-    localStorage.setItem("username", username);
+    localStorage.clear();
+
+    localStorage.setItem("token", data.token);
     localStorage.setItem("role", data.role);
     localStorage.setItem("name", data.name);
 
-    // ======================================
-    // REDIRECT BY ROLE
-    // ======================================
-
     if (data.role === "admin") {
-      window.location.href = "/admin/dashboard.html";
+      location.href = "/admin/dashboard.html";
     }
     else if (data.role === "dispatcher") {
-      window.location.href = "/dispatcher/dashboard.html";
+      location.href = "/dispatcher/dashboard.html";
     }
     else if (data.role === "company") {
-      window.location.href = "/companies/dashboard.html";
+      location.href = "/companies/dashboard.html";
     }
     else if (data.role === "driver") {
-      window.location.href = "/driver/dashboard.html";
-    }
-    else {
-      alert("Unknown role");
+      location.href = "/driver/dashboard.html";
     }
 
-  } catch (error) {
-    console.error("Login error:", error);
-    alert("Server error. Try again.");
+  } catch (err) {
+    alert("Server error");
   }
 }
