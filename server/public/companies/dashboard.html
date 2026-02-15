@@ -9,12 +9,12 @@
 
 <style>
 
-/* ==============================
+/* ===============================
    DASHBOARD STYLE
-============================== */
+=============================== */
 
 .dashboard-wrapper{
-  max-width:1400px;
+  max-width:1500px;
   margin:auto;
   padding:40px 20px;
 }
@@ -57,23 +57,40 @@
   color:#1e3a8a;
 }
 
-.refresh-btn{
-  margin-top:25px;
-  padding:10px 18px;
-  border:none;
-  border-radius:8px;
-  background:#1e3a8a;
-  color:#fff;
-  cursor:pointer;
+/* TABLE */
+
+.table-section{
+  margin-top:50px;
 }
 
-.refresh-btn:hover{
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+}
+
+th,td{
+  padding:12px;
+  font-size:13px;
+  border-bottom:1px solid #eee;
+  text-align:left;
+}
+
+th{
   background:#0f172a;
+  color:#fff;
+}
+
+tr:hover{
+  background:#f9fafb;
 }
 
 @media(max-width:768px){
   .card p{
-    font-size:24px;
+    font-size:22px;
   }
 }
 
@@ -86,14 +103,13 @@
 
 <div class="dashboard-wrapper">
 
-  <div class="section-title">
-    Today’s Activity
-  </div>
+  <!-- TODAY STATS -->
+  <div class="section-title">Today's Activity</div>
 
   <div class="cards">
 
     <div class="card">
-      <h3>Total Trips Today</h3>
+      <h3>Total Today</h3>
       <p id="totalTrips">0</p>
     </div>
 
@@ -114,9 +130,35 @@
 
   </div>
 
-  <button class="refresh-btn" onclick="loadTodayStats()">
-    Refresh
-  </button>
+  <!-- MONTH STATS -->
+  <div class="section-title" style="margin-top:60px;">This Month</div>
+
+  <div class="cards">
+
+    <div class="card">
+      <h3>Total Trips</h3>
+      <p id="monthTrips">0</p>
+    </div>
+
+  </div>
+
+  <!-- LAST 5 TRIPS -->
+  <div class="table-section">
+    <div class="section-title">Last 5 Trips</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Pickup</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="lastTripsBody">
+      </tbody>
+    </table>
+
+  </div>
 
 </div>
 
@@ -124,34 +166,59 @@
 
 <script>
 
-/* ==============================
-   LOAD TODAY STATS FROM SERVER
-============================== */
+/* =================================
+   LOAD DASHBOARD DATA
+================================= */
 
-async function loadTodayStats(){
+async function loadDashboard(){
 
-  try {
+  try{
 
-    const res = await fetch("/api/company/today-stats", {
-      credentials: "include"
+    const res = await fetch("/api/company/dashboard", {
+      credentials:"include"
     });
 
-    if(!res.ok) throw new Error("Not authorized");
+    if(res.status === 401){
+      window.location.href = "company-login.html";
+      return;
+    }
 
     const data = await res.json();
 
-    document.getElementById("totalTrips").innerText     = data.total || 0;
-    document.getElementById("completedTrips").innerText = data.completed || 0;
-    document.getElementById("noShowTrips").innerText    = data.noShow || 0;
-    document.getElementById("cancelledTrips").innerText = data.cancelled || 0;
+    // TODAY
+    document.getElementById("totalTrips").innerText = data.today.total;
+    document.getElementById("completedTrips").innerText = data.today.completed;
+    document.getElementById("noShowTrips").innerText = data.today.noShow;
+    document.getElementById("cancelledTrips").innerText = data.today.cancelled;
 
-  } catch(err) {
+    // MONTH
+    document.getElementById("monthTrips").innerText = data.month.total;
+
+    // LAST 5
+    const tbody = document.getElementById("lastTripsBody");
+    tbody.innerHTML = "";
+
+    data.lastTrips.forEach(trip => {
+
+      const row = `
+        <tr>
+          <td>${trip.date}</td>
+          <td>${trip.pickup}</td>
+          <td>${trip.status}</td>
+        </tr>
+      `;
+
+      tbody.innerHTML += row;
+
+    });
+
+  }catch(err){
     console.error("Dashboard error:", err);
   }
 
 }
 
-loadTodayStats();
+loadDashboard();
 
 </script>
 

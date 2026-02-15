@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
   const container = document.getElementById("layoutHeader");
   if (!container) return;
@@ -24,9 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
   `;
 
-  /* ===============================
-     ACTIVE NAV LINK
-  =============================== */
+  /* ===========================
+     ACTIVE LINK
+  ============================ */
   const currentPage = window.location.pathname.split("/").pop();
   document.querySelectorAll(".nav a").forEach(link => {
     if (link.getAttribute("href") === currentPage) {
@@ -34,37 +34,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /* ===============================
-     LOAD COMPANY NAME FROM SERVER
-  =============================== */
-  async function loadCompany() {
-    try {
+  /* ===========================
+     LOAD COMPANY NAME
+  ============================ */
 
-      const res = await fetch("/api/company/me", {
-        credentials: "include"
-      });
+  try {
 
-      if (!res.ok) throw new Error("Not logged in");
+    const res = await fetch("/api/company/me", {
+      credentials: "include"
+    });
 
-      const data = await res.json();
-
-      document.getElementById("companyName").innerText = data.name;
-
-    } catch (err) {
-
-      console.error("Company fetch error:", err);
-
-      // لو مش لوجين يرجعه للوجين
-      window.location.href = "login.html";
+    if (res.status === 401) {
+      window.location.href = "company-login.html";
+      return;
     }
+
+    const data = await res.json();
+    document.getElementById("companyName").innerText = data.name;
+
+  } catch (err) {
+    console.error("Company fetch error:", err);
   }
 
-  /* ===============================
-     ARIZONA TIME + GREETING
-  =============================== */
+  /* ===========================
+     ARIZONA TIME
+  ============================ */
+
   function updateTime() {
 
-    const options = {
+    const now = new Date().toLocaleString("en-US", {
+      timeZone: "America/Phoenix",
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -72,28 +71,19 @@ document.addEventListener("DOMContentLoaded", () => {
       hour: "numeric",
       minute: "2-digit",
       second: "2-digit",
-      hour12: true,
-      timeZone: "America/Phoenix"
-    };
-
-    const now = new Date().toLocaleString("en-US", {
-      timeZone: "America/Phoenix"
+      hour12: true
     });
 
-    const dateObj = new Date(now);
-    const hour = dateObj.getHours();
+    document.getElementById("azDateTime").innerText = now;
 
-    let greeting;
+    const hour = new Date().getHours();
+    let greeting = "Good Evening";
     if (hour < 12) greeting = "Good Morning";
     else if (hour < 18) greeting = "Good Afternoon";
-    else greeting = "Good Evening";
 
     document.getElementById("greetingText").innerText = greeting;
-    document.getElementById("azDateTime").innerText =
-      dateObj.toLocaleString("en-US", options);
   }
 
-  loadCompany();
   updateTime();
   setInterval(updateTime, 1000);
 
