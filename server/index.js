@@ -2,12 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const JWT_SECRET = "SUNBEAM_SECRET_CHANGE_THIS";
 
 app.use(cors());
 app.use(express.json());
@@ -18,100 +15,93 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   DATABASE (users.json)
+   DATA DIRECTORY
 ========================= */
-const USERS_DB = "/var/data/users.json";
+const DATA_DIR = "/var/data";
 
-function ensureUsersDB() {
-  const dir = "/var/data";
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(USERS_DB))
-    fs.writeFileSync(USERS_DB, JSON.stringify([]));
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+/* =========================
+   USERS DB
+========================= */
+const USERS_DB = path.join(DATA_DIR, "users.json");
+
+if (!fs.existsSync(USERS_DB)) {
+  fs.writeFileSync(USERS_DB, JSON.stringify([]));
 }
 
 function readUsers() {
-  ensureUsersDB();
   return JSON.parse(fs.readFileSync(USERS_DB, "utf8"));
 }
 
 function saveUsers(users) {
-  ensureUsersDB();
   fs.writeFileSync(USERS_DB, JSON.stringify(users, null, 2));
 }
 
 /* =========================
-   TRIPS DATABASE
+   TRIPS DB
 ========================= */
-const TRIPS_DB = "/var/data/trips.json";
+const TRIPS_DB = path.join(DATA_DIR, "trips.json");
 
-function ensureTripsDB() {
-  const dir = "/var/data";
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(TRIPS_DB))
-    fs.writeFileSync(TRIPS_DB, JSON.stringify([]));
+if (!fs.existsSync(TRIPS_DB)) {
+  fs.writeFileSync(TRIPS_DB, JSON.stringify([]));
 }
 
 function readTrips() {
-  ensureTripsDB();
   return JSON.parse(fs.readFileSync(TRIPS_DB, "utf8"));
 }
 
 function saveTrips(trips) {
-  ensureTripsDB();
   fs.writeFileSync(TRIPS_DB, JSON.stringify(trips, null, 2));
 }
 
 /* =========================
-   AUTH MIDDLEWARE
+   LOCATIONS DB
 ========================= */
-function auth(req, res, next) {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "No token" });
+const LOCATION_DB = path.join(DATA_DIR, "locations.json");
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ error: "Invalid token" });
-  }
+if (!fs.existsSync(LOCATION_DB)) {
+  fs.writeFileSync(LOCATION_DB, JSON.stringify({}));
+}
+
+function readLocations() {
+  return JSON.parse(fs.readFileSync(LOCATION_DB, "utf8"));
+}
+
+function saveLocations(data) {
+  fs.writeFileSync(LOCATION_DB, JSON.stringify(data, null, 2));
 }
 
 /* =========================
-   ADMIN USERS API (UNCHANGED ROUTES)
+   ADMIN USERS API
 ========================= */
-app.get("/api/admin/users", auth, (req, res) => {
+app.get("/api/admin/users", (req, res) => {
   const role = req.query.role;
   const users = readUsers();
   const filtered = role ? users.filter(u => u.role === role) : users;
-
-  res.json(filtered.map(u => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    role: u.role,
-    active: u.active
-  })));
+  res.json(filtered);
 });
 
-app.post("/api/admin/users", auth, async (req, res) => {
+app.post("/api/admin/users", (req, res) => {
   const { name, username, password, role } = req.body;
 
-  if (!name || !username || !password || !role)
+  if (!name || !username || !password || !role) {
     return res.status(400).json({ error: "Missing fields" });
+  }
 
   const users = readUsers();
 
-  if (users.find(u => u.username === username))
-    return res.status(400).json({ error: "Username exists" });
-
-  const hashed = await bcrypt.hash(password, 10);
+  if (users.find(u => u.username === username)) {
+    return res.status(400).json({ error: "Username already exists" });
+  }
 
   const newUser = {
     id: Date.now(),
     name,
     username,
-    password: hashed,
+    password,
     role,
     active: true
   };
@@ -119,34 +109,46 @@ app.post("/api/admin/users", auth, async (req, res) => {
   users.push(newUser);
   saveUsers(users);
 
+  res.json(newUser);
+});
+
+app.put("/api/admin/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const users = readUsers();
+  const user = users.find(u => u.id === id);
+
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  if (req.body.name) user.name = req.body.name;
+  if (req.body.username) user.username = req.body.username;
+  if (typeof req.body.active === "boolean") user.active = req.body.active;
+
+  saveUsers(users);
+  res.json(user);
+});
+
+app.delete("/api/admin/users/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const users = readUsers().filter(u => u.id !== id);
+  saveUsers(users);
   res.json({ success: true });
 });
 
 /* =========================
-   LOGIN (ROUTE SAME NAME)
+   LOGIN
 ========================= */
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
   const users = readUsers();
 
   const user = users.find(
-    u => u.username === username && u.active
+    u => u.username === username && u.password === password && u.active
   );
 
   if (!user) return res.status(401).json({ success: false });
 
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ success: false });
-
-  const token = jwt.sign(
-    { username: user.username, role: user.role },
-    JWT_SECRET,
-    { expiresIn: "8h" }
-  );
-
   res.json({
     success: true,
-    token,
     username: user.username,
     role: user.role,
     name: user.name
@@ -154,21 +156,54 @@ app.post("/api/login", async (req, res) => {
 });
 
 /* =========================
-   GET ALL TRIPS (ROUTE SAME)
+   DRIVER LOCATION
 ========================= */
-app.get("/api/trips", auth, (req, res) => {
+app.post("/api/driver/location", (req, res) => {
+  const { name, lat, lng } = req.body;
+
+  if (!name || !lat || !lng) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const locations = readLocations();
+
+  locations[name] = {
+    name,
+    lat,
+    lng,
+    updated: Date.now()
+  };
+
+  saveLocations(locations);
+
+  res.json({ success: true });
+});
+
+app.get("/api/admin/live-drivers", (req, res) => {
+  const locations = readLocations();
+  const now = Date.now();
+
+  const active = Object.values(locations).filter(
+    d => now - d.updated < 30000
+  );
+
+  res.json(active);
+});
+
+/* =========================
+   TRIPS
+========================= */
+app.get("/api/trips", (req, res) => {
   const trips = readTrips();
   res.json(trips);
 });
 
-/* =========================
-   ADD NEW TRIP (ROUTE SAME)
-========================= */
-app.post("/api/trips", auth, (req, res) => {
+app.post("/api/trips", (req, res) => {
   const data = req.body;
 
-  if (!data || !data.tripNumber)
+  if (!data || !data.tripNumber) {
     return res.status(400).json({ error: "Missing tripNumber" });
+  }
 
   const trips = readTrips();
   trips.unshift(data);
