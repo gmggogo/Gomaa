@@ -1,25 +1,61 @@
 const express = require("express");
 const router = express.Router();
+const fs = require("fs");
+const path = require("path");
 
-// لوجن درايفر
-router.post("/login", (req, res) => {
-  const { email, password } = req.body;
+const filePath = path.join(__dirname, "..", "data", "drivers.json");
 
-  // مثال ثابت (بعد كده نربطه بقاعدة بيانات)
-  if (email === "driver@hotmail.com" && password === "1234") {
-    return res.json({
-      success: true,
-      role: "driver",
-      email
-    });
-  }
+/* ================= READ ================= */
+function readData() {
+  if (!fs.existsSync(filePath)) return [];
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
 
-  res.status(401).json({ error: "invalid login" });
+/* ================= WRITE ================= */
+function writeData(data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+/* ================= GET ALL ================= */
+router.get("/", (req, res) => {
+  res.json(readData());
 });
 
-// test
-router.get("/test", (req, res) => {
-  res.json({ driverRoute: true });
+/* ================= ADD DRIVER ================= */
+router.post("/", (req, res) => {
+  const { name, username, password } = req.body;
+
+  if (!name || !username || !password) {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+
+  const drivers = readData();
+
+  const exists = drivers.find(d => d.username === username);
+  if (exists) {
+    return res.status(400).json({ error: "Username already exists" });
+  }
+
+  const newDriver = {
+    id: Date.now(),
+    name,
+    username,
+    password,
+    active: true
+  };
+
+  drivers.push(newDriver);
+  writeData(drivers);
+
+  res.json(newDriver);
+});
+
+/* ================= DELETE DRIVER ================= */
+router.delete("/:id", (req, res) => {
+  const drivers = readData();
+  const filtered = drivers.filter(d => d.id != req.params.id);
+  writeData(filtered);
+  res.json({ success: true });
 });
 
 module.exports = router;
