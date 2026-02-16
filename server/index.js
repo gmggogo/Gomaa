@@ -9,85 +9,75 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-/* ===================================
-   MEMORY DATABASE (Separate Arrays)
-=================================== */
+/* ======================
+   TEMP DATABASE (Memory)
+====================== */
 
-let admins = [
-  { id: 1, name: "Main Admin", username: "admin", password: "123456" }
-];
+let db = {
+  admins: [
+    { id: 1, name: "Main Admin", username: "admin", password: "123456" }
+  ],
+  companies: [],
+  dispatchers: [],
+  drivers: []
+};
 
-let companies = [];
-let dispatchers = [];
-let drivers = [];
+/* ======================
+   LOGIN (TEMP)
+====================== */
 
-/* ===================================
-   HELPER FUNCTION
-=================================== */
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
 
-function getArray(role) {
-  if (role === "admin") return admins;
-  if (role === "company") return companies;
-  if (role === "dispatcher") return dispatchers;
-  if (role === "driver") return drivers;
-  return null;
-}
+  for (let role in db) {
+    const user = db[role].find(
+      u => u.username === username && u.password === password
+    );
 
-/* ===================================
-   GENERIC CRUD API
-=================================== */
+    if (user) {
+      return res.json({ success: true, role });
+    }
+  }
+
+  res.status(401).json({ error: "Invalid login" });
+});
+
+/* ======================
+   GENERIC CRUD
+====================== */
 
 app.get("/api/:role", (req, res) => {
-  const arr = getArray(req.params.role);
-  if (!arr) return res.status(400).json({ error: "Invalid role" });
-  res.json(arr);
+  const role = req.params.role;
+  if (!db[role]) return res.status(400).json({ error: "Invalid role" });
+  res.json(db[role]);
 });
 
 app.post("/api/:role", (req, res) => {
-  const arr = getArray(req.params.role);
-  if (!arr) return res.status(400).json({ error: "Invalid role" });
-
-  const { name, username, password } = req.body;
+  const role = req.params.role;
+  if (!db[role]) return res.status(400).json({ error: "Invalid role" });
 
   const newUser = {
     id: Date.now(),
-    name,
-    username,
-    password
+    name: req.body.name,
+    username: req.body.username,
+    password: req.body.password
   };
 
-  arr.push(newUser);
-  res.json({ success: true });
-});
-
-app.put("/api/:role/:id", (req, res) => {
-  const arr = getArray(req.params.role);
-  if (!arr) return res.status(400).json({ error: "Invalid role" });
-
-  const id = parseInt(req.params.id);
-  const user = arr.find(u => u.id === id);
-  if (!user) return res.status(404).json({ error: "Not found" });
-
-  user.name = req.body.name;
-  user.username = req.body.username;
-  if (req.body.password) user.password = req.body.password;
-
+  db[role].push(newUser);
   res.json({ success: true });
 });
 
 app.delete("/api/:role/:id", (req, res) => {
-  const arr = getArray(req.params.role);
-  if (!arr) return res.status(400).json({ error: "Invalid role" });
-
+  const role = req.params.role;
   const id = parseInt(req.params.id);
-  const index = arr.findIndex(u => u.id === id);
-  if (index === -1) return res.status(404).json({ error: "Not found" });
 
-  arr.splice(index, 1);
+  if (!db[role]) return res.status(400).json({ error: "Invalid role" });
+
+  db[role] = db[role].filter(u => u.id !== id);
   res.json({ success: true });
 });
 
-/* =================================== */
+/* ====================== */
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
