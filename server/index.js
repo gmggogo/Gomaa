@@ -5,37 +5,54 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-/* ==============================
-   Middlewares
-============================== */
+/* =======================
+   MIDDLEWARE
+======================= */
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/* ==============================
-   Static Public Folder
-============================== */
+/* =======================
+   STATIC FILES
+======================= */
 app.use(express.static(path.join(__dirname, "public")));
 
-/* ==============================
-   Routes
-============================== */
-const adminsRoute = require("./routes/admins");
-const authRoute = require("./routes/auth");
+/* =======================
+   ROUTES
+======================= */
 
-app.use("/api/admins", adminsRoute);
-app.use("/api/auth", authRoute);
+// AUTH
+app.use("/api/auth", require("./routes/auth"));
 
-/* ==============================
-   Default Route
-============================== */
-app.get("/", (req, res) => {
-  res.send("Sunbeam Server Running");
+// ADMINS
+app.use("/api/admins", require("./routes/admins"));
+
+// COMPANIES
+app.use("/api/companies", require("./routes/companies"));
+
+// DISPATCHERS
+app.use("/api/dispatchers", require("./routes/dispatchers"));
+
+// DRIVERS
+app.use("/api/drivers", require("./routes/drivers"));
+
+/* =======================
+   HEALTH CHECK
+======================= */
+app.get("/api/health", (req, res) => {
+  res.json({ status: "Sunbeam Server Running ✅" });
 });
 
-/* ==============================
-   Start Server
-============================== */
+/* =======================
+   FALLBACK
+======================= */
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+/* =======================
+   START SERVER
+======================= */
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log("Sunbeam Server running on port " + PORT);
 });
