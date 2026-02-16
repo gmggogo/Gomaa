@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "Main Admin",
+    "username": "admin",
+    "password": "$2a$10$3EuPcmQFCiblsZeEu5s7pOQfYV5xRrFQpXbPzO8V3c1uQxDk2nR5e",
+    "active": true
+  }
+]
