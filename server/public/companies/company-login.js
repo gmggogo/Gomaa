@@ -1,54 +1,62 @@
-const form = document.getElementById("loginForm");
-const errorBox = document.getElementById("error");
+document.addEventListener("DOMContentLoaded", function () {
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  errorBox.innerText = "";
+  const form = document.getElementById("loginForm");
+  const errorBox = document.getElementById("errorMessage");
 
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-
-  if (!username || !password) {
-    errorBox.innerText = "Please enter username and password";
+  if (!form) {
+    console.error("Login form not found");
     return;
   }
 
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
 
-    const data = await res.json();
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
 
-    if (!res.ok || !data.success) {
-      errorBox.innerText = "Wrong username or password";
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    errorBox.innerText = "";
+
+    if (username === "" || password === "") {
+      errorBox.innerText = "Please enter username and password.";
       return;
     }
 
-    // ✅ Make sure this is a company account
-    if (data.role !== "company") {
-      errorBox.innerText = "This account is not a company";
-      return;
+    try {
+
+      const response = await fetch("/api/login/company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username: username,
+          password: password
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        errorBox.innerText = data.error || "Invalid login credentials.";
+        return;
+      }
+
+      // حفظ بيانات الدخول
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userName", data.name);
+
+      // تحويل لصفحة الشركة
+      window.location.href = "/companies/company.html";
+
+    } catch (error) {
+      console.error(error);
+      errorBox.innerText = "Server error. Please try again.";
     }
 
-    // ✅ Save logged company
-    localStorage.setItem("loggedCompany", JSON.stringify({
-      username: data.username,
-      name: data.name,
-      role: data.role,
-      loginAt: Date.now()
-    }));
+  });
 
-    // (Optional) clear other sessions
-    localStorage.removeItem("loggedDriver");
-    localStorage.removeItem("loggedUser");
-
-    window.location.href = "dashboard.html";
-
-  } catch (err) {
-    console.error(err);
-    errorBox.innerText = "Server connection error";
-  }
 });

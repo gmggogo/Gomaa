@@ -13,18 +13,33 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
-const usersPath = path.join(__dirname, "users.json");
+// ================= FILE PATHS =================
+const DATA_DIR = path.join(__dirname, "data");
 
-// ===== Helpers =====
-function readUsers() {
-  return JSON.parse(fs.readFileSync(usersPath));
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR);
 }
 
-function saveUsers(users) {
-  fs.writeFileSync(usersPath, JSON.stringify(users, null, 2));
+const FILES = {
+  admin: path.join(DATA_DIR, "admins.json"),
+  company: path.join(DATA_DIR, "companies.json"),
+  driver: path.join(DATA_DIR, "drivers.json"),
+  dispatcher: path.join(DATA_DIR, "dispatchers.json")
+};
+
+// ================= HELPERS =================
+function readFile(file) {
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, "[]");
+  }
+  return JSON.parse(fs.readFileSync(file));
 }
 
-// ===== AUTH MIDDLEWARE =====
+function saveFile(file, data) {
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
+
+// ================= AUTH MIDDLEWARE =================
 function auth(req, res, next) {
   const token = req.headers.authorization;
   if (!token) return res.status(401).json({ error: "No token" });
@@ -38,7 +53,6 @@ function auth(req, res, next) {
   }
 }
 
-// ===== ROLE CHECK =====
 function requireRole(role) {
   return (req, res, next) => {
     if (req.user.role !== role)
@@ -48,20 +62,28 @@ function requireRole(role) {
 }
 
 // ================= LOGIN =================
-app.post("/api/login", async (req, res) => {
+app.post("/api/login/:role", async (req, res) => {
 
+  const { role } = req.params;
   const { username, password } = req.body;
-  const users = readUsers();
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  const users = readFile(FILES[role]);
 
   const user = users.find(u => u.username === username && u.active);
 
-  if (!user) return res.status(401).json({ error: "Wrong credentials" });
+  if (!user)
+    return res.status(401).json({ error: "Wrong credentials" });
 
   const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ error: "Wrong credentials" });
+
+  if (!match)
+    return res.status(401).json({ error: "Wrong credentials" });
 
   const token = jwt.sign(
-    { id: user.id, role: user.role, name: user.name },
+    { id: user.id, role: role, name: user.name },
     SECRET,
     { expiresIn: "8h" }
   );
@@ -69,19 +91,23 @@ app.post("/api/login", async (req, res) => {
   res.json({
     token,
     name: user.name,
-    role: user.role
+    role: role
   });
 });
 
 // ================= CREATE USER (ADMIN ONLY) =================
-app.post("/api/users", auth, requireRole("admin"), async (req, res) => {
+app.post("/api/users/:role", auth, requireRole("admin"), async (req, res) => {
 
-  const { name, username, password, role } = req.body;
+  const { role } = req.params;
+  const { name, username, password } = req.body;
 
-  if (!name || !username || !password || !role)
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  if (!name || !username || !password)
     return res.status(400).json({ error: "Missing fields" });
 
-  const users = readUsers();
+  const users = readFile(FILES[role]);
 
   if (users.find(u => u.username === username))
     return res.status(400).json({ error: "Username exists" });
@@ -93,49 +119,73 @@ app.post("/api/users", auth, requireRole("admin"), async (req, res) => {
     name,
     username,
     password: hashed,
-    role,
     active: true
   };
 
   users.push(newUser);
-  saveUsers(users);
+  saveFile(FILES[role], users);
 
   res.json({ success: true });
 });
 
 // ================= GET USERS =================
-app.get("/api/users", auth, requireRole("admin"), (req, res) => {
-  const users = readUsers();
+app.get("/api/users/:role", auth, requireRole("admin"), (req, res) => {
+
+  const { role } = req.params;
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  const users = readFile(FILES[role]);
+
   res.json(users.map(u => ({
     id: u.id,
     name: u.name,
     username: u.username,
-    role: u.role,
     active: u.active
   })));
 });
 
 // ================= DELETE USER =================
-app.delete("/api/users/:id", auth, requireRole("admin"), (req, res) => {
-  let users = readUsers();
-  users = users.filter(u => u.id != req.params.id);
-  saveUsers(users);
+app.delete("/api/users/:role/:id", auth, requireRole("admin"), (req, res) => {
+
+  const { role, id } = req.params;
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  let users = readFile(FILES[role]);
+
+  users = users.filter(u => u.id != id);
+
+  saveFile(FILES[role], users);
+
   res.json({ success: true });
 });
 
 // ================= UPDATE USER =================
-app.put("/api/users/:id", auth, requireRole("admin"), async (req, res) => {
-  const { name, role, password } = req.body;
-  let users = readUsers();
+app.put("/api/users/:role/:id", auth, requireRole("admin"), async (req, res) => {
 
-  const user = users.find(u => u.id == req.params.id);
-  if (!user) return res.status(404).json({ error: "Not found" });
+  const { role, id } = req.params;
+  const { name, password } = req.body;
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  let users = readFile(FILES[role]);
+
+  const user = users.find(u => u.id == id);
+
+  if (!user)
+    return res.status(404).json({ error: "Not found" });
 
   if (name) user.name = name;
-  if (role) user.role = role;
-  if (password) user.password = await bcrypt.hash(password, 10);
 
-  saveUsers(users);
+  if (password)
+    user.password = await bcrypt.hash(password, 10);
+
+  saveFile(FILES[role], users);
+
   res.json({ success: true });
 });
 

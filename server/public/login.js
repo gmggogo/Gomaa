@@ -1,48 +1,58 @@
-async function login() {
+document.addEventListener("DOMContentLoaded", () => {
 
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const form = document.getElementById("loginForm");
+  const errorBox = document.getElementById("error");
 
-  if (!username || !password) {
-    alert("Enter username and password");
-    return;
-  }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  try {
+    const role = document.getElementById("role").value;
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
 
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
+    errorBox.innerText = "";
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Login failed");
+    if (!role) {
+      errorBox.innerText = "Please select role.";
       return;
     }
 
-    localStorage.clear();
-
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("role", data.role);
-    localStorage.setItem("name", data.name);
-
-    if (data.role === "admin") {
-      location.href = "/admin/dashboard.html";
-    }
-    else if (data.role === "dispatcher") {
-      location.href = "/dispatcher/dashboard.html";
-    }
-    else if (data.role === "company") {
-      location.href = "/companies/dashboard.html";
-    }
-    else if (data.role === "driver") {
-      location.href = "/driver/dashboard.html";
+    if (!username || !password) {
+      errorBox.innerText = "Please enter username and password.";
+      return;
     }
 
-  } catch (err) {
-    alert("Server error");
-  }
-}
+    try {
+
+      const response = await fetch(`/api/login/${role}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        errorBox.innerText = data.error || "Invalid credentials.";
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userName", data.name);
+
+      if (role === "admin") {
+        window.location.href = "/admin/dashboard.html";
+      } else {
+        window.location.href = "/dispatcher/dashboard.html";
+      }
+
+    } catch (error) {
+      errorBox.innerText = "Server error.";
+    }
+
+  });
+
+});
