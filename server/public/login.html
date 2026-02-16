@@ -1,47 +1,144 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunbeam Staff Login</title>
+
 <style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 body{
-  font-family:Arial;
-  background:#111827;
-  color:white;
+  height:100vh;
   display:flex;
   justify-content:center;
   align-items:center;
-  height:100vh;
+  background: radial-gradient(circle at top left,#1e3a8a,#0f172a 70%);
 }
+
+.container{
+  text-align:center;
+}
+
+.logo img{
+  width:240px;
+  margin-bottom:25px;
+  filter: drop-shadow(0 15px 25px rgba(0,0,0,0.6));
+}
+
 .card{
-  background:#1f2937;
-  padding:30px;
-  border-radius:10px;
-  width:300px;
+  width:380px;
+  padding:35px;
+  border-radius:18px;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(15px);
+  border:1px solid rgba(212,175,55,0.4);
+  box-shadow:0 40px 80px rgba(0,0,0,0.6);
+  color:white;
 }
-input{
-  width:100%;
-  padding:8px;
-  margin-bottom:10px;
+
+.title{
+  font-size:28px;
+  font-weight:800;
+  color:#d4af37;
 }
-button{
+
+.subtitle{
+  font-size:14px;
+  margin:8px 0 12px;
+  color:#93c5fd;
+  font-weight:600;
+}
+
+.clock{
+  font-size:12px;
+  margin-bottom:20px;
+  color:#cbd5e1;
+}
+
+.input-group{
+  text-align:left;
+  margin-bottom:15px;
+}
+
+.input-group label{
+  font-size:13px;
+  color:#d4af37;
+  font-weight:600;
+}
+
+.input-group input{
   width:100%;
   padding:10px;
-  background:#2563eb;
+  margin-top:6px;
+  border-radius:8px;
   border:none;
+  outline:none;
+  background:rgba(255,255,255,0.95);
+  font-size:14px;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:linear-gradient(90deg,#1e3a8a,#2563eb);
   color:white;
+  font-size:15px;
+  font-weight:700;
   cursor:pointer;
+  transition:0.3s;
+}
+
+button:hover{
+  background:linear-gradient(90deg,#d4af37,#facc15);
+  color:#0f172a;
+}
+
+.error{
+  margin-top:15px;
+  color:#f87171;
+  font-size:13px;
 }
 </style>
 </head>
+
 <body>
 
-<div class="card">
-<h2>Temporary Login</h2>
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-<p id="error" style="color:red;"></p>
+<div class="container">
+
+  <div class="logo">
+    <img src="/assets/logo.png" onerror="this.src='assets/logo.png'">
+  </div>
+
+  <div class="card">
+    <div class="title">Welcome Back</div>
+    <div class="subtitle">Sunbeam Staff Login</div>
+    <div class="clock" id="clock"></div>
+
+    <form id="loginForm">
+      <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username" required>
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" required>
+      </div>
+
+      <button type="submit">Login</button>
+      <div class="error" id="error"></div>
+    </form>
+  </div>
+
 </div>
 
 <script src="login.js"></script>

@@ -1,19 +1,59 @@
-async function login(){
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
+// ===== Clock =====
+function updateClock(){
+  const now = new Date();
+  document.getElementById("clock").innerText =
+    now.toLocaleDateString() + " • " + now.toLocaleTimeString();
+}
+setInterval(updateClock,1000);
+updateClock();
 
-  const res = await fetch("/api/login",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({username,password})
-  });
 
-  const data = await res.json();
+// ===== Login =====
+document.getElementById("loginForm").addEventListener("submit", async function(e){
+  e.preventDefault();
 
-  if(!res.ok){
-    document.getElementById("error").innerText = data.error;
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const error = document.getElementById("error");
+
+  error.innerText = "";
+
+  if(!username || !password){
+    error.innerText = "Enter username and password";
     return;
   }
 
-  window.location.href = "/admin/users.html";
-}
+  try{
+    const res = await fetch("/api/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,password})
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      error.innerText = data.error || "Login failed";
+      return;
+    }
+
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("name", data.name);
+
+    if(data.role === "admin"){
+      window.location.href = "/admin/dashboard.html";
+    }
+    else if(data.role === "company"){
+      window.location.href = "/company/dashboard.html";
+    }
+    else if(data.role === "dispatcher"){
+      window.location.href = "/dispatcher/dashboard.html";
+    }
+    else if(data.role === "driver"){
+      window.location.href = "/driver/dashboard.html";
+    }
+
+  }catch{
+    error.innerText = "Server error";
+  }
+});
