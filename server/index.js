@@ -1,78 +1,68 @@
-// ===============================
+// ========================================
 // IMPORTS
-// ===============================
+// ========================================
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
 
-// ===============================
+// ========================================
 // APP CONFIG
-// ===============================
+// ========================================
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
 
-// ===============================
+// ========================================
 // MONGODB CONNECTION
-// ===============================
-const MONGO_URI = process.env.MONGO_URI;
+// ========================================
+mongoose.connect(process.env.MONGO_URI)
+.then(() => {
+  console.log("✅ MongoDB Connected");
+})
+.catch((err) => {
+  console.error("❌ MongoDB Connection Failed:", err.message);
+});
 
-if (!MONGO_URI) {
-  console.error("❌ MONGO_URI is missing. Add it in Render Environment Variables.");
-} else {
-  mongoose
-    .connect(MONGO_URI) // ✅ no deprecated options
-    .then(() => console.log("🔥 MongoDB Connected Successfully"))
-    .catch((err) => console.error("❌ MongoDB Connection Failed:", err.message));
-}
-
-// ===============================
-// HEALTH / TEST ROUTES
-// ===============================
-app.get("/health", (req, res) => res.status(200).send("OK"));
+// ========================================
+// HEALTH / TEST ROUTE
+// ========================================
 app.get("/api/test", (req, res) => {
   res.json({
-    ok: true,
-    mongoConnected: mongoose.connection.readyState === 1,
-    message: "Server is running",
+    server: "running",
+    mongo: mongoose.connection.readyState === 1
   });
 });
 
-// ===============================
-// API ROUTES
-// ===============================
-const safeUse = (routePath, modulePath) => {
-  try {
-    app.use(routePath, require(modulePath));
-    console.log(`✅ Loaded route: ${routePath} -> ${modulePath}`);
-  } catch (err) {
-    console.log(`⚠ Route not loaded: ${routePath} (${modulePath}) - ${err.message}`);
-  }
-};
+// ========================================
+// ROUTES (لو عندك فولدر routes)
+// ========================================
+try {
+  app.use("/api/admins", require("./routes/admins"));
+  app.use("/api/companies", require("./routes/companies"));
+  app.use("/api/drivers", require("./routes/drivers"));
+  app.use("/api/dispatchers", require("./routes/dispatchers"));
 
-safeUse("/api/admins", "./routes/admins");
-safeUse("/api/companies", "./routes/companies");
-safeUse("/api/drivers", "./routes/drivers");
-safeUse("/api/dispatchers", "./routes/dispatchers");
+  console.log("✅ Routes Loaded");
+} catch (err) {
+  console.log("⚠️ Routes not loaded (maybe not created yet)");
+}
 
-// ===============================
-// STATIC FILES
-// ===============================
-const PUBLIC_DIR = path.join(__dirname, "public");
-app.use(express.static(PUBLIC_DIR));
+// ========================================
+// STATIC FILES (Frontend)
+// ========================================
+app.use(express.static(path.join(__dirname, "../public")));
 
-// لو عندك Frontend SPA: أي رابط غير /api يروح على index.html
-app.get(/^\/(?!api).*/, (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public", "index.html"));
 });
 
-// ===============================
+// ========================================
 // START SERVER
-// ===============================
+// ========================================
 app.listen(PORT, () => {
   console.log(`🚀 Sunbeam Server running on port ${PORT}`);
 });
