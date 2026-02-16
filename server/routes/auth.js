@@ -12,7 +12,8 @@ function readData(file) {
 router.post("/login", (req, res) => {
   const { username, password, role } = req.body;
 
-  let file = "";
+  let file = null;
+
   if (role === "admin") file = "admins.json";
   if (role === "company") file = "companies.json";
   if (role === "dispatcher") file = "dispatchers.json";
@@ -36,6 +37,7 @@ router.post("/login", (req, res) => {
   }
 
   res.json({
+    success: true,
     user: {
       id: user.id,
       name: user.name,

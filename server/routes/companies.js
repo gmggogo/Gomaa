@@ -5,46 +5,28 @@ const path = require("path");
 
 const filePath = path.join(__dirname, "..", "data", "companies.json");
 
-/* =========================
-   READ
-========================= */
 function readData() {
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-/* =========================
-   WRITE
-========================= */
-function writeData(data) {
+function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-/* =========================
-   GET ALL COMPANIES
-========================= */
 router.get("/", (req, res) => {
   res.json(readData());
 });
 
-/* =========================
-   ADD COMPANY
-========================= */
 router.post("/", (req, res) => {
+  const users = readData();
   const { name, username, password } = req.body;
 
-  if (!name || !username || !password) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const companies = readData();
-
-  const exists = companies.find(c => c.username === username);
-  if (exists) {
+  if (users.find(u => u.username === username)) {
     return res.status(400).json({ error: "Username already exists" });
   }
 
-  const newCompany = {
+  const newUser = {
     id: Date.now(),
     name,
     username,
@@ -52,19 +34,15 @@ router.post("/", (req, res) => {
     active: true
   };
 
-  companies.push(newCompany);
-  writeData(companies);
-
-  res.json(newCompany);
+  users.push(newUser);
+  saveData(users);
+  res.json(newUser);
 });
 
-/* =========================
-   DELETE COMPANY
-========================= */
 router.delete("/:id", (req, res) => {
-  const companies = readData();
-  const filtered = companies.filter(c => c.id != req.params.id);
-  writeData(filtered);
+  let users = readData();
+  users = users.filter(u => u.id != req.params.id);
+  saveData(users);
   res.json({ success: true });
 });
 

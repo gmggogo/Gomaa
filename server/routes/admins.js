@@ -5,9 +5,6 @@ const path = require("path");
 
 const filePath = path.join(__dirname, "..", "data", "admins.json");
 
-/* ==============================
-   Helpers
-============================== */
 function readData() {
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -17,27 +14,15 @@ function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-/* ==============================
-   GET ALL ADMINS
-============================== */
 router.get("/", (req, res) => {
-  const admins = readData();
-  res.json(admins);
+  res.json(readData());
 });
 
-/* ==============================
-   ADD ADMIN
-============================== */
 router.post("/", (req, res) => {
+  const users = readData();
   const { name, username, password } = req.body;
 
-  if (!name || !username || !password) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const admins = readData();
-
-  const newAdmin = {
+  const newUser = {
     id: Date.now(),
     name,
     username,
@@ -45,19 +30,15 @@ router.post("/", (req, res) => {
     active: true
   };
 
-  admins.push(newAdmin);
-  saveData(admins);
-
-  res.json({ success: true });
+  users.push(newUser);
+  saveData(users);
+  res.json(newUser);
 });
 
-/* ==============================
-   DELETE ADMIN
-============================== */
 router.delete("/:id", (req, res) => {
-  const admins = readData();
-  const filtered = admins.filter(a => a.id != req.params.id);
-  saveData(filtered);
+  let users = readData();
+  users = users.filter(u => u.id != req.params.id);
+  saveData(users);
   res.json({ success: true });
 });
 

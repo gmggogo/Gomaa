@@ -5,38 +5,28 @@ const path = require("path");
 
 const filePath = path.join(__dirname, "..", "data", "drivers.json");
 
-/* ================= READ ================= */
 function readData() {
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-/* ================= WRITE ================= */
-function writeData(data) {
+function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-/* ================= GET ALL ================= */
 router.get("/", (req, res) => {
   res.json(readData());
 });
 
-/* ================= ADD DRIVER ================= */
 router.post("/", (req, res) => {
+  const users = readData();
   const { name, username, password } = req.body;
 
-  if (!name || !username || !password) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  const drivers = readData();
-
-  const exists = drivers.find(d => d.username === username);
-  if (exists) {
+  if (users.find(u => u.username === username)) {
     return res.status(400).json({ error: "Username already exists" });
   }
 
-  const newDriver = {
+  const newUser = {
     id: Date.now(),
     name,
     username,
@@ -44,17 +34,15 @@ router.post("/", (req, res) => {
     active: true
   };
 
-  drivers.push(newDriver);
-  writeData(drivers);
-
-  res.json(newDriver);
+  users.push(newUser);
+  saveData(users);
+  res.json(newUser);
 });
 
-/* ================= DELETE DRIVER ================= */
 router.delete("/:id", (req, res) => {
-  const drivers = readData();
-  const filtered = drivers.filter(d => d.id != req.params.id);
-  writeData(filtered);
+  let users = readData();
+  users = users.filter(u => u.id != req.params.id);
+  saveData(users);
   res.json({ success: true });
 });
 
