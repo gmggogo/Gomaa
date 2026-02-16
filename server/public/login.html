@@ -24,19 +24,19 @@ body{
 
 /* ===== LOGO ===== */
 .logo{
-  margin-bottom:30px;
+  margin-bottom:25px;
 }
 
 .logo img{
-  width:340px;
+  width:260px;
   max-width:90%;
   filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
 }
 
 /* ===== CARD ===== */
 .card{
-  width:420px;
-  padding:40px;
+  width:380px;
+  padding:35px;
   border-radius:18px;
   background:rgba(255,255,255,0.08);
   backdrop-filter:blur(15px);
@@ -44,24 +44,16 @@ body{
   box-shadow:0 40px 80px rgba(0,0,0,0.5);
   text-align:center;
   color:white;
-  transition:0.3s;
 }
 
-.card:hover{
-  transform:translateY(-5px);
-  box-shadow:0 50px 100px rgba(0,0,0,0.6);
-}
-
-/* ===== TITLES ===== */
 .welcome{
-  font-size:30px;
+  font-size:28px;
   font-weight:800;
   color:#d4af37;
-  letter-spacing:1px;
 }
 
 .staff{
-  font-size:15px;
+  font-size:14px;
   margin-top:5px;
   margin-bottom:10px;
   color:#93c5fd;
@@ -70,14 +62,13 @@ body{
 
 .datetime{
   font-size:12px;
-  margin-bottom:25px;
+  margin-bottom:20px;
   color:#cbd5e1;
 }
 
-/* ===== INPUTS ===== */
 .input-group{
   text-align:left;
-  margin-bottom:18px;
+  margin-bottom:15px;
 }
 
 .input-group label{
@@ -88,19 +79,18 @@ body{
 
 .input-group input{
   width:100%;
-  padding:12px;
+  padding:10px;
   margin-top:6px;
   border-radius:8px;
   border:none;
   outline:none;
-  background:rgba(255,255,255,0.9);
+  background:rgba(255,255,255,0.95);
   font-size:14px;
 }
 
-/* ===== BUTTON ===== */
 button{
   width:100%;
-  padding:14px;
+  padding:12px;
   margin-top:10px;
   border:none;
   border-radius:8px;
@@ -117,20 +107,18 @@ button:hover{
   color:#0f172a;
 }
 
-/* ===== ERROR ===== */
 .error{
   margin-top:15px;
   color:#f87171;
   font-size:13px;
 }
-
 </style>
 </head>
 
 <body>
 
 <div class="logo">
-  <img src="assets/logo.png" alt="Sunbeam Logo">
+  <img id="logoImg" src="/assets/logo.png" alt="Sunbeam Logo">
 </div>
 
 <div class="card">
@@ -155,6 +143,13 @@ button:hover{
 </div>
 
 <script>
+/* ===== Fix logo path automatically ===== */
+const logo = document.getElementById("logoImg");
+logo.onerror = function(){
+  this.src = "assets/logo.png";
+};
+
+/* ===== Clock ===== */
 function updateTime(){
   const now = new Date();
   document.getElementById("datetime").innerText =
@@ -163,25 +158,47 @@ function updateTime(){
 setInterval(updateTime,1000);
 updateTime();
 
-document.getElementById("loginForm").addEventListener("submit",async function(e){
+/* ===== Login ===== */
+document.getElementById("loginForm").addEventListener("submit", async function(e){
   e.preventDefault();
 
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const error = document.getElementById("error");
 
-  const res = await fetch("/api/login",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({username,password})
-  });
+  error.innerText = "";
 
-  const data = await res.json();
+  if(!username || !password){
+    error.innerText = "Enter username and password";
+    return;
+  }
 
-  if(data.success){
-    localStorage.setItem("loggedUser",JSON.stringify(data.user));
-    window.location.href = data.redirect;
-  }else{
-    document.getElementById("error").innerText = data.message;
+  try{
+    const res = await fetch("/api/login/admin", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,password})
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      error.innerText = data.error || "Login failed";
+      return;
+    }
+
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("name", data.name);
+
+    if(data.role === "admin"){
+      window.location.href = "/admin/dashboard.html";
+    } else if(data.role === "dispatcher"){
+      window.location.href = "/dispatcher/dashboard.html";
+    }
+
+  }catch{
+    error.innerText = "Server error";
   }
 });
 </script>
