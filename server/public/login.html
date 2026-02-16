@@ -1,146 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Sunbeam Staff Login</title>
 
 <style>
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
 body{
+  margin:0;
+  font-family:'Segoe UI', Arial, sans-serif;
   height:100vh;
+  background:linear-gradient(135deg,#0f172a,#1e3a8a,#2563eb);
   display:flex;
   justify-content:center;
   align-items:center;
-  background: radial-gradient(circle at top left,#1e3a8a,#0f172a 70%);
+  overflow:hidden;
 }
 
-.container{
-  text-align:center;
-}
-
-.logo img{
-  width:240px;
-  margin-bottom:25px;
-  filter: drop-shadow(0 15px 25px rgba(0,0,0,0.6));
-}
-
-.card{
-  width:380px;
-  padding:35px;
+.login-card{
+  width:360px;
+  padding:35px 30px;
   border-radius:18px;
   background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(15px);
-  border:1px solid rgba(212,175,55,0.4);
-  box-shadow:0 40px 80px rgba(0,0,0,0.6);
-  color:white;
+  backdrop-filter:blur(12px);
+  box-shadow:0 20px 40px rgba(0,0,0,0.4);
+  text-align:center;
+  color:#fff;
 }
 
-.title{
-  font-size:28px;
-  font-weight:800;
-  color:#d4af37;
+.logo{
+  width:140px;
+  margin-bottom:15px;
 }
 
-.subtitle{
-  font-size:14px;
-  margin:8px 0 12px;
-  color:#93c5fd;
+h2{
+  margin:5px 0 0 0;
   font-weight:600;
+}
+
+.sub{
+  font-size:13px;
+  opacity:0.8;
+  margin-bottom:20px;
 }
 
 .clock{
   font-size:12px;
-  margin-bottom:20px;
-  color:#cbd5e1;
-}
-
-.input-group{
-  text-align:left;
   margin-bottom:15px;
+  opacity:0.8;
 }
 
-.input-group label{
-  font-size:13px;
-  color:#d4af37;
-  font-weight:600;
-}
-
-.input-group input{
+input{
   width:100%;
-  padding:10px;
-  margin-top:6px;
+  padding:12px;
+  margin-bottom:15px;
   border-radius:8px;
   border:none;
   outline:none;
-  background:rgba(255,255,255,0.95);
   font-size:14px;
 }
 
 button{
   width:100%;
   padding:12px;
-  margin-top:10px;
-  border:none;
   border-radius:8px;
-  background:linear-gradient(90deg,#1e3a8a,#2563eb);
-  color:white;
-  font-size:15px;
-  font-weight:700;
+  border:none;
+  background:#facc15;
+  font-weight:600;
   cursor:pointer;
   transition:0.3s;
 }
 
 button:hover{
-  background:linear-gradient(90deg,#d4af37,#facc15);
-  color:#0f172a;
+  background:#eab308;
 }
 
 .error{
-  margin-top:15px;
-  color:#f87171;
+  color:#ff4d4d;
   font-size:13px;
+  margin-top:10px;
+}
+
+.footer{
+  font-size:11px;
+  opacity:0.7;
+  margin-top:20px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="login-card">
 
-  <div class="logo">
-    <img src="/assets/logo.png" onerror="this.src='assets/logo.png'">
-  </div>
+  <!-- ✅ اللوجو -->
+<img src="assets/logo.png" class="logo" alt="Sunbeam Logo">
+  <h2>Welcome Back</h2>
+  <div class="sub">Sunbeam Staff Login</div>
 
-  <div class="card">
-    <div class="title">Welcome Back</div>
-    <div class="subtitle">Sunbeam Staff Login</div>
-    <div class="clock" id="clock"></div>
+  <!-- ✅ ساعة وتاريخ -->
+  <div class="clock" id="clock"></div>
 
-    <form id="loginForm">
-      <div class="input-group">
-        <label>Username</label>
-        <input type="text" id="username" required>
-      </div>
+  <input type="text" id="username" placeholder="Username" required />
+  <input type="password" id="password" placeholder="Password" required />
 
-      <div class="input-group">
-        <label>Password</label>
-        <input type="password" id="password" required>
-      </div>
+  <button onclick="login()">Login</button>
 
-      <button type="submit">Login</button>
-      <div class="error" id="error"></div>
-    </form>
+  <div class="error" id="errorMsg"></div>
+
+  <div class="footer">
+    © 2026 Sunbeam Transportation LLC
   </div>
 
 </div>
 
-<script src="login.js"></script>
+<script>
+// ================= CLOCK =================
+function updateClock(){
+  const now = new Date();
+  const date = now.toLocaleDateString();
+  const time = now.toLocaleTimeString();
+  document.getElementById("clock").innerText = date + " - " + time;
+}
+setInterval(updateClock,1000);
+updateClock();
+
+
+// ================= LOGIN =================
+async function login(){
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const errorBox = document.getElementById("errorMsg");
+
+  errorBox.innerText = "";
+
+  if(!username || !password){
+    errorBox.innerText = "Please enter username and password";
+    return;
+  }
+
+  try{
+    const res = await fetch("/api/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,password})
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      errorBox.innerText = data.message || "Login failed";
+      return;
+    }
+
+    // حفظ المستخدم
+    localStorage.setItem("loggedUser",JSON.stringify(data.user));
+
+    // توجيه حسب الدور
+    if(data.user.role === "admin"){
+      window.location.href="admin/dashboard.html";
+    }
+    else if(data.user.role === "company"){
+      window.location.href="company/dashboard.html";
+    }
+    else if(data.user.role === "driver"){
+      window.location.href="driver/dashboard.html";
+    }
+    else if(data.user.role === "dispatcher"){
+      window.location.href="dispatcher/dashboard.html";
+    }
+    else{
+      errorBox.innerText="Invalid role";
+    }
+
+  }catch(err){
+    errorBox.innerText="Server error";
+  }
+}
+</script>
+
 </body>
 </html>

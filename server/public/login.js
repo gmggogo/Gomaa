@@ -1,59 +1,101 @@
-// ===== Clock =====
-function updateClock(){
-  const now = new Date();
-  document.getElementById("clock").innerText =
-    now.toLocaleDateString() + " • " + now.toLocaleTimeString();
-}
-setInterval(updateClock,1000);
-updateClock();
+// ===============================
+// SUNBEAM UNIVERSAL LOGIN SCRIPT
+// ===============================
 
+const form = document.getElementById("loginForm");
+const errorBox = document.getElementById("error");
 
-// ===== Login =====
-document.getElementById("loginForm").addEventListener("submit", async function(e){
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
+  errorBox.innerText = "";
 
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
-  const error = document.getElementById("error");
 
-  error.innerText = "";
+  // 👇 تحديد الدور من الصفحة تلقائي
+  const role = detectRoleFromPage();
 
-  if(!username || !password){
-    error.innerText = "Enter username and password";
+  if (!username || !password) {
+    errorBox.innerText = "Enter username and password";
     return;
   }
 
-  try{
-    const res = await fetch("/api/login",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({username,password})
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username,
+        password,
+        role
+      })
     });
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if(!res.ok){
-      error.innerText = data.error || "Login failed";
+    if (!response.ok) {
+      errorBox.innerText = data.error || "Login failed";
       return;
     }
 
-    localStorage.setItem("role", data.role);
-    localStorage.setItem("name", data.name);
+    // حفظ بيانات المستخدم
+    localStorage.setItem("sunbeam_user", JSON.stringify(data));
 
-    if(data.role === "admin"){
-      window.location.href = "/admin/dashboard.html";
-    }
-    else if(data.role === "company"){
-      window.location.href = "/company/dashboard.html";
-    }
-    else if(data.role === "dispatcher"){
-      window.location.href = "/dispatcher/dashboard.html";
-    }
-    else if(data.role === "driver"){
-      window.location.href = "/driver/dashboard.html";
-    }
+    // توجيه حسب الدور
+    redirectByRole(data.role);
 
-  }catch{
-    error.innerText = "Server error";
+  } catch (err) {
+    console.error(err);
+    errorBox.innerText = "Server connection failed";
   }
 });
+
+
+// ===============================
+// Detect Role Automatically
+// ===============================
+
+function detectRoleFromPage() {
+
+  const path = window.location.pathname.toLowerCase();
+
+  if (path.includes("admin")) return "admin";
+  if (path.includes("company")) return "company";
+  if (path.includes("dispatcher")) return "dispatcher";
+  if (path.includes("driver")) return "driver";
+
+  // fallback
+  return "admin";
+}
+
+
+// ===============================
+// Redirect by Role
+// ===============================
+
+function redirectByRole(role) {
+
+  switch(role) {
+    case "admin":
+      window.location.href = "/admin/dashboard.html";
+      break;
+
+    case "company":
+      window.location.href = "/company/dashboard.html";
+      break;
+
+    case "dispatcher":
+      window.location.href = "/dispatcher/dashboard.html";
+      break;
+
+    case "driver":
+      window.location.href = "/driver/dashboard.html";
+      break;
+
+    default:
+      window.location.href = "/dashboard.html";
+  }
+}
