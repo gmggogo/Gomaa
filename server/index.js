@@ -9,54 +9,86 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-/* =====================================
-   TEMP ADMIN USER (FOR FIRST LOGIN)
-===================================== */
+/* =========================
+   TEMP DATABASE (Memory)
+========================= */
 
-const TEMP_ADMIN = {
-  id: 1,
-  name: "Main Admin",
-  username: "admin",
-  password: "123456",
-  role: "admin"
-};
+let admins = [
+  {
+    id: 1,
+    name: "Main Admin",
+    username: "admin",
+    password: "123456",
+    role: "admin"
+  }
+];
 
-/* =====================================
-   LOGIN ROUTE
-===================================== */
+/* =========================
+   LOGIN
+========================= */
 
 app.post("/api/login/admin", (req, res) => {
   const { username, password } = req.body;
 
-  if (
-    username === TEMP_ADMIN.username &&
-    password === TEMP_ADMIN.password
-  ) {
-    return res.json({
-      success: true,
-      token: "temp-token-123",
-      role: "admin",
-      name: TEMP_ADMIN.name
-    });
+  const user = admins.find(
+    u => u.username === username && u.password === password
+  );
+
+  if (!user) {
+    return res.status(401).json({ error: "Invalid login" });
   }
 
-  return res.status(401).json({
-    success: false,
-    error: "Invalid username or password"
+  res.json({
+    success: true,
+    token: "temp-token",
+    role: "admin",
+    name: user.name
   });
 });
 
-/* =====================================
-   TEST ROUTE
-===================================== */
+/* =========================
+   ADMIN CRUD
+========================= */
 
-app.get("/api/test", (req, res) => {
-  res.send("Server is working");
+app.get("/api/admins", (req, res) => {
+  res.json(admins);
 });
 
-/* =====================================
-   START SERVER
-===================================== */
+app.post("/api/admins", (req, res) => {
+  const { name, username, password } = req.body;
+
+  const newAdmin = {
+    id: Date.now(),
+    name,
+    username,
+    password,
+    role: "admin"
+  };
+
+  admins.push(newAdmin);
+  res.json({ success: true });
+});
+
+app.put("/api/admins/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const admin = admins.find(a => a.id === id);
+
+  if (!admin) return res.status(404).json({ error: "Not found" });
+
+  admin.name = req.body.name;
+  admin.username = req.body.username;
+  if (req.body.password) admin.password = req.body.password;
+
+  res.json({ success: true });
+});
+
+app.delete("/api/admins/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  admins = admins.filter(a => a.id !== id);
+  res.json({ success: true });
+});
+
+/* ========================= */
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
