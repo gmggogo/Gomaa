@@ -5,31 +5,29 @@ const path = require("path");
 
 const filePath = path.join(__dirname, "..", "data", "admins.json");
 
-/* =========================
-   READ
-========================= */
+/* ==============================
+   Helpers
+============================== */
 function readData() {
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-/* =========================
-   WRITE
-========================= */
-function writeData(data) {
+function saveData(data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-/* =========================
-   GET ADMINS
-========================= */
+/* ==============================
+   GET ALL ADMINS
+============================== */
 router.get("/", (req, res) => {
-  res.json(readData());
+  const admins = readData();
+  res.json(admins);
 });
 
-/* =========================
+/* ==============================
    ADD ADMIN
-========================= */
+============================== */
 router.post("/", (req, res) => {
   const { name, username, password } = req.body;
 
@@ -38,11 +36,6 @@ router.post("/", (req, res) => {
   }
 
   const admins = readData();
-
-  const exists = admins.find(a => a.username === username);
-  if (exists) {
-    return res.status(400).json({ error: "Username already exists" });
-  }
 
   const newAdmin = {
     id: Date.now(),
@@ -53,18 +46,18 @@ router.post("/", (req, res) => {
   };
 
   admins.push(newAdmin);
-  writeData(admins);
+  saveData(admins);
 
-  res.json(newAdmin);
+  res.json({ success: true });
 });
 
-/* =========================
+/* ==============================
    DELETE ADMIN
-========================= */
+============================== */
 router.delete("/:id", (req, res) => {
   const admins = readData();
   const filtered = admins.filter(a => a.id != req.params.id);
-  writeData(filtered);
+  saveData(filtered);
   res.json({ success: true });
 });
 
