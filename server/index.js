@@ -13,13 +13,14 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ================= FILE PATHS =================
+// ================= DATA FOLDER =================
 const DATA_DIR = path.join(__dirname, "data");
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR);
 }
 
+// ================= FILES =================
 const FILES = {
   admin: path.join(DATA_DIR, "admins.json"),
   company: path.join(DATA_DIR, "companies.json"),
@@ -39,10 +40,36 @@ function saveFile(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-// ================= AUTH MIDDLEWARE =================
+// ================= AUTO CREATE DEFAULT ADMIN =================
+async function createDefaultAdmin() {
+  const admins = readFile(FILES.admin);
+
+  if (admins.length === 0) {
+    const hashed = await bcrypt.hash("admin123", 10);
+
+    admins.push({
+      id: Date.now(),
+      name: "Main Admin",
+      username: "admin",
+      password: hashed,
+      active: true
+    });
+
+    saveFile(FILES.admin, admins);
+    console.log("✅ Default admin created:");
+    console.log("Username: admin");
+    console.log("Password: admin123");
+  }
+}
+
+createDefaultAdmin();
+
+// ================= AUTH =================
 function auth(req, res, next) {
-  const token = req.headers.authorization;
-  if (!token) return res.status(401).json({ error: "No token" });
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ error: "No token" });
+
+  const token = header.split(" ")[1];
 
   try {
     const decoded = jwt.verify(token, SECRET);
@@ -63,7 +90,6 @@ function requireRole(role) {
 
 // ================= LOGIN =================
 app.post("/api/login/:role", async (req, res) => {
-
   const { role } = req.params;
   const { username, password } = req.body;
 
@@ -72,7 +98,9 @@ app.post("/api/login/:role", async (req, res) => {
 
   const users = readFile(FILES[role]);
 
-  const user = users.find(u => u.username === username && u.active);
+  const user = users.find(
+    u => u.username === username && u.active === true
+  );
 
   if (!user)
     return res.status(401).json({ error: "Wrong credentials" });
@@ -95,9 +123,27 @@ app.post("/api/login/:role", async (req, res) => {
   });
 });
 
-// ================= CREATE USER (ADMIN ONLY) =================
-app.post("/api/users/:role", auth, requireRole("admin"), async (req, res) => {
+// ================= GET USERS =================
+app.get("/api/users/:role", auth, requireRole("admin"), (req, res) => {
+  const { role } = req.params;
 
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  const users = readFile(FILES[role]);
+
+  res.json(
+    users.map(u => ({
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      active: u.active
+    }))
+  );
+});
+
+// ================= CREATE USER =================
+app.post("/api/users/:role", auth, requireRole("admin"), async (req, res) => {
   const { role } = req.params;
   const { name, username, password } = req.body;
 
@@ -114,41 +160,21 @@ app.post("/api/users/:role", auth, requireRole("admin"), async (req, res) => {
 
   const hashed = await bcrypt.hash(password, 10);
 
-  const newUser = {
+  users.push({
     id: Date.now(),
     name,
     username,
     password: hashed,
     active: true
-  };
+  });
 
-  users.push(newUser);
   saveFile(FILES[role], users);
 
   res.json({ success: true });
 });
 
-// ================= GET USERS =================
-app.get("/api/users/:role", auth, requireRole("admin"), (req, res) => {
-
-  const { role } = req.params;
-
-  if (!FILES[role])
-    return res.status(400).json({ error: "Invalid role" });
-
-  const users = readFile(FILES[role]);
-
-  res.json(users.map(u => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    active: u.active
-  })));
-});
-
 // ================= DELETE USER =================
 app.delete("/api/users/:role/:id", auth, requireRole("admin"), (req, res) => {
-
   const { role, id } = req.params;
 
   if (!FILES[role])
@@ -165,7 +191,6 @@ app.delete("/api/users/:role/:id", auth, requireRole("admin"), (req, res) => {
 
 // ================= UPDATE USER =================
 app.put("/api/users/:role/:id", auth, requireRole("admin"), async (req, res) => {
-
   const { role, id } = req.params;
   const { name, password } = req.body;
 
@@ -189,7 +214,7 @@ app.put("/api/users/:role/:id", auth, requireRole("admin"), async (req, res) => 
   res.json({ success: true });
 });
 
-// ================= SERVER START =================
+// ================= START SERVER =================
 app.listen(PORT, () => {
-  console.log("Sunbeam Server Running On Port " + PORT);
+  console.log("🚀 Sunbeam Server Running On Port " + PORT);
 });
