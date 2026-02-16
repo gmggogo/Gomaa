@@ -1,47 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Staff Login | Sunbeam</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunbeam Staff Login</title>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="style.css">
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body{
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  background: radial-gradient(circle at top left,#1e3a8a,#0f172a 70%);
+}
+
+/* ===== LOGO ===== */
+.logo{
+  margin-bottom:30px;
+}
+
+.logo img{
+  width:340px;
+  max-width:90%;
+  filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
+}
+
+/* ===== CARD ===== */
+.card{
+  width:420px;
+  padding:40px;
+  border-radius:18px;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(15px);
+  border:1px solid rgba(212,175,55,0.4);
+  box-shadow:0 40px 80px rgba(0,0,0,0.5);
+  text-align:center;
+  color:white;
+  transition:0.3s;
+}
+
+.card:hover{
+  transform:translateY(-5px);
+  box-shadow:0 50px 100px rgba(0,0,0,0.6);
+}
+
+/* ===== TITLES ===== */
+.welcome{
+  font-size:30px;
+  font-weight:800;
+  color:#d4af37;
+  letter-spacing:1px;
+}
+
+.staff{
+  font-size:15px;
+  margin-top:5px;
+  margin-bottom:10px;
+  color:#93c5fd;
+  font-weight:600;
+}
+
+.datetime{
+  font-size:12px;
+  margin-bottom:25px;
+  color:#cbd5e1;
+}
+
+/* ===== INPUTS ===== */
+.input-group{
+  text-align:left;
+  margin-bottom:18px;
+}
+
+.input-group label{
+  font-size:13px;
+  color:#d4af37;
+  font-weight:600;
+}
+
+.input-group input{
+  width:100%;
+  padding:12px;
+  margin-top:6px;
+  border-radius:8px;
+  border:none;
+  outline:none;
+  background:rgba(255,255,255,0.9);
+  font-size:14px;
+}
+
+/* ===== BUTTON ===== */
+button{
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  background:linear-gradient(90deg,#1e3a8a,#2563eb);
+  color:white;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+button:hover{
+  background:linear-gradient(90deg,#d4af37,#facc15);
+  color:#0f172a;
+}
+
+/* ===== ERROR ===== */
+.error{
+  margin-top:15px;
+  color:#f87171;
+  font-size:13px;
+}
+
+</style>
 </head>
 
 <body>
 
-<header class="header">
-  <!-- اللوجو جوه assets -->
-  <img src="assets/logo.png" alt="Sunbeam Transportation" class="logo">
-</header>
+<div class="logo">
+  <img src="assets/logo.png" alt="Sunbeam Logo">
+</div>
 
-<main class="login-container">
-  <div class="login-card">
-    <h1>Staff Login</h1>
+<div class="card">
+  <div class="welcome">Welcome Back</div>
+  <div class="staff">Staff Login</div>
+  <div class="datetime" id="datetime"></div>
 
-    <form id="loginForm">
+  <form id="loginForm">
+    <div class="input-group">
+      <label>Username</label>
+      <input type="text" id="username" required>
+    </div>
 
-      <select id="role" required>
-        <option value="">Select Role</option>
-        <option value="admin">Admin</option>
-        <option value="dispatcher">Dispatcher</option>
-      </select>
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="password" required>
+    </div>
 
-      <input type="text" id="username" placeholder="Username" required>
+    <button type="submit">Login</button>
+    <div class="error" id="error"></div>
+  </form>
+</div>
 
-      <input type="password" id="password" placeholder="Password" required>
+<script>
+function updateTime(){
+  const now = new Date();
+  document.getElementById("datetime").innerText =
+    now.toLocaleDateString() + " • " + now.toLocaleTimeString();
+}
+setInterval(updateTime,1000);
+updateTime();
 
-      <button type="submit">Login</button>
+document.getElementById("loginForm").addEventListener("submit",async function(e){
+  e.preventDefault();
 
-    </form>
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
 
-    <div id="error" class="error"></div>
-  </div>
-</main>
+  const res = await fetch("/api/login",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({username,password})
+  });
 
-<!-- JS -->
-<script src="login.js"></script>
+  const data = await res.json();
+
+  if(data.success){
+    localStorage.setItem("loggedUser",JSON.stringify(data.user));
+    window.location.href = data.redirect;
+  }else{
+    document.getElementById("error").innerText = data.message;
+  }
+});
+</script>
 
 </body>
 </html>

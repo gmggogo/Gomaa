@@ -1,58 +1,42 @@
-document.addEventListener("DOMContentLoaded", () => {
+async function login() {
 
-  const form = document.getElementById("loginForm");
-  const errorBox = document.getElementById("error");
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const error = document.getElementById("error");
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  error.innerText = "";
 
-    const role = document.getElementById("role").value;
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+  if (!username || !password) {
+    error.innerText = "Enter username and password";
+    return;
+  }
 
-    errorBox.innerText = "";
+  try {
 
-    if (!role) {
-      errorBox.innerText = "Please select role.";
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      error.innerText = data.error || "Login failed";
       return;
     }
 
-    if (!username || !password) {
-      errorBox.innerText = "Please enter username and password.";
-      return;
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("name", data.name);
+
+    if (data.role === "admin") {
+      location.href = "/admin/dashboard.html";
+    } else if (data.role === "dispatcher") {
+      location.href = "/dispatcher/dashboard.html";
     }
 
-    try {
-
-      const response = await fetch(`/api/login/${role}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ username, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        errorBox.innerText = data.error || "Invalid credentials.";
-        return;
-      }
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userRole", data.role);
-      localStorage.setItem("userName", data.name);
-
-      if (role === "admin") {
-        window.location.href = "/admin/dashboard.html";
-      } else {
-        window.location.href = "/dispatcher/dashboard.html";
-      }
-
-    } catch (error) {
-      errorBox.innerText = "Server error.";
-    }
-
-  });
-
-});
+  } catch {
+    error.innerText = "Server error";
+  }
+}
