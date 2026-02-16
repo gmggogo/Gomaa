@@ -9,18 +9,27 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SECRET = "SUNBEAM_SECRET_KEY";
 
+// ===== DEV MODE =====
+// خليها true دلوقتي عشان تدخل من غير لوجين
+// لما تخلص رجعها false
+const DEV_MODE = true;
+
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
+// ================= FILE PATHS =================
 const DATA_DIR = path.join(__dirname, "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 const FILES = {
   admin: path.join(DATA_DIR, "admins.json"),
+  company: path.join(DATA_DIR, "companies.json"),
+  driver: path.join(DATA_DIR, "drivers.json"),
   dispatcher: path.join(DATA_DIR, "dispatchers.json")
 };
 
+// ================= HELPERS =================
 function readFile(file) {
   if (!fs.existsSync(file)) fs.writeFileSync(file, "[]");
   return JSON.parse(fs.readFileSync(file));
@@ -30,24 +39,14 @@ function saveFile(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-async function createDefaultAdmin() {
-  const admins = readFile(FILES.admin);
-  if (admins.length === 0) {
-    const hashed = await bcrypt.hash("admin123", 10);
-    admins.push({
-      id: Date.now(),
-      name: "Super Admin",
-      username: "admin",
-      password: hashed,
-      active: true
-    });
-    saveFile(FILES.admin, admins);
-    console.log("Default Admin Created → username: admin / password: admin123");
-  }
-}
-createDefaultAdmin();
-
+// ================= AUTH =================
 function auth(req, res, next) {
+
+  if (DEV_MODE) {
+    req.user = { role: "admin", name: "Dev Admin" };
+    return next();
+  }
+
   const token = req.headers.authorization;
   if (!token) return res.status(401).json({ error: "No token" });
 
@@ -68,46 +67,131 @@ function requireRole(role) {
   };
 }
 
-app.post("/api/login", async (req, res) => {
+// ================= LOGIN =================
+app.post("/api/login/:role", async (req, res) => {
 
+  const { role } = req.params;
   const { username, password } = req.body;
 
-  if (!username || !password)
-    return res.status(400).json({ error: "Missing fields" });
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
 
-  let roleFound = null;
-  let userFound = null;
+  const users = readFile(FILES[role]);
+  const user = users.find(u => u.username === username && u.active);
 
-  for (let role of Object.keys(FILES)) {
-    const users = readFile(FILES[role]);
-    const user = users.find(u => u.username === username && u.active);
-    if (user) {
-      roleFound = role;
-      userFound = user;
-      break;
-    }
-  }
-
-  if (!userFound)
+  if (!user)
     return res.status(401).json({ error: "Wrong credentials" });
 
-  const match = await bcrypt.compare(password, userFound.password);
+  const match = await bcrypt.compare(password, user.password);
   if (!match)
     return res.status(401).json({ error: "Wrong credentials" });
 
   const token = jwt.sign(
-    { id: userFound.id, role: roleFound, name: userFound.name },
+    { id: user.id, role: role, name: user.name },
     SECRET,
     { expiresIn: "8h" }
   );
 
   res.json({
     token,
-    name: userFound.name,
-    role: roleFound
+    role,
+    name: user.name
   });
 });
 
+// ================= USERS CRUD =================
+
+// GET USERS
+app.get("/api/users/:role", auth, requireRole("admin"), (req, res) => {
+
+  const { role } = req.params;
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  const users = readFile(FILES[role]);
+
+  res.json(users.map(u => ({
+    id: u.id,
+    name: u.name,
+    username: u.username,
+    active: u.active
+  })));
+});
+
+// CREATE USER
+app.post("/api/users/:role", auth, requireRole("admin"), async (req, res) => {
+
+  const { role } = req.params;
+  const { name, username, password } = req.body;
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  if (!name || !username || !password)
+    return res.status(400).json({ error: "Missing fields" });
+
+  const users = readFile(FILES[role]);
+
+  if (users.find(u => u.username === username))
+    return res.status(400).json({ error: "Username exists" });
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  const newUser = {
+    id: Date.now(),
+    name,
+    username,
+    password: hashed,
+    active: true
+  };
+
+  users.push(newUser);
+  saveFile(FILES[role], users);
+
+  res.json({ success: true });
+});
+
+// UPDATE USER
+app.put("/api/users/:role/:id", auth, requireRole("admin"), async (req, res) => {
+
+  const { role, id } = req.params;
+  const { name, password } = req.body;
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  let users = readFile(FILES[role]);
+  const user = users.find(u => u.id == id);
+
+  if (!user)
+    return res.status(404).json({ error: "User not found" });
+
+  if (name) user.name = name;
+  if (password) user.password = await bcrypt.hash(password, 10);
+
+  saveFile(FILES[role], users);
+
+  res.json({ success: true });
+});
+
+// DELETE USER
+app.delete("/api/users/:role/:id", auth, requireRole("admin"), (req, res) => {
+
+  const { role, id } = req.params;
+
+  if (!FILES[role])
+    return res.status(400).json({ error: "Invalid role" });
+
+  let users = readFile(FILES[role]);
+  users = users.filter(u => u.id != id);
+
+  saveFile(FILES[role], users);
+
+  res.json({ success: true });
+});
+
+// ================= SERVER =================
 app.listen(PORT, () => {
   console.log("Sunbeam Server Running On Port " + PORT);
+  if (DEV_MODE) console.log("⚠ DEV MODE ENABLED – Login disabled temporarily");
 });
