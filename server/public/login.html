@@ -1,91 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Sunbeam Staff Login</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunbeam | Staff Login</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
 <style>
-body{
+
+*{
   margin:0;
-  font-family:'Segoe UI', Arial, sans-serif;
+  padding:0;
+  box-sizing:border-box;
+  font-family:'Poppins',sans-serif;
+}
+
+body{
   height:100vh;
   background:linear-gradient(135deg,#0f172a,#1e3a8a,#2563eb);
   display:flex;
-  justify-content:center;
   align-items:center;
-  overflow:hidden;
+  justify-content:center;
+  color:white;
 }
 
+/* LOGIN CARD */
 .login-card{
-  width:360px;
-  padding:35px 30px;
-  border-radius:18px;
+  width:380px;
   background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(12px);
-  box-shadow:0 20px 40px rgba(0,0,0,0.4);
+  backdrop-filter:blur(15px);
+  border-radius:20px;
+  padding:40px 30px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
   text-align:center;
-  color:#fff;
 }
 
+/* LOGO */
 .logo{
-  width:140px;
+  width:110px;
   margin-bottom:15px;
 }
 
-h2{
-  margin:5px 0 0 0;
-  font-weight:600;
+/* TITLE */
+.company{
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:1px;
 }
 
-.sub{
-  font-size:13px;
-  opacity:0.8;
-  margin-bottom:20px;
+.subtitle{
+  font-size:14px;
+  color:#facc15;
+  margin-bottom:10px;
 }
 
-.clock{
+/* DATE TIME */
+.datetime{
   font-size:12px;
-  margin-bottom:15px;
   opacity:0.8;
+  margin-bottom:25px;
+}
+
+/* INPUTS */
+.input-group{
+  margin-bottom:15px;
 }
 
 input{
   width:100%;
-  padding:12px;
-  margin-bottom:15px;
-  border-radius:8px;
+  padding:12px 15px;
   border:none;
+  border-radius:10px;
   outline:none;
   font-size:14px;
 }
 
+/* BUTTON */
 button{
   width:100%;
   padding:12px;
-  border-radius:8px;
   border:none;
+  border-radius:10px;
   background:#facc15;
+  color:#111827;
   font-weight:600;
+  font-size:15px;
   cursor:pointer;
   transition:0.3s;
 }
 
 button:hover{
-  background:#eab308;
+  background:#fde047;
+  transform:scale(1.02);
 }
 
-.error{
-  color:#ff4d4d;
-  font-size:13px;
-  margin-top:10px;
-}
-
+/* FOOTER */
 .footer{
+  margin-top:15px;
   font-size:11px;
-  opacity:0.7;
-  margin-top:20px;
+  opacity:0.6;
 }
+
+/* MOBILE */
+@media(max-width:450px){
+  .login-card{
+    width:90%;
+    padding:30px 20px;
+  }
+}
+
 </style>
 </head>
 
@@ -93,90 +117,64 @@ button:hover{
 
 <div class="login-card">
 
-  <!-- ✅ اللوجو -->
-<img src="assets/logo.png" class="logo" alt="Sunbeam Logo">
-  <h2>Welcome Back</h2>
-  <div class="sub">Sunbeam Staff Login</div>
+  <img src="assets/logo.png" class="logo">
 
-  <!-- ✅ ساعة وتاريخ -->
-  <div class="clock" id="clock"></div>
+  <div class="company">SUNBEAM</div>
+  <div class="subtitle">Staff Login</div>
 
-  <input type="text" id="username" placeholder="Username" required />
-  <input type="password" id="password" placeholder="Password" required />
+  <div class="datetime" id="datetime"></div>
 
-  <button onclick="login()">Login</button>
-
-  <div class="error" id="errorMsg"></div>
-
-  <div class="footer">
-    © 2026 Sunbeam Transportation LLC
+  <div class="input-group">
+    <input type="text" id="username" placeholder="Username">
   </div>
+
+  <div class="input-group">
+    <input type="password" id="password" placeholder="Password">
+  </div>
+
+  <button onclick="login()">Sign In</button>
+
+  <div class="footer">Secure Internal Access</div>
 
 </div>
 
 <script>
-// ================= CLOCK =================
-function updateClock(){
+
+function updateDateTime(){
   const now = new Date();
-  const date = now.toLocaleDateString();
-  const time = now.toLocaleTimeString();
-  document.getElementById("clock").innerText = date + " - " + time;
+  document.getElementById("datetime").innerText =
+    now.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})
+    +" • "+
+    now.toLocaleTimeString("en-US");
 }
-setInterval(updateClock,1000);
-updateClock();
 
+setInterval(updateDateTime,1000);
+updateDateTime();
 
-// ================= LOGIN =================
 async function login(){
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const errorBox = document.getElementById("errorMsg");
-
-  errorBox.innerText = "";
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
 
   if(!username || !password){
-    errorBox.innerText = "Please enter username and password";
+    alert("Please fill all fields");
     return;
   }
 
-  try{
-    const res = await fetch("/api/login",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({username,password})
-    });
+  const res = await fetch("/api/login",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({username,password})
+  });
 
-    const data = await res.json();
+  const data = await res.json();
 
-    if(!res.ok){
-      errorBox.innerText = data.message || "Login failed";
-      return;
-    }
-
-    // حفظ المستخدم
-    localStorage.setItem("loggedUser",JSON.stringify(data.user));
-
-    // توجيه حسب الدور
-    if(data.user.role === "admin"){
-      window.location.href="admin/dashboard.html";
-    }
-    else if(data.user.role === "company"){
-      window.location.href="company/dashboard.html";
-    }
-    else if(data.user.role === "driver"){
-      window.location.href="driver/dashboard.html";
-    }
-    else if(data.user.role === "dispatcher"){
-      window.location.href="dispatcher/dashboard.html";
-    }
-    else{
-      errorBox.innerText="Invalid role";
-    }
-
-  }catch(err){
-    errorBox.innerText="Server error";
+  if(data.success){
+    window.location.href = data.redirect;
+  }else{
+    alert("Invalid credentials");
   }
 }
+
 </script>
 
 </body>
