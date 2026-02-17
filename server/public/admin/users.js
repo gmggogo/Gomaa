@@ -3,14 +3,21 @@ let currentRole = "admins";
 const tableBody = document.getElementById("tableBody");
 const title = document.getElementById("title");
 
+function setActive(role){
+  document.querySelectorAll(".sidebar button")
+    .forEach(btn=>btn.classList.remove("active"));
+  document.getElementById(role+"Btn").classList.add("active");
+}
+
 function switchRole(role){
   currentRole = role;
   title.innerText = role.toUpperCase();
+  setActive(role);
   loadUsers();
 }
 
 async function loadUsers(){
-  const res = await fetch("/api/"+currentRole);
+  const res = await fetch("/api/users/"+currentRole);
   const data = await res.json();
 
   tableBody.innerHTML = "";
@@ -20,8 +27,9 @@ async function loadUsers(){
       <tr>
         <td>${user.name}</td>
         <td>${user.username}</td>
-        <td>${user.password}</td>
-        <td><button onclick="deleteUser(${user.id})">Delete</button></td>
+        <td>
+          <button onclick="deleteUser('${user._id}')">Delete</button>
+        </td>
       </tr>
     `;
   });
@@ -37,7 +45,7 @@ async function addUser(){
     return;
   }
 
-  await fetch("/api/"+currentRole,{
+  await fetch("/api/users/"+currentRole,{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({name,username,password})
@@ -51,7 +59,7 @@ async function addUser(){
 }
 
 async function deleteUser(id){
-  await fetch("/api/"+currentRole+"/"+id,{
+  await fetch("/api/users/"+currentRole+"/"+id,{
     method:"DELETE"
   });
   loadUsers();

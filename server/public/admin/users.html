@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Users Panel</title>
-
 <style>
 body{margin:0;font-family:Arial;display:flex;height:100vh}
 .sidebar{
@@ -12,9 +11,7 @@ body{margin:0;font-family:Arial;display:flex;height:100vh}
   color:white;
   padding:15px;
 }
-.sidebar h3{
-  color:#facc15;
-}
+.sidebar h3{color:#facc15;}
 .sidebar button{
   width:100%;
   padding:10px;
@@ -24,9 +21,7 @@ body{margin:0;font-family:Arial;display:flex;height:100vh}
   color:white;
   cursor:pointer;
 }
-.sidebar button.active{
-  background:#2563eb;
-}
+.sidebar button.active{background:#2563eb;}
 .content{
   flex:1;
   padding:20px;
@@ -45,6 +40,7 @@ table{
 th,td{
   border:1px solid #ddd;
   padding:8px;
+  text-align:left;
 }
 </style>
 </head>
@@ -65,7 +61,7 @@ th,td{
   <div>
     <input id="name" placeholder="Name">
     <input id="username" placeholder="Username">
-    <input id="password" placeholder="Password">
+    <input id="password" type="password" placeholder="Password">
     <button onclick="addUser()">Add</button>
   </div>
 
@@ -74,7 +70,6 @@ th,td{
       <tr>
         <th>Name</th>
         <th>Username</th>
-        <th>Password</th>
         <th>Delete</th>
       </tr>
     </thead>
