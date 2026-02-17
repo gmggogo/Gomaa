@@ -1,46 +1,96 @@
 const express = require("express");
-const router = express.Router();
 const fs = require("fs");
 const path = require("path");
+const bcrypt = require("bcrypt");
 
-function readFile(fileName) {
-    const filePath = path.join(__dirname, "..", "data", fileName);
-    if (!fs.existsSync(filePath)) return [];
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+const router = express.Router();
+
+function getFileByRole(role) {
+  const map = {
+    admin: "admins.json",
+    company: "companies.json",
+    driver: "drivers.json",
+    dispatcher: "dispatchers.json"
+  };
+
+  return path.join(__dirname, "../data", map[role]);
 }
 
-router.post("/login", (req, res) => {
-    const { username, password, role } = req.body;
+function readFile(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const data = fs.readFileSync(filePath);
+  return JSON.parse(data);
+}
 
-    if (!username || !password || !role) {
-        return res.status(400).json({ error: "Missing fields" });
+function saveFile(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// =====================
+// REGISTER
+// =====================
+router.post("/register", async (req, res) => {
+  const { name, username, password, role } = req.body;
+
+  if (!name || !username || !password || !role) {
+    return res.status(400).json({ message: "Missing fields" });
+  }
+
+  const filePath = getFileByRole(role);
+  if (!filePath) return res.status(400).json({ message: "Invalid role" });
+
+  const users = readFile(filePath);
+
+  if (users.find(u => u.username === username)) {
+    return res.status(400).json({ message: "Username exists" });
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  const newUser = {
+    id: Date.now(),
+    name,
+    username,
+    password: hashed,
+    active: true
+  };
+
+  users.push(newUser);
+  saveFile(filePath, users);
+
+  res.json({ message: `${role} created successfully` });
+});
+
+// =====================
+// LOGIN
+// =====================
+router.post("/login", async (req, res) => {
+  const { username, password, role } = req.body;
+
+  if (!role) return res.status(400).json({ message: "Role required" });
+
+  const filePath = getFileByRole(role);
+  if (!filePath) return res.status(400).json({ message: "Invalid role" });
+
+  const users = readFile(filePath);
+  const user = users.find(u => u.username === username);
+
+  if (!user) return res.status(400).json({ message: "Invalid username" });
+
+  const valid = await bcrypt.compare(password, user.password);
+
+  if (!valid) return res.status(400).json({ message: "Invalid password" });
+
+  if (!user.active) return res.status(403).json({ message: "Account disabled" });
+
+  res.json({
+    message: "Login success",
+    user: {
+      id: user.id,
+      name: user.name,
+      role
     }
-
-    let users = [];
-
-    if (role === "admin") users = readFile("admins.json");
-    else if (role === "company") users = readFile("companies.json");
-    else if (role === "dispatcher") users = readFile("dispatchers.json");
-    else if (role === "driver") users = readFile("drivers.json");
-    else return res.status(400).json({ error: "Invalid role" });
-
-    const user = users.find(
-        u => u.username === username && u.password === password
-    );
-
-    if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    res.json({
-        success: true,
-        user: {
-            id: user.id,
-            name: user.name,
-            username: user.username,
-            role
-        }
-    });
+  });
 });
 
 module.exports = router;
