@@ -1,139 +1,157 @@
 require("dotenv").config();
+
 const express = require("express");
-const cors = require("cors");
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const path = require("path");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
+const fs = require("fs");
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 10000;
+
+/* ================= SECURITY ================= */
+
+app.use(helmet());
+
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: "Too many requests"
+}));
+
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-/* ======================
-   MONGODB CONNECTION
-====================== */
-mongoose.connect(process.env.MONGO_URI)
-.then(()=>console.log("MongoDB Connected"))
-.catch(err=>console.log("Mongo Error:",err));
+/* ================= STATIC ================= */
 
-/* ======================
-   USER MODEL
-====================== */
-const userSchema = new mongoose.Schema({
-  name:String,
-  username:String,
-  password:String,
-  role:String,
-  active:{ type:Boolean, default:true }
-});
+app.use(express.static(path.join(__dirname, "public")));
 
-const User = mongoose.model("User", userSchema);
+/* ================= USERS STORAGE ================= */
 
-/* ======================
-   AUTH MIDDLEWARE
-====================== */
-function auth(req,res,next){
-  const token = req.headers.authorization;
-  if(!token) return res.status(401).json({msg:"No token"});
+const usersPath = path.join(__dirname, "data/users.json");
 
-  try{
-    const decoded = jwt.verify(token,process.env.JWT_SECRET);
-    req.user = decoded;
+if (!fs.existsSync(usersPath)) {
+  fs.writeFileSync(usersPath, JSON.stringify([]));
+}
+
+function readUsers() {
+  return JSON.parse(fs.readFileSync(usersPath));
+}
+
+function saveUsers(users) {
+  fs.writeFileSync(usersPath, JSON.stringify(users, null, 2));
+}
+
+/* ================= AUTH ================= */
+
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+function verifyToken(req, res, next) {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verified;
     next();
-  }catch{
-    res.status(401).json({msg:"Invalid token"});
+  } catch {
+    return res.status(403).json({ message: "Invalid Token" });
   }
 }
 
-/* ======================
-   ADD USER
-====================== */
-app.post("/api/users", auth, async(req,res)=>{
-  const {name,username,password,role} = req.body;
+function requireRole(role) {
+  return (req, res, next) => {
+    if (!req.user || req.user.role !== role)
+      return res.status(403).json({ message: "Forbidden" });
+    next();
+  };
+}
 
-  const hash = await bcrypt.hash(password,10);
+/* ================= ROUTES ================= */
 
-  const newUser = new User({
-    name,
-    username,
-    password:hash,
-    role
-  });
+/* Register */
+app.post("/api/register", async (req, res) => {
+  const { username, password, role } = req.body;
 
-  await newUser.save();
-  res.json({msg:"User created"});
+  const users = readUsers();
+  if (users.find(u => u.username === username))
+    return res.status(400).json({ message: "User Exists" });
+
+  const hashed = await bcrypt.hash(password, 12);
+
+  users.push({ username, password: hashed, role });
+  saveUsers(users);
+
+  res.json({ message: "User Created" });
 });
 
-/* ======================
-   GET USERS BY ROLE
-====================== */
-app.get("/api/users/:role", auth, async(req,res)=>{
-  const users = await User.find({role:req.params.role});
+/* Login */
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const users = readUsers();
+  const user = users.find(u => u.username === username);
+
+  if (!user)
+    return res.status(400).json({ message: "User Not Found" });
+
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid)
+    return res.status(400).json({ message: "Wrong Password" });
+
+  const token = jwt.sign(
+    { username: user.username, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict"
+  });
+
+  res.json({ message: "Login Success", role: user.role });
+});
+
+/* Get All Users (Admin Only) */
+app.get("/api/users", verifyToken, requireRole("admin"), (req, res) => {
+  const users = readUsers().map(u => ({
+    username: u.username,
+    role: u.role
+  }));
+
   res.json(users);
 });
 
-/* ======================
-   LOGIN
-====================== */
-app.post("/api/login", async(req,res)=>{
-  const {username,password} = req.body;
-
-  const user = await User.findOne({username});
-  if(!user) return res.status(400).json({msg:"User not found"});
-  if(!user.active) return res.status(400).json({msg:"Account disabled"});
-
-  const valid = await bcrypt.compare(password,user.password);
-  if(!valid) return res.status(400).json({msg:"Wrong password"});
-
-  const token = jwt.sign(
-    {id:user._id,role:user.role},
-    process.env.JWT_SECRET,
-    {expiresIn:"8h"}
-  );
-
-  res.json({token,role:user.role});
+/* Logout */
+app.post("/api/logout", (req, res) => {
+  res.clearCookie("token");
+  res.json({ message: "Logged Out" });
 });
 
-/* ======================
-   ENABLE / DISABLE
-====================== */
-app.put("/api/users/toggle/:id", auth, async(req,res)=>{
-  const user = await User.findById(req.params.id);
-  user.active = !user.active;
-  await user.save();
-  res.json({msg:"Updated"});
+/* ================= ERROR HANDLING ================= */
+
+app.use((req, res) => {
+  res.status(404).send("Page Not Found");
 });
 
-/* ======================
-   EDIT USER
-====================== */
-app.put("/api/users/:id", auth, async(req,res)=>{
-  const {name,username,password} = req.body;
-
-  const updateData = {name,username};
-
-  if(password){
-    updateData.password = await bcrypt.hash(password,10);
-  }
-
-  await User.findByIdAndUpdate(req.params.id,updateData);
-  res.json({msg:"Updated"});
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Server Error" });
 });
 
-/* ======================
-   DELETE
-====================== */
-app.delete("/api/users/:id", auth, async(req,res)=>{
-  await User.findByIdAndDelete(req.params.id);
-  res.json({msg:"Deleted"});
-});
+/* ================= START ================= */
 
-/* ======================
-   STATIC
-====================== */
-app.use(express.static(path.join(__dirname,"../public")));
-
-app.listen(process.env.PORT || 10000,()=>{
-  console.log("Server Running...");
+app.listen(PORT, () => {
+  console.log(`Sunbeam Secure Server Running on ${PORT}`);
 });
