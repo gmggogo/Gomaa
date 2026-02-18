@@ -1,96 +1,39 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const bcrypt = require("bcrypt");
+const router = require("express").Router();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-const router = express.Router();
+router.post("/login", async (req,res)=>{
+  const { username, password } = req.body;
 
-function getFileByRole(role) {
-  const map = {
-    admin: "admins.json",
-    company: "companies.json",
-    driver: "drivers.json",
-    dispatcher: "dispatchers.json"
-  };
+  const user = await User.findOne({ username });
+  if(!user) return res.status(400).json({message:"Invalid credentials"});
 
-  return path.join(__dirname, "../data", map[role]);
-}
+  if(!user.enabled)
+    return res.status(403).json({message:"Account Disabled"});
 
-function readFile(filePath) {
-  if (!fs.existsSync(filePath)) return [];
-  const data = fs.readFileSync(filePath);
-  return JSON.parse(data);
-}
+  const validPass = await bcrypt.compare(password, user.password);
+  if(!validPass)
+    return res.status(400).json({message:"Invalid credentials"});
 
-function saveFile(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+  const token = jwt.sign(
+    { id:user._id, role:user.role },
+    process.env.JWT_SECRET,
+    { expiresIn:"1d" }
+  );
 
-// =====================
-// REGISTER
-// =====================
-router.post("/register", async (req, res) => {
-  const { name, username, password, role } = req.body;
+  res.cookie("token", token, {
+    httpOnly:true,
+    secure:true,
+    sameSite:"None"
+  });
 
-  if (!name || !username || !password || !role) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-
-  const filePath = getFileByRole(role);
-  if (!filePath) return res.status(400).json({ message: "Invalid role" });
-
-  const users = readFile(filePath);
-
-  if (users.find(u => u.username === username)) {
-    return res.status(400).json({ message: "Username exists" });
-  }
-
-  const hashed = await bcrypt.hash(password, 10);
-
-  const newUser = {
-    id: Date.now(),
-    name,
-    username,
-    password: hashed,
-    active: true
-  };
-
-  users.push(newUser);
-  saveFile(filePath, users);
-
-  res.json({ message: `${role} created successfully` });
+  res.json({message:"Login success", role:user.role});
 });
 
-// =====================
-// LOGIN
-// =====================
-router.post("/login", async (req, res) => {
-  const { username, password, role } = req.body;
-
-  if (!role) return res.status(400).json({ message: "Role required" });
-
-  const filePath = getFileByRole(role);
-  if (!filePath) return res.status(400).json({ message: "Invalid role" });
-
-  const users = readFile(filePath);
-  const user = users.find(u => u.username === username);
-
-  if (!user) return res.status(400).json({ message: "Invalid username" });
-
-  const valid = await bcrypt.compare(password, user.password);
-
-  if (!valid) return res.status(400).json({ message: "Invalid password" });
-
-  if (!user.active) return res.status(403).json({ message: "Account disabled" });
-
-  res.json({
-    message: "Login success",
-    user: {
-      id: user.id,
-      name: user.name,
-      role
-    }
-  });
+router.post("/logout",(req,res)=>{
+  res.clearCookie("token");
+  res.json({message:"Logged out"});
 });
 
 module.exports = router;
