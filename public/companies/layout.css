@@ -1,0 +1,84 @@
+body{
+  margin:0;
+  font-family:'Segoe UI', Arial, sans-serif;
+  background:#f4f8fb;
+}
+
+/* ===== HEADER ===== */
+
+.header{
+  background:linear-gradient(90deg,#0f172a,#1e3a8a);
+  color:#fff;
+  padding:20px 50px;
+  position:sticky;
+  top:0;
+  z-index:1000;
+}
+
+.top-section{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.logged-company{
+  font-size:20px;
+  font-weight:700;
+  color:#facc15;
+}
+
+.greeting,.clock{
+  font-size:13px;
+  margin-top:4px;
+}
+
+.logo{
+  height:75px;
+}
+
+.nav{
+  display:flex;
+  justify-content:center;
+  gap:40px;
+  background:#000;
+  padding:12px 0;
+  margin-top:20px;
+  flex-wrap:wrap;
+}
+
+.nav a{
+  color:#fff;
+  text-decoration:none;
+  font-size:14px;
+  padding:6px 16px;
+  border-radius:8px;
+}
+
+.nav a.active{
+  background:#facc15;
+  color:#000;
+  font-weight:700;
+}
+
+/* ===== MOBILE ===== */
+
+@media(max-width:768px){
+
+  .header{
+    padding:15px;
+  }
+
+  .logo{
+    height:50px;
+  }
+
+  .nav{
+    gap:15px;
+  }
+
+  .nav a{
+    font-size:12px;
+    padding:5px 10px;
+  }
+}

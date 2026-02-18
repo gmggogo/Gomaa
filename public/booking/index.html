@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Booking – Sunbeam Transportation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  font-family:Arial,sans-serif;
+  background:#f8fafc;
+  margin:0;
+  padding:20px;
+}
+.box{
+  background:#fff;
+  padding:20px;
+  border-radius:8px;
+  max-width:750px;
+  margin:auto;
+}
+h1{margin-bottom:10px}
+
+label{
+  display:block;
+  margin-top:15px;
+  font-size:13px;
+  color:#374151;
+}
+
+input,textarea,select{
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  font-size:14px;
+  box-sizing:border-box;
+  border:1px solid #d1d5db;
+  border-radius:4px;
+}
+
+input[readonly],textarea[readonly]{
+  background:#e5e7eb;
+  cursor:not-allowed;
+}
+
+textarea{
+  resize:none;
+  min-height:70px;
+}
+
+.row{
+  display:flex;
+  gap:10px;
+}
+
+.row>div{flex:1}
+
+.actions{
+  margin-top:25px;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+}
+
+button{
+  padding:12px;
+  font-size:14px;
+  cursor:pointer;
+  border:none;
+  border-radius:6px;
+  flex:1;
+}
+
+.confirm{
+  background:#2563eb;
+  color:#fff;
+}
+
+.recalc{
+  background:#dc2626;
+  color:#fff;
+}
+
+.confirm:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+.error{
+  border:2px solid #dc2626 !important;
+}
+
+.error-text{
+  color:#dc2626;
+  font-size:12px;
+  margin-top:4px;
+}
+
+.note{
+  font-size:12px;
+  color:#6b7280;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h1>Confirm Booking</h1>
+
+<label>Pickup Address</label>
+<input id="pickup" readonly>
+
+<label>Stops (if any)</label>
+<textarea id="stops" readonly></textarea>
+
+<label>Dropoff Address</label>
+<input id="dropoff" readonly>
+
+<div class="row">
+  <div>
+    <label>Distance (miles)</label>
+    <input id="miles" readonly>
+  </div>
+  <div>
+    <label>Price ($)</label>
+    <input id="price" readonly>
+  </div>
+</div>
+
+<p class="note">
+🔒 Addresses and price are locked.  
+To change them, click <b>Recalculate Quote</b>.
+</p>
+
+<label>Passenger Name</label>
+<input id="name">
+
+<label>Phone Number</label>
+<div class="row">
+  <div style="max-width:120px">
+    <select id="countryCode">
+      <option value="+1">🇺🇸 +1</option>
+      <option value="+44">🇬🇧 +44</option>
+      <option value="+20">🇪🇬 +20</option>
+      <option value="+971">🇦🇪 +971</option>
+    </select>
+  </div>
+  <div>
+    <input id="phone" placeholder="Phone number">
+    <div id="phoneError" class="error-text"></div>
+  </div>
+</div>
+
+<div class="row">
+  <div>
+    <label>Date</label>
+    <input type="date" id="date">
+  </div>
+  <div>
+    <label>Time</label>
+    <input type="time" id="time">
+  </div>
+</div>
+
+<div class="actions">
+  <button class="recalc" onclick="recalculate()">Recalculate Quote</button>
+  <button class="confirm" id="confirmBtn" onclick="confirmBooking()">Confirm Booking</button>
+</div>
+</div>
+
+<script>
+/* ===============================
+   LOAD QUOTE DATA (SECURE)
+================================ */
+let tripData = null;
+
+try{
+  tripData = JSON.parse(localStorage.getItem("tripData"));
+}catch{}
+
+if(!tripData || !tripData.pickup || !tripData.dropoff || !tripData.price){
+  alert("Session expired. Please calculate quote again.");
+  localStorage.removeItem("tripData");
+  location.href="../getquote/index.html";
+}
+
+/* LOCK FIELDS */
+document.getElementById("pickup").value  = tripData.pickup;
+document.getElementById("dropoff").value = tripData.dropoff;
+document.getElementById("miles").value   = tripData.miles;
+document.getElementById("price").value   = tripData.price;
+document.getElementById("stops").value   =
+  (tripData.stops && tripData.stops.length)
+  ? tripData.stops.join("\n")
+  : "No stops";
+
+/* ===============================
+   HELPERS
+================================ */
+function clearErrors(){
+  ["name","phone","date","time"].forEach(id=>{
+    document.getElementById(id).classList.remove("error");
+  });
+  document.getElementById("phoneError").innerText="";
+}
+
+/* Arizona current time */
+function nowAZ(){
+  return new Date(
+    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+  );
+}
+
+function minutesUntilTripAZ(dateStr,timeStr){
+  const trip = new Date(`${dateStr}T${timeStr}:00`);
+  return Math.floor((trip - nowAZ())/60000);
+}
+
+/* ===============================
+   RECALCULATE
+================================ */
+function recalculate(){
+  localStorage.removeItem("tripData");
+  location.href="../getquote/index.html";
+}
+
+/* ===============================
+   CONFIRM BOOKING
+================================ */
+function confirmBooking(){
+
+  const btn = document.getElementById("confirmBtn");
+  btn.disabled = true;
+
+  clearErrors();
+  let valid=true;
+
+  const name  = document.getElementById("name");
+  const phone = document.getElementById("phone");
+  const date  = document.getElementById("date");
+  const time  = document.getElementById("time");
+  const code  = document.getElementById("countryCode").value;
+
+  if(!name.value.trim()){ name.classList.add("error"); valid=false; }
+  if(!date.value){ date.classList.add("error"); valid=false; }
+  if(!time.value){ time.classList.add("error"); valid=false; }
+
+  const phoneDigits = phone.value.replace(/\D/g,"");
+  if(phoneDigits.length<7 || phoneDigits.length>15){
+    phone.classList.add("error");
+    document.getElementById("phoneError").innerText="Enter valid phone number";
+    valid=false;
+  }
+
+  if(!valid){ btn.disabled=false; return; }
+
+  const minutesLeft = minutesUntilTripAZ(date.value,time.value);
+
+  if(minutesLeft<=0){
+    alert("Trip time must be in the future.");
+    btn.disabled=false;
+    return;
+  }
+
+  if(minutesLeft<=120){
+    const ok = confirm(
+      "⚠️ Booking within 120 minutes.\n\nEditing will NOT be allowed.\n\nContinue?"
+    );
+    if(!ok){ btn.disabled=false; return; }
+  }
+
+  const pendingBooking={
+    type:"Individual",
+    pickup:tripData.pickup,
+    dropoff:tripData.dropoff,
+    stops:tripData.stops||[],
+    miles:tripData.miles,
+    price:tripData.price,
+    passenger:{
+      name:name.value.trim(),
+      phone:code+phoneDigits
+    },
+    date:date.value,
+    time:time.value,
+    status:"Pending Payment",
+    createdAt:new Date().toISOString()
+  };
+
+  localStorage.setItem("pendingBooking",JSON.stringify(pendingBooking));
+  location.href="./payment.html";
+}
+</script>
+
+</body>
+</html>

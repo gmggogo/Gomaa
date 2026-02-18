@@ -1,70 +1,41 @@
-const API = "/api/admins";
-const table = document.getElementById("table");
+const router = require("express").Router();
+const bcrypt = require("bcryptjs");
+const User = require("../models/User");
+const { verifyToken, requireRole } = require("../middleware/authMiddleware");
 
-async function loadUsers() {
-  const res = await fetch(API);
-  const users = await res.json();
-  table.innerHTML = "";
+router.use(verifyToken);
 
-  users.forEach((u, i) => {
-    table.innerHTML += `
-      <tr>
-        <td><input value="${u.name}" disabled></td>
-        <td><input value="${u.username}" disabled></td>
-        <td><input placeholder="New password" disabled></td>
-        <td>
-          <button class="btn edit" onclick="editRow(this)">Edit</button>
-          <button class="btn save" onclick="saveRow(${i}, this)" style="display:none">Save</button>
-          <button class="btn delete" onclick="deleteUser(${i})">Delete</button>
-        </td>
-      </tr>
-    `;
-  });
-}
+router.get("/", requireRole("admin"), async (req,res)=>{
+  const users = await User.find();
+  res.json(users);
+});
 
-function editRow(btn) {
-  const row = btn.closest("tr");
-  row.querySelectorAll("input").forEach(i => i.disabled = false);
-  btn.style.display = "none";
-  row.querySelector(".save").style.display = "inline-block";
-}
+router.post("/", requireRole("admin"), async (req,res)=>{
+  const { name, username, password, role } = req.body;
 
-async function saveRow(index, btn) {
-  const row = btn.closest("tr");
-  const inputs = row.querySelectorAll("input");
+  const hashed = await bcrypt.hash(password,10);
 
-  await fetch(API + "/" + index, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: inputs[0].value,
-      username: inputs[1].value,
-      password: inputs[2].value
-    })
+  const newUser = new User({
+    name,
+    username,
+    password: hashed,
+    role
   });
 
-  loadUsers();
-}
+  await newUser.save();
+  res.json({message:"User Created"});
+});
 
-async function deleteUser(index) {
-  if (!confirm("Delete user?")) return;
-  await fetch(API + "/" + index, { method: "DELETE" });
-  loadUsers();
-}
+router.put("/:id/toggle", requireRole("admin"), async (req,res)=>{
+  const user = await User.findById(req.params.id);
+  user.enabled = !user.enabled;
+  await user.save();
+  res.json({message:"Status Updated"});
+});
 
-async function addUser() {
-  await fetch(API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: name.value,
-      username: username.value,
-      password: password.value
-    })
-  });
+router.delete("/:id", requireRole("admin"), async (req,res)=>{
+  await User.findByIdAndDelete(req.params.id);
+  res.json({message:"Deleted"});
+});
 
-  name.value = username.value = password.value = "";
-  loadUsers();
-}
-
-loadUsers();
+module.exports = router;

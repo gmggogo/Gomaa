@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Driver Live Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+:root{
+  --gold:#facc15;
+  --dark:#020617;
+  --blue:#2563eb;
+}
+
+html, body{
+  margin:0;
+  height:100%;
+  background:var(--dark);
+  font-family:Arial, sans-serif;
+  color:#fff;
+}
+
+/* ===== TOP LABEL ===== */
+.top{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  background:black;
+  color:var(--gold);
+  padding:8px 14px;
+  border-radius:10px;
+  z-index:1000;
+  font-weight:bold;
+}
+
+/* ===== MAP ===== */
+#map{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  /* 👇 المهم */
+  bottom:210px; /* trip + google + nav */
+  z-index:1;
+}
+
+/* ===== TRIP PANEL ===== */
+.trip-panel{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:140px;
+  padding:10px 12px;
+  background:var(--dark);
+  border-top:1px solid rgba(255,255,255,.08);
+  z-index:9997;
+  display:none;
+}
+
+.trip-panel button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-bottom:8px;
+}
+
+.timer{
+  text-align:center;
+  font-weight:bold;
+  color:var(--gold);
+  margin-bottom:8px;
+  display:none;
+}
+
+/* Buttons */
+.btn-go{ background:#2563eb; color:#fff; display:none; }
+.btn-arrived{ background:#16a34a; color:#fff; display:none; }
+.btn-start{ background:#22c55e; color:#000; display:none; }
+.btn-noshow{ background:#dc2626; color:#fff; display:none; }
+.btn-dropoff{ background:#facc15; color:#000; display:none; opacity:.6; }
+.btn-dropoff.enabled{ opacity:1; }
+
+/* ===== NO SHOW ===== */
+.no-show-box{ display:none; }
+
+.no-show-box textarea{
+  width:100%;
+  height:90px;
+  border-radius:10px;
+  border:none;
+  padding:10px;
+  margin-bottom:8px;
+}
+
+.btn-complete{
+  background:#7c3aed;
+  color:#fff;
+}
+
+/* ===== GOOGLE BAR ===== */
+.bottom{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:70px;
+  background:var(--dark);
+  padding:10px 12px;
+  z-index:9998;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.bottom button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:var(--blue);
+  color:white;
+  font-weight:bold;
+}
+
+/* ===== BOTTOM NAV (الهيدر تحت) ===== */
+.nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:70px;
+  background:var(--dark);
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  border-top:1px solid rgba(255,255,255,.08);
+  z-index:9999;
+}
+
+.nav button{
+  background:none;
+  border:none;
+  color:#9ca3af;
+  font-size:11px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+}
+
+.nav button span{ font-size:20px; }
+.nav button.active{ color:var(--gold); }
+</style>
+</head>
+
+<body>
+
+<div class="top">LIVE DRIVER MAP</div>
+
+<div id="map"></div>
+
+<div class="trip-panel" id="tripPanel">
+  <div class="timer" id="waitTimer">20:00</div>
+
+  <button class="btn-go" id="btnGoPickup">GO TO PICKUP LOCATION</button>
+  <button class="btn-arrived" id="btnArrived">ARRIVED</button>
+  <button class="btn-start" id="btnStart">START TRIP</button>
+  <button class="btn-noshow" id="btnNoShow">NO SHOW</button>
+  <button class="btn-dropoff" id="btnDropoff">DROP OFF</button>
+
+  <div class="no-show-box" id="noShowBox">
+    <textarea id="noShowNotes" placeholder="Reason for No Show (required)"></textarea>
+    <button class="btn-complete" id="btnComplete">COMPLETE</button>
+  </div>
+</div>
+
+<div class="bottom">
+  <button onclick="openGoogle()">OPEN IN GOOGLE MAPS</button>
+</div>
+
+<div class="nav">
+  <button onclick="go('home')"><span>🏠</span>Home</button>
+  <button onclick="go('trips')"><span>🚗</span>Trips</button>
+  <button class="active"><span>🗺️</span>Map</button>
+  <button onclick="go('chat')"><span>💬</span>Chat</button>
+  <button onclick="logout()"><span>🚪</span>Logout</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="map.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

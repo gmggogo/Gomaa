@@ -1,0 +1,34 @@
+/* ====== FIX BUTTON VISIBILITY ====== */
+.actions button,
+.top-bar button{
+  background-color:#3b82f6 !important; /* أزرق واضح */
+  color:#ffffff !important;            /* كتابة أبيض */
+  border:1px solid #2563eb !important;
+  box-shadow:0 1px 2px rgba(0,0,0,.15);
+}
+
+/* ألوان خاصة لكل زر */
+.btn-confirm{ background:#22c55e !important; border-color:#16a34a !important; }
+.btn-edit{ background:#3b82f6 !important; border-color:#2563eb !important; }
+.btn-delete{ background:#ef4444 !important; border-color:#dc2626 !important; }
+.btn-cancel{ background:#f59e0b !important; border-color:#d97706 !important; }
+
+/* ====== HOVER (تنور) ====== */
+.actions button:hover,
+.top-bar button:hover{
+  filter:brightness(1.08);
+  box-shadow:0 4px 10px rgba(59,130,246,.35);
+  transform:translateY(-1px);
+}
+
+/* ====== ACTIVE (ضغط) ====== */
+.actions button:active,
+.top-bar button:active{
+  transform:scale(.96);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35);
+}
+
+/* ====== تأكيد إن مفيش ستايل بيمسح اللون ====== */
+button{
+  background-image:none !important;
+}

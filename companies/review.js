@@ -1,7 +1,7 @@
 /* ===============================
    INIT (DOM SAFE)
 ================================ */
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
 
   /* ===============================
      AUTH
@@ -23,15 +23,34 @@ window.addEventListener("DOMContentLoaded", () => {
   const searchBox = document.getElementById("searchBox");
   if (!container) return;
 
+  const API_URL = "/api/trips";
+
   /* ===============================
-     DATA
+     DATA (SERVER INSTEAD OF LOCAL)
   ================================ */
   let trips = [];
-  try {
-    trips = JSON.parse(localStorage.getItem("companyTrips")) || [];
-  } catch {
-    trips = [];
+
+  async function loadTrips(){
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      trips = Array.isArray(data)
+        ? data.filter(t => t.company === loggedCompany.name)
+        : [];
+    }catch{
+      trips = [];
+    }
   }
+
+  async function saveTrips(){
+    await fetch(API_URL,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(trips)
+    });
+  }
+
+  await loadTrips();
 
   /* ===============================
      STYLES (UNCHANGED)
@@ -45,7 +64,6 @@ window.addEventListener("DOMContentLoaded", () => {
     .btn.cancel{background:#f59e0b}
     .btn:active{transform:scale(.95)}
     .actions{display:flex;gap:6px;justify-content:center}
-
     table{width:100%;border-collapse:collapse;font-size:12px}
     th{background:#0f172a;color:#fff;padding:6px}
     td{border:1px solid #e5e7eb;padding:4px;text-align:center}
@@ -53,13 +71,6 @@ window.addEventListener("DOMContentLoaded", () => {
     input.editable{width:100%;font-size:12px}
   `;
   document.head.appendChild(style);
-
-  /* ===============================
-     SAVE
-  ================================ */
-  function saveTrips(){
-    localStorage.setItem("companyTrips", JSON.stringify(trips));
-  }
 
   /* ===============================
      TIME HELPERS
@@ -74,54 +85,6 @@ window.addEventListener("DOMContentLoaded", () => {
     if(!d) return false;
     const diff = d.getTime() - Date.now();
     return diff > 0 && diff <= 2 * 60 * 60 * 1000;
-  }
-
-  /* ===============================
-     HUB
-  ================================ */
-  function upsertHub(trip){
-    let hub = JSON.parse(localStorage.getItem("tripsHub")) || [];
-
-    const payload = {
-      tripNumber: trip.tripNumber,
-      type: "Company",
-      company: loggedCompany.name,
-      entryName: trip.entryName,
-      entryPhone: trip.entryPhone,
-      clientName: trip.clientName,
-      clientPhone: trip.clientPhone,
-      pickup: trip.pickup,
-      dropoff: trip.dropoff,
-      stops: trip.stops || [],
-      tripDate: trip.tripDate,
-      tripTime: trip.tripTime,
-      status: trip.status,
-      bookedAt: new Date().toISOString()
-    };
-
-    const i = hub.findIndex(h => h.tripNumber === trip.tripNumber);
-    if(i === -1) hub.push(payload);
-    else hub[i] = payload;
-
-    localStorage.setItem("tripsHub", JSON.stringify(hub));
-  }
-
-  function removeFromHub(num){
-    let hub = JSON.parse(localStorage.getItem("tripsHub")) || [];
-    hub = hub.filter(h => h.tripNumber !== num);
-    localStorage.setItem("tripsHub", JSON.stringify(hub));
-  }
-
-  /* ===============================
-     AUTO CONFIRM (FIXED)
-  ================================ */
-  function autoConfirmIfNeeded(t){
-    if (t.status === "Cancelled") return; // ✅ FIX
-    if (t.status !== "Confirmed") {
-      t.status = "Confirmed";
-      upsertHub(t);
-      saveTrips();
-    }
   }
 
   /* ===============================
@@ -140,7 +103,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ===============================
-     SEARCH (ONE)
+     SEARCH
   ================================ */
   function filteredTrips(){
     if(!searchBox || !searchBox.value) return trips;
@@ -185,7 +148,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
         let actions = "";
         if (withinTwoHours(t)) {
-          autoConfirmIfNeeded(t);
           actions = `<button class="btn cancel" onclick="cancelTrip(${i})">Cancel</button>`;
         } else {
           actions = `
@@ -220,9 +182,28 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ===============================
-     EDIT / SAVE
+     ACTIONS
   ================================ */
-  function editRow(i, btn){
+  async function confirmTrip(i){
+    trips[i].status = "Confirmed";
+    await saveTrips();
+    render();
+  }
+
+  async function cancelTrip(i){
+    trips[i].status = "Cancelled";
+    await saveTrips();
+    render();
+  }
+
+  async function deleteTrip(i){
+    if(!confirm("Delete trip?")) return;
+    trips.splice(i,1);
+    await saveTrips();
+    render();
+  }
+
+  async function editRow(i, btn){
     const trip = trips[i];
     if (withinTwoHours(trip)) return;
 
@@ -232,8 +213,6 @@ window.addEventListener("DOMContentLoaded", () => {
     if (btn.innerText === "Edit") {
       inputs.forEach(x => x.disabled = false);
       btn.innerText = "Save";
-
-      if (trip.tripNumber) removeFromHub(trip.tripNumber);
       return;
     }
 
@@ -247,46 +226,13 @@ window.addEventListener("DOMContentLoaded", () => {
     trip.tripDate    = inputs[7].value;
     trip.tripTime    = inputs[8].value;
 
-    trip.status = "Scheduled"; // ✅ FIX
-
     inputs.forEach(x => x.disabled = true);
     btn.innerText = "Edit";
 
-    saveTrips();
+    await saveTrips();
     render();
   }
 
-  /* ===============================
-     ACTIONS
-  ================================ */
-  function confirmTrip(i){
-    const t = trips[i];
-    t.status = "Confirmed";
-    upsertHub(t);
-    saveTrips();
-    render();
-  }
-
-  function cancelTrip(i){
-    const t = trips[i];
-    t.status = "Cancelled";
-    upsertHub(t);
-    saveTrips();
-    render();
-  }
-
-  function deleteTrip(i){
-    if(!confirm("Delete trip?")) return;
-    const num = trips[i].tripNumber;
-    trips.splice(i,1);
-    saveTrips();
-    if(num) removeFromHub(num);
-    render();
-  }
-
-  /* ===============================
-     EXPOSE (FIXED)
-  ================================ */
   window.editRow = editRow;
   window.confirmTrip = confirmTrip;
   window.cancelTrip = cancelTrip;

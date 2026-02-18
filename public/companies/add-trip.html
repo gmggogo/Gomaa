@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SUNBEAM TRANSPORTATION – Add Trip</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* ===============================
+   BODY (REVIEW)
+================================ */
+body{
+  margin:0;
+  font-family:'Segoe UI', Arial, sans-serif;
+  background:#f4f8fb;
+}
+
+/* ===============================
+   HEADER (REVIEW EXACT STYLE)
+================================ */
+.header{
+  background:linear-gradient(90deg,#0f172a,#1e3a8a);
+  color:#fff;
+  padding:20px 50px;
+}
+
+.top-section{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.logged-company{
+  font-size:20px;
+  font-weight:700;
+  color:#facc15;
+}
+
+.greeting,
+.clock{
+  font-size:13px;
+  margin-top:4px;
+}
+
+.logo{
+  height:75px;
+}
+
+/* NAV (BLACK) */
+.nav{
+  display:flex;
+  justify-content:center;
+  gap:40px;
+  background:#000;
+  padding:12px 0;
+  margin-top:20px;
+}
+
+.nav a{
+  color:#fff;
+  text-decoration:none;
+  font-size:14px;
+  padding:6px 16px;
+  border-radius:8px;
+}
+
+.nav a.active{
+  background:#facc15;
+  color:#000;
+  font-weight:700;
+}
+
+/* ===============================
+   CONTENT (MATCH REVIEW CARD LOOK)
+================================ */
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:35px 20px;
+}
+
+section{
+  background:#fff;
+  padding:18px;
+  border-radius:14px;
+  margin-bottom:20px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+}
+
+section h3{
+  margin-bottom:12px;
+  font-size:15px;
+  color:#0f172a;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+
+input, textarea{
+  width:100%;
+  padding:9px;
+  font-size:13px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  box-sizing:border-box;
+}
+
+textarea{ min-height:80px; margin-top:12px; }
+
+.actions{
+  display:flex;
+  gap:12px;
+  margin-top:12px;
+}
+
+button{
+  padding:8px 16px;
+  border:none;
+  border-radius:10px;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.btn-blue{ background:#3b82f6; color:#fff; }
+.btn-green{ background:#22c55e; color:#000; }
+.btn-gray{ background:#64748b; color:#fff; }
+.btn-light{ background:#0ea5e9; color:#fff; }
+
+/* ===============================
+   MOBILE
+================================ */
+@media(max-width:768px){
+  .header{ padding:20px; }
+  .top-section{
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+  .logo{ margin-top:15px; height:65px; }
+
+  .nav{ flex-wrap:wrap; gap:15px; }
+
+  .form-grid{ grid-template-columns:1fr; }
+  .actions{ flex-direction:column; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===============================
+     HEADER (REVIEW LAYOUT)
+================================ -->
+<div class="header">
+
+  <div class="top-section">
+    <div>
+      <!-- نفس id بتاع AddTrip JS -->
+      <div class="logged-company" id="companyName"></div>
+      <!-- Greeting (Review) -->
+      <div class="greeting" id="greetingText"></div>
+      <!-- نفس id بتاع AddTrip JS -->
+      <div class="clock" id="azDateTime"></div>
+    </div>
+
+    <img src="../assets/logo.png" class="logo" alt="Sunbeam Logo">
+  </div>
+
+  <div class="nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="add-trip.html" class="active">Add Trip</a>
+    <a href="review.html">Review</a>
+    <a href="summary.html">Summary</a>
+    <a href="taxes.html">Taxes</a>
+  </div>
+
+</div>
+
+<!-- ===============================
+     CONTENT
+================================ -->
+<div class="container">
+
+<section>
+<h3>Entry Information</h3>
+<div class="form-grid">
+  <input id="entryName" placeholder="Data Entry Name">
+  <input id="entryPhone" placeholder="Phone Number">
+</div>
+<div class="actions">
+  <button class="btn-blue" id="saveEntry" type="button">Save</button>
+  <button class="btn-gray" id="editEntry" style="display:none;" type="button">Edit</button>
+</div>
+</section>
+
+<section>
+<h3>Client Information</h3>
+<div class="form-grid">
+  <input id="clientName" placeholder="Client Name">
+  <input id="clientPhone" placeholder="Client Phone">
+</div>
+</section>
+
+<section>
+<h3>Trip Details</h3>
+<div class="form-grid">
+  <input id="pickup" placeholder="Pickup Address">
+  <input id="dropoff" placeholder="Dropoff Address">
+  <input id="tripDate" type="date">
+  <input id="tripTime" type="time">
+</div>
+
+<div id="stops" style="margin-top:10px;"></div>
+<button class="btn-light" id="addStopBtn" type="button">+ Add Stop</button>
+
+<textarea id="notes" placeholder="Notes"></textarea>
+</section>
+
+<div class="actions">
+  <button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
+  <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+</div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+  /* ===============================
+     AUTH
+  ================================ */
+  let loggedCompany = null;
+  try { loggedCompany = JSON.parse(localStorage.getItem("loggedCompany")); } catch {}
+  if(!loggedCompany){ location.href="company-login.html"; return; }
+  document.getElementById("companyName").innerText = loggedCompany.name || "";
+
+  /* ===============================
+     GREETING (REVIEW)
+  ================================ */
+  function setGreeting(){
+    const h = new Date().getHours();
+    let msg = "";
+    if(h < 12) msg = "Good Morning ☀️";
+    else if(h < 18) msg = "Good Afternoon 🌤";
+    else msg = "Good Evening 🌙";
+    const el = document.getElementById("greetingText");
+    if(el) el.innerText = msg;
+  }
+  setGreeting();
+
+  /* ===============================
+     API
+  ================================ */
+  const API_URL = "/api/trips";
+
+  /* ===============================
+     DRAFT KEY (PER COMPANY)
+  ================================ */
+  const DRAFT_KEY = "draftTrip_company_" + (loggedCompany.username || loggedCompany.name || "default");
+
+  /* ===============================
+     ARIZONA CLOCK
+  ================================ */
+  function updateArizonaTime(){
+    const now = new Date();
+    document.getElementById("azDateTime").innerText =
+      new Intl.DateTimeFormat("en-US",{
+        timeZone:"America/Phoenix",
+        year:"numeric",month:"short",day:"2-digit",
+        hour:"2-digit",minute:"2-digit",second:"2-digit"
+      }).format(now);
+  }
+  setInterval(updateArizonaTime,1000);
+  updateArizonaTime();
+
+  /* ===============================
+     ARIZONA TIME HELPERS (120 MIN)
+  ================================ */
+  function getAZNow(){
+    return new Date(new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" }));
+  }
+  function isWithin120Minutes(d,t){
+    if(!d || !t) return false;
+    const tripDT = new Date(new Date(`${d}T${t}`).toLocaleString("en-US",{ timeZone:"America/Phoenix" }));
+    const diffMin = (tripDT - getAZNow())/60000;
+    return diffMin > 0 && diffMin <= 120;
+  }
+
+  /* ===============================
+     DOM
+  ================================ */
+  const entryName  = document.getElementById("entryName");
+  const entryPhone = document.getElementById("entryPhone");
+  const saveEntry  = document.getElementById("saveEntry");
+  const editEntry  = document.getElementById("editEntry");
+
+  const clientName  = document.getElementById("clientName");
+  const clientPhone = document.getElementById("clientPhone");
+  const pickup      = document.getElementById("pickup");
+  const dropoff     = document.getElementById("dropoff");
+  const tripDate    = document.getElementById("tripDate");
+  const tripTime    = document.getElementById("tripTime");
+  const notes       = document.getElementById("notes");
+  const stopsBox    = document.getElementById("stops");
+
+  const addStopBtn   = document.getElementById("addStopBtn");
+  const saveTripBtn  = document.getElementById("saveTrip");
+  const submitTripBtn= document.getElementById("submitTrip");
+
+  /* ===============================
+     ENTRY LOCK SYSTEM
+  ================================ */
+  function lockEntry(){
+    entryName.disabled = true;
+    entryPhone.disabled = true;
+    saveEntry.style.display = "none";
+    editEntry.style.display = "inline-block";
+  }
+  function unlockEntry(){
+    entryName.disabled = false;
+    entryPhone.disabled = false;
+    saveEntry.style.display = "inline-block";
+    editEntry.style.display = "none";
+  }
+
+  let savedEntry = null;
+  try { savedEntry = JSON.parse(localStorage.getItem("entryInfo")||"null"); } catch {}
+  if(savedEntry){
+    entryName.value = savedEntry.name || "";
+    entryPhone.value = savedEntry.phone || "";
+    lockEntry();
+  }else{
+    unlockEntry();
+  }
+
+  saveEntry.onclick = function(){
+    if(!entryName.value || !entryPhone.value){
+      alert("Enter Entry Name & Phone");
+      return;
+    }
+    localStorage.setItem("entryInfo", JSON.stringify({
+      name: entryName.value,
+      phone: entryPhone.value
+    }));
+    lockEntry();
+  };
+
+  editEntry.onclick = function(){ unlockEntry(); };
+
+  /* ===============================
+     STOPS (ADD + RESTORE)
+  ================================ */
+  function addStop(value=""){
+    const input = document.createElement("input");
+    input.placeholder = "Stop";
+    input.value = value;
+    stopsBox.appendChild(input);
+    input.addEventListener("input", saveDraftAuto);
+  }
+
+  addStopBtn.onclick = function(){
+    addStop("");
+    saveDraftAuto();
+  };
+
+  /* ===============================
+     TRIP NUMBER (ONLY ON SUBMIT)
+  ================================ */
+  function generateTripNumber(){
+    let last = parseInt(localStorage.getItem("lastCompanyTrip") || "200", 10);
+    last++;
+    localStorage.setItem("lastCompanyTrip", String(last));
+    return "GH-" + last;
+  }
+
+  /* ===============================
+     DRAFT SAVE / LOAD (AUTO + MANUAL SAVE)
+  ================================ */
+  function getDraftObject(){
+    return {
+      entryName: entryName.value || "",
+      entryPhone: entryPhone.value || "",
+      clientName: clientName.value || "",
+      clientPhone: clientPhone.value || "",
+      pickup: pickup.value || "",
+      dropoff: dropoff.value || "",
+      tripDate: tripDate.value || "",
+      tripTime: tripTime.value || "",
+      notes: notes.value || "",
+      stops: Array.from(stopsBox.querySelectorAll("input")).map(i=>i.value || "")
+    };
+  }
+
+  function loadDraft(){
+    let draft = null;
+    try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch { draft = null; }
+    if(!draft) return;
+
+    if(typeof draft.entryName === "string") entryName.value = draft.entryName;
+    if(typeof draft.entryPhone === "string") entryPhone.value = draft.entryPhone;
+
+    if(typeof draft.clientName === "string") clientName.value = draft.clientName;
+    if(typeof draft.clientPhone === "string") clientPhone.value = draft.clientPhone;
+    if(typeof draft.pickup === "string") pickup.value = draft.pickup;
+    if(typeof draft.dropoff === "string") dropoff.value = draft.dropoff;
+    if(typeof draft.tripDate === "string") tripDate.value = draft.tripDate;
+    if(typeof draft.tripTime === "string") tripTime.value = draft.tripTime;
+    if(typeof draft.notes === "string") notes.value = draft.notes;
+
+    stopsBox.innerHTML = "";
+    if(Array.isArray(draft.stops)){
+      draft.stops.forEach(s => addStop(s));
+    }
+  }
+
+  function saveDraftAuto(){
+    try{
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(getDraftObject()));
+    }catch(e){}
+  }
+
+  // Auto-save on any changes
+  [clientName, clientPhone, pickup, dropoff, tripDate, tripTime, notes].forEach(el=>{
+    el.addEventListener("input", saveDraftAuto);
+  });
+
+  // Load draft after DOM ready
+  loadDraft();
+
+  /* ===============================
+     BUTTON EFFECT
+  ================================ */
+  function glowSave(){
+    saveTripBtn.style.background = "#22c55e";
+    saveTripBtn.style.color = "#000";
+    setTimeout(()=>{
+      saveTripBtn.style.background = "#64748b";
+      saveTripBtn.style.color = "#fff";
+    },800);
+  }
+
+  /* ===============================
+     SAVE TRIP (LOCAL ONLY) ✅
+     - NO SERVER REQUEST
+     - NO DUPLICATE
+  ================================ */
+  saveTripBtn.onclick = function(e){
+    e.preventDefault();
+    saveDraftAuto();
+    glowSave();
+    alert("Draft saved ✔ (local only)");
+  };
+
+  /* ===============================
+     SEND TO SERVER (ONLY SUBMIT)
+  ================================ */
+  let isSending = false;
+
+  async function sendTripToServer(tripData){
+    if(isSending) return false;
+    isSending = true;
+    saveTripBtn.disabled = true;
+    submitTripBtn.disabled = true;
+
+    try{
+      const res = await fetch(API_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(tripData)
+      });
+
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+
+      if(!res.ok){
+        const msg = (json && (json.error || json.message)) ? (json.error || json.message) : text;
+        throw new Error(msg || "Server error");
+      }
+
+      return true;
+
+    }catch(err){
+      alert("Server Error: " + err.message);
+      return false;
+
+    }finally{
+      isSending = false;
+      saveTripBtn.disabled = false;
+      submitTripBtn.disabled = false;
+    }
+  }
+
+  /* ===============================
+     COLLECT (SUBMIT PAYLOAD)
+  ================================ */
+  function collectScheduledTrip(){
+    const stops = Array.from(stopsBox.querySelectorAll("input"))
+      .map(i => (i.value || "").trim())
+      .filter(Boolean);
+
+    return {
+      tripNumber: generateTripNumber(),     // ✅ ONLY HERE
+      type: "Company",
+      company: loggedCompany.name || "",
+
+      entryName: entryName.value || "",
+      entryPhone: entryPhone.value || "",
+
+      clientName: clientName.value || "",
+      clientPhone: clientPhone.value || "",
+
+      pickup: pickup.value || "",
+      dropoff: dropoff.value || "",
+
+      stops: stops,
+
+      tripDate: tripDate.value || "",
+      tripTime: tripTime.value || "",
+
+      notes: notes.value || "",
+
+      status: "Scheduled",
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  /* ===============================
+     SUBMIT TRIP ✅
+  ================================ */
+  submitTripBtn.onclick = async function(e){
+    e.preventDefault();
+
+    if(!entryName.value || !entryPhone.value){
+      alert("Complete Entry Info first.");
+      return;
+    }
+    if(!tripDate.value || !tripTime.value){
+      alert("Select trip date & time");
+      return;
+    }
+
+    if(isWithin120Minutes(tripDate.value, tripTime.value)){
+      const ok = confirm("⚠️ Within 120 minutes.\nAfter submission, you cannot modify it.\nContinue?");
+      if(!ok) return;
+    }
+
+    const trip = collectScheduledTrip();
+
+    const ok = await sendTripToServer(trip);
+
+    if(ok){
+      // ✅ clear draft only after server success
+      localStorage.removeItem(DRAFT_KEY);
+      alert("Trip submitted ✔");
+      location.reload();
+    }
+  };
+
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,166 @@
+/* ===============================
+   GLOBAL
+================================ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f6fa;
+  color: #1f2937;
+}
+
+/* ===============================
+   TOP BAR
+================================ */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.top-bar button {
+  background: #334155;
+  border: none;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.top-bar h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* ===============================
+   SEARCH BAR
+================================ */
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5f5;
+  font-size: 13px;
+}
+
+.search-bar button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.search-bar button:hover {
+  background: #1d4ed8;
+}
+
+/* ===============================
+   TABLE
+================================ */
+.table-wrapper {
+  background: #fff;
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,.08);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 1300px;
+}
+
+/* ===============================
+   HEADER
+================================ */
+thead {
+  background: #e5e7eb;
+}
+
+thead th {
+  padding: 8px 6px;
+  border-bottom: 1px solid #cbd5f5;
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ===============================
+   BODY
+================================ */
+tbody td {
+  padding: 6px 6px;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* ===============================
+   ROW COLORS
+================================ */
+tr.individual {
+  background: #fff9c4; /* فردي – أصفر فاتح */
+}
+
+tr.company {
+  background: #f1f5f9; /* شركات – لبني فاتح */
+}
+
+/* ===============================
+   STATUS
+================================ */
+td.status {
+  font-weight: bold;
+  color: #047857;
+}
+
+/* ===============================
+   NO DATA
+================================ */
+.no-data {
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+/* ===============================
+   SMALL SCREENS
+================================ */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  thead th,
+  tbody td {
+    padding: 6px 4px;
+  }
+}

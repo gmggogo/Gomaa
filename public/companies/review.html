@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SUNBEAM TRANSPORTATION – Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+  margin:0;
+  font-family:'Segoe UI', Arial, sans-serif;
+  background:#f4f8fb;
+}
+
+/* HEADER */
+.header{
+  background:linear-gradient(90deg,#0f172a,#1e3a8a);
+  color:#fff;
+  padding:20px 50px;
+}
+
+.top-section{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.logged-company{
+  font-size:20px;
+  font-weight:700;
+  color:#facc15;
+}
+
+.greeting,.clock{
+  font-size:13px;
+  margin-top:4px;
+}
+
+.logo{ height:75px; }
+
+.nav{
+  display:flex;
+  justify-content:center;
+  gap:40px;
+  background:#000;
+  padding:12px 0;
+  margin-top:20px;
+}
+
+.nav a{
+  color:#fff;
+  text-decoration:none;
+  font-size:14px;
+  padding:6px 16px;
+  border-radius:8px;
+}
+
+.nav a.active{
+  background:#facc15;
+  color:#000;
+  font-weight:700;
+}
+
+/* CONTENT */
+.container{
+  max-width:1600px;
+  margin:auto;
+  padding:35px 20px;
+}
+
+.date-title{
+  margin-top:30px;
+  font-weight:700;
+  font-size:18px;
+  color:#0f172a;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  margin-top:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  border-radius:12px;
+  overflow:hidden;
+}
+
+th,td{
+  padding:10px;
+  font-size:13px;
+  border-bottom:1px solid #eee;
+  text-align:left;
+}
+
+th{
+  background:#0f172a;
+  color:#fff;
+}
+
+tr:hover{ background:#f9fafb; }
+
+.yellow{ background:#fff3cd !important; }
+.red{ background:#ffcccc !important; }
+
+.btn{
+  padding:6px 12px;
+  border:none;
+  border-radius:6px;
+  font-size:12px;
+  cursor:pointer;
+  margin-right:6px;
+  display:inline-block;
+}
+
+.confirm{ background:#22c55e; color:#000; }
+.edit{ background:#3b82f6; color:#fff; }
+.delete{ background:#64748b; color:#fff; }
+.cancel{ background:#ef4444; color:#fff; }
+
+input.edit-input{
+  width:100%;
+  padding:5px;
+}
+
+@media(max-width:768px){
+  table{ font-size:11px; }
+  .nav{ flex-wrap:wrap; gap:15px; }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div class="top-section">
+    <div>
+      <div class="logged-company" id="companyName"></div>
+      <div class="greeting" id="greetingText"></div>
+      <div class="clock" id="azDateTime"></div>
+    </div>
+    <img src="../assets/logo.png" class="logo">
+  </div>
+
+  <div class="nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="add-trip.html">Add Trip</a>
+    <a href="review.html" class="active">Review</a>
+    <a href="summary.html">Summary</a>
+    <a href="taxes.html">Taxes</a>
+  </div>
+</div>
+
+<div class="container" id="tripsContainer"></div>
+
+<script src="review.js"></script>
+
+</body>
+</html>

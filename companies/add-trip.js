@@ -15,6 +15,11 @@ if (!loggedCompany) {
 }
 
 /* ===============================
+   API
+================================ */
+const API_URL = "/api/trips";
+
+/* ===============================
    GREETING + LIVE CLOCK
 ================================ */
 function updateTime() {
@@ -88,14 +93,10 @@ function addStop(value = "") {
 }
 
 /* ===============================
-   TRIP NUMBER (COMPANY)
+   TRIP NUMBER
 ================================ */
 function generateTripNumber() {
-  const key = "lastCompanyTrip";
-  let last = parseInt(localStorage.getItem(key) || "200", 10);
-  last++;
-  localStorage.setItem(key, last);
-  return "GH-" + last;
+  return "GH-" + Date.now();
 }
 
 /* ===============================
@@ -103,11 +104,9 @@ function generateTripNumber() {
 ================================ */
 function isWithin120Minutes(tripDate, tripTime) {
   if (!tripDate || !tripTime) return false;
-
   const tripDT = new Date(`${tripDate}T${tripTime}`);
   const now = new Date();
   const diffMinutes = (tripDT - now) / 60000;
-
   return diffMinutes > 0 && diffMinutes <= 120;
 }
 
@@ -118,24 +117,44 @@ const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
 /* ===============================
-   SAVE DRAFT
+   SEND TO SERVER
 ================================ */
-saveTripBtn.onclick = () => {
-  localStorage.setItem(
-    "draftTrip",
-    JSON.stringify(collectTripData(false))
-  );
-  saveTripBtn.style.background = "#22c55e";
+async function sendTripToServer(tripData){
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tripData)
+  });
+
+  if(!res.ok){
+    alert("Server error");
+    return false;
+  }
+
+  return true;
+}
+
+/* ===============================
+   SAVE DRAFT (ONLINE)
+================================ */
+saveTripBtn.onclick = async () => {
+
+  const trip = collectTripData(false);
+  const ok = await sendTripToServer(trip);
+
+  if(ok){
+    saveTripBtn.style.background = "#22c55e";
+  }
 };
 
 /* ===============================
-   SUBMIT TRIP (FINAL)
+   SUBMIT TRIP (FINAL ONLINE)
 ================================ */
-submitTripBtn.onclick = () => {
+submitTripBtn.onclick = async () => {
+
   const tripDateVal = tripDate.value;
   const tripTimeVal = tripTime.value;
 
-  // ⚠️ Warning ONLY if within 120 minutes
   if (isWithin120Minutes(tripDateVal, tripTimeVal)) {
     const ok = confirm(
       "⚠️ Important Notice\n\n" +
@@ -146,53 +165,38 @@ submitTripBtn.onclick = () => {
     if (!ok) return;
   }
 
-  const trips = JSON.parse(localStorage.getItem("companyTrips")) || [];
-  const trip  = collectTripData(true);
-
+  const trip = collectTripData(true);
   trip.status = "Scheduled";
-  trips.push(trip);
 
-  localStorage.setItem("companyTrips", JSON.stringify(trips));
-  localStorage.removeItem("draftTrip");
+  const ok = await sendTripToServer(trip);
 
-  clearTripFields();
-  alert("Trip added successfully ✔");
+  if(ok){
+    clearTripFields();
+    alert("Trip added successfully ✔");
+  }
 };
 
 /* ===============================
    COLLECT TRIP DATA
 ================================ */
-const draftTrip = JSON.parse(localStorage.getItem("draftTrip"));
-
 function collectTripData(finalSubmit) {
-  const tripDateVal = tripDate.value;
 
   return {
-    tripNumber: finalSubmit
-      ? (draftTrip?.tripNumber || generateTripNumber())
-      : "",
-
+    tripNumber: generateTripNumber(),
     type: "Company",
     company: loggedCompany.name || "",
-
     entryName: entryName.value || "",
     entryPhone: entryPhone.value || "",
-
     clientName: clientName.value || "",
     clientPhone: clientPhone.value || "",
-
     pickup: pickup.value || "",
     dropoff: dropoff.value || "",
-
     stops: [...document.querySelectorAll("#stops input")]
       .map(i => i.value.trim())
       .filter(Boolean),
-
-    tripDate: tripDateVal || "",
+    tripDate: tripDate.value || "",
     tripTime: tripTime.value || "",
-
     notes: notes.value || "",
-
     status: finalSubmit ? "Scheduled" : "Draft",
     createdAt: new Date().toISOString(),
     bookedAt: finalSubmit ? new Date().toISOString() : ""
@@ -213,21 +217,4 @@ function clearTripFields() {
   document.getElementById("stops").innerHTML = "";
   stopCount = 0;
   saveTripBtn.style.background = "#64748b";
-}
-
-/* ===============================
-   LOAD DRAFT IF EXISTS
-================================ */
-if (draftTrip) {
-  clientName.value = draftTrip.clientName || "";
-  clientPhone.value = draftTrip.clientPhone || "";
-  pickup.value = draftTrip.pickup || "";
-  dropoff.value = draftTrip.dropoff || "";
-  tripDate.value = draftTrip.tripDate || "";
-  tripTime.value = draftTrip.tripTime || "";
-  notes.value = draftTrip.notes || "";
-
-  if (Array.isArray(draftTrip.stops)) {
-    draftTrip.stops.forEach(s => addStop(s));
-  }
 }
