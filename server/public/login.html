@@ -3,176 +3,163 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sunbeam | Staff Login</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<title>Sunbeam Login</title>
 
 <style>
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family:'Poppins',sans-serif;
-}
-
 body{
+  margin:0;
   height:100vh;
-  background:linear-gradient(135deg,#0f172a,#1e3a8a,#2563eb);
   display:flex;
-  align-items:center;
   justify-content:center;
-  color:white;
+  align-items:center;
+  background: radial-gradient(circle at center, #1e3cff 0%, #001b7a 100%);
+  font-family: Arial, sans-serif;
 }
 
-/* LOGIN CARD */
+/* ===== LOGIN CARD ===== */
 .login-card{
-  width:380px;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(15px);
-  border-radius:20px;
+  width:360px;
   padding:40px 30px;
-  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+  border-radius:20px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(0,0,0,0.4);
   text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
 
-/* LOGO */
+/* ===== LOGO ===== */
 .logo{
-  width:110px;
-  margin-bottom:15px;
+  width:140px;
+  margin-bottom:20px;
 }
 
-/* TITLE */
-.company{
-  font-size:28px;
-  font-weight:700;
-  letter-spacing:1px;
-}
-
-.subtitle{
-  font-size:14px;
-  color:#facc15;
+/* ===== TITLE ===== */
+.title{
+  color:#ffffff;
+  font-size:20px;
+  letter-spacing:2px;
   margin-bottom:10px;
 }
 
-/* DATE TIME */
-.datetime{
+/* ===== TIME ===== */
+.az-time{
   font-size:12px;
-  opacity:0.8;
+  color:#ddd;
   margin-bottom:25px;
 }
 
-/* INPUTS */
-.input-group{
-  margin-bottom:15px;
-}
-
-input{
+/* ===== INPUTS ===== */
+.login-card input{
   width:100%;
-  padding:12px 15px;
+  padding:12px;
+  margin-bottom:15px;
   border:none;
-  border-radius:10px;
-  outline:none;
+  border-radius:8px;
   font-size:14px;
+  outline:none;
+  text-align:center;
 }
 
-/* BUTTON */
-button{
+/* ===== BUTTON ===== */
+.login-card button{
   width:100%;
   padding:12px;
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   background:#facc15;
-  color:#111827;
-  font-weight:600;
-  font-size:15px;
+  color:#000;
+  font-weight:bold;
   cursor:pointer;
   transition:0.3s;
 }
 
-button:hover{
-  background:#fde047;
-  transform:scale(1.02);
-}
-
-/* FOOTER */
-.footer{
-  margin-top:15px;
-  font-size:11px;
-  opacity:0.6;
-}
-
-/* MOBILE */
-@media(max-width:450px){
-  .login-card{
-    width:90%;
-    padding:30px 20px;
-  }
+.login-card button:hover{
+  background:#ffdd33;
 }
 
 </style>
 </head>
-
 <body>
 
 <div class="login-card">
 
-  <img src="assets/logo.png" class="logo">
+  <!-- LOGO FROM ASSETS -->
+  <img src="assets/logo.png" class="logo" alt="Sunbeam Logo">
 
-  <div class="company">SUNBEAM</div>
-  <div class="subtitle">Staff Login</div>
+  <!-- TITLE -->
+  <div class="title">STAFF LOGIN</div>
 
-  <div class="datetime" id="datetime"></div>
+  <!-- ARIZONA TIME -->
+  <div id="azTime" class="az-time"></div>
 
-  <div class="input-group">
-    <input type="text" id="username" placeholder="Username">
-  </div>
-
-  <div class="input-group">
-    <input type="password" id="password" placeholder="Password">
-  </div>
+  <!-- FORM -->
+  <input type="email" id="email" placeholder="Email Address">
+  <input type="password" id="password" placeholder="Password">
 
   <button onclick="login()">Sign In</button>
-
-  <div class="footer">Secure Internal Access</div>
 
 </div>
 
 <script>
 
-function updateDateTime(){
-  const now = new Date();
-  document.getElementById("datetime").innerText =
-    now.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})
-    +" • "+
-    now.toLocaleTimeString("en-US");
+/* ===== ARIZONA TIME ===== */
+function updateAZTime(){
+  const options = {
+    timeZone: "America/Phoenix",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  };
+  document.getElementById("azTime").innerText =
+    new Date().toLocaleString("en-US", options);
 }
+setInterval(updateAZTime, 1000);
+updateAZTime();
 
-setInterval(updateDateTime,1000);
-updateDateTime();
-
+/* ===== LOGIN FUNCTION ===== */
 async function login(){
-  const username = document.getElementById("username").value;
+
+  const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  if(!username || !password){
-    alert("Please fill all fields");
-    return;
+  try{
+
+    const res = await fetch("/api/auth/login",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      alert(data.message || "Login Failed");
+      return;
+    }
+
+    // Redirect based on role
+    if(data.role === "admin"){
+      window.location.href = "/admin.html";
+    }
+    else if(data.role === "dispatcher"){
+      window.location.href = "/dispatcher.html";
+    }
+    else{
+      alert("Unauthorized role");
+    }
+
+  }catch(err){
+    alert("Server error");
   }
 
-  const res = await fetch("/api/login",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({username,password})
-  });
-
-  const data = await res.json();
-
-  if(data.success){
-    window.location.href = data.redirect;
-  }else{
-    alert("Invalid credentials");
-  }
 }
 
 </script>

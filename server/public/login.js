@@ -1,69 +1,49 @@
-document.addEventListener("DOMContentLoaded", () => {
+async function login(){
 
-  const form = document.getElementById("loginForm");
-  const errorMsg = document.getElementById("errorMsg");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const msg = document.getElementById("msg");
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  if(!email || !password){
+    msg.innerText = "Please enter email and password";
+    return;
+  }
 
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+  msg.innerText = "Signing in...";
 
-    errorMsg.innerText = "";
+  try{
 
-    if (!username || !password) {
-      errorMsg.innerText = "Please enter username and password";
+    const res = await fetch("/api/auth/login",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      msg.innerText = data.message || "Login failed";
       return;
     }
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          username: username,
-          password: password
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        errorMsg.innerText = data.message || "Login failed";
-        return;
-      }
-
-      // حفظ المستخدم
-      localStorage.setItem("loggedUser", JSON.stringify(data.user));
-
-      // توجيه حسب الرول
-      switch (data.user.role) {
-        case "admin":
-          window.location.href = "/admin/dashboard.html";
-          break;
-
-        case "company":
-          window.location.href = "/companies/dashboard.html";
-          break;
-
-        case "dispatcher":
-          window.location.href = "/dispatchers/dashboard.html";
-          break;
-
-        case "driver":
-          window.location.href = "/drivers/dashboard.html";
-          break;
-
-        default:
-          errorMsg.innerText = "Invalid role";
-      }
-
-    } catch (error) {
-      errorMsg.innerText = "Server error";
-      console.error(error);
+    // 🚫 Staff only
+    if(data.role !== "admin" && data.role !== "dispatcher"){
+      msg.innerText = "Access denied";
+      return;
     }
-  });
 
-});
+    // Redirect
+    if(data.role === "admin"){
+      window.location.href = "/admin/dashboard.html";
+    }
+
+    if(data.role === "dispatcher"){
+      window.location.href = "/dispatcher/dashboard.html";
+    }
+
+  }catch(err){
+    msg.innerText = "Server error";
+  }
+}
