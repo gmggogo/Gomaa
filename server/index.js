@@ -17,26 +17,26 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   STATIC FILES
+   STATIC
 ========================= */
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   ENV SAFE DEFAULTS
+   ENV
 ========================= */
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET || "temporary_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_key";
 
 /* =========================
-   MONGO CONNECT
+   MONGO
 ========================= */
 if (!MONGO_URI) {
-  console.log("❌ MONGO_URI NOT FOUND");
+  console.log("❌ MONGO_URI missing");
 } else {
   mongoose.connect(MONGO_URI)
-    .then(() => console.log("✅ Mongo Connected"))
-    .catch(err => console.log("Mongo Error:", err));
+    .then(() => console.log("✅ Mongo connected"))
+    .catch(err => console.log("Mongo error:", err));
 }
 
 /* =========================
@@ -68,7 +68,7 @@ app.get("/create-admin", async (req, res) => {
       role: "admin"
     });
 
-    res.send("Admin Created ✅ username: admin password: 111111");
+    res.send("Admin created ✅ (admin / 111111)");
   } catch (err) {
     console.log(err);
     res.status(500).send("Error creating admin");
@@ -76,9 +76,9 @@ app.get("/create-admin", async (req, res) => {
 });
 
 /* =========================
-   LOGIN
+   LOGIN (MATCHES FRONTEND)
 ========================= */
-app.post("/login", async (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -121,8 +121,8 @@ app.get("/", (req, res) => {
 });
 
 /* =========================
-   START SERVER
+   START
 ========================= */
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("🚀 Server running on port " + PORT);
 });
