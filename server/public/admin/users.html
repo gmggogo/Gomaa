@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Users Panel</title>
+
 <style>
 body{margin:0;font-family:Arial;display:flex;height:100vh}
 .sidebar{
@@ -42,15 +43,28 @@ th,td{
   padding:8px;
   text-align:left;
 }
-.action-btn{
-  padding:4px 8px;
-  margin-right:4px;
-  border:none;
-  cursor:pointer;
+.status-active{
+  color:green;
+  font-weight:bold;
 }
-.edit{background:#2563eb;color:white;}
-.toggle{background:#f59e0b;color:white;}
-.delete{background:#dc2626;color:white;}
+.status-disabled{
+  color:red;
+  font-weight:bold;
+}
+.modal{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+.modal-content{
+  background:white;
+  padding:20px;
+  width:300px;
+}
 </style>
 </head>
 
@@ -72,7 +86,6 @@ th,td{
     <input id="username" placeholder="Username">
     <input id="password" type="password" placeholder="Password">
     <button onclick="addUser()">Add</button>
-    <button onclick="saveEdit()">Save Edit</button>
   </div>
 
   <table>
@@ -86,6 +99,18 @@ th,td{
     </thead>
     <tbody id="tableBody"></tbody>
   </table>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal" id="editModal">
+  <div class="modal-content">
+    <h3>Edit User</h3>
+    <input id="editName" placeholder="Name"><br><br>
+    <input id="editUsername" placeholder="Username"><br><br>
+    <input id="editPassword" type="password" placeholder="New Password (optional)"><br><br>
+    <button onclick="saveEdit()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
 </div>
 
 <script src="users.js"></script>

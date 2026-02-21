@@ -15,6 +15,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+/* =========================
+   STATIC FILES
+========================= */
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
@@ -25,11 +29,15 @@ const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 /* =========================
-   CONNECT MONGO
+   MONGO CONNECT
 ========================= */
-mongoose.connect(MONGO_URI)
-  .then(()=> console.log("✅ Mongo Connected"))
-  .catch(err=> console.log("❌ Mongo Error:", err));
+if (!MONGO_URI) {
+  console.log("❌ MONGO_URI missing");
+} else {
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log("✅ Mongo Connected"))
+    .catch(err => console.log("Mongo Error:", err));
+}
 
 /* =========================
    USER MODEL
@@ -38,179 +46,137 @@ const userSchema = new mongoose.Schema({
   name: String,
   username: { type: String, unique: true },
   password: String,
-  role: String,
-  active: { type: Boolean, default: true }
+  role: String
 });
 
 const User = mongoose.model("User", userSchema);
 
 /* =========================
-   CREATE DEFAULT ADMIN
+   CREATE ADMIN (RUN ONCE)
 ========================= */
-app.get("/create-admin", async (req,res)=>{
-  const exists = await User.findOne({ username:"admin" });
-  if(exists) return res.send("Admin already exists");
+app.get("/create-admin", async (req, res) => {
+  try {
+    const existing = await User.findOne({ username: "admin" });
+    if (existing) return res.send("Admin already exists");
 
-  const hashed = await bcrypt.hash("111111",10);
+    const hashed = await bcrypt.hash("111111", 10);
 
-  await User.create({
-    name:"Main Admin",
-    username:"admin",
-    password:hashed,
-    role:"admin"
-  });
+    await User.create({
+      name: "Admin",
+      username: "admin",
+      password: hashed,
+      role: "admin"
+    });
 
-  res.send("Admin created (admin / 111111)");
+    res.send("Admin Created ✅ (admin / 111111)");
+  } catch (err) {
+    res.status(500).send("Error creating admin");
+  }
 });
 
 /* =========================
    LOGIN
 ========================= */
-app.post("/api/auth/login", async (req,res)=>{
-  try{
-
+app.post("/api/auth/login", async (req, res) => {
+  try {
     const { username, password } = req.body;
 
+    if (!username || !password)
+      return res.status(400).json({ message: "Missing credentials" });
+
     const user = await User.findOne({ username });
-    if(!user)
-      return res.status(400).json({ message:"Invalid credentials" });
+    if (!user)
+      return res.status(400).json({ message: "Invalid credentials" });
 
-    if(!user.active)
-      return res.status(403).json({ message:"User disabled" });
-
-    const match = await bcrypt.compare(password,user.password);
-    if(!match)
-      return res.status(400).json({ message:"Invalid credentials" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match)
+      return res.status(400).json({ message: "Invalid credentials" });
 
     const token = jwt.sign(
-      { id:user._id, role:user.role },
+      { id: user._id, role: user.role },
       JWT_SECRET,
-      { expiresIn:"1d" }
+      { expiresIn: "1d" }
     );
 
     res.json({
       token,
-      role:user.role,
-      name:user.name
+      user: {
+        name: user.name,
+        role: user.role
+      }
     });
 
-  }catch(err){
+  } catch (err) {
     console.log(err);
-    res.status(500).json({ message:"Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 /* =========================
-   GET USERS BY ROLE
+   USERS ROUTES
 ========================= */
-app.get("/api/users/:role", async (req,res)=>{
-  try{
-    const role = req.params.role.slice(0,-1); // admins -> admin
+
+// GET USERS BY ROLE
+app.get("/api/users/:role", async (req, res) => {
+  try {
+    const role = req.params.role.slice(0, -1); // admins → admin
     const users = await User.find({ role });
     res.json(users);
-  }catch(err){
-    res.status(500).json({ message:"Server error" });
+  } catch (err) {
+    res.status(500).json({ message: "Error loading users" });
   }
 });
 
-/* =========================
-   ADD USER
-========================= */
-app.post("/api/users/:role", async (req,res)=>{
-  try{
-
-    const role = req.params.role.slice(0,-1);
+// CREATE USER
+app.post("/api/users/:role", async (req, res) => {
+  try {
+    const role = req.params.role.slice(0, -1);
     const { name, username, password } = req.body;
 
-    const exists = await User.findOne({ username });
-    if(exists)
-      return res.status(400).json({ message:"Username exists" });
+    if (!name || !username || !password)
+      return res.status(400).json({ message: "Missing fields" });
 
-    const hashed = await bcrypt.hash(password,10);
+    const exists = await User.findOne({ username });
+    if (exists)
+      return res.status(400).json({ message: "Username exists" });
+
+    const hashed = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
       name,
       username,
-      password:hashed,
+      password: hashed,
       role
     });
 
     res.json(newUser);
 
-  }catch(err){
-    res.status(500).json({ message:"Server error" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error creating user" });
   }
 });
 
-/* =========================
-   EDIT USER
-========================= */
-app.put("/api/users/:id", async (req,res)=>{
-  try{
-
-    const { name, username, password } = req.body;
-
-    const updateData = { name, username };
-
-    if(password && password.trim() !== ""){
-      updateData.password = await bcrypt.hash(password,10);
-    }
-
-    const updated = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new:true }
-    );
-
-    res.json(updated);
-
-  }catch(err){
-    res.status(500).json({ message:"Server error" });
-  }
-});
-
-/* =========================
-   DISABLE / ENABLE USER
-========================= */
-app.patch("/api/users/:id/toggle", async (req,res)=>{
-  try{
-
-    const user = await User.findById(req.params.id);
-    if(!user)
-      return res.status(404).json({ message:"User not found" });
-
-    user.active = !user.active;
-    await user.save();
-
-    res.json(user);
-
-  }catch(err){
-    res.status(500).json({ message:"Server error" });
-  }
-});
-
-/* =========================
-   DELETE USER
-========================= */
-app.delete("/api/users/:id", async (req,res)=>{
-  try{
+// DELETE USER
+app.delete("/api/users/:role/:id", async (req, res) => {
+  try {
     await User.findByIdAndDelete(req.params.id);
-    res.json({ message:"Deleted" });
-  }catch(err){
-    res.status(500).json({ message:"Server error" });
+    res.json({ message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting user" });
   }
 });
 
 /* =========================
    ROOT
 ========================= */
-app.get("/",(req,res)=>{
-  res.sendFile(path.join(__dirname,"public","index.html"));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 /* =========================
    START SERVER
 ========================= */
-app.listen(PORT,()=>{
-  console.log("🚀 Server running on port "+PORT);
+app.listen(PORT, () => {
+  console.log("🚀 Server running on port " + PORT);
 });

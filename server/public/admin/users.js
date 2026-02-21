@@ -28,20 +28,15 @@ async function loadUsers(){
       <tr>
         <td>${user.name}</td>
         <td>${user.username}</td>
-        <td>${user.active ? "Active" : "Disabled"}</td>
+        <td class="${user.active ? 'status-active':'status-disabled'}">
+          ${user.active ? "Active":"Disabled"}
+        </td>
         <td>
-          <button class="action-btn edit"
-            onclick="editUser('${user._id}','${user.name}','${user.username}')">
-            Edit
+          <button onclick="openEdit('${user._id}','${user.name}','${user.username}')">Edit</button>
+          <button onclick="toggleUser('${user._id}')">
+            ${user.active ? "Disable":"Enable"}
           </button>
-          <button class="action-btn toggle"
-            onclick="toggleUser('${user._id}')">
-            ${user.active ? "Disable" : "Enable"}
-          </button>
-          <button class="action-btn delete"
-            onclick="deleteUser('${user._id}')">
-            Delete
-          </button>
+          <button onclick="deleteUser('${user._id}')">Delete</button>
         </td>
       </tr>
     `;
@@ -58,18 +53,11 @@ async function addUser(){
     return;
   }
 
-  const res = await fetch("/api/users/"+currentRole,{
+  await fetch("/api/users/"+currentRole,{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({name,username,password})
   });
-
-  const data = await res.json();
-
-  if(!res.ok){
-    alert(data.message || "Error");
-    return;
-  }
 
   document.getElementById("name").value="";
   document.getElementById("username").value="";
@@ -78,22 +66,22 @@ async function addUser(){
   loadUsers();
 }
 
-function editUser(id,name,username){
+function openEdit(id,name,username){
   editingId = id;
-  document.getElementById("name").value = name;
-  document.getElementById("username").value = username;
-  document.getElementById("password").value = "";
+  document.getElementById("editName").value = name;
+  document.getElementById("editUsername").value = username;
+  document.getElementById("editPassword").value = "";
+  document.getElementById("editModal").style.display="flex";
+}
+
+function closeModal(){
+  document.getElementById("editModal").style.display="none";
 }
 
 async function saveEdit(){
-  if(!editingId){
-    alert("Select user first");
-    return;
-  }
-
-  const name = document.getElementById("name").value;
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
+  const name = document.getElementById("editName").value;
+  const username = document.getElementById("editUsername").value;
+  const password = document.getElementById("editPassword").value;
 
   await fetch("/api/users/"+editingId,{
     method:"PUT",
@@ -101,12 +89,7 @@ async function saveEdit(){
     body:JSON.stringify({name,username,password})
   });
 
-  editingId = null;
-
-  document.getElementById("name").value="";
-  document.getElementById("username").value="";
-  document.getElementById("password").value="";
-
+  closeModal();
   loadUsers();
 }
 
@@ -116,7 +99,7 @@ async function toggleUser(id){
 }
 
 async function deleteUser(id){
-  if(!confirm("Are you sure?")) return;
+  if(!confirm("Delete user?")) return;
   await fetch("/api/users/"+id,{ method:"DELETE" });
   loadUsers();
 }
