@@ -30,11 +30,18 @@ async function loadUsers(){
         <td>${user.username}</td>
         <td>${user.active ? "Active" : "Disabled"}</td>
         <td>
-          <button onclick="openEdit('${user._id}','${user.name}','${user.username}')">Edit</button>
-          <button onclick="toggleUser('${user._id}')">
+          <button class="action-btn edit"
+            onclick="editUser('${user._id}','${user.name}','${user.username}')">
+            Edit
+          </button>
+          <button class="action-btn toggle"
+            onclick="toggleUser('${user._id}')">
             ${user.active ? "Disable" : "Enable"}
           </button>
-          <button onclick="deleteUser('${user._id}')">Delete</button>
+          <button class="action-btn delete"
+            onclick="deleteUser('${user._id}')">
+            Delete
+          </button>
         </td>
       </tr>
     `;
@@ -51,11 +58,18 @@ async function addUser(){
     return;
   }
 
-  await fetch("/api/users/"+currentRole,{
+  const res = await fetch("/api/users/"+currentRole,{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({name,username,password})
   });
+
+  const data = await res.json();
+
+  if(!res.ok){
+    alert(data.message || "Error");
+    return;
+  }
 
   document.getElementById("name").value="";
   document.getElementById("username").value="";
@@ -64,7 +78,7 @@ async function addUser(){
   loadUsers();
 }
 
-function openEdit(id,name,username){
+function editUser(id,name,username){
   editingId = id;
   document.getElementById("name").value = name;
   document.getElementById("username").value = username;
@@ -72,6 +86,11 @@ function openEdit(id,name,username){
 }
 
 async function saveEdit(){
+  if(!editingId){
+    alert("Select user first");
+    return;
+  }
+
   const name = document.getElementById("name").value;
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
@@ -83,6 +102,11 @@ async function saveEdit(){
   });
 
   editingId = null;
+
+  document.getElementById("name").value="";
+  document.getElementById("username").value="";
+  document.getElementById("password").value="";
+
   loadUsers();
 }
 
@@ -92,6 +116,7 @@ async function toggleUser(id){
 }
 
 async function deleteUser(id){
+  if(!confirm("Are you sure?")) return;
   await fetch("/api/users/"+id,{ method:"DELETE" });
   loadUsers();
 }
