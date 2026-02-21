@@ -15,10 +15,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-/* =========================
-   STATIC FILES
-========================= */
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
@@ -29,15 +25,11 @@ const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 /* =========================
-   MONGO CONNECT
+   CONNECT MONGO
 ========================= */
-if (!MONGO_URI) {
-  console.log("❌ MONGO_URI missing");
-} else {
-  mongoose.connect(MONGO_URI)
-    .then(() => console.log("✅ Mongo Connected"))
-    .catch(err => console.log("Mongo Error:", err));
-}
+mongoose.connect(MONGO_URI)
+  .then(()=> console.log("✅ Mongo Connected"))
+  .catch(err=> console.log("❌ Mongo Error:", err));
 
 /* =========================
    USER MODEL
@@ -46,137 +38,143 @@ const userSchema = new mongoose.Schema({
   name: String,
   username: { type: String, unique: true },
   password: String,
-  role: String
+  role: String,
+  active: { type: Boolean, default: true }
 });
 
 const User = mongoose.model("User", userSchema);
 
 /* =========================
-   CREATE ADMIN (RUN ONCE)
+   CREATE DEFAULT ADMIN
 ========================= */
-app.get("/create-admin", async (req, res) => {
-  try {
-    const existing = await User.findOne({ username: "admin" });
-    if (existing) return res.send("Admin already exists");
+app.get("/create-admin", async (req,res)=>{
+  const exists = await User.findOne({ username:"admin" });
+  if(exists) return res.send("Admin exists");
 
-    const hashed = await bcrypt.hash("111111", 10);
+  const hashed = await bcrypt.hash("111111",10);
 
-    await User.create({
-      name: "Admin",
-      username: "admin",
-      password: hashed,
-      role: "admin"
-    });
+  await User.create({
+    name:"Main Admin",
+    username:"admin",
+    password:hashed,
+    role:"admin"
+  });
 
-    res.send("Admin Created ✅ (admin / 111111)");
-  } catch (err) {
-    res.status(500).send("Error creating admin");
-  }
+  res.send("Admin created (admin / 111111)");
 });
 
 /* =========================
    LOGIN
 ========================= */
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { username, password } = req.body;
+app.post("/api/auth/login", async (req,res)=>{
+  const { username, password } = req.body;
 
-    if (!username || !password)
-      return res.status(400).json({ message: "Missing credentials" });
+  const user = await User.findOne({ username });
+  if(!user) return res.status(400).json({ message:"Invalid credentials" });
 
-    const user = await User.findOne({ username });
-    if (!user)
-      return res.status(400).json({ message: "Invalid credentials" });
+  if(!user.active)
+    return res.status(403).json({ message:"User disabled" });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match)
-      return res.status(400).json({ message: "Invalid credentials" });
+  const match = await bcrypt.compare(password,user.password);
+  if(!match) return res.status(400).json({ message:"Invalid credentials" });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+  const token = jwt.sign(
+    { id:user._id, role:user.role },
+    JWT_SECRET,
+    { expiresIn:"1d" }
+  );
 
-    res.json({
-      token,
-      user: {
-        name: user.name,
-        role: user.role
-      }
-    });
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  res.json({
+    token,
+    role:user.role,
+    name:user.name
+  });
 });
 
 /* =========================
-   USERS ROUTES
+   GET USERS BY ROLE
 ========================= */
-
-// GET USERS BY ROLE
-app.get("/api/users/:role", async (req, res) => {
-  try {
-    const role = req.params.role.slice(0, -1); // admins → admin
-    const users = await User.find({ role });
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: "Error loading users" });
-  }
+app.get("/api/users/:role", async (req,res)=>{
+  const role = req.params.role.slice(0,-1);
+  const users = await User.find({ role });
+  res.json(users);
 });
 
-// CREATE USER
-app.post("/api/users/:role", async (req, res) => {
-  try {
-    const role = req.params.role.slice(0, -1);
-    const { name, username, password } = req.body;
+/* =========================
+   ADD USER
+========================= */
+app.post("/api/users/:role", async (req,res)=>{
+  const role = req.params.role.slice(0,-1);
+  const { name, username, password } = req.body;
 
-    if (!name || !username || !password)
-      return res.status(400).json({ message: "Missing fields" });
+  const exists = await User.findOne({ username });
+  if(exists)
+    return res.status(400).json({ message:"Username exists" });
 
-    const exists = await User.findOne({ username });
-    if (exists)
-      return res.status(400).json({ message: "Username exists" });
+  const hashed = await bcrypt.hash(password,10);
 
-    const hashed = await bcrypt.hash(password, 10);
+  const newUser = await User.create({
+    name,
+    username,
+    password:hashed,
+    role
+  });
 
-    const newUser = await User.create({
-      name,
-      username,
-      password: hashed,
-      role
-    });
-
-    res.json(newUser);
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error creating user" });
-  }
+  res.json(newUser);
 });
 
-// DELETE USER
-app.delete("/api/users/:role/:id", async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    res.status(500).json({ message: "Error deleting user" });
+/* =========================
+   EDIT USER
+========================= */
+app.put("/api/users/:id", async (req,res)=>{
+  const { name, username, password } = req.body;
+
+  const updateData = { name, username };
+
+  if(password && password.trim() !== ""){
+    updateData.password = await bcrypt.hash(password,10);
   }
+
+  const updated = await User.findByIdAndUpdate(
+    req.params.id,
+    updateData,
+    { new:true }
+  );
+
+  res.json(updated);
+});
+
+/* =========================
+   DISABLE / ENABLE USER
+========================= */
+app.patch("/api/users/:id/toggle", async (req,res)=>{
+  const user = await User.findById(req.params.id);
+  if(!user) return res.status(404).json({ message:"User not found" });
+
+  user.active = !user.active;
+  await user.save();
+
+  res.json(user);
+});
+
+/* =========================
+   DELETE USER
+========================= */
+app.delete("/api/users/:id", async (req,res)=>{
+  await User.findByIdAndDelete(req.params.id);
+  res.json({ message:"Deleted" });
 });
 
 /* =========================
    ROOT
 ========================= */
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+app.get("/",(req,res)=>{
+  res.sendFile(path.join(__dirname,"public","index.html"));
 });
 
 /* =========================
    START SERVER
 ========================= */
-app.listen(PORT, () => {
-  console.log("🚀 Server running on port " + PORT);
+app.listen(PORT,()=>{
+  console.log("🚀 Server running on port "+PORT);
 });
