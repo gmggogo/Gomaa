@@ -2,27 +2,35 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 
-const User = require("./models/User"); // تأكد المسار صح
+const User = require("./models/User"); // تأكد إن المسار صح
 
 async function seed() {
   try {
+    // اتصال بقاعدة البيانات
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Mongo Connected");
 
-    const hashedPassword = await bcrypt.hash("111111", 10);
-
+    // حذف أي Admin قديم بنفس اليوزر
     await User.deleteMany({ username: "admin" });
 
-    await User.create({
+    // تشفير الباسورد
+    const hashedPassword = await bcrypt.hash("111111", 10);
+
+    // إنشاء Admin جديد
+    const adminUser = new User({
+      name: "Main Admin",
       username: "admin",
       password: hashedPassword,
       role: "admin"
     });
 
+    await adminUser.save();
+
     console.log("Admin Created ✅");
-    process.exit();
-  } catch (err) {
-    console.error(err);
+    process.exit(0);
+
+  } catch (error) {
+    console.error("Seed Error:", error);
     process.exit(1);
   }
 }
