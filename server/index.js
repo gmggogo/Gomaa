@@ -4,24 +4,28 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 10000;
+/* =========================
+   Serve Public Folder
+========================= */
+app.use(express.static(path.join(__dirname, "public")));
 
-/* ===========================
+/* =========================
    Mongo Connection
-=========================== */
+========================= */
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log("MongoDB Connected"))
-.catch(err => console.log(err));
+  .then(() => console.log("MongoDB Connected"))
+  .catch(err => console.log("Mongo Error:", err));
 
-/* ===========================
+/* =========================
    User Schema
-=========================== */
+========================= */
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   username: { type: String, required: true, unique: true },
@@ -31,10 +35,10 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-/* ===========================
-   Create Admin (ONCE)
-   DELETE AFTER USE
-=========================== */
+/* =========================
+   Create Test Admin
+   USE ONCE THEN DELETE
+========================= */
 app.get("/create-admin", async (req, res) => {
   try {
     const existing = await User.findOne({ username: "admin" });
@@ -55,9 +59,9 @@ app.get("/create-admin", async (req, res) => {
   }
 });
 
-/* ===========================
+/* =========================
    Login Route
-=========================== */
+========================= */
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -88,16 +92,18 @@ app.post("/login", async (req, res) => {
   }
 });
 
-/* ===========================
-   Test Route
-=========================== */
+/* =========================
+   Default Route
+========================= */
 app.get("/", (req, res) => {
-  res.send("Sunbeam Server Running 🚀");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-/* ===========================
+/* =========================
    Start Server
-=========================== */
+========================= */
+const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
