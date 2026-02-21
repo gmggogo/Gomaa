@@ -17,7 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   STATIC
+   STATIC FILES
 ========================= */
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -26,17 +26,17 @@ app.use(express.static(path.join(__dirname, "public")));
 ========================= */
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 /* =========================
-   MONGO
+   MONGO CONNECT
 ========================= */
 if (!MONGO_URI) {
   console.log("❌ MONGO_URI missing");
 } else {
   mongoose.connect(MONGO_URI)
-    .then(() => console.log("✅ Mongo connected"))
-    .catch(err => console.log("Mongo error:", err));
+    .then(() => console.log("✅ Mongo Connected"))
+    .catch(err => console.log("Mongo Error:", err));
 }
 
 /* =========================
@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema({
   name: String,
   username: { type: String, unique: true },
   password: String,
-  role: { type: String, default: "admin" }
+  role: String
 });
 
 const User = mongoose.model("User", userSchema);
@@ -68,15 +68,14 @@ app.get("/create-admin", async (req, res) => {
       role: "admin"
     });
 
-    res.send("Admin created ✅ (admin / 111111)");
+    res.send("Admin Created ✅ (admin / 111111)");
   } catch (err) {
-    console.log(err);
     res.status(500).send("Error creating admin");
   }
 });
 
 /* =========================
-   LOGIN (MATCHES FRONTEND)
+   LOGIN
 ========================= */
 app.post("/api/auth/login", async (req, res) => {
   try {
@@ -108,8 +107,63 @@ app.post("/api/auth/login", async (req, res) => {
     });
 
   } catch (err) {
-    console.log("LOGIN ERROR:", err);
+    console.log(err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   USERS ROUTES
+========================= */
+
+// GET USERS BY ROLE
+app.get("/api/users/:role", async (req, res) => {
+  try {
+    const role = req.params.role.slice(0, -1); // admins → admin
+    const users = await User.find({ role });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading users" });
+  }
+});
+
+// CREATE USER
+app.post("/api/users/:role", async (req, res) => {
+  try {
+    const role = req.params.role.slice(0, -1);
+    const { name, username, password } = req.body;
+
+    if (!name || !username || !password)
+      return res.status(400).json({ message: "Missing fields" });
+
+    const exists = await User.findOne({ username });
+    if (exists)
+      return res.status(400).json({ message: "Username exists" });
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      name,
+      username,
+      password: hashed,
+      role
+    });
+
+    res.json(newUser);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error creating user" });
+  }
+});
+
+// DELETE USER
+app.delete("/api/users/:role/:id", async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting user" });
   }
 });
 
@@ -121,7 +175,7 @@ app.get("/", (req, res) => {
 });
 
 /* =========================
-   START
+   START SERVER
 ========================= */
 app.listen(PORT, () => {
   console.log("🚀 Server running on port " + PORT);
