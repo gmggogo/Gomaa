@@ -1,115 +1,79 @@
 require("dotenv").config();
-
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
 
 const app = express();
 
-/* =========================
-   MIDDLEWARE
-========================= */
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname,"public")));
 
-/* =========================
-   ENV
-========================= */
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
-/* =========================
+/* =====================
    CONNECT MONGO
-========================= */
+===================== */
 mongoose.connect(MONGO_URI)
-  .then(()=> console.log("✅ Mongo Connected"))
-  .catch(err=> console.log("❌ Mongo Error:", err));
+.then(()=>console.log("Mongo Connected"))
+.catch(err=>console.log(err));
 
-/* =========================
+/* =====================
    USER MODEL
-========================= */
+===================== */
 const userSchema = new mongoose.Schema({
-  name: String,
-  username: { type: String, unique: true },
-  password: String,
-  role: String,
-  active: { type: Boolean, default: true }
+  name:String,
+  username:{type:String,unique:true},
+  password:String,
+  role:String,
+  active:{type:Boolean,default:true}
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model("User",userSchema);
 
-/* =========================
-   CREATE DEFAULT ADMIN
-========================= */
-app.get("/create-admin", async (req,res)=>{
-  const exists = await User.findOne({ username:"admin" });
-  if(exists) return res.send("Admin exists");
-
-  const hashed = await bcrypt.hash("111111",10);
-
-  await User.create({
-    name:"Main Admin",
-    username:"admin",
-    password:hashed,
-    role:"admin"
-  });
-
-  res.send("Admin created (admin / 111111)");
-});
-
-/* =========================
+/* =====================
    LOGIN
-========================= */
-app.post("/api/auth/login", async (req,res)=>{
-  const { username, password } = req.body;
+===================== */
+app.post("/api/auth/login",async(req,res)=>{
+  try{
+    const { username,password } = req.body;
 
-  const user = await User.findOne({ username });
-  if(!user) return res.status(400).json({ message:"Invalid credentials" });
+    const user = await User.findOne({ username });
+    if(!user) return res.status(400).json({message:"Invalid credentials"});
+    if(!user.active) return res.status(403).json({message:"User disabled"});
 
-  if(!user.active)
-    return res.status(403).json({ message:"User disabled" });
+    const match = await bcrypt.compare(password,user.password);
+    if(!match) return res.status(400).json({message:"Invalid credentials"});
 
-  const match = await bcrypt.compare(password,user.password);
-  if(!match) return res.status(400).json({ message:"Invalid credentials" });
-
-  const token = jwt.sign(
-    { id:user._id, role:user.role },
-    JWT_SECRET,
-    { expiresIn:"1d" }
-  );
-
-  res.json({
-    token,
-    role:user.role,
-    name:user.name
-  });
+    res.json({ role:user.role });
+  }catch(err){
+    console.log(err);
+    res.status(500).json({message:"Server error"});
+  }
 });
 
-/* =========================
-   GET USERS BY ROLE
-========================= */
-app.get("/api/users/:role", async (req,res)=>{
+/* =====================
+   GET USERS
+===================== */
+app.get("/api/users/:role",async(req,res)=>{
   const role = req.params.role.slice(0,-1);
   const users = await User.find({ role });
   res.json(users);
 });
 
-/* =========================
+/* =====================
    ADD USER
-========================= */
-app.post("/api/users/:role", async (req,res)=>{
+===================== */
+app.post("/api/users/:role",async(req,res)=>{
   const role = req.params.role.slice(0,-1);
-  const { name, username, password } = req.body;
+  const { name,username,password } = req.body;
 
   const exists = await User.findOne({ username });
   if(exists)
-    return res.status(400).json({ message:"Username exists" });
+    return res.status(400).json({message:"Username exists"});
 
   const hashed = await bcrypt.hash(password,10);
 
@@ -123,58 +87,47 @@ app.post("/api/users/:role", async (req,res)=>{
   res.json(newUser);
 });
 
-/* =========================
-   EDIT USER
-========================= */
-app.put("/api/users/:id", async (req,res)=>{
-  const { name, username, password } = req.body;
+/* =====================
+   UPDATE USER
+===================== */
+app.put("/api/users/:role/:id",async(req,res)=>{
+  const { name,username,password } = req.body;
 
-  const updateData = { name, username };
+  const updateData = { name,username };
 
-  if(password && password.trim() !== ""){
+  if(password && password.trim()!==""){
     updateData.password = await bcrypt.hash(password,10);
   }
 
-  const updated = await User.findByIdAndUpdate(
-    req.params.id,
-    updateData,
-    { new:true }
-  );
-
-  res.json(updated);
+  await User.findByIdAndUpdate(req.params.id,updateData);
+  res.json({message:"Updated"});
 });
 
-/* =========================
-   DISABLE / ENABLE USER
-========================= */
-app.patch("/api/users/:id/toggle", async (req,res)=>{
+/* =====================
+   TOGGLE ACTIVE
+===================== */
+app.patch("/api/users/:role/:id/toggle",async(req,res)=>{
   const user = await User.findById(req.params.id);
-  if(!user) return res.status(404).json({ message:"User not found" });
-
   user.active = !user.active;
   await user.save();
-
   res.json(user);
 });
 
-/* =========================
+/* =====================
    DELETE USER
-========================= */
-app.delete("/api/users/:id", async (req,res)=>{
+===================== */
+app.delete("/api/users/:role/:id",async(req,res)=>{
   await User.findByIdAndDelete(req.params.id);
-  res.json({ message:"Deleted" });
+  res.json({message:"Deleted"});
 });
 
-/* =========================
+/* =====================
    ROOT
-========================= */
+===================== */
 app.get("/",(req,res)=>{
   res.sendFile(path.join(__dirname,"public","index.html"));
 });
 
-/* =========================
-   START SERVER
-========================= */
 app.listen(PORT,()=>{
-  console.log("🚀 Server running on port "+PORT);
+  console.log("Server running on "+PORT);
 });
