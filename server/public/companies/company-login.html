@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-
 body{
   margin:0;
   font-family:'Segoe UI', Arial, sans-serif;
@@ -19,20 +18,20 @@ body{
   color:white;
 }
 
-/* ===== TOP SECTION ===== */
+/* ===== LOGO + DATE ===== */
 .top-section{
   text-align:center;
-  margin-bottom:20px;
+  margin-bottom:25px;
 }
 
 .top-section img{
-  width:260px;
+  width:240px;
   max-width:90%;
   filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
 }
 
 .datetime{
-  margin-top:10px;
+  margin-top:8px;
   font-size:14px;
   opacity:0.9;
 }
@@ -87,14 +86,14 @@ body{
   color:#dc2626;
   font-size:12px;
 }
-
 </style>
 </head>
 
 <body>
 
 <div class="top-section">
-  <img src="../assets/logo.png" alt="Sunbeam Transportation">
+  <!-- المسار الصح لأن public متسيرف -->
+  <img src="/assets/logo.png" alt="Sunbeam Transportation">
   <div class="datetime" id="datetime"></div>
 </div>
 
@@ -110,23 +109,23 @@ body{
   <div id="errorMessage" class="error"></div>
 </div>
 
-<script src="company-login.js"></script>
+<!-- جافاسكريبت اللوجن -->
+<script src="/companies/company-login.js"></script>
 
+<!-- ساعة وتاريخ -->
 <script>
 function updateDateTime(){
   const now = new Date();
-  const options = {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  };
-  const date = now.toLocaleDateString('en-US', options);
+  const date = now.toLocaleDateString('en-US',{
+    weekday:'long',
+    year:'numeric',
+    month:'long',
+    day:'numeric'
+  });
   const time = now.toLocaleTimeString('en-US');
   document.getElementById("datetime").innerText = date + " | " + time;
 }
-
-setInterval(updateDateTime, 1000);
+setInterval(updateDateTime,1000);
 updateDateTime();
 </script>
 

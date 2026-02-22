@@ -1,111 +1,60 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Organization Login | Sunbeam</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+document.addEventListener("DOMContentLoaded", function () {
 
-<style>
+  const form = document.getElementById("loginForm");
+  const errorBox = document.getElementById("errorMessage");
 
-body{
-  margin:0;
-  font-family:'Segoe UI', Arial, sans-serif;
-  background:linear-gradient(135deg,#0f172a,#1e3a8a);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  height:100vh;
-}
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
 
-/* ===== LOGO ===== */
-.top-logo{
-  margin-bottom:20px;
-  text-align:center;
-}
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
 
-.top-logo img{
-  width:260px;
-  max-width:90%;
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
-}
+    errorBox.innerText = "";
 
-/* ===== CARD ===== */
-.login-card{
-  width:340px;
-  background:white;
-  padding:30px;
-  border-radius:14px;
-  box-shadow:0 25px 60px rgba(0,0,0,0.35);
-  text-align:center;
-}
+    if (!username || !password) {
+      errorBox.innerText = "Please enter username and password.";
+      return;
+    }
 
-.login-card h1{
-  color:#1e3a8a;
-  font-weight:700;
-  font-size:22px;
-  margin-bottom:20px;
-}
+    try {
 
-.login-card input{
-  width:100%;
-  padding:10px;
-  margin-bottom:12px;
-  border-radius:6px;
-  border:1px solid #cbd5e1;
-  font-size:14px;
-}
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username,
+          password
+        })
+      });
 
-.login-card button{
-  width:100%;
-  padding:11px;
-  border:none;
-  border-radius:6px;
-  background:linear-gradient(90deg,#1e3a8a,#2563eb);
-  color:white;
-  font-size:14px;
-  font-weight:600;
-  cursor:pointer;
-  transition:0.3s;
-}
+      const data = await response.json();
 
-.login-card button:hover{
-  background:linear-gradient(90deg,#d4af37,#facc15);
-  color:#0f172a;
-}
+      if (!response.ok) {
+        errorBox.innerText = data.message || "Invalid credentials.";
+        return;
+      }
 
-.error{
-  margin-top:10px;
-  color:#dc2626;
-  font-size:12px;
-}
+      // نتأكد انه شركة
+      if (data.user.role !== "company") {
+        errorBox.innerText = "This account is not a company account.";
+        return;
+      }
 
-</style>
-</head>
+      // حفظ التوكن
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userRole", data.user.role);
+      localStorage.setItem("userName", data.user.name);
 
-<body>
+      // تحويل
+      window.location.href = "/companies/company.html";
 
-<!-- LOGO -->
-<div class="top-logo">
-  <img src="../assets/logo.png" alt="Sunbeam Transportation">
-</div>
+    } catch (err) {
+      console.error(err);
+      errorBox.innerText = "Server error.";
+    }
 
-<!-- LOGIN CARD -->
-<div class="login-card">
+  });
 
-  <h1>Organization Login</h1>
-
-  <form id="loginForm">
-    <input type="text" id="username" placeholder="Username" required>
-    <input type="password" id="password" placeholder="Password" required>
-    <button type="submit">Login</button>
-  </form>
-
-  <div id="errorMessage" class="error"></div>
-
-</div>
-
-<script src="company-login.js"></script>
-
-</body>
-</html>
+});
