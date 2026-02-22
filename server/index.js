@@ -15,10 +15,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-/* =========================
-   STATIC FILES
-========================= */
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
@@ -46,7 +42,8 @@ const userSchema = new mongoose.Schema({
   name: String,
   username: { type: String, unique: true },
   password: String,
-  role: String
+  role: String,
+  active: { type: Boolean, default: true }
 });
 
 const User = mongoose.model("User", userSchema);
@@ -88,6 +85,9 @@ app.post("/api/auth/login", async (req, res) => {
     if (!user)
       return res.status(400).json({ message: "Invalid credentials" });
 
+    if (!user.active)
+      return res.status(403).json({ message: "User disabled" });
+
     const match = await bcrypt.compare(password, user.password);
     if (!match)
       return res.status(400).json({ message: "Invalid credentials" });
@@ -119,7 +119,7 @@ app.post("/api/auth/login", async (req, res) => {
 // GET USERS BY ROLE
 app.get("/api/users/:role", async (req, res) => {
   try {
-    const role = req.params.role.slice(0, -1); // admins → admin
+    const role = req.params.role.slice(0, -1);
     const users = await User.find({ role });
     res.json(users);
   } catch (err) {
@@ -157,8 +157,49 @@ app.post("/api/users/:role", async (req, res) => {
   }
 });
 
+// EDIT USER
+app.put("/api/users/:id", async (req, res) => {
+  try {
+    const { name, username, password } = req.body;
+
+    const updateData = { name, username };
+
+    if (password && password.trim() !== "") {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    res.json(updated);
+
+  } catch (err) {
+    res.status(500).json({ message: "Error updating user" });
+  }
+});
+
+// TOGGLE ACTIVE
+app.patch("/api/users/:id/toggle", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user)
+      return res.status(404).json({ message: "User not found" });
+
+    user.active = !user.active;
+    await user.save();
+
+    res.json(user);
+
+  } catch (err) {
+    res.status(500).json({ message: "Error toggling user" });
+  }
+});
+
 // DELETE USER
-app.delete("/api/users/:role/:id", async (req, res) => {
+app.delete("/api/users/:id", async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
