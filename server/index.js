@@ -27,13 +27,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 /* =========================
    MONGO CONNECT
 ========================= */
-if (!MONGO_URI) {
-  console.log("❌ MONGO_URI missing");
-} else {
-  mongoose.connect(MONGO_URI)
-    .then(() => console.log("✅ Mongo Connected"))
-    .catch(err => console.log("Mongo Error:", err));
-}
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("✅ Mongo Connected"))
+  .catch(err => console.log("❌ Mongo Error:", err));
 
 /* =========================
    USER MODEL
@@ -42,95 +38,125 @@ const userSchema = new mongoose.Schema({
   name: String,
   username: { type: String, unique: true },
   password: String,
-  role: String,
+  role: {
+    type: String,
+    enum: ["admin", "dispatcher", "driver", "company"],
+    required: true
+  },
   active: { type: Boolean, default: true }
 });
 
 const User = mongoose.model("User", userSchema);
 
 /* =========================
+   AUTH MIDDLEWARE
+========================= */
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token)
+    return res.status(401).json({ message: "No token provided" });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch {
+    res.status(403).json({ message: "Invalid token" });
+  }
+};
+
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role))
+      return res.status(403).json({ message: "Access denied" });
+    next();
+  };
+};
+
+/* =========================
    CREATE ADMIN (RUN ONCE)
 ========================= */
 app.get("/create-admin", async (req, res) => {
-  try {
-    const existing = await User.findOne({ username: "admin" });
-    if (existing) return res.send("Admin already exists");
+  const existing = await User.findOne({ username: "admin" });
+  if (existing) return res.send("Admin already exists");
 
-    const hashed = await bcrypt.hash("111111", 10);
+  const hashed = await bcrypt.hash("111111", 10);
 
-    await User.create({
-      name: "Admin",
-      username: "admin",
-      password: hashed,
-      role: "admin"
-    });
+  await User.create({
+    name: "Main Admin",
+    username: "admin",
+    password: hashed,
+    role: "admin"
+  });
 
-    res.send("Admin Created ✅ (admin / 111111)");
-  } catch (err) {
-    res.status(500).send("Error creating admin");
-  }
+  res.send("Admin created (admin / 111111)");
 });
 
 /* =========================
    LOGIN
 ========================= */
 app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { username, password } = req.body;
+  const { username, password } = req.body;
 
-    if (!username || !password)
-      return res.status(400).json({ message: "Missing credentials" });
+  if (!username || !password)
+    return res.status(400).json({ message: "Missing credentials" });
 
-    const user = await User.findOne({ username });
-    if (!user)
-      return res.status(400).json({ message: "Invalid credentials" });
+  const user = await User.findOne({ username });
+  if (!user)
+    return res.status(400).json({ message: "Invalid credentials" });
 
-    if (!user.active)
-      return res.status(403).json({ message: "User disabled" });
+  if (!user.active)
+    return res.status(403).json({ message: "User disabled" });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match)
-      return res.status(400).json({ message: "Invalid credentials" });
+  const match = await bcrypt.compare(password, user.password);
+  if (!match)
+    return res.status(400).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+  const token = jwt.sign(
+    { id: user._id, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "1d" }
+  );
 
-    res.json({
-      token,
-      user: {
-        name: user.name,
-        role: user.role
-      }
-    });
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  res.json({
+    token,
+    user: {
+      name: user.name,
+      role: user.role
+    }
+  });
 });
 
 /* =========================
-   USERS ROUTES
+   USERS ROUTES (ADMIN ONLY)
 ========================= */
 
 // GET USERS BY ROLE
-app.get("/api/users/:role", async (req, res) => {
-  try {
-    const role = req.params.role.slice(0, -1);
+app.get("/api/users/:role",
+  verifyToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+
+    const role = req.params.role;
+
+    if (!["admin", "dispatcher", "driver", "company"].includes(role))
+      return res.status(400).json({ message: "Invalid role" });
+
     const users = await User.find({ role });
     res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: "Error loading users" });
-  }
 });
 
 // CREATE USER
-app.post("/api/users/:role", async (req, res) => {
-  try {
-    const role = req.params.role.slice(0, -1);
+app.post("/api/users/:role",
+  verifyToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+
+    const role = req.params.role;
+
+    if (!["admin", "dispatcher", "driver", "company"].includes(role))
+      return res.status(400).json({ message: "Invalid role" });
+
     const { name, username, password } = req.body;
 
     if (!name || !username || !password)
@@ -150,16 +176,14 @@ app.post("/api/users/:role", async (req, res) => {
     });
 
     res.json(newUser);
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error creating user" });
-  }
 });
 
 // EDIT USER
-app.put("/api/users/:id", async (req, res) => {
-  try {
+app.put("/api/users/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+
     const { name, username, password } = req.body;
 
     const updateData = { name, username };
@@ -175,15 +199,14 @@ app.put("/api/users/:id", async (req, res) => {
     );
 
     res.json(updated);
-
-  } catch (err) {
-    res.status(500).json({ message: "Error updating user" });
-  }
 });
 
 // TOGGLE ACTIVE
-app.patch("/api/users/:id/toggle", async (req, res) => {
-  try {
+app.patch("/api/users/:id/toggle",
+  verifyToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+
     const user = await User.findById(req.params.id);
     if (!user)
       return res.status(404).json({ message: "User not found" });
@@ -192,20 +215,16 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
     await user.save();
 
     res.json(user);
-
-  } catch (err) {
-    res.status(500).json({ message: "Error toggling user" });
-  }
 });
 
 // DELETE USER
-app.delete("/api/users/:id", async (req, res) => {
-  try {
+app.delete("/api/users/:id",
+  verifyToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
-  } catch (err) {
-    res.status(500).json({ message: "Error deleting user" });
-  }
 });
 
 /* =========================
