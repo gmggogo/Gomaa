@@ -16,28 +16,36 @@ body{
   align-items:center;
   justify-content:center;
   height:100vh;
+  color:white;
 }
 
-/* ===== LOGO ===== */
-.top-logo{
-  margin-bottom:20px;
+/* ===== TOP SECTION ===== */
+.top-section{
   text-align:center;
+  margin-bottom:20px;
 }
 
-.top-logo img{
+.top-section img{
   width:260px;
   max-width:90%;
   filter: drop-shadow(0 10px 20px rgba(0,0,0,0.4));
 }
 
-/* ===== CARD ===== */
+.datetime{
+  margin-top:10px;
+  font-size:14px;
+  opacity:0.9;
+}
+
+/* ===== LOGIN CARD ===== */
 .login-card{
-  width:340px;
+  width:360px;
   background:white;
   padding:30px;
   border-radius:14px;
   box-shadow:0 25px 60px rgba(0,0,0,0.35);
   text-align:center;
+  color:#0f172a;
 }
 
 .login-card h1{
@@ -85,14 +93,12 @@ body{
 
 <body>
 
-<!-- LOGO -->
-<div class="top-logo">
+<div class="top-section">
   <img src="../assets/logo.png" alt="Sunbeam Transportation">
+  <div class="datetime" id="datetime"></div>
 </div>
 
-<!-- LOGIN CARD -->
 <div class="login-card">
-
   <h1>Organization Login</h1>
 
   <form id="loginForm">
@@ -102,10 +108,27 @@ body{
   </form>
 
   <div id="errorMessage" class="error"></div>
-
 </div>
 
 <script src="company-login.js"></script>
+
+<script>
+function updateDateTime(){
+  const now = new Date();
+  const options = {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  };
+  const date = now.toLocaleDateString('en-US', options);
+  const time = now.toLocaleTimeString('en-US');
+  document.getElementById("datetime").innerText = date + " | " + time;
+}
+
+setInterval(updateDateTime, 1000);
+updateDateTime();
+</script>
 
 </body>
 </html>
