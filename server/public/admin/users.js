@@ -1,115 +1,82 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", loadUsers);
 
-  const token = localStorage.getItem("token");
+const role = "admin";
 
-  if (!token) {
-    alert("Not logged in");
-    return;
-  }
+async function loadUsers() {
 
-  // 👇 عدل هنا لو الصفحة دي لغير الادمن
-  const role = "admin";
+  const res = await fetch(`/api/users/${role}`);
+  const users = await res.json();
 
   const table = document.getElementById("usersTable");
+  table.innerHTML = "";
 
-  /* =========================
-     LOAD USERS
-  ========================= */
-  async function loadUsers() {
-    try {
-      const res = await fetch(`/api/users/${role}`, {
-        headers: {
-          "Authorization": "Bearer " + token
-        }
-      });
+  users.forEach(user => {
 
-      if (!res.ok) {
-        alert("Failed to load users");
-        return;
-      }
+    table.innerHTML += `
+      <tr>
+        <td>${user.name}</td>
+        <td>${user.username}</td>
+        <td>${user.active ? "Active" : "Disabled"}</td>
+        <td>
+          <button onclick="editUser('${user._id}','${user.name}','${user.username}')">Edit</button>
+          <button onclick="toggleUser('${user._id}')">
+            ${user.active ? "Disable" : "Enable"}
+          </button>
+          <button onclick="deleteUser('${user._id}')">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+}
 
-      const users = await res.json();
-      table.innerHTML = "";
+function editUser(id, name, username) {
+  document.getElementById("editId").value = id;
+  document.getElementById("name").value = name;
+  document.getElementById("username").value = username;
+}
 
-      users.forEach(user => {
-        table.innerHTML += `
-          <tr>
-            <td>${user.name}</td>
-            <td>${user.username}</td>
-            <td>${user.active ? "Active" : "Disabled"}</td>
-            <td>
-              <button onclick="toggleUser('${user._id}')">Toggle</button>
-              <button onclick="deleteUser('${user._id}')">Delete</button>
-            </td>
-          </tr>
-        `;
-      });
+async function saveUser() {
 
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const id = document.getElementById("editId").value;
+  const name = document.getElementById("name").value;
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
 
-  /* =========================
-     CREATE USER
-  ========================= */
-  window.createUser = async function () {
+  if (!name || !username) return alert("Missing fields");
 
-    const name = document.getElementById("name").value;
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
-
-    if (!name || !username || !password) {
-      alert("Fill all fields");
-      return;
-    }
+  if (id) {
+    await fetch(`/api/users/${id}`, {
+      method:"PUT",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ name, username, password })
+    });
+  } else {
+    if (!password) return alert("Password required");
 
     await fetch(`/api/users/${role}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token
-      },
-      body: JSON.stringify({ name, username, password })
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ name, username, password })
     });
+  }
 
-    document.getElementById("name").value = "";
-    document.getElementById("username").value = "";
-    document.getElementById("password").value = "";
-
-    loadUsers();
-  };
-
-  /* =========================
-     TOGGLE USER
-  ========================= */
-  window.toggleUser = async function (id) {
-
-    await fetch(`/api/users/${id}/toggle`, {
-      method: "PATCH",
-      headers: {
-        "Authorization": "Bearer " + token
-      }
-    });
-
-    loadUsers();
-  };
-
-  /* =========================
-     DELETE USER
-  ========================= */
-  window.deleteUser = async function (id) {
-
-    await fetch(`/api/users/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Authorization": "Bearer " + token
-      }
-    });
-
-    loadUsers();
-  };
+  document.getElementById("editId").value = "";
+  document.getElementById("name").value = "";
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
 
   loadUsers();
+}
 
-});
+async function toggleUser(id) {
+  await fetch(`/api/users/${id}/toggle`, { method:"PATCH" });
+  loadUsers();
+}
+
+async function deleteUser(id) {
+
+  if (!confirm("Are you sure?")) return;
+
+  await fetch(`/api/users/${id}`, { method:"DELETE" });
+  loadUsers();
+}

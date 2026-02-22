@@ -1,200 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam – Admin Panel</title>
+<title>Manage Users</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-:root{
-  --blue:#0f172a;
-  --blue2:#1e3a8a;
-  --gold:#facc15;
-}
-
 body{
   margin:0;
   font-family:Arial, sans-serif;
-  background:#f4f8fb;
   display:flex;
 }
 
 /* SIDEBAR */
 .sidebar{
-  width:230px;
-  background:var(--blue);
-  color:#fff;
-  min-height:100vh;
+  width:220px;
+  background:#0f172a;
+  height:100vh;
   padding-top:30px;
   position:fixed;
   left:0;
   top:0;
+  display:flex;
+  flex-direction:column;
 }
 
 .sidebar h2{
+  color:#facc15;
   text-align:center;
-  color:var(--gold);
   margin-bottom:30px;
 }
 
 .sidebar a{
-  display:block;
-  padding:15px 20px;
-  color:#fff;
+  color:white;
   text-decoration:none;
-  border-left:4px solid transparent;
+  padding:12px 20px;
+  font-size:14px;
 }
 
 .sidebar a:hover{
   background:#1e293b;
-  border-left:4px solid var(--gold);
-}
-
-.sidebar a.active{
-  background:#1e293b;
-  border-left:4px solid var(--gold);
-}
-
-/* MAIN AREA */
-.main{
-  margin-left:230px;
-  width:100%;
-}
-
-/* HEADER */
-.header{
-  background:linear-gradient(90deg,var(--blue),var(--blue2));
-  color:#fff;
-  padding:20px 40px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.company-name{
-  font-size:20px;
-  font-weight:bold;
-  color:var(--gold);
-}
-
-.clock{
-  font-size:13px;
-  margin-top:5px;
-}
-
-.logo{
-  height:60px;
 }
 
 /* CONTENT */
-.container{
-  padding:40px;
-}
-
-.form-box{
-  background:#fff;
-  padding:20px;
-  border-radius:8px;
-  box-shadow:0 2px 8px rgba(0,0,0,.1);
-  margin-bottom:30px;
-  display:flex;
-  gap:10px;
-}
-
-.form-box input{
-  padding:8px;
-  border:1px solid #ccc;
-  border-radius:4px;
-}
-
-.form-box button{
-  background:var(--blue2);
-  color:#fff;
-  border:none;
-  padding:8px 15px;
-  border-radius:4px;
-  cursor:pointer;
+.main{
+  margin-left:220px;
+  padding:30px;
+  width:100%;
 }
 
 table{
   width:100%;
   border-collapse:collapse;
-  background:#fff;
-  box-shadow:0 2px 8px rgba(0,0,0,.1);
 }
 
 th, td{
-  padding:12px;
-  border-bottom:1px solid #eee;
+  padding:10px;
+  border-bottom:1px solid #ddd;
+  text-align:left;
 }
 
-th{
-  background:var(--blue);
-  color:#fff;
+button{
+  padding:6px 10px;
+  margin-right:5px;
+  cursor:pointer;
+}
+
+input{
+  padding:6px;
+  margin-right:5px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <h2>Sunbeam</h2>
-  <a href="admins.html" class="active">Admins</a>
-  <a href="companies.html">Companies</a>
-  <a href="dispatchers.html">Dispatchers</a>
-  <a href="drivers.html">Drivers</a>
+  <a href="/admin/users.html">Admins</a>
+  <a href="/companies/companies.html">Companies</a>
+  <a href="/dispatcher/dispatchers.html">Dispatchers</a>
+  <a href="/driver/drivers.html">Drivers</a>
 </div>
 
-<!-- MAIN -->
 <div class="main">
 
-  <div class="header">
-    <div>
-      <div class="company-name">Sunbeam Transportation</div>
-      <div class="clock" id="clock"></div>
-    </div>
-    <img src="/logo.png" class="logo">
-  </div>
+<h1>Manage Admins</h1>
 
-  <div class="container">
+<input type="hidden" id="editId">
 
-    <h2>Manage Admins</h2>
+<input id="name" placeholder="Name">
+<input id="username" placeholder="Username">
+<input id="password" placeholder="Password">
+<button onclick="saveUser()">Save</button>
 
-    <div class="form-box">
-      <input type="text" id="name" placeholder="Name">
-      <input type="text" id="username" placeholder="Username">
-      <input type="password" id="password" placeholder="Password">
-      <button onclick="createUser()">Add</button>
-    </div>
+<br><br>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Username</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="usersTable"></tbody>
-    </table>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Username</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
 
-  </div>
+<tbody id="usersTable"></tbody>
+
+</table>
 
 </div>
 
-<script>
-function updateClock(){
-  const now = new Date();
-  document.getElementById("clock").innerText =
-    now.toLocaleDateString() + " - " + now.toLocaleTimeString();
-}
-setInterval(updateClock,1000);
-updateClock();
-</script>
-
-<script src="users.js"></script>
+<script src="/admin/users.js"></script>
 
 </body>
 </html>
