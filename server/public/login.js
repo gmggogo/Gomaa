@@ -1,15 +1,28 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById("loginForm");
+// Arizona Time
+function updateAZTime(){
+  const options = {
+    timeZone: "America/Phoenix",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  };
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    await login();
-  });
-});
+  document.getElementById("azTime").innerText =
+    new Date().toLocaleString("en-US", options);
+}
 
+setInterval(updateAZTime, 1000);
+updateAZTime();
+
+
+// Login Function
 async function login(){
 
-  const username = document.getElementById("email").value.trim();
+  const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
   const msg = document.getElementById("msg");
 
@@ -24,10 +37,8 @@ async function login(){
 
     const res = await fetch("/api/auth/login",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({ username, password })
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ username, password })
     });
 
     const data = await res.json();
@@ -37,27 +48,20 @@ async function login(){
       return;
     }
 
-    const role = data.user.role;
+    if(data.user.role !== "admin" && data.user.role !== "dispatcher"){
+      msg.innerText = "Access denied";
+      return;
+    }
 
-    // Save token + role
     localStorage.setItem("token", data.token);
-    localStorage.setItem("role", role);
+    localStorage.setItem("role", data.user.role);
 
-    // Redirect based on role
-    if(role === "admin"){
+    if(data.user.role === "admin"){
       window.location.href = "/admin/dashboard.html";
     }
-    else if(role === "company"){
-      window.location.href = "/companies/dashboard.html";
-    }
-    else if(role === "dispatcher"){
+
+    if(data.user.role === "dispatcher"){
       window.location.href = "/dispatcher/dashboard.html";
-    }
-    else if(role === "driver"){
-      window.location.href = "/driver/dashboard.html";
-    }
-    else{
-      msg.innerText = "Access denied";
     }
 
   }catch(err){
