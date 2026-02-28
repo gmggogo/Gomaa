@@ -1,12 +1,12 @@
 document.addEventListener("DOMContentLoaded", function(){
 
 /* ===============================
-   AUTH (LOCAL ONLY)
+   AUTH (Company)
 ================================ */
 let loggedCompany = null;
 try { loggedCompany = JSON.parse(localStorage.getItem("loggedCompany")); } catch {}
 
-if (!loggedCompany) {
+if (!loggedCompany || !loggedCompany.name) {
   window.location.href = "company-login.html";
   return;
 }
@@ -20,10 +20,9 @@ function getAZNow(){
 
 function getTripDateTime(tripDate, tripTime){
   if (!tripDate || !tripTime) return null;
-  const [y,m,d] = tripDate.split("-");
-  const [hh,mm] = tripTime.split(":");
-  if(!y || !m || !d || hh === undefined || mm === undefined) return null;
-  const dt = new Date(Number(y), Number(m)-1, Number(d), Number(hh), Number(mm));
+
+  // support "YYYY-MM-DD" + "HH:MM"
+  const dt = new Date(tripDate + "T" + tripTime);
   return String(dt) === "Invalid Date" ? null : dt;
 }
 
@@ -46,37 +45,37 @@ function tripPassed(tripDate, tripTime){
 /* ===============================
    DOM
 ================================ */
-const entryName     = document.getElementById("entryName");
-const entryPhone    = document.getElementById("entryPhone");
-const saveEntry     = document.getElementById("saveEntry");
-const editEntry     = document.getElementById("editEntry");
+const entryName  = document.getElementById("entryName");
+const entryPhone = document.getElementById("entryPhone");
+const saveEntry  = document.getElementById("saveEntry");
+const editEntry  = document.getElementById("editEntry");
 
-const clientName    = document.getElementById("clientName");
-const clientPhone   = document.getElementById("clientPhone");
-const pickup        = document.getElementById("pickup");
-const dropoff       = document.getElementById("dropoff");
-const tripDate      = document.getElementById("tripDate");
-const tripTime      = document.getElementById("tripTime");
-const notes         = document.getElementById("notes");
-const stopsContainer= document.getElementById("stops");
+const clientName  = document.getElementById("clientName");
+const clientPhone = document.getElementById("clientPhone");
+const pickup      = document.getElementById("pickup");
+const dropoff     = document.getElementById("dropoff");
+const tripDate    = document.getElementById("tripDate");
+const tripTime    = document.getElementById("tripTime");
+const notes       = document.getElementById("notes");
+const stopsContainer = document.getElementById("stops");
 
 const addStopBtn    = document.getElementById("addStopBtn");
 const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
 /* ===============================
-   ENTRY SAVE / EDIT
+   ENTRY SAVE / EDIT (LOCK)
 ================================ */
 function lockEntry(){
-  entryName.disabled = true;
-  entryPhone.disabled = true;
+  if(entryName) entryName.disabled = true;
+  if(entryPhone) entryPhone.disabled = true;
   if(saveEntry) saveEntry.style.display = "none";
   if(editEntry) editEntry.style.display = "inline-block";
 }
 
 function unlockEntry(){
-  entryName.disabled = false;
-  entryPhone.disabled = false;
+  if(entryName) entryName.disabled = false;
+  if(entryPhone) entryPhone.disabled = false;
   if(saveEntry) saveEntry.style.display = "inline-block";
   if(editEntry) editEntry.style.display = "none";
 }
@@ -85,8 +84,8 @@ function loadEntry(){
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem("entryInfo") || "null"); } catch {}
   if(saved){
-    entryName.value = saved.name || "";
-    entryPhone.value = saved.phone || "";
+    if(entryName) entryName.value = saved.name || "";
+    if(entryPhone) entryPhone.value = saved.phone || "";
     lockEntry();
   }else{
     unlockEntry();
@@ -129,22 +128,17 @@ function addStopField(value=""){
 }
 
 if(addStopBtn){
-  addStopBtn.addEventListener("click", function(){
+  addStopBtn.addEventListener("click", function(e){
+    e.preventDefault();
+    // max 5 stops (لو عايز)
+    const count = stopsContainer.querySelectorAll("input").length;
+    if(count >= 5){
+      alert("Max 5 stops.");
+      return;
+    }
     addStopField("");
     saveDraft();
   });
-}
-
-/* ===============================
-   TRIP NUMBER
-================================ */
-function generateTripNumber(){
-  // ثابت وسهل: رقم متسلسل لكل شركة
-  const key = "lastCompanyTrip_" + (loggedCompany.username || loggedCompany.name || "default");
-  let last = parseInt(localStorage.getItem(key) || "200", 10);
-  last++;
-  localStorage.setItem(key, String(last));
-  return "GH-" + last;
 }
 
 /* ===============================
@@ -153,56 +147,19 @@ function generateTripNumber(){
 const DRAFT_KEY = "companyDraftTrip_" + (loggedCompany.username || loggedCompany.name || "default");
 
 /* ===============================
-   COLLECT DATA (IMPORTANT FIELDS)
-================================ */
-function collect(statusType){
-
-  const stops = [...stopsContainer.querySelectorAll("input")]
-    .map(i => (i.value || "").trim())
-    .filter(Boolean);
-
-  const tripNumber = generateTripNumber();
-
-  return {
-    tripNumber,
-    type: "Company",
-    company: loggedCompany.name || "",
-
-    // ✅ نخليها باسمين عشان Review يعرض صح
-    enteredBy: entryName.value || "",
-    enteredPhone: entryPhone.value || "",
-    entryName: entryName.value || "",
-    entryPhone: entryPhone.value || "",
-
-    clientName: clientName.value || "",
-    clientPhone: clientPhone.value || "",
-    pickup: pickup.value || "",
-    dropoff: dropoff.value || "",
-    stops,
-
-    tripDate: tripDate.value || "",
-    tripTime: tripTime.value || "",
-    notes: notes.value || "",
-
-    status: statusType,
-    createdAt: new Date().toISOString()
-  };
-}
-
-/* ===============================
    DRAFT SAVE / LOAD
 ================================ */
 function saveDraft(){
   const draft = {
-    entryName: entryName.value || "",
-    entryPhone: entryPhone.value || "",
-    clientName: clientName.value || "",
-    clientPhone: clientPhone.value || "",
-    pickup: pickup.value || "",
-    dropoff: dropoff.value || "",
-    tripDate: tripDate.value || "",
-    tripTime: tripTime.value || "",
-    notes: notes.value || "",
+    entryName: entryName ? (entryName.value || "") : "",
+    entryPhone: entryPhone ? (entryPhone.value || "") : "",
+    clientName: clientName ? (clientName.value || "") : "",
+    clientPhone: clientPhone ? (clientPhone.value || "") : "",
+    pickup: pickup ? (pickup.value || "") : "",
+    dropoff: dropoff ? (dropoff.value || "") : "",
+    tripDate: tripDate ? (tripDate.value || "") : "",
+    tripTime: tripTime ? (tripTime.value || "") : "",
+    notes: notes ? (notes.value || "") : "",
     stops: [...stopsContainer.querySelectorAll("input")].map(i=>i.value || "")
   };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -213,15 +170,15 @@ function loadDraft(){
   try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch {}
   if(!draft) return;
 
-  entryName.value = draft.entryName || entryName.value || "";
-  entryPhone.value = draft.entryPhone || entryPhone.value || "";
-  clientName.value = draft.clientName || "";
-  clientPhone.value = draft.clientPhone || "";
-  pickup.value = draft.pickup || "";
-  dropoff.value = draft.dropoff || "";
-  tripDate.value = draft.tripDate || "";
-  tripTime.value = draft.tripTime || "";
-  notes.value = draft.notes || "";
+  if(entryName && !entryName.disabled) entryName.value = draft.entryName || entryName.value || "";
+  if(entryPhone && !entryPhone.disabled) entryPhone.value = draft.entryPhone || entryPhone.value || "";
+  if(clientName) clientName.value = draft.clientName || "";
+  if(clientPhone) clientPhone.value = draft.clientPhone || "";
+  if(pickup) pickup.value = draft.pickup || "";
+  if(dropoff) dropoff.value = draft.dropoff || "";
+  if(tripDate) tripDate.value = draft.tripDate || "";
+  if(tripTime) tripTime.value = draft.tripTime || "";
+  if(notes) notes.value = draft.notes || "";
 
   stopsContainer.innerHTML = "";
   if(Array.isArray(draft.stops)){
@@ -235,96 +192,120 @@ document.querySelectorAll("input, textarea").forEach(el=>{
 });
 
 /* ===============================
-   SAVE (LOCAL ONLY)
+   TRIP #
+================================ */
+function generateTripNumber(){
+  // Unique & safe
+  return "GH-" + Date.now();
+}
+
+/* ===============================
+   COLLECT
+================================ */
+function collect(statusType){
+
+  const stops = [...stopsContainer.querySelectorAll("input")]
+    .map(i => (i.value || "").trim())
+    .filter(Boolean);
+
+  return {
+    tripNumber: generateTripNumber(),
+    type: "Company",
+    company: loggedCompany.name || "",
+
+    // مهم: نفس أسماء السيرفر عندك
+    entryName: entryName ? (entryName.value || "") : "",
+    entryPhone: entryPhone ? (entryPhone.value || "") : "",
+
+    clientName: clientName ? (clientName.value || "") : "",
+    clientPhone: clientPhone ? (clientPhone.value || "") : "",
+
+    pickup: pickup ? (pickup.value || "") : "",
+    dropoff: dropoff ? (dropoff.value || "") : "",
+    stops,
+
+    tripDate: tripDate ? (tripDate.value || "") : "",
+    tripTime: tripTime ? (tripTime.value || "") : "",
+
+    notes: notes ? (notes.value || "") : "",
+
+    status: statusType
+  };
+}
+
+/* ===============================
+   SAVE DRAFT BUTTON
 ================================ */
 if(saveTripBtn){
   saveTripBtn.addEventListener("click", function(e){
     e.preventDefault();
     saveDraft();
-    alert("Draft saved ✔");
+    alert("Saved ✔");
   });
 }
 
 /* ===============================
-   LOCAL TRIPS STORE (FOR REVIEW)
-================================ */
-function pushTripToLocalTrips(trip){
-  const all = JSON.parse(localStorage.getItem("trips") || "[]");
-  all.push(trip);
-  localStorage.setItem("trips", JSON.stringify(all));
-}
-
-/* ===============================
-   SERVER SEND (OPTIONAL)
+   SUBMIT -> SERVER -> REVIEW
 ================================ */
 let isSending = false;
-async function sendTripToServer(trip){
-  if(isSending) return false;
-  isSending = true;
-  submitTripBtn.disabled = true;
+
+if(submitTripBtn){
+submitTripBtn.addEventListener("click", async function(e){
+
+  e.preventDefault();
+
+  if(isSending) return;
+
+  if(!entryName.value || !entryPhone.value){
+    alert("Complete Entry Info first.");
+    return;
+  }
+
+  if(!tripDate.value || !tripTime.value){
+    alert("Select trip date & time.");
+    return;
+  }
+
+  if(tripPassed(tripDate.value, tripTime.value)){
+    alert("Trip time already passed. Cannot book.");
+    return;
+  }
+
+  if(isWithin120Minutes(tripDate.value, tripTime.value)){
+    if(!confirm("⚠️ Within 120 minutes.\nAfter submission, you cannot modify it.\nContinue?")){
+      return;
+    }
+  }
+
+  const trip = collect("Scheduled");
 
   try{
-    // لو السيرفر مش جاهز/مش موجود: هنكمل Local فقط
+    isSending = true;
+    submitTripBtn.disabled = true;
+
     const res = await fetch("/api/trips",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(trip)
     });
 
-    // لو السيرفر رد Error، هنعتبره فشل Server لكن Local لسه هيشتغل
-    if(!res.ok) return false;
-    return true;
-
-  }catch(e){
-    return false;
-  }finally{
-    isSending = false;
-    submitTripBtn.disabled = false;
-  }
-}
-
-/* ===============================
-   SUBMIT (GO TO REVIEW)
-================================ */
-if(submitTripBtn){
-  submitTripBtn.addEventListener("click", async function(e){
-
-    e.preventDefault();
-
-    if(!entryName.value || !entryPhone.value){
-      alert("Complete Entry Info first.");
+    if(!res.ok){
+      const txt = await res.text().catch(()=> "");
+      alert("Server Error: " + (txt || "Failed to create trip"));
+      submitTripBtn.disabled = false;
+      isSending = false;
       return;
     }
 
-    if(!tripDate.value || !tripTime.value){
-      alert("Select trip date & time.");
-      return;
-    }
-
-    if(tripPassed(tripDate.value, tripTime.value)){
-      alert("Trip time already passed. Cannot book.");
-      return;
-    }
-
-    if(isWithin120Minutes(tripDate.value, tripTime.value)){
-      const ok = confirm("⚠️ Within 120 minutes.\nAfter submission, you cannot modify it.\nContinue?");
-      if(!ok) return;
-    }
-
-    const trip = collect("Scheduled");
-
-    // ✅ لازم يتحفظ في localStorage عشان Review يلقطه
-    pushTripToLocalTrips(trip);
-
-    // ✅ محاولة إرسال للسيرفر (اختياري)
-    await sendTripToServer(trip);
-
-    // ✅ امسح Draft بعد نجاح Local
     localStorage.removeItem(DRAFT_KEY);
-
-    // ✅ روح Review
     window.location.href = "review.html";
-  });
+
+  }catch(err){
+    alert("Server Error: " + err.message);
+    submitTripBtn.disabled = false;
+    isSending = false;
+  }
+});
 }
 
 });
