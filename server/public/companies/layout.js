@@ -3,6 +3,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const container = document.getElementById("layoutHeader");
   if (!container) return;
 
+  /* ===========================
+     HEADER HTML
+  ============================ */
+
   container.innerHTML = `
     <div class="header">
       <div class="top-section">
@@ -20,13 +24,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         <a href="review.html">Review</a>
         <a href="summary.html">Summary</a>
         <a href="taxes.html">Taxes</a>
+        <a href="#" id="logoutBtn">Logout</a>
       </div>
     </div>
   `;
 
   /* ===========================
+     AUTH CHECK
+  ============================ */
+
+  const token = localStorage.getItem("token");
+  const role  = localStorage.getItem("role");
+  const name  = localStorage.getItem("name");
+
+  if (!token || role !== "company") {
+    window.location.replace("company-login.html");
+    return;
+  }
+
+  /* ===========================
      ACTIVE LINK
   ============================ */
+
   const currentPage = window.location.pathname.split("/").pop();
   document.querySelectorAll(".nav a").forEach(link => {
     if (link.getAttribute("href") === currentPage) {
@@ -35,26 +54,47 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   /* ===========================
-     LOAD COMPANY NAME
+     LOAD COMPANY NAME (JWT)
   ============================ */
 
   try {
 
     const res = await fetch("/api/company/me", {
-      credentials: "include"
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      }
     });
 
     if (res.status === 401) {
-      window.location.href = "company-login.html";
+      window.location.replace("company-login.html");
       return;
     }
 
     const data = await res.json();
-    document.getElementById("companyName").innerText = data.name;
+
+    document.getElementById("companyName").innerText =
+      data.name || name || "Company";
 
   } catch (err) {
     console.error("Company fetch error:", err);
+
+    // fallback لو السيرفر وقع
+    document.getElementById("companyName").innerText =
+      name || "Company";
   }
+
+  /* ===========================
+     LOGOUT
+  ============================ */
+
+  document.getElementById("logoutBtn").addEventListener("click", function(e){
+    e.preventDefault();
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("name");
+    window.location.replace("company-login.html");
+  });
 
   /* ===========================
      ARIZONA TIME
@@ -62,7 +102,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function updateTime() {
 
-    const now = new Date().toLocaleString("en-US", {
+    const now = new Date();
+
+    const formatted = now.toLocaleString("en-US", {
       timeZone: "America/Phoenix",
       weekday: "long",
       year: "numeric",
@@ -74,9 +116,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       hour12: true
     });
 
-    document.getElementById("azDateTime").innerText = now;
+    document.getElementById("azDateTime").innerText = formatted;
 
-    const hour = new Date().getHours();
+    const hour = now.getHours();
     let greeting = "Good Evening";
     if (hour < 12) greeting = "Good Morning";
     else if (hour < 18) greeting = "Good Afternoon";
