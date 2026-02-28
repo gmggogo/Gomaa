@@ -2,51 +2,298 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam – Add Trip</title>
+<title>SUNBEAM TRANSPORTATION – Add Trip</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="../assets/style.css">
+
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI', Arial, sans-serif;
+  background:#f4f8fb;
+}
+.header{
+  background:linear-gradient(90deg,#0f172a,#1e3a8a);
+  color:#fff;
+  padding:20px 50px;
+}
+.top-section{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.logged-company{
+  font-size:20px;
+  font-weight:700;
+  color:#facc15;
+}
+.greeting,.clock{
+  font-size:13px;
+  margin-top:4px;
+}
+.logo{ height:75px; }
+.nav{
+  display:flex;
+  justify-content:center;
+  gap:40px;
+  background:#000;
+  padding:12px 0;
+  margin-top:20px;
+}
+.nav a{
+  color:#fff;
+  text-decoration:none;
+  font-size:14px;
+  padding:6px 16px;
+  border-radius:8px;
+}
+.nav a.active{
+  background:#facc15;
+  color:#000;
+  font-weight:700;
+}
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:35px 20px;
+}
+section{
+  background:#fff;
+  padding:18px;
+  border-radius:14px;
+  margin-bottom:20px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+}
+section h3{
+  margin-bottom:12px;
+  font-size:15px;
+  color:#0f172a;
+}
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+}
+input, textarea{
+  width:100%;
+  padding:9px;
+  font-size:13px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  box-sizing:border-box;
+}
+textarea{ min-height:80px; margin-top:12px; }
+.actions{
+  display:flex;
+  gap:12px;
+  margin-top:12px;
+}
+button{
+  padding:8px 16px;
+  border:none;
+  border-radius:10px;
+  font-size:13px;
+  cursor:pointer;
+}
+.btn-blue{ background:#3b82f6; color:#fff; }
+.btn-green{ background:#22c55e; color:#000; }
+.btn-gray{ background:#64748b; color:#fff; }
+.btn-light{ background:#0ea5e9; color:#fff; }
+
+@media(max-width:768px){
+  .form-grid{ grid-template-columns:1fr; }
+  .actions{ flex-direction:column; }
+}
+</style>
 </head>
+
 <body>
 
-<div class="container">
+<div class="header">
+  <div class="top-section">
+    <div>
+      <div class="logged-company" id="companyName"></div>
+      <div class="greeting" id="greetingText"></div>
+      <div class="clock" id="azDateTime"></div>
+    </div>
+    <img src="../assets/logo.png" class="logo">
+  </div>
 
-<h2>Add Trip</h2>
-
-<!-- ENTRY -->
-<div class="form-section">
-  <h4>Entry Information</h4>
-  <div style="display:flex; gap:10px;">
-    <input type="text" id="entryName" placeholder="Data Entry Name" style="flex:1;">
-    <input type="text" id="entryPhone" placeholder="Phone Number" style="flex:1;">
-    <button type="button" id="editEntry">Edit</button>
+  <div class="nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="add-trip.html" class="active">Add Trip</a>
+    <a href="review.html">Review</a>
+    <a href="summary.html">Summary</a>
+    <a href="taxes.html">Taxes</a>
   </div>
 </div>
 
-<!-- CLIENT -->
-<div class="form-section">
-  <h4>Client Information</h4>
-  <input type="text" id="clientName" placeholder="Client Name">
-  <input type="text" id="clientPhone" placeholder="Client Phone">
+<div class="container">
+
+<section>
+<h3>Entry Information</h3>
+<div class="form-grid">
+  <input id="entryName" placeholder="Data Entry Name">
+  <input id="entryPhone" placeholder="Phone Number">
 </div>
 
-<!-- TRIP -->
-<div class="form-section">
-  <h4>Trip Details</h4>
-  <input type="text" id="pickup" placeholder="Pickup Address">
-  <input type="text" id="dropoff" placeholder="Dropoff Address">
-  <input type="date" id="tripDate">
-  <input type="time" id="tripTime">
+<div style="margin-top:10px;">
+  <button class="btn-blue" id="editEntry" type="button">Edit</button>
+</div>
+</section>
 
-  <div id="stops"></div>
-  <button type="button" id="addStopBtn">+ Add Stop</button>
+<section>
+<h3>Client Information</h3>
+<div class="form-grid">
+  <input id="clientName" placeholder="Client Name">
+  <input id="clientPhone" placeholder="Client Phone">
+</div>
+</section>
 
-  <textarea id="notes" placeholder="Notes"></textarea>
+<section>
+<h3>Trip Details</h3>
+<div class="form-grid">
+  <input id="pickup" placeholder="Pickup Address">
+  <input id="dropoff" placeholder="Dropoff Address">
+  <input id="tripDate" type="date">
+  <input id="tripTime" type="time">
 </div>
 
-<button id="submitTrip">Submit Trip</button>
+<div id="stops" style="margin-top:10px;"></div>
+<button class="btn-light" id="addStopBtn" type="button">+ Add Stop</button>
+
+<textarea id="notes" placeholder="Notes"></textarea>
+</section>
+
+<div class="actions">
+  <button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
+  <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+</div>
 
 </div>
 
-<script src="add-trip.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+const name  = localStorage.getItem("name");
+
+if (!token || role !== "company") {
+  window.location.replace("company-login.html");
+  return;
+}
+
+document.getElementById("companyName").innerText = name || "Company";
+
+/* CLOCK */
+function updateTime(){
+  const now = new Date();
+  const formatted = now.toLocaleString("en-US",{
+    timeZone:"America/Phoenix",
+    year:"numeric",month:"short",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",second:"2-digit"
+  });
+  document.getElementById("azDateTime").innerText = formatted;
+
+  const hour = now.getHours();
+  let greet = "Good Evening";
+  if(hour < 12) greet = "Good Morning";
+  else if(hour < 18) greet = "Good Afternoon";
+  document.getElementById("greetingText").innerText = greet;
+}
+updateTime();
+setInterval(updateTime,1000);
+
+/* ENTRY LOCK */
+const entryName  = document.getElementById("entryName");
+const entryPhone = document.getElementById("entryPhone");
+const editEntry  = document.getElementById("editEntry");
+
+function lockEntry(){
+  entryName.disabled = true;
+  entryPhone.disabled = true;
+}
+
+function unlockEntry(){
+  entryName.disabled = false;
+  entryPhone.disabled = false;
+}
+
+function loadEntry(){
+  const saved = JSON.parse(localStorage.getItem("entryInfo") || "{}");
+  if(saved.name){
+    entryName.value = saved.name;
+    entryPhone.value = saved.phone;
+    lockEntry();
+  }
+}
+loadEntry();
+
+editEntry.onclick = unlockEntry;
+
+/* STOPS */
+const stopsBox = document.getElementById("stops");
+document.getElementById("addStopBtn").onclick = function(){
+  const input = document.createElement("input");
+  input.placeholder = "Stop";
+  stopsBox.appendChild(input);
+};
+
+/* SUBMIT */
+document.getElementById("submitTrip").onclick = async function(){
+
+  const stops = [...document.querySelectorAll("#stops input")]
+    .map(i => i.value.trim())
+    .filter(Boolean);
+
+  const trip = {
+    company: name || "",
+    entryName: entryName.value,
+    entryPhone: entryPhone.value,
+    clientName: document.getElementById("clientName").value,
+    clientPhone: document.getElementById("clientPhone").value,
+    pickup: document.getElementById("pickup").value,
+    dropoff: document.getElementById("dropoff").value,
+    tripDate: document.getElementById("tripDate").value,
+    tripTime: document.getElementById("tripTime").value,
+    stops: stops,
+    notes: document.getElementById("notes").value,
+    status: "Scheduled",
+    createdAt: new Date().toISOString()
+  };
+
+  try{
+    const res = await fetch("/api/trips",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + token
+      },
+      body: JSON.stringify(trip)
+    });
+
+    if(!res.ok){
+      alert("Server error");
+      return;
+    }
+
+    localStorage.setItem("entryInfo", JSON.stringify({
+      name: entryName.value,
+      phone: entryPhone.value
+    }));
+
+    lockEntry();
+
+    alert("Trip submitted ✔");
+    location.href = "review.html";
+
+  }catch(err){
+    alert("Server error");
+  }
+};
+
+});
+</script>
+
 </body>
 </html>
