@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SUNBEAM TRANSPORTATION – Dashboard</title>
+<title>Sunbeam Transportation – Company Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
@@ -10,88 +10,130 @@
 <style>
 
 /* ===============================
-   DASHBOARD STYLE
+   GLOBAL
+=============================== */
+
+body{
+  background:#f4f7fb;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* ===============================
+   WRAPPER
 =============================== */
 
 .dashboard-wrapper{
   max-width:1500px;
   margin:auto;
-  padding:40px 20px;
+  padding:50px 25px;
 }
 
+/* ===============================
+   TITLES
+=============================== */
+
 .section-title{
-  font-size:22px;
+  font-size:20px;
   font-weight:700;
   color:#0f172a;
-  margin-bottom:25px;
+  margin-bottom:20px;
 }
+
+.welcome-title{
+  font-size:24px;
+  font-weight:700;
+  color:#1e3a8a;
+  margin-bottom:35px;
+}
+
+/* ===============================
+   CARDS GRID
+=============================== */
 
 .cards{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
   gap:25px;
 }
 
 .card{
   background:#fff;
-  padding:25px;
-  border-radius:14px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
-  transition:.3s;
+  padding:30px;
+  border-radius:16px;
+  box-shadow:0 10px 25px rgba(0,0,0,.07);
+  transition:0.3s;
+  border-left:6px solid #1e3a8a;
 }
 
 .card:hover{
-  transform:translateY(-5px);
+  transform:translateY(-6px);
+  box-shadow:0 15px 30px rgba(0,0,0,.12);
 }
 
 .card h3{
   margin:0;
-  font-size:15px;
-  color:#475569;
+  font-size:14px;
+  letter-spacing:.5px;
+  color:#64748b;
+  text-transform:uppercase;
 }
 
 .card p{
-  margin-top:15px;
-  font-size:30px;
-  font-weight:700;
-  color:#1e3a8a;
+  margin-top:18px;
+  font-size:34px;
+  font-weight:800;
+  color:#0f172a;
 }
 
-/* TABLE */
+/* ===============================
+   TABLE
+=============================== */
 
 .table-section{
-  margin-top:50px;
+  margin-top:60px;
 }
 
 table{
   width:100%;
   border-collapse:collapse;
   background:#fff;
-  border-radius:12px;
+  border-radius:16px;
   overflow:hidden;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
-}
-
-th,td{
-  padding:12px;
-  font-size:13px;
-  border-bottom:1px solid #eee;
-  text-align:left;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
 }
 
 th{
   background:#0f172a;
   color:#fff;
+  padding:14px;
+  font-size:13px;
+  letter-spacing:.5px;
+}
+
+td{
+  padding:14px;
+  font-size:13px;
+  border-bottom:1px solid #f1f1f1;
 }
 
 tr:hover{
-  background:#f9fafb;
+  background:#f8fafc;
 }
 
+/* ===============================
+   RESPONSIVE
+=============================== */
+
 @media(max-width:768px){
+
   .card p{
-    font-size:22px;
+    font-size:24px;
   }
+
+  th,td{
+    font-size:12px;
+  }
+
 }
 
 </style>
@@ -103,12 +145,11 @@ tr:hover{
 
 <div class="dashboard-wrapper">
 
-  <!-- COMPANY NAME -->
-  <div class="section-title">
+  <div class="welcome-title">
     Welcome, <span id="companyName"></span>
   </div>
 
-  <!-- TODAY STATS -->
+  <!-- TODAY -->
   <div class="section-title">Today's Activity</div>
 
   <div class="cards">
@@ -135,19 +176,17 @@ tr:hover{
 
   </div>
 
-  <!-- MONTH STATS -->
-  <div class="section-title" style="margin-top:60px;">This Month</div>
+  <!-- MONTH -->
+  <div class="section-title" style="margin-top:70px;">This Month</div>
 
   <div class="cards">
-
     <div class="card">
       <h3>Total Trips</h3>
       <p id="monthTrips">0</p>
     </div>
-
   </div>
 
-  <!-- LAST 5 TRIPS -->
+  <!-- LAST 5 -->
   <div class="table-section">
     <div class="section-title">Last 5 Trips</div>
 
@@ -159,88 +198,14 @@ tr:hover{
           <th>Status</th>
         </tr>
       </thead>
-      <tbody id="lastTripsBody">
-      </tbody>
+      <tbody id="lastTripsBody"></tbody>
     </table>
-
   </div>
 
 </div>
 
 <script src="layout.js"></script>
-
-<script>
-
-/* =================================
-   LOAD DASHBOARD DATA (JWT)
-================================= */
-
-async function loadDashboard(){
-
-  try{
-
-    const token = localStorage.getItem("token");
-    const role  = localStorage.getItem("role");
-    const name  = localStorage.getItem("name");
-
-    if(!token || role !== "company"){
-      window.location.href = "company-login.html";
-      return;
-    }
-
-    // عرض اسم الشركة
-    document.getElementById("companyName").innerText = name || "";
-
-    const res = await fetch("/api/company/dashboard", {
-      headers:{
-        "Authorization":"Bearer " + token,
-        "Content-Type":"application/json"
-      }
-    });
-
-    if(res.status === 401){
-      window.location.href = "company-login.html";
-      return;
-    }
-
-    const data = await res.json();
-
-    // TODAY
-    document.getElementById("totalTrips").innerText = data.today.total;
-    document.getElementById("completedTrips").innerText = data.today.completed;
-    document.getElementById("noShowTrips").innerText = data.today.noShow;
-    document.getElementById("cancelledTrips").innerText = data.today.cancelled;
-
-    // MONTH
-    document.getElementById("monthTrips").innerText = data.month.total;
-
-    // LAST 5
-    const tbody = document.getElementById("lastTripsBody");
-    tbody.innerHTML = "";
-
-    data.lastTrips.forEach(trip => {
-
-      const row = `
-        <tr>
-          <td>${trip.date}</td>
-          <td>${trip.pickup}</td>
-          <td>${trip.status}</td>
-        </tr>
-      `;
-
-      tbody.innerHTML += row;
-
-    });
-
-  }catch(err){
-    console.error("Dashboard error:", err);
-  }
-
-}
-
-loadDashboard();
-
-</script>
+<script src="dashboard.js"></script>
 
 </body>
 </html>

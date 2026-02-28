@@ -23,10 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          username,
-          password
-        })
+        body: JSON.stringify({ username, password })
       });
 
       const data = await response.json();
@@ -36,23 +33,23 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // نتأكد انه شركة
+      // لازم يكون شركة
       if (data.user.role !== "company") {
         errorBox.innerText = "This account is not a company account.";
         return;
       }
 
-      // حفظ التوكن
+      // 🔥 تخزين موحد لكل النظام
       localStorage.setItem("token", data.token);
-      localStorage.setItem("userRole", data.user.role);
-      localStorage.setItem("userName", data.user.name);
+      localStorage.setItem("role", data.user.role);
+      localStorage.setItem("name", data.user.name);
 
-      // تحويل
-      window.location.href = "/companies/company.html";
+      // تحويل للداشبورد
+      window.location.replace("/companies/dashboard.html");
 
     } catch (err) {
-      console.error(err);
-      errorBox.innerText = "Server error.";
+      console.error("Login error:", err);
+      errorBox.innerText = "Server error. Please try again.";
     }
 
   });
