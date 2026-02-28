@@ -1,11 +1,20 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("loginForm");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await login();
+  });
+});
+
 async function login(){
 
-  const email = document.getElementById("email").value.trim();
+  const username = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
   const msg = document.getElementById("msg");
 
-  if(!email || !password){
-    msg.innerText = "Please enter email and password";
+  if(!username || !password){
+    msg.innerText = "Please enter username and password";
     return;
   }
 
@@ -18,7 +27,7 @@ async function login(){
       headers:{
         "Content-Type":"application/json"
       },
-      body:JSON.stringify({ email, password })
+      body:JSON.stringify({ username, password })
     });
 
     const data = await res.json();
@@ -28,19 +37,27 @@ async function login(){
       return;
     }
 
-    // 🚫 Staff only
-    if(data.role !== "admin" && data.role !== "dispatcher"){
-      msg.innerText = "Access denied";
-      return;
-    }
+    const role = data.user.role;
 
-    // Redirect
-    if(data.role === "admin"){
+    // Save token + role
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", role);
+
+    // Redirect based on role
+    if(role === "admin"){
       window.location.href = "/admin/dashboard.html";
     }
-
-    if(data.role === "dispatcher"){
+    else if(role === "company"){
+      window.location.href = "/companies/dashboard.html";
+    }
+    else if(role === "dispatcher"){
       window.location.href = "/dispatcher/dashboard.html";
+    }
+    else if(role === "driver"){
+      window.location.href = "/driver/dashboard.html";
+    }
+    else{
+      msg.innerText = "Access denied";
     }
 
   }catch(err){
