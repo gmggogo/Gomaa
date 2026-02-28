@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-
 body{
   margin:0;
   font-family:'Segoe UI', Arial, sans-serif;
@@ -127,7 +126,6 @@ input.edit-input{
   table{ font-size:11px; }
   .nav{ flex-wrap:wrap; gap:15px; }
 }
-
 </style>
 </head>
 
@@ -153,6 +151,47 @@ input.edit-input{
 </div>
 
 <div class="container" id="tripsContainer"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+/* ===============================
+   AUTH (JWT)
+================================ */
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+const name  = localStorage.getItem("name");
+
+if (!token || role !== "company") {
+  window.location.replace("company-login.html");
+  return;
+}
+
+document.getElementById("companyName").innerText = name || "Company";
+
+/* ===============================
+   GREETING + AZ TIME
+================================ */
+function updateTime(){
+  const now = new Date();
+  const formatted = now.toLocaleString("en-US",{
+    timeZone:"America/Phoenix",
+    year:"numeric",month:"short",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",second:"2-digit"
+  });
+  document.getElementById("azDateTime").innerText = formatted;
+
+  const hour = now.getHours();
+  let greet = "Good Evening";
+  if(hour < 12) greet = "Good Morning";
+  else if(hour < 18) greet = "Good Afternoon";
+  document.getElementById("greetingText").innerText = greet;
+}
+updateTime();
+setInterval(updateTime,1000);
+
+});
+</script>
 
 <script src="review.js"></script>
 
