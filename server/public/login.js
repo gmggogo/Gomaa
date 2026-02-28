@@ -1,25 +1,6 @@
-// Arizona Time
-function updateAZTime(){
-  const options = {
-    timeZone: "America/Phoenix",
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  };
-
-  document.getElementById("azTime").innerText =
-    new Date().toLocaleString("en-US", options);
-}
-
-setInterval(updateAZTime, 1000);
-updateAZTime();
-
-
-// Login
+/* =====================
+   LOGIN
+===================== */
 async function login(){
 
   const username = document.getElementById("username").value.trim();
@@ -48,21 +29,26 @@ async function login(){
       return;
     }
 
-    // Staff only
-    if(data.user.role !== "admin" && data.user.role !== "dispatcher"){
-      msg.innerText = "Access denied";
-      return;
-    }
-
+    // save auth
     localStorage.setItem("token", data.token);
     localStorage.setItem("role", data.user.role);
+    localStorage.setItem("name", data.user.name);
 
+    // redirect by role
     if(data.user.role === "admin"){
-      window.location.href = "/admin/dashboard.html";
+      window.location.replace("/admin/dashboard.html");
     }
 
     if(data.user.role === "dispatcher"){
-      window.location.href = "/dispatcher/dashboard.html";
+      window.location.replace("/dispatcher/dashboard.html");
+    }
+
+    if(data.user.role === "driver"){
+      window.location.replace("/driver/dashboard.html");
+    }
+
+    if(data.user.role === "company"){
+      window.location.replace("/companies/dashboard.html");
     }
 
   }catch(err){

@@ -1,17 +1,19 @@
-
 /* =====================
-   AUTH
+   AUTH CHECK
 ===================== */
-const userRaw = localStorage.getItem("loggedUser");
-if (!userRaw) location.href = "login.html";
+const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+const name = localStorage.getItem("name");
 
-const user = JSON.parse(userRaw);
+if(!token || role !== "admin"){
+  window.location.replace("/login.html");
+}
 
 /* =====================
    WELCOME
 ===================== */
 document.getElementById("welcomeText").innerText =
-  `Welcome, ${user.name}`;
+  `Welcome, ${name}`;
 
 /* =====================
    CLOCK
@@ -25,22 +27,11 @@ setInterval(updateClock,1000);
 updateClock();
 
 /* =====================
-   DASHBOARD DATA
-===================== */
-const trips = JSON.parse(localStorage.getItem("companyTrips")) || [];
-const drivers = JSON.parse(localStorage.getItem("drivers")) || [];
-const companies = JSON.parse(localStorage.getItem("companies")) || [];
-
-document.getElementById("totalTrips").innerText = trips.length;
-document.getElementById("pendingTrips").innerText =
-  trips.filter(t=>t.status==="Pending").length;
-document.getElementById("driversCount").innerText = drivers.length;
-document.getElementById("companiesCount").innerText = companies.length;
-
-/* =====================
    LOGOUT
 ===================== */
 function logout(){
-  localStorage.removeItem("loggedUser");
-  location.href = "login.html";
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("name");
+  window.location.replace("/login.html");
 }
