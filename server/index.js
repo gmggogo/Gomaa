@@ -10,19 +10,23 @@ const path = require("path");
 const app = express();
 
 /* =========================
-   MIDDLEWARE
-========================= */
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
-
-/* =========================
    ENV
 ========================= */
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
+
+/* =========================
+   MIDDLEWARE
+========================= */
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+/* =========================
+   STATIC (VERY IMPORTANT)
+========================= */
+app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
    MONGO CONNECT
@@ -118,7 +122,6 @@ app.post("/api/auth/login", async (req, res) => {
    USERS ROUTES
 ========================= */
 
-// GET USERS BY ROLE
 app.get("/api/users/:role", async (req, res) => {
   try {
     const role = req.params.role;
@@ -134,7 +137,6 @@ app.get("/api/users/:role", async (req, res) => {
   }
 });
 
-// CREATE USER
 app.post("/api/users/:role", async (req, res) => {
   try {
     const role = req.params.role;
@@ -168,7 +170,6 @@ app.post("/api/users/:role", async (req, res) => {
   }
 });
 
-// EDIT USER
 app.put("/api/users/:id", async (req, res) => {
   try {
     const { name, username, password } = req.body;
@@ -193,7 +194,6 @@ app.put("/api/users/:id", async (req, res) => {
   }
 });
 
-// TOGGLE ACTIVE
 app.patch("/api/users/:id/toggle", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -211,19 +211,17 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
   }
 });
 
-// DELETE USER
 app.delete("/api/users/:id", async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
   } catch (err) {
-    console.log(err);
     res.status(500).json({ message: "Error deleting user" });
   }
 });
 
 /* =========================
-   ROOT
+   ROOT (OPTIONAL BUT SAFE)
 ========================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
