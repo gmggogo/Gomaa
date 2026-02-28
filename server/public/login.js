@@ -19,7 +19,7 @@ setInterval(updateAZTime, 1000);
 updateAZTime();
 
 
-// Login Function
+// Login
 async function login(){
 
   const username = document.getElementById("username").value.trim();
@@ -44,10 +44,11 @@ async function login(){
     const data = await res.json();
 
     if(!res.ok){
-      msg.innerText = data.message || "Login failed";
+      msg.innerText = data.message || "Login Failed";
       return;
     }
 
+    // Staff only
     if(data.user.role !== "admin" && data.user.role !== "dispatcher"){
       msg.innerText = "Access denied";
       return;
