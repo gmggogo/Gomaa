@@ -1,209 +1,132 @@
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
 
-const container=document.getElementById("tripsContainer");
-let trips=JSON.parse(localStorage.getItem("trips"))||[];
-
-/* ================= CLOCK ================= */
-function updateClock(){
-document.getElementById("azDateTime").innerText=
-new Intl.DateTimeFormat("en-US",{
-timeZone:"America/Phoenix",
-year:"numeric",month:"short",day:"2-digit",
-hour:"2-digit",minute:"2-digit",second:"2-digit"
-}).format(new Date());
+let loggedCompany = null;
+try { loggedCompany = JSON.parse(localStorage.getItem("loggedCompany")); } catch {}
+if (!loggedCompany) {
+  window.location.href = "company-login.html";
+  return;
 }
-setInterval(updateClock,1000);
-updateClock();
 
-/* ================= GREETING ================= */
-const h=new Date().getHours();
-document.getElementById("greetingText").innerText=
-h<12?"Good Morning ☀️":h<18?"Good Afternoon 🌤":"Good Evening 🌙";
+const container = document.getElementById("tripsContainer");
+let trips = [];
 
 /* ================= TIME ================= */
 function getAZNow(){
-return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
+  return new Date(new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" }));
 }
 function getTripDT(t){
-if(!t.tripDate||!t.tripTime) return null;
-return new Date(t.tripDate+"T"+t.tripTime);
+  if(!t.tripDate||!t.tripTime) return null;
+  return new Date(t.tripDate+"T"+t.tripTime);
 }
 function minutesToTrip(t){
-const dt=getTripDT(t);
-if(!dt) return null;
-return (dt-getAZNow())/60000;
+  const dt=getTripDT(t);
+  if(!dt) return null;
+  return (dt-getAZNow())/60000;
+}
+function within120(t){
+  const m=minutesToTrip(t);
+  return m!==null && m>0 && m<=120;
+}
+function passed(t){
+  const m=minutesToTrip(t);
+  return m!==null && m<=0;
 }
 
-/* ================= KEEP 30 DAYS ================= */
-function keep30Days(){
-const now=new Date();
-trips=trips.filter(t=>{
-if(!t.createdAt) return true;
-return (now-new Date(t.createdAt))/(1000*60*60*24)<=30;
-});
-}
-
-/* ================= GROUP BY CREATED DATE ================= */
-function groupByCreated(){
-const groups={};
-trips.forEach(t=>{
-const d=new Date(t.createdAt||Date.now()).toLocaleDateString();
-if(!groups[d]) groups[d]=[];
-groups[d].push(t);
-});
-return groups;
-}
-
-/* ================= SAVE ================= */
-function save(){
-localStorage.setItem("trips",JSON.stringify(trips));
+/* ================= LOAD ================= */
+async function load(){
+  const res = await fetch("/api/trips/company/"+loggedCompany.name);
+  trips = await res.json();
+  render();
 }
 
 /* ================= RENDER ================= */
 function render(){
-container.innerHTML="";
-keep30Days();
+  container.innerHTML="";
+  if(!trips.length){
+    container.innerHTML="<p>No Trips</p>";
+    return;
+  }
 
-const groups=groupByCreated();
+  const table=document.createElement("table");
+  table.innerHTML=`
+  <tr>
+  <th>#</th>
+  <th>Trip#</th>
+  <th>Client</th>
+  <th>Pickup</th>
+  <th>Date</th>
+  <th>Time</th>
+  <th>Status</th>
+  <th>Actions</th>
+  </tr>`;
 
-Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a))
-.forEach(date=>{
+  trips.forEach((t,i)=>{
+    const tr=document.createElement("tr");
 
-const title=document.createElement("div");
-title.className="date-title";
-title.innerText=date;
-container.appendChild(title);
+    const is120=within120(t);
+    const isPassed=passed(t);
 
-const table=document.createElement("table");
+    let actions="";
 
-table.innerHTML=`
-<tr>
-<th>#</th>
-<th>Trip#</th>
-<th>Entered By</th>
-<th>Entered Phone</th>
-<th>Client</th>
-<th>Phone</th>
-<th>Pickup</th>
-<th>Drop</th>
-<th>Stops</th>
-<th>Date</th>
-<th>Time</th>
-<th>Status</th>
-<th>Actions</th>
-</tr>`;
+    if(t.status==="Confirmed"){
+      actions=`<button class="btn cancel" onclick="cancelTrip('${t._id}')">Cancel</button>`;
+    }
+    else if(is120){
+      actions=`<button class="btn cancel" onclick="cancelTrip('${t._id}')">Cancel</button>`;
+    }
+    else{
+      actions=`
+      <button class="btn edit" onclick="editTrip('${t._id}')">Edit</button>
+      <button class="btn delete" onclick="deleteTrip('${t._id}')">Delete</button>
+      <button class="btn confirm" onclick="confirmTrip('${t._id}')">Confirm</button>`;
+    }
 
-groups[date].forEach((t,i)=>{
+    tr.innerHTML=`
+    <td>${i+1}</td>
+    <td>${t.tripNumber||""}</td>
+    <td>${t.clientName||""}</td>
+    <td>${t.pickup||""}</td>
+    <td>${t.tripDate||""}</td>
+    <td>${t.tripTime||""}</td>
+    <td>${t.status||"Scheduled"}</td>
+    <td>${actions}</td>
+    `;
 
-const tr=document.createElement("tr");
-const mins=minutesToTrip(t);
+    table.appendChild(tr);
+  });
 
-if(mins>0 && mins<=120) tr.classList.add("yellow");
-if(mins<=0) tr.classList.add("red");
-
-const editing=t.editing===true;
-
-function cell(val,cls,type="text"){
-if(!editing) return val||"";
-return `<input type="${type}" class="edit-input ${cls}" value="${val||""}">`;
-}
-
-let actions="";
-
-if(t.status==="Confirmed"){
-actions=`<button class="btn cancel" onclick="cancelTrip(${i})">Cancel</button>`;
-}else{
-actions=`
-<button class="btn edit" onclick="editTrip(${i})">${editing?"Save":"Edit"}</button>
-<button class="btn delete" onclick="deleteTrip(${i})">Delete</button>
-<button class="btn confirm" onclick="confirmTrip(${i})">Confirm</button>`;
-}
-
-tr.innerHTML=`
-<td>${i+1}</td>
-<td>${t.tripNumber||""}</td>
-<td>${cell(t.enteredBy,"enteredBy")}</td>
-<td>${cell(t.enteredPhone,"enteredPhone")}</td>
-<td>${cell(t.clientName,"clientName")}</td>
-<td>${cell(t.clientPhone,"clientPhone")}</td>
-<td>${cell(t.pickup,"pickup")}</td>
-<td>${cell(t.dropoff,"dropoff")}</td>
-<td>${Array.isArray(t.stops)?t.stops.join(" | "):""}</td>
-<td>${cell(t.tripDate,"tripDate","date")}</td>
-<td>${cell(t.tripTime,"tripTime","time")}</td>
-<td>${t.status||"Scheduled"}</td>
-<td>${actions}</td>
-`;
-
-table.appendChild(tr);
-});
-
-container.appendChild(table);
-});
+  container.appendChild(table);
 }
 
 /* ================= ACTIONS ================= */
-
-window.editTrip=function(i){
-const t=trips[i];
-
-if(!t.editing){
-t.editing=true;
-render();
-return;
-}
-
-/* SAVE */
-const row=container.querySelectorAll("table")[0].rows[i+1];
-
-const newDate=row.querySelector(".tripDate")?.value||t.tripDate;
-const newTime=row.querySelector(".tripTime")?.value||t.tripTime;
-
-const temp={...t,tripDate:newDate,tripTime:newTime};
-const mins=minutesToTrip(temp);
-
-if(mins>0 && mins<=120){
-const ok=confirm("WARNING:\nThis trip is within 120 minutes.\nAre you sure you want to modify it?");
-if(!ok) return;
-}
-
-t.enteredBy=row.querySelector(".enteredBy")?.value||t.enteredBy;
-t.enteredPhone=row.querySelector(".enteredPhone")?.value||t.enteredPhone;
-t.clientName=row.querySelector(".clientName")?.value||t.clientName;
-t.clientPhone=row.querySelector(".clientPhone")?.value||t.clientPhone;
-t.pickup=row.querySelector(".pickup")?.value||t.pickup;
-t.dropoff=row.querySelector(".dropoff")?.value||t.dropoff;
-t.tripDate=newDate;
-t.tripTime=newTime;
-
-t.status="Scheduled";
-t.editing=false;
-save();
-render();
+window.confirmTrip = async function(id){
+  await fetch("/api/trips/"+id,{
+    method:"PUT",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ status:"Confirmed" })
+  });
+  load();
 };
 
-window.confirmTrip=function(i){
-trips[i].status="Confirmed";
-trips[i].editing=false;
-save();
-render();
+window.cancelTrip = async function(id){
+  await fetch("/api/trips/"+id,{
+    method:"PUT",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ status:"Cancelled" })
+  });
+  load();
 };
 
-window.cancelTrip=function(i){
-trips[i].status="Cancelled";
-trips[i].editing=false;
-save();
-render();
+window.deleteTrip = async function(id){
+  if(!confirm("Delete this trip?")) return;
+  await fetch("/api/trips/"+id,{ method:"DELETE" });
+  load();
 };
 
-window.deleteTrip=function(i){
-if(confirm("Delete this trip?")){
-trips.splice(i,1);
-save();
-render();
-}
+window.editTrip = async function(id){
+  alert("Edit page can be implemented if needed with same 120 rule.");
 };
 
-render();
+load();
 
 });
