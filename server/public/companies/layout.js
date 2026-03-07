@@ -4,9 +4,62 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!container) return;
 
   /* ===========================
+     INJECT TICKER CSS ONCE
+  ============================ */
+  if (!document.getElementById("sunbeamTickerStyles")) {
+    const style = document.createElement("style");
+    style.id = "sunbeamTickerStyles";
+    style.textContent = `
+      .header{
+        position:relative;
+      }
+
+      .header-ticker{
+        position:absolute;
+        left:50%;
+        transform:translateX(-50%);
+        top:30px;
+        width:650px;
+        overflow:hidden;
+        pointer-events:none;
+        text-align:center;
+      }
+
+      .header-ticker-text{
+        white-space:nowrap;
+        font-size:15px;
+        font-weight:600;
+        color:#ffffff;
+        text-shadow:
+          0 0 5px #ffffff,
+          0 0 10px #3b82f6,
+          0 0 15px #3b82f6,
+          0 0 20px #1e3a8a;
+        animation:sunbeamTickerMove 18s linear infinite;
+      }
+
+      @keyframes sunbeamTickerMove{
+        0%{ transform:translateX(100%); }
+        100%{ transform:translateX(-100%); }
+      }
+
+      @media(max-width:768px){
+        .header-ticker{
+          width:90%;
+          top:26px;
+        }
+
+        .header-ticker-text{
+          font-size:12px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /* ===========================
      HEADER HTML
   ============================ */
-
   container.innerHTML = `
     <div class="header">
       <div class="top-section">
@@ -15,6 +68,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div class="greeting" id="greetingText"></div>
           <div class="clock" id="azDateTime"></div>
         </div>
+
+        <div class="header-ticker">
+          <div class="header-ticker-text">
+            Sunbeam Transportation — Safe • Reliable • On-Time Transportation You Can Trust
+          </div>
+        </div>
+
         <img src="../assets/logo.png" class="logo">
       </div>
 
@@ -32,7 +92,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ===========================
      AUTH CHECK
   ============================ */
-
   const token = localStorage.getItem("token");
   const role  = localStorage.getItem("role");
   const name  = localStorage.getItem("name");
@@ -45,8 +104,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ===========================
      ACTIVE LINK
   ============================ */
-
   const currentPage = window.location.pathname.split("/").pop();
+
   document.querySelectorAll(".nav a").forEach(link => {
     if (link.getAttribute("href") === currentPage) {
       link.classList.add("active");
@@ -56,9 +115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ===========================
      LOAD COMPANY NAME (JWT)
   ============================ */
-
   try {
-
     const res = await fetch("/api/company/me", {
       headers: {
         "Authorization": "Bearer " + token,
@@ -79,7 +136,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("Company fetch error:", err);
 
-    // fallback لو السيرفر وقع
     document.getElementById("companyName").innerText =
       name || "Company";
   }
@@ -87,7 +143,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ===========================
      LOGOUT
   ============================ */
-
   document.getElementById("logoutBtn").addEventListener("click", function(e){
     e.preventDefault();
     localStorage.removeItem("token");
@@ -99,9 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ===========================
      ARIZONA TIME
   ============================ */
-
   function updateTime() {
-
     const now = new Date();
 
     const formatted = now.toLocaleString("en-US", {
@@ -120,6 +173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const hour = now.getHours();
     let greeting = "Good Evening";
+
     if (hour < 12) greeting = "Good Morning";
     else if (hour < 18) greeting = "Good Afternoon";
 
