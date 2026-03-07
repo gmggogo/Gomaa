@@ -19,255 +19,406 @@ const searchInput = document.getElementById("searchInput");
 const addBtn = document.getElementById("addManualTripBtn");
 
 /* ===============================
-   LOAD TRIPS
+   STYLE
 ================================ */
-async function loadHubTrips() {
+(function injectTinyStyle(){
 
-  try {
+const s = document.createElement("style");
 
-    const res = await fetch(LOAD_API_URL);
-    const data = await res.json();
+s.innerHTML = `
+.hub-table{width:100%;border-collapse:collapse;font-size:11px}
 
-    allHubTrips = Array.isArray(data) ? data : [];
+.hub-table th{
+background:#0f172a;
+color:#fff;
+padding:6px;
+position:sticky;
+top:0;
+z-index:2
+}
 
-    applySearch();
-    render();
+.hub-table td{
+border:1px solid #e5e7eb;
+padding:3px;
+vertical-align:middle
+}
 
-  } catch (err) {
+.hub-table input{
+width:100%;
+font-size:11px;
+padding:2px 4px;
+box-sizing:border-box
+}
 
-    console.error("Load trips error:", err);
+.hub-table textarea{
+width:100%;
+font-size:11px;
+padding:2px 4px;
+box-sizing:border-box;
+resize:vertical;
+min-height:28px
+}
 
-  }
+.hub-actions{
+display:flex;
+gap:6px;
+justify-content:center;
+align-items:center;
+flex-wrap:wrap
+}
+
+.hub-btn{
+border:none;
+border-radius:6px;
+padding:5px 8px;
+font-size:11px;
+cursor:pointer;
+color:#fff;
+opacity:.95
+}
+
+.hub-btn.edit{background:#2563eb}
+.hub-btn.save{background:#16a34a}
+.hub-btn.delete{background:#dc2626}
+`;
+
+document.head.appendChild(s);
+
+})();
+
+/* ===============================
+   HELPERS
+================================ */
+function escapeHtml(value){
+
+return String(value ?? "")
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;");
+
+}
+
+function formatDate(iso){
+
+if(!iso) return "-";
+
+const d=new Date(iso);
+
+return d.toLocaleDateString()+" "+d.toLocaleTimeString([],{
+hour:"2-digit",
+minute:"2-digit"
+});
+
+}
+
+function getTripNumber(t){
+
+if(t && t.tripNumber) return String(t.tripNumber);
+if(t && t.id) return String(t.id);
+return "-";
 
 }
 
 /* ===============================
-   SEARCH
+   COLORS POLICY
 ================================ */
-function applySearch() {
+function rowColor(tr,t){
 
-  if (!currentSearch) {
-    hubTrips = [...allHubTrips];
-    return;
-  }
+if(!t) return;
 
-  const v = currentSearch.toLowerCase();
+if(t.tripDate && t.tripTime){
 
-  hubTrips = allHubTrips.filter(t =>
-    JSON.stringify(t).toLowerCase().includes(v)
-  );
+const tripDateTime=new Date(`${t.tripDate}T${t.tripTime}`);
+
+if(new Date()>=tripDateTime){
+
+tr.style.backgroundColor="#ffe5e5";
+tr.style.borderLeft="4px solid #dc2626";
+return;
+
+}
+
+}
+
+if(t.type==="gh"){
+
+tr.style.backgroundColor="#e8f4ff";
+
+}
+else if(t.type==="reserved"){
+
+tr.style.backgroundColor="#ecfdf5";
+
+}
+else{
+
+tr.style.backgroundColor="#fff6d6";
+
+}
 
 }
 
 /* ===============================
-   ADD RESERVED
+   LOAD HUB TRIPS
 ================================ */
-async function addReservedTripInline() {
+async function loadHubTrips(){
 
-  const newTrip = {
+try{
 
-    type: "reserved",
+const res=await fetch(LOAD_API_URL);
+const data=await res.json();
 
-    company: "",
+allHubTrips=Array.isArray(data)?data:[];
 
-    entryName: "",
-    entryPhone: "",
+applySearch();
 
-    clientName: "",
-    clientPhone: "",
+}
+catch(err){
 
-    pickup: "Reserved Pickup",
-    dropoff: "Reserved Dropoff",
-
-    stops: [],
-
-    tripDate: "",
-    tripTime: "",
-
-    notes: "",
-
-    status: "Scheduled"
-
-  };
-
-  try {
-
-    const res = await fetch(CREATE_API_URL, {
-
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json"
-      },
-
-      body: JSON.stringify(newTrip)
-
-    });
-
-    if (!res.ok) {
-
-      alert("Failed to create trip");
-      return;
-
-    }
-
-    await loadHubTrips();
-
-  } catch (err) {
-
-    console.error("Create trip error:", err);
-
-  }
+console.error("Load trips error:",err);
 
 }
 
-if (addBtn) {
-  addBtn.addEventListener("click", addReservedTripInline);
+}
+
+/* ===============================
+   SEARCH APPLY
+================================ */
+function applySearch(){
+
+const baseTrips=[...allHubTrips];
+
+if(!currentSearch){
+
+hubTrips=baseTrips;
+return;
+
+}
+
+const v=currentSearch.toLowerCase();
+
+hubTrips=baseTrips.filter(t =>
+JSON.stringify(t).toLowerCase().includes(v)
+);
+
+}
+
+/* ===============================
+   ADD RESERVED TRIP
+================================ */
+async function addReservedTripInline(){
+
+const newTrip = {
+
+type:"reserved",
+
+company:"",
+
+entryName:"",
+entryPhone:"",
+
+clientName:"",
+clientPhone:"",
+
+pickup:"Reserved Pickup",
+stops:[],
+dropoff:"Reserved Dropoff",
+
+notes:"",
+
+tripDate:"",
+tripTime:"",
+
+status:"Scheduled"
+
+};
+
+try{
+
+const res=await fetch(CREATE_API_URL,{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify(newTrip)
+});
+
+if(!res.ok){
+
+alert("Failed to add reserved trip");
+return;
+
+}
+
+await loadHubTrips();
+render();
+
+}
+catch(err){
+
+console.error("Add reserved error:",err);
+
+}
+
+}
+
+if(addBtn){
+
+addBtn.addEventListener("click",function(e){
+e.preventDefault();
+addReservedTripInline();
+});
+
 }
 
 /* ===============================
    DELETE
 ================================ */
-async function deleteTripConfirm(id) {
+async function deleteTripConfirm(id){
 
-  const ok = confirm("Delete this trip?");
-  if (!ok) return;
+const ok=confirm("Delete this trip?");
+if(!ok) return;
 
-  try {
+try{
 
-    const res = await fetch(`/api/trips/${id}`, {
-      method: "DELETE"
-    });
+const res=await fetch(`/api/trips/${id}`,{
+method:"DELETE"
+});
 
-    if (!res.ok) {
-      alert("Delete failed");
-      return;
-    }
+if(!res.ok){
 
-    await loadHubTrips();
+alert("Delete failed");
+return;
 
-  } catch (err) {
+}
 
-    console.error("Delete error:", err);
+await loadHubTrips();
+render();
 
-  }
+}
+catch(err){
+
+console.error("Delete error:",err);
+
+}
 
 }
 
 /* ===============================
    EDIT
 ================================ */
-function editTripRow(btn) {
+function editTripRow(btn){
 
-  const tr = btn.closest("tr");
-  const inputs = tr.querySelectorAll("input, textarea");
+const ok=confirm("Editing this trip. Continue?");
+if(!ok) return;
 
-  inputs.forEach((el, index) => {
+const tr=btn.closest("tr");
+const inputs=tr.querySelectorAll("input,textarea");
 
-    if (index === 0 || index === 1) return;
+inputs.forEach((el,index)=>{
 
-    el.disabled = false;
+if(index===0 || index===1) return;
 
-  });
+el.disabled=false;
 
-  tr.querySelector(".edit").style.display = "none";
-  tr.querySelector(".save").style.display = "inline-block";
+});
+
+tr.querySelector(".edit").style.display="none";
+tr.querySelector(".save").style.display="inline-block";
 
 }
 
 /* ===============================
    SAVE
 ================================ */
-async function saveTripRow(btn, id) {
+async function saveTripRow(btn,id){
 
-  const tr = btn.closest("tr");
-  const inputs = tr.querySelectorAll("input, textarea");
+const tr=btn.closest("tr");
 
-  const updatedTrip = {
+const inputs=tr.querySelectorAll("input,textarea");
 
-    company: inputs[2].value,
+const updatedTrip={
 
-    entryName: inputs[3].value,
-    entryPhone: inputs[4].value,
+company:inputs[2].value,
 
-    clientName: inputs[5].value,
-    clientPhone: inputs[6].value,
+entryName:inputs[3].value,
+entryPhone:inputs[4].value,
 
-    pickup: inputs[7].value,
+clientName:inputs[5].value,
+clientPhone:inputs[6].value,
 
-    stops: inputs[8].value
-      ? inputs[8].value.split("→").map(s => s.trim()).filter(Boolean)
-      : [],
+pickup:inputs[7].value,
 
-    dropoff: inputs[9].value,
+stops:inputs[8].value
+? inputs[8].value.split("→").map(s=>s.trim()).filter(Boolean)
+:[],
 
-    notes: inputs[10].value,
+dropoff:inputs[9].value,
 
-    tripDate: inputs[11].value,
-    tripTime: inputs[12].value
+notes:inputs[10].value,
 
-  };
+tripDate:inputs[11].value,
+tripTime:inputs[12].value
 
-  try {
+};
 
-    const res = await fetch(`/api/trips/${id}`, {
+try{
 
-      method: "PUT",
+const res=await fetch(`/api/trips/${id}`,{
+method:"PUT",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify(updatedTrip)
+});
 
-      headers: {
-        "Content-Type": "application/json"
-      },
+if(!res.ok){
 
-      body: JSON.stringify(updatedTrip)
-
-    });
-
-    if (!res.ok) {
-
-      alert("Save failed");
-      return;
-
-    }
-
-    await loadHubTrips();
-
-  } catch (err) {
-
-    console.error("Save error:", err);
-
-  }
+alert("Save failed");
+return;
 
 }
 
-window.editTripRow = editTripRow;
-window.saveTripRow = saveTripRow;
-window.deleteTripConfirm = deleteTripConfirm;
+await loadHubTrips();
+render();
+
+}
+catch(err){
+
+console.error("Save error:",err);
+
+}
+
+}
+
+window.deleteTripConfirm=deleteTripConfirm;
+window.editTripRow=editTripRow;
+window.saveTripRow=saveTripRow;
 
 /* ===============================
    RENDER
 ================================ */
-function render() {
+function render(){
 
-  container.innerHTML = "";
+applySearch();
 
-  if (!hubTrips.length) {
+container.innerHTML="";
 
-    container.innerHTML = "<p>No trips found</p>";
-    return;
+if(!hubTrips.length){
 
-  }
+container.innerHTML="<p>No trips found</p>";
+return;
 
-  const table = document.createElement("table");
-  table.className = "hub-table";
+}
 
-  table.innerHTML = `
+const table=document.createElement("table");
+table.className="hub-table";
+
+table.innerHTML=`
 <thead>
 <tr>
 <th>#</th>
-<th>Trip</th>
+<th>Trip #</th>
 <th>Type</th>
 <th>Company</th>
-<th>Entry</th>
+<th>Entry Name</th>
 <th>Entry Phone</th>
 <th>Client</th>
 <th>Client Phone</th>
@@ -278,93 +429,113 @@ function render() {
 <th>Date</th>
 <th>Time</th>
 <th>Status</th>
+<th>Booked</th>
 <th>Actions</th>
 </tr>
 </thead>
 <tbody></tbody>
 `;
 
-  const tbody = table.querySelector("tbody");
+const tbody=table.querySelector("tbody");
 
-  hubTrips.forEach((t, i) => {
+hubTrips.forEach(function(t,i){
 
-    const tr = document.createElement("tr");
+const tr=document.createElement("tr");
 
-    const stops = Array.isArray(t.stops) ? t.stops.join(" → ") : "";
+rowColor(tr,t);
 
-    tr.innerHTML = `
-<td>${i + 1}</td>
+const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):"";
 
-<td><input value="${t.tripNumber || ""}" disabled></td>
-<td><input value="${t.type || ""}" disabled></td>
+tr.innerHTML=`
+<td>${i+1}</td>
 
-<td><input value="${t.company || ""}" disabled></td>
+<td><input value="${escapeHtml(getTripNumber(t))}" disabled></td>
+<td><input value="${escapeHtml(t.type||"")}" disabled></td>
 
-<td><input value="${t.entryName || ""}" disabled></td>
-<td><input value="${t.entryPhone || ""}" disabled></td>
+<td><input value="${escapeHtml(t.company||"")}" disabled></td>
 
-<td><input value="${t.clientName || ""}" disabled></td>
-<td><input value="${t.clientPhone || ""}" disabled></td>
+<td><input value="${escapeHtml(t.entryName||"")}" disabled></td>
+<td><input value="${escapeHtml(t.entryPhone||"")}" disabled></td>
 
-<td><input value="${t.pickup || ""}" disabled></td>
+<td><input value="${escapeHtml(t.clientName||"")}" disabled></td>
+<td><input value="${escapeHtml(t.clientPhone||"")}" disabled></td>
 
-<td><input value="${stops}" disabled></td>
+<td><input value="${escapeHtml(t.pickup||"")}" disabled></td>
 
-<td><input value="${t.dropoff || ""}" disabled></td>
+<td><input value="${escapeHtml(stopsStr)}" disabled></td>
 
-<td><textarea disabled>${t.notes || ""}</textarea></td>
+<td><input value="${escapeHtml(t.dropoff||"")}" disabled></td>
 
-<td><input type="date" value="${t.tripDate || ""}" disabled></td>
-<td><input type="time" value="${t.tripTime || ""}" disabled></td>
+<td><textarea disabled>${escapeHtml(t.notes||"")}</textarea></td>
 
-<td>${t.status || ""}</td>
+<td><input type="date" value="${escapeHtml(t.tripDate||"")}" disabled></td>
+<td><input type="time" value="${escapeHtml(t.tripTime||"")}" disabled></td>
+
+<td>${escapeHtml(t.status||"")}</td>
+
+<td>${formatDate(t.createdAt)}</td>
 
 <td>
+<div class="hub-actions">
 
-<button class="edit" onclick="editTripRow(this)">Edit</button>
+<button class="hub-btn edit"
+onclick="editTripRow(this)">
+Edit
+</button>
 
-<button class="save" style="display:none"
+<button class="hub-btn save"
+style="display:none"
 onclick="saveTripRow(this,'${t._id}')">
 Save
 </button>
 
-<button class="delete"
+<button class="hub-btn delete"
 onclick="deleteTripConfirm('${t._id}')">
 Delete
 </button>
 
+</div>
 </td>
 `;
 
-    tbody.appendChild(tr);
+tbody.appendChild(tr);
 
-  });
+});
 
-  container.appendChild(table);
+container.appendChild(table);
 
 }
 
 /* ===============================
-   SEARCH INPUT
+   SEARCH
 ================================ */
-if (searchInput) {
+if(searchInput){
 
-  searchInput.addEventListener("input", function () {
+searchInput.addEventListener("input",function(){
 
-    currentSearch = searchInput.value.trim();
-    applySearch();
-    render();
+currentSearch=searchInput.value.trim();
+render();
 
-  });
+});
 
 }
 
 /* ===============================
    AUTO REFRESH
 ================================ */
-setInterval(loadHubTrips, 30000);
+setInterval(async function(){
+
+await loadHubTrips();
+render();
+
+},60000);
 
 /* ===============================
    INIT
 ================================ */
-loadHubTrips();
+(async function(){
+
+await loadHubTrips();
+render();
+
+})();
