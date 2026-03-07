@@ -259,7 +259,61 @@ app.delete("/api/users/:id", async (req, res) => {
 ========================= */
 app.post("/api/trips", async (req, res) => {
   try {
-    const trip = await Trip.create(req.body);
+    const type = req.body.type || "company";
+    let tripNumber = "";
+
+    /* ===== GH INDIVIDUAL TRIPS ===== */
+    if (type === "gh") {
+      const lastTrip = await Trip.findOne({
+        tripNumber: { $regex: /^GH-/ }
+      }).sort({ createdAt: -1 });
+
+      let next = 1;
+
+      if (lastTrip && lastTrip.tripNumber) {
+        const parts = lastTrip.tripNumber.split("-");
+        const num = parseInt(parts[1], 10);
+        if (!isNaN(num)) next = num + 1;
+      }
+
+      tripNumber = "GH-" + String(next).padStart(5, "0");
+    }
+
+    /* ===== COMPANY TRIPS ===== */
+    else {
+      const now = new Date();
+
+      const months = [
+        "JA", "FE", "MA", "AP", "MY", "JN",
+        "JL", "AU", "SE", "OC", "NO", "DE"
+      ];
+
+      const monthCode = months[now.getMonth()];
+
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const lastTrip = await Trip.findOne({
+        createdAt: { $gte: startOfMonth, $lt: endOfMonth },
+        tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
+      }).sort({ createdAt: -1 });
+
+      let next = 1;
+
+      if (lastTrip && lastTrip.tripNumber) {
+        const parts = lastTrip.tripNumber.split("-");
+        const num = parseInt(parts[1], 10);
+        if (!isNaN(num)) next = num + 1;
+      }
+
+      tripNumber = monthCode + "-" + String(next).padStart(3, "0");
+    }
+
+    const trip = await Trip.create({
+      ...req.body,
+      tripNumber
+    });
+
     res.status(200).json(trip);
   } catch (err) {
     console.log(err);
