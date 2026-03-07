@@ -31,6 +31,7 @@ body{
   margin-top:4px;
 }
 .logo{ height:75px; }
+
 .nav{
   display:flex;
   justify-content:center;
@@ -39,6 +40,7 @@ body{
   padding:12px 0;
   margin-top:20px;
 }
+
 .nav a{
   color:#fff;
   text-decoration:none;
@@ -46,16 +48,19 @@ body{
   padding:6px 16px;
   border-radius:8px;
 }
+
 .nav a.active{
   background:#facc15;
   color:#000;
   font-weight:700;
 }
+
 .container{
   max-width:1100px;
   margin:auto;
   padding:35px 20px;
 }
+
 section{
   background:#fff;
   padding:18px;
@@ -63,30 +68,38 @@ section{
   margin-bottom:20px;
   box-shadow:0 6px 16px rgba(0,0,0,.08);
 }
+
 section h3{
   margin-bottom:12px;
   font-size:15px;
   color:#0f172a;
 }
+
 .form-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:12px;
 }
+
 input, textarea{
   width:100%;
   padding:9px;
   font-size:13px;
   border:1px solid #cbd5e1;
   border-radius:10px;
-  box-sizing:border-box;
 }
-textarea{ min-height:80px; margin-top:12px; }
+
+textarea{
+  min-height:80px;
+  margin-top:12px;
+}
+
 .actions{
   display:flex;
   gap:12px;
   margin-top:12px;
 }
+
 button{
   padding:8px 16px;
   border:none;
@@ -94,205 +107,324 @@ button{
   font-size:13px;
   cursor:pointer;
 }
-.btn-blue{ background:#3b82f6; color:#fff; }
-.btn-green{ background:#22c55e; color:#000; }
-.btn-gray{ background:#64748b; color:#fff; }
-.btn-light{ background:#0ea5e9; color:#fff; }
 
-@media(max-width:768px){
-  .form-grid{ grid-template-columns:1fr; }
-  .actions{ flex-direction:column; }
-}
+.btn-blue{ background:#3b82f6;color:#fff;}
+.btn-green{ background:#22c55e;color:#000;}
+.btn-gray{ background:#64748b;color:#fff;}
+.btn-light{ background:#0ea5e9;color:#fff;}
+
 </style>
 </head>
 
 <body>
 
 <div class="header">
-  <div class="top-section">
-    <div>
-      <div class="logged-company" id="companyName"></div>
-      <div class="greeting" id="greetingText"></div>
-      <div class="clock" id="azDateTime"></div>
-    </div>
-    <img src="../assets/logo.png" class="logo">
-  </div>
 
-  <div class="nav">
-    <a href="dashboard.html">Dashboard</a>
-    <a href="add-trip.html" class="active">Add Trip</a>
-    <a href="review.html">Review</a>
-    <a href="summary.html">Summary</a>
-    <a href="taxes.html">Taxes</a>
-  </div>
+<div class="top-section">
+<div>
+<div class="logged-company" id="companyName"></div>
+<div class="greeting" id="greetingText"></div>
+<div class="clock" id="azDateTime"></div>
+</div>
+<img src="../assets/logo.png" class="logo">
+</div>
+
+<div class="nav">
+<a href="dashboard.html">Dashboard</a>
+<a href="add-trip.html" class="active">Add Trip</a>
+<a href="review.html">Review</a>
+<a href="summary.html">Summary</a>
+<a href="taxes.html">Taxes</a>
+</div>
+
 </div>
 
 <div class="container">
 
 <section>
 <h3>Entry Information</h3>
+
 <div class="form-grid">
-  <input id="entryName" placeholder="Data Entry Name">
-  <input id="entryPhone" placeholder="Phone Number">
+<input id="entryName" placeholder="Data Entry Name">
+<input id="entryPhone" placeholder="Phone Number">
 </div>
 
 <div style="margin-top:10px;">
-  <button class="btn-blue" id="editEntry" type="button">Edit</button>
+<button class="btn-blue" id="editEntry">Edit</button>
 </div>
+
 </section>
+
 
 <section>
 <h3>Client Information</h3>
+
 <div class="form-grid">
-  <input id="clientName" placeholder="Client Name">
-  <input id="clientPhone" placeholder="Client Phone">
+<input id="clientName" placeholder="Client Name">
+<input id="clientPhone" placeholder="Client Phone">
 </div>
+
 </section>
+
 
 <section>
 <h3>Trip Details</h3>
+
 <div class="form-grid">
-  <input id="pickup" placeholder="Pickup Address">
-  <input id="dropoff" placeholder="Dropoff Address">
-  <input id="tripDate" type="date">
-  <input id="tripTime" type="time">
+<input id="pickup" placeholder="Pickup Address">
+<input id="dropoff" placeholder="Dropoff Address">
+<input id="tripDate" type="date">
+<input id="tripTime" type="time">
 </div>
 
 <div id="stops" style="margin-top:10px;"></div>
-<button class="btn-light" id="addStopBtn" type="button">+ Add Stop</button>
+
+<button class="btn-light" id="addStopBtn">+ Add Stop</button>
 
 <textarea id="notes" placeholder="Notes"></textarea>
+
 </section>
 
+
 <div class="actions">
-  <button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
-  <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+<button class="btn-gray" id="saveTrip">Save Trip</button>
+<button class="btn-green" id="submitTrip">Submit Trip</button>
 </div>
 
 </div>
+
 
 <script>
-document.addEventListener("DOMContentLoaded", function(){
 
-const token = localStorage.getItem("token");
-const role  = localStorage.getItem("role");
-const name  = localStorage.getItem("name");
+document.addEventListener("DOMContentLoaded",function(){
 
-if (!token || role !== "company") {
-  window.location.replace("company-login.html");
-  return;
+const token=localStorage.getItem("token");
+const role=localStorage.getItem("role");
+const name=localStorage.getItem("name");
+
+if(!token||role!=="company"){
+window.location.replace("company-login.html");
+return;
 }
 
-document.getElementById("companyName").innerText = name || "Company";
+document.getElementById("companyName").innerText=name||"Company";
 
 /* CLOCK */
-function updateTime(){
-  const now = new Date();
-  const formatted = now.toLocaleString("en-US",{
-    timeZone:"America/Phoenix",
-    year:"numeric",month:"short",day:"2-digit",
-    hour:"2-digit",minute:"2-digit",second:"2-digit"
-  });
-  document.getElementById("azDateTime").innerText = formatted;
 
-  const hour = now.getHours();
-  let greet = "Good Evening";
-  if(hour < 12) greet = "Good Morning";
-  else if(hour < 18) greet = "Good Afternoon";
-  document.getElementById("greetingText").innerText = greet;
+function updateTime(){
+
+const now=new Date();
+
+document.getElementById("azDateTime").innerText=
+now.toLocaleString("en-US",{timeZone:"America/Phoenix"});
+
+let greet="Good Evening";
+
+if(now.getHours()<12)greet="Good Morning";
+else if(now.getHours()<18)greet="Good Afternoon";
+
+document.getElementById("greetingText").innerText=greet;
+
 }
+
 updateTime();
 setInterval(updateTime,1000);
 
-/* ENTRY LOCK */
-const entryName  = document.getElementById("entryName");
-const entryPhone = document.getElementById("entryPhone");
-const editEntry  = document.getElementById("editEntry");
+/* ENTRY */
 
-function lockEntry(){
-  entryName.disabled = true;
-  entryPhone.disabled = true;
-}
-
-function unlockEntry(){
-  entryName.disabled = false;
-  entryPhone.disabled = false;
-}
+const entryName=document.getElementById("entryName");
+const entryPhone=document.getElementById("entryPhone");
+const editEntry=document.getElementById("editEntry");
 
 function loadEntry(){
-  const saved = JSON.parse(localStorage.getItem("entryInfo") || "{}");
-  if(saved.name){
-    entryName.value = saved.name;
-    entryPhone.value = saved.phone;
-    lockEntry();
-  }
+
+const saved=JSON.parse(localStorage.getItem("entryInfo")||"{}");
+
+if(saved.name){
+entryName.value=saved.name;
+entryPhone.value=saved.phone;
+entryName.disabled=true;
+entryPhone.disabled=true;
 }
+
+}
+
 loadEntry();
 
-editEntry.onclick = unlockEntry;
+editEntry.onclick=function(){
+
+if(entryName.disabled){
+
+entryName.disabled=false;
+entryPhone.disabled=false;
+editEntry.innerText="Save";
+
+}else{
+
+localStorage.setItem("entryInfo",JSON.stringify({
+name:entryName.value,
+phone:entryPhone.value
+}));
+
+entryName.disabled=true;
+entryPhone.disabled=true;
+
+editEntry.innerText="Edit";
+
+alert("Entry saved ✔");
+
+}
+
+};
 
 /* STOPS */
-const stopsBox = document.getElementById("stops");
-document.getElementById("addStopBtn").onclick = function(){
-  const input = document.createElement("input");
-  input.placeholder = "Stop";
-  stopsBox.appendChild(input);
+
+const stopsBox=document.getElementById("stops");
+
+document.getElementById("addStopBtn").onclick=function(){
+
+if(stopsBox.children.length>=5){
+alert("Maximum 5 stops allowed");
+return;
+}
+
+const input=document.createElement("input");
+input.placeholder="Stop Address";
+
+stopsBox.appendChild(input);
+
+};
+
+/* CHECK 120 */
+
+function check120(){
+
+const date=document.getElementById("tripDate").value;
+const time=document.getElementById("tripTime").value;
+
+if(!date||!time)return true;
+
+const tripTime=new Date(date+"T"+time);
+const now=new Date();
+
+const diff=(tripTime-now)/60000;
+
+if(diff<120){
+return confirm(
+"Trip is within 120 minutes.\nContinue?"
+);
+}
+
+return true;
+
+}
+
+/* SAVE */
+
+document.getElementById("saveTrip").onclick=function(){
+
+localStorage.setItem("tripDraft",JSON.stringify({
+
+clientName:document.getElementById("clientName").value,
+clientPhone:document.getElementById("clientPhone").value,
+pickup:document.getElementById("pickup").value,
+dropoff:document.getElementById("dropoff").value,
+tripDate:document.getElementById("tripDate").value,
+tripTime:document.getElementById("tripTime").value,
+notes:document.getElementById("notes").value
+
+}));
+
+alert("Trip saved locally");
+
 };
 
 /* SUBMIT */
-document.getElementById("submitTrip").onclick = async function(){
 
-  const stops = [...document.querySelectorAll("#stops input")]
-    .map(i => i.value.trim())
-    .filter(Boolean);
+document.getElementById("submitTrip").onclick=async function(){
 
-  const trip = {
-    company: name || "",
-    entryName: entryName.value,
-    entryPhone: entryPhone.value,
-    clientName: document.getElementById("clientName").value,
-    clientPhone: document.getElementById("clientPhone").value,
-    pickup: document.getElementById("pickup").value,
-    dropoff: document.getElementById("dropoff").value,
-    tripDate: document.getElementById("tripDate").value,
-    tripTime: document.getElementById("tripTime").value,
-    stops: stops,
-    notes: document.getElementById("notes").value,
-    status: "Scheduled",
-    createdAt: new Date().toISOString()
-  };
+if(!check120())return;
 
-  try{
-    const res = await fetch("/api/trips",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer " + token
-      },
-      body: JSON.stringify(trip)
-    });
+const stops=[...document.querySelectorAll("#stops input")]
+.map(i=>i.value.trim())
+.filter(Boolean);
 
-    if(!res.ok){
-      alert("Server error");
-      return;
-    }
+const trip={
 
-    localStorage.setItem("entryInfo", JSON.stringify({
-      name: entryName.value,
-      phone: entryPhone.value
-    }));
+company:name||"",
+entryName:entryName.value,
+entryPhone:entryPhone.value,
 
-    lockEntry();
+clientName:document.getElementById("clientName").value,
+clientPhone:document.getElementById("clientPhone").value,
 
-    alert("Trip submitted ✔");
-    location.href = "review.html";
+pickup:document.getElementById("pickup").value,
+dropoff:document.getElementById("dropoff").value,
 
-  }catch(err){
-    alert("Server error");
-  }
+tripDate:document.getElementById("tripDate").value,
+tripTime:document.getElementById("tripTime").value,
+
+stops:stops,
+
+notes:document.getElementById("notes").value,
+
+status:"Scheduled",
+createdAt:new Date().toISOString()
+
+};
+
+try{
+
+const res=await fetch("/api/trips",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+
+body:JSON.stringify(trip)
+
+});
+
+if(!res.ok){
+alert("Server error");
+return;
+}
+
+localStorage.setItem("entryInfo",JSON.stringify({
+name:entryName.value,
+phone:entryPhone.value
+}));
+
+/* CLEAR */
+
+document.getElementById("clientName").value="";
+document.getElementById("clientPhone").value="";
+document.getElementById("pickup").value="";
+document.getElementById("dropoff").value="";
+document.getElementById("tripDate").value="";
+document.getElementById("tripTime").value="";
+document.getElementById("notes").value="";
+
+stopsBox.innerHTML="";
+
+alert("Trip submitted ✔");
+
+document.getElementById("clientName").focus();
+
+}
+catch(err){
+
+alert("Server error");
+
+}
+
 };
 
 });
+
 </script>
 
 </body>
