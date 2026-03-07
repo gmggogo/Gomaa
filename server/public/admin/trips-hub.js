@@ -1,22 +1,14 @@
 /* ===============================
    API
 ================================ */
-const API_URL = "/api/trips";
+const API_URL = "/api/trips/company";
 
 /* ===============================
-   LOAD HUB TRIPS (ONLINE)
+   STATE
 ================================ */
+let allHubTrips = [];
 let hubTrips = [];
-
-async function loadHubTrips(){
-  try{
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    hubTrips = Array.isArray(data) ? data : [];
-  }catch{
-    hubTrips = [];
-  }
-}
+let currentSearch = "";
 
 const container   = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
@@ -28,10 +20,13 @@ if (!container) console.error("Missing #hubContainer in HTML");
    SMALL STYLE
 ================================ */
 (function injectTinyStyle(){
+  if (document.getElementById("tripHopTinyStyle")) return;
+
   const s = document.createElement("style");
+  s.id = "tripHopTinyStyle";
   s.innerHTML = `
     .hub-table{width:100%;border-collapse:collapse;font-size:11px}
-    .hub-table th{background:#0f172a;color:#fff;padding:6px;position:sticky;top:0}
+    .hub-table th{background:#0f172a;color:#fff;padding:6px;position:sticky;top:0;z-index:2}
     .hub-table td{border:1px solid #e5e7eb;padding:3px;vertical-align:middle}
     .hub-table input,.hub-table select{
       width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box
@@ -43,7 +38,7 @@ if (!container) console.error("Missing #hubContainer in HTML");
     .hub-actions{display:flex;gap:6px;justify-content:center;align-items:center}
     .hub-btn{
       border:none;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;
-      color:#fff;opacity:.8
+      color:#fff;opacity:.9
     }
     .hub-btn:active{transform:scale(.97)}
     .hub-btn.edit{background:#3b82f6}
@@ -54,7 +49,7 @@ if (!container) console.error("Missing #hubContainer in HTML");
 })();
 
 /* ===============================
-   FORMAT DATE
+   HELPERS
 ================================ */
 function formatDate(iso){
   if(!iso) return "-";
@@ -66,9 +61,6 @@ function formatDate(iso){
   });
 }
 
-/* ===============================
-   GET TRIP NUMBER
-================================ */
 function getTripNumber(t){
   if (t && t.tripNumber) return String(t.tripNumber);
   if (t && t.id) return String(t.id);
@@ -76,9 +68,17 @@ function getTripNumber(t){
   return "-";
 }
 
-/* ===============================
-   CHECK PASSED
-================================ */
+function getBookedAt(t){
+  return t?.bookedAt || t?.createdAt || "";
+}
+
+function getTripTypeLabel(t){
+  if (!t || !t.type || t.type === "company") return "Company";
+  if (t.type === "gh") return "Individual";
+  if (t.type === "Reserved") return "Reserved";
+  return String(t.type);
+}
+
 function isTripPassed(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
   const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
@@ -86,9 +86,6 @@ function isTripPassed(t){
   return new Date() >= tripDateTime;
 }
 
-/* ===============================
-   REMOVE AFTER 24H
-================================ */
 function shouldRemoveTrip(t){
   if(!t || !t.tripDate || !t.tripTime) return false;
   const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
@@ -108,10 +105,10 @@ function rowColor(tr, t){
     return;
   }
 
-  if (t && t.type === "Individual") {
+  if (t && t.type === "gh") {
     tr.style.backgroundColor = "#e8f4ff";
   }
-  else if (t && t.type === "Company") {
+  else if (t && (!t.type || t.type === "company")) {
     tr.style.backgroundColor = "#fff6d6";
   }
   else if (t && t.type === "Reserved") {
@@ -131,6 +128,39 @@ function nextReservedNumber(){
 }
 
 /* ===============================
+   LOAD HUB TRIPS (ONLINE)
+================================ */
+async function loadHubTrips(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    allHubTrips = Array.isArray(data) ? data : [];
+    applySearch();
+  }catch(err){
+    console.error("Load trips error:", err);
+    allHubTrips = [];
+    hubTrips = [];
+  }
+}
+
+/* ===============================
+   SEARCH APPLY
+================================ */
+function applySearch(){
+  const baseTrips = allHubTrips.filter(t => !shouldRemoveTrip(t));
+
+  if(!currentSearch){
+    hubTrips = baseTrips;
+    return;
+  }
+
+  const v = currentSearch.toLowerCase();
+  hubTrips = baseTrips.filter(t =>
+    JSON.stringify(t).toLowerCase().includes(v)
+  );
+}
+
+/* ===============================
    ADD RESERVED (ONLINE)
 ================================ */
 async function addReservedTripInline(){
@@ -143,18 +173,17 @@ async function addReservedTripInline(){
     entryPhone: "",
     clientName: "",
     clientPhone: "",
-    pickup: "",
+    pickup: "Reserved Pickup",
     stops: [],
-    dropoff: "",
+    dropoff: "Reserved Dropoff",
     notes: "",
     tripDate: "",
     tripTime: "",
     status: "Booked",
-    createdAt: new Date().toISOString(),
-    bookedAt: new Date().toISOString()
+    createdAt: new Date().toISOString()
   };
 
-  await fetch(API_URL, {
+  await fetch("/api/trips", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(newTrip)
@@ -179,24 +208,30 @@ async function deleteTripConfirm(tripNumber){
   const ok = confirm("Delete this trip?");
   if(!ok) return;
 
-  hubTrips = hubTrips.filter(t => String(getTripNumber(t)) !== String(tripNumber));
+  const trip = allHubTrips.find(t => String(getTripNumber(t)) === String(tripNumber));
+  if(!trip || !trip._id) return;
 
-  await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(hubTrips)
-  });
+  try{
+    await fetch(`/api/trips/${trip._id}`,{
+      method:"DELETE"
+    });
 
-  await loadHubTrips();
-  render();
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Delete error:", err);
+    alert("Delete failed");
+  }
 }
+
+window.deleteTripConfirm = deleteTripConfirm;
 
 /* ===============================
    RENDER
 ================================ */
 function render(){
 
-  hubTrips = hubTrips.filter(t => !shouldRemoveTrip(t));
+  applySearch();
 
   container.innerHTML = "";
 
@@ -246,20 +281,20 @@ function render(){
     tr.innerHTML = `
       <td>${i+1}</td>
       <td><input value="${tripNum}" disabled></td>
-      <td><input value="${t.type||"-"}" disabled></td>
-      <td><input value="${t.company||""}" disabled></td>
-      <td><input value="${t.entryName||""}" disabled></td>
-      <td><input value="${t.entryPhone||""}" disabled></td>
-      <td><input value="${t.clientName||""}" disabled></td>
-      <td><input value="${t.clientPhone||""}" disabled></td>
-      <td><input value="${t.pickup||""}" disabled></td>
+      <td><input value="${getTripTypeLabel(t)}" disabled></td>
+      <td><input value="${t.company || ""}" disabled></td>
+      <td><input value="${t.entryName || ""}" disabled></td>
+      <td><input value="${t.entryPhone || ""}" disabled></td>
+      <td><input value="${t.clientName || ""}" disabled></td>
+      <td><input value="${t.clientPhone || ""}" disabled></td>
+      <td><input value="${t.pickup || ""}" disabled></td>
       <td><input value="${stopsStr}" disabled></td>
-      <td><input value="${t.dropoff||""}" disabled></td>
-      <td><textarea disabled>${t.notes||""}</textarea></td>
-      <td><input type="date" value="${t.tripDate||""}" disabled></td>
-      <td><input type="time" value="${t.tripTime||""}" disabled></td>
-      <td>${t.status||"Booked"}</td>
-      <td>${formatDate(t.bookedAt)}</td>
+      <td><input value="${t.dropoff || ""}" disabled></td>
+      <td><textarea disabled>${t.notes || ""}</textarea></td>
+      <td><input type="date" value="${t.tripDate || ""}" disabled></td>
+      <td><input type="time" value="${t.tripTime || ""}" disabled></td>
+      <td>${t.status || "Booked"}</td>
+      <td>${formatDate(getBookedAt(t))}</td>
       <td>
         <div class="hub-actions">
           <button class="hub-btn delete" onclick="deleteTripConfirm('${tripNum}')">🗑 Delete</button>
@@ -278,11 +313,7 @@ function render(){
 ================================ */
 if(searchInput){
   searchInput.addEventListener("input", function(){
-    const v = searchInput.value.toLowerCase();
-    const filtered = hubTrips.filter(t =>
-      JSON.stringify(t).toLowerCase().includes(v)
-    );
-    hubTrips = filtered;
+    currentSearch = searchInput.value.trim();
     render();
   });
 }
@@ -293,7 +324,7 @@ if(searchInput){
 setInterval(async function(){
   await loadHubTrips();
   render();
-},60000);
+}, 60000);
 
 /* ===============================
    INIT
