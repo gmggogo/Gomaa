@@ -15,12 +15,12 @@ const container = document.getElementById("tripsContainer");
 
 function getAZNow(){
   return new Date(
-    new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" })
+    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
   );
 }
 
 function getTripDateTime(t){
-  if(!t.tripDate || !t.tripTime) return null;
+  if (!t.tripDate || !t.tripTime) return null;
 
   const dt = new Date(t.tripDate + "T" + t.tripTime + ":00");
   return String(dt) === "Invalid Date" ? null : dt;
@@ -28,13 +28,8 @@ function getTripDateTime(t){
 
 function minutesToTrip(t){
   const dt = getTripDateTime(t);
-  if(!dt) return null;
+  if (!dt) return null;
   return (dt - getAZNow()) / 60000;
-}
-
-function isWithin120(t){
-  const mins = minutesToTrip(t);
-  return mins !== null && mins > 0 && mins <= 120;
 }
 
 function escapeHtml(value){
@@ -53,13 +48,13 @@ async function fetchTrips(){
     ? "/api/trips/company/" + encodeURIComponent(companyName)
     : "/api/trips/company";
 
-  const res = await fetch(url,{
-    headers:{
-      "Authorization":"Bearer " + token
+  const res = await fetch(url, {
+    headers: {
+      "Authorization": "Bearer " + token
     }
   });
 
-  if(!res.ok){
+  if (!res.ok) {
     container.innerHTML = "<div>Server Error Loading Trips</div>";
     return [];
   }
@@ -67,32 +62,32 @@ async function fetchTrips(){
   return await res.json();
 }
 
-async function updateTrip(id,payload){
+async function updateTrip(id, payload){
 
-  const res = await fetch("/api/trips/" + id,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer " + token
+  const res = await fetch("/api/trips/" + id, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
     },
-    body:JSON.stringify(payload)
+    body: JSON.stringify(payload)
   });
 
-  if(!res.ok) throw new Error("Update failed");
+  if (!res.ok) throw new Error("Update failed");
 
   return await res.json();
 }
 
 async function deleteTrip(id){
 
-  const res = await fetch("/api/trips/" + id,{
-    method:"DELETE",
-    headers:{
-      "Authorization":"Bearer " + token
+  const res = await fetch("/api/trips/" + id, {
+    method: "DELETE",
+    headers: {
+      "Authorization": "Bearer " + token
     }
   });
 
-  if(!res.ok) throw new Error("Delete failed");
+  if (!res.ok) throw new Error("Delete failed");
 }
 
 /* ================= GROUP + FILTER ================= */
@@ -101,13 +96,13 @@ function keepLast30Days(list){
 
   const now = new Date();
 
-  return list.filter(t=>{
+  return list.filter(t => {
 
-    if(!t.createdAt) return true;
+    if (!t.createdAt) return true;
 
     const c = new Date(t.createdAt);
 
-    if(String(c) === "Invalid Date") return true;
+    if (String(c) === "Invalid Date") return true;
 
     return (now - c) / (1000 * 60 * 60 * 24) <= 30;
 
@@ -118,12 +113,12 @@ function groupByCreatedDate(list){
 
   const groups = {};
 
-  list.forEach(t=>{
+  list.forEach(t => {
 
     const d = t.createdAt ? new Date(t.createdAt) : new Date();
     const key = d.toLocaleDateString();
 
-    if(!groups[key]) groups[key] = [];
+    if (!groups[key]) groups[key] = [];
     groups[key].push(t);
 
   });
@@ -141,14 +136,14 @@ function render(){
 
   const filtered = keepLast30Days(trips);
   const groups = groupByCreatedDate(filtered);
-  const dates = Object.keys(groups).sort((a,b)=> new Date(b) - new Date(a));
+  const dates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
 
-  if(!dates.length){
+  if (!dates.length) {
     container.innerHTML = "<div style='padding:15px'>No trips found.</div>";
     return;
   }
 
-  dates.forEach(date=>{
+  dates.forEach(date => {
 
     const title = document.createElement("div");
     title.className = "date-title";
@@ -176,45 +171,58 @@ function render(){
 </tr>
 `;
 
-    groups[date].forEach((t,i)=>{
+    groups[date].forEach((t, i) => {
 
       const mins = minutesToTrip(t);
 
-      /* hide after 1 hour */
-      if(mins !== null && mins < -60) return;
+      /* hide after 1 hour from trip time */
+      if (mins !== null && mins < -60) return;
 
       const tr = document.createElement("tr");
       tr.dataset.id = t._id;
 
       /* yellow before 3 hours */
-      if(mins !== null && mins > 0 && mins <= 180) tr.classList.add("yellow");
+      if (mins !== null && mins > 0 && mins <= 180) {
+        tr.classList.add("yellow");
+      }
 
-      /* red from time until +1 hour */
-      if(mins !== null && mins <= 0 && mins >= -60) tr.classList.add("red");
+      /* red from trip time until +1 hour */
+      if (mins !== null && mins <= 0 && mins >= -60) {
+        tr.classList.add("red");
+      }
 
       const editing = t.__editing === true;
 
-      function cell(val,cls,type="text"){
-        if(!editing) return escapeHtml(val || "");
+      function cell(val, cls, type = "text"){
+        if (!editing) return escapeHtml(val || "");
         return `<input type="${type}" class="${cls}" value="${escapeHtml(val || "")}">`;
       }
 
       const stopsText = Array.isArray(t.stops) ? t.stops.join(" | ") : "";
 
+      /* ===== ACTION POLICY =====
+         > 120 mins  => Edit / Delete / Confirm
+         0 - 120     => Cancel
+         <= 0        => No buttons
+      */
       let actions = "";
 
-      if(isWithin120(t)){
-        actions = `<button class="btn cancel" data-action="cancel">Cancel</button>`;
-      }else{
-        if(t.status === "Confirmed"){
-          actions = `<button class="btn cancel" data-action="cancel">Cancel</button>`;
-        }else{
-          actions = `
+      if (mins !== null && mins > 120) {
+
+        actions = `
 <button class="btn edit" data-action="edit">${editing ? "Save" : "Edit"}</button>
 <button class="btn delete" data-action="delete">Delete</button>
 <button class="btn confirm" data-action="confirm">Confirm</button>
 `;
-        }
+
+      } else if (mins !== null && mins > 0 && mins <= 120) {
+
+        actions = `<button class="btn cancel" data-action="cancel">Cancel</button>`;
+
+      } else {
+
+        actions = "";
+
       }
 
       const stopsCell = editing
@@ -222,18 +230,18 @@ function render(){
         : escapeHtml(stopsText);
 
       tr.innerHTML = `
-<td>${i+1}</td>
+<td>${i + 1}</td>
 <td>${escapeHtml(t.tripNumber || "")}</td>
-<td>${cell(t.entryName,"entryName")}</td>
-<td>${cell(t.entryPhone,"entryPhone")}</td>
-<td>${cell(t.clientName,"clientName")}</td>
-<td>${cell(t.clientPhone,"clientPhone")}</td>
-<td>${cell(t.pickup,"pickup")}</td>
-<td>${cell(t.dropoff,"dropoff")}</td>
+<td>${cell(t.entryName, "entryName")}</td>
+<td>${cell(t.entryPhone, "entryPhone")}</td>
+<td>${cell(t.clientName, "clientName")}</td>
+<td>${cell(t.clientPhone, "clientPhone")}</td>
+<td>${cell(t.pickup, "pickup")}</td>
+<td>${cell(t.dropoff, "dropoff")}</td>
 <td>${stopsCell}</td>
-<td>${cell(t.tripDate,"tripDate","date")}</td>
-<td>${cell(t.tripTime,"tripTime","time")}</td>
-<td>${cell(t.notes,"notes")}</td>
+<td>${cell(t.tripDate, "tripDate", "date")}</td>
+<td>${cell(t.tripTime, "tripTime", "time")}</td>
+<td>${cell(t.notes, "notes")}</td>
 <td>${escapeHtml(t.status || "Scheduled")}</td>
 <td>${actions}</td>
 `;
@@ -254,43 +262,46 @@ function isAnyEditing(){
 
 /* ================= ACTIONS ================= */
 
-container.addEventListener("click", async (e)=>{
+container.addEventListener("click", async (e) => {
 
   const btn = e.target.closest("button");
-  if(!btn) return;
+  if (!btn) return;
 
   const tr = btn.closest("tr");
-  if(!tr) return;
+  if (!tr) return;
 
   const id = tr.dataset.id;
   const t = trips.find(x => x._id === id);
-  if(!t) return;
+  if (!t) return;
 
   const action = btn.dataset.action;
 
-  try{
+  try {
 
-    if(action === "confirm"){
+    if (action === "confirm") {
 
-      await updateTrip(id,{ status:"Confirmed" });
+      btn.disabled = true;
+      btn.innerText = "Confirming...";
+
+      await updateTrip(id, { status: "Confirmed" });
       trips = await fetchTrips();
       render();
       return;
     }
 
-    if(action === "cancel"){
+    if (action === "cancel") {
 
-      if(!confirm("Cancel this trip?")) return;
+      if (!confirm("Cancel this trip?")) return;
 
-      await updateTrip(id,{ status:"Cancelled" });
+      await updateTrip(id, { status: "Cancelled" });
       trips = await fetchTrips();
       render();
       return;
     }
 
-    if(action === "delete"){
+    if (action === "delete") {
 
-      if(!confirm("Delete this trip?")) return;
+      if (!confirm("Delete this trip?")) return;
 
       await deleteTrip(id);
       trips = await fetchTrips();
@@ -298,9 +309,9 @@ container.addEventListener("click", async (e)=>{
       return;
     }
 
-    if(action === "edit"){
+    if (action === "edit") {
 
-      if(!t.__editing){
+      if (!t.__editing) {
         t.__editing = true;
         render();
         return;
@@ -309,11 +320,17 @@ container.addEventListener("click", async (e)=>{
       const newDate = tr.querySelector(".tripDate")?.value || t.tripDate;
       const newTime = tr.querySelector(".tripTime")?.value || t.tripTime;
 
-      const temp = { ...t, tripDate:newDate, tripTime:newTime };
+      const temp = {
+        ...t,
+        tripDate: newDate,
+        tripTime: newTime
+      };
 
-      if(isWithin120(temp)){
+      const tempMins = minutesToTrip(temp);
+
+      if (tempMins !== null && tempMins <= 120 && tempMins > 0) {
         const ok = confirm("WARNING: Trip is within 120 minutes. Continue?");
-        if(!ok) return;
+        if (!ok) return;
       }
 
       const payload = {
@@ -334,13 +351,13 @@ container.addEventListener("click", async (e)=>{
 
       t.__editing = false;
 
-      await updateTrip(id,payload);
+      await updateTrip(id, payload);
       trips = await fetchTrips();
       render();
       return;
     }
 
-  }catch(err){
+  } catch (err) {
     alert("Server Error: " + err.message);
   }
 
@@ -349,10 +366,10 @@ container.addEventListener("click", async (e)=>{
 /* ================= INIT ================= */
 
 async function loadTrips(){
-  try{
+  try {
     trips = await fetchTrips();
     render();
-  }catch(err){
+  } catch (err) {
     container.innerHTML = "<div>Server Load Error</div>";
   }
 }
@@ -361,17 +378,17 @@ await loadTrips();
 
 /* ================= AUTO REFRESH ================= */
 
-setInterval(async()=>{
+setInterval(async () => {
 
-  if(isAnyEditing()) return;
+  if (isAnyEditing()) return;
 
-  try{
+  try {
     trips = await fetchTrips();
     render();
-  }catch(err){
+  } catch (err) {
     console.error("Auto refresh failed", err);
   }
 
-},30000);
+}, 30000);
 
 });
