@@ -97,6 +97,10 @@ th{
   color:#fff;
 }
 
+tr{
+  transition:background .3s;
+}
+
 tr:hover{ background:#f9fafb; }
 
 .yellow{ background:#fff3cd !important; }
@@ -117,9 +121,13 @@ tr:hover{ background:#f9fafb; }
 .delete{ background:#64748b; color:#fff; }
 .cancel{ background:#ef4444; color:#fff; }
 
-input.edit-input{
+input{
   width:100%;
   padding:5px;
+  border:1px solid #ddd;
+  border-radius:4px;
+  font-size:12px;
+  box-sizing:border-box;
 }
 
 @media(max-width:768px){
@@ -155,9 +163,6 @@ input.edit-input{
 <script>
 document.addEventListener("DOMContentLoaded", function(){
 
-/* ===============================
-   AUTH (JWT)
-================================ */
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
 const name  = localStorage.getItem("name");
@@ -169,24 +174,35 @@ if (!token || role !== "company") {
 
 document.getElementById("companyName").innerText = name || "Company";
 
-/* ===============================
-   GREETING + AZ TIME
-================================ */
+function getAZTime(){
+  return new Date(
+    new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" })
+  );
+}
+
 function updateTime(){
-  const now = new Date();
+  const now = getAZTime();
+
   const formatted = now.toLocaleString("en-US",{
     timeZone:"America/Phoenix",
-    year:"numeric",month:"short",day:"2-digit",
-    hour:"2-digit",minute:"2-digit",second:"2-digit"
+    year:"numeric",
+    month:"short",
+    day:"2-digit",
+    hour:"2-digit",
+    minute:"2-digit",
+    second:"2-digit"
   });
+
   document.getElementById("azDateTime").innerText = formatted;
 
   const hour = now.getHours();
   let greet = "Good Evening";
   if(hour < 12) greet = "Good Morning";
   else if(hour < 18) greet = "Good Afternoon";
+
   document.getElementById("greetingText").innerText = greet;
 }
+
 updateTime();
 setInterval(updateTime,1000);
 
