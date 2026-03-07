@@ -1,50 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sunbeam Dashboard</title>
-  <link rel="stylesheet" href="layout.css">
+<meta charset="UTF-8">
+<title>Sunbeam Transportation – Taxes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="layout.css">
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI', Arial, sans-serif;
+background:#f4f7fb;
+}
+
+.container{
+max-width:1500px;
+margin:auto;
+padding:50px 25px;
+}
+
+.section-title{
+font-size:22px;
+font-weight:700;
+color:#1e3a8a;
+margin-bottom:30px;
+}
+
+.tax-box{
+background:#fff;
+padding:40px;
+border-radius:16px;
+box-shadow:0 8px 20px rgba(0,0,0,.08);
+margin-bottom:30px;
+}
+
+.tax-box h3{
+margin-top:0;
+font-size:18px;
+color:#0f172a;
+}
+
+.tax-box p{
+color:#64748b;
+font-size:15px;
+}
+
+</style>
 </head>
+
 <body>
 
-<header class="topbar">
-  <div class="logo">
-    <img src="../assets/logo.png" alt="Sunbeam">
-  </div>
+<div id="layoutHeader"></div>
 
-  <div class="company-name">
-    Sunbeam Transportation LLC
-  </div>
+<div class="container">
 
-  <div class="datetime">
-    <div id="greeting"></div>
-    <div id="clock"></div>
-  </div>
-</header>
+<div class="section-title">Taxes & Earnings</div>
 
-<div class="layout">
+<div class="tax-box">
+<h3>Driver Payments</h3>
+<p>This section will calculate driver payments automatically.</p>
+</div>
 
-<aside class="sidebar">
-  <h3>Company Panel</h3>
+<div class="tax-box">
+<h3>Company Earnings</h3>
+<p>This section will show company revenue and expenses.</p>
+</div>
 
-  <a href="dashboard.html">Dashboard</a>
-  <a href="add-trip.html">Add Trip</a>
-  <a href="review.html">Review Trips</a>
-  <a href="summary.html">Summary</a>
-  <a href="taxes.html">Taxes</a>
-
-  <hr>
-
-  <a href="#" onclick="logout()" class="logout">Logout</a>
-</aside>
-
-  <main class="content">
-    <h1>Welcome to Sunbeam Dashboard</h1>
-    <p>Select an option from the sidebar to manage your transportation services.</p>
-  </main>
+<div class="tax-box">
+<h3>Tax Reports</h3>
+<p>Yearly tax reports and financial summaries will appear here.</p>
+</div>
 
 </div>
 
 <script src="layout.js"></script>
+
 </body>
 </html>

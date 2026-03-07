@@ -1,91 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Company Summary</title>
-  <link rel="stylesheet" href="layout.css">
-  <link rel="stylesheet" href="summary.css">
+<meta charset="UTF-8">
+<title>Sunbeam Transportation – Summary</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="layout.css">
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI', Arial, sans-serif;
+background:#f4f7fb;
+}
+
+.container{
+max-width:1500px;
+margin:auto;
+padding:50px 25px;
+}
+
+.section-title{
+font-size:22px;
+font-weight:700;
+color:#1e3a8a;
+margin-bottom:30px;
+}
+
+.cards{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+gap:25px;
+}
+
+.card{
+background:#fff;
+padding:30px;
+border-radius:16px;
+box-shadow:0 10px 25px rgba(0,0,0,.07);
+border-left:6px solid #1e3a8a;
+}
+
+.card h3{
+margin:0;
+font-size:14px;
+color:#64748b;
+text-transform:uppercase;
+}
+
+.card p{
+margin-top:18px;
+font-size:34px;
+font-weight:800;
+color:#0f172a;
+}
+
+.placeholder{
+margin-top:60px;
+background:#fff;
+padding:40px;
+border-radius:16px;
+box-shadow:0 8px 20px rgba(0,0,0,.08);
+text-align:center;
+color:#64748b;
+font-size:16px;
+}
+
+</style>
 </head>
+
 <body>
 
-<header class="topbar">
-  <div class="logo">Sunbeam</div>
-  <div class="company-name" id="companyName"></div>
-  <div class="datetime">
-    <div id="greeting"></div>
-    <div id="clock"></div>
-  </div>
-</header>
+<div id="layoutHeader"></div>
 
-<div class="layout">
+<div class="container">
 
-  <aside class="sidebar">
-    <h3>Company Panel</h3>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="review.html">Review Trips</a>
-    <a href="summary.html" class="active">Summary</a>
-    <a href="taxes.html">Taxes</a>
-  </aside>
+<div class="section-title">Trips Summary</div>
 
-  <main class="content">
+<div class="cards">
 
-    <!-- Billing Explanation -->
-    <div class="billing-box">
-      <h3>Company Billing Summary</h3>
-      <p>This page shows how each trip total is calculated.</p>
-      <ul>
-        <li>$30 covers the first 10 miles</li>
-        <li>$2 per mile after 10 miles</li>
-        <li>$5 per stop</li>
-        <li>$15 No Show fee</li>
-        <li>$15 Cancellation within 2 hours</li>
-        <li>$1 per minute delay after 15 minutes</li>
-      </ul>
-    </div>
-
-    <!-- Search -->
-    <div class="summary-search">
-      <div class="field">
-        <label>Trip Number (Full)</label>
-        <input id="searchTrip" placeholder="TRP-1729458734923">
-      </div>
-
-      <div class="field">
-        <label>Date</label>
-        <input type="date" id="searchDate">
-      </div>
-
-      <button id="searchBtn">Search</button>
-      <button id="resetBtn">Reset</button>
-    </div>
-
-    <!-- Actions -->
-    <div class="summary-actions">
-      <button onclick="window.print()">🖨 Print</button>
-      <button onclick="sendEmail()">✉ Send Email</button>
-    </div>
-
-    <!-- Table -->
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Trip</th>
-            <th>Miles</th>
-            <th>Stops</th>
-            <th>Delay</th>
-            <th>No Show</th>
-            <th>Cancelled</th>
-            <th>Total ($)</th>
-          </tr>
-        </thead>
-        <tbody id="summaryBody"></tbody>
-      </table>
-    </div>
-
-  </main>
+<div class="card">
+<h3>Total Trips</h3>
+<p>0</p>
 </div>
 
-<script src="summary.js"></script>
+<div class="card">
+<h3>Completed</h3>
+<p>0</p>
+</div>
+
+<div class="card">
+<h3>No Show</h3>
+<p>0</p>
+</div>
+
+<div class="card">
+<h3>Cancelled</h3>
+<p>0</p>
+</div>
+
+</div>
+
+<div class="placeholder">
+Summary analytics will appear here once trips start running.
+</div>
+
+</div>
+
+<script src="layout.js"></script>
+
 </body>
 </html>
