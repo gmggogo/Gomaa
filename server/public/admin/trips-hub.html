@@ -1,545 +1,301 @@
-/* ===============================
-   API
-================================ */
-const API_URL = "/api/trips";
+<!DOCTYPE html>
+<html lang="en">
 
-/* ===============================
-   STATE
-================================ */
-let allHubTrips = [];
-let hubTrips = [];
-let currentSearch = "";
+<head>
 
-const container   = document.getElementById("hubContainer");
-const searchInput = document.getElementById("searchInput");
-const addBtn      = document.getElementById("addManualTripBtn");
+<meta charset="UTF-8">
+<title>Trips Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-if (!container) console.error("Missing #hubContainer in HTML");
+<link rel="stylesheet" href="/admin/trips-hub.css">
 
-/* ===============================
-   STYLE
-================================ */
-(function injectTinyStyle(){
-  if (document.getElementById("tripHopTinyStyle")) return;
+<style>
 
-  const s = document.createElement("style");
-  s.id = "tripHopTinyStyle";
-  s.innerHTML = `
-    .hub-table{width:100%;border-collapse:collapse;font-size:11px}
-    .hub-table th{background:#0f172a;color:#fff;padding:6px;position:sticky;top:0}
-    .hub-table td{border:1px solid #e5e7eb;padding:3px}
-    .hub-table input,.hub-table textarea{
-      width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box
-    }
-    .hub-actions{display:flex;gap:6px;justify-content:center}
-    .hub-btn{
-      border:none;border-radius:6px;padding:5px 8px;font-size:11px;
-      cursor:pointer;color:#fff
-    }
-    .hub-btn.edit{background:#3b82f6}
-    .hub-btn.save{background:#16a34a}
-    .hub-btn.delete{background:#ef4444}
-  `;
-  document.head.appendChild(s);
-})();
-
-/* ===============================
-   HELPERS
-================================ */
-
-function formatDate(iso){
-  if(!iso) return "-";
-  const d = new Date(iso);
-  if(isNaN(d)) return "-";
-  return d.toLocaleDateString()+" "+d.toLocaleTimeString([],{
-    hour:"2-digit",
-    minute:"2-digit"
-  });
+:root{
+  --blue:#0f172a;
+  --gold:#facc15;
 }
 
-function getTripNumber(t){
-  return t.tripNumber || "-";
+body{
+  margin:0;
+  padding-top:95px;
+  font-family:Arial, Helvetica, sans-serif;
+  background:#f8fafc;
 }
 
-function isTripPassed(t){
-  if(!t.tripDate || !t.tripTime) return false;
-  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-  return new Date() >= tripDateTime;
+/* ===== HEADER ===== */
+
+.page-header{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:85px;
+  background:linear-gradient(90deg,var(--blue),#1e293b);
+  display:flex;
+  align-items:center;
+  padding:0 20px;
+  color:#fff;
+  border-bottom:3px solid var(--gold);
+  z-index:999;
 }
 
-function shouldRemoveTrip(t){
-  if(!t.tripDate || !t.tripTime) return false;
-  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-  const diff = (new Date()-tripDateTime)/(1000*60*60);
-  return diff >= 24;
+.header-left{
+  width:25%;
 }
 
-/* ===============================
-   ROW COLORS
-================================ */
-
-function rowColor(tr,t){
-
-  if(isTripPassed(t)){
-    tr.style.background="#ffe5e5";
-    tr.style.borderLeft="4px solid #dc2626";
-    return;
-  }
-
-  if(t.type==="gh")
-    tr.style.background="#e8f4ff";
-
-  else if(t.type==="company")
-    tr.style.background="#fff6d6";
-
-  else if(t.type==="Reserved")
-    tr.style.background="#ecfdf5";
+.back-btn{
+  background:var(--gold);
+  border:none;
+  border-radius:8px;
+  padding:6px 12px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
-/* ===============================
-   RESERVED NUMBER
-================================ */
+.header-center{
+  width:50%;
+  text-align:center;
+}
 
-function nextReservedNumber(){
+.header-center h1{
+  margin:0;
+  font-size:18px;
+  color:var(--gold);
+}
 
-  const key="lastRV";
+.header-center p{
+  margin-top:4px;
+  font-size:12px;
+}
 
-  let last=parseInt(localStorage.getItem(key)||"1000");
+.header-right{
+  width:25%;
+  text-align:right;
+  font-size:12px;
+}
 
-  last++;
+/* ===== TOOLBAR ===== */
 
-  localStorage.setItem(key,last);
+.toolbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin:15px;
+}
 
-  return "RV-"+last;
+.add-btn{
+
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  padding:7px 14px;
+  border-radius:6px;
+  cursor:pointer;
 
 }
 
-/* ===============================
-   LOAD
-================================ */
+.search-input{
 
-async function loadHubTrips(){
-
-  try{
-
-    const res=await fetch(API_URL);
-
-    const data=await res.json();
-
-    allHubTrips=Array.isArray(data)?data:[];
-
-    applySearch();
-
-  }catch{
-
-    allHubTrips=[];
-
-    hubTrips=[];
-
-  }
+  flex:1;
+  padding:7px;
 
 }
 
-/* ===============================
-   SEARCH
-================================ */
+/* ===== TABLE ===== */
 
-function applySearch(){
+.hub-table{
 
-  const base=allHubTrips.filter(t=>!shouldRemoveTrip(t));
-
-  if(!currentSearch){
-
-    hubTrips=base;
-
-    return;
-
-  }
-
-  const v=currentSearch.toLowerCase();
-
-  hubTrips=base.filter(t=>
-
-    JSON.stringify(t).toLowerCase().includes(v)
-
-  );
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
 
 }
 
-/* ===============================
-   ADD RESERVED
-================================ */
+.hub-table th{
 
-async function addReservedTripInline(){
-
-  const newTrip={
-
-    tripNumber:nextReservedNumber(),
-
-    type:"Reserved",
-
-    company:"",
-
-    entryName:"",
-
-    entryPhone:"",
-
-    clientName:"",
-
-    clientPhone:"",
-
-    pickup:"Reserved Pickup",
-
-    stops:[],
-
-    dropoff:"Reserved Dropoff",
-
-    notes:"",
-
-    tripDate:"",
-
-    tripTime:"",
-
-    status:"Booked",
-
-    createdAt:new Date().toISOString()
-
-  };
-
-  await fetch(API_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(newTrip)
-  });
-
-  await loadHubTrips();
-
-  render();
+  background:#0f172a;
+  color:#fff;
+  padding:6px;
 
 }
 
-if(addBtn){
+.hub-table td{
 
-addBtn.addEventListener("click",async e=>{
-
-e.preventDefault();
-
-addReservedTripInline();
-
-});
+  border:1px solid #e5e7eb;
+  padding:5px;
 
 }
 
-/* ===============================
-   EDIT
-================================ */
+.hub-btn{
 
-function editTripRow(btn){
-
-const ok=confirm(
-
-"⚠️ Warning\n\nYou are about to edit this trip.\n\nMake sure changes are correct."
-
-);
-
-if(!ok)return;
-
-const tr=btn.closest("tr");
-
-const inputs=tr.querySelectorAll("input,textarea");
-
-inputs.forEach(el=>{
-
-if(el.dataset.lock!=="true")
-
-el.disabled=false;
-
-});
-
-tr.querySelector(".save").style.display="inline-block";
-
-btn.style.display="none";
+  border:none;
+  border-radius:6px;
+  padding:5px 10px;
+  font-size:11px;
+  cursor:pointer;
+  color:#fff;
 
 }
 
-/* ===============================
-   SAVE
-================================ */
+.edit-btn{
 
-async function saveTripRow(btn,id){
-
-const tr=btn.closest("tr");
-
-const inputs=tr.querySelectorAll("input,textarea");
-
-const updated={
-
-company:inputs[2].value,
-
-entryName:inputs[3].value,
-
-entryPhone:inputs[4].value,
-
-clientName:inputs[5].value,
-
-clientPhone:inputs[6].value,
-
-pickup:inputs[7].value,
-
-dropoff:inputs[9].value,
-
-notes:inputs[10].value,
-
-tripDate:inputs[11].value,
-
-tripTime:inputs[12].value
-
-};
-
-await fetch(`/api/trips/${id}`,{
-
-method:"PUT",
-
-headers:{"Content-Type":"application/json"},
-
-body:JSON.stringify(updated)
-
-});
-
-await loadHubTrips();
-
-render();
+  background:#3b82f6;
 
 }
 
-/* ===============================
-   DELETE
-================================ */
+.delete-btn{
 
-async function deleteTripConfirm(tripNumber){
-
-const ok=confirm(
-
-"⚠️ WARNING\n\nDeleting this trip cannot be undone.\n\nAre you sure?"
-
-);
-
-if(!ok)return;
-
-const trip=allHubTrips.find(t=>String(getTripNumber(t))===String(tripNumber));
-
-if(!trip||!trip._id)return;
-
-await fetch(`/api/trips/${trip._id}`,{
-
-method:"DELETE"
-
-});
-
-await loadHubTrips();
-
-render();
+  background:#ef4444;
 
 }
 
-window.deleteTripConfirm=deleteTripConfirm;
-window.editTripRow=editTripRow;
-window.saveTripRow=saveTripRow;
+</style>
 
-/* ===============================
-   RENDER
-================================ */
+</head>
 
-function render(){
+<body>
 
-applySearch();
+<!-- HEADER -->
 
-container.innerHTML="";
+<header class="page-header">
 
-if(!hubTrips.length){
+<div class="header-left">
 
-container.innerHTML="<p>No trips found</p>";
-
-return;
-
-}
-
-const table=document.createElement("table");
-
-table.className="hub-table";
-
-table.innerHTML=`
-
-<thead>
-
-<tr>
-
-<th>#</th>
-
-<th>Trip #</th>
-
-<th>Type</th>
-
-<th>Company</th>
-
-<th>Entry</th>
-
-<th>Entry Phone</th>
-
-<th>Client</th>
-
-<th>Client Phone</th>
-
-<th>Pickup</th>
-
-<th>Stops</th>
-
-<th>Dropoff</th>
-
-<th>Notes</th>
-
-<th>Date</th>
-
-<th>Time</th>
-
-<th>Status</th>
-
-<th>Booked</th>
-
-<th>Actions</th>
-
-</tr>
-
-</thead>
-
-<tbody></tbody>
-
-`;
-
-const tbody=table.querySelector("tbody");
-
-hubTrips.forEach((t,i)=>{
-
-const tr=document.createElement("tr");
-
-rowColor(tr,t);
-
-const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):"";
-
-tr.innerHTML=`
-
-<td>${i+1}</td>
-
-<td><input value="${t.tripNumber}" disabled data-lock="true"></td>
-
-<td><input value="${t.type}" disabled data-lock="true"></td>
-
-<td><input value="${t.company||""}" disabled></td>
-
-<td><input value="${t.entryName||""}" disabled></td>
-
-<td><input value="${t.entryPhone||""}" disabled></td>
-
-<td><input value="${t.clientName||""}" disabled></td>
-
-<td><input value="${t.clientPhone||""}" disabled></td>
-
-<td><input value="${t.pickup||""}" disabled></td>
-
-<td><input value="${stopsStr}" disabled></td>
-
-<td><input value="${t.dropoff||""}" disabled></td>
-
-<td><textarea disabled>${t.notes||""}</textarea></td>
-
-<td><input type="date" value="${t.tripDate||""}" disabled></td>
-
-<td><input type="time" value="${t.tripTime||""}" disabled></td>
-
-<td>${t.status||"Booked"}</td>
-
-<td>${formatDate(t.createdAt)}</td>
-
-<td>
-
-<div class="hub-actions">
-
-<button class="hub-btn edit"
-
-onclick="editTripRow(this)">
-
-Edit
-
-</button>
-
-<button class="hub-btn save"
-
-style="display:none"
-
-onclick="saveTripRow(this,'${t._id}')">
-
-Save
-
-</button>
-
-<button class="hub-btn delete"
-
-onclick="deleteTripConfirm('${t.tripNumber}')">
-
-Delete
-
-</button>
+<button class="back-btn" onclick="goBack()">← Back</button>
 
 </div>
 
-</td>
+<div class="header-center">
 
-`;
+<h1>Trips Hub</h1>
 
-tbody.appendChild(tr);
+<p id="welcomeText">Welcome</p>
 
-});
+</div>
 
-container.appendChild(table);
+<div class="header-right">
+
+<span id="clock"></span>
+
+</div>
+
+</header>
+
+<!-- TOOLBAR -->
+
+<div class="toolbar">
+
+<button
+id="addManualTripBtn"
+class="add-btn"
+onclick="confirmAddTrip()">
+
+Add Reserved Trip
+
+</button>
+
+<input
+id="searchInput"
+class="search-input"
+placeholder="Search trip #, name, phone, company">
+
+</div>
+
+<!-- TRIPS TABLE -->
+
+<div id="hubContainer"></div>
+
+<!-- JS FILE -->
+
+<script src="/admin/trips-hub.js"></script>
+
+<script>
+
+/* ===== Admin Name ===== */
+
+const adminRaw = localStorage.getItem("loggedAdmin");
+
+if(adminRaw){
+
+const admin = JSON.parse(adminRaw);
+
+const name = admin.name || admin.username || admin.fullName || "";
+
+document.getElementById("welcomeText").innerText =
+name ? "Welcome, " + name : "Welcome";
 
 }
 
-/* ===============================
-   SEARCH
-================================ */
+/* ===== CLOCK ===== */
 
-if(searchInput){
+function updateClock(){
 
-searchInput.addEventListener("input",()=>{
+const now = new Date();
 
-currentSearch=searchInput.value.trim();
-
-render();
-
-});
+document.getElementById("clock").innerText =
+now.toLocaleDateString() + " " + now.toLocaleTimeString();
 
 }
 
-/* ===============================
-   AUTO REFRESH
-================================ */
+setInterval(updateClock,1000);
+updateClock();
 
-setInterval(async()=>{
+/* ===== BACK BUTTON ===== */
 
-await loadHubTrips();
+function goBack(){
 
-render();
+window.history.back();
 
-},60000);
+}
 
-/* ===============================
-   INIT
-================================ */
+/* ===== ADD TRIP WARNING ===== */
 
-(async function(){
+function confirmAddTrip(){
 
-await loadHubTrips();
+const ok = confirm(
+"Warning:\nOnly Admin or Dispatcher should create Reserved Trips.\nContinue?"
+);
 
-render();
+if(!ok) return;
 
-})();
+if(window.addReservedTripInline)
+addReservedTripInline();
+
+}
+
+/* ===== EDIT WARNING ===== */
+
+function confirmEditTrip(tripNumber){
+
+const ok = confirm(
+"Warning:\nEditing a trip may affect dispatch.\nContinue?"
+);
+
+if(!ok) return;
+
+if(window.editTripConfirm)
+editTripConfirm(tripNumber);
+
+}
+
+/* ===== DELETE WARNING ===== */
+
+function confirmDeleteTrip(tripNumber){
+
+const ok = confirm(
+"Warning:\nDeleting a trip cannot be undone.\nDelete this trip?"
+);
+
+if(!ok) return;
+
+if(window.deleteTripConfirm)
+deleteTripConfirm(tripNumber);
+
+}
+
+</script>
+
+</body>
+
+</html>

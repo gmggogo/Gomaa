@@ -1,7 +1,8 @@
 /* ===============================
    API
 ================================ */
-const API_URL = "/api/trips/company";
+const LOAD_API_URL = "/api/trips/company";
+const CREATE_API_URL = "/api/trips";
 
 /* ===============================
    STATE
@@ -10,14 +11,17 @@ let allHubTrips = [];
 let hubTrips = [];
 let currentSearch = "";
 
+/* ===============================
+   ELEMENTS
+================================ */
 const container   = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
 const addBtn      = document.getElementById("addManualTripBtn");
 
-if (!container) console.error("Missing #hubContainer");
+if (!container) console.error("Missing #hubContainer in HTML");
 
 /* ===============================
-   STYLE
+   SMALL STYLE
 ================================ */
 (function injectTinyStyle(){
   if (document.getElementById("tripHopTinyStyle")) return;
@@ -28,14 +32,17 @@ if (!container) console.error("Missing #hubContainer");
     .hub-table{width:100%;border-collapse:collapse;font-size:11px}
     .hub-table th{background:#0f172a;color:#fff;padding:6px;position:sticky;top:0;z-index:2}
     .hub-table td{border:1px solid #e5e7eb;padding:3px;vertical-align:middle}
-    .hub-table input,.hub-table select,.hub-table textarea{
+    .hub-table input,.hub-table select{
       width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box
     }
-    .hub-table textarea{resize:vertical}
-    .hub-actions{display:flex;gap:6px;justify-content:center;align-items:center}
+    .hub-table textarea{
+      width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box;
+      resize:vertical;min-height:28px
+    }
+    .hub-actions{display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap}
     .hub-btn{
       border:none;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;
-      color:#fff;opacity:.9
+      color:#fff;opacity:.95
     }
     .hub-btn:active{transform:scale(.97)}
     .hub-btn.edit{background:#3b82f6}
@@ -48,6 +55,14 @@ if (!container) console.error("Missing #hubContainer");
 /* ===============================
    HELPERS
 ================================ */
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
 function formatDate(iso){
   if(!iso) return "-";
   const d = new Date(iso);
@@ -72,8 +87,7 @@ function getBookedAt(t){
 function getTripTypeLabel(t){
   if (!t) return "-";
   if (t.type === "gh") return "Individual";
-  if (t.type === "reserved") return "Reserved";
-  if (t.type === "Reserved") return "Reserved";
+  if (t.type === "reserved" || t.type === "Reserved") return "Reserved";
   return "Company";
 }
 
@@ -115,7 +129,7 @@ function rowColor(tr, t){
 }
 
 /* ===============================
-   NEXT RESERVED NUMBER
+   RESERVED NUMBER
 ================================ */
 function nextReservedNumber(){
   const key = "lastReservedRV";
@@ -126,11 +140,11 @@ function nextReservedNumber(){
 }
 
 /* ===============================
-   LOAD HUB TRIPS
+   LOAD HUB TRIPS (ONLINE)
 ================================ */
 async function loadHubTrips(){
   try{
-    const res = await fetch(API_URL);
+    const res = await fetch(LOAD_API_URL);
     const data = await res.json();
     allHubTrips = Array.isArray(data) ? data : [];
     applySearch();
@@ -159,16 +173,17 @@ function applySearch(){
 }
 
 /* ===============================
-   ADD RESERVED
-   IMPORTANT:
-   backend must support type:"reserved"
+   ADD RESERVED (ONLINE)
 ================================ */
 async function addReservedTripInline(){
 
-  const reservedNumber = nextReservedNumber();
+  const ok = confirm(
+    "Warning:\nOnly Admin or Dispatcher should create Reserved Trips.\nContinue?"
+  );
+  if(!ok) return;
 
   const newTrip = {
-    tripNumber: reservedNumber,
+    tripNumber: nextReservedNumber(),
     type: "reserved",
     company: "",
     entryName: "",
@@ -186,13 +201,13 @@ async function addReservedTripInline(){
   };
 
   try{
-    const res = await fetch("/api/trips", {
+    const res = await fetch(CREATE_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newTrip)
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if(!res.ok){
       alert(data.message || "Failed to add reserved trip");
@@ -219,16 +234,23 @@ if(addBtn){
 ================================ */
 async function deleteTripConfirm(tripNumber){
 
-  const ok = confirm("Delete this trip?");
+  const ok = confirm(
+    "Warning:\nDeleting a trip cannot be undone.\nDelete this trip?"
+  );
   if(!ok) return;
 
   const trip = allHubTrips.find(t => String(getTripNumber(t)) === String(tripNumber));
   if(!trip || !trip._id) return;
 
   try{
-    await fetch(`/api/trips/${trip._id}`, {
-      method: "DELETE"
+    const res = await fetch(`/api/trips/${trip._id}`,{
+      method:"DELETE"
     });
+
+    if(!res.ok){
+      alert("Delete failed");
+      return;
+    }
 
     await loadHubTrips();
     render();
@@ -242,28 +264,34 @@ async function deleteTripConfirm(tripNumber){
    EDIT
 ================================ */
 function editTripRow(btn){
+
+  const ok = confirm(
+    "Warning:\nEditing this trip may affect dispatch.\nContinue?"
+  );
+  if(!ok) return;
+
   const tr = btn.closest("tr");
   if(!tr) return;
 
   const inputs = tr.querySelectorAll("input, textarea");
 
   inputs.forEach((el, index) => {
-    /* لا نفتح Trip# ولا Type */
+    /* لا تفتح Trip# ولا Type */
     if(index === 0 || index === 1) return;
     el.disabled = false;
   });
 
-  const saveBtn = tr.querySelector(".save");
   const editBtn = tr.querySelector(".edit");
+  const saveBtn = tr.querySelector(".save");
 
-  if(saveBtn) saveBtn.style.display = "inline-block";
   if(editBtn) editBtn.style.display = "none";
+  if(saveBtn) saveBtn.style.display = "inline-block";
 }
 
 /* ===============================
    SAVE
 ================================ */
-async function saveTripRow(btn, id){
+async function saveTripRow(btn,id){
 
   const tr = btn.closest("tr");
   if(!tr) return;
@@ -271,27 +299,32 @@ async function saveTripRow(btn, id){
   const inputs = tr.querySelectorAll("input, textarea");
 
   const updatedTrip = {
-    company: inputs[3].value,
-    entryName: inputs[4].value,
-    entryPhone: inputs[5].value,
-    clientName: inputs[6].value,
+    company:     inputs[3].value,
+    entryName:   inputs[4].value,
+    entryPhone:  inputs[5].value,
+    clientName:  inputs[6].value,
     clientPhone: inputs[7].value,
-    pickup: inputs[8].value,
-    stops: inputs[9].value
+    pickup:      inputs[8].value,
+    stops:       inputs[9].value
       ? inputs[9].value.split("→").map(s => s.trim()).filter(Boolean)
       : [],
-    dropoff: inputs[10].value,
-    notes: inputs[11].value,
-    tripDate: inputs[12].value,
-    tripTime: inputs[13].value
+    dropoff:     inputs[10].value,
+    notes:       inputs[11].value,
+    tripDate:    inputs[12].value,
+    tripTime:    inputs[13].value
   };
 
   try{
-    await fetch("/api/trips/" + id, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch(`/api/trips/${id}`,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(updatedTrip)
     });
+
+    if(!res.ok){
+      alert("Save failed");
+      return;
+    }
 
     await loadHubTrips();
     render();
@@ -301,7 +334,7 @@ async function saveTripRow(btn, id){
   }
 }
 
-/* expose for inline onclick */
+/* expose to inline buttons */
 window.deleteTripConfirm = deleteTripConfirm;
 window.editTripRow = editTripRow;
 window.saveTripRow = saveTripRow;
@@ -360,20 +393,20 @@ function render(){
 
     tr.innerHTML = `
       <td>${i+1}</td>
-      <td><input value="${tripNum}" disabled></td>
-      <td><input value="${getTripTypeLabel(t)}" disabled></td>
-      <td><input value="${t.company || ""}" disabled></td>
-      <td><input value="${t.entryName || ""}" disabled></td>
-      <td><input value="${t.entryPhone || ""}" disabled></td>
-      <td><input value="${t.clientName || ""}" disabled></td>
-      <td><input value="${t.clientPhone || ""}" disabled></td>
-      <td><input value="${t.pickup || ""}" disabled></td>
-      <td><input value="${stopsStr}" disabled></td>
-      <td><input value="${t.dropoff || ""}" disabled></td>
-      <td><textarea disabled>${t.notes || ""}</textarea></td>
-      <td><input type="date" value="${t.tripDate || ""}" disabled></td>
-      <td><input type="time" value="${t.tripTime || ""}" disabled></td>
-      <td>${t.status || "Booked"}</td>
+      <td><input value="${escapeHtml(tripNum)}" disabled></td>
+      <td><input value="${escapeHtml(getTripTypeLabel(t))}" disabled></td>
+      <td><input value="${escapeHtml(t.company || "")}" disabled></td>
+      <td><input value="${escapeHtml(t.entryName || "")}" disabled></td>
+      <td><input value="${escapeHtml(t.entryPhone || "")}" disabled></td>
+      <td><input value="${escapeHtml(t.clientName || "")}" disabled></td>
+      <td><input value="${escapeHtml(t.clientPhone || "")}" disabled></td>
+      <td><input value="${escapeHtml(t.pickup || "")}" disabled></td>
+      <td><input value="${escapeHtml(stopsStr)}" disabled></td>
+      <td><input value="${escapeHtml(t.dropoff || "")}" disabled></td>
+      <td><textarea disabled>${escapeHtml(t.notes || "")}</textarea></td>
+      <td><input type="date" value="${escapeHtml(t.tripDate || "")}" disabled></td>
+      <td><input type="time" value="${escapeHtml(t.tripTime || "")}" disabled></td>
+      <td>${escapeHtml(t.status || "Booked")}</td>
       <td>${formatDate(getBookedAt(t))}</td>
       <td>
         <div class="hub-actions">
@@ -406,7 +439,7 @@ if(searchInput){
 setInterval(async function(){
   await loadHubTrips();
   render();
-}, 60000);
+},60000);
 
 /* ===============================
    INIT

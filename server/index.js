@@ -32,8 +32,8 @@ app.use(express.static(path.join(__dirname, "public")));
    MONGO CONNECT
 ========================= */
 mongoose.connect(MONGO_URI)
-.then(() => console.log("✅ Mongo Connected"))
-.catch(err => console.log("❌ Mongo Error:", err));
+  .then(() => console.log("✅ Mongo Connected"))
+  .catch(err => console.log("❌ Mongo Error:", err));
 
 /* =========================
    USER MODEL
@@ -263,7 +263,9 @@ app.post("/api/trips", async (req, res) => {
       return res.status(400).json({ message: "Pickup and Dropoff required" });
     }
 
-    const type = req.body.type || "company";
+    const rawType = req.body.type || "company";
+    const type = String(rawType).toLowerCase();
+
     let tripNumber = "";
 
     /* =========================
@@ -283,6 +285,25 @@ app.post("/api/trips", async (req, res) => {
       }
 
       tripNumber = "GH" + next;
+    }
+
+    /* =========================
+       RESERVED TRIPS
+       START FROM RV-1001
+    ========================= */
+    else if (type === "reserved") {
+      const lastTrip = await Trip.findOne({
+        tripNumber: { $regex: /^RV-\d+$/ }
+      }).sort({ createdAt: -1 });
+
+      let next = 1001;
+
+      if (lastTrip) {
+        const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
+        if (!isNaN(num)) next = num + 1;
+      }
+
+      tripNumber = "RV-" + next;
     }
 
     /* =========================
@@ -320,6 +341,7 @@ app.post("/api/trips", async (req, res) => {
 
     const trip = await Trip.create({
       ...req.body,
+      type,
       tripNumber
     });
 
@@ -331,7 +353,7 @@ app.post("/api/trips", async (req, res) => {
 });
 
 /* =========================
-   GET ALL TRIPS
+   GET ALL TRIPS FOR HUB
 ========================= */
 app.get("/api/trips/company", async (req, res) => {
   try {
@@ -343,7 +365,19 @@ app.get("/api/trips/company", async (req, res) => {
 });
 
 /* =========================
-   GET COMPANY TRIPS
+   OPTIONAL DIRECT GET ALL TRIPS
+========================= */
+app.get("/api/trips", async (req, res) => {
+  try {
+    const trips = await Trip.find().sort({ createdAt: -1 });
+    res.json(trips);
+  } catch (err) {
+    res.status(500).json({ message: "Error loading trips" });
+  }
+});
+
+/* =========================
+   GET COMPANY TRIPS ONLY
 ========================= */
 app.get("/api/trips/company/:company", async (req, res) => {
   try {
