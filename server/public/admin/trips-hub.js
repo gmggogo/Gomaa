@@ -14,10 +14,10 @@ const container   = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
 const addBtn      = document.getElementById("addManualTripBtn");
 
-if (!container) console.error("Missing #hubContainer in HTML");
+if (!container) console.error("Missing #hubContainer");
 
 /* ===============================
-   SMALL STYLE
+   STYLE
 ================================ */
 (function injectTinyStyle(){
   if (document.getElementById("tripHopTinyStyle")) return;
@@ -28,13 +28,10 @@ if (!container) console.error("Missing #hubContainer in HTML");
     .hub-table{width:100%;border-collapse:collapse;font-size:11px}
     .hub-table th{background:#0f172a;color:#fff;padding:6px;position:sticky;top:0;z-index:2}
     .hub-table td{border:1px solid #e5e7eb;padding:3px;vertical-align:middle}
-    .hub-table input,.hub-table select{
+    .hub-table input,.hub-table select,.hub-table textarea{
       width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box
     }
-    .hub-table textarea{
-      width:100%;font-size:11px;padding:2px 4px;box-sizing:border-box;
-      resize:vertical;
-    }
+    .hub-table textarea{resize:vertical}
     .hub-actions{display:flex;gap:6px;justify-content:center;align-items:center}
     .hub-btn{
       border:none;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;
@@ -73,10 +70,11 @@ function getBookedAt(t){
 }
 
 function getTripTypeLabel(t){
-  if (!t || !t.type || t.type === "company") return "Company";
+  if (!t) return "-";
   if (t.type === "gh") return "Individual";
+  if (t.type === "reserved") return "Reserved";
   if (t.type === "Reserved") return "Reserved";
-  return String(t.type);
+  return "Company";
 }
 
 function isTripPassed(t){
@@ -108,11 +106,11 @@ function rowColor(tr, t){
   if (t && t.type === "gh") {
     tr.style.backgroundColor = "#e8f4ff";
   }
-  else if (t && (!t.type || t.type === "company")) {
-    tr.style.backgroundColor = "#fff6d6";
-  }
-  else if (t && t.type === "Reserved") {
+  else if (t && (t.type === "reserved" || t.type === "Reserved")) {
     tr.style.backgroundColor = "#ecfdf5";
+  }
+  else {
+    tr.style.backgroundColor = "#fff6d6";
   }
 }
 
@@ -120,15 +118,15 @@ function rowColor(tr, t){
    NEXT RESERVED NUMBER
 ================================ */
 function nextReservedNumber(){
-  const key = "lastReservedRE";
+  const key = "lastReservedRV";
   let last = parseInt(localStorage.getItem(key) || "1000", 10);
   last++;
   localStorage.setItem(key, String(last));
-  return "RE-" + last;
+  return "RV-" + last;
 }
 
 /* ===============================
-   LOAD HUB TRIPS (ONLINE)
+   LOAD HUB TRIPS
 ================================ */
 async function loadHubTrips(){
   try{
@@ -147,7 +145,7 @@ async function loadHubTrips(){
    SEARCH APPLY
 ================================ */
 function applySearch(){
-  const baseTrips = allHubTrips.filter(t => !shouldRemoveTrip(t));
+  const baseTrips = [...allHubTrips].filter(t => !shouldRemoveTrip(t));
 
   if(!currentSearch){
     hubTrips = baseTrips;
@@ -161,13 +159,17 @@ function applySearch(){
 }
 
 /* ===============================
-   ADD RESERVED (ONLINE)
+   ADD RESERVED
+   IMPORTANT:
+   backend must support type:"reserved"
 ================================ */
 async function addReservedTripInline(){
 
+  const reservedNumber = nextReservedNumber();
+
   const newTrip = {
-    tripNumber: nextReservedNumber(),
-    type: "Reserved",
+    tripNumber: reservedNumber,
+    type: "reserved",
     company: "",
     entryName: "",
     entryPhone: "",
@@ -183,14 +185,26 @@ async function addReservedTripInline(){
     createdAt: new Date().toISOString()
   };
 
-  await fetch("/api/trips", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newTrip)
-  });
+  try{
+    const res = await fetch("/api/trips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTrip)
+    });
 
-  await loadHubTrips();
-  render();
+    const data = await res.json();
+
+    if(!res.ok){
+      alert(data.message || "Failed to add reserved trip");
+      return;
+    }
+
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Add reserved error:", err);
+    alert("Failed to add reserved trip");
+  }
 }
 
 if(addBtn){
@@ -212,8 +226,8 @@ async function deleteTripConfirm(tripNumber){
   if(!trip || !trip._id) return;
 
   try{
-    await fetch(`/api/trips/${trip._id}`,{
-      method:"DELETE"
+    await fetch(`/api/trips/${trip._id}`, {
+      method: "DELETE"
     });
 
     await loadHubTrips();
@@ -224,7 +238,73 @@ async function deleteTripConfirm(tripNumber){
   }
 }
 
+/* ===============================
+   EDIT
+================================ */
+function editTripRow(btn){
+  const tr = btn.closest("tr");
+  if(!tr) return;
+
+  const inputs = tr.querySelectorAll("input, textarea");
+
+  inputs.forEach((el, index) => {
+    /* لا نفتح Trip# ولا Type */
+    if(index === 0 || index === 1) return;
+    el.disabled = false;
+  });
+
+  const saveBtn = tr.querySelector(".save");
+  const editBtn = tr.querySelector(".edit");
+
+  if(saveBtn) saveBtn.style.display = "inline-block";
+  if(editBtn) editBtn.style.display = "none";
+}
+
+/* ===============================
+   SAVE
+================================ */
+async function saveTripRow(btn, id){
+
+  const tr = btn.closest("tr");
+  if(!tr) return;
+
+  const inputs = tr.querySelectorAll("input, textarea");
+
+  const updatedTrip = {
+    company: inputs[3].value,
+    entryName: inputs[4].value,
+    entryPhone: inputs[5].value,
+    clientName: inputs[6].value,
+    clientPhone: inputs[7].value,
+    pickup: inputs[8].value,
+    stops: inputs[9].value
+      ? inputs[9].value.split("→").map(s => s.trim()).filter(Boolean)
+      : [],
+    dropoff: inputs[10].value,
+    notes: inputs[11].value,
+    tripDate: inputs[12].value,
+    tripTime: inputs[13].value
+  };
+
+  try{
+    await fetch("/api/trips/" + id, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedTrip)
+    });
+
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Save error:", err);
+    alert("Save failed");
+  }
+}
+
+/* expose for inline onclick */
 window.deleteTripConfirm = deleteTripConfirm;
+window.editTripRow = editTripRow;
+window.saveTripRow = saveTripRow;
 
 /* ===============================
    RENDER
@@ -297,7 +377,9 @@ function render(){
       <td>${formatDate(getBookedAt(t))}</td>
       <td>
         <div class="hub-actions">
-          <button class="hub-btn delete" onclick="deleteTripConfirm('${tripNum}')">🗑 Delete</button>
+          <button class="hub-btn edit" onclick="editTripRow(this)">Edit</button>
+          <button class="hub-btn save save" style="display:none" onclick="saveTripRow(this,'${t._id}')">Save</button>
+          <button class="hub-btn delete" onclick="deleteTripConfirm('${tripNum}')">Delete</button>
         </div>
       </td>
     `;
