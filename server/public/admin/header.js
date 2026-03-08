@@ -1,153 +1,119 @@
 // ================= LOAD HEADER =================
-
 fetch("header.html")
 .then(res => res.text())
 .then(html => {
 
-document.getElementById("adminHeader").innerHTML = html;
+  document.getElementById("adminHeader").innerHTML = html;
 
-setActiveNav();
-
-startArizonaTime();
-
-loadAdminName();
+  setActiveNav();
+  startArizonaTime();
+  loadAdminName();
 
 });
 
 
-
-// ================= GET ADMIN NAME =================
-
+// ================= GET ADMIN NAME FROM API =================
 async function loadAdminName(){
 
-let adminName = "Admin";
+  let adminName = "Admin";
 
-try{
+  try{
 
-const res = await fetch("/api/users/admin");
+    const res = await fetch("/api/users/admin");
+    const users = await res.json();
 
-const users = await res.json();
+    if(users && users.length){
+      // نستخدم username وليس name
+      adminName = users[0].username || "Admin";
+    }
 
-if(users.length > 0){
+  }catch(e){}
 
-adminName = users[0].name;
-
-}
-
-}catch(e){}
-
-startWelcomeMessage(adminName);
+  startWelcomeMessage(adminName);
 
 }
-
 
 
 // ================= ACTIVE NAV =================
-
 function setActiveNav(){
 
-const page = location.pathname.split("/").pop();
+  const page = location.pathname.split("/").pop();
 
-document.querySelectorAll(".nav-btn").forEach(btn => {
-
-if(btn.getAttribute("href") === page){
-
-btn.classList.add("active");
-
-}
-
-});
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    if(btn.getAttribute("href") === page){
+      btn.classList.add("active");
+    }
+  });
 
 }
-
 
 
 // ================= ARIZONA TIME =================
-
 function startArizonaTime(){
 
-function updateTime(){
+  function updateTime(){
 
-const now = new Date().toLocaleString("en-US",{
+    const now = new Date().toLocaleString("en-US",{
+      timeZone:"America/Phoenix",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit",
+      year:"numeric",
+      month:"short",
+      day:"2-digit"
+    });
 
-timeZone:"America/Phoenix",
+    const el = document.getElementById("azTime");
+    if(el) el.innerText = now;
 
-hour:"2-digit",
-minute:"2-digit",
-second:"2-digit",
+  }
 
-year:"numeric",
-month:"short",
-day:"2-digit"
-
-});
-
-const el = document.getElementById("azTime");
-
-if(el) el.innerText = now;
-
-}
-
-updateTime();
-
-setInterval(updateTime,1000);
+  updateTime();
+  setInterval(updateTime,1000);
 
 }
-
 
 
 // ================= WELCOME MESSAGE =================
-
 function startWelcomeMessage(admin){
 
-const phoenixTime = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
-const hour = new Date(phoenixTime).getHours();
+  const phoenixTime = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+  const hour = new Date(phoenixTime).getHours();
 
-let greeting="";
-let icon="";
+  let greeting="";
+  let icon="";
 
-if(hour>=5 && hour<12){
+  if(hour>=5 && hour<12){
+    greeting="Good Morning";
+    icon="☀️";
+  }
+  else if(hour>=12 && hour<17){
+    greeting="Good Afternoon";
+    icon="⛅";
+  }
+  else if(hour>=17 && hour<21){
+    greeting="Good Evening";
+    icon="🌇";
+  }
+  else{
+    greeting="Good Night";
+    icon="🌙";
+  }
 
-greeting="Good Morning";
-icon="☀️";
+  const msg = document.getElementById("welcomeMessage");
+  const weather = document.getElementById("weatherIcon");
 
-}
-else if(hour>=12 && hour<17){
-
-greeting="Good Afternoon";
-icon="⛅";
-
-}
-else if(hour>=17 && hour<21){
-
-greeting="Good Evening";
-icon="🌇";
-
-}
-else{
-
-greeting="Good Night";
-icon="🌙";
-
-}
-
-const msg = document.getElementById("welcomeMessage");
-const weather = document.getElementById("weatherIcon");
-
-if(msg) msg.innerText = greeting + ", " + admin;
-
-if(weather) weather.innerText = icon;
+  if(msg) msg.innerText = greeting + ", " + admin;
+  if(weather) weather.innerText = icon;
 
 }
-
 
 
 // ================= LOGOUT =================
-
 function logout(){
 
-localStorage.removeItem("loggedAdmin");
+  fetch("/api/logout",{method:"POST"});
 
-location.href="../login.html";
+  location.href="../login.html";
 
 }
