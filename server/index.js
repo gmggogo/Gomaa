@@ -56,31 +56,32 @@ const User = mongoose.model("User", userSchema);
    TRIP MODEL
 ========================= */
 const tripSchema = new mongoose.Schema({
-  tripNumber: String,
-  type: String,
-  company: String,
+  tripNumber: { type: String, unique: true, sparse: true },
+  type: { type: String, default: "company" },
+  company: { type: String, default: "" },
 
-  entryName: String,
-  entryPhone: String,
+  entryName: { type: String, default: "" },
+  entryPhone: { type: String, default: "" },
 
-  clientName: String,
-  clientPhone: String,
+  clientName: { type: String, default: "" },
+  clientPhone: { type: String, default: "" },
 
-  pickup: String,
-  dropoff: String,
-  stops: [String],
+  pickup: { type: String, default: "" },
+  dropoff: { type: String, default: "" },
+  stops: { type: [String], default: [] },
 
-  tripDate: String,
-  tripTime: String,
+  tripDate: { type: String, default: "" },
+  tripTime: { type: String, default: "" },
 
-  notes: String,
+  notes: { type: String, default: "" },
 
   status: { type: String, default: "Scheduled" },
+  bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 });
 
 /* INDEXES */
-tripSchema.index({ tripNumber: 1 }, { unique: true });
+tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
 
@@ -93,7 +94,9 @@ app.get("/create-admin", async (req, res) => {
   try {
     const existing = await User.findOne({ username: "admin" });
 
-    if (existing) return res.send("Admin already exists");
+    if (existing) {
+      return res.send("Admin already exists");
+    }
 
     const hashed = await bcrypt.hash("111111", 10);
 
@@ -116,7 +119,7 @@ app.get("/create-admin", async (req, res) => {
 ========================= */
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
 
     if (!username || !password) {
       return res.status(400).json({ message: "Missing credentials" });
@@ -149,6 +152,7 @@ app.post("/api/auth/login", async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        username: user.username,
         role: user.role
       }
     });
@@ -169,9 +173,10 @@ app.get("/api/users/:role", async (req, res) => {
       return res.status(400).json({ message: "Invalid role" });
     }
 
-    const users = await User.find({ role });
+    const users = await User.find({ role }).sort({ createdAt: -1, name: 1 });
     res.json(users);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error loading users" });
   }
 });
@@ -179,7 +184,11 @@ app.get("/api/users/:role", async (req, res) => {
 app.post("/api/users/:role", async (req, res) => {
   try {
     const role = req.params.role;
-    const { name, username, password } = req.body;
+    const { name, username, password } = req.body || {};
+
+    if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
 
     if (!name || !username || !password) {
       return res.status(400).json({ message: "Missing fields" });
@@ -202,17 +211,21 @@ app.post("/api/users/:role", async (req, res) => {
 
     res.json(newUser);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error creating user" });
   }
 });
 
 app.put("/api/users/:id", async (req, res) => {
   try {
-    const { name, username, password } = req.body;
+    const { name, username, password } = req.body || {};
 
-    const updateData = { name, username };
+    const updateData = {
+      name,
+      username
+    };
 
-    if (password && password.trim() !== "") {
+    if (password && String(password).trim() !== "") {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
@@ -224,6 +237,7 @@ app.put("/api/users/:id", async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error updating user" });
   }
 });
@@ -241,6 +255,7 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
 
     res.json(user);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error toggling user" });
   }
 });
@@ -250,105 +265,152 @@ app.delete("/api/users/:id", async (req, res) => {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error deleting user" });
   }
 });
+
+/* =========================
+   HELPERS
+========================= */
+function normalizeTripType(rawType) {
+  const t = String(rawType || "").trim().toLowerCase();
+
+  if (t === "reserved") return "reserved";
+  if (t === "gh") return "gh";
+  if (t === "individual") return "individual";
+  if (t === "company") return "company";
+
+  return "company";
+}
+
+async function generateTripNumber(type) {
+  if (type === "gh") {
+    const lastTrip = await Trip.findOne({
+      tripNumber: { $regex: /^GH\d+$/ }
+    }).sort({ createdAt: -1, _id: -1 });
+
+    let next = 100;
+
+    if (lastTrip?.tripNumber) {
+      const num = parseInt(lastTrip.tripNumber.replace("GH", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    return "GH" + next;
+  }
+
+  if (type === "reserved") {
+    const lastTrip = await Trip.findOne({
+      tripNumber: { $regex: /^RV-\d+$/ }
+    }).sort({ createdAt: -1, _id: -1 });
+
+    let next = 1001;
+
+    if (lastTrip?.tripNumber) {
+      const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    return "RV-" + next;
+  }
+
+  if (type === "individual") {
+    const lastTrip = await Trip.findOne({
+      tripNumber: { $regex: /^IN-\d+$/ }
+    }).sort({ createdAt: -1, _id: -1 });
+
+    let next = 1001;
+
+    if (lastTrip?.tripNumber) {
+      const num = parseInt(lastTrip.tripNumber.replace("IN-", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    return "IN-" + next;
+  }
+
+  const now = new Date();
+  const months = [
+    "JA", "FE", "MA", "AP", "MY", "JN",
+    "JL", "AU", "SE", "OC", "NO", "DE"
+  ];
+
+  const monthCode = months[now.getMonth()];
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const lastTrip = await Trip.findOne({
+    createdAt: { $gte: startMonth, $lt: endMonth },
+    tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
+  }).sort({ createdAt: -1, _id: -1 });
+
+  let next = 1000;
+
+  if (lastTrip?.tripNumber) {
+    const parts = lastTrip.tripNumber.split("-");
+    const num = parseInt(parts[1], 10);
+    if (!isNaN(num)) next = num + 1;
+  }
+
+  return monthCode + "-" + next;
+}
 
 /* =========================
    CREATE TRIP
 ========================= */
 app.post("/api/trips", async (req, res) => {
   try {
-    if (!req.body.pickup || !req.body.dropoff) {
-      return res.status(400).json({ message: "Pickup and Dropoff required" });
-    }
-
-    const rawType = req.body.type || "company";
-    const type = String(rawType).toLowerCase();
-
-    let tripNumber = "";
-
-    /* =========================
-       GH INDIVIDUAL TRIPS
-       START FROM GH100
-    ========================= */
-    if (type === "gh") {
-      const lastTrip = await Trip.findOne({
-        tripNumber: { $regex: /^GH\d+$/ }
-      }).sort({ createdAt: -1 });
-
-      let next = 100;
-
-      if (lastTrip) {
-        const num = parseInt(lastTrip.tripNumber.replace("GH", ""), 10);
-        if (!isNaN(num)) next = num + 1;
-      }
-
-      tripNumber = "GH" + next;
-    }
-
-    /* =========================
-       RESERVED TRIPS
-       START FROM RV-1001
-    ========================= */
-    else if (type === "reserved") {
-      const lastTrip = await Trip.findOne({
-        tripNumber: { $regex: /^RV-\d+$/ }
-      }).sort({ createdAt: -1 });
-
-      let next = 1001;
-
-      if (lastTrip) {
-        const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
-        if (!isNaN(num)) next = num + 1;
-      }
-
-      tripNumber = "RV-" + next;
-    }
-
-    /* =========================
-       COMPANY TRIPS
-       START FROM 1000
-    ========================= */
-    else {
-      const now = new Date();
-
-      const months = [
-        "JA", "FE", "MA", "AP", "MY", "JN",
-        "JL", "AU", "SE", "OC", "NO", "DE"
-      ];
-
-      const monthCode = months[now.getMonth()];
-
-      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const lastTrip = await Trip.findOne({
-        createdAt: { $gte: startMonth, $lt: endMonth },
-        tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
-      }).sort({ createdAt: -1 });
-
-      let next = 1000;
-
-      if (lastTrip) {
-        const parts = lastTrip.tripNumber.split("-");
-        const num = parseInt(parts[1], 10);
-        if (!isNaN(num)) next = num + 1;
-      }
-
-      tripNumber = monthCode + "-" + next;
-    }
+    const type = normalizeTripType(req.body.type);
+    const tripNumber = await generateTripNumber(type);
 
     const trip = await Trip.create({
-      ...req.body,
       type,
-      tripNumber
+      tripNumber,
+
+      company: req.body.company || "",
+
+      entryName: req.body.entryName || "",
+      entryPhone: req.body.entryPhone || "",
+
+      clientName: req.body.clientName || "",
+      clientPhone: req.body.clientPhone || "",
+
+      pickup: req.body.pickup || "",
+      dropoff: req.body.dropoff || "",
+      stops: Array.isArray(req.body.stops) ? req.body.stops : [],
+
+      tripDate: req.body.tripDate || "",
+      tripTime: req.body.tripTime || "",
+
+      notes: req.body.notes || "",
+      status: req.body.status || "Booked",
+      bookedAt: req.body.bookedAt || new Date(),
+      createdAt: new Date()
     });
 
     res.status(200).json(trip);
   } catch (err) {
     console.log(err);
+
+    if (err && err.code === 11000) {
+      return res.status(409).json({ message: "Duplicate trip number" });
+    }
+
     res.status(500).json({ message: "Error creating trip" });
+  }
+});
+
+/* =========================
+   GET ALL TRIPS
+========================= */
+app.get("/api/trips", async (req, res) => {
+  try {
+    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
+    res.json(trips);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error loading trips" });
   }
 });
 
@@ -357,21 +419,10 @@ app.post("/api/trips", async (req, res) => {
 ========================= */
 app.get("/api/trips/company", async (req, res) => {
   try {
-    const trips = await Trip.find().sort({ createdAt: -1 });
+    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
-    res.status(500).json({ message: "Error loading trips" });
-  }
-});
-
-/* =========================
-   OPTIONAL DIRECT GET ALL TRIPS
-========================= */
-app.get("/api/trips", async (req, res) => {
-  try {
-    const trips = await Trip.find().sort({ createdAt: -1 });
-    res.json(trips);
-  } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error loading trips" });
   }
 });
@@ -383,11 +434,30 @@ app.get("/api/trips/company/:company", async (req, res) => {
   try {
     const trips = await Trip.find({
       company: req.params.company
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1, _id: -1 });
 
     res.json(trips);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error loading trips" });
+  }
+});
+
+/* =========================
+   GET ONE TRIP
+========================= */
+app.get("/api/trips/:id", async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    res.json(trip);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error loading trip" });
   }
 });
 
@@ -396,14 +466,43 @@ app.get("/api/trips/company/:company", async (req, res) => {
 ========================= */
 app.put("/api/trips/:id", async (req, res) => {
   try {
+    const existing = await Trip.findById(req.params.id);
+
+    if (!existing) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    const updateData = {
+      type: normalizeTripType(req.body.type || existing.type),
+      company: req.body.company ?? existing.company,
+
+      entryName: req.body.entryName ?? existing.entryName,
+      entryPhone: req.body.entryPhone ?? existing.entryPhone,
+
+      clientName: req.body.clientName ?? existing.clientName,
+      clientPhone: req.body.clientPhone ?? existing.clientPhone,
+
+      pickup: req.body.pickup ?? existing.pickup,
+      dropoff: req.body.dropoff ?? existing.dropoff,
+      stops: Array.isArray(req.body.stops) ? req.body.stops : existing.stops,
+
+      tripDate: req.body.tripDate ?? existing.tripDate,
+      tripTime: req.body.tripTime ?? existing.tripTime,
+
+      notes: req.body.notes ?? existing.notes,
+      status: req.body.status ?? existing.status,
+      bookedAt: req.body.bookedAt ?? existing.bookedAt
+    };
+
     const updated = await Trip.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true }
     );
 
     res.json(updated);
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error updating trip" });
   }
 });
@@ -413,9 +512,15 @@ app.put("/api/trips/:id", async (req, res) => {
 ========================= */
 app.delete("/api/trips/:id", async (req, res) => {
   try {
-    await Trip.findByIdAndDelete(req.params.id);
+    const deleted = await Trip.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
     res.json({ message: "Deleted" });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Error deleting trip" });
   }
 });
