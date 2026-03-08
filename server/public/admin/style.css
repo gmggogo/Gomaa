@@ -1,115 +1,222 @@
-* {
-  box-sizing: border-box;
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+/* ===============================
+GLOBAL
+================================ */
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#f4f8fb;
+padding-top:110px;
 }
 
-body {
-  margin: 0;
-  background: #f4f6fa;
-  color: #1f2937;
+
+/* ===============================
+ADMIN HEADER
+================================ */
+
+.admin-header{
+
+position:fixed;
+top:0;
+left:0;
+
+width:100%;
+
+z-index:9999;
+
 }
 
-/* ===== HEADER ===== */
-.header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(90deg, #3f51b5, #2563eb);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  z-index: 1000;
+
+/* ===============================
+TOP BLUE BAR
+================================ */
+
+.top-bar{
+
+background:linear-gradient(90deg,#0f172a,#1e3a8a);
+
+color:white;
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+padding:10px 25px;
+
+border-bottom:3px solid #facc15;
+
 }
 
-.header .logo {
-  font-size: 18px;
-  font-weight: bold;
+
+/* LEFT SIDE */
+
+.top-left{
+
+display:flex;
+align-items:center;
+gap:12px;
+
 }
 
-.header .welcome {
-  font-size: 14px;
-  opacity: 0.9;
+.logo{
+
+height:40px;
+
 }
 
-.header .clock {
-  font-size: 13px;
-  opacity: 0.85;
+.info{
+
+display:flex;
+flex-direction:column;
+
 }
 
-/* ===== SIDEBAR ===== */
-.sidebar {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  bottom: 0;
-  width: 230px;
-  background: #1e293b;
-  padding-top: 10px;
+.company{
+
+font-size:14px;
+font-weight:600;
+color:#facc15;
+
 }
 
-.sidebar a {
-  display: block;
-  padding: 12px 20px;
-  color: #cbd5e1;
-  text-decoration: none;
-  font-size: 14px;
-  transition: 0.2s;
+.admin{
+
+font-size:12px;
+opacity:.9;
+
 }
 
-.sidebar a:hover,
-.sidebar a.active {
-  background: #334155;
-  color: #fff;
+
+/* RIGHT SIDE */
+
+.top-right{
+
+display:flex;
+align-items:center;
+gap:15px;
+
+font-size:12px;
+
 }
 
-/* ===== CONTENT ===== */
-.content {
-  margin-left: 230px;
-  margin-top: 60px;
-  padding: 25px;
+
+/* LOGOUT BUTTON */
+
+.logout-btn{
+
+background:#dc2626;
+
+color:white;
+
+border:none;
+
+padding:6px 12px;
+
+border-radius:6px;
+
+cursor:pointer;
+
+font-size:12px;
+
 }
 
-h1 {
-  margin: 0 0 5px;
-  font-size: 22px;
-  color: #1e40af;
+.logout-btn:hover{
+
+background:#b91c1c;
+
 }
 
-.subtitle {
-  color: #64748b;
-  margin-bottom: 20px;
+
+/* ===============================
+BLACK NAV BAR
+================================ */
+
+.admin-nav{
+
+background:#000;
+
+display:flex;
+
+justify-content:center;
+
+gap:8px;
+
+padding:8px;
+
 }
 
-/* ===== DASHBOARD CARDS ===== */
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-top: 20px;
+
+/* NAV BUTTON */
+
+.nav-btn{
+
+background:#1e293b;
+
+color:white;
+
+padding:6px 14px;
+
+border-radius:6px;
+
+font-size:12px;
+
+text-decoration:none;
+
+transition:.2s;
+
 }
 
-.card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-  border-left: 5px solid #3f51b5;
+
+/* HOVER */
+
+.nav-btn:hover{
+
+background:#facc15;
+
+color:black;
+
 }
 
-.card h3 {
-  margin: 0;
-  font-size: 14px;
-  color: #475569;
+
+/* ACTIVE PAGE */
+
+.nav-btn.active{
+
+background:#facc15;
+
+color:black;
+
+font-weight:600;
+
 }
 
-.card span {
-  display: block;
-  margin-top: 10px;
-  font-size: 30px;
-  font-weight: bold;
-  color: #1e40af;
+
+/* ===============================
+TABLE STYLE (optional)
+================================ */
+
+table{
+
+border-collapse:collapse;
+
+width:100%;
+
+}
+
+th, td{
+
+border:1px solid #ddd;
+
+padding:8px;
+
+font-size:13px;
+
+}
+
+th{
+
+background:#0f172a;
+
+color:white;
+
 }
