@@ -1,338 +1,184 @@
-/* ===============================
-   API
-================================ */
-const API_URL = "/api/trips";
+const API="/api/trips"
 
-/* ===============================
-   STATE
-================================ */
-let allHubTrips = [];
-let hubTrips = [];
+let trips=[]
+let filtered=[]
 
-/* ===============================
-   ELEMENTS
-================================ */
-const container   = document.getElementById("hubContainer");
-const searchInput = document.getElementById("searchInput");
+const container=document.getElementById("hubContainer")
+const searchInput=document.getElementById("searchInput")
+const addBtn=document.getElementById("addManualTripBtn")
 
-/* ===============================
-   LOAD TRIPS
-================================ */
-async function loadHubTrips(){
+/* LOAD */
 
-  try{
+async function loadTrips(){
 
-    const res = await fetch(API_URL);
-    const data = await res.json();
+const res=await fetch(API)
+const data=await res.json()
 
-    allHubTrips = Array.isArray(data) ? data : [];
-    hubTrips = [...allHubTrips];
+trips=Array.isArray(data)?data:[]
+filtered=[...trips]
 
-  }
-  catch(err){
-
-    console.error("Load trips error:",err);
-
-    allHubTrips = [];
-    hubTrips = [];
-
-  }
+render()
 
 }
 
-/* ===============================
-   DATE FORMAT
-================================ */
-function formatDate(iso){
+/* ADD RESERVED */
 
-  if(!iso) return "-";
-
-  const d = new Date(iso);
-
-  if(isNaN(d)) return "-";
-
-  return d.toLocaleDateString()+" "+d.toLocaleTimeString([],{
-
-    hour:"2-digit",
-    minute:"2-digit"
-
-  });
-
-}
-
-/* ===============================
-   GET TRIP NUMBER
-================================ */
-function getTripNumber(t){
-
-  if(t.tripNumber) return String(t.tripNumber);
-
-  if(t.id) return String(t.id);
-
-  return "-";
-
-}
-
-/* ===============================
-   CHECK PASSED
-================================ */
-function isTripPassed(t){
-
-  if(!t.tripDate || !t.tripTime) return false;
-
-  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-
-  if(isNaN(tripDateTime)) return false;
-
-  return new Date() >= tripDateTime;
-
-}
-
-/* ===============================
-   REMOVE AFTER 24H
-================================ */
-function shouldRemoveTrip(t){
-
-  if(!t.tripDate || !t.tripTime) return false;
-
-  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-
-  if(isNaN(tripDateTime)) return false;
-
-  const diffHours = (new Date() - tripDateTime) / (1000 * 60 * 60);
-
-  return diffHours >= 24;
-
-}
-
-/* ===============================
-   ROW COLORS
-================================ */
-function rowColor(tr,t){
-
-  if(isTripPassed(t)){
-
-    tr.style.background="#ffe5e5";
-    tr.style.borderLeft="4px solid #dc2626";
-    return;
-
-  }
-
-  if(t.type==="Individual"){
-
-    tr.style.background="#e8f4ff";
-
-  }
-  else if(t.type==="Company"){
-
-    tr.style.background="#fff6d6";
-
-  }
-  else if(t.type==="Reserved"){
-
-    tr.style.background="#ecfdf5";
-
-  }
-
-}
-
-/* ===============================
-   ADD RESERVED TRIP
-================================ */
 async function addReservedTripInline(){
 
-  const newTrip={
+const ok=confirm("Create Reserved Trip?")
+if(!ok)return
 
-    type:"Reserved",
+const trip={
 
-    company:"",
-    entryName:"",
-    entryPhone:"",
+type:"Reserved",
 
-    clientName:"",
-    clientPhone:"",
+company:"",
+entryName:"",
+entryPhone:"",
 
-    pickup:"",
-    stops:[],
+clientName:"",
+clientPhone:"",
 
-    dropoff:"",
-    notes:"",
+pickup:"",
+stops:[],
+dropoff:"",
 
-    tripDate:"",
-    tripTime:"",
+notes:"",
 
-    status:"Booked",
+tripDate:"",
+tripTime:"",
 
-    createdAt:new Date().toISOString(),
-    bookedAt:new Date().toISOString()
+status:"Booked",
 
-  };
-
-  await fetch(API_URL,{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify(newTrip)
-  });
-
-  await loadHubTrips();
-  render();
+createdAt:new Date().toISOString()
 
 }
 
-window.addReservedTripInline = addReservedTripInline;
+await fetch(API,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(trip)
+})
 
-/* ===============================
-   DELETE
-================================ */
-async function deleteTripConfirm(id){
-
-  const ok = confirm("Delete this trip?");
-
-  if(!ok) return;
-
-  const res = await fetch(`/api/trips/${id}`,{
-
-    method:"DELETE"
-
-  });
-
-  if(!res.ok){
-
-    alert("Delete failed");
-    return;
-
-  }
-
-  await loadHubTrips();
-  render();
+await loadTrips()
 
 }
 
-window.deleteTripConfirm = deleteTripConfirm;
+addBtn.onclick=addReservedTripInline
 
-/* ===============================
-   EDIT
-================================ */
+/* COLORS */
+
+function rowColor(tr,t){
+
+if(t.type==="Individual")
+tr.style.background="#e8f4ff"
+
+else if(t.type==="Company")
+tr.style.background="#fff6d6"
+
+else if(t.type==="Reserved")
+tr.style.background="#ecfdf5"
+
+}
+
+/* EDIT */
+
 function editTripRow(btn){
 
-  const tr = btn.closest("tr");
+const tr=btn.closest("tr")
+const inputs=tr.querySelectorAll("input,textarea")
 
-  const inputs = tr.querySelectorAll("input,textarea");
+inputs.forEach((el,i)=>{
+if(i<2)return
+el.disabled=false
+})
 
-  inputs.forEach((el,i)=>{
-
-    if(i<=1) return;
-
-    el.disabled=false;
-
-  });
-
-  tr.querySelector(".edit-btn").style.display="none";
-  tr.querySelector(".save-btn").style.display="inline-block";
+tr.querySelector(".edit-btn").style.display="none"
+tr.querySelector(".save-btn").style.display="inline-block"
 
 }
 
-window.editTripRow = editTripRow;
+/* SAVE */
 
-/* ===============================
-   SAVE
-================================ */
 async function saveTripRow(btn,id){
 
-  const tr = btn.closest("tr");
+const tr=btn.closest("tr")
+const inputs=tr.querySelectorAll("input,textarea")
 
-  const inputs = tr.querySelectorAll("input,textarea");
+const trip={
 
-  const updatedTrip = {
+company:inputs[3].value,
+entryName:inputs[4].value,
+entryPhone:inputs[5].value,
 
-    company:inputs[3].value,
-    entryName:inputs[4].value,
-    entryPhone:inputs[5].value,
+clientName:inputs[6].value,
+clientPhone:inputs[7].value,
 
-    clientName:inputs[6].value,
-    clientPhone:inputs[7].value,
+pickup:inputs[8].value,
 
-    pickup:inputs[8].value,
+stops:inputs[9].value
+?inputs[9].value.split("→").map(s=>s.trim())
+:[],
 
-    stops:inputs[9].value
-      ? inputs[9].value.split("→").map(s=>s.trim()).filter(Boolean)
-      : [],
+dropoff:inputs[10].value,
 
-    dropoff:inputs[10].value,
+notes:inputs[11].value,
 
-    notes:inputs[11].value,
-
-    tripDate:inputs[12].value,
-    tripTime:inputs[13].value
-
-  };
-
-  const res = await fetch(`/api/trips/${id}`,{
-
-    method:"PUT",
-
-    headers:{ "Content-Type":"application/json" },
-
-    body:JSON.stringify(updatedTrip)
-
-  });
-
-  if(!res.ok){
-
-    alert("Save failed");
-    return;
-
-  }
-
-  await loadHubTrips();
-  render();
+tripDate:inputs[12].value,
+tripTime:inputs[13].value
 
 }
 
-window.saveTripRow = saveTripRow;
+await fetch(API+"/"+id,{
+method:"PUT",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(trip)
+})
 
-/* ===============================
-   RENDER
-================================ */
+await loadTrips()
+
+}
+
+/* DELETE */
+
+async function deleteTripConfirm(id){
+
+const ok=confirm("Delete this trip?")
+if(!ok)return
+
+await fetch(API+"/"+id,{method:"DELETE"})
+
+await loadTrips()
+
+}
+
+/* RENDER */
+
 function render(){
 
-  hubTrips = hubTrips.filter(t => !shouldRemoveTrip(t));
+container.innerHTML=""
 
-  container.innerHTML="";
+const table=document.createElement("table")
+table.className="hub-table"
 
-  if(!hubTrips.length){
-
-    container.innerHTML="<p>No trips found</p>";
-    return;
-
-  }
-
-  const table=document.createElement("table");
-
-  table.className="hub-table";
-
-  table.innerHTML=`
+table.innerHTML=`
 
 <thead>
-
 <tr>
 
 <th>#</th>
-<th>Trip #</th>
+<th>Trip#</th>
 <th>Type</th>
 
 <th>Company</th>
-
-<th>Entry Name</th>
-<th>Entry Phone</th>
+<th>Entry</th>
+<th>Phone</th>
 
 <th>Client</th>
 <th>Client Phone</th>
 
 <th>Pickup</th>
-
 <th>Stops</th>
-
 <th>Dropoff</th>
 
 <th>Notes</th>
@@ -342,133 +188,101 @@ function render(){
 
 <th>Status</th>
 
-<th>Booked At</th>
-
 <th>Actions</th>
 
 </tr>
-
 </thead>
 
 <tbody></tbody>
+`
 
-`;
+const tbody=table.querySelector("tbody")
 
-  const tbody=table.querySelector("tbody");
+filtered.forEach((t,i)=>{
 
-  hubTrips.forEach(function(t,i){
+const tr=document.createElement("tr")
 
-    const tr=document.createElement("tr");
+rowColor(tr,t)
 
-    rowColor(tr,t);
+const stops=Array.isArray(t.stops)?t.stops.join(" → "):""
 
-    const stopsStr = Array.isArray(t.stops)
-      ? t.stops.join(" → ")
-      : "";
-
-    tr.innerHTML=`
+tr.innerHTML=`
 
 <td>${i+1}</td>
 
-<td><input value="${getTripNumber(t)}" disabled></td>
+<td><input value="${t.tripNumber||""}" disabled></td>
 
-<td><input value="${t.type||"-"}" disabled></td>
+<td><input value="${t.type||""}" disabled></td>
 
 <td><input value="${t.company||""}" disabled></td>
 
 <td><input value="${t.entryName||""}" disabled></td>
-
 <td><input value="${t.entryPhone||""}" disabled></td>
 
 <td><input value="${t.clientName||""}" disabled></td>
-
 <td><input value="${t.clientPhone||""}" disabled></td>
 
 <td><input value="${t.pickup||""}" disabled></td>
 
-<td><input value="${stopsStr}" disabled></td>
+<td><input value="${stops}" disabled></td>
 
 <td><input value="${t.dropoff||""}" disabled></td>
 
 <td><textarea disabled>${t.notes||""}</textarea></td>
 
 <td><input type="date" value="${t.tripDate||""}" disabled></td>
-
 <td><input type="time" value="${t.tripTime||""}" disabled></td>
 
-<td>${t.status||"Booked"}</td>
-
-<td>${formatDate(t.bookedAt||t.createdAt)}</td>
+<td>${t.status||""}</td>
 
 <td>
 
-<button class="hub-btn edit-btn"
+<button class="edit-btn"
 onclick="editTripRow(this)">
 Edit
 </button>
 
-<button class="hub-btn save-btn"
+<button class="save-btn"
 style="display:none"
 onclick="saveTripRow(this,'${t._id}')">
 Save
 </button>
 
-<button class="hub-btn delete-btn"
+<button class="delete-btn"
 onclick="deleteTripConfirm('${t._id}')">
 Delete
 </button>
 
 </td>
 
-`;
+`
 
-    tbody.appendChild(tr);
+tbody.appendChild(tr)
 
-  });
+})
 
-  container.appendChild(table);
-
-}
-
-/* ===============================
-   SEARCH
-================================ */
-if(searchInput){
-
-  searchInput.addEventListener("input",function(){
-
-    const v = searchInput.value.toLowerCase();
-
-    hubTrips = allHubTrips.filter(t =>
-
-      JSON.stringify(t).toLowerCase().includes(v)
-
-    );
-
-    render();
-
-  });
+container.appendChild(table)
 
 }
 
-/* ===============================
-   AUTO REFRESH
-================================ */
-setInterval(async function(){
+/* SEARCH */
 
-  await loadHubTrips();
+searchInput.addEventListener("input",function(){
 
-  render();
+const v=searchInput.value.toLowerCase()
 
-},60000);
+filtered=trips.filter(t=>
+JSON.stringify(t).toLowerCase().includes(v)
+)
 
-/* ===============================
-   INIT
-================================ */
-(async function(){
+render()
 
-  await loadHubTrips();
+})
 
-  render();
+/* AUTO REFRESH */
 
-})();
+setInterval(loadTrips,60000)
+
+/* INIT */
+
+loadTrips()

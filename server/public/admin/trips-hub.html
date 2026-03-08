@@ -1,200 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>Trips Hub</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="stylesheet" href="/admin/trips-hub.css" />
+<meta charset="UTF-8">
+<title>Trips Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    :root{
-      --blue:#0f172a;
-      --gold:#facc15;
-    }
+<link rel="stylesheet" href="/admin/trips-hub.css">
 
-    body{
-      margin:0;
-      padding-top:95px;
-      font-family:Arial, Helvetica, sans-serif;
-      background:#f8fafc;
-    }
+<style>
 
-    /* ===== HEADER ===== */
-    .page-header{
-      position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      height:85px;
-      background:linear-gradient(90deg,var(--blue),#1e293b);
-      display:flex;
-      align-items:center;
-      padding:0 20px;
-      color:#fff;
-      border-bottom:3px solid var(--gold);
-      z-index:999;
-      box-sizing:border-box;
-    }
+:root{
+--blue:#0f172a;
+--gold:#facc15;
+}
 
-    .header-left{
-      width:25%;
-    }
+body{
+margin:0;
+padding-top:95px;
+font-family:Arial;
+background:#f8fafc;
+}
 
-    .back-btn{
-      background:var(--gold);
-      border:none;
-      border-radius:8px;
-      padding:6px 12px;
-      font-weight:bold;
-      cursor:pointer;
-    }
+/* HEADER */
 
-    .header-center{
-      width:50%;
-      text-align:center;
-    }
+.page-header{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:85px;
+background:linear-gradient(90deg,var(--blue),#1e293b);
+display:flex;
+align-items:center;
+padding:0 20px;
+color:#fff;
+border-bottom:3px solid var(--gold);
+z-index:999;
+}
 
-    .header-center h1{
-      margin:0;
-      font-size:18px;
-      color:var(--gold);
-    }
+.header-left{width:25%}
 
-    .header-center p{
-      margin-top:4px;
-      font-size:12px;
-    }
+.back-btn{
+background:var(--gold);
+border:none;
+border-radius:8px;
+padding:6px 12px;
+font-weight:bold;
+cursor:pointer;
+}
 
-    .header-right{
-      width:25%;
-      text-align:right;
-      font-size:12px;
-    }
+.header-center{
+width:50%;
+text-align:center;
+}
 
-    /* ===== TOOLBAR ===== */
-    .toolbar{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      margin:15px;
-    }
+.header-center h1{
+margin:0;
+font-size:18px;
+color:var(--gold);
+}
 
-    .add-btn{
-      background:#2563eb;
-      color:#fff;
-      border:none;
-      padding:7px 14px;
-      border-radius:6px;
-      cursor:pointer;
-    }
+.header-right{
+width:25%;
+text-align:right;
+font-size:12px;
+}
 
-    .search-input{
-      flex:1;
-      padding:7px;
-      box-sizing:border-box;
-    }
+/* TOOLBAR */
 
-    /* ===== FALLBACK TABLE BUTTON COLORS ===== */
-    .hub-btn{
-      border:none;
-      border-radius:6px;
-      padding:5px 10px;
-      font-size:11px;
-      cursor:pointer;
-      color:#fff;
-    }
+.toolbar{
+display:flex;
+gap:10px;
+align-items:center;
+margin:15px;
+}
 
-    .edit-btn{ background:#3b82f6; }
-    .save-btn{ background:#16a34a; }
-    .delete-btn{ background:#ef4444; }
-  </style>
+.add-btn{
+background:#2563eb;
+color:#fff;
+border:none;
+padding:7px 14px;
+border-radius:6px;
+cursor:pointer;
+}
+
+.search-input{
+flex:1;
+padding:7px;
+}
+
+/* BUTTON COLORS */
+
+.edit-btn{background:#3b82f6;color:#fff}
+.save-btn{background:#16a34a;color:#fff}
+.delete-btn{background:#ef4444;color:#fff}
+
+</style>
+
 </head>
 
 <body>
 
-  <header class="page-header">
-    <div class="header-left">
-      <button class="back-btn" onclick="goBack()">← Back</button>
-    </div>
+<header class="page-header">
 
-    <div class="header-center">
-      <h1>Trips Hub</h1>
-      <p id="welcomeText">Welcome</p>
-    </div>
+<div class="header-left">
+<button class="back-btn" onclick="history.back()">← Back</button>
+</div>
 
-    <div class="header-right">
-      <span id="clock"></span>
-    </div>
-  </header>
+<div class="header-center">
+<h1>Trips Hub</h1>
+<p id="welcomeText">Welcome</p>
+</div>
 
-  <div class="toolbar">
-    <button id="addManualTripBtn" class="add-btn">
-      Add Reserved Trip
-    </button>
+<div class="header-right">
+<span id="clock"></span>
+</div>
 
-    <input
-      id="searchInput"
-      class="search-input"
-      type="text"
-      placeholder="Search trip #, name, phone, company"
-    />
-  </div>
+</header>
 
-  <div id="hubContainer"></div>
+<div class="toolbar">
 
-  <script src="/admin/trips-hub.js"></script>
+<button id="addManualTripBtn" class="add-btn">
+Add Reserved Trip
+</button>
 
-  <script>
-    /* ===== Admin Name ===== */
-    const adminRaw = localStorage.getItem("loggedAdmin");
+<input
+id="searchInput"
+class="search-input"
+placeholder="Search trip #, name, phone, company">
 
-    if (adminRaw) {
-      try {
-        const admin = JSON.parse(adminRaw);
-        const name = admin.name || admin.username || admin.fullName || "";
-        document.getElementById("welcomeText").innerText =
-          name ? "Welcome, " + name : "Welcome";
-      } catch (e) {
-        document.getElementById("welcomeText").innerText = "Welcome";
-      }
-    }
+</div>
 
-    /* ===== Clock ===== */
-    function updateClock(){
-      const now = new Date();
-      document.getElementById("clock").innerText =
-        now.toLocaleDateString() + " " + now.toLocaleTimeString();
-    }
+<div id="hubContainer"></div>
 
-    setInterval(updateClock, 1000);
-    updateClock();
+<script src="/admin/trips-hub.js"></script>
 
-    /* ===== Back ===== */
-    function goBack(){
-      window.history.back();
-    }
+<script>
 
-    /* ===== Add Reserved Trip Warning ===== */
-    const addManualTripBtn = document.getElementById("addManualTripBtn");
+/* CLOCK */
 
-    if (addManualTripBtn) {
-      addManualTripBtn.onclick = async function(e){
-        e.preventDefault();
-        e.stopPropagation();
+function updateClock(){
+const now=new Date();
+document.getElementById("clock").innerText=
+now.toLocaleDateString()+" "+now.toLocaleTimeString();
+}
 
-        const ok = confirm(
-          "Warning:\nOnly Admin or Dispatcher should create Reserved Trips.\nContinue?"
-        );
+setInterval(updateClock,1000);
+updateClock();
 
-        if (!ok) return;
-
-        if (typeof window.addReservedTripInline === "function") {
-          await window.addReservedTripInline();
-        }
-      };
-    }
-  </script>
+</script>
 
 </body>
 </html>
