@@ -1,46 +1,79 @@
-const API="/api/trips";
+const API_URL="/api/trips";
 
-let trips=[];
+let hubTrips=[];
 
 const container=document.getElementById("hubContainer");
 const addBtn=document.getElementById("addManualTripBtn");
 const searchInput=document.getElementById("searchInput");
 
-/* ===============================
-LOAD
-=============================== */
+/* LOAD */
 
-async function loadTrips(){
+async function loadHubTrips(){
 
-const res=await fetch(API);
-trips=await res.json();
+const res=await fetch(API_URL);
+const data=await res.json();
+
+hubTrips=data.filter(t=>t.status==="Confirmed");
 
 render();
 
 }
 
-/* ===============================
-ADD RESERVED
-=============================== */
+/* COLORS */
 
-async function addReservedTripInline(){
+function rowColor(tr,t){
 
-await fetch(API,{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-type:"reserved",
-status:"Booked"
-})
-});
+if(t.type==="Individual")
+tr.style.background="#e8f4ff";
 
-loadTrips();
+else if(t.type==="Company")
+tr.style.background="#fff6d6";
+
+else if(t.type==="Reserved")
+tr.style.background="#ecfdf5";
 
 }
 
-/* ===============================
-EDIT
-=============================== */
+/* GROUP BY DATE */
+
+function groupByDate(trips){
+
+const groups={};
+
+trips.forEach(t=>{
+
+const date=new Date(t.createdAt).toLocaleDateString();
+
+if(!groups[date]) groups[date]=[];
+
+groups[date].push(t);
+
+});
+
+return groups;
+
+}
+
+/* ADD RESERVED */
+
+async function addReservedTripInline(){
+
+await fetch(API_URL,{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+type:"Reserved",
+status:"Confirmed"
+})
+});
+
+loadHubTrips();
+
+}
+
+addBtn.addEventListener("click",addReservedTripInline);
+
+/* EDIT */
 
 function editTrip(id){
 
@@ -55,9 +88,7 @@ row.querySelector(".save-btn").style.display="inline-block";
 
 }
 
-/* ===============================
-SAVE
-=============================== */
+/* SAVE */
 
 async function saveTrip(id){
 
@@ -66,83 +97,61 @@ const row=document.getElementById(id);
 const inputs=row.querySelectorAll("input,textarea");
 
 const data={
-
 company:inputs[2].value,
 entryName:inputs[3].value,
 entryPhone:inputs[4].value,
-
 clientName:inputs[5].value,
 clientPhone:inputs[6].value,
-
 pickup:inputs[7].value,
 stops:inputs[8].value.split("→").map(s=>s.trim()),
-
 dropoff:inputs[9].value,
 notes:inputs[10].value
-
 };
 
-await fetch(API+"/"+id,{
+await fetch(API_URL+"/"+id,{
 method:"PUT",
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify(data)
 });
 
-loadTrips();
+loadHubTrips();
 
 }
 
-/* ===============================
-DELETE
-=============================== */
+/* DELETE */
 
 async function deleteTrip(id){
 
 if(!confirm("Delete trip?")) return;
 
-await fetch(API+"/"+id,{
+await fetch(API_URL+"/"+id,{
 method:"DELETE"
 });
 
-loadTrips();
+loadHubTrips();
 
 }
 
-/* ===============================
-ROW COLOR
-=============================== */
-
-function rowColor(tr,t){
-
-if(t.type==="individual")
-tr.style.background="#e8f4ff";
-
-else if(t.type==="company")
-tr.style.background="#fff6d6";
-
-else if(t.type==="reserved")
-tr.style.background="#ecfdf5";
-
-}
-
-/* ===============================
-RENDER
-=============================== */
+/* RENDER */
 
 function render(){
 
 container.innerHTML="";
 
-const table=document.createElement("table");
+const groups=groupByDate(hubTrips);
 
+Object.keys(groups).forEach(date=>{
+
+const title=document.createElement("h3");
+title.innerText=date;
+container.appendChild(title);
+
+const table=document.createElement("table");
 table.className="hub-table";
 
 table.innerHTML=`
-
 <thead>
-
 <tr>
-
 <th>#</th>
 <th>Trip #</th>
 <th>Type</th>
@@ -156,21 +165,16 @@ table.innerHTML=`
 <th>Dropoff</th>
 <th>Notes</th>
 <th>Actions</th>
-
 </tr>
-
 </thead>
-
 <tbody></tbody>
-
 `;
 
 const tbody=table.querySelector("tbody");
 
-trips.forEach((t,i)=>{
+groups[date].forEach((t,i)=>{
 
 const tr=document.createElement("tr");
-
 tr.id=t._id;
 
 rowColor(tr,t);
@@ -182,25 +186,15 @@ tr.innerHTML=`
 <td>${i+1}</td>
 
 <td><input value="${t.tripNumber||""}" disabled></td>
-
 <td><input value="${t.type||""}" disabled></td>
-
 <td><input value="${t.company||""}" disabled></td>
-
 <td><input value="${t.entryName||""}" disabled></td>
-
 <td><input value="${t.entryPhone||""}" disabled></td>
-
 <td><input value="${t.clientName||""}" disabled></td>
-
 <td><input value="${t.clientPhone||""}" disabled></td>
-
 <td><input value="${t.pickup||""}" disabled></td>
-
 <td><input value="${stopsStr}" disabled></td>
-
 <td><input value="${t.dropoff||""}" disabled></td>
-
 <td><textarea disabled>${t.notes||""}</textarea></td>
 
 <td>
@@ -222,7 +216,6 @@ Delete
 </button>
 
 </td>
-
 `;
 
 tbody.appendChild(tr);
@@ -231,40 +224,25 @@ tbody.appendChild(tr);
 
 container.appendChild(table);
 
+});
+
 }
 
-/* ===============================
-SEARCH
-=============================== */
+/* SEARCH */
 
 searchInput.addEventListener("input",()=>{
 
 const v=searchInput.value.toLowerCase();
 
-const filtered=trips.filter(t=>
+const filtered=hubTrips.filter(t=>
 JSON.stringify(t).toLowerCase().includes(v)
 );
 
-container.innerHTML="";
-
-const old=trips;
-
-trips=filtered;
-
+hubTrips=filtered;
 render();
-
-trips=old;
 
 });
 
-/* ===============================
-BUTTON
-=============================== */
+/* INIT */
 
-addBtn.addEventListener("click",addReservedTripInline);
-
-/* ===============================
-INIT
-=============================== */
-
-loadTrips();
+loadHubTrips();
