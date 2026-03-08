@@ -7,7 +7,7 @@ fetch("header.html")
 
   setActiveNav();
   startArizonaTime();
-  startWelcomeMessage();
+  showWelcomeMessage();
 
 });
 
@@ -17,8 +17,8 @@ function setActiveNav(){
 
   const page = location.pathname.split("/").pop();
 
-  document.querySelectorAll(".nav-btn").forEach(btn => {
-    if(btn.getAttribute("href") === page){
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    if(btn.getAttribute("href")===page){
       btn.classList.add("active");
     }
   });
@@ -33,16 +33,17 @@ function startArizonaTime(){
 
     const now = new Date().toLocaleString("en-US",{
       timeZone:"America/Phoenix",
-      hour:"2-digit",
-      minute:"2-digit",
-      second:"2-digit",
       year:"numeric",
       month:"short",
-      day:"2-digit"
+      day:"2-digit",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
     });
 
-    const el=document.getElementById("azTime");
-    if(el) el.innerText=now;
+    const el = document.getElementById("azTime");
+
+    if(el) el.innerText = now;
 
   }
 
@@ -52,8 +53,8 @@ function startArizonaTime(){
 }
 
 
-// WELCOME MESSAGE (في النص)
-function startWelcomeMessage(){
+// SHOW MESSAGE IN CENTER
+function showWelcomeMessage(){
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -85,10 +86,10 @@ function startWelcomeMessage(){
   }
 
   const msg=document.getElementById("welcomeMessage");
-  const weather=document.getElementById("weatherIcon");
+  const iconEl=document.getElementById("weatherIcon");
 
   if(msg) msg.innerText = greeting + ", " + name;
-  if(weather) weather.innerText = icon;
+  if(iconEl) iconEl.innerText = icon;
 
 }
 
