@@ -1,4 +1,4 @@
-// ================= LOAD HEADER =================
+// LOAD HEADER
 fetch("header.html")
 .then(res => res.text())
 .then(html => {
@@ -12,35 +12,13 @@ fetch("header.html")
 });
 
 
-// ================= GET ADMIN NAME FROM API =================
-async function loadAdminName(){
-
-  let adminName = "Admin";
-
-  try{
-
-    const res = await fetch("/api/users/admin");
-    const users = await res.json();
-
-    if(users && users.length){
-      // نستخدم username وليس name
-      adminName = users[0].username || "Admin";
-    }
-
-  }catch(e){}
-
-  startWelcomeMessage(adminName);
-
-}
-
-
-// ================= ACTIVE NAV =================
-function setActiveNav(){
+// ACTIVE NAV
+function setActiveNav() {
 
   const page = location.pathname.split("/").pop();
 
   document.querySelectorAll(".nav-btn").forEach(btn => {
-    if(btn.getAttribute("href") === page){
+    if (btn.getAttribute("href") === page) {
       btn.classList.add("active");
     }
   });
@@ -48,72 +26,80 @@ function setActiveNav(){
 }
 
 
-// ================= ARIZONA TIME =================
-function startArizonaTime(){
+// ARIZONA TIME
+function startArizonaTime() {
 
-  function updateTime(){
+  function updateTime() {
 
-    const now = new Date().toLocaleString("en-US",{
-      timeZone:"America/Phoenix",
-      hour:"2-digit",
-      minute:"2-digit",
-      second:"2-digit",
-      year:"numeric",
-      month:"short",
-      day:"2-digit"
+    const now = new Date().toLocaleString("en-US", {
+      timeZone: "America/Phoenix",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      year: "numeric",
+      month: "short",
+      day: "2-digit"
     });
 
     const el = document.getElementById("azTime");
-    if(el) el.innerText = now;
+
+    if (el) el.innerText = now;
 
   }
 
   updateTime();
-  setInterval(updateTime,1000);
+  setInterval(updateTime, 1000);
 
 }
 
 
-// ================= WELCOME MESSAGE =================
-function startWelcomeMessage(admin){
+// LOAD ADMIN NAME
+function loadAdminName() {
 
-  const phoenixTime = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
-  const hour = new Date(phoenixTime).getHours();
+  const user = JSON.parse(localStorage.getItem("user"));
 
-  let greeting="";
-  let icon="";
+  if (!user) return;
 
-  if(hour>=5 && hour<12){
-    greeting="Good Morning";
-    icon="☀️";
-  }
-  else if(hour>=12 && hour<17){
-    greeting="Good Afternoon";
-    icon="⛅";
-  }
-  else if(hour>=17 && hour<21){
-    greeting="Good Evening";
-    icon="🌇";
-  }
-  else{
-    greeting="Good Night";
-    icon="🌙";
+  const name = user.name;
+
+  const now = new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" });
+  const hour = new Date(now).getHours();
+
+  let greeting = "";
+  let icon = "";
+
+  if (hour >= 5 && hour < 12) {
+    greeting = "Good Morning";
+    icon = "☀️";
+  } 
+  else if (hour >= 12 && hour < 17) {
+    greeting = "Good Afternoon";
+    icon = "⛅";
+  } 
+  else if (hour >= 17 && hour < 21) {
+    greeting = "Good Evening";
+    icon = "🌇";
+  } 
+  else {
+    greeting = "Good Night";
+    icon = "🌙";
   }
 
   const msg = document.getElementById("welcomeMessage");
   const weather = document.getElementById("weatherIcon");
 
-  if(msg) msg.innerText = greeting + ", " + admin;
-  if(weather) weather.innerText = icon;
+  if (msg) msg.innerText = greeting + ", " + name;
+  if (weather) weather.innerText = icon;
 
 }
 
 
-// ================= LOGOUT =================
-function logout(){
+// LOGOUT
+function logout() {
 
-  fetch("/api/logout",{method:"POST"});
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
 
-  location.href="../login.html";
+  window.location.href = "/login.html";
 
 }
