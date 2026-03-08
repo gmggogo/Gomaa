@@ -10,9 +10,35 @@ setActiveNav();
 
 startArizonaTime();
 
-startWelcomeMessage();
+loadAdminName();
 
 });
+
+
+
+// ================= GET ADMIN NAME =================
+
+async function loadAdminName(){
+
+let adminName = "Admin";
+
+try{
+
+const res = await fetch("/api/users/admin");
+
+const users = await res.json();
+
+if(users.length > 0){
+
+adminName = users[0].name;
+
+}
+
+}catch(e){}
+
+startWelcomeMessage(adminName);
+
+}
 
 
 
@@ -70,45 +96,29 @@ setInterval(updateTime,1000);
 
 
 
-// ================= GET ADMIN NAME + MESSAGE =================
+// ================= WELCOME MESSAGE =================
 
-async function startWelcomeMessage(){
+function startWelcomeMessage(admin){
 
-let adminName = "Admin";
-
-try{
-
-const res = await fetch("/api/admin/me");
-
-if(res.ok){
-
-const data = await res.json();
-
-adminName = data.username || data.name || "Admin";
-
-}
-
-}catch(e){}
-
-const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
-const hour = new Date(now).getHours();
+const phoenixTime = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+const hour = new Date(phoenixTime).getHours();
 
 let greeting="";
 let icon="";
 
-if(hour >= 5 && hour < 12){
+if(hour>=5 && hour<12){
 
 greeting="Good Morning";
 icon="☀️";
 
 }
-else if(hour >= 12 && hour < 17){
+else if(hour>=12 && hour<17){
 
 greeting="Good Afternoon";
 icon="⛅";
 
 }
-else if(hour >= 17 && hour < 21){
+else if(hour>=17 && hour<21){
 
 greeting="Good Evening";
 icon="🌇";
@@ -124,7 +134,7 @@ icon="🌙";
 const msg = document.getElementById("welcomeMessage");
 const weather = document.getElementById("weatherIcon");
 
-if(msg) msg.innerText = greeting + ", " + adminName;
+if(msg) msg.innerText = greeting + ", " + admin;
 
 if(weather) weather.innerText = icon;
 
@@ -136,7 +146,7 @@ if(weather) weather.innerText = icon;
 
 function logout(){
 
-fetch("/api/logout",{method:"POST"});
+localStorage.removeItem("loggedAdmin");
 
 location.href="../login.html";
 
