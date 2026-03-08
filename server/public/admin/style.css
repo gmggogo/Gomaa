@@ -48,7 +48,9 @@ border-bottom:3px solid #facc15;
 }
 
 
-/* LEFT SIDE */
+/* ===============================
+LEFT SIDE
+================================ */
 
 .top-left{
 
@@ -87,7 +89,59 @@ opacity:.9;
 }
 
 
-/* RIGHT SIDE */
+/* ===============================
+CENTER WELCOME MESSAGE
+================================ */
+
+.top-center{
+
+flex:1;
+text-align:center;
+
+}
+
+.welcome-box{
+
+display:inline-flex;
+align-items:center;
+gap:8px;
+
+font-size:14px;
+font-weight:600;
+color:#facc15;
+
+animation:welcomeGlow 3s infinite alternate;
+
+}
+
+
+/* ICON */
+
+#welcomeIcon{
+
+font-size:18px;
+
+}
+
+
+/* GLOW ANIMATION */
+
+@keyframes welcomeGlow{
+
+0%{
+text-shadow:0 0 5px #facc15;
+}
+
+100%{
+text-shadow:0 0 15px #facc15;
+}
+
+}
+
+
+/* ===============================
+RIGHT SIDE
+================================ */
 
 .top-right{
 
@@ -100,7 +154,9 @@ font-size:12px;
 }
 
 
-/* LOGOUT BUTTON */
+/* ===============================
+LOGOUT BUTTON
+================================ */
 
 .logout-btn{
 
@@ -146,7 +202,9 @@ padding:8px;
 }
 
 
-/* NAV BUTTON */
+/* ===============================
+NAV BUTTON
+================================ */
 
 .nav-btn{
 
@@ -167,7 +225,9 @@ transition:.2s;
 }
 
 
-/* HOVER */
+/* ===============================
+HOVER
+================================ */
 
 .nav-btn:hover{
 
@@ -178,7 +238,9 @@ color:black;
 }
 
 
-/* ACTIVE PAGE */
+/* ===============================
+ACTIVE PAGE
+================================ */
 
 .nav-btn.active{
 
@@ -192,7 +254,7 @@ font-weight:600;
 
 
 /* ===============================
-TABLE STYLE (optional)
+TABLE STYLE
 ================================ */
 
 table{
