@@ -7,10 +7,13 @@ fetch("header.html")
 document.getElementById("adminHeader").innerHTML = html;
 
 setActiveNav();
+
 startArizonaTime();
+
 startWelcomeMessage();
 
 });
+
 
 
 // ================= ACTIVE NAV =================
@@ -30,6 +33,7 @@ btn.classList.add("active");
 });
 
 }
+
 
 
 // ================= ARIZONA TIME =================
@@ -54,26 +58,40 @@ day:"2-digit"
 
 const el = document.getElementById("azTime");
 
-if(el){
-el.innerText = now;
-}
+if(el) el.innerText = now;
 
 }
 
 updateTime();
+
 setInterval(updateTime,1000);
 
 }
 
 
-// ================= WELCOME MESSAGE =================
 
-function startWelcomeMessage(){
+// ================= GET ADMIN NAME + MESSAGE =================
 
-const admin = localStorage.getItem("loggedAdmin") || "Admin";
+async function startWelcomeMessage(){
 
-const phoenixTime = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
-const hour = new Date(phoenixTime).getHours();
+let adminName = "Admin";
+
+try{
+
+const res = await fetch("/api/admin/me");
+
+if(res.ok){
+
+const data = await res.json();
+
+adminName = data.username || data.name || "Admin";
+
+}
+
+}catch(e){}
+
+const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+const hour = new Date(now).getHours();
 
 let greeting="";
 let icon="";
@@ -106,22 +124,19 @@ icon="🌙";
 const msg = document.getElementById("welcomeMessage");
 const weather = document.getElementById("weatherIcon");
 
-if(msg){
-msg.innerText = greeting + ", " + admin;
-}
+if(msg) msg.innerText = greeting + ", " + adminName;
 
-if(weather){
-weather.innerText = icon;
-}
+if(weather) weather.innerText = icon;
 
 }
+
 
 
 // ================= LOGOUT =================
 
 function logout(){
 
-localStorage.removeItem("loggedAdmin");
+fetch("/api/logout",{method:"POST"});
 
 location.href="../login.html";
 
