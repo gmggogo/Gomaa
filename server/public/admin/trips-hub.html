@@ -23,7 +23,7 @@ body{
   background:#f8fafc;
 }
 
-/* HEADER */
+/* ===== HEADER ===== */
 
 .page-header{
   position:fixed;
@@ -40,7 +40,9 @@ body{
   z-index:999;
 }
 
-.header-left{ width:25%; }
+.header-left{
+  width:25%;
+}
 
 .back-btn{
   background:var(--gold);
@@ -73,7 +75,7 @@ body{
   font-size:12px;
 }
 
-/* TOOLBAR */
+/* ===== TOOLBAR ===== */
 
 .toolbar{
   display:flex;
@@ -96,10 +98,20 @@ body{
   padding:7px;
 }
 
-/* TABLE */
+/* ===== GROUP TITLE ===== */
+
+.group-title{
+  margin:18px 15px 8px;
+  font-size:16px;
+  font-weight:bold;
+  color:#0f172a;
+}
+
+/* ===== TABLE ===== */
 
 .hub-table{
-  width:100%;
+  width:calc(100% - 30px);
+  margin:0 15px 18px;
   border-collapse:collapse;
   font-size:12px;
 }
@@ -113,6 +125,22 @@ body{
 .hub-table td{
   border:1px solid #e5e7eb;
   padding:5px;
+  vertical-align:middle;
+}
+
+.hub-table input,
+.hub-table textarea,
+.hub-table select{
+  width:100%;
+  border:none;
+  font-size:11px;
+  background:transparent;
+  box-sizing:border-box;
+}
+
+.hub-table textarea{
+  resize:vertical;
+  min-height:34px;
 }
 
 .hub-btn{
@@ -122,11 +150,26 @@ body{
   font-size:11px;
   cursor:pointer;
   color:#fff;
+  margin:2px;
 }
 
-.edit-btn{ background:#3b82f6 }
-.save-btn{ background:#16a34a }
-.delete-btn{ background:#ef4444 }
+.edit-btn{
+  background:#3b82f6;
+}
+
+.save-btn{
+  background:#16a34a;
+}
+
+.delete-btn{
+  background:#ef4444;
+}
+
+.no-data{
+  margin:20px 15px;
+  font-size:14px;
+  color:#334155;
+}
 
 </style>
 
@@ -134,10 +177,12 @@ body{
 
 <body>
 
+<!-- HEADER -->
+
 <header class="page-header">
 
 <div class="header-left">
-<button class="back-btn" onclick="history.back()">← Back</button>
+<button class="back-btn" onclick="goBack()">← Back</button>
 </div>
 
 <div class="header-center">
@@ -151,33 +196,67 @@ body{
 
 </header>
 
+<!-- TOOLBAR -->
+
 <div class="toolbar">
 
-<button id="addManualTripBtn" class="add-btn">
+<button
+id="addManualTripBtn"
+class="add-btn">
 Add Reserved Trip
 </button>
 
-<input id="searchInput" class="search-input"
+<input
+id="searchInput"
+class="search-input"
 placeholder="Search trip #, name, phone, company">
 
 </div>
 
+<!-- TRIPS TABLE -->
+
 <div id="hubContainer"></div>
+
+<!-- JS FILE -->
 
 <script src="/admin/trips-hub.js"></script>
 
 <script>
 
+/* ===== Admin Name ===== */
+
+const adminRaw = localStorage.getItem("loggedAdmin");
+
+if(adminRaw){
+  try{
+    const admin = JSON.parse(adminRaw);
+    const name = admin.name || admin.username || admin.fullName || "";
+    document.getElementById("welcomeText").innerText =
+      name ? "Welcome, " + name : "Welcome";
+  }catch{
+    document.getElementById("welcomeText").innerText = "Welcome";
+  }
+}
+
+/* ===== CLOCK ===== */
+
 function updateClock(){
-const now=new Date();
-document.getElementById("clock").innerText=
-now.toLocaleDateString()+" "+now.toLocaleTimeString();
+  const now = new Date();
+  document.getElementById("clock").innerText =
+    now.toLocaleDateString() + " " + now.toLocaleTimeString();
 }
 
 setInterval(updateClock,1000);
 updateClock();
 
+/* ===== BACK BUTTON ===== */
+
+function goBack(){
+  window.history.back();
+}
+
 </script>
 
 </body>
+
 </html>

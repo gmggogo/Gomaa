@@ -1,248 +1,460 @@
-const API_URL="/api/trips";
+/* ===============================
+   API
+================================ */
+const API_URL = "/api/trips";
 
-let hubTrips=[];
+/* ===============================
+   STATE
+================================ */
+let hubTrips = [];
+let filteredTrips = [];
+let isAddingReservedTrip = false;
 
-const container=document.getElementById("hubContainer");
-const addBtn=document.getElementById("addManualTripBtn");
-const searchInput=document.getElementById("searchInput");
+const container   = document.getElementById("hubContainer");
+const searchInput = document.getElementById("searchInput");
+const addBtn      = document.getElementById("addManualTripBtn");
 
-/* LOAD */
+if (!container) console.error("Missing #hubContainer in HTML");
 
+/* ===============================
+   SMALL STYLE
+================================ */
+(function injectTinyStyle(){
+  const s = document.createElement("style");
+  s.innerHTML = `
+    .hub-actions{
+      display:flex;
+      gap:6px;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ===============================
+   HELPERS
+================================ */
+function safe(v){
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatDate(iso){
+  if(!iso) return "-";
+  const d = new Date(iso);
+  if (isNaN(d)) return "-";
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function normalizeType(type){
+  return String(type || "").trim().toLowerCase();
+}
+
+function normalizeStatus(status){
+  return String(status || "").trim().toLowerCase();
+}
+
+function displayType(type){
+  const t = normalizeType(type);
+  if (t === "reserved") return "Reserved";
+  if (t === "individual") return "Individual";
+  if (t === "company") return "Company";
+  if (t === "gh") return "GH";
+  return type || "-";
+}
+
+function displayStatus(status){
+  const s = normalizeStatus(status);
+  if (s === "confirmed") return "Confirmed";
+  if (s === "booked") return "Booked";
+  if (s === "scheduled") return "Scheduled";
+  if (s === "cancelled") return "Cancelled";
+  if (s === "completed") return "Completed";
+  return status || "Booked";
+}
+
+function getTripNumber(t){
+  if (t && t.tripNumber) return String(t.tripNumber);
+  if (t && t.id) return String(t.id);
+  if (t && t.bookingNumber) return String(t.bookingNumber);
+  return "-";
+}
+
+function bookedDateKey(t){
+  const source = t.bookedAt || t.createdAt;
+  const d = new Date(source);
+  if (isNaN(d)) return "Unknown Date";
+  return d.toLocaleDateString();
+}
+
+function isTripPassed(t){
+  if(!t || !t.tripDate || !t.tripTime) return false;
+  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
+  if(isNaN(tripDateTime)) return false;
+  return new Date() >= tripDateTime;
+}
+
+function shouldRemoveTrip(t){
+  if(!t || !t.tripDate || !t.tripTime) return false;
+  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
+  if(isNaN(tripDateTime)) return false;
+  const diffHours = (new Date() - tripDateTime) / (1000 * 60 * 60);
+  return diffHours >= 24;
+}
+
+/* ===============================
+   LOAD HUB TRIPS (ONLINE)
+================================ */
 async function loadHubTrips(){
+  try{
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    const allTrips = Array.isArray(data) ? data : [];
 
-const res=await fetch(API_URL);
-const data=await res.json();
+    hubTrips = allTrips
+      .filter(t => !shouldRemoveTrip(t))
+      .filter(t => normalizeStatus(t.status) === "confirmed");
 
-hubTrips=data.filter(t=>t.status==="Confirmed");
-
-render();
-
+    filteredTrips = [...hubTrips];
+  }catch{
+    hubTrips = [];
+    filteredTrips = [];
+  }
 }
 
-/* COLORS */
+/* ===============================
+   COLORS
+================================ */
+function rowColor(tr, t){
 
-function rowColor(tr,t){
+  if(isTripPassed(t)){
+    tr.style.backgroundColor = "#ffe5e5";
+    tr.style.borderLeft = "4px solid #dc2626";
+    return;
+  }
 
-if(t.type==="Individual")
-tr.style.background="#e8f4ff";
+  const type = normalizeType(t?.type);
 
-else if(t.type==="Company")
-tr.style.background="#fff6d6";
-
-else if(t.type==="Reserved")
-tr.style.background="#ecfdf5";
-
+  if (type === "individual") {
+    tr.style.backgroundColor = "#e8f4ff";
+  }
+  else if (type === "company") {
+    tr.style.backgroundColor = "#fff6d6";
+  }
+  else if (type === "reserved") {
+    tr.style.backgroundColor = "#ecfdf5";
+  }
 }
 
-/* GROUP BY DATE */
-
-function groupByDate(trips){
-
-const groups={};
-
-trips.forEach(t=>{
-
-const date=new Date(t.createdAt).toLocaleDateString();
-
-if(!groups[date]) groups[date]=[];
-
-groups[date].push(t);
-
-});
-
-return groups;
-
-}
-
-/* ADD RESERVED */
-
+/* ===============================
+   ADD RESERVED (ONLINE)
+================================ */
 async function addReservedTripInline(){
+  if (isAddingReservedTrip) return;
 
-await fetch(API_URL,{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-type:"Reserved",
-status:"Confirmed"
-})
-});
+  isAddingReservedTrip = true;
+  if (addBtn) addBtn.disabled = true;
 
-loadHubTrips();
+  try{
+    const newTrip = {
+      type: "reserved",
+      company: "",
+      entryName: "",
+      entryPhone: "",
+      clientName: "",
+      clientPhone: "",
+      pickup: "",
+      stops: [],
+      dropoff: "",
+      notes: "",
+      tripDate: "",
+      tripTime: "",
+      status: "Confirmed",
+      createdAt: new Date().toISOString(),
+      bookedAt: new Date().toISOString()
+    };
 
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTrip)
+    });
+
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || "Failed to add trip");
+    }
+
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Add Reserved Trip Error:", err);
+    alert("Could not add reserved trip.");
+  }finally{
+    isAddingReservedTrip = false;
+    if (addBtn) addBtn.disabled = false;
+  }
 }
 
-addBtn.addEventListener("click",addReservedTripInline);
+/* ===============================
+   EDIT
+================================ */
+function editTripConfirm(id){
+  const tr = document.getElementById(`row-${id}`);
+  if (!tr) return;
 
-/* EDIT */
+  const fields = tr.querySelectorAll("input[data-edit='1'], textarea[data-edit='1'], select[data-edit='1']");
+  fields.forEach(el => {
+    el.disabled = false;
+  });
 
-function editTrip(id){
+  const editBtn = tr.querySelector(".edit-btn");
+  const saveBtn = tr.querySelector(".save-btn");
 
-const row=document.getElementById(id);
-
-row.querySelectorAll("input,textarea").forEach(el=>{
-el.disabled=false;
-});
-
-row.querySelector(".edit-btn").style.display="none";
-row.querySelector(".save-btn").style.display="inline-block";
-
+  if (editBtn) editBtn.style.display = "none";
+  if (saveBtn) saveBtn.style.display = "inline-block";
 }
 
-/* SAVE */
+/* ===============================
+   SAVE
+================================ */
+async function saveTripConfirm(id){
+  const tr = document.getElementById(`row-${id}`);
+  if (!tr) return;
 
-async function saveTrip(id){
+  const stopsInput = tr.querySelector(".stops-input");
+  const statusSelect = tr.querySelector(".status-input");
 
-const row=document.getElementById(id);
+  const updatedTrip = {
+    company: tr.querySelector(".company-input")?.value || "",
+    entryName: tr.querySelector(".entryname-input")?.value || "",
+    entryPhone: tr.querySelector(".entryphone-input")?.value || "",
+    clientName: tr.querySelector(".clientname-input")?.value || "",
+    clientPhone: tr.querySelector(".clientphone-input")?.value || "",
+    pickup: tr.querySelector(".pickup-input")?.value || "",
+    stops: stopsInput
+      ? stopsInput.value
+          .split("→")
+          .map(s => s.trim())
+          .filter(Boolean)
+      : [],
+    dropoff: tr.querySelector(".dropoff-input")?.value || "",
+    notes: tr.querySelector(".notes-input")?.value || "",
+    tripDate: tr.querySelector(".tripdate-input")?.value || "",
+    tripTime: tr.querySelector(".triptime-input")?.value || "",
+    status: statusSelect?.value || "Confirmed"
+  };
 
-const inputs=row.querySelectorAll("input,textarea");
+  try{
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedTrip)
+    });
 
-const data={
-company:inputs[2].value,
-entryName:inputs[3].value,
-entryPhone:inputs[4].value,
-clientName:inputs[5].value,
-clientPhone:inputs[6].value,
-pickup:inputs[7].value,
-stops:inputs[8].value.split("→").map(s=>s.trim()),
-dropoff:inputs[9].value,
-notes:inputs[10].value
-};
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || "Failed to save trip");
+    }
 
-await fetch(API_URL+"/"+id,{
-method:"PUT",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(data)
-});
-
-loadHubTrips();
-
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Save Trip Error:", err);
+    alert("Could not save trip.");
+  }
 }
 
-/* DELETE */
+/* ===============================
+   DELETE
+================================ */
+async function deleteTripConfirm(id){
+  const ok = confirm("Delete this trip?");
+  if(!ok) return;
 
-async function deleteTrip(id){
+  try{
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: "DELETE"
+    });
 
-if(!confirm("Delete trip?")) return;
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || "Failed to delete trip");
+    }
 
-await fetch(API_URL+"/"+id,{
-method:"DELETE"
-});
-
-loadHubTrips();
-
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Delete Trip Error:", err);
+    alert("Could not delete trip.");
+  }
 }
 
-/* RENDER */
+/* ===============================
+   GROUP BY BOOKED DATE
+================================ */
+function groupTripsByBookedDate(trips){
+  const groups = {};
 
+  trips.forEach(t => {
+    const key = bookedDateKey(t);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+
+  return groups;
+}
+
+/* ===============================
+   RENDER
+================================ */
 function render(){
+  container.innerHTML = "";
 
-container.innerHTML="";
+  if(!filteredTrips.length){
+    container.innerHTML = `<p class="no-data">No confirmed trips found</p>`;
+    return;
+  }
 
-const groups=groupByDate(hubTrips);
+  const groups = groupTripsByBookedDate(filteredTrips);
 
-Object.keys(groups).forEach(date=>{
+  Object.keys(groups).forEach(dateKey => {
 
-const title=document.createElement("h3");
-title.innerText=date;
-container.appendChild(title);
+    const title = document.createElement("div");
+    title.className = "group-title";
+    title.textContent = dateKey;
+    container.appendChild(title);
 
-const table=document.createElement("table");
-table.className="hub-table";
+    const table = document.createElement("table");
+    table.className = "hub-table";
 
-table.innerHTML=`
-<thead>
-<tr>
-<th>#</th>
-<th>Trip #</th>
-<th>Type</th>
-<th>Company</th>
-<th>Entry Name</th>
-<th>Entry Phone</th>
-<th>Client</th>
-<th>Client Phone</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Notes</th>
-<th>Actions</th>
-</tr>
-</thead>
-<tbody></tbody>
-`;
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Trip #</th>
+          <th>Type</th>
+          <th>Company</th>
+          <th>Entry Name</th>
+          <th>Entry Phone</th>
+          <th>Client</th>
+          <th>Client Phone</th>
+          <th>Pickup</th>
+          <th>Stops</th>
+          <th>Dropoff</th>
+          <th>Notes</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Status</th>
+          <th>Booked At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
 
-const tbody=table.querySelector("tbody");
+    const tbody = table.querySelector("tbody");
 
-groups[date].forEach((t,i)=>{
+    groups[dateKey].forEach(function(t, i){
+      const tr = document.createElement("tr");
+      tr.id = `row-${t._id}`;
+      rowColor(tr, t);
 
-const tr=document.createElement("tr");
-tr.id=t._id;
+      const tripNum = getTripNumber(t);
+      const stopsStr = Array.isArray(t.stops) ? t.stops.join(" → ") : "";
 
-rowColor(tr,t);
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td><input value="${safe(tripNum)}" disabled></td>
+        <td><input value="${safe(displayType(t.type))}" disabled></td>
+        <td><input class="company-input" data-edit="1" value="${safe(t.company || "")}" disabled></td>
+        <td><input class="entryname-input" data-edit="1" value="${safe(t.entryName || "")}" disabled></td>
+        <td><input class="entryphone-input" data-edit="1" value="${safe(t.entryPhone || "")}" disabled></td>
+        <td><input class="clientname-input" data-edit="1" value="${safe(t.clientName || "")}" disabled></td>
+        <td><input class="clientphone-input" data-edit="1" value="${safe(t.clientPhone || "")}" disabled></td>
+        <td><input class="pickup-input" data-edit="1" value="${safe(t.pickup || "")}" disabled></td>
+        <td><input class="stops-input" data-edit="1" value="${safe(stopsStr)}" disabled></td>
+        <td><input class="dropoff-input" data-edit="1" value="${safe(t.dropoff || "")}" disabled></td>
+        <td><textarea class="notes-input" data-edit="1" disabled>${safe(t.notes || "")}</textarea></td>
+        <td><input class="tripdate-input" data-edit="1" type="date" value="${safe(t.tripDate || "")}" disabled></td>
+        <td><input class="triptime-input" data-edit="1" type="time" value="${safe(t.tripTime || "")}" disabled></td>
+        <td>
+          <select class="status-input" data-edit="1" disabled>
+            <option value="Confirmed" ${displayStatus(t.status) === "Confirmed" ? "selected" : ""}>Confirmed</option>
+            <option value="Booked" ${displayStatus(t.status) === "Booked" ? "selected" : ""}>Booked</option>
+            <option value="Scheduled" ${displayStatus(t.status) === "Scheduled" ? "selected" : ""}>Scheduled</option>
+            <option value="Cancelled" ${displayStatus(t.status) === "Cancelled" ? "selected" : ""}>Cancelled</option>
+            <option value="Completed" ${displayStatus(t.status) === "Completed" ? "selected" : ""}>Completed</option>
+          </select>
+        </td>
+        <td>${safe(formatDate(t.bookedAt || t.createdAt))}</td>
+        <td>
+          <div class="hub-actions">
+            <button class="hub-btn edit-btn edit" onclick="editTripConfirm('${t._id}')">Edit</button>
+            <button class="hub-btn save-btn save" style="display:none" onclick="saveTripConfirm('${t._id}')">Save</button>
+            <button class="hub-btn delete-btn delete" onclick="deleteTripConfirm('${t._id}')">Delete</button>
+          </div>
+        </td>
+      `;
 
-const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):"";
+      tbody.appendChild(tr);
+    });
 
-tr.innerHTML=`
-
-<td>${i+1}</td>
-
-<td><input value="${t.tripNumber||""}" disabled></td>
-<td><input value="${t.type||""}" disabled></td>
-<td><input value="${t.company||""}" disabled></td>
-<td><input value="${t.entryName||""}" disabled></td>
-<td><input value="${t.entryPhone||""}" disabled></td>
-<td><input value="${t.clientName||""}" disabled></td>
-<td><input value="${t.clientPhone||""}" disabled></td>
-<td><input value="${t.pickup||""}" disabled></td>
-<td><input value="${stopsStr}" disabled></td>
-<td><input value="${t.dropoff||""}" disabled></td>
-<td><textarea disabled>${t.notes||""}</textarea></td>
-
-<td>
-
-<button class="hub-btn edit-btn"
-onclick="editTrip('${t._id}')">
-Edit
-</button>
-
-<button class="hub-btn save-btn"
-style="display:none"
-onclick="saveTrip('${t._id}')">
-Save
-</button>
-
-<button class="hub-btn delete-btn"
-onclick="deleteTrip('${t._id}')">
-Delete
-</button>
-
-</td>
-`;
-
-tbody.appendChild(tr);
-
-});
-
-container.appendChild(table);
-
-});
-
+    container.appendChild(table);
+  });
 }
 
-/* SEARCH */
+/* ===============================
+   SEARCH
+================================ */
+if(searchInput){
+  searchInput.addEventListener("input", function(){
+    const v = searchInput.value.toLowerCase().trim();
 
-searchInput.addEventListener("input",()=>{
+    if (!v) {
+      filteredTrips = [...hubTrips];
+      render();
+      return;
+    }
 
-const v=searchInput.value.toLowerCase();
+    filteredTrips = hubTrips.filter(t =>
+      JSON.stringify(t).toLowerCase().includes(v)
+    );
 
-const filtered=hubTrips.filter(t=>
-JSON.stringify(t).toLowerCase().includes(v)
-);
+    render();
+  });
+}
 
-hubTrips=filtered;
-render();
+/* ===============================
+   ADD BUTTON
+================================ */
+if(addBtn){
+  addBtn.addEventListener("click", async function(e){
+    e.preventDefault();
+    await addReservedTripInline();
+  });
+}
 
-});
+/* ===============================
+   AUTO REFRESH
+================================ */
+setInterval(async function(){
+  await loadHubTrips();
+  render();
+},60000);
 
-/* INIT */
-
-loadHubTrips();
+/* ===============================
+   INIT
+================================ */
+(async function(){
+  await loadHubTrips();
+  render();
+})();
