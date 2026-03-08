@@ -27,7 +27,7 @@ if (!container) console.error("Missing #hubContainer in HTML");
       gap:6px;
       justify-content:center;
       align-items:center;
-      flex-wrap:wrap
+      flex-wrap:wrap;
     }
   `;
   document.head.appendChild(s);
@@ -74,11 +74,11 @@ function displayType(type){
 function displayStatus(status){
   const s = normalizeStatus(status);
   if (s === "confirmed") return "Confirmed";
-  if (s === "booked") return "Booked";
-  if (s === "scheduled") return "Scheduled";
   if (s === "cancelled") return "Cancelled";
   if (s === "completed") return "Completed";
-  return status || "Booked";
+  if (s === "booked") return "Booked";
+  if (s === "scheduled") return "Scheduled";
+  return status || "Confirmed";
 }
 
 function getTripNumber(t){
@@ -111,7 +111,7 @@ function shouldRemoveTrip(t){
 }
 
 /* ===============================
-   LOAD HUB TRIPS (ONLINE)
+   LOAD HUB TRIPS
 ================================ */
 async function loadHubTrips(){
   try{
@@ -121,10 +121,14 @@ async function loadHubTrips(){
 
     hubTrips = allTrips
       .filter(t => !shouldRemoveTrip(t))
-      .filter(t => normalizeStatus(t.status) === "confirmed");
+      .filter(t => {
+        const s = normalizeStatus(t.status);
+        return s === "confirmed" || s === "cancelled";
+      });
 
     filteredTrips = [...hubTrips];
-  }catch{
+  }catch(err){
+    console.error("Load Trips Error:", err);
     hubTrips = [];
     filteredTrips = [];
   }
@@ -134,6 +138,13 @@ async function loadHubTrips(){
    COLORS
 ================================ */
 function rowColor(tr, t){
+  const status = normalizeStatus(t?.status);
+
+  if(status === "cancelled"){
+    tr.style.backgroundColor = "#f1f5f9";
+    tr.style.borderLeft = "4px solid #64748b";
+    return;
+  }
 
   if(isTripPassed(t)){
     tr.style.backgroundColor = "#ffe5e5";
@@ -155,7 +166,7 @@ function rowColor(tr, t){
 }
 
 /* ===============================
-   ADD RESERVED (ONLINE)
+   ADD RESERVED
 ================================ */
 async function addReservedTripInline(){
   if (isAddingReservedTrip) return;
@@ -189,8 +200,7 @@ async function addReservedTripInline(){
     });
 
     if (!res.ok) {
-      const msg = await res.text().catch(() => "");
-      throw new Error(msg || "Failed to add trip");
+      throw new Error("Failed to add reserved trip");
     }
 
     await loadHubTrips();
@@ -211,7 +221,10 @@ function editTripConfirm(id){
   const tr = document.getElementById(`row-${id}`);
   if (!tr) return;
 
-  const fields = tr.querySelectorAll("input[data-edit='1'], textarea[data-edit='1'], select[data-edit='1']");
+  const fields = tr.querySelectorAll(
+    "input[data-edit='1'], textarea[data-edit='1'], select[data-edit='1']"
+  );
+
   fields.forEach(el => {
     el.disabled = false;
   });
@@ -241,10 +254,7 @@ async function saveTripConfirm(id){
     clientPhone: tr.querySelector(".clientphone-input")?.value || "",
     pickup: tr.querySelector(".pickup-input")?.value || "",
     stops: stopsInput
-      ? stopsInput.value
-          .split("→")
-          .map(s => s.trim())
-          .filter(Boolean)
+      ? stopsInput.value.split("→").map(s => s.trim()).filter(Boolean)
       : [],
     dropoff: tr.querySelector(".dropoff-input")?.value || "",
     notes: tr.querySelector(".notes-input")?.value || "",
@@ -261,8 +271,7 @@ async function saveTripConfirm(id){
     });
 
     if (!res.ok) {
-      const msg = await res.text().catch(() => "");
-      throw new Error(msg || "Failed to save trip");
+      throw new Error("Failed to save trip");
     }
 
     await loadHubTrips();
@@ -286,8 +295,7 @@ async function deleteTripConfirm(id){
     });
 
     if (!res.ok) {
-      const msg = await res.text().catch(() => "");
-      throw new Error(msg || "Failed to delete trip");
+      throw new Error("Failed to delete trip");
     }
 
     await loadHubTrips();
@@ -320,14 +328,13 @@ function render(){
   container.innerHTML = "";
 
   if(!filteredTrips.length){
-    container.innerHTML = `<p class="no-data">No confirmed trips found</p>`;
+    container.innerHTML = `<p class="no-data">No trips found</p>`;
     return;
   }
 
   const groups = groupTripsByBookedDate(filteredTrips);
 
   Object.keys(groups).forEach(dateKey => {
-
     const title = document.createElement("div");
     title.className = "group-title";
     title.textContent = dateKey;
@@ -363,17 +370,16 @@ function render(){
 
     const tbody = table.querySelector("tbody");
 
-    groups[dateKey].forEach(function(t, i){
+    groups[dateKey].forEach((t, i) => {
       const tr = document.createElement("tr");
       tr.id = `row-${t._id}`;
       rowColor(tr, t);
 
-      const tripNum = getTripNumber(t);
       const stopsStr = Array.isArray(t.stops) ? t.stops.join(" → ") : "";
 
       tr.innerHTML = `
         <td>${i + 1}</td>
-        <td><input value="${safe(tripNum)}" disabled></td>
+        <td><input value="${safe(getTripNumber(t))}" disabled></td>
         <td><input value="${safe(displayType(t.type))}" disabled></td>
         <td><input class="company-input" data-edit="1" value="${safe(t.company || "")}" disabled></td>
         <td><input class="entryname-input" data-edit="1" value="${safe(t.entryName || "")}" disabled></td>
@@ -389,8 +395,6 @@ function render(){
         <td>
           <select class="status-input" data-edit="1" disabled>
             <option value="Confirmed" ${displayStatus(t.status) === "Confirmed" ? "selected" : ""}>Confirmed</option>
-            <option value="Booked" ${displayStatus(t.status) === "Booked" ? "selected" : ""}>Booked</option>
-            <option value="Scheduled" ${displayStatus(t.status) === "Scheduled" ? "selected" : ""}>Scheduled</option>
             <option value="Cancelled" ${displayStatus(t.status) === "Cancelled" ? "selected" : ""}>Cancelled</option>
             <option value="Completed" ${displayStatus(t.status) === "Completed" ? "selected" : ""}>Completed</option>
           </select>
@@ -449,7 +453,7 @@ if(addBtn){
 setInterval(async function(){
   await loadHubTrips();
   render();
-},60000);
+}, 60000);
 
 /* ===============================
    INIT
