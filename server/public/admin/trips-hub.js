@@ -6,19 +6,22 @@ const container=document.getElementById("hubContainer");
 const addBtn=document.getElementById("addManualTripBtn");
 const searchInput=document.getElementById("searchInput");
 
-/* LOAD */
+/* ===============================
+LOAD
+=============================== */
 
 async function loadTrips(){
 
 const res=await fetch(API);
-
 trips=await res.json();
 
 render();
 
 }
 
-/* ADD RESERVED */
+/* ===============================
+ADD RESERVED
+=============================== */
 
 async function addReservedTripInline(){
 
@@ -35,7 +38,9 @@ loadTrips();
 
 }
 
-/* EDIT */
+/* ===============================
+EDIT
+=============================== */
 
 function editTrip(id){
 
@@ -50,22 +55,31 @@ row.querySelector(".save-btn").style.display="inline-block";
 
 }
 
-/* SAVE */
+/* ===============================
+SAVE
+=============================== */
 
 async function saveTrip(id){
 
 const row=document.getElementById(id);
 
-const inputs=row.querySelectorAll("input");
+const inputs=row.querySelectorAll("input,textarea");
 
 const data={
+
 company:inputs[2].value,
 entryName:inputs[3].value,
 entryPhone:inputs[4].value,
+
 clientName:inputs[5].value,
 clientPhone:inputs[6].value,
+
 pickup:inputs[7].value,
-dropoff:inputs[8].value
+stops:inputs[8].value.split("→").map(s=>s.trim()),
+
+dropoff:inputs[9].value,
+notes:inputs[10].value
+
 };
 
 await fetch(API+"/"+id,{
@@ -78,7 +92,9 @@ loadTrips();
 
 }
 
-/* DELETE */
+/* ===============================
+DELETE
+=============================== */
 
 async function deleteTrip(id){
 
@@ -92,7 +108,26 @@ loadTrips();
 
 }
 
-/* RENDER */
+/* ===============================
+ROW COLOR
+=============================== */
+
+function rowColor(tr,t){
+
+if(t.type==="individual")
+tr.style.background="#e8f4ff";
+
+else if(t.type==="company")
+tr.style.background="#fff6d6";
+
+else if(t.type==="reserved")
+tr.style.background="#ecfdf5";
+
+}
+
+/* ===============================
+RENDER
+=============================== */
 
 function render(){
 
@@ -105,7 +140,9 @@ table.className="hub-table";
 table.innerHTML=`
 
 <thead>
+
 <tr>
+
 <th>#</th>
 <th>Trip #</th>
 <th>Type</th>
@@ -115,9 +152,13 @@ table.innerHTML=`
 <th>Client</th>
 <th>Client Phone</th>
 <th>Pickup</th>
+<th>Stops</th>
 <th>Dropoff</th>
+<th>Notes</th>
 <th>Actions</th>
+
 </tr>
+
 </thead>
 
 <tbody></tbody>
@@ -131,6 +172,10 @@ trips.forEach((t,i)=>{
 const tr=document.createElement("tr");
 
 tr.id=t._id;
+
+rowColor(tr,t);
+
+const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):"";
 
 tr.innerHTML=`
 
@@ -152,30 +197,28 @@ tr.innerHTML=`
 
 <td><input value="${t.pickup||""}" disabled></td>
 
+<td><input value="${stopsStr}" disabled></td>
+
 <td><input value="${t.dropoff||""}" disabled></td>
+
+<td><textarea disabled>${t.notes||""}</textarea></td>
 
 <td>
 
 <button class="hub-btn edit-btn"
 onclick="editTrip('${t._id}')">
-
 Edit
-
 </button>
 
 <button class="hub-btn save-btn"
 style="display:none"
 onclick="saveTrip('${t._id}')">
-
 Save
-
 </button>
 
 <button class="hub-btn delete-btn"
 onclick="deleteTrip('${t._id}')">
-
 Delete
-
 </button>
 
 </td>
@@ -190,7 +233,9 @@ container.appendChild(table);
 
 }
 
-/* SEARCH */
+/* ===============================
+SEARCH
+=============================== */
 
 searchInput.addEventListener("input",()=>{
 
@@ -212,10 +257,14 @@ trips=old;
 
 });
 
-/* BUTTON */
+/* ===============================
+BUTTON
+=============================== */
 
 addBtn.addEventListener("click",addReservedTripInline);
 
-/* INIT */
+/* ===============================
+INIT
+=============================== */
 
 loadTrips();
