@@ -4,127 +4,149 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Trips Hub</title>
+<title>Sunbeam Transportation – Trips Hub</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
 :root{
---blue:#0f172a;
---gold:#facc15;
+  --blue:#0f172a;
+  --gold:#facc15;
 }
 
 body{
-margin:0;
-padding-top:95px;
-font-family:Arial, Helvetica, sans-serif;
-background:#f8fafc;
+  margin:0;
+  padding-top:95px;
+  font-family:Arial, Helvetica, sans-serif;
+  background:#f8fafc;
 }
 
 /* HEADER */
 
 .page-header{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:85px;
-background:linear-gradient(90deg,var(--blue),#1e293b);
-display:flex;
-align-items:center;
-padding:0 20px;
-color:#fff;
-border-bottom:3px solid var(--gold);
-z-index:999;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:85px;
+  background:linear-gradient(90deg,var(--blue),#1e293b);
+  display:flex;
+  align-items:center;
+  padding:0 20px;
+  color:#fff;
+  border-bottom:3px solid var(--gold);
+  z-index:999;
 }
 
-.header-left{width:25%}
+.header-left{
+  width:25%;
+}
 
 .back-btn{
-background:var(--gold);
-border:none;
-border-radius:8px;
-padding:6px 12px;
-font-weight:bold;
-cursor:pointer;
+  background:var(--gold);
+  border:none;
+  border-radius:8px;
+  padding:6px 12px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
 .header-center{
-width:50%;
-text-align:center;
+  width:50%;
+  text-align:center;
 }
 
 .header-center h1{
-margin:0;
-font-size:18px;
-color:var(--gold);
+  margin:0;
+  font-size:18px;
+  color:var(--gold);
 }
 
 .header-center p{
-margin-top:4px;
-font-size:12px;
+  margin-top:4px;
+  font-size:12px;
 }
 
 .header-right{
-width:25%;
-text-align:right;
-font-size:12px;
+  width:25%;
+  text-align:right;
+  font-size:12px;
 }
 
 /* TOOLBAR */
 
 .toolbar{
-display:flex;
-gap:10px;
-align-items:center;
-margin:15px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin:15px;
 }
 
 .add-btn{
-background:#2563eb;
-color:#fff;
-border:none;
-padding:7px 14px;
-border-radius:6px;
-cursor:pointer;
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  padding:7px 14px;
+  border-radius:6px;
+  cursor:pointer;
 }
 
 .search-input{
-flex:1;
-padding:7px;
+  flex:1;
+  padding:7px;
 }
 
 /* TABLE */
 
 .hub-table{
-width:100%;
-border-collapse:collapse;
-font-size:12px;
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
 }
 
 .hub-table th{
-background:#0f172a;
-color:#fff;
-padding:6px;
+  background:#0f172a;
+  color:#fff;
+  padding:6px;
 }
 
 .hub-table td{
-border:1px solid #e5e7eb;
-padding:5px;
+  border:1px solid #e5e7eb;
+  padding:5px;
+}
+
+.hub-table input,
+.hub-table textarea{
+  width:100%;
+  border:none;
+  font-size:11px;
+  background:transparent;
+}
+
+.hub-table textarea{
+  resize:vertical;
 }
 
 .hub-btn{
-border:none;
-border-radius:6px;
-padding:5px 10px;
-font-size:11px;
-cursor:pointer;
-color:#fff;
+  border:none;
+  border-radius:6px;
+  padding:5px 10px;
+  font-size:11px;
+  cursor:pointer;
+  color:#fff;
 }
 
-.edit-btn{background:#3b82f6}
-.save-btn{background:#16a34a}
-.delete-btn{background:#ef4444}
+.edit-btn{
+  background:#3b82f6;
+}
+
+.save-btn{
+  background:#16a34a;
+}
+
+.delete-btn{
+  background:#ef4444;
+}
 
 </style>
 
@@ -132,27 +154,41 @@ color:#fff;
 
 <body>
 
+<!-- HEADER -->
+
 <header class="page-header">
 
 <div class="header-left">
-<button class="back-btn" onclick="history.back()">← Back</button>
+
+<button class="back-btn" onclick="goBack()">← Back</button>
+
 </div>
 
 <div class="header-center">
+
 <h1>Trips Hub</h1>
 <p id="welcomeText">Welcome</p>
+
 </div>
 
 <div class="header-right">
+
 <span id="clock"></span>
+
 </div>
 
 </header>
 
+<!-- TOOLBAR -->
+
 <div class="toolbar">
 
-<button id="addManualTripBtn" class="add-btn">
+<button
+id="addManualTripBtn"
+class="add-btn">
+
 Add Reserved Trip
+
 </button>
 
 <input
@@ -162,22 +198,55 @@ placeholder="Search trip #, name, phone, company">
 
 </div>
 
+<!-- TRIPS TABLE -->
+
 <div id="hubContainer"></div>
+
+<!-- JS -->
 
 <script src="/admin/trips-hub.js"></script>
 
 <script>
 
-function updateClock(){
-const now=new Date()
-document.getElementById("clock").innerText=
-now.toLocaleDateString()+" "+now.toLocaleTimeString()
+/* ADMIN NAME */
+
+const adminRaw = localStorage.getItem("loggedAdmin");
+
+if(adminRaw){
+
+const admin = JSON.parse(adminRaw);
+
+const name = admin.name || admin.username || admin.fullName || "";
+
+document.getElementById("welcomeText").innerText =
+name ? "Welcome, " + name : "Welcome";
+
 }
 
-setInterval(updateClock,1000)
-updateClock()
+/* CLOCK */
+
+function updateClock(){
+
+const now = new Date();
+
+document.getElementById("clock").innerText =
+now.toLocaleDateString() + " " + now.toLocaleTimeString();
+
+}
+
+setInterval(updateClock,1000);
+updateClock();
+
+/* BACK BUTTON */
+
+function goBack(){
+
+window.history.back();
+
+}
 
 </script>
 
 </body>
+
 </html>

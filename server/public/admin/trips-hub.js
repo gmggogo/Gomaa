@@ -1,58 +1,69 @@
-const API_URL="/api/trips"
+/* ===============================
+   API
+================================ */
 
-let hubTrips=[]
+const API_URL="/api/trips";
 
-const container=document.getElementById("hubContainer")
-const searchInput=document.getElementById("searchInput")
-const addBtn=document.getElementById("addManualTripBtn")
+let hubTrips=[];
+let isAddingTrip=false;
 
-/* LOAD */
+const container=document.getElementById("hubContainer");
+const searchInput=document.getElementById("searchInput");
+const addBtn=document.getElementById("addManualTripBtn");
+
+
+/* ===============================
+   LOAD TRIPS
+================================ */
 
 async function loadHubTrips(){
 
-const res=await fetch(API_URL)
-const data=await res.json()
+try{
 
-hubTrips=Array.isArray(data)?data:[]
+const res=await fetch(API_URL);
+const data=await res.json();
 
-}
+hubTrips=Array.isArray(data)?data:[];
 
-/* COLORS */
+}catch{
 
-function rowColor(tr,t){
-
-if(t.type==="Individual")
-tr.style.background="#e8f4ff"
-
-else if(t.type==="Company")
-tr.style.background="#fff6d6"
-
-else if(t.type==="Reserved")
-tr.style.background="#ecfdf5"
+hubTrips=[];
 
 }
 
-/* RESERVED NUMBER */
+}
+
+
+/* ===============================
+   RESERVED NUMBER
+================================ */
 
 function nextReservedNumber(){
 
-const key="lastReservedNumber"
+const key="lastReservedRE";
 
-let last=parseInt(localStorage.getItem(key)||"1000")
+let last=parseInt(localStorage.getItem(key)||"1000");
 
-last++
+last++;
 
-localStorage.setItem(key,last)
+localStorage.setItem(key,last);
 
-return "RE-"+last
+return "RE-"+last;
 
 }
 
-/* ADD RESERVED */
+
+/* ===============================
+   ADD RESERVED
+================================ */
 
 async function addReservedTripInline(){
 
-const trip={
+if(isAddingTrip) return;
+
+isAddingTrip=true;
+
+const newTrip={
 
 tripNumber:nextReservedNumber(),
 
@@ -67,8 +78,8 @@ clientPhone:"",
 
 pickup:"",
 stops:[],
-dropoff:"",
 
+dropoff:"",
 notes:"",
 
 tripDate:"",
@@ -76,115 +87,244 @@ tripTime:"",
 
 status:"Booked",
 
-createdAt:new Date().toISOString()
+bookedAt:new Date().toISOString()
 
-}
+};
+
 
 await fetch(API_URL,{
+
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify(trip)
-})
+body:JSON.stringify(newTrip)
 
-await loadHubTrips()
-render()
+});
 
-}
+await loadHubTrips();
 
-if(addBtn){
+render();
 
-addBtn.addEventListener("click",async function(){
-
-await addReservedTripInline()
-
-})
+isAddingTrip=false;
 
 }
 
-/* EDIT */
 
-function editTripConfirm(tripNumber){
-
-const row=document.querySelector(`[data-trip="${tripNumber}"]`)
-
-row.querySelectorAll("input,textarea").forEach(el=>{
-el.disabled=false
-})
-
-}
-
-/* SAVE */
-
-async function saveTripConfirm(tripNumber){
-
-const row=document.querySelector(`[data-trip="${tripNumber}"]`)
-
-const inputs=row.querySelectorAll("input,textarea")
-
-const updatedTrip={
-
-company:inputs[3].value,
-entryName:inputs[4].value,
-entryPhone:inputs[5].value,
-
-clientName:inputs[6].value,
-clientPhone:inputs[7].value,
-
-pickup:inputs[8].value,
-
-stops:inputs[9].value
-?inputs[9].value.split("→").map(s=>s.trim())
-:[],
-
-dropoff:inputs[10].value,
-
-notes:inputs[11].value,
-
-tripDate:inputs[12].value,
-tripTime:inputs[13].value
-
-}
-
-await fetch(API_URL+"/"+tripNumber,{
-method:"PUT",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(updatedTrip)
-})
-
-await loadHubTrips()
-render()
-
-}
-
-/* DELETE */
+/* ===============================
+   DELETE
+================================ */
 
 async function deleteTripConfirm(tripNumber){
 
-await fetch(API_URL+"/"+tripNumber,{method:"DELETE"})
+const ok=confirm("Delete this trip?");
 
-await loadHubTrips()
-render()
+if(!ok) return;
+
+hubTrips=hubTrips.filter(t=>String(t.tripNumber)!==String(tripNumber));
+
+await fetch(API_URL,{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(hubTrips)
+
+});
+
+await loadHubTrips();
+
+render();
 
 }
 
-/* RENDER */
+
+/* ===============================
+   EDIT
+================================ */
+
+function editTripConfirm(tripNumber){
+
+const row=document.getElementById("row-"+tripNumber);
+
+const inputs=row.querySelectorAll("input,textarea");
+
+inputs.forEach(i=>i.disabled=false);
+
+row.querySelector(".edit-btn").style.display="none";
+
+row.querySelector(".save-btn").style.display="inline-block";
+
+}
+
+
+/* ===============================
+   SAVE
+================================ */
+
+async function saveTrip(tripNumber){
+
+const row=document.getElementById("row-"+tripNumber);
+
+const inputs=row.querySelectorAll("input,textarea");
+
+const trip=hubTrips.find(t=>String(t.tripNumber)===String(tripNumber));
+
+if(!trip) return;
+
+trip.company=inputs[3].value;
+trip.entryName=inputs[4].value;
+trip.entryPhone=inputs[5].value;
+
+trip.clientName=inputs[6].value;
+trip.clientPhone=inputs[7].value;
+
+trip.pickup=inputs[8].value;
+
+trip.stops=inputs[9].value.split("→").map(s=>s.trim());
+
+trip.dropoff=inputs[10].value;
+
+trip.notes=inputs[11].value;
+
+trip.tripDate=inputs[12].value;
+trip.tripTime=inputs[13].value;
+
+
+await fetch(API_URL,{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(hubTrips)
+
+});
+
+await loadHubTrips();
+
+render();
+
+}
+
+
+/* ===============================
+   DATE FORMAT
+================================ */
+
+function formatDate(iso){
+
+if(!iso) return "-";
+
+const d=new Date(iso);
+
+if(isNaN(d)) return "-";
+
+return d.toLocaleDateString()+" "+d.toLocaleTimeString([],{
+hour:"2-digit",
+minute:"2-digit"
+});
+
+}
+
+
+/* ===============================
+   TRIP PASSED
+================================ */
+
+function isTripPassed(t){
+
+if(!t.tripDate||!t.tripTime) return false;
+
+const tripDateTime=new Date(`${t.tripDate}T${t.tripTime}`);
+
+return new Date()>=tripDateTime;
+
+}
+
+
+/* ===============================
+   REMOVE AFTER 24H
+================================ */
+
+function shouldRemoveTrip(t){
+
+if(!t.tripDate||!t.tripTime) return false;
+
+const tripDateTime=new Date(`${t.tripDate}T${t.tripTime}`);
+
+const diffHours=(new Date()-tripDateTime)/(1000*60*60);
+
+return diffHours>=24;
+
+}
+
+
+/* ===============================
+   ROW COLOR
+================================ */
+
+function rowColor(tr,t){
+
+if(isTripPassed(t)){
+
+tr.style.background="#ffe5e5";
+tr.style.borderLeft="4px solid #dc2626";
+
+return;
+
+}
+
+if(t.type==="Individual"){
+
+tr.style.background="#e8f4ff";
+
+}
+
+else if(t.type==="Company"){
+
+tr.style.background="#fff6d6";
+
+}
+
+else if(t.type==="Reserved"){
+
+tr.style.background="#ecfdf5";
+
+}
+
+}
+
+
+/* ===============================
+   RENDER
+================================ */
 
 function render(){
 
-container.innerHTML=""
+hubTrips=hubTrips.filter(t=>!shouldRemoveTrip(t));
 
-const table=document.createElement("table")
-table.className="hub-table"
+container.innerHTML="";
+
+if(!hubTrips.length){
+
+container.innerHTML="<p>No trips found</p>";
+
+return;
+
+}
+
+const table=document.createElement("table");
+
+table.className="hub-table";
 
 table.innerHTML=`
+
 <thead>
+
 <tr>
+
 <th>#</th>
-<th>Trip</th>
+<th>Trip #</th>
 <th>Type</th>
 <th>Company</th>
-<th>Entry</th>
-<th>Phone</th>
+<th>Entry Name</th>
+<th>Entry Phone</th>
 <th>Client</th>
 <th>Client Phone</th>
 <th>Pickup</th>
@@ -194,33 +334,36 @@ table.innerHTML=`
 <th>Date</th>
 <th>Time</th>
 <th>Status</th>
+<th>Booked At</th>
 <th>Actions</th>
-</tr>
-</thead>
-<tbody></tbody>
-`
 
-const tbody=table.querySelector("tbody")
+</tr>
+
+</thead>
+
+<tbody></tbody>
+
+`;
+
+const tbody=table.querySelector("tbody");
 
 hubTrips.forEach((t,i)=>{
 
-const tr=document.createElement("tr")
+const tr=document.createElement("tr");
 
-rowColor(tr,t)
+tr.id="row-"+t.tripNumber;
 
-const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):""
+rowColor(tr,t);
 
-const tripNum=t.tripNumber
-
-tr.setAttribute("data-trip",tripNum)
+const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):"";
 
 tr.innerHTML=`
 
 <td>${i+1}</td>
 
-<td><input value="${tripNum}" disabled></td>
+<td><input value="${t.tripNumber}" disabled></td>
 
-<td><input value="${t.type||""}" disabled></td>
+<td><input value="${t.type||"-"}" disabled></td>
 
 <td><input value="${t.company||""}" disabled></td>
 
@@ -244,58 +387,91 @@ tr.innerHTML=`
 
 <td><input type="time" value="${t.tripTime||""}" disabled></td>
 
-<td>${t.status||""}</td>
+<td>${t.status||"Booked"}</td>
+
+<td>${formatDate(t.bookedAt)}</td>
 
 <td>
 
 <button class="hub-btn edit-btn"
-onclick="editTripConfirm('${tripNum}')">
-Edit
-</button>
+onclick="editTripConfirm('${t.tripNumber}')">Edit</button>
 
 <button class="hub-btn save-btn"
-onclick="saveTripConfirm('${tripNum}')">
-Save
-</button>
+style="display:none;background:#16a34a"
+onclick="saveTrip('${t.tripNumber}')">Save</button>
 
 <button class="hub-btn delete-btn"
-onclick="deleteTripConfirm('${tripNum}')">
-Delete
-</button>
+onclick="deleteTripConfirm('${t.tripNumber}')">Delete</button>
 
 </td>
 
-`
+`;
 
-tbody.appendChild(tr)
+tbody.appendChild(tr);
 
-})
+});
 
-container.appendChild(table)
+container.appendChild(table);
 
 }
 
-/* SEARCH */
+
+/* ===============================
+   SEARCH
+================================ */
+
+if(searchInput){
 
 searchInput.addEventListener("input",function(){
 
-const v=searchInput.value.toLowerCase()
+const v=searchInput.value.toLowerCase();
 
 const filtered=hubTrips.filter(t=>
 JSON.stringify(t).toLowerCase().includes(v)
-)
+);
 
-hubTrips=filtered
+container.innerHTML="";
 
-render()
+const oldTrips=hubTrips;
 
-})
+hubTrips=filtered;
 
-/* INIT */
+render();
+
+hubTrips=oldTrips;
+
+});
+
+}
+
+
+/* ===============================
+   AUTO REFRESH
+================================ */
+
+setInterval(async function(){
+
+await loadHubTrips();
+
+render();
+
+},60000);
+
+
+/* ===============================
+   INIT
+================================ */
+
+if(addBtn){
+
+addBtn.addEventListener("click",addReservedTripInline);
+
+}
 
 (async function(){
 
-await loadHubTrips()
-render()
+await loadHubTrips();
 
-})()
+render();
+
+})();
