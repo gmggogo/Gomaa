@@ -225,14 +225,17 @@ placeholder="Search trip #, name, phone, company">
 
 /* ===== Admin Name ===== */
 
-const adminName = localStorage.getItem("name");
+const adminRaw = localStorage.getItem("loggedAdmin");
 
-if(adminName){
-  document.getElementById("welcomeText").innerText =
-    "Welcome, " + adminName;
-}else{
-  document.getElementById("welcomeText").innerText =
-    "Welcome";
+if(adminRaw){
+  try{
+    const admin = JSON.parse(adminRaw);
+    const name = admin.name || admin.username || admin.fullName || "";
+    document.getElementById("welcomeText").innerText =
+      name ? "Welcome, " + name : "Welcome";
+  }catch{
+    document.getElementById("welcomeText").innerText = "Welcome";
+  }
 }
 
 /* ===== CLOCK ===== */
