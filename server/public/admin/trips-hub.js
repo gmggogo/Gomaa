@@ -10,46 +10,10 @@ const addBtn=document.getElementById("addManualTripBtn")
 
 async function loadHubTrips(){
 
-try{
-
 const res=await fetch(API_URL)
 const data=await res.json()
 
 hubTrips=Array.isArray(data)?data:[]
-
-}catch{
-
-hubTrips=[]
-
-}
-
-}
-
-/* FORMAT DATE */
-
-function formatDate(iso){
-
-if(!iso)return "-"
-
-const d=new Date(iso)
-
-return d.toLocaleDateString()+" "+
-d.toLocaleTimeString([],{
-hour:"2-digit",
-minute:"2-digit"
-})
-
-}
-
-/* GET TRIP NUMBER */
-
-function getTripNumber(t){
-
-if(t.tripNumber)return t.tripNumber
-if(t.id)return t.id
-if(t.bookingNumber)return t.bookingNumber
-
-return "-"
 
 }
 
@@ -57,27 +21,24 @@ return "-"
 
 function rowColor(tr,t){
 
-if(t.type==="Individual"){
-tr.style.backgroundColor="#e8f4ff"
-}
+if(t.type==="Individual")
+tr.style.background="#e8f4ff"
 
-else if(t.type==="Company"){
-tr.style.backgroundColor="#fff6d6"
-}
+else if(t.type==="Company")
+tr.style.background="#fff6d6"
 
-else if(t.type==="Reserved"){
-tr.style.backgroundColor="#ecfdf5"
-}
+else if(t.type==="Reserved")
+tr.style.background="#ecfdf5"
 
 }
 
-/* NEXT RESERVED */
+/* RESERVED NUMBER */
 
 function nextReservedNumber(){
 
-const key="lastReservedRE"
+const key="lastReservedNumber"
 
-let last=parseInt(localStorage.getItem(key)||"1000",10)
+let last=parseInt(localStorage.getItem(key)||"1000")
 
 last++
 
@@ -91,7 +52,7 @@ return "RE-"+last
 
 async function addReservedTripInline(){
 
-const newTrip={
+const trip={
 
 tripNumber:nextReservedNumber(),
 
@@ -115,15 +76,14 @@ tripTime:"",
 
 status:"Booked",
 
-createdAt:new Date().toISOString(),
-bookedAt:new Date().toISOString()
+createdAt:new Date().toISOString()
 
 }
 
 await fetch(API_URL,{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify(newTrip)
+body:JSON.stringify(trip)
 })
 
 await loadHubTrips()
@@ -134,12 +94,6 @@ render()
 if(addBtn){
 
 addBtn.addEventListener("click",async function(){
-
-const ok=confirm(
-"Warning:\nOnly Admin or Dispatcher should create Reserved Trips.\nContinue?"
-)
-
-if(!ok)return
 
 await addReservedTripInline()
 
@@ -153,10 +107,8 @@ function editTripConfirm(tripNumber){
 
 const row=document.querySelector(`[data-trip="${tripNumber}"]`)
 
-const inputs=row.querySelectorAll("input,textarea")
-
-inputs.forEach(el=>{
-if(el.disabled)el.disabled=false
+row.querySelectorAll("input,textarea").forEach(el=>{
+el.disabled=false
 })
 
 }
@@ -194,11 +146,9 @@ tripTime:inputs[13].value
 }
 
 await fetch(API_URL+"/"+tripNumber,{
-
 method:"PUT",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify(updatedTrip)
-
 })
 
 await loadHubTrips()
@@ -209,10 +159,6 @@ render()
 /* DELETE */
 
 async function deleteTripConfirm(tripNumber){
-
-const ok=confirm("Delete this trip?")
-
-if(!ok)return
 
 await fetch(API_URL+"/"+tripNumber,{method:"DELETE"})
 
@@ -227,50 +173,30 @@ function render(){
 
 container.innerHTML=""
 
-if(!hubTrips.length){
-
-container.innerHTML="<p>No trips found</p>"
-return
-
-}
-
 const table=document.createElement("table")
-
 table.className="hub-table"
 
 table.innerHTML=`
-
 <thead>
 <tr>
-
 <th>#</th>
-<th>Trip #</th>
+<th>Trip</th>
 <th>Type</th>
-
 <th>Company</th>
-<th>Entry Name</th>
-<th>Entry Phone</th>
-
+<th>Entry</th>
+<th>Phone</th>
 <th>Client</th>
 <th>Client Phone</th>
-
 <th>Pickup</th>
 <th>Stops</th>
 <th>Dropoff</th>
-
 <th>Notes</th>
-
 <th>Date</th>
 <th>Time</th>
-
 <th>Status</th>
-<th>Booked At</th>
-
 <th>Actions</th>
-
 </tr>
 </thead>
-
 <tbody></tbody>
 `
 
@@ -282,9 +208,9 @@ const tr=document.createElement("tr")
 
 rowColor(tr,t)
 
-const tripNum=getTripNumber(t)
-
 const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):""
+
+const tripNum=t.tripNumber
 
 tr.setAttribute("data-trip",tripNum)
 
@@ -320,8 +246,6 @@ tr.innerHTML=`
 
 <td>${t.status||""}</td>
 
-<td>${formatDate(t.bookedAt)}</td>
-
 <td>
 
 <button class="hub-btn edit-btn"
@@ -353,8 +277,6 @@ container.appendChild(table)
 
 /* SEARCH */
 
-if(searchInput){
-
 searchInput.addEventListener("input",function(){
 
 const v=searchInput.value.toLowerCase()
@@ -368,17 +290,6 @@ hubTrips=filtered
 render()
 
 })
-
-}
-
-/* AUTO REFRESH */
-
-setInterval(async function(){
-
-await loadHubTrips()
-render()
-
-},60000)
 
 /* INIT */
 
