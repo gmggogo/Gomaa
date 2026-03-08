@@ -7,8 +7,6 @@
 <title>Trips Hub</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="/admin/trips-hub.css">
-
 <style>
 
 :root{
@@ -19,7 +17,7 @@
 body{
 margin:0;
 padding-top:95px;
-font-family:Arial;
+font-family:Arial, Helvetica, sans-serif;
 background:#f8fafc;
 }
 
@@ -62,6 +60,11 @@ font-size:18px;
 color:var(--gold);
 }
 
+.header-center p{
+margin-top:4px;
+font-size:12px;
+}
+
 .header-right{
 width:25%;
 text-align:right;
@@ -91,11 +94,37 @@ flex:1;
 padding:7px;
 }
 
-/* BUTTON COLORS */
+/* TABLE */
 
-.edit-btn{background:#3b82f6;color:#fff}
-.save-btn{background:#16a34a;color:#fff}
-.delete-btn{background:#ef4444;color:#fff}
+.hub-table{
+width:100%;
+border-collapse:collapse;
+font-size:12px;
+}
+
+.hub-table th{
+background:#0f172a;
+color:#fff;
+padding:6px;
+}
+
+.hub-table td{
+border:1px solid #e5e7eb;
+padding:5px;
+}
+
+.hub-btn{
+border:none;
+border-radius:6px;
+padding:5px 10px;
+font-size:11px;
+cursor:pointer;
+color:#fff;
+}
+
+.edit-btn{background:#3b82f6}
+.save-btn{background:#16a34a}
+.delete-btn{background:#ef4444}
 
 </style>
 
@@ -139,16 +168,17 @@ placeholder="Search trip #, name, phone, company">
 
 <script>
 
-/* CLOCK */
-
 function updateClock(){
-const now=new Date();
+
+const now=new Date()
+
 document.getElementById("clock").innerText=
-now.toLocaleDateString()+" "+now.toLocaleTimeString();
+now.toLocaleDateString()+" "+now.toLocaleTimeString()
+
 }
 
-setInterval(updateClock,1000);
-updateClock();
+setInterval(updateClock,1000)
+updateClock()
 
 </script>
 

@@ -1,7 +1,6 @@
-const API="/api/trips"
+const API_URL="/api/trips"
 
-let trips=[]
-let filtered=[]
+let hubTrips=[]
 
 const container=document.getElementById("hubContainer")
 const searchInput=document.getElementById("searchInput")
@@ -9,15 +8,82 @@ const addBtn=document.getElementById("addManualTripBtn")
 
 /* LOAD */
 
-async function loadTrips(){
+async function loadHubTrips(){
 
-const res=await fetch(API)
+try{
+
+const res=await fetch(API_URL)
 const data=await res.json()
 
-trips=Array.isArray(data)?data:[]
-filtered=[...trips]
+hubTrips=Array.isArray(data)?data:[]
 
-render()
+}catch{
+
+hubTrips=[]
+
+}
+
+}
+
+/* FORMAT DATE */
+
+function formatDate(iso){
+
+if(!iso)return "-"
+
+const d=new Date(iso)
+
+return d.toLocaleDateString()+" "+
+d.toLocaleTimeString([],{
+hour:"2-digit",
+minute:"2-digit"
+})
+
+}
+
+/* GET TRIP NUMBER */
+
+function getTripNumber(t){
+
+if(t.tripNumber)return t.tripNumber
+if(t.id)return t.id
+if(t.bookingNumber)return t.bookingNumber
+
+return "-"
+
+}
+
+/* COLORS */
+
+function rowColor(tr,t){
+
+if(t.type==="Individual"){
+tr.style.backgroundColor="#e8f4ff"
+}
+
+else if(t.type==="Company"){
+tr.style.backgroundColor="#fff6d6"
+}
+
+else if(t.type==="Reserved"){
+tr.style.backgroundColor="#ecfdf5"
+}
+
+}
+
+/* NEXT RESERVED */
+
+function nextReservedNumber(){
+
+const key="lastReservedRE"
+
+let last=parseInt(localStorage.getItem(key)||"1000",10)
+
+last++
+
+localStorage.setItem(key,last)
+
+return "RE-"+last
 
 }
 
@@ -25,10 +91,9 @@ render()
 
 async function addReservedTripInline(){
 
-const ok=confirm("Create Reserved Trip?")
-if(!ok)return
+const newTrip={
 
-const trip={
+tripNumber:nextReservedNumber(),
 
 type:"Reserved",
 
@@ -50,62 +115,61 @@ tripTime:"",
 
 status:"Booked",
 
-createdAt:new Date().toISOString()
+createdAt:new Date().toISOString(),
+bookedAt:new Date().toISOString()
 
 }
 
-await fetch(API,{
+await fetch(API_URL,{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify(trip)
+body:JSON.stringify(newTrip)
 })
 
-await loadTrips()
+await loadHubTrips()
+render()
 
 }
 
-addBtn.onclick=addReservedTripInline
+if(addBtn){
 
-/* COLORS */
+addBtn.addEventListener("click",async function(){
 
-function rowColor(tr,t){
+const ok=confirm(
+"Warning:\nOnly Admin or Dispatcher should create Reserved Trips.\nContinue?"
+)
 
-if(t.type==="Individual")
-tr.style.background="#e8f4ff"
+if(!ok)return
 
-else if(t.type==="Company")
-tr.style.background="#fff6d6"
+await addReservedTripInline()
 
-else if(t.type==="Reserved")
-tr.style.background="#ecfdf5"
+})
 
 }
 
 /* EDIT */
 
-function editTripRow(btn){
+function editTripConfirm(tripNumber){
 
-const tr=btn.closest("tr")
-const inputs=tr.querySelectorAll("input,textarea")
+const row=document.querySelector(`[data-trip="${tripNumber}"]`)
 
-inputs.forEach((el,i)=>{
-if(i<2)return
-el.disabled=false
+const inputs=row.querySelectorAll("input,textarea")
+
+inputs.forEach(el=>{
+if(el.disabled)el.disabled=false
 })
-
-tr.querySelector(".edit-btn").style.display="none"
-tr.querySelector(".save-btn").style.display="inline-block"
 
 }
 
 /* SAVE */
 
-async function saveTripRow(btn,id){
+async function saveTripConfirm(tripNumber){
 
-const tr=btn.closest("tr")
-const inputs=tr.querySelectorAll("input,textarea")
+const row=document.querySelector(`[data-trip="${tripNumber}"]`)
 
-const trip={
+const inputs=row.querySelectorAll("input,textarea")
+
+const updatedTrip={
 
 company:inputs[3].value,
 entryName:inputs[4].value,
@@ -129,26 +193,31 @@ tripTime:inputs[13].value
 
 }
 
-await fetch(API+"/"+id,{
+await fetch(API_URL+"/"+tripNumber,{
+
 method:"PUT",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify(trip)
+body:JSON.stringify(updatedTrip)
+
 })
 
-await loadTrips()
+await loadHubTrips()
+render()
 
 }
 
 /* DELETE */
 
-async function deleteTripConfirm(id){
+async function deleteTripConfirm(tripNumber){
 
 const ok=confirm("Delete this trip?")
+
 if(!ok)return
 
-await fetch(API+"/"+id,{method:"DELETE"})
+await fetch(API_URL+"/"+tripNumber,{method:"DELETE"})
 
-await loadTrips()
+await loadHubTrips()
+render()
 
 }
 
@@ -158,7 +227,15 @@ function render(){
 
 container.innerHTML=""
 
+if(!hubTrips.length){
+
+container.innerHTML="<p>No trips found</p>"
+return
+
+}
+
 const table=document.createElement("table")
+
 table.className="hub-table"
 
 table.innerHTML=`
@@ -167,12 +244,12 @@ table.innerHTML=`
 <tr>
 
 <th>#</th>
-<th>Trip#</th>
+<th>Trip #</th>
 <th>Type</th>
 
 <th>Company</th>
-<th>Entry</th>
-<th>Phone</th>
+<th>Entry Name</th>
+<th>Entry Phone</th>
 
 <th>Client</th>
 <th>Client Phone</th>
@@ -187,6 +264,7 @@ table.innerHTML=`
 <th>Time</th>
 
 <th>Status</th>
+<th>Booked At</th>
 
 <th>Actions</th>
 
@@ -198,58 +276,66 @@ table.innerHTML=`
 
 const tbody=table.querySelector("tbody")
 
-filtered.forEach((t,i)=>{
+hubTrips.forEach((t,i)=>{
 
 const tr=document.createElement("tr")
 
 rowColor(tr,t)
 
-const stops=Array.isArray(t.stops)?t.stops.join(" → "):""
+const tripNum=getTripNumber(t)
+
+const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):""
+
+tr.setAttribute("data-trip",tripNum)
 
 tr.innerHTML=`
 
 <td>${i+1}</td>
 
-<td><input value="${t.tripNumber||""}" disabled></td>
+<td><input value="${tripNum}" disabled></td>
 
 <td><input value="${t.type||""}" disabled></td>
 
 <td><input value="${t.company||""}" disabled></td>
 
 <td><input value="${t.entryName||""}" disabled></td>
+
 <td><input value="${t.entryPhone||""}" disabled></td>
 
 <td><input value="${t.clientName||""}" disabled></td>
+
 <td><input value="${t.clientPhone||""}" disabled></td>
 
 <td><input value="${t.pickup||""}" disabled></td>
 
-<td><input value="${stops}" disabled></td>
+<td><input value="${stopsStr}" disabled></td>
 
 <td><input value="${t.dropoff||""}" disabled></td>
 
 <td><textarea disabled>${t.notes||""}</textarea></td>
 
 <td><input type="date" value="${t.tripDate||""}" disabled></td>
+
 <td><input type="time" value="${t.tripTime||""}" disabled></td>
 
 <td>${t.status||""}</td>
 
+<td>${formatDate(t.bookedAt)}</td>
+
 <td>
 
-<button class="edit-btn"
-onclick="editTripRow(this)">
+<button class="hub-btn edit-btn"
+onclick="editTripConfirm('${tripNum}')">
 Edit
 </button>
 
-<button class="save-btn"
-style="display:none"
-onclick="saveTripRow(this,'${t._id}')">
+<button class="hub-btn save-btn"
+onclick="saveTripConfirm('${tripNum}')">
 Save
 </button>
 
-<button class="delete-btn"
-onclick="deleteTripConfirm('${t._id}')">
+<button class="hub-btn delete-btn"
+onclick="deleteTripConfirm('${tripNum}')">
 Delete
 </button>
 
@@ -267,22 +353,38 @@ container.appendChild(table)
 
 /* SEARCH */
 
+if(searchInput){
+
 searchInput.addEventListener("input",function(){
 
 const v=searchInput.value.toLowerCase()
 
-filtered=trips.filter(t=>
+const filtered=hubTrips.filter(t=>
 JSON.stringify(t).toLowerCase().includes(v)
 )
+
+hubTrips=filtered
 
 render()
 
 })
 
+}
+
 /* AUTO REFRESH */
 
-setInterval(loadTrips,60000)
+setInterval(async function(){
+
+await loadHubTrips()
+render()
+
+},60000)
 
 /* INIT */
 
-loadTrips()
+(async function(){
+
+await loadHubTrips()
+render()
+
+})()
