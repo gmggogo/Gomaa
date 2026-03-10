@@ -1,116 +1,139 @@
 /* =========================
-   LOAD HEADER
+LOAD HEADER
 ========================= */
+
 fetch("/admin/header.html")
+
 .then(res => res.text())
+
 .then(html => {
 
-  document.getElementById("adminHeader").innerHTML = html;
+document.getElementById("adminHeader").innerHTML = html;
 
-  setActiveNav();
-  startArizonaTime();
-  showWelcomeMessage();
+setActiveNav();
+startArizonaTime();
+showWelcomeMessage();
 
 });
 
 
 /* =========================
-   ACTIVE NAV
+ACTIVE NAV
 ========================= */
+
 function setActiveNav(){
 
-  const page = location.pathname.split("/").pop();
+const page = location.pathname.split("/").pop();
 
-  document.querySelectorAll(".nav-btn").forEach(btn => {
+document.querySelectorAll(".nav-btn").forEach(btn => {
 
-    if(btn.getAttribute("href") === page){
-      btn.classList.add("active");
-    }
+if(btn.getAttribute("href") === page){
 
-  });
+btn.classList.add("active");
+
+}
+
+});
 
 }
 
 
 /* =========================
-   ARIZONA TIME
+ARIZONA TIME
 ========================= */
+
 function startArizonaTime(){
 
-  function updateTime(){
+function updateTime(){
 
-    const now = new Date().toLocaleString("en-US",{
-      timeZone:"America/Phoenix",
-      year:"numeric",
-      month:"short",
-      day:"2-digit",
-      hour:"2-digit",
-      minute:"2-digit",
-      second:"2-digit"
-    });
+const now = new Date().toLocaleString("en-US",{
 
-    const el = document.getElementById("azTime");
+timeZone:"America/Phoenix",
 
-    if(el) el.innerText = now;
+year:"numeric",
+month:"short",
+day:"2-digit",
 
-  }
+hour:"2-digit",
+minute:"2-digit",
+second:"2-digit"
 
-  updateTime();
-  setInterval(updateTime,1000);
+});
+
+const el = document.getElementById("azTime");
+
+if(el) el.innerText = now;
+
+}
+
+updateTime();
+
+setInterval(updateTime,1000);
 
 }
 
 
 /* =========================
-   WELCOME MESSAGE
+WELCOME MESSAGE
 ========================= */
+
 function showWelcomeMessage(){
 
-  const name = localStorage.getItem("name");
+const name = localStorage.getItem("name");
 
-  if(!name) return;
+if(!name) return;
 
-  const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
-  const hour = new Date(now).getHours();
+const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
 
-  let greeting = "";
-  let icon = "";
+const hour = new Date(now).getHours();
 
-  if(hour >= 5 && hour < 12){
-    greeting = "Good Morning";
-    icon = "☀️";
-  }
-  else if(hour >= 12 && hour < 17){
-    greeting = "Good Afternoon";
-    icon = "⛅";
-  }
-  else if(hour >= 17 && hour < 21){
-    greeting = "Good Evening";
-    icon = "🌇";
-  }
-  else{
-    greeting = "Good Night";
-    icon = "🌙";
-  }
+let greeting = "";
+let icon = "";
 
-  const msg = document.getElementById("welcomeMessage");
-  const iconEl = document.getElementById("weatherIcon");
+if(hour >= 5 && hour < 12){
 
-  if(msg) msg.innerText = greeting + ", " + name;
-  if(iconEl) iconEl.innerText = icon;
+greeting = "Good Morning";
+icon = "☀️";
+
+}
+else if(hour >= 12 && hour < 17){
+
+greeting = "Good Afternoon";
+icon = "⛅";
+
+}
+else if(hour >= 17 && hour < 21){
+
+greeting = "Good Evening";
+icon = "🌇";
+
+}
+else{
+
+greeting = "Good Night";
+icon = "🌙";
+
+}
+
+const msg = document.getElementById("welcomeMessage");
+const iconEl = document.getElementById("weatherIcon");
+
+if(msg) msg.innerText = greeting + ", " + name;
+if(iconEl) iconEl.innerText = icon;
 
 }
 
 
 /* =========================
-   LOGOUT
+LOGOUT
 ========================= */
+
 function logout(){
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("name");
-  localStorage.removeItem("role");
+localStorage.removeItem("token");
+localStorage.removeItem("name");
+localStorage.removeItem("role");
 
-  window.location.href="/login.html";
+window.location.href="/login.html";
 
 }
