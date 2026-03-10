@@ -2,83 +2,57 @@
 <html lang="en">
 
 <head>
-
 <meta charset="UTF-8">
-<title>Admin Dashboard | Sunbeam</title>
+<title>Admin Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<link rel="stylesheet" href="header.css">
 <link rel="stylesheet" href="style.css">
 
 <style>
 
-.dashboard{
-max-width:1100px;
-margin:40px auto;
-padding:20px;
+body{
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f4f8fb;
+padding-top:120px;
 }
 
-.cards{
-
-display:grid;
-
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-
+.dashboard-cards{
+display:flex;
 gap:20px;
-
+padding:30px;
+flex-wrap:wrap;
 }
 
 .card{
-
-background:#fff;
-
-border-radius:14px;
-
-padding:16px;
-
+background:white;
+padding:25px;
+border-radius:10px;
+width:220px;
+box-shadow:0 4px 10px rgba(0,0,0,.08);
 text-align:center;
-
-box-shadow:0 8px 20px rgba(0,0,0,.08);
-
 }
 
 .card h2{
-
 margin:0;
-
-font-size:26px;
-
-color:#0f172a;
-
+font-size:32px;
 }
 
 .card p{
-
-margin-top:6px;
-
-font-size:13px;
-
-color:#475569;
-
-font-weight:bold;
-
+margin-top:10px;
+color:#555;
 }
 
 </style>
-
 </head>
 
 <body>
 
-
-<!-- HEADER LOAD -->
 <div id="adminHeader"></div>
 
 
-<!-- DASHBOARD -->
-
-<div class="dashboard">
-
-<div class="cards">
+<div class="dashboard-cards">
 
 <div class="card">
 <h2 id="totalTrips">0</h2>
@@ -98,8 +72,6 @@ font-weight:bold;
 <div class="card">
 <h2 id="companiesCount">0</h2>
 <p>Companies</p>
-</div>
-
 </div>
 
 </div>

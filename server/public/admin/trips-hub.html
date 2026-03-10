@@ -6,182 +6,69 @@
 <title>Trips Hub</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="/admin/header.css">
-<link rel="stylesheet" href="/admin/trips-hub.css">
+<link rel="stylesheet" href="header.css">
+<link rel="stylesheet" href="trips-hub.css">
 
 <style>
-:root{
-  --blue:#0f172a;
-  --gold:#facc15;
-}
 
 body{
-  margin:0;
-  padding-top:130px;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#f8fafc;
-  overflow-x:hidden;
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f4f8fb;
+padding-top:120px;
 }
 
-/* ===== TOOLBAR ===== */
 .toolbar{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  margin:15px;
+display:flex;
+gap:10px;
+padding:20px;
 }
 
 .add-btn{
-  background:#2563eb;
-  color:#fff;
-  border:none;
-  padding:8px 14px;
-  border-radius:6px;
-  cursor:pointer;
-  white-space:nowrap;
+background:#2563eb;
+color:white;
+border:none;
+padding:8px 16px;
+border-radius:6px;
+cursor:pointer;
 }
 
 .search-input{
-  flex:1;
-  padding:8px;
-  border-radius:6px;
-  border:1px solid #ddd;
-  box-sizing:border-box;
+flex:1;
+padding:8px;
+border-radius:6px;
+border:1px solid #ccc;
 }
 
-/* ===== GROUP TITLE ===== */
-.group-title{
-  margin:18px 15px 8px;
-  font-size:16px;
-  font-weight:bold;
-  color:#0f172a;
+#hubContainer{
+padding:20px;
 }
 
-/* ===== TABLE ===== */
-.hub-table{
-  width:calc(100% - 30px);
-  margin:0 15px 20px;
-  border-collapse:collapse;
-  font-size:12px;
-}
-
-.hub-table th{
-  background:#0f172a;
-  color:#fff;
-  padding:6px;
-}
-
-.hub-table td{
-  border:1px solid #e5e7eb;
-  padding:6px;
-  vertical-align:middle;
-}
-
-.hub-table input,
-.hub-table textarea,
-.hub-table select{
-  width:100%;
-  border:none;
-  font-size:11px;
-  background:transparent;
-  box-sizing:border-box;
-}
-
-.hub-table textarea{
-  resize:vertical;
-  min-height:34px;
-}
-
-.hub-btn{
-  border:none;
-  border-radius:6px;
-  padding:5px 10px;
-  font-size:11px;
-  cursor:pointer;
-  color:#fff;
-  margin:2px;
-}
-
-.edit-btn{
-  background:#3b82f6;
-}
-
-.save-btn{
-  background:#16a34a;
-}
-
-.delete-btn{
-  background:#ef4444;
-}
-
-.no-data{
-  margin:20px 15px;
-  font-size:14px;
-  color:#334155;
-}
-
-/* ===== MOBILE ===== */
-@media (max-width:768px){
-
-  body{
-    padding-top:170px;
-  }
-
-  .toolbar{
-    flex-direction:column;
-    align-items:stretch;
-    gap:8px;
-  }
-
-  .add-btn{
-    width:100%;
-  }
-
-  .search-input{
-    width:100%;
-  }
-
-  .hub-table{
-    display:block;
-    overflow-x:auto;
-    white-space:nowrap;
-  }
-
-  .hub-btn{
-    padding:8px 12px;
-    font-size:12px;
-  }
-}
 </style>
 </head>
 
 <body>
 
-<!-- ===== SHARED HEADER ===== -->
 <div id="adminHeader"></div>
 
-<!-- ===== TOOLBAR ===== -->
+
 <div class="toolbar">
 
-  <button
-    id="addManualTripBtn"
-    class="add-btn">
-    Add Reserved Trip
-  </button>
+<button id="addManualTripBtn" class="add-btn">
+Add Reserved Trip
+</button>
 
-  <input
-    id="searchInput"
-    class="search-input"
-    placeholder="Search trip #, name, phone, company">
+<input id="searchInput" class="search-input"
+placeholder="Search trip #, name, phone, company">
 
 </div>
 
-<!-- ===== TRIPS TABLE ===== -->
+
 <div id="hubContainer"></div>
 
-<!-- ===== JS ===== -->
-<script src="/admin/header.js"></script>
-<script src="/admin/trips-hub.js"></script>
+
+<script src="header.js"></script>
+<script src="trips-hub.js"></script>
 
 </body>
 </html>
