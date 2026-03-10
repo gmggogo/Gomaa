@@ -1,29 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
-
+<title>Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Dashboard</title>
-
 <link rel="stylesheet" href="/admin/style.css">
+
+<style>
+
+/* ===============================
+DASHBOARD GRID
+================================ */
+
+.dashboard-grid{
+
+display:grid;
+
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+
+gap:20px;
+
+}
+
+/* ===============================
+CARD
+================================ */
+
+.card{
+
+background:white;
+
+padding:20px;
+
+border-radius:10px;
+
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+
+text-align:center;
+
+transition:.2s;
+
+}
+
+.card:hover{
+
+transform:translateY(-3px);
+
+}
+
+/* ===============================
+CARD TITLE
+================================ */
+
+.card h3{
+
+margin:0;
+
+font-size:18px;
+
+color:#0f172a;
+
+}
+
+/* ===============================
+CARD NUMBER
+================================ */
+
+.card p{
+
+font-size:26px;
+
+font-weight:bold;
+
+margin-top:10px;
+
+color:#2563eb;
+
+}
+
+</style>
 
 </head>
 
 <body>
 
+<!-- HEADER -->
 <div id="adminHeader"></div>
 
 
-<div class="page">
+<!-- PAGE CONTENT -->
+
+<div class="page-content">
 
 <h1>Dashboard</h1>
 
+<div class="dashboard-grid">
+
+<div class="card">
+<h3>Total Trips</h3>
+<p id="totalTrips">0</p>
 </div>
 
+<div class="card">
+<h3>Confirmed Trips</h3>
+<p id="confirmedTrips">0</p>
+</div>
+
+<div class="card">
+<h3>Cancelled Trips</h3>
+<p id="cancelledTrips">0</p>
+</div>
+
+<div class="card">
+<h3>Completed Trips</h3>
+<p id="completedTrips">0</p>
+</div>
+
+</div>
+
+</div>
 
 <script src="/admin/header.js"></script>
 
