@@ -1,5 +1,5 @@
 /* ===============================
-BODY
+GLOBAL
 ================================ */
 
 body{
@@ -12,7 +12,7 @@ background:#f4f8fb;
 
 /* ينزل الصفحة تحت الهيدر */
 
-padding-top:110px;
+padding-top:120px;
 
 }
 
@@ -32,21 +32,27 @@ width:100%;
 
 z-index:9999;
 
+/* اللون الموحد */
+
 background:linear-gradient(90deg,#0f172a,#1e3a8a);
 
 }
 
 
 /* ===============================
-TOP BAR
+TOP BLUE BAR
 ================================ */
 
 .top-bar{
 
+background:linear-gradient(90deg,#0f172a,#1e3a8a);
+
 color:white;
 
 display:flex;
+
 justify-content:space-between;
+
 align-items:center;
 
 padding:10px 25px;
@@ -63,7 +69,9 @@ LEFT SIDE
 .top-left{
 
 display:flex;
+
 align-items:center;
+
 gap:12px;
 
 }
@@ -77,6 +85,7 @@ height:40px;
 .info{
 
 display:flex;
+
 flex-direction:column;
 
 }
@@ -84,7 +93,9 @@ flex-direction:column;
 .company{
 
 font-size:14px;
+
 font-weight:600;
+
 color:#facc15;
 
 }
@@ -92,18 +103,20 @@ color:#facc15;
 .admin{
 
 font-size:12px;
+
 opacity:.9;
 
 }
 
 
 /* ===============================
-CENTER
+CENTER MESSAGE
 ================================ */
 
 .top-center{
 
 flex:1;
+
 text-align:center;
 
 }
@@ -111,24 +124,44 @@ text-align:center;
 .welcome-box{
 
 display:inline-flex;
+
 align-items:center;
+
 gap:8px;
 
 font-size:14px;
+
 font-weight:600;
+
 color:#facc15;
+
+animation:welcomeGlow 3s infinite alternate;
+
+}
+
+@keyframes welcomeGlow{
+
+0%{
+text-shadow:0 0 5px #facc15;
+}
+
+100%{
+text-shadow:0 0 15px #facc15;
+}
 
 }
 
 
 /* ===============================
-RIGHT
+RIGHT SIDE
 ================================ */
 
 .top-right{
 
 display:flex;
+
 align-items:center;
+
 gap:15px;
 
 font-size:12px;
@@ -166,7 +199,7 @@ background:#b91c1c;
 
 
 /* ===============================
-NAV BAR
+BLACK NAV BAR
 ================================ */
 
 .admin-nav{
@@ -208,6 +241,11 @@ transition:.2s;
 
 }
 
+
+/* ===============================
+HOVER
+================================ */
+
 .nav-btn:hover{
 
 background:#facc15;
@@ -216,6 +254,11 @@ color:black;
 
 }
 
+
+/* ===============================
+ACTIVE PAGE
+================================ */
+
 .nav-btn.active{
 
 background:#facc15;
@@ -223,5 +266,96 @@ background:#facc15;
 color:black;
 
 font-weight:600;
+
+}
+
+
+/* ===============================
+PAGE CONTENT
+================================ */
+
+.page,
+.page-content{
+
+padding:20px;
+
+width:100%;
+
+box-sizing:border-box;
+
+}
+
+
+/* ===============================
+TABLE
+================================ */
+
+table{
+
+border-collapse:collapse;
+
+width:100%;
+
+}
+
+th, td{
+
+border:1px solid #ddd;
+
+padding:8px;
+
+font-size:13px;
+
+}
+
+th{
+
+background:#0f172a;
+
+color:white;
+
+}
+
+
+/* ===============================
+INPUTS
+================================ */
+
+td input,
+td select,
+td textarea{
+
+width:100%;
+
+box-sizing:border-box;
+
+padding:4px;
+
+font-size:12px;
+
+}
+
+
+/* ===============================
+MOBILE
+================================ */
+
+@media (max-width:768px){
+
+.admin-nav{
+
+flex-wrap:wrap;
+
+}
+
+table{
+
+display:block;
+
+overflow-x:auto;
+
+white-space:nowrap;
+
+}
 
 }
