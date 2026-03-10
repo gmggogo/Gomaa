@@ -1,95 +1,284 @@
 /* ===============================
-PAGE CONTENT
+GLOBAL
 ================================ */
-
-.page-content{
-padding:20px;
-}
-
-
-/* ===============================
-TOOLBAR
-================================ */
-
-.toolbar{
-display:flex;
-gap:10px;
-align-items:center;
-flex-wrap:wrap;
-}
-
-.add-btn{
-background:#2563eb;
-color:#fff;
-border:none;
-padding:7px 14px;
-border-radius:6px;
-cursor:pointer;
-}
-
-.search-input{
-flex:1;
-padding:7px;
-min-width:200px;
-}
-
-
-/* ===============================
-TRIPS HUB TABLE FIX
-================================ */
-
-.hub-table{
-width:100%;
-table-layout:auto;
-}
-
-.hub-table input,
-.hub-table textarea,
-.hub-table select{
-width:100%;
-font-size:12px;
-padding:4px;
-box-sizing:border-box;
-}
-
-
-/* ===============================
-MOBILE SUPPORT
-================================ */
-
-@media (max-width:768px){
 
 body{
-padding-top:160px;
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#f4f8fb;
+padding-top:110px;
 }
 
-.page-content{
-padding:10px;
-}
 
-.toolbar{
-flex-direction:column;
-align-items:stretch;
-}
+/* ===============================
+ADMIN HEADER
+================================ */
 
-.add-btn,
-.search-input{
+.admin-header{
+
+position:fixed;
+top:0;
+left:0;
+
 width:100%;
+
+z-index:9999;
+
 }
 
-.hub-table{
-display:block;
-overflow-x:auto;
-white-space:nowrap;
+
+/* ===============================
+TOP BLUE BAR
+================================ */
+
+.top-bar{
+
+background:linear-gradient(90deg,#0f172a,#1e3a8a);
+
+color:white;
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+padding:10px 25px;
+
+border-bottom:3px solid #facc15;
+
 }
 
-.nav-btn{
-font-size:11px;
-padding:5px 10px;
+
+/* ===============================
+LEFT SIDE
+================================ */
+
+.top-left{
+
+display:flex;
+align-items:center;
+gap:12px;
+
 }
+
+.logo{
+
+height:40px;
+
+}
+
+.info{
+
+display:flex;
+flex-direction:column;
+
+}
+
+.company{
+
+font-size:14px;
+font-weight:600;
+color:#facc15;
+
+}
+
+.admin{
+
+font-size:12px;
+opacity:.9;
+
+}
+
+
+/* ===============================
+CENTER WELCOME MESSAGE
+================================ */
+
+.top-center{
+
+flex:1;
+text-align:center;
+
+}
+
+.welcome-box{
+
+display:inline-flex;
+align-items:center;
+gap:8px;
+
+font-size:14px;
+font-weight:600;
+color:#facc15;
+
+animation:welcomeGlow 3s infinite alternate;
+
+}
+
+
+/* ICON */
+
+#welcomeIcon{
+
+font-size:18px;
+
+}
+
+
+/* GLOW ANIMATION */
+
+@keyframes welcomeGlow{
+
+0%{
+text-shadow:0 0 5px #facc15;
+}
+
+100%{
+text-shadow:0 0 15px #facc15;
+}
+
+}
+
+
+/* ===============================
+RIGHT SIDE
+================================ */
+
+.top-right{
+
+display:flex;
+align-items:center;
+gap:15px;
+
+font-size:12px;
+
+}
+
+
+/* ===============================
+LOGOUT BUTTON
+================================ */
+
+.logout-btn{
+
+background:#dc2626;
+
+color:white;
+
+border:none;
+
+padding:6px 12px;
+
+border-radius:6px;
+
+cursor:pointer;
+
+font-size:12px;
+
+}
+
+.logout-btn:hover{
+
+background:#b91c1c;
+
+}
+
+
+/* ===============================
+BLACK NAV BAR
+================================ */
 
 .admin-nav{
-flex-wrap:wrap;
+
+background:#000;
+
+display:flex;
+
+justify-content:center;
+
+gap:8px;
+
+padding:8px;
+
 }
+
+
+/* ===============================
+NAV BUTTON
+================================ */
+
+.nav-btn{
+
+background:#1e293b;
+
+color:white;
+
+padding:6px 14px;
+
+border-radius:6px;
+
+font-size:12px;
+
+text-decoration:none;
+
+transition:.2s;
+
+}
+
+
+/* ===============================
+HOVER
+================================ */
+
+.nav-btn:hover{
+
+background:#facc15;
+
+color:black;
+
+}
+
+
+/* ===============================
+ACTIVE PAGE
+================================ */
+
+.nav-btn.active{
+
+background:#facc15;
+
+color:black;
+
+font-weight:600;
+
+}
+
+
+/* ===============================
+TABLE STYLE
+================================ */
+
+table{
+
+border-collapse:collapse;
+
+width:100%;
+
+}
+
+th, td{
+
+border:1px solid #ddd;
+
+padding:8px;
+
+font-size:13px;
+
+}
+
+th{
+
+background:#0f172a;
+
+color:white;
 
 }
