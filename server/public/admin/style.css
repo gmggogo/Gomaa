@@ -6,6 +6,8 @@ body{
 margin:0;
 font-family:Arial, Helvetica, sans-serif;
 background:#f4f8fb;
+
+/* هذا هو المفتاح */
 padding-top:110px;
 }
 
@@ -21,7 +23,6 @@ top:0;
 left:0;
 
 width:100%;
-
 z-index:9999;
 
 }
@@ -199,6 +200,8 @@ gap:8px;
 
 padding:8px;
 
+flex-wrap:wrap;
+
 }
 
 
@@ -280,5 +283,41 @@ th{
 background:#0f172a;
 
 color:white;
+
+}
+
+
+/* ===============================
+TABLE INPUTS
+================================ */
+
+td input,
+td select,
+td textarea{
+
+width:100%;
+box-sizing:border-box;
+
+padding:4px;
+font-size:12px;
+
+}
+
+
+/* ===============================
+MOBILE
+================================ */
+
+@media (max-width:768px){
+
+.admin-nav{
+flex-wrap:wrap;
+}
+
+table{
+display:block;
+overflow-x:auto;
+white-space:nowrap;
+}
 
 }
