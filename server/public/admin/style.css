@@ -10,9 +10,18 @@ font-family:Arial, Helvetica, sans-serif;
 
 background:#f4f8fb;
 
-/* ينزل الصفحة تحت الهيدر */
+}
 
-padding-top:120px;
+
+/* ===============================
+HEADER SPACE FIX
+================================ */
+
+#adminHeader{
+
+height:110px;
+
+width:100%;
 
 }
 
@@ -241,11 +250,6 @@ transition:.2s;
 
 }
 
-
-/* ===============================
-HOVER
-================================ */
-
 .nav-btn:hover{
 
 background:#facc15;
@@ -253,11 +257,6 @@ background:#facc15;
 color:black;
 
 }
-
-
-/* ===============================
-ACTIVE PAGE
-================================ */
 
 .nav-btn.active{
 
@@ -271,7 +270,7 @@ font-weight:600;
 
 
 /* ===============================
-PAGE CONTENT
+PAGE
 ================================ */
 
 .page,
