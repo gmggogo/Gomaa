@@ -1,284 +1,274 @@
-/* ===============================
+/* =================================
 GLOBAL
-================================ */
+================================= /
 
 body{
 margin:0;
 font-family:Arial, Helvetica, sans-serif;
 background:#f4f8fb;
-padding-top:110px;
+padding-top:130px;
 }
 
+/ =================================
+PAGE CONTENT
+================================= /
 
-/* ===============================
+.page-content{
+padding:20px;
+max-width:100%;
+}
+
+/ =================================
 ADMIN HEADER
-================================ */
+================================= /
 
 .admin-header{
-
 position:fixed;
 top:0;
 left:0;
-
 width:100%;
-
 z-index:9999;
-
 }
 
-
-/* ===============================
+/ =================================
 TOP BLUE BAR
-================================ */
+================================= /
 
 .top-bar{
-
 background:linear-gradient(90deg,#0f172a,#1e3a8a);
-
 color:white;
-
 display:flex;
 justify-content:space-between;
 align-items:center;
-
-padding:10px 25px;
-
+padding:10px 20px;
 border-bottom:3px solid #facc15;
-
 }
 
-
-/* ===============================
-LEFT SIDE
-================================ */
+/ =================================
+LEFT
+================================= /
 
 .top-left{
-
 display:flex;
 align-items:center;
-gap:12px;
-
+gap:10px;
 }
 
 .logo{
-
 height:40px;
-
 }
 
-.info{
-
-display:flex;
-flex-direction:column;
-
-}
-
-.company{
-
-font-size:14px;
-font-weight:600;
-color:#facc15;
-
-}
-
-.admin{
-
-font-size:12px;
-opacity:.9;
-
-}
-
-
-/* ===============================
-CENTER WELCOME MESSAGE
-================================ */
+/ =================================
+CENTER MESSAGE
+================================= /
 
 .top-center{
-
 flex:1;
 text-align:center;
-
 }
 
 .welcome-box{
-
 display:inline-flex;
 align-items:center;
 gap:8px;
-
 font-size:14px;
 font-weight:600;
 color:#facc15;
-
 animation:welcomeGlow 3s infinite alternate;
-
 }
-
-
-/* ICON */
-
-#welcomeIcon{
-
-font-size:18px;
-
-}
-
-
-/* GLOW ANIMATION */
 
 @keyframes welcomeGlow{
-
-0%{
-text-shadow:0 0 5px #facc15;
+0%{text-shadow:0 0 5px #facc15;}
+100%{text-shadow:0 0 15px #facc15;}
 }
 
-100%{
-text-shadow:0 0 15px #facc15;
-}
-
-}
-
-
-/* ===============================
-RIGHT SIDE
-================================ */
+/ =================================
+RIGHT
+================================= /
 
 .top-right{
-
 display:flex;
 align-items:center;
-gap:15px;
-
+gap:12px;
 font-size:12px;
-
 }
 
-
-/* ===============================
+/ =================================
 LOGOUT BUTTON
-================================ */
+================================= /
 
 .logout-btn{
-
 background:#dc2626;
-
 color:white;
-
 border:none;
-
 padding:6px 12px;
-
 border-radius:6px;
-
 cursor:pointer;
-
 font-size:12px;
-
 }
 
 .logout-btn:hover{
-
 background:#b91c1c;
-
 }
 
-
-/* ===============================
-BLACK NAV BAR
-================================ */
+/ =================================
+NAV BAR
+================================= /
 
 .admin-nav{
-
 background:#000;
-
 display:flex;
-
 justify-content:center;
-
 gap:8px;
-
 padding:8px;
-
+flex-wrap:wrap;
 }
 
-
-/* ===============================
+/ =================================
 NAV BUTTON
-================================ */
+================================= /
 
 .nav-btn{
-
 background:#1e293b;
-
 color:white;
-
 padding:6px 14px;
-
 border-radius:6px;
-
 font-size:12px;
-
 text-decoration:none;
-
 transition:.2s;
-
+white-space:nowrap;
 }
-
-
-/* ===============================
-HOVER
-================================ */
 
 .nav-btn:hover{
-
 background:#facc15;
-
 color:black;
-
 }
-
-
-/* ===============================
-ACTIVE PAGE
-================================ */
 
 .nav-btn.active{
-
 background:#facc15;
-
 color:black;
-
 font-weight:600;
-
 }
 
-
-/* ===============================
-TABLE STYLE
-================================ */
+/ =================================
+TABLE
+================================= /
 
 table{
-
 border-collapse:collapse;
-
 width:100%;
-
+table-layout:auto;
+background:white;
 }
 
-th, td{
-
+th,td{
 border:1px solid #ddd;
-
-padding:8px;
-
-font-size:13px;
-
+padding:6px;
+font-size:12px;
+text-align:left;
 }
 
 th{
-
 background:#0f172a;
-
 color:white;
+}
+
+/ =================================
+INPUTS
+================================= /
+
+td input,
+td select,
+td textarea{
+width:100%;
+box-sizing:border-box;
+padding:4px;
+font-size:12px;
+}
+
+/ =================================
+BUTTONS
+================================= /
+
+button{
+padding:5px 10px;
+border:none;
+border-radius:4px;
+cursor:pointer;
+font-size:12px;
+}
+
+.btn-edit{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+.btn-save{
+background:#16a34a;
+color:white;
+}
+
+/ =================================
+SEARCH + ADD BAR
+================================= /
+
+.top-actions{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px;
+gap:10px;
+flex-wrap:wrap;
+}
+
+.search-box{
+padding:6px;
+font-size:12px;
+width:200px;
+}
+
+/ =================================
+MOBILE
+================================= */
+
+@media (max-width:768px){
+
+body{
+padding-top:150px;
+}
+
+.admin-nav{
+overflow-x:auto;
+white-space:nowrap;
+justify-content:flex-start;
+}
+
+.nav-btn{
+flex:0 0 auto;
+}
+
+.page-content{
+padding:10px;
+}
+
+table{
+display:block;
+overflow-x:auto;
+white-space:nowrap;
+}
+
+.top-actions{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.search-box{
+width:100%;
+}
 
 }
