@@ -2,17 +2,24 @@
 LOAD HEADER
 ========================= */
 
-fetch("/admin/header.html")
+document.addEventListener("DOMContentLoaded", function(){
 
-.then(res => res.text())
+  fetch("/admin/header.html")
+  .then(res => res.text())
+  .then(html => {
 
-.then(html => {
+    const headerContainer = document.getElementById("adminHeader");
 
-document.getElementById("adminHeader").innerHTML = html;
+    if(headerContainer){
+      headerContainer.innerHTML = html;
 
-setActiveNav();
-startArizonaTime();
-showWelcomeMessage();
+      setActiveNav();
+      startArizonaTime();
+      showWelcomeMessage();
+      adjustPageOffset();
+    }
+
+  });
 
 });
 
@@ -23,17 +30,15 @@ ACTIVE NAV
 
 function setActiveNav(){
 
-const page = location.pathname.split("/").pop();
+  const page = location.pathname.split("/").pop();
 
-document.querySelectorAll(".nav-btn").forEach(btn => {
+  document.querySelectorAll(".nav-btn").forEach(btn => {
 
-if(btn.getAttribute("href") === page){
+    if(btn.getAttribute("href") === page){
+      btn.classList.add("active");
+    }
 
-btn.classList.add("active");
-
-}
-
-});
+  });
 
 }
 
@@ -44,31 +49,28 @@ ARIZONA TIME
 
 function startArizonaTime(){
 
-function updateTime(){
+  function updateTime(){
 
-const now = new Date().toLocaleString("en-US",{
+    const now = new Date().toLocaleString("en-US",{
+      timeZone:"America/Phoenix",
+      year:"numeric",
+      month:"short",
+      day:"2-digit",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
+    });
 
-timeZone:"America/Phoenix",
+    const el = document.getElementById("azTime");
 
-year:"numeric",
-month:"short",
-day:"2-digit",
+    if(el){
+      el.innerText = now;
+    }
 
-hour:"2-digit",
-minute:"2-digit",
-second:"2-digit"
+  }
 
-});
-
-const el = document.getElementById("azTime");
-
-if(el) el.innerText = now;
-
-}
-
-updateTime();
-
-setInterval(updateTime,1000);
+  updateTime();
+  setInterval(updateTime,1000);
 
 }
 
@@ -79,49 +81,68 @@ WELCOME MESSAGE
 
 function showWelcomeMessage(){
 
-const name = localStorage.getItem("name");
+  const name = localStorage.getItem("name");
 
-if(!name) return;
+  if(!name) return;
 
-const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+  const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+  const hour = new Date(now).getHours();
 
-const hour = new Date(now).getHours();
+  let greeting = "";
+  let icon = "";
 
-let greeting = "";
-let icon = "";
+  if(hour >= 5 && hour < 12){
+    greeting = "Good Morning";
+    icon = "☀️";
+  }
+  else if(hour >= 12 && hour < 17){
+    greeting = "Good Afternoon";
+    icon = "⛅";
+  }
+  else if(hour >= 17 && hour < 21){
+    greeting = "Good Evening";
+    icon = "🌇";
+  }
+  else{
+    greeting = "Good Night";
+    icon = "🌙";
+  }
 
-if(hour >= 5 && hour < 12){
+  const msg = document.getElementById("welcomeMessage");
+  const iconEl = document.getElementById("weatherIcon");
 
-greeting = "Good Morning";
-icon = "☀️";
+  if(msg){
+    msg.innerText = greeting + ", " + name;
+  }
 
-}
-else if(hour >= 12 && hour < 17){
-
-greeting = "Good Afternoon";
-icon = "⛅";
-
-}
-else if(hour >= 17 && hour < 21){
-
-greeting = "Good Evening";
-icon = "🌇";
-
-}
-else{
-
-greeting = "Good Night";
-icon = "🌙";
-
-}
-
-const msg = document.getElementById("welcomeMessage");
-const iconEl = document.getElementById("weatherIcon");
-
-if(msg) msg.innerText = greeting + ", " + name;
-if(iconEl) iconEl.innerText = icon;
+  if(iconEl){
+    iconEl.innerText = icon;
+  }
 
 }
+
+
+/* =========================
+HEADER HEIGHT FIX
+========================= */
+
+function adjustPageOffset(){
+
+  const header = document.querySelector(".admin-header");
+  const content = document.querySelector(".page-content");
+
+  if(header && content){
+
+    const headerHeight = header.offsetHeight;
+
+    content.style.marginTop = headerHeight + "px";
+
+  }
+
+}
+
+window.addEventListener("load", adjustPageOffset);
+window.addEventListener("resize", adjustPageOffset);
 
 
 /* =========================
@@ -130,10 +151,10 @@ LOGOUT
 
 function logout(){
 
-localStorage.removeItem("token");
-localStorage.removeItem("name");
-localStorage.removeItem("role");
+  localStorage.removeItem("token");
+  localStorage.removeItem("name");
+  localStorage.removeItem("role");
 
-window.location.href="/login.html";
+  window.location.href="/login.html";
 
 }

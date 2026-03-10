@@ -1,19 +1,16 @@
-8"}
 /* ===============================
 GLOBAL
-================================ /
+================================ */
 
 body{
 margin:0;
 font-family:Arial, Helvetica, sans-serif;
 background:#f4f8fb;
-padding-top:120px; / مساحة للهيدر /
 }
 
-
-/ ===============================
+/* ===============================
 ADMIN HEADER
-================================ /
+================================ */
 
 .admin-header{
 position:fixed;
@@ -23,211 +20,57 @@ width:100%;
 z-index:9999;
 }
 
+/* ===============================
+PAGE CONTENT
+================================ */
 
-/ ===============================
-TOP BLUE BAR
-================================ /
-
-.top-bar{
-background:linear-gradient(90deg,#0f172a,#1e3a8a);
-color:white;
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:10px 25px;
-border-bottom:3px solid #facc15;
+.page-content{
+padding:20px;
 }
 
+/* ===============================
+TABLE FIX
+================================ */
 
-/ ===============================
-LEFT SIDE
-================================ /
-
-.top-left{
-display:flex;
-align-items:center;
-gap:12px;
-}
-
-.logo{
-height:40px;
-}
-
-.info{
-display:flex;
-flex-direction:column;
-}
-
-.company{
-font-size:14px;
-font-weight:600;
-color:#facc15;
-}
-
-.admin{
-font-size:12px;
-opacity:.9;
-}
-
-
-/ ===============================
-CENTER WELCOME MESSAGE
-================================ /
-
-.top-center{
-flex:1;
-text-align:center;
-}
-
-.welcome-box{
-display:inline-flex;
-align-items:center;
-gap:8px;
-font-size:14px;
-font-weight:600;
-color:#facc15;
-animation:welcomeGlow 3s infinite alternate;
-}
-
-#welcomeIcon{
-font-size:18px;
-}
-
-@keyframes welcomeGlow{
-0%{text-shadow:0 0 5px #facc15;}
-100%{text-shadow:0 0 15px #facc15;}
-}
-
-
-/ ===============================
-RIGHT SIDE
-================================ /
-
-.top-right{
-display:flex;
-align-items:center;
-gap:15px;
-font-size:12px;
-}
-
-
-/ ===============================
-LOGOUT BUTTON
-================================ /
-
-.logout-btn{
-background:#dc2626;
-color:white;
-border:none;
-padding:6px 12px;
-border-radius:6px;
-cursor:pointer;
-font-size:12px;
-}
-
-.logout-btn:hover{
-background:#b91c1c;
-}
-
-
-/ ===============================
-BLACK NAV BAR
-================================ /
-
-.admin-nav{
-background:#000;
-display:flex;
-justify-content:center;
-gap:8px;
-padding:8px;
-flex-wrap:wrap;
-}
-
-
-/ ===============================
-NAV BUTTON
-================================ /
-
-.nav-btn{
-background:#1e293b;
-color:white;
-padding:6px 14px;
-border-radius:6px;
-font-size:12px;
-text-decoration:none;
-transition:.2s;
-}
-
-.nav-btn:hover{
-background:#facc15;
-color:black;
-}
-
-.nav-btn.active{
-background:#facc15;
-color:black;
-font-weight:600;
-}
-
-
-/ ===============================
-TABLE STYLE
-================================ /
-
-table{
-border-collapse:collapse;
+.hub-table{
 width:100%;
-background:white;
+table-layout:auto;
 }
 
-th, td{
-border:1px solid #ddd;
-padding:8px;
-font-size:13px;
-}
-
-th{
-background:#0f172a;
-color:white;
-}
-
-
-/ ===============================
-INPUTS INSIDE TABLE
-================================ /
-
-td input,
-td select,
-td textarea{
+.hub-table input,
+.hub-table textarea,
+.hub-table select{
 width:100%;
-box-sizing:border-box;
+font-size:12px;
 padding:4px;
-font-size:12px;
+box-sizing:border-box;
 }
 
-
-/ ===============================
+/* ===============================
 MOBILE
 ================================ */
 
 @media (max-width:768px){
 
-body{
-padding-top:140px;
+.page-content{
+padding:10px;
 }
 
-.admin-nav{
-overflow-x:auto;
-white-space:nowrap;
-justify-content:flex-start;
+.toolbar{
+display:flex;
+flex-direction:column;
+gap:8px;
 }
 
-.nav-btn{
-flex:0 0 auto;
+.add-btn,
+.search-input{
+width:100%;
 }
 
-table{
+.hub-table{
 display:block;
 overflow-x:auto;
 white-space:nowrap;
+}
+
 }
