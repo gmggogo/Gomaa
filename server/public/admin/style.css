@@ -1,6 +1,6 @@
-/* ===============================
+/* =================================
 GLOBAL
-================================ */
+================================= */
 
 body{
 margin:0;
@@ -8,18 +8,18 @@ font-family:Arial, Helvetica, sans-serif;
 background:#f4f8fb;
 }
 
-/* ===============================
+/* =================================
 HEADER SPACE
-================================ */
+================================= */
 
 #adminHeader{
 height:140px;
 width:100%;
 }
 
-/* ===============================
+/* =================================
 HEADER
-================================ */
+================================= */
 
 .admin-header{
 position:fixed;
@@ -30,9 +30,9 @@ z-index:9999;
 background:#0f172a;
 }
 
-/* ===============================
+/* =================================
 TOP BAR
-================================ */
+================================= */
 
 .top-bar{
 background:#0f172a;
@@ -44,9 +44,9 @@ padding:12px 25px;
 border-bottom:2px solid #facc15;
 }
 
-/* ===============================
-LEFT
-================================ */
+/* =================================
+LEFT SIDE
+================================= */
 
 .top-left{
 display:flex;
@@ -59,19 +59,19 @@ height:40px;
 }
 
 .company{
-font-size:14px;
+font-size:15px;
 font-weight:600;
 color:#facc15;
 }
 
 .admin{
 font-size:12px;
-opacity:.8;
+opacity:.85;
 }
 
-/* ===============================
+/* =================================
 CENTER
-================================ */
+================================= */
 
 .top-center{
 flex:1;
@@ -84,9 +84,9 @@ font-weight:600;
 color:#facc15;
 }
 
-/* ===============================
+/* =================================
 RIGHT
-================================ */
+================================= */
 
 .top-right{
 display:flex;
@@ -95,9 +95,9 @@ gap:12px;
 font-size:12px;
 }
 
-/* ===============================
-LOGOUT
-================================ */
+/* =================================
+LOGOUT BUTTON
+================================= */
 
 .logout-btn{
 background:#334155;
@@ -113,9 +113,9 @@ font-size:12px;
 background:#dc2626;
 }
 
-/* ===============================
+/* =================================
 NAV BAR
-================================ */
+================================= */
 
 .admin-nav{
 background:#1e293b;
@@ -126,9 +126,9 @@ padding:8px;
 flex-wrap:wrap;
 }
 
-/* ===============================
+/* =================================
 NAV BUTTON
-================================ */
+================================= */
 
 .nav-btn{
 background:#334155;
@@ -151,9 +151,9 @@ color:black;
 font-weight:600;
 }
 
-/* ===============================
-PAGE
-================================ */
+/* =================================
+PAGE CONTENT
+================================= */
 
 .page-content{
 padding:20px;
@@ -162,9 +162,38 @@ width:100%;
 box-sizing:border-box;
 }
 
-/* ===============================
+/* =================================
+DASHBOARD CARDS
+================================= */
+
+.dashboard-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+text-align:center;
+}
+
+.card h3{
+margin:0;
+font-size:18px;
+}
+
+.card p{
+font-size:28px;
+font-weight:bold;
+color:#2563eb;
+}
+
+/* =================================
 TABLE
-================================ */
+================================= */
 
 .hub-table{
 width:100%;
@@ -194,9 +223,9 @@ background:#f8fafc;
 background:#e2e8f0;
 }
 
-/* ===============================
+/* =================================
 INPUTS
-================================ */
+================================= */
 
 td input,
 td select,
@@ -209,9 +238,9 @@ border-radius:4px;
 box-sizing:border-box;
 }
 
-/* ===============================
+/* =================================
 BUTTONS
-================================ */
+================================= */
 
 .hub-actions{
 display:flex;
@@ -229,33 +258,18 @@ cursor:pointer;
 color:white;
 }
 
-.edit-btn{
-background:#2563eb;
-}
+.edit-btn{ background:#2563eb; }
+.edit-btn:hover{ background:#1d4ed8; }
 
-.edit-btn:hover{
-background:#1d4ed8;
-}
+.save-btn{ background:#16a34a; }
+.save-btn:hover{ background:#15803d; }
 
-.save-btn{
-background:#16a34a;
-}
+.delete-btn{ background:#dc2626; }
+.delete-btn:hover{ background:#b91c1c; }
 
-.save-btn:hover{
-background:#15803d;
-}
-
-.delete-btn{
-background:#dc2626;
-}
-
-.delete-btn:hover{
-background:#b91c1c;
-}
-
-/* ===============================
+/* =================================
 ADD BUTTON
-================================ */
+================================= */
 
 .add-btn{
 background:#2563eb;
@@ -270,9 +284,9 @@ cursor:pointer;
 background:#1d4ed8;
 }
 
-/* ===============================
+/* =================================
 SEARCH
-================================ */
+================================= */
 
 .search-input{
 flex:1;
@@ -282,89 +296,76 @@ border:1px solid #cbd5e1;
 border-radius:5px;
 }
 
-/* ===============================
-DASHBOARD CARDS
-================================ */
-
-.dashboard-grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:20px;
-}
-
-.card{
-background:white;
-padding:20px;
-border-radius:10px;
-box-shadow:0 2px 6px rgba(0,0,0,0.1);
-text-align:center;
-}
-
-.card h3{
-margin:0;
-font-size:18px;
-}
-
-.card p{
-font-size:28px;
-font-weight:bold;
-color:#2563eb;
-}
-
-/* ===============================
+/* =================================
 MOBILE
-================================ */
+================================= */
 
 @media (max-width:768px){
 
-/* HEADER */
-
+/* الهيدر يتحول عمودي */
 .top-bar{
 flex-direction:column;
-align-items:flex-start;
-gap:8px;
+align-items:center;
+text-align:center;
+gap:10px;
 }
 
+/* اللوجو فوق */
 .top-left{
-width:100%;
+flex-direction:column;
+align-items:center;
+text-align:center;
 }
 
+/* تكبير اللوجو قليلاً */
+.logo{
+height:44px;
+}
+
+/* النص في المنتصف */
 .top-center{
+text-align:center;
 width:100%;
-text-align:left;
 }
 
 .top-right{
-width:100%;
 display:flex;
-justify-content:space-between;
+justify-content:center;
+gap:10px;
+flex-wrap:wrap;
+width:100%;
 }
 
-/* NAV */
-
+/* nav buttons */
 .admin-nav{
 gap:6px;
 }
-
-/* BUTTONS */
 
 .nav-btn{
 padding:6px 10px;
 font-size:12px;
 }
 
-/* TABLE */
+/* dashboard cards */
+.dashboard-grid{
+grid-template-columns:1fr;
+}
 
+.card{
+width:100%;
+margin-bottom:15px;
+}
+
+/* الجدول يعمل scroll */
 .hub-table{
 display:block;
 overflow-x:auto;
 white-space:nowrap;
 }
 
-/* PAGE */
-
+/* padding الصفحة */
 .page-content{
-padding:12px;
+padding:14px;
 }
 
 }
