@@ -13,12 +13,12 @@ HEADER SPACE
 ================================ */
 
 #adminHeader{
-height:110px;
+height:130px;
 width:100%;
 }
 
 /* ===============================
-ADMIN HEADER
+HEADER MAIN
 ================================ */
 
 .admin-header{
@@ -27,7 +27,7 @@ top:0;
 left:0;
 width:100%;
 z-index:9999;
-background:linear-gradient(90deg,#0f172a,#1e3a8a);
+background:#0f172a;
 }
 
 /* ===============================
@@ -35,17 +35,17 @@ TOP BAR
 ================================ */
 
 .top-bar{
-background:linear-gradient(90deg,#0f172a,#1e3a8a);
+background:#0f172a;
 color:white;
 display:flex;
 justify-content:space-between;
 align-items:center;
-padding:10px 25px;
-border-bottom:3px solid #facc15;
+padding:12px 25px;
+border-bottom:2px solid #facc15;
 }
 
 /* ===============================
-LEFT SIDE
+LEFT
 ================================ */
 
 .top-left{
@@ -58,11 +58,6 @@ gap:12px;
 height:40px;
 }
 
-.info{
-display:flex;
-flex-direction:column;
-}
-
 .company{
 font-size:14px;
 font-weight:600;
@@ -71,11 +66,11 @@ color:#facc15;
 
 .admin{
 font-size:12px;
-opacity:.9;
+opacity:.8;
 }
 
 /* ===============================
-CENTER MESSAGE
+CENTER
 ================================ */
 
 .top-center{
@@ -84,22 +79,13 @@ text-align:center;
 }
 
 .welcome-box{
-display:inline-flex;
-align-items:center;
-gap:8px;
 font-size:14px;
 font-weight:600;
 color:#facc15;
-animation:welcomeGlow 3s infinite alternate;
-}
-
-@keyframes welcomeGlow{
-0%{text-shadow:0 0 5px #facc15;}
-100%{text-shadow:0 0 15px #facc15;}
 }
 
 /* ===============================
-RIGHT SIDE
+RIGHT
 ================================ */
 
 .top-right{
@@ -110,7 +96,7 @@ font-size:12px;
 }
 
 /* ===============================
-LOGOUT BUTTON
+LOGOUT
 ================================ */
 
 .logout-btn{
@@ -132,7 +118,7 @@ NAV BAR
 ================================ */
 
 .admin-nav{
-background:#000;
+background:#1e293b;
 display:flex;
 justify-content:center;
 gap:8px;
@@ -145,7 +131,7 @@ NAV BUTTON
 ================================ */
 
 .nav-btn{
-background:#1e293b;
+background:#334155;
 color:white;
 padding:6px 14px;
 border-radius:6px;
@@ -169,7 +155,6 @@ font-weight:600;
 PAGE
 ================================ */
 
-.page,
 .page-content{
 padding:20px;
 width:100%;
@@ -184,6 +169,7 @@ TABLE
 width:100%;
 border-collapse:collapse;
 font-size:13px;
+background:white;
 }
 
 /* HEADER */
@@ -203,10 +189,10 @@ border:1px solid #ddd;
 padding:6px;
 }
 
-/* ZEBRA ROWS */
+/* ZEBRA */
 
 .hub-table tbody tr:nth-child(even){
-background:#f1f5f9;
+background:#f8fafc;
 }
 
 .hub-table tbody tr:hover{
@@ -221,19 +207,28 @@ td input,
 td select,
 td textarea{
 width:100%;
-box-sizing:border-box;
 padding:4px;
 font-size:12px;
+border:1px solid #cbd5e1;
+border-radius:4px;
+box-sizing:border-box;
 }
 
 /* ===============================
-ACTION BUTTONS
+BUTTONS
 ================================ */
+
+.hub-actions{
+display:flex;
+gap:6px;
+justify-content:center;
+flex-wrap:wrap;
+}
 
 .hub-btn{
 border:none;
-padding:4px 10px;
-border-radius:5px;
+padding:5px 12px;
+border-radius:6px;
 font-size:12px;
 cursor:pointer;
 color:white;
@@ -269,13 +264,33 @@ background:#dc2626;
 background:#b91c1c;
 }
 
-/* ACTIONS ALIGN */
+/* ===============================
+ADD BUTTON
+================================ */
 
-.hub-actions{
-display:flex;
-gap:6px;
-justify-content:center;
-flex-wrap:wrap;
+.add-btn{
+background:#2563eb;
+color:white;
+border:none;
+padding:7px 14px;
+border-radius:6px;
+cursor:pointer;
+}
+
+.add-btn:hover{
+background:#1d4ed8;
+}
+
+/* ===============================
+SEARCH
+================================ */
+
+.search-input{
+flex:1;
+min-width:220px;
+padding:7px;
+border:1px solid #cbd5e1;
+border-radius:5px;
 }
 
 /* ===============================
