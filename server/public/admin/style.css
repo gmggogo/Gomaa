@@ -13,7 +13,7 @@ HEADER SPACE
 ================================ */
 
 #adminHeader{
-height:130px;
+height:140px;
 width:100%;
 }
 
@@ -45,7 +45,7 @@ border-bottom:2px solid #facc15;
 }
 
 /* ===============================
-LEFT
+LEFT SIDE
 ================================ */
 
 .top-left{
@@ -96,21 +96,21 @@ font-size:12px;
 }
 
 /* ===============================
-LOGOUT
+LOGOUT BUTTON
 ================================ */
 
 .logout-btn{
-background:#dc2626;
+background:#334155;
 color:white;
 border:none;
-padding:6px 12px;
+padding:6px 14px;
 border-radius:6px;
 cursor:pointer;
 font-size:12px;
 }
 
 .logout-btn:hover{
-background:#b91c1c;
+background:#dc2626;
 }
 
 /* ===============================
@@ -124,6 +124,7 @@ justify-content:center;
 gap:8px;
 padding:8px;
 flex-wrap:wrap;
+margin-top:6px;
 }
 
 /* ===============================
@@ -152,11 +153,12 @@ font-weight:600;
 }
 
 /* ===============================
-PAGE
+PAGE CONTENT
 ================================ */
 
 .page-content{
 padding:20px;
+padding-top:25px;
 width:100%;
 box-sizing:border-box;
 }
@@ -189,7 +191,7 @@ border:1px solid #ddd;
 padding:6px;
 }
 
-/* ZEBRA */
+/* ZEBRA ROWS */
 
 .hub-table tbody tr:nth-child(even){
 background:#f8fafc;
@@ -282,7 +284,7 @@ background:#1d4ed8;
 }
 
 /* ===============================
-SEARCH
+SEARCH INPUT
 ================================ */
 
 .search-input{
