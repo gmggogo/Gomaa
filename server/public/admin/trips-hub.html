@@ -10,12 +10,84 @@
 <link rel="stylesheet" href="/admin/style.css">
 <link rel="stylesheet" href="/admin/trips-hub.css">
 
+<style>
+
+/* ===== PAGE CONTENT ===== */
+
+.page-content{
+padding:20px;
+width:100%;
+box-sizing:border-box;
+}
+
+/* ===== TOOLBAR ===== */
+
+.toolbar{
+display:flex;
+gap:10px;
+align-items:center;
+flex-wrap:wrap;
+margin-bottom:15px;
+}
+
+.add-btn{
+background:#2563eb;
+color:#fff;
+border:none;
+padding:7px 14px;
+border-radius:6px;
+cursor:pointer;
+}
+
+.search-input{
+flex:1;
+min-width:220px;
+padding:7px;
+}
+
+/* ===== TABLE CONTAINER ===== */
+
+#hubContainer{
+width:100%;
+overflow-x:auto;
+}
+
+/* ===== TABLE ===== */
+
+.hub-table{
+width:100%;
+table-layout:auto;
+border-collapse:collapse;
+}
+
+/* ===== MOBILE ===== */
+
+@media (max-width:768px){
+
+.toolbar{
+flex-direction:column;
+align-items:stretch;
+}
+
+.add-btn,
+.search-input{
+width:100%;
+}
+
+}
+
+</style>
+
 </head>
 
 <body>
 
 <!-- HEADER -->
 <div id="adminHeader"></div>
+
+
+<!-- PAGE CONTENT -->
+<div class="page-content">
 
 
 <!-- TOOLBAR -->
@@ -37,6 +109,8 @@ placeholder="Search trip #, name, phone, company">
 <!-- TABLE CONTAINER -->
 
 <div id="hubContainer"></div>
+
+</div>
 
 
 
