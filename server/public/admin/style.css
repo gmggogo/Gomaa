@@ -1,56 +1,46 @@
-/* ===============================
+/* =================================
 GLOBAL
-================================ */
+================================= */
 
 body{
 
 margin:0;
-
 font-family:Arial, Helvetica, sans-serif;
-
 background:#f4f8fb;
 
 }
 
-
-/* ===============================
-HEADER SPACE FIX
-================================ */
+/* =================================
+HEADER SPACE
+================================= */
 
 #adminHeader{
 
 height:110px;
-
 width:100%;
 
 }
 
-
-/* ===============================
+/* =================================
 ADMIN HEADER
-================================ */
+================================= */
 
 .admin-header{
 
 position:fixed;
-
 top:0;
 left:0;
 
 width:100%;
-
 z-index:9999;
-
-/* اللون الموحد */
 
 background:linear-gradient(90deg,#0f172a,#1e3a8a);
 
 }
 
-
-/* ===============================
-TOP BLUE BAR
-================================ */
+/* =================================
+TOP BAR
+================================= */
 
 .top-bar{
 
@@ -59,9 +49,7 @@ background:linear-gradient(90deg,#0f172a,#1e3a8a);
 color:white;
 
 display:flex;
-
 justify-content:space-between;
-
 align-items:center;
 
 padding:10px 25px;
@@ -70,17 +58,14 @@ border-bottom:3px solid #facc15;
 
 }
 
-
-/* ===============================
+/* =================================
 LEFT SIDE
-================================ */
+================================= */
 
 .top-left{
 
 display:flex;
-
 align-items:center;
-
 gap:12px;
 
 }
@@ -94,7 +79,6 @@ height:40px;
 .info{
 
 display:flex;
-
 flex-direction:column;
 
 }
@@ -102,9 +86,7 @@ flex-direction:column;
 .company{
 
 font-size:14px;
-
 font-weight:600;
-
 color:#facc15;
 
 }
@@ -112,20 +94,17 @@ color:#facc15;
 .admin{
 
 font-size:12px;
-
 opacity:.9;
 
 }
 
-
-/* ===============================
+/* =================================
 CENTER MESSAGE
-================================ */
+================================= */
 
 .top-center{
 
 flex:1;
-
 text-align:center;
 
 }
@@ -133,15 +112,11 @@ text-align:center;
 .welcome-box{
 
 display:inline-flex;
-
 align-items:center;
-
 gap:8px;
 
 font-size:14px;
-
 font-weight:600;
-
 color:#facc15;
 
 animation:welcomeGlow 3s infinite alternate;
@@ -160,32 +135,27 @@ text-shadow:0 0 15px #facc15;
 
 }
 
-
-/* ===============================
+/* =================================
 RIGHT SIDE
-================================ */
+================================= */
 
 .top-right{
 
 display:flex;
-
 align-items:center;
-
 gap:15px;
 
 font-size:12px;
 
 }
 
-
-/* ===============================
+/* =================================
 LOGOUT BUTTON
-================================ */
+================================= */
 
 .logout-btn{
 
 background:#dc2626;
-
 color:white;
 
 border:none;
@@ -206,17 +176,15 @@ background:#b91c1c;
 
 }
 
-
-/* ===============================
-BLACK NAV BAR
-================================ */
+/* =================================
+NAV BAR
+================================= */
 
 .admin-nav{
 
 background:#000;
 
 display:flex;
-
 justify-content:center;
 
 gap:8px;
@@ -227,10 +195,9 @@ flex-wrap:wrap;
 
 }
 
-
-/* ===============================
+/* =================================
 NAV BUTTON
-================================ */
+================================= */
 
 .nav-btn{
 
@@ -253,7 +220,6 @@ transition:.2s;
 .nav-btn:hover{
 
 background:#facc15;
-
 color:black;
 
 }
@@ -261,64 +227,81 @@ color:black;
 .nav-btn.active{
 
 background:#facc15;
-
 color:black;
-
 font-weight:600;
 
 }
 
-
-/* ===============================
+/* =================================
 PAGE
-================================ */
+================================= */
 
 .page,
 .page-content{
 
 padding:20px;
-
 width:100%;
-
 box-sizing:border-box;
 
 }
 
-
-/* ===============================
+/* =================================
 TABLE
-================================ */
+================================= */
 
-table{
-
-border-collapse:collapse;
+.hub-table{
 
 width:100%;
+border-collapse:collapse;
 
 }
 
-th, td{
+/* رأس الجدول */
 
-border:1px solid #ddd;
+.hub-table thead th{
+
+background:#0f172a;
+color:white;
+
+font-weight:600;
 
 padding:8px;
 
-font-size:13px;
+text-align:center;
+
+border:1px solid #ddd;
 
 }
 
-th{
+/* صفوف الجدول */
 
-background:#0f172a;
+.hub-table tbody td{
 
-color:white;
+border:1px solid #ddd;
+
+padding:6px;
+
+font-size:12px;
 
 }
 
+/* صفوف متناوبة */
 
-/* ===============================
+.hub-table tbody tr:nth-child(even){
+
+background:#f1f5f9;
+
+}
+
+.hub-table tbody tr:hover{
+
+background:#e2e8f0;
+
+}
+
+/* =================================
 INPUTS
-================================ */
+================================= */
 
 td input,
 td select,
@@ -334,10 +317,9 @@ font-size:12px;
 
 }
 
-
-/* ===============================
+/* =================================
 MOBILE
-================================ */
+================================= */
 
 @media (max-width:768px){
 
@@ -347,13 +329,10 @@ flex-wrap:wrap;
 
 }
 
-table{
+.hub-table{
 
 display:block;
-
 overflow-x:auto;
-
-white-space:nowrap;
 
 }
 
