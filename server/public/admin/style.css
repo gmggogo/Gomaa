@@ -1,3 +1,4 @@
+}
 /* =================================
 GLOBAL
 ================================= /
@@ -6,17 +7,9 @@ body{
 margin:0;
 font-family:Arial, Helvetica, sans-serif;
 background:#f4f8fb;
-padding-top:130px;
+padding-top:140px; / مساحة للهيدر الثابت /
 }
 
-/ =================================
-PAGE CONTENT
-================================= /
-
-.page-content{
-padding:20px;
-max-width:100%;
-}
 
 / =================================
 ADMIN HEADER
@@ -30,6 +23,7 @@ width:100%;
 z-index:9999;
 }
 
+
 / =================================
 TOP BLUE BAR
 ================================= /
@@ -40,23 +34,41 @@ color:white;
 display:flex;
 justify-content:space-between;
 align-items:center;
-padding:10px 20px;
+padding:10px 25px;
 border-bottom:3px solid #facc15;
 }
 
+
 / =================================
-LEFT
+LEFT SIDE
 ================================= /
 
 .top-left{
 display:flex;
 align-items:center;
-gap:10px;
+gap:12px;
 }
 
 .logo{
 height:40px;
 }
+
+.info{
+display:flex;
+flex-direction:column;
+}
+
+.company{
+font-size:14px;
+font-weight:600;
+color:#facc15;
+}
+
+.admin{
+font-size:12px;
+opacity:.9;
+}
+
 
 / =================================
 CENTER MESSAGE
@@ -77,21 +89,27 @@ color:#facc15;
 animation:welcomeGlow 3s infinite alternate;
 }
 
+#welcomeIcon{
+font-size:18px;
+}
+
 @keyframes welcomeGlow{
 0%{text-shadow:0 0 5px #facc15;}
 100%{text-shadow:0 0 15px #facc15;}
 }
 
+
 / =================================
-RIGHT
+RIGHT SIDE
 ================================= /
 
 .top-right{
 display:flex;
 align-items:center;
-gap:12px;
+gap:15px;
 font-size:12px;
 }
+
 
 / =================================
 LOGOUT BUTTON
@@ -111,6 +129,7 @@ font-size:12px;
 background:#b91c1c;
 }
 
+
 / =================================
 NAV BAR
 ================================= /
@@ -124,6 +143,7 @@ padding:8px;
 flex-wrap:wrap;
 }
 
+
 / =================================
 NAV BUTTON
 ================================= /
@@ -136,7 +156,6 @@ border-radius:6px;
 font-size:12px;
 text-decoration:none;
 transition:.2s;
-white-space:nowrap;
 }
 
 .nav-btn:hover{
@@ -150,28 +169,27 @@ color:black;
 font-weight:600;
 }
 
+
 / =================================
-TABLE
+TABLE STYLE
 ================================= /
 
 table{
 border-collapse:collapse;
 width:100%;
-table-layout:auto;
-background:white;
 }
 
 th,td{
 border:1px solid #ddd;
-padding:6px;
-font-size:12px;
-text-align:left;
+padding:8px;
+font-size:13px;
 }
 
 th{
 background:#0f172a;
 color:white;
 }
+
 
 / =================================
 INPUTS
@@ -185,6 +203,7 @@ box-sizing:border-box;
 padding:4px;
 font-size:12px;
 }
+
 
 / =================================
 BUTTONS
@@ -213,24 +232,6 @@ background:#16a34a;
 color:white;
 }
 
-/ =================================
-SEARCH + ADD BAR
-================================= /
-
-.top-actions{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:10px;
-gap:10px;
-flex-wrap:wrap;
-}
-
-.search-box{
-padding:6px;
-font-size:12px;
-width:200px;
-}
 
 / =================================
 MOBILE
@@ -238,37 +239,14 @@ MOBILE
 
 @media (max-width:768px){
 
-body{
-padding-top:150px;
-}
-
 .admin-nav{
 overflow-x:auto;
 white-space:nowrap;
 justify-content:flex-start;
 }
 
-.nav-btn{
-flex:0 0 auto;
-}
-
-.page-content{
-padding:10px;
-}
-
 table{
 display:block;
 overflow-x:auto;
 white-space:nowrap;
-}
-
-.top-actions{
-flex-direction:column;
-align-items:flex-start;
-}
-
-.search-box{
-width:100%;
-}
-
 }
