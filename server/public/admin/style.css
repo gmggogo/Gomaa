@@ -1,71 +1,284 @@
 /* ===============================
-MOBILE RESPONSIVE
+GLOBAL
 ================================ */
 
-@media (max-width:768px){
-
-/* body */
 body{
-padding-top:160px;
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#f4f8fb;
+padding-top:110px;
 }
 
-/* TOP BAR */
+
+/* ===============================
+ADMIN HEADER
+================================ */
+
+.admin-header{
+
+position:fixed;
+top:0;
+left:0;
+
+width:100%;
+
+z-index:9999;
+
+}
+
+
+/* ===============================
+TOP BLUE BAR
+================================ */
 
 .top-bar{
-flex-direction:column;
+
+background:linear-gradient(90deg,#0f172a,#1e3a8a);
+
+color:white;
+
+display:flex;
+justify-content:space-between;
 align-items:center;
-gap:8px;
-text-align:center;
+
+padding:10px 25px;
+
+border-bottom:3px solid #facc15;
+
 }
 
-/* LEFT */
+
+/* ===============================
+LEFT SIDE
+================================ */
 
 .top-left{
-justify-content:center;
+
+display:flex;
+align-items:center;
+gap:12px;
+
 }
 
-/* RIGHT */
+.logo{
+
+height:40px;
+
+}
+
+.info{
+
+display:flex;
+flex-direction:column;
+
+}
+
+.company{
+
+font-size:14px;
+font-weight:600;
+color:#facc15;
+
+}
+
+.admin{
+
+font-size:12px;
+opacity:.9;
+
+}
+
+
+/* ===============================
+CENTER WELCOME MESSAGE
+================================ */
+
+.top-center{
+
+flex:1;
+text-align:center;
+
+}
+
+.welcome-box{
+
+display:inline-flex;
+align-items:center;
+gap:8px;
+
+font-size:14px;
+font-weight:600;
+color:#facc15;
+
+animation:welcomeGlow 3s infinite alternate;
+
+}
+
+
+/* ICON */
+
+#welcomeIcon{
+
+font-size:18px;
+
+}
+
+
+/* GLOW ANIMATION */
+
+@keyframes welcomeGlow{
+
+0%{
+text-shadow:0 0 5px #facc15;
+}
+
+100%{
+text-shadow:0 0 15px #facc15;
+}
+
+}
+
+
+/* ===============================
+RIGHT SIDE
+================================ */
 
 .top-right{
-justify-content:center;
+
+display:flex;
+align-items:center;
+gap:15px;
+
+font-size:12px;
+
 }
 
-/* NAV BAR */
+
+/* ===============================
+LOGOUT BUTTON
+================================ */
+
+.logout-btn{
+
+background:#dc2626;
+
+color:white;
+
+border:none;
+
+padding:6px 12px;
+
+border-radius:6px;
+
+cursor:pointer;
+
+font-size:12px;
+
+}
+
+.logout-btn:hover{
+
+background:#b91c1c;
+
+}
+
+
+/* ===============================
+BLACK NAV BAR
+================================ */
 
 .admin-nav{
-flex-wrap:nowrap;
-overflow-x:auto;
-white-space:nowrap;
-justify-content:flex-start;
-padding:8px 10px;
+
+background:#000;
+
+display:flex;
+
+justify-content:center;
+
+gap:8px;
+
+padding:8px;
+
 }
 
-/* NAV BUTTON */
+
+/* ===============================
+NAV BUTTON
+================================ */
 
 .nav-btn{
-flex:0 0 auto;
+
+background:#1e293b;
+
+color:white;
+
+padding:6px 14px;
+
+border-radius:6px;
+
 font-size:12px;
-padding:6px 12px;
+
+text-decoration:none;
+
+transition:.2s;
+
 }
 
-/* TABLE */
+
+/* ===============================
+HOVER
+================================ */
+
+.nav-btn:hover{
+
+background:#facc15;
+
+color:black;
+
+}
+
+
+/* ===============================
+ACTIVE PAGE
+================================ */
+
+.nav-btn.active{
+
+background:#facc15;
+
+color:black;
+
+font-weight:600;
+
+}
+
+
+/* ===============================
+TABLE STYLE
+================================ */
 
 table{
-display:block;
-overflow-x:auto;
-white-space:nowrap;
-}
 
-/* TOOLBAR */
+border-collapse:collapse;
 
-.toolbar{
-flex-direction:column;
-gap:8px;
-}
-
-.search-input,
-.add-btn{
 width:100%;
+
 }
+
+th, td{
+
+border:1px solid #ddd;
+
+padding:8px;
+
+font-size:13px;
+
+}
+
+th{
+
+background:#0f172a;
+
+color:white;
 
 }
