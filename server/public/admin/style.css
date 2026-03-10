@@ -18,7 +18,7 @@ width:100%;
 }
 
 /* ===============================
-HEADER MAIN
+HEADER
 ================================ */
 
 .admin-header{
@@ -45,13 +45,13 @@ border-bottom:2px solid #facc15;
 }
 
 /* ===============================
-LEFT SIDE
+LEFT
 ================================ */
 
 .top-left{
 display:flex;
 align-items:center;
-gap:12px;
+gap:10px;
 }
 
 .logo{
@@ -91,12 +91,12 @@ RIGHT
 .top-right{
 display:flex;
 align-items:center;
-gap:15px;
+gap:12px;
 font-size:12px;
 }
 
 /* ===============================
-LOGOUT BUTTON
+LOGOUT
 ================================ */
 
 .logout-btn{
@@ -124,7 +124,6 @@ justify-content:center;
 gap:8px;
 padding:8px;
 flex-wrap:wrap;
-margin-top:6px;
 }
 
 /* ===============================
@@ -153,7 +152,7 @@ font-weight:600;
 }
 
 /* ===============================
-PAGE CONTENT
+PAGE
 ================================ */
 
 .page-content{
@@ -174,8 +173,6 @@ font-size:13px;
 background:white;
 }
 
-/* HEADER */
-
 .hub-table thead th{
 background:#0f172a;
 color:white;
@@ -184,14 +181,10 @@ text-align:center;
 border:1px solid #ddd;
 }
 
-/* BODY */
-
 .hub-table tbody td{
 border:1px solid #ddd;
 padding:6px;
 }
-
-/* ZEBRA ROWS */
 
 .hub-table tbody tr:nth-child(even){
 background:#f8fafc;
@@ -236,8 +229,6 @@ cursor:pointer;
 color:white;
 }
 
-/* EDIT */
-
 .edit-btn{
 background:#2563eb;
 }
@@ -246,8 +237,6 @@ background:#2563eb;
 background:#1d4ed8;
 }
 
-/* SAVE */
-
 .save-btn{
 background:#16a34a;
 }
@@ -255,8 +244,6 @@ background:#16a34a;
 .save-btn:hover{
 background:#15803d;
 }
-
-/* DELETE */
 
 .delete-btn{
 background:#dc2626;
@@ -284,7 +271,7 @@ background:#1d4ed8;
 }
 
 /* ===============================
-SEARCH INPUT
+SEARCH
 ================================ */
 
 .search-input{
@@ -296,19 +283,88 @@ border-radius:5px;
 }
 
 /* ===============================
+DASHBOARD CARDS
+================================ */
+
+.dashboard-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+text-align:center;
+}
+
+.card h3{
+margin:0;
+font-size:18px;
+}
+
+.card p{
+font-size:28px;
+font-weight:bold;
+color:#2563eb;
+}
+
+/* ===============================
 MOBILE
 ================================ */
 
 @media (max-width:768px){
 
-.admin-nav{
-flex-wrap:wrap;
+/* HEADER */
+
+.top-bar{
+flex-direction:column;
+align-items:flex-start;
+gap:8px;
 }
+
+.top-left{
+width:100%;
+}
+
+.top-center{
+width:100%;
+text-align:left;
+}
+
+.top-right{
+width:100%;
+display:flex;
+justify-content:space-between;
+}
+
+/* NAV */
+
+.admin-nav{
+gap:6px;
+}
+
+/* BUTTONS */
+
+.nav-btn{
+padding:6px 10px;
+font-size:12px;
+}
+
+/* TABLE */
 
 .hub-table{
 display:block;
 overflow-x:auto;
 white-space:nowrap;
+}
+
+/* PAGE */
+
+.page-content{
+padding:12px;
 }
 
 }
