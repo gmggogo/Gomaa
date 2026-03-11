@@ -5,7 +5,6 @@
 
 <meta charset="UTF-8">
 <title>Trips</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -16,7 +15,16 @@ body{
 margin:0;
 background:#f1f5f9;
 font-family:Segoe UI,Arial;
-padding-top:60px;
+padding-top:50px;
+}
+
+/* رفع الهيدر */
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
 }
 
 .group-title{
@@ -24,7 +32,7 @@ font-size:15px;
 font-weight:700;
 padding:10px;
 background:#e2e8f0;
-margin-top:15px;
+margin-top:10px;
 border-left:4px solid #0f172a;
 }
 
@@ -53,13 +61,9 @@ padding:4px;
 font-size:12px;
 }
 
-.stop{
-margin-bottom:3px;
-}
-
 .actions{
 display:flex;
-gap:6px;
+gap:5px;
 justify-content:center;
 }
 
@@ -71,31 +75,32 @@ font-size:12px;
 cursor:pointer;
 }
 
-.btn-edit{
-background:#2563eb;
-color:white;
+.btn-edit{background:#2563eb;color:white;}
+.btn-delete{background:#dc2626;color:white;}
+.btn-disable{background:#64748b;color:white;}
+
+.dispatch-check:checked{
+accent-color:#16a34a;
 }
 
-.btn-delete{
-background:#dc2626;
-color:white;
+/* زر إضافة Stop */
+.add-stop{
+background:#facc15;
+border:none;
+padding:4px 6px;
+cursor:pointer;
+border-radius:5px;
+font-size:12px;
 }
 
-.btn-disable{
-background:#64748b;
-color:white;
-}
+/* ألوان أنواع الرحلات */
+.row-company{background:#fff6d6;}
+.row-individual{background:#e8f4ff;}
+.row-reserved{background:#dcfce7;}
 
-.row-company{
-background:#fff6d6;
-}
-
-.row-individual{
-background:#e8f4ff;
-}
-
-.row-reserved{
-background:#dcfce7;
+.stop{
+margin-bottom:3px;
+display:block;
 }
 
 @media(max-width:768px){

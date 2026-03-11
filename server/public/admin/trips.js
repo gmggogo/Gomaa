@@ -7,7 +7,6 @@ let trips=[]
 async function loadTrips(){
 
 const res=await fetch(API)
-
 const data=await res.json()
 
 trips=data||[]
@@ -21,11 +20,9 @@ function getDates(){
 const now=new Date()
 
 const today=new Date(now)
-
 today.setHours(0,0,0,0)
 
 const tomorrow=new Date(today)
-
 tomorrow.setDate(today.getDate()+1)
 
 return{today,tomorrow}
@@ -36,10 +33,7 @@ function groupTrips(){
 
 const {today,tomorrow}=getDates()
 
-const groups={
-today:[],
-tomorrow:[]
-}
+const groups={today:[],tomorrow:[]}
 
 const now=new Date()
 
@@ -49,12 +43,9 @@ if(!t.tripDate) return
 
 const tripTime=new Date(t.tripDate+" "+t.tripTime)
 
-if(tripTime < now){
-return
-}
+if(tripTime < now) return
 
 const d=new Date(t.tripDate)
-
 d.setHours(0,0,0,0)
 
 if(d.getTime()===today.getTime())
@@ -74,9 +65,7 @@ function rowColor(type){
 type=(type||"").toLowerCase()
 
 if(type==="company") return "row-company"
-
 if(type==="individual") return "row-individual"
-
 if(type==="reserved") return "row-reserved"
 
 return ""
@@ -108,15 +97,12 @@ function drawGroup(title,list){
 if(!list.length) return
 
 const header=document.createElement("div")
-
 header.className="group-title"
-
 header.innerText=title
 
 container.appendChild(header)
 
 const table=document.createElement("table")
-
 table.className="trip-table"
 
 table.innerHTML=`
@@ -129,7 +115,7 @@ table.innerHTML=`
 <th>Type</th>
 <th>Company</th>
 <th>Client</th>
-<th>Phone</th>
+<th>Client Phone</th>
 <th>Pickup</th>
 <th>Stops</th>
 <th>Dropoff</th>
@@ -145,24 +131,19 @@ table.innerHTML=`
 list.forEach((t,i)=>{
 
 const tr=document.createElement("tr")
-
 tr.className=rowColor(t.type)
 
 tr.innerHTML=`
 
 <td>
-<input type="checkbox"
-${t.disabled?"disabled":""}
+<input class="dispatch-check" type="checkbox"
 ${t.inDispatch?"checked":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
 <td>${i+1}</td>
-
 <td>${t.tripNumber||""}</td>
-
 <td>${t.type||""}</td>
-
 <td>${t.company||""}</td>
 
 <td>
@@ -179,11 +160,15 @@ onchange="sendDispatch('${t._id}',this.checked)">
 
 <td>
 
-<input class="stop edit-field" disabled value="${t.stops?.[0]||""}">
-<input class="stop edit-field" disabled value="${t.stops?.[1]||""}">
-<input class="stop edit-field" disabled value="${t.stops?.[2]||""}">
-<input class="stop edit-field" disabled value="${t.stops?.[3]||""}">
-<input class="stop edit-field" disabled value="${t.stops?.[4]||""}">
+<div class="stops">
+
+${(t.stops||[]).map(s=>`
+<input class="stop edit-field" disabled value="${s}">
+`).join("")}
+
+</div>
+
+<button class="add-stop" onclick="addStop(this)">+ Stop</button>
 
 </td>
 
@@ -234,18 +219,32 @@ container.appendChild(table)
 
 }
 
+function addStop(btn){
+
+const stopsDiv=btn.parentElement.querySelector(".stops")
+
+const count=stopsDiv.querySelectorAll("input").length
+
+if(count>=5) return
+
+const input=document.createElement("input")
+
+input.className="stop edit-field"
+input.placeholder="Stop address"
+
+stopsDiv.appendChild(input)
+
+}
+
 function editTrip(id,btn){
 
 const row=btn.closest("tr")
-
 const fields=row.querySelectorAll(".edit-field")
 
 if(btn.innerText==="Edit"){
 
 fields.forEach(f=>f.disabled=false)
-
 btn.innerText="Save"
-
 return
 
 }
@@ -255,9 +254,7 @@ const stopFields=row.querySelectorAll(".stop")
 const stops=[]
 
 stopFields.forEach(s=>{
-if(s.value.trim()!=""){
-stops.push(s.value.trim())
-}
+if(s.value.trim()!="") stops.push(s.value)
 })
 
 const data={
@@ -266,16 +263,15 @@ clientName:fields[0].value,
 clientPhone:fields[1].value,
 pickup:fields[2].value,
 stops:stops,
-dropoff:fields[8].value,
-tripDate:fields[9].value,
-tripTime:fields[10].value
+dropoff:fields[fields.length-3].value,
+tripDate:fields[fields.length-2].value,
+tripTime:fields[fields.length-1].value
 
 }
 
 saveTrip(id,data)
 
 fields.forEach(f=>f.disabled=true)
-
 btn.innerText="Edit"
 
 }
@@ -298,10 +294,7 @@ async function deleteTrip(id){
 
 if(!confirm("Delete trip?")) return
 
-await fetch(API+"/"+id,{
-method:"DELETE"
-})
-
+await fetch(API+"/"+id,{method:"DELETE"})
 loadTrips()
 
 }
@@ -313,9 +306,7 @@ method:"PUT",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({
-disabled:true
-})
+body:JSON.stringify({disabled:true})
 })
 
 loadTrips()
@@ -329,9 +320,7 @@ method:"PUT",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({
-inDispatch:val
-})
+body:JSON.stringify({inDispatch:val})
 })
 
 }
