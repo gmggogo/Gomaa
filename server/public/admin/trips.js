@@ -114,6 +114,7 @@ table.className="trip-table"
 table.innerHTML=`
 
 <tr>
+
 <th>Dispatch</th>
 <th>#</th>
 <th>Trip</th>
@@ -128,15 +129,18 @@ table.innerHTML=`
 <th>Time</th>
 <th>Status</th>
 <th>Actions</th>
+
 </tr>
 
 `
 
 if(!list.length){
 
-const tr=document.createElement("tr")
-tr.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
-table.appendChild(tr)
+const row=document.createElement("tr")
+
+row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
+
+table.appendChild(row)
 
 }else{
 
@@ -177,7 +181,10 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <div class="stops">
 
 ${(t.stops||[]).map(s=>`
+<div class="stop-row">
 <input class="stop edit-field" disabled value="${s}">
+<span class="stop-remove" onclick="removeStop(this)">✖</span>
+</div>
 `).join("")}
 
 </div>
@@ -238,18 +245,28 @@ function addStop(btn){
 
 const stopsDiv=btn.parentElement.querySelector(".stops")
 
-const count=stopsDiv.querySelectorAll("input").length
+const count=stopsDiv.querySelectorAll(".stop-row").length
 
 if(count>=5){
 alert("Maximum 5 stops")
 return
 }
 
-const input=document.createElement("input")
-input.className="stop edit-field"
-input.placeholder="Stop address"
+const row=document.createElement("div")
+row.className="stop-row"
 
-stopsDiv.appendChild(input)
+row.innerHTML=`
+<input class="stop edit-field" disabled placeholder="Stop address">
+<span class="stop-remove" onclick="removeStop(this)">✖</span>
+`
+
+stopsDiv.appendChild(row)
+
+}
+
+function removeStop(el){
+
+el.closest(".stop-row").remove()
 
 }
 
@@ -258,6 +275,7 @@ stopsDiv.appendChild(input)
 function editTrip(id,btn){
 
 const row=btn.closest("tr")
+
 const fields=row.querySelectorAll(".edit-field")
 
 if(btn.innerText==="Edit"){

@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
 <meta charset="UTF-8">
 <title>Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,8 +17,6 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
-/* header */
-
 #adminHeader{
 position:fixed;
 top:0;
@@ -25,8 +24,6 @@ left:0;
 width:100%;
 z-index:1000;
 }
-
-/* page spacing */
 
 .page-body{
 padding-top:260px;
@@ -44,14 +41,10 @@ padding-right:10px;
 
 }
 
-/* table scroll */
-
 .table-scroll{
 width:100%;
 overflow-x:auto;
 }
-
-/* table */
 
 .trip-table{
 min-width:1200px;
@@ -78,15 +71,11 @@ padding:4px;
 font-size:12px;
 }
 
-/* titles */
-
 .group-title{
 font-weight:700;
 margin:20px 0 8px;
 font-size:15px;
 }
-
-/* buttons */
 
 .btn{
 border:none;
@@ -104,8 +93,6 @@ font-size:12px;
 accent-color:#16a34a;
 }
 
-/* stop */
-
 .add-stop{
 background:#facc15;
 border:none;
@@ -115,15 +102,21 @@ border-radius:5px;
 font-size:12px;
 }
 
-/* colors */
-
 .row-company{background:#fff6d6;}
 .row-individual{background:#e8f4ff;}
 .row-reserved{background:#dcfce7;}
 
-.stop{
-display:block;
+.stop-row{
+display:flex;
+align-items:center;
+gap:5px;
 margin-bottom:3px;
+}
+
+.stop-remove{
+cursor:pointer;
+color:#dc2626;
+font-weight:bold;
 }
 
 </style>
