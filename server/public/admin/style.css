@@ -14,15 +14,6 @@ overflow-x:hidden;
 }
 
 /* =================================
-HEADER SPACE
-================================= */
-
-#adminHeader{
-height:170px;
-width:100%;
-}
-
-/* =================================
 HEADER
 ================================= */
 
@@ -163,8 +154,19 @@ PAGE CONTENT
 
 .page-content{
 padding:20px;
-padding-top:230px;
+padding-top:220px;
 width:100%;
+}
+
+/* =================================
+TOOLBAR
+================================= */
+
+.toolbar{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:15px;
 }
 
 /* =================================
@@ -198,6 +200,16 @@ margin-top:8px;
 }
 
 /* =================================
+GROUP TITLE
+================================= */
+
+.group-title{
+font-size:18px;
+font-weight:600;
+margin:20px 0 10px 0;
+}
+
+/* =================================
 TABLE
 ================================= */
 
@@ -206,6 +218,7 @@ width:100%;
 border-collapse:collapse;
 font-size:13px;
 background:white;
+margin-bottom:25px;
 }
 
 .hub-table thead th{
@@ -275,7 +288,7 @@ ADD BUTTON
 background:#2563eb;
 color:white;
 border:none;
-padding:7px 14px;
+padding:8px 14px;
 border-radius:6px;
 cursor:pointer;
 }
@@ -291,7 +304,7 @@ SEARCH
 .search-input{
 flex:1;
 min-width:200px;
-padding:7px;
+padding:8px;
 border:1px solid #cbd5e1;
 border-radius:5px;
 }
@@ -316,7 +329,7 @@ text-align:center;
 }
 
 .logo{
-height:44px;
+height:45px;
 margin-bottom:5px;
 }
 
@@ -342,10 +355,14 @@ padding:6px 10px;
 font-size:12px;
 }
 
+/* المسافة تحت الهيدر */
+
 .page-content{
-padding:14px;
-padding-top:330px;
+padding:15px;
+padding-top:300px;
 }
+
+/* الكروت */
 
 .dashboard-grid{
 grid-template-columns:1fr;
@@ -354,6 +371,8 @@ grid-template-columns:1fr;
 .card{
 width:100%;
 }
+
+/* الجدول يسحب يمين ويسار */
 
 .hub-table{
 display:block;
