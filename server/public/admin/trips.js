@@ -37,15 +37,21 @@ function groupTrips(){
 const {today,tomorrow}=getDates()
 
 const groups={
-
 today:[],
 tomorrow:[]
-
 }
+
+const now=new Date()
 
 trips.forEach(t=>{
 
 if(!t.tripDate) return
+
+const tripTime=new Date(t.tripDate+" "+t.tripTime)
+
+if(tripTime < now){
+return
+}
 
 const d=new Date(t.tripDate)
 
@@ -86,17 +92,13 @@ const groups=groupTrips()
 const {today,tomorrow}=getDates()
 
 drawGroup(
-
 "Today – "+today.toDateString(),
 groups.today
-
 )
 
 drawGroup(
-
 "Tomorrow – "+tomorrow.toDateString(),
 groups.tomorrow
-
 )
 
 }
@@ -142,8 +144,6 @@ table.innerHTML=`
 
 list.forEach((t,i)=>{
 
-const stops=(t.stops||[]).join(" → ")
-
 const tr=document.createElement("tr")
 
 tr.className=rowColor(t.type)
@@ -151,12 +151,10 @@ tr.className=rowColor(t.type)
 tr.innerHTML=`
 
 <td>
-
 <input type="checkbox"
 ${t.disabled?"disabled":""}
 ${t.inDispatch?"checked":""}
 onchange="sendDispatch('${t._id}',this.checked)">
-
 </td>
 
 <td>${i+1}</td>
@@ -180,7 +178,13 @@ onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${stops}">
+
+<input class="stop edit-field" disabled value="${t.stops?.[0]||""}">
+<input class="stop edit-field" disabled value="${t.stops?.[1]||""}">
+<input class="stop edit-field" disabled value="${t.stops?.[2]||""}">
+<input class="stop edit-field" disabled value="${t.stops?.[3]||""}">
+<input class="stop edit-field" disabled value="${t.stops?.[4]||""}">
+
 </td>
 
 <td>
@@ -246,15 +250,25 @@ return
 
 }
 
+const stopFields=row.querySelectorAll(".stop")
+
+const stops=[]
+
+stopFields.forEach(s=>{
+if(s.value.trim()!=""){
+stops.push(s.value.trim())
+}
+})
+
 const data={
 
 clientName:fields[0].value,
 clientPhone:fields[1].value,
 pickup:fields[2].value,
-stops:fields[3].value.split("→"),
-dropoff:fields[4].value,
-tripDate:fields[5].value,
-tripTime:fields[6].value
+stops:stops,
+dropoff:fields[8].value,
+tripDate:fields[9].value,
+tripTime:fields[10].value
 
 }
 
@@ -269,15 +283,11 @@ btn.innerText="Edit"
 async function saveTrip(id,data){
 
 await fetch(API+"/"+id,{
-
 method:"PUT",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify(data)
-
 })
 
 loadTrips()
@@ -299,17 +309,13 @@ loadTrips()
 async function disableTrip(id){
 
 await fetch(API+"/"+id,{
-
 method:"PUT",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify({
 disabled:true
 })
-
 })
 
 loadTrips()
@@ -319,17 +325,13 @@ loadTrips()
 async function sendDispatch(id,val){
 
 await fetch(API+"/"+id,{
-
 method:"PUT",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify({
 inDispatch:val
 })
-
 })
 
 }
