@@ -1,112 +1,117 @@
-const API = "/api/trips"
-const container = document.getElementById("tripsContainer")
+const API="/api/trips"
+const container=document.getElementById("tripsContainer")
 
-let trips = []
+let trips=[]
 
 async function loadTrips(){
 
-  const res = await fetch(API)
-  const data = await res.json()
+const res=await fetch(API)
+const data=await res.json()
 
-  trips = data || []
+trips=data||[]
 
-  renderTrips()
+renderTrips()
+
 }
 
-/* ===== اليوم وبكرة ===== */
+/* اليوم وبكرة */
 
 function getDates(){
 
-  const now = new Date()
+const now=new Date()
 
-  const today = new Date(now)
-  today.setHours(0,0,0,0)
+const today=new Date(now)
+today.setHours(0,0,0,0)
 
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate()+1)
+const tomorrow=new Date(today)
+tomorrow.setDate(today.getDate()+1)
 
-  return {today,tomorrow}
+return{today,tomorrow}
+
 }
 
-/* ===== تقسيم الرحلات ===== */
+/* تجميع الرحلات */
 
 function groupTrips(){
 
-  const {today,tomorrow} = getDates()
+const {today,tomorrow}=getDates()
 
-  const groups = {
-    today:[],
-    tomorrow:[]
-  }
-
-  trips.forEach(t=>{
-
-    if(!t.date) return
-
-    const d = new Date(t.date)
-    d.setHours(0,0,0,0)
-
-    if(d.getTime()===today.getTime())
-      groups.today.push(t)
-
-    if(d.getTime()===tomorrow.getTime())
-      groups.tomorrow.push(t)
-
-  })
-
-  return groups
+const groups={
+today:[],
+tomorrow:[]
 }
 
-/* ===== لون الصف ===== */
+trips.forEach(t=>{
+
+if(!t.date) return
+
+const d=new Date(t.date)
+d.setHours(0,0,0,0)
+
+if(d.getTime()===today.getTime())
+groups.today.push(t)
+
+if(d.getTime()===tomorrow.getTime())
+groups.tomorrow.push(t)
+
+})
+
+return groups
+
+}
+
+/* لون الصف */
 
 function rowColor(type){
 
-  type=(type||"").toLowerCase()
+type=(type||"").toLowerCase()
 
-  if(type==="company") return "row-company"
-  if(type==="individual") return "row-individual"
-  if(type==="reserved") return "row-reserved"
+if(type==="company") return "row-company"
+if(type==="individual") return "row-individual"
+if(type==="reserved") return "row-reserved"
 
-  return ""
+return ""
+
 }
 
-/* ===== رسم الصفحة ===== */
+/* رسم الصفحة */
 
 function renderTrips(){
 
-  container.innerHTML=""
+container.innerHTML=""
 
-  const groups = groupTrips()
-  const {today,tomorrow} = getDates()
+const groups=groupTrips()
+const {today,tomorrow}=getDates()
 
-  drawGroup(
-    "Today – "+today.toDateString(),
-    groups.today
-  )
+drawGroup(
+"Today – "+today.toDateString(),
+groups.today
+)
 
-  drawGroup(
-    "Tomorrow – "+tomorrow.toDateString(),
-    groups.tomorrow
-  )
+drawGroup(
+"Tomorrow – "+tomorrow.toDateString(),
+groups.tomorrow
+)
+
 }
 
 function drawGroup(title,list){
 
-  if(!list.length) return
+if(!list.length) return
 
-  const header=document.createElement("div")
-  header.className="group-title"
-  header.innerText=title
+const header=document.createElement("div")
+header.className="group-title"
+header.innerText=title
 
-  container.appendChild(header)
+container.appendChild(header)
 
-  const wrapper=document.createElement("div")
-  wrapper.className="table-scroll"
+const wrapper=document.createElement("div")
+wrapper.className="table-scroll"
 
-  const table=document.createElement("table")
-  table.className="trip-table"
+const table=document.createElement("table")
+table.className="trip-table"
 
-  table.innerHTML=`
+table.innerHTML=`
 <tr>
 <th>Dispatch</th>
 <th>#</th>
@@ -125,12 +130,12 @@ function drawGroup(title,list){
 </tr>
 `
 
-  list.forEach((t,i)=>{
+list.forEach((t,i)=>{
 
-    const tr=document.createElement("tr")
-    tr.className=rowColor(t.type)
+const tr=document.createElement("tr")
+tr.className=rowColor(t.type)
 
-    tr.innerHTML=`
+tr.innerHTML=`
 
 <td>
 <input class="dispatch-check"
@@ -160,9 +165,11 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <td>
 
 <div class="stops">
+
 ${(t.stops||[]).map(s=>`
 <input class="stop edit-field" value="${s}">
 `).join("")}
+
 </div>
 
 <button class="add-stop" onclick="addStop(this)">+ Stop</button>
@@ -203,61 +210,44 @@ Disable
 </td>
 `
 
-    table.appendChild(tr)
+table.appendChild(tr)
 
-  })
+})
 
-  wrapper.appendChild(table)
-  container.appendChild(wrapper)
+wrapper.appendChild(table)
+container.appendChild(wrapper)
+
 }
 
-/* ===== Stop ===== */
-
-function addStop(btn){
-
-  const stopsDiv=btn.parentElement.querySelector(".stops")
-
-  const count=stopsDiv.querySelectorAll("input").length
-
-  if(count>=5){
-    alert("Maximum 5 stops")
-    return
-  }
-
-  const input=document.createElement("input")
-  input.className="stop edit-field"
-
-  stopsDiv.appendChild(input)
-}
-
-/* ===== Disable ===== */
+/* Disable */
 
 function toggleTrip(btn){
 
-  const row=btn.closest("tr")
+const row=btn.closest("tr")
 
-  const elements=row.querySelectorAll("input,select,button")
+const elements=row.querySelectorAll("input,button")
 
-  if(btn.innerText==="Disable"){
+if(btn.innerText==="Disable"){
 
-    elements.forEach(el=>{
-      if(el!==btn) el.disabled=true
-    })
+elements.forEach(el=>{
+if(el!==btn) el.disabled=true
+})
 
-    row.style.opacity="0.5"
+row.style.opacity="0.5"
 
-    btn.innerText="Enable"
-    btn.style.background="#16a34a"
+btn.innerText="Enable"
+btn.style.background="#16a34a"
 
-  }else{
+}else{
 
-    elements.forEach(el=>el.disabled=false)
+elements.forEach(el=>el.disabled=false)
 
-    row.style.opacity="1"
+row.style.opacity="1"
 
-    btn.innerText="Disable"
-    btn.style.background="#64748b"
-  }
+btn.innerText="Disable"
+btn.style.background="#64748b"
+}
+
 }
 
 loadTrips()
