@@ -18,6 +18,8 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
+/* الهيدر */
+
 #adminHeader{
 position:fixed;
 top:0;
@@ -46,17 +48,18 @@ padding-right:10px;
 
 }
 
-/* scroll */
+/* scroll للجدول */
 
 .table-scroll{
 width:100%;
 overflow-x:auto;
+-webkit-overflow-scrolling:touch;
 }
 
 /* الجدول */
 
 .trip-table{
-min-width:1400px;
+min-width:1200px;
 border-collapse:collapse;
 background:white;
 font-size:13px;
@@ -66,6 +69,7 @@ font-size:13px;
 background:#0f172a;
 color:white;
 padding:8px;
+text-align:left;
 }
 
 .trip-table td{
@@ -98,9 +102,22 @@ cursor:pointer;
 font-size:12px;
 }
 
-.btn-edit{background:#2563eb;color:white;}
-.btn-delete{background:#dc2626;color:white;}
-.btn-disable{background:#64748b;color:white;}
+.btn-edit{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+.btn-disable{
+background:#64748b;
+color:white;
+}
+
+/* dispatch */
 
 .dispatch-check:checked{
 accent-color:#16a34a;
@@ -117,11 +134,19 @@ border-radius:5px;
 font-size:12px;
 }
 
-/* الألوان */
+/* ألوان الصفوف */
 
-.row-company{background:#fff6d6;}
-.row-individual{background:#e8f4ff;}
-.row-reserved{background:#dcfce7;}
+.row-company{
+background:#fff6d6;
+}
+
+.row-individual{
+background:#e8f4ff;
+}
+
+.row-reserved{
+background:#dcfce7;
+}
 
 .stop{
 display:block;
@@ -134,8 +159,10 @@ margin-bottom:3px;
 
 <body>
 
+<!-- الهيدر -->
 <div id="adminHeader"></div>
 
+<!-- الصفحة -->
 <div class="page-body">
 
 <div id="tripsContainer"></div>
@@ -146,4 +173,5 @@ margin-bottom:3px;
 <script src="/admin/trips.js"></script>
 
 </body>
+
 </html>

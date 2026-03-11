@@ -1,149 +1,263 @@
-<!DOCTYPE html>
-<html lang="en">
+const API = "/api/trips"
+const container = document.getElementById("tripsContainer")
 
-<head>
+let trips = []
 
-<meta charset="UTF-8">
-<title>Trips</title>
+async function loadTrips(){
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  const res = await fetch(API)
+  const data = await res.json()
 
-<link rel="stylesheet" href="/admin/style.css">
+  trips = data || []
 
-<style>
-
-body{
-margin:0;
-font-family:Segoe UI,Arial;
-background:#f1f5f9;
+  renderTrips()
 }
 
-#adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:1000;
+/* ===== اليوم وبكرة ===== */
+
+function getDates(){
+
+  const now = new Date()
+
+  const today = new Date(now)
+  today.setHours(0,0,0,0)
+
+  const tomorrow = new Date(today)
+  tomorrow.setDate(today.getDate()+1)
+
+  return {today,tomorrow}
 }
 
-/* المسافة تحت الهيدر */
+/* ===== تقسيم الرحلات ===== */
 
-.page-body{
-padding-top:240px;
-padding-left:20px;
-padding-right:20px;
+function groupTrips(){
+
+  const {today,tomorrow} = getDates()
+
+  const groups = {
+    today:[],
+    tomorrow:[]
+  }
+
+  trips.forEach(t=>{
+
+    if(!t.date) return
+
+    const d = new Date(t.date)
+    d.setHours(0,0,0,0)
+
+    if(d.getTime()===today.getTime())
+      groups.today.push(t)
+
+    if(d.getTime()===tomorrow.getTime())
+      groups.tomorrow.push(t)
+
+  })
+
+  return groups
 }
 
-/* موبايل */
+/* ===== لون الصف ===== */
 
-@media (max-width:768px){
+function rowColor(type){
 
-.page-body{
-padding-top:320px;
-padding-left:10px;
-padding-right:10px;
+  type=(type||"").toLowerCase()
+
+  if(type==="company") return "row-company"
+  if(type==="individual") return "row-individual"
+  if(type==="reserved") return "row-reserved"
+
+  return ""
 }
 
+/* ===== رسم الصفحة ===== */
+
+function renderTrips(){
+
+  container.innerHTML=""
+
+  const groups = groupTrips()
+  const {today,tomorrow} = getDates()
+
+  drawGroup(
+    "Today – "+today.toDateString(),
+    groups.today
+  )
+
+  drawGroup(
+    "Tomorrow – "+tomorrow.toDateString(),
+    groups.tomorrow
+  )
 }
 
-/* scroll */
+function drawGroup(title,list){
 
-.table-scroll{
-width:100%;
-overflow-x:auto;
-}
+  if(!list.length) return
 
-/* الجدول */
+  const header=document.createElement("div")
+  header.className="group-title"
+  header.innerText=title
 
-.trip-table{
-min-width:1400px;
-border-collapse:collapse;
-background:white;
-font-size:13px;
-}
+  container.appendChild(header)
 
-.trip-table th{
-background:#0f172a;
-color:white;
-padding:8px;
-}
+  const wrapper=document.createElement("div")
+  wrapper.className="table-scroll"
 
-.trip-table td{
-padding:6px;
-border-bottom:1px solid #eee;
-}
+  const table=document.createElement("table")
+  table.className="trip-table"
 
-.trip-table input{
-width:100%;
-border:1px solid #ddd;
-padding:4px;
-font-size:12px;
-}
+  table.innerHTML=`
+<tr>
+<th>Dispatch</th>
+<th>#</th>
+<th>Trip</th>
+<th>Type</th>
+<th>Company</th>
+<th>Client</th>
+<th>Client Phone</th>
+<th>Pickup</th>
+<th>Stops</th>
+<th>Dropoff</th>
+<th>Date</th>
+<th>Time</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+`
 
-/* عنوان التاريخ */
+  list.forEach((t,i)=>{
 
-.group-title{
-font-weight:700;
-margin:20px 0 6px;
-font-size:15px;
-}
+    const tr=document.createElement("tr")
+    tr.className=rowColor(t.type)
 
-/* الأزرار */
+    tr.innerHTML=`
 
-.btn{
-border:none;
-padding:4px 8px;
-border-radius:6px;
-cursor:pointer;
-font-size:12px;
-}
+<td>
+<input class="dispatch-check"
+type="checkbox"
+${t.dispatch?"checked":""}
+onchange="sendDispatch('${t._id}',this.checked)">
+</td>
 
-.btn-edit{background:#2563eb;color:white;}
-.btn-delete{background:#dc2626;color:white;}
-.btn-disable{background:#64748b;color:white;}
+<td>${i+1}</td>
 
-.dispatch-check:checked{
-accent-color:#16a34a;
-}
+<td>${t.tripNumber||""}</td>
+<td>${t.type||""}</td>
+<td>${t.company||""}</td>
 
-/* stop */
+<td>
+<input class="edit-field" value="${t.client||""}">
+</td>
 
-.add-stop{
-background:#facc15;
-border:none;
-padding:3px 6px;
-cursor:pointer;
-border-radius:5px;
-font-size:12px;
-}
+<td>
+<input class="edit-field" value="${t.clientPhone||""}">
+</td>
 
-/* الألوان */
+<td>
+<input class="edit-field" value="${t.pickup||""}">
+</td>
 
-.row-company{background:#fff6d6;}
-.row-individual{background:#e8f4ff;}
-.row-reserved{background:#dcfce7;}
+<td>
 
-.stop{
-display:block;
-margin-bottom:3px;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div id="adminHeader"></div>
-
-<div class="page-body">
-
-<div id="tripsContainer"></div>
-
+<div class="stops">
+${(t.stops||[]).map(s=>`
+<input class="stop edit-field" value="${s}">
+`).join("")}
 </div>
 
-<script src="/admin/header.js"></script>
-<script src="/admin/trips.js"></script>
+<button class="add-stop" onclick="addStop(this)">+ Stop</button>
 
-</body>
-</html>
+</td>
+
+<td>
+<input class="edit-field" value="${t.dropoff||""}">
+</td>
+
+<td>
+<input class="edit-field" value="${t.date||""}">
+</td>
+
+<td>
+<input class="edit-field" value="${t.time||""}">
+</td>
+
+<td>${t.status||"Confirmed"}</td>
+
+<td>
+
+<button class="btn btn-edit"
+onclick="editTrip(this)">
+Edit
+</button>
+
+<button class="btn btn-delete"
+onclick="deleteTrip('${t._id}')">
+Delete
+</button>
+
+<button class="btn btn-disable"
+onclick="toggleTrip(this)">
+Disable
+</button>
+
+</td>
+`
+
+    table.appendChild(tr)
+
+  })
+
+  wrapper.appendChild(table)
+  container.appendChild(wrapper)
+}
+
+/* ===== Stop ===== */
+
+function addStop(btn){
+
+  const stopsDiv=btn.parentElement.querySelector(".stops")
+
+  const count=stopsDiv.querySelectorAll("input").length
+
+  if(count>=5){
+    alert("Maximum 5 stops")
+    return
+  }
+
+  const input=document.createElement("input")
+  input.className="stop edit-field"
+
+  stopsDiv.appendChild(input)
+}
+
+/* ===== Disable ===== */
+
+function toggleTrip(btn){
+
+  const row=btn.closest("tr")
+
+  const elements=row.querySelectorAll("input,select,button")
+
+  if(btn.innerText==="Disable"){
+
+    elements.forEach(el=>{
+      if(el!==btn) el.disabled=true
+    })
+
+    row.style.opacity="0.5"
+
+    btn.innerText="Enable"
+    btn.style.background="#16a34a"
+
+  }else{
+
+    elements.forEach(el=>el.disabled=false)
+
+    row.style.opacity="1"
+
+    btn.innerText="Disable"
+    btn.style.background="#64748b"
+  }
+}
+
+loadTrips()
