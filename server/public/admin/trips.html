@@ -4,7 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Trips</title>
+<title>Sunbeam Trips</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -12,14 +12,15 @@
 
 <style>
 
+/* ===== الصفحة ===== */
+
 body{
 margin:0;
 font-family:Segoe UI,Arial;
 background:#f1f5f9;
-padding-top:150px;
 }
 
-/* الهيدر ثابت */
+/* ===== الهيدر ===== */
 
 #adminHeader{
 position:fixed;
@@ -29,23 +30,32 @@ width:100%;
 z-index:1000;
 }
 
-/* container */
+/* ===== المسافة تحت الهيدر ===== */
 
-.trips-container{
-padding:20px;
+.page-body{
+padding-top:170px;
+padding-left:20px;
+padding-right:20px;
 }
 
-/* scroll للموبايل */
+/* ===== container ===== */
+
+.trips-container{
+width:100%;
+}
+
+/* ===== scroll للموبايل ===== */
 
 .table-scroll{
 width:100%;
 overflow-x:auto;
+-webkit-overflow-scrolling:touch;
 }
 
-/* الجدول */
+/* ===== الجدول ===== */
 
 .trip-table{
-min-width:1300px;
+min-width:1200px;
 border-collapse:collapse;
 background:white;
 font-size:13px;
@@ -55,12 +65,15 @@ font-size:13px;
 background:#0f172a;
 color:white;
 padding:8px;
+text-align:left;
 }
 
 .trip-table td{
 padding:6px;
 border-bottom:1px solid #eee;
 }
+
+/* ===== input ===== */
 
 .trip-table input{
 width:100%;
@@ -69,14 +82,14 @@ padding:4px;
 font-size:12px;
 }
 
-/* عنوان التاريخ */
+/* ===== العناوين ===== */
 
 .group-title{
 font-weight:700;
-margin:20px 0 5px;
+margin:20px 0 6px;
 }
 
-/* الأزرار */
+/* ===== الأزرار ===== */
 
 .btn{
 border:none;
@@ -86,15 +99,23 @@ cursor:pointer;
 font-size:12px;
 }
 
-.btn-edit{background:#2563eb;color:white;}
-.btn-delete{background:#dc2626;color:white;}
-.btn-disable{background:#64748b;color:white;}
+.btn-edit{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+/* ===== dispatch ===== */
 
 .dispatch-check:checked{
 accent-color:#16a34a;
 }
 
-/* زر stop */
+/* ===== زر stop ===== */
 
 .add-stop{
 background:#facc15;
@@ -105,15 +126,40 @@ border-radius:5px;
 font-size:12px;
 }
 
-/* ألوان الرحلات */
+/* ===== ألوان الرحلات ===== */
 
-.row-company{background:#fff6d6;}
-.row-individual{background:#e8f4ff;}
-.row-reserved{background:#dcfce7;}
+.row-company{
+background:#fff6d6;
+}
+
+.row-individual{
+background:#e8f4ff;
+}
+
+.row-reserved{
+background:#dcfce7;
+}
 
 .stop{
-margin-bottom:3px;
 display:block;
+margin-bottom:3px;
+}
+
+/* ===== موبايل ===== */
+
+@media (max-width:768px){
+
+.page-body{
+padding-top:190px;
+padding-left:10px;
+padding-right:10px;
+}
+
+.trip-table{
+min-width:1000px;
+font-size:12px;
+}
+
 }
 
 </style>
@@ -122,7 +168,10 @@ display:block;
 
 <body>
 
+<!-- HEADER -->
 <div id="adminHeader"></div>
+
+<div class="page-body">
 
 <div class="trips-container">
 
@@ -130,8 +179,11 @@ display:block;
 
 </div>
 
+</div>
+
 <script src="/admin/header.js"></script>
 <script src="/admin/trips.js"></script>
 
 </body>
+
 </html>
