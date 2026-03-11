@@ -6,25 +6,16 @@ let trips=[]
 
 async function loadTrips(){
 
-try{
-
 const res=await fetch(API)
 const data=await res.json()
 
 trips=data||[]
 
-}catch(e){
-
-console.log("Trips load error",e)
-trips=[]
-
-}
-
 renderTrips()
 
 }
 
-/* اليوم وبكرة */
+/* dates */
 
 function getDates(){
 
@@ -40,7 +31,7 @@ return{today,tomorrow}
 
 }
 
-/* تجميع الرحلات */
+/* group */
 
 function groupTrips(){
 
@@ -71,7 +62,7 @@ return groups
 
 }
 
-/* لون الصف */
+/* row color */
 
 function rowColor(type){
 
@@ -85,16 +76,24 @@ return ""
 
 }
 
-/* رسم الصفحة */
+/* render */
 
 function renderTrips(){
 
 container.innerHTML=""
 
 const groups=groupTrips()
+const {today,tomorrow}=getDates()
 
-drawGroup("Today",groups.today)
-drawGroup("Tomorrow",groups.tomorrow)
+drawGroup(
+"Today – "+today.toISOString().slice(0,10),
+groups.today
+)
+
+drawGroup(
+"Tomorrow – "+tomorrow.toISOString().slice(0,10),
+groups.tomorrow
+)
 
 }
 
@@ -115,7 +114,6 @@ table.className="trip-table"
 table.innerHTML=`
 
 <tr>
-
 <th>Dispatch</th>
 <th>#</th>
 <th>Trip</th>
@@ -130,18 +128,15 @@ table.innerHTML=`
 <th>Time</th>
 <th>Status</th>
 <th>Actions</th>
-
 </tr>
 
 `
 
 if(!list.length){
 
-const row=document.createElement("tr")
-
-row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
-
-table.appendChild(row)
+const tr=document.createElement("tr")
+tr.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
+table.appendChild(tr)
 
 }else{
 
@@ -155,6 +150,7 @@ tr.innerHTML=`
 <td>
 <input class="dispatch-check" type="checkbox"
 ${t.inDispatch?"checked":""}
+${t.disabled?"disabled":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
@@ -165,15 +161,15 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <td>${t.company||""}</td>
 
 <td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientName||""}">
+<input class="edit-field" disabled value="${t.clientName||""}">
 </td>
 
 <td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientPhone||""}">
+<input class="edit-field" disabled value="${t.clientPhone||""}">
 </td>
 
 <td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.pickup||""}">
+<input class="edit-field" disabled value="${t.pickup||""}">
 </td>
 
 <td>
@@ -181,7 +177,7 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <div class="stops">
 
 ${(t.stops||[]).map(s=>`
-<input class="stop edit-field" ${t.disabled?"disabled":""} value="${s}">
+<input class="stop edit-field" disabled value="${s}">
 `).join("")}
 
 </div>
@@ -191,15 +187,15 @@ ${(t.stops||[]).map(s=>`
 </td>
 
 <td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.dropoff||""}">
+<input class="edit-field" disabled value="${t.dropoff||""}">
 </td>
 
 <td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripDate||t.date||""}">
+<input class="edit-field" disabled value="${t.tripDate||""}">
 </td>
 
 <td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripTime||t.time||""}">
+<input class="edit-field" disabled value="${t.tripTime||""}">
 </td>
 
 <td>Confirmed</td>
@@ -232,7 +228,6 @@ table.appendChild(tr)
 }
 
 wrapper.appendChild(table)
-
 container.appendChild(wrapper)
 
 }
@@ -263,19 +258,12 @@ stopsDiv.appendChild(input)
 function editTrip(id,btn){
 
 const row=btn.closest("tr")
-
-if(row.querySelector(".btn-disable").innerText==="Enable"){
-
-alert("Trip disabled")
-return
-
-}
-
 const fields=row.querySelectorAll(".edit-field")
 
 if(btn.innerText==="Edit"){
 
 fields.forEach(f=>f.disabled=false)
+
 btn.innerText="Save"
 return
 
@@ -305,11 +293,13 @@ function toggleTrip(id,btn){
 
 const row=btn.closest("tr")
 
-const fields=row.querySelectorAll(".edit-field, .dispatch-check")
+const fields=row.querySelectorAll("input,button")
 
 if(btn.innerText==="Disable"){
 
-fields.forEach(f=>f.disabled=true)
+fields.forEach(f=>{
+if(f!==btn) f.disabled=true
+})
 
 row.style.opacity="0.5"
 
