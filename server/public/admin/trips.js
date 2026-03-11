@@ -1,14 +1,24 @@
 const API="/api/trips"
+
 const container=document.getElementById("tripsContainer")
 
 let trips=[]
 
 async function loadTrips(){
 
+try{
+
 const res=await fetch(API)
 const data=await res.json()
 
 trips=data||[]
+
+}catch(e){
+
+console.log("Trips load error",e)
+trips=[]
+
+}
 
 renderTrips()
 
@@ -43,9 +53,10 @@ tomorrow:[]
 
 trips.forEach(t=>{
 
-if(!t.date) return
+const date=t.tripDate||t.date
+if(!date) return
 
-const d=new Date(t.date)
+const d=new Date(date)
 d.setHours(0,0,0,0)
 
 if(d.getTime()===today.getTime())
@@ -81,23 +92,13 @@ function renderTrips(){
 container.innerHTML=""
 
 const groups=groupTrips()
-const {today,tomorrow}=getDates()
 
-drawGroup(
-"Today – "+today.toDateString(),
-groups.today
-)
-
-drawGroup(
-"Tomorrow – "+tomorrow.toDateString(),
-groups.tomorrow
-)
+drawGroup("Today",groups.today)
+drawGroup("Tomorrow",groups.tomorrow)
 
 }
 
 function drawGroup(title,list){
-
-if(!list.length) return
 
 const header=document.createElement("div")
 header.className="group-title"
@@ -112,14 +113,16 @@ const table=document.createElement("table")
 table.className="trip-table"
 
 table.innerHTML=`
+
 <tr>
+
 <th>Dispatch</th>
 <th>#</th>
 <th>Trip</th>
 <th>Type</th>
 <th>Company</th>
 <th>Client</th>
-<th>Client Phone</th>
+<th>Phone</th>
 <th>Pickup</th>
 <th>Stops</th>
 <th>Dropoff</th>
@@ -127,8 +130,20 @@ table.innerHTML=`
 <th>Time</th>
 <th>Status</th>
 <th>Actions</th>
+
 </tr>
+
 `
+
+if(!list.length){
+
+const row=document.createElement("tr")
+
+row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
+
+table.appendChild(row)
+
+}else{
 
 list.forEach((t,i)=>{
 
@@ -138,9 +153,8 @@ tr.className=rowColor(t.type)
 tr.innerHTML=`
 
 <td>
-<input class="dispatch-check"
-type="checkbox"
-${t.dispatch?"checked":""}
+<input class="dispatch-check" type="checkbox"
+${t.inDispatch?"checked":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
@@ -151,15 +165,15 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <td>${t.company||""}</td>
 
 <td>
-<input class="edit-field" value="${t.client||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientName||""}">
 </td>
 
 <td>
-<input class="edit-field" value="${t.clientPhone||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientPhone||""}">
 </td>
 
 <td>
-<input class="edit-field" value="${t.pickup||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.pickup||""}">
 </td>
 
 <td>
@@ -167,7 +181,7 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <div class="stops">
 
 ${(t.stops||[]).map(s=>`
-<input class="stop edit-field" value="${s}">
+<input class="stop edit-field" ${t.disabled?"disabled":""} value="${s}">
 `).join("")}
 
 </div>
@@ -177,23 +191,23 @@ ${(t.stops||[]).map(s=>`
 </td>
 
 <td>
-<input class="edit-field" value="${t.dropoff||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.dropoff||""}">
 </td>
 
 <td>
-<input class="edit-field" value="${t.date||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripDate||t.date||""}">
 </td>
 
 <td>
-<input class="edit-field" value="${t.time||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripTime||t.time||""}">
 </td>
 
-<td>${t.status||"Confirmed"}</td>
+<td>Confirmed</td>
 
 <td>
 
 <button class="btn btn-edit"
-onclick="editTrip(this)">
+onclick="editTrip('${t._id}',this)">
 Edit
 </button>
 
@@ -203,50 +217,141 @@ Delete
 </button>
 
 <button class="btn btn-disable"
-onclick="toggleTrip(this)">
-Disable
+onclick="toggleTrip('${t._id}',this)">
+${t.disabled ? "Enable" : "Disable"}
 </button>
 
 </td>
+
 `
 
 table.appendChild(tr)
 
 })
 
+}
+
 wrapper.appendChild(table)
+
 container.appendChild(wrapper)
 
 }
 
-/* Disable */
+/* stop */
 
-function toggleTrip(btn){
+function addStop(btn){
+
+const stopsDiv=btn.parentElement.querySelector(".stops")
+
+const count=stopsDiv.querySelectorAll("input").length
+
+if(count>=5){
+alert("Maximum 5 stops")
+return
+}
+
+const input=document.createElement("input")
+input.className="stop edit-field"
+input.placeholder="Stop address"
+
+stopsDiv.appendChild(input)
+
+}
+
+/* edit */
+
+function editTrip(id,btn){
 
 const row=btn.closest("tr")
 
-const elements=row.querySelectorAll("input,button")
+if(row.querySelector(".btn-disable").innerText==="Enable"){
+
+alert("Trip disabled")
+return
+
+}
+
+const fields=row.querySelectorAll(".edit-field")
+
+if(btn.innerText==="Edit"){
+
+fields.forEach(f=>f.disabled=false)
+btn.innerText="Save"
+return
+
+}
+
+fields.forEach(f=>f.disabled=true)
+
+btn.innerText="Edit"
+
+}
+
+/* delete */
+
+async function deleteTrip(id){
+
+if(!confirm("Delete trip?")) return
+
+await fetch(API+"/"+id,{method:"DELETE"})
+
+loadTrips()
+
+}
+
+/* disable */
+
+function toggleTrip(id,btn){
+
+const row=btn.closest("tr")
+
+const fields=row.querySelectorAll(".edit-field, .dispatch-check")
 
 if(btn.innerText==="Disable"){
 
-elements.forEach(el=>{
-if(el!==btn) el.disabled=true
-})
+fields.forEach(f=>f.disabled=true)
 
 row.style.opacity="0.5"
 
 btn.innerText="Enable"
 btn.style.background="#16a34a"
 
+fetch(API+"/"+id,{
+method:"PUT",
+headers:{ "Content-Type":"application/json"},
+body:JSON.stringify({disabled:true})
+})
+
 }else{
 
-elements.forEach(el=>el.disabled=false)
+fields.forEach(f=>f.disabled=false)
 
 row.style.opacity="1"
 
 btn.innerText="Disable"
 btn.style.background="#64748b"
+
+fetch(API+"/"+id,{
+method:"PUT",
+headers:{ "Content-Type":"application/json"},
+body:JSON.stringify({disabled:false})
+})
+
 }
+
+}
+
+/* dispatch */
+
+async function sendDispatch(id,val){
+
+await fetch(API+"/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({inDispatch:val})
+})
 
 }
 
