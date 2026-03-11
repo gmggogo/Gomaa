@@ -1,332 +1,149 @@
-const API="/api/trips"
+<!DOCTYPE html>
+<html lang="en">
 
-const container=document.getElementById("tripsContainer")
+<head>
 
-let trips=[]
+<meta charset="UTF-8">
+<title>Trips</title>
 
-async function loadTrips(){
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-const res=await fetch(API)
-const data=await res.json()
+<link rel="stylesheet" href="/admin/style.css">
 
-trips=data||[]
+<style>
 
-renderTrips()
+body{
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
+}
+
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
+}
+
+/* المسافة تحت الهيدر */
+
+.page-body{
+padding-top:240px;
+padding-left:20px;
+padding-right:20px;
+}
+
+/* موبايل */
+
+@media (max-width:768px){
+
+.page-body{
+padding-top:320px;
+padding-left:10px;
+padding-right:10px;
+}
 
 }
 
-/* تحديد اليوم وبكرة */
+/* scroll */
 
-function getDates(){
-
-const now=new Date()
-
-const today=new Date(now)
-today.setHours(0,0,0,0)
-
-const tomorrow=new Date(today)
-tomorrow.setDate(today.getDate()+1)
-
-return{today,tomorrow}
-
+.table-scroll{
+width:100%;
+overflow-x:auto;
 }
 
-/* تجميع الرحلات */
+/* الجدول */
 
-function groupTrips(){
-
-const {today,tomorrow}=getDates()
-
-const groups={
-today:[],
-tomorrow:[]
+.trip-table{
+min-width:1400px;
+border-collapse:collapse;
+background:white;
+font-size:13px;
 }
 
-trips.forEach(t=>{
-
-if(!t.tripDate) return
-
-const d=new Date(t.tripDate)
-d.setHours(0,0,0,0)
-
-if(d.getTime()===today.getTime())
-groups.today.push(t)
-
-if(d.getTime()===tomorrow.getTime())
-groups.tomorrow.push(t)
-
-})
-
-return groups
-
+.trip-table th{
+background:#0f172a;
+color:white;
+padding:8px;
 }
 
-/* ألوان الصف */
-
-function rowColor(type){
-
-type=(type||"").toLowerCase()
-
-if(type==="company") return "row-company"
-if(type==="individual") return "row-individual"
-if(type==="reserved") return "row-reserved"
-
-return ""
-
+.trip-table td{
+padding:6px;
+border-bottom:1px solid #eee;
 }
 
-/* رسم الصفحة */
-
-function renderTrips(){
-
-container.innerHTML=""
-
-const groups=groupTrips()
-
-drawGroup("Today",groups.today)
-drawGroup("Tomorrow",groups.tomorrow)
-
+.trip-table input{
+width:100%;
+border:1px solid #ddd;
+padding:4px;
+font-size:12px;
 }
 
-function drawGroup(title,list){
+/* عنوان التاريخ */
 
-if(!list.length) return
+.group-title{
+font-weight:700;
+margin:20px 0 6px;
+font-size:15px;
+}
 
-const header=document.createElement("div")
-header.className="group-title"
-header.innerText=title
+/* الأزرار */
 
-container.appendChild(header)
+.btn{
+border:none;
+padding:4px 8px;
+border-radius:6px;
+cursor:pointer;
+font-size:12px;
+}
 
-const wrapper=document.createElement("div")
-wrapper.className="table-scroll"
+.btn-edit{background:#2563eb;color:white;}
+.btn-delete{background:#dc2626;color:white;}
+.btn-disable{background:#64748b;color:white;}
 
-const table=document.createElement("table")
-table.className="trip-table"
-
-table.innerHTML=`
-
-<tr>
-
-<th>Dispatch</th>
-<th>#</th>
-<th>Trip</th>
-<th>Type</th>
-<th>Company</th>
-<th>Client</th>
-<th>Phone</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Date</th>
-<th>Time</th>
-<th>Status</th>
-<th>Actions</th>
-
-</tr>
-
-`
-
-list.forEach((t,i)=>{
-
-const tr=document.createElement("tr")
-tr.className=rowColor(t.type)
-
-tr.innerHTML=`
-
-<td>
-<input class="dispatch-check" type="checkbox"
-${t.inDispatch?"checked":""}
-onchange="sendDispatch('${t._id}',this.checked)">
-</td>
-
-<td>${i+1}</td>
-
-<td>${t.tripNumber||""}</td>
-<td>${t.type||""}</td>
-<td>${t.company||""}</td>
-
-<td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientName||""}">
-</td>
-
-<td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientPhone||""}">
-</td>
-
-<td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.pickup||""}">
-</td>
-
-<td>
-
-<div class="stops">
-
-${(t.stops||[]).map(s=>`
-<input class="stop edit-field" ${t.disabled?"disabled":""} value="${s}">
-`).join("")}
-
-</div>
-
-<button class="add-stop" onclick="addStop(this)">+ Stop</button>
-
-</td>
-
-<td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.dropoff||""}">
-</td>
-
-<td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripDate||""}">
-</td>
-
-<td>
-<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripTime||""}">
-</td>
-
-<td>Confirmed</td>
-
-<td>
-
-<button class="btn btn-edit"
-onclick="editTrip('${t._id}',this)">
-Edit
-</button>
-
-<button class="btn btn-delete"
-onclick="deleteTrip('${t._id}')">
-Delete
-</button>
-
-<button class="btn btn-disable"
-onclick="toggleTrip('${t._id}',this)">
-${t.disabled ? "Enable" : "Disable"}
-</button>
-
-</td>
-
-`
-
-table.appendChild(tr)
-
-})
-
-wrapper.appendChild(table)
-
-container.appendChild(wrapper)
-
+.dispatch-check:checked{
+accent-color:#16a34a;
 }
 
 /* stop */
 
-function addStop(btn){
-
-const stopsDiv=btn.parentElement.querySelector(".stops")
-
-const count=stopsDiv.querySelectorAll("input").length
-
-if(count>=5){
-alert("Maximum 5 stops")
-return
+.add-stop{
+background:#facc15;
+border:none;
+padding:3px 6px;
+cursor:pointer;
+border-radius:5px;
+font-size:12px;
 }
 
-const input=document.createElement("input")
-input.className="stop edit-field"
-input.placeholder="Stop address"
+/* الألوان */
 
-stopsDiv.appendChild(input)
+.row-company{background:#fff6d6;}
+.row-individual{background:#e8f4ff;}
+.row-reserved{background:#dcfce7;}
 
+.stop{
+display:block;
+margin-bottom:3px;
 }
 
-/* edit */
+</style>
 
-function editTrip(id,btn){
+</head>
 
-const row=btn.closest("tr")
+<body>
 
-if(row.querySelector(".btn-disable").innerText==="Enable"){
+<div id="adminHeader"></div>
 
-alert("Trip disabled")
-return
+<div class="page-body">
 
-}
+<div id="tripsContainer"></div>
 
-const fields=row.querySelectorAll(".edit-field")
+</div>
 
-if(btn.innerText==="Edit"){
+<script src="/admin/header.js"></script>
+<script src="/admin/trips.js"></script>
 
-fields.forEach(f=>f.disabled=false)
-btn.innerText="Save"
-return
-
-}
-
-fields.forEach(f=>f.disabled=true)
-
-btn.innerText="Edit"
-
-}
-
-/* delete */
-
-async function deleteTrip(id){
-
-if(!confirm("Delete trip?")) return
-
-await fetch(API+"/"+id,{method:"DELETE"})
-
-loadTrips()
-
-}
-
-/* disable */
-
-function toggleTrip(id,btn){
-
-const row=btn.closest("tr")
-
-const fields=row.querySelectorAll(".edit-field")
-
-if(btn.innerText==="Disable"){
-
-fields.forEach(f=>f.disabled=true)
-
-btn.innerText="Enable"
-btn.style.background="#16a34a"
-
-fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({disabled:true})
-})
-
-}else{
-
-btn.innerText="Disable"
-btn.style.background="#64748b"
-
-fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({disabled:false})
-})
-
-}
-
-}
-
-/* dispatch */
-
-async function sendDispatch(id,val){
-
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({inDispatch:val})
-})
-
-}
-
-loadTrips()
+</body>
+</html>

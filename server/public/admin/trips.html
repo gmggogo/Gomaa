@@ -5,6 +5,7 @@
 
 <meta charset="UTF-8">
 <title>Trips</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -17,8 +18,6 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
-/* الهيدر */
-
 #adminHeader{
 position:fixed;
 top:0;
@@ -30,7 +29,7 @@ z-index:1000;
 /* المسافة تحت الهيدر */
 
 .page-body{
-padding-top:220px;
+padding-top:240px;
 padding-left:20px;
 padding-right:20px;
 }
@@ -40,14 +39,14 @@ padding-right:20px;
 @media (max-width:768px){
 
 .page-body{
-padding-top:260px;
+padding-top:320px;
 padding-left:10px;
 padding-right:10px;
 }
 
 }
 
-/* container */
+/* scroll */
 
 .table-scroll{
 width:100%;
@@ -57,7 +56,7 @@ overflow-x:auto;
 /* الجدول */
 
 .trip-table{
-min-width:1200px;
+min-width:1400px;
 border-collapse:collapse;
 background:white;
 font-size:13px;
@@ -81,7 +80,7 @@ padding:4px;
 font-size:12px;
 }
 
-/* العناوين */
+/* عنوان التاريخ */
 
 .group-title{
 font-weight:700;
@@ -99,22 +98,9 @@ cursor:pointer;
 font-size:12px;
 }
 
-.btn-edit{
-background:#2563eb;
-color:white;
-}
-
-.btn-delete{
-background:#dc2626;
-color:white;
-}
-
-.btn-disable{
-background:#64748b;
-color:white;
-}
-
-/* dispatch */
+.btn-edit{background:#2563eb;color:white;}
+.btn-delete{background:#dc2626;color:white;}
+.btn-disable{background:#64748b;color:white;}
 
 .dispatch-check:checked{
 accent-color:#16a34a;
@@ -131,7 +117,7 @@ border-radius:5px;
 font-size:12px;
 }
 
-/* ألوان الرحلات */
+/* الألوان */
 
 .row-company{background:#fff6d6;}
 .row-individual{background:#e8f4ff;}
