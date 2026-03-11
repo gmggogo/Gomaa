@@ -9,17 +9,19 @@
 
 body{
   margin:0;
-  height:100vh;
+  min-height:100vh;
   display:flex;
   justify-content:center;
   align-items:center;
   background: radial-gradient(circle at center, #1e3cff 0%, #001b7a 100%);
   font-family: Arial, sans-serif;
+  padding:20px;
 }
 
 /* LOGIN CARD */
 .login-card{
   width:360px;
+  max-width:100%;
   padding:40px 30px;
   border-radius:20px;
   background: rgba(255,255,255,0.05);
@@ -87,24 +89,55 @@ body{
   font-size:13px;
 }
 
+/* =========================
+MOBILE FIX
+========================= */
+
+@media (max-width:480px){
+
+body{
+  align-items:flex-start;
+  padding-top:60px;
+}
+
+.login-card{
+  width:100%;
+  padding:30px 20px;
+}
+
+.logo{
+  width:120px;
+}
+
+.title{
+  font-size:18px;
+}
+
+.login-card input{
+  font-size:15px;
+}
+
+}
+
 </style>
 </head>
+
 <body>
 
 <div class="login-card">
 
-  <img src="assets/logo.png" class="logo" alt="Sunbeam Logo">
+<img src="assets/logo.png" class="logo" alt="Sunbeam Logo">
 
-  <div class="title">STAFF LOGIN</div>
+<div class="title">STAFF LOGIN</div>
 
-  <div id="azTime" class="az-time"></div>
+<div id="azTime" class="az-time"></div>
 
-  <input type="text" id="username" placeholder="Username">
-  <input type="password" id="password" placeholder="Password">
+<input type="text" id="username" placeholder="Username">
+<input type="password" id="password" placeholder="Password">
 
-  <button onclick="login()">Sign In</button>
+<button onclick="login()">Sign In</button>
 
-  <div id="msg"></div>
+<div id="msg"></div>
 
 </div>
 
