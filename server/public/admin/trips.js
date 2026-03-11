@@ -15,6 +15,54 @@ renderTrips()
 
 }
 
+/* تحديد اليوم وبكرة */
+
+function getDates(){
+
+const now=new Date()
+
+const today=new Date(now)
+today.setHours(0,0,0,0)
+
+const tomorrow=new Date(today)
+tomorrow.setDate(today.getDate()+1)
+
+return{today,tomorrow}
+
+}
+
+/* تجميع الرحلات */
+
+function groupTrips(){
+
+const {today,tomorrow}=getDates()
+
+const groups={
+today:[],
+tomorrow:[]
+}
+
+trips.forEach(t=>{
+
+if(!t.tripDate) return
+
+const d=new Date(t.tripDate)
+d.setHours(0,0,0,0)
+
+if(d.getTime()===today.getTime())
+groups.today.push(t)
+
+if(d.getTime()===tomorrow.getTime())
+groups.tomorrow.push(t)
+
+})
+
+return groups
+
+}
+
+/* ألوان الصف */
+
 function rowColor(type){
 
 type=(type||"").toLowerCase()
@@ -27,9 +75,28 @@ return ""
 
 }
 
+/* رسم الصفحة */
+
 function renderTrips(){
 
 container.innerHTML=""
+
+const groups=groupTrips()
+
+drawGroup("Today",groups.today)
+drawGroup("Tomorrow",groups.tomorrow)
+
+}
+
+function drawGroup(title,list){
+
+if(!list.length) return
+
+const header=document.createElement("div")
+header.className="group-title"
+header.innerText=title
+
+container.appendChild(header)
 
 const wrapper=document.createElement("div")
 wrapper.className="table-scroll"
@@ -60,7 +127,7 @@ table.innerHTML=`
 
 `
 
-trips.forEach((t,i)=>{
+list.forEach((t,i)=>{
 
 const tr=document.createElement("tr")
 tr.className=rowColor(t.type)
@@ -76,21 +143,19 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <td>${i+1}</td>
 
 <td>${t.tripNumber||""}</td>
-
 <td>${t.type||""}</td>
-
 <td>${t.company||""}</td>
 
 <td>
-<input class="edit-field" disabled value="${t.clientName||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientName||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.clientPhone||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.clientPhone||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.pickup||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.pickup||""}">
 </td>
 
 <td>
@@ -98,7 +163,7 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <div class="stops">
 
 ${(t.stops||[]).map(s=>`
-<input class="stop edit-field" disabled value="${s}">
+<input class="stop edit-field" ${t.disabled?"disabled":""} value="${s}">
 `).join("")}
 
 </div>
@@ -108,15 +173,15 @@ ${(t.stops||[]).map(s=>`
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.dropoff||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.dropoff||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.tripDate||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripDate||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.tripTime||""}">
+<input class="edit-field" ${t.disabled?"disabled":""} value="${t.tripTime||""}">
 </td>
 
 <td>Confirmed</td>
@@ -152,9 +217,12 @@ container.appendChild(wrapper)
 
 }
 
+/* stop */
+
 function addStop(btn){
 
 const stopsDiv=btn.parentElement.querySelector(".stops")
+
 const count=stopsDiv.querySelectorAll("input").length
 
 if(count>=5){
@@ -170,42 +238,28 @@ stopsDiv.appendChild(input)
 
 }
 
+/* edit */
+
 function editTrip(id,btn){
 
 const row=btn.closest("tr")
+
+if(row.querySelector(".btn-disable").innerText==="Enable"){
+
+alert("Trip disabled")
+return
+
+}
+
 const fields=row.querySelectorAll(".edit-field")
 
 if(btn.innerText==="Edit"){
 
 fields.forEach(f=>f.disabled=false)
-
 btn.innerText="Save"
-
 return
 
 }
-
-const stopFields=row.querySelectorAll(".stop")
-
-const stops=[]
-
-stopFields.forEach(s=>{
-if(s.value.trim()!="") stops.push(s.value)
-})
-
-const data={
-
-clientName:fields[0].value,
-clientPhone:fields[1].value,
-pickup:fields[2].value,
-stops:stops,
-dropoff:fields[fields.length-3].value,
-tripDate:fields[fields.length-2].value,
-tripTime:fields[fields.length-1].value
-
-}
-
-saveTrip(id,data)
 
 fields.forEach(f=>f.disabled=true)
 
@@ -213,23 +267,11 @@ btn.innerText="Edit"
 
 }
 
-async function saveTrip(id,data){
-
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(data)
-})
-
-loadTrips()
-
-}
+/* delete */
 
 async function deleteTrip(id){
 
-if(!confirm("Delete this trip?")) return
+if(!confirm("Delete trip?")) return
 
 await fetch(API+"/"+id,{method:"DELETE"})
 
@@ -237,28 +279,24 @@ loadTrips()
 
 }
 
+/* disable */
+
 function toggleTrip(id,btn){
 
 const row=btn.closest("tr")
 
-const fields=row.querySelectorAll("input")
-
-fields.forEach(f=>{
-if(!f.classList.contains("dispatch-check")){
-f.disabled=true
-}
-})
+const fields=row.querySelectorAll(".edit-field")
 
 if(btn.innerText==="Disable"){
+
+fields.forEach(f=>f.disabled=true)
 
 btn.innerText="Enable"
 btn.style.background="#16a34a"
 
 fetch(API+"/"+id,{
 method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
+headers:{ "Content-Type":"application/json"},
 body:JSON.stringify({disabled:true})
 })
 
@@ -269,15 +307,15 @@ btn.style.background="#64748b"
 
 fetch(API+"/"+id,{
 method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
+headers:{ "Content-Type":"application/json"},
 body:JSON.stringify({disabled:false})
 })
 
 }
 
 }
+
+/* dispatch */
 
 async function sendDispatch(id,val){
 
@@ -286,9 +324,7 @@ method:"PUT",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({
-inDispatch:val
-})
+body:JSON.stringify({inDispatch:val})
 })
 
 }

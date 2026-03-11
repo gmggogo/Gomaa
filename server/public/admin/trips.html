@@ -4,8 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Sunbeam Trips</title>
-
+<title>Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -31,23 +30,28 @@ z-index:1000;
 /* المسافة تحت الهيدر */
 
 .page-body{
-padding-top:200px;
+padding-top:220px;
 padding-left:20px;
 padding-right:20px;
 }
 
-/* container */
+/* موبايل */
 
-.trips-container{
-width:100%;
+@media (max-width:768px){
+
+.page-body{
+padding-top:260px;
+padding-left:10px;
+padding-right:10px;
 }
 
-/* scroll للموبايل */
+}
+
+/* container */
 
 .table-scroll{
 width:100%;
 overflow-x:auto;
--webkit-overflow-scrolling:touch;
 }
 
 /* الجدول */
@@ -63,15 +67,12 @@ font-size:13px;
 background:#0f172a;
 color:white;
 padding:8px;
-text-align:left;
 }
 
 .trip-table td{
 padding:6px;
 border-bottom:1px solid #eee;
 }
-
-/* input */
 
 .trip-table input{
 width:100%;
@@ -85,6 +86,7 @@ font-size:12px;
 .group-title{
 font-weight:700;
 margin:20px 0 6px;
+font-size:15px;
 }
 
 /* الأزرار */
@@ -131,38 +133,13 @@ font-size:12px;
 
 /* ألوان الرحلات */
 
-.row-company{
-background:#fff6d6;
-}
-
-.row-individual{
-background:#e8f4ff;
-}
-
-.row-reserved{
-background:#dcfce7;
-}
+.row-company{background:#fff6d6;}
+.row-individual{background:#e8f4ff;}
+.row-reserved{background:#dcfce7;}
 
 .stop{
 display:block;
 margin-bottom:3px;
-}
-
-/* موبايل */
-
-@media (max-width:768px){
-
-.page-body{
-padding-top:240px;
-padding-left:10px;
-padding-right:10px;
-}
-
-.trip-table{
-min-width:1000px;
-font-size:12px;
-}
-
 }
 
 </style>
@@ -175,11 +152,7 @@ font-size:12px;
 
 <div class="page-body">
 
-<div class="trips-container">
-
 <div id="tripsContainer"></div>
-
-</div>
 
 </div>
 
