@@ -14,11 +14,11 @@ overflow-x:hidden;
 }
 
 /* =================================
-HEADER CONTAINER
+HEADER SPACE
 ================================= */
 
 #adminHeader{
-height:150px;
+height:170px;
 width:100%;
 }
 
@@ -163,7 +163,7 @@ PAGE CONTENT
 
 .page-content{
 padding:20px;
-padding-top:200px;
+padding-top:230px;
 width:100%;
 }
 
@@ -344,7 +344,7 @@ font-size:12px;
 
 .page-content{
 padding:14px;
-padding-top:270px;
+padding-top:330px;
 }
 
 .dashboard-grid{
@@ -359,6 +359,11 @@ width:100%;
 display:block;
 overflow-x:auto;
 white-space:nowrap;
+}
+
+.hub-table th,
+.hub-table td{
+min-width:120px;
 }
 
 }
