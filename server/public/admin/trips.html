@@ -5,6 +5,7 @@
 
 <meta charset="UTF-8">
 <title>Trips</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -13,12 +14,13 @@
 
 body{
 margin:0;
-background:#f1f5f9;
 font-family:Segoe UI,Arial;
-padding-top:50px;
+background:#f1f5f9;
+padding-top:150px;
 }
 
-/* رفع الهيدر */
+/* الهيدر ثابت */
+
 #adminHeader{
 position:fixed;
 top:0;
@@ -27,17 +29,23 @@ width:100%;
 z-index:1000;
 }
 
-.group-title{
-font-size:15px;
-font-weight:700;
-padding:10px;
-background:#e2e8f0;
-margin-top:10px;
-border-left:4px solid #0f172a;
+/* container */
+
+.trips-container{
+padding:20px;
 }
 
-.trip-table{
+/* scroll للموبايل */
+
+.table-scroll{
 width:100%;
+overflow-x:auto;
+}
+
+/* الجدول */
+
+.trip-table{
+min-width:1300px;
 border-collapse:collapse;
 background:white;
 font-size:13px;
@@ -61,18 +69,21 @@ padding:4px;
 font-size:12px;
 }
 
-.actions{
-display:flex;
-gap:5px;
-justify-content:center;
+/* عنوان التاريخ */
+
+.group-title{
+font-weight:700;
+margin:20px 0 5px;
 }
+
+/* الأزرار */
 
 .btn{
 border:none;
 padding:4px 8px;
 border-radius:6px;
-font-size:12px;
 cursor:pointer;
+font-size:12px;
 }
 
 .btn-edit{background:#2563eb;color:white;}
@@ -83,17 +94,19 @@ cursor:pointer;
 accent-color:#16a34a;
 }
 
-/* زر إضافة Stop */
+/* زر stop */
+
 .add-stop{
 background:#facc15;
 border:none;
-padding:4px 6px;
+padding:3px 6px;
 cursor:pointer;
 border-radius:5px;
 font-size:12px;
 }
 
-/* ألوان أنواع الرحلات */
+/* ألوان الرحلات */
+
 .row-company{background:#fff6d6;}
 .row-individual{background:#e8f4ff;}
 .row-reserved{background:#dcfce7;}
@@ -101,16 +114,6 @@ font-size:12px;
 .stop{
 margin-bottom:3px;
 display:block;
-}
-
-@media(max-width:768px){
-
-.trip-table{
-display:block;
-overflow-x:auto;
-white-space:nowrap;
-}
-
 }
 
 </style>
@@ -121,7 +124,11 @@ white-space:nowrap;
 
 <div id="adminHeader"></div>
 
+<div class="trips-container">
+
 <div id="tripsContainer"></div>
+
+</div>
 
 <script src="/admin/header.js"></script>
 <script src="/admin/trips.js"></script>

@@ -7,6 +7,7 @@ let trips=[]
 async function loadTrips(){
 
 const res=await fetch(API)
+
 const data=await res.json()
 
 trips=data||[]
@@ -20,9 +21,11 @@ function getDates(){
 const now=new Date()
 
 const today=new Date(now)
+
 today.setHours(0,0,0,0)
 
 const tomorrow=new Date(today)
+
 tomorrow.setDate(today.getDate()+1)
 
 return{today,tomorrow}
@@ -46,6 +49,7 @@ const tripTime=new Date(t.tripDate+" "+t.tripTime)
 if(tripTime < now) return
 
 const d=new Date(t.tripDate)
+
 d.setHours(0,0,0,0)
 
 if(d.getTime()===today.getTime())
@@ -65,7 +69,9 @@ function rowColor(type){
 type=(type||"").toLowerCase()
 
 if(type==="company") return "row-company"
+
 if(type==="individual") return "row-individual"
+
 if(type==="reserved") return "row-reserved"
 
 return ""
@@ -97,12 +103,19 @@ function drawGroup(title,list){
 if(!list.length) return
 
 const header=document.createElement("div")
+
 header.className="group-title"
+
 header.innerText=title
 
 container.appendChild(header)
 
+const wrapper=document.createElement("div")
+
+wrapper.className="table-scroll"
+
 const table=document.createElement("table")
+
 table.className="trip-table"
 
 table.innerHTML=`
@@ -131,6 +144,7 @@ table.innerHTML=`
 list.forEach((t,i)=>{
 
 const tr=document.createElement("tr")
+
 tr.className=rowColor(t.type)
 
 tr.innerHTML=`
@@ -142,8 +156,11 @@ onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
 <td>${i+1}</td>
+
 <td>${t.tripNumber||""}</td>
+
 <td>${t.type||""}</td>
+
 <td>${t.company||""}</td>
 
 <td>
@@ -188,8 +205,6 @@ ${(t.stops||[]).map(s=>`
 
 <td>
 
-<div class="actions">
-
 <button class="btn btn-edit"
 onclick="editTrip('${t._id}',this)">
 Edit
@@ -205,8 +220,6 @@ onclick="disableTrip('${t._id}')">
 Disable
 </button>
 
-</div>
-
 </td>
 
 `
@@ -215,7 +228,9 @@ table.appendChild(tr)
 
 })
 
-container.appendChild(table)
+wrapper.appendChild(table)
+
+container.appendChild(wrapper)
 
 }
 
@@ -225,11 +240,18 @@ const stopsDiv=btn.parentElement.querySelector(".stops")
 
 const count=stopsDiv.querySelectorAll("input").length
 
-if(count>=5) return
+if(count>=5){
+
+alert("Maximum 5 stops allowed")
+
+return
+
+}
 
 const input=document.createElement("input")
 
 input.className="stop edit-field"
+
 input.placeholder="Stop address"
 
 stopsDiv.appendChild(input)
@@ -239,15 +261,22 @@ stopsDiv.appendChild(input)
 function editTrip(id,btn){
 
 const row=btn.closest("tr")
+
 const fields=row.querySelectorAll(".edit-field")
 
 if(btn.innerText==="Edit"){
 
+if(!confirm("Edit this trip?")) return
+
 fields.forEach(f=>f.disabled=false)
+
 btn.innerText="Save"
+
 return
 
 }
+
+if(!confirm("Save changes?")) return
 
 const stopFields=row.querySelectorAll(".stop")
 
@@ -260,11 +289,17 @@ if(s.value.trim()!="") stops.push(s.value)
 const data={
 
 clientName:fields[0].value,
+
 clientPhone:fields[1].value,
+
 pickup:fields[2].value,
+
 stops:stops,
+
 dropoff:fields[fields.length-3].value,
+
 tripDate:fields[fields.length-2].value,
+
 tripTime:fields[fields.length-1].value
 
 }
@@ -272,6 +307,7 @@ tripTime:fields[fields.length-1].value
 saveTrip(id,data)
 
 fields.forEach(f=>f.disabled=true)
+
 btn.innerText="Edit"
 
 }
@@ -292,21 +328,26 @@ loadTrips()
 
 async function deleteTrip(id){
 
-if(!confirm("Delete trip?")) return
+if(!confirm("Delete this trip?")) return
 
 await fetch(API+"/"+id,{method:"DELETE"})
+
 loadTrips()
 
 }
 
 async function disableTrip(id){
 
+if(!confirm("Disable this trip?")) return
+
 await fetch(API+"/"+id,{
 method:"PUT",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({disabled:true})
+body:JSON.stringify({
+disabled:true
+})
 })
 
 loadTrips()
@@ -315,12 +356,22 @@ loadTrips()
 
 async function sendDispatch(id,val){
 
+if(!confirm("Send trip to dispatch?")){
+
+location.reload()
+
+return
+
+}
+
 await fetch(API+"/"+id,{
 method:"PUT",
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({inDispatch:val})
+body:JSON.stringify({
+inDispatch:val
+})
 })
 
 }
