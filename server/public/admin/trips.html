@@ -12,15 +12,13 @@
 
 <style>
 
-/* ===== الصفحة ===== */
-
 body{
 margin:0;
 font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
-/* ===== الهيدر ===== */
+/* الهيدر */
 
 #adminHeader{
 position:fixed;
@@ -30,21 +28,21 @@ width:100%;
 z-index:1000;
 }
 
-/* ===== المسافة تحت الهيدر ===== */
+/* المسافة تحت الهيدر */
 
 .page-body{
-padding-top:170px;
+padding-top:200px;
 padding-left:20px;
 padding-right:20px;
 }
 
-/* ===== container ===== */
+/* container */
 
 .trips-container{
 width:100%;
 }
 
-/* ===== scroll للموبايل ===== */
+/* scroll للموبايل */
 
 .table-scroll{
 width:100%;
@@ -52,7 +50,7 @@ overflow-x:auto;
 -webkit-overflow-scrolling:touch;
 }
 
-/* ===== الجدول ===== */
+/* الجدول */
 
 .trip-table{
 min-width:1200px;
@@ -73,7 +71,7 @@ padding:6px;
 border-bottom:1px solid #eee;
 }
 
-/* ===== input ===== */
+/* input */
 
 .trip-table input{
 width:100%;
@@ -82,14 +80,14 @@ padding:4px;
 font-size:12px;
 }
 
-/* ===== العناوين ===== */
+/* العناوين */
 
 .group-title{
 font-weight:700;
 margin:20px 0 6px;
 }
 
-/* ===== الأزرار ===== */
+/* الأزرار */
 
 .btn{
 border:none;
@@ -109,13 +107,18 @@ background:#dc2626;
 color:white;
 }
 
-/* ===== dispatch ===== */
+.btn-disable{
+background:#64748b;
+color:white;
+}
+
+/* dispatch */
 
 .dispatch-check:checked{
 accent-color:#16a34a;
 }
 
-/* ===== زر stop ===== */
+/* stop */
 
 .add-stop{
 background:#facc15;
@@ -126,7 +129,7 @@ border-radius:5px;
 font-size:12px;
 }
 
-/* ===== ألوان الرحلات ===== */
+/* ألوان الرحلات */
 
 .row-company{
 background:#fff6d6;
@@ -145,12 +148,12 @@ display:block;
 margin-bottom:3px;
 }
 
-/* ===== موبايل ===== */
+/* موبايل */
 
 @media (max-width:768px){
 
 .page-body{
-padding-top:190px;
+padding-top:240px;
 padding-left:10px;
 padding-right:10px;
 }
@@ -168,7 +171,6 @@ font-size:12px;
 
 <body>
 
-<!-- HEADER -->
 <div id="adminHeader"></div>
 
 <div class="page-body">
@@ -185,5 +187,4 @@ font-size:12px;
 <script src="/admin/trips.js"></script>
 
 </body>
-
 </html>
