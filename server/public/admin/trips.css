@@ -1,0 +1,116 @@
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#f8fafc;
+  font-size:12px;
+}
+
+/* ===== GOLD BAR ===== */
+.top-bar{
+  background:linear-gradient(90deg,#facc15,#f59e0b);
+  padding:8px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  border-bottom:2px solid #d97706;
+}
+
+.top-bar button{
+  background:#1e293b;
+  color:#fff;
+  border:none;
+  padding:6px 10px;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+.top-bar input{
+  flex:1;
+  padding:6px;
+  border-radius:4px;
+  border:1px solid #d97706;
+}
+
+/* ===== TABLE ===== */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th{
+  background:#0f172a;
+  color:#fff;
+  padding:6px;
+}
+
+td{
+  border:1px solid #e5e7eb;
+  padding:4px;
+  text-align:center;
+}
+
+h3{
+  margin:14px 10px 4px;
+}
+
+/* ===== INPUTS ===== */
+input.edit{
+  width:100%;
+  font-size:12px;
+}
+
+/* ===== BUTTONS ===== */
+.btn{
+  border:none;
+  padding:4px 8px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:11px;
+  color:#fff;
+}
+.btn.edit{background:#3b82f6}
+.btn.delete{background:#ef4444}
+.btn.stop{background:#8b5cf6}
+
+/* ===== STATUS COLORS ===== */
+.status-booked{background:#ffffff}
+.status-scheduled{background:#fef9c3}
+.status-onboard{background:#fde68a}
+.status-arrived{background:#f59e0b;color:#000}
+.status-complete{background:#22c55e;color:#fff}
+.status-cancelled{background:#ef4444;color:#fff}
+.status-noshow{background:#6b7280;color:#fff}
+/* ===== ACTION BUTTONS VISIBILITY FIX ===== */
+.btn.disable{
+  background:#475569;        /* slate واضح */
+  color:#fff;
+  border:1px solid #1e293b;
+}
+
+.btn.disable:hover{
+  background:#334155;
+}
+
+.btn.stop{
+  background:#7c3aed;        /* بنفسجي واضح */
+  color:#fff;
+}
+
+.btn.stop:hover{
+  background:#6d28d9;
+}
+
+.btn.edit{
+  background:#2563eb;        /* أزرق واضح */
+  color:#fff;
+}
+
+.btn.edit:hover{
+  background:#1d4ed8;
+}
+
+/* لما الرحلة Disabled */
+tr[style*="opacity"] .btn{
+  opacity:1 !important;      /* الزرار يفضل واضح */
+}
