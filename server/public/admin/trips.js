@@ -1,194 +1,251 @@
-const API_URL="/api/trips";
+const API="/api/trips"
+const container=document.getElementById("tripsContainer")
 
-const container=document.getElementById("tripsContainer");
-const searchBox=document.getElementById("searchBox");
-
-let trips=[];
-
-/* CLOCK */
-
-function updateClock(){
- const now=new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
- document.getElementById("clock").innerText=now;
-}
-setInterval(updateClock,1000);
-updateClock();
-
-/* LOAD */
+let trips=[]
 
 async function loadTrips(){
 
- const res=await fetch(API_URL);
- const data=await res.json();
+const res=await fetch(API)
+const data=await res.json()
 
- trips=data||[];
+trips=data||[]
 
- render();
+render()
+
 }
 
-/* TODAY / TOMORROW */
+function getDates(){
 
-function getDayType(date){
+const now=new Date(
+new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+)
 
- const now=new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
+const today=new Date(now)
+today.setHours(0,0,0,0)
 
- const today=new Date(now);
- today.setHours(0,0,0,0);
+const tomorrow=new Date(today)
+tomorrow.setDate(today.getDate()+1)
 
- const tomorrow=new Date(today);
- tomorrow.setDate(today.getDate()+1);
+return{today,tomorrow}
 
- const trip=new Date(date);
- trip.setHours(0,0,0,0);
-
- if(trip.getTime()===today.getTime()) return "today";
- if(trip.getTime()===tomorrow.getTime()) return "tomorrow";
-
- return null;
 }
 
-/* ADD STOP */
+function groupTrips(){
 
-function addStop(id){
+const {today,tomorrow}=getDates()
 
- const row=document.getElementById("row-"+id);
- const input=row.querySelector(".stops");
-
- let stops=input.value.split("→").map(s=>s.trim()).filter(Boolean);
-
- if(stops.length>=5){
-  alert("Maximum 5 stops");
-  return;
- }
-
- stops.push("New Stop");
-
- input.value=stops.join(" → ");
+const groups={
+today:[],
+tomorrow:[]
 }
 
-/* RENDER */
+trips.forEach(t=>{
+
+if(!t.tripDate)return
+
+const d=new Date(t.tripDate)
+d.setHours(0,0,0,0)
+
+if(d.getTime()===today.getTime())groups.today.push(t)
+
+if(d.getTime()===tomorrow.getTime())groups.tomorrow.push(t)
+
+})
+
+return groups
+
+}
+
+function rowColor(type){
+
+type=(type||"").toLowerCase()
+
+if(type==="company")return"row-company"
+if(type==="individual")return"row-individual"
+if(type==="reserved")return"row-reserved"
+
+return""
+
+}
 
 function render(){
 
- container.innerHTML="";
+container.innerHTML=""
 
- const groups={
-  today:[],
-  tomorrow:[]
- };
+const groups=groupTrips()
 
- trips.forEach(t=>{
-  const type=getDayType(t.tripDate);
-  if(type) groups[type].push(t);
- });
+const {today,tomorrow}=getDates()
 
- drawGroup("Today Trips",groups.today,"today-group");
- drawGroup("Tomorrow Trips",groups.tomorrow,"tomorrow-group");
+drawGroup(
+"Today – "+today.toDateString(),
+groups.today
+)
 
-}
-
-/* DRAW GROUP */
-
-function drawGroup(title,list,className){
-
- if(!list.length) return;
-
- const div=document.createElement("div");
- div.className="group-title "+className;
- div.innerText=title;
- container.appendChild(div);
-
- const table=document.createElement("table");
- table.className="hub-table";
-
- table.innerHTML=`
- <tr>
- <th>#</th>
- <th>Trip</th>
- <th>Company</th>
- <th>Entry Name</th>
- <th>Entry Phone</th>
- <th>Client</th>
- <th>Phone</th>
- <th>Pickup</th>
- <th>Stops</th>
- <th>Dropoff</th>
- <th>Date</th>
- <th>Time</th>
- <th>Actions</th>
- </tr>
- `;
-
- list.forEach((t,i)=>{
-
- const stops=(t.stops||[]).join(" → ");
-
- const tr=document.createElement("tr");
- tr.id="row-"+t._id;
-
- tr.innerHTML=`
-
- <td>${i+1}</td>
- <td>${t.tripNumber||""}</td>
-
- <td><input value="${t.company||""}" disabled></td>
-
- <td><input value="${t.entryName||""}" disabled></td>
- <td><input value="${t.entryPhone||""}" disabled></td>
-
- <td><input value="${t.clientName||""}" disabled></td>
- <td><input value="${t.clientPhone||""}" disabled></td>
-
- <td><input value="${t.pickup||""}" disabled></td>
-
- <td>
- <input class="stops" value="${stops}" disabled>
- <button class="stop-btn" onclick="addStop('${t._id}')">+ Stop</button>
- </td>
-
- <td><input value="${t.dropoff||""}" disabled></td>
-
- <td>${t.tripDate||""}</td>
- <td>${t.tripTime||""}</td>
-
- <td>
-
- <div class="hub-actions">
-
- <button class="hub-btn edit-btn">Edit</button>
- <button class="hub-btn save-btn">Save</button>
- <button class="hub-btn delete-btn">Delete</button>
-
- </div>
-
- </td>
-
- `;
-
- table.appendChild(tr);
-
- });
-
- container.appendChild(table);
+drawGroup(
+"Tomorrow – "+tomorrow.toDateString(),
+groups.tomorrow
+)
 
 }
 
-/* SEARCH */
+function drawGroup(title,list){
 
-if(searchBox){
+if(!list.length)return
 
- searchBox.addEventListener("input",function(){
+const h=document.createElement("div")
+h.className="group-title"
+h.innerText=title
 
- const v=this.value.toLowerCase();
+container.appendChild(h)
 
- trips=trips.filter(t=>JSON.stringify(t).toLowerCase().includes(v));
+const table=document.createElement("table")
+table.className="trip-table"
 
- render();
+table.innerHTML=`
 
- });
+<tr>
+
+<th>Dispatch</th>
+<th>#</th>
+<th>Trip</th>
+<th>Type</th>
+<th>Company</th>
+<th>Client</th>
+<th>Phone</th>
+<th>Pickup</th>
+<th>Stops</th>
+<th>Dropoff</th>
+<th>Date</th>
+<th>Time</th>
+<th>Status</th>
+<th>Actions</th>
+
+</tr>
+
+`
+
+list.forEach((t,i)=>{
+
+const stops=(t.stops||[]).join(" → ")
+
+const tr=document.createElement("tr")
+
+tr.className=rowColor(t.type)
+
+tr.innerHTML=`
+
+<td>
+
+<input type="checkbox"
+${t.disabled?"disabled":""}
+${t.inDispatch?"checked":""}
+onchange="sendDispatch('${t._id}',this.checked)">
+
+</td>
+
+<td>${i+1}</td>
+
+<td>${t.tripNumber||""}</td>
+
+<td>${t.type||""}</td>
+
+<td>${t.company||""}</td>
+
+<td>${t.clientName||""}</td>
+
+<td>${t.clientPhone||""}</td>
+
+<td>${t.pickup||""}</td>
+
+<td>${stops}</td>
+
+<td>${t.dropoff||""}</td>
+
+<td>${t.tripDate||""}</td>
+
+<td>${t.tripTime||""}</td>
+
+<td>Confirmed</td>
+
+<td>
+
+<div class="actions">
+
+<button class="btn btn-edit"
+onclick="editTrip('${t._id}')">
+Edit
+</button>
+
+<button class="btn btn-delete"
+onclick="deleteTrip('${t._id}')">
+Delete
+</button>
+
+<button class="btn btn-disable"
+onclick="disableTrip('${t._id}')">
+Disable
+</button>
+
+</div>
+
+</td>
+
+`
+
+table.appendChild(tr)
+
+})
+
+container.appendChild(table)
 
 }
 
-/* INIT */
+async function sendDispatch(id,val){
 
-loadTrips();
+await fetch(API+"/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+inDispatch:val
+})
+})
+
+}
+
+async function disableTrip(id){
+
+await fetch(API+"/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+disabled:true
+})
+})
+
+loadTrips()
+
+}
+
+async function deleteTrip(id){
+
+if(!confirm("Delete trip?"))return
+
+await fetch(API+"/"+id,{
+method:"DELETE"
+})
+
+loadTrips()
+
+}
+
+function editTrip(id){
+
+location.href="edit-trip.html?id="+id
+
+}
+
+loadTrips()

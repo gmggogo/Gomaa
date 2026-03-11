@@ -7,165 +7,99 @@
 <title>Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- نفس CSS المستخدم في الادمن -->
 <link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="/admin/trips.css">
 
 <style>
 
-/* ===== PAGE ===== */
-
 body{
-  margin:0;
-  background:#f8fafc;
-  font-family:Arial, Helvetica, sans-serif;
-  padding-top:90px;
+margin:0;
+background:#f1f5f9;
+padding-top:90px;
+font-family:Segoe UI,Arial;
 }
-
-/* ===== HEADER (نفس الداشبورد) ===== */
-
-.page-header{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:85px;
-  background:linear-gradient(90deg,#0f172a,#1e293b);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 20px;
-  color:#fff;
-  z-index:999;
-  border-bottom:3px solid #facc15;
-}
-
-.header-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.back-btn{
-  background:#facc15;
-  border:none;
-  border-radius:8px;
-  padding:6px 14px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-.header-center{
-  text-align:center;
-}
-
-.header-center h1{
-  margin:0;
-  font-size:18px;
-  color:#facc15;
-}
-
-.header-center p{
-  margin:2px 0 0;
-  font-size:12px;
-}
-
-.header-right{
-  font-size:12px;
-}
-
-/* ===== SEARCH BAR ===== */
-
-.top-bar{
-  background:#fff;
-  padding:12px;
-  border-bottom:1px solid #ddd;
-}
-
-#searchBox{
-  width:100%;
-  padding:8px;
-  border:1px solid #ccc;
-  border-radius:6px;
-}
-
-/* ===== TABLE ===== */
-
-.hub-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:13px;
-  background:#fff;
-}
-
-.hub-table th{
-  background:#0f172a;
-  color:#fff;
-  padding:8px;
-}
-
-.hub-table td{
-  padding:6px;
-  border-bottom:1px solid #eee;
-}
-
-.hub-table input{
-  width:100%;
-  border:1px solid #ddd;
-  padding:4px;
-  font-size:12px;
-}
-
-/* ===== ACTION BUTTONS ===== */
-
-.hub-actions{
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  flex-wrap:wrap;
-}
-
-.hub-btn{
-  border:none;
-  border-radius:6px;
-  padding:4px 8px;
-  font-size:12px;
-  cursor:pointer;
-}
-
-.edit-btn{
-  background:#2563eb;
-  color:#fff;
-}
-
-.save-btn{
-  background:#16a34a;
-  color:#fff;
-}
-
-.delete-btn{
-  background:#dc2626;
-  color:#fff;
-}
-
-/* ===== GROUP TITLE ===== */
 
 .group-title{
-  font-weight:bold;
-  padding:10px;
-  background:#e2e8f0;
-  border-top:2px solid #0f172a;
+font-size:16px;
+font-weight:700;
+padding:12px;
+margin-top:10px;
+background:#e2e8f0;
+border-left:4px solid #0f172a;
 }
 
-/* ===== MOBILE ===== */
+.trip-table{
+width:100%;
+border-collapse:collapse;
+background:#fff;
+font-size:13px;
+}
 
-@media (max-width: 768px){
+.trip-table th{
+background:#0f172a;
+color:#fff;
+padding:8px;
+}
 
-  .hub-table{
-    display:block;
-    overflow-x:auto;
-    white-space:nowrap;
-  }
+.trip-table td{
+padding:6px;
+border-bottom:1px solid #eee;
+}
+
+.trip-table input{
+width:100%;
+border:1px solid #ddd;
+padding:4px;
+font-size:12px;
+}
+
+.row-company{
+background:#fff6d6;
+}
+
+.row-individual{
+background:#e8f4ff;
+}
+
+.row-reserved{
+background:#dcfce7;
+}
+
+.actions{
+display:flex;
+gap:6px;
+justify-content:center;
+}
+
+.btn{
+border:none;
+padding:4px 8px;
+border-radius:6px;
+font-size:12px;
+cursor:pointer;
+}
+
+.btn-edit{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+.btn-disable{
+background:#64748b;
+color:white;
+}
+
+@media(max-width:768px){
+
+.trip-table{
+display:block;
+overflow-x:auto;
+white-space:nowrap;
+}
 
 }
 
@@ -173,86 +107,14 @@ body{
 
 </head>
 
-
 <body>
 
-<!-- ===== HEADER ===== -->
-
-<header class="page-header">
-
-<div class="header-left">
-<button class="back-btn" onclick="goBack()">← Back</button>
-</div>
-
-<div class="header-center">
-<h1>Trips</h1>
-<p id="adminName">Welcome</p>
-</div>
-
-<div class="header-right">
-<span id="clock"></span>
-</div>
-
-</header>
-
-
-<!-- ===== SEARCH ===== -->
-
-<div class="top-bar">
-<input id="searchBox" placeholder="Search trip / client / phone / address">
-</div>
-
-
-<!-- ===== TABLE CONTAINER ===== -->
+<div id="adminHeader"></div>
 
 <div id="tripsContainer"></div>
 
-
-
-<!-- ===== HEADER SCRIPT ===== -->
-
-<script>
-
-function goBack(){
-  location.href = "dashboard.html";
-}
-
-/* ADMIN NAME */
-
-const admin = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
-
-if(admin && (admin.name || admin.username)){
-  document.getElementById("adminName").innerText =
-    "Welcome, " + (admin.name || admin.username);
-}
-
-
-/* CLOCK */
-
-function updateClock(){
-
-  const now = new Date().toLocaleString("en-US",{
-    timeZone:"America/Phoenix",
-    hour:"2-digit",
-    minute:"2-digit",
-    second:"2-digit",
-    month:"short",
-    day:"2-digit",
-    year:"numeric"
-  });
-
-  document.getElementById("clock").innerText = now;
-}
-
-setInterval(updateClock,1000);
-updateClock();
-
-</script>
-
-
-<!-- ===== TRIPS LOGIC ===== -->
-
-<script src="trips.js"></script>
+<script src="/admin/header.js"></script>
+<script src="/admin/trips.js"></script>
 
 </body>
 </html>
