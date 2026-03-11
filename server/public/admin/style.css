@@ -18,9 +18,8 @@ HEADER
 ================================= */
 
 .admin-header{
-position:fixed;
+position:sticky;
 top:0;
-left:0;
 width:100%;
 z-index:9999;
 background:#0f172a;
@@ -154,7 +153,6 @@ PAGE CONTENT
 
 .page-content{
 padding:20px;
-padding-top:220px;
 width:100%;
 }
 
@@ -355,14 +353,7 @@ padding:6px 10px;
 font-size:12px;
 }
 
-/* المسافة تحت الهيدر */
-
-.page-content{
-padding:15px;
-padding-top:300px;
-}
-
-/* الكروت */
+/* dashboard cards */
 
 .dashboard-grid{
 grid-template-columns:1fr;
@@ -372,7 +363,7 @@ grid-template-columns:1fr;
 width:100%;
 }
 
-/* الجدول يسحب يمين ويسار */
+/* table scroll */
 
 .hub-table{
 display:block;
