@@ -1,4 +1,5 @@
 const API="/api/trips"
+
 const container=document.getElementById("tripsContainer")
 
 let trips=[]
@@ -6,24 +7,25 @@ let trips=[]
 async function loadTrips(){
 
 const res=await fetch(API)
+
 const data=await res.json()
 
 trips=data||[]
 
-render()
+renderTrips()
 
 }
 
 function getDates(){
 
-const now=new Date(
-new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
+const now=new Date()
 
 const today=new Date(now)
+
 today.setHours(0,0,0,0)
 
 const tomorrow=new Date(today)
+
 tomorrow.setDate(today.getDate()+1)
 
 return{today,tomorrow}
@@ -35,20 +37,25 @@ function groupTrips(){
 const {today,tomorrow}=getDates()
 
 const groups={
+
 today:[],
 tomorrow:[]
+
 }
 
 trips.forEach(t=>{
 
-if(!t.tripDate)return
+if(!t.tripDate) return
 
 const d=new Date(t.tripDate)
+
 d.setHours(0,0,0,0)
 
-if(d.getTime()===today.getTime())groups.today.push(t)
+if(d.getTime()===today.getTime())
+groups.today.push(t)
 
-if(d.getTime()===tomorrow.getTime())groups.tomorrow.push(t)
+if(d.getTime()===tomorrow.getTime())
+groups.tomorrow.push(t)
 
 })
 
@@ -60,15 +67,17 @@ function rowColor(type){
 
 type=(type||"").toLowerCase()
 
-if(type==="company")return"row-company"
-if(type==="individual")return"row-individual"
-if(type==="reserved")return"row-reserved"
+if(type==="company") return "row-company"
 
-return""
+if(type==="individual") return "row-individual"
+
+if(type==="reserved") return "row-reserved"
+
+return ""
 
 }
 
-function render(){
+function renderTrips(){
 
 container.innerHTML=""
 
@@ -77,28 +86,35 @@ const groups=groupTrips()
 const {today,tomorrow}=getDates()
 
 drawGroup(
+
 "Today – "+today.toDateString(),
 groups.today
+
 )
 
 drawGroup(
+
 "Tomorrow – "+tomorrow.toDateString(),
 groups.tomorrow
+
 )
 
 }
 
 function drawGroup(title,list){
 
-if(!list.length)return
+if(!list.length) return
 
-const h=document.createElement("div")
-h.className="group-title"
-h.innerText=title
+const header=document.createElement("div")
 
-container.appendChild(h)
+header.className="group-title"
+
+header.innerText=title
+
+container.appendChild(header)
 
 const table=document.createElement("table")
+
 table.className="trip-table"
 
 table.innerHTML=`
@@ -151,19 +167,33 @@ onchange="sendDispatch('${t._id}',this.checked)">
 
 <td>${t.company||""}</td>
 
-<td>${t.clientName||""}</td>
+<td>
+<input class="edit-field" disabled value="${t.clientName||""}">
+</td>
 
-<td>${t.clientPhone||""}</td>
+<td>
+<input class="edit-field" disabled value="${t.clientPhone||""}">
+</td>
 
-<td>${t.pickup||""}</td>
+<td>
+<input class="edit-field" disabled value="${t.pickup||""}">
+</td>
 
-<td>${stops}</td>
+<td>
+<input class="edit-field" disabled value="${stops}">
+</td>
 
-<td>${t.dropoff||""}</td>
+<td>
+<input class="edit-field" disabled value="${t.dropoff||""}">
+</td>
 
-<td>${t.tripDate||""}</td>
+<td>
+<input class="edit-field" disabled value="${t.tripDate||""}">
+</td>
 
-<td>${t.tripTime||""}</td>
+<td>
+<input class="edit-field" disabled value="${t.tripTime||""}">
+</td>
 
 <td>Confirmed</td>
 
@@ -172,7 +202,7 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <div class="actions">
 
 <button class="btn btn-edit"
-onclick="editTrip('${t._id}')">
+onclick="editTrip('${t._id}',this)">
 Edit
 </button>
 
@@ -200,30 +230,54 @@ container.appendChild(table)
 
 }
 
-async function sendDispatch(id,val){
+function editTrip(id,btn){
 
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-inDispatch:val
-})
-})
+const row=btn.closest("tr")
+
+const fields=row.querySelectorAll(".edit-field")
+
+if(btn.innerText==="Edit"){
+
+fields.forEach(f=>f.disabled=false)
+
+btn.innerText="Save"
+
+return
 
 }
 
-async function disableTrip(id){
+const data={
+
+clientName:fields[0].value,
+clientPhone:fields[1].value,
+pickup:fields[2].value,
+stops:fields[3].value.split("→"),
+dropoff:fields[4].value,
+tripDate:fields[5].value,
+tripTime:fields[6].value
+
+}
+
+saveTrip(id,data)
+
+fields.forEach(f=>f.disabled=true)
+
+btn.innerText="Edit"
+
+}
+
+async function saveTrip(id,data){
 
 await fetch(API+"/"+id,{
+
 method:"PUT",
+
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({
-disabled:true
-})
+
+body:JSON.stringify(data)
+
 })
 
 loadTrips()
@@ -232,7 +286,7 @@ loadTrips()
 
 async function deleteTrip(id){
 
-if(!confirm("Delete trip?"))return
+if(!confirm("Delete trip?")) return
 
 await fetch(API+"/"+id,{
 method:"DELETE"
@@ -242,9 +296,41 @@ loadTrips()
 
 }
 
-function editTrip(id){
+async function disableTrip(id){
 
-location.href="edit-trip.html?id="+id
+await fetch(API+"/"+id,{
+
+method:"PUT",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+disabled:true
+})
+
+})
+
+loadTrips()
+
+}
+
+async function sendDispatch(id,val){
+
+await fetch(API+"/"+id,{
+
+method:"PUT",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+inDispatch:val
+})
+
+})
 
 }
 
