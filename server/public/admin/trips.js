@@ -20,42 +20,18 @@ function formatArizonaDate(dateObj){
   })
 }
 
-/* ============================
-   LOAD TRIPS
-============================ */
-
 async function loadTrips(){
 
-  try{
+  const res=await fetch(API)
+  const data=await res.json()
 
-    const res=await fetch(API)
+  trips=data||[]
 
-    if(!res.ok){
-      console.error("API error:",res.status)
-      trips=[]
-      renderTrips()
-      return
-    }
-
-    const data=await res.json()
-
-    trips=Array.isArray(data)?data:[]
-
-    renderTrips()
-
-  }catch(err){
-
-    console.error("Fetch failed:",err)
-    trips=[]
-    renderTrips()
-
-  }
+  renderTrips()
 
 }
 
-/* ============================
-   DATES
-============================ */
+/* dates */
 
 function getDates(){
 
@@ -71,9 +47,7 @@ function getDates(){
 
 }
 
-/* ============================
-   GROUP TRIPS
-============================ */
+/* group */
 
 function groupTrips(){
 
@@ -95,11 +69,8 @@ function groupTrips(){
 
     d.setHours(0,0,0,0)
 
-    if(d.getTime()===today.getTime())
-      groups.today.push(t)
-
-    else if(d.getTime()===tomorrow.getTime())
-      groups.tomorrow.push(t)
+    if(d.getTime()===today.getTime()) groups.today.push(t)
+    else if(d.getTime()===tomorrow.getTime()) groups.tomorrow.push(t)
 
   })
 
@@ -107,9 +78,7 @@ function groupTrips(){
 
 }
 
-/* ============================
-   ROW COLOR
-============================ */
+/* row color */
 
 function rowColor(type){
 
@@ -123,9 +92,7 @@ function rowColor(type){
 
 }
 
-/* ============================
-   RENDER
-============================ */
+/* render */
 
 function renderTrips(){
 
@@ -177,7 +144,6 @@ function drawGroup(title,list){
 <th>Date</th>
 <th>Time</th>
 <th>Status</th>
-<th>Notes</th>
 <th>Actions</th>
 
 </tr>
@@ -188,7 +154,7 @@ function drawGroup(title,list){
 
     const row=document.createElement("tr")
 
-    row.innerHTML=`<td colspan="15" style="text-align:center;padding:20px">No Trips</td>`
+    row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
 
     table.appendChild(row)
 
@@ -258,10 +224,6 @@ ${(t.stops||[]).map(s=>`
 <td>${t.status||"Confirmed"}</td>
 
 <td>
-<input class="edit-field notes" disabled value="${t.notes||""}">
-</td>
-
-<td>
 
 <button class="btn btn-edit"
 onclick="editTrip('${t._id}',this)">
@@ -293,9 +255,7 @@ ${t.disabled ? "Enable" : "Disable"}
 
 }
 
-/* ============================
-   STOPS
-============================ */
+/* stop */
 
 function addStop(btn){
 
@@ -324,9 +284,7 @@ function removeStop(el){
   el.closest(".stop-row").remove()
 }
 
-/* ============================
-   EDIT
-============================ */
+/* edit */
 
 async function editTrip(id,btn){
 
@@ -350,7 +308,6 @@ async function editTrip(id,btn){
     dropoff: row.querySelector(".dropoff")?.value || "",
     tripDate: row.querySelector(".tripDate")?.value || "",
     tripTime: row.querySelector(".tripTime")?.value || "",
-    notes: row.querySelector(".notes")?.value || "",
     stops: Array.from(row.querySelectorAll(".stop"))
       .map(s=>s.value.trim())
       .filter(Boolean)
@@ -362,6 +319,82 @@ async function editTrip(id,btn){
     body:JSON.stringify(payload)
   })
 
+  fields.forEach(f=>f.disabled=true)
+  if(addStopBtn) addStopBtn.disabled=true
+
+  btn.innerText="Edit"
+
   loadTrips()
 
 }
+
+/* delete */
+
+async function deleteTrip(id){
+
+  if(!confirm("Delete trip?")) return
+
+  await fetch(API+"/"+id,{method:"DELETE"})
+
+  loadTrips()
+
+}
+
+/* disable */
+
+function toggleTrip(id,btn){
+
+  const row=btn.closest("tr")
+  const fields=row.querySelectorAll("input,button")
+
+  if(btn.innerText==="Disable"){
+
+    fields.forEach(f=>{
+      if(f!==btn) f.disabled=true
+    })
+
+    row.style.opacity="0.5"
+
+    btn.innerText="Enable"
+    btn.style.background="#16a34a"
+
+    fetch(API+"/"+id,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json"},
+      body:JSON.stringify({disabled:true})
+    })
+
+  }else{
+
+    fields.forEach(f=>f.disabled=false)
+
+    row.style.opacity="1"
+
+    btn.innerText="Disable"
+    btn.style.background="#64748b"
+
+    fetch(API+"/"+id,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json"},
+      body:JSON.stringify({disabled:false})
+    })
+
+  }
+
+}
+
+/* dispatch */
+
+async function sendDispatch(id,val){
+
+  await fetch(API+"/"+id,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({inDispatch:val})
+  })
+
+}
+
+loadTrips()
