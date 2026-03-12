@@ -7,24 +7,34 @@ container.innerHTML = `
 
 <div class="header">
 
+<div class="top-section">
+
+<div class="company-block">
+
 <img src="../assets/logo.png" class="logo">
 
 <div class="logged-company" id="companyName">Loading...</div>
 
-<div class="header-message">
-Safe • Reliable • On-Time Transportation
+<div class="greeting" id="greetingText"></div>
+
+<div class="clock" id="azDateTime"></div>
+
 </div>
 
-<div class="greeting" id="greetingText"></div>
-<div class="clock" id="azDateTime"></div>
+</div>
 
 <div class="nav">
 
 <a href="dashboard.html">Dashboard</a>
+
 <a href="add-trip.html">Add Trip</a>
+
 <a href="review.html">Review</a>
+
 <a href="summary.html">Summary</a>
+
 <a href="taxes.html">Taxes</a>
+
 <a href="#" id="logoutBtn">Logout</a>
 
 </div>
@@ -32,6 +42,8 @@ Safe • Reliable • On-Time Transportation
 </div>
 
 `;
+
+
 
 /* ================= AUTH ================= */
 
@@ -44,24 +56,34 @@ window.location.replace("company-login.html");
 return;
 }
 
+
+
 /* ================= ACTIVE LINK ================= */
 
 const currentPage = window.location.pathname.split("/").pop();
 
-document.querySelectorAll(".nav a").forEach(link=>{
+document.querySelectorAll(".nav a").forEach(link => {
+
 if(link.getAttribute("href") === currentPage){
+
 link.classList.add("active");
+
 }
+
 });
 
-/* ================= LOAD COMPANY ================= */
+
+
+/* ================= COMPANY NAME ================= */
 
 try{
 
 const res = await fetch("/api/company/me",{
+
 headers:{
 Authorization:"Bearer "+token
 }
+
 });
 
 const data = await res.json();
@@ -76,13 +98,23 @@ name || "Company";
 
 }
 
+
+
 /* ================= LOGOUT ================= */
 
 document.getElementById("logoutBtn").addEventListener("click",e=>{
+
 e.preventDefault();
-localStorage.clear();
+
+localStorage.removeItem("token");
+localStorage.removeItem("role");
+localStorage.removeItem("name");
+
 window.location.replace("company-login.html");
+
 });
+
+
 
 /* ================= TIME ================= */
 
@@ -91,6 +123,7 @@ function updateTime(){
 const now = new Date();
 
 const formatted = now.toLocaleString("en-US",{
+
 timeZone:"America/Phoenix",
 weekday:"long",
 year:"numeric",
@@ -100,6 +133,7 @@ hour:"numeric",
 minute:"2-digit",
 second:"2-digit",
 hour12:true
+
 });
 
 document.getElementById("azDateTime").innerText = formatted;
@@ -108,14 +142,15 @@ let hour = now.getHours();
 
 let greeting="Good Evening";
 
-if(hour<12) greeting="Good Morning";
-else if(hour<18) greeting="Good Afternoon";
+if(hour < 12) greeting="Good Morning";
+else if(hour < 18) greeting="Good Afternoon";
 
 document.getElementById("greetingText").innerText = greeting;
 
 }
 
 updateTime();
+
 setInterval(updateTime,1000);
 
 });
