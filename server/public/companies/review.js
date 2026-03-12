@@ -1,587 +1,333 @@
-window.addEventListener("DOMContentLoaded", async () => {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Company Trips Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+font-family:Segoe UI,Arial;
+background:#f4f7fb;
+margin:0;
+padding:20px;
+}
+
+.search-box{
+margin-bottom:15px;
+}
+
+.search-box input{
+padding:8px 10px;
+width:280px;
+border:1px solid #cbd5e1;
+border-radius:6px;
+}
+
+.review-table{
+width:100%;
+border-collapse:collapse;
+background:white;
+}
+
+.review-table th,
+.review-table td{
+border:1px solid #dbe2ea;
+padding:7px;
+text-align:center;
+font-size:14px;
+}
+
+.review-table th{
+background:#0f172a;
+color:white;
+}
+
+.review-table input{
+width:100%;
+padding:6px;
+border:1px solid #cbd5e1;
+border-radius:6px;
+}
+
+.actions{
+display:flex;
+justify-content:center;
+gap:6px;
+}
+
+.btn{
+border:none;
+border-radius:6px;
+padding:6px 10px;
+font-weight:600;
+cursor:pointer;
+}
+
+.btn.edit{background:#2563eb;color:white}
+.btn.delete{background:#111827;color:white}
+.btn.confirm{background:#16a34a;color:white}
+.btn.cancel{background:#dc2626;color:white}
+
+/* COLORS */
+
+.row-scheduled{background:white}
+.row-confirmed{background:#86efac}
+.row-cancelled{background:#fecaca}
+
+.row-yellow{background:#fde047}
+.row-red-light{background:#fecaca}
+.row-red-mid{background:#f87171}
+.row-red-dark{background:#7f1d1d;color:white}
+
+/* BLINK */
+
+@keyframes blink{
+0%{opacity:1}
+50%{opacity:.9}
+100%{opacity:1}
+}
+
+.confirm-blink{
+animation:blink 2.6s infinite;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="search-box">
+<input id="searchInput" placeholder="Search name or phone">
+</div>
+
+<div id="tripsContainer"></div>
+
+<script>
 
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
-const companyName = localStorage.getItem("name") || "";
+const companyName = localStorage.getItem("name");
 
-if (!token || role !== "company") {
-  window.location.replace("company-login.html");
-  return;
+if(!token || role!=="company"){
+location.href="company-login.html";
 }
 
 const container = document.getElementById("tripsContainer");
-
-/* ================= INLINE STYLE ================= */
-
-(function injectReviewStyles(){
-
-const oldStyle = document.getElementById("review-inline-style");
-if(oldStyle) oldStyle.remove();
-
-const style = document.createElement("style");
-style.id = "review-inline-style";
-
-style.innerHTML = `
-  #tripsContainer .review-table{
-    width:100%;
-    border-collapse:collapse;
-    margin-bottom:20px;
-    background:#fff;
-  }
-
-  #tripsContainer .review-table th,
-  #tripsContainer .review-table td{
-    border:1px solid #dbe2ea;
-    padding:8px;
-    text-align:center;
-    font-size:14px;
-    vertical-align:middle;
-  }
-
-  #tripsContainer .review-table th{
-    background:#0f172a;
-    color:#fff;
-  }
-
-  #tripsContainer .review-table input{
-    width:100%;
-    box-sizing:border-box;
-    padding:6px 8px;
-    border:1px solid #cbd5e1;
-    border-radius:6px;
-    font-size:13px;
-    background:#fff;
-  }
-
-  #tripsContainer .date-title{
-    font-size:18px;
-    font-weight:700;
-    margin:20px 0 10px;
-    color:#0f172a;
-  }
-
-  /* actions cell */
-  #tripsContainer td.actions-cell{
-    white-space:nowrap;
-  }
-
-  #tripsContainer .actions-wrap{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:6px;
-    flex-wrap:nowrap;
-  }
-
-  #tripsContainer .btn{
-    border:none;
-    border-radius:6px;
-    padding:6px 10px;
-    font-size:13px;
-    font-weight:700;
-    cursor:pointer;
-    margin:0;
-    white-space:nowrap;
-    display:inline-block;
-  }
-
-  #tripsContainer .btn.edit{background:#2563eb;color:#fff;}
-  #tripsContainer .btn.delete{background:#111827;color:#fff;}
-  #tripsContainer .btn.confirm{background:#16a34a;color:#fff;}
-  #tripsContainer .btn.cancel{background:#dc2626;color:#fff;}
-
-  /* ===== COLOR POLICY ===== */
-
-  #tripsContainer tr.scheduled-row{
-    background:#ffffff;
-    color:#111827;
-  }
-
-  #tripsContainer tr.confirmed-row{
-    background:#86efac;
-    color:#065f46;
-  }
-
-  #tripsContainer tr.cancelled-row{
-    background:#fecaca;
-    color:#7f1d1d;
-  }
-
-  #tripsContainer tr.yellow{
-    background:#fde047;
-    color:#111827;
-  }
-
-  #tripsContainer tr.red-verylight{
-    background:#fee2e2;
-    color:#111827;
-  }
-
-  #tripsContainer tr.red-light{
-    background:#fecaca;
-    color:#111827;
-  }
-
-  #tripsContainer tr.red-mid{
-    background:#fca5a5;
-    color:#111827;
-  }
-
-  #tripsContainer tr.red-dark{
-    background:#7f1d1d;
-    color:#ffffff;
-  }
-
-  /* blink only for confirmed very close trips */
-  @keyframes tripBlink {
-    0% { opacity:1; }
-    50% { opacity:.90; }
-    100% { opacity:1; }
-  }
-
-  #tripsContainer tr.trip-blink{
-    animation:tripBlink 2.8s infinite;
-  }
-`;
-
-document.head.appendChild(style);
-
-})();
-
-/* ================= TIME HELPERS ================= */
-
-function getAZNow(){
-  return new Date(
-    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-  );
-}
-
-function getTripDateTime(t){
-  if(!t.tripDate || !t.tripTime) return null;
-  const dt = new Date(t.tripDate + "T" + t.tripTime + ":00");
-  return String(dt) === "Invalid Date" ? null : dt;
-}
-
-function minutesToTrip(t){
-  const dt = getTripDateTime(t);
-  if(!dt) return null;
-  return (dt - getAZNow()) / 60000;
-}
-
-function escapeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/"/g,"&quot;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
-}
-
-/* ================= SERVER ================= */
-
-async function fetchTrips(){
-
-  const url = companyName
-    ? "/api/trips/company/" + encodeURIComponent(companyName)
-    : "/api/trips/company";
-
-  const res = await fetch(url,{
-    headers:{
-      "Authorization":"Bearer " + token
-    }
-  });
-
-  if(!res.ok){
-    container.innerHTML = "<div>Server Error Loading Trips</div>";
-    return [];
-  }
-
-  return await res.json();
-}
-
-async function updateTrip(id,payload){
-
-  const res = await fetch("/api/trips/" + id,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer " + token
-    },
-    body:JSON.stringify(payload)
-  });
-
-  if(!res.ok) throw new Error("Update failed");
-
-  return await res.json();
-}
-
-async function deleteTrip(id){
-
-  const res = await fetch("/api/trips/" + id,{
-    method:"DELETE",
-    headers:{
-      "Authorization":"Bearer " + token
-    }
-  });
-
-  if(!res.ok) throw new Error("Delete failed");
-}
-
-/* ================= GROUP ================= */
-
-function keepLast30Days(list){
-
-  const now = new Date();
-
-  return list.filter(t=>{
-
-    if(!t.createdAt) return true;
-
-    const c = new Date(t.createdAt);
-
-    if(String(c) === "Invalid Date") return true;
-
-    return (now - c) / (1000*60*60*24) <= 30;
-
-  });
-
-}
-
-function groupByCreatedDate(list){
-
-  const groups = {};
-
-  list.forEach(t=>{
-
-    const d = t.createdAt ? new Date(t.createdAt) : new Date();
-    const key = d.toLocaleDateString();
-
-    if(!groups[key]) groups[key] = [];
-    groups[key].push(t);
-
-  });
-
-  return groups;
-}
-
-/* ================= RENDER ================= */
+const searchInput = document.getElementById("searchInput");
 
 let trips = [];
+let filteredTrips = [];
+
+function getAZNow(){
+return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
+}
+
+function tripMinutes(t){
+const dt = new Date(t.tripDate+"T"+t.tripTime);
+return (dt-getAZNow())/60000;
+}
+
+function escape(v){
+return String(v||"").replace(/</g,"&lt;");
+}
+
+/* FETCH */
+
+async function loadTrips(){
+
+const res = await fetch("/api/trips/company/"+companyName,{
+headers:{Authorization:"Bearer "+token}
+});
+
+trips = await res.json();
+filteredTrips = trips;
+render();
+
+}
+
+/* SEARCH */
+
+searchInput.oninput = ()=>{
+const q = searchInput.value.toLowerCase();
+
+filteredTrips = trips.filter(t=>
+(t.clientName||"").toLowerCase().includes(q) ||
+(t.clientPhone||"").includes(q)
+);
+
+render();
+};
+
+/* RENDER */
 
 function render(){
 
-  container.innerHTML = "";
-
-  const filtered = keepLast30Days(trips);
-  const groups = groupByCreatedDate(filtered);
-  const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
-
-  if(!dates.length){
-    container.innerHTML = "<div style='padding:15px'>No trips found.</div>";
-    return;
-  }
-
-  dates.forEach(date=>{
-
-    const title = document.createElement("div");
-    title.className = "date-title";
-    title.innerText = date;
-    container.appendChild(title);
-
-    const table = document.createElement("table");
-    table.className = "review-table";
-
-    table.innerHTML = `
+let html = `<table class="review-table">
 <tr>
 <th>#</th>
 <th>Trip#</th>
-<th>Entry Name</th>
-<th>Entry Phone</th>
 <th>Client</th>
 <th>Phone</th>
 <th>Pickup</th>
 <th>Drop</th>
-<th>Stops</th>
 <th>Date</th>
 <th>Time</th>
-<th>Notes</th>
 <th>Status</th>
 <th>Actions</th>
-</tr>
-`;
+</tr>`;
 
-    groups[date].forEach((t,i)=>{
+filteredTrips.forEach((t,i)=>{
 
-      const mins = minutesToTrip(t);
+const mins = tripMinutes(t);
 
-      if(mins !== null && mins < -60) return;
+let rowClass="row-scheduled";
 
-      const tr = document.createElement("tr");
-      tr.dataset.id = t._id;
+if(t.status==="Cancelled") rowClass="row-cancelled";
+else if(t.status==="Confirmed") rowClass="row-confirmed";
 
-      /* ================= COLOR POLICY ================= */
+if(mins<=180 && mins>120) rowClass="row-yellow";
+if(mins<=120 && mins>60) rowClass="row-red-light";
+if(mins<=60 && mins>30) rowClass="row-red-mid";
+if(mins<=30) rowClass="row-red-dark";
 
-      tr.className = "";
-      tr.classList.add("scheduled-row");
+let blink="";
+if(t.status==="Confirmed" && mins<=30) blink="confirm-blink";
 
-      if(t.status === "Cancelled"){
-
-        tr.className = "";
-        tr.classList.add("cancelled-row");
-
-      }else if(mins !== null && mins > 0 && mins <= 180){
-
-        tr.className = "";
-
-        if(mins <= 30){
-          tr.classList.add("red-dark");
-          if(t.status === "Confirmed"){
-            tr.classList.add("trip-blink");
-          }
-        }
-        else if(mins <= 60){
-          tr.classList.add("red-mid");
-        }
-        else if(mins <= 120){
-          tr.classList.add("red-light");
-        }
-        else{
-          tr.classList.add("yellow");
-        }
-
-      }else if(t.status === "Confirmed"){
-
-        tr.className = "";
-        tr.classList.add("confirmed-row");
-
-      }
-
-      const editing = t.__editing === true;
-
-      function cell(val,cls,type="text"){
-        if(!editing) return escapeHtml(val || "");
-        return `<input type="${type}" class="${cls}" value="${escapeHtml(val || "")}">`;
-      }
-
-      const stopsText = Array.isArray(t.stops) ? t.stops.join(" | ") : "";
-
-      /* ================= ACTION POLICY ================= */
-
-      let actions = "";
-
-      if(t.status === "Cancelled"){
-
-        actions = "";
-
-      }
-
-      else if(t.status === "Confirmed"){
-
-        if(mins !== null && mins <= 120){
-
-          actions = `<div class="actions-wrap">
-            <button class="btn cancel" data-action="cancel">Cancel</button>
-          </div>`;
-
-        }else{
-
-          actions = editing
-            ? `<div class="actions-wrap">
-                <button class="btn edit" data-action="edit">Save</button>
-              </div>`
-            : `<div class="actions-wrap">
-                <button class="btn edit" data-action="edit">Edit</button>
-                <button class="btn delete" data-action="delete">Delete</button>
-                <button class="btn confirm" data-action="confirm">Confirm</button>
-              </div>`;
-
-        }
-
-      }
-
-      else if(t.status === "Scheduled"){
-
-        if(mins !== null && mins > 120){
-
-          actions = editing
-            ? `<div class="actions-wrap">
-                <button class="btn edit" data-action="edit">Save</button>
-              </div>`
-            : `<div class="actions-wrap">
-                <button class="btn edit" data-action="edit">Edit</button>
-                <button class="btn delete" data-action="delete">Delete</button>
-                <button class="btn confirm" data-action="confirm">Confirm</button>
-              </div>`;
-
-        }else if(mins !== null && mins > 0 && mins <= 120){
-
-          actions = `<div class="actions-wrap">
-            <button class="btn confirm" data-action="confirm">Confirm</button>
-            <button class="btn cancel" data-action="cancel">Cancel</button>
-          </div>`;
-
-        }
-
-      }
-
-      const stopsCell = editing
-        ? `<input type="text" class="stops" value="${escapeHtml(stopsText)}">`
-        : escapeHtml(stopsText);
-
-      tr.innerHTML = `
+html+=`<tr class="${rowClass} ${blink}" data-id="${t._id}">
 <td>${i+1}</td>
-<td>${escapeHtml(t.tripNumber || "")}</td>
-<td>${cell(t.entryName,"entryName")}</td>
-<td>${cell(t.entryPhone,"entryPhone")}</td>
-<td>${cell(t.clientName,"clientName")}</td>
-<td>${cell(t.clientPhone,"clientPhone")}</td>
-<td>${cell(t.pickup,"pickup")}</td>
-<td>${cell(t.dropoff,"dropoff")}</td>
-<td>${stopsCell}</td>
-<td>${cell(t.tripDate,"tripDate","date")}</td>
-<td>${cell(t.tripTime,"tripTime","time")}</td>
-<td>${cell(t.notes,"notes")}</td>
-<td>${escapeHtml(t.status || "Scheduled")}</td>
-<td class="actions-cell">${actions}</td>
-`;
-
-      table.appendChild(tr);
-
-    });
-
-    container.appendChild(table);
-
-  });
-
-}
-
-function isAnyEditing(){
-  return trips.some(t=>t.__editing === true);
-}
-
-/* ================= ACTIONS ================= */
-
-container.addEventListener("click",async(e)=>{
-
-  const btn = e.target.closest("button");
-  if(!btn) return;
-
-  const tr = btn.closest("tr");
-  if(!tr) return;
-
-  const id = tr.dataset.id;
-  const t = trips.find(x=>x._id === id);
-  if(!t) return;
-
-  const action = btn.dataset.action;
-
-  try{
-
-    if(action === "confirm"){
-
-      await updateTrip(id,{status:"Confirmed"});
-
-      trips = await fetchTrips();
-      render();
-      return;
-    }
-
-    if(action === "cancel"){
-
-      if(!confirm("Cancel this trip?")) return;
-
-      await updateTrip(id,{status:"Cancelled"});
-
-      trips = await fetchTrips();
-      render();
-      return;
-    }
-
-    if(action === "delete"){
-
-      if(!confirm("Delete this trip?")) return;
-
-      await deleteTrip(id);
-
-      trips = await fetchTrips();
-      render();
-      return;
-    }
-
-    if(action === "edit"){
-
-      if(!t.__editing){
-        t.__editing = true;
-        render();
-        return;
-      }
-
-      const newDate = tr.querySelector(".tripDate")?.value || t.tripDate;
-      const newTime = tr.querySelector(".tripTime")?.value || t.tripTime;
-
-      const newTripTime = new Date(newDate + "T" + newTime + ":00");
-      const minsToNewTrip = (newTripTime - getAZNow()) / 60000;
-
-      /* ===== WARNING 120 ===== */
-      if(minsToNewTrip <= 120){
-        const ok = confirm("WARNING: Trip is within 120 minutes. It cannot be edited or deleted. Continue?");
-        if(!ok) return;
-      }
-
-      const payload = {
-        entryName: tr.querySelector(".entryName")?.value || t.entryName,
-        entryPhone: tr.querySelector(".entryPhone")?.value || t.entryPhone,
-        clientName: tr.querySelector(".clientName")?.value || t.clientName,
-        clientPhone: tr.querySelector(".clientPhone")?.value || t.clientPhone,
-        pickup: tr.querySelector(".pickup")?.value || t.pickup,
-        dropoff: tr.querySelector(".dropoff")?.value || t.dropoff,
-        notes: tr.querySelector(".notes")?.value || t.notes,
-        stops: tr.querySelector(".stops")?.value
-          ? tr.querySelector(".stops").value.split("|").map(s=>s.trim()).filter(Boolean)
-          : (t.stops || []),
-        tripDate: newDate,
-        tripTime: newTime,
-        status: "Scheduled"
-      };
-
-      t.__editing = false;
-
-      await updateTrip(id,payload);
-
-      trips = await fetchTrips();
-      render();
-      return;
-    }
-
-  }catch(err){
-    alert("Server Error: " + err.message);
-  }
+<td>${escape(t.tripNumber)}</td>
+<td>${escape(t.clientName)}</td>
+<td>${escape(t.clientPhone)}</td>
+<td>${escape(t.pickup)}</td>
+<td>${escape(t.dropoff)}</td>
+<td>${escape(t.tripDate)}</td>
+<td>${escape(t.tripTime)}</td>
+<td>${escape(t.status)}</td>
+<td>${buttons(t,mins)}</td>
+</tr>`;
 
 });
 
-/* ================= INIT ================= */
+html+="</table>";
 
-async function loadTrips(){
-  try{
-    trips = await fetchTrips();
-    render();
-  }catch(err){
-    container.innerHTML="<div>Server Load Error</div>";
-  }
+container.innerHTML=html;
+
 }
 
-await loadTrips();
+/* BUTTON POLICY */
 
-/* ================= AUTO REFRESH ================= */
+function buttons(t,mins){
 
-setInterval(async()=>{
-  if(isAnyEditing()) return;
+if(t.status==="Cancelled") return "";
 
-  try{
-    trips = await fetchTrips();
-    render();
-  }catch(e){
-    console.error("Auto refresh failed",e);
-  }
-},30000);
+if(mins>120){
 
+return `<div class="actions">
+<button class="btn edit" onclick="editTrip('${t._id}')">Edit</button>
+<button class="btn delete" onclick="deleteTrip('${t._id}')">Delete</button>
+<button class="btn confirm" onclick="confirmTrip('${t._id}')">Confirm</button>
+</div>`;
+
+}
+
+if(mins<=120 && t.status==="Scheduled"){
+
+return `<div class="actions">
+<button class="btn confirm" onclick="confirmTrip('${t._id}')">Confirm</button>
+<button class="btn cancel" onclick="cancelTrip('${t._id}')">Cancel</button>
+</div>`;
+
+}
+
+if(mins<=120 && t.status==="Confirmed"){
+
+return `<div class="actions">
+<button class="btn cancel" onclick="cancelTrip('${t._id}')">Cancel</button>
+</div>`;
+
+}
+
+return "";
+
+}
+
+/* ACTIONS */
+
+async function confirmTrip(id){
+
+await fetch("/api/trips/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json",
+Authorization:"Bearer "+token
+},
+body:JSON.stringify({status:"Confirmed"})
 });
+
+loadTrips();
+}
+
+async function cancelTrip(id){
+
+if(!confirm("Cancel this trip?")) return;
+
+await fetch("/api/trips/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json",
+Authorization:"Bearer "+token
+},
+body:JSON.stringify({status:"Cancelled"})
+});
+
+loadTrips();
+}
+
+async function deleteTrip(id){
+
+if(!confirm("Delete this trip?")) return;
+
+await fetch("/api/trips/"+id,{
+method:"DELETE",
+headers:{Authorization:"Bearer "+token}
+});
+
+loadTrips();
+}
+
+async function editTrip(id){
+
+const trip = trips.find(t=>t._id===id);
+
+const newTime = prompt("New Time (HH:MM)",trip.tripTime);
+if(!newTime) return;
+
+const mins = (new Date(trip.tripDate+"T"+newTime)-getAZNow())/60000;
+
+if(mins<=120){
+if(!confirm("WARNING: Trip is within 120 minutes. It cannot be edited or deleted. Continue?")) return;
+}
+
+await fetch("/api/trips/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json",
+Authorization:"Bearer "+token
+},
+body:JSON.stringify({tripTime:newTime,status:"Scheduled"})
+});
+
+loadTrips();
+
+}
+
+loadTrips();
+
+setInterval(loadTrips,30000);
+
+</script>
+
+</body>
+</html>
