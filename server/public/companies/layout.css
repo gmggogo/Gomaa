@@ -4,34 +4,41 @@ body{
 margin:0;
 font-family:'Poppins',sans-serif;
 background:#f4f8fb;
+overflow-x:hidden;
 }
 
-/* HEADER */
+/* ================= HEADER ================= */
 
 .header{
-position:sticky;
+
+position:fixed;
 top:0;
+left:0;
+width:100%;
+
 z-index:9999;
 
 background:linear-gradient(90deg,#0f172a,#1e3a8a);
 color:white;
 
-padding:25px 20px 30px;
+padding:15px 20px;
 
 text-align:center;
+
+box-shadow:0 4px 12px rgba(0,0,0,.25);
 }
 
 /* LOGO */
 
 .logo{
-height:70px;
-margin-bottom:8px;
+height:50px;
+margin-bottom:4px;
 }
 
-/* COMPANY */
+/* COMPANY NAME */
 
 .logged-company{
-font-size:28px;
+font-size:22px;
 font-weight:700;
 color:#facc15;
 }
@@ -39,54 +46,57 @@ color:#facc15;
 /* MESSAGE */
 
 .header-message{
-margin-top:6px;
-font-size:18px;
-font-weight:600;
+font-size:15px;
 color:#e2e8f0;
+margin-top:3px;
 }
 
 /* GREETING */
 
 .greeting{
-margin-top:6px;
-font-size:16px;
+font-size:14px;
+margin-top:2px;
 }
 
 .clock{
-font-size:14px;
-opacity:.85;
+font-size:12px;
+opacity:.8;
 }
 
 /* NAV */
 
 .nav{
+
 display:flex;
 justify-content:center;
 flex-wrap:wrap;
 
-gap:25px;
+gap:14px;
 
 background:#000;
 
-padding:14px;
+padding:10px;
 
-border-radius:14px;
+border-radius:12px;
 
-margin:25px auto 0;
+margin:15px auto 0;
 
-max-width:900px;
+max-width:700px;
 }
 
 .nav a{
+
 color:white;
 text-decoration:none;
-font-size:15px;
 
-padding:8px 18px;
+font-size:14px;
+
+padding:6px 14px;
 
 border-radius:8px;
 
 transition:.2s;
+
 }
 
 .nav a:hover{
@@ -94,35 +104,47 @@ background:#1e3a8a;
 }
 
 .nav a.active{
+
 background:#facc15;
 color:black;
 font-weight:700;
+
 }
 
-/* MOBILE */
+/* ================= PAGE SPACE ================= */
+
+body{
+padding-top:170px;
+}
+
+/* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
 .logo{
-height:60px;
+height:45px;
 }
 
 .logged-company{
-font-size:22px;
+font-size:20px;
 }
 
 .header-message{
-font-size:15px;
+font-size:14px;
 }
 
 .nav{
-gap:12px;
-padding:10px;
+gap:10px;
+padding:8px;
 }
 
 .nav a{
 font-size:13px;
-padding:6px 10px;
+padding:5px 10px;
+}
+
+body{
+padding-top:200px;
 }
 
 }
