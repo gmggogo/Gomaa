@@ -144,6 +144,7 @@ function drawGroup(title,list){
 <th>Date</th>
 <th>Time</th>
 <th>Status</th>
+<th>Note</th>
 <th>Actions</th>
 
 </tr>
@@ -154,7 +155,7 @@ function drawGroup(title,list){
 
     const row=document.createElement("tr")
 
-    row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
+    row.innerHTML=`<td colspan="15" style="text-align:center;padding:20px">No Trips</td>`
 
     table.appendChild(row)
 
@@ -222,6 +223,10 @@ ${(t.stops||[]).map(s=>`
 </td>
 
 <td>${t.status||"Confirmed"}</td>
+
+<td>
+<input class="edit-field note" disabled value="${t.note||""}">
+</td>
 
 <td>
 
@@ -308,6 +313,7 @@ async function editTrip(id,btn){
     dropoff: row.querySelector(".dropoff")?.value || "",
     tripDate: row.querySelector(".tripDate")?.value || "",
     tripTime: row.querySelector(".tripTime")?.value || "",
+    note: row.querySelector(".note")?.value || "",
     stops: Array.from(row.querySelectorAll(".stop"))
       .map(s=>s.value.trim())
       .filter(Boolean)
