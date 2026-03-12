@@ -9,19 +9,25 @@ let trips=[]
 ============================ */
 
 function getArizonaTime(){
-return new Date(
-new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
+  return new Date(
+    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+  )
+}
+
+function formatArizonaDate(dateObj){
+  return dateObj.toLocaleDateString("en-CA",{
+    timeZone:"America/Phoenix"
+  })
 }
 
 async function loadTrips(){
 
-const res=await fetch(API)
-const data=await res.json()
+  const res=await fetch(API)
+  const data=await res.json()
 
-trips=data||[]
+  trips=data||[]
 
-renderTrips()
+  renderTrips()
 
 }
 
@@ -29,15 +35,15 @@ renderTrips()
 
 function getDates(){
 
-const now=getArizonaTime()
+  const now=getArizonaTime()
 
-const today=new Date(now)
-today.setHours(0,0,0,0)
+  const today=new Date(now)
+  today.setHours(0,0,0,0)
 
-const tomorrow=new Date(today)
-tomorrow.setDate(today.getDate()+1)
+  const tomorrow=new Date(today)
+  tomorrow.setDate(today.getDate()+1)
 
-return{today,tomorrow}
+  return{today,tomorrow}
 
 }
 
@@ -45,33 +51,30 @@ return{today,tomorrow}
 
 function groupTrips(){
 
-const {today,tomorrow}=getDates()
+  const {today,tomorrow}=getDates()
 
-const groups={
-today:[],
-tomorrow:[]
-}
+  const groups={
+    today:[],
+    tomorrow:[]
+  }
 
-trips.forEach(t=>{
+  trips.forEach(t=>{
 
-const date=t.tripDate||t.date
-if(!date) return
+    const date=t.tripDate||t.date
+    if(!date) return
 
-const d=new Date(
-new Date(date).toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
+    const d=new Date(
+      new Date(date).toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    )
 
-d.setHours(0,0,0,0)
+    d.setHours(0,0,0,0)
 
-if(d.getTime()===today.getTime())
-groups.today.push(t)
+    if(d.getTime()===today.getTime()) groups.today.push(t)
+    else if(d.getTime()===tomorrow.getTime()) groups.tomorrow.push(t)
 
-if(d.getTime()===tomorrow.getTime())
-groups.tomorrow.push(t)
+  })
 
-})
-
-return groups
+  return groups
 
 }
 
@@ -79,13 +82,13 @@ return groups
 
 function rowColor(type){
 
-type=(type||"").toLowerCase()
+  type=(type||"").toLowerCase()
 
-if(type==="company") return "row-company"
-if(type==="individual") return "row-individual"
-if(type==="reserved") return "row-reserved"
+  if(type==="company") return "row-company"
+  if(type==="individual") return "row-individual"
+  if(type==="reserved") return "row-reserved"
 
-return ""
+  return ""
 
 }
 
@@ -93,38 +96,38 @@ return ""
 
 function renderTrips(){
 
-container.innerHTML=""
+  container.innerHTML=""
 
-const groups=groupTrips()
-const {today,tomorrow}=getDates()
+  const groups=groupTrips()
+  const {today,tomorrow}=getDates()
 
-drawGroup(
-"Today – "+today.toISOString().slice(0,10),
-groups.today
-)
+  drawGroup(
+    "Today – "+formatArizonaDate(today),
+    groups.today
+  )
 
-drawGroup(
-"Tomorrow – "+tomorrow.toISOString().slice(0,10),
-groups.tomorrow
-)
+  drawGroup(
+    "Tomorrow – "+formatArizonaDate(tomorrow),
+    groups.tomorrow
+  )
 
 }
 
 function drawGroup(title,list){
 
-const header=document.createElement("div")
-header.className="group-title"
-header.innerText=title
+  const header=document.createElement("div")
+  header.className="group-title"
+  header.innerText=title
 
-container.appendChild(header)
+  container.appendChild(header)
 
-const wrapper=document.createElement("div")
-wrapper.className="table-scroll"
+  const wrapper=document.createElement("div")
+  wrapper.className="table-scroll"
 
-const table=document.createElement("table")
-table.className="trip-table"
+  const table=document.createElement("table")
+  table.className="trip-table"
 
-table.innerHTML=`
+  table.innerHTML=`
 
 <tr>
 
@@ -147,22 +150,22 @@ table.innerHTML=`
 
 `
 
-if(!list.length){
+  if(!list.length){
 
-const row=document.createElement("tr")
+    const row=document.createElement("tr")
 
-row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
+    row.innerHTML=`<td colspan="14" style="text-align:center;padding:20px">No Trips</td>`
 
-table.appendChild(row)
+    table.appendChild(row)
 
-}else{
+  }else{
 
-list.forEach((t,i)=>{
+    list.forEach((t,i)=>{
 
-const tr=document.createElement("tr")
-tr.className=rowColor(t.type)
+      const tr=document.createElement("tr")
+      tr.className=rowColor(t.type)
 
-tr.innerHTML=`
+      tr.innerHTML=`
 
 <td>
 <input class="dispatch-check" type="checkbox"
@@ -178,15 +181,15 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <td>${t.company||""}</td>
 
 <td>
-<input class="edit-field" disabled value="${t.clientName||""}">
+<input class="edit-field clientName" disabled value="${t.clientName||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.clientPhone||""}">
+<input class="edit-field clientPhone" disabled value="${t.clientPhone||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.pickup||""}">
+<input class="edit-field pickup" disabled value="${t.pickup||""}">
 </td>
 
 <td>
@@ -207,18 +210,18 @@ ${(t.stops||[]).map(s=>`
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.dropoff||""}">
+<input class="edit-field dropoff" disabled value="${t.dropoff||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.tripDate||""}">
+<input class="edit-field tripDate" disabled value="${t.tripDate||""}">
 </td>
 
 <td>
-<input class="edit-field" disabled value="${t.tripTime||""}">
+<input class="edit-field tripTime" disabled value="${t.tripTime||""}">
 </td>
 
-<td>Confirmed</td>
+<td>${t.status||"Confirmed"}</td>
 
 <td>
 
@@ -241,14 +244,14 @@ ${t.disabled ? "Enable" : "Disable"}
 
 `
 
-table.appendChild(tr)
+      table.appendChild(tr)
 
-})
+    })
 
-}
+  }
 
-wrapper.appendChild(table)
-container.appendChild(wrapper)
+  wrapper.appendChild(table)
+  container.appendChild(wrapper)
 
 }
 
@@ -256,53 +259,72 @@ container.appendChild(wrapper)
 
 function addStop(btn){
 
-const stopsDiv=btn.parentElement.querySelector(".stops")
+  const stopsDiv=btn.parentElement.querySelector(".stops")
 
-const count=stopsDiv.querySelectorAll(".stop-row").length
+  const count=stopsDiv.querySelectorAll(".stop-row").length
 
-if(count>=5){
-alert("Maximum 5 stops")
-return
-}
+  if(count>=5){
+    alert("Maximum 5 stops")
+    return
+  }
 
-const row=document.createElement("div")
-row.className="stop-row"
+  const row=document.createElement("div")
+  row.className="stop-row"
 
-row.innerHTML=`
+  row.innerHTML=`
 <input class="stop edit-field" disabled placeholder="Stop address">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 `
 
-stopsDiv.appendChild(row)
+  stopsDiv.appendChild(row)
 
 }
 
 function removeStop(el){
-
-el.closest(".stop-row").remove()
-
+  el.closest(".stop-row").remove()
 }
 
 /* edit */
 
-function editTrip(id,btn){
+async function editTrip(id,btn){
 
-const row=btn.closest("tr")
+  const row=btn.closest("tr")
+  const fields=row.querySelectorAll(".edit-field")
+  const addStopBtn=row.querySelector(".add-stop")
 
-const fields=row.querySelectorAll(".edit-field")
+  if(btn.innerText==="Edit"){
 
-if(btn.innerText==="Edit"){
+    fields.forEach(f=>f.disabled=false)
+    if(addStopBtn) addStopBtn.disabled=false
 
-fields.forEach(f=>f.disabled=false)
+    btn.innerText="Save"
+    return
+  }
 
-btn.innerText="Save"
-return
+  const payload={
+    clientName: row.querySelector(".clientName")?.value || "",
+    clientPhone: row.querySelector(".clientPhone")?.value || "",
+    pickup: row.querySelector(".pickup")?.value || "",
+    dropoff: row.querySelector(".dropoff")?.value || "",
+    tripDate: row.querySelector(".tripDate")?.value || "",
+    tripTime: row.querySelector(".tripTime")?.value || "",
+    stops: Array.from(row.querySelectorAll(".stop"))
+      .map(s=>s.value.trim())
+      .filter(Boolean)
+  }
 
-}
+  await fetch(API+"/"+id,{
+    method:"PUT",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify(payload)
+  })
 
-fields.forEach(f=>f.disabled=true)
+  fields.forEach(f=>f.disabled=true)
+  if(addStopBtn) addStopBtn.disabled=true
 
-btn.innerText="Edit"
+  btn.innerText="Edit"
+
+  loadTrips()
 
 }
 
@@ -310,11 +332,11 @@ btn.innerText="Edit"
 
 async function deleteTrip(id){
 
-if(!confirm("Delete trip?")) return
+  if(!confirm("Delete trip?")) return
 
-await fetch(API+"/"+id,{method:"DELETE"})
+  await fetch(API+"/"+id,{method:"DELETE"})
 
-loadTrips()
+  loadTrips()
 
 }
 
@@ -322,43 +344,42 @@ loadTrips()
 
 function toggleTrip(id,btn){
 
-const row=btn.closest("tr")
+  const row=btn.closest("tr")
+  const fields=row.querySelectorAll("input,button")
 
-const fields=row.querySelectorAll("input,button")
+  if(btn.innerText==="Disable"){
 
-if(btn.innerText==="Disable"){
+    fields.forEach(f=>{
+      if(f!==btn) f.disabled=true
+    })
 
-fields.forEach(f=>{
-if(f!==btn) f.disabled=true
-})
+    row.style.opacity="0.5"
 
-row.style.opacity="0.5"
+    btn.innerText="Enable"
+    btn.style.background="#16a34a"
 
-btn.innerText="Enable"
-btn.style.background="#16a34a"
+    fetch(API+"/"+id,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json"},
+      body:JSON.stringify({disabled:true})
+    })
 
-fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({disabled:true})
-})
+  }else{
 
-}else{
+    fields.forEach(f=>f.disabled=false)
 
-fields.forEach(f=>f.disabled=false)
+    row.style.opacity="1"
 
-row.style.opacity="1"
+    btn.innerText="Disable"
+    btn.style.background="#64748b"
 
-btn.innerText="Disable"
-btn.style.background="#64748b"
+    fetch(API+"/"+id,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json"},
+      body:JSON.stringify({disabled:false})
+    })
 
-fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({disabled:false})
-})
-
-}
+  }
 
 }
 
@@ -366,13 +387,13 @@ body:JSON.stringify({disabled:false})
 
 async function sendDispatch(id,val){
 
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({inDispatch:val})
-})
+  await fetch(API+"/"+id,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({inDispatch:val})
+  })
 
 }
 
