@@ -1,186 +1,269 @@
 document.addEventListener("DOMContentLoaded", async () => {
 
-  const container = document.getElementById("layoutHeader");
-  if (!container) return;
+const container = document.getElementById("layoutHeader");
+if(!container) return;
 
-  /* ===========================
-     INJECT TICKER CSS ONCE
-  ============================ */
-  if (!document.getElementById("sunbeamTickerStyles")) {
-    const style = document.createElement("style");
-    style.id = "sunbeamTickerStyles";
-    style.textContent = `
-      .header{
-        position:relative;
-      }
+/* ================= CSS ================= */
 
-      .header-ticker{
-        position:absolute;
-        left:50%;
-        transform:translateX(-50%);
-        top:30px;
-        width:650px;
-        overflow:hidden;
-        pointer-events:none;
-        text-align:center;
-      }
+if(!document.getElementById("sunbeamLayoutCSS")){
 
-      .header-ticker-text{
-        white-space:nowrap;
-        font-size:15px;
-        font-weight:600;
-        color:#ffffff;
-        text-shadow:
-          0 0 5px #ffffff,
-          0 0 10px #3b82f6,
-          0 0 15px #3b82f6,
-          0 0 20px #1e3a8a;
-        animation:sunbeamTickerMove 18s linear infinite;
-      }
+const style = document.createElement("style");
+style.id="sunbeamLayoutCSS";
 
-      @keyframes sunbeamTickerMove{
-        0%{ transform:translateX(100%); }
-        100%{ transform:translateX(-100%); }
-      }
+style.textContent=`
 
-      @media(max-width:768px){
-        .header-ticker{
-          width:90%;
-          top:26px;
-        }
+.header{
+background:linear-gradient(90deg,#0f172a,#1e3a8a);
+color:white;
+padding:18px 30px;
+position:sticky;
+top:0;
+z-index:1000;
+}
 
-        .header-ticker-text{
-          font-size:12px;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
+.top-section{
+display:flex;
+justify-content:space-between;
+align-items:center;
+flex-wrap:wrap;
+gap:10px;
+}
 
-  /* ===========================
-     HEADER HTML
-  ============================ */
-  container.innerHTML = `
-    <div class="header">
-      <div class="top-section">
-        <div>
-          <div class="logged-company" id="companyName">Loading...</div>
-          <div class="greeting" id="greetingText"></div>
-          <div class="clock" id="azDateTime"></div>
-        </div>
+.logo{
+height:60px;
+}
 
-        <div class="header-ticker">
-          <div class="header-ticker-text">
-            Sunbeam Transportation — Safe • Reliable • On-Time Transportation You Can Trust
-          </div>
-        </div>
+.logged-company{
+font-size:22px;
+font-weight:700;
+color:#facc15;
+}
 
-        <img src="../assets/logo.png" class="logo">
-      </div>
+.greeting{
+font-size:14px;
+}
 
-      <div class="nav">
-        <a href="dashboard.html">Dashboard</a>
-        <a href="add-trip.html">Add Trip</a>
-        <a href="review.html">Review</a>
-        <a href="summary.html">Summary</a>
-        <a href="taxes.html">Taxes</a>
-        <a href="#" id="logoutBtn">Logout</a>
-      </div>
-    </div>
-  `;
+.clock{
+font-size:13px;
+opacity:.9;
+}
 
-  /* ===========================
-     AUTH CHECK
-  ============================ */
-  const token = localStorage.getItem("token");
-  const role  = localStorage.getItem("role");
-  const name  = localStorage.getItem("name");
+/* ===== ticker ===== */
 
-  if (!token || role !== "company") {
-    window.location.replace("company-login.html");
-    return;
-  }
+.header-ticker{
+width:100%;
+text-align:center;
+overflow:hidden;
+margin-top:5px;
+}
 
-  /* ===========================
-     ACTIVE LINK
-  ============================ */
-  const currentPage = window.location.pathname.split("/").pop();
+.header-ticker-text{
+white-space:nowrap;
+font-size:14px;
+font-weight:600;
+animation:tickerMove 18s linear infinite;
+}
 
-  document.querySelectorAll(".nav a").forEach(link => {
-    if (link.getAttribute("href") === currentPage) {
-      link.classList.add("active");
-    }
-  });
+@keyframes tickerMove{
+0%{transform:translateX(100%)}
+100%{transform:translateX(-100%)}
+}
 
-  /* ===========================
-     LOAD COMPANY NAME (JWT)
-  ============================ */
-  try {
-    const res = await fetch("/api/company/me", {
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      }
-    });
+/* ===== NAV ===== */
 
-    if (res.status === 401) {
-      window.location.replace("company-login.html");
-      return;
-    }
+.nav{
+display:flex;
+justify-content:center;
+gap:25px;
+background:#000;
+padding:12px 10px;
+margin-top:10px;
+flex-wrap:wrap;
+border-radius:10px;
+}
 
-    const data = await res.json();
+.nav a{
+color:white;
+text-decoration:none;
+font-size:14px;
+padding:6px 16px;
+border-radius:8px;
+}
 
-    document.getElementById("companyName").innerText =
-      data.name || name || "Company";
+.nav a.active{
+background:#facc15;
+color:black;
+font-weight:700;
+}
 
-  } catch (err) {
-    console.error("Company fetch error:", err);
+/* ===== MOBILE ===== */
 
-    document.getElementById("companyName").innerText =
-      name || "Company";
-  }
+@media(max-width:768px){
 
-  /* ===========================
-     LOGOUT
-  ============================ */
-  document.getElementById("logoutBtn").addEventListener("click", function(e){
-    e.preventDefault();
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("name");
-    window.location.replace("company-login.html");
-  });
+.top-section{
+flex-direction:column;
+text-align:center;
+}
 
-  /* ===========================
-     ARIZONA TIME
-  ============================ */
-  function updateTime() {
-    const now = new Date();
+.logo{
+height:50px;
+margin-top:5px;
+}
 
-    const formatted = now.toLocaleString("en-US", {
-      timeZone: "America/Phoenix",
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true
-    });
+.nav{
+gap:10px;
+}
 
-    document.getElementById("azDateTime").innerText = formatted;
+.nav a{
+font-size:12px;
+padding:6px 10px;
+}
 
-    const hour = now.getHours();
-    let greeting = "Good Evening";
+.header-ticker-text{
+font-size:12px;
+}
 
-    if (hour < 12) greeting = "Good Morning";
-    else if (hour < 18) greeting = "Good Afternoon";
+}
 
-    document.getElementById("greetingText").innerText = greeting;
-  }
+`;
 
-  updateTime();
-  setInterval(updateTime, 1000);
+document.head.appendChild(style);
+
+}
+
+/* ================= HEADER ================= */
+
+container.innerHTML = `
+
+<div class="header">
+
+<div class="top-section">
+
+<div>
+<div class="logged-company" id="companyName">Sunbeam</div>
+<div class="greeting" id="greetingText"></div>
+<div class="clock" id="azDateTime"></div>
+</div>
+
+<img src="../assets/logo.png" class="logo">
+
+</div>
+
+<div class="header-ticker">
+<div class="header-ticker-text">
+Sunbeam Transportation — Safe • Reliable • On-Time Transportation You Can Trust
+</div>
+</div>
+
+<div class="nav">
+
+<a href="dashboard.html">Dashboard</a>
+<a href="add-trip.html">Add Trip</a>
+<a href="review.html">Review</a>
+<a href="summary.html">Summary</a>
+<a href="taxes.html">Taxes</a>
+<a href="#" id="logoutBtn">Logout</a>
+
+</div>
+
+</div>
+
+`;
+
+/* ================= AUTH ================= */
+
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+const name  = localStorage.getItem("name");
+
+if(!token || role!=="company"){
+window.location.replace("company-login.html");
+return;
+}
+
+/* ================= ACTIVE LINK ================= */
+
+const currentPage = window.location.pathname.split("/").pop();
+
+document.querySelectorAll(".nav a").forEach(link=>{
+if(link.getAttribute("href")===currentPage){
+link.classList.add("active");
+}
+});
+
+/* ================= COMPANY NAME ================= */
+
+try{
+
+const res = await fetch("/api/company/me",{
+headers:{
+Authorization:"Bearer "+token
+}
+});
+
+if(res.ok){
+
+const data = await res.json();
+
+document.getElementById("companyName").innerText =
+data.name || name || "Company";
+
+}else{
+
+document.getElementById("companyName").innerText =
+name || "Company";
+
+}
+
+}catch{
+
+document.getElementById("companyName").innerText =
+name || "Company";
+
+}
+
+/* ================= LOGOUT ================= */
+
+document.getElementById("logoutBtn").addEventListener("click",e=>{
+e.preventDefault();
+localStorage.removeItem("token");
+localStorage.removeItem("role");
+localStorage.removeItem("name");
+window.location.replace("company-login.html");
+});
+
+/* ================= TIME ================= */
+
+function updateTime(){
+
+const now = new Date();
+
+const formatted = now.toLocaleString("en-US",{
+timeZone:"America/Phoenix",
+weekday:"long",
+year:"numeric",
+month:"long",
+day:"numeric",
+hour:"numeric",
+minute:"2-digit",
+second:"2-digit",
+hour12:true
+});
+
+document.getElementById("azDateTime").innerText = formatted;
+
+const hour = now.getHours();
+
+let greeting="Good Evening";
+
+if(hour<12) greeting="Good Morning";
+else if(hour<18) greeting="Good Afternoon";
+
+document.getElementById("greetingText").innerText = greeting;
+
+}
+
+updateTime();
+setInterval(updateTime,1000);
 
 });
