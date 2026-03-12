@@ -73,31 +73,36 @@ color:#111827;
 
 .cancelled-row{
 background:#ef4444;
+color:#111827;
 }
 
 .yellow{background:#fde047;}
+
 .red-light{background:#fecaca;}
+
 .red-mid{background:#f87171;}
-.red-dark{background:#7f1d1d;color:white;}
+
+.red-dark{
+background:#7f1d1d;
+color:white;
+}
+
+.past-row{
+background:#374151;
+color:#e5e7eb;
+}
 
 
-/* BLINK */
+/* BLINK (خفيف) */
 
 @keyframes blinkTrip{
 0%{opacity:1;}
-50%{opacity:.6;}
+50%{opacity:.96;}
 100%{opacity:1;}
 }
 
 .trip-blink{
-animation:blinkTrip 1.6s infinite;
-}
-
-input.edit-input{
-width:95%;
-padding:4px;
-border:1px solid #cbd5e1;
-border-radius:4px;
+animation:blinkTrip 3.5s infinite;
 }
 
 `;
@@ -242,7 +247,9 @@ table.innerHTML=`
 <th>#</th>
 <th>Trip#</th>
 <th>Entry</th>
+<th>Entry Phone</th>
 <th>Client</th>
+<th>Phone</th>
 <th>Pickup</th>
 <th>Drop</th>
 <th>Date</th>
@@ -258,6 +265,7 @@ groups[date].forEach((t,i)=>{
 const mins=minutesToTrip(t);
 
 const tr=document.createElement("tr");
+
 tr.dataset.id=t._id;
 
 
@@ -266,6 +274,12 @@ tr.dataset.id=t._id;
 if(t.status==="Cancelled"){
 
 tr.classList.add("cancelled-row");
+
+}
+
+else if(mins!==null && mins<=0){
+
+tr.classList.add("past-row");
 
 }
 
@@ -309,35 +323,12 @@ tr.classList.add("scheduled-row");
 }
 
 
-/* ================= EDIT MODE ================= */
-
-const editing=t.__editing===true;
-
-function cell(value,field){
-
-if(!editing) return escapeHtml(value);
-
-return `<input class="edit-input" data-field="${field}" value="${escapeHtml(value)}">`;
-
-}
-
-
 /* ================= BUTTON POLICY ================= */
 
 let buttons="";
 
-if(editing){
-
-buttons=`
-<button class="btn confirm" data-action="save">Save</button>
-`;
-
-}
-
-else if(t.status==="Cancelled"){
-
+if(t.status==="Cancelled"){
 buttons="";
-
 }
 
 else if(mins>120){
@@ -374,15 +365,19 @@ tr.innerHTML=`
 
 <td>${i+1}</td>
 <td>${escapeHtml(t.tripNumber)}</td>
-<td>${cell(t.entryName,"entryName")}</td>
-<td>${cell(t.clientName,"clientName")}</td>
-<td>${cell(t.pickup,"pickup")}</td>
-<td>${cell(t.dropoff,"dropoff")}</td>
-<td>${cell(t.tripDate,"tripDate")}</td>
-<td>${cell(t.tripTime,"tripTime")}</td>
+<td>${escapeHtml(t.entryName)}</td>
+<td>${escapeHtml(t.entryPhone)}</td>
+<td>${escapeHtml(t.clientName)}</td>
+<td>${escapeHtml(t.phone)}</td>
+<td>${escapeHtml(t.pickup)}</td>
+<td>${escapeHtml(t.dropoff)}</td>
+<td>${escapeHtml(t.tripDate)}</td>
+<td>${escapeHtml(t.tripTime)}</td>
 <td>${escapeHtml(t.status)}</td>
 
-<td>${buttons}</td>
+<td>
+${buttons}
+</td>
 
 `;
 
@@ -402,76 +397,55 @@ container.appendChild(table);
 container.addEventListener("click",async e=>{
 
 const btn=e.target.closest("button");
+
 if(!btn) return;
 
 const tr=btn.closest("tr");
+
 const id=tr.dataset.id;
+
 const action=btn.dataset.action;
 
 const trip=trips.find(t=>t._id===id);
-
-
-/* EDIT */
-
-if(action==="edit"){
-
-trip.__editing=true;
-render();
-return;
-
-}
-
-
-/* SAVE */
-
-if(action==="save"){
-
-const inputs=tr.querySelectorAll("input");
-
-const payload={};
-
-inputs.forEach(i=>{
-payload[i.dataset.field]=i.value;
-});
-
-const newTrip=new Date(payload.tripDate+"T"+payload.tripTime);
-
-const mins=(newTrip-getAZNow())/60000;
-
-if(mins<=120){
-
-const ok=confirm("WARNING: Trip is within 120 minutes. Continue?");
-if(!ok) return;
-
-}
-
-await updateTrip(id,payload);
-
-trip.__editing=false;
-
-}
-
-
-/* CONFIRM */
 
 if(action==="confirm"){
 await updateTrip(id,{status:"Confirmed"});
 }
 
-
-/* CANCEL */
-
 if(action==="cancel"){
 await updateTrip(id,{status:"Cancelled"});
 }
-
-
-/* DELETE */
 
 if(action==="delete"){
 await deleteTrip(id);
 }
 
+if(action==="edit"){
+
+const newDate=prompt("New Date (YYYY-MM-DD)",trip.tripDate);
+if(!newDate) return;
+
+const newTime=prompt("New Time (HH:MM)",trip.tripTime);
+if(!newTime) return;
+
+const newTrip=new Date(newDate+"T"+newTime);
+
+const mins=(newTrip-getAZNow())/60000;
+
+if(mins<=120){
+
+const ok=confirm("WARNING: Trip is within 120 minutes. It cannot be edited or deleted. Continue?");
+if(!ok) return;
+
+}
+
+await updateTrip(id,{
+tripDate:newDate,
+tripTime:newTime,
+status:"Scheduled"
+});
+
+}
 
 trips=await fetchTrips();
 render();
