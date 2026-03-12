@@ -21,7 +21,6 @@ function getAZNow(){
 
 function getTripDateTime(t){
   if(!t.tripDate || !t.tripTime) return null;
-
   const dt=new Date(t.tripDate+"T"+t.tripTime+":00");
   return String(dt)==="Invalid Date"?null:dt;
 }
@@ -181,31 +180,8 @@ if(mins!==null && mins<-60) return;
 const tr=document.createElement("tr");
 tr.dataset.id=t._id;
 
-/* ===== COLORS ===== */
-
-if(t.status==="Cancelled"){
-
-tr.classList.add("cancelled-row");
-
-}
-
-else if(t.status==="Confirmed"){
-
-tr.classList.add("confirmed-row");
-
-}
-
-else{
-
-if(mins!==null && mins>0 && mins<=180){
-tr.classList.add("yellow");
-}
-
-if(mins!==null && mins<=0 && mins>=-60){
-tr.classList.add("red");
-}
-
-}
+if(t.status==="Cancelled") tr.classList.add("cancelled-row");
+else if(t.status==="Confirmed") tr.classList.add("confirmed-row");
 
 const editing=t.__editing===true;
 
@@ -216,7 +192,7 @@ return `<input type="${type}" class="${cls}" value="${escapeHtml(val||"")}">`;
 
 const stopsText=Array.isArray(t.stops)?t.stops.join(" | "):"";
 
-/* ===== ACTION POLICY ===== */
+/* ================= ACTION POLICY ================= */
 
 let actions="";
 
@@ -234,30 +210,7 @@ if(mins!==null && mins<=120){
 
 actions=`<button class="btn cancel" data-action="cancel">Cancel</button>`;
 
-}
-
-/* قبل 120 دقيقة */
-
-else{
-
-actions=editing
-? `<button class="btn edit" data-action="edit">Save</button>`
-: `
-<button class="btn edit" data-action="edit">Edit</button>
-<button class="btn cancel" data-action="cancel">Cancel</button>
-`;
-
-}
-
-}
-
-/* ===== SCHEDULED ===== */
-
-else if(t.status==="Scheduled"){
-
-/* قبل 120 دقيقة */
-
-if(mins!==null && mins>120){
+}else{
 
 actions=editing
 ? `<button class="btn edit" data-action="edit">Save</button>`
@@ -269,9 +222,23 @@ actions=editing
 
 }
 
-/* داخل 120 دقيقة */
+}
 
-else if(mins!==null && mins>0 && mins<=120){
+/* ===== SCHEDULED ===== */
+
+else if(t.status==="Scheduled"){
+
+if(mins!==null && mins>120){
+
+actions=editing
+? `<button class="btn edit" data-action="edit">Save</button>`
+: `
+<button class="btn edit" data-action="edit">Edit</button>
+<button class="btn delete" data-action="delete">Delete</button>
+<button class="btn confirm" data-action="confirm">Confirm</button>
+`;
+
+}else if(mins!==null && mins>0 && mins<=120){
 
 actions=`
 <button class="btn confirm" data-action="confirm">Confirm</button>
@@ -337,9 +304,6 @@ try{
 
 if(action==="confirm"){
 
-btn.disabled=true;
-btn.innerText="Confirming...";
-
 await updateTrip(id,{status:"Confirmed"});
 
 trips=await fetchTrips();
@@ -379,6 +343,16 @@ return;
 
 const newDate=tr.querySelector(".tripDate")?.value||t.tripDate;
 const newTime=tr.querySelector(".tripTime")?.value||t.tripTime;
+
+/* ================= WARNING 120 ================= */
+
+const newTripTime = new Date(newDate+"T"+newTime+":00");
+const minsToNewTrip = (newTripTime - getAZNow())/60000;
+
+if(minsToNewTrip <=120){
+const ok = confirm("WARNING: Trip is within 120 minutes. It cannot be edited or deleted. Continue?");
+if(!ok) return;
+}
 
 const payload={
 entryName:tr.querySelector(".entryName")?.value||t.entryName,
