@@ -221,7 +221,7 @@ return `<input type="${type}" class="${cls}" value="${escapeHtml(val||"")}">`;
 
 const stopsText=Array.isArray(t.stops)?t.stops.join(" | "):"";
 
-/* ===== ACTION POLICY ===== */
+/* ===== ACTION POLICY (FIXED) ===== */
 
 let actions="";
 
@@ -233,11 +233,9 @@ actions="";
 
 else if(mins!==null && mins>120){
 
-if(t.status==="Confirmed"){
+/* far from trip */
 
-actions=`<button class="btn cancel" data-action="cancel">Cancel</button>`;
-
-}else{
+if(t.status==="Scheduled"){
 
 actions=`
 <button class="btn edit" data-action="edit">${editing?"Save":"Edit"}</button>
@@ -247,9 +245,17 @@ actions=`
 
 }
 
+else if(t.status==="Confirmed"){
+
+actions=`<button class="btn cancel" data-action="cancel">Cancel</button>`;
+
+}
+
 }
 
 else if(mins!==null && mins>0 && mins<=120){
+
+/* inside 120 */
 
 if(t.status==="Confirmed"){
 
