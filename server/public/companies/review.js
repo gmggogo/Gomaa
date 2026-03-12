@@ -77,31 +77,26 @@ style.innerHTML = `
 
   /* ===== COLOR POLICY ===== */
 
-  /* Scheduled default */
   #tripsContainer tr.scheduled-row{
     background:#ffffff;
     color:#111827;
   }
 
-  /* Confirmed outside 180 */
   #tripsContainer tr.confirmed-row{
     background:#22c55e;
     color:#111827;
   }
 
-  /* Cancelled */
   #tripsContainer tr.cancelled-row{
     background:#ef4444;
     color:#111827;
   }
 
-  /* 180-minute warning */
   #tripsContainer tr.yellow{
     background:#fde047;
     color:#111827;
   }
 
-  /* gradual red inside 120 */
   #tripsContainer tr.red-verylight{
     background:#fee2e2;
     color:#111827;
@@ -122,15 +117,15 @@ style.innerHTML = `
     color:#ffffff;
   }
 
-  /* blink under 30 minutes */
+  /* blink only for confirmed very close trips */
   @keyframes tripBlink {
     0% { opacity:1; }
-    50% { opacity:.35; }
+    50% { opacity:.85; }
     100% { opacity:1; }
   }
 
   #tripsContainer tr.trip-blink{
-    animation:tripBlink 1s infinite;
+    animation:tripBlink 2.4s infinite;
   }
 `;
 
@@ -310,6 +305,7 @@ function render(){
 
       /* ================= COLOR POLICY ================= */
 
+      tr.className = "";
       tr.classList.add("scheduled-row");
 
       if(t.status === "Cancelled"){
@@ -322,7 +318,10 @@ function render(){
         tr.className = "";
 
         if(mins <= 30){
-          tr.classList.add("red-dark","trip-blink");
+          tr.classList.add("red-dark");
+          if(t.status === "Confirmed"){
+            tr.classList.add("trip-blink");
+          }
         }
         else if(mins <= 60){
           tr.classList.add("red-mid");
@@ -341,11 +340,6 @@ function render(){
 
         tr.className = "";
         tr.classList.add("confirmed-row");
-
-      }else{
-
-        tr.className = "";
-        tr.classList.add("scheduled-row");
 
       }
 
