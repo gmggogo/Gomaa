@@ -14,131 +14,128 @@ const container = document.getElementById("tripsContainer");
 /* ================= INLINE STYLE ================= */
 
 (function injectReviewStyles(){
-  const old = document.getElementById("review-inline-styles");
-  if(old) old.remove();
 
-  const style = document.createElement("style");
-  style.id = "review-inline-styles";
-  style.textContent = `
-    #tripsContainer .review-table{
-      width:100%;
-      border-collapse:collapse;
-      margin-bottom:18px;
-      background:#fff;
-    }
+const oldStyle = document.getElementById("review-inline-style");
+if(oldStyle) oldStyle.remove();
 
-    #tripsContainer .review-table th,
-    #tripsContainer .review-table td{
-      border:1px solid #dbe2ea;
-      padding:8px;
-      text-align:center;
-      vertical-align:middle;
-      font-size:14px;
-    }
+const style = document.createElement("style");
+style.id = "review-inline-style";
 
-    #tripsContainer .review-table th{
-      background:#0f172a;
-      color:#fff;
-      position:sticky;
-      top:0;
-      z-index:1;
-    }
+style.innerHTML = `
+  #tripsContainer .review-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:20px;
+    background:#fff;
+  }
 
-    #tripsContainer .review-table input{
-      width:100%;
-      box-sizing:border-box;
-      padding:6px 8px;
-      border:1px solid #cbd5e1;
-      border-radius:6px;
-      font-size:13px;
-      background:#fff;
-    }
+  #tripsContainer .review-table th,
+  #tripsContainer .review-table td{
+    border:1px solid #dbe2ea;
+    padding:8px;
+    text-align:center;
+    font-size:14px;
+    vertical-align:middle;
+  }
 
-    #tripsContainer .date-title{
-      font-size:18px;
-      font-weight:700;
-      margin:20px 0 8px;
-      color:#0f172a;
-    }
+  #tripsContainer .review-table th{
+    background:#0f172a;
+    color:#fff;
+  }
 
-    #tripsContainer .btn{
-      border:none;
-      border-radius:8px;
-      padding:7px 12px;
-      font-size:13px;
-      font-weight:700;
-      cursor:pointer;
-      margin:2px;
-    }
+  #tripsContainer .review-table input{
+    width:100%;
+    box-sizing:border-box;
+    padding:6px 8px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    font-size:13px;
+    background:#fff;
+  }
 
-    #tripsContainer .btn.edit{
-      background:#2563eb;
-      color:#fff;
-    }
+  #tripsContainer .date-title{
+    font-size:18px;
+    font-weight:700;
+    margin:20px 0 10px;
+    color:#0f172a;
+  }
 
-    #tripsContainer .btn.delete{
-      background:#111827;
-      color:#fff;
-    }
+  #tripsContainer .btn{
+    border:none;
+    border-radius:6px;
+    padding:6px 10px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    margin:2px;
+  }
 
-    #tripsContainer .btn.confirm{
-      background:#16a34a;
-      color:#fff;
-    }
+  #tripsContainer .btn.edit{background:#2563eb;color:#fff;}
+  #tripsContainer .btn.delete{background:#111827;color:#fff;}
+  #tripsContainer .btn.confirm{background:#16a34a;color:#fff;}
+  #tripsContainer .btn.cancel{background:#dc2626;color:#fff;}
 
-    #tripsContainer .btn.cancel{
-      background:#dc2626;
-      color:#fff;
-    }
+  /* ===== COLOR POLICY ===== */
 
-    /* ===== COLOR POLICY ===== */
+  /* Scheduled default */
+  #tripsContainer tr.scheduled-row{
+    background:#ffffff;
+    color:#111827;
+  }
 
-    /* Scheduled default = white */
-    #tripsContainer tr.scheduled-row{
-      background:#ffffff;
-      color:#111827;
-    }
+  /* Confirmed outside 180 */
+  #tripsContainer tr.confirmed-row{
+    background:#22c55e;
+    color:#111827;
+  }
 
-    /* Confirmed outside 180 */
-    #tripsContainer tr.confirmed-row{
-      background:#22c55e;
-      color:#ffffff;
-    }
+  /* Cancelled */
+  #tripsContainer tr.cancelled-row{
+    background:#ef4444;
+    color:#111827;
+  }
 
-    /* Cancelled */
-    #tripsContainer tr.cancelled-row{
-      background:#ef4444;
-      color:#ffffff;
-    }
+  /* 180-minute warning */
+  #tripsContainer tr.yellow{
+    background:#fde047;
+    color:#111827;
+  }
 
-    /* 180 minutes zone */
-    #tripsContainer tr.yellow{
-      background:#fde047;
-      color:#111827;
-    }
+  /* gradual red inside 120 */
+  #tripsContainer tr.red-verylight{
+    background:#fee2e2;
+    color:#111827;
+  }
 
-    /* 120 minutes zone - gradual red */
-    #tripsContainer tr.red-verylight{
-      background:#fee2e2;
-      color:#111827;
-    }
+  #tripsContainer tr.red-light{
+    background:#fecaca;
+    color:#111827;
+  }
 
-    #tripsContainer tr.red-light{
-      background:#fecaca;
-      color:#111827;
-    }
+  #tripsContainer tr.red-mid{
+    background:#fca5a5;
+    color:#111827;
+  }
 
-    #tripsContainer tr.red-mid{
-      background:#fca5a5;
-      color:#111827;
-    }
+  #tripsContainer tr.red-dark{
+    background:#7f1d1d;
+    color:#ffffff;
+  }
 
-    #tripsContainer tr.red-dark{
-      background:#7f1d1d;
-      color:#ffffff;
-    }
-  `;
-  document.head.appendChild(style);
+  /* blink under 30 minutes */
+  @keyframes tripBlink {
+    0% { opacity:1; }
+    50% { opacity:.35; }
+    100% { opacity:1; }
+  }
+
+  #tripsContainer tr.trip-blink{
+    animation:tripBlink 1s infinite;
+  }
+`;
+
+document.head.appendChild(style);
+
 })();
 
 /* ================= TIME HELPERS ================= */
@@ -316,14 +313,16 @@ function render(){
       tr.classList.add("scheduled-row");
 
       if(t.status === "Cancelled"){
-        tr.classList.remove("scheduled-row");
+
+        tr.className = "";
         tr.classList.add("cancelled-row");
-      }
-      else if(mins !== null && mins > 0 && mins <= 180){
-        tr.classList.remove("scheduled-row");
+
+      }else if(mins !== null && mins > 0 && mins <= 180){
+
+        tr.className = "";
 
         if(mins <= 30){
-          tr.classList.add("red-dark");
+          tr.classList.add("red-dark","trip-blink");
         }
         else if(mins <= 60){
           tr.classList.add("red-mid");
@@ -337,10 +336,17 @@ function render(){
         else{
           tr.classList.add("yellow");
         }
-      }
-      else if(t.status === "Confirmed"){
-        tr.classList.remove("scheduled-row");
+
+      }else if(t.status === "Confirmed"){
+
+        tr.className = "";
         tr.classList.add("confirmed-row");
+
+      }else{
+
+        tr.className = "";
+        tr.classList.add("scheduled-row");
+
       }
 
       const editing = t.__editing === true;
