@@ -1,186 +1,121 @@
 document.addEventListener("DOMContentLoaded", async () => {
 
-  const container = document.getElementById("layoutHeader");
-  if (!container) return;
+const container = document.getElementById("layoutHeader");
+if(!container) return;
 
-  /* ===========================
-     INJECT TICKER CSS ONCE
-  ============================ */
-  if (!document.getElementById("sunbeamTickerStyles")) {
-    const style = document.createElement("style");
-    style.id = "sunbeamTickerStyles";
-    style.textContent = `
-      .header{
-        position:relative;
-      }
+container.innerHTML = `
 
-      .header-ticker{
-        position:absolute;
-        left:50%;
-        transform:translateX(-50%);
-        top:30px;
-        width:650px;
-        overflow:hidden;
-        pointer-events:none;
-        text-align:center;
-      }
+<div class="header">
 
-      .header-ticker-text{
-        white-space:nowrap;
-        font-size:15px;
-        font-weight:600;
-        color:#ffffff;
-        text-shadow:
-          0 0 5px #ffffff,
-          0 0 10px #3b82f6,
-          0 0 15px #3b82f6,
-          0 0 20px #1e3a8a;
-        animation:sunbeamTickerMove 18s linear infinite;
-      }
+<img src="../assets/logo.png" class="logo">
 
-      @keyframes sunbeamTickerMove{
-        0%{ transform:translateX(100%); }
-        100%{ transform:translateX(-100%); }
-      }
+<div class="logged-company" id="companyName">Loading...</div>
 
-      @media(max-width:768px){
-        .header-ticker{
-          width:90%;
-          top:26px;
-        }
+<div class="header-message">
+Safe • Reliable • On-Time Transportation
+</div>
 
-        .header-ticker-text{
-          font-size:12px;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
+<div class="greeting" id="greetingText"></div>
+<div class="clock" id="azDateTime"></div>
 
-  /* ===========================
-     HEADER HTML
-  ============================ */
-  container.innerHTML = `
-    <div class="header">
-      <div class="top-section">
-        <div>
-          <div class="logged-company" id="companyName">Loading...</div>
-          <div class="greeting" id="greetingText"></div>
-          <div class="clock" id="azDateTime"></div>
-        </div>
+<div class="nav">
 
-        <div class="header-ticker">
-          <div class="header-ticker-text">
-            Sunbeam Transportation — Safe • Reliable • On-Time Transportation You Can Trust
-          </div>
-        </div>
+<a href="dashboard.html">Dashboard</a>
+<a href="add-trip.html">Add Trip</a>
+<a href="review.html">Review</a>
+<a href="summary.html">Summary</a>
+<a href="taxes.html">Taxes</a>
+<a href="#" id="logoutBtn">Logout</a>
 
-        <img src="../assets/logo.png" class="logo">
-      </div>
+</div>
 
-      <div class="nav">
-        <a href="dashboard.html">Dashboard</a>
-        <a href="add-trip.html">Add Trip</a>
-        <a href="review.html">Review</a>
-        <a href="summary.html">Summary</a>
-        <a href="taxes.html">Taxes</a>
-        <a href="#" id="logoutBtn">Logout</a>
-      </div>
-    </div>
-  `;
+</div>
 
-  /* ===========================
-     AUTH CHECK
-  ============================ */
-  const token = localStorage.getItem("token");
-  const role  = localStorage.getItem("role");
-  const name  = localStorage.getItem("name");
+`;
 
-  if (!token || role !== "company") {
-    window.location.replace("company-login.html");
-    return;
-  }
+/* ================= AUTH ================= */
 
-  /* ===========================
-     ACTIVE LINK
-  ============================ */
-  const currentPage = window.location.pathname.split("/").pop();
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+const name  = localStorage.getItem("name");
 
-  document.querySelectorAll(".nav a").forEach(link => {
-    if (link.getAttribute("href") === currentPage) {
-      link.classList.add("active");
-    }
-  });
+if (!token || role !== "company") {
+window.location.replace("company-login.html");
+return;
+}
 
-  /* ===========================
-     LOAD COMPANY NAME (JWT)
-  ============================ */
-  try {
-    const res = await fetch("/api/company/me", {
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      }
-    });
+/* ================= ACTIVE LINK ================= */
 
-    if (res.status === 401) {
-      window.location.replace("company-login.html");
-      return;
-    }
+const currentPage = window.location.pathname.split("/").pop();
 
-    const data = await res.json();
+document.querySelectorAll(".nav a").forEach(link=>{
+if(link.getAttribute("href") === currentPage){
+link.classList.add("active");
+}
+});
 
-    document.getElementById("companyName").innerText =
-      data.name || name || "Company";
+/* ================= LOAD COMPANY ================= */
 
-  } catch (err) {
-    console.error("Company fetch error:", err);
+try{
 
-    document.getElementById("companyName").innerText =
-      name || "Company";
-  }
+const res = await fetch("/api/company/me",{
+headers:{
+Authorization:"Bearer "+token
+}
+});
 
-  /* ===========================
-     LOGOUT
-  ============================ */
-  document.getElementById("logoutBtn").addEventListener("click", function(e){
-    e.preventDefault();
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("name");
-    window.location.replace("company-login.html");
-  });
+const data = await res.json();
 
-  /* ===========================
-     ARIZONA TIME
-  ============================ */
-  function updateTime() {
-    const now = new Date();
+document.getElementById("companyName").innerText =
+data.name || name || "Company";
 
-    const formatted = now.toLocaleString("en-US", {
-      timeZone: "America/Phoenix",
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true
-    });
+}catch{
 
-    document.getElementById("azDateTime").innerText = formatted;
+document.getElementById("companyName").innerText =
+name || "Company";
 
-    const hour = now.getHours();
-    let greeting = "Good Evening";
+}
 
-    if (hour < 12) greeting = "Good Morning";
-    else if (hour < 18) greeting = "Good Afternoon";
+/* ================= LOGOUT ================= */
 
-    document.getElementById("greetingText").innerText = greeting;
-  }
+document.getElementById("logoutBtn").addEventListener("click",e=>{
+e.preventDefault();
+localStorage.clear();
+window.location.replace("company-login.html");
+});
 
-  updateTime();
-  setInterval(updateTime, 1000);
+/* ================= TIME ================= */
+
+function updateTime(){
+
+const now = new Date();
+
+const formatted = now.toLocaleString("en-US",{
+timeZone:"America/Phoenix",
+weekday:"long",
+year:"numeric",
+month:"long",
+day:"numeric",
+hour:"numeric",
+minute:"2-digit",
+second:"2-digit",
+hour12:true
+});
+
+document.getElementById("azDateTime").innerText = formatted;
+
+let hour = now.getHours();
+
+let greeting="Good Evening";
+
+if(hour<12) greeting="Good Morning";
+else if(hour<18) greeting="Good Afternoon";
+
+document.getElementById("greetingText").innerText = greeting;
+
+}
+
+updateTime();
+setInterval(updateTime,1000);
 
 });
