@@ -11,16 +11,6 @@ if (!token || role !== "company") {
 
 const container = document.getElementById("tripsContainer");
 
-/* ================= SEARCH BOX ================= */
-
-const searchBox=document.createElement("input");
-searchBox.placeholder="Search by name...";
-searchBox.style.margin="10px";
-searchBox.style.padding="6px";
-searchBox.style.width="250px";
-
-container.parentNode.insertBefore(searchBox,container);
-
 /* ================= TIME HELPERS ================= */
 
 function getAZNow(){
@@ -31,6 +21,7 @@ function getAZNow(){
 
 function getTripDateTime(t){
   if(!t.tripDate || !t.tripTime) return null;
+
   const dt=new Date(t.tripDate+"T"+t.tripTime+":00");
   return String(dt)==="Invalid Date"?null:dt;
 }
@@ -39,11 +30,6 @@ function minutesToTrip(t){
   const dt=getTripDateTime(t);
   if(!dt) return null;
   return (dt-getAZNow())/60000;
-}
-
-function isWithin120(t){
-  const mins=minutesToTrip(t);
-  return mins!==null && mins>0 && mins<=120;
 }
 
 function escapeHtml(value){
@@ -141,43 +127,15 @@ function groupByCreatedDate(list){
   return groups;
 }
 
-/* ================= DATA ================= */
+/* ================= RENDER ================= */
 
 let trips=[];
 
-/* ================= SEARCH ================= */
-
-searchBox.addEventListener("input",()=>{
-
-const q=searchBox.value.toLowerCase().trim();
-
-if(!q){
-render();
-return;
-}
-
-const filtered=trips.filter(t=>{
-
-return(
-(t.entryName||"").toLowerCase().includes(q)||
-(t.clientName||"").toLowerCase().includes(q)
-);
-
-});
-
-render(filtered);
-
-});
-
-/* ================= RENDER ================= */
-
-function render(listOverride){
+function render(){
 
 container.innerHTML="";
 
-const data=listOverride||trips;
-
-const filtered=keepLast30Days(data);
+const filtered=keepLast30Days(trips);
 const groups=groupByCreatedDate(filtered);
 const dates=Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
 
@@ -268,36 +226,50 @@ actions="";
 
 }
 
+/* ===== CONFIRMED ===== */
+
 else if(t.status==="Confirmed"){
 
-if(mins!==null && mins>120){
-
-actions=`
-<button class="btn edit" data-action="edit">${editing?"Save":"Edit"}</button>
-<button class="btn cancel" data-action="cancel">Cancel</button>
-`;
-
-}
-
-else if(mins!==null && mins>0 && mins<=120){
+if(mins!==null && mins<=120){
 
 actions=`<button class="btn cancel" data-action="cancel">Cancel</button>`;
 
 }
 
+/* قبل 120 دقيقة */
+
+else{
+
+actions=editing
+? `<button class="btn edit" data-action="edit">Save</button>`
+: `
+<button class="btn edit" data-action="edit">Edit</button>
+<button class="btn cancel" data-action="cancel">Cancel</button>
+`;
+
 }
+
+}
+
+/* ===== SCHEDULED ===== */
 
 else if(t.status==="Scheduled"){
 
+/* قبل 120 دقيقة */
+
 if(mins!==null && mins>120){
 
-actions=`
-<button class="btn edit" data-action="edit">${editing?"Save":"Edit"}</button>
+actions=editing
+? `<button class="btn edit" data-action="edit">Save</button>`
+: `
+<button class="btn edit" data-action="edit">Edit</button>
 <button class="btn delete" data-action="delete">Delete</button>
 <button class="btn confirm" data-action="confirm">Confirm</button>
 `;
 
 }
+
+/* داخل 120 دقيقة */
 
 else if(mins!==null && mins>0 && mins<=120){
 
@@ -407,13 +379,6 @@ return;
 
 const newDate=tr.querySelector(".tripDate")?.value||t.tripDate;
 const newTime=tr.querySelector(".tripTime")?.value||t.tripTime;
-
-const temp={...t,tripDate:newDate,tripTime:newTime};
-
-if(isWithin120(temp)){
-const ok=confirm("WARNING: Trip is within 120 minutes. Continue?");
-if(!ok) return;
-}
 
 const payload={
 entryName:tr.querySelector(".entryName")?.value||t.entryName,
