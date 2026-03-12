@@ -60,6 +60,19 @@ style.innerHTML = `
     color:#0f172a;
   }
 
+  /* actions cell */
+  #tripsContainer td.actions-cell{
+    white-space:nowrap;
+  }
+
+  #tripsContainer .actions-wrap{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    flex-wrap:nowrap;
+  }
+
   #tripsContainer .btn{
     border:none;
     border-radius:6px;
@@ -67,7 +80,9 @@ style.innerHTML = `
     font-size:13px;
     font-weight:700;
     cursor:pointer;
-    margin:2px;
+    margin:0;
+    white-space:nowrap;
+    display:inline-block;
   }
 
   #tripsContainer .btn.edit{background:#2563eb;color:#fff;}
@@ -83,13 +98,13 @@ style.innerHTML = `
   }
 
   #tripsContainer tr.confirmed-row{
-    background:#22c55e;
-    color:#111827;
+    background:#86efac;
+    color:#065f46;
   }
 
   #tripsContainer tr.cancelled-row{
-    background:#ef4444;
-    color:#111827;
+    background:#fecaca;
+    color:#7f1d1d;
   }
 
   #tripsContainer tr.yellow{
@@ -120,12 +135,12 @@ style.innerHTML = `
   /* blink only for confirmed very close trips */
   @keyframes tripBlink {
     0% { opacity:1; }
-    50% { opacity:.85; }
+    50% { opacity:.90; }
     100% { opacity:1; }
   }
 
   #tripsContainer tr.trip-blink{
-    animation:tripBlink 2.4s infinite;
+    animation:tripBlink 2.8s infinite;
   }
 `;
 
@@ -326,11 +341,8 @@ function render(){
         else if(mins <= 60){
           tr.classList.add("red-mid");
         }
-        else if(mins <= 90){
-          tr.classList.add("red-light");
-        }
         else if(mins <= 120){
-          tr.classList.add("red-verylight");
+          tr.classList.add("red-light");
         }
         else{
           tr.classList.add("yellow");
@@ -366,17 +378,21 @@ function render(){
 
         if(mins !== null && mins <= 120){
 
-          actions = `<button class="btn cancel" data-action="cancel">Cancel</button>`;
+          actions = `<div class="actions-wrap">
+            <button class="btn cancel" data-action="cancel">Cancel</button>
+          </div>`;
 
         }else{
 
           actions = editing
-            ? `<button class="btn edit" data-action="edit">Save</button>`
-            : `
-<button class="btn edit" data-action="edit">Edit</button>
-<button class="btn delete" data-action="delete">Delete</button>
-<button class="btn confirm" data-action="confirm">Confirm</button>
-`;
+            ? `<div class="actions-wrap">
+                <button class="btn edit" data-action="edit">Save</button>
+              </div>`
+            : `<div class="actions-wrap">
+                <button class="btn edit" data-action="edit">Edit</button>
+                <button class="btn delete" data-action="delete">Delete</button>
+                <button class="btn confirm" data-action="confirm">Confirm</button>
+              </div>`;
 
         }
 
@@ -387,19 +403,21 @@ function render(){
         if(mins !== null && mins > 120){
 
           actions = editing
-            ? `<button class="btn edit" data-action="edit">Save</button>`
-            : `
-<button class="btn edit" data-action="edit">Edit</button>
-<button class="btn delete" data-action="delete">Delete</button>
-<button class="btn confirm" data-action="confirm">Confirm</button>
-`;
+            ? `<div class="actions-wrap">
+                <button class="btn edit" data-action="edit">Save</button>
+              </div>`
+            : `<div class="actions-wrap">
+                <button class="btn edit" data-action="edit">Edit</button>
+                <button class="btn delete" data-action="delete">Delete</button>
+                <button class="btn confirm" data-action="confirm">Confirm</button>
+              </div>`;
 
         }else if(mins !== null && mins > 0 && mins <= 120){
 
-          actions = `
-<button class="btn confirm" data-action="confirm">Confirm</button>
-<button class="btn cancel" data-action="cancel">Cancel</button>
-`;
+          actions = `<div class="actions-wrap">
+            <button class="btn confirm" data-action="confirm">Confirm</button>
+            <button class="btn cancel" data-action="cancel">Cancel</button>
+          </div>`;
 
         }
 
@@ -423,7 +441,7 @@ function render(){
 <td>${cell(t.tripTime,"tripTime","time")}</td>
 <td>${cell(t.notes,"notes")}</td>
 <td>${escapeHtml(t.status || "Scheduled")}</td>
-<td>${actions}</td>
+<td class="actions-cell">${actions}</td>
 `;
 
       table.appendChild(tr);
@@ -500,11 +518,10 @@ container.addEventListener("click",async(e)=>{
       const newDate = tr.querySelector(".tripDate")?.value || t.tripDate;
       const newTime = tr.querySelector(".tripTime")?.value || t.tripTime;
 
-      /* ================= WARNING 120 ================= */
-
       const newTripTime = new Date(newDate + "T" + newTime + ":00");
       const minsToNewTrip = (newTripTime - getAZNow()) / 60000;
 
+      /* ===== WARNING 120 ===== */
       if(minsToNewTrip <= 120){
         const ok = confirm("WARNING: Trip is within 120 minutes. It cannot be edited or deleted. Continue?");
         if(!ok) return;
@@ -548,7 +565,7 @@ async function loadTrips(){
     trips = await fetchTrips();
     render();
   }catch(err){
-    container.innerHTML = "<div>Server Load Error</div>";
+    container.innerHTML="<div>Server Load Error</div>";
   }
 }
 
@@ -557,16 +574,14 @@ await loadTrips();
 /* ================= AUTO REFRESH ================= */
 
 setInterval(async()=>{
-
   if(isAnyEditing()) return;
 
   try{
     trips = await fetchTrips();
     render();
-  }catch(err){
-    console.error("Auto refresh failed",err);
+  }catch(e){
+    console.error("Auto refresh failed",e);
   }
-
 },30000);
 
 });
