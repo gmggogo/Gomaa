@@ -4,6 +4,16 @@ const container=document.getElementById("tripsContainer")
 
 let trips=[]
 
+/* ============================
+   ARIZONA TIME
+============================ */
+
+function getArizonaTime(){
+return new Date(
+new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+)
+}
+
 async function loadTrips(){
 
 const res=await fetch(API)
@@ -19,7 +29,7 @@ renderTrips()
 
 function getDates(){
 
-const now=new Date()
+const now=getArizonaTime()
 
 const today=new Date(now)
 today.setHours(0,0,0,0)
@@ -47,7 +57,10 @@ trips.forEach(t=>{
 const date=t.tripDate||t.date
 if(!date) return
 
-const d=new Date(date)
+const d=new Date(
+new Date(date).toLocaleString("en-US",{timeZone:"America/Phoenix"})
+)
+
 d.setHours(0,0,0,0)
 
 if(d.getTime()===today.getTime())
