@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
 body{
   margin:0;
   font-family:'Segoe UI', Arial, sans-serif;
@@ -14,11 +15,12 @@ body{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  height:100vh;
+  min-height:100vh;
   color:white;
 }
 
 /* ===== LOGO + DATE ===== */
+
 .top-section{
   text-align:center;
   margin-bottom:25px;
@@ -31,21 +33,24 @@ body{
 }
 
 .datetime{
-  margin-top:8px;
+  margin-top:10px;
   font-size:14px;
   opacity:0.9;
+  letter-spacing:.5px;
 }
 
 /* ===== LOGIN CARD ===== */
+
 .login-card{
   width:360px;
+  max-width:92%;
   background:white;
   padding:30px;
   border-radius:14px;
   box-shadow:0 25px 60px rgba(0,0,0,0.35);
   text-align:center;
   color:#0f172a;
-  animation: fadeIn .4s ease-in-out;
+  animation:fadeIn .4s ease-in-out;
 }
 
 @keyframes fadeIn{
@@ -67,7 +72,7 @@ body{
   border-radius:6px;
   border:1px solid #cbd5e1;
   font-size:14px;
-  transition:0.2s;
+  transition:.2s;
 }
 
 .login-card input:focus{
@@ -86,7 +91,7 @@ body{
   font-size:14px;
   font-weight:600;
   cursor:pointer;
-  transition:0.3s;
+  transition:.3s;
 }
 
 .login-card button:hover{
@@ -100,6 +105,21 @@ body{
   font-size:12px;
   min-height:16px;
 }
+
+/* ===== MOBILE ===== */
+
+@media(max-width:480px){
+
+  .top-section img{
+    width:180px;
+  }
+
+  .login-card{
+    padding:25px;
+  }
+
+}
+
 </style>
 </head>
 
@@ -111,6 +131,7 @@ body{
 </div>
 
 <div class="login-card">
+
   <h1>Organization Login</h1>
 
   <form id="loginForm">
@@ -120,6 +141,7 @@ body{
   </form>
 
   <div id="errorMessage" class="error"></div>
+
 </div>
 
 <!-- Login JS -->
@@ -127,19 +149,34 @@ body{
 
 <!-- Date & Time -->
 <script>
+
 function updateDateTime(){
-  const now = new Date();
-  const date = now.toLocaleDateString('en-US',{
-    weekday:'long',
-    year:'numeric',
-    month:'long',
-    day:'numeric'
-  });
-  const time = now.toLocaleTimeString('en-US');
-  document.getElementById("datetime").innerText = date + " | " + time;
+
+const now = new Date(
+new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+);
+
+const date = now.toLocaleDateString("en-US",{
+weekday:"long",
+year:"numeric",
+month:"long",
+day:"numeric"
+});
+
+const time = now.toLocaleTimeString("en-US",{
+hour:"2-digit",
+minute:"2-digit",
+second:"2-digit"
+});
+
+document.getElementById("datetime").innerText =
+date + " | " + time;
+
 }
+
 setInterval(updateDateTime,1000);
 updateDateTime();
+
 </script>
 
 </body>

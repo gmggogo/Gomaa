@@ -13,6 +13,7 @@ body{
   position:sticky;
   top:0;
   z-index:1000;
+  position:relative;
 }
 
 /* ===== MOVING MESSAGE ===== */
@@ -20,11 +21,12 @@ body{
 .header-ticker{
   position:absolute;
   left:50%;
-  transform:translateX(-50%);
-  top:32px;
+  top:50%;
+  transform:translate(-50%,-50%);
   width:650px;
   overflow:hidden;
   pointer-events:none;
+  text-align:center;
 }
 
 .header-ticker-text{
@@ -54,6 +56,15 @@ body{
   justify-content:space-between;
   align-items:center;
   flex-wrap:wrap;
+  position:relative;
+}
+
+.company-block{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  flex:1;
 }
 
 .logged-company{
@@ -62,9 +73,15 @@ body{
   color:#facc15;
 }
 
-.greeting,.clock{
+.greeting{
   font-size:13px;
   margin-top:4px;
+}
+
+.clock{
+  font-size:13px;
+  margin-top:2px;
+  opacity:.9;
 }
 
 .logo{
@@ -120,7 +137,6 @@ body{
 
   .header-ticker{
     width:90%;
-    top:28px;
   }
 
   .header-ticker-text{
