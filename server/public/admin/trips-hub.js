@@ -14,350 +14,170 @@ const container   = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
 const addBtn      = document.getElementById("addManualTripBtn");
 
-if (!container) console.error("Missing #hubContainer in HTML");
-
-/* ===============================
-   SMALL STYLE
-================================ */
-(function injectTinyStyle(){
-  const s = document.createElement("style");
-  s.innerHTML = `
-    .hub-actions{
-      display:flex;
-      gap:6px;
-      justify-content:center;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-  `;
-  document.head.appendChild(s);
-})();
-
 /* ===============================
    HELPERS
 ================================ */
 function safe(v){
   return String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
 }
 
 function formatDate(iso){
   if(!iso) return "-";
   const d = new Date(iso);
-  if (isNaN(d)) return "-";
-  return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
+  if(isNaN(d)) return "-";
+  return d.toLocaleDateString()+" "+d.toLocaleTimeString([],{
+    hour:"2-digit",
+    minute:"2-digit"
   });
 }
 
-function normalizeType(type){
-  return String(type || "").trim().toLowerCase();
+function normalizeStatus(s){
+  return String(s||"").toLowerCase().trim();
 }
 
-function normalizeStatus(status){
-  return String(status || "").trim().toLowerCase();
-}
-
-function displayType(type){
-  const t = normalizeType(type);
-  if (t === "reserved") return "Reserved";
-  if (t === "individual") return "Individual";
-  if (t === "company") return "Company";
-  if (t === "gh") return "GH";
-  return type || "-";
-}
-
-function displayStatus(status){
-  const s = normalizeStatus(status);
-  if (s === "confirmed") return "Confirmed";
-  if (s === "cancelled") return "Cancelled";
-  if (s === "completed") return "Completed";
-  if (s === "booked") return "Booked";
-  if (s === "scheduled") return "Scheduled";
-  return status || "Confirmed";
+function normalizeType(t){
+  return String(t||"").toLowerCase().trim();
 }
 
 function getTripNumber(t){
-  if (t && t.tripNumber) return String(t.tripNumber);
-  if (t && t.id) return String(t.id);
-  if (t && t.bookingNumber) return String(t.bookingNumber);
-  return "-";
-}
-
-function bookedDateKey(t){
-  const source = t.bookedAt || t.createdAt;
-  const d = new Date(source);
-  if (isNaN(d)) return "Unknown Date";
-  return d.toLocaleDateString();
-}
-
-function getTripDateTime(t){
-  if(!t || !t.tripDate || !t.tripTime) return null;
-  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-  if(isNaN(tripDateTime)) return null;
-  return tripDateTime;
-}
-
-function isTripPassed(t){
-  const tripDateTime = getTripDateTime(t);
-  if(!tripDateTime) return false;
-  return new Date() >= tripDateTime;
-}
-
-function shouldRemoveTrip(t){
-  const tripDateTime = getTripDateTime(t);
-  if(!tripDateTime) return false;
-  const diffHours = (new Date() - tripDateTime) / (1000 * 60 * 60);
-  return diffHours >= 24;
-}
-
-function getTripDiffMinutes(t){
-  const tripDateTime = getTripDateTime(t);
-  if(!tripDateTime) return null;
-  return (tripDateTime - new Date()) / (1000 * 60);
-}
-
-function isWithinCancelWindow(t){
-  const diffMinutes = getTripDiffMinutes(t);
-  if(diffMinutes === null) return false;
-  return diffMinutes <= 120 && diffMinutes > 0;
+  return t.tripNumber || t.bookingNumber || t.id || "-";
 }
 
 /* ===============================
-   LOAD HUB TRIPS
+   120 MIN RULE
 ================================ */
+
+function minutesSinceBooked(t){
+  const d = new Date(t.bookedAt || t.createdAt);
+  if(isNaN(d)) return 9999;
+  return (Date.now() - d.getTime()) / 60000;
+}
+
+function canEditTrip(t){
+  return minutesSinceBooked(t) <= 120;
+}
+
+function canCancelTrip(t){
+  if(normalizeStatus(t.status)!=="confirmed") return false;
+  return minutesSinceBooked(t) <= 120;
+}
+
+/* ===============================
+   LOAD TRIPS
+================================ */
+
 async function loadHubTrips(){
   try{
     const res = await fetch(API_URL);
     const data = await res.json();
-    const allTrips = Array.isArray(data) ? data : [];
-
-    hubTrips = allTrips
-      .filter(t => !shouldRemoveTrip(t))
-      .filter(t => {
-        const s = normalizeStatus(t.status);
-        return s === "confirmed" || s === "cancelled";
-      });
-
-    filteredTrips = [...hubTrips];
-  }catch(err){
-    console.error("Load Trips Error:", err);
-    hubTrips = [];
-    filteredTrips = [];
+    hubTrips = Array.isArray(data)?data:[];
+    filteredTrips=[...hubTrips];
   }
-}
-
-/* ===============================
-   COLORS
-================================ */
-function rowColor(tr, t){
-  const status = normalizeStatus(t?.status);
-
-  if(status === "cancelled"){
-    tr.style.backgroundColor = "#f1f5f9";
-    tr.style.borderLeft = "4px solid #64748b";
-    return;
-  }
-
-  if(isTripPassed(t)){
-    tr.style.backgroundColor = "#ffe5e5";
-    tr.style.borderLeft = "4px solid #dc2626";
-    return;
-  }
-
-  const type = normalizeType(t?.type);
-
-  if (type === "individual") {
-    tr.style.backgroundColor = "#e8f4ff";
-  }
-  else if (type === "company") {
-    tr.style.backgroundColor = "#fff6d6";
-  }
-  else if (type === "reserved") {
-    tr.style.backgroundColor = "#ecfdf5";
-  }
-}
-
-/* ===============================
-   ADD RESERVED
-================================ */
-async function addReservedTripInline(){
-  if (isAddingReservedTrip) return;
-
-  isAddingReservedTrip = true;
-  if (addBtn) addBtn.disabled = true;
-
-  try{
-    const newTrip = {
-      type: "reserved",
-      company: "",
-      entryName: "",
-      entryPhone: "",
-      clientName: "",
-      clientPhone: "",
-      pickup: "",
-      stops: [],
-      dropoff: "",
-      notes: "",
-      tripDate: "",
-      tripTime: "",
-      status: "Confirmed",
-      createdAt: new Date().toISOString(),
-      bookedAt: new Date().toISOString()
-    };
-
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newTrip)
-    });
-
-    if (!res.ok) {
-      throw new Error("Failed to add reserved trip");
-    }
-
-    await loadHubTrips();
-    render();
-  }catch(err){
-    console.error("Add Reserved Trip Error:", err);
-    alert("Could not add reserved trip.");
-  }finally{
-    isAddingReservedTrip = false;
-    if (addBtn) addBtn.disabled = false;
+  catch(e){
+    console.error(e);
+    hubTrips=[];
+    filteredTrips=[];
   }
 }
 
 /* ===============================
    EDIT
 ================================ */
+
 function editTripConfirm(id){
-  const tr = document.getElementById(`row-${id}`);
-  if (!tr) return;
 
-  const fields = tr.querySelectorAll(
-    "input[data-edit='1'], textarea[data-edit='1'], select[data-edit='1']"
-  );
+  const trip = hubTrips.find(t=>t._id===id);
+  if(!trip) return;
 
-  fields.forEach(el => {
-    el.disabled = false;
-  });
+  if(!canEditTrip(trip)){
+    alert("Editing is allowed only within 120 minutes.");
+    return;
+  }
 
-  const editBtn = tr.querySelector(".edit-btn");
-  const saveBtn = tr.querySelector(".save-btn");
+  const tr=document.getElementById("row-"+id);
+  if(!tr) return;
 
-  if (editBtn) editBtn.style.display = "none";
-  if (saveBtn) saveBtn.style.display = "inline-block";
+  const fields=tr.querySelectorAll("input[data-edit='1'],textarea[data-edit='1'],select[data-edit='1']");
+  fields.forEach(el=>el.disabled=false);
+
+  tr.querySelector(".edit-btn").style.display="none";
+  tr.querySelector(".save-btn").style.display="inline-block";
 }
 
 /* ===============================
    SAVE
 ================================ */
+
 async function saveTripConfirm(id){
-  const tr = document.getElementById(`row-${id}`);
-  if (!tr) return;
 
-  const stopsInput = tr.querySelector(".stops-input");
-  const statusSelect = tr.querySelector(".status-input");
+  const tr=document.getElementById("row-"+id);
+  if(!tr) return;
 
-  const updatedTrip = {
-    company: tr.querySelector(".company-input")?.value || "",
-    entryName: tr.querySelector(".entryname-input")?.value || "",
-    entryPhone: tr.querySelector(".entryphone-input")?.value || "",
-    clientName: tr.querySelector(".clientname-input")?.value || "",
-    clientPhone: tr.querySelector(".clientphone-input")?.value || "",
-    pickup: tr.querySelector(".pickup-input")?.value || "",
-    stops: stopsInput
-      ? stopsInput.value.split("→").map(s => s.trim()).filter(Boolean)
-      : [],
-    dropoff: tr.querySelector(".dropoff-input")?.value || "",
-    notes: tr.querySelector(".notes-input")?.value || "",
-    tripDate: tr.querySelector(".tripdate-input")?.value || "",
-    tripTime: tr.querySelector(".triptime-input")?.value || "",
-    status: statusSelect?.value || "Confirmed"
+  const updatedTrip={
+    company: tr.querySelector(".company-input")?.value||"",
+    entryName: tr.querySelector(".entryname-input")?.value||"",
+    entryPhone: tr.querySelector(".entryphone-input")?.value||"",
+    clientName: tr.querySelector(".clientname-input")?.value||"",
+    clientPhone: tr.querySelector(".clientphone-input")?.value||"",
+    pickup: tr.querySelector(".pickup-input")?.value||"",
+    stops: tr.querySelector(".stops-input")?.value.split("→").map(s=>s.trim()).filter(Boolean),
+    dropoff: tr.querySelector(".dropoff-input")?.value||"",
+    notes: tr.querySelector(".notes-input")?.value||"",
+    tripDate: tr.querySelector(".tripdate-input")?.value||"",
+    tripTime: tr.querySelector(".triptime-input")?.value||"",
+    status: tr.querySelector(".status-input")?.value||"Confirmed"
   };
 
-  try{
-    const res = await fetch(`${API_URL}/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedTrip)
-    });
+  await fetch(API_URL+"/"+id,{
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(updatedTrip)
+  });
 
-    if (!res.ok) {
-      throw new Error("Failed to save trip");
-    }
-
-    await loadHubTrips();
-    render();
-  }catch(err){
-    console.error("Save Trip Error:", err);
-    alert("Could not save trip.");
-  }
+  await loadHubTrips();
+  render();
 }
 
 /* ===============================
    DELETE
 ================================ */
+
 async function deleteTripConfirm(id){
-  const ok = confirm("Delete this trip?");
-  if(!ok) return;
 
-  try{
-    const res = await fetch(`${API_URL}/${id}`, {
-      method: "DELETE"
-    });
+  const trip=hubTrips.find(t=>t._id===id);
+  if(!trip) return;
 
-    if (!res.ok) {
-      throw new Error("Failed to delete trip");
-    }
-
-    await loadHubTrips();
-    render();
-  }catch(err){
-    console.error("Delete Trip Error:", err);
-    alert("Could not delete trip.");
+  if(!canCancelTrip(trip)){
+    alert("Cancel allowed only within 120 minutes.");
+    return;
   }
+
+  if(!confirm("Cancel this trip?")) return;
+
+  await fetch(API_URL+"/"+id,{
+    method:"DELETE"
+  });
+
+  await loadHubTrips();
+  render();
 }
 
 /* ===============================
-   CANCEL
+   GROUP
 ================================ */
-async function cancelTripConfirm(id){
-  const ok = confirm("Cancel this trip?");
-  if(!ok) return;
 
-  try{
-    const res = await fetch(`${API_URL}/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Cancelled" })
-    });
+function groupTripsByDate(trips){
 
-    if (!res.ok) {
-      throw new Error("Failed to cancel trip");
-    }
+  const groups={};
 
-    await loadHubTrips();
-    render();
-  }catch(err){
-    console.error("Cancel Trip Error:", err);
-    alert("Could not cancel trip.");
-  }
-}
-
-/* ===============================
-   GROUP BY BOOKED DATE
-================================ */
-function groupTripsByBookedDate(trips){
-  const groups = {};
-
-  trips.forEach(t => {
-    const key = bookedDateKey(t);
-    if (!groups[key]) groups[key] = [];
+  trips.forEach(t=>{
+    const d=new Date(t.bookedAt||t.createdAt);
+    const key=isNaN(d)?"Unknown":d.toLocaleDateString();
+    if(!groups[key]) groups[key]=[];
     groups[key].push(t);
   });
 
@@ -365,179 +185,175 @@ function groupTripsByBookedDate(trips){
 }
 
 /* ===============================
-   BUILD ACTIONS
-================================ */
-function buildActionsHtml(t){
-  const within120 = isWithinCancelWindow(t);
-
-  if (within120) {
-    return `
-      <button class="hub-btn cancel-btn cancel"
-      onclick="cancelTripConfirm('${t._id}')">
-      Cancel
-      </button>
-    `;
-  }
-
-  if (isTripPassed(t)) {
-    return ``;
-  }
-
-  return `
-    <button class="hub-btn edit-btn edit"
-    onclick="editTripConfirm('${t._id}')">
-    Edit
-    </button>
-
-    <button class="hub-btn save-btn save"
-    style="display:none"
-    onclick="saveTripConfirm('${t._id}')">
-    Save
-    </button>
-
-    <button class="hub-btn delete-btn delete"
-    onclick="deleteTripConfirm('${t._id}')">
-    Delete
-    </button>
-  `;
-}
-
-/* ===============================
    RENDER
 ================================ */
+
 function render(){
-  container.innerHTML = "";
+
+  container.innerHTML="";
 
   if(!filteredTrips.length){
-    container.innerHTML = `<p class="no-data">No trips found</p>`;
+    container.innerHTML="<p>No trips</p>";
     return;
   }
 
-  const groups = groupTripsByBookedDate(filteredTrips);
+  const groups=groupTripsByDate(filteredTrips);
 
-  Object.keys(groups).forEach(dateKey => {
-    const title = document.createElement("div");
-    title.className = "group-title";
-    title.textContent = dateKey;
+  Object.keys(groups).forEach(dateKey=>{
+
+    const title=document.createElement("div");
+    title.className="group-title";
+    title.textContent=dateKey;
     container.appendChild(title);
 
-    const table = document.createElement("table");
-    table.className = "hub-table";
+    const table=document.createElement("table");
+    table.className="hub-table";
 
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Trip #</th>
-          <th>Type</th>
-          <th>Company</th>
-          <th>Entry Name</th>
-          <th>Entry Phone</th>
-          <th>Client</th>
-          <th>Client Phone</th>
-          <th>Pickup</th>
-          <th>Stops</th>
-          <th>Dropoff</th>
-          <th>Notes</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Status</th>
-          <th>Booked At</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
+    table.innerHTML=`
+    <thead>
+      <tr>
+      <th>#</th>
+      <th>Trip</th>
+      <th>Company</th>
+      <th>Entry</th>
+      <th>Client</th>
+      <th>Pickup</th>
+      <th>Stops</th>
+      <th>Dropoff</th>
+      <th>Date</th>
+      <th>Time</th>
+      <th>Status</th>
+      <th>Booked</th>
+      <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
     `;
 
-    const tbody = table.querySelector("tbody");
+    const tbody=table.querySelector("tbody");
 
-    groups[dateKey].forEach((t, i) => {
-      const tr = document.createElement("tr");
-      tr.id = `row-${t._id}`;
-      rowColor(tr, t);
+    groups[dateKey].forEach((t,i)=>{
 
-      const stopsStr = Array.isArray(t.stops) ? t.stops.join(" → ") : "";
+      const canEdit=canEditTrip(t);
+      const canCancel=canCancelTrip(t);
 
-      tr.innerHTML = `
-        <td>${i + 1}</td>
-        <td><input value="${safe(getTripNumber(t))}" disabled></td>
-        <td><input value="${safe(displayType(t.type))}" disabled></td>
-        <td><input class="company-input" data-edit="1" value="${safe(t.company || "")}" disabled></td>
-        <td><input class="entryname-input" data-edit="1" value="${safe(t.entryName || "")}" disabled></td>
-        <td><input class="entryphone-input" data-edit="1" value="${safe(t.entryPhone || "")}" disabled></td>
-        <td><input class="clientname-input" data-edit="1" value="${safe(t.clientName || "")}" disabled></td>
-        <td><input class="clientphone-input" data-edit="1" value="${safe(t.clientPhone || "")}" disabled></td>
-        <td><input class="pickup-input" data-edit="1" value="${safe(t.pickup || "")}" disabled></td>
-        <td><input class="stops-input" data-edit="1" value="${safe(stopsStr)}" disabled></td>
-        <td><input class="dropoff-input" data-edit="1" value="${safe(t.dropoff || "")}" disabled></td>
-        <td><textarea class="notes-input" data-edit="1" disabled>${safe(t.notes || "")}</textarea></td>
-        <td><input class="tripdate-input" data-edit="1" type="date" value="${safe(t.tripDate || "")}" disabled></td>
-        <td><input class="triptime-input" data-edit="1" type="time" value="${safe(t.tripTime || "")}" disabled></td>
-        <td>
-          <select class="status-input" data-edit="1" disabled>
-            <option value="Confirmed" ${displayStatus(t.status) === "Confirmed" ? "selected" : ""}>Confirmed</option>
-            <option value="Cancelled" ${displayStatus(t.status) === "Cancelled" ? "selected" : ""}>Cancelled</option>
-            <option value="Completed" ${displayStatus(t.status) === "Completed" ? "selected" : ""}>Completed</option>
-          </select>
-        </td>
-        <td>${safe(formatDate(t.bookedAt || t.createdAt))}</td>
-        <td>
-          <div class="hub-actions">
-            ${buildActionsHtml(t)}
-          </div>
-        </td>
-      `;
+      const tr=document.createElement("tr");
+      tr.id="row-"+t._id;
+
+      const stopsStr=Array.isArray(t.stops)?t.stops.join(" → "):"";
+
+      tr.innerHTML=`
+
+<td>${i+1}</td>
+
+<td><input value="${safe(getTripNumber(t))}" disabled></td>
+
+<td><input class="company-input" data-edit="1" value="${safe(t.company||"")}" disabled></td>
+
+<td><input class="entryname-input" data-edit="1" value="${safe(t.entryName||"")}" disabled></td>
+
+<td><input class="clientname-input" data-edit="1" value="${safe(t.clientName||"")}" disabled></td>
+
+<td><input class="pickup-input" data-edit="1" value="${safe(t.pickup||"")}" disabled></td>
+
+<td><input class="stops-input" data-edit="1" value="${safe(stopsStr)}" disabled></td>
+
+<td><input class="dropoff-input" data-edit="1" value="${safe(t.dropoff||"")}" disabled></td>
+
+<td><input class="tripdate-input" data-edit="1" type="date" value="${safe(t.tripDate||"")}" disabled></td>
+
+<td><input class="triptime-input" data-edit="1" type="time" value="${safe(t.tripTime||"")}" disabled></td>
+
+<td>${safe(t.status)}</td>
+
+<td>${safe(formatDate(t.bookedAt||t.createdAt))}</td>
+
+<td>
+<div class="hub-actions">
+
+${canEdit ? `<button class="hub-btn edit-btn edit" onclick="editTripConfirm('${t._id}')">Edit</button>` : ""}
+
+<button class="hub-btn save-btn save" style="display:none" onclick="saveTripConfirm('${t._id}')">Save</button>
+
+${canCancel ? `<button class="hub-btn delete-btn delete" onclick="deleteTripConfirm('${t._id}')">Cancel</button>` : ""}
+
+</div>
+</td>
+`;
 
       tbody.appendChild(tr);
+
     });
 
     container.appendChild(table);
+
   });
 }
 
 /* ===============================
    SEARCH
 ================================ */
-if(searchInput){
-  searchInput.addEventListener("input", function(){
-    const v = searchInput.value.toLowerCase().trim();
 
-    if (!v) {
-      filteredTrips = [...hubTrips];
-      render();
-      return;
+if(searchInput){
+
+  searchInput.addEventListener("input",function(){
+
+    const v=searchInput.value.toLowerCase().trim();
+
+    if(!v){
+      filteredTrips=[...hubTrips];
+    }
+    else{
+      filteredTrips=hubTrips.filter(t=>JSON.stringify(t).toLowerCase().includes(v));
     }
 
-    filteredTrips = hubTrips.filter(t =>
-      JSON.stringify(t).toLowerCase().includes(v)
-    );
-
     render();
+
   });
+
 }
 
 /* ===============================
-   ADD BUTTON
+   ADD
 ================================ */
+
 if(addBtn){
-  addBtn.addEventListener("click", async function(e){
-    e.preventDefault();
-    await addReservedTripInline();
-  });
+
+  addBtn.onclick=async function(){
+
+    const newTrip={
+      type:"reserved",
+      status:"Confirmed",
+      createdAt:new Date().toISOString(),
+      bookedAt:new Date().toISOString()
+    };
+
+    await fetch(API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(newTrip)
+    });
+
+    await loadHubTrips();
+    render();
+  };
+
 }
 
 /* ===============================
    AUTO REFRESH
 ================================ */
-setInterval(async function(){
+
+setInterval(async()=>{
   await loadHubTrips();
   render();
-}, 60000);
+},60000);
 
 /* ===============================
    INIT
 ================================ */
-(async function(){
+
+(async()=>{
   await loadHubTrips();
   render();
 })();
