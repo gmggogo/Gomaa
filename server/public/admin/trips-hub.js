@@ -95,19 +95,36 @@ function bookedDateKey(t){
   return d.toLocaleDateString();
 }
 
-function isTripPassed(t){
-  if(!t || !t.tripDate || !t.tripTime) return false;
+function getTripDateTime(t){
+  if(!t || !t.tripDate || !t.tripTime) return null;
   const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-  if(isNaN(tripDateTime)) return false;
+  if(isNaN(tripDateTime)) return null;
+  return tripDateTime;
+}
+
+function isTripPassed(t){
+  const tripDateTime = getTripDateTime(t);
+  if(!tripDateTime) return false;
   return new Date() >= tripDateTime;
 }
 
 function shouldRemoveTrip(t){
-  if(!t || !t.tripDate || !t.tripTime) return false;
-  const tripDateTime = new Date(`${t.tripDate}T${t.tripTime}`);
-  if(isNaN(tripDateTime)) return false;
+  const tripDateTime = getTripDateTime(t);
+  if(!tripDateTime) return false;
   const diffHours = (new Date() - tripDateTime) / (1000 * 60 * 60);
   return diffHours >= 24;
+}
+
+function getTripDiffMinutes(t){
+  const tripDateTime = getTripDateTime(t);
+  if(!tripDateTime) return null;
+  return (tripDateTime - new Date()) / (1000 * 60);
+}
+
+function isWithinCancelWindow(t){
+  const diffMinutes = getTripDiffMinutes(t);
+  if(diffMinutes === null) return false;
+  return diffMinutes <= 120 && diffMinutes > 0;
 }
 
 /* ===============================
@@ -307,6 +324,32 @@ async function deleteTripConfirm(id){
 }
 
 /* ===============================
+   CANCEL
+================================ */
+async function cancelTripConfirm(id){
+  const ok = confirm("Cancel this trip?");
+  if(!ok) return;
+
+  try{
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Cancelled" })
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to cancel trip");
+    }
+
+    await loadHubTrips();
+    render();
+  }catch(err){
+    console.error("Cancel Trip Error:", err);
+    alert("Could not cancel trip.");
+  }
+}
+
+/* ===============================
    GROUP BY BOOKED DATE
 ================================ */
 function groupTripsByBookedDate(trips){
@@ -319,6 +362,44 @@ function groupTripsByBookedDate(trips){
   });
 
   return groups;
+}
+
+/* ===============================
+   BUILD ACTIONS
+================================ */
+function buildActionsHtml(t){
+  const within120 = isWithinCancelWindow(t);
+
+  if (within120) {
+    return `
+      <button class="hub-btn cancel-btn cancel"
+      onclick="cancelTripConfirm('${t._id}')">
+      Cancel
+      </button>
+    `;
+  }
+
+  if (isTripPassed(t)) {
+    return ``;
+  }
+
+  return `
+    <button class="hub-btn edit-btn edit"
+    onclick="editTripConfirm('${t._id}')">
+    Edit
+    </button>
+
+    <button class="hub-btn save-btn save"
+    style="display:none"
+    onclick="saveTripConfirm('${t._id}')">
+    Save
+    </button>
+
+    <button class="hub-btn delete-btn delete"
+    onclick="deleteTripConfirm('${t._id}')">
+    Delete
+    </button>
+  `;
 }
 
 /* ===============================
@@ -402,9 +483,7 @@ function render(){
         <td>${safe(formatDate(t.bookedAt || t.createdAt))}</td>
         <td>
           <div class="hub-actions">
-            <button class="hub-btn edit-btn edit" onclick="editTripConfirm('${t._id}')">Edit</button>
-            <button class="hub-btn save-btn save" style="display:none" onclick="saveTripConfirm('${t._id}')">Save</button>
-            <button class="hub-btn delete-btn delete" onclick="deleteTripConfirm('${t._id}')">Delete</button>
+            ${buildActionsHtml(t)}
           </div>
         </td>
       `;
