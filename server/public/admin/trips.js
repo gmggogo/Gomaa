@@ -20,18 +20,42 @@ function formatArizonaDate(dateObj){
   })
 }
 
+/* ============================
+   LOAD TRIPS
+============================ */
+
 async function loadTrips(){
 
-  const res=await fetch(API)
-  const data=await res.json()
+  try{
 
-  trips=data||[]
+    const res=await fetch(API)
 
-  renderTrips()
+    if(!res.ok){
+      console.error("API error:",res.status)
+      trips=[]
+      renderTrips()
+      return
+    }
+
+    const data=await res.json()
+
+    trips=Array.isArray(data)?data:[]
+
+    renderTrips()
+
+  }catch(err){
+
+    console.error("Fetch failed:",err)
+    trips=[]
+    renderTrips()
+
+  }
 
 }
 
-/* dates */
+/* ============================
+   DATES
+============================ */
 
 function getDates(){
 
@@ -47,7 +71,9 @@ function getDates(){
 
 }
 
-/* group */
+/* ============================
+   GROUP TRIPS
+============================ */
 
 function groupTrips(){
 
@@ -69,8 +95,11 @@ function groupTrips(){
 
     d.setHours(0,0,0,0)
 
-    if(d.getTime()===today.getTime()) groups.today.push(t)
-    else if(d.getTime()===tomorrow.getTime()) groups.tomorrow.push(t)
+    if(d.getTime()===today.getTime())
+      groups.today.push(t)
+
+    else if(d.getTime()===tomorrow.getTime())
+      groups.tomorrow.push(t)
 
   })
 
@@ -78,7 +107,9 @@ function groupTrips(){
 
 }
 
-/* row color */
+/* ============================
+   ROW COLOR
+============================ */
 
 function rowColor(type){
 
@@ -92,7 +123,9 @@ function rowColor(type){
 
 }
 
-/* render */
+/* ============================
+   RENDER
+============================ */
 
 function renderTrips(){
 
@@ -155,7 +188,7 @@ function drawGroup(title,list){
 
     const row=document.createElement("tr")
 
-    row.innerHTML=\`<td colspan="15" style="text-align:center;padding:20px">No Trips</td>\`
+    row.innerHTML=`<td colspan="15" style="text-align:center;padding:20px">No Trips</td>`
 
     table.appendChild(row)
 
@@ -166,43 +199,43 @@ function drawGroup(title,list){
       const tr=document.createElement("tr")
       tr.className=rowColor(t.type)
 
-      tr.innerHTML=\`
+      tr.innerHTML=`
 
 <td>
 <input class="dispatch-check" type="checkbox"
-\${t.inDispatch?"checked":""}
-\${t.disabled?"disabled":""}
-onchange="sendDispatch('\${t._id}',this.checked)">
+${t.inDispatch?"checked":""}
+${t.disabled?"disabled":""}
+onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
-<td>\${i+1}</td>
+<td>${i+1}</td>
 
-<td>\${t.tripNumber||""}</td>
-<td>\${t.type||""}</td>
-<td>\${t.company||""}</td>
-
-<td>
-<input class="edit-field clientName" disabled value="\${t.clientName||""}">
-</td>
+<td>${t.tripNumber||""}</td>
+<td>${t.type||""}</td>
+<td>${t.company||""}</td>
 
 <td>
-<input class="edit-field clientPhone" disabled value="\${t.clientPhone||""}">
+<input class="edit-field clientName" disabled value="${t.clientName||""}">
 </td>
 
 <td>
-<input class="edit-field pickup" disabled value="\${t.pickup||""}">
+<input class="edit-field clientPhone" disabled value="${t.clientPhone||""}">
+</td>
+
+<td>
+<input class="edit-field pickup" disabled value="${t.pickup||""}">
 </td>
 
 <td>
 
 <div class="stops">
 
-\${(t.stops||[]).map(s=>\`
+${(t.stops||[]).map(s=>`
 <div class="stop-row">
-<input class="stop edit-field" disabled value="\${s}">
+<input class="stop edit-field" disabled value="${s}">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 </div>
-\`).join("")}
+`).join("")}
 
 </div>
 
@@ -211,43 +244,43 @@ onchange="sendDispatch('\${t._id}',this.checked)">
 </td>
 
 <td>
-<input class="edit-field dropoff" disabled value="\${t.dropoff||""}">
+<input class="edit-field dropoff" disabled value="${t.dropoff||""}">
 </td>
 
 <td>
-<input class="edit-field tripDate" disabled value="\${t.tripDate||""}">
+<input class="edit-field tripDate" disabled value="${t.tripDate||""}">
 </td>
 
 <td>
-<input class="edit-field tripTime" disabled value="\${t.tripTime||""}">
+<input class="edit-field tripTime" disabled value="${t.tripTime||""}">
 </td>
 
-<td>\${t.status||"Confirmed"}</td>
+<td>${t.status||"Confirmed"}</td>
 
 <td>
-<input class="edit-field notes" disabled value="\${t.notes||""}">
+<input class="edit-field notes" disabled value="${t.notes||""}">
 </td>
 
 <td>
 
 <button class="btn btn-edit"
-onclick="editTrip('\${t._id}',this)">
+onclick="editTrip('${t._id}',this)">
 Edit
 </button>
 
 <button class="btn btn-delete"
-onclick="deleteTrip('\${t._id}')">
+onclick="deleteTrip('${t._id}')">
 Delete
 </button>
 
 <button class="btn btn-disable"
-onclick="toggleTrip('\${t._id}',this)">
-\${t.disabled ? "Enable" : "Disable"}
+onclick="toggleTrip('${t._id}',this)">
+${t.disabled ? "Enable" : "Disable"}
 </button>
 
 </td>
 
-\`
+`
 
       table.appendChild(tr)
 
@@ -260,7 +293,9 @@ onclick="toggleTrip('\${t._id}',this)">
 
 }
 
-/* stop */
+/* ============================
+   STOPS
+============================ */
 
 function addStop(btn){
 
@@ -276,10 +311,10 @@ function addStop(btn){
   const row=document.createElement("div")
   row.className="stop-row"
 
-  row.innerHTML=\`
+  row.innerHTML=`
 <input class="stop edit-field" disabled placeholder="Stop address">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
-\`
+`
 
   stopsDiv.appendChild(row)
 
@@ -289,7 +324,9 @@ function removeStop(el){
   el.closest(".stop-row").remove()
 }
 
-/* edit */
+/* ============================
+   EDIT
+============================ */
 
 async function editTrip(id,btn){
 
@@ -325,82 +362,6 @@ async function editTrip(id,btn){
     body:JSON.stringify(payload)
   })
 
-  fields.forEach(f=>f.disabled=true)
-  if(addStopBtn) addStopBtn.disabled=true
-
-  btn.innerText="Edit"
-
   loadTrips()
 
 }
-
-/* delete */
-
-async function deleteTrip(id){
-
-  if(!confirm("Delete trip?")) return
-
-  await fetch(API+"/"+id,{method:"DELETE"})
-
-  loadTrips()
-
-}
-
-/* disable */
-
-function toggleTrip(id,btn){
-
-  const row=btn.closest("tr")
-  const fields=row.querySelectorAll("input,button")
-
-  if(btn.innerText==="Disable"){
-
-    fields.forEach(f=>{
-      if(f!==btn) f.disabled=true
-    })
-
-    row.style.opacity="0.5"
-
-    btn.innerText="Enable"
-    btn.style.background="#16a34a"
-
-    fetch(API+"/"+id,{
-      method:"PUT",
-      headers:{ "Content-Type":"application/json"},
-      body:JSON.stringify({disabled:true})
-    })
-
-  }else{
-
-    fields.forEach(f=>f.disabled=false)
-
-    row.style.opacity="1"
-
-    btn.innerText="Disable"
-    btn.style.background="#64748b"
-
-    fetch(API+"/"+id,{
-      method:"PUT",
-      headers:{ "Content-Type":"application/json"},
-      body:JSON.stringify({disabled:false})
-    })
-
-  }
-
-}
-
-/* dispatch */
-
-async function sendDispatch(id,val){
-
-  await fetch(API+"/"+id,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({inDispatch:val})
-  })
-
-}
-
-loadTrips()
