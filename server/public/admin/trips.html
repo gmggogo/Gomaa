@@ -17,6 +17,8 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
+/* HEADER */
+
 #adminHeader{
 position:fixed;
 top:0;
@@ -25,19 +27,27 @@ width:100%;
 z-index:1000;
 }
 
+/* PAGE */
+
 .page-body{
-padding-top:260px;
+padding-top:300px;
 padding-left:20px;
 padding-right:20px;
 }
 
+/* MOBILE HEADER SPACE */
+
 @media (max-width:768px){
+
 .page-body{
-padding-top:320px;
+padding-top:360px;
 padding-left:10px;
 padding-right:10px;
 }
+
 }
+
+/* TABLE */
 
 .table-scroll{
 width:100%;
@@ -55,11 +65,13 @@ font-size:13px;
 background:#0f172a;
 color:white;
 padding:8px;
+text-align:center;
 }
 
 .trip-table td{
 padding:6px;
 border-bottom:1px solid #eee;
+text-align:center;
 }
 
 .trip-table input{
@@ -75,15 +87,18 @@ margin:20px 0 8px;
 font-size:15px;
 }
 
+/* BUTTONS */
+
 .actions{
 display:flex;
 gap:6px;
+justify-content:center;
 align-items:center;
 }
 
 .btn{
 border:none;
-padding:5px 9px;
+padding:5px 10px;
 border-radius:6px;
 cursor:pointer;
 font-size:12px;
@@ -102,11 +117,14 @@ color:white;
 .btn-disable{
 background:#f59e0b;
 color:white;
+font-weight:600;
 }
 
 .dispatch-check:checked{
 accent-color:#16a34a;
 }
+
+/* STOP */
 
 .add-stop{
 background:#facc15;
