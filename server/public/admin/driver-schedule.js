@@ -21,17 +21,14 @@ const week=[]
 for(let i=0;i<7;i++){
 
 const d=new Date(start)
-
 d.setDate(start.getDate()+i)
 
+const key=d.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
+
 week.push({
-
 label:days[d.getDay()],
-
-key:d.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"}),
-
+key:key,
 date:`${d.getMonth()+1}/${d.getDate()}`
-
 })
 
 }
@@ -40,7 +37,6 @@ document.getElementById("weekTitle").innerText=
 `Week ${week[0].date} → ${week[6].date} (Arizona)`
 
 return week
-
 }
 
 const WEEK=buildWeek()
@@ -48,7 +44,6 @@ const WEEK=buildWeek()
 async function loadDrivers(){
 
 const res=await fetch(API_DRIVERS)
-
 return await res.json()
 
 }
@@ -90,7 +85,7 @@ edit:false
 
 const s=schedule[id]
 
-const todayKey=azDate().toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
+const todayKey=new Date().toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
 
 const activeToday=s.enabled && s.days[todayKey]
 
