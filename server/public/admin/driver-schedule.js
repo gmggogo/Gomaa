@@ -1,7 +1,8 @@
 const API_DRIVERS="/api/users/driver"
-const API_SCHEDULE="/api/driver-schedule"
 
-let schedule={}
+const STORAGE_KEY="driverSchedule"
+
+let schedule=JSON.parse(localStorage.getItem(STORAGE_KEY))||{}
 
 const tbody=document.getElementById("tbody")
 
@@ -44,7 +45,6 @@ return week
 
 const WEEK=buildWeek()
 
-
 async function loadDrivers(){
 
 const res=await fetch(API_DRIVERS)
@@ -53,52 +53,26 @@ return await res.json()
 
 }
 
+function save(){
 
-async function loadSchedule(){
+localStorage.setItem(STORAGE_KEY,JSON.stringify(schedule))
 
-const res=await fetch(API_SCHEDULE)
-
-if(res.ok){
-
-schedule=await res.json()
-
-}else{
-
-schedule={}
+localStorage.setItem(
+"driverScheduleForMap",
+JSON.stringify(schedule)
+)
 
 }
-
-}
-
-
-async function saveSchedule(){
-
-await fetch(API_SCHEDULE,{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify(schedule)
-
-})
-
-}
-
 
 async function render(){
 
 tbody.innerHTML=""
 
-await loadSchedule()
-
 const drivers=await loadDrivers()
 
 drivers.forEach((d,i)=>{
 
-const id=d._id
+const id=d._id||d.id
 
 if(!schedule[id]){
 
@@ -122,11 +96,15 @@ const activeToday=s.enabled && s.days[todayKey]
 
 const tr=document.createElement("tr")
 
+if(!s.enabled){
+tr.style.opacity="0.35"
+}
+
 tr.innerHTML=`
 
 <td>${i+1}</td>
 
-<td><strong>${d.name}</strong></td>
+<td><strong>${d.name||""}</strong></td>
 
 <td>
 <input
@@ -148,16 +126,24 @@ onchange="schedule['${id}'].address=this.value">
 
 ${WEEK.map(w=>{
 
-const checked=s.days[w.key]
+const checked=!!s.days[w.key]
 
 return`
 
 <div
-class="day-square ${checked?"active":""}"
-onclick="toggleDay('${id}','${w.key}')"
+class="day-square ${checked?'active':''}"
+onclick="squareToggle(event,'${id}','${w.key}')"
 >
 
-${w.label}<br>${w.date}
+<input
+type="checkbox"
+${checked?'checked':''}
+${(!s.edit||!s.enabled)?'disabled':''}
+style="margin-bottom:2px; transform:scale(.8)"
+>
+
+<div>${w.label}</div>
+<div>${w.date}</div>
 
 </div>
 
@@ -169,27 +155,25 @@ ${w.label}<br>${w.date}
 
 </td>
 
-<td style="color:${activeToday?"#16a34a":"#dc2626"};font-weight:bold">
+<td style="font-weight:bold;color:${activeToday?'#16a34a':'#dc2626'}">
 
-${activeToday?"ACTIVE":"NOT ACTIVE"}
+${activeToday?'ACTIVE':'NOT ACTIVE'}
 
 </td>
 
 <td>
 
 ${
-
 s.edit
-
 ? `<button class="action-btn save" onclick="saveDriver('${id}')">Save</button>`
-
 : `<button class="action-btn edit" onclick="editDriver('${id}')">Edit</button>`
-
 }
 
-<button class="action-btn disable" onclick="toggleEnable('${id}')">
+<button
+class="action-btn ${s.enabled?'disable':'enable'}"
+onclick="toggleEnable('${id}')">
 
-${s.enabled?"Disable":"Enable"}
+${s.enabled?'Disable':'Enable'}
 
 </button>
 
@@ -201,46 +185,48 @@ tbody.appendChild(tr)
 
 })
 
-}
+save()
 
+}
 
 function editDriver(id){
 
 schedule[id].edit=true
-
 render()
 
 }
 
-async function saveDriver(id){
+function saveDriver(id){
 
 schedule[id].edit=false
-
-await saveSchedule()
-
+save()
 render()
 
 }
 
-async function toggleEnable(id){
+function toggleEnable(id){
 
 schedule[id].enabled=!schedule[id].enabled
 
-await saveSchedule()
-
+save()
 render()
 
 }
 
-async function toggleDay(id,key){
+function squareToggle(e,id,key){
 
-if(!schedule[id].edit) return
+const box=e.currentTarget
+const chk=box.querySelector("input")
 
-schedule[id].days[key]=!schedule[id].days[key]
+if(chk.disabled) return
 
-await saveSchedule()
+chk.checked=!chk.checked
 
-render()
+schedule[id].days[key]=chk.checked
+
+box.classList.toggle("active",chk.checked)
+
+save()
 
 }
 

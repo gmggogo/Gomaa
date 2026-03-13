@@ -5,7 +5,6 @@
 
 <meta charset="UTF-8">
 <title>Driver Schedule</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -39,8 +38,8 @@ padding:300px 10px 40px;
 }
 
 .table-wrap{
-overflow-x:auto;
 width:100%;
+overflow-x:auto;
 }
 
 table{
@@ -71,6 +70,10 @@ border-radius:4px;
 padding:3px 6px;
 }
 
+input:disabled{
+background:#e5e7eb;
+}
+
 .week-box{
 display:flex;
 gap:4px;
@@ -78,17 +81,23 @@ flex-wrap:nowrap;
 }
 
 .day-square{
+
 width:60px;
 height:44px;
+
 border-radius:6px;
 border:1px solid #d1d5db;
+
 display:flex;
 flex-direction:column;
 align-items:center;
 justify-content:center;
+
 font-size:10px;
+
 cursor:pointer;
 background:#f3f4f6;
+
 }
 
 .day-square.active{
@@ -102,16 +111,32 @@ border-radius:4px;
 padding:4px 8px;
 font-size:11px;
 cursor:pointer;
+margin-left:4px;
 }
 
-.edit{background:#2563eb;color:#fff;}
-.save{background:#16a34a;color:#fff;}
-.disable{background:#dc2626;color:#fff;}
+.edit{
+background:#2563eb;
+color:#fff;
+}
+
+.save{
+background:#16a34a;
+color:#fff;
+}
+
+.disable{
+background:#dc2626;
+color:#fff;
+}
+
+.enable{
+background:#16a34a;
+color:#fff;
+}
 
 </style>
 
 </head>
-
 
 <body>
 
