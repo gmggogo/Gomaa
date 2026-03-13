@@ -4,7 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Trips</title>
+<title>Trips Hub</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -17,9 +17,24 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
-.page-body{
-padding:20px;
+/* ADMIN HEADER */
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
 }
+
+/* PAGE BODY */
+
+.page-body{
+padding-top:220px;
+padding-left:20px;
+padding-right:20px;
+}
+
+/* TABLE */
 
 .table-scroll{
 width:100%;
@@ -38,11 +53,13 @@ font-size:13px;
 background:#0f172a;
 color:white;
 padding:8px;
+text-align:center;
 }
 
 .trip-table td{
 padding:6px;
 border-bottom:1px solid #eee;
+text-align:center;
 }
 
 .trip-table input,
@@ -53,15 +70,28 @@ padding:4px;
 font-size:12px;
 }
 
+/* NOTES */
+
 .notes{
 height:40px;
 resize:vertical;
 }
 
+/* GROUP TITLE */
+
 .group-title{
 font-weight:700;
 margin:20px 0 8px;
 font-size:15px;
+}
+
+/* BUTTONS */
+
+.actions{
+display:flex;
+gap:6px;
+justify-content:center;
+align-items:center;
 }
 
 .btn{
@@ -72,13 +102,28 @@ cursor:pointer;
 font-size:12px;
 }
 
-.btn-edit{background:#2563eb;color:white;}
-.btn-delete{background:#dc2626;color:white;}
-.btn-disable{background:#64748b;color:white;}
+.btn-edit{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+.btn-disable{
+background:#64748b;
+color:white;
+}
+
+/* DISPATCH */
 
 .dispatch-check:checked{
 accent-color:#16a34a;
 }
+
+/* STOPS */
 
 .add-stop{
 background:#facc15;
@@ -88,10 +133,6 @@ cursor:pointer;
 border-radius:5px;
 font-size:12px;
 }
-
-.row-company{background:#fff6d6;}
-.row-individual{background:#e8f4ff;}
-.row-reserved{background:#dcfce7;}
 
 .stop-row{
 display:flex;
@@ -106,11 +147,22 @@ color:#dc2626;
 font-weight:bold;
 }
 
+/* ROW COLORS */
+
+.row-company{background:#fff6d6;}
+.row-individual{background:#e8f4ff;}
+.row-reserved{background:#dcfce7;}
+
 </style>
 
 </head>
 
 <body>
+
+<!-- ADMIN HEADER -->
+<div id="adminHeader"></div>
+
+<!-- PAGE BODY -->
 
 <div class="page-body">
 
@@ -118,6 +170,9 @@ font-weight:bold;
 
 </div>
 
+<!-- SCRIPTS -->
+
+<script src="/admin/header.js"></script>
 <script src="/admin/trips.js"></script>
 
 </body>
