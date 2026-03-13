@@ -12,6 +12,7 @@ const app = express();
 /* =========================
    ENV
 ========================= */
+
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
@@ -19,6 +20,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 /* =========================
    MIDDLEWARE
 ========================= */
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,515 +28,406 @@ app.use(express.urlencoded({ extended: true }));
 /* =========================
    STATIC
 ========================= */
+
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
    MONGO CONNECT
 ========================= */
+
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("✅ Mongo Connected"))
-  .catch(err => console.log("❌ Mongo Error:", err));
+.then(()=>console.log("✅ Mongo Connected"))
+.catch(err=>console.log("❌ Mongo Error:",err));
 
 /* =========================
    USER MODEL
 ========================= */
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  username: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
-  role: {
-    type: String,
-    enum: ["admin", "dispatcher", "driver", "company"],
-    required: true
-  },
-  active: { type: Boolean, default: true }
-});
 
-const User = mongoose.model("User", userSchema);
+const userSchema = new mongoose.Schema({
+
+name:{type:String,required:true},
+username:{type:String,unique:true,required:true},
+password:{type:String,required:true},
+
+role:{
+type:String,
+enum:["admin","dispatcher","driver","company"],
+required:true
+},
+
+active:{type:Boolean,default:true}
+
+})
+
+const User = mongoose.model("User",userSchema)
 
 /* =========================
    TRIP MODEL
 ========================= */
+
 const tripSchema = new mongoose.Schema({
-  tripNumber: { type: String, unique: true, sparse: true },
-  type: { type: String, default: "company" },
-  company: { type: String, default: "" },
 
-  entryName: { type: String, default: "" },
-  entryPhone: { type: String, default: "" },
+tripNumber:{type:String,unique:true,sparse:true},
 
-  clientName: { type: String, default: "" },
-  clientPhone: { type: String, default: "" },
+type:{type:String,default:"company"},
+company:{type:String,default:""},
 
-  pickup: { type: String, default: "" },
-  dropoff: { type: String, default: "" },
-  stops: { type: [String], default: [] },
+entryName:{type:String,default:""},
+entryPhone:{type:String,default:""},
 
-  tripDate: { type: String, default: "" },
-  tripTime: { type: String, default: "" },
+clientName:{type:String,default:""},
+clientPhone:{type:String,default:""},
 
-  notes: { type: String, default: "" },
+pickup:{type:String,default:""},
+dropoff:{type:String,default:""},
 
-  status: { type: String, default: "Scheduled" },
-  bookedAt: { type: Date, default: Date.now },
-  createdAt: { type: Date, default: Date.now }
-});
+stops:{type:[String],default:[]},
 
-/* INDEXES */
-tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
-tripSchema.index({ company: 1 });
-tripSchema.index({ createdAt: -1 });
+tripDate:{type:String,default:""},
+tripTime:{type:String,default:""},
 
-const Trip = mongoose.model("Trip", tripSchema);
+notes:{type:String,default:""},
+
+status:{type:String,default:"Scheduled"},
+
+bookedAt:{type:Date,default:Date.now},
+createdAt:{type:Date,default:Date.now}
+
+})
+
+tripSchema.index({tripNumber:1},{unique:true,sparse:true})
+tripSchema.index({company:1})
+tripSchema.index({createdAt:-1})
+
+const Trip = mongoose.model("Trip",tripSchema)
+
+/* =========================
+   DRIVER SCHEDULE MODEL
+========================= */
+
+const driverScheduleSchema = new mongoose.Schema({
+
+driverId:String,
+
+phone:String,
+address:String,
+
+enabled:{
+type:Boolean,
+default:true
+},
+
+days:{
+type:Object,
+default:{}
+}
+
+})
+
+const DriverSchedule = mongoose.model("DriverSchedule",driverScheduleSchema)
+
+/* =========================
+   DRIVER SCHEDULE API
+========================= */
+
+app.get("/api/driver-schedule",async(req,res)=>{
+
+try{
+
+const rows = await DriverSchedule.find()
+
+const result={}
+
+rows.forEach(r=>{
+
+result[r.driverId]={
+
+phone:r.phone,
+address:r.address,
+enabled:r.enabled,
+days:r.days
+
+}
+
+})
+
+res.json(result)
+
+}catch(err){
+
+console.log(err)
+res.status(500).json({message:"schedule error"})
+
+}
+
+})
+
+app.post("/api/driver-schedule",async(req,res)=>{
+
+try{
+
+const data=req.body
+
+for(const id in data){
+
+const s=data[id]
+
+await DriverSchedule.findOneAndUpdate(
+
+{driverId:id},
+
+{
+
+driverId:id,
+phone:s.phone,
+address:s.address,
+enabled:s.enabled,
+days:s.days
+
+},
+
+{upsert:true}
+
+)
+
+}
+
+res.json({status:"saved"})
+
+}catch(err){
+
+console.log(err)
+res.status(500).json({message:"save error"})
+
+}
+
+})
 
 /* =========================
    CREATE ADMIN
 ========================= */
-app.get("/create-admin", async (req, res) => {
-  try {
-    const existing = await User.findOne({ username: "admin" });
 
-    if (existing) {
-      return res.send("Admin already exists");
-    }
+app.get("/create-admin",async(req,res)=>{
 
-    const hashed = await bcrypt.hash("111111", 10);
+try{
 
-    await User.create({
-      name: "Admin",
-      username: "admin",
-      password: hashed,
-      role: "admin"
-    });
+const existing = await User.findOne({username:"admin"})
 
-    res.send("Admin Created (admin / 111111)");
-  } catch (err) {
-    console.log(err);
-    res.status(500).send("Error creating admin");
-  }
-});
+if(existing){
+
+return res.send("Admin already exists")
+
+}
+
+const hashed = await bcrypt.hash("111111",10)
+
+await User.create({
+
+name:"Admin",
+username:"admin",
+password:hashed,
+role:"admin"
+
+})
+
+res.send("Admin Created (admin / 111111)")
+
+}catch(err){
+
+console.log(err)
+res.status(500).send("Error creating admin")
+
+}
+
+})
 
 /* =========================
    LOGIN
 ========================= */
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { username, password } = req.body || {};
 
-    if (!username || !password) {
-      return res.status(400).json({ message: "Missing credentials" });
-    }
+app.post("/api/auth/login",async(req,res)=>{
 
-    const user = await User.findOne({ username });
+try{
 
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+const {username,password}=req.body||{}
 
-    if (!user.active) {
-      return res.status(403).json({ message: "User disabled" });
-    }
+if(!username || !password){
 
-    const match = await bcrypt.compare(password, user.password);
+return res.status(400).json({message:"Missing credentials"})
 
-    if (!match) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
+}
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+const user = await User.findOne({username})
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        username: user.username,
-        role: user.role
-      }
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+if(!user){
+
+return res.status(400).json({message:"Invalid credentials"})
+
+}
+
+if(!user.active){
+
+return res.status(403).json({message:"User disabled"})
+
+}
+
+const match = await bcrypt.compare(password,user.password)
+
+if(!match){
+
+return res.status(400).json({message:"Invalid credentials"})
+
+}
+
+const token = jwt.sign(
+
+{id:user._id,role:user.role,name:user.name},
+JWT_SECRET,
+{expiresIn:"1d"}
+
+)
+
+res.json({
+
+token,
+
+user:{
+id:user._id,
+name:user.name,
+username:user.username,
+role:user.role
+}
+
+})
+
+}catch(err){
+
+console.log(err)
+res.status(500).json({message:"Server error"})
+
+}
+
+})
 
 /* =========================
    USERS ROUTES
 ========================= */
-app.get("/api/users/:role", async (req, res) => {
-  try {
-    const role = req.params.role;
 
-    if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
-    }
+app.get("/api/users/:role",async(req,res)=>{
 
-    const users = await User.find({ role }).sort({ createdAt: -1, name: 1 });
-    res.json(users);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading users" });
-  }
-});
+try{
 
-app.post("/api/users/:role", async (req, res) => {
-  try {
-    const role = req.params.role;
-    const { name, username, password } = req.body || {};
+const role=req.params.role
 
-    if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
-    }
-
-    if (!name || !username || !password) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
-
-    const exists = await User.findOne({ username });
-
-    if (exists) {
-      return res.status(400).json({ message: "Username exists" });
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-
-    const newUser = await User.create({
-      name,
-      username,
-      password: hashed,
-      role
-    });
-
-    res.json(newUser);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error creating user" });
-  }
-});
-
-app.put("/api/users/:id", async (req, res) => {
-  try {
-    const { name, username, password } = req.body || {};
-
-    const updateData = {
-      name,
-      username
-    };
-
-    if (password && String(password).trim() !== "") {
-      updateData.password = await bcrypt.hash(password, 10);
-    }
-
-    const updated = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
-
-    res.json(updated);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error updating user" });
-  }
-});
-
-app.patch("/api/users/:id/toggle", async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    user.active = !user.active;
-    await user.save();
-
-    res.json(user);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error toggling user" });
-  }
-});
-
-app.delete("/api/users/:id", async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error deleting user" });
-  }
-});
-
-/* =========================
-   HELPERS
-========================= */
-function normalizeTripType(rawType) {
-  const t = String(rawType || "").trim().toLowerCase();
-
-  if (t === "reserved") return "reserved";
-  if (t === "gh") return "gh";
-  if (t === "individual") return "individual";
-  if (t === "company") return "company";
-
-  return "company";
+if(!["admin","dispatcher","driver","company"].includes(role)){
+return res.status(400).json({message:"Invalid role"})
 }
 
-async function generateTripNumber(type) {
-  if (type === "gh") {
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^GH\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
+const users = await User.find({role}).sort({name:1})
 
-    let next = 100;
+res.json(users)
 
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("GH", ""), 10);
-      if (!isNaN(num)) next = num + 1;
-    }
+}catch(err){
 
-    return "GH" + next;
-  }
+console.log(err)
+res.status(500).json({message:"Error loading users"})
 
-  if (type === "reserved") {
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^RV-\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
-
-    let next = 1001;
-
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    return "RV-" + next;
-  }
-
-  if (type === "individual") {
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^IN-\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
-
-    let next = 1001;
-
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("IN-", ""), 10);
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    return "IN-" + next;
-  }
-
-  const now = new Date();
-  const months = [
-    "JA", "FE", "MA", "AP", "MY", "JN",
-    "JL", "AU", "SE", "OC", "NO", "DE"
-  ];
-
-  const monthCode = months[now.getMonth()];
-  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const lastTrip = await Trip.findOne({
-    createdAt: { $gte: startMonth, $lt: endMonth },
-    tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
-  }).sort({ createdAt: -1, _id: -1 });
-
-  let next = 1000;
-
-  if (lastTrip?.tripNumber) {
-    const parts = lastTrip.tripNumber.split("-");
-    const num = parseInt(parts[1], 10);
-    if (!isNaN(num)) next = num + 1;
-  }
-
-  return monthCode + "-" + next;
 }
 
-/* =========================
-   CREATE TRIP
-========================= */
-app.post("/api/trips", async (req, res) => {
-  try {
-    const type = normalizeTripType(req.body.type);
-    const tripNumber = await generateTripNumber(type);
-
-    const trip = await Trip.create({
-      type,
-      tripNumber,
-
-      company: req.body.company || "",
-
-      entryName: req.body.entryName || "",
-      entryPhone: req.body.entryPhone || "",
-
-      clientName: req.body.clientName || "",
-      clientPhone: req.body.clientPhone || "",
-
-      pickup: req.body.pickup || "",
-      dropoff: req.body.dropoff || "",
-      stops: Array.isArray(req.body.stops) ? req.body.stops : [],
-
-      tripDate: req.body.tripDate || "",
-      tripTime: req.body.tripTime || "",
-
-      notes: req.body.notes || "",
-      status: req.body.status || "Booked",
-      bookedAt: req.body.bookedAt || new Date(),
-      createdAt: new Date()
-    });
-
-    res.status(200).json(trip);
-  } catch (err) {
-    console.log(err);
-
-    if (err && err.code === 11000) {
-      return res.status(409).json({ message: "Duplicate trip number" });
-    }
-
-    res.status(500).json({ message: "Error creating trip" });
-  }
-});
+})
 
 /* =========================
-   GET ALL TRIPS
+   TRIPS API
 ========================= */
-app.get("/api/trips", async (req, res) => {
-  try {
-    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
-    res.json(trips);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading trips" });
-  }
-});
 
-/* =========================
-   GET ALL TRIPS FOR HUB
-========================= */
-app.get("/api/trips/company", async (req, res) => {
-  try {
-    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
-    res.json(trips);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading trips" });
-  }
-});
+app.post("/api/trips",async(req,res)=>{
 
-/* =========================
-   GET COMPANY TRIPS ONLY
-========================= */
-app.get("/api/trips/company/:company", async (req, res) => {
-  try {
-    const trips = await Trip.find({
-      company: req.params.company
-    }).sort({ createdAt: -1, _id: -1 });
+try{
 
-    res.json(trips);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading trips" });
-  }
-});
+const trip = await Trip.create(req.body)
 
-/* =========================
-   GET ONE TRIP
-========================= */
-app.get("/api/trips/:id", async (req, res) => {
-  try {
-    const trip = await Trip.findById(req.params.id);
+res.json(trip)
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
+}catch(err){
 
-    res.json(trip);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading trip" });
-  }
-});
+console.log(err)
+res.status(500).json({message:"Error creating trip"})
 
-/* =========================
-   UPDATE TRIP
-========================= */
-app.put("/api/trips/:id", async (req, res) => {
-  try {
-    const existing = await Trip.findById(req.params.id);
+}
 
-    if (!existing) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
+})
 
-    const updateData = {
-      type: normalizeTripType(req.body.type || existing.type),
-      company: req.body.company ?? existing.company,
+app.get("/api/trips",async(req,res)=>{
 
-      entryName: req.body.entryName ?? existing.entryName,
-      entryPhone: req.body.entryPhone ?? existing.entryPhone,
+try{
 
-      clientName: req.body.clientName ?? existing.clientName,
-      clientPhone: req.body.clientPhone ?? existing.clientPhone,
+const trips = await Trip.find().sort({createdAt:-1})
 
-      pickup: req.body.pickup ?? existing.pickup,
-      dropoff: req.body.dropoff ?? existing.dropoff,
-      stops: Array.isArray(req.body.stops) ? req.body.stops : existing.stops,
+res.json(trips)
 
-      tripDate: req.body.tripDate ?? existing.tripDate,
-      tripTime: req.body.tripTime ?? existing.tripTime,
+}catch(err){
 
-      notes: req.body.notes ?? existing.notes,
-      status: req.body.status ?? existing.status,
-      bookedAt: req.body.bookedAt ?? existing.bookedAt
-    };
+console.log(err)
+res.status(500).json({message:"Error loading trips"})
 
-    const updated = await Trip.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
+}
 
-    res.json(updated);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error updating trip" });
-  }
-});
+})
 
-/* =========================
-   DELETE TRIP
-========================= */
-app.delete("/api/trips/:id", async (req, res) => {
-  try {
-    const deleted = await Trip.findByIdAndDelete(req.params.id);
+app.put("/api/trips/:id",async(req,res)=>{
 
-    if (!deleted) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
+try{
 
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error deleting trip" });
-  }
-});
+const trip = await Trip.findByIdAndUpdate(
+req.params.id,
+req.body,
+{new:true}
+)
+
+res.json(trip)
+
+}catch(err){
+
+console.log(err)
+res.status(500).json({message:"Error updating trip"})
+
+}
+
+})
+
+app.delete("/api/trips/:id",async(req,res)=>{
+
+try{
+
+await Trip.findByIdAndDelete(req.params.id)
+
+res.json({message:"Deleted"})
+
+}catch(err){
+
+console.log(err)
+res.status(500).json({message:"Error deleting trip"})
+
+}
+
+})
 
 /* =========================
    ROOT
 ========================= */
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+
+app.get("/",(req,res)=>{
+
+res.sendFile(path.join(__dirname,"public","index.html"))
+
+})
 
 /* =========================
    START SERVER
 ========================= */
-app.listen(PORT, () => {
-  console.log("🚀 Server running on port " + PORT);
-});
+
+app.listen(PORT,()=>{
+
+console.log("🚀 Server running on port "+PORT)
+
+})
