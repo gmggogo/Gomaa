@@ -1,57 +1,60 @@
 /* =====================
-   LOGIN
+   STAFF LOGIN
 ===================== */
+
 async function login(){
 
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const msg = document.getElementById("msg");
+const username = document.getElementById("username").value.trim();
+const password = document.getElementById("password").value.trim();
+const msg = document.getElementById("msg");
 
-  if(!username || !password){
-    msg.innerText = "Please enter username and password";
-    return;
-  }
+msg.innerText="";
 
-  msg.innerText = "Signing in...";
+if(!username || !password){
+msg.innerText="Please enter username and password";
+return;
+}
 
-  try{
+msg.innerText="Signing in...";
 
-    const res = await fetch("/api/auth/login",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ username, password })
-    });
+try{
 
-    const data = await res.json();
+const res = await fetch("/api/auth/login",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({username,password})
+});
 
-    if(!res.ok){
-      msg.innerText = data.message || "Login Failed";
-      return;
-    }
+const data = await res.json();
 
-    // save auth
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("role", data.user.role);
-    localStorage.setItem("name", data.user.name);
+if(!res.ok){
+msg.innerText=data.message || "Login failed";
+return;
+}
 
-    // redirect by role
-    if(data.user.role === "admin"){
-      window.location.replace("/admin/dashboard.html");
-    }
+/* save login */
 
-    if(data.user.role === "dispatcher"){
-      window.location.replace("/dispatcher/dashboard.html");
-    }
+localStorage.setItem("token",data.token);
+localStorage.setItem("role",data.user.role);
+localStorage.setItem("name",data.user.name);
 
-    if(data.user.role === "driver"){
-      window.location.replace("/driver/dashboard.html");
-    }
+/* redirect */
 
-    if(data.user.role === "company"){
-      window.location.replace("/companies/dashboard.html");
-    }
+if(data.user.role==="admin"){
+window.location.replace("/admin/dashboard.html");
+}
 
-  }catch(err){
-    msg.innerText = "Server error";
-  }
+else if(data.user.role==="dispatcher"){
+window.location.replace("/dispatcher/dashboard.html");
+}
+
+else{
+msg.innerText="This account cannot login here";
+}
+
+}
+catch(err){
+msg.innerText="Server error";
+}
+
 }
