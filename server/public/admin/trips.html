@@ -32,13 +32,11 @@ padding-right:20px;
 }
 
 @media (max-width:768px){
-
 .page-body{
 padding-top:320px;
 padding-left:10px;
 padding-right:10px;
 }
-
 }
 
 .table-scroll{
@@ -47,7 +45,7 @@ overflow-x:auto;
 }
 
 .trip-table{
-min-width:1500px;
+width:100%;
 border-collapse:collapse;
 background:white;
 font-size:13px;
@@ -77,18 +75,34 @@ margin:20px 0 8px;
 font-size:15px;
 }
 
+.actions{
+display:flex;
+gap:6px;
+align-items:center;
+}
+
 .btn{
 border:none;
-padding:4px 8px;
+padding:5px 9px;
 border-radius:6px;
 cursor:pointer;
 font-size:12px;
-margin-right:4px;
 }
 
-.btn-edit{background:#2563eb;color:white;}
-.btn-delete{background:#dc2626;color:white;}
-.btn-disable{background:#64748b;color:white;}
+.btn-edit{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+.btn-disable{
+background:#f59e0b;
+color:white;
+}
 
 .dispatch-check:checked{
 accent-color:#16a34a;
@@ -101,7 +115,6 @@ padding:3px 6px;
 cursor:pointer;
 border-radius:5px;
 font-size:12px;
-margin-top:4px;
 }
 
 .row-company{background:#fff6d6;}
