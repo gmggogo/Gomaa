@@ -4,7 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Trips Hub</title>
+<title>Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -14,10 +14,9 @@
 body{
 margin:0;
 font-family:Segoe UI,Arial;
-background:#f1f5f9;
+background:#f4f8fb;
 }
 
-/* ADMIN HEADER */
 #adminHeader{
 position:fixed;
 top:0;
@@ -26,132 +25,93 @@ width:100%;
 z-index:1000;
 }
 
-/* PAGE BODY */
-
 .page-body{
-padding-top:220px;
+padding-top:520px;
 padding-left:20px;
 padding-right:20px;
 }
 
-/* TABLE */
+@media(max-width:768px){
+.page-body{
+padding-top:620px;
+}
+}
 
-.table-scroll{
+.table-wrap{
 width:100%;
 overflow-x:auto;
 }
 
-.trip-table{
-min-width:1200px;
+table{
+min-width:1500px;
 width:100%;
 border-collapse:collapse;
 background:white;
 font-size:13px;
 }
 
-.trip-table th{
+th{
 background:#0f172a;
 color:white;
 padding:8px;
 text-align:center;
 }
 
-.trip-table td{
+td{
 padding:6px;
-border-bottom:1px solid #eee;
+border-bottom:1px solid #e5e7eb;
 text-align:center;
 }
 
-.trip-table input,
-.trip-table textarea{
+input,textarea{
 width:100%;
-border:1px solid #ddd;
 padding:4px;
+border:1px solid #ddd;
 font-size:12px;
 }
 
-/* NOTES */
-
 .notes{
-height:40px;
+height:38px;
 resize:vertical;
 }
-
-/* GROUP TITLE */
-
-.group-title{
-font-weight:700;
-margin:20px 0 8px;
-font-size:15px;
-}
-
-/* BUTTONS */
 
 .actions{
 display:flex;
 gap:6px;
 justify-content:center;
-align-items:center;
 }
 
 .btn{
 border:none;
 padding:4px 8px;
-border-radius:6px;
+border-radius:5px;
 cursor:pointer;
 font-size:12px;
 }
 
-.btn-edit{
+.edit{
 background:#2563eb;
 color:white;
 }
 
-.btn-delete{
+.delete{
 background:#dc2626;
 color:white;
 }
 
-.btn-disable{
-background:#64748b;
-color:white;
-}
-
-/* DISPATCH */
-
-.dispatch-check:checked{
-accent-color:#16a34a;
-}
-
-/* STOPS */
-
-.add-stop{
-background:#facc15;
-border:none;
-padding:3px 6px;
-cursor:pointer;
-border-radius:5px;
-font-size:12px;
-}
-
 .stop-row{
 display:flex;
-align-items:center;
 gap:5px;
 margin-bottom:3px;
 }
 
-.stop-remove{
+.addStop{
+background:#facc15;
+border:none;
+padding:3px 6px;
+border-radius:4px;
 cursor:pointer;
-color:#dc2626;
-font-weight:bold;
 }
-
-/* ROW COLORS */
-
-.row-company{background:#fff6d6;}
-.row-individual{background:#e8f4ff;}
-.row-reserved{background:#dcfce7;}
 
 </style>
 
@@ -159,18 +119,46 @@ font-weight:bold;
 
 <body>
 
-<!-- ADMIN HEADER -->
 <div id="adminHeader"></div>
-
-<!-- PAGE BODY -->
 
 <div class="page-body">
 
-<div id="tripsContainer"></div>
+<div class="table-wrap">
+
+<table id="tripTable">
+
+<thead>
+
+<tr>
+
+<th>#</th>
+<th>Trip #</th>
+<th>Type</th>
+<th>Company</th>
+<th>Entry Name</th>
+<th>Entry Phone</th>
+<th>Client</th>
+<th>Client Phone</th>
+<th>Pickup</th>
+<th>Stops</th>
+<th>Dropoff</th>
+<th>Notes</th>
+<th>Date</th>
+<th>Time</th>
+<th>Status</th>
+<th>Actions</th>
+
+</tr>
+
+</thead>
+
+<tbody id="tripBody"></tbody>
+
+</table>
 
 </div>
 
-<!-- SCRIPTS -->
+</div>
 
 <script src="/admin/header.js"></script>
 <script src="/admin/trips.js"></script>

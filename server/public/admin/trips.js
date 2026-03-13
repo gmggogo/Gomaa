@@ -1,22 +1,8 @@
 const API="/api/trips"
 
-const container=document.getElementById("tripsContainer")
+const body=document.getElementById("tripBody")
 
 let trips=[]
-
-/* ARIZONA TIME */
-
-function getArizonaTime(){
-return new Date(
-new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
-}
-
-function formatArizonaDate(dateObj){
-return dateObj.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
-}
-
-/* LOAD TRIPS */
 
 async function loadTrips(){
 
@@ -29,264 +15,154 @@ renderTrips()
 
 }
 
-/* DATES */
-
-function getDates(){
-
-const now=getArizonaTime()
-
-const today=new Date(now)
-today.setHours(0,0,0,0)
-
-const tomorrow=new Date(today)
-tomorrow.setDate(today.getDate()+1)
-
-return{today,tomorrow}
-
-}
-
-/* GROUP */
-
-function groupTrips(){
-
-const {today,tomorrow}=getDates()
-
-const groups={
-today:[],
-tomorrow:[]
-}
-
-trips.forEach(t=>{
-
-const date=t.tripDate||t.date
-if(!date) return
-
-const d=new Date(
-new Date(date).toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
-
-d.setHours(0,0,0,0)
-
-if(d.getTime()===today.getTime()) groups.today.push(t)
-else if(d.getTime()===tomorrow.getTime()) groups.tomorrow.push(t)
-
-})
-
-return groups
-
-}
-
-/* COLOR */
-
-function rowColor(type){
-
-type=(type||"").toLowerCase()
-
-if(type==="company") return "row-company"
-if(type==="individual") return "row-individual"
-if(type==="reserved") return "row-reserved"
-
-return ""
-
-}
-
-/* RENDER */
-
 function renderTrips(){
 
-container.innerHTML=""
+body.innerHTML=""
 
-const groups=groupTrips()
-const {today,tomorrow}=getDates()
-
-drawGroup("Today – "+formatArizonaDate(today),groups.today)
-drawGroup("Tomorrow – "+formatArizonaDate(tomorrow),groups.tomorrow)
-
-}
-
-function drawGroup(title,list){
-
-const header=document.createElement("div")
-header.className="group-title"
-header.innerText=title
-container.appendChild(header)
-
-const wrapper=document.createElement("div")
-wrapper.className="table-scroll"
-
-const table=document.createElement("table")
-table.className="trip-table"
-
-table.innerHTML=`
-
-<tr>
-<th>Dispatch</th>
-<th>#</th>
-<th>Trip</th>
-<th>Type</th>
-<th>Company</th>
-<th>Client</th>
-<th>Phone</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Date</th>
-<th>Time</th>
-<th>Status</th>
-<th>Notes</th>
-<th>Actions</th>
-</tr>
-
-`
-
-if(!list.length){
-
-const row=document.createElement("tr")
-row.innerHTML=`<td colspan="15" style="text-align:center;padding:20px">No Trips</td>`
-table.appendChild(row)
-
-}else{
-
-list.forEach((t,i)=>{
+trips.forEach((t,i)=>{
 
 const tr=document.createElement("tr")
-tr.className=rowColor(t.type)
 
 tr.innerHTML=`
-
-<td>
-<input class="dispatch-check" type="checkbox"
-${t.inDispatch?"checked":""}
-${t.disabled?"disabled":""}
-onchange="sendDispatch('${t._id}',this.checked)">
-</td>
 
 <td>${i+1}</td>
 
 <td>${t.tripNumber||""}</td>
+
 <td>${t.type||""}</td>
+
 <td>${t.company||""}</td>
 
-<td><input class="edit-field clientName" disabled value="${t.clientName||""}"></td>
-<td><input class="edit-field clientPhone" disabled value="${t.clientPhone||""}"></td>
-<td><input class="edit-field pickup" disabled value="${t.pickup||""}"></td>
+<td>
+<input class="entryName" disabled value="${t.entryName||""}">
+</td>
+
+<td>
+<input class="entryPhone" disabled value="${t.entryPhone||""}">
+</td>
+
+<td>
+<input class="client" disabled value="${t.client||""}">
+</td>
+
+<td>
+<input class="clientPhone" disabled value="${t.clientPhone||""}">
+</td>
+
+<td>
+<input class="pickup" disabled value="${t.pickup||""}">
+</td>
 
 <td>
 
 <div class="stops">
 
 ${(t.stops||[]).map(s=>`
+
 <div class="stop-row">
-<input class="stop edit-field" disabled value="${s}">
-<span class="stop-remove" onclick="removeStop(this)">✖</span>
+<input class="stop" disabled value="${s}">
 </div>
+
 `).join("")}
 
 </div>
 
-<button class="add-stop" onclick="addStop(this)">+ Stop</button>
+<button class="addStop" onclick="addStop(this)">
++ Stop
+</button>
 
 </td>
 
-<td><input class="edit-field dropoff" disabled value="${t.dropoff||""}"></td>
-<td><input class="edit-field tripDate" disabled value="${t.tripDate||""}"></td>
-<td><input class="edit-field tripTime" disabled value="${t.tripTime||""}"></td>
-
-<td>${t.status||"Confirmed"}</td>
-
 <td>
-<textarea class="edit-field notes" disabled>${t.notes||""}</textarea>
+<input class="dropoff" disabled value="${t.dropoff||""}">
 </td>
 
 <td>
+<textarea class="notes" disabled>${t.notes||""}</textarea>
+</td>
 
-<button class="btn btn-edit"
+<td>
+<input class="date" disabled value="${t.date||""}">
+</td>
+
+<td>
+<input class="time" disabled value="${t.time||""}">
+</td>
+
+<td>${t.status||""}</td>
+
+<td class="actions">
+
+<button class="btn edit"
 onclick="editTrip('${t._id}',this)">
 Edit
 </button>
 
-<button class="btn btn-delete"
+<button class="btn delete"
 onclick="deleteTrip('${t._id}')">
 Delete
-</button>
-
-<button class="btn btn-disable"
-onclick="toggleTrip('${t._id}',this)">
-${t.disabled?"Enable":"Disable"}
 </button>
 
 </td>
 
 `
 
-table.appendChild(tr)
+body.appendChild(tr)
 
 })
 
 }
 
-wrapper.appendChild(table)
-container.appendChild(wrapper)
-
-}
-
-/* ADD STOP */
-
 function addStop(btn){
 
 const stopsDiv=btn.parentElement.querySelector(".stops")
-
-const count=stopsDiv.querySelectorAll(".stop-row").length
-
-if(count>=5){
-alert("Maximum 5 stops")
-return
-}
 
 const row=document.createElement("div")
 row.className="stop-row"
 
 row.innerHTML=`
-<input class="stop edit-field" placeholder="Stop address">
-<span class="stop-remove" onclick="removeStop(this)">✖</span>
+<input class="stop">
 `
 
 stopsDiv.appendChild(row)
 
 }
 
-function removeStop(el){
-el.closest(".stop-row").remove()
-}
-
-/* EDIT */
-
 async function editTrip(id,btn){
 
 const row=btn.closest("tr")
-const fields=row.querySelectorAll(".edit-field")
-const addStopBtn=row.querySelector(".add-stop")
+
+const inputs=row.querySelectorAll("input,textarea")
 
 if(btn.innerText==="Edit"){
 
-fields.forEach(f=>f.disabled=false)
-if(addStopBtn) addStopBtn.disabled=false
+inputs.forEach(i=>i.disabled=false)
 
 btn.innerText="Save"
+
 return
 }
 
 const payload={
-clientName: row.querySelector(".clientName")?.value||"",
-clientPhone: row.querySelector(".clientPhone")?.value||"",
-pickup: row.querySelector(".pickup")?.value||"",
-dropoff: row.querySelector(".dropoff")?.value||"",
-tripDate: row.querySelector(".tripDate")?.value||"",
-tripTime: row.querySelector(".tripTime")?.value||"",
-notes: row.querySelector(".notes")?.value||"",
+
+entryName:row.querySelector(".entryName").value,
+entryPhone:row.querySelector(".entryPhone").value,
+
+client:row.querySelector(".client").value,
+clientPhone:row.querySelector(".clientPhone").value,
+
+pickup:row.querySelector(".pickup").value,
+dropoff:row.querySelector(".dropoff").value,
+
+notes:row.querySelector(".notes").value,
+
+date:row.querySelector(".date").value,
+time:row.querySelector(".time").value,
+
 stops:Array.from(row.querySelectorAll(".stop"))
-.map(s=>s.value.trim())
+.map(s=>s.value)
 .filter(Boolean)
+
 }
 
 await fetch(API+"/"+id,{
@@ -295,8 +171,7 @@ headers:{ "Content-Type":"application/json" },
 body:JSON.stringify(payload)
 })
 
-fields.forEach(f=>f.disabled=true)
-if(addStopBtn) addStopBtn.disabled=true
+inputs.forEach(i=>i.disabled=true)
 
 btn.innerText="Edit"
 
@@ -304,70 +179,15 @@ loadTrips()
 
 }
 
-/* DELETE */
-
 async function deleteTrip(id){
 
 if(!confirm("Delete trip?")) return
 
-await fetch(API+"/"+id,{method:"DELETE"})
+await fetch(API+"/"+id,{
+method:"DELETE"
+})
 
 loadTrips()
-
-}
-
-/* DISABLE */
-
-function toggleTrip(id,btn){
-
-const row=btn.closest("tr")
-const fields=row.querySelectorAll("input,textarea,button")
-
-if(btn.innerText==="Disable"){
-
-fields.forEach(f=>{
-if(f!==btn) f.disabled=true
-})
-
-row.style.opacity="0.5"
-
-btn.innerText="Enable"
-btn.style.background="#16a34a"
-
-fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({disabled:true})
-})
-
-}else{
-
-fields.forEach(f=>f.disabled=false)
-
-row.style.opacity="1"
-
-btn.innerText="Disable"
-btn.style.background="#64748b"
-
-fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({disabled:false})
-})
-
-}
-
-}
-
-/* DISPATCH */
-
-async function sendDispatch(id,val){
-
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({inDispatch:val})
-})
 
 }
 
