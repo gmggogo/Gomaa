@@ -4,15 +4,27 @@ const container=document.getElementById("tripsContainer")
 
 let trips=[]
 
+/* ===============================
+   ARIZONA TIME
+================================ */
+
 function getArizonaTime(){
+
 return new Date(
 new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
 )
+
 }
 
 function formatArizonaDate(dateObj){
+
 return dateObj.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
+
 }
+
+/* ===============================
+   LOAD TRIPS
+================================ */
 
 async function loadTrips(){
 
@@ -24,6 +36,10 @@ trips=data||[]
 renderTrips()
 
 }
+
+/* ===============================
+   GET TODAY / TOMORROW
+================================ */
 
 function getDates(){
 
@@ -39,6 +55,10 @@ return{today,tomorrow}
 
 }
 
+/* ===============================
+   GROUP TRIPS BY DATE
+================================ */
+
 function groupTrips(){
 
 const {today,tomorrow}=getDates()
@@ -50,23 +70,36 @@ tomorrow:[]
 
 trips.forEach(t=>{
 
-const date=t.tripDate||t.date
+const date=t.tripDate || t.date
 if(!date) return
 
+/* FIX TIMEZONE ISSUE */
+
+const parts=date.split("-")
+
 const d=new Date(
-new Date(date).toLocaleString("en-US",{timeZone:"America/Phoenix"})
+Number(parts[0]),
+Number(parts[1])-1,
+Number(parts[2])
 )
 
 d.setHours(0,0,0,0)
 
-if(d.getTime()===today.getTime()) groups.today.push(t)
-else if(d.getTime()===tomorrow.getTime()) groups.tomorrow.push(t)
+if(d.getTime()===today.getTime())
+groups.today.push(t)
+
+else if(d.getTime()===tomorrow.getTime())
+groups.tomorrow.push(t)
 
 })
 
 return groups
 
 }
+
+/* ===============================
+   ROW COLORS
+================================ */
 
 function rowColor(type){
 
@@ -80,6 +113,10 @@ return ""
 
 }
 
+/* ===============================
+   RENDER TRIPS
+================================ */
+
 function renderTrips(){
 
 container.innerHTML=""
@@ -91,6 +128,10 @@ drawGroup("Today – "+formatArizonaDate(today),groups.today)
 drawGroup("Tomorrow – "+formatArizonaDate(tomorrow),groups.tomorrow)
 
 }
+
+/* ===============================
+   DRAW TABLE
+================================ */
 
 function drawGroup(title,list){
 
@@ -185,8 +226,11 @@ ${(t.stops||[]).map(s=>`
 </td>
 
 <td><input class="edit-field dropoff" disabled value="${t.dropoff||""}"></td>
+
 <td><input class="edit-field tripDate" disabled value="${t.tripDate||""}"></td>
+
 <td><input class="edit-field tripTime" disabled value="${t.tripTime||""}"></td>
+
 <td><input class="edit-field notes" disabled value="${t.notes||""}"></td>
 
 <td>${t.status||"Confirmed"}</td>
@@ -223,6 +267,10 @@ container.appendChild(wrapper)
 
 }
 
+/* ===============================
+   STOPS
+================================ */
+
 function addStop(btn){
 
 const stopsDiv=btn.parentElement.querySelector(".stops")
@@ -250,6 +298,10 @@ function removeStop(el){
 el.closest(".stop-row").remove()
 }
 
+/* ===============================
+   EDIT TRIP
+================================ */
+
 async function editTrip(id,btn){
 
 const row=btn.closest("tr")
@@ -261,6 +313,7 @@ fields.forEach(f=>f.disabled=false)
 
 btn.innerText="Save"
 return
+
 }
 
 const payload={
@@ -295,6 +348,10 @@ loadTrips()
 
 }
 
+/* ===============================
+   DELETE
+================================ */
+
 async function deleteTrip(id){
 
 if(!confirm("Delete trip?")) return
@@ -304,6 +361,10 @@ await fetch(API+"/"+id,{method:"DELETE"})
 loadTrips()
 
 }
+
+/* ===============================
+   DISABLE
+================================ */
 
 function toggleTrip(id,btn){
 
@@ -323,6 +384,10 @@ btn.innerText="Disable"
 
 }
 
+/* ===============================
+   DISPATCH
+================================ */
+
 async function sendDispatch(id,val){
 
 await fetch(API+"/"+id,{
@@ -332,5 +397,9 @@ body:JSON.stringify({inDispatch:val})
 })
 
 }
+
+/* ===============================
+   START
+================================ */
 
 loadTrips()
