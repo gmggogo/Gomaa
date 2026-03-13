@@ -1,8 +1,7 @@
 const API_DRIVERS="/api/users/driver"
+const API_SCHEDULE="/api/driver-schedule"
 
-const STORAGE_KEY="driverSchedule"
-
-let schedule=JSON.parse(localStorage.getItem(STORAGE_KEY))||{}
+let schedule={}
 
 const tbody=document.getElementById("tbody")
 
@@ -48,14 +47,31 @@ return await res.json()
 
 }
 
-function save(){
+/* LOAD SCHEDULE FROM SERVER */
 
-localStorage.setItem(STORAGE_KEY,JSON.stringify(schedule))
+async function loadSchedule(){
 
-localStorage.setItem(
-"driverScheduleForMap",
-JSON.stringify(schedule)
-)
+const res=await fetch(API_SCHEDULE)
+
+if(res.ok){
+schedule=await res.json()
+}else{
+schedule={}
+}
+
+}
+
+/* SAVE SCHEDULE TO SERVER */
+
+async function save(){
+
+await fetch(API_SCHEDULE,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify(schedule)
+})
 
 }
 
@@ -180,8 +196,6 @@ tbody.appendChild(tr)
 
 })
 
-save()
-
 }
 
 function editDriver(id){
@@ -191,24 +205,27 @@ render()
 
 }
 
-function saveDriver(id){
+async function saveDriver(id){
 
 schedule[id].edit=false
-save()
+
+await save()
+
 render()
 
 }
 
-function toggleEnable(id){
+async function toggleEnable(id){
 
 schedule[id].enabled=!schedule[id].enabled
 
-save()
+await save()
+
 render()
 
 }
 
-function squareToggle(e,id,key){
+async function squareToggle(e,id,key){
 
 const box=e.currentTarget
 const chk=box.querySelector("input")
@@ -221,8 +238,17 @@ schedule[id].days[key]=chk.checked
 
 box.classList.toggle("active",chk.checked)
 
-save()
+await save()
 
 }
 
+/* INIT */
+
+async function init(){
+
+await loadSchedule()
 render()
+
+}
+
+init()
