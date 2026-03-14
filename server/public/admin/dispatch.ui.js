@@ -1,127 +1,62 @@
-import { loadDispatchTrips, saveDispatchTrips, loadDrivers } from "./dispatch.store.js";
-import { autoRedistribute } from "./dispatch.engine.js";
+const tbody=document.getElementById("dispatchBody")
 
-const tbody = document.getElementById("tbody");
+const UI={
 
-/* =========================
-   RENDER TABLE
-========================= */
+renderTrips(trips){
 
-export function renderDispatch(){
+tbody.innerHTML=""
 
-  const trips = loadDispatchTrips();
-  const drivers = loadDrivers();
+if(!trips.length){
 
-  tbody.innerHTML = "";
+tbody.innerHTML=`<tr>
+<td colspan="10">No Trips</td>
+</tr>`
 
-  if(!trips.length){
+return
+}
 
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="10" style="padding:20px;font-weight:bold">
-          No trips selected from Trips page
-        </td>
-      </tr>
-    `;
+trips.forEach(t=>{
 
-    return;
-  }
+const tr=document.createElement("tr")
 
-  trips.forEach((t,i)=>{
+tr.dataset.id=t._id
 
-    const tr = document.createElement("tr");
+tr.innerHTML=`
 
-    const driver = drivers.find(d => d.id === t.driverId);
+<td>
+<input type="checkbox"
+class="tripSelect"
+value="${t._id}">
+</td>
 
-    const driverName = driver ? driver.name : "-";
-    const vehicle = driver ? driver.vehicleNumber : "-";
-    const note = t.note || "";
+<td>${t.tripNumber||""}</td>
 
-    tr.innerHTML = `
+<td>${t.clientName||""}</td>
 
-      <td>
-        <input type="checkbox" class="row-check">
-      </td>
+<td>${t.pickup||""}</td>
 
-      <td>${t.tripNumber || "-"}</td>
+<td>${(t.stops||[]).join(" | ")}</td>
 
-      <td>${t.clientName || "-"}</td>
+<td>${t.dropoff||""}</td>
 
-      <td>${t.pickup || "-"}</td>
+<td>${t.tripDate||""}</td>
 
-      <td>${(t.stops || []).join(" | ")}</td>
+<td>${t.tripTime||""}</td>
 
-      <td>${t.dropoff || "-"}</td>
+<td class="driverCell">${t.driverName||""}</td>
 
-      <td>${driverName}</td>
+<td>
+<button onclick="Engine.sendSingle('${t._id}')">
+Send
+</button>
+</td>
 
-      <td>${vehicle}</td>
+`
 
-      <td title="${note}">
-        ${note ? "📝" : "-"}
-      </td>
+tbody.appendChild(tr)
 
-      <td>
-        <button onclick="addNote(${i})">Note</button>
-        <button onclick="removeFromDispatch(${i})">Remove</button>
-      </td>
-
-    `;
-
-    tbody.appendChild(tr);
-
-  });
+})
 
 }
 
-/* =========================
-   ADD NOTE
-========================= */
-
-window.addNote = function(index){
-
-  const trips = loadDispatchTrips();
-
-  const note = prompt("Enter note for this trip:");
-
-  if(note === null) return;
-
-  trips[index].note = note;
-
-  saveDispatchTrips(trips);
-
-  renderDispatch();
-
-};
-
-/* =========================
-   REMOVE TRIP
-========================= */
-
-window.removeFromDispatch = function(index){
-
-  const trips = loadDispatchTrips();
-
-  trips.splice(index,1);
-
-  saveDispatchTrips(trips);
-
-  renderDispatch();
-
-};
-
-/* =========================
-   AUTO BUTTON
-========================= */
-
-window.autoRedistribute = function(){
-
-  autoRedistribute();
-
-};
-
-/* =========================
-   INIT
-========================= */
-
-window.addEventListener("DOMContentLoaded", renderDispatch);
+}

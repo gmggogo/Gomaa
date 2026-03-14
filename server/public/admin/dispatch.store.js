@@ -1,33 +1,46 @@
-/* =========================
-   DISPATCH STORAGE
-========================= */
+const API="/api/dispatch"
 
-export function loadDispatchTrips(){
-  try {
-    return JSON.parse(localStorage.getItem("dispatchTrips")) || [];
-  } catch {
-    return [];
-  }
+const Store={
+
+async getTrips(){
+
+const res=await fetch(API)
+return await res.json()
+
+},
+
+async getDrivers(){
+
+const res=await fetch("/api/drivers")
+return await res.json()
+
+},
+
+async sendTrip(id){
+
+await fetch(API+"/send/"+id,{
+method:"POST"
+})
+
+},
+
+async assignDriver(tripId,driverId){
+
+await fetch(API+"/assignDriver",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+tripId,
+driverId
+})
+
+})
+
 }
 
-export function saveDispatchTrips(list){
-  localStorage.setItem("dispatchTrips", JSON.stringify(list));
-}
-
-/* =========================
-   DRIVERS (FROM USERS)
-========================= */
-
-export function loadDrivers(){
-
-  const users = JSON.parse(localStorage.getItem("users")) || [];
-
-  return users
-    .filter(u => u.role === "driver" && u.active === true)
-    .map(d => ({
-      id: d.id,
-      name: d.name,
-      vehicleNumber: d.vehicleNumber || "-",
-      address: d.address || ""
-    }));
 }

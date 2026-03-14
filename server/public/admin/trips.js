@@ -56,7 +56,7 @@ return{today,tomorrow}
 }
 
 /* ===============================
-   GROUP TRIPS BY DATE
+   GROUP TRIPS
 ================================ */
 
 function groupTrips(){
@@ -72,8 +72,6 @@ trips.forEach(t=>{
 
 const date=t.tripDate || t.date
 if(!date) return
-
-/* FIX TIMEZONE ISSUE */
 
 const parts=date.split("-")
 
@@ -366,7 +364,7 @@ loadTrips()
    DISABLE
 ================================ */
 
-function toggleTrip(id,btn){
+async function toggleTrip(id,btn){
 
 const row=btn.closest("tr")
 
@@ -375,10 +373,31 @@ if(btn.innerText==="Disable"){
 row.style.opacity="0.5"
 btn.innerText="Enable"
 
+await fetch(API+"/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+disabled:true,
+inDispatch:false
+})
+})
+
 }else{
 
 row.style.opacity="1"
 btn.innerText="Disable"
+
+await fetch(API+"/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+disabled:false
+})
+})
 
 }
 
@@ -392,8 +411,12 @@ async function sendDispatch(id,val){
 
 await fetch(API+"/"+id,{
 method:"PUT",
-headers:{ "Content-Type":"application/json"},
-body:JSON.stringify({inDispatch:val})
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+inDispatch:val
+})
 })
 
 }

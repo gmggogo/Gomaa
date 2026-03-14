@@ -1,90 +1,68 @@
-import { loadDispatchTrips, saveDispatchTrips, loadDrivers } from "./dispatch.store.js";
+const Engine={
 
-/* =========================
-   SIMPLE DISTANCE
-========================= */
+trips:[],
+drivers:[],
 
-function calcDistance(a,b){
+async load(){
 
-  if(!a || !b) return 999;
+this.trips=await Store.getTrips()
+this.drivers=await Store.getDrivers()
 
-  a = a.toLowerCase();
-  b = b.toLowerCase();
+UI.renderTrips(this.trips)
 
-  if(a === b) return 1;
+},
 
-  let score = 0;
+getSelected(){
 
-  for(let i=0;i<Math.min(a.length,b.length);i++){
-    if(a[i] === b[i]) score++;
-  }
+return [...document.querySelectorAll(".tripSelect:checked")]
+.map(c=>c.value)
 
-  return Math.abs(a.length-b.length) + (10-score);
+},
+
+async sendSelected(){
+
+const ids=this.getSelected()
+
+for(const id of ids){
+
+await Store.sendTrip(id)
+
 }
 
-/* =========================
-   AUTO REDISTRIBUTION
-========================= */
+alert("Trips Sent")
 
-export function autoRedistribute(){
+this.load()
 
-  const trips = loadDispatchTrips();
-  const drivers = loadDrivers();
+},
 
-  if(!trips.length){
-    alert("No trips in dispatch");
-    return;
-  }
+async sendSingle(id){
 
-  if(!drivers.length){
-    alert("No active drivers");
-    return;
-  }
+await Store.sendTrip(id)
 
-  /* sort trips by pickup time */
+alert("Trip Sent")
 
-  trips.sort((a,b)=>{
-    return (a.pickupTime || "").localeCompare(b.pickupTime || "");
-  });
+this.load()
 
-  const workload = {};
+},
 
-  drivers.forEach(d=>{
-    workload[d.id] = 0;
-  });
+async saveDrivers(){
 
-  trips.forEach(trip=>{
+const edits=document.querySelectorAll(".driverEdit")
 
-    let bestDriver = null;
-    let bestScore = 9999;
+for(const sel of edits){
 
-    drivers.forEach(driver=>{
+const row=sel.closest("tr")
 
-      const dist = calcDistance(driver.address, trip.pickup);
+const tripId=row.dataset.id
 
-      const score = dist + workload[driver.id]*5;
+await Store.assignDriver(tripId,sel.value)
 
-      if(score < bestScore){
-        bestScore = score;
-        bestDriver = driver.id;
-      }
+}
 
-    });
+alert("Drivers Updated")
 
-    if(bestDriver){
+this.load()
 
-      trip.driverId = bestDriver;
-
-      workload[bestDriver]++;
-
-    }
-
-  });
-
-  saveDispatchTrips(trips);
-
-  if(window.renderDispatch){
-    window.renderDispatch();
-  }
+}
 
 }
