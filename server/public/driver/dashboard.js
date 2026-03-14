@@ -1,10 +1,6 @@
 /* =====================================================
-   SUNBEAM DRIVER DASHBOARD – STABLE VERSION
+   SUNBEAM DRIVER DASHBOARD – FINAL STABLE
 ===================================================== */
-
-/* ===============================
-   PREVENT DOUBLE LOAD
-================================ */
 
 if (window.__SUNBEAM_DASHBOARD__) {
   console.log("Dashboard already loaded");
@@ -13,7 +9,7 @@ if (window.__SUNBEAM_DASHBOARD__) {
 window.__SUNBEAM_DASHBOARD__ = true;
 
 /* ===============================
-   AUTH CHECK (SAFE)
+   AUTH CHECK
 ================================ */
 
 let driver = null;
@@ -52,7 +48,25 @@ const el = document.getElementById("driverName");
 
 if (!el) return;
 
-el.innerText = driver.name || driver.username || "Driver";
+try{
+
+const raw = localStorage.getItem("loggedDriver");
+
+if(!raw) return;
+
+const d = JSON.parse(raw);
+
+el.innerText =
+d.name ||
+d.username ||
+d.email ||
+"Driver";
+
+}catch(err){
+
+console.log("Driver name error",err);
+
+}
 
 })();
 
@@ -75,6 +89,7 @@ timeZone:"America/Phoenix"
 }
 
 updateTime();
+
 setInterval(updateTime,1000);
 
 /* ===============================
@@ -160,7 +175,7 @@ window.open(
 };
 
 /* ===============================
-   KEEP SESSION WHEN RETURNING
+   KEEP SESSION
 ================================ */
 
 document.addEventListener("visibilitychange", function(){
