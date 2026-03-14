@@ -13,25 +13,32 @@ if (window.__SUNBEAM_DASHBOARD__) {
 window.__SUNBEAM_DASHBOARD__ = true;
 
 /* ===============================
-   AUTH CHECK
+   AUTH CHECK (SAFE)
 ================================ */
+
+let driver = null;
+
+try {
 
 const rawDriver = localStorage.getItem("loggedDriver");
 
 if (!rawDriver) {
-location.href = "/driver/login.html";
+throw new Error("No driver session");
 }
-
-let driver = {};
-
-try {
 
 driver = JSON.parse(rawDriver);
 
-} catch {
+if (!driver || !driver.token) {
+throw new Error("Invalid driver session");
+}
+
+} catch (err) {
+
+console.log("Driver session error:", err);
 
 localStorage.removeItem("loggedDriver");
-location.href = "/driver/login.html";
+
+window.location.href = "/driver/login.html";
 
 }
 
@@ -151,5 +158,25 @@ window.open(
 );
 
 };
+
+/* ===============================
+   KEEP SESSION WHEN RETURNING
+================================ */
+
+document.addEventListener("visibilitychange", function(){
+
+if (!document.hidden){
+
+const raw = localStorage.getItem("loggedDriver");
+
+if(!raw){
+
+window.location.href="/driver/login.html";
+
+}
+
+}
+
+});
 
 }
