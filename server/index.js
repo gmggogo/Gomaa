@@ -597,6 +597,57 @@ app.delete("/api/trips/:id", async (req, res) => {
 });
 
 /* =========================
+   LIVE DRIVER TRACKING
+========================= */
+const liveDrivers = new Map();
+
+app.post("/api/driver/location", (req, res) => {
+  try {
+    const { driverId, name, lat, lng } = req.body || {};
+
+    if (!name || lat === undefined || lng === undefined) {
+      return res.status(400).json({ message: "missing location data" });
+    }
+
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+
+    if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
+      return res.status(400).json({ message: "invalid coordinates" });
+    }
+
+    liveDrivers.set(name, {
+      driverId: driverId || "",
+      name,
+      lat: latNum,
+      lng: lngNum,
+      time: Date.now()
+    });
+
+    res.json({ status: "ok" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "location save error" });
+  }
+});
+
+app.get("/api/admin/live-drivers", (req, res) => {
+  try {
+    const now = Date.now();
+    const maxAge = 1000 * 60 * 5; // 5 minutes
+
+    const drivers = Array.from(liveDrivers.values()).filter(driver => {
+      return now - driver.time <= maxAge;
+    });
+
+    res.json(drivers);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "live drivers load error" });
+  }
+});
+
+/* =========================
    ROOT
 ========================= */
 app.get("/", (req, res) => {
