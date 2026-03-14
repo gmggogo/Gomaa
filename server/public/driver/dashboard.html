@@ -267,8 +267,7 @@ function updateTime(){
 const now = new Date()
 
 document.getElementById("datetime").innerText =
-now.toLocaleDateString()+" "+
-now.toLocaleTimeString()
+now.toLocaleDateString()+" "+now.toLocaleTimeString()
 
 }
 
@@ -278,10 +277,10 @@ updateTime()
 
 /* DRIVER NAME */
 
-const driver = localStorage.getItem("driverName")
+const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}")
 
-if(driver){
-document.getElementById("driverName").innerText = driver
+if(driver.name){
+document.getElementById("driverName").innerText = driver.name
 }
 
 /* NAVIGATION */
@@ -315,6 +314,7 @@ alert("Chat coming soon")
 function logout(){
 
 localStorage.removeItem("driverToken")
+localStorage.removeItem("loggedDriver")
 
 window.location.href="login.html"
 
