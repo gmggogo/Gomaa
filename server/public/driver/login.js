@@ -1,3 +1,7 @@
+/* =====================================================
+   SUNBEAM DRIVER LOGIN
+===================================================== */
+
 document.addEventListener("DOMContentLoaded", () => {
 
 const form = document.getElementById("loginForm");
@@ -41,24 +45,25 @@ password
 const data = await res.json();
 
 if(!res.ok){
-
 errorBox.innerText = data.message || "Login failed";
 return;
+}
 
+if(!data.user){
+errorBox.innerText = "User data missing";
+return;
 }
 
 /* نتأكد أنه Driver */
 
 if(data.user.role !== "driver"){
-
 errorBox.innerText = "This account is not a driver";
 return;
-
 }
 
 /* حفظ session */
 
-localStorage.setItem("driverSession", JSON.stringify({
+localStorage.setItem("loggedDriver", JSON.stringify({
 
 token:data.token,
 id:data.user.id,
