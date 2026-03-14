@@ -4,7 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dispatch Center</title>
+<title>Dispatch Board</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -12,25 +12,17 @@
 
 <style>
 
-body{
-margin:0;
-font-family:Segoe UI;
-background:#f3f6fb;
-}
-
 .page{
-padding:20px;
-max-width:1400px;
+max-width:1500px;
 margin:auto;
-margin-top:20px;
+padding:20px;
 }
 
-/* table */
-
-.table-wrap{
-width:100%;
-overflow-x:auto;
-margin-top:20px;
+.toolbar{
+display:flex;
+gap:10px;
+margin-bottom:15px;
+flex-wrap:wrap;
 }
 
 table{
@@ -42,178 +34,132 @@ background:white;
 th{
 background:#0f2c5c;
 color:white;
-padding:10px;
-font-size:14px;
+padding:8px;
 }
 
 td{
-padding:8px;
-border-bottom:1px solid #eee;
+padding:6px;
+border-bottom:1px solid #ddd;
 font-size:13px;
 text-align:center;
 }
 
-/* stops */
-
-.stop-box{
-font-size:12px;
-line-height:18px;
-}
-
-/* buttons */
-
-.actions{
-display:flex;
-gap:5px;
-justify-content:center;
-}
-
-button{
-padding:6px 10px;
+.btn{
+padding:6px 12px;
 border:none;
-cursor:pointer;
 border-radius:4px;
-font-size:12px;
-}
-
-.btn-send{
-background:#16a34a;
+cursor:pointer;
 color:white;
 }
 
-.btn-note{
-background:#2563eb;
-color:white;
-}
+.green{background:#16a34a}
+.blue{background:#2563eb}
+.gold{background:#d4af37;color:black}
+.red{background:#dc2626}
 
-.btn-delete{
-background:#dc2626;
-color:white;
-}
-
-.note-input{
-width:120px;
-padding:4px;
-}
-
-/* mobile */
-
-@media(max-width:900px){
-
-th,td{
-font-size:12px;
-padding:6px;
-}
-
-.note-input{
-width:80px;
-}
-
+.note{
+width:90px;
 }
 
 </style>
 
 </head>
 
-
 <body>
-
-<!-- HEADER -->
 
 <div id="adminHeader"></div>
 
-
 <div class="page">
 
-<h2>Dispatch Trips</h2>
+<h2>Dispatch Board</h2>
 
-<div class="table-wrap">
+<div class="toolbar">
 
-<table id="tripTable">
+<button class="btn green" onclick="sendSelected()">Send Selected</button>
+
+<button class="btn blue" onclick="autoDispatch()">Auto Distribution</button>
+
+<button class="btn gold" onclick="editSelected()">Manual Edit</button>
+
+<button class="btn green" onclick="saveEdit()">Save</button>
+
+<button class="btn blue" onclick="selectAll()">Select All</button>
+
+<button class="btn red" onclick="removeAll()">Remove All</button>
+
+</div>
+
+<table>
 
 <thead>
 
 <tr>
 
-<th>Select</th>
+<th>✓</th>
 <th>Trip #</th>
 <th>Client</th>
-<th>Phone</th>
 <th>Pickup</th>
 <th>Stops</th>
 <th>Dropoff</th>
 <th>Date</th>
 <th>Time</th>
+<th>Driver</th>
+<th>Car</th>
 <th>Note</th>
-<th>Actions</th>
+<th>Send</th>
 
 </tr>
 
 </thead>
 
-<tbody id="tripBody"></tbody>
+<tbody id="tbody"></tbody>
 
 </table>
 
 </div>
 
-</div>
-
+<script src="/admin/header.js"></script>
 
 <script>
 
-/* =========================
-LOAD HEADER
-========================= */
+let trips=[]
+let drivers=[]
 
-async function loadHeader(){
+async function loadData(){
 
-const res = await fetch("/admin/header.html")
-const html = await res.text()
+const resTrips = await fetch("/api/dispatch")
+trips = await resTrips.json()
 
-document.getElementById("adminHeader").innerHTML = html
+const resDrivers = await fetch("/api/drivers")
+drivers = await resDrivers.json()
+
+render()
 
 }
 
-loadHeader()
+function render(){
 
+const tbody=document.getElementById("tbody")
 
-
-/* =========================
-LOAD TRIPS FROM SERVER
-========================= */
-
-async function loadTrips(){
-
-const res = await fetch("/api/trips")
-
-const trips = await res.json()
-
-const body = document.getElementById("tripBody")
-
-body.innerHTML=""
+tbody.innerHTML=""
 
 trips.forEach(t=>{
 
-const stops=(t.stops||[]).join("<br>")
+const tr=document.createElement("tr")
 
-const row=document.createElement("tr")
-
-row.innerHTML=`
+tr.innerHTML=`
 
 <td>
-<input type="checkbox" value="${t._id}">
+<input type="checkbox" class="tripSelect" value="${t._id}">
 </td>
 
-<td>${t.tripNumber||""}</td>
+<td class="tripNumber">${t.tripNumber||""}</td>
 
 <td>${t.clientName||""}</td>
 
-<td>${t.clientPhone||""}</td>
-
 <td>${t.pickup||""}</td>
 
-<td class="stop-box">${stops}</td>
+<td>${(t.stops||[]).join(" | ")||"-"}</td>
 
 <td>${t.dropoff||""}</td>
 
@@ -221,103 +167,150 @@ row.innerHTML=`
 
 <td>${t.tripTime||""}</td>
 
+<td class="driverCell">${t.driverName||""}</td>
+
+<td>${t.carNumber||""}</td>
+
 <td>
-
-<input
-class="note-input"
-value="${t.notes||""}"
-id="note_${t._id}"
->
-
+<input class="note" value="${t.note||""}">
 </td>
 
-<td class="actions">
-
-<button class="btn-send" onclick="sendTrip('${t._id}')">
-Send
-</button>
-
-<button class="btn-note" onclick="saveNote('${t._id}')">
-Note
-</button>
-
-<button class="btn-delete" onclick="deleteTrip('${t._id}')">
-Delete
-</button>
-
+<td>
+<button class="btn blue" onclick="sendTrip('${t._id}')">Send</button>
 </td>
 
 `
 
-body.appendChild(row)
+tbody.appendChild(tr)
 
 })
 
 }
 
-loadTrips()
+function selectAll(){
 
+document.querySelectorAll(".tripSelect")
+.forEach(c=>c.checked=true)
 
+}
 
-/* =========================
-SAVE NOTE
-========================= */
+function removeAll(){
 
-async function saveNote(id){
+document.querySelectorAll(".tripSelect")
+.forEach(c=>c.checked=false)
 
-const note=document.getElementById("note_"+id).value
+}
 
-await fetch("/api/trips/"+id,{
-method:"PUT",
+function editSelected(){
+
+const rows=document.querySelectorAll(".tripSelect:checked")
+
+if(!rows.length){
+alert("Select trips first")
+return
+}
+
+rows.forEach(chk=>{
+
+const row=chk.closest("tr")
+
+const cell=row.querySelector(".driverCell")
+
+const current=cell.innerText
+
+cell.innerHTML=`
+<select class="driverEdit">
+${drivers.map(d=>`
+<option value="${d._id}"
+${d.name===current?'selected':''}>
+${d.name}
+</option>
+`).join("")}
+</select>
+`
+
+})
+
+}
+
+async function saveEdit(){
+
+const edits=document.querySelectorAll(".driverEdit")
+
+for(const sel of edits){
+
+const row=sel.closest("tr")
+
+const tripNumber=row.querySelector(".tripNumber").innerText
+
+await fetch("/api/dispatch/assignDriver",{
+
+method:"POST",
+
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({notes:note})
+
+body:JSON.stringify({
+
+tripNumber,
+driverId:sel.value
+
 })
 
-alert("Note Saved")
+})
 
 }
 
+alert("Drivers Updated")
 
+loadData()
 
-/* =========================
-SEND TRIP
-========================= */
+}
+
+async function sendSelected(){
+
+const selected=[...document.querySelectorAll(".tripSelect:checked")]
+
+for(const chk of selected){
+
+await fetch("/api/dispatch/send/"+chk.value,{
+method:"POST"
+})
+
+}
+
+alert("Trips Sent")
+
+loadData()
+
+}
 
 async function sendTrip(id){
 
-await fetch("/api/trips/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({status:"Dispatched"})
+await fetch("/api/dispatch/send/"+id,{
+method:"POST"
 })
 
 alert("Trip Sent")
 
-loadTrips()
+loadData()
 
 }
 
+async function autoDispatch(){
 
-
-/* =========================
-DELETE TRIP
-========================= */
-
-async function deleteTrip(id){
-
-if(!confirm("Delete Trip?")) return
-
-await fetch("/api/trips/"+id,{
-method:"DELETE"
+await fetch("/api/dispatch/auto",{
+method:"POST"
 })
 
-loadTrips()
+alert("Trips Re-Distributed")
+
+loadData()
 
 }
+
+loadData()
 
 </script>
 

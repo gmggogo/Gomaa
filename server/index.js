@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -74,6 +75,13 @@ const tripSchema = new mongoose.Schema({
   tripTime: { type: String, default: "" },
 
   notes: { type: String, default: "" },
+
+  /* DISPATCH */
+  dispatchSelected: { type: Boolean, default: false },
+  driverId: { type: String, default: "" },
+  driverName: { type: String, default: "" },
+  vehicle: { type: String, default: "" },
+  dispatchNote: { type: String, default: "" },
 
   status: { type: String, default: "Scheduled" },
   bookedAt: { type: Date, default: Date.now },
@@ -597,6 +605,89 @@ app.delete("/api/trips/:id", async (req, res) => {
 });
 
 /* =========================
+   DISPATCH API
+========================= */
+
+/* الرحلات اللي هتظهر في الديسبتش */
+app.get("/api/dispatch", async (req, res) => {
+  try {
+    const trips = await Trip.find({
+      status: { $in: ["Booked", "Scheduled"] }
+    }).sort({ tripDate: 1, tripTime: 1 });
+
+    res.json(trips);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Dispatch load error" });
+  }
+});
+
+/* إرسال الرحلات المختارة */
+app.patch("/api/dispatch/send", async (req, res) => {
+  try {
+    const ids = req.body.ids || [];
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No trips selected" });
+    }
+
+    const result = await Trip.updateMany(
+      { _id: { $in: ids } },
+      { status: "Dispatched" }
+    );
+
+    res.json({ status: "ok", updated: result.modifiedCount });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Dispatch update error" });
+  }
+});
+
+/* حفظ نوت */
+app.patch("/api/dispatch/:id/note", async (req, res) => {
+  try {
+    const note = req.body.note || "";
+
+    const trip = await Trip.findByIdAndUpdate(
+      req.params.id,
+      {
+        notes: note,
+        dispatchNote: note
+      },
+      { new: true }
+    );
+
+    res.json(trip);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Note save error" });
+  }
+});
+
+/* تعيين سواق */
+app.patch("/api/dispatch/:id/driver", async (req, res) => {
+  try {
+    const { driverId, driverName, vehicle } = req.body || {};
+
+    const trip = await Trip.findByIdAndUpdate(
+      req.params.id,
+      {
+        driverId: driverId || "",
+        driverName: driverName || "",
+        vehicle: vehicle || "",
+        status: "Driver Assigned"
+      },
+      { new: true }
+    );
+
+    res.json(trip);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Driver assign error" });
+  }
+});
+
+/* =========================
    LIVE DRIVER TRACKING
 ========================= */
 const liveDrivers = new Map();
@@ -634,7 +725,7 @@ app.post("/api/driver/location", (req, res) => {
 app.get("/api/admin/live-drivers", (req, res) => {
   try {
     const now = Date.now();
-    const maxAge = 1000 * 60 * 5; // 5 minutes
+    const maxAge = 1000 * 60 * 5;
 
     const drivers = Array.from(liveDrivers.values()).filter(driver => {
       return now - driver.time <= maxAge;
