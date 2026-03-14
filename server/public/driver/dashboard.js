@@ -1,5 +1,5 @@
 /* =====================================================
-   SUNBEAM DRIVER DASHBOARD – FINAL STABLE
+   SUNBEAM DRIVER DASHBOARD – FINAL SERVER VERSION
 ===================================================== */
 
 if (window.__SUNBEAM_DASHBOARD__) {
@@ -13,6 +13,7 @@ window.__SUNBEAM_DASHBOARD__ = true;
 ================================ */
 
 let driver = null;
+let token = null;
 
 try {
 
@@ -28,6 +29,8 @@ if (!driver || !driver.token) {
 throw new Error("Invalid driver session");
 }
 
+token = driver.token;
+
 } catch (err) {
 
 console.log("Driver session error:", err);
@@ -39,14 +42,43 @@ window.location.href = "/driver/login.html";
 }
 
 /* ===============================
-   DRIVER NAME
+   DRIVER NAME (SERVER FIRST)
 ================================ */
 
-(function(){
+async function loadDriverName(){
 
 const el = document.getElementById("driverName");
 
 if (!el) return;
+
+try{
+
+const res = await fetch("/api/driver/me",{
+headers:{
+Authorization:"Bearer " + token
+}
+});
+
+if(res.ok){
+
+const data = await res.json();
+
+if(data && data.name){
+
+el.innerText = data.name;
+return;
+
+}
+
+}
+
+}catch(err){
+
+console.log("Server name load failed");
+
+}
+
+/* fallback localStorage */
 
 try{
 
@@ -68,7 +100,9 @@ console.log("Driver name error",err);
 
 }
 
-})();
+}
+
+loadDriverName();
 
 /* ===============================
    DATETIME (ARIZONA)
@@ -89,7 +123,6 @@ timeZone:"America/Phoenix"
 }
 
 updateTime();
-
 setInterval(updateTime,1000);
 
 /* ===============================
