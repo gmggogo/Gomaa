@@ -1,60 +1,36 @@
 body{
-  font-family: Arial, sans-serif;
-  background:#f1f5f9;
+  font-family: Arial;
   padding:20px;
 }
 
-.top-bar{
-  margin-bottom:15px;
-}
-
-button{
-  padding:6px 12px;
-  border:none;
-  border-radius:4px;
-  cursor:pointer;
-}
-
-#rescheduleBtn{ background:#facc15; }
-#sendSelectedBtn{ background:#22c55e;color:#fff; }
-
 table{
   width:100%;
-  border-collapse:collapse;
-  background:#fff;
+  border-collapse: collapse;
+}
+
+th,td{
+  border:1px solid #ddd;
+  padding:8px;
+  text-align:center;
 }
 
 th{
   background:#0f172a;
-  color:#facc15;
-  padding:8px;
-  font-size:13px;
+  color:white;
 }
 
-td{
-  border-bottom:1px solid #e5e7eb;
-  padding:8px;
-  font-size:13px;
+button{
+  padding:6px 12px;
+  background:#2563eb;
+  color:white;
+  border:none;
+  cursor:pointer;
 }
 
-.actions button{
-  margin-right:4px;
+button:hover{
+  background:#1e40af;
 }
 
-.edit{ background:#2563eb;color:#fff; }
-.map{ background:#0ea5e9;color:#fff; }
-.remove{ background:#dc2626;color:#fff; }
-
-select{
-  width:100%;
-  padding:4px;
-}
-
-.driver-name{
-  font-weight:bold;
-}
-
-.driver-id{
-  font-size:11px;
-  color:#666;
+.toolbar{
+  margin-bottom:15px;
 }

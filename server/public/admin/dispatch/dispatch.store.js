@@ -17,7 +17,17 @@ export function saveDispatchTrips(list){
 /* =========================
    DRIVERS (FROM USERS)
 ========================= */
+
 export function loadDrivers(){
-  return (JSON.parse(localStorage.getItem("users")) || [])
-    .filter(u => u.role === "driver" && u.active === true);
+
+  const users = JSON.parse(localStorage.getItem("users")) || [];
+
+  return users
+    .filter(u => u.role === "driver" && u.active === true)
+    .map(d => ({
+      id: d.id,
+      name: d.name,
+      vehicleNumber: d.vehicleNumber || "-",
+      address: d.address || ""
+    }));
 }

@@ -1,63 +1,90 @@
-import { loadDispatchTrips, saveDispatchTrips } from "./dispatch-store.js";
-import { renderDispatch } from "./dispatch-ui.js";
+import { loadDispatchTrips, saveDispatchTrips, loadDrivers } from "./dispatch.store.js";
 
 /* =========================
-   ASSIGN DRIVER
+   SIMPLE DISTANCE
 ========================= */
-window.assignDriver = function(i, driverId){
-  const trips = loadDispatchTrips();
-  trips[i].driverId = driverId || null;
-  saveDispatchTrips(trips);
-};
 
-/* =========================
-   REMOVE FROM DISPATCH
-========================= */
-window.removeFromDispatch = function(i){
-  let trips = loadDispatchTrips();
+function calcDistance(a,b){
 
-  // رجّع الرحلة في Trips
-  const companyTrips = JSON.parse(localStorage.getItem("companyTrips")) || [];
-  const idx = companyTrips.findIndex(
-    x => x.tripNumber === trips[i].tripNumber
-  );
-  if(idx > -1){
-    companyTrips[idx].inDispatch = false;
-    localStorage.setItem("companyTrips", JSON.stringify(companyTrips));
+  if(!a || !b) return 999;
+
+  a = a.toLowerCase();
+  b = b.toLowerCase();
+
+  if(a === b) return 1;
+
+  let score = 0;
+
+  for(let i=0;i<Math.min(a.length,b.length);i++){
+    if(a[i] === b[i]) score++;
   }
 
-  trips.splice(i,1);
-  saveDispatchTrips(trips);
-  renderDispatch();
-};
+  return Math.abs(a.length-b.length) + (10-score);
+}
 
 /* =========================
-   SEND SELECTED
+   AUTO REDISTRIBUTION
 ========================= */
-window.sendSelected = function(){
-  const checks = [...document.querySelectorAll(".row-check:checked")];
-  if(!checks.length) return alert("No trips selected");
+
+export function autoRedistribute(){
 
   const trips = loadDispatchTrips();
+  const drivers = loadDrivers();
 
-  checks.forEach(chk=>{
-    const row = chk.closest("tr");
-    const idx = [...document.querySelectorAll("#tbody tr")].indexOf(row);
-    const t = trips[idx];
+  if(!trips.length){
+    alert("No trips in dispatch");
+    return;
+  }
 
-    if(!t.driverId){
-      alert("Trip "+t.tripNumber+" has no driver");
-      return;
-    }
+  if(!drivers.length){
+    alert("No active drivers");
+    return;
+  }
 
-    const key = "driverTrips_" + t.driverId;
-    const inbox = JSON.parse(localStorage.getItem(key)) || [];
+  /* sort trips by pickup time */
 
-    if(!inbox.find(x=>x.tripNumber===t.tripNumber)){
-      inbox.push({ ...t, status:"Assigned" });
-      localStorage.setItem(key, JSON.stringify(inbox));
-    }
+  trips.sort((a,b)=>{
+    return (a.pickupTime || "").localeCompare(b.pickupTime || "");
   });
 
-  alert("Trips sent");
-};
+  const workload = {};
+
+  drivers.forEach(d=>{
+    workload[d.id] = 0;
+  });
+
+  trips.forEach(trip=>{
+
+    let bestDriver = null;
+    let bestScore = 9999;
+
+    drivers.forEach(driver=>{
+
+      const dist = calcDistance(driver.address, trip.pickup);
+
+      const score = dist + workload[driver.id]*5;
+
+      if(score < bestScore){
+        bestScore = score;
+        bestDriver = driver.id;
+      }
+
+    });
+
+    if(bestDriver){
+
+      trip.driverId = bestDriver;
+
+      workload[bestDriver]++;
+
+    }
+
+  });
+
+  saveDispatchTrips(trips);
+
+  if(window.renderDispatch){
+    window.renderDispatch();
+  }
+
+}
