@@ -1,4 +1,4 @@
-import { loadDispatchTrips, loadDrivers } from "./dispatch.store.js";
+import { loadDispatchTrips, saveDispatchTrips, loadDrivers } from "./dispatch.store.js";
 import { autoRedistribute } from "./dispatch.engine.js";
 
 const tbody = document.getElementById("tbody");
@@ -18,7 +18,7 @@ export function renderDispatch(){
 
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" style="padding:20px;font-weight:bold">
+        <td colspan="10" style="padding:20px;font-weight:bold">
           No trips selected from Trips page
         </td>
       </tr>
@@ -35,6 +35,7 @@ export function renderDispatch(){
 
     const driverName = driver ? driver.name : "-";
     const vehicle = driver ? driver.vehicleNumber : "-";
+    const note = t.note || "";
 
     tr.innerHTML = `
 
@@ -56,10 +57,13 @@ export function renderDispatch(){
 
       <td>${vehicle}</td>
 
+      <td title="${note}">
+        ${note ? "📝" : "-"}
+      </td>
+
       <td>
-        <button onclick="removeFromDispatch(${i})">
-          Remove
-        </button>
+        <button onclick="addNote(${i})">Note</button>
+        <button onclick="removeFromDispatch(${i})">Remove</button>
       </td>
 
     `;
@@ -71,6 +75,26 @@ export function renderDispatch(){
 }
 
 /* =========================
+   ADD NOTE
+========================= */
+
+window.addNote = function(index){
+
+  const trips = loadDispatchTrips();
+
+  const note = prompt("Enter note for this trip:");
+
+  if(note === null) return;
+
+  trips[index].note = note;
+
+  saveDispatchTrips(trips);
+
+  renderDispatch();
+
+};
+
+/* =========================
    REMOVE TRIP
 ========================= */
 
@@ -80,7 +104,7 @@ window.removeFromDispatch = function(index){
 
   trips.splice(index,1);
 
-  localStorage.setItem("dispatchTrips", JSON.stringify(trips));
+  saveDispatchTrips(trips);
 
   renderDispatch();
 
