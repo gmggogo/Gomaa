@@ -4,50 +4,146 @@
 <head>
 
 <meta charset="UTF-8">
+<title>Dispatch Center</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Dispatch</title>
+<link rel="stylesheet" href="/admin/style.css">
 
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="dispatch.css">
+<style>
+
+body{
+margin:0;
+font-family:Segoe UI;
+background:#f3f6fb;
+}
+
+.page{
+padding:20px;
+max-width:1400px;
+margin:auto;
+margin-top:20px;
+}
+
+/* table */
+
+.table-wrap{
+width:100%;
+overflow-x:auto;
+margin-top:20px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+background:white;
+}
+
+th{
+background:#0f2c5c;
+color:white;
+padding:10px;
+font-size:14px;
+}
+
+td{
+padding:8px;
+border-bottom:1px solid #eee;
+font-size:13px;
+text-align:center;
+}
+
+/* stops */
+
+.stop-box{
+font-size:12px;
+line-height:18px;
+}
+
+/* buttons */
+
+.actions{
+display:flex;
+gap:5px;
+justify-content:center;
+}
+
+button{
+padding:6px 10px;
+border:none;
+cursor:pointer;
+border-radius:4px;
+font-size:12px;
+}
+
+.btn-send{
+background:#16a34a;
+color:white;
+}
+
+.btn-note{
+background:#2563eb;
+color:white;
+}
+
+.btn-delete{
+background:#dc2626;
+color:white;
+}
+
+.note-input{
+width:120px;
+padding:4px;
+}
+
+/* mobile */
+
+@media(max-width:900px){
+
+th,td{
+font-size:12px;
+padding:6px;
+}
+
+.note-input{
+width:80px;
+}
+
+}
+
+</style>
 
 </head>
+
 
 <body>
 
 <!-- HEADER -->
-<div id="headerContainer"></div>
 
-<!-- PAGE -->
+<div id="adminHeader"></div>
 
-<div class="dispatch-page">
 
-<h2>Dispatch Board</h2>
+<div class="page">
 
-<div class="toolbar">
+<h2>Dispatch Trips</h2>
 
-<button onclick="autoRedistribute()">
-Auto Redistribution
-</button>
+<div class="table-wrap">
 
-</div>
-
-<div class="table-wrapper">
-
-<table>
+<table id="tripTable">
 
 <thead>
 
 <tr>
 
 <th>Select</th>
-<th>Trip</th>
+<th>Trip #</th>
 <th>Client</th>
+<th>Phone</th>
 <th>Pickup</th>
 <th>Stops</th>
 <th>Dropoff</th>
-<th>Driver</th>
-<th>Vehicle</th>
+<th>Date</th>
+<th>Time</th>
 <th>Note</th>
 <th>Actions</th>
 
@@ -55,7 +151,7 @@ Auto Redistribution
 
 </thead>
 
-<tbody id="tbody"></tbody>
+<tbody id="tripBody"></tbody>
 
 </table>
 
@@ -63,9 +159,167 @@ Auto Redistribution
 
 </div>
 
-<script src="header.js"></script>
 
-<script type="module" src="dispatch.ui.js"></script>
+<script>
+
+/* =========================
+LOAD HEADER
+========================= */
+
+async function loadHeader(){
+
+const res = await fetch("/admin/header.html")
+const html = await res.text()
+
+document.getElementById("adminHeader").innerHTML = html
+
+}
+
+loadHeader()
+
+
+
+/* =========================
+LOAD TRIPS FROM SERVER
+========================= */
+
+async function loadTrips(){
+
+const res = await fetch("/api/trips")
+
+const trips = await res.json()
+
+const body = document.getElementById("tripBody")
+
+body.innerHTML=""
+
+trips.forEach(t=>{
+
+const stops=(t.stops||[]).join("<br>")
+
+const row=document.createElement("tr")
+
+row.innerHTML=`
+
+<td>
+<input type="checkbox" value="${t._id}">
+</td>
+
+<td>${t.tripNumber||""}</td>
+
+<td>${t.clientName||""}</td>
+
+<td>${t.clientPhone||""}</td>
+
+<td>${t.pickup||""}</td>
+
+<td class="stop-box">${stops}</td>
+
+<td>${t.dropoff||""}</td>
+
+<td>${t.tripDate||""}</td>
+
+<td>${t.tripTime||""}</td>
+
+<td>
+
+<input
+class="note-input"
+value="${t.notes||""}"
+id="note_${t._id}"
+>
+
+</td>
+
+<td class="actions">
+
+<button class="btn-send" onclick="sendTrip('${t._id}')">
+Send
+</button>
+
+<button class="btn-note" onclick="saveNote('${t._id}')">
+Note
+</button>
+
+<button class="btn-delete" onclick="deleteTrip('${t._id}')">
+Delete
+</button>
+
+</td>
+
+`
+
+body.appendChild(row)
+
+})
+
+}
+
+loadTrips()
+
+
+
+/* =========================
+SAVE NOTE
+========================= */
+
+async function saveNote(id){
+
+const note=document.getElementById("note_"+id).value
+
+await fetch("/api/trips/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({notes:note})
+})
+
+alert("Note Saved")
+
+}
+
+
+
+/* =========================
+SEND TRIP
+========================= */
+
+async function sendTrip(id){
+
+await fetch("/api/trips/"+id,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({status:"Dispatched"})
+})
+
+alert("Trip Sent")
+
+loadTrips()
+
+}
+
+
+
+/* =========================
+DELETE TRIP
+========================= */
+
+async function deleteTrip(id){
+
+if(!confirm("Delete Trip?")) return
+
+await fetch("/api/trips/"+id,{
+method:"DELETE"
+})
+
+loadTrips()
+
+}
+
+</script>
 
 </body>
 </html>
