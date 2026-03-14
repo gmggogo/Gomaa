@@ -2,252 +2,360 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Sunbeam Driver Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<meta charset="UTF-8">
+<title>Sunbeam Driver Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet Routing Machine -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-  <style>
-    body{
-      margin:0;
-      font-family:Arial, sans-serif;
-      background:#111;
-      color:#fff;
-      overflow:hidden;
-    }
+<!-- Routing -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
 
-    #header{
-      position:absolute;
-      top:0;
-      left:0;
-      right:0;
-      z-index:1000;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      background:#0f172a;
-      padding:10px 15px;
-      font-size:14px;
-      box-sizing:border-box;
-    }
+<style>
 
-    #driverName{
-      color:#facc15;
-      font-weight:bold;
-    }
+body{
+margin:0;
+font-family:Arial;
+background:#111;
+color:#fff;
+overflow:hidden;
+}
 
-    #datetime{
-      font-size:13px;
-    }
+/* HEADER */
 
-    #map{
-      position:absolute;
-      top:50px;
-      bottom:220px;
-      left:0;
-      right:0;
-      z-index:1;
-    }
+#header{
+position:absolute;
+top:0;
+left:0;
+right:0;
+z-index:1000;
+display:flex;
+justify-content:space-between;
+align-items:center;
+background:#0f172a;
+padding:10px 15px;
+font-size:14px;
+}
 
-    #controls{
-      position:absolute;
-      bottom:0;
-      left:0;
-      right:0;
-      z-index:1000;
-      background:#111;
-      padding:15px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      box-sizing:border-box;
-      border-top:1px solid #333;
-      max-height:220px;
-      overflow:auto;
-    }
+#driverName{
+color:#facc15;
+font-weight:bold;
+}
 
-    button{
-      padding:12px;
-      border:none;
-      border-radius:8px;
-      font-size:14px;
-      font-weight:bold;
-      cursor:pointer;
-      width:100%;
-      box-sizing:border-box;
-    }
+#datetime{
+font-size:13px;
+}
 
-    #btnGoogle{
-      background:#111;
-      border:1px solid #888;
-      color:#fff;
-    }
+/* MAP */
 
-    #btnGoPickup{
-      background:#2563eb;
-      color:#fff;
-      display:none;
-    }
+#map{
+position:absolute;
+top:50px;
+bottom:220px;
+left:0;
+right:0;
+z-index:1;
+}
 
-    #btnArrived{
-      background:#22c55e;
-      color:#fff;
-      display:none;
-    }
+/* CONTROLS */
 
-    #btnStart{
-      background:#16a34a;
-      color:#fff;
-      display:none;
-    }
+#controls{
+position:absolute;
+bottom:70px;
+left:0;
+right:0;
+background:#111;
+padding:15px;
+display:flex;
+flex-direction:column;
+gap:10px;
+border-top:1px solid #333;
+max-height:220px;
+overflow:auto;
+}
 
-    #btnDropoff{
-      background:#059669;
-      color:#fff;
-      display:none;
-      opacity:0.55;
-    }
+button{
+padding:12px;
+border:none;
+border-radius:8px;
+font-size:14px;
+font-weight:bold;
+cursor:pointer;
+width:100%;
+}
 
-    #btnDropoff.enabled{
-      opacity:1;
-      box-shadow:0 0 0 2px rgba(255,255,255,0.12) inset;
-    }
+#btnGoogle{
+background:#111;
+border:1px solid #888;
+color:#fff;
+}
 
-    #btnNoShow{
-      background:#dc2626;
-      color:#fff;
-      display:none;
-    }
+#btnGoPickup{
+background:#2563eb;
+color:#fff;
+display:none;
+}
 
-    #btnCompleteNoShow{
-      background:#f59e0b;
-      color:#111;
-    }
+#btnArrived{
+background:#22c55e;
+display:none;
+}
 
-    #waitTimer{
-      text-align:center;
-      font-size:18px;
-      font-weight:bold;
-      color:#facc15;
-      display:none;
-    }
+#btnStart{
+background:#16a34a;
+display:none;
+}
 
-    #noShowBox{
-      display:none;
-      flex-direction:column;
-      gap:10px;
-    }
+#btnDropoff{
+background:#059669;
+display:none;
+}
 
-    #noShowNotes{
-      width:100%;
-      height:70px;
-      border-radius:8px;
-      padding:10px;
-      font-size:14px;
-      resize:none;
-      box-sizing:border-box;
-      border:none;
-      outline:none;
-    }
+#btnNoShow{
+background:#dc2626;
+display:none;
+}
 
-    /* نخفي لوحة التوجيه الجانبية */
-    .leaflet-routing-container{
-      display:none !important;
-    }
-  </style>
+/* WAIT TIMER */
+
+#waitTimer{
+text-align:center;
+font-size:18px;
+font-weight:bold;
+color:#facc15;
+display:none;
+}
+
+/* NOSHOW BOX */
+
+#noShowBox{
+display:none;
+flex-direction:column;
+gap:10px;
+}
+
+#noShowNotes{
+width:100%;
+height:70px;
+border-radius:8px;
+padding:10px;
+font-size:14px;
+border:none;
+outline:none;
+}
+
+/* NAV BAR */
+
+.nav{
+position:absolute;
+bottom:0;
+left:0;
+right:0;
+height:70px;
+background:#020617;
+display:flex;
+justify-content:space-around;
+align-items:center;
+border-top:1px solid rgba(255,255,255,.08);
+}
+
+.nav button{
+background:none;
+border:none;
+color:#9ca3af;
+font-size:11px;
+cursor:pointer;
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:4px;
+}
+
+.nav button span{
+font-size:20px;
+}
+
+.nav button.active{
+color:#facc15;
+}
+
+/* Hide routing panel */
+
+.leaflet-routing-container{
+display:none !important;
+}
+
+</style>
+
 </head>
 
 <body>
 
-  <!-- HEADER -->
-  <div id="header">
-    <div id="driverName">Driver</div>
-    <div id="datetime"></div>
-  </div>
+<!-- HEADER -->
 
-  <!-- MAP -->
-  <div
-    id="map"
-    data-pickup-lat="33.2951"
-    data-pickup-lng="-111.9210"
-    data-dropoff-lat="33.3055"
-    data-dropoff-lng="-111.8500"
-  ></div>
+<div id="header">
 
-  <!-- CONTROLS -->
-  <div id="controls">
+<div id="driverName">Driver</div>
 
-    <button id="btnGoogle" type="button">
-      Open in Google Maps
-    </button>
+<div id="datetime"></div>
 
-    <button id="btnGoPickup" type="button">
-      GO TO PICKUP
-    </button>
+</div>
 
-    <button id="btnArrived" type="button">
-      ARRIVED
-    </button>
+<!-- MAP -->
 
-    <button id="btnStart" type="button">
-      START TRIP
-    </button>
+<div
+id="map"
+data-pickup-lat="33.2951"
+data-pickup-lng="-111.9210"
+data-dropoff-lat="33.3055"
+data-dropoff-lng="-111.8500"
+></div>
 
-    <button id="btnDropoff" type="button">
-      DROP OFF
-    </button>
+<!-- CONTROLS -->
 
-    <button id="btnNoShow" type="button">
-      NO SHOW
-    </button>
+<div id="controls">
 
-    <div id="waitTimer">15:00</div>
+<button id="btnGoogle">
+Open in Google Maps
+</button>
 
-    <div id="noShowBox">
-      <textarea id="noShowNotes" placeholder="Reason for no show"></textarea>
-      <button id="btnCompleteNoShow" type="button">
-        Complete No Show
-      </button>
-    </div>
+<button id="btnGoPickup">
+GO TO PICKUP
+</button>
 
-  </div>
+<button id="btnArrived">
+ARRIVED
+</button>
 
-  <!-- LIBS -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+<button id="btnStart">
+START TRIP
+</button>
 
-  <!-- PAGE JS -->
-  <script src="/driver/map.js"></script>
+<button id="btnDropoff">
+DROP OFF
+</button>
 
-  <script>
-    (function () {
-      const raw = localStorage.getItem("loggedDriver");
+<button id="btnNoShow">
+NO SHOW
+</button>
 
-      if (raw) {
-        try {
-          const d = JSON.parse(raw);
-          document.getElementById("driverName").innerText =
-            d.name || d.username || "Driver";
-        } catch (err) {
-          console.log("Driver parse error:", err);
-        }
-      }
-    })();
+<div id="waitTimer">15:00</div>
 
-    function updateTime(){
-      const now = new Date();
-      document.getElementById("datetime").innerText =
-        now.toLocaleString("en-US", { timeZone:"America/Phoenix" });
-    }
+<div id="noShowBox">
 
-    updateTime();
-    setInterval(updateTime, 1000);
-  </script>
+<textarea id="noShowNotes"
+placeholder="Reason for no show"></textarea>
+
+<button id="btnCompleteNoShow">
+Complete No Show
+</button>
+
+</div>
+
+</div>
+
+<!-- NAV -->
+
+<div class="nav">
+
+<button onclick="goHome()">
+<span>🏠</span>
+Home
+</button>
+
+<button onclick="goTrips()">
+<span>🚗</span>
+Trips
+</button>
+
+<button class="active">
+<span>🗺️</span>
+Map
+</button>
+
+<button onclick="goChat()">
+<span>💬</span>
+Chat
+</button>
+
+<button onclick="logout()">
+<span>🚪</span>
+Logout
+</button>
+
+</div>
+
+<!-- LIBS -->
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+<script src="/driver/map.js"></script>
+
+<script>
+
+/* DRIVER NAME */
+
+(function(){
+
+const raw = localStorage.getItem("loggedDriver")
+
+if(raw){
+
+try{
+
+const d = JSON.parse(raw)
+
+document.getElementById("driverName").innerText =
+d.name || d.username || "Driver"
+
+}catch{}
+
+}
+
+})()
+
+/* TIME */
+
+function updateTime(){
+
+const now = new Date()
+
+document.getElementById("datetime").innerText =
+now.toLocaleString("en-US",{timeZone:"America/Phoenix"})
+
+}
+
+updateTime()
+
+setInterval(updateTime,1000)
+
+/* NAVIGATION */
+
+function goHome(){
+window.location.href="dashboard.html"
+}
+
+function goTrips(){
+window.location.href="trips.html"
+}
+
+function goChat(){
+alert("Chat coming soon")
+}
+
+function logout(){
+
+localStorage.removeItem("driverToken")
+
+window.location.href="login.html"
+
+}
+
+</script>
 
 </body>
 </html>

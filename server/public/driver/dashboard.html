@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
 <title>Sunbeam Driver Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
 :root{
   --blue:#0b1f3a;
   --blue2:#123a7a;
@@ -26,7 +29,8 @@ body{
   padding-bottom:90px;
 }
 
-/* ===== HEADER ===== */
+/* HEADER */
+
 .header{
   position:relative;
   padding:40px 20px 20px;
@@ -58,7 +62,8 @@ body{
   color:#e5e7eb;
 }
 
-/* ===== STATUS ===== */
+/* STATUS */
+
 .status{
   margin:20px;
   padding:16px;
@@ -72,7 +77,8 @@ body{
   font-weight:bold;
 }
 
-/* ===== GRID ===== */
+/* GRID */
+
 .grid{
   padding:10px 20px;
   display:grid;
@@ -105,7 +111,8 @@ body{
   font-weight:bold;
 }
 
-/* ===== SUMMARY (BUTTON) ===== */
+/* SUMMARY */
+
 .summary{
   margin:20px;
   padding:18px;
@@ -123,7 +130,8 @@ body{
   border-color:var(--gold);
 }
 
-/* ===== BOTTOM NAV ===== */
+/* BOTTOM NAV */
+
 .nav{
   position:fixed;
   bottom:0;
@@ -156,61 +164,163 @@ body{
 .nav button.active{
   color:var(--gold);
 }
+
 </style>
+
 </head>
 
 <body>
 
 <!-- HEADER -->
+
 <div class="header">
-  <div class="top-datetime" id="datetime"></div>
-  <img src="../assets/logo.png" class="logo">
-  <div class="company-name">Sunbeam Transportation</div>
-  <div class="driver-name" id="driverName">Driver</div>
+
+<div class="top-datetime" id="datetime"></div>
+
+<img src="../assets/logo.png" class="logo">
+
+<div class="company-name">
+Sunbeam Transportation
+</div>
+
+<div class="driver-name" id="driverName">
+Driver
+</div>
+
 </div>
 
 <!-- STATUS -->
+
 <div class="status">
-  Status: <span>ONLINE</span>
+Status: <span>ONLINE</span>
 </div>
 
 <!-- GRID -->
+
 <div class="grid">
-  <div class="card" onclick="go('trips')">
-    <div class="icon">🚗</div>
-    <div class="title">Trips</div>
-  </div>
 
-  <div class="card" onclick="go('map')">
-    <div class="icon">🗺️</div>
-    <div class="title">Live Map</div>
-  </div>
-
-  <div class="card" onclick="go('hours')">
-    <div class="icon">⏱️</div>
-    <div class="title">Work Hours</div>
-  </div>
-
-  <div class="card" onclick="go('earnings')">
-    <div class="icon">💰</div>
-    <div class="title">Earnings</div>
-  </div>
+<div class="card" onclick="goTrips()">
+<div class="icon">🚗</div>
+<div class="title">Trips</div>
 </div>
 
-<!-- SUMMARY BUTTON -->
-<div class="summary" onclick="go('summary')">
-  📊 View Summary
+<div class="card" onclick="goMap()">
+<div class="icon">🗺️</div>
+<div class="title">Live Map</div>
 </div>
 
-<!-- BOTTOM NAV -->
+<div class="card" onclick="goHours()">
+<div class="icon">⏱️</div>
+<div class="title">Work Hours</div>
+</div>
+
+<div class="card" onclick="goEarnings()">
+<div class="icon">💰</div>
+<div class="title">Earnings</div>
+</div>
+
+</div>
+
+<!-- SUMMARY -->
+
+<div class="summary" onclick="goSummary()">
+📊 View Summary
+</div>
+
+<!-- NAV BAR -->
+
 <div class="nav">
-  <button class="active"><span>🏠</span>Home</button>
-  <button onclick="go('trips')"><span>🚗</span>Trips</button>
-  <button onclick="go('map')"><span>🗺️</span>Map</button>
-  <button onclick="go('chat')"><span>💬</span>Chat</button>
-  <button onclick="logout()"><span>🚪</span>Logout</button>
+
+<button class="active">
+<span>🏠</span>
+Home
+</button>
+
+<button onclick="goTrips()">
+<span>🚗</span>
+Trips
+</button>
+
+<button onclick="goMap()">
+<span>🗺️</span>
+Map
+</button>
+
+<button onclick="goChat()">
+<span>💬</span>
+Chat
+</button>
+
+<button onclick="logout()">
+<span>🚪</span>
+Logout
+</button>
+
 </div>
 
-<script src="dashboard.js"></script>
+<script>
+
+/* DATE + TIME */
+
+function updateTime(){
+
+const now = new Date()
+
+document.getElementById("datetime").innerText =
+now.toLocaleDateString()+" "+
+now.toLocaleTimeString()
+
+}
+
+setInterval(updateTime,1000)
+
+updateTime()
+
+/* DRIVER NAME */
+
+const driver = localStorage.getItem("driverName")
+
+if(driver){
+document.getElementById("driverName").innerText = driver
+}
+
+/* NAVIGATION */
+
+function goTrips(){
+window.location.href="trips.html"
+}
+
+function goMap(){
+window.location.href="map.html"
+}
+
+function goHours(){
+alert("Work Hours page coming")
+}
+
+function goEarnings(){
+alert("Earnings page coming")
+}
+
+function goSummary(){
+alert("Summary page coming")
+}
+
+function goChat(){
+alert("Chat coming soon")
+}
+
+/* LOGOUT */
+
+function logout(){
+
+localStorage.removeItem("driverToken")
+
+window.location.href="login.html"
+
+}
+
+</script>
+
 </body>
 </html>
