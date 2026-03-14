@@ -4,13 +4,23 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dispatch Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="./dispatch/dispatch.css">
+<title>Dispatch</title>
+
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dispatch.css">
 
 </head>
 
 <body>
+
+<!-- HEADER -->
+<div id="headerContainer"></div>
+
+<!-- PAGE -->
+
+<div class="dispatch-page">
 
 <h2>Dispatch Board</h2>
 
@@ -22,6 +32,8 @@ Auto Redistribution
 
 </div>
 
+<div class="table-wrapper">
+
 <table>
 
 <thead>
@@ -29,7 +41,7 @@ Auto Redistribution
 <tr>
 
 <th>Select</th>
-<th>Trip #</th>
+<th>Trip</th>
 <th>Client</th>
 <th>Pickup</th>
 <th>Stops</th>
@@ -47,7 +59,13 @@ Auto Redistribution
 
 </table>
 
-<script type="module" src="./dispatch/dispatch.ui.js"></script>
+</div>
+
+</div>
+
+<script src="header.js"></script>
+
+<script type="module" src="dispatch.ui.js"></script>
 
 </body>
 </html>
