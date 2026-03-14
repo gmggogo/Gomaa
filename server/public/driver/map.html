@@ -1,197 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Driver Live Map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<head>
+
+<meta charset="UTF-8">
+<title>Sunbeam Driver Map</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-:root{
-  --gold:#facc15;
-  --dark:#020617;
-  --blue:#2563eb;
+
+body{
+margin:0;
+font-family:Arial;
+background:#111;
+color:white;
 }
 
-html, body{
-  margin:0;
-  height:100%;
-  background:var(--dark);
-  font-family:Arial, sans-serif;
-  color:#fff;
+#header{
+
+position:absolute;
+top:0;
+left:0;
+right:0;
+z-index:1000;
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+background:#0f172a;
+padding:10px 15px;
+font-size:14px;
 }
 
-/* ===== TOP LABEL ===== */
-.top{
-  position:fixed;
-  top:10px;
-  left:50%;
-  transform:translateX(-50%);
-  background:black;
-  color:var(--gold);
-  padding:8px 14px;
-  border-radius:10px;
-  z-index:1000;
-  font-weight:bold;
+#driverName{
+color:#facc15;
+font-weight:bold;
 }
 
-/* ===== MAP ===== */
 #map{
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  /* 👇 المهم */
-  bottom:210px; /* trip + google + nav */
-  z-index:1;
+position:absolute;
+top:50px;
+bottom:120px;
+left:0;
+right:0;
 }
 
-/* ===== TRIP PANEL ===== */
-.trip-panel{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:140px;
-  padding:10px 12px;
-  background:var(--dark);
-  border-top:1px solid rgba(255,255,255,.08);
-  z-index:9997;
-  display:none;
+#controls{
+
+position:absolute;
+bottom:0;
+left:0;
+right:0;
+
+background:#111;
+padding:15px;
+
+display:flex;
+flex-direction:column;
+gap:10px;
 }
 
-.trip-panel button{
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  font-weight:bold;
-  cursor:pointer;
-  margin-bottom:8px;
+button{
+
+padding:12px;
+border:none;
+border-radius:6px;
+font-size:14px;
+cursor:pointer;
+
 }
 
-.timer{
-  text-align:center;
-  font-weight:bold;
-  color:var(--gold);
-  margin-bottom:8px;
-  display:none;
+#btnGoPickup{background:#2563eb;color:white;}
+#btnArrived{background:#22c55e;color:white;}
+#btnStart{background:#22c55e;color:white;}
+#btnDropoff{background:#16a34a;color:white;}
+#btnNoShow{background:#dc2626;color:white;}
+
+#btnGoogle{
+background:#111;
+border:1px solid #888;
+color:white;
 }
 
-/* Buttons */
-.btn-go{ background:#2563eb; color:#fff; display:none; }
-.btn-arrived{ background:#16a34a; color:#fff; display:none; }
-.btn-start{ background:#22c55e; color:#000; display:none; }
-.btn-noshow{ background:#dc2626; color:#fff; display:none; }
-.btn-dropoff{ background:#facc15; color:#000; display:none; opacity:.6; }
-.btn-dropoff.enabled{ opacity:1; }
-
-/* ===== NO SHOW ===== */
-.no-show-box{ display:none; }
-
-.no-show-box textarea{
-  width:100%;
-  height:90px;
-  border-radius:10px;
-  border:none;
-  padding:10px;
-  margin-bottom:8px;
+#waitTimer{
+text-align:center;
+font-size:18px;
+color:#facc15;
+display:none;
 }
 
-.btn-complete{
-  background:#7c3aed;
-  color:#fff;
+#noShowBox{
+display:none;
+flex-direction:column;
+gap:10px;
 }
 
-/* ===== GOOGLE BAR ===== */
-.bottom{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:70px;
-  background:var(--dark);
-  padding:10px 12px;
-  z-index:9998;
-  border-top:1px solid rgba(255,255,255,.08);
+textarea{
+width:100%;
+height:60px;
+border-radius:6px;
+padding:8px;
 }
 
-.bottom button{
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  background:var(--blue);
-  color:white;
-  font-weight:bold;
-}
-
-/* ===== BOTTOM NAV (الهيدر تحت) ===== */
-.nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  height:70px;
-  background:var(--dark);
-  display:flex;
-  justify-content:space-around;
-  align-items:center;
-  border-top:1px solid rgba(255,255,255,.08);
-  z-index:9999;
-}
-
-.nav button{
-  background:none;
-  border:none;
-  color:#9ca3af;
-  font-size:11px;
-  cursor:pointer;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
-}
-
-.nav button span{ font-size:20px; }
-.nav button.active{ color:var(--gold); }
 </style>
+
 </head>
 
 <body>
 
-<div class="top">LIVE DRIVER MAP</div>
+<!-- HEADER -->
 
-<div id="map"></div>
+<div id="header">
 
-<div class="trip-panel" id="tripPanel">
-  <div class="timer" id="waitTimer">20:00</div>
+<div id="driverName">Driver</div>
 
-  <button class="btn-go" id="btnGoPickup">GO TO PICKUP LOCATION</button>
-  <button class="btn-arrived" id="btnArrived">ARRIVED</button>
-  <button class="btn-start" id="btnStart">START TRIP</button>
-  <button class="btn-noshow" id="btnNoShow">NO SHOW</button>
-  <button class="btn-dropoff" id="btnDropoff">DROP OFF</button>
+<div id="datetime"></div>
 
-  <div class="no-show-box" id="noShowBox">
-    <textarea id="noShowNotes" placeholder="Reason for No Show (required)"></textarea>
-    <button class="btn-complete" id="btnComplete">COMPLETE</button>
-  </div>
 </div>
 
-<div class="bottom">
-  <button onclick="openGoogle()">OPEN IN GOOGLE MAPS</button>
+<!-- MAP -->
+
+<div id="map"
+
+data-pickup-lat="33.2951"
+data-pickup-lng="-111.9210"
+
+data-dropoff-lat="33.3055"
+data-dropoff-lng="-111.8500"
+
+></div>
+
+<!-- CONTROLS -->
+
+<div id="controls">
+
+<button id="btnGoogle" onclick="openGoogle()">
+Open in Google Maps
+</button>
+
+<button id="btnGoPickup" style="display:none">
+GO TO PICKUP
+</button>
+
+<button id="btnArrived" style="display:none">
+ARRIVED
+</button>
+
+<button id="btnStart" style="display:none">
+START TRIP
+</button>
+
+<button id="btnDropoff" style="display:none">
+DROP OFF
+</button>
+
+<button id="btnNoShow" style="display:none">
+NO SHOW
+</button>
+
+<div id="waitTimer">15:00</div>
+
+<div id="noShowBox">
+
+<textarea id="noShowNotes"
+placeholder="Reason for no show"></textarea>
+
+<button id="btnCompleteNoShow">
+Complete No Show
+</button>
+
 </div>
 
-<div class="nav">
-  <button onclick="go('home')"><span>🏠</span>Home</button>
-  <button onclick="go('trips')"><span>🚗</span>Trips</button>
-  <button class="active"><span>🗺️</span>Map</button>
-  <button onclick="go('chat')"><span>💬</span>Chat</button>
-  <button onclick="logout()"><span>🚪</span>Logout</button>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="map.js"></script>
-<script src="dashboard.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script src="/driver/map.js"></script>
+
+<script>
+
+/* ===============================
+   DRIVER NAME
+================================ */
+
+const raw = localStorage.getItem("loggedDriver");
+
+if(raw){
+
+try{
+
+const d = JSON.parse(raw);
+
+document.getElementById("driverName").innerText =
+d.name || d.username || "Driver";
+
+}catch{}
+
+}
+
+/* ===============================
+   CLOCK
+================================ */
+
+function updateTime(){
+
+const now = new Date();
+
+document.getElementById("datetime").innerText =
+now.toLocaleString("en-US",{
+timeZone:"America/Phoenix"
+});
+
+}
+
+updateTime();
+setInterval(updateTime,1000);
+
+
+/* ===============================
+   GOOGLE MAPS
+================================ */
+
+function openGoogle(){
+
+if(!window.driverMarker){
+
+window.open("https://maps.google.com","_blank");
+return;
+
+}
+
+const lat = window.driverMarker.getLatLng().lat;
+const lng = window.driverMarker.getLatLng().lng;
+
+window.open(
+`https://www.google.com/maps?q=${lat},${lng}`,
+"_blank"
+);
+
+}
+
+</script>
+
 </body>
 </html>
