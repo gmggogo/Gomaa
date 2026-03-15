@@ -4,109 +4,112 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dispatch – Sunbeam</title>
-
+<title>Dispatch</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="/admin/header.css">
-<link rel="stylesheet" href="/admin/dispatch.css">
 
 <style>
 
-/* ===============================
-PAGE
-================================ */
+body{
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
+}
+
+/* HEADER */
+
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
+}
+
+/* PAGE */
 
 .page-body{
-max-width:1400px;
-margin:auto;
-padding:220px 20px 40px;
+padding-top:300px;
+padding-left:20px;
+padding-right:20px;
 }
 
-/* ===============================
-TITLE
-================================ */
+/* MOBILE HEADER SPACE */
 
-.page-title{
-margin-bottom:20px;
-font-size:22px;
-font-weight:700;
+@media (max-width:768px){
+
+.page-body{
+padding-top:360px;
+padding-left:10px;
+padding-right:10px;
 }
 
-/* ===============================
-ACTION BAR
-================================ */
-
-.dispatch-bar{
-display:flex;
-flex-wrap:wrap;
-gap:10px;
-margin-bottom:20px;
 }
 
-.dispatch-bar button{
-background:#1e3a8a;
-color:white;
-border:none;
-padding:8px 14px;
-border-radius:6px;
-cursor:pointer;
-font-size:13px;
-}
+/* TABLE */
 
-.dispatch-bar button:hover{
-background:#162d6b;
-}
-
-/* ===============================
-TABLE
-================================ */
-
-.table-wrapper{
+.table-scroll{
 width:100%;
 overflow-x:auto;
 }
 
-.dispatch-table{
+.trip-table{
 width:100%;
 border-collapse:collapse;
-min-width:1100px;
 background:white;
-}
-
-.dispatch-table th,
-.dispatch-table td{
-padding:8px;
-border:1px solid #ddd;
 font-size:13px;
-text-align:left;
 }
 
-.dispatch-table th{
+.trip-table th{
 background:#0f172a;
+color:white;
+padding:8px;
+text-align:center;
+}
+
+.trip-table td{
+padding:6px;
+border-bottom:1px solid #eee;
+text-align:center;
+}
+
+/* BUTTONS */
+
+.actions{
+display:flex;
+gap:6px;
+justify-content:center;
+align-items:center;
+}
+
+.btn{
+border:none;
+padding:5px 10px;
+border-radius:6px;
+cursor:pointer;
+font-size:12px;
+}
+
+.btn-send{
+background:#16a34a;
 color:white;
 }
 
-/* ===============================
-MOBILE
-================================ */
-
-@media(max-width:768px){
-
-.page-body{
-padding:300px 10px 40px;
+.btn-remove{
+background:#dc2626;
+color:white;
 }
 
-.page-title{
-font-size:18px;
-}
-
-.dispatch-bar button{
+.driverEdit{
+width:100%;
+border:1px solid #ddd;
+padding:4px;
 font-size:12px;
-padding:7px 10px;
 }
 
+.dispatch-check:checked{
+accent-color:#16a34a;
 }
 
 </style>
@@ -115,26 +118,13 @@ padding:7px 10px;
 
 <body>
 
-<!-- HEADER -->
 <div id="adminHeader"></div>
 
 <div class="page-body">
 
-<h2 class="page-title">Dispatch Center</h2>
+<div class="table-scroll">
 
-<div class="dispatch-bar">
-
-<button onclick="selectAll()">Select All</button>
-<button onclick="removeAll()">Remove All</button>
-<button onclick="Engine.sendSelected()">Send Selected</button>
-<button onclick="editSelected()">Edit Selected</button>
-<button onclick="Engine.saveDrivers()">Save</button>
-
-</div>
-
-<div class="table-wrapper">
-
-<table class="dispatch-table">
+<table class="trip-table">
 
 <thead>
 
@@ -191,36 +181,6 @@ document.querySelectorAll(".tripSelect")
 function removeAll(){
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=false)
-}
-
-function editSelected(){
-
-const rows=document.querySelectorAll(".tripSelect:checked")
-
-rows.forEach(chk=>{
-
-const row=chk.closest("tr")
-const cell=row.querySelector(".driverCell")
-const current=cell.innerText
-
-cell.innerHTML=`
-
-<select class="driverEdit">
-
-<option value="">Select Driver</option>
-
-${Engine.drivers.map(d=>`
-<option value="${d._id}" ${d.name===current?"selected":""}>
-${d.name}
-</option>
-`).join("")}
-
-</select>
-
-`
-
-})
-
 }
 
 </script>
