@@ -184,7 +184,7 @@ table.innerHTML=`
 if(!list.length){
 
 const row=document.createElement("tr")
-row.innerHTML=`<td colspan="17" style="text-align:center;padding:20px">No Trips</td>`
+row.innerHTML=\`<td colspan="17" style="text-align:center;padding:20px">No Trips</td>\`
 table.appendChild(row)
 
 }else{
@@ -194,38 +194,38 @@ list.forEach((t,i)=>{
 const tr=document.createElement("tr")
 tr.className=rowColor(t.type)
 
-tr.innerHTML=`
+tr.innerHTML=\`
 
 <td>
 <input class="dispatch-check" type="checkbox"
-${t.inDispatch?"checked":""}
-onchange="sendDispatch('${t._id}',this.checked)">
+\${t.inDispatch?"checked":""}
+onchange="sendDispatch('\${t._id}',this.checked)">
 </td>
 
-<td>${i+1}</td>
+<td>\${i+1}</td>
 
-<td>${t.tripNumber||""}</td>
-<td>${t.type||""}</td>
-<td>${t.company||""}</td>
+<td>\${t.tripNumber||""}</td>
+<td>\${t.type||""}</td>
+<td>\${t.company||""}</td>
 
-<td><input class="edit-field entryName" disabled value="${t.entryName||""}"></td>
-<td><input class="edit-field entryPhone" disabled value="${t.entryPhone||""}"></td>
+<td><input class="edit-field entryName" disabled value="\${t.entryName||""}"></td>
+<td><input class="edit-field entryPhone" disabled value="\${t.entryPhone||""}"></td>
 
-<td><input class="edit-field clientName" disabled value="${t.clientName||""}"></td>
-<td><input class="edit-field clientPhone" disabled value="${t.clientPhone||""}"></td>
+<td><input class="edit-field clientName" disabled value="\${t.clientName||""}"></td>
+<td><input class="edit-field clientPhone" disabled value="\${t.clientPhone||""}"></td>
 
-<td><input class="edit-field pickup" disabled value="${t.pickup||""}"></td>
+<td><input class="edit-field pickup" disabled value="\${t.pickup||""}"></td>
 
 <td>
 
 <div class="stops">
 
-${(t.stops||[]).map(s=>`
+\${(t.stops||[]).map(s=>\`
 <div class="stop-row">
-<input class="stop edit-field" disabled value="${s}">
+<input class="stop edit-field" disabled value="\${s}">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 </div>
-`).join("")}
+\`).join("")}
 
 </div>
 
@@ -233,36 +233,36 @@ ${(t.stops||[]).map(s=>`
 
 </td>
 
-<td><input class="edit-field dropoff" disabled value="${t.dropoff||""}"></td>
+<td><input class="edit-field dropoff" disabled value="\${t.dropoff||""}"></td>
 
-<td><input class="edit-field tripDate" disabled value="${t.tripDate||""}"></td>
+<td><input class="edit-field tripDate" disabled value="\${t.tripDate||""}"></td>
 
-<td><input class="edit-field tripTime" disabled value="${t.tripTime||""}"></td>
+<td><input class="edit-field tripTime" disabled value="\${t.tripTime||""}"></td>
 
-<td><input class="edit-field notes" disabled value="${t.notes||""}"></td>
+<td><input class="edit-field notes" disabled value="\${t.notes||""}"></td>
 
-<td>${t.status||"Confirmed"}</td>
+<td>\${t.status||"Confirmed"}</td>
 
 <td class="actions">
 
 <button class="btn btn-edit"
-onclick="editTrip('${t._id}',this)">
+onclick="editTrip('\${t._id}',this)">
 Edit
 </button>
 
 <button class="btn btn-disable"
-onclick="toggleTrip('${t._id}',this)">
+onclick="toggleTrip('\${t._id}',this)">
 Disable
 </button>
 
 <button class="btn btn-delete"
-onclick="deleteTrip('${t._id}')">
+onclick="deleteTrip('\${t._id}')">
 Delete
 </button>
 
 </td>
 
-`
+\`
 
 table.appendChild(tr)
 
@@ -293,10 +293,10 @@ return
 const row=document.createElement("div")
 row.className="stop-row"
 
-row.innerHTML=`
+row.innerHTML=\`
 <input class="stop edit-field" disabled placeholder="Stop address">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
-`
+\`
 
 stopsDiv.appendChild(row)
 
@@ -428,6 +428,10 @@ body:JSON.stringify({
 inDispatch:val
 })
 })
+
+/* refresh table */
+
+loadTrips()
 
 }
 
