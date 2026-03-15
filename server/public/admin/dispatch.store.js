@@ -1,156 +1,95 @@
-/* =========================
-DISPATCH API
-========================= */
+const Store = {
 
-/* GET DISPATCH TRIPS */
-app.get("/api/dispatch", async (req, res) => {
+/* ===============================
+GET DISPATCH TRIPS
+================================ */
 
-  try {
+async getTrips(){
 
-    const trips = await Trip.find({
-      dispatchSelected: true,
-      disabled: false
-    }).sort({
-      tripDate: 1,
-      tripTime: 1,
-      createdAt: -1
-    });
+const res = await fetch("/api/dispatch")
 
-    res.json(trips);
+if(!res.ok){
+throw new Error("Dispatch trips error")
+}
 
-  } catch (err) {
+return await res.json()
 
-    console.log(err);
-    res.status(500).json({ message: "Dispatch load error" });
+},
 
-  }
+/* ===============================
+GET DRIVERS
+================================ */
 
-});
+async getDrivers(){
 
+const res = await fetch("/api/drivers")
 
-/* SEND TRIP TO DISPATCH */
-app.post("/api/dispatch/send/:id", async (req, res) => {
+if(!res.ok){
+return []
+}
 
-  try {
+return await res.json()
 
-    const tripId = req.params.id;
+},
 
-    const trip = await Trip.findByIdAndUpdate(
-      tripId,
-      {
-        dispatchSelected: true,
-        disabled: false,
-        status: "Dispatch Ready"
-      },
-      { new: true }
-    );
+/* ===============================
+GET DRIVER SCHEDULE
+================================ */
 
-    res.json(trip);
+async getSchedule(){
 
-  } catch (err) {
+const res = await fetch("/api/driver-schedule")
 
-    console.log(err);
-    res.status(500).json({ message: "Dispatch send error" });
+if(!res.ok){
+return {}
+}
 
-  }
+return await res.json()
 
-});
+},
 
+/* ===============================
+ASSIGN DRIVER
+================================ */
 
-/* ASSIGN DRIVER */
-app.post("/api/dispatch/assignDriver", async (req, res) => {
+async assignDriver(tripId,driverId){
 
-  try {
+await fetch("/api/dispatch/assignDriver",{
 
-    const { tripId, driverId } = req.body;
+method:"POST",
+headers:{ "Content-Type":"application/json" },
 
-    if (!tripId || !driverId) {
-      return res.status(400).json({ message: "Missing data" });
-    }
+body: JSON.stringify({
+tripId,
+driverId
+})
 
-    const driver = await User.findById(driverId);
+})
 
-    if (!driver) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
+},
 
-    const trip = await Trip.findByIdAndUpdate(
-      tripId,
-      {
-        driverId: driver._id,
-        driverName: driver.name,
-        vehicle: driver.vehicleNumber,
-        status: "Driver Assigned"
-      },
-      { new: true }
-    );
+/* ===============================
+SEND TRIP
+================================ */
 
-    res.json(trip);
+async sendTrip(id){
 
-  } catch (err) {
+await fetch(`/api/dispatch/send/${id}`,{
+method:"POST"
+})
 
-    console.log(err);
-    res.status(500).json({ message: "Driver assign error" });
+},
 
-  }
+/* ===============================
+REMOVE TRIP
+================================ */
 
-});
+async removeTrip(id){
 
+await fetch(`/api/dispatch/remove/${id}`,{
+method:"POST"
+})
 
-/* SAVE DISPATCH NOTE */
-app.post("/api/dispatch/note/:id", async (req, res) => {
+}
 
-  try {
-
-    const tripId = req.params.id;
-    const note = req.body.note || "";
-
-    const trip = await Trip.findByIdAndUpdate(
-      tripId,
-      {
-        dispatchNote: note
-      },
-      { new: true }
-    );
-
-    res.json(trip);
-
-  } catch (err) {
-
-    console.log(err);
-    res.status(500).json({ message: "Note save error" });
-
-  }
-
-});
-
-
-/* REMOVE FROM DISPATCH */
-app.post("/api/dispatch/remove/:id", async (req, res) => {
-
-  try {
-
-    const tripId = req.params.id;
-
-    const trip = await Trip.findByIdAndUpdate(
-      tripId,
-      {
-        dispatchSelected: false,
-        driverId: "",
-        driverName: "",
-        vehicle: "",
-        status: "Scheduled"
-      },
-      { new: true }
-    );
-
-    res.json(trip);
-
-  } catch (err) {
-
-    console.log(err);
-    res.status(500).json({ message: "Dispatch remove error" });
-
-  }
-
-});
+}
