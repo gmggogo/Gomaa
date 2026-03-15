@@ -82,6 +82,10 @@ const tripSchema = new mongoose.Schema({
 
   /* DISPATCH */
   dispatchSelected: { type: Boolean, default: false },
+
+  /* DISABLE / ENABLE */
+  disabled: { type: Boolean, default: false },
+
   driverId: { type: String, default: "" },
   driverName: { type: String, default: "" },
   vehicle: { type: String, default: "" },
@@ -598,6 +602,7 @@ app.put("/api/trips/:id", async (req, res) => {
       notes: req.body.notes ?? existing.notes,
 
       dispatchSelected: req.body.dispatchSelected ?? existing.dispatchSelected,
+      disabled: req.body.disabled ?? existing.disabled,
 
       status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
@@ -642,7 +647,8 @@ app.delete("/api/trips/:id", async (req, res) => {
 app.get("/api/dispatch", async (req, res) => {
   try {
     const trips = await Trip.find({
-      dispatchSelected: true
+      dispatchSelected: true,
+      disabled: false
     }).sort({ tripDate: 1, tripTime: 1 });
 
     res.json(trips);
@@ -755,7 +761,7 @@ app.post("/api/driver/location", (req, res) => {
 app.get("/api/admin/live-drivers", (req, res) => {
   try {
     const now = Date.now();
-    const maxAge = 1000 * 60 * 5; // 5 minutes
+    const maxAge = 1000 * 60 * 5;
 
     const drivers = Array.from(liveDrivers.values()).filter(driver => {
       return now - driver.time <= maxAge;

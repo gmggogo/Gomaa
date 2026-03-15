@@ -5,7 +5,7 @@ const container=document.getElementById("tripsContainer")
 let trips=[]
 
 /* ===============================
-   ARIZONA TIME
+ARIZONA TIME
 ================================ */
 
 function getArizonaTime(){
@@ -23,12 +23,10 @@ return dateObj.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
 }
 
 /* ===============================
-   LOAD TRIPS
+LOAD TRIPS
 ================================ */
 
 async function loadTrips(){
-
-try{
 
 const res=await fetch(API)
 const data=await res.json()
@@ -37,14 +35,10 @@ trips=data||[]
 
 renderTrips()
 
-}catch(err){
-console.error("Trips Load Error",err)
-}
-
 }
 
 /* ===============================
-   GET TODAY / TOMORROW
+GET TODAY / TOMORROW
 ================================ */
 
 function getDates(){
@@ -62,7 +56,7 @@ return{today,tomorrow}
 }
 
 /* ===============================
-   GROUP TRIPS
+GROUP TRIPS
 ================================ */
 
 function groupTrips(){
@@ -79,8 +73,7 @@ trips.forEach(t=>{
 const date=t.tripDate || t.date
 if(!date) return
 
-const parts=String(date).split("-")
-if(parts.length!==3) return
+const parts=date.split("-")
 
 const d=new Date(
 Number(parts[0]),
@@ -90,11 +83,11 @@ Number(parts[2])
 
 d.setHours(0,0,0,0)
 
-if(d.getTime()===today.getTime()){
+if(d.getTime()===today.getTime())
 groups.today.push(t)
-}else if(d.getTime()===tomorrow.getTime()){
+
+else if(d.getTime()===tomorrow.getTime())
 groups.tomorrow.push(t)
-}
 
 })
 
@@ -103,7 +96,7 @@ return groups
 }
 
 /* ===============================
-   ROW COLORS
+ROW COLORS
 ================================ */
 
 function rowColor(type){
@@ -119,19 +112,7 @@ return ""
 }
 
 /* ===============================
-   SAFE HTML
-================================ */
-
-function safe(v){
-return String(v??"")
-.replace(/&/g,"&amp;")
-.replace(/</g,"&lt;")
-.replace(/>/g,"&gt;")
-.replace(/"/g,"&quot;")
-}
-
-/* ===============================
-   RENDER TRIPS
+RENDER
 ================================ */
 
 function renderTrips(){
@@ -147,7 +128,7 @@ drawGroup("Tomorrow – "+formatArizonaDate(tomorrow),groups.tomorrow)
 }
 
 /* ===============================
-   DRAW TABLE
+DRAW TABLE
 ================================ */
 
 function drawGroup(title,list){
@@ -203,34 +184,32 @@ list.forEach((t,i)=>{
 const tr=document.createElement("tr")
 tr.className=rowColor(t.type)
 
-if(t.disabled===true){
-tr.style.opacity="0.5"
+if(t.disabled){
+tr.style.opacity="0.4"
 }
-
-const disabledAttr=t.disabled===true ? "disabled" : ""
 
 tr.innerHTML=`
 
 <td>
-<input class="dispatch-check" type="checkbox"
-${t.dispatchSelected===true?"checked":""}
-${disabledAttr}
+<input type="checkbox"
+${t.dispatchSelected?"checked":""}
+${t.disabled?"disabled":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
 <td>${i+1}</td>
 
-<td>${safe(t.tripNumber||"")}</td>
-<td>${safe(t.type||"")}</td>
-<td>${safe(t.company||"")}</td>
+<td>${t.tripNumber||""}</td>
+<td>${t.type||""}</td>
+<td>${t.company||""}</td>
 
-<td><input class="edit-field entryName" ${disabledAttr} value="${safe(t.entryName||"")}"></td>
-<td><input class="edit-field entryPhone" ${disabledAttr} value="${safe(t.entryPhone||"")}"></td>
+<td><input class="edit-field entryName" ${t.disabled?"disabled":""} value="${t.entryName||""}"></td>
+<td><input class="edit-field entryPhone" ${t.disabled?"disabled":""} value="${t.entryPhone||""}"></td>
 
-<td><input class="edit-field clientName" ${disabledAttr} value="${safe(t.clientName||"")}"></td>
-<td><input class="edit-field clientPhone" ${disabledAttr} value="${safe(t.clientPhone||"")}"></td>
+<td><input class="edit-field clientName" ${t.disabled?"disabled":""} value="${t.clientName||""}"></td>
+<td><input class="edit-field clientPhone" ${t.disabled?"disabled":""} value="${t.clientPhone||""}"></td>
 
-<td><input class="edit-field pickup" ${disabledAttr} value="${safe(t.pickup||"")}"></td>
+<td><input class="edit-field pickup" ${t.disabled?"disabled":""} value="${t.pickup||""}"></td>
 
 <td>
 
@@ -238,38 +217,37 @@ onchange="sendDispatch('${t._id}',this.checked)">
 
 ${(t.stops||[]).map(s=>`
 <div class="stop-row">
-<input class="stop edit-field" ${disabledAttr} value="${safe(s)}">
+<input class="stop edit-field" ${t.disabled?"disabled":""} value="${s}">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 </div>
 `).join("")}
 
 </div>
 
-<button class="add-stop" ${t.disabled===true?"disabled":""} onclick="addStop(this)">+ Stop</button>
+<button class="add-stop" onclick="addStop(this)">+ Stop</button>
 
 </td>
 
-<td><input class="edit-field dropoff" ${disabledAttr} value="${safe(t.dropoff||"")}"></td>
+<td><input class="edit-field dropoff" ${t.disabled?"disabled":""} value="${t.dropoff||""}"></td>
 
-<td><input class="edit-field tripDate" ${disabledAttr} value="${safe(t.tripDate||"")}"></td>
+<td><input class="edit-field tripDate" ${t.disabled?"disabled":""} value="${t.tripDate||""}"></td>
 
-<td><input class="edit-field tripTime" ${disabledAttr} value="${safe(t.tripTime||"")}"></td>
+<td><input class="edit-field tripTime" ${t.disabled?"disabled":""} value="${t.tripTime||""}"></td>
 
-<td><input class="edit-field notes" ${disabledAttr} value="${safe(t.notes||"")}"></td>
+<td><input class="edit-field notes" ${t.disabled?"disabled":""} value="${t.notes||""}"></td>
 
-<td>${safe(t.status||"Confirmed")}</td>
+<td>${t.status||"Confirmed"}</td>
 
 <td class="actions">
 
 <button class="btn btn-edit"
-onclick="editTrip('${t._id}',this)"
-${t.disabled===true?"disabled":""}>
+onclick="editTrip('${t._id}',this)">
 Edit
 </button>
 
 <button class="btn btn-disable"
 onclick="toggleTrip('${t._id}',this)">
-${t.disabled===true?"Enable":"Disable"}
+${t.disabled?"Enable":"Disable"}
 </button>
 
 <button class="btn btn-delete"
@@ -293,12 +271,10 @@ container.appendChild(wrapper)
 }
 
 /* ===============================
-   STOPS
+STOPS
 ================================ */
 
 function addStop(btn){
-
-if(btn.disabled) return
 
 const stopsDiv=btn.parentElement.querySelector(".stops")
 
@@ -322,18 +298,11 @@ stopsDiv.appendChild(row)
 }
 
 function removeStop(el){
-
-const row=el.closest("tr")
-if(!row) return
-
-if(row.style.opacity==="0.5") return
-
-el.closest(".stop-row")?.remove()
-
+el.closest(".stop-row").remove()
 }
 
 /* ===============================
-   EDIT TRIP
+EDIT
 ================================ */
 
 async function editTrip(id,btn){
@@ -344,6 +313,7 @@ const fields=row.querySelectorAll(".edit-field")
 if(btn.innerText==="Edit"){
 
 fields.forEach(f=>f.disabled=false)
+
 btn.innerText="Save"
 return
 
@@ -374,6 +344,7 @@ body:JSON.stringify(payload)
 })
 
 fields.forEach(f=>f.disabled=true)
+
 btn.innerText="Edit"
 
 loadTrips()
@@ -381,7 +352,7 @@ loadTrips()
 }
 
 /* ===============================
-   DELETE
+DELETE
 ================================ */
 
 async function deleteTrip(id){
@@ -389,17 +360,20 @@ async function deleteTrip(id){
 if(!confirm("Delete trip?")) return
 
 await fetch(API+"/"+id,{method:"DELETE"})
+
 loadTrips()
 
 }
 
 /* ===============================
-   DISABLE / ENABLE
+DISABLE
 ================================ */
 
 async function toggleTrip(id,btn){
 
-const makeDisabled=btn.innerText==="Disable"
+const row=btn.closest("tr")
+
+const disabled=btn.innerText==="Disable"
 
 await fetch(API+"/"+id,{
 method:"PUT",
@@ -407,17 +381,17 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-disabled:makeDisabled,
+disabled:disabled,
 dispatchSelected:false
 })
 })
 
-setTimeout(loadTrips,300)
+loadTrips()
 
 }
 
 /* ===============================
-   DISPATCH
+DISPATCH
 ================================ */
 
 async function sendDispatch(id,val){
@@ -435,7 +409,7 @@ dispatchSelected:val
 }
 
 /* ===============================
-   START
+START
 ================================ */
 
 loadTrips()
