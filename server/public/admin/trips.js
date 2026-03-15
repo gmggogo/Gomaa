@@ -28,12 +28,20 @@ return dateObj.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
 
 async function loadTrips(){
 
+try{
+
 const res=await fetch(API)
 const data=await res.json()
 
 trips=data||[]
 
 renderTrips()
+
+}catch(err){
+
+console.error("Trips Load Error",err)
+
+}
 
 }
 
@@ -117,6 +125,8 @@ return ""
 
 function renderTrips(){
 
+if(!container) return
+
 container.innerHTML=""
 
 const groups=groupTrips()
@@ -174,7 +184,7 @@ table.innerHTML=`
 if(!list.length){
 
 const row=document.createElement("tr")
-row.innerHTML=\`<td colspan="17" style="text-align:center;padding:20px">No Trips</td>\`
+row.innerHTML=`<td colspan="17" style="text-align:center;padding:20px">No Trips</td>`
 table.appendChild(row)
 
 }else{
@@ -188,7 +198,7 @@ tr.innerHTML=`
 
 <td>
 <input class="dispatch-check" type="checkbox"
-${t.dispatchSelected?"checked":""}
+${t.inDispatch?"checked":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
@@ -380,7 +390,7 @@ headers:{
 },
 body:JSON.stringify({
 disabled:true,
-dispatchSelected:false
+inDispatch:false
 })
 })
 
@@ -415,7 +425,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-dispatchSelected:val
+inDispatch:val
 })
 })
 
