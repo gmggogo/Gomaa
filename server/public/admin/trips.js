@@ -28,12 +28,18 @@ return dateObj.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
 
 async function loadTrips(){
 
+try{
+
 const res=await fetch(API)
 const data=await res.json()
 
 trips=data||[]
 
 renderTrips()
+
+}catch(err){
+console.error("Trips Load Error",err)
+}
 
 }
 
@@ -73,7 +79,8 @@ trips.forEach(t=>{
 const date=t.tripDate || t.date
 if(!date) return
 
-const parts=date.split("-")
+const parts=String(date).split("-")
+if(parts.length!==3) return
 
 const d=new Date(
 Number(parts[0]),
@@ -83,11 +90,11 @@ Number(parts[2])
 
 d.setHours(0,0,0,0)
 
-if(d.getTime()===today.getTime())
+if(d.getTime()===today.getTime()){
 groups.today.push(t)
-
-else if(d.getTime()===tomorrow.getTime())
+}else if(d.getTime()===tomorrow.getTime()){
 groups.tomorrow.push(t)
+}
 
 })
 
@@ -109,6 +116,18 @@ if(type==="reserved") return "row-reserved"
 
 return ""
 
+}
+
+/* ===============================
+   SAFE HTML
+================================ */
+
+function safe(v){
+return String(v??"")
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
 }
 
 /* ===============================
@@ -184,27 +203,34 @@ list.forEach((t,i)=>{
 const tr=document.createElement("tr")
 tr.className=rowColor(t.type)
 
+if(t.disabled===true){
+tr.style.opacity="0.5"
+}
+
+const disabledAttr=t.disabled===true ? "disabled" : ""
+
 tr.innerHTML=`
 
 <td>
 <input class="dispatch-check" type="checkbox"
-${t.dispatchSelected?"checked":""}
+${t.dispatchSelected===true?"checked":""}
+${disabledAttr}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
 <td>${i+1}</td>
 
-<td>${t.tripNumber||""}</td>
-<td>${t.type||""}</td>
-<td>${t.company||""}</td>
+<td>${safe(t.tripNumber||"")}</td>
+<td>${safe(t.type||"")}</td>
+<td>${safe(t.company||"")}</td>
 
-<td><input class="edit-field entryName" disabled value="${t.entryName||""}"></td>
-<td><input class="edit-field entryPhone" disabled value="${t.entryPhone||""}"></td>
+<td><input class="edit-field entryName" ${disabledAttr} value="${safe(t.entryName||"")}"></td>
+<td><input class="edit-field entryPhone" ${disabledAttr} value="${safe(t.entryPhone||"")}"></td>
 
-<td><input class="edit-field clientName" disabled value="${t.clientName||""}"></td>
-<td><input class="edit-field clientPhone" disabled value="${t.clientPhone||""}"></td>
+<td><input class="edit-field clientName" ${disabledAttr} value="${safe(t.clientName||"")}"></td>
+<td><input class="edit-field clientPhone" ${disabledAttr} value="${safe(t.clientPhone||"")}"></td>
 
-<td><input class="edit-field pickup" disabled value="${t.pickup||""}"></td>
+<td><input class="edit-field pickup" ${disabledAttr} value="${safe(t.pickup||"")}"></td>
 
 <td>
 
@@ -212,37 +238,38 @@ onchange="sendDispatch('${t._id}',this.checked)">
 
 ${(t.stops||[]).map(s=>`
 <div class="stop-row">
-<input class="stop edit-field" disabled value="${s}">
+<input class="stop edit-field" ${disabledAttr} value="${safe(s)}">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 </div>
 `).join("")}
 
 </div>
 
-<button class="add-stop" onclick="addStop(this)">+ Stop</button>
+<button class="add-stop" ${t.disabled===true?"disabled":""} onclick="addStop(this)">+ Stop</button>
 
 </td>
 
-<td><input class="edit-field dropoff" disabled value="${t.dropoff||""}"></td>
+<td><input class="edit-field dropoff" ${disabledAttr} value="${safe(t.dropoff||"")}"></td>
 
-<td><input class="edit-field tripDate" disabled value="${t.tripDate||""}"></td>
+<td><input class="edit-field tripDate" ${disabledAttr} value="${safe(t.tripDate||"")}"></td>
 
-<td><input class="edit-field tripTime" disabled value="${t.tripTime||""}"></td>
+<td><input class="edit-field tripTime" ${disabledAttr} value="${safe(t.tripTime||"")}"></td>
 
-<td><input class="edit-field notes" disabled value="${t.notes||""}"></td>
+<td><input class="edit-field notes" ${disabledAttr} value="${safe(t.notes||"")}"></td>
 
-<td>${t.status||"Confirmed"}</td>
+<td>${safe(t.status||"Confirmed")}</td>
 
 <td class="actions">
 
 <button class="btn btn-edit"
-onclick="editTrip('${t._id}',this)">
+onclick="editTrip('${t._id}',this)"
+${t.disabled===true?"disabled":""}>
 Edit
 </button>
 
 <button class="btn btn-disable"
 onclick="toggleTrip('${t._id}',this)">
-Disable
+${t.disabled===true?"Enable":"Disable"}
 </button>
 
 <button class="btn btn-delete"
@@ -271,6 +298,8 @@ container.appendChild(wrapper)
 
 function addStop(btn){
 
+if(btn.disabled) return
+
 const stopsDiv=btn.parentElement.querySelector(".stops")
 
 const count=stopsDiv.querySelectorAll(".stop-row").length
@@ -284,7 +313,7 @@ const row=document.createElement("div")
 row.className="stop-row"
 
 row.innerHTML=`
-<input class="stop edit-field" disabled placeholder="Stop address">
+<input class="stop edit-field" placeholder="Stop address">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 `
 
@@ -293,7 +322,15 @@ stopsDiv.appendChild(row)
 }
 
 function removeStop(el){
-el.closest(".stop-row").remove()
+
+const row=el.closest("tr")
+if(!row) return
+
+const isDisabled=row.style.opacity==="0.5" || row.querySelector(".btn-disable")?.innerText==="Enable"
+if(isDisabled) return
+
+el.closest(".stop-row")?.remove()
+
 }
 
 /* ===============================
@@ -304,10 +341,18 @@ async function editTrip(id,btn){
 
 const row=btn.closest("tr")
 const fields=row.querySelectorAll(".edit-field")
+const disableBtn=row.querySelector(".btn-disable")
+
+if(disableBtn && disableBtn.innerText==="Enable"){
+return
+}
 
 if(btn.innerText==="Edit"){
 
 fields.forEach(f=>f.disabled=false)
+
+const addStopBtn=row.querySelector(".add-stop")
+if(addStopBtn) addStopBtn.disabled=false
 
 btn.innerText="Save"
 return
@@ -332,6 +377,8 @@ stops:Array.from(row.querySelectorAll(".stop"))
 
 }
 
+try{
+
 await fetch(API+"/"+id,{
 method:"PUT",
 headers:{ "Content-Type":"application/json" },
@@ -340,9 +387,16 @@ body:JSON.stringify(payload)
 
 fields.forEach(f=>f.disabled=true)
 
+const addStopBtn=row.querySelector(".add-stop")
+if(addStopBtn) addStopBtn.disabled=false
+
 btn.innerText="Edit"
 
 loadTrips()
+
+}catch(err){
+console.error("Edit Trip Error",err)
+}
 
 }
 
@@ -354,24 +408,25 @@ async function deleteTrip(id){
 
 if(!confirm("Delete trip?")) return
 
+try{
 await fetch(API+"/"+id,{method:"DELETE"})
-
 loadTrips()
+}catch(err){
+console.error("Delete Trip Error",err)
+}
 
 }
 
 /* ===============================
-   DISABLE
+   DISABLE / ENABLE
 ================================ */
 
 async function toggleTrip(id,btn){
 
 const row=btn.closest("tr")
+const makeDisabled=btn.innerText==="Disable"
 
-if(btn.innerText==="Disable"){
-
-row.style.opacity="0.5"
-btn.innerText="Enable"
+try{
 
 await fetch(API+"/"+id,{
 method:"PUT",
@@ -379,29 +434,67 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-disabled:true,
+disabled:makeDisabled,
 dispatchSelected:false
 })
 })
 
+if(makeDisabled){
+
+row.style.opacity="0.5"
+
+row.querySelectorAll(".edit-field").forEach(f=>{
+f.disabled=true
+})
+
+const dispatchCheck=row.querySelector(".dispatch-check")
+if(dispatchCheck){
+dispatchCheck.checked=false
+dispatchCheck.disabled=true
+}
+
+const addStopBtn=row.querySelector(".add-stop")
+if(addStopBtn) addStopBtn.disabled=true
+
+const editBtn=row.querySelector(".btn-edit")
+if(editBtn){
+editBtn.innerText="Edit"
+editBtn.disabled=true
+}
+
+btn.innerText="Enable"
+
 }else{
 
 row.style.opacity="1"
-btn.innerText="Disable"
 
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-disabled:false
+row.querySelectorAll(".edit-field").forEach(f=>{
+f.disabled=true
 })
-})
+
+const dispatchCheck=row.querySelector(".dispatch-check")
+if(dispatchCheck){
+dispatchCheck.disabled=false
+}
+
+const addStopBtn=row.querySelector(".add-stop")
+if(addStopBtn) addStopBtn.disabled=false
+
+const editBtn=row.querySelector(".btn-edit")
+if(editBtn){
+editBtn.innerText="Edit"
+editBtn.disabled=false
+}
+
+btn.innerText="Disable"
 
 }
 
 loadTrips()
+
+}catch(err){
+console.error("Toggle Trip Error",err)
+}
 
 }
 
@@ -410,6 +503,8 @@ loadTrips()
 ================================ */
 
 async function sendDispatch(id,val){
+
+try{
 
 await fetch(API+"/"+id,{
 method:"PUT",
@@ -420,6 +515,10 @@ body:JSON.stringify({
 dispatchSelected:val
 })
 })
+
+}catch(err){
+console.error("Dispatch Error",err)
+}
 
 }
 
