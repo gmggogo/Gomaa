@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -48,7 +47,12 @@ const userSchema = new mongoose.Schema({
     enum: ["admin", "dispatcher", "driver", "company"],
     required: true
   },
-  active: { type: Boolean, default: true }
+  active: { type: Boolean, default: true },
+
+  /* OPTIONAL DRIVER / DISPATCH DATA */
+  vehicleNumber: { type: String, default: "" },
+  address: { type: String, default: "" },
+  phone: { type: String, default: "" }
 });
 
 const User = mongoose.model("User", userSchema);
@@ -263,7 +267,7 @@ app.get("/api/users/:role", async (req, res) => {
 app.post("/api/users/:role", async (req, res) => {
   try {
     const role = req.params.role;
-    const { name, username, password } = req.body || {};
+    const { name, username, password, vehicleNumber, address, phone } = req.body || {};
 
     if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
@@ -285,7 +289,10 @@ app.post("/api/users/:role", async (req, res) => {
       name,
       username,
       password: hashed,
-      role
+      role,
+      vehicleNumber: vehicleNumber || "",
+      address: address || "",
+      phone: phone || ""
     });
 
     res.json(newUser);
@@ -297,11 +304,14 @@ app.post("/api/users/:role", async (req, res) => {
 
 app.put("/api/users/:id", async (req, res) => {
   try {
-    const { name, username, password } = req.body || {};
+    const { name, username, password, vehicleNumber, address, phone } = req.body || {};
 
     const updateData = {
       name,
-      username
+      username,
+      vehicleNumber,
+      address,
+      phone
     };
 
     if (password && String(password).trim() !== "") {
@@ -346,6 +356,23 @@ app.delete("/api/users/:id", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Error deleting user" });
+  }
+});
+
+/* =========================
+   GET DRIVERS
+========================= */
+app.get("/api/drivers", async (req, res) => {
+  try {
+    const drivers = await User.find({
+      role: "driver",
+      active: true
+    }).sort({ name: 1 });
+
+    res.json(drivers);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error loading drivers" });
   }
 });
 
@@ -569,6 +596,9 @@ app.put("/api/trips/:id", async (req, res) => {
       tripTime: req.body.tripTime ?? existing.tripTime,
 
       notes: req.body.notes ?? existing.notes,
+
+      dispatchSelected: req.body.dispatchSelected ?? existing.dispatchSelected,
+
       status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
     };
@@ -608,11 +638,11 @@ app.delete("/api/trips/:id", async (req, res) => {
    DISPATCH API
 ========================= */
 
-/* الرحلات اللي هتظهر في الديسبتش */
+/* الرحلات المختارة للديسبتش فقط */
 app.get("/api/dispatch", async (req, res) => {
   try {
     const trips = await Trip.find({
-      status: { $in: ["Booked", "Scheduled"] }
+      dispatchSelected: true
     }).sort({ tripDate: 1, tripTime: 1 });
 
     res.json(trips);
@@ -725,7 +755,7 @@ app.post("/api/driver/location", (req, res) => {
 app.get("/api/admin/live-drivers", (req, res) => {
   try {
     const now = Date.now();
-    const maxAge = 1000 * 60 * 5;
+    const maxAge = 1000 * 60 * 5; // 5 minutes
 
     const drivers = Array.from(liveDrivers.values()).filter(driver => {
       return now - driver.time <= maxAge;

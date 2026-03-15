@@ -1,69 +1,151 @@
-const Store={
+/* =========================
+   DISPATCH API
+========================= */
 
-/* ===============================
-GET TRIPS
-================================ */
+/* GET DISPATCH TRIPS */
+app.get("/api/dispatch", async (req, res) => {
 
-async getTrips(){
+  try {
 
-const res = await fetch("/api/trips")
+    const trips = await Trip.find({
+      dispatchSelected: true
+    }).sort({
+      tripDate: 1,
+      tripTime: 1,
+      createdAt: -1
+    });
 
-const data = await res.json()
+    res.json(trips);
 
-/* نرجع الرحلات اللي متعلم عليها dispatch */
+  } catch (err) {
 
-return data.filter(t => t.inDispatch === true)
+    console.log(err);
+    res.status(500).json({ message: "Dispatch load error" });
 
-},
+  }
 
-
-/* ===============================
-GET DRIVERS
-================================ */
-
-async getDrivers(){
-
-const res = await fetch("/api/drivers")
-
-return await res.json()
-
-},
+});
 
 
-/* ===============================
-SEND TRIP TO DISPATCH
-================================ */
+/* SEND TRIP TO DISPATCH */
+app.post("/api/dispatch/send/:id", async (req, res) => {
 
-async sendTrip(id){
+  try {
 
-await fetch("/api/dispatch/send/"+id,{
-method:"POST"
-})
+    const tripId = req.params.id;
 
-},
+    const trip = await Trip.findByIdAndUpdate(
+      tripId,
+      {
+        dispatchSelected: true,
+        status: "Dispatch Ready"
+      },
+      { new: true }
+    );
+
+    res.json(trip);
+
+  } catch (err) {
+
+    console.log(err);
+    res.status(500).json({ message: "Dispatch send error" });
+
+  }
+
+});
 
 
-/* ===============================
-ASSIGN DRIVER
-================================ */
+/* ASSIGN DRIVER */
+app.post("/api/dispatch/assignDriver", async (req, res) => {
 
-async assignDriver(tripId,driverId){
+  try {
 
-await fetch("/api/dispatch/assignDriver",{
+    const { tripId, driverId } = req.body;
 
-method:"POST",
+    if (!tripId || !driverId) {
+      return res.status(400).json({ message: "Missing data" });
+    }
 
-headers:{
-"Content-Type":"application/json"
-},
+    const driver = await User.findById(driverId);
 
-body:JSON.stringify({
-tripId,
-driverId
-})
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
 
-})
+    const trip = await Trip.findByIdAndUpdate(
+      tripId,
+      {
+        driverId: driver._id,
+        driverName: driver.name,
+        vehicle: driver.vehicleNumber,
+        status: "Driver Assigned"
+      },
+      { new: true }
+    );
 
-}
+    res.json(trip);
 
-}
+  } catch (err) {
+
+    console.log(err);
+    res.status(500).json({ message: "Driver assign error" });
+
+  }
+
+});
+
+
+/* SAVE DISPATCH NOTE */
+app.post("/api/dispatch/note/:id", async (req, res) => {
+
+  try {
+
+    const tripId = req.params.id;
+    const note = req.body.note || "";
+
+    const trip = await Trip.findByIdAndUpdate(
+      tripId,
+      {
+        dispatchNote: note
+      },
+      { new: true }
+    );
+
+    res.json(trip);
+
+  } catch (err) {
+
+    console.log(err);
+    res.status(500).json({ message: "Note save error" });
+
+  }
+
+});
+
+
+/* REMOVE FROM DISPATCH */
+app.post("/api/dispatch/remove/:id", async (req, res) => {
+
+  try {
+
+    const tripId = req.params.id;
+
+    const trip = await Trip.findByIdAndUpdate(
+      tripId,
+      {
+        dispatchSelected: false,
+        status: "Scheduled"
+      },
+      { new: true }
+    );
+
+    res.json(trip);
+
+  } catch (err) {
+
+    console.log(err);
+    res.status(500).json({ message: "Dispatch remove error" });
+
+  }
+
+});
