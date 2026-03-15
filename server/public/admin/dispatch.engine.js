@@ -5,7 +5,7 @@ drivers: [],
 schedule: {},
 
 /* ===============================
-   LOAD DATA
+LOAD DATA
 ================================ */
 
 async load(){
@@ -27,7 +27,7 @@ console.error("Dispatch Load Error",err)
 },
 
 /* ===============================
-   GET DAY
+GET DAY
 ================================ */
 
 getToday(){
@@ -43,7 +43,7 @@ return days[now.getDay()]
 },
 
 /* ===============================
-   FILTER DRIVERS BY SCHEDULE
+FILTER DRIVERS BY SCHEDULE
 ================================ */
 
 getAvailableDrivers(){
@@ -55,9 +55,7 @@ return this.drivers.filter(d=>{
 const s=this.schedule[d._id]
 
 if(!s) return false
-
 if(!s.enabled) return false
-
 if(!s.days) return false
 
 return s.days[day]
@@ -67,7 +65,7 @@ return s.days[day]
 },
 
 /* ===============================
-   ROUND ROBIN DISTRIBUTION
+ROUND ROBIN DISTRIBUTION
 ================================ */
 
 async distributeTrips(){
@@ -77,7 +75,6 @@ const drivers=this.getAvailableDrivers()
 if(!drivers.length){
 
 alert("No drivers available today")
-
 return
 
 }
@@ -87,6 +84,7 @@ let driverIndex=0
 for(const trip of this.trips){
 
 if(trip.driverId) continue
+if(trip.disabled) continue
 
 const driver=drivers[driverIndex]
 
@@ -107,15 +105,19 @@ await this.load()
 },
 
 /* ===============================
-   SEND SELECTED
+GET SELECTED TRIPS
 ================================ */
 
 getSelected(){
 
 return [...document.querySelectorAll(".tripSelect:checked")]
-.map(c=>c.dataset.id)
+.map(c=>c.value)
 
 },
+
+/* ===============================
+SEND SELECTED
+================================ */
 
 async sendSelected(){
 
@@ -139,7 +141,7 @@ await this.load()
 },
 
 /* ===============================
-   SEND SINGLE
+SEND SINGLE
 ================================ */
 
 async sendSingle(id){
@@ -153,7 +155,7 @@ await this.load()
 },
 
 /* ===============================
-   SAVE DRIVER MANUAL
+SAVE DRIVER MANUAL
 ================================ */
 
 async saveDrivers(){
@@ -166,6 +168,8 @@ const row=sel.closest("tr")
 
 const tripId=row.dataset.id
 const driverId=sel.value
+
+if(!driverId) continue
 
 await Store.assignDriver(tripId,driverId)
 

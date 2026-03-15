@@ -115,8 +115,8 @@ padding:7px 10px;
 
 <body>
 
-<!-- HEADER -->
-<div id="header"></div>
+<!-- HEADER (مشترك مع كل الصفحات) -->
+<div id="adminHeader"></div>
 
 <div class="page">
 
@@ -174,7 +174,9 @@ Loading trips...
 
 </div>
 
-<!-- SCRIPTS -->
+<!-- ===============================
+SCRIPTS
+================================ -->
 
 <script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js"></script>
@@ -185,27 +187,32 @@ Loading trips...
 
 document.addEventListener("DOMContentLoaded",()=>{
 
-/* تحميل الهيدر */
-fetch("/admin/header.html")
-.then(r=>r.text())
-.then(html=>{
-document.getElementById("header").innerHTML=html
-})
-
 /* تشغيل النظام */
 Engine.load()
 
 })
+
+/* ===============================
+SELECT ALL
+================================ */
 
 function selectAll(){
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=true)
 }
 
+/* ===============================
+REMOVE ALL
+================================ */
+
 function removeAll(){
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=false)
 }
+
+/* ===============================
+EDIT DRIVER
+================================ */
 
 function editSelected(){
 
@@ -230,6 +237,7 @@ ${d.name}
 `).join("")}
 
 </select>
+
 `
 
 })

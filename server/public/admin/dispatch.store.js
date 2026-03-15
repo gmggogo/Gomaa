@@ -1,5 +1,5 @@
 /* =========================
-   DISPATCH API
+DISPATCH API
 ========================= */
 
 /* GET DISPATCH TRIPS */
@@ -8,7 +8,8 @@ app.get("/api/dispatch", async (req, res) => {
   try {
 
     const trips = await Trip.find({
-      dispatchSelected: true
+      dispatchSelected: true,
+      disabled: false
     }).sort({
       tripDate: 1,
       tripTime: 1,
@@ -38,6 +39,7 @@ app.post("/api/dispatch/send/:id", async (req, res) => {
       tripId,
       {
         dispatchSelected: true,
+        disabled: false,
         status: "Dispatch Ready"
       },
       { new: true }
@@ -134,6 +136,9 @@ app.post("/api/dispatch/remove/:id", async (req, res) => {
       tripId,
       {
         dispatchSelected: false,
+        driverId: "",
+        driverName: "",
+        vehicle: "",
         status: "Scheduled"
       },
       { new: true }
