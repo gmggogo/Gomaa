@@ -4,69 +4,78 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dashboard – Sunbeam</title>
+<title>Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="/admin/header.css">
 
 <style>
 
-/* ===============================
-DASHBOARD GRID
-================================ */
+body{
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
+}
+
+/* HEADER */
+
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
+}
+
+/* PAGE */
+
+.page-body{
+padding-top:300px;
+padding-left:20px;
+padding-right:20px;
+}
+
+/* MOBILE HEADER SPACE */
+
+@media (max-width:768px){
+
+.page-body{
+padding-top:360px;
+padding-left:10px;
+padding-right:10px;
+}
+
+}
+
+/* DASHBOARD GRID */
 
 .dashboard-grid{
 display:grid;
 grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
 gap:20px;
-margin-top:20px;
 }
 
-/* ===============================
-CARD
-================================ */
+/* CARD */
 
 .dashboard-card{
-background:#fff;
+background:white;
 border-radius:8px;
 padding:20px;
-border:1px solid #ddd;
-box-shadow:0 2px 6px rgba(0,0,0,0.08);
 text-align:center;
+border:1px solid #e2e8f0;
 }
 
 .dashboard-card h3{
+margin:0;
 font-size:15px;
-margin:0 0 10px 0;
 color:#0f172a;
 }
 
 .dashboard-number{
 font-size:28px;
-font-weight:700;
-color:#1e3a8a;
-}
-
-/* ===============================
-MOBILE
-================================ */
-
-@media(max-width:768px){
-
-.dashboard-grid{
-grid-template-columns:1fr;
-gap:15px;
-}
-
-.dashboard-card{
-padding:16px;
-}
-
-.dashboard-number{
-font-size:24px;
-}
-
+font-weight:bold;
+margin-top:10px;
+color:#2563eb;
 }
 
 </style>
@@ -75,13 +84,9 @@ font-size:24px;
 
 <body>
 
-<!-- HEADER -->
 <div id="adminHeader"></div>
 
-<!-- PAGE CONTENT -->
-<div class="page-content">
-
-<h1>Dashboard</h1>
+<div class="page-body">
 
 <div class="dashboard-grid">
 
@@ -128,20 +133,20 @@ const trips = await res.json()
 document.getElementById("totalTrips").innerText = trips.length
 
 document.getElementById("confirmedTrips").innerText =
-trips.filter(t => (t.status || "").toLowerCase() === "confirmed").length
+trips.filter(t=>t.status==="confirmed").length
 
 document.getElementById("cancelledTrips").innerText =
-trips.filter(t => (t.status || "").toLowerCase() === "cancelled").length
+trips.filter(t=>t.status==="cancelled").length
 
 document.getElementById("completedTrips").innerText =
-trips.filter(t => (t.status || "").toLowerCase() === "completed").length
+trips.filter(t=>t.status==="completed").length
 
 document.getElementById("dispatchTrips").innerText =
-trips.filter(t => t.dispatchSelected === true).length
+trips.filter(t=>t.dispatchSelected).length
 
 }catch(err){
 
-console.error("Dashboard Load Error",err)
+console.log("Dashboard error",err)
 
 }
 
