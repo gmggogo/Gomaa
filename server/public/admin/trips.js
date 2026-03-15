@@ -1,5 +1,4 @@
 const API="/api/trips"
-
 const container=document.getElementById("tripsContainer")
 
 let trips=[]
@@ -9,17 +8,13 @@ ARIZONA TIME
 ================================ */
 
 function getArizonaTime(){
-
 return new Date(
 new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
 )
-
 }
 
 function formatArizonaDate(dateObj){
-
 return dateObj.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
-
 }
 
 /* ===============================
@@ -38,7 +33,7 @@ renderTrips()
 }
 
 /* ===============================
-GET TODAY / TOMORROW
+DATES
 ================================ */
 
 function getDates(){
@@ -70,17 +65,12 @@ tomorrow:[]
 
 trips.forEach(t=>{
 
-const date=t.tripDate || t.date
+const date=t.tripDate
 if(!date) return
 
-const parts=date.split("-")
+const p=date.split("-")
 
-const d=new Date(
-Number(parts[0]),
-Number(parts[1])-1,
-Number(parts[2])
-)
-
+const d=new Date(p[0],p[1]-1,p[2])
 d.setHours(0,0,0,0)
 
 if(d.getTime()===today.getTime())
@@ -96,7 +86,7 @@ return groups
 }
 
 /* ===============================
-ROW COLORS
+ROW COLOR
 ================================ */
 
 function rowColor(type){
@@ -128,7 +118,7 @@ drawGroup("Tomorrow – "+formatArizonaDate(tomorrow),groups.tomorrow)
 }
 
 /* ===============================
-DRAW TABLE
+DRAW GROUP
 ================================ */
 
 function drawGroup(title,list){
@@ -168,7 +158,6 @@ table.innerHTML=`
 <th>Actions</th>
 
 </tr>
-
 `
 
 if(!list.length){
@@ -185,7 +174,7 @@ const tr=document.createElement("tr")
 tr.className=rowColor(t.type)
 
 if(t.disabled){
-tr.style.opacity="0.4"
+tr.style.opacity="0.5"
 }
 
 tr.innerHTML=`
@@ -203,13 +192,13 @@ onchange="sendDispatch('${t._id}',this.checked)">
 <td>${t.type||""}</td>
 <td>${t.company||""}</td>
 
-<td><input class="edit-field entryName" ${t.disabled?"disabled":""} value="${t.entryName||""}"></td>
-<td><input class="edit-field entryPhone" ${t.disabled?"disabled":""} value="${t.entryPhone||""}"></td>
+<td><input class="edit-field entryName" disabled value="${t.entryName||""}"></td>
+<td><input class="edit-field entryPhone" disabled value="${t.entryPhone||""}"></td>
 
-<td><input class="edit-field clientName" ${t.disabled?"disabled":""} value="${t.clientName||""}"></td>
-<td><input class="edit-field clientPhone" ${t.disabled?"disabled":""} value="${t.clientPhone||""}"></td>
+<td><input class="edit-field clientName" disabled value="${t.clientName||""}"></td>
+<td><input class="edit-field clientPhone" disabled value="${t.clientPhone||""}"></td>
 
-<td><input class="edit-field pickup" ${t.disabled?"disabled":""} value="${t.pickup||""}"></td>
+<td><input class="edit-field pickup" disabled value="${t.pickup||""}"></td>
 
 <td>
 
@@ -217,7 +206,7 @@ onchange="sendDispatch('${t._id}',this.checked)">
 
 ${(t.stops||[]).map(s=>`
 <div class="stop-row">
-<input class="stop edit-field" ${t.disabled?"disabled":""} value="${s}">
+<input class="stop edit-field" disabled value="${s}">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 </div>
 `).join("")}
@@ -228,13 +217,13 @@ ${(t.stops||[]).map(s=>`
 
 </td>
 
-<td><input class="edit-field dropoff" ${t.disabled?"disabled":""} value="${t.dropoff||""}"></td>
+<td><input class="edit-field dropoff" disabled value="${t.dropoff||""}"></td>
 
-<td><input class="edit-field tripDate" ${t.disabled?"disabled":""} value="${t.tripDate||""}"></td>
+<td><input class="edit-field tripDate" disabled value="${t.tripDate||""}"></td>
 
-<td><input class="edit-field tripTime" ${t.disabled?"disabled":""} value="${t.tripTime||""}"></td>
+<td><input class="edit-field tripTime" disabled value="${t.tripTime||""}"></td>
 
-<td><input class="edit-field notes" ${t.disabled?"disabled":""} value="${t.notes||""}"></td>
+<td><input class="edit-field notes" disabled value="${t.notes||""}"></td>
 
 <td>${t.status||"Confirmed"}</td>
 
@@ -256,7 +245,6 @@ Delete
 </button>
 
 </td>
-
 `
 
 table.appendChild(tr)
@@ -289,7 +277,7 @@ const row=document.createElement("div")
 row.className="stop-row"
 
 row.innerHTML=`
-<input class="stop edit-field" placeholder="Stop address">
+<input class="stop edit-field" disabled placeholder="Stop address">
 <span class="stop-remove" onclick="removeStop(this)">✖</span>
 `
 
@@ -321,15 +309,15 @@ return
 
 const payload={
 
-entryName:row.querySelector(".entryName")?.value||"",
-entryPhone:row.querySelector(".entryPhone")?.value||"",
-clientName:row.querySelector(".clientName")?.value||"",
-clientPhone:row.querySelector(".clientPhone")?.value||"",
-pickup:row.querySelector(".pickup")?.value||"",
-dropoff:row.querySelector(".dropoff")?.value||"",
-tripDate:row.querySelector(".tripDate")?.value||"",
-tripTime:row.querySelector(".tripTime")?.value||"",
-notes:row.querySelector(".notes")?.value||"",
+entryName:row.querySelector(".entryName").value,
+entryPhone:row.querySelector(".entryPhone").value,
+clientName:row.querySelector(".clientName").value,
+clientPhone:row.querySelector(".clientPhone").value,
+pickup:row.querySelector(".pickup").value,
+dropoff:row.querySelector(".dropoff").value,
+tripDate:row.querySelector(".tripDate").value,
+tripTime:row.querySelector(".tripTime").value,
+notes:row.querySelector(".notes").value,
 
 stops:Array.from(row.querySelectorAll(".stop"))
 .map(s=>s.value.trim())
@@ -370,8 +358,6 @@ DISABLE
 ================================ */
 
 async function toggleTrip(id,btn){
-
-const row=btn.closest("tr")
 
 const disabled=btn.innerText==="Disable"
 
