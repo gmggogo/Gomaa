@@ -196,7 +196,7 @@ tr.innerHTML=`
 
 <td>
 <input class="dispatch-check" type="checkbox"
-${t.inDispatch===true?"checked":""}
+${t.dispatchSelected===true?"checked":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
@@ -239,7 +239,7 @@ ${(t.stops||[]).map(s=>`
 
 <td><input class="edit-field notes" disabled value="${t.notes||""}"></td>
 
-<td>${t.status||"Confirmed"}</td>
+<td>${t.status||"Scheduled"}</td>
 
 <td class="actions">
 
@@ -369,51 +369,6 @@ loadTrips()
 }
 
 /* ===============================
-   DISABLE
-================================ */
-
-async function toggleTrip(id,btn){
-
-const row=btn.closest("tr")
-
-if(btn.innerText==="Disable"){
-
-row.style.opacity="0.5"
-btn.innerText="Enable"
-
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-disabled:true,
-inDispatch:false
-})
-})
-
-}else{
-
-row.style.opacity="1"
-btn.innerText="Disable"
-
-await fetch(API+"/"+id,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-disabled:false
-})
-})
-
-}
-
-loadTrips()
-
-}
-
-/* ===============================
    DISPATCH
 ================================ */
 
@@ -427,7 +382,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-inDispatch:val
+dispatchSelected:val
 })
 })
 
