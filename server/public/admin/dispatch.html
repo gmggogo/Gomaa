@@ -20,7 +20,7 @@ PAGE
 
 .page{
 padding:20px;
-margin-top:110px;
+margin-top:140px;
 }
 
 /* ===============================
@@ -94,16 +94,12 @@ MOBILE
 @media(max-width:768px){
 
 .page{
-margin-top:130px;
+margin-top:160px;
 padding:15px;
 }
 
 .page-title{
 font-size:18px;
-}
-
-.dispatch-bar{
-gap:6px;
 }
 
 .dispatch-bar button{
@@ -119,54 +115,26 @@ padding:7px 10px;
 
 <body>
 
-<!-- ===============================
-HEADER
-================================ -->
-
+<!-- HEADER -->
 <div id="header"></div>
-
-
-<!-- ===============================
-PAGE
-================================ -->
 
 <div class="page">
 
 <h2 class="page-title">Dispatch Center</h2>
 
-
-<!-- ===============================
-ACTION BAR
-================================ -->
-
 <div class="dispatch-bar">
 
-<button onclick="selectAll()">
-Select All
-</button>
+<button onclick="selectAll()">Select All</button>
 
-<button onclick="removeAll()">
-Remove All
-</button>
+<button onclick="removeAll()">Remove All</button>
 
-<button onclick="Engine.sendSelected()">
-Send Selected
-</button>
+<button onclick="Engine.sendSelected()">Send Selected</button>
 
-<button onclick="editSelected()">
-Edit Selected
-</button>
+<button onclick="editSelected()">Edit Selected</button>
 
-<button onclick="Engine.saveDrivers()">
-Save
-</button>
+<button onclick="Engine.saveDrivers()">Save</button>
 
 </div>
-
-
-<!-- ===============================
-TABLE
-================================ -->
 
 <div class="table-wrapper">
 
@@ -175,7 +143,6 @@ TABLE
 <thead>
 
 <tr>
-
 <th>Select</th>
 <th>Trip #</th>
 <th>Client</th>
@@ -187,7 +154,6 @@ TABLE
 <th>Driver</th>
 <th>Car</th>
 <th>Send</th>
-
 </tr>
 
 </thead>
@@ -208,10 +174,7 @@ Loading trips...
 
 </div>
 
-
-<!-- ===============================
-SCRIPTS
-================================ -->
+<!-- SCRIPTS -->
 
 <script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js"></script>
@@ -220,24 +183,28 @@ SCRIPTS
 
 <script>
 
-window.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener("DOMContentLoaded",()=>{
 
+/* تحميل الهيدر */
+fetch("/admin/header.html")
+.then(r=>r.text())
+.then(html=>{
+document.getElementById("header").innerHTML=html
+})
+
+/* تشغيل النظام */
 Engine.load()
 
 })
 
 function selectAll(){
-
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=true)
-
 }
 
 function removeAll(){
-
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=false)
-
 }
 
 function editSelected(){
@@ -247,9 +214,7 @@ const rows=document.querySelectorAll(".tripSelect:checked")
 rows.forEach(chk=>{
 
 const row=chk.closest("tr")
-
 const cell=row.querySelector(".driverCell")
-
 const current=cell.innerText
 
 cell.innerHTML=`
@@ -259,14 +224,12 @@ cell.innerHTML=`
 <option value="">Select Driver</option>
 
 ${Engine.drivers.map(d=>`
-<option value="${d._id}"
-${d.name===current?"selected":""}>
+<option value="${d._id}" ${d.name===current?"selected":""}>
 ${d.name}
 </option>
 `).join("")}
 
 </select>
-
 `
 
 })
