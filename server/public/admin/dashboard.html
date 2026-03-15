@@ -4,7 +4,7 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dashboard</title>
+<title>Dashboard – Sunbeam</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -13,7 +13,7 @@
 <style>
 
 /* ===============================
-CARDS GRID
+DASHBOARD GRID
 ================================ */
 
 .dashboard-grid{
@@ -27,38 +27,46 @@ margin-top:20px;
 CARD
 ================================ */
 
-.card{
-background:white;
+.dashboard-card{
+background:#fff;
+border-radius:8px;
 padding:20px;
-border-radius:10px;
-box-shadow:0 2px 6px rgba(0,0,0,0.1);
+border:1px solid #ddd;
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
 text-align:center;
-transition:.2s;
 }
 
-.card:hover{
-transform:translateY(-3px);
-}
-
-/* ===============================
-CARD TITLE
-================================ */
-
-.card h3{
-margin:0;
-font-size:16px;
+.dashboard-card h3{
+font-size:15px;
+margin:0 0 10px 0;
 color:#0f172a;
 }
 
+.dashboard-number{
+font-size:28px;
+font-weight:700;
+color:#1e3a8a;
+}
+
 /* ===============================
-CARD NUMBER
+MOBILE
 ================================ */
 
-.card p{
-font-size:28px;
-font-weight:bold;
-margin-top:10px;
-color:#2563eb;
+@media(max-width:768px){
+
+.dashboard-grid{
+grid-template-columns:1fr;
+gap:15px;
+}
+
+.dashboard-card{
+padding:16px;
+}
+
+.dashboard-number{
+font-size:24px;
+}
+
 }
 
 </style>
@@ -71,45 +79,40 @@ color:#2563eb;
 <div id="adminHeader"></div>
 
 <!-- PAGE CONTENT -->
-
 <div class="page-content">
 
 <h1>Dashboard</h1>
 
 <div class="dashboard-grid">
 
-<div class="card">
+<div class="dashboard-card">
 <h3>Total Trips</h3>
-<p id="totalTrips">0</p>
+<div class="dashboard-number" id="totalTrips">0</div>
 </div>
 
-<div class="card">
+<div class="dashboard-card">
 <h3>Confirmed Trips</h3>
-<p id="confirmedTrips">0</p>
+<div class="dashboard-number" id="confirmedTrips">0</div>
 </div>
 
-<div class="card">
+<div class="dashboard-card">
 <h3>Cancelled Trips</h3>
-<p id="cancelledTrips">0</p>
+<div class="dashboard-number" id="cancelledTrips">0</div>
 </div>
 
-<div class="card">
+<div class="dashboard-card">
 <h3>Completed Trips</h3>
-<p id="completedTrips">0</p>
+<div class="dashboard-number" id="completedTrips">0</div>
 </div>
 
-<div class="card">
+<div class="dashboard-card">
 <h3>Dispatch Trips</h3>
-<p id="dispatchTrips">0</p>
+<div class="dashboard-number" id="dispatchTrips">0</div>
 </div>
 
 </div>
 
 </div>
-
-<!-- ===============================
-SCRIPTS
-================================ -->
 
 <script src="/admin/header.js"></script>
 
@@ -125,16 +128,16 @@ const trips = await res.json()
 document.getElementById("totalTrips").innerText = trips.length
 
 document.getElementById("confirmedTrips").innerText =
-trips.filter(t=>t.status==="confirmed").length
+trips.filter(t => (t.status || "").toLowerCase() === "confirmed").length
 
 document.getElementById("cancelledTrips").innerText =
-trips.filter(t=>t.status==="cancelled").length
+trips.filter(t => (t.status || "").toLowerCase() === "cancelled").length
 
 document.getElementById("completedTrips").innerText =
-trips.filter(t=>t.status==="completed").length
+trips.filter(t => (t.status || "").toLowerCase() === "completed").length
 
 document.getElementById("dispatchTrips").innerText =
-trips.filter(t=>t.dispatchSelected).length
+trips.filter(t => t.dispatchSelected === true).length
 
 }catch(err){
 
