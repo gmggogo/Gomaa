@@ -326,8 +326,7 @@ function removeStop(el){
 const row=el.closest("tr")
 if(!row) return
 
-const isDisabled=row.style.opacity==="0.5" || row.querySelector(".btn-disable")?.innerText==="Enable"
-if(isDisabled) return
+if(row.style.opacity==="0.5") return
 
 el.closest(".stop-row")?.remove()
 
@@ -341,19 +340,10 @@ async function editTrip(id,btn){
 
 const row=btn.closest("tr")
 const fields=row.querySelectorAll(".edit-field")
-const disableBtn=row.querySelector(".btn-disable")
-
-if(disableBtn && disableBtn.innerText==="Enable"){
-return
-}
 
 if(btn.innerText==="Edit"){
 
 fields.forEach(f=>f.disabled=false)
-
-const addStopBtn=row.querySelector(".add-stop")
-if(addStopBtn) addStopBtn.disabled=false
-
 btn.innerText="Save"
 return
 
@@ -377,8 +367,6 @@ stops:Array.from(row.querySelectorAll(".stop"))
 
 }
 
-try{
-
 await fetch(API+"/"+id,{
 method:"PUT",
 headers:{ "Content-Type":"application/json" },
@@ -386,17 +374,9 @@ body:JSON.stringify(payload)
 })
 
 fields.forEach(f=>f.disabled=true)
-
-const addStopBtn=row.querySelector(".add-stop")
-if(addStopBtn) addStopBtn.disabled=false
-
 btn.innerText="Edit"
 
 loadTrips()
-
-}catch(err){
-console.error("Edit Trip Error",err)
-}
 
 }
 
@@ -408,12 +388,8 @@ async function deleteTrip(id){
 
 if(!confirm("Delete trip?")) return
 
-try{
 await fetch(API+"/"+id,{method:"DELETE"})
 loadTrips()
-}catch(err){
-console.error("Delete Trip Error",err)
-}
 
 }
 
@@ -423,10 +399,7 @@ console.error("Delete Trip Error",err)
 
 async function toggleTrip(id,btn){
 
-const row=btn.closest("tr")
 const makeDisabled=btn.innerText==="Disable"
-
-try{
 
 await fetch(API+"/"+id,{
 method:"PUT",
@@ -439,62 +412,7 @@ dispatchSelected:false
 })
 })
 
-if(makeDisabled){
-
-row.style.opacity="0.5"
-
-row.querySelectorAll(".edit-field").forEach(f=>{
-f.disabled=true
-})
-
-const dispatchCheck=row.querySelector(".dispatch-check")
-if(dispatchCheck){
-dispatchCheck.checked=false
-dispatchCheck.disabled=true
-}
-
-const addStopBtn=row.querySelector(".add-stop")
-if(addStopBtn) addStopBtn.disabled=true
-
-const editBtn=row.querySelector(".btn-edit")
-if(editBtn){
-editBtn.innerText="Edit"
-editBtn.disabled=true
-}
-
-btn.innerText="Enable"
-
-}else{
-
-row.style.opacity="1"
-
-row.querySelectorAll(".edit-field").forEach(f=>{
-f.disabled=true
-})
-
-const dispatchCheck=row.querySelector(".dispatch-check")
-if(dispatchCheck){
-dispatchCheck.disabled=false
-}
-
-const addStopBtn=row.querySelector(".add-stop")
-if(addStopBtn) addStopBtn.disabled=false
-
-const editBtn=row.querySelector(".btn-edit")
-if(editBtn){
-editBtn.innerText="Edit"
-editBtn.disabled=false
-}
-
-btn.innerText="Disable"
-
-}
-
-loadTrips()
-
-}catch(err){
-console.error("Toggle Trip Error",err)
-}
+setTimeout(loadTrips,300)
 
 }
 
@@ -503,8 +421,6 @@ console.error("Toggle Trip Error",err)
 ================================ */
 
 async function sendDispatch(id,val){
-
-try{
 
 await fetch(API+"/"+id,{
 method:"PUT",
@@ -515,10 +431,6 @@ body:JSON.stringify({
 dispatchSelected:val
 })
 })
-
-}catch(err){
-console.error("Dispatch Error",err)
-}
 
 }
 
