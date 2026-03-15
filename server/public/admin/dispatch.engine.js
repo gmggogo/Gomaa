@@ -16,7 +16,7 @@ this.trips = await Store.getTrips()
 this.drivers = await Store.getDrivers()
 this.schedule = await Store.getSchedule()
 
-UI.renderTrips(this.trips,this.drivers)
+UI.renderTrips(this.trips)
 
 }catch(err){
 
@@ -124,8 +124,10 @@ async sendSelected(){
 const ids=this.getSelected()
 
 if(!ids.length){
+
 alert("Select trips first")
 return
+
 }
 
 for(const id of ids){
