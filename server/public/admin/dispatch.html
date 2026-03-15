@@ -9,8 +9,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="/admin/dispatch.css">
 <link rel="stylesheet" href="/admin/header.css">
+<link rel="stylesheet" href="/admin/dispatch.css">
 
 <style>
 
@@ -18,9 +18,10 @@
 PAGE
 ================================ */
 
-.page{
-padding:20px;
-margin-top:140px;
+.page-body{
+max-width:1400px;
+margin:auto;
+padding:220px 20px 40px;
 }
 
 /* ===============================
@@ -93,9 +94,8 @@ MOBILE
 
 @media(max-width:768px){
 
-.page{
-margin-top:160px;
-padding:15px;
+.page-body{
+padding:300px 10px 40px;
 }
 
 .page-title{
@@ -115,23 +115,19 @@ padding:7px 10px;
 
 <body>
 
-<!-- HEADER (مشترك مع كل الصفحات) -->
+<!-- HEADER -->
 <div id="adminHeader"></div>
 
-<div class="page">
+<div class="page-body">
 
 <h2 class="page-title">Dispatch Center</h2>
 
 <div class="dispatch-bar">
 
 <button onclick="selectAll()">Select All</button>
-
 <button onclick="removeAll()">Remove All</button>
-
 <button onclick="Engine.sendSelected()">Send Selected</button>
-
 <button onclick="editSelected()">Edit Selected</button>
-
 <button onclick="Engine.saveDrivers()">Save</button>
 
 </div>
@@ -174,10 +170,6 @@ Loading trips...
 
 </div>
 
-<!-- ===============================
-SCRIPTS
-================================ -->
-
 <script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
@@ -187,32 +179,19 @@ SCRIPTS
 
 document.addEventListener("DOMContentLoaded",()=>{
 
-/* تشغيل النظام */
 Engine.load()
 
 })
-
-/* ===============================
-SELECT ALL
-================================ */
 
 function selectAll(){
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=true)
 }
 
-/* ===============================
-REMOVE ALL
-================================ */
-
 function removeAll(){
 document.querySelectorAll(".tripSelect")
 .forEach(c=>c.checked=false)
 }
-
-/* ===============================
-EDIT DRIVER
-================================ */
 
 function editSelected(){
 
