@@ -1,27 +1,130 @@
-const Engine={
+const Engine = {
 
-trips:[],
-drivers:[],
+trips: [],
+drivers: [],
+schedule: {},
+
+/* ===============================
+   LOAD DATA
+================================ */
 
 async load(){
 
-this.trips=await Store.getTrips()
-this.drivers=await Store.getDrivers()
+try{
 
-UI.renderTrips(this.trips)
+this.trips = await Store.getTrips()
+this.drivers = await Store.getDrivers()
+this.schedule = await Store.getSchedule()
+
+UI.renderTrips(this.trips,this.drivers)
+
+}catch(err){
+
+console.error("Dispatch Load Error",err)
+
+}
 
 },
+
+/* ===============================
+   GET DAY
+================================ */
+
+getToday(){
+
+const days=["sun","mon","tue","wed","thu","fri","sat"]
+
+const now=new Date(
+new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+)
+
+return days[now.getDay()]
+
+},
+
+/* ===============================
+   FILTER DRIVERS BY SCHEDULE
+================================ */
+
+getAvailableDrivers(){
+
+const day=this.getToday()
+
+return this.drivers.filter(d=>{
+
+const s=this.schedule[d._id]
+
+if(!s) return false
+
+if(!s.enabled) return false
+
+if(!s.days) return false
+
+return s.days[day]
+
+})
+
+},
+
+/* ===============================
+   ROUND ROBIN DISTRIBUTION
+================================ */
+
+async distributeTrips(){
+
+const drivers=this.getAvailableDrivers()
+
+if(!drivers.length){
+
+alert("No drivers available today")
+
+return
+
+}
+
+let driverIndex=0
+
+for(const trip of this.trips){
+
+if(trip.driverId) continue
+
+const driver=drivers[driverIndex]
+
+await Store.assignDriver(trip._id,driver._id)
+
+driverIndex++
+
+if(driverIndex>=drivers.length){
+driverIndex=0
+}
+
+}
+
+alert("Trips Distributed")
+
+await this.load()
+
+},
+
+/* ===============================
+   SEND SELECTED
+================================ */
 
 getSelected(){
 
 return [...document.querySelectorAll(".tripSelect:checked")]
-.map(c=>c.value)
+.map(c=>c.dataset.id)
 
 },
 
 async sendSelected(){
 
 const ids=this.getSelected()
+
+if(!ids.length){
+alert("Select trips first")
+return
+}
 
 for(const id of ids){
 
@@ -31,9 +134,13 @@ await Store.sendTrip(id)
 
 alert("Trips Sent")
 
-this.load()
+await this.load()
 
 },
+
+/* ===============================
+   SEND SINGLE
+================================ */
 
 async sendSingle(id){
 
@@ -41,9 +148,13 @@ await Store.sendTrip(id)
 
 alert("Trip Sent")
 
-this.load()
+await this.load()
 
 },
+
+/* ===============================
+   SAVE DRIVER MANUAL
+================================ */
 
 async saveDrivers(){
 
@@ -54,14 +165,15 @@ for(const sel of edits){
 const row=sel.closest("tr")
 
 const tripId=row.dataset.id
+const driverId=sel.value
 
-await Store.assignDriver(tripId,sel.value)
+await Store.assignDriver(tripId,driverId)
 
 }
 
 alert("Drivers Updated")
 
-this.load()
+await this.load()
 
 }
 

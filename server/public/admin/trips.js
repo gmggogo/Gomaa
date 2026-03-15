@@ -174,7 +174,7 @@ table.innerHTML=`
 if(!list.length){
 
 const row=document.createElement("tr")
-row.innerHTML=`<td colspan="17" style="text-align:center;padding:20px">No Trips</td>`
+row.innerHTML=\`<td colspan="17" style="text-align:center;padding:20px">No Trips</td>\`
 table.appendChild(row)
 
 }else{
@@ -188,7 +188,7 @@ tr.innerHTML=`
 
 <td>
 <input class="dispatch-check" type="checkbox"
-${t.inDispatch?"checked":""}
+${t.dispatchSelected?"checked":""}
 onchange="sendDispatch('${t._id}',this.checked)">
 </td>
 
@@ -380,7 +380,7 @@ headers:{
 },
 body:JSON.stringify({
 disabled:true,
-inDispatch:false
+dispatchSelected:false
 })
 })
 
@@ -415,7 +415,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-inDispatch:val
+dispatchSelected:val
 })
 })
 
