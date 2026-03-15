@@ -1,46 +1,125 @@
-const API="/api/dispatch"
+/* ===============================
+   API
+================================ */
 
-const Store={
+const API_TRIPS = "/api/trips"
+const API_DISPATCH = "/api/dispatch"
 
-async getTrips(){
+/* ===============================
+   STORE
+================================ */
 
-const res=await fetch(API)
-return await res.json()
+const Store = {
 
-},
+  /* ===============================
+     GET TRIPS FOR DISPATCH
+  ================================= */
 
-async getDrivers(){
+  async getTrips(){
 
-const res=await fetch("/api/drivers")
-return await res.json()
+    try{
 
-},
+      const res = await fetch(API_TRIPS)
 
-async sendTrip(id){
+      if(!res.ok) throw new Error("Trips API error")
 
-await fetch(API+"/send/"+id,{
-method:"POST"
-})
+      const data = await res.json()
 
-},
+      /* اسحب فقط الرحلات المختارة للديسبتش */
 
-async assignDriver(tripId,driverId){
+      return (data || []).filter(t => t.inDispatch === true && !t.disabled)
 
-await fetch(API+"/assignDriver",{
+    }catch(err){
 
-method:"POST",
+      console.error("Load trips error",err)
+      return []
 
-headers:{
-"Content-Type":"application/json"
-},
+    }
 
-body:JSON.stringify({
-tripId,
-driverId
-})
+  },
 
-})
+  /* ===============================
+     GET DRIVERS
+  ================================= */
 
-}
+  async getDrivers(){
+
+    try{
+
+      const res = await fetch("/api/drivers")
+
+      if(!res.ok) throw new Error("Drivers API error")
+
+      return await res.json()
+
+    }catch(err){
+
+      console.error("Drivers load error",err)
+      return []
+
+    }
+
+  },
+
+  /* ===============================
+     SEND TRIP
+  ================================= */
+
+  async sendTrip(id){
+
+    try{
+
+      const res = await fetch(API_DISPATCH + "/send/" + id,{
+
+        method:"POST"
+
+      })
+
+      if(!res.ok)
+      throw new Error("Send trip failed")
+
+    }catch(err){
+
+      console.error("Send trip error",err)
+
+    }
+
+  },
+
+  /* ===============================
+     ASSIGN DRIVER
+  ================================= */
+
+  async assignDriver(tripId,driverId){
+
+    try{
+
+      const res = await fetch(API_DISPATCH + "/assignDriver",{
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+
+          tripId:tripId,
+          driverId:driverId
+
+        })
+
+      })
+
+      if(!res.ok)
+      throw new Error("Driver assign failed")
+
+    }catch(err){
+
+      console.error("Assign driver error",err)
+
+    }
+
+  }
 
 }

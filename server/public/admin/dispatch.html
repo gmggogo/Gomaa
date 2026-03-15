@@ -8,26 +8,136 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="dispatch.css">
-<link rel="stylesheet" href="header.css">
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/dispatch.css">
+<link rel="stylesheet" href="/admin/header.css">
+
+<style>
+
+/* ===============================
+PAGE
+================================ */
+
+.page{
+padding:20px;
+margin-top:110px;
+}
+
+/* ===============================
+TITLE
+================================ */
+
+.page-title{
+margin-bottom:20px;
+font-size:22px;
+font-weight:700;
+}
+
+/* ===============================
+ACTION BAR
+================================ */
+
+.dispatch-bar{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-bottom:20px;
+}
+
+.dispatch-bar button{
+background:#1e3a8a;
+color:white;
+border:none;
+padding:8px 14px;
+border-radius:6px;
+cursor:pointer;
+font-size:13px;
+}
+
+.dispatch-bar button:hover{
+background:#162d6b;
+}
+
+/* ===============================
+TABLE
+================================ */
+
+.table-wrapper{
+width:100%;
+overflow-x:auto;
+}
+
+.dispatch-table{
+width:100%;
+border-collapse:collapse;
+min-width:1100px;
+background:white;
+}
+
+.dispatch-table th,
+.dispatch-table td{
+padding:8px;
+border:1px solid #ddd;
+font-size:13px;
+text-align:left;
+}
+
+.dispatch-table th{
+background:#0f172a;
+color:white;
+}
+
+/* ===============================
+MOBILE
+================================ */
+
+@media(max-width:768px){
+
+.page{
+margin-top:130px;
+padding:15px;
+}
+
+.page-title{
+font-size:18px;
+}
+
+.dispatch-bar{
+gap:6px;
+}
+
+.dispatch-bar button{
+font-size:12px;
+padding:7px 10px;
+}
+
+}
+
+</style>
 
 </head>
 
 <body>
 
-<!-- HEADER -->
+<!-- ===============================
+HEADER
+================================ -->
+
 <div id="header"></div>
 
 
-<!-- PAGE -->
+<!-- ===============================
+PAGE
+================================ -->
 
 <div class="page">
 
 <h2 class="page-title">Dispatch Center</h2>
 
 
-<!-- ACTION BAR -->
+<!-- ===============================
+ACTION BAR
+================================ -->
 
 <div class="dispatch-bar">
 
@@ -54,7 +164,9 @@ Save
 </div>
 
 
-<!-- TABLE -->
+<!-- ===============================
+TABLE
+================================ -->
 
 <div class="table-wrapper">
 
@@ -97,18 +209,22 @@ Loading trips...
 </div>
 
 
+<!-- ===============================
+SCRIPTS
+================================ -->
 
-<!-- SCRIPTS -->
-
-<script src="header.js"></script>
-
-<script src="dispatch.store.js"></script>
-<script src="dispatch.engine.js"></script>
-<script src="dispatch.ui.js"></script>
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch.store.js"></script>
+<script src="/admin/dispatch.engine.js"></script>
+<script src="/admin/dispatch.ui.js"></script>
 
 <script>
 
+window.addEventListener("DOMContentLoaded",()=>{
+
 Engine.load()
+
+})
 
 function selectAll(){
 
@@ -137,7 +253,10 @@ const cell=row.querySelector(".driverCell")
 const current=cell.innerText
 
 cell.innerHTML=`
+
 <select class="driverEdit">
+
+<option value="">Select Driver</option>
 
 ${Engine.drivers.map(d=>`
 <option value="${d._id}"
@@ -147,6 +266,7 @@ ${d.name}
 `).join("")}
 
 </select>
+
 `
 
 })
@@ -154,7 +274,6 @@ ${d.name}
 }
 
 </script>
-
 
 </body>
 </html>
