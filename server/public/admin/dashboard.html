@@ -4,46 +4,23 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dashboard – Sunbeam</title>
+<title>Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- MAIN CSS -->
 <link rel="stylesheet" href="/admin/style.css">
-
-<!-- HEADER CSS -->
 <link rel="stylesheet" href="/admin/header.css">
 
 <style>
 
 /* ===============================
-PAGE
-================================ */
-
-.page{
-padding:20px;
-margin-top:120px;
-}
-
-/* ===============================
-TITLE
-================================ */
-
-.page h1{
-margin-bottom:25px;
-font-size:24px;
-color:#0f172a;
-}
-
-/* ===============================
-GRID
+CARDS GRID
 ================================ */
 
 .dashboard-grid{
-
 display:grid;
 grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
 gap:20px;
-
+margin-top:20px;
 }
 
 /* ===============================
@@ -51,14 +28,12 @@ CARD
 ================================ */
 
 .card{
-
 background:white;
 padding:20px;
 border-radius:10px;
 box-shadow:0 2px 6px rgba(0,0,0,0.1);
 text-align:center;
 transition:.2s;
-
 }
 
 .card:hover{
@@ -70,41 +45,20 @@ CARD TITLE
 ================================ */
 
 .card h3{
-
 margin:0;
 font-size:16px;
 color:#0f172a;
-
 }
 
 /* ===============================
-NUMBER
+CARD NUMBER
 ================================ */
 
 .card p{
-
-font-size:26px;
+font-size:28px;
 font-weight:bold;
 margin-top:10px;
 color:#2563eb;
-
-}
-
-/* ===============================
-MOBILE
-================================ */
-
-@media(max-width:768px){
-
-.page{
-margin-top:140px;
-padding:15px;
-}
-
-.page h1{
-font-size:20px;
-}
-
 }
 
 </style>
@@ -113,12 +67,12 @@ font-size:20px;
 
 <body>
 
-<!-- HEADER LOAD -->
+<!-- HEADER -->
 <div id="adminHeader"></div>
 
-<!-- PAGE -->
+<!-- PAGE CONTENT -->
 
-<div class="page">
+<div class="page-content">
 
 <h1>Dashboard</h1>
 
@@ -144,26 +98,55 @@ font-size:20px;
 <p id="completedTrips">0</p>
 </div>
 
+<div class="card">
+<h3>Dispatch Trips</h3>
+<p id="dispatchTrips">0</p>
 </div>
 
 </div>
 
-<!-- HEADER SCRIPT -->
+</div>
+
+<!-- ===============================
+SCRIPTS
+================================ -->
+
 <script src="/admin/header.js"></script>
 
 <script>
 
-/* ===============================
-LOAD HEADER
-================================ */
+async function loadDashboard(){
+
+try{
+
+const res = await fetch("/api/trips")
+const trips = await res.json()
+
+document.getElementById("totalTrips").innerText = trips.length
+
+document.getElementById("confirmedTrips").innerText =
+trips.filter(t=>t.status==="confirmed").length
+
+document.getElementById("cancelledTrips").innerText =
+trips.filter(t=>t.status==="cancelled").length
+
+document.getElementById("completedTrips").innerText =
+trips.filter(t=>t.status==="completed").length
+
+document.getElementById("dispatchTrips").innerText =
+trips.filter(t=>t.dispatchSelected).length
+
+}catch(err){
+
+console.error("Dashboard Load Error",err)
+
+}
+
+}
 
 document.addEventListener("DOMContentLoaded",()=>{
 
-fetch("/admin/header.html")
-.then(res=>res.text())
-.then(html=>{
-document.getElementById("adminHeader").innerHTML=html
-})
+loadDashboard()
 
 })
 
