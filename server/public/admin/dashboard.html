@@ -4,23 +4,44 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dashboard</title>
+<title>Dashboard – Sunbeam</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- MAIN CSS -->
 <link rel="stylesheet" href="/admin/style.css">
+
+<!-- HEADER CSS -->
+<link rel="stylesheet" href="/admin/header.css">
 
 <style>
 
 /* ===============================
-DASHBOARD GRID
+PAGE
+================================ */
+
+.page{
+padding:20px;
+margin-top:120px;
+}
+
+/* ===============================
+TITLE
+================================ */
+
+.page h1{
+margin-bottom:25px;
+font-size:24px;
+color:#0f172a;
+}
+
+/* ===============================
+GRID
 ================================ */
 
 .dashboard-grid{
 
 display:grid;
-
 grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-
 gap:20px;
 
 }
@@ -32,23 +53,16 @@ CARD
 .card{
 
 background:white;
-
 padding:20px;
-
 border-radius:10px;
-
 box-shadow:0 2px 6px rgba(0,0,0,0.1);
-
 text-align:center;
-
 transition:.2s;
 
 }
 
 .card:hover{
-
 transform:translateY(-3px);
-
 }
 
 /* ===============================
@@ -58,26 +72,38 @@ CARD TITLE
 .card h3{
 
 margin:0;
-
-font-size:18px;
-
+font-size:16px;
 color:#0f172a;
 
 }
 
 /* ===============================
-CARD NUMBER
+NUMBER
 ================================ */
 
 .card p{
 
 font-size:26px;
-
 font-weight:bold;
-
 margin-top:10px;
-
 color:#2563eb;
+
+}
+
+/* ===============================
+MOBILE
+================================ */
+
+@media(max-width:768px){
+
+.page{
+margin-top:140px;
+padding:15px;
+}
+
+.page h1{
+font-size:20px;
+}
 
 }
 
@@ -87,13 +113,12 @@ color:#2563eb;
 
 <body>
 
-<!-- HEADER -->
+<!-- HEADER LOAD -->
 <div id="adminHeader"></div>
 
+<!-- PAGE -->
 
-<!-- PAGE CONTENT -->
-
-<div class="page-content">
+<div class="page">
 
 <h1>Dashboard</h1>
 
@@ -123,8 +148,26 @@ color:#2563eb;
 
 </div>
 
+<!-- HEADER SCRIPT -->
 <script src="/admin/header.js"></script>
 
-</body>
+<script>
 
+/* ===============================
+LOAD HEADER
+================================ */
+
+document.addEventListener("DOMContentLoaded",()=>{
+
+fetch("/admin/header.html")
+.then(res=>res.text())
+.then(html=>{
+document.getElementById("adminHeader").innerHTML=html
+})
+
+})
+
+</script>
+
+</body>
 </html>

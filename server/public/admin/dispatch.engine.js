@@ -27,7 +27,7 @@ console.error("Dispatch Load Error",err)
 },
 
 /* ===============================
-GET DAY
+GET TODAY (Arizona)
 ================================ */
 
 getToday(){
@@ -43,7 +43,7 @@ return days[now.getDay()]
 },
 
 /* ===============================
-FILTER DRIVERS BY SCHEDULE
+FILTER AVAILABLE DRIVERS
 ================================ */
 
 getAvailableDrivers(){
@@ -141,7 +141,7 @@ await this.load()
 },
 
 /* ===============================
-SEND SINGLE
+SEND SINGLE TRIP
 ================================ */
 
 async sendSingle(id){
@@ -176,6 +176,20 @@ await Store.assignDriver(tripId,driverId)
 }
 
 alert("Drivers Updated")
+
+await this.load()
+
+},
+
+/* ===============================
+REMOVE FROM DISPATCH
+================================ */
+
+async removeTrip(id){
+
+await Store.removeTrip(id)
+
+alert("Trip Removed")
 
 await this.load()
 
