@@ -10,7 +10,7 @@ if(!trips.length){
 
 tbody.innerHTML=`
 <tr>
-<td colspan="12">No Trips</td>
+<td colspan="11">No Trips</td>
 </tr>
 `
 
@@ -46,8 +46,7 @@ value="${t._id}">
 
 <td>${t.tripTime || ""}</td>
 
-<td>
-
+<td class="driverCell">
 <select class="driverEdit">
 
 <option value="">--</option>
@@ -63,7 +62,6 @@ ${d.name}
 }).join("")}
 
 </select>
-
 </td>
 
 <td>${t.vehicle || ""}</td>

@@ -5,7 +5,7 @@ API_DRIVERS: "/api/users/driver",
 API_SCHEDULE: "/api/driver-schedule",
 
 /* ===============================
-GET SELECTED TRIPS
+GET TRIPS
 ================================ */
 
 async getTrips(){
@@ -14,11 +14,7 @@ const res = await fetch(this.API_TRIPS)
 
 if(!res.ok) return []
 
-const trips = await res.json()
-
-/* فقط الرحلات المختارة */
-
-return trips.filter(t => t.selected === true)
+return await res.json()
 
 },
 
@@ -65,7 +61,7 @@ headers:{
 },
 
 body:JSON.stringify({
-driverId
+driverId:driverId
 })
 
 })
@@ -80,6 +76,18 @@ async sendTrip(id){
 
 await fetch(`/api/trips/${id}/send`,{
 method:"POST"
+})
+
+},
+
+/* ===============================
+REMOVE TRIP
+================================ */
+
+async removeTrip(id){
+
+await fetch(`/api/trips/${id}`,{
+method:"DELETE"
 })
 
 }

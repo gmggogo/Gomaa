@@ -5,168 +5,55 @@
 
 <meta charset="UTF-8">
 <title>Dispatch</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/style.css">
 
 <style>
 
 body{
-font-family:Arial;
-background:#f1f5f9;
 margin:0;
-padding:20px;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
 }
 
-h2{
-margin-bottom:15px;
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
+}
+
+.page-body{
+padding-top:300px;
+padding-left:20px;
+padding-right:20px;
+}
+
+@media (max-width:768px){
+.page-body{
+padding-top:360px;
+padding-left:10px;
+padding-right:10px;
+}
 }
 
 .toolbar{
-margin-bottom:10px;
 display:flex;
 gap:10px;
+margin-bottom:10px;
+flex-wrap:wrap;
 }
 
 .btn{
-padding:7px 12px;
 border:none;
+padding:6px 12px;
 border-radius:6px;
 cursor:pointer;
-font-weight:bold;
+font-size:13px;
 }
 
-.btn-auto{
-background:#1e40af;
-color:white;
-}
-
-.btn-select{
-background:#0f172a;
-color:white;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-background:white;
-}
-
-th{
-background:#0f172a;
-color:white;
-padding:8px;
-}
-
-td{
-padding:6px;
-border-bottom:1px solid #eee;
-text-align:center;
-}
-
-.btn-send{
-background:#16a34a;
-color:white;
-border:none;
-padding:5px 10px;
-border-radius:5px;
-cursor:pointer;
-}
-
-select{
-padding:4px;
-}
-
-input{
-padding:4px;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h2>Dispatch</h2>
-
-<div class="toolbar">
-
-<button class="btn btn-auto" onclick="Engine.autoDispatch()">
-Auto Dispatch
-</button>
-
-<button class="btn btn-select" onclick="toggleSelect()">
-Select All
-</button>
-
-</div>
-
-<table>
-
-<thead>
-
-<tr>
-
-<th>Select</th>
-<th>Trip #</th>
-<th>Client</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Date</th>
-<th>Time</th>
-<th>Driver</th>
-<th>Vehicle</th>
-<th>Notes</th>
-<th>Send</th>
-
-</tr>
-
-</thead>
-
-<tbody id="dispatchBody">
-
-<tr>
-<td colspan="12">Loading trips...</td>
-</tr>
-
-</tbody>
-
-</table>
-
-<script src="/admin/dispatch.store.js"></script>
-<script src="/admin/dispatch.engine.js"></script>
-<script src="/admin/dispatch.ui.js"></script>
-
-<script>
-
-/* ===============================
-SELECT ALL
-================================ */
-
-let selectMode=false
-
-function toggleSelect(){
-
-const boxes=document.querySelectorAll(".tripSelect")
-
-selectMode=!selectMode
-
-boxes.forEach(b=>b.checked=selectMode)
-
-}
-
-/* ===============================
-INIT
-================================ */
-
-document.addEventListener("DOMContentLoaded",async ()=>{
-
-await Engine.load()
-
-})
-
-</script>
-
-</body>
-
-</html>
+.btn-blue{background:#2563eb;color:white;}
+.btn-green{background:#16a34a;color:white;}
+.btn-red{background:#dc
