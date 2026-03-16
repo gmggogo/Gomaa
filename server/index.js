@@ -89,6 +89,7 @@ const tripSchema = new mongoose.Schema({
   driverId: { type: String, default: "" },
   driverName: { type: String, default: "" },
   vehicle: { type: String, default: "" },
+  driverAddress: { type: String, default: "" },
   dispatchNote: { type: String, default: "" },
 
   status: { type: String, default: "Scheduled" },
@@ -703,18 +704,37 @@ app.patch("/api/dispatch/:id/note", async (req, res) => {
 /* تعيين سواق */
 app.patch("/api/dispatch/:id/driver", async (req, res) => {
   try {
-    const { driverId, driverName, vehicle } = req.body || {};
+    const { driverId } = req.body || {};
+
+    if (!driverId) {
+      return res.status(400).json({ message: "Driver ID required" });
+    }
+
+    const driver = await User.findById(driverId);
+
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    if (driver.role !== "driver") {
+      return res.status(400).json({ message: "User is not a driver" });
+    }
 
     const trip = await Trip.findByIdAndUpdate(
       req.params.id,
       {
-        driverId: driverId || "",
-        driverName: driverName || "",
-        vehicle: vehicle || "",
+        driverId: driver._id.toString(),
+        driverName: driver.name || "",
+        vehicle: driver.vehicleNumber || "",
+        driverAddress: driver.address || "",
         status: "Driver Assigned"
       },
       { new: true }
     );
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
 
     res.json(trip);
   } catch (err) {
