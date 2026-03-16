@@ -1,6 +1,6 @@
-const tbody = document.getElementById("dispatchBody")
+const tbody=document.getElementById("dispatchBody")
 
-const UI = {
+const UI={
 
 renderTrips(trips){
 
@@ -8,27 +8,21 @@ tbody.innerHTML=""
 
 if(!trips.length){
 
-tbody.innerHTML = `
+tbody.innerHTML=`
 <tr>
-<td colspan="11">No Trips</td>
+<td colspan="12">No Trips</td>
 </tr>
 `
+
 return
+
 }
 
 trips.forEach(t=>{
 
-/* GET DRIVER FROM ENGINE */
+const tr=document.createElement("tr")
 
-const driver = Engine.drivers.find(
-d => d._id === t.driverId
-) || {}
-
-const tr = document.createElement("tr")
-
-tr.dataset.id = t._id
-
-tr.innerHTML = `
+tr.innerHTML=`
 
 <td>
 <input
@@ -43,7 +37,7 @@ value="${t._id}">
 
 <td>${t.pickup || ""}</td>
 
-<td>${(t.stops || []).join(" | ")}</td>
+<td>${(t.stops||[]).join(" | ")}</td>
 
 <td>${t.dropoff || ""}</td>
 
@@ -52,17 +46,33 @@ value="${t._id}">
 <td>${t.tripTime || ""}</td>
 
 <td class="driverCell">
-${driver.name || ""}
+${t.driverName || ""}
 </td>
 
 <td class="carCell">
-${driver.vehicleNumber || ""}
+${t.vehicle || ""}
 </td>
 
 <td>
-<button onclick="Engine.sendSingle('${t._id}')">
+
+<input
+value="${t.notes || ""}"
+placeholder="Notes"
+onchange="Engine.saveNotes('${t._id}',this.value)"
+style="width:120px">
+
+</td>
+
+<td>
+
+<button
+class="btn-send"
+onclick="Engine.sendSingle('${t._id}')">
+
 Send
+
 </button>
+
 </td>
 
 `

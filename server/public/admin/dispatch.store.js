@@ -1,16 +1,14 @@
-const Store = {
+const Store={
 
 /* ===============================
-GET DISPATCH TRIPS
+GET TRIPS
 ================================ */
 
 async getTrips(){
 
-const res = await fetch("/api/dispatch")
+const res=await fetch("/api/trips")
 
-if(!res.ok){
-throw new Error("Dispatch trips error")
-}
+if(!res.ok) return []
 
 return await res.json()
 
@@ -22,27 +20,23 @@ GET DRIVERS
 
 async getDrivers(){
 
-const res = await fetch("/api/drivers")
+const res=await fetch("/api/users/driver")
 
-if(!res.ok){
-return []
-}
+if(!res.ok) return []
 
 return await res.json()
 
 },
 
 /* ===============================
-GET DRIVER SCHEDULE
+GET SCHEDULE
 ================================ */
 
 async getSchedule(){
 
-const res = await fetch("/api/driver-schedule")
+const res=await fetch("/api/driver-schedule")
 
-if(!res.ok){
-return {}
-}
+if(!res.ok) return {}
 
 return await res.json()
 
@@ -54,40 +48,36 @@ ASSIGN DRIVER
 
 async assignDriver(tripId,driverId){
 
-await fetch("/api/dispatch/assignDriver",{
+await fetch(`/api/trips/${tripId}/assign`,{
 
 method:"POST",
-headers:{ "Content-Type":"application/json" },
 
-body: JSON.stringify({
-tripId,
-driverId
-})
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({driverId})
 
 })
 
 },
 
 /* ===============================
-SEND TRIP
+SAVE NOTES
 ================================ */
 
-async sendTrip(id){
+async updateTripNotes(tripId,notes){
 
-await fetch(`/api/dispatch/send/${id}`,{
-method:"POST"
-})
+await fetch(`/api/trips/${tripId}/notes`,{
 
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
 },
 
-/* ===============================
-REMOVE TRIP
-================================ */
+body:JSON.stringify({notes})
 
-async removeTrip(id){
-
-await fetch(`/api/dispatch/remove/${id}`,{
-method:"POST"
 })
 
 }
