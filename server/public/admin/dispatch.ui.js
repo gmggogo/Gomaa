@@ -1,71 +1,78 @@
-const body = document.getElementById("dispatchBody")
+const tbody = document.getElementById("dispatchBody")
 
 const UI = {
 
 renderTrips(trips){
 
-body.innerHTML=""
+tbody.innerHTML=""
 
 if(!trips.length){
 
-body.innerHTML=`
+tbody.innerHTML=`
 <tr>
-<td colspan="12" style="padding:40px;text-align:center">
-No Trips Found
-</td>
+<td colspan="12">No Trips</td>
 </tr>
 `
 
 return
-
 }
 
-trips.forEach(trip=>{
+trips.forEach(t=>{
 
 const tr=document.createElement("tr")
+
+tr.dataset.id=t._id
 
 tr.innerHTML=`
 
 <td>
-
 <input
 type="checkbox"
 class="tripSelect"
-value="${trip._id}">
-
+value="${t._id}">
 </td>
 
-<td>${trip.tripNumber || ""}</td>
+<td>${t.tripNumber || ""}</td>
 
-<td>${trip.clientName || ""}</td>
+<td>${t.clientName || ""}</td>
 
-<td>${trip.pickup || ""}</td>
+<td>${t.pickup || ""}</td>
 
-<td>${(trip.stops || []).join(" | ")}</td>
+<td>${(t.stops || []).join(" | ")}</td>
 
-<td>${trip.dropoff || ""}</td>
+<td>${t.dropoff || ""}</td>
 
-<td>${trip.tripDate || ""}</td>
+<td>${t.tripDate || ""}</td>
 
-<td>${trip.tripTime || ""}</td>
-
-<td>${trip.driverName || ""}</td>
-
-<td>${trip.vehicle || ""}</td>
+<td>${t.tripTime || ""}</td>
 
 <td>
 
-<input
-style="width:120px"
-value="${trip.notes || ""}">
+<select class="driverEdit">
+
+<option value="">--</option>
+
+${Engine.drivers.map(d=>{
+
+const selected = t.driverId===d._id ? "selected" : ""
+
+return `<option value="${d._id}" ${selected}>
+${d.name}
+</option>`
+
+}).join("")}
+
+</select>
 
 </td>
+
+<td>${t.vehicle || ""}</td>
 
 <td>
 
 <button
-class="btn-send"
-onclick="Engine.distributeSelected()">
+class="btn btn-send"
+onclick="Engine.sendSingle('${t._id}')">
 
 Send
 
@@ -75,7 +82,7 @@ Send
 
 `
 
-body.appendChild(tr)
+tbody.appendChild(tr)
 
 })
 

@@ -28,15 +28,15 @@ UI.renderTrips(this.trips)
 },
 
 /* ===============================
-SORT TRIPS
+SORT
 ================================ */
 
 sortTrips(){
 
 this.trips.sort((a,b)=>{
 
-const da=new Date(`${a.tripDate}T${a.tripTime}`)
-const db=new Date(`${b.tripDate}T${b.tripTime}`)
+const da = new Date(`${a.tripDate}T${a.tripTime}`)
+const db = new Date(`${b.tripDate}T${b.tripTime}`)
 
 return da-db
 
@@ -56,7 +56,9 @@ if(this.geoCache[address]) return this.geoCache[address]
 
 const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
 
-const res=await fetch(url,{headers:{'User-Agent':'sunbeam'}})
+const res=await fetch(url,{
+headers:{'User-Agent':'sunbeam'}
+})
 
 const data=await res.json()
 
@@ -74,7 +76,7 @@ return geo
 },
 
 /* ===============================
-PREPARE COORDS
+PREPARE COORDINATES
 ================================ */
 
 async prepareCoordinates(){
@@ -86,10 +88,8 @@ if(!trip.pickupLat){
 const g=await this.geocode(trip.pickup)
 
 if(g){
-
 trip.pickupLat=g.lat
 trip.pickupLng=g.lng
-
 }
 
 }
@@ -99,10 +99,8 @@ if(!trip.dropoffLat){
 const g=await this.geocode(trip.dropoff)
 
 if(g){
-
 trip.dropoffLat=g.lat
 trip.dropoffLng=g.lng
-
 }
 
 }
@@ -111,15 +109,13 @@ trip.dropoffLng=g.lng
 
 for(const d of this.drivers){
 
-if(!d.lat){
+if(!d.lat && d.address){
 
 const g=await this.geocode(d.address)
 
 if(g){
-
 d.lat=g.lat
 d.lng=g.lng
-
 }
 
 }
@@ -129,7 +125,7 @@ d.lng=g.lng
 },
 
 /* ===============================
-TRIP START
+TIME
 ================================ */
 
 tripStart(trip){
@@ -138,15 +134,11 @@ return new Date(`${trip.tripDate}T${trip.tripTime}`)
 
 },
 
-/* ===============================
-TRIP END
-================================ */
-
 tripEnd(trip){
 
 const start=this.tripStart(trip)
 
-const mins=trip.durationMinutes || 30
+const mins = trip.durationMinutes || 30
 
 return new Date(start.getTime()+mins*60000)
 
@@ -184,7 +176,7 @@ const start=this.tripStart(trip)
 
 const gap=(start-end)/60000
 
-return gap>15
+return gap>10
 
 },
 
@@ -215,17 +207,17 @@ return r
 },
 
 /* ===============================
-DRIVER SCORE
+CHAIN SCORE
 ================================ */
 
-async driverScore(driver,trip){
+async chainScore(driver,trip){
 
 let fromLat=driver.lat
 let fromLng=driver.lng
 
 const last=this.getLastTrip(driver._id,trip)
 
-if(last && last.dropoffLat){
+if(last){
 
 fromLat=last.dropoffLat
 fromLng=last.dropoffLng
@@ -241,16 +233,39 @@ trip.pickupLng
 
 if(!route) return 999999
 
-const travelTime=route.duration
+let score=route.duration
 
-const todayTrips=this.trips
+/* fairness */
+
+const tripsToday=this.trips
 .filter(t=>t.driverId===driver._id)
 .filter(t=>t.tripDate===trip.tripDate)
 .length
 
-const fairnessPenalty=todayTrips*600
+score += tripsToday*600
 
-const score=travelTime + fairnessPenalty
+/* chain bonus */
+
+if(last){
+
+const end=this.tripEnd(last)
+const start=this.tripStart(trip)
+
+const gap=(start-end)/60000
+
+if(gap<45){
+score -= 400
+}
+
+}
+
+/* distance bonus */
+
+const distKm=route.distance/1000
+
+if(distKm<2){
+score -= 200
+}
 
 return score
 
@@ -296,7 +311,7 @@ for(const d of drivers){
 
 if(!this.driverAvailable(d,trip)) continue
 
-const score=await this.driverScore(d,trip)
+const score=await this.chainScore(d,trip)
 
 if(score<bestScore){
 
@@ -312,21 +327,16 @@ return best
 },
 
 /* ===============================
-DISTRIBUTE
+AUTO DISPATCH
 ================================ */
 
-async distributeSelected(){
-
-const ids=[...document.querySelectorAll(".tripSelect:checked")]
-.map(e=>e.value)
+async autoDispatch(){
 
 const trips=this.trips
-.filter(t=>ids.includes(t._id))
+.filter(t=>!t.driverId)
 .sort((a,b)=>this.tripStart(a)-this.tripStart(b))
 
 for(const trip of trips){
-
-if(trip.driverId) continue
 
 const driver=await this.bestDriver(trip)
 
@@ -335,10 +345,42 @@ if(!driver) continue
 await Store.assignDriver(trip._id,driver._id)
 
 trip.driverId=driver._id
+trip.driverName=driver.name || ""
+trip.vehicle=driver.vehicleNumber || ""
 
 }
 
-alert("Trips Distributed")
+alert("Auto Dispatch Complete")
+
+await this.load()
+
+},
+
+/* ===============================
+SEND SINGLE
+================================ */
+
+async sendSingle(id){
+
+const row=document.querySelector(`tr[data-id="${id}"]`)
+
+if(!row) return
+
+const select=row.querySelector(".driverEdit")
+
+const driverId=select.value
+
+if(!driverId){
+
+alert("Select Driver First")
+return
+
+}
+
+await Store.assignDriver(id,driverId)
+await Store.sendTrip(id)
+
+alert("Trip Sent")
 
 await this.load()
 

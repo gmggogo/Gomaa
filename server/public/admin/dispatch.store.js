@@ -1,26 +1,24 @@
 const Store = {
 
+API_TRIPS: "/api/trips",
+API_DRIVERS: "/api/users/driver",
+API_SCHEDULE: "/api/driver-schedule",
+
 /* ===============================
-GET TRIPS
+GET SELECTED TRIPS
 ================================ */
 
 async getTrips(){
 
-try{
-
-const res = await fetch("/api/trips")
+const res = await fetch(this.API_TRIPS)
 
 if(!res.ok) return []
 
-return await res.json()
+const trips = await res.json()
 
-}catch(e){
+/* فقط الرحلات المختارة */
 
-console.error("Trips Load Error",e)
-
-return []
-
-}
+return trips.filter(t => t.selected === true)
 
 },
 
@@ -30,49 +28,25 @@ GET DRIVERS
 
 async getDrivers(){
 
-try{
-
-const res = await fetch("/api/users")
+const res = await fetch(this.API_DRIVERS)
 
 if(!res.ok) return []
 
-const users = await res.json()
-
-/* فلترة السواقين فقط */
-
-return users.filter(u=>u.role==="driver")
-
-}catch(e){
-
-console.error("Drivers Load Error",e)
-
-return []
-
-}
+return await res.json()
 
 },
 
 /* ===============================
-GET SCHEDULE
+GET DRIVER SCHEDULE
 ================================ */
 
 async getSchedule(){
 
-try{
-
-const res = await fetch("/api/driver-schedule")
+const res = await fetch(this.API_SCHEDULE)
 
 if(!res.ok) return {}
 
 return await res.json()
-
-}catch(e){
-
-console.error("Schedule Load Error",e)
-
-return {}
-
-}
 
 },
 
@@ -81,8 +55,6 @@ ASSIGN DRIVER
 ================================ */
 
 async assignDriver(tripId,driverId){
-
-try{
 
 await fetch(`/api/trips/${tripId}/assign`,{
 
@@ -93,16 +65,22 @@ headers:{
 },
 
 body:JSON.stringify({
-driverId:driverId
+driverId
 })
 
 })
 
-}catch(e){
+},
 
-console.error("Assign Error",e)
+/* ===============================
+SEND TRIP
+================================ */
 
-}
+async sendTrip(id){
+
+await fetch(`/api/trips/${id}/send`,{
+method:"POST"
+})
 
 }
 

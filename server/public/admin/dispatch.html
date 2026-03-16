@@ -9,8 +9,10 @@
 
 <link rel="stylesheet" href="/admin/style.css">
 
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link
+rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"
+/>
 
 <style>
 
@@ -20,6 +22,8 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
+/* HEADER */
+
 #adminHeader{
 position:fixed;
 top:0;
@@ -28,10 +32,22 @@ width:100%;
 z-index:1000;
 }
 
+/* PAGE */
+
 .page-body{
 padding-top:300px;
 padding-left:20px;
 padding-right:20px;
+}
+
+@media (max-width:768px){
+
+.page-body{
+padding-top:360px;
+padding-left:10px;
+padding-right:10px;
+}
+
 }
 
 /* TOOLBAR */
@@ -56,6 +72,8 @@ display:flex;
 gap:8px;
 }
 
+/* BUTTON */
+
 .btn{
 border:none;
 padding:7px 14px;
@@ -65,15 +83,30 @@ cursor:pointer;
 font-weight:600;
 }
 
-.btn-redistribute{background:#1e40af;color:white}
-.btn-manual{background:#9333ea;color:white}
-.btn-sendSelected{background:#16a34a;color:white}
-.btn-select{background:#0f172a;color:white}
+.btn-redistribute{
+background:#1e40af;
+color:white;
+}
+
+.btn-manual{
+background:#9333ea;
+color:white;
+}
+
+.btn-sendSelected{
+background:#16a34a;
+color:white;
+}
+
+.btn-select{
+background:#0f172a;
+color:white;
+}
 
 /* MAP */
 
 #dispatchMap{
-height:500px;
+height:450px;
 width:100%;
 margin-bottom:15px;
 border-radius:10px;
@@ -107,6 +140,17 @@ border-bottom:1px solid #eee;
 text-align:center;
 }
 
+/* DRIVER SELECT */
+
+.driverEdit{
+width:100%;
+border:1px solid #ddd;
+padding:4px;
+font-size:12px;
+}
+
+/* SEND BUTTON */
+
 .btn-send{
 background:#16a34a;
 color:white;
@@ -115,6 +159,15 @@ padding:5px 10px;
 border-radius:6px;
 font-size:12px;
 cursor:pointer;
+}
+
+.btn-send:disabled{
+background:#9ca3af;
+cursor:not-allowed;
+}
+
+.dispatch-check:checked{
+accent-color:#16a34a;
 }
 
 </style>
@@ -136,6 +189,16 @@ cursor:pointer;
 <button class="btn btn-redistribute"
 onclick="Engine.distributeSelected()">
 Redistribute Selected
+</button>
+
+<button class="btn btn-manual"
+onclick="Engine.enableManualEdit()">
+Manual Edit
+</button>
+
+<button class="btn btn-sendSelected"
+onclick="Engine.sendSelected()">
+Send Selected
 </button>
 
 <button class="btn btn-redistribute"
@@ -180,7 +243,6 @@ Select All
 <th>Time</th>
 <th>Driver</th>
 <th>Car</th>
-<th>Notes</th>
 <th>Send</th>
 </tr>
 
@@ -189,7 +251,7 @@ Select All
 <tbody id="dispatchBody">
 
 <tr>
-<td colspan="12" style="text-align:center;padding:40px">
+<td colspan="11" style="text-align:center;padding:40px">
 Loading trips...
 </td>
 </tr>
@@ -210,10 +272,6 @@ Loading trips...
 <script src="/admin/dispatch.ui.js"></script>
 
 <script>
-
-/* =========================
-SELECT
-========================= */
 
 let selectMode=false
 
@@ -237,11 +295,14 @@ MAP
 const DispatchMap={
 
 map:null,
-markers:[],
+
+driverMarkers:{},
+
+tripMarkers:{},
 
 init(){
 
-this.map=L.map("dispatchMap").setView([33.4484,-112.0740],10)
+this.map=L.map("dispatchMap").setView([33.4484,-112.0740],11)
 
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -250,65 +311,48 @@ L.tileLayer(
 
 },
 
-clear(){
-
-this.markers.forEach(m=>this.map.removeLayer(m))
-this.markers=[]
-
-},
-
 renderDrivers(drivers){
 
-drivers.forEach(d=>{
+for(const d of drivers){
 
-if(!d.lat) return
+if(!d.lat) continue
 
 const m=L.marker([d.lat,d.lng])
 
-m.bindPopup("Driver: "+d.name)
+m.bindPopup(`Driver: ${d.name}`)
 
 m.addTo(this.map)
 
-this.markers.push(m)
+this.driverMarkers[d._id]=m
 
-})
+}
 
 },
 
 renderTrips(trips){
 
-trips.forEach(t=>{
+for(const t of trips){
 
-if(!t.pickupLat) return
+if(!t.pickupLat) continue
 
 const m=L.circleMarker(
 [t.pickupLat,t.pickupLng],
 {
-radius:8,
+radius:7,
 color:"#facc15",
 fillColor:"#facc15",
 fillOpacity:1
 })
 
-m.bindPopup("Trip "+(t.tripNumber||t._id))
+m.bindPopup(
+`Trip ${t._id}<br>${t.pickup}`
+)
 
 m.addTo(this.map)
 
-this.markers.push(m)
+this.tripMarkers[t._id]=m
 
-})
-
-},
-
-fit(){
-
-if(!this.markers.length) return
-
-const group=new L.featureGroup(this.markers)
-
-this.map.fitBounds(group.getBounds(),{
-padding:[50,50]
-})
+}
 
 }
 
@@ -324,13 +368,9 @@ await Engine.load()
 
 DispatchMap.init()
 
-DispatchMap.clear()
-
 DispatchMap.renderDrivers(Engine.drivers)
 
 DispatchMap.renderTrips(Engine.trips)
-
-DispatchMap.fit()
 
 })
 
