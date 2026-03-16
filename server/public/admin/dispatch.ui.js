@@ -1,6 +1,6 @@
-const tbody=document.getElementById("dispatchBody")
+const tbody = document.getElementById("dispatchBody")
 
-const UI={
+const UI = {
 
 renderTrips(trips){
 
@@ -20,13 +20,12 @@ return
 
 trips.forEach(t=>{
 
-const tr=document.createElement("tr")
+const tr = document.createElement("tr")
 
 tr.innerHTML=`
 
 <td>
-<input
-type="checkbox"
+<input type="checkbox"
 class="tripSelect"
 value="${t._id}">
 </td>
@@ -45,21 +44,18 @@ value="${t._id}">
 
 <td>${t.tripTime || ""}</td>
 
-<td class="driverCell">
-${t.driverName || ""}
-</td>
+<td>${t.driverName || ""}</td>
 
-<td class="carCell">
-${t.vehicle || ""}
-</td>
+<td>${t.vehicle || ""}</td>
 
 <td>
 
 <input
 value="${t.notes || ""}"
-placeholder="Notes"
+style="width:120px"
 onchange="Engine.saveNotes('${t._id}',this.value)"
-style="width:120px">
+
+>
 
 </td>
 

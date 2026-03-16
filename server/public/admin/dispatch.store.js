@@ -1,50 +1,82 @@
-const Store={
+const Store = {
 
-/* ===============================
+/* =========================
 GET TRIPS
-================================ */
+========================= */
 
 async getTrips(){
 
-const res=await fetch("/api/trips")
+try{
 
-if(!res.ok) return []
+const res = await fetch("/api/trips")
+
+if(!res.ok) throw new Error("Trips API Error")
 
 return await res.json()
 
+}catch(err){
+
+console.error("Trips Load Error",err)
+
+return []
+
+}
+
 },
 
-/* ===============================
-GET DRIVERS
-================================ */
+/* =========================
+GET USERS → FILTER DRIVERS
+========================= */
 
 async getDrivers(){
 
-const res=await fetch("/api/users/driver")
+try{
+
+const res = await fetch("/api/users")
 
 if(!res.ok) return []
 
-return await res.json()
+const users = await res.json()
+
+return users.filter(u => u.role === "driver")
+
+}catch(err){
+
+console.error("Drivers Load Error",err)
+
+return []
+
+}
 
 },
 
-/* ===============================
+/* =========================
 GET SCHEDULE
-================================ */
+========================= */
 
 async getSchedule(){
 
-const res=await fetch("/api/driver-schedule")
+try{
+
+const res = await fetch("/api/driver-schedule")
 
 if(!res.ok) return {}
 
 return await res.json()
 
+}catch(err){
+
+console.error("Schedule Error",err)
+
+return {}
+
+}
+
 },
 
-/* ===============================
+/* =========================
 ASSIGN DRIVER
-================================ */
+========================= */
 
 async assignDriver(tripId,driverId){
 
@@ -62,9 +94,9 @@ body:JSON.stringify({driverId})
 
 },
 
-/* ===============================
+/* =========================
 SAVE NOTES
-================================ */
+========================= */
 
 async updateTripNotes(tripId,notes){
 
