@@ -129,17 +129,26 @@ const DriverSchedule = mongoose.model("DriverSchedule", driverScheduleSchema);
 app.get("/api/driver-schedule", async (req, res) => {
   try {
     const rows = await DriverSchedule.find();
-
     const result = {};
 
-    rows.forEach(r => {
-      result[r.driverId] = {
+    for (const r of rows) {
+      const scheduleRow = {
         phone: r.phone || "",
         address: r.address || "",
-        enabled: r.enabled,
+        enabled: r.enabled === true,
         days: r.days || {}
       };
-    });
+
+      /* save by driverId */
+      result[r.driverId] = scheduleRow;
+
+      /* also save by driver name so dispatch can read either id or name */
+      const driver = await User.findById(r.driverId);
+
+      if (driver) {
+        result[driver.name] = scheduleRow;
+      }
+    }
 
     res.json(result);
   } catch (err) {
