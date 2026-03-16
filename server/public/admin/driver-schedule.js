@@ -5,9 +5,17 @@ let schedule={}
 
 const tbody=document.getElementById("tbody")
 
+/* =========================
+ARIZONA DATE
+========================= */
+
 function azDate(d=new Date()){
 return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}))
 }
+
+/* =========================
+BUILD WEEK
+========================= */
 
 function buildWeek(){
 
@@ -40,38 +48,61 @@ return week
 
 const WEEK=buildWeek()
 
+/* =========================
+LOAD DRIVERS
+========================= */
+
 async function loadDrivers(){
+
 const res=await fetch(API_DRIVERS)
+
 return await res.json()
+
 }
 
-/* LOAD SCHEDULE FROM SERVER */
+/* =========================
+LOAD SCHEDULE
+========================= */
 
 async function loadSchedule(){
 
 const res=await fetch(API_SCHEDULE)
 
 if(res.ok){
+
 schedule=await res.json()
+
 }else{
+
 schedule={}
-}
 
 }
 
-/* SAVE SCHEDULE TO SERVER */
+}
+
+/* =========================
+SAVE SCHEDULE
+========================= */
 
 async function save(){
 
 await fetch(API_SCHEDULE,{
+
 method:"POST",
+
 headers:{
 "Content-Type":"application/json"
 },
+
 body:JSON.stringify(schedule)
+
 })
 
 }
+
+/* =========================
+RENDER TABLE
+========================= */
 
 async function render(){
 
@@ -83,13 +114,15 @@ drivers.forEach((d,i)=>{
 
 const id=d._id||d.id
 
+/* CREATE DRIVER IF NOT EXISTS */
+
 if(!schedule[id]){
 
 schedule[id]={
 
 phone:"",
 address:"",
-vehicle:"",
+vehicleNumber:"",
 days:{},
 enabled:true,
 edit:false
@@ -100,7 +133,7 @@ edit:false
 
 const s=schedule[id]
 
-const todayKey=new Date().toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
+const todayKey=azDate().toLocaleDateString("en-CA")
 
 const activeToday=s.enabled && s.days[todayKey]
 
@@ -117,25 +150,31 @@ tr.innerHTML=`
 <td><strong>${d.name||""}</strong></td>
 
 <td>
+
 <input
-value="${s.vehicle||""}"
+value="${s.vehicleNumber||""}"
 placeholder="Car #"
 ${!s.edit?"disabled":""}
-onchange="schedule['${id}'].vehicle=this.value">
+onchange="schedule['${id}'].vehicleNumber=this.value">
+
 </td>
 
 <td>
+
 <input
-value="${s.phone}"
+value="${s.phone||""}"
 ${!s.edit?"disabled":""}
 onchange="schedule['${id}'].phone=this.value">
+
 </td>
 
 <td>
+
 <input
-value="${s.address}"
+value="${s.address||""}"
 ${!s.edit?"disabled":""}
 onchange="schedule['${id}'].address=this.value">
+
 </td>
 
 <td>
@@ -205,12 +244,21 @@ tbody.appendChild(tr)
 
 }
 
+/* =========================
+EDIT DRIVER
+========================= */
+
 function editDriver(id){
 
 schedule[id].edit=true
+
 render()
 
 }
+
+/* =========================
+SAVE DRIVER
+========================= */
 
 async function saveDriver(id){
 
@@ -222,6 +270,10 @@ render()
 
 }
 
+/* =========================
+ENABLE / DISABLE
+========================= */
+
 async function toggleEnable(id){
 
 schedule[id].enabled=!schedule[id].enabled
@@ -232,9 +284,14 @@ render()
 
 }
 
+/* =========================
+DAY TOGGLE
+========================= */
+
 async function squareToggle(e,id,key){
 
 const box=e.currentTarget
+
 const chk=box.querySelector("input")
 
 if(chk.disabled) return
@@ -249,11 +306,14 @@ await save()
 
 }
 
-/* INIT */
+/* =========================
+INIT
+========================= */
 
 async function init(){
 
 await loadSchedule()
+
 render()
 
 }
