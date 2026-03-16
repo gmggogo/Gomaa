@@ -1,507 +1,545 @@
 const Engine = {
 
-trips:[],
-drivers:[],
-schedule:{},
-liveDrivers:[],
+  trips: [],
+  drivers: [],
+  schedule: {},
+  liveDrivers: [],
 
-geoCache:{},
-routeCache:{},
+  geoCache: {},
+  routeCache: {},
 
-map:null,
-tripMarkers:[],
-driverMarkers:[],
+  OSRM: "https://router.project-osrm.org/route/v1/driving",
 
-OSRM:"https://router.project-osrm.org/route/v1/driving",
+  map: null,
+  tripMarkers: [],
+  driverMarkers: [],
 
-manualMode:false,
-selectAll:false,
+  manualMode: false,
+  selectAllMode: false,
 
-/* ===============================
-LOAD
-=============================== */
+  async load(){
 
-async load(){
+    try{
 
-try{
+      this.trips = await Store.getTrips() || []
+      this.drivers = await Store.getDrivers() || []
+      this.schedule = await Store.getSchedule() || {}
+      this.liveDrivers = await Store.getLiveDrivers() || []
 
-this.trips = await Store.getTrips() || []
-this.drivers = await Store.getDrivers() || []
-this.schedule = await Store.getSchedule() || {}
-this.liveDrivers = await Store.getLiveDrivers() || []
+      this.sortTrips()
 
-this.sortTrips()
+      UI.renderTrips(this.trips)
+      UI.renderDriversPanel(this.drivers, this.schedule, this.liveDrivers)
 
-UI.renderTrips(this.trips)
+      this.bindSelection()
 
-UI.renderDriversPanel(
-this.drivers,
-this.schedule,
-this.liveDrivers
-)
+      await this.renderMap()
 
-this.bindSelection()
+      setTimeout(()=>{
+        if(this.map) this.map.invalidateSize()
+      }, 300)
 
-await this.initMap()
+    }catch(err){
 
-}catch(err){
+      console.error("Dispatch Load Error", err)
 
-console.error("Dispatch Load Error",err)
+    }
 
-}
+  },
 
-},
+  sortTrips(){
 
-/* ===============================
-SORT TRIPS
-=============================== */
+    this.trips.sort((a,b)=>{
+      const da = new Date(`${a.tripDate} ${a.tripTime}`)
+      const db = new Date(`${b.tripDate} ${b.tripTime}`)
+      return da - db
+    })
 
-sortTrips(){
+  },
 
-this.trips.sort((a,b)=>{
+  getToday(){
 
-const da=new Date(`${a.tripDate} ${a.tripTime}`)
-const db=new Date(`${b.tripDate} ${b.tripTime}`)
+    const days = ["sun","mon","tue","wed","thu","fri","sat"]
 
-return da-db
+    const now = new Date(
+      new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    )
 
-})
+    return days[now.getDay()]
+  },
 
-},
+  getDriverVehicleById(driverId){
 
-/* ===============================
-TODAY
-=============================== */
+    if(!driverId) return ""
 
-getToday(){
+    const driver = this.drivers.find(d=>String(d._id)===String(driverId))
+    if(!driver) return ""
 
-const days=["sun","mon","tue","wed","thu","fri","sat"]
+    return driver.vehicleNumber || ""
+  },
 
-const now = new Date(
-new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
+  getActiveDrivers(){
 
-return days[now.getDay()]
+    const today = this.getToday()
 
-},
+    return this.drivers.filter(d=>{
+      const s = this.schedule[d._id]
+      if(!s) return false
+      if(!s.enabled) return false
+      if(!s.days) return false
+      return !!s.days[today]
+    })
 
-/* ===============================
-ACTIVE DRIVERS
-=============================== */
+  },
 
-getActiveDrivers(){
+  bindSelection(){
 
-const today=this.getToday()
+    document.querySelectorAll(".tripSelect").forEach(box=>{
 
-return this.drivers.filter(d=>{
+      box.addEventListener("change",()=>{
 
-const s=this.schedule[d._id]
+        const row = box.closest("tr")
+        const btn = row.querySelector(".btn-send")
 
-if(!s) return false
-if(!s.enabled) return false
-if(!s.days) return false
+        if(btn){
+          btn.disabled = !box.checked
+        }
 
-return s.days[today]
+        row.classList.toggle("row-selected", box.checked)
 
-})
+      })
 
-},
+    })
 
-/* ===============================
-SELECTION
-=============================== */
+  },
 
-bindSelection(){
+  getSelected(){
 
-document.querySelectorAll(".tripSelect").forEach(box=>{
+    return [...document.querySelectorAll(".tripSelect:checked")]
+      .map(el=>el.value)
 
-box.addEventListener("change",()=>{
+  },
 
-const row=box.closest("tr")
-const btn=row.querySelector(".btn-send")
+  toggleSelectAll(){
 
-if(btn){
+    this.selectAllMode = !this.selectAllMode
 
-btn.disabled=!box.checked
+    document.querySelectorAll(".tripSelect").forEach(box=>{
+      box.checked = this.selectAllMode
 
-}
+      const row = box.closest("tr")
+      const btn = row.querySelector(".btn-send")
 
-})
+      if(btn){
+        btn.disabled = !box.checked
+      }
 
-})
+      row.classList.toggle("row-selected", box.checked)
+    })
 
-},
+    const btn = document.getElementById("selectToggleBtn")
+    if(btn){
+      btn.innerText = this.selectAllMode ? "Remove All" : "Select All"
+    }
 
-getSelected(){
+  },
 
-return [...document.querySelectorAll(".tripSelect:checked")]
-.map(e=>e.value)
+  toggleManualEdit(){
 
-},
+    this.manualMode = !this.manualMode
 
-toggleSelectAll(){
+    document.querySelectorAll("tbody tr").forEach(row=>{
 
-this.selectAll=!this.selectAll
+      const selected = row.querySelector(".tripSelect")?.checked
+      if(!selected) return
 
-document.querySelectorAll(".tripSelect").forEach(b=>{
+      const driverName = row.querySelector(".driverName")
+      const driverEdit = row.querySelector(".driverEdit")
+      const noteName = row.querySelector(".noteName")
+      const noteEdit = row.querySelector(".noteEdit")
+      const carCell = row.querySelector(".carCell")
 
-b.checked=this.selectAll
+      if(driverName) driverName.style.display = this.manualMode ? "none":"inline"
+      if(driverEdit) driverEdit.style.display = this.manualMode ? "block":"none"
 
-})
+      if(noteName) noteName.style.display = this.manualMode ? "none":"inline"
+      if(noteEdit) noteEdit.style.display = this.manualMode ? "block":"none"
 
-this.bindSelection()
+      if(driverEdit && this.manualMode){
+        driverEdit.onchange = ()=>{
+          carCell.innerText = this.getDriverVehicleById(driverEdit.value) || "-"
+        }
+      }
 
-},
+    })
 
-/* ===============================
-SEND TRIPS
-=============================== */
+  },
 
-async sendSelected(){
+  async saveManualChanges(){
 
-const ids=this.getSelected()
+    const rows = [...document.querySelectorAll("tbody tr")]
 
-if(!ids.length){
+    for(const row of rows){
 
-alert("Select trips first")
-return
+      const chk = row.querySelector(".tripSelect")
+      if(!chk?.checked) continue
 
-}
+      const tripId = row.dataset.id
+      const driverEdit = row.querySelector(".driverEdit")
+      const noteEdit = row.querySelector(".noteEdit")
 
-await Store.sendTrips(ids)
+      if(driverEdit && driverEdit.value){
+        await Store.assignDriver(tripId, driverEdit.value)
+      }
 
-await this.load()
+      if(noteEdit){
+        await Store.saveNote(tripId, noteEdit.value || "")
+      }
 
-},
+    }
 
-async sendSingle(id){
+    this.manualMode = false
 
-await Store.sendTrips([id])
+    alert("Changes saved")
 
-await this.load()
+    await this.load()
 
-},
+  },
 
-/* ===============================
-MANUAL EDIT
-=============================== */
+  async sendSelected(){
 
-toggleManualEdit(){
+    const ids = this.getSelected()
 
-this.manualMode=!this.manualMode
+    if(!ids.length){
+      alert("Select trips first")
+      return
+    }
 
-document.querySelectorAll("tbody tr").forEach(row=>{
+    await Store.sendTrips(ids)
 
-const selected=row.querySelector(".tripSelect")?.checked
+    alert("Trips sent")
 
-if(!selected) return
+    await this.load()
 
-const name=row.querySelector(".driverName")
-const edit=row.querySelector(".driverEdit")
+  },
 
-if(name) name.style.display=this.manualMode?"none":"inline"
-if(edit) edit.style.display=this.manualMode?"block":"none"
+  async sendSingle(id, btn){
 
-})
+    const row = btn.closest("tr")
+    const chk = row.querySelector(".tripSelect")
 
-},
+    if(!chk || !chk.checked){
+      alert("Select the trip first")
+      return
+    }
 
-async saveManualChanges(){
+    await Store.sendTrips([id])
 
-const rows=[...document.querySelectorAll("tbody tr")]
+    alert("Trip sent")
 
-for(const row of rows){
+    await this.load()
 
-const chk=row.querySelector(".tripSelect")
+  },
 
-if(!chk?.checked) continue
+  async redistributeSelected(){
 
-const tripId=row.dataset.id
+    const ids = this.getSelected()
 
-const driver=row.querySelector(".driverEdit")?.value
-const note=row.querySelector(".noteEdit")?.value
+    if(!ids.length){
+      alert("Select trips first")
+      return
+    }
 
-if(driver){
+    const drivers = this.getActiveDrivers()
 
-await Store.assignDriver(tripId,driver)
+    if(!drivers.length){
+      alert("No active drivers today")
+      return
+    }
 
-}
+    const selectedTrips = this.trips
+      .filter(t=>ids.includes(t._id))
+      .sort((a,b)=>{
+        const da = new Date(`${a.tripDate} ${a.tripTime}`)
+        const db = new Date(`${b.tripDate} ${b.tripTime}`)
+        return da - db
+      })
 
-if(note!==undefined){
+    const driverState = {}
 
-await Store.saveNote(tripId,note)
+    drivers.forEach(d=>{
+      driverState[d._id] = {
+        tripCount: 0,
+        lastDropoff: "",
+        lastEnd: null
+      }
+    })
 
-}
+    for(const trip of selectedTrips){
 
-}
+      const driversWithoutTrips = drivers.filter(d=>driverState[d._id].tripCount === 0)
+      const pool = driversWithoutTrips.length ? driversWithoutTrips : drivers
 
-this.manualMode=false
+      let bestDriver = null
+      let bestScore = Infinity
 
-await this.load()
+      for(const driver of pool){
 
-},
+        const score = await this.computeDriverScore(driver, trip, driverState[driver._id])
 
-/* ===============================
-AI DISPATCH
-=============================== */
+        if(score < bestScore){
+          bestScore = score
+          bestDriver = driver
+        }
 
-async aiDispatch(){
+      }
 
-const ids=this.getSelected()
+      if(!bestDriver) continue
 
-if(!ids.length){
+      await Store.assignDriver(trip._id, bestDriver._id)
 
-alert("Select trips first")
-return
+      driverState[bestDriver._id].tripCount += 1
+      driverState[bestDriver._id].lastDropoff = trip.dropoff
+      driverState[bestDriver._id].lastEnd = this.estimateTripEnd(trip.tripDate, trip.tripTime)
 
-}
+    }
 
-const trips=this.trips
-.filter(t=>ids.includes(t._id))
-.sort((a,b)=>{
+    alert("Trips redistributed")
 
-const da=new Date(`${a.tripDate} ${a.tripTime}`)
-const db=new Date(`${b.tripDate} ${b.tripTime}`)
+    await this.load()
 
-return da-db
+  },
 
-})
+  async computeDriverScore(driver, trip, state){
 
-const drivers=this.getActiveDrivers()
+    const scheduleRow = this.schedule[driver._id] || {}
+    const liveDriver = this.liveDrivers.find(d=>String(d.driverId)===String(driver._id))
 
-if(!drivers.length){
+    let originAddress = ""
 
-alert("No active drivers")
-return
+    if(state.lastDropoff){
+      originAddress = state.lastDropoff
+    }else if(liveDriver && liveDriver.lat != null && liveDriver.lng != null){
+      const liveAddress = await this.reverseGeocode(liveDriver.lat, liveDriver.lng)
+      originAddress = liveAddress || scheduleRow.address || driver.address || ""
+    }else{
+      originAddress = scheduleRow.address || driver.address || ""
+    }
 
-}
+    const route = await this.getRouteByAddress(originAddress, trip.pickup)
 
-const driverState={}
+    let distanceKm = route ? route.distanceKm : 999
+    let durationMin = route ? route.durationMin : 999
 
-for(const d of drivers){
+    const traffic = this.trafficFactor(trip.tripTime)
+    durationMin *= traffic
 
-driverState[d._id]={
+    let timePenalty = 0
 
-location:
-this.schedule[d._id]?.address
-||d.address
-||"",
+    if(state.lastEnd){
+      const tripStart = new Date(`${trip.tripDate} ${trip.tripTime}`)
+      const gapMin = (tripStart - state.lastEnd) / 60000
 
-tripCount:0
+      if(gapMin < durationMin){
+        timePenalty = 9999
+      }else{
+        timePenalty = Math.max(0, 60 - gapMin) * 1.2
+      }
+    }
 
-}
+    const fairnessPenalty = state.tripCount * 15
 
-}
+    return (distanceKm * 2) + (durationMin * 3) + fairnessPenalty + timePenalty
 
-for(const trip of trips){
+  },
 
-let bestDriver=null
-let bestScore=999999
+  trafficFactor(timeStr){
 
-for(const d of drivers){
+    if(!timeStr) return 1
 
-const state=driverState[d._id]
+    const h = Number(String(timeStr).split(":")[0])
 
-const route=await this.getRoute(
-state.location,
-trip.pickup
-)
+    if(h >= 6 && h <= 9) return 1.35
+    if(h >= 15 && h <= 18) return 1.3
 
-const distance=route?route.distance:999
-const duration=route?route.duration:999
+    return 1
+  },
 
-const fairness=state.tripCount*12
+  estimateTripEnd(dateStr, timeStr){
 
-const score=distance+duration+fairness
+    const d = new Date(`${dateStr} ${timeStr}`)
+    d.setMinutes(d.getMinutes() + 35)
+    return d
+  },
 
-if(score<bestScore){
+  async geocode(address){
 
-bestScore=score
-bestDriver=d
+    if(!address) return null
 
-}
+    const key = `geo:${address.trim().toLowerCase()}`
 
-}
+    if(this.geoCache[key]){
+      return this.geoCache[key]
+    }
 
-if(bestDriver){
+    try{
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`
+      const res = await fetch(url, {
+        headers: {
+          "Accept":"application/json"
+        }
+      })
 
-await Store.assignDriver(trip._id,bestDriver._id)
+      const data = await res.json()
 
-driverState[bestDriver._id].location=trip.dropoff
-driverState[bestDriver._id].tripCount++
+      if(!data.length) return null
 
-}
+      const point = {
+        lat: Number(data[0].lat),
+        lng: Number(data[0].lon)
+      }
 
-}
+      this.geoCache[key] = point
 
-await this.load()
+      return point
 
-},
+    }catch(err){
+      console.error("Geocode error", err)
+      return null
+    }
 
-/* ===============================
-GEOCODE
-=============================== */
+  },
 
-async geocode(address){
+  async reverseGeocode(lat, lng){
 
-if(!address) return null
+    if(lat == null || lng == null) return ""
 
-if(this.geoCache[address]){
+    const key = `rev:${lat},${lng}`
 
-return this.geoCache[address]
+    if(this.geoCache[key]){
+      return this.geoCache[key]
+    }
 
-}
+    try{
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`
+      const res = await fetch(url, {
+        headers: {
+          "Accept":"application/json"
+        }
+      })
 
-try{
+      const data = await res.json()
+      const addr = data?.display_name || ""
 
-const url=
-`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+      this.geoCache[key] = addr
 
-const res=await fetch(url)
+      return addr
 
-const data=await res.json()
+    }catch(err){
+      console.error("Reverse geocode error", err)
+      return ""
+    }
 
-if(!data.length) return null
+  },
 
-const p={
-lat:parseFloat(data[0].lat),
-lng:parseFloat(data[0].lon)
-}
+  async getRouteByAddress(fromAddress, toAddress){
 
-this.geoCache[address]=p
+    if(!fromAddress || !toAddress) return null
 
-return p
+    const cacheKey = `route:${fromAddress}__${toAddress}`.toLowerCase()
 
-}catch{
+    if(this.routeCache[cacheKey]){
+      return this.routeCache[cacheKey]
+    }
 
-return null
+    const from = await this.geocode(fromAddress)
+    const to = await this.geocode(toAddress)
 
-}
+    if(!from || !to) return null
 
-},
+    try{
+      const url = `${this.OSRM}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`
+      const res = await fetch(url)
+      const data = await res.json()
 
-/* ===============================
-ROUTE
-=============================== */
+      if(!data.routes || !data.routes.length) return null
 
-async getRoute(from,to){
+      const route = {
+        distanceKm: Number(data.routes[0].distance || 0) / 1000,
+        durationMin: Number(data.routes[0].duration || 0) / 60
+      }
 
-const key=from+"_"+to
+      this.routeCache[cacheKey] = route
 
-if(this.routeCache[key]){
+      return route
 
-return this.routeCache[key]
+    }catch(err){
+      console.error("OSRM route error", err)
+      return null
+    }
 
-}
+  },
 
-const a=await this.geocode(from)
-const b=await this.geocode(to)
+  async renderMap(){
 
-if(!a||!b) return null
+    const mapEl = document.getElementById("dispatchMap")
+    if(!mapEl) return
 
-try{
+    if(!this.map){
+      this.map = L.map("dispatchMap").setView([33.4484,-112.0740], 10)
 
-const url=
-`${this.OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        attribution:"&copy; OpenStreetMap contributors"
+      }).addTo(this.map)
 
-const res=await fetch(url)
+      window.addEventListener("resize",()=>{
+        if(this.map) this.map.invalidateSize()
+      })
+    }
 
-const data=await res.json()
+    this.tripMarkers.forEach(m=>this.map.removeLayer(m))
+    this.driverMarkers.forEach(m=>this.map.removeLayer(m))
 
-if(!data.routes?.length) return null
+    this.tripMarkers = []
+    this.driverMarkers = []
 
-const route={
-distance:data.routes[0].distance/1000,
-duration:data.routes[0].duration/60
-}
+    for(const trip of this.trips){
 
-this.routeCache[key]=route
+      const pickup = await this.geocode(trip.pickup)
 
-return route
+      if(pickup){
+        const marker = L.marker([pickup.lat, pickup.lng])
+          .addTo(this.map)
+          .bindPopup(`
+            <strong>${trip.tripNumber || "Trip"}</strong><br>
+            Client: ${trip.clientName || "-"}<br>
+            Pickup: ${trip.pickup || "-"}<br>
+            Time: ${trip.tripTime || "-"}
+          `)
 
-}catch{
+        this.tripMarkers.push(marker)
+      }
+    }
 
-return null
+    for(const d of this.liveDrivers){
 
-}
+      if(d.lat == null || d.lng == null) continue
 
-},
+      const marker = L.circleMarker([d.lat, d.lng], {
+        radius: 8,
+        color: "#16a34a",
+        fillColor: "#16a34a",
+        fillOpacity: 0.9
+      })
+      .addTo(this.map)
+      .bindPopup(`
+        <strong>${d.name || "Driver"}</strong><br>
+        Live Driver
+      `)
 
-/* ===============================
-MAP
-=============================== */
+      this.driverMarkers.push(marker)
+    }
 
-async initMap(){
-
-if(this.map) return
-
-this.map=L.map("dispatchMap")
-.setView([33.45,-112.07],10)
-
-L.tileLayer(
-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-{
-attribution:"OpenStreetMap"
-}
-).addTo(this.map)
-
-await this.drawTrips()
-await this.drawDrivers()
-
-},
-
-async drawTrips(){
-
-for(const m of this.tripMarkers){
-
-this.map.removeLayer(m)
-
-}
-
-this.tripMarkers=[]
-
-for(const trip of this.trips){
-
-const p=await this.geocode(trip.pickup)
-
-if(!p) continue
-
-const marker=L.marker([p.lat,p.lng])
-.addTo(this.map)
-.bindPopup(`Trip ${trip.tripNumber}`)
-
-this.tripMarkers.push(marker)
-
-}
-
-},
-
-async drawDrivers(){
-
-for(const m of this.driverMarkers){
-
-this.map.removeLayer(m)
-
-}
-
-this.driverMarkers=[]
-
-for(const d of this.liveDrivers){
-
-if(!d.lat||!d.lng) continue
-
-const marker=L.circleMarker(
-[d.lat,d.lng],
-{
-radius:8,
-color:"green"
-}
-).addTo(this.map)
-
-this.driverMarkers.push(marker)
-
-}
-
-}
+  }
 
 }

@@ -3,67 +3,9 @@ const driversPanel = document.getElementById("driversPanel")
 
 const UI = {
 
-  renderDriversPanel(drivers,schedule,liveDrivers){
-
-    if(!driversPanel) return
-
-    const today = Engine.getToday()
-
-    const liveMap = new Map()
-
-    liveDrivers.forEach(d=>{
-      liveMap.set(String(d.driverId || ""), d)
-    })
-
-    const activeDrivers = drivers.filter(d=>{
-
-      const s = schedule[d._id]
-      if(!s) return false
-      if(!s.enabled) return false
-      if(!s.days) return false
-
-      return !!s.days[today]
-
-    })
-
-    if(!activeDrivers.length){
-      driversPanel.innerHTML = `<div>No active drivers today</div>`
-      return
-    }
-
-    driversPanel.innerHTML = activeDrivers.map(d=>{
-
-      const s = schedule[d._id] || {}
-      const live = liveMap.get(String(d._id))
-      const tripCount = Engine.trips.filter(t=>String(t.driverId)===String(d._id)).length
-
-      return `
-        <div class="driver-chip">
-          <div>
-            <strong>${d.name || "-"}</strong><br>
-            Car: ${d.vehicleNumber || "-"}<br>
-            Address: ${s.address || d.address || "-"}<br>
-            Trips: ${tripCount}
-          </div>
-
-          <div class="driver-status ${live ? "status-active":"status-inactive"}">
-            ${live ? "LIVE" : "SCHEDULE"}
-          </div>
-
-          <div>
-            ${s.enabled ? "ACTIVE":"OFF"}
-          </div>
-        </div>
-      `
-    }).join("")
-
-  },
-
   renderTrips(trips){
 
-    if(!tbody) return
-
-    tbody.innerHTML=""
+    tbody.innerHTML = ""
 
     if(!trips.length){
       tbody.innerHTML = `
@@ -127,7 +69,7 @@ const UI = {
           </select>
         </td>
 
-        <td class="carCell">${Engine.getDriverVehicle(t.driverId) || t.vehicle || "-"}</td>
+        <td class="carCell">${Engine.getDriverVehicleById(t.driverId) || t.vehicle || "-"}</td>
 
         <td>
           <button
@@ -142,6 +84,50 @@ const UI = {
       tbody.appendChild(tr)
     })
 
+  },
+
+  renderDriversPanel(drivers, schedule, liveDrivers){
+
+    const today = Engine.getToday()
+
+    const liveMap = new Map()
+    liveDrivers.forEach(d=>{
+      liveMap.set(String(d.driverId || ""), d)
+    })
+
+    const activeDrivers = drivers.filter(d=>{
+      const s = schedule[d._id]
+      if(!s) return false
+      if(!s.enabled) return false
+      if(!s.days) return false
+      return !!s.days[today]
+    })
+
+    if(!activeDrivers.length){
+      driversPanel.innerHTML = `No active drivers today`
+      return
+    }
+
+    driversPanel.innerHTML = activeDrivers.map(d=>{
+
+      const s = schedule[d._id] || {}
+      const live = liveMap.get(String(d._id))
+      const tripsCount = Engine.trips.filter(t=>String(t.driverId)===String(d._id)).length
+
+      return `
+        <div class="driver-card">
+          <strong>${d.name || "-"}</strong>
+          <div class="driver-meta">
+            Car: ${d.vehicleNumber || "-"}<br>
+            Address: ${s.address || d.address || "-"}<br>
+            Trips: ${tripsCount}<br>
+            <span class="${live ? "status-live":"status-schedule"}">
+              ${live ? "LIVE":"SCHEDULE"}
+            </span>
+          </div>
+        </div>
+      `
+    }).join("")
   }
 
 }

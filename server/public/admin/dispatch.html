@@ -1,19 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <title>Dispatch</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="/admin/style.css">
-
-  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     crossorigin=""
-  />
+  >
 
   <style>
     body{
@@ -45,7 +42,7 @@
       }
     }
 
-    .toolbar{
+    .dispatch-toolbar{
       display:flex;
       justify-content:space-between;
       align-items:center;
@@ -75,6 +72,7 @@
     .btn-orange{ background:#ea580c; color:#fff; }
     .btn-purple{ background:#7c3aed; color:#fff; }
     .btn-dark{ background:#0f172a; color:#fff; }
+
     .btn-send{
       background:#16a34a;
       color:#fff;
@@ -84,6 +82,7 @@
       font-size:12px;
       cursor:pointer;
     }
+
     .btn-send:disabled{
       background:#94a3b8;
       cursor:not-allowed;
@@ -91,7 +90,7 @@
 
     .dispatch-layout{
       display:grid;
-      grid-template-columns: 1.2fr 1fr;
+      grid-template-columns:1.2fr 1fr;
       gap:12px;
       margin-bottom:12px;
     }
@@ -120,6 +119,7 @@
     #dispatchMap{
       width:100%;
       height:380px;
+      background:#e2e8f0;
     }
 
     .drivers-box{
@@ -128,11 +128,7 @@
       overflow:auto;
     }
 
-    .driver-chip{
-      display:grid;
-      grid-template-columns: 1fr auto auto;
-      gap:8px;
-      align-items:center;
+    .driver-card{
       border:1px solid #e2e8f0;
       border-radius:8px;
       padding:8px 10px;
@@ -141,17 +137,25 @@
       background:#fff;
     }
 
-    .driver-chip strong{
+    .driver-card strong{
       color:#0f172a;
     }
 
-    .driver-status{
-      font-weight:700;
-      font-size:11px;
+    .driver-meta{
+      margin-top:4px;
+      color:#334155;
+      line-height:1.5;
     }
 
-    .status-active{ color:#16a34a; }
-    .status-inactive{ color:#dc2626; }
+    .status-live{
+      color:#16a34a;
+      font-weight:700;
+    }
+
+    .status-schedule{
+      color:#0f172a;
+      font-weight:700;
+    }
 
     .table-scroll{
       width:100%;
@@ -160,10 +164,10 @@
 
     .trip-table{
       width:100%;
+      min-width:1450px;
       border-collapse:collapse;
       background:#fff;
       font-size:13px;
-      min-width:1400px;
     }
 
     .trip-table th{
@@ -181,8 +185,8 @@
       vertical-align:middle;
     }
 
-    .trip-table input[type="text"],
-    .trip-table select{
+    .trip-table select,
+    .trip-table input[type="text"]{
       width:100%;
       box-sizing:border-box;
       border:1px solid #d1d5db;
@@ -192,13 +196,13 @@
       background:#fff;
     }
 
-    .trip-table input.noteEdit{
-      min-width:160px;
-    }
-
     .driverEdit,
     .noteEdit{
       display:none;
+    }
+
+    .noteEdit{
+      min-width:150px;
     }
 
     .dispatch-check:checked{
@@ -210,14 +214,13 @@
     }
   </style>
 </head>
-
 <body>
 
   <div id="adminHeader"></div>
 
   <div class="page-body">
 
-    <div class="toolbar">
+    <div class="dispatch-toolbar">
       <div class="toolbar-left">
         <button class="btn btn-blue" onclick="Engine.redistributeSelected()">
           Redistribute Selected
@@ -251,9 +254,7 @@
 
       <div class="panel">
         <div class="panel-title">Active Drivers</div>
-        <div id="driversPanel" class="drivers-box">
-          Loading drivers...
-        </div>
+        <div id="driversPanel" class="drivers-box">Loading drivers...</div>
       </div>
     </div>
 
