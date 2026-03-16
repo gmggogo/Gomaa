@@ -4,194 +4,385 @@ trips: [],
 drivers: [],
 schedule: {},
 
+geoCache:{},
+routeCache:{},
+
+OSRM:"https://router.project-osrm.org/route/v1/driving",
+
 /* ===============================
-LOAD DATA
+LOAD
 ================================ */
 
 async load(){
 
-try{
+this.trips = await Store.getTrips() || []
+this.drivers = await Store.getDrivers() || []
+this.schedule = await Store.getSchedule() || {}
 
-this.trips = await Store.getTrips()
-this.drivers = await Store.getDrivers()
-this.schedule = await Store.getSchedule()
+this.sortTrips()
+
+await this.prepareCoordinates()
 
 UI.renderTrips(this.trips)
 
-}catch(err){
-
-console.error("Dispatch Load Error",err)
-
-}
-
 },
 
 /* ===============================
-GET TODAY (Arizona)
+SORT TRIPS
 ================================ */
 
-getToday(){
+sortTrips(){
 
-const days=["sun","mon","tue","wed","thu","fri","sat"]
+this.trips.sort((a,b)=>{
 
-const now=new Date(
-new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-)
+const da=new Date(`${a.tripDate}T${a.tripTime}`)
+const db=new Date(`${b.tripDate}T${b.tripTime}`)
 
-return days[now.getDay()]
-
-},
-
-/* ===============================
-FILTER AVAILABLE DRIVERS
-================================ */
-
-getAvailableDrivers(){
-
-const day=this.getToday()
-
-return this.drivers.filter(d=>{
-
-const s=this.schedule[d._id]
-
-if(!s) return false
-if(!s.enabled) return false
-if(!s.days) return false
-
-return s.days[day]
+return da-db
 
 })
 
 },
 
 /* ===============================
-ROUND ROBIN DISTRIBUTION
+GEOCODE
 ================================ */
 
-async distributeTrips(){
+async geocode(address){
 
-const drivers=this.getAvailableDrivers()
+if(!address) return null
 
-if(!drivers.length){
+if(this.geoCache[address]) return this.geoCache[address]
 
-alert("No drivers available today")
-return
+const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
 
+const res=await fetch(url,{headers:{'User-Agent':'sunbeam'}})
+
+const data=await res.json()
+
+if(!data.length) return null
+
+const geo={
+lat:parseFloat(data[0].lat),
+lng:parseFloat(data[0].lon)
 }
 
-let driverIndex=0
+this.geoCache[address]=geo
+
+return geo
+
+},
+
+/* ===============================
+PREPARE COORDINATES
+================================ */
+
+async prepareCoordinates(){
 
 for(const trip of this.trips){
 
-if(trip.driverId) continue
-if(trip.disabled) continue
+if(!trip.pickupLat){
 
-const driver=drivers[driverIndex]
+const g=await this.geocode(trip.pickup)
+
+if(g){
+
+trip.pickupLat=g.lat
+trip.pickupLng=g.lng
+
+}
+
+}
+
+if(!trip.dropoffLat){
+
+const g=await this.geocode(trip.dropoff)
+
+if(g){
+
+trip.dropoffLat=g.lat
+trip.dropoffLng=g.lng
+
+}
+
+}
+
+}
+
+for(const d of this.drivers){
+
+if(!d.lat){
+
+const g=await this.geocode(d.address)
+
+if(g){
+
+d.lat=g.lat
+d.lng=g.lng
+
+}
+
+}
+
+}
+
+},
+
+/* ===============================
+TRIP START
+================================ */
+
+tripStart(trip){
+
+return new Date(`${trip.tripDate}T${trip.tripTime}`)
+
+},
+
+/* ===============================
+TRIP END
+================================ */
+
+tripEnd(trip){
+
+const start=this.tripStart(trip)
+
+const mins=trip.durationMinutes || 30
+
+return new Date(start.getTime()+mins*60000)
+
+},
+
+/* ===============================
+LAST TRIP
+================================ */
+
+getLastTrip(driverId,trip){
+
+const start=this.tripStart(trip)
+
+const list=this.trips
+.filter(t=>t.driverId===driverId)
+.filter(t=>this.tripStart(t)<start)
+.sort((a,b)=>this.tripStart(b)-this.tripStart(a))
+
+return list.length ? list[0] : null
+
+},
+
+/* ===============================
+DRIVER AVAILABLE
+================================ */
+
+driverAvailable(driver,trip){
+
+const last=this.getLastTrip(driver._id,trip)
+
+if(!last) return true
+
+const end=this.tripEnd(last)
+const start=this.tripStart(trip)
+
+const gap=(start-end)/60000
+
+return gap>15
+
+},
+
+/* ===============================
+ROUTE
+================================ */
+
+async route(fromLat,fromLng,toLat,toLng){
+
+const key=`${fromLat},${fromLng}_${toLat},${toLng}`
+
+if(this.routeCache[key]) return this.routeCache[key]
+
+const url=`${this.OSRM}/${fromLng},${fromLat};${toLng},${toLat}?overview=false`
+
+const res=await fetch(url)
+
+const data=await res.json()
+
+if(!data.routes.length) return null
+
+const r=data.routes[0]
+
+this.routeCache[key]=r
+
+return r
+
+},
+
+/* ===============================
+CHAIN SCORE
+================================ */
+
+async chainScore(driver,trip){
+
+let fromLat=driver.lat
+let fromLng=driver.lng
+
+const last=this.getLastTrip(driver._id,trip)
+
+if(last){
+
+fromLat=last.dropoffLat
+fromLng=last.dropoffLng
+
+}
+
+const route=await this.route(
+fromLat,
+fromLng,
+trip.pickupLat,
+trip.pickupLng
+)
+
+if(!route) return 999999
+
+let score=route.duration
+
+/* fairness */
+
+const tripsToday=this.trips
+.filter(t=>t.driverId===driver._id)
+.filter(t=>t.tripDate===trip.tripDate)
+.length
+
+score+=tripsToday*600
+
+/* chain bonus */
+
+if(last){
+
+const end=this.tripEnd(last)
+const start=this.tripStart(trip)
+
+const gap=(start-end)/60000
+
+if(gap<45){
+
+score-=300
+}
+
+}
+
+return score
+
+},
+
+/* ===============================
+ACTIVE DRIVERS
+================================ */
+
+getActiveDrivers(trip){
+
+const days=["sun","mon","tue","wed","thu","fri","sat"]
+
+const d=new Date(`${trip.tripDate}T${trip.tripTime}`)
+
+const day=days[d.getDay()]
+
+return this.drivers.filter(driver=>{
+
+const s=this.schedule[driver._id]
+
+if(!s) return false
+if(!s.enabled) return false
+
+return s.days && s.days[day]
+
+})
+
+},
+
+/* ===============================
+BEST DRIVER
+================================ */
+
+async bestDriver(trip){
+
+const drivers=this.getActiveDrivers(trip)
+
+let best=null
+let bestScore=999999
+
+for(const d of drivers){
+
+if(!this.driverAvailable(d,trip)) continue
+
+const score=await this.chainScore(d,trip)
+
+if(score<bestScore){
+
+bestScore=score
+best=d
+
+}
+
+}
+
+return best
+
+},
+
+/* ===============================
+AUTO DISTRIBUTE
+================================ */
+
+async autoDispatch(){
+
+const trips=this.trips
+.filter(t=>!t.driverId)
+.sort((a,b)=>this.tripStart(a)-this.tripStart(b))
+
+for(const trip of trips){
+
+const driver=await this.bestDriver(trip)
+
+if(!driver) continue
 
 await Store.assignDriver(trip._id,driver._id)
 
-driverIndex++
+trip.driverId=driver._id
 
-if(driverIndex>=drivers.length){
-driverIndex=0
 }
+
+alert("Auto Dispatch Complete")
+
+await this.load()
+
+},
+
+/* ===============================
+MANUAL DISTRIBUTE
+================================ */
+
+async distributeSelected(){
+
+const ids=[...document.querySelectorAll(".tripSelect:checked")]
+.map(e=>e.value)
+
+const trips=this.trips
+.filter(t=>ids.includes(t._id))
+.sort((a,b)=>this.tripStart(a)-this.tripStart(b))
+
+for(const trip of trips){
+
+if(trip.driverId) continue
+
+const driver=await this.bestDriver(trip)
+
+if(!driver) continue
+
+await Store.assignDriver(trip._id,driver._id)
+
+trip.driverId=driver._id
 
 }
 
 alert("Trips Distributed")
-
-await this.load()
-
-},
-
-/* ===============================
-GET SELECTED TRIPS
-================================ */
-
-getSelected(){
-
-return [...document.querySelectorAll(".tripSelect:checked")]
-.map(c=>c.value)
-
-},
-
-/* ===============================
-SEND SELECTED
-================================ */
-
-async sendSelected(){
-
-const ids=this.getSelected()
-
-if(!ids.length){
-
-alert("Select trips first")
-return
-
-}
-
-for(const id of ids){
-
-await Store.sendTrip(id)
-
-}
-
-alert("Trips Sent")
-
-await this.load()
-
-},
-
-/* ===============================
-SEND SINGLE TRIP
-================================ */
-
-async sendSingle(id){
-
-await Store.sendTrip(id)
-
-alert("Trip Sent")
-
-await this.load()
-
-},
-
-/* ===============================
-SAVE DRIVER MANUAL
-================================ */
-
-async saveDrivers(){
-
-const edits=document.querySelectorAll(".driverEdit")
-
-for(const sel of edits){
-
-const row=sel.closest("tr")
-
-const tripId=row.dataset.id
-const driverId=sel.value
-
-if(!driverId) continue
-
-await Store.assignDriver(tripId,driverId)
-
-}
-
-alert("Drivers Updated")
-
-await this.load()
-
-},
-
-/* ===============================
-REMOVE FROM DISPATCH
-================================ */
-
-async removeTrip(id){
-
-await Store.removeTrip(id)
-
-alert("Trip Removed")
 
 await this.load()
 

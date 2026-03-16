@@ -9,6 +9,11 @@
 
 <link rel="stylesheet" href="/admin/style.css">
 
+<link
+rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"
+/>
+
 <style>
 
 body{
@@ -35,8 +40,6 @@ padding-left:20px;
 padding-right:20px;
 }
 
-/* MOBILE HEADER SPACE */
-
 @media (max-width:768px){
 
 .page-body{
@@ -47,11 +50,74 @@ padding-right:10px;
 
 }
 
+/* TOOLBAR */
+
+.dispatch-toolbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:12px;
+flex-wrap:wrap;
+gap:10px;
+}
+
+.left-tools{
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+}
+
+.right-tools{
+display:flex;
+gap:8px;
+}
+
+/* BUTTON */
+
+.btn{
+border:none;
+padding:7px 14px;
+border-radius:7px;
+font-size:12px;
+cursor:pointer;
+font-weight:600;
+}
+
+.btn-redistribute{
+background:#1e40af;
+color:white;
+}
+
+.btn-manual{
+background:#9333ea;
+color:white;
+}
+
+.btn-sendSelected{
+background:#16a34a;
+color:white;
+}
+
+.btn-select{
+background:#0f172a;
+color:white;
+}
+
+/* MAP */
+
+#dispatchMap{
+height:450px;
+width:100%;
+margin-bottom:15px;
+border-radius:10px;
+}
+
 /* TABLE */
 
 .table-scroll{
 width:100%;
-overflow-x:auto;
+overflow:auto;
+max-height:600px;
 }
 
 .trip-table{
@@ -74,38 +140,30 @@ border-bottom:1px solid #eee;
 text-align:center;
 }
 
-/* BUTTONS */
-
-.actions{
-display:flex;
-gap:6px;
-justify-content:center;
-align-items:center;
-}
-
-.btn{
-border:none;
-padding:5px 10px;
-border-radius:6px;
-cursor:pointer;
-font-size:12px;
-}
-
-.btn-send{
-background:#16a34a;
-color:white;
-}
-
-.btn-remove{
-background:#dc2626;
-color:white;
-}
+/* DRIVER SELECT */
 
 .driverEdit{
 width:100%;
 border:1px solid #ddd;
 padding:4px;
 font-size:12px;
+}
+
+/* SEND BUTTON */
+
+.btn-send{
+background:#16a34a;
+color:white;
+border:none;
+padding:5px 10px;
+border-radius:6px;
+font-size:12px;
+cursor:pointer;
+}
+
+.btn-send:disabled{
+background:#9ca3af;
+cursor:not-allowed;
 }
 
 .dispatch-check:checked{
@@ -121,6 +179,52 @@ accent-color:#16a34a;
 <div id="adminHeader"></div>
 
 <div class="page-body">
+
+<!-- TOOLBAR -->
+
+<div class="dispatch-toolbar">
+
+<div class="left-tools">
+
+<button class="btn btn-redistribute"
+onclick="Engine.distributeSelected()">
+Redistribute Selected
+</button>
+
+<button class="btn btn-manual"
+onclick="Engine.enableManualEdit()">
+Manual Edit
+</button>
+
+<button class="btn btn-sendSelected"
+onclick="Engine.sendSelected()">
+Send Selected
+</button>
+
+<button class="btn btn-redistribute"
+onclick="Engine.autoDispatch()">
+Auto Dispatch
+</button>
+
+</div>
+
+<div class="right-tools">
+
+<button id="selectBtn"
+class="btn btn-select"
+onclick="toggleSelect()">
+Select All
+</button>
+
+</div>
+
+</div>
+
+<!-- MAP -->
+
+<div id="dispatchMap"></div>
+
+<!-- TABLE -->
 
 <div class="table-scroll">
 
@@ -160,6 +264,8 @@ Loading trips...
 
 </div>
 
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
@@ -167,21 +273,106 @@ Loading trips...
 
 <script>
 
-document.addEventListener("DOMContentLoaded",()=>{
+let selectMode=false
 
-Engine.load()
+function toggleSelect(){
 
+const boxes=document.querySelectorAll(".tripSelect")
+
+selectMode=!selectMode
+
+boxes.forEach(b=>b.checked=selectMode)
+
+document.getElementById("selectBtn").innerText=
+selectMode ? "Remove All" : "Select All"
+
+}
+
+/* =========================
+MAP
+========================= */
+
+const DispatchMap={
+
+map:null,
+
+driverMarkers:{},
+
+tripMarkers:{},
+
+init(){
+
+this.map=L.map("dispatchMap").setView([33.4484,-112.0740],11)
+
+L.tileLayer(
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+{maxZoom:19}
+).addTo(this.map)
+
+},
+
+renderDrivers(drivers){
+
+for(const d of drivers){
+
+if(!d.lat) continue
+
+const m=L.marker([d.lat,d.lng])
+
+m.bindPopup(`Driver: ${d.name}`)
+
+m.addTo(this.map)
+
+this.driverMarkers[d._id]=m
+
+}
+
+},
+
+renderTrips(trips){
+
+for(const t of trips){
+
+if(!t.pickupLat) continue
+
+const m=L.circleMarker(
+[t.pickupLat,t.pickupLng],
+{
+radius:7,
+color:"#facc15",
+fillColor:"#facc15",
+fillOpacity:1
 })
 
-function selectAll(){
-document.querySelectorAll(".tripSelect")
-.forEach(c=>c.checked=true)
+m.bindPopup(
+`Trip ${t._id}<br>${t.pickup}`
+)
+
+m.addTo(this.map)
+
+this.tripMarkers[t._id]=m
+
 }
 
-function removeAll(){
-document.querySelectorAll(".tripSelect")
-.forEach(c=>c.checked=false)
 }
+
+}
+
+/* =========================
+LOAD
+========================= */
+
+document.addEventListener("DOMContentLoaded", async ()=>{
+
+await Engine.load()
+
+DispatchMap.init()
+
+DispatchMap.renderDrivers(Engine.drivers)
+
+DispatchMap.renderTrips(Engine.trips)
+
+})
 
 </script>
 
