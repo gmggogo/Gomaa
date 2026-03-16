@@ -1,8 +1,8 @@
 const Store = {
 
-/* =========================
+/* ===============================
 GET TRIPS
-========================= */
+================================ */
 
 async getTrips(){
 
@@ -10,13 +10,13 @@ try{
 
 const res = await fetch("/api/trips")
 
-if(!res.ok) throw new Error("Trips API Error")
+if(!res.ok) return []
 
 return await res.json()
 
-}catch(err){
+}catch(e){
 
-console.error("Trips Load Error",err)
+console.error("Trips Load Error",e)
 
 return []
 
@@ -24,9 +24,9 @@ return []
 
 },
 
-/* =========================
-GET USERS → FILTER DRIVERS
-========================= */
+/* ===============================
+GET DRIVERS
+================================ */
 
 async getDrivers(){
 
@@ -38,11 +38,13 @@ if(!res.ok) return []
 
 const users = await res.json()
 
-return users.filter(u => u.role === "driver")
+/* فلترة السواقين فقط */
 
-}catch(err){
+return users.filter(u=>u.role==="driver")
 
-console.error("Drivers Load Error",err)
+}catch(e){
+
+console.error("Drivers Load Error",e)
 
 return []
 
@@ -50,9 +52,9 @@ return []
 
 },
 
-/* =========================
+/* ===============================
 GET SCHEDULE
-========================= */
+================================ */
 
 async getSchedule(){
 
@@ -64,9 +66,9 @@ if(!res.ok) return {}
 
 return await res.json()
 
-}catch(err){
+}catch(e){
 
-console.error("Schedule Error",err)
+console.error("Schedule Load Error",e)
 
 return {}
 
@@ -74,11 +76,13 @@ return {}
 
 },
 
-/* =========================
+/* ===============================
 ASSIGN DRIVER
-========================= */
+================================ */
 
 async assignDriver(tripId,driverId){
+
+try{
 
 await fetch(`/api/trips/${tripId}/assign`,{
 
@@ -88,29 +92,17 @@ headers:{
 "Content-Type":"application/json"
 },
 
-body:JSON.stringify({driverId})
+body:JSON.stringify({
+driverId:driverId
+})
 
 })
 
-},
+}catch(e){
 
-/* =========================
-SAVE NOTES
-========================= */
+console.error("Assign Error",e)
 
-async updateTripNotes(tripId,notes){
-
-await fetch(`/api/trips/${tripId}/notes`,{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({notes})
-
-})
+}
 
 }
 

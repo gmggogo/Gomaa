@@ -1,16 +1,18 @@
-const tbody = document.getElementById("dispatchBody")
+const body = document.getElementById("dispatchBody")
 
 const UI = {
 
 renderTrips(trips){
 
-tbody.innerHTML=""
+body.innerHTML=""
 
 if(!trips.length){
 
-tbody.innerHTML=`
+body.innerHTML=`
 <tr>
-<td colspan="12">No Trips</td>
+<td colspan="12" style="padding:40px;text-align:center">
+No Trips Found
+</td>
 </tr>
 `
 
@@ -18,44 +20,44 @@ return
 
 }
 
-trips.forEach(t=>{
+trips.forEach(trip=>{
 
-const tr = document.createElement("tr")
+const tr=document.createElement("tr")
 
 tr.innerHTML=`
 
 <td>
-<input type="checkbox"
+
+<input
+type="checkbox"
 class="tripSelect"
-value="${t._id}">
+value="${trip._id}">
+
 </td>
 
-<td>${t.tripNumber || ""}</td>
+<td>${trip.tripNumber || ""}</td>
 
-<td>${t.clientName || ""}</td>
+<td>${trip.clientName || ""}</td>
 
-<td>${t.pickup || ""}</td>
+<td>${trip.pickup || ""}</td>
 
-<td>${(t.stops||[]).join(" | ")}</td>
+<td>${(trip.stops || []).join(" | ")}</td>
 
-<td>${t.dropoff || ""}</td>
+<td>${trip.dropoff || ""}</td>
 
-<td>${t.tripDate || ""}</td>
+<td>${trip.tripDate || ""}</td>
 
-<td>${t.tripTime || ""}</td>
+<td>${trip.tripTime || ""}</td>
 
-<td>${t.driverName || ""}</td>
+<td>${trip.driverName || ""}</td>
 
-<td>${t.vehicle || ""}</td>
+<td>${trip.vehicle || ""}</td>
 
 <td>
 
 <input
-value="${t.notes || ""}"
 style="width:120px"
-onchange="Engine.saveNotes('${t._id}',this.value)"
-
->
+value="${trip.notes || ""}">
 
 </td>
 
@@ -63,7 +65,7 @@ onchange="Engine.saveNotes('${t._id}',this.value)"
 
 <button
 class="btn-send"
-onclick="Engine.sendSingle('${t._id}')">
+onclick="Engine.distributeSelected()">
 
 Send
 
@@ -73,7 +75,7 @@ Send
 
 `
 
-tbody.appendChild(tr)
+body.appendChild(tr)
 
 })
 
