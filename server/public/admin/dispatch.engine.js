@@ -1,8 +1,8 @@
 const Engine = {
 
-trips:[],
-drivers:[],
-schedule:{},
+trips: [],
+drivers: [],
+schedule: {},
 
 geoCache:{},
 routeCache:{},
@@ -15,8 +15,6 @@ LOAD
 
 async load(){
 
-try{
-
 this.trips = await Store.getTrips() || []
 this.drivers = await Store.getDrivers() || []
 this.schedule = await Store.getSchedule() || {}
@@ -26,12 +24,6 @@ this.sortTrips()
 await this.prepareCoordinates()
 
 UI.renderTrips(this.trips)
-
-}catch(err){
-
-console.error("Dispatch Load Error",err)
-
-}
 
 },
 
@@ -43,8 +35,8 @@ sortTrips(){
 
 this.trips.sort((a,b)=>{
 
-const da = new Date(`${a.tripDate}T${a.tripTime}`)
-const db = new Date(`${b.tripDate}T${b.tripTime}`)
+const da=new Date(`${a.tripDate}T${a.tripTime}`)
+const db=new Date(`${b.tripDate}T${b.tripTime}`)
 
 return da-db
 
@@ -62,13 +54,9 @@ if(!address) return null
 
 if(this.geoCache[address]) return this.geoCache[address]
 
-try{
-
 const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
 
-const res=await fetch(url,{
-headers:{'User-Agent':'sunbeam'}
-})
+const res=await fetch(url,{headers:{'User-Agent':'sunbeam'}})
 
 const data=await res.json()
 
@@ -83,17 +71,10 @@ this.geoCache[address]=geo
 
 return geo
 
-}catch(e){
-
-console.error("Geocode error",e)
-return null
-
-}
-
 },
 
 /* ===============================
-PREPARE COORDINATES
+PREPARE COORDS
 ================================ */
 
 async prepareCoordinates(){
@@ -130,7 +111,7 @@ trip.dropoffLng=g.lng
 
 for(const d of this.drivers){
 
-if(!d.lat && d.address){
+if(!d.lat){
 
 const g=await this.geocode(d.address)
 
@@ -148,7 +129,7 @@ d.lng=g.lng
 },
 
 /* ===============================
-TIME
+TRIP START
 ================================ */
 
 tripStart(trip){
@@ -157,11 +138,15 @@ return new Date(`${trip.tripDate}T${trip.tripTime}`)
 
 },
 
+/* ===============================
+TRIP END
+================================ */
+
 tripEnd(trip){
 
 const start=this.tripStart(trip)
 
-const mins = trip.durationMinutes || 30
+const mins=trip.durationMinutes || 30
 
 return new Date(start.getTime()+mins*60000)
 
@@ -199,7 +184,7 @@ const start=this.tripStart(trip)
 
 const gap=(start-end)/60000
 
-return gap>10
+return gap>15
 
 },
 
@@ -212,8 +197,6 @@ async route(fromLat,fromLng,toLat,toLng){
 const key=`${fromLat},${fromLng}_${toLat},${toLng}`
 
 if(this.routeCache[key]) return this.routeCache[key]
-
-try{
 
 const url=`${this.OSRM}/${fromLng},${fromLat};${toLng},${toLat}?overview=false`
 
@@ -229,28 +212,20 @@ this.routeCache[key]=r
 
 return r
 
-}catch(e){
-
-console.error("Route error",e)
-
-return null
-
-}
-
 },
 
 /* ===============================
-CHAIN SCORE
+DRIVER SCORE
 ================================ */
 
-async chainScore(driver,trip){
+async driverScore(driver,trip){
 
 let fromLat=driver.lat
 let fromLng=driver.lng
 
 const last=this.getLastTrip(driver._id,trip)
 
-if(last){
+if(last && last.dropoffLat){
 
 fromLat=last.dropoffLat
 fromLng=last.dropoffLng
@@ -266,39 +241,16 @@ trip.pickupLng
 
 if(!route) return 999999
 
-let score=route.duration
+const travelTime=route.duration
 
-/* fairness */
-
-const tripsToday=this.trips
+const todayTrips=this.trips
 .filter(t=>t.driverId===driver._id)
 .filter(t=>t.tripDate===trip.tripDate)
 .length
 
-score += tripsToday*600
+const fairnessPenalty=todayTrips*600
 
-/* chain bonus */
-
-if(last){
-
-const end=this.tripEnd(last)
-const start=this.tripStart(trip)
-
-const gap=(start-end)/60000
-
-if(gap<45){
-score -= 400
-}
-
-}
-
-/* distance bonus */
-
-const distKm=route.distance/1000
-
-if(distKm<2){
-score -= 200
-}
+const score=travelTime + fairnessPenalty
 
 return score
 
@@ -344,7 +296,7 @@ for(const d of drivers){
 
 if(!this.driverAvailable(d,trip)) continue
 
-const score=await this.chainScore(d,trip)
+const score=await this.driverScore(d,trip)
 
 if(score<bestScore){
 
@@ -360,37 +312,7 @@ return best
 },
 
 /* ===============================
-AUTO DISPATCH
-================================ */
-
-async autoDispatch(){
-
-const trips=this.trips
-.filter(t=>!t.driverId)
-.sort((a,b)=>this.tripStart(a)-this.tripStart(b))
-
-for(const trip of trips){
-
-const driver=await this.bestDriver(trip)
-
-if(!driver) continue
-
-await Store.assignDriver(trip._id,driver._id)
-
-trip.driverId=driver._id
-trip.driverName=driver.name || ""
-trip.vehicle=driver.vehicleNumber || ""
-
-}
-
-alert("Auto Dispatch Complete")
-
-await this.load()
-
-},
-
-/* ===============================
-DISTRIBUTE SELECTED
+DISTRIBUTE
 ================================ */
 
 async distributeSelected(){
@@ -413,8 +335,6 @@ if(!driver) continue
 await Store.assignDriver(trip._id,driver._id)
 
 trip.driverId=driver._id
-trip.driverName=driver.name || ""
-trip.vehicle=driver.vehicleNumber || ""
 
 }
 
