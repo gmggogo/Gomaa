@@ -13,11 +13,16 @@ tbody.innerHTML = `
 <td colspan="11">No Trips</td>
 </tr>
 `
-
 return
 }
 
 trips.forEach(t=>{
+
+/* GET DRIVER FROM ENGINE */
+
+const driver = Engine.drivers.find(
+d => d._id === t.driverId
+) || {}
 
 const tr = document.createElement("tr")
 
@@ -26,7 +31,8 @@ tr.dataset.id = t._id
 tr.innerHTML = `
 
 <td>
-<input type="checkbox"
+<input
+type="checkbox"
 class="tripSelect"
 value="${t._id}">
 </td>
@@ -45,9 +51,13 @@ value="${t._id}">
 
 <td>${t.tripTime || ""}</td>
 
-<td class="driverCell">${t.driverName || ""}</td>
+<td class="driverCell">
+${driver.name || ""}
+</td>
 
-<td class="carCell">${t.vehicle || ""}</td>
+<td class="carCell">
+${driver.vehicleNumber || ""}
+</td>
 
 <td>
 <button onclick="Engine.sendSingle('${t._id}')">

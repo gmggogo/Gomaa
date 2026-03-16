@@ -9,10 +9,8 @@
 
 <link rel="stylesheet" href="/admin/style.css">
 
-<link
-rel="stylesheet"
-href="https://unpkg.com/leaflet/dist/leaflet.css"
-/>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 
@@ -22,8 +20,6 @@ font-family:Segoe UI,Arial;
 background:#f1f5f9;
 }
 
-/* HEADER */
-
 #adminHeader{
 position:fixed;
 top:0;
@@ -32,25 +28,11 @@ width:100%;
 z-index:1000;
 }
 
-/* PAGE */
-
 .page-body{
 padding-top:300px;
 padding-left:20px;
 padding-right:20px;
 }
-
-@media (max-width:768px){
-
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
-}
-
-}
-
-/* TOOLBAR */
 
 .dispatch-toolbar{
 display:flex;
@@ -72,8 +54,6 @@ display:flex;
 gap:8px;
 }
 
-/* BUTTON */
-
 .btn{
 border:none;
 padding:7px 14px;
@@ -83,30 +63,15 @@ cursor:pointer;
 font-weight:600;
 }
 
-.btn-redistribute{
-background:#1e40af;
-color:white;
-}
-
-.btn-manual{
-background:#9333ea;
-color:white;
-}
-
-.btn-sendSelected{
-background:#16a34a;
-color:white;
-}
-
-.btn-select{
-background:#0f172a;
-color:white;
-}
+.btn-redistribute{background:#1e40af;color:white}
+.btn-manual{background:#9333ea;color:white}
+.btn-sendSelected{background:#16a34a;color:white}
+.btn-select{background:#0f172a;color:white}
 
 /* MAP */
 
 #dispatchMap{
-height:450px;
+height:500px;
 width:100%;
 margin-bottom:15px;
 border-radius:10px;
@@ -140,16 +105,12 @@ border-bottom:1px solid #eee;
 text-align:center;
 }
 
-/* DRIVER SELECT */
-
 .driverEdit{
 width:100%;
 border:1px solid #ddd;
 padding:4px;
 font-size:12px;
 }
-
-/* SEND BUTTON */
 
 .btn-send{
 background:#16a34a;
@@ -159,11 +120,6 @@ padding:5px 10px;
 border-radius:6px;
 font-size:12px;
 cursor:pointer;
-}
-
-.btn-send:disabled{
-background:#9ca3af;
-cursor:not-allowed;
 }
 
 .dispatch-check:checked{
@@ -243,6 +199,7 @@ Select All
 <th>Time</th>
 <th>Driver</th>
 <th>Car</th>
+<th>Notes</th>
 <th>Send</th>
 </tr>
 
@@ -251,7 +208,7 @@ Select All
 <tbody id="dispatchBody">
 
 <tr>
-<td colspan="11" style="text-align:center;padding:40px">
+<td colspan="12" style="text-align:center;padding:40px">
 Loading trips...
 </td>
 </tr>
@@ -272,6 +229,10 @@ Loading trips...
 <script src="/admin/dispatch.ui.js"></script>
 
 <script>
+
+/* =========================
+SELECT
+========================= */
 
 let selectMode=false
 
@@ -295,14 +256,11 @@ MAP
 const DispatchMap={
 
 map:null,
-
-driverMarkers:{},
-
-tripMarkers:{},
+markers:[],
 
 init(){
 
-this.map=L.map("dispatchMap").setView([33.4484,-112.0740],11)
+this.map=L.map("dispatchMap").setView([33.4484,-112.0740],10)
 
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -311,48 +269,65 @@ L.tileLayer(
 
 },
 
+clear(){
+
+this.markers.forEach(m=>this.map.removeLayer(m))
+this.markers=[]
+
+},
+
 renderDrivers(drivers){
 
-for(const d of drivers){
+drivers.forEach(d=>{
 
-if(!d.lat) continue
+if(!d.lat) return
 
 const m=L.marker([d.lat,d.lng])
 
-m.bindPopup(`Driver: ${d.name}`)
+m.bindPopup("Driver: "+d.name)
 
 m.addTo(this.map)
 
-this.driverMarkers[d._id]=m
+this.markers.push(m)
 
-}
+})
 
 },
 
 renderTrips(trips){
 
-for(const t of trips){
+trips.forEach(t=>{
 
-if(!t.pickupLat) continue
+if(!t.pickupLat) return
 
 const m=L.circleMarker(
 [t.pickupLat,t.pickupLng],
 {
-radius:7,
+radius:8,
 color:"#facc15",
 fillColor:"#facc15",
 fillOpacity:1
 })
 
-m.bindPopup(
-`Trip ${t._id}<br>${t.pickup}`
-)
+m.bindPopup("Trip "+(t.tripNumber||t._id))
 
 m.addTo(this.map)
 
-this.tripMarkers[t._id]=m
+this.markers.push(m)
 
-}
+})
+
+},
+
+fit(){
+
+if(!this.markers.length) return
+
+const group=new L.featureGroup(this.markers)
+
+this.map.fitBounds(group.getBounds(),{
+padding:[50,50]
+})
 
 }
 
@@ -368,9 +343,13 @@ await Engine.load()
 
 DispatchMap.init()
 
+DispatchMap.clear()
+
 DispatchMap.renderDrivers(Engine.drivers)
 
 DispatchMap.renderTrips(Engine.trips)
+
+DispatchMap.fit()
 
 })
 
