@@ -28,7 +28,7 @@ UI.renderTrips(this.trips)
 },
 
 /* ===============================
-SORT TRIPS
+SORT
 ================================ */
 
 sortTrips(){
@@ -86,10 +86,8 @@ if(!trip.pickupLat){
 const g=await this.geocode(trip.pickup)
 
 if(g){
-
 trip.pickupLat=g.lat
 trip.pickupLng=g.lng
-
 }
 
 }
@@ -99,10 +97,8 @@ if(!trip.dropoffLat){
 const g=await this.geocode(trip.dropoff)
 
 if(g){
-
 trip.dropoffLat=g.lat
 trip.dropoffLng=g.lng
-
 }
 
 }
@@ -116,10 +112,8 @@ if(!d.lat){
 const g=await this.geocode(d.address)
 
 if(g){
-
 d.lat=g.lat
 d.lng=g.lng
-
 }
 
 }
@@ -129,7 +123,7 @@ d.lng=g.lng
 },
 
 /* ===============================
-TRIP START
+TRIP TIME
 ================================ */
 
 tripStart(trip){
@@ -137,10 +131,6 @@ tripStart(trip){
 return new Date(`${trip.tripDate}T${trip.tripTime}`)
 
 },
-
-/* ===============================
-TRIP END
-================================ */
 
 tripEnd(trip){
 
@@ -184,7 +174,7 @@ const start=this.tripStart(trip)
 
 const gap=(start-end)/60000
 
-return gap>15
+return gap>10
 
 },
 
@@ -243,7 +233,9 @@ if(!route) return 999999
 
 let score=route.duration
 
-/* fairness */
+/* ===============================
+FAIRNESS
+================================ */
 
 const tripsToday=this.trips
 .filter(t=>t.driverId===driver._id)
@@ -252,7 +244,9 @@ const tripsToday=this.trips
 
 score+=tripsToday*600
 
-/* chain bonus */
+/* ===============================
+CHAIN BONUS
+================================ */
 
 if(last){
 
@@ -262,10 +256,19 @@ const start=this.tripStart(trip)
 const gap=(start-end)/60000
 
 if(gap<45){
-
-score-=300
+score-=400
 }
 
+}
+
+/* ===============================
+DISTANCE BONUS
+================================ */
+
+const distKm=route.distance/1000
+
+if(distKm<2){
+score-=200
 }
 
 return score
@@ -328,7 +331,7 @@ return best
 },
 
 /* ===============================
-AUTO DISTRIBUTE
+AUTO DISPATCH
 ================================ */
 
 async autoDispatch(){
@@ -345,7 +348,12 @@ if(!driver) continue
 
 await Store.assignDriver(trip._id,driver._id)
 
+/* UPDATE LOCAL */
+
 trip.driverId=driver._id
+trip.driverName=driver.name || ""
+trip.vehicle=driver.vehicleNumber || ""
+trip.driverAddress=driver.address || ""
 
 }
 
@@ -379,6 +387,9 @@ if(!driver) continue
 await Store.assignDriver(trip._id,driver._id)
 
 trip.driverId=driver._id
+trip.driverName=driver.name || ""
+trip.vehicle=driver.vehicleNumber || ""
+trip.driverAddress=driver.address || ""
 
 }
 
