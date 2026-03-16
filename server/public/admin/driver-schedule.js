@@ -41,10 +41,8 @@ return week
 const WEEK=buildWeek()
 
 async function loadDrivers(){
-
 const res=await fetch(API_DRIVERS)
 return await res.json()
-
 }
 
 /* LOAD SCHEDULE FROM SERVER */
@@ -91,6 +89,7 @@ schedule[id]={
 
 phone:"",
 address:"",
+vehicle:"",
 days:{},
 enabled:true,
 edit:false
@@ -116,6 +115,14 @@ tr.innerHTML=`
 <td>${i+1}</td>
 
 <td><strong>${d.name||""}</strong></td>
+
+<td>
+<input
+value="${s.vehicle||""}"
+placeholder="Car #"
+${!s.edit?"disabled":""}
+onchange="schedule['${id}'].vehicle=this.value">
+</td>
 
 <td>
 <input
