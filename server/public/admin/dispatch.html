@@ -5,96 +5,38 @@
 
 <meta charset="UTF-8">
 <title>Dispatch</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link rel="stylesheet" href="/admin/style.css">
-
-<link
-rel="stylesheet"
-href="https://unpkg.com/leaflet/dist/leaflet.css"
-/>
 
 <style>
 
 body{
-margin:0;
-font-family:Segoe UI,Arial;
+font-family:Arial;
 background:#f1f5f9;
+margin:0;
+padding:20px;
 }
 
-/* HEADER */
-
-#adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:1000;
+h2{
+margin-bottom:15px;
 }
 
-/* PAGE */
-
-.page-body{
-padding-top:300px;
-padding-left:20px;
-padding-right:20px;
-}
-
-@media (max-width:768px){
-
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
-}
-
-}
-
-/* TOOLBAR */
-
-.dispatch-toolbar{
+.toolbar{
+margin-bottom:10px;
 display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:12px;
-flex-wrap:wrap;
 gap:10px;
 }
 
-.left-tools{
-display:flex;
-gap:8px;
-flex-wrap:wrap;
-}
-
-.right-tools{
-display:flex;
-gap:8px;
-}
-
-/* BUTTON */
-
 .btn{
+padding:7px 12px;
 border:none;
-padding:7px 14px;
-border-radius:7px;
-font-size:12px;
+border-radius:6px;
 cursor:pointer;
-font-weight:600;
+font-weight:bold;
 }
 
-.btn-redistribute{
+.btn-auto{
 background:#1e40af;
-color:white;
-}
-
-.btn-manual{
-background:#9333ea;
-color:white;
-}
-
-.btn-sendSelected{
-background:#16a34a;
 color:white;
 }
 
@@ -103,71 +45,39 @@ background:#0f172a;
 color:white;
 }
 
-/* MAP */
-
-#dispatchMap{
-height:450px;
-width:100%;
-margin-bottom:15px;
-border-radius:10px;
-}
-
-/* TABLE */
-
-.table-scroll{
-width:100%;
-overflow:auto;
-max-height:600px;
-}
-
-.trip-table{
+table{
 width:100%;
 border-collapse:collapse;
 background:white;
-font-size:13px;
 }
 
-.trip-table th{
+th{
 background:#0f172a;
 color:white;
 padding:8px;
-text-align:center;
 }
 
-.trip-table td{
+td{
 padding:6px;
 border-bottom:1px solid #eee;
 text-align:center;
 }
-
-/* DRIVER SELECT */
-
-.driverEdit{
-width:100%;
-border:1px solid #ddd;
-padding:4px;
-font-size:12px;
-}
-
-/* SEND BUTTON */
 
 .btn-send{
 background:#16a34a;
 color:white;
 border:none;
 padding:5px 10px;
-border-radius:6px;
-font-size:12px;
+border-radius:5px;
 cursor:pointer;
 }
 
-.btn-send:disabled{
-background:#9ca3af;
-cursor:not-allowed;
+select{
+padding:4px;
 }
 
-.dispatch-check:checked{
-accent-color:#16a34a;
+input{
+padding:4px;
 }
 
 </style>
@@ -176,63 +86,26 @@ accent-color:#16a34a;
 
 <body>
 
-<div id="adminHeader"></div>
+<h2>Dispatch</h2>
 
-<div class="page-body">
+<div class="toolbar">
 
-<!-- TOOLBAR -->
-
-<div class="dispatch-toolbar">
-
-<div class="left-tools">
-
-<button class="btn btn-redistribute"
-onclick="Engine.distributeSelected()">
-Redistribute Selected
-</button>
-
-<button class="btn btn-manual"
-onclick="Engine.enableManualEdit()">
-Manual Edit
-</button>
-
-<button class="btn btn-sendSelected"
-onclick="Engine.sendSelected()">
-Send Selected
-</button>
-
-<button class="btn btn-redistribute"
-onclick="Engine.autoDispatch()">
+<button class="btn btn-auto" onclick="Engine.autoDispatch()">
 Auto Dispatch
 </button>
 
-</div>
-
-<div class="right-tools">
-
-<button id="selectBtn"
-class="btn btn-select"
-onclick="toggleSelect()">
+<button class="btn btn-select" onclick="toggleSelect()">
 Select All
 </button>
 
 </div>
 
-</div>
-
-<!-- MAP -->
-
-<div id="dispatchMap"></div>
-
-<!-- TABLE -->
-
-<div class="table-scroll">
-
-<table class="trip-table">
+<table>
 
 <thead>
 
 <tr>
+
 <th>Select</th>
 <th>Trip #</th>
 <th>Client</th>
@@ -242,8 +115,10 @@ Select All
 <th>Date</th>
 <th>Time</th>
 <th>Driver</th>
-<th>Car</th>
+<th>Vehicle</th>
+<th>Notes</th>
 <th>Send</th>
+
 </tr>
 
 </thead>
@@ -251,27 +126,22 @@ Select All
 <tbody id="dispatchBody">
 
 <tr>
-<td colspan="11" style="text-align:center;padding:40px">
-Loading trips...
-</td>
+<td colspan="12">Loading trips...</td>
 </tr>
 
 </tbody>
 
 </table>
 
-</div>
-
-</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
 <script src="/admin/dispatch.ui.js"></script>
 
 <script>
+
+/* ===============================
+SELECT ALL
+================================ */
 
 let selectMode=false
 
@@ -283,98 +153,20 @@ selectMode=!selectMode
 
 boxes.forEach(b=>b.checked=selectMode)
 
-document.getElementById("selectBtn").innerText=
-selectMode ? "Remove All" : "Select All"
-
 }
 
-/* =========================
-MAP
-========================= */
+/* ===============================
+INIT
+================================ */
 
-const DispatchMap={
-
-map:null,
-
-driverMarkers:{},
-
-tripMarkers:{},
-
-init(){
-
-this.map=L.map("dispatchMap").setView([33.4484,-112.0740],11)
-
-L.tileLayer(
-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-{maxZoom:19}
-).addTo(this.map)
-
-},
-
-renderDrivers(drivers){
-
-for(const d of drivers){
-
-if(!d.lat) continue
-
-const m=L.marker([d.lat,d.lng])
-
-m.bindPopup(`Driver: ${d.name}`)
-
-m.addTo(this.map)
-
-this.driverMarkers[d._id]=m
-
-}
-
-},
-
-renderTrips(trips){
-
-for(const t of trips){
-
-if(!t.pickupLat) continue
-
-const m=L.circleMarker(
-[t.pickupLat,t.pickupLng],
-{
-radius:7,
-color:"#facc15",
-fillColor:"#facc15",
-fillOpacity:1
-})
-
-m.bindPopup(
-`Trip ${t._id}<br>${t.pickup}`
-)
-
-m.addTo(this.map)
-
-this.tripMarkers[t._id]=m
-
-}
-
-}
-
-}
-
-/* =========================
-LOAD
-========================= */
-
-document.addEventListener("DOMContentLoaded", async ()=>{
+document.addEventListener("DOMContentLoaded",async ()=>{
 
 await Engine.load()
-
-DispatchMap.init()
-
-DispatchMap.renderDrivers(Engine.drivers)
-
-DispatchMap.renderTrips(Engine.trips)
 
 })
 
 </script>
 
 </body>
+
 </html>
