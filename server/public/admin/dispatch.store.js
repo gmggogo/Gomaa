@@ -1,95 +1,136 @@
 const Store = {
 
-API_TRIPS: "/api/trips",
-API_DRIVERS: "/api/users/driver",
-API_SCHEDULE: "/api/driver-schedule",
+  API_DISPATCH: "/api/dispatch",
+  API_DRIVERS: "/api/drivers",
+  API_SCHEDULE: "/api/driver-schedule",
+  API_LIVE: "/api/admin/live-drivers",
 
-/* ===============================
-GET TRIPS
-================================ */
+  /* ===============================
+  GET DISPATCH TRIPS
+  ================================ */
 
-async getTrips(){
+  async getTrips(){
 
-const res = await fetch(this.API_TRIPS)
+    const res = await fetch(this.API_DISPATCH)
 
-if(!res.ok) return []
+    if(!res.ok) return []
 
-return await res.json()
+    return await res.json()
 
-},
+  },
 
-/* ===============================
-GET DRIVERS
-================================ */
+  /* ===============================
+  GET DRIVERS
+  ================================ */
 
-async getDrivers(){
+  async getDrivers(){
 
-const res = await fetch(this.API_DRIVERS)
+    const res = await fetch(this.API_DRIVERS)
 
-if(!res.ok) return []
+    if(!res.ok) return []
 
-return await res.json()
+    return await res.json()
 
-},
+  },
 
-/* ===============================
-GET DRIVER SCHEDULE
-================================ */
+  /* ===============================
+  GET DRIVER SCHEDULE
+  ================================ */
 
-async getSchedule(){
+  async getSchedule(){
 
-const res = await fetch(this.API_SCHEDULE)
+    const res = await fetch(this.API_SCHEDULE)
 
-if(!res.ok) return {}
+    if(!res.ok) return {}
 
-return await res.json()
+    return await res.json()
 
-},
+  },
 
-/* ===============================
-ASSIGN DRIVER
-================================ */
+  /* ===============================
+  GET LIVE DRIVERS
+  ================================ */
 
-async assignDriver(tripId,driverId){
+  async getLiveDrivers(){
 
-await fetch(`/api/trips/${tripId}/assign`,{
+    const res = await fetch(this.API_LIVE)
 
-method:"POST",
+    if(!res.ok) return []
 
-headers:{
-"Content-Type":"application/json"
-},
+    return await res.json()
 
-body:JSON.stringify({
-driverId:driverId
-})
+  },
 
-})
+  /* ===============================
+  ASSIGN DRIVER
+  ================================ */
 
-},
+  async assignDriver(tripId,driverId){
 
-/* ===============================
-SEND TRIP
-================================ */
+    const res = await fetch(`/api/dispatch/${tripId}/driver`,{
+      method:"PATCH",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        driverId
+      })
+    })
 
-async sendTrip(id){
+    if(!res.ok){
+      throw new Error("Assign driver failed")
+    }
 
-await fetch(`/api/trips/${id}/send`,{
-method:"POST"
-})
+    return await res.json()
 
-},
+  },
 
-/* ===============================
-REMOVE TRIP
-================================ */
+  /* ===============================
+  SAVE NOTE
+  ================================ */
 
-async removeTrip(id){
+  async saveNote(tripId,note){
 
-await fetch(`/api/trips/${id}`,{
-method:"DELETE"
-})
+    const res = await fetch(`/api/dispatch/${tripId}/note`,{
+      method:"PATCH",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        note: note || ""
+      })
+    })
 
-}
+    if(!res.ok){
+      throw new Error("Save note failed")
+    }
+
+    return await res.json()
+
+  },
+
+  /* ===============================
+  SEND TRIPS
+  ================================ */
+
+  async sendTrips(ids){
+
+    const res = await fetch("/api/dispatch/send",{
+      method:"PATCH",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        ids
+      })
+    })
+
+    if(!res.ok){
+      throw new Error("Send trips failed")
+    }
+
+    return await res.json()
+
+  }
 
 }

@@ -1,89 +1,147 @@
 const tbody = document.getElementById("dispatchBody")
+const driversPanel = document.getElementById("driversPanel")
 
 const UI = {
 
-renderTrips(trips){
+  renderDriversPanel(drivers,schedule,liveDrivers){
 
-tbody.innerHTML=""
+    if(!driversPanel) return
 
-if(!trips.length){
+    const today = Engine.getToday()
 
-tbody.innerHTML=`
-<tr>
-<td colspan="11">No Trips</td>
-</tr>
-`
+    const liveMap = new Map()
 
-return
-}
+    liveDrivers.forEach(d=>{
+      liveMap.set(String(d.driverId || ""), d)
+    })
 
-trips.forEach(t=>{
+    const activeDrivers = drivers.filter(d=>{
 
-const tr=document.createElement("tr")
+      const s = schedule[d._id]
+      if(!s) return false
+      if(!s.enabled) return false
+      if(!s.days) return false
 
-tr.dataset.id=t._id
+      return !!s.days[today]
 
-tr.innerHTML=`
+    })
 
-<td>
-<input
-type="checkbox"
-class="tripSelect"
-value="${t._id}">
-</td>
+    if(!activeDrivers.length){
+      driversPanel.innerHTML = `<div>No active drivers today</div>`
+      return
+    }
 
-<td>${t.tripNumber || ""}</td>
+    driversPanel.innerHTML = activeDrivers.map(d=>{
 
-<td>${t.clientName || ""}</td>
+      const s = schedule[d._id] || {}
+      const live = liveMap.get(String(d._id))
+      const tripCount = Engine.trips.filter(t=>String(t.driverId)===String(d._id)).length
 
-<td>${t.pickup || ""}</td>
+      return `
+        <div class="driver-chip">
+          <div>
+            <strong>${d.name || "-"}</strong><br>
+            Car: ${d.vehicleNumber || "-"}<br>
+            Address: ${s.address || d.address || "-"}<br>
+            Trips: ${tripCount}
+          </div>
 
-<td>${(t.stops || []).join(" | ")}</td>
+          <div class="driver-status ${live ? "status-active":"status-inactive"}">
+            ${live ? "LIVE" : "SCHEDULE"}
+          </div>
 
-<td>${t.dropoff || ""}</td>
+          <div>
+            ${s.enabled ? "ACTIVE":"OFF"}
+          </div>
+        </div>
+      `
+    }).join("")
 
-<td>${t.tripDate || ""}</td>
+  },
 
-<td>${t.tripTime || ""}</td>
+  renderTrips(trips){
 
-<td class="driverCell">
-<select class="driverEdit">
+    if(!tbody) return
 
-<option value="">--</option>
+    tbody.innerHTML=""
 
-${Engine.drivers.map(d=>{
+    if(!trips.length){
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="12" style="text-align:center;padding:30px">
+            No Trips
+          </td>
+        </tr>
+      `
+      return
+    }
 
-const selected = t.driverId===d._id ? "selected" : ""
+    trips.forEach(t=>{
 
-return `<option value="${d._id}" ${selected}>
-${d.name}
-</option>`
+      const tr = document.createElement("tr")
+      tr.dataset.id = t._id
 
-}).join("")}
+      tr.innerHTML = `
 
-</select>
-</td>
+        <td>
+          <input
+            type="checkbox"
+            class="tripSelect dispatch-check"
+            value="${t._id}">
+        </td>
 
-<td>${t.vehicle || ""}</td>
+        <td>${t.tripNumber || ""}</td>
 
-<td>
+        <td>${t.clientName || ""}</td>
 
-<button
-class="btn btn-send"
-onclick="Engine.sendSingle('${t._id}')">
+        <td>${t.pickup || ""}</td>
 
-Send
+        <td>${(t.stops || []).join(" | ")}</td>
 
-</button>
+        <td>${t.dropoff || ""}</td>
 
-</td>
+        <td>${t.tripDate || ""}</td>
 
-`
+        <td>${t.tripTime || ""}</td>
 
-tbody.appendChild(tr)
+        <td>
+          <span class="noteName">${t.notes || "-"}</span>
+          <input
+            type="text"
+            class="noteEdit"
+            value="${(t.notes || "").replace(/"/g,"&quot;")}">
+        </td>
 
-})
+        <td class="driverCell">
+          <span class="driverName">${t.driverName || "-"}</span>
 
-}
+          <select class="driverEdit">
+            <option value="">-- Select Driver --</option>
+            ${Engine.drivers.map(d=>`
+              <option
+                value="${d._id}"
+                ${String(t.driverId)===String(d._id) ? "selected":""}>
+                ${d.name}
+              </option>
+            `).join("")}
+          </select>
+        </td>
+
+        <td class="carCell">${Engine.getDriverVehicle(t.driverId) || t.vehicle || "-"}</td>
+
+        <td>
+          <button
+            class="btn-send"
+            disabled
+            onclick="Engine.sendSingle('${t._id}', this)">
+            Send
+          </button>
+        </td>
+      `
+
+      tbody.appendChild(tr)
+    })
+
+  }
 
 }
