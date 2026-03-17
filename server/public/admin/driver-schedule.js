@@ -1,4 +1,4 @@
-const API_DRIVERS="/api/users/driver"
+const API_DRIVERS="/api/drivers"
 const API_SCHEDULE="/api/driver-schedule"
 
 let schedule={}
@@ -8,7 +8,6 @@ const tbody=document.getElementById("tbody")
 /* =========================
 ARIZONA DATE
 ========================= */
-
 function azDate(d=new Date()){
 return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}))
 }
@@ -16,13 +15,11 @@ return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}))
 /* =========================
 BUILD WEEK
 ========================= */
-
 function buildWeek(){
 
 const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
 
 const start=azDate()
-
 const week=[]
 
 for(let i=0;i<7;i++){
@@ -51,31 +48,22 @@ const WEEK=buildWeek()
 /* =========================
 LOAD DRIVERS
 ========================= */
-
 async function loadDrivers(){
-
 const res=await fetch(API_DRIVERS)
-
 return await res.json()
-
 }
 
 /* =========================
 LOAD SCHEDULE
 ========================= */
-
 async function loadSchedule(){
 
 const res=await fetch(API_SCHEDULE)
 
 if(res.ok){
-
 schedule=await res.json()
-
 }else{
-
 schedule={}
-
 }
 
 }
@@ -83,19 +71,14 @@ schedule={}
 /* =========================
 SAVE SCHEDULE
 ========================= */
-
 async function save(){
 
 await fetch(API_SCHEDULE,{
-
 method:"POST",
-
 headers:{
 "Content-Type":"application/json"
 },
-
 body:JSON.stringify(schedule)
-
 })
 
 }
@@ -103,7 +86,6 @@ body:JSON.stringify(schedule)
 /* =========================
 RENDER TABLE
 ========================= */
-
 async function render(){
 
 tbody.innerHTML=""
@@ -114,27 +96,19 @@ drivers.forEach((d,i)=>{
 
 const id=d._id||d.id
 
-/* CREATE DRIVER IF NOT EXISTS */
-
 if(!schedule[id]){
-
 schedule[id]={
-
 phone:"",
 address:"",
-vehicleNumber:"",
 days:{},
 enabled:true,
 edit:false
-
 }
-
 }
 
 const s=schedule[id]
 
 const todayKey=azDate().toLocaleDateString("en-CA")
-
 const activeToday=s.enabled && s.days[todayKey]
 
 const tr=document.createElement("tr")
@@ -150,31 +124,24 @@ tr.innerHTML=`
 <td><strong>${d.name||""}</strong></td>
 
 <td>
-
 <input
-value="${s.vehicleNumber||""}"
-placeholder="Car #"
-${!s.edit?"disabled":""}
-onchange="schedule['${id}'].vehicleNumber=this.value">
-
+value="${d.vehicleNumber||""}"
+disabled
+>
 </td>
 
 <td>
-
 <input
 value="${s.phone||""}"
 ${!s.edit?"disabled":""}
 onchange="schedule['${id}'].phone=this.value">
-
 </td>
 
 <td>
-
 <input
 value="${s.address||""}"
 ${!s.edit?"disabled":""}
 onchange="schedule['${id}'].address=this.value">
-
 </td>
 
 <td>
@@ -213,25 +180,19 @@ style="margin-bottom:2px; transform:scale(.8)"
 </td>
 
 <td style="font-weight:bold;color:${activeToday?'#16a34a':'#dc2626'}">
-
 ${activeToday?'ACTIVE':'NOT ACTIVE'}
-
 </td>
 
 <td>
 
 ${
 s.edit
-? `<button class="action-btn save" onclick="saveDriver('${id}')">Save</button>`
-: `<button class="action-btn edit" onclick="editDriver('${id}')">Edit</button>`
+? `<button onclick="saveDriver('${id}')">Save</button>`
+: `<button onclick="editDriver('${id}')">Edit</button>`
 }
 
-<button
-class="action-btn ${s.enabled?'disable':'enable'}"
-onclick="toggleEnable('${id}')">
-
+<button onclick="toggleEnable('${id}')">
 ${s.enabled?'Disable':'Enable'}
-
 </button>
 
 </td>
@@ -245,53 +206,37 @@ tbody.appendChild(tr)
 }
 
 /* =========================
-EDIT DRIVER
+EDIT
 ========================= */
-
 function editDriver(id){
-
 schedule[id].edit=true
-
 render()
-
 }
 
 /* =========================
 SAVE DRIVER
 ========================= */
-
 async function saveDriver(id){
-
 schedule[id].edit=false
-
 await save()
-
 render()
-
 }
 
 /* =========================
 ENABLE / DISABLE
 ========================= */
-
 async function toggleEnable(id){
-
 schedule[id].enabled=!schedule[id].enabled
-
 await save()
-
 render()
-
 }
 
 /* =========================
 DAY TOGGLE
 ========================= */
-
 async function squareToggle(e,id,key){
 
 const box=e.currentTarget
-
 const chk=box.querySelector("input")
 
 if(chk.disabled) return
@@ -309,13 +254,9 @@ await save()
 /* =========================
 INIT
 ========================= */
-
 async function init(){
-
 await loadSchedule()
-
 render()
-
 }
 
 init()
