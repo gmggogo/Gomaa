@@ -17,9 +17,6 @@ const Engine = {
   manualMode: false,
   selectAllMode: false,
 
-  /* =========================
-  LOAD
-  ========================= */
   async load(){
 
     try{
@@ -33,9 +30,7 @@ const Engine = {
       if(!Array.isArray(this.drivers)) this.drivers = []
       if(!Array.isArray(this.liveDrivers)) this.liveDrivers = []
 
-      // ✅ حذف الرحلات القديمة
       this.filterExpiredTrips()
-
       this.sortTrips()
 
       UI.renderTrips(this.trips)
@@ -45,19 +40,12 @@ const Engine = {
 
       await this.renderMap()
 
-      setTimeout(()=>{
-        if(this.map) this.map.invalidateSize()
-      }, 300)
-
     }catch(err){
       console.error("Dispatch Load Error", err)
     }
 
   },
 
-  /* =========================
-  حذف الرحلات بعد ساعة
-  ========================= */
   filterExpiredTrips(){
 
     const now = new Date(
@@ -69,7 +57,6 @@ const Engine = {
       if(!t.tripDate || !t.tripTime) return true
 
       const tripTime = new Date(`${t.tripDate} ${t.tripTime}`)
-
       if(isNaN(tripTime)) return true
 
       const diff = (now - tripTime) / 60000
@@ -79,9 +66,6 @@ const Engine = {
 
   },
 
-  /* =========================
-  SORT
-  ========================= */
   sortTrips(){
 
     this.trips.sort((a,b)=>{
@@ -92,32 +76,24 @@ const Engine = {
 
   },
 
-  /* =========================
-  DAY FROM DATE (FIX)
-  ========================= */
   getDayFromDate(dateStr){
 
     const days = ["sun","mon","tue","wed","thu","fri","sat"]
 
     const d = new Date(dateStr)
 
-    const az = new Date(
-      d.toLocaleString("en-US",{timeZone:"America/Phoenix"})
-    )
+    if(isNaN(d)) return ""
 
-    return days[az.getDay()]
+    return days[d.getDay()]
   },
 
-  /* =========================
-  DRIVERS FOR TRIP (FIX)
-  ========================= */
   getDriversForTrip(trip){
 
     const day = this.getDayFromDate(trip.tripDate)
 
-    return this.drivers.filter(d=>{
+    return (this.drivers || []).filter(d=>{
 
-      const s = this.schedule[d._id]
+      const s = (this.schedule || {})[d._id]
 
       if(!s) return false
       if(!s.enabled) return false
@@ -129,27 +105,18 @@ const Engine = {
 
   },
 
-  /* =========================
-  DRIVER NAME
-  ========================= */
   getDriverNameById(driverId){
 
     const d = this.drivers.find(x=>String(x._id)===String(driverId))
     return d?.name || "-"
   },
 
-  /* =========================
-  VEHICLE
-  ========================= */
   getDriverVehicleById(driverId){
 
     const d = this.drivers.find(x=>String(x._id)===String(driverId))
     return d?.vehicleNumber || "-"
   },
 
-  /* =========================
-  SELECTION
-  ========================= */
   bindSelection(){
 
     document.querySelectorAll(".tripSelect").forEach(box=>{
@@ -178,9 +145,6 @@ const Engine = {
 
   },
 
-  /* =========================
-  REDISTRIBUTE (FIX)
-  ========================= */
   async redistributeSelected(){
 
     const ids = this.getSelected()
@@ -256,12 +220,9 @@ const Engine = {
 
   },
 
-  /* =========================
-  SCORE
-  ========================= */
   async computeDriverScore(driver, trip, state){
 
-    const scheduleRow = this.schedule[driver._id] || {}
+    const scheduleRow = (this.schedule || {})[driver._id] || {}
     const liveDriver = this.liveDrivers.find(d=>String(d.driverId)===String(driver._id))
 
     let origin = ""
@@ -319,9 +280,6 @@ const Engine = {
     return d
   },
 
-  /* =========================
-  GEOCODE
-  ========================= */
   async geocode(address){
 
     if(!address) return null
@@ -373,9 +331,6 @@ const Engine = {
 
   },
 
-  /* =========================
-  ROUTE
-  ========================= */
   async getRouteByAddress(from,to){
 
     const key = from+"__"+to
@@ -412,9 +367,6 @@ const Engine = {
 
   },
 
-  /* =========================
-  MAP
-  ========================= */
   async renderMap(){
 
     const el = document.getElementById("dispatchMap")
@@ -445,8 +397,8 @@ const Engine = {
         .addTo(this.map)
         .bindPopup(`
           <b>${t.tripNumber || "Trip"}</b><br>
-          Driver: ${this.getDriverNameById(t.driver)}<br>
-          Car: ${this.getDriverVehicleById(t.driver)}
+          Driver: ${this.getDriverNameById(t.driverId)}<br>
+          Car: ${this.getDriverVehicleById(t.driverId)}
         `)
 
       this.tripMarkers.push(m)
