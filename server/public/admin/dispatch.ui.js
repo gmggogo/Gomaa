@@ -1,69 +1,62 @@
 const UI = {
 
-  renderTrips(trips){
+renderTrips(trips){
 
-    const tbody = document.getElementById("dispatchBody")
-    if(!tbody) return
+const tbody = document.getElementById("dispatchBody")
+tbody.innerHTML = ""
 
-    tbody.innerHTML = ""
+trips.forEach(t=>{
 
-    trips.forEach(t=>{
+const driverName = Engine.getDriverNameById(t.driverId)
+const vehicle = Engine.getDriverVehicleById(t.driverId)
 
-      const driverName = Engine.getDriverNameById(t.driverId)
-      const vehicle = Engine.getDriverVehicleById(t.driverId)
+const tr = document.createElement("tr")
 
-      const drivers = Engine.getDriversForTrip(t)
+tr.innerHTML = `
+<td><input type="checkbox"></td>
 
-      const options = drivers.map(d=>`
-        <option value="${d._id}">
-          ${d.name}
-        </option>
-      `).join("")
+<td>${t.tripNumber || ""}</td>
+<td>${t.clientName || ""}</td>
+<td>${t.pickup || ""}</td>
+<td>${Array.isArray(t.stops)?t.stops.join(" | "):""}</td>
+<td>${t.dropoff || ""}</td>
+<td>${t.tripDate || ""}</td>
+<td>${t.tripTime || ""}</td>
+<td>${t.notes || ""}</td>
 
-      const tr = document.createElement("tr")
+<td>${driverName}</td>
+<td>${vehicle}</td>
 
-      tr.innerHTML = `
-        <td>${t.tripNumber || ""}</td>
-        <td>${t.clientName || ""}</td>
-        <td>${t.pickup || ""}</td>
-        <td>${t.stops || ""}</td>
-        <td>${t.dropoff || ""}</td>
-        <td>${t.tripDate || ""}</td>
-        <td>${t.tripTime || ""}</td>
-        <td>${t.notes || ""}</td>
+<td>
+<select onchange="Store.assignDriver('${t._id}',this.value)">
+<option>Assign</option>
+${
+Engine.getDriversForTrip(t).map(d=>`
+<option value="${d._id}">${d.name}</option>
+`).join("")
+}
+</select>
+</td>
+`
 
-        <td>${driverName}</td>
-        <td>${vehicle}</td>
+tbody.appendChild(tr)
 
-        <td>
-          <select onchange="Store.assignDriver('${t._id}',this.value)">
-            <option value="">Assign</option>
-            ${options}
-          </select>
-        </td>
-      `
+})
 
-      tbody.appendChild(tr)
+},
 
-    })
+renderDriversPanel(drivers,schedule){
 
-  },
+const el = document.getElementById("driversPanel")
 
-  renderDriversPanel(drivers,schedule){
+el.innerHTML = drivers.map(d=>`
+<div style="margin-bottom:8px;">
+<b>${d.name}</b><br>
+Car: ${d.vehicleNumber || "-"}<br>
+Address: ${(schedule[d._id]?.address)||d.address||"-"}
+</div>
+`).join("")
 
-    const el = document.getElementById("driversPanel")
-    if(!el) return
-
-    el.innerHTML = drivers.map(d=>`
-
-      <div class="driver-card">
-        <strong>${d.name || "-"}</strong><br>
-        Car: ${d.vehicleNumber || "-"}<br>
-        Address: ${(schedule[d._id]?.address) || d.address || "-"}
-      </div>
-
-    `).join("")
-
-  }
+}
 
 }
