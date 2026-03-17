@@ -4,11 +4,11 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dispatch</title>
+<title>Dispatch System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="/admin/header.css">
 
 <style>
 
@@ -18,12 +18,82 @@ font-family:'Segoe UI',Arial;
 background:#f3f4f6;
 }
 
+/* HEADER FIX */
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:999;
+}
+
+/* PAGE */
 .page-body{
 max-width:1400px;
 margin:auto;
-padding:120px 15px 40px;
+padding:200px 15px 40px;
 }
 
+/* BUTTONS */
+.top-actions{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:10px;
+}
+
+.btn{
+padding:6px 12px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+font-size:12px;
+}
+
+.blue{background:#2563eb;color:#fff;}
+.orange{background:#f59e0b;color:#fff;}
+.purple{background:#7c3aed;color:#fff;}
+.green{background:#16a34a;color:#fff;}
+
+/* GRID */
+.dispatch-grid{
+display:grid;
+grid-template-columns:2fr 1fr;
+gap:12px;
+margin-bottom:10px;
+}
+
+/* BOX */
+.box{
+background:#fff;
+border-radius:8px;
+overflow:hidden;
+}
+
+.box-title{
+background:#1e293b;
+color:#fff;
+padding:8px;
+font-size:13px;
+}
+
+/* MAP */
+#dispatchMap{
+height:300px;
+}
+
+/* DRIVERS */
+#driversPanel{
+padding:10px;
+font-size:12px;
+}
+
+.driver-card{
+border-bottom:1px solid #e5e7eb;
+padding:6px 0;
+}
+
+/* TABLE */
 table{
 width:100%;
 border-collapse:collapse;
@@ -33,51 +103,15 @@ background:#fff;
 th{
 background:#1e293b;
 color:#fff;
-padding:10px;
-font-size:13px;
-}
-
-td{
-border:1px solid #e2e8f0;
-padding:8px;
-text-align:center;
-font-size:13px;
-}
-
-tr.row-selected{
-background:#e0f2fe;
-}
-
-button{
-padding:5px 10px;
-border:none;
-border-radius:5px;
-cursor:pointer;
-}
-
-.btn-send{
-background:#16a34a;
-color:#fff;
-}
-
-.top-actions{
-margin-bottom:10px;
-}
-
-.driver-card{
-background:#1e293b;
-color:#fff;
-padding:10px;
-border-radius:8px;
-margin:5px;
+padding:6px;
 font-size:12px;
 }
 
-#driversPanel{
-display:flex;
-flex-wrap:wrap;
-gap:10px;
-margin-top:10px;
+td{
+border:1px solid #e5e7eb;
+padding:5px;
+font-size:11px;
+text-align:center;
 }
 
 </style>
@@ -86,33 +120,72 @@ margin-top:10px;
 
 <body>
 
+<!-- HEADER -->
 <div id="adminHeader"></div>
 
 <div class="page-body">
 
+<!-- BUTTONS -->
 <div class="top-actions">
 
-<button onclick="Engine.redistributeSelected()">Auto Assign</button>
-<button onclick="Engine.sendSelected()">Send Selected</button>
+<button class="btn blue" onclick="Engine.redistributeSelected()">
+Redistribute Selected
+</button>
+
+<button class="btn orange">
+Manual Edit
+</button>
+
+<button class="btn purple">
+Save Changes
+</button>
+
+<button class="btn green" onclick="Engine.sendSelected()">
+Send Selected
+</button>
 
 </div>
 
+<!-- GRID -->
+<div class="dispatch-grid">
+
+<!-- MAP -->
+<div class="box">
+
+<div class="box-title">Live Dispatch Map</div>
+
+<div id="dispatchMap"></div>
+
+</div>
+
+<!-- DRIVERS -->
+<div class="box">
+
+<div class="box-title">Active Drivers</div>
+
+<div id="driversPanel"></div>
+
+</div>
+
+</div>
+
+<!-- TABLE -->
 <table>
 
 <thead>
 <tr>
 
 <th>Select</th>
-<th>#</th>
-<th>Name</th>
+<th>Trip #</th>
+<th>Client</th>
 <th>Pickup</th>
 <th>Stops</th>
 <th>Dropoff</th>
 <th>Date</th>
 <th>Time</th>
-<th>Note</th>
+<th>Notes</th>
 <th>Driver</th>
-<th>Car</th>
+<th>Vehicle</th>
 <th>Send</th>
 
 </tr>
@@ -122,20 +195,14 @@ margin-top:10px;
 
 </table>
 
-<h3>Drivers</h3>
-<div id="driversPanel"></div>
-
-<div id="dispatchMap" style="height:400px;margin-top:15px;"></div>
-
 </div>
 
+<!-- SCRIPTS -->
 <script src="/admin/header.js"></script>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- 👇 مهم جداً -->
-<script src="/admin/store.js"></script>
-<script src="/admin/ui.js"></script>
-<script src="/admin/engine.js"></script>
+<script src="/admin/dispatch.store.js"></script>
+<script src="/admin/dispatch.ui.js"></script>
+<script src="/admin/dispatch.engine.js"></script>
 
 </body>
 </html>
