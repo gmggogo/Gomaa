@@ -10,13 +10,10 @@ const Engine = {
 
   OSRM: "https://router.project-osrm.org/route/v1/driving",
 
-  map:null,
-  tripMarkers:[],
-  driverMarkers:[],
+  map: null,
+  tripMarkers: [],
+  driverMarkers: [],
 
-  /* =========================
-     LOAD
-  ========================= */
   async load(){
 
     try{
@@ -43,9 +40,6 @@ const Engine = {
 
   },
 
-  /* =========================
-     SORT
-  ========================= */
   sortTrips(){
 
     this.trips.sort((a,b)=>{
@@ -54,9 +48,6 @@ const Engine = {
 
   },
 
-  /* =========================
-     DAY FIX
-  ========================= */
   getDay(date){
 
     const d = new Date(date)
@@ -65,9 +56,6 @@ const Engine = {
     return ["sun","mon","tue","wed","thu","fri","sat"][d.getDay()]
   },
 
-  /* =========================
-     DRIVER AVAILABILITY
-  ========================= */
   isDriverWorking(driverId, date){
 
     const s = this.schedule?.[driverId]
@@ -76,7 +64,6 @@ const Engine = {
     const day = this.getDay(date)
 
     const days = {}
-
     Object.keys(s.days).forEach(k=>{
       days[k.toLowerCase().slice(0,3)] = s.days[k]
     })
@@ -88,189 +75,21 @@ const Engine = {
     return this.drivers.filter(d=>this.isDriverWorking(d._id, trip.tripDate))
   },
 
-  /* =========================
-     DRIVER INFO
-  ========================= */
   getDriverNameById(id){
-    return this.drivers.find(d=>String(d._id)===String(id))?.name || "-"
+    const d = this.drivers.find(x=>String(x._id)===String(id))
+    return d?.name || "-"
   },
 
   getDriverVehicleById(id){
-    return this.drivers.find(d=>String(d._id)===String(id))?.vehicleNumber || "-"
+    const d = this.drivers.find(x=>String(x._id)===String(id))
+    return d?.vehicleNumber || "-"
   },
 
-  /* =========================
-     SMART AUTO ASSIGN
-  ========================= */
-  async autoAssignSmart(){
-
-    const trips = [...this.trips]
-
-    const driverState = {}
-
-    for(const trip of trips){
-
-      const drivers = this.getDriversForTrip(trip)
-
-      if(!drivers.length){
-        console.log("No drivers for:",trip.tripNumber)
-        continue
-      }
-
-      let bestDriver = null
-      let bestScore = Infinity
-
-      for(const d of drivers){
-
-        if(!driverState[d._id]){
-          driverState[d._id] = {
-            trips:0,
-            lastEnd:null,
-            lastLocation:d.address || ""
-          }
-        }
-
-        let origin = driverState[d._id].lastLocation
-
-        // live location
-        const live = this.liveDrivers.find(x=>String(x.driverId)===String(d._id))
-        if(live?.lat != null){
-          origin = `${live.lat},${live.lng}`
-        }
-
-        const route = await this.getRoute(origin, trip.pickup)
-
-        let dist = route?.distanceKm || 999
-        let dur = route?.durationMin || 999
-
-        dur *= this.trafficFactor(trip.tripTime)
-
-        let score = (dist*2) + (dur*3)
-
-        // load
-        score += driverState[d._id].trips * 15
-
-        // overlap
-        if(driverState[d._id].lastEnd){
-
-          const start = new Date(`${trip.tripDate} ${trip.tripTime}`)
-          const gap = (start - driverState[d._id].lastEnd)/60000
-
-          if(gap < dur){
-            score += 9999
-          }
-
-        }
-
-        if(score < bestScore){
-          bestScore = score
-          bestDriver = d
-        }
-
-      }
-
-      if(!bestDriver) continue
-
-      await Store.assignDriver(trip._id, bestDriver._id)
-
-      driverState[bestDriver._id].trips++
-      driverState[bestDriver._id].lastLocation = trip.dropoff
-
-      const end = new Date(`${trip.tripDate} ${trip.tripTime}`)
-      end.setMinutes(end.getMinutes()+40)
-
-      driverState[bestDriver._id].lastEnd = end
-
-    }
-
-    alert("🔥 Smart Assign Done")
-
-    await this.load()
+  getDriverAddressById(id){
+    const d = this.drivers.find(x=>String(x._id)===String(id))
+    return d?.address || "-"
   },
 
-  /* =========================
-     TRAFFIC
-  ========================= */
-  trafficFactor(time){
-
-    const h = Number(time?.split(":")[0]||0)
-
-    if(h>=6 && h<=9) return 1.3
-    if(h>=15 && h<=18) return 1.3
-
-    return 1
-  },
-
-  /* =========================
-     ROUTE
-  ========================= */
-  async getRoute(from,to){
-
-    const key = from+"__"+to
-    if(this.routeCache[key]) return this.routeCache[key]
-
-    const f = await this.toCoords(from)
-    const t = await this.toCoords(to)
-
-    if(!f || !t) return null
-
-    try{
-
-      const res = await fetch(
-        `${this.OSRM}/${f.lng},${f.lat};${t.lng},${t.lat}?overview=false`
-      )
-
-      const data = await res.json()
-
-      if(!data.routes?.length) return null
-
-      const r = {
-        distanceKm:data.routes[0].distance/1000,
-        durationMin:data.routes[0].duration/60
-      }
-
-      this.routeCache[key]=r
-      return r
-
-    }catch{
-      return null
-    }
-
-  },
-
-  async toCoords(val){
-
-    if(!val) return null
-
-    // لو lat,lng
-    if(String(val).includes(",")){
-      const [lat,lng] = val.split(",").map(Number)
-      return {lat,lng}
-    }
-
-    if(this.geoCache[val]) return this.geoCache[val]
-
-    try{
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}`
-      )
-      const d = await res.json()
-
-      if(!d.length) return null
-
-      const p = {lat:+d[0].lat,lng:+d[0].lon}
-      this.geoCache[val]=p
-      return p
-
-    }catch{
-      return null
-    }
-
-  },
-
-  /* =========================
-     MAP
-  ========================= */
   async renderMap(){
 
     const el = document.getElementById("dispatchMap")
@@ -316,6 +135,35 @@ const Engine = {
       }).addTo(this.map)
 
       this.driverMarkers.push(m)
+    }
+
+  },
+
+  async toCoords(val){
+
+    if(!val) return null
+
+    if(String(val).includes(",")){
+      const [lat,lng] = val.split(",").map(Number)
+      return {lat,lng}
+    }
+
+    if(this.geoCache[val]) return this.geoCache[val]
+
+    try{
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}`
+      )
+      const d = await res.json()
+
+      if(!d.length) return null
+
+      const p = {lat:+d[0].lat,lng:+d[0].lon}
+      this.geoCache[val]=p
+      return p
+
+    }catch{
+      return null
     }
 
   }
