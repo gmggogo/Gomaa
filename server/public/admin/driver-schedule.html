@@ -1,10 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<title>Driver Schedule</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+
+/* ================= BODY ================= */
 body{
 margin:0;
 font-family:'Segoe UI',Arial;
 background:#eef2f7;
 }
 
-/* HEADER SPACE */
+/* ================= HEADER ================= */
 #adminHeader{
 position:fixed;
 top:0;
@@ -13,19 +27,36 @@ width:100%;
 z-index:999;
 }
 
+/* ================= PAGE ================= */
 .page-body{
 max-width:1400px;
 margin:auto;
-padding:220px 20px 40px;
+padding:200px 20px 40px;
 }
 
 @media(max-width:768px){
 .page-body{
-padding:300px 10px 40px;
+padding:260px 10px 40px;
 }
 }
 
-/* TABLE */
+/* ================= CARD ================= */
+.card{
+background:#ffffff;
+border-radius:12px;
+box-shadow:0 10px 25px rgba(0,0,0,0.08);
+padding:15px;
+}
+
+/* ================= TITLE ================= */
+.page-title{
+font-size:20px;
+font-weight:700;
+margin-bottom:12px;
+color:#0f172a;
+}
+
+/* ================= TABLE ================= */
 .table-wrap{
 width:100%;
 overflow-x:auto;
@@ -34,20 +65,15 @@ overflow-x:auto;
 table{
 width:100%;
 border-collapse:collapse;
-background:#ffffff;
-border-radius:10px;
-overflow:hidden;
-box-shadow:0 10px 25px rgba(0,0,0,0.08);
-min-width:1050px;
+min-width:1100px;
 }
 
 /* HEADER */
 th{
-background:#0f172a; /* كحلي */
+background:#0f172a;
 color:#fff;
 padding:10px;
 font-size:13px;
-letter-spacing:0.5px;
 }
 
 /* CELLS */
@@ -63,9 +89,9 @@ tr:hover{
 background:#f1f5f9;
 }
 
-/* INPUT */
+/* ================= INPUT ================= */
 input{
-height:28px;
+height:30px;
 border:1px solid #cbd5e1;
 border-radius:6px;
 padding:4px 8px;
@@ -82,16 +108,14 @@ input:disabled{
 background:#e5e7eb;
 }
 
-/* WEEK BOX */
+/* ================= WEEK ================= */
 .week-box{
 display:flex;
-gap:5px;
-flex-wrap:nowrap;
+gap:6px;
 }
 
-/* DAY */
 .day-square{
-width:62px;
+width:64px;
 height:46px;
 border-radius:8px;
 border:1px solid #d1d5db;
@@ -115,12 +139,18 @@ color:#fff;
 border:none;
 }
 
-/* STATUS */
-td:last-child{
+/* ================= STATUS ================= */
+.status-active{
+color:#16a34a;
 font-weight:bold;
 }
 
-/* BUTTON BASE */
+.status-inactive{
+color:#dc2626;
+font-weight:bold;
+}
+
+/* ================= BUTTONS ================= */
 .action-btn{
 border:none;
 border-radius:6px;
@@ -132,39 +162,87 @@ font-weight:600;
 transition:0.2s;
 }
 
-/* COLORS */
+/* EDIT */
 .edit{
 background:#2563eb;
 color:#fff;
 }
-
 .edit:hover{
 background:#1d4ed8;
 }
 
+/* SAVE */
 .save{
 background:#16a34a;
 color:#fff;
 }
-
 .save:hover{
 background:#15803d;
 }
 
+/* DISABLE */
 .disable{
 background:#dc2626;
 color:#fff;
 }
-
 .disable:hover{
 background:#b91c1c;
 }
 
+/* ENABLE */
 .enable{
 background:#f59e0b;
 color:#fff;
 }
-
 .enable:hover{
 background:#d97706;
 }
+
+</style>
+
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="page-body">
+
+<div class="card">
+
+<div class="page-title">
+Driver Weekly Schedule
+</div>
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+<tr>
+<th>#</th>
+<th>Driver Name</th>
+<th>Car #</th>
+<th>Phone</th>
+<th>Address</th>
+<th id="weekTitle">Week</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/driver-schedule.js"></script>
+
+</body>
+</html>
