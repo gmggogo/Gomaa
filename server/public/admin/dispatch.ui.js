@@ -1,133 +1,83 @@
-const tbody = document.getElementById("dispatchBody")
-const driversPanel = document.getElementById("driversPanel")
-
 const UI = {
+
+  /* ===============================
+     RENDER TRIPS
+  ================================= */
 
   renderTrips(trips){
 
-    tbody.innerHTML = ""
+    const table = document.getElementById("dispatchTable")
+    if(!table) return
 
     if(!trips.length){
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="12" style="text-align:center;padding:30px">
-            No Trips
-          </td>
-        </tr>
-      `
+      table.innerHTML = `<tr><td colspan="10">No trips</td></tr>`
       return
     }
 
-    trips.forEach(t=>{
+    table.innerHTML = trips.map(trip=>{
 
-      const tr = document.createElement("tr")
-      tr.dataset.id = t._id
+      const driver = Engine.drivers.find(d=>d._id === trip.driverId)
 
-      tr.innerHTML = `
+      const driverName = driver ? driver.name : "-"
+      const vehicle = driver ? driver.vehicle : "-"
 
-        <td>
-          <input
-            type="checkbox"
-            class="tripSelect dispatch-check"
-            value="${t._id}">
-        </td>
-
-        <td>${t.tripNumber || ""}</td>
-
-        <td>${t.clientName || ""}</td>
-
-        <td>${t.pickup || ""}</td>
-
-        <td>${(t.stops || []).join(" | ")}</td>
-
-        <td>${t.dropoff || ""}</td>
-
-        <td>${t.tripDate || ""}</td>
-
-        <td>${t.tripTime || ""}</td>
-
-        <td>
-          <span class="noteName">${t.notes || "-"}</span>
-          <input
-            type="text"
-            class="noteEdit"
-            value="${(t.notes || "").replace(/"/g,"&quot;")}">
-        </td>
-
-        <td class="driverCell">
-          <span class="driverName">${t.driverName || "-"}</span>
-
-          <select class="driverEdit">
-            <option value="">-- Select Driver --</option>
-            ${Engine.drivers.map(d=>`
-              <option
-                value="${d._id}"
-                ${String(t.driverId)===String(d._id) ? "selected":""}>
-                ${d.name}
-              </option>
-            `).join("")}
-          </select>
-        </td>
-
-        <td class="carCell">${Engine.getDriverVehicleById(t.driverId) || t.vehicle || "-"}</td>
-
-        <td>
-          <button
-            class="btn-send"
-            disabled
-            onclick="Engine.sendSingle('${t._id}', this)">
-            Send
-          </button>
-        </td>
+      return `
+      <tr>
+        <td>${trip.tripNumber || "-"}</td>
+        <td>${trip.clientName || "-"}</td>
+        <td>${trip.pickup || "-"}</td>
+        <td>${trip.dropoff || "-"}</td>
+        <td>${trip.tripDate || "-"}</td>
+        <td>${trip.tripTime || "-"}</td>
+        <td>${trip.notes || "-"}</td>
+        <td>${driverName}</td>
+        <td>${vehicle}</td>
+      </tr>
       `
-
-      tbody.appendChild(tr)
-    })
+    }).join("")
 
   },
 
+  /* ===============================
+     ACTIVE DRIVERS
+  ================================= */
+
   renderDriversPanel(drivers, schedule, liveDrivers){
 
-    const today = Engine.getToday()
+    const box = document.getElementById("driversPanel")
+    if(!box) return
 
-    const liveMap = new Map()
-    liveDrivers.forEach(d=>{
-      liveMap.set(String(d.driverId || ""), d)
-    })
-
-    const activeDrivers = drivers.filter(d=>{
-      const s = schedule[d._id]
-      if(!s) return false
-      if(!s.enabled) return false
-      if(!s.days) return false
-      return !!s.days[today]
-    })
-
-    if(!activeDrivers.length){
-      driversPanel.innerHTML = `No active drivers today`
+    if(!drivers.length){
+      box.innerHTML = "No drivers"
       return
     }
 
-    driversPanel.innerHTML = activeDrivers.map(d=>{
+    const today = new Date().toLocaleDateString("en-US",{
+      weekday:"short"
+    })
 
-      const s = schedule[d._id] || {}
-      const live = liveMap.get(String(d._id))
-      const tripsCount = Engine.trips.filter(t=>String(t.driverId)===String(d._id)).length
+    box.innerHTML = drivers
+      .filter(d=>{
+        const days = schedule[d._id] || []
+        return days.includes(today)
+      })
+      .map(d=>{
 
-      return `
-        <div class="driver-card">
-          <strong>${d.name || "-"}</strong>
-          <div class="driver-meta">
-            Car: ${d.vehicleNumber || "-"}<br>
-            Address: ${s.address || d.address || "-"}<br>
-            Trips: ${tripsCount}<br>
-            <span class="${live ? "status-live":"status-schedule"}">
-              ${live ? "LIVE":"SCHEDULE"}
-            </span>
-          </div>
+        const isLive = liveDrivers.find(ld=>ld.driverId === d._id)
+
+        return `
+        <div style="
+          padding:10px;
+          margin-bottom:8px;
+          border-radius:8px;
+          background:${isLive ? "#d1fae5" : "#f3f4f6"};
+        ">
+          <b>${d.name}</b><br>
+          ${d.vehicle || "No vehicle"}
         </div>
-      `
-    }).join("")
+        `
+      }).join("")
+
   }
 
 }
