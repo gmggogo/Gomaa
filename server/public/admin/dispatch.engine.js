@@ -5,430 +5,275 @@ const Engine = {
   schedule: {},
   liveDrivers: [],
 
-  manualMode: false,
-  selectAllMode: false,
+  geoCache: {},
+  routeCache: {},
 
-  map: null,
-  tripMarkers: [],
-  driverMarkers: [],
+  OSRM: "https://router.project-osrm.org/route/v1/driving",
 
   /* ================= LOAD ================= */
   async load(){
 
-    try{
+    this.trips = await Store.getTrips()
+    this.drivers = await Store.getDrivers()
+    this.schedule = await Store.getSchedule()
+    this.liveDrivers = await Store.getLiveDrivers()
 
-      this.trips = await Store.getTrips() || []
-      this.drivers = await Store.getDrivers() || []
-      this.schedule = await Store.getSchedule() || {}
-      this.liveDrivers = await Store.getLiveDrivers() || []
+    this.sortTrips()
 
-      if(!Array.isArray(this.trips)) this.trips = []
-      if(!Array.isArray(this.drivers)) this.drivers = []
-      if(!Array.isArray(this.liveDrivers)) this.liveDrivers = []
-      if(!this.schedule || typeof this.schedule !== "object") this.schedule = {}
+    UI.renderTrips(this.trips)
+    UI.renderDriversPanel(this.drivers, this.schedule, this.liveDrivers)
 
-      this.sortTrips()
+  },
 
-      UI.renderTrips(this.trips)
-      UI.renderDriversPanel(this.drivers, this.schedule, this.liveDrivers)
-
-      this.bind()
-
-      await this.renderMap()
-
-    }catch(err){
-      console.error("Load error", err)
-    }
-
+  async reload(){
+    await this.load()
   },
 
   /* ================= SORT ================= */
   sortTrips(){
 
     this.trips.sort((a,b)=>{
-      const da = new Date(`${a.tripDate || ""} ${a.tripTime || ""}`)
-      const db = new Date(`${b.tripDate || ""} ${b.tripTime || ""}`)
-
-      if(isNaN(da) && isNaN(db)) return 0
-      if(isNaN(da)) return 1
-      if(isNaN(db)) return -1
-
+      const da = new Date(`${a.tripDate} ${a.tripTime}`)
+      const db = new Date(`${b.tripDate} ${b.tripTime}`)
       return da - db
     })
 
   },
 
-  /* ================= DATE KEYS ================= */
+  /* ================= TIME ================= */
+  toDate(trip){
+    return new Date(`${trip.tripDate} ${trip.tripTime}`)
+  },
+
   getTodayKey(){
-
     const d = new Date(
-      new Date().toLocaleString("en-US",{ timeZone:"America/Phoenix" })
+      new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
     )
-
-    const y = d.getFullYear()
-    const m = String(d.getMonth()+1).padStart(2,"0")
-    const day = String(d.getDate()).padStart(2,"0")
-
-    return `${y}-${m}-${day}`
+    return d.toLocaleDateString("en-CA")
   },
 
-  getTripKey(dateStr){
-
-    const d = new Date(dateStr)
-
-    if(isNaN(d)) return ""
-
-    const az = new Date(
-      d.toLocaleString("en-US",{ timeZone:"America/Phoenix" })
-    )
-
-    const y = az.getFullYear()
-    const m = String(az.getMonth()+1).padStart(2,"0")
-    const day = String(az.getDate()).padStart(2,"0")
-
-    return `${y}-${m}-${day}`
-  },
-
-  getDayShortFromDate(dateStr){
-
-    const d = new Date(dateStr)
-    if(isNaN(d)) return ""
-
-    const az = new Date(
-      d.toLocaleString("en-US",{ timeZone:"America/Phoenix" })
-    )
-
-    return ["sun","mon","tue","wed","thu","fri","sat"][az.getDay()]
-  },
-
-  /* ================= SCHEDULE HELPERS ================= */
-  normalizeDays(daysObj){
-
-    const out = {}
-
-    if(!daysObj || typeof daysObj !== "object") return out
-
-    Object.keys(daysObj).forEach(k=>{
-      const key = String(k).trim()
-      const val = daysObj[k]
-
-      out[key] = val
-      out[key.toLowerCase()] = val
-      out[key.toLowerCase().slice(0,3)] = val
-    })
-
-    return out
-  },
-
-  isDriverEnabled(driverId){
-
-    const s = this.schedule[driverId]
-    if(!s) return false
-    if(s.enabled === false) return false
-    return true
-  },
-
-  isDriverWorkingForTrip(driverId, tripDate){
-
-    const s = this.schedule[driverId]
-    if(!s) return false
-    if(s.enabled === false) return false
-    if(!s.days) return false
-
-    const tripKey = this.getTripKey(tripDate)
-    const dayShort = this.getDayShortFromDate(tripDate)
-    const days = this.normalizeDays(s.days)
-
-    if(days[tripKey] === true) return true
-    if(days[dayShort] === true) return true
-
-    return false
-  },
-
-  /* ================= DRIVER FILTER ================= */
-  getDriversForTrip(trip){
-
-    if(!trip) return []
-
-    return this.drivers.filter(d=>{
-      return this.isDriverWorkingForTrip(d._id, trip.tripDate)
-    })
-
-  },
-
-  /* ================= HELPERS ================= */
-  getDriverById(id){
-    return this.drivers.find(x=>String(x._id)===String(id)) || null
-  },
-
+  /* ================= DRIVER ================= */
   getDriverNameById(id){
-
-    const d = this.getDriverById(id)
-    return d ? (d.name || "-") : "-"
-
+    const d = this.drivers.find(x=>String(x._id)===String(id))
+    return d ? d.name : "-"
   },
 
   getDriverVehicleById(id){
-
-    const d = this.getDriverById(id)
+    const d = this.drivers.find(x=>String(x._id)===String(id))
     return d ? (d.vehicleNumber || "-") : "-"
-
   },
 
-  getDriverAddressById(id){
+  /* ================= FILTER ================= */
+  getDriversForTrip(trip){
 
-    const d = this.getDriverById(id)
-    return d ? (d.address || "-") : "-"
+    const today = this.getTodayKey()
 
-  },
-
-  getSelected(){
-
-    return [...document.querySelectorAll(".tripSelect:checked")]
-      .map(el=>el.value)
-
-  },
-
-  /* ================= UI BIND ================= */
-  bind(){
-
-    document.querySelectorAll(".tripSelect").forEach(box=>{
-
-      box.addEventListener("change",()=>{
-
-        const row = box.closest("tr")
-        const btn = row?.querySelector(".btn-send")
-
-        if(btn){
-          btn.disabled = !box.checked
-        }
-
-        if(row){
-          row.classList.toggle("row-selected", box.checked)
-        }
-
-      })
-
-    })
-
-    document.querySelectorAll(".driverEdit").forEach(select=>{
-
-      select.addEventListener("change",()=>{
-
-        const row = select.closest("tr")
-        if(!row) return
-
-        const carCell = row.querySelector(".carCell")
-        const driverNameSpan = row.querySelector(".driverName")
-
-        if(carCell){
-          carCell.innerText = this.getDriverVehicleById(select.value) || "-"
-        }
-
-        if(driverNameSpan){
-          driverNameSpan.innerText = this.getDriverNameById(select.value) || "-"
-        }
-
-      })
-
+    return this.drivers.filter(d=>{
+      const s = this.schedule[d._id]
+      return s && s.enabled && s.days && s.days[today]
     })
 
   },
 
-  /* ================= ACTIONS ================= */
-  async sendSingle(id){
-
-    try{
-      await Store.sendTrips([id])
-      alert("Trip sent")
-      await this.load()
-    }catch(err){
-      console.error(err)
-      alert("Send failed")
-    }
-
-  },
-
-  async redistributeSelected(){
-
-    try{
-
-      const ids = this.getSelected()
-
-      if(!ids.length){
-        alert("Select trips first")
-        return
-      }
-
-      const trips = this.trips.filter(t=>ids.includes(t._id))
-
-      for(const trip of trips){
-
-        const drivers = this.getDriversForTrip(trip)
-
-        if(!drivers.length){
-          console.log("No driver available for", trip.tripNumber || trip._id)
-          continue
-        }
-
-        const currentLoads = drivers.map(d=>{
-          const count = this.trips.filter(t=>String(t.driverId)===String(d._id)).length
-          return { driver:d, count }
-        })
-
-        currentLoads.sort((a,b)=>a.count - b.count)
-
-        const bestDriver = currentLoads[0]?.driver
-
-        if(bestDriver){
-          await Store.assignDriver(trip._id, bestDriver._id)
-        }
-
-      }
-
-      alert("Assigned")
-      await this.load()
-
-    }catch(err){
-      console.error(err)
-      alert("Assign failed")
-    }
-
-  },
-
-  async saveManualChanges(){
-
-    try{
-
-      const rows = [...document.querySelectorAll("#dispatchBody tr")]
-
-      for(const row of rows){
-
-        const tripId = row.dataset.id
-        if(!tripId) continue
-
-        const driverEdit = row.querySelector(".driverEdit")
-        const noteEdit = row.querySelector(".noteEdit")
-
-        if(driverEdit && driverEdit.value){
-          await Store.assignDriver(tripId, driverEdit.value)
-        }
-
-        if(noteEdit && typeof Store.saveNote === "function"){
-          await Store.saveNote(tripId, noteEdit.value || "")
-        }
-
-      }
-
-      alert("Changes saved")
-      await this.load()
-
-    }catch(err){
-      console.error(err)
-      alert("Save failed")
-    }
-
-  },
-
-  /* ================= MAP ================= */
-  async renderMap(){
-
-    const el = document.getElementById("dispatchMap")
-    if(!el || typeof L === "undefined") return
-
-    if(!this.map){
-
-      this.map = L.map("dispatchMap").setView([33.4484,-112.0740], 10)
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-        attribution:"&copy; OpenStreetMap contributors"
-      }).addTo(this.map)
-
-    }
-
-    this.tripMarkers.forEach(m=>{
-      try{ this.map.removeLayer(m) }catch{}
-    })
-
-    this.driverMarkers.forEach(m=>{
-      try{ this.map.removeLayer(m) }catch{}
-    })
-
-    this.tripMarkers = []
-    this.driverMarkers = []
-
-    for(const t of this.trips){
-
-      const point = await this.geocode(t.pickup)
-      if(!point) continue
-
-      const marker = L.marker([point.lat, point.lng])
-        .addTo(this.map)
-        .bindPopup(`
-          <b>${t.tripNumber || "Trip"}</b><br>
-          Client: ${t.clientName || "-"}<br>
-          Driver: ${this.getDriverNameById(t.driverId)}<br>
-          Car: ${this.getDriverVehicleById(t.driverId)}
-        `)
-
-      this.tripMarkers.push(marker)
-    }
-
-    for(const d of this.liveDrivers){
-
-      if(d.lat == null || d.lng == null) continue
-
-      const marker = L.circleMarker([d.lat, d.lng],{
-        radius:8,
-        color:"#16a34a",
-        fillColor:"#16a34a",
-        fillOpacity:0.9
-      })
-      .addTo(this.map)
-      .bindPopup(`
-        <b>${d.name || "Driver"}</b><br>
-        Car: ${this.getDriverVehicleById(d.driverId)}
-      `)
-
-      this.driverMarkers.push(marker)
-    }
-
-  },
-
-  geoCache: {},
-
+  /* ================= GEOCODE ================= */
   async geocode(address){
 
     if(!address) return null
-
-    const key = String(address).trim().toLowerCase()
-    if(this.geoCache[key]) return this.geoCache[key]
+    if(this.geoCache[address]) return this.geoCache[address]
 
     try{
 
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`
-      )
-
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+      const res = await fetch(url)
       const data = await res.json()
 
-      if(!Array.isArray(data) || !data.length) return null
+      if(!data.length) return null
 
-      const point = {
-        lat: Number(data[0].lat),
-        lng: Number(data[0].lon)
+      const loc = {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon)
       }
 
-      this.geoCache[key] = point
-      return point
+      this.geoCache[address] = loc
+      return loc
 
-    }catch(err){
-      console.error("Geocode error", err)
+    }catch{
       return null
     }
+
+  },
+
+  /* ================= ROUTE ================= */
+  async getRoute(a, b){
+
+    const key = a + "|" + b
+    if(this.routeCache[key]) return this.routeCache[key]
+
+    const A = await this.geocode(a)
+    const B = await this.geocode(b)
+
+    if(!A || !B){
+      return {distance:999, duration:999}
+    }
+
+    try{
+
+      const url = `${this.OSRM}/${A.lon},${A.lat};${B.lon},${B.lat}?overview=false`
+      const res = await fetch(url)
+      const data = await res.json()
+
+      if(!data.routes || !data.routes.length){
+        return {distance:999, duration:999}
+      }
+
+      const route = {
+        distance: data.routes[0].distance / 1000,
+        duration: data.routes[0].duration / 60
+      }
+
+      this.routeCache[key] = route
+
+      return route
+
+    }catch{
+      return {distance:999, duration:999}
+    }
+
+  },
+
+  /* ================= DRIVER SCHEDULE ================= */
+  getDriverTrips(driverId){
+
+    return this.trips
+      .filter(t=>String(t.driverId)===String(driverId))
+      .sort((a,b)=> this.toDate(a) - this.toDate(b))
+
+  },
+
+  /* ================= CONFLICT ================= */
+  hasConflict(driverId, trip, duration){
+
+    const trips = this.getDriverTrips(driverId)
+
+    const newStart = this.toDate(trip)
+    const newEnd = new Date(newStart.getTime() + duration*60000)
+
+    for(const t of trips){
+
+      const start = this.toDate(t)
+      const end = new Date(start.getTime() + 60*60000) // افتراض ساعة
+
+      if(newStart < end && newEnd > start){
+        return true
+      }
+
+    }
+
+    return false
+
+  },
+
+  /* ================= SMART ASSIGN ================= */
+  async smartAssign(trip){
+
+    const drivers = this.getDriversForTrip(trip)
+
+    if(!drivers.length) return null
+
+    let best = null
+    let bestScore = Infinity
+
+    for(const d of drivers){
+
+      const route = await this.getRoute(trip.pickup, d.address)
+
+      const tripsCount = this.getDriverTrips(d._id).length
+
+      const conflict = this.hasConflict(d._id, trip, route.duration)
+
+      if(conflict) continue
+
+      const score =
+        route.distance +
+        (tripsCount * 2) +
+        (route.duration * 0.5)
+
+      if(score < bestScore){
+        bestScore = score
+        best = d
+      }
+
+    }
+
+    return best
+
+  },
+
+  /* ================= SMART DISTRIBUTE ================= */
+  async smartDistribute(){
+
+    for(const trip of this.trips){
+
+      if(trip.driverId) continue
+
+      const best = await this.smartAssign(trip)
+
+      if(best){
+        trip.driverId = best._id
+      }
+
+    }
+
+    UI.renderTrips(this.trips)
+
+  },
+
+  /* ================= ASSIGN ================= */
+  async assignDriver(tripId, driverId){
+
+    const trip = this.trips.find(t=>String(t._id)===String(tripId))
+    if(!trip) return
+
+    trip.driverId = driverId
+
+    await Store.assignDriver(tripId, driverId)
+
+    UI.renderTrips(this.trips)
+
+  },
+
+  /* ================= SEND ================= */
+  async sendSelected(){
+
+    const ids = UI.getSelected()
+
+    if(!ids.length){
+      alert("Select trips first")
+      return
+    }
+
+    await Store.sendTrips(ids)
+
+    alert("Sent")
+
+  },
+
+  /* ================= BIND ================= */
+  bind(){
+
+    document.querySelectorAll(".driverEdit").forEach(sel=>{
+
+      sel.addEventListener("change", (e)=>{
+
+        const row = e.target.closest("tr")
+        const id = row.dataset.id
+
+        this.assignDriver(id, e.target.value)
+
+      })
+
+    })
 
   }
 
 }
-
-Engine.load()

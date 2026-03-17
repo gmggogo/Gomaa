@@ -35,19 +35,12 @@
   color:#fff;
   font-size:13px;
   cursor:pointer;
-  transition:0.2s;
 }
 
-.btn:hover{
-  transform:scale(1.05);
-}
-
-/* 🎨 COLORS */
 .btn-blue{background:#2563eb;}
 .btn-orange{background:#f59e0b;}
 .btn-purple{background:#7c3aed;}
 .btn-green{background:#16a34a;}
-.btn-red{background:#dc2626;}
 
 /* GRID */
 .dispatch-grid{
@@ -67,7 +60,6 @@
   background:#1e293b;
   color:#fff;
   padding:8px;
-  font-size:13px;
 }
 
 #dispatchMap{
@@ -75,8 +67,6 @@
 }
 
 /* TABLE */
-.table-wrap{overflow:auto;}
-
 table{
   width:100%;
   border-collapse:collapse;
@@ -97,7 +87,6 @@ td{
   text-align:center;
 }
 
-/* ROW SELECT */
 .row-selected{
   background:#e0f2fe;
 }
@@ -112,43 +101,32 @@ td{
 
 <div class="page-body">
 
-<!-- 🔥 BUTTONS -->
 <div class="top-actions">
 
-<button onclick="Engine.redistributeSelected()" class="btn btn-blue">
-Redistribute
-</button>
-
-<button onclick="UI.toggleEdit?.()" class="btn btn-orange">
+<button onclick="toggleEdit()" class="btn btn-orange">
 Manual Edit
 </button>
 
-<button onclick="Engine.load()" class="btn btn-purple">
+<button onclick="load()" class="btn btn-purple">
 Reload
-</button>
-
-<button onclick="Engine.sendSelected()" class="btn btn-green">
-Send Selected
 </button>
 
 </div>
 
-<!-- 🔥 GRID -->
 <div class="dispatch-grid">
 
 <div class="map-box">
-<div class="box-title">Live Dispatch Map</div>
+<div class="box-title">Live Map</div>
 <div id="dispatchMap"></div>
 </div>
 
 <div class="drivers-box">
-<div class="box-title">Active Drivers</div>
+<div class="box-title">Drivers</div>
 <div id="driversPanel"></div>
 </div>
 
 </div>
 
-<!-- 🔥 TABLE -->
 <div class="table-wrap">
 
 <table>
@@ -156,17 +134,14 @@ Send Selected
 <thead>
 <tr>
 <th>Select</th>
-<th>Trip #</th>
+<th>Trip</th>
 <th>Client</th>
 <th>Pickup</th>
-<th>Stops</th>
 <th>Dropoff</th>
 <th>Date</th>
 <th>Time</th>
-<th>Notes</th>
 <th>Driver</th>
-<th>Vehicle</th>
-<th>Send</th>
+<th>Car</th>
 </tr>
 </thead>
 
@@ -178,18 +153,144 @@ Send Selected
 
 </div>
 
-<script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="/admin/dispatch.store.js"></script>
-<script src="/admin/dispatch.ui.js"></script>
-<script src="/admin/dispatch.engine.js"></script>
-
 <script>
-if(typeof loadAdminHeader==="function"){
-  loadAdminHeader()
+
+/* ================= STATE ================= */
+
+let trips=[]
+let drivers=[]
+let schedule={}
+let editMode=false
+
+/* ================= LOAD ================= */
+
+async function load(){
+
+  const t=await fetch("/api/trips").then(r=>r.json())
+  const d=await fetch("/api/drivers").then(r=>r.json())
+  const s=await fetch("/api/driver-schedule").then(r=>r.json())
+
+  trips = t
+  drivers = d
+  schedule = s || {}
+
+  render()
+
 }
-Engine.load()
+
+/* ================= HELPERS ================= */
+
+function getDriverName(id){
+  const d=drivers.find(x=>x._id==id)
+  return d?.name || "-"
+}
+
+function getVehicle(id){
+  return schedule[id]?.vehicle || "-"
+}
+
+/* ================= UI ================= */
+
+function renderDrivers(){
+
+  const panel=document.getElementById("driversPanel")
+
+  panel.innerHTML = drivers.map(d=>{
+
+    return `
+      <div style="display:flex;justify-content:space-between;padding:6px;">
+        <strong>${d.name}</strong>
+        <span>🚗 ${getVehicle(d._id)}</span>
+      </div>
+    `
+
+  }).join("")
+}
+
+/* ================= TABLE ================= */
+
+function renderTrips(){
+
+  const body=document.getElementById("dispatchBody")
+
+  body.innerHTML = trips.map(t=>{
+
+    return `
+      <tr class="${t.selected?'row-selected':''}">
+
+        <td>
+          <input type="checkbox"
+          ${t.selected?'checked':''}
+          onchange="selectTrip('${t._id}', this.checked)">
+        </td>
+
+        <td>${t.tripNumber || "-"}</td>
+        <td>${t.clientName || "-"}</td>
+        <td>${t.pickup || "-"}</td>
+        <td>${t.dropoff || "-"}</td>
+        <td>${t.tripDate || "-"}</td>
+        <td>${t.tripTime || "-"}</td>
+
+        <td>
+          ${
+            editMode && t.selected
+            ? `
+              <select onchange="assignDriver('${t._id}', this.value)">
+                <option value="">--</option>
+                ${drivers.map(d=>`
+                  <option value="${d._id}"
+                  ${t.driverId==d._id?'selected':''}>
+                  ${d.name}
+                  </option>
+                `).join("")}
+              </select>
+            `
+            : getDriverName(t.driverId)
+          }
+        </td>
+
+        <td>${getVehicle(t.driverId)}</td>
+
+      </tr>
+    `
+
+  }).join("")
+}
+
+/* ================= ACTIONS ================= */
+
+function selectTrip(id, val){
+  const t=trips.find(x=>x._id==id)
+  t.selected=val
+  renderTrips()
+}
+
+function toggleEdit(){
+  editMode=!editMode
+  renderTrips()
+}
+
+function assignDriver(tripId, driverId){
+
+  const t=trips.find(x=>x._id==tripId)
+
+  t.driverId=driverId
+
+  renderTrips()
+
+}
+
+/* ================= MAIN ================= */
+
+function render(){
+  renderDrivers()
+  renderTrips()
+}
+
+load()
+
 </script>
 
 </body>

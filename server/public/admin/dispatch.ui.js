@@ -1,8 +1,22 @@
 const tbody = document.getElementById("dispatchBody")
 const driversPanel = document.getElementById("driversPanel")
 
+// 🔥 حالة التعديل
+let editMode = false
+
 const UI = {
 
+  /* =======================
+  TOGGLE EDIT
+  ======================= */
+  toggleEdit(){
+    editMode = !editMode
+    this.applyEditMode()
+  },
+
+  /* =======================
+  RENDER TRIPS
+  ======================= */
   renderTrips(trips){
 
     if(!tbody){
@@ -38,6 +52,7 @@ const UI = {
         <td>
           <input type="checkbox"
             class="tripSelect dispatch-check"
+            onchange="UI.onSelectRow(this)"
             value="${t._id}">
         </td>
 
@@ -51,15 +66,17 @@ const UI = {
 
         <td>
           <span class="noteName">${t.notes || "-"}</span>
-          <input class="noteEdit"
-            value="${(t.notes || "").replace(/"/g,"&quot;")}">
         </td>
 
+        <!-- 🔥 DRIVER -->
         <td class="driverCell">
 
           <span class="driverName">${driverName}</span>
 
-          <select class="driverEdit">
+          <select class="driverEdit"
+            style="display:none"
+            onchange="Engine.assignDriver('${t._id}', this.value)">
+
             <option value="">-- Select Driver --</option>
 
             ${availableDrivers.map(d=>`
@@ -73,6 +90,7 @@ const UI = {
 
         </td>
 
+        <!-- 🔥 VEHICLE -->
         <td class="carCell">
           ${vehicle}
         </td>
@@ -89,61 +107,99 @@ const UI = {
       tbody.appendChild(tr)
     })
 
-    // 🔥 مهم جدًا
     Engine.bind()
 
+    this.applyEditMode()
   },
 
+  /* =======================
+  APPLY EDIT MODE
+  ======================= */
+  applyEditMode(){
+
+    const rows = document.querySelectorAll("#dispatchBody tr")
+
+    rows.forEach(row=>{
+
+      const check = row.querySelector(".tripSelect")
+      const select = row.querySelector(".driverEdit")
+      const name = row.querySelector(".driverName")
+
+      if(!check || !select || !name) return
+
+      if(editMode && check.checked){
+
+        select.style.display = "block"
+        name.style.display = "none"
+
+      }else{
+
+        select.style.display = "none"
+        name.style.display = "block"
+
+      }
+
+    })
+  },
+
+  /* =======================
+  CHECKBOX SELECT
+  ======================= */
+  onSelectRow(el){
+
+    const row = el.closest("tr")
+
+    if(el.checked){
+      row.classList.add("row-selected")
+    }else{
+      row.classList.remove("row-selected")
+    }
+
+    this.applyEditMode()
+  },
+
+  /* =======================
+  DRIVERS PANEL
+  ======================= */
   renderDriversPanel(drivers, schedule, liveDrivers){
 
     if(!driversPanel) return
 
     const today = Engine.getTodayKey()
 
-    const liveMap = new Map()
-    liveDrivers.forEach(d=>{
-      liveMap.set(String(d.driverId || ""), d)
-    })
-
     const activeDrivers = drivers.filter(d=>{
       const s = schedule[d._id]
-      if(!s) return false
-      if(!s.enabled) return false
-      if(!s.days) return false
-      return s.days[today] === true
+      return s && s.enabled && s.days && s.days[today]
     })
 
     if(!activeDrivers.length){
-      driversPanel.innerHTML = `No active drivers today`
+      driversPanel.innerHTML = "No active drivers"
       return
     }
 
     driversPanel.innerHTML = activeDrivers.map(d=>{
 
-      const s = schedule[d._id] || {}
-      const live = liveMap.get(String(d._id))
-
-      const tripsCount = Engine.trips
-        .filter(t=>String(t.driverId)===String(d._id)).length
-
       return `
-        <div class="driver-card">
+        <div class="driver-card" style="
+          display:flex;
+          justify-content:space-between;
+          padding:8px;
+          border-bottom:1px solid #eee;
+        ">
+
           <strong>${d.name || "-"}</strong>
-          <div>
-            Car: ${d.vehicleNumber || "-"}<br>
-            Address: ${s.address || d.address || "-"}<br>
-            Trips: ${tripsCount}<br>
 
-            <span style="color:${live ? "#16a34a":"#999"}">
-              ${live ? "LIVE":"SCHEDULE"}
-            </span>
+          <span>🚗 ${Engine.getDriverVehicleById(d._id)}</span>
 
-          </div>
         </div>
       `
+
     }).join("")
   },
 
+  /* =======================
+  GET SELECTED
+  ======================= */
   getSelected(){
     return [...document.querySelectorAll(".tripSelect:checked")]
       .map(e=>e.value)
