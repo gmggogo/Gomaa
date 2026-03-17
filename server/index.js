@@ -139,20 +139,37 @@ app.get("/api/driver-schedule", async (req, res) => {
         days: r.days || {}
       };
 
-      /* save by driverId */
+      /* save by driverId exactly as stored */
       result[r.driverId] = scheduleRow;
 
-      /* also save by driver name so dispatch can read either id or name */
-      const driver = await User.findById(r.driverId);
+      /* if driverId is valid ObjectId, also save by driver name */
+      try {
+        if (mongoose.Types.ObjectId.isValid(r.driverId)) {
+          const driver = await User.findById(r.driverId);
 
-      if (driver) {
-        result[driver.name] = scheduleRow;
+          if (driver && driver.name) {
+            result[driver.name] = scheduleRow;
+          }
+        } else {
+          const driver = await User.findOne({
+            $or: [
+              { username: r.driverId },
+              { name: r.driverId }
+            ]
+          });
+
+          if (driver && driver.name) {
+            result[driver.name] = scheduleRow;
+          }
+        }
+      } catch (lookupErr) {
+        console.log("Driver lookup skipped:", r.driverId);
       }
     }
 
     res.json(result);
   } catch (err) {
-    console.log(err);
+    console.log("Schedule ERROR:", err);
     res.status(500).json({ message: "Schedule load error" });
   }
 });
