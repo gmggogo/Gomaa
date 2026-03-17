@@ -670,15 +670,60 @@ app.delete("/api/trips/:id", async (req, res) => {
    DISPATCH API
 ========================= */
 
-/* الرحلات المختارة للديسبتش فقط */
+/* الرحلات المختارة للديسبتش + السواقين + الشيدول */
 app.get("/api/dispatch", async (req, res) => {
   try {
     const trips = await Trip.find({
       dispatchSelected: true,
       disabled: false
-    }).sort({ tripDate: 1, tripTime: 1 });
+    })
+      .sort({ tripDate: 1, tripTime: 1 })
+      .lean();
 
-    res.json(trips);
+    const drivers = await User.find({
+      role: "driver",
+      active: true
+    })
+      .sort({ name: 1 })
+      .lean();
+
+    const scheduleRows = await DriverSchedule.find().lean();
+    const schedule = {};
+
+    for (const r of scheduleRows) {
+      const scheduleRow = {
+        phone: r.phone || "",
+        address: r.address || "",
+        enabled: r.enabled === true,
+        days: r.days || {}
+      };
+
+      schedule[r.driverId] = scheduleRow;
+
+      try {
+        if (mongoose.Types.ObjectId.isValid(r.driverId)) {
+          const driver = drivers.find(d => String(d._id) === String(r.driverId));
+          if (driver && driver.name) {
+            schedule[driver.name] = scheduleRow;
+          }
+        } else {
+          const driver = drivers.find(d =>
+            d.username === r.driverId || d.name === r.driverId
+          );
+          if (driver && driver.name) {
+            schedule[driver.name] = scheduleRow;
+          }
+        }
+      } catch (lookupErr) {
+        console.log("Dispatch schedule lookup skipped:", r.driverId);
+      }
+    }
+
+    res.json({
+      trips,
+      drivers,
+      schedule
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Dispatch load error" });
