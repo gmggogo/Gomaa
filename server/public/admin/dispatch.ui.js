@@ -5,166 +5,152 @@ let editMode = false
 
 const UI = {
 
+  /* ================= TOGGLE EDIT ================= */
   toggleEdit(){
     editMode = !editMode
-    this.applyEditMode()
+    this.renderTrips(Engine.trips)
   },
 
+  /* ================= RENDER TRIPS ================= */
   renderTrips(trips){
 
-    if(!tbody) return
-
-    tbody.innerHTML = ""
-
-    if(!trips.length){
+    if(!trips || !trips.length){
       tbody.innerHTML = `
-      <tr>
-        <td colspan="12" style="text-align:center;padding:30px">
-          No Trips
-        </td>
-      </tr>`
+        <tr>
+          <td colspan="10" style="padding:20px">
+            No Trips
+          </td>
+        </tr>
+      `
       return
     }
 
-    trips.forEach(t=>{
-
-      const tr = document.createElement("tr")
-      tr.dataset.id = t._id
+    tbody.innerHTML = trips.map(t=>{
 
       const driverName = t.driverName || "-"
       const vehicle = t.vehicle || "-"
 
-      tr.innerHTML = `
-
-<td>
-<input type="checkbox"
-class="tripSelect"
-onchange="UI.onSelect(this)"
-value="${t._id}">
-</td>
-
-<td>${t.tripNumber||""}</td>
-<td>${t.clientName||""}</td>
-<td>${t.pickup||""}</td>
-<td>${Array.isArray(t.stops)?t.stops.join(" | "):""}</td>
-<td>${t.dropoff||""}</td>
-<td>${t.tripDate||""}</td>
-<td>${t.tripTime||""}</td>
-<td>${t.notes||"-"}</td>
-
-<td>
-
-<span class="driverName">${driverName}</span>
-
-<select class="driverSelect"
-style="display:none"
-onchange="UI.changeDriver('${t._id}', this)">
-
-<option value="">-- Select --</option>
-
-${Engine.drivers.map(d=>`
-<option value="${d._id}">
-${d.name}
-</option>
-`).join("")}
-
-</select>
-
-</td>
-
-<td class="carCell">${vehicle}</td>
-
-<td>
-<button onclick="Engine.sendSingle('${t._id}', this)">
-Send
-</button>
-</td>
-`
-
-      tbody.appendChild(tr)
-    })
-
-    this.applyEditMode()
-  },
-
-  onSelect(el){
-
-    const row = el.closest("tr")
-
-    el.checked
-      ? row.classList.add("row-selected")
-      : row.classList.remove("row-selected")
-
-    this.applyEditMode()
-  },
-
-  applyEditMode(){
-
-    document.querySelectorAll("#dispatchBody tr").forEach(row=>{
-
-      const check = row.querySelector(".tripSelect")
-      const name = row.querySelector(".driverName")
-      const select = row.querySelector(".driverSelect")
-
-      if(!check) return
-
-      if(editMode && check.checked){
-        name.style.display="none"
-        select.style.display="block"
-      }else{
-        name.style.display="block"
-        select.style.display="none"
-      }
-
-    })
-  },
-
-  async changeDriver(tripId, select){
-
-    const driverId = select.value
-    if(!driverId) return
-
-    const driver = Engine.drivers.find(d=>String(d._id)===String(driverId))
-    if(!driver) return
-
-    // 🔥 هنا الحل
-    const s = Engine.schedule[driverId] || {}
-
-    const vehicle = s.vehicleNumber || driver.vehicleNumber || "-"
-
-    const row = select.closest("tr")
-
-    row.querySelector(".driverName").innerText = driver.name
-    row.querySelector(".carCell").innerText = vehicle
-
-    await Store.assignDriver(tripId, driverId)
-
-  },
-
-  renderDriversPanel(drivers, schedule){
-
-    if(!driversPanel) return
-
-    driversPanel.innerHTML = drivers.map(d=>{
-
-      const s = schedule[d._id] || {}
-
       return `
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        padding:6px;
-        border-bottom:1px solid #eee;
-      ">
-        <strong>${d.name}</strong>
-        <span>🚗 ${s.vehicleNumber || "-"}</span>
-      </div>`
+        <tr class="${t.selected?'row-selected':''}">
+
+          <!-- SELECT -->
+          <td>
+            <input type="checkbox"
+              ${t.selected?'checked':''}
+              onchange="UI.selectTrip('${t._id}', this.checked)">
+          </td>
+
+          <td>${t.tripNumber || "-"}</td>
+          <td>${t.clientName || "-"}</td>
+          <td>${t.pickup || "-"}</td>
+          <td>${t.dropoff || "-"}</td>
+          <td>${t.tripDate || "-"}</td>
+          <td>${t.tripTime || "-"}</td>
+
+          <!-- DRIVER -->
+          <td>
+
+            ${
+              editMode && t.selected
+              ? `
+                <select onchange="UI.changeDriver('${t._id}', this.value)">
+                  <option value="">-- Select Driver --</option>
+
+                  ${Engine.drivers.map(d=>`
+                    <option value="${d._id}">
+                      ${d.name}
+                    </option>
+                  `).join("")}
+
+                </select>
+              `
+              : `<strong>${driverName}</strong>`
+            }
+
+          </td>
+
+          <!-- VEHICLE -->
+          <td>
+            <span style="color:#16a34a;font-weight:bold">
+              🚗 ${vehicle}
+            </span>
+          </td>
+
+          <!-- ACTION -->
+          <td>
+
+            <button onclick="UI.disable('${t._id}')"
+              style="
+                background:#dc2626;
+                color:#fff;
+                border:none;
+                padding:4px 10px;
+                border-radius:5px;
+                cursor:pointer;
+              ">
+              Disable
+            </button>
+
+          </td>
+
+        </tr>
+      `
+
     }).join("")
   },
 
+  /* ================= DRIVERS PANEL ================= */
+  renderDriversPanel(drivers){
+
+    driversPanel.innerHTML = drivers.map(d=>{
+
+      const vehicle = Engine.getDriverVehicleById(d._id)
+
+      return `
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          padding:6px;
+          border-bottom:1px solid #eee;
+        ">
+          <strong>${d.name}</strong>
+          <span style="color:#2563eb">🚗 ${vehicle}</span>
+        </div>
+      `
+
+    }).join("")
+  },
+
+  /* ================= SELECT ================= */
+  selectTrip(id, val){
+
+    const t = Engine.trips.find(x=>x._id==id)
+    if(!t) return
+
+    t.selected = val
+
+    this.renderTrips(Engine.trips)
+  },
+
+  /* ================= CHANGE DRIVER ================= */
+  changeDriver(tripId, driverId){
+    Engine.assignDriver(tripId, driverId)
+  },
+
+  /* ================= DISABLE ================= */
+  async disable(tripId){
+
+    await Store.disableTrip(tripId)
+
+    Engine.trips = Engine.trips.filter(t=>t._id !== tripId)
+
+    this.renderTrips(Engine.trips)
+
+  },
+
+  /* ================= GET SELECTED ================= */
   getSelected(){
-    return [...document.querySelectorAll(".tripSelect:checked")]
-    .map(e=>e.value)
+    return Engine.trips.filter(t=>t.selected).map(t=>t._id)
   }
 
 }

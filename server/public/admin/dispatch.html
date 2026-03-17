@@ -2,28 +2,40 @@
 <html lang="en">
 
 <head>
+
 <meta charset="UTF-8">
 <title>Dispatch System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="/admin/style.css" onerror="this.href='./style.css'">
-<link rel="stylesheet" href="/admin/header.css" onerror="this.href='./header.css'">
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/header.css">
 
 <style>
+
+body{
+  margin:0;
+  font-family:'Segoe UI',Arial;
+  background:#f3f4f6;
+}
+
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:999;
+}
 
 .page-body{
   max-width:1400px;
   margin:auto;
-  padding:180px 15px 40px;
+  padding:200px 20px 40px;
 }
 
-/* 🔥 BUTTONS */
+/* BUTTONS */
 .top-actions{
   display:flex;
   gap:10px;
-  flex-wrap:wrap;
   margin-bottom:15px;
 }
 
@@ -36,23 +48,15 @@
   cursor:pointer;
 }
 
-.btn-blue{background:#2563eb;}
 .btn-orange{background:#f59e0b;}
 .btn-purple{background:#7c3aed;}
 .btn-green{background:#16a34a;}
 
-/* GRID */
-.dispatch-grid{
-  display:grid;
-  grid-template-columns:2fr 1fr;
-  gap:12px;
-  margin-bottom:10px;
-}
-
-.map-box,.drivers-box{
+/* DRIVERS */
+.drivers-box{
   background:#fff;
   border-radius:8px;
-  overflow:hidden;
+  margin-bottom:10px;
 }
 
 .box-title{
@@ -61,8 +65,8 @@
   padding:8px;
 }
 
-#dispatchMap{
-  height:300px;
+#driversPanel{
+  padding:10px;
 }
 
 /* TABLE */
@@ -121,21 +125,10 @@ Send Selected
 
 </div>
 
-<div class="dispatch-grid">
-
-<div class="map-box">
-<div class="box-title">Live Map</div>
-<div id="dispatchMap"></div>
-</div>
-
 <div class="drivers-box">
 <div class="box-title">Drivers</div>
 <div id="driversPanel"></div>
 </div>
-
-</div>
-
-<div class="table-wrap">
 
 <table>
 
@@ -150,6 +143,7 @@ Send Selected
 <th>Time</th>
 <th>Driver</th>
 <th>Car</th>
+<th>Action</th>
 </tr>
 </thead>
 
@@ -159,9 +153,10 @@ Send Selected
 
 </div>
 
-</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- 🔥 مهم -->
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch.store.js"></script>
+<script src="/admin/dispatchengine.js"></script>
 
 <script>
 
@@ -181,51 +176,64 @@ const UI = {
 
   renderTrips(trips){
 
+    if(!trips || !trips.length){
+      tbody.innerHTML = `
+      <tr>
+        <td colspan="10" style="padding:20px">
+          No Trips
+        </td>
+      </tr>`
+      return
+    }
+
     tbody.innerHTML = trips.map(t=>{
 
       const driverName = t.driverName || "-"
       const vehicle = t.vehicle || "-"
 
       return `
-        <tr class="${t.selected?'row-selected':''}">
+      <tr class="${t.selected?'row-selected':''}">
 
-          <td>
-            <input type="checkbox"
-              ${t.selected?'checked':''}
-              onchange="UI.selectTrip('${t._id}', this.checked)">
-          </td>
+        <td>
+          <input type="checkbox"
+          ${t.selected?'checked':''}
+          onchange="UI.selectTrip('${t._id}', this.checked)">
+        </td>
 
-          <td>${t.tripNumber || "-"}</td>
-          <td>${t.clientName || "-"}</td>
-          <td>${t.pickup || "-"}</td>
-          <td>${t.dropoff || "-"}</td>
-          <td>${t.tripDate || "-"}</td>
-          <td>${t.tripTime || "-"}</td>
+        <td>${t.tripNumber||"-"}</td>
+        <td>${t.clientName||"-"}</td>
+        <td>${t.pickup||"-"}</td>
+        <td>${t.dropoff||"-"}</td>
+        <td>${t.tripDate||"-"}</td>
+        <td>${t.tripTime||"-"}</td>
 
-          <td>
+        <td>
+          ${
+            editMode && t.selected
+            ? `
+              <select onchange="UI.changeDriver('${t._id}', this.value)">
+                <option value="">--</option>
+                ${Engine.drivers.map(d=>`
+                  <option value="${d._id}">
+                    ${d.name}
+                  </option>
+                `).join("")}
+              </select>
+            `
+            : driverName
+          }
+        </td>
 
-            ${
-              editMode && t.selected
-              ? `
-                <select onchange="UI.changeDriver('${t._id}', this.value)">
-                  <option value="">--</option>
+        <td>🚗 ${vehicle}</td>
 
-                  ${Engine.drivers.map(d=>`
-                    <option value="${d._id}">
-                      ${d.name}
-                    </option>
-                  `).join("")}
+        <td>
+          <button onclick="Engine.disableTrip('${t._id}')"
+          style="background:#dc2626;color:#fff;border:none;padding:4px 8px;border-radius:4px;">
+          Disable
+          </button>
+        </td>
 
-                </select>
-              `
-              : driverName
-            }
-
-          </td>
-
-          <td>${vehicle}</td>
-
-        </tr>
+      </tr>
       `
 
     }).join("")
@@ -238,16 +246,15 @@ const UI = {
       const vehicle = Engine.getDriverVehicleById(d._id)
 
       return `
-        <div style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #eee;">
-          <strong>${d.name}</strong>
-          <span>🚗 ${vehicle}</span>
-        </div>
+      <div style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #eee;">
+        <strong>${d.name}</strong>
+        <span>🚗 ${vehicle}</span>
+      </div>
       `
-
     }).join("")
   },
 
-  selectTrip(id, val){
+  selectTrip(id,val){
 
     const t = Engine.trips.find(x=>x._id==id)
     if(!t) return
@@ -255,7 +262,6 @@ const UI = {
     t.selected = val
 
     this.renderTrips(Engine.trips)
-
   },
 
   changeDriver(tripId, driverId){
@@ -270,7 +276,9 @@ const UI = {
 
 /* ================= START ================= */
 
-Engine.load()
+window.onload = ()=>{
+  Engine.load()
+}
 
 </script>
 

@@ -3,30 +3,19 @@ const Engine = {
   trips: [],
   drivers: [],
   schedule: {},
-  liveDrivers: [],
-
-  geoCache: {},
-  routeCache: {},
-
-  OSRM: "https://router.project-osrm.org/route/v1/driving",
 
   /* ================= LOAD ================= */
   async load(){
 
     try{
 
-      // 🔥 تحميل كل حاجة مرة واحدة
       const data = await Store.loadAll()
 
-      this.trips = data.trips || []
+      // 🔥 نجيب بس الرحلات اللي عليها Dispatch = true
+      this.trips = (data.trips || []).filter(t => t.dispatch === true)
+
       this.drivers = data.drivers || []
       this.schedule = data.schedule || {}
-
-      this.liveDrivers = await Store.getLiveDrivers()
-
-      console.log("Trips:", this.trips)
-      console.log("Drivers:", this.drivers)
-      console.log("Schedule:", this.schedule)
 
       this.sortTrips()
 
@@ -34,7 +23,7 @@ const Engine = {
       UI.renderDriversPanel(this.drivers, this.schedule)
 
     }catch(err){
-      console.error("Engine Load Error", err)
+      console.error("Load Error", err)
     }
 
   },
@@ -54,21 +43,9 @@ const Engine = {
 
   },
 
-  /* ================= TIME ================= */
-  toDate(trip){
-    return new Date(`${trip.tripDate} ${trip.tripTime}`)
-  },
-
-  getTodayKey(){
-    const d = new Date(
-      new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-    )
-    return d.toLocaleDateString("en-CA")
-  },
-
   /* ================= DRIVER ================= */
   getDriverById(id){
-    return this.drivers.find(x=>String(x._id)===String(id))
+    return this.drivers.find(d=>String(d._id)===String(id))
   },
 
   getDriverVehicleById(id){
@@ -77,18 +54,6 @@ const Engine = {
     const d = this.getDriverById(id)
 
     return s.vehicleNumber || d?.vehicleNumber || "-"
-  },
-
-  /* ================= FILTER ================= */
-  getDriversForTrip(trip){
-
-    const today = this.getTodayKey()
-
-    return this.drivers.filter(d=>{
-      const s = this.schedule[d._id]
-      return s && s.enabled && s.days && s.days[today]
-    })
-
   },
 
   /* ================= ASSIGN ================= */
@@ -102,7 +67,7 @@ const Engine = {
 
     const s = this.schedule[driverId] || {}
 
-    // 🔥 تحديث محلي
+    // 🔥 تحديث UI
     trip.driverId = driverId
     trip.driverName = driver.name
     trip.vehicle = s.vehicleNumber || driver.vehicleNumber || "-"
@@ -110,6 +75,27 @@ const Engine = {
     await Store.assignDriver(tripId, driverId)
 
     UI.renderTrips(this.trips)
+
+  },
+
+  /* ================= DISABLE (REMOVE FROM DISPATCH) ================= */
+  async disableTrip(tripId){
+
+    try{
+
+      // 🔥 نغير الحالة في السيرفر
+      await fetch(`/api/dispatch/${tripId}/disable`,{
+        method:"PATCH"
+      })
+
+      // 🔥 نشيله من الصفحة فورًا
+      this.trips = this.trips.filter(t=>String(t._id)!==String(tripId))
+
+      UI.renderTrips(this.trips)
+
+    }catch(err){
+      console.error("Disable Error", err)
+    }
 
   },
 
@@ -126,14 +112,6 @@ const Engine = {
     await Store.sendTrips(ids)
 
     alert("Sent")
-
-    await this.reload()
-
-  },
-
-  async sendSingle(id){
-
-    await Store.sendTrips([id])
 
     await this.reload()
 

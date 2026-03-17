@@ -1,94 +1,89 @@
 const Store = {
 
-API_DISPATCH: "/api/dispatch",
-API_LIVE: "/api/admin/live-drivers",
+  API_ALL: "/api/dispatch",
+  API_ASSIGN: "/api/dispatch",
+  API_SEND: "/api/dispatch/send",
 
-/* ================= LOAD ALL ================= */
-async loadAll(){
+  /* ================= LOAD ALL ================= */
+  async loadAll(){
 
-  try{
+    try{
 
-    const res = await fetch(this.API_DISPATCH)
+      const res = await fetch(this.API_ALL)
 
-    if(!res.ok){
-      console.error("Dispatch API failed")
+      if(!res.ok){
+        console.error("API Failed")
+        return { trips:[], drivers:[], schedule:{} }
+      }
+
+      const data = await res.json()
+
+      return {
+        trips: data.trips || [],
+        drivers: data.drivers || [],
+        schedule: data.schedule || {}
+      }
+
+    }catch(err){
+      console.error("LoadAll Error", err)
       return { trips:[], drivers:[], schedule:{} }
     }
 
-    const data = await res.json()
+  },
 
-    console.log("Dispatch Loaded:", data)
+  /* ================= ASSIGN DRIVER ================= */
+  async assignDriver(tripId, driverId){
 
-    return {
-      trips: data.trips || [],
-      drivers: data.drivers || [],
-      schedule: data.schedule || {}
+    try{
+
+      const res = await fetch(`${this.API_ASSIGN}/${tripId}/driver`,{
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ driverId })
+      })
+
+      return await res.json()
+
+    }catch(err){
+      console.error("Assign Error", err)
     }
 
-  }catch(err){
-    console.error("Dispatch Error", err)
-    return { trips:[], drivers:[], schedule:{} }
-  }
+  },
 
-},
+  /* ================= DISABLE ================= */
+  async disableTrip(tripId){
 
-/* ================= LIVE ================= */
-async getLiveDrivers(){
+    try{
 
-  try{
+      const res = await fetch(`${this.API_ASSIGN}/${tripId}/disable`,{
+        method:"PATCH"
+      })
 
-    const res = await fetch(this.API_LIVE)
+      return await res.json()
 
-    if(!res.ok){
-      console.error("Live API failed")
-      return []
+    }catch(err){
+      console.error("Disable Error", err)
     }
 
-    const data = await res.json()
+  },
 
-    return Array.isArray(data) ? data : data.drivers || []
+  /* ================= SEND ================= */
+  async sendTrips(ids){
 
-  }catch(err){
-    console.error("Live Error", err)
-    return []
+    try{
+
+      const res = await fetch(this.API_SEND,{
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ ids })
+      })
+
+      return await res.json()
+
+    }catch(err){
+      console.error("Send Error", err)
+    }
+
   }
-
-},
-
-/* ================= ASSIGN ================= */
-async assignDriver(tripId, driverId){
-
-  const res = await fetch(`/api/dispatch/${tripId}/driver`,{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ driverId })
-  })
-
-  return await res.json()
-},
-
-/* ================= NOTE ================= */
-async saveNote(tripId, note){
-
-  const res = await fetch(`/api/dispatch/${tripId}/note`,{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ note })
-  })
-
-  return await res.json()
-},
-
-/* ================= SEND ================= */
-async sendTrips(ids){
-
-  const res = await fetch("/api/dispatch/send",{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ ids })
-  })
-
-  return await res.json()
-}
 
 }
