@@ -55,10 +55,25 @@ async function loadSchedule(){
 
 /* ================= SAVE ================= */
 async function save(){
+
+  const clean = {}
+
+  for(const id in schedule){
+
+    clean[id] = {
+      phone: schedule[id].phone || "",
+      address: schedule[id].address || "",
+      vehicleNumber: schedule[id].vehicleNumber || "",
+      enabled: schedule[id].enabled === true,
+      days: schedule[id].days || {}
+    }
+
+  }
+
   await fetch(API_SCHEDULE,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(schedule)
+    body:JSON.stringify(clean)
   })
 }
 
@@ -84,7 +99,7 @@ function render(){
       schedule[id]={
         phone:"",
         address:"",
-        vehicleNumber:"", // ✅ ثابت
+        vehicleNumber:"",
         days:{},
         enabled:true,
         edit:false
@@ -130,34 +145,21 @@ oninput="schedule['${id}'].address=this.value">
 </td>
 
 <td>
-
 <div class="week-box">
-
 ${WEEK.map(w=>{
-
 const checked=!!s.days[w.key]
-
 return`
-
 <div class="day-square ${checked?'active':''}"
 onclick="squareToggle('${id}','${w.key}',this)">
-
 <input type="checkbox"
 ${checked?'checked':''}
 ${(!s.edit||!s.enabled)?'disabled':''}
 style="display:none">
-
 <div>${w.label}</div>
 <div>${w.date}</div>
-
-</div>
-
-`
-
+</div>`
 }).join("")}
-
 </div>
-
 </td>
 
 <td style="font-weight:bold;color:${activeToday?'#16a34a':'#dc2626'}">
@@ -168,11 +170,12 @@ ${activeToday?'ACTIVE':'NOT ACTIVE'}
 
 ${
 s.edit
-? `<button onclick="saveDriver('${id}')">Save</button>`
-: `<button onclick="editDriver('${id}')">Edit</button>`
+? `<button class="action-btn save" onclick="saveDriver('${id}')">Save</button>`
+: `<button class="action-btn edit" onclick="editDriver('${id}')">Edit</button>`
 }
 
-<button onclick="toggleEnable('${id}')">
+<button class="action-btn ${s.enabled ? 'disable' : 'enable'}"
+onclick="toggleEnable('${id}')">
 ${s.enabled?'Disable':'Enable'}
 </button>
 
