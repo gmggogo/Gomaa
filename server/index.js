@@ -112,6 +112,7 @@ const driverScheduleSchema = new mongoose.Schema({
 
   phone: { type: String, default: "" },
   address: { type: String, default: "" },
+  vehicleNumber: { type: String, default: "" },
 
   enabled: { type: Boolean, default: true },
 
@@ -135,6 +136,7 @@ app.get("/api/driver-schedule", async (req, res) => {
       const scheduleRow = {
         phone: r.phone || "",
         address: r.address || "",
+        vehicleNumber: r.vehicleNumber || "",
         enabled: r.enabled === true,
         days: r.days || {}
       };
@@ -187,6 +189,7 @@ app.post("/api/driver-schedule", async (req, res) => {
           driverId: id,
           phone: s.phone || "",
           address: s.address || "",
+          vehicleNumber: s.vehicleNumber || "",
           enabled: typeof s.enabled === "boolean" ? s.enabled : true,
           days: s.days || {}
         },
@@ -694,6 +697,7 @@ app.get("/api/dispatch", async (req, res) => {
       const scheduleRow = {
         phone: r.phone || "",
         address: r.address || "",
+        vehicleNumber: r.vehicleNumber || "",
         enabled: r.enabled === true,
         days: r.days || {}
       };
