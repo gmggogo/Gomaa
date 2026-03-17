@@ -7,53 +7,127 @@
 <title>Dispatch System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- ✅ CSS (يشتغل على السيرفر أو محلي) -->
 <link rel="stylesheet" href="/admin/style.css" onerror="this.href='./style.css'">
 <link rel="stylesheet" href="/admin/header.css" onerror="this.href='./header.css'">
 
-<!-- ✅ MAP -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-/* fallback لو style.css مش اتحمل */
-.page-body{max-width:1400px;margin:auto;padding:180px 15px 40px;}
-.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
-.dispatch-grid{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;}
-.map-box,.drivers-box{background:#fff;border-radius:8px;overflow:hidden;}
-.box-title{background:#1e293b;color:#fff;padding:8px;font-size:13px;}
-#dispatchMap{height:300px;}
+
+.page-body{
+  max-width:1400px;
+  margin:auto;
+  padding:180px 15px 40px;
+}
+
+/* 🔥 BUTTONS */
+.top-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:15px;
+}
+
+.btn{
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  color:#fff;
+  font-size:13px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.btn:hover{
+  transform:scale(1.05);
+}
+
+/* 🎨 COLORS */
+.btn-blue{background:#2563eb;}
+.btn-orange{background:#f59e0b;}
+.btn-purple{background:#7c3aed;}
+.btn-green{background:#16a34a;}
+.btn-red{background:#dc2626;}
+
+/* GRID */
+.dispatch-grid{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.map-box,.drivers-box{
+  background:#fff;
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.box-title{
+  background:#1e293b;
+  color:#fff;
+  padding:8px;
+  font-size:13px;
+}
+
+#dispatchMap{
+  height:300px;
+}
+
+/* TABLE */
 .table-wrap{overflow:auto;}
-table{width:100%;border-collapse:collapse;background:#fff;}
-th{background:#1e293b;color:#fff;padding:6px;font-size:12px;}
-td{border:1px solid #e5e7eb;padding:5px;font-size:11px;text-align:center;}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+}
+
+th{
+  background:#1e293b;
+  color:#fff;
+  padding:6px;
+  font-size:12px;
+}
+
+td{
+  border:1px solid #e5e7eb;
+  padding:5px;
+  font-size:11px;
+  text-align:center;
+}
+
+/* ROW SELECT */
+.row-selected{
+  background:#e0f2fe;
+}
+
 </style>
 
 </head>
 
 <body>
 
-<!-- ✅ HEADER -->
 <div id="adminHeader"></div>
 
-<!-- ✅ PAGE -->
 <div class="page-body">
 
 <!-- 🔥 BUTTONS -->
 <div class="top-actions">
 
-<button onclick="Engine.redistributeSelected()" class="btn-blue">
-Redistribute Selected
+<button onclick="Engine.redistributeSelected()" class="btn btn-blue">
+Redistribute
 </button>
 
-<button id="editBtn" onclick="UI.toggleEdit()" class="btn-orange">
+<button onclick="UI.toggleEdit?.()" class="btn btn-orange">
 Manual Edit
 </button>
 
-<button onclick="Engine.load()" class="btn-purple">
-Save Changes
+<button onclick="Engine.load()" class="btn btn-purple">
+Reload
 </button>
 
-<button onclick="Engine.sendSelected()" class="btn-green">
+<button onclick="Engine.sendSelected()" class="btn btn-green">
 Send Selected
 </button>
 
@@ -62,13 +136,11 @@ Send Selected
 <!-- 🔥 GRID -->
 <div class="dispatch-grid">
 
-<!-- MAP -->
 <div class="map-box">
 <div class="box-title">Live Dispatch Map</div>
 <div id="dispatchMap"></div>
 </div>
 
-<!-- DRIVERS -->
 <div class="drivers-box">
 <div class="box-title">Active Drivers</div>
 <div id="driversPanel"></div>
@@ -106,16 +178,19 @@ Send Selected
 
 </div>
 
-<!-- ✅ HEADER LOAD -->
 <script src="/admin/header.js"></script>
-
-<!-- ✅ MAP -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- ✅ SCRIPTS -->
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.ui.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
+
+<script>
+if(typeof loadAdminHeader==="function"){
+  loadAdminHeader()
+}
+Engine.load()
+</script>
 
 </body>
 </html>
