@@ -5,23 +5,26 @@ const Engine = {
   schedule: {},
   liveDrivers: [],
 
-  geoCache: {},
-  routeCache: {},
-
-  OSRM: "https://router.project-osrm.org/route/v1/driving",
-
   /* ================= LOAD ================= */
   async load(){
 
-    this.trips = await Store.getTrips() || []
-    this.drivers = await Store.getDrivers() || []
-    this.schedule = await Store.getSchedule() || {}
-    this.liveDrivers = await Store.getLiveDrivers() || []
+    try{
 
-    this.sortTrips()
+      this.trips = await Store.getTrips()
+      this.drivers = await Store.getDrivers()
+      this.schedule = await Store.getSchedule()
+      this.liveDrivers = await Store.getLiveDrivers()
 
-    UI.renderTrips(this.trips)
-    UI.renderDriversPanel(this.drivers)
+      this.sortTrips()
+
+      UI.renderTrips(this.trips)
+      UI.renderDriversPanel(this.drivers, this.schedule, this.liveDrivers)
+
+      this.bind()
+
+    }catch(err){
+      console.error("Load error", err)
+    }
 
   },
 
@@ -36,8 +39,21 @@ const Engine = {
 
   },
 
-  /* ================= DATE KEY ================= */
-  getDateKey(dateStr){
+  /* ================= TODAY ================= */
+  getTodayKey(){
+
+    const d = new Date(
+      new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    )
+
+    const y = d.getFullYear()
+    const m = String(d.getMonth()+1).padStart(2,"0")
+    const day = String(d.getDate()).padStart(2,"0")
+
+    return `${y}-${m}-${day}`
+  },
+
+  getTripKey(dateStr){
 
     const d = new Date(dateStr)
 
@@ -52,10 +68,10 @@ const Engine = {
     return `${y}-${m}-${day}`
   },
 
-  /* ================= DRIVERS FILTER ================= */
+  /* ================= DRIVER FILTER ================= */
   getDriversForTrip(trip){
 
-    const key = this.getDateKey(trip.tripDate)
+    const key = this.getTripKey(trip.tripDate)
 
     return this.drivers.filter(d=>{
 
@@ -71,7 +87,48 @@ const Engine = {
 
   },
 
-  /* ================= REDISTRIBUTE ================= */
+  /* ================= HELPERS ================= */
+  getDriverVehicleById(id){
+
+    const d = this.drivers.find(x=>String(x._id)===String(id))
+    return d ? d.vehicleNumber : ""
+  },
+
+  bind(){
+
+    document.querySelectorAll(".tripSelect").forEach(box=>{
+
+      box.addEventListener("change",()=>{
+
+        const row = box.closest("tr")
+        const btn = row.querySelector(".btn-send")
+
+        if(btn){
+          btn.disabled = !box.checked
+        }
+
+        row.classList.toggle("row-selected", box.checked)
+
+      })
+
+    })
+
+  },
+
+  /* ================= ACTIONS ================= */
+
+  async sendSingle(id){
+
+    try{
+      await Store.sendTrips([id])
+      alert("Trip sent")
+      this.load()
+    }catch(err){
+      alert("Send failed")
+    }
+
+  },
+
   async redistributeSelected(){
 
     const ids = UI.getSelected()
@@ -81,152 +138,28 @@ const Engine = {
       return
     }
 
-    const selectedTrips = this.trips.filter(t=>ids.includes(t._id))
+    const trips = this.trips.filter(t=>ids.includes(t._id))
 
-    const driverState = {}
-
-    for(const trip of selectedTrips){
+    for(const trip of trips){
 
       const drivers = this.getDriversForTrip(trip)
 
       if(!drivers.length){
-        console.log("No drivers for", trip.tripDate)
+        console.log("No driver for", trip.tripDate)
         continue
       }
 
-      drivers.forEach(d=>{
-        if(!driverState[d._id]){
-          driverState[d._id]={
-            tripCount:0,
-            lastEnd:null,
-            lastDropoff:""
-          }
-        }
-      })
+      const driver = drivers[0]
 
-      let bestDriver = null
-      let bestScore = 999999
-
-      for(const d of drivers){
-
-        const score = await this.scoreDriver(
-          d,
-          trip,
-          driverState[d._id]
-        )
-
-        if(score < bestScore){
-          bestScore = score
-          bestDriver = d
-        }
-      }
-
-      if(!bestDriver) continue
-
-      await Store.assignDriver(trip._id, bestDriver._id)
-
-      driverState[bestDriver._id].tripCount++
-      driverState[bestDriver._id].lastDropoff = trip.dropoff
-      driverState[bestDriver._id].lastEnd = this.getEnd(trip)
+      await Store.assignDriver(trip._id, driver._id)
 
     }
 
-    alert("Done")
+    alert("Assigned")
     this.load()
 
-  },
-
-  /* ================= SCORE ================= */
-  async scoreDriver(driver, trip, state){
-
-    const scheduleRow = this.schedule[driver._id] || {}
-
-    const from = state.lastDropoff || scheduleRow.address || driver.address || ""
-
-    const route = await this.getRoute(from, trip.pickup)
-
-    let dist = route?.distanceKm || 999
-    let dur = route?.durationMin || 999
-
-    dur *= this.traffic(trip.tripTime)
-
-    let timePenalty = 0
-
-    if(state.lastEnd){
-
-      const start = new Date(`${trip.tripDate} ${trip.tripTime}`)
-      const gap = (start - state.lastEnd)/60000
-
-      if(gap < dur){
-        timePenalty = 9999
-      }
-
-    }
-
-    const fairness = state.tripCount * 20
-
-    return dist*2 + dur*3 + fairness + timePenalty
-
-  },
-
-  traffic(time){
-
-    const h = Number(time?.split(":")[0]||0)
-
-    if(h>=6 && h<=9) return 1.4
-    if(h>=15 && h<=18) return 1.3
-
-    return 1
-  },
-
-  getEnd(trip){
-
-    const d = new Date(`${trip.tripDate} ${trip.tripTime}`)
-    d.setMinutes(d.getMinutes()+35)
-    return d
-  },
-
-  /* ================= ROUTE ================= */
-  async getRoute(from,to){
-
-    const key = from+"_"+to
-
-    if(this.routeCache[key]) return this.routeCache[key]
-
-    const f = await this.geo(from)
-    const t = await this.geo(to)
-
-    if(!f || !t) return null
-
-    const res = await fetch(`${this.OSRM}/${f.lng},${f.lat};${t.lng},${t.lat}?overview=false`)
-    const data = await res.json()
-
-    const r = {
-      distanceKm:data.routes[0].distance/1000,
-      durationMin:data.routes[0].duration/60
-    }
-
-    this.routeCache[key]=r
-
-    return r
-  },
-
-  async geo(addr){
-
-    if(!addr) return null
-
-    if(this.geoCache[addr]) return this.geoCache[addr]
-
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`)
-    const data = await res.json()
-
-    if(!data.length) return null
-
-    const p={lat:+data[0].lat,lng:+data[0].lon}
-
-    this.geoCache[addr]=p
-
-    return p
   }
 
 }
+
+Engine.load()
