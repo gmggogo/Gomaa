@@ -133,40 +133,13 @@ app.get("/api/driver-schedule", async (req, res) => {
     const result = {};
 
     for (const r of rows) {
-      const scheduleRow = {
+      result[r.driverId] = {
         phone: r.phone || "",
         address: r.address || "",
         vehicleNumber: r.vehicleNumber || "",
         enabled: r.enabled === true,
         days: r.days || {}
       };
-
-      /* save by driverId exactly as stored */
-      result[r.driverId] = scheduleRow;
-
-      /* if driverId is valid ObjectId, also save by driver name */
-      try {
-        if (mongoose.Types.ObjectId.isValid(r.driverId)) {
-          const driver = await User.findById(r.driverId);
-
-          if (driver && driver.name) {
-            result[driver.name] = scheduleRow;
-          }
-        } else {
-          const driver = await User.findOne({
-            $or: [
-              { username: r.driverId },
-              { name: r.driverId }
-            ]
-          });
-
-          if (driver && driver.name) {
-            result[driver.name] = scheduleRow;
-          }
-        }
-      } catch (lookupErr) {
-        console.log("Driver lookup skipped:", r.driverId);
-      }
     }
 
     res.json(result);
@@ -694,33 +667,13 @@ app.get("/api/dispatch", async (req, res) => {
     const schedule = {};
 
     for (const r of scheduleRows) {
-      const scheduleRow = {
+      schedule[r.driverId] = {
         phone: r.phone || "",
         address: r.address || "",
         vehicleNumber: r.vehicleNumber || "",
         enabled: r.enabled === true,
         days: r.days || {}
       };
-
-      schedule[r.driverId] = scheduleRow;
-
-      try {
-        if (mongoose.Types.ObjectId.isValid(r.driverId)) {
-          const driver = drivers.find(d => String(d._id) === String(r.driverId));
-          if (driver && driver.name) {
-            schedule[driver.name] = scheduleRow;
-          }
-        } else {
-          const driver = drivers.find(d =>
-            d.username === r.driverId || d.name === r.driverId
-          );
-          if (driver && driver.name) {
-            schedule[driver.name] = scheduleRow;
-          }
-        }
-      } catch (lookupErr) {
-        console.log("Dispatch schedule lookup skipped:", r.driverId);
-      }
     }
 
     res.json({
@@ -795,13 +748,17 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
       return res.status(400).json({ message: "User is not a driver" });
     }
 
+    const driverSchedule = await DriverSchedule.findOne({
+      driverId: driver._id.toString()
+    });
+
     const trip = await Trip.findByIdAndUpdate(
       req.params.id,
       {
         driverId: driver._id.toString(),
         driverName: driver.name || "",
-        vehicle: driver.vehicleNumber || "",
-        driverAddress: driver.address || "",
+        vehicle: driverSchedule?.vehicleNumber || driver.vehicleNumber || "",
+        driverAddress: driverSchedule?.address || driver.address || "",
         status: "Driver Assigned"
       },
       { new: true }
