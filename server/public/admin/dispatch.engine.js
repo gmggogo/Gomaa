@@ -29,6 +29,13 @@ const Engine = {
       this.schedule = await Store.getSchedule() || {}
       this.liveDrivers = await Store.getLiveDrivers() || []
 
+      if(!Array.isArray(this.trips)) this.trips = []
+      if(!Array.isArray(this.drivers)) this.drivers = []
+      if(!Array.isArray(this.liveDrivers)) this.liveDrivers = []
+
+      // ✅ حذف الرحلات القديمة
+      this.filterExpiredTrips()
+
       this.sortTrips()
 
       UI.renderTrips(this.trips)
@@ -49,6 +56,30 @@ const Engine = {
   },
 
   /* =========================
+  حذف الرحلات بعد ساعة
+  ========================= */
+  filterExpiredTrips(){
+
+    const now = new Date(
+      new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    )
+
+    this.trips = this.trips.filter(t=>{
+
+      if(!t.tripDate || !t.tripTime) return true
+
+      const tripTime = new Date(`${t.tripDate} ${t.tripTime}`)
+
+      if(isNaN(tripTime)) return true
+
+      const diff = (now - tripTime) / 60000
+
+      return diff <= 60
+    })
+
+  },
+
+  /* =========================
   SORT
   ========================= */
   sortTrips(){
@@ -62,7 +93,7 @@ const Engine = {
   },
 
   /* =========================
-  DATE → DAY (FIX)
+  DAY FROM DATE (FIX)
   ========================= */
   getDayFromDate(dateStr){
 
@@ -78,7 +109,7 @@ const Engine = {
   },
 
   /* =========================
-  GET DRIVERS FOR TRIP
+  DRIVERS FOR TRIP (FIX)
   ========================= */
   getDriversForTrip(trip){
 
@@ -99,17 +130,56 @@ const Engine = {
   },
 
   /* =========================
+  DRIVER NAME
+  ========================= */
+  getDriverNameById(driverId){
+
+    const d = this.drivers.find(x=>String(x._id)===String(driverId))
+    return d?.name || "-"
+  },
+
+  /* =========================
   VEHICLE
   ========================= */
   getDriverVehicleById(driverId){
 
     const d = this.drivers.find(x=>String(x._id)===String(driverId))
-    return d?.vehicleNumber || ""
+    return d?.vehicleNumber || "-"
+  },
+
+  /* =========================
+  SELECTION
+  ========================= */
+  bindSelection(){
+
+    document.querySelectorAll(".tripSelect").forEach(box=>{
+
+      box.addEventListener("change",()=>{
+
+        const row = box.closest("tr")
+        const btn = row.querySelector(".btn-send")
+
+        if(btn){
+          btn.disabled = !box.checked
+        }
+
+        row.classList.toggle("row-selected", box.checked)
+
+      })
+
+    })
+
+  },
+
+  getSelected(){
+
+    return [...document.querySelectorAll(".tripSelect:checked")]
+      .map(el=>el.value)
 
   },
 
   /* =========================
-  REDISTRIBUTE
+  REDISTRIBUTE (FIX)
   ========================= */
   async redistributeSelected(){
 
@@ -139,7 +209,6 @@ const Engine = {
         continue
       }
 
-      /* init state */
       drivers.forEach(d=>{
         if(!driverState[d._id]){
           driverState[d._id] = {
@@ -233,9 +302,6 @@ const Engine = {
 
   },
 
-  /* =========================
-  TRAFFIC
-  ========================= */
   trafficFactor(time){
 
     const h = Number(time?.split(":")[0] || 0)
@@ -246,9 +312,6 @@ const Engine = {
     return 1
   },
 
-  /* =========================
-  END TIME
-  ========================= */
   estimateTripEnd(date,time){
 
     const d = new Date(`${date} ${time}`)
@@ -263,12 +326,14 @@ const Engine = {
 
     if(!address) return null
 
-    if(this.geoCache[address]) return this.geoCache[address]
+    const key = address.trim().toLowerCase()
+
+    if(this.geoCache[key]) return this.geoCache[key]
 
     try{
 
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`
       )
 
       const data = await res.json()
@@ -280,12 +345,30 @@ const Engine = {
         lng:Number(data[0].lon)
       }
 
-      this.geoCache[address]=p
+      this.geoCache[key]=p
 
       return p
 
     }catch(e){
       return null
+    }
+
+  },
+
+  async reverseGeocode(lat,lng){
+
+    try{
+
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+      )
+
+      const data = await res.json()
+
+      return data.display_name || ""
+
+    }catch(e){
+      return ""
     }
 
   },
@@ -311,6 +394,8 @@ const Engine = {
       )
 
       const data = await res.json()
+
+      if(!data.routes?.length) return null
 
       const r = {
         distanceKm:data.routes[0].distance/1000,
@@ -354,12 +439,33 @@ const Engine = {
 
       const p = await this.geocode(t.pickup)
 
-      if(p){
+      if(!p) continue
 
-        const m = L.marker([p.lat,p.lng]).addTo(this.map)
-        this.tripMarkers.push(m)
+      const m = L.marker([p.lat,p.lng])
+        .addTo(this.map)
+        .bindPopup(`
+          <b>${t.tripNumber || "Trip"}</b><br>
+          Driver: ${this.getDriverNameById(t.driver)}<br>
+          Car: ${this.getDriverVehicleById(t.driver)}
+        `)
 
-      }
+      this.tripMarkers.push(m)
+
+    }
+
+    for(const d of this.liveDrivers){
+
+      if(d.lat == null || d.lng == null) continue
+
+      const m = L.circleMarker([d.lat,d.lng],{
+        radius:8,
+        color:"#16a34a",
+        fillColor:"#16a34a",
+        fillOpacity:0.9
+      })
+      .addTo(this.map)
+
+      this.driverMarkers.push(m)
 
     }
 
