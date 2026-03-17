@@ -4,117 +4,11 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dispatch System</title>
+<title>Dispatch</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- MAIN STYLE -->
 <link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="/admin/header.css">
-
-<style>
-
-body{
-margin:0;
-font-family:'Segoe UI',Arial;
-background:#f3f4f6;
-}
-
-/* HEADER FIX */
-#adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:999;
-}
-
-/* PAGE */
-.page-body{
-max-width:1400px;
-margin:auto;
-padding:200px 15px 40px;
-}
-
-/* BUTTONS */
-.top-actions{
-display:flex;
-gap:10px;
-flex-wrap:wrap;
-margin-bottom:10px;
-}
-
-.btn{
-padding:6px 12px;
-border:none;
-border-radius:6px;
-cursor:pointer;
-font-size:12px;
-}
-
-.blue{background:#2563eb;color:#fff;}
-.orange{background:#f59e0b;color:#fff;}
-.purple{background:#7c3aed;color:#fff;}
-.green{background:#16a34a;color:#fff;}
-
-/* GRID */
-.dispatch-grid{
-display:grid;
-grid-template-columns:2fr 1fr;
-gap:12px;
-margin-bottom:10px;
-}
-
-/* BOX */
-.box{
-background:#fff;
-border-radius:8px;
-overflow:hidden;
-}
-
-.box-title{
-background:#1e293b;
-color:#fff;
-padding:8px;
-font-size:13px;
-}
-
-/* MAP */
-#dispatchMap{
-height:300px;
-}
-
-/* DRIVERS */
-#driversPanel{
-padding:10px;
-font-size:12px;
-}
-
-.driver-card{
-border-bottom:1px solid #e5e7eb;
-padding:6px 0;
-}
-
-/* TABLE */
-table{
-width:100%;
-border-collapse:collapse;
-background:#fff;
-}
-
-th{
-background:#1e293b;
-color:#fff;
-padding:6px;
-font-size:12px;
-}
-
-td{
-border:1px solid #e5e7eb;
-padding:5px;
-font-size:11px;
-text-align:center;
-}
-
-</style>
 
 </head>
 
@@ -123,45 +17,50 @@ text-align:center;
 <!-- HEADER -->
 <div id="adminHeader"></div>
 
-<div class="page-body">
+<!-- PAGE -->
+<div class="page-container">
 
-<!-- BUTTONS -->
+<!-- 🔥 ACTION BUTTONS -->
 <div class="top-actions">
 
-<button class="btn blue" onclick="Engine.redistributeSelected()">
+<button onclick="Engine.redistributeSelected()" class="btn-blue">
 Redistribute Selected
 </button>
 
-<button class="btn orange">
+<button id="editBtn" onclick="UI.toggleEdit()" class="btn-orange">
 Manual Edit
 </button>
 
-<button class="btn purple">
+<button onclick="Engine.load()" class="btn-purple">
 Save Changes
 </button>
 
-<button class="btn green" onclick="Engine.sendSelected()">
+<button onclick="Engine.sendSelected()" class="btn-green">
 Send Selected
 </button>
 
 </div>
 
-<!-- GRID -->
+<!-- 🔥 GRID -->
 <div class="dispatch-grid">
 
 <!-- MAP -->
-<div class="box">
+<div class="card">
 
-<div class="box-title">Live Dispatch Map</div>
+<div class="card-header">
+Live Dispatch Map
+</div>
 
-<div id="dispatchMap"></div>
+<div id="dispatchMap" style="height:250px;"></div>
 
 </div>
 
 <!-- DRIVERS -->
-<div class="box">
+<div class="card">
 
-<div class="box-title">Active Drivers</div>
+<div class="card-header">
+Active Drivers
+</div>
 
 <div id="driversPanel"></div>
 
@@ -169,8 +68,10 @@ Send Selected
 
 </div>
 
-<!-- TABLE -->
-<table>
+<!-- 🔥 TABLE -->
+<div class="table-wrapper">
+
+<table class="dispatch-table">
 
 <thead>
 <tr>
@@ -191,15 +92,22 @@ Send Selected
 </tr>
 </thead>
 
-<tbody id="dispatchBody"></tbody>
+<tbody id="dispatchBody">
+
+<!-- بيتم ملئه من JS -->
+
+</tbody>
 
 </table>
 
 </div>
 
-<!-- SCRIPTS -->
+</div>
+
+<!-- 🔥 HEADER LOAD -->
 <script src="/admin/header.js"></script>
 
+<!-- 🔥 SCRIPTS -->
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.ui.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
