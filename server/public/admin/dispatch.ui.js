@@ -28,6 +28,11 @@ const UI = {
       const tr = document.createElement("tr")
       tr.dataset.id = t._id
 
+      const driverName = Engine.getDriverNameById(t.driverId)
+      const vehicle = Engine.getDriverVehicleById(t.driverId)
+
+      const availableDrivers = Engine.getDriversForTrip(t)
+
       tr.innerHTML = `
 
         <td>
@@ -39,7 +44,7 @@ const UI = {
         <td>${t.tripNumber || ""}</td>
         <td>${t.clientName || ""}</td>
         <td>${t.pickup || ""}</td>
-        <td>${(t.stops || []).join(" | ")}</td>
+        <td>${Array.isArray(t.stops) ? t.stops.join(" | ") : ""}</td>
         <td>${t.dropoff || ""}</td>
         <td>${t.tripDate || ""}</td>
         <td>${t.tripTime || ""}</td>
@@ -52,12 +57,12 @@ const UI = {
 
         <td class="driverCell">
 
-          <span class="driverName">${t.driverName || "-"}</span>
+          <span class="driverName">${driverName}</span>
 
           <select class="driverEdit">
             <option value="">-- Select Driver --</option>
 
-            ${(Engine.drivers || []).map(d=>`
+            ${availableDrivers.map(d=>`
               <option value="${d._id}"
                 ${String(t.driverId)===String(d._id) ? "selected":""}>
                 ${d.name}
@@ -69,7 +74,7 @@ const UI = {
         </td>
 
         <td class="carCell">
-          ${Engine.getDriverVehicleById(t.driverId) || t.vehicle || "-"}
+          ${vehicle}
         </td>
 
         <td>
@@ -83,6 +88,9 @@ const UI = {
 
       tbody.appendChild(tr)
     })
+
+    // 🔥 مهم جدًا
+    Engine.bind()
 
   },
 

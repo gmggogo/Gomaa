@@ -21,8 +21,12 @@ const Store = {
 
       console.log("Trips Loaded:", data)
 
-      // 💥 أهم سطر عشان أي فورمات
-      return Array.isArray(data) ? data : data.trips || []
+      // 🔥 يدعم كل الأشكال
+      if(Array.isArray(data)) return data
+      if(Array.isArray(data.trips)) return data.trips
+      if(Array.isArray(data.data)) return data.data
+
+      return []
 
     }catch(err){
       console.error("Trips Error", err)
@@ -38,13 +42,19 @@ const Store = {
 
       const res = await fetch(this.API_DRIVERS)
 
-      if(!res.ok) return []
+      if(!res.ok){
+        console.error("Drivers API failed")
+        return []
+      }
 
       const data = await res.json()
 
       console.log("Drivers Loaded:", data)
 
-      return data || []
+      if(Array.isArray(data)) return data
+      if(Array.isArray(data.drivers)) return data.drivers
+
+      return []
 
     }catch(err){
       console.error("Drivers Error", err)
@@ -60,7 +70,10 @@ const Store = {
 
       const res = await fetch(this.API_SCHEDULE)
 
-      if(!res.ok) return {}
+      if(!res.ok){
+        console.error("Schedule API failed")
+        return {}
+      }
 
       const data = await res.json()
 
@@ -82,13 +95,19 @@ const Store = {
 
       const res = await fetch(this.API_LIVE)
 
-      if(!res.ok) return []
+      if(!res.ok){
+        console.error("Live API failed")
+        return []
+      }
 
       const data = await res.json()
 
       console.log("Live Drivers:", data)
 
-      return data || []
+      if(Array.isArray(data)) return data
+      if(Array.isArray(data.drivers)) return data.drivers
+
+      return []
 
     }catch(err){
       console.error("Live Error", err)
