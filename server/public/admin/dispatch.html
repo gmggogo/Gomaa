@@ -1,310 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <title>Dispatch</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Dispatch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="/admin/style.css">
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    crossorigin=""
-  >
+<!-- 🔥 CSS -->
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/dispatch.css">
 
-  <style>
-    body{
-      margin:0;
-      font-family:Segoe UI,Arial,sans-serif;
-      background:#f1f5f9;
-    }
-
-    #adminHeader{
-      position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      z-index:1000;
-    }
-
-    .page-body{
-      padding-top:300px;
-      padding-left:20px;
-      padding-right:20px;
-      padding-bottom:20px;
-    }
-
-    @media (max-width:768px){
-      .page-body{
-        padding-top:360px;
-        padding-left:10px;
-        padding-right:10px;
-      }
-    }
-
-    .dispatch-toolbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-bottom:12px;
-    }
-
-    .toolbar-left,
-    .toolbar-right{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
-    .btn{
-      border:none;
-      padding:7px 12px;
-      border-radius:7px;
-      cursor:pointer;
-      font-size:13px;
-      font-weight:600;
-    }
-
-    .btn-blue{ background:#2563eb; color:#fff; }
-    .btn-green{ background:#16a34a; color:#fff; }
-    .btn-orange{ background:#ea580c; color:#fff; }
-    .btn-purple{ background:#7c3aed; color:#fff; }
-    .btn-dark{ background:#0f172a; color:#fff; }
-
-    .btn-send{
-      background:#16a34a;
-      color:#fff;
-      border:none;
-      padding:5px 10px;
-      border-radius:6px;
-      font-size:12px;
-      cursor:pointer;
-    }
-
-    .btn-send:disabled{
-      background:#94a3b8;
-      cursor:not-allowed;
-    }
-
-    .dispatch-layout{
-      display:grid;
-      grid-template-columns:1.2fr 1fr;
-      gap:12px;
-      margin-bottom:12px;
-    }
-
-    @media (max-width:1100px){
-      .dispatch-layout{
-        grid-template-columns:1fr;
-      }
-    }
-
-    .panel{
-      background:#fff;
-      border-radius:10px;
-      overflow:hidden;
-      box-shadow:0 2px 8px rgba(15,23,42,.08);
-    }
-
-    .panel-title{
-      background:#0f172a;
-      color:#fff;
-      padding:10px 12px;
-      font-size:14px;
-      font-weight:700;
-    }
-
-    #dispatchMap{
-      width:100%;
-      height:380px;
-      background:#e2e8f0;
-    }
-
-    .drivers-box{
-      padding:10px;
-      max-height:380px;
-      overflow:auto;
-    }
-
-    .driver-card{
-      border:1px solid #e2e8f0;
-      border-radius:8px;
-      padding:8px 10px;
-      margin-bottom:8px;
-      font-size:12px;
-      background:#fff;
-    }
-
-    .driver-card strong{
-      color:#0f172a;
-    }
-
-    .driver-meta{
-      margin-top:4px;
-      color:#334155;
-      line-height:1.5;
-    }
-
-    .status-live{
-      color:#16a34a;
-      font-weight:700;
-    }
-
-    .status-schedule{
-      color:#0f172a;
-      font-weight:700;
-    }
-
-    .table-scroll{
-      width:100%;
-      overflow-x:auto;
-    }
-
-    .trip-table{
-      width:100%;
-      min-width:1450px;
-      border-collapse:collapse;
-      background:#fff;
-      font-size:13px;
-    }
-
-    .trip-table th{
-      background:#0f172a;
-      color:#fff;
-      padding:8px;
-      text-align:center;
-      white-space:nowrap;
-    }
-
-    .trip-table td{
-      padding:6px;
-      border-bottom:1px solid #eee;
-      text-align:center;
-      vertical-align:middle;
-    }
-
-    .trip-table select,
-    .trip-table input[type="text"]{
-      width:100%;
-      box-sizing:border-box;
-      border:1px solid #d1d5db;
-      border-radius:6px;
-      padding:5px 6px;
-      font-size:12px;
-      background:#fff;
-    }
-
-    .driverEdit,
-    .noteEdit{
-      display:none;
-    }
-
-    .noteEdit{
-      min-width:150px;
-    }
-
-    .dispatch-check:checked{
-      accent-color:#16a34a;
-    }
-
-    .row-selected{
-      background:#f8fafc;
-    }
-  </style>
 </head>
+
 <body>
 
-  <div id="adminHeader"></div>
+<!-- 🔥 HEADER بيتسحب -->
+<div id="adminHeader"></div>
 
-  <div class="page-body">
+<!-- 🔥 MAIN -->
+<div class="dispatch-container">
 
-    <div class="dispatch-toolbar">
-      <div class="toolbar-left">
-        <button class="btn btn-blue" onclick="Engine.redistributeSelected()">
-          Redistribute Selected
-        </button>
+  <!-- BUTTONS -->
+  <div class="dispatch-actions">
+    <button onclick="Engine.autoAssignSmart()">Smart Assign</button>
+  </div>
 
-        <button class="btn btn-orange" onclick="Engine.toggleManualEdit()">
-          Manual Edit
-        </button>
+  <!-- MAP + DRIVERS -->
+  <div class="dispatch-top">
 
-        <button class="btn btn-purple" onclick="Engine.saveManualChanges()">
-          Save Changes
-        </button>
+    <div id="dispatchMap"></div>
 
-        <button class="btn btn-green" onclick="Engine.sendSelected()">
-          Send Selected
-        </button>
-      </div>
-
-      <div class="toolbar-right">
-        <button id="selectToggleBtn" class="btn btn-dark" onclick="Engine.toggleSelectAll()">
-          Select All
-        </button>
-      </div>
-    </div>
-
-    <div class="dispatch-layout">
-      <div class="panel">
-        <div class="panel-title">Live Dispatch Map</div>
-        <div id="dispatchMap"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">Active Drivers</div>
-        <div id="driversPanel" class="drivers-box">Loading drivers...</div>
-      </div>
-    </div>
-
-    <div class="table-scroll">
-      <table class="trip-table">
-        <thead>
-          <tr>
-            <th>Select</th>
-            <th>Trip #</th>
-            <th>Client</th>
-            <th>Pickup</th>
-            <th>Stops</th>
-            <th>Dropoff</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Notes</th>
-            <th>Driver</th>
-            <th>Vehicle</th>
-            <th>Send</th>
-          </tr>
-        </thead>
-
-        <tbody id="dispatchBody">
-          <tr>
-            <td colspan="12" style="text-align:center;padding:40px">
-              Loading trips...
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <div id="driversPanel"></div>
 
   </div>
 
-  <script src="/admin/header.js"></script>
+  <!-- TABLE -->
+  <table class="dispatch-table">
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    crossorigin=""
-  ></script>
+    <thead>
+      <tr>
+        <th>Trip #</th>
+        <th>Client</th>
+        <th>Pickup</th>
+        <th>Stops</th>
+        <th>Dropoff</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Notes</th>
+        <th>Driver</th>
+        <th>Vehicle</th>
+        <th>Assign</th>
+      </tr>
+    </thead>
 
-  <script src="/admin/dispatch.store.js"></script>
-  <script src="/admin/dispatch.ui.js"></script>
-  <script src="/admin/dispatch.engine.js"></script>
+    <tbody id="dispatchBody"></tbody>
 
-  <script>
-    document.addEventListener("DOMContentLoaded",()=>{
-      Engine.load()
-    })
-  </script>
+  </table>
+
+</div>
+
+<!-- 🔥 SCRIPTS -->
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch.store.js"></script>
+<script src="/admin/dispatch.engine.js"></script>
+<script src="/admin/dispatch.ui.js"></script>
+
+<script>
+  // تحميل الهيدر
+  if(typeof loadAdminHeader === "function"){
+    loadAdminHeader()
+  }
+
+  // تشغيل السيستم
+  Engine.load()
+</script>
 
 </body>
 </html>

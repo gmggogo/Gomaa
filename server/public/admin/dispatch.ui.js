@@ -7,12 +7,10 @@ const UI = {
 
     tbody.innerHTML = ""
 
-    if(!trips.length){
-      tbody.innerHTML = `<tr><td colspan="12">No Trips</td></tr>`
-      return
-    }
-
     trips.forEach(t=>{
+
+      const driverName = Engine.getDriverNameById(t.driverId)
+      const vehicle = Engine.getDriverVehicleById(t.driverId)
 
       const drivers = Engine.getDriversForTrip(t)
 
@@ -22,52 +20,46 @@ const UI = {
         </option>
       `).join("")
 
-      tbody.innerHTML += `
-        <tr>
+      const tr = document.createElement("tr")
 
-          <td>${t.tripNumber || ""}</td>
-          <td>${t.clientName || ""}</td>
-          <td>${t.pickup || ""}</td>
-          <td>${t.dropoff || ""}</td>
-          <td>${t.tripDate || ""}</td>
-          <td>${t.tripTime || ""}</td>
+      tr.innerHTML = `
+        <td>${t.tripNumber || ""}</td>
+        <td>${t.clientName || ""}</td>
+        <td>${t.pickup || ""}</td>
+        <td>${t.stops || ""}</td>
+        <td>${t.dropoff || ""}</td>
+        <td>${t.tripDate || ""}</td>
+        <td>${t.tripTime || ""}</td>
+        <td>${t.notes || ""}</td>
 
-          <td>${Engine.getDriverNameById(t.driverId)}</td>
-          <td>${Engine.getDriverVehicleById(t.driverId)}</td>
+        <td>${driverName}</td>
+        <td>${vehicle}</td>
 
-          <td>
-            <select onchange="Store.assignDriver('${t._id}',this.value)">
-              <option>Assign</option>
-              ${options}
-            </select>
-          </td>
-
-        </tr>
+        <td>
+          <select onchange="Store.assignDriver('${t._id}',this.value)">
+            <option value="">Assign</option>
+            ${options}
+          </select>
+        </td>
       `
+
+      tbody.appendChild(tr)
+
     })
 
   },
 
-  renderDriversPanel(drivers,schedule,liveDrivers){
+  renderDriversPanel(drivers,schedule){
 
     const el = document.getElementById("driversPanel")
     if(!el) return
 
-    if(!drivers.length){
-      el.innerHTML="No drivers"
-      return
-    }
-
     el.innerHTML = drivers.map(d=>`
 
-      <div style="padding:10px;border-bottom:1px solid #eee">
-
+      <div class="driver-card">
         <strong>${d.name || "-"}</strong><br>
-
         Car: ${d.vehicleNumber || "-"}<br>
-
-        Address: ${(schedule[d._id]?.address) || d.address || "-"}<br>
-
+        Address: ${(schedule[d._id]?.address) || d.address || "-"}
       </div>
 
     `).join("")
