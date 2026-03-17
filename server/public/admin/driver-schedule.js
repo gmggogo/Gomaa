@@ -33,7 +33,7 @@ function buildWeek(){
 
   }
 
-  document.getElementById("weekTitle").innerText=
+  document.getElementById("weekTitle").innerText =
   `Week ${week[0].date} → ${week[6].date} (Arizona)`
 
   return week
@@ -59,7 +59,6 @@ async function save(){
   const clean = {}
 
   for(const id in schedule){
-
     clean[id] = {
       phone: schedule[id].phone || "",
       address: schedule[id].address || "",
@@ -67,7 +66,6 @@ async function save(){
       enabled: schedule[id].enabled === true,
       days: schedule[id].days || {}
     }
-
   }
 
   await fetch(API_SCHEDULE,{
@@ -166,7 +164,7 @@ style="display:none">
 ${activeToday?'ACTIVE':'NOT ACTIVE'}
 </td>
 
-<td>
+<td style="white-space:nowrap">
 
 ${
 s.edit
