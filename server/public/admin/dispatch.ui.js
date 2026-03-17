@@ -1,22 +1,17 @@
 const tbody = document.getElementById("dispatchBody")
 const driversPanel = document.getElementById("driversPanel")
 
-// 🔥 حالة التعديل
 let editMode = false
 
 const UI = {
 
-  /* =======================
-  TOGGLE EDIT
-  ======================= */
+  /* ================= TOGGLE EDIT ================= */
   toggleEdit(){
     editMode = !editMode
     this.applyEditMode()
   },
 
-  /* =======================
-  RENDER TRIPS
-  ======================= */
+  /* ================= RENDER TRIPS ================= */
   renderTrips(trips){
 
     if(!tbody){
@@ -42,17 +37,18 @@ const UI = {
       const tr = document.createElement("tr")
       tr.dataset.id = t._id
 
-      const driverName = Engine.getDriverNameById(t.driverId)
-      const vehicle = Engine.getDriverVehicleById(t.driverId)
+      // 🔥 مهم: ناخد من التريب نفسه
+      const driverName = t.driverName || "-"
+      const vehicle = t.vehicle || "-"
 
-      const availableDrivers = Engine.getDriversForTrip(t)
+      const availableDrivers = Engine.drivers || []
 
       tr.innerHTML = `
 
         <td>
           <input type="checkbox"
-            class="tripSelect dispatch-check"
-            onchange="UI.onSelectRow(this)"
+            class="tripSelect"
+            onchange="UI.onSelect(this)"
             value="${t._id}">
         </td>
 
@@ -64,24 +60,21 @@ const UI = {
         <td>${t.tripDate || ""}</td>
         <td>${t.tripTime || ""}</td>
 
-        <td>
-          <span class="noteName">${t.notes || "-"}</span>
-        </td>
+        <td>${t.notes || "-"}</td>
 
-        <!-- 🔥 DRIVER -->
-        <td class="driverCell">
+        <!-- DRIVER -->
+        <td>
 
           <span class="driverName">${driverName}</span>
 
-          <select class="driverEdit"
+          <select class="driverSelect"
             style="display:none"
-            onchange="Engine.assignDriver('${t._id}', this.value)">
+            onchange="UI.changeDriver('${t._id}', this)">
 
-            <option value="">-- Select Driver --</option>
+            <option value="">-- Select --</option>
 
             ${availableDrivers.map(d=>`
-              <option value="${d._id}"
-                ${String(t.driverId)===String(d._id) ? "selected":""}>
+              <option value="${d._id}">
                 ${d.name}
               </option>
             `).join("")}
@@ -90,14 +83,11 @@ const UI = {
 
         </td>
 
-        <!-- 🔥 VEHICLE -->
-        <td class="carCell">
-          ${vehicle}
-        </td>
+        <!-- VEHICLE -->
+        <td class="carCell">${vehicle}</td>
 
         <td>
-          <button class="btn-send" disabled
-            onclick="Engine.sendSingle('${t._id}', this)">
+          <button onclick="Engine.sendSingle('${t._id}', this)">
             Send
           </button>
         </td>
@@ -107,45 +97,11 @@ const UI = {
       tbody.appendChild(tr)
     })
 
-    Engine.bind()
-
     this.applyEditMode()
   },
 
-  /* =======================
-  APPLY EDIT MODE
-  ======================= */
-  applyEditMode(){
-
-    const rows = document.querySelectorAll("#dispatchBody tr")
-
-    rows.forEach(row=>{
-
-      const check = row.querySelector(".tripSelect")
-      const select = row.querySelector(".driverEdit")
-      const name = row.querySelector(".driverName")
-
-      if(!check || !select || !name) return
-
-      if(editMode && check.checked){
-
-        select.style.display = "block"
-        name.style.display = "none"
-
-      }else{
-
-        select.style.display = "none"
-        name.style.display = "block"
-
-      }
-
-    })
-  },
-
-  /* =======================
-  CHECKBOX SELECT
-  ======================= */
-  onSelectRow(el){
+  /* ================= SELECT ================= */
+  onSelect(el){
 
     const row = el.closest("tr")
 
@@ -158,48 +114,80 @@ const UI = {
     this.applyEditMode()
   },
 
-  /* =======================
-  DRIVERS PANEL
-  ======================= */
-  renderDriversPanel(drivers, schedule, liveDrivers){
+  /* ================= APPLY EDIT ================= */
+  applyEditMode(){
+
+    const rows = document.querySelectorAll("#dispatchBody tr")
+
+    rows.forEach(row=>{
+
+      const check = row.querySelector(".tripSelect")
+      const name = row.querySelector(".driverName")
+      const select = row.querySelector(".driverSelect")
+
+      if(!check || !name || !select) return
+
+      if(editMode && check.checked){
+
+        name.style.display = "none"
+        select.style.display = "block"
+
+      }else{
+
+        name.style.display = "block"
+        select.style.display = "none"
+
+      }
+
+    })
+  },
+
+  /* ================= CHANGE DRIVER ================= */
+  async changeDriver(tripId, select){
+
+    const driverId = select.value
+
+    if(!driverId) return
+
+    // 🔥 نجيب الدريفر من اللي موجودين
+    const driver = Engine.drivers.find(d=>String(d._id)===String(driverId))
+
+    if(!driver) return
+
+    // 🔥 نغير UI فورًا
+    const row = select.closest("tr")
+
+    row.querySelector(".driverName").innerText = driver.name
+    row.querySelector(".carCell").innerText = driver.vehicleNumber || "-"
+
+    // 🔥 نبعته للسيرفر
+    await Store.assignDriver(tripId, driverId)
+
+  },
+
+  /* ================= DRIVERS PANEL ================= */
+  renderDriversPanel(drivers, schedule){
 
     if(!driversPanel) return
 
-    const today = Engine.getTodayKey()
-
-    const activeDrivers = drivers.filter(d=>{
-      const s = schedule[d._id]
-      return s && s.enabled && s.days && s.days[today]
-    })
-
-    if(!activeDrivers.length){
-      driversPanel.innerHTML = "No active drivers"
-      return
-    }
-
-    driversPanel.innerHTML = activeDrivers.map(d=>{
+    driversPanel.innerHTML = drivers.map(d=>{
 
       return `
-        <div class="driver-card" style="
+        <div style="
           display:flex;
           justify-content:space-between;
-          padding:8px;
+          padding:6px;
           border-bottom:1px solid #eee;
         ">
-
-          <strong>${d.name || "-"}</strong>
-
-          <span>🚗 ${Engine.getDriverVehicleById(d._id)}</span>
-
+          <strong>${d.name}</strong>
+          <span>🚗 ${d.vehicleNumber || "-"}</span>
         </div>
       `
 
     }).join("")
   },
 
-  /* =======================
-  GET SELECTED
-  ======================= */
+  /* ================= GET SELECTED ================= */
   getSelected(){
     return [...document.querySelectorAll(".tripSelect:checked")]
       .map(e=>e.value)
