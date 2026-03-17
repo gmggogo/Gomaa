@@ -2,130 +2,116 @@ const API_DRIVERS="/api/drivers"
 const API_SCHEDULE="/api/driver-schedule"
 
 let schedule={}
+let drivers=[]
 
 const tbody=document.getElementById("tbody")
 
-/* =========================
-ARIZONA DATE
-========================= */
+/* ================= AZ DATE ================= */
 function azDate(d=new Date()){
-return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}))
+  return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}))
 }
 
-/* =========================
-BUILD WEEK
-========================= */
+/* ================= WEEK ================= */
 function buildWeek(){
 
-const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+  const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+  const start=azDate()
+  const week=[]
 
-const start=azDate()
-const week=[]
+  for(let i=0;i<7;i++){
 
-for(let i=0;i<7;i++){
+    const d=new Date(start)
+    d.setDate(start.getDate()+i)
 
-const d=new Date(start)
-d.setDate(start.getDate()+i)
+    const key=d.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
 
-const key=d.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
+    week.push({
+      label:days[d.getDay()],
+      key:key,
+      date:`${d.getMonth()+1}/${d.getDate()}`
+    })
 
-week.push({
-label:days[d.getDay()],
-key:key,
-date:`${d.getMonth()+1}/${d.getDate()}`
-})
+  }
 
-}
+  document.getElementById("weekTitle").innerText=
+  `Week ${week[0].date} → ${week[6].date} (Arizona)`
 
-document.getElementById("weekTitle").innerText=
-`Week ${week[0].date} → ${week[6].date} (Arizona)`
-
-return week
+  return week
 }
 
 const WEEK=buildWeek()
 
-/* =========================
-LOAD DRIVERS
-========================= */
+/* ================= LOAD ================= */
 async function loadDrivers(){
-const res=await fetch(API_DRIVERS)
-return await res.json()
+  const res=await fetch(API_DRIVERS)
+  const data=await res.json()
+
+  // 🔥 نحمي نفسنا من أي فورمات
+  drivers = Array.isArray(data) ? data : data.drivers || []
 }
 
-/* =========================
-LOAD SCHEDULE
-========================= */
 async function loadSchedule(){
-
-const res=await fetch(API_SCHEDULE)
-
-if(res.ok){
-schedule=await res.json()
-}else{
-schedule={}
+  const res=await fetch(API_SCHEDULE)
+  schedule=res.ok?await res.json():{}
 }
 
-}
-
-/* =========================
-SAVE SCHEDULE
-========================= */
+/* ================= SAVE ================= */
 async function save(){
-
-await fetch(API_SCHEDULE,{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify(schedule)
-})
-
+  await fetch(API_SCHEDULE,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(schedule)
+  })
 }
 
-/* =========================
-RENDER TABLE
-========================= */
-async function render(){
-
-tbody.innerHTML=""
-
-const drivers=await loadDrivers()
-
-drivers.forEach((d,i)=>{
-
-const id=d._id||d.id
-
-if(!schedule[id]){
-schedule[id]={
-phone:"",
-address:"",
-days:{},
-enabled:true,
-edit:false
-}
+/* ================= HELPERS ================= */
+function getDriverName(d){
+  return d.name || d.fullName || d.username || "-"
 }
 
-const s=schedule[id]
-
-const todayKey=azDate().toLocaleDateString("en-CA")
-const activeToday=s.enabled && s.days[todayKey]
-
-const tr=document.createElement("tr")
-
-if(!s.enabled){
-tr.style.opacity="0.35"
+function getVehicle(d){
+  return d.vehicleNumber || d.car || d.vehicle || d.carNumber || "-"
 }
 
-tr.innerHTML=`
+/* ================= RENDER ================= */
+function render(){
+
+  tbody.innerHTML=""
+
+  drivers.forEach((d,i)=>{
+
+    const id=d._id||d.id
+
+    if(!schedule[id]){
+      schedule[id]={
+        phone:"",
+        address:"",
+        days:{},
+        enabled:true,
+        edit:false
+      }
+    }
+
+    const s=schedule[id]
+
+    const todayKey=azDate().toLocaleDateString("en-CA")
+    const activeToday=s.enabled && s.days[todayKey]
+
+    const tr=document.createElement("tr")
+
+    if(!s.enabled){
+      tr.style.opacity="0.4"
+    }
+
+    tr.innerHTML=`
 
 <td>${i+1}</td>
 
-<td><strong>${d.name||""}</strong></td>
+<td><strong>${getDriverName(d)}</strong></td>
 
 <td>
 <input
-value="${d.vehicleNumber||""}"
+value="${getVehicle(d)}"
 disabled
 >
 </td>
@@ -134,14 +120,14 @@ disabled
 <input
 value="${s.phone||""}"
 ${!s.edit?"disabled":""}
-onchange="schedule['${id}'].phone=this.value">
+oninput="schedule['${id}'].phone=this.value">
 </td>
 
 <td>
 <input
 value="${s.address||""}"
 ${!s.edit?"disabled":""}
-onchange="schedule['${id}'].address=this.value">
+oninput="schedule['${id}'].address=this.value">
 </td>
 
 <td>
@@ -154,17 +140,13 @@ const checked=!!s.days[w.key]
 
 return`
 
-<div
-class="day-square ${checked?'active':''}"
-onclick="squareToggle(event,'${id}','${w.key}')"
->
+<div class="day-square ${checked?'active':''}"
+onclick="squareToggle('${id}','${w.key}',this)">
 
-<input
-type="checkbox"
+<input type="checkbox"
 ${checked?'checked':''}
 ${(!s.edit||!s.enabled)?'disabled':''}
-style="margin-bottom:2px; transform:scale(.8)"
->
+style="display:none">
 
 <div>${w.label}</div>
 <div>${w.date}</div>
@@ -187,11 +169,11 @@ ${activeToday?'ACTIVE':'NOT ACTIVE'}
 
 ${
 s.edit
-? `<button onclick="saveDriver('${id}')">Save</button>`
-: `<button onclick="editDriver('${id}')">Edit</button>`
+? `<button class="btn-save" onclick="saveDriver('${id}')">Save</button>`
+: `<button class="btn-edit" onclick="editDriver('${id}')">Edit</button>`
 }
 
-<button onclick="toggleEnable('${id}')">
+<button class="btn-toggle" onclick="toggleEnable('${id}')">
 ${s.enabled?'Disable':'Enable'}
 </button>
 
@@ -199,64 +181,47 @@ ${s.enabled?'Disable':'Enable'}
 
 `
 
-tbody.appendChild(tr)
+    tbody.appendChild(tr)
 
-})
+  })
 
 }
 
-/* =========================
-EDIT
-========================= */
+/* ================= ACTIONS ================= */
 function editDriver(id){
-schedule[id].edit=true
-render()
+  schedule[id].edit=true
+  render()
 }
 
-/* =========================
-SAVE DRIVER
-========================= */
 async function saveDriver(id){
-schedule[id].edit=false
-await save()
-render()
+  schedule[id].edit=false
+  await save()
+  render()
 }
 
-/* =========================
-ENABLE / DISABLE
-========================= */
 async function toggleEnable(id){
-schedule[id].enabled=!schedule[id].enabled
-await save()
-render()
+  schedule[id].enabled=!schedule[id].enabled
+  await save()
+  render()
 }
 
-/* =========================
-DAY TOGGLE
-========================= */
-async function squareToggle(e,id,key){
+async function squareToggle(id,key,el){
 
-const box=e.currentTarget
-const chk=box.querySelector("input")
+  const s=schedule[id]
+  if(!s.edit || !s.enabled) return
 
-if(chk.disabled) return
+  s.days[key]=!s.days[key]
 
-chk.checked=!chk.checked
+  el.classList.toggle("active", s.days[key])
 
-schedule[id].days[key]=chk.checked
-
-box.classList.toggle("active",chk.checked)
-
-await save()
-
+  await save()
 }
 
-/* =========================
-INIT
-========================= */
+/* ================= INIT ================= */
 async function init(){
-await loadSchedule()
-render()
+  await loadDrivers()
+  await loadSchedule()
+  render()
 }
 
 init()
