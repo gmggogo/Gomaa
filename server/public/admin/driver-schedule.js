@@ -50,7 +50,7 @@ async function loadDrivers(){
 
 async function loadSchedule(){
   const res=await fetch(API_SCHEDULE)
-  schedule=res.ok?await res.json():{}
+  schedule = res.ok ? await res.json() : {}
 }
 
 /* ================= SAVE ================= */
@@ -68,7 +68,7 @@ function getDriverName(d){
 }
 
 function getVehicle(id,d){
-  return schedule[id]?.vehicle || d.vehicleNumber || d.car || "-"
+  return schedule[id]?.vehicleNumber || d.vehicleNumber || ""
 }
 
 /* ================= RENDER ================= */
@@ -84,7 +84,7 @@ function render(){
       schedule[id]={
         phone:"",
         address:"",
-        vehicle:"",
+        vehicleNumber:"", // ✅ ثابت
         days:{},
         enabled:true,
         edit:false
@@ -112,7 +112,7 @@ function render(){
 <input
 value="${getVehicle(id,d)}"
 ${!s.edit?"disabled":""}
-oninput="schedule['${id}'].vehicle=this.value">
+oninput="schedule['${id}'].vehicleNumber=this.value">
 </td>
 
 <td>
