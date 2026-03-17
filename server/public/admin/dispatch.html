@@ -4,23 +4,41 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dispatch</title>
+<title>Dispatch System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- MAIN STYLE -->
-<link rel="stylesheet" href="/admin/style.css">
+<!-- ✅ CSS (يشتغل على السيرفر أو محلي) -->
+<link rel="stylesheet" href="/admin/style.css" onerror="this.href='./style.css'">
+<link rel="stylesheet" href="/admin/header.css" onerror="this.href='./header.css'">
+
+<!-- ✅ MAP -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+/* fallback لو style.css مش اتحمل */
+.page-body{max-width:1400px;margin:auto;padding:180px 15px 40px;}
+.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.dispatch-grid{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:10px;}
+.map-box,.drivers-box{background:#fff;border-radius:8px;overflow:hidden;}
+.box-title{background:#1e293b;color:#fff;padding:8px;font-size:13px;}
+#dispatchMap{height:300px;}
+.table-wrap{overflow:auto;}
+table{width:100%;border-collapse:collapse;background:#fff;}
+th{background:#1e293b;color:#fff;padding:6px;font-size:12px;}
+td{border:1px solid #e5e7eb;padding:5px;font-size:11px;text-align:center;}
+</style>
 
 </head>
 
 <body>
 
-<!-- HEADER -->
+<!-- ✅ HEADER -->
 <div id="adminHeader"></div>
 
-<!-- PAGE -->
-<div class="page-container">
+<!-- ✅ PAGE -->
+<div class="page-body">
 
-<!-- 🔥 ACTION BUTTONS -->
+<!-- 🔥 BUTTONS -->
 <div class="top-actions">
 
 <button onclick="Engine.redistributeSelected()" class="btn-blue">
@@ -45,37 +63,26 @@ Send Selected
 <div class="dispatch-grid">
 
 <!-- MAP -->
-<div class="card">
-
-<div class="card-header">
-Live Dispatch Map
-</div>
-
-<div id="dispatchMap" style="height:250px;"></div>
-
+<div class="map-box">
+<div class="box-title">Live Dispatch Map</div>
+<div id="dispatchMap"></div>
 </div>
 
 <!-- DRIVERS -->
-<div class="card">
-
-<div class="card-header">
-Active Drivers
-</div>
-
+<div class="drivers-box">
+<div class="box-title">Active Drivers</div>
 <div id="driversPanel"></div>
-
 </div>
 
 </div>
 
 <!-- 🔥 TABLE -->
-<div class="table-wrapper">
+<div class="table-wrap">
 
-<table class="dispatch-table">
+<table>
 
 <thead>
 <tr>
-
 <th>Select</th>
 <th>Trip #</th>
 <th>Client</th>
@@ -88,15 +95,10 @@ Active Drivers
 <th>Driver</th>
 <th>Vehicle</th>
 <th>Send</th>
-
 </tr>
 </thead>
 
-<tbody id="dispatchBody">
-
-<!-- بيتم ملئه من JS -->
-
-</tbody>
+<tbody id="dispatchBody"></tbody>
 
 </table>
 
@@ -104,10 +106,13 @@ Active Drivers
 
 </div>
 
-<!-- 🔥 HEADER LOAD -->
+<!-- ✅ HEADER LOAD -->
 <script src="/admin/header.js"></script>
 
-<!-- 🔥 SCRIPTS -->
+<!-- ✅ MAP -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- ✅ SCRIPTS -->
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.ui.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
