@@ -2,41 +2,22 @@ const UI = {
 
 renderTrips(trips){
 
-const tbody = document.getElementById("dispatchBody")
-tbody.innerHTML = ""
+const tbody=document.getElementById("dispatchTable")
+tbody.innerHTML=""
 
 trips.forEach(t=>{
 
-const driverName = Engine.getDriverNameById(t.driverId)
-const vehicle = Engine.getDriverVehicleById(t.driverId)
+const tr=document.createElement("tr")
 
-const tr = document.createElement("tr")
-
-tr.innerHTML = `
-<td><input type="checkbox"></td>
-
-<td>${t.tripNumber || ""}</td>
-<td>${t.clientName || ""}</td>
-<td>${t.pickup || ""}</td>
-<td>${Array.isArray(t.stops)?t.stops.join(" | "):""}</td>
-<td>${t.dropoff || ""}</td>
-<td>${t.tripDate || ""}</td>
-<td>${t.tripTime || ""}</td>
-<td>${t.notes || ""}</td>
-
-<td>${driverName}</td>
-<td>${vehicle}</td>
-
-<td>
-<select onchange="Store.assignDriver('${t._id}',this.value)">
-<option>Assign</option>
-${
-Engine.getDriversForTrip(t).map(d=>`
-<option value="${d._id}">${d.name}</option>
-`).join("")
-}
-</select>
-</td>
+tr.innerHTML=`
+<td><input type="checkbox" value="${t._id}" class="tripSelect"></td>
+<td>${t.tripNumber}</td>
+<td>${t.clientName}</td>
+<td>${t.pickup}</td>
+<td>${t.dropoff}</td>
+<td>${t.tripDate}</td>
+<td>${t.tripTime}</td>
+<td>${t.driverName||"-"}</td>
 `
 
 tbody.appendChild(tr)
@@ -45,18 +26,21 @@ tbody.appendChild(tr)
 
 },
 
-renderDriversPanel(drivers,schedule){
+renderDriversPanel(drivers){
 
-const el = document.getElementById("driversPanel")
+const div=document.getElementById("driversPanel")
+div.innerHTML=""
 
-el.innerHTML = drivers.map(d=>`
-<div style="margin-bottom:8px;">
-<b>${d.name}</b><br>
-Car: ${d.vehicleNumber || "-"}<br>
-Address: ${(schedule[d._id]?.address)||d.address||"-"}
-</div>
-`).join("")
+drivers.forEach(d=>{
+const el=document.createElement("div")
+el.innerText=`${d.name} - ${d.vehicleNumber}`
+div.appendChild(el)
+})
 
+},
+
+getSelected(){
+return [...document.querySelectorAll(".tripSelect:checked")].map(e=>e.value)
 }
 
 }

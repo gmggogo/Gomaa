@@ -1,135 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
 <meta charset="UTF-8">
 <title>Dispatch</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-.page-body{
-max-width:1400px;
-margin:auto;
-padding:200px 20px 40px;
+
+body{
+font-family:Arial;
+background:#0f172a;
+color:white;
+margin:0;
+padding:0;
 }
 
-.dispatch-top{
-display:flex;
-gap:10px;
-margin-bottom:10px;
+.container{
+padding:15px;
 }
 
-#dispatchMap{
-flex:2;
-height:300px;
+button{
+padding:8px 12px;
+margin:5px;
+border:none;
+border-radius:6px;
+cursor:pointer;
 }
 
-#driversPanel{
-flex:1;
-background:#fff;
-border:1px solid #ddd;
-padding:10px;
-overflow:auto;
-}
-
-.table-wrap{
-overflow:auto;
+.btn{
+background:#facc15;
+color:black;
+font-weight:bold;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-background:#fff;
+margin-top:10px;
 }
 
-th{
-background:#111827;
-color:#fff;
+td,th{
 padding:8px;
-font-size:13px;
-}
-
-td{
-border:1px solid #ddd;
-padding:6px;
-font-size:13px;
+border-bottom:1px solid #334155;
 text-align:center;
 }
 
-button{
-padding:5px 10px;
-margin:2px;
-cursor:pointer;
+tr.row-selected{
+background:#1e293b;
 }
+
+.driver-card{
+background:#1e293b;
+padding:10px;
+margin:5px;
+border-radius:8px;
+}
+
+#driversPanel{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-top:10px;
+}
+
+#dispatchMap{
+height:350px;
+margin-top:10px;
+border-radius:10px;
+}
+
 </style>
 
 </head>
 
 <body>
 
-<div id="adminHeader"></div>
+<div class="container">
 
-<div class="page-body">
+<h2>🚀 Dispatch System</h2>
 
-<div>
-
-<button onclick="Engine.autoAssign()">Redistribute</button>
-<button onclick="Engine.toggleManual()">Manual Edit</button>
-<button onclick="Engine.save()">Save Changes</button>
-
-</div>
-
-<div class="dispatch-top">
-
-<div id="dispatchMap"></div>
-
-<div id="driversPanel"></div>
-
-</div>
-
-<div class="table-wrap">
+<button class="btn" onclick="Engine.redistributeSelected()">Auto Assign</button>
+<button class="btn" onclick="Engine.sendSelected()">Send</button>
+<button class="btn" id="selectToggleBtn" onclick="Engine.toggleSelectAll()">Select All</button>
 
 <table>
 
 <thead>
 <tr>
-
 <th>Select</th>
-<th>Trip #</th>
-<th>Client</th>
+<th>#</th>
+<th>Name</th>
 <th>Pickup</th>
-<th>Stops</th>
 <th>Dropoff</th>
 <th>Date</th>
 <th>Time</th>
-<th>Notes</th>
 <th>Driver</th>
-<th>Vehicle</th>
+<th>Car</th>
+<th>Note</th>
 <th>Send</th>
-
 </tr>
 </thead>
 
-<tbody id="dispatchBody"></tbody>
+<tbody id="dispatchTable"></tbody>
 
 </table>
 
-</div>
+<h3>Drivers</h3>
+<div id="driversPanel"></div>
+
+<div id="dispatchMap"></div>
 
 </div>
 
-<script src="/admin/header.js"></script>
-<script src="/admin/dispatch.store.js"></script>
-<script src="/admin/dispatch.engine.js"></script>
-<script src="/admin/dispatch.ui.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-loadAdminHeader()
-Engine.load()
-</script>
 
-</body>
-</html>
+/* ================= STORE ================= */
+
+const Store = {
+
+async getTrips(){
+const r=await fetch("/api/dispatch")
+return r.ok?await r.json():[]
+},
+
+async getDrivers(){
+const r=await fetch("/api/drivers")
+return r.ok?await r.json():[]
+},
+
+async getSchedule(){
+const r=await fetch("/api/driver-schedule")
+return r.ok?await r.json():{}
+},
+
+async getLiveDrivers(){
+const r=await fetch("/api/admin/live-drivers")
+return r.ok?await r.json():[]
+},
+
+async assignDriver(id,driverId){
+await fetch(`/api/dispatch/${id}/driver`,{
+method:"PATCH",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({driverId})
+})
+},
+
+async sendTrips(ids){
+await fetch("/api/dispatch/send",{
+method:"PATCH",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({ids})
+})
+}
+
+}
+
+/* ================= UI ================= */
+
+const UI = {
+
+renderTrips(trips){
+
+const tbody=document.getElementById("dispatchTable")
+tbody.innerHTML=""
+
+trips.forEach(t=>{
+
+const tr=document.createElement("tr")
+tr.dataset.id=t._id
+
+tr.innerHTML=`
+<td><input type="checkbox" class="tripSelect" value="${t._id}"></td>
+<td>${t.tripNumber||"-"}</td>
+<td>${t.clientName||"-"}</td>
+<td>${t.pickup||"-"}</td>
+<td>${t.dropoff||"-"}</td>
+<td>${t.tripDate||"-"}</td>
+<td>${t.tripTime||"-"}</td>
+<td>${t.driverName||"-"}</td>
+<td>${t.vehicle||"-"}</td>
+<td>${t.notes||"-"}</td>
+<td><button onclick="Engine.sendSingle('${t._id}',this)">Send</button></td>
+`
+
+tbody.appendChild(tr)
+
+})
+
+},
+
+renderDriversPanel(drivers){
+
+const panel=document.getElementById("driversPanel")
+panel.innerHTML=""
+
+drivers.forEach(d=>{
+
+const div=document.createElement("div")
+div.className="driver-card"
+
+div.innerHTML=`
+<strong>${d.name}</strong><br>
+🚗 ${d.vehicleNumber||"-"}
+`
+
+panel.appendChild(div)
+
+})
+
+}
+
+}
+
+/* ================= ENGINE ================= */
+
+const Engine = {
+
+trips:[],
+drivers:[],
+schedule:{},
+liveDrivers:[],
+map:null,
+markers:[],
+
+async load(){
+
+this.trips=await Store.getTrips()
+this.drivers=await Store.getDrivers()
+this.schedule=await Store.getSchedule()
+this.liveDrivers=await Store.getLiveDrivers()
+
+UI.renderTrips(this.trips)
+UI.renderDriversPanel(this.drivers)
+
+this.bind()
+
+this.renderMap()
+
+},
+
+bind(){
+
+document.querySelectorAll(".tripSelect").forEach(b=>{
+b.addEventListener("change",e=>{
+const row=b.closest("tr")
+row.classList.toggle("row-selected",b.checked)
+})
+})
+
+},
+
+getSelected(){
+return [...document.querySelectorAll(".tripSelect:checked")].map(e=>e.value)
+},
+
+toggleSelectAll(){
+
+const all=document.querySelectorAll(".tripSelect")
+const checked=[...all].every(x=>x.checked)
+
+all.forEach(b=>{
+b.checked=!checked
+b.dispatchEvent(new Event("change"))
+})
+
+},
+
+async sendSelected(){
+
+const ids=this.getSelected()
+if(!ids.length) return alert("Select trips")
+
+await Store.sendTrips(ids)
+alert("Sent")
+this.load()
+
+},
+
+async sendSingle(id){
+
+await Store.sendTrips([id])
+alert("Sent")
+this.load()
+
+},
+
+/* 🔥 DAY FIX */
+getDayFromDate(dateStr){
+
+const d=new Date(dateStr)
+const days=["sun","mon","tue","wed","thu","fri","sat"]
+
+return days[d.getDay()]
+
+},
+
+getDriversForTrip(trip){
+
+const day=this.getDayFromDate(trip.tripDate)
+
+return this.drivers.filter(d=>{
+const s=this.schedule[d._id]
+return s && s.enabled && s.days && s.days[day]
+})
+
+},
+
+async redistributeSelected(){
+
+const ids=this.getSelected()
+
+for(const trip of this.trips.filter(t=>ids.includes(t._id))){
+
+const drivers=this.getDriversForTrip(trip)
+
+if(!drivers.length) continue
+
+const driver=drivers[0]
+
+await Store.assignDriver(trip._id,driver._id)
+
+}
+
+alert("Assigned")
+this.load()
+
+},
+
+/* ================= MAP ================= */
+
+async renderMap(){
+
+if(!this.map){
+this.map=L.map("dispatchMap").setView([33.45,-112.07],10)
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(this.map)
+}
+
+this.markers.forEach(m=>this.map.removeLayer(m))
+this.markers=[]
+
+for(const t of this.trips){
+
+const geo=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(t.pickup)}`)
+const data=await geo

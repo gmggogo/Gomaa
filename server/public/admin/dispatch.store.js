@@ -1,59 +1,31 @@
 const Store = {
 
-  API_DISPATCH: "/api/dispatch",
-  API_DRIVERS: "/api/drivers",
-  API_SCHEDULE: "/api/driver-schedule",
-  API_LIVE: "/api/admin/live-drivers",
+async getTrips(){
+const r=await fetch("/api/dispatch")
+return r.ok?await r.json():[]
+},
 
-  async getTrips(){
-    try{
-      const res = await fetch(this.API_DISPATCH)
-      if(!res.ok) return []
-      const data = await res.json()
-      return Array.isArray(data) ? data : []
-    }catch{
-      return []
-    }
-  },
+async getDrivers(){
+const r=await fetch("/api/drivers")
+return r.ok?await r.json():[]
+},
 
-  async getDrivers(){
-    try{
-      const res = await fetch(this.API_DRIVERS)
-      if(!res.ok) return []
-      const data = await res.json()
-      return Array.isArray(data) ? data : []
-    }catch{
-      return []
-    }
-  },
+async getSchedule(){
+const r=await fetch("/api/driver-schedule")
+return r.ok?await r.json():{}
+},
 
-  async getSchedule(){
-    try{
-      const res = await fetch(this.API_SCHEDULE)
-      if(!res.ok) return {}
-      return await res.json()
-    }catch{
-      return {}
-    }
-  },
+async getLiveDrivers(){
+const r=await fetch("/api/admin/live-drivers")
+return r.ok?await r.json():[]
+},
 
-  async getLiveDrivers(){
-    try{
-      const res = await fetch(this.API_LIVE)
-      if(!res.ok) return []
-      const data = await res.json()
-      return Array.isArray(data) ? data : []
-    }catch{
-      return []
-    }
-  },
-
-  async assignDriver(tripId, driverId){
-    return fetch(`/api/dispatch/${tripId}/driver`, {
-      method:"PATCH",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ driverId })
-    })
-  }
+async assignDriver(id,driverId){
+await fetch(`/api/dispatch/${id}/driver`,{
+method:"PATCH",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({driverId})
+})
+}
 
 }
