@@ -11,8 +11,10 @@ const Engine = {
 
       const data = await Store.loadAll()
 
-      // 🔥 نجيب بس الرحلات اللي عليها Dispatch = true
-      this.trips = (data.trips || []).filter(t => t.dispatch === true)
+      console.log("ALL TRIPS:", data.trips)
+
+      // 🔥 الحل الحقيقي: نرجع لنفس الفلترة القديمة
+      this.trips = (data.trips || []).filter(t => t.selected === true)
 
       this.drivers = data.drivers || []
       this.schedule = data.schedule || {}
@@ -23,7 +25,7 @@ const Engine = {
       UI.renderDriversPanel(this.drivers, this.schedule)
 
     }catch(err){
-      console.error("Load Error", err)
+      console.error("LOAD ERROR", err)
     }
 
   },
@@ -67,7 +69,6 @@ const Engine = {
 
     const s = this.schedule[driverId] || {}
 
-    // 🔥 تحديث UI
     trip.driverId = driverId
     trip.driverName = driver.name
     trip.vehicle = s.vehicleNumber || driver.vehicleNumber || "-"
@@ -75,28 +76,17 @@ const Engine = {
     await Store.assignDriver(tripId, driverId)
 
     UI.renderTrips(this.trips)
-
   },
 
-  /* ================= DISABLE (REMOVE FROM DISPATCH) ================= */
+  /* ================= DISABLE ================= */
   async disableTrip(tripId){
 
-    try{
+    await Store.disableTrip(tripId)
 
-      // 🔥 نغير الحالة في السيرفر
-      await fetch(`/api/dispatch/${tripId}/disable`,{
-        method:"PATCH"
-      })
+    // 🔥 نشيلها من الديسبتش بس
+    this.trips = this.trips.filter(t=>t._id !== tripId)
 
-      // 🔥 نشيله من الصفحة فورًا
-      this.trips = this.trips.filter(t=>String(t._id)!==String(tripId))
-
-      UI.renderTrips(this.trips)
-
-    }catch(err){
-      console.error("Disable Error", err)
-    }
-
+    UI.renderTrips(this.trips)
   },
 
   /* ================= SEND ================= */
@@ -114,7 +104,6 @@ const Engine = {
     alert("Sent")
 
     await this.reload()
-
   }
 
 }
