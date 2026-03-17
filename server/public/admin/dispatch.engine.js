@@ -13,15 +13,29 @@ const Engine = {
   /* ================= LOAD ================= */
   async load(){
 
-    this.trips = await Store.getTrips()
-    this.drivers = await Store.getDrivers()
-    this.schedule = await Store.getSchedule()
-    this.liveDrivers = await Store.getLiveDrivers()
+    try{
 
-    this.sortTrips()
+      // 🔥 تحميل كل حاجة مرة واحدة
+      const data = await Store.loadAll()
 
-    UI.renderTrips(this.trips)
-    UI.renderDriversPanel(this.drivers, this.schedule, this.liveDrivers)
+      this.trips = data.trips || []
+      this.drivers = data.drivers || []
+      this.schedule = data.schedule || {}
+
+      this.liveDrivers = await Store.getLiveDrivers()
+
+      console.log("Trips:", this.trips)
+      console.log("Drivers:", this.drivers)
+      console.log("Schedule:", this.schedule)
+
+      this.sortTrips()
+
+      UI.renderTrips(this.trips)
+      UI.renderDriversPanel(this.drivers, this.schedule)
+
+    }catch(err){
+      console.error("Engine Load Error", err)
+    }
 
   },
 
@@ -53,14 +67,16 @@ const Engine = {
   },
 
   /* ================= DRIVER ================= */
-  getDriverNameById(id){
-    const d = this.drivers.find(x=>String(x._id)===String(id))
-    return d ? d.name : "-"
+  getDriverById(id){
+    return this.drivers.find(x=>String(x._id)===String(id))
   },
 
   getDriverVehicleById(id){
-    const d = this.drivers.find(x=>String(x._id)===String(id))
-    return d ? (d.vehicleNumber || "-") : "-"
+
+    const s = this.schedule[id] || {}
+    const d = this.getDriverById(id)
+
+    return s.vehicleNumber || d?.vehicleNumber || "-"
   },
 
   /* ================= FILTER ================= */
@@ -75,166 +91,21 @@ const Engine = {
 
   },
 
-  /* ================= GEOCODE ================= */
-  async geocode(address){
-
-    if(!address) return null
-    if(this.geoCache[address]) return this.geoCache[address]
-
-    try{
-
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
-      const res = await fetch(url)
-      const data = await res.json()
-
-      if(!data.length) return null
-
-      const loc = {
-        lat: parseFloat(data[0].lat),
-        lon: parseFloat(data[0].lon)
-      }
-
-      this.geoCache[address] = loc
-      return loc
-
-    }catch{
-      return null
-    }
-
-  },
-
-  /* ================= ROUTE ================= */
-  async getRoute(a, b){
-
-    const key = a + "|" + b
-    if(this.routeCache[key]) return this.routeCache[key]
-
-    const A = await this.geocode(a)
-    const B = await this.geocode(b)
-
-    if(!A || !B){
-      return {distance:999, duration:999}
-    }
-
-    try{
-
-      const url = `${this.OSRM}/${A.lon},${A.lat};${B.lon},${B.lat}?overview=false`
-      const res = await fetch(url)
-      const data = await res.json()
-
-      if(!data.routes || !data.routes.length){
-        return {distance:999, duration:999}
-      }
-
-      const route = {
-        distance: data.routes[0].distance / 1000,
-        duration: data.routes[0].duration / 60
-      }
-
-      this.routeCache[key] = route
-
-      return route
-
-    }catch{
-      return {distance:999, duration:999}
-    }
-
-  },
-
-  /* ================= DRIVER SCHEDULE ================= */
-  getDriverTrips(driverId){
-
-    return this.trips
-      .filter(t=>String(t.driverId)===String(driverId))
-      .sort((a,b)=> this.toDate(a) - this.toDate(b))
-
-  },
-
-  /* ================= CONFLICT ================= */
-  hasConflict(driverId, trip, duration){
-
-    const trips = this.getDriverTrips(driverId)
-
-    const newStart = this.toDate(trip)
-    const newEnd = new Date(newStart.getTime() + duration*60000)
-
-    for(const t of trips){
-
-      const start = this.toDate(t)
-      const end = new Date(start.getTime() + 60*60000) // افتراض ساعة
-
-      if(newStart < end && newEnd > start){
-        return true
-      }
-
-    }
-
-    return false
-
-  },
-
-  /* ================= SMART ASSIGN ================= */
-  async smartAssign(trip){
-
-    const drivers = this.getDriversForTrip(trip)
-
-    if(!drivers.length) return null
-
-    let best = null
-    let bestScore = Infinity
-
-    for(const d of drivers){
-
-      const route = await this.getRoute(trip.pickup, d.address)
-
-      const tripsCount = this.getDriverTrips(d._id).length
-
-      const conflict = this.hasConflict(d._id, trip, route.duration)
-
-      if(conflict) continue
-
-      const score =
-        route.distance +
-        (tripsCount * 2) +
-        (route.duration * 0.5)
-
-      if(score < bestScore){
-        bestScore = score
-        best = d
-      }
-
-    }
-
-    return best
-
-  },
-
-  /* ================= SMART DISTRIBUTE ================= */
-  async smartDistribute(){
-
-    for(const trip of this.trips){
-
-      if(trip.driverId) continue
-
-      const best = await this.smartAssign(trip)
-
-      if(best){
-        trip.driverId = best._id
-      }
-
-    }
-
-    UI.renderTrips(this.trips)
-
-  },
-
   /* ================= ASSIGN ================= */
   async assignDriver(tripId, driverId){
 
     const trip = this.trips.find(t=>String(t._id)===String(tripId))
     if(!trip) return
 
+    const driver = this.getDriverById(driverId)
+    if(!driver) return
+
+    const s = this.schedule[driverId] || {}
+
+    // 🔥 تحديث محلي
     trip.driverId = driverId
+    trip.driverName = driver.name
+    trip.vehicle = s.vehicleNumber || driver.vehicleNumber || "-"
 
     await Store.assignDriver(tripId, driverId)
 
@@ -256,23 +127,15 @@ const Engine = {
 
     alert("Sent")
 
+    await this.reload()
+
   },
 
-  /* ================= BIND ================= */
-  bind(){
+  async sendSingle(id){
 
-    document.querySelectorAll(".driverEdit").forEach(sel=>{
+    await Store.sendTrips([id])
 
-      sel.addEventListener("change", (e)=>{
-
-        const row = e.target.closest("tr")
-        const id = row.dataset.id
-
-        this.assignDriver(id, e.target.value)
-
-      })
-
-    })
+    await this.reload()
 
   }
 

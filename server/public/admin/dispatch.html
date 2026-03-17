@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
 <meta charset="UTF-8">
 <title>Dispatch System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -91,6 +90,11 @@ td{
   background:#e0f2fe;
 }
 
+select{
+  padding:3px;
+  font-size:11px;
+}
+
 </style>
 
 </head>
@@ -103,12 +107,16 @@ td{
 
 <div class="top-actions">
 
-<button onclick="toggleEdit()" class="btn btn-orange">
+<button onclick="UI.toggleEdit()" class="btn btn-orange">
 Manual Edit
 </button>
 
-<button onclick="load()" class="btn btn-purple">
+<button onclick="Engine.reload()" class="btn btn-purple">
 Reload
+</button>
+
+<button onclick="Engine.sendSelected()" class="btn btn-green">
+Send Selected
 </button>
 
 </div>
@@ -157,139 +165,112 @@ Reload
 
 <script>
 
-/* ================= STATE ================= */
-
-let trips=[]
-let drivers=[]
-let schedule={}
-let editMode=false
-
-/* ================= LOAD ================= */
-
-async function load(){
-
-  const t=await fetch("/api/trips").then(r=>r.json())
-  const d=await fetch("/api/drivers").then(r=>r.json())
-  const s=await fetch("/api/driver-schedule").then(r=>r.json())
-
-  trips = t
-  drivers = d
-  schedule = s || {}
-
-  render()
-
-}
-
-/* ================= HELPERS ================= */
-
-function getDriverName(id){
-  const d=drivers.find(x=>x._id==id)
-  return d?.name || "-"
-}
-
-function getVehicle(id){
-  return schedule[id]?.vehicle || "-"
-}
-
 /* ================= UI ================= */
 
-function renderDrivers(){
+const tbody = document.getElementById("dispatchBody")
+const driversPanel = document.getElementById("driversPanel")
 
-  const panel=document.getElementById("driversPanel")
+let editMode = false
 
-  panel.innerHTML = drivers.map(d=>{
+const UI = {
 
-    return `
-      <div style="display:flex;justify-content:space-between;padding:6px;">
-        <strong>${d.name}</strong>
-        <span>🚗 ${getVehicle(d._id)}</span>
-      </div>
-    `
+  toggleEdit(){
+    editMode = !editMode
+    this.renderTrips(Engine.trips)
+  },
 
-  }).join("")
+  renderTrips(trips){
+
+    tbody.innerHTML = trips.map(t=>{
+
+      const driverName = t.driverName || "-"
+      const vehicle = t.vehicle || "-"
+
+      return `
+        <tr class="${t.selected?'row-selected':''}">
+
+          <td>
+            <input type="checkbox"
+              ${t.selected?'checked':''}
+              onchange="UI.selectTrip('${t._id}', this.checked)">
+          </td>
+
+          <td>${t.tripNumber || "-"}</td>
+          <td>${t.clientName || "-"}</td>
+          <td>${t.pickup || "-"}</td>
+          <td>${t.dropoff || "-"}</td>
+          <td>${t.tripDate || "-"}</td>
+          <td>${t.tripTime || "-"}</td>
+
+          <td>
+
+            ${
+              editMode && t.selected
+              ? `
+                <select onchange="UI.changeDriver('${t._id}', this.value)">
+                  <option value="">--</option>
+
+                  ${Engine.drivers.map(d=>`
+                    <option value="${d._id}">
+                      ${d.name}
+                    </option>
+                  `).join("")}
+
+                </select>
+              `
+              : driverName
+            }
+
+          </td>
+
+          <td>${vehicle}</td>
+
+        </tr>
+      `
+
+    }).join("")
+  },
+
+  renderDriversPanel(drivers){
+
+    driversPanel.innerHTML = drivers.map(d=>{
+
+      const vehicle = Engine.getDriverVehicleById(d._id)
+
+      return `
+        <div style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #eee;">
+          <strong>${d.name}</strong>
+          <span>🚗 ${vehicle}</span>
+        </div>
+      `
+
+    }).join("")
+  },
+
+  selectTrip(id, val){
+
+    const t = Engine.trips.find(x=>x._id==id)
+    if(!t) return
+
+    t.selected = val
+
+    this.renderTrips(Engine.trips)
+
+  },
+
+  changeDriver(tripId, driverId){
+    Engine.assignDriver(tripId, driverId)
+  },
+
+  getSelected(){
+    return Engine.trips.filter(t=>t.selected).map(t=>t._id)
+  }
+
 }
 
-/* ================= TABLE ================= */
+/* ================= START ================= */
 
-function renderTrips(){
-
-  const body=document.getElementById("dispatchBody")
-
-  body.innerHTML = trips.map(t=>{
-
-    return `
-      <tr class="${t.selected?'row-selected':''}">
-
-        <td>
-          <input type="checkbox"
-          ${t.selected?'checked':''}
-          onchange="selectTrip('${t._id}', this.checked)">
-        </td>
-
-        <td>${t.tripNumber || "-"}</td>
-        <td>${t.clientName || "-"}</td>
-        <td>${t.pickup || "-"}</td>
-        <td>${t.dropoff || "-"}</td>
-        <td>${t.tripDate || "-"}</td>
-        <td>${t.tripTime || "-"}</td>
-
-        <td>
-          ${
-            editMode && t.selected
-            ? `
-              <select onchange="assignDriver('${t._id}', this.value)">
-                <option value="">--</option>
-                ${drivers.map(d=>`
-                  <option value="${d._id}"
-                  ${t.driverId==d._id?'selected':''}>
-                  ${d.name}
-                  </option>
-                `).join("")}
-              </select>
-            `
-            : getDriverName(t.driverId)
-          }
-        </td>
-
-        <td>${getVehicle(t.driverId)}</td>
-
-      </tr>
-    `
-
-  }).join("")
-}
-
-/* ================= ACTIONS ================= */
-
-function selectTrip(id, val){
-  const t=trips.find(x=>x._id==id)
-  t.selected=val
-  renderTrips()
-}
-
-function toggleEdit(){
-  editMode=!editMode
-  renderTrips()
-}
-
-function assignDriver(tripId, driverId){
-
-  const t=trips.find(x=>x._id==tripId)
-
-  t.driverId=driverId
-
-  renderTrips()
-
-}
-
-/* ================= MAIN ================= */
-
-function render(){
-  renderDrivers()
-  renderTrips()
-}
-
-load()
+Engine.load()
 
 </script>
 
