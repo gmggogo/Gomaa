@@ -45,8 +45,6 @@ const WEEK=buildWeek()
 async function loadDrivers(){
   const res=await fetch(API_DRIVERS)
   const data=await res.json()
-
-  // 🔥 نحمي نفسنا من أي فورمات
   drivers = Array.isArray(data) ? data : data.drivers || []
 }
 
@@ -66,11 +64,11 @@ async function save(){
 
 /* ================= HELPERS ================= */
 function getDriverName(d){
-  return d.name || d.fullName || d.username || "-"
+  return d.name || d.fullName || "-"
 }
 
-function getVehicle(d){
-  return d.vehicleNumber || d.car || d.vehicle || d.carNumber || "-"
+function getVehicle(id,d){
+  return schedule[id]?.vehicle || d.vehicleNumber || d.car || "-"
 }
 
 /* ================= RENDER ================= */
@@ -86,6 +84,7 @@ function render(){
       schedule[id]={
         phone:"",
         address:"",
+        vehicle:"",
         days:{},
         enabled:true,
         edit:false
@@ -111,9 +110,9 @@ function render(){
 
 <td>
 <input
-value="${getVehicle(d)}"
-disabled
->
+value="${getVehicle(id,d)}"
+${!s.edit?"disabled":""}
+oninput="schedule['${id}'].vehicle=this.value">
 </td>
 
 <td>
@@ -169,11 +168,11 @@ ${activeToday?'ACTIVE':'NOT ACTIVE'}
 
 ${
 s.edit
-? `<button class="btn-save" onclick="saveDriver('${id}')">Save</button>`
-: `<button class="btn-edit" onclick="editDriver('${id}')">Edit</button>`
+? `<button onclick="saveDriver('${id}')">Save</button>`
+: `<button onclick="editDriver('${id}')">Edit</button>`
 }
 
-<button class="btn-toggle" onclick="toggleEnable('${id}')">
+<button onclick="toggleEnable('${id}')">
 ${s.enabled?'Disable':'Enable'}
 </button>
 
@@ -211,7 +210,6 @@ async function squareToggle(id,key,el){
   if(!s.edit || !s.enabled) return
 
   s.days[key]=!s.days[key]
-
   el.classList.toggle("active", s.days[key])
 
   await save()
