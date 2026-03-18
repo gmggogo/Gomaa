@@ -95,10 +95,16 @@ td{
   border-bottom:1px solid #1e293b;
   cursor:pointer;
   pointer-events:auto;
+  transition:0.2s;
 }
 
 .driver:hover{
   background:#1e293b;
+}
+
+.driver.active{
+  background:#2563eb !important;
+  color:#fff;
 }
 
 .driver-bar{
@@ -205,6 +211,7 @@ let markers = []
 let geoCache = {}
 let editMode = false
 let allSelected = false
+let selectedDriverId = null
 
 /* ================= STORE ================= */
 
@@ -282,6 +289,22 @@ function syncSelectButtonText(){
   }
 }
 
+function getTripDateTimeValue(t){
+  const raw = `${t.tripDate || ""} ${t.tripTime || ""}`.trim()
+  const d = new Date(raw)
+  if (isNaN(d.getTime())) return 0
+  return d.getTime()
+}
+
+function getLatestTripForDriver(driverId){
+  const driverTrips = trips.filter(t => String(t.driverId || "") === String(driverId))
+
+  if(!driverTrips.length) return null
+
+  driverTrips.sort((a,b)=> getTripDateTimeValue(b) - getTripDateTimeValue(a))
+  return driverTrips[0]
+}
+
 /* ================= RENDER TRIPS ================= */
 
 function renderTrips(){
@@ -299,7 +322,7 @@ function renderTrips(){
           </button>
         </td>
 
-        <td>${t.tripNumber || i + 1}</td>
+        <td>${escapeHtml(t.tripNumber || i + 1)}</td>
         <td>${escapeHtml(t.clientName || "")}</td>
         <td>${escapeHtml(t.pickup || "")}</td>
 
@@ -315,7 +338,7 @@ function renderTrips(){
           <select ${(editMode && t.selected) ? "" : "disabled"} onchange="assignDriver(${i},this.value)">
             <option value="">--</option>
             ${drivers.map(d => `
-              <option value="${d._id}" ${t.driverId === d._id ? 'selected' : ''}>
+              <option value="${d._id}" ${String(t.driverId || "") === String(d._id) ? 'selected' : ''}>
                 ${escapeHtml(d.name || "")}
               </option>
             `).join("")}
@@ -407,7 +430,7 @@ async function getRoute(points){
 /* ================= DRIVER CLICK ================= */
 
 async function focusDriver(id){
-  const trip = trips.find(x => x.driverId === id)
+  const trip = getLatestTripForDriver(id)
   if(!trip) return
 
   clearMap()
@@ -461,10 +484,10 @@ function renderDrivers(){
 
   drivers.forEach((d, i) => {
     const car = getDriverCar(d._id)
-    const trip = trips.find(t => t.driverId === d._id)
+    const trip = getLatestTripForDriver(d._id)
 
     panel.innerHTML += `
-      <div class="driver" data-id="${d._id}">
+      <div class="driver ${selectedDriverId === d._id ? 'active' : ''}" data-id="${d._id}">
         <div class="driver-bar">
           <div class="driver-name">${i + 1} - ${escapeHtml(d.name || "")}</div>
           <div class="driver-info">
@@ -478,6 +501,13 @@ function renderDrivers(){
 
   document.querySelectorAll(".driver").forEach(el => {
     el.addEventListener("click", () => {
+      selectedDriverId = el.dataset.id
+
+      document.querySelectorAll(".driver").forEach(d => {
+        d.classList.remove("active")
+      })
+
+      el.classList.add("active")
       focusDriver(el.dataset.id)
     })
   })
