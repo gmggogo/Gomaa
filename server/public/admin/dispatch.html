@@ -105,7 +105,6 @@ color:#fff;
 overflow:auto;
 }
 
-/* سطر واحد احترافي */
 .driver{
 padding:8px 12px;
 border-bottom:1px solid #1e293b;
@@ -127,7 +126,6 @@ background:#2563eb;
 
 <div class="page-body">
 
-<!-- TABS -->
 <div class="dispatch-tabs">
 <button id="tabTrips" class="tab-btn active">Trips Schedule</button>
 <button id="tabDrivers" class="tab-btn">Drivers Map</button>
@@ -187,19 +185,21 @@ let editMode=false
 let map
 let markers=[]
 
-/* ===== HEADER ===== */
+/* ===== HEADER + MESSAGE ===== */
 fetch("/admin/header.html")
 .then(res=>res.text())
 .then(data=>{
 document.getElementById("adminHeader").innerHTML=data
 
-// 🔥 نسحب الرسالة من الهيدر
+// 🔥 الطريقة المضمونة
 setTimeout(()=>{
-const msg = document.querySelector(".header-center")
+const msg = document.querySelector(".header-center") 
+|| document.querySelector("[class*='center']")
+
 if(msg){
 document.getElementById("welcomeMsg").innerText = msg.innerText
 }
-},200)
+},300)
 
 })
 
@@ -209,8 +209,12 @@ async function load(){
 const res = await fetch("/api/trips")
 const data = await res.json()
 
-// ✅ المهم: يسحب الرحلات المتعلم عليها
+// 🔥 فلترة ذكية
 trips = data.filter(t => t.selected === true)
+
+if(trips.length === 0){
+trips = data // fallback
+}
 
 const d = await fetch("/api/users/driver")
 drivers = await d.json()
@@ -259,7 +263,9 @@ ${d.name}
 
 <td>${t.vehicle||"-"}</td>
 
-<td><input value="${t.notes||""}"></td>
+<td>
+<input value="${t.notes||""}" ${editMode?"":"disabled"}>
+</td>
 
 </tr>
 `
@@ -339,13 +345,9 @@ const trip = trips.find(t=>t.driverId==d._id)
 panel.innerHTML+=`
 <div class="driver" onclick="focusDriver(${d.lat||33.4},${d.lng||-112.07})">
 
-<span>
-${i+1} - ${d.name}
-</span>
+<span>${i+1} - ${d.name}</span>
 
-<span>
-🚗 ${d.vehicleNumber||"-"} | ${trip?.tripNumber||"-"}
-</span>
+<span>🚗 ${d.vehicleNumber||"-"} | ${trip?.tripNumber||"-"}</span>
 
 </div>
 `
