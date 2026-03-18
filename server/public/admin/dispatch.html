@@ -1,95 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
+
 <meta charset="UTF-8">
-<title>Dispatch Center</title>
+<title>Dispatch</title>
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- 🔥 CSS -->
 <link rel="stylesheet" href="/admin/style.css">
 <link rel="stylesheet" href="/admin/header.css">
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
 
-.page{
-padding:20px;
-}
+body{background:#f3f4f6}
 
-/* TOP BAR */
-.top-bar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:15px;
-}
-
-/* MAP + DRIVERS */
 .top-layout{
 display:flex;
-gap:10px;
+gap:15px;
 margin-bottom:15px;
 }
 
 #map{
 width:33%;
-height:220px;
-background:#111;
-border-radius:8px;
+height:250px;
+border-radius:10px;
 }
 
-/* DRIVERS */
 #driversBox{
 flex:1;
 display:flex;
-flex-wrap:wrap;
 gap:10px;
+flex-wrap:wrap;
 }
 
 .driver-card{
-background:#1f2937;
+background:#1e3a8a;
+color:#fff;
 padding:10px;
 border-radius:6px;
-min-width:120px;
-text-align:center;
 }
 
-/* TABLE */
 table{
 width:100%;
+background:#fff;
 border-collapse:collapse;
-background:#111827;
-}
-
-th,td{
-padding:8px;
-border:1px solid #1f2937;
-font-size:13px;
-text-align:center;
 }
 
 th{
-background:#1e293b;
+background:#1e3a8a;
+color:#fff;
 }
 
-tr:hover{
-background:#1f2937;
+td,th{
+padding:8px;
+border:1px solid #ddd;
+text-align:center;
 }
-
-/* BUTTONS */
-.btn{
-padding:6px 10px;
-border:none;
-border-radius:4px;
-cursor:pointer;
-font-size:12px;
-}
-
-.btn-blue{background:#2563eb;color:#fff;}
-.btn-green{background:#16a34a;color:#fff;}
-.btn-red{background:#dc2626;color:#fff;}
-.btn-gray{background:#6b7280;color:#fff;}
 
 </style>
 
@@ -97,37 +64,21 @@ font-size:12px;
 
 <body>
 
-<!-- 🔥 HEADER -->
 <div id="adminHeader"></div>
 
-<div class="page">
+<div style="padding:15px">
 
-<h2>Dispatch Center</h2>
+<button onclick="Engine.toggleAll()">Select All</button>
+<button onclick="Engine.editMode=!Engine.editMode;UI.render()">Edit</button>
+<button onclick="Engine.sendSelected()">Send Selected</button>
+<button onclick="Engine.runAuto()">Redistribute</button>
 
-<!-- ACTION BUTTONS -->
-<div class="top-bar">
-
-<div>
-<button class="btn btn-blue" onclick="Engine.toggleAll()">Select All</button>
-<button class="btn btn-gray" onclick="Engine.editMode=!Engine.editMode;UI.render()">Edit Selected</button>
-<button class="btn btn-green" onclick="Engine.sendSelected()">Send Selected</button>
-<button class="btn btn-blue" onclick="Engine.runAuto()">Redistribute</button>
-</div>
-
-</div>
-
-<!-- MAP + DRIVERS -->
 <div class="top-layout">
-
-<div id="map">MAP</div>
-
+<div id="map"></div>
 <div id="driversBox"></div>
-
 </div>
 
-<!-- TABLE -->
 <table>
-
 <thead>
 <tr>
 <th>Select</th>
@@ -145,22 +96,19 @@ font-size:12px;
 </thead>
 
 <tbody id="tbody"></tbody>
-
 </table>
 
 </div>
 
-<!-- 🔥 HEADER LOAD -->
 <script src="/admin/header.js"></script>
 <script>
 fetch("/admin/header.html")
-.then(res=>res.text())
-.then(html=>{
-document.getElementById("adminHeader").innerHTML=html
-})
+.then(r=>r.text())
+.then(h=>document.getElementById("adminHeader").innerHTML=h)
 </script>
 
-<!-- 🔥 SCRIPTS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
 <script src="/admin/dispatch.ui.js"></script>

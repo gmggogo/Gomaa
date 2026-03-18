@@ -7,6 +7,9 @@ schedule:{},
 selected:{},
 editMode:false,
 
+map:null,
+markers:[],
+
 /* ================= LOAD ================= */
 async load(){
 
@@ -18,7 +21,39 @@ async load(){
 
   this.sortTrips()
 
+  this.initMap()
+
   this.runAuto()
+
+},
+
+/* ================= MAP ================= */
+initMap(){
+
+  this.map = L.map('map').setView([33.4484,-112.0740],10)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19
+  }).addTo(this.map)
+
+},
+
+renderMap(){
+
+  this.markers.forEach(m=>this.map.removeLayer(m))
+  this.markers=[]
+
+  this.drivers.forEach(d=>{
+
+    if(!d.lat || !d.lng) return
+
+    const m = L.marker([d.lat,d.lng])
+      .addTo(this.map)
+      .bindPopup(d.name)
+
+    this.markers.push(m)
+
+  })
 
 },
 
@@ -26,22 +61,15 @@ async load(){
 sortTrips(){
 
   this.trips.sort((a,b)=>{
-    const da = new Date(`${a.tripDate} ${a.tripTime}`)
-    const db = new Date(`${b.tripDate} ${b.tripTime}`)
-    return da - db
+    return new Date(`${a.tripDate} ${a.tripTime}`) - new Date(`${b.tripDate} ${b.tripTime}`)
   })
 
 },
 
-/* ================= GET DAY ================= */
-getTripDay(trip){
-  return new Date(trip.tripDate).toLocaleDateString("en-CA")
-},
-
-/* ================= AVAILABLE DRIVERS ================= */
+/* ================= AVAILABLE ================= */
 getAvailableDrivers(trip){
 
-  const day = this.getTripDay(trip)
+  const day = new Date(trip.tripDate).toLocaleDateString("en-CA")
 
   return this.drivers.filter(d=>{
     const s = this.schedule[d._id]
@@ -56,65 +84,21 @@ assign(trip, driver){
   const s = this.schedule[driver._id] || {}
 
   trip.driverId = driver._id
-  trip.driverName = driver.name || ""
+  trip.driverName = driver.name
   trip.vehicle = s.vehicleNumber || ""
-  trip.driverAddress = s.address || ""
-
 },
 
-/* ================= AUTO DISTRIBUTE ================= */
+/* ================= AUTO ================= */
 runAuto(){
 
-  const driverState = {}
+  this.trips.forEach(t=>{
 
-  this.drivers.forEach(d=>{
-    const s = this.schedule[d._id] || {}
-
-    driverState[d._id] = {
-      lastLocation: s.address || "",
-      lastTime: null
-    }
-  })
-
-  this.trips.forEach(trip=>{
-
-    const available = this.getAvailableDrivers(trip)
-
-    if(!available.length) return
-
-    let bestDriver = null
-
-    available.forEach(driver=>{
-
-      const state = driverState[driver._id]
-
-      if(!bestDriver){
-        bestDriver = driver
-        return
-      }
-
-      if(!state.lastTime){
-        bestDriver = driver
-        return
-      }
-
-      if(state.lastTime < driverState[bestDriver._id].lastTime){
-        bestDriver = driver
-      }
-
-    })
-
-    if(bestDriver){
-
-      this.assign(trip, bestDriver)
-
-      driverState[bestDriver._id].lastLocation = trip.dropoff
-      driverState[bestDriver._id].lastTime = new Date(`${trip.tripDate} ${trip.tripTime}`)
-
-    }
+    const list = this.getAvailableDrivers(t)
+    if(list.length) this.assign(t, list[0])
 
   })
 
+  this.renderMap()
   UI.render()
 
 },
@@ -136,13 +120,11 @@ toggleAll(){
   UI.render()
 },
 
-/* ================= MANUAL ASSIGN ================= */
+/* ================= MANUAL ================= */
 async assignManual(tripId, driverId){
 
-  const driver = this.drivers.find(d=>d._id === driverId)
-  if(!driver) return
-
-  const trip = this.trips.find(t=>t._id === tripId)
+  const driver = this.drivers.find(d=>d._id===driverId)
+  const trip = this.trips.find(t=>t._id===tripId)
 
   this.assign(trip, driver)
 
@@ -156,35 +138,18 @@ async assignManual(tripId, driverId){
 async sendSelected(){
 
   const ids = Object.keys(this.selected).filter(id=>this.selected[id])
-
-  if(!ids.length){
-    alert("No trips selected")
-    return
-  }
+  if(!ids.length) return alert("No trips")
 
   await Store.sendTrips(ids)
 
-  alert("Trips Sent")
+  alert("Sent")
 
 },
 
-/* ================= SINGLE SEND ================= */
 async sendOne(id){
 
   await Store.sendTrips([id])
-
-  alert("Trip Sent")
-
-},
-
-/* ================= DISABLE ================= */
-async disable(id){
-
-  await Store.disableTrip(id)
-
-  this.trips = this.trips.filter(t=>t._id !== id)
-
-  UI.render()
+  alert("Sent")
 
 }
 

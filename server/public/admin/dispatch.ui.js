@@ -1,12 +1,11 @@
 const UI = {
 
-/* ================= MAIN ================= */
 render(){
   this.renderDrivers()
   this.renderTrips()
 },
 
-/* ================= DRIVERS ================= */
+/* DRIVERS */
 renderDrivers(){
 
   const box = document.getElementById("driversBox")
@@ -14,7 +13,6 @@ renderDrivers(){
   box.innerHTML = Engine.drivers.map(d=>{
 
     const s = Engine.schedule[d._id] || {}
-
     if(!s.enabled) return ""
 
     return `
@@ -24,21 +22,15 @@ renderDrivers(){
     </div>
     `
   }).join("")
-
 },
 
-/* ================= TRIPS TABLE ================= */
+/* TABLE */
 renderTrips(){
 
   const tbody = document.getElementById("tbody")
-  tbody.innerHTML = ""
+  tbody.innerHTML=""
 
-  if(!Engine.trips.length){
-    tbody.innerHTML = `<tr><td colspan="11">No Trips</td></tr>`
-    return
-  }
-
-  Engine.trips.forEach((t,i)=>{
+  Engine.trips.forEach(t=>{
 
     const selected = Engine.selected[t._id]
 
@@ -52,27 +44,20 @@ ${selected?'checked':''}
 onclick="Engine.toggleSelect('${t._id}')">
 </td>
 
-<td>${t.tripNumber || "-"}</td>
-
-<td>${t.clientName || "-"}</td>
-
-<td>${t.pickup || "-"}</td>
-
-<td>${(t.stops||[]).join(" , ")}</td>
-
-<td>${t.dropoff || "-"}</td>
-
-<td>${t.tripDate || "-"}</td>
-
-<td>${t.tripTime || "-"}</td>
+<td>${t.tripNumber}</td>
+<td>${t.clientName}</td>
+<td>${t.pickup}</td>
+<td>${(t.stops||[]).join(",")}</td>
+<td>${t.dropoff}</td>
+<td>${t.tripDate}</td>
+<td>${t.tripTime}</td>
 
 <td>
-
 <select
-${!Engine.editMode?'disabled':''}
+${!(Engine.editMode && Engine.selected[t._id]) ? 'disabled' : ''}
 onchange="Engine.assignManual('${t._id}',this.value)">
 
-<option value="">Select</option>
+<option value="">Driver</option>
 
 ${
 Engine.getAvailableDrivers(t).map(d=>`
@@ -83,17 +68,12 @@ ${d.name}
 }
 
 </select>
-
 </td>
 
-<td id="car-${t._id}">${t.vehicle || "-"}</td>
+<td>${t.vehicle || "-"}</td>
 
 <td>
-
 <button onclick="Engine.sendOne('${t._id}')">Send</button>
-
-<button onclick="Engine.disable('${t._id}')">Disable</button>
-
 </td>
 
 `
