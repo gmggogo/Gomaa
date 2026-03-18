@@ -1,111 +1,179 @@
 const Engine = {
 
-trips: [],
-drivers: [],
-schedule: {},
+trips:[],
+drivers:[],
+schedule:{},
 
-editMode: false,
+selected:{},
+editMode:false,
 
-/* ===============================
-INIT
-================================ */
+/* ================= LOAD ================= */
+async load(){
 
-async init(){
+  const data = await Store.load()
 
-  try{
+  this.trips = data.trips || []
+  this.drivers = data.drivers || []
+  this.schedule = data.schedule || {}
 
-    const data = await Store.load()
+  this.sortTrips()
 
-    this.trips = (data.trips || []).map(t=>({
-      ...t,
-      selected:false
-    }))
-
-    this.drivers = data.drivers || []
-    this.schedule = data.schedule || {}
-
-    this.sortTrips()
-
-    this.syncToUI()
-
-  }catch(err){
-
-    console.error("Engine Init Error:", err)
-
-  }
+  this.runAuto()
 
 },
 
-/* ===============================
-SYNC TO UI
-================================ */
-
-syncToUI(){
-
-  // 🔥 أهم ربط بين Engine و HTML
-  window.trips = this.trips
-  window.drivers = this.drivers
-
-  renderTrips()
-
-},
-
-/* ===============================
-SORT
-================================ */
-
+/* ================= SORT ================= */
 sortTrips(){
 
   this.trips.sort((a,b)=>{
-    return new Date(`${a.tripDate} ${a.tripTime}`) -
-           new Date(`${b.tripDate} ${b.tripTime}`)
+    const da = new Date(`${a.tripDate} ${a.tripTime}`)
+    const db = new Date(`${b.tripDate} ${b.tripTime}`)
+    return da - db
   })
 
 },
 
-/* ===============================
-CHANGE DRIVER
-================================ */
+/* ================= DAY ================= */
+getTripDay(trip){
+  return new Date(trip.tripDate).toLocaleDateString("en-CA")
+},
 
-changeDriver(index, driverId){
+/* ================= AVAILABLE DRIVERS ================= */
+getAvailableDrivers(trip){
 
-  const driver = this.drivers.find(d=>d._id == driverId)
-  if(!driver) return
+  const day = this.getTripDay(trip)
 
-  this.trips[index].driverId = driver._id
-  this.trips[index].driverName = driver.name
+  return this.drivers.filter(d=>{
 
-  // 🔥 العربية تتغير فورًا
-  this.trips[index].vehicle =
+    const s = this.schedule[d._id]
+
+    // 🔥 الإصلاح هنا
+    if(!s) return true
+
+    if(!s.enabled) return false
+
+    if(!s.days) return true
+
+    return s.days[day] !== false
+
+  })
+
+},
+
+/* ================= ASSIGN ================= */
+assign(trip, driver){
+
+  const s = this.schedule[driver._id] || {}
+
+  trip.driverId = driver._id
+  trip.driverName = driver.name || ""
+
+  // 🔥 العربية من السواق لو schedule فاضي
+  trip.vehicle =
+    s.vehicleNumber ||
     driver.vehicleNumber ||
     driver.vehicle ||
     driver.car ||
     ""
 
-  this.syncToUI()
+  trip.driverAddress = s.address || ""
 
 },
 
-/* ===============================
-SELECT
-================================ */
+/* ================= AUTO ================= */
+runAuto(){
 
-selectAll(){
+  const driverState = {}
 
-  this.trips.forEach(t=>t.selected = true)
-  this.syncToUI()
+  this.drivers.forEach(d=>{
+    const s = this.schedule[d._id] || {}
+
+    driverState[d._id] = {
+      lastLocation: s.address || "",
+      lastTime: null
+    }
+  })
+
+  this.trips.forEach(trip=>{
+
+    const available = this.getAvailableDrivers(trip)
+
+    if(!available.length) return
+
+    let bestDriver = null
+
+    available.forEach(driver=>{
+
+      const state = driverState[driver._id]
+
+      if(!bestDriver){
+        bestDriver = driver
+        return
+      }
+
+      if(!state.lastTime){
+        bestDriver = driver
+        return
+      }
+
+      if(state.lastTime < driverState[bestDriver._id].lastTime){
+        bestDriver = driver
+      }
+
+    })
+
+    if(bestDriver){
+
+      this.assign(trip, bestDriver)
+
+      driverState[bestDriver._id].lastLocation = trip.dropoff
+      driverState[bestDriver._id].lastTime = new Date(`${trip.tripDate} ${trip.tripTime}`)
+
+    }
+
+  })
+
+  UI.render()
 
 },
 
-/* ===============================
-SEND
-================================ */
+/* ================= SELECT ================= */
+toggleSelect(id){
+  this.selected[id] = !this.selected[id]
+  UI.render()
+},
 
+toggleAll(){
+
+  const all = this.trips.every(t=>this.selected[t._id])
+
+  this.trips.forEach(t=>{
+    this.selected[t._id] = !all
+  })
+
+  UI.render()
+},
+
+/* ================= MANUAL ================= */
+async assignManual(tripId, driverId){
+
+  const driver = this.drivers.find(d=>d._id === driverId)
+  if(!driver) return
+
+  const trip = this.trips.find(t=>t._id === tripId)
+
+  this.assign(trip, driver)
+
+  await Store.assignDriver(tripId, driverId)
+
+  UI.render()
+
+},
+
+/* ================= SEND ================= */
 async sendSelected(){
 
-  const ids = this.trips
-    .filter(t=>t.selected)
-    .map(t=>t._id)
+  const ids = Object.keys(this.selected).filter(id=>this.selected[id])
 
   if(!ids.length){
     alert("No trips selected")
@@ -114,36 +182,27 @@ async sendSelected(){
 
   await Store.sendTrips(ids)
 
-  alert("Trips sent")
+  alert("Trips Sent")
 
 },
 
-/* ===============================
-REDISTRIBUTE
-================================ */
+/* ================= SINGLE ================= */
+async sendOne(id){
 
-redistributeSelected(){
+  await Store.sendTrips([id])
 
-  const selected = this.trips.filter(t=>t.selected)
+  alert("Trip Sent")
 
-  selected.forEach((t,i)=>{
+},
 
-    const driver = this.drivers[i % this.drivers.length]
+/* ================= DISABLE ================= */
+async disable(id){
 
-    if(driver){
-      t.driverId = driver._id
-      t.driverName = driver.name
+  await Store.disableTrip(id)
 
-      t.vehicle =
-        driver.vehicleNumber ||
-        driver.vehicle ||
-        driver.car ||
-        ""
-    }
+  this.trips = this.trips.filter(t=>t._id !== id)
 
-  })
-
-  this.syncToUI()
+  UI.render()
 
 }
 

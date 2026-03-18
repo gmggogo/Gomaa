@@ -2,18 +2,11 @@ const Store = {
 
 API: "/api/dispatch",
 
-/* ===============================
-LOAD ALL DATA
-================================ */
-
 async load(){
 
   const res = await fetch(this.API)
 
-  if(!res.ok){
-    console.error("Dispatch API Error")
-    return { trips:[], drivers:[], schedule:{} }
-  }
+  if(!res.ok) throw "Dispatch Load Error"
 
   const data = await res.json()
 
@@ -25,10 +18,6 @@ async load(){
 
 },
 
-/* ===============================
-ASSIGN DRIVER
-================================ */
-
 async assignDriver(tripId, driverId){
 
   return fetch(`/api/dispatch/${tripId}/driver`,{
@@ -39,10 +28,6 @@ async assignDriver(tripId, driverId){
 
 },
 
-/* ===============================
-SEND TRIPS
-================================ */
-
 async sendTrips(ids){
 
   return fetch("/api/dispatch/send",{
@@ -52,10 +37,6 @@ async sendTrips(ids){
   })
 
 },
-
-/* ===============================
-DISABLE TRIP
-================================ */
 
 async disableTrip(id){
 
