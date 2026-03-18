@@ -6,13 +6,18 @@ async load(){
 
   const res = await fetch(this.API)
 
-  if(!res.ok) throw "dispatch load error"
+  if(!res.ok){
+    console.error("Dispatch API Error")
+    return { trips:[], drivers:[], schedule:{} }
+  }
 
   const data = await res.json()
 
+  console.log("🔥 DISPATCH DATA:", data) // 👈 مهم جداً
+
   return {
-    trips: data.trips || [],
-    drivers: data.drivers || [],
+    trips: Array.isArray(data.trips) ? data.trips : [],
+    drivers: Array.isArray(data.drivers) ? data.drivers : [],
     schedule: data.schedule || {}
   }
 
