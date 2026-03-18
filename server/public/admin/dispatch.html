@@ -10,14 +10,12 @@
 
 <style>
 
-/* ===== PAGE ===== */
 .page-body{
 padding:15px 20px;
 background:#f1f5f9;
 min-height:calc(100vh - 80px);
 }
 
-/* ===== TABS ===== */
 .dispatch-tabs{
 display:flex;
 margin-bottom:5px;
@@ -37,7 +35,6 @@ cursor:pointer;
 background:#2563eb;
 }
 
-/* ===== WELCOME ===== */
 .welcome-msg{
 background:#e2e8f0;
 padding:10px;
@@ -46,7 +43,6 @@ border-radius:6px;
 font-weight:bold;
 }
 
-/* ===== TABLE ===== */
 table{
 width:100%;
 border-collapse:collapse;
@@ -65,7 +61,6 @@ padding:6px;
 font-size:12px;
 }
 
-/* ===== BUTTONS ===== */
 .top-actions{
 margin:10px 0;
 display:flex;
@@ -84,7 +79,6 @@ border-radius:5px;
 .orange{background:#f97316}
 .green{background:#16a34a}
 
-/* ===== DRIVERS ===== */
 .tab-page{display:none}
 .tab-page.active{display:block}
 
@@ -175,6 +169,7 @@ background:#2563eb;
 
 </div>
 
+<script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
@@ -185,23 +180,27 @@ let editMode=false
 let map
 let markers=[]
 
-/* ===== HEADER + MESSAGE ===== */
-fetch("/admin/header.html")
-.then(res=>res.text())
-.then(data=>{
-document.getElementById("adminHeader").innerHTML=data
+/* ===== MESSAGE FIX 🔥 ===== */
+function setWelcome(){
 
-// 🔥 الطريقة المضمونة
-setTimeout(()=>{
-const msg = document.querySelector(".header-center") 
-|| document.querySelector("[class*='center']")
+const name = localStorage.getItem("name") || "Gomaa"
 
-if(msg){
-document.getElementById("welcomeMsg").innerText = msg.innerText
+const now = new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+const hour = new Date(now).getHours()
+
+let msg = "Good Night"
+
+if(hour >= 5 && hour < 12){
+msg = "Good Morning"
 }
-},300)
+else if(hour >= 12 && hour < 18){
+msg = "Good Afternoon"
+}
 
-})
+document.getElementById("welcomeMsg").innerText =
+`${msg}, ${name}`
+
+}
 
 /* ===== LOAD ===== */
 async function load(){
@@ -209,11 +208,10 @@ async function load(){
 const res = await fetch("/api/trips")
 const data = await res.json()
 
-// 🔥 فلترة ذكية
 trips = data.filter(t => t.selected === true)
 
 if(trips.length === 0){
-trips = data // fallback
+trips = data
 }
 
 const d = await fetch("/api/users/driver")
@@ -282,10 +280,8 @@ document.querySelectorAll("input[type=checkbox]")
 
 function toggleEdit(){
 editMode=!editMode
-
 document.getElementById("editBtn").innerText =
 editMode ? "Save" : "Edit"
-
 renderTrips()
 }
 
@@ -302,10 +298,8 @@ tabDrivers.classList.remove("active")
 }
 
 tabDrivers.onclick=()=>{
-
 tripsPage.classList.remove("active")
 driversPage.classList.add("active")
-
 tabTrips.classList.remove("active")
 tabDrivers.classList.add("active")
 
@@ -314,7 +308,6 @@ initMap()
 renderDrivers()
 map.invalidateSize()
 },300)
-
 }
 
 /* ===== MAP ===== */
@@ -344,11 +337,8 @@ const trip = trips.find(t=>t.driverId==d._id)
 
 panel.innerHTML+=`
 <div class="driver" onclick="focusDriver(${d.lat||33.4},${d.lng||-112.07})">
-
 <span>${i+1} - ${d.name}</span>
-
 <span>🚗 ${d.vehicleNumber||"-"} | ${trip?.tripNumber||"-"}</span>
-
 </div>
 `
 
@@ -366,7 +356,10 @@ map.setView([lat,lng],13)
 }
 
 /* ===== START ===== */
+setTimeout(()=>{
+setWelcome()
 load()
+},200)
 
 </script>
 
