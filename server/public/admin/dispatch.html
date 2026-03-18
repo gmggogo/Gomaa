@@ -1,120 +1,273 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-
 <meta charset="UTF-8">
 <title>Dispatch</title>
 
-<link rel="stylesheet" href="/admin/style.css">
-<link rel="stylesheet" href="/admin/header.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 
-body{background:#f3f4f6;font-family:Arial}
-
-/* TABS */
-.tabs{
-display:flex;
-gap:10px;
-margin:10px;
+/* ===== TABS ===== */
+.dispatch-tabs{display:flex;width:100%}
+.tab-btn{
+flex:1;padding:14px;border:none;
+background:#0f172a;color:#fff;
+font-weight:bold;cursor:pointer
 }
+.tab-btn.active{background:#2563eb}
 
-.tab{
-padding:8px 20px;
-background:#1e3a8a;
-color:#fff;
-border-radius:6px;
-cursor:pointer;
-}
+/* ===== PAGES ===== */
+.tab-page{display:none}
+.tab-page.active{display:block}
 
-.tab.active{
-background:#2563eb;
+/* ===== BUTTONS ===== */
+.top-actions{
+margin:10px;display:flex;gap:10px
 }
+.btn{padding:8px;border:none;color:#fff;cursor:pointer}
+.blue{background:#2563eb}
+.orange{background:#f97316}
+.green{background:#16a34a}
 
-/* PAGES */
-.page{
-display:none;
-padding:10px;
-}
+/* ===== TABLE ===== */
+table{width:100%;border-collapse:collapse}
+th{background:#1e293b;color:#fff;padding:8px}
+td{border:1px solid #ddd;padding:6px;font-size:12px}
 
-.page.active{
-display:block;
+/* ===== DRIVERS ===== */
+.drivers-layout{display:flex;height:85vh}
+#map{width:70%}
+#driversPanel{
+width:30%;background:#0f172a;
+color:#fff;overflow:auto
 }
-
-/* MAP */
-#map{
-height:300px;
-border-radius:10px;
-margin-bottom:10px;
+.driver{
+padding:10px;border-bottom:1px solid #1e293b;
+cursor:pointer
 }
-
-/* DRIVERS */
-.driver-row{
-padding:10px;
-background:#1e3a8a;
-color:#fff;
-margin-bottom:5px;
-border-radius:6px;
-cursor:pointer;
-display:flex;
-justify-content:space-between;
-}
-
-.driver-row:hover{
-background:#2563eb;
-}
+.driver:hover{background:#2563eb}
 
 </style>
-
 </head>
 
 <body>
 
-<div id="adminHeader"></div>
-
-<!-- TABS -->
-<div class="tabs">
-<div class="tab active" onclick="UI.showTab('trips')">Trips</div>
-<div class="tab" onclick="UI.showTab('drivers')">Drivers & Map</div>
+<!-- ===== TABS ===== -->
+<div class="dispatch-tabs">
+<button id="tabTrips" class="tab-btn active">Trips Schedule</button>
+<button id="tabDrivers" class="tab-btn">Drivers Map</button>
 </div>
 
-<!-- TRIPS PAGE -->
-<div id="tripsPage" class="page active">
+<!-- ===== TRIPS ===== -->
+<div id="tripsPage" class="tab-page active">
 
-<div style="margin-bottom:10px">
-<button onclick="Engine.toggleAll()">Select All</button>
-<button id="editBtn" onclick="Engine.toggleEdit()">Edit</button>
-<button onclick="Engine.sendSelected()">Send</button>
+<div class="top-actions">
+<button class="btn blue" onclick="selectAll()">Select All</button>
+<button class="btn orange" onclick="toggleEdit()" id="editBtn">Edit</button>
+<button class="btn green" onclick="sendTrips()">Send</button>
 </div>
 
-<div id="tripsContainer"></div>
+<table>
+<thead>
+<tr>
+<th>Select</th>
+<th>#</th>
+<th>Client</th>
+<th>Pickup</th>
+<th>Stops</th>
+<th>Dropoff</th>
+<th>Date</th>
+<th>Time</th>
+<th>Driver</th>
+<th>Car</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
 
 </div>
 
-<!-- DRIVERS PAGE -->
-<div id="driversPage" class="page">
+<!-- ===== DRIVERS ===== -->
+<div id="driversPage" class="tab-page">
+
+<div class="drivers-layout">
 
 <div id="map"></div>
-<div id="driversList"></div>
+<div id="driversPanel"></div>
 
 </div>
 
-<script src="/admin/header.js"></script>
-<script>
-fetch("/admin/header.html")
-.then(r=>r.text())
-.then(h=>document.getElementById("adminHeader").innerHTML=h)
-</script>
+</div>
 
+<!-- ===== JS ===== -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="/admin/dispatch.store.js"></script>
-<script src="/admin/dispatch.engine.js"></script>
-<script src="/admin/dispatch.ui.js"></script>
-
 <script>
-Engine.load()
+
+let trips=[]
+let drivers=[]
+let editMode=false
+let map
+let markers=[]
+
+/* ================= LOAD ================= */
+async function load(){
+
+const t=await fetch("/api/trips")
+trips=await t.json()
+
+const d=await fetch("/api/users/driver")
+drivers=await d.json()
+
+renderTrips()
+
+}
+
+/* ================= RENDER TRIPS ================= */
+function renderTrips(){
+
+const body=document.getElementById("tbody")
+body.innerHTML=""
+
+trips.forEach((t,i)=>{
+
+body.innerHTML+=`
+<tr>
+
+<td><input type="checkbox" class="check"></td>
+
+<td>${i+1}</td>
+
+<td>${t.clientName||""}</td>
+
+<td>${t.pickup||""}</td>
+
+<td>${(t.stops||[]).join(" , ")}</td>
+
+<td>${t.dropoff||""}</td>
+
+<td>${t.tripDate||""}</td>
+
+<td>${t.tripTime||""}</td>
+
+<td>
+<select ${editMode?"":"disabled"}>
+<option value="">--</option>
+${drivers.map(d=>`
+<option value="${d._id}" ${t.driverId==d._id?"selected":""}>
+${d.name}
+</option>
+`).join("")}
+</select>
+</td>
+
+<td>${t.vehicle||"-"}</td>
+
+<td>
+<input value="${t.notes||""}">
+</td>
+
+</tr>
+`
+
+})
+
+}
+
+/* ================= BUTTONS ================= */
+
+function selectAll(){
+document.querySelectorAll(".check")
+.forEach(c=>c.checked=true)
+}
+
+function toggleEdit(){
+
+editMode=!editMode
+
+document.getElementById("editBtn").innerText=
+editMode?"Save":"Edit"
+
+renderTrips()
+
+}
+
+function sendTrips(){
+alert("Trips Sent ✅")
+}
+
+/* ================= TABS ================= */
+
+tabTrips.onclick=()=>{
+tripsPage.classList.add("active")
+driversPage.classList.remove("active")
+tabTrips.classList.add("active")
+tabDrivers.classList.remove("active")
+}
+
+tabDrivers.onclick=()=>{
+tripsPage.classList.remove("active")
+driversPage.classList.add("active")
+tabTrips.classList.remove("active")
+tabDrivers.classList.add("active")
+loadDriversMap()
+}
+
+/* ================= MAP ================= */
+
+function initMap(){
+
+if(map) return
+
+map=L.map('map').setView([33.45,-112.07],10)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(map)
+
+}
+
+function loadDriversMap(){
+
+initMap()
+
+markers.forEach(m=>map.removeLayer(m))
+markers=[]
+
+const panel=document.getElementById("driversPanel")
+panel.innerHTML=""
+
+drivers.forEach((d,i)=>{
+
+const trip = trips.find(t=>t.driverId==d._id)
+
+panel.innerHTML+=`
+<div class="driver" onclick="focusDriver(${d.lat||33.4},${d.lng||-112.07})">
+<b>#${i+1} ${d.name}</b><br>
+🚗 ${d.vehicleNumber||"-"}<br>
+Trip: ${trip?.tripNumber||"None"}
+</div>
+`
+
+if(d.lat && d.lng){
+
+const m=L.marker([d.lat,d.lng]).addTo(map)
+markers.push(m)
+
+}
+
+})
+
+}
+
+function focusDriver(lat,lng){
+map.setView([lat,lng],13)
+}
+
+/* ================= START ================= */
+load()
+
 </script>
 
 </body>
