@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <meta charset="UTF-8">
 <title>Dispatch</title>
 
@@ -10,140 +11,92 @@
 
 <style>
 
-/* LAYOUT */
-.main-layout{
+body{background:#f3f4f6;font-family:Arial}
+
+/* TABS */
+.tabs{
 display:flex;
-height:100vh;
 gap:10px;
-padding:10px;
-background:#e5e7eb;
+margin:10px;
 }
 
-/* LEFT */
-.left-panel{
-width:40%;
-display:flex;
-flex-direction:column;
-gap:10px;
+.tab{
+padding:8px 20px;
+background:#1e3a8a;
+color:#fff;
+border-radius:6px;
+cursor:pointer;
+}
+
+.tab.active{
+background:#2563eb;
+}
+
+/* PAGES */
+.page{
+display:none;
+padding:10px;
+}
+
+.page.active{
+display:block;
 }
 
 /* MAP */
 #map{
-height:50%;
+height:300px;
 border-radius:10px;
+margin-bottom:10px;
 }
 
 /* DRIVERS */
-#driversList{
-flex:1;
-overflow-y:auto;
-background:#1e3a8a;
-border-radius:10px;
-padding:10px;
-color:#fff;
-}
-
-/* DRIVER ROW */
 .driver-row{
+padding:10px;
+background:#1e3a8a;
+color:#fff;
+margin-bottom:5px;
+border-radius:6px;
+cursor:pointer;
 display:flex;
 justify-content:space-between;
-align-items:center;
-padding:8px;
-border-bottom:1px solid rgba(255,255,255,0.2);
-cursor:pointer;
-font-size:13px;
 }
 
 .driver-row:hover{
 background:#2563eb;
 }
 
-/* RIGHT */
-.right-panel{
-flex:1;
-display:flex;
-flex-direction:column;
-gap:10px;
-}
-
-/* BUTTON BAR */
-.top-bar{
-display:flex;
-gap:10px;
-}
-
-/* BUTTON */
-.btn{
-background:#2563eb;
-color:#fff;
-padding:6px 12px;
-border:none;
-border-radius:6px;
-cursor:pointer;
-font-weight:600;
-}
-
-.btn:hover{
-background:#1d4ed8;
-}
-
-/* TRIPS */
-#tripsContainer{
-flex:1;
-overflow:auto;
-background:#fff;
-border-radius:10px;
-padding:10px;
-}
-
-/* TABLE */
-table{
-width:100%;
-border-collapse:collapse;
-}
-
-th{
-background:#1e3a8a;
-color:#fff;
-}
-
-td,th{
-padding:6px;
-border:1px solid #ddd;
-font-size:12px;
-text-align:center;
-}
-
 </style>
+
 </head>
 
 <body>
 
 <div id="adminHeader"></div>
 
-<div class="main-layout">
-
-<!-- LEFT -->
-<div class="left-panel">
-
-<div id="map"></div>
-
-<div id="driversList"></div>
-
+<!-- TABS -->
+<div class="tabs">
+<div class="tab active" onclick="UI.showTab('trips')">Trips</div>
+<div class="tab" onclick="UI.showTab('drivers')">Drivers & Map</div>
 </div>
 
-<!-- RIGHT -->
-<div class="right-panel">
+<!-- TRIPS PAGE -->
+<div id="tripsPage" class="page active">
 
-<div class="top-bar">
-<button class="btn" onclick="Engine.toggleAll()">Select All</button>
-<button id="editBtn" class="btn" onclick="Engine.toggleEdit()">Edit</button>
-<button class="btn" onclick="Engine.sendSelected()">Send</button>
+<div style="margin-bottom:10px">
+<button onclick="Engine.toggleAll()">Select All</button>
+<button id="editBtn" onclick="Engine.toggleEdit()">Edit</button>
+<button onclick="Engine.sendSelected()">Send</button>
 </div>
 
 <div id="tripsContainer"></div>
 
 </div>
+
+<!-- DRIVERS PAGE -->
+<div id="driversPage" class="page">
+
+<div id="map"></div>
+<div id="driversList"></div>
 
 </div>
 

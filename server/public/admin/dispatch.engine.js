@@ -3,6 +3,7 @@ const Engine = {
 trips:[],
 drivers:[],
 schedule:{},
+
 selected:{},
 editMode:false,
 
@@ -18,6 +19,7 @@ this.drivers = data.drivers || []
 this.schedule = data.schedule || {}
 
 this.initMap()
+
 UI.render()
 
 },
@@ -32,76 +34,40 @@ maxZoom:19
 
 },
 
-toggleEdit(){
+renderMap(){
 
-this.editMode = !this.editMode
+this.markers.forEach(m=>this.map.removeLayer(m))
+this.markers=[]
 
-document.getElementById("editBtn").innerText =
-this.editMode ? "Save" : "Edit"
+this.drivers.forEach(d=>{
 
-UI.render()
+if(!d.lat||!d.lng) return
 
-},
+const m=L.marker([d.lat,d.lng])
+.addTo(this.map)
+.bindPopup(d.name)
 
-toggleAll(){
+this.markers.push(m)
 
-const all = this.trips.every(t=>this.selected[t._id])
-
-this.trips.forEach(t=>{
-this.selected[t._id]=!all
 })
-
-UI.render()
 
 },
 
 focusDriver(id){
 
-const d = this.drivers.find(x=>x._id===id)
+const d=this.drivers.find(x=>x._id===id)
 if(!d) return
 
-this.markers.forEach(m=>this.map.removeLayer(m))
-this.markers=[]
-
-if(d.lat && d.lng){
-
-const m = L.marker([d.lat,d.lng])
-.addTo(this.map)
-.bindPopup(d.name)
-.openPopup()
-
-this.markers.push(m)
-
-}
+this.map.setView([d.lat,d.lng],13)
 
 },
 
-async assignManual(id,driverId){
+toggleEdit(){
 
-const d=this.drivers.find(x=>x._id===driverId)
-const t=this.trips.find(x=>x._id===id)
+this.editMode=!this.editMode
 
-if(!d||!t) return
-
-const s=this.schedule[d._id]||{}
-
-t.driverId=d._id
-t.driverName=d.name
-t.vehicle=s.vehicleNumber||""
-
-await Store.assignDriver(id,driverId)
-
-UI.render()
-
-},
-
-async sendSelected(){
-
-const ids=Object.keys(this.selected).filter(i=>this.selected[i])
-if(!ids.length) return alert("No trips")
-
-await Store.sendTrips(ids)
-alert("Sent")
+document.getElementById("editBtn").innerText=
+this.editMode?"Save":"Edit"
 
 }
 
