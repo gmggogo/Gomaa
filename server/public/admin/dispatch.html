@@ -9,154 +9,114 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
+
 .page-body{
-  padding:15px 20px;
-  background:#f1f5f9;
-  min-height:calc(100vh - 80px);
+padding:15px 20px;
+background:#f1f5f9;
+min-height:calc(100vh - 80px);
 }
 
 .dispatch-tabs{
-  display:flex;
-  margin-bottom:5px;
+display:flex;
+margin-bottom:5px;
 }
 
 .tab-btn{
-  flex:1;
-  padding:14px;
-  border:none;
-  background:#1e293b;
-  color:#fff;
-  font-weight:bold;
-  cursor:pointer;
+flex:1;
+padding:14px;
+border:none;
+background:#1e293b;
+color:#fff;
+font-weight:bold;
+cursor:pointer;
 }
 
-.tab-btn.active{
-  background:#2563eb;
-}
+.tab-btn.active{background:#2563eb;}
 
 .top-actions{
-  margin:10px 0;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
+margin:10px 0;
+display:flex;
+gap:10px;
+flex-wrap:wrap;
 }
 
 .btn{
-  padding:8px 12px;
-  border:none;
-  color:#fff;
-  cursor:pointer;
-  border-radius:5px;
-  font-weight:bold;
+padding:8px 12px;
+border:none;
+color:#fff;
+cursor:pointer;
+border-radius:5px;
+font-weight:bold;
 }
 
-.blue{background:#2563eb;}
-.orange{background:#f97316;}
-.green{background:#16a34a;}
-.purple{background:#7c3aed;}
+.blue{background:#2563eb}
+.orange{background:#f97316}
+.green{background:#16a34a}
+.purple{background:#7c3aed}
 
 table{
-  width:100%;
-  border-collapse:collapse;
-  background:#fff;
+width:100%;
+border-collapse:collapse;
+background:#fff;
 }
 
 th{
-  background:#1e293b;
-  color:#fff;
-  padding:8px;
-  font-size:12px;
+background:#1e293b;
+color:#fff;
+padding:8px;
 }
 
 td{
-  border:1px solid #ddd;
-  padding:6px;
-  font-size:12px;
-  vertical-align:middle;
+border:1px solid #ddd;
+padding:6px;
+font-size:12px;
 }
 
-.tab-page{display:none;}
-.tab-page.active{display:block;}
+.tab-page{display:none}
+.tab-page.active{display:block}
 
 .drivers-layout{
-  display:flex;
-  height:80vh;
+display:flex;
+height:80vh;
 }
 
-#map{
-  width:70%;
-}
-
+#map{width:70%;}
 #driversPanel{
-  width:30%;
-  background:#0f172a;
-  color:#fff;
-  overflow:auto;
+width:30%;
+background:#0f172a;
+color:#fff;
+overflow:auto;
 }
 
+/* 🔥 الشريط */
 .driver{
-  padding:10px;
-  border-bottom:1px solid #1e293b;
-  cursor:pointer;
+padding:10px;
+border-bottom:1px solid #1e293b;
+cursor:pointer;
 }
 
-.driver:hover{
-  background:#1e293b;
+.driver-bar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+font-size:13px;
 }
 
-.checkbox-cell{
-  text-align:center;
+.driver-name{
+font-weight:bold;
 }
 
-.select-box{
-  width:18px;
-  height:18px;
-  cursor:pointer;
+.driver-info{
+display:flex;
+gap:10px;
 }
 
-.trip-notes,
-.trip-stop{
-  min-width:120px;
-}
-
-.driver-select{
-  min-width:140px;
-}
-
-.car-cell{
-  min-width:90px;
-  font-weight:bold;
-  color:#0f172a;
-  background:#f8fafc;
-}
-
-.send-btn{
-  min-width:72px;
-}
-
+/* marker */
 .driver-marker div{
-  box-shadow:0 0 6px rgba(0,0,0,0.35);
+box-shadow:0 0 6px rgba(0,0,0,0.5);
 }
 
-.readonly-field{
-  background:#f8fafc;
-  border:1px solid #d1d5db;
-  border-radius:4px;
-  padding:6px 8px;
-  width:100%;
-  font-size:12px;
-  box-sizing:border-box;
-}
-
-.stop-badge{
-  display:inline-block;
-  padding:4px 8px;
-  background:#e2e8f0;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:600;
-  color:#0f172a;
-}
 </style>
 </head>
 
@@ -166,50 +126,61 @@ td{
 
 <div class="page-body">
 
-  <div class="dispatch-tabs">
-    <button id="tabTrips" class="tab-btn active">Trips</button>
-    <button id="tabDrivers" class="tab-btn">Drivers Map</button>
-  </div>
+<div class="dispatch-tabs">
+<button id="tabTrips" class="tab-btn active">Trips</button>
+<button id="tabDrivers" class="tab-btn">Drivers Map</button>
+</div>
 
-  <!-- TRIPS -->
-  <div id="tripsPage" class="tab-page active">
+<!-- TRIPS -->
+<div id="tripsPage" class="tab-page active">
 
-    <div class="top-actions">
-      <button id="selectBtn" class="btn blue" onclick="toggleSelectAll()">Select All</button>
-      <button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit</button>
-      <button class="btn green" onclick="sendSelected()">Send Selected</button>
-      <button class="btn purple" onclick="redistribute()">Redistribute</button>
-    </div>
+<div class="top-actions">
 
-    <table>
-      <thead>
-        <tr>
-          <th>Select</th>
-          <th>#</th>
-          <th>Client</th>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Stop</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Driver</th>
-          <th>Car</th>
-          <th>Notes</th>
-          <th>Send</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+<button id="selectBtn" class="btn blue" onclick="toggleSelect()">
+Select All
+</button>
 
-  </div>
+<button id="editBtn" class="btn orange" onclick="toggleEdit()">
+Edit Selected
+</button>
 
-  <!-- DRIVERS -->
-  <div id="driversPage" class="tab-page">
-    <div class="drivers-layout">
-      <div id="map"></div>
-      <div id="driversPanel"></div>
-    </div>
-  </div>
+<button class="btn green" onclick="sendSelected()">
+Send Selected
+</button>
+
+<button class="btn purple" onclick="redistribute()">
+Redistribute
+</button>
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Select</th>
+<th>#</th>
+<th>Client</th>
+<th>Pickup</th>
+<th>Dropoff</th>
+<th>Date</th>
+<th>Time</th>
+<th>Driver</th>
+<th>Car</th>
+<th>Send</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+
+</div>
+
+<!-- DRIVERS -->
+<div id="driversPage" class="tab-page">
+<div class="drivers-layout">
+<div id="map"></div>
+<div id="driversPanel"></div>
+</div>
+</div>
 
 </div>
 
@@ -217,430 +188,334 @@ td{
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
+
 /* ================= STATE ================= */
 
-let trips = []
-let drivers = []
-let schedule = {}
-let map = null
-let markers = []
-let geoCache = {}
-let editMode = false
-let allSelected = false
+let trips=[]
+let drivers=[]
+let schedule={}
+let map
+let markers=[]
+let geoCache={}
+let editMode=false
+let allSelected=false
 
 /* ================= STORE ================= */
 
-const Store = {
-  API: "/api/dispatch",
-
-  async load(){
-    const res = await fetch(this.API)
-    return await res.json()
-  }
+const Store={
+API:"/api/dispatch",
+async load(){
+const res=await fetch(this.API)
+return await res.json()
+}
 }
 
 /* ================= INIT ================= */
 
 async function init(){
-  try{
-    const data = await Store.load()
 
-    drivers = (data.drivers || []).map(d => ({
-      ...d,
-      _id: String(d._id)
-    }))
+const data=await Store.load()
 
-    trips = (data.trips || []).map(t => ({
-      ...t,
-      selected: false,
-      driverId: t.driverId ? String(t.driverId) : ""
-    }))
+drivers=(data.drivers||[]).map(d=>({...d,_id:String(d._id)}))
 
-    schedule = data.schedule || {}
+trips=(data.trips||[]).map(t=>({
+...t,
+selected:false,
+driverId:t.driverId?String(t.driverId):""
+}))
 
-    renderTrips()
-    initMap()
-    renderDrivers()
+schedule=data.schedule||{}
 
-  }catch(err){
-    console.error("Dispatch init error:", err)
-  }
+renderTrips()
+initMap()
+renderDrivers()
+
 }
 
-/* ================= HELPERS ================= */
+/* ================= CAR ================= */
 
-function getDriverCar(driverId){
-  const s = schedule[driverId]
-  if(!s) return ""
-  return s.carNumber || s.vehicleNumber || s.car || ""
+function getDriverCar(id){
+const s=schedule[id]
+if(!s) return ""
+return s.carNumber||s.vehicleNumber||s.car||""
 }
 
-function getTripStops(t){
-  if (Array.isArray(t.stops) && t.stops.length) return t.stops
-  if (Array.isArray(t.stopAddresses) && t.stopAddresses.length) return t.stopAddresses
-  if (Array.isArray(t.extraStops) && t.extraStops.length) return t.extraStops
-
-  if (typeof t.stop === "string" && t.stop.trim()) return [t.stop]
-  if (typeof t.stops === "string" && t.stops.trim()) return [t.stops]
-
-  return []
-}
-
-function getTripStopText(t){
-  const stops = getTripStops(t)
-  if (!stops.length) return "-"
-  if (stops.length === 1) return stops[0]
-  return `${stops.length} Stops`
-}
-
-function syncSelectButtonText(){
-  const selectedCount = trips.filter(t => t.selected).length
-  const btn = document.getElementById("selectBtn")
-  if(!btn) return
-
-  if(selectedCount === trips.length && trips.length > 0){
-    allSelected = true
-    btn.innerText = "Remove All"
-  }else{
-    allSelected = false
-    btn.innerText = "Select All"
-  }
-}
-
-/* ================= RENDER TRIPS ================= */
+/* ================= TRIPS ================= */
 
 function renderTrips(){
-  const body = document.getElementById("tbody")
-  body.innerHTML = ""
 
-  trips.forEach((t, i) => {
-    const stopText = getTripStopText(t)
+const body=document.getElementById("tbody")
+body.innerHTML=""
 
-    body.innerHTML += `
-      <tr>
-        <td class="checkbox-cell">
-          <input
-            type="checkbox"
-            class="select-box"
-            ${t.selected ? "checked" : ""}
-            onchange="toggleTrip(${i}, this.checked)">
-        </td>
+trips.forEach((t,i)=>{
 
-        <td>${t.tripNumber || i + 1}</td>
-        <td>${t.clientName || ""}</td>
-        <td>${t.pickup || ""}</td>
-        <td>${t.dropoff || ""}</td>
+body.innerHTML+=`
+<tr>
 
-        <td class="trip-stop">
-          ${stopText === "-" ? `<span class="stop-badge">-</span>` : stopText}
-        </td>
+<td>
+<button class="btn ${t.selected?'green':'blue'}"
+onclick="toggleTrip(${i})">
+${t.selected?'✔':'Select'}
+</button>
+</td>
 
-        <td>${t.tripDate || ""}</td>
-        <td>${t.tripTime || ""}</td>
+<td>${t.tripNumber||i+1}</td>
+<td>${t.clientName||""}</td>
+<td>${t.pickup||""}</td>
+<td>${t.dropoff||""}</td>
+<td>${t.tripDate||""}</td>
+<td>${t.tripTime||""}</td>
 
-        <td>
-          <select
-            class="driver-select"
-            ${(editMode && t.selected) ? "" : "disabled"}
-            onchange="assignDriver(${i}, this.value)">
-            <option value="">--</option>
-            ${drivers.map(d => `
-              <option value="${d._id}" ${t.driverId === d._id ? "selected" : ""}>
-                ${d.name}
-              </option>
-            `).join("")}
-          </select>
-        </td>
+<td>
+<select ${(editMode && t.selected)?'':'disabled'}
+onchange="assignDriver(${i},this.value)">
+<option value="">--</option>
+${drivers.map(d=>`
+<option value="${d._id}" ${t.driverId===d._id?'selected':''}>
+${d.name}
+</option>`).join("")}
+</select>
+</td>
 
-        <td id="car-${i}" class="car-cell">
-          ${t.vehicle || ""}
-        </td>
+<td id="car-${i}">${t.vehicle||""}</td>
 
-        <td>
-          <input
-            class="readonly-field"
-            value="${escapeHtml(t.notes || "")}"
-            disabled>
-        </td>
+<td>
+<button class="btn green" onclick="sendOne(${i})">Send</button>
+</td>
 
-        <td>
-          <button class="btn green send-btn" onclick="sendOne(${i})">
-            Send
-          </button>
-        </td>
-      </tr>
-    `
-  })
+</tr>
+`
+})
 
-  syncSelectButtonText()
-}
-
-/* ================= ESCAPE HTML ================= */
-
-function escapeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
 }
 
 /* ================= SELECT ================= */
 
-function toggleTrip(i, checked){
-  trips[i].selected = checked
-  syncSelectButtonText()
+function toggleTrip(i){
+trips[i].selected=!trips[i].selected
+renderTrips()
 }
 
-function toggleSelectAll(){
-  allSelected = !allSelected
-  trips.forEach(t => t.selected = allSelected)
-  renderTrips()
+function toggleSelect(){
+allSelected=!allSelected
+trips.forEach(t=>t.selected=allSelected)
+document.getElementById("selectBtn").innerText=
+allSelected?"Remove All":"Select All"
+renderTrips()
 }
 
-/* ================= EDIT / SAVE ================= */
+/* ================= EDIT ================= */
 
 function toggleEdit(){
-  editMode = !editMode
-
-  const editBtn = document.getElementById("editBtn")
-  if(editBtn){
-    editBtn.innerText = editMode ? "Save" : "Edit"
-  }
-
-  if(!editMode){
-    renderDrivers()
-  }
-
-  renderTrips()
+editMode=!editMode
+document.getElementById("editBtn").innerText=
+editMode?"Save":"Edit Selected"
+renderTrips()
 }
 
-/* ================= ASSIGN DRIVER ================= */
+/* ================= ASSIGN ================= */
 
-function assignDriver(i, driverId){
-  const driver = drivers.find(d => d._id === driverId)
-  if(!driver) return
+function assignDriver(i,id){
 
-  trips[i].driverId = driverId
-  trips[i].driverName = driver.name
-  trips[i].vehicle = getDriverCar(driverId)
+const d=drivers.find(x=>x._id===id)
+if(!d) return
 
-  const carCell = document.getElementById(`car-${i}`)
-  if(carCell){
-    carCell.innerText = trips[i].vehicle || ""
-  }
+trips[i].driverId=id
+trips[i].vehicle=getDriverCar(id)
+
 }
 
 /* ================= SEND ================= */
 
 function sendSelected(){
-  const selected = trips.filter(t => t.selected)
-  console.log("Send Selected:", selected)
+console.log(trips.filter(t=>t.selected))
 }
 
 function sendOne(i){
-  console.log("Send Trip:", trips[i])
+console.log(trips[i])
 }
 
 /* ================= REDISTRIBUTE ================= */
 
 function redistribute(){
-  const selected = trips.filter(t => t.selected)
-  if(!selected.length || !drivers.length) return
 
-  selected.forEach((t, i) => {
-    const d = drivers[i % drivers.length]
-    t.driverId = d._id
-    t.driverName = d.name
-    t.vehicle = getDriverCar(d._id)
-  })
+const selected=trips.filter(t=>t.selected)
 
-  renderTrips()
-  renderDrivers()
+selected.forEach((t,i)=>{
+const d=drivers[i%drivers.length]
+t.driverId=d._id
+t.vehicle=getDriverCar(d._id)
+})
+
+renderTrips()
+renderDrivers()
 }
 
 /* ================= MAP ================= */
 
 function initMap(){
-  map = L.map("map").setView([33.4484, -112.0740], 10)
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19
-  }).addTo(map)
+map=L.map('map').setView([33.4484,-112.0740],10)
 
-  setTimeout(() => {
-    map.invalidateSize()
-  }, 300)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(map)
+
+setTimeout(()=>map.invalidateSize(),300)
 }
 
 /* ================= GEOCODE ================= */
 
-async function geocode(address){
-  if(!address) return null
-  if(geoCache[address]) return geoCache[address]
+async function geocode(addr){
 
-  try{
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
-    const res = await fetch(url)
-    const data = await res.json()
+if(!addr) return null
+if(geoCache[addr]) return geoCache[addr]
 
-    if(!data.length) return null
+const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`)
+const data=await res.json()
 
-    const loc = {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon)
-    }
+if(!data.length) return null
 
-    geoCache[address] = loc
-    return loc
-  }catch(err){
-    console.error("Geocode error:", err)
-    return null
-  }
+return geoCache[addr]={
+lat:parseFloat(data[0].lat),
+lng:parseFloat(data[0].lon)
+}
 }
 
-/* ================= CLEAR MAP ITEMS ================= */
+/* ================= ROUTE ================= */
 
-function clearMapItems(){
-  markers.forEach(item => {
-    try{
-      map.removeLayer(item)
-    }catch(e){}
-  })
-  markers = []
+async function getRoute(p,d){
+
+const url=`https://router.project-osrm.org/route/v1/driving/${p.lng},${p.lat};${d.lng},${d.lat}?overview=full`
+
+const res=await fetch(url)
+const data=await res.json()
+
+const route=data.routes[0]
+
+return{
+coords:route.geometry.coordinates.map(c=>[c[1],c[0]]),
+distance:(route.distance/1609).toFixed(1),
+duration:(route.duration/60).toFixed(0)
 }
 
-/* ================= RENDER DRIVERS PANEL ================= */
+}
+
+/* ================= DRIVERS ================= */
 
 function renderDrivers(){
-  const panel = document.getElementById("driversPanel")
-  panel.innerHTML = ""
 
-  clearMapItems()
+const panel=document.getElementById("driversPanel")
+panel.innerHTML=""
 
-  drivers.forEach((d, i) => {
-    const car = getDriverCar(d._id)
-    const trip = trips.find(t => t.driverId === d._id)
+markers.forEach(m=>map.removeLayer(m))
+markers=[]
 
-    panel.innerHTML += `
-      <div class="driver" onclick="focusDriver('${d._id}')">
-        <b>${i + 1} - ${d.name}</b><br>
-        🚗 Car: ${car || "-"}<br>
-        📦 Trip: ${trip ? (trip.tripNumber || "-") : "-"}
-      </div>
-    `
+drivers.forEach((d,i)=>{
 
-    if(d.lat && d.lng){
-      const icon = L.divIcon({
-        className: "driver-marker",
-        html: `
-          <div style="
-            background:#2563eb;
-            color:#fff;
-            border-radius:50%;
-            width:30px;
-            height:30px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-weight:bold;
-            font-size:12px;
-          ">${i + 1}</div>
-        `
-      })
+const car=getDriverCar(d._id)
+const trip=trips.find(t=>t.driverId===d._id)
 
-      const marker = L.marker([d.lat, d.lng], { icon })
-        .addTo(map)
-        .bindPopup(`<b>${d.name}</b><br>Driver #${i + 1}`)
+panel.innerHTML+=`
+<div class="driver" onclick="focusDriver('${d._id}')">
 
-      markers.push(marker)
-    }
-  })
+<div class="driver-bar">
+
+<div class="driver-name">
+${i+1} - ${d.name}
+</div>
+
+<div class="driver-info">
+🚗 ${car||"-"} | 📦 ${trip?trip.tripNumber:"-"}
+</div>
+
+</div>
+
+</div>
+`
+
+if(d.lat && d.lng){
+
+const icon=L.divIcon({
+className:'driver-marker',
+html:`<div style="
+background:#2563eb;
+color:#fff;
+border-radius:50%;
+width:30px;
+height:30px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;">
+${i+1}
+</div>`
+})
+
+const m=L.marker([d.lat,d.lng],{icon})
+.addTo(map)
+.bindPopup(d.name)
+
+markers.push(m)
+
 }
 
-/* ================= FOCUS DRIVER ================= */
+})
 
-async function focusDriver(driverId){
-  const driver = drivers.find(d => d._id === driverId)
-  const trip = trips.find(t => t.driverId === driverId)
+}
 
-  if(!driver) return
+/* ================= CLICK ================= */
 
-  const bounds = []
-  clearMapItems()
+async function focusDriver(id){
 
-  // driver marker
-  if(driver.lat && driver.lng){
-    const driverMarker = L.marker([driver.lat, driver.lng])
-      .addTo(map)
-      .bindPopup(`Driver: ${driver.name}`)
+const d=drivers.find(x=>x._id===id)
+const t=trips.find(x=>x.driverId===id)
 
-    markers.push(driverMarker)
-    bounds.push([driver.lat, driver.lng])
-  }
+if(!t) return
 
-  // pickup / dropoff
-  if(trip){
-    const pickup = await geocode(trip.pickup)
-    const dropoff = await geocode(trip.dropoff)
+const p=await geocode(t.pickup)
+const d2=await geocode(t.dropoff)
 
-    if(pickup){
-      const pickupMarker = L.marker([pickup.lat, pickup.lng])
-        .addTo(map)
-        .bindPopup("Pickup")
-      markers.push(pickupMarker)
-      bounds.push([pickup.lat, pickup.lng])
-    }
+const route=await getRoute(p,d2)
 
-    if(dropoff){
-      const dropoffMarker = L.marker([dropoff.lat, dropoff.lng])
-        .addTo(map)
-        .bindPopup("Dropoff")
-      markers.push(dropoffMarker)
-      bounds.push([dropoff.lat, dropoff.lng])
-    }
+markers.forEach(m=>map.removeLayer(m))
+markers=[]
 
-    if(pickup && dropoff){
-      const routeLine = L.polyline(
-        [
-          [pickup.lat, pickup.lng],
-          [dropoff.lat, dropoff.lng]
-        ],
-        { color: "blue" }
-      ).addTo(map)
+markers.push(L.marker([p.lat,p.lng]).addTo(map))
+markers.push(L.marker([d2.lat,d2.lng]).addTo(map))
 
-      markers.push(routeLine)
-    }
-  }
+const line=L.polyline(route.coords,{color:'blue'}).addTo(map)
+markers.push(line)
 
-  if(bounds.length){
-    map.fitBounds(bounds, { padding: [50, 50] })
-  }
+line.bindPopup(`
+<b>${route.distance} miles</b><br>
+ETA: ${route.duration} min
+`).openPopup()
+
+map.fitBounds(line.getBounds())
+
 }
 
 /* ================= TABS ================= */
 
-tabTrips.onclick = () => {
-  tripsPage.classList.add("active")
-  driversPage.classList.remove("active")
-  tabTrips.classList.add("active")
-  tabDrivers.classList.remove("active")
+tabTrips.onclick=()=>{
+tripsPage.classList.add("active")
+driversPage.classList.remove("active")
+tabTrips.classList.add("active")
+tabDrivers.classList.remove("active")
 }
 
-tabDrivers.onclick = () => {
-  tripsPage.classList.remove("active")
-  driversPage.classList.add("active")
-  tabTrips.classList.remove("active")
-  tabDrivers.classList.add("active")
-
-  setTimeout(() => {
-    map.invalidateSize()
-  }, 300)
+tabDrivers.onclick=()=>{
+tripsPage.classList.remove("active")
+driversPage.classList.add("active")
+tabTrips.classList.remove("active")
+tabDrivers.classList.add("active")
+setTimeout(()=>map.invalidateSize(),300)
 }
 
 /* ================= START ================= */
 
 init()
+
 </script>
 
 </body>
