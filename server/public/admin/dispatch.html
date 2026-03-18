@@ -1,57 +1,104 @@
 <!DOCTYPE html>
 <html>
-
 <head>
 <meta charset="UTF-8">
 <title>Dispatch</title>
 
 <link rel="stylesheet" href="/admin/style.css">
 <link rel="stylesheet" href="/admin/header.css">
-
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 
-body{background:#f3f4f6;font-family:Arial}
-
-/* TOP */
-.top-layout{
+/* LAYOUT */
+.main-layout{
 display:flex;
+height:100vh;
 gap:10px;
-margin-bottom:10px;
+padding:10px;
+background:#e5e7eb;
+}
+
+/* LEFT */
+.left-panel{
+width:40%;
+display:flex;
+flex-direction:column;
+gap:10px;
 }
 
 /* MAP */
 #map{
-width:35%;
-height:260px;
+height:50%;
 border-radius:10px;
 }
 
-/* DRIVERS (SMART STRIP) */
-#driversBox{
+/* DRIVERS */
+#driversList{
 flex:1;
-display:flex;
-gap:6px;
-overflow-x:auto;
-height:120px;
-padding:5px;
+overflow-y:auto;
+background:#1e3a8a;
+border-radius:10px;
+padding:10px;
+color:#fff;
 }
 
-.driver-card{
-min-width:90px;
-background:linear-gradient(180deg,#1e3a8a,#2563eb);
+/* DRIVER ROW */
+.driver-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:8px;
+border-bottom:1px solid rgba(255,255,255,0.2);
+cursor:pointer;
+font-size:13px;
+}
+
+.driver-row:hover{
+background:#2563eb;
+}
+
+/* RIGHT */
+.right-panel{
+flex:1;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+/* BUTTON BAR */
+.top-bar{
+display:flex;
+gap:10px;
+}
+
+/* BUTTON */
+.btn{
+background:#2563eb;
 color:#fff;
-padding:6px;
+padding:6px 12px;
+border:none;
 border-radius:6px;
-font-size:11px;
-text-align:center;
+cursor:pointer;
+font-weight:600;
+}
+
+.btn:hover{
+background:#1d4ed8;
+}
+
+/* TRIPS */
+#tripsContainer{
+flex:1;
+overflow:auto;
+background:#fff;
+border-radius:10px;
+padding:10px;
 }
 
 /* TABLE */
 table{
 width:100%;
-background:#fff;
 border-collapse:collapse;
 }
 
@@ -63,19 +110,8 @@ color:#fff;
 td,th{
 padding:6px;
 border:1px solid #ddd;
-text-align:center;
 font-size:12px;
-}
-
-/* BUTTONS */
-.btn{
-background:#2563eb;
-color:#fff;
-padding:6px 12px;
-border:none;
-border-radius:6px;
-cursor:pointer;
-font-weight:600;
+text-align:center;
 }
 
 </style>
@@ -85,43 +121,29 @@ font-weight:600;
 
 <div id="adminHeader"></div>
 
-<div style="padding:10px">
+<div class="main-layout">
 
-<!-- BUTTONS -->
-<div style="margin-bottom:8px">
+<!-- LEFT -->
+<div class="left-panel">
+
+<div id="map"></div>
+
+<div id="driversList"></div>
+
+</div>
+
+<!-- RIGHT -->
+<div class="right-panel">
+
+<div class="top-bar">
 <button class="btn" onclick="Engine.toggleAll()">Select All</button>
 <button id="editBtn" class="btn" onclick="Engine.toggleEdit()">Edit</button>
-<button class="btn" onclick="Engine.sendSelected()">Send Selected</button>
-<button class="btn" onclick="Engine.runAuto()">Redistribute</button>
+<button class="btn" onclick="Engine.sendSelected()">Send</button>
 </div>
 
-<!-- MAP + DRIVERS -->
-<div class="top-layout">
-<div id="map"></div>
-<div id="driversBox"></div>
+<div id="tripsContainer"></div>
+
 </div>
-
-<!-- TABLE -->
-<table>
-<thead>
-<tr>
-<th>Select</th>
-<th>Trip#</th>
-<th>Client</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Date</th>
-<th>Time</th>
-<th>Driver</th>
-<th>Car</th>
-<th>Notes</th>
-<th>Send</th>
-</tr>
-</thead>
-
-<tbody id="tbody"></tbody>
-</table>
 
 </div>
 
