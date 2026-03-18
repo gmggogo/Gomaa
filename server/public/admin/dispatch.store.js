@@ -2,6 +2,10 @@ const Store = {
 
 API: "/api/dispatch",
 
+/* ===============================
+LOAD ALL DATA
+================================ */
+
 async load(){
 
   const res = await fetch(this.API)
@@ -13,15 +17,17 @@ async load(){
 
   const data = await res.json()
 
-  console.log("🔥 DISPATCH DATA:", data) // 👈 مهم جداً
-
   return {
-    trips: Array.isArray(data.trips) ? data.trips : [],
-    drivers: Array.isArray(data.drivers) ? data.drivers : [],
+    trips: data.trips || [],
+    drivers: data.drivers || [],
     schedule: data.schedule || {}
   }
 
 },
+
+/* ===============================
+ASSIGN DRIVER
+================================ */
 
 async assignDriver(tripId, driverId){
 
@@ -33,6 +39,10 @@ async assignDriver(tripId, driverId){
 
 },
 
+/* ===============================
+SEND TRIPS
+================================ */
+
 async sendTrips(ids){
 
   return fetch("/api/dispatch/send",{
@@ -42,6 +52,10 @@ async sendTrips(ids){
   })
 
 },
+
+/* ===============================
+DISABLE TRIP
+================================ */
 
 async disableTrip(id){
 
