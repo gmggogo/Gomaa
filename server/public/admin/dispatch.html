@@ -16,7 +16,6 @@ background:#f1f5f9;
 min-height:calc(100vh - 80px);
 }
 
-/* ===== TABS ===== */
 .dispatch-tabs{
 display:flex;
 margin-bottom:5px;
@@ -36,7 +35,6 @@ cursor:pointer;
 background:#2563eb;
 }
 
-/* ===== BUTTONS ===== */
 .top-actions{
 margin:10px 0;
 display:flex;
@@ -58,7 +56,6 @@ font-weight:bold;
 .green{background:#16a34a}
 .purple{background:#7c3aed}
 
-/* ===== TABLE ===== */
 table{
 width:100%;
 border-collapse:collapse;
@@ -77,11 +74,9 @@ padding:6px;
 font-size:12px;
 }
 
-/* ===== PAGES ===== */
 .tab-page{display:none}
 .tab-page.active{display:block}
 
-/* ===== DRIVERS ===== */
 .drivers-layout{
 display:flex;
 height:80vh;
@@ -177,28 +172,13 @@ background:#2563eb;
 
 <script>
 
-let trips=[]
-let drivers=[]
-let editMode=false
+/* ================= STATE ================= */
+
+let trips = []     // هيتم ملؤها من Engine
+let drivers = []   // هيتم ملؤها من Engine
+let editMode = false
 let map
 let markers=[]
-
-/* ================= LOAD ================= */
-
-async function load(){
-
-const res = await fetch("/api/trips")
-const data = await res.json()
-
-// 🔥 المهم
-trips = data.filter(t => t.dispatchSelected === true)
-
-const d = await fetch("/api/users/driver")
-drivers = await d.json()
-
-renderTrips()
-
-}
 
 /* ================= RENDER ================= */
 
@@ -214,34 +194,48 @@ body.innerHTML+=`
 
 <td>
 <input type="checkbox"
-${t.selected?"checked":""}
-onchange="toggleSelect(${i},this.checked)">
+${t.selected ? "checked" : ""}
+onchange="trips[${i}].selected=this.checked">
 </td>
 
-<td>${i+1}</td>
+<td>${t.tripNumber || i+1}</td>
 
-<td>${t.clientName||""}</td>
-<td>${t.pickup||""}</td>
-<td>${(t.stops||[]).join(" , ")}</td>
-<td>${t.dropoff||""}</td>
-<td>${t.tripDate||""}</td>
-<td>${t.tripTime||""}</td>
+<td>${t.clientName || ""}</td>
+<td>${t.pickup || ""}</td>
+<td>${(t.stops || []).join(" , ")}</td>
+<td>${t.dropoff || ""}</td>
+<td>${t.tripDate || ""}</td>
+<td>${t.tripTime || ""}</td>
 
+<!-- DRIVER -->
 <td>
-<select ${editMode?"":"disabled"}>
+<select onchange="trips[${i}].driverId=this.value"
+${editMode ? "" : "disabled"}>
+
 <option value="">--</option>
+
 ${drivers.map(d=>`
-<option value="${d._id}" ${t.driverId==d._id?"selected":""}>
+<option value="${d._id}"
+${t.driverId==d._id ? "selected" : ""}>
 ${d.name}
 </option>
 `).join("")}
+
 </select>
 </td>
 
-<td>${t.vehicle||"-"}</td>
-
+<!-- CAR -->
 <td>
-<input value="${t.notes||""}" ${editMode?"":"disabled"}>
+<input value="${t.vehicle || ""}"
+oninput="trips[${i}].vehicle=this.value"
+${editMode ? "" : "disabled"}>
+</td>
+
+<!-- NOTES -->
+<td>
+<input value="${t.notes || ""}"
+oninput="trips[${i}].notes=this.value"
+${editMode ? "" : "disabled"}>
 </td>
 
 <td>
@@ -255,22 +249,12 @@ ${d.name}
 
 }
 
-/* ================= SELECT ================= */
-
-function toggleSelect(i,val){
-trips[i].selected = val
-}
+/* ================= ACTIONS ================= */
 
 function selectAll(){
-
-document.querySelectorAll("input[type=checkbox]")
-.forEach(c=>c.checked=true)
-
 trips.forEach(t=>t.selected=true)
-
+renderTrips()
 }
-
-/* ================= EDIT ================= */
 
 function toggleEdit(){
 
@@ -283,28 +267,16 @@ renderTrips()
 
 }
 
-/* ================= SEND ================= */
-
 function sendOne(i){
-alert("Sent Trip: " + trips[i].clientName)
+console.log("Send Trip:", trips[i])
 }
 
 function sendSelected(){
-
-const selected = trips.filter(t=>t.selected)
-
-alert("Sending " + selected.length + " trips")
-
+console.log("Send Selected:", trips.filter(t=>t.selected))
 }
 
-/* ================= REDISTRIBUTE ================= */
-
 function redistributeSelected(){
-
-const selected = trips.filter(t=>t.selected)
-
-alert("Redistributing " + selected.length)
-
+console.log("Redistribute:", trips.filter(t=>t.selected))
 }
 
 /* ================= MAP ================= */
@@ -319,8 +291,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
 .addTo(map)
 
 }
-
-/* ================= DRIVERS ================= */
 
 function renderDrivers(){
 
@@ -382,11 +352,14 @@ map.invalidateSize()
 
 }
 
-/* ================= START ================= */
+/* ================= READY ================= */
 
-setTimeout(()=>{
-load()
-},200)
+// 🔥 مهم: Engine هو اللي هيحط الداتا هنا
+// مثال:
+// trips = [...]
+// drivers = [...]
+
+renderTrips()
 
 </script>
 
