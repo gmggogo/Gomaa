@@ -80,8 +80,9 @@ function getDriverName(d){
   return d.name || d.fullName || "-"
 }
 
-function getVehicle(id,d){
-  return schedule[id]?.vehicleNumber || d.vehicleNumber || ""
+/* 🔥 العربية من الشيدول فقط */
+function getVehicle(id){
+  return schedule[id]?.vehicleNumber || ""
 }
 
 /* ================= RENDER ================= */
@@ -123,7 +124,7 @@ function render(){
 
 <td>
 <input
-value="${getVehicle(id,d)}"
+value="${getVehicle(id)}"
 ${!s.edit?"disabled":""}
 oninput="schedule['${id}'].vehicleNumber=this.value">
 </td>
