@@ -77,6 +77,7 @@ padding:8px 12px;
 border:none;
 color:#fff;
 cursor:pointer;
+border-radius:5px;
 }
 
 .blue{background:#2563eb}
@@ -104,9 +105,12 @@ color:#fff;
 overflow:auto;
 }
 
+/* سطر واحد احترافي */
 .driver{
-padding:10px;
+padding:8px 12px;
 border-bottom:1px solid #1e293b;
+display:flex;
+justify-content:space-between;
 cursor:pointer;
 }
 
@@ -119,10 +123,8 @@ background:#2563eb;
 
 <body>
 
-<!-- ===== HEADER ===== -->
 <div id="adminHeader"></div>
 
-<!-- ===== PAGE ===== -->
 <div class="page-body">
 
 <!-- TABS -->
@@ -131,7 +133,6 @@ background:#2563eb;
 <button id="tabDrivers" class="tab-btn">Drivers Map</button>
 </div>
 
-<!-- WELCOME -->
 <div id="welcomeMsg" class="welcome-msg"></div>
 
 <!-- ===== TRIPS ===== -->
@@ -176,7 +177,6 @@ background:#2563eb;
 
 </div>
 
-<!-- ===== JS ===== -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
@@ -187,17 +187,21 @@ let editMode=false
 let map
 let markers=[]
 
-/* ===== HEADER LOAD ===== */
+/* ===== HEADER ===== */
 fetch("/admin/header.html")
 .then(res=>res.text())
 .then(data=>{
 document.getElementById("adminHeader").innerHTML=data
-})
 
-/* ===== WELCOME ===== */
-const adminName = localStorage.getItem("name") || "Admin"
-document.getElementById("welcomeMsg").innerText =
-`Welcome ${adminName}`
+// 🔥 نسحب الرسالة من الهيدر
+setTimeout(()=>{
+const msg = document.querySelector(".header-center")
+if(msg){
+document.getElementById("welcomeMsg").innerText = msg.innerText
+}
+},200)
+
+})
 
 /* ===== LOAD ===== */
 async function load(){
@@ -205,7 +209,7 @@ async function load(){
 const res = await fetch("/api/trips")
 const data = await res.json()
 
-// 🔥 يسحب بس selected
+// ✅ المهم: يسحب الرحلات المتعلم عليها
 trips = data.filter(t => t.selected === true)
 
 const d = await fetch("/api/users/driver")
@@ -272,8 +276,10 @@ document.querySelectorAll("input[type=checkbox]")
 
 function toggleEdit(){
 editMode=!editMode
+
 document.getElementById("editBtn").innerText =
-editMode?"Save":"Edit"
+editMode ? "Save" : "Edit"
+
 renderTrips()
 }
 
@@ -317,6 +323,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
 
 }
 
+/* ===== DRIVERS ===== */
 function renderDrivers(){
 
 markers.forEach(m=>map.removeLayer(m))
@@ -331,9 +338,15 @@ const trip = trips.find(t=>t.driverId==d._id)
 
 panel.innerHTML+=`
 <div class="driver" onclick="focusDriver(${d.lat||33.4},${d.lng||-112.07})">
-<b>#${i+1} ${d.name}</b><br>
-🚗 ${d.vehicleNumber||"-"}<br>
-Trip: ${trip?.tripNumber||"None"}
+
+<span>
+${i+1} - ${d.name}
+</span>
+
+<span>
+🚗 ${d.vehicleNumber||"-"} | ${trip?.tripNumber||"-"}
+</span>
+
 </div>
 `
 
