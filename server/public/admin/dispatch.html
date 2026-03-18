@@ -115,11 +115,13 @@ background:#2563eb;
 
 <div class="page-body">
 
+<!-- TABS -->
 <div class="dispatch-tabs">
 <button id="tabTrips" class="tab-btn active">Trips Schedule</button>
 <button id="tabDrivers" class="tab-btn">Drivers Map</button>
 </div>
 
+<!-- TRIPS -->
 <div id="tripsPage" class="tab-page active">
 
 <div class="top-actions">
@@ -153,6 +155,7 @@ background:#2563eb;
 
 </div>
 
+<!-- DRIVERS -->
 <div id="driversPage" class="tab-page">
 
 <div class="drivers-layout">
@@ -173,6 +176,7 @@ background:#2563eb;
 
 let trips = []
 let drivers = []
+let schedule = {}
 let editMode = false
 let map
 let markers=[]
@@ -186,12 +190,24 @@ API: "/api/dispatch",
 async load(){
   const res = await fetch(this.API)
   const data = await res.json()
-  return data
+  return {
+    trips: data.trips || [],
+    drivers: data.drivers || [],
+    schedule: data.schedule || {}
+  }
+},
+
+async assignDriver(tripId, driverId){
+  return fetch(`/api/dispatch/${tripId}/driver`,{
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ driverId })
+  })
 }
 
 }
 
-/* ================= ENGINE ================= */
+/* ================= INIT ================= */
 
 async function init(){
 
@@ -201,12 +217,48 @@ const data = await Store.load()
 
 trips = (data.trips || []).map(t=>({...t, selected:false}))
 drivers = data.drivers || []
+schedule = data.schedule || {}
 
 renderTrips()
 
 }catch(err){
 console.error(err)
 }
+
+}
+
+/* ================= HELPERS ================= */
+
+function getAvailableDrivers(trip){
+
+const day = new Date(trip.tripDate).toLocaleDateString("en-CA")
+
+return drivers.filter(d=>{
+
+const s = schedule[d._id]
+
+if(!s) return true
+if(!s.enabled) return false
+if(!s.days) return true
+
+return s.days[day] !== false
+
+})
+
+}
+
+function assignDriver(trip, driver){
+
+const s = schedule[driver._id] || {}
+
+trip.driverId = driver._id
+
+trip.vehicle =
+s.vehicleNumber ||
+driver.vehicleNumber ||
+driver.vehicle ||
+driver.car ||
+""
 
 }
 
@@ -237,19 +289,22 @@ onchange="trips[${i}].selected=this.checked">
 <td>${t.tripTime || ""}</td>
 
 <td>
-<select onchange="trips[${i}].driverId=this.value"
+<select onchange="handleDriverChange(${i}, this.value)"
 ${editMode ? "" : "disabled"}>
+
 <option value="">--</option>
-${drivers.map(d=>`
-<option value="${d._id}">
+
+${getAvailableDrivers(t).map(d=>`
+<option value="${d._id}" ${t.driverId==d._id?"selected":""}>
 ${d.name}
-</option>`).join("")}
+</option>
+`).join("")}
+
 </select>
 </td>
 
 <td>
-<input value="${t.vehicle || ""}"
-${editMode ? "" : "disabled"}>
+<input value="${t.vehicle || ""}" disabled>
 </td>
 
 <td>
@@ -265,6 +320,22 @@ ${editMode ? "" : "disabled"}>
 `
 
 })
+
+}
+
+/* ================= DRIVER CHANGE ================= */
+
+function handleDriverChange(i, driverId){
+
+const trip = trips[i]
+const driver = drivers.find(d=>d._id == driverId)
+
+if(!driver) return
+
+assignDriver(trip, driver)
+renderTrips()
+
+Store.assignDriver(trip._id, driverId)
 
 }
 
@@ -294,6 +365,54 @@ function redistributeSelected(){
 console.log("Redistribute")
 }
 
+/* ================= MAP ================= */
+
+function initMap(){
+
+if(map) return
+
+map=L.map('map').setView([33.45,-112.07],10)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(map)
+
+}
+
+function renderDrivers(){
+
+markers.forEach(m=>map.removeLayer(m))
+markers=[]
+
+const panel=document.getElementById("driversPanel")
+panel.innerHTML=""
+
+drivers.forEach((d,i)=>{
+
+const trip = trips.find(t=>t.driverId==d._id)
+
+panel.innerHTML+=`
+<div class="driver"
+onclick="focusDriver(${d.lat||33.4},${d.lng||-112.07})">
+
+<span>${i+1} - ${d.name}</span>
+<span>🚗 ${d.vehicleNumber||"-"} | ${trip?.tripNumber||"-"}</span>
+
+</div>
+`
+
+if(d.lat && d.lng){
+const m=L.marker([d.lat,d.lng]).addTo(map)
+markers.push(m)
+}
+
+})
+
+}
+
+function focusDriver(lat,lng){
+map.setView([lat,lng],13)
+}
+
 /* ================= TABS ================= */
 
 tabTrips.onclick=()=>{
@@ -304,10 +423,19 @@ tabDrivers.classList.remove("active")
 }
 
 tabDrivers.onclick=()=>{
+
 tripsPage.classList.remove("active")
 driversPage.classList.add("active")
+
 tabTrips.classList.remove("active")
 tabDrivers.classList.add("active")
+
+setTimeout(()=>{
+initMap()
+renderDrivers()
+map.invalidateSize()
+},300)
+
 }
 
 /* ================= START ================= */
