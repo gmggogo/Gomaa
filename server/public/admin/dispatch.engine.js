@@ -8,73 +8,75 @@ selected: {},
 editMode: false,
 
 /* ================= LOAD ================= */
-
 async load(){
 
   try{
 
     const data = await Store.load()
 
-    // ✅ مهم: متفلترش هنا
     this.trips = data.trips || []
-
     this.drivers = data.drivers || []
     this.schedule = data.schedule || {}
+
+    // 🧠 مهم: نفضي السيلكت
+    this.selected = {}
 
     this.sortTrips()
 
     UI.render()
 
   }catch(err){
-    console.error("Dispatch Load Error", err)
+    console.error("ENGINE LOAD ERROR", err)
   }
 
 },
 
 /* ================= SORT ================= */
-
 sortTrips(){
 
   this.trips.sort((a,b)=>{
-
-    const da = new Date(`${a.tripDate} ${a.tripTime}`)
-    const db = new Date(`${b.tripDate} ${b.tripTime}`)
-
-    return da - db
-
+    return new Date(`${a.tripDate} ${a.tripTime}`) - new Date(`${b.tripDate} ${b.tripTime}`)
   })
 
 },
 
-/* ================= DRIVERS ================= */
-
+/* ================= GET AVAILABLE DRIVERS ================= */
 getAvailableDrivers(trip){
 
-  const day = new Date(trip.tripDate).toLocaleDateString("en-CA")
+  if(!trip.tripDate) return []
+
+  const dayKey = new Date(trip.tripDate)
+    .toLocaleDateString("en-CA")
 
   return this.drivers.filter(d=>{
 
     const s = this.schedule[d._id]
 
-    return s && s.enabled && s.days && s.days[day]
+    if(!s) return false
+    if(!s.enabled) return false
+
+    // 🔥 أهم حاجة
+    return s.days && s.days[dayKey]
 
   })
 
 },
 
+/* ================= ASSIGN ================= */
 assign(trip, driver){
+
+  if(!trip || !driver) return
 
   const s = this.schedule[driver._id] || {}
 
   trip.driverId = driver._id
-  trip.driverName = driver.name
-  trip.vehicle = s.vehicleNumber || ""
-  trip.driverAddress = s.address || ""
+  trip.driverName = driver.name || ""
+  trip.vehicle = s.vehicleNumber || driver.vehicleNumber || ""
+  trip.driverAddress = s.address || driver.address || ""
 
 },
 
 /* ================= AUTO ================= */
-
 runAuto(){
 
   this.trips.forEach(trip=>{
@@ -92,7 +94,6 @@ runAuto(){
 },
 
 /* ================= SELECT ================= */
-
 toggleSelect(id){
 
   this.selected[id] = !this.selected[id]
@@ -113,108 +114,50 @@ toggleAll(){
 
 },
 
-/* ================= EDIT ================= */
-
-toggleEdit(){
-
-  this.editMode = !this.editMode
-
-  UI.render()
-
-},
-
 /* ================= SEND ================= */
-
-async sendOne(id){
-
-  try{
-
-    await Store.sendTrips([id])
-
-    alert("Trip Sent")
-
-  }catch(err){
-    console.error(err)
-  }
-
-},
-
 async sendSelected(){
 
   const ids = Object.keys(this.selected)
-    .filter(id => this.selected[id])
+    .filter(id=>this.selected[id])
 
   if(!ids.length){
-    return alert("No trips selected")
+    alert("No trips selected")
+    return
   }
 
-  try{
+  await Store.sendTrips(ids)
 
-    await Store.sendTrips(ids)
+  alert("Sent Successfully")
 
-    alert("Trips Sent")
-
-  }catch(err){
-    console.error(err)
-  }
+  // 🔥 نعمل reload بعد الإرسال
+  this.load()
 
 },
 
 /* ================= DISABLE ================= */
-
 async disable(id){
 
-  try{
+  await Store.disableTrip(id)
 
-    await Store.disableTrip(id)
-
-    this.trips = this.trips.filter(t=>t._id !== id)
-
-    delete this.selected[id]
-
-    UI.render()
-
-  }catch(err){
-    console.error(err)
-  }
-
-},
-
-/* ================= MANUAL ASSIGN ================= */
-
-async assignManual(tripId, driverId){
-
-  const driver = this.drivers.find(d=>d._id === driverId)
-
-  if(!driver) return
-
-  const trip = this.trips.find(t=>t._id === tripId)
-
-  if(!trip) return
-
-  this.assign(trip, driver)
-
-  try{
-
-    await Store.assignDriver(tripId, driverId)
-
-  }catch(err){
-    console.error(err)
-  }
+  this.trips = this.trips.filter(t=>t._id !== id)
 
   UI.render()
 
 },
 
-/* ================= NOTES ================= */
+/* ================= MANUAL ASSIGN ================= */
+async assignManual(tripId, driverId){
 
-updateNote(id, val){
+  const trip = this.trips.find(t=>t._id === tripId)
+  const driver = this.drivers.find(d=>d._id === driverId)
 
-  const trip = this.trips.find(t=>t._id === id)
+  if(!trip || !driver) return
 
-  if(trip){
-    trip.notes = val
-  }
+  this.assign(trip, driver)
+
+  await Store.assignDriver(tripId, driverId)
+
+  UI.render()
 
 }
 
