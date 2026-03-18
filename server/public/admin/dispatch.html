@@ -11,149 +11,49 @@
 <style>
 
 .page-body{
-padding:15px 20px;
+padding:15px;
 background:#f1f5f9;
-min-height:calc(100vh - 80px);
 }
 
-.dispatch-tabs{
-display:flex;
-margin-bottom:5px;
-}
-
-.tab-btn{
-flex:1;
-padding:14px;
-border:none;
-background:#1e293b;
-color:#fff;
-font-weight:bold;
-cursor:pointer;
-}
-
-.tab-btn.active{background:#2563eb;}
-
-.top-actions{
-margin:10px 0;
-display:flex;
-gap:10px;
-flex-wrap:wrap;
-}
-
-.btn{
-padding:8px 12px;
-border:none;
-color:#fff;
-cursor:pointer;
-border-radius:5px;
-font-weight:bold;
-}
-
+.btn{padding:6px 10px;border:none;color:#fff;cursor:pointer;border-radius:5px;}
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
 .purple{background:#7c3aed}
 
-table{
-width:100%;
-border-collapse:collapse;
-background:#fff;
-}
+table{width:100%;background:#fff;border-collapse:collapse}
+th{background:#1e293b;color:#fff;padding:8px}
+td{padding:6px;border:1px solid #ddd;font-size:12px}
 
-th{
-background:#1e293b;
-color:#fff;
-padding:8px;
-}
+.drivers-layout{display:flex;height:80vh}
+#map{width:70%}
+#driversPanel{width:30%;background:#0f172a;color:#fff;overflow:auto}
 
-td{
-border:1px solid #ddd;
-padding:6px;
-font-size:12px;
-}
-
-.tab-page{display:none}
-.tab-page.active{display:block}
-
-.drivers-layout{
-display:flex;
-height:80vh;
-}
-
-#map{width:70%;}
-#driversPanel{
-width:30%;
-background:#0f172a;
-color:#fff;
-overflow:auto;
-}
-
-/* 🔥 الشريط */
-.driver{
-padding:10px;
-border-bottom:1px solid #1e293b;
-cursor:pointer;
-}
-
-.driver-bar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:10px;
-font-size:13px;
-}
-
-.driver-name{
-font-weight:bold;
-}
-
-.driver-info{
-display:flex;
-gap:10px;
-}
-
-/* marker */
-.driver-marker div{
-box-shadow:0 0 6px rgba(0,0,0,0.5);
-}
+.driver{padding:10px;border-bottom:1px solid #1e293b;cursor:pointer}
+.driver-bar{display:flex;justify-content:space-between}
+.driver-info{display:flex;gap:10px}
 
 </style>
 </head>
 
 <body>
 
-<div id="adminHeader"></div>
-
 <div class="page-body">
 
-<div class="dispatch-tabs">
-<button id="tabTrips" class="tab-btn active">Trips</button>
-<button id="tabDrivers" class="tab-btn">Drivers Map</button>
-</div>
+<!-- ACTIONS -->
+<div style="margin-bottom:10px;display:flex;gap:10px">
 
-<!-- TRIPS -->
-<div id="tripsPage" class="tab-page active">
+<button id="selectBtn" class="btn blue" onclick="toggleSelect()">Select All</button>
 
-<div class="top-actions">
+<button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit Selected</button>
 
-<button id="selectBtn" class="btn blue" onclick="toggleSelect()">
-Select All
-</button>
+<button class="btn green" onclick="sendSelected()">Send Selected</button>
 
-<button id="editBtn" class="btn orange" onclick="toggleEdit()">
-Edit Selected
-</button>
-
-<button class="btn green" onclick="sendSelected()">
-Send Selected
-</button>
-
-<button class="btn purple" onclick="redistribute()">
-Redistribute
-</button>
+<button class="btn purple" onclick="redistribute()">Redistribute</button>
 
 </div>
 
+<!-- TABLE -->
 <table>
 <thead>
 <tr>
@@ -161,69 +61,42 @@ Redistribute
 <th>#</th>
 <th>Client</th>
 <th>Pickup</th>
+<th>Stops</th>
 <th>Dropoff</th>
-<th>Date</th>
-<th>Time</th>
 <th>Driver</th>
 <th>Car</th>
+<th>Notes</th>
 <th>Send</th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table>
 
-</div>
-
-<!-- DRIVERS -->
-<div id="driversPage" class="tab-page">
+<!-- MAP -->
 <div class="drivers-layout">
 <div id="map"></div>
 <div id="driversPanel"></div>
 </div>
-</div>
 
 </div>
 
-<script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
-/* ================= STATE ================= */
+let trips=[],drivers=[],schedule={}
+let map,markers=[],geoCache={}
+let editMode=false,allSelected=false
 
-let trips=[]
-let drivers=[]
-let schedule={}
-let map
-let markers=[]
-let geoCache={}
-let editMode=false
-let allSelected=false
-
-/* ================= STORE ================= */
-
-const Store={
-API:"/api/dispatch",
-async load(){
-const res=await fetch(this.API)
-return await res.json()
-}
-}
-
-/* ================= INIT ================= */
+/* ================= LOAD ================= */
 
 async function init(){
 
-const data=await Store.load()
+const res=await fetch("/api/dispatch")
+const data=await res.json()
 
-drivers=(data.drivers||[]).map(d=>({...d,_id:String(d._id)}))
-
-trips=(data.trips||[]).map(t=>({
-...t,
-selected:false,
-driverId:t.driverId?String(t.driverId):""
-}))
-
+drivers=data.drivers||[]
+trips=data.trips||[]
 schedule=data.schedule||{}
 
 renderTrips()
@@ -232,15 +105,21 @@ renderDrivers()
 
 }
 
-/* ================= CAR ================= */
+/* ================= GET STOPS ================= */
 
-function getDriverCar(id){
-const s=schedule[id]
-if(!s) return ""
-return s.carNumber||s.vehicleNumber||s.car||""
+function getStops(t){
+
+if(Array.isArray(t.stops)) return t.stops
+if(Array.isArray(t.stopAddresses)) return t.stopAddresses
+if(Array.isArray(t.extraStops)) return t.extraStops
+
+if(typeof t.stop==="string") return [t.stop]
+
+return []
+
 }
 
-/* ================= TRIPS ================= */
+/* ================= RENDER TABLE ================= */
 
 function renderTrips(){
 
@@ -249,35 +128,40 @@ body.innerHTML=""
 
 trips.forEach((t,i)=>{
 
+const stops=getStops(t)
+
 body.innerHTML+=`
 <tr>
 
 <td>
-<button class="btn ${t.selected?'green':'blue'}"
-onclick="toggleTrip(${i})">
-${t.selected?'✔':'Select'}
-</button>
+<input type="checkbox" ${t.selected?'checked':''}
+onchange="t.selected=this.checked">
 </td>
 
 <td>${t.tripNumber||i+1}</td>
 <td>${t.clientName||""}</td>
 <td>${t.pickup||""}</td>
-<td>${t.dropoff||""}</td>
-<td>${t.tripDate||""}</td>
-<td>${t.tripTime||""}</td>
 
 <td>
-<select ${(editMode && t.selected)?'':'disabled'}
+${stops.length?stops.join("<br>"):"-"}
+</td>
+
+<td>${t.dropoff||""}</td>
+
+<td>
+<select ${(editMode&&t.selected)?'':'disabled'}
 onchange="assignDriver(${i},this.value)">
 <option value="">--</option>
 ${drivers.map(d=>`
-<option value="${d._id}" ${t.driverId===d._id?'selected':''}>
+<option value="${d._id}" ${t.driverId==d._id?'selected':''}>
 ${d.name}
 </option>`).join("")}
 </select>
 </td>
 
-<td id="car-${i}">${t.vehicle||""}</td>
+<td>${t.vehicle||""}</td>
+
+<td>${t.notes||""}</td>
 
 <td>
 <button class="btn green" onclick="sendOne(${i})">Send</button>
@@ -289,22 +173,143 @@ ${d.name}
 
 }
 
-/* ================= SELECT ================= */
+/* ================= DRIVER PANEL ================= */
 
-function toggleTrip(i){
-trips[i].selected=!trips[i].selected
-renderTrips()
+function renderDrivers(){
+
+const panel=document.getElementById("driversPanel")
+panel.innerHTML=""
+
+drivers.forEach((d,i)=>{
+
+const trip=trips.find(t=>t.driverId==d._id)
+
+panel.innerHTML+=`
+<div class="driver" onclick="focusDriver('${d._id}')">
+
+<div class="driver-bar">
+<b>${i+1} - ${d.name}</b>
+<div class="driver-info">
+🚗 ${getCar(d._id)||"-"} | 📦 ${trip?trip.tripNumber:"-"}
+</div>
+</div>
+
+</div>
+`
+})
+
+}
+
+/* ================= MAP ================= */
+
+function initMap(){
+
+map=L.map('map').setView([33.4,-112],10)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(map)
+
+}
+
+/* ================= GEO ================= */
+
+async function geo(addr){
+
+if(geoCache[addr]) return geoCache[addr]
+
+const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`)
+const data=await res.json()
+
+if(!data.length) return null
+
+return geoCache[addr]={
+lat:+data[0].lat,
+lng:+data[0].lon
+}
+
+}
+
+/* ================= ROUTE ================= */
+
+async function route(points){
+
+const coords=points.map(p=>`${p.lng},${p.lat}`).join(";")
+
+const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full`)
+const data=await res.json()
+
+const r=data.routes[0]
+
+return{
+coords:r.geometry.coordinates.map(c=>[c[1],c[0]]),
+distance:(r.distance/1609).toFixed(1),
+duration:(r.duration/60).toFixed(0)
+}
+
+}
+
+/* ================= CLICK DRIVER ================= */
+
+async function focusDriver(id){
+
+const t=trips.find(x=>x.driverId==id)
+if(!t) return
+
+markers.forEach(m=>map.removeLayer(m))
+markers=[]
+
+const stops=getStops(t)
+
+let points=[]
+
+const p=await geo(t.pickup)
+points.push(p)
+
+for(let s of stops){
+const g=await geo(s)
+if(g) points.push(g)
+}
+
+const d=await geo(t.dropoff)
+points.push(d)
+
+const r=await route(points)
+
+points.forEach(p=>{
+markers.push(L.marker([p.lat,p.lng]).addTo(map))
+})
+
+const line=L.polyline(r.coords,{color:'blue'}).addTo(map)
+
+line.bindPopup(`
+<b>${r.distance} miles</b><br>
+ETA: ${r.duration} min
+`).openPopup()
+
+map.fitBounds(line.getBounds())
+
+}
+
+/* ================= HELPERS ================= */
+
+function getCar(id){
+const s=schedule[id]
+if(!s) return ""
+return s.carNumber||s.vehicleNumber||s.car||""
+}
+
+function assignDriver(i,id){
+const d=drivers.find(x=>x._id==id)
+trips[i].driverId=id
+trips[i].vehicle=getCar(id)
+renderDrivers()
 }
 
 function toggleSelect(){
 allSelected=!allSelected
 trips.forEach(t=>t.selected=allSelected)
-document.getElementById("selectBtn").innerText=
-allSelected?"Remove All":"Select All"
 renderTrips()
 }
-
-/* ================= EDIT ================= */
 
 function toggleEdit(){
 editMode=!editMode
@@ -312,20 +317,6 @@ document.getElementById("editBtn").innerText=
 editMode?"Save":"Edit Selected"
 renderTrips()
 }
-
-/* ================= ASSIGN ================= */
-
-function assignDriver(i,id){
-
-const d=drivers.find(x=>x._id===id)
-if(!d) return
-
-trips[i].driverId=id
-trips[i].vehicle=getDriverCar(id)
-
-}
-
-/* ================= SEND ================= */
 
 function sendSelected(){
 console.log(trips.filter(t=>t.selected))
@@ -335,184 +326,16 @@ function sendOne(i){
 console.log(trips[i])
 }
 
-/* ================= REDISTRIBUTE ================= */
-
 function redistribute(){
-
-const selected=trips.filter(t=>t.selected)
-
-selected.forEach((t,i)=>{
+const sel=trips.filter(t=>t.selected)
+sel.forEach((t,i)=>{
 const d=drivers[i%drivers.length]
 t.driverId=d._id
-t.vehicle=getDriverCar(d._id)
+t.vehicle=getCar(d._id)
 })
-
 renderTrips()
 renderDrivers()
 }
-
-/* ================= MAP ================= */
-
-function initMap(){
-
-map=L.map('map').setView([33.4484,-112.0740],10)
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-.addTo(map)
-
-setTimeout(()=>map.invalidateSize(),300)
-}
-
-/* ================= GEOCODE ================= */
-
-async function geocode(addr){
-
-if(!addr) return null
-if(geoCache[addr]) return geoCache[addr]
-
-const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`)
-const data=await res.json()
-
-if(!data.length) return null
-
-return geoCache[addr]={
-lat:parseFloat(data[0].lat),
-lng:parseFloat(data[0].lon)
-}
-}
-
-/* ================= ROUTE ================= */
-
-async function getRoute(p,d){
-
-const url=`https://router.project-osrm.org/route/v1/driving/${p.lng},${p.lat};${d.lng},${d.lat}?overview=full`
-
-const res=await fetch(url)
-const data=await res.json()
-
-const route=data.routes[0]
-
-return{
-coords:route.geometry.coordinates.map(c=>[c[1],c[0]]),
-distance:(route.distance/1609).toFixed(1),
-duration:(route.duration/60).toFixed(0)
-}
-
-}
-
-/* ================= DRIVERS ================= */
-
-function renderDrivers(){
-
-const panel=document.getElementById("driversPanel")
-panel.innerHTML=""
-
-markers.forEach(m=>map.removeLayer(m))
-markers=[]
-
-drivers.forEach((d,i)=>{
-
-const car=getDriverCar(d._id)
-const trip=trips.find(t=>t.driverId===d._id)
-
-panel.innerHTML+=`
-<div class="driver" onclick="focusDriver('${d._id}')">
-
-<div class="driver-bar">
-
-<div class="driver-name">
-${i+1} - ${d.name}
-</div>
-
-<div class="driver-info">
-🚗 ${car||"-"} | 📦 ${trip?trip.tripNumber:"-"}
-</div>
-
-</div>
-
-</div>
-`
-
-if(d.lat && d.lng){
-
-const icon=L.divIcon({
-className:'driver-marker',
-html:`<div style="
-background:#2563eb;
-color:#fff;
-border-radius:50%;
-width:30px;
-height:30px;
-display:flex;
-align-items:center;
-justify-content:center;
-font-weight:bold;">
-${i+1}
-</div>`
-})
-
-const m=L.marker([d.lat,d.lng],{icon})
-.addTo(map)
-.bindPopup(d.name)
-
-markers.push(m)
-
-}
-
-})
-
-}
-
-/* ================= CLICK ================= */
-
-async function focusDriver(id){
-
-const d=drivers.find(x=>x._id===id)
-const t=trips.find(x=>x.driverId===id)
-
-if(!t) return
-
-const p=await geocode(t.pickup)
-const d2=await geocode(t.dropoff)
-
-const route=await getRoute(p,d2)
-
-markers.forEach(m=>map.removeLayer(m))
-markers=[]
-
-markers.push(L.marker([p.lat,p.lng]).addTo(map))
-markers.push(L.marker([d2.lat,d2.lng]).addTo(map))
-
-const line=L.polyline(route.coords,{color:'blue'}).addTo(map)
-markers.push(line)
-
-line.bindPopup(`
-<b>${route.distance} miles</b><br>
-ETA: ${route.duration} min
-`).openPopup()
-
-map.fitBounds(line.getBounds())
-
-}
-
-/* ================= TABS ================= */
-
-tabTrips.onclick=()=>{
-tripsPage.classList.add("active")
-driversPage.classList.remove("active")
-tabTrips.classList.add("active")
-tabDrivers.classList.remove("active")
-}
-
-tabDrivers.onclick=()=>{
-tripsPage.classList.remove("active")
-driversPage.classList.add("active")
-tabTrips.classList.remove("active")
-tabDrivers.classList.add("active")
-setTimeout(()=>map.invalidateSize(),300)
-}
-
-/* ================= START ================= */
 
 init()
 
