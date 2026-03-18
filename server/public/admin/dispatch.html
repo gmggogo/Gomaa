@@ -16,6 +16,7 @@ background:#f1f5f9;
 min-height:calc(100vh - 80px);
 }
 
+/* ===== TABS ===== */
 .dispatch-tabs{
 display:flex;
 margin-bottom:5px;
@@ -35,6 +36,7 @@ cursor:pointer;
 background:#2563eb;
 }
 
+/* ===== TABLE ===== */
 table{
 width:100%;
 border-collapse:collapse;
@@ -53,10 +55,12 @@ padding:6px;
 font-size:12px;
 }
 
+/* ===== BUTTONS ===== */
 .top-actions{
 margin:10px 0;
 display:flex;
 gap:10px;
+flex-wrap:wrap;
 }
 
 .btn{
@@ -65,15 +69,19 @@ border:none;
 color:#fff;
 cursor:pointer;
 border-radius:5px;
+font-weight:bold;
 }
 
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
+.purple{background:#7c3aed}
 
+/* ===== PAGES ===== */
 .tab-page{display:none}
 .tab-page.active{display:block}
 
+/* ===== DRIVERS ===== */
 .drivers-layout{
 display:flex;
 height:80vh;
@@ -112,21 +120,33 @@ background:#2563eb;
 
 <div class="page-body">
 
-<!-- ✅ التابس زي ما هي -->
+<!-- ===== TABS ===== -->
 <div class="dispatch-tabs">
 <button id="tabTrips" class="tab-btn active">Trips Schedule</button>
 <button id="tabDrivers" class="tab-btn">Drivers Map</button>
 </div>
 
-<!-- ❌ تم حذف welcome-msg -->
-
 <!-- ===== TRIPS ===== -->
 <div id="tripsPage" class="tab-page active">
 
 <div class="top-actions">
-<button class="btn blue" onclick="selectAll()">Select All</button>
-<button class="btn orange" onclick="toggleEdit()" id="editBtn">Edit</button>
-<button class="btn green" onclick="sendTrips()">Send</button>
+
+<button class="btn blue" onclick="selectAll()">
+Select All
+</button>
+
+<button class="btn orange" onclick="editSelected()" id="editBtn">
+Edit Selected
+</button>
+
+<button class="btn green" onclick="sendSelected()">
+Send Selected
+</button>
+
+<button class="btn purple" onclick="redistributeSelected()">
+Redistribute Selected
+</button>
+
 </div>
 
 <table>
@@ -143,9 +163,12 @@ background:#2563eb;
 <th>Driver</th>
 <th>Car</th>
 <th>Notes</th>
+<th>Action</th>
 </tr>
 </thead>
+
 <tbody id="tbody"></tbody>
+
 </table>
 
 </div>
@@ -167,100 +190,6 @@ background:#2563eb;
 
 <script>
 
-let trips=[]
-let drivers=[]
-let editMode=false
-let map
-let markers=[]
-
-/* ===== LOAD ===== */
-async function load(){
-
-const res = await fetch("/api/trips")
-const data = await res.json()
-
-// 🔥 مهم جدًا
-trips = data.filter(t => t.selected === true)
-
-if(trips.length === 0){
-trips = data
-}
-
-const d = await fetch("/api/users/driver")
-drivers = await d.json()
-
-renderTrips()
-
-}
-
-/* ===== RENDER ===== */
-function renderTrips(){
-
-const body=document.getElementById("tbody")
-body.innerHTML=""
-
-trips.forEach((t,i)=>{
-
-body.innerHTML+=`
-<tr>
-
-<td><input type="checkbox"></td>
-
-<td>${i+1}</td>
-
-<td>${t.clientName||""}</td>
-
-<td>${t.pickup||""}</td>
-
-<td>${(t.stops||[]).join(" , ")}</td>
-
-<td>${t.dropoff||""}</td>
-
-<td>${t.tripDate||""}</td>
-
-<td>${t.tripTime||""}</td>
-
-<td>
-<select ${editMode?"":"disabled"}>
-<option value="">--</option>
-${drivers.map(d=>`
-<option value="${d._id}" ${t.driverId==d._id?"selected":""}>
-${d.name}
-</option>
-`).join("")}
-</select>
-</td>
-
-<td>${t.vehicle||"-"}</td>
-
-<td>
-<input value="${t.notes||""}" ${editMode?"":"disabled"}>
-</td>
-
-</tr>
-`
-
-})
-
-}
-
-/* ===== BUTTONS ===== */
-function selectAll(){
-document.querySelectorAll("input[type=checkbox]")
-.forEach(c=>c.checked=true)
-}
-
-function toggleEdit(){
-editMode=!editMode
-document.getElementById("editBtn").innerText =
-editMode ? "Save" : "Edit"
-renderTrips()
-}
-
-function sendTrips(){
-alert("Trips Sent ✅")
-}
-
 /* ===== TABS ===== */
 tabTrips.onclick=()=>{
 tripsPage.classList.add("active")
@@ -274,63 +203,7 @@ tripsPage.classList.remove("active")
 driversPage.classList.add("active")
 tabTrips.classList.remove("active")
 tabDrivers.classList.add("active")
-
-setTimeout(()=>{
-initMap()
-renderDrivers()
-map.invalidateSize()
-},300)
 }
-
-/* ===== MAP ===== */
-function initMap(){
-
-if(map) return
-
-map=L.map('map').setView([33.45,-112.07],10)
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-.addTo(map)
-
-}
-
-/* ===== DRIVERS ===== */
-function renderDrivers(){
-
-markers.forEach(m=>map.removeLayer(m))
-markers=[]
-
-const panel=document.getElementById("driversPanel")
-panel.innerHTML=""
-
-drivers.forEach((d,i)=>{
-
-const trip = trips.find(t=>t.driverId==d._id)
-
-panel.innerHTML+=`
-<div class="driver" onclick="focusDriver(${d.lat||33.4},${d.lng||-112.07})">
-<span>${i+1} - ${d.name}</span>
-<span>🚗 ${d.vehicleNumber||"-"} | ${trip?.tripNumber||"-"}</span>
-</div>
-`
-
-if(d.lat && d.lng){
-const m=L.marker([d.lat,d.lng]).addTo(map)
-markers.push(m)
-}
-
-})
-
-}
-
-function focusDriver(lat,lng){
-map.setView([lat,lng],13)
-}
-
-/* ===== START ===== */
-setTimeout(()=>{
-load()
-},200)
 
 </script>
 
