@@ -1,60 +1,65 @@
 const UI = {
 
-showTab(tab){
+renderTrips(trips, drivers, editMode){
 
-document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"))
-event.target.classList.add("active")
+const body = document.getElementById("tbody")
+body.innerHTML = ""
 
-document.getElementById("tripsPage").classList.remove("active")
-document.getElementById("driversPage").classList.remove("active")
+trips.forEach((t,i)=>{
 
-if(tab==="trips"){
-document.getElementById("tripsPage").classList.add("active")
-}else{
-document.getElementById("driversPage").classList.add("active")
-Engine.renderMap()
-}
+body.innerHTML += `
+<tr>
 
-},
+<td>
+<input type="checkbox"
+${t.selected?"checked":""}
+onchange="Engine.toggleSelect(${i},this.checked)">
+</td>
 
-render(){
+<td>${i+1}</td>
 
-this.renderTrips()
-this.renderDrivers()
+<td>${t.clientName||""}</td>
+<td>${t.pickup||""}</td>
+<td>${(t.stops||[]).join(" , ")}</td>
+<td>${t.dropoff||""}</td>
+<td>${t.tripDate||""}</td>
+<td>${t.tripTime||""}</td>
 
-},
+<td>
+<select ${editMode?"":"disabled"}
+onchange="Engine.trips[${i}].driverId=this.value">
 
-/* DRIVERS */
-renderDrivers(){
+<option value="">--</option>
 
-const box=document.getElementById("driversList")
+${drivers.map(d=>`
+<option value="${d._id}"
+${t.driverId==d._id?"selected":""}>
+${d.name}
+</option>
+`).join("")}
 
-box.innerHTML = Engine.drivers.map((d,i)=>{
+</select>
+</td>
 
-const s=Engine.schedule[d._id]||{}
-if(!s.enabled) return ""
+<td>${t.vehicle||"-"}</td>
 
-return `
-<div class="driver-row"
-onclick="Engine.focusDriver('${d._id}')">
+<td>
+<input value="${t.notes||""}"
+${editMode?"":"disabled"}
+oninput="Engine.trips[${i}].notes=this.value">
+</td>
 
-<span>${i+1} - ${d.name}</span>
+<td>
+<button class="btn green"
+onclick="Engine.trips[${i}].selected=true;Engine.sendSelected()">
+Send
+</button>
+</td>
 
-<span>🚗 ${s.vehicleNumber||"-"}</span>
-
-</div>
+</tr>
 `
 
-}).join("")
-
-},
-
-/* TRIPS (نفس بتاعك بالظبط) */
-renderTrips(){
-
-// 👇 استخدم نفس كود trips اللي انت بعته (متغيرش فيه حاجة)
-
-loadTrips() // reuse your original function
+})
 
 }
 

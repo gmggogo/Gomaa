@@ -1,34 +1,44 @@
 const Store = {
 
-API: "/api/dispatch",
+API_TRIPS: "/api/trips",
+API_DRIVERS: "/api/users/driver",
 
-async load(){
+/* ================= GET TRIPS ================= */
 
-  const res = await fetch(this.API)
-  if(!res.ok) throw "load error"
-
-  return await res.json()
-
+async getTrips(){
+try{
+const res = await fetch(this.API_TRIPS)
+return await res.json()
+}catch(err){
+console.error("Trips Error",err)
+return []
+}
 },
 
-async assignDriver(tripId, driverId){
+/* ================= GET DRIVERS ================= */
 
-  return fetch(`/api/dispatch/${tripId}/driver`,{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ driverId })
-  })
-
+async getDrivers(){
+try{
+const res = await fetch(this.API_DRIVERS)
+return await res.json()
+}catch(err){
+console.error("Drivers Error",err)
+return []
+}
 },
 
-async sendTrips(ids){
+/* ================= UPDATE TRIP ================= */
 
-  return fetch("/api/dispatch/send",{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ ids })
-  })
-
+async updateTrip(id,data){
+try{
+await fetch("/api/trips/"+id,{
+method:"PUT",
+headers:{ "Content-Type":"application/json" },
+body: JSON.stringify(data)
+})
+}catch(err){
+console.error("Update Error",err)
+}
 }
 
 }

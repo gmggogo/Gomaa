@@ -1,73 +1,105 @@
 const Engine = {
 
-trips:[],
-drivers:[],
-schedule:{},
+trips: [],
+drivers: [],
+editMode: false,
 
-selected:{},
-editMode:false,
-
-map:null,
-markers:[],
+/* ================= LOAD ================= */
 
 async load(){
 
-const data = await Store.load()
+this.trips = await Store.getTrips()
+this.drivers = await Store.getDrivers()
 
-this.trips = (data.trips || []).filter(t=>t.dispatchSelected && !t.disabled)
-this.drivers = data.drivers || []
-this.schedule = data.schedule || {}
+// 🔥 أهم فلترة
+this.trips = this.trips.filter(t => t.dispatchSelected === true)
 
-this.initMap()
-
-UI.render()
+UI.renderTrips(this.trips, this.drivers, this.editMode)
 
 },
 
-initMap(){
+/* ================= SELECT ================= */
 
-this.map = L.map('map').setView([33.4484,-112.0740],10)
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
-}).addTo(this.map)
-
+toggleSelect(i,val){
+this.trips[i].selected = val
 },
 
-renderMap(){
-
-this.markers.forEach(m=>this.map.removeLayer(m))
-this.markers=[]
-
-this.drivers.forEach(d=>{
-
-if(!d.lat||!d.lng) return
-
-const m=L.marker([d.lat,d.lng])
-.addTo(this.map)
-.bindPopup(d.name)
-
-this.markers.push(m)
-
-})
-
+selectAll(){
+this.trips.forEach(t=>t.selected=true)
+UI.renderTrips(this.trips, this.drivers, this.editMode)
 },
 
-focusDriver(id){
-
-const d=this.drivers.find(x=>x._id===id)
-if(!d) return
-
-this.map.setView([d.lat,d.lng],13)
-
+getSelected(){
+return this.trips.filter(t=>t.selected)
 },
+
+/* ================= EDIT ================= */
 
 toggleEdit(){
 
-this.editMode=!this.editMode
+this.editMode = !this.editMode
 
-document.getElementById("editBtn").innerText=
-this.editMode?"Save":"Edit"
+UI.renderTrips(this.trips, this.drivers, this.editMode)
+
+},
+
+/* ================= REDISTRIBUTE ================= */
+
+redistribute(){
+
+const selected = this.getSelected()
+
+if(selected.length === 0){
+alert("No trips selected")
+return
+}
+
+if(this.drivers.length === 0){
+alert("No drivers")
+return
+}
+
+// توزيع بسيط (Round Robin)
+let i = 0
+
+selected.forEach(trip=>{
+
+trip.driverId = this.drivers[i]._id
+
+i++
+if(i >= this.drivers.length){
+i = 0
+}
+
+})
+
+UI.renderTrips(this.trips, this.drivers, this.editMode)
+
+alert("Distributed ✅")
+
+},
+
+/* ================= SEND ================= */
+
+async sendSelected(){
+
+const selected = this.getSelected()
+
+if(selected.length === 0){
+alert("No trips selected")
+return
+}
+
+for(const trip of selected){
+
+await Store.updateTrip(trip._id,{
+driverId: trip.driverId,
+status:"assigned"
+})
+
+}
+
+alert("Trips Sent ✅")
 
 }
 
