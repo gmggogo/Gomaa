@@ -1,65 +1,99 @@
 const UI = {
 
-renderTrips(trips, drivers, editMode){
+render(){
+  this.renderTrips()
+  this.renderDrivers()
+},
 
-const body = document.getElementById("tbody")
-body.innerHTML = ""
+renderTrips(){
 
-trips.forEach((t,i)=>{
+  const body = document.getElementById("tbody")
+  if(!body) return
 
-body.innerHTML += `
-<tr>
+  body.innerHTML = Engine.trips.map((t,i)=>{
 
-<td>
-<input type="checkbox"
-${t.selected?"checked":""}
-onchange="Engine.toggleSelect(${i},this.checked)">
-</td>
+    const selected = Engine.selected[t._id]
 
-<td>${i+1}</td>
+    return `
+    <tr>
 
-<td>${t.clientName||""}</td>
-<td>${t.pickup||""}</td>
-<td>${(t.stops||[]).join(" , ")}</td>
-<td>${t.dropoff||""}</td>
-<td>${t.tripDate||""}</td>
-<td>${t.tripTime||""}</td>
+      <td>
+        <input type="checkbox"
+        ${selected?'checked':''}
+        onchange="Engine.toggleSelect('${t._id}')">
+      </td>
 
-<td>
-<select ${editMode?"":"disabled"}
-onchange="Engine.trips[${i}].driverId=this.value">
+      <td>${i+1}</td>
 
-<option value="">--</option>
+      <td>${t.clientName || ""}</td>
+      <td>${t.pickup || ""}</td>
+      <td>${(t.stops || []).join(" , ")}</td>
+      <td>${t.dropoff || ""}</td>
+      <td>${t.tripDate || ""}</td>
+      <td>${t.tripTime || ""}</td>
 
-${drivers.map(d=>`
-<option value="${d._id}"
-${t.driverId==d._id?"selected":""}>
-${d.name}
-</option>
-`).join("")}
+      <!-- DRIVER -->
+      <td>
+        <select
+        ${!Engine.editMode?'disabled':''}
+        onchange="Engine.assignManual('${t._id}',this.value)">
 
-</select>
-</td>
+        <option value="">Driver</option>
 
-<td>${t.vehicle||"-"}</td>
+        ${
+          Engine.getAvailableDrivers(t).map(d=>
+            `<option value="${d._id}" ${t.driverId===d._id?'selected':''}>
+              ${d.name}
+            </option>`
+          ).join("")
+        }
 
-<td>
-<input value="${t.notes||""}"
-${editMode?"":"disabled"}
-oninput="Engine.trips[${i}].notes=this.value">
-</td>
+        </select>
+      </td>
 
-<td>
-<button class="btn green"
-onclick="Engine.trips[${i}].selected=true;Engine.sendSelected()">
-Send
-</button>
-</td>
+      <!-- CAR -->
+      <td>${t.vehicle || ""}</td>
 
-</tr>
-`
+      <!-- NOTES -->
+      <td>
+        <input value="${t.notes || ""}"
+        ${!Engine.editMode?'disabled':''}
+        oninput="Engine.updateNote('${t._id}',this.value)">
+      </td>
 
-})
+      <td>
+        <button class="btn green"
+        onclick="Engine.sendOne('${t._id}')">
+        Send
+        </button>
+      </td>
+
+    </tr>
+    `
+
+  }).join("")
+
+},
+
+renderDrivers(){
+
+  const panel = document.getElementById("driversPanel")
+  if(!panel) return
+
+  panel.innerHTML = Engine.drivers.map((d,i)=>{
+
+    const s = Engine.schedule[d._id] || {}
+
+    if(!s.enabled) return ""
+
+    return `
+    <div class="driver">
+      <span>${i+1} - ${d.name}</span>
+      <span>🚗 ${s.vehicleNumber || ""}</span>
+    </div>
+    `
+
+  }).join("")
 
 }
 
