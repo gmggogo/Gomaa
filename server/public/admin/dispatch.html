@@ -9,112 +9,44 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-
-.page-body{
-padding:15px 20px;
-background:#f1f5f9;
-min-height:calc(100vh - 80px);
-}
-
-.dispatch-tabs{
-display:flex;
-margin-bottom:5px;
-}
-
-.tab-btn{
-flex:1;
-padding:14px;
-border:none;
-background:#1e293b;
-color:#fff;
-font-weight:bold;
-cursor:pointer;
-}
-
+.page-body{padding:15px 20px;background:#f1f5f9;min-height:calc(100vh - 80px);}
+.dispatch-tabs{display:flex;margin-bottom:5px;}
+.tab-btn{flex:1;padding:14px;border:none;background:#1e293b;color:#fff;font-weight:bold;cursor:pointer;}
 .tab-btn.active{background:#2563eb;}
-
-.top-actions{
-margin:10px 0;
-display:flex;
-gap:10px;
-flex-wrap:wrap;
-}
-
-.btn{
-padding:8px 12px;
-border:none;
-color:#fff;
-cursor:pointer;
-border-radius:5px;
-font-weight:bold;
-}
-
+.top-actions{margin:10px 0;display:flex;gap:10px;flex-wrap:wrap;}
+.btn{padding:8px 12px;border:none;color:#fff;cursor:pointer;border-radius:5px;font-weight:bold;}
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
 .purple{background:#7c3aed}
 
-table{
-width:100%;
-border-collapse:collapse;
-background:#fff;
-}
-
-th{
-background:#1e293b;
-color:#fff;
-padding:8px;
-}
-
-td{
-border:1px solid #ddd;
-padding:6px;
-font-size:12px;
-}
+table{width:100%;border-collapse:collapse;background:#fff;}
+th{background:#1e293b;color:#fff;padding:8px;}
+td{border:1px solid #ddd;padding:6px;font-size:12px;}
 
 .tab-page{display:none}
 .tab-page.active{display:block}
 
-.drivers-layout{
-display:flex;
-height:80vh;
-}
-
+.drivers-layout{display:flex;height:80vh;}
 #map{width:70%;}
-#driversPanel{
-width:30%;
-background:#0f172a;
-color:#fff;
-overflow:auto;
-}
+#driversPanel{width:30%;background:#0f172a;color:#fff;overflow:auto;}
 
-.driver{
-padding:10px;
-border-bottom:1px solid #1e293b;
-cursor:pointer;
-}
-
-.driver-bar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:10px;
-font-size:13px;
-}
-
-.driver-name{
-font-weight:bold;
-}
-
-.driver-info{
-display:flex;
-gap:10px;
-}
+.driver{padding:10px;border-bottom:1px solid #1e293b;cursor:pointer;}
+.driver-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;}
+.driver-name{font-weight:bold;}
+.driver-info{display:flex;gap:10px;}
 
 .driver-marker div{
-box-shadow:0 0 6px rgba(0,0,0,0.5);
+background:#2563eb;
+color:#fff;
+border-radius:50%;
+width:30px;
+height:30px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;
 }
-
 </style>
 </head>
 
@@ -133,23 +65,10 @@ box-shadow:0 0 6px rgba(0,0,0,0.5);
 <div id="tripsPage" class="tab-page active">
 
 <div class="top-actions">
-
-<button id="selectBtn" class="btn blue" onclick="toggleSelect()">
-Select All
-</button>
-
-<button id="editBtn" class="btn orange" onclick="toggleEdit()">
-Edit Selected
-</button>
-
-<button class="btn green" onclick="sendSelected()">
-Send Selected
-</button>
-
-<button class="btn purple" onclick="redistribute()">
-Redistribute
-</button>
-
+<button id="selectBtn" class="btn blue">Select All</button>
+<button id="editBtn" class="btn orange">Edit Selected</button>
+<button id="sendBtn" class="btn green">Send Selected</button>
+<button id="redistributeBtn" class="btn purple">Redistribute</button>
 </div>
 
 <table>
@@ -205,8 +124,13 @@ let allSelected=false
 const Store={
 API:"/api/dispatch",
 async load(){
+try{
 const res=await fetch(this.API)
 return await res.json()
+}catch(e){
+console.log("API ERROR",e)
+return {trips:[],drivers:[],schedule:{}}
+}
 }
 }
 
@@ -235,14 +159,11 @@ renderDrivers()
 /* ================= STOPS ================= */
 
 function getStops(t){
-
 if(Array.isArray(t.stops)) return t.stops
 if(Array.isArray(t.stopAddresses)) return t.stopAddresses
 if(Array.isArray(t.extraStops)) return t.extraStops
 if(typeof t.stop==="string") return [t.stop]
-
 return []
-
 }
 
 /* ================= RENDER TRIPS ================= */
@@ -269,9 +190,7 @@ ${t.selected?'✔':'Select'}
 <td>${t.tripNumber||i+1}</td>
 <td>${t.clientName||""}</td>
 <td>${t.pickup||""}</td>
-
 <td>${stops.length?stops.join("<br>"):"-"}</td>
-
 <td>${t.dropoff||""}</td>
 <td>${t.tripDate||""}</td>
 <td>${t.tripTime||""}</td>
@@ -315,25 +234,33 @@ async function geocode(addr){
 if(!addr) return null
 if(geoCache[addr]) return geoCache[addr]
 
+try{
 const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`)
 const data=await res.json()
-
 if(!data.length) return null
 
 return geoCache[addr]={
 lat:+data[0].lat,
 lng:+data[0].lon
 }
+}catch{
+return null
+}
+
 }
 
 /* ================= ROUTE ================= */
 
-async function route(points){
+async function getRoute(points){
+
+if(points.length < 2) return null
 
 const coords=points.map(p=>`${p.lng},${p.lat}`).join(";")
 
 const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full`)
 const data=await res.json()
+
+if(!data.routes || !data.routes.length) return null
 
 const r=data.routes[0]
 
@@ -349,9 +276,7 @@ duration:(r.duration/60).toFixed(0)
 
 async function focusDriver(id){
 
-const d=drivers.find(x=>x._id===id)
 const t=trips.find(x=>x.driverId===id)
-
 if(!t) return
 
 markers.forEach(m=>map.removeLayer(m))
@@ -359,32 +284,33 @@ markers=[]
 
 const stops=getStops(t)
 
-let points=[]
+let pts=[]
 
 const p=await geocode(t.pickup)
-points.push(p)
+if(p) pts.push(p)
 
 for(let s of stops){
 const g=await geocode(s)
-if(g) points.push(g)
+if(g) pts.push(g)
 }
 
-const d2=await geocode(t.dropoff)
-points.push(d2)
+const d=await geocode(t.dropoff)
+if(d) pts.push(d)
 
-const r=await route(points)
+if(pts.length < 2) return
 
-// markers
-points.forEach(p=>{
+const route=await getRoute(pts)
+if(!route) return
+
+pts.forEach(p=>{
 markers.push(L.marker([p.lat,p.lng]).addTo(map))
 })
 
-// line
-const line=L.polyline(r.coords,{color:'blue'}).addTo(map)
+const line=L.polyline(route.coords,{color:'blue'}).addTo(map)
 
 line.bindPopup(`
-<b>${r.distance} miles</b><br>
-ETA: ${r.duration} min
+<b>${route.distance} miles</b><br>
+ETA: ${route.duration} min
 `).openPopup()
 
 map.fitBounds(line.getBounds())
@@ -428,6 +354,7 @@ return s.carNumber||s.vehicleNumber||s.car||""
 
 function assignDriver(i,id){
 const d=drivers.find(x=>x._id===id)
+if(!d) return
 trips[i].driverId=id
 trips[i].vehicle=getDriverCar(id)
 renderDrivers()
@@ -441,6 +368,8 @@ renderTrips()
 function toggleSelect(){
 allSelected=!allSelected
 trips.forEach(t=>t.selected=allSelected)
+document.getElementById("selectBtn").innerText=
+allSelected?"Remove All":"Select All"
 renderTrips()
 }
 
@@ -460,8 +389,8 @@ console.log(trips[i])
 }
 
 function redistribute(){
-const sel=trips.filter(t=>t.selected)
-sel.forEach((t,i)=>{
+const selected=trips.filter(t=>t.selected)
+selected.forEach((t,i)=>{
 const d=drivers[i%drivers.length]
 t.driverId=d._id
 t.vehicle=getDriverCar(d._id)
@@ -469,6 +398,34 @@ t.vehicle=getDriverCar(d._id)
 renderTrips()
 renderDrivers()
 }
+
+/* ================= TABS ================= */
+
+document.getElementById("tabTrips").onclick=()=>{
+tripsPage.classList.add("active")
+driversPage.classList.remove("active")
+tabTrips.classList.add("active")
+tabDrivers.classList.remove("active")
+}
+
+document.getElementById("tabDrivers").onclick=()=>{
+tripsPage.classList.remove("active")
+driversPage.classList.add("active")
+tabTrips.classList.remove("active")
+tabDrivers.classList.add("active")
+setTimeout(()=>map.invalidateSize(),300)
+}
+
+/* ================= GLOBAL ================= */
+
+window.toggleTrip = toggleTrip
+window.toggleSelect = toggleSelect
+window.toggleEdit = toggleEdit
+window.sendSelected = sendSelected
+window.sendOne = sendOne
+window.redistribute = redistribute
+window.focusDriver = focusDriver
+window.assignDriver = assignDriver
 
 /* ================= START ================= */
 
