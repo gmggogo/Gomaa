@@ -1,43 +1,63 @@
 const Engine = {
 
-trips:[],
-drivers:[],
-schedule:{},
+trips: [],
+drivers: [],
+schedule: {},
 
-selected:{},
-editMode:false,
+selected: {},
+editMode: false,
+
+/* ================= LOAD ================= */
 
 async load(){
 
-  const data = await Store.load()
+  try{
 
-  // ✅ هنا الفلترة الصح
-  this.trips = (data.trips || []).filter(t=>t.selected)
+    const data = await Store.load()
 
-  this.drivers = data.drivers
-  this.schedule = data.schedule
+    // ✅ مهم: متفلترش هنا
+    this.trips = data.trips || []
 
-  this.sortTrips()
+    this.drivers = data.drivers || []
+    this.schedule = data.schedule || {}
 
-  UI.render()
+    this.sortTrips()
+
+    UI.render()
+
+  }catch(err){
+    console.error("Dispatch Load Error", err)
+  }
 
 },
+
+/* ================= SORT ================= */
 
 sortTrips(){
 
   this.trips.sort((a,b)=>{
-    return new Date(`${a.tripDate} ${a.tripTime}`) - new Date(`${b.tripDate} ${b.tripTime}`)
+
+    const da = new Date(`${a.tripDate} ${a.tripTime}`)
+    const db = new Date(`${b.tripDate} ${b.tripTime}`)
+
+    return da - db
+
   })
 
 },
+
+/* ================= DRIVERS ================= */
 
 getAvailableDrivers(trip){
 
   const day = new Date(trip.tripDate).toLocaleDateString("en-CA")
 
   return this.drivers.filter(d=>{
+
     const s = this.schedule[d._id]
-    return s && s.enabled && s.days?.[day]
+
+    return s && s.enabled && s.days && s.days[day]
+
   })
 
 },
@@ -49,11 +69,34 @@ assign(trip, driver){
   trip.driverId = driver._id
   trip.driverName = driver.name
   trip.vehicle = s.vehicleNumber || ""
+  trip.driverAddress = s.address || ""
+
 },
+
+/* ================= AUTO ================= */
+
+runAuto(){
+
+  this.trips.forEach(trip=>{
+
+    const available = this.getAvailableDrivers(trip)
+
+    if(available.length){
+      this.assign(trip, available[0])
+    }
+
+  })
+
+  UI.render()
+
+},
+
+/* ================= SELECT ================= */
 
 toggleSelect(id){
 
   this.selected[id] = !this.selected[id]
+
   UI.render()
 
 },
@@ -70,55 +113,108 @@ toggleAll(){
 
 },
 
+/* ================= EDIT ================= */
+
+toggleEdit(){
+
+  this.editMode = !this.editMode
+
+  UI.render()
+
+},
+
+/* ================= SEND ================= */
+
 async sendOne(id){
 
-  await Store.sendTrips([id])
-  alert("Sent 1 trip")
+  try{
+
+    await Store.sendTrips([id])
+
+    alert("Trip Sent")
+
+  }catch(err){
+    console.error(err)
+  }
 
 },
 
 async sendSelected(){
 
-  const ids = Object.keys(this.selected).filter(id=>this.selected[id])
+  const ids = Object.keys(this.selected)
+    .filter(id => this.selected[id])
 
-  if(!ids.length) return alert("No trips")
+  if(!ids.length){
+    return alert("No trips selected")
+  }
 
-  await Store.sendTrips(ids)
+  try{
 
-  alert("Sent")
+    await Store.sendTrips(ids)
+
+    alert("Trips Sent")
+
+  }catch(err){
+    console.error(err)
+  }
 
 },
+
+/* ================= DISABLE ================= */
 
 async disable(id){
 
-  await Store.disableTrip(id)
-  this.trips = this.trips.filter(t=>t._id !== id)
+  try{
 
-  UI.render()
+    await Store.disableTrip(id)
+
+    this.trips = this.trips.filter(t=>t._id !== id)
+
+    delete this.selected[id]
+
+    UI.render()
+
+  }catch(err){
+    console.error(err)
+  }
 
 },
+
+/* ================= MANUAL ASSIGN ================= */
 
 async assignManual(tripId, driverId){
 
-  const driver = this.drivers.find(d=>d._id===driverId)
+  const driver = this.drivers.find(d=>d._id === driverId)
 
   if(!driver) return
 
-  this.assign(
-    this.trips.find(t=>t._id===tripId),
-    driver
-  )
+  const trip = this.trips.find(t=>t._id === tripId)
 
-  await Store.assignDriver(tripId, driverId)
+  if(!trip) return
+
+  this.assign(trip, driver)
+
+  try{
+
+    await Store.assignDriver(tripId, driverId)
+
+  }catch(err){
+    console.error(err)
+  }
 
   UI.render()
 
 },
 
-updateNote(id,val){
+/* ================= NOTES ================= */
 
-  const trip = this.trips.find(t=>t._id===id)
-  if(trip) trip.notes = val
+updateNote(id, val){
+
+  const trip = this.trips.find(t=>t._id === id)
+
+  if(trip){
+    trip.notes = val
+  }
 
 }
 
