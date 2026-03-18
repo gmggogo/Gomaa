@@ -2,102 +2,94 @@
 <html lang="en">
 
 <head>
-
 <meta charset="UTF-8">
-<title>Dispatch System</title>
+<title>Dispatch Center</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- 🔥 CSS -->
 <link rel="stylesheet" href="/admin/style.css">
 <link rel="stylesheet" href="/admin/header.css">
 
 <style>
 
-body{
-  margin:0;
-  font-family:'Segoe UI',Arial;
-  background:#f3f4f6;
+.page{
+padding:20px;
 }
 
-#adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:999;
+/* TOP BAR */
+.top-bar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:15px;
 }
 
-.page-body{
-  max-width:1400px;
-  margin:auto;
-  padding:200px 20px 40px;
+/* MAP + DRIVERS */
+.top-layout{
+display:flex;
+gap:10px;
+margin-bottom:15px;
 }
 
-/* BUTTONS */
-.top-actions{
-  display:flex;
-  gap:10px;
-  margin-bottom:15px;
+#map{
+width:33%;
+height:220px;
+background:#111;
+border-radius:8px;
 }
-
-.btn{
-  border:none;
-  padding:8px 14px;
-  border-radius:6px;
-  color:#fff;
-  font-size:13px;
-  cursor:pointer;
-}
-
-.btn-orange{background:#f59e0b;}
-.btn-purple{background:#7c3aed;}
-.btn-green{background:#16a34a;}
 
 /* DRIVERS */
-.drivers-box{
-  background:#fff;
-  border-radius:8px;
-  margin-bottom:10px;
+#driversBox{
+flex:1;
+display:flex;
+flex-wrap:wrap;
+gap:10px;
 }
 
-.box-title{
-  background:#1e293b;
-  color:#fff;
-  padding:8px;
-}
-
-#driversPanel{
-  padding:10px;
+.driver-card{
+background:#1f2937;
+padding:10px;
+border-radius:6px;
+min-width:120px;
+text-align:center;
 }
 
 /* TABLE */
 table{
-  width:100%;
-  border-collapse:collapse;
-  background:#fff;
+width:100%;
+border-collapse:collapse;
+background:#111827;
+}
+
+th,td{
+padding:8px;
+border:1px solid #1f2937;
+font-size:13px;
+text-align:center;
 }
 
 th{
-  background:#1e293b;
-  color:#fff;
-  padding:6px;
-  font-size:12px;
+background:#1e293b;
 }
 
-td{
-  border:1px solid #e5e7eb;
-  padding:5px;
-  font-size:11px;
-  text-align:center;
+tr:hover{
+background:#1f2937;
 }
 
-.row-selected{
-  background:#e0f2fe;
+/* BUTTONS */
+.btn{
+padding:6px 10px;
+border:none;
+border-radius:4px;
+cursor:pointer;
+font-size:12px;
 }
 
-select{
-  padding:3px;
-  font-size:11px;
-}
+.btn-blue{background:#2563eb;color:#fff;}
+.btn-green{background:#16a34a;color:#fff;}
+.btn-red{background:#dc2626;color:#fff;}
+.btn-gray{background:#6b7280;color:#fff;}
 
 </style>
 
@@ -105,181 +97,76 @@ select{
 
 <body>
 
+<!-- 🔥 HEADER -->
 <div id="adminHeader"></div>
 
-<div class="page-body">
+<div class="page">
 
-<div class="top-actions">
+<h2>Dispatch Center</h2>
 
-<button onclick="UI.toggleEdit()" class="btn btn-orange">
-Manual Edit
-</button>
+<!-- ACTION BUTTONS -->
+<div class="top-bar">
 
-<button onclick="Engine.reload()" class="btn btn-purple">
-Reload
-</button>
-
-<button onclick="Engine.sendSelected()" class="btn btn-green">
-Send Selected
-</button>
+<div>
+<button class="btn btn-blue" onclick="Engine.toggleAll()">Select All</button>
+<button class="btn btn-gray" onclick="Engine.editMode=!Engine.editMode;UI.render()">Edit Selected</button>
+<button class="btn btn-green" onclick="Engine.sendSelected()">Send Selected</button>
+<button class="btn btn-blue" onclick="Engine.runAuto()">Redistribute</button>
+</div>
 
 </div>
 
-<div class="drivers-box">
-<div class="box-title">Drivers</div>
-<div id="driversPanel"></div>
+<!-- MAP + DRIVERS -->
+<div class="top-layout">
+
+<div id="map">MAP</div>
+
+<div id="driversBox"></div>
+
 </div>
 
+<!-- TABLE -->
 <table>
 
 <thead>
 <tr>
 <th>Select</th>
-<th>Trip</th>
+<th>Trip#</th>
 <th>Client</th>
 <th>Pickup</th>
+<th>Stops</th>
 <th>Dropoff</th>
 <th>Date</th>
 <th>Time</th>
 <th>Driver</th>
 <th>Car</th>
-<th>Action</th>
+<th>Send</th>
 </tr>
 </thead>
 
-<tbody id="dispatchBody"></tbody>
+<tbody id="tbody"></tbody>
 
 </table>
 
 </div>
 
-<!-- 🔥 مهم -->
+<!-- 🔥 HEADER LOAD -->
 <script src="/admin/header.js"></script>
+<script>
+fetch("/admin/header.html")
+.then(res=>res.text())
+.then(html=>{
+document.getElementById("adminHeader").innerHTML=html
+})
+</script>
+
+<!-- 🔥 SCRIPTS -->
 <script src="/admin/dispatch.store.js"></script>
-<script src="/admin/dispatchengine.js"></script>
+<script src="/admin/dispatch.engine.js"></script>
+<script src="/admin/dispatch.ui.js"></script>
 
 <script>
-
-/* ================= UI ================= */
-
-const tbody = document.getElementById("dispatchBody")
-const driversPanel = document.getElementById("driversPanel")
-
-let editMode = false
-
-const UI = {
-
-  toggleEdit(){
-    editMode = !editMode
-    this.renderTrips(Engine.trips)
-  },
-
-  renderTrips(trips){
-
-    if(!trips || !trips.length){
-      tbody.innerHTML = `
-      <tr>
-        <td colspan="10" style="padding:20px">
-          No Trips
-        </td>
-      </tr>`
-      return
-    }
-
-    tbody.innerHTML = trips.map(t=>{
-
-      const driverName = t.driverName || "-"
-      const vehicle = t.vehicle || "-"
-
-      return `
-      <tr class="${t.selected?'row-selected':''}">
-
-        <td>
-          <input type="checkbox"
-          ${t.selected?'checked':''}
-          onchange="UI.selectTrip('${t._id}', this.checked)">
-        </td>
-
-        <td>${t.tripNumber||"-"}</td>
-        <td>${t.clientName||"-"}</td>
-        <td>${t.pickup||"-"}</td>
-        <td>${t.dropoff||"-"}</td>
-        <td>${t.tripDate||"-"}</td>
-        <td>${t.tripTime||"-"}</td>
-
-        <td>
-          ${
-            editMode && t.selected
-            ? `
-              <select onchange="UI.changeDriver('${t._id}', this.value)">
-                <option value="">--</option>
-                ${Engine.drivers.map(d=>`
-                  <option value="${d._id}">
-                    ${d.name}
-                  </option>
-                `).join("")}
-              </select>
-            `
-            : driverName
-          }
-        </td>
-
-        <td>🚗 ${vehicle}</td>
-
-        <td>
-          <button onclick="Engine.disableTrip('${t._id}')"
-          style="background:#dc2626;color:#fff;border:none;padding:4px 8px;border-radius:4px;">
-          Disable
-          </button>
-        </td>
-
-      </tr>
-      `
-
-    }).join("")
-  },
-
-  renderDriversPanel(drivers){
-
-    driversPanel.innerHTML = drivers.map(d=>{
-
-      const vehicle = Engine.getDriverVehicleById(d._id)
-
-      return `
-      <div style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #eee;">
-        <strong>${d.name}</strong>
-        <span>🚗 ${vehicle}</span>
-      </div>
-      `
-    }).join("")
-  },
-
-  selectTrip(id,val){
-
-    const t = Engine.trips.find(x=>x._id==id)
-    if(!t) return
-
-    t.selected = val
-
-    this.renderTrips(Engine.trips)
-  },
-
-  changeDriver(tripId, driverId){
-    Engine.assignDriver(tripId, driverId)
-  },
-
-  getSelected(){
-    return Engine.trips.filter(t=>t.selected).map(t=>t._id)
-  }
-
-}
-
-/* ================= START ================= */
-
-window.onload = ()=>{
-  Engine.load()
-}
-
+Engine.load()
 </script>
 
 </body>
