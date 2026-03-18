@@ -10,7 +10,6 @@ editMode:false,
 map:null,
 markers:[],
 
-/* ================= LOAD ================= */
 async load(){
 
   const data = await Store.load()
@@ -19,15 +18,11 @@ async load(){
   this.drivers = data.drivers || []
   this.schedule = data.schedule || {}
 
-  this.sortTrips()
-
   this.initMap()
-
   this.runAuto()
 
 },
 
-/* ================= MAP ================= */
 initMap(){
 
   this.map = L.map('map').setView([33.4484,-112.0740],10)
@@ -44,29 +39,17 @@ renderMap(){
   this.markers=[]
 
   this.drivers.forEach(d=>{
-
     if(!d.lat || !d.lng) return
 
     const m = L.marker([d.lat,d.lng])
-      .addTo(this.map)
-      .bindPopup(d.name)
+    .addTo(this.map)
+    .bindPopup(d.name)
 
     this.markers.push(m)
-
   })
 
 },
 
-/* ================= SORT ================= */
-sortTrips(){
-
-  this.trips.sort((a,b)=>{
-    return new Date(`${a.tripDate} ${a.tripTime}`) - new Date(`${b.tripDate} ${b.tripTime}`)
-  })
-
-},
-
-/* ================= AVAILABLE ================= */
 getAvailableDrivers(trip){
 
   const day = new Date(trip.tripDate).toLocaleDateString("en-CA")
@@ -78,7 +61,6 @@ getAvailableDrivers(trip){
 
 },
 
-/* ================= ASSIGN ================= */
 assign(trip, driver){
 
   const s = this.schedule[driver._id] || {}
@@ -86,16 +68,14 @@ assign(trip, driver){
   trip.driverId = driver._id
   trip.driverName = driver.name
   trip.vehicle = s.vehicleNumber || ""
+
 },
 
-/* ================= AUTO ================= */
 runAuto(){
 
   this.trips.forEach(t=>{
-
     const list = this.getAvailableDrivers(t)
-    if(list.length) this.assign(t, list[0])
-
+    if(list.length) this.assign(t,list[0])
   })
 
   this.renderMap()
@@ -103,9 +83,8 @@ runAuto(){
 
 },
 
-/* ================= SELECT ================= */
 toggleSelect(id){
-  this.selected[id] = !this.selected[id]
+  this.selected[id]=!this.selected[id]
   UI.render()
 },
 
@@ -114,34 +93,55 @@ toggleAll(){
   const all = this.trips.every(t=>this.selected[t._id])
 
   this.trips.forEach(t=>{
-    this.selected[t._id] = !all
+    this.selected[t._id]=!all
   })
 
   UI.render()
 },
 
-/* ================= MANUAL ================= */
-async assignManual(tripId, driverId){
+toggleEdit(){
 
-  const driver = this.drivers.find(d=>d._id===driverId)
-  const trip = this.trips.find(t=>t._id===tripId)
+  this.editMode = !this.editMode
 
-  this.assign(trip, driver)
-
-  await Store.assignDriver(tripId, driverId)
+  document.getElementById("editBtn").innerText =
+  this.editMode ? "Save" : "Edit"
 
   UI.render()
 
 },
 
-/* ================= SEND ================= */
+async assignManual(id,driverId){
+
+  const d = this.drivers.find(x=>x._id===driverId)
+  const t = this.trips.find(x=>x._id===id)
+
+  this.assign(t,d)
+
+  await Store.assignDriver(id,driverId)
+
+  UI.render()
+
+},
+
+async updateNotes(id,value){
+
+  const t = this.trips.find(x=>x._id===id)
+  if(t) t.notes=value
+
+  await fetch(`/api/dispatch/${id}/notes`,{
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ notes:value })
+  })
+
+},
+
 async sendSelected(){
 
-  const ids = Object.keys(this.selected).filter(id=>this.selected[id])
+  const ids = Object.keys(this.selected).filter(i=>this.selected[i])
   if(!ids.length) return alert("No trips")
 
   await Store.sendTrips(ids)
-
   alert("Sent")
 
 },

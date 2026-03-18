@@ -5,7 +5,6 @@ render(){
   this.renderTrips()
 },
 
-/* DRIVERS */
 renderDrivers(){
 
   const box = document.getElementById("driversBox")
@@ -17,14 +16,14 @@ renderDrivers(){
 
     return `
     <div class="driver-card">
-      <strong>${d.name}</strong>
-      <div>${s.vehicleNumber || "-"}</div>
+      <strong>${d.name}</strong><br>
+      ${s.vehicleNumber || "-"}
     </div>
     `
   }).join("")
+
 },
 
-/* TABLE */
 renderTrips(){
 
   const tbody = document.getElementById("tbody")
@@ -32,15 +31,13 @@ renderTrips(){
 
   Engine.trips.forEach(t=>{
 
-    const selected = Engine.selected[t._id]
-
     const tr = document.createElement("tr")
 
     tr.innerHTML = `
 
 <td>
 <input type="checkbox"
-${selected?'checked':''}
+${Engine.selected[t._id]?'checked':''}
 onclick="Engine.toggleSelect('${t._id}')">
 </td>
 
@@ -54,7 +51,7 @@ onclick="Engine.toggleSelect('${t._id}')">
 
 <td>
 <select
-${!(Engine.editMode && Engine.selected[t._id]) ? 'disabled' : ''}
+${!Engine.editMode ? 'disabled' : ''}
 onchange="Engine.assignManual('${t._id}',this.value)">
 
 <option value="">Driver</option>
@@ -73,7 +70,15 @@ ${d.name}
 <td>${t.vehicle || "-"}</td>
 
 <td>
-<button onclick="Engine.sendOne('${t._id}')">Send</button>
+<input type="text"
+value="${t.notes||''}"
+${!Engine.editMode ? 'disabled':''}
+onchange="Engine.updateNotes('${t._id}',this.value)"
+style="width:100px">
+</td>
+
+<td>
+<button class="btn" onclick="Engine.sendOne('${t._id}')">Send</button>
 </td>
 
 `

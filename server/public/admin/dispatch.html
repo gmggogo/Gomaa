@@ -2,7 +2,6 @@
 <html>
 
 <head>
-
 <meta charset="UTF-8">
 <title>Dispatch</title>
 
@@ -13,34 +12,43 @@
 
 <style>
 
-body{background:#f3f4f6}
+body{background:#f3f4f6;font-family:Arial}
 
+/* TOP */
 .top-layout{
 display:flex;
-gap:15px;
-margin-bottom:15px;
+gap:10px;
+margin-bottom:10px;
 }
 
+/* MAP */
 #map{
-width:33%;
-height:250px;
+width:35%;
+height:260px;
 border-radius:10px;
 }
 
+/* DRIVERS (SMART STRIP) */
 #driversBox{
 flex:1;
 display:flex;
-gap:10px;
-flex-wrap:wrap;
+gap:6px;
+overflow-x:auto;
+height:120px;
+padding:5px;
 }
 
 .driver-card{
-background:#1e3a8a;
+min-width:90px;
+background:linear-gradient(180deg,#1e3a8a,#2563eb);
 color:#fff;
-padding:10px;
+padding:6px;
 border-radius:6px;
+font-size:11px;
+text-align:center;
 }
 
+/* TABLE */
 table{
 width:100%;
 background:#fff;
@@ -53,31 +61,47 @@ color:#fff;
 }
 
 td,th{
-padding:8px;
+padding:6px;
 border:1px solid #ddd;
 text-align:center;
+font-size:12px;
+}
+
+/* BUTTONS */
+.btn{
+background:#2563eb;
+color:#fff;
+padding:6px 12px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+font-weight:600;
 }
 
 </style>
-
 </head>
 
 <body>
 
 <div id="adminHeader"></div>
 
-<div style="padding:15px">
+<div style="padding:10px">
 
-<button onclick="Engine.toggleAll()">Select All</button>
-<button onclick="Engine.editMode=!Engine.editMode;UI.render()">Edit</button>
-<button onclick="Engine.sendSelected()">Send Selected</button>
-<button onclick="Engine.runAuto()">Redistribute</button>
+<!-- BUTTONS -->
+<div style="margin-bottom:8px">
+<button class="btn" onclick="Engine.toggleAll()">Select All</button>
+<button id="editBtn" class="btn" onclick="Engine.toggleEdit()">Edit</button>
+<button class="btn" onclick="Engine.sendSelected()">Send Selected</button>
+<button class="btn" onclick="Engine.runAuto()">Redistribute</button>
+</div>
 
+<!-- MAP + DRIVERS -->
 <div class="top-layout">
 <div id="map"></div>
 <div id="driversBox"></div>
 </div>
 
+<!-- TABLE -->
 <table>
 <thead>
 <tr>
@@ -91,6 +115,7 @@ text-align:center;
 <th>Time</th>
 <th>Driver</th>
 <th>Car</th>
+<th>Notes</th>
 <th>Send</th>
 </tr>
 </thead>
