@@ -469,117 +469,6 @@ async function generateTripNumber(type) {
   return monthCode + "-" + next;
 }
 
-function parseTripDate(tripDate) {
-  if (!tripDate) return null;
-
-  const d1 = new Date(tripDate);
-  if (!Number.isNaN(d1.getTime())) return d1;
-
-  const str = String(tripDate).trim();
-
-  const parts1 = str.split("/");
-  if (parts1.length === 3) {
-    const a = parseInt(parts1[0], 10);
-    const b = parseInt(parts1[1], 10);
-    const c = parseInt(parts1[2], 10);
-
-    if (!Number.isNaN(a) && !Number.isNaN(b) && !Number.isNaN(c)) {
-      if (String(parts1[0]).length === 4) {
-        const d2 = new Date(a, b - 1, c);
-        if (!Number.isNaN(d2.getTime())) return d2;
-      } else {
-        const d3 = new Date(c, a - 1, b);
-        if (!Number.isNaN(d3.getTime())) return d3;
-      }
-    }
-  }
-
-  const parts2 = str.split("-");
-  if (parts2.length === 3) {
-    const a = parseInt(parts2[0], 10);
-    const b = parseInt(parts2[1], 10);
-    const c = parseInt(parts2[2], 10);
-
-    if (!Number.isNaN(a) && !Number.isNaN(b) && !Number.isNaN(c)) {
-      if (String(parts2[0]).length === 4) {
-        const d4 = new Date(a, b - 1, c);
-        if (!Number.isNaN(d4.getTime())) return d4;
-      } else {
-        const d5 = new Date(c, a - 1, b);
-        if (!Number.isNaN(d5.getTime())) return d5;
-      }
-    }
-  }
-
-  return null;
-}
-
-function normalizeDayValue(value) {
-  if (value === true) return true;
-  if (value === false) return false;
-  if (value === 1) return true;
-  if (value === 0) return false;
-
-  const v = String(value || "").trim().toLowerCase();
-
-  return (
-    v === "true" ||
-    v === "1" ||
-    v === "yes" ||
-    v === "on" ||
-    v === "active" ||
-    v === "selected"
-  );
-}
-
-function isDriverScheduledForTrip(scheduleDoc, tripDateString) {
-  if (!scheduleDoc) return false;
-  if (scheduleDoc.enabled !== true) return false;
-
-  const date = parseTripDate(tripDateString);
-  if (!date) return false;
-
-  const days = scheduleDoc.days || {};
-
-  const weekdayShort = date.toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
-  const weekdayFull = date.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const year = date.getFullYear();
-
-  const possibleKeys = [
-    weekdayShort,
-    weekdayFull,
-    `${month}/${day}`,
-    `${month}/${day}/${year}`,
-    `${month}-${day}`,
-    `${month}-${day}-${year}`,
-    `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-    `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`,
-    `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`,
-    `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-    `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}-${year}`
-  ];
-
-  for (const key of possibleKeys) {
-    if (Object.prototype.hasOwnProperty.call(days, key)) {
-      return normalizeDayValue(days[key]);
-    }
-  }
-
-  for (const key in days) {
-    if (!Object.prototype.hasOwnProperty.call(days, key)) continue;
-
-    const cleanKey = String(key).trim().toLowerCase();
-    if (possibleKeys.includes(cleanKey)) {
-      return normalizeDayValue(days[key]);
-    }
-  }
-
-  return false;
-}
-
 /* =========================
    CREATE TRIP
 ========================= */
@@ -859,47 +748,27 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
       return res.status(400).json({ message: "User is not a driver" });
     }
 
-    if (!driver.active) {
-      return res.status(400).json({ message: "Driver is disabled" });
-    }
-
-    const trip = await Trip.findById(req.params.id);
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
     const driverSchedule = await DriverSchedule.findOne({
       driverId: driver._id.toString()
-    }).lean();
+    });
 
-    if (!driverSchedule) {
-      return res.status(400).json({ message: "Driver schedule not found" });
-    }
-
-    if (driverSchedule.enabled !== true) {
-      return res.status(400).json({ message: "Driver schedule disabled" });
-    }
-
-    const allowed = isDriverScheduledForTrip(driverSchedule, trip.tripDate);
-
-    if (!allowed) {
-      return res.status(400).json({ message: "Driver not working on trip date" });
-    }
-
-    const tripUpdated = await Trip.findByIdAndUpdate(
+    const trip = await Trip.findByIdAndUpdate(
       req.params.id,
       {
         driverId: driver._id.toString(),
         driverName: driver.name || "",
-        vehicle: driverSchedule.vehicleNumber || driver.vehicleNumber || "",
-        driverAddress: driverSchedule.address || driver.address || "",
+        vehicle: driverSchedule?.vehicleNumber || driver.vehicleNumber || "",
+        driverAddress: driverSchedule?.address || driver.address || "",
         status: "Driver Assigned"
       },
       { new: true }
     );
 
-    res.json(tripUpdated);
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    res.json(trip);
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Driver assign error" });
