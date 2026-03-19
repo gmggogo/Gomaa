@@ -1,171 +1,214 @@
-/* ================= FINAL PROFESSIONAL SMART ENGINE ================= */
+/* ================= FULL SMART ENGINE ================= */
 
-const SmartEngine = {
+const Engine = {
 
-  distanceCache: {},
+  trips: [],
+  drivers: [],
+  schedule: {},
+  geoCache: {},
 
-  /* ================= PRELOAD ================= */
+  OSRM: "https://router.project-osrm.org/route/v1/driving",
+
+  /* ================= LOAD ================= */
+  async load(){
+
+    try{
+
+      this.trips = await Store.getTrips() || []
+      this.drivers = await Store.getDrivers() || []
+      this.schedule = await Store.getSchedule() || {}
+
+      console.log("Trips:", this.trips)
+      console.log("Drivers:", this.drivers)
+
+      this.sortTrips()
+
+      await this.preload()
+
+      // 🔥 توزيع تلقائي لكل الرحلات
+      await this.autoAssign(false)
+
+      UI.renderTrips(this.trips)
+      UI.renderDrivers && UI.renderDrivers(this.drivers)
+
+    }catch(err){
+      console.error("ENGINE ERROR:", err)
+    }
+
+  },
+
+  /* ================= SORT ================= */
+  sortTrips(){
+
+    this.trips.sort((a,b)=>{
+      const da = new Date(`${a.tripDate} ${a.tripTime}`)
+      const db = new Date(`${b.tripDate} ${b.tripTime}`)
+      return da - db
+    })
+
+  },
+
+  /* ================= PRELOAD GEO ================= */
   async preload(){
+
     const addresses = new Set()
 
-    trips.forEach(t=>{
+    this.trips.forEach(t=>{
       if(t.pickup) addresses.add(t.pickup)
       if(t.dropoff) addresses.add(t.dropoff)
-      getStops(t).forEach(s=>addresses.add(s))
     })
 
-    drivers.forEach(d=>{
-      const s = schedule[d._id]
-      if(s && s.address) addresses.add(s.address)
+    this.drivers.forEach(d=>{
       if(d.address) addresses.add(d.address)
+      const s = this.schedule[d._id]
+      if(s && s.address) addresses.add(s.address)
     })
 
-    await Promise.all([...addresses].map(a=>geocode(a)))
+    await Promise.all([...addresses].map(a=>this.geocode(a)))
+
   },
 
-  /* ================= SAME DAY ================= */
-  sameDay(driver, trip){
-    if(!driver.workDate) return true
-    return driver.workDate === trip.tripDate
-  },
+  /* ================= GEOCODE ================= */
+  async geocode(address){
 
-  /* ================= TIME CHECK ================= */
-  canTake(driver, trip){
+    if(!address) return null
+    if(this.geoCache[address]) return this.geoCache[address]
 
-    if(!driver.lastTripEnd) return true
+    try{
 
-    const last = new Date(driver.lastTripEnd)
-    const next = new Date(`${trip.tripDate} ${trip.tripTime}`)
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`)
+      const data = await res.json()
 
-    return (next - last) > (20 * 60 * 1000)
-  },
+      if(!data.length) return null
 
-  /* ================= START LOCATION ================= */
-  getStart(driver){
+      const loc = {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon)
+      }
 
-    if(driver.liveLocation) return driver.liveLocation
-    if(driver.lastDropoff) return driver.lastDropoff
+      this.geoCache[address] = loc
+      return loc
 
-    const s = schedule[driver._id]
-    if(s && s.address && geoCache[s.address]){
-      return geoCache[s.address]
+    }catch(e){
+      return null
     }
 
-    if(driver.address && geoCache[driver.address]){
-      return geoCache[driver.address]
-    }
-
-    return null
   },
 
   /* ================= DISTANCE ================= */
   async getDistance(a,b){
 
-    const key = `${a.lat},${a.lng}_${b.lat},${b.lng}`
-    if(this.distanceCache[key]) return this.distanceCache[key]
-
     try{
-      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}`)
+
+      const res = await fetch(`${this.OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`)
       const data = await res.json()
 
       if(!data.routes || !data.routes.length) return Infinity
 
-      const dist = data.routes[0].distance
-      this.distanceCache[key] = dist
-
-      return dist
+      return data.routes[0].distance
 
     }catch(e){
       return Infinity
     }
+
   },
 
-  /* ================= PICK DRIVER (PARALLEL) ================= */
-  async pickDriver(trip){
+  /* ================= DRIVER START ================= */
+  getDriverStart(driver){
 
-    const pickup = geoCache[trip.pickup]
-    if(!pickup) return null
+    if(driver.lastDropoff) return driver.lastDropoff
 
-    const promises = drivers.map(async driver => {
+    const s = this.schedule[driver._id]
 
-      if(!this.sameDay(driver, trip)) return null
-      if(!this.canTake(driver, trip)) return null
-
-      const start = this.getStart(driver)
-      if(!start) return null
-
-      const dist = await this.getDistance(start, pickup)
-
-      return { driver, dist }
-    })
-
-    const results = (await Promise.all(promises)).filter(Boolean)
-
-    if(!results.length) return null
-
-    let best = null
-    let bestScore = Infinity
-
-    for(const r of results){
-
-      const driver = r.driver
-      const dist = r.dist
-
-      // ⚖️ معادلة احترافية (مسافة + عدل ديناميكي)
-      const score = dist + (driver.assignedTrips * dist * 0.3)
-
-      if(score < bestScore){
-        bestScore = score
-        best = driver
-      }
+    if(s && s.address && this.geoCache[s.address]){
+      return this.geoCache[s.address]
     }
 
-    return best
+    if(driver.address && this.geoCache[driver.address]){
+      return this.geoCache[driver.address]
+    }
+
+    return null
   },
 
-  /* ================= RUN ================= */
-  async run(selectedOnly = true){
+  /* ================= AUTO ASSIGN ================= */
+  async autoAssign(selectedOnly = false){
 
-    showToast("Smart Dispatch Running...")
+    console.log("AUTO ASSIGN START")
 
-    // reset
-    drivers.forEach(d=>{
+    this.drivers.forEach(d=>{
       d.assignedTrips = 0
-      d.lastTripEnd = null
       d.lastDropoff = null
     })
 
-    // sort
-    trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+    for(const trip of this.trips){
 
-    await this.preload()
+      // ✅ الفرق بين auto و redispatch
+      if(selectedOnly && trip.selected !== true) continue
 
-    for(const trip of trips){
+      const pickup = this.geoCache[trip.pickup]
 
-      if(selectedOnly && !trip.selected) continue
+      if(!pickup){
+        console.log("No pickup:", trip.pickup)
+        continue
+      }
 
-      const driver = await this.pickDriver(trip)
-      if(!driver) continue
+      let bestDriver = null
+      let bestDist = Infinity
+
+      for(const driver of this.drivers){
+
+        const start = this.getDriverStart(driver)
+
+        if(!start){
+          console.log("No start for driver:", driver.name)
+          continue
+        }
+
+        const dist = await this.getDistance(start, pickup)
+
+        if(dist < bestDist){
+          bestDist = dist
+          bestDriver = driver
+        }
+
+      }
+
+      if(!bestDriver){
+        console.log("No driver for trip")
+        continue
+      }
 
       // assign
-      trip.driverId = driver._id
-      trip.vehicle = getDriverCar(driver._id)
+      trip.driverId = bestDriver._id
+      trip.vehicle = bestDriver.car || ""
 
-      driver.assignedTrips++
+      bestDriver.assignedTrips++
+      bestDriver.lastDropoff = this.geoCache[trip.dropoff]
 
-      // ⏱ FIX TIME (مدة الرحلة)
-      const start = new Date(`${trip.tripDate} ${trip.tripTime}`)
-      const durationMin = 30 // مؤقت (نقدر نخليه من OSRM بعد كده)
+      console.log("Assigned:", bestDriver.name)
 
-      driver.lastTripEnd = new Date(start.getTime() + durationMin * 60000)
-
-      // 📍 FIX DROPOFF
-      driver.lastDropoff = geoCache[trip.dropoff] || driver.lastDropoff
     }
 
-    renderTrips()
-    renderDrivers()
+    console.log("AUTO ASSIGN DONE")
 
-    showToast("Smart Dispatch Done ✅")
+  },
+
+  /* ================= REDISTRIBUTE BUTTON ================= */
+  async redistributeSelected(){
+
+    await this.autoAssign(true)
+
+    UI.renderTrips(this.trips)
+    UI.renderDrivers && UI.renderDrivers(this.drivers)
+
   }
+
 }
+
+/* ================= START ================= */
+window.Engine = Engine;
+
+document.addEventListener("DOMContentLoaded", () => {
+  Engine.load();
+});
