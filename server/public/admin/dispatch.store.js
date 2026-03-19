@@ -1,64 +1,122 @@
 const Store = {
 
-  /* ================= LOAD ================= */
+/* ================= API ================= */
 
-  async load(){
+API: "/api/dispatch",
 
-    try{
+/* ================= LOAD ================= */
 
-      const tripsRes = await fetch("/api/trips")
-      const driversRes = await fetch("/api/users/driver")
-      const scheduleRes = await fetch("/api/driver-schedule")
+async load(){
 
-      const trips = await tripsRes.json()
-      const drivers = await driversRes.json()
-      const schedule = await scheduleRes.json()
+  try{
 
-      return {
-        trips: trips || [],
-        drivers: drivers || [],
-        schedule: schedule || {}
-      }
+    const res = await fetch(this.API)
 
-    }catch(e){
-      console.error("Store Load Error", e)
-      return { trips: [], drivers: [], schedule: {} }
+    if(!res.ok){
+      console.error("API ERROR STATUS:", res.status)
+      return { trips:[], drivers:[], schedule:{} }
     }
 
-  },
+    const data = await res.json()
 
-  /* ================= ACTIONS ================= */
+    // دعم أكتر من شكل response
+    return {
+      trips: data.trips || data.data?.trips || [],
+      drivers: data.drivers || data.data?.drivers || [],
+      schedule: data.schedule || data.data?.schedule || {}
+    }
 
-  async assignDriver(tripId, driverId){
+  }catch(err){
 
-    return fetch(`/api/trips/${tripId}/driver`,{
+    console.error("STORE LOAD ERROR:", err)
+
+    return {
+      trips:[],
+      drivers:[],
+      schedule:{}
+    }
+
+  }
+
+},
+
+/* ================= SEND ================= */
+
+async sendTrips(ids){
+
+  try{
+
+    const res = await fetch("/api/dispatch/send",{
       method:"PATCH",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ driverId })
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify({ ids })
     })
 
-  },
+    return await res.json()
 
-  async sendTrips(ids){
+  }catch(err){
 
-    return fetch("/api/dispatch/send",{
-      method:"PATCH",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ ids })
-    })
+    console.error("SEND ERROR:", err)
+    return null
 
-  },
+  }
 
-  async disableTrip(id){
+},
 
-    return fetch(`/api/trips/${id}`,{
+/* ================= UPDATE TRIP ================= */
+
+async updateTrip(id, data){
+
+  try{
+
+    const res = await fetch(`/api/trips/${id}`,{
       method:"PUT",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ disabled:true })
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify(data)
     })
+
+    return await res.json()
+
+  }catch(err){
+
+    console.error("UPDATE ERROR:", err)
+    return null
+
+  }
+
+},
+
+/* ================= DISABLE ================= */
+
+async disableTrip(id){
+
+  try{
+
+    const res = await fetch(`/api/trips/${id}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify({ disabled:true })
+    })
+
+    return await res.json()
+
+  }catch(err){
+
+    console.error("DISABLE ERROR:", err)
+    return null
 
   }
 
 }
+
+}
+
+/* ================= GLOBAL ================= */
 
 window.Store = Store

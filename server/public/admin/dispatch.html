@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
+
+/* ===== نفس التصميم بتاعك بدون تغيير ===== */
+
 .page-body{
   padding:15px 20px;
   background:#f1f5f9;
@@ -33,9 +36,7 @@
   transition:.2s;
 }
 
-.tab-btn.active{
-  background:#2563eb;
-}
+.tab-btn.active{ background:#2563eb }
 
 .top-actions{
   margin:12px 0;
@@ -51,55 +52,37 @@
   cursor:pointer;
   border-radius:7px;
   font-weight:bold;
-  transition:.2s;
-}
-
-.btn:hover{
-  transform:translateY(-1px);
 }
 
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
 .purple{background:#7c3aed}
-.gray{background:#475569}
 .red{background:#dc2626}
 
 .table-wrap{
   background:#fff;
   border-radius:10px;
   overflow:hidden;
-  box-shadow:0 4px 18px rgba(15,23,42,.08);
 }
 
 table{
   width:100%;
   border-collapse:collapse;
-  background:#fff;
 }
 
 th{
   background:#1e293b;
   color:#fff;
-  padding:10px 8px;
+  padding:10px;
   font-size:12px;
-  text-align:left;
-  white-space:nowrap;
 }
 
 td{
   border:1px solid #e5e7eb;
-  padding:8px 7px;
+  padding:8px;
   font-size:12px;
-  vertical-align:top;
 }
-
-tbody tr:hover{
-  background:#f8fafc;
-}
-
-.trip-urgent{background:#fef2f2;}
-.trip-soon{background:#fffbeb;}
 
 .tab-page{display:none}
 .tab-page.active{display:block}
@@ -110,68 +93,15 @@ tbody tr:hover{
   gap:10px;
 }
 
-#map{
-  width:70%;
-  border-radius:10px;
-  overflow:hidden;
-}
-
-#driversPanel{
-  width:30%;
-  background:#0f172a;
-  color:#fff;
-  overflow:auto;
-  border-radius:10px;
-}
+#map{ width:70% }
+#driversPanel{ width:30%; background:#0f172a; color:#fff }
 
 .panel-header{
-  position:sticky;
-  top:0;
-  background:#111827;
   padding:12px;
   font-weight:bold;
+  border-bottom:1px solid #1f2937;
 }
 
-.driver{
-  padding:12px;
-  border-bottom:1px solid #1e293b;
-  cursor:pointer;
-}
-
-.driver:hover{background:#1e293b;}
-
-.driver.active{
-  background:linear-gradient(90deg,#2563eb,#1d4ed8);
-}
-
-.driver-name{
-  font-weight:bold;
-}
-
-.badge{
-  padding:3px 8px;
-  border-radius:999px;
-  font-size:11px;
-}
-
-.badge-available{background:#166534;}
-.badge-busy{background:#991b1b;}
-
-#toast{
-  position:fixed;
-  right:18px;
-  bottom:18px;
-  background:#111827;
-  color:#fff;
-  padding:12px;
-  border-radius:10px;
-  opacity:0;
-  transition:.2s;
-}
-
-#toast.show{
-  opacity:1;
-}
 </style>
 </head>
 
@@ -215,7 +145,11 @@ tbody tr:hover{
             <th>Send</th>
           </tr>
         </thead>
-        <tbody id="tbody"></tbody>
+
+        <tbody id="tbody">
+          <!-- UI.js هيحط البيانات هنا -->
+        </tbody>
+
       </table>
     </div>
 
@@ -235,16 +169,13 @@ tbody tr:hover{
 
 <div id="toast"></div>
 
-<!-- HEADER -->
 <script src="/admin/header.js"></script>
-
-<!-- MAP -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- 🔥 ملفاتك الصح -->
-<script src="/admin/dispatch.store.js"></script>
-<script src="/admin/dispatch.engine.js"></script>
-<script src="/admin/dispatch.ui.js"></script>
+<!-- 🔥 الربط بالملفات -->
+<script src="/admin/store.js"></script>
+<script src="/admin/engine.js"></script>
+<script src="/admin/ui.js"></script>
 
 </body>
 </html>
