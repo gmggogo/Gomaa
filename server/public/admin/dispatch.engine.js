@@ -1,239 +1,262 @@
-/* ================= FINAL CLEAN ENGINE ================= */
+/* ================= ENGINE ================= */
 
 const Engine = {
-
   trips: [],
   drivers: [],
   schedule: {},
-  geoCache: {},
+  selected: {},
+  editMode: false,
+  loading: false,
 
-  OSRM: "https://router.project-osrm.org/route/v1/driving",
+  /* ================= INIT / LOAD ================= */
+  async load() {
+    try {
+      this.loading = true;
 
-  /* ================= LOAD ================= */
-  async load(){
+      const data = await Store.load();
 
-    try{
+      this.trips = Array.isArray(data.trips) ? data.trips.map(t => ({
+        ...t,
+        _id: String(t._id),
+        driverId: t.driverId ? String(t.driverId) : "",
+        vehicle: t.vehicle || ""
+      })) : [];
 
-      this.trips = await Store.getTrips() || []
-      this.drivers = await Store.getDrivers() || []
-      this.schedule = await Store.getSchedule() || {}
+      this.drivers = Array.isArray(data.drivers) ? data.drivers.map(d => ({
+        ...d,
+        _id: String(d._id)
+      })) : [];
 
-      console.log("Trips Loaded:", this.trips.length)
-      console.log("Drivers Loaded:", this.drivers.length)
+      this.schedule = data.schedule || {};
+      this.selected = {};
 
-      this.sortTrips()
+      this.trips.forEach(t => {
+        this.selected[t._id] = false;
+      });
 
-      await this.preload()
+      this.sortTrips();
 
-      // 🔥 auto assign لكل الرحلات
-      await this.autoAssign(false)
+      // auto assign لكل الرحلات من غير ما يحتاج select
+      await this.autoAssignAll();
 
-      UI.renderTrips(this.trips)
-      if(UI.renderDrivers) UI.renderDrivers(this.drivers)
-
-    }catch(err){
-      console.error("ENGINE LOAD ERROR:", err)
+      UI.render();
+    } catch (err) {
+      console.error("Engine Load Error:", err);
+    } finally {
+      this.loading = false;
     }
-
   },
 
-  /* ================= SORT ================= */
-  sortTrips(){
-
-    this.trips.sort((a,b)=>{
-      const da = new Date(`${a.tripDate} ${a.tripTime}`)
-      const db = new Date(`${b.tripDate} ${b.tripTime}`)
-      return da - db
-    })
-
+  /* ================= HELPERS ================= */
+  sortTrips() {
+    this.trips.sort((a, b) => {
+      const da = this.getTripDateValue(a);
+      const db = this.getTripDateValue(b);
+      return da - db;
+    });
   },
 
-  /* ================= PRELOAD GEO ================= */
-  async preload(){
-
-    const addresses = new Set()
-
-    this.trips.forEach(t=>{
-      if(t.pickup) addresses.add(t.pickup)
-      if(t.dropoff) addresses.add(t.dropoff)
-    })
-
-    this.drivers.forEach(d=>{
-      if(d.address) addresses.add(d.address)
-      const s = this.schedule[d._id]
-      if(s && s.address) addresses.add(s.address)
-    })
-
-    await Promise.all([...addresses].map(a=>this.geocode(a)))
-
+  getTripDateValue(trip) {
+    const raw = `${trip.tripDate || ""} ${trip.tripTime || ""}`.trim();
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
   },
 
-  /* ================= GEOCODE ================= */
-  async geocode(address){
+  getDriverVehicle(driverId) {
+    const id = String(driverId || "");
+    const s = this.schedule[id] || {};
+    const d = this.drivers.find(x => String(x._id) === id) || {};
 
-    if(!address) return null
-    if(this.geoCache[address]) return this.geoCache[address]
-
-    try{
-
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
-      )
-
-      const data = await res.json()
-
-      if(!data.length){
-        console.warn("Geocode failed:", address)
-        return null
-      }
-
-      const loc = {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon)
-      }
-
-      this.geoCache[address] = loc
-      return loc
-
-    }catch(e){
-      console.error("Geocode error:", address)
-      return null
-    }
-
+    return (
+      s.vehicleNumber ||
+      s.carNumber ||
+      s.car ||
+      d.vehicleNumber ||
+      d.carNumber ||
+      d.vehicle ||
+      d.car ||
+      ""
+    );
   },
 
-  /* ================= DISTANCE ================= */
-  async getDistance(a,b){
-
-    try{
-
-      const res = await fetch(
-        `${this.OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
-      )
-
-      const data = await res.json()
-
-      if(!data.routes || !data.routes.length){
-        return Infinity
-      }
-
-      return data.routes[0].distance
-
-    }catch(e){
-      console.warn("Distance fail → fallback straight line")
-
-      // 🔥 fallback (حساب مسافة تقريبي)
-      const dx = a.lat - b.lat
-      const dy = a.lng - b.lng
-      return Math.sqrt(dx*dx + dy*dy) * 111000
-    }
-
+  getTripById(tripId) {
+    return this.trips.find(t => String(t._id) === String(tripId));
   },
 
-  /* ================= DRIVER START ================= */
-  getDriverStart(driver){
+  getDriverById(driverId) {
+    return this.drivers.find(d => String(d._id) === String(driverId));
+  },
 
-    // آخر drop
-    if(driver.lastDropoff) return driver.lastDropoff
+  getSelectedTrips() {
+    return this.trips.filter(t => this.selected[t._id]);
+  },
 
-    // schedule
-    const s = this.schedule[driver._id]
-    if(s && s.address && this.geoCache[s.address]){
-      return this.geoCache[s.address]
-    }
-
-    // address
-    if(driver.address && this.geoCache[driver.address]){
-      return this.geoCache[driver.address]
-    }
-
-    // 🔥 fallback (يخليه يشتغل حتى لو مفيش عنوان)
-    return {
-      lat: 0,
-      lng: 0
-    }
-
+  countDriverTrips(driverId, excludeTripId = "") {
+    const id = String(driverId || "");
+    return this.trips.filter(t => {
+      if (excludeTripId && String(t._id) === String(excludeTripId)) return false;
+      return String(t.driverId || "") === id;
+    }).length;
   },
 
   /* ================= AUTO ASSIGN ================= */
-  async autoAssign(selectedOnly = false){
+  async autoAssignAll() {
+    if (!this.drivers.length || !this.trips.length) return;
 
-    console.log("AUTO ASSIGN START")
+    let index = 0;
 
-    this.drivers.forEach(d=>{
-      d.assignedTrips = 0
-      d.lastDropoff = null
-    })
-
-    for(const trip of this.trips){
-
-      // ✅ فرق بين auto و redispatch
-      if(selectedOnly && trip.selected !== true) continue
-
-      const pickup = this.geoCache[trip.pickup]
-
-      if(!pickup){
-        console.warn("No pickup geo:", trip.pickup)
-        continue
+    for (const trip of this.trips) {
+      // لو فيه سواق متعين بالفعل، سيبه لكن ظبط العربية
+      if (trip.driverId) {
+        trip.vehicle = this.getDriverVehicle(trip.driverId);
+        continue;
       }
 
-      let bestDriver = null
-      let bestDist = Infinity
+      const driver = this.drivers[index];
+      if (!driver) continue;
 
-      for(const driver of this.drivers){
+      trip.driverId = String(driver._id);
+      trip.vehicle = this.getDriverVehicle(driver._id);
 
-        const start = this.getDriverStart(driver)
-
-        const dist = await this.getDistance(start, pickup)
-
-        if(dist < bestDist){
-          bestDist = dist
-          bestDriver = driver
-        }
-
-      }
-
-      if(!bestDriver){
-        console.warn("No driver found")
-        continue
-      }
-
-      // assign
-      trip.driverId = bestDriver._id
-
-      // 🔥 vehicle fix
-      trip.vehicle = bestDriver.vehicle || bestDriver.car || ""
-
-      bestDriver.assignedTrips++
-      bestDriver.lastDropoff = this.geoCache[trip.dropoff] || bestDriver.lastDropoff
-
-      console.log("Assigned:", bestDriver.name || bestDriver._id)
-
+      index++;
+      if (index >= this.drivers.length) index = 0;
     }
-
-    console.log("AUTO ASSIGN DONE")
-
   },
 
-  /* ================= REDISTRIBUTE ================= */
-  async redistributeSelected(){
+  async redistributeSelected() {
+    const selectedTrips = this.getSelectedTrips();
+    if (!selectedTrips.length || !this.drivers.length) return;
 
-    console.log("REDISTRIBUTE START")
+    let index = 0;
 
-    await this.autoAssign(true)
+    for (const trip of selectedTrips) {
+      const driver = this.drivers[index];
+      if (!driver) continue;
 
-    UI.renderTrips(this.trips)
-    if(UI.renderDrivers) UI.renderDrivers(this.drivers)
+      trip.driverId = String(driver._id);
+      trip.vehicle = this.getDriverVehicle(driver._id);
 
-    console.log("REDISTRIBUTE DONE")
+      try {
+        await Store.assignDriver(trip._id, driver._id);
+      } catch (err) {
+        console.error("Redistribute save error:", err);
+      }
 
+      index++;
+      if (index >= this.drivers.length) index = 0;
+    }
+
+    UI.render();
+  },
+
+  /* ================= UI ACTIONS ================= */
+  toggleSelect(tripId) {
+    const id = String(tripId);
+    this.selected[id] = !this.selected[id];
+    UI.render();
+  },
+
+  toggleSelectAll() {
+    const allTrips = this.trips.length;
+    if (!allTrips) return;
+
+    const selectedCount = this.getSelectedTrips().length;
+    const shouldSelectAll = selectedCount !== allTrips;
+
+    this.trips.forEach(t => {
+      this.selected[t._id] = shouldSelectAll;
+    });
+
+    UI.render();
+  },
+
+  toggleEdit() {
+    this.editMode = !this.editMode;
+    UI.render();
+  },
+
+  async assignManual(tripId, driverId) {
+    const trip = this.getTripById(tripId);
+    if (!trip) return;
+
+    const id = String(driverId || "");
+
+    trip.driverId = id;
+    trip.vehicle = id ? this.getDriverVehicle(id) : "";
+
+    try {
+      if (id) {
+        await Store.assignDriver(trip._id, id);
+      }
+    } catch (err) {
+      console.error("Manual assign save error:", err);
+    }
+
+    UI.render();
+  },
+
+  getAvailableDrivers(trip) {
+    if (!trip) return this.drivers;
+
+    // كل السواقين متاحين، لكن نرتبهم بالأقل حمل
+    return [...this.drivers].sort((a, b) => {
+      const aCount = this.countDriverTrips(a._id, trip._id);
+      const bCount = this.countDriverTrips(b._id, trip._id);
+      return aCount - bCount;
+    });
+  },
+
+  /* ================= SEND / DISABLE ================= */
+  async sendOne(tripId) {
+    try {
+      await Store.sendTrips([tripId]);
+      console.log("Trip sent:", tripId);
+    } catch (err) {
+      console.error("Send one error:", err);
+    }
+  },
+
+  async sendSelected() {
+    try {
+      const ids = this.getSelectedTrips().map(t => t._id);
+      if (!ids.length) return;
+
+      await Store.sendTrips(ids);
+      console.log("Selected trips sent:", ids);
+    } catch (err) {
+      console.error("Send selected error:", err);
+    }
+  },
+
+  async disable(tripId) {
+    try {
+      await Store.disableTrip(tripId);
+
+      const trip = this.getTripById(tripId);
+      if (trip) {
+        trip.disabled = true;
+      }
+
+      this.trips = this.trips.filter(t => String(t._id) !== String(tripId));
+      delete this.selected[String(tripId)];
+
+      UI.render();
+    } catch (err) {
+      console.error("Disable trip error:", err);
+    }
   }
+};
 
-}
-
-/* ================= START ================= */
+/* ================= OPTIONAL GLOBAL HELPERS ================= */
+/* لو أزرار الصفحة مربوطة مباشرة بدل UI.js */
 window.Engine = Engine;
 
+window.sendSelected = () => Engine.sendSelected();
+window.redistribute = () => Engine.redistributeSelected();
+window.toggleSelectAll = () => Engine.toggleSelectAll();
+window.toggleEdit = () => Engine.toggleEdit();
+
+/* ================= START ================= */
 document.addEventListener("DOMContentLoaded", () => {
   Engine.load();
 });
