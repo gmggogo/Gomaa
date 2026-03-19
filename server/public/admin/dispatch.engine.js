@@ -1,209 +1,171 @@
-const Engine = {
+/* ================= FINAL PROFESSIONAL SMART ENGINE ================= */
 
-trips:[],
-drivers:[],
-schedule:{},
+const SmartEngine = {
 
-selected:{},
-editMode:false,
+  distanceCache: {},
 
-/* ================= LOAD ================= */
-async load(){
+  /* ================= PRELOAD ================= */
+  async preload(){
+    const addresses = new Set()
 
-  const data = await Store.load()
-
-  this.trips = data.trips || []
-  this.drivers = data.drivers || []
-  this.schedule = data.schedule || {}
-
-  this.sortTrips()
-
-  this.runAuto()
-
-},
-
-/* ================= SORT ================= */
-sortTrips(){
-
-  this.trips.sort((a,b)=>{
-    const da = new Date(`${a.tripDate} ${a.tripTime}`)
-    const db = new Date(`${b.tripDate} ${b.tripTime}`)
-    return da - db
-  })
-
-},
-
-/* ================= DAY ================= */
-getTripDay(trip){
-  return new Date(trip.tripDate).toLocaleDateString("en-CA")
-},
-
-/* ================= AVAILABLE DRIVERS ================= */
-getAvailableDrivers(trip){
-
-  const day = this.getTripDay(trip)
-
-  return this.drivers.filter(d=>{
-
-    const s = this.schedule[d._id]
-
-    // 🔥 الإصلاح هنا
-    if(!s) return true
-
-    if(!s.enabled) return false
-
-    if(!s.days) return true
-
-    return s.days[day] !== false
-
-  })
-
-},
-
-/* ================= ASSIGN ================= */
-assign(trip, driver){
-
-  const s = this.schedule[driver._id] || {}
-
-  trip.driverId = driver._id
-  trip.driverName = driver.name || ""
-
-  // 🔥 العربية من السواق لو schedule فاضي
-  trip.vehicle =
-    s.vehicleNumber ||
-    driver.vehicleNumber ||
-    driver.vehicle ||
-    driver.car ||
-    ""
-
-  trip.driverAddress = s.address || ""
-
-},
-
-/* ================= AUTO ================= */
-runAuto(){
-
-  const driverState = {}
-
-  this.drivers.forEach(d=>{
-    const s = this.schedule[d._id] || {}
-
-    driverState[d._id] = {
-      lastLocation: s.address || "",
-      lastTime: null
-    }
-  })
-
-  this.trips.forEach(trip=>{
-
-    const available = this.getAvailableDrivers(trip)
-
-    if(!available.length) return
-
-    let bestDriver = null
-
-    available.forEach(driver=>{
-
-      const state = driverState[driver._id]
-
-      if(!bestDriver){
-        bestDriver = driver
-        return
-      }
-
-      if(!state.lastTime){
-        bestDriver = driver
-        return
-      }
-
-      if(state.lastTime < driverState[bestDriver._id].lastTime){
-        bestDriver = driver
-      }
-
+    trips.forEach(t=>{
+      if(t.pickup) addresses.add(t.pickup)
+      if(t.dropoff) addresses.add(t.dropoff)
+      getStops(t).forEach(s=>addresses.add(s))
     })
 
-    if(bestDriver){
+    drivers.forEach(d=>{
+      const s = schedule[d._id]
+      if(s && s.address) addresses.add(s.address)
+      if(d.address) addresses.add(d.address)
+    })
 
-      this.assign(trip, bestDriver)
+    await Promise.all([...addresses].map(a=>geocode(a)))
+  },
 
-      driverState[bestDriver._id].lastLocation = trip.dropoff
-      driverState[bestDriver._id].lastTime = new Date(`${trip.tripDate} ${trip.tripTime}`)
+  /* ================= SAME DAY ================= */
+  sameDay(driver, trip){
+    if(!driver.workDate) return true
+    return driver.workDate === trip.tripDate
+  },
 
+  /* ================= TIME CHECK ================= */
+  canTake(driver, trip){
+
+    if(!driver.lastTripEnd) return true
+
+    const last = new Date(driver.lastTripEnd)
+    const next = new Date(`${trip.tripDate} ${trip.tripTime}`)
+
+    return (next - last) > (20 * 60 * 1000)
+  },
+
+  /* ================= START LOCATION ================= */
+  getStart(driver){
+
+    if(driver.liveLocation) return driver.liveLocation
+    if(driver.lastDropoff) return driver.lastDropoff
+
+    const s = schedule[driver._id]
+    if(s && s.address && geoCache[s.address]){
+      return geoCache[s.address]
     }
 
-  })
+    if(driver.address && geoCache[driver.address]){
+      return geoCache[driver.address]
+    }
 
-  UI.render()
+    return null
+  },
 
-},
+  /* ================= DISTANCE ================= */
+  async getDistance(a,b){
 
-/* ================= SELECT ================= */
-toggleSelect(id){
-  this.selected[id] = !this.selected[id]
-  UI.render()
-},
+    const key = `${a.lat},${a.lng}_${b.lat},${b.lng}`
+    if(this.distanceCache[key]) return this.distanceCache[key]
 
-toggleAll(){
+    try{
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}`)
+      const data = await res.json()
 
-  const all = this.trips.every(t=>this.selected[t._id])
+      if(!data.routes || !data.routes.length) return Infinity
 
-  this.trips.forEach(t=>{
-    this.selected[t._id] = !all
-  })
+      const dist = data.routes[0].distance
+      this.distanceCache[key] = dist
 
-  UI.render()
-},
+      return dist
 
-/* ================= MANUAL ================= */
-async assignManual(tripId, driverId){
+    }catch(e){
+      return Infinity
+    }
+  },
 
-  const driver = this.drivers.find(d=>d._id === driverId)
-  if(!driver) return
+  /* ================= PICK DRIVER (PARALLEL) ================= */
+  async pickDriver(trip){
 
-  const trip = this.trips.find(t=>t._id === tripId)
+    const pickup = geoCache[trip.pickup]
+    if(!pickup) return null
 
-  this.assign(trip, driver)
+    const promises = drivers.map(async driver => {
 
-  await Store.assignDriver(tripId, driverId)
+      if(!this.sameDay(driver, trip)) return null
+      if(!this.canTake(driver, trip)) return null
 
-  UI.render()
+      const start = this.getStart(driver)
+      if(!start) return null
 
-},
+      const dist = await this.getDistance(start, pickup)
 
-/* ================= SEND ================= */
-async sendSelected(){
+      return { driver, dist }
+    })
 
-  const ids = Object.keys(this.selected).filter(id=>this.selected[id])
+    const results = (await Promise.all(promises)).filter(Boolean)
 
-  if(!ids.length){
-    alert("No trips selected")
-    return
+    if(!results.length) return null
+
+    let best = null
+    let bestScore = Infinity
+
+    for(const r of results){
+
+      const driver = r.driver
+      const dist = r.dist
+
+      // ⚖️ معادلة احترافية (مسافة + عدل ديناميكي)
+      const score = dist + (driver.assignedTrips * dist * 0.3)
+
+      if(score < bestScore){
+        bestScore = score
+        best = driver
+      }
+    }
+
+    return best
+  },
+
+  /* ================= RUN ================= */
+  async run(selectedOnly = true){
+
+    showToast("Smart Dispatch Running...")
+
+    // reset
+    drivers.forEach(d=>{
+      d.assignedTrips = 0
+      d.lastTripEnd = null
+      d.lastDropoff = null
+    })
+
+    // sort
+    trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+
+    await this.preload()
+
+    for(const trip of trips){
+
+      if(selectedOnly && !trip.selected) continue
+
+      const driver = await this.pickDriver(trip)
+      if(!driver) continue
+
+      // assign
+      trip.driverId = driver._id
+      trip.vehicle = getDriverCar(driver._id)
+
+      driver.assignedTrips++
+
+      // ⏱ FIX TIME (مدة الرحلة)
+      const start = new Date(`${trip.tripDate} ${trip.tripTime}`)
+      const durationMin = 30 // مؤقت (نقدر نخليه من OSRM بعد كده)
+
+      driver.lastTripEnd = new Date(start.getTime() + durationMin * 60000)
+
+      // 📍 FIX DROPOFF
+      driver.lastDropoff = geoCache[trip.dropoff] || driver.lastDropoff
+    }
+
+    renderTrips()
+    renderDrivers()
+
+    showToast("Smart Dispatch Done ✅")
   }
-
-  await Store.sendTrips(ids)
-
-  alert("Trips Sent")
-
-},
-
-/* ================= SINGLE ================= */
-async sendOne(id){
-
-  await Store.sendTrips([id])
-
-  alert("Trip Sent")
-
-},
-
-/* ================= DISABLE ================= */
-async disable(id){
-
-  await Store.disableTrip(id)
-
-  this.trips = this.trips.filter(t=>t._id !== id)
-
-  UI.render()
-
-}
-
 }
