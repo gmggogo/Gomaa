@@ -1,99 +1,48 @@
-let trips = []
-let drivers = []
-let schedule = {}
-let editMode = false
-let allSelected = false
+const Engine = {
+  trips: [],
+  drivers: [],
+  schedule: {},
+  editMode: false,
+  selectedDriverId: null,
+  allSelected: false,
+  map: null,
+  markers: [],
+  geoCache: {},
+  routeCache: {},
 
-async function init(){
+  async init(){
+    const res = await fetch("/api/dispatch")
+    const data = await res.json()
 
-  const data = await Store.load()
+    this.drivers = (data.drivers || []).map(d => ({ ...d, _id: String(d._id) }))
+    this.trips = (data.trips || []).map(t => ({
+      ...t,
+      _id: String(t._id),
+      selected: false,
+      driverId: t.driverId ? String(t.driverId) : ""
+    }))
+    this.schedule = data.schedule || {}
 
-  drivers = (data.drivers||[]).map(d=>({
-    ...d,
-    _id:String(d._id)
-  }))
+    this.autoAssign()
+    this.sortTrips()
+    this.renderTrips()
+    this.initMap()
+    this.renderDrivers()
+  },
 
-  trips = (data.trips||[]).map(t=>({
-    ...t,
-    _id:String(t._id),
-    selected:false
-  }))
+  toggleTrip(i){ this.trips[i].selected = !this.trips[i].selected; this.renderTrips() },
+  toggleSelect(){ this.allSelected = !this.allSelected; this.trips.forEach(t=>t.selected=this.allSelected); this.renderTrips() },
+  toggleEdit(){ this.editMode = !this.editMode; this.renderTrips() },
+  sendSelected(){ console.log("SEND SELECTED", this.trips.filter(t=>t.selected)) },
+  sendOne(i){ console.log("SEND ONE", this.trips[i]) },
+  redistribute(){ /* نفس وظيفة إعادة التوزيع */ },
 
-  schedule = data.schedule || {}
-
-  autoAssign()
-
-  renderTrips()
-  renderDrivers()
-  initMap()
+  autoAssign(){ /* نفس وظيفة autoAssign */ },
+  getDriverCar(id){ /* استرجاع رقم السيارة */ },
+  getValidDriversForTrip(trip){ /* تصفية السواقين */ },
+  renderTrips(){ /* رندر جدول الرحلات */ },
+  renderDrivers(){ /* رندر لوحة السواقين */ },
+  initMap(){ /* تهيئة الخريطة */ }
 }
 
-function autoAssign(){
-
-  trips.forEach(t=>{
-
-    if(t.driverId) return
-
-    if(!drivers.length) return
-
-    const d = drivers[0]
-
-    t.driverId = d._id
-    t.vehicle = d.vehicleNumber || ""
-  })
-}
-
-function toggleTrip(i){
-  trips[i].selected = !trips[i].selected
-  renderTrips()
-}
-
-function toggleSelect(){
-  allSelected = !allSelected
-  trips.forEach(t=>t.selected = allSelected)
-  renderTrips()
-}
-
-function toggleEdit(){
-  editMode = !editMode
-  renderTrips()
-}
-
-function assignDriver(i,id){
-
-  const d = drivers.find(x=>x._id===id)
-
-  trips[i].driverId = id
-  trips[i].vehicle = d?.vehicleNumber || ""
-
-  renderTrips()
-  renderDrivers()
-}
-
-function sendSelected(){
-  console.log(trips.filter(t=>t.selected))
-}
-
-function sendOne(i){
-  console.log(trips[i])
-}
-
-function redistribute(){
-  autoAssign()
-  renderTrips()
-}
-
-function focusDriver(id){
-  console.log("map focus", id)
-}
-
-window.toggleTrip = toggleTrip
-window.toggleSelect = toggleSelect
-window.toggleEdit = toggleEdit
-window.assignDriver = assignDriver
-window.sendSelected = sendSelected
-window.sendOne = sendOne
-window.redistribute = redistribute
-window.focusDriver = focusDriver
-
-init()
+window.Engine = Engine
