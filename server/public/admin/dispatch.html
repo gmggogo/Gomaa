@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dispatch</title>
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -10,6 +9,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
+
 .page-body{
   padding:15px 20px;
   background:#f1f5f9;
@@ -85,30 +85,22 @@ th{
   padding:10px 8px;
   font-size:12px;
   text-align:left;
-  white-space:nowrap;
 }
 
 td{
   border:1px solid #e5e7eb;
   padding:8px 7px;
   font-size:12px;
-  vertical-align:top;
 }
 
 tbody tr:hover{
   background:#f8fafc;
 }
 
-.trip-urgent{
-  background:#fef2f2;
-}
-
-.trip-soon{
-  background:#fffbeb;
-}
-
 .tab-page{display:none}
 .tab-page.active{display:block}
+
+/* ===== MAP + PANEL ===== */
 
 .drivers-layout{
   display:flex;
@@ -119,8 +111,6 @@ tbody tr:hover{
 #map{
   width:70%;
   border-radius:10px;
-  overflow:hidden;
-  box-shadow:0 4px 18px rgba(15,23,42,.08);
 }
 
 #driversPanel{
@@ -129,204 +119,26 @@ tbody tr:hover{
   color:#fff;
   overflow:auto;
   border-radius:10px;
-  box-shadow:0 4px 18px rgba(15,23,42,.12);
 }
 
 .panel-header{
-  position:sticky;
-  top:0;
-  background:#111827;
   padding:12px;
   font-weight:bold;
-  border-bottom:1px solid #1f2937;
-  z-index:2;
+  background:#111827;
 }
 
 .driver{
-  padding:12px;
+  padding:10px;
   border-bottom:1px solid #1e293b;
   cursor:pointer;
-  pointer-events:auto;
-  transition:.2s;
 }
 
 .driver:hover{
   background:#1e293b;
 }
 
-.driver.active{
-  background:linear-gradient(90deg,#2563eb,#1d4ed8) !important;
-  color:#fff;
-}
-
-.driver.active .driver-name{
-  color:#facc15;
-}
-
-.driver-bar{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:10px;
-  font-size:13px;
-}
-
-.driver-name{
-  font-weight:bold;
-  min-width:0;
-}
-
-.driver-right{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:6px;
-}
-
-.driver-info{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-  font-size:12px;
-}
-
-.driver-meta{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-
-.badge{
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  padding:3px 8px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:700;
-  white-space:nowrap;
-}
-
-.badge-available{
-  background:#166534;
-  color:#ecfdf5;
-}
-
-.badge-busy{
-  background:#991b1b;
-  color:#fef2f2;
-}
-
-.badge-trip{
-  background:#1d4ed8;
-  color:#eff6ff;
-}
-
-.badge-count{
-  background:#334155;
-  color:#e2e8f0;
-}
-
-.driver-marker div{
-  box-shadow:0 0 6px rgba(0,0,0,0.5);
-}
-
-.stop-list{
-  line-height:1.45;
-}
-
-.notes-cell{
-  min-width:120px;
-  white-space:pre-wrap;
-}
-
-.send-btn{
-  min-width:70px;
-}
-
-.select-btn{
-  min-width:76px;
-}
-
-.action-cell{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-.action-cell .btn{
-  padding:6px 10px;
-  font-size:12px;
-}
-
-select{
-  padding:6px;
-  border:1px solid #d1d5db;
-  border-radius:6px;
-  background:#fff;
-  min-width:140px;
-}
-
-select:disabled{
-  background:#f3f4f6;
-  color:#6b7280;
-}
-
-#toast{
-  position:fixed;
-  right:18px;
-  bottom:18px;
-  background:#111827;
-  color:#fff;
-  padding:12px 16px;
-  border-radius:10px;
-  box-shadow:0 8px 24px rgba(0,0,0,.25);
-  opacity:0;
-  pointer-events:none;
-  transform:translateY(10px);
-  transition:.2s;
-  z-index:9999;
-  font-weight:700;
-}
-
-#toast.show{
-  opacity:1;
-  transform:translateY(0);
-}
-
-.small-muted{
-  color:#94a3b8;
-  font-size:11px;
-}
-
-.empty-row{
-  text-align:center;
-  color:#64748b;
-  padding:18px;
-}
-
-@media (max-width: 1100px){
-  .drivers-layout{
-    flex-direction:column;
-    height:auto;
-  }
-
-  #map,
-  #driversPanel{
-    width:100%;
-  }
-
-  #map{
-    height:420px;
-  }
-
-  #driversPanel{
-    height:420px;
-  }
-}
 </style>
+
 </head>
 
 <body>
@@ -335,17 +147,20 @@ select:disabled{
 
 <div class="page-body">
 
+  <!-- TABS -->
   <div class="dispatch-tabs">
     <button id="tabTrips" class="tab-btn active">Trips</button>
     <button id="tabDrivers" class="tab-btn">Drivers Map</button>
   </div>
 
+  <!-- TRIPS -->
   <div id="tripsPage" class="tab-page active">
+
     <div class="top-actions">
-      <button id="selectBtn" class="btn blue" onclick="Engine.toggleSelectAll()">Select All</button>
-      <button id="editBtn" class="btn orange" onclick="Engine.toggleEdit()">Edit Selected</button>
-      <button class="btn green" onclick="Engine.sendSelected()">Send Selected</button>
-      <button class="btn purple" onclick="Engine.redistributeSelected()">Redistribute</button>
+      <button class="btn blue" onclick="toggleSelect()">Select All</button>
+      <button class="btn orange" onclick="toggleEdit()">Edit</button>
+      <button class="btn green" onclick="sendSelected()">Send</button>
+      <button class="btn purple" onclick="redistribute()">Redistribute</button>
     </div>
 
     <div class="table-wrap">
@@ -366,29 +181,64 @@ select:disabled{
             <th>Send</th>
           </tr>
         </thead>
+
         <tbody id="tbody"></tbody>
+
       </table>
     </div>
+
   </div>
 
+  <!-- DRIVERS -->
   <div id="driversPage" class="tab-page">
+
     <div class="drivers-layout">
+
       <div id="map"></div>
+
       <div id="driversPanel">
         <div class="panel-header">Drivers Dispatch Panel</div>
       </div>
+
     </div>
+
   </div>
 
 </div>
 
 <div id="toast"></div>
 
+<!-- HEADER -->
 <script src="/admin/header.js"></script>
+
+<!-- MAP -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="/dispatch/store.js"></script>
-<script src="/dispatch/ui.js"></script>
-<script src="/dispatch/engine.js"></script>
+
+<!-- FILES -->
+<script src="/admin/dispatch.store.js"></script>
+<script src="/admin/dispatch.ui.js"></script>
+<script src="/admin/dispatch.engine.js"></script>
+
+<!-- TABS SCRIPT -->
+<script>
+document.getElementById("tabTrips").onclick = () => {
+  document.getElementById("tripsPage").classList.add("active")
+  document.getElementById("driversPage").classList.remove("active")
+  document.getElementById("tabTrips").classList.add("active")
+  document.getElementById("tabDrivers").classList.remove("active")
+}
+
+document.getElementById("tabDrivers").onclick = () => {
+  document.getElementById("tripsPage").classList.remove("active")
+  document.getElementById("driversPage").classList.add("active")
+  document.getElementById("tabTrips").classList.remove("active")
+  document.getElementById("tabDrivers").classList.add("active")
+
+  setTimeout(()=>{
+    if(window.map) map.invalidateSize()
+  },300)
+}
+</script>
 
 </body>
 </html>
