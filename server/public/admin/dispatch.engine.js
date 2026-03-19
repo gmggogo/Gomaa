@@ -15,19 +15,31 @@ const Engine = {
 
       const data = await Store.load();
 
-      this.trips = Array.isArray(data.trips) ? data.trips.map(t => ({
+      const tripsRaw = Array.isArray(data.trips)
+        ? data.trips
+        : Array.isArray(data.data?.trips)
+          ? data.data.trips
+          : [];
+
+      const driversRaw = Array.isArray(data.drivers)
+        ? data.drivers
+        : Array.isArray(data.data?.drivers)
+          ? data.data.drivers
+          : [];
+
+      this.trips = tripsRaw.map(t => ({
         ...t,
-        _id: String(t._id),
+        _id: String(t._id || ""),
         driverId: t.driverId ? String(t.driverId) : "",
         vehicle: t.vehicle || ""
-      })) : [];
+      }));
 
-      this.drivers = Array.isArray(data.drivers) ? data.drivers.map(d => ({
+      this.drivers = driversRaw.map(d => ({
         ...d,
-        _id: String(d._id)
-      })) : [];
+        _id: String(d._id || "")
+      }));
 
-      this.schedule = data.schedule || {};
+      this.schedule = data.schedule || data.data?.schedule || {};
       this.selected = {};
 
       this.trips.forEach(t => {
@@ -36,7 +48,7 @@ const Engine = {
 
       this.sortTrips();
 
-      // auto assign لكل الرحلات من غير ما يحتاج select
+      /* auto assign لكل الرحلات من غير ما يحتاج select */
       await this.autoAssignAll();
 
       UI.render();
@@ -57,9 +69,81 @@ const Engine = {
   },
 
   getTripDateValue(trip) {
-    const raw = `${trip.tripDate || ""} ${trip.tripTime || ""}`.trim();
+    const dateStr = String(trip?.tripDate || "").trim();
+    const timeStr = String(trip?.tripTime || "").trim();
+
+    if (!dateStr && !timeStr) return 0;
+
+    const raw = `${dateStr} ${timeStr}`.trim();
     const d = new Date(raw);
-    return isNaN(d.getTime()) ? 0 : d.getTime();
+
+    if (!isNaN(d.getTime())) return d.getTime();
+
+    const d2 = new Date(dateStr);
+    if (!isNaN(d2.getTime())) return d2.getTime();
+
+    return 0;
+  },
+
+  getTripDayKey(trip) {
+    if (!trip || !trip.tripDate) return "";
+
+    const date = new Date(trip.tripDate);
+    if (isNaN(date.getTime())) return "";
+
+    const day = date.toLocaleDateString("en-US", { weekday: "short" });
+
+    const map = {
+      Sun: "sun",
+      Mon: "mon",
+      Tue: "tue",
+      Wed: "wed",
+      Thu: "thu",
+      Fri: "fri",
+      Sat: "sat"
+    };
+
+    return map[day] || "";
+  },
+
+  normalizeScheduleValue(value) {
+    if (value === true) return true;
+    if (value === false) return false;
+    if (value === 1) return true;
+    if (value === 0) return false;
+
+    const v = String(value || "").trim().toLowerCase();
+
+    if (!v) return false;
+
+    return [
+      "1",
+      "true",
+      "yes",
+      "y",
+      "on",
+      "active",
+      "work",
+      "working",
+      "available"
+    ].includes(v);
+  },
+
+  isDriverActiveOnTripDay(driverId, trip) {
+    const id = String(driverId || "");
+    const s = this.schedule[id];
+
+    if (!s) return false;
+
+    const status = String(s.status || "").trim().toUpperCase();
+    if (status === "NOT ACTIVE" || status === "DISABLED" || status === "OFF") {
+      return false;
+    }
+
+    const dayKey = this.getTripDayKey(trip);
+    if (!dayKey) return false;
+
+    return this.normalizeScheduleValue(s[dayKey]);
   },
 
   getDriverVehicle(driverId) {
@@ -93,10 +177,23 @@ const Engine = {
 
   countDriverTrips(driverId, excludeTripId = "") {
     const id = String(driverId || "");
+
     return this.trips.filter(t => {
       if (excludeTripId && String(t._id) === String(excludeTripId)) return false;
       return String(t.driverId || "") === id;
     }).length;
+  },
+
+  getAvailableDrivers(trip) {
+    if (!trip) return [];
+
+    return this.drivers
+      .filter(d => this.isDriverActiveOnTripDay(d._id, trip))
+      .sort((a, b) => {
+        const aCount = this.countDriverTrips(a._id, trip._id);
+        const bCount = this.countDriverTrips(b._id, trip._id);
+        return aCount - bCount;
+      });
   },
 
   /* ================= AUTO ASSIGN ================= */
@@ -106,20 +203,31 @@ const Engine = {
     let index = 0;
 
     for (const trip of this.trips) {
-      // لو فيه سواق متعين بالفعل، سيبه لكن ظبط العربية
+      /* لو فيه سواق متعين بالفعل، سيبه فقط لو شغال في يوم الرحلة */
       if (trip.driverId) {
-        trip.vehicle = this.getDriverVehicle(trip.driverId);
+        if (this.isDriverActiveOnTripDay(trip.driverId, trip)) {
+          trip.vehicle = this.getDriverVehicle(trip.driverId);
+          continue;
+        } else {
+          trip.driverId = "";
+          trip.vehicle = "";
+        }
+      }
+
+      const validDrivers = this.getAvailableDrivers(trip);
+
+      if (!validDrivers.length) {
+        trip.driverId = "";
+        trip.vehicle = "";
         continue;
       }
 
-      const driver = this.drivers[index];
-      if (!driver) continue;
+      const driver = validDrivers[index % validDrivers.length];
 
       trip.driverId = String(driver._id);
       trip.vehicle = this.getDriverVehicle(driver._id);
 
       index++;
-      if (index >= this.drivers.length) index = 0;
     }
   },
 
@@ -130,8 +238,15 @@ const Engine = {
     let index = 0;
 
     for (const trip of selectedTrips) {
-      const driver = this.drivers[index];
-      if (!driver) continue;
+      const validDrivers = this.getAvailableDrivers(trip);
+
+      if (!validDrivers.length) {
+        trip.driverId = "";
+        trip.vehicle = "";
+        continue;
+      }
+
+      const driver = validDrivers[index % validDrivers.length];
 
       trip.driverId = String(driver._id);
       trip.vehicle = this.getDriverVehicle(driver._id);
@@ -143,7 +258,6 @@ const Engine = {
       }
 
       index++;
-      if (index >= this.drivers.length) index = 0;
     }
 
     UI.render();
@@ -181,29 +295,29 @@ const Engine = {
 
     const id = String(driverId || "");
 
+    if (!id) {
+      trip.driverId = "";
+      trip.vehicle = "";
+      UI.render();
+      return;
+    }
+
+    if (!this.isDriverActiveOnTripDay(id, trip)) {
+      console.warn("Driver is not active on trip day:", id, trip.tripDate);
+      UI.render();
+      return;
+    }
+
     trip.driverId = id;
-    trip.vehicle = id ? this.getDriverVehicle(id) : "";
+    trip.vehicle = this.getDriverVehicle(id);
 
     try {
-      if (id) {
-        await Store.assignDriver(trip._id, id);
-      }
+      await Store.assignDriver(trip._id, id);
     } catch (err) {
       console.error("Manual assign save error:", err);
     }
 
     UI.render();
-  },
-
-  getAvailableDrivers(trip) {
-    if (!trip) return this.drivers;
-
-    // كل السواقين متاحين، لكن نرتبهم بالأقل حمل
-    return [...this.drivers].sort((a, b) => {
-      const aCount = this.countDriverTrips(a._id, trip._id);
-      const bCount = this.countDriverTrips(b._id, trip._id);
-      return aCount - bCount;
-    });
   },
 
   /* ================= SEND / DISABLE ================= */
