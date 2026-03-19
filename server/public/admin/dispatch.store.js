@@ -1,46 +1,62 @@
 const Store = {
 
-  API_TRIPS: "/api/trips",
-  API_DRIVERS: "/api/users/driver",
-  API_SCHEDULE: "/api/driver-schedule",
+  /* ================= LOAD ================= */
 
-  /* ================= GET TRIPS ================= */
+  async load(){
 
-  async getTrips(){
     try{
-      const res = await fetch(this.API_TRIPS)
-      const data = await res.json()
-      return data || []
+
+      const tripsRes = await fetch("/api/trips")
+      const driversRes = await fetch("/api/users/driver")
+      const scheduleRes = await fetch("/api/driver-schedule")
+
+      const trips = await tripsRes.json()
+      const drivers = await driversRes.json()
+      const schedule = await scheduleRes.json()
+
+      return {
+        trips: trips || [],
+        drivers: drivers || [],
+        schedule: schedule || {}
+      }
+
     }catch(e){
-      console.log("Trips Error", e)
-      return []
+      console.error("Store Load Error", e)
+      return { trips: [], drivers: [], schedule: {} }
     }
+
   },
 
-  /* ================= GET DRIVERS ================= */
+  /* ================= ACTIONS ================= */
 
-  async getDrivers(){
-    try{
-      const res = await fetch(this.API_DRIVERS)
-      const data = await res.json()
-      return data || []
-    }catch(e){
-      console.log("Drivers Error", e)
-      return []
-    }
+  async assignDriver(tripId, driverId){
+
+    return fetch(`/api/trips/${tripId}/driver`,{
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ driverId })
+    })
+
   },
 
-  /* ================= GET SCHEDULE ================= */
+  async sendTrips(ids){
 
-  async getSchedule(){
-    try{
-      const res = await fetch(this.API_SCHEDULE)
-      const data = await res.json()
-      return data || {}
-    }catch(e){
-      console.log("Schedule Error", e)
-      return {}
-    }
+    return fetch("/api/dispatch/send",{
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ ids })
+    })
+
+  },
+
+  async disableTrip(id){
+
+    return fetch(`/api/trips/${id}`,{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ disabled:true })
+    })
+
   }
 
 }
