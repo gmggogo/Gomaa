@@ -415,6 +415,7 @@ async function init(){
 
   console.log("drivers:", drivers)
   console.log("trips:", trips)
+  console.log("schedule:", schedule)
 }
 
 /* ================= HELPERS ================= */
@@ -508,17 +509,49 @@ function sortTrips(){
   trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
 
+/* ================= ACTIVE DRIVER CHECK ================= */
+
+function isDriverActiveOnDate(driverId, tripDate){
+  const s = schedule[String(driverId)]
+
+  if(!s) return false
+  if(s.enabled === false) return false
+  if(!tripDate) return false
+
+  const days = s.days || {}
+
+  return !!days[String(tripDate).trim()]
+}
+
+function getValidDriversForTrip(trip){
+  return drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
+}
+
+/* ================= AUTO ASSIGN ================= */
+
 function autoAssign(){
   if(!drivers.length) return
 
-  let index = 0
-
   trips.forEach(t => {
     if(!t.driverId){
-      const d = drivers[index % drivers.length]
+      const validDrivers = getValidDriversForTrip(t)
+
+      if(!validDrivers.length){
+        t.driverId = ""
+        t.vehicle = ""
+        return
+      }
+
+      validDrivers.sort((a,b)=>{
+        const aCount = getDriverTripsCount(a._id)
+        const bCount = getDriverTripsCount(b._id)
+        if(aCount !== bCount) return aCount - bCount
+        return String(a.name || "").localeCompare(String(b.name || ""))
+      })
+
+      const d = validDrivers[0]
       t.driverId = String(d._id || "")
       t.vehicle = t.vehicle || getDriverCar(d._id)
-      index++
     }
   })
 }
@@ -532,6 +565,7 @@ function renderTrips(){
   trips.forEach((t, i) => {
     const stops = getStops(t)
     const rowClass = getTripRowClass(t)
+    const validDrivers = getValidDriversForTrip(t)
 
     body.innerHTML += `
       <tr class="${rowClass}">
@@ -556,7 +590,7 @@ function renderTrips(){
         <td>
           <select ${(editMode && t.selected) ? "" : "disabled"} onchange="assignDriver(${i},this.value)">
             <option value="">--</option>
-            ${drivers.map(d => `
+            ${validDrivers.map(d => `
               <option value="${escapeHtml(d._id)}" ${String(t.driverId || "") === String(d._id || "") ? "selected" : ""}>
                 ${escapeHtml(d.name || "")}
               </option>
@@ -795,6 +829,16 @@ function toggleEdit(){
 function assignDriver(i, id){
   if(!trips[i]) return
 
+  const trip = trips[i]
+
+  if(id){
+    if(!isDriverActiveOnDate(id, trip.tripDate)){
+      showToast("Driver not active on this date")
+      renderTrips()
+      return
+    }
+  }
+
   const d = drivers.find(x => String(x._id) === String(id))
 
   trips[i].driverId = id ? String(id) : ""
@@ -830,13 +874,23 @@ function redistribute(){
     return
   }
 
-  if(!drivers.length){
-    showToast("No drivers found")
-    return
-  }
+  selected.forEach(t => {
+    const validDrivers = getValidDriversForTrip(t)
 
-  selected.forEach((t, i) => {
-    const d = drivers[i % drivers.length]
+    if(!validDrivers.length){
+      t.driverId = ""
+      t.vehicle = ""
+      return
+    }
+
+    validDrivers.sort((a,b)=>{
+      const aCount = getDriverTripsCount(a._id)
+      const bCount = getDriverTripsCount(b._id)
+      if(aCount !== bCount) return aCount - bCount
+      return String(a.name || "").localeCompare(String(b.name || ""))
+    })
+
+    const d = validDrivers[0]
     t.driverId = String(d._id)
     t.vehicle = getDriverCar(d._id)
   })
