@@ -15,17 +15,8 @@ const Engine = {
 
       const data = await Store.load();
 
-      const tripsRaw = Array.isArray(data.trips)
-        ? data.trips
-        : Array.isArray(data.data?.trips)
-          ? data.data.trips
-          : [];
-
-      const driversRaw = Array.isArray(data.drivers)
-        ? data.drivers
-        : Array.isArray(data.data?.drivers)
-          ? data.data.drivers
-          : [];
+      const tripsRaw = data.trips || data.data?.trips || [];
+      const driversRaw = data.drivers || data.data?.drivers || [];
 
       this.trips = tripsRaw.map(t => ({
         ...t,
@@ -48,10 +39,10 @@ const Engine = {
 
       this.sortTrips();
 
-      /* auto assign لكل الرحلات من غير ما يحتاج select */
       await this.autoAssignAll();
 
       UI.render();
+
     } catch (err) {
       console.error("Engine Load Error:", err);
     } finally {
@@ -60,132 +51,86 @@ const Engine = {
   },
 
   /* ================= HELPERS ================= */
+
   sortTrips() {
     this.trips.sort((a, b) => {
-      const da = this.getTripDateValue(a);
-      const db = this.getTripDateValue(b);
-      return da - db;
+      return this.getTripDateValue(a) - this.getTripDateValue(b);
     });
   },
 
   getTripDateValue(trip) {
-    const dateStr = String(trip?.tripDate || "").trim();
-    const timeStr = String(trip?.tripTime || "").trim();
-
-    if (!dateStr && !timeStr) return 0;
-
-    const raw = `${dateStr} ${timeStr}`.trim();
-    const d = new Date(raw);
-
-    if (!isNaN(d.getTime())) return d.getTime();
-
-    const d2 = new Date(dateStr);
-    if (!isNaN(d2.getTime())) return d2.getTime();
-
-    return 0;
-  },
-
-  getTripDayKey(trip) {
-    if (!trip || !trip.tripDate) return "";
-
-    const date = new Date(trip.tripDate);
-    if (isNaN(date.getTime())) return "";
-
-    const day = date.toLocaleDateString("en-US", { weekday: "short" });
-
-    const map = {
-      Sun: "sun",
-      Mon: "mon",
-      Tue: "tue",
-      Wed: "wed",
-      Thu: "thu",
-      Fri: "fri",
-      Sat: "sat"
-    };
-
-    return map[day] || "";
-  },
-
-  normalizeScheduleValue(value) {
-    if (value === true) return true;
-    if (value === false) return false;
-    if (value === 1) return true;
-    if (value === 0) return false;
-
-    const v = String(value || "").trim().toLowerCase();
-
-    if (!v) return false;
-
-    return [
-      "1",
-      "true",
-      "yes",
-      "y",
-      "on",
-      "active",
-      "work",
-      "working",
-      "available"
-    ].includes(v);
-  },
-
-  isDriverActiveOnTripDay(driverId, trip) {
-    const id = String(driverId || "");
-    const s = this.schedule[id];
-
-    if (!s) return false;
-
-    const status = String(s.status || "").trim().toUpperCase();
-    if (status === "NOT ACTIVE" || status === "DISABLED" || status === "OFF") {
-      return false;
-    }
-
-    const dayKey = this.getTripDayKey(trip);
-    if (!dayKey) return false;
-
-    return this.normalizeScheduleValue(s[dayKey]);
+    const d = new Date(`${trip.tripDate || ""} ${trip.tripTime || ""}`);
+    return isNaN(d) ? 0 : d.getTime();
   },
 
   getDriverVehicle(driverId) {
-    const id = String(driverId || "");
-    const s = this.schedule[id] || {};
-    const d = this.drivers.find(x => String(x._id) === id) || {};
+    const s = this.schedule[String(driverId)] || {};
+    const d = this.drivers.find(x => String(x._id) === String(driverId)) || {};
 
     return (
-      s.vehicleNumber ||
       s.carNumber ||
+      s.vehicleNumber ||
       s.car ||
-      d.vehicleNumber ||
       d.carNumber ||
       d.vehicle ||
-      d.car ||
       ""
     );
   },
 
-  getTripById(tripId) {
-    return this.trips.find(t => String(t._id) === String(tripId));
-  },
-
-  getDriverById(driverId) {
-    return this.drivers.find(d => String(d._id) === String(driverId));
+  getTripById(id) {
+    return this.trips.find(t => String(t._id) === String(id));
   },
 
   getSelectedTrips() {
     return this.trips.filter(t => this.selected[t._id]);
   },
 
-  countDriverTrips(driverId, excludeTripId = "") {
-    const id = String(driverId || "");
-
+  countDriverTrips(driverId, excludeId = "") {
     return this.trips.filter(t => {
-      if (excludeTripId && String(t._id) === String(excludeTripId)) return false;
-      return String(t.driverId || "") === id;
+      if (excludeId && t._id === excludeId) return false;
+      return String(t.driverId) === String(driverId);
     }).length;
   },
 
+  /* ================= 🔥 DATE BASED ACTIVE CHECK ================= */
+
+  isDriverActiveOnTripDay(driverId, trip) {
+
+    const s = this.schedule[String(driverId)];
+    if (!s) return false;
+
+    // حالة السواق
+    const status = String(s.status || "").toLowerCase();
+    if (status.includes("not")) return false;
+
+    if (!trip.tripDate) return false;
+
+    const date = new Date(trip.tripDate);
+    if (isNaN(date)) return false;
+
+    const key = `${date.getMonth() + 1}/${date.getDate()}`; // 3/19
+
+    // 🔥 search in schedule بأي شكل
+    for (const k in s) {
+      if (k.includes(key)) {
+        const val = String(s[k]).toLowerCase();
+        if (
+          val === "true" ||
+          val === "1" ||
+          val === "yes" ||
+          val === "on"
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  },
+
+  /* ================= FILTER DRIVERS ================= */
+
   getAvailableDrivers(trip) {
-    if (!trip) return [];
 
     return this.drivers
       .filter(d => this.isDriverActiveOnTripDay(d._id, trip))
@@ -197,20 +142,21 @@ const Engine = {
   },
 
   /* ================= AUTO ASSIGN ================= */
+
   async autoAssignAll() {
-    if (!this.drivers.length || !this.trips.length) return;
 
     let index = 0;
 
     for (const trip of this.trips) {
-      /* لو فيه سواق متعين بالفعل، سيبه فقط لو شغال في يوم الرحلة */
+
+      // لو فيه سواق → تأكد إنه شغال
       if (trip.driverId) {
+
         if (this.isDriverActiveOnTripDay(trip.driverId, trip)) {
           trip.vehicle = this.getDriverVehicle(trip.driverId);
           continue;
         } else {
           trip.driverId = "";
-          trip.vehicle = "";
         }
       }
 
@@ -231,30 +177,30 @@ const Engine = {
     }
   },
 
+  /* ================= REDISTRIBUTE ================= */
+
   async redistributeSelected() {
-    const selectedTrips = this.getSelectedTrips();
-    if (!selectedTrips.length || !this.drivers.length) return;
+
+    const selected = this.getSelectedTrips();
+    if (!selected.length) return;
 
     let index = 0;
 
-    for (const trip of selectedTrips) {
+    for (const trip of selected) {
+
       const validDrivers = this.getAvailableDrivers(trip);
 
-      if (!validDrivers.length) {
-        trip.driverId = "";
-        trip.vehicle = "";
-        continue;
-      }
+      if (!validDrivers.length) continue;
 
       const driver = validDrivers[index % validDrivers.length];
 
-      trip.driverId = String(driver._id);
+      trip.driverId = driver._id;
       trip.vehicle = this.getDriverVehicle(driver._id);
 
       try {
         await Store.assignDriver(trip._id, driver._id);
-      } catch (err) {
-        console.error("Redistribute save error:", err);
+      } catch (e) {
+        console.error(e);
       }
 
       index++;
@@ -263,22 +209,21 @@ const Engine = {
     UI.render();
   },
 
-  /* ================= UI ACTIONS ================= */
-  toggleSelect(tripId) {
-    const id = String(tripId);
+  /* ================= UI ================= */
+
+  toggleSelect(id) {
     this.selected[id] = !this.selected[id];
     UI.render();
   },
 
   toggleSelectAll() {
-    const allTrips = this.trips.length;
-    if (!allTrips) return;
+    const all = this.trips.length;
+    const selected = this.getSelectedTrips().length;
 
-    const selectedCount = this.getSelectedTrips().length;
-    const shouldSelectAll = selectedCount !== allTrips;
+    const flag = selected !== all;
 
     this.trips.forEach(t => {
-      this.selected[t._id] = shouldSelectAll;
+      this.selected[t._id] = flag;
     });
 
     UI.render();
@@ -290,87 +235,52 @@ const Engine = {
   },
 
   async assignManual(tripId, driverId) {
+
     const trip = this.getTripById(tripId);
     if (!trip) return;
 
-    const id = String(driverId || "");
-
-    if (!id) {
-      trip.driverId = "";
-      trip.vehicle = "";
-      UI.render();
+    if (!this.isDriverActiveOnTripDay(driverId, trip)) {
+      alert("Driver not active this day");
       return;
     }
 
-    if (!this.isDriverActiveOnTripDay(id, trip)) {
-      console.warn("Driver is not active on trip day:", id, trip.tripDate);
-      UI.render();
-      return;
-    }
-
-    trip.driverId = id;
-    trip.vehicle = this.getDriverVehicle(id);
+    trip.driverId = driverId;
+    trip.vehicle = this.getDriverVehicle(driverId);
 
     try {
-      await Store.assignDriver(trip._id, id);
-    } catch (err) {
-      console.error("Manual assign save error:", err);
+      await Store.assignDriver(trip._id, driverId);
+    } catch (e) {
+      console.error(e);
     }
 
     UI.render();
   },
 
-  /* ================= SEND / DISABLE ================= */
-  async sendOne(tripId) {
-    try {
-      await Store.sendTrips([tripId]);
-      console.log("Trip sent:", tripId);
-    } catch (err) {
-      console.error("Send one error:", err);
-    }
-  },
+  /* ================= SEND ================= */
 
   async sendSelected() {
-    try {
-      const ids = this.getSelectedTrips().map(t => t._id);
-      if (!ids.length) return;
+    const ids = this.getSelectedTrips().map(t => t._id);
+    if (!ids.length) return;
 
-      await Store.sendTrips(ids);
-      console.log("Selected trips sent:", ids);
-    } catch (err) {
-      console.error("Send selected error:", err);
-    }
+    await Store.sendTrips(ids);
   },
 
-  async disable(tripId) {
-    try {
-      await Store.disableTrip(tripId);
-
-      const trip = this.getTripById(tripId);
-      if (trip) {
-        trip.disabled = true;
-      }
-
-      this.trips = this.trips.filter(t => String(t._id) !== String(tripId));
-      delete this.selected[String(tripId)];
-
-      UI.render();
-    } catch (err) {
-      console.error("Disable trip error:", err);
-    }
+  async sendOne(id) {
+    await Store.sendTrips([id]);
   }
 };
 
-/* ================= OPTIONAL GLOBAL HELPERS ================= */
-/* لو أزرار الصفحة مربوطة مباشرة بدل UI.js */
+/* ================= GLOBAL ================= */
+
 window.Engine = Engine;
 
-window.sendSelected = () => Engine.sendSelected();
 window.redistribute = () => Engine.redistributeSelected();
+window.sendSelected = () => Engine.sendSelected();
 window.toggleSelectAll = () => Engine.toggleSelectAll();
 window.toggleEdit = () => Engine.toggleEdit();
 
 /* ================= START ================= */
+
 document.addEventListener("DOMContentLoaded", () => {
   Engine.load();
 });
