@@ -96,11 +96,18 @@ tbody tr:hover{
   background:#f8fafc;
 }
 
+.trip-urgent{
+  background:#fef2f2;
+}
+
+.trip-soon{
+  background:#fffbeb;
+}
+
 .tab-page{display:none}
 .tab-page.active{display:block}
 
 /* ===== MAP + PANEL ===== */
-
 .drivers-layout{
   display:flex;
   height:80vh;
@@ -220,10 +227,6 @@ tbody tr:hover{
   color:#e2e8f0;
 }
 
-.driver-marker div{
-  box-shadow:0 0 6px rgba(0,0,0,0.5);
-}
-
 .stop-list{
   line-height:1.45;
 }
@@ -289,6 +292,7 @@ select:disabled{
 
 <div class="page-body">
 
+  <!-- TABS -->
   <div class="dispatch-tabs">
     <button id="tabTrips" class="tab-btn active">Trips</button>
     <button id="tabDrivers" class="tab-btn">Drivers Map</button>
@@ -300,8 +304,8 @@ select:disabled{
     <div class="top-actions">
       <button id="selectBtn" class="btn blue" onclick="toggleSelect()">Select All</button>
       <button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit Selected</button>
-      <button class="btn green" onclick="sendSelected()">Send Selected</button>
-      <button class="btn purple" onclick="redistribute()">Redistribute</button>
+      <button id="sendBtn" class="btn green" onclick="sendSelected()">Send Selected</button>
+      <button id="redistributeBtn" class="btn purple" onclick="redistribute()">Redistribute</button>
     </div>
 
     <div class="table-wrap">
@@ -345,7 +349,6 @@ select:disabled{
 <script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<!-- ملفات JS -->
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.ui.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
