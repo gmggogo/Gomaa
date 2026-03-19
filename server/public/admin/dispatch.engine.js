@@ -1,357 +1,270 @@
+/* ================= ENGINE ================= */
+
 const Engine = {
 
-/* ================= STATE ================= */
+  trips: [],
+  drivers: [],
+  schedule: {},
+  selected: {},
+  editMode: false,
 
-trips: [],
-drivers: [],
-schedule: {},
+  /* ================= LOAD ================= */
 
-map: null,
-markers: [],
+  async load(){
+    try{
 
-editMode: false,
-allSelected: false,
+      const data = await Store.load()
 
-geoCache: {},
-routeCache: {},
+      this.trips = (data.trips || []).map(t => ({
+        ...t,
+        _id: String(t._id || ""),
+        driverId: t.driverId ? String(t.driverId) : "",
+        vehicle: t.vehicle || "",
+        disabled: t.disabled === true
+      }))
 
-/* ================= INIT ================= */
+      this.drivers = (data.drivers || []).map(d => ({
+        ...d,
+        _id: String(d._id || "")
+      }))
 
-async load(){
+      this.schedule = data.schedule || {}
 
-  try{
+      // reset selected
+      this.selected = {}
+      this.trips.forEach(t=>{
+        this.selected[t._id] = false
+      })
 
-    const data = await Store.load()
+      this.sortTrips()
 
-    this.trips = (data.trips || []).map(t=>({
-      ...t,
-      _id: String(t._id || ""),
-      selected: false,
-      driverId: t.driverId ? String(t.driverId) : ""
-    }))
+      this.autoAssign()
 
-    this.drivers = (data.drivers || []).map(d=>({
-      ...d,
-      _id: String(d._id || "")
-    }))
+      UI.render()
 
-    this.schedule = data.schedule || {}
+    }catch(err){
+      console.error("ENGINE LOAD ERROR:", err)
+    }
+  },
 
-    this.autoAssign()
-    this.sortTrips()
+  /* ================= SORT ================= */
 
-    UI.init()
-    UI.render()
+  sortTrips(){
+    this.trips.sort((a,b)=>{
+      const da = new Date(`${a.tripDate} ${a.tripTime}`)
+      const db = new Date(`${b.tripDate} ${b.tripTime}`)
+      return da - db
+    })
+  },
 
-    this.initMap()
+  /* ================= HELPERS ================= */
 
-    console.log("Engine Loaded")
+  getDriverSchedule(id){
+    return this.schedule[String(id)] || {}
+  },
 
-  }catch(err){
-    console.error("ENGINE LOAD ERROR", err)
-  }
+  getDriverVehicle(id){
+    const s = this.getDriverSchedule(id)
+    const d = this.drivers.find(x=>String(x._id)===String(id)) || {}
 
-},
+    return s.vehicleNumber || d.vehicleNumber || ""
+  },
 
-/* ================= SORT ================= */
+  isDriverActive(id, trip){
 
-sortTrips(){
+    const d = this.drivers.find(x=>String(x._id)===String(id))
+    if(!d) return false
+    if(d.active === false) return false
 
-  this.trips.sort((a,b)=>{
-    const da = new Date(`${a.tripDate} ${a.tripTime}`)
-    const db = new Date(`${b.tripDate} ${b.tripTime}`)
-    return da - db
-  })
+    const s = this.getDriverSchedule(id)
 
-},
+    // لو مفيش schedule → اعتبره شغال
+    if(!s || !s.days) return true
 
-/* ================= DRIVER LOGIC ================= */
+    const date = new Date(trip.tripDate)
+    if(isNaN(date)) return true
 
-isDriverActiveOnDate(driverId, tripDate){
+    const day = date.toLocaleDateString("en-US",{weekday:"short"}).toLowerCase()
 
-  const s = this.schedule[String(driverId)]
+    return s.days[day] === true || s.days[day] === 1
+  },
 
-  // لو مفيش schedule → شغال
-  if(!s) return true
+  getAvailableDrivers(trip){
 
-  if(s.enabled === false) return false
+    let list = this.drivers.filter(d=>this.isDriverActive(d._id, trip))
 
-  if(!tripDate) return true
+    // fallback لو مفيش
+    if(!list.length){
+      list = this.drivers
+    }
 
-  const d = new Date(tripDate)
-  if(isNaN(d.getTime())) return true
+    return list.sort((a,b)=>{
+      return this.countTrips(a._id) - this.countTrips(b._id)
+    })
+  },
 
-  const day = d.toLocaleDateString("en-US",{weekday:"short"}).toLowerCase()
+  countTrips(driverId){
+    return this.trips.filter(t=>String(t.driverId)===String(driverId)).length
+  },
 
-  const days = s.days || {}
+  /* ================= AUTO ASSIGN ================= */
 
-  // fallback
-  if(!Object.keys(days).length) return true
+  autoAssign(){
 
-  return days[day] !== false
-},
+    this.trips.forEach(t=>{
 
-getValidDriversForTrip(trip){
-  return this.drivers.filter(d=>this.isDriverActiveOnDate(d._id, trip.tripDate))
-},
+      if(t.disabled) return
 
-getDriverCar(id){
-  const s = this.schedule[String(id)]
-  if(!s) return ""
-  return s.carNumber || s.vehicleNumber || s.car || ""
-},
+      // لو already assigned سيبه
+      if(t.driverId && this.isDriverActive(t.driverId, t)){
+        t.vehicle = this.getDriverVehicle(t.driverId)
+        return
+      }
 
-getDriverTripsCount(id){
-  return this.trips.filter(t=>String(t.driverId)===String(id)).length
-},
+      const drivers = this.getAvailableDrivers(t)
 
-getLatestTripForDriver(id){
-  const list = this.trips.filter(t=>String(t.driverId)===String(id))
-  if(!list.length) return null
-
-  list.sort((a,b)=>{
-    return new Date(b.tripDate+" "+b.tripTime) - new Date(a.tripDate+" "+a.tripTime)
-  })
-
-  return list[0]
-},
-
-/* ================= AUTO ASSIGN ================= */
-
-autoAssign(){
-
-  this.trips.forEach(t=>{
-
-    if(!t.driverId){
-
-      const valid = this.getValidDriversForTrip(t)
-
-      if(!valid.length){
+      if(!drivers.length){
         t.driverId = ""
         t.vehicle = ""
         return
       }
 
-      valid.sort((a,b)=>{
-        return this.getDriverTripsCount(a._id) - this.getDriverTripsCount(b._id)
-      })
+      const d = drivers[0]
 
-      const d = valid[0]
+      t.driverId = String(d._id)
+      t.vehicle = this.getDriverVehicle(d._id)
 
-      t.driverId = d._id
-      t.vehicle = this.getDriverCar(d._id)
+    })
+  },
 
-    }
+  /* ================= SELECT ================= */
 
-  })
+  toggleSelect(id){
+    this.selected[id] = !this.selected[id]
+    UI.render()
+  },
 
-},
+  toggleSelectAll(){
 
-/* ================= ACTIONS ================= */
+    const all = this.trips.length
+    const selected = this.getSelected().length
 
-toggleTrip(i){
-  if(!this.trips[i]) return
-  this.trips[i].selected = !this.trips[i].selected
-  UI.renderTrips()
-},
+    const value = selected !== all
 
-toggleSelect(){
-  this.allSelected = !this.allSelected
-  this.trips.forEach(t=>t.selected = this.allSelected)
-  UI.renderTrips()
-},
+    this.trips.forEach(t=>{
+      this.selected[t._id] = value
+    })
 
-toggleEdit(){
-  this.editMode = !this.editMode
+    UI.render()
+  },
 
-  const btn = document.getElementById("editBtn")
-  if(btn) btn.innerText = this.editMode ? "Save" : "Edit Selected"
+  getSelected(){
+    return this.trips.filter(t=>this.selected[t._id])
+  },
 
-  UI.renderTrips()
-},
+  /* ================= EDIT ================= */
 
-assignDriver(i,id){
+  toggleEdit(){
+    this.editMode = !this.editMode
+    UI.render()
+  },
 
-  if(!this.trips[i]) return
+  /* ================= MANUAL ASSIGN ================= */
 
-  const d = this.drivers.find(x=>String(x._id)===String(id))
+  async assignManual(tripId, driverId){
 
-  this.trips[i].driverId = id ? String(id) : ""
-  this.trips[i].vehicle = d ? this.getDriverCar(d._id) : ""
+    const trip = this.trips.find(t=>t._id===tripId)
+    if(!trip) return
 
-  UI.render()
-},
-
-async sendSelected(){
-
-  const selected = this.trips.filter(t=>t.selected)
-
-  if(!selected.length) return
-
-  const ids = selected.map(t=>t._id)
-
-  await Store.sendTrips(ids)
-
-  console.log("SENT:", ids)
-},
-
-async sendOne(i){
-
-  const t = this.trips[i]
-  if(!t) return
-
-  await Store.sendTrips([t._id])
-
-  console.log("SEND ONE:", t._id)
-},
-
-async disableOne(i){
-
-  const t = this.trips[i]
-  if(!t) return
-
-  await Store.disableTrip(t._id)
-
-  this.trips.splice(i,1)
-
-  UI.render()
-},
-
-redistribute(){
-
-  const selected = this.trips.filter(t=>t.selected)
-
-  if(!selected.length) return
-
-  selected.forEach(t=>{
-
-    const valid = this.getValidDriversForTrip(t)
-
-    if(!valid.length){
-      t.driverId = ""
-      t.vehicle = ""
+    if(!driverId){
+      trip.driverId = ""
+      trip.vehicle = ""
+      UI.render()
       return
     }
 
-    valid.sort((a,b)=>{
-      return this.getDriverTripsCount(a._id) - this.getDriverTripsCount(b._id)
+    if(!this.isDriverActive(driverId, trip)){
+      alert("Driver not active")
+      return
+    }
+
+    trip.driverId = driverId
+    trip.vehicle = this.getDriverVehicle(driverId)
+
+    try{
+      await Store.assignDriver(tripId, driverId)
+    }catch(e){
+      console.log("SAVE ERROR", e)
+    }
+
+    UI.render()
+  },
+
+  /* ================= SEND ================= */
+
+  async sendOne(id){
+    try{
+      await Store.sendTrips([id])
+      console.log("sent", id)
+    }catch(e){
+      console.log(e)
+    }
+  },
+
+  async sendSelected(){
+
+    const ids = this.getSelected().map(t=>t._id)
+
+    if(!ids.length){
+      alert("Select trips first")
+      return
+    }
+
+    try{
+      await Store.sendTrips(ids)
+      console.log("sent", ids)
+    }catch(e){
+      console.log(e)
+    }
+  },
+
+  /* ================= DISABLE ================= */
+
+  async disable(id){
+
+    try{
+      await Store.disableTrip(id)
+
+      this.trips = this.trips.filter(t=>t._id !== id)
+      delete this.selected[id]
+
+      UI.render()
+
+    }catch(e){
+      console.log(e)
+    }
+  },
+
+  /* ================= REDISTRIBUTE ================= */
+
+  async redistributeSelected(){
+
+    const selected = this.getSelected()
+
+    if(!selected.length) return
+
+    selected.forEach(t=>{
+      const drivers = this.getAvailableDrivers(t)
+      if(!drivers.length) return
+
+      const d = drivers[0]
+
+      t.driverId = d._id
+      t.vehicle = this.getDriverVehicle(d._id)
     })
 
-    const d = valid[0]
-
-    t.driverId = d._id
-    t.vehicle = this.getDriverCar(d._id)
-
-  })
-
-  UI.render()
-},
-
-/* ================= MAP ================= */
-
-initMap(){
-
-  if(this.map) return
-
-  this.map = L.map("map").setView([33.4484,-112.0740],10)
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(this.map)
-
-},
-
-clearMap(){
-  this.markers.forEach(m=>{
-    try{ this.map.removeLayer(m) }catch(e){}
-  })
-  this.markers=[]
-},
-
-/* ================= GEO ================= */
-
-async geocode(addr){
-
-  if(!addr) return null
-
-  if(this.geoCache[addr]) return this.geoCache[addr]
-
-  try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`)
-    const data = await res.json()
-
-    if(!data.length) return null
-
-    const point = {
-      lat:parseFloat(data[0].lat),
-      lng:parseFloat(data[0].lon)
-    }
-
-    this.geoCache[addr] = point
-    return point
-
-  }catch(err){
-    console.log("GEOCODE ERROR", err)
-    return null
+    UI.render()
   }
-
-},
-
-/* ================= ROUTE ================= */
-
-async getRoute(points){
-
-  if(points.length < 2) return null
-
-  try{
-
-    const coords = points.map(p=>`${p.lng},${p.lat}`).join(";")
-
-    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
-    const data = await res.json()
-
-    if(!data.routes || !data.routes.length) return null
-
-    const r = data.routes[0]
-
-    return {
-      coords: r.geometry.coordinates.map(c=>[c[1],c[0]]),
-      distance:(r.distance/1609.34).toFixed(1),
-      duration:Math.round(r.duration/60)
-    }
-
-  }catch(err){
-    console.log("ROUTE ERROR", err)
-    return null
-  }
-
-},
-
-/* ================= DRIVER MAP ================= */
-
-async focusDriver(id){
-
-  const trip = this.getLatestTripForDriver(id)
-  if(!trip) return
-
-  this.clearMap()
-
-  const points = []
-
-  const p1 = await this.geocode(trip.pickup)
-  const p2 = await this.geocode(trip.dropoff)
-
-  if(p1) points.push(p1)
-  if(p2) points.push(p2)
-
-  if(points.length < 2) return
-
-  const route = await this.getRoute(points)
-  if(!route) return
-
-  const line = L.polyline(route.coords,{color:"blue"}).addTo(this.map)
-
-  this.map.fitBounds(line.getBounds())
-
-}
 
 }
 
