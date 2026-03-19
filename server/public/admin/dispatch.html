@@ -17,7 +17,8 @@
 
 .dispatch-tabs{
   display:flex;
-  margin-bottom:5px;
+  margin-bottom:8px;
+  gap:8px;
 }
 
 .tab-btn{
@@ -28,6 +29,8 @@
   color:#fff;
   font-weight:bold;
   cursor:pointer;
+  border-radius:8px;
+  transition:.2s;
 }
 
 .tab-btn.active{
@@ -35,25 +38,39 @@
 }
 
 .top-actions{
-  margin:10px 0;
+  margin:12px 0;
   display:flex;
   gap:10px;
   flex-wrap:wrap;
 }
 
 .btn{
-  padding:8px 12px;
+  padding:9px 13px;
   border:none;
   color:#fff;
   cursor:pointer;
-  border-radius:5px;
+  border-radius:7px;
   font-weight:bold;
+  transition:.2s;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
 }
 
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
 .purple{background:#7c3aed}
+.gray{background:#475569}
+.red{background:#dc2626}
+
+.table-wrap{
+  background:#fff;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 4px 18px rgba(15,23,42,.08);
+}
 
 table{
   width:100%;
@@ -64,14 +81,29 @@ table{
 th{
   background:#1e293b;
   color:#fff;
-  padding:8px;
+  padding:10px 8px;
+  font-size:12px;
+  text-align:left;
+  white-space:nowrap;
 }
 
 td{
-  border:1px solid #ddd;
-  padding:6px;
+  border:1px solid #e5e7eb;
+  padding:8px 7px;
   font-size:12px;
   vertical-align:top;
+}
+
+tbody tr:hover{
+  background:#f8fafc;
+}
+
+.trip-urgent{
+  background:#fef2f2;
+}
+
+.trip-soon{
+  background:#fffbeb;
 }
 
 .tab-page{display:none}
@@ -80,22 +112,41 @@ td{
 .drivers-layout{
   display:flex;
   height:80vh;
+  gap:10px;
 }
 
-#map{width:70%;}
+#map{
+  width:70%;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 4px 18px rgba(15,23,42,.08);
+}
+
 #driversPanel{
   width:30%;
   background:#0f172a;
   color:#fff;
   overflow:auto;
+  border-radius:10px;
+  box-shadow:0 4px 18px rgba(15,23,42,.12);
+}
+
+.panel-header{
+  position:sticky;
+  top:0;
+  background:#111827;
+  padding:12px;
+  font-weight:bold;
+  border-bottom:1px solid #1f2937;
+  z-index:2;
 }
 
 .driver{
-  padding:10px;
+  padding:12px;
   border-bottom:1px solid #1e293b;
   cursor:pointer;
   pointer-events:auto;
-  transition:0.2s;
+  transition:.2s;
 }
 
 .driver:hover{
@@ -103,26 +154,78 @@ td{
 }
 
 .driver.active{
-  background:#2563eb !important;
+  background:linear-gradient(90deg,#2563eb,#1d4ed8) !important;
   color:#fff;
+}
+
+.driver.active .driver-name{
+  color:#facc15;
 }
 
 .driver-bar{
   display:flex;
   justify-content:space-between;
-  align-items:center;
+  align-items:flex-start;
   gap:10px;
   font-size:13px;
 }
 
 .driver-name{
   font-weight:bold;
+  min-width:0;
+}
+
+.driver-right{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
 }
 
 .driver-info{
   display:flex;
   gap:10px;
   flex-wrap:wrap;
+  justify-content:flex-end;
+  font-size:12px;
+}
+
+.driver-meta{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.badge-available{
+  background:#166534;
+  color:#ecfdf5;
+}
+
+.badge-busy{
+  background:#991b1b;
+  color:#fef2f2;
+}
+
+.badge-trip{
+  background:#1d4ed8;
+  color:#eff6ff;
+}
+
+.badge-count{
+  background:#334155;
+  color:#e2e8f0;
 }
 
 .driver-marker div{
@@ -130,7 +233,7 @@ td{
 }
 
 .stop-list{
-  line-height:1.4;
+  line-height:1.45;
 }
 
 .notes-cell{
@@ -140,6 +243,50 @@ td{
 
 .send-btn{
   min-width:70px;
+}
+
+.select-btn{
+  min-width:76px;
+}
+
+select{
+  padding:6px;
+  border:1px solid #d1d5db;
+  border-radius:6px;
+  background:#fff;
+  min-width:140px;
+}
+
+select:disabled{
+  background:#f3f4f6;
+  color:#6b7280;
+}
+
+#toast{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  background:#111827;
+  color:#fff;
+  padding:12px 16px;
+  border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(10px);
+  transition:.2s;
+  z-index:9999;
+  font-weight:700;
+}
+
+#toast.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.small-muted{
+  color:#94a3b8;
+  font-size:11px;
 }
 </style>
 </head>
@@ -165,25 +312,27 @@ td{
       <button class="btn purple" onclick="redistribute()">Redistribute</button>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Select</th>
-          <th>#</th>
-          <th>Client</th>
-          <th>Pickup</th>
-          <th>Stops</th>
-          <th>Dropoff</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Driver</th>
-          <th>Car</th>
-          <th>Notes</th>
-          <th>Send</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>#</th>
+            <th>Client</th>
+            <th>Pickup</th>
+            <th>Stops</th>
+            <th>Dropoff</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Driver</th>
+            <th>Car</th>
+            <th>Notes</th>
+            <th>Send</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
 
   </div>
 
@@ -191,11 +340,15 @@ td{
   <div id="driversPage" class="tab-page">
     <div class="drivers-layout">
       <div id="map"></div>
-      <div id="driversPanel"></div>
+      <div id="driversPanel">
+        <div class="panel-header">Drivers Dispatch Panel</div>
+      </div>
     </div>
   </div>
 
 </div>
+
+<div id="toast"></div>
 
 <script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -253,6 +406,14 @@ async function init(){
 
 /* ================= HELPERS ================= */
 
+function showToast(msg){
+  const toast = document.getElementById("toast")
+  toast.textContent = msg
+  toast.classList.add("show")
+  clearTimeout(showToast._timer)
+  showToast._timer = setTimeout(()=>toast.classList.remove("show"), 1800)
+}
+
 function getStops(t){
   if (Array.isArray(t.stops)) return t.stops.filter(Boolean)
   if (Array.isArray(t.stopAddresses)) return t.stopAddresses.filter(Boolean)
@@ -298,11 +459,28 @@ function getTripDateTimeValue(t){
 
 function getLatestTripForDriver(driverId){
   const driverTrips = trips.filter(t => String(t.driverId || "") === String(driverId))
-
   if(!driverTrips.length) return null
-
   driverTrips.sort((a,b)=> getTripDateTimeValue(b) - getTripDateTimeValue(a))
   return driverTrips[0]
+}
+
+function getDriverTripsCount(driverId){
+  return trips.filter(t => String(t.driverId || "") === String(driverId)).length
+}
+
+function getDriverStatus(driverId){
+  return getDriverTripsCount(driverId) > 0 ? "Busy" : "Available"
+}
+
+function getTripRowClass(t){
+  const ts = getTripDateTimeValue(t)
+  if(!ts) return ""
+
+  const diffMin = Math.round((ts - Date.now()) / 60000)
+
+  if(diffMin <= 30) return "trip-urgent"
+  if(diffMin <= 90) return "trip-soon"
+  return ""
 }
 
 /* ================= RENDER TRIPS ================= */
@@ -313,11 +491,12 @@ function renderTrips(){
 
   trips.forEach((t, i) => {
     const stops = getStops(t)
+    const rowClass = getTripRowClass(t)
 
     body.innerHTML += `
-      <tr>
+      <tr class="${rowClass}">
         <td>
-          <button class="btn ${t.selected ? 'green' : 'blue'}" onclick="toggleTrip(${i})">
+          <button class="btn ${t.selected ? 'green' : 'blue'} select-btn" onclick="toggleTrip(${i})">
             ${t.selected ? '✔' : 'Select'}
           </button>
         </td>
@@ -470,7 +649,8 @@ async function focusDriver(id){
 
   line.bindPopup(`
     <b>Distance:</b> ${route.distance} miles<br>
-    <b>ETA:</b> ${route.duration} min
+    <b>ETA:</b> ${route.duration} min<br>
+    <b>Trip:</b> ${escapeHtml(trip.tripNumber || "-")}
   `).openPopup()
 
   map.fitBounds(line.getBounds(), { padding: [40, 40] })
@@ -480,19 +660,31 @@ async function focusDriver(id){
 
 function renderDrivers(){
   const panel = document.getElementById("driversPanel")
-  panel.innerHTML = ""
+  panel.innerHTML = `<div class="panel-header">Drivers Dispatch Panel</div>`
 
   drivers.forEach((d, i) => {
     const car = getDriverCar(d._id)
     const trip = getLatestTripForDriver(d._id)
+    const tripsCount = getDriverTripsCount(d._id)
+    const status = getDriverStatus(d._id)
+    const statusClass = status === "Busy" ? "badge-busy" : "badge-available"
 
     panel.innerHTML += `
       <div class="driver ${selectedDriverId === d._id ? 'active' : ''}" data-id="${d._id}">
         <div class="driver-bar">
           <div class="driver-name">${i + 1} - ${escapeHtml(d.name || "")}</div>
-          <div class="driver-info">
-            <span>🚗 ${escapeHtml(car || "-")}</span>
-            <span>📦 ${escapeHtml(trip ? (trip.tripNumber || "-") : "-")}</span>
+
+          <div class="driver-right">
+            <div class="driver-info">
+              <span>🚗 ${escapeHtml(car || "-")}</span>
+              <span>📦 ${escapeHtml(trip ? (trip.tripNumber || "-") : "-")}</span>
+            </div>
+
+            <div class="driver-meta">
+              <span class="badge ${statusClass}">${status}</span>
+              <span class="badge badge-count">${tripsCount} Trip${tripsCount === 1 ? "" : "s"}</span>
+              <span class="badge badge-trip">ETA Map</span>
+            </div>
           </div>
         </div>
       </div>
@@ -524,12 +716,14 @@ function toggleSelect(){
   allSelected = !allSelected
   trips.forEach(t => t.selected = allSelected)
   renderTrips()
+  showToast(allSelected ? "All trips selected" : "Selection cleared")
 }
 
 function toggleEdit(){
   editMode = !editMode
   document.getElementById("editBtn").innerText = editMode ? "Save" : "Edit Selected"
   renderTrips()
+  showToast(editMode ? "Edit mode enabled" : "Changes saved")
 }
 
 function assignDriver(i, id){
@@ -545,14 +739,18 @@ function assignDriver(i, id){
   }
 
   renderDrivers()
+  showToast("Driver updated")
 }
 
 function sendSelected(){
-  console.log("SEND SELECTED", trips.filter(t => t.selected))
+  const selected = trips.filter(t => t.selected)
+  console.log("SEND SELECTED", selected)
+  showToast(`${selected.length} selected trip(s) ready`)
 }
 
 function sendOne(i){
   console.log("SEND ONE", trips[i])
+  showToast(`Trip ${trips[i].tripNumber || i + 1} ready`)
 }
 
 function redistribute(){
@@ -567,6 +765,7 @@ function redistribute(){
 
   renderTrips()
   renderDrivers()
+  showToast("Trips redistributed")
 }
 
 /* ================= TABS ================= */
