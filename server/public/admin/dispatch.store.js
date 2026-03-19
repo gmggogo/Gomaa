@@ -1,51 +1,48 @@
 const Store = {
 
-API: "/api/dispatch",
+  API_TRIPS: "/api/trips",
+  API_DRIVERS: "/api/users/driver",
+  API_SCHEDULE: "/api/driver-schedule",
 
-async load(){
+  /* ================= GET TRIPS ================= */
 
-  const res = await fetch(this.API)
+  async getTrips(){
+    try{
+      const res = await fetch(this.API_TRIPS)
+      const data = await res.json()
+      return data || []
+    }catch(e){
+      console.log("Trips Error", e)
+      return []
+    }
+  },
 
-  if(!res.ok) throw "Dispatch Load Error"
+  /* ================= GET DRIVERS ================= */
 
-  const data = await res.json()
+  async getDrivers(){
+    try{
+      const res = await fetch(this.API_DRIVERS)
+      const data = await res.json()
+      return data || []
+    }catch(e){
+      console.log("Drivers Error", e)
+      return []
+    }
+  },
 
-  return {
-    trips: data.trips || [],
-    drivers: data.drivers || [],
-    schedule: data.schedule || {}
+  /* ================= GET SCHEDULE ================= */
+
+  async getSchedule(){
+    try{
+      const res = await fetch(this.API_SCHEDULE)
+      const data = await res.json()
+      return data || {}
+    }catch(e){
+      console.log("Schedule Error", e)
+      return {}
+    }
   }
 
-},
-
-async assignDriver(tripId, driverId){
-
-  return fetch(`/api/dispatch/${tripId}/driver`,{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ driverId })
-  })
-
-},
-
-async sendTrips(ids){
-
-  return fetch("/api/dispatch/send",{
-    method:"PATCH",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ ids })
-  })
-
-},
-
-async disableTrip(id){
-
-  return fetch(`/api/trips/${id}`,{
-    method:"PUT",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ disabled:true })
-  })
-
 }
 
-}
+window.Store = Store
