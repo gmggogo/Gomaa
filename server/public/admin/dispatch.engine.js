@@ -1,4 +1,4 @@
-/* ================= FULL SMART ENGINE ================= */
+/* ================= FINAL CLEAN ENGINE ================= */
 
 const Engine = {
 
@@ -18,21 +18,21 @@ const Engine = {
       this.drivers = await Store.getDrivers() || []
       this.schedule = await Store.getSchedule() || {}
 
-      console.log("Trips:", this.trips)
-      console.log("Drivers:", this.drivers)
+      console.log("Trips Loaded:", this.trips.length)
+      console.log("Drivers Loaded:", this.drivers.length)
 
       this.sortTrips()
 
       await this.preload()
 
-      // 🔥 توزيع تلقائي لكل الرحلات
+      // 🔥 auto assign لكل الرحلات
       await this.autoAssign(false)
 
       UI.renderTrips(this.trips)
-      UI.renderDrivers && UI.renderDrivers(this.drivers)
+      if(UI.renderDrivers) UI.renderDrivers(this.drivers)
 
     }catch(err){
-      console.error("ENGINE ERROR:", err)
+      console.error("ENGINE LOAD ERROR:", err)
     }
 
   },
@@ -76,10 +76,16 @@ const Engine = {
 
     try{
 
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+      )
+
       const data = await res.json()
 
-      if(!data.length) return null
+      if(!data.length){
+        console.warn("Geocode failed:", address)
+        return null
+      }
 
       const loc = {
         lat: parseFloat(data[0].lat),
@@ -90,6 +96,7 @@ const Engine = {
       return loc
 
     }catch(e){
+      console.error("Geocode error:", address)
       return null
     }
 
@@ -100,15 +107,25 @@ const Engine = {
 
     try{
 
-      const res = await fetch(`${this.OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`)
+      const res = await fetch(
+        `${this.OSRM}/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`
+      )
+
       const data = await res.json()
 
-      if(!data.routes || !data.routes.length) return Infinity
+      if(!data.routes || !data.routes.length){
+        return Infinity
+      }
 
       return data.routes[0].distance
 
     }catch(e){
-      return Infinity
+      console.warn("Distance fail → fallback straight line")
+
+      // 🔥 fallback (حساب مسافة تقريبي)
+      const dx = a.lat - b.lat
+      const dy = a.lng - b.lng
+      return Math.sqrt(dx*dx + dy*dy) * 111000
     }
 
   },
@@ -116,19 +133,26 @@ const Engine = {
   /* ================= DRIVER START ================= */
   getDriverStart(driver){
 
+    // آخر drop
     if(driver.lastDropoff) return driver.lastDropoff
 
+    // schedule
     const s = this.schedule[driver._id]
-
     if(s && s.address && this.geoCache[s.address]){
       return this.geoCache[s.address]
     }
 
+    // address
     if(driver.address && this.geoCache[driver.address]){
       return this.geoCache[driver.address]
     }
 
-    return null
+    // 🔥 fallback (يخليه يشتغل حتى لو مفيش عنوان)
+    return {
+      lat: 0,
+      lng: 0
+    }
+
   },
 
   /* ================= AUTO ASSIGN ================= */
@@ -143,13 +167,13 @@ const Engine = {
 
     for(const trip of this.trips){
 
-      // ✅ الفرق بين auto و redispatch
+      // ✅ فرق بين auto و redispatch
       if(selectedOnly && trip.selected !== true) continue
 
       const pickup = this.geoCache[trip.pickup]
 
       if(!pickup){
-        console.log("No pickup:", trip.pickup)
+        console.warn("No pickup geo:", trip.pickup)
         continue
       }
 
@@ -159,11 +183,6 @@ const Engine = {
       for(const driver of this.drivers){
 
         const start = this.getDriverStart(driver)
-
-        if(!start){
-          console.log("No start for driver:", driver.name)
-          continue
-        }
 
         const dist = await this.getDistance(start, pickup)
 
@@ -175,18 +194,20 @@ const Engine = {
       }
 
       if(!bestDriver){
-        console.log("No driver for trip")
+        console.warn("No driver found")
         continue
       }
 
       // assign
       trip.driverId = bestDriver._id
-      trip.vehicle = bestDriver.car || ""
+
+      // 🔥 vehicle fix
+      trip.vehicle = bestDriver.vehicle || bestDriver.car || ""
 
       bestDriver.assignedTrips++
-      bestDriver.lastDropoff = this.geoCache[trip.dropoff]
+      bestDriver.lastDropoff = this.geoCache[trip.dropoff] || bestDriver.lastDropoff
 
-      console.log("Assigned:", bestDriver.name)
+      console.log("Assigned:", bestDriver.name || bestDriver._id)
 
     }
 
@@ -194,13 +215,17 @@ const Engine = {
 
   },
 
-  /* ================= REDISTRIBUTE BUTTON ================= */
+  /* ================= REDISTRIBUTE ================= */
   async redistributeSelected(){
+
+    console.log("REDISTRIBUTE START")
 
     await this.autoAssign(true)
 
     UI.renderTrips(this.trips)
-    UI.renderDrivers && UI.renderDrivers(this.drivers)
+    if(UI.renderDrivers) UI.renderDrivers(this.drivers)
+
+    console.log("REDISTRIBUTE DONE")
 
   }
 
