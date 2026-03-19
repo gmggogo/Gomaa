@@ -527,6 +527,18 @@ function getValidDriversForTrip(trip){
   return drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
 }
 
+function getActiveDriversForPanel(){
+  const tripDates = [...new Set(
+    trips
+      .map(t => String(t.tripDate || "").trim())
+      .filter(Boolean)
+  )]
+
+  return drivers.filter(d => {
+    return tripDates.some(date => isDriverActiveOnDate(d._id, date))
+  })
+}
+
 /* ================= AUTO ASSIGN ================= */
 
 function autoAssign(){
@@ -761,7 +773,9 @@ function renderDrivers(){
   const panel = document.getElementById("driversPanel")
   panel.innerHTML = `<div class="panel-header">Drivers Dispatch Panel</div>`
 
-  drivers.forEach((d, i) => {
+  const activeDrivers = getActiveDriversForPanel()
+
+  activeDrivers.forEach((d, i) => {
     const car = getDriverCar(d._id)
     const trip = getLatestTripForDriver(d._id)
     const tripsCount = getDriverTripsCount(d._id)
