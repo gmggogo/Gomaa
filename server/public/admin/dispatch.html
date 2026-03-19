@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
+/* ================= PAGE LAYOUT ================= */
 .page-body{
   padding:15px 20px;
   background:#f1f5f9;
@@ -37,6 +38,7 @@
   background:#2563eb;
 }
 
+/* ================= BUTTONS ================= */
 .top-actions{
   margin:12px 0;
   display:flex;
@@ -65,6 +67,7 @@
 .gray{background:#475569}
 .red{background:#dc2626}
 
+/* ================= TABLE ================= */
 .table-wrap{
   background:#fff;
   border-radius:10px;
@@ -98,18 +101,14 @@ tbody tr:hover{
   background:#f8fafc;
 }
 
-.trip-urgent{
-  background:#fef2f2;
-}
+.trip-urgent{background:#fef2f2;}
+.trip-soon{background:#fffbeb;}
 
-.trip-soon{
-  background:#fffbeb;
-}
-
+/* ================= TABS ================= */
 .tab-page{display:none}
 .tab-page.active{display:block}
 
-/* ===== MAP + PANEL ===== */
+/* ================= MAP + PANEL ================= */
 .drivers-layout{
   display:flex;
   height:80vh;
@@ -154,13 +153,11 @@ tbody tr:hover{
 }
 
 .driver.active{
-  background:linear-gradient(90deg,#2563eb,#1d4ed8);
+  background:linear-gradient(90deg,#2563eb,#1d4ed8) !important;
   color:#fff;
 }
 
-.driver.active .driver-name{
-  color:#facc15;
-}
+.driver.active .driver-name{color:#facc15;}
 
 .driver-bar{
   display:flex;
@@ -170,10 +167,7 @@ tbody tr:hover{
   font-size:13px;
 }
 
-.driver-name{
-  font-weight:bold;
-  min-width:0;
-}
+.driver-name{font-weight:bold; min-width:0;}
 
 .driver-right{
   display:flex;
@@ -208,42 +202,16 @@ tbody tr:hover{
   white-space:nowrap;
 }
 
-.badge-available{
-  background:#166534;
-  color:#ecfdf5;
-}
+.badge-available{background:#166534; color:#ecfdf5;}
+.badge-busy{background:#991b1b; color:#fef2f2;}
+.badge-trip{background:#1d4ed8; color:#eff6ff;}
+.badge-count{background:#334155; color:#e2e8f0;}
 
-.badge-busy{
-  background:#991b1b;
-  color:#fef2f2;
-}
-
-.badge-trip{
-  background:#1d4ed8;
-  color:#eff6ff;
-}
-
-.badge-count{
-  background:#334155;
-  color:#e2e8f0;
-}
-
-.stop-list{
-  line-height:1.45;
-}
-
-.notes-cell{
-  min-width:120px;
-  white-space:pre-wrap;
-}
-
-.send-btn{
-  min-width:70px;
-}
-
-.select-btn{
-  min-width:76px;
-}
+.driver-marker div{box-shadow:0 0 6px rgba(0,0,0,0.5);}
+.stop-list{line-height:1.45;}
+.notes-cell{min-width:120px; white-space:pre-wrap;}
+.send-btn{min-width:70px;}
+.select-btn{min-width:76px;}
 
 select{
   padding:6px;
@@ -280,10 +248,7 @@ select:disabled{
   transform:translateY(0);
 }
 
-.small-muted{
-  color:#94a3b8;
-  font-size:11px;
-}
+.small-muted{color:#94a3b8; font-size:11px;}
 </style>
 </head>
 
@@ -293,18 +258,19 @@ select:disabled{
 
 <div class="page-body">
 
+  <!-- TABS -->
   <div class="dispatch-tabs">
     <button id="tabTrips" class="tab-btn active">Trips</button>
     <button id="tabDrivers" class="tab-btn">Drivers Map</button>
   </div>
 
-  <!-- TRIPS -->
+  <!-- TRIPS TABLE -->
   <div id="tripsPage" class="tab-page active">
     <div class="top-actions">
-      <button id="selectBtn" class="btn blue" onclick="toggleSelect()">Select All</button>
-      <button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit Selected</button>
-      <button class="btn green" onclick="sendSelected()">Send Selected</button>
-      <button class="btn purple" onclick="redistribute()">Redistribute</button>
+      <button id="selectBtn" class="btn blue">Select All</button>
+      <button id="editBtn" class="btn orange">Edit Selected</button>
+      <button class="btn green">Send Selected</button>
+      <button class="btn purple">Redistribute</button>
     </div>
 
     <div class="table-wrap">
@@ -330,12 +296,14 @@ select:disabled{
     </div>
   </div>
 
-  <!-- DRIVERS -->
+  <!-- DRIVERS MAP -->
   <div id="driversPage" class="tab-page">
     <div class="drivers-layout">
       <div id="map"></div>
       <div id="driversPanel">
         <div class="panel-header">Drivers Dispatch Panel</div>
+        <!-- العناصر القديمة كلها -->
+        <!-- 🚗 Car Number, 📦 Last Trip, Badge Status, Trips Count, ETA Map Button -->
       </div>
     </div>
   </div>
@@ -346,20 +314,19 @@ select:disabled{
 
 <script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script src="/admin/dispatch.store.js"></script>
 <script src="/admin/dispatch.ui.js"></script>
 <script src="/admin/dispatch.engine.js"></script>
 
 <script>
-document.getElementById("tabTrips").onclick = () => {
+document.getElementById("tabTrips").onclick = ()=>{
   document.getElementById("tripsPage").classList.add("active")
   document.getElementById("driversPage").classList.remove("active")
   document.getElementById("tabTrips").classList.add("active")
   document.getElementById("tabDrivers").classList.remove("active")
 }
 
-document.getElementById("tabDrivers").onclick = () => {
+document.getElementById("tabDrivers").onclick = ()=>{
   document.getElementById("tripsPage").classList.remove("active")
   document.getElementById("driversPage").classList.add("active")
   document.getElementById("tabTrips").classList.remove("active")
