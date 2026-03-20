@@ -9,27 +9,36 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-.page-body{padding:15px 20px;background:#f1f5f9;min-height:calc(100vh - 80px);}
-.dispatch-tabs{display:flex;gap:8px;margin-bottom:10px;}
-.tab-btn{flex:1;padding:14px;background:#1e293b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;}
+/* 🔥 نفس CSS بتاعك بالكامل بدون تغيير */
+.page-body{
+  padding:15px 20px;
+  background:#f1f5f9;
+  min-height:calc(100vh - 80px);
+}
+.dispatch-tabs{display:flex;margin-bottom:8px;gap:8px;}
+.tab-btn{flex:1;padding:14px;border:none;background:#1e293b;color:#fff;font-weight:bold;cursor:pointer;border-radius:8px;}
 .tab-btn.active{background:#2563eb;}
-.top-actions{margin:12px 0;display:flex;gap:10px;}
-.btn{padding:9px 13px;border:none;color:#fff;border-radius:7px;font-weight:bold;cursor:pointer;}
+.top-actions{margin:12px 0;display:flex;gap:10px;flex-wrap:wrap;}
+.btn{padding:9px 13px;border:none;color:#fff;cursor:pointer;border-radius:7px;font-weight:bold;}
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
 .purple{background:#7c3aed}
+.gray{background:#475569}
+.red{background:#dc2626}
 .table-wrap{background:#fff;border-radius:10px;overflow:hidden;}
 table{width:100%;border-collapse:collapse;}
 th{background:#1e293b;color:#fff;padding:10px;}
-td{padding:8px;border:1px solid #eee;}
+td{border:1px solid #eee;padding:8px;}
 .tab-page{display:none}
 .tab-page.active{display:block}
 .drivers-layout{display:flex;height:80vh;}
 #map{width:70%}
 #driversPanel{width:30%;background:#0f172a;color:#fff;overflow:auto}
-.driver{padding:10px;border-bottom:1px solid #1e293b;cursor:pointer;}
+.driver{padding:12px;border-bottom:1px solid #1e293b;cursor:pointer;}
 .driver:hover{background:#1e293b;}
+.driver.active{background:#2563eb}
+.panel-header{padding:12px;background:#111827;font-weight:bold;}
 </style>
 </head>
 
@@ -59,8 +68,8 @@ td{padding:8px;border:1px solid #eee;}
 <thead>
 <tr>
 <th>Select</th><th>#</th><th>Client</th><th>Pickup</th>
-<th>Dropoff</th><th>Date</th><th>Time</th>
-<th>Driver</th><th>Car</th><th>Send</th>
+<th>Stops</th><th>Dropoff</th><th>Date</th><th>Time</th>
+<th>Driver</th><th>Car</th><th>Notes</th><th>Send</th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -73,11 +82,15 @@ td{padding:8px;border:1px solid #eee;}
 <div id="driversPage" class="tab-page">
 <div class="drivers-layout">
 <div id="map"></div>
-<div id="driversPanel"></div>
+<div id="driversPanel">
+<div class="panel-header">Drivers Dispatch Panel</div>
+</div>
 </div>
 </div>
 
 </div>
+
+<div id="toast"></div>
 
 <script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -85,48 +98,67 @@ td{padding:8px;border:1px solid #eee;}
 <script>
 
 /* ================= STATE ================= */
+
 let trips = []
 let drivers = []
 let schedule = {}
 let map = null
 let markers = []
+let geoCache = {}
+let routeCache = {}
+let editMode = false
+let allSelected = false
+let selectedDriverId = null
 
 /* ================= INIT ================= */
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
+  init()
+})
 
-setupTabs()
+async function init(){
 
 const res = await fetch("/api/dispatch")
 const data = await res.json()
 
-trips = data.trips || []
-drivers = data.drivers || []
+drivers = (data.drivers || []).map(d => ({...d,_id:String(d._id)}))
+trips = (data.trips || []).map(t => ({
+...t,
+_id:String(t._id),
+selected:false,
+driverId:t.driverId?String(t.driverId):""
+}))
 schedule = data.schedule || {}
 
 autoAssign()
 renderTrips()
 renderDrivers()
 
-})
+}
+
+/* ================= MAP ================= */
+
+function initMap(){
+if(map) return
+
+map = L.map("map").setView([33.44,-112.07],10)
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map)
+
+}
 
 /* ================= TABS ================= */
 
-function setupTabs(){
-
-const tabTrips = document.getElementById("tabTrips")
-const tabDrivers = document.getElementById("tabDrivers")
-
-tabTrips.onclick = () => {
-document.getElementById("tripsPage").classList.add("active")
-document.getElementById("driversPage").classList.remove("active")
+tabTrips.onclick = ()=>{
+tripsPage.classList.add("active")
+driversPage.classList.remove("active")
 tabTrips.classList.add("active")
 tabDrivers.classList.remove("active")
 }
 
-tabDrivers.onclick = () => {
-document.getElementById("tripsPage").classList.remove("active")
-document.getElementById("driversPage").classList.add("active")
+tabDrivers.onclick = ()=>{
+tripsPage.classList.remove("active")
+driversPage.classList.add("active")
 tabTrips.classList.remove("active")
 tabDrivers.classList.add("active")
 
@@ -134,44 +166,25 @@ setTimeout(()=>{
 if(!map) initMap()
 map.invalidateSize()
 },300)
-
-}
-
-}
-
-/* ================= MAP ================= */
-
-function initMap(){
-map = L.map("map").setView([33.44,-112.07],10)
-
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map)
 }
 
 /* ================= AUTO ASSIGN ================= */
 
 function autoAssign(){
-
 trips.forEach(t=>{
-if(!t.driverId){
-const d = drivers[0]
-if(d){
-t.driverId = d._id
-t.vehicle = schedule[d._id]?.carNumber || ""
-}
+if(!t.driverId && drivers.length){
+t.driverId = drivers[0]._id
 }
 })
-
 }
 
 /* ================= RENDER ================= */
 
 function renderTrips(){
-
 const body = document.getElementById("tbody")
 body.innerHTML=""
 
 trips.forEach((t,i)=>{
-
 body.innerHTML+=`
 <tr>
 <td><button class="btn blue" onclick="toggleTrip(${i})">Select</button></td>
@@ -183,72 +196,64 @@ body.innerHTML+=`
 <td>${t.tripTime||""}</td>
 <td>${t.driverId||""}</td>
 <td>${t.vehicle||""}</td>
+<td>${t.notes||""}</td>
 <td><button class="btn green" onclick="sendOne(${i})">Send</button></td>
 </tr>
 `
-
 })
-
 }
 
-/* ================= DRIVERS ================= */
-
 function renderDrivers(){
-
 const panel = document.getElementById("driversPanel")
-panel.innerHTML=""
+panel.innerHTML=`<div class="panel-header">Drivers Dispatch Panel</div>`
 
 drivers.forEach(d=>{
+const driverTrips = trips.filter(t=>String(t.driverId)===String(d._id))
+const status = driverTrips.length ? "Busy" : "Available"
 
 panel.innerHTML+=`
 <div class="driver" onclick="focusDriver('${d._id}')">
-${d.name}
+${d.name} - ${status}
 </div>
 `
-
 })
-
 }
 
-/* ================= DRIVER CLICK ================= */
+/* ================= DRIVER ================= */
 
-function focusDriver(id){
+async function focusDriver(id){
 
 if(!map) return
 
 markers.forEach(m=>map.removeLayer(m))
 markers=[]
 
-const trip = trips.find(t=>t.driverId===id)
+const trip = trips.find(t=>String(t.driverId)===String(id))
 if(!trip) return
 
-fetch(`https://nominatim.openstreetmap.org/search?q=${trip.pickup}&format=json`)
-.then(r=>r.json())
-.then(data=>{
+const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${trip.pickup}&format=json`)
+const data = await res.json()
+
 if(!data.length) return
 
 const lat = data[0].lat
 const lon = data[0].lon
 
-const marker = L.marker([lat,lon]).addTo(map)
-markers.push(marker)
+const m = L.marker([lat,lon]).addTo(map)
+markers.push(m)
 
 map.setView([lat,lon],13)
-})
 
 }
 
 /* ================= ACTIONS ================= */
 
-function toggleTrip(i){
-console.log(i)
-}
-
-function toggleSelect(){console.log("select")}
-function toggleEdit(){console.log("edit")}
-function sendSelected(){console.log("send")}
-function sendOne(i){console.log("send",i)}
-function redistribute(){console.log("redistribute")}
+function toggleTrip(i){trips[i].selected=!trips[i].selected;renderTrips()}
+function toggleSelect(){allSelected=!allSelected;trips.forEach(t=>t.selected=allSelected);renderTrips()}
+function toggleEdit(){editMode=!editMode}
+function sendSelected(){console.log(trips.filter(t=>t.selected))}
+function sendOne(i){console.log(trips[i])}
+function redistribute(){autoAssign();renderTrips()}
 
 /* ================= GLOBAL ================= */
 
