@@ -545,25 +545,25 @@ function redistribute(){
 /* ================= TABS ================= */
 
 function bindTabs(){
-  const tripsBtn = document.getElementById("tabTrips")
-  const driversBtn = document.getElementById("tabDrivers")
+  const tabTrips = document.getElementById("tabTrips")
+  const tabDrivers = document.getElementById("tabDrivers")
   const tripsPage = document.getElementById("tripsPage")
   const driversPage = document.getElementById("driversPage")
 
-  if(!tripsBtn || !driversBtn || !tripsPage || !driversPage) return
+  if(!tabTrips || !tabDrivers || !tripsPage || !driversPage) return
 
-  tripsBtn.onclick = () => {
+  tabTrips.onclick = () => {
     tripsPage.classList.add("active")
     driversPage.classList.remove("active")
-    tripsBtn.classList.add("active")
-    driversBtn.classList.remove("active")
+    tabTrips.classList.add("active")
+    tabDrivers.classList.remove("active")
   }
 
-  driversBtn.onclick = () => {
+  tabDrivers.onclick = () => {
     tripsPage.classList.remove("active")
     driversPage.classList.add("active")
-    tripsBtn.classList.remove("active")
-    driversBtn.classList.add("active")
+    tabTrips.classList.remove("active")
+    tabDrivers.classList.add("active")
 
     setTimeout(() => {
       try{ map.invalidateSize() }catch(e){}
