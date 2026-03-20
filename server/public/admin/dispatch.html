@@ -9,36 +9,285 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-/* 🔥 نفس CSS بتاعك بالكامل بدون تغيير */
 .page-body{
   padding:15px 20px;
   background:#f1f5f9;
   min-height:calc(100vh - 80px);
 }
-.dispatch-tabs{display:flex;margin-bottom:8px;gap:8px;}
-.tab-btn{flex:1;padding:14px;border:none;background:#1e293b;color:#fff;font-weight:bold;cursor:pointer;border-radius:8px;}
-.tab-btn.active{background:#2563eb;}
-.top-actions{margin:12px 0;display:flex;gap:10px;flex-wrap:wrap;}
-.btn{padding:9px 13px;border:none;color:#fff;cursor:pointer;border-radius:7px;font-weight:bold;}
+
+.dispatch-tabs{
+  display:flex;
+  margin-bottom:8px;
+  gap:8px;
+}
+
+.tab-btn{
+  flex:1;
+  padding:14px;
+  border:none;
+  background:#1e293b;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+  border-radius:8px;
+  transition:.2s;
+}
+
+.tab-btn.active{
+  background:#2563eb;
+}
+
+.top-actions{
+  margin:12px 0;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.btn{
+  padding:9px 13px;
+  border:none;
+  color:#fff;
+  cursor:pointer;
+  border-radius:7px;
+  font-weight:bold;
+  transition:.2s;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
+}
+
 .blue{background:#2563eb}
 .orange{background:#f97316}
 .green{background:#16a34a}
 .purple{background:#7c3aed}
 .gray{background:#475569}
 .red{background:#dc2626}
-.table-wrap{background:#fff;border-radius:10px;overflow:hidden;}
-table{width:100%;border-collapse:collapse;}
-th{background:#1e293b;color:#fff;padding:10px;}
-td{border:1px solid #eee;padding:8px;}
+
+.table-wrap{
+  background:#fff;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 4px 18px rgba(15,23,42,.08);
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+}
+
+th{
+  background:#1e293b;
+  color:#fff;
+  padding:10px 8px;
+  font-size:12px;
+  text-align:left;
+  white-space:nowrap;
+}
+
+td{
+  border:1px solid #e5e7eb;
+  padding:8px 7px;
+  font-size:12px;
+  vertical-align:top;
+}
+
+tbody tr:hover{
+  background:#f8fafc;
+}
+
+.trip-urgent{
+  background:#fef2f2;
+}
+
+.trip-soon{
+  background:#fffbeb;
+}
+
 .tab-page{display:none}
 .tab-page.active{display:block}
-.drivers-layout{display:flex;height:80vh;}
-#map{width:70%}
-#driversPanel{width:30%;background:#0f172a;color:#fff;overflow:auto}
-.driver{padding:12px;border-bottom:1px solid #1e293b;cursor:pointer;}
-.driver:hover{background:#1e293b;}
-.driver.active{background:#2563eb}
-.panel-header{padding:12px;background:#111827;font-weight:bold;}
+
+.drivers-layout{
+  display:flex;
+  height:80vh;
+  gap:10px;
+}
+
+#map{
+  width:70%;
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 4px 18px rgba(15,23,42,.08);
+}
+
+#driversPanel{
+  width:30%;
+  background:#0f172a;
+  color:#fff;
+  overflow:auto;
+  border-radius:10px;
+  box-shadow:0 4px 18px rgba(15,23,42,.12);
+}
+
+.panel-header{
+  position:sticky;
+  top:0;
+  background:#111827;
+  padding:12px;
+  font-weight:bold;
+  border-bottom:1px solid #1f2937;
+  z-index:2;
+}
+
+.driver{
+  padding:12px;
+  border-bottom:1px solid #1e293b;
+  cursor:pointer;
+  pointer-events:auto;
+  transition:.2s;
+}
+
+.driver:hover{
+  background:#1e293b;
+}
+
+.driver.active{
+  background:linear-gradient(90deg,#2563eb,#1d4ed8) !important;
+  color:#fff;
+}
+
+.driver.active .driver-name{
+  color:#facc15;
+}
+
+.driver-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  font-size:13px;
+}
+
+.driver-name{
+  font-weight:bold;
+  min-width:0;
+}
+
+.driver-right{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+}
+
+.driver-info{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  font-size:12px;
+}
+
+.driver-meta{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.badge-available{
+  background:#166534;
+  color:#ecfdf5;
+}
+
+.badge-busy{
+  background:#991b1b;
+  color:#fef2f2;
+}
+
+.badge-trip{
+  background:#1d4ed8;
+  color:#eff6ff;
+}
+
+.badge-count{
+  background:#334155;
+  color:#e2e8f0;
+}
+
+.driver-marker div{
+  box-shadow:0 0 6px rgba(0,0,0,0.5);
+}
+
+.stop-list{
+  line-height:1.45;
+}
+
+.notes-cell{
+  min-width:120px;
+  white-space:pre-wrap;
+}
+
+.send-btn{
+  min-width:70px;
+}
+
+.select-btn{
+  min-width:76px;
+}
+
+select{
+  padding:6px;
+  border:1px solid #d1d5db;
+  border-radius:6px;
+  background:#fff;
+  min-width:140px;
+}
+
+select:disabled{
+  background:#f3f4f6;
+  color:#6b7280;
+}
+
+#toast{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  background:#111827;
+  color:#fff;
+  padding:12px 16px;
+  border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(10px);
+  transition:.2s;
+  z-index:9999;
+  font-weight:700;
+}
+
+#toast.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.small-muted{
+  color:#94a3b8;
+  font-size:11px;
+}
 </style>
 </head>
 
@@ -48,45 +297,54 @@ td{border:1px solid #eee;padding:8px;}
 
 <div class="page-body">
 
-<div class="dispatch-tabs">
-<button id="tabTrips" class="tab-btn active">Trips</button>
-<button id="tabDrivers" class="tab-btn">Drivers Map</button>
-</div>
+  <div class="dispatch-tabs">
+    <button id="tabTrips" class="tab-btn active">Trips</button>
+    <button id="tabDrivers" class="tab-btn">Drivers Map</button>
+  </div>
 
-<!-- TRIPS -->
-<div id="tripsPage" class="tab-page active">
+  <!-- TRIPS -->
+  <div id="tripsPage" class="tab-page active">
 
-<div class="top-actions">
-<button class="btn blue" onclick="toggleSelect()">Select All</button>
-<button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit Selected</button>
-<button class="btn green" onclick="sendSelected()">Send Selected</button>
-<button class="btn purple" onclick="redistribute()">Redistribute</button>
-</div>
+    <div class="top-actions">
+      <button id="selectBtn" class="btn blue" onclick="toggleSelect()">Select All</button>
+      <button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit Selected</button>
+      <button class="btn green" onclick="sendSelected()">Send Selected</button>
+      <button class="btn purple" onclick="redistribute()">Redistribute</button>
+    </div>
 
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Select</th><th>#</th><th>Client</th><th>Pickup</th>
-<th>Stops</th><th>Dropoff</th><th>Date</th><th>Time</th>
-<th>Driver</th><th>Car</th><th>Notes</th><th>Send</th>
-</tr>
-</thead>
-<tbody id="tbody"></tbody>
-</table>
-</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>#</th>
+            <th>Client</th>
+            <th>Pickup</th>
+            <th>Stops</th>
+            <th>Dropoff</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Driver</th>
+            <th>Car</th>
+            <th>Notes</th>
+            <th>Send</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
 
-</div>
+  </div>
 
-<!-- DRIVERS -->
-<div id="driversPage" class="tab-page">
-<div class="drivers-layout">
-<div id="map"></div>
-<div id="driversPanel">
-<div class="panel-header">Drivers Dispatch Panel</div>
-</div>
-</div>
-</div>
+  <!-- DRIVERS -->
+  <div id="driversPage" class="tab-page">
+    <div class="drivers-layout">
+      <div id="map"></div>
+      <div id="driversPanel">
+        <div class="panel-header">Drivers Dispatch Panel</div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -94,178 +352,8 @@ td{border:1px solid #eee;padding:8px;}
 
 <script src="/admin/header.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<script>
-
-/* ================= STATE ================= */
-
-let trips = []
-let drivers = []
-let schedule = {}
-let map = null
-let markers = []
-let geoCache = {}
-let routeCache = {}
-let editMode = false
-let allSelected = false
-let selectedDriverId = null
-
-/* ================= INIT ================= */
-
-document.addEventListener("DOMContentLoaded", () => {
-  init()
-})
-
-async function init(){
-
-const res = await fetch("/api/dispatch")
-const data = await res.json()
-
-drivers = (data.drivers || []).map(d => ({...d,_id:String(d._id)}))
-trips = (data.trips || []).map(t => ({
-...t,
-_id:String(t._id),
-selected:false,
-driverId:t.driverId?String(t.driverId):""
-}))
-schedule = data.schedule || {}
-
-autoAssign()
-renderTrips()
-renderDrivers()
-
-}
-
-/* ================= MAP ================= */
-
-function initMap(){
-if(map) return
-
-map = L.map("map").setView([33.44,-112.07],10)
-
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map)
-
-}
-
-/* ================= TABS ================= */
-
-tabTrips.onclick = ()=>{
-tripsPage.classList.add("active")
-driversPage.classList.remove("active")
-tabTrips.classList.add("active")
-tabDrivers.classList.remove("active")
-}
-
-tabDrivers.onclick = ()=>{
-tripsPage.classList.remove("active")
-driversPage.classList.add("active")
-tabTrips.classList.remove("active")
-tabDrivers.classList.add("active")
-
-setTimeout(()=>{
-if(!map) initMap()
-map.invalidateSize()
-},300)
-}
-
-/* ================= AUTO ASSIGN ================= */
-
-function autoAssign(){
-trips.forEach(t=>{
-if(!t.driverId && drivers.length){
-t.driverId = drivers[0]._id
-}
-})
-}
-
-/* ================= RENDER ================= */
-
-function renderTrips(){
-const body = document.getElementById("tbody")
-body.innerHTML=""
-
-trips.forEach((t,i)=>{
-body.innerHTML+=`
-<tr>
-<td><button class="btn blue" onclick="toggleTrip(${i})">Select</button></td>
-<td>${t.tripNumber||i}</td>
-<td>${t.clientName||""}</td>
-<td>${t.pickup||""}</td>
-<td>${t.dropoff||""}</td>
-<td>${t.tripDate||""}</td>
-<td>${t.tripTime||""}</td>
-<td>${t.driverId||""}</td>
-<td>${t.vehicle||""}</td>
-<td>${t.notes||""}</td>
-<td><button class="btn green" onclick="sendOne(${i})">Send</button></td>
-</tr>
-`
-})
-}
-
-function renderDrivers(){
-const panel = document.getElementById("driversPanel")
-panel.innerHTML=`<div class="panel-header">Drivers Dispatch Panel</div>`
-
-drivers.forEach(d=>{
-const driverTrips = trips.filter(t=>String(t.driverId)===String(d._id))
-const status = driverTrips.length ? "Busy" : "Available"
-
-panel.innerHTML+=`
-<div class="driver" onclick="focusDriver('${d._id}')">
-${d.name} - ${status}
-</div>
-`
-})
-}
-
-/* ================= DRIVER ================= */
-
-async function focusDriver(id){
-
-if(!map) return
-
-markers.forEach(m=>map.removeLayer(m))
-markers=[]
-
-const trip = trips.find(t=>String(t.driverId)===String(id))
-if(!trip) return
-
-const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${trip.pickup}&format=json`)
-const data = await res.json()
-
-if(!data.length) return
-
-const lat = data[0].lat
-const lon = data[0].lon
-
-const m = L.marker([lat,lon]).addTo(map)
-markers.push(m)
-
-map.setView([lat,lon],13)
-
-}
-
-/* ================= ACTIONS ================= */
-
-function toggleTrip(i){trips[i].selected=!trips[i].selected;renderTrips()}
-function toggleSelect(){allSelected=!allSelected;trips.forEach(t=>t.selected=allSelected);renderTrips()}
-function toggleEdit(){editMode=!editMode}
-function sendSelected(){console.log(trips.filter(t=>t.selected))}
-function sendOne(i){console.log(trips[i])}
-function redistribute(){autoAssign();renderTrips()}
-
-/* ================= GLOBAL ================= */
-
-window.toggleTrip=toggleTrip
-window.toggleSelect=toggleSelect
-window.toggleEdit=toggleEdit
-window.sendSelected=sendSelected
-window.sendOne=sendOne
-window.redistribute=redistribute
-window.focusDriver=focusDriver
-
-</script>
+<script src="/admin/js/store.js"></script>
+<script src="/admin/js/engine.js"></script>
 
 </body>
 </html>
