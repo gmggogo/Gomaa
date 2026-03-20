@@ -53,7 +53,7 @@ const userSchema = new mongoose.Schema({
   vehicleNumber: { type: String, default: "" },
   address: { type: String, default: "" },
   phone: { type: String, default: "" }
-});
+}, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
 
@@ -120,16 +120,122 @@ const driverScheduleSchema = new mongoose.Schema({
     type: Object,
     default: {}
   }
-});
+}, { timestamps: true });
 
 const DriverSchedule = mongoose.model("DriverSchedule", driverScheduleSchema);
+
+/* =========================
+   LIVE DRIVER TRACKING
+========================= */
+const liveDrivers = new Map();
+
+/* =========================
+   HELPERS
+========================= */
+function getArizonaTime() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+  );
+}
+
+function normalizeTripType(rawType) {
+  const t = String(rawType || "").trim().toLowerCase();
+
+  if (t === "reserved") return "reserved";
+  if (t === "gh") return "gh";
+  if (t === "individual") return "individual";
+  if (t === "company") return "company";
+
+  return "company";
+}
+
+async function generateTripNumber(type) {
+  if (type === "gh") {
+    const lastTrip = await Trip.findOne({
+      tripNumber: { $regex: /^GH\d+$/ }
+    }).sort({ createdAt: -1, _id: -1 });
+
+    let next = 100;
+
+    if (lastTrip?.tripNumber) {
+      const num = parseInt(lastTrip.tripNumber.replace("GH", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    return "GH" + next;
+  }
+
+  if (type === "reserved") {
+    const lastTrip = await Trip.findOne({
+      tripNumber: { $regex: /^RV-\d+$/ }
+    }).sort({ createdAt: -1, _id: -1 });
+
+    let next = 1001;
+
+    if (lastTrip?.tripNumber) {
+      const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    return "RV-" + next;
+  }
+
+  if (type === "individual") {
+    const lastTrip = await Trip.findOne({
+      tripNumber: { $regex: /^IN-\d+$/ }
+    }).sort({ createdAt: -1, _id: -1 });
+
+    let next = 1001;
+
+    if (lastTrip?.tripNumber) {
+      const num = parseInt(lastTrip.tripNumber.replace("IN-", ""), 10);
+      if (!isNaN(num)) next = num + 1;
+    }
+
+    return "IN-" + next;
+  }
+
+  const now = getArizonaTime();
+  const months = [
+    "JA", "FE", "MA", "AP", "MY", "JN",
+    "JL", "AU", "SE", "OC", "NO", "DE"
+  ];
+
+  const monthCode = months[now.getMonth()];
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const lastTrip = await Trip.findOne({
+    createdAt: { $gte: startMonth, $lt: endMonth },
+    tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
+  }).sort({ createdAt: -1, _id: -1 });
+
+  let next = 1000;
+
+  if (lastTrip?.tripNumber) {
+    const parts = lastTrip.tripNumber.split("-");
+    const num = parseInt(parts[1], 10);
+    if (!isNaN(num)) next = num + 1;
+  }
+
+  return monthCode + "-" + next;
+}
+
+function getFreshLiveDriversArray() {
+  const now = Date.now();
+  const maxAge = 1000 * 60 * 5;
+
+  return Array.from(liveDrivers.values()).filter(driver => {
+    return now - driver.time <= maxAge;
+  });
+}
 
 /* =========================
    DRIVER SCHEDULE API
 ========================= */
 app.get("/api/driver-schedule", async (req, res) => {
   try {
-    const rows = await DriverSchedule.find();
+    const rows = await DriverSchedule.find().lean();
     const result = {};
 
     for (const r of rows) {
@@ -384,92 +490,6 @@ app.get("/api/drivers", async (req, res) => {
 });
 
 /* =========================
-   HELPERS
-========================= */
-function normalizeTripType(rawType) {
-  const t = String(rawType || "").trim().toLowerCase();
-
-  if (t === "reserved") return "reserved";
-  if (t === "gh") return "gh";
-  if (t === "individual") return "individual";
-  if (t === "company") return "company";
-
-  return "company";
-}
-
-async function generateTripNumber(type) {
-  if (type === "gh") {
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^GH\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
-
-    let next = 100;
-
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("GH", ""), 10);
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    return "GH" + next;
-  }
-
-  if (type === "reserved") {
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^RV-\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
-
-    let next = 1001;
-
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    return "RV-" + next;
-  }
-
-  if (type === "individual") {
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^IN-\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
-
-    let next = 1001;
-
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("IN-", ""), 10);
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    return "IN-" + next;
-  }
-
-  const now = new Date();
-  const months = [
-    "JA", "FE", "MA", "AP", "MY", "JN",
-    "JL", "AU", "SE", "OC", "NO", "DE"
-  ];
-
-  const monthCode = months[now.getMonth()];
-  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const lastTrip = await Trip.findOne({
-    createdAt: { $gte: startMonth, $lt: endMonth },
-    tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
-  }).sort({ createdAt: -1, _id: -1 });
-
-  let next = 1000;
-
-  if (lastTrip?.tripNumber) {
-    const parts = lastTrip.tripNumber.split("-");
-    const num = parseInt(parts[1], 10);
-    if (!isNaN(num)) next = num + 1;
-  }
-
-  return monthCode + "-" + next;
-}
-
-/* =========================
    CREATE TRIP
 ========================= */
 app.post("/api/trips", async (req, res) => {
@@ -646,7 +666,7 @@ app.delete("/api/trips/:id", async (req, res) => {
    DISPATCH API
 ========================= */
 
-/* الرحلات المختارة للديسبتش + السواقين + الشيدول */
+/* الرحلات المختارة للديسبتش + السواقين + الشيدول + اللايف */
 app.get("/api/dispatch", async (req, res) => {
   try {
     const trips = await Trip.find({
@@ -656,7 +676,7 @@ app.get("/api/dispatch", async (req, res) => {
       .sort({ tripDate: 1, tripTime: 1 })
       .lean();
 
-    const drivers = await User.find({
+    const rawDrivers = await User.find({
       role: "driver",
       active: true
     })
@@ -676,10 +696,41 @@ app.get("/api/dispatch", async (req, res) => {
       };
     }
 
+    const liveDriversArr = getFreshLiveDriversArray();
+
+    const drivers = rawDrivers.map(driver => {
+      const driverId = String(driver._id);
+      const s = schedule[driverId] || {};
+      const live = liveDriversArr.find(ld => String(ld.driverId || "") === driverId);
+
+      return {
+        ...driver,
+        address:
+          s.address ||
+          driver.address ||
+          "",
+        vehicleNumber:
+          s.vehicleNumber ||
+          driver.vehicleNumber ||
+          "",
+        phone:
+          s.phone ||
+          driver.phone ||
+          "",
+
+        /* live data */
+        liveLat: live?.lat ?? null,
+        liveLng: live?.lng ?? null,
+        liveTime: live?.time ?? null,
+        liveName: live?.name ?? ""
+      };
+    });
+
     res.json({
       trips,
       drivers,
-      schedule
+      schedule,
+      liveDrivers: liveDriversArr
     });
   } catch (err) {
     console.log(err);
@@ -778,8 +829,6 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
 /* =========================
    LIVE DRIVER TRACKING
 ========================= */
-const liveDrivers = new Map();
-
 app.post("/api/driver/location", (req, res) => {
   try {
     const { driverId, name, lat, lng } = req.body || {};
@@ -812,13 +861,7 @@ app.post("/api/driver/location", (req, res) => {
 
 app.get("/api/admin/live-drivers", (req, res) => {
   try {
-    const now = Date.now();
-    const maxAge = 1000 * 60 * 5;
-
-    const drivers = Array.from(liveDrivers.values()).filter(driver => {
-      return now - driver.time <= maxAge;
-    });
-
+    const drivers = getFreshLiveDriversArray();
     res.json(drivers);
   } catch (err) {
     console.log(err);
