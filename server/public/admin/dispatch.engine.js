@@ -22,7 +22,13 @@ async function init(){
 
   drivers = driversRaw.map(d => ({
     ...d,
-    _id: String(d._id || "")
+    _id: String(d._id || ""),
+    address:
+      d.address ||
+      d.homeAddress ||
+      d.currentAddress ||
+      d.locationAddress ||
+      ""
   }))
 
   trips = tripsRaw.map(t => ({
@@ -34,7 +40,7 @@ async function init(){
 
   schedule = scheduleRaw || {}
 
-  autoAssign()
+  await autoAssign()
   sortTrips()
   renderTrips()
   initMap()
@@ -50,6 +56,7 @@ async function init(){
 
 function showToast(msg){
   const toast = document.getElementById("toast")
+  if(!toast) return
   toast.textContent = msg
   toast.classList.add("show")
   clearTimeout(showToast._timer)
@@ -93,8 +100,8 @@ function syncSelectButtonText(){
 }
 
 function getTripDateTimeValue(t){
-  const dateStr = (t.tripDate || "").trim()
-  const timeStr = (t.tripTime || "").trim()
+  const dateStr = String(t.tripDate || "").trim()
+  const timeStr = String(t.tripTime || "").trim()
 
   if(!dateStr) return 0
 
@@ -137,6 +144,38 @@ function sortTrips(){
   trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
 
+function addMinutesToDate(dateObj, minutes){
+  return new Date(dateObj.getTime() + (minutes * 60000))
+}
+
+function estimateServiceBufferMinutes(trip){
+  const stopsCount = getStops(trip).length
+  return 15 + (stopsCount * 10)
+}
+
+function estimateTripWindow(trip){
+  const start = new Date(getTripDateTimeValue(trip))
+  if(isNaN(start.getTime())){
+    return null
+  }
+
+  let estimatedDurationMin = 45
+  if(typeof trip.estimatedDuration === "number" && trip.estimatedDuration > 0){
+    estimatedDurationMin = trip.estimatedDuration
+  }else if(typeof trip.duration === "number" && trip.duration > 0){
+    estimatedDurationMin = trip.duration
+  }
+
+  const totalMinutes = estimatedDurationMin + estimateServiceBufferMinutes(trip)
+  const end = addMinutesToDate(start, totalMinutes)
+
+  return { start, end }
+}
+
+function rangesOverlap(aStart, aEnd, bStart, bEnd){
+  return aStart < bEnd && bStart < aEnd
+}
+
 /* ================= ACTIVE DRIVER CHECK ================= */
 
 function isDriverActiveOnDate(driverId, tripDate){
@@ -147,7 +186,6 @@ function isDriverActiveOnDate(driverId, tripDate){
   if(!tripDate) return false
 
   const days = s.days || {}
-
   return !!days[String(tripDate).trim()]
 }
 
@@ -167,39 +205,120 @@ function getActiveDriversForPanel(){
   })
 }
 
-/* ================= AUTO ASSIGN ================= */
+/* ================= SMART TIME CHECK ================= */
 
-function autoAssign(){
+function hasTimeConflict(driverId, trip){
+  const targetWindow = estimateTripWindow(trip)
+  if(!targetWindow) return true
+
+  const driverTrips = trips.filter(t =>
+    String(t.driverId || "") === String(driverId) &&
+    String(t._id || "") !== String(trip._id || "") &&
+    String(t.tripDate || "") === String(trip.tripDate || "")
+  )
+
+  for(const existingTrip of driverTrips){
+    const existingWindow = estimateTripWindow(existingTrip)
+    if(!existingWindow) continue
+
+    if(
+      rangesOverlap(
+        targetWindow.start,
+        targetWindow.end,
+        existingWindow.start,
+        existingWindow.end
+      )
+    ){
+      return true
+    }
+  }
+
+  return false
+}
+
+/* ================= SMART START ADDRESS ================= */
+
+function getSmartStartAddress(driver){
+  const liveAddress =
+    driver.liveAddress ||
+    driver.currentAddress ||
+    driver.locationAddress ||
+    ""
+
+  if(liveAddress) return liveAddress
+
+  const lastTrip = getLatestTripForDriver(driver._id)
+  if(lastTrip && lastTrip.dropoff){
+    return lastTrip.dropoff
+  }
+
+  return driver.address || ""
+}
+
+/* ================= SMART AUTO ASSIGN ================= */
+
+async function autoAssign(){
   if(!drivers.length) return
 
-  trips.forEach(t => {
-    if(!t.driverId){
-      const validDrivers = getValidDriversForTrip(t)
+  for(const trip of trips){
+    if(trip.driverId) continue
 
-      if(!validDrivers.length){
-        t.driverId = ""
-        t.vehicle = ""
-        return
-      }
+    const validDrivers = getValidDriversForTrip(trip)
 
-      validDrivers.sort((a,b)=>{
-        const aCount = getDriverTripsCount(a._id)
-        const bCount = getDriverTripsCount(b._id)
-        if(aCount !== bCount) return aCount - bCount
-        return String(a.name || "").localeCompare(String(b.name || ""))
-      })
-
-      const d = validDrivers[0]
-      t.driverId = String(d._id || "")
-      t.vehicle = t.vehicle || getDriverCar(d._id)
+    if(!validDrivers.length){
+      trip.driverId = ""
+      trip.vehicle = ""
+      continue
     }
-  })
+
+    let bestDriver = null
+    let bestScore = Infinity
+
+    for(const driver of validDrivers){
+      if(hasTimeConflict(driver._id, trip)) continue
+
+      const startAddress = getSmartStartAddress(driver)
+      if(!startAddress) continue
+
+      const startGeo = await geocode(startAddress)
+      const pickupGeo = await geocode(trip.pickup)
+
+      if(!startGeo || !pickupGeo) continue
+
+      const route = await getRoute([startGeo, pickupGeo])
+      if(!route) continue
+
+      const distance = parseFloat(route.distance) || 9999
+      const duration = parseFloat(route.duration) || 9999
+      const tripCount = getDriverTripsCount(driver._id)
+
+      const score =
+        (distance * 1.5) +
+        (duration * 1.2) +
+        (tripCount * 2)
+
+      if(score < bestScore){
+        bestScore = score
+        bestDriver = driver
+      }
+    }
+
+    if(bestDriver){
+      trip.driverId = String(bestDriver._id)
+      trip.vehicle = getDriverCar(bestDriver._id)
+    }else{
+      trip.driverId = ""
+      trip.vehicle = ""
+    }
+  }
 }
 
 /* ================= RENDER TRIPS ================= */
 
 function renderTrips(){
   const body = document.getElementById("tbody")
+  if(!body) return
+
   body.innerHTML = ""
 
   trips.forEach((t, i) => {
@@ -399,6 +518,8 @@ async function focusDriver(id){
 
 function renderDrivers(){
   const panel = document.getElementById("driversPanel")
+  if(!panel) return
+
   panel.innerHTML = `<div class="panel-header">Drivers Dispatch Panel</div>`
 
   const activeDrivers = getActiveDriversForPanel()
@@ -463,7 +584,10 @@ function toggleSelect(){
 
 function toggleEdit(){
   editMode = !editMode
-  document.getElementById("editBtn").innerText = editMode ? "Save" : "Edit Selected"
+  const btn = document.getElementById("editBtn")
+  if(btn){
+    btn.innerText = editMode ? "Save" : "Edit Selected"
+  }
   renderTrips()
   showToast(editMode ? "Edit mode enabled" : "Changes saved")
 }
@@ -476,6 +600,12 @@ function assignDriver(i, id){
   if(id){
     if(!isDriverActiveOnDate(id, trip.tripDate)){
       showToast("Driver not active on this date")
+      renderTrips()
+      return
+    }
+
+    if(hasTimeConflict(id, trip)){
+      showToast("Driver has time conflict")
       renderTrips()
       return
     }
@@ -508,7 +638,7 @@ function sendOne(i){
   showToast(`Trip ${trips[i].tripNumber || i + 1} ready`)
 }
 
-function redistribute(){
+async function redistribute(){
   const selected = trips.filter(t => t.selected)
 
   if(!selected.length){
@@ -517,26 +647,11 @@ function redistribute(){
   }
 
   selected.forEach(t => {
-    const validDrivers = getValidDriversForTrip(t)
-
-    if(!validDrivers.length){
-      t.driverId = ""
-      t.vehicle = ""
-      return
-    }
-
-    validDrivers.sort((a,b)=>{
-      const aCount = getDriverTripsCount(a._id)
-      const bCount = getDriverTripsCount(b._id)
-      if(aCount !== bCount) return aCount - bCount
-      return String(a.name || "").localeCompare(String(b.name || ""))
-    })
-
-    const d = validDrivers[0]
-    t.driverId = String(d._id)
-    t.vehicle = getDriverCar(d._id)
+    t.driverId = ""
+    t.vehicle = ""
   })
 
+  await autoAssign()
   renderTrips()
   renderDrivers()
   showToast("Trips redistributed")
