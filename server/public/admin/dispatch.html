@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-/* نفس CSS بتاعك زي ما هو بدون أي تغيير */
 .page-body{padding:15px 20px;background:#f1f5f9;min-height:calc(100vh - 80px);}
 .dispatch-tabs{display:flex;margin-bottom:8px;gap:8px;}
 .tab-btn{flex:1;padding:14px;border:none;background:#1e293b;color:#fff;font-weight:bold;cursor:pointer;border-radius:8px;}
@@ -24,13 +23,6 @@
 table{width:100%;border-collapse:collapse;}
 th{background:#1e293b;color:#fff;padding:10px;font-size:12px;}
 td{border:1px solid #e5e7eb;padding:8px;font-size:12px;}
-.tab-page{display:none}
-.tab-page.active{display:block}
-.drivers-layout{display:flex;height:80vh;gap:10px;}
-#map{width:70%;}
-#driversPanel{width:30%;background:#0f172a;color:#fff;}
-.panel-header{padding:12px;font-weight:bold;}
-.driver{padding:10px;border-bottom:1px solid #1e293b;cursor:pointer;}
 </style>
 </head>
 
@@ -40,15 +32,8 @@ td{border:1px solid #e5e7eb;padding:8px;font-size:12px;}
 
 <div class="page-body">
 
-<div class="dispatch-tabs">
-<button id="tabTrips" class="tab-btn active">Trips</button>
-<button id="tabDrivers" class="tab-btn">Drivers Map</button>
-</div>
-
-<div id="tripsPage" class="tab-page active">
-
 <div class="top-actions">
-<button id="selectBtn" class="btn blue" onclick="toggleSelect()">Select All</button>
+<button class="btn blue" onclick="toggleSelect()">Select All</button>
 <button id="editBtn" class="btn orange" onclick="toggleEdit()">Edit Selected</button>
 <button class="btn green" onclick="sendSelected()">Send Selected</button>
 <button class="btn purple" onclick="redistribute()">Redistribute</button>
@@ -59,8 +44,8 @@ td{border:1px solid #e5e7eb;padding:8px;font-size:12px;}
 <thead>
 <tr>
 <th>Select</th><th>#</th><th>Client</th><th>Pickup</th>
-<th>Stops</th><th>Dropoff</th><th>Date</th><th>Time</th>
-<th>Driver</th><th>Car</th><th>Notes</th><th>Send</th>
+<th>Dropoff</th><th>Date</th><th>Time</th>
+<th>Driver</th><th>Car</th><th>Send</th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -69,22 +54,9 @@ td{border:1px solid #e5e7eb;padding:8px;font-size:12px;}
 
 </div>
 
-<div id="driversPage" class="tab-page">
-<div class="drivers-layout">
-<div id="map"></div>
-<div id="driversPanel"></div>
-</div>
-</div>
-
-</div>
-
-<div id="toast"></div>
-
 <script src="/admin/header.js"></script>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<script src="/admin/store.js"></script>
-<script src="/admin/engine.js"></script>
+<script src="/admin/dispatch.store.js"></script>
+<script src="/admin/dispatch.engine.js"></script>
 
 </body>
 </html>
