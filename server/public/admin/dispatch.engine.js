@@ -41,7 +41,7 @@ async function init(){
 
   schedule = scheduleRaw || {}
 
-  autoAssign()
+  await autoAssign()
   sortTrips()
   renderTrips()
   initMap()
@@ -223,15 +223,75 @@ function getSmartStartAddress(driver){
   return driver.address || "Phoenix AZ"
 }
 
+/* ================= GEO ================= */
+
+async function geocode(addr){
+  if(!addr) return null
+
+  const key = String(addr).trim()
+  if(!key) return null
+
+  if(geoCache[key]) return geoCache[key]
+
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(key)}&format=json&limit=1`)
+    const data = await res.json()
+
+    if(!Array.isArray(data) || !data.length) return null
+
+    const point = {
+      lat: parseFloat(data[0].lat),
+      lng: parseFloat(data[0].lon)
+    }
+
+    geoCache[key] = point
+    return point
+  }catch(e){
+    console.log("GEOCODE ERROR", e)
+    return null
+  }
+}
+
+/* ================= ROUTE ================= */
+
+async function getRoute(points){
+  if(points.length < 2) return null
+
+  const cacheKey = points.map(p => `${p.lat},${p.lng}`).join("|")
+  if(routeCache[cacheKey]) return routeCache[cacheKey]
+
+  try{
+    const coords = points.map(p => `${p.lng},${p.lat}`).join(";")
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
+    const data = await res.json()
+
+    if(!data.routes || !data.routes.length) return null
+
+    const r = data.routes[0]
+
+    const route = {
+      coords: r.geometry.coordinates.map(c => [c[1], c[0]]),
+      distance: (r.distance / 1609.34).toFixed(1),
+      duration: Math.round(r.duration / 60)
+    }
+
+    routeCache[cacheKey] = route
+    return route
+  }catch(e){
+    console.log("ROUTE ERROR", e)
+    return null
+  }
+}
+
 /* ================= SMART AUTO ASSIGN ================= */
 
-function autoAssign(){
+async function autoAssign(){
   if(!drivers.length) return
 
   sortTrips()
 
-  trips.forEach(trip => {
-    if(trip.driverId) return
+  for(const trip of trips){
+    if(trip.driverId) continue
 
     let validDrivers = getValidDriversForTrip(trip)
     if(!validDrivers.length){
@@ -241,38 +301,37 @@ function autoAssign(){
     let bestDriver = null
     let bestScore = Infinity
 
-    validDrivers.forEach(driver => {
-      if(hasTimeConflict(driver._id, trip)) return
+    const pickupPoint = await geocode(trip.pickup)
 
-      const startPoint = getSmartStartAddress(driver)
+    for(const driver of validDrivers){
+      if(hasTimeConflict(driver._id, trip)) continue
+
+      const startAddress = getSmartStartAddress(driver)
+      const startPoint = await geocode(startAddress)
+
+      let durationScore = 9999
+      let distanceScore = 9999
+
+      if(startPoint && pickupPoint){
+        const route = await getRoute([startPoint, pickupPoint])
+        if(route){
+          durationScore = parseFloat(route.duration) || 9999
+          distanceScore = parseFloat(route.distance) || 9999
+        }
+      }
+
       const tripCount = getDriverTripsCount(driver._id)
 
-      let score = tripCount * 10
+      const finalScore =
+        (durationScore * 10) +
+        (distanceScore * 2) +
+        (tripCount * 5)
 
-      if(startPoint && trip.pickup){
-        const startText = String(startPoint).toLowerCase()
-        const pickupText = String(trip.pickup).toLowerCase()
-
-        if(startText.includes(pickupText) || pickupText.includes(startText)){
-          score -= 20
-        }
-
-        const startParts = startText.split(",").map(x => x.trim()).filter(Boolean)
-        const pickupParts = pickupText.split(",").map(x => x.trim()).filter(Boolean)
-
-        let shared = 0
-        startParts.forEach(part => {
-          if(pickupParts.includes(part)) shared++
-        })
-
-        score -= shared * 5
-      }
-
-      if(score < bestScore){
-        bestScore = score
+      if(finalScore < bestScore){
+        bestScore = finalScore
         bestDriver = driver
       }
-    })
+    }
 
     if(!bestDriver && validDrivers.length){
       bestDriver = validDrivers[0]
@@ -285,7 +344,7 @@ function autoAssign(){
       trip.driverId = ""
       trip.vehicle = ""
     }
-  })
+  }
 }
 
 /* ================= RENDER TRIPS ================= */
@@ -366,66 +425,6 @@ function clearMap(){
     try{ map.removeLayer(m) }catch(e){}
   })
   markers = []
-}
-
-/* ================= GEO ================= */
-
-async function geocode(addr){
-  if(!addr) return null
-
-  const key = String(addr).trim()
-  if(!key) return null
-
-  if(geoCache[key]) return geoCache[key]
-
-  try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(key)}&format=json&limit=1`)
-    const data = await res.json()
-
-    if(!Array.isArray(data) || !data.length) return null
-
-    const point = {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon)
-    }
-
-    geoCache[key] = point
-    return point
-  }catch(e){
-    console.log("GEOCODE ERROR", e)
-    return null
-  }
-}
-
-/* ================= ROUTE ================= */
-
-async function getRoute(points){
-  if(points.length < 2) return null
-
-  const cacheKey = points.map(p => `${p.lat},${p.lng}`).join("|")
-  if(routeCache[cacheKey]) return routeCache[cacheKey]
-
-  try{
-    const coords = points.map(p => `${p.lng},${p.lat}`).join(";")
-    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
-    const data = await res.json()
-
-    if(!data.routes || !data.routes.length) return null
-
-    const r = data.routes[0]
-
-    const route = {
-      coords: r.geometry.coordinates.map(c => [c[1], c[0]]),
-      distance: (r.distance / 1609.34).toFixed(1),
-      duration: Math.round(r.duration / 60)
-    }
-
-    routeCache[cacheKey] = route
-    return route
-  }catch(e){
-    console.log("ROUTE ERROR", e)
-    return null
-  }
 }
 
 /* ================= DRIVER CLICK ================= */
@@ -613,7 +612,7 @@ function sendOne(i){
   showToast(`Trip ${trips[i].tripNumber || i + 1} ready`)
 }
 
-function redistribute(){
+async function redistribute(){
   const selected = trips.filter(t => t.selected)
 
   if(!selected.length){
@@ -626,7 +625,7 @@ function redistribute(){
     t.vehicle = ""
   })
 
-  autoAssign()
+  await autoAssign()
   renderTrips()
   renderDrivers()
   showToast("Trips redistributed")
