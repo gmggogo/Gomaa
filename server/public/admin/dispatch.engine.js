@@ -101,8 +101,8 @@ function syncSelectButtonText(){
 }
 
 function getTripDateTimeValue(t){
-  const dateStr = (t.tripDate || "").trim()
-  const timeStr = (t.tripTime || "").trim()
+  const dateStr = String(t.tripDate || "").trim()
+  const timeStr = String(t.tripTime || "").trim()
 
   if(!dateStr) return 0
 
@@ -145,6 +145,18 @@ function sortTrips(){
   trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
 
+function normalizeDateKey(dateStr){
+  if(!dateStr) return ""
+
+  const d = new Date(dateStr)
+  if(isNaN(d.getTime())) return ""
+
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+
+  return `${m}/${day}`
+}
+
 /* ================= ACTIVE DRIVER CHECK ================= */
 
 function isDriverActiveOnDate(driverId, tripDate){
@@ -160,7 +172,9 @@ function isDriverActiveOnDate(driverId, tripDate){
     return true
   }
 
-  return !!days[String(tripDate).trim()]
+  const key = normalizeDateKey(tripDate)
+
+  return !!days[key]
 }
 
 function getValidDriversForTrip(trip){
@@ -211,6 +225,8 @@ function hasTimeConflict(driverId, trip){
 }
 
 function getSmartStartAddress(driver){
+  const sch = schedule[String(driver._id)] || {}
+
   if(driver.liveAddress) return driver.liveAddress
   if(driver.currentAddress) return driver.currentAddress
   if(driver.locationAddress) return driver.locationAddress
@@ -219,6 +235,8 @@ function getSmartStartAddress(driver){
   if(lastTrip && lastTrip.dropoff){
     return lastTrip.dropoff
   }
+
+  if(sch.address) return sch.address
 
   return driver.address || "Phoenix AZ"
 }
@@ -283,6 +301,40 @@ async function getRoute(points){
   }
 }
 
+function getFallbackLocalScore(startAddress, pickupAddress){
+  const start = String(startAddress || "").toLowerCase()
+  const pickup = String(pickupAddress || "").toLowerCase()
+
+  let durationScore = 1000
+  let distanceScore = 1000
+
+  const cityPairs = [
+    "chandler",
+    "tempe",
+    "mesa",
+    "gilbert",
+    "phoenix",
+    "scottsdale"
+  ]
+
+  for(const city of cityPairs){
+    if(start.includes(city) && pickup.includes(city)){
+      durationScore = 10
+      distanceScore = 3
+      break
+    }
+  }
+
+  if(start && pickup){
+    if(start.includes(pickup) || pickup.includes(start)){
+      durationScore = 5
+      distanceScore = 1
+    }
+  }
+
+  return { durationScore, distanceScore }
+}
+
 /* ================= SMART AUTO ASSIGN ================= */
 
 async function autoAssign(){
@@ -309,15 +361,24 @@ async function autoAssign(){
       const startAddress = getSmartStartAddress(driver)
       const startPoint = await geocode(startAddress)
 
-      let durationScore = 9999
-      let distanceScore = 9999
+      let durationScore = 1000
+      let distanceScore = 1000
 
       if(startPoint && pickupPoint){
         const route = await getRoute([startPoint, pickupPoint])
+
         if(route){
-          durationScore = parseFloat(route.duration) || 9999
-          distanceScore = parseFloat(route.distance) || 9999
+          durationScore = parseFloat(route.duration) || 1000
+          distanceScore = parseFloat(route.distance) || 1000
+        }else{
+          const fallback = getFallbackLocalScore(startAddress, trip.pickup)
+          durationScore = fallback.durationScore
+          distanceScore = fallback.distanceScore
         }
+      }else{
+        const fallback = getFallbackLocalScore(startAddress, trip.pickup)
+        durationScore = fallback.durationScore
+        distanceScore = fallback.distanceScore
       }
 
       const tripCount = getDriverTripsCount(driver._id)
