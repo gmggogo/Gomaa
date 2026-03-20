@@ -1,16 +1,18 @@
 const Store = {
 
-API: "/api/dispatch",
+async getTrips(){
+const res = await fetch("/api/trips")
+return await res.json()
+},
 
-async load(){
-  try{
-    const res = await fetch(this.API)
-    const data = await res.json()
-    return data || {}
-  }catch(e){
-    console.log("API ERROR", e)
-    return { trips: [], drivers: [], schedule: {} }
-  }
+async getDrivers(){
+const res = await fetch("/api/users/driver")
+return await res.json()
+},
+
+async getSchedule(){
+const res = await fetch("/api/driver-schedule")
+return await res.json()
 }
 
 }
