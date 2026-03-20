@@ -133,6 +133,11 @@ function render(){
 
     const tr=document.createElement("tr")
 
+    // 🔥 صف باهت لو OFF
+    if(!s.enabled){
+      tr.style.opacity="0.4"
+    }
+
     tr.innerHTML=`
 
 <td>${i+1}</td>
@@ -141,19 +146,19 @@ function render(){
 
 <td>
 <input value="${s.vehicleNumber||""}"
-${!s.edit?"disabled":""}
+${(!s.edit || !s.enabled)?"disabled":""}
 oninput="schedule['${id}'].vehicleNumber=this.value">
 </td>
 
 <td>
 <input value="${s.phone||""}"
-${!s.edit?"disabled":""}
+${(!s.edit || !s.enabled)?"disabled":""}
 oninput="schedule['${id}'].phone=this.value">
 </td>
 
 <td>
 <input value="${s.address||""}"
-${!s.edit?"disabled":""}
+${(!s.edit || !s.enabled)?"disabled":""}
 oninput="schedule['${id}'].address=this.value">
 </td>
 
@@ -241,7 +246,7 @@ function squareToggle(id,key,el){
 
   const s=schedule[id]
 
-  if(!s.edit) return
+  if(!s.edit || !s.enabled) return
 
   s.days[key]=!s.days[key]
   el.classList.toggle("active")
