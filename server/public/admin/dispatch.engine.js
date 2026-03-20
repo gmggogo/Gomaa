@@ -13,51 +13,56 @@ let selectedDriverId = null
 /* ================= INIT ================= */
 
 async function init(){
-  const data = await Store.load()
+  try{
+    const data = await Store.load()
 
-  const driversRaw = data.drivers || data.data?.drivers || []
-  const tripsRaw = data.trips || data.data?.trips || []
-  const scheduleRaw = data.schedule || data.data?.schedule || {}
+    const driversRaw = data.drivers || data.data?.drivers || []
+    const tripsRaw = data.trips || data.data?.trips || []
+    const scheduleRaw = data.schedule || data.data?.schedule || {}
 
-  drivers = driversRaw.map(d => ({
-    ...d,
-    _id: String(d._id || ""),
-    address:
-      d.address ||
-      d.homeAddress ||
-      d.currentAddress ||
-      d.locationAddress ||
-      d.city ||
-      ""
-  }))
+    drivers = driversRaw.map(d => ({
+      ...d,
+      _id: String(d._id || d.id || ""),
+      address:
+        d.address ||
+        d.homeAddress ||
+        d.currentAddress ||
+        d.locationAddress ||
+        d.city ||
+        ""
+    }))
 
-  trips = tripsRaw.map(t => ({
-    ...t,
-    _id: String(t._id || ""),
-    selected: false,
-    driverId: t.driverId ? String(t.driverId) : ""
-  }))
+    trips = tripsRaw.map(t => ({
+      ...t,
+      _id: String(t._id || ""),
+      selected: false,
+      driverId: t.driverId ? String(t.driverId) : "",
+      vehicle: t.vehicle || ""
+    }))
 
-  schedule = scheduleRaw || {}
+    schedule = scheduleRaw || {}
 
-  loadGeoCache()
-  await prepareGeo()
-  await autoAssign()
+    loadGeoCache()
+    await prepareGeo()
+    await autoAssign()
 
-  sortTrips()
-  renderTrips()
-  initMap()
-  renderDrivers()
-  bindTabs()
-
-  setInterval(() => {
+    sortTrips()
     renderTrips()
+    initMap()
     renderDrivers()
-  }, 60000)
+    bindTabs()
 
-  console.log("drivers:", drivers)
-  console.log("trips:", trips)
-  console.log("schedule:", schedule)
+    setInterval(() => {
+      renderTrips()
+      renderDrivers()
+    }, 10000)
+
+    console.log("drivers:", drivers)
+    console.log("trips:", trips)
+    console.log("schedule:", schedule)
+  }catch(err){
+    console.log("INIT ERROR:", err)
+  }
 }
 
 /* ================= CACHE ================= */
@@ -162,13 +167,10 @@ function sortTrips(){
 
 function normalizeDateKey(dateStr){
   if(!dateStr) return ""
-
   const d = new Date(dateStr)
   if(isNaN(d.getTime())) return ""
-
   const m = d.getMonth() + 1
   const day = d.getDate()
-
   return `${m}/${day}`
 }
 
@@ -185,19 +187,19 @@ function getTripStatus(t){
     return "hide"
   }
 
-  // أول ما يجي وقتها تبقى حمرا
+  // أول ما وقتها ييجي تبقى حمرا
   if(diffMin >= 0){
     return "expired"
-  }
-
-  // قبلها بساعة ونص
-  if(diffMin >= -90){
-    return "trip-soon"
   }
 
   // قبلها بنص ساعة
   if(diffMin >= -30){
     return "trip-urgent"
+  }
+
+  // قبلها بساعة ونص
+  if(diffMin >= -90){
+    return "trip-soon"
   }
 
   return ""
@@ -219,7 +221,6 @@ function isDriverActiveOnDate(driverId, tripDate){
   }
 
   const key = normalizeDateKey(tripDate)
-
   return !!days[key]
 }
 
@@ -231,9 +232,7 @@ function getValidDriversForTrip(trip){
 
 function getActiveDriversForPanel(){
   const tripDates = [...new Set(
-    trips
-      .map(t => String(t.tripDate || "").trim())
-      .filter(Boolean)
+    trips.map(t => String(t.tripDate || "").trim()).filter(Boolean)
   )]
 
   const active = drivers.filter(d => {
@@ -244,7 +243,7 @@ function getActiveDriversForPanel(){
   return active
 }
 
-/* ================= SMART TIME CHECK ================= */
+/* ================= CONFLICT ================= */
 
 function hasTimeConflict(driverId, trip){
   const sameDayTrips = trips.filter(t =>
@@ -261,7 +260,6 @@ function hasTimeConflict(driverId, trip){
     if(!tTs) continue
 
     const diff = Math.abs(tTs - tripTs) / 60000
-
     if(diff < 30){
       return true
     }
@@ -285,7 +283,6 @@ function getSmartStartAddress(driver){
   }
 
   if(sch.address) return sch.address
-
   return driver.address || ""
 }
 
@@ -314,32 +311,32 @@ async function geocode(addr){
     saveGeoCache()
     return point
   }catch(e){
-    console.log("GEOCODE ERROR", e)
+    console.log("GEOCODE ERROR:", e)
     return null
   }
 }
 
 async function prepareGeo(){
-  // حضر جيو السواقين مرة واحدة
   for(const d of drivers){
     const startAddress = getSmartStartAddress(d)
-    d._geo = await geocode(startAddress)
+    if(!d._geo){
+      d._geo = await geocode(startAddress)
+    }
   }
 
-  // حضر جيو التريبات مرة واحدة
   for(const t of trips){
-    t._geo = await geocode(t.pickup)
+    if(!t._geo){
+      t._geo = await geocode(t.pickup)
+    }
   }
 }
 
-/* ================= FAST DISTANCE ================= */
+/* ================= DISTANCE ================= */
 
 function fastDistance(a, b){
   if(!a || !b) return 999999
-
   const dx = a.lat - b.lat
   const dy = a.lng - b.lng
-
   return (dx * dx) + (dy * dy)
 }
 
@@ -367,14 +364,27 @@ function getFallbackLocalScore(startAddress, pickupAddress){
   return distanceScore
 }
 
-/* ================= SMART AUTO ASSIGN ================= */
+/* ================= AUTO ASSIGN ================= */
 
 async function autoAssign(){
   if(!drivers.length) return
 
   sortTrips()
 
+  // عداد مؤقت للتوزيع العادل
+  const tempCount = {}
+  drivers.forEach(d => tempCount[d._id] = 0)
+
+  // امسح التعيين الأوتوماتيك القديم بس
+  trips.forEach(t => {
+    if(!t.manual){
+      t.driverId = ""
+      t.vehicle = ""
+    }
+  })
+
   for(const trip of trips){
+
     if(trip.driverId) continue
 
     let validDrivers = getValidDriversForTrip(trip)
@@ -386,7 +396,9 @@ async function autoAssign(){
     let bestScore = Infinity
 
     for(const driver of validDrivers){
-      if(hasTimeConflict(driver._id, trip)) continue
+
+      // بدل الاستبعاد الكامل، ندي عقوبة كبيرة فقط
+      const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
 
       const startAddress = getSmartStartAddress(driver)
       const startPoint = driver._geo
@@ -400,9 +412,8 @@ async function autoAssign(){
         distanceScore = getFallbackLocalScore(startAddress, trip.pickup)
       }
 
-      const tripCount = getDriverTripsCount(driver._id)
+      const load = tempCount[driver._id] || 0
 
-      // نفس الشارع ياخد boost
       let boost = 0
       const startText = String(startAddress || "").toLowerCase()
       const pickupText = String(trip.pickup || "").toLowerCase()
@@ -422,8 +433,9 @@ async function autoAssign(){
 
       const finalScore =
         (distanceScore * 1000) +
-        (tripCount * 10) +
-        boost
+        (load * 500) +
+        boost +
+        conflictPenalty
 
       if(finalScore < bestScore){
         bestScore = finalScore
@@ -438,11 +450,11 @@ async function autoAssign(){
     if(bestDriver){
       trip.driverId = String(bestDriver._id)
       trip.vehicle = trip.vehicle || getDriverCar(bestDriver._id)
-    }else{
-      trip.driverId = ""
-      trip.vehicle = ""
+      tempCount[bestDriver._id]++
     }
   }
+
+  console.log("TEMP LOAD:", tempCount)
 }
 
 /* ================= RENDER TRIPS ================= */
@@ -461,7 +473,7 @@ function renderTrips(){
     const validDrivers = getValidDriversForTrip(t)
 
     body.innerHTML += `
-      <tr class="${status}">
+      <tr class="trip-row ${status}">
         <td>
           <button class="btn ${t.selected ? 'green' : 'blue'} select-btn" onclick="toggleTrip(${i})">
             ${t.selected ? '✔' : 'Select'}
@@ -530,7 +542,7 @@ function clearMap(){
   markers = []
 }
 
-/* ================= SIMPLE ROUTE FOR MAP ONLY ================= */
+/* ================= ROUTE FOR MAP ONLY ================= */
 
 async function getRoute(points){
   if(points.length < 2) return null
@@ -550,7 +562,7 @@ async function getRoute(points){
       duration: Math.round(r.duration / 60)
     }
   }catch(e){
-    console.log("ROUTE ERROR", e)
+    console.log("ROUTE ERROR:", e)
     return null
   }
 }
@@ -719,6 +731,7 @@ function assignDriver(i, id){
 
   trips[i].driverId = id ? String(id) : ""
   trips[i].vehicle = d ? getDriverCar(d._id) : ""
+  trips[i].manual = !!id
 
   const carCell = document.getElementById(`car-${i}`)
   if(carCell){
@@ -753,9 +766,9 @@ async function redistribute(){
   selected.forEach(t => {
     t.driverId = ""
     t.vehicle = ""
+    t.manual = false
   })
 
-  // حدث start geo بعد ما الرحلات اتغيرت
   await prepareGeo()
   await autoAssign()
   renderTrips()
