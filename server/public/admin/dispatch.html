@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Dispatch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
 <link rel="stylesheet" href="/admin/header.css">
@@ -98,12 +99,36 @@ tbody tr:hover{
   background:#f8fafc;
 }
 
-.trip-urgent{
-  background:#fef2f2;
+/* ================= TRIP COLORS ================= */
+
+.trip-row.trip-urgent{
+  background:#fb923c !important;
+  color:#111827 !important;
 }
 
-.trip-soon{
-  background:#fffbeb;
+.trip-row.trip-soon{
+  background:#facc15 !important;
+  color:#111827 !important;
+}
+
+.trip-row.expired{
+  background:#dc2626 !important;
+  color:#fff !important;
+  font-weight:bold;
+}
+
+.trip-row.expired td{
+  color:#fff !important;
+}
+
+.trip-row.expired select{
+  background:#fee2e2 !important;
+  color:#111827 !important;
+  border-color:#ef4444 !important;
+}
+
+.trip-row.expired .btn{
+  filter:brightness(.95);
 }
 
 .tab-page{display:none}
@@ -288,6 +313,19 @@ select:disabled{
   color:#94a3b8;
   font-size:11px;
 }
+
+@media (max-width: 1024px){
+  .drivers-layout{
+    flex-direction:column;
+    height:auto;
+  }
+
+  #map,
+  #driversPanel{
+    width:100%;
+    height:420px;
+  }
+}
 </style>
 </head>
 
@@ -302,7 +340,6 @@ select:disabled{
     <button id="tabDrivers" class="tab-btn">Drivers Map</button>
   </div>
 
-  <!-- TRIPS -->
   <div id="tripsPage" class="tab-page active">
 
     <div class="top-actions">
@@ -313,7 +350,7 @@ select:disabled{
     </div>
 
     <div class="table-wrap">
-      <table>
+      <table id="dispatchTable">
         <thead>
           <tr>
             <th>Select</th>
@@ -336,7 +373,6 @@ select:disabled{
 
   </div>
 
-  <!-- DRIVERS -->
   <div id="driversPage" class="tab-page">
     <div class="drivers-layout">
       <div id="map"></div>
