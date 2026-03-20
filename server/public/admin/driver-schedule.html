@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <title>Driver Schedule</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,145 +9,121 @@
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
+
 body{
-  margin:0;
-  font-family:'Segoe UI',Arial;
-  background:#f3f4f6;
+margin:0;
+font-family:'Segoe UI',Arial;
+background:#f3f4f6;
 }
 
-/* HEADER */
 #adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:999;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:999;
 }
 
-/* PAGE */
 .page-body{
-  max-width:1700px;
-  margin:auto;
-  padding:220px 20px 40px;
+max-width:1400px;
+margin:auto;
+padding:220px 20px 40px;
 }
 
-/* TITLE */
 .page-title{
-  text-align:center;
-  font-size:22px;
-  font-weight:700;
-  margin-bottom:20px;
-  background:linear-gradient(to right,#1e3a8a,#2563eb);
-  color:#fff;
-  padding:12px;
-  border-radius:10px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.1);
+text-align:center;
+font-size:22px;
+font-weight:700;
+margin-bottom:20px;
+background:linear-gradient(to right,#1e3a8a,#2563eb);
+color:#fff;
+padding:12px;
+border-radius:10px;
 }
 
-/* CARD */
 .card{
-  background:#fff;
-  border-radius:12px;
-  box-shadow:0 6px 18px rgba(0,0,0,0.08);
-  padding:15px;
+background:#fff;
+border-radius:12px;
+padding:15px;
 }
 
-/* TABLE */
 .table-wrap{
-  width:100%;
-  overflow-x:auto;
+width:100%;
+overflow-x:auto;
 }
 
 table{
-  width:100%;
-  border-collapse:collapse;
-  min-width:1500px;
+width:100%;
+border-collapse:collapse;
+min-width:1050px;
 }
 
 th{
-  background:#1e293b;
-  color:#fff;
-  padding:10px;
-  font-size:13px;
-  white-space:nowrap;
+background:#1e293b;
+color:#fff;
+padding:10px;
+font-size:13px;
 }
 
 td{
-  border:1px solid #e5e7eb;
-  padding:6px;
-  text-align:center;
-  font-size:13px;
-  vertical-align:middle;
+border:1px solid #e5e7eb;
+padding:6px;
+text-align:center;
+font-size:13px;
 }
 
 input{
-  width:100%;
-  min-width:90px;
-  height:28px;
-  border:1px solid #cbd5e1;
-  border-radius:4px;
-  padding:3px 6px;
-  box-sizing:border-box;
+height:26px;
+border:1px solid #cbd5e1;
+border-radius:4px;
+padding:3px 6px;
 }
 
 input:disabled{
-  background:#e5e7eb;
+background:#e5e7eb;
 }
 
-/* DAYS */
 .week-box{
-  display:flex;
-  gap:4px;
-  justify-content:center;
-  flex-wrap:nowrap;
+display:flex;
+gap:4px;
 }
 
 .day-square{
-  width:60px;
-  height:44px;
-  border-radius:6px;
-  border:1px solid #d1d5db;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  font-size:10px;
-  cursor:pointer;
-  background:#f3f4f6;
-  transition:0.2s;
-  user-select:none;
-}
-
-.day-square:hover{
-  transform:scale(1.05);
+width:60px;
+height:44px;
+border-radius:6px;
+border:1px solid #d1d5db;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+font-size:10px;
+cursor:pointer;
+background:#f3f4f6;
 }
 
 .day-square.active{
-  background:#16a34a;
-  color:#fff;
+background:#16a34a;
+color:#fff;
 }
 
-/* BUTTONS */
 .action-btn{
-  border:none;
-  border-radius:6px;
-  padding:5px 10px;
-  font-size:11px;
-  cursor:pointer;
-  margin-left:4px;
-  font-weight:600;
-  transition:0.2s;
-}
-
-.action-btn:hover{
-  opacity:0.85;
+border:none;
+border-radius:6px;
+padding:5px 10px;
+font-size:11px;
+cursor:pointer;
+margin-left:4px;
+font-weight:600;
 }
 
 .edit{background:#2563eb;color:#fff;}
 .save{background:#16a34a;color:#fff;}
 .disable{background:#dc2626;color:#fff;}
 .enable{background:#16a34a;color:#fff;}
+
 </style>
+
 </head>
 
 <body>
@@ -155,32 +132,38 @@ input:disabled{
 
 <div class="page-body">
 
-  <div class="page-title">
-    Driver Weekly Schedule
-  </div>
+<div class="page-title">
+Driver Weekly Schedule
+</div>
 
-  <div class="card">
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Driver Name</th>
-            <th>Car #</th>
-            <th>Phone</th>
-            <th>Address</th>
-            <th>Lat</th>
-            <th>Lng</th>
-            <th id="weekTitle">Week</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+<div class="card">
 
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-  </div>
+<div class="table-wrap">
+
+<table>
+
+<thead>
+<tr>
+
+<th>#</th>
+<th>Driver Name</th>
+<th>Car #</th>
+<th>Phone</th>
+<th>Address</th>
+<th id="weekTitle">Week</th>
+<th>Status</th>
+<th>Action</th>
+
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+</table>
+
+</div>
+
+</div>
 
 </div>
 
