@@ -38,7 +38,7 @@ async function init(){
       selected: false,
       driverId: t.driverId ? String(t.driverId) : "",
       vehicle: t.vehicle || "",
-      manual: !!t.driverId
+      manual: !!t.driverId   // 🔥 FIX
     }))
 
     schedule = scheduleRaw || {}
@@ -53,51 +53,19 @@ async function init(){
     renderDrivers()
     bindTabs()
 
+    setInterval(() => {
+      renderTrips()
+      renderDrivers()
+    }, 10000)
+
   }catch(err){
     console.log("INIT ERROR:", err)
   }
 }
 
-/* ================= CACHE ================= */
-
-function loadGeoCache(){
-  try{
-    const saved = localStorage.getItem("dispatch_geo_cache")
-    if(saved){
-      geoCache = JSON.parse(saved) || {}
-    }
-  }catch(e){
-    geoCache = {}
-  }
-}
-
-function saveGeoCache(){
-  try{
-    localStorage.setItem("dispatch_geo_cache", JSON.stringify(geoCache))
-  }catch(e){}
-}
-
-/* ================= HELPERS ================= */
-
-function getTripDateTimeValue(t){
-  const d = new Date(`${t.tripDate} ${t.tripTime}`)
-  return isNaN(d) ? 0 : d.getTime()
-}
-
-function sortTrips(){
-  trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
-}
-
-function normalizeDateKey(dateStr){
-  const d = new Date(dateStr)
-  if(isNaN(d)) return ""
-  return `${d.getMonth()+1}/${d.getDate()}`
-}
-
-/* ================= ACTIVE ================= */
+/* ================= ACTIVE DRIVER FIX ================= */
 
 function isDriverActiveOnDate(driverId, tripDate){
-
   const s = schedule[String(driverId)]
 
   if(!s) return true
@@ -113,242 +81,153 @@ function isDriverActiveOnDate(driverId, tripDate){
   if(!tripDate) return true
 
   const days = s.days || {}
-
-  if(!Object.keys(days).length){
-    return true
-  }
+  if(!Object.keys(days).length) return true
 
   const key = normalizeDateKey(tripDate)
 
+  // 🔥 FIX (كان السبب الرئيسي للمشكلة)
   return Object.keys(days).some(d =>
     d.includes(key) && days[d]
   )
 }
 
-/* ================= CONFLICT ================= */
-
-function hasTimeConflict(driverId, trip){
-
-  const tripTime = getTripDateTimeValue(trip)
-
-  return trips.some(t => {
-
-    if(t._id === trip._id) return false
-    if(String(t.driverId) !== String(driverId)) return false
-    if(t.tripDate !== trip.tripDate) return false
-
-    const tTime = getTripDateTimeValue(t)
-
-    return Math.abs(tTime - tripTime) < (30 * 60000)
-  })
-}
-
-/* ================= GEO ================= */
-
-async function geocode(addr){
-  if(!addr) return null
-
-  const key = addr.trim().toLowerCase()
-  if(!key) return null
-
-  if(geoCache[key]) return geoCache[key]
-
-  try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(key)}&format=json&limit=1`)
-    const data = await res.json()
-
-    if(!data.length) return null
-
-    const point = {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon)
-    }
-
-    geoCache[key] = point
-    saveGeoCache()
-
-    return point
-  }catch(e){
-    return null
-  }
-}
-
-async function prepareGeo(){
-
-  for(const d of drivers){
-    if(!d._geo && d.address){
-      d._geo = await geocode(d.address)
-    }
-  }
-
-  for(const t of trips){
-    if(!t._geo && t.pickup){
-      t._geo = await geocode(t.pickup)
-    }
-  }
-}
-
-/* ================= DISTANCE ================= */
-
-function fastDistance(a,b){
-  if(!a || !b) return 999999
-  const dx = a.lat - b.lat
-  const dy = a.lng - b.lng
-  return dx*dx + dy*dy
-}
-
-/* ================= AUTO ASSIGN ================= */
+/* ================= AUTO ASSIGN FIX ================= */
 
 async function autoAssign(){
+  if(!drivers.length) return
 
-  const load = {}
-  drivers.forEach(d => load[d._id] = 0)
+  sortTrips()
 
-  // reset auto only
-  trips.forEach(t=>{
+  const tempCount = {}
+  drivers.forEach(d => tempCount[d._id] = 0)
+
+  trips.forEach(t => {
     if(!t.manual){
       t.driverId = ""
       t.vehicle = ""
     }
   })
 
-  sortTrips()
-
   for(const trip of trips){
 
-    if(trip.manual) continue
+    // 🔥 FIX (يحافظ على المانيوال)
+    if(trip.driverId && trip.manual) continue
 
-    let validDrivers = drivers.filter(d =>
-      isDriverActiveOnDate(d._id, trip.tripDate)
-    )
-
+    let validDrivers = getValidDriversForTrip(trip)
     if(!validDrivers.length){
       validDrivers = drivers
     }
 
-    let best = null
+    let bestDriver = null
     let bestScore = Infinity
 
-    for(const d of validDrivers){
+    for(const driver of validDrivers){
 
-      if(!d._geo) continue
+      const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
 
-      const conflictPenalty = hasTimeConflict(d._id, trip) ? 99999 : 0
+      const startPoint = driver._geo
+      const pickupPoint = trip._geo
 
-      const dist = fastDistance(d._geo, trip._geo)
-      const loadScore = load[d._id] * 500
+      let distanceScore = 999999
 
-      const score = dist * 1000 + loadScore + conflictPenalty
+      if(startPoint && pickupPoint){
+        distanceScore = fastDistance(startPoint, pickupPoint)
+      }
 
-      if(score < bestScore){
-        bestScore = score
-        best = d
+      const load = tempCount[driver._id] || 0
+
+      const finalScore =
+        (distanceScore * 1000) +
+        (load * 500) +
+        conflictPenalty
+
+      if(finalScore < bestScore){
+        bestScore = finalScore
+        bestDriver = driver
       }
     }
 
-    if(best){
-      trip.driverId = best._id
-      trip.vehicle = getDriverCar(best._id)
-      load[best._id]++
+    if(bestDriver){
+      trip.driverId = String(bestDriver._id)
+      trip.vehicle = getDriverCar(bestDriver._id)
+      tempCount[bestDriver._id]++
     }
   }
 }
 
-/* ================= DRIVER CAR ================= */
-
-function getDriverCar(id){
-  const s = schedule[String(id)]
-  return s?.carNumber || s?.vehicleNumber || ""
-}
-
-/* ================= RENDER ================= */
+/* ================= RENDER FIX ================= */
 
 function renderTrips(){
-
   const body = document.getElementById("tbody")
   if(!body) return
 
   body.innerHTML = ""
 
-  trips.forEach((t,i)=>{
+  trips.forEach((t, i) => {
+    const status = getTripStatus(t)
+    if(status === "hide") return
+
+    const stops = getStops(t)
+    const validDrivers = getValidDriversForTrip(t)
 
     body.innerHTML += `
-      <tr>
+      <tr class="trip-row ${status}">
         <td>
-          <button onclick="toggleTrip(${i})">
-            ${t.selected ? "✔" : "Select"}
+          <button class="btn ${t.selected ? 'green' : 'blue'} select-btn" onclick="toggleTrip(${i})">
+            ${t.selected ? '✔' : 'Select'}
           </button>
         </td>
 
-        <td>${t.tripNumber || i+1}</td>
-        <td>${t.clientName || ""}</td>
-        <td>${t.pickup || ""}</td>
-        <td>${t.dropoff || ""}</td>
+        <td>${escapeHtml(t.tripNumber || i + 1)}</td>
+        <td>${escapeHtml(t.clientName || "")}</td>
+        <td>${escapeHtml(t.pickup || "")}</td>
+
+        <td class="stop-list">
+          ${stops.length ? stops.map(s => escapeHtml(s)).join("<br>") : "-"}
+        </td>
+
+        <td>${escapeHtml(t.dropoff || "")}</td>
+        <td>${escapeHtml(t.tripDate || "")}</td>
+        <td>${escapeHtml(t.tripTime || "")}</td>
 
         <td>
+          <!-- 🔥 FIX: مفتوح دايمًا -->
           <select onchange="assignDriver(${i},this.value)">
             <option value="">--</option>
-            ${drivers.map(d=>`
-              <option value="${d._id}" ${t.driverId==d._id?"selected":""}>
-                ${d.name}
+            ${validDrivers.map(d => `
+              <option value="${escapeHtml(d._id)}" ${String(t.driverId || "") === String(d._id || "") ? "selected" : ""}>
+                ${escapeHtml(d.name || "")}
               </option>
             `).join("")}
           </select>
         </td>
 
-        <td>${t.vehicle || ""}</td>
+        <td id="car-${i}">${escapeHtml(t.vehicle || getDriverCar(t.driverId) || "")}</td>
+        <td class="notes-cell">${escapeHtml(t.notes || "")}</td>
+
+        <td>
+          <button class="btn green send-btn" onclick="sendOne(${i})">Send</button>
+        </td>
       </tr>
     `
   })
+
+  syncSelectButtonText()
 }
 
-/* ================= DRIVERS ================= */
+/* ================= MANUAL FIX ================= */
 
-function renderDrivers(){
-  console.log("drivers updated")
-}
+function assignDriver(i, id){
+  if(!trips[i]) return
 
-/* ================= ACTIONS ================= */
-
-function toggleTrip(i){
-  trips[i].selected = !trips[i].selected
-  renderTrips()
-}
-
-function assignDriver(i,id){
-
-  const t = trips[i]
   const d = drivers.find(x => String(x._id) === String(id))
 
-  t.driverId = id
-  t.vehicle = d ? getDriverCar(d._id) : ""
+  trips[i].driverId = id ? String(id) : ""
+  trips[i].vehicle = d ? getDriverCar(d._id) : ""
 
-  // 🔥 مانيوال ثابت
-  t.manual = true
+  // 🔥 أهم حاجة
+  trips[i].manual = !!id
 
   renderTrips()
+  renderDrivers()
 }
-
-async function redistribute(){
-
-  trips.forEach(t=>{
-    t.driverId = ""
-    t.vehicle = ""
-    t.manual = false
-  })
-
-  await autoAssign()
-  renderTrips()
-}
-
-/* ================= MAP ================= */
-
-function initMap(){}
-
-/* ================= TABS ================= */
-
-function bindTabs(){}
-
-/* ================= START ================= */
-
-document.addEventListener("DOMContentLoaded", init)
