@@ -37,7 +37,8 @@ async function init(){
       _id: String(t._id || ""),
       selected: false,
       driverId: t.driverId ? String(t.driverId) : "",
-      vehicle: t.vehicle || ""
+      vehicle: t.vehicle || "",
+      manual: !!t.manual
     }))
 
     schedule = scheduleRaw || {}
@@ -182,22 +183,18 @@ function getTripStatus(t){
 
   const diffMin = Math.round((Date.now() - ts) / 60000)
 
-  // بعد ساعة تختفي
   if(diffMin >= 60){
     return "hide"
   }
 
-  // أول ما وقتها ييجي تبقى حمرا
   if(diffMin >= 0){
     return "expired"
   }
 
-  // قبلها بنص ساعة
   if(diffMin >= -30){
     return "trip-urgent"
   }
 
-  // قبلها بساعة ونص
   if(diffMin >= -90){
     return "trip-soon"
   }
@@ -319,13 +316,13 @@ async function geocode(addr){
 async function prepareGeo(){
   for(const d of drivers){
     const startAddress = getSmartStartAddress(d)
-    if(!d._geo){
+    if(!d._geo && startAddress){
       d._geo = await geocode(startAddress)
     }
   }
 
   for(const t of trips){
-    if(!t._geo){
+    if(!t._geo && t.pickup){
       t._geo = await geocode(t.pickup)
     }
   }
@@ -371,11 +368,9 @@ async function autoAssign(){
 
   sortTrips()
 
-  // عداد مؤقت للتوزيع العادل
   const tempCount = {}
   drivers.forEach(d => tempCount[d._id] = 0)
 
-  // امسح التعيين الأوتوماتيك القديم بس
   trips.forEach(t => {
     if(!t.manual){
       t.driverId = ""
@@ -388,8 +383,14 @@ async function autoAssign(){
     if(trip.driverId) continue
 
     let validDrivers = getValidDriversForTrip(trip)
+
+    validDrivers = validDrivers.filter(driver => {
+      const addr = getSmartStartAddress(driver)
+      return !!(addr && addr.trim() && driver._geo)
+    })
+
     if(!validDrivers.length){
-      validDrivers = drivers
+      continue
     }
 
     let bestDriver = null
@@ -397,8 +398,9 @@ async function autoAssign(){
 
     for(const driver of validDrivers){
 
-      // بدل الاستبعاد الكامل، ندي عقوبة كبيرة فقط
-      const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
+      if(hasTimeConflict(driver._id, trip)){
+        continue
+      }
 
       const startAddress = getSmartStartAddress(driver)
       const startPoint = driver._geo
@@ -433,18 +435,13 @@ async function autoAssign(){
 
       const finalScore =
         (distanceScore * 1000) +
-        (load * 500) +
-        boost +
-        conflictPenalty
+        (load * 5000) +
+        boost
 
       if(finalScore < bestScore){
         bestScore = finalScore
         bestDriver = driver
       }
-    }
-
-    if(!bestDriver && validDrivers.length){
-      bestDriver = validDrivers[0]
     }
 
     if(bestDriver){
