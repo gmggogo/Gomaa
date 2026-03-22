@@ -37,14 +37,12 @@ async function init(){
       _id: String(t._id || ""),
       selected: false,
       driverId: t.driverId ? String(t.driverId) : "",
-      vehicle: t.vehicle || "",
-      manual: !!t.driverId
+      vehicle: t.vehicle || ""
     }))
 
     schedule = scheduleRaw || {}
 
     loadGeoCache()
-    clearInactiveAssignedDrivers()
     await prepareGeo()
     await autoAssign()
 
@@ -98,16 +96,16 @@ function showToast(msg){
 }
 
 function getStops(t){
-  if(Array.isArray(t.stops)) return t.stops.filter(Boolean)
-  if(Array.isArray(t.stopAddresses)) return t.stopAddresses.filter(Boolean)
-  if(Array.isArray(t.extraStops)) return t.extraStops.filter(Boolean)
-  if(typeof t.stop === "string" && t.stop.trim()) return [t.stop.trim()]
+  if (Array.isArray(t.stops)) return t.stops.filter(Boolean)
+  if (Array.isArray(t.stopAddresses)) return t.stopAddresses.filter(Boolean)
+  if (Array.isArray(t.extraStops)) return t.extraStops.filter(Boolean)
+  if (typeof t.stop === "string" && t.stop.trim()) return [t.stop.trim()]
   return []
 }
 
 function getDriverCar(id){
   const s = schedule[String(id)]
-  if(!s) return ""
+  if (!s) return ""
   return s.carNumber || s.vehicleNumber || s.car || ""
 }
 
@@ -169,22 +167,11 @@ function sortTrips(){
 
 function normalizeDateKey(dateStr){
   if(!dateStr) return ""
-
   const d = new Date(dateStr)
   if(isNaN(d.getTime())) return ""
-
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-function clearInactiveAssignedDrivers(){
-  trips.forEach(t => {
-    if(!t.driverId) return
-    if(!isDriverActiveOnDate(t.driverId, t.tripDate)){
-      t.driverId = ""
-      t.vehicle = ""
-      t.manual = false
-    }
-  })
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  return `${m}/${day}`
 }
 
 /* ================= TIME STATUS ================= */
@@ -195,18 +182,22 @@ function getTripStatus(t){
 
   const diffMin = Math.round((Date.now() - ts) / 60000)
 
+  // بعد ساعة تختفي
   if(diffMin >= 60){
     return "hide"
   }
 
+  // أول ما وقتها ييجي تبقى حمرا
   if(diffMin >= 0){
     return "expired"
   }
 
+  // قبلها بنص ساعة
   if(diffMin >= -30){
     return "trip-urgent"
   }
 
+  // قبلها بساعة ونص
   if(diffMin >= -90){
     return "trip-soon"
   }
@@ -220,15 +211,7 @@ function isDriverActiveOnDate(driverId, tripDate){
   const s = schedule[String(driverId)]
 
   if(!s) return true
-
-  if(
-    s.status === "OFF" ||
-    s.enabled === false ||
-    s.active === false
-  ){
-    return false
-  }
-
+  if(s.enabled === false) return false
   if(!tripDate) return true
 
   const days = s.days || {}
@@ -238,33 +221,26 @@ function isDriverActiveOnDate(driverId, tripDate){
   }
 
   const key = normalizeDateKey(tripDate)
-
-  return Object.keys(days).some(d => d.includes(key) && days[d])
+  return !!days[key]
 }
 
 function getValidDriversForTrip(trip){
-  const valid = drivers.filter(d => {
-    const addr = getSmartStartAddress(d)
-    return isDriverActiveOnDate(d._id, trip.tripDate) && !!addr
-  })
-
+  const valid = drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
+  if(!valid.length) return drivers
   return valid
 }
 
 function getActiveDriversForPanel(){
   const tripDates = [...new Set(
-    trips
-      .map(t => String(t.tripDate || "").trim())
-      .filter(Boolean)
+    trips.map(t => String(t.tripDate || "").trim()).filter(Boolean)
   )]
 
   const active = drivers.filter(d => {
-    const addr = getSmartStartAddress(d)
-    if(!addr) return false
     return tripDates.some(date => isDriverActiveOnDate(d._id, date))
   })
 
-  return active.length ? active : drivers
+  if(!active.length) return drivers
+  return active
 }
 
 /* ================= CONFLICT ================= */
@@ -343,13 +319,13 @@ async function geocode(addr){
 async function prepareGeo(){
   for(const d of drivers){
     const startAddress = getSmartStartAddress(d)
-    if(!d._geo && startAddress){
+    if(!d._geo){
       d._geo = await geocode(startAddress)
     }
   }
 
   for(const t of trips){
-    if(!t._geo && t.pickup){
+    if(!t._geo){
       t._geo = await geocode(t.pickup)
     }
   }
@@ -359,10 +335,8 @@ async function prepareGeo(){
 
 function fastDistance(a, b){
   if(!a || !b) return 999999
-
   const dx = a.lat - b.lat
   const dy = a.lng - b.lng
-
   return (dx * dx) + (dy * dy)
 }
 
@@ -397,9 +371,11 @@ async function autoAssign(){
 
   sortTrips()
 
+  // عداد مؤقت للتوزيع العادل
   const tempCount = {}
   drivers.forEach(d => tempCount[d._id] = 0)
 
+  // امسح التعيين الأوتوماتيك القديم بس
   trips.forEach(t => {
     if(!t.manual){
       t.driverId = ""
@@ -409,15 +385,11 @@ async function autoAssign(){
 
   for(const trip of trips){
 
-    if(trip.driverId && trip.manual) continue
+    if(trip.driverId) continue
 
     let validDrivers = getValidDriversForTrip(trip)
-
     if(!validDrivers.length){
-      validDrivers = drivers.filter(d => {
-        const addr = getSmartStartAddress(d)
-        return !!addr
-      })
+      validDrivers = drivers
     }
 
     let bestDriver = null
@@ -425,11 +397,8 @@ async function autoAssign(){
 
     for(const driver of validDrivers){
 
-      if(!driver._geo) continue
-
-      if(hasTimeConflict(driver._id, trip)){
-        continue
-      }
+      // بدل الاستبعاد الكامل، ندي عقوبة كبيرة فقط
+      const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
 
       const startAddress = getSmartStartAddress(driver)
       const startPoint = driver._geo
@@ -464,8 +433,9 @@ async function autoAssign(){
 
       const finalScore =
         (distanceScore * 1000) +
-        (load * 5000) +
-        boost
+        (load * 500) +
+        boost +
+        conflictPenalty
 
       if(finalScore < bestScore){
         bestScore = finalScore
@@ -473,9 +443,13 @@ async function autoAssign(){
       }
     }
 
+    if(!bestDriver && validDrivers.length){
+      bestDriver = validDrivers[0]
+    }
+
     if(bestDriver){
       trip.driverId = String(bestDriver._id)
-      trip.vehicle = getDriverCar(bestDriver._id)
+      trip.vehicle = trip.vehicle || getDriverCar(bestDriver._id)
       tempCount[bestDriver._id]++
     }
   }
@@ -519,7 +493,7 @@ function renderTrips(){
         <td>${escapeHtml(t.tripTime || "")}</td>
 
         <td>
-          <select onchange="assignDriver(${i},this.value)">
+          <select ${(editMode && t.selected) ? "" : "disabled"} onchange="assignDriver(${i},this.value)">
             <option value="">--</option>
             ${validDrivers.map(d => `
               <option value="${escapeHtml(d._id)}" ${String(t.driverId || "") === String(d._id || "") ? "selected" : ""}>
