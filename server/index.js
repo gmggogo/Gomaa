@@ -239,7 +239,9 @@ app.get("/api/driver-schedule", async (req, res) => {
     const result = {};
 
     for (const r of rows) {
-      result[r.driverId] = {
+      const id = String(r.driverId || "").trim();
+
+      result[id] = {
         phone: r.phone || "",
         address: r.address || "",
         vehicleNumber: r.vehicleNumber || "",
@@ -260,12 +262,13 @@ app.post("/api/driver-schedule", async (req, res) => {
     const data = req.body || {};
 
     for (const id in data) {
+      const safeId = String(id || "").trim();
       const s = data[id] || {};
 
       await DriverSchedule.findOneAndUpdate(
-        { driverId: id },
+        { driverId: safeId },
         {
-          driverId: id,
+          driverId: safeId,
           phone: s.phone || "",
           address: s.address || "",
           vehicleNumber: s.vehicleNumber || "",
@@ -687,7 +690,11 @@ app.get("/api/dispatch", async (req, res) => {
     const schedule = {};
 
     for (const r of scheduleRows) {
-      schedule[r.driverId] = {
+      const id = String(r.driverId || "").trim();
+
+      if (!id) continue;
+
+      schedule[id] = {
         phone: r.phone || "",
         address: r.address || "",
         vehicleNumber: r.vehicleNumber || "",
@@ -699,24 +706,27 @@ app.get("/api/dispatch", async (req, res) => {
     const liveDriversArr = getFreshLiveDriversArray();
 
     const drivers = rawDrivers.map(driver => {
-      const driverId = String(driver._id);
+      const driverId = String(driver._id || "").trim();
       const s = schedule[driverId] || {};
-      const live = liveDriversArr.find(ld => String(ld.driverId || "") === driverId);
+      const live = liveDriversArr.find(
+        ld => String(ld.driverId || "").trim() === driverId
+      );
 
       return {
         ...driver,
+        _id: driverId,
         address:
-          s.address ||
-          driver.address ||
-          "",
+          (s.address && s.address.trim() !== "")
+            ? s.address
+            : (driver.address || ""),
         vehicleNumber:
-          s.vehicleNumber ||
-          driver.vehicleNumber ||
-          "",
+          (s.vehicleNumber && s.vehicleNumber.trim() !== "")
+            ? s.vehicleNumber
+            : (driver.vehicleNumber || ""),
         phone:
-          s.phone ||
-          driver.phone ||
-          "",
+          (s.phone && s.phone.trim() !== "")
+            ? s.phone
+            : (driver.phone || ""),
 
         /* live data */
         liveLat: live?.lat ?? null,
@@ -784,12 +794,13 @@ app.patch("/api/dispatch/:id/note", async (req, res) => {
 app.patch("/api/dispatch/:id/driver", async (req, res) => {
   try {
     const { driverId } = req.body || {};
+    const safeDriverId = String(driverId || "").trim();
 
-    if (!driverId) {
+    if (!safeDriverId) {
       return res.status(400).json({ message: "Driver ID required" });
     }
 
-    const driver = await User.findById(driverId);
+    const driver = await User.findById(safeDriverId);
 
     if (!driver) {
       return res.status(404).json({ message: "Driver not found" });
@@ -800,13 +811,13 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
     }
 
     const driverSchedule = await DriverSchedule.findOne({
-      driverId: driver._id.toString()
+      driverId: String(driver._id).trim()
     });
 
     const trip = await Trip.findByIdAndUpdate(
       req.params.id,
       {
-        driverId: driver._id.toString(),
+        driverId: String(driver._id).trim(),
         driverName: driver.name || "",
         vehicle: driverSchedule?.vehicleNumber || driver.vehicleNumber || "",
         driverAddress: driverSchedule?.address || driver.address || "",
@@ -845,7 +856,7 @@ app.post("/api/driver/location", (req, res) => {
     }
 
     liveDrivers.set(name, {
-      driverId: driverId || "",
+      driverId: String(driverId || "").trim(),
       name,
       lat: latNum,
       lng: lngNum,
