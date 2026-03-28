@@ -113,6 +113,7 @@ const driverScheduleSchema = new mongoose.Schema({
   phone: { type: String, default: "" },
   address: { type: String, default: "" },
 
+  /* IMPORTANT: REAL COORDINATES */
   lat: { type: Number, default: null },
   lng: { type: Number, default: null },
 
@@ -280,8 +281,8 @@ app.post("/api/driver-schedule", async (req, res) => {
           driverId: safeId,
           phone: s.phone || "",
           address: s.address || "",
-          lat: s.lat != null && s.lat !== "" ? Number(s.lat) : null,
-          lng: s.lng != null && s.lng !== "" ? Number(s.lng) : null,
+          lat: s.lat !== undefined && s.lat !== null && s.lat !== "" ? Number(s.lat) : null,
+          lng: s.lng !== undefined && s.lng !== null && s.lng !== "" ? Number(s.lng) : null,
           vehicleNumber: s.vehicleNumber || "",
           enabled: typeof s.enabled === "boolean" ? s.enabled : true,
           days: s.days || {}
