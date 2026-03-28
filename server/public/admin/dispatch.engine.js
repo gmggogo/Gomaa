@@ -51,8 +51,8 @@ async function init(){
           sch.phone ||
           d.phone ||
           "",
-        lat: sch.lat != null ? Number(sch.lat) : null,
-        lng: sch.lng != null ? Number(sch.lng) : null
+        lat: sch.lat != null && sch.lat !== "" ? Number(sch.lat) : null,
+        lng: sch.lng != null && sch.lng !== "" ? Number(sch.lng) : null
       }
     })
 
@@ -348,8 +348,8 @@ function getDriverDayHomeAddress(driver){
 function getDriverHomePoint(driver){
   const sch = schedule[String(driver._id)] || {}
 
-  const lat = sch.lat != null ? Number(sch.lat) : (driver.lat != null ? Number(driver.lat) : null)
-  const lng = sch.lng != null ? Number(sch.lng) : (driver.lng != null ? Number(driver.lng) : null)
+  const lat = sch.lat != null && sch.lat !== "" ? Number(sch.lat) : (driver.lat != null ? Number(driver.lat) : null)
+  const lng = sch.lng != null && sch.lng !== "" ? Number(sch.lng) : (driver.lng != null ? Number(driver.lng) : null)
 
   if(Number.isFinite(lat) && Number.isFinite(lng)){
     return { lat, lng }
@@ -440,6 +440,48 @@ function fastDistance(a, b){
   return Math.sqrt((dx * dx) + (dy * dy))
 }
 
+function getFallbackLocalScore(startAddress, pickupAddress){
+  const start = normalizeText(startAddress)
+  const pickup = normalizeText(pickupAddress)
+
+  let distanceScore = 999999
+
+  const cities = ["chandler","tempe","mesa","gilbert","phoenix","scottsdale"]
+
+  for(const city of cities){
+    if(start.includes(city) && pickup.includes(city)){
+      distanceScore = 1
+      break
+    }
+  }
+
+  if(start && pickup){
+    if(start.includes(pickup) || pickup.includes(start)){
+      distanceScore = 0
+    }
+  }
+
+  if(distanceScore === 999999){
+    let common = 0
+    const startWords = start.split(/\s+/).filter(Boolean)
+    const pickupWords = pickup.split(/\s+/).filter(Boolean)
+
+    for(const w of startWords){
+      if(w.length > 2 && pickupWords.includes(w)) common++
+    }
+
+    if(common > 0){
+      distanceScore = Math.max(2, 15 - common * 3)
+    }
+  }
+
+  if(distanceScore === 999999){
+    distanceScore = 100
+  }
+
+  return distanceScore
+}
+
 /* ================= AUTO ASSIGN ================= */
 
 async function autoAssign(){
@@ -496,8 +538,11 @@ async function autoAssign(){
 
     if(trip.manual && trip.driverId) continue
 
-    if(!trip._geoPickup && trip.pickup){
-      trip._geoPickup = await geocode(trip.pickup)
+    let pickupPoint = trip._geoPickup
+
+    if(!pickupPoint && trip.pickup){
+      pickupPoint = await geocode(trip.pickup)
+      trip._geoPickup = pickupPoint
     }
 
     if(!trip._geoDropoff && trip.dropoff){
@@ -506,7 +551,6 @@ async function autoAssign(){
 
     const validDrivers = getValidDriversForTrip(trip)
     if(!validDrivers.length) continue
-    if(!trip._geoPickup) continue
 
     const minLoad = Math.min(...validDrivers.map(d => load[d._id] || 0))
     const roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
@@ -516,6 +560,7 @@ async function autoAssign(){
 
     for(const driver of roundDrivers){
       let startPoint = null
+      let startAddress = ""
 
       if((load[driver._id] || 0) === 0){
         startPoint = driver._geoHome || null
@@ -526,20 +571,28 @@ async function autoAssign(){
             startPoint = directPoint
             driver._geoHome = directPoint
           }else{
-            const startAddress = getDriverDayHomeAddress(driver)
+            startAddress = getDriverDayHomeAddress(driver)
             if(startAddress){
               startPoint = await geocode(startAddress)
               driver._geoHome = startPoint
             }
           }
+        }else{
+          startAddress = getDriverDayHomeAddress(driver)
         }
       }else{
         startPoint = lastLocation[driver._id] || null
+        startAddress = getDriverDayHomeAddress(driver)
       }
 
-      if(!startPoint) continue
+      let distance = 999999
 
-      const distance = fastDistance(startPoint, trip._geoPickup)
+      if(startPoint && pickupPoint){
+        distance = fastDistance(startPoint, pickupPoint)
+      }else{
+        distance = getFallbackLocalScore(startAddress, trip.pickup)
+      }
+
       const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
       const score = distance + conflictPenalty
 
@@ -711,7 +764,11 @@ async function focusDriver(id){
   const stops = getStops(trip)
   const points = []
 
-  const pickup = trip._geoPickup || await geocode(trip.pickup)
+  let pickup = trip._geoPickup
+  if(!pickup && trip.pickup){
+    pickup = await geocode(trip.pickup)
+    trip._geoPickup = pickup
+  }
   if(pickup) points.push({ ...pickup, label: "Pickup" })
 
   for(const s of stops){
@@ -719,11 +776,15 @@ async function focusDriver(id){
     if(g) points.push({ ...g, label: "Stop" })
   }
 
-  const dropoff = trip._geoDropoff || await geocode(trip.dropoff)
+  let dropoff = trip._geoDropoff
+  if(!dropoff && trip.dropoff){
+    dropoff = await geocode(trip.dropoff)
+    trip._geoDropoff = dropoff
+  }
   if(dropoff) points.push({ ...dropoff, label: "Dropoff" })
 
   if(points.length < 2){
-    showToast("Not enough route points")
+    showToast("Route not available")
     return
   }
 
