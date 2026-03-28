@@ -1,3 +1,35 @@
+/* ================= STYLE (AUTO INJECT) ================= */
+
+(function(){
+  const style=document.createElement("style")
+  style.innerHTML=`
+  .suggestions{
+    position:absolute;
+    background:#fff;
+    border:1px solid #ccc;
+    width:100%;
+    z-index:1000;
+    max-height:150px;
+    overflow:auto;
+    border-radius:6px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+  }
+
+  .suggestion-item{
+    padding:8px;
+    cursor:pointer;
+    font-size:13px;
+  }
+
+  .suggestion-item:hover{
+    background:#f1f5f9;
+  }
+  `
+  document.head.appendChild(style)
+})()
+
+/* ================= API ================= */
+
 const API_DRIVERS="/api/drivers"
 const API_SCHEDULE="/api/driver-schedule"
 
@@ -6,39 +38,14 @@ let drivers=[]
 
 const tbody=document.getElementById("tbody")
 
-/* ================= GEO ================= */
-async function geocode(address){
-
-  try{
-
-    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
-
-    const res=await fetch(url,{
-      headers:{ "User-Agent":"sunbeam-app" }
-    })
-
-    const data=await res.json()
-
-    if(!data.length) return null
-
-    return {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon)
-    }
-
-  }catch(err){
-    console.log("GEOCODE ERROR",err)
-    return null
-  }
-
-}
-
 /* ================= AZ DATE ================= */
+
 function azDate(d=new Date()){
   return new Date(d.toLocaleString("en-US",{timeZone:"America/Phoenix"}))
 }
 
 /* ================= WEEK ================= */
+
 function buildWeek(){
 
   const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
@@ -68,7 +75,56 @@ function buildWeek(){
 
 const WEEK=buildWeek()
 
+/* ================= AUTOCOMPLETE ================= */
+
+let addressTimeout=null
+
+async function searchAddress(input){
+
+  const query=input.value.trim()
+  const box=input.parentElement.querySelector(".suggestions")
+
+  if(addressTimeout) clearTimeout(addressTimeout)
+
+  if(query.length<3){
+    box.innerHTML=""
+    return
+  }
+
+  addressTimeout=setTimeout(async ()=>{
+
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`)
+    const data=await res.json()
+
+    box.innerHTML=""
+
+    data.forEach(p=>{
+
+      const item=document.createElement("div")
+      item.className="suggestion-item"
+      item.innerText=p.display_name
+
+      item.onclick=()=>{
+        input.value=p.display_name
+
+        const id=input.dataset.id
+
+        schedule[id].address=p.display_name
+        schedule[id].lat=parseFloat(p.lat)
+        schedule[id].lng=parseFloat(p.lon)
+
+        box.innerHTML=""
+      }
+
+      box.appendChild(item)
+
+    })
+
+  },300)
+}
+
 /* ================= LOAD ================= */
+
 async function loadDrivers(){
   const res=await fetch(API_DRIVERS)
   const data=await res.json()
@@ -81,6 +137,7 @@ async function loadSchedule(){
 }
 
 /* ================= SAVE ================= */
+
 async function save(){
 
   const clean={}
@@ -107,7 +164,25 @@ async function save(){
 
 }
 
+/* ================= ACTIVE CHECK ================= */
+
+function isDriverWorkingToday(id){
+
+  const s=schedule[id]
+  if(!s) return false
+
+  if(s.enabled!==true) return false
+
+  const today=azDate()
+  const key=today.toLocaleDateString("en-CA",{timeZone:"America/Phoenix"})
+
+  if(!s.days || !s.days[key]) return false
+
+  return true
+}
+
 /* ================= RENDER ================= */
+
 function render(){
 
   tbody.innerHTML=""
@@ -133,7 +208,6 @@ function render(){
 
     const tr=document.createElement("tr")
 
-    // 🔥 صف باهت لو OFF
     if(!s.enabled){
       tr.style.opacity="0.4"
     }
@@ -156,10 +230,12 @@ ${(!s.edit || !s.enabled)?"disabled":""}
 oninput="schedule['${id}'].phone=this.value">
 </td>
 
-<td>
+<td style="position:relative;">
 <input value="${s.address||""}"
+data-id="${id}"
 ${(!s.edit || !s.enabled)?"disabled":""}
-oninput="schedule['${id}'].address=this.value">
+oninput="searchAddress(this)">
+<div class="suggestions"></div>
 </td>
 
 <td>
@@ -176,8 +252,8 @@ onclick="squareToggle('${id}','${w.key}',this)">
 </div>
 </td>
 
-<td style="font-weight:bold;color:${s.enabled?'#16a34a':'#dc2626'}">
-${s.enabled?'ACTIVE':'OFF'}
+<td style="font-weight:bold;color:${isDriverWorkingToday(id)?'#16a34a':'#dc2626'}">
+${isDriverWorkingToday(id)?'ACTIVE':'OFF'}
 </td>
 
 <td>
@@ -211,29 +287,9 @@ function editDriver(id){
 }
 
 async function saveDriver(id){
-
-  const s=schedule[id]
-
-  // 🔥 تحويل العنوان لاحداثيات
-  if(s.address){
-
-    const geo=await geocode(s.address)
-
-    if(geo){
-      s.lat=geo.lat
-      s.lng=geo.lng
-    }else{
-      alert("Address not valid ❌")
-      return
-    }
-
-  }
-
-  s.edit=false
-
+  schedule[id].edit=false
   await save()
   render()
-
 }
 
 async function toggleEnable(id){
@@ -254,6 +310,7 @@ function squareToggle(id,key,el){
 }
 
 /* ================= INIT ================= */
+
 async function init(){
   await loadDrivers()
   await loadSchedule()
