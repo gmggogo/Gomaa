@@ -168,11 +168,11 @@ function sortTrips(){
 
 function normalizeDateKey(dateStr){
   if(!dateStr) return ""
+
   const d = new Date(dateStr)
   if(isNaN(d.getTime())) return ""
-  const m = d.getMonth() + 1
-  const day = d.getDate()
-  return `${m}/${day}`
+
+  return d.toLocaleDateString("en-CA")
 }
 
 /* ================= TIME / CURRENT ================= */
@@ -213,7 +213,6 @@ function getCurrentTrips(){
 
     const diffMin = Math.round((Date.now() - ts) / 60000)
 
-    // للـ map/panel فقط: الرحلة المستقبلية أو الحالية قبل الوقت
     return diffMin < 0
   })
 }
@@ -230,13 +229,24 @@ function isDriverActiveOnDate(driverId, tripDate){
   const days = s.days || {}
   const key = normalizeDateKey(tripDate)
 
-  if(!days[key]) return false
-
-  return true
+  return !!days[key]
 }
 
 function getValidDriversForTrip(trip){
-  return drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
+  let valid = drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
+
+  if(!valid.length){
+    valid = drivers.filter(d => {
+      const s = schedule[String(d._id)]
+      return s ? s.enabled !== false : true
+    })
+  }
+
+  if(!valid.length){
+    valid = drivers
+  }
+
+  return valid
 }
 
 function getActiveDriversForPanel(){
@@ -460,14 +470,12 @@ async function autoAssign(){
   const load = {}
   drivers.forEach(d => load[d._id] = 0)
 
-  // حساب الرحلات المانول فقط كحمل
   trips.forEach(t => {
     if(t.manual === true && t.driverId){
       load[String(t.driverId)] = (load[String(t.driverId)] || 0) + 1
     }
   })
 
-  // امسح الأوتوماتيك فقط
   trips.forEach(t => {
     if(t.manual !== true){
       t.driverId = ""
@@ -482,7 +490,6 @@ async function autoAssign(){
     if(trip.manual === true && trip.driverId) continue
 
     const validDrivers = getValidDriversForTrip(trip)
-
     if(!validDrivers.length) continue
 
     let bestDriver = null
@@ -590,8 +597,12 @@ function renderTrips(){
     const status = getTripStatus(t)
     if(status === "hide") return
 
+    let validDrivers = getValidDriversForTrip(t)
+    if(!validDrivers.length){
+      validDrivers = drivers
+    }
+
     const stops = getStops(t)
-    const validDrivers = getValidDriversForTrip(t)
 
     body.innerHTML += `
       <tr class="trip-row ${status}">
