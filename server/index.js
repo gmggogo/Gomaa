@@ -112,6 +112,10 @@ const driverScheduleSchema = new mongoose.Schema({
 
   phone: { type: String, default: "" },
   address: { type: String, default: "" },
+
+  lat: { type: Number, default: null },
+  lng: { type: Number, default: null },
+
   vehicleNumber: { type: String, default: "" },
 
   enabled: { type: Boolean, default: true },
@@ -240,10 +244,13 @@ app.get("/api/driver-schedule", async (req, res) => {
 
     for (const r of rows) {
       const id = String(r.driverId || "").trim();
+      if (!id) continue;
 
       result[id] = {
         phone: r.phone || "",
         address: r.address || "",
+        lat: r.lat ?? null,
+        lng: r.lng ?? null,
         vehicleNumber: r.vehicleNumber || "",
         enabled: r.enabled === true,
         days: r.days || {}
@@ -263,6 +270,8 @@ app.post("/api/driver-schedule", async (req, res) => {
 
     for (const id in data) {
       const safeId = String(id || "").trim();
+      if (!safeId) continue;
+
       const s = data[id] || {};
 
       await DriverSchedule.findOneAndUpdate(
@@ -271,6 +280,8 @@ app.post("/api/driver-schedule", async (req, res) => {
           driverId: safeId,
           phone: s.phone || "",
           address: s.address || "",
+          lat: s.lat != null && s.lat !== "" ? Number(s.lat) : null,
+          lng: s.lng != null && s.lng !== "" ? Number(s.lng) : null,
           vehicleNumber: s.vehicleNumber || "",
           enabled: typeof s.enabled === "boolean" ? s.enabled : true,
           days: s.days || {}
@@ -691,12 +702,13 @@ app.get("/api/dispatch", async (req, res) => {
 
     for (const r of scheduleRows) {
       const id = String(r.driverId || "").trim();
-
       if (!id) continue;
 
       schedule[id] = {
         phone: r.phone || "",
         address: r.address || "",
+        lat: r.lat ?? null,
+        lng: r.lng ?? null,
         vehicleNumber: r.vehicleNumber || "",
         enabled: r.enabled === true,
         days: r.days || {}
@@ -719,6 +731,8 @@ app.get("/api/dispatch", async (req, res) => {
           (s.address && s.address.trim() !== "")
             ? s.address
             : (driver.address || ""),
+        lat: s.lat ?? null,
+        lng: s.lng ?? null,
         vehicleNumber:
           (s.vehicleNumber && s.vehicleNumber.trim() !== "")
             ? s.vehicleNumber
