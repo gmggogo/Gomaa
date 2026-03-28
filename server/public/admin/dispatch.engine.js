@@ -216,9 +216,11 @@ function isDriverActiveOnDate(driverId, tripDate){
   if(!tripDate) return false
 
   const days = s.days || {}
-  const key = normalizeDateKey(tripDate)
+  const key1 = normalizeDateKey(tripDate)
+  const key2 = new Date(tripDate).toLocaleDateString()
+  const key3 = new Date(tripDate).toLocaleDateString("en-US")
 
-  return !!days[key]
+  return !!(days[key1] || days[key2] || days[key3])
 }
 
 function getValidDriversForTrip(trip){
@@ -323,28 +325,6 @@ function getDriverDayHomeAddress(driver){
     driver.address ||
     ""
   )
-}
-
-function getPreviousAssignedTripForDriver(driverId, currentTrip){
-  const currentTs = getTripDateTimeValue(currentTrip)
-
-  const sameDriverTrips = trips
-    .filter(t =>
-      String(t.driverId || "") === String(driverId) &&
-      String(t._id || "") !== String(currentTrip?._id || "")
-    )
-    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
-
-  let previousTrip = null
-
-  for(const t of sameDriverTrips){
-    const ts = getTripDateTimeValue(t)
-    if(ts && currentTs && ts < currentTs){
-      previousTrip = t
-    }
-  }
-
-  return previousTrip
 }
 
 /* ================= GEO / FREE MAP ================= */
@@ -473,18 +453,26 @@ async function autoAssign(){
   sortTrips()
 
   const load = {}
-  drivers.forEach(d => load[d._id] = 0)
+  const lastLocation = {}
 
-  // احسب اليدوي
+  // initialize
+  drivers.forEach(d => {
+    load[d._id] = 0
+    lastLocation[d._id] = d._geoHome || null
+  })
+
+  // manual trips
   trips.forEach(t => {
-    if(t.manual === true && t.driverId){
-      load[String(t.driverId)] = (load[String(t.driverId)] || 0) + 1
+    if(t.manual && t.driverId){
+      const id = String(t.driverId)
+      load[id] = (load[id] || 0) + 1
+      lastLocation[id] = t._geoDropoff || lastLocation[id]
     }
   })
 
-  // امسح التوزيع الأوتوماتيك فقط
+  // clear auto only
   trips.forEach(t => {
-    if(t.manual !== true){
+    if(!t.manual){
       t.driverId = ""
       t.vehicle = ""
     }
@@ -494,80 +482,45 @@ async function autoAssign(){
 
   for(const trip of trips){
 
-    if(trip.manual === true && trip.driverId) continue
+    if(trip.manual && trip.driverId) continue
 
     const validDrivers = getValidDriversForTrip(trip)
     if(!validDrivers.length) continue
 
+    // الدورة الحالية = أقل عدد رحلات عند السواقين المتاحين
+    const minLoad = Math.min(...validDrivers.map(d => load[d._id] || 0))
+
+    // السواقين اللي لسه في نفس الدورة فقط
+    const roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
+
     let bestDriver = null
     let bestScore = Infinity
 
-    for(const driver of validDrivers){
+    for(const driver of roundDrivers){
 
-      const firstRound = (load[driver._id] || 0) === 0
-
-      let startAddress = ""
       let startPoint = null
-      let distanceScore = 999999
+      let startAddress = ""
 
-      if(firstRound){
-        // أول رحلة: من عنوان السواق فقط
+      // الدورة الأولى: من عنوان السواق
+      if(minLoad === 0){
+        startPoint = driver._geoHome
         startAddress = getDriverDayHomeAddress(driver)
-        startPoint = driver._geoHome || null
-
-        if(startPoint && trip._geoPickup){
-          distanceScore = fastDistance(startPoint, trip._geoPickup)
-        }else{
-          distanceScore = getFallbackLocalScore(startAddress, trip.pickup)
-        }
-
-        let firstRoundBoost = 0
-
-        // لو نفس العنوان تقريبًا
-        if(normalizeText(startAddress) === normalizeText(trip.pickup)){
-          firstRoundBoost -= 1000
-        }
-
-        // لو قريب جدًا
-        if(startPoint && trip._geoPickup && distanceScore < 0.002){
-          firstRoundBoost -= 500
-        }
-
-        // أول راوند يعتمد على القرب فقط تقريبًا
-        const firstRoundScore = distanceScore + firstRoundBoost
-
-        if(firstRoundScore < bestScore){
-          bestScore = firstRoundScore
-          bestDriver = driver
-        }
-
-        continue
-      }
-
-      // باقي الرحلات: من آخر dropoff
-      const previousTrip = getPreviousAssignedTripForDriver(driver._id, trip)
-
-      if(previousTrip && previousTrip._geoDropoff){
-        startAddress = previousTrip.dropoff || ""
-        startPoint = previousTrip._geoDropoff
       }else{
-        startAddress = getDriverDayHomeAddress(driver)
-        startPoint = driver._geoHome || null
+        // باقي الدورات: من آخر dropoff
+        startPoint = lastLocation[driver._id]
+        startAddress = ""
       }
+
+      let distance = 9999
 
       if(startPoint && trip._geoPickup){
-        distanceScore = fastDistance(startPoint, trip._geoPickup)
+        distance = fastDistance(startPoint, trip._geoPickup)
       }else{
-        distanceScore = getFallbackLocalScore(startAddress, trip.pickup)
+        distance = getFallbackLocalScore(startAddress, trip.pickup)
       }
 
       const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
-      const loadPenalty = (load[driver._id] || 0) * 0.1
-
-      const score =
-        distanceScore +
-        loadPenalty +
-        conflictPenalty
+      const score = distance + conflictPenalty
 
       if(score < bestScore){
         bestScore = score
@@ -576,17 +529,21 @@ async function autoAssign(){
     }
 
     if(bestDriver){
-      trip.driverId = String(bestDriver._id)
-      trip.vehicle = getDriverCar(bestDriver._id)
-      load[bestDriver._id] = (load[bestDriver._id] || 0) + 1
+      const id = bestDriver._id
 
-      if(selectedTripIndexPerDriver[String(bestDriver._id)] == null){
-        selectedTripIndexPerDriver[String(bestDriver._id)] = 0
+      trip.driverId = id
+      trip.vehicle = getDriverCar(id)
+
+      load[id]++
+      lastLocation[id] = trip._geoDropoff || lastLocation[id]
+
+      if(selectedTripIndexPerDriver[id] == null){
+        selectedTripIndexPerDriver[id] = 0
       }
     }
   }
 
-  console.log("AUTO ASSIGN LOAD:", load)
+  console.log("FINAL DISTRIBUTION:", load)
 }
 
 /* ================= RENDER TRIPS ================= */
