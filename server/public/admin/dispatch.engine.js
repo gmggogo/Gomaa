@@ -183,7 +183,7 @@ function getTripStatus(t){
 
   const diffMin = Math.round((Date.now() - ts) / 60000)
 
-  if(diffMin >= 60){
+  if(diffMin >= 120){
     return "hide"
   }
 
@@ -233,19 +233,7 @@ function isDriverActiveOnDate(driverId, tripDate){
 }
 
 function getValidDriversForTrip(trip){
-  let valid = drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
-
-  if(!valid.length){
-    valid = drivers.filter(d => {
-      const s = schedule[String(d._id)]
-      return s ? s.enabled !== false : true
-    })
-  }
-
-  if(!valid.length){
-    valid = drivers
-  }
-
+  const valid = drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
   return valid
 }
 
@@ -339,16 +327,6 @@ function getPreviousAssignedTripForDriver(driverId, currentTrip){
   }
 
   return previousTrip
-}
-
-function getSmartStartAddress(driver, currentTrip){
-  const previousTrip = getPreviousAssignedTripForDriver(driver._id, currentTrip)
-
-  if(previousTrip && previousTrip.dropoff){
-    return previousTrip.dropoff
-  }
-
-  return getDriverDayHomeAddress(driver)
 }
 
 /* ================= GEO ================= */
@@ -470,12 +448,14 @@ async function autoAssign(){
   const load = {}
   drivers.forEach(d => load[d._id] = 0)
 
+  // نحسب الحمل الحالي للمانوال فقط
   trips.forEach(t => {
     if(t.manual === true && t.driverId){
       load[String(t.driverId)] = (load[String(t.driverId)] || 0) + 1
     }
   })
 
+  // امسح الأوتوماتيك فقط
   trips.forEach(t => {
     if(t.manual !== true){
       t.driverId = ""
@@ -497,15 +477,26 @@ async function autoAssign(){
 
     for(const driver of validDrivers){
 
-      const previousTrip = getPreviousAssignedTripForDriver(driver._id, trip)
-      const startAddress = previousTrip?.dropoff || getDriverDayHomeAddress(driver)
+      const firstRound = (load[driver._id] || 0) === 0
 
+      let startAddress = ""
       let startPoint = null
 
-      if(previousTrip && previousTrip._geoDropoff){
-        startPoint = previousTrip._geoDropoff
-      }else{
+      if(firstRound){
+        // أول راوند: من عنوان السواق
+        startAddress = getDriverDayHomeAddress(driver)
         startPoint = driver._geoHome || null
+      }else{
+        // بعد كده: من آخر dropoff
+        const previousTrip = getPreviousAssignedTripForDriver(driver._id, trip)
+
+        if(previousTrip && previousTrip._geoDropoff){
+          startAddress = previousTrip.dropoff || ""
+          startPoint = previousTrip._geoDropoff
+        }else{
+          startAddress = getDriverDayHomeAddress(driver)
+          startPoint = driver._geoHome || null
+        }
       }
 
       const pickupPoint = trip._geoPickup || null
@@ -518,49 +509,38 @@ async function autoAssign(){
         distanceScore = getFallbackLocalScore(startAddress, trip.pickup)
       }
 
+      // أقرب جدًا للبيك ياخد أولوية قوية
+      let boost = 0
+      if(startPoint && pickupPoint && distanceScore < 0.0005){
+        boost -= 500
+      }
+
       const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
 
       let timingPenalty = 0
-      if(previousTrip){
-        const prevTs = getTripDateTimeValue(previousTrip)
-        const tripTs = getTripDateTimeValue(trip)
-        const gapMin = Math.round((tripTs - prevTs) / 60000)
+      if(!firstRound){
+        const previousTrip = getPreviousAssignedTripForDriver(driver._id, trip)
 
-        const estTravelMin = estimateTravelMinutesByScore(
-          startPoint && pickupPoint
-            ? Math.min(distanceScore * 1000, 50)
-            : distanceScore
-        )
+        if(previousTrip){
+          const prevTs = getTripDateTimeValue(previousTrip)
+          const tripTs = getTripDateTimeValue(trip)
+          const gapMin = Math.round((tripTs - prevTs) / 60000)
 
-        const minNeeded = estTravelMin + 20
+          const estTravelMin = estimateTravelMinutesByScore(
+            startPoint && pickupPoint
+              ? Math.min(distanceScore * 1000, 50)
+              : distanceScore
+          )
 
-        if(gapMin < minNeeded){
-          timingPenalty = 50000
+          const minNeeded = estTravelMin + 20
+
+          if(gapMin < minNeeded){
+            timingPenalty = 50000
+          }
         }
       }
 
       const loadPenalty = (load[driver._id] || 0) * 500
-
-      let boost = 0
-      const startText = normalizeText(startAddress)
-      const pickupText = normalizeText(trip.pickup)
-
-      if(startText && pickupText){
-        if(startText.includes(pickupText) || pickupText.includes(startText)){
-          boost -= 100
-        }
-
-        const importantWords = [
-          "knox","main","broadway","university","apache","dobson",
-          "alma school","rural","baseline","ray","warner","arizona"
-        ]
-
-        for(const w of importantWords){
-          if(startText.includes(w) && pickupText.includes(w)){
-            boost -= 25
-          }
-        }
-      }
 
       const finalScore =
         (distanceScore * 1000) +
@@ -597,11 +577,7 @@ function renderTrips(){
     const status = getTripStatus(t)
     if(status === "hide") return
 
-    let validDrivers = getValidDriversForTrip(t)
-    if(!validDrivers.length){
-      validDrivers = drivers
-    }
-
+    const validDrivers = getValidDriversForTrip(t)
     const stops = getStops(t)
 
     body.innerHTML += `
