@@ -9,6 +9,7 @@ let geoCache = {}
 let editMode = false
 let allSelected = false
 let selectedDriverId = null
+let selectedTripIndexPerDriver = {}
 
 /* ================= INIT ================= */
 
@@ -233,8 +234,7 @@ function isDriverActiveOnDate(driverId, tripDate){
 }
 
 function getValidDriversForTrip(trip){
-  const valid = drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
-  return valid
+  return drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
 }
 
 function getActiveDriversForPanel(){
@@ -247,21 +247,38 @@ function getActiveDriversForPanel(){
 
 /* ================= DRIVER TRIPS / STATUS ================= */
 
+function getCurrentDriverTrips(driverId){
+  return getCurrentTrips()
+    .filter(t => String(t.driverId || "") === String(driverId))
+    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+}
+
+function getDriverTripsAll(driverId){
+  return trips
+    .filter(t => String(t.driverId || "") === String(driverId))
+    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+}
+
 function getDriverTripsCount(driverId){
-  return getCurrentTrips().filter(t =>
-    String(t.driverId || "") === String(driverId)
-  ).length
+  return getCurrentDriverTrips(driverId).length
 }
 
 function getLatestTripForDriver(driverId){
-  const driverTrips = getCurrentTrips().filter(t =>
-    String(t.driverId || "") === String(driverId)
-  )
+  const driverTrips = getCurrentDriverTrips(driverId)
+  if(!driverTrips.length) return null
+  return driverTrips[driverTrips.length - 1]
+}
 
+function getSelectedTripForDriver(driverId){
+  const driverTrips = getCurrentDriverTrips(driverId)
   if(!driverTrips.length) return null
 
-  driverTrips.sort((a,b)=> getTripDateTimeValue(b) - getTripDateTimeValue(a))
-  return driverTrips[0]
+  let idx = Number(selectedTripIndexPerDriver[String(driverId)] || 0)
+  if(Number.isNaN(idx) || idx < 0) idx = 0
+  if(idx >= driverTrips.length) idx = 0
+
+  selectedTripIndexPerDriver[String(driverId)] = idx
+  return driverTrips[idx]
 }
 
 function getDriverStatus(driverId){
@@ -329,6 +346,11 @@ function getPreviousAssignedTripForDriver(driverId, currentTrip){
   return previousTrip
 }
 
+function getFirstAssignedTripForDriver(driverId){
+  const driverTrips = getDriverTripsAll(driverId)
+  return driverTrips.length ? driverTrips[0] : null
+}
+
 /* ================= GEO ================= */
 
 async function geocode(addr){
@@ -374,6 +396,15 @@ async function prepareGeo(){
 
     if(t.dropoff && !t._geoDropoff){
       t._geoDropoff = await geocode(t.dropoff)
+    }
+
+    const stops = getStops(t)
+    if(stops.length && !t._geoStops){
+      t._geoStops = []
+      for(const s of stops){
+        const g = await geocode(s)
+        if(g) t._geoStops.push(g)
+      }
     }
   }
 }
@@ -448,14 +479,12 @@ async function autoAssign(){
   const load = {}
   drivers.forEach(d => load[d._id] = 0)
 
-  // نحسب الحمل الحالي للمانوال فقط
   trips.forEach(t => {
     if(t.manual === true && t.driverId){
       load[String(t.driverId)] = (load[String(t.driverId)] || 0) + 1
     }
   })
 
-  // امسح الأوتوماتيك فقط
   trips.forEach(t => {
     if(t.manual !== true){
       t.driverId = ""
@@ -483,11 +512,11 @@ async function autoAssign(){
       let startPoint = null
 
       if(firstRound){
-        // أول راوند: من عنوان السواق
+        // أول رحلة: من عنوان السواق
         startAddress = getDriverDayHomeAddress(driver)
         startPoint = driver._geoHome || null
       }else{
-        // بعد كده: من آخر dropoff
+        // باقي الرحلات: من آخر Dropoff
         const previousTrip = getPreviousAssignedTripForDriver(driver._id, trip)
 
         if(previousTrip && previousTrip._geoDropoff){
@@ -509,9 +538,10 @@ async function autoAssign(){
         distanceScore = getFallbackLocalScore(startAddress, trip.pickup)
       }
 
-      // أقرب جدًا للبيك ياخد أولوية قوية
       let boost = 0
-      if(startPoint && pickupPoint && distanceScore < 0.0005){
+
+      // لو أول رحلة وقريب جدًا من البيك
+      if(firstRound && startPoint && pickupPoint && distanceScore < 0.0005){
         boost -= 500
       }
 
@@ -559,6 +589,11 @@ async function autoAssign(){
       trip.driverId = String(bestDriver._id)
       trip.vehicle = getDriverCar(bestDriver._id)
       load[bestDriver._id] = (load[bestDriver._id] || 0) + 1
+
+      // أول ما السواق ياخد رحلة، خليه يبتدي من أول رحلة في الـ panel
+      if(selectedTripIndexPerDriver[String(bestDriver._id)] == null){
+        selectedTripIndexPerDriver[String(bestDriver._id)] = 0
+      }
     }
   }
 
@@ -675,12 +710,19 @@ async function getRoute(points){
   }
 }
 
-/* ================= DRIVER CLICK ================= */
+/* ================= DRIVER CLICK / TRIP PICKER ================= */
+
+function changeDriverTrip(driverId, index){
+  selectedTripIndexPerDriver[String(driverId)] = Number(index) || 0
+  selectedDriverId = String(driverId)
+  renderDrivers()
+  focusDriver(driverId)
+}
 
 async function focusDriver(id){
   if(!map) return
 
-  const trip = getLatestTripForDriver(id)
+  const trip = getSelectedTripForDriver(id)
 
   if(!trip){
     showToast("No current trip assigned to this driver")
@@ -750,10 +792,17 @@ function renderDrivers(){
 
   activeDrivers.forEach((d, i) => {
     const car = getDriverCar(d._id)
-    const trip = getLatestTripForDriver(d._id)
     const tripsCount = getDriverTripsCount(d._id)
     const status = getDriverStatus(d._id)
     const statusClass = status === "Busy" ? "badge-busy" : "badge-available"
+    const tripList = getCurrentDriverTrips(d._id)
+
+    let selectedIdx = Number(selectedTripIndexPerDriver[String(d._id)] || 0)
+    if(Number.isNaN(selectedIdx) || selectedIdx < 0) selectedIdx = 0
+    if(selectedIdx >= tripList.length) selectedIdx = 0
+    selectedTripIndexPerDriver[String(d._id)] = selectedIdx
+
+    const selectedTrip = tripList[selectedIdx] || null
 
     panel.innerHTML += `
       <div class="driver ${selectedDriverId === d._id ? "active" : ""}" data-id="${escapeHtml(d._id)}">
@@ -763,13 +812,23 @@ function renderDrivers(){
           <div class="driver-right">
             <div class="driver-info">
               <span>🚗 ${escapeHtml(car || "-")}</span>
-              <span>📦 ${escapeHtml(trip ? (trip.tripNumber || "-") : "-")}</span>
+              <span>📦 ${escapeHtml(selectedTrip ? (selectedTrip.tripNumber || "-") : "-")}</span>
             </div>
 
             <div class="driver-meta">
               <span class="badge ${statusClass}">${escapeHtml(status)}</span>
               <span class="badge badge-count">${tripsCount} Trip${tripsCount === 1 ? "" : "s"}</span>
               <span class="badge badge-trip">ETA Map</span>
+            </div>
+
+            <div class="driver-trip-picker" style="margin-top:6px;">
+              <select onchange="changeDriverTrip('${escapeHtml(d._id)}', this.value)" onclick="event.stopPropagation()">
+                ${tripList.map((t, idx) => `
+                  <option value="${idx}" ${idx === selectedIdx ? "selected" : ""}>
+                    Trip ${idx + 1}${t.tripNumber ? ` - ${escapeHtml(t.tripNumber)}` : ""}
+                  </option>
+                `).join("")}
+              </select>
             </div>
           </div>
         </div>
@@ -840,6 +899,10 @@ function assignDriver(i, id){
   trips[i].driverId = id ? String(id) : ""
   trips[i].vehicle = d ? getDriverCar(d._id) : ""
   trips[i].manual = !!id
+
+  if(id && selectedTripIndexPerDriver[String(id)] == null){
+    selectedTripIndexPerDriver[String(id)] = 0
+  }
 
   const carCell = document.getElementById(`car-${i}`)
   if(carCell){
@@ -924,6 +987,7 @@ window.sendSelected = sendSelected
 window.sendOne = sendOne
 window.redistribute = redistribute
 window.focusDriver = focusDriver
+window.changeDriverTrip = changeDriverTrip
 
 window.Engine = {
   toggleSelect,
