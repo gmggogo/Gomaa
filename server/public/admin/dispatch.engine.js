@@ -455,28 +455,42 @@ async function autoAssign(){
   const load = {}
   const lastLocation = {}
 
-  // initialize
-  drivers.forEach(d => {
+  // initialize drivers
+  for(const d of drivers){
     load[d._id] = 0
-    lastLocation[d._id] = d._geoHome || null
-  })
 
-  // manual trips
-  trips.forEach(t => {
+    if(!d._geoHome){
+      const addr = getDriverDayHomeAddress(d)
+      if(addr){
+        d._geoHome = await geocode(addr)
+      }
+    }
+
+    lastLocation[d._id] = d._geoHome || null
+  }
+
+  // register manual trips first
+  for(const t of trips){
     if(t.manual && t.driverId){
       const id = String(t.driverId)
+
       load[id] = (load[id] || 0) + 1
+
+      if(!t._geoDropoff && t.dropoff){
+        t._geoDropoff = await geocode(t.dropoff)
+      }
+
       lastLocation[id] = t._geoDropoff || lastLocation[id]
     }
-  })
+  }
 
-  // clear auto only
-  trips.forEach(t => {
+  // clear only auto assigned trips
+  for(const t of trips){
     if(!t.manual){
       t.driverId = ""
       t.vehicle = ""
     }
-  })
+  }
 
   sortTrips()
 
@@ -484,13 +498,18 @@ async function autoAssign(){
 
     if(trip.manual && trip.driverId) continue
 
+    if(!trip._geoPickup && trip.pickup){
+      trip._geoPickup = await geocode(trip.pickup)
+    }
+
+    if(!trip._geoDropoff && trip.dropoff){
+      trip._geoDropoff = await geocode(trip.dropoff)
+    }
+
     const validDrivers = getValidDriversForTrip(trip)
     if(!validDrivers.length) continue
 
-    // الدورة الحالية = أقل عدد رحلات عند السواقين المتاحين
     const minLoad = Math.min(...validDrivers.map(d => load[d._id] || 0))
-
-    // السواقين اللي لسه في نفس الدورة فقط
     const roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
 
     let bestDriver = null
@@ -501,17 +520,21 @@ async function autoAssign(){
       let startPoint = null
       let startAddress = ""
 
-      // الدورة الأولى: من عنوان السواق
-      if(minLoad === 0){
-        startPoint = driver._geoHome
+      // first round -> from driver home
+      if((load[driver._id] || 0) === 0){
         startAddress = getDriverDayHomeAddress(driver)
+        startPoint = driver._geoHome || null
+
+        if(!startPoint && startAddress){
+          startPoint = await geocode(startAddress)
+          driver._geoHome = startPoint
+        }
       }else{
-        // باقي الدورات: من آخر dropoff
-        startPoint = lastLocation[driver._id]
-        startAddress = ""
+        // next rounds -> from last dropoff for that driver
+        startPoint = lastLocation[driver._id] || null
       }
 
-      let distance = 9999
+      let distance = 999999
 
       if(startPoint && trip._geoPickup){
         distance = fastDistance(startPoint, trip._geoPickup)
@@ -534,7 +557,7 @@ async function autoAssign(){
       trip.driverId = id
       trip.vehicle = getDriverCar(id)
 
-      load[id]++
+      load[id] = (load[id] || 0) + 1
       lastLocation[id] = trip._geoDropoff || lastLocation[id]
 
       if(selectedTripIndexPerDriver[id] == null){
