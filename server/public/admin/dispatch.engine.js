@@ -3,8 +3,11 @@
 let trips = []
 let drivers = []
 let schedule = {}
+
 let map = null
 let markers = []
+let routeLayer = null
+
 let geoCache = {}
 let editMode = false
 let allSelected = false
@@ -45,7 +48,7 @@ async function init(){
         selected: false,
         driverId: t.driverId ? String(t.driverId) : "",
         vehicle: t.vehicle || "",
-        manual: t.manual === true
+        manual: !!t.driverId || t.manual === true
       }))
 
     schedule = scheduleRaw || {}
@@ -103,20 +106,6 @@ function showToast(msg){
   showToast._timer = setTimeout(() => toast.classList.remove("show"), 1800)
 }
 
-function getStops(t){
-  if (Array.isArray(t.stops)) return t.stops.filter(Boolean)
-  if (Array.isArray(t.stopAddresses)) return t.stopAddresses.filter(Boolean)
-  if (Array.isArray(t.extraStops)) return t.extraStops.filter(Boolean)
-  if (typeof t.stop === "string" && t.stop.trim()) return [t.stop.trim()]
-  return []
-}
-
-function getDriverCar(id){
-  const s = schedule[String(id)]
-  if (!s) return ""
-  return s.carNumber || s.vehicleNumber || s.car || ""
-}
-
 function escapeHtml(value){
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -130,19 +119,18 @@ function normalizeText(s){
   return String(s || "").trim().toLowerCase()
 }
 
-function syncSelectButtonText(){
-  const visibleTrips = getVisibleTrips()
-  const selectedCount = visibleTrips.filter(t => t.selected).length
-  const btn = document.getElementById("selectBtn")
-  if(!btn) return
+function getStops(t){
+  if(Array.isArray(t.stops)) return t.stops.filter(Boolean)
+  if(Array.isArray(t.stopAddresses)) return t.stopAddresses.filter(Boolean)
+  if(Array.isArray(t.extraStops)) return t.extraStops.filter(Boolean)
+  if(typeof t.stop === "string" && t.stop.trim()) return [t.stop.trim()]
+  return []
+}
 
-  if(visibleTrips.length && selectedCount === visibleTrips.length){
-    allSelected = true
-    btn.innerText = "Remove All"
-  }else{
-    allSelected = false
-    btn.innerText = "Select All"
-  }
+function getDriverCar(id){
+  const s = schedule[String(id)]
+  if(!s) return ""
+  return s.carNumber || s.vehicleNumber || s.car || ""
 }
 
 function getTripDateTimeValue(t){
@@ -174,6 +162,21 @@ function normalizeDateKey(dateStr){
   return d.toLocaleDateString("en-CA")
 }
 
+function syncSelectButtonText(){
+  const visibleTrips = getVisibleTrips()
+  const selectedCount = visibleTrips.filter(t => t.selected).length
+  const btn = document.getElementById("selectBtn")
+  if(!btn) return
+
+  if(visibleTrips.length && selectedCount === visibleTrips.length){
+    allSelected = true
+    btn.innerText = "Remove All"
+  }else{
+    allSelected = false
+    btn.innerText = "Select All"
+  }
+}
+
 /* ================= TIME / CURRENT ================= */
 
 function getTripStatus(t){
@@ -182,21 +185,10 @@ function getTripStatus(t){
 
   const diffMin = Math.round((Date.now() - ts) / 60000)
 
-  if(diffMin >= 120){
-    return "hide"
-  }
-
-  if(diffMin >= 0){
-    return "expired"
-  }
-
-  if(diffMin >= -30){
-    return "trip-urgent"
-  }
-
-  if(diffMin >= -90){
-    return "trip-soon"
-  }
+  if(diffMin >= 120) return "hide"
+  if(diffMin >= 0) return "expired"
+  if(diffMin >= -30) return "trip-urgent"
+  if(diffMin >= -90) return "trip-soon"
 
   return ""
 }
@@ -209,7 +201,6 @@ function getCurrentTrips(){
   return trips.filter(t => {
     const ts = getTripDateTimeValue(t)
     if(!ts) return false
-
     const diffMin = Math.round((Date.now() - ts) / 60000)
     return diffMin < 0
   })
@@ -356,18 +347,26 @@ function getPreviousAssignedTripForDriver(driverId, currentTrip){
   return previousTrip
 }
 
-/* ================= GEO ================= */
+/* ================= GEO / FREE MAP ================= */
 
 async function geocode(addr){
   if(!addr) return null
 
-  const key = String(addr).trim().toLowerCase()
+  const key = normalizeText(addr)
   if(!key) return null
 
   if(geoCache[key]) return geoCache[key]
 
   try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(key)}&format=json&limit=1`)
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`,
+      {
+        headers: {
+          "Accept": "application/json"
+        }
+      }
+    )
+
     const data = await res.json()
 
     if(!Array.isArray(data) || !data.length) return null
@@ -418,9 +417,10 @@ async function prepareGeo(){
 
 function fastDistance(a, b){
   if(!a || !b) return 999999
+
   const dx = a.lat - b.lat
   const dy = a.lng - b.lng
-  return (dx * dx) + (dy * dy)
+  return Math.sqrt((dx * dx) + (dy * dy))
 }
 
 function getFallbackLocalScore(startAddress, pickupAddress){
@@ -465,15 +465,6 @@ function getFallbackLocalScore(startAddress, pickupAddress){
   return distanceScore
 }
 
-function estimateTravelMinutesByScore(score){
-  if(score <= 0) return 0
-  if(score === 1) return 8
-  if(score <= 5) return 15
-  if(score <= 15) return 22
-  if(score <= 30) return 30
-  return 45
-}
-
 /* ================= AUTO ASSIGN ================= */
 
 async function autoAssign(){
@@ -484,12 +475,14 @@ async function autoAssign(){
   const load = {}
   drivers.forEach(d => load[d._id] = 0)
 
+  // احسب اليدوي
   trips.forEach(t => {
     if(t.manual === true && t.driverId){
       load[String(t.driverId)] = (load[String(t.driverId)] || 0) + 1
     }
   })
 
+  // امسح التوزيع الأوتوماتيك فقط
   trips.forEach(t => {
     if(t.manual !== true){
       t.driverId = ""
@@ -529,11 +522,19 @@ async function autoAssign(){
         }
 
         let firstRoundBoost = 0
-        if(startPoint && trip._geoPickup && distanceScore < 0.0005){
+
+        // لو نفس العنوان تقريبًا
+        if(normalizeText(startAddress) === normalizeText(trip.pickup)){
           firstRoundBoost -= 1000
         }
 
-        const firstRoundScore = (distanceScore * 100000) + firstRoundBoost
+        // لو قريب جدًا
+        if(startPoint && trip._geoPickup && distanceScore < 0.002){
+          firstRoundBoost -= 500
+        }
+
+        // أول راوند يعتمد على القرب فقط تقريبًا
+        const firstRoundScore = distanceScore + firstRoundBoost
 
         if(firstRoundScore < bestScore){
           bestScore = firstRoundScore
@@ -543,6 +544,7 @@ async function autoAssign(){
         continue
       }
 
+      // باقي الرحلات: من آخر dropoff
       const previousTrip = getPreviousAssignedTripForDriver(driver._id, trip)
 
       if(previousTrip && previousTrip._geoDropoff){
@@ -560,33 +562,12 @@ async function autoAssign(){
       }
 
       const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
-
-      let timingPenalty = 0
-      if(previousTrip){
-        const prevTs = getTripDateTimeValue(previousTrip)
-        const tripTs = getTripDateTimeValue(trip)
-        const gapMin = Math.round((tripTs - prevTs) / 60000)
-
-        const estTravelMin = estimateTravelMinutesByScore(
-          startPoint && trip._geoPickup
-            ? Math.min(distanceScore * 1000, 50)
-            : distanceScore
-        )
-
-        const minNeeded = estTravelMin + 20
-
-        if(gapMin < minNeeded){
-          timingPenalty = 50000
-        }
-      }
-
-      const loadPenalty = (load[driver._id] || 0) * 500
+      const loadPenalty = (load[driver._id] || 0) * 0.1
 
       const score =
-        (distanceScore * 1000) +
+        distanceScore +
         loadPenalty +
-        conflictPenalty +
-        timingPenalty
+        conflictPenalty
 
       if(score < bestScore){
         bestScore = score
@@ -677,7 +658,8 @@ function initMap(){
   map = L.map("map").setView([33.4484, -112.0740], 10)
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
   }).addTo(map)
 
   setTimeout(() => {
@@ -686,21 +668,29 @@ function initMap(){
 }
 
 function clearMap(){
-  if(!map) return
   markers.forEach(m => {
     try{ map.removeLayer(m) }catch(e){}
   })
   markers = []
+
+  if(routeLayer){
+    try{ map.removeLayer(routeLayer) }catch(e){}
+    routeLayer = null
+  }
 }
 
-/* ================= ROUTE FOR MAP ONLY ================= */
+/* ================= ROUTE (OSRM) ================= */
 
 async function getRoute(points){
   if(points.length < 2) return null
 
   try{
     const coords = points.map(p => `${p.lng},${p.lat}`).join(";")
-    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
+
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    )
+
     const data = await res.json()
 
     if(!data.routes || !data.routes.length) return null
@@ -766,27 +756,21 @@ async function focusDriver(id){
   }
 
   points.forEach((p, idx) => {
-    const label =
-      idx === 0
-        ? "Pickup"
-        : idx === points.length - 1
-          ? "Dropoff"
-          : `Stop ${idx}`
-
-    const marker = L.marker([p.lat, p.lng]).addTo(map).bindPopup(label)
+    const marker = L.marker([p.lat, p.lng]).bindPopup(
+      idx === 0 ? "Pickup" : (idx === points.length - 1 ? "Dropoff" : `Stop ${idx}`)
+    )
+    marker.addTo(map)
     markers.push(marker)
   })
 
-  const line = L.polyline(route.coords, { color: "blue", weight: 5 }).addTo(map)
-  markers.push(line)
+  routeLayer = L.polyline(route.coords, {
+    color: "#2563eb",
+    weight: 5
+  }).addTo(map)
 
-  line.bindPopup(`
-    <b>Distance:</b> ${escapeHtml(route.distance)} miles<br>
-    <b>ETA:</b> ${escapeHtml(route.duration)} min<br>
-    <b>Trip:</b> ${escapeHtml(trip.tripNumber || "-")}
-  `).openPopup()
+  map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] })
 
-  map.fitBounds(line.getBounds(), { padding: [40, 40] })
+  showToast(`Distance ${route.distance} mi • ETA ${route.duration} min`)
   renderDrivers()
 }
 
@@ -912,11 +896,6 @@ function assignDriver(i, id){
 
   if(id && selectedTripIndexPerDriver[String(id)] == null){
     selectedTripIndexPerDriver[String(id)] = 0
-  }
-
-  const carCell = document.getElementById(`car-${i}`)
-  if(carCell){
-    carCell.innerText = trips[i].vehicle || ""
   }
 
   renderTrips()
