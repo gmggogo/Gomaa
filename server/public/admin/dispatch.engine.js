@@ -24,17 +24,37 @@ async function init(){
     const tripsRaw = data.trips || data.data?.trips || []
     const scheduleRaw = data.schedule || data.data?.schedule || {}
 
-    drivers = driversRaw.map(d => ({
-      ...d,
-      _id: String(d._id || d.id || ""),
-      address:
-        d.address ||
-        d.homeAddress ||
-        d.currentAddress ||
-        d.locationAddress ||
-        d.city ||
-        ""
-    }))
+    schedule = scheduleRaw || {}
+
+    drivers = driversRaw.map(d => {
+      const id = String(d._id || d.id || "")
+      const sch = schedule[id] || {}
+
+      return {
+        ...d,
+        _id: id,
+        address:
+          sch.address ||
+          d.address ||
+          d.homeAddress ||
+          d.currentAddress ||
+          d.locationAddress ||
+          d.city ||
+          "",
+        vehicleNumber:
+          sch.vehicleNumber ||
+          sch.carNumber ||
+          d.vehicleNumber ||
+          d.carNumber ||
+          "",
+        phone:
+          sch.phone ||
+          d.phone ||
+          "",
+        lat: sch.lat != null ? Number(sch.lat) : null,
+        lng: sch.lng != null ? Number(sch.lng) : null
+      }
+    })
 
     trips = tripsRaw
       .filter(t =>
@@ -50,8 +70,6 @@ async function init(){
         vehicle: t.vehicle || "",
         manual: !!t.driverId || t.manual === true
       }))
-
-    schedule = scheduleRaw || {}
 
     loadGeoCache()
     await prepareGeo()
@@ -327,6 +345,19 @@ function getDriverDayHomeAddress(driver){
   )
 }
 
+function getDriverHomePoint(driver){
+  const sch = schedule[String(driver._id)] || {}
+
+  const lat = sch.lat != null ? Number(sch.lat) : (driver.lat != null ? Number(driver.lat) : null)
+  const lng = sch.lng != null ? Number(sch.lng) : (driver.lng != null ? Number(driver.lng) : null)
+
+  if(Number.isFinite(lat) && Number.isFinite(lng)){
+    return { lat, lng }
+  }
+
+  return null
+}
+
 /* ================= GEO / FREE MAP ================= */
 
 async function geocode(addr){
@@ -367,9 +398,15 @@ async function geocode(addr){
 
 async function prepareGeo(){
   for(const d of drivers){
-    const homeAddress = getDriverDayHomeAddress(d)
-    if(homeAddress && !d._geoHome){
-      d._geoHome = await geocode(homeAddress)
+    const directPoint = getDriverHomePoint(d)
+
+    if(directPoint){
+      d._geoHome = directPoint
+    }else{
+      const homeAddress = getDriverDayHomeAddress(d)
+      if(homeAddress && !d._geoHome){
+        d._geoHome = await geocode(homeAddress)
+      }
     }
   }
 
@@ -403,48 +440,6 @@ function fastDistance(a, b){
   return Math.sqrt((dx * dx) + (dy * dy))
 }
 
-function getFallbackLocalScore(startAddress, pickupAddress){
-  const start = normalizeText(startAddress)
-  const pickup = normalizeText(pickupAddress)
-
-  let distanceScore = 999999
-
-  const cities = ["chandler","tempe","mesa","gilbert","phoenix","scottsdale"]
-
-  for(const city of cities){
-    if(start.includes(city) && pickup.includes(city)){
-      distanceScore = 1
-      break
-    }
-  }
-
-  if(start && pickup){
-    if(start.includes(pickup) || pickup.includes(start)){
-      distanceScore = 0
-    }
-  }
-
-  if(distanceScore === 999999){
-    let common = 0
-    const startWords = start.split(/\s+/).filter(Boolean)
-    const pickupWords = pickup.split(/\s+/).filter(Boolean)
-
-    for(const w of startWords){
-      if(w.length > 2 && pickupWords.includes(w)) common++
-    }
-
-    if(common > 0){
-      distanceScore = Math.max(2, 15 - common * 3)
-    }
-  }
-
-  if(distanceScore === 999999){
-    distanceScore = 100
-  }
-
-  return distanceScore
-}
-
 /* ================= AUTO ASSIGN ================= */
 
 async function autoAssign(){
@@ -455,21 +450,25 @@ async function autoAssign(){
   const load = {}
   const lastLocation = {}
 
-  // initialize drivers
   for(const d of drivers){
     load[d._id] = 0
 
     if(!d._geoHome){
-      const addr = getDriverDayHomeAddress(d)
-      if(addr){
-        d._geoHome = await geocode(addr)
+      const directPoint = getDriverHomePoint(d)
+
+      if(directPoint){
+        d._geoHome = directPoint
+      }else{
+        const addr = getDriverDayHomeAddress(d)
+        if(addr){
+          d._geoHome = await geocode(addr)
+        }
       }
     }
 
     lastLocation[d._id] = d._geoHome || null
   }
 
-  // register manual trips first
   for(const t of trips){
     if(t.manual && t.driverId){
       const id = String(t.driverId)
@@ -484,7 +483,6 @@ async function autoAssign(){
     }
   }
 
-  // clear only auto assigned trips
   for(const t of trips){
     if(!t.manual){
       t.driverId = ""
@@ -508,6 +506,7 @@ async function autoAssign(){
 
     const validDrivers = getValidDriversForTrip(trip)
     if(!validDrivers.length) continue
+    if(!trip._geoPickup) continue
 
     const minLoad = Math.min(...validDrivers.map(d => load[d._id] || 0))
     const roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
@@ -516,32 +515,31 @@ async function autoAssign(){
     let bestScore = Infinity
 
     for(const driver of roundDrivers){
-
       let startPoint = null
-      let startAddress = ""
 
-      // first round -> from driver home
       if((load[driver._id] || 0) === 0){
-        startAddress = getDriverDayHomeAddress(driver)
         startPoint = driver._geoHome || null
 
-        if(!startPoint && startAddress){
-          startPoint = await geocode(startAddress)
-          driver._geoHome = startPoint
+        if(!startPoint){
+          const directPoint = getDriverHomePoint(driver)
+          if(directPoint){
+            startPoint = directPoint
+            driver._geoHome = directPoint
+          }else{
+            const startAddress = getDriverDayHomeAddress(driver)
+            if(startAddress){
+              startPoint = await geocode(startAddress)
+              driver._geoHome = startPoint
+            }
+          }
         }
       }else{
-        // next rounds -> from last dropoff for that driver
         startPoint = lastLocation[driver._id] || null
       }
 
-      let distance = 999999
+      if(!startPoint) continue
 
-      if(startPoint && trip._geoPickup){
-        distance = fastDistance(startPoint, trip._geoPickup)
-      }else{
-        distance = getFallbackLocalScore(startAddress, trip.pickup)
-      }
-
+      const distance = fastDistance(startPoint, trip._geoPickup)
       const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
       const score = distance + conflictPenalty
 
@@ -909,6 +907,7 @@ async function redistribute(){
     t.manual = false
   })
 
+  await prepareGeo()
   await autoAssign()
   renderTrips()
   renderDrivers()
