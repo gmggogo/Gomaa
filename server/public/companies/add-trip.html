@@ -47,12 +47,18 @@ grid-template-columns:repeat(2,1fr);
 gap:12px;
 }
 
+.field-wrap{
+position:relative;
+width:100%;
+}
+
 input, textarea{
 width:100%;
 padding:10px;
 font-size:13px;
 border:1px solid #cbd5e1;
 border-radius:10px;
+box-sizing:border-box;
 }
 
 textarea{
@@ -82,8 +88,48 @@ cursor:pointer;
 .btn-gray{background:#64748b;color:#fff;}
 .btn-light{background:#0ea5e9;color:#fff;}
 
-#stops input{
+.stop-row{
+position:relative;
 margin-bottom:10px;
+}
+
+/* SUGGESTIONS */
+
+.suggestions{
+position:absolute;
+top:100%;
+left:0;
+right:0;
+background:#fff;
+border:1px solid #cbd5e1;
+border-radius:10px;
+margin-top:4px;
+z-index:9999;
+max-height:220px;
+overflow:auto;
+box-shadow:0 10px 20px rgba(0,0,0,.08);
+}
+
+.option{
+padding:10px 12px;
+cursor:pointer;
+font-size:13px;
+line-height:1.35;
+border-bottom:1px solid #eef2f7;
+}
+
+.option:last-child{
+border-bottom:none;
+}
+
+.option:hover{
+background:#f1f5f9;
+}
+
+.option.disabled{
+cursor:default;
+color:#64748b;
+background:#f8fafc;
 }
 
 /* MOBILE */
@@ -118,8 +164,12 @@ width:100%;
 <h3>Entry Information</h3>
 
 <div class="form-grid">
-<input id="entryName" placeholder="Data Entry Name">
-<input id="entryPhone" placeholder="Phone Number">
+  <div class="field-wrap">
+    <input id="entryName" placeholder="Data Entry Name">
+  </div>
+  <div class="field-wrap">
+    <input id="entryPhone" placeholder="Phone Number">
+  </div>
 </div>
 
 <div style="margin-top:10px;">
@@ -133,8 +183,12 @@ width:100%;
 <h3>Client Information</h3>
 
 <div class="form-grid">
-<input id="clientName" placeholder="Client Name">
-<input id="clientPhone" placeholder="Client Phone">
+  <div class="field-wrap">
+    <input id="clientName" placeholder="Client Name">
+  </div>
+  <div class="field-wrap">
+    <input id="clientPhone" placeholder="Client Phone">
+  </div>
 </div>
 
 </section>
@@ -144,23 +198,31 @@ width:100%;
 <h3>Trip Details</h3>
 
 <div class="form-grid">
-<input id="pickup" placeholder="Pickup Address">
-<input id="dropoff" placeholder="Dropoff Address">
-<input id="tripDate" type="date">
-<input id="tripTime" type="time">
+  <div class="field-wrap">
+    <input id="pickup" placeholder="Pickup Address" autocomplete="off">
+  </div>
+  <div class="field-wrap">
+    <input id="dropoff" placeholder="Dropoff Address" autocomplete="off">
+  </div>
+  <div class="field-wrap">
+    <input id="tripDate" type="date">
+  </div>
+  <div class="field-wrap">
+    <input id="tripTime" type="time">
+  </div>
 </div>
 
 <div id="stops" style="margin-top:10px;"></div>
 
-<button class="btn-light" id="addStopBtn">+ Add Stop</button>
+<button class="btn-light" id="addStopBtn" type="button">+ Add Stop</button>
 
 <textarea id="notes" placeholder="Notes"></textarea>
 
 </section>
 
 <div class="actions">
-<button class="btn-gray" id="saveTrip">Save Trip</button>
-<button class="btn-green" id="submitTrip">Submit Trip</button>
+<button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
+<button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
 </div>
 
 </div>
@@ -168,209 +230,553 @@ width:100%;
 <script src="layout.js"></script>
 
 <script>
+document.addEventListener("DOMContentLoaded", function(){
 
-document.addEventListener("DOMContentLoaded",function(){
+/* ================= AUTH ================= */
 
-const token=localStorage.getItem("token");
-const role=localStorage.getItem("role");
-const name=localStorage.getItem("name");
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+const name  = localStorage.getItem("name") || "";
 
-if(!token||role!=="company"){
-window.location.replace("company-login.html");
-return;
+if(!token || role !== "company"){
+  window.location.replace("company-login.html");
+  return;
 }
 
-/* ENTRY */
+/* ================= ELEMENTS ================= */
 
-const entryName=document.getElementById("entryName");
-const entryPhone=document.getElementById("entryPhone");
-const editEntry=document.getElementById("editEntry");
+const entryName   = document.getElementById("entryName");
+const entryPhone  = document.getElementById("entryPhone");
+const editEntry   = document.getElementById("editEntry");
+
+const clientName  = document.getElementById("clientName");
+const clientPhone = document.getElementById("clientPhone");
+
+const pickupInput  = document.getElementById("pickup");
+const dropoffInput = document.getElementById("dropoff");
+
+const tripDate = document.getElementById("tripDate");
+const tripTime = document.getElementById("tripTime");
+const notes    = document.getElementById("notes");
+
+const stopsBox   = document.getElementById("stops");
+const addStopBtn = document.getElementById("addStopBtn");
+
+const saveTripBtn   = document.getElementById("saveTrip");
+const submitTripBtn = document.getElementById("submitTrip");
+
+/* ================= STATE ================= */
+
+let selectedPickup = null;
+let selectedDropoff = null;
+let selectedStops = new Map();
+let stopCounter = 0;
+
+/* ================= HELPERS ================= */
+
+function getAZNow(){
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+  );
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/"/g,"&quot;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
+
+function isValidCoord(v){
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function showAlert(msg){
+  alert(msg);
+}
+
+function clearSuggestions(box){
+  if(box) box.innerHTML = "";
+}
+
+function createSuggestionBox(wrap){
+  let box = wrap.querySelector(".suggestions");
+  if(!box){
+    box = document.createElement("div");
+    box.className = "suggestions";
+    wrap.appendChild(box);
+  }
+  return box;
+}
+
+function setSelected(type, value, input){
+  if(type === "pickup"){
+    selectedPickup = value;
+  }else if(type === "dropoff"){
+    selectedDropoff = value;
+  }else if(type === "stop"){
+    const stopId = input.dataset.stopId;
+    if(stopId){
+      selectedStops.set(stopId, value);
+    }
+  }
+}
+
+function clearSelected(type, input){
+  if(type === "pickup"){
+    selectedPickup = null;
+  }else if(type === "dropoff"){
+    selectedDropoff = null;
+  }else if(type === "stop"){
+    const stopId = input.dataset.stopId;
+    if(stopId){
+      selectedStops.delete(stopId);
+    }
+  }
+}
+
+function collectStops(){
+  return [...stopsBox.querySelectorAll(".stop-input")]
+    .map(input => input.value.trim())
+    .filter(Boolean);
+}
+
+function collectStopsGeo(){
+  const result = [];
+
+  [...stopsBox.querySelectorAll(".stop-input")].forEach(input => {
+    const stopId = input.dataset.stopId;
+    const selected = selectedStops.get(stopId);
+
+    if(selected && selected.address){
+      result.push({
+        address: selected.address,
+        lat: selected.lat,
+        lng: selected.lng
+      });
+    }
+  });
+
+  return result;
+}
+
+/* ================= ENTRY ================= */
 
 function loadEntry(){
+  let saved = {};
+  try{
+    saved = JSON.parse(localStorage.getItem("entryInfo") || "{}");
+  }catch(e){
+    saved = {};
+  }
 
-const saved=JSON.parse(localStorage.getItem("entryInfo")||"{}");
-
-if(saved.name){
-entryName.value=saved.name;
-entryPhone.value=saved.phone;
-entryName.disabled=true;
-entryPhone.disabled=true;
+  if(saved.name){
+    entryName.value = saved.name || "";
+    entryPhone.value = saved.phone || "";
+    entryName.disabled = true;
+    entryPhone.disabled = true;
+    editEntry.innerText = "Edit";
+  }else{
+    entryName.disabled = false;
+    entryPhone.disabled = false;
+    editEntry.innerText = "Save";
+  }
 }
 
+function saveEntryInfo(){
+  localStorage.setItem("entryInfo", JSON.stringify({
+    name: entryName.value,
+    phone: entryPhone.value
+  }));
 }
 
 loadEntry();
 
-editEntry.onclick=function(){
+editEntry.onclick = function(){
 
-if(entryName.disabled){
+  if(entryName.disabled){
+    entryName.disabled = false;
+    entryPhone.disabled = false;
+    editEntry.innerText = "Save";
+  }else{
+    saveEntryInfo();
 
-entryName.disabled=false;
-entryPhone.disabled=false;
-editEntry.innerText="Save";
+    entryName.disabled = true;
+    entryPhone.disabled = true;
+    editEntry.innerText = "Edit";
 
-}else{
-
-localStorage.setItem("entryInfo",JSON.stringify({
-name:entryName.value,
-phone:entryPhone.value
-}));
-
-entryName.disabled=true;
-entryPhone.disabled=true;
-
-editEntry.innerText="Edit";
-
-alert("Entry saved ✔");
-
-}
+    showAlert("Entry saved ✔");
+  }
 
 };
 
-/* STOPS */
+/* ================= AUTOCOMPLETE ================= */
 
-const stopsBox=document.getElementById("stops");
+async function searchAddress(q){
+  const query = String(q || "").trim();
+  if(query.length < 3) return [];
 
-document.getElementById("addStopBtn").onclick=function(){
+  try{
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`,
+      {
+        headers: {
+          "Accept": "application/json"
+        }
+      }
+    );
 
-if(stopsBox.children.length>=5){
-alert("Maximum 5 stops allowed");
-return;
+    if(!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }catch(err){
+    console.error("Address search error:", err);
+    return [];
+  }
 }
 
-const input=document.createElement("input");
-input.placeholder="Stop Address";
+function attachAuto(input, type){
 
-stopsBox.appendChild(input);
+  const wrap = input.closest(".field-wrap, .stop-row") || input.parentNode;
+  if(!wrap) return;
 
+  const box = createSuggestionBox(wrap);
+  let timer = null;
+
+  input.setAttribute("autocomplete", "off");
+
+  input.addEventListener("input", function(){
+
+    clearSelected(type, input);
+    clearTimeout(timer);
+
+    const q = input.value.trim();
+
+    if(q.length < 3){
+      clearSuggestions(box);
+      return;
+    }
+
+    timer = setTimeout(async () => {
+      const data = await searchAddress(q);
+
+      if(!data.length){
+        box.innerHTML = `<div class="option disabled">No address found</div>`;
+        return;
+      }
+
+      box.innerHTML = data.map(r => `
+        <div class="option"
+             data-address="${escapeHtml(r.display_name)}"
+             data-lat="${escapeHtml(r.lat)}"
+             data-lng="${escapeHtml(r.lon)}">
+          ${escapeHtml(r.display_name)}
+        </div>
+      `).join("");
+    }, 250);
+
+  });
+
+  box.addEventListener("click", function(e){
+
+    const el = e.target.closest(".option");
+    if(!el || el.classList.contains("disabled")) return;
+
+    const obj = {
+      address: el.dataset.address,
+      lat: Number(el.dataset.lat),
+      lng: Number(el.dataset.lng)
+    };
+
+    input.value = obj.address;
+    setSelected(type, obj, input);
+    clearSuggestions(box);
+
+  });
+
+  input.addEventListener("blur", function(){
+    setTimeout(() => clearSuggestions(box), 180);
+  });
+
+}
+
+/* ================= PICKUP / DROPOFF INIT ================= */
+
+attachAuto(pickupInput, "pickup");
+attachAuto(dropoffInput, "dropoff");
+
+/* ================= STOPS ================= */
+
+function createStopInput(value = "", selectedGeo = null){
+
+  if(stopsBox.querySelectorAll(".stop-input").length >= 5){
+    showAlert("Maximum 5 stops allowed");
+    return null;
+  }
+
+  const row = document.createElement("div");
+  row.className = "stop-row";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Stop Address";
+  input.className = "stop-input";
+  input.value = value;
+
+  const stopId = "stop_" + (++stopCounter);
+  input.dataset.stopId = stopId;
+
+  row.appendChild(input);
+  stopsBox.appendChild(row);
+
+  attachAuto(input, "stop");
+
+  if(selectedGeo && selectedGeo.address){
+    selectedStops.set(stopId, {
+      address: selectedGeo.address,
+      lat: Number(selectedGeo.lat),
+      lng: Number(selectedGeo.lng)
+    });
+  }
+
+  return input;
+}
+
+addStopBtn.onclick = function(){
+  createStopInput();
 };
 
-/* CHECK 120 */
+/* ================= TIME CHECKS ================= */
+
+function validateFutureTime(){
+
+  const date = tripDate.value;
+  const time = tripTime.value;
+
+  if(!date || !time){
+    showAlert("Select date & time");
+    return false;
+  }
+
+  const tripDateTime = new Date(date + "T" + time);
+  const now = getAZNow();
+
+  if(isNaN(tripDateTime.getTime())){
+    showAlert("Invalid trip date/time");
+    return false;
+  }
+
+  if(tripDateTime <= now){
+    showAlert("Trip time already passed ❌");
+    return false;
+  }
+
+  return true;
+}
 
 function check120(){
 
-const date=document.getElementById("tripDate").value;
-const time=document.getElementById("tripTime").value;
+  const date = tripDate.value;
+  const time = tripTime.value;
 
-if(!date||!time)return true;
+  if(!date || !time) return true;
 
-const tripTime=new Date(date+"T"+time);
-const now=new Date();
+  const tripDateTime = new Date(date + "T" + time);
+  const now = getAZNow();
+  const diff = (tripDateTime - now) / 60000;
 
-const diff=(tripTime-now)/60000;
+  if(diff < 120){
+    return confirm("Trip is within 120 minutes.\nContinue?");
+  }
 
-if(diff<120){
-return confirm("Trip is within 120 minutes.\nContinue?");
+  return true;
 }
 
-return true;
+/* ================= ADDRESS VALIDATION ================= */
 
+function validateSelectedAddresses(){
+
+  if(!selectedPickup || !selectedPickup.address || !isValidCoord(selectedPickup.lat) || !isValidCoord(selectedPickup.lng)){
+    showAlert("Select pickup from suggestions ❌");
+    pickupInput.focus();
+    return false;
+  }
+
+  if(!selectedDropoff || !selectedDropoff.address || !isValidCoord(selectedDropoff.lat) || !isValidCoord(selectedDropoff.lng)){
+    showAlert("Select dropoff from suggestions ❌");
+    dropoffInput.focus();
+    return false;
+  }
+
+  const stopInputs = [...stopsBox.querySelectorAll(".stop-input")];
+
+  for(const input of stopInputs){
+    const value = input.value.trim();
+    const stopId = input.dataset.stopId;
+    const selected = selectedStops.get(stopId);
+
+    if(value && (!selected || !selected.address || !isValidCoord(selected.lat) || !isValidCoord(selected.lng))){
+      showAlert("Each stop must be selected from suggestions ❌");
+      input.focus();
+      return false;
+    }
+  }
+
+  return true;
 }
 
-/* SAVE */
+/* ================= DRAFT ================= */
 
-document.getElementById("saveTrip").onclick=function(){
+function saveDraft(){
 
-localStorage.setItem("tripDraft",JSON.stringify({
+  const draft = {
+    clientName: clientName.value,
+    clientPhone: clientPhone.value,
+    pickup: pickupInput.value,
+    dropoff: dropoffInput.value,
+    tripDate: tripDate.value,
+    tripTime: tripTime.value,
+    notes: notes.value,
+    selectedPickup,
+    selectedDropoff,
+    stops: collectStops(),
+    stopsGeo: collectStopsGeo()
+  };
 
-clientName:document.getElementById("clientName").value,
-clientPhone:document.getElementById("clientPhone").value,
-pickup:document.getElementById("pickup").value,
-dropoff:document.getElementById("dropoff").value,
-tripDate:document.getElementById("tripDate").value,
-tripTime:document.getElementById("tripTime").value,
-notes:document.getElementById("notes").value
+  localStorage.setItem("tripDraft", JSON.stringify(draft));
+}
 
-}));
+function loadDraft(){
 
-alert("Trip saved locally");
+  let draft = null;
 
+  try{
+    draft = JSON.parse(localStorage.getItem("tripDraft") || "null");
+  }catch(e){
+    draft = null;
+  }
+
+  if(!draft) return;
+
+  clientName.value  = draft.clientName || "";
+  clientPhone.value = draft.clientPhone || "";
+  pickupInput.value = draft.pickup || "";
+  dropoffInput.value = draft.dropoff || "";
+  tripDate.value = draft.tripDate || "";
+  tripTime.value = draft.tripTime || "";
+  notes.value = draft.notes || "";
+
+  selectedPickup = draft.selectedPickup || null;
+  selectedDropoff = draft.selectedDropoff || null;
+
+  const draftStops = Array.isArray(draft.stops) ? draft.stops : [];
+  const draftStopsGeo = Array.isArray(draft.stopsGeo) ? draft.stopsGeo : [];
+
+  stopsBox.innerHTML = "";
+  selectedStops.clear();
+
+  draftStops.forEach((stopText, idx) => {
+    createStopInput(stopText, draftStopsGeo[idx] || null);
+  });
+}
+
+function clearDraft(){
+  localStorage.removeItem("tripDraft");
+}
+
+saveTripBtn.onclick = function(){
+  saveDraft();
+  showAlert("Trip saved locally");
 };
 
-/* SUBMIT */
+loadDraft();
 
-document.getElementById("submitTrip").onclick=async function(){
+/* ================= SUBMIT ================= */
 
-if(!check120())return;
+submitTripBtn.onclick = async function(){
 
-const stops=[...document.querySelectorAll("#stops input")]
-.map(i=>i.value.trim())
-.filter(Boolean);
+  if(!validateFutureTime()) return;
+  if(!check120()) return;
+  if(!validateSelectedAddresses()) return;
 
-const trip={
+  const stops = collectStops();
+  const stopsGeo = collectStopsGeo();
 
-company:name||"",
-entryName:entryName.value,
-entryPhone:entryPhone.value,
+  const trip = {
+    company: name || "",
 
-clientName:document.getElementById("clientName").value,
-clientPhone:document.getElementById("clientPhone").value,
+    entryName: entryName.value,
+    entryPhone: entryPhone.value,
 
-pickup:document.getElementById("pickup").value,
-dropoff:document.getElementById("dropoff").value,
+    clientName: clientName.value,
+    clientPhone: clientPhone.value,
 
-tripDate:document.getElementById("tripDate").value,
-tripTime:document.getElementById("tripTime").value,
+    pickup: selectedPickup.address,
+    pickupLat: selectedPickup.lat,
+    pickupLng: selectedPickup.lng,
 
-stops:stops,
+    dropoff: selectedDropoff.address,
+    dropoffLat: selectedDropoff.lat,
+    dropoffLng: selectedDropoff.lng,
 
-notes:document.getElementById("notes").value,
+    tripDate: tripDate.value,
+    tripTime: tripTime.value,
 
-status:"Scheduled",
-createdAt:new Date().toISOString()
+    stops: stops,
+    stopsGeo: stopsGeo,
+
+    notes: notes.value,
+
+    status: "Scheduled",
+    createdAt: new Date().toISOString()
+  };
+
+  try{
+
+    const res = await fetch("/api/trips", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify(trip)
+    });
+
+    if(!res.ok){
+      const err = await res.json().catch(() => ({}));
+      showAlert(err.message || "Server error");
+      return;
+    }
+
+    saveEntryInfo();
+    clearDraft();
+
+    clientName.value = "";
+    clientPhone.value = "";
+    pickupInput.value = "";
+    dropoffInput.value = "";
+    tripDate.value = "";
+    tripTime.value = "";
+    notes.value = "";
+
+    stopsBox.innerHTML = "";
+
+    selectedPickup = null;
+    selectedDropoff = null;
+    selectedStops.clear();
+
+    showAlert("Trip submitted ✔");
+    clientName.focus();
+
+  }catch(err){
+    console.error(err);
+    showAlert("Server error");
+  }
 
 };
-
-try{
-
-const res=await fetch("/api/trips",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+token
-},
-
-body:JSON.stringify(trip)
 
 });
-
-if(!res.ok){
-alert("Server error");
-return;
-}
-
-localStorage.setItem("entryInfo",JSON.stringify({
-name:entryName.value,
-phone:entryPhone.value
-}));
-
-document.getElementById("clientName").value="";
-document.getElementById("clientPhone").value="";
-document.getElementById("pickup").value="";
-document.getElementById("dropoff").value="";
-document.getElementById("tripDate").value="";
-document.getElementById("tripTime").value="";
-document.getElementById("notes").value="";
-
-stopsBox.innerHTML="";
-
-alert("Trip submitted ✔");
-
-document.getElementById("clientName").focus();
-
-}
-catch(err){
-
-alert("Server error");
-
-}
-
-};
-
-});
-
 </script>
 
 </body>

@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
+const companyName = localStorage.getItem("name") || "";
 
 if (!token || role !== "company") {
   window.location.replace("company-login.html");
@@ -33,8 +34,8 @@ const notes    = document.getElementById("notes");
 const stopsBox   = document.getElementById("stops");
 const addStopBtn = document.getElementById("addStopBtn");
 
-const saveTrip   = document.getElementById("saveTrip");
-const submitTrip = document.getElementById("submitTrip");
+const saveTripBtn   = document.getElementById("saveTrip");
+const submitTripBtn = document.getElementById("submitTrip");
 
 /* ============================= */
 /* STATE */
@@ -42,11 +43,18 @@ const submitTrip = document.getElementById("submitTrip");
 
 let selectedPickup = null;
 let selectedDropoff = null;
-let selectedStops = new Map(); // key = input.dataset.stopId
+let selectedStops = new Map();
+let stopCounter = 0;
 
 /* ============================= */
 /* HELPERS */
 /* ============================= */
+
+function getArizonaNow(){
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+  );
+}
 
 function escapeHtml(value){
   return String(value ?? "")
@@ -57,41 +65,44 @@ function escapeHtml(value){
     .replace(/'/g, "&#39;");
 }
 
-function getArizonaNow(){
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
-  );
+function normalizeText(value){
+  return String(value ?? "").trim();
 }
 
 function isValidCoord(v){
   return typeof v === "number" && Number.isFinite(v);
 }
 
-function makeSuggestionBox(input){
-  let box = input.parentNode.querySelector(".suggestions");
-
-  if(!box){
-    box = document.createElement("div");
-    box.className = "suggestions";
-    input.parentNode.appendChild(box);
-  }
-
-  return box;
-}
-
 function clearSuggestions(box){
   if(box) box.innerHTML = "";
 }
 
-function setSelectedAddress(type, value, input){
+function getFieldWrap(input){
+  return input.closest(".field-wrap, .stop-row") || input.parentNode;
+}
+
+function getOrCreateSuggestionBox(input){
+  const wrap = getFieldWrap(input);
+  if(!wrap) return null;
+
+  let box = wrap.querySelector(".suggestions");
+  if(!box){
+    box = document.createElement("div");
+    box.className = "suggestions";
+    wrap.appendChild(box);
+  }
+  return box;
+}
+
+function setSelectedAddress(type, input, obj){
   if(type === "pickup"){
-    selectedPickup = value;
+    selectedPickup = obj;
   }else if(type === "dropoff"){
-    selectedDropoff = value;
+    selectedDropoff = obj;
   }else if(type === "stop"){
     const stopId = input.dataset.stopId;
     if(stopId){
-      selectedStops.set(stopId, value);
+      selectedStops.set(stopId, obj);
     }
   }
 }
@@ -111,7 +122,7 @@ function clearSelectedAddress(type, input){
 
 function collectStops(){
   return [...stopsBox.querySelectorAll(".stop-input")]
-    .map(input => input.value.trim())
+    .map(input => normalizeText(input.value))
     .filter(Boolean);
 }
 
@@ -119,14 +130,15 @@ function collectStopsGeo(){
   const result = [];
 
   [...stopsBox.querySelectorAll(".stop-input")].forEach(input => {
+    const value = normalizeText(input.value);
     const stopId = input.dataset.stopId;
     const selected = stopId ? selectedStops.get(stopId) : null;
 
-    if(selected && selected.address){
+    if(value && selected && selected.address && isValidCoord(selected.lat) && isValidCoord(selected.lng)){
       result.push({
         address: selected.address,
-        lat: selected.lat,
-        lng: selected.lng
+        lat: Number(selected.lat),
+        lng: Number(selected.lng)
       });
     }
   });
@@ -148,6 +160,7 @@ function clearTripForm(){
   selectedPickup = null;
   selectedDropoff = null;
   selectedStops.clear();
+  stopCounter = 0;
 }
 
 function saveEntryInfo(){
@@ -179,61 +192,22 @@ function loadEntry(){
   }
 }
 
-function loadTripDraft(){
-  let draft = null;
-
-  try{
-    draft = JSON.parse(localStorage.getItem("tripDraft"));
-  }catch(e){
-    draft = null;
-  }
-
-  if(!draft) return;
-
-  clientName.value  = draft.clientName || "";
-  clientPhone.value = draft.clientPhone || "";
-  pickupInput.value = draft.pickup || "";
-  dropoffInput.value = draft.dropoff || "";
-  tripDate.value = draft.tripDate || "";
-  tripTime.value = draft.tripTime || "";
-  notes.value = draft.notes || "";
-
-  selectedPickup = draft.selectedPickup || null;
-  selectedDropoff = draft.selectedDropoff || null;
-
-  const draftStops = Array.isArray(draft.stops) ? draft.stops : [];
-  const draftStopsGeo = Array.isArray(draft.stopsGeo) ? draft.stopsGeo : [];
-
-  stopsBox.innerHTML = "";
-  selectedStops.clear();
-
-  draftStops.forEach((stopText, idx) => {
-    const stopInput = createStopInput();
-    stopInput.value = stopText || "";
-
-    const geo = draftStopsGeo[idx];
-    if(geo && geo.address){
-      selectedStops.set(stopInput.dataset.stopId, {
-        address: geo.address,
-        lat: Number(geo.lat),
-        lng: Number(geo.lng)
-      });
-    }
-  });
-}
-
 function saveTripDraftToLocal(){
   const draft = {
     clientName: clientName.value,
     clientPhone: clientPhone.value,
+
     pickup: pickupInput.value,
     dropoff: dropoffInput.value,
+
     tripDate: tripDate.value,
     tripTime: tripTime.value,
     notes: notes.value,
-    stops: collectStops(),
+
     selectedPickup,
     selectedDropoff,
+
+    stops: collectStops(),
     stopsGeo: collectStopsGeo()
   };
 
@@ -249,37 +223,68 @@ function removeTripDraft(){
 /* ============================= */
 
 async function searchAddress(query){
-  if(!query || query.trim().length < 3) return [];
+  const q = normalizeText(query);
+  if(q.length < 3) return [];
 
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`,
-    {
-      headers: {
-        "Accept": "application/json"
+  try{
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5`,
+      {
+        headers: {
+          "Accept": "application/json"
+        }
       }
-    }
-  );
+    );
 
-  if(!res.ok) return [];
+    if(!res.ok) return [];
 
-  const data = await res.json();
-  if(!Array.isArray(data)) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }catch(err){
+    console.error("Address search error:", err);
+    return [];
+  }
+}
 
-  return data;
+function renderSuggestions(box, results){
+  if(!box) return;
+
+  if(!results.length){
+    box.innerHTML = `<div class="option disabled">No address found</div>`;
+    return;
+  }
+
+  box.innerHTML = results.map(item => `
+    <div class="option"
+         data-address="${escapeHtml(item.display_name)}"
+         data-lat="${escapeHtml(item.lat)}"
+         data-lng="${escapeHtml(item.lon)}">
+      ${escapeHtml(item.display_name)}
+    </div>
+  `).join("");
 }
 
 function attachAutocomplete(input, type){
-  const box = makeSuggestionBox(input);
+  if(!input) return;
+
+  const box = getOrCreateSuggestionBox(input);
   let searchTimer = null;
 
   input.setAttribute("autocomplete", "off");
 
+  input.addEventListener("focus", async function(){
+    const value = normalizeText(input.value);
+    if(value.length < 3) return;
+
+    const results = await searchAddress(value);
+    renderSuggestions(box, results);
+  });
+
   input.addEventListener("input", function(){
     clearSelectedAddress(type, input);
-
     clearTimeout(searchTimer);
 
-    const value = input.value.trim();
+    const value = normalizeText(input.value);
 
     if(value.length < 3){
       clearSuggestions(box);
@@ -288,20 +293,7 @@ function attachAutocomplete(input, type){
 
     searchTimer = setTimeout(async () => {
       const results = await searchAddress(value);
-
-      if(!results.length){
-        box.innerHTML = `<div class="option disabled">No address found</div>`;
-        return;
-      }
-
-      box.innerHTML = results.map(item => `
-        <div class="option"
-             data-address="${escapeHtml(item.display_name)}"
-             data-lat="${escapeHtml(item.lat)}"
-             data-lng="${escapeHtml(item.lon)}">
-          ${escapeHtml(item.display_name)}
-        </div>
-      `).join("");
+      renderSuggestions(box, results);
     }, 250);
   });
 
@@ -316,7 +308,7 @@ function attachAutocomplete(input, type){
     };
 
     input.value = selected.address;
-    setSelectedAddress(type, selected, input);
+    setSelectedAddress(type, input, selected);
     clearSuggestions(box);
   });
 
@@ -329,8 +321,10 @@ function attachAutocomplete(input, type){
 /* STOPS */
 /* ============================= */
 
-function createStopInput(value = ""){
-  if(stopsBox.children.length >= 5){
+function createStopInput(value = "", selectedGeo = null){
+  const currentStops = stopsBox.querySelectorAll(".stop-input").length;
+
+  if(currentStops >= 5){
     alert("Maximum 5 stops allowed.");
     return null;
   }
@@ -344,7 +338,8 @@ function createStopInput(value = ""){
   input.className = "stop-input";
   input.value = value;
 
-  input.dataset.stopId = "stop_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  stopCounter += 1;
+  input.dataset.stopId = `stop_${stopCounter}`;
 
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
@@ -357,12 +352,56 @@ function createStopInput(value = ""){
 
   attachAutocomplete(input, "stop");
 
+  if(selectedGeo && selectedGeo.address){
+    selectedStops.set(input.dataset.stopId, {
+      address: selectedGeo.address,
+      lat: Number(selectedGeo.lat),
+      lng: Number(selectedGeo.lng)
+    });
+  }
+
   removeBtn.addEventListener("click", function(){
     selectedStops.delete(input.dataset.stopId);
     wrapper.remove();
   });
 
   return input;
+}
+
+function loadTripDraft(){
+  let draft = null;
+
+  try{
+    draft = JSON.parse(localStorage.getItem("tripDraft"));
+  }catch(e){
+    draft = null;
+  }
+
+  if(!draft) return;
+
+  clientName.value  = draft.clientName || "";
+  clientPhone.value = draft.clientPhone || "";
+
+  pickupInput.value  = draft.pickup || "";
+  dropoffInput.value = draft.dropoff || "";
+
+  tripDate.value = draft.tripDate || "";
+  tripTime.value = draft.tripTime || "";
+  notes.value    = draft.notes || "";
+
+  selectedPickup = draft.selectedPickup || null;
+  selectedDropoff = draft.selectedDropoff || null;
+
+  const draftStops = Array.isArray(draft.stops) ? draft.stops : [];
+  const draftStopsGeo = Array.isArray(draft.stopsGeo) ? draft.stopsGeo : [];
+
+  stopsBox.innerHTML = "";
+  selectedStops.clear();
+  stopCounter = 0;
+
+  draftStops.forEach((stopText, idx) => {
+    createStopInput(stopText || "", draftStopsGeo[idx] || null);
+  });
 }
 
 if(addStopBtn){
@@ -396,7 +435,7 @@ if(editEntry){
 }
 
 /* ============================= */
-/* 120 MINUTES CHECK */
+/* TIME VALIDATION */
 /* ============================= */
 
 function check120(){
@@ -417,10 +456,6 @@ function check120(){
 
   return true;
 }
-
-/* ============================= */
-/* PAST TIME VALIDATION */
-/* ============================= */
 
 function validateFutureTime(){
   const date = tripDate.value;
@@ -467,7 +502,7 @@ function validateSelectedAddresses(){
   const stopInputs = [...stopsBox.querySelectorAll(".stop-input")];
 
   for(const input of stopInputs){
-    const value = input.value.trim();
+    const value = normalizeText(input.value);
     const stopId = input.dataset.stopId;
     const selected = selectedStops.get(stopId);
 
@@ -485,8 +520,8 @@ function validateSelectedAddresses(){
 /* SAVE FORM ONLY */
 /* ============================= */
 
-if(saveTrip){
-  saveTrip.addEventListener("click", function(){
+if(saveTripBtn){
+  saveTripBtn.addEventListener("click", function(){
     saveTripDraftToLocal();
     alert("Trip saved locally ✔");
   });
@@ -496,8 +531,8 @@ if(saveTrip){
 /* SUBMIT TRIP */
 /* ============================= */
 
-if(submitTrip){
-  submitTrip.addEventListener("click", async function(){
+if(submitTripBtn){
+  submitTripBtn.addEventListener("click", async function(){
 
     if(!validateFutureTime()){
       return;
@@ -515,6 +550,8 @@ if(submitTrip){
     const stopsGeo = collectStopsGeo();
 
     const trip = {
+      company: companyName,
+
       entryName: entryName.value,
       entryPhone: entryPhone.value,
 
@@ -570,15 +607,11 @@ if(submitTrip){
 }
 
 /* ============================= */
-/* INIT AUTOCOMPLETE */
+/* INIT */
 /* ============================= */
 
 attachAutocomplete(pickupInput, "pickup");
 attachAutocomplete(dropoffInput, "dropoff");
-
-/* ============================= */
-/* LOAD SAVED DATA */
-/* ============================= */
 
 loadEntry();
 loadTripDraft();

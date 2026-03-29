@@ -15,183 +15,179 @@ const container = document.getElementById("tripsContainer");
 
 (function injectStyles(){
 
-const oldStyle = document.getElementById("company-review-style");
-if(oldStyle) oldStyle.remove();
+  const oldStyle = document.getElementById("company-review-style");
+  if(oldStyle) oldStyle.remove();
 
-const style = document.createElement("style");
-style.id = "company-review-style";
+  const style = document.createElement("style");
+  style.id = "company-review-style";
 
-style.innerHTML = `
+  style.innerHTML = `
 
-.review-table{
-width:100%;
-border-collapse:collapse;
-margin-bottom:20px;
-}
+  .review-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:20px;
+  }
 
-.review-table th,
-.review-table td{
-border:1px solid #dbe2ea;
-padding:8px;
-text-align:center;
-font-size:14px;
-vertical-align:middle;
-}
+  .review-table th,
+  .review-table td{
+    border:1px solid #dbe2ea;
+    padding:8px;
+    text-align:center;
+    font-size:14px;
+    vertical-align:middle;
+  }
 
-.review-table th{
-background:#0f172a;
-color:#fff;
-}
+  .review-table th{
+    background:#0f172a;
+    color:#fff;
+  }
 
-.date-title{
-font-size:18px;
-font-weight:700;
-margin:20px 0 10px;
-color:#0f172a;
-}
+  .date-title{
+    font-size:18px;
+    font-weight:700;
+    margin:20px 0 10px;
+    color:#0f172a;
+  }
 
-.btn{
-border:none;
-padding:6px 10px;
-border-radius:6px;
-font-size:13px;
-font-weight:700;
-cursor:pointer;
-margin:2px;
-white-space:nowrap;
-}
+  .btn{
+    border:none;
+    padding:6px 10px;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    margin:2px;
+    white-space:nowrap;
+  }
 
-.btn.edit{background:#2563eb;color:#fff;}
-.btn.delete{background:#111827;color:#fff;}
-.btn.confirm{background:#16a34a;color:#fff;}
-.btn.cancel{background:#dc2626;color:#fff;}
+  .btn.edit{background:#2563eb;color:#fff;}
+  .btn.delete{background:#111827;color:#fff;}
+  .btn.confirm{background:#16a34a;color:#fff;}
+  .btn.cancel{background:#dc2626;color:#fff;}
 
-.actions-wrap{
-display:flex;
-justify-content:center;
-align-items:center;
-gap:6px;
-flex-wrap:nowrap;
-}
+  .actions-wrap{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
 
-.edit-input{
-width:100%;
-box-sizing:border-box;
-padding:6px;
-border:1px solid #cbd5e1;
-border-radius:6px;
-font-size:13px;
-}
+  .edit-input{
+    width:100%;
+    box-sizing:border-box;
+    padding:6px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    font-size:13px;
+  }
 
-.edit-cell-wrap{
-position:relative;
-width:100%;
-}
+  .edit-cell-wrap{
+    position:relative;
+    width:100%;
+  }
 
-.suggestions{
-position:absolute;
-top:100%;
-left:0;
-right:0;
-background:#ffffff;
-border:1px solid #cbd5e1;
-border-top:none;
-z-index:9999;
-max-height:220px;
-overflow:auto;
-box-shadow:0 10px 18px rgba(0,0,0,.08);
-text-align:left;
-}
+  .suggestions{
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    background:#ffffff;
+    border:1px solid #cbd5e1;
+    border-top:none;
+    z-index:9999;
+    max-height:220px;
+    overflow:auto;
+    box-shadow:0 10px 18px rgba(0,0,0,.08);
+    text-align:left;
+  }
 
-.option{
-padding:10px 12px;
-cursor:pointer;
-font-size:13px;
-line-height:1.35;
-border-bottom:1px solid #eef2f7;
-background:#fff;
-color:#111827;
-}
+  .option{
+    padding:10px 12px;
+    cursor:pointer;
+    font-size:13px;
+    line-height:1.35;
+    border-bottom:1px solid #eef2f7;
+    background:#fff;
+    color:#111827;
+  }
 
-.option:last-child{
-border-bottom:none;
-}
+  .option:last-child{
+    border-bottom:none;
+  }
 
-.option:hover{
-background:#eff6ff;
-}
+  .option:hover{
+    background:#eff6ff;
+  }
 
-.option.disabled{
-cursor:default;
-color:#64748b;
-background:#f8fafc;
-}
+  .option.disabled{
+    cursor:default;
+    color:#64748b;
+    background:#f8fafc;
+  }
 
-.review-table td{
-position:relative;
-}
+  .review-table td{
+    position:relative;
+  }
 
-/* COLORS */
+  .scheduled-row{
+    background:#ffffff;
+    color:#111827;
+  }
 
-.scheduled-row{
-background:#ffffff;
-color:#111827;
-}
+  .confirmed-row{
+    background:#22c55e;
+    color:#111827;
+  }
 
-.confirmed-row{
-background:#22c55e;
-color:#111827;
-}
+  .cancelled-row{
+    background:#ef4444;
+    color:#111827;
+  }
 
-.cancelled-row{
-background:#ef4444;
-color:#111827;
-}
+  .yellow{
+    background:#fde047;
+    color:#111827;
+  }
 
-.yellow{
-background:#fde047;
-color:#111827;
-}
+  .red-light{
+    background:#fecaca;
+    color:#111827;
+  }
 
-.red-light{
-background:#fecaca;
-color:#111827;
-}
+  .red-mid{
+    background:#f87171;
+    color:#111827;
+  }
 
-.red-mid{
-background:#f87171;
-color:#111827;
-}
+  .red-dark{
+    background:#7f1d1d;
+    color:#ffffff;
+  }
 
-.red-dark{
-background:#7f1d1d;
-color:#ffffff;
-}
+  .past-row{
+    background:#374151;
+    color:#e5e7eb;
+  }
 
-.past-row{
-background:#374151;
-color:#e5e7eb;
-}
+  @keyframes blinkTrip{
+    0%   { opacity:1; }
+    50%  { opacity:.82; }
+    100% { opacity:1; }
+  }
 
-/* BLINK */
+  .trip-blink{
+    animation:blinkTrip 1.8s infinite;
+  }
 
-@keyframes blinkTrip{
-0%   { opacity:1; }
-50%  { opacity:.82; }
-100% { opacity:1; }
-}
+  `;
 
-.trip-blink{
-animation:blinkTrip 1.8s infinite;
-}
-
-`;
-
-document.head.appendChild(style);
+  document.head.appendChild(style);
 
 })();
 
-/* ================= TIME ================= */
+/* ================= HELPERS ================= */
 
 function getAZNow(){
   return new Date(
@@ -223,8 +219,13 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
-function isFiniteNumber(v){
-  return typeof v === "number" && Number.isFinite(v);
+function toNumber(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function hasGoodCoords(lat, lng){
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
 }
 
 /* ================= AUTOCOMPLETE ================= */
@@ -258,7 +259,7 @@ async function searchAddress(q){
 function createEditCellInput(value, field, type = "text"){
   return `
     <div class="edit-cell-wrap">
-      <input class="edit-input" type="${type}" data-field="${field}" value="${escapeHtml(value)}">
+      <input class="edit-input" type="${type}" data-field="${field}" value="${escapeHtml(value)}" autocomplete="off">
     </div>
   `;
 }
@@ -280,6 +281,27 @@ function attachEditAutocomplete(input, tripId, field){
   let debounceTimer = null;
 
   input.setAttribute("autocomplete", "off");
+
+  input.addEventListener("focus", async () => {
+    const q = input.value.trim();
+    if(q.length < 3) return;
+
+    const results = await searchAddress(q);
+
+    if(!results.length){
+      box.innerHTML = `<div class="option disabled">No address found</div>`;
+      return;
+    }
+
+    box.innerHTML = results.map(r => `
+      <div class="option"
+           data-address="${escapeHtml(r.display_name)}"
+           data-lat="${escapeHtml(r.lat)}"
+           data-lng="${escapeHtml(r.lon)}">
+        ${escapeHtml(r.display_name)}
+      </div>
+    `).join("");
+  });
 
   input.addEventListener("input", async () => {
 
@@ -353,6 +375,10 @@ function initRowAutocomplete(tripId){
 
   attachEditAutocomplete(pickupInput, tripId, "pickup");
   attachEditAutocomplete(dropoffInput, tripId, "dropoff");
+
+  if(pickupInput){
+    pickupInput.focus();
+  }
 }
 
 /* ================= SERVER ================= */
@@ -468,62 +494,40 @@ function render(){
 
       const editing = t.__editing === true;
 
-      /* ================= COLOR POLICY ================= */
-
       if(t.status === "Cancelled"){
-
         tr.classList.add("cancelled-row");
-
       }
       else if(mins !== null && mins <= 0){
-
         tr.classList.add("past-row");
-
       }
       else{
-
         if(mins !== null){
-
           if(mins <= 30){
-
             tr.classList.add("red-dark");
-
             if(t.status === "Confirmed"){
               tr.classList.add("trip-blink");
             }
-
           }
           else if(mins <= 60){
-
             tr.classList.add("red-mid");
-
             if(t.status === "Confirmed"){
               tr.classList.add("trip-blink");
             }
-
           }
           else if(mins <= 120){
-
             tr.classList.add("red-light");
-
           }
           else if(mins <= 180){
-
             tr.classList.add("yellow");
-
           }
           else{
-
             if(t.status === "Confirmed"){
               tr.classList.add("confirmed-row");
             }else{
               tr.classList.add("scheduled-row");
             }
-
           }
-
         }
-
       }
 
       function cell(value, field, type="text"){
@@ -531,26 +535,19 @@ function render(){
         return createEditCellInput(value, field, type);
       }
 
-      /* ================= BUTTON POLICY ================= */
-
       let buttons = "";
 
       if(editing){
-
         buttons = `
           <div class="actions-wrap">
             <button class="btn confirm" data-action="save">Save</button>
           </div>
         `;
-
       }
       else if(t.status === "Cancelled"){
-
         buttons = "";
-
       }
       else if(mins > 120){
-
         buttons = `
           <div class="actions-wrap">
             <button class="btn edit" data-action="edit">Edit</button>
@@ -558,31 +555,24 @@ function render(){
             <button class="btn confirm" data-action="confirm">Confirm</button>
           </div>
         `;
-
       }
       else if(mins <= 120 && mins > 0 && t.status === "Scheduled"){
-
         buttons = `
           <div class="actions-wrap">
             <button class="btn confirm" data-action="confirm">Confirm</button>
             <button class="btn cancel" data-action="cancel">Cancel</button>
           </div>
         `;
-
       }
       else if(mins <= 120 && mins > 0 && t.status === "Confirmed"){
-
         buttons = `
           <div class="actions-wrap">
             <button class="btn cancel" data-action="cancel">Cancel</button>
           </div>
         `;
-
       }
       else{
-
         buttons = "";
-
       }
 
       tr.innerHTML = `
@@ -632,14 +622,14 @@ container.addEventListener("click", async e=>{
       trip.__editing = true;
 
       editSelectedAddresses[id] = {
-        pickup: trip.pickup && isFiniteNumber(Number(trip.pickupLat)) && isFiniteNumber(Number(trip.pickupLng))
+        pickup: trip.pickup && hasGoodCoords(trip.pickupLat, trip.pickupLng)
           ? {
               address: trip.pickup,
               lat: Number(trip.pickupLat),
               lng: Number(trip.pickupLng)
             }
           : null,
-        dropoff: trip.dropoff && isFiniteNumber(Number(trip.dropoffLat)) && isFiniteNumber(Number(trip.dropoffLng))
+        dropoff: trip.dropoff && hasGoodCoords(trip.dropoffLat, trip.dropoffLng)
           ? {
               address: trip.dropoff,
               lat: Number(trip.dropoffLat),
@@ -691,23 +681,31 @@ container.addEventListener("click", async e=>{
 
       const selected = editSelectedAddresses[id] || {};
 
-      if(!selected.pickup || !selected.pickup.address || !isFiniteNumber(selected.pickup.lat) || !isFiniteNumber(selected.pickup.lng)){
+      if(
+        !selected.pickup ||
+        !selected.pickup.address ||
+        !hasGoodCoords(selected.pickup.lat, selected.pickup.lng)
+      ){
         alert("Select pickup from suggestions ❌");
         return;
       }
 
-      if(!selected.dropoff || !selected.dropoff.address || !isFiniteNumber(selected.dropoff.lat) || !isFiniteNumber(selected.dropoff.lng)){
+      if(
+        !selected.dropoff ||
+        !selected.dropoff.address ||
+        !hasGoodCoords(selected.dropoff.lat, selected.dropoff.lng)
+      ){
         alert("Select dropoff from suggestions ❌");
         return;
       }
 
       payload.pickup = selected.pickup.address;
-      payload.pickupLat = selected.pickup.lat;
-      payload.pickupLng = selected.pickup.lng;
+      payload.pickupLat = toNumber(selected.pickup.lat);
+      payload.pickupLng = toNumber(selected.pickup.lng);
 
       payload.dropoff = selected.dropoff.address;
-      payload.dropoffLat = selected.dropoff.lat;
-      payload.dropoffLng = selected.dropoff.lng;
+      payload.dropoffLat = toNumber(selected.dropoff.lat);
+      payload.dropoffLng = toNumber(selected.dropoff.lng);
 
       payload.status = "Scheduled";
 
@@ -721,11 +719,11 @@ container.addEventListener("click", async e=>{
     }
 
     if(action === "confirm"){
-      await updateTrip(id,{...trip, status:"Confirmed"});
+      await updateTrip(id,{ ...trip, status:"Confirmed" });
     }
 
     if(action === "cancel"){
-      await updateTrip(id,{...trip, status:"Cancelled"});
+      await updateTrip(id,{ ...trip, status:"Cancelled" });
     }
 
     if(action === "delete"){
