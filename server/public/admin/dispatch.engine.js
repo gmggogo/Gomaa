@@ -26,35 +26,41 @@ async function init(){
 
     schedule = scheduleRaw || {}
 
-    drivers = driversRaw.map(d => {
-      const id = String(d._id || d.id || "")
-      const sch = schedule[id] || {}
+    drivers = driversRaw
+      .map(d => {
+        const id = String(d._id || d.id || "")
+        const sch = schedule[id] || {}
 
-      return {
-        ...d,
-        _id: id,
-        address:
-          sch.address ||
-          d.address ||
-          d.homeAddress ||
-          d.currentAddress ||
-          d.locationAddress ||
-          d.city ||
-          "",
-        vehicleNumber:
-          sch.vehicleNumber ||
-          sch.carNumber ||
-          d.vehicleNumber ||
-          d.carNumber ||
-          "",
-        phone:
-          sch.phone ||
-          d.phone ||
-          "",
-        lat: sch.lat != null && sch.lat !== "" ? Number(sch.lat) : null,
-        lng: sch.lng != null && sch.lng !== "" ? Number(sch.lng) : null
-      }
-    })
+        return {
+          ...d,
+          _id: id,
+          address:
+            sch.address ||
+            d.address ||
+            d.homeAddress ||
+            d.currentAddress ||
+            d.locationAddress ||
+            d.city ||
+            "",
+          vehicleNumber:
+            sch.vehicleNumber ||
+            sch.carNumber ||
+            d.vehicleNumber ||
+            d.carNumber ||
+            "",
+          phone:
+            sch.phone ||
+            d.phone ||
+            "",
+          lat: sch.lat != null && sch.lat !== "" ? Number(sch.lat) : (d.lat != null ? Number(d.lat) : null),
+          lng: sch.lng != null && sch.lng !== "" ? Number(sch.lng) : (d.lng != null ? Number(d.lng) : null)
+        }
+      })
+      .filter(d => {
+        const sch = schedule[String(d._id)] || null
+        if(!sch) return true
+        return sch.enabled === true
+      })
 
     trips = tripsRaw
       .filter(t =>
@@ -146,6 +152,9 @@ function getStops(t){
 }
 
 function getDriverCar(id){
+  const d = drivers.find(x => String(x._id) === String(id))
+  if(d && d.vehicleNumber) return d.vehicleNumber
+
   const s = schedule[String(id)]
   if(!s) return ""
   return s.carNumber || s.vehicleNumber || s.car || ""
@@ -195,13 +204,19 @@ function syncSelectButtonText(){
   }
 }
 
+function getCurrentArizonaNow(){
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+  ).getTime()
+}
+
 /* ================= TIME / CURRENT ================= */
 
 function getTripStatus(t){
   const ts = getTripDateTimeValue(t)
   if(!ts) return ""
 
-  const diffMin = Math.round((Date.now() - ts) / 60000)
+  const diffMin = Math.round((getCurrentArizonaNow() - ts) / 60000)
 
   if(diffMin >= 120) return "hide"
   if(diffMin >= 0) return "expired"
@@ -219,8 +234,8 @@ function getCurrentTrips(){
   return trips.filter(t => {
     const ts = getTripDateTimeValue(t)
     if(!ts) return false
-    const diffMin = Math.round((Date.now() - ts) / 60000)
-    return diffMin < 0
+    const diffMin = Math.round((getCurrentArizonaNow() - ts) / 60000)
+    return diffMin < 120
   })
 }
 
@@ -229,16 +244,22 @@ function getCurrentTrips(){
 function isDriverActiveOnDate(driverId, tripDate){
   const s = schedule[String(driverId)]
 
-  if(!s) return false
+  if(!s) return true
   if(s.enabled !== true) return false
-  if(!tripDate) return false
+  if(!tripDate) return true
 
   const days = s.days || {}
   const key1 = normalizeDateKey(tripDate)
-  const key2 = new Date(tripDate).toLocaleDateString()
-  const key3 = new Date(tripDate).toLocaleDateString("en-US")
+  const dateObj = new Date(tripDate)
+  const key2 = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : ""
+  const key3 = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString("en-US") : ""
+  const key4 = !isNaN(dateObj.getTime())
+    ? dateObj.toLocaleDateString("en-US", { weekday: "short" })
+    : ""
 
-  return !!(days[key1] || days[key2] || days[key3])
+  if(!Object.keys(days).length) return true
+
+  return !!(days[key1] || days[key2] || days[key3] || days[key4])
 }
 
 function getValidDriversForTrip(trip){
@@ -247,7 +268,7 @@ function getValidDriversForTrip(trip){
   if(!valid.length){
     valid = drivers.filter(d => {
       const s = schedule[String(d._id)]
-      return s ? s.enabled === true : false
+      return s ? s.enabled === true : true
     })
   }
 
@@ -261,9 +282,13 @@ function getValidDriversForTrip(trip){
 function getActiveDriversForPanel(){
   const current = getCurrentTrips()
 
-  return drivers.filter(d =>
-    current.some(t => String(t.driverId || "") === String(d._id))
+  const usedIds = new Set(
+    current
+      .map(t => String(t.driverId || "").trim())
+      .filter(Boolean)
   )
+
+  return drivers.filter(d => usedIds.has(String(d._id)))
 }
 
 /* ================= DRIVER TRIPS / STATUS ================= */
@@ -411,11 +436,21 @@ async function prepareGeo(){
   }
 
   for(const t of trips){
-    if(t.pickup && !t._geoPickup){
+    if(t.pickupLat != null && t.pickupLng != null){
+      t._geoPickup = {
+        lat: Number(t.pickupLat),
+        lng: Number(t.pickupLng)
+      }
+    }else if(t.pickup && !t._geoPickup){
       t._geoPickup = await geocode(t.pickup)
     }
 
-    if(t.dropoff && !t._geoDropoff){
+    if(t.dropoffLat != null && t.dropoffLng != null){
+      t._geoDropoff = {
+        lat: Number(t.dropoffLat),
+        lng: Number(t.dropoffLng)
+      }
+    }else if(t.dropoff && !t._geoDropoff){
       t._geoDropoff = await geocode(t.dropoff)
     }
 
@@ -528,14 +563,15 @@ async function autoAssign(){
   for(const t of trips){
     if(!t.manual){
       t.driverId = ""
+      t.driverName = ""
       t.vehicle = ""
+      t.driverAddress = ""
     }
   }
 
   sortTrips()
 
   for(const trip of trips){
-
     if(trip.manual && trip.driverId) continue
 
     let pickupPoint = trip._geoPickup
@@ -553,7 +589,11 @@ async function autoAssign(){
     if(!validDrivers.length) continue
 
     const minLoad = Math.min(...validDrivers.map(d => load[d._id] || 0))
-    const roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
+    let roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
+
+    if(!roundDrivers.length){
+      roundDrivers = validDrivers
+    }
 
     let bestDriver = null
     let bestScore = Infinity
@@ -606,7 +646,9 @@ async function autoAssign(){
       const id = bestDriver._id
 
       trip.driverId = id
+      trip.driverName = bestDriver.name || ""
       trip.vehicle = getDriverCar(id)
+      trip.driverAddress = getDriverDayHomeAddress(bestDriver)
 
       load[id] = (load[id] || 0) + 1
       lastLocation[id] = trip._geoDropoff || lastLocation[id]
@@ -910,7 +952,7 @@ function toggleEdit(){
   showToast(editMode ? "Edit mode enabled" : "Changes saved")
 }
 
-function assignDriver(i, id){
+async function assignDriver(i, id){
   if(!trips[i]) return
 
   const trip = trips[i]
@@ -927,31 +969,117 @@ function assignDriver(i, id){
     }
   }
 
-  const d = drivers.find(x => String(x._id) === String(id))
+  try{
+    if(id){
+      const res = await fetch(`/api/dispatch/${trip._id}/driver`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driverId: id })
+      })
 
-  trips[i].driverId = id ? String(id) : ""
-  trips[i].vehicle = d ? getDriverCar(d._id) : ""
-  trips[i].manual = !!id
+      const updated = await res.json()
 
-  if(id && selectedTripIndexPerDriver[String(id)] == null){
-    selectedTripIndexPerDriver[String(id)] = 0
+      if(!res.ok){
+        showToast(updated?.message || "Driver save failed")
+        renderTrips()
+        return
+      }
+
+      const d = drivers.find(x => String(x._id) === String(id))
+
+      trip.driverId = updated.driverId ? String(updated.driverId) : String(id)
+      trip.driverName = updated.driverName || d?.name || ""
+      trip.vehicle = updated.vehicle || (d ? getDriverCar(d._id) : "")
+      trip.driverAddress = updated.driverAddress || (d ? getDriverDayHomeAddress(d) : "")
+      trip.manual = true
+    }else{
+      trip.driverId = ""
+      trip.driverName = ""
+      trip.vehicle = ""
+      trip.driverAddress = ""
+      trip.manual = false
+    }
+
+    if(id && selectedTripIndexPerDriver[String(id)] == null){
+      selectedTripIndexPerDriver[String(id)] = 0
+    }
+
+    renderTrips()
+    renderDrivers()
+    showToast("Driver updated")
+  }catch(e){
+    console.log(e)
+    showToast("Error saving driver")
+  }
+}
+
+async function sendSelected(){
+  const selected = trips.filter(t => t.selected)
+
+  if(!selected.length){
+    showToast("No trips selected")
+    return
   }
 
-  renderTrips()
-  renderDrivers()
-  showToast("Driver updated")
+  try{
+    const res = await fetch("/api/dispatch/send", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ids: selected.map(t => t._id)
+      })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if(!res.ok){
+      showToast(data?.message || "Send failed")
+      return
+    }
+
+    selected.forEach(t => {
+      t.selected = false
+      t.status = "Dispatched"
+    })
+
+    renderTrips()
+    renderDrivers()
+    showToast(`${selected.length} trip(s) sent`)
+  }catch(e){
+    console.log("SEND SELECTED ERROR:", e)
+    showToast("Send failed")
+  }
 }
 
-function sendSelected(){
-  const selected = trips.filter(t => t.selected)
-  console.log("SEND SELECTED", selected)
-  showToast(`${selected.length} selected trip(s) ready`)
-}
-
-function sendOne(i){
+async function sendOne(i){
   if(!trips[i]) return
-  console.log("SEND ONE", trips[i])
-  showToast(`Trip ${trips[i].tripNumber || i + 1} ready`)
+
+  try{
+    const res = await fetch("/api/dispatch/send", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ids: [trips[i]._id]
+      })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if(!res.ok){
+      showToast(data?.message || "Send failed")
+      return
+    }
+
+    trips[i].status = "Dispatched"
+    trips[i].selected = false
+
+    renderTrips()
+    renderDrivers()
+    showToast(`Trip ${trips[i].tripNumber || i + 1} sent`)
+  }catch(e){
+    console.log("SEND ONE ERROR:", e)
+    showToast("Send failed")
+  }
 }
 
 async function redistribute(){
@@ -964,12 +1092,15 @@ async function redistribute(){
 
   selected.forEach(t => {
     t.driverId = ""
+    t.driverName = ""
     t.vehicle = ""
+    t.driverAddress = ""
     t.manual = false
   })
 
   await prepareGeo()
   await autoAssign()
+  sortTrips()
   renderTrips()
   renderDrivers()
   showToast("Trips redistributed")
