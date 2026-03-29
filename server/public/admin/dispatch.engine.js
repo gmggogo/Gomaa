@@ -52,8 +52,14 @@ async function init(){
             sch.phone ||
             d.phone ||
             "",
-          lat: sch.lat != null && sch.lat !== "" ? Number(sch.lat) : (d.lat != null ? Number(d.lat) : null),
-          lng: sch.lng != null && sch.lng !== "" ? Number(sch.lng) : (d.lng != null ? Number(d.lng) : null)
+          lat:
+            sch.lat != null && sch.lat !== ""
+              ? Number(sch.lat)
+              : (d.lat != null && d.lat !== "" ? Number(d.lat) : null),
+          lng:
+            sch.lng != null && sch.lng !== ""
+              ? Number(sch.lng)
+              : (d.lng != null && d.lng !== "" ? Number(d.lng) : null)
         }
       })
       .filter(d => {
@@ -73,6 +79,7 @@ async function init(){
         _id: String(t._id || ""),
         selected: false,
         driverId: t.driverId ? String(t.driverId) : "",
+        driverName: t.driverName || "",
         vehicle: t.vehicle || "",
         manual: !!t.driverId || t.manual === true
       }))
@@ -157,6 +164,7 @@ function getDriverCar(id){
 
   const s = schedule[String(id)]
   if(!s) return ""
+
   return s.carNumber || s.vehicleNumber || s.car || ""
 }
 
@@ -210,6 +218,18 @@ function getCurrentArizonaNow(){
   ).getTime()
 }
 
+function groupTripsByDate(list){
+  const map = {}
+
+  for(const t of list){
+    const key = normalizeDateKey(t.tripDate) || "no-date"
+    if(!map[key]) map[key] = []
+    map[key].push(t)
+  }
+
+  return map
+}
+
 /* ================= TIME / CURRENT ================= */
 
 function getTripStatus(t){
@@ -249,17 +269,21 @@ function isDriverActiveOnDate(driverId, tripDate){
   if(!tripDate) return true
 
   const days = s.days || {}
-  const key1 = normalizeDateKey(tripDate)
   const dateObj = new Date(tripDate)
+
+  const key1 = normalizeDateKey(tripDate)
   const key2 = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : ""
   const key3 = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString("en-US") : ""
   const key4 = !isNaN(dateObj.getTime())
     ? dateObj.toLocaleDateString("en-US", { weekday: "short" })
     : ""
+  const key5 = !isNaN(dateObj.getTime())
+    ? dateObj.toLocaleDateString("en-US", { weekday: "long" })
+    : ""
 
   if(!Object.keys(days).length) return true
 
-  return !!(days[key1] || days[key2] || days[key3] || days[key4])
+  return !!(days[key1] || days[key2] || days[key3] || days[key4] || days[key5])
 }
 
 function getValidDriversForTrip(trip){
@@ -360,6 +384,7 @@ function hasTimeConflict(driverId, trip){
 
 function getDriverDayHomeAddress(driver){
   const sch = schedule[String(driver._id)] || {}
+
   return (
     sch.address ||
     driver.liveAddress ||
@@ -373,8 +398,15 @@ function getDriverDayHomeAddress(driver){
 function getDriverHomePoint(driver){
   const sch = schedule[String(driver._id)] || {}
 
-  const lat = sch.lat != null && sch.lat !== "" ? Number(sch.lat) : (driver.lat != null ? Number(driver.lat) : null)
-  const lng = sch.lng != null && sch.lng !== "" ? Number(sch.lng) : (driver.lng != null ? Number(driver.lng) : null)
+  const lat =
+    sch.lat != null && sch.lat !== ""
+      ? Number(sch.lat)
+      : (driver.lat != null && driver.lat !== "" ? Number(driver.lat) : null)
+
+  const lng =
+    sch.lng != null && sch.lng !== ""
+      ? Number(sch.lng)
+      : (driver.lng != null && driver.lng !== "" ? Number(driver.lng) : null)
 
   if(Number.isFinite(lat) && Number.isFinite(lng)){
     return { lat, lng }
@@ -481,7 +513,15 @@ function getFallbackLocalScore(startAddress, pickupAddress){
 
   let distanceScore = 999999
 
-  const cities = ["chandler","tempe","mesa","gilbert","phoenix","scottsdale"]
+  const cities = [
+    "queen creek",
+    "chandler",
+    "tempe",
+    "mesa",
+    "gilbert",
+    "phoenix",
+    "scottsdale"
+  ]
 
   for(const city of cities){
     if(start.includes(city) && pickup.includes(city)){
@@ -524,142 +564,127 @@ async function autoAssign(){
 
   sortTrips()
 
-  const load = {}
-  const lastLocation = {}
+  const tripsByDate = groupTripsByDate(trips)
 
-  for(const d of drivers){
-    load[d._id] = 0
+  for(const dateKey of Object.keys(tripsByDate).sort()){
+    const dayTrips = tripsByDate[dateKey].slice().sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 
-    if(!d._geoHome){
-      const directPoint = getDriverHomePoint(d)
+    const dayLoad = {}
+    const dayLastLocation = {}
 
-      if(directPoint){
-        d._geoHome = directPoint
-      }else{
-        const addr = getDriverDayHomeAddress(d)
-        if(addr){
-          d._geoHome = await geocode(addr)
+    for(const d of drivers){
+      dayLoad[d._id] = 0
+
+      if(!d._geoHome){
+        const directPoint = getDriverHomePoint(d)
+
+        if(directPoint){
+          d._geoHome = directPoint
+        }else{
+          const addr = getDriverDayHomeAddress(d)
+          if(addr){
+            d._geoHome = await geocode(addr)
+          }
         }
       }
+
+      dayLastLocation[d._id] = d._geoHome || null
     }
 
-    lastLocation[d._id] = d._geoHome || null
-  }
+    for(const t of dayTrips){
+      if(t.manual && t.driverId){
+        const id = String(t.driverId)
 
-  for(const t of trips){
-    if(t.manual && t.driverId){
-      const id = String(t.driverId)
+        dayLoad[id] = (dayLoad[id] || 0) + 1
 
-      load[id] = (load[id] || 0) + 1
+        if(!t._geoDropoff && t.dropoff){
+          t._geoDropoff = await geocode(t.dropoff)
+        }
 
-      if(!t._geoDropoff && t.dropoff){
-        t._geoDropoff = await geocode(t.dropoff)
+        dayLastLocation[id] = t._geoDropoff || dayLastLocation[id]
+      }
+    }
+
+    for(const t of dayTrips){
+      if(!t.manual){
+        t.driverId = ""
+        t.driverName = ""
+        t.vehicle = ""
+        t.driverAddress = ""
+      }
+    }
+
+    for(const trip of dayTrips){
+      if(trip.manual && trip.driverId) continue
+
+      let pickupPoint = trip._geoPickup
+
+      if(!pickupPoint && trip.pickup){
+        pickupPoint = await geocode(trip.pickup)
+        trip._geoPickup = pickupPoint
       }
 
-      lastLocation[id] = t._geoDropoff || lastLocation[id]
-    }
-  }
+      if(!trip._geoDropoff && trip.dropoff){
+        trip._geoDropoff = await geocode(trip.dropoff)
+      }
 
-  for(const t of trips){
-    if(!t.manual){
-      t.driverId = ""
-      t.driverName = ""
-      t.vehicle = ""
-      t.driverAddress = ""
-    }
-  }
+      const validDrivers = getValidDriversForTrip(trip)
+      if(!validDrivers.length) continue
 
-  sortTrips()
+      let bestDriver = null
+      let bestScore = Infinity
 
-  for(const trip of trips){
-    if(trip.manual && trip.driverId) continue
+      for(const driver of validDrivers){
+        const currentLoad = dayLoad[driver._id] || 0
 
-    let pickupPoint = trip._geoPickup
+        let startPoint = null
+        let startAddress = ""
 
-    if(!pickupPoint && trip.pickup){
-      pickupPoint = await geocode(trip.pickup)
-      trip._geoPickup = pickupPoint
-    }
-
-    if(!trip._geoDropoff && trip.dropoff){
-      trip._geoDropoff = await geocode(trip.dropoff)
-    }
-
-    const validDrivers = getValidDriversForTrip(trip)
-    if(!validDrivers.length) continue
-
-    const minLoad = Math.min(...validDrivers.map(d => load[d._id] || 0))
-    let roundDrivers = validDrivers.filter(d => (load[d._id] || 0) === minLoad)
-
-    if(!roundDrivers.length){
-      roundDrivers = validDrivers
-    }
-
-    let bestDriver = null
-    let bestScore = Infinity
-
-    for(const driver of roundDrivers){
-      let startPoint = null
-      let startAddress = ""
-
-      if((load[driver._id] || 0) === 0){
-        startPoint = driver._geoHome || null
-
-        if(!startPoint){
-          const directPoint = getDriverHomePoint(driver)
-          if(directPoint){
-            startPoint = directPoint
-            driver._geoHome = directPoint
-          }else{
-            startAddress = getDriverDayHomeAddress(driver)
-            if(startAddress){
-              startPoint = await geocode(startAddress)
-              driver._geoHome = startPoint
-            }
-          }
+        if(currentLoad === 0){
+          startPoint = driver._geoHome || null
+          startAddress = getDriverDayHomeAddress(driver)
         }else{
+          startPoint = dayLastLocation[driver._id] || null
           startAddress = getDriverDayHomeAddress(driver)
         }
-      }else{
-        startPoint = lastLocation[driver._id] || null
-        startAddress = getDriverDayHomeAddress(driver)
+
+        let distance = 999999
+
+        if(startPoint && pickupPoint){
+          distance = fastDistance(startPoint, pickupPoint)
+        }else{
+          distance = getFallbackLocalScore(startAddress, trip.pickup)
+        }
+
+        const loadPenalty = currentLoad * 0.35
+        const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
+        const score = distance + loadPenalty + conflictPenalty
+
+        if(score < bestScore){
+          bestScore = score
+          bestDriver = driver
+        }
       }
 
-      let distance = 999999
+      if(bestDriver){
+        const id = bestDriver._id
 
-      if(startPoint && pickupPoint){
-        distance = fastDistance(startPoint, pickupPoint)
-      }else{
-        distance = getFallbackLocalScore(startAddress, trip.pickup)
-      }
+        trip.driverId = id
+        trip.driverName = bestDriver.name || ""
+        trip.vehicle = getDriverCar(id)
+        trip.driverAddress = getDriverDayHomeAddress(bestDriver)
 
-      const conflictPenalty = hasTimeConflict(driver._id, trip) ? 50000 : 0
-      const score = distance + conflictPenalty
+        dayLoad[id] = (dayLoad[id] || 0) + 1
+        dayLastLocation[id] = trip._geoDropoff || dayLastLocation[id]
 
-      if(score < bestScore){
-        bestScore = score
-        bestDriver = driver
-      }
-    }
-
-    if(bestDriver){
-      const id = bestDriver._id
-
-      trip.driverId = id
-      trip.driverName = bestDriver.name || ""
-      trip.vehicle = getDriverCar(id)
-      trip.driverAddress = getDriverDayHomeAddress(bestDriver)
-
-      load[id] = (load[id] || 0) + 1
-      lastLocation[id] = trip._geoDropoff || lastLocation[id]
-
-      if(selectedTripIndexPerDriver[id] == null){
-        selectedTripIndexPerDriver[id] = 0
+        if(selectedTripIndexPerDriver[id] == null){
+          selectedTripIndexPerDriver[id] = 0
+        }
       }
     }
+
+    console.log("DAY DISTRIBUTION:", dateKey, dayLoad)
   }
-
-  console.log("FINAL DISTRIBUTION:", load)
 }
 
 /* ================= RENDER TRIPS ================= */
@@ -680,8 +705,8 @@ function renderTrips(){
     body.innerHTML += `
       <tr class="trip-row ${status}">
         <td>
-          <button class="btn ${t.selected ? 'green' : 'blue'} select-btn" onclick="toggleTrip(${i})">
-            ${t.selected ? '✔' : 'Select'}
+          <button class="btn ${t.selected ? "green" : "blue"} select-btn" onclick="toggleTrip(${i})">
+            ${t.selected ? "✔" : "Select"}
           </button>
         </td>
 
