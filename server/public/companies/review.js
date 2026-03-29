@@ -83,6 +83,54 @@ border-radius:6px;
 font-size:13px;
 }
 
+.edit-cell-wrap{
+position:relative;
+width:100%;
+}
+
+.suggestions{
+position:absolute;
+top:100%;
+left:0;
+right:0;
+background:#ffffff;
+border:1px solid #cbd5e1;
+border-top:none;
+z-index:9999;
+max-height:220px;
+overflow:auto;
+box-shadow:0 10px 18px rgba(0,0,0,.08);
+text-align:left;
+}
+
+.option{
+padding:10px 12px;
+cursor:pointer;
+font-size:13px;
+line-height:1.35;
+border-bottom:1px solid #eef2f7;
+background:#fff;
+color:#111827;
+}
+
+.option:last-child{
+border-bottom:none;
+}
+
+.option:hover{
+background:#eff6ff;
+}
+
+.option.disabled{
+cursor:default;
+color:#64748b;
+background:#f8fafc;
+}
+
+.review-table td{
+position:relative;
+}
+
 /* COLORS */
 
 .scheduled-row{
@@ -171,6 +219,142 @@ function escapeHtml(value){
     .replace(/>/g,"&gt;");
 }
 
+function normalizeText(v){
+  return String(v ?? "").trim();
+}
+
+function isFiniteNumber(v){
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+/* ================= AUTOCOMPLETE ================= */
+
+let editSelectedAddresses = {};
+
+async function searchAddress(q){
+  const query = normalizeText(q);
+  if(query.length < 3) return [];
+
+  try{
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`,
+      {
+        headers: {
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    if(!res.ok) return [];
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }catch(err){
+    console.error("Address search error:", err);
+    return [];
+  }
+}
+
+function createEditCellInput(value, field, type = "text"){
+  return `
+    <div class="edit-cell-wrap">
+      <input class="edit-input" type="${type}" data-field="${field}" value="${escapeHtml(value)}">
+    </div>
+  `;
+}
+
+function attachEditAutocomplete(input, tripId, field){
+
+  if(!input) return;
+
+  const wrap = input.closest(".edit-cell-wrap") || input.parentNode;
+  if(!wrap) return;
+
+  let oldBox = wrap.querySelector(".suggestions");
+  if(oldBox) oldBox.remove();
+
+  const box = document.createElement("div");
+  box.className = "suggestions";
+  wrap.appendChild(box);
+
+  let debounceTimer = null;
+
+  input.setAttribute("autocomplete", "off");
+
+  input.addEventListener("input", async () => {
+
+    if(!editSelectedAddresses[tripId]){
+      editSelectedAddresses[tripId] = {};
+    }
+
+    editSelectedAddresses[tripId][field] = null;
+
+    const q = input.value.trim();
+
+    clearTimeout(debounceTimer);
+
+    if(q.length < 3){
+      box.innerHTML = "";
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      const results = await searchAddress(q);
+
+      if(!results.length){
+        box.innerHTML = `<div class="option disabled">No address found</div>`;
+        return;
+      }
+
+      box.innerHTML = results.map(r => `
+        <div class="option"
+             data-address="${escapeHtml(r.display_name)}"
+             data-lat="${escapeHtml(r.lat)}"
+             data-lng="${escapeHtml(r.lon)}">
+          ${escapeHtml(r.display_name)}
+        </div>
+      `).join("");
+    }, 250);
+
+  });
+
+  box.addEventListener("click", e => {
+    const el = e.target.closest(".option");
+    if(!el || el.classList.contains("disabled")) return;
+
+    const obj = {
+      address: el.dataset.address,
+      lat: parseFloat(el.dataset.lat),
+      lng: parseFloat(el.dataset.lng)
+    };
+
+    if(!editSelectedAddresses[tripId]){
+      editSelectedAddresses[tripId] = {};
+    }
+
+    editSelectedAddresses[tripId][field] = obj;
+    input.value = obj.address;
+    box.innerHTML = "";
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => {
+      box.innerHTML = "";
+    }, 180);
+  });
+}
+
+function initRowAutocomplete(tripId){
+  const row = document.querySelector(`tr[data-id="${tripId}"]`);
+  if(!row) return;
+
+  const pickupInput = row.querySelector('.edit-input[data-field="pickup"]');
+  const dropoffInput = row.querySelector('.edit-input[data-field="dropoff"]');
+
+  attachEditAutocomplete(pickupInput, tripId, "pickup");
+  attachEditAutocomplete(dropoffInput, tripId, "dropoff");
+}
+
 /* ================= SERVER ================= */
 
 async function fetchTrips(){
@@ -202,7 +386,10 @@ async function updateTrip(id,payload){
     body:JSON.stringify(payload)
   });
 
-  if(!res.ok) throw new Error("Update failed");
+  if(!res.ok){
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Update failed");
+  }
 }
 
 async function deleteTrip(id){
@@ -212,7 +399,10 @@ async function deleteTrip(id){
     headers:{ Authorization:"Bearer " + token }
   });
 
-  if(!res.ok) throw new Error("Delete failed");
+  if(!res.ok){
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Delete failed");
+  }
 }
 
 /* ================= GROUP ================= */
@@ -338,7 +528,7 @@ function render(){
 
       function cell(value, field, type="text"){
         if(!editing) return escapeHtml(value);
-        return `<input class="edit-input" type="${type}" data-field="${field}" value="${escapeHtml(value)}">`;
+        return createEditCellInput(value, field, type);
       }
 
       /* ================= BUTTON POLICY ================= */
@@ -401,7 +591,7 @@ function render(){
         <td>${cell(t.entryName,"entryName")}</td>
         <td>${cell(t.entryPhone,"entryPhone")}</td>
         <td>${cell(t.clientName,"clientName")}</td>
-        <td>${cell(t.phone,"phone")}</td>
+        <td>${cell(t.clientPhone || t.phone,"clientPhone")}</td>
         <td>${cell(t.pickup,"pickup")}</td>
         <td>${cell(t.dropoff,"dropoff")}</td>
         <td>${cell(t.tripDate,"tripDate","date")}</td>
@@ -440,7 +630,30 @@ container.addEventListener("click", async e=>{
 
     if(action === "edit"){
       trip.__editing = true;
+
+      editSelectedAddresses[id] = {
+        pickup: trip.pickup && isFiniteNumber(Number(trip.pickupLat)) && isFiniteNumber(Number(trip.pickupLng))
+          ? {
+              address: trip.pickup,
+              lat: Number(trip.pickupLat),
+              lng: Number(trip.pickupLng)
+            }
+          : null,
+        dropoff: trip.dropoff && isFiniteNumber(Number(trip.dropoffLat)) && isFiniteNumber(Number(trip.dropoffLng))
+          ? {
+              address: trip.dropoff,
+              lat: Number(trip.dropoffLat),
+              lng: Number(trip.dropoffLng)
+            }
+          : null
+      };
+
       render();
+
+      setTimeout(() => {
+        initRowAutocomplete(id);
+      }, 20);
+
       return;
     }
 
@@ -453,18 +666,54 @@ container.addEventListener("click", async e=>{
         payload[input.dataset.field] = input.value;
       });
 
-      const newTrip = new Date(payload.tripDate + "T" + payload.tripTime + ":00");
-      const mins = (newTrip - getAZNow()) / 60000;
+      const tripDateValue = normalizeText(payload.tripDate);
+      const tripTimeValue = normalizeText(payload.tripTime);
+
+      const newTrip = new Date(tripDateValue + "T" + tripTimeValue + ":00");
+      const now = getAZNow();
+
+      if(isNaN(newTrip.getTime())){
+        alert("Invalid date/time");
+        return;
+      }
+
+      if(newTrip <= now){
+        alert("Cannot set trip in the past ❌");
+        return;
+      }
+
+      const mins = (newTrip - now) / 60000;
 
       if(mins <= 120){
-        const ok = confirm("WARNING: Trip is within 120 minutes. It cannot be edited or deleted. Continue?");
+        const ok = confirm("WARNING: Trip is within 120 minutes. Continue?");
         if(!ok) return;
       }
+
+      const selected = editSelectedAddresses[id] || {};
+
+      if(!selected.pickup || !selected.pickup.address || !isFiniteNumber(selected.pickup.lat) || !isFiniteNumber(selected.pickup.lng)){
+        alert("Select pickup from suggestions ❌");
+        return;
+      }
+
+      if(!selected.dropoff || !selected.dropoff.address || !isFiniteNumber(selected.dropoff.lat) || !isFiniteNumber(selected.dropoff.lng)){
+        alert("Select dropoff from suggestions ❌");
+        return;
+      }
+
+      payload.pickup = selected.pickup.address;
+      payload.pickupLat = selected.pickup.lat;
+      payload.pickupLng = selected.pickup.lng;
+
+      payload.dropoff = selected.dropoff.address;
+      payload.dropoffLat = selected.dropoff.lat;
+      payload.dropoffLng = selected.dropoff.lng;
 
       payload.status = "Scheduled";
 
       await updateTrip(id,payload);
 
+      delete editSelectedAddresses[id];
       trip.__editing = false;
       trips = await fetchTrips();
       render();
@@ -472,11 +721,11 @@ container.addEventListener("click", async e=>{
     }
 
     if(action === "confirm"){
-      await updateTrip(id,{status:"Confirmed"});
+      await updateTrip(id,{...trip, status:"Confirmed"});
     }
 
     if(action === "cancel"){
-      await updateTrip(id,{status:"Cancelled"});
+      await updateTrip(id,{...trip, status:"Cancelled"});
     }
 
     if(action === "delete"){
@@ -487,7 +736,7 @@ container.addEventListener("click", async e=>{
     render();
 
   }catch(err){
-    alert("Server Error");
+    alert(err.message || "Server Error");
     console.error(err);
   }
 
