@@ -158,7 +158,7 @@
 
     .quote-grid{
       display:grid;
-      grid-template-columns:repeat(3,1fr);
+      grid-template-columns:repeat(4,1fr);
       gap:12px;
       margin-top:10px;
     }
@@ -239,6 +239,11 @@
       display:none;
     }
 
+    .loading{
+      opacity:.7;
+      pointer-events:none;
+    }
+
     @media(max-width:768px){
       .page{
         padding:12px;
@@ -310,6 +315,10 @@
           <div class="quote-value" id="stopsValue">0</div>
         </div>
         <div class="quote-box">
+          <div class="quote-label">Estimated Time</div>
+          <div class="quote-value" id="durationValue">0 min</div>
+        </div>
+        <div class="quote-box">
           <div class="quote-label">Estimated Price</div>
           <div class="quote-value" id="priceValue">$0.00</div>
         </div>
@@ -342,7 +351,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 let markers = [];
-let lines = [];
+let routeLayers = [];
 let stopCount = 0;
 const maxStops = 5;
 let isQuoteValid = false;
@@ -360,6 +369,7 @@ const priceBox = document.getElementById("priceBox");
 
 const distanceValue = document.getElementById("distanceValue");
 const stopsValue = document.getElementById("stopsValue");
+const durationValue = document.getElementById("durationValue");
 const priceValue = document.getElementById("priceValue");
 
 /* ================= STATE ================= */
@@ -383,11 +393,23 @@ function clearMap(){
   markers.forEach(m => {
     try{ map.removeLayer(m); }catch(e){}
   });
-  lines.forEach(l => {
+  routeLayers.forEach(l => {
     try{ map.removeLayer(l); }catch(e){}
   });
   markers = [];
-  lines = [];
+  routeLayers = [];
+}
+
+function setLoading(loading){
+  if(loading){
+    calcBtn.disabled = true;
+    calcBtn.textContent = "Calculating...";
+    document.body.classList.add("loading");
+  }else{
+    calcBtn.disabled = false;
+    calcBtn.textContent = "Calculate Price";
+    document.body.classList.remove("loading");
+  }
 }
 
 function getOrCreateSuggestionBox(input){
@@ -418,6 +440,10 @@ function setSelectedAddress(type, input, obj){
 }
 
 function clearSelectedAddress(type, input){
+  isQuoteValid = false;
+  bookTripBtn.disabled = true;
+  priceBox.classList.add("hidden");
+
   if(type === "pickup"){
     selectedPickup = null;
   }else if(type === "dropoff"){
@@ -428,20 +454,6 @@ function clearSelectedAddress(type, input){
       selectedStops.delete(stopId);
     }
   }
-}
-
-function haversineMiles(a, b){
-  const R = 3958.8;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-
-  const x =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * Math.PI / 180) *
-    Math.cos(b.lat * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2;
-
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
 function collectStopsInputs(){
@@ -470,7 +482,18 @@ function collectStopsData(){
   return { stops, stopsGeo };
 }
 
-/* ================= AUTOCOMPLETE ================= */
+function formatDuration(minutes){
+  const total = Number(minutes || 0);
+  if(total < 60) return `${total} min`;
+
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+
+  if(m === 0) return `${h} hr`;
+  return `${h} hr ${m} min`;
+}
+
+/* ================= ADDRESS SEARCH ================= */
 
 async function searchAddress(q){
   const query = String(q || "").trim();
@@ -493,6 +516,24 @@ async function searchAddress(q){
     console.error("Address search error:", err);
     return [];
   }
+}
+
+function renderSuggestions(box, results){
+  if(!box) return;
+
+  if(!results.length){
+    box.innerHTML = `<div class="option disabled">No address found</div>`;
+    return;
+  }
+
+  box.innerHTML = results.map(item => `
+    <div class="option"
+         data-address="${escapeHtml(item.display_name)}"
+         data-lat="${escapeHtml(item.lat)}"
+         data-lng="${escapeHtml(item.lon)}">
+      ${escapeHtml(item.display_name)}
+    </div>
+  `).join("");
 }
 
 function attachAutocomplete(input, type){
@@ -546,24 +587,6 @@ function attachAutocomplete(input, type){
   });
 }
 
-function renderSuggestions(box, results){
-  if(!box) return;
-
-  if(!results.length){
-    box.innerHTML = `<div class="option disabled">No address found</div>`;
-    return;
-  }
-
-  box.innerHTML = results.map(item => `
-    <div class="option"
-         data-address="${escapeHtml(item.display_name)}"
-         data-lat="${escapeHtml(item.lat)}"
-         data-lng="${escapeHtml(item.lon)}">
-      ${escapeHtml(item.display_name)}
-    </div>
-  `).join("");
-}
-
 /* ================= STOPS ================= */
 
 function createStopInput(){
@@ -605,16 +628,44 @@ function createStopInput(){
   removeBtn.addEventListener("click", () => {
     selectedStops.delete(input.dataset.stopId);
     wrap.remove();
+    isQuoteValid = false;
+    bookTripBtn.disabled = true;
+    priceBox.classList.add("hidden");
   });
 }
 
 addStopBtn.addEventListener("click", createStopInput);
 
-/* ================= ROUTE DRAW ================= */
+/* ================= ROUTE API ================= */
 
-function drawRoute(points){
-  clearMap();
+async function getRoute(points){
+  if(!Array.isArray(points) || points.length < 2) return null;
 
+  try{
+    const coords = points.map(p => `${p.lng},${p.lat}`).join(";");
+
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    );
+
+    const data = await res.json();
+
+    if(!data.routes || !data.routes.length) return null;
+
+    const r = data.routes[0];
+
+    return {
+      coords: r.geometry.coordinates.map(c => [c[1], c[0]]),
+      distance: r.distance / 1609.34,
+      duration: Math.round(r.duration / 60)
+    };
+  }catch(err){
+    console.error("Route error:", err);
+    return null;
+  }
+}
+
+function drawMarkers(points){
   points.forEach((p, idx) => {
     const label =
       idx === 0 ? "Pickup" :
@@ -625,26 +676,11 @@ function drawRoute(points){
     marker.addTo(map);
     markers.push(marker);
   });
-
-  for(let i = 0; i < points.length - 1; i++){
-    const line = L.polyline(
-      [
-        [points[i].lat, points[i].lng],
-        [points[i + 1].lat, points[i + 1].lng]
-      ],
-      { color:"#2563eb", weight:4 }
-    ).addTo(map);
-
-    lines.push(line);
-  }
-
-  map.fitBounds(points.map(p => [p.lat, p.lng]), { padding:[30,30] });
 }
 
 /* ================= CALCULATE ================= */
 
-function calculate(){
-
+async function calculate(){
   if(!selectedPickup || !selectedPickup.address){
     alert("Please select a valid pickup address.");
     return;
@@ -677,46 +713,66 @@ function calculate(){
     selectedDropoff
   ];
 
-  let miles = 0;
+  setLoading(true);
+  clearMap();
 
-  for(let i = 0; i < points.length - 1; i++){
-    miles += haversineMiles(points[i], points[i + 1]);
+  try{
+    const route = await getRoute(points);
+
+    if(!route){
+      alert("Route not available.");
+      setLoading(false);
+      return;
+    }
+
+    const polyline = L.polyline(route.coords, {
+      color:"#2563eb",
+      weight:5
+    }).addTo(map);
+
+    routeLayers.push(polyline);
+
+    drawMarkers(points);
+
+    map.fitBounds(polyline.getBounds(), { padding:[40,40] });
+
+    let price = 30;
+    if(route.distance > 10){
+      price += (route.distance - 10) * 2;
+    }
+
+    const stopQty = stopsGeo.length;
+    const stopsFee = stopQty * 5;
+    price += stopsFee;
+
+    priceBox.classList.remove("hidden");
+    distanceValue.textContent = `${route.distance.toFixed(2)} mi`;
+    stopsValue.textContent = String(stopQty);
+    durationValue.textContent = formatDuration(route.duration);
+    priceValue.textContent = `$${price.toFixed(2)}`;
+
+    lastTripData = {
+      pickup: selectedPickup.address,
+      pickupLat: Number(selectedPickup.lat),
+      pickupLng: Number(selectedPickup.lng),
+
+      dropoff: selectedDropoff.address,
+      dropoffLat: Number(selectedDropoff.lat),
+      dropoffLng: Number(selectedDropoff.lng),
+
+      stops: stops,
+      stopsGeo: stopsGeo,
+
+      miles: route.distance.toFixed(2),
+      duration: route.duration,
+      price: price.toFixed(2)
+    };
+
+    isQuoteValid = true;
+    bookTripBtn.disabled = false;
+  }finally{
+    setLoading(false);
   }
-
-  let price = 30;
-  if(miles > 10){
-    price += (miles - 10) * 2;
-  }
-
-  const stopQty = stopsGeo.length;
-  const stopsFee = stopQty * 5;
-  price += stopsFee;
-
-  drawRoute(points);
-
-  priceBox.classList.remove("hidden");
-  distanceValue.textContent = `${miles.toFixed(2)} mi`;
-  stopsValue.textContent = String(stopQty);
-  priceValue.textContent = `$${price.toFixed(2)}`;
-
-  lastTripData = {
-    pickup: selectedPickup.address,
-    pickupLat: Number(selectedPickup.lat),
-    pickupLng: Number(selectedPickup.lng),
-
-    dropoff: selectedDropoff.address,
-    dropoffLat: Number(selectedDropoff.lat),
-    dropoffLng: Number(selectedDropoff.lng),
-
-    stops: stops,
-    stopsGeo: stopsGeo,
-
-    miles: miles.toFixed(2),
-    price: price.toFixed(2)
-  };
-
-  isQuoteValid = true;
-  bookTripBtn.disabled = false;
 }
 
 /* ================= BOOK ================= */
