@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
 <meta charset="UTF-8">
@@ -12,127 +11,141 @@
 <style>
 
 body{
-margin:0;
-font-family:Segoe UI,Arial;
-background:#f1f5f9;
+  margin:0;
+  font-family:Segoe UI,Arial;
+  background:#f1f5f9;
 }
 
 /* HEADER */
 
 #adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:1000;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
 }
 
 /* PAGE */
 
 .page-body{
-padding-top:300px;
-padding-left:20px;
-padding-right:20px;
+  padding-top:300px;
+  padding-left:20px;
+  padding-right:20px;
+  padding-bottom:30px;
 }
 
 /* MOBILE HEADER SPACE */
 
 @media (max-width:768px){
-
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
-}
-
+  .page-body{
+    padding-top:360px;
+    padding-left:10px;
+    padding-right:10px;
+  }
 }
 
 /* TABLE */
 
 .table-scroll{
-width:100%;
-overflow-x:auto;
+  width:100%;
+  overflow-x:auto;
 }
 
 .trip-table{
-width:100%;
-border-collapse:collapse;
-background:white;
-font-size:13px;
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  font-size:13px;
+  min-width:1400px;
 }
 
 .trip-table th{
-background:#0f172a;
-color:white;
-padding:8px;
-text-align:center;
+  background:#0f172a;
+  color:white;
+  padding:8px;
+  text-align:center;
+  white-space:nowrap;
 }
 
 .trip-table td{
-padding:6px;
-border-bottom:1px solid #eee;
-text-align:center;
+  padding:6px;
+  border-bottom:1px solid #eee;
+  text-align:center;
+  vertical-align:middle;
+  position:relative;
+  overflow:visible;
 }
 
 .trip-table input{
-width:100%;
-border:1px solid #ddd;
-padding:4px;
-font-size:12px;
+  width:100%;
+  border:1px solid #ddd;
+  padding:4px;
+  font-size:12px;
+  box-sizing:border-box;
+  border-radius:6px;
+}
+
+.trip-table input:disabled{
+  background:#f8fafc;
+  color:#111827;
+  opacity:1;
 }
 
 .group-title{
-font-weight:700;
-margin:20px 0 8px;
-font-size:15px;
+  font-weight:700;
+  margin:20px 0 8px;
+  font-size:15px;
 }
 
 /* BUTTONS */
 
 .actions{
-display:flex;
-gap:6px;
-justify-content:center;
-align-items:center;
+  display:flex;
+  gap:6px;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
 }
 
 .btn{
-border:none;
-padding:5px 10px;
-border-radius:6px;
-cursor:pointer;
-font-size:12px;
+  border:none;
+  padding:5px 10px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:12px;
 }
 
 .btn-edit{
-background:#2563eb;
-color:white;
+  background:#2563eb;
+  color:white;
 }
 
 .btn-delete{
-background:#dc2626;
-color:white;
+  background:#dc2626;
+  color:white;
 }
 
 .btn-disable{
-background:#f59e0b;
-color:white;
-font-weight:600;
+  background:#f59e0b;
+  color:white;
+  font-weight:600;
 }
 
 .dispatch-check:checked{
-accent-color:#16a34a;
+  accent-color:#16a34a;
 }
 
 /* STOP */
 
 .add-stop{
-background:#facc15;
-border:none;
-padding:3px 6px;
-cursor:pointer;
-border-radius:5px;
-font-size:12px;
+  background:#facc15;
+  border:none;
+  padding:3px 6px;
+  cursor:pointer;
+  border-radius:5px;
+  font-size:12px;
+  margin-top:4px;
 }
 
 .row-company{background:#fff6d6;}
@@ -140,16 +153,92 @@ font-size:12px;
 .row-reserved{background:#dcfce7;}
 
 .stop-row{
-display:flex;
-align-items:center;
-gap:5px;
-margin-bottom:3px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-bottom:3px;
 }
 
 .stop-remove{
-cursor:pointer;
-color:#dc2626;
-font-weight:bold;
+  cursor:pointer;
+  color:#dc2626;
+  font-weight:bold;
+}
+
+/* AUTOCOMPLETE */
+
+.input-wrap{
+  position:relative;
+  width:100%;
+}
+
+.suggestions{
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  background:#ffffff;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  z-index:99999;
+  max-height:220px;
+  overflow:auto;
+  box-shadow:0 12px 24px rgba(0,0,0,.15);
+  margin-top:4px;
+  text-align:left;
+}
+
+.option{
+  padding:10px 12px;
+  cursor:pointer;
+  font-size:13px;
+  line-height:1.35;
+  border-bottom:1px solid #eef2f7;
+  background:#fff;
+  color:#111827;
+}
+
+.option:last-child{
+  border-bottom:none;
+}
+
+.option:hover{
+  background:#eff6ff;
+}
+
+.option.disabled{
+  background:#f8fafc;
+  color:#64748b;
+  cursor:default;
+}
+
+@media (max-width:768px){
+  .trip-table{
+    font-size:12px;
+  }
+
+  .trip-table th{
+    padding:7px;
+    font-size:12px;
+  }
+
+  .trip-table td{
+    padding:5px;
+  }
+
+  .trip-table input{
+    font-size:12px;
+    padding:5px;
+  }
+
+  .suggestions{
+    max-height:180px;
+  }
+
+  .option{
+    font-size:12px;
+    padding:9px 10px;
+  }
 }
 
 </style>
@@ -161,9 +250,7 @@ font-weight:bold;
 <div id="adminHeader"></div>
 
 <div class="page-body">
-
-<div id="tripsContainer"></div>
-
+  <div id="tripsContainer"></div>
 </div>
 
 <script src="/admin/header.js"></script>
