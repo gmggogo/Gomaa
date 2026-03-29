@@ -20,8 +20,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
    MIDDLEWARE
 ========================= */
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 /* =========================
    STATIC
@@ -75,6 +75,21 @@ const tripSchema = new mongoose.Schema({
   dropoff: { type: String, default: "" },
   stops: { type: [String], default: [] },
 
+  /* OPTIONAL COORDINATES */
+  pickupLat: { type: Number, default: null },
+  pickupLng: { type: Number, default: null },
+  dropoffLat: { type: Number, default: null },
+  dropoffLng: { type: Number, default: null },
+
+  stopCoords: {
+    type: [{
+      address: { type: String, default: "" },
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null }
+    }],
+    default: []
+  },
+
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
 
@@ -95,12 +110,13 @@ const tripSchema = new mongoose.Schema({
   status: { type: String, default: "Scheduled" },
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
-});
+}, { minimize: false });
 
 /* INDEXES */
 tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
+tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
 
@@ -125,7 +141,7 @@ const driverScheduleSchema = new mongoose.Schema({
     type: Object,
     default: {}
   }
-}, { timestamps: true });
+}, { timestamps: true, minimize: false });
 
 const DriverSchedule = mongoose.model("DriverSchedule", driverScheduleSchema);
 
@@ -133,6 +149,11 @@ const DriverSchedule = mongoose.model("DriverSchedule", driverScheduleSchema);
    LIVE DRIVER TRACKING
 ========================= */
 const liveDrivers = new Map();
+
+/* =========================
+   GEO CACHE
+========================= */
+const geoCache = new Map();
 
 /* =========================
    HELPERS
@@ -152,6 +173,276 @@ function normalizeTripType(rawType) {
   if (t === "company") return "company";
 
   return "company";
+}
+
+function normalizeText(v) {
+  return String(v || "").trim();
+}
+
+function normalizeNumber(v) {
+  if (v === "" || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseStops(stops) {
+  if (!Array.isArray(stops)) return [];
+  return stops.map(s => normalizeText(s)).filter(Boolean);
+}
+
+function parseStopCoords(stopCoords) {
+  if (!Array.isArray(stopCoords)) return [];
+  return stopCoords.map(sc => ({
+    address: normalizeText(sc?.address),
+    lat: normalizeNumber(sc?.lat),
+    lng: normalizeNumber(sc?.lng)
+  }));
+}
+
+function getFreshLiveDriversArray() {
+  const now = Date.now();
+  const maxAge = 1000 * 60 * 5;
+
+  return Array.from(liveDrivers.values()).filter(driver => {
+    return now - driver.time <= maxAge;
+  });
+}
+
+function toRad(v) {
+  return v * Math.PI / 180;
+}
+
+function calcDistanceKm(lat1, lng1, lat2, lng2) {
+  if (
+    lat1 === null || lng1 === null ||
+    lat2 === null || lng2 === null ||
+    lat1 === undefined || lng1 === undefined ||
+    lat2 === undefined || lng2 === undefined
+  ) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function parseTripDateTime(tripDate, tripTime) {
+  const d = normalizeText(tripDate);
+  if (!d) return null;
+
+  const t = normalizeText(tripTime) || "00:00";
+  const iso = `${d}T${t}`;
+  const dt = new Date(iso);
+
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
+
+function sortTripsByDateTime(trips) {
+  return [...trips].sort((a, b) => {
+    const da = parseTripDateTime(a.tripDate, a.tripTime);
+    const db = parseTripDateTime(b.tripDate, b.tripTime);
+
+    const ta = da ? da.getTime() : 0;
+    const tb = db ? db.getTime() : 0;
+
+    if (ta !== tb) return ta - tb;
+
+    const aNum = normalizeText(a.tripNumber);
+    const bNum = normalizeText(b.tripNumber);
+    return aNum.localeCompare(bNum);
+  });
+}
+
+function getDayShort(dateStr) {
+  const d = normalizeText(dateStr);
+  if (!d) return "";
+
+  const dt = new Date(`${d}T12:00:00`);
+  if (Number.isNaN(dt.getTime())) return "";
+
+  return dt.toLocaleDateString("en-US", {
+    weekday: "short",
+    timeZone: "America/Phoenix"
+  });
+}
+
+function isDriverEnabledBySchedule(driverId, schedule) {
+  const s = schedule[String(driverId)] || null;
+  if (!s) return true;
+  return s.enabled === true;
+}
+
+function isDriverWorkingThatDay(driverId, tripDate, schedule) {
+  const s = schedule[String(driverId)] || null;
+  if (!s) return true;
+  if (s.enabled !== true) return false;
+
+  const days = s.days || {};
+  const dayShort = getDayShort(tripDate);
+
+  if (!dayShort) return true;
+
+  if (Object.keys(days).length === 0) return true;
+
+  return days[dayShort] === true;
+}
+
+function buildDriverAddress(driver, scheduleRow) {
+  const scheduleAddress = normalizeText(scheduleRow?.address);
+  const userAddress = normalizeText(driver?.address);
+  return scheduleAddress || userAddress || "";
+}
+
+function buildDriverVehicle(driver, scheduleRow) {
+  const scheduleVehicle = normalizeText(scheduleRow?.vehicleNumber);
+  const userVehicle = normalizeText(driver?.vehicleNumber);
+  return scheduleVehicle || userVehicle || "";
+}
+
+function buildDriverPhone(driver, scheduleRow) {
+  const schedulePhone = normalizeText(scheduleRow?.phone);
+  const userPhone = normalizeText(driver?.phone);
+  return schedulePhone || userPhone || "";
+}
+
+async function geocodeAddress(address) {
+  const q = normalizeText(address);
+  if (!q) return { lat: null, lng: null };
+
+  const cacheKey = q.toLowerCase();
+  if (geoCache.has(cacheKey)) {
+    return geoCache.get(cacheKey);
+  }
+
+  try {
+    if (typeof fetch !== "function") {
+      return { lat: null, lng: null };
+    }
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "SunbeamTransportation/1.0"
+      }
+    });
+
+    if (!resp.ok) {
+      return { lat: null, lng: null };
+    }
+
+    const data = await resp.json();
+    const first = Array.isArray(data) ? data[0] : null;
+
+    const result = {
+      lat: first?.lat ? Number(first.lat) : null,
+      lng: first?.lon ? Number(first.lon) : null
+    };
+
+    geoCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    console.log("Geocode error:", err?.message || err);
+    return { lat: null, lng: null };
+  }
+}
+
+async function ensureTripCoords(trip) {
+  const pickupLat = normalizeNumber(trip.pickupLat);
+  const pickupLng = normalizeNumber(trip.pickupLng);
+  const dropoffLat = normalizeNumber(trip.dropoffLat);
+  const dropoffLng = normalizeNumber(trip.dropoffLng);
+
+  let changed = false;
+
+  let finalPickupLat = pickupLat;
+  let finalPickupLng = pickupLng;
+  let finalDropoffLat = dropoffLat;
+  let finalDropoffLng = dropoffLng;
+
+  if (finalPickupLat === null || finalPickupLng === null) {
+    const geo = await geocodeAddress(trip.pickup);
+    if (geo.lat !== null && geo.lng !== null) {
+      finalPickupLat = geo.lat;
+      finalPickupLng = geo.lng;
+      changed = true;
+    }
+  }
+
+  if (finalDropoffLat === null || finalDropoffLng === null) {
+    const geo = await geocodeAddress(trip.dropoff);
+    if (geo.lat !== null && geo.lng !== null) {
+      finalDropoffLat = geo.lat;
+      finalDropoffLng = geo.lng;
+      changed = true;
+    }
+  }
+
+  trip.pickupLat = finalPickupLat;
+  trip.pickupLng = finalPickupLng;
+  trip.dropoffLat = finalDropoffLat;
+  trip.dropoffLng = finalDropoffLng;
+
+  if (changed && trip._id) {
+    try {
+      await Trip.findByIdAndUpdate(trip._id, {
+        pickupLat: finalPickupLat,
+        pickupLng: finalPickupLng,
+        dropoffLat: finalDropoffLat,
+        dropoffLng: finalDropoffLng
+      });
+    } catch (err) {
+      console.log("Trip coord save error:", err?.message || err);
+    }
+  }
+
+  return trip;
+}
+
+async function ensureDriverScheduleCoords(driverId, scheduleRow) {
+  const lat = normalizeNumber(scheduleRow?.lat);
+  const lng = normalizeNumber(scheduleRow?.lng);
+
+  if (lat !== null && lng !== null) {
+    return {
+      ...scheduleRow,
+      lat,
+      lng
+    };
+  }
+
+  const address = normalizeText(scheduleRow?.address);
+  if (!address) return scheduleRow;
+
+  const geo = await geocodeAddress(address);
+  if (geo.lat === null || geo.lng === null) return scheduleRow;
+
+  try {
+    await DriverSchedule.findOneAndUpdate(
+      { driverId: String(driverId) },
+      { lat: geo.lat, lng: geo.lng }
+    );
+  } catch (err) {
+    console.log("Driver schedule coord save error:", err?.message || err);
+  }
+
+  return {
+    ...scheduleRow,
+    lat: geo.lat,
+    lng: geo.lng
+  };
 }
 
 async function generateTripNumber(type) {
@@ -226,13 +517,279 @@ async function generateTripNumber(type) {
   return monthCode + "-" + next;
 }
 
-function getFreshLiveDriversArray() {
-  const now = Date.now();
-  const maxAge = 1000 * 60 * 5;
+/* =========================
+   SMART DISPATCH ENGINE
+   - FIRST ROUND: nearest pickup to driver home
+   - NEXT ROUNDS: nearest pickup to last dropoff
+========================= */
+function assignTripToDriverState(ds, trip, scheduleRow) {
+  trip.driverId = String(ds.driver._id);
+  trip.driverName = normalizeText(ds.driver.name);
+  trip.vehicle = buildDriverVehicle(ds.driver, scheduleRow);
+  trip.driverAddress = buildDriverAddress(ds.driver, scheduleRow);
 
-  return Array.from(liveDrivers.values()).filter(driver => {
-    return now - driver.time <= maxAge;
-  });
+  if (
+    normalizeText(trip.status) === "" ||
+    normalizeText(trip.status).toLowerCase() === "scheduled" ||
+    normalizeText(trip.status).toLowerCase() === "booked"
+  ) {
+    trip.status = "Auto Assigned";
+  }
+
+  ds.assignedTrips.push(trip);
+  ds.currentLat = normalizeNumber(trip.dropoffLat) ?? ds.currentLat;
+  ds.currentLng = normalizeNumber(trip.dropoffLng) ?? ds.currentLng;
+  ds.lastTripDate = normalizeText(trip.tripDate);
+  ds.lastTripTime = normalizeText(trip.tripTime);
+}
+
+function buildLockedAssignedTripMap(trips) {
+  const map = new Map();
+
+  for (const trip of trips) {
+    const driverId = normalizeText(trip.driverId);
+    if (!driverId) continue;
+
+    if (!map.has(driverId)) map.set(driverId, []);
+    map.get(driverId).push(trip);
+  }
+
+  for (const [driverId, arr] of map.entries()) {
+    map.set(driverId, sortTripsByDateTime(arr));
+  }
+
+  return map;
+}
+
+function getDriverStateBase(driver, scheduleRow) {
+  return {
+    driver,
+    currentLat: normalizeNumber(scheduleRow?.lat),
+    currentLng: normalizeNumber(scheduleRow?.lng),
+    assignedTrips: [],
+    firstRoundDoneByDate: new Set(),
+    lastTripDate: "",
+    lastTripTime: ""
+  };
+}
+
+function canDriverTakeTrip(driverState, trip, schedule) {
+  const driverId = String(driverState.driver._id);
+
+  if (!isDriverEnabledBySchedule(driverId, schedule)) return false;
+  if (!isDriverWorkingThatDay(driverId, trip.tripDate, schedule)) return false;
+
+  return true;
+}
+
+function groupTripsByDate(trips) {
+  const map = new Map();
+
+  for (const trip of sortTripsByDateTime(trips)) {
+    const dateKey = normalizeText(trip.tripDate) || "NO_DATE";
+    if (!map.has(dateKey)) map.set(dateKey, []);
+    map.get(dateKey).push(trip);
+  }
+
+  return map;
+}
+
+function getNearestTripFromPoint(pointLat, pointLng, trips) {
+  let bestTrip = null;
+  let bestDistance = Number.MAX_SAFE_INTEGER;
+
+  for (const trip of trips) {
+    const pLat = normalizeNumber(trip.pickupLat);
+    const pLng = normalizeNumber(trip.pickupLng);
+    const dist = calcDistanceKm(pointLat, pointLng, pLat, pLng);
+
+    if (dist < bestDistance) {
+      bestDistance = dist;
+      bestTrip = trip;
+    }
+  }
+
+  return bestTrip;
+}
+
+function removeTripFromArray(arr, targetTrip) {
+  const idx = arr.findIndex(t => String(t._id) === String(targetTrip._id));
+  if (idx !== -1) arr.splice(idx, 1);
+}
+
+async function autoAssignTrips({ trips, drivers, schedule }) {
+  const preparedTrips = sortTripsByDateTime([...trips]);
+
+  for (const trip of preparedTrips) {
+    await ensureTripCoords(trip);
+  }
+
+  const dateGroups = groupTripsByDate(preparedTrips);
+
+  const driverStates = [];
+  for (const driver of drivers) {
+    const id = String(driver._id);
+    const baseSchedule = schedule[id] || {
+      phone: "",
+      address: normalizeText(driver.address),
+      lat: null,
+      lng: null,
+      vehicleNumber: normalizeText(driver.vehicleNumber),
+      enabled: true,
+      days: {}
+    };
+
+    const safeSchedule = await ensureDriverScheduleCoords(id, baseSchedule);
+    schedule[id] = safeSchedule;
+
+    driverStates.push(getDriverStateBase(driver, safeSchedule));
+  }
+
+  const lockedMap = buildLockedAssignedTripMap(preparedTrips);
+
+  /* Seed driver states with existing assigned trips */
+  for (const ds of driverStates) {
+    const driverId = String(ds.driver._id);
+    const existingTrips = lockedMap.get(driverId) || [];
+    const scheduleRow = schedule[driverId] || {};
+
+    for (const trip of existingTrips) {
+      assignTripToDriverState(ds, trip, scheduleRow);
+      ds.firstRoundDoneByDate.add(normalizeText(trip.tripDate) || "NO_DATE");
+    }
+  }
+
+  const finalTrips = [];
+
+  for (const [dateKey, allTripsForDate] of dateGroups.entries()) {
+    const lockedTrips = [];
+    const unassignedTrips = [];
+
+    for (const trip of allTripsForDate) {
+      if (normalizeText(trip.driverId)) {
+        lockedTrips.push(trip);
+      } else {
+        unassignedTrips.push(trip);
+      }
+    }
+
+    const remaining = [...unassignedTrips];
+
+    /* FIRST ROUND
+       only drivers who are active+enabled+working that day
+       and still have not taken first job for this date
+    */
+    for (const ds of driverStates) {
+      const driverId = String(ds.driver._id);
+      const scheduleRow = schedule[driverId] || {};
+
+      if (ds.firstRoundDoneByDate.has(dateKey)) continue;
+      if (!isDriverEnabledBySchedule(driverId, schedule)) continue;
+      if (!isDriverWorkingThatDay(driverId, dateKey, schedule)) continue;
+
+      const candidateTrips = remaining.filter(trip =>
+        canDriverTakeTrip(ds, trip, schedule)
+      );
+
+      if (candidateTrips.length === 0) continue;
+
+      const nearest = getNearestTripFromPoint(ds.currentLat, ds.currentLng, candidateTrips);
+      if (!nearest) continue;
+
+      assignTripToDriverState(ds, nearest, scheduleRow);
+      ds.firstRoundDoneByDate.add(dateKey);
+      removeTripFromArray(remaining, nearest);
+    }
+
+    /* NEXT ROUNDS
+       after first round, keep assigning by nearest pickup to last dropoff
+    */
+    while (remaining.length > 0) {
+      let assignedThisLoop = false;
+
+      for (const ds of driverStates) {
+        const driverId = String(ds.driver._id);
+        const scheduleRow = schedule[driverId] || {};
+
+        if (!isDriverEnabledBySchedule(driverId, schedule)) continue;
+        if (!isDriverWorkingThatDay(driverId, dateKey, schedule)) continue;
+
+        const candidateTrips = remaining.filter(trip =>
+          canDriverTakeTrip(ds, trip, schedule)
+        );
+
+        if (candidateTrips.length === 0) continue;
+
+        const nearest = getNearestTripFromPoint(ds.currentLat, ds.currentLng, candidateTrips);
+        if (!nearest) continue;
+
+        assignTripToDriverState(ds, nearest, scheduleRow);
+        ds.firstRoundDoneByDate.add(dateKey);
+        removeTripFromArray(remaining, nearest);
+        assignedThisLoop = true;
+
+        if (remaining.length === 0) break;
+      }
+
+      /* avoid infinite loop */
+      if (!assignedThisLoop) {
+        break;
+      }
+    }
+
+    finalTrips.push(...lockedTrips);
+  }
+
+  /* collect all trips from driver states */
+  const stateAssignedIds = new Set();
+  for (const ds of driverStates) {
+    for (const trip of ds.assignedTrips) {
+      stateAssignedIds.add(String(trip._id));
+      finalTrips.push(trip);
+    }
+  }
+
+  /* if any trip still untouched, keep it as-is */
+  for (const trip of preparedTrips) {
+    if (!stateAssignedIds.has(String(trip._id)) && !finalTrips.find(t => String(t._id) === String(trip._id))) {
+      finalTrips.push(trip);
+    }
+  }
+
+  return sortTripsByDateTime(finalTrips);
+}
+
+async function persistAssignedTrips(trips) {
+  const ops = [];
+
+  for (const trip of trips) {
+    const update = {
+      pickupLat: normalizeNumber(trip.pickupLat),
+      pickupLng: normalizeNumber(trip.pickupLng),
+      dropoffLat: normalizeNumber(trip.dropoffLat),
+      dropoffLng: normalizeNumber(trip.dropoffLng),
+      driverId: normalizeText(trip.driverId),
+      driverName: normalizeText(trip.driverName),
+      vehicle: normalizeText(trip.vehicle),
+      driverAddress: normalizeText(trip.driverAddress),
+      status: normalizeText(trip.status) || "Scheduled"
+    };
+
+    ops.push({
+      updateOne: {
+        filter: { _id: trip._id },
+        update: { $set: update }
+      }
+    });
+  }
+
+  if (ops.length > 0) {
+    try {
+      await Trip.bulkWrite(ops, { ordered: false });
+    } catch (err) {
+      console.log("Bulk trip save error:", err?.message || err);
+    }
+  }
 }
 
 /* =========================
@@ -248,11 +805,11 @@ app.get("/api/driver-schedule", async (req, res) => {
       if (!id) continue;
 
       result[id] = {
-        phone: r.phone || "",
-        address: r.address || "",
-        lat: r.lat ?? null,
-        lng: r.lng ?? null,
-        vehicleNumber: r.vehicleNumber || "",
+        phone: normalizeText(r.phone),
+        address: normalizeText(r.address),
+        lat: normalizeNumber(r.lat),
+        lng: normalizeNumber(r.lng),
+        vehicleNumber: normalizeText(r.vehicleNumber),
         enabled: r.enabled === true,
         days: r.days || {}
       };
@@ -279,11 +836,11 @@ app.post("/api/driver-schedule", async (req, res) => {
         { driverId: safeId },
         {
           driverId: safeId,
-          phone: s.phone || "",
-          address: s.address || "",
-          lat: s.lat !== undefined && s.lat !== null && s.lat !== "" ? Number(s.lat) : null,
-          lng: s.lng !== undefined && s.lng !== null && s.lng !== "" ? Number(s.lng) : null,
-          vehicleNumber: s.vehicleNumber || "",
+          phone: normalizeText(s.phone),
+          address: normalizeText(s.address),
+          lat: normalizeNumber(s.lat),
+          lng: normalizeNumber(s.lng),
+          vehicleNumber: normalizeText(s.vehicleNumber),
           enabled: typeof s.enabled === "boolean" ? s.enabled : true,
           days: s.days || {}
         },
@@ -395,7 +952,14 @@ app.get("/api/users/:role", async (req, res) => {
 app.post("/api/users/:role", async (req, res) => {
   try {
     const role = req.params.role;
-    const { name, username, password, vehicleNumber, address, phone } = req.body || {};
+    const {
+      name,
+      username,
+      password,
+      vehicleNumber,
+      address,
+      phone
+    } = req.body || {};
 
     if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
@@ -405,7 +969,7 @@ app.post("/api/users/:role", async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const exists = await User.findOne({ username });
+    const exists = await User.findOne({ username: normalizeText(username) });
 
     if (exists) {
       return res.status(400).json({ message: "Username exists" });
@@ -414,13 +978,13 @@ app.post("/api/users/:role", async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
-      name,
-      username,
+      name: normalizeText(name),
+      username: normalizeText(username),
       password: hashed,
       role,
-      vehicleNumber: vehicleNumber || "",
-      address: address || "",
-      phone: phone || ""
+      vehicleNumber: normalizeText(vehicleNumber),
+      address: normalizeText(address),
+      phone: normalizeText(phone)
     });
 
     res.json(newUser);
@@ -435,11 +999,11 @@ app.put("/api/users/:id", async (req, res) => {
     const { name, username, password, vehicleNumber, address, phone } = req.body || {};
 
     const updateData = {
-      name,
-      username,
-      vehicleNumber,
-      address,
-      phone
+      name: normalizeText(name),
+      username: normalizeText(username),
+      vehicleNumber: normalizeText(vehicleNumber),
+      address: normalizeText(address),
+      phone: normalizeText(phone)
     };
 
     if (password && String(password).trim() !== "") {
@@ -512,30 +1076,41 @@ app.post("/api/trips", async (req, res) => {
     const type = normalizeTripType(req.body.type);
     const tripNumber = await generateTripNumber(type);
 
+    const pickup = normalizeText(req.body.pickup);
+    const dropoff = normalizeText(req.body.dropoff);
+
     const trip = await Trip.create({
       type,
       tripNumber,
 
-      company: req.body.company || "",
+      company: normalizeText(req.body.company),
 
-      entryName: req.body.entryName || "",
-      entryPhone: req.body.entryPhone || "",
+      entryName: normalizeText(req.body.entryName),
+      entryPhone: normalizeText(req.body.entryPhone),
 
-      clientName: req.body.clientName || "",
-      clientPhone: req.body.clientPhone || "",
+      clientName: normalizeText(req.body.clientName),
+      clientPhone: normalizeText(req.body.clientPhone),
 
-      pickup: req.body.pickup || "",
-      dropoff: req.body.dropoff || "",
-      stops: Array.isArray(req.body.stops) ? req.body.stops : [],
+      pickup,
+      dropoff,
+      stops: parseStops(req.body.stops),
 
-      tripDate: req.body.tripDate || "",
-      tripTime: req.body.tripTime || "",
+      pickupLat: normalizeNumber(req.body.pickupLat),
+      pickupLng: normalizeNumber(req.body.pickupLng),
+      dropoffLat: normalizeNumber(req.body.dropoffLat),
+      dropoffLng: normalizeNumber(req.body.dropoffLng),
+      stopCoords: parseStopCoords(req.body.stopCoords),
 
-      notes: req.body.notes || "",
-      status: req.body.status || "Booked",
+      tripDate: normalizeText(req.body.tripDate),
+      tripTime: normalizeText(req.body.tripTime),
+
+      notes: normalizeText(req.body.notes),
+      status: normalizeText(req.body.status) || "Booked",
       bookedAt: req.body.bookedAt || new Date(),
       createdAt: new Date()
     });
+
+    await ensureTripCoords(trip);
 
     res.status(200).json(trip);
   } catch (err) {
@@ -632,7 +1207,13 @@ app.put("/api/trips/:id", async (req, res) => {
 
       pickup: req.body.pickup ?? existing.pickup,
       dropoff: req.body.dropoff ?? existing.dropoff,
-      stops: Array.isArray(req.body.stops) ? req.body.stops : existing.stops,
+      stops: Array.isArray(req.body.stops) ? parseStops(req.body.stops) : existing.stops,
+
+      pickupLat: req.body.pickupLat !== undefined ? normalizeNumber(req.body.pickupLat) : existing.pickupLat,
+      pickupLng: req.body.pickupLng !== undefined ? normalizeNumber(req.body.pickupLng) : existing.pickupLng,
+      dropoffLat: req.body.dropoffLat !== undefined ? normalizeNumber(req.body.dropoffLat) : existing.dropoffLat,
+      dropoffLng: req.body.dropoffLng !== undefined ? normalizeNumber(req.body.dropoffLng) : existing.dropoffLng,
+      stopCoords: Array.isArray(req.body.stopCoords) ? parseStopCoords(req.body.stopCoords) : existing.stopCoords,
 
       tripDate: req.body.tripDate ?? existing.tripDate,
       tripTime: req.body.tripTime ?? existing.tripTime,
@@ -641,6 +1222,12 @@ app.put("/api/trips/:id", async (req, res) => {
 
       dispatchSelected: req.body.dispatchSelected ?? existing.dispatchSelected,
       disabled: req.body.disabled ?? existing.disabled,
+
+      driverId: req.body.driverId ?? existing.driverId,
+      driverName: req.body.driverName ?? existing.driverName,
+      vehicle: req.body.vehicle ?? existing.vehicle,
+      driverAddress: req.body.driverAddress ?? existing.driverAddress,
+      dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
 
       status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
@@ -651,6 +1238,8 @@ app.put("/api/trips/:id", async (req, res) => {
       updateData,
       { new: true }
     );
+
+    await ensureTripCoords(updated);
 
     res.json(updated);
   } catch (err) {
@@ -684,11 +1273,11 @@ app.delete("/api/trips/:id", async (req, res) => {
 /* الرحلات المختارة للديسبتش + السواقين + الشيدول + اللايف */
 app.get("/api/dispatch", async (req, res) => {
   try {
-    const trips = await Trip.find({
+    const rawTrips = await Trip.find({
       dispatchSelected: true,
       disabled: false
     })
-      .sort({ tripDate: 1, tripTime: 1 })
+      .sort({ tripDate: 1, tripTime: 1, createdAt: 1 })
       .lean();
 
     const rawDrivers = await User.find({
@@ -706,19 +1295,31 @@ app.get("/api/dispatch", async (req, res) => {
       if (!id) continue;
 
       schedule[id] = {
-        phone: r.phone || "",
-        address: r.address || "",
-        lat: r.lat ?? null,
-        lng: r.lng ?? null,
-        vehicleNumber: r.vehicleNumber || "",
+        phone: normalizeText(r.phone),
+        address: normalizeText(r.address),
+        lat: normalizeNumber(r.lat),
+        lng: normalizeNumber(r.lng),
+        vehicleNumber: normalizeText(r.vehicleNumber),
         enabled: r.enabled === true,
         days: r.days || {}
       };
     }
 
+    /* فلترة السواقين:
+       لازم يكون active في users
+       وكمان enabled في driver schedule لو موجود
+    */
+    const filteredDrivers = rawDrivers.filter(driver => {
+      const driverId = String(driver._id || "").trim();
+      const s = schedule[driverId];
+
+      if (!s) return true;
+      return s.enabled === true;
+    });
+
     const liveDriversArr = getFreshLiveDriversArray();
 
-    const drivers = rawDrivers.map(driver => {
+    const drivers = filteredDrivers.map(driver => {
       const driverId = String(driver._id || "").trim();
       const s = schedule[driverId] || {};
       const live = liveDriversArr.find(
@@ -728,20 +1329,11 @@ app.get("/api/dispatch", async (req, res) => {
       return {
         ...driver,
         _id: driverId,
-        address:
-          (s.address && s.address.trim() !== "")
-            ? s.address
-            : (driver.address || ""),
-        lat: s.lat ?? null,
-        lng: s.lng ?? null,
-        vehicleNumber:
-          (s.vehicleNumber && s.vehicleNumber.trim() !== "")
-            ? s.vehicleNumber
-            : (driver.vehicleNumber || ""),
-        phone:
-          (s.phone && s.phone.trim() !== "")
-            ? s.phone
-            : (driver.phone || ""),
+        address: buildDriverAddress(driver, s),
+        lat: normalizeNumber(s.lat),
+        lng: normalizeNumber(s.lng),
+        vehicleNumber: buildDriverVehicle(driver, s),
+        phone: buildDriverPhone(driver, s),
 
         /* live data */
         liveLat: live?.lat ?? null,
@@ -751,8 +1343,17 @@ app.get("/api/dispatch", async (req, res) => {
       };
     });
 
+    /* SMART AUTO ASSIGN */
+    const assignedTrips = await autoAssignTrips({
+      trips: rawTrips,
+      drivers,
+      schedule
+    });
+
+    await persistAssignedTrips(assignedTrips);
+
     res.json({
-      trips,
+      trips: assignedTrips,
       drivers,
       schedule,
       liveDrivers: liveDriversArr
@@ -787,7 +1388,7 @@ app.patch("/api/dispatch/send", async (req, res) => {
 /* حفظ نوت */
 app.patch("/api/dispatch/:id/note", async (req, res) => {
   try {
-    const note = req.body.note || "";
+    const note = normalizeText(req.body.note);
 
     const trip = await Trip.findByIdAndUpdate(
       req.params.id,
@@ -805,7 +1406,7 @@ app.patch("/api/dispatch/:id/note", async (req, res) => {
   }
 });
 
-/* تعيين سواق */
+/* تعيين سواق يدوي */
 app.patch("/api/dispatch/:id/driver", async (req, res) => {
   try {
     const { driverId } = req.body || {};
@@ -825,17 +1426,37 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
       return res.status(400).json({ message: "User is not a driver" });
     }
 
+    if (!driver.active) {
+      return res.status(400).json({ message: "Driver is disabled" });
+    }
+
     const driverSchedule = await DriverSchedule.findOne({
       driverId: String(driver._id).trim()
-    });
+    }).lean();
+
+    if (driverSchedule && driverSchedule.enabled !== true) {
+      return res.status(400).json({ message: "Driver disabled in schedule" });
+    }
+
+    const safeSchedule = driverSchedule
+      ? await ensureDriverScheduleCoords(String(driver._id), {
+          phone: normalizeText(driverSchedule.phone),
+          address: normalizeText(driverSchedule.address),
+          lat: normalizeNumber(driverSchedule.lat),
+          lng: normalizeNumber(driverSchedule.lng),
+          vehicleNumber: normalizeText(driverSchedule.vehicleNumber),
+          enabled: driverSchedule.enabled === true,
+          days: driverSchedule.days || {}
+        })
+      : null;
 
     const trip = await Trip.findByIdAndUpdate(
       req.params.id,
       {
         driverId: String(driver._id).trim(),
-        driverName: driver.name || "",
-        vehicle: driverSchedule?.vehicleNumber || driver.vehicleNumber || "",
-        driverAddress: driverSchedule?.address || driver.address || "",
+        driverName: normalizeText(driver.name),
+        vehicle: buildDriverVehicle(driver, safeSchedule),
+        driverAddress: buildDriverAddress(driver, safeSchedule),
         status: "Driver Assigned"
       },
       { new: true }
@@ -870,9 +1491,14 @@ app.post("/api/driver/location", (req, res) => {
       return res.status(400).json({ message: "invalid coordinates" });
     }
 
-    liveDrivers.set(name, {
+    const key = String(driverId || name || "").trim();
+    if (!key) {
+      return res.status(400).json({ message: "missing driver key" });
+    }
+
+    liveDrivers.set(key, {
       driverId: String(driverId || "").trim(),
-      name,
+      name: normalizeText(name),
       lat: latNum,
       lng: lngNum,
       time: Date.now()
