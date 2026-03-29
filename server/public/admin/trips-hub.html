@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
 <title>Trips Hub</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,72 +10,252 @@
 
 <style>
 
-/* ===== PAGE CONTENT ===== */
+/* ===== PAGE ===== */
+
+body{
+  margin:0;
+  background:#f8fafc;
+  font-family:Arial,sans-serif;
+}
 
 .page-content{
-padding:20px;
-width:100%;
-box-sizing:border-box;
+  padding:20px;
+  width:100%;
+  box-sizing:border-box;
 }
 
 /* ===== TOOLBAR ===== */
 
 .toolbar{
-display:flex;
-gap:10px;
-align-items:center;
-flex-wrap:wrap;
-margin-bottom:15px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:15px;
 }
 
 .add-btn{
-background:#2563eb;
-color:#fff;
-border:none;
-padding:7px 14px;
-border-radius:6px;
-cursor:pointer;
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  padding:8px 16px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:14px;
+  font-weight:600;
+}
+
+.add-btn:hover{
+  background:#1d4ed8;
 }
 
 .search-input{
-flex:1;
-min-width:220px;
-padding:7px;
+  flex:1;
+  min-width:220px;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid #cbd5e1;
+  font-size:14px;
+  outline:none;
 }
 
-/* ===== TABLE CONTAINER ===== */
+.search-input:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+/* ===== CONTAINER ===== */
 
 #hubContainer{
-width:100%;
-overflow-x:auto;
+  width:100%;
+  overflow-x:auto;
+}
+
+/* ===== GROUP TITLE ===== */
+
+.group-title{
+  font-size:18px;
+  font-weight:700;
+  margin:20px 0 10px;
+  color:#0f172a;
 }
 
 /* ===== TABLE ===== */
 
 .hub-table{
-width:100%;
-table-layout:auto;
-border-collapse:collapse;
+  width:100%;
+  border-collapse:collapse;
+  table-layout:auto;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  margin-bottom:20px;
+}
+
+.hub-table th,
+.hub-table td{
+  border:1px solid #dbe2ea;
+  padding:8px;
+  text-align:center;
+  font-size:13px;
+  vertical-align:middle;
+}
+
+.hub-table th{
+  background:#0f172a;
+  color:#fff;
+  white-space:nowrap;
+}
+
+.hub-table td{
+  position:relative;
+  overflow:visible;
+  background-clip:padding-box;
+}
+
+.hub-table input,
+.hub-table textarea,
+.hub-table select{
+  width:100%;
+  box-sizing:border-box;
+  padding:6px 8px;
+  border:1px solid #cbd5e1;
+  border-radius:6px;
+  font-size:13px;
+  font-family:inherit;
+}
+
+.hub-table textarea{
+  min-height:48px;
+  resize:vertical;
+}
+
+.hub-table input:disabled,
+.hub-table textarea:disabled,
+.hub-table select:disabled{
+  background:#f8fafc;
+  color:#111827;
+  opacity:1;
+}
+
+/* ===== INPUT WRAP ===== */
+
+.input-wrap{
+  position:relative;
+  width:100%;
+}
+
+/* ===== AUTOCOMPLETE ===== */
+
+.suggestions{
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  background:#fff;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  z-index:99999;
+  max-height:220px;
+  overflow:auto;
+  box-shadow:0 15px 30px rgba(0,0,0,.15);
+  margin-top:4px;
+  text-align:left;
+}
+
+.option{
+  padding:10px 12px;
+  cursor:pointer;
+  font-size:13px;
+  border-bottom:1px solid #eef2f7;
+  color:#111827;
+  background:#fff;
+}
+
+.option:last-child{
+  border-bottom:none;
+}
+
+.option:hover{
+  background:#eff6ff;
+}
+
+.option.disabled{
+  background:#f8fafc;
+  color:#64748b;
+  cursor:default;
+}
+
+/* ===== ACTIONS ===== */
+
+.hub-actions{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:center;
+}
+
+.hub-btn{
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:700;
+}
+
+.edit{
+  background:#3b82f6;
+  color:#fff;
+}
+
+.save{
+  background:#16a34a;
+  color:#fff;
+}
+
+.delete{
+  background:#dc2626;
+  color:#fff;
+}
+
+/* ===== EMPTY ===== */
+
+.no-data{
+  background:#fff;
+  padding:16px;
+  border-radius:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  color:#475569;
 }
 
 /* ===== MOBILE ===== */
 
 @media (max-width:768px){
 
-.toolbar{
-flex-direction:column;
-align-items:stretch;
-}
+  .page-content{
+    padding:12px;
+  }
 
-.add-btn,
-.search-input{
-width:100%;
-}
+  .toolbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .add-btn,
+  .search-input{
+    width:100%;
+  }
+
+  .hub-table{
+    min-width:1200px;
+  }
 
 }
 
 </style>
-
 </head>
 
 <body>
@@ -85,40 +263,30 @@ width:100%;
 <!-- HEADER -->
 <div id="adminHeader"></div>
 
-
 <!-- PAGE CONTENT -->
 <div class="page-content">
 
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button id="addManualTripBtn" class="add-btn" type="button">
+      + Add Reserved Trip
+    </button>
 
-<!-- TOOLBAR -->
+    <input
+      id="searchInput"
+      class="search-input"
+      type="text"
+      placeholder="Search trip #, name, phone, company">
+  </div>
 
-<div class="toolbar">
-
-<button id="addManualTripBtn" class="add-btn">
-Add Reserved Trip
-</button>
-
-<input
-id="searchInput"
-class="search-input"
-placeholder="Search trip #, name, phone, company">
-
-</div>
-
-
-<!-- TABLE CONTAINER -->
-
-<div id="hubContainer"></div>
+  <!-- TABLE CONTAINER -->
+  <div id="hubContainer"></div>
 
 </div>
-
-
 
 <!-- JS -->
-
 <script src="/admin/header.js"></script>
 <script src="/admin/trips-hub.js"></script>
 
 </body>
-
 </html>
