@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
 <meta charset="UTF-8">
@@ -11,68 +10,67 @@
 
 body{
 margin:0;
-padding-top:10px;
-padding-bottom:80px;
+padding:10px 10px 80px;
 background:#f3f4f6;
 font-family:Arial
 }
 
-/* PAGE */
-
-.page{
-padding:20px
+/* CARD STYLE بدل الجدول */
+.card{
+background:#fff;
+border-radius:12px;
+padding:12px;
+margin-bottom:10px;
+box-shadow:0 3px 10px rgba(0,0,0,.08);
+cursor:pointer;
+transition:.2s;
 }
 
-table{
-width:100%;
-border-collapse:collapse;
-background:#fff
+.card:hover{
+transform:scale(1.01)
 }
 
-th,td{
-border:1px solid #d1d5db;
-padding:6px;
-text-align:center;
-font-size:13px
+/* STATUS COLORS */
+.pending{
+border-left:6px solid #2563eb
 }
 
-th{
-background:#1f2933;
-color:#fff
+.accepted{
+border-left:6px solid #16a34a
 }
 
-/* BUTTONS */
-
-.btn{
-padding:6px 10px;
-border:none;
-border-radius:6px;
+.completed{
+background:#111;
 color:#fff;
+border-left:6px solid #000;
+cursor:not-allowed;
+opacity:.8
+}
+
+/* TITLE */
+.title{
 font-weight:bold;
-cursor:pointer
+margin-bottom:6px;
+font-size:14px;
 }
 
-.green{
-background:#16a34a
+/* TEXT */
+.text{
+font-size:13px;
+margin:2px 0;
 }
 
-.blue{
-background:#2563eb
-}
-
-/* NAV BAR */
-
+/* NAV */
 .nav{
 position:fixed;
 bottom:0;
 left:0;
 right:0;
-height:70px;
+height:65px;
 background:#020617;
 display:flex;
 justify-content:space-around;
 align-items:center;
-border-top:1px solid rgba(255,255,255,.08)
 }
 
 .nav button{
@@ -80,15 +78,9 @@ background:none;
 border:none;
 color:#9ca3af;
 font-size:11px;
-cursor:pointer;
 display:flex;
 flex-direction:column;
 align-items:center;
-gap:4px
-}
-
-.nav button span{
-font-size:20px
 }
 
 .nav button.active{
@@ -101,169 +93,17 @@ color:#facc15
 
 <body>
 
-<div class="page">
-
-<table>
-
-<thead>
-<tr>
-<th>Trip #</th>
-<th>Pickup</th>
-<th>Dropoff</th>
-<th>Time</th>
-<th>Status</th>
-<th>Actions</th>
-</tr>
-</thead>
-
-<tbody id="tbody"></tbody>
-
-</table>
-
-</div>
+<div id="tripsContainer"></div>
 
 <!-- NAV -->
-
 <div class="nav">
-
-<button onclick="goHome()">
-<span>🏠</span>
-Home
-</button>
-
-<button class="active">
-<span>🚗</span>
-Trips
-</button>
-
-<button onclick="goMap()">
-<span>🗺️</span>
-Map
-</button>
-
-<button onclick="goChat()">
-<span>💬</span>
-Chat
-</button>
-
-<button onclick="logout()">
-<span>🚪</span>
-Logout
-</button>
-
+<button onclick="goHome()"><span>🏠</span>Home</button>
+<button class="active"><span>🚗</span>Trips</button>
+<button onclick="goMap()"><span>🗺️</span>Map</button>
+<button onclick="logout()"><span>🚪</span>Logout</button>
 </div>
 
-<script>
-
-/* DRIVER */
-
-const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}")
-
-if(!driver.id){
-alert("No driver logged in")
-}
-
-/* TRIPS */
-
-const key = "driverTrips_" + driver.id
-
-let trips = JSON.parse(localStorage.getItem(key)) || []
-
-const tbody = document.getElementById("tbody")
-
-function save(){
-localStorage.setItem(key,JSON.stringify(trips))
-}
-
-/* RENDER */
-
-function render(){
-
-tbody.innerHTML=""
-
-if(!trips.length){
-tbody.innerHTML=`<tr><td colspan="6">No trips</td></tr>`
-return
-}
-
-trips.forEach((t,i)=>{
-
-const tr=document.createElement("tr")
-
-tr.innerHTML=`
-<td>${t.tripId||""}</td>
-<td>${t.pickup||""}</td>
-<td>${t.dropoff||""}</td>
-<td>${t.tripTime||""}</td>
-<td>${t.status||"Scheduled"}</td>
-
-<td>
-
-<button class="btn green" onclick="accept(${i})">
-Accept
-</button>
-
-<button class="btn blue" onclick="map('${t.pickup||""}')">
-Map
-</button>
-
-</td>
-`
-
-tbody.appendChild(tr)
-
-})
-
-}
-
-/* ACCEPT */
-
-function accept(i){
-
-trips[i].status="Accepted"
-
-save()
-
-render()
-
-}
-
-/* MAP */
-
-function map(addr){
-
-window.open(
-"https://www.google.com/maps/search/?api=1&query="
-+ encodeURIComponent(addr)
-)
-
-}
-
-/* NAVIGATION */
-
-function goHome(){
-window.location.href="dashboard.html"
-}
-
-function goMap(){
-window.location.href="map.html"
-}
-
-function goChat(){
-alert("Chat coming soon")
-}
-
-function logout(){
-
-localStorage.removeItem("driverToken")
-
-window.location.href="login.html"
-
-}
-
-render()
-
-</script>
+<script src="trips.js"></script>
 
 </body>
 </html>
