@@ -1,105 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>Driver Trips</title>
+<title>Sunbeam – My Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
 body{
   margin:0;
+  padding-bottom:80px;
+  background:#f3f4f6;
   font-family:Arial;
-  background:#f1f5f9;
 }
 
-/* HEADER */
-.header{
-  background:#0f172a;
-  color:#fff;
-  padding:15px;
-  text-align:center;
-  font-weight:bold;
-}
-
-/* TABLE WRAP (مهم للموبايل) */
-.table-wrap{
-  width:100%;
-  overflow-x:auto;
+/* PAGE */
+.page{
   padding:10px;
+}
+
+/* TABLE SCROLL (مهم للموبايل) */
+.table-wrap{
+  overflow-x:auto;
 }
 
 /* TABLE */
 table{
+  min-width:900px;
   width:100%;
-  min-width:750px;
   border-collapse:collapse;
   background:#fff;
-  border-radius:10px;
-  overflow:hidden;
+}
+
+th,td{
+  border:1px solid #d1d5db;
+  padding:6px;
+  text-align:center;
+  font-size:12px;
 }
 
 th{
-  background:#1e293b;
+  background:#0f172a;
   color:#fff;
-  padding:10px;
-  font-size:13px;
 }
 
-td{
-  padding:8px;
-  font-size:13px;
-  text-align:center;
-  border-bottom:1px solid #e5e7eb;
+/* STATUS COLORS */
+.done{
+  background:#111827;
+  color:#fff;
 }
 
-/* STATUS */
-.status{
-  padding:4px 8px;
-  border-radius:6px;
-  font-size:12px;
-  font-weight:bold;
+.accepted{
+  background:#dcfce7;
 }
 
-.scheduled{ background:#e2e8f0; }
-.dispatched{ background:#dbeafe; }
-.accepted{ background:#bbf7d0; }
-.ontrip{ background:#fde68a; }
-.completed{ background:#111827; color:#fff; }
+.dispatched{
+  background:#e0f2fe;
+}
 
 /* BUTTON */
-.trip-btn{
-  width:100%;
-  padding:6px;
+.btn{
+  padding:5px 8px;
   border:none;
   border-radius:6px;
-  background:#2563eb;
-  color:#fff;
+  font-size:12px;
   font-weight:bold;
   cursor:pointer;
 }
 
-.trip-btn.done{
-  background:#111827;
-  cursor:not-allowed;
+.green{ background:#16a34a; color:#fff }
+.blue{ background:#2563eb; color:#fff }
+.gray{ background:#6b7280; color:#fff }
+
+/* NAV */
+.nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:70px;
+  background:#020617;
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
 }
 
-/* MOBILE */
-@media(max-width:768px){
+.nav button{
+  background:none;
+  border:none;
+  color:#9ca3af;
+  font-size:11px;
+}
 
-  th, td{
-    font-size:11px;
-    padding:6px;
-  }
-
+.nav .active{
+  color:#facc15;
 }
 
 </style>
+
 </head>
 
 <body>
 
-<div class="header">My Trips</div>
+<div class="page">
 
 <div class="table-wrap">
 
@@ -108,10 +112,13 @@ td{
 <thead>
 <tr>
 <th>#</th>
-<th>Client</th>
 <th>Pickup</th>
+<th>Stops</th>
 <th>Dropoff</th>
 <th>Date</th>
+<th>Time</th>
+<th>Car</th>
+<th>Notes</th>
 <th>Status</th>
 <th>Action</th>
 </tr>
@@ -121,6 +128,16 @@ td{
 
 </table>
 
+</div>
+
+</div>
+
+<div class="nav">
+<button>🏠</button>
+<button class="active">🚗 Trips</button>
+<button>🗺️</button>
+<button>💬</button>
+<button>🚪</button>
 </div>
 
 <script src="trips.js"></script>
