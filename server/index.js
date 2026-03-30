@@ -117,6 +117,7 @@ tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
+tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
 
@@ -675,10 +676,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
 
     const remaining = [...unassignedTrips];
 
-    /* FIRST ROUND
-       only drivers who are active+enabled+working that day
-       and still have not taken first job for this date
-    */
+    /* FIRST ROUND */
     for (const ds of driverStates) {
       const driverId = String(ds.driver._id);
       const scheduleRow = schedule[driverId] || {};
@@ -701,9 +699,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
       removeTripFromArray(remaining, nearest);
     }
 
-    /* NEXT ROUNDS
-       after first round, keep assigning by nearest pickup to last dropoff
-    */
+    /* NEXT ROUNDS */
     while (remaining.length > 0) {
       let assignedThisLoop = false;
 
@@ -731,7 +727,6 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
         if (remaining.length === 0) break;
       }
 
-      /* avoid infinite loop */
       if (!assignedThisLoop) {
         break;
       }
@@ -1305,10 +1300,7 @@ app.get("/api/dispatch", async (req, res) => {
       };
     }
 
-    /* فلترة السواقين:
-       لازم يكون active في users
-       وكمان enabled في driver schedule لو موجود
-    */
+    /* فلترة السواقين */
     const filteredDrivers = rawDrivers.filter(driver => {
       const driverId = String(driver._id || "").trim();
       const s = schedule[driverId];
@@ -1371,6 +1363,20 @@ app.patch("/api/dispatch/send", async (req, res) => {
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ message: "No trips selected" });
+    }
+
+    const trips = await Trip.find({ _id: { $in: ids } });
+
+    if (!trips.length) {
+      return res.status(404).json({ message: "Trips not found" });
+    }
+
+    for (const t of trips) {
+      if (!normalizeText(t.driverId)) {
+        return res.status(400).json({
+          message: `Trip ${t.tripNumber || t._id} has no driver assigned`
+        });
+      }
     }
 
     const result = await Trip.updateMany(
@@ -1470,6 +1476,89 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Driver assign error" });
+  }
+});
+
+/* =========================
+   DRIVER API
+========================= */
+
+/* السواق يجيب رحلاته */
+app.get("/api/driver/my-trips/:driverId", async (req, res) => {
+  try {
+    const driverId = String(req.params.driverId || "").trim();
+
+    if (!driverId) {
+      return res.status(400).json({ message: "Driver ID required" });
+    }
+
+    const trips = await Trip.find({
+      driverId: driverId,
+      disabled: false,
+      status: { $ne: "Cancelled" }
+    }).sort({ tripDate: 1, tripTime: 1 });
+
+    res.json(trips);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Driver trips error" });
+  }
+});
+
+/* السواق يقبل الرحلة */
+app.patch("/api/driver/trips/:id/accept", async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    trip.status = "Accepted";
+    await trip.save();
+
+    res.json(trip);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Accept trip error" });
+  }
+});
+
+/* السواق يبدأ الرحلة */
+app.patch("/api/driver/trips/:id/start", async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    trip.status = "On Trip";
+    await trip.save();
+
+    res.json(trip);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Start trip error" });
+  }
+});
+
+/* السواق يكمّل الرحلة */
+app.patch("/api/driver/trips/:id/complete", async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    trip.status = "Completed";
+    await trip.save();
+
+    res.json(trip);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Complete trip error" });
   }
 });
 
