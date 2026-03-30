@@ -1,143 +1,117 @@
-console.log("Driver trips loaded");
+const API = "";
+const driverId = localStorage.getItem("userId");
 
-/* ================= DRIVER ================= */
-
-const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}");
-
-if(!driver.id){
+if(!driverId){
   alert("Driver not logged in");
   window.location.href = "login.html";
 }
 
+const tbody = document.getElementById("tbody");
+
 /* ================= LOAD ================= */
 
-const key = "driverTrips_" + driver.id;
-let trips = JSON.parse(localStorage.getItem(key)) || [];
+async function loadTrips(){
 
-const container = document.getElementById("tripsContainer");
+  try{
 
-/* ================= SAVE ================= */
+    const res = await fetch(`${API}/api/driver/my-trips/${driverId}`);
+    const trips = await res.json();
 
-function save(){
-  localStorage.setItem(key, JSON.stringify(trips));
-}
+    render(trips);
 
-/* ================= TIME CHECK ================= */
+  }catch(err){
+    console.log(err);
+  }
 
-function isExpired(trip){
-  if(!trip.tripDate || !trip.tripTime) return false;
-
-  const now = new Date();
-  const tripTime = new Date(trip.tripDate + " " + trip.tripTime);
-
-  return now > tripTime;
 }
 
 /* ================= RENDER ================= */
 
-function render(){
+function render(trips){
 
-  container.innerHTML = "";
+  tbody.innerHTML = "";
 
   if(!trips.length){
-    container.innerHTML = "<p>No trips</p>";
+    tbody.innerHTML = `<tr><td colspan="7">No trips</td></tr>`;
     return;
   }
 
-  trips.forEach((t,i)=>{
+  trips.forEach(t=>{
 
-    let statusClass = "pending";
+    const tr = document.createElement("tr");
 
-    if(t.status === "Accepted") statusClass = "accepted";
-    if(t.status === "Completed") statusClass = "completed";
+    tr.innerHTML = `
+      <td>${t.tripNumber || ""}</td>
+      <td>${t.clientName || "-"}</td>
+      <td>${t.pickup}</td>
+      <td>${t.dropoff}</td>
+      <td>${t.tripDate} ${t.tripTime}</td>
 
-    const stops = (t.stops && t.stops.length)
-      ? t.stops.join(" | ")
-      : "No Stops";
+      <td>
+        <span class="status ${statusClass(t.status)}">
+          ${t.status}
+        </span>
+      </td>
 
-    const card = document.createElement("div");
-    card.className = `card ${statusClass}`;
-
-    card.innerHTML = `
-      <div class="title">Trip # ${t.tripId || ""}</div>
-
-      <div class="text">👤 ${t.clientName || "-"}</div>
-      <div class="text">📞 ${t.phone || "-"}</div>
-
-      <div class="text">📍 ${t.pickup}</div>
-      <div class="text">🛑 ${stops}</div>
-      <div class="text">🏁 ${t.dropoff}</div>
-
-      <div class="text">📅 ${t.tripDate} - ${t.tripTime}</div>
-
-      <div class="text">⚡ Status: ${t.status || "Pending"}</div>
+      <td>
+        ${actionBtn(t)}
+      </td>
     `;
 
-    /* ================= CLICK ================= */
-
-    card.onclick = () => {
-
-      // لو خلصت → متفتحش
-      if(t.status === "Completed"){
-        return;
-      }
-
-      // لو فاتت → متفتحش
-      if(isExpired(t)){
-        alert("Trip time passed");
-        return;
-      }
-
-      // أول ضغطه → تتحول Accepted
-      if(!t.status || t.status === "Pending"){
-        t.status = "Accepted";
-      }
-
-      // فتح الخريطة
-      window.open(
-        "https://www.google.com/maps/search/?api=1&query=" +
-        encodeURIComponent(t.pickup)
-      );
-
-      save();
-      render();
-    };
-
-    /* ================= AUTO COMPLETE ================= */
-
-    if(isExpired(t) && t.status !== "Completed"){
-      t.status = "Completed";
-      save();
-    }
-
-    container.appendChild(card);
+    tbody.appendChild(tr);
 
   });
 
 }
 
-/* ================= NAV ================= */
+/* ================= STATUS ================= */
 
-function goHome(){
-  window.location.href = "dashboard.html";
+function statusClass(s){
+  if(s === "Dispatched") return "dispatched";
+  if(s === "Accepted") return "accepted";
+  if(s === "On Trip") return "ontrip";
+  if(s === "Completed") return "completed";
+  return "scheduled";
 }
 
-function goMap(){
-  window.location.href = "map.html";
+/* ================= BUTTON ================= */
+
+function actionBtn(t){
+
+  if(t.status === "Completed"){
+    return `<button class="trip-btn done">Done</button>`;
+  }
+
+  return `
+    <button class="trip-btn" onclick="openTrip('${t._id}','${t.status}')">
+      Open
+    </button>
+  `;
 }
 
-function logout(){
-  localStorage.removeItem("loggedDriver");
-  window.location.href = "login.html";
+/* ================= OPEN ================= */
+
+async function openTrip(id,status){
+
+  if(status === "Dispatched"){
+    await fetch(`/api/driver/trips/${id}/accept`, { method:"PATCH" });
+  }
+
+  if(status === "Accepted"){
+    await fetch(`/api/driver/trips/${id}/start`, { method:"PATCH" });
+  }
+
+  if(status === "On Trip"){
+    await fetch(`/api/driver/trips/${id}/complete`, { method:"PATCH" });
+  }
+
+  // يروح الخريطة
+  window.location.href = `map.html?tripId=${id}`;
+
 }
 
 /* ================= AUTO REFRESH ================= */
 
-setInterval(()=>{
-  trips = JSON.parse(localStorage.getItem(key)) || [];
-  render();
-},3000);
+setInterval(loadTrips, 5000);
 
-/* ================= INIT ================= */
-
-render();
+loadTrips();
