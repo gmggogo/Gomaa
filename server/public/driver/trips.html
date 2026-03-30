@@ -3,98 +3,85 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Sunbeam – My Trips</title>
+<title>Driver Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
 body{
-  margin:0;
-  padding-bottom:80px;
-  background:#f3f4f6;
-  font-family:Arial;
+margin:0;
+font-family:Arial;
+background:#f1f5f9;
+padding-bottom:80px;
 }
 
 /* PAGE */
 .page{
-  padding:10px;
-}
-
-/* TABLE SCROLL (مهم للموبايل) */
-.table-wrap{
-  overflow-x:auto;
+padding:10px;
 }
 
 /* TABLE */
+.table-wrap{
+overflow-x:auto;
+}
+
 table{
-  min-width:900px;
-  width:100%;
-  border-collapse:collapse;
-  background:#fff;
+width:100%;
+border-collapse:collapse;
+background:#fff;
+min-width:800px;
 }
 
 th,td{
-  border:1px solid #d1d5db;
-  padding:6px;
-  text-align:center;
-  font-size:12px;
+padding:8px;
+border-bottom:1px solid #ddd;
+text-align:center;
+font-size:13px;
 }
 
 th{
-  background:#0f172a;
-  color:#fff;
+background:#0f172a;
+color:#fff;
 }
 
-/* STATUS COLORS */
-.done{
-  background:#111827;
-  color:#fff;
+/* ROW CLICK */
+tr.trip-row{
+cursor:pointer;
+transition:.2s;
 }
 
-.accepted{
-  background:#dcfce7;
+tr.trip-row:hover{
+background:#e2e8f0;
 }
 
-.dispatched{
-  background:#e0f2fe;
+/* COMPLETED */
+.completed{
+background:#000 !important;
+color:#fff !important;
 }
-
-/* BUTTON */
-.btn{
-  padding:5px 8px;
-  border:none;
-  border-radius:6px;
-  font-size:12px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-.green{ background:#16a34a; color:#fff }
-.blue{ background:#2563eb; color:#fff }
-.gray{ background:#6b7280; color:#fff }
 
 /* NAV */
 .nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  height:70px;
-  background:#020617;
-  display:flex;
-  justify-content:space-around;
-  align-items:center;
+position:fixed;
+bottom:0;
+left:0;
+right:0;
+height:70px;
+background:#020617;
+display:flex;
+justify-content:space-around;
+align-items:center;
 }
 
 .nav button{
-  background:none;
-  border:none;
-  color:#9ca3af;
-  font-size:11px;
+background:none;
+border:none;
+color:#9ca3af;
+font-size:12px;
 }
 
-.nav .active{
-  color:#facc15;
+.nav button.active{
+color:#facc15;
 }
 
 </style>
@@ -120,7 +107,6 @@ th{
 <th>Car</th>
 <th>Notes</th>
 <th>Status</th>
-<th>Action</th>
 </tr>
 </thead>
 
@@ -135,9 +121,9 @@ th{
 <div class="nav">
 <button>🏠</button>
 <button class="active">🚗 Trips</button>
-<button>🗺️</button>
-<button>💬</button>
-<button>🚪</button>
+<button>🗺️ Map</button>
+<button>💬 Chat</button>
+<button onclick="logout()">🚪</button>
 </div>
 
 <script src="trips.js"></script>
