@@ -1046,6 +1046,12 @@ async function sendSelected(){
     return
   }
 
+  const noDriver = selected.find(t => !String(t.driverId || "").trim())
+  if(noDriver){
+    showToast(`Trip ${noDriver.tripNumber || ""} has no driver assigned`)
+    return
+  }
+
   try{
     const res = await fetch("/api/dispatch/send", {
       method: "PATCH",
@@ -1079,12 +1085,19 @@ async function sendSelected(){
 async function sendOne(i){
   if(!trips[i]) return
 
+  const trip = trips[i]
+
+  if(!String(trip.driverId || "").trim()){
+    showToast(`Trip ${trip.tripNumber || ""} has no driver assigned`)
+    return
+  }
+
   try{
     const res = await fetch("/api/dispatch/send", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ids: [trips[i]._id]
+        ids: [trip._id]
       })
     })
 
@@ -1095,12 +1108,12 @@ async function sendOne(i){
       return
     }
 
-    trips[i].status = "Dispatched"
-    trips[i].selected = false
+    trip.status = "Dispatched"
+    trip.selected = false
 
     renderTrips()
     renderDrivers()
-    showToast(`Trip ${trips[i].tripNumber || i + 1} sent`)
+    showToast(`Trip ${trip.tripNumber || i + 1} sent`)
   }catch(e){
     console.log("SEND ONE ERROR:", e)
     showToast("Send failed")
