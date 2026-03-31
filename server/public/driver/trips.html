@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <title>Driver Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
+/* BODY */
 body{
 margin:0;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;
@@ -35,15 +37,20 @@ background:#fff;
 border-radius:18px;
 padding:14px;
 margin-bottom:12px;
-box-shadow:0 8px 20px rgba(0,0,0,0.1);
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
 border-left:6px solid #3b82f6;
 cursor:pointer;
+transition:.2s;
+}
+
+.trip-card:active{
+transform:scale(0.97);
 }
 
 .trip-urgent{border-left-color:#f59e0b;}
 .trip-expired{border-left-color:#ef4444;}
 .trip-completed{
-background:#000;
+background:#020617;
 color:#fff;
 }
 
@@ -65,7 +72,7 @@ font-size:14px;
 
 /* SECTION */
 .section{
-margin-bottom:8px;
+margin-bottom:10px;
 }
 
 .label{
@@ -84,20 +91,41 @@ display:flex;
 justify-content:space-between;
 }
 
-/* NOTES */
-.notes{
+/* PHONE */
+.phone{
+background:#16a34a;
+color:#fff;
+padding:6px 10px;
+border-radius:8px;
+display:inline-block;
+margin-top:4px;
+text-decoration:none;
+}
+
+/* ADDRESS */
+.address{
 background:#f1f5f9;
 padding:8px;
 border-radius:8px;
+margin-top:4px;
+font-size:13px;
+cursor:pointer;
+}
+
+/* NOTES */
+.notes{
+background:#f8fafc;
+padding:8px;
+border-radius:8px;
 font-size:12px;
-margin-top:5px;
+margin-top:4px;
 }
 
 /* BADGE */
 .badge{
-padding:5px 10px;
+padding:6px 12px;
 border-radius:10px;
-font-size:11px;
+font-size:12px;
 font-weight:bold;
 }
 
@@ -129,6 +157,7 @@ color:#facc15;
 }
 
 </style>
+
 </head>
 
 <body>

@@ -1,7 +1,6 @@
 console.log("driver trips loaded");
 
-/* ================= AUTH ================= */
-
+/* AUTH */
 const user =
 JSON.parse(localStorage.getItem("loggedDriver")) ||
 JSON.parse(localStorage.getItem("user"));
@@ -14,8 +13,7 @@ window.location.href = "../login.html";
 const driverId = user._id || user.id;
 const container = document.getElementById("container");
 
-/* ================= TIME ================= */
-
+/* TIME */
 function getTripClass(t){
 
 if(t.status === "Completed") return "trip-completed";
@@ -30,8 +28,15 @@ if(diff < 30) return "trip-urgent";
 return "";
 }
 
-/* ================= LOAD ================= */
+/* NAVIGATE */
+function navigate(address){
+if(!address) return;
 
+const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+window.open(url, "_blank");
+}
+
+/* LOAD */
 async function loadTrips(){
 
 try{
@@ -51,8 +56,7 @@ container.innerHTML = "Error loading trips";
 
 }
 
-/* ================= RENDER ================= */
-
+/* RENDER */
 function render(trips){
 
 container.innerHTML = "";
@@ -68,7 +72,10 @@ const div = document.createElement("div");
 
 div.className = `trip-card ${getTripClass(t)}`;
 
-div.onclick = ()=> openTrip(t);
+div.onclick = (e)=>{
+if(e.target.classList.contains("no-click")) return;
+openTrip(t);
+};
 
 div.innerHTML = `
 
@@ -84,7 +91,9 @@ div.innerHTML = `
 
 <div class="section">
 <div class="label">PHONE</div>
-<div class="value">${t.clientPhone || "-"}</div>
+<a class="phone no-click" href="tel:${t.clientPhone || ""}">
+📞 ${t.clientPhone || "-"}
+</a>
 </div>
 
 <div class="row">
@@ -101,7 +110,9 @@ div.innerHTML = `
 
 <div class="section">
 <div class="label">PICKUP</div>
-<div class="value">${t.pickup || "-"}</div>
+<div class="address no-click" onclick="navigate('${t.pickup}')">
+📍 ${t.pickup || "-"}
+</div>
 </div>
 
 <div class="section">
@@ -111,7 +122,9 @@ div.innerHTML = `
 
 <div class="section">
 <div class="label">DROPOFF</div>
-<div class="value">${t.dropoff || "-"}</div>
+<div class="address no-click" onclick="navigate('${t.dropoff}')">
+🏁 ${t.dropoff || "-"}
+</div>
 </div>
 
 <div class="section">
@@ -133,8 +146,7 @@ container.appendChild(div);
 
 }
 
-/* ================= OPEN ================= */
-
+/* OPEN */
 function openTrip(trip){
 
 if(trip.status === "Completed") return;
@@ -143,14 +155,12 @@ window.location.href = `map.html?tripId=${trip._id}`;
 
 }
 
-/* ================= LOGOUT ================= */
-
+/* LOGOUT */
 function logout(){
 localStorage.clear();
 window.location.href = "../login.html";
 }
 
-/* ================= START ================= */
-
+/* START */
 loadTrips();
 setInterval(loadTrips,5000);
