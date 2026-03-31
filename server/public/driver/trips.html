@@ -11,97 +11,103 @@
 /* BODY */
 body{
 margin:0;
-font-family:Arial;
+font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
 background:#f1f5f9;
-padding-bottom:80px;
+padding-bottom:90px;
 }
 
 /* HEADER */
 .header{
-background:#020617;
+background:linear-gradient(90deg,#020617,#0f172a);
 color:#fff;
-padding:12px;
+padding:16px;
 text-align:center;
-font-size:18px;
+font-size:20px;
+font-weight:bold;
+letter-spacing:.5px;
 }
 
 /* CONTAINER */
 .container{
-padding:10px;
+padding:12px;
 }
 
 /* CARD */
 .trip-card{
 background:#fff;
-border-radius:14px;
-padding:12px;
-margin-bottom:10px;
-box-shadow:0 4px 10px rgba(0,0,0,0.08);
+border-radius:18px;
+padding:16px;
+margin-bottom:14px;
+box-shadow:0 10px 25px rgba(0,0,0,0.12);
 cursor:pointer;
 transition:.2s;
 }
 
-.trip-card:hover{
-transform:scale(1.01);
+.trip-card:active{
+transform:scale(0.96);
 }
 
 /* STATUS COLORS */
-.trip-upcoming{
-border-left:5px solid #3b82f6;
-}
-
-.trip-urgent{
-border-left:5px solid #f59e0b;
-}
-
-.trip-expired{
-border-left:5px solid #ef4444;
-}
-
+.trip-upcoming{border-left:6px solid #3b82f6;}
+.trip-urgent{border-left:6px solid #f59e0b;}
+.trip-expired{border-left:6px solid #ef4444;}
 .trip-completed{
-background:#000;
+background:#020617;
 color:#fff;
 }
 
-/* ROW */
-.row{
+/* TOP */
+.trip-top{
 display:flex;
 justify-content:space-between;
-font-size:14px;
-margin-bottom:5px;
+align-items:center;
+margin-bottom:10px;
 }
 
-/* LABEL */
-.label{
+.trip-number{
+font-weight:bold;
+font-size:16px;
+}
+
+.trip-time{
+font-size:13px;
 color:#6b7280;
-font-size:12px;
 }
 
-/* BUTTONS */
-.btns{
-display:flex;
-gap:6px;
-margin-top:8px;
+/* ADDRESS */
+.address-block{
+margin-bottom:8px;
 }
 
-.btn{
-flex:1;
-padding:8px;
-border:none;
-border-radius:8px;
-font-size:12px;
-cursor:pointer;
+.label{
+font-size:11px;
+color:#6b7280;
 }
 
-.nav-btn{
-background:#2563eb;
-color:#fff;
+.address{
+font-size:14px;
+font-weight:500;
 }
 
-.complete-btn{
-background:#16a34a;
-color:#fff;
+/* ICON LINE */
+.line{
+height:2px;
+background:#e5e7eb;
+margin:6px 0;
 }
+
+/* STATUS BADGE */
+.badge{
+padding:4px 10px;
+border-radius:10px;
+font-size:11px;
+font-weight:bold;
+}
+
+.badge-Dispatched{background:#2563eb;color:#fff;}
+.badge-Scheduled{background:#e5e7eb;color:#000;}
+.badge-Completed{background:#000;color:#fff;}
+.badge-InProgress{background:#16a34a;color:#fff;}
 
 /* NAV */
 .nav{
@@ -109,11 +115,12 @@ position:fixed;
 bottom:0;
 left:0;
 right:0;
-height:70px;
+height:75px;
 background:#020617;
 display:flex;
 justify-content:space-around;
 align-items:center;
+border-top:1px solid #111;
 }
 
 .nav button{
@@ -125,6 +132,7 @@ font-size:12px;
 
 .nav button.active{
 color:#facc15;
+font-weight:bold;
 }
 
 </style>
