@@ -8,6 +8,7 @@
 
 <style>
 
+/* BODY */
 body{
 margin:0;
 font-family:Arial;
@@ -15,49 +16,91 @@ background:#f1f5f9;
 padding-bottom:80px;
 }
 
-/* PAGE */
-.page{
+/* HEADER */
+.header{
+background:#020617;
+color:#fff;
+padding:12px;
+text-align:center;
+font-size:18px;
+}
+
+/* CONTAINER */
+.container{
 padding:10px;
 }
 
-/* TABLE */
-.table-wrap{
-overflow-x:auto;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
+/* CARD */
+.trip-card{
 background:#fff;
-min-width:800px;
-}
-
-th,td{
-padding:8px;
-border-bottom:1px solid #ddd;
-text-align:center;
-font-size:13px;
-}
-
-th{
-background:#0f172a;
-color:#fff;
-}
-
-/* ROW CLICK */
-tr.trip-row{
+border-radius:14px;
+padding:12px;
+margin-bottom:10px;
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
 cursor:pointer;
 transition:.2s;
 }
 
-tr.trip-row:hover{
-background:#e2e8f0;
+.trip-card:hover{
+transform:scale(1.01);
 }
 
-/* COMPLETED */
-.completed{
-background:#000 !important;
-color:#fff !important;
+/* STATUS COLORS */
+.trip-upcoming{
+border-left:5px solid #3b82f6;
+}
+
+.trip-urgent{
+border-left:5px solid #f59e0b;
+}
+
+.trip-expired{
+border-left:5px solid #ef4444;
+}
+
+.trip-completed{
+background:#000;
+color:#fff;
+}
+
+/* ROW */
+.row{
+display:flex;
+justify-content:space-between;
+font-size:14px;
+margin-bottom:5px;
+}
+
+/* LABEL */
+.label{
+color:#6b7280;
+font-size:12px;
+}
+
+/* BUTTONS */
+.btns{
+display:flex;
+gap:6px;
+margin-top:8px;
+}
+
+.btn{
+flex:1;
+padding:8px;
+border:none;
+border-radius:8px;
+font-size:12px;
+cursor:pointer;
+}
+
+.nav-btn{
+background:#2563eb;
+color:#fff;
+}
+
+.complete-btn{
+background:#16a34a;
+color:#fff;
 }
 
 /* NAV */
@@ -90,33 +133,9 @@ color:#facc15;
 
 <body>
 
-<div class="page">
+<div class="header">🚗 My Trips</div>
 
-<div class="table-wrap">
-
-<table>
-
-<thead>
-<tr>
-<th>#</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Date</th>
-<th>Time</th>
-<th>Car</th>
-<th>Notes</th>
-<th>Status</th>
-</tr>
-</thead>
-
-<tbody id="tbody"></tbody>
-
-</table>
-
-</div>
-
-</div>
+<div class="container" id="container"></div>
 
 <div class="nav">
 <button>🏠</button>

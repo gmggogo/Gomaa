@@ -1,8 +1,6 @@
 console.log("driver trips loaded");
 
-/* =========================
-   AUTH
-========================= */
+/* ================= AUTH ================= */
 
 const user =
   JSON.parse(localStorage.getItem("loggedDriver")) ||
@@ -15,15 +13,29 @@ if (!user) {
 
 const driverId = user._id || user.id;
 
-/* =========================
-   ELEMENTS
-========================= */
+/* ================= ELEMENT ================= */
 
-const tbody = document.getElementById("tbody");
+const container = document.getElementById("container");
 
-/* =========================
-   LOAD TRIPS FROM SERVER
-========================= */
+/* ================= TIME STATUS ================= */
+
+function getStatus(trip){
+
+  const now = new Date();
+  const tripTime = new Date(`${trip.tripDate} ${trip.tripTime}`);
+
+  const diff = (tripTime - now) / 60000;
+
+  if(trip.status === "Completed") return "completed";
+
+  if(diff <= 0) return "expired";
+  if(diff <= 30) return "urgent";
+  if(diff <= 90) return "soon";
+
+  return "upcoming";
+}
+
+/* ================= LOAD ================= */
 
 async function loadTrips(){
 
@@ -44,73 +56,111 @@ alert("Error loading trips");
 
 }
 
-/* =========================
-   RENDER
-========================= */
+/* ================= RENDER ================= */
 
 function render(trips){
 
-tbody.innerHTML = "";
+container.innerHTML = "";
 
 if(!trips.length){
-tbody.innerHTML = `<tr><td colspan="9">No Trips</td></tr>`;
+container.innerHTML = `<div>No Trips</div>`;
 return;
 }
 
 trips.forEach(t=>{
 
-const tr = document.createElement("tr");
+const status = getStatus(t);
 
-tr.className = "trip-row";
+const div = document.createElement("div");
 
-if(t.status === "Completed"){
-tr.classList.add("completed");
-}
+div.className = `trip-card trip-${status}`;
 
-tr.onclick = () => openTrip(t);
+div.onclick = () => openTrip(t);
 
-tr.innerHTML = `
-<td>${t.tripNumber || ""}</td>
-<td>${t.pickup || ""}</td>
-<td>${(t.stops || []).join(" → ")}</td>
-<td>${t.dropoff || ""}</td>
-<td>${t.tripDate || ""}</td>
-<td>${t.tripTime || ""}</td>
-<td>${t.vehicle || ""}</td>
-<td>${t.notes || ""}</td>
-<td>${t.status || ""}</td>
+div.innerHTML = `
+
+<div class="row">
+<div><b>#${t.tripNumber || ""}</b></div>
+<div>${t.tripTime || ""}</div>
+</div>
+
+<div class="row">
+<div class="label">Pickup</div>
+<div>${t.pickup || ""}</div>
+</div>
+
+<div class="row">
+<div class="label">Dropoff</div>
+<div>${t.dropoff || ""}</div>
+</div>
+
+<div class="row">
+<div class="label">Date</div>
+<div>${t.tripDate || ""}</div>
+</div>
+
+<div class="btns">
+
+<button class="btn nav-btn" onclick="navigate(event,'${t._id}')">
+Navigate
+</button>
+
+<button class="btn complete-btn" onclick="completeTrip(event,'${t._id}')">
+Done
+</button>
+
+</div>
+
 `;
 
-tbody.appendChild(tr);
+container.appendChild(div);
 
 });
 
 }
 
-/* =========================
-   OPEN TRIP
-========================= */
+/* ================= OPEN MAP ================= */
 
 function openTrip(trip){
 
 if(trip.status === "Completed") return;
 
-window.location.href =
-`map.html?tripId=${trip._id}`;
+window.location.href = `map.html?tripId=${trip._id}`;
 
 }
 
-/* =========================
-   LOGOUT
-========================= */
+/* ================= NAVIGATE ================= */
+
+function navigate(e,id){
+e.stopPropagation();
+window.location.href = `map.html?tripId=${id}`;
+}
+
+/* ================= COMPLETE ================= */
+
+async function completeTrip(e,id){
+
+e.stopPropagation();
+
+if(!confirm("Complete trip?")) return;
+
+await fetch(`/api/trips/${id}`,{
+method:"PUT",
+headers:{ "Content-Type":"application/json" },
+body: JSON.stringify({ status:"Completed" })
+});
+
+loadTrips();
+
+}
+
+/* ================= LOGOUT ================= */
 
 function logout(){
 localStorage.clear();
 window.location.href = "../login.html";
 }
 
-/* =========================
-   INIT
-========================= */
+/* ================= INIT ================= */
 
 loadTrips();
