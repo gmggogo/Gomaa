@@ -1,3 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dispatch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f1f5f9;
+}
+
+.page-body{
+  padding:15px 20px;
+  min-height:100vh;
+}
+
+.dispatch-tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:8px;
+}
+
+.tab-btn{
+  flex:1;
+  padding:14px;
+  border:none;
+  background:#1e293b;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+  border-radius:8px;
+  transition:.2s;
+}
+
+.tab-btn.active{
+  background:#2563eb;
+}
+
+.top-actions{
+  margin:12px 0;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.btn{
+  padding:9px 13px;
+  border:none;
+  color:#fff;
+  cursor:pointer;
+  border-radius:7px;
+  font-weight:bold;
+  transition:.2s;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
+}
+
+.blue{background:#2563eb}
+.orange{background:#f97316}
+.green{background:#16a34a}
+.purple{background:#7c3aed}
+.gray{background:#475569}
+.red{background:#dc2626}
+
+.table-wrap{
+  background:#fff;
+  border-radius:10px;
+  overflow:auto;
+  box-shadow:0 4px 18px rgba(15,23,42,.08);
+}
+
+table{
+  width:100%;
+  min-width:1200px;
+  border-collapse:collapse;
+}
+
+th{
+  background:#1e293b;
+  color:#fff;
+  padding:10px 8px;
+  font-size:12px;
+  text-align:left;
+  white-space:nowrap;
+}
+
+td{
+  border:1px solid #e5e7eb;
+  padding:8px 7px;
+  font-size:12px;
+  vertical-align:top;
+}
+
+tbody tr:hover{
+  background:#f8fafc;
+}
+
+.trip-row.trip-urgent{
+  background:#fff7ed !important;
+}
+
+.trip-row.trip-soon{
+  background:#fefce8 !important;
+}
+
+.trip-row.expired{
+  background:#fee2e2 !important;
+}
+
+.tab-page{display:none}
+.tab-page.active{display:block}
+
+.drivers-layout{
+  display:flex;
+  gap:10px;
+  height:80vh;
+}
+
+#map{
+  width:70%;
+  border-radius:10px;
+  box-shadow:0 4px 18px rgba(15,23,42,.08);
+  background:#e5e7f0;
+}
+
+#driversPanel{
+  width:30%;
+  background:#0f172a;
+  color:#fff;
+  border-radius:10px;
+  overflow:auto;
+  box-shadow:0 4px 18px rgba(15,23,42,.12);
+}
+
+.panel-header{
+  padding:12px;
+  font-weight:bold;
+  background:#111827;
+  border-bottom:1px solid #1f2937;
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+
+.driver{
+  padding:12px;
+  border-bottom:1px solid #1e293b;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.driver:hover{
+  background:#1e293b;
+}
+
+.driver.active{
+  background:linear-gradient(90deg,#2563eb,#1d4ed8);
+  color:#fff;
+}
+
+.driver.active .driver-name{
+  color:#facc15;
+}
+
+.driver-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  font-size:13px;
+}
+
+.driver-name{
+  font-weight:bold;
+}
+
+.driver-right{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+}
+
+.driver-info{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  font-size:12px;
+}
+
+.driver-meta{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.badge-available{background:#166534;color:#ecfdf5}
+.badge-busy{background:#991b1b;color:#fef2f2}
+.badge-trip{background:#1d4ed8;color:#eff6ff}
+.badge-count{background:#334155;color:#e2e8f0}
+
+.stop-list{
+  line-height:1.45;
+  min-width:140px;
+}
+
+.notes-cell{
+  min-width:120px;
+  white-space:pre-wrap;
+}
+
+.send-btn[disabled],
+select:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+select{
+  padding:6px;
+  border:1px solid #d1d5db;
+  border-radius:6px;
+  background:#fff;
+  min-width:150px;
+}
+
+#toast{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#111827;
+  color:#fff;
+  padding:10px 14px;
+  border-radius:8px;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+  display:none;
+  z-index:9999;
+}
+
+#toast.show{
+  display:block;
+}
+
+@media (max-width: 900px){
+  .page-body{
+    padding:10px;
+  }
+
+  .drivers-layout{
+    flex-direction:column;
+    height:auto;
+  }
+
+  #map{
+    width:100%;
+    height:320px;
+  }
+
+  #driversPanel{
+    width:100%;
+    height:420px;
+  }
+
+  .btn{
+    flex:1 1 calc(50% - 8px);
+    text-align:center;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="page-body">
+
+  <div class="dispatch-tabs">
+    <button class="tab-btn active" id="tabTrips">Trips</button>
+    <button class="tab-btn" id="tabDrivers">Drivers Map</button>
+  </div>
+
+  <div class="tab-page active" id="tripsPage">
+    <div class="top-actions">
+      <button class="btn blue" id="selectBtn" onclick="toggleSelect()">Select All</button>
+      <button class="btn orange" id="editBtn" onclick="toggleEdit()">Edit Selected</button>
+      <button class="btn green" onclick="sendSelected()">Send Selected</button>
+      <button class="btn purple" onclick="redistribute()">Redistribute</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>#</th>
+            <th>Client</th>
+            <th>Pickup</th>
+            <th>Stops</th>
+            <th>Dropoff</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Driver</th>
+            <th>Car</th>
+            <th>Notes</th>
+            <th>Send</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-page" id="driversPage">
+    <div class="drivers-layout">
+      <div id="map"></div>
+      <div id="driversPanel">
+        <div class="panel-header">Drivers Dispatch Panel</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
 /* ================= STATE ================= */
 
 let trips = []
@@ -14,11 +358,16 @@ let allSelected = false
 let selectedDriverId = null
 let selectedTripIndexPerDriver = {}
 
-/* ================= INIT ================= */
+/* ================= LOAD ================= */
 
-async function init(){
+async function loadData(){
   try{
-    const data = await Store.load()
+    const res = await fetch("/api/dispatch")
+    const data = await res.json()
+
+    if(!res.ok){
+      throw new Error(data?.message || "Dispatch load failed")
+    }
 
     const driversRaw = data.drivers || data.data?.drivers || []
     const tripsRaw = data.trips || data.data?.trips || []
@@ -81,29 +430,20 @@ async function init(){
         driverId: t.driverId ? String(t.driverId) : "",
         driverName: t.driverName || "",
         vehicle: t.vehicle || "",
-        manual: !!t.driverId || t.manual === true
+        manual: t.manual === true
       }))
 
     loadGeoCache()
     await prepareGeo()
-    await autoAssign()
 
     sortTrips()
     renderTrips()
     initMap()
     renderDrivers()
     bindTabs()
-
-    setInterval(() => {
-      renderTrips()
-      renderDrivers()
-    }, 10000)
-
-    console.log("drivers:", drivers)
-    console.log("trips:", trips)
-    console.log("schedule:", schedule)
   }catch(err){
-    console.log("INIT ERROR:", err)
+    console.log("LOAD ERROR:", err)
+    showToast("Load error")
   }
 }
 
@@ -134,16 +474,18 @@ function showToast(msg){
   toast.textContent = msg
   toast.classList.add("show")
   clearTimeout(showToast._timer)
-  showToast._timer = setTimeout(() => toast.classList.remove("show"), 1800)
+  showToast._timer = setTimeout(() => {
+    toast.classList.remove("show")
+  }, 1800)
 }
 
 function escapeHtml(value){
   return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;")
 }
 
 function normalizeText(s){
@@ -220,13 +562,11 @@ function getCurrentArizonaNow(){
 
 function groupTripsByDate(list){
   const map = {}
-
   for(const t of list){
     const key = normalizeDateKey(t.tripDate) || "no-date"
     if(!map[key]) map[key] = []
     map[key].push(t)
   }
-
   return map
 }
 
@@ -305,7 +645,6 @@ function getValidDriversForTrip(trip){
 
 function getActiveDriversForPanel(){
   const current = getCurrentTrips()
-
   const usedIds = new Set(
     current
       .map(t => String(t.driverId || "").trim())
@@ -323,20 +662,8 @@ function getCurrentDriverTrips(driverId){
     .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
 
-function getDriverTripsAll(driverId){
-  return trips
-    .filter(t => String(t.driverId || "") === String(driverId))
-    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
-}
-
 function getDriverTripsCount(driverId){
   return getCurrentDriverTrips(driverId).length
-}
-
-function getLatestTripForDriver(driverId){
-  const driverTrips = getCurrentDriverTrips(driverId)
-  if(!driverTrips.length) return null
-  return driverTrips[driverTrips.length - 1]
 }
 
 function getSelectedTripForDriver(driverId){
@@ -380,11 +707,10 @@ function hasTimeConflict(driverId, trip){
   return false
 }
 
-/* ================= DRIVER START ================= */
+/* ================= DRIVER HOME ================= */
 
 function getDriverDayHomeAddress(driver){
   const sch = schedule[String(driver._id)] || {}
-
   return (
     sch.address ||
     driver.liveAddress ||
@@ -415,7 +741,7 @@ function getDriverHomePoint(driver){
   return null
 }
 
-/* ================= GEO / FREE MAP ================= */
+/* ================= GEO ================= */
 
 async function geocode(addr){
   if(!addr) return null
@@ -428,15 +754,10 @@ async function geocode(addr){
   try{
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`,
-      {
-        headers: {
-          "Accept": "application/json"
-        }
-      }
+      { headers: { "Accept":"application/json" } }
     )
 
     const data = await res.json()
-
     if(!Array.isArray(data) || !data.length) return null
 
     const point = {
@@ -501,7 +822,6 @@ async function prepareGeo(){
 
 function fastDistance(a, b){
   if(!a || !b) return 999999
-
   const dx = a.lat - b.lat
   const dy = a.lng - b.lng
   return Math.sqrt((dx * dx) + (dy * dy))
@@ -563,11 +883,12 @@ async function autoAssign(){
   if(!drivers.length || !trips.length) return
 
   sortTrips()
-
   const tripsByDate = groupTripsByDate(trips)
 
   for(const dateKey of Object.keys(tripsByDate).sort()){
-    const dayTrips = tripsByDate[dateKey].slice().sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+    const dayTrips = tripsByDate[dateKey]
+      .slice()
+      .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 
     const dayLoad = {}
     const dayLastLocation = {}
@@ -577,7 +898,6 @@ async function autoAssign(){
 
       if(!d._geoHome){
         const directPoint = getDriverHomePoint(d)
-
         if(directPoint){
           d._geoHome = directPoint
         }else{
@@ -594,7 +914,6 @@ async function autoAssign(){
     for(const t of dayTrips){
       if(t.manual && t.driverId){
         const id = String(t.driverId)
-
         dayLoad[id] = (dayLoad[id] || 0) + 1
 
         if(!t._geoDropoff && t.dropoff){
@@ -605,20 +924,11 @@ async function autoAssign(){
       }
     }
 
-    for(const t of dayTrips){
-      if(!t.manual){
-        t.driverId = ""
-        t.driverName = ""
-        t.vehicle = ""
-        t.driverAddress = ""
-      }
-    }
-
     for(const trip of dayTrips){
       if(trip.manual && trip.driverId) continue
+      if(String(trip.driverId || "").trim()) continue
 
       let pickupPoint = trip._geoPickup
-
       if(!pickupPoint && trip.pickup){
         pickupPoint = await geocode(trip.pickup)
         trip._geoPickup = pickupPoint
@@ -668,7 +978,6 @@ async function autoAssign(){
 
       if(bestDriver){
         const id = bestDriver._id
-
         trip.driverId = id
         trip.driverName = bestDriver.name || ""
         trip.vehicle = getDriverCar(id)
@@ -682,8 +991,6 @@ async function autoAssign(){
         }
       }
     }
-
-    console.log("DAY DISTRIBUTION:", dateKey, dayLoad)
   }
 }
 
@@ -705,7 +1012,7 @@ function renderTrips(){
     body.innerHTML += `
       <tr class="trip-row ${status}">
         <td>
-          <button class="btn ${t.selected ? "green" : "blue"} select-btn" onclick="toggleTrip(${i})">
+          <button class="btn ${t.selected ? "green" : "blue"}" onclick="toggleTrip(${i})">
             ${t.selected ? "✔" : "Select"}
           </button>
         </td>
@@ -723,7 +1030,7 @@ function renderTrips(){
         <td>${escapeHtml(t.tripTime || "")}</td>
 
         <td>
-          <select ${(editMode && t.selected) ? "" : "disabled"} onchange="assignDriver(${i},this.value)">
+          <select onchange="assignDriver(${i},this.value)">
             <option value="">--</option>
             ${validDrivers.map(d => `
               <option value="${escapeHtml(d._id)}" ${String(t.driverId || "") === String(d._id || "") ? "selected" : ""}>
@@ -777,7 +1084,7 @@ function clearMap(){
   }
 }
 
-/* ================= ROUTE (OSRM) ================= */
+/* ================= ROUTE ================= */
 
 async function getRoute(points){
   if(points.length < 2) return null
@@ -790,7 +1097,6 @@ async function getRoute(points){
     )
 
     const data = await res.json()
-
     if(!data.routes || !data.routes.length) return null
 
     const r = data.routes[0]
@@ -819,7 +1125,6 @@ async function focusDriver(id){
   if(!map) return
 
   const trip = getSelectedTripForDriver(id)
-
   if(!trip){
     showToast("No current trip assigned to this driver")
     return
@@ -874,8 +1179,7 @@ async function focusDriver(id){
     weight: 5
   }).addTo(map)
 
-  map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] })
-
+  map.fitBounds(routeLayer.getBounds(), { padding:[40,40] })
   showToast(`Distance ${route.distance} mi • ETA ${route.duration} min`)
   renderDrivers()
 }
@@ -921,7 +1225,7 @@ function renderDrivers(){
               <span class="badge badge-trip">ETA Map</span>
             </div>
 
-            <div class="driver-trip-picker" style="margin-top:6px;">
+            <div style="margin-top:6px;">
               <select onchange="changeDriverTrip('${escapeHtml(d._id)}', this.value)" onclick="event.stopPropagation()">
                 ${tripList.map((t, idx) => `
                   <option value="${idx}" ${idx === selectedIdx ? "selected" : ""}>
@@ -939,11 +1243,7 @@ function renderDrivers(){
   document.querySelectorAll(".driver").forEach(el => {
     el.addEventListener("click", async () => {
       selectedDriverId = el.dataset.id
-
-      document.querySelectorAll(".driver").forEach(d => {
-        d.classList.remove("active")
-      })
-
+      document.querySelectorAll(".driver").forEach(d => d.classList.remove("active"))
       el.classList.add("active")
       await focusDriver(el.dataset.id)
     })
@@ -973,7 +1273,6 @@ function toggleEdit(){
   if(btn){
     btn.innerText = editMode ? "Save" : "Edit Selected"
   }
-  renderTrips()
   showToast(editMode ? "Edit mode enabled" : "Changes saved")
 }
 
@@ -1002,7 +1301,7 @@ async function assignDriver(i, id){
         body: JSON.stringify({ driverId: id })
       })
 
-      const updated = await res.json()
+      const updated = await res.json().catch(() => ({}))
 
       if(!res.ok){
         showToast(updated?.message || "Driver save failed")
@@ -1054,10 +1353,10 @@ async function sendSelected(){
 
   try{
     const res = await fetch("/api/dispatch/send", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ids: selected.map(t => t._id)
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        ids:selected.map(t => t._id)
       })
     })
 
@@ -1094,10 +1393,10 @@ async function sendOne(i){
 
   try{
     const res = await fetch("/api/dispatch/send", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ids: [trip._id]
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        ids:[trip._id]
       })
     })
 
@@ -1187,15 +1486,10 @@ window.redistribute = redistribute
 window.focusDriver = focusDriver
 window.changeDriverTrip = changeDriverTrip
 
-window.Engine = {
-  toggleSelect,
-  toggleEdit,
-  sendSelected,
-  redistributeSelected: redistribute,
-  redistribute,
-  focusDriver
-}
-
 /* ================= START ================= */
 
-document.addEventListener("DOMContentLoaded", init)
+document.addEventListener("DOMContentLoaded", loadData)
+</script>
+
+</body>
+</html>
