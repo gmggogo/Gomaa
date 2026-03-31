@@ -70,7 +70,6 @@ async function init(){
         return sch.enabled === true
       })
 
-    /* ✅ dispatch يسحب بس اللي متعلم عليه في Trips */
     trips = (tripsRaw || [])
       .filter(t =>
         t.dispatchSelected === true &&
@@ -80,16 +79,15 @@ async function init(){
       .map(t => ({
         ...t,
         _id: String(t._id || ""),
-        selected: false,                  // select جوه dispatch للإرسال
+        selected: false,
         driverId: t.driverId ? String(t.driverId) : "",
         driverName: t.driverName || "",
         vehicle: t.vehicle || "",
         driverAddress: t.driverAddress || "",
         manual: !!t.driverId || t.manual === true,
-        autoAssigned: false               // عشان نعرف هل نحتاج نحفظ قبل الإرسال
+        autoAssigned: false
       }))
 
-    /* ✅ منع التكرار */
     const seen = new Set()
     trips = trips.filter(t => {
       if(!t._id) return false
@@ -254,9 +252,12 @@ function getVisibleTrips(){
   return trips.filter(t => getTripStatus(t) !== "hide")
 }
 
-/* ✅ للماب والـ panel: أي رحلة متعينة */
 function getCurrentTrips(){
-  return trips.filter(t => String(t.driverId || "").trim())
+  return trips.filter(t => {
+    if(!String(t.driverId || "").trim()) return false
+    const status = getTripStatus(t)
+    return status !== "hide" && status !== "expired"
+  })
 }
 
 /* ================= DRIVER ACTIVE CHECK ================= */
@@ -304,13 +305,23 @@ function getValidDriversForTrip(trip){
 }
 
 function getActiveDriversForPanel(){
-  return drivers
+  return drivers.filter(driver => {
+    const driverTrips = trips.filter(t => String(t.driverId || "") === String(driver._id))
+    if(!driverTrips.length) return false
+
+    const activeTrips = driverTrips.filter(t => {
+      const status = getTripStatus(t)
+      return status !== "hide" && status !== "expired"
+    })
+
+    return activeTrips.length > 0
+  })
 }
 
 /* ================= DRIVER TRIPS / STATUS ================= */
 
 function getCurrentDriverTrips(driverId){
-  return trips
+  return getCurrentTrips()
     .filter(t => String(t.driverId || "") === String(driverId))
     .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
@@ -549,14 +560,12 @@ async function autoAssign(){
 
   sortTrips()
 
-  /* ✅ كل سواق ياخد رحلة واحدة فقط */
   const usedDrivers = new Set()
 
-  /* اليدوي أو الموجود أصلاً يتحسب */
+  /* احجز اليدوي أو المتعين فعلاً قبل كده */
   for(const trip of trips){
-    if(trip.driverId){
+    if(trip.manual && trip.driverId){
       usedDrivers.add(String(trip.driverId))
-      trip.manual = true
     }
   }
 
@@ -603,8 +612,6 @@ async function autoAssign(){
       trip.driverName = bestDriver.name || ""
       trip.vehicle = getDriverCar(id)
       trip.driverAddress = getDriverDayHomeAddress(bestDriver)
-
-      /* ✅ مهم: عشان send ما يفشلش */
       trip.manual = false
       trip.autoAssigned = true
 
@@ -713,10 +720,14 @@ function clearMap(){
 /* ================= ROUTE ================= */
 
 async function getRoute(points){
-  if(points.length < 2) return null
+  const validPoints = (points || []).filter(p =>
+    p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))
+  )
+
+  if(validPoints.length < 2) return null
 
   try{
-    const coords = points.map(p => `${p.lng},${p.lat}`).join(";")
+    const coords = validPoints.map(p => `${p.lng},${p.lat}`).join(";")
 
     const res = await fetch(
       `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
@@ -783,11 +794,6 @@ async function focusDriver(id){
   }
   if(dropoff) points.push({ ...dropoff, label: "Dropoff" })
 
-  if(points.length < 2){
-    showToast("Route not available")
-    return
-  }
-
   const route = await getRoute(points)
   if(!route){
     showToast("Route not available")
@@ -795,6 +801,8 @@ async function focusDriver(id){
   }
 
   points.forEach((p, idx) => {
+    if(!p || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng))) return
+
     const marker = L.marker([p.lat, p.lng]).bindPopup(
       idx === 0 ? "Pickup" : (idx === points.length - 1 ? "Dropoff" : `Stop ${idx}`)
     )
@@ -970,7 +978,6 @@ async function sendSelected(){
       return
     }
 
-    /* ✅ الأوتو أسّاين يتحفظ الأول */
     if(trip.autoAssigned === true){
       const ok = await saveDriverAssignment(trip, trip.driverId)
       if(!ok){
@@ -1023,7 +1030,6 @@ async function sendOne(i){
 
   const trip = trips[i]
 
-  /* ✅ لازم تكون متعلم عليها جوه dispatch */
   if(!trip.selected){
     showToast("Select trip first")
     return
@@ -1034,7 +1040,6 @@ async function sendOne(i){
     return
   }
 
-  /* ✅ الأوتو أسّاين يتحفظ الأول */
   if(trip.autoAssigned === true){
     const ok = await saveDriverAssignment(trip, trip.driverId)
     if(!ok){
@@ -1087,12 +1092,12 @@ async function redistribute(){
     t.autoAssigned = false
   })
 
-  await prepareGeo()
   await autoAssign()
+
   sortTrips()
   renderTrips()
   renderDrivers()
-  showToast("Trips redistributed")
+  showToast("Redistributed successfully")
 }
 
 /* ================= TABS ================= */
