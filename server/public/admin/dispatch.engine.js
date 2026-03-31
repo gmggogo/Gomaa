@@ -13,6 +13,8 @@ let editMode = false
 let allSelected = false
 let selectedDriverId = null
 let selectedTripIndexPerDriver = {}
+let tabsBound = false
+let refreshTimer = null
 
 /* ================= INIT ================= */
 
@@ -68,7 +70,7 @@ async function init(){
         return sch.enabled === true
       })
 
-    /* ✅ أهم إصلاح: نشيل الفلترة القاتلة */
+    /* ✅ فلترة آمنة: ما نخفيش الرحلات بالغلط */
     trips = (tripsRaw || [])
       .filter(t =>
         t.disabled !== true &&
@@ -81,6 +83,7 @@ async function init(){
         driverId: t.driverId ? String(t.driverId) : "",
         driverName: t.driverName || "",
         vehicle: t.vehicle || "",
+        driverAddress: t.driverAddress || "",
         manual: !!t.driverId || t.manual === true
       }))
 
@@ -94,7 +97,8 @@ async function init(){
     renderDrivers()
     bindTabs()
 
-    setInterval(() => {
+    if(refreshTimer) clearInterval(refreshTimer)
+    refreshTimer = setInterval(() => {
       renderTrips()
       renderDrivers()
     }, 10000)
@@ -104,6 +108,7 @@ async function init(){
     console.log("schedule:", schedule)
   }catch(err){
     console.log("INIT ERROR:", err)
+    showToast("Init error")
   }
 }
 
@@ -250,13 +255,9 @@ function getVisibleTrips(){
   return trips.filter(t => getTripStatus(t) !== "hide")
 }
 
+/* ✅ نخلي current أوسع عشان الماب والـ panel ما يختفوش */
 function getCurrentTrips(){
-  return trips.filter(t => {
-    const ts = getTripDateTimeValue(t)
-    if(!ts) return false
-    const diffMin = Math.round((getCurrentArizonaNow() - ts) / 60000)
-    return diffMin < 120
-  })
+  return trips.filter(t => String(t.driverId || "").trim())
 }
 
 /* ================= DRIVER ACTIVE CHECK ================= */
@@ -304,21 +305,13 @@ function getValidDriversForTrip(trip){
 }
 
 function getActiveDriversForPanel(){
-  const current = getCurrentTrips()
-
-  const usedIds = new Set(
-    current
-      .map(t => String(t.driverId || "").trim())
-      .filter(Boolean)
-  )
-
-  return drivers.filter(d => usedIds.has(String(d._id)))
+  return drivers
 }
 
 /* ================= DRIVER TRIPS / STATUS ================= */
 
 function getCurrentDriverTrips(driverId){
-  return getCurrentTrips()
+  return trips
     .filter(t => String(t.driverId || "") === String(driverId))
     .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
@@ -545,6 +538,35 @@ function getFallbackLocalScore(startAddress, pickupAddress){
   return distanceScore
 }
 
+/* ================= SAVE ASSIGNMENT TO SERVER ================= */
+
+async function saveDriverAssignment(trip, driverId){
+  try{
+    const res = await fetch(`/api/dispatch/${trip._id}/driver`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ driverId })
+    })
+
+    const updated = await res.json().catch(() => ({}))
+
+    if(!res.ok){
+      console.log("Driver save failed:", updated)
+      return false
+    }
+
+    const d = drivers.find(x => String(x._id) === String(driverId))
+    trip.driverId = updated.driverId ? String(updated.driverId) : String(driverId)
+    trip.driverName = updated.driverName || d?.name || ""
+    trip.vehicle = updated.vehicle || (d ? getDriverCar(d._id) : "")
+    trip.driverAddress = updated.driverAddress || (d ? getDriverDayHomeAddress(d) : "")
+    return true
+  }catch(e){
+    console.log("saveDriverAssignment ERROR:", e)
+    return false
+  }
+}
+
 /* ================= AUTO ASSIGN ================= */
 
 async function autoAssign(){
@@ -661,6 +683,9 @@ async function autoAssign(){
         trip.driverName = bestDriver.name || ""
         trip.vehicle = getDriverCar(id)
         trip.driverAddress = getDriverDayHomeAddress(bestDriver)
+
+        /* ✅ مهم: نخلي الـ UI شايف التعيين */
+        trip.manual = false
 
         dayLoad[id] = (dayLoad[id] || 0) + 1
         dayLastLocation[id] = trip._geoDropoff || dayLastLocation[id]
@@ -809,7 +834,7 @@ async function focusDriver(id){
   const trip = getSelectedTripForDriver(id)
 
   if(!trip){
-    showToast("No current trip assigned to this driver")
+    showToast("No trip assigned to this driver")
     return
   }
 
@@ -984,26 +1009,14 @@ async function assignDriver(i, id){
 
   try{
     if(id){
-      const res = await fetch(`/api/dispatch/${trip._id}/driver`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: id })
-      })
+      const ok = await saveDriverAssignment(trip, id)
 
-      const updated = await res.json().catch(() => ({}))
-
-      if(!res.ok){
-        showToast(updated?.message || "Driver save failed")
+      if(!ok){
+        showToast("Driver save failed")
         renderTrips()
         return
       }
 
-      const d = drivers.find(x => String(x._id) === String(id))
-
-      trip.driverId = updated.driverId ? String(updated.driverId) : String(id)
-      trip.driverName = updated.driverName || d?.name || ""
-      trip.vehicle = updated.vehicle || (d ? getDriverCar(d._id) : "")
-      trip.driverAddress = updated.driverAddress || (d ? getDriverDayHomeAddress(d) : "")
       trip.manual = true
     }else{
       trip.driverId = ""
@@ -1034,10 +1047,20 @@ async function sendSelected(){
     return
   }
 
-  const noDriver = selected.find(t => !String(t.driverId || "").trim())
-  if(noDriver){
-    showToast(`Trip ${noDriver.tripNumber || ""} has no driver assigned`)
-    return
+  for(const trip of selected){
+    if(!String(trip.driverId || "").trim()){
+      showToast(`Trip ${trip.tripNumber || ""} has no driver assigned`)
+      return
+    }
+
+    /* ✅ لو الأوتو أسّاين عيّنه بس لسه متحفظش، نحفظه هنا */
+    if(!trip.manual){
+      const ok = await saveDriverAssignment(trip, trip.driverId)
+      if(!ok){
+        showToast(`Driver save failed for trip ${trip.tripNumber || ""}`)
+        return
+      }
+    }
   }
 
   try{
@@ -1078,6 +1101,15 @@ async function sendOne(i){
   if(!String(trip.driverId || "").trim()){
     showToast(`Trip ${trip.tripNumber || ""} has no driver assigned`)
     return
+  }
+
+  /* ✅ احفظ التعيين الأول لو لسه جاي من الأوتو أسّاين */
+  if(!trip.manual){
+    const ok = await saveDriverAssignment(trip, trip.driverId)
+    if(!ok){
+      showToast("Driver save failed")
+      return
+    }
   }
 
   try{
@@ -1135,6 +1167,9 @@ async function redistribute(){
 /* ================= TABS ================= */
 
 function bindTabs(){
+  if(tabsBound) return
+  tabsBound = true
+
   const tabTrips = document.getElementById("tabTrips")
   const tabDrivers = document.getElementById("tabDrivers")
   const tripsPage = document.getElementById("tripsPage")
