@@ -70,6 +70,7 @@ async function init(){
         return sch.enabled === true
       })
 
+    /* ✅ dispatch يسحب بس الرحلات المعمول لها select في Trips */
     trips = (tripsRaw || [])
       .filter(t =>
         t.dispatchSelected === true &&
@@ -79,7 +80,7 @@ async function init(){
       .map(t => ({
         ...t,
         _id: String(t._id || ""),
-        selected: false,
+        selected: false, // select داخل dispatch للإرسال فقط
         driverId: t.driverId ? String(t.driverId) : "",
         driverName: t.driverName || "",
         vehicle: t.vehicle || "",
@@ -88,6 +89,7 @@ async function init(){
         autoAssigned: false
       }))
 
+    /* ✅ منع التكرار */
     const seen = new Set()
     trips = trips.filter(t => {
       if(!t._id) return false
@@ -98,7 +100,9 @@ async function init(){
 
     loadGeoCache()
     await prepareGeo()
-    await autoAssign()
+
+    /* ✅ التوزيع التلقائي السريع */
+    autoAssign()
 
     sortTrips()
     renderTrips()
@@ -232,6 +236,18 @@ function getCurrentArizonaNow(){
   ).getTime()
 }
 
+function groupTripsByDate(list){
+  const mapByDate = {}
+
+  for(const t of list){
+    const key = normalizeDateKey(t.tripDate) || "no-date"
+    if(!mapByDate[key]) mapByDate[key] = []
+    mapByDate[key].push(t)
+  }
+
+  return mapByDate
+}
+
 /* ================= TIME / CURRENT ================= */
 
 function getTripStatus(t){
@@ -240,10 +256,10 @@ function getTripStatus(t){
 
   const diffMin = Math.round((getCurrentArizonaNow() - ts) / 60000)
 
-  if(diffMin >= 120) return "hide"
-  if(diffMin >= 0) return "expired"
-  if(diffMin >= -30) return "trip-urgent"
-  if(diffMin >= -90) return "trip-soon"
+  if(diffMin >= 120) return "hide"        // بعد ساعتين تختفي
+  if(diffMin >= 0) return "expired"       // من أول ما المعاد يعدي تبقى أحمر
+  if(diffMin >= -30) return "trip-urgent" // قبلها بنص ساعة برتقاني
+  if(diffMin >= -90) return "trip-soon"   // قبلها بـ 90 دقيقة أصفر
 
   return ""
 }
@@ -305,23 +321,26 @@ function getValidDriversForTrip(trip){
 }
 
 function getActiveDriversForPanel(){
-  return drivers.filter(driver => {
-    const driverTrips = trips.filter(t => String(t.driverId || "") === String(driver._id))
-    if(!driverTrips.length) return false
+  const current = getCurrentTrips()
+  const usedIds = new Set(
+    current
+      .map(t => String(t.driverId || "").trim())
+      .filter(Boolean)
+  )
 
-    const activeTrips = driverTrips.filter(t => {
-      const status = getTripStatus(t)
-      return status !== "hide" && status !== "expired"
-    })
-
-    return activeTrips.length > 0
-  })
+  return drivers.filter(d => usedIds.has(String(d._id)))
 }
 
 /* ================= DRIVER TRIPS / STATUS ================= */
 
 function getCurrentDriverTrips(driverId){
   return getCurrentTrips()
+    .filter(t => String(t.driverId || "") === String(driverId))
+    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+}
+
+function getDriverTripsAll(driverId){
+  return trips
     .filter(t => String(t.driverId || "") === String(driverId))
     .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 }
@@ -344,6 +363,31 @@ function getSelectedTripForDriver(driverId){
 
 function getDriverStatus(driverId){
   return getDriverTripsCount(driverId) > 0 ? "Busy" : "Available"
+}
+
+/* ================= CONFLICT ================= */
+
+function hasTimeConflict(driverId, trip){
+  const sameDayTrips = trips.filter(t =>
+    String(t.driverId || "") === String(driverId) &&
+    String(t._id || "") !== String(trip._id || "") &&
+    String(t.tripDate || "") === String(trip.tripDate || "")
+  )
+
+  const tripTs = getTripDateTimeValue(trip)
+  if(!tripTs) return false
+
+  for(const t of sameDayTrips){
+    const tTs = getTripDateTimeValue(t)
+    if(!tTs) continue
+
+    const diff = Math.abs(tTs - tripTs) / 60000
+    if(diff < 30){
+      return true
+    }
+  }
+
+  return false
 }
 
 /* ================= DRIVER START ================= */
@@ -470,7 +514,7 @@ function fastDistance(a, b){
 
   const dx = a.lat - b.lat
   const dy = a.lng - b.lng
-  return Math.sqrt((dx * dx) + (dy * dy))
+  return (dx * dx) + (dy * dy) // أسرع من sqrt
 }
 
 function getFallbackLocalScore(startAddress, pickupAddress){
@@ -553,72 +597,93 @@ async function saveDriverAssignment(trip, driverId){
   }
 }
 
-/* ================= AUTO ASSIGN ================= */
+/* ================= AUTO ASSIGN FAST ================= */
 
-async function autoAssign(){
+function autoAssign(){
   if(!drivers.length || !trips.length) return
 
   sortTrips()
 
-  const usedDrivers = new Set()
+  const tripsByDate = groupTripsByDate(trips)
 
-  /* احجز اليدوي أو المتعين فعلاً قبل كده */
-  for(const trip of trips){
-    if(trip.manual && trip.driverId){
-      usedDrivers.add(String(trip.driverId))
-    }
-  }
+  for(const dateKey of Object.keys(tripsByDate).sort()){
+    const dayTrips = tripsByDate[dateKey]
+      .slice()
+      .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
 
-  for(const trip of trips){
-    if(trip.driverId) continue
-
-    let pickupPoint = trip._geoPickup
-
-    if(!pickupPoint && trip.pickup){
-      pickupPoint = await geocode(trip.pickup)
-      trip._geoPickup = pickupPoint
-    }
-
-    const validDrivers = getValidDriversForTrip(trip)
-    if(!validDrivers.length) continue
-
-    let bestDriver = null
-    let bestScore = Infinity
-
-    for(const driver of validDrivers){
-      if(usedDrivers.has(String(driver._id))) continue
-
-      let distance = 999999
-
-      if(driver._geoHome && pickupPoint){
-        distance = fastDistance(driver._geoHome, pickupPoint)
-      }else{
-        distance = getFallbackLocalScore(
-          getDriverDayHomeAddress(driver),
-          trip.pickup
-        )
-      }
-
-      if(distance < bestScore){
-        bestScore = distance
-        bestDriver = driver
+    /* reset فقط للرحلات غير اليدوية في اليوم ده */
+    for(const t of dayTrips){
+      if(!t.manual){
+        t.driverId = ""
+        t.driverName = ""
+        t.vehicle = ""
+        t.driverAddress = ""
+        t.autoAssigned = false
       }
     }
 
-    if(bestDriver){
-      const id = String(bestDriver._id)
+    const usedDrivers = new Set()
 
-      trip.driverId = id
-      trip.driverName = bestDriver.name || ""
-      trip.vehicle = getDriverCar(id)
-      trip.driverAddress = getDriverDayHomeAddress(bestDriver)
-      trip.manual = false
-      trip.autoAssigned = true
+    /* اليدوي يتحجز */
+    for(const t of dayTrips){
+      if(t.manual && t.driverId){
+        usedDrivers.add(String(t.driverId))
+      }
+    }
 
-      usedDrivers.add(id)
+    for(const trip of dayTrips){
+      if(trip.driverId) continue
 
-      if(selectedTripIndexPerDriver[id] == null){
-        selectedTripIndexPerDriver[id] = 0
+      const pickupPoint = trip._geoPickup
+      const validDrivers = getValidDriversForTrip(trip)
+      if(!validDrivers.length) continue
+
+      let bestDriver = null
+      let bestScore = Infinity
+
+      for(const driver of validDrivers){
+        const id = String(driver._id)
+
+        /* كل سواق ياخد رحلة واحدة فقط */
+        if(usedDrivers.has(id)) continue
+
+        let score = 999999
+
+        if(driver._geoHome && pickupPoint){
+          score = fastDistance(driver._geoHome, pickupPoint)
+        }else{
+          score = getFallbackLocalScore(
+            getDriverDayHomeAddress(driver),
+            trip.pickup
+          )
+        }
+
+        /* منع تعارض الوقت */
+        if(hasTimeConflict(id, trip)){
+          score += 50000
+        }
+
+        if(score < bestScore){
+          bestScore = score
+          bestDriver = driver
+        }
+      }
+
+      if(bestDriver){
+        const id = String(bestDriver._id)
+
+        trip.driverId = id
+        trip.driverName = bestDriver.name || ""
+        trip.vehicle = getDriverCar(id)
+        trip.driverAddress = getDriverDayHomeAddress(bestDriver)
+        trip.autoAssigned = true
+        trip.manual = false
+
+        usedDrivers.add(id)
+
+        if(selectedTripIndexPerDriver[id] == null){
+          selectedTripIndexPerDriver[id] = 0
+        }
       }
     }
   }
@@ -633,15 +698,15 @@ function renderTrips(){
   body.innerHTML = ""
 
   trips.forEach((t, i) => {
-    const statusClass = getTripStatus(t)
-    if(statusClass === "hide") return
+    const status = getTripStatus(t)
+    if(status === "hide") return
 
     const validDrivers = getValidDriversForTrip(t)
     const stops = getStops(t)
     const sentClass = String(t.status || "") === "Dispatched" ? "sent-row" : ""
 
     body.innerHTML += `
-      <tr class="trip-row ${statusClass} ${sentClass}">
+      <tr class="trip-row ${status} ${sentClass}">
         <td>
           <button class="btn ${t.selected ? "green" : "blue"} select-btn" onclick="toggleTrip(${i})">
             ${t.selected ? "✔" : "Select"}
@@ -717,7 +782,7 @@ function clearMap(){
   }
 }
 
-/* ================= ROUTE ================= */
+/* ================= ROUTE (OSRM) ================= */
 
 async function getRoute(points){
   const validPoints = (points || []).filter(p =>
@@ -765,7 +830,7 @@ async function focusDriver(id){
   const trip = getSelectedTripForDriver(id)
 
   if(!trip){
-    showToast("No trip assigned to this driver")
+    showToast("No current trip assigned to this driver")
     return
   }
 
@@ -783,7 +848,7 @@ async function focusDriver(id){
   if(pickup) points.push({ ...pickup, label: "Pickup" })
 
   for(const s of stops){
-    const g = await geocode(s)
+    const g = trip._geoStops?.find(gs => gs && gs._src === s) || await geocode(s)
     if(g) points.push({ ...g, label: "Stop" })
   }
 
@@ -793,6 +858,11 @@ async function focusDriver(id){
     trip._geoDropoff = dropoff
   }
   if(dropoff) points.push({ ...dropoff, label: "Dropoff" })
+
+  if(points.length < 2){
+    showToast("Route not available")
+    return
+  }
 
   const route = await getRoute(points)
   if(!route){
@@ -929,6 +999,10 @@ async function assignDriver(i, id){
       renderTrips()
       return
     }
+
+    if(hasTimeConflict(id, trip)){
+      showToast("Warning: driver has time conflict")
+    }
   }
 
   try{
@@ -1012,8 +1086,8 @@ async function sendSelected(){
     }
 
     selected.forEach(t => {
-      t.status = "Dispatched"
       t.selected = false
+      t.status = "Dispatched"
     })
 
     renderTrips()
@@ -1075,7 +1149,7 @@ async function sendOne(i){
   }
 }
 
-async function redistribute(){
+function redistribute(){
   const selected = trips.filter(t => t.selected === true)
 
   if(!selected.length){
@@ -1092,12 +1166,11 @@ async function redistribute(){
     t.autoAssigned = false
   })
 
-  await autoAssign()
-
+  autoAssign()
   sortTrips()
   renderTrips()
   renderDrivers()
-  showToast("Redistributed successfully")
+  showToast("Trips redistributed")
 }
 
 /* ================= TABS ================= */
