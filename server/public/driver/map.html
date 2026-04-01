@@ -1,30 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
 <title>Sunbeam Driver Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
-<!-- Routing -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
 
 <style>
 
 body{
 margin:0;
 font-family:Arial;
-background:#111;
+background:#0f172a;
 color:#fff;
 overflow:hidden;
 }
 
 /* HEADER */
-
 #header{
 position:absolute;
 top:0;
@@ -33,318 +27,147 @@ right:0;
 z-index:1000;
 display:flex;
 justify-content:space-between;
-align-items:center;
-background:#0f172a;
-padding:10px 15px;
-font-size:14px;
+padding:12px;
+background:#020617;
 }
 
-#driverName{
-color:#facc15;
+#driverName{color:#facc15;font-weight:bold}
+#datetime{font-size:12px}
+
+/* NAV TEXT */
+#navText{
+position:absolute;
+top:55px;
+left:10px;
+right:10px;
+background:#020617;
+padding:12px;
+border-radius:12px;
+text-align:center;
 font-weight:bold;
-}
-
-#datetime{
-font-size:13px;
+z-index:1000;
 }
 
 /* MAP */
-
 #map{
 position:absolute;
-top:50px;
-bottom:220px;
+top:110px;
+bottom:230px;
 left:0;
 right:0;
-z-index:1;
 }
 
 /* CONTROLS */
-
 #controls{
 position:absolute;
 bottom:70px;
 left:0;
 right:0;
-background:#111;
-padding:15px;
+padding:12px;
+background:#020617;
 display:flex;
 flex-direction:column;
-gap:10px;
-border-top:1px solid #333;
-max-height:220px;
-overflow:auto;
+gap:8px;
 }
 
 button{
-padding:12px;
+padding:14px;
 border:none;
-border-radius:8px;
-font-size:14px;
+border-radius:12px;
 font-weight:bold;
 cursor:pointer;
-width:100%;
+font-size:14px;
 }
 
-#btnGoogle{
-background:#111;
-border:1px solid #888;
-color:#fff;
-}
-
-#btnGoPickup{
-background:#2563eb;
-color:#fff;
-display:none;
-}
-
-#btnArrived{
-background:#22c55e;
-display:none;
-}
-
-#btnStart{
-background:#16a34a;
-display:none;
-}
-
-#btnDropoff{
-background:#059669;
-display:none;
-}
-
-#btnNoShow{
-background:#dc2626;
-display:none;
-}
-
-/* WAIT TIMER */
+#btnArrived{background:#22c55e}
+#btnStart{background:#16a34a}
+#btnDropoff{background:#059669}
+#btnNoShow{background:#dc2626}
+#btnGoogle{background:#111;border:1px solid #777;color:#fff}
 
 #waitTimer{
 text-align:center;
-font-size:18px;
-font-weight:bold;
 color:#facc15;
+font-size:20px;
 display:none;
 }
 
-/* NOSHOW BOX */
-
-#noShowBox{
-display:none;
-flex-direction:column;
-gap:10px;
-}
-
-#noShowNotes{
-width:100%;
-height:70px;
-border-radius:8px;
-padding:10px;
-font-size:14px;
-border:none;
-outline:none;
-}
-
-/* NAV BAR */
-
+/* NAV */
 .nav{
 position:absolute;
 bottom:0;
 left:0;
 right:0;
 height:70px;
-background:#020617;
+background:#000;
 display:flex;
 justify-content:space-around;
 align-items:center;
-border-top:1px solid rgba(255,255,255,.08);
 }
 
 .nav button{
 background:none;
 border:none;
 color:#9ca3af;
-font-size:11px;
-cursor:pointer;
-display:flex;
-flex-direction:column;
-align-items:center;
-gap:4px;
 }
 
-.nav button span{
-font-size:20px;
-}
-
-.nav button.active{
-color:#facc15;
-}
-
-/* Hide routing panel */
-
-.leaflet-routing-container{
-display:none !important;
-}
+.nav .active{color:#facc15}
 
 </style>
-
 </head>
 
 <body>
 
-<!-- MAP -->
+<div id="header">
+<div id="driverName">Driver</div>
+<div id="datetime"></div>
+</div>
 
-<div
-id="map"
+<div id="navText">Go to pickup</div>
+
+<div id="map"
+data-trip-id="trip123"
 data-pickup-lat="33.2951"
 data-pickup-lng="-111.9210"
 data-dropoff-lat="33.3055"
 data-dropoff-lng="-111.8500"
 ></div>
 
-<!-- CONTROLS -->
-
 <div id="controls">
 
-<button id="btnGoogle">
-Open in Google Maps
-</button>
+<button id="btnGoogle">Open Google Maps</button>
 
-<button id="btnGoPickup">
-GO TO PICKUP
-</button>
-
-<button id="btnArrived">
-ARRIVED
-</button>
-
-<button id="btnStart">
-START TRIP
-</button>
-
-<button id="btnDropoff">
-DROP OFF
-</button>
-
-<button id="btnNoShow">
-NO SHOW
-</button>
+<button id="btnArrived" style="display:none">ARRIVED</button>
+<button id="btnStart" style="display:none">START TRIP</button>
+<button id="btnDropoff" style="display:none">DROP OFF</button>
+<button id="btnNoShow" style="display:none">NO SHOW</button>
 
 <div id="waitTimer">15:00</div>
 
-<div id="noShowBox">
-
-<textarea id="noShowNotes"
-placeholder="Reason for no show"></textarea>
-
-<button id="btnCompleteNoShow">
-Complete No Show
-</button>
-
 </div>
-
-</div>
-
-<!-- NAV -->
 
 <div class="nav">
-
-<button onclick="goHome()">
-<span>🏠</span>
-Home
-</button>
-
-<button onclick="goTrips()">
-<span>🚗</span>
-Trips
-</button>
-
-<button class="active">
-<span>🗺️</span>
-Map
-</button>
-
-<button onclick="goChat()">
-<span>💬</span>
-Chat
-</button>
-
-<button onclick="logout()">
-<span>🚪</span>
-Logout
-</button>
-
+<button>🏠</button>
+<button class="active">🚗</button>
+<button>🗺️</button>
+<button>💬</button>
+<button onclick="logout()">🚪</button>
 </div>
 
-<!-- LIBS -->
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
-
-<script src="/driver/map.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script src="map.js"></script>
 
 <script>
-
-/* DRIVER NAME */
-
-(function(){
-
-const raw = localStorage.getItem("loggedDriver")
-
-if(raw){
-
-try{
-
-const d = JSON.parse(raw)
-
-document.getElementById("driverName").innerText =
-d.name || d.username || "Driver"
-
-}catch{}
-
-}
-
-})()
-
-/* TIME */
-
-function updateTime(){
-
-const now = new Date()
-
-document.getElementById("datetime").innerText =
-now.toLocaleString("en-US",{timeZone:"America/Phoenix"})
-
-}
-
-updateTime()
-
-setInterval(updateTime,1000)
-
-/* NAVIGATION */
-
-function goHome(){
-window.location.href="dashboard.html"
-}
-
-function goTrips(){
-window.location.href="trips.html"
-}
-
-function goChat(){
-alert("Chat coming soon")
-}
-
 function logout(){
-
-localStorage.removeItem("driverToken")
-
-window.location.href="login.html"
-
+localStorage.clear();
+location.href="login.html";
 }
 
+setInterval(()=>{
+document.getElementById("datetime").innerText =
+new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+},1000);
 </script>
 
 </body>
