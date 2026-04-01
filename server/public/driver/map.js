@@ -3,33 +3,31 @@ const rawDriver = localStorage.getItem("loggedDriver");
 if (!rawDriver) location.href = "/driver/login.html";
 
 const driver = JSON.parse(rawDriver);
+
+/* 🔥 مهم جدًا */
 const DRIVER_ID = driver._id || driver.id;
 const DRIVER_NAME = driver.name || driver.username;
 
 /* ================= MAP ================= */
 const mapEl = document.getElementById("map");
 
-const pickup = [
-Number(mapEl.dataset.pickupLat),
-Number(mapEl.dataset.pickupLng)
-];
+const pickupLat = Number(mapEl.dataset.pickupLat);
+const pickupLng = Number(mapEl.dataset.pickupLng);
 
-const dropoff = [
-Number(mapEl.dataset.dropoffLat),
-Number(mapEl.dataset.dropoffLng)
-];
+const dropLat = Number(mapEl.dataset.dropoffLat);
+const dropLng = Number(mapEl.dataset.dropoffLng);
 
-const map = L.map("map").setView(pickup, 14);
+const map = L.map("map").setView([pickupLat, pickupLng], 14);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 /* ================= STATE ================= */
-let driverMarker;
-let routeControl;
-let routeMode = "pickup";
+let driverMarker = null;
+let routeControl = null;
 
 let arrived = false;
 let started = false;
+let routeMode = "pickup";
 
 /* ================= ELEMENTS ================= */
 const btnArrived = document.getElementById("btnArrived");
@@ -52,49 +50,54 @@ map.removeControl(routeControl);
 
 routeControl = L.Routing.control({
 waypoints:[
-L.latLng(fromLat,fromLng),
-L.latLng(toLat,toLng)
+L.latLng(fromLat, fromLng),
+L.latLng(toLat, toLng)
 ],
 addWaypoints:false,
 draggableWaypoints:false,
 routeWhileDragging:false,
 show:false,
 createMarker:()=>null,
-lineOptions:{styles:[{color:"#2563eb",weight:6}]}
+lineOptions:{
+styles:[{color:"#2563eb",weight:6}]
+}
 }).addTo(map);
 
 }
 
-/* ================= SEND LOCATION ================= */
-async function sendLocation(lat,lng){
-
+/* ================= SEND LOCATION (ADMIN LINK) ================= */
+async function sendLocation(lat, lng){
 try{
 await fetch("/api/driver/location",{
 method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-driverId:DRIVER_ID,
-name:DRIVER_NAME,
+headers:{ "Content-Type":"application/json" },
+body: JSON.stringify({
+driverId: DRIVER_ID,
+name: DRIVER_NAME,
 lat,
-lng
+lng,
+time: Date.now()
 })
 });
-}catch(e){}
+}catch(e){
+console.log("location error", e);
+}
 }
 
 /* ================= TIMER ================= */
-let timer,sec=900;
+let timer, sec = 900;
 
 function startTimer(){
-sec=900;
+sec = 900;
 show(timerEl);
 
-timer=setInterval(()=>{
+timer = setInterval(()=>{
 sec--;
-let m=Math.floor(sec/60);
-let s=sec%60;
-timerEl.innerText=`${m}:${s<10?"0":""}${s}`;
-if(sec<=0){
+let m = Math.floor(sec/60);
+let s = sec%60;
+timerEl.innerText = `${m}:${s<10?"0":""}${s}`;
+
+if(sec <= 0){
 clearInterval(timer);
 hide(btnNoShow);
 }
@@ -108,16 +111,14 @@ hide(timerEl);
 
 /* ================= GOOGLE ================= */
 function openGoogle(){
-
 const lat = window.driverLat;
 const lng = window.driverLng;
 
-if(routeMode==="dropoff"){
-window.open(`https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${dropoff[0]},${dropoff[1]}`);
+if(routeMode === "pickup"){
+window.open(`https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${pickupLat},${pickupLng}`);
 }else{
-window.open(`https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${pickup[0]},${pickup[1]}`);
+window.open(`https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${dropLat},${dropLng}`);
 }
-
 }
 
 btnGoogle.onclick = openGoogle;
@@ -126,26 +127,30 @@ btnGoogle.onclick = openGoogle;
 
 /* ARRIVED */
 btnArrived.onclick = ()=>{
-arrived=true;
+arrived = true;
+
 hide(btnArrived);
 show(btnStart);
 show(btnNoShow);
+
 startTimer();
 };
 
 /* START */
 btnStart.onclick = ()=>{
 
-started=true;
-routeMode="dropoff";
+started = true;
+routeMode = "dropoff";
 
 hide(btnStart);
 hide(btnNoShow);
 stopTimer();
 
+/* 🔥 أهم نقطة */
 const pos = driverMarker.getLatLng();
-drawRoute(pos.lat,pos.lng,dropoff[0],dropoff[1]);
+drawRoute(pos.lat, pos.lng, dropLat, dropLng);
 
+show(btnDrop);
 };
 
 /* DROP */
@@ -166,43 +171,50 @@ navigator.geolocation.watchPosition((pos)=>{
 const lat = pos.coords.latitude;
 const lng = pos.coords.longitude;
 
-window.driverLat=lat;
-window.driverLng=lng;
+/* save */
+window.driverLat = lat;
+window.driverLng = lng;
 
 /* marker */
 if(!driverMarker){
 driverMarker = L.marker([lat,lng]).addTo(map);
-drawRoute(lat,lng,pickup[0],pickup[1]);
+
+/* 🔥 البداية */
+drawRoute(lat, lng, pickupLat, pickupLng);
+
 }else{
 driverMarker.setLatLng([lat,lng]);
 }
 
 map.setView([lat,lng],15);
 
-/* send live */
-sendLocation(lat,lng);
+/* 🔥 ربط الأدمن */
+sendLocation(lat, lng);
 
 /* distance */
-const dPickup = getDist(lat,lng,pickup);
-const dDrop = getDist(lat,lng,dropoff);
+const dPickup = getDist(lat,lng,[pickupLat,pickupLng]);
+const dDrop = getDist(lat,lng,[dropLat,dropLng]);
 
-/* BUTTON POLICY */
+/* POLICY */
 
 /* pickup */
-if(!arrived && dPickup<0.1){
+if(!arrived && dPickup < 0.1){
 show(btnArrived);
 }
 
-/* dropoff */
+/* drop */
 if(started){
 show(btnDrop);
-if(dDrop<0.1){
+
+if(dDrop < 0.1){
 btnDrop.classList.add("enabled");
 }else{
 btnDrop.classList.remove("enabled");
 }
 }
 
+},{
+enableHighAccuracy:true
 });
 
 /* ================= DIST ================= */
