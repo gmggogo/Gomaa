@@ -9,74 +9,31 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
 
 <style>
+body{margin:0;font-family:Arial;background:#0f172a;color:#fff;overflow:hidden}
 
-body{
-margin:0;
-font-family:Arial;
-background:#0f172a;
-color:#fff;
-overflow:hidden;
-}
-
-/* HEADER */
 #header{
-position:absolute;
-top:0;
-left:0;
-right:0;
-z-index:1000;
-display:flex;
-justify-content:space-between;
-padding:12px;
-background:#020617;
+position:absolute;top:0;left:0;right:0;z-index:1000;
+display:flex;justify-content:space-between;padding:12px;background:#020617
 }
-
 #driverName{color:#facc15;font-weight:bold}
 #datetime{font-size:12px}
 
-/* NAV TEXT */
 #navText{
-position:absolute;
-top:55px;
-left:10px;
-right:10px;
-background:#020617;
-padding:12px;
-border-radius:12px;
-text-align:center;
-font-weight:bold;
-z-index:1000;
+position:absolute;top:55px;left:10px;right:10px;
+background:#020617;padding:12px;border-radius:12px;
+text-align:center;font-weight:bold;z-index:1000
 }
 
-/* MAP */
-#map{
-position:absolute;
-top:110px;
-bottom:230px;
-left:0;
-right:0;
-}
+#map{position:absolute;top:110px;bottom:230px;left:0;right:0}
 
-/* CONTROLS */
 #controls{
-position:absolute;
-bottom:70px;
-left:0;
-right:0;
-padding:12px;
-background:#020617;
-display:flex;
-flex-direction:column;
-gap:8px;
+position:absolute;bottom:70px;left:0;right:0;
+padding:12px;background:#020617;display:flex;flex-direction:column;gap:8px
 }
 
 button{
-padding:14px;
-border:none;
-border-radius:12px;
-font-weight:bold;
-cursor:pointer;
-font-size:14px;
+padding:14px;border:none;border-radius:12px;
+font-weight:bold;cursor:pointer;font-size:14px
 }
 
 #btnArrived{background:#22c55e}
@@ -85,34 +42,14 @@ font-size:14px;
 #btnNoShow{background:#dc2626}
 #btnGoogle{background:#111;border:1px solid #777;color:#fff}
 
-#waitTimer{
-text-align:center;
-color:#facc15;
-font-size:20px;
-display:none;
-}
+#waitTimer{text-align:center;color:#facc15;font-size:20px;display:none}
 
-/* NAV */
 .nav{
-position:absolute;
-bottom:0;
-left:0;
-right:0;
-height:70px;
-background:#000;
-display:flex;
-justify-content:space-around;
-align-items:center;
+position:absolute;bottom:0;left:0;right:0;height:70px;
+background:#000;display:flex;justify-content:space-around;align-items:center
 }
-
-.nav button{
-background:none;
-border:none;
-color:#9ca3af;
-}
-
+.nav button{background:none;border:none;color:#9ca3af}
 .nav .active{color:#facc15}
-
 </style>
 </head>
 
@@ -123,7 +60,7 @@ color:#9ca3af;
 <div id="datetime"></div>
 </div>
 
-<div id="navText">Go to pickup</div>
+<div id="navText">Waiting GPS...</div>
 
 <div id="map"
 data-trip-id="trip123"
@@ -134,16 +71,12 @@ data-dropoff-lng="-111.8500"
 ></div>
 
 <div id="controls">
-
 <button id="btnGoogle">Open Google Maps</button>
-
 <button id="btnArrived" style="display:none">ARRIVED</button>
 <button id="btnStart" style="display:none">START TRIP</button>
 <button id="btnDropoff" style="display:none">DROP OFF</button>
 <button id="btnNoShow" style="display:none">NO SHOW</button>
-
 <div id="waitTimer">15:00</div>
-
 </div>
 
 <div class="nav">

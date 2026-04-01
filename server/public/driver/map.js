@@ -4,21 +4,27 @@ const mapEl = document.getElementById("map");
 
 const tripId = mapEl.dataset.tripId;
 
-const pickup = [ +mapEl.dataset.pickupLat, +mapEl.dataset.pickupLng ];
-const dropoff = [ +mapEl.dataset.dropoffLat, +mapEl.dataset.dropoffLng ];
+const pickup = [
+  Number(mapEl.dataset.pickupLat),
+  Number(mapEl.dataset.pickupLng)
+];
+
+const dropoff = [
+  Number(mapEl.dataset.dropoffLat),
+  Number(mapEl.dataset.dropoffLng)
+];
 
 let map = L.map("map").setView(pickup, 14);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let driverMarker;
-let routeControl;
-
 /* ================= STATE ================= */
+
+let driverMarker = null;
+let routeControl = null;
 
 let arrived = false;
 let started = false;
-let lastInstruction = "";
 
 /* ================= UI ================= */
 
@@ -32,173 +38,196 @@ const timerEl = document.getElementById("waitTimer");
 
 /* ================= TIMER ================= */
 
-let timer;
+let timer = null;
 let seconds = 900;
 
 function startTimer(){
-timerEl.style.display="block";
-timer=setInterval(()=>{
-seconds--;
-let m=Math.floor(seconds/60);
-let s=seconds%60;
-timerEl.innerText=`${m}:${s<10?"0":""}${s}`;
+  seconds = 900;
+  timerEl.style.display = "block";
 
-if(seconds<=0){
-clearInterval(timer);
-btnNoShow.style.display="none";
-}
-},1000);
+  timer = setInterval(()=>{
+    seconds--;
+    let m = Math.floor(seconds/60);
+    let s = seconds % 60;
+    timerEl.innerText = `${m}:${s<10?"0":""}${s}`;
+
+    if(seconds <= 0){
+      clearInterval(timer);
+      btnNoShow.style.display = "none";
+    }
+  },1000);
 }
 
 function stopTimer(){
-clearInterval(timer);
-timerEl.style.display="none";
+  clearInterval(timer);
+  timerEl.style.display = "none";
 }
 
-/* ================= ROUTE ================= */
+/* ================= ROUTE FIX ================= */
 
-function drawRoute(from,to){
+function drawRoute(fromLat, fromLng, toLat, toLng){
 
-if(routeControl){
-map.removeControl(routeControl);
+  if(!fromLat || !fromLng || !toLat || !toLng){
+    console.log("INVALID COORDS");
+    return;
+  }
+
+  if(routeControl){
+    map.removeControl(routeControl);
+    routeControl = null;
+  }
+
+  routeControl = L.Routing.control({
+    waypoints:[
+      L.latLng(fromLat, fromLng),
+      L.latLng(toLat, toLng)
+    ],
+    addWaypoints:false,
+    routeWhileDragging:false,
+    draggableWaypoints:false,
+    fitSelectedRoutes:true,
+    show:false,
+    createMarker:()=>null,
+    lineOptions:{
+      styles:[{color:"#2563eb",weight:6}]
+    }
+  }).addTo(map);
+
 }
 
-routeControl = L.Routing.control({
-waypoints:[
-L.latLng(from[0],from[1]),
-L.latLng(to[0],to[1])
-],
-addWaypoints:false,
-routeWhileDragging:false,
-createMarker:()=>null
-}).addTo(map);
+/* ================= DIST ================= */
 
-}
+function dist(lat,lng,point){
+  let R=3958.8;
+  let dLat=(point[0]-lat)*Math.PI/180;
+  let dLon=(point[1]-lng)*Math.PI/180;
 
-/* ================= VOICE ================= */
+  let a=Math.sin(dLat/2)**2+
+  Math.cos(lat*Math.PI/180)*
+  Math.cos(point[0]*Math.PI/180)*
+  Math.sin(dLon/2)**2;
 
-function speak(text){
-if(text === lastInstruction) return;
-lastInstruction = text;
-
-const msg = new SpeechSynthesisUtterance(text);
-speechSynthesis.cancel();
-speechSynthesis.speak(msg);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
 /* ================= GPS ================= */
 
 navigator.geolocation.watchPosition((pos)=>{
 
-let lat=pos.coords.latitude;
-let lng=pos.coords.longitude;
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
 
-if(!driverMarker){
-driverMarker = L.marker([lat,lng]).addTo(map);
-drawRoute([lat,lng],pickup);
-}else{
-driverMarker.setLatLng([lat,lng]);
-}
+  if(!driverMarker){
 
-map.setView([lat,lng],15);
+    driverMarker = L.marker([lat,lng]).addTo(map);
 
-/* DISTANCE */
-let dPickup = dist(lat,lng,pickup);
-let dDrop = dist(lat,lng,dropoff);
+    /* 🔥 أهم حاجة — رسم المسار أول مرة */
+    drawRoute(lat, lng, pickup[0], pickup[1]);
 
-/* BEFORE ARRIVED */
-if(!arrived && !started){
+    navText.innerText = "Go to pickup";
 
-if(dPickup < 0.1){
-btnArrived.style.display="block";
-navText.innerText="Press ARRIVED";
-speak("You arrived at pickup");
-}else{
-navText.innerText="Go to pickup";
-}
+  }else{
+    driverMarker.setLatLng([lat,lng]);
+  }
 
-}
+  map.setView([lat,lng],15);
 
-/* AFTER ARRIVED */
-if(arrived && !started){
-navText.innerText="Start trip";
-}
+  let dPickup = dist(lat,lng,pickup);
+  let dDrop = dist(lat,lng,dropoff);
 
-/* AFTER START */
-if(started){
+  /* BEFORE ARRIVED */
+  if(!arrived && !started){
 
-btnDrop.style.display="block";
+    if(dPickup < 0.1){
+      btnArrived.style.display = "block";
+      navText.innerText = "Press ARRIVED";
+    }
 
-if(dDrop < 0.1){
-navText.innerText="Arrived at dropoff";
-speak("Arrived at dropoff");
-}else{
-navText.innerText="Go to dropoff";
-}
+  }
 
-}
+  /* AFTER START */
+  if(started){
 
-},()=>alert("Enable GPS"));
+    btnDrop.style.display = "block";
 
-/* ================= DIST ================= */
+    if(dDrop < 0.1){
+      navText.innerText = "Press DROP OFF";
+    }else{
+      navText.innerText = "Go to dropoff";
+    }
 
-function dist(lat,lng,point){
-let R=3958.8;
-let dLat=(point[0]-lat)*Math.PI/180;
-let dLon=(point[1]-lng)*Math.PI/180;
+  }
 
-let a=Math.sin(dLat/2)**2+
-Math.cos(lat*Math.PI/180)*
-Math.cos(point[0]*Math.PI/180)*
-Math.sin(dLon/2)**2;
-
-return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
+},()=>alert("Enable GPS"),{
+  enableHighAccuracy:true
+});
 
 /* ================= BUTTONS ================= */
 
-btnArrived.onclick=()=>{
-arrived=true;
-btnArrived.style.display="none";
-btnStart.style.display="block";
-btnNoShow.style.display="block";
-startTimer();
+btnArrived.onclick = ()=>{
+  arrived = true;
+  btnArrived.style.display="none";
+  btnStart.style.display="block";
+  btnNoShow.style.display="block";
+  startTimer();
 };
 
-btnStart.onclick=async()=>{
-started=true;
+btnStart.onclick = async ()=>{
 
-btnStart.style.display="none";
-btnNoShow.style.display="none";
-stopTimer();
+  started = true;
 
-drawRoute(driverMarker.getLatLng(),dropoff);
+  btnStart.style.display="none";
+  btnNoShow.style.display="none";
 
-await updateStatus("InProgress");
+  stopTimer();
+
+  const pos = driverMarker.getLatLng();
+
+  /* 🔥 FIX */
+  drawRoute(
+    pos.lat,
+    pos.lng,
+    dropoff[0],
+    dropoff[1]
+  );
+
+  await updateStatus("InProgress");
 };
 
-btnDrop.onclick=async()=>{
-await updateStatus("Completed");
-alert("Trip Completed");
+btnDrop.onclick = async ()=>{
+
+  await updateStatus("Completed");
+  alert("Trip Completed");
+
 };
 
-btnNoShow.onclick=async()=>{
-await updateStatus("NoShow");
-alert("No Show");
+btnNoShow.onclick = async ()=>{
+
+  await updateStatus("NoShow");
+  alert("No Show");
+
 };
 
 /* ================= SERVER ================= */
 
 async function updateStatus(status){
-await fetch(`/api/trips/${tripId}`,{
-method:"PUT",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({status})
-});
+  await fetch(`/api/trips/${tripId}`,{
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({status})
+  });
 }
 
 /* ================= GOOGLE ================= */
 
-btnGoogle.onclick=()=>{
-window.open(`https://www.google.com/maps/dir/?api=1&destination=${pickup[0]},${pickup[1]}`);
+btnGoogle.onclick = ()=>{
+  window.open(
+    `https://www.google.com/maps/dir/?api=1&destination=${pickup[0]},${pickup[1]}`
+  );
 };
+
+/* ================= FIX MAP RENDER ================= */
+
+setTimeout(()=>{
+  map.invalidateSize();
+},500);
