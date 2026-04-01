@@ -1,6 +1,13 @@
-const mapEl = document.getElementById("map");
+/* ================= AUTH ================= */
+const rawDriver = localStorage.getItem("loggedDriver");
+if (!rawDriver) location.href = "/driver/login.html";
 
-const tripId = mapEl.dataset.tripId;
+const driver = JSON.parse(rawDriver);
+const DRIVER_ID = driver._id || driver.id;
+const DRIVER_NAME = driver.name || driver.username;
+
+/* ================= MAP ================= */
+const mapEl = document.getElementById("map");
 
 const pickup = [
 Number(mapEl.dataset.pickupLat),
@@ -12,54 +19,76 @@ Number(mapEl.dataset.dropoffLat),
 Number(mapEl.dataset.dropoffLng)
 ];
 
-/* MAP */
-const map = L.map("map").setView(pickup,14);
+const map = L.map("map").setView(pickup, 14);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let driverMarker, routeLine;
+/* ================= STATE ================= */
+let driverMarker;
+let routeControl;
+let routeMode = "pickup";
 
-/* STATE */
-let arrived=false;
-let started=false;
+let arrived = false;
+let started = false;
 
-/* ELEMENTS */
-const navText = document.getElementById("navText");
+/* ================= ELEMENTS ================= */
 const btnArrived = document.getElementById("btnArrived");
 const btnStart = document.getElementById("btnStart");
-const btnDrop = document.getElementById("btnDrop");
+const btnDrop = document.getElementById("btnDropoff");
 const btnNoShow = document.getElementById("btnNoShow");
-const btnNavigate = document.getElementById("btnNavigate");
-const timerEl = document.getElementById("timer");
+const btnGoogle = document.getElementById("btnGoogle");
+const timerEl = document.getElementById("waitTimer");
 
-/* ROUTE */
-async function drawRoute(from,to){
+/* ================= HELPERS ================= */
+function show(el){ if(el) el.style.display="block"; }
+function hide(el){ if(el) el.style.display="none"; }
 
-if(routeLine){
-map.removeLayer(routeLine);
+/* ================= ROUTE ================= */
+function drawRoute(fromLat, fromLng, toLat, toLng){
+
+if(routeControl){
+map.removeControl(routeControl);
 }
 
-const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+routeControl = L.Routing.control({
+waypoints:[
+L.latLng(fromLat,fromLng),
+L.latLng(toLat,toLng)
+],
+addWaypoints:false,
+draggableWaypoints:false,
+routeWhileDragging:false,
+show:false,
+createMarker:()=>null,
+lineOptions:{styles:[{color:"#2563eb",weight:6}]}
+}).addTo(map);
 
-const res = await fetch(url);
-const data = await res.json();
-
-const coords = data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
-
-routeLine = L.polyline(coords,{color:"#2563eb",weight:6}).addTo(map);
 }
 
-/* NAVIGATION */
-function openNav(lat,lng){
-window.location.href =
-`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+/* ================= SEND LOCATION ================= */
+async function sendLocation(lat,lng){
+
+try{
+await fetch("/api/driver/location",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+driverId:DRIVER_ID,
+name:DRIVER_NAME,
+lat,
+lng
+})
+});
+}catch(e){}
 }
 
-/* TIMER */
-let sec=900,timer;
+/* ================= TIMER ================= */
+let timer,sec=900;
 
 function startTimer(){
-timerEl.style.display="block";
+sec=900;
+show(timerEl);
+
 timer=setInterval(()=>{
 sec--;
 let m=Math.floor(sec/60);
@@ -67,93 +96,116 @@ let s=sec%60;
 timerEl.innerText=`${m}:${s<10?"0":""}${s}`;
 if(sec<=0){
 clearInterval(timer);
-btnNoShow.style.display="none";
+hide(btnNoShow);
 }
 },1000);
 }
 
 function stopTimer(){
 clearInterval(timer);
-timerEl.style.display="none";
+hide(timerEl);
 }
 
-/* GPS */
+/* ================= GOOGLE ================= */
+function openGoogle(){
+
+const lat = window.driverLat;
+const lng = window.driverLng;
+
+if(routeMode==="dropoff"){
+window.open(`https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${dropoff[0]},${dropoff[1]}`);
+}else{
+window.open(`https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${pickup[0]},${pickup[1]}`);
+}
+
+}
+
+btnGoogle.onclick = openGoogle;
+
+/* ================= BUTTON FLOW ================= */
+
+/* ARRIVED */
+btnArrived.onclick = ()=>{
+arrived=true;
+hide(btnArrived);
+show(btnStart);
+show(btnNoShow);
+startTimer();
+};
+
+/* START */
+btnStart.onclick = ()=>{
+
+started=true;
+routeMode="dropoff";
+
+hide(btnStart);
+hide(btnNoShow);
+stopTimer();
+
+const pos = driverMarker.getLatLng();
+drawRoute(pos.lat,pos.lng,dropoff[0],dropoff[1]);
+
+};
+
+/* DROP */
+btnDrop.onclick = async ()=>{
+await updateStatus("Completed");
+alert("Trip Completed");
+};
+
+/* NO SHOW */
+btnNoShow.onclick = async ()=>{
+await updateStatus("NoShow");
+alert("No Show");
+};
+
+/* ================= GPS ================= */
 navigator.geolocation.watchPosition((pos)=>{
 
-const lat=pos.coords.latitude;
-const lng=pos.coords.longitude;
+const lat = pos.coords.latitude;
+const lng = pos.coords.longitude;
 
+window.driverLat=lat;
+window.driverLng=lng;
+
+/* marker */
 if(!driverMarker){
-driverMarker=L.marker([lat,lng]).addTo(map);
-drawRoute([lat,lng],pickup);
-navText.innerText="Go to pickup";
+driverMarker = L.marker([lat,lng]).addTo(map);
+drawRoute(lat,lng,pickup[0],pickup[1]);
 }else{
 driverMarker.setLatLng([lat,lng]);
 }
 
 map.setView([lat,lng],15);
 
-/* DIST */
-const dPickup=getDist(lat,lng,pickup);
-const dDrop=getDist(lat,lng,dropoff);
+/* send live */
+sendLocation(lat,lng);
 
-/* SHOW BUTTONS */
+/* distance */
+const dPickup = getDist(lat,lng,pickup);
+const dDrop = getDist(lat,lng,dropoff);
+
+/* BUTTON POLICY */
+
+/* pickup */
 if(!arrived && dPickup<0.1){
-btnArrived.style.display="block";
+show(btnArrived);
 }
 
+/* dropoff */
 if(started){
-btnDrop.style.display="block";
+show(btnDrop);
+if(dDrop<0.1){
+btnDrop.classList.add("enabled");
+}else{
+btnDrop.classList.remove("enabled");
 }
-
-if(started && dDrop<0.1){
-navText.innerText="Press DROP OFF";
-}else if(started){
-navText.innerText="Driving to dropoff";
 }
 
 });
 
-/* BUTTONS */
-
-btnNavigate.onclick=()=>{
-if(!started){
-openNav(pickup[0],pickup[1]);
-}else{
-openNav(dropoff[0],dropoff[1]);
-}
-};
-
-btnArrived.onclick=()=>{
-arrived=true;
-btnArrived.style.display="none";
-btnStart.style.display="block";
-btnNoShow.style.display="block";
-startTimer();
-};
-
-btnStart.onclick=()=>{
-started=true;
-btnStart.style.display="none";
-btnNoShow.style.display="none";
-stopTimer();
-
-drawRoute(driverMarker.getLatLng(),dropoff);
-
-openNav(dropoff[0],dropoff[1]);
-};
-
-btnDrop.onclick=async ()=>{
-await updateStatus("Completed");
-alert("Trip Completed");
-};
-
-btnNoShow.onclick=async ()=>{
-await updateStatus("NoShow");
-alert("No Show");
-};
-
-/* HELPERS */
+/* ================= DIST ================= */
 function getDist(lat,lng,p){
 let R=3958.8;
 let dLat=(p[0]-lat)*Math.PI/180;
@@ -167,8 +219,9 @@ Math.sin(dLon/2)**2;
 return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
+/* ================= SERVER ================= */
 async function updateStatus(status){
-await fetch(`/api/trips/${tripId}`,{
+await fetch(`/api/trips/${mapEl.dataset.tripId}`,{
 method:"PUT",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({status})
