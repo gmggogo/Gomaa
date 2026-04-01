@@ -15,12 +15,11 @@ margin:0;
 font-family:Arial;
 background:#0f172a;
 color:#fff;
-overflow:hidden;
 }
 
 /* HEADER */
 #header{
-position:absolute;
+position:fixed;
 top:0;
 left:0;
 right:0;
@@ -33,7 +32,7 @@ z-index:1000;
 
 /* NAV TEXT */
 #navText{
-position:absolute;
+position:fixed;
 top:50px;
 left:10px;
 right:10px;
@@ -41,7 +40,6 @@ background:#020617;
 padding:12px;
 border-radius:10px;
 text-align:center;
-font-weight:bold;
 z-index:1000;
 }
 
@@ -49,14 +47,14 @@ z-index:1000;
 #map{
 position:absolute;
 top:110px;
-bottom:220px;
+bottom:150px;
 left:0;
 right:0;
 }
 
 /* CONTROLS */
 #controls{
-position:absolute;
+position:fixed;
 bottom:70px;
 left:0;
 right:0;
@@ -75,11 +73,13 @@ font-weight:bold;
 font-size:14px;
 }
 
+/* COLORS */
 #btnArrived{background:#22c55e}
 #btnStart{background:#16a34a}
 #btnDrop{background:#059669}
 #btnNoShow{background:#dc2626}
-#btnGoogle{background:#111;border:1px solid #777;color:#fff}
+#btnNavigate{background:#2563eb}
+#btnGoogle{background:#111;border:1px solid #666;color:#fff}
 
 /* TIMER */
 #timer{
@@ -87,6 +87,34 @@ text-align:center;
 font-size:18px;
 color:#facc15;
 display:none;
+}
+
+/* NAV BAR */
+.nav{
+position:fixed;
+bottom:0;
+left:0;
+right:0;
+height:70px;
+background:#020617;
+display:flex;
+justify-content:space-around;
+align-items:center;
+z-index:9999;
+}
+
+.nav button{
+background:none;
+border:none;
+color:#9ca3af;
+font-size:11px;
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+.nav button.active{
+color:#facc15;
 }
 
 </style>
@@ -100,7 +128,7 @@ display:none;
 <div id="time"></div>
 </div>
 
-<div id="navText">Waiting GPS...</div>
+<div id="navText">Loading...</div>
 
 <div id="map"
 data-trip-id="trip123"
@@ -112,7 +140,7 @@ data-dropoff-lng="-111.8500"
 
 <div id="controls">
 
-<button id="btnGoogle">Open Google Maps</button>
+<button id="btnNavigate">🚀 Start Navigation</button>
 
 <button id="btnArrived" style="display:none">ARRIVED</button>
 <button id="btnStart" style="display:none">START TRIP</button>
@@ -120,6 +148,17 @@ data-dropoff-lng="-111.8500"
 <button id="btnNoShow" style="display:none">NO SHOW</button>
 
 <div id="timer">15:00</div>
+
+</div>
+
+<!-- NAV BAR -->
+<div class="nav">
+
+<button onclick="goHome()">🏠<span>Home</span></button>
+<button onclick="goTrips()">🚗<span>Trips</span></button>
+<button class="active">🗺️<span>Map</span></button>
+<button onclick="goChat()">💬<span>Chat</span></button>
+<button onclick="logout()">🚪<span>Logout</span></button>
 
 </div>
 
@@ -131,6 +170,11 @@ setInterval(()=>{
 document.getElementById("time").innerText =
 new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
 },1000);
+
+function goHome(){location.href="dashboard.html"}
+function goTrips(){location.href="trips.html"}
+function goChat(){alert("Chat coming soon")}
+function logout(){localStorage.clear();location.href="login.html"}
 </script>
 
 </body>
