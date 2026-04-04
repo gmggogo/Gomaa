@@ -1,5 +1,5 @@
 /* =====================================================
-   SUNBEAM DRIVER MAP – COMPLETE
+   SUNBEAM DRIVER MAP – COMPLETE FINAL
 ===================================================== */
 
 /* ===============================
@@ -71,7 +71,7 @@ const hasPickup = Number.isFinite(pickupLat) && Number.isFinite(pickupLng);
 const hasDropoff = Number.isFinite(dropLat) && Number.isFinite(dropLng);
 
 /* ===============================
-   UI INIT
+   UI HELPERS
 ================================ */
 if (driverNameEl) {
   driverNameEl.innerText = DRIVER_NAME;
@@ -114,20 +114,20 @@ function resetNoShowBox() {
   if (noShowNotes) noShowNotes.value = "";
 }
 
-function resetMainButtons() {
+function resetButtonsForFreshState() {
   hideEl(btnGoPickup);
   hideEl(btnArrived);
   hideEl(btnStart);
   hideEl(btnComplete);
   hideEl(btnNoShow);
-  hideEl(btnGoogle);
   resetNoShowBox();
 }
 
-function fullUiResetForFinish() {
-  resetMainButtons();
+function finishUi() {
+  resetButtonsForFreshState();
   stopTimer();
   clearRoute();
+  hideETA();
 }
 
 setNavText("Waiting for GPS...");
@@ -461,7 +461,7 @@ function openGoogleMaps() {
 }
 
 /* ===============================
-   BUTTONS FLOW
+   BUTTON FLOW
 ================================ */
 btnGoogle.onclick = openGoogleMaps;
 
@@ -481,6 +481,7 @@ btnArrived.onclick = async () => {
 
   arrived = true;
 
+  hideEl(btnGoogle);
   hideEl(btnGoPickup);
   hideEl(btnArrived);
 
@@ -512,9 +513,8 @@ btnCompleteNoShow.onclick = async () => {
     noShowReason: reason
   });
 
-  fullUiResetForFinish();
+  finishUi();
   setNavText("No show completed");
-  hideETA();
   alert("No Show Completed");
 };
 
@@ -550,9 +550,8 @@ btnComplete.onclick = async () => {
 
   await updateTripStatus("Completed");
 
-  fullUiResetForFinish();
+  finishUi();
   setNavText("Trip completed");
-  hideETA();
   alert("Trip Completed");
 };
 
@@ -582,6 +581,7 @@ if (!navigator.geolocation) {
 
       if (firstFix) {
         firstFix = false;
+
         if (hasPickup) {
           fitMapToPoints([
             { lat, lng },
@@ -610,13 +610,13 @@ if (!navigator.geolocation) {
         ? distanceMiles(lat, lng, dropLat, dropLng)
         : Infinity;
 
-      /* قبل الوصول للبيك أب */
       if (!arrived && routeMode === "pickup") {
         hideEl(btnStart);
         hideEl(btnNoShow);
-        hideEl(btnGoogle);
         hideEl(btnComplete);
         resetNoShowBox();
+
+        showEl(btnGoogle);
 
         if (dPickup > 2) {
           hideEl(btnGoPickup);
@@ -633,7 +633,6 @@ if (!navigator.geolocation) {
         }
       }
 
-      /* بعد ARRIVED وقبل START */
       if (arrived && !started && !completed && !noShowDone) {
         hideEl(btnGoPickup);
         hideEl(btnArrived);
@@ -646,7 +645,6 @@ if (!navigator.geolocation) {
         setNavText("Waiting for passenger");
       }
 
-      /* بعد START */
       if (started && routeMode === "dropoff" && !completed && !noShowDone) {
         hideEl(btnGoPickup);
         hideEl(btnArrived);
