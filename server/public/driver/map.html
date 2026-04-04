@@ -1,322 +1,356 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Sunbeam Driver Map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
 
 <style>
-body{
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:#0f172a;
-  color:#fff;
-  overflow:hidden;
-}
+  :root{
+    --bg:#081227;
+    --panel:#020817;
+    --panel2:#0b1730;
+    --text:#ffffff;
+    --muted:#cbd5e1;
+    --yellow:#facc15;
+    --blue:#2563eb;
+    --green:#16a34a;
+    --green2:#059669;
+    --red:#dc2626;
+    --border:rgba(255,255,255,.08);
+    --shadow:0 10px 24px rgba(0,0,0,.28);
+  }
 
-#header{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  height:50px;
-  background:#020617;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:0 12px;
-  z-index:1000;
-  box-sizing:border-box;
-}
+  *{ box-sizing:border-box; }
 
-#driverName{
-  color:#facc15;
-  font-weight:bold;
-  font-size:15px;
-}
+  html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    font-family:Arial, Helvetica, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    overflow:hidden;
+  }
 
-#datetime{
-  font-size:12px;
-  color:#e2e8f0;
-}
+  body{
+    position:relative;
+  }
 
-#navText{
-  position:fixed;
-  top:58px;
-  left:10px;
-  right:10px;
-  min-height:42px;
-  background:#020617;
-  border-radius:12px;
-  padding:10px 12px;
-  box-sizing:border-box;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  font-weight:bold;
-  z-index:1000;
-  box-shadow:0 6px 16px rgba(0,0,0,.25);
-}
+  #header{
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:56px;
+    background:var(--panel);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 14px;
+    z-index:1200;
+    border-bottom:1px solid var(--border);
+  }
 
-#map{
-  position:fixed;
-  top:110px;
-  left:0;
-  right:0;
-  bottom:245px;
-  z-index:1;
-}
+  #driverName{
+    font-size:16px;
+    font-weight:700;
+    color:var(--yellow);
+    max-width:48%;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
 
-#controls{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:70px;
-  background:#020617;
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  z-index:1000;
-  box-sizing:border-box;
-  border-top:1px solid rgba(255,255,255,.08);
-}
+  #datetime{
+    font-size:12px;
+    color:var(--muted);
+    text-align:right;
+  }
 
-button{
-  width:100%;
-  padding:13px 14px;
-  border:none;
-  border-radius:12px;
-  font-size:14px;
-  font-weight:bold;
-  cursor:pointer;
-}
+  #navText{
+    position:fixed;
+    top:64px;
+    left:12px;
+    right:12px;
+    min-height:46px;
+    background:var(--panel);
+    border-radius:14px;
+    padding:12px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-size:15px;
+    font-weight:700;
+    z-index:1190;
+    box-shadow:var(--shadow);
+  }
 
-#btnGoogle{
-  background:#111827;
-  color:#fff;
-  border:1px solid #475569;
-}
+  #etaBox{
+    position:fixed;
+    top:118px;
+    left:50%;
+    transform:translateX(-50%);
+    min-width:150px;
+    max-width:88%;
+    background:#111827;
+    color:#fff;
+    border-radius:999px;
+    padding:9px 14px;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-size:14px;
+    font-weight:700;
+    z-index:1190;
+    box-shadow:var(--shadow);
+    border:1px solid rgba(255,255,255,.09);
+  }
 
-#btnGoPickup{
-  background:#2563eb;
-  color:#fff;
-  display:none;
-}
+  #map{
+    position:fixed;
+    top:158px;
+    left:0;
+    right:0;
+    bottom:236px;
+    z-index:1;
+  }
 
-#btnArrived{
-  background:#22c55e;
-  color:#fff;
-  display:none;
-}
+  #controls{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:82px;
+    background:var(--panel);
+    border-top:1px solid var(--border);
+    padding:10px 12px 12px;
+    z-index:1200;
+  }
 
-#btnStart{
-  background:#16a34a;
-  color:#fff;
-  display:none;
-}
+  .btn{
+    width:100%;
+    border:none;
+    border-radius:14px;
+    padding:14px 14px;
+    font-size:15px;
+    font-weight:700;
+    color:#fff;
+    cursor:pointer;
+    margin:0;
+  }
 
-#btnDropoff{
-  background:#059669;
-  color:#fff;
-  display:none;
-}
+  .btn + .btn,
+  .btn + #waitTimer,
+  .btn + #noShowBox,
+  #waitTimer + .btn,
+  #waitTimer + #noShowBox,
+  #noShowBox + .btn{
+    margin-top:8px;
+  }
 
-#btnDropoff.enabled{
-  box-shadow:0 0 0 2px rgba(255,255,255,.18) inset;
-}
+  #btnGoogle{
+    background:#0f172a;
+    border:1px solid #475569;
+    color:#fff;
+    display:none;
+  }
 
-#btnNoShow{
-  background:#dc2626;
-  color:#fff;
-  display:none;
-}
+  #btnGoPickup{
+    background:var(--blue);
+    display:none;
+  }
 
-#waitTimer{
-  display:none;
-  text-align:center;
-  font-size:20px;
-  font-weight:bold;
-  color:#facc15;
-  padding:4px 0 2px;
-}
+  #btnArrived{
+    background:#22c55e;
+    display:none;
+  }
 
-#noShowBox{
-  display:none;
-  flex-direction:column;
-  gap:8px;
-}
+  #btnStart{
+    background:var(--green);
+    display:none;
+  }
 
-#noShowNotes{
-  width:100%;
-  min-height:72px;
-  border:none;
-  border-radius:10px;
-  padding:10px;
-  box-sizing:border-box;
-  font-size:14px;
-  outline:none;
-}
+  #btnComplete{
+    background:var(--green2);
+    display:none;
+  }
 
-#btnCompleteNoShow{
-  background:#b91c1c;
-  color:#fff;
-}
+  #btnComplete.enabled{
+    box-shadow:0 0 0 2px rgba(255,255,255,.18) inset;
+  }
 
-.nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  height:70px;
-  background:#000;
-  display:flex;
-  justify-content:space-around;
-  align-items:center;
-  z-index:1200;
-  border-top:1px solid rgba(255,255,255,.08);
-}
+  #btnNoShow{
+    background:var(--red);
+    display:none;
+  }
 
-.nav button{
-  background:none;
-  border:none;
-  color:#9ca3af;
-  width:auto;
-  padding:0;
-  font-size:11px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
-}
+  #waitTimer{
+    display:none;
+    width:100%;
+    text-align:center;
+    padding:6px 0 2px;
+    color:var(--yellow);
+    font-size:22px;
+    font-weight:800;
+  }
 
-.nav button span{
-  font-size:20px;
-  line-height:1;
-}
+  #noShowBox{
+    display:none;
+    flex-direction:column;
+    gap:8px;
+  }
 
-.nav button.active{
-  color:#facc15;
-}
+  #noShowNotes{
+    width:100%;
+    min-height:84px;
+    resize:none;
+    border:none;
+    outline:none;
+    border-radius:12px;
+    padding:12px;
+    font-size:14px;
+    background:#fff;
+    color:#111827;
+  }
 
-.leaflet-routing-container{
-  display:none !important;
-}
+  #btnCompleteNoShow{
+    background:#b91c1c;
+  }
+
+  .bottom-nav{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    height:82px;
+    background:#000;
+    border-top:1px solid var(--border);
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-around;
+    padding-top:8px;
+    z-index:1300;
+  }
+
+  .nav-btn{
+    background:none;
+    border:none;
+    color:#9ca3af;
+    width:20%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    gap:4px;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+    padding:0;
+  }
+
+  .nav-btn .icon{
+    font-size:24px;
+    line-height:1;
+  }
+
+  .nav-btn.active{
+    color:var(--yellow);
+  }
+
+  .leaflet-routing-container{
+    display:none !important;
+  }
+
+  .leaflet-control-attribution{
+    display:none !important;
+  }
+
+  @media (max-width:420px){
+    #driverName{ font-size:15px; }
+    #navText{ font-size:14px; }
+    #etaBox{ font-size:13px; }
+    .btn{ font-size:14px; padding:13px 12px; }
+  }
 </style>
 </head>
-
 <body>
 
-<div id="header">
-  <div id="driverName">Driver</div>
-  <div id="datetime"></div>
-</div>
-
-<div id="navText">Waiting for GPS...</div>
-
-<!--
-  اربط الداتا الحقيقية هنا من السيرفر أو من صفحة الرحلة
--->
-<div
-  id="map"
-  data-trip-id="trip123"
-  data-pickup-lat="33.2951"
-  data-pickup-lng="-111.9210"
-  data-dropoff-lat="33.3055"
-  data-dropoff-lng="-111.8500"
-></div>
-
-<div id="controls">
-  <button id="btnGoogle">Open in Google Maps</button>
-  <button id="btnGoPickup">GO TO PICKUP</button>
-  <button id="btnArrived">ARRIVED</button>
-  <button id="btnStart">START TRIP</button>
-  <button id="btnDropoff">DROP OFF</button>
-  <button id="btnNoShow">NO SHOW</button>
-
-  <div id="waitTimer">15:00</div>
-
-  <div id="noShowBox">
-    <textarea id="noShowNotes" placeholder="Reason for no show"></textarea>
-    <button id="btnCompleteNoShow">Complete No Show</button>
+  <div id="header">
+    <div id="driverName">Driver</div>
+    <div id="datetime"></div>
   </div>
-</div>
 
-<div class="nav">
-  <button onclick="goHome()">
-    <span>🏠</span>
-    Home
-  </button>
+  <div id="navText">Waiting for GPS...</div>
 
-  <button onclick="goTrips()">
-    <span>🚗</span>
-    Trips
-  </button>
+  <div id="etaBox">
+    <span id="etaTime">-- min</span>
+    <span>•</span>
+    <span id="etaDistance">-- mi</span>
+  </div>
 
-  <button class="active" type="button">
-    <span>🗺️</span>
-    Map
-  </button>
+  <!-- حط بيانات الرحلة الحقيقية هنا -->
+  <div
+    id="map"
+    data-trip-id="IN-1004"
+    data-trip-time="2026-04-04T02:35:00"
+    data-pickup-lat="33.2951"
+    data-pickup-lng="-111.9210"
+    data-dropoff-lat="33.3055"
+    data-dropoff-lng="-111.8500"
+  ></div>
 
-  <button onclick="goChat()">
-    <span>💬</span>
-    Chat
-  </button>
+  <div id="controls">
+    <button id="btnGoogle" class="btn">Open in Google Maps</button>
+    <button id="btnGoPickup" class="btn">GO TO PICKUP</button>
+    <button id="btnArrived" class="btn">ARRIVED</button>
+    <button id="btnStart" class="btn">START RIDE</button>
+    <button id="btnComplete" class="btn">COMPLETE</button>
+    <button id="btnNoShow" class="btn">NO SHOW</button>
 
-  <button onclick="logoutUser()">
-    <span>🚪</span>
-    Logout
-  </button>
-</div>
+    <div id="waitTimer">15:00</div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-<script src="/driver/map.js"></script>
+    <div id="noShowBox">
+      <textarea id="noShowNotes" placeholder="Reason for no show"></textarea>
+      <button id="btnCompleteNoShow" class="btn">Complete No Show</button>
+    </div>
+  </div>
 
-<script>
-(function(){
-  const raw =
-    localStorage.getItem("loggedDriver") ||
-    localStorage.getItem("user");
+  <div class="bottom-nav">
+    <button class="nav-btn" id="navHome" type="button">
+      <span class="icon">🏠</span>
+      <span>Home</span>
+    </button>
 
-  if(raw){
-    try{
-      const d = JSON.parse(raw);
-      document.getElementById("driverName").innerText =
-        d.name || d.username || "Driver";
-    }catch(e){}
-  }
-})();
+    <button class="nav-btn" id="navTrips" type="button">
+      <span class="icon">🚗</span>
+      <span>Trips</span>
+    </button>
 
-function updateTime(){
-  document.getElementById("datetime").innerText =
-    new Date().toLocaleString("en-US", { timeZone:"America/Phoenix" });
-}
-updateTime();
-setInterval(updateTime, 1000);
+    <button class="nav-btn active" id="navMap" type="button">
+      <span class="icon">🗺️</span>
+      <span>Map</span>
+    </button>
 
-function goHome(){
-  window.location.href = "dashboard.html";
-}
+    <button class="nav-btn" id="navChat" type="button">
+      <span class="icon">💬</span>
+      <span>Chat</span>
+    </button>
 
-function goTrips(){
-  window.location.href = "trips.html";
-}
+    <button class="nav-btn" id="navLogout" type="button">
+      <span class="icon">🚪</span>
+      <span>Logout</span>
+    </button>
+  </div>
 
-function goChat(){
-  alert("Chat coming soon");
-}
-
-function logoutUser(){
-  localStorage.removeItem("loggedDriver");
-  localStorage.removeItem("user");
-  window.location.href = "/driver/login.html";
-}
-</script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script src="/driver/map.js"></script>
 
 </body>
 </html>
