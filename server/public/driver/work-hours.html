@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Work Hours</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="driver.css">
 
@@ -33,7 +34,9 @@
   padding:15px;
   border-radius:15px;
   text-align:center;
+  color:black;
 }
+
 </style>
 
 </head>
@@ -43,16 +46,16 @@
 <div class="top-bar">⏱ Work Hours</div>
 
 <div class="filters">
-  <button id="btn-today" onclick="setFilter('today')">Today</button>
-  <button id="btn-week" onclick="setFilter('week')">Week</button>
-  <button id="btn-month" onclick="setFilter('month')">Month</button>
+  <button id="btn-today">Today</button>
+  <button id="btn-week">Week</button>
+  <button id="btn-month">Month</button>
 </div>
 
 <div id="total" class="summary-card">Loading...</div>
 
 <div id="list"></div>
 
-<!-- 🔥 NAV BAR -->
+<!-- NAV -->
 <div id="driverNav"></div>
 
 <script src="driver-nav.js"></script>
