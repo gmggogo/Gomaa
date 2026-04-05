@@ -1,103 +1,126 @@
-/* TIME */
+(function () {
+  if (window.__SUNBEAM_DRIVER_DASHBOARD__) return;
+  window.__SUNBEAM_DRIVER_DASHBOARD__ = true;
 
-function updateTime(){
-  const now = new Date();
-  document.getElementById("datetime").innerText =
-  now.toLocaleDateString()+" "+now.toLocaleTimeString();
-}
+  const ROUTES = {
+    dashboard: "dashboard.html",
+    trips: "trips.html",
+    map: "map.html",
+    hours: "work-hours.html",
+    earnings: "earnings.html",
+    summary: "summary.html",
+    chat: "chat.html",
+    login: "login.html"
+  };
 
-setInterval(updateTime,1000);
-updateTime();
+  function $(id) {
+    return document.getElementById(id);
+  }
 
-/* DRIVER */
+  function safeParse(json, fallback = null) {
+    try {
+      return JSON.parse(json);
+    } catch {
+      return fallback;
+    }
+  }
 
-const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}");
+  function getLoggedDriver() {
+    return safeParse(localStorage.getItem("loggedDriver"), {});
+  }
 
-if(driver.name){
-  document.getElementById("driverName").innerText = driver.name;
-}
+  function updateTime() {
+    const el = $("datetime");
+    if (!el) return;
 
-/* NAVIGATION */
+    const now = new Date();
+    el.textContent = now.toLocaleString("en-US", {
+      timeZone: "America/Phoenix"
+    });
+  }
 
-function goTrips(){
-  window.location.href="trips.html";
-}
+  function loadDriverName() {
+    const el = $("driverName");
+    if (!el) return;
 
-function goMap(){
-  window.location.href="map.html";
-}
+    const driver = getLoggedDriver();
+    el.textContent =
+      driver?.name ||
+      driver?.username ||
+      driver?.email ||
+      "Driver";
+  }
 
-function goHours(){
-  window.location.href="work-hours.html"; // 🔥 المهم
-}
+  function go(pageKey) {
+    const target = ROUTES[pageKey];
+    if (!target) return;
+    window.location.href = target;
+  }
 
-function goEarnings(){
-  window.location.href="earnings.html";
-}
+  function logout() {
+    localStorage.removeItem("driverToken");
+    localStorage.removeItem("loggedDriver");
+    window.location.href = ROUTES.login;
+  }
 
-function goSummary(){
-  window.location.href="summary.html";
-}
+  function ensureSession() {
+    const driver = getLoggedDriver();
+    if (!driver || Object.keys(driver).length === 0) {
+      window.location.href = ROUTES.login;
+      return false;
+    }
+    return true;
+  }
 
-function goChat(){
-  window.location.href="chat.html";
-}
+  function bindClick(id, handler) {
+    const el = $(id);
+    if (el) el.addEventListener("click", handler);
+  }
 
-/* LOGOUT */
+  function bindNavigation() {
+    bindClick("cardTrips", () => go("trips"));
+    bindClick("cardMap", () => go("map"));
+    bindClick("cardHours", () => go("hours"));
+    bindClick("cardEarnings", () => go("earnings"));
+    bindClick("cardSummary", () => go("summary"));
 
-function logout(){
-  localStorage.removeItem("driverToken");
-  localStorage.removeItem("loggedDriver");
-  window.location.href="login.html";
-} /* TIME */
+    bindClick("navHome", () => go("dashboard"));
+    bindClick("navTrips", () => go("trips"));
+    bindClick("navMap", () => go("map"));
+    bindClick("navChat", () => go("chat"));
+    bindClick("navLogout", logout);
+  }
 
-function updateTime(){
-  const now = new Date();
-  document.getElementById("datetime").innerText =
-  now.toLocaleDateString()+" "+now.toLocaleTimeString();
-}
+  function exposeGlobals() {
+    window.goTrips = () => go("trips");
+    window.goMap = () => go("map");
+    window.goHours = () => go("hours");
+    window.goEarnings = () => go("earnings");
+    window.goSummary = () => go("summary");
+    window.goChat = () => go("chat");
+    window.logout = logout;
+  }
 
-setInterval(updateTime,1000);
-updateTime();
+  function init() {
+    if (!ensureSession()) return;
 
-/* DRIVER */
+    updateTime();
+    loadDriverName();
+    bindNavigation();
+    exposeGlobals();
 
-const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}");
+    setInterval(updateTime, 1000);
 
-if(driver.name){
-  document.getElementById("driverName").innerText = driver.name;
-}
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) {
+        ensureSession();
+      }
+    });
+  }
 
-/* NAVIGATION */
-
-function goTrips(){
-  window.location.href="trips.html";
-}
-
-function goMap(){
-  window.location.href="map.html";
-}
-
-function goHours(){
-  window.location.href="work-hours.html"; // 🔥 المهم
-}
-
-function goEarnings(){
-  window.location.href="earnings.html";
-}
-
-function goSummary(){
-  window.location.href="summary.html";
-}
-
-function goChat(){
-  window.location.href="chat.html";
-}
-
-/* LOGOUT */
-
-function logout(){
-  localStorage.removeItem("driverToken");
-  localStorage.removeItem("loggedDriver");
-  window.location.href="login.html";
-}
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
