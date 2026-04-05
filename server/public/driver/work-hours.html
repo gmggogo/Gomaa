@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Work Hours</title>
+
+<link rel="stylesheet" href="driver.css">
+
+<style>
+.filters{
+  display:flex;
+  gap:8px;
+  padding:10px;
+}
+
+.filters button{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  background:#0f172a;
+  color:white;
+  font-weight:bold;
+}
+
+.filters .active{
+  background:#22c55e;
+}
+
+.summary-card{
+  background:white;
+  margin:10px;
+  padding:15px;
+  border-radius:15px;
+  text-align:center;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="top-bar">⏱ Work Hours</div>
+
+<div class="filters">
+  <button id="btn-today" onclick="setFilter('today')">Today</button>
+  <button id="btn-week" onclick="setFilter('week')">Week</button>
+  <button id="btn-month" onclick="setFilter('month')">Month</button>
+</div>
+
+<div id="total" class="summary-card">Loading...</div>
+
+<div id="list"></div>
+
+<!-- 🔥 NAV BAR -->
+<div id="driverNav"></div>
+
+<script src="driver-nav.js"></script>
+<script src="work-hours.js"></script>
+
+</body>
+</html>
