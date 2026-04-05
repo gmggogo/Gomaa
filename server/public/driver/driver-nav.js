@@ -1,73 +1,55 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.getElementById("driverNav").innerHTML = `
 
-const nav = document.createElement("div");
-nav.id = "driverBottomNav";
+<div class="nav">
 
-nav.innerHTML = `
-<style>
-
-#driverBottomNav{
-position:fixed;
-bottom:0;
-left:0;
-right:0;
-height:65px;
-background:#0f172a;
-display:flex;
-justify-content:space-around;
-align-items:center;
-z-index:9999;
-box-shadow:0 -2px 10px rgba(0,0,0,0.4);
-}
-
-#driverBottomNav a{
-color:white;
-text-decoration:none;
-font-size:13px;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-gap:2px;
-}
-
-#driverBottomNav a span{
-font-size:20px;
-}
-
-#driverBottomNav a.active{
-color:#facc15;
-}
-
-</style>
-
-<a href="/driver/dashboard.html">
+<button onclick="goHome()">
 <span>🏠</span>
-<small>Home</small>
-</a>
+Home
+</button>
 
-<a href="/driver/trips.html">
+<button onclick="goTrips()">
 <span>🚗</span>
-<small>Trips</small>
-</a>
+Trips
+</button>
 
-<a href="/driver/map.html">
+<button onclick="goMap()">
 <span>🗺️</span>
-<small>Map</small>
-</a>
+Map
+</button>
 
-<a href="#">
+<button onclick="goChat()">
 <span>💬</span>
-<small>Chat</small>
-</a>
+Chat
+</button>
 
-<a href="/driver/login.html">
+<button onclick="logout()">
 <span>🚪</span>
-<small>Logout</small>
-</a>
+Logout
+</button>
+
+</div>
 
 `;
 
-document.body.appendChild(nav);
+/* NAV FUNCTIONS */
 
-});
+function goHome(){
+window.location.href="dashboard.html";
+}
+
+function goTrips(){
+window.location.href="trips.html";
+}
+
+function goMap(){
+window.location.href="map.html";
+}
+
+function goChat(){
+window.location.href="chat.html";
+}
+
+function logout(){
+localStorage.removeItem("loggedDriver");
+window.location.href="login.html";
+}
