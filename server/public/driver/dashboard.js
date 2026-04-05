@@ -1,230 +1,103 @@
-/* =====================================================
-   SUNBEAM DRIVER DASHBOARD – FINAL SERVER VERSION
-===================================================== */
-
-if (window.__SUNBEAM_DASHBOARD__) {
-  console.log("Dashboard already loaded");
-} else {
-
-window.__SUNBEAM_DASHBOARD__ = true;
-
-/* ===============================
-   AUTH CHECK
-================================ */
-
-let driver = null;
-let token = null;
-
-try {
-
-const rawDriver = localStorage.getItem("loggedDriver");
-
-if (!rawDriver) {
-throw new Error("No driver session");
-}
-
-driver = JSON.parse(rawDriver);
-
-if (!driver || !driver.token) {
-throw new Error("Invalid driver session");
-}
-
-token = driver.token;
-
-} catch (err) {
-
-console.log("Driver session error:", err);
-
-localStorage.removeItem("loggedDriver");
-
-window.location.href = "/driver/login.html";
-
-}
-
-/* ===============================
-   DRIVER NAME (SERVER FIRST)
-================================ */
-
-async function loadDriverName(){
-
-const el = document.getElementById("driverName");
-
-if (!el) return;
-
-try{
-
-const res = await fetch("/api/driver/me",{
-headers:{
-Authorization:"Bearer " + token
-}
-});
-
-if(res.ok){
-
-const data = await res.json();
-
-if(data && data.name){
-
-el.innerText = data.name;
-return;
-
-}
-
-}
-
-}catch(err){
-
-console.log("Server name load failed");
-
-}
-
-/* fallback localStorage */
-
-try{
-
-const raw = localStorage.getItem("loggedDriver");
-
-if(!raw) return;
-
-const d = JSON.parse(raw);
-
-el.innerText =
-d.name ||
-d.username ||
-d.email ||
-"Driver";
-
-}catch(err){
-
-console.log("Driver name error",err);
-
-}
-
-}
-
-loadDriverName();
-
-/* ===============================
-   DATETIME (ARIZONA)
-================================ */
+/* TIME */
 
 function updateTime(){
-
-const el = document.getElementById("datetime");
-
-if (!el) return;
-
-const now = new Date();
-
-el.innerText = now.toLocaleString("en-US", {
-timeZone:"America/Phoenix"
-});
-
+  const now = new Date();
+  document.getElementById("datetime").innerText =
+  now.toLocaleDateString()+" "+now.toLocaleTimeString();
 }
 
-updateTime();
 setInterval(updateTime,1000);
+updateTime();
 
-/* ===============================
-   ROUTES
-================================ */
+/* DRIVER */
 
-const ROUTES = {
+const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}");
 
-home:"/driver/dashboard.html",
-dashboard:"/driver/dashboard.html",
-trips:"/driver/trips.html",
-map:"/driver/map.html",
-chat:"/driver/chat.html",
-hours:"/driver/hours.html",
-earnings:"/driver/earnings.html",
-summary:"/driver/summary.html"
-
-};
-
-/* ===============================
-   NAVIGATION
-================================ */
-
-window.go = function(page){
-
-const url = ROUTES[page];
-
-if(url){
-
-location.href = url;
-
-}else{
-
-location.href = "/driver/" + page + ".html";
-
+if(driver.name){
+  document.getElementById("driverName").innerText = driver.name;
 }
 
-};
+/* NAVIGATION */
 
-/* ===============================
-   LOGOUT
-================================ */
-
-window.logout = function(){
-
-localStorage.removeItem("loggedDriver");
-
-location.href="/driver/login.html";
-
-};
-
-/* ===============================
-   GOOGLE MAPS
-================================ */
-
-window.openGoogle = function(){
-
-let lat = window.driverLat;
-let lng = window.driverLng;
-
-if(
-(typeof lat !== "number" || typeof lng !== "number") &&
-window.currentPos
-){
-
-lat = window.currentPos.lat;
-lng = window.currentPos.lng;
-
+function goTrips(){
+  window.location.href="trips.html";
 }
 
-if(typeof lat !== "number" || typeof lng !== "number"){
-
-window.open("https://www.google.com/maps","_blank");
-return;
-
+function goMap(){
+  window.location.href="map.html";
 }
 
-window.open(
-`https://www.google.com/maps?q=${lat},${lng}`,
-"_blank"
-);
-
-};
-
-/* ===============================
-   KEEP SESSION
-================================ */
-
-document.addEventListener("visibilitychange", function(){
-
-if (!document.hidden){
-
-const raw = localStorage.getItem("loggedDriver");
-
-if(!raw){
-
-window.location.href="/driver/login.html";
-
+function goHours(){
+  window.location.href="work-hours.html"; // 🔥 المهم
 }
 
+function goEarnings(){
+  window.location.href="earnings.html";
 }
 
-});
+function goSummary(){
+  window.location.href="summary.html";
+}
 
+function goChat(){
+  window.location.href="chat.html";
+}
+
+/* LOGOUT */
+
+function logout(){
+  localStorage.removeItem("driverToken");
+  localStorage.removeItem("loggedDriver");
+  window.location.href="login.html";
+} /* TIME */
+
+function updateTime(){
+  const now = new Date();
+  document.getElementById("datetime").innerText =
+  now.toLocaleDateString()+" "+now.toLocaleTimeString();
+}
+
+setInterval(updateTime,1000);
+updateTime();
+
+/* DRIVER */
+
+const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}");
+
+if(driver.name){
+  document.getElementById("driverName").innerText = driver.name;
+}
+
+/* NAVIGATION */
+
+function goTrips(){
+  window.location.href="trips.html";
+}
+
+function goMap(){
+  window.location.href="map.html";
+}
+
+function goHours(){
+  window.location.href="work-hours.html"; // 🔥 المهم
+}
+
+function goEarnings(){
+  window.location.href="earnings.html";
+}
+
+function goSummary(){
+  window.location.href="summary.html";
+}
+
+function goChat(){
+  window.location.href="chat.html";
+}
+
+/* LOGOUT */
+
+function logout(){
+  localStorage.removeItem("driverToken");
+  localStorage.removeItem("loggedDriver");
+  window.location.href="login.html";
 }

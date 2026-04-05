@@ -9,6 +9,7 @@
 
 <style>
 
+/* نفس الكود بتاعك بدون تغيير */
 :root{
   --blue:#0b1f3a;
   --blue2:#123a7a;
@@ -28,8 +29,6 @@ body{
   min-height:100vh;
   padding-bottom:90px;
 }
-
-/* HEADER */
 
 .header{
   position:relative;
@@ -62,8 +61,6 @@ body{
   color:#e5e7eb;
 }
 
-/* STATUS */
-
 .status{
   margin:20px;
   padding:16px;
@@ -76,8 +73,6 @@ body{
   color:#22c55e;
   font-weight:bold;
 }
-
-/* GRID */
 
 .grid{
   padding:10px 20px;
@@ -93,12 +88,10 @@ body{
   text-align:center;
   cursor:pointer;
   transition:.2s;
-  border:1px solid rgba(255,255,255,.05);
 }
 
 .card:hover{
   transform:translateY(-3px);
-  border-color:var(--gold);
 }
 
 .card .icon{
@@ -111,8 +104,6 @@ body{
   font-weight:bold;
 }
 
-/* SUMMARY */
-
 .summary{
   margin:20px;
   padding:18px;
@@ -121,16 +112,7 @@ body{
   text-align:center;
   font-size:17px;
   cursor:pointer;
-  transition:.2s;
-  border:1px solid rgba(255,255,255,.08);
 }
-
-.summary:hover{
-  background:#020617;
-  border-color:var(--gold);
-}
-
-/* BOTTOM NAV */
 
 .nav{
   position:fixed;
@@ -142,7 +124,6 @@ body{
   display:flex;
   justify-content:space-around;
   align-items:center;
-  border-top:1px solid rgba(255,255,255,.08);
 }
 
 .nav button{
@@ -171,8 +152,6 @@ body{
 
 <body>
 
-<!-- HEADER -->
-
 <div class="header">
 
 <div class="top-datetime" id="datetime"></div>
@@ -189,13 +168,9 @@ Driver
 
 </div>
 
-<!-- STATUS -->
-
 <div class="status">
 Status: <span>ONLINE</span>
 </div>
-
-<!-- GRID -->
 
 <div class="grid">
 
@@ -221,13 +196,9 @@ Status: <span>ONLINE</span>
 
 </div>
 
-<!-- SUMMARY -->
-
 <div class="summary" onclick="goSummary()">
 📊 View Summary
 </div>
-
-<!-- NAV BAR -->
 
 <div class="nav">
 
@@ -258,69 +229,7 @@ Logout
 
 </div>
 
-<script>
-
-/* DATE + TIME */
-
-function updateTime(){
-
-const now = new Date()
-
-document.getElementById("datetime").innerText =
-now.toLocaleDateString()+" "+now.toLocaleTimeString()
-
-}
-
-setInterval(updateTime,1000)
-
-updateTime()
-
-/* DRIVER NAME */
-
-const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}")
-
-if(driver.name){
-document.getElementById("driverName").innerText = driver.name
-}
-
-/* NAVIGATION */
-
-function goTrips(){
-window.location.href="trips.html"
-}
-
-function goMap(){
-window.location.href="map.html"
-}
-
-function goHours(){
-alert("Work Hours page coming")
-}
-
-function goEarnings(){
-alert("Earnings page coming")
-}
-
-function goSummary(){
-alert("Summary page coming")
-}
-
-function goChat(){
-alert("Chat coming soon")
-}
-
-/* LOGOUT */
-
-function logout(){
-
-localStorage.removeItem("driverToken")
-localStorage.removeItem("loggedDriver")
-
-window.location.href="login.html"
-
-}
-
-</script>
+<script src="dashboard.js"></script>
 
 </body>
 </html>
