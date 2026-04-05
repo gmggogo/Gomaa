@@ -1,270 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <title>Sunbeam Driver Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<meta charset="UTF-8">
-<title>Sunbeam Driver Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
 
-<!-- 🔥 ICON للهوم سكرين -->
-<link rel="apple-touch-icon" href="sunbeamllc.jpeg">
-<link rel="manifest" href="install.json">
-<meta name="theme-color" content="#0f172a">
+  <style>
+    :root{
+      --blue:#0b1f3a;
+      --blue2:#123a7a;
+      --gold:#facc15;
+      --dark:#020617;
+      --muted:#cbd5e1;
+      --text:#ffffff;
+      --green:#22c55e;
+    }
 
-<style>
-:root{
-  --blue:#0b1f3a;
-  --blue2:#123a7a;
-  --gold:#facc15;
-  --dark:#020617;
-}
+    *{
+      box-sizing:border-box;
+      font-family:Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-*{
-  box-sizing:border-box;
-  font-family:Arial, sans-serif;
-}
+    body{
+      margin:0;
+      background:linear-gradient(180deg,var(--blue),var(--blue2));
+      color:var(--text);
+      min-height:100vh;
+      padding-bottom:92px;
+    }
 
-body{
-  margin:0;
-  background:linear-gradient(180deg,var(--blue),var(--blue2));
-  color:#fff;
-  min-height:100vh;
-  padding-bottom:90px;
-}
+    .header{
+      position:relative;
+      padding:40px 20px 20px;
+      text-align:center;
+    }
 
-/* HEADER */
-.header{
-  position:relative;
-  padding:40px 20px 20px;
-  text-align:center;
-}
+    .top-datetime{
+      position:absolute;
+      top:8px;
+      left:12px;
+      font-size:12px;
+      color:var(--muted);
+    }
 
-.top-datetime{
-  position:absolute;
-  top:8px;
-  left:12px;
-  font-size:12px;
-  color:#cbd5e1;
-}
+    .logo{
+      width:90px;
+      margin-bottom:10px;
+    }
 
-.logo{
-  width:90px;
-  margin-bottom:10px;
-}
+    .company-name{
+      font-size:26px;
+      font-weight:bold;
+      color:var(--gold);
+    }
 
-.company-name{
-  font-size:26px;
-  font-weight:bold;
-  color:var(--gold);
-}
+    .driver-name{
+      margin-top:6px;
+      font-size:15px;
+      color:#e5e7eb;
+    }
 
-.driver-name{
-  margin-top:6px;
-  font-size:15px;
-  color:#e5e7eb;
-}
+    .status{
+      margin:20px;
+      padding:16px;
+      background:var(--dark);
+      border-radius:16px;
+      font-size:18px;
+    }
 
-/* STATUS */
-.status{
-  margin:20px;
-  padding:16px;
-  background:var(--dark);
-  border-radius:16px;
-  font-size:18px;
-}
+    .status span{
+      color:var(--green);
+      font-weight:bold;
+    }
 
-.status span{
-  color:#22c55e;
-  font-weight:bold;
-}
+    .grid{
+      padding:10px 20px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
 
-/* GRID */
-.grid{
-  padding:10px 20px;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
-}
+    .card{
+      background:var(--dark);
+      border-radius:18px;
+      padding:28px 20px;
+      text-align:center;
+      cursor:pointer;
+      transition:.2s;
+      border:1px solid rgba(255,255,255,.05);
+      color:#fff;
+    }
 
-.card{
-  background:var(--dark);
-  border-radius:18px;
-  padding:28px 20px;
-  text-align:center;
-  cursor:pointer;
-  transition:.2s;
-  border:1px solid rgba(255,255,255,.05);
-}
+    .card:active{
+      transform:scale(.98);
+    }
 
-.card:active{
-  transform:scale(.98);
-}
+    .card .icon{
+      font-size:36px;
+      margin-bottom:10px;
+    }
 
-.card .icon{
-  font-size:36px;
-  margin-bottom:10px;
-}
+    .card .title{
+      font-size:16px;
+      font-weight:bold;
+    }
 
-.card .title{
-  font-size:16px;
-  font-weight:bold;
-}
+    .summary{
+      margin:20px;
+      padding:18px;
+      background:var(--dark);
+      border-radius:16px;
+      text-align:center;
+      font-size:17px;
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,.08);
+    }
 
-/* SUMMARY */
-.summary{
-  margin:20px;
-  padding:18px;
-  background:var(--dark);
-  border-radius:16px;
-  text-align:center;
-  font-size:17px;
-  cursor:pointer;
-}
+    .summary:active{
+      transform:scale(.99);
+    }
 
-/* NAV */
-.nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  height:70px;
-  background:var(--dark);
-  display:flex;
-  justify-content:space-around;
-  align-items:center;
-}
+    .nav{
+      position:fixed;
+      bottom:0;
+      left:0;
+      right:0;
+      height:74px;
+      background:var(--dark);
+      display:flex;
+      justify-content:space-around;
+      align-items:center;
+      border-top:1px solid rgba(255,255,255,.08);
+      z-index:999;
+    }
 
-.nav button{
-  background:none;
-  border:none;
-  color:#9ca3af;
-  font-size:11px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
+    .nav button{
+      background:none;
+      border:none;
+      color:#9ca3af;
+      font-size:11px;
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      min-width:52px;
+    }
 
-.nav button span{
-  font-size:20px;
-}
+    .nav button span{
+      font-size:20px;
+      line-height:1;
+    }
 
-.nav button.active{
-  color:var(--gold);
-}
-</style>
-
+    .nav button.active{
+      color:var(--gold);
+    }
+  </style>
 </head>
 
 <body>
+  <div class="header">
+    <div class="top-datetime" id="datetime"></div>
 
-<!-- HEADER -->
-<div class="header">
+    <img src="apple-touch-icon.jpeg" class="logo" alt="Sunbeam Driver Logo" />
 
-<div class="top-datetime" id="datetime"></div>
+    <div class="company-name">Sunbeam Transportation</div>
 
-<!-- ✅ اللوجو جوه التطبيق -->
-<img src="apple-touch-icon.jpeg" class="logo">
+    <div class="driver-name" id="driverName">Driver</div>
+  </div>
 
-<div class="company-name">Sunbeam Transportation</div>
+  <div class="status">
+    Status: <span>ONLINE</span>
+  </div>
 
-<div class="driver-name" id="driverName">Driver</div>
+  <div class="grid">
+    <div class="card" id="cardTrips">
+      <div class="icon">🚗</div>
+      <div class="title">Trips</div>
+    </div>
 
-</div>
+    <div class="card" id="cardMap">
+      <div class="icon">🗺️</div>
+      <div class="title">Live Map</div>
+    </div>
 
-<!-- STATUS -->
-<div class="status">
-Status: <span>ONLINE</span>
-</div>
+    <div class="card" id="cardHours">
+      <div class="icon">⏱️</div>
+      <div class="title">Work Hours</div>
+    </div>
 
-<!-- GRID -->
-<div class="grid">
+    <div class="card" id="cardEarnings">
+      <div class="icon">💰</div>
+      <div class="title">Earnings</div>
+    </div>
+  </div>
 
-<div class="card" onclick="go('trips')">
-<div class="icon">🚗</div>
-<div class="title">Trips</div>
-</div>
+  <div class="summary" id="cardSummary">
+    📊 View Summary
+  </div>
 
-<div class="card" onclick="go('map')">
-<div class="icon">🗺️</div>
-<div class="title">Live Map</div>
-</div>
+  <div class="nav">
+    <button class="active" id="navHome" type="button">
+      <span>🏠</span>
+      Home
+    </button>
 
-<div class="card" onclick="go('hours')">
-<div class="icon">⏱️</div>
-<div class="title">Work Hours</div>
-</div>
+    <button id="navTrips" type="button">
+      <span>🚗</span>
+      Trips
+    </button>
 
-<div class="card" onclick="go('earnings')">
-<div class="icon">💰</div>
-<div class="title">Earnings</div>
-</div>
+    <button id="navMap" type="button">
+      <span>🗺️</span>
+      Map
+    </button>
 
-</div>
+    <button id="navChat" type="button">
+      <span>💬</span>
+      Chat
+    </button>
 
-<!-- SUMMARY -->
-<div class="summary" onclick="go('summary')">
-📊 View Summary
-</div>
+    <button id="navLogout" type="button">
+      <span>🚪</span>
+      Logout
+    </button>
+  </div>
 
-<!-- NAV -->
-<div class="nav">
-
-<button class="active" onclick="go('dashboard')">
-<span>🏠</span>
-Home
-</button>
-
-<button onclick="go('trips')">
-<span>🚗</span>
-Trips
-</button>
-
-<button onclick="go('map')">
-<span>🗺️</span>
-Map
-</button>
-
-<button onclick="go('chat')">
-<span>💬</span>
-Chat
-</button>
-
-<button onclick="logout()">
-<span>🚪</span>
-Logout
-</button>
-
-</div>
-
-<script>
-
-/* TIME */
-function updateTime(){
-const now = new Date()
-document.getElementById("datetime").innerText =
-now.toLocaleString("en-US",{timeZone:"America/Phoenix"})
-}
-setInterval(updateTime,1000)
-updateTime()
-
-/* DRIVER NAME */
-const d = JSON.parse(localStorage.getItem("loggedDriver") || "{}")
-if(d.name){
-document.getElementById("driverName").innerText = d.name
-}
-
-/* NAVIGATION */
-function go(page){
-window.location.href = page + ".html"
-}
-
-/* LOGOUT */
-function logout(){
-localStorage.removeItem("loggedDriver")
-window.location.href="login.html"
-}
-
-</script>
-
+  <script src="dashboard.js" defer></script>
 </body>
 </html>
