@@ -6,31 +6,31 @@ JSON.parse(localStorage.getItem("loggedDriver")) ||
 JSON.parse(localStorage.getItem("user"));
 
 if(!user){
-  location.href = "../login.html";
+location.href = "../login.html";
 }
 
 const driverId = user._id || user.id;
 const container = document.getElementById("container");
 
-/* ================= FILTER 6 HOURS ================= */
-function isExpired(t){
-
-const now = new Date(
-  new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+/* TIME (Phoenix) */
+function getNow(){
+return new Date(
+new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
 );
+}
 
-const tripTime = new Date(`${t.tripDate}T${t.tripTime}`);
+/* FILTER 6 HOURS */
+function isExpired(t){
+const now = getNow();
+const trip = new Date(`${t.tripDate}T${t.tripTime}`);
+if(isNaN(trip)) return false;
 
-if(!tripTime || isNaN(tripTime)) return false;
-
-const diff = (now - tripTime)/(1000*60*60);
-
+const diff = (now - trip) / (1000*60*60);
 return diff >= 6;
 }
 
-/* ================= STATUS ================= */
+/* STATUS */
 function getStatus(t){
-
 const s = t.status || "Scheduled";
 
 if(s === "NoShow") return "NoShow";
@@ -40,26 +40,21 @@ if(s === "Scheduled") return "Dispatched";
 return s;
 }
 
-/* ================= ACTIVE ================= */
+/* ACTIVE */
 function isActive(status){
-return (
-status === "OnTrip" ||
-status === "Arrived"
-);
+return status === "OnTrip" || status === "Arrived";
 }
 
-/* ================= CLASS ================= */
+/* CLASS */
 function getClass(status){
-
 if(status === "Completed") return "trip-completed";
 if(status === "Cancelled") return "trip-cancelled";
 if(status === "NoShow") return "trip-noshow";
 if(isActive(status)) return "trip-active";
-
 return "";
 }
 
-/* ================= MAP ================= */
+/* MAP */
 function navigate(address){
 window.open(
 `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
@@ -67,23 +62,18 @@ window.open(
 );
 }
 
-/* ================= LOAD ================= */
+/* LOAD */
 async function loadTrips(){
-
 try{
-
 const res = await fetch(`/api/driver/my-trips/${driverId}`);
 const trips = await res.json();
-
 render(trips);
-
-}catch(err){
+}catch{
 container.innerHTML = "<div class='empty'>Error loading</div>";
 }
-
 }
 
-/* ================= RENDER ================= */
+/* RENDER */
 function render(trips){
 
 container.innerHTML = "";
@@ -95,18 +85,22 @@ container.innerHTML = "<div class='empty'>No Trips Today</div>";
 return;
 }
 
+/* SORT */
 filtered.sort((a,b)=>{
 
 const sA = getStatus(a);
 const sB = getStatus(b);
 
+/* active فوق */
 if(isActive(sA) && !isActive(sB)) return -1;
 if(!isActive(sA) && isActive(sB)) return 1;
 
-return new Date(`${a.tripDate} ${a.tripTime}`) -
-       new Date(`${b.tripDate} ${b.tripTime}`);
+/* حسب الوقت */
+return new Date(`${a.tripDate}T${a.tripTime}`) -
+       new Date(`${b.tripDate}T${b.tripTime}`);
 });
 
+/* DRAW */
 filtered.forEach(t=>{
 
 const status = getStatus(t);
@@ -116,12 +110,9 @@ const div = document.createElement("div");
 div.className = `trip-card ${cls}`;
 
 div.innerHTML = `
-
 <div class="trip-top">
-  <div class="trip-id">#${t.tripNumber || ""}</div>
-  <div class="trip-time">
-    ${t.tripDate || ""} • ${t.tripTime || ""}
-  </div>
+<div>#${t.tripNumber || ""}</div>
+<div>${t.tripDate} • ${t.tripTime}</div>
 </div>
 
 <div class="label">CLIENT</div>
@@ -146,18 +137,15 @@ ${(t.stops || []).join(" → ") || "-"}
 ${t.dropoff || "-"}
 </div>
 
-<div class="notes">
-${t.notes || "No notes"}
-</div>
+<div class="notes">${t.notes || "No notes"}</div>
 
 <div class="status-box status-${status}">
 ${status}
 </div>
 
-<button class="btn" onclick="openTrip('${t._id}')">
+<button class="open-btn" onclick="openTrip('${t._id}')">
 OPEN TRIP
 </button>
-
 `;
 
 container.appendChild(div);
@@ -166,11 +154,11 @@ container.appendChild(div);
 
 }
 
-/* ================= OPEN ================= */
+/* OPEN */
 function openTrip(id){
 location.href = `map.html?tripId=${id}`;
 }
 
-/* ================= AUTO ================= */
+/* AUTO REFRESH */
 loadTrips();
 setInterval(loadTrips,5000);
