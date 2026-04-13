@@ -1,6 +1,8 @@
-console.log("driver trips loaded");
+console.log("driver trips PRO loaded");
 
-/* AUTH */
+/* =========================
+   AUTH
+========================= */
 const user =
 JSON.parse(localStorage.getItem("loggedDriver")) ||
 JSON.parse(localStorage.getItem("user"));
@@ -14,9 +16,8 @@ const driverId = user._id || user.id;
 const container = document.getElementById("container");
 
 /* =========================
-   FILTER (🔥 حذف بعد 6 ساعات)
+   FILTER (بعد 6 ساعات تختفي)
 ========================= */
-
 function isExpired(t){
 
 const now = new Date(
@@ -33,22 +34,39 @@ return diff >= 6;
 }
 
 /* =========================
-   STATUS (من السيرفر فقط)
+   STATUS NORMALIZE
 ========================= */
-
 function getStatus(t){
-return t.status || "Scheduled";
+
+const s = t.status || "Scheduled";
+
+if(s === "NoShow") return "No Show";
+if(s === "InProgress") return "On Trip";
+
+return s;
+}
+
+/* =========================
+   ACTIVE TRIP (🔥 المهم)
+========================= */
+function isActive(status){
+
+return (
+status === "On Trip" ||
+status === "Arrived" ||
+status === "InProgress"
+);
 }
 
 /* =========================
    CLASS
 ========================= */
-
 function getClass(status){
 
 if(status === "Completed") return "trip-completed";
 if(status === "Cancelled") return "trip-cancelled";
 if(status === "No Show") return "trip-noshow";
+if(isActive(status)) return "trip-active";
 
 return "";
 }
@@ -56,10 +74,7 @@ return "";
 /* =========================
    MAP
 ========================= */
-
 function navigate(address){
-if(!address) return;
-
 window.open(
 `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
 "_blank"
@@ -69,13 +84,11 @@ window.open(
 /* =========================
    LOAD
 ========================= */
-
 async function loadTrips(){
 
 try{
 
 const res = await fetch(`/api/driver/my-trips/${driverId}`);
-
 if(!res.ok) throw new Error("error");
 
 const trips = await res.json();
@@ -92,19 +105,34 @@ container.innerHTML = "Error loading trips";
 /* =========================
    RENDER
 ========================= */
-
 function render(trips){
 
 container.innerHTML = "";
 
-/* 🔥 فلترة الرحلات القديمة */
-const filtered = trips.filter(t => !isExpired(t));
+/* 1️⃣ فلترة */
+let filtered = trips.filter(t => !isExpired(t));
 
 if(!filtered.length){
 container.innerHTML = "<h3>No Trips Today</h3>";
 return;
 }
 
+/* 2️⃣ ترتيب احترافي */
+filtered.sort((a,b)=>{
+
+const statusA = getStatus(a);
+const statusB = getStatus(b);
+
+// active فوق
+if(isActive(statusA) && !isActive(statusB)) return -1;
+if(!isActive(statusA) && isActive(statusB)) return 1;
+
+// بعد كده بالوقت
+return new Date(`${a.tripDate} ${a.tripTime}`) -
+       new Date(`${b.tripDate} ${b.tripTime}`);
+});
+
+/* 3️⃣ رسم */
 filtered.forEach(t=>{
 
 const status = getStatus(t);
@@ -120,7 +148,7 @@ window.location.href = `map.html?tripId=${t._id}`;
 
 div.innerHTML = `
 
-<div style="display:flex;justify-content:space-between;">
+<div class="trip-top">
 <div><b>#${t.tripNumber || ""}</b></div>
 <div>${t.tripTime || ""}</div>
 </div>
@@ -164,6 +192,8 @@ container.appendChild(div);
 
 }
 
-/* START */
+/* =========================
+   AUTO REFRESH
+========================= */
 loadTrips();
 setInterval(loadTrips,5000);

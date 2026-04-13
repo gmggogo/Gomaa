@@ -9,6 +9,7 @@
 
 <style>
 
+/* BODY */
 body{
 margin:0;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;
@@ -16,6 +17,7 @@ background:#f1f5f9;
 padding-bottom:90px;
 }
 
+/* HEADER */
 .top-bar{
 background:#020617;
 color:#fff;
@@ -28,10 +30,12 @@ top:0;
 z-index:100;
 }
 
+/* PAGE */
 .page-body{
 padding:12px;
 }
 
+/* CARD */
 .trip-card{
 background:#fff;
 border-radius:18px;
@@ -40,13 +44,14 @@ margin-bottom:12px;
 box-shadow:0 10px 25px rgba(0,0,0,0.10);
 border-left:6px solid #3b82f6;
 cursor:pointer;
+transition:.2s;
 }
 
 .trip-card:active{
 transform:scale(0.97);
 }
 
-/* COLORS */
+/* STATUS COLORS */
 
 .trip-completed{
 background:#020617;
@@ -62,11 +67,24 @@ border-left-color:#ef4444;
 border-left-color:#facc15;
 }
 
-/* TEXT */
+.trip-active{
+border-left-color:#f97316;
+box-shadow:0 0 0 2px rgba(249,115,22,0.25);
+}
 
+/* TOP */
+.trip-top{
+display:flex;
+justify-content:space-between;
+margin-bottom:10px;
+font-size:14px;
+}
+
+/* TEXT */
 .label{
 font-size:11px;
 color:#6b7280;
+margin-bottom:3px;
 }
 
 .value{
@@ -74,6 +92,7 @@ font-size:14px;
 font-weight:600;
 }
 
+/* PHONE */
 .phone{
 background:#16a34a;
 color:#fff;
@@ -82,8 +101,10 @@ border-radius:8px;
 display:inline-block;
 margin-top:4px;
 text-decoration:none;
+font-size:13px;
 }
 
+/* ADDRESS */
 .address{
 background:#f1f5f9;
 padding:8px;
@@ -91,45 +112,93 @@ border-radius:8px;
 margin-top:4px;
 font-size:13px;
 cursor:pointer;
+word-break:break-word;
 }
 
+/* NOTES */
 .notes{
 background:#f8fafc;
 padding:8px;
 border-radius:8px;
 font-size:12px;
-margin-top:4px;
+margin-top:6px;
+word-break:break-word;
 }
 
 /* BADGE */
-
 .badge{
 padding:6px 12px;
-border-radius:10px;
+border-radius:999px;
 font-size:12px;
 font-weight:bold;
 display:inline-block;
-margin-top:6px;
+margin-top:8px;
 }
 
-.badge-Completed{background:#22c55e;color:#fff;}
-.badge-Cancelled{background:#ef4444;color:#fff;}
-.badge-NoShow{background:#facc15;color:#000;}
-.badge-Scheduled{background:#e5e7eb;color:#000;}
+/* BADGE COLORS */
+.badge-Completed{
+background:#22c55e;
+color:#fff;
+}
+
+.badge-Cancelled{
+background:#ef4444;
+color:#fff;
+}
+
+.badge-NoShow{
+background:#facc15;
+color:#000;
+}
+
+.badge-Scheduled{
+background:#e5e7eb;
+color:#000;
+}
+
+.badge-OnTrip{
+background:#f97316;
+color:#fff;
+}
+
+.badge-Arrived{
+background:#3b82f6;
+color:#fff;
+}
+
+/* EMPTY */
+.empty{
+text-align:center;
+margin-top:40px;
+color:#475569;
+font-weight:600;
+}
+
+/* LOADING */
+.loading{
+text-align:center;
+margin-top:40px;
+color:#334155;
+font-weight:600;
+}
 
 </style>
 </head>
 
 <body>
 
+<!-- HEADER -->
 <div class="top-bar">🚗 My Trips</div>
 
+<!-- CONTENT -->
 <div class="page-body" id="container">
-Loading...
+<div class="loading">Loading trips...</div>
 </div>
 
+<!-- NAV BAR -->
 <div id="driverNav"></div>
 
+<!-- SCRIPTS -->
 <script src="driver-nav.js"></script>
 <script src="trips.js"></script>
 
