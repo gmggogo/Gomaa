@@ -35,6 +35,7 @@ const s = t.status || "Scheduled";
 
 if(s === "NoShow") return "NoShow";
 if(s === "InProgress") return "OnTrip";
+if(s === "Scheduled") return "Dispatched";
 
 return s;
 }
@@ -94,7 +95,6 @@ container.innerHTML = "<div class='empty'>No Trips Today</div>";
 return;
 }
 
-/* ترتيب */
 filtered.sort((a,b)=>{
 
 const sA = getStatus(a);
@@ -107,7 +107,6 @@ return new Date(`${a.tripDate} ${a.tripTime}`) -
        new Date(`${b.tripDate} ${b.tripTime}`);
 });
 
-/* رسم */
 filtered.forEach(t=>{
 
 const status = getStatus(t);
@@ -119,8 +118,10 @@ div.className = `trip-card ${cls}`;
 div.innerHTML = `
 
 <div class="trip-top">
-  <div>#${t.tripNumber || ""}</div>
-  <div>${t.tripTime || ""}</div>
+  <div class="trip-id">#${t.tripNumber || ""}</div>
+  <div class="trip-time">
+    ${t.tripDate || ""} • ${t.tripTime || ""}
+  </div>
 </div>
 
 <div class="label">CLIENT</div>
@@ -149,7 +150,7 @@ ${t.dropoff || "-"}
 ${t.notes || "No notes"}
 </div>
 
-<div class="badge badge-${status}">
+<div class="status-box status-${status}">
 ${status}
 </div>
 
@@ -165,7 +166,7 @@ container.appendChild(div);
 
 }
 
-/* ================= OPEN MAP ================= */
+/* ================= OPEN ================= */
 function openTrip(id){
 location.href = `map.html?tripId=${id}`;
 }

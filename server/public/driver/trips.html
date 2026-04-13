@@ -43,7 +43,7 @@ body{
   transform:scale(.97);
 }
 
-/* STATUS COLORS */
+/* STATUS COLORS (border) */
 .trip-completed{ border-left-color:#22c55e; }
 .trip-cancelled{ border-left-color:#ef4444; }
 .trip-noshow{ border-left-color:#facc15; }
@@ -54,6 +54,16 @@ body{
   display:flex;
   justify-content:space-between;
   margin-bottom:10px;
+}
+
+.trip-id{
+  font-weight:bold;
+  font-size:16px;
+}
+
+.trip-time{
+  font-size:12px;
+  color:#cbd5e1;
 }
 
 /* TEXT */
@@ -99,22 +109,40 @@ body{
   font-size:12px;
 }
 
-/* BADGE */
-.badge{
+/* STATUS BOX */
+.status-box{
   margin-top:10px;
-  display:inline-block;
-  padding:6px 12px;
-  border-radius:999px;
-  font-size:12px;
+  padding:8px;
+  border-radius:10px;
+  text-align:center;
   font-weight:bold;
 }
 
-.badge-Completed{ background:#22c55e; }
-.badge-Cancelled{ background:#ef4444; }
-.badge-NoShow{ background:#facc15; color:#000; }
-.badge-OnTrip{ background:#2563eb; }
-.badge-Arrived{ background:#9333ea; }
-.badge-Scheduled{ background:#6b7280; }
+/* COLORS */
+.status-Completed{
+  background:#22c55e;
+}
+
+.status-Cancelled{
+  background:#ef4444;
+}
+
+.status-NoShow{
+  background:#facc15;
+  color:#000;
+}
+
+.status-OnTrip{
+  background:#2563eb;
+}
+
+.status-Arrived{
+  background:#9333ea;
+}
+
+.status-Dispatched{
+  background:#6b7280;
+}
 
 /* BUTTON */
 .btn{
