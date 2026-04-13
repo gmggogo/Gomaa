@@ -13,30 +13,63 @@ window.location.href = "../login.html";
 const driverId = user._id || user.id;
 const container = document.getElementById("container");
 
-/* TIME */
-function getTripClass(t){
+/* =========================
+   FILTER (🔥 حذف بعد 6 ساعات)
+========================= */
 
-if(t.status === "Completed") return "trip-completed";
+function isExpired(t){
 
-const now = new Date();
-const trip = new Date(`${t.tripDate} ${t.tripTime}`);
-const diff = (trip - now) / 60000;
+const now = new Date(
+  new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+);
 
-if(diff < 0) return "trip-expired";
-if(diff < 30) return "trip-urgent";
+const tripTime = new Date(`${t.tripDate}T${t.tripTime}`);
+
+if(!tripTime || isNaN(tripTime)) return false;
+
+const diff = (now - tripTime)/(1000*60*60);
+
+return diff >= 6;
+}
+
+/* =========================
+   STATUS (من السيرفر فقط)
+========================= */
+
+function getStatus(t){
+return t.status || "Scheduled";
+}
+
+/* =========================
+   CLASS
+========================= */
+
+function getClass(status){
+
+if(status === "Completed") return "trip-completed";
+if(status === "Cancelled") return "trip-cancelled";
+if(status === "No Show") return "trip-noshow";
 
 return "";
 }
 
-/* NAVIGATE */
+/* =========================
+   MAP
+========================= */
+
 function navigate(address){
 if(!address) return;
 
-const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-window.open(url, "_blank");
+window.open(
+`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+"_blank"
+);
 }
 
-/* LOAD */
+/* =========================
+   LOAD
+========================= */
+
 async function loadTrips(){
 
 try{
@@ -56,86 +89,71 @@ container.innerHTML = "Error loading trips";
 
 }
 
-/* RENDER */
+/* =========================
+   RENDER
+========================= */
+
 function render(trips){
 
 container.innerHTML = "";
 
-if(!trips.length){
-container.innerHTML = "<h3>No Trips</h3>";
+/* 🔥 فلترة الرحلات القديمة */
+const filtered = trips.filter(t => !isExpired(t));
+
+if(!filtered.length){
+container.innerHTML = "<h3>No Trips Today</h3>";
 return;
 }
 
-trips.forEach(t=>{
+filtered.forEach(t=>{
+
+const status = getStatus(t);
+const cls = getClass(status);
 
 const div = document.createElement("div");
+div.className = `trip-card ${cls}`;
 
-div.className = `trip-card ${getTripClass(t)}`;
-
-div.onclick = (e)=>{
-if(e.target.classList.contains("no-click")) return;
-openTrip(t);
+div.onclick = ()=>{
+if(status === "Completed" || status === "Cancelled") return;
+window.location.href = `map.html?tripId=${t._id}`;
 };
 
 div.innerHTML = `
 
-<div class="trip-top">
-<div class="trip-number">#${t.tripNumber || ""}</div>
-<div class="trip-time">${t.tripTime || ""}</div>
+<div style="display:flex;justify-content:space-between;">
+<div><b>#${t.tripNumber || ""}</b></div>
+<div>${t.tripTime || ""}</div>
 </div>
 
-<div class="section">
+<div>
 <div class="label">CLIENT</div>
 <div class="value">${t.clientName || "-"}</div>
 </div>
 
-<div class="section">
-<div class="label">PHONE</div>
-<a class="phone no-click" href="tel:${t.clientPhone || ""}">
+<div>
+<a class="phone" href="tel:${t.clientPhone || ""}">
 📞 ${t.clientPhone || "-"}
 </a>
 </div>
 
-<div class="row">
-<div class="section">
-<div class="label">DATE</div>
-<div class="value">${t.tripDate || "-"}</div>
-</div>
-
-<div class="section">
-<div class="label">TIME</div>
-<div class="value">${t.tripTime || "-"}</div>
-</div>
-</div>
-
-<div class="section">
+<div>
 <div class="label">PICKUP</div>
-<div class="address no-click" onclick="navigate('${t.pickup}')">
-📍 ${t.pickup || "-"}
+<div class="address" onclick="navigate('${t.pickup}')">
+${t.pickup || "-"}
 </div>
 </div>
 
-<div class="section">
-<div class="label">STOPS</div>
-<div class="value">${(t.stops || []).join(" → ") || "-"}</div>
-</div>
-
-<div class="section">
+<div>
 <div class="label">DROPOFF</div>
-<div class="address no-click" onclick="navigate('${t.dropoff}')">
-🏁 ${t.dropoff || "-"}
+<div class="address" onclick="navigate('${t.dropoff}')">
+${t.dropoff || "-"}
 </div>
 </div>
 
-<div class="section">
-<div class="label">NOTES</div>
-<div class="notes">${t.notes || "No notes"}</div>
-</div>
+<div class="notes">${t.notes || ""}</div>
 
-<div class="section">
-<span class="badge badge-${t.status}">
-${t.status || ""}
-</span>
+<div class="badge badge-${status.replace(" ","")}">
+${status}
 </div>
 
 `;
@@ -144,21 +162,6 @@ container.appendChild(div);
 
 });
 
-}
-
-/* OPEN */
-function openTrip(trip){
-
-if(trip.status === "Completed") return;
-
-window.location.href = `map.html?tripId=${trip._id}`;
-
-}
-
-/* LOGOUT */
-function logout(){
-localStorage.clear();
-window.location.href = "../login.html";
 }
 
 /* START */
