@@ -1,5 +1,5 @@
 /* =====================================================
-   SUNBEAM DRIVER MAP – COMPLETE FINAL
+   SUNBEAM DRIVER MAP – COMPLETE FINAL (SERVER CONNECTED)
 ===================================================== */
 
 /* ===============================
@@ -57,18 +57,21 @@ const navChat = document.getElementById("navChat");
 const navLogout = document.getElementById("navLogout");
 
 /* ===============================
-   PAGE DATA
+   PAGE DATA FROM URL + SERVER
 ================================ */
-const TRIP_ID = String(mapEl.dataset.tripId || "");
-const tripTimeStr = String(mapEl.dataset.tripTime || "");
+const urlParams = new URLSearchParams(window.location.search);
+const TRIP_ID = String(urlParams.get("tripId") || "");
 
-const pickupLat = parseFloat(mapEl.dataset.pickupLat);
-const pickupLng = parseFloat(mapEl.dataset.pickupLng);
-const dropLat = parseFloat(mapEl.dataset.dropoffLat);
-const dropLng = parseFloat(mapEl.dataset.dropoffLng);
+let tripDoc = null;
+let tripTimeStr = "";
 
-const hasPickup = Number.isFinite(pickupLat) && Number.isFinite(pickupLng);
-const hasDropoff = Number.isFinite(dropLat) && Number.isFinite(dropLng);
+let pickupLat = null;
+let pickupLng = null;
+let dropLat = null;
+let dropLng = null;
+
+let hasPickup = false;
+let hasDropoff = false;
 
 /* ===============================
    UI HELPERS
@@ -130,16 +133,25 @@ function finishUi() {
   hideETA();
 }
 
-setNavText("Waiting for GPS...");
+setNavText("Loading trip...");
 
 /* ===============================
    TIME LOGIC
 ================================ */
 function getTripDateTime() {
-  if (!tripTimeStr) return null;
-  const d = new Date(tripTimeStr);
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
+  if (!tripDoc) return null;
+
+  if (tripDoc.tripDate && tripDoc.tripTime) {
+    const d = new Date(`${tripDoc.tripDate}T${tripDoc.tripTime}`);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  if (tripTimeStr) {
+    const d = new Date(tripTimeStr);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  return null;
 }
 
 function isTripTimeStarted() {
@@ -149,69 +161,13 @@ function isTripTimeStarted() {
 }
 
 /* ===============================
-   MAP INIT
+   MAP / MARKERS / STATE
 ================================ */
-const defaultCenter = hasPickup ? [pickupLat, pickupLng] : [33.4484, -112.0740];
-
-const map = L.map("map", {
-  zoomControl: true,
-  attributionControl: false
-}).setView(defaultCenter, 13);
-
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19
-}).addTo(map);
-
-setTimeout(() => {
-  try { map.invalidateSize(); } catch (e) {}
-}, 500);
-
-/* ===============================
-   ICONS
-================================ */
-const driverIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/741/741407.png",
-  iconSize: [38, 38],
-  iconAnchor: [19, 19],
-  popupAnchor: [0, -16]
-});
-
-const pickupIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-  iconSize: [34, 34],
-  iconAnchor: [17, 34],
-  popupAnchor: [0, -28]
-});
-
-const dropoffIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/1483/1483336.png",
-  iconSize: [34, 34],
-  iconAnchor: [17, 34],
-  popupAnchor: [0, -28]
-});
-
-/* ===============================
-   MARKERS
-================================ */
+let map = null;
 let driverMarker = null;
 let pickupMarker = null;
 let dropoffMarker = null;
 
-if (hasPickup) {
-  pickupMarker = L.marker([pickupLat, pickupLng], { icon: pickupIcon })
-    .addTo(map)
-    .bindPopup("Pickup");
-}
-
-if (hasDropoff) {
-  dropoffMarker = L.marker([dropLat, dropLng], { icon: dropoffIcon })
-    .addTo(map)
-    .bindPopup("Dropoff");
-}
-
-/* ===============================
-   STATE
-================================ */
 let driverLat = null;
 let driverLng = null;
 let firstFix = true;
@@ -291,6 +247,8 @@ function isNearTarget(distance, target = 0.1) {
 }
 
 function fitMapToPoints(points) {
+  if (!map) return;
+
   const good = points.filter(
     p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)
   );
@@ -304,7 +262,7 @@ function fitMapToPoints(points) {
    ROUTE
 ================================ */
 function clearRoute() {
-  if (routeControl) {
+  if (routeControl && map) {
     try { map.removeControl(routeControl); } catch (e) {}
     routeControl = null;
   }
@@ -323,6 +281,7 @@ function updateRouteEtaFromEvent(e) {
 
 function drawRoute(fromLat, fromLng, toLat, toLng) {
   if (
+    !map ||
     !Number.isFinite(fromLat) ||
     !Number.isFinite(fromLng) ||
     !Number.isFinite(toLat) ||
@@ -431,6 +390,27 @@ async function updateTripStatus(status, extra = {}) {
   }
 }
 
+async function fetchTrip() {
+  if (!TRIP_ID) {
+    alert("No trip found");
+    window.location.href = "/driver/trips.html";
+    return null;
+  }
+
+  try {
+    const res = await fetch(`/api/trips/${TRIP_ID}`);
+    if (!res.ok) throw new Error("Trip not found");
+
+    const t = await res.json();
+    return t;
+  } catch (err) {
+    console.log("fetchTrip error:", err);
+    alert("Error loading trip");
+    window.location.href = "/driver/trips.html";
+    return null;
+  }
+}
+
 /* ===============================
    GOOGLE MAPS
 ================================ */
@@ -516,6 +496,7 @@ btnCompleteNoShow.onclick = async () => {
   finishUi();
   setNavText("No show completed");
   alert("No Show Completed");
+  window.location.href = "/driver/trips.html";
 };
 
 btnStart.onclick = async () => {
@@ -553,14 +534,18 @@ btnComplete.onclick = async () => {
   finishUi();
   setNavText("Trip completed");
   alert("Trip Completed");
+  window.location.href = "/driver/trips.html";
 };
 
 /* ===============================
    GPS WATCH
 ================================ */
-if (!navigator.geolocation) {
-  alert("GPS not supported");
-} else {
+function startGpsWatch() {
+  if (!navigator.geolocation) {
+    alert("GPS not supported");
+    return;
+  }
+
   navigator.geolocation.watchPosition(
     async pos => {
       const lat = pos.coords.latitude;
@@ -587,7 +572,7 @@ if (!navigator.geolocation) {
             { lat, lng },
             { lat: pickupLat, lng: pickupLng }
           ]);
-        } else {
+        } else if (map) {
           map.setView([lat, lng], 15);
         }
       }
@@ -678,6 +663,85 @@ if (!navigator.geolocation) {
 }
 
 /* ===============================
+   ICONS
+================================ */
+const driverIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/741/741407.png",
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+  popupAnchor: [0, -16]
+});
+
+const pickupIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+  popupAnchor: [0, -28]
+});
+
+const dropoffIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/1483/1483336.png",
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+  popupAnchor: [0, -28]
+});
+
+/* ===============================
+   INIT MAP AFTER SERVER LOAD
+================================ */
+function initMap() {
+  const defaultCenter = hasPickup ? [pickupLat, pickupLng] : [33.4484, -112.0740];
+
+  map = L.map("map", {
+    zoomControl: true,
+    attributionControl: false
+  }).setView(defaultCenter, 13);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19
+  }).addTo(map);
+
+  setTimeout(() => {
+    try { map.invalidateSize(); } catch (e) {}
+  }, 500);
+
+  if (hasPickup) {
+    pickupMarker = L.marker([pickupLat, pickupLng], { icon: pickupIcon })
+      .addTo(map)
+      .bindPopup("Pickup");
+  }
+
+  if (hasDropoff) {
+    dropoffMarker = L.marker([dropLat, dropLng], { icon: dropoffIcon })
+      .addTo(map)
+      .bindPopup("Dropoff");
+  }
+
+  setNavText("Waiting for GPS...");
+  startGpsWatch();
+}
+
+/* ===============================
+   LOAD EVERYTHING
+================================ */
+async function initPage() {
+  tripDoc = await fetchTrip();
+  if (!tripDoc) return;
+
+  tripTimeStr = tripDoc.tripTime || "";
+
+  pickupLat = parseFloat(tripDoc.pickupLat);
+  pickupLng = parseFloat(tripDoc.pickupLng);
+  dropLat = parseFloat(tripDoc.dropoffLat);
+  dropLng = parseFloat(tripDoc.dropoffLng);
+
+  hasPickup = Number.isFinite(pickupLat) && Number.isFinite(pickupLng);
+  hasDropoff = Number.isFinite(dropLat) && Number.isFinite(dropLng);
+
+  initMap();
+}
+
+/* ===============================
    BOTTOM NAV
 ================================ */
 navHome.onclick = () => {
@@ -689,7 +753,11 @@ navTrips.onclick = () => {
 };
 
 navMap.onclick = () => {
-  window.location.href = "/driver/map.html";
+  if (TRIP_ID) {
+    window.location.href = `/driver/map.html?tripId=${TRIP_ID}`;
+  } else {
+    window.location.href = "/driver/trips.html";
+  }
 };
 
 navChat.onclick = () => {
@@ -707,3 +775,8 @@ navLogout.onclick = () => {
 ================================ */
 window.openGoogleMaps = openGoogleMaps;
 window.updateTripStatus = updateTripStatus;
+
+/* ===============================
+   START
+================================ */
+initPage();
