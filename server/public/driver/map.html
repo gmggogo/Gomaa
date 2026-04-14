@@ -20,9 +20,12 @@
       --green:#22c55e;
       --green-2:#059669;
       --red:#dc2626;
+      --orange:#f59e0b;
+      --gray:#475569;
       --border:rgba(255,255,255,.08);
       --shadow:0 10px 24px rgba(0,0,0,.28);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --radius:14px;
     }
 
     *{
@@ -58,6 +61,7 @@
       justify-content:space-between;
       padding:0 14px;
       border-bottom:1px solid var(--border);
+      box-shadow:0 2px 10px rgba(0,0,0,.18);
     }
 
     #driverName{
@@ -94,6 +98,7 @@
       padding:12px 14px;
       font-size:15px;
       font-weight:700;
+      border:1px solid var(--border);
     }
 
     #etaBox{
@@ -101,7 +106,7 @@
       top:120px;
       left:50%;
       transform:translateX(-50%);
-      min-width:150px;
+      min-width:160px;
       max-width:88%;
       background:var(--panel-2);
       border:1px solid rgba(255,255,255,.08);
@@ -123,7 +128,7 @@
       top:158px;
       left:0;
       right:0;
-      bottom:248px;
+      bottom:300px;
       z-index:1;
     }
 
@@ -136,6 +141,7 @@
       z-index:1250;
       padding:10px 12px 12px;
       border-top:1px solid var(--border);
+      box-shadow:0 -6px 18px rgba(0,0,0,.22);
     }
 
     .btn{
@@ -148,13 +154,22 @@
       color:#fff;
       cursor:pointer;
       margin:0;
+      transition:transform .12s ease, opacity .12s ease, box-shadow .12s ease;
+      box-shadow:0 8px 18px rgba(0,0,0,.18);
+    }
+
+    .btn:active{
+      transform:scale(.985);
     }
 
     .btn + .btn,
     .btn + #waitTimer,
     .btn + #noShowBox,
+    .btn + #clientDecisionBox,
     #waitTimer + .btn,
     #waitTimer + #noShowBox,
+    #waitTimer + #clientDecisionBox,
+    #clientDecisionBox + .btn,
     #noShowBox + .btn{
       margin-top:8px;
     }
@@ -162,7 +177,7 @@
     #btnGoogle{
       display:block;
       background:#0f172a;
-      border:1px solid #475569;
+      border:1px solid var(--gray);
     }
 
     #btnGoPickup{
@@ -186,7 +201,7 @@
     }
 
     #btnComplete.enabled{
-      box-shadow:0 0 0 2px rgba(255,255,255,.16) inset;
+      box-shadow:0 0 0 2px rgba(255,255,255,.14) inset, 0 8px 18px rgba(0,0,0,.18);
     }
 
     #btnNoShow{
@@ -194,20 +209,56 @@
       background:var(--red);
     }
 
+    #btnCallClient{
+      display:none;
+      background:var(--orange);
+    }
+
     #waitTimer{
       display:none;
       width:100%;
       text-align:center;
       color:var(--yellow);
-      font-size:22px;
+      font-size:24px;
       font-weight:800;
-      padding:6px 0 2px;
+      padding:8px 0 4px;
+      letter-spacing:1px;
+    }
+
+    #clientDecisionBox{
+      display:none;
+      flex-direction:column;
+      gap:8px;
+      background:#111827;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:10px;
+    }
+
+    #clientDecisionTitle{
+      font-size:14px;
+      font-weight:700;
+      color:#fff;
+    }
+
+    #btnDismissCall{
+      background:#334155;
     }
 
     #noShowBox{
       display:none;
       flex-direction:column;
       gap:8px;
+      background:#111827;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:10px;
+    }
+
+    #noShowTitle{
+      font-size:14px;
+      font-weight:700;
+      color:#fff;
     }
 
     #noShowNotes{
@@ -221,6 +272,7 @@
       font-size:14px;
       background:#fff;
       color:#111827;
+      font-family:Arial, Helvetica, sans-serif;
     }
 
     #btnCompleteNoShow{
@@ -278,6 +330,7 @@
       #navText{font-size:14px;}
       #etaBox{font-size:13px;}
       .btn{font-size:14px;padding:13px 12px;}
+      #map{bottom:320px;}
     }
   </style>
 </head>
@@ -296,7 +349,6 @@
     <span id="etaDistance">-- mi</span>
   </div>
 
-  <!-- الماب فاضية، والبيانات تيجي من السيرفر عن طريق map.js -->
   <div id="map"></div>
 
   <div id="controls">
@@ -304,12 +356,19 @@
     <button id="btnGoPickup" class="btn">GO TO PICKUP</button>
     <button id="btnArrived" class="btn">ARRIVED</button>
     <button id="btnStart" class="btn">START RIDE</button>
-    <button id="btnComplete" class="btn">COMPLETE</button>
+    <button id="btnCallClient" class="btn">CALL CLIENT</button>
     <button id="btnNoShow" class="btn">NO SHOW</button>
+    <button id="btnComplete" class="btn">COMPLETE</button>
 
     <div id="waitTimer">15:00</div>
 
+    <div id="clientDecisionBox">
+      <div id="clientDecisionTitle">Client contacted. Choose action.</div>
+      <button id="btnDismissCall" class="btn">✕ CLOSE</button>
+    </div>
+
     <div id="noShowBox">
+      <div id="noShowTitle">Enter no show reason</div>
       <textarea id="noShowNotes" placeholder="Reason for no show"></textarea>
       <button id="btnCompleteNoShow" class="btn">Complete No Show</button>
     </div>

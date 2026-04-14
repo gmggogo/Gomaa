@@ -1,6 +1,8 @@
 /* =====================================================
-   SUNBEAM DRIVER MAP – COMPLETE FINAL (SERVER CONNECTED)
+   SUNBEAM DRIVER MAP – FINAL PROFESSIONAL
 ===================================================== */
+
+console.log("Sunbeam driver map final loaded");
 
 /* ===============================
    AUTH
@@ -44,11 +46,15 @@ const btnArrived = document.getElementById("btnArrived");
 const btnStart = document.getElementById("btnStart");
 const btnComplete = document.getElementById("btnComplete");
 const btnNoShow = document.getElementById("btnNoShow");
+const btnCallClient = document.getElementById("btnCallClient");
 
 const waitTimerEl = document.getElementById("waitTimer");
 const noShowBox = document.getElementById("noShowBox");
 const noShowNotes = document.getElementById("noShowNotes");
 const btnCompleteNoShow = document.getElementById("btnCompleteNoShow");
+
+const clientDecisionBox = document.getElementById("clientDecisionBox");
+const btnDismissCall = document.getElementById("btnDismissCall");
 
 const navHome = document.getElementById("navHome");
 const navTrips = document.getElementById("navTrips");
@@ -57,13 +63,14 @@ const navChat = document.getElementById("navChat");
 const navLogout = document.getElementById("navLogout");
 
 /* ===============================
-   PAGE DATA FROM URL + SERVER
+   PAGE DATA
 ================================ */
 const urlParams = new URLSearchParams(window.location.search);
 const TRIP_ID = String(urlParams.get("tripId") || "");
 
 let tripDoc = null;
 let tripTimeStr = "";
+let clientPhone = "";
 
 let pickupLat = null;
 let pickupLng = null;
@@ -117,17 +124,23 @@ function resetNoShowBox() {
   if (noShowNotes) noShowNotes.value = "";
 }
 
-function resetButtonsForFreshState() {
+function resetCallBox() {
+  hideEl(clientDecisionBox);
+}
+
+function hideActionButtons() {
   hideEl(btnGoPickup);
   hideEl(btnArrived);
   hideEl(btnStart);
   hideEl(btnComplete);
   hideEl(btnNoShow);
-  resetNoShowBox();
+  hideEl(btnCallClient);
 }
 
 function finishUi() {
-  resetButtonsForFreshState();
+  hideActionButtons();
+  resetNoShowBox();
+  resetCallBox();
   stopTimer();
   clearRoute();
   hideETA();
@@ -161,7 +174,7 @@ function isTripTimeStarted() {
 }
 
 /* ===============================
-   MAP / MARKERS / STATE
+   MAP / STATE
 ================================ */
 let map = null;
 let driverMarker = null;
@@ -175,18 +188,21 @@ let firstFix = true;
 let routeControl = null;
 let routeMode = "pickup"; // pickup | dropoff
 let lastRouteRefresh = 0;
-const ROUTE_REFRESH_MS = 2000;
+const ROUTE_REFRESH_MS = 4000;
 
 let arrived = false;
 let started = false;
 let completed = false;
 let noShowDone = false;
+let calledClient = false;
+let autoArrivedDone = false;
 
 /* ===============================
    TIMER
 ================================ */
 let waitInterval = null;
 let waitSeconds = 900;
+let tripTimeWatcher = null;
 
 function stopTimer() {
   if (waitInterval) {
@@ -201,9 +217,8 @@ function stopTimer() {
 }
 
 function startTimer() {
-  if (!waitTimerEl) return;
+  if (!waitTimerEl || waitInterval) return;
 
-  stopTimer();
   waitSeconds = 900;
   waitTimerEl.innerText = "15:00";
   showEl(waitTimerEl);
@@ -218,8 +233,33 @@ function startTimer() {
       `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 
     if (waitSeconds <= 0) {
-      stopTimer();
+      clearInterval(waitInterval);
+      waitInterval = null;
+      waitTimerEl.innerText = "TIME UP";
+
+      hideEl(btnStart);
       hideEl(btnNoShow);
+      showEl(btnCallClient);
+      setNavText("Call client now");
+    }
+  }, 1000);
+}
+
+function watchTripTimeThenStartTimer() {
+  if (tripTimeWatcher) clearInterval(tripTimeWatcher);
+
+  tripTimeWatcher = setInterval(() => {
+    if (completed || noShowDone || started) {
+      clearInterval(tripTimeWatcher);
+      tripTimeWatcher = null;
+      return;
+    }
+
+    if (arrived && isTripTimeStarted() && !waitInterval) {
+      clearInterval(tripTimeWatcher);
+      tripTimeWatcher = null;
+      setNavText("Waiting for passenger");
+      startTimer();
     }
   }, 1000);
 }
@@ -295,6 +335,8 @@ function drawRoute(fromLat, fromLng, toLat, toLng) {
     return;
   }
 
+  const routeColor = routeMode === "pickup" ? "#2563eb" : "#16a34a";
+
   if (!routeControl) {
     routeControl = L.Routing.control({
       waypoints: [
@@ -311,9 +353,14 @@ function drawRoute(fromLat, fromLng, toLat, toLng) {
       lineOptions: {
         styles: [
           {
-            color: routeMode === "pickup" ? "#2563eb" : "#16a34a",
+            color: "#ffffff",
+            weight: 10,
+            opacity: 0.35
+          },
+          {
+            color: routeColor,
             weight: 6,
-            opacity: 0.95
+            opacity: 0.98
           }
         ]
       }
@@ -321,6 +368,19 @@ function drawRoute(fromLat, fromLng, toLat, toLng) {
     .on("routesfound", updateRouteEtaFromEvent)
     .addTo(map);
   } else {
+    routeControl.options.lineOptions.styles = [
+      {
+        color: "#ffffff",
+        weight: 10,
+        opacity: 0.35
+      },
+      {
+        color: routeColor,
+        weight: 6,
+        opacity: 0.98
+      }
+    ];
+
     routeControl.setWaypoints([
       L.latLng(fromLat, fromLng),
       L.latLng(toLat, toLng)
@@ -441,6 +501,50 @@ function openGoogleMaps() {
 }
 
 /* ===============================
+   FLOW LOGIC
+================================ */
+function autoArriveFlow() {
+  if (autoArrivedDone || arrived || completed || noShowDone) return;
+
+  autoArrivedDone = true;
+  arrived = true;
+
+  hideEl(btnGoogle);
+  hideEl(btnGoPickup);
+  hideEl(btnArrived);
+
+  showEl(btnStart);
+  showEl(btnNoShow);
+
+  setNavText(isTripTimeStarted() ? "Waiting for passenger" : "Waiting until trip time");
+
+  updateTripStatus("Arrived");
+
+  if (isTripTimeStarted()) {
+    startTimer();
+  } else {
+    watchTripTimeThenStartTimer();
+  }
+}
+
+function showNoShowForm() {
+  hideEl(btnStart);
+  hideEl(btnNoShow);
+  hideEl(btnCallClient);
+  showEl(noShowBox, "flex");
+  showEl(btnComplete);
+  setNavText("Enter no show reason");
+}
+
+function afterClientCalled() {
+  hideEl(btnCallClient);
+  showEl(clientDecisionBox, "flex");
+  showEl(btnStart);
+  showEl(btnNoShow);
+  setNavText("Client contacted. Choose action");
+}
+
+/* ===============================
    BUTTON FLOW
 ================================ */
 btnGoogle.onclick = openGoogleMaps;
@@ -454,11 +558,6 @@ btnGoPickup.onclick = () => {
 btnArrived.onclick = async () => {
   if (completed || noShowDone) return;
 
-  if (!isTripTimeStarted()) {
-    alert("You cannot start waiting before trip time");
-    return;
-  }
-
   arrived = true;
 
   hideEl(btnGoogle);
@@ -468,15 +567,20 @@ btnArrived.onclick = async () => {
   showEl(btnStart);
   showEl(btnNoShow);
 
-  startTimer();
-  setNavText("Waiting for passenger");
+  if (isTripTimeStarted()) {
+    startTimer();
+    setNavText("Waiting for passenger");
+  } else {
+    setNavText("Waiting until trip time");
+    watchTripTimeThenStartTimer();
+  }
 
   await updateTripStatus("Arrived");
 };
 
 btnNoShow.onclick = () => {
   if (completed || noShowDone) return;
-  showEl(noShowBox, "flex");
+  showNoShowForm();
 };
 
 btnCompleteNoShow.onclick = async () => {
@@ -507,6 +611,8 @@ btnStart.onclick = async () => {
 
   hideEl(btnStart);
   hideEl(btnNoShow);
+  hideEl(btnCallClient);
+  hideEl(clientDecisionBox);
   resetNoShowBox();
   stopTimer();
 
@@ -521,19 +627,55 @@ btnStart.onclick = async () => {
   await updateTripStatus("InProgress");
 };
 
-btnComplete.onclick = async () => {
-  if (!btnComplete.classList.contains("enabled")) {
-    alert("You must be near the dropoff location first");
+btnCallClient.onclick = () => {
+  if (!clientPhone) {
+    alert("Client phone not found");
     return;
   }
 
-  completed = true;
+  calledClient = true;
+  window.location.href = `tel:${clientPhone}`;
+  afterClientCalled();
+};
 
-  await updateTripStatus("Completed");
+btnDismissCall.onclick = () => {
+  hideEl(clientDecisionBox);
+  showEl(btnStart);
+  showEl(btnNoShow);
+  setNavText("Choose action");
+};
+
+btnComplete.onclick = async () => {
+  if (started) {
+    if (!btnComplete.classList.contains("enabled")) {
+      alert("You must be near the dropoff location first");
+      return;
+    }
+
+    completed = true;
+    await updateTripStatus("Completed");
+    finishUi();
+    setNavText("Trip completed");
+    alert("Trip Completed");
+    window.location.href = "/driver/trips.html";
+    return;
+  }
+
+  const reason = (noShowNotes?.value || "").trim();
+  if (!reason) {
+    alert("Please enter reason");
+    return;
+  }
+
+  noShowDone = true;
+
+  await updateTripStatus("NoShow", {
+    noShowReason: reason
+  });
 
   finishUi();
-  setNavText("Trip completed");
-  alert("Trip Completed");
+  setNavText("No show completed");
+  alert("No Show Completed");
   window.location.href = "/driver/trips.html";
 };
 
@@ -599,22 +741,21 @@ function startGpsWatch() {
         hideEl(btnStart);
         hideEl(btnNoShow);
         hideEl(btnComplete);
+        hideEl(btnCallClient);
+        resetCallBox();
         resetNoShowBox();
 
         showEl(btnGoogle);
 
-        if (dPickup > 2) {
-          hideEl(btnGoPickup);
-          hideEl(btnArrived);
-          setNavText("Go to pickup");
-        } else if (dPickup > 0.1) {
+        if (dPickup > 1) {
           showEl(btnGoPickup);
           hideEl(btnArrived);
           setNavText("Go to pickup");
         } else {
           hideEl(btnGoPickup);
           showEl(btnArrived);
-          setNavText("Press ARRIVED");
+          setNavText("Near pickup");
+          autoArriveFlow();
         }
       }
 
@@ -624,10 +765,14 @@ function startGpsWatch() {
         hideEl(btnGoogle);
         hideEl(btnComplete);
 
-        showEl(btnStart);
-        if (waitInterval) showEl(btnNoShow);
+        if (!calledClient && !noShowBox.style.display.includes("flex")) {
+          showEl(btnStart);
+          showEl(btnNoShow);
+        }
 
-        setNavText("Waiting for passenger");
+        if (waitInterval) {
+          setNavText("Waiting for passenger");
+        }
       }
 
       if (started && routeMode === "dropoff" && !completed && !noShowDone) {
@@ -635,6 +780,8 @@ function startGpsWatch() {
         hideEl(btnArrived);
         hideEl(btnStart);
         hideEl(btnNoShow);
+        hideEl(btnCallClient);
+        resetCallBox();
         resetNoShowBox();
 
         showEl(btnGoogle);
@@ -687,7 +834,7 @@ const dropoffIcon = L.icon({
 });
 
 /* ===============================
-   INIT MAP AFTER SERVER LOAD
+   INIT MAP
 ================================ */
 function initMap() {
   const defaultCenter = hasPickup ? [pickupLat, pickupLng] : [33.4484, -112.0740];
@@ -729,6 +876,7 @@ async function initPage() {
   if (!tripDoc) return;
 
   tripTimeStr = tripDoc.tripTime || "";
+  clientPhone = tripDoc.clientPhone || "";
 
   pickupLat = parseFloat(tripDoc.pickupLat);
   pickupLng = parseFloat(tripDoc.pickupLng);
@@ -769,12 +917,6 @@ navLogout.onclick = () => {
   localStorage.removeItem("user");
   window.location.href = "/driver/login.html";
 };
-
-/* ===============================
-   EXPOSE
-================================ */
-window.openGoogleMaps = openGoogleMaps;
-window.updateTripStatus = updateTripStatus;
 
 /* ===============================
    START
