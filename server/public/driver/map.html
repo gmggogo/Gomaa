@@ -1,408 +1,78 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Sunbeam Driver Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta charset="UTF-8">
+<title>Driver</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-  <style>
-    :root{
-      --bg:#0f172a;
-      --panel:#020617;
-      --panel-2:#111827;
-      --text:#ffffff;
-      --muted:#cbd5e1;
-      --yellow:#facc15;
-      --blue:#2563eb;
-      --green:#22c55e;
-      --green-2:#059669;
-      --red:#dc2626;
-      --orange:#f59e0b;
-      --gray:#475569;
-      --border:rgba(255,255,255,.08);
-      --shadow:0 10px 24px rgba(0,0,0,.28);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --radius:14px;
-    }
+<style>
+body { margin:0; font-family:Arial; background:#f5f5f5; }
 
-    *{
-      box-sizing:border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+#header {
+  background:#0d6efd;
+  color:white;
+  text-align:center;
+  padding:12px;
+  font-size:20px;
+  font-weight:bold;
+}
 
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      height:100%;
-      overflow:hidden;
-      background:var(--bg);
-      color:var(--text);
-      font-family:Arial, Helvetica, sans-serif;
-    }
+#client {
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+  margin:10px;
+}
 
-    body{
-      position:relative;
-    }
+#status {
+  text-align:center;
+  font-size:16px;
+  margin-bottom:5px;
+}
 
-    #header{
-      position:fixed;
-      top:0;
-      left:0;
-      right:0;
-      height:56px;
-      background:var(--panel);
-      z-index:1200;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:0 14px;
-      border-bottom:1px solid var(--border);
-      box-shadow:0 2px 10px rgba(0,0,0,.18);
-    }
+#map {
+  height:55vh;
+}
 
-    #driverName{
-      font-size:16px;
-      font-weight:700;
-      color:var(--yellow);
-      max-width:46%;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
+#footer {
+  position:fixed;
+  bottom:0;
+  width:100%;
+  background:white;
+  padding:10px;
+  box-shadow:0 -2px 10px rgba(0,0,0,0.2);
+  text-align:center;
+}
 
-    #datetime{
-      font-size:12px;
-      color:var(--muted);
-      text-align:right;
-      line-height:1.25;
-    }
+button {
+  padding:12px;
+  margin:5px;
+  font-size:16px;
+  border:none;
+  border-radius:5px;
+}
 
-    #navText{
-      position:fixed;
-      top:64px;
-      left:12px;
-      right:12px;
-      min-height:48px;
-      background:var(--panel);
-      border-radius:14px;
-      box-shadow:var(--shadow);
-      z-index:1190;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:12px 14px;
-      font-size:15px;
-      font-weight:700;
-      border:1px solid var(--border);
-    }
+.start { background:green; color:white; }
+.noshow { background:red; color:white; }
+.complete { background:#0d6efd; color:white; }
 
-    #etaBox{
-      position:fixed;
-      top:120px;
-      left:50%;
-      transform:translateX(-50%);
-      min-width:160px;
-      max-width:88%;
-      background:var(--panel-2);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:999px;
-      box-shadow:var(--shadow);
-      z-index:1190;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      padding:9px 14px;
-      font-size:14px;
-      font-weight:700;
-      color:#fff;
-    }
-
-    #map{
-      position:fixed;
-      top:158px;
-      left:0;
-      right:0;
-      bottom:300px;
-      z-index:1;
-    }
-
-    #controls{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:82px;
-      background:var(--panel);
-      z-index:1250;
-      padding:10px 12px 12px;
-      border-top:1px solid var(--border);
-      box-shadow:0 -6px 18px rgba(0,0,0,.22);
-    }
-
-    .btn{
-      width:100%;
-      border:none;
-      border-radius:14px;
-      padding:14px 14px;
-      font-size:15px;
-      font-weight:700;
-      color:#fff;
-      cursor:pointer;
-      margin:0;
-      transition:transform .12s ease, opacity .12s ease, box-shadow .12s ease;
-      box-shadow:0 8px 18px rgba(0,0,0,.18);
-    }
-
-    .btn:active{
-      transform:scale(.985);
-    }
-
-    .btn + .btn,
-    .btn + #waitTimer,
-    .btn + #noShowBox,
-    .btn + #clientDecisionBox,
-    #waitTimer + .btn,
-    #waitTimer + #noShowBox,
-    #waitTimer + #clientDecisionBox,
-    #clientDecisionBox + .btn,
-    #noShowBox + .btn{
-      margin-top:8px;
-    }
-
-    #btnGoogle{
-      display:block;
-      background:#0f172a;
-      border:1px solid var(--gray);
-    }
-
-    #btnGoPickup{
-      display:none;
-      background:var(--blue);
-    }
-
-    #btnArrived{
-      display:none;
-      background:var(--green);
-    }
-
-    #btnStart{
-      display:none;
-      background:#16a34a;
-    }
-
-    #btnComplete{
-      display:none;
-      background:var(--green-2);
-    }
-
-    #btnComplete.enabled{
-      box-shadow:0 0 0 2px rgba(255,255,255,.14) inset, 0 8px 18px rgba(0,0,0,.18);
-    }
-
-    #btnNoShow{
-      display:none;
-      background:var(--red);
-    }
-
-    #btnCallClient{
-      display:none;
-      background:var(--orange);
-    }
-
-    #waitTimer{
-      display:none;
-      width:100%;
-      text-align:center;
-      color:var(--yellow);
-      font-size:24px;
-      font-weight:800;
-      padding:8px 0 4px;
-      letter-spacing:1px;
-    }
-
-    #clientDecisionBox{
-      display:none;
-      flex-direction:column;
-      gap:8px;
-      background:#111827;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:14px;
-      padding:10px;
-    }
-
-    #clientDecisionTitle{
-      font-size:14px;
-      font-weight:700;
-      color:#fff;
-    }
-
-    #btnDismissCall{
-      background:#334155;
-    }
-
-    #noShowBox{
-      display:none;
-      flex-direction:column;
-      gap:8px;
-      background:#111827;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:14px;
-      padding:10px;
-    }
-
-    #noShowTitle{
-      font-size:14px;
-      font-weight:700;
-      color:#fff;
-    }
-
-    #noShowNotes{
-      width:100%;
-      min-height:86px;
-      resize:none;
-      border:none;
-      outline:none;
-      border-radius:12px;
-      padding:12px;
-      font-size:14px;
-      background:#fff;
-      color:#111827;
-      font-family:Arial, Helvetica, sans-serif;
-    }
-
-    #btnCompleteNoShow{
-      background:#b91c1c;
-    }
-
-    .bottom-nav{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      height:82px;
-      padding-bottom:var(--safe-bottom);
-      background:#000;
-      border-top:1px solid var(--border);
-      z-index:1300;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-around;
-      padding-top:8px;
-    }
-
-    .nav-btn{
-      width:20%;
-      background:none;
-      border:none;
-      color:#9ca3af;
-      padding:0;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:flex-start;
-      gap:4px;
-      font-size:11px;
-      font-weight:700;
-      cursor:pointer;
-    }
-
-    .nav-btn .icon{
-      font-size:24px;
-      line-height:1;
-    }
-
-    .nav-btn.active{
-      color:var(--yellow);
-    }
-
-    .leaflet-routing-container,
-    .leaflet-control-attribution{
-      display:none !important;
-    }
-
-    @media (max-width:420px){
-      #driverName{font-size:15px;}
-      #navText{font-size:14px;}
-      #etaBox{font-size:13px;}
-      .btn{font-size:14px;padding:13px 12px;}
-      #map{bottom:320px;}
-    }
-  </style>
+</style>
 </head>
+
 <body>
 
-  <div id="header">
-    <div id="driverName">Driver</div>
-    <div id="datetime"></div>
-  </div>
+<div id="header">Omda hessan</div>
 
-  <div id="navText">Waiting for GPS...</div>
+<div id="client">Loading...</div>
+<div id="status">On the way</div>
 
-  <div id="etaBox">
-    <span id="etaTime">-- min</span>
-    <span>•</span>
-    <span id="etaDistance">-- mi</span>
-  </div>
+<div id="map"></div>
 
-  <div id="map"></div>
+<div id="footer"></div>
 
-  <div id="controls">
-    <button id="btnGoogle" class="btn">Open in Google Maps</button>
-    <button id="btnGoPickup" class="btn">GO TO PICKUP</button>
-    <button id="btnArrived" class="btn">ARRIVED</button>
-    <button id="btnStart" class="btn">START RIDE</button>
-    <button id="btnCallClient" class="btn">CALL CLIENT</button>
-    <button id="btnNoShow" class="btn">NO SHOW</button>
-    <button id="btnComplete" class="btn">COMPLETE</button>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="driver.js"></script>
 
-    <div id="waitTimer">15:00</div>
-
-    <div id="clientDecisionBox">
-      <div id="clientDecisionTitle">Client contacted. Choose action.</div>
-      <button id="btnDismissCall" class="btn">✕ CLOSE</button>
-    </div>
-
-    <div id="noShowBox">
-      <div id="noShowTitle">Enter no show reason</div>
-      <textarea id="noShowNotes" placeholder="Reason for no show"></textarea>
-      <button id="btnCompleteNoShow" class="btn">Complete No Show</button>
-    </div>
-  </div>
-
-  <div class="bottom-nav">
-    <button class="nav-btn" id="navHome" type="button">
-      <span class="icon">🏠</span>
-      <span>Home</span>
-    </button>
-
-    <button class="nav-btn" id="navTrips" type="button">
-      <span class="icon">🚗</span>
-      <span>Trips</span>
-    </button>
-
-    <button class="nav-btn active" id="navMap" type="button">
-      <span class="icon">🗺️</span>
-      <span>Map</span>
-    </button>
-
-    <button class="nav-btn" id="navChat" type="button">
-      <span class="icon">💬</span>
-      <span>Chat</span>
-    </button>
-
-    <button class="nav-btn" id="navLogout" type="button">
-      <span class="icon">🚪</span>
-      <span>Logout</span>
-    </button>
-  </div>
-
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-  <script src="/driver/map.js"></script>
 </body>
 </html>
