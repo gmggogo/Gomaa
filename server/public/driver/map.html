@@ -1,78 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Driver</title>
+<title>Driver Map</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-body { margin:0; font-family:Arial; background:#f5f5f5; }
+body{margin:0;background:#0f172a;color:#fff;font-family:Arial;}
 
-#header {
-  background:#0d6efd;
-  color:white;
+#header{
+  position:fixed;top:0;left:0;right:0;
+  height:55px;background:#020617;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px;z-index:1000;
+}
+
+#driverName{color:#facc15;font-weight:bold;}
+
+#navText{
+  position:fixed;top:60px;left:10px;right:10px;
+  background:#111827;padding:10px;
+  border-radius:10px;text-align:center;
+  z-index:1000;
+}
+
+#clientName{
+  position:fixed;top:105px;left:0;right:0;
+  text-align:center;font-size:18px;
+  font-weight:bold;z-index:1000;
+}
+
+#map{
+  position:fixed;top:140px;bottom:200px;
+  left:0;right:0;
+}
+
+#controls{
+  position:fixed;bottom:80px;left:0;right:0;
+  background:#020617;padding:10px;
+}
+
+button{
+  width:100%;padding:12px;margin-top:5px;
+  border:none;border-radius:10px;
+  font-size:15px;font-weight:bold;
+}
+
+#btnGoogle{background:#000;color:#fff;}
+#btnArrived{background:#22c55e;}
+#btnStart{background:#16a34a;}
+#btnNoShow{background:#dc2626;}
+#btnCall{background:#f59e0b;}
+
+#waitTimer{
   text-align:center;
-  padding:12px;
   font-size:20px;
-  font-weight:bold;
+  color:#facc15;
 }
 
-#client {
-  text-align:center;
-  font-size:22px;
-  font-weight:bold;
-  margin:10px;
-}
-
-#status {
-  text-align:center;
-  font-size:16px;
-  margin-bottom:5px;
-}
-
-#map {
-  height:55vh;
-}
-
-#footer {
-  position:fixed;
-  bottom:0;
-  width:100%;
-  background:white;
+textarea{
+  width:100%;height:70px;
+  margin-top:5px;border-radius:8px;
   padding:10px;
-  box-shadow:0 -2px 10px rgba(0,0,0,0.2);
-  text-align:center;
 }
-
-button {
-  padding:12px;
-  margin:5px;
-  font-size:16px;
-  border:none;
-  border-radius:5px;
-}
-
-.start { background:green; color:white; }
-.noshow { background:red; color:white; }
-.complete { background:#0d6efd; color:white; }
-
 </style>
 </head>
 
 <body>
 
-<div id="header">Omda hessan</div>
+<div id="header">
+  <div id="driverName">Driver</div>
+  <div id="datetime"></div>
+</div>
 
-<div id="client">Loading...</div>
-<div id="status">On the way</div>
+<div id="navText">Loading...</div>
+
+<div id="clientName"></div>
 
 <div id="map"></div>
 
-<div id="footer"></div>
+<div id="controls">
+  <button id="btnGoogle">Open Google Maps</button>
+  <button id="btnArrived">ARRIVED</button>
+  <button id="btnStart">START RIDE</button>
+  <button id="btnCall">CALL CLIENT</button>
+  <button id="btnNoShow">NO SHOW</button>
+
+  <div id="waitTimer">15:00</div>
+
+  <div id="noShowBox">
+    <textarea id="noShowNotes"></textarea>
+    <button id="btnSaveNoShow">Save No Show</button>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="driver.js"></script>
+<script src="map.js"></script>
 
 </body>
 </html>
