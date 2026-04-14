@@ -1,136 +1,138 @@
-const urlParams = new URLSearchParams(window.location.search);
-const TRIP_ID = urlParams.get("tripId");
+// ================= AUTH =================
+const driver = JSON.parse(localStorage.getItem("user") || "{}");
+const DRIVER_ID = driver._id;
+const DRIVER_NAME = driver.name || "Driver";
 
-let tripDoc = null;
+document.getElementById("driverName").innerText = DRIVER_NAME;
 
-let map = L.map('map').setView([33.4484,-112.0740],13);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-let driverMarker;
-let routeLine;
-
-let driverLat, driverLng;
-
-let arrived=false;
-let started=false;
-let timerInterval=null;
-
-const btnArrived = document.getElementById("btnArrived");
+// ================= DOM =================
+const btnGoPickup = document.getElementById("btnGoPickup");
+const btnGoogle = document.getElementById("btnGoogle");
 const btnStart = document.getElementById("btnStart");
-const btnCall = document.getElementById("btnCall");
+const btnComplete = document.getElementById("btnComplete");
 const btnNoShow = document.getElementById("btnNoShow");
-const waitTimer = document.getElementById("waitTimer");
+const btnCall = document.getElementById("btnCall");
+const btnCancel = document.getElementById("btnCancel");
+const waitTimerEl = document.getElementById("waitTimer");
+const navTextEl = document.getElementById("navText");
 
-const noShowBox = document.getElementById("noShowBox");
-const btnSaveNoShow = document.getElementById("btnSaveNoShow");
+// ================= MAP =================
+const map = L.map("map").setView([33.4484, -112.0740], 13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-function hideAll(){
-  btnArrived.style.display="none";
-  btnStart.style.display="none";
-  btnCall.style.display="none";
-  btnNoShow.style.display="none";
-  noShowBox.style.display="none";
+let routeControl = null;
+
+// ================= STATE =================
+let arrived = false;
+let started = false;
+let completed = false;
+
+// ================= SAMPLE DATA =================
+let pickupLat = 33.45;
+let pickupLng = -112.07;
+let dropLat = 33.46;
+let dropLng = -112.06;
+
+// ================= ROUTE =================
+function drawRoute(lat,lng,toLat,toLng){
+  if(routeControl) map.removeControl(routeControl);
+
+  routeControl = L.Routing.control({
+    waypoints:[
+      L.latLng(lat,lng),
+      L.latLng(toLat,toLng)
+    ],
+    createMarker:()=>null
+  }).addTo(map);
 }
 
-hideAll();
-
-async function loadTrip(){
-  const res = await fetch(`/api/trips/${TRIP_ID}`);
-  tripDoc = await res.json();
-
-  document.getElementById("clientName").innerText = tripDoc.clientName;
+// ================= GOOGLE =================
+function openGoogle(){
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${pickupLat},${pickupLng}`);
 }
+
+// ================= TIMER =================
+let timerInt=null;
 
 function startTimer(){
-  const tripTime = new Date(tripDoc.tripDate + "T" + tripDoc.tripTime);
+  const tripTime = new Date(Date.now()+60000); // مثال
 
-  timerInterval = setInterval(()=>{
-    const diff = (Date.now() - tripTime)/1000;
+  function update(){
+    const diff = Math.floor((tripTime - new Date())/1000);
 
-    const remaining = Math.max(0,900 - diff);
-
-    const m = Math.floor(remaining/60);
-    const s = Math.floor(remaining%60);
-
-    waitTimer.innerText =
-      `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-
-    if(remaining<=0){
+    if(diff>0){
+      waitTimerEl.innerText = diff+"s";
+    }else{
+      waitTimerEl.innerText = "WAITING";
       btnCall.style.display="block";
+      btnCancel.style.display="block";
     }
-
-  },1000);
-}
-
-function distance(a,b,c,d){
-  const R=6371e3;
-  const dLat=(c-a)*Math.PI/180;
-  const dLon=(d-b)*Math.PI/180;
-
-  const x=Math.sin(dLat/2)**2 +
-  Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;
-
-  return R*(2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
-}
-
-navigator.geolocation.watchPosition(async(pos)=>{
-
-  driverLat=pos.coords.latitude;
-  driverLng=pos.coords.longitude;
-
-  if(!driverMarker){
-    driverMarker=L.marker([driverLat,driverLng]).addTo(map);
-  }else{
-    driverMarker.setLatLng([driverLat,driverLng]);
   }
+
+  timerInt=setInterval(update,1000);
+}
+
+// ================= GPS =================
+navigator.geolocation.watchPosition(pos=>{
+  const lat=pos.coords.latitude;
+  const lng=pos.coords.longitude;
+
+  drawRoute(lat,lng,pickupLat,pickupLng);
+
+  const d = Math.sqrt((lat-pickupLat)**2 + (lng-pickupLng)**2);
 
   if(!arrived){
-    const d = distance(driverLat,driverLng,tripDoc.pickupLat,tripDoc.pickupLng);
+    navTextEl.innerText="On the way";
 
-    if(d<=800){
+    if(d<=0.01){
       arrived=true;
-      btnArrived.style.display="block";
+
+      btnStart.style.display="block";
+      btnNoShow.style.display="block";
+      waitTimerEl.style.display="block";
+
+      startTimer();
+
+      navTextEl.innerText="Arrived";
     }
   }
 
-},{enableHighAccuracy:true});
+  if(started){
+    drawRoute(lat,lng,dropLat,dropLng);
 
-btnArrived.onclick=()=>{
-  btnArrived.style.display="none";
-  btnStart.style.display="block";
-  startTimer();
-};
+    const d2 = Math.sqrt((lat-dropLat)**2 + (lng-dropLng)**2);
 
-btnCall.onclick=()=>{
-  window.location.href=`tel:${tripDoc.clientPhone}`;
-  btnNoShow.style.display="block";
-};
+    if(d2<=0.01){
+      btnComplete.style.display="block";
+    }
+  }
+
+});
+
+// ================= BUTTONS =================
+btnGoPickup.onclick=()=>openGoogle();
+btnGoogle.onclick=()=>openGoogle();
 
 btnStart.onclick=()=>{
   started=true;
   btnStart.style.display="none";
+  btnNoShow.style.display="none";
+  navTextEl.innerText="Go to dropoff";
 };
 
-btnNoShow.onclick=()=>{
-  noShowBox.style.display="block";
-};
-
-btnSaveNoShow.onclick=async()=>{
-  const note=document.getElementById("noShowNotes").value;
-
-  await fetch(`/api/trips/${TRIP_ID}`,{
-    method:"PUT",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({status:"NoShow",note})
-  });
-
-  alert("No Show Saved");
+btnComplete.onclick=()=>{
+  alert("Trip Completed");
   location.href="/driver/trips.html";
 };
 
-document.getElementById("btnGoogle").onclick=()=>{
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${tripDoc.pickupLat},${tripDoc.pickupLng}`);
+btnNoShow.onclick=()=>{
+  document.getElementById("noShowBox").style.display="block";
 };
 
-loadTrip();
+btnCall.onclick=()=>{
+  alert("Calling...");
+};
+
+btnCancel.onclick=()=>{
+  alert("Closed");
+};

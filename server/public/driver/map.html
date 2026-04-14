@@ -1,71 +1,31 @@
-<!DOCTYPE html>
+انتا <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Driver Map</title>
+<meta charset="UTF-8" />
+<title>Sunbeam Driver Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
 
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial;}
-
-#header{
-  position:fixed;top:0;left:0;right:0;
-  height:55px;background:#020617;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:10px;z-index:1000;
-}
-
+#header{position:fixed;top:0;left:0;right:0;height:56px;background:#020617;display:flex;justify-content:space-between;align-items:center;padding:0 10px;z-index:1000;}
 #driverName{color:#facc15;font-weight:bold;}
-
-#navText{
-  position:fixed;top:60px;left:10px;right:10px;
-  background:#111827;padding:10px;
-  border-radius:10px;text-align:center;
-  z-index:1000;
-}
-
-#clientName{
-  position:fixed;top:105px;left:0;right:0;
-  text-align:center;font-size:18px;
-  font-weight:bold;z-index:1000;
-}
-
-#map{
-  position:fixed;top:140px;bottom:200px;
-  left:0;right:0;
-}
-
-#controls{
-  position:fixed;bottom:80px;left:0;right:0;
-  background:#020617;padding:10px;
-}
-
-button{
-  width:100%;padding:12px;margin-top:5px;
-  border:none;border-radius:10px;
-  font-size:15px;font-weight:bold;
-}
-
-#btnGoogle{background:#000;color:#fff;}
-#btnArrived{background:#22c55e;}
-#btnStart{background:#16a34a;}
-#btnNoShow{background:#dc2626;}
-#btnCall{background:#f59e0b;}
-
-#waitTimer{
-  text-align:center;
-  font-size:20px;
-  color:#facc15;
-}
-
-textarea{
-  width:100%;height:70px;
-  margin-top:5px;border-radius:8px;
-  padding:10px;
-}
+#navText{position:fixed;top:60px;left:10px;right:10px;background:#111827;padding:10px;border-radius:10px;text-align:center;font-weight:bold;}
+#map{position:fixed;top:120px;bottom:260px;left:0;right:0;}
+#controls{position:fixed;bottom:80px;left:0;right:0;background:#020617;padding:10px;}
+.btn{width:100%;margin-top:6px;padding:12px;border:none;border-radius:10px;font-weight:bold;color:#fff;}
+#btnGoPickup{background:#2563eb;}
+#btnGoogle{background:#111827;}
+#btnStart{display:none;background:#16a34a;}
+#btnComplete{display:none;background:#059669;}
+#btnNoShow{display:none;background:#dc2626;}
+#btnCall{display:none;background:#facc15;color:#000;}
+#btnCancel{display:none;background:#374151;}
+#waitTimer{display:none;text-align:center;color:#facc15;font-size:20px;}
+#noShowBox{display:none;}
+#noShowNotes{width:100%;height:80px;}
 </style>
 </head>
 
@@ -78,27 +38,32 @@ textarea{
 
 <div id="navText">Loading...</div>
 
-<div id="clientName"></div>
-
 <div id="map"></div>
 
 <div id="controls">
-  <button id="btnGoogle">Open Google Maps</button>
-  <button id="btnArrived">ARRIVED</button>
-  <button id="btnStart">START RIDE</button>
-  <button id="btnCall">CALL CLIENT</button>
-  <button id="btnNoShow">NO SHOW</button>
 
-  <div id="waitTimer">15:00</div>
+<button id="btnGoPickup" class="btn">GO TO PICKUP</button>
+<button id="btnGoogle" class="btn">Open Google Maps</button>
 
-  <div id="noShowBox">
-    <textarea id="noShowNotes"></textarea>
-    <button id="btnSaveNoShow">Save No Show</button>
-  </div>
+<button id="btnStart" class="btn">START RIDE</button>
+<button id="btnComplete" class="btn">COMPLETE</button>
+<button id="btnNoShow" class="btn">NO SHOW</button>
+
+<div id="waitTimer">--:--</div>
+
+<button id="btnCall" class="btn">CALL CLIENT</button>
+<button id="btnCancel" class="btn">CLOSE</button>
+
+<div id="noShowBox">
+<textarea id="noShowNotes"></textarea>
+<button id="btnCompleteNoShow" class="btn">Complete No Show</button>
+</div>
+
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="map.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script src="/driver/map.js"></script>
 
 </body>
-</html>
+</html>الله
