@@ -1,31 +1,112 @@
-انتا <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <title>Sunbeam Driver Map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
 
 <style>
-body{margin:0;background:#0f172a;color:#fff;font-family:Arial;}
-#header{position:fixed;top:0;left:0;right:0;height:56px;background:#020617;display:flex;justify-content:space-between;align-items:center;padding:0 10px;z-index:1000;}
-#driverName{color:#facc15;font-weight:bold;}
-#navText{position:fixed;top:60px;left:10px;right:10px;background:#111827;padding:10px;border-radius:10px;text-align:center;font-weight:bold;}
-#map{position:fixed;top:120px;bottom:260px;left:0;right:0;}
-#controls{position:fixed;bottom:80px;left:0;right:0;background:#020617;padding:10px;}
-.btn{width:100%;margin-top:6px;padding:12px;border:none;border-radius:10px;font-weight:bold;color:#fff;}
-#btnGoPickup{background:#2563eb;}
-#btnGoogle{background:#111827;}
-#btnStart{display:none;background:#16a34a;}
-#btnComplete{display:none;background:#059669;}
-#btnNoShow{display:none;background:#dc2626;}
-#btnCall{display:none;background:#facc15;color:#000;}
-#btnCancel{display:none;background:#374151;}
-#waitTimer{display:none;text-align:center;color:#facc15;font-size:20px;}
-#noShowBox{display:none;}
-#noShowNotes{width:100%;height:80px;}
+:root{
+  --bg:#0f172a;
+  --panel:#020617;
+  --panel-2:#111827;
+  --text:#fff;
+  --yellow:#facc15;
+  --blue:#2563eb;
+  --green:#22c55e;
+  --green-2:#059669;
+  --red:#dc2626;
+}
+
+html,body{
+  margin:0;
+  height:100%;
+  background:var(--bg);
+  color:#fff;
+  font-family:Arial;
+  overflow:hidden;
+}
+
+/* HEADER */
+#header{
+  position:fixed;
+  top:0;
+  width:100%;
+  height:56px;
+  background:var(--panel);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 12px;
+  z-index:1000;
+}
+
+#driverName{color:var(--yellow);font-weight:bold;}
+#datetime{font-size:12px;}
+
+/* NAV TEXT */
+#navText{
+  position:fixed;
+  top:64px;
+  left:10px;
+  right:10px;
+  background:var(--panel);
+  padding:10px;
+  border-radius:12px;
+  text-align:center;
+  font-weight:bold;
+}
+
+/* MAP */
+#map{
+  position:fixed;
+  top:130px;
+  bottom:240px;
+  width:100%;
+}
+
+/* CONTROLS */
+#controls{
+  position:fixed;
+  bottom:82px;
+  width:100%;
+  background:var(--panel);
+  padding:10px;
+}
+
+.btn{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  margin-top:8px;
+}
+
+#btnGoogle{background:#111;}
+#btnGoPickup{background:var(--blue);}
+#btnArrived{background:var(--green);}
+#btnStart{background:#16a34a;}
+#btnNoShow{background:var(--red);}
+#btnComplete{background:var(--green-2);}
+
+#waitTimer{
+  display:none;
+  text-align:center;
+  color:var(--yellow);
+  font-size:22px;
+  margin-top:10px;
+}
+
+/* NAV PLACE */
+#driverNav{
+  position:fixed;
+  bottom:0;
+  width:100%;
+}
 </style>
 </head>
 
@@ -41,29 +122,23 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial;}
 <div id="map"></div>
 
 <div id="controls">
-
-<button id="btnGoPickup" class="btn">GO TO PICKUP</button>
-<button id="btnGoogle" class="btn">Open Google Maps</button>
-
-<button id="btnStart" class="btn">START RIDE</button>
-<button id="btnComplete" class="btn">COMPLETE</button>
-<button id="btnNoShow" class="btn">NO SHOW</button>
-
-<div id="waitTimer">--:--</div>
-
-<button id="btnCall" class="btn">CALL CLIENT</button>
-<button id="btnCancel" class="btn">CLOSE</button>
-
-<div id="noShowBox">
-<textarea id="noShowNotes"></textarea>
-<button id="btnCompleteNoShow" class="btn">Complete No Show</button>
+  <button id="btnGoogle" class="btn">Open Google Maps</button>
+  <button id="btnGoPickup" class="btn">GO TO PICKUP</button>
+  <button id="btnArrived" class="btn">ARRIVED</button>
+  <button id="btnStart" class="btn">START RIDE</button>
+  <button id="btnNoShow" class="btn">NO SHOW</button>
+  <button id="btnComplete" class="btn">COMPLETE</button>
+  <div id="waitTimer">15:00</div>
 </div>
 
-</div>
+<!-- NAV -->
+<div id="driverNav"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+<script src="/driver/driver-nav.js"></script>
 <script src="/driver/map.js"></script>
 
 </body>
-</html>الله
+</html>

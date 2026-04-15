@@ -1,123 +1,81 @@
-// ================= AUTH =================
-const driver = JSON.parse(localStorage.getItem("user") || "{}");
+console.log("MAP FINAL");
+
+/* ================= AUTH ================= */
+const driver = JSON.parse(localStorage.getItem("loggedDriver") || "{}");
 const DRIVER_ID = driver._id;
-const DRIVER_NAME = driver.name || "Driver";
+document.getElementById("driverName").innerText = driver.name || "Driver";
 
-document.getElementById("driverName").innerText = DRIVER_NAME;
+/* ================= TIME ================= */
+setInterval(()=>{
+  document.getElementById("datetime").innerText =
+    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"});
+},1000);
 
-// ================= DOM =================
-const btnGoPickup = document.getElementById("btnGoPickup");
-const btnGoogle = document.getElementById("btnGoogle");
-const btnStart = document.getElementById("btnStart");
-const btnComplete = document.getElementById("btnComplete");
-const btnNoShow = document.getElementById("btnNoShow");
-const btnCall = document.getElementById("btnCall");
-const btnCancel = document.getElementById("btnCancel");
-const waitTimerEl = document.getElementById("waitTimer");
-const navTextEl = document.getElementById("navText");
+/* ================= STATE ================= */
+let arrived=false;
+let started=false;
+let called=false;
+let wait=900;
+let timer=null;
 
-// ================= MAP =================
-const map = L.map("map").setView([33.4484, -112.0740], 13);
+/* ================= UI ================= */
+const btnGoPickup=document.getElementById("btnGoPickup");
+const btnArrived=document.getElementById("btnArrived");
+const btnStart=document.getElementById("btnStart");
+const btnNoShow=document.getElementById("btnNoShow");
+const btnComplete=document.getElementById("btnComplete");
+const btnGoogle=document.getElementById("btnGoogle");
+const navText=document.getElementById("navText");
+const waitTimer=document.getElementById("waitTimer");
+
+/* ================= MAP ================= */
+const map=L.map("map").setView([33.45,-112.07],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let routeControl = null;
+/* ================= FLOW ================= */
 
-// ================= STATE =================
-let arrived = false;
-let started = false;
-let completed = false;
+btnGoPickup.onclick=()=>{
+  navText.innerText="Go to pickup";
+  btnArrived.style.display="block";
+  btnGoPickup.style.display="none";
+};
 
-// ================= SAMPLE DATA =================
-let pickupLat = 33.45;
-let pickupLng = -112.07;
-let dropLat = 33.46;
-let dropLng = -112.06;
+btnArrived.onclick=()=>{
+  arrived=true;
+  navText.innerText="Waiting passenger";
 
-// ================= ROUTE =================
-function drawRoute(lat,lng,toLat,toLng){
-  if(routeControl) map.removeControl(routeControl);
+  btnArrived.style.display="none";
+  btnStart.style.display="block";
+  btnNoShow.style.display="block";
 
-  routeControl = L.Routing.control({
-    waypoints:[
-      L.latLng(lat,lng),
-      L.latLng(toLat,toLng)
-    ],
-    createMarker:()=>null
-  }).addTo(map);
-}
-
-// ================= GOOGLE =================
-function openGoogle(){
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${pickupLat},${pickupLng}`);
-}
-
-// ================= TIMER =================
-let timerInt=null;
-
-function startTimer(){
-  const tripTime = new Date(Date.now()+60000); // مثال
-
-  function update(){
-    const diff = Math.floor((tripTime - new Date())/1000);
-
-    if(diff>0){
-      waitTimerEl.innerText = diff+"s";
-    }else{
-      waitTimerEl.innerText = "WAITING";
-      btnCall.style.display="block";
-      btnCancel.style.display="block";
-    }
-  }
-
-  timerInt=setInterval(update,1000);
-}
-
-// ================= GPS =================
-navigator.geolocation.watchPosition(pos=>{
-  const lat=pos.coords.latitude;
-  const lng=pos.coords.longitude;
-
-  drawRoute(lat,lng,pickupLat,pickupLng);
-
-  const d = Math.sqrt((lat-pickupLat)**2 + (lng-pickupLng)**2);
-
-  if(!arrived){
-    navTextEl.innerText="On the way";
-
-    if(d<=0.01){
-      arrived=true;
-
-      btnStart.style.display="block";
-      btnNoShow.style.display="block";
-      waitTimerEl.style.display="block";
-
-      startTimer();
-
-      navTextEl.innerText="Arrived";
-    }
-  }
-
-  if(started){
-    drawRoute(lat,lng,dropLat,dropLng);
-
-    const d2 = Math.sqrt((lat-dropLat)**2 + (lng-dropLng)**2);
-
-    if(d2<=0.01){
-      btnComplete.style.display="block";
-    }
-  }
-
-});
-
-// ================= BUTTONS =================
-btnGoPickup.onclick=()=>openGoogle();
-btnGoogle.onclick=()=>openGoogle();
+  startTimer();
+};
 
 btnStart.onclick=()=>{
+  if(wait<=0 && !called){
+    alert("Call client first");
+    return;
+  }
+
   started=true;
+  navText.innerText="Go to dropoff";
+
   btnStart.style.display="none";
   btnNoShow.style.display="none";
-  navTextEl.innerText="Go to dropoff";
+  btnComplete.style.display="block";
+};
+
+btnNoShow.onclick=()=>{
+  if(wait>0){
+    alert("Wait timer must finish");
+    return;
+  }
+
+  const reason=prompt("Reason?");
+  if(!reason)return;
+
+  alert("No Show Done");
+  location.href="/driver/trips.html";
 };
 
 btnComplete.onclick=()=>{
@@ -125,14 +83,38 @@ btnComplete.onclick=()=>{
   location.href="/driver/trips.html";
 };
 
-btnNoShow.onclick=()=>{
-  document.getElementById("noShowBox").style.display="block";
-};
+/* ================= TIMER ================= */
 
-btnCall.onclick=()=>{
-  alert("Calling...");
-};
+function startTimer(){
+  waitTimer.style.display="block";
 
-btnCancel.onclick=()=>{
-  alert("Closed");
-};
+  timer=setInterval(()=>{
+    wait--;
+
+    let m=Math.floor(wait/60);
+    let s=wait%60;
+
+    waitTimer.innerText=`${m}:${s}`;
+
+    if(wait<=0){
+      clearInterval(timer);
+      waitTimer.innerText="CALL CLIENT";
+
+      btnStart.style.display="none";
+      btnNoShow.style.display="none";
+
+      btnGoogle.innerText="CALL CLIENT";
+      btnGoogle.onclick=()=>{
+        called=true;
+        alert("Client Called");
+
+        btnStart.style.display="block";
+        btnNoShow.style.display="block";
+      };
+    }
+
+  },1000);
+}
+
+/* ================= NAV ================= */
+loadDriverNav("map");
