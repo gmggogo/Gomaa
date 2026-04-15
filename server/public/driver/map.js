@@ -1,10 +1,12 @@
 /* =====================================================
-   SUNBEAM DRIVER MAP – COMPLETE FINAL (FIXED TIMER)
+   SUNBEAM DRIVER MAP – COMPLETE FINAL (FIXED PERSISTENT TIMER)
 ===================================================== */
 
 console.log("Sunbeam driver map final loaded");
 
-/* ================= AUTH ================= */
+/* ===============================
+   AUTH
+================================ */
 const rawDriver =
   localStorage.getItem("loggedDriver") ||
   localStorage.getItem("user");
@@ -13,11 +15,28 @@ if (!rawDriver) {
   window.location.href = "/driver/login.html";
 }
 
-let driver = JSON.parse(rawDriver);
+let driver = {};
+try {
+  driver = JSON.parse(rawDriver);
+} catch (err) {
+  console.log("Driver parse error:", err);
+  window.location.href = "/driver/login.html";
+}
+
 const DRIVER_ID = String(driver._id || driver.id || "");
 const DRIVER_NAME = driver.name || driver.username || "Driver";
 
-/* ================= DOM ================= */
+/* ===============================
+   DOM
+================================ */
+const driverNameEl = document.getElementById("driverName");
+const datetimeEl = document.getElementById("datetime");
+const navTextEl = document.getElementById("navText");
+
+const etaBox = document.getElementById("etaBox");
+const etaTimeEl = document.getElementById("etaTime");
+const etaDistanceEl = document.getElementById("etaDistance");
+
 const btnGoPickup = document.getElementById("btnGoPickup");
 const btnGoDropoff = document.getElementById("btnGoDropoff");
 const btnGoogle = document.getElementById("btnGoogle");
@@ -33,219 +52,922 @@ const btnCloseNoShow = document.getElementById("btnCloseNoShow");
 const noShowNotes = document.getElementById("noShowNotes");
 const btnCompleteNoShow = document.getElementById("btnCompleteNoShow");
 
-/* ================= STATE ================= */
-let driverLat, driverLng;
-let pickupLat, pickupLng, dropLat, dropLng;
+const navHome = document.getElementById("navHome");
+const navTrips = document.getElementById("navTrips");
+const navMap = document.getElementById("navMap");
+const navChat = document.getElementById("navChat");
+const navLogout = document.getElementById("navLogout");
+
+/* ===============================
+   PAGE / TRIP
+================================ */
+const urlParams = new URLSearchParams(window.location.search);
+const TRIP_ID = String(urlParams.get("tripId") || "");
+
+let tripDoc = null;
+let clientPhone = "";
+let tripDateTime = null;
+
+let pickupLat = null;
+let pickupLng = null;
+let dropLat = null;
+let dropLng = null;
+
+let hasPickup = false;
+let hasDropoff = false;
+
+/* ===============================
+   STATE
+================================ */
+let map = null;
+let driverMarker = null;
+let pickupMarker = null;
+let dropoffMarker = null;
+let routeControl = null;
+let firstFix = true;
+
+let driverLat = null;
+let driverLng = null;
 
 let arrived = false;
 let started = false;
 let completed = false;
 let noShowDone = false;
 let calledClient = false;
+let autoArrivedDone = false;
+let waitingForTripTime = false;
 
-/* 🔥 TIMER FIX */
-let timerStartTime = null;
+let routeMode = "pickup"; // pickup | preview_dropoff | dropoff_live
+let lastRouteRefresh = 0;
+const ROUTE_REFRESH_MS = 4000;
+
+/* ===== TIMER STATE ===== */
 let waitInterval = null;
+let tripTimeWatcher = null;
+let timerStartTime = null; // absolute timestamp
+const WAIT_DURATION_SECONDS = 900;
 
-/* ================= MAP ================= */
-let map = L.map("map").setView([33.45, -112.07], 13);
+/* ===============================
+   UI BASICS
+================================ */
+if (driverNameEl) driverNameEl.innerText = DRIVER_NAME;
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+function updateClock() {
+  if (!datetimeEl) return;
+  datetimeEl.innerText = new Date().toLocaleString("en-US", {
+    timeZone: "America/Phoenix"
+  });
+}
+updateClock();
+setInterval(updateClock, 1000);
 
-let driverMarker = L.marker([33.45, -112.07]).addTo(map);
-let route;
-
-/* ================= HELPERS ================= */
-function show(el){ if(el) el.style.display="block"; }
-function hide(el){ if(el) el.style.display="none"; }
-
-function resetUI(){
-  hide(btnGoPickup);
-  hide(btnGoDropoff);
-  hide(btnGoogle);
-  hide(btnStart);
-  hide(btnCallClient);
-  hide(btnNoShow);
-  hide(btnComplete);
-  hide(noShowBox);
+function setNavText(text) {
+  if (navTextEl) navTextEl.innerText = text;
 }
 
-function draw(a,b,c,d){
-  if(route) map.removeControl(route);
-
-  route = L.Routing.control({
-    waypoints:[L.latLng(a,b),L.latLng(c,d)],
-    addWaypoints:false,
-    show:false,
-    createMarker:()=>null
-  }).addTo(map);
+function showEl(el, display = "block") {
+  if (el) el.style.display = display;
 }
 
-function dist(a,b,c,d){
-  let R=3958;
-  let dLat=(c-a)*Math.PI/180;
-  let dLon=(d-b)*Math.PI/180;
-  let x=Math.sin(dLat/2)**2 + Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R*(2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
+function hideEl(el) {
+  if (el) el.style.display = "none";
 }
 
-/* ================= TIMER ================= */
-function startTimer(){
+function hideETA() {
+  if (etaBox) etaBox.style.display = "none";
+}
 
-  if(!timerStartTime){
-    timerStartTime = Date.now();
-    localStorage.setItem("timerStart", timerStartTime);
+function showETA(timeMin, distanceMi) {
+  if (!etaBox || !etaTimeEl || !etaDistanceEl) return;
+  etaTimeEl.innerText = `${timeMin} min`;
+  etaDistanceEl.innerText = `${distanceMi} mi`;
+  etaBox.style.display = "flex";
+}
+
+function hideAllMainButtons() {
+  hideEl(btnGoPickup);
+  hideEl(btnGoDropoff);
+  hideEl(btnGoogle);
+  hideEl(btnStart);
+  hideEl(btnCallClient);
+  hideEl(btnNoShow);
+  hideEl(btnComplete);
+}
+
+function resetNoShowBox() {
+  hideEl(noShowBox);
+  if (noShowNotes) noShowNotes.value = "";
+}
+
+function resetUI() {
+  hideAllMainButtons();
+  hideEl(waitTimerEl);
+  resetNoShowBox();
+  hideETA();
+  if (btnComplete) btnComplete.classList.remove("enabled");
+}
+
+function finishUI() {
+  resetUI();
+  stopTimer(true);
+  clearRoute();
+}
+
+/* ===============================
+   TIME LOGIC
+================================ */
+function buildTripDateTime(trip) {
+  if (!trip) return null;
+
+  if (trip.tripDate && trip.tripTime) {
+    const d = new Date(`${trip.tripDate}T${trip.tripTime}`);
+    if (!Number.isNaN(d.getTime())) return d;
   }
 
-  show(waitTimerEl);
+  if (trip.tripTime) {
+    const d = new Date(trip.tripTime);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
 
-  if(waitInterval) clearInterval(waitInterval);
+  return null;
+}
 
-  waitInterval = setInterval(()=>{
+function isTripTimeStarted() {
+  if (!tripDateTime) return true;
+  return new Date() >= tripDateTime;
+}
 
-    let elapsed = Math.floor((Date.now() - timerStartTime)/1000);
-    let remaining = 900 - elapsed;
+function formatTimer(sec) {
+  const safe = Math.max(0, sec);
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
-    if(remaining <= 0){
+function getTimerStorageKey() {
+  return `sunbeam_timer_start_${TRIP_ID || "no_trip"}`;
+}
+
+function getTimerRemainingSeconds() {
+  if (!timerStartTime) return WAIT_DURATION_SECONDS;
+  const elapsed = Math.floor((Date.now() - timerStartTime) / 1000);
+  return Math.max(0, WAIT_DURATION_SECONDS - elapsed);
+}
+
+function hasTimerExpired() {
+  return getTimerRemainingSeconds() <= 0;
+}
+
+function clearTimerWatcher() {
+  if (tripTimeWatcher) {
+    clearInterval(tripTimeWatcher);
+    tripTimeWatcher = null;
+  }
+}
+
+function stopTimer(clearSaved = false) {
+  if (waitInterval) {
+    clearInterval(waitInterval);
+    waitInterval = null;
+  }
+
+  clearTimerWatcher();
+  waitingForTripTime = false;
+
+  if (clearSaved) {
+    timerStartTime = null;
+    localStorage.removeItem(getTimerStorageKey());
+  }
+
+  if (waitTimerEl) {
+    waitTimerEl.innerText = "15:00";
+    hideEl(waitTimerEl);
+  }
+}
+
+function startTimer() {
+  if (!waitTimerEl || started || completed || noShowDone) return;
+
+  if (!timerStartTime) {
+    timerStartTime = Date.now();
+    localStorage.setItem(getTimerStorageKey(), String(timerStartTime));
+  }
+
+  showEl(waitTimerEl);
+
+  if (waitInterval) clearInterval(waitInterval);
+
+  const tick = () => {
+    const remaining = getTimerRemainingSeconds();
+
+    if (remaining <= 0) {
       waitTimerEl.innerText = "TIME UP";
 
-      clearInterval(waitInterval);
+      if (waitInterval) {
+        clearInterval(waitInterval);
+        waitInterval = null;
+      }
 
-      hide(btnStart);
-      hide(btnNoShow);
-      show(btnCallClient);
+      hideEl(btnStart);
+      hideEl(btnNoShow);
+      showEl(btnCallClient);
+      setNavText("Call client first");
       return;
     }
 
-    let m=Math.floor(remaining/60);
-    let s=remaining%60;
+    waitTimerEl.innerText = formatTimer(remaining);
+  };
 
-    waitTimerEl.innerText =
-      `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-
-  },1000);
+  tick();
+  waitInterval = setInterval(tick, 1000);
 }
 
-function loadTimer(){
-  let saved = localStorage.getItem("timerStart");
-  if(saved){
-    timerStartTime = parseInt(saved);
-    startTimer();
+function restoreSavedTimerIfAny() {
+  const saved = localStorage.getItem(getTimerStorageKey());
+  if (!saved) return;
+
+  const parsed = parseInt(saved, 10);
+  if (!Number.isFinite(parsed)) {
+    localStorage.removeItem(getTimerStorageKey());
+    return;
   }
+
+  timerStartTime = parsed;
 }
 
-function stopTimer(){
-  if(waitInterval) clearInterval(waitInterval);
-  timerStartTime = null;
-  localStorage.removeItem("timerStart");
-}
+function watchTripTimeThenStartTimer() {
+  clearTimerWatcher();
 
-/* ================= GPS ================= */
-navigator.geolocation.watchPosition(pos=>{
+  waitingForTripTime = true;
+  tripTimeWatcher = setInterval(() => {
+    if (completed || noShowDone || started) {
+      clearTimerWatcher();
+      waitingForTripTime = false;
+      return;
+    }
 
-  driverLat = pos.coords.latitude;
-  driverLng = pos.coords.longitude;
-
-  driverMarker.setLatLng([driverLat, driverLng]);
-
-  let dPickup = dist(driverLat,driverLng,pickupLat,pickupLng);
-  let dDrop = dist(driverLat,driverLng,dropLat,dropLng);
-
-  /* BEFORE ARRIVED */
-  if(!arrived){
-
-    draw(driverLat,driverLng,pickupLat,pickupLng);
-
-    resetUI();
-    show(btnGoPickup);
-    show(btnGoogle);
-
-    if(dPickup <= 0.5){
-      arrived = true;
-
-      resetUI();
-      show(btnStart);
-      show(btnNoShow);
-
+    if (arrived && isTripTimeStarted()) {
+      clearTimerWatcher();
+      waitingForTripTime = false;
+      setNavText("Waiting for passenger");
       startTimer();
     }
+  }, 1000);
+}
 
+/* ===============================
+   DISTANCE / GEO
+================================ */
+function distanceMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function isNearPickup(distance) {
+  return Number.isFinite(distance) && distance <= 0.5;
+}
+
+function isNearDropoff(distance) {
+  return Number.isFinite(distance) && distance <= 0.1;
+}
+
+function fitMapToPoints(points) {
+  if (!map) return;
+
+  const good = points.filter(
+    p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)
+  );
+  if (good.length < 2) return;
+
+  const bounds = L.latLngBounds(good.map(p => [p.lat, p.lng]));
+  map.fitBounds(bounds, { padding: [34, 34] });
+}
+
+/* ===============================
+   ROUTING
+================================ */
+function clearRoute() {
+  if (routeControl && map) {
+    try {
+      map.removeControl(routeControl);
+    } catch (e) {}
+    routeControl = null;
+  }
+}
+
+function updateRouteEtaFromEvent(e) {
+  try {
+    const route = e.routes[0];
+    const distance = (route.summary.totalDistance / 1609.344).toFixed(1);
+    const time = Math.max(1, Math.round(route.summary.totalTime / 60));
+    showETA(time, distance);
+  } catch (err) {
+    console.log("ETA parse error:", err);
+  }
+}
+
+function drawRoute(fromLat, fromLng, toLat, toLng, color = "#2563eb") {
+  if (
+    !map ||
+    !Number.isFinite(fromLat) ||
+    !Number.isFinite(fromLng) ||
+    !Number.isFinite(toLat) ||
+    !Number.isFinite(toLng)
+  ) {
     return;
   }
 
-  /* WAITING */
-  if(arrived && !started){
-
-    draw(pickupLat,pickupLng,dropLat,dropLng);
-
-    resetUI();
-    show(btnStart);
-    show(btnNoShow);
-
+  if (!window.L || !L.Routing || !L.Routing.control) {
+    console.log("Routing lib not loaded");
     return;
   }
 
-  /* STARTED */
-  if(started){
+  const styles = [
+    { color: "#ffffff", weight: 10, opacity: 0.35 },
+    { color, weight: 6, opacity: 0.98 }
+  ];
 
-    draw(driverLat,driverLng,dropLat,dropLng);
-
-    resetUI();
-    show(btnGoDropoff);
-    show(btnGoogle);
-
-    if(dDrop <= 0.1){
-      show(btnComplete);
-    }
+  if (!routeControl) {
+    routeControl = L.Routing.control({
+      waypoints: [
+        L.latLng(fromLat, fromLng),
+        L.latLng(toLat, toLng)
+      ],
+      addWaypoints: false,
+      draggableWaypoints: false,
+      routeWhileDragging: false,
+      fitSelectedRoutes: false,
+      show: false,
+      showAlternatives: false,
+      createMarker: () => null,
+      lineOptions: { styles }
+    })
+      .on("routesfound", updateRouteEtaFromEvent)
+      .addTo(map);
+  } else {
+    routeControl.options.lineOptions.styles = styles;
+    routeControl.setWaypoints([
+      L.latLng(fromLat, fromLng),
+      L.latLng(toLat, toLng)
+    ]);
   }
 
-});
+  fitMapToPoints([
+    { lat: fromLat, lng: fromLng },
+    { lat: toLat, lng: toLng }
+  ]);
+}
 
-/* ================= BUTTONS ================= */
+function drawRouteFlow(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-btnGoogle.onclick = ()=>{
-  let dest = started ? `${dropLat},${dropLng}` : `${pickupLat},${pickupLng}`;
-  window.open(`https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${dest}`);
+  if (routeMode === "pickup" && hasPickup) {
+    drawRoute(lat, lng, pickupLat, pickupLng, "#2563eb");
+    return;
+  }
+
+  if (routeMode === "preview_dropoff" && hasPickup && hasDropoff) {
+    drawRoute(pickupLat, pickupLng, dropLat, dropLng, "#16a34a");
+    return;
+  }
+
+  if (routeMode === "dropoff_live" && hasDropoff) {
+    drawRoute(lat, lng, dropLat, dropLng, "#16a34a");
+  }
+}
+
+/* ===============================
+   API
+================================ */
+async function fetchTrip() {
+  if (!TRIP_ID) {
+    alert("No trip found");
+    window.location.href = "/driver/trips.html";
+    return null;
+  }
+
+  try {
+    const res = await fetch(`/api/trips/${TRIP_ID}`);
+    if (!res.ok) throw new Error("Trip not found");
+    return await res.json();
+  } catch (err) {
+    console.log("fetchTrip error:", err);
+    alert("Error loading trip");
+    window.location.href = "/driver/trips.html";
+    return null;
+  }
+}
+
+async function updateTripStatus(status, extra = {}) {
+  if (!TRIP_ID) return;
+
+  try {
+    await fetch(`/api/trips/${TRIP_ID}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status,
+        ...extra
+      })
+    });
+  } catch (err) {
+    console.log("updateTripStatus error:", err);
+  }
+}
+
+async function sendLocation(lat, lng) {
+  if (!DRIVER_ID) return;
+
+  try {
+    await fetch("/api/driver/location", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        driverId: DRIVER_ID,
+        name: DRIVER_NAME,
+        lat,
+        lng,
+        tripId: TRIP_ID,
+        routeMode,
+        time: Date.now()
+      })
+    });
+  } catch (err) {
+    console.log("sendLocation error:", err);
+  }
+}
+
+/* ===============================
+   GOOGLE MAPS
+================================ */
+function openGoogleMaps() {
+  if (!Number.isFinite(driverLat) || !Number.isFinite(driverLng)) {
+    alert("Waiting for GPS...");
+    return;
+  }
+
+  let destination = "";
+
+  if (routeMode === "dropoff_live" && hasDropoff) {
+    destination = `${dropLat},${dropLng}`;
+  } else if (hasPickup) {
+    destination = `${pickupLat},${pickupLng}`;
+  } else {
+    alert("Trip destination not found");
+    return;
+  }
+
+  const url =
+    `https://www.google.com/maps/dir/?api=1&origin=${driverLat},${driverLng}&destination=${destination}&travelmode=driving`;
+
+  window.open(url, "_blank");
+}
+
+/* ===============================
+   VIEW STATES
+================================ */
+function showPickupState() {
+  resetUI();
+  showEl(btnGoPickup);
+  showEl(btnGoogle);
+  setNavText("Go to pickup");
+}
+
+function showWaitingState() {
+  resetUI();
+  showEl(btnStart);
+  showEl(btnNoShow);
+
+  if (timerStartTime && !hasTimerExpired()) {
+    showEl(waitTimerEl);
+    setNavText("Waiting for passenger");
+  } else if (waitingForTripTime) {
+    setNavText("Waiting until trip time");
+  } else if (calledClient) {
+    setNavText("Client contacted. Choose action");
+  } else if (hasTimerExpired()) {
+    showCallClientState();
+  } else {
+    setNavText("Waiting for passenger");
+  }
+}
+
+function showCallClientState() {
+  resetUI();
+  showEl(btnCallClient);
+  showEl(waitTimerEl);
+  waitTimerEl.innerText = "TIME UP";
+  setNavText("Call client first");
+}
+
+function showNoShowState() {
+  hideEl(btnStart);
+  hideEl(btnNoShow);
+  hideEl(btnCallClient);
+  hideEl(waitTimerEl);
+  showEl(noShowBox, "flex");
+  setNavText("Enter no show reason");
+}
+
+function showDropoffState(canComplete) {
+  resetUI();
+  showEl(btnGoDropoff);
+  showEl(btnGoogle);
+
+  if (canComplete) {
+    showEl(btnComplete);
+    btnComplete.classList.add("enabled");
+    setNavText("Press COMPLETE");
+  } else {
+    btnComplete.classList.remove("enabled");
+    setNavText("Go to dropoff");
+  }
+}
+
+/* ===============================
+   FLOW
+================================ */
+async function autoArriveFlow() {
+  if (autoArrivedDone || arrived || completed || noShowDone) return;
+
+  autoArrivedDone = true;
+  arrived = true;
+  routeMode = "preview_dropoff";
+
+  restoreSavedTimerIfAny();
+
+  resetUI();
+  showEl(btnStart);
+  showEl(btnNoShow);
+
+  if (Number.isFinite(driverLat) && Number.isFinite(driverLng)) {
+    drawRouteFlow(driverLat, driverLng);
+    lastRouteRefresh = Date.now();
+  }
+
+  await updateTripStatus("Arrived");
+
+  if (isTripTimeStarted()) {
+    setNavText("Waiting for passenger");
+    startTimer();
+  } else {
+    setNavText("Waiting until trip time");
+    watchTripTimeThenStartTimer();
+  }
+}
+
+/* ===============================
+   BUTTONS
+================================ */
+btnGoogle.onclick = openGoogleMaps;
+
+btnGoPickup.onclick = () => {
+  setNavText("Go to pickup");
 };
 
-btnStart.onclick = ()=>{
-  let elapsed = Math.floor((Date.now()-timerStartTime)/1000);
+btnGoDropoff.onclick = () => {
+  setNavText("Go to dropoff");
+};
 
-  if(elapsed >= 900 && !calledClient){
+btnStart.onclick = async () => {
+  if (completed || noShowDone) return;
+
+  if (hasTimerExpired() && !calledClient) {
     alert("Call client first");
     return;
   }
 
   started = true;
+  calledClient = false;
+  routeMode = "dropoff_live";
+
+  resetNoShowBox();
+  stopTimer(true);
+  showDropoffState(false);
+
+  if (Number.isFinite(driverLat) && Number.isFinite(driverLng) && hasDropoff) {
+    drawRouteFlow(driverLat, driverLng);
+    lastRouteRefresh = Date.now();
+  }
+
+  await updateTripStatus("InProgress");
 };
 
-btnCallClient.onclick = ()=>{
+btnCallClient.onclick = () => {
+  if (!clientPhone) {
+    alert("Client phone not found");
+    return;
+  }
+
   calledClient = true;
-  hide(btnCallClient);
-  show(btnStart);
-  show(btnNoShow);
+  window.location.href = `tel:${clientPhone}`;
+
+  hideEl(btnCallClient);
+  showEl(btnStart);
+  showEl(btnNoShow);
+  setNavText("Client contacted. Choose action");
 };
 
-btnNoShow.onclick = ()=>{
-  hide(btnStart);
-  hide(btnNoShow);
-  show(noShowBox);
+btnNoShow.onclick = () => {
+  if (completed || noShowDone) return;
+  showNoShowState();
 };
 
-btnCloseNoShow.onclick = ()=>{
-  hide(noShowBox);
-  show(btnStart);
-  show(btnNoShow);
+btnCloseNoShow.onclick = () => {
+  hideEl(noShowBox);
+  showEl(btnStart);
+  showEl(btnNoShow);
+
+  if (timerStartTime && !hasTimerExpired()) {
+    showEl(waitTimerEl);
+    setNavText("Waiting for passenger");
+  } else if (hasTimerExpired() && !calledClient) {
+    showCallClientState();
+  } else if (waitingForTripTime) {
+    setNavText("Waiting until trip time");
+  } else {
+    setNavText("Choose action");
+  }
 };
 
-btnCompleteNoShow.onclick = ()=>{
-  if(!noShowNotes.value) return alert("Enter reason");
+btnCompleteNoShow.onclick = async () => {
+  const reason = (noShowNotes?.value || "").trim();
+
+  if (!reason) {
+    alert("Please enter reason");
+    return;
+  }
+
+  noShowDone = true;
+
+  await updateTripStatus("NoShow", {
+    noShowReason: reason
+  });
+
+  finishUI();
+  setNavText("No show completed");
   alert("No Show Completed");
+  window.location.href = "/driver/trips.html";
 };
 
-btnComplete.onclick = ()=>{
+btnComplete.onclick = async () => {
+  if (!started) return;
+
+  if (!btnComplete.classList.contains("enabled")) {
+    alert("You must be near the dropoff location first");
+    return;
+  }
+
+  completed = true;
+  await updateTripStatus("Completed");
+  finishUI();
+  setNavText("Trip completed");
   alert("Trip Completed");
+  window.location.href = "/driver/trips.html";
 };
 
-/* ================= INIT ================= */
-loadTimer();
+/* ===============================
+   GPS WATCH
+================================ */
+function startGpsWatch() {
+  if (!navigator.geolocation) {
+    alert("GPS not supported");
+    return;
+  }
+
+  navigator.geolocation.watchPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      driverLat = lat;
+      driverLng = lng;
+
+      if (!driverMarker) {
+        driverMarker = L.marker([lat, lng], { icon: driverIcon })
+          .addTo(map)
+          .bindPopup("You");
+      } else {
+        driverMarker.setLatLng([lat, lng]);
+      }
+
+      if (firstFix) {
+        firstFix = false;
+
+        if (hasPickup) {
+          fitMapToPoints([
+            { lat, lng },
+            { lat: pickupLat, lng: pickupLng }
+          ]);
+        } else {
+          map.setView([lat, lng], 15);
+        }
+      }
+
+      await sendLocation(lat, lng);
+
+      if (completed || noShowDone) return;
+
+      const now = Date.now();
+      const dPickup = hasPickup
+        ? distanceMiles(lat, lng, pickupLat, pickupLng)
+        : Infinity;
+      const dDrop = hasDropoff
+        ? distanceMiles(lat, lng, dropLat, dropLng)
+        : Infinity;
+
+      if (!arrived) {
+        if (!routeControl || now - lastRouteRefresh > ROUTE_REFRESH_MS) {
+          routeMode = "pickup";
+          drawRouteFlow(lat, lng);
+          lastRouteRefresh = now;
+        }
+
+        showPickupState();
+
+        if (isNearPickup(dPickup)) {
+          await autoArriveFlow();
+        }
+        return;
+      }
+
+      if (arrived && !started) {
+        if (!routeControl || now - lastRouteRefresh > ROUTE_REFRESH_MS) {
+          routeMode = "preview_dropoff";
+          drawRouteFlow(lat, lng);
+          lastRouteRefresh = now;
+        }
+
+        if (!noShowBox.style.display.includes("flex")) {
+          if (timerStartTime && !hasTimerExpired()) {
+            showWaitingState();
+          } else if (hasTimerExpired() && !calledClient) {
+            showCallClientState();
+          } else {
+            showWaitingState();
+          }
+        }
+        return;
+      }
+
+      if (started) {
+        if (!routeControl || now - lastRouteRefresh > ROUTE_REFRESH_MS) {
+          routeMode = "dropoff_live";
+          drawRouteFlow(lat, lng);
+          lastRouteRefresh = now;
+        }
+
+        const canComplete = isNearDropoff(dDrop);
+        showDropoffState(canComplete);
+      }
+    },
+    err => {
+      console.log("GPS error:", err);
+      alert("Enable GPS");
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 1000,
+      timeout: 10000
+    }
+  );
+}
+
+/* ===============================
+   ICONS
+================================ */
+const driverIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/741/741407.png",
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+  popupAnchor: [0, -16]
+});
+
+const pickupIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+  popupAnchor: [0, -28]
+});
+
+const dropoffIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/1483/1483336.png",
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+  popupAnchor: [0, -28]
+});
+
+/* ===============================
+   MAP INIT
+================================ */
+function initMap() {
+  const defaultCenter = hasPickup
+    ? [pickupLat, pickupLng]
+    : [33.4484, -112.0740];
+
+  map = L.map("map", {
+    zoomControl: true,
+    attributionControl: false
+  }).setView(defaultCenter, 13);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19
+  }).addTo(map);
+
+  setTimeout(() => {
+    try {
+      map.invalidateSize();
+    } catch (e) {}
+  }, 500);
+
+  if (hasPickup) {
+    pickupMarker = L.marker([pickupLat, pickupLng], { icon: pickupIcon })
+      .addTo(map)
+      .bindPopup("Pickup");
+  }
+
+  if (hasDropoff) {
+    dropoffMarker = L.marker([dropLat, dropLng], { icon: dropoffIcon })
+      .addTo(map)
+      .bindPopup("Dropoff");
+  }
+
+  resetUI();
+  setNavText("Waiting for GPS...");
+  startGpsWatch();
+}
+
+/* ===============================
+   LOAD PAGE
+================================ */
+async function initPage() {
+  tripDoc = await fetchTrip();
+  if (!tripDoc) return;
+
+  tripDateTime = buildTripDateTime(tripDoc);
+
+  clientPhone =
+    tripDoc.clientPhone ||
+    tripDoc.entryPhone ||
+    tripDoc.phone ||
+    tripDoc.client_phone ||
+    "";
+
+  pickupLat = parseFloat(tripDoc.pickupLat);
+  pickupLng = parseFloat(tripDoc.pickupLng);
+  dropLat = parseFloat(tripDoc.dropoffLat);
+  dropLng = parseFloat(tripDoc.dropoffLng);
+
+  hasPickup = Number.isFinite(pickupLat) && Number.isFinite(pickupLng);
+  hasDropoff = Number.isFinite(dropLat) && Number.isFinite(dropLng);
+
+  restoreSavedTimerIfAny();
+  initMap();
+}
+
+/* ===============================
+   BOTTOM NAV
+================================ */
+navHome.onclick = () => {
+  window.location.href = "/driver/dashboard.html";
+};
+
+navTrips.onclick = () => {
+  window.location.href = "/driver/trips.html";
+};
+
+navMap.onclick = () => {
+  if (TRIP_ID) {
+    window.location.href = `/driver/map.html?tripId=${TRIP_ID}`;
+  } else {
+    window.location.href = "/driver/trips.html";
+  }
+};
+
+navChat.onclick = () => {
+  alert("Chat coming soon");
+};
+
+navLogout.onclick = () => {
+  localStorage.removeItem("loggedDriver");
+  localStorage.removeItem("user");
+  window.location.href = "/driver/login.html";
+};
+
+/* ===============================
+   START
+================================ */
+setNavText("Loading trip...");
+initPage();
