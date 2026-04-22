@@ -1,795 +1,289 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Get Quote – Sunbeam Transportation</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Sunbeam Quote</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <style>
-    *{
-      box-sizing:border-box;
-    }
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#f1f5f9;
+}
 
-    body{
-      font-family:Arial,sans-serif;
-      background:#f8fafc;
-      margin:0;
-      padding:0;
-      color:#111827;
-    }
+.container{
+max-width:900px;
+margin:auto;
+padding:15px;
+}
 
-    .page{
-      max-width:980px;
-      margin:0 auto;
-      padding:18px;
-    }
+.card{
+background:#fff;
+padding:15px;
+border-radius:15px;
+box-shadow:0 5px 15px rgba(0,0,0,.1);
+margin-bottom:15px;
+}
 
-    .hero{
-      background:linear-gradient(135deg,#0f172a,#1d4ed8);
-      color:#fff;
-      border-radius:16px;
-      padding:18px;
-      margin-bottom:16px;
-      box-shadow:0 10px 22px rgba(0,0,0,.12);
-    }
+input{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:1px solid #ccc;
+margin-bottom:10px;
+font-size:14px;
+}
 
-    .hero h1{
-      margin:0 0 8px;
-      font-size:28px;
-    }
+button{
+width:100%;
+padding:12px;
+border:none;
+border-radius:10px;
+font-weight:bold;
+font-size:15px;
+cursor:pointer;
+}
 
-    .hero p{
-      margin:0;
-      opacity:.95;
-      font-size:14px;
-    }
+.btn-main{
+background:#2563eb;
+color:#fff;
+}
 
-    .card{
-      background:#fff;
-      border-radius:16px;
-      padding:16px;
-      box-shadow:0 6px 16px rgba(0,0,0,.08);
-      margin-bottom:16px;
-    }
+#map{
+height:320px;
+border-radius:12px;
+margin-top:10px;
+}
 
-    .section-title{
-      margin:0 0 12px;
-      font-size:18px;
-      font-weight:700;
-      color:#0f172a;
-    }
+.suggestions{
+background:#fff;
+border:1px solid #ddd;
+position:absolute;
+z-index:999;
+width:100%;
+max-height:200px;
+overflow:auto;
+border-radius:10px;
+}
 
-    .form-group{
-      position:relative;
-      margin-bottom:10px;
-    }
+.option{
+padding:10px;
+cursor:pointer;
+border-bottom:1px solid #eee;
+}
 
-    .field-label{
-      display:block;
-      margin-bottom:6px;
-      font-size:13px;
-      color:#374151;
-      font-weight:600;
-    }
+.option:hover{
+background:#f1f5f9;
+}
 
-    input{
-      width:100%;
-      padding:12px;
-      font-size:14px;
-      border:1px solid #d1d5db;
-      border-radius:10px;
-      outline:none;
-      background:#fff;
-    }
+.row{
+position:relative;
+}
 
-    input:focus{
-      border-color:#2563eb;
-      box-shadow:0 0 0 3px rgba(37,99,235,.12);
-    }
+.result{
+font-weight:bold;
+font-size:16px;
+margin-top:10px;
+}
 
-    .stops-wrap{
-      margin-bottom:10px;
-    }
-
-    .stop-row{
-      position:relative;
-      margin-bottom:10px;
-    }
-
-    .stop-top{
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-
-    .stop-top input{
-      flex:1;
-    }
-
-    .remove-stop{
-      border:none;
-      background:#ef4444;
-      color:#fff;
-      border-radius:10px;
-      padding:12px 14px;
-      font-weight:700;
-      cursor:pointer;
-      min-width:48px;
-    }
-
-    .toolbar{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
-
-    button{
-      border:none;
-      border-radius:10px;
-      padding:12px 16px;
-      font-size:14px;
-      font-weight:700;
-      cursor:pointer;
-    }
-
-    .btn-light{
-      background:#e5e7eb;
-      color:#111827;
-    }
-
-    .btn-primary{
-      background:#2563eb;
-      color:#fff;
-    }
-
-    .btn-success{
-      background:#22c55e;
-      color:#052e16;
-    }
-
-    .btn-primary:disabled,
-    .btn-success:disabled{
-      opacity:.55;
-      cursor:not-allowed;
-    }
-
-    .quote-grid{
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:12px;
-      margin-top:10px;
-    }
-
-    .quote-box{
-      background:#f8fafc;
-      border:1px solid #e5e7eb;
-      border-radius:12px;
-      padding:14px;
-    }
-
-    .quote-label{
-      font-size:12px;
-      color:#6b7280;
-      margin-bottom:6px;
-    }
-
-    .quote-value{
-      font-size:18px;
-      font-weight:700;
-      color:#111827;
-    }
-
-    .note{
-      margin-top:12px;
-      font-size:12px;
-      color:#6b7280;
-      line-height:1.5;
-    }
-
-    #map{
-      height:380px;
-      border-radius:16px;
-      overflow:hidden;
-      margin-top:12px;
-      border:1px solid #e5e7eb;
-    }
-
-    .suggestions{
-      position:absolute;
-      top:100%;
-      left:0;
-      right:0;
-      background:#fff;
-      border:1px solid #d1d5db;
-      border-radius:10px;
-      z-index:9999;
-      max-height:220px;
-      overflow:auto;
-      box-shadow:0 12px 24px rgba(0,0,0,.10);
-      margin-top:4px;
-    }
-
-    .option{
-      padding:10px 12px;
-      cursor:pointer;
-      font-size:13px;
-      line-height:1.35;
-      border-bottom:1px solid #eef2f7;
-      background:#fff;
-    }
-
-    .option:last-child{
-      border-bottom:none;
-    }
-
-    .option:hover{
-      background:#eff6ff;
-    }
-
-    .option.disabled{
-      color:#64748b;
-      background:#f8fafc;
-      cursor:default;
-    }
-
-    .hidden{
-      display:none;
-    }
-
-    .loading{
-      opacity:.7;
-      pointer-events:none;
-    }
-
-    @media(max-width:768px){
-      .page{
-        padding:12px;
-      }
-
-      .hero h1{
-        font-size:22px;
-      }
-
-      .quote-grid{
-        grid-template-columns:1fr;
-      }
-
-      .toolbar{
-        flex-direction:column;
-      }
-
-      .toolbar button{
-        width:100%;
-      }
-
-      #map{
-        height:280px;
-      }
-    }
-  </style>
+@media(max-width:600px){
+#map{height:250px;}
+}
+</style>
 </head>
+
 <body>
 
-<div class="page">
+<div class="container">
 
-  <div class="hero">
-    <h1>Get Quote</h1>
-    <p>Enter your route, review the estimated distance and price, then continue to book your trip.</p>
-  </div>
+<div class="card">
 
-  <div class="card">
-    <h2 class="section-title">Trip Route</h2>
+<h2>Get Quote</h2>
 
-    <div class="form-group">
-      <label class="field-label" for="pickup">Pickup Address</label>
-      <input id="pickup" class="route-point" placeholder="Enter pickup address" autocomplete="off">
-    </div>
+<div class="row">
+<input id="pickup" placeholder="Pickup Address">
+<div id="pickupList" class="suggestions"></div>
+</div>
 
-    <div id="stopsContainer" class="stops-wrap"></div>
+<div id="stops"></div>
 
-    <div class="toolbar">
-      <button id="addStopBtn" class="btn-light" type="button">+ Add Stop</button>
-    </div>
+<button onclick="addStop()">+ Add Stop</button>
 
-    <div class="form-group" style="margin-top:10px;">
-      <label class="field-label" for="dropoff">Dropoff Address</label>
-      <input id="dropoff" class="route-point" placeholder="Enter dropoff address" autocomplete="off">
-    </div>
+<div class="row">
+<input id="dropoff" placeholder="Dropoff Address">
+<div id="dropList" class="suggestions"></div>
+</div>
 
-    <div class="toolbar">
-      <button id="calcBtn" class="btn-primary" type="button">Calculate Price</button>
-      <button id="bookTripBtn" class="btn-success" type="button" disabled>Book This Trip</button>
-    </div>
+<button class="btn-main" onclick="calculate()">Calculate Price</button>
 
-    <div id="priceBox" class="hidden">
-      <div class="quote-grid">
-        <div class="quote-box">
-          <div class="quote-label">Distance</div>
-          <div class="quote-value" id="distanceValue">0.00 mi</div>
-        </div>
-        <div class="quote-box">
-          <div class="quote-label">Stops</div>
-          <div class="quote-value" id="stopsValue">0</div>
-        </div>
-        <div class="quote-box">
-          <div class="quote-label">Estimated Time</div>
-          <div class="quote-value" id="durationValue">0 min</div>
-        </div>
-        <div class="quote-box">
-          <div class="quote-label">Estimated Price</div>
-          <div class="quote-value" id="priceValue">$0.00</div>
-        </div>
-      </div>
+<div class="result" id="result"></div>
 
-      <div class="note">
-        Base fare starts at $30 for the first 10 miles. Additional miles are charged at $2/mile.
-        Each extra stop adds $5.
-      </div>
-    </div>
-  </div>
+</div>
 
-  <div class="card">
-    <h2 class="section-title">Route Map</h2>
-    <div id="map"></div>
-  </div>
+<div class="card">
+<div id="map"></div>
+</div>
 
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-/* ================= MAP ================= */
 
-const map = L.map("map").setView([33.4484, -112.0740], 11);
+const map = L.map("map").setView([33.4484,-112.0740],10);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: "&copy; OpenStreetMap contributors"
-}).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let markers = [];
-let routeLayers = [];
-let stopCount = 0;
-const maxStops = 5;
-let isQuoteValid = false;
-let lastTripData = null;
+let markers=[];
+let routeLine=null;
+let stopCount=0;
 
-/* ================= ELEMENTS ================= */
+/* ================= SEARCH ================= */
 
-const pickupInput = document.getElementById("pickup");
-const dropoffInput = document.getElementById("dropoff");
-const stopsContainer = document.getElementById("stopsContainer");
-const addStopBtn = document.getElementById("addStopBtn");
-const calcBtn = document.getElementById("calcBtn");
-const bookTripBtn = document.getElementById("bookTripBtn");
-const priceBox = document.getElementById("priceBox");
-
-const distanceValue = document.getElementById("distanceValue");
-const stopsValue = document.getElementById("stopsValue");
-const durationValue = document.getElementById("durationValue");
-const priceValue = document.getElementById("priceValue");
-
-/* ================= STATE ================= */
-
-let selectedPickup = null;
-let selectedDropoff = null;
-let selectedStops = new Map();
-
-/* ================= HELPERS ================= */
-
-function escapeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#39;");
+async function search(q){
+const res = await fetch(
+`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+" Arizona")}&format=json&limit=5`
+);
+return await res.json();
 }
 
-function clearMap(){
-  markers.forEach(m => {
-    try{ map.removeLayer(m); }catch(e){}
-  });
-  routeLayers.forEach(l => {
-    try{ map.removeLayer(l); }catch(e){}
-  });
-  markers = [];
-  routeLayers = [];
+function auto(input,listId){
+
+const list = document.getElementById(listId);
+
+input.addEventListener("input",async()=>{
+const q=input.value;
+if(q.length<3){list.innerHTML="";return;}
+
+const data=await search(q);
+
+list.innerHTML=data.map(d=>`
+<div class="option" data-lat="${d.lat}" data-lng="${d.lon}" data-name="${d.display_name}">
+${d.display_name}
+</div>
+`).join("");
+});
+
+list.onclick=(e)=>{
+const el=e.target;
+input.value=el.dataset.name;
+input.dataset.lat=el.dataset.lat;
+input.dataset.lng=el.dataset.lng;
+list.innerHTML="";
+};
+
 }
 
-function setLoading(loading){
-  if(loading){
-    calcBtn.disabled = true;
-    calcBtn.textContent = "Calculating...";
-    document.body.classList.add("loading");
-  }else{
-    calcBtn.disabled = false;
-    calcBtn.textContent = "Calculate Price";
-    document.body.classList.remove("loading");
-  }
-}
-
-function getOrCreateSuggestionBox(input){
-  let box = input.parentNode.querySelector(".suggestions");
-  if(!box){
-    box = document.createElement("div");
-    box.className = "suggestions";
-    input.parentNode.appendChild(box);
-  }
-  return box;
-}
-
-function clearSuggestions(box){
-  if(box) box.innerHTML = "";
-}
-
-function setSelectedAddress(type, input, obj){
-  if(type === "pickup"){
-    selectedPickup = obj;
-  }else if(type === "dropoff"){
-    selectedDropoff = obj;
-  }else if(type === "stop"){
-    const stopId = input.dataset.stopId;
-    if(stopId){
-      selectedStops.set(stopId, obj);
-    }
-  }
-}
-
-function clearSelectedAddress(type, input){
-  isQuoteValid = false;
-  bookTripBtn.disabled = true;
-  priceBox.classList.add("hidden");
-
-  if(type === "pickup"){
-    selectedPickup = null;
-  }else if(type === "dropoff"){
-    selectedDropoff = null;
-  }else if(type === "stop"){
-    const stopId = input.dataset.stopId;
-    if(stopId){
-      selectedStops.delete(stopId);
-    }
-  }
-}
-
-function collectStopsInputs(){
-  return [...stopsContainer.querySelectorAll(".stop-input")];
-}
-
-function collectStopsData(){
-  const stops = [];
-  const stopsGeo = [];
-
-  collectStopsInputs().forEach(input => {
-    const value = input.value.trim();
-    const stopId = input.dataset.stopId;
-    const selected = selectedStops.get(stopId);
-
-    if(value && selected && selected.address){
-      stops.push(selected.address);
-      stopsGeo.push({
-        address: selected.address,
-        lat: Number(selected.lat),
-        lng: Number(selected.lng)
-      });
-    }
-  });
-
-  return { stops, stopsGeo };
-}
-
-function formatDuration(minutes){
-  const total = Number(minutes || 0);
-  if(total < 60) return `${total} min`;
-
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-
-  if(m === 0) return `${h} hr`;
-  return `${h} hr ${m} min`;
-}
-
-/* ================= ADDRESS SEARCH ================= */
-
-async function searchAddress(q){
-  const query = String(q || "").trim();
-  if(query.length < 3) return [];
-
-  try{
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=us&viewbox=-115,35.5,-108.5,31&bounded=1`,
-      {
-        headers: {
-          "Accept": "application/json"
-        }
-      }
-    );
-
-    if(!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  }catch(err){
-    console.error("Address search error:", err);
-    return [];
-  }
-}
-
-function renderSuggestions(box, results){
-  if(!box) return;
-
-  if(!results.length){
-    box.innerHTML = `<div class="option disabled">No address found</div>`;
-    return;
-  }
-
-  box.innerHTML = results.map(item => `
-    <div class="option"
-         data-address="${escapeHtml(item.display_name)}"
-         data-lat="${escapeHtml(item.lat)}"
-         data-lng="${escapeHtml(item.lon)}">
-      ${escapeHtml(item.display_name)}
-    </div>
-  `).join("");
-}
-
-function attachAutocomplete(input, type){
-  const box = getOrCreateSuggestionBox(input);
-  let timer = null;
-
-  input.setAttribute("autocomplete", "off");
-
-  input.addEventListener("focus", async () => {
-    const q = input.value.trim();
-    if(q.length < 3) return;
-
-    const results = await searchAddress(q);
-    renderSuggestions(box, results);
-  });
-
-  input.addEventListener("input", () => {
-    clearSelectedAddress(type, input);
-    clearTimeout(timer);
-
-    const q = input.value.trim();
-
-    if(q.length < 3){
-      clearSuggestions(box);
-      return;
-    }
-
-    timer = setTimeout(async () => {
-      const results = await searchAddress(q);
-      renderSuggestions(box, results);
-    }, 250);
-  });
-
-  box.addEventListener("click", e => {
-    const option = e.target.closest(".option");
-    if(!option || option.classList.contains("disabled")) return;
-
-    const selected = {
-      address: option.dataset.address,
-      lat: Number(option.dataset.lat),
-      lng: Number(option.dataset.lng)
-    };
-
-    input.value = selected.address;
-    setSelectedAddress(type, input, selected);
-    clearSuggestions(box);
-  });
-
-  input.addEventListener("blur", () => {
-    setTimeout(() => clearSuggestions(box), 180);
-  });
-}
+auto(pickup,"pickupList");
+auto(dropoff,"dropList");
 
 /* ================= STOPS ================= */
 
-function createStopInput(){
-  if(collectStopsInputs().length >= maxStops) return;
+function addStop(){
+stopCount++;
+const div=document.createElement("div");
+div.className="row";
 
-  stopCount += 1;
+div.innerHTML=`
+<input placeholder="Stop">
+<div class="suggestions"></div>
+`;
 
-  const wrap = document.createElement("div");
-  wrap.className = "stop-row";
+document.getElementById("stops").appendChild(div);
 
-  const label = document.createElement("label");
-  label.className = "field-label";
-  label.textContent = "Stop " + stopCount;
-
-  const top = document.createElement("div");
-  top.className = "stop-top";
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Enter stop address";
-  input.className = "route-point stop-input";
-  input.dataset.stopId = "stop_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
-
-  const removeBtn = document.createElement("button");
-  removeBtn.type = "button";
-  removeBtn.className = "remove-stop";
-  removeBtn.textContent = "✕";
-
-  top.appendChild(input);
-  top.appendChild(removeBtn);
-
-  wrap.appendChild(label);
-  wrap.appendChild(top);
-
-  stopsContainer.appendChild(wrap);
-
-  attachAutocomplete(input, "stop");
-
-  removeBtn.addEventListener("click", () => {
-    selectedStops.delete(input.dataset.stopId);
-    wrap.remove();
-    isQuoteValid = false;
-    bookTripBtn.disabled = true;
-    priceBox.classList.add("hidden");
-  });
+auto(div.querySelector("input"),div.querySelector(".suggestions").id=`s${stopCount}`);
 }
 
-addStopBtn.addEventListener("click", createStopInput);
+/* ================= GEO ================= */
 
-/* ================= ROUTE API ================= */
-
-async function getRoute(points){
-  if(!Array.isArray(points) || points.length < 2) return null;
-
-  try{
-    const coords = points.map(p => `${p.lng},${p.lat}`).join(";");
-
-    const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
-    );
-
-    const data = await res.json();
-
-    if(!data.routes || !data.routes.length) return null;
-
-    const r = data.routes[0];
-
-    return {
-      coords: r.geometry.coordinates.map(c => [c[1], c[0]]),
-      distance: r.distance / 1609.34,
-      duration: Math.round(r.duration / 60)
-    };
-  }catch(err){
-    console.error("Route error:", err);
-    return null;
-  }
+async function geo(address){
+const res=await fetch(
+`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address+" Arizona")}&format=json&limit=1`
+);
+const d=await res.json();
+if(d.length){
+return {lat:+d[0].lat,lng:+d[0].lon};
+}
+return null;
 }
 
-function drawMarkers(points){
-  points.forEach((p, idx) => {
-    const label =
-      idx === 0 ? "Pickup" :
-      idx === points.length - 1 ? "Dropoff" :
-      `Stop ${idx}`;
+/* ================= ROUTE ================= */
 
-    const marker = L.marker([p.lat, p.lng]).bindPopup(label);
-    marker.addTo(map);
-    markers.push(marker);
-  });
+async function route(points){
+const coords=points.map(p=>`${p.lng},${p.lat}`).join(";");
+
+const res=await fetch(
+`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+);
+
+const data=await res.json();
+
+if(!data.routes) return null;
+
+const r=data.routes[0];
+
+return{
+coords:r.geometry.coordinates.map(c=>[c[1],c[0]]),
+distance:r.distance/1609.34,
+duration:r.duration/60
+};
 }
 
 /* ================= CALCULATE ================= */
 
 async function calculate(){
-  if(!selectedPickup || !selectedPickup.address){
-    alert("Please select a valid pickup address.");
-    return;
-  }
 
-  if(!selectedDropoff || !selectedDropoff.address){
-    alert("Please select a valid dropoff address.");
-    return;
-  }
+let p={
+lat:pickup.dataset.lat,
+lng:pickup.dataset.lng
+};
 
-  const stopInputs = collectStopsInputs();
+let d={
+lat:dropoff.dataset.lat,
+lng:dropoff.dataset.lng
+};
 
-  for(const input of stopInputs){
-    const value = input.value.trim();
-    const stopId = input.dataset.stopId;
-    const selected = selectedStops.get(stopId);
+if(!p.lat) p=await geo(pickup.value);
+if(!d.lat) d=await geo(dropoff.value);
 
-    if(value && (!selected || !selected.address)){
-      alert("Please select each stop from suggestions.");
-      input.focus();
-      return;
-    }
-  }
+if(!p||!d){alert("Address error");return;}
 
-  const { stops, stopsGeo } = collectStopsData();
-
-  const points = [
-    selectedPickup,
-    ...stopsGeo,
-    selectedDropoff
-  ];
-
-  setLoading(true);
-  clearMap();
-
-  try{
-    const route = await getRoute(points);
-
-    if(!route){
-      alert("Route not available.");
-      setLoading(false);
-      return;
-    }
-
-    const polyline = L.polyline(route.coords, {
-      color:"#2563eb",
-      weight:5
-    }).addTo(map);
-
-    routeLayers.push(polyline);
-
-    drawMarkers(points);
-
-    map.fitBounds(polyline.getBounds(), { padding:[40,40] });
-
-    let price = 30;
-    if(route.distance > 10){
-      price += (route.distance - 10) * 2;
-    }
-
-    const stopQty = stopsGeo.length;
-    const stopsFee = stopQty * 5;
-    price += stopsFee;
-
-    priceBox.classList.remove("hidden");
-    distanceValue.textContent = `${route.distance.toFixed(2)} mi`;
-    stopsValue.textContent = String(stopQty);
-    durationValue.textContent = formatDuration(route.duration);
-    priceValue.textContent = `$${price.toFixed(2)}`;
-
-    lastTripData = {
-      pickup: selectedPickup.address,
-      pickupLat: Number(selectedPickup.lat),
-      pickupLng: Number(selectedPickup.lng),
-
-      dropoff: selectedDropoff.address,
-      dropoffLat: Number(selectedDropoff.lat),
-      dropoffLng: Number(selectedDropoff.lng),
-
-      stops: stops,
-      stopsGeo: stopsGeo,
-
-      miles: route.distance.toFixed(2),
-      duration: route.duration,
-      price: price.toFixed(2)
-    };
-
-    isQuoteValid = true;
-    bookTripBtn.disabled = false;
-  }finally{
-    setLoading(false);
-  }
-}
-
-/* ================= BOOK ================= */
-
-bookTripBtn.addEventListener("click", () => {
-  if(!isQuoteValid || !lastTripData) return;
-
-  localStorage.setItem("tripData", JSON.stringify(lastTripData));
-  window.location.href = "../booking/index.html";
+let stopsArr=[];
+document.querySelectorAll("#stops input").forEach(async el=>{
+let s={lat:el.dataset.lat,lng:el.dataset.lng};
+if(!s.lat) s=await geo(el.value);
+if(s) stopsArr.push(s);
 });
 
-/* ================= INIT ================= */
+const points=[p,...stopsArr,d];
 
-attachAutocomplete(pickupInput, "pickup");
-attachAutocomplete(dropoffInput, "dropoff");
+const r=await route(points);
 
-calcBtn.addEventListener("click", calculate);
+if(!r){alert("Route error");return;}
+
+if(routeLine) map.removeLayer(routeLine);
+markers.forEach(m=>map.removeLayer(m));
+markers=[];
+
+routeLine=L.polyline(r.coords,{color:"blue"}).addTo(map);
+
+points.forEach(pt=>{
+markers.push(L.marker([pt.lat,pt.lng]).addTo(map));
+});
+
+map.fitBounds(routeLine.getBounds());
+
+let price=30;
+if(r.distance>10) price+=(r.distance-10)*2;
+price+=stopsArr.length*5;
+
+document.getElementById("result").innerText=
+`Distance ${r.distance.toFixed(2)} mi | Time ${Math.round(r.duration)} min | Price $${price.toFixed(2)}`;
+
+}
 
 </script>
 
