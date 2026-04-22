@@ -107,20 +107,6 @@ const tripSchema = new mongoose.Schema({
   driverAddress: { type: String, default: "" },
   dispatchNote: { type: String, default: "" },
 
-  /* PAYMENT */
-  price: { type: Number, default: 0 },
-  paymentStatus: {
-    type: String,
-    enum: ["unpaid", "paid", "invoice", "pending", "refunded"],
-    default: "unpaid"
-  },
-  paymentMethod: {
-    type: String,
-    enum: ["", "card", "cash", "company"],
-    default: ""
-  },
-  paidAt: { type: Date, default: null },
-
   status: { type: String, default: "Scheduled" },
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
@@ -132,7 +118,6 @@ tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
-tripSchema.index({ paymentStatus: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
 
@@ -1089,22 +1074,6 @@ app.post("/api/trips", async (req, res) => {
     const pickup = normalizeText(req.body.pickup);
     const dropoff = normalizeText(req.body.dropoff);
 
-    let paymentStatus = normalizeText(req.body.paymentStatus).toLowerCase();
-    let paymentMethod = normalizeText(req.body.paymentMethod).toLowerCase();
-
-    if (!paymentStatus) {
-      paymentStatus = type === "company" ? "invoice" : "unpaid";
-    }
-
-    if (!paymentMethod) {
-      paymentMethod = type === "company" ? "company" : "";
-    }
-
-    const paidAt =
-      paymentStatus === "paid"
-        ? (req.body.paidAt || new Date())
-        : null;
-
     const trip = await Trip.create({
       type,
       tripNumber,
@@ -1131,11 +1100,6 @@ app.post("/api/trips", async (req, res) => {
       tripTime: normalizeText(req.body.tripTime),
 
       notes: normalizeText(req.body.notes),
-      price: normalizeNumber(req.body.price) ?? 0,
-      paymentStatus,
-      paymentMethod,
-      paidAt,
-
       status: normalizeText(req.body.status) || "Booked",
       bookedAt: req.body.bookedAt || new Date(),
       createdAt: new Date()
@@ -1226,16 +1190,6 @@ app.put("/api/trips/:id", async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    let nextPaymentStatus = req.body.paymentStatus ?? existing.paymentStatus;
-    let nextPaymentMethod = req.body.paymentMethod ?? existing.paymentMethod;
-
-    if (typeof nextPaymentStatus === "string") {
-      nextPaymentStatus = nextPaymentStatus.trim().toLowerCase();
-    }
-    if (typeof nextPaymentMethod === "string") {
-      nextPaymentMethod = nextPaymentMethod.trim().toLowerCase();
-    }
-
     const updateData = {
       type: normalizeTripType(req.body.type || existing.type),
       company: req.body.company ?? existing.company,
@@ -1269,16 +1223,6 @@ app.put("/api/trips/:id", async (req, res) => {
       vehicle: req.body.vehicle ?? existing.vehicle,
       driverAddress: req.body.driverAddress ?? existing.driverAddress,
       dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
-
-      price: req.body.price !== undefined ? (normalizeNumber(req.body.price) ?? 0) : existing.price,
-      paymentStatus: nextPaymentStatus,
-      paymentMethod: nextPaymentMethod,
-      paidAt:
-        req.body.paidAt !== undefined
-          ? req.body.paidAt
-          : (nextPaymentStatus === "paid"
-              ? (existing.paidAt || new Date())
-              : (nextPaymentStatus === "refunded" ? null : existing.paidAt)),
 
       status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
@@ -1663,82 +1607,6 @@ app.get("/api/admin/live-drivers", (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "live drivers load error" });
-  }
-});
-
-/* =========================
-   CALCULATE ROUTE API
-========================= */
-app.post("/api/calc-route", async (req, res) => {
-  try {
-    const {
-      pickupLat,
-      pickupLng,
-      dropoffLat,
-      dropoffLng,
-      stops = []
-    } = req.body || {};
-
-    if (
-      pickupLat == null ||
-      pickupLng == null ||
-      dropoffLat == null ||
-      dropoffLng == null
-    ) {
-      return res.status(400).json({ message: "Missing coordinates" });
-    }
-
-    const safeStops = Array.isArray(stops)
-      ? stops.filter(s =>
-          s &&
-          s.lat != null &&
-          s.lng != null &&
-          Number.isFinite(Number(s.lat)) &&
-          Number.isFinite(Number(s.lng))
-        )
-      : [];
-
-    const coordinates = [
-      `${Number(pickupLng)},${Number(pickupLat)}`,
-      ...safeStops.map(s => `${Number(s.lng)},${Number(s.lat)}`),
-      `${Number(dropoffLng)},${Number(dropoffLat)}`
-    ].join(";");
-
-    const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=false`;
-
-    const resp = await fetch(url, {
-      headers: {
-        "User-Agent": "SunbeamTransportation/1.0"
-      }
-    });
-
-    if (!resp.ok) {
-      return res.status(502).json({ message: "Route provider error" });
-    }
-
-    const data = await resp.json();
-
-    if (!data.routes || !data.routes.length) {
-      return res.status(400).json({ message: "No route found" });
-    }
-
-    const route = data.routes[0];
-    const distanceMiles = route.distance / 1609.34;
-    const durationMinutes = route.duration / 60;
-
-    const baseFare = 25;
-    const pricePerMile = 2;
-    const stopFee = safeStops.length * 5;
-    const totalPrice = Math.round(baseFare + (distanceMiles * pricePerMile) + stopFee);
-
-    res.json({
-      miles: distanceMiles.toFixed(2),
-      duration: Math.round(durationMinutes),
-      price: totalPrice
-    });
-  } catch (err) {
-    console.log("Calc route error:", err?.message || err);
-    res.status(500).json({ message: "Calc error" });
   }
 });
 
