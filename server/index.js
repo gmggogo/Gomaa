@@ -107,23 +107,21 @@ const tripSchema = new mongoose.Schema({
   driverAddress: { type: String, default: "" },
   dispatchNote: { type: String, default: "" },
 
-  /* STATUS */
-  status: { type: String, default: "Scheduled" },
-
   /* PAYMENT */
+  price: { type: Number, default: 0 },
   paymentStatus: {
     type: String,
-    enum: ["unpaid", "paid", "invoice", "pending"],
+    enum: ["unpaid", "paid", "invoice", "pending", "refunded"],
     default: "unpaid"
   },
   paymentMethod: {
     type: String,
-    enum: ["card", "cash", "company", ""],
+    enum: ["", "card", "cash", "company"],
     default: ""
   },
-  price: { type: Number, default: 0 },
   paidAt: { type: Date, default: null },
 
+  status: { type: String, default: "Scheduled" },
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 }, { minimize: false });
@@ -135,7 +133,6 @@ tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ paymentStatus: 1 });
-tripSchema.index({ paymentMethod: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
 
@@ -538,6 +535,8 @@ async function generateTripNumber(type) {
 
 /* =========================
    SMART DISPATCH ENGINE
+   - FIRST ROUND: nearest pickup to driver home
+   - NEXT ROUNDS: nearest pickup to last dropoff
 ========================= */
 function assignTripToDriverState(ds, trip, scheduleRow) {
   trip.driverId = String(ds.driver._id);
@@ -664,6 +663,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
 
   const lockedMap = buildLockedAssignedTripMap(preparedTrips);
 
+  /* Seed driver states with existing assigned trips */
   for (const ds of driverStates) {
     const driverId = String(ds.driver._id);
     const existingTrips = lockedMap.get(driverId) || [];
@@ -691,6 +691,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
 
     const remaining = [...unassignedTrips];
 
+    /* FIRST ROUND */
     for (const ds of driverStates) {
       const driverId = String(ds.driver._id);
       const scheduleRow = schedule[driverId] || {};
@@ -713,6 +714,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
       removeTripFromArray(remaining, nearest);
     }
 
+    /* NEXT ROUNDS */
     while (remaining.length > 0) {
       let assignedThisLoop = false;
 
@@ -748,6 +750,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
     finalTrips.push(...lockedTrips);
   }
 
+  /* collect all trips from driver states */
   const stateAssignedIds = new Set();
   for (const ds of driverStates) {
     for (const trip of ds.assignedTrips) {
@@ -756,6 +759,7 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
     }
   }
 
+  /* if any trip still untouched, keep it as-is */
   for (const trip of preparedTrips) {
     if (!stateAssignedIds.has(String(trip._id)) && !finalTrips.find(t => String(t._id) === String(trip._id))) {
       finalTrips.push(trip);
@@ -1127,13 +1131,12 @@ app.post("/api/trips", async (req, res) => {
       tripTime: normalizeText(req.body.tripTime),
 
       notes: normalizeText(req.body.notes),
-      status: normalizeText(req.body.status) || "Booked",
-
+      price: normalizeNumber(req.body.price) ?? 0,
       paymentStatus,
       paymentMethod,
-      price: Number(req.body.price) || 0,
       paidAt,
 
+      status: normalizeText(req.body.status) || "Booked",
       bookedAt: req.body.bookedAt || new Date(),
       createdAt: new Date()
     });
@@ -1267,18 +1270,17 @@ app.put("/api/trips/:id", async (req, res) => {
       driverAddress: req.body.driverAddress ?? existing.driverAddress,
       dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
 
-      status: req.body.status ?? existing.status,
-
+      price: req.body.price !== undefined ? (normalizeNumber(req.body.price) ?? 0) : existing.price,
       paymentStatus: nextPaymentStatus,
       paymentMethod: nextPaymentMethod,
-      price: req.body.price !== undefined ? Number(req.body.price) || 0 : existing.price,
       paidAt:
         req.body.paidAt !== undefined
           ? req.body.paidAt
           : (nextPaymentStatus === "paid"
               ? (existing.paidAt || new Date())
-              : null),
+              : (nextPaymentStatus === "refunded" ? null : existing.paidAt)),
 
+      status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
     };
 
@@ -1318,6 +1320,8 @@ app.delete("/api/trips/:id", async (req, res) => {
 /* =========================
    DISPATCH API
 ========================= */
+
+/* الرحلات المختارة للديسبتش + السواقين + الشيدول + اللايف */
 app.get("/api/dispatch", async (req, res) => {
   try {
     const rawTrips = await Trip.find({
@@ -1352,6 +1356,7 @@ app.get("/api/dispatch", async (req, res) => {
       };
     }
 
+    /* فلترة السواقين */
     const filteredDrivers = rawDrivers.filter(driver => {
       const driverId = String(driver._id || "").trim();
       const s = schedule[driverId];
@@ -1378,6 +1383,7 @@ app.get("/api/dispatch", async (req, res) => {
         vehicleNumber: buildDriverVehicle(driver, s),
         phone: buildDriverPhone(driver, s),
 
+        /* live data */
         liveLat: live?.lat ?? null,
         liveLng: live?.lng ?? null,
         liveTime: live?.time ?? null,
@@ -1385,6 +1391,7 @@ app.get("/api/dispatch", async (req, res) => {
       };
     });
 
+    /* SMART AUTO ASSIGN */
     const assignedTrips = await autoAssignTrips({
       trips: rawTrips,
       drivers,
@@ -1405,6 +1412,7 @@ app.get("/api/dispatch", async (req, res) => {
   }
 });
 
+/* إرسال الرحلات المختارة */
 app.patch("/api/dispatch/send", async (req, res) => {
   try {
     const ids = req.body.ids || [];
@@ -1439,6 +1447,7 @@ app.patch("/api/dispatch/send", async (req, res) => {
   }
 });
 
+/* حفظ نوت */
 app.patch("/api/dispatch/:id/note", async (req, res) => {
   try {
     const note = normalizeText(req.body.note);
@@ -1459,6 +1468,7 @@ app.patch("/api/dispatch/:id/note", async (req, res) => {
   }
 });
 
+/* تعيين سواق يدوي */
 app.patch("/api/dispatch/:id/driver", async (req, res) => {
   try {
     const { driverId } = req.body || {};
@@ -1528,6 +1538,8 @@ app.patch("/api/dispatch/:id/driver", async (req, res) => {
 /* =========================
    DRIVER API
 ========================= */
+
+/* السواق يجيب رحلاته */
 app.get("/api/driver/my-trips/:driverId", async (req, res) => {
   try {
     const driverId = String(req.params.driverId || "").trim();
@@ -1549,6 +1561,7 @@ app.get("/api/driver/my-trips/:driverId", async (req, res) => {
   }
 });
 
+/* السواق يقبل الرحلة */
 app.patch("/api/driver/trips/:id/accept", async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -1567,6 +1580,7 @@ app.patch("/api/driver/trips/:id/accept", async (req, res) => {
   }
 });
 
+/* السواق يبدأ الرحلة */
 app.patch("/api/driver/trips/:id/start", async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -1585,6 +1599,7 @@ app.patch("/api/driver/trips/:id/start", async (req, res) => {
   }
 });
 
+/* السواق يكمّل الرحلة */
 app.patch("/api/driver/trips/:id/complete", async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -1648,6 +1663,82 @@ app.get("/api/admin/live-drivers", (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "live drivers load error" });
+  }
+});
+
+/* =========================
+   CALCULATE ROUTE API
+========================= */
+app.post("/api/calc-route", async (req, res) => {
+  try {
+    const {
+      pickupLat,
+      pickupLng,
+      dropoffLat,
+      dropoffLng,
+      stops = []
+    } = req.body || {};
+
+    if (
+      pickupLat == null ||
+      pickupLng == null ||
+      dropoffLat == null ||
+      dropoffLng == null
+    ) {
+      return res.status(400).json({ message: "Missing coordinates" });
+    }
+
+    const safeStops = Array.isArray(stops)
+      ? stops.filter(s =>
+          s &&
+          s.lat != null &&
+          s.lng != null &&
+          Number.isFinite(Number(s.lat)) &&
+          Number.isFinite(Number(s.lng))
+        )
+      : [];
+
+    const coordinates = [
+      `${Number(pickupLng)},${Number(pickupLat)}`,
+      ...safeStops.map(s => `${Number(s.lng)},${Number(s.lat)}`),
+      `${Number(dropoffLng)},${Number(dropoffLat)}`
+    ].join(";");
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=false`;
+
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "SunbeamTransportation/1.0"
+      }
+    });
+
+    if (!resp.ok) {
+      return res.status(502).json({ message: "Route provider error" });
+    }
+
+    const data = await resp.json();
+
+    if (!data.routes || !data.routes.length) {
+      return res.status(400).json({ message: "No route found" });
+    }
+
+    const route = data.routes[0];
+    const distanceMiles = route.distance / 1609.34;
+    const durationMinutes = route.duration / 60;
+
+    const baseFare = 25;
+    const pricePerMile = 2;
+    const stopFee = safeStops.length * 5;
+    const totalPrice = Math.round(baseFare + (distanceMiles * pricePerMile) + stopFee);
+
+    res.json({
+      miles: distanceMiles.toFixed(2),
+      duration: Math.round(durationMinutes),
+      price: totalPrice
+    });
+  } catch (err) {
+    console.log("Calc route error:", err?.message || err);
+    res.status(500).json({ message: "Calc error" });
   }
 });
 
