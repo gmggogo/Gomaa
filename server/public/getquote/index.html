@@ -1,178 +1,795 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Get Quote – Sunbeam</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>Get Quote – Sunbeam Transportation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<style>
-body{font-family:Arial;background:#f8fafc;margin:0}
-.page{max-width:900px;margin:auto;padding:15px}
-.hero{background:#1d4ed8;color:#fff;padding:20px;border-radius:12px}
-.card{background:#fff;padding:15px;border-radius:12px;margin-top:15px}
-input{width:100%;padding:12px;margin-top:6px;border-radius:8px;border:1px solid #ccc}
-button{padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer}
-.btn-primary{background:#2563eb;color:#fff}
-.btn-success{background:#22c55e}
-.toolbar{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-#map{height:300px;margin-top:15px;border-radius:12px}
-.suggestions{background:#fff;border:1px solid #ccc;position:absolute;width:100%;z-index:999}
-.option{padding:8px;cursor:pointer}
-.option:hover{background:#eee}
-</style>
+  <style>
+    *{
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family:Arial,sans-serif;
+      background:#f8fafc;
+      margin:0;
+      padding:0;
+      color:#111827;
+    }
+
+    .page{
+      max-width:980px;
+      margin:0 auto;
+      padding:18px;
+    }
+
+    .hero{
+      background:linear-gradient(135deg,#0f172a,#1d4ed8);
+      color:#fff;
+      border-radius:16px;
+      padding:18px;
+      margin-bottom:16px;
+      box-shadow:0 10px 22px rgba(0,0,0,.12);
+    }
+
+    .hero h1{
+      margin:0 0 8px;
+      font-size:28px;
+    }
+
+    .hero p{
+      margin:0;
+      opacity:.95;
+      font-size:14px;
+    }
+
+    .card{
+      background:#fff;
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 6px 16px rgba(0,0,0,.08);
+      margin-bottom:16px;
+    }
+
+    .section-title{
+      margin:0 0 12px;
+      font-size:18px;
+      font-weight:700;
+      color:#0f172a;
+    }
+
+    .form-group{
+      position:relative;
+      margin-bottom:10px;
+    }
+
+    .field-label{
+      display:block;
+      margin-bottom:6px;
+      font-size:13px;
+      color:#374151;
+      font-weight:600;
+    }
+
+    input{
+      width:100%;
+      padding:12px;
+      font-size:14px;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+      outline:none;
+      background:#fff;
+    }
+
+    input:focus{
+      border-color:#2563eb;
+      box-shadow:0 0 0 3px rgba(37,99,235,.12);
+    }
+
+    .stops-wrap{
+      margin-bottom:10px;
+    }
+
+    .stop-row{
+      position:relative;
+      margin-bottom:10px;
+    }
+
+    .stop-top{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .stop-top input{
+      flex:1;
+    }
+
+    .remove-stop{
+      border:none;
+      background:#ef4444;
+      color:#fff;
+      border-radius:10px;
+      padding:12px 14px;
+      font-weight:700;
+      cursor:pointer;
+      min-width:48px;
+    }
+
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+
+    button{
+      border:none;
+      border-radius:10px;
+      padding:12px 16px;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .btn-light{
+      background:#e5e7eb;
+      color:#111827;
+    }
+
+    .btn-primary{
+      background:#2563eb;
+      color:#fff;
+    }
+
+    .btn-success{
+      background:#22c55e;
+      color:#052e16;
+    }
+
+    .btn-primary:disabled,
+    .btn-success:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .quote-grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin-top:10px;
+    }
+
+    .quote-box{
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      padding:14px;
+    }
+
+    .quote-label{
+      font-size:12px;
+      color:#6b7280;
+      margin-bottom:6px;
+    }
+
+    .quote-value{
+      font-size:18px;
+      font-weight:700;
+      color:#111827;
+    }
+
+    .note{
+      margin-top:12px;
+      font-size:12px;
+      color:#6b7280;
+      line-height:1.5;
+    }
+
+    #map{
+      height:380px;
+      border-radius:16px;
+      overflow:hidden;
+      margin-top:12px;
+      border:1px solid #e5e7eb;
+    }
+
+    .suggestions{
+      position:absolute;
+      top:100%;
+      left:0;
+      right:0;
+      background:#fff;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+      z-index:9999;
+      max-height:220px;
+      overflow:auto;
+      box-shadow:0 12px 24px rgba(0,0,0,.10);
+      margin-top:4px;
+    }
+
+    .option{
+      padding:10px 12px;
+      cursor:pointer;
+      font-size:13px;
+      line-height:1.35;
+      border-bottom:1px solid #eef2f7;
+      background:#fff;
+    }
+
+    .option:last-child{
+      border-bottom:none;
+    }
+
+    .option:hover{
+      background:#eff6ff;
+    }
+
+    .option.disabled{
+      color:#64748b;
+      background:#f8fafc;
+      cursor:default;
+    }
+
+    .hidden{
+      display:none;
+    }
+
+    .loading{
+      opacity:.7;
+      pointer-events:none;
+    }
+
+    @media(max-width:768px){
+      .page{
+        padding:12px;
+      }
+
+      .hero h1{
+        font-size:22px;
+      }
+
+      .quote-grid{
+        grid-template-columns:1fr;
+      }
+
+      .toolbar{
+        flex-direction:column;
+      }
+
+      .toolbar button{
+        width:100%;
+      }
+
+      #map{
+        height:280px;
+      }
+    }
+  </style>
 </head>
-
 <body>
 
 <div class="page">
 
-<div class="hero">
-<h2>Get Quote</h2>
-</div>
+  <div class="hero">
+    <h1>Get Quote</h1>
+    <p>Enter your route, review the estimated distance and price, then continue to book your trip.</p>
+  </div>
 
-<div class="card">
+  <div class="card">
+    <h2 class="section-title">Trip Route</h2>
 
-<label>Pickup</label>
-<div style="position:relative">
-<input id="pickup">
-<div class="suggestions" id="pickupSug"></div>
-</div>
+    <div class="form-group">
+      <label class="field-label" for="pickup">Pickup Address</label>
+      <input id="pickup" class="route-point" placeholder="Enter pickup address" autocomplete="off">
+    </div>
 
-<label>Dropoff</label>
-<div style="position:relative">
-<input id="dropoff">
-<div class="suggestions" id="dropoffSug"></div>
-</div>
+    <div id="stopsContainer" class="stops-wrap"></div>
 
-<div id="stops"></div>
+    <div class="toolbar">
+      <button id="addStopBtn" class="btn-light" type="button">+ Add Stop</button>
+    </div>
 
-<div class="toolbar">
-<button onclick="addStop()">+ Stop</button>
-<button class="btn-primary" onclick="calculate()">Calculate</button>
-<button class="btn-success" id="bookBtn" disabled>Book</button>
-</div>
+    <div class="form-group" style="margin-top:10px;">
+      <label class="field-label" for="dropoff">Dropoff Address</label>
+      <input id="dropoff" class="route-point" placeholder="Enter dropoff address" autocomplete="off">
+    </div>
 
-<div id="result"></div>
+    <div class="toolbar">
+      <button id="calcBtn" class="btn-primary" type="button">Calculate Price</button>
+      <button id="bookTripBtn" class="btn-success" type="button" disabled>Book This Trip</button>
+    </div>
 
-</div>
+    <div id="priceBox" class="hidden">
+      <div class="quote-grid">
+        <div class="quote-box">
+          <div class="quote-label">Distance</div>
+          <div class="quote-value" id="distanceValue">0.00 mi</div>
+        </div>
+        <div class="quote-box">
+          <div class="quote-label">Stops</div>
+          <div class="quote-value" id="stopsValue">0</div>
+        </div>
+        <div class="quote-box">
+          <div class="quote-label">Estimated Time</div>
+          <div class="quote-value" id="durationValue">0 min</div>
+        </div>
+        <div class="quote-box">
+          <div class="quote-label">Estimated Price</div>
+          <div class="quote-value" id="priceValue">$0.00</div>
+        </div>
+      </div>
 
-<div class="card">
-<div id="map"></div>
-</div>
+      <div class="note">
+        Base fare starts at $30 for the first 10 miles. Additional miles are charged at $2/mile.
+        Each extra stop adds $5.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Route Map</h2>
+    <div id="map"></div>
+  </div>
 
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const map = L.map("map").setView([33.45,-112.07],10);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+/* ================= MAP ================= */
 
-let markers=[],routeLine=null;
+const map = L.map("map").setView([33.4484, -112.0740], 11);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+let markers = [];
+let routeLayers = [];
+let stopCount = 0;
+const maxStops = 5;
+let isQuoteValid = false;
+let lastTripData = null;
+
+/* ================= ELEMENTS ================= */
+
+const pickupInput = document.getElementById("pickup");
+const dropoffInput = document.getElementById("dropoff");
+const stopsContainer = document.getElementById("stopsContainer");
+const addStopBtn = document.getElementById("addStopBtn");
+const calcBtn = document.getElementById("calcBtn");
+const bookTripBtn = document.getElementById("bookTripBtn");
+const priceBox = document.getElementById("priceBox");
+
+const distanceValue = document.getElementById("distanceValue");
+const stopsValue = document.getElementById("stopsValue");
+const durationValue = document.getElementById("durationValue");
+const priceValue = document.getElementById("priceValue");
+
+/* ================= STATE ================= */
+
+let selectedPickup = null;
+let selectedDropoff = null;
+let selectedStops = new Map();
+
+/* ================= HELPERS ================= */
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
+}
 
 function clearMap(){
-  markers.forEach(m=>map.removeLayer(m));
-  markers=[];
-  if(routeLine) map.removeLayer(routeLine);
-}
-
-async function geocode(address){
-  const res = await fetch(
-    "https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(address)+"&format=json&limit=1",
-    {headers:{"User-Agent":"sunbeam"}}
-  );
-  const data = await res.json();
-  if(!data.length) return null;
-  return {
-    lat:+data[0].lat,
-    lng:+data[0].lon,
-    name:data[0].display_name
-  }
-}
-
-async function search(q){
-  if(q.length<3) return [];
-  const res = await fetch(
-    "https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(q)+"&format=json&limit=5",
-    {headers:{"User-Agent":"sunbeam"}}
-  );
-  return await res.json();
-}
-
-function attach(input,sug){
-  input.addEventListener("input", async ()=>{
-    const list = await search(input.value);
-    sug.innerHTML="";
-    list.forEach(i=>{
-      const d=document.createElement("div");
-      d.className="option";
-      d.innerText=i.display_name;
-      d.onclick=()=>{
-        input.value=i.display_name;
-        sug.innerHTML="";
-      };
-      sug.appendChild(d);
-    });
+  markers.forEach(m => {
+    try{ map.removeLayer(m); }catch(e){}
   });
+  routeLayers.forEach(l => {
+    try{ map.removeLayer(l); }catch(e){}
+  });
+  markers = [];
+  routeLayers = [];
 }
 
-attach(pickup,pickupSug);
-attach(dropoff,dropoffSug);
-
-function addStop(){
-  const div=document.createElement("div");
-  div.innerHTML='<input class="stop">';
-  stops.appendChild(div);
-}
-
-async function route(points){
-  const coords=points.map(p=>p.lng+","+p.lat).join(";");
-  const res=await fetch("https://router.project-osrm.org/route/v1/driving/"+coords+"?overview=full&geometries=geojson");
-  const data=await res.json();
-  const r=data.routes[0];
-  return {
-    dist:r.distance/1609,
-    dur:r.duration/60,
-    coords:r.geometry.coordinates.map(c=>[c[1],c[0]])
+function setLoading(loading){
+  if(loading){
+    calcBtn.disabled = true;
+    calcBtn.textContent = "Calculating...";
+    document.body.classList.add("loading");
+  }else{
+    calcBtn.disabled = false;
+    calcBtn.textContent = "Calculate Price";
+    document.body.classList.remove("loading");
   }
 }
 
-async function calculate(){
+function getOrCreateSuggestionBox(input){
+  let box = input.parentNode.querySelector(".suggestions");
+  if(!box){
+    box = document.createElement("div");
+    box.className = "suggestions";
+    input.parentNode.appendChild(box);
+  }
+  return box;
+}
 
-  clearMap();
+function clearSuggestions(box){
+  if(box) box.innerHTML = "";
+}
 
-  const p = await geocode(pickup.value);
-  const d = await geocode(dropoff.value);
+function setSelectedAddress(type, input, obj){
+  if(type === "pickup"){
+    selectedPickup = obj;
+  }else if(type === "dropoff"){
+    selectedDropoff = obj;
+  }else if(type === "stop"){
+    const stopId = input.dataset.stopId;
+    if(stopId){
+      selectedStops.set(stopId, obj);
+    }
+  }
+}
 
-  if(!p||!d){alert("invalid address");return;}
+function clearSelectedAddress(type, input){
+  isQuoteValid = false;
+  bookTripBtn.disabled = true;
+  priceBox.classList.add("hidden");
 
-  const stopsArr=[];
-  document.querySelectorAll(".stop").forEach(async s=>{
-    if(s.value){
-      const g=await geocode(s.value);
-      if(g) stopsArr.push(g);
+  if(type === "pickup"){
+    selectedPickup = null;
+  }else if(type === "dropoff"){
+    selectedDropoff = null;
+  }else if(type === "stop"){
+    const stopId = input.dataset.stopId;
+    if(stopId){
+      selectedStops.delete(stopId);
+    }
+  }
+}
+
+function collectStopsInputs(){
+  return [...stopsContainer.querySelectorAll(".stop-input")];
+}
+
+function collectStopsData(){
+  const stops = [];
+  const stopsGeo = [];
+
+  collectStopsInputs().forEach(input => {
+    const value = input.value.trim();
+    const stopId = input.dataset.stopId;
+    const selected = selectedStops.get(stopId);
+
+    if(value && selected && selected.address){
+      stops.push(selected.address);
+      stopsGeo.push({
+        address: selected.address,
+        lat: Number(selected.lat),
+        lng: Number(selected.lng)
+      });
     }
   });
 
-  const points=[p,...stopsArr,d];
-
-  const r=await route(points);
-
-  routeLine=L.polyline(r.coords).addTo(map);
-  map.fitBounds(routeLine.getBounds());
-
-  let price=30;
-  if(r.dist>10) price+=(r.dist-10)*2;
-
-  document.getElementById("result").innerHTML=
-    "Distance: "+r.dist.toFixed(2)+" mi<br>"+
-    "Time: "+Math.round(r.dur)+" min<br>"+
-    "Price: $"+price.toFixed(2);
-
-  document.getElementById("bookBtn").disabled=false;
+  return { stops, stopsGeo };
 }
+
+function formatDuration(minutes){
+  const total = Number(minutes || 0);
+  if(total < 60) return `${total} min`;
+
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+
+  if(m === 0) return `${h} hr`;
+  return `${h} hr ${m} min`;
+}
+
+/* ================= ADDRESS SEARCH ================= */
+
+async function searchAddress(q){
+  const query = String(q || "").trim();
+  if(query.length < 3) return [];
+
+  try{
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=us&viewbox=-115,35.5,-108.5,31&bounded=1`,
+      {
+        headers: {
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    if(!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }catch(err){
+    console.error("Address search error:", err);
+    return [];
+  }
+}
+
+function renderSuggestions(box, results){
+  if(!box) return;
+
+  if(!results.length){
+    box.innerHTML = `<div class="option disabled">No address found</div>`;
+    return;
+  }
+
+  box.innerHTML = results.map(item => `
+    <div class="option"
+         data-address="${escapeHtml(item.display_name)}"
+         data-lat="${escapeHtml(item.lat)}"
+         data-lng="${escapeHtml(item.lon)}">
+      ${escapeHtml(item.display_name)}
+    </div>
+  `).join("");
+}
+
+function attachAutocomplete(input, type){
+  const box = getOrCreateSuggestionBox(input);
+  let timer = null;
+
+  input.setAttribute("autocomplete", "off");
+
+  input.addEventListener("focus", async () => {
+    const q = input.value.trim();
+    if(q.length < 3) return;
+
+    const results = await searchAddress(q);
+    renderSuggestions(box, results);
+  });
+
+  input.addEventListener("input", () => {
+    clearSelectedAddress(type, input);
+    clearTimeout(timer);
+
+    const q = input.value.trim();
+
+    if(q.length < 3){
+      clearSuggestions(box);
+      return;
+    }
+
+    timer = setTimeout(async () => {
+      const results = await searchAddress(q);
+      renderSuggestions(box, results);
+    }, 250);
+  });
+
+  box.addEventListener("click", e => {
+    const option = e.target.closest(".option");
+    if(!option || option.classList.contains("disabled")) return;
+
+    const selected = {
+      address: option.dataset.address,
+      lat: Number(option.dataset.lat),
+      lng: Number(option.dataset.lng)
+    };
+
+    input.value = selected.address;
+    setSelectedAddress(type, input, selected);
+    clearSuggestions(box);
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => clearSuggestions(box), 180);
+  });
+}
+
+/* ================= STOPS ================= */
+
+function createStopInput(){
+  if(collectStopsInputs().length >= maxStops) return;
+
+  stopCount += 1;
+
+  const wrap = document.createElement("div");
+  wrap.className = "stop-row";
+
+  const label = document.createElement("label");
+  label.className = "field-label";
+  label.textContent = "Stop " + stopCount;
+
+  const top = document.createElement("div");
+  top.className = "stop-top";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Enter stop address";
+  input.className = "route-point stop-input";
+  input.dataset.stopId = "stop_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "remove-stop";
+  removeBtn.textContent = "✕";
+
+  top.appendChild(input);
+  top.appendChild(removeBtn);
+
+  wrap.appendChild(label);
+  wrap.appendChild(top);
+
+  stopsContainer.appendChild(wrap);
+
+  attachAutocomplete(input, "stop");
+
+  removeBtn.addEventListener("click", () => {
+    selectedStops.delete(input.dataset.stopId);
+    wrap.remove();
+    isQuoteValid = false;
+    bookTripBtn.disabled = true;
+    priceBox.classList.add("hidden");
+  });
+}
+
+addStopBtn.addEventListener("click", createStopInput);
+
+/* ================= ROUTE API ================= */
+
+async function getRoute(points){
+  if(!Array.isArray(points) || points.length < 2) return null;
+
+  try{
+    const coords = points.map(p => `${p.lng},${p.lat}`).join(";");
+
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    );
+
+    const data = await res.json();
+
+    if(!data.routes || !data.routes.length) return null;
+
+    const r = data.routes[0];
+
+    return {
+      coords: r.geometry.coordinates.map(c => [c[1], c[0]]),
+      distance: r.distance / 1609.34,
+      duration: Math.round(r.duration / 60)
+    };
+  }catch(err){
+    console.error("Route error:", err);
+    return null;
+  }
+}
+
+function drawMarkers(points){
+  points.forEach((p, idx) => {
+    const label =
+      idx === 0 ? "Pickup" :
+      idx === points.length - 1 ? "Dropoff" :
+      `Stop ${idx}`;
+
+    const marker = L.marker([p.lat, p.lng]).bindPopup(label);
+    marker.addTo(map);
+    markers.push(marker);
+  });
+}
+
+/* ================= CALCULATE ================= */
+
+async function calculate(){
+  if(!selectedPickup || !selectedPickup.address){
+    alert("Please select a valid pickup address.");
+    return;
+  }
+
+  if(!selectedDropoff || !selectedDropoff.address){
+    alert("Please select a valid dropoff address.");
+    return;
+  }
+
+  const stopInputs = collectStopsInputs();
+
+  for(const input of stopInputs){
+    const value = input.value.trim();
+    const stopId = input.dataset.stopId;
+    const selected = selectedStops.get(stopId);
+
+    if(value && (!selected || !selected.address)){
+      alert("Please select each stop from suggestions.");
+      input.focus();
+      return;
+    }
+  }
+
+  const { stops, stopsGeo } = collectStopsData();
+
+  const points = [
+    selectedPickup,
+    ...stopsGeo,
+    selectedDropoff
+  ];
+
+  setLoading(true);
+  clearMap();
+
+  try{
+    const route = await getRoute(points);
+
+    if(!route){
+      alert("Route not available.");
+      setLoading(false);
+      return;
+    }
+
+    const polyline = L.polyline(route.coords, {
+      color:"#2563eb",
+      weight:5
+    }).addTo(map);
+
+    routeLayers.push(polyline);
+
+    drawMarkers(points);
+
+    map.fitBounds(polyline.getBounds(), { padding:[40,40] });
+
+    let price = 30;
+    if(route.distance > 10){
+      price += (route.distance - 10) * 2;
+    }
+
+    const stopQty = stopsGeo.length;
+    const stopsFee = stopQty * 5;
+    price += stopsFee;
+
+    priceBox.classList.remove("hidden");
+    distanceValue.textContent = `${route.distance.toFixed(2)} mi`;
+    stopsValue.textContent = String(stopQty);
+    durationValue.textContent = formatDuration(route.duration);
+    priceValue.textContent = `$${price.toFixed(2)}`;
+
+    lastTripData = {
+      pickup: selectedPickup.address,
+      pickupLat: Number(selectedPickup.lat),
+      pickupLng: Number(selectedPickup.lng),
+
+      dropoff: selectedDropoff.address,
+      dropoffLat: Number(selectedDropoff.lat),
+      dropoffLng: Number(selectedDropoff.lng),
+
+      stops: stops,
+      stopsGeo: stopsGeo,
+
+      miles: route.distance.toFixed(2),
+      duration: route.duration,
+      price: price.toFixed(2)
+    };
+
+    isQuoteValid = true;
+    bookTripBtn.disabled = false;
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ================= BOOK ================= */
+
+bookTripBtn.addEventListener("click", () => {
+  if(!isQuoteValid || !lastTripData) return;
+
+  localStorage.setItem("tripData", JSON.stringify(lastTripData));
+  window.location.href = "../booking/index.html";
+});
+
+/* ================= INIT ================= */
+
+attachAutocomplete(pickupInput, "pickup");
+attachAutocomplete(dropoffInput, "dropoff");
+
+calcBtn.addEventListener("click", calculate);
 
 </script>
 
