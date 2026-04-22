@@ -8,90 +8,19 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{
-margin:0;
-font-family:Arial;
-background:#f1f5f9;
-}
-
-.container{
-max-width:900px;
-margin:auto;
-padding:15px;
-}
-
-.card{
-background:#fff;
-padding:15px;
-border-radius:15px;
-box-shadow:0 5px 15px rgba(0,0,0,.1);
-margin-bottom:15px;
-}
-
-input{
-width:100%;
-padding:12px;
-border-radius:10px;
-border:1px solid #ccc;
-margin-bottom:10px;
-font-size:14px;
-}
-
-button{
-width:100%;
-padding:12px;
-border:none;
-border-radius:10px;
-font-weight:bold;
-font-size:15px;
-cursor:pointer;
-}
-
-.btn-main{
-background:#2563eb;
-color:#fff;
-}
-
-#map{
-height:320px;
-border-radius:12px;
-margin-top:10px;
-}
-
-.suggestions{
-background:#fff;
-border:1px solid #ddd;
-position:absolute;
-z-index:999;
-width:100%;
-max-height:200px;
-overflow:auto;
-border-radius:10px;
-}
-
-.option{
-padding:10px;
-cursor:pointer;
-border-bottom:1px solid #eee;
-}
-
-.option:hover{
-background:#f1f5f9;
-}
-
-.row{
-position:relative;
-}
-
-.result{
-font-weight:bold;
-font-size:16px;
-margin-top:10px;
-}
-
-@media(max-width:600px){
-#map{height:250px;}
-}
+body{margin:0;font-family:Arial;background:#f1f5f9}
+.container{max-width:900px;margin:auto;padding:15px}
+.card{background:#fff;padding:15px;border-radius:15px;box-shadow:0 5px 15px rgba(0,0,0,.1);margin-bottom:15px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #ccc;margin-bottom:10px;font-size:14px}
+button{width:100%;padding:12px;border:none;border-radius:10px;font-weight:bold;font-size:15px;cursor:pointer}
+.btn-main{background:#2563eb;color:#fff}
+#map{height:320px;border-radius:12px;margin-top:10px}
+.suggestions{background:#fff;border:1px solid #ddd;position:absolute;z-index:999;width:100%;max-height:200px;overflow:auto;border-radius:10px}
+.option{padding:10px;cursor:pointer;border-bottom:1px solid #eee}
+.option:hover{background:#f1f5f9}
+.row{position:relative}
+.result{font-weight:bold;font-size:16px;margin-top:10px}
+@media(max-width:600px){#map{height:250px}}
 </style>
 </head>
 
@@ -134,25 +63,35 @@ margin-top:10px;
 <script>
 
 const map = L.map("map").setView([33.4484,-112.0740],10);
-
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 let markers=[];
 let routeLine=null;
 let stopCount=0;
 
-/* ================= SEARCH ================= */
+/* ================= PHOTON SEARCH ================= */
 
 async function search(q){
-const res = await fetch(
-`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+" Arizona")}&format=json&limit=5`
-);
-return await res.json();
+  const res = await fetch(
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&bbox=-115,31,-108,37`
+  );
+  const data = await res.json();
+
+  return data.features.map(f => ({
+    name: [
+      f.properties.name,
+      f.properties.street,
+      f.properties.city,
+      "AZ"
+    ].filter(Boolean).join(", "),
+    lat: f.geometry.coordinates[1],
+    lng: f.geometry.coordinates[0]
+  }));
 }
 
-function auto(input,listId){
+/* ================= AUTOCOMPLETE ================= */
 
-const list = document.getElementById(listId);
+function auto(input,list){
 
 input.addEventListener("input",async()=>{
 const q=input.value;
@@ -161,14 +100,16 @@ if(q.length<3){list.innerHTML="";return;}
 const data=await search(q);
 
 list.innerHTML=data.map(d=>`
-<div class="option" data-lat="${d.lat}" data-lng="${d.lon}" data-name="${d.display_name}">
-${d.display_name}
+<div class="option" data-lat="${d.lat}" data-lng="${d.lng}" data-name="${d.name}">
+${d.name}
 </div>
 `).join("");
 });
 
 list.onclick=(e)=>{
-const el=e.target;
+const el=e.target.closest(".option");
+if(!el) return;
+
 input.value=el.dataset.name;
 input.dataset.lat=el.dataset.lat;
 input.dataset.lng=el.dataset.lng;
@@ -177,37 +118,47 @@ list.innerHTML="";
 
 }
 
-auto(pickup,"pickupList");
-auto(dropoff,"dropList");
+/* attach */
+auto(document.getElementById("pickup"),document.getElementById("pickupList"));
+auto(document.getElementById("dropoff"),document.getElementById("dropList"));
 
 /* ================= STOPS ================= */
 
 function addStop(){
 stopCount++;
+
 const div=document.createElement("div");
 div.className="row";
 
-div.innerHTML=`
-<input placeholder="Stop">
-<div class="suggestions"></div>
-`;
+const input=document.createElement("input");
+input.placeholder="Stop";
+
+const list=document.createElement("div");
+list.className="suggestions";
+
+div.appendChild(input);
+div.appendChild(list);
 
 document.getElementById("stops").appendChild(div);
 
-auto(div.querySelector("input"),div.querySelector(".suggestions").id=`s${stopCount}`);
+auto(input,list);
 }
 
 /* ================= GEO ================= */
 
 async function geo(address){
-const res=await fetch(
-`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address+" Arizona")}&format=json&limit=1`
-);
-const d=await res.json();
-if(d.length){
-return {lat:+d[0].lat,lng:+d[0].lon};
-}
-return null;
+  const res = await fetch(
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1`
+  );
+  const data = await res.json();
+
+  if(data.features.length){
+    return {
+      lat:data.features[0].geometry.coordinates[1],
+      lng:data.features[0].geometry.coordinates[0]
+    };
+  }
+  return null;
 }
 
 /* ================= ROUTE ================= */
@@ -220,7 +171,6 @@ const res=await fetch(
 );
 
 const data=await res.json();
-
 if(!data.routes) return null;
 
 const r=data.routes[0];
@@ -251,12 +201,19 @@ if(!d.lat) d=await geo(dropoff.value);
 
 if(!p||!d){alert("Address error");return;}
 
+/* FIX ASYNC STOPS */
 let stopsArr=[];
-document.querySelectorAll("#stops input").forEach(async el=>{
+const inputs=document.querySelectorAll("#stops input");
+
+for(const el of inputs){
 let s={lat:el.dataset.lat,lng:el.dataset.lng};
-if(!s.lat) s=await geo(el.value);
+
+if(!s.lat && el.value.trim()){
+s=await geo(el.value);
+}
+
 if(s) stopsArr.push(s);
-});
+}
 
 const points=[p,...stopsArr,d];
 
