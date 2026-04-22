@@ -377,6 +377,7 @@ const priceValue = document.getElementById("priceValue");
 let selectedPickup = null;
 let selectedDropoff = null;
 let selectedStops = new Map();
+const geoCache = new Map();
 
 /* ================= HELPERS ================= */
 
@@ -460,28 +461,6 @@ function collectStopsInputs(){
   return [...stopsContainer.querySelectorAll(".stop-input")];
 }
 
-function collectStopsData(){
-  const stops = [];
-  const stopsGeo = [];
-
-  collectStopsInputs().forEach(input => {
-    const value = input.value.trim();
-    const stopId = input.dataset.stopId;
-    const selected = selectedStops.get(stopId);
-
-    if(value && selected && selected.address){
-      stops.push(selected.address);
-      stopsGeo.push({
-        address: selected.address,
-        lat: Number(selected.lat),
-        lng: Number(selected.lng)
-      });
-    }
-  });
-
-  return { stops, stopsGeo };
-}
-
 function formatDuration(minutes){
   const total = Number(minutes || 0);
   if(total < 60) return `${total} min`;
@@ -493,28 +472,156 @@ function formatDuration(minutes){
   return `${h} hr ${m} min`;
 }
 
+function scoreArizonaResult(item, query){
+  const text = String(item.display_name || "").toLowerCase();
+  const q = String(query || "").toLowerCase().trim();
+
+  let score = 0;
+
+  if(text.includes("arizona")) score += 50;
+  if(text.includes("az")) score += 20;
+  if(text.includes("phoenix")) score += 20;
+  if(text.includes("chandler")) score += 20;
+  if(text.includes("mesa")) score += 20;
+  if(text.includes("tempe")) score += 20;
+  if(text.includes("gilbert")) score += 20;
+  if(text.includes("scottsdale")) score += 20;
+  if(text.includes("glendale")) score += 10;
+  if(text.includes("peoria")) score += 10;
+
+  if(item.type === "house") score += 25;
+  if(item.type === "building") score += 22;
+  if(item.type === "residential") score += 18;
+  if(item.type === "road") score += 12;
+
+  if(q && text.startsWith(q)) score += 40;
+  if(q && text.includes(q)) score += 15;
+
+  return score;
+}
+
+function dedupeResults(results){
+  const seen = new Set();
+  const out = [];
+
+  for(const item of results){
+    const key = String(item.display_name || "").trim().toLowerCase();
+    if(!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+
+  return out;
+}
+
 /* ================= ADDRESS SEARCH ================= */
 
 async function searchAddress(q){
   const query = String(q || "").trim();
   if(query.length < 3) return [];
 
+  const cacheKey = "search:" + query.toLowerCase();
+  if(geoCache.has(cacheKey)) return geoCache.get(cacheKey);
+
   try{
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=us&viewbox=-115,35.5,-108.5,31&bounded=1`,
-      {
-        headers: {
-          "Accept": "application/json"
-        }
+    const phoenixMetroViewBox = "-112.75,33.95,-111.35,33.05";
+
+    const url =
+      `https://nominatim.openstreetmap.org/search` +
+      `?q=${encodeURIComponent(query)}` +
+      `&format=json` +
+      `&addressdetails=1` +
+      `&limit=8` +
+      `&countrycodes=us` +
+      `&viewbox=${phoenixMetroViewBox}`;
+
+    const res = await fetch(url, {
+      headers: {
+        "Accept": "application/json"
       }
-    );
+    });
 
     if(!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+
+    let data = await res.json();
+    if(!Array.isArray(data)) data = [];
+
+    data = dedupeResults(data)
+      .sort((a, b) => scoreArizonaResult(b, query) - scoreArizonaResult(a, query))
+      .slice(0, 6);
+
+    geoCache.set(cacheKey, data);
+    return data;
   }catch(err){
     console.error("Address search error:", err);
     return [];
+  }
+}
+
+async function geocodeAddress(rawAddress){
+  const address = String(rawAddress || "").trim();
+  if(!address) return null;
+
+  const cacheKey = "geocode:" + address.toLowerCase();
+  if(geoCache.has(cacheKey)) return geoCache.get(cacheKey);
+
+  try{
+    const phoenixMetroViewBox = "-112.75,33.95,-111.35,33.05";
+
+    const strictUrl =
+      `https://nominatim.openstreetmap.org/search` +
+      `?q=${encodeURIComponent(address)}` +
+      `&format=json` +
+      `&addressdetails=1` +
+      `&limit=1` +
+      `&countrycodes=us` +
+      `&viewbox=${phoenixMetroViewBox}`;
+
+    let res = await fetch(strictUrl, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    let data = [];
+    if(res.ok){
+      data = await res.json();
+    }
+
+    if(!Array.isArray(data) || !data.length){
+      const fallbackUrl =
+        `https://nominatim.openstreetmap.org/search` +
+        `?q=${encodeURIComponent(address + ", Arizona")}` +
+        `&format=json` +
+        `&addressdetails=1` +
+        `&limit=1` +
+        `&countrycodes=us`;
+
+      res = await fetch(fallbackUrl, {
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      if(res.ok){
+        data = await res.json();
+      }
+    }
+
+    if(!Array.isArray(data) || !data.length) return null;
+
+    const item = data[0];
+    const result = {
+      address: item.display_name,
+      lat: Number(item.lat),
+      lng: Number(item.lon)
+    };
+
+    geoCache.set(cacheKey, result);
+    return result;
+  }catch(err){
+    console.error("Geocode error:", err);
+    return null;
   }
 }
 
@@ -564,7 +671,14 @@ function attachAutocomplete(input, type){
     timer = setTimeout(async () => {
       const results = await searchAddress(q);
       renderSuggestions(box, results);
-    }, 250);
+    }, 350);
+  });
+
+  input.addEventListener("keydown", e => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      clearSuggestions(box);
+    }
   });
 
   box.addEventListener("click", e => {
@@ -680,37 +794,79 @@ function drawMarkers(points){
 
 /* ================= CALCULATE ================= */
 
+async function resolvePoint(type, input){
+  const raw = input.value.trim();
+  if(!raw) return null;
+
+  if(type === "pickup" && selectedPickup && selectedPickup.address){
+    return selectedPickup;
+  }
+
+  if(type === "dropoff" && selectedDropoff && selectedDropoff.address){
+    return selectedDropoff;
+  }
+
+  if(type === "stop"){
+    const stopId = input.dataset.stopId;
+    const selected = selectedStops.get(stopId);
+    if(selected && selected.address){
+      return selected;
+    }
+  }
+
+  return await geocodeAddress(raw);
+}
+
 async function calculate(){
-  if(!selectedPickup || !selectedPickup.address){
-    alert("Please select a valid pickup address.");
+  const pickup = await resolvePoint("pickup", pickupInput);
+  if(!pickup){
+    alert("Please enter a valid pickup address.");
+    pickupInput.focus();
     return;
   }
 
-  if(!selectedDropoff || !selectedDropoff.address){
-    alert("Please select a valid dropoff address.");
+  const dropoff = await resolvePoint("dropoff", dropoffInput);
+  if(!dropoff){
+    alert("Please enter a valid dropoff address.");
+    dropoffInput.focus();
     return;
   }
 
   const stopInputs = collectStopsInputs();
+  const stops = [];
+  const stopsGeo = [];
 
   for(const input of stopInputs){
     const value = input.value.trim();
-    const stopId = input.dataset.stopId;
-    const selected = selectedStops.get(stopId);
+    if(!value) continue;
 
-    if(value && (!selected || !selected.address)){
-      alert("Please select each stop from suggestions.");
+    const stop = await resolvePoint("stop", input);
+    if(!stop){
+      alert("One of the stop addresses is invalid.");
       input.focus();
       return;
     }
+
+    stops.push(stop.address);
+    stopsGeo.push({
+      address: stop.address,
+      lat: Number(stop.lat),
+      lng: Number(stop.lng)
+    });
   }
 
-  const { stops, stopsGeo } = collectStopsData();
-
   const points = [
-    selectedPickup,
+    {
+      address: pickup.address,
+      lat: Number(pickup.lat),
+      lng: Number(pickup.lng)
+    },
     ...stopsGeo,
-    selectedDropoff
+    {
+      address: dropoff.address,
+      lat: Number(dropoff.lat),
+      lng: Number(dropoff.lng)
+    }
   ];
 
   setLoading(true);
@@ -721,7 +877,6 @@ async function calculate(){
 
     if(!route){
       alert("Route not available.");
-      setLoading(false);
       return;
     }
 
@@ -731,7 +886,6 @@ async function calculate(){
     }).addTo(map);
 
     routeLayers.push(polyline);
-
     drawMarkers(points);
 
     map.fitBounds(polyline.getBounds(), { padding:[40,40] });
@@ -742,8 +896,7 @@ async function calculate(){
     }
 
     const stopQty = stopsGeo.length;
-    const stopsFee = stopQty * 5;
-    price += stopsFee;
+    price += stopQty * 5;
 
     priceBox.classList.remove("hidden");
     distanceValue.textContent = `${route.distance.toFixed(2)} mi`;
@@ -752,13 +905,13 @@ async function calculate(){
     priceValue.textContent = `$${price.toFixed(2)}`;
 
     lastTripData = {
-      pickup: selectedPickup.address,
-      pickupLat: Number(selectedPickup.lat),
-      pickupLng: Number(selectedPickup.lng),
+      pickup: pickup.address,
+      pickupLat: Number(pickup.lat),
+      pickupLng: Number(pickup.lng),
 
-      dropoff: selectedDropoff.address,
-      dropoffLat: Number(selectedDropoff.lat),
-      dropoffLng: Number(selectedDropoff.lng),
+      dropoff: dropoff.address,
+      dropoffLat: Number(dropoff.lat),
+      dropoffLng: Number(dropoff.lng),
 
       stops: stops,
       stopsGeo: stopsGeo,
@@ -767,6 +920,28 @@ async function calculate(){
       duration: route.duration,
       price: price.toFixed(2)
     };
+
+    selectedPickup = {
+      address: pickup.address,
+      lat: Number(pickup.lat),
+      lng: Number(pickup.lng)
+    };
+
+    selectedDropoff = {
+      address: dropoff.address,
+      lat: Number(dropoff.lat),
+      lng: Number(dropoff.lng)
+    };
+
+    stopInputs.forEach((input, idx) => {
+      const value = input.value.trim();
+      if(!value) return;
+      const stopId = input.dataset.stopId;
+      const stop = stopsGeo[idx];
+      if(stop && stopId){
+        selectedStops.set(stopId, stop);
+      }
+    });
 
     isQuoteValid = true;
     bookTripBtn.disabled = false;
@@ -790,7 +965,6 @@ attachAutocomplete(pickupInput, "pickup");
 attachAutocomplete(dropoffInput, "dropoff");
 
 calcBtn.addEventListener("click", calculate);
-
 </script>
 
 </body>
