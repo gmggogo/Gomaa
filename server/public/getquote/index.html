@@ -8,53 +8,70 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{margin:0;font-family:Arial;background:#f1f5f9}
-.container{max-width:900px;margin:auto;padding:15px}
-.card{background:#fff;padding:15px;border-radius:15px;box-shadow:0 5px 15px rgba(0,0,0,.1);margin-bottom:15px}
-input{width:100%;padding:12px;border-radius:10px;border:1px solid #ccc;margin-bottom:10px;font-size:14px}
-button{width:100%;padding:12px;border:none;border-radius:10px;font-weight:bold;font-size:15px;cursor:pointer}
-.btn-main{background:#2563eb;color:#fff}
-#map{height:320px;border-radius:12px;margin-top:10px}
-.suggestions{background:#fff;border:1px solid #ddd;position:absolute;z-index:999;width:100%;max-height:200px;overflow:auto;border-radius:10px}
-.option{padding:10px;cursor:pointer;border-bottom:1px solid #eee}
-.option:hover{background:#f1f5f9}
-.row{position:relative}
-.result{font-weight:bold;font-size:16px;margin-top:10px}
-@media(max-width:600px){#map{height:250px}}
+body{font-family:Arial;margin:0;background:#f8fafc;}
+.page{max-width:900px;margin:auto;padding:15px;}
+.card{background:#fff;padding:15px;border-radius:12px;margin-bottom:15px;}
+
+input{
+  width:100%;
+  padding:12px;
+  margin-bottom:10px;
+  border:1px solid #ddd;
+  border-radius:8px;
+}
+
+button{
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+  width:100%;
+  margin-bottom:8px;
+}
+
+.btn-primary{background:#2563eb;color:#fff;}
+.btn-success{background:#22c55e;color:#fff;}
+
+#map{height:300px;border-radius:10px;}
+
+.suggestions{
+  background:#fff;
+  border:1px solid #ddd;
+  position:absolute;
+  width:100%;
+  z-index:999;
+  max-height:200px;
+  overflow:auto;
+}
+
+.option{padding:10px;cursor:pointer;}
+.option:hover{background:#eee;}
+.hidden{display:none;}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="page">
 
 <div class="card">
+<input id="pickup" placeholder="Pickup address">
+<div id="pickupBox" class="suggestions hidden"></div>
 
-<h2>Get Quote</h2>
+<input id="dropoff" placeholder="Dropoff address">
+<div id="dropoffBox" class="suggestions hidden"></div>
 
-<div class="row">
-<input id="pickup" placeholder="Pickup Address">
-<div id="pickupList" class="suggestions"></div>
+<button id="calcBtn" class="btn-primary">Calculate Price</button>
+<button id="bookBtn" class="btn-success" disabled>Book Trip</button>
+
+<div id="result" class="hidden">
+<p id="distance"></p>
+<p id="price"></p>
+</div>
 </div>
 
-<div id="stops"></div>
-
-<button onclick="addStop()">+ Add Stop</button>
-
-<div class="row">
-<input id="dropoff" placeholder="Dropoff Address">
-<div id="dropList" class="suggestions"></div>
-</div>
-
-<button class="btn-main" onclick="calculate()">Calculate Price</button>
-
-<div class="result" id="result"></div>
-
-</div>
-
-<div class="card">
 <div id="map"></div>
-</div>
 
 </div>
 
@@ -62,185 +79,170 @@ button{width:100%;padding:12px;border:none;border-radius:10px;font-weight:bold;f
 
 <script>
 
-const map = L.map("map").setView([33.4484,-112.0740],10);
+/* ================= MAP ================= */
+
+const map = L.map("map").setView([33.4484, -112.0740], 11);
+
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-let markers=[];
-let routeLine=null;
-let stopCount=0;
+let markers = [];
 
-/* ================= PHOTON SEARCH ================= */
+/* ================= SEARCH FIX ================= */
 
-async function search(q){
-  const res = await fetch(
-    `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&bbox=-115,31,-108,37`
-  );
-  const data = await res.json();
+async function searchAddress(q){
+  if(q.length < 3) return [];
 
-  return data.features.map(f => ({
-    name: [
-      f.properties.name,
-      f.properties.street,
-      f.properties.city,
-      "AZ"
-    ].filter(Boolean).join(", "),
-    lat: f.geometry.coordinates[1],
-    lng: f.geometry.coordinates[0]
-  }));
+  // 🔥 FIX مهم: نشيل الرقم لو البحث فشل
+  let clean = q.replace(/^\d+\s*/, "");
+
+  try{
+    let res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + " Arizona")}&format=json&limit=5`);
+    let data = await res.json();
+
+    if(!data.length){
+      res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(clean + " Arizona")}&format=json&limit=5`);
+      data = await res.json();
+    }
+
+    return data;
+  }catch{
+    return [];
+  }
 }
 
 /* ================= AUTOCOMPLETE ================= */
 
-function auto(input,list){
+function attach(input, box){
 
-input.addEventListener("input",async()=>{
-const q=input.value;
-if(q.length<3){list.innerHTML="";return;}
+  input.addEventListener("input", async ()=>{
+    const q = input.value.trim();
 
-const data=await search(q);
+    if(q.length < 3){
+      box.classList.add("hidden");
+      return;
+    }
 
-list.innerHTML=data.map(d=>`
-<div class="option" data-lat="${d.lat}" data-lng="${d.lng}" data-name="${d.name}">
-${d.name}
-</div>
-`).join("");
-});
+    const results = await searchAddress(q);
 
-list.onclick=(e)=>{
-const el=e.target.closest(".option");
-if(!el) return;
+    box.innerHTML = results.map(r=>`
+      <div class="option" 
+        data-lat="${r.lat}" 
+        data-lng="${r.lon}" 
+        data-name="${r.display_name}">
+        ${r.display_name}
+      </div>
+    `).join("");
 
-input.value=el.dataset.name;
-input.dataset.lat=el.dataset.lat;
-input.dataset.lng=el.dataset.lng;
-list.innerHTML="";
-};
+    box.classList.remove("hidden");
+  });
 
+  box.addEventListener("click", e=>{
+    const el = e.target.closest(".option");
+    if(!el) return;
+
+    input.value = el.dataset.name;
+    input.dataset.lat = el.dataset.lat;
+    input.dataset.lng = el.dataset.lng;
+
+    box.classList.add("hidden");
+  });
 }
 
-/* attach */
-auto(document.getElementById("pickup"),document.getElementById("pickupList"));
-auto(document.getElementById("dropoff"),document.getElementById("dropList"));
+attach(pickup, pickupBox);
+attach(dropoff, dropoffBox);
 
-/* ================= STOPS ================= */
+/* ================= GEOCODE (لو كتب يدوي) ================= */
 
-function addStop(){
-stopCount++;
+async function forceGeo(input){
+  if(input.dataset.lat) return {
+    lat: input.dataset.lat,
+    lng: input.dataset.lng,
+    name: input.value
+  };
 
-const div=document.createElement("div");
-div.className="row";
-
-const input=document.createElement("input");
-input.placeholder="Stop";
-
-const list=document.createElement("div");
-list.className="suggestions";
-
-div.appendChild(input);
-div.appendChild(list);
-
-document.getElementById("stops").appendChild(div);
-
-auto(input,list);
-}
-
-/* ================= GEO ================= */
-
-async function geo(address){
-  const res = await fetch(
-    `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1`
-  );
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input.value + " Arizona")}&format=json&limit=1`);
   const data = await res.json();
 
-  if(data.features.length){
-    return {
-      lat:data.features[0].geometry.coordinates[1],
-      lng:data.features[0].geometry.coordinates[0]
-    };
-  }
-  return null;
+  if(!data.length) return null;
+
+  return {
+    lat: data[0].lat,
+    lng: data[0].lon,
+    name: data[0].display_name
+  };
 }
 
 /* ================= ROUTE ================= */
 
-async function route(points){
-const coords=points.map(p=>`${p.lng},${p.lat}`).join(";");
+async function getRoute(p1, p2){
+  const url = `https://router.project-osrm.org/route/v1/driving/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=full&geometries=geojson`;
+  const res = await fetch(url);
+  const data = await res.json();
 
-const res=await fetch(
-`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
-);
+  if(!data.routes.length) return null;
 
-const data=await res.json();
-if(!data.routes) return null;
+  const r = data.routes[0];
 
-const r=data.routes[0];
-
-return{
-coords:r.geometry.coordinates.map(c=>[c[1],c[0]]),
-distance:r.distance/1609.34,
-duration:r.duration/60
-};
+  return {
+    coords: r.geometry.coordinates.map(c=>[c[1],c[0]]),
+    distance: r.distance / 1609,
+    duration: r.duration / 60
+  };
 }
 
 /* ================= CALCULATE ================= */
 
-async function calculate(){
+calcBtn.onclick = async ()=>{
 
-let p={
-lat:pickup.dataset.lat,
-lng:pickup.dataset.lng
+  const p1 = await forceGeo(pickup);
+  const p2 = await forceGeo(dropoff);
+
+  if(!p1 || !p2){
+    alert("Address not found");
+    return;
+  }
+
+  const route = await getRoute(p1,p2);
+  if(!route) return;
+
+  markers.forEach(m=>map.removeLayer(m));
+  markers = [];
+
+  const line = L.polyline(route.coords).addTo(map);
+
+  map.fitBounds(line.getBounds());
+
+  let price = 30;
+  if(route.distance > 10){
+    price += (route.distance - 10) * 2;
+  }
+
+  distance.innerText = "Distance: " + route.distance.toFixed(2) + " mi";
+  price.innerText = "Price: $" + price.toFixed(2);
+
+  result.classList.remove("hidden");
+
+  // 🔥 تفعيل زرار البوكنج
+  bookBtn.disabled = false;
+
+  // حفظ البيانات
+  window.tripData = {
+    pickup: p1.name,
+    dropoff: p2.name,
+    price
+  };
 };
 
-let d={
-lat:dropoff.dataset.lat,
-lng:dropoff.dataset.lng
+/* ================= BOOK ================= */
+
+bookBtn.onclick = ()=>{
+  if(!window.tripData) return;
+
+  localStorage.setItem("tripData", JSON.stringify(window.tripData));
+
+  alert("Trip Saved ✔");
+  // تقدر تحط redirect هنا
 };
-
-if(!p.lat) p=await geo(pickup.value);
-if(!d.lat) d=await geo(dropoff.value);
-
-if(!p||!d){alert("Address error");return;}
-
-/* FIX ASYNC STOPS */
-let stopsArr=[];
-const inputs=document.querySelectorAll("#stops input");
-
-for(const el of inputs){
-let s={lat:el.dataset.lat,lng:el.dataset.lng};
-
-if(!s.lat && el.value.trim()){
-s=await geo(el.value);
-}
-
-if(s) stopsArr.push(s);
-}
-
-const points=[p,...stopsArr,d];
-
-const r=await route(points);
-
-if(!r){alert("Route error");return;}
-
-if(routeLine) map.removeLayer(routeLine);
-markers.forEach(m=>map.removeLayer(m));
-markers=[];
-
-routeLine=L.polyline(r.coords,{color:"blue"}).addTo(map);
-
-points.forEach(pt=>{
-markers.push(L.marker([pt.lat,pt.lng]).addTo(map));
-});
-
-map.fitBounds(routeLine.getBounds());
-
-let price=30;
-if(r.distance>10) price+=(r.distance-10)*2;
-price+=stopsArr.length*5;
-
-document.getElementById("result").innerText=
-`Distance ${r.distance.toFixed(2)} mi | Time ${Math.round(r.duration)} min | Price $${price.toFixed(2)}`;
-
-}
 
 </script>
 
