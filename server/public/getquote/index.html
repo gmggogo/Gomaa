@@ -1,170 +1,180 @@
-<!-- غير بس فانكشن البحث دي بالكامل -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Get Quote – Sunbeam</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+body{font-family:Arial;background:#f8fafc;margin:0}
+.page{max-width:900px;margin:auto;padding:15px}
+.hero{background:#1d4ed8;color:#fff;padding:20px;border-radius:12px}
+.card{background:#fff;padding:15px;border-radius:12px;margin-top:15px}
+input{width:100%;padding:12px;margin-top:6px;border-radius:8px;border:1px solid #ccc}
+button{padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-success{background:#22c55e}
+.toolbar{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+#map{height:300px;margin-top:15px;border-radius:12px}
+.suggestions{background:#fff;border:1px solid #ccc;position:absolute;width:100%;z-index:999}
+.option{padding:8px;cursor:pointer}
+.option:hover{background:#eee}
+</style>
+</head>
+
+<body>
+
+<div class="page">
+
+<div class="hero">
+<h2>Get Quote</h2>
+</div>
+
+<div class="card">
+
+<label>Pickup</label>
+<div style="position:relative">
+<input id="pickup">
+<div class="suggestions" id="pickupSug"></div>
+</div>
+
+<label>Dropoff</label>
+<div style="position:relative">
+<input id="dropoff">
+<div class="suggestions" id="dropoffSug"></div>
+</div>
+
+<div id="stops"></div>
+
+<div class="toolbar">
+<button onclick="addStop()">+ Stop</button>
+<button class="btn-primary" onclick="calculate()">Calculate</button>
+<button class="btn-success" id="bookBtn" disabled>Book</button>
+</div>
+
+<div id="result"></div>
+
+</div>
+
+<div class="card">
+<div id="map"></div>
+</div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+const map = L.map("map").setView([33.45,-112.07],10);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-/* ================= ADDRESS SEARCH (FIXED) ================= */
+let markers=[],routeLine=null;
 
-async function searchAddress(q){
-  const query = String(q || "").trim();
+function clearMap(){
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  if(routeLine) map.removeLayer(routeLine);
+}
 
-  if(query.length < 3) return [];
-
-  try{
-    const res = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6`
-    );
-
-    const data = await res.json();
-
-    if(!data.features) return [];
-
-    return data.features.map(f => ({
-      display_name: [
-        f.properties.name,
-        f.properties.city,
-        f.properties.state
-      ].filter(Boolean).join(", "),
-      lat: f.geometry.coordinates[1],
-      lon: f.geometry.coordinates[0]
-    }));
-
-  }catch(err){
-    console.log("Search error:", err);
-    return [];
+async function geocode(address){
+  const res = await fetch(
+    "https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(address)+"&format=json&limit=1",
+    {headers:{"User-Agent":"sunbeam"}}
+  );
+  const data = await res.json();
+  if(!data.length) return null;
+  return {
+    lat:+data[0].lat,
+    lng:+data[0].lon,
+    name:data[0].display_name
   }
 }
 
-/* ================= AUTOCOMPLETE FIX ================= */
+async function search(q){
+  if(q.length<3) return [];
+  const res = await fetch(
+    "https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(q)+"&format=json&limit=5",
+    {headers:{"User-Agent":"sunbeam"}}
+  );
+  return await res.json();
+}
 
-function attachAutocomplete(input, type){
-  const box = getOrCreateSuggestionBox(input);
-  let timer;
-
-  input.addEventListener("input", () => {
-    clearTimeout(timer);
-
-    const q = input.value.trim();
-
-    if(q.length < 3){
-      clearSuggestions(box);
-      return;
-    }
-
-    timer = setTimeout(async () => {
-      const results = await searchAddress(q);
-      renderSuggestions(box, results);
-    }, 200);
-  });
-
-  box.addEventListener("click", e => {
-    const option = e.target.closest(".option");
-    if(!option) return;
-
-    const selected = {
-      address: option.dataset.address,
-      lat: Number(option.dataset.lat),
-      lng: Number(option.dataset.lng)
-    };
-
-    input.value = selected.address;
-    setSelectedAddress(type, input, selected);
-    clearSuggestions(box);
+function attach(input,sug){
+  input.addEventListener("input", async ()=>{
+    const list = await search(input.value);
+    sug.innerHTML="";
+    list.forEach(i=>{
+      const d=document.createElement("div");
+      d.className="option";
+      d.innerText=i.display_name;
+      d.onclick=()=>{
+        input.value=i.display_name;
+        sug.innerHTML="";
+      };
+      sug.appendChild(d);
+    });
   });
 }
 
-/* ================= CALCULATE FIX ================= */
+attach(pickup,pickupSug);
+attach(dropoff,dropoffSug);
+
+function addStop(){
+  const div=document.createElement("div");
+  div.innerHTML='<input class="stop">';
+  stops.appendChild(div);
+}
+
+async function route(points){
+  const coords=points.map(p=>p.lng+","+p.lat).join(";");
+  const res=await fetch("https://router.project-osrm.org/route/v1/driving/"+coords+"?overview=full&geometries=geojson");
+  const data=await res.json();
+  const r=data.routes[0];
+  return {
+    dist:r.distance/1609,
+    dur:r.duration/60,
+    coords:r.geometry.coordinates.map(c=>[c[1],c[0]])
+  }
+}
 
 async function calculate(){
 
-  const pickupText = pickupInput.value.trim();
-  const dropoffText = dropoffInput.value.trim();
-
-  if(!pickupText || !dropoffText){
-    alert("Enter addresses");
-    return;
-  }
-
-  // fallback لو المستخدم مدخل يدوي
-  if(!selectedPickup){
-    selectedPickup = await fakeGeocode(pickupText);
-  }
-
-  if(!selectedDropoff){
-    selectedDropoff = await fakeGeocode(dropoffText);
-  }
-
-  const { stopsGeo } = collectStopsData();
-
-  const points = [
-    selectedPickup,
-    ...stopsGeo,
-    selectedDropoff
-  ];
-
-  setLoading(true);
   clearMap();
 
-  const route = await getRoute(points);
+  const p = await geocode(pickup.value);
+  const d = await geocode(dropoff.value);
 
-  if(!route){
-    alert("Route error");
-    setLoading(false);
-    return;
-  }
+  if(!p||!d){alert("invalid address");return;}
 
-  const polyline = L.polyline(route.coords).addTo(map);
-  routeLayers.push(polyline);
+  const stopsArr=[];
+  document.querySelectorAll(".stop").forEach(async s=>{
+    if(s.value){
+      const g=await geocode(s.value);
+      if(g) stopsArr.push(g);
+    }
+  });
 
-  drawMarkers(points);
-  map.fitBounds(polyline.getBounds(), { padding:[40,40] });
+  const points=[p,...stopsArr,d];
 
-  let price = 30;
+  const r=await route(points);
 
-  if(route.distance > 10){
-    price += (route.distance - 10) * 2;
-  }
+  routeLine=L.polyline(r.coords).addTo(map);
+  map.fitBounds(routeLine.getBounds());
 
-  price += stopsGeo.length * 5;
+  let price=30;
+  if(r.dist>10) price+=(r.dist-10)*2;
 
-  priceBox.classList.remove("hidden");
+  document.getElementById("result").innerHTML=
+    "Distance: "+r.dist.toFixed(2)+" mi<br>"+
+    "Time: "+Math.round(r.dur)+" min<br>"+
+    "Price: $"+price.toFixed(2);
 
-  distanceValue.textContent = route.distance.toFixed(2) + " mi";
-  stopsValue.textContent = stopsGeo.length;
-  durationValue.textContent = formatDuration(route.duration);
-  priceValue.textContent = "$" + price.toFixed(2);
-
-  lastTripData = {
-    pickup: pickupText,
-    dropoff: dropoffText,
-    price
-  };
-
-  isQuoteValid = true;
-  bookTripBtn.disabled = false;
-
-  setLoading(false);
-}
-
-/* ================= FALLBACK GEOCODE ================= */
-
-async function fakeGeocode(address){
-  try{
-    const res = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1`
-    );
-    const data = await res.json();
-
-    const f = data.features[0];
-
-    return {
-      address: address,
-      lat: f.geometry.coordinates[1],
-      lng: f.geometry.coordinates[0]
-    };
-
-  }catch{
-    return null;
-  }
+  document.getElementById("bookBtn").disabled=false;
 }
 
 </script>
+
+</body>
+</html>
