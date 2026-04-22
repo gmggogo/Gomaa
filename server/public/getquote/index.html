@@ -1,210 +1,170 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Sunbeam Quote</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-<style>
-body{font-family:Arial;margin:0;background:#f8fafc}
-.page{max-width:900px;margin:auto;padding:15px}
-.card{background:#fff;padding:15px;border-radius:12px;margin-bottom:15px}
-input{width:100%;padding:12px;border-radius:10px;border:1px solid #ccc;margin-bottom:10px}
-button{padding:12px;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
-.primary{background:#2563eb;color:#fff}
-.success{background:#22c55e}
-.light{background:#ddd}
-#map{height:300px;margin-top:10px;border-radius:10px}
-
-.suggestions{
-position:absolute;background:#fff;border:1px solid #ccc;width:100%;
-max-height:200px;overflow:auto;z-index:9999;border-radius:10px
-}
-.option{padding:10px;cursor:pointer}
-.option:hover{background:#eee}
-</style>
-</head>
-
-<body>
-
-<div class="page">
-
-<div class="card">
-<h2>Route</h2>
-
-<input id="pickup" placeholder="Pickup address">
-<div id="stops"></div>
-
-<button class="light" onclick="addStop()">+ Stop</button>
-
-<input id="dropoff" placeholder="Dropoff address">
-
-<button class="primary" onclick="calculate()">Calculate</button>
-<button class="success" id="bookBtn" disabled onclick="book()">Book</button>
-
-<div id="result" style="display:none;margin-top:10px">
-<p>Distance: <span id="dist"></span></p>
-<p>Time: <span id="time"></span></p>
-<p>Price: <span id="price"></span></p>
-</div>
-
-</div>
-
-<div class="card">
-<div id="map"></div>
-</div>
-
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- غير بس فانكشن البحث دي بالكامل -->
 
 <script>
 
-/* MAP */
-const map = L.map('map').setView([33.4484,-112.0740],10);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+/* ================= ADDRESS SEARCH (FIXED) ================= */
 
-let markers=[]; let line;
+async function searchAddress(q){
+  const query = String(q || "").trim();
 
-/* ================= SEARCH FIX ================= */
+  if(query.length < 3) return [];
 
-async function search(q){
-q=q.trim();
-if(q.length<3)return[];
+  try{
+    const res = await fetch(
+      `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6`
+    );
 
-let tries=[
-q,
-q.replace(/^\d+\s*/,""),
-q.replace(/\brd\b/i,"road").replace(/\bst\b/i,"street").replace(/\bave\b/i,"avenue")
-];
+    const data = await res.json();
 
-for(let t of tries){
-let r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(t+" Arizona")}`);
-let d=await r.json();
-if(d.length)return d;
-}
-return[];
-}
+    if(!data.features) return [];
 
-/* AUTOCOMPLETE */
+    return data.features.map(f => ({
+      display_name: [
+        f.properties.name,
+        f.properties.city,
+        f.properties.state
+      ].filter(Boolean).join(", "),
+      lat: f.geometry.coordinates[1],
+      lon: f.geometry.coordinates[0]
+    }));
 
-function auto(input){
-let box=document.createElement("div");
-box.className="suggestions";
-input.parentNode.appendChild(box);
-
-input.oninput=async()=>{
-let r=await search(input.value);
-box.innerHTML=r.map(i=>`<div class="option" data-lat="${i.lat}" data-lng="${i.lon}">${i.display_name}</div>`).join("");
-};
-
-box.onclick=e=>{
-let o=e.target.closest(".option");
-if(!o)return;
-input.value=o.innerText;
-input.dataset.lat=o.dataset.lat;
-input.dataset.lng=o.dataset.lng;
-box.innerHTML="";
-};
+  }catch(err){
+    console.log("Search error:", err);
+    return [];
+  }
 }
 
-auto(pickup);
-auto(dropoff);
+/* ================= AUTOCOMPLETE FIX ================= */
 
-/* STOPS */
+function attachAutocomplete(input, type){
+  const box = getOrCreateSuggestionBox(input);
+  let timer;
 
-function addStop(){
-let i=document.createElement("input");
-auto(i);
-stops.appendChild(i);
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+
+    const q = input.value.trim();
+
+    if(q.length < 3){
+      clearSuggestions(box);
+      return;
+    }
+
+    timer = setTimeout(async () => {
+      const results = await searchAddress(q);
+      renderSuggestions(box, results);
+    }, 200);
+  });
+
+  box.addEventListener("click", e => {
+    const option = e.target.closest(".option");
+    if(!option) return;
+
+    const selected = {
+      address: option.dataset.address,
+      lat: Number(option.dataset.lat),
+      lng: Number(option.dataset.lng)
+    };
+
+    input.value = selected.address;
+    setSelectedAddress(type, input, selected);
+    clearSuggestions(box);
+  });
 }
 
-/* GEO FORCE */
-
-async function geo(text){
-let r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(text+" Arizona")}`);
-let d=await r.json();
-if(!d.length)return null;
-return {lat:+d[0].lat,lng:+d[0].lon,name:d[0].display_name};
-}
-
-/* ROUTE */
-
-async function route(points){
-let coords=points.map(p=>p.lng+","+p.lat).join(";");
-let r=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
-let d=await r.json();
-if(!d.routes)return null;
-let rt=d.routes[0];
-return {
-coords:rt.geometry.coordinates.map(c=>[c[1],c[0]]),
-dist:rt.distance/1609,
-time:rt.duration/60
-};
-}
-
-/* CALCULATE */
+/* ================= CALCULATE FIX ================= */
 
 async function calculate(){
 
-let p=pickup.dataset.lat?{
-lat:+pickup.dataset.lat,lng:+pickup.dataset.lng,name:pickup.value
-}:await geo(pickup.value);
+  const pickupText = pickupInput.value.trim();
+  const dropoffText = dropoffInput.value.trim();
 
-let d=dropoff.dataset.lat?{
-lat:+dropoff.dataset.lat,lng:+dropoff.dataset.lng,name:dropoff.value
-}:await geo(dropoff.value);
+  if(!pickupText || !dropoffText){
+    alert("Enter addresses");
+    return;
+  }
 
-if(!p||!d){alert("Address error");return;}
+  // fallback لو المستخدم مدخل يدوي
+  if(!selectedPickup){
+    selectedPickup = await fakeGeocode(pickupText);
+  }
 
-let s=[];
-for(let el of stops.children){
-let g=el.dataset.lat?{
-lat:+el.dataset.lat,lng:+el.dataset.lng,name:el.value
-}:await geo(el.value);
-if(g)s.push(g);
+  if(!selectedDropoff){
+    selectedDropoff = await fakeGeocode(dropoffText);
+  }
+
+  const { stopsGeo } = collectStopsData();
+
+  const points = [
+    selectedPickup,
+    ...stopsGeo,
+    selectedDropoff
+  ];
+
+  setLoading(true);
+  clearMap();
+
+  const route = await getRoute(points);
+
+  if(!route){
+    alert("Route error");
+    setLoading(false);
+    return;
+  }
+
+  const polyline = L.polyline(route.coords).addTo(map);
+  routeLayers.push(polyline);
+
+  drawMarkers(points);
+  map.fitBounds(polyline.getBounds(), { padding:[40,40] });
+
+  let price = 30;
+
+  if(route.distance > 10){
+    price += (route.distance - 10) * 2;
+  }
+
+  price += stopsGeo.length * 5;
+
+  priceBox.classList.remove("hidden");
+
+  distanceValue.textContent = route.distance.toFixed(2) + " mi";
+  stopsValue.textContent = stopsGeo.length;
+  durationValue.textContent = formatDuration(route.duration);
+  priceValue.textContent = "$" + price.toFixed(2);
+
+  lastTripData = {
+    pickup: pickupText,
+    dropoff: dropoffText,
+    price
+  };
+
+  isQuoteValid = true;
+  bookTripBtn.disabled = false;
+
+  setLoading(false);
 }
 
-let pts=[p,...s,d];
+/* ================= FALLBACK GEOCODE ================= */
 
-let r=await route(pts);
-if(!r){alert("route error");return;}
+async function fakeGeocode(address){
+  try{
+    const res = await fetch(
+      `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1`
+    );
+    const data = await res.json();
 
-markers.forEach(m=>map.removeLayer(m));
-if(line)map.removeLayer(line);
+    const f = data.features[0];
 
-line=L.polyline(r.coords).addTo(map);
-map.fitBounds(line.getBounds());
+    return {
+      address: address,
+      lat: f.geometry.coordinates[1],
+      lng: f.geometry.coordinates[0]
+    };
 
-pts.forEach(x=>{
-markers.push(L.marker([x.lat,x.lng]).addTo(map));
-});
-
-let price=30;
-if(r.dist>10)price+=(r.dist-10)*2;
-price+=s.length*5;
-
-dist.innerText=r.dist.toFixed(2)+" mi";
-time.innerText=Math.round(r.time)+" min";
-priceEl=price.toFixed(2);
-price.innerText="$"+priceEl;
-
-result.style.display="block";
-bookBtn.disabled=false;
-
-window.tripData={pickup:p,dropoff:d,stops:s,price:priceEl};
-}
-
-/* BOOK */
-
-function book(){
-localStorage.setItem("tripData",JSON.stringify(window.tripData));
-alert("Trip Saved ✔");
+  }catch{
+    return null;
+  }
 }
 
 </script>
-
-</body>
-</html>
