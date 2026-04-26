@@ -332,26 +332,19 @@ async function geocodeAddress(address) {
       return { lat: null, lng: null };
     }
 
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+   const GOOGLE_KEY = process.env.GOOGLE_KEY;
 
-    const resp = await fetch(url, {
-      headers: {
-        "User-Agent": "SunbeamTransportation/1.0"
-      }
-    });
+const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${GOOGLE_KEY}`;
 
-    if (!resp.ok) {
-      return { lat: null, lng: null };
-    }
+const resp = await fetch(url);
+const data = await resp.json();
 
-    const data = await resp.json();
-    const first = Array.isArray(data) ? data[0] : null;
+const first = data?.results?.[0];
 
-    const result = {
-      lat: first?.lat ? Number(first.lat) : null,
-      lng: first?.lon ? Number(first.lon) : null
-    };
-
+const result = {
+  lat: first?.geometry?.location?.lat ?? null,
+  lng: first?.geometry?.location?.lng ?? null
+};
     geoCache.set(cacheKey, result);
     return result;
   } catch (err) {
