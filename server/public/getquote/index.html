@@ -31,12 +31,6 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   font-weight:bold;
 }
 
-.pricing{
-  margin-top:12px;
-  font-size:14px;
-  line-height:1.6;
-}
-
 .card{
   background:#fff;
   border-radius:16px;
@@ -66,12 +60,8 @@ button{
 .btn-success{background:#22c55e;color:#fff}
 .btn-stop{background:#f97316;color:#fff}
 
-.stop-row{
-  display:flex;
-  gap:8px;
-}
-
-.stop-row input{flex:1;}
+.stop-row{display:flex;gap:8px}
+.stop-row input{flex:1}
 
 .remove-btn{
   background:#ef4444;
@@ -83,7 +73,7 @@ button{
 
 #map{height:350px;border-radius:12px;margin-top:10px}
 
-/* 🔥 NEW STYLE */
+/* 🔥 UI BOXES */
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -100,35 +90,30 @@ button{
   box-shadow:0 10px 20px rgba(0,0,0,0.2);
 }
 
-.quote-box.price{
-  background:#16a34a;
-}
+.quote-box.price{background:#16a34a;}
 
-.quote-title{
-  font-size:13px;
-}
-
-.quote-value{
-  font-size:18px;
-  font-weight:bold;
-}
+.quote-title{font-size:13px}
+.quote-value{font-size:18px;font-weight:bold}
 
 .hidden{display:none}
 
-/* 🔥 Button animation */
+/* 🔥 زرار بينور */
 .pulse{
   animation:pulseAnim 1.2s infinite;
 }
-
 @keyframes pulseAnim{
-  0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);transform:scale(1)}
-  50%{box-shadow:0 0 0 12px rgba(34,197,94,0);transform:scale(1.05)}
-  100%{box-shadow:0 0 0 0 rgba(34,197,94,0);transform:scale(1)}
+  0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7)}
+  50%{box-shadow:0 0 0 12px rgba(34,197,94,0)}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
 }
 
-@media(max-width:768px){
-  .quote-grid{grid-template-columns:repeat(2,1fr)}
-  .lang-btn{position:static;margin-bottom:10px}
+/* 🔥 السعر ينور */
+.flash{
+  animation:flashAnim .6s;
+}
+@keyframes flashAnim{
+  0%{transform:scale(1.1)}
+  100%{transform:scale(1)}
 }
 </style>
 </head>
@@ -138,62 +123,47 @@ button{
 <div class="page">
 
 <div class="hero">
-<div class="lang-btn" onclick="toggleLang()" id="langBtn">English / Spanish</div>
-
-<h1 id="title">Get Quote</h1>
-
-<div id="payTitle" style="margin-top:10px;font-weight:bold;font-size:15px">
-Payment Calculation
-</div>
-
-<div class="pricing" id="pricing">
-Base Fare: $20 (includes first 5 miles)<br>
-Extra Mile: $2 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-Cancellation: $15 within 2 hours
-</div>
+<div class="lang-btn">English / Spanish</div>
+<h1>Get Quote</h1>
 </div>
 
 <div class="card">
 
-<label id="pickupLabel">Pickup</label>
+<label>Pickup</label>
 <input id="pickup">
 
 <div id="stops"></div>
+<button class="btn-stop" onclick="addStop()">+ Add Stop</button>
 
-<button class="btn-stop" onclick="addStop()" id="addStopBtn">+ Add Stop</button>
-
-<label id="dropLabel">Dropoff</label>
+<label>Dropoff</label>
 <input id="dropoff">
 
-<button class="btn-primary" onclick="calculate()" id="calcBtn">Calculate</button>
+<button class="btn-primary" onclick="calculate()">Calculate</button>
 
-<!-- 🔥 UPDATED -->
-<button class="btn-success pulse" id="bookBtn" disabled onclick="bookTrip()">Book Now</button>
+<!-- 🔥 مخفي -->
+<button class="btn-success pulse hidden" id="bookBtn" onclick="bookTrip()">Book Now</button>
 
-<!-- 🔥 UPDATED -->
 <div id="priceBox" class="hidden">
 <div class="quote-grid">
 
 <div class="quote-box">
-<div class="quote-title" id="distanceLabel">Distance</div>
+<div class="quote-title">Distance</div>
 <div class="quote-value" id="distance"></div>
 </div>
 
 <div class="quote-box">
-<div class="quote-title" id="stopsLabel">Stops</div>
+<div class="quote-title">Stops</div>
 <div class="quote-value" id="stopsCount"></div>
 </div>
 
 <div class="quote-box">
-<div class="quote-title" id="timeLabel">Time</div>
+<div class="quote-title">Time</div>
 <div class="quote-value" id="time"></div>
 </div>
 
-<div class="quote-box price">
-<div class="quote-title" id="priceLabel">Price</div>
-<div class="quote-value" id="price">$0</div>
+<div class="quote-box price" id="priceBoxInner">
+<div class="quote-title">Price</div>
+<div class="quote-value" id="price"></div>
 </div>
 
 </div>
@@ -207,7 +177,127 @@ Cancellation: $15 within 2 hours
 
 </div>
 
-<!-- ❗ باقي JavaScript زي ما هو عندك بدون تغيير -->
+<script>
+
+/* RESET */
+function resetUI(){
+  priceBox.classList.add("hidden");
+  bookBtn.classList.add("hidden");
+}
+
+/* MAP */
+let map, directionsService, directionsRenderer;
+
+function initGoogle(){
+  map = new google.maps.Map(document.getElementById("map"), {
+    center:{lat:33.4484,lng:-112.0740},
+    zoom:11
+  });
+
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({map});
+}
+
+/* STOP */
+function addStop(){
+  const row=document.createElement("div");
+  row.className="stop-row";
+
+  const input=document.createElement("input");
+  input.placeholder="Stop";
+  input.addEventListener("input",resetUI);
+
+  const remove=document.createElement("button");
+  remove.innerText="X";
+  remove.className="remove-btn";
+
+  remove.onclick=()=>{row.remove();resetUI();};
+
+  row.appendChild(input);
+  row.appendChild(remove);
+  stops.appendChild(row);
+}
+
+/* FIX AZ */
+function fixAZ(address){
+  if(!address.toLowerCase().includes("arizona")){
+    return address+", Arizona";
+  }
+  return address;
+}
+
+/* CALCULATE */
+function calculate(){
+
+  let pickupVal=fixAZ(pickup.value);
+  let dropVal=fixAZ(dropoff.value);
+
+  const stopsInputs = Array.from(document.querySelectorAll(".stop-row input"))
+    .filter(i=>i.value)
+    .map(i=>({location:fixAZ(i.value)}));
+
+  directionsService.route({
+    origin:pickupVal,
+    destination:dropVal,
+    waypoints:stopsInputs,
+    travelMode:"DRIVING"
+  },(res,status)=>{
+
+    if(status!=="OK"){alert("Error");return;}
+
+    directionsRenderer.setDirections(res);
+
+    let meters=0,sec=0;
+    res.routes[0].legs.forEach(l=>{
+      meters+=l.distance.value;
+      sec+=l.duration.value;
+    });
+
+    let miles=meters/1609;
+    let mins=Math.round(sec/60);
+
+    let priceCalc=20+(Math.max(0,miles-5)*2)+(stopsInputs.length*5);
+
+    distance.innerText=miles.toFixed(2)+" mi";
+    stopsCount.innerText=stopsInputs.length;
+    time.innerText=mins+" min";
+    price.innerText="$"+priceCalc.toFixed(2);
+
+    priceBox.classList.remove("hidden");
+    bookBtn.classList.remove("hidden");
+
+    // 🔥 highlight السعر
+    const priceBoxInner=document.getElementById("priceBoxInner");
+    priceBoxInner.classList.add("flash");
+    setTimeout(()=>priceBoxInner.classList.remove("flash"),600);
+
+  });
+}
+
+/* BOOK */
+function bookTrip(){
+  localStorage.setItem("pendingTrip","ok");
+  window.location.href="/booking/index.html";
+}
+
+/* EVENTS */
+pickup.addEventListener("input",resetUI);
+dropoff.addEventListener("input",resetUI);
+
+/* LOAD GOOGLE */
+async function loadGoogle(){
+  const res=await fetch("/api/config");
+  const data=await res.json();
+
+  const script=document.createElement("script");
+  script.src=`https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+  document.head.appendChild(script);
+  script.onload=initGoogle;
+}
+
+window.onload=loadGoogle;
+
+</script>
 
 </body>
 </html>
