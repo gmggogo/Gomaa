@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+انتا م<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -6,483 +6,286 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
+*{box-sizing:border-box}
+
 body{
-  font-family:Arial,sans-serif;
-  background:#f8fafc;
+  font-family:system-ui,-apple-system,Arial;
+  background:#f1f5f9;
   margin:0;
-  padding:20px;
+  padding:15px;
+  color:#111827;
 }
-.box{
-  background:#fff;
-  padding:20px;
-  border-radius:8px;
-  max-width:750px;
+
+/* ===== CONTAINER ===== */
+.container{
+  max-width:850px;
   margin:auto;
 }
-h1{margin-bottom:10px}
 
-label{
-  display:block;
-  margin-top:15px;
-  font-size:13px;
-  color:#374151;
+/* ===== CARD ===== */
+.card{
+  background:#fff;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+  margin-bottom:15px;
 }
 
-input,textarea,select{
+/* ===== HEADER ===== */
+.header{
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+  margin-bottom:10px;
+}
+
+/* ===== LABEL ===== */
+label{
+  font-size:13px;
+  color:#6b7280;
+  margin-top:12px;
+  display:block;
+}
+
+/* ===== INPUT ===== */
+input, textarea{
   width:100%;
-  padding:10px;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #e5e7eb;
   margin-top:5px;
   font-size:14px;
-  box-sizing:border-box;
-  border:1px solid #d1d5db;
-  border-radius:4px;
 }
 
-input[readonly],textarea[readonly]{
-  background:#e5e7eb;
-  cursor:not-allowed;
+input[readonly], textarea[readonly]{
+  background:#f3f4f6;
 }
 
-textarea{
-  resize:none;
-  min-height:70px;
-}
-
+/* ===== GRID ===== */
 .row{
   display:flex;
   gap:10px;
+  margin-top:10px;
 }
 
 .row>div{flex:1}
 
+/* ===== SUMMARY ===== */
+.summary{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+  margin-top:15px;
+}
+
+.summary div{
+  background:#f8fafc;
+  padding:10px;
+  border-radius:10px;
+  text-align:center;
+  font-size:14px;
+}
+
+/* ===== BUTTONS ===== */
 .actions{
-  margin-top:25px;
+  margin-top:20px;
   display:flex;
-  justify-content:space-between;
   gap:10px;
 }
 
 button{
-  padding:12px;
-  font-size:14px;
-  cursor:pointer;
-  border:none;
-  border-radius:6px;
   flex:1;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  cursor:pointer;
+  font-size:15px;
 }
 
-.confirm{
+.btn-confirm{
   background:#2563eb;
   color:#fff;
 }
 
-.recalc{
-  background:#dc2626;
+.btn-recalc{
+  background:#ef4444;
   color:#fff;
 }
 
-.confirm:disabled{
+button:disabled{
   opacity:.6;
-  cursor:not-allowed;
 }
 
-.error{
-  border:2px solid #dc2626 !important;
-}
+/* ===== MOBILE ===== */
+@media(max-width:600px){
 
-.error-text{
-  color:#dc2626;
-  font-size:12px;
-  margin-top:4px;
-}
+  body{padding:10px}
 
-.note{
-  font-size:12px;
-  color:#6b7280;
-  margin-top:10px;
-}
+  .card{padding:15px}
 
-@media(max-width:768px){
-  body{
-    padding:12px;
+  .row{flex-direction:column}
+
+  .summary{
+    grid-template-columns:1fr 1fr;
   }
 
-  .box{
-    padding:16px;
-  }
-
-  .row{
-    flex-direction:column;
-  }
-
-  .actions{
-    flex-direction:column;
-  }
 }
+
 </style>
 </head>
 
 <body>
 
-<div class="box">
-  <h1>Confirm Booking</h1>
+<div class="container">
 
-  <label>Pickup Address</label>
-  <input id="pickup" readonly>
+<div class="card">
+<div class="header">Confirm Your Booking</div>
 
-  <label>Stops (if any)</label>
-  <textarea id="stops" readonly></textarea>
+<label>Pickup</label>
+<input id="pickup" readonly>
 
-  <label>Dropoff Address</label>
-  <input id="dropoff" readonly>
+<label>Stops</label>
+<textarea id="stops" readonly></textarea>
 
-  <div class="row">
-    <div>
-      <label>Distance (miles)</label>
-      <input id="miles" readonly>
-    </div>
-    <div>
-      <label>Price ($)</label>
-      <input id="price" readonly>
-    </div>
+<label>Dropoff</label>
+<input id="dropoff" readonly>
+
+<div class="summary">
+  <div><b id="miles"></b><br>Distance</div>
+  <div><b id="price"></b><br>Price</div>
+</div>
+
+</div>
+
+<div class="card">
+
+<label>Passenger Name</label>
+<input id="name">
+
+<label>Phone</label>
+<input id="phone" placeholder="Enter phone number">
+
+<div class="row">
+  <div>
+    <label>Date</label>
+    <input type="date" id="date">
   </div>
-
-  <p class="note">
-    🔒 Addresses and price are locked.  
-    To change them, click <b>Recalculate Quote</b>.
-  </p>
-
-  <label>Passenger Name</label>
-  <input id="name">
-
-  <label>Phone Number</label>
-  <div class="row">
-    <div style="max-width:120px">
-      <select id="countryCode">
-        <option value="+1">🇺🇸 +1</option>
-        <option value="+44">🇬🇧 +44</option>
-        <option value="+20">🇪🇬 +20</option>
-        <option value="+971">🇦🇪 +971</option>
-      </select>
-    </div>
-    <div>
-      <input id="phone" placeholder="Phone number">
-      <div id="phoneError" class="error-text"></div>
-    </div>
-  </div>
-
-  <div class="row">
-    <div>
-      <label>Date</label>
-      <input type="date" id="date">
-    </div>
-    <div>
-      <label>Time</label>
-      <input type="time" id="time">
-    </div>
-  </div>
-
-  <div class="actions">
-    <button class="recalc" id="recalcBtn" type="button">Recalculate Quote</button>
-    <button class="confirm" id="confirmBtn" type="button">Confirm Booking</button>
+  <div>
+    <label>Time</label>
+    <input type="time" id="time">
   </div>
 </div>
 
+<div class="actions">
+  <button class="btn-recalc" onclick="recalculate()">Edit Trip</button>
+  <button class="btn-confirm" id="confirmBtn" onclick="confirmBooking()">Confirm</button>
+</div>
+
+</div>
+
+</div>
+
 <script>
-/* ===============================
-   LOAD QUOTE DATA
-================================ */
 
-let tripData = null;
+/* ================= LOAD DATA ================= */
 
-try{
-  tripData = JSON.parse(localStorage.getItem("tripData"));
-}catch(e){
-  tripData = null;
+let tripData = JSON.parse(localStorage.getItem("pendingTrip") || "null");
+
+if(!tripData){
+  alert("Session expired");
+  location.href="../getquote/index.html";
 }
 
-if(!tripData || !tripData.pickup || !tripData.dropoff || !tripData.price){
-  alert("Session expired. Please calculate quote again.");
-  localStorage.removeItem("tripData");
-  location.href = "../getquote/index.html";
-}
+/* ================= SHOW ================= */
 
-/* ===============================
-   LOCK FIELDS
-================================ */
+pickup.value = tripData.pickup;
+dropoff.value = tripData.dropoff;
+miles.innerText = tripData.distance;
+price.innerText = tripData.price;
 
-document.getElementById("pickup").value  = tripData.pickup || "";
-document.getElementById("dropoff").value = tripData.dropoff || "";
-document.getElementById("miles").value   = tripData.miles || "";
-document.getElementById("price").value   = tripData.price || "";
-document.getElementById("stops").value =
-  (tripData.stops && tripData.stops.length)
-    ? tripData.stops.join("\n")
-    : "No stops";
+stops.value = tripData.stops?.length
+  ? tripData.stops.join("\n")
+  : "No stops";
 
-/* ===============================
-   HELPERS
-================================ */
-
-function clearErrors(){
-  ["name","phone","date","time"].forEach(id=>{
-    document.getElementById(id).classList.remove("error");
-  });
-  document.getElementById("phoneError").innerText = "";
-}
-
-function nowAZ(){
-  return new Date(
-    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-  );
-}
-
-/* Arizona-safe diff */
-function minutesUntilTripAZ(dateStr, timeStr){
-
-  if(!dateStr || !timeStr) return null;
-
-  const now = nowAZ();
-
-  const dateParts = dateStr.split("-").map(Number);
-  const timeParts = timeStr.split(":").map(Number);
-
-  if(dateParts.length !== 3 || timeParts.length < 2) return null;
-
-  const [y, m, d] = dateParts;
-  const [hh, mm] = timeParts;
-
-  const selectedDate = new Date(y, m - 1, d);
-  if(isNaN(selectedDate.getTime())) return null;
-
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const trip = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    hh,
-    mm,
-    0,
-    0
-  );
-
-  const diffDays = Math.floor((selectedDate - today) / (1000 * 60 * 60 * 24));
-  trip.setDate(trip.getDate() + diffDays);
-
-  if(isNaN(trip.getTime())) return null;
-
-  return Math.floor((trip - now) / 60000);
-}
-
-function isGoodCoord(v){
-  return typeof v === "number" && Number.isFinite(v);
-}
-
-/* ===============================
-   RECALCULATE
-================================ */
+/* ================= RECALC ================= */
 
 function recalculate(){
-  localStorage.removeItem("tripData");
-  location.href = "../getquote/index.html";
+  localStorage.removeItem("pendingTrip");
+  location.href="../getquote/index.html";
 }
 
-/* ===============================
-   CONFIRM BOOKING
-================================ */
+/* ================= CONFIRM ================= */
 
 async function confirmBooking(){
 
   const btn = document.getElementById("confirmBtn");
   btn.disabled = true;
 
-  clearErrors();
-  let valid = true;
-
-  const name = document.getElementById("name");
-  const phone = document.getElementById("phone");
-  const date = document.getElementById("date");
-  const time = document.getElementById("time");
-  const code = document.getElementById("countryCode").value;
-
-  if(!name.value.trim()){
-    name.classList.add("error");
-    valid = false;
-  }
-
-  if(!date.value){
-    date.classList.add("error");
-    valid = false;
-  }
-
-  if(!time.value){
-    time.classList.add("error");
-    valid = false;
-  }
-
-  const phoneDigits = phone.value.replace(/\D/g,"");
-  if(phoneDigits.length < 7 || phoneDigits.length > 15){
-    phone.classList.add("error");
-    document.getElementById("phoneError").innerText = "Enter valid phone number";
-    valid = false;
-  }
-
-  if(!valid){
+  if(!name.value || !phone.value || !date.value || !time.value){
+    alert("Please fill all fields");
     btn.disabled = false;
     return;
   }
-
-  /* ================= TIME VALIDATION ================= */
-
-  const minutesLeft = minutesUntilTripAZ(date.value, time.value);
-
-  if(minutesLeft === null){
-    alert("Please select a valid date and time.");
-    btn.disabled = false;
-    return;
-  }
-
-  if(minutesLeft <= 0){
-    alert("❌ Trip time already passed.");
-    btn.disabled = false;
-    return;
-  }
-
-  if(minutesLeft <= 120){
-    const ok = confirm(
-      "⚠️ Booking within 120 minutes.\n\nEditing will NOT be allowed.\n\nContinue?"
-    );
-    if(!ok){
-      btn.disabled = false;
-      return;
-    }
-  }
-
-  /* ================= GEO VALIDATION ================= */
-
-  const pickupLat = Number(tripData.pickupLat);
-  const pickupLng = Number(tripData.pickupLng);
-  const dropoffLat = Number(tripData.dropoffLat);
-  const dropoffLng = Number(tripData.dropoffLng);
-
-  if(!isGoodCoord(pickupLat) || !isGoodCoord(pickupLng)){
-    alert("Invalid pickup location. Please recalculate quote.");
-    btn.disabled = false;
-    return;
-  }
-
-  if(!isGoodCoord(dropoffLat) || !isGoodCoord(dropoffLng)){
-    alert("Invalid dropoff location. Please recalculate quote.");
-    btn.disabled = false;
-    return;
-  }
-
-  let safeStops = [];
-  let safeStopsGeo = [];
-
-  if(Array.isArray(tripData.stops) && tripData.stops.length){
-    if(!Array.isArray(tripData.stopsGeo)){
-      alert("Stops data is invalid. Please recalculate quote.");
-      btn.disabled = false;
-      return;
-    }
-
-    if(tripData.stops.length !== tripData.stopsGeo.length){
-      alert("Stops data mismatch. Please recalculate quote.");
-      btn.disabled = false;
-      return;
-    }
-
-    for(let i = 0; i < tripData.stops.length; i++){
-      const stop = tripData.stops[i];
-      const geo = tripData.stopsGeo[i];
-
-      if(
-        !geo ||
-        !geo.address ||
-        !isGoodCoord(Number(geo.lat)) ||
-        !isGoodCoord(Number(geo.lng))
-      ){
-        alert("One or more stops are invalid. Please recalculate quote.");
-        btn.disabled = false;
-        return;
-      }
-
-      safeStops.push(String(stop || geo.address));
-      safeStopsGeo.push({
-        address: geo.address,
-        lat: Number(geo.lat),
-        lng: Number(geo.lng)
-      });
-    }
-  }
-
-  /* ================= BUILD DATA ================= */
 
   const bookingData = {
-    type: "Individual",
+
+    type: "individual",
     company: "INDIVIDUAL",
 
     pickup: tripData.pickup,
-    pickupLat: pickupLat,
-    pickupLng: pickupLng,
+    pickupLat: tripData.pickupLat,
+    pickupLng: tripData.pickupLng,
 
     dropoff: tripData.dropoff,
-    dropoffLat: dropoffLat,
-    dropoffLng: dropoffLng,
+    dropoffLat: tripData.dropoffLat,
+    dropoffLng: tripData.dropoffLng,
 
-    stops: safeStops,
-    stopsGeo: safeStopsGeo,
+    stops: tripData.stops || [],
+    stopCoords: (tripData.stops || []).map(s => ({
+      address:s,
+      lat:null,
+      lng:null
+    })),
 
-    clientName: name.value.trim(),
-    clientPhone: code + phoneDigits,
+    clientName: name.value,
+    clientPhone: phone.value,
 
     tripDate: date.value,
     tripTime: time.value,
 
-    notes: "",
-    status: "Confirmed",
-
-    createdAt: new Date().toISOString()
+    status: "Booked"
   };
 
   try{
 
     const res = await fetch("/api/trips",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify(bookingData)
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(bookingData)
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
 
     if(!res.ok){
-      alert(data.message || "Booking failed");
+      alert("Booking failed");
       btn.disabled = false;
       return;
     }
 
-    localStorage.setItem("pendingBooking", JSON.stringify(data));
+    alert("Booking Confirmed ✔\nTrip #: " + data.tripNumber);
 
-    alert("Booking confirmed ✔\nTrip Number: " + data.tripNumber);
+    localStorage.removeItem("pendingTrip");
 
-    location.href = "./payment.html";
+    location.href="./payment.html";
 
   }catch(err){
     alert("Server error");
     btn.disabled = false;
   }
+
 }
-
-/* ===============================
-   EVENTS
-================================ */
-
-document.getElementById("recalcBtn").addEventListener("click", recalculate);
-document.getElementById("confirmBtn").addEventListener("click", confirmBooking);
 
 </script>
 
