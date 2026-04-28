@@ -1,4 +1,4 @@
-انتا م<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -6,88 +6,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-
 *{box-sizing:border-box}
 
 body{
-  font-family:system-ui,-apple-system,Arial;
-  background:#f1f5f9;
+  font-family:Arial;
+  background:#f8fafc;
   margin:0;
-  padding:15px;
-  color:#111827;
-}
-
-/* ===== CONTAINER ===== */
-.container{
-  max-width:850px;
-  margin:auto;
-}
-
-/* ===== CARD ===== */
-.card{
-  background:#fff;
-  border-radius:16px;
   padding:20px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
-  margin-bottom:15px;
 }
 
-/* ===== HEADER ===== */
-.header{
-  text-align:center;
-  font-size:22px;
-  font-weight:bold;
-  margin-bottom:10px;
+.box{
+  background:#fff;
+  padding:20px;
+  border-radius:16px;
+  max-width:800px;
+  margin:auto;
+  box-shadow:0 5px 15px rgba(0,0,0,.08);
+  position:relative;
 }
 
-/* ===== LABEL ===== */
-label{
-  font-size:13px;
-  color:#6b7280;
-  margin-top:12px;
-  display:block;
-}
-
-/* ===== INPUT ===== */
-input, textarea{
-  width:100%;
-  padding:12px;
+.lang-btn{
+  position:absolute;
+  right:20px;
+  top:20px;
+  background:#2563eb;
+  color:#fff;
+  padding:8px 14px;
   border-radius:10px;
-  border:1px solid #e5e7eb;
+  cursor:pointer;
+  font-size:13px;
+  font-weight:bold;
+}
+
+h1{margin-bottom:10px}
+
+label{
+  display:block;
+  margin-top:12px;
+  font-size:13px;
+  color:#374151;
+}
+
+input,textarea{
+  width:100%;
+  padding:10px;
   margin-top:5px;
-  font-size:14px;
+  border:1px solid #ddd;
+  border-radius:8px;
 }
 
-input[readonly], textarea[readonly]{
-  background:#f3f4f6;
+input[readonly],textarea[readonly]{
+  background:#e5e7eb;
 }
 
-/* ===== GRID ===== */
 .row{
   display:flex;
   gap:10px;
-  margin-top:10px;
 }
 
 .row>div{flex:1}
 
-/* ===== SUMMARY ===== */
-.summary{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
-  margin-top:15px;
-}
-
-.summary div{
-  background:#f8fafc;
-  padding:10px;
-  border-radius:10px;
-  text-align:center;
-  font-size:14px;
-}
-
-/* ===== BUTTONS ===== */
 .actions{
   margin-top:20px;
   display:flex;
@@ -96,101 +74,90 @@ input[readonly], textarea[readonly]{
 
 button{
   flex:1;
-  padding:14px;
+  padding:12px;
   border:none;
-  border-radius:12px;
+  border-radius:10px;
   font-weight:bold;
   cursor:pointer;
-  font-size:15px;
 }
 
-.btn-confirm{
-  background:#2563eb;
-  color:#fff;
+.recalc{background:#dc2626;color:#fff}
+.confirm{background:#2563eb;color:#fff}
+
+#warningBox{
+  color:red;
+  font-weight:bold;
+  margin-top:10px;
+  display:none;
 }
 
-.btn-recalc{
-  background:#ef4444;
-  color:#fff;
-}
-
-button:disabled{
-  opacity:.6;
-}
-
-/* ===== MOBILE ===== */
 @media(max-width:600px){
-
-  body{padding:10px}
-
-  .card{padding:15px}
-
   .row{flex-direction:column}
-
-  .summary{
-    grid-template-columns:1fr 1fr;
-  }
-
 }
-
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="box">
 
-<div class="card">
-<div class="header">Confirm Your Booking</div>
+<div class="lang-btn" onclick="toggleLang()" id="langBtn">
+English / Spanish
+</div>
 
-<label>Pickup</label>
+<h1 id="title">Confirm Booking</h1>
+
+<label id="pickupLabel">Pickup</label>
 <input id="pickup" readonly>
 
-<label>Stops</label>
-<textarea id="stops" readonly></textarea>
+<div id="stopsContainer"></div>
 
-<label>Dropoff</label>
+<label id="dropLabel">Dropoff</label>
 <input id="dropoff" readonly>
 
-<div class="summary">
-  <div><b id="miles"></b><br>Distance</div>
-  <div><b id="price"></b><br>Price</div>
+<div class="row">
+<div>
+<label id="distanceLabel">Distance</label>
+<input id="miles" readonly>
+</div>
+<div>
+<label id="priceLabel">Price</label>
+<input id="price" readonly>
+</div>
 </div>
 
-</div>
-
-<div class="card">
-
-<label>Passenger Name</label>
+<label id="nameLabel">Passenger Name</label>
 <input id="name">
 
-<label>Phone</label>
-<input id="phone" placeholder="Enter phone number">
+<label id="phoneLabel">Phone</label>
+<input id="phone">
 
 <div class="row">
-  <div>
-    <label>Date</label>
-    <input type="date" id="date">
-  </div>
-  <div>
-    <label>Time</label>
-    <input type="time" id="time">
-  </div>
+<div>
+<label id="dateLabel">Date</label>
+<input type="date" id="date">
 </div>
+<div>
+<label id="timeLabel">Time</label>
+<input type="time" id="time">
+</div>
+</div>
+
+<label id="notesLabel">Notes</label>
+<textarea id="notes"></textarea>
+
+<div id="warningBox"></div>
 
 <div class="actions">
-  <button class="btn-recalc" onclick="recalculate()">Edit Trip</button>
-  <button class="btn-confirm" id="confirmBtn" onclick="confirmBooking()">Confirm</button>
-</div>
-
+<button class="recalc" id="recalcBtn" onclick="recalculate()">Recalculate</button>
+<button class="confirm" id="confirmBtn" onclick="confirmBooking()">Confirm</button>
 </div>
 
 </div>
 
 <script>
 
-/* ================= LOAD DATA ================= */
-
+/* LOAD DATA */
 let tripData = JSON.parse(localStorage.getItem("pendingTrip") || "null");
 
 if(!tripData){
@@ -198,91 +165,163 @@ if(!tripData){
   location.href="../getquote/index.html";
 }
 
-/* ================= SHOW ================= */
-
+/* FILL DATA */
 pickup.value = tripData.pickup;
 dropoff.value = tripData.dropoff;
-miles.innerText = tripData.distance;
-price.innerText = tripData.price;
+miles.value = tripData.distance;
+price.value = tripData.price;
 
-stops.value = tripData.stops?.length
-  ? tripData.stops.join("\n")
-  : "No stops";
+/* STOPS DYNAMIC */
+if(tripData.stops && tripData.stops.length){
+  tripData.stops.forEach((s,i)=>{
+    const label = document.createElement("label");
+    label.innerText = "Stop " + (i+1);
 
-/* ================= RECALC ================= */
+    const input = document.createElement("input");
+    input.value = s;
+    input.readOnly = true;
 
+    stopsContainer.appendChild(label);
+    stopsContainer.appendChild(input);
+  });
+}
+
+/* HELPERS */
+function nowAZ(){
+  return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
+}
+
+function minutesUntilTripAZ(dateStr,timeStr){
+  if(!dateStr || !timeStr) return null;
+  const now = nowAZ();
+  const trip = new Date(dateStr + "T" + timeStr);
+  return Math.floor((trip - now)/60000);
+}
+
+/* LANGUAGE */
+let lang="en";
+
+function toggleLang(){
+  if(lang==="en"){
+    lang="es";
+    langBtn.innerText="Spanish / English";
+
+    title.innerText="Confirmar Reserva";
+    pickupLabel.innerText="Origen";
+    dropLabel.innerText="Destino";
+    nameLabel.innerText="Nombre";
+    phoneLabel.innerText="Teléfono";
+    dateLabel.innerText="Fecha";
+    timeLabel.innerText="Hora";
+    notesLabel.innerText="Notas";
+
+    recalcBtn.innerText="Recalcular";
+    confirmBtn.innerText="Confirmar";
+
+  }else{
+    lang="en";
+    langBtn.innerText="English / Spanish";
+
+    title.innerText="Confirm Booking";
+    pickupLabel.innerText="Pickup";
+    dropLabel.innerText="Dropoff";
+    nameLabel.innerText="Passenger Name";
+    phoneLabel.innerText="Phone";
+    dateLabel.innerText="Date";
+    timeLabel.innerText="Time";
+    notesLabel.innerText="Notes";
+
+    recalcBtn.innerText="Recalculate";
+    confirmBtn.innerText="Confirm";
+  }
+}
+
+/* RECALC */
 function recalculate(){
   localStorage.removeItem("pendingTrip");
   location.href="../getquote/index.html";
 }
 
-/* ================= CONFIRM ================= */
-
+/* CONFIRM */
 async function confirmBooking(){
 
-  const btn = document.getElementById("confirmBtn");
-  btn.disabled = true;
+  const btn = confirmBtn;
+  btn.disabled=true;
 
   if(!name.value || !phone.value || !date.value || !time.value){
-    alert("Please fill all fields");
-    btn.disabled = false;
+    alert("Fill all fields");
+    btn.disabled=false;
     return;
   }
 
-  const bookingData = {
+  const minutesLeft = minutesUntilTripAZ(date.value,time.value);
 
-    type: "individual",
-    company: "INDIVIDUAL",
+  if(minutesLeft<=0){
+    alert("Trip time passed");
+    btn.disabled=false;
+    return;
+  }
 
-    pickup: tripData.pickup,
-    pickupLat: tripData.pickupLat,
-    pickupLng: tripData.pickupLng,
+  if(minutesLeft<=120){
+    recalcBtn.style.display="none";
+    warningBox.style.display="block";
+    warningBox.innerText="⚠️ Editing disabled (within 2 hours)";
+  }
 
-    dropoff: tripData.dropoff,
-    dropoffLat: tripData.dropoffLat,
-    dropoffLng: tripData.dropoffLng,
+  const bookingData={
+    type:"individual",
+    company:"INDIVIDUAL",
 
-    stops: tripData.stops || [],
-    stopCoords: (tripData.stops || []).map(s => ({
-      address:s,
-      lat:null,
-      lng:null
+    pickup:tripData.pickup,
+    pickupLat:tripData.pickupLat,
+    pickupLng:tripData.pickupLng,
+
+    dropoff:tripData.dropoff,
+    dropoffLat:tripData.dropoffLat,
+    dropoffLng:tripData.dropoffLng,
+
+    stops:tripData.stops || [],
+
+    stopCoords:(tripData.stops || []).map(s=>({
+      address:s,lat:null,lng:null
     })),
 
-    clientName: name.value,
-    clientPhone: phone.value,
+    clientName:name.value,
+    clientPhone:phone.value,
 
-    tripDate: date.value,
-    tripTime: time.value,
+    tripDate:date.value,
+    tripTime:time.value,
 
-    status: "Booked"
+    notes:notes.value,
+
+    status:"Booked"
   };
 
   try{
 
-    const res = await fetch("/api/trips",{
+    const res=await fetch("/api/trips",{
       method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(bookingData)
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(bookingData)
     });
 
-    const data = await res.json();
+    const data=await res.json();
 
     if(!res.ok){
       alert("Booking failed");
-      btn.disabled = false;
+      btn.disabled=false;
       return;
     }
 
-    alert("Booking Confirmed ✔\nTrip #: " + data.tripNumber);
+    alert("Trip Created ✔\n"+data.tripNumber);
 
     localStorage.removeItem("pendingTrip");
 
     location.href="./payment.html";
 
-  }catch(err){
+  }catch{
     alert("Server error");
-    btn.disabled = false;
+    btn.disabled=false;
   }
 
 }
