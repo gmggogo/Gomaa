@@ -31,6 +31,13 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   font-weight:bold;
 }
 
+.pricing{
+  margin-top:12px;
+  font-size:14px;
+  line-height:1.6;
+  opacity:.95;
+}
+
 .card{
   background:#fff;
   border-radius:16px;
@@ -59,6 +66,12 @@ button{
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
 
+/* 🔥 زرار الاستوب */
+.btn-stop{
+  background:#f97316;
+  color:#fff;
+}
+
 #map{height:350px;border-radius:12px;margin-top:10px}
 
 .quote-grid{
@@ -84,12 +97,12 @@ English / Spanish
 
 <h1 id="title">Get Quote</h1>
 
-<div id="pricing" style="margin-top:10px;font-weight:bold;font-size:16px;">
+<div id="pricing" class="pricing">
 Base Fare: $20 (includes first 5 miles)<br>
 Extra Mile: $2 per mile after 5 miles<br>
 Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-Cancellation: $15 within 2 hours
+Waiting Time: 10 minutes after pickup time<br>
+Cancellation: $15 if canceled within 2 hours
 </div>
 
 </div>
@@ -100,7 +113,9 @@ Cancellation: $15 within 2 hours
 <input id="pickup">
 
 <div id="stops"></div>
-<button onclick="addStop()" id="addStopBtn">+ Add Stop</button>
+
+<!-- 🔥 زرار الاستوب الملون -->
+<button class="btn-stop" onclick="addStop()" id="addStopBtn">+ Add Stop</button>
 
 <label id="dropLabel">Dropoff</label>
 <input id="dropoff">
@@ -168,7 +183,7 @@ Cancelación: $15 dentro de 2 horas
 Base Fare: $20 (includes first 5 miles)<br>
 Extra Mile: $2 per mile after 5 miles<br>
 Stop: $5 each<br>
-Waiting: 10 minutes<br>
+Waiting Time: 10 minutes<br>
 Cancellation: $15 within 2 hours
 `;
   }
@@ -205,7 +220,7 @@ function addStop(){
 function fixAZ(address){
   address = address.trim();
   if(address === "") return "";
-  if(!address.toLowerCase().includes("az")){
+  if(!address.toLowerCase().includes("arizona")){
     return address + ", Arizona";
   }
   return address;
@@ -231,7 +246,8 @@ function calculate(){
     origin: pickupVal,
     destination: dropVal,
     waypoints: stopsInputs,
-    optimizeWaypoints:false, // ✅ ثابت
+    optimizeWaypoints:false,
+    provideRouteAlternatives:true, // 🔥 ده يخليه ياخد الطريق الطبيعي
     travelMode: "DRIVING"
 
   }, (res, status)=>{
@@ -241,6 +257,7 @@ function calculate(){
       return;
     }
 
+    // 🔥 اختيار أول route (الأكثر واقعية)
     directionsRenderer.setDirections(res);
 
     let meters=0, sec=0;
@@ -257,13 +274,13 @@ function calculate(){
     let extraMiles = Math.max(0, miles - 5);
     let totalPrice = OPEN + (extraMiles * PER_MILE) + (stops * STOP_PRICE);
 
-    document.getElementById("distance").innerText = miles.toFixed(2)+" mi";
-    document.getElementById("stopsCount").innerText = stops;
-    document.getElementById("time").innerText = mins+" min";
-    document.getElementById("price").innerText = "$"+totalPrice.toFixed(2);
+    distance.innerText = miles.toFixed(2)+" mi";
+    stopsCount.innerText = stops;
+    time.innerText = mins+" min";
+    price.innerText = "$"+totalPrice.toFixed(2);
 
-    document.getElementById("priceBox").classList.remove("hidden");
-    document.getElementById("bookBtn").disabled=false;
+    priceBox.classList.remove("hidden");
+    bookBtn.disabled=false;
 
   });
 }
@@ -283,7 +300,7 @@ function bookTrip(){
     stops,
     distance: distance.innerText,
     time: time.innerText,
-    price: document.getElementById("price").innerText
+    price: price.innerText
   };
 
   localStorage.setItem("pendingTrip", JSON.stringify(trip));
