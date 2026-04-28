@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+الكو<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -20,6 +20,20 @@ body{
   max-width:750px;
   margin:auto;
   box-shadow:0 5px 20px rgba(0,0,0,.08);
+  position:relative;
+}
+
+.lang-btn{
+  position:absolute;
+  right:15px;
+  top:15px;
+  background:#2563eb;
+  color:#fff;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:bold;
 }
 
 label{margin-top:12px;display:block;font-size:13px}
@@ -73,51 +87,55 @@ button{
 
 <div class="box">
 
-<h2>Confirm Booking</h2>
+<div class="lang-btn" onclick="toggleLang()" id="langBtn">
+English / Spanish
+</div>
 
-<label>Pickup</label>
+<h2 id="title">Confirm Booking</h2>
+
+<label id="pickupLabel">Pickup</label>
 <input id="pickup" readonly>
 
-<label>Stops</label>
+<label id="stopsLabel">Stops</label>
 <textarea id="stops" readonly></textarea>
 
-<label>Dropoff</label>
+<label id="dropLabel">Dropoff</label>
 <input id="dropoff" readonly>
 
 <div class="row">
   <div>
-    <label>Distance</label>
+    <label id="distanceLabel">Distance</label>
     <input id="miles" readonly>
   </div>
   <div>
-    <label>Price</label>
+    <label id="priceLabel">Price</label>
     <input id="price" readonly>
   </div>
 </div>
 
-<label>Passenger Name</label>
+<label id="nameLabel">Passenger Name</label>
 <input id="name">
 
-<label>Phone</label>
+<label id="phoneLabel">Phone</label>
 <input id="phone">
 
 <div class="row">
   <div>
-    <label>Date</label>
+    <label id="dateLabel">Date</label>
     <input type="date" id="date">
   </div>
   <div>
-    <label>Time</label>
+    <label id="timeLabel">Time</label>
     <input type="time" id="time">
   </div>
 </div>
 
-<label>Notes (optional)</label>
+<label id="notesLabel">Notes (optional)</label>
 <textarea id="notes"></textarea>
 
 <div class="actions">
-  <button class="recalc" onclick="recalculate()">Recalculate</button>
-  <button class="confirm" onclick="confirmBooking()">Pay Now</button>
+  <button class="recalc" onclick="recalculate()" id="recalcBtn">Recalculate</button>
+  <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
 </div>
 
 <div id="resultBox" class="result"></div>
@@ -125,6 +143,53 @@ button{
 </div>
 
 <script>
+
+/* ================= LANGUAGE ================= */
+
+let lang = "en";
+
+function toggleLang(){
+
+  if(lang === "en"){
+    lang = "es";
+
+    langBtn.innerText = "Spanish / English";
+
+    title.innerText = "Confirmar Reserva";
+    pickupLabel.innerText = "Origen";
+    stopsLabel.innerText = "Paradas";
+    dropLabel.innerText = "Destino";
+    distanceLabel.innerText = "Distancia";
+    priceLabel.innerText = "Precio";
+    nameLabel.innerText = "Nombre";
+    phoneLabel.innerText = "Teléfono";
+    dateLabel.innerText = "Fecha";
+    timeLabel.innerText = "Hora";
+    notesLabel.innerText = "Notas (opcional)";
+    recalcBtn.innerText = "Recalcular";
+    payBtn.innerText = "Pagar Ahora";
+
+  } else {
+
+    lang = "en";
+
+    langBtn.innerText = "English / Spanish";
+
+    title.innerText = "Confirm Booking";
+    pickupLabel.innerText = "Pickup";
+    stopsLabel.innerText = "Stops";
+    dropLabel.innerText = "Dropoff";
+    distanceLabel.innerText = "Distance";
+    priceLabel.innerText = "Price";
+    nameLabel.innerText = "Passenger Name";
+    phoneLabel.innerText = "Phone";
+    dateLabel.innerText = "Date";
+    timeLabel.innerText = "Time";
+    notesLabel.innerText = "Notes (optional)";
+    recalcBtn.innerText = "Recalculate";
+    payBtn.innerText = "Pay Now";
+  }
+}
 
 /* ================= LOAD DATA ================= */
 
@@ -135,12 +200,11 @@ if(!tripData){
   location.href="/getquote/index.html";
 }
 
-document.getElementById("pickup").value = tripData.pickup;
-document.getElementById("dropoff").value = tripData.dropoff;
-document.getElementById("miles").value = tripData.distance;
-document.getElementById("price").value = tripData.price;
-document.getElementById("stops").value =
-  tripData.stops?.length ? tripData.stops.join("\n") : "No stops";
+pickup.value = tripData.pickup;
+dropoff.value = tripData.dropoff;
+miles.value = tripData.distance;
+price.value = tripData.price;
+stops.value = tripData.stops?.length ? tripData.stops.join("\n") : "No stops";
 
 /* ================= TIME ================= */
 
@@ -161,7 +225,7 @@ function recalculate(){
 
 async function confirmBooking(){
 
-  const btn = document.querySelector(".confirm");
+  const btn = document.getElementById("payBtn");
   btn.disabled = true;
 
   const nameEl  = document.getElementById("name");
@@ -170,23 +234,20 @@ async function confirmBooking(){
   const timeEl  = document.getElementById("time");
   const notesEl = document.getElementById("notes");
 
-  /* ✅ VALIDATION (notes مش موجود هنا) */
   if(!nameEl.value || !phoneEl.value || !dateEl.value || !timeEl.value){
-    alert("Fill all required fields");
+    alert(lang === "en" ? "Fill all required fields" : "Complete todos los campos requeridos");
     btn.disabled = false;
     return;
   }
 
-  /* ✅ 2 HOURS RULE */
   const mins = minutesUntilTrip(dateEl.value,timeEl.value);
 
   if(mins <= 120){
+
     const ok = confirm(
-`⚠️ Trip is within 2 hours
-
-❌ Cancellation will NOT be allowed
-
-Continue?`
+lang === "en"
+? `⚠️ Trip is within 2 hours\n\n❌ Cancellation will NOT be allowed\n\nContinue?`
+: `⚠️ El viaje es dentro de 2 horas\n\n❌ No se permite cancelar\n\n¿Continuar?`
     );
 
     if(!ok){
@@ -194,8 +255,6 @@ Continue?`
       return;
     }
   }
-
-  /* ================= SEND ================= */
 
   const data = {
     type:"individual",
@@ -220,25 +279,23 @@ Continue?`
     const trip = await res.json();
 
     if(!res.ok){
-      alert("Error creating trip");
+      alert("Error");
       btn.disabled=false;
       return;
     }
 
-    /* ✅ SHOW RESULT تحت */
     const box = document.getElementById("resultBox");
     box.style.display="block";
     box.innerHTML = `
-      ✅ Trip Created Successfully <br><br>
-      Trip Number: <b>${trip.tripNumber}</b>
+      ${lang === "en" ? "Trip Created Successfully" : "Viaje creado exitosamente"}<br><br>
+      ${lang === "en" ? "Trip Number" : "Número de viaje"}: <b>${trip.tripNumber}</b>
     `;
 
-    /* 🔥 تحويل للدفع */
     setTimeout(()=>{
       window.location.href="/booking/payment.html";
     },2000);
 
-  }catch(err){
+  }catch{
     alert("Server error");
     btn.disabled=false;
   }
