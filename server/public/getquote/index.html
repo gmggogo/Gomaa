@@ -102,16 +102,16 @@ button{
 
 <div class="hero">
 
-<div class="lang-btn">English / Spanish</div>
+<!-- ✅ زرار اللغة -->
+<div class="lang-btn" onclick="toggleLang()" id="langBtn">English / Spanish</div>
 
-<h1>Get Quote</h1>
+<h1 id="title">Get Quote</h1>
 
-<!-- 🔥 سطر حساب الدفع -->
 <div style="margin-top:10px;font-weight:bold;font-size:15px">
 Payment Calculation
 </div>
 
-<div class="pricing">
+<div class="pricing" id="pricing">
 Base Fare: $20 (includes first 5 miles)<br>
 Extra Mile: $2 per mile after 5 miles<br>
 Stop: $5 each<br>
@@ -123,17 +123,17 @@ Cancellation: $15 within 2 hours
 
 <div class="card">
 
-<label>Pickup</label>
+<label id="pickupLabel">Pickup</label>
 <input id="pickup">
 
 <div id="stops"></div>
 
 <button class="btn-stop" onclick="addStop()">+ Add Stop</button>
 
-<label>Dropoff</label>
+<label id="dropLabel">Dropoff</label>
 <input id="dropoff">
 
-<button class="btn-primary" onclick="calculate()">Calculate</button>
+<button class="btn-primary" onclick="calculate()" id="calcBtn">Calculate</button>
 <button class="btn-success" id="bookBtn" disabled onclick="bookTrip()">Book</button>
 
 <div id="priceBox" class="hidden">
@@ -155,6 +155,47 @@ Cancellation: $15 within 2 hours
 
 <script>
 
+/* ================= LANGUAGE ================= */
+
+let lang="en";
+
+function toggleLang(){
+
+  if(lang==="en"){
+    lang="es";
+
+    langBtn.innerText="Spanish / English";
+    title.innerText="Cotizar Viaje";
+    pickupLabel.innerText="Origen";
+    dropLabel.innerText="Destino";
+
+    pricing.innerHTML=`
+Tarifa base: $20 (incluye primeras 5 millas)<br>
+Milla extra: $2 por milla después de 5<br>
+Parada: $5 cada una<br>
+Espera: 10 minutos<br>
+Cancelación: $15 dentro de 2 horas
+`;
+
+  } else {
+
+    lang="en";
+
+    langBtn.innerText="English / Spanish";
+    title.innerText="Get Quote";
+    pickupLabel.innerText="Pickup";
+    dropLabel.innerText="Dropoff";
+
+    pricing.innerHTML=`
+Base Fare: $20 (includes first 5 miles)<br>
+Extra Mile: $2 per mile after 5 miles<br>
+Stop: $5 each<br>
+Waiting: 10 minutes after pickup time<br>
+Cancellation: $15 within 2 hours
+`;
+  }
+}
+
 /* ================= MAP ================= */
 
 let map, directionsService, directionsRenderer;
@@ -170,10 +211,17 @@ function initGoogle(){
   });
 
   directionsService = new google.maps.DirectionsService();
-  directionsRenderer = new google.maps.DirectionsRenderer({map});
+
+  directionsRenderer = new google.maps.DirectionsRenderer({
+    map,
+    polylineOptions:{
+      strokeColor:"#2563eb",
+      strokeWeight:5
+    }
+  });
 }
 
-/* ================= ADD STOP WITH DELETE ================= */
+/* ================= STOP ================= */
 
 function addStop(){
 
@@ -181,7 +229,7 @@ function addStop(){
   row.className = "stop-row";
 
   const input = document.createElement("input");
-  input.placeholder = "Stop";
+  input.placeholder = lang==="es" ? "Parada" : "Stop";
 
   const remove = document.createElement("button");
   remove.innerText = "X";
@@ -227,8 +275,13 @@ function calculate(){
     destination: dropVal,
     waypoints: stopsInputs,
     optimizeWaypoints:false,
-    provideRouteAlternatives:true,
-    travelMode: "DRIVING"
+    travelMode: "DRIVING",
+
+    // 🔥 الحل الحقيقي للطريق الواقعي
+    drivingOptions:{
+      departureTime: new Date(),
+      trafficModel:"bestguess"
+    }
 
   }, (res, status)=>{
 
@@ -284,7 +337,6 @@ function bookTrip(){
 
   localStorage.setItem("pendingTrip", JSON.stringify(trip));
 
-  // 🔥 الربط الجديد
   window.location.href="/booking/index.html";
 }
 
