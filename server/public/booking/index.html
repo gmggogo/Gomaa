@@ -7,7 +7,7 @@
 
 <style>
 body{
-  font-family:Arial,sans-serif;
+  font-family:Arial;
   background:#f8fafc;
   margin:0;
   padding:20px;
@@ -22,63 +22,35 @@ body{
   box-shadow:0 5px 20px rgba(0,0,0,.08);
 }
 
-h1{margin-bottom:10px}
-
-label{
-  display:block;
-  margin-top:15px;
-  font-size:13px;
-  color:#374151;
-}
-
-input,textarea,select{
+label{margin-top:12px;display:block;font-size:13px}
+input,textarea{
   width:100%;
   padding:10px;
   margin-top:5px;
-  font-size:14px;
-  border:1px solid #d1d5db;
+  border:1px solid #ddd;
   border-radius:6px;
 }
 
-input[readonly],textarea[readonly]{
-  background:#e5e7eb;
-}
-
-textarea{
-  min-height:70px;
-}
-
-.row{
-  display:flex;
-  gap:10px;
-}
-
-.row>div{flex:1}
+.row{display:flex;gap:10px}
+.row div{flex:1}
 
 .actions{
-  margin-top:25px;
+  margin-top:20px;
   display:flex;
   gap:10px;
 }
 
 button{
+  flex:1;
   padding:12px;
-  font-size:14px;
   border:none;
   border-radius:6px;
-  flex:1;
   cursor:pointer;
+  font-weight:bold;
 }
 
-.confirm{
-  background:#2563eb;
-  color:#fff;
-}
-
-.recalc{
-  background:#dc2626;
-  color:#fff;
-}
+.recalc{background:#dc2626;color:#fff}
+.confirm{background:#2563eb;color:#fff}
 
 .result{
   margin-top:20px;
@@ -87,7 +59,6 @@ button{
   border:1px solid #22c55e;
   border-radius:10px;
   text-align:center;
-  font-weight:bold;
   display:none;
 }
 
@@ -101,55 +72,55 @@ button{
 <body>
 
 <div class="box">
-  <h1>Confirm Booking</h1>
 
-  <label>Pickup</label>
-  <input id="pickup" readonly>
+<h2>Confirm Booking</h2>
 
-  <label>Stops</label>
-  <textarea id="stops" readonly></textarea>
+<label>Pickup</label>
+<input id="pickup" readonly>
 
-  <label>Dropoff</label>
-  <input id="dropoff" readonly>
+<label>Stops</label>
+<textarea id="stops" readonly></textarea>
 
-  <div class="row">
-    <div>
-      <label>Distance</label>
-      <input id="miles" readonly>
-    </div>
-    <div>
-      <label>Price</label>
-      <input id="price" readonly>
-    </div>
+<label>Dropoff</label>
+<input id="dropoff" readonly>
+
+<div class="row">
+  <div>
+    <label>Distance</label>
+    <input id="miles" readonly>
   </div>
-
-  <label>Passenger Name</label>
-  <input id="name">
-
-  <label>Phone</label>
-  <input id="phone">
-
-  <div class="row">
-    <div>
-      <label>Date</label>
-      <input type="date" id="date">
-    </div>
-    <div>
-      <label>Time</label>
-      <input type="time" id="time">
-    </div>
+  <div>
+    <label>Price</label>
+    <input id="price" readonly>
   </div>
+</div>
 
-  <label>Notes</label>
-  <textarea id="notes"></textarea>
+<label>Passenger Name</label>
+<input id="name">
 
-  <div class="actions">
-    <button class="recalc" onclick="recalculate()">Recalculate</button>
-    <button class="confirm" onclick="confirmBooking()">Pay Now</button>
+<label>Phone</label>
+<input id="phone">
+
+<div class="row">
+  <div>
+    <label>Date</label>
+    <input type="date" id="date">
   </div>
+  <div>
+    <label>Time</label>
+    <input type="time" id="time">
+  </div>
+</div>
 
-  <!-- 🔥 هنا النتيجة -->
-  <div id="resultBox" class="result"></div>
+<label>Notes (optional)</label>
+<textarea id="notes"></textarea>
+
+<div class="actions">
+  <button class="recalc" onclick="recalculate()">Recalculate</button>
+  <button class="confirm" onclick="confirmBooking()">Pay Now</button>
+</div>
+
+<div id="resultBox" class="result"></div>
 
 </div>
 
@@ -157,26 +128,25 @@ button{
 
 /* ================= LOAD DATA ================= */
 
-let tripData = JSON.parse(localStorage.getItem("pendingTrip"));
+const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
 
 if(!tripData){
   alert("Session expired");
   location.href="/getquote/index.html";
 }
 
-pickup.value  = tripData.pickup;
-dropoff.value = tripData.dropoff;
-miles.value   = tripData.distance;
-price.value   = tripData.price;
-stops.value   = tripData.stops?.length ? tripData.stops.join("\n") : "No stops";
+document.getElementById("pickup").value = tripData.pickup;
+document.getElementById("dropoff").value = tripData.dropoff;
+document.getElementById("miles").value = tripData.distance;
+document.getElementById("price").value = tripData.price;
+document.getElementById("stops").value =
+  tripData.stops?.length ? tripData.stops.join("\n") : "No stops";
 
-/* ================= TIME CHECK ================= */
+/* ================= TIME ================= */
 
 function minutesUntilTrip(dateStr,timeStr){
-
   const now = new Date();
   const trip = new Date(dateStr+"T"+timeStr);
-
   return Math.floor((trip-now)/60000);
 }
 
@@ -194,16 +164,23 @@ async function confirmBooking(){
   const btn = document.querySelector(".confirm");
   btn.disabled = true;
 
-  if(!name.value || !phone.value || !date.value || !time.value){
-    alert("Fill all fields");
-    btn.disabled=false;
+  const nameEl  = document.getElementById("name");
+  const phoneEl = document.getElementById("phone");
+  const dateEl  = document.getElementById("date");
+  const timeEl  = document.getElementById("time");
+  const notesEl = document.getElementById("notes");
+
+  /* ✅ VALIDATION (notes مش موجود هنا) */
+  if(!nameEl.value || !phoneEl.value || !dateEl.value || !timeEl.value){
+    alert("Fill all required fields");
+    btn.disabled = false;
     return;
   }
 
-  const mins = minutesUntilTrip(date.value,time.value);
+  /* ✅ 2 HOURS RULE */
+  const mins = minutesUntilTrip(dateEl.value,timeEl.value);
 
   if(mins <= 120){
-
     const ok = confirm(
 `⚠️ Trip is within 2 hours
 
@@ -222,14 +199,14 @@ Continue?`
 
   const data = {
     type:"individual",
-    pickup: pickup.value,
-    dropoff: dropoff.value,
+    pickup: tripData.pickup,
+    dropoff: tripData.dropoff,
     stops: tripData.stops || [],
-    clientName: name.value,
-    clientPhone: phone.value,
-    tripDate: date.value,
-    tripTime: time.value,
-    notes: notes.value
+    clientName: nameEl.value,
+    clientPhone: phoneEl.value,
+    tripDate: dateEl.value,
+    tripTime: timeEl.value,
+    notes: notesEl.value || ""
   };
 
   try{
@@ -243,12 +220,12 @@ Continue?`
     const trip = await res.json();
 
     if(!res.ok){
-      alert("Error");
+      alert("Error creating trip");
       btn.disabled=false;
       return;
     }
 
-    /* 🔥 بدل popup */
+    /* ✅ SHOW RESULT تحت */
     const box = document.getElementById("resultBox");
     box.style.display="block";
     box.innerHTML = `
@@ -256,12 +233,12 @@ Continue?`
       Trip Number: <b>${trip.tripNumber}</b>
     `;
 
-    /* 🔥 يوديه للدفع */
+    /* 🔥 تحويل للدفع */
     setTimeout(()=>{
       window.location.href="/booking/payment.html";
     },2000);
 
-  }catch(e){
+  }catch(err){
     alert("Server error");
     btn.disabled=false;
   }
