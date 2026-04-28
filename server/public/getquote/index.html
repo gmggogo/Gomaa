@@ -35,7 +35,6 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   margin-top:12px;
   font-size:14px;
   line-height:1.6;
-  opacity:.95;
 }
 
 .card{
@@ -65,11 +64,23 @@ button{
 
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
+.btn-stop{background:#f97316;color:#fff}
 
-/* 🔥 زرار الاستوب */
-.btn-stop{
-  background:#f97316;
+.stop-row{
+  display:flex;
+  gap:8px;
+}
+
+.stop-row input{
+  flex:1;
+}
+
+.remove-btn{
+  background:#ef4444;
   color:#fff;
+  padding:10px;
+  border-radius:10px;
+  cursor:pointer;
 }
 
 #map{height:350px;border-radius:12px;margin-top:10px}
@@ -91,36 +102,38 @@ button{
 
 <div class="hero">
 
-<div class="lang-btn" onclick="toggleLang()" id="langBtn">
-English / Spanish
+<div class="lang-btn">English / Spanish</div>
+
+<h1>Get Quote</h1>
+
+<!-- 🔥 سطر حساب الدفع -->
+<div style="margin-top:10px;font-weight:bold;font-size:15px">
+Payment Calculation
 </div>
 
-<h1 id="title">Get Quote</h1>
-
-<div id="pricing" class="pricing">
+<div class="pricing">
 Base Fare: $20 (includes first 5 miles)<br>
 Extra Mile: $2 per mile after 5 miles<br>
 Stop: $5 each<br>
-Waiting Time: 10 minutes after pickup time<br>
-Cancellation: $15 if canceled within 2 hours
+Waiting: 10 minutes after pickup time<br>
+Cancellation: $15 within 2 hours
 </div>
 
 </div>
 
 <div class="card">
 
-<label id="pickupLabel">Pickup</label>
+<label>Pickup</label>
 <input id="pickup">
 
 <div id="stops"></div>
 
-<!-- 🔥 زرار الاستوب الملون -->
-<button class="btn-stop" onclick="addStop()" id="addStopBtn">+ Add Stop</button>
+<button class="btn-stop" onclick="addStop()">+ Add Stop</button>
 
-<label id="dropLabel">Dropoff</label>
+<label>Dropoff</label>
 <input id="dropoff">
 
-<button class="btn-primary" onclick="calculate()" id="calcBtn">Calculate</button>
+<button class="btn-primary" onclick="calculate()">Calculate</button>
 <button class="btn-success" id="bookBtn" disabled onclick="bookTrip()">Book</button>
 
 <div id="priceBox" class="hidden">
@@ -142,53 +155,6 @@ Cancellation: $15 if canceled within 2 hours
 
 <script>
 
-/* ================= LANGUAGE ================= */
-
-let lang="en";
-
-function toggleLang(){
-
-  if(lang==="en"){
-    lang="es";
-    langBtn.innerText="Spanish / English";
-
-    title.innerText="Cotizar Viaje";
-    pickupLabel.innerText="Origen";
-    dropLabel.innerText="Destino";
-    addStopBtn.innerText="+ Parada";
-    calcBtn.innerText="Calcular";
-    bookBtn.innerText="Reservar";
-
-    pricing.innerHTML=`
-Tarifa base: $20 (incluye primeras 5 millas)<br>
-Milla extra: $2 por milla después de 5<br>
-Parada: $5 cada una<br>
-Espera: 10 minutos<br>
-Cancelación: $15 dentro de 2 horas
-`;
-
-  } else {
-
-    lang="en";
-    langBtn.innerText="English / Spanish";
-
-    title.innerText="Get Quote";
-    pickupLabel.innerText="Pickup";
-    dropLabel.innerText="Dropoff";
-    addStopBtn.innerText="+ Add Stop";
-    calcBtn.innerText="Calculate";
-    bookBtn.innerText="Book";
-
-    pricing.innerHTML=`
-Base Fare: $20 (includes first 5 miles)<br>
-Extra Mile: $2 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting Time: 10 minutes<br>
-Cancellation: $15 within 2 hours
-`;
-  }
-}
-
 /* ================= MAP ================= */
 
 let map, directionsService, directionsRenderer;
@@ -207,12 +173,26 @@ function initGoogle(){
   directionsRenderer = new google.maps.DirectionsRenderer({map});
 }
 
-/* ================= STOP ================= */
+/* ================= ADD STOP WITH DELETE ================= */
 
 function addStop(){
+
+  const row = document.createElement("div");
+  row.className = "stop-row";
+
   const input = document.createElement("input");
-  input.placeholder = lang==="es" ? "Parada" : "Stop";
-  document.getElementById("stops").appendChild(input);
+  input.placeholder = "Stop";
+
+  const remove = document.createElement("button");
+  remove.innerText = "X";
+  remove.className = "remove-btn";
+
+  remove.onclick = () => row.remove();
+
+  row.appendChild(input);
+  row.appendChild(remove);
+
+  document.getElementById("stops").appendChild(row);
 }
 
 /* ================= FIX AZ ================= */
@@ -238,7 +218,7 @@ function calculate(){
     return;
   }
 
-  const stopsInputs = Array.from(document.querySelectorAll("#stops input"))
+  const stopsInputs = Array.from(document.querySelectorAll(".stop-row input"))
     .filter(i => i.value)
     .map(i => ({ location: fixAZ(i.value) }));
 
@@ -247,7 +227,7 @@ function calculate(){
     destination: dropVal,
     waypoints: stopsInputs,
     optimizeWaypoints:false,
-    provideRouteAlternatives:true, // 🔥 ده يخليه ياخد الطريق الطبيعي
+    provideRouteAlternatives:true,
     travelMode: "DRIVING"
 
   }, (res, status)=>{
@@ -257,7 +237,6 @@ function calculate(){
       return;
     }
 
-    // 🔥 اختيار أول route (الأكثر واقعية)
     directionsRenderer.setDirections(res);
 
     let meters=0, sec=0;
@@ -290,7 +269,7 @@ function calculate(){
 function bookTrip(){
 
   const stops = [];
-  document.querySelectorAll("#stops input").forEach(i=>{
+  document.querySelectorAll(".stop-row input").forEach(i=>{
     if(i.value) stops.push(i.value);
   });
 
@@ -305,7 +284,8 @@ function bookTrip(){
 
   localStorage.setItem("pendingTrip", JSON.stringify(trip));
 
-  window.location.href="/booking.html";
+  // 🔥 الربط الجديد
+  window.location.href="/booking/index.html";
 }
 
 /* ================= LOAD GOOGLE ================= */
