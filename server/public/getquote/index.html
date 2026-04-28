@@ -8,6 +8,7 @@
 <style>
 body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
 .page{max-width:900px;margin:auto;padding:20px}
+
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
@@ -16,17 +17,20 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   text-align:center;
   position:relative;
 }
+
 .lang-btn{
   position:absolute;
   right:15px;
   top:15px;
   background:#fff;
   color:#111;
-  padding:6px 12px;
-  border-radius:8px;
+  padding:8px 14px;
+  border-radius:10px;
   cursor:pointer;
-  font-size:12px;
+  font-size:13px;
+  font-weight:bold;
 }
+
 .card{
   background:#fff;
   border-radius:16px;
@@ -34,6 +38,7 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   margin-top:20px;
   box-shadow:0 5px 15px rgba(0,0,0,0.08)
 }
+
 input{
   width:100%;
   padding:12px;
@@ -41,6 +46,7 @@ input{
   border-radius:10px;
   margin-bottom:10px
 }
+
 button{
   padding:12px;
   border:none;
@@ -49,15 +55,19 @@ button{
   cursor:pointer;
   margin-top:10px
 }
+
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
+
 #map{height:350px;border-radius:12px;margin-top:10px}
+
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:10px;
   margin-top:15px
 }
+
 .hidden{display:none}
 </style>
 </head>
@@ -67,15 +77,21 @@ button{
 <div class="page">
 
 <div class="hero">
-<div class="lang-btn" onclick="toggleLang()">ES</div>
+
+<div class="lang-btn" onclick="toggleLang()" id="langBtn">
+English / Spanish
+</div>
 
 <h1 id="title">Get Quote</h1>
 
-<div id="pricing">
-🚗 Base fare: <b>$20</b> (includes first 5 miles)<br>
-📏 Extra mile: <b>$2</b><br>
-🛑 Stop: <b>$5</b>
+<div id="pricing" style="margin-top:10px;font-weight:bold;font-size:16px;">
+🚗 Base Fare: $20 (includes first 5 miles)<br>
+📏 Extra Mile: $2 per mile after 5 miles<br>
+🛑 Stop: $5 each<br>
+⏳ Waiting: 10 minutes after pickup time<br>
+❌ Cancellation: $15 if canceled within 2 hours
 </div>
+
 </div>
 
 <div class="card">
@@ -113,40 +129,47 @@ button{
 
 /* ================= LANGUAGE ================= */
 
-let currentLang = "en";
+let lang="en";
 
 function toggleLang(){
 
-  if(currentLang === "en"){
-    currentLang = "es";
+  if(lang==="en"){
+    lang="es";
+    langBtn.innerText="Spanish / English";
 
-    title.innerText = "Cotizar Viaje";
-    pickupLabel.innerText = "Origen";
-    dropLabel.innerText = "Destino";
-    addStopBtn.innerText = "+ Parada";
-    calcBtn.innerText = "Calcular";
-    bookBtn.innerText = "Reservar";
+    title.innerText="Cotizar Viaje";
+    pickupLabel.innerText="Origen";
+    dropLabel.innerText="Destino";
+    addStopBtn.innerText="+ Parada";
+    calcBtn.innerText="Calcular";
+    bookBtn.innerText="Reservar";
 
-    pricing.innerHTML = `
-🚗 Tarifa base: <b>$20</b> (incluye primeras 5 millas)<br>
-📏 Milla extra: <b>$2</b><br>
-🛑 Parada: <b>$5</b>
+    pricing.innerHTML=`
+🚗 Tarifa base: $20 (incluye primeras 5 millas)<br>
+📏 Milla extra: $2 por milla después de 5<br>
+🛑 Parada: $5 cada una<br>
+⏳ Espera: 10 minutos<br>
+❌ Cancelación: $15 dentro de 2 horas
 `;
 
   } else {
-    currentLang = "en";
 
-    title.innerText = "Get Quote";
-    pickupLabel.innerText = "Pickup";
-    dropLabel.innerText = "Dropoff";
-    addStopBtn.innerText = "+ Add Stop";
-    calcBtn.innerText = "Calculate";
-    bookBtn.innerText = "Book";
+    lang="en";
+    langBtn.innerText="English / Spanish";
 
-    pricing.innerHTML = `
-🚗 Base fare: <b>$20</b> (includes first 5 miles)<br>
-📏 Extra mile: <b>$2</b><br>
-🛑 Stop: <b>$5</b>
+    title.innerText="Get Quote";
+    pickupLabel.innerText="Pickup";
+    dropLabel.innerText="Dropoff";
+    addStopBtn.innerText="+ Add Stop";
+    calcBtn.innerText="Calculate";
+    bookBtn.innerText="Book";
+
+    pricing.innerHTML=`
+🚗 Base Fare: $20 (includes first 5 miles)<br>
+📏 Extra Mile: $2 per mile after 5 miles<br>
+🛑 Stop: $5 each<br>
+⏳ Waiting: 10 minutes<br>
+❌ Cancellation: $15 within 2 hours
 `;
   }
 }
@@ -169,9 +192,11 @@ function initGoogle(){
   directionsRenderer = new google.maps.DirectionsRenderer({map});
 }
 
+/* ================= STOP ================= */
+
 function addStop(){
   const input = document.createElement("input");
-  input.placeholder = currentLang === "es" ? "Parada" : "Stop";
+  input.placeholder = lang==="es" ? "Parada" : "Stop";
   document.getElementById("stops").appendChild(input);
 }
 
@@ -188,8 +213,8 @@ function fixAZ(address){
 
 function calculate(){
 
-  let pickupVal = fixAZ(document.getElementById("pickup").value);
-  let dropVal = fixAZ(document.getElementById("dropoff").value);
+  let pickupVal = fixAZ(pickup.value);
+  let dropVal = fixAZ(dropoff.value);
 
   if(!pickupVal || !dropVal){
     alert("Enter valid address");
@@ -204,11 +229,19 @@ function calculate(){
     origin: pickupVal,
     destination: dropVal,
     waypoints: stopsInputs,
-    travelMode: "DRIVING"
+    travelMode: "DRIVING",
+
+    drivingOptions:{
+      departureTime:new Date(),
+      trafficModel:"bestguess"
+    },
+
+    optimizeWaypoints:true
+
   }, (res, status)=>{
 
     if(status !== "OK"){
-      alert("Address error");
+      alert("Address not valid");
       return;
     }
 
@@ -221,8 +254,8 @@ function calculate(){
       sec+=l.duration.value;
     });
 
-    let miles = meters / 1609;
-    let mins = Math.round(sec / 60);
+    let miles = meters/1609;
+    let mins = Math.round(sec/60);
     let stops = stopsInputs.length;
 
     let extraMiles = Math.max(0, miles - 5);
@@ -243,17 +276,14 @@ function calculate(){
 
 function bookTrip(){
 
-  const pickup = document.getElementById("pickup").value;
-  const dropoff = document.getElementById("dropoff").value;
-
   const stops = [];
   document.querySelectorAll("#stops input").forEach(i=>{
     if(i.value) stops.push(i.value);
   });
 
   const trip = {
-    pickup,
-    dropoff,
+    pickup: pickup.value,
+    dropoff: dropoff.value,
     stops,
     distance: distance.innerText,
     time: time.innerText,
@@ -262,12 +292,14 @@ function bookTrip(){
 
   localStorage.setItem("pendingTrip", JSON.stringify(trip));
 
-  window.location.href = "/booking.html";
+  // 🔥 ده الربط الفعلي
+  window.location.href="/booking.html";
 }
 
 /* ================= LOAD GOOGLE ================= */
 
 async function loadGoogle(){
+
   const res = await fetch("/api/config");
   const data = await res.json();
 
