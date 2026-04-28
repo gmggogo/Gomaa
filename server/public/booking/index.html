@@ -91,6 +91,10 @@ button{
   display:none;
 }
 
+.error{
+  border:2px solid red !important;
+}
+
 @media(max-width:600px){
   .row{flex-direction:column}
 }
@@ -117,11 +121,11 @@ English / Spanish
 
 <div class="row">
 <div>
-<label id="distanceLabel">Distance</label>
+<label>Distance</label>
 <input id="miles" readonly>
 </div>
 <div>
-<label id="priceLabel">Price</label>
+<label>Price</label>
 <input id="price" readonly>
 </div>
 </div>
@@ -134,16 +138,16 @@ English / Spanish
 
 <div class="row">
 <div>
-<label id="dateLabel">Date</label>
+<label>Date</label>
 <input type="date" id="date">
 </div>
 <div>
-<label id="timeLabel">Time</label>
+<label>Time</label>
 <input type="time" id="time">
 </div>
 </div>
 
-<label id="notesLabel">Notes</label>
+<label>Notes</label>
 <textarea id="notes"></textarea>
 
 <div id="warningBox"></div>
@@ -157,7 +161,8 @@ English / Spanish
 
 <script>
 
-/* LOAD DATA */
+/* ================= LOAD DATA ================= */
+
 let tripData = JSON.parse(localStorage.getItem("pendingTrip") || "null");
 
 if(!tripData){
@@ -165,13 +170,15 @@ if(!tripData){
   location.href="../getquote/index.html";
 }
 
-/* FILL DATA */
+/* ================= FILL ================= */
+
 pickup.value = tripData.pickup;
 dropoff.value = tripData.dropoff;
 miles.value = tripData.distance;
 price.value = tripData.price;
 
-/* STOPS DYNAMIC */
+/* ================= STOPS ================= */
+
 if(tripData.stops && tripData.stops.length){
   tripData.stops.forEach((s,i)=>{
     const label = document.createElement("label");
@@ -186,22 +193,12 @@ if(tripData.stops && tripData.stops.length){
   });
 }
 
-/* HELPERS */
-function nowAZ(){
-  return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
-}
+/* ================= LANGUAGE ================= */
 
-function minutesUntilTripAZ(dateStr,timeStr){
-  if(!dateStr || !timeStr) return null;
-  const now = nowAZ();
-  const trip = new Date(dateStr + "T" + timeStr);
-  return Math.floor((trip - now)/60000);
-}
-
-/* LANGUAGE */
 let lang="en";
 
 function toggleLang(){
+
   if(lang==="en"){
     lang="es";
     langBtn.innerText="Spanish / English";
@@ -211,9 +208,6 @@ function toggleLang(){
     dropLabel.innerText="Destino";
     nameLabel.innerText="Nombre";
     phoneLabel.innerText="Teléfono";
-    dateLabel.innerText="Fecha";
-    timeLabel.innerText="Hora";
-    notesLabel.innerText="Notas";
 
     recalcBtn.innerText="Recalcular";
     confirmBtn.innerText="Confirmar";
@@ -227,46 +221,89 @@ function toggleLang(){
     dropLabel.innerText="Dropoff";
     nameLabel.innerText="Passenger Name";
     phoneLabel.innerText="Phone";
-    dateLabel.innerText="Date";
-    timeLabel.innerText="Time";
-    notesLabel.innerText="Notes";
 
     recalcBtn.innerText="Recalculate";
     confirmBtn.innerText="Confirm";
   }
 }
 
-/* RECALC */
+/* ================= TIME ================= */
+
+function nowAZ(){
+  return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
+}
+
+function minutesUntilTripAZ(dateStr,timeStr){
+  if(!dateStr || !timeStr) return null;
+  const now = nowAZ();
+  const trip = new Date(dateStr + "T" + timeStr);
+  return Math.floor((trip - now)/60000);
+}
+
+/* ================= RECALC ================= */
+
 function recalculate(){
   localStorage.removeItem("pendingTrip");
   location.href="../getquote/index.html";
 }
 
-/* CONFIRM */
+/* ================= CONFIRM ================= */
+
 async function confirmBooking(){
 
   const btn = confirmBtn;
   btn.disabled=true;
 
-  if(!name.value || !phone.value || !date.value || !time.value){
-    alert("Fill all fields");
+  /* 🔥 VALIDATION FIX */
+  const nameVal = name.value.trim();
+  const phoneVal = phone.value.trim();
+  const dateVal = date.value;
+  const timeVal = time.value;
+
+  document.querySelectorAll("input").forEach(i=>i.classList.remove("error"));
+
+  if(nameVal===""){
+    name.classList.add("error");
+    alert("Enter passenger name");
     btn.disabled=false;
     return;
   }
 
-  const minutesLeft = minutesUntilTripAZ(date.value,time.value);
+  if(phoneVal===""){
+    phone.classList.add("error");
+    alert("Enter phone number");
+    btn.disabled=false;
+    return;
+  }
 
-  if(minutesLeft<=0){
+  if(!dateVal){
+    alert("Select date");
+    btn.disabled=false;
+    return;
+  }
+
+  if(!timeVal){
+    alert("Select time");
+    btn.disabled=false;
+    return;
+  }
+
+  /* TIME RULE */
+  const minutesLeft = minutesUntilTripAZ(dateVal,timeVal);
+
+  if(minutesLeft <= 0){
     alert("Trip time passed");
     btn.disabled=false;
     return;
   }
 
-  if(minutesLeft<=120){
+  if(minutesLeft <= 120){
     recalcBtn.style.display="none";
     warningBox.style.display="block";
     warningBox.innerText="⚠️ Editing disabled (within 2 hours)";
   }
+
+  /* SEND */
 
   const bookingData={
     type:"individual",
@@ -281,16 +318,15 @@ async function confirmBooking(){
     dropoffLng:tripData.dropoffLng,
 
     stops:tripData.stops || [],
-
     stopCoords:(tripData.stops || []).map(s=>({
       address:s,lat:null,lng:null
     })),
 
-    clientName:name.value,
-    clientPhone:phone.value,
+    clientName:nameVal,
+    clientPhone:phoneVal,
 
-    tripDate:date.value,
-    tripTime:time.value,
+    tripDate:dateVal,
+    tripTime:timeVal,
 
     notes:notes.value,
 
@@ -323,7 +359,6 @@ async function confirmBooking(){
     alert("Server error");
     btn.disabled=false;
   }
-
 }
 
 </script>
