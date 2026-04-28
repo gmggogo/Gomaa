@@ -66,14 +66,8 @@ button{
 .btn-success{background:#22c55e;color:#fff}
 .btn-stop{background:#f97316;color:#fff}
 
-.stop-row{
-  display:flex;
-  gap:8px;
-}
-
-.stop-row input{
-  flex:1;
-}
+.stop-row{display:flex;gap:8px}
+.stop-row input{flex:1}
 
 .remove-btn{
   background:#ef4444;
@@ -85,12 +79,30 @@ button{
 
 #map{height:350px;border-radius:12px;margin-top:10px}
 
+/* 🔥 NEW CARDS DESIGN */
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:10px;
+  gap:12px;
   margin-top:15px
 }
+
+.quote-card{
+  background:linear-gradient(135deg,#1d4ed8,#2563eb);
+  color:#fff;
+  padding:15px;
+  border-radius:12px;
+  text-align:center;
+  box-shadow:0 10px 25px rgba(0,0,0,0.2);
+  transition:.3s;
+}
+
+.quote-card:hover{
+  transform:translateY(-3px);
+}
+
+.quote-title{font-size:13px}
+.quote-value{font-size:20px;font-weight:bold;margin-top:5px}
 
 .hidden{display:none}
 </style>
@@ -102,7 +114,6 @@ button{
 
 <div class="hero">
 
-<!-- ✅ زرار اللغة -->
 <div class="lang-btn" onclick="toggleLang()" id="langBtn">English / Spanish</div>
 
 <h1 id="title">Get Quote</h1>
@@ -127,22 +138,38 @@ Cancellation: $15 within 2 hours
 <input id="pickup">
 
 <div id="stops"></div>
-
 <button class="btn-stop" onclick="addStop()">+ Add Stop</button>
 
 <label id="dropLabel">Dropoff</label>
 <input id="dropoff">
 
-<button class="btn-primary" onclick="calculate()" id="calcBtn">Calculate</button>
-<button class="btn-success" id="bookBtn" disabled onclick="bookTrip()">Book</button>
+<button class="btn-primary" onclick="calculate()">Calculate</button>
+<button class="btn-success hidden" id="bookBtn" onclick="bookTrip()">Book</button>
 
 <div id="priceBox" class="hidden">
-<div class="quote-grid">
-<div>Distance <br><b id="distance"></b></div>
-<div>Stops <br><b id="stopsCount"></b></div>
-<div>Time <br><b id="time"></b></div>
-<div>Price <br><b id="price">$0</b></div>
-</div>
+  <div class="quote-grid">
+
+    <div class="quote-card">
+      <div class="quote-title">Distance</div>
+      <div class="quote-value" id="distance"></div>
+    </div>
+
+    <div class="quote-card">
+      <div class="quote-title">Stops</div>
+      <div class="quote-value" id="stopsCount"></div>
+    </div>
+
+    <div class="quote-card">
+      <div class="quote-title">Time</div>
+      <div class="quote-value" id="time"></div>
+    </div>
+
+    <div class="quote-card" style="background:linear-gradient(135deg,#16a34a,#22c55e)">
+      <div class="quote-title">Price</div>
+      <div class="quote-value" id="price">$0</div>
+    </div>
+
+  </div>
 </div>
 
 </div>
@@ -155,54 +182,24 @@ Cancellation: $15 within 2 hours
 
 <script>
 
-/* ================= LANGUAGE ================= */
-
-let lang="en";
-
-function toggleLang(){
-
-  if(lang==="en"){
-    lang="es";
-
-    langBtn.innerText="Spanish / English";
-    title.innerText="Cotizar Viaje";
-    pickupLabel.innerText="Origen";
-    dropLabel.innerText="Destino";
-
-    pricing.innerHTML=`
-Tarifa base: $20 (incluye primeras 5 millas)<br>
-Milla extra: $2 por milla después de 5<br>
-Parada: $5 cada una<br>
-Espera: 10 minutos<br>
-Cancelación: $15 dentro de 2 horas
-`;
-
-  } else {
-
-    lang="en";
-
-    langBtn.innerText="English / Spanish";
-    title.innerText="Get Quote";
-    pickupLabel.innerText="Pickup";
-    dropLabel.innerText="Dropoff";
-
-    pricing.innerHTML=`
-Base Fare: $20 (includes first 5 miles)<br>
-Extra Mile: $2 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-Cancellation: $15 within 2 hours
-`;
-  }
-}
-
-/* ================= MAP ================= */
-
 let map, directionsService, directionsRenderer;
 
 const OPEN = 20;
 const PER_MILE = 2;
 const STOP_PRICE = 5;
+
+/* 🔥 RESET UI */
+function resetUI(){
+  document.getElementById("bookBtn").classList.add("hidden");
+  document.getElementById("priceBox").classList.add("hidden");
+}
+
+/* 🔥 LISTEN INPUT */
+["pickup","dropoff"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", resetUI);
+});
+
+/* ================= MAP ================= */
 
 function initGoogle(){
   map = new google.maps.Map(document.getElementById("map"), {
@@ -229,13 +226,18 @@ function addStop(){
   row.className = "stop-row";
 
   const input = document.createElement("input");
-  input.placeholder = lang==="es" ? "Parada" : "Stop";
+  input.placeholder = "Stop";
+
+  input.addEventListener("input", resetUI);
 
   const remove = document.createElement("button");
   remove.innerText = "X";
   remove.className = "remove-btn";
 
-  remove.onclick = () => row.remove();
+  remove.onclick = () => {
+    row.remove();
+    resetUI();
+  };
 
   row.appendChild(input);
   row.appendChild(remove);
@@ -243,23 +245,12 @@ function addStop(){
   document.getElementById("stops").appendChild(row);
 }
 
-/* ================= FIX AZ ================= */
-
-function fixAZ(address){
-  address = address.trim();
-  if(address === "") return "";
-  if(!address.toLowerCase().includes("arizona")){
-    return address + ", Arizona";
-  }
-  return address;
-}
-
 /* ================= CALCULATE ================= */
 
 function calculate(){
 
-  let pickupVal = fixAZ(pickup.value);
-  let dropVal = fixAZ(dropoff.value);
+  let pickupVal = pickup.value;
+  let dropVal = dropoff.value;
 
   if(!pickupVal || !dropVal){
     alert("Enter valid address");
@@ -268,20 +259,14 @@ function calculate(){
 
   const stopsInputs = Array.from(document.querySelectorAll(".stop-row input"))
     .filter(i => i.value)
-    .map(i => ({ location: fixAZ(i.value) }));
+    .map(i => ({ location: i.value }));
 
   directionsService.route({
     origin: pickupVal,
     destination: dropVal,
     waypoints: stopsInputs,
     optimizeWaypoints:false,
-    travelMode: "DRIVING",
-
-    // 🔥 الحل الحقيقي للطريق الواقعي
-    drivingOptions:{
-      departureTime: new Date(),
-      trafficModel:"bestguess"
-    }
+    travelMode: "DRIVING"
 
   }, (res, status)=>{
 
@@ -311,8 +296,8 @@ function calculate(){
     time.innerText = mins+" min";
     price.innerText = "$"+totalPrice.toFixed(2);
 
-    priceBox.classList.remove("hidden");
-    bookBtn.disabled=false;
+    document.getElementById("priceBox").classList.remove("hidden");
+    document.getElementById("bookBtn").classList.remove("hidden");
 
   });
 }
@@ -336,7 +321,6 @@ function bookTrip(){
   };
 
   localStorage.setItem("pendingTrip", JSON.stringify(trip));
-
   window.location.href="/booking/index.html";
 }
 
