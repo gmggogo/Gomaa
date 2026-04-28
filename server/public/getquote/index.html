@@ -2,87 +2,62 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Get Quote – Sunbeam Transportation</title>
+<title>Sunbeam Transportation</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-*{box-sizing:border-box}
-
-body{
-  font-family:Arial;
-  background:#f8fafc;
-  margin:0;
-  color:#111827;
-}
-
-.page{
-  max-width:900px;
-  margin:auto;
-  padding:20px;
-}
-
+body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
+.page{max-width:900px;margin:auto;padding:20px}
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
   border-radius:16px;
   padding:20px;
-  margin-bottom:20px;
   text-align:center;
+  position:relative;
 }
-
-.hero h1{
-  margin:0;
+.lang-btn{
+  position:absolute;
+  right:15px;
+  top:15px;
+  background:#fff;
+  color:#111;
+  padding:6px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:12px;
 }
-
-/* 🔥 أسعار الرحلات */
-.pricing{
-  margin-top:12px;
-  font-size:14px;
-  opacity:.95;
-  line-height:1.6;
-}
-
 .card{
   background:#fff;
   border-radius:16px;
   padding:20px;
-  margin-bottom:20px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.08);
+  margin-top:20px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.08)
 }
-
 input{
   width:100%;
   padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
-  margin-bottom:10px;
+  margin-bottom:10px
 }
-
 button{
   padding:12px;
   border:none;
   border-radius:10px;
   font-weight:bold;
   cursor:pointer;
-  margin-top:10px;
+  margin-top:10px
 }
-
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
-
-#map{
-  height:350px;
-  border-radius:12px;
-  margin-top:10px;
-}
-
+#map{height:350px;border-radius:12px;margin-top:10px}
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:10px;
-  margin-top:15px;
+  margin-top:15px
 }
-
 .hidden{display:none}
 </style>
 </head>
@@ -92,31 +67,30 @@ button{
 <div class="page">
 
 <div class="hero">
-<h1>Get Quote</h1>
+<div class="lang-btn" onclick="toggleLang()">ES</div>
 
-<!-- 🔥 هنا أسعار الرحلات -->
-<div class="pricing">
-🚗 فتح الرحلة: <b>$20</b> (شامل أول 5 مايل)<br>
-📏 كل مايل إضافي بعد 5 مايل: <b>$2</b><br>
-🛑 كل Stop إضافي: <b>$5</b>
+<h1 id="title">Get Quote</h1>
+
+<div id="pricing">
+🚗 Base fare: <b>$20</b> (includes first 5 miles)<br>
+📏 Extra mile: <b>$2</b><br>
+🛑 Stop: <b>$5</b>
 </div>
-
 </div>
 
 <div class="card">
 
-<label>Pickup</label>
-<input id="pickup" placeholder="Enter pickup address">
+<label id="pickupLabel">Pickup</label>
+<input id="pickup">
 
 <div id="stops"></div>
+<button onclick="addStop()" id="addStopBtn">+ Add Stop</button>
 
-<button onclick="addStop()">+ Add Stop</button>
+<label id="dropLabel">Dropoff</label>
+<input id="dropoff">
 
-<label>Dropoff</label>
-<input id="dropoff" placeholder="Enter dropoff address">
-
-<button class="btn-primary" onclick="calculate()">Calculate</button>
-<button class="btn-success" id="bookBtn" disabled>Book</button>
+<button class="btn-primary" onclick="calculate()" id="calcBtn">Calculate</button>
+<button class="btn-success" id="bookBtn" disabled onclick="bookTrip()">Book</button>
 
 <div id="priceBox" class="hidden">
 <div class="quote-grid">
@@ -137,13 +111,53 @@ button{
 
 <script>
 
+/* ================= LANGUAGE ================= */
+
+let currentLang = "en";
+
+function toggleLang(){
+
+  if(currentLang === "en"){
+    currentLang = "es";
+
+    title.innerText = "Cotizar Viaje";
+    pickupLabel.innerText = "Origen";
+    dropLabel.innerText = "Destino";
+    addStopBtn.innerText = "+ Parada";
+    calcBtn.innerText = "Calcular";
+    bookBtn.innerText = "Reservar";
+
+    pricing.innerHTML = `
+🚗 Tarifa base: <b>$20</b> (incluye primeras 5 millas)<br>
+📏 Milla extra: <b>$2</b><br>
+🛑 Parada: <b>$5</b>
+`;
+
+  } else {
+    currentLang = "en";
+
+    title.innerText = "Get Quote";
+    pickupLabel.innerText = "Pickup";
+    dropLabel.innerText = "Dropoff";
+    addStopBtn.innerText = "+ Add Stop";
+    calcBtn.innerText = "Calculate";
+    bookBtn.innerText = "Book";
+
+    pricing.innerHTML = `
+🚗 Base fare: <b>$20</b> (includes first 5 miles)<br>
+📏 Extra mile: <b>$2</b><br>
+🛑 Stop: <b>$5</b>
+`;
+  }
+}
+
+/* ================= MAP ================= */
+
 let map, directionsService, directionsRenderer;
 
 const OPEN = 20;
 const PER_MILE = 2;
 const STOP_PRICE = 5;
-
-/* ================= INIT GOOGLE ================= */
 
 function initGoogle(){
   map = new google.maps.Map(document.getElementById("map"), {
@@ -155,31 +169,37 @@ function initGoogle(){
   directionsRenderer = new google.maps.DirectionsRenderer({map});
 }
 
-/* ================= ADD STOP ================= */
-
 function addStop(){
   const input = document.createElement("input");
-  input.placeholder = "Stop";
+  input.placeholder = currentLang === "es" ? "Parada" : "Stop";
   document.getElementById("stops").appendChild(input);
 }
 
-/* ================= CALCULATE (ONE REQUEST ONLY) ================= */
+/* ================= FIX AZ ================= */
+
+function fixAZ(address){
+  if(!address.toLowerCase().includes("az")){
+    return address + ", AZ";
+  }
+  return address;
+}
+
+/* ================= CALCULATE ================= */
 
 function calculate(){
 
-  const pickupVal = document.getElementById("pickup").value;
-  const dropVal = document.getElementById("dropoff").value;
+  let pickupVal = fixAZ(document.getElementById("pickup").value);
+  let dropVal = fixAZ(document.getElementById("dropoff").value);
 
   if(!pickupVal || !dropVal){
-    alert("Please enter addresses");
+    alert("Enter valid address");
     return;
   }
 
   const stopsInputs = Array.from(document.querySelectorAll("#stops input"))
     .filter(i => i.value)
-    .map(i => ({ location: i.value }));
+    .map(i => ({ location: fixAZ(i.value) }));
 
-  /* 🔥 Request واحد فقط */
   directionsService.route({
     origin: pickupVal,
     destination: dropVal,
@@ -188,7 +208,7 @@ function calculate(){
   }, (res, status)=>{
 
     if(status !== "OK"){
-      alert("Address not valid");
+      alert("Address error");
       return;
     }
 
@@ -197,33 +217,57 @@ function calculate(){
     let meters=0, sec=0;
 
     res.routes[0].legs.forEach(l=>{
-      meters += l.distance.value;
-      sec += l.duration.value;
+      meters+=l.distance.value;
+      sec+=l.duration.value;
     });
 
     let miles = meters / 1609;
     let mins = Math.round(sec / 60);
     let stops = stopsInputs.length;
 
-    /* ✅ السعر الصح */
     let extraMiles = Math.max(0, miles - 5);
     let price = OPEN + (extraMiles * PER_MILE) + (stops * STOP_PRICE);
 
-    document.getElementById("distance").innerText = miles.toFixed(2)+" mi";
-    document.getElementById("stopsCount").innerText = stops;
-    document.getElementById("time").innerText = mins+" min";
-    document.getElementById("price").innerText = "$"+price.toFixed(2);
+    distance.innerText = miles.toFixed(2)+" mi";
+    stopsCount.innerText = stops;
+    time.innerText = mins+" min";
+    price.innerText = "$"+price.toFixed(2);
 
-    document.getElementById("priceBox").classList.remove("hidden");
-    document.getElementById("bookBtn").disabled=false;
+    priceBox.classList.remove("hidden");
+    bookBtn.disabled=false;
 
   });
 }
 
-/* ================= LOAD GOOGLE KEY FROM SERVER ================= */
+/* ================= BOOK ================= */
+
+function bookTrip(){
+
+  const pickup = document.getElementById("pickup").value;
+  const dropoff = document.getElementById("dropoff").value;
+
+  const stops = [];
+  document.querySelectorAll("#stops input").forEach(i=>{
+    if(i.value) stops.push(i.value);
+  });
+
+  const trip = {
+    pickup,
+    dropoff,
+    stops,
+    distance: distance.innerText,
+    time: time.innerText,
+    price: price.innerText
+  };
+
+  localStorage.setItem("pendingTrip", JSON.stringify(trip));
+
+  window.location.href = "/booking.html";
+}
+
+/* ================= LOAD GOOGLE ================= */
 
 async function loadGoogle(){
-
   const res = await fetch("/api/config");
   const data = await res.json();
 
