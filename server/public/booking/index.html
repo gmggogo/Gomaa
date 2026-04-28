@@ -161,8 +161,7 @@ English / Spanish
 
 <script>
 
-/* ================= LOAD DATA ================= */
-
+/* LOAD DATA */
 let tripData = JSON.parse(localStorage.getItem("pendingTrip") || "null");
 
 if(!tripData){
@@ -170,15 +169,13 @@ if(!tripData){
   location.href="../getquote/index.html";
 }
 
-/* ================= FILL ================= */
+/* FILL DATA */
+document.getElementById("pickup").value = tripData.pickup || "";
+document.getElementById("dropoff").value = tripData.dropoff || "";
+document.getElementById("miles").value = tripData.distance || "";
+document.getElementById("price").value = tripData.price || "";
 
-pickup.value = tripData.pickup;
-dropoff.value = tripData.dropoff;
-miles.value = tripData.distance;
-price.value = tripData.price;
-
-/* ================= STOPS ================= */
-
+/* STOPS */
 if(tripData.stops && tripData.stops.length){
   tripData.stops.forEach((s,i)=>{
     const label = document.createElement("label");
@@ -188,47 +185,45 @@ if(tripData.stops && tripData.stops.length){
     input.value = s;
     input.readOnly = true;
 
-    stopsContainer.appendChild(label);
-    stopsContainer.appendChild(input);
+    document.getElementById("stopsContainer").appendChild(label);
+    document.getElementById("stopsContainer").appendChild(input);
   });
 }
 
-/* ================= LANGUAGE ================= */
-
+/* LANGUAGE */
 let lang="en";
 
 function toggleLang(){
 
   if(lang==="en"){
     lang="es";
-    langBtn.innerText="Spanish / English";
+    document.getElementById("langBtn").innerText="Spanish / English";
 
-    title.innerText="Confirmar Reserva";
-    pickupLabel.innerText="Origen";
-    dropLabel.innerText="Destino";
-    nameLabel.innerText="Nombre";
-    phoneLabel.innerText="Teléfono";
+    document.getElementById("title").innerText="Confirmar Reserva";
+    document.getElementById("pickupLabel").innerText="Origen";
+    document.getElementById("dropLabel").innerText="Destino";
+    document.getElementById("nameLabel").innerText="Nombre";
+    document.getElementById("phoneLabel").innerText="Teléfono";
 
-    recalcBtn.innerText="Recalcular";
-    confirmBtn.innerText="Confirmar";
+    document.getElementById("recalcBtn").innerText="Recalcular";
+    document.getElementById("confirmBtn").innerText="Confirmar";
 
   }else{
     lang="en";
-    langBtn.innerText="English / Spanish";
+    document.getElementById("langBtn").innerText="English / Spanish";
 
-    title.innerText="Confirm Booking";
-    pickupLabel.innerText="Pickup";
-    dropLabel.innerText="Dropoff";
-    nameLabel.innerText="Passenger Name";
-    phoneLabel.innerText="Phone";
+    document.getElementById("title").innerText="Confirm Booking";
+    document.getElementById("pickupLabel").innerText="Pickup";
+    document.getElementById("dropLabel").innerText="Dropoff";
+    document.getElementById("nameLabel").innerText="Passenger Name";
+    document.getElementById("phoneLabel").innerText="Phone";
 
-    recalcBtn.innerText="Recalculate";
-    confirmBtn.innerText="Confirm";
+    document.getElementById("recalcBtn").innerText="Recalculate";
+    document.getElementById("confirmBtn").innerText="Confirm";
   }
 }
 
-/* ================= TIME ================= */
-
+/* TIME */
 function nowAZ(){
   return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
 }
@@ -240,37 +235,39 @@ function minutesUntilTripAZ(dateStr,timeStr){
   return Math.floor((trip - now)/60000);
 }
 
-/* ================= RECALC ================= */
-
+/* RECALC */
 function recalculate(){
   localStorage.removeItem("pendingTrip");
   location.href="../getquote/index.html";
 }
 
-/* ================= CONFIRM ================= */
-
+/* CONFIRM */
 async function confirmBooking(){
 
-  const btn = confirmBtn;
+  const btn = document.getElementById("confirmBtn");
   btn.disabled=true;
 
-  /* 🔥 VALIDATION FIX */
-  const nameVal = name.value.trim();
-  const phoneVal = phone.value.trim();
-  const dateVal = date.value;
-  const timeVal = time.value;
+  const nameInput = document.getElementById("name");
+  const phoneInput = document.getElementById("phone");
+  const dateInput = document.getElementById("date");
+  const timeInput = document.getElementById("time");
+
+  const nameVal = nameInput.value.trim();
+  const phoneVal = phoneInput.value.trim();
+  const dateVal = dateInput.value;
+  const timeVal = timeInput.value;
 
   document.querySelectorAll("input").forEach(i=>i.classList.remove("error"));
 
   if(nameVal===""){
-    name.classList.add("error");
+    nameInput.classList.add("error");
     alert("Enter passenger name");
     btn.disabled=false;
     return;
   }
 
   if(phoneVal===""){
-    phone.classList.add("error");
+    phoneInput.classList.add("error");
     alert("Enter phone number");
     btn.disabled=false;
     return;
@@ -288,7 +285,6 @@ async function confirmBooking(){
     return;
   }
 
-  /* TIME RULE */
   const minutesLeft = minutesUntilTripAZ(dateVal,timeVal);
 
   if(minutesLeft <= 0){
@@ -298,24 +294,17 @@ async function confirmBooking(){
   }
 
   if(minutesLeft <= 120){
-    recalcBtn.style.display="none";
-    warningBox.style.display="block";
-    warningBox.innerText="⚠️ Editing disabled (within 2 hours)";
+    document.getElementById("recalcBtn").style.display="none";
+    document.getElementById("warningBox").style.display="block";
+    document.getElementById("warningBox").innerText="⚠️ Editing disabled (within 2 hours)";
   }
-
-  /* SEND */
 
   const bookingData={
     type:"individual",
     company:"INDIVIDUAL",
 
     pickup:tripData.pickup,
-    pickupLat:tripData.pickupLat,
-    pickupLng:tripData.pickupLng,
-
     dropoff:tripData.dropoff,
-    dropoffLat:tripData.dropoffLat,
-    dropoffLng:tripData.dropoffLng,
 
     stops:tripData.stops || [],
     stopCoords:(tripData.stops || []).map(s=>({
@@ -328,7 +317,7 @@ async function confirmBooking(){
     tripDate:dateVal,
     tripTime:timeVal,
 
-    notes:notes.value,
+    notes:document.getElementById("notes").value,
 
     status:"Booked"
   };
