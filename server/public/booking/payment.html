@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Secure Payment – Sunbeam</title>
+<meta charset="UTF-8">
+<title>Secure Payment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://js.stripe.com/v3/"></script>
 
@@ -19,35 +19,21 @@ body{
   color:#fff;
 }
 
-.container{
-  width:95%;
-  max-width:420px;
-}
-
-.card{
+.box{
   background:#111827;
-  padding:20px;
+  padding:25px;
   border-radius:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.4);
-}
-
-.title{
+  width:90%;
+  max-width:360px;
   text-align:center;
-  margin-bottom:15px;
-  font-size:20px;
-}
-
-.trip-info{
-  font-size:13px;
-  margin-bottom:10px;
-  opacity:0.8;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
 }
 
 .amount{
-  font-size:22px;
-  font-weight:bold;
-  margin-bottom:15px;
+  font-size:30px;
   color:#22c55e;
+  margin-bottom:15px;
+  font-weight:bold;
 }
 
 #card-element{
@@ -59,150 +45,145 @@ body{
 button{
   width:100%;
   padding:14px;
+  margin-top:15px;
   border:none;
   border-radius:10px;
-  margin-top:12px;
-  font-size:16px;
-  cursor:pointer;
   background:#22c55e;
   color:#fff;
+  font-size:16px;
+  cursor:pointer;
 }
 
-button:hover{
-  background:#16a34a;
+button:disabled{
+  background:#555;
+  cursor:not-allowed;
 }
 
 .msg{
-  margin-top:10px;
-  text-align:center;
+  margin-top:12px;
+  font-size:14px;
 }
 
-.success{ color:#22c55e; }
-.error{ color:red; }
-
-/* 📱 Mobile */
-@media(max-width:500px){
-  body{
-    padding:15px;
-    align-items:flex-start;
-  }
-}
+.success{color:#22c55e}
+.error{color:#ef4444}
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <div class="card">
-    <div class="title">💳 Complete Payment</div>
+<div class="box">
 
-    <div class="trip-info" id="tripInfo">Loading trip...</div>
+  <div class="amount" id="amount">Loading...</div>
 
-    <div class="amount" id="amount">$0</div>
+  <div id="card-element"></div>
 
-    <div id="card-element"></div>
+  <button id="payBtn" disabled>Pay Now</button>
 
-    <button id="payBtn">Pay Now</button>
+  <div class="msg" id="msg"></div>
 
-    <div class="msg" id="msg"></div>
-  </div>
 </div>
 
 <script>
-let stripe;
-let elements;
-let card;
-let tripId;
+let stripe, elements, card;
+let tripId = null;
 let amount = 0;
 
-// 🔥 1. نجيب tripId من اللينك
+// get tripId
 const params = new URLSearchParams(window.location.search);
 tripId = params.get("tripId");
 
-// 🔥 2. نجيب بيانات الرحلة
+// load trip
 async function loadTrip(){
-  const res = await fetch(`/api/trips/${tripId}`);
-  const data = await res.json();
+  try{
+    const res = await fetch(`/api/trips/${tripId}`);
+    const data = await res.json();
 
-  if(!data || !data._id){
-    document.getElementById("tripInfo").innerText = "Trip not found";
-    return;
+    if(!data || !data._id){
+      amountEl.innerText = "Trip not found";
+      return;
+    }
+
+    amount = Number(data.priceAmount || 0);
+
+    if(!amount){
+      amountEl.innerText = "Invalid amount";
+      return;
+    }
+
+    amountEl.innerText = `$${amount}`;
+    payBtn.disabled = false;
+
+  }catch(err){
+    amountEl.innerText = "Error loading trip";
   }
-
-  amount = data.priceAmount || 0;
-
-  document.getElementById("tripInfo").innerHTML =
-    `${data.pickup} ➜ ${data.dropoff}`;
-
-  document.getElementById("amount").innerText =
-    `$${amount}`;
 }
 
-// 🔥 3. Stripe Init
-async function initStripe(){
+// stripe init
+async function init(){
   const res = await fetch("/api/config");
   const data = await res.json();
 
   stripe = Stripe(data.publishableKey);
-
   elements = stripe.elements();
+
   card = elements.create("card");
   card.mount("#card-element");
 }
 
-// 🔥 4. الدفع
-document.getElementById("payBtn").onclick = async () => {
+// payment
+payBtn.onclick = async ()=>{
 
-  if(!amount){
-    alert("Invalid amount");
-    return;
-  }
+  payBtn.disabled = true;
+  payBtn.innerText = "Processing...";
 
-  // 🔥 create payment intent
-  const res = await fetch("/api/create-payment-intent",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ amount })
-  });
+  try{
 
-  const data = await res.json();
+    const res = await fetch("/api/create-payment-intent",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ amount })
+    });
 
-  const result = await stripe.confirmCardPayment(data.clientSecret,{
-    payment_method:{ card }
-  });
+    const data = await res.json();
 
-  if(result.error){
+    const result = await stripe.confirmCardPayment(data.clientSecret,{
+      payment_method:{ card }
+    });
 
-    document.getElementById("msg").innerHTML =
-      `<div class="error">${result.error.message}</div>`;
-
-  }else{
+    if(result.error){
+      msg.innerHTML = `<div class="error">${result.error.message}</div>`;
+      payBtn.disabled = false;
+      payBtn.innerText = "Pay Now";
+      return;
+    }
 
     const paymentIntentId = result.paymentIntent.id;
 
-    // 🔥 نبعت للسيرفر
     await fetch("/api/payment-success",{
       method:"POST",
-      headers:{ "Content-Type":"application/json" },
+      headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
         tripId,
         paymentIntentId
       })
     });
 
-    document.getElementById("msg").innerHTML =
-      `<div class="success">Payment Successful 🎉</div>`;
+    msg.innerHTML = `
+      <div class="success">
+        Payment successful ✔<br>
+        A confirmation email has been sent with your booking details.
+      </div>
+    `;
 
-    // 🔥 redirect بعد الدفع
-    setTimeout(()=>{
-      window.location.href = "/";
-    },2000);
+  }catch(err){
+    msg.innerHTML = `<div class="error">Payment failed</div>`;
+    payBtn.disabled = false;
+    payBtn.innerText = "Pay Now";
   }
 };
 
-// تشغيل
 loadTrip();
-initStripe();
+init();
 </script>
 
 </body>

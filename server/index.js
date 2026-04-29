@@ -7,6 +7,15 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 const app = express();
 
@@ -68,11 +77,12 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-/* =========================
-   TRIP MODEL
+  /* =========================
+   TRIP MODEL (FINAL)
 ========================= */
 const tripSchema = new mongoose.Schema({
   tripNumber: { type: String, unique: true, sparse: true },
+
   type: { type: String, default: "company" },
   company: { type: String, default: "" },
 
@@ -81,6 +91,10 @@ const tripSchema = new mongoose.Schema({
 
   clientName: { type: String, default: "" },
   clientPhone: { type: String, default: "" },
+
+  // 🔥 مهم للدفع والإيميل
+  clientEmail: { type: String, default: "" },
+  priceAmount: { type: Number, default: 0 },
 
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
@@ -100,7 +114,9 @@ const tripSchema = new mongoose.Schema({
     }],
     default: []
   },
-paymentIntentId: { type: String, default: "" },
+
+  // 🔥 الدفع
+  paymentIntentId: { type: String, default: "" },
 
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
@@ -120,8 +136,10 @@ paymentIntentId: { type: String, default: "" },
   dispatchNote: { type: String, default: "" },
 
   status: { type: String, default: "Scheduled" },
+
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
+
 }, { minimize: false });
 
 /* INDEXES */
@@ -132,7 +150,6 @@ tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 })
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
-
 /* =========================
    DRIVER SCHEDULE MODEL
 ========================= */
@@ -1065,7 +1082,7 @@ app.get("/api/drivers", async (req, res) => {
 });
 
 /* =========================
-   CREATE TRIP
+   CREATE TRIP (FINAL)
 ========================= */
 app.post("/api/trips", async (req, res) => {
   try {
@@ -1087,6 +1104,10 @@ app.post("/api/trips", async (req, res) => {
       clientName: normalizeText(req.body.clientName),
       clientPhone: normalizeText(req.body.clientPhone),
 
+      // 🔥 أهم تعديل
+      priceAmount: Number(req.body.priceAmount || 0),
+      clientEmail: normalizeText(req.body.clientEmail),
+
       pickup,
       dropoff,
       stops: parseStops(req.body.stops),
@@ -1101,7 +1122,9 @@ app.post("/api/trips", async (req, res) => {
       tripTime: normalizeText(req.body.tripTime),
 
       notes: normalizeText(req.body.notes),
+
       status: normalizeText(req.body.status) || "Booked",
+
       bookedAt: req.body.bookedAt || new Date(),
       createdAt: new Date()
     });
@@ -1109,6 +1132,7 @@ app.post("/api/trips", async (req, res) => {
     await ensureTripCoords(trip);
 
     res.status(200).json(trip);
+
   } catch (err) {
     console.log(err);
 
@@ -1119,7 +1143,6 @@ app.post("/api/trips", async (req, res) => {
     res.status(500).json({ message: "Error creating trip" });
   }
 });
-
 /* =========================
    GET ALL TRIPS
 ========================= */
@@ -1658,24 +1681,52 @@ app.post("/api/payment-success", async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    // 🔥 أهم سطر في السيستم كله
+    // 💳 حفظ الدفع
     trip.paymentIntentId = paymentIntentId;
-
-    // تحديث الحالة
     trip.status = "Paid";
     trip.dispatchSelected = true;
 
     await trip.save();
+
+    // 📧 إرسال الإيميل
+    if (trip.clientEmail) {
+      await transporter.sendMail({
+        from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
+        to: trip.clientEmail,
+        subject: "Booking Confirmation",
+        html: `
+          <h2>Payment Successful ✅</h2>
+          <p>Your trip is confirmed.</p>
+
+          <hr/>
+
+          <p><b>Trip Number:</b> ${trip.tripNumber}</p>
+          <p><b>Pickup:</b> ${trip.pickup}</p>
+          <p><b>Dropoff:</b> ${trip.dropoff}</p>
+          <p><b>Date:</b> ${trip.tripDate}</p>
+          <p><b>Time:</b> ${trip.tripTime}</p>
+
+          <p><b>Amount Paid:</b> $${trip.priceAmount}</p>
+
+          <hr/>
+
+          <p>Thank you for choosing Sunbeam Transportation 🚗</p>
+        `
+      });
+
+      console.log("📧 Email sent:", trip.clientEmail);
+    }
 
     console.log("✅ Payment saved:", paymentIntentId);
 
     res.json({ success: true });
 
   } catch (err) {
-    console.log(err);
+    console.log("🔥 Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 /* =========================
    ROOT
 ========================= */
