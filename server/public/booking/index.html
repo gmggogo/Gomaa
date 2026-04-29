@@ -26,23 +26,7 @@ body{
   position:relative;
 }
 
-.lang-btn{
-  position:absolute;
-  right:15px;
-  top:15px;
-  background:#2563eb;
-  color:#fff;
-  padding:8px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  font-size:12px;
-  font-weight:bold;
-}
-
-h2{
-  margin-top:0;
-  padding-right:140px;
-}
+h2{margin-top:0}
 
 label{
   margin-top:12px;
@@ -60,18 +44,14 @@ input,textarea{
   font-size:16px;
 }
 
-textarea{
-  min-height:90px;
-}
+textarea{min-height:90px}
 
 .row{
   display:flex;
   gap:10px;
 }
 
-.row div{
-  flex:1;
-}
+.row div{flex:1}
 
 .actions{
   margin-top:20px;
@@ -114,8 +94,6 @@ button{
 
 <div class="box">
 
-<div class="lang-btn">EN / ES</div>
-
 <h2>Confirm Booking</h2>
 
 <label>Pickup</label>
@@ -143,7 +121,6 @@ button{
 <label>Phone</label>
 <input id="phone">
 
-<!-- 🔥 جديد -->
 <label>Email</label>
 <input id="email" type="email">
 
@@ -172,7 +149,9 @@ button{
 
 <script>
 
-// 🔥 load trip
+// =======================
+// LOAD TRIP
+// =======================
 const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
 
 if(!tripData){
@@ -185,14 +164,16 @@ dropoff.value = tripData.dropoff || "";
 miles.value = tripData.distance || "";
 price.value = tripData.price || "";
 
-// 🔥 stops
+// =======================
+// STOPS
+// =======================
 function renderStops(){
-  const stopsBox = document.getElementById("stopsBox");
-  stopsBox.innerHTML = "";
+  const box = document.getElementById("stopsBox");
+  box.innerHTML = "";
 
   if(Array.isArray(tripData.stops)){
     tripData.stops.forEach((s,i)=>{
-      stopsBox.innerHTML += `
+      box.innerHTML += `
         <label>Stop ${i+1}</label>
         <input value="${s}" readonly>
       `;
@@ -201,18 +182,24 @@ function renderStops(){
 }
 renderStops();
 
-function minutesUntilTrip(dateStr,timeStr){
+// =======================
+// TIME CHECK
+// =======================
+function minutesUntilTrip(date,time){
   const now = new Date();
-  const trip = new Date(dateStr+"T"+timeStr);
+  const trip = new Date(date+"T"+time);
   return (trip-now)/60000;
 }
 
+// =======================
 function recalculate(){
   localStorage.removeItem("pendingTrip");
   location.href="/getquote/index.html";
 }
 
-// 🔥🔥🔥 CONFIRM BOOKING
+// =======================
+// CONFIRM BOOKING
+// =======================
 async function confirmBooking(){
 
   const btn = document.getElementById("payBtn");
@@ -231,6 +218,15 @@ async function confirmBooking(){
     return;
   }
 
+  // 🔥 FIX السعر (أهم حاجة)
+  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
+
+  if(!cleanPrice || cleanPrice <= 0){
+    alert("Invalid price ❌");
+    btn.disabled=false;
+    return;
+  }
+
   const mins = minutesUntilTrip(date,time);
 
   if(mins <= 120){
@@ -242,13 +238,17 @@ async function confirmBooking(){
 
   const data = {
     type:"individual",
+
     pickup: tripData.pickup,
     dropoff: tripData.dropoff,
     stops: tripData.stops || [],
-    priceAmount: Number(tripData.price), // 🔥 مهم
+
+    priceAmount: cleanPrice,   // 🔥 أهم سطر
+
     clientName: name,
     clientPhone: phone,
-    clientEmail: email,
+    email: email,              // 🔥 مهم للسيرفر
+
     tripDate: date,
     tripTime: time,
     notes: notes
@@ -270,16 +270,15 @@ async function confirmBooking(){
       return;
     }
 
-    resultBox.style.display="block";
-    resultBox.innerHTML = `
+    document.getElementById("resultBox").style.display="block";
+    document.getElementById("resultBox").innerHTML = `
       Trip Created Successfully<br><br>
       Trip #: <b>${trip.tripNumber}</b>
     `;
 
-    // 🔥 أهم سطر
     setTimeout(()=>{
       window.location.href = `/booking/payment.html?tripId=${trip._id}`;
-    },2000);
+    },1500);
 
   }catch{
     alert("Server error");
