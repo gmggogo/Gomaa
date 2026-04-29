@@ -6,15 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
+body{font-family:Arial;background:#f8fafc;margin:0}
 .page{max-width:900px;margin:auto;padding:15px}
-
-/* MOBILE */
-@media(max-width:600px){
-  .page{padding:10px}
-  h1{font-size:22px}
-  #map{height:250px}
-}
 
 /* HERO */
 .hero{
@@ -34,7 +27,6 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   color:#111;
   padding:6px 10px;
   border-radius:8px;
-  font-size:12px;
   cursor:pointer;
 }
 
@@ -44,7 +36,38 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
   border-radius:16px;
   padding:15px;
   margin-top:15px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.08)
+}
+
+/* VEHICLES */
+.vehicle-pricing{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+
+.vehicle-option{
+  background:#fff;
+  border:2px solid #ddd;
+  border-radius:16px;
+  padding:12px;
+  text-align:center;
+  cursor:pointer;
+}
+
+.vehicle-option.active{
+  border-color:#2563eb;
+  box-shadow:0 0 10px #2563eb;
+}
+
+.vehicle-option img{
+  width:120px;
+  display:block;
+  margin:auto;
+}
+
+.vehicle-option b{
+  display:block;
+  margin-top:8px;
 }
 
 /* INPUT */
@@ -53,8 +76,7 @@ input{
   padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
-  margin-bottom:10px;
-  font-size:16px;
+  margin-top:10px;
 }
 
 /* BUTTON */
@@ -63,72 +85,19 @@ button{
   padding:12px;
   border:none;
   border-radius:10px;
-  font-weight:bold;
-  margin-top:8px;
+  margin-top:10px;
   cursor:pointer;
 }
 
 .btn-primary{background:#2563eb;color:#fff}
-.btn-success{background:#22c55e;color:#fff}
 .btn-stop{background:#f97316;color:#fff}
-
-/* VEHICLE */
-.vehicle-pricing{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
-  margin-bottom:12px;
-}
-
-.vehicle-option{
-  background:linear-gradient(135deg,#f8fafc,#e2e8f0);
-  border:2px solid #e5e7eb;
-  border-radius:16px;
-  padding:14px;
-  text-align:center;
-  cursor:pointer;
-  transition:0.25s;
-}
-
-.vehicle-option.active{
-  border-color:#2563eb;
-  background:linear-gradient(135deg,#eff6ff,#dbeafe);
-  box-shadow:0 0 20px rgba(37,99,235,0.35);
-  transform:scale(1.03);
-}
-
-.vehicle-option img{
-  width:110px;
-  height:65px;
-  object-fit:contain;
-  margin-bottom:6px;
-}
-
-/* STOP */
-.stop-row{
-  display:flex;
-  gap:6px;
-}
-
-.remove-btn{
-  background:#ef4444;
-  color:#fff;
-  padding:10px;
-  border-radius:10px;
-}
-
-/* MAP */
-#map{
-  height:300px;
-  border-radius:12px;
-}
 
 /* RESULT */
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:10px;
-  margin-top:15px
+  margin-top:15px;
 }
 
 .quote-grid div{
@@ -139,12 +108,10 @@ button{
   text-align:center;
 }
 
-.hidden{display:none}
-
-.pricing{
-  margin-top:12px;
-  font-size:14px;
-  line-height:1.6;
+#map{
+  height:300px;
+  margin-top:15px;
+  border-radius:12px;
 }
 </style>
 </head>
@@ -154,21 +121,13 @@ button{
 <div class="page">
 
 <div class="hero">
-<div class="lang-btn" onclick="toggleLang()" id="langBtn">English / Spanish</div>
-
+<div class="lang-btn" onclick="toggleLang()">EN / ES</div>
 <h1 id="title">Get Quote</h1>
 
-<div style="margin-top:10px;font-weight:bold">
-Payment Calculation
-</div>
-
-<div class="pricing" id="pricing">
-<b>Base fare includes first 5 miles</b><br>
-Car (X): $20 base + $2 per mile after 5 miles<br>
-Minivan (XL - 7 seats): $30 base + $2.5 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes<br>
-No Show: $15
+<div id="pricing">
+Base fare includes first 5 miles<br>
+Car: $20 + $2/mile<br>
+Minivan: $30 + $2.5/mile
 </div>
 </div>
 
@@ -176,156 +135,140 @@ No Show: $15
 
 <div class="vehicle-pricing">
 
-<div class="vehicle-option" id="standardBtn" onclick="selectVehicle('standard')">
-  <img src="11.jpeg">
-  <b>Car (X)</b>
+<div class="vehicle-option" id="carBtn" onclick="selectVehicle('car')">
+<img src="11.jpeg">
+<b>Car (X)</b>
 </div>
 
-<div class="vehicle-option" id="minivanBtn" onclick="selectVehicle('minivan')">
-  <img src="10.jpeg">
-  <b>Minivan (XL)</b>
+<div class="vehicle-option" id="vanBtn" onclick="selectVehicle('van')">
+<img src="10.jpeg">
+<b>Minivan (XL)</b>
 </div>
 
 </div>
 
 <input id="pickup" placeholder="Pickup">
 <div id="stops"></div>
+
 <button class="btn-stop" onclick="addStop()">+ Add Stop</button>
+
 <input id="dropoff" placeholder="Dropoff">
 
 <button class="btn-primary" onclick="calculate()">Calculate</button>
 
-<button class="btn-success hidden" id="bookBtn">Booking Now</button>
-
-<div id="priceBox" class="hidden">
-<div class="quote-grid">
+<div id="result" class="quote-grid" style="display:none">
 <div>Distance<b id="distance"></b></div>
 <div>Stops<b id="stopsCount"></b></div>
 <div>Time<b id="time"></b></div>
 <div>Price<b id="price"></b></div>
 </div>
-</div>
 
-</div>
-
-<div class="card">
 <div id="map"></div>
+
 </div>
 
 </div>
 
 <script>
-
-let vehicleType=null;
-let map,directionsService,directionsRenderer;
+let vehicle=null;
+let map, directionsService, directionsRenderer;
 
 /* VEHICLE */
 function selectVehicle(type){
-  vehicleType=type;
-  standardBtn.classList.remove("active");
-  minivanBtn.classList.remove("active");
-  if(type==="standard") standardBtn.classList.add("active");
-  else minivanBtn.classList.add("active");
+vehicle=type;
+carBtn.classList.remove("active");
+vanBtn.classList.remove("active");
+type==="car"?carBtn.classList.add("active"):vanBtn.classList.add("active");
 }
 
 /* LANGUAGE */
+let lang="en";
 function toggleLang(){
-  if(langBtn.innerText.includes("English")){
-    langBtn.innerText="Spanish / English";
-    title.innerText="Cotizar Viaje";
-  }else{
-    langBtn.innerText="English / Spanish";
-    title.innerText="Get Quote";
-  }
+if(lang==="en"){
+lang="es";
+title.innerText="Cotizar Viaje";
+}else{
+lang="en";
+title.innerText="Get Quote";
 }
-
-/* MAP */
-function initMap(){
-  map=new google.maps.Map(document.getElementById("map"),{
-    center:{lat:33.4484,lng:-112.0740},
-    zoom:11
-  });
-
-  directionsService=new google.maps.DirectionsService();
-  directionsRenderer=new google.maps.DirectionsRenderer({map});
 }
 
 /* STOP */
 function addStop(){
-  const row=document.createElement("div");
-  row.className="stop-row";
+const div=document.createElement("div");
+div.innerHTML=`<input placeholder="Stop"><button onclick="this.parentElement.remove()">X</button>`;
+stops.appendChild(div);
+}
 
-  const input=document.createElement("input");
-  input.placeholder="Stop";
+/* MAP */
+function initMap(){
+map=new google.maps.Map(document.getElementById("map"),{
+center:{lat:33.4484,lng:-112.0740},
+zoom:11
+});
 
-  const remove=document.createElement("button");
-  remove.innerText="X";
-  remove.className="remove-btn";
-  remove.onclick=()=>row.remove();
-
-  row.appendChild(input);
-  row.appendChild(remove);
-  stops.appendChild(row);
+directionsService=new google.maps.DirectionsService();
+directionsRenderer=new google.maps.DirectionsRenderer({map});
 }
 
 /* CALCULATE */
 function calculate(){
 
-  if(!vehicleType){
-    alert("Select vehicle");
-    return;
-  }
+if(!vehicle){alert("Select vehicle");return;}
 
-  let OPEN=20, PER=2;
-  if(vehicleType==="minivan"){OPEN=30;PER=2.5;}
+let OPEN=vehicle==="car"?20:30;
+let PER=vehicle==="car"?2:2.5;
 
-  const waypoints=[...document.querySelectorAll("#stops input")]
-    .filter(i=>i.value)
-    .map(i=>({location:i.value}));
+const waypoints=[...document.querySelectorAll("#stops input")]
+.filter(i=>i.value)
+.map(i=>({location:i.value}));
 
-  directionsService.route({
-    origin:pickup.value,
-    destination:dropoff.value,
-    waypoints:waypoints,
-    travelMode:"DRIVING"
-  },(res,status)=>{
+directionsService.route({
+origin:pickup.value,
+destination:dropoff.value,
+waypoints:waypoints,
+travelMode:"DRIVING"
+},(res,status)=>{
 
-    if(status!=="OK"){
-      alert("Address error");
-      return;
-    }
+if(status!=="OK"){
+alert("Address error");
+return;
+}
 
-    directionsRenderer.setDirections(res);
+directionsRenderer.setDirections(res);
 
-    let meters=0,sec=0;
-    res.routes[0].legs.forEach(l=>{
-      meters+=l.distance.value;
-      sec+=l.duration.value;
-    });
+let meters=0,sec=0;
 
-    let miles=meters/1609;
-    let mins=Math.round(sec/60);
+res.routes[0].legs.forEach(l=>{
+meters+=l.distance.value;
+sec+=l.duration.value;
+});
 
-    let extra=Math.max(0,miles-5);
-    let total=OPEN+(extra*PER)+(waypoints.length*5);
+let miles=meters/1609;
+let mins=Math.round(sec/60);
 
-    distance.innerText=miles.toFixed(2)+" mi";
-    stopsCount.innerText=waypoints.length;
-    time.innerText=mins+" min";
-    price.innerText="$"+total.toFixed(2);
+let extra=Math.max(0,miles-5);
+let total=OPEN+(extra*PER)+(waypoints.length*5);
 
-    priceBox.classList.remove("hidden");
-    bookBtn.classList.remove("hidden");
-  });
+distance.innerText=miles.toFixed(2)+" mi";
+stopsCount.innerText=waypoints.length;
+time.innerText=mins+" min";
+price.innerText="$"+total.toFixed(2);
+
+result.style.display="grid";
+});
 }
 
 /* LOAD GOOGLE */
+fetch("/api/config")
+.then(res=>res.json())
+.then(data=>{
 const script=document.createElement("script");
-script.src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY";
+script.src=`https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
 script.async=true;
 document.head.appendChild(script);
 script.onload=initMap;
-
+});
 </script>
 
 </body>
