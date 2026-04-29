@@ -1,4 +1,4 @@
-انا تعبت انتا ل<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,8 +7,16 @@
 
 <style>
 body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
-.page{max-width:900px;margin:auto;padding:20px}
+.page{max-width:900px;margin:auto;padding:15px}
 
+/* MOBILE */
+@media(max-width:600px){
+  .page{padding:10px}
+  h1{font-size:22px}
+  #map{height:250px}
+}
+
+/* HERO */
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
@@ -20,59 +28,53 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
 
 .lang-btn{
   position:absolute;
-  right:15px;
-  top:15px;
+  right:10px;
+  top:10px;
   background:#fff;
   color:#111;
-  padding:8px 14px;
-  border-radius:10px;
+  padding:6px 10px;
+  border-radius:8px;
+  font-size:12px;
   cursor:pointer;
-  font-size:13px;
-  font-weight:bold;
 }
 
-.pricing{
-  margin-top:12px;
-  font-size:14px;
-  line-height:1.6;
-}
-
+/* CARD */
 .card{
   background:#fff;
   border-radius:16px;
-  padding:20px;
-  margin-top:20px;
+  padding:15px;
+  margin-top:15px;
   box-shadow:0 5px 15px rgba(0,0,0,0.08)
 }
 
+/* INPUT */
 input{
   width:100%;
   padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
-  margin-bottom:10px
+  margin-bottom:10px;
+  font-size:16px;
 }
 
+/* BUTTON */
 button{
+  width:100%;
   padding:12px;
   border:none;
   border-radius:10px;
   font-weight:bold;
-  cursor:pointer;
-  margin-top:10px
+  margin-top:8px;
 }
 
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
 .btn-stop{background:#f97316;color:#fff}
 
+/* STOP */
 .stop-row{
   display:flex;
-  gap:8px;
-}
-
-.stop-row input{
-  flex:1;
+  gap:6px;
 }
 
 .remove-btn{
@@ -80,45 +82,59 @@ button{
   color:#fff;
   padding:10px;
   border-radius:10px;
-  cursor:pointer;
 }
 
-#map{height:350px;border-radius:12px;margin-top:10px}
+/* MAP */
+#map{
+  height:300px;
+  border-radius:12px;
+}
 
+/* 🔥 CARDS */
 .quote-grid{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(2,1fr);
   gap:10px;
   margin-top:15px
 }
 
-.hidden{display:none}
-
-/* 🔥 Glow price & distance */
-#price{
-  font-size:20px;
-  color:#22c55e;
-  text-shadow:0 0 10px #22c55e,0 0 20px #22c55e;
+.quote-grid div{
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:#fff;
+  padding:14px;
+  border-radius:12px;
+  text-align:center;
+  box-shadow:0 8px 20px rgba(0,0,0,0.25);
 }
 
-#distance{
-  color:#2563eb;
-  text-shadow:0 0 8px #2563eb,0 0 15px #2563eb;
+.quote-grid b{
+  display:block;
+  margin-top:6px;
+  font-size:18px;
 }
 
-#time{
-  color:#f97316;
-  text-shadow:0 0 8px #f97316,0 0 15px #f97316;
-}
+/* COLORS */
+#distance{color:#60a5fa;text-shadow:0 0 10px #60a5fa;}
+#time{color:#fb923c;text-shadow:0 0 10px #fb923c;}
+#price{color:#4ade80;text-shadow:0 0 15px #4ade80;}
+#stopsCount{color:#facc15;text-shadow:0 0 10px #facc15;}
 
-/* 🔥 Booking button glow */
+/* BOOK GLOW */
 .btn-success.active{
   animation:blinkGlow 1s infinite alternate;
 }
 
 @keyframes blinkGlow{
   from{box-shadow:0 0 5px #22c55e;}
-  to{box-shadow:0 0 20px #22c55e,0 0 30px #22c55e;}
+  to{box-shadow:0 0 25px #22c55e;}
+}
+
+.hidden{display:none}
+
+.pricing{
+  margin-top:12px;
+  font-size:14px;
+  line-height:1.6;
 }
 </style>
 </head>
@@ -142,6 +158,7 @@ Base Fare: $20 (includes first 5 miles)<br>
 Extra Mile: $2 per mile after 5 miles<br>
 Stop: $5 each<br>
 Waiting: 10 minutes after pickup time<br>
+No Show: $15<br>
 Cancellation: $15 within 2 hours
 </div>
 
@@ -161,15 +178,14 @@ Cancellation: $15 within 2 hours
 
 <button class="btn-primary" onclick="calculate()">Calculate</button>
 
-<!-- 🔥 الزرار مخفي -->
 <button class="btn-success hidden" id="bookBtn" onclick="bookTrip()">Booking Now</button>
 
 <div id="priceBox" class="hidden">
 <div class="quote-grid">
-<div>Distance <br><b id="distance"></b></div>
-<div>Stops <br><b id="stopsCount"></b></div>
-<div>Time <br><b id="time"></b></div>
-<div>Price <br><b id="price">$0</b></div>
+<div>Distance<b id="distance"></b></div>
+<div>Stops<b id="stopsCount"></b></div>
+<div>Time<b id="time"></b></div>
+<div>Price<b id="price">$0</b></div>
 </div>
 </div>
 
@@ -185,8 +201,7 @@ Cancellation: $15 within 2 hours
 
 let lang="en";
 
-/* ================= LANGUAGE ================= */
-
+/* LANGUAGE */
 function toggleLang(){
 
   if(lang==="en"){
@@ -202,6 +217,7 @@ Tarifa base: $20 (incluye primeras 5 millas)<br>
 Milla extra: $2 por milla después de 5<br>
 Parada: $5 cada una<br>
 Espera: 10 minutos<br>
+No Show: $15<br>
 Cancelación: $15 dentro de 2 horas
 `;
 
@@ -219,13 +235,13 @@ Base Fare: $20 (includes first 5 miles)<br>
 Extra Mile: $2 per mile after 5 miles<br>
 Stop: $5 each<br>
 Waiting: 10 minutes after pickup time<br>
+No Show: $15<br>
 Cancellation: $15 within 2 hours
 `;
   }
 }
 
-/* ================= MAP ================= */
-
+/* MAP */
 let map, directionsService, directionsRenderer;
 
 const OPEN = 20;
@@ -249,16 +265,13 @@ function initGoogle(){
   });
 }
 
-/* ================= STOP ================= */
-
+/* STOP */
 function addStop(){
-
   const row = document.createElement("div");
   row.className = "stop-row";
 
   const input = document.createElement("input");
   input.placeholder = lang==="es" ? "Parada" : "Stop";
-
   input.addEventListener("input", resetUI);
 
   const remove = document.createElement("button");
@@ -276,21 +289,18 @@ function addStop(){
   document.getElementById("stops").appendChild(row);
 }
 
-/* ================= RESET ================= */
-
+/* RESET */
 function resetUI(){
   bookBtn.classList.add("hidden");
   bookBtn.classList.remove("active");
   priceBox.classList.add("hidden");
 }
 
-/* hide if user types */
 [pickup, dropoff].forEach(input=>{
   input.addEventListener("input", resetUI);
 });
 
-/* ================= FIX AZ ================= */
-
+/* FIX AZ */
 function fixAZ(address){
   address = address.trim();
   if(address === "") return "";
@@ -300,8 +310,7 @@ function fixAZ(address){
   return address;
 }
 
-/* ================= CALCULATE ================= */
-
+/* CALCULATE */
 function calculate(){
 
   let pickupVal = fixAZ(pickup.value);
@@ -320,7 +329,6 @@ function calculate(){
     origin: pickupVal,
     destination: dropVal,
     waypoints: stopsInputs,
-    optimizeWaypoints:false,
     travelMode: "DRIVING",
     drivingOptions:{
       departureTime: new Date(),
@@ -356,18 +364,14 @@ function calculate(){
     price.innerText = "$"+totalPrice.toFixed(2);
 
     priceBox.classList.remove("hidden");
-
-    /* 🔥 show + glow button */
     bookBtn.classList.remove("hidden");
     bookBtn.classList.add("active");
 
   });
 }
 
-/* ================= BOOK ================= */
-
+/* BOOK */
 function bookTrip(){
-
   const stops = [];
   document.querySelectorAll(".stop-row input").forEach(i=>{
     if(i.value) stops.push(i.value);
@@ -383,14 +387,11 @@ function bookTrip(){
   };
 
   localStorage.setItem("pendingTrip", JSON.stringify(trip));
-
   window.location.href="/booking/index.html";
 }
 
-/* ================= LOAD GOOGLE ================= */
-
+/* LOAD GOOGLE */
 async function loadGoogle(){
-
   const res = await fetch("/api/config");
   const data = await res.json();
 
@@ -399,7 +400,6 @@ async function loadGoogle(){
   script.async = true;
 
   document.head.appendChild(script);
-
   script.onload = initGoogle;
 }
 
