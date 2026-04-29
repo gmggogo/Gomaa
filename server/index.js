@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 
@@ -28,7 +29,8 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 ========================= */
 app.get("/api/config", (req, res) => {
   res.json({
-    googleKey: process.env.GOOGLE_KEY || ""
+    googleKey: process.env.GOOGLE_KEY,
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
   });
 });
 
@@ -1593,6 +1595,46 @@ app.get("/api/admin/live-drivers", (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "live drivers load error" });
+  }
+});
+
+app.post("/api/create-payment-intent", async (req, res) => {
+  try {
+    let { amount } = req.body;
+
+    // تحويل لـ رقم
+    amount = Number(amount);
+
+    // validation
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
+    }
+
+    // إنشاء Payment Intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // بالدولار → سنت
+      currency: "usd",
+
+      // يخلي Stripe يحدد أفضل طريقة دفع
+      automatic_payment_methods: {
+        enabled: true
+      },
+
+      // metadata عشان نستخدمها بعدين
+      metadata: {
+        system: "sunbeam",
+        type: "individual_trip"
+      }
+    });
+
+    // رجوع للفرونت
+    res.json({
+      clientSecret: paymentIntent.client_secret
+    });
+
+  } catch (err) {
+    console.log("🔥 Stripe Error:", err);
+    res.status(500).json({ message: "Payment error" });
   }
 });
 
