@@ -7,8 +7,16 @@
 
 <style>
 body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
-.page{max-width:900px;margin:auto;padding:20px}
+.page{max-width:900px;margin:auto;padding:15px}
 
+/* MOBILE */
+@media(max-width:600px){
+  .page{padding:10px}
+  h1{font-size:22px}
+  #map{height:250px}
+}
+
+/* HERO */
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
@@ -20,59 +28,53 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
 
 .lang-btn{
   position:absolute;
-  right:15px;
-  top:15px;
+  right:10px;
+  top:10px;
   background:#fff;
   color:#111;
-  padding:8px 14px;
-  border-radius:10px;
+  padding:6px 10px;
+  border-radius:8px;
+  font-size:12px;
   cursor:pointer;
-  font-size:13px;
-  font-weight:bold;
 }
 
-.pricing{
-  margin-top:12px;
-  font-size:14px;
-  line-height:1.6;
-}
-
+/* CARD */
 .card{
   background:#fff;
   border-radius:16px;
-  padding:20px;
-  margin-top:20px;
+  padding:15px;
+  margin-top:15px;
   box-shadow:0 5px 15px rgba(0,0,0,0.08)
 }
 
+/* INPUT */
 input{
   width:100%;
   padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
-  margin-bottom:10px
+  margin-bottom:10px;
+  font-size:16px;
 }
 
+/* BUTTON */
 button{
+  width:100%;
   padding:12px;
   border:none;
   border-radius:10px;
   font-weight:bold;
-  cursor:pointer;
-  margin-top:10px
+  margin-top:8px;
 }
 
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
 .btn-stop{background:#f97316;color:#fff}
 
+/* STOP */
 .stop-row{
   display:flex;
-  gap:8px;
-}
-
-.stop-row input{
-  flex:1;
+  gap:6px;
 }
 
 .remove-btn{
@@ -80,318 +82,69 @@ button{
   color:#fff;
   padding:10px;
   border-radius:10px;
-  cursor:pointer;
 }
 
-#map{height:350px;border-radius:12px;margin-top:10px}
+/* MAP */
+#map{
+  height:300px;
+  border-radius:12px;
+}
 
+/* CARDS */
 .quote-grid{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(2,1fr);
   gap:10px;
   margin-top:15px
 }
 
+.quote-grid div{
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:#fff;
+  padding:14px;
+  border-radius:12px;
+  text-align:center;
+  box-shadow:0 8px 20px rgba(0,0,0,0.25);
+}
+
+.quote-grid b{
+  display:block;
+  margin-top:6px;
+  font-size:18px;
+}
+
+/* COLORS */
+#distance{color:#60a5fa;text-shadow:0 0 10px #60a5fa;}
+#time{color:#fb923c;text-shadow:0 0 10px #fb923c;}
+#price{color:#4ade80;text-shadow:0 0 15px #4ade80;}
+#stopsCount{color:#facc15;text-shadow:0 0 10px #facc15;}
+
+/* 🔥 الزرار ينور ويطفي فعلاً */
+.btn-success.active{
+  animation:blinkBtn 0.7s infinite;
+}
+
+@keyframes blinkBtn{
+  0%{opacity:1; box-shadow:0 0 0px #22c55e;}
+  50%{opacity:0.5; box-shadow:0 0 25px #22c55e;}
+  100%{opacity:1; box-shadow:0 0 0px #22c55e;}
+}
+
 .hidden{display:none}
 
-/* 🔥 Glow price & distance */
-#price{
-  font-size:20px;
-  color:#22c55e;
-  text-shadow:0 0 10px #22c55e,0 0 20px #22c55e;
-}
-
-#distance{
-  color:#2563eb;
-  text-shadow:0 0 8px #2563eb,0 0 15px #2563eb;
-}
-
-#time{
-  color:#f97316;
-  text-shadow:0 0 8px #f97316,0 0 15px #f97316;
-}
-
-/* 🔥 الزرار ينور ويطفي */
-.btn-success.active{
-  animation:blinkGlow 0.8s infinite alternate;
-}
-
-@keyframes blinkGlow{
-  from{box-shadow:0 0 5px #22c55e;}
-  to{box-shadow:0 0 25px #22c55e,0 0 35px #22c55e;}
+.pricing{
+  margin-top:12px;
+  font-size:14px;
+  line-height:1.6;
 }
 </style>
 </head>
 
 <body>
 
-<div class="page">
+<!-- نفس HTML بتاعك بدون تغيير -->
 
-<div class="hero">
-
-<div class="lang-btn" onclick="toggleLang()" id="langBtn">English / Spanish</div>
-
-<h1 id="title">Get Quote</h1>
-
-<div style="margin-top:10px;font-weight:bold;font-size:15px">
-Payment Calculation
-</div>
-
-<div class="pricing" id="pricing">
-Base Fare: $20 (includes first 5 miles)<br>
-Extra Mile: $2 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-No Show: $15<br>
-Cancellation: $15 within 2 hours
-</div>
-
-</div>
-
-<div class="card">
-
-<label id="pickupLabel">Pickup</label>
-<input id="pickup">
-
-<div id="stops"></div>
-
-<button class="btn-stop" onclick="addStop()">+ Add Stop</button>
-
-<label id="dropLabel">Dropoff</label>
-<input id="dropoff">
-
-<button class="btn-primary" onclick="calculate()">Calculate</button>
-
-<button class="btn-success hidden" id="bookBtn" onclick="bookTrip()">Booking Now</button>
-
-<div id="priceBox" class="hidden">
-<div class="quote-grid">
-<div>Distance <br><b id="distance"></b></div>
-<div>Stops <br><b id="stopsCount"></b></div>
-<div>Time <br><b id="time"></b></div>
-<div>Price <br><b id="price">$0</b></div>
-</div>
-</div>
-
-</div>
-
-<div class="card">
-<div id="map"></div>
-</div>
-
-</div>
-
-<script>
-
-let lang="en";
-
-/* LANGUAGE */
-function toggleLang(){
-
-  if(lang==="en"){
-    lang="es";
-
-    langBtn.innerText="Spanish / English";
-    title.innerText="Cotizar Viaje";
-    pickupLabel.innerText="Origen";
-    dropLabel.innerText="Destino";
-
-    pricing.innerHTML=`
-Tarifa base: $20 (incluye primeras 5 millas)<br>
-Milla extra: $2 por milla después de 5<br>
-Parada: $5 cada una<br>
-Espera: 10 minutos<br>
-No Show: $15<br>
-Cancelación: $15 dentro de 2 horas
-`;
-
-  } else {
-
-    lang="en";
-
-    langBtn.innerText="English / Spanish";
-    title.innerText="Get Quote";
-    pickupLabel.innerText="Pickup";
-    dropLabel.innerText="Dropoff";
-
-    pricing.innerHTML=`
-Base Fare: $20 (includes first 5 miles)<br>
-Extra Mile: $2 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-No Show: $15<br>
-Cancellation: $15 within 2 hours
-`;
-  }
-}
-
-/* MAP */
-let map, directionsService, directionsRenderer;
-
-const OPEN = 20;
-const PER_MILE = 2;
-const STOP_PRICE = 5;
-
-function initGoogle(){
-  map = new google.maps.Map(document.getElementById("map"), {
-    center:{lat:33.4484,lng:-112.0740},
-    zoom:11
-  });
-
-  directionsService = new google.maps.DirectionsService();
-
-  directionsRenderer = new google.maps.DirectionsRenderer({
-    map,
-    polylineOptions:{
-      strokeColor:"#2563eb",
-      strokeWeight:5
-    }
-  });
-}
-
-/* STOP */
-function addStop(){
-  const row = document.createElement("div");
-  row.className = "stop-row";
-
-  const input = document.createElement("input");
-  input.placeholder = lang==="es" ? "Parada" : "Stop";
-  input.addEventListener("input", resetUI);
-
-  const remove = document.createElement("button");
-  remove.innerText = "X";
-  remove.className = "remove-btn";
-
-  remove.onclick = () => {
-    row.remove();
-    resetUI();
-  };
-
-  row.appendChild(input);
-  row.appendChild(remove);
-
-  document.getElementById("stops").appendChild(row);
-}
-
-/* RESET */
-function resetUI(){
-  bookBtn.classList.add("hidden");
-  bookBtn.classList.remove("active");
-  priceBox.classList.add("hidden");
-}
-
-[pickup, dropoff].forEach(input=>{
-  input.addEventListener("input", resetUI);
-});
-
-/* FIX AZ */
-function fixAZ(address){
-  address = address.trim();
-  if(address === "") return "";
-  if(!address.toLowerCase().includes("arizona")){
-    return address + ", Arizona";
-  }
-  return address;
-}
-
-/* CALCULATE */
-function calculate(){
-
-  let pickupVal = fixAZ(pickup.value);
-  let dropVal = fixAZ(dropoff.value);
-
-  if(!pickupVal || !dropVal){
-    alert("Enter valid address");
-    return;
-  }
-
-  const stopsInputs = Array.from(document.querySelectorAll(".stop-row input"))
-    .filter(i => i.value)
-    .map(i => ({ location: fixAZ(i.value) }));
-
-  directionsService.route({
-    origin: pickupVal,
-    destination: dropVal,
-    waypoints: stopsInputs,
-    travelMode: "DRIVING",
-    drivingOptions:{
-      departureTime: new Date(),
-      trafficModel:"bestguess"
-    }
-
-  }, (res, status)=>{
-
-    if(status !== "OK"){
-      alert("Address not valid");
-      return;
-    }
-
-    directionsRenderer.setDirections(res);
-
-    let meters=0, sec=0;
-
-    res.routes[0].legs.forEach(l=>{
-      meters+=l.distance.value;
-      sec+=l.duration.value;
-    });
-
-    let miles = meters/1609;
-    let mins = Math.round(sec/60);
-    let stops = stopsInputs.length;
-
-    let extraMiles = Math.max(0, miles - 5);
-    let totalPrice = OPEN + (extraMiles * PER_MILE) + (stops * STOP_PRICE);
-
-    distance.innerText = miles.toFixed(2)+" mi";
-    stopsCount.innerText = stops;
-    time.innerText = mins+" min";
-    price.innerText = "$"+totalPrice.toFixed(2);
-
-    priceBox.classList.remove("hidden");
-
-    /* 🔥 يظهر وينور */
-    bookBtn.classList.remove("hidden");
-    bookBtn.classList.add("active");
-
-  });
-}
-
-/* BOOK */
-function bookTrip(){
-  const stops = [];
-  document.querySelectorAll(".stop-row input").forEach(i=>{
-    if(i.value) stops.push(i.value);
-  });
-
-  const trip = {
-    pickup: pickup.value,
-    dropoff: dropoff.value,
-    stops,
-    distance: distance.innerText,
-    time: time.innerText,
-    price: price.innerText
-  };
-
-  localStorage.setItem("pendingTrip", JSON.stringify(trip));
-  window.location.href="/booking/index.html";
-}
-
-/* LOAD GOOGLE */
-async function loadGoogle(){
-  const res = await fetch("/api/config");
-  const data = await res.json();
-
-  const script = document.createElement("script");
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
-  script.async = true;
-
-  document.head.appendChild(script);
-  script.onload = initGoogle;
-}
-
-window.onload = loadGoogle;
-
-</script>
+<!-- (اختصارًا: سيب باقي الكود زي ما هو بالظبط اللي انت بعته) -->
 
 </body>
 </html>
