@@ -100,6 +100,7 @@ const tripSchema = new mongoose.Schema({
     }],
     default: []
   },
+paymentIntentId: { type: String, default: "" },
 
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
@@ -1598,6 +1599,10 @@ app.get("/api/admin/live-drivers", (req, res) => {
   }
 });
 
+
+/* =========================
+   CREATE PAYMENT INTENT
+========================= */
 app.post("/api/create-payment-intent", async (req, res) => {
   try {
     let { amount } = req.body;
@@ -1612,22 +1617,19 @@ app.post("/api/create-payment-intent", async (req, res) => {
 
     // إنشاء Payment Intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // بالدولار → سنت
+      amount: Math.round(amount * 100),
       currency: "usd",
 
-      // يخلي Stripe يحدد أفضل طريقة دفع
       automatic_payment_methods: {
         enabled: true
       },
 
-      // metadata عشان نستخدمها بعدين
       metadata: {
         system: "sunbeam",
         type: "individual_trip"
       }
     });
 
-    // رجوع للفرونت
     res.json({
       clientSecret: paymentIntent.client_secret
     });
@@ -1638,6 +1640,42 @@ app.post("/api/create-payment-intent", async (req, res) => {
   }
 });
 
+
+/* =========================
+   PAYMENT SUCCESS → SEND TO ADMIN
+========================= */
+app.post("/api/payment-success", async (req, res) => {
+  try {
+    const { tripId, paymentIntentId } = req.body;
+
+    if (!tripId) {
+      return res.status(400).json({ message: "Missing tripId" });
+    }
+
+    const trip = await Trip.findById(tripId);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // 🔥 أهم سطر في السيستم كله
+    trip.paymentIntentId = paymentIntentId;
+
+    // تحديث الحالة
+    trip.status = "Paid";
+    trip.dispatchSelected = true;
+
+    await trip.save();
+
+    console.log("✅ Payment saved:", paymentIntentId);
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 /* =========================
    ROOT
 ========================= */
