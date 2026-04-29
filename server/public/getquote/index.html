@@ -7,16 +7,8 @@
 
 <style>
 body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
-.page{max-width:900px;margin:auto;padding:15px}
+.page{max-width:900px;margin:auto;padding:20px}
 
-/* MOBILE */
-@media(max-width:600px){
-  .page{padding:10px}
-  h1{font-size:22px}
-  #map{height:250px}
-}
-
-/* HERO */
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
@@ -28,53 +20,59 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
 
 .lang-btn{
   position:absolute;
-  right:10px;
-  top:10px;
+  right:15px;
+  top:15px;
   background:#fff;
   color:#111;
-  padding:6px 10px;
-  border-radius:8px;
-  font-size:12px;
+  padding:8px 14px;
+  border-radius:10px;
   cursor:pointer;
+  font-size:13px;
+  font-weight:bold;
 }
 
-/* CARD */
+.pricing{
+  margin-top:12px;
+  font-size:14px;
+  line-height:1.6;
+}
+
 .card{
   background:#fff;
   border-radius:16px;
-  padding:15px;
-  margin-top:15px;
+  padding:20px;
+  margin-top:20px;
   box-shadow:0 5px 15px rgba(0,0,0,0.08)
 }
 
-/* INPUT */
 input{
   width:100%;
   padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
-  margin-bottom:10px;
-  font-size:16px;
+  margin-bottom:10px
 }
 
-/* BUTTON */
 button{
-  width:100%;
   padding:12px;
   border:none;
   border-radius:10px;
   font-weight:bold;
-  margin-top:8px;
+  cursor:pointer;
+  margin-top:10px
 }
 
 .btn-primary{background:#2563eb;color:#fff}
 .btn-success{background:#22c55e;color:#fff}
 .btn-stop{background:#f97316;color:#fff}
 
-/* STOP */
 .stop-row{
   display:flex;
-  gap:6px;
+  gap:8px;
+}
+
+.stop-row input{
+  flex:1;
 }
 
 .remove-btn{
@@ -82,59 +80,45 @@ button{
   color:#fff;
   padding:10px;
   border-radius:10px;
+  cursor:pointer;
 }
 
-/* MAP */
-#map{
-  height:300px;
-  border-radius:12px;
-}
+#map{height:350px;border-radius:12px;margin-top:10px}
 
-/* 🔥 CARDS */
 .quote-grid{
   display:grid;
-  grid-template-columns:repeat(2,1fr);
+  grid-template-columns:repeat(4,1fr);
   gap:10px;
   margin-top:15px
 }
 
-.quote-grid div{
-  background:linear-gradient(135deg,#0f172a,#1e293b);
-  color:#fff;
-  padding:14px;
-  border-radius:12px;
-  text-align:center;
-  box-shadow:0 8px 20px rgba(0,0,0,0.25);
+.hidden{display:none}
+
+/* 🔥 Glow price & distance */
+#price{
+  font-size:20px;
+  color:#22c55e;
+  text-shadow:0 0 10px #22c55e,0 0 20px #22c55e;
 }
 
-.quote-grid b{
-  display:block;
-  margin-top:6px;
-  font-size:18px;
+#distance{
+  color:#2563eb;
+  text-shadow:0 0 8px #2563eb,0 0 15px #2563eb;
 }
 
-/* COLORS */
-#distance{color:#60a5fa;text-shadow:0 0 10px #60a5fa;}
-#time{color:#fb923c;text-shadow:0 0 10px #fb923c;}
-#price{color:#4ade80;text-shadow:0 0 15px #4ade80;}
-#stopsCount{color:#facc15;text-shadow:0 0 10px #facc15;}
+#time{
+  color:#f97316;
+  text-shadow:0 0 8px #f97316,0 0 15px #f97316;
+}
 
-/* BOOK GLOW */
+/* 🔥 الزرار ينور ويطفي */
 .btn-success.active{
-  animation:blinkGlow 1s infinite alternate;
+  animation:blinkGlow 0.8s infinite alternate;
 }
 
 @keyframes blinkGlow{
   from{box-shadow:0 0 5px #22c55e;}
-  to{box-shadow:0 0 25px #22c55e;}
-}
-
-.hidden{display:none}
-
-.pricing{
-  margin-top:12px;
-  font-size:14px;
-  line-height:1.6;
+  to{box-shadow:0 0 25px #22c55e,0 0 35px #22c55e;}
 }
 </style>
 </head>
@@ -182,10 +166,10 @@ Cancellation: $15 within 2 hours
 
 <div id="priceBox" class="hidden">
 <div class="quote-grid">
-<div>Distance<b id="distance"></b></div>
-<div>Stops<b id="stopsCount"></b></div>
-<div>Time<b id="time"></b></div>
-<div>Price<b id="price">$0</b></div>
+<div>Distance <br><b id="distance"></b></div>
+<div>Stops <br><b id="stopsCount"></b></div>
+<div>Time <br><b id="time"></b></div>
+<div>Price <br><b id="price">$0</b></div>
 </div>
 </div>
 
@@ -364,6 +348,8 @@ function calculate(){
     price.innerText = "$"+totalPrice.toFixed(2);
 
     priceBox.classList.remove("hidden");
+
+    /* 🔥 يظهر وينور */
     bookBtn.classList.remove("hidden");
     bookBtn.classList.add("active");
 
