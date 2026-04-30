@@ -8,6 +8,7 @@ const cors = require("cors");
 const path = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -79,6 +80,7 @@ const User = mongoose.model("User", userSchema);
 
 /* =========================
 
+  /* =========================
    TRIP MODEL (FINAL)
 ========================= */
 const tripSchema = new mongoose.Schema({
@@ -96,9 +98,6 @@ const tripSchema = new mongoose.Schema({
   // 🔥 مهم للدفع والإيميل
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
-
-  // 🔥 نوع العربية (X / XL)
-  vehicleType: { type: String, default: "X" },
 
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
@@ -121,6 +120,9 @@ const tripSchema = new mongoose.Schema({
 
   // 🔥 الدفع
   paymentIntentId: { type: String, default: "" },
+
+  // 🔥 NEW → cancel link token
+  cancelToken: { type: String, default: "" },
 
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
@@ -1668,9 +1670,8 @@ app.post("/api/create-payment-intent", async (req, res) => {
   }
 });
 
-
 /* =========================
-     PAYMENT SUCCESS → SEND EMAIL SAFE
+   PAYMENT SUCCESS → SEND EMAIL SAFE + CANCEL LINK
 ========================= */
 app.post("/api/payment-success", async (req, res) => {
   try {
@@ -1694,6 +1695,9 @@ app.post("/api/payment-success", async (req, res) => {
     await trip.save();
 
     console.log("✅ Payment saved:", paymentIntentId);
+
+    // 🔥 إنشاء لينك الكنسلة
+    const cancelLink = `https://sunbeam-933q.onrender.com/cancel.html?token=${trip.cancelToken}`;
 
     // 📧 إرسال الإيميل (SAFE MODE)
     if (trip.clientEmail) {
@@ -1722,6 +1726,27 @@ app.post("/api/payment-success", async (req, res) => {
 
             <hr/>
 
+            <h3>Cancel your trip</h3>
+
+            <p style="color:red">
+              Free cancellation up to 2 hours before trip time.
+              After that, $15 fee will apply.
+            </p>
+
+            <a href="${cancelLink}" style="
+              display:inline-block;
+              padding:12px 20px;
+              background:#dc2626;
+              color:#fff;
+              text-decoration:none;
+              border-radius:8px;
+              font-weight:bold;
+            ">
+              Cancel Trip
+            </a>
+
+            <hr/>
+
             <p>Thank you for choosing Sunbeam Transportation 🚗</p>
           `
         });
@@ -1733,12 +1758,71 @@ app.post("/api/payment-success", async (req, res) => {
       }
     }
 
-    // ✔ المهم: الرد دا لازم يرجع دايما
+    // ✔ لازم يرجع دايما
     res.json({ success: true });
 
   } catch (err) {
     console.log("🔥 SERVER ERROR:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   CANCEL TRIP (2 HOURS RULE)
+========================= */
+app.post("/api/cancel-trip", async (req, res) => {
+  try {
+    const { tripId } = req.body;
+
+    if (!tripId) {
+      return res.status(400).json({ message: "Missing tripId" });
+    }
+
+    const trip = await Trip.findById(tripId);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // لو الرحلة already ملغية
+    if (trip.status === "Cancelled") {
+      return res.status(400).json({
+        message: "Trip already cancelled"
+      });
+    }
+
+    // ⏰ حساب الوقت
+    const now = new Date();
+    const tripDateTime = new Date(`${trip.tripDate}T${trip.tripTime}`);
+
+    // فرق الوقت بالدقايق
+    const diffMinutes = (tripDateTime - now) / 60000;
+
+    // ❌ لو أقل من ساعتين
+    if (diffMinutes <= 120) {
+      return res.status(400).json({
+        message: "Cannot cancel within 2 hours of trip"
+      });
+    }
+
+    // ✔️ الغاء الرحلة
+    trip.status = "Cancelled";
+    trip.dispatchSelected = false;
+
+    await trip.save();
+
+    console.log("❌ Trip cancelled:", trip.tripNumber);
+
+    res.json({
+      success: true,
+      message: "Trip cancelled successfully"
+    });
+
+  } catch (err) {
+    console.log("🔥 Cancel error:", err);
+    res.status(500).json({
+      message: "Server error during cancel"
+    });
   }
 });
 
