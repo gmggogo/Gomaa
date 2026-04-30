@@ -1865,6 +1865,67 @@ app.post("/api/cancel-trip", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+/* =========================
+   CHECK CANCEL STATUS (ARIZONA TIME FIX)
+========================= */
+app.post("/api/cancel-trip-check", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Missing token" });
+    }
+
+    const trip = await Trip.findOne({ cancelToken: token });
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // لو متكنسلة قبل كده
+    if (trip.status === "Cancelled") {
+      return res.json({
+        alreadyCancelled: true
+      });
+    }
+
+    // =========================
+    // ⏰ ARIZONA TIME FIX
+    // =========================
+    function getArizonaNow() {
+      return new Date(
+        new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+      );
+    }
+
+    const now = getArizonaNow();
+
+    const tripTime = new Date(
+      `${trip.tripDate}T${trip.tripTime}:00`
+    );
+
+    const diffMinutes = (tripTime - now) / 60000;
+
+    // =========================
+    // 💰 FEE LOGIC
+    // =========================
+    let fee = 0;
+
+    if (diffMinutes <= 120) {
+      fee = 15;
+    }
+
+    res.json({
+      fee: fee
+    });
+
+  } catch (err) {
+    console.log("🔥 CHECK ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 /* =========================
    ROOT
 ========================= */

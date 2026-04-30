@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cancel Trip – Sunbeam</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  font-family:Arial;
+  background:#f8fafc;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+  margin:0;
+}
+
+.box{
+  background:#fff;
+  padding:30px;
+  border-radius:16px;
+  width:100%;
+  max-width:400px;
+  text-align:center;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+}
+
+h2{margin-bottom:10px}
+
+.msg{
+  margin:15px 0;
+  font-size:15px;
+  line-height:1.5;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+  font-size:15px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+.confirm{
+  background:#dc2626;
+  color:#fff;
+}
+
+.cancel{
+  background:#e5e7eb;
+}
+
+.success{color:#16a34a}
+.error{color:#dc2626}
+.warning{color:#d97706}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>Cancel Trip</h2>
+
+<div id="msg" class="msg">Checking your trip...</div>
+
+<div id="actions" style="display:none">
+  <button class="confirm" onclick="confirmCancel()">Confirm Cancellation</button>
+  <button class="cancel" onclick="goBack()">Go Back</button>
+</div>
+
+</div>
+
+<script>
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token");
+
+let lateCancel = false;
+
+// =======================
+// CHECK TRIP STATUS
+// =======================
+async function checkTrip(){
+
+  if(!token){
+    showError("Invalid cancellation link.");
+    return;
+  }
+
+  try{
+
+    const res = await fetch("/api/cancel-trip-check",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token})
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      showError(data.message || "Error loading trip.");
+      return;
+    }
+
+    if(data.alreadyCancelled){
+      showSuccess("This trip has already been cancelled.");
+      return;
+    }
+
+    if(data.fee === 15){
+      lateCancel = true;
+      showWarning("You are cancelling within 2 hours. A $15 fee will apply.");
+    }else{
+      showSuccess("You will receive a full refund.");
+    }
+
+    document.getElementById("actions").style.display = "block";
+
+  }catch{
+    showError("Server error.");
+  }
+}
+
+// =======================
+// CONFIRM CANCEL
+// =======================
+async function confirmCancel(){
+
+  try{
+
+    const res = await fetch("/api/cancel-trip",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token})
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      showError(data.message || "Cancel failed.");
+      return;
+    }
+
+    if(data.fee === 0){
+      showSuccess("Trip cancelled successfully. Full refund issued.");
+    }else{
+      showWarning("Trip cancelled. $15 fee applied.");
+    }
+
+    document.getElementById("actions").style.display = "none";
+
+  }catch{
+    showError("Server error.");
+  }
+}
+
+// =======================
+// UI HELPERS
+// =======================
+function showSuccess(text){
+  document.getElementById("msg").innerHTML = `<span class="success">${text}</span>`;
+}
+
+function showError(text){
+  document.getElementById("msg").innerHTML = `<span class="error">${text}</span>`;
+}
+
+function showWarning(text){
+  document.getElementById("msg").innerHTML = `<span class="warning">${text}</span>`;
+}
+
+function goBack(){
+  window.history.back();
+}
+
+// =======================
+checkTrip();
+
+</script>
+
+</body>
+</html>
