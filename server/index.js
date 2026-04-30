@@ -1986,11 +1986,14 @@ app.post("/api/cancel-trip", async (req, res) => {
       refundStatus: trip.refundStatus
     });
 
-  } catch (err) {
-    console.log("CANCEL ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+  catch (err) {
+  console.log("🔥 CANCEL ERROR FULL:", err);
+
+  res.status(500).json({
+    message: err.message || "Server error",
+    error: err.toString()
+  });
+}
 
 /* =========================
    GET REFUNDS
