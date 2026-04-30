@@ -1790,6 +1790,7 @@ app.post("/api/payment-success", async (req, res) => {
 });
 
 /* =========================
+  /* =========================
    CANCEL TRIP + REFUND (PRODUCTION SAFE + EMAIL)
 ========================= */
 app.post("/api/cancel-trip", async (req, res) => {
@@ -1816,9 +1817,7 @@ app.post("/api/cancel-trip", async (req, res) => {
       });
     }
 
-    // =========================
-    // ⏰ ARIZONA TIME FIX
-    // =========================
+    // ⏰ Arizona Time
     function getArizonaNow() {
       return new Date(
         new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
@@ -1842,9 +1841,7 @@ app.post("/api/cancel-trip", async (req, res) => {
       if (refundAmount < 0) refundAmount = 0;
     }
 
-    // =========================
-    // 💳 STRIPE REFUND
-    // =========================
+    // 💳 Stripe Refund
     let refundId = null;
 
     if (trip.paymentIntentId && refundAmount > 0 && !trip.refundId) {
@@ -1865,9 +1862,7 @@ app.post("/api/cancel-trip", async (req, res) => {
       }
     }
 
-    // =========================
     // 🔥 UPDATE TRIP
-    // =========================
     trip.status = "Cancelled";
     trip.cancelFee = fee;
     trip.refundAmount = refundAmount;
@@ -1878,71 +1873,80 @@ app.post("/api/cancel-trip", async (req, res) => {
     console.log("❌ Trip Cancelled:", trip.tripNumber);
     console.log("💰 Refund:", refundAmount, "Fee:", fee);
 
-    // =========================
-// 📧 SEND REFUND EMAIL (FIXED)
-// =========================
-if (trip.clientEmail) {
-  try {
+    // 📧 EMAIL
+    if (trip.clientEmail) {
+      try {
 
-    let refundSection = "";
+        let refundSection = "";
 
-    if (refundAmount > 0) {
-      refundSection = `
-        <p><b>Refund Amount:</b> $${refundAmount}</p>
-        <p><b>Refund ID:</b> ${refundId || ""}</p>
-        <p style="color:green;">
-          Your refund has been processed successfully.<br/>
-          It may take 5–10 business days to appear in your account.
-        </p>
-      `;
-    } else {
-      refundSection = `
-        <p style="color:red;">
-          This cancellation was made within 2 hours of the trip time.<br/>
-          A $15 cancellation fee has been applied.<br/>
-          No refund is available.
-        </p>
-      `;
+        if (refundAmount > 0) {
+          refundSection = `
+            <p><b>Refund Amount:</b> $${refundAmount}</p>
+            <p><b>Refund ID:</b> ${refundId || ""}</p>
+            <p style="color:green;">
+              Your refund has been processed successfully.<br/>
+              It may take 5–10 business days to appear in your account.
+            </p>
+          `;
+        } else {
+          refundSection = `
+            <p style="color:red;">
+              This cancellation was made within 2 hours of the trip time.<br/>
+              A $15 cancellation fee has been applied.<br/>
+              No refund is available.
+            </p>
+          `;
+        }
+
+        const emailHtml = `
+          <h2>Trip Cancelled ❌</h2>
+          <p>Your trip has been successfully cancelled.</p>
+
+          <hr/>
+
+          <p><b>Trip Number:</b> ${trip.tripNumber}</p>
+          <p><b>Pickup:</b> ${trip.pickup}</p>
+          <p><b>Dropoff:</b> ${trip.dropoff}</p>
+          <p><b>Date:</b> ${trip.tripDate}</p>
+          <p><b>Time:</b> ${trip.tripTime}</p>
+
+          <hr/>
+
+          <h3>Refund Details</h3>
+          ${refundSection}
+
+          <hr/>
+
+          <p>Thank you for choosing Sunbeam Transportation 🚗</p>
+        `;
+
+        await transporter.sendMail({
+          from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
+          to: trip.clientEmail,
+          subject: "Trip Cancelled & Refund Processed",
+          html: emailHtml
+        });
+
+        console.log("📧 Refund email sent:", trip.clientEmail);
+
+      } catch (emailErr) {
+        console.log("❌ EMAIL ERROR:", emailErr.message);
+      }
     }
 
-    const emailHtml = `
-      <h2>Trip Cancelled ❌</h2>
-
-      <p>Your trip has been successfully cancelled.</p>
-
-      <hr/>
-
-      <p><b>Trip Number:</b> ${trip.tripNumber}</p>
-      <p><b>Pickup:</b> ${trip.pickup}</p>
-      <p><b>Dropoff:</b> ${trip.dropoff}</p>
-      <p><b>Date:</b> ${trip.tripDate}</p>
-      <p><b>Time:</b> ${trip.tripTime}</p>
-
-      <hr/>
-
-      <h3>Refund Details</h3>
-
-      ${refundSection}
-
-      <hr/>
-
-      <p>Thank you for choosing Sunbeam Transportation 🚗</p>
-    `;
-
-    await transporter.sendMail({
-      from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
-      to: trip.clientEmail,
-      subject: "Trip Cancelled & Refund Processed",
-      html: emailHtml
+    // 🔥 مهم جدًا (كان ناقص)
+    res.json({
+      success: true,
+      refund: refundAmount,
+      fee: fee,
+      refundId: refundId
     });
 
-    console.log("📧 Refund email sent:", trip.clientEmail);
-
-  } catch (emailErr) {
-    console.log("❌ EMAIL ERROR:", emailErr.message);
+  } catch (err) {
+    console.log("🔥 CANCEL ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
-}
-
+});
 /* =========================
    CHECK CANCEL STATUS (ARIZONA TIME FIX)
 ========================= */
