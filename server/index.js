@@ -1670,8 +1670,7 @@ app.post("/api/create-payment-intent", async (req, res) => {
 
 
 /* =========================
-  
- PAYMENT SUCCESS → SEND TO ADMIN
+     PAYMENT SUCCESS → SEND EMAIL SAFE
 ========================= */
 app.post("/api/payment-success", async (req, res) => {
   try {
@@ -1688,48 +1687,57 @@ app.post("/api/payment-success", async (req, res) => {
     }
 
     // 💳 حفظ الدفع
-    trip.paymentIntentId = paymentIntentId;
+    trip.paymentIntentId = paymentIntentId || "";
     trip.status = "Paid";
     trip.dispatchSelected = true;
 
     await trip.save();
 
-    // 📧 إرسال الإيميل
-    if (trip.clientEmail) {
-      await transporter.sendMail({
-        from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
-        to: trip.clientEmail,
-        subject: "Booking Confirmation",
-        html: `
-          <h2>Payment Successful ✅</h2>
-          <p>Your trip is confirmed.</p>
-
-          <hr/>
-
-          <p><b>Trip Number:</b> ${trip.tripNumber}</p>
-          <p><b>Pickup:</b> ${trip.pickup}</p>
-          <p><b>Dropoff:</b> ${trip.dropoff}</p>
-          <p><b>Date:</b> ${trip.tripDate}</p>
-          <p><b>Time:</b> ${trip.tripTime}</p>
-          <p><b>Vehicle Type:</b> ${trip.vehicleType}</p>
-
-          <p><b>Amount Paid:</b> $${trip.priceAmount}</p>
-
-          <hr/>
-
-          <p>Thank you for choosing Sunbeam Transportation 🚗</p>
-        `
-      });
-
-      console.log("📧 Email sent:", trip.clientEmail);
-    }
-
     console.log("✅ Payment saved:", paymentIntentId);
 
+    // 📧 إرسال الإيميل (SAFE MODE)
+    if (trip.clientEmail) {
+
+      try {
+
+        await transporter.sendMail({
+          from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
+          to: trip.clientEmail,
+          subject: "Booking Confirmation",
+
+          html: `
+            <h2>Payment Successful ✅</h2>
+            <p>Your trip is confirmed.</p>
+
+            <hr/>
+
+            <p><b>Trip Number:</b> ${trip.tripNumber}</p>
+            <p><b>Pickup:</b> ${trip.pickup}</p>
+            <p><b>Dropoff:</b> ${trip.dropoff}</p>
+            <p><b>Date:</b> ${trip.tripDate}</p>
+            <p><b>Time:</b> ${trip.tripTime}</p>
+            <p><b>Vehicle Type:</b> ${trip.vehicleType || "X"}</p>
+
+            <p><b>Amount Paid:</b> $${trip.priceAmount}</p>
+
+            <hr/>
+
+            <p>Thank you for choosing Sunbeam Transportation 🚗</p>
+          `
+        });
+
+        console.log("📧 Email sent:", trip.clientEmail);
+
+      } catch (emailErr) {
+        console.log("❌ EMAIL ERROR:", emailErr.message);
+      }
+    }
+
+    // ✔ المهم: الرد دا لازم يرجع دايما
     res.json({ success: true });
 
   } catch (err) {
-    console.log("🔥 Error:", err);
+    console.log("🔥 SERVER ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
