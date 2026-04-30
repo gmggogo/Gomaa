@@ -35,7 +35,7 @@ label{
   font-weight:bold;
 }
 
-input,textarea{
+input,textarea,select{
   width:100%;
   padding:12px;
   margin-top:5px;
@@ -114,6 +114,13 @@ button{
     <input id="price" readonly>
   </div>
 </div>
+
+<!-- 🔥 NEW -->
+<label>Vehicle Type</label>
+<select id="vehicleType">
+  <option value="X">Standard (X)</option>
+  <option value="XL">Large (XL)</option>
+</select>
 
 <label>Passenger Name</label>
 <input id="name">
@@ -212,13 +219,15 @@ async function confirmBooking(){
   const time  = document.getElementById("time").value;
   const notes = document.getElementById("notes").value;
 
+  const vehicleType = document.getElementById("vehicleType").value;
+
   if(!name || !phone || !email || !date || !time){
     alert("Fill all fields");
     btn.disabled=false;
     return;
   }
 
-  // 🔥 FIX السعر (أهم حاجة)
+  // 🔥 FIX السعر
   const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
 
   if(!cleanPrice || cleanPrice <= 0){
@@ -243,11 +252,13 @@ async function confirmBooking(){
     dropoff: tripData.dropoff,
     stops: tripData.stops || [],
 
-    priceAmount: cleanPrice,   // 🔥 أهم سطر
+    priceAmount: cleanPrice,
 
     clientName: name,
     clientPhone: phone,
-    email: email,              // 🔥 مهم للسيرفر
+    clientEmail: email,
+
+    vehicleType: vehicleType,
 
     tripDate: date,
     tripTime: time,

@@ -77,7 +77,8 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-  /* =========================
+/* =========================
+
    TRIP MODEL (FINAL)
 ========================= */
 const tripSchema = new mongoose.Schema({
@@ -95,6 +96,9 @@ const tripSchema = new mongoose.Schema({
   // 🔥 مهم للدفع والإيميل
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
+
+  // 🔥 نوع العربية (X / XL)
+  vehicleType: { type: String, default: "X" },
 
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
@@ -150,6 +154,7 @@ tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 })
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
+
 /* =========================
    DRIVER SCHEDULE MODEL
 ========================= */
@@ -1665,7 +1670,8 @@ app.post("/api/create-payment-intent", async (req, res) => {
 
 
 /* =========================
-   PAYMENT SUCCESS → SEND TO ADMIN
+  
+ PAYMENT SUCCESS → SEND TO ADMIN
 ========================= */
 app.post("/api/payment-success", async (req, res) => {
   try {
@@ -1705,6 +1711,7 @@ app.post("/api/payment-success", async (req, res) => {
           <p><b>Dropoff:</b> ${trip.dropoff}</p>
           <p><b>Date:</b> ${trip.tripDate}</p>
           <p><b>Time:</b> ${trip.tripTime}</p>
+          <p><b>Vehicle Type:</b> ${trip.vehicleType}</p>
 
           <p><b>Amount Paid:</b> $${trip.priceAmount}</p>
 
