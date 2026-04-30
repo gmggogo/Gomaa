@@ -5,7 +5,8 @@
 <title>Refunds – Sunbeam</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="style.css">
+<!-- ✅ مهم -->
+<link rel="stylesheet" href="/admin/style.css">
 
 <style>
 body{
@@ -21,9 +22,7 @@ body{
   padding:20px;
 }
 
-h2{
-  margin-bottom:10px;
-}
+h2{margin-bottom:10px}
 
 /* SEARCH */
 .search-box{
@@ -109,12 +108,18 @@ h2{
 </thead>
 
 <tbody id="tableBody"></tbody>
-
 </table>
 
 </div>
 
-<script src="header.js"></script>
+<!-- 🔥 HEADER LOAD -->
+<script>
+fetch("/admin/header.html")
+  .then(res => res.text())
+  .then(data => {
+    document.getElementById("header").innerHTML = data;
+  });
+</script>
 
 <script>
 
@@ -133,22 +138,23 @@ async function loadRefunds(){
     .filter(t => t.status === "Cancelled")
     .forEach(t => {
 
+      // 🔥 STATUS الحقيقي
       let statusClass = "none";
       let statusText = "No Refund";
 
-      if(t.refundAmount > 0 && t.cancelFee === 0){
-        statusClass = "full";
-        statusText = "Full";
-      }
-      else if(t.refundAmount > 0 && t.cancelFee > 0){
+      if(t.refundStatus === "processing"){
         statusClass = "partial";
-        statusText = "Partial";
+        statusText = "Processing";
+      }
+      else if(t.refundStatus === "refunded"){
+        statusClass = "full";
+        statusText = "Refunded";
       }
 
-      // 🟢 Trip time
+      // 🟢 Trip Time
       const tripTime = (t.tripDate || "-") + " " + (t.tripTime || "");
 
-      // 🔥 Cancel time الحقيقي
+      // 🔥 Cancel Time (مهم)
       const cancelTime = t.cancelDateTime
         ? new Date(t.cancelDateTime).toLocaleString()
         : "-";
