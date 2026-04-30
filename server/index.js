@@ -80,7 +80,8 @@ const User = mongoose.model("User", userSchema);
 
 
  /* =========================
-   TRIP MODEL (FINAL FIXED)
+
+   TRIP MODEL (FINAL FIXED + REFUND SYSTEM)
 ========================= */
 const tripSchema = new mongoose.Schema({
   tripNumber: { type: String, unique: true, sparse: true },
@@ -98,14 +99,14 @@ const tripSchema = new mongoose.Schema({
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
 
-  // 🔥🔥🔥 أهم إضافة (العربية)
+  // 🔥 العربية
   vehicleTypeFromQuote: { type: String, default: "X" },
 
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
   stops: { type: [String], default: [] },
 
-  /* OPTIONAL COORDINATES */
+  /* COORDINATES */
   pickupLat: { type: Number, default: null },
   pickupLng: { type: Number, default: null },
   dropoffLat: { type: Number, default: null },
@@ -120,16 +121,26 @@ const tripSchema = new mongoose.Schema({
     default: []
   },
 
-  // 🔥 الدفع
+  // 💳 الدفع
   paymentIntentId: { type: String, default: "" },
 
-  // 🔥 cancel system
+  // 🔗 cancel
   cancelToken: { type: String, default: "" },
 
-  // 🔥 refund system
+  // 💰 refund
   refundId: { type: String, default: "" },
   refundAmount: { type: Number, default: 0 },
   cancelFee: { type: Number, default: 0 },
+
+  // 🔥🔥🔥 NEW
+  cancelDateTime: { type: Date, default: null },
+
+  // 🔥🔥🔥 NEW (الحالة)
+  refundStatus: {
+    type: String,
+    enum: ["none", "processing", "refunded"],
+    default: "none"
+  },
 
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
@@ -139,7 +150,7 @@ const tripSchema = new mongoose.Schema({
   /* DISPATCH */
   dispatchSelected: { type: Boolean, default: false },
 
-  /* DISABLE / ENABLE */
+  /* ENABLE */
   disabled: { type: Boolean, default: false },
 
   driverId: { type: String, default: "" },
@@ -1801,8 +1812,10 @@ app.post("/api/payment-success", async (req, res) => {
   }
 });
 
-/* =========================
-   CANCEL TRIP + REFUND (FINAL WITH SIMPLE ID)
+  /* =========================
+
+   CANCEL TRIP + REFUND (FINAL PRO)
+
 ========================= */
 app.post("/api/cancel-trip", async (req, res) => {
   try {
@@ -1823,7 +1836,8 @@ app.post("/api/cancel-trip", async (req, res) => {
         success: true,
         refund: trip.refundAmount || 0,
         fee: trip.cancelFee || 0,
-        refundId: trip.simpleRefundId || ""
+        refundId: trip.simpleRefundId || "",
+        refundStatus: trip.refundStatus || "none"
       });
     }
 
@@ -1850,31 +1864,62 @@ app.post("/api/cancel-trip", async (req, res) => {
       if (refundAmount < 0) refundAmount = 0;
     }
 
-    // 💳 Stripe Refund
-    let stripeRefundId = null;
-
-    if (trip.paymentIntentId && refundAmount > 0 && !trip.refundId) {
-      const refund = await stripe.refunds.create({
-        payment_intent: trip.paymentIntentId,
-        amount: Math.round(refundAmount * 100)
-      });
-
-      stripeRefundId = refund.id;
-    }
-
-    // 🔥 SIMPLE REFUND ID (الجديد)
+    // 🔥 SIMPLE REFUND ID
     const simpleRefundId = "RF-" + (trip.tripNumber || "0000");
 
-    // 💾 SAVE
+    // =========================
+    // 💾 SAVE BASIC DATA
+    // =========================
     trip.status = "Cancelled";
+
+    // 🔥 وقت الكنسلة
+    trip.cancelDateTime = new Date();
+
     trip.cancelFee = fee;
     trip.refundAmount = refundAmount;
-    trip.refundId = stripeRefundId || trip.refundId;
     trip.simpleRefundId = simpleRefundId;
+
+    let stripeRefundId = null;
+
+    // =========================
+    // 💳 STRIPE REFUND
+    // =========================
+    if (trip.paymentIntentId && refundAmount > 0 && !trip.refundId) {
+
+      // 🔥 أول حالة
+      trip.refundStatus = "processing";
+
+      try {
+
+        const refund = await stripe.refunds.create({
+          payment_intent: trip.paymentIntentId,
+          amount: Math.round(refundAmount * 100)
+        });
+
+        stripeRefundId = refund.id;
+
+        // 🔥 تم الاسترجاع
+        trip.refundStatus = "refunded";
+
+      } catch (err) {
+
+        console.log("Stripe Refund Error:", err.message);
+
+        // 🔥 فشل → تفضل processing
+        trip.refundStatus = "processing";
+      }
+
+    } else {
+      trip.refundStatus = "none";
+    }
+
+    trip.refundId = stripeRefundId || trip.refundId;
 
     await trip.save();
 
+    // =========================
     // 📧 EMAIL
+    // =========================
     if (trip.clientEmail) {
       try {
 
@@ -1885,16 +1930,16 @@ app.post("/api/cancel-trip", async (req, res) => {
             <p><b>Refund Amount:</b> $${refundAmount}</p>
             <p><b>Refund ID:</b> ${simpleRefundId}</p>
             <p style="color:green;">
-              Your refund has been processed successfully.<br/>
-              It may take 5–10 business days to appear in your account.
+              Your refund is being processed.<br/>
+              It may take 5–10 business days.
             </p>
           `;
         } else {
           refundSection = `
             <p style="color:red;">
-              This cancellation was made within 2 hours of the trip time.<br/>
-              A $15 cancellation fee has been applied.<br/>
-              No refund is available.
+              Cancelled within 2 hours.<br/>
+              $15 fee applied.<br/>
+              No refund available.
             </p>
           `;
         }
@@ -1902,15 +1947,15 @@ app.post("/api/cancel-trip", async (req, res) => {
         await transporter.sendMail({
           from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
           to: trip.clientEmail,
-          subject: "Trip Cancelled & Refund Processed",
+          subject: "Trip Cancelled & Refund Update",
           html: `
             <h2>Trip Cancelled ❌</h2>
 
-            <p>Your trip has been successfully cancelled.</p>
+            <p>Your trip has been cancelled.</p>
 
             <hr/>
 
-            <p><b>Trip Number:</b> ${trip.tripNumber}</p>
+            <p><b>Trip #:</b> ${trip.tripNumber}</p>
             <p><b>Pickup:</b> ${trip.pickup}</p>
             <p><b>Dropoff:</b> ${trip.dropoff}</p>
             <p><b>Date:</b> ${trip.tripDate}</p>
@@ -1918,13 +1963,13 @@ app.post("/api/cancel-trip", async (req, res) => {
 
             <hr/>
 
-            <h3>Refund Details</h3>
+            <h3>Refund Status</h3>
 
             ${refundSection}
 
             <hr/>
 
-            <p>Thank you for choosing Sunbeam Transportation 🚗</p>
+            <p>Sunbeam Transportation 🚗</p>
           `
         });
 
@@ -1933,76 +1978,19 @@ app.post("/api/cancel-trip", async (req, res) => {
       }
     }
 
-    // ✅ RESPONSE
+    // =========================
+    // RESPONSE
+    // =========================
     res.json({
       success: true,
       refund: refundAmount,
       fee: fee,
-      refundId: simpleRefundId
+      refundId: simpleRefundId,
+      refundStatus: trip.refundStatus
     });
 
   } catch (err) {
     console.log("CANCEL ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/* =========================
-   CHECK CANCEL STATUS (ARIZONA TIME FIX)
-========================= */
-app.post("/api/cancel-trip-check", async (req, res) => {
-  try {
-    const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ message: "Missing token" });
-    }
-
-    const trip = await Trip.findOne({ cancelToken: token });
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    // لو متكنسلة قبل كده
-    if (trip.status === "Cancelled") {
-      return res.json({
-        alreadyCancelled: true
-      });
-    }
-
-    // =========================
-    // ⏰ ARIZONA TIME FIX
-    // =========================
-    function getArizonaNow() {
-      return new Date(
-        new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
-      );
-    }
-
-    const now = getArizonaNow();
-
-    const tripTime = new Date(
-      `${trip.tripDate}T${trip.tripTime}:00`
-    );
-
-    const diffMinutes = (tripTime - now) / 60000;
-
-    // =========================
-    // 💰 FEE LOGIC
-    // =========================
-    let fee = 0;
-
-    if (diffMinutes <= 120) {
-      fee = 15;
-    }
-
-    res.json({
-      fee: fee
-    });
-
-  } catch (err) {
-    console.log("🔥 CHECK ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
