@@ -23,7 +23,21 @@ body{
   max-width:750px;
   margin:auto;
   box-shadow:0 5px 20px rgba(0,0,0,.08);
-  position:relative;
+}
+
+.topBar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+.langBtn{
+  padding:6px 10px;
+  border-radius:6px;
+  border:1px solid #ddd;
+  cursor:pointer;
+  font-size:12px;
 }
 
 h2{margin-top:0}
@@ -35,7 +49,7 @@ label{
   font-weight:bold;
 }
 
-input,textarea,select{
+input,textarea{
   width:100%;
   padding:12px;
   margin-top:5px;
@@ -82,8 +96,18 @@ button{
   display:none;
 }
 
+/* 🔒 LOCKED VEHICLE */
+.vehicleBox{
+  margin-top:10px;
+  padding:12px;
+  background:#e5e7eb;
+  border-radius:8px;
+  font-weight:bold;
+  pointer-events:none;
+  user-select:none;
+}
+
 @media(max-width:768px){
-  body{padding:10px}
   .row{flex-direction:column}
   .actions{flex-direction:column}
 }
@@ -94,59 +118,58 @@ button{
 
 <div class="box">
 
-<h2>Confirm Booking</h2>
+<div class="topBar">
+  <h2 id="title">Confirm Booking</h2>
+  <button class="langBtn" onclick="toggleLang()">ES</button>
+</div>
 
-<label>Pickup</label>
+<label id="pickupLabel">Pickup</label>
 <input id="pickup" readonly>
 
 <div id="stopsBox"></div>
 
-<label>Dropoff</label>
+<label id="dropoffLabel">Dropoff</label>
 <input id="dropoff" readonly>
 
 <div class="row">
   <div>
-    <label>Distance</label>
+    <label id="distanceLabel">Distance</label>
     <input id="miles" readonly>
   </div>
   <div>
-    <label>Price</label>
+    <label id="priceLabel">Price</label>
     <input id="price" readonly>
   </div>
 </div>
 
-<!-- 🔥 NEW -->
-<label>Vehicle Type</label>
-<select id="vehicleType">
-  <option value="X">Standard (X)</option>
-  <option value="XL">Large (XL)</option>
-</select>
+<label id="vehicleLabel">Vehicle Type</label>
+<div id="vehicleDisplay" class="vehicleBox"></div>
 
-<label>Passenger Name</label>
+<label id="nameLabel">Passenger Name</label>
 <input id="name">
 
-<label>Phone</label>
+<label id="phoneLabel">Phone</label>
 <input id="phone">
 
-<label>Email</label>
+<label id="emailLabel">Email</label>
 <input id="email" type="email">
 
 <div class="row">
   <div>
-    <label>Date</label>
+    <label id="dateLabel">Date</label>
     <input type="date" id="date">
   </div>
   <div>
-    <label>Time</label>
+    <label id="timeLabel">Time</label>
     <input type="time" id="time">
   </div>
 </div>
 
-<label>Notes</label>
+<label id="notesLabel">Notes</label>
 <textarea id="notes"></textarea>
 
 <div class="actions">
-  <button class="recalc" onclick="recalculate()">Recalculate</button>
+  <button class="recalc" onclick="recalculate()" id="recalcBtn">Recalculate</button>
   <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
 </div>
 
@@ -157,46 +180,104 @@ button{
 <script>
 
 // =======================
-// LOAD TRIP
+// LANGUAGE
 // =======================
-const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
+let lang = "en";
+
+function toggleLang(){
+  lang = (lang === "en") ? "es" : "en";
+  applyLang();
+}
+
+function applyLang(){
+  const t = {
+    en:{
+      title:"Confirm Booking",
+      pickup:"Pickup",
+      dropoff:"Dropoff",
+      distance:"Distance",
+      price:"Price",
+      vehicle:"Vehicle Type",
+      name:"Passenger Name",
+      phone:"Phone",
+      email:"Email",
+      date:"Date",
+      time:"Time",
+      notes:"Notes",
+      pay:"Pay Now",
+      recalc:"Recalculate"
+    },
+    es:{
+      title:"Confirmar Reserva",
+      pickup:"Recogida",
+      dropoff:"Destino",
+      distance:"Distancia",
+      price:"Precio",
+      vehicle:"Tipo de Vehículo",
+      name:"Nombre del Pasajero",
+      phone:"Teléfono",
+      email:"Correo",
+      date:"Fecha",
+      time:"Hora",
+      notes:"Notas",
+      pay:"Pagar",
+      recalc:"Recalcular"
+    }
+  };
+
+  const d = t[lang];
+
+  document.getElementById("title").innerText = d.title;
+  document.getElementById("pickupLabel").innerText = d.pickup;
+  document.getElementById("dropoffLabel").innerText = d.dropoff;
+  document.getElementById("distanceLabel").innerText = d.distance;
+  document.getElementById("priceLabel").innerText = d.price;
+  document.getElementById("vehicleLabel").innerText = d.vehicle;
+  document.getElementById("nameLabel").innerText = d.name;
+  document.getElementById("phoneLabel").innerText = d.phone;
+  document.getElementById("emailLabel").innerText = d.email;
+  document.getElementById("dateLabel").innerText = d.date;
+  document.getElementById("timeLabel").innerText = d.time;
+  document.getElementById("notesLabel").innerText = d.notes;
+  document.getElementById("payBtn").innerText = d.pay;
+  document.getElementById("recalcBtn").innerText = d.recalc;
+}
+
+// =======================
+// LOAD DATA
+// =======================
+let tripData = JSON.parse(localStorage.getItem("pendingTrip"));
 
 if(!tripData){
   alert("Session expired");
   location.href="/getquote/index.html";
 }
 
-pickup.value = tripData.pickup || "";
-dropoff.value = tripData.dropoff || "";
-miles.value = tripData.distance || "";
-price.value = tripData.price || "";
+// =======================
+// SET DATA
+// =======================
+pickup.value = tripData.pickup;
+dropoff.value = tripData.dropoff;
+miles.value = tripData.distance;
+price.value = tripData.price;
+
+// =======================
+// 🔒 VEHICLE LOCK
+// =======================
+const vehicleType = tripData.vehicleType || "X";
+
+vehicleDisplay.innerText =
+  vehicleType === "XL" ? "Large (XL)" : "Standard (X)";
 
 // =======================
 // STOPS
 // =======================
-function renderStops(){
-  const box = document.getElementById("stopsBox");
-  box.innerHTML = "";
-
-  if(Array.isArray(tripData.stops)){
-    tripData.stops.forEach((s,i)=>{
-      box.innerHTML += `
-        <label>Stop ${i+1}</label>
-        <input value="${s}" readonly>
-      `;
-    });
-  }
-}
-renderStops();
-
-// =======================
-// TIME CHECK
-// =======================
-function minutesUntilTrip(date,time){
-  const now = new Date();
-  const trip = new Date(date+"T"+time);
-  return (trip-now)/60000;
-}
+(tripData.stops || []).forEach((s,i)=>{
+  stopsBox.innerHTML += `
+    <label>Stop ${i+1}</label>
+    <input value="${s}" readonly>
+  `;
+});
 
 // =======================
 function recalculate(){
@@ -205,67 +286,26 @@ function recalculate(){
 }
 
 // =======================
-// CONFIRM BOOKING
-// =======================
 async function confirmBooking(){
 
-  const btn = document.getElementById("payBtn");
+  const btn = payBtn;
   btn.disabled = true;
 
-  const name  = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const date  = document.getElementById("date").value;
-  const time  = document.getElementById("time").value;
-  const notes = document.getElementById("notes").value;
-
-  const vehicleType = document.getElementById("vehicleType").value;
-
-  if(!name || !phone || !email || !date || !time){
-    alert("Fill all fields");
-    btn.disabled=false;
-    return;
-  }
-
-  // 🔥 FIX السعر
-  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
-
-  if(!cleanPrice || cleanPrice <= 0){
-    alert("Invalid price ❌");
-    btn.disabled=false;
-    return;
-  }
-
-  const mins = minutesUntilTrip(date,time);
-
-  if(mins <= 120){
-    if(!confirm("Trip within 2 hours → No cancel allowed. Continue?")){
-      btn.disabled=false;
-      return;
-    }
-  }
-
-  const data = {
-    type:"individual",
-
-    pickup: tripData.pickup,
-    dropoff: tripData.dropoff,
-    stops: tripData.stops || [],
-
-    priceAmount: cleanPrice,
-
-    clientName: name,
-    clientPhone: phone,
-    clientEmail: email,
-
-    vehicleType: vehicleType,
-
-    tripDate: date,
-    tripTime: time,
-    notes: notes
-  };
-
   try{
+
+    const data = {
+      pickup: tripData.pickup,
+      dropoff: tripData.dropoff,
+      stops: tripData.stops || [],
+      priceAmount: Number(tripData.price),
+      clientName: name.value,
+      clientPhone: phone.value,
+      clientEmail: email.value,
+      vehicleTypeFromQuote: vehicleType,
+      tripDate: date.value,
+      tripTime: time.value,
+      notes: notes.value
+    };
 
     const res = await fetch("/api/trips",{
       method:"POST",
@@ -275,27 +315,17 @@ async function confirmBooking(){
 
     const trip = await res.json();
 
-    if(!res.ok){
-      alert("Error creating trip");
-      btn.disabled=false;
-      return;
-    }
-
-    document.getElementById("resultBox").style.display="block";
-    document.getElementById("resultBox").innerHTML = `
-      Trip Created Successfully<br><br>
-      Trip #: <b>${trip.tripNumber}</b>
-    `;
-
-    setTimeout(()=>{
-      window.location.href = `/booking/payment.html?tripId=${trip._id}`;
-    },1500);
+    resultBox.style.display="block";
+    resultBox.innerHTML = "Trip #: " + trip.tripNumber;
 
   }catch{
-    alert("Server error");
+    alert("Error");
+  }finally{
     btn.disabled=false;
   }
 }
+
+applyLang();
 
 </script>
 
