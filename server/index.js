@@ -2008,6 +2008,24 @@ app.post("/api/cancel-trip-check", async (req, res) => {
 });
 
 /* =========================
+   GET REFUNDS
+========================= */
+app.get("/api/refunds", async (req, res) => {
+  try {
+    const refunds = await Trip.find({
+      status: "Cancelled"
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    res.json(refunds);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error loading refunds" });
+  }
+});
+
+/* =========================
    ROOT
 ========================= */
 app.get("/", (req, res) => {

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Refunds – Sunbeam</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{font-family:Arial;background:#f8fafc;margin:0;padding:20px}
+.container{max-width:1000px;margin:auto}
+h2{margin-bottom:15px}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+th,td{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  text-align:center;
+  font-size:14px;
+}
+
+th{
+  background:#0f172a;
+  color:#fff;
+}
+
+.status{
+  font-weight:bold;
+}
+
+.refunded{color:green}
+.partial{color:orange}
+.none{color:red}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Refunds</h2>
+
+<table>
+<thead>
+<tr>
+<th>Trip #</th>
+<th>Client</th>
+<th>Paid</th>
+<th>Refund</th>
+<th>Fee</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="tableBody"></tbody>
+
+</table>
+
+</div>
+
+<script>
+
+async function loadRefunds(){
+
+  const res = await fetch("/api/refunds");
+  const data = await res.json();
+
+  const body = document.getElementById("tableBody");
+  body.innerHTML = "";
+
+  data.forEach(t => {
+
+    let statusClass = "none";
+    let statusText = "No Refund";
+
+    if(t.refundAmount === t.priceAmount){
+      statusClass = "refunded";
+      statusText = "Full";
+    }
+    else if(t.refundAmount > 0){
+      statusClass = "partial";
+      statusText = "Partial";
+    }
+
+    body.innerHTML += `
+      <tr>
+        <td>${t.tripNumber}</td>
+        <td>${t.clientName || "-"}</td>
+        <td>$${t.priceAmount}</td>
+        <td>$${t.refundAmount || 0}</td>
+        <td>$${t.cancelFee || 0}</td>
+        <td class="status ${statusClass}">${statusText}</td>
+      </tr>
+    `;
+  });
+
+}
+
+loadRefunds();
+
+</script>
+
+</body>
+</html>
