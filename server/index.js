@@ -1674,8 +1674,8 @@ app.post("/api/create-payment-intent", async (req, res) => {
   }
 });
 
-/* =========================
-   PAYMENT SUCCESS → SEND EMAIL SAFE + CANCEL LINK
+ /* =========================
+   PAYMENT SUCCESS → SEND EMAIL + CANCEL LINK (FINAL)
 ========================= */
 app.post("/api/payment-success", async (req, res) => {
   try {
@@ -1691,7 +1691,18 @@ app.post("/api/payment-success", async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    // 💳 حفظ الدفع
+    // =========================
+    // 🔐 CREATE CANCEL TOKEN
+    // =========================
+    const crypto = require("crypto");
+
+    if (!trip.cancelToken) {
+      trip.cancelToken = crypto.randomBytes(32).toString("hex");
+    }
+
+    // =========================
+    // 💳 SAVE PAYMENT
+    // =========================
     trip.paymentIntentId = paymentIntentId || "";
     trip.status = "Paid";
     trip.dispatchSelected = true;
@@ -1700,10 +1711,14 @@ app.post("/api/payment-success", async (req, res) => {
 
     console.log("✅ Payment saved:", paymentIntentId);
 
-    // 🔥 إنشاء لينك الكنسلة
-    const cancelLink = `https://sunbeam-933q.onrender.com/cancel.html?token=${trip.cancelToken}`;
+    // =========================
+    // 🔥 CORRECT CANCEL LINK
+    // =========================
+    const cancelLink = `https://sunbeam-933q.onrender.com/booking/cancel.html?token=${trip.cancelToken}`;
 
-    // 📧 إرسال الإيميل (SAFE MODE)
+    // =========================
+    // 📧 SEND EMAIL (SAFE MODE)
+    // =========================
     if (trip.clientEmail) {
 
       try {
@@ -1724,7 +1739,7 @@ app.post("/api/payment-success", async (req, res) => {
             <p><b>Dropoff:</b> ${trip.dropoff}</p>
             <p><b>Date:</b> ${trip.tripDate}</p>
             <p><b>Time:</b> ${trip.tripTime}</p>
-            <p><b>Vehicle Type:</b> ${trip.vehicleType || "X"}</p>
+            <p><b>Vehicle Type:</b> ${trip.vehicle || "X"}</p>
 
             <p><b>Amount Paid:</b> $${trip.priceAmount}</p>
 
@@ -1732,19 +1747,20 @@ app.post("/api/payment-success", async (req, res) => {
 
             <h3>Cancel your trip</h3>
 
-            <p style="color:red">
-              Free cancellation up to 2 hours before trip time.
+            <p style="color:red;">
+              Free cancellation up to 2 hours before trip time.<br/>
               After that, $15 fee will apply.
             </p>
 
             <a href="${cancelLink}" style="
               display:inline-block;
-              padding:12px 20px;
+              padding:14px 22px;
               background:#dc2626;
               color:#fff;
               text-decoration:none;
-              border-radius:8px;
+              border-radius:10px;
               font-weight:bold;
+              font-size:16px;
             ">
               Cancel Trip
             </a>
@@ -1762,7 +1778,9 @@ app.post("/api/payment-success", async (req, res) => {
       }
     }
 
-    // ✔ لازم يرجع دايما
+    // =========================
+    // RESPONSE
+    // =========================
     res.json({ success: true });
 
   } catch (err) {
@@ -1770,7 +1788,6 @@ app.post("/api/payment-success", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 /* =========================
    CANCEL TRIP + REFUND (PRODUCTION SAFE)
 ========================= */
