@@ -79,11 +79,11 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 
 
- /* =========================
-
-   TRIP MODEL (FINAL FIXED + REFUND SYSTEM)
+  /* =========================
+   TRIP MODEL (FINAL PRO VERSION)
 ========================= */
 const tripSchema = new mongoose.Schema({
+
   tripNumber: { type: String, unique: true, sparse: true },
 
   type: { type: String, default: "company" },
@@ -95,18 +95,19 @@ const tripSchema = new mongoose.Schema({
   clientName: { type: String, default: "" },
   clientPhone: { type: String, default: "" },
 
-  // 🔥 مهم للدفع والإيميل
+  // 📧 EMAIL + 💰 PRICE
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
 
-  // 🔥 العربية
+  // 🚗 VEHICLE
   vehicleTypeFromQuote: { type: String, default: "X" },
 
+  // 📍 LOCATIONS
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
   stops: { type: [String], default: [] },
 
-  /* COORDINATES */
+  // 📍 COORDINATES
   pickupLat: { type: Number, default: null },
   pickupLng: { type: Number, default: null },
   dropoffLat: { type: Number, default: null },
@@ -121,33 +122,35 @@ const tripSchema = new mongoose.Schema({
     default: []
   },
 
-  // 💳 الدفع
+  // 💳 PAYMENT
   paymentIntentId: { type: String, default: "" },
 
-  // 🔗 cancel
+  // 🔗 CANCEL
   cancelToken: { type: String, default: "" },
 
-  // 💰 refund
+  // 💰 REFUND SYSTEM
   refundId: { type: String, default: "" },
+  simpleRefundId: { type: String, default: "" }, // 🔥 مهم
   refundAmount: { type: Number, default: 0 },
   cancelFee: { type: Number, default: 0 },
 
-  // 🔥🔥🔥 NEW
+  // ⏰ CANCEL TIME
   cancelDateTime: { type: Date, default: null },
 
-  // 🔥🔥🔥 NEW (الحالة)
+  // 🔥 REFUND STATUS
   refundStatus: {
     type: String,
-    enum: ["none", "processing", "refunded"],
+    enum: ["none", "processing", "refunded", "failed"],
     default: "none"
   },
 
+  // 📅 TRIP TIME
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
 
   notes: { type: String, default: "" },
 
-  /* DISPATCH */
+  /* 🚗 DISPATCH */
   dispatchSelected: { type: Boolean, default: false },
 
   /* ENABLE */
@@ -166,7 +169,9 @@ const tripSchema = new mongoose.Schema({
 
 }, { minimize: false });
 
-/* INDEXES */
+/* =========================
+   INDEXES
+========================= */
 tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
@@ -1813,9 +1818,7 @@ app.post("/api/payment-success", async (req, res) => {
 });
 
   /* =========================
-
-   CANCEL TRIP + REFUND (FINAL PRO)
-
+   CANCEL TRIP + REFUND (FINAL FIXED)
 ========================= */
 app.post("/api/cancel-trip", async (req, res) => {
   try {
@@ -1831,6 +1834,7 @@ app.post("/api/cancel-trip", async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
+    // لو متكنسلة قبل كده
     if (trip.status === "Cancelled") {
       return res.json({
         success: true,
@@ -1864,31 +1868,29 @@ app.post("/api/cancel-trip", async (req, res) => {
       if (refundAmount < 0) refundAmount = 0;
     }
 
-    // 🔥 SIMPLE REFUND ID
     const simpleRefundId = "RF-" + (trip.tripNumber || "0000");
 
     // =========================
-    // 💾 SAVE BASIC DATA
+    // 🔥 SAVE BEFORE STRIPE
     // =========================
     trip.status = "Cancelled";
-
-    // 🔥 وقت الكنسلة
-    trip.cancelDateTime = new Date();
+    trip.cancelDateTime = new Date(); // 🔥 أهم سطر
 
     trip.cancelFee = fee;
     trip.refundAmount = refundAmount;
     trip.simpleRefundId = simpleRefundId;
 
-    let stripeRefundId = null;
+    // أول حالة
+    trip.refundStatus = refundAmount > 0 ? "processing" : "none";
+
+    await trip.save(); // 🔥 مهم جدًا
 
     // =========================
     // 💳 STRIPE REFUND
     // =========================
+    let stripeRefundId = null;
+
     if (trip.paymentIntentId && refundAmount > 0 && !trip.refundId) {
-
-      // 🔥 أول حالة
-      trip.refundStatus = "processing";
-
       try {
 
         const refund = await stripe.refunds.create({
@@ -1898,24 +1900,19 @@ app.post("/api/cancel-trip", async (req, res) => {
 
         stripeRefundId = refund.id;
 
-        // 🔥 تم الاسترجاع
         trip.refundStatus = "refunded";
 
       } catch (err) {
 
         console.log("Stripe Refund Error:", err.message);
 
-        // 🔥 فشل → تفضل processing
-        trip.refundStatus = "processing";
+        trip.refundStatus = "failed";
       }
-
-    } else {
-      trip.refundStatus = "none";
     }
 
     trip.refundId = stripeRefundId || trip.refundId;
 
-    await trip.save();
+    await trip.save(); // 🔥 save تاني بعد Stripe
 
     // =========================
     // 📧 EMAIL
