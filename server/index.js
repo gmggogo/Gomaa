@@ -79,8 +79,8 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 
 
-  /* =========================
-   TRIP MODEL (FINAL)
+ /* =========================
+   TRIP MODEL (FINAL FIXED)
 ========================= */
 const tripSchema = new mongoose.Schema({
   tripNumber: { type: String, unique: true, sparse: true },
@@ -97,6 +97,9 @@ const tripSchema = new mongoose.Schema({
   // 🔥 مهم للدفع والإيميل
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
+
+  // 🔥🔥🔥 أهم إضافة (العربية)
+  vehicleTypeFromQuote: { type: String, default: "X" },
 
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
@@ -1093,7 +1096,7 @@ app.get("/api/drivers", async (req, res) => {
 });
 
 /* =========================
-   CREATE TRIP (FINAL)
+   CREATE TRIP (FINAL FIXED)
 ========================= */
 app.post("/api/trips", async (req, res) => {
   try {
@@ -1102,6 +1105,12 @@ app.post("/api/trips", async (req, res) => {
 
     const pickup = normalizeText(req.body.pickup);
     const dropoff = normalizeText(req.body.dropoff);
+
+    // 🔥 تأمين نوع العربية
+    const vehicleTypeFromQuote =
+      ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
+        ? req.body.vehicleTypeFromQuote
+        : "X";
 
     const trip = await Trip.create({
       type,
@@ -1115,9 +1124,12 @@ app.post("/api/trips", async (req, res) => {
       clientName: normalizeText(req.body.clientName),
       clientPhone: normalizeText(req.body.clientPhone),
 
-      // 🔥 أهم تعديل
+      // 💰 السعر + الإيميل
       priceAmount: Number(req.body.priceAmount || 0),
       clientEmail: normalizeText(req.body.clientEmail),
+
+      // 🔥🔥🔥 أهم سطر (العربية)
+      vehicleTypeFromQuote: vehicleTypeFromQuote,
 
       pickup,
       dropoff,
@@ -1154,6 +1166,7 @@ app.post("/api/trips", async (req, res) => {
     res.status(500).json({ message: "Error creating trip" });
   }
 });
+
 /* =========================
    GET ALL TRIPS
 ========================= */

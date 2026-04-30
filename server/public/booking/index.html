@@ -9,7 +9,7 @@
 *{box-sizing:border-box}
 
 body{
-  font-family:Arial;
+  font-family:Arial,sans-serif;
   background:#f8fafc;
   margin:0;
   padding:20px;
@@ -29,18 +29,35 @@ body{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:10px;
+  gap:12px;
+  margin-bottom:15px;
 }
 
-.langBtn{
-  padding:6px 10px;
-  border-radius:6px;
-  border:1px solid #ddd;
+h2{
+  margin:0;
+  font-size:24px;
+}
+
+.langBox{
+  display:flex;
+  gap:8px;
+}
+
+.langBox button{
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid #cbd5e1;
+  background:#fff;
   cursor:pointer;
-  font-size:12px;
+  font-weight:bold;
+  color:#111827;
 }
 
-h2{margin-top:0}
+.langBox button.active{
+  background:#2563eb;
+  color:#fff;
+  border-color:#2563eb;
+}
 
 label{
   margin-top:12px;
@@ -58,6 +75,11 @@ input,textarea{
   font-size:16px;
 }
 
+input[readonly]{
+  background:#f3f4f6;
+  color:#374151;
+}
+
 textarea{min-height:90px}
 
 .row{
@@ -67,13 +89,25 @@ textarea{min-height:90px}
 
 .row div{flex:1}
 
+.vehicleBox{
+  margin-top:5px;
+  padding:12px;
+  background:#e5e7eb;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  font-weight:bold;
+  color:#111827;
+  pointer-events:none;
+  user-select:none;
+}
+
 .actions{
   margin-top:20px;
   display:flex;
   gap:10px;
 }
 
-button{
+button.mainBtn{
   flex:1;
   padding:14px;
   border:none;
@@ -85,6 +119,10 @@ button{
 
 .recalc{background:#dc2626;color:#fff}
 .confirm{background:#2563eb;color:#fff}
+.confirm:disabled{
+  background:#94a3b8;
+  cursor:not-allowed;
+}
 
 .result{
   margin-top:20px;
@@ -96,18 +134,30 @@ button{
   display:none;
 }
 
-/* 🔒 LOCKED VEHICLE */
-.vehicleBox{
-  margin-top:10px;
-  padding:12px;
-  background:#e5e7eb;
-  border-radius:8px;
-  font-weight:bold;
-  pointer-events:none;
-  user-select:none;
+.error{
+  margin-top:20px;
+  padding:15px;
+  background:#fef2f2;
+  border:1px solid #ef4444;
+  border-radius:10px;
+  color:#991b1b;
+  display:none;
 }
 
 @media(max-width:768px){
+  body{padding:10px}
+  .box{padding:15px}
+  .topBar{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  h2{font-size:22px}
+  .langBox{
+    width:100%;
+  }
+  .langBox button{
+    flex:1;
+  }
   .row{flex-direction:column}
   .actions{flex-direction:column}
 }
@@ -118,195 +168,332 @@ button{
 
 <div class="box">
 
-<div class="topBar">
-  <h2 id="title">Confirm Booking</h2>
-  <button class="langBtn" onclick="toggleLang()">ES</button>
-</div>
+  <div class="topBar">
+    <h2 id="title">Confirm Booking</h2>
 
-<label id="pickupLabel">Pickup</label>
-<input id="pickup" readonly>
-
-<div id="stopsBox"></div>
-
-<label id="dropoffLabel">Dropoff</label>
-<input id="dropoff" readonly>
-
-<div class="row">
-  <div>
-    <label id="distanceLabel">Distance</label>
-    <input id="miles" readonly>
+    <div class="langBox">
+      <button id="btnEn" type="button" onclick="setLang('en')">English</button>
+      <button id="btnEs" type="button" onclick="setLang('es')">Español</button>
+    </div>
   </div>
-  <div>
-    <label id="priceLabel">Price</label>
-    <input id="price" readonly>
+
+  <label id="pickupLabel">Pickup</label>
+  <input id="pickup" readonly>
+
+  <div id="stopsBox"></div>
+
+  <label id="dropoffLabel">Dropoff</label>
+  <input id="dropoff" readonly>
+
+  <div class="row">
+    <div>
+      <label id="distanceLabel">Distance</label>
+      <input id="miles" readonly>
+    </div>
+    <div>
+      <label id="priceLabel">Price</label>
+      <input id="price" readonly>
+    </div>
   </div>
-</div>
 
-<label id="vehicleLabel">Vehicle Type</label>
-<div id="vehicleDisplay" class="vehicleBox"></div>
+  <label id="vehicleLabel">Vehicle Type</label>
+  <div id="vehicleDisplay" class="vehicleBox">Loading...</div>
 
-<label id="nameLabel">Passenger Name</label>
-<input id="name">
+  <label id="nameLabel">Passenger Name</label>
+  <input id="name" autocomplete="name">
 
-<label id="phoneLabel">Phone</label>
-<input id="phone">
+  <label id="phoneLabel">Phone</label>
+  <input id="phone" autocomplete="tel">
 
-<label id="emailLabel">Email</label>
-<input id="email" type="email">
+  <label id="emailLabel">Email</label>
+  <input id="email" type="email" autocomplete="email">
 
-<div class="row">
-  <div>
-    <label id="dateLabel">Date</label>
-    <input type="date" id="date">
+  <div class="row">
+    <div>
+      <label id="dateLabel">Date</label>
+      <input type="date" id="date">
+    </div>
+    <div>
+      <label id="timeLabel">Time</label>
+      <input type="time" id="time">
+    </div>
   </div>
-  <div>
-    <label id="timeLabel">Time</label>
-    <input type="time" id="time">
+
+  <label id="notesLabel">Notes</label>
+  <textarea id="notes"></textarea>
+
+  <div class="actions">
+    <button class="mainBtn recalc" type="button" onclick="recalculate()" id="recalcBtn">Recalculate</button>
+    <button class="mainBtn confirm" type="button" onclick="confirmBooking()" id="payBtn">Pay Now</button>
   </div>
-</div>
 
-<label id="notesLabel">Notes</label>
-<textarea id="notes"></textarea>
-
-<div class="actions">
-  <button class="recalc" onclick="recalculate()" id="recalcBtn">Recalculate</button>
-  <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
-</div>
-
-<div id="resultBox" class="result"></div>
+  <div id="errorBox" class="error"></div>
+  <div id="resultBox" class="result"></div>
 
 </div>
 
 <script>
+/* =========================
+   LANGUAGE
+========================= */
+let lang = localStorage.getItem("bookingLang") || "en";
 
-// =======================
-// LANGUAGE
-// =======================
-let lang = "en";
+const T = {
+  en:{
+    title:"Confirm Booking",
+    pickup:"Pickup",
+    dropoff:"Dropoff",
+    distance:"Distance",
+    price:"Price",
+    vehicle:"Vehicle Type",
+    name:"Passenger Name",
+    phone:"Phone",
+    email:"Email",
+    date:"Date",
+    time:"Time",
+    notes:"Notes",
+    recalc:"Recalculate",
+    pay:"Pay Now",
+    stop:"Stop",
+    loading:"Loading...",
+    standard:"Standard (X)",
+    large:"Large (XL)",
+    fill:"Please fill all required fields",
+    invalidPrice:"Invalid price",
+    session:"Session expired. Please calculate the trip again.",
+    fee:"Trip is within 2 hours. A $15 cancellation fee will apply. Continue?",
+    created:"Trip Created Successfully",
+    errorCreate:"Error creating trip",
+    server:"Server error"
+  },
+  es:{
+    title:"Confirmar Reserva",
+    pickup:"Recogida",
+    dropoff:"Destino",
+    distance:"Distancia",
+    price:"Precio",
+    vehicle:"Tipo de Vehículo",
+    name:"Nombre del Pasajero",
+    phone:"Teléfono",
+    email:"Correo Electrónico",
+    date:"Fecha",
+    time:"Hora",
+    notes:"Notas",
+    recalc:"Recalcular",
+    pay:"Pagar Ahora",
+    stop:"Parada",
+    loading:"Cargando...",
+    standard:"Estándar (X)",
+    large:"Grande (XL)",
+    fill:"Por favor complete todos los campos requeridos",
+    invalidPrice:"Precio inválido",
+    session:"La sesión expiró. Calcule el viaje otra vez.",
+    fee:"El viaje es dentro de 2 horas. Se aplicará una tarifa de cancelación de $15. ¿Continuar?",
+    created:"Viaje Creado Correctamente",
+    errorCreate:"Error al crear el viaje",
+    server:"Error del servidor"
+  }
+};
 
-function toggleLang(){
-  lang = (lang === "en") ? "es" : "en";
+function setLang(l){
+  lang = l;
+  localStorage.setItem("bookingLang", lang);
   applyLang();
 }
 
 function applyLang(){
-  const t = {
-    en:{
-      title:"Confirm Booking",
-      pickup:"Pickup",
-      dropoff:"Dropoff",
-      distance:"Distance",
-      price:"Price",
-      vehicle:"Vehicle Type",
-      name:"Passenger Name",
-      phone:"Phone",
-      email:"Email",
-      date:"Date",
-      time:"Time",
-      notes:"Notes",
-      pay:"Pay Now",
-      recalc:"Recalculate"
-    },
-    es:{
-      title:"Confirmar Reserva",
-      pickup:"Recogida",
-      dropoff:"Destino",
-      distance:"Distancia",
-      price:"Precio",
-      vehicle:"Tipo de Vehículo",
-      name:"Nombre del Pasajero",
-      phone:"Teléfono",
-      email:"Correo",
-      date:"Fecha",
-      time:"Hora",
-      notes:"Notas",
-      pay:"Pagar",
-      recalc:"Recalcular"
-    }
-  };
+  const d = T[lang];
 
-  const d = t[lang];
+  document.documentElement.lang = lang;
+  title.innerText = d.title;
+  pickupLabel.innerText = d.pickup;
+  dropoffLabel.innerText = d.dropoff;
+  distanceLabel.innerText = d.distance;
+  priceLabel.innerText = d.price;
+  vehicleLabel.innerText = d.vehicle;
+  nameLabel.innerText = d.name;
+  phoneLabel.innerText = d.phone;
+  emailLabel.innerText = d.email;
+  dateLabel.innerText = d.date;
+  timeLabel.innerText = d.time;
+  notesLabel.innerText = d.notes;
+  recalcBtn.innerText = d.recalc;
+  payBtn.innerText = d.pay;
 
-  document.getElementById("title").innerText = d.title;
-  document.getElementById("pickupLabel").innerText = d.pickup;
-  document.getElementById("dropoffLabel").innerText = d.dropoff;
-  document.getElementById("distanceLabel").innerText = d.distance;
-  document.getElementById("priceLabel").innerText = d.price;
-  document.getElementById("vehicleLabel").innerText = d.vehicle;
-  document.getElementById("nameLabel").innerText = d.name;
-  document.getElementById("phoneLabel").innerText = d.phone;
-  document.getElementById("emailLabel").innerText = d.email;
-  document.getElementById("dateLabel").innerText = d.date;
-  document.getElementById("timeLabel").innerText = d.time;
-  document.getElementById("notesLabel").innerText = d.notes;
-  document.getElementById("payBtn").innerText = d.pay;
-  document.getElementById("recalcBtn").innerText = d.recalc;
+  btnEn.classList.toggle("active", lang === "en");
+  btnEs.classList.toggle("active", lang === "es");
+
+  renderStops();
+  renderVehicle();
 }
 
-// =======================
-// LOAD DATA
-// =======================
-let tripData = JSON.parse(localStorage.getItem("pendingTrip"));
+/* =========================
+   LOAD PENDING TRIP
+========================= */
+let tripData = null;
 
-if(!tripData){
-  alert("Session expired");
-  location.href="/getquote/index.html";
+try{
+  tripData = JSON.parse(localStorage.getItem("pendingTrip"));
+}catch(e){
+  tripData = null;
 }
 
-// =======================
-// SET DATA
-// =======================
-pickup.value = tripData.pickup;
-dropoff.value = tripData.dropoff;
-miles.value = tripData.distance;
-price.value = tripData.price;
+if(!tripData || !tripData.pickup || !tripData.dropoff){
+  alert(T[lang].session);
+  location.href = "/getquote/index.html";
+}
 
-// =======================
-// 🔒 VEHICLE LOCK
-// =======================
-const vehicleType = tripData.vehicleType || "X";
+/* =========================
+   VEHICLE LOCKED
+========================= */
+function getVehicleType(){
+  const raw =
+    tripData.vehicleType ||
+    tripData.vehicleTypeFromQuote ||
+    tripData.vehicle ||
+    "X";
 
-vehicleDisplay.innerText =
-  vehicleType === "XL" ? "Large (XL)" : "Standard (X)";
+  return String(raw).toUpperCase() === "XL" ? "XL" : "X";
+}
 
-// =======================
-// STOPS
-// =======================
-(tripData.stops || []).forEach((s,i)=>{
-  stopsBox.innerHTML += `
-    <label>Stop ${i+1}</label>
-    <input value="${s}" readonly>
-  `;
-});
+function renderVehicle(){
+  if(!tripData) return;
 
-// =======================
+  const vehicleType = getVehicleType();
+  vehicleDisplay.innerText =
+    vehicleType === "XL" ? T[lang].large : T[lang].standard;
+}
+
+/* =========================
+   SET TRIP DATA
+========================= */
+pickup.value = tripData.pickup || "";
+dropoff.value = tripData.dropoff || "";
+miles.value = tripData.distance || tripData.miles || "";
+price.value = tripData.price || "";
+
+function renderStops(){
+  if(!tripData) return;
+
+  stopsBox.innerHTML = "";
+
+  (tripData.stops || []).forEach((s,i)=>{
+    const label = document.createElement("label");
+    label.innerText = `${T[lang].stop} ${i+1}`;
+
+    const input = document.createElement("input");
+    input.value = s;
+    input.readOnly = true;
+
+    stopsBox.appendChild(label);
+    stopsBox.appendChild(input);
+  });
+}
+
+renderStops();
+renderVehicle();
+applyLang();
+
+/* =========================
+   HELPERS
+========================= */
+function showError(msg){
+  errorBox.style.display = "block";
+  errorBox.innerText = msg;
+}
+
+function clearError(){
+  errorBox.style.display = "none";
+  errorBox.innerText = "";
+}
+
+function cleanPriceValue(v){
+  return Number(String(v || "").replace(/[^0-9.]/g,""));
+}
+
+function minutesUntilTrip(date,time){
+  const now = new Date();
+  const trip = new Date(date + "T" + time);
+  return (trip - now) / 60000;
+}
+
+/* =========================
+   RECALCULATE
+========================= */
 function recalculate(){
   localStorage.removeItem("pendingTrip");
   location.href="/getquote/index.html";
 }
 
-// =======================
+/* =========================
+   CONFIRM BOOKING
+========================= */
 async function confirmBooking(){
+  clearError();
 
   const btn = payBtn;
   btn.disabled = true;
 
+  const passengerName = name.value.trim();
+  const passengerPhone = phone.value.trim();
+  const passengerEmail = email.value.trim();
+  const tripDate = date.value;
+  const tripTime = time.value;
+  const tripNotes = notes.value.trim();
+
+  if(!passengerName || !passengerPhone || !passengerEmail || !tripDate || !tripTime){
+    showError(T[lang].fill);
+    btn.disabled = false;
+    return;
+  }
+
+  const cleanPrice = cleanPriceValue(tripData.price);
+
+  if(!cleanPrice){
+    showError(T[lang].invalidPrice);
+    btn.disabled = false;
+    return;
+  }
+
+  const mins = minutesUntilTrip(tripDate, tripTime);
+
+  if(mins <= 120){
+    if(!confirm(T[lang].fee)){
+      btn.disabled = false;
+      return;
+    }
+  }
+
+  const vehicleType = getVehicleType();
+
+  const data = {
+    type:"individual",
+
+    pickup: tripData.pickup,
+    dropoff: tripData.dropoff,
+    stops: tripData.stops || [],
+
+    pickupLat: tripData.pickupLat || null,
+    pickupLng: tripData.pickupLng || null,
+    dropoffLat: tripData.dropoffLat || null,
+    dropoffLng: tripData.dropoffLng || null,
+    stopCoords: tripData.stopCoords || [],
+
+    priceAmount: cleanPrice,
+
+    clientName: passengerName,
+    clientPhone: passengerPhone,
+    clientEmail: passengerEmail,
+
+    vehicleTypeFromQuote: vehicleType,
+
+    tripDate: tripDate,
+    tripTime: tripTime,
+    notes: tripNotes,
+    status:"Booked"
+  };
+
   try{
-
-    const data = {
-      pickup: tripData.pickup,
-      dropoff: tripData.dropoff,
-      stops: tripData.stops || [],
-      priceAmount: Number(tripData.price),
-      clientName: name.value,
-      clientPhone: phone.value,
-      clientEmail: email.value,
-      vehicleTypeFromQuote: vehicleType,
-      tripDate: date.value,
-      tripTime: time.value,
-      notes: notes.value
-    };
-
     const res = await fetch("/api/trips",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -315,18 +502,27 @@ async function confirmBooking(){
 
     const trip = await res.json();
 
-    resultBox.style.display="block";
-    resultBox.innerHTML = "Trip #: " + trip.tripNumber;
+    if(!res.ok){
+      showError(trip.message || T[lang].errorCreate);
+      btn.disabled = false;
+      return;
+    }
 
-  }catch{
-    alert("Error");
-  }finally{
-    btn.disabled=false;
+    resultBox.style.display = "block";
+    resultBox.innerHTML = `
+      ${T[lang].created}<br><br>
+      Trip #: <b>${trip.tripNumber || ""}</b>
+    `;
+
+    setTimeout(()=>{
+      window.location.href = `/booking/payment.html?tripId=${trip._id}`;
+    },1200);
+
+  }catch(e){
+    showError(T[lang].server);
+    btn.disabled = false;
   }
 }
-
-applyLang();
-
 </script>
 
 </body>
