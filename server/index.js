@@ -1879,185 +1879,70 @@ app.post("/api/cancel-trip", async (req, res) => {
     console.log("💰 Refund:", refundAmount, "Fee:", fee);
 
     // =========================
-  /* =========================
-   CANCEL TRIP + REFUND (FINAL WITH SIMPLE REFUND ID)
-========================= */
-app.post("/api/cancel-trip", async (req, res) => {
+// 📧 SEND REFUND EMAIL (FIXED)
+// =========================
+if (trip.clientEmail) {
   try {
-    const { token } = req.body;
 
-    if (!token) {
-      return res.status(400).json({ message: "Missing token" });
-    }
+    let refundSection = "";
 
-    const trip = await Trip.findOne({ cancelToken: token });
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    // 🛑 منع التكرار
-    if (trip.status === "Cancelled") {
-      return res.json({
-        success: true,
-        message: "Trip already cancelled",
-        refund: trip.refundAmount || 0,
-        fee: trip.cancelFee || 0,
-        refundNumber: trip.simpleRefundId || ""
-      });
-    }
-
-    // =========================
-    // ⏰ ARIZONA TIME
-    // =========================
-    function getArizonaNow() {
-      return new Date(
-        new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
-      );
-    }
-
-    const now = getArizonaNow();
-    const tripTime = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
-    const diffMinutes = (tripTime - now) / 60000;
-
-    const totalAmount = Number(trip.priceAmount || 0);
-    let refundAmount = 0;
-    let fee = 0;
-
-    if (diffMinutes > 120) {
-      refundAmount = totalAmount;
-      fee = 0;
+    if (refundAmount > 0) {
+      refundSection = `
+        <p><b>Refund Amount:</b> $${refundAmount}</p>
+        <p><b>Refund ID:</b> ${refundId || ""}</p>
+        <p style="color:green;">
+          Your refund has been processed successfully.<br/>
+          It may take 5–10 business days to appear in your account.
+        </p>
+      `;
     } else {
-      fee = 15;
-      refundAmount = totalAmount - fee;
-      if (refundAmount < 0) refundAmount = 0;
+      refundSection = `
+        <p style="color:red;">
+          This cancellation was made within 2 hours of the trip time.<br/>
+          A $15 cancellation fee has been applied.<br/>
+          No refund is available.
+        </p>
+      `;
     }
 
-    // =========================
-    // 💳 STRIPE REFUND
-    // =========================
-    let refundId = null;
+    const emailHtml = `
+      <h2>Trip Cancelled ❌</h2>
 
-    if (trip.paymentIntentId && refundAmount > 0 && !trip.refundId) {
-      try {
-        const refund = await stripe.refunds.create({
-          payment_intent: trip.paymentIntentId,
-          amount: Math.round(refundAmount * 100)
-        });
+      <p>Your trip has been successfully cancelled.</p>
 
-        refundId = refund.id;
-        console.log("💰 Refund created:", refundId);
+      <hr/>
 
-      } catch (stripeErr) {
-        console.log("❌ Stripe refund error:", stripeErr.message);
-        return res.status(500).json({
-          message: "Refund failed. Please contact support."
-        });
-      }
-    }
+      <p><b>Trip Number:</b> ${trip.tripNumber}</p>
+      <p><b>Pickup:</b> ${trip.pickup}</p>
+      <p><b>Dropoff:</b> ${trip.dropoff}</p>
+      <p><b>Date:</b> ${trip.tripDate}</p>
+      <p><b>Time:</b> ${trip.tripTime}</p>
 
-    // =========================
-    // 🔥 SIMPLE REFUND NUMBER
-    // =========================
-    const simpleRefundId = "RF-" + trip.tripNumber.replace("IN-", "");
+      <hr/>
 
-    // =========================
-    // 🔥 UPDATE TRIP
-    // =========================
-    trip.status = "Cancelled";
-    trip.cancelFee = fee;
-    trip.refundAmount = refundAmount;
+      <h3>Refund Details</h3>
 
-    if (refundId) {
-      trip.refundId = refundId; // Stripe ID
-    }
+      ${refundSection}
 
-    trip.simpleRefundId = simpleRefundId; // 👈 الرقم السهل
+      <hr/>
 
-    await trip.save();
+      <p>Thank you for choosing Sunbeam Transportation 🚗</p>
+    `;
 
-    console.log("❌ Trip Cancelled:", trip.tripNumber);
-    console.log("💰 Refund:", refundAmount, "Fee:", fee);
-
-    // =========================
-    // 📧 SEND REFUND EMAIL
-    // =========================
-    if (trip.clientEmail) {
-      try {
-
-        await transporter.sendMail({
-          from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
-          to: trip.clientEmail,
-          subject: "Trip Cancelled & Refund Processed",
-
-          html: `
-            <h2>Trip Cancelled ❌</h2>
-
-            <p>Your trip has been successfully cancelled.</p>
-
-            <hr/>
-
-            <p><b>Trip Number:</b> ${trip.tripNumber}</p>
-            <p><b>Pickup:</b> ${trip.pickup}</p>
-            <p><b>Dropoff:</b> ${trip.dropoff}</p>
-            <p><b>Date:</b> ${trip.tripDate}</p>
-            <p><b>Time:</b> ${trip.tripTime}</p>
-
-            <hr/>
-
-            <h3>Refund Details</h3>
-
-            ${
-              refundAmount > 0
-              ? `
-                <p><b>Refund Amount:</b> $${refundAmount}</p>
-                <p><b>Refund Number:</b> ${simpleRefundId}</p>
-                <p style="color:green;">
-                  Your refund has been processed successfully.<br/>
-                  It may take 5–10 business days to appear in your account.
-                </p>
-              `
-              : `
-                <p style="color:red;">
-                  This cancellation was made within 2 hours of the trip time.<br/>
-                  A $15 cancellation fee has been applied.<br/>
-                  No refund is available.
-                </p>
-              `
-            }
-
-            <hr/>
-
-            <p>Thank you for choosing Sunbeam Transportation 🚗</p>
-          `
-        });
-
-        console.log("📧 Refund email sent:", trip.clientEmail);
-
-      } catch (emailErr) {
-        console.log("❌ EMAIL ERROR:", emailErr.message);
-      }
-    }
-
-    // =========================
-    // RESPONSE
-    // =========================
-    res.json({
-      success: true,
-      refund: refundAmount,
-      fee: fee,
-      refundNumber: simpleRefundId,
-      message:
-        fee === 0
-          ? "Cancelled with full refund"
-          : "Cancelled with $15 fee"
+    await transporter.sendMail({
+      from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
+      to: trip.clientEmail,
+      subject: "Trip Cancelled & Refund Processed",
+      html: emailHtml
     });
 
-  } catch (err) {
-    console.log("🔥 CANCEL ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    console.log("📧 Refund email sent:", trip.clientEmail);
+
+  } catch (emailErr) {
+    console.log("❌ EMAIL ERROR:", emailErr.message);
   }
-});
+}
+
 /* =========================
    CHECK CANCEL STATUS (ARIZONA TIME FIX)
 ========================= */
