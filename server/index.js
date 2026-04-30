@@ -78,7 +78,6 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-/* =========================
 
   /* =========================
    TRIP MODEL (FINAL)
@@ -121,8 +120,13 @@ const tripSchema = new mongoose.Schema({
   // 🔥 الدفع
   paymentIntentId: { type: String, default: "" },
 
-  // 🔥 NEW → cancel link token
+  // 🔥 cancel system
   cancelToken: { type: String, default: "" },
+
+  // 🔥 refund system
+  refundId: { type: String, default: "" },
+  refundAmount: { type: Number, default: 0 },
+  cancelFee: { type: Number, default: 0 },
 
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
@@ -1768,64 +1772,99 @@ app.post("/api/payment-success", async (req, res) => {
 });
 
 /* =========================
-   CANCEL TRIP (2 HOURS RULE)
+   CANCEL TRIP + REFUND (PRODUCTION SAFE)
 ========================= */
 app.post("/api/cancel-trip", async (req, res) => {
   try {
-    const { tripId } = req.body;
+    const { token } = req.body;
 
-    if (!tripId) {
-      return res.status(400).json({ message: "Missing tripId" });
+    if (!token) {
+      return res.status(400).json({ message: "Missing token" });
     }
 
-    const trip = await Trip.findById(tripId);
+    const trip = await Trip.findOne({ cancelToken: token });
 
     if (!trip) {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    // لو الرحلة already ملغية
+    // 🛑 منع التكرار
     if (trip.status === "Cancelled") {
-      return res.status(400).json({
-        message: "Trip already cancelled"
+      return res.json({
+        success: true,
+        message: "Trip already cancelled",
+        refund: trip.refundAmount || 0,
+        fee: trip.cancelFee || 0
       });
     }
 
     // ⏰ حساب الوقت
     const now = new Date();
-    const tripDateTime = new Date(`${trip.tripDate}T${trip.tripTime}`);
+    const tripTime = new Date(`${trip.tripDate}T${trip.tripTime}`);
+    const diffMinutes = (tripTime - now) / 60000;
 
-    // فرق الوقت بالدقايق
-    const diffMinutes = (tripDateTime - now) / 60000;
+    const totalAmount = Number(trip.priceAmount || 0);
+    let refundAmount = 0;
+    let fee = 0;
 
-    // ❌ لو أقل من ساعتين
-    if (diffMinutes <= 120) {
-      return res.status(400).json({
-        message: "Cannot cancel within 2 hours of trip"
-      });
+    if (diffMinutes > 120) {
+      // ✅ قبل ساعتين → refund كامل
+      refundAmount = totalAmount;
+      fee = 0;
+    } else {
+      // ❌ خلال ساعتين → خصم 15$
+      fee = 15;
+      refundAmount = totalAmount - fee;
+      if (refundAmount < 0) refundAmount = 0;
     }
 
-    // ✔️ الغاء الرحلة
+    // 💳 تنفيذ الريفوند (مرة واحدة بس)
+    let refundId = null;
+
+    if (trip.paymentIntentId && refundAmount > 0 && !trip.refundId) {
+      try {
+        const refund = await stripe.refunds.create({
+          payment_intent: trip.paymentIntentId,
+          amount: Math.round(refundAmount * 100) // سنت
+        });
+
+        refundId = refund.id;
+        console.log("💰 Refund created:", refundId);
+
+      } catch (stripeErr) {
+        console.log("❌ Stripe refund error:", stripeErr.message);
+        return res.status(500).json({
+          message: "Refund failed. Please contact support."
+        });
+      }
+    }
+
+    // 🔥 تحديث الرحلة
     trip.status = "Cancelled";
-    trip.dispatchSelected = false;
+    trip.cancelFee = fee;
+    trip.refundAmount = refundAmount;
+    if (refundId) trip.refundId = refundId;
 
     await trip.save();
 
-    console.log("❌ Trip cancelled:", trip.tripNumber);
+    console.log("❌ Trip Cancelled:", trip.tripNumber);
+    console.log("💰 Refund:", refundAmount, "Fee:", fee);
 
     res.json({
       success: true,
-      message: "Trip cancelled successfully"
+      refund: refundAmount,
+      fee: fee,
+      message:
+        fee === 0
+          ? "Cancelled with full refund"
+          : "Cancelled with $15 fee"
     });
 
   } catch (err) {
-    console.log("🔥 Cancel error:", err);
-    res.status(500).json({
-      message: "Server error during cancel"
-    });
+    console.log("🔥 CANCEL ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
-
 /* =========================
    ROOT
 ========================= */
