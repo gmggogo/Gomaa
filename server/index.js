@@ -1998,11 +1998,12 @@ app.post("/api/cancel-trip", async (req, res) => {
 }); // 🔥🔥🔥 مهم جدًا
 
 /* =========================
-   CHECK CANCEL TOKEN
+   CHECK CANCEL TOKEN (FINAL FIX)
 ========================= */
-app.get("/api/cancel-trip-check", async (req, res) => {
+app.post("/api/cancel-trip-check", async (req, res) => {
   try {
-    const { token } = req.query;
+    // 🔥 يدعم POST + GET مع بعض
+    const token = req.body?.token || req.query?.token;
 
     if (!token) {
       return res.status(400).json({ message: "Missing token" });
@@ -2014,13 +2015,32 @@ app.get("/api/cancel-trip-check", async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
+    // ⏰ Arizona time
+    const now = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+    );
+
+    let fee = 0;
+
+    // 🛑 حماية لو التاريخ ناقص
+    if (trip.tripDate && trip.tripTime) {
+      const tripTime = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+      const diffMinutes = (tripTime - now) / 60000;
+
+      if (diffMinutes <= 120) {
+        fee = 15;
+      }
+    }
+
     res.json({
       success: true,
       tripNumber: trip.tripNumber,
       clientName: trip.clientName,
       tripDate: trip.tripDate,
       tripTime: trip.tripTime,
-      status: trip.status
+      status: trip.status,
+      fee: fee,
+      alreadyCancelled: trip.status === "Cancelled"
     });
 
   } catch (err) {
