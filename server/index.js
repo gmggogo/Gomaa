@@ -1128,8 +1128,8 @@ app.post("/api/trips", async (req, res) => {
       priceAmount: Number(req.body.priceAmount || 0),
       clientEmail: normalizeText(req.body.clientEmail),
 
-      // 🔥🔥🔥 أهم سطر (العربية)
-      vehicleTypeFromQuote: vehicleTypeFromQuote,
+      // 🔥🔥🔥 التعديل الصح هنا
+      vehicle: vehicleTypeFromQuote,
 
       pickup,
       dropoff,
@@ -1166,7 +1166,6 @@ app.post("/api/trips", async (req, res) => {
     res.status(500).json({ message: "Error creating trip" });
   }
 });
-
 /* =========================
    GET ALL TRIPS
 ========================= */

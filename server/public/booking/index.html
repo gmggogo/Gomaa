@@ -2,35 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Booking – Sunbeam Transportation</title>
+<title>Booking – Sunbeam</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-*{box-sizing:border-box}
+body{font-family:Arial;background:#f8fafc;margin:0;color:#111}
+.page{max-width:900px;margin:auto;padding:15px}
 
-body{
-  font-family:Arial;
-  background:#f8fafc;
-  margin:0;
+.hero{
+  background:linear-gradient(135deg,#0f172a,#2563eb);
+  color:#fff;
+  border-radius:16px;
   padding:20px;
-  color:#111827;
-}
-
-.box{
-  background:#fff;
-  padding:20px;
-  border-radius:14px;
-  max-width:750px;
-  margin:auto;
-  box-shadow:0 5px 20px rgba(0,0,0,.08);
+  text-align:center;
   position:relative;
 }
 
-/* 🔥 LANGUAGE */
 .langBox{
   position:absolute;
-  top:15px;
-  right:15px;
+  right:10px;
+  top:10px;
   display:flex;
   gap:6px;
 }
@@ -39,216 +30,148 @@ body{
   padding:3px 8px;
   font-size:11px;
   border-radius:20px;
-  border:1px solid #cbd5e1;
-  background:#f1f5f9;
+  border:1px solid #ddd;
+  background:#fff;
   cursor:pointer;
 }
 
-.langBox button.active{
+.langBox .active{
   background:#2563eb;
   color:#fff;
-  border-color:#2563eb;
 }
 
-h2{margin-top:0}
-
-label{
-  margin-top:12px;
-  display:block;
-  font-size:13px;
-  font-weight:bold;
+.card{
+  background:#fff;
+  border-radius:16px;
+  padding:15px;
+  margin-top:15px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.08)
 }
 
 input,textarea{
   width:100%;
   padding:12px;
-  margin-top:5px;
   border:1px solid #ddd;
-  border-radius:8px;
-  font-size:16px;
+  border-radius:10px;
+  margin-bottom:10px;
 }
 
-textarea{min-height:90px}
-
-.row{
-  display:flex;
-  gap:10px;
-}
-
-.row div{flex:1}
-
-.actions{
-  margin-top:20px;
-  display:flex;
-  gap:10px;
+.vehicleBox{
+  background:#e5e7eb;
+  padding:12px;
+  border-radius:10px;
+  font-weight:bold;
 }
 
 button{
-  flex:1;
-  padding:14px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-}
-
-.recalc{background:#dc2626;color:#fff}
-.confirm{background:#2563eb;color:#fff}
-
-.vehicleBox{
-  margin-top:5px;
+  width:100%;
   padding:12px;
-  background:#e5e7eb;
-  border-radius:8px;
-  font-weight:bold;
-}
-
-.result{
-  margin-top:20px;
-  padding:15px;
-  background:#ecfdf5;
-  border:1px solid #22c55e;
+  border:none;
   border-radius:10px;
-  text-align:center;
-  display:none;
+  font-weight:bold;
+  cursor:pointer;
 }
 
-@media(max-width:768px){
-  body{padding:10px}
-  .row{flex-direction:column}
-  .actions{flex-direction:column}
+.btn{
+  background:#2563eb;
+  color:#fff;
+}
+
+@media(max-width:600px){
+  .page{padding:10px}
 }
 </style>
 </head>
 
 <body>
 
-<div class="box">
+<div class="page">
+
+<div class="hero">
 
 <div class="langBox">
-  <button id="enBtn" onclick="setLang('en')">English</button>
-  <button id="esBtn" onclick="setLang('es')">Español</button>
+<button id="enBtn" onclick="setLang('en')">English</button>
+<button id="esBtn" onclick="setLang('es')">Español</button>
 </div>
 
-<h2 id="title">Confirm Booking</h2>
+<h1 id="title">Confirm Booking</h1>
+
+</div>
+
+<div class="card">
 
 <label id="pickupL">Pickup</label>
 <input id="pickup" readonly>
 
-<div id="stopsBox"></div>
-
 <label id="dropoffL">Dropoff</label>
 <input id="dropoff" readonly>
 
-<div class="row">
-  <div>
-    <label id="distanceL">Distance</label>
-    <input id="miles" readonly>
-  </div>
-  <div>
-    <label id="priceL">Price</label>
-    <input id="price" readonly>
-  </div>
-</div>
+<label id="vehicleL">Vehicle</label>
+<div id="vehicleBox" class="vehicleBox"></div>
 
-<label id="vehicleL">Vehicle Type</label>
-<div id="vehicleDisplay" class="vehicleBox"></div>
+<label id="priceL">Price</label>
+<input id="price" readonly>
 
-<label id="nameL">Passenger Name</label>
+<label id="nameL">Name</label>
 <input id="name">
 
 <label id="phoneL">Phone</label>
 <input id="phone">
 
 <label id="emailL">Email</label>
-<input id="email" type="email">
+<input id="email">
 
-<div class="row">
-  <div>
-    <label id="dateL">Date</label>
-    <input type="date" id="date">
-  </div>
-  <div>
-    <label id="timeL">Time</label>
-    <input type="time" id="time">
-  </div>
+<label id="dateL">Date</label>
+<input type="date" id="date">
+
+<label id="timeL">Time</label>
+<input type="time" id="time">
+
+<button class="btn" onclick="confirmBooking()" id="payBtn">Pay Now</button>
+
 </div>
-
-<label id="notesL">Notes</label>
-<textarea id="notes"></textarea>
-
-<div class="actions">
-  <button class="recalc" onclick="recalculate()">Recalculate</button>
-  <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
-</div>
-
-<div id="resultBox" class="result"></div>
 
 </div>
 
 <script>
 
 // 🔥 LANGUAGE
-let lang = localStorage.getItem("lang") || "en";
-
-const T = {
-  en:{
-    title:"Confirm Booking",
-    pickup:"Pickup",
-    dropoff:"Dropoff",
-    distance:"Distance",
-    price:"Price",
-    vehicle:"Vehicle Type",
-    name:"Passenger Name",
-    phone:"Phone",
-    email:"Email",
-    date:"Date",
-    time:"Time",
-    notes:"Notes",
-    pay:"Pay Now"
-  },
-  es:{
-    title:"Confirmar Reserva",
-    pickup:"Recogida",
-    dropoff:"Destino",
-    distance:"Distancia",
-    price:"Precio",
-    vehicle:"Tipo de Vehículo",
-    name:"Nombre",
-    phone:"Teléfono",
-    email:"Correo",
-    date:"Fecha",
-    time:"Hora",
-    notes:"Notas",
-    pay:"Pagar"
-  }
-};
+let lang="en";
 
 function setLang(l){
-  lang = l;
-  localStorage.setItem("lang", l);
+  lang=l;
   applyLang();
 }
 
 function applyLang(){
-  const d = T[lang];
+  if(lang==="es"){
+    title.innerText="Confirmar Reserva";
+    pickupL.innerText="Origen";
+    dropoffL.innerText="Destino";
+    vehicleL.innerText="Vehículo";
+    priceL.innerText="Precio";
+    nameL.innerText="Nombre";
+    phoneL.innerText="Teléfono";
+    emailL.innerText="Correo";
+    dateL.innerText="Fecha";
+    timeL.innerText="Hora";
+    payBtn.innerText="Pagar";
+  }else{
+    title.innerText="Confirm Booking";
+    pickupL.innerText="Pickup";
+    dropoffL.innerText="Dropoff";
+    vehicleL.innerText="Vehicle";
+    priceL.innerText="Price";
+    nameL.innerText="Name";
+    phoneL.innerText="Phone";
+    emailL.innerText="Email";
+    dateL.innerText="Date";
+    timeL.innerText="Time";
+    payBtn.innerText="Pay Now";
+  }
 
-  title.innerText = d.title;
-  pickupL.innerText = d.pickup;
-  dropoffL.innerText = d.dropoff;
-  distanceL.innerText = d.distance;
-  priceL.innerText = d.price;
-  vehicleL.innerText = d.vehicle;
-  nameL.innerText = d.name;
-  phoneL.innerText = d.phone;
-  emailL.innerText = d.email;
-  dateL.innerText = d.date;
-  timeL.innerText = d.time;
-  notesL.innerText = d.notes;
-  payBtn.innerText = d.pay;
-
-  enBtn.classList.toggle("active", lang==="en");
-  esBtn.classList.toggle("active", lang==="es");
+  enBtn.classList.toggle("active",lang==="en");
+  esBtn.classList.toggle("active",lang==="es");
 }
 
 applyLang();
@@ -263,103 +186,62 @@ if(!tripData){
 
 pickup.value = tripData.pickup;
 dropoff.value = tripData.dropoff;
-miles.value = tripData.distance;
 price.value = tripData.price;
 
-// 🔥 VEHICLE LOCK
-const vehicleType =
-  tripData.vehicleType ||
-  tripData.vehicle ||
-  "X";
+// 🔥 VEHICLE FIX
+const rawVehicle = tripData.vehicleType;
 
-vehicleDisplay.innerText =
-  vehicleType === "XL"
-    ? "Large (XL)"
-    : "Standard (X)";
+let vehicle =
+  rawVehicle === "minivan" ? "XL" :
+  rawVehicle === "standard" ? "X" :
+  rawVehicle || "X";
 
-// 🔥 STOPS
-(tripData.stops || []).forEach((s,i)=>{
-  stopsBox.innerHTML += `
-    <label>Stop ${i+1}</label>
-    <input value="${s}" readonly>
-  `;
-});
-
-// 🔥 TIME CHECK
-function minutesUntilTrip(date,time){
-  const now = new Date();
-  const trip = new Date(date+"T"+time);
-  return (trip-now)/60000;
-}
-
-function recalculate(){
-  localStorage.removeItem("pendingTrip");
-  location.href="/getquote/index.html";
-}
+vehicleBox.innerText =
+  vehicle === "XL" ? "Minivan (XL)" : "Car (X)";
 
 // 🔥 CONFIRM
 async function confirmBooking(){
 
-  const btn = payBtn;
-  btn.disabled = true;
+  const name=nameL.nextElementSibling.value;
+  const phone=phoneL.nextElementSibling.value;
+  const email=emailL.nextElementSibling.value;
+  const date=dateL.nextElementSibling.value;
+  const time=timeL.nextElementSibling.value;
 
-  const name  = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const date  = document.getElementById("date").value;
-  const time  = document.getElementById("time").value;
-
-  if(!name || !phone || !email || !date || !time){
+  if(!name||!phone||!email||!date||!time){
     alert("Fill all fields");
-    btn.disabled=false;
     return;
   }
 
-  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
+  const mins=(new Date(date+"T"+time)-new Date())/60000;
 
-  const mins = minutesUntilTrip(date,time);
-
-  if(mins <= 120){
+  if(mins<=120){
     if(!confirm("Trip is within 120 minutes. Cancellation fee will be $15. Continue?")){
-      btn.disabled=false;
       return;
     }
   }
 
-  const data = {
-    pickup: tripData.pickup,
-    dropoff: tripData.dropoff,
-    stops: tripData.stops || [],
-    priceAmount: cleanPrice,
-    clientName: name,
-    clientPhone: phone,
-    clientEmail: email,
-    vehicleTypeFromQuote: vehicleType,
-    tripDate: date,
-    tripTime: time
-  };
+  const cleanPrice = Number(price.value.replace(/[^0-9.]/g,""));
 
-  try{
-    const res = await fetch("/api/trips",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(data)
-    });
+  const res = await fetch("/api/trips",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      pickup:pickup.value,
+      dropoff:dropoff.value,
+      priceAmount:cleanPrice,
+      clientName:name,
+      clientPhone:phone,
+      clientEmail:email,
+      vehicleTypeFromQuote:vehicle,
+      tripDate:date,
+      tripTime:time
+    })
+  });
 
-    const trip = await res.json();
+  const trip = await res.json();
 
-    document.getElementById("resultBox").style.display="block";
-    document.getElementById("resultBox").innerHTML =
-      "Trip Created<br>" + trip.tripNumber;
-
-    setTimeout(()=>{
-      window.location.href = `/booking/payment.html?tripId=${trip._id}`;
-    },1200);
-
-  }catch{
-    alert("Server error");
-    btn.disabled=false;
-  }
+  window.location.href = `/booking/payment.html?tripId=${trip._id}`;
 }
 
 </script>
