@@ -1998,6 +1998,38 @@ app.post("/api/cancel-trip", async (req, res) => {
 }); // 🔥🔥🔥 مهم جدًا
 
 /* =========================
+   CHECK CANCEL TOKEN
+========================= */
+app.get("/api/cancel-trip-check", async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ message: "Missing token" });
+    }
+
+    const trip = await Trip.findOne({ cancelToken: token });
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    res.json({
+      success: true,
+      tripNumber: trip.tripNumber,
+      clientName: trip.clientName,
+      tripDate: trip.tripDate,
+      tripTime: trip.tripTime,
+      status: trip.status
+    });
+
+  } catch (err) {
+    console.log("CHECK ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
    GET REFUNDS
 ========================= */
 app.get("/api/refunds", async (req, res) => {
