@@ -1,164 +1,133 @@
-/* ================= RESET ================= */
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sunbeam Transportation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-body{
-  font-family:Arial, sans-serif;
-  background:#0f172a;
-  color:#fff;
-}
+    <link rel="stylesheet" href="style.css">
 
-/* ================= TOP BAR ================= */
-.top-bar{
-  background:#020617;
-  padding:10px 20px;
-}
+    <!-- 🔥 تعديل بسيط للصورة -->
+    <style>
+        .hero img{
+            height:180px; /* 👈 كانت كبيرة اوي */
+            object-fit:cover;
+        }
 
-.top-links{
-  display:flex;
-  gap:15px;
-}
+        .contact-bar{
+            margin-left:auto;
+            color:#fff;
+            font-size:13px;
+        }
 
-.top-links a{
-  color:#fff;
-  text-decoration:none;
-  font-size:14px;
-  transition:.3s;
-}
+        .contact-bar span{
+            margin-left:15px;
+        }
 
-.top-links a:hover{
-  color:#38bdf8;
-}
+        @media(max-width:768px){
+            .contact-bar{
+                display:block;
+                margin-top:5px;
+                font-size:12px;
+            }
+        }
+    </style>
 
-/* ================= HERO ================= */
-.hero{
-  width:100%;
-  height:260px;
-  overflow:hidden;
-}
+</head>
+<body>
 
-.hero img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-}
+<!-- ================= TOP BAR ================= -->
+<div class="top-bar">
+    <div class="top-links">
 
-/* ================= ABOUT ================= */
-.about{
-  background:#111827;
-  padding:25px 20px;
-  text-align:center;
-}
+        <!-- Facilities / Companies Login -->
+        <a href="companies/company-login.html" class="facility-login">
+            Facility Login
+        </a>
 
-.about h2{
-  margin-bottom:10px;
-}
+        <!-- Driver / Staff Login -->
+        <a href="login.html" class="staff-login">
+            Staff Login
+        </a>
 
-.about p{
-  font-size:14px;
-  line-height:1.6;
-  color:#cbd5e1;
-}
+        <!-- 🔥 Customer Service -->
+        <div class="contact-bar">
+            <span>📧 admin@sunbeamtransportationllc.com</span>
+            <span>📞 619-509-7197</span>
+        </div>
 
-.instructions{
-  margin-top:15px;
-}
+    </div>
+</div>
 
-.highlight{
-  color:#38bdf8;
-}
+<!-- ================= HERO ================= -->
+<section class="hero">
+    <img src="assets/hero.jpeg" alt="Sunbeam Transportation">
+</section>
 
-/* ================= HEADER ================= */
-.quote-header{
-  text-align:center;
-  padding:20px;
-}
+<!-- ================= ABOUT ================= -->
+<section class="about">
+    <h2>About Sunbeam Transportation</h2>
 
-.quote-header h2{
-  margin-bottom:5px;
-}
+    <p>
+        Sunbeam Transportation is a <strong>licensed</strong> and professional transportation company
+        specializing in <strong>Non-Emergency Medical Transportation (NEMT)</strong>,
+        airport transfers, and private transportation services for individuals, clinics, and organizations.
+    </p>
 
-/* ================= SERVICES ================= */
-.services{
-  display:flex;
-  gap:20px;
-  padding:20px;
-  overflow-x:auto;
-}
+    <p>
+        We are committed to providing safe, reliable, and high-quality transportation solutions,
+        with a strong focus on comfort, punctuality, and professional service standards.
+    </p>
 
-.card{
-  min-width:280px;
-  background:#111827;
-  border-radius:12px;
-  overflow:hidden;
-  transition:.3s;
-}
+    <div class="instructions">
+        <p>
+            <strong>For Individual Riders:</strong><br>
+            Click <span class="highlight">Get Quote</span> to receive a price estimate and book your trip online.
+        </p>
 
-.card:hover{
-  transform:translateY(-5px);
-  box-shadow:0 10px 30px rgba(0,0,0,.6);
-}
+        <p>
+            <strong>For Medical Facilities, Clinics, and Companies:</strong><br>
+            Please use <span class="highlight">Facility Login</span> to manage and book trips from inside the system.
+        </p>
+    </div>
+</section>
 
-.card img{
-  width:100%;
-  height:150px;
-  object-fit:cover;
-  display:block;
-}
+<!-- ================= GET QUOTE HEADER ================= -->
+<section class="quote-header">
+    <h2>Get Quote & Book Your Ride</h2>
+    <p>Select your service below to receive a price estimate and book your trip.</p>
+</section>
 
-.card h3{
-  padding:10px;
-}
+<!-- ================= SERVICES ================= -->
+<section class="services">
 
-.card p{
-  padding:0 10px;
-  font-size:13px;
-  color:#cbd5e1;
-}
+    <div class="card">
+        <img src="assets/nemt.jpeg" alt="NEMT">
+        <h3>NEMT</h3>
+        <p>Medical appointments & clinics</p>
+        <a href="getquote/index.html" class="btn">Get Quote</a>
+    </div>
 
-.btn{
-  display:block;
-  margin:10px;
-  padding:10px;
-  text-align:center;
-  background:#2563eb;
-  color:#fff;
-  border-radius:8px;
-  text-decoration:none;
-  transition:.3s;
-}
+    <div class="card">
+        <img src="assets/airport.jpeg" alt="Airport">
+        <h3>Airport</h3>
+        <p>Airport pickup & drop-off</p>
+        <a href="getquote/index.html" class="btn">Get Quote</a>
+    </div>
 
-.btn:hover{
-  background:#1d4ed8;
-}
+    <div class="card">
+        <img src="assets/business.jpeg" alt="Business">
+        <h3>Business</h3>
+        <p>Corporate & private rides</p>
+        <a href="getquote/index.html" class="btn">Get Quote</a>
+    </div>
 
-/* ================= FOOTER ================= */
-footer{
-  text-align:center;
-  padding:15px;
-  background:#020617;
-  margin-top:20px;
-  font-size:13px;
-}
+</section>
 
-/* ================= MOBILE ================= */
-@media(max-width:768px){
+<!-- ================= FOOTER ================= -->
+<footer>
+    ©️ Sunbeam Transportation
+</footer>
 
-  .services{
-    flex-direction:column;
-    overflow:visible;
-  }
-
-  .card{
-    width:100%;
-  }
-
-  .hero{
-    height:200px;
-  }
-
-}
+</body>
+</html>
