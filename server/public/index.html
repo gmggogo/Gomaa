@@ -4,7 +4,152 @@
     <meta charset="UTF-8">
     <title>Sunbeam Transportation</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* 🔥 تحسين الخط */
+        body{
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin:0;
+        }
+
+        /* 🔥 TOP BAR */
+        .top-bar{
+            background:#0f172a;
+            padding:10px 15px;
+        }
+
+        .top-links{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            flex-wrap:wrap;
+        }
+
+        /* 🔥 أزرار تسجيل الدخول */
+        .facility-login,
+        .staff-login{
+            padding:10px 14px;
+            border-radius:10px;
+            font-size:14px;
+            font-weight:600;
+            text-decoration:none;
+            color:#fff;
+        }
+
+        .facility-login{ background:#f59e0b; }
+        .staff-login{ background:#22c55e; }
+
+        /* 🔥 CONTACT */
+        .contact-box{
+            margin-left:auto;
+            display:flex;
+            flex-direction:column;
+            align-items:flex-end;
+            font-size:13px;
+        }
+
+        .contact-box a{
+            color:#fff;
+            text-decoration:none;
+        }
+
+        /* 🔥 HERO */
+        .hero img{
+            width:100%;
+            height:220px;
+            object-fit:cover;
+        }
+
+        /* 🔥 ABOUT */
+        .about{
+            text-align:center;
+            padding:20px;
+        }
+
+        .about h2{
+            font-size:28px;
+            font-weight:700;
+        }
+
+        .about p{
+            max-width:700px;
+            margin:10px auto;
+            color:#374151;
+            font-size:16px;
+        }
+
+        /* 🔥 PHONE BOOKING */
+        .phone-book{
+            font-weight:bold;
+            margin-top:15px;
+        }
+
+        /* 🔥 SERVICES */
+        .services{
+            display:flex;
+            gap:20px;
+            justify-content:center;
+            flex-wrap:wrap;
+            padding:20px;
+        }
+
+        .card{
+            width:300px;
+            border-radius:12px;
+            overflow:hidden;
+            box-shadow:0 8px 20px rgba(0,0,0,0.1);
+            text-align:center;
+            background:#fff;
+        }
+
+        .card img{
+            width:100%;
+            height:180px;
+            object-fit:cover;
+        }
+
+        .btn{
+            display:inline-block;
+            margin:15px;
+            padding:10px 20px;
+            background:#2563eb;
+            color:#fff;
+            border-radius:8px;
+            text-decoration:none;
+        }
+
+        footer{
+            text-align:center;
+            padding:20px;
+            background:#0f172a;
+            color:#fff;
+        }
+
+        /* 🔥 MOBILE PRO LOOK */
+        @media(max-width:768px){
+
+            .facility-login,
+            .staff-login{
+                flex:1;
+                text-align:center;
+                font-size:13px;
+                padding:12px;
+            }
+
+            .contact-box{
+                width:100%;
+                align-items:flex-start;
+                margin-top:5px;
+            }
+
+            .hero img{
+                height:180px;
+            }
+        }
+
+    </style>
 </head>
 <body>
 
@@ -12,20 +157,23 @@
 <div class="top-bar">
     <div class="top-links">
 
-        <!-- Facilities / Companies Login -->
         <a href="companies/company-login.html" class="facility-login">
             Facility Login
         </a>
 
-        <!-- Driver / Staff Login -->
         <a href="login.html" class="staff-login">
             Staff Login
         </a>
 
-        <!-- 🔥 CONTACT INFO -->
-        <div style="margin-left:auto; color:#fff; font-size:14px;">
-            📧 admin@sunbeamtransportationllc.com &nbsp;&nbsp;
-            📞 619-509-7197
+        <!-- 🔥 CONTACT -->
+        <div class="contact-box">
+            <a href="mailto:admin@sunbeamtransportationllc.com">
+                📧 admin@sunbeamtransportationllc.com
+            </a>
+
+            <a href="tel:16195097197">
+                📞 619-509-7197
+            </a>
         </div>
 
     </div>
@@ -43,16 +191,15 @@
     <p>
         Sunbeam Transportation is a <strong>licensed</strong> and professional transportation company
         specializing in <strong>Non-Emergency Medical Transportation (NEMT)</strong>,
-        airport transfers, and private transportation services for individuals, clinics, and organizations.
+        airport transfers, and private transportation services.
     </p>
 
     <p>
-        We are committed to providing safe, reliable, and high-quality transportation solutions,
-        with a strong focus on comfort, punctuality, and professional service standards.
+        We provide safe, reliable, and high-quality rides with a strong focus on comfort and punctuality.
     </p>
 
-    <!-- 🔥 NEW: PHONE BOOKING -->
-    <p style="margin-top:15px; font-weight:bold;">
+    <!-- 🔥 PHONE BOOKING -->
+    <p class="phone-book">
         📞 You can book your trip directly by phone:<br>
         Call Customer Service: <span style="color:#2563eb;">619-509-7197</span>
     </p>
@@ -60,51 +207,44 @@
     <div class="instructions">
         <p>
             <strong>For Individual Riders:</strong><br>
-            Click <span class="highlight">Get Quote</span> to receive a price estimate and book your trip online.
+            Click <span class="highlight">Get Quote</span> to book your trip.
         </p>
 
         <p>
-            <strong>For Medical Facilities, Clinics, and Companies:</strong><br>
-            Please use <span class="highlight">Facility Login</span> to manage and book trips from inside the system.
+            <strong>For Facilities & Companies:</strong><br>
+            Use <span class="highlight">Facility Login</span>.
         </p>
     </div>
-</section>
-
-<!-- ================= GET QUOTE HEADER ================= -->
-<section class="quote-header">
-    <h2>Get Quote & Book Your Ride</h2>
-    <p>Select your service below to receive a price estimate and book your trip.</p>
 </section>
 
 <!-- ================= SERVICES ================= -->
 <section class="services">
 
     <div class="card">
-        <img src="assets/nemt.jpeg" alt="NEMT">
+        <img src="assets/nemt.jpeg">
         <h3>NEMT</h3>
-        <p>Medical appointments & clinics</p>
+        <p>Medical appointments</p>
         <a href="getquote/index.html" class="btn">Get Quote</a>
     </div>
 
     <div class="card">
-        <img src="assets/airport.jpeg" alt="Airport">
+        <img src="assets/airport.jpeg">
         <h3>Airport</h3>
-        <p>Airport pickup & drop-off</p>
+        <p>Pickup & drop-off</p>
         <a href="getquote/index.html" class="btn">Get Quote</a>
     </div>
 
     <div class="card">
-        <img src="assets/business.jpeg" alt="Business">
+        <img src="assets/business.jpeg">
         <h3>Business</h3>
-        <p>Corporate & private rides</p>
+        <p>Private rides</p>
         <a href="getquote/index.html" class="btn">Get Quote</a>
     </div>
 
 </section>
 
-<!-- ================= FOOTER ================= -->
 <footer>
-    ©️ Sunbeam Transportation
+    © Sunbeam Transportation
 </footer>
 
 </body>
