@@ -30,13 +30,66 @@ const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 /* =========================
-   MIDDLEWARE
+   MIDDLEWARE (FINAL CLEAN)
 ========================= */
-app.use(cors());
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-/* =========================
+app.use(cors());
+
+// 🔥 مهم: webhook قبل أي json
+app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  let event;
+
+  try {
+    const sig = req.headers["stripe-signature"];
+
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+  } catch (err) {
+    console.log("❌ Webhook Error:", err.message);
+    return res.sendStatus(400);
+  }
+
+  try {
+    if (event.type === "payment_intent.succeeded") {
+
+      const paymentIntent = event.data.object;
+      const tripId = paymentIntent.metadata?.tripId;
+
+      if (!tripId) return res.sendStatus(200);
+
+      const trip = await Trip.findById(tripId);
+      if (!trip) return res.sendStatus(200);
+
+      if (trip.status === "Paid") return res.sendStatus(200);
+
+      if (!trip.cancelToken) {
+        trip.cancelToken = crypto.randomBytes(32).toString("hex");
+      }
+
+      trip.status = "Paid";
+      trip.paymentIntentId = paymentIntent.id;
+      trip.dispatchSelected = true;
+
+      await trip.save();
+
+      console.log("✅ Trip Paid:", trip.tripNumber);
+    }
+
+    res.sendStatus(200);
+
+  } catch (err) {
+    console.log("🔥 Webhook Processing Error:", err);
+    res.sendStatus(500);
+  }
+});
+
+// ✅ باقي الميدل وير
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));/* =========================
    PUBLIC CONFIG - GOOGLE KEY
 ========================= */
 app.get("/api/config", (req, res) => {
@@ -1665,21 +1718,37 @@ app.get("/api/admin/live-drivers", (req, res) => {
 
 
 /* =========================
-   CREATE PAYMENT INTENT
+   CREATE PAYMENT INTENT (STABLE)
 ========================= */
 app.post("/api/create-payment-intent", async (req, res) => {
   try {
-    let { amount } = req.body;
+    const { tripId } = req.body;
 
-    // تحويل لـ رقم
-    amount = Number(amount);
+    // تحقق
+    if (!tripId) {
+      return res.status(400).json({ message: "Missing tripId" });
+    }
 
-    // validation
+    const trip = await Trip.findById(tripId);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // لو مدفوعة قبل كده
+    if (trip.paymentIntentId) {
+      return res.status(400).json({
+        message: "Payment already created"
+      });
+    }
+
+    const amount = Number(trip.priceAmount);
+
     if (!amount || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ message: "Invalid amount" });
     }
 
-    // إنشاء Payment Intent
+    // إنشاء الدفع (سحب فوري - زي سيستمك الحالي)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: "usd",
@@ -1689,17 +1758,21 @@ app.post("/api/create-payment-intent", async (req, res) => {
       },
 
       metadata: {
-        system: "sunbeam",
-        type: "individual_trip"
+        tripId: trip._id.toString()
       }
     });
+
+    // حفظ الربط
+    trip.paymentIntentId = paymentIntent.id;
+
+    await trip.save();
 
     res.json({
       clientSecret: paymentIntent.client_secret
     });
 
   } catch (err) {
-    console.log("🔥 Stripe Error:", err);
+    console.log("Stripe Error:", err);
     res.status(500).json({ message: "Payment error" });
   }
 });
@@ -2066,6 +2139,78 @@ app.get("/api/refunds", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Error loading refunds" });
+  }
+});
+
+/* =========================
+   STRIPE WEBHOOK (FINAL CLEAN 100%)
+========================= */
+app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  let event;
+
+  try {
+    const sig = req.headers["stripe-signature"];
+
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+  } catch (err) {
+    console.log("❌ Webhook Error:", err.message);
+    return res.sendStatus(400);
+  }
+
+  try {
+
+    // =========================
+    // 💳 PAYMENT SUCCESS
+    // =========================
+    if (event.type === "payment_intent.succeeded") {
+
+      const paymentIntent = event.data.object;
+
+      const tripId = paymentIntent.metadata?.tripId;
+
+      if (!tripId) {
+        console.log("❌ No tripId in metadata");
+        return res.sendStatus(200);
+      }
+
+      const trip = await Trip.findById(tripId);
+
+      if (!trip) {
+        console.log("❌ Trip not found");
+        return res.sendStatus(200);
+      }
+
+      // 🛑 منع التكرار
+      if (trip.status === "Paid") {
+        console.log("⚠️ Already Paid");
+        return res.sendStatus(200);
+      }
+
+      // 🔐 generate cancel token
+      if (!trip.cancelToken) {
+        trip.cancelToken = crypto.randomBytes(32).toString("hex");
+      }
+
+      // 💾 save payment
+      trip.status = "Paid";
+      trip.paymentIntentId = paymentIntent.id;
+      trip.dispatchSelected = true;
+
+      await trip.save();
+
+      console.log("✅ Trip Paid:", trip.tripNumber);
+    }
+
+    res.sendStatus(200);
+
+  } catch (err) {
+    console.log("🔥 Webhook Processing Error:", err);
+    res.sendStatus(500);
   }
 });
 
