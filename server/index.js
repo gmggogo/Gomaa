@@ -2185,8 +2185,8 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-  /* =========================
-   TRIP REMINDER (FIXED 100%)
+ /* =========================
+   TRIP REMINDER (FINAL FIXED 100%)
 ========================= */
 setInterval(async () => {
   try {
@@ -2196,7 +2196,6 @@ setInterval(async () => {
       new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
     );
 
-    // 🔥 الفلتر الصح
     const trips = await Trip.find({
       reminderSent: false,
       clientEmail: { $ne: "" },
@@ -2207,10 +2206,8 @@ setInterval(async () => {
 
       if (!trip.tripDate || !trip.tripTime) continue;
 
-     const tripTime = new Date(
-  new Date(`${trip.tripDate}T${trip.tripTime}:00`)
-    .toLocaleString("en-US", { timeZone: "America/Phoenix" })
-);
+      // ✅ FIX TIME (بدون T)
+      const tripTime = new Date(`${trip.tripDate} ${trip.tripTime}`);
 
       if (isNaN(tripTime.getTime())) continue;
 
@@ -2218,8 +2215,8 @@ setInterval(async () => {
 
       console.log("CHECK:", trip.tripNumber, diffMinutes);
 
-      // 🔥 buffer بدل ما تفوت اللحظة
-      if (diffMinutes <= 120 && diffMinutes > 100) {
+      // ✅ الحل النهائي (مش هيفوت)
+      if (diffMinutes <= 120 && diffMinutes > 0) {
 
         // 🔒 lock
         const locked = await Trip.findOneAndUpdate(
@@ -2261,7 +2258,6 @@ setInterval(async () => {
         } catch (err) {
           console.log("❌ Email error:", err.message);
         }
-
       }
     }
 
