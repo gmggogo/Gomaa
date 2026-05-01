@@ -1999,7 +1999,7 @@ app.post("/api/cancel-trip", async (req, res) => {
 
         if (refundAmount > 0) {
           refundSection = `
-            <p><b>Refund Amount:</b> $${refundAmount}</p>
+            <p><b>Refund Amount:</b> $${refundAmount.toFixed(2)}</p>
             <p><b>Refund ID:</b> ${simpleRefundId}</p>
             <p style="color:green;">
               Your refund is being processed.<br/>
