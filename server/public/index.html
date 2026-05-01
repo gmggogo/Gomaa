@@ -5,7 +5,7 @@
     <title>Sunbeam Transportation</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- 🔥 ICON -->
+    <!-- ICON -->
     <link rel="icon" href="assets/app-icon.png">
     <link rel="apple-touch-icon" href="assets/app-icon.png">
 
@@ -13,48 +13,27 @@
 
 <style>
 
-/* شيل التظليل الأزرق */
+/* شيل التظليل الأزرق فقط */
 .highlight{
     background:none !important;
     color:inherit;
     font-weight:bold;
 }
 
-/* ظبط الصورة */
-.hero{
-    width:100%;
-    max-width:1100px;
-    height:260px;
-    margin:20px auto;
-    overflow:hidden;
+/* زرار اللغة بشكل بسيط وشيك */
+.lang-switch{
+    position:absolute;
+    right:15px;
+    top:10px;
 }
 
-.hero img{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-}
-
-/* موبايل */
-@media(max-width:768px){
-    .hero{
-        height:180px;
-        margin:10px;
-    }
-}
-
-/* الحجز بالتليفون */
-.phone-book{
-    text-align:center;
-    margin:20px;
-    font-size:18px;
+.lang-switch button{
+    padding:6px 12px;
+    margin-left:5px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
     font-weight:bold;
-}
-
-/* الكاستومر */
-.contact{
-    text-align:center;
-    margin:20px;
 }
 
 </style>
@@ -66,7 +45,7 @@
 <div class="top-bar">
     <div class="top-links">
 
-        <a href="companies/company-login.html" class="facility-login">
+       <a href="companies/company-login.html" class="facility-login">
             Facility Login
         </a>
 
@@ -74,6 +53,12 @@
             Staff Login
         </a>
 
+    </div>
+
+    <!-- LANGUAGE -->
+    <div class="lang-switch">
+        <button onclick="setLang('en')">English</button>
+        <button onclick="setLang('es')">Spanish</button>
     </div>
 </div>
 
@@ -84,77 +69,99 @@
 
 <!-- ================= ABOUT ================= -->
 <section class="about">
-    <h2>About Sunbeam Transportation</h2>
+    <h2 data-en="About Sunbeam Transportation"
+        data-es="Sobre Sunbeam Transportation">
+        About Sunbeam Transportation
+    </h2>
 
-    <p>
-        Sunbeam Transportation is a <strong>licensed</strong> and professional transportation company
-        specializing in <strong>Non-Emergency Medical Transportation (NEMT)</strong>,
-        airport transfers, and private transportation services.
+    <p data-en="Sunbeam Transportation is a licensed and professional transportation company specializing in Non-Emergency Medical Transportation (NEMT), airport transfers, and private transportation services for individuals, clinics, and organizations."
+       data-es="Sunbeam Transportation es una empresa de transporte profesional con licencia, especializada en transporte médico no urgente (NEMT), traslados al aeropuerto y servicios privados.">
+        Sunbeam Transportation is a licensed and professional transportation company specializing in Non-Emergency Medical Transportation (NEMT), airport transfers, and private transportation services for individuals, clinics, and organizations.
     </p>
 
-    <p>
-        We are committed to providing safe, reliable, and high-quality transportation solutions.
+    <p data-en="We are committed to providing safe, reliable, and high-quality transportation solutions, with a strong focus on comfort, punctuality, and professional service standards."
+       data-es="Estamos comprometidos a brindar transporte seguro, confiable y de alta calidad, con enfoque en comodidad y puntualidad.">
+        We are committed to providing safe, reliable, and high-quality transportation solutions, with a strong focus on comfort, punctuality, and professional service standards.
     </p>
 
     <div class="instructions">
-        <p>
+        <p data-en="For Individual Riders: Click Get Quote to receive a price estimate and book your trip online."
+           data-es="Para pasajeros individuales: haga clic en Get Quote para obtener precio y reservar su viaje.">
             <strong>For Individual Riders:</strong><br>
-            Click <span class="highlight">Get Quote</span> to book your trip.
+            Click <span class="highlight">Get Quote</span> to receive a price estimate and book your trip online.
         </p>
 
-        <p>
-            <strong>For Companies:</strong><br>
-            Use <span class="highlight">Facility Login</span>.
+        <p data-en="For Medical Facilities, Clinics, and Companies: Please use Facility Login to manage and book trips from inside the system."
+           data-es="Para clínicas y empresas: use Facility Login para gestionar y reservar viajes.">
+            <strong>For Medical Facilities, Clinics, and Companies:</strong><br>
+            Please use <span class="highlight">Facility Login</span> to manage and book trips from inside the system.
         </p>
     </div>
 </section>
 
 <!-- ================= GET QUOTE HEADER ================= -->
 <section class="quote-header">
-    <h2>Get Quote & Book Your Ride</h2>
-    <p>Select your service below to book your trip.</p>
+    <h2 data-en="Get Quote & Book Your Ride"
+        data-es="Obtenga precio y reserve su viaje">
+        Get Quote & Book Your Ride
+    </h2>
+
+    <p data-en="Select your service below to receive a price estimate and book your trip."
+       data-es="Seleccione su servicio para obtener precio y reservar su viaje.">
+        Select your service below to receive a price estimate and book your trip.
+    </p>
 </section>
 
 <!-- ================= SERVICES ================= -->
 <section class="services">
 
     <div class="card">
-        <img src="assets/nemt.jpeg">
+        <img src="assets/nemt.jpeg" alt="NEMT">
         <h3>NEMT</h3>
-        <p>Medical appointments</p>
+        <p data-en="Medical appointments & clinics"
+           data-es="Citas médicas y clínicas">
+            Medical appointments & clinics
+        </p>
         <a href="getquote/index.html" class="btn">Get Quote</a>
     </div>
 
     <div class="card">
-        <img src="assets/airport.jpeg">
+        <img src="assets/airport.jpeg" alt="Airport">
         <h3>Airport</h3>
-        <p>Pickup & drop-off</p>
+        <p data-en="Airport pickup & drop-off"
+           data-es="Traslados al aeropuerto">
+            Airport pickup & drop-off
+        </p>
         <a href="getquote/index.html" class="btn">Get Quote</a>
     </div>
 
     <div class="card">
-        <img src="assets/business.jpeg">
+        <img src="assets/business.jpeg" alt="Business">
         <h3>Business</h3>
-        <p>Corporate rides</p>
+        <p data-en="Corporate & private rides"
+           data-es="Viajes corporativos y privados">
+            Corporate & private rides
+        </p>
         <a href="getquote/index.html" class="btn">Get Quote</a>
     </div>
 
 </section>
 
-<!-- الحجز بالتليفون -->
-<div class="phone-book">
-    📞 You can book your trip by phone: 619-509-7197
-</div>
-
-<!-- الكاستومر -->
-<div class="contact">
-    📧 admin@sunbeamtransportationllc.com
-</div>
-
 <!-- ================= FOOTER ================= -->
 <footer>
     ©️ Sunbeam Transportation
 </footer>
+
+<script>
+
+/* تغيير اللغة */
+function setLang(lang){
+    document.querySelectorAll("[data-en]").forEach(el=>{
+        el.innerText = el.getAttribute("data-" + lang);
+    });
+}
+
+</script>
 
 </body>
 </html>
