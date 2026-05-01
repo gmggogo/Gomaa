@@ -6,14 +6,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
 *{
   margin:0;
   padding:0;
   box-sizing:border-box;
+  font-family:Arial;
 }
 
 body{
-  font-family:Arial;
   background:#0f172a;
   color:#fff;
 }
@@ -23,7 +24,7 @@ body{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:10px 15px;
+  padding:12px 20px;
   background:#020617;
   flex-wrap:wrap;
 }
@@ -37,30 +38,48 @@ body{
 
 .contact{
   font-size:13px;
+  opacity:.8;
 }
 
 /* ================= HERO ================= */
 .hero{
-  height:220px;
-  background:url("assets/hero.jpeg") center/cover no-repeat;
+  position:relative;
+  height:260px;
+  overflow:hidden;
+}
+
+.hero img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.hero-overlay{
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,.6);
   display:flex;
   align-items:center;
   justify-content:center;
+  flex-direction:column;
   text-align:center;
-  padding:20px;
 }
 
-.hero h1{
-  font-size:28px;
+.hero-overlay h1{
+  font-size:32px;
 }
 
-.hero p{
+.hero-overlay p{
   font-size:14px;
+  opacity:.8;
 }
 
 /* ================= ABOUT ================= */
 .about{
-  padding:20px;
+  padding:25px;
   text-align:center;
 }
 
@@ -71,103 +90,92 @@ body{
 .about p{
   font-size:14px;
   line-height:1.6;
+  opacity:.85;
+}
+
+.instructions{
+  margin-top:15px;
+}
+
+/* ================= LANGUAGE ================= */
+.lang-switch{
+  margin-top:15px;
+}
+
+.lang-switch button{
+  padding:8px 14px;
+  margin:5px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  background:#1e293b;
+  color:#fff;
 }
 
 /* ================= SERVICES ================= */
 .services{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:15px;
-  padding:20px;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:20px;
+  padding:25px;
 }
 
 .card{
   background:#111827;
   border-radius:15px;
   overflow:hidden;
-  text-align:center;
-  padding-bottom:15px;
   transition:.3s;
 }
 
 .card:hover{
-  transform:translateY(-5px);
+  transform:translateY(-6px);
+  box-shadow:0 15px 40px rgba(0,0,0,.5);
 }
 
 .card img{
   width:100%;
-  height:140px;
+  height:160px;
   object-fit:cover;
 }
 
 .card h3{
-  margin:10px 0;
+  margin:10px;
 }
 
 .card p{
+  margin:0 10px 10px;
   font-size:13px;
-  margin-bottom:10px;
+  opacity:.8;
 }
 
 .btn{
-  display:inline-block;
-  padding:10px 15px;
+  display:block;
+  margin:10px;
+  padding:10px;
+  text-align:center;
   background:#2563eb;
   color:#fff;
   border-radius:8px;
   text-decoration:none;
-  font-size:14px;
-}
-
-/* ================= LANGUAGE ================= */
-.lang-switch{
-  text-align:center;
-  margin-top:10px;
-}
-
-.lang-switch button{
-  margin:5px;
-  padding:8px 12px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
 }
 
 /* ================= FOOTER ================= */
 footer{
   text-align:center;
-  padding:15px;
+  padding:20px;
   background:#020617;
   font-size:13px;
+  margin-top:20px;
 }
 
-/* ================= MOBILE FIX ================= */
-@media(max-width:600px){
-
-  .hero{
-    height:180px;
-  }
-
-  .hero h1{
-    font-size:22px;
-  }
-
-  .services{
-    padding:10px;
-  }
-
-  .card img{
-    height:120px;
-  }
-
-}
 </style>
 </head>
 
 <body>
 
-<!-- TOP BAR -->
+<!-- ================= TOP BAR ================= -->
 <div class="top-bar">
+
   <div class="top-links">
     <a href="companies/company-login.html">Facility Login</a>
     <a href="login.html">Staff Login</a>
@@ -176,31 +184,40 @@ footer{
   <div class="contact">
     📧 admin@sunbeamtransportationllc.com | 📞 619-509-7197
   </div>
+
 </div>
 
-<!-- HERO -->
+<!-- ================= HERO ================= -->
 <section class="hero">
-  <div>
+  <img src="assets/hero.jpeg">
+  <div class="hero-overlay">
     <h1 id="title">Sunbeam Transportation</h1>
     <p id="subtitle">Safe • Reliable • Professional</p>
   </div>
 </section>
 
-<!-- ABOUT -->
+<!-- ================= ABOUT ================= -->
 <section class="about">
-  <h2 id="aboutTitle">About Us</h2>
+
+  <h2 id="aboutTitle">About Sunbeam Transportation</h2>
 
   <p id="aboutText">
     Professional transportation for medical appointments, airport rides, and private services.
   </p>
 
+  <div class="instructions">
+    <p id="inst1"><strong>For Individual Riders:</strong> Get Quote to book your trip.</p>
+    <p id="inst2"><strong>For Facilities:</strong> Use Facility Login to manage trips.</p>
+  </div>
+
   <div class="lang-switch">
     <button onclick="setLang('en')">English</button>
     <button onclick="setLang('es')">Español</button>
   </div>
+
 </section>
 
-<!-- SERVICES -->
+<!-- ================= SERVICES ================= -->
 <section class="services">
 
   <div class="card">
@@ -226,7 +243,7 @@ footer{
 
 </section>
 
-<!-- FOOTER -->
+<!-- ================= FOOTER ================= -->
 <footer>
   © Sunbeam Transportation
 </footer>
@@ -238,6 +255,8 @@ function setLang(lang){
     document.getElementById("subtitle").innerText="Seguro • Confiable • Profesional";
     document.getElementById("aboutTitle").innerText="Sobre Nosotros";
     document.getElementById("aboutText").innerText="Transporte profesional para citas médicas, aeropuerto y servicios privados.";
+    document.getElementById("inst1").innerText="Para clientes: obtén precio y reserva tu viaje.";
+    document.getElementById("inst2").innerText="Para empresas: usa el portal.";
 
     document.getElementById("nemtTitle").innerText="Transporte Médico";
     document.getElementById("nemtDesc").innerText="Citas médicas y clínicas";
@@ -251,8 +270,10 @@ function setLang(lang){
   }else{
 
     document.getElementById("subtitle").innerText="Safe • Reliable • Professional";
-    document.getElementById("aboutTitle").innerText="About Us";
+    document.getElementById("aboutTitle").innerText="About Sunbeam Transportation";
     document.getElementById("aboutText").innerText="Professional transportation for medical appointments, airport rides, and private services.";
+    document.getElementById("inst1").innerText="For riders: Get Quote to book your trip.";
+    document.getElementById("inst2").innerText="For companies: Use Facility Login.";
 
     document.getElementById("nemtTitle").innerText="Non-Medical Transportation";
     document.getElementById("nemtDesc").innerText="Medical appointments & clinics";
