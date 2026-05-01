@@ -133,7 +133,6 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-
   /* =========================
    TRIP MODEL (FINAL PRO VERSION)
 ========================= */
@@ -185,7 +184,7 @@ const tripSchema = new mongoose.Schema({
 
   // 💰 REFUND SYSTEM
   refundId: { type: String, default: "" },
-  simpleRefundId: { type: String, default: "" }, // 🔥 مهم
+  simpleRefundId: { type: String, default: "" },
   refundAmount: { type: Number, default: 0 },
   cancelFee: { type: Number, default: 0 },
 
@@ -219,11 +218,13 @@ const tripSchema = new mongoose.Schema({
 
   status: { type: String, default: "Scheduled" },
 
+  // 🔥 الجديد (مهم جدا)
+  reminderSent: { type: Boolean, default: false },
+
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 
 }, { minimize: false });
-
 /* =========================
    INDEXES
 ========================= */
@@ -1797,7 +1798,6 @@ app.post("/api/payment-success", async (req, res) => {
     // =========================
     // 🔐 CREATE CANCEL TOKEN
     // =========================
-    const crypto = require("crypto");
 
     if (!trip.cancelToken) {
       trip.cancelToken = crypto.randomBytes(32).toString("hex");
@@ -1892,7 +1892,7 @@ app.post("/api/payment-success", async (req, res) => {
   }
 });
 
-  /* =========================
+ /* =========================
    CANCEL TRIP + REFUND (FINAL FIXED)
 ========================= */
 app.post("/api/cancel-trip", async (req, res) => {
@@ -1928,7 +1928,18 @@ app.post("/api/cancel-trip", async (req, res) => {
     }
 
     const now = getArizonaNow();
-    const tripTime = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+
+    // 🔥 FIX TIMEZONE (أهم تعديل)
+    const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+
+    const tripTime = new Date(
+      tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
+    );
+
+    if (isNaN(tripTime.getTime())) {
+      return res.status(400).json({ message: "Invalid trip time" });
+    }
+
     const diffMinutes = (tripTime - now) / 60000;
 
     const totalAmount = Number(trip.priceAmount || 0);
@@ -2073,11 +2084,11 @@ app.post("/api/cancel-trip", async (req, res) => {
 }); // 🔥🔥🔥 مهم جدًا
 
 /* =========================
-   CHECK CANCEL TOKEN (FINAL FIX)
+   CHECK CANCEL TOKEN (FINAL FIX - TIME SAFE)
 ========================= */
 app.post("/api/cancel-trip-check", async (req, res) => {
   try {
-    // 🔥 يدعم POST + GET مع بعض
+
     const token = req.body?.token || req.query?.token;
 
     if (!token) {
@@ -2097,11 +2108,36 @@ app.post("/api/cancel-trip-check", async (req, res) => {
 
     let fee = 0;
 
-    // 🛑 حماية لو التاريخ ناقص
     if (trip.tripDate && trip.tripTime) {
-      const tripTime = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
-      const diffMinutes = (tripTime - now) / 60000;
 
+      // 🔥 FIX TIMEZONE
+      const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+
+      const tripTime = new Date(
+        tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
+      );
+
+      if (isNaN(tripTime.getTime())) {
+        return res.status(400).json({ message: "Invalid trip time" });
+      }
+
+      const diffMinutes = (tripTime - now) / 60000;
+if (diffMinutes <= 1) {
+  return res.status(400).json({
+    message: "Trip already started or expired"
+  });
+}
+
+      // 🔴 لو الرحلة فاتت → الكنسلة مقفولة
+      if (diffMinutes <= 0) {
+        return res.json({
+          success: false,
+          expired: true,
+          message: "Trip already started or expired"
+        });
+      }
+
+      // ⏰ أقل من ساعتين → في fee
       if (diffMinutes <= 120) {
         fee = 15;
       }
@@ -2143,83 +2179,95 @@ app.get("/api/refunds", async (req, res) => {
 });
 
 /* =========================
-   STRIPE WEBHOOK (FINAL CLEAN 100%)
-========================= */
-app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  let event;
-
-  try {
-    const sig = req.headers["stripe-signature"];
-
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-
-  } catch (err) {
-    console.log("❌ Webhook Error:", err.message);
-    return res.sendStatus(400);
-  }
-
-  try {
-
-    // =========================
-    // 💳 PAYMENT SUCCESS
-    // =========================
-    if (event.type === "payment_intent.succeeded") {
-
-      const paymentIntent = event.data.object;
-
-      const tripId = paymentIntent.metadata?.tripId;
-
-      if (!tripId) {
-        console.log("❌ No tripId in metadata");
-        return res.sendStatus(200);
-      }
-
-      const trip = await Trip.findById(tripId);
-
-      if (!trip) {
-        console.log("❌ Trip not found");
-        return res.sendStatus(200);
-      }
-
-      // 🛑 منع التكرار
-      if (trip.status === "Paid") {
-        console.log("⚠️ Already Paid");
-        return res.sendStatus(200);
-      }
-
-      // 🔐 generate cancel token
-      if (!trip.cancelToken) {
-        trip.cancelToken = crypto.randomBytes(32).toString("hex");
-      }
-
-      // 💾 save payment
-      trip.status = "Paid";
-      trip.paymentIntentId = paymentIntent.id;
-      trip.dispatchSelected = true;
-
-      await trip.save();
-
-      console.log("✅ Trip Paid:", trip.tripNumber);
-    }
-
-    res.sendStatus(200);
-
-  } catch (err) {
-    console.log("🔥 Webhook Processing Error:", err);
-    res.sendStatus(500);
-  }
-});
-
-/* =========================
    ROOT
 ========================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
+  /* =========================
+   TRIP REMINDER (2 HOURS BEFORE) - FINAL PRODUCTION
+========================= */
+setInterval(async () => {
+  try {
+
+    // ⏰ Arizona Time
+    const now = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+    );
+
+    // 🔍 هات الرحلات اللي محتاجة Reminder
+    const trips = await Trip.find({
+      status: { $in: ["Scheduled", "Booked", "Paid"] },
+      reminderSent: false,
+      clientEmail: { $ne: "" }
+    });
+
+    for (const trip of trips) {
+
+      // 🛑 حماية بيانات
+      if (!trip.tripDate || !trip.tripTime) continue;
+      if (!trip.clientEmail) continue;
+
+      // ⏰ وقت الرحلة
+      const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+
+      const tripTime = new Date(
+        tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
+      );
+
+      if (isNaN(tripTime.getTime())) continue;
+
+      const diffMinutes = (tripTime - now) / 60000;
+
+      // ⏰ قبل الرحلة بـ 2 ساعة
+      if (diffMinutes <= 120 && diffMinutes > 0) {
+
+        // 🔥 LOCK (يمنع التكرار حتى لو السيرفر ضرب)
+        const locked = await Trip.findOneAndUpdate(
+          { _id: trip._id, reminderSent: false },
+          { reminderSent: true },
+          { new: true }
+        );
+
+        // لو حد تاني سبقك
+        if (!locked) continue;
+
+        // 📧 ابعت الإيميل
+        transporter.sendMail({
+          from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
+          to: trip.clientEmail,
+          subject: "Trip Reminder ⏰",
+          html: `
+            <h2>Reminder 🚗</h2>
+            <p>Your trip is in less than 2 hours.</p>
+
+            <hr/>
+
+            <p><b>Trip #:</b> ${trip.tripNumber}</p>
+            <p><b>Pickup:</b> ${trip.pickup}</p>
+            <p><b>Dropoff:</b> ${trip.dropoff}</p>
+            <p><b>Date:</b> ${trip.tripDate}</p>
+            <p><b>Time:</b> ${trip.tripTime}</p>
+
+            <hr/>
+
+            <p>Sunbeam Transportation 🚗</p>
+          `
+        }).then(() => {
+          console.log("⏰ Reminder sent:", trip.tripNumber);
+        }).catch(err => {
+          console.log("❌ Email error:", err.message);
+        });
+
+      }
+    }
+
+  } catch (err) {
+    console.log("🔥 Reminder error:", err.message);
+  }
+
+}, 60000);
 
 /* =========================
    START SERVER
