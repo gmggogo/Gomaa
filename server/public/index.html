@@ -12,20 +12,49 @@
 
 /* ================= BODY ================= */
 body{
-    background:#0f172a;
-    color:#fff;
     margin:0;
     font-family:Arial, sans-serif;
+    background:linear-gradient(180deg,#0f172a,#111827);
+    color:#f1f5f9;
+}
+
+/* ================= TOP BAR ================= */
+.top-bar{
+    background:#020617;
+    padding:10px 15px;
+}
+
+.top-links{
+    display:flex;
+    gap:10px;
+}
+
+.top-links a{
+    padding:8px 14px;
+    border-radius:6px;
+    text-decoration:none;
+    font-weight:bold;
+    color:#fff;
+}
+
+.top-links a:first-child{
+    background:#facc15;
+    color:#000;
+}
+
+.top-links a:last-child{
+    background:#16a34a;
 }
 
 /* ================= HERO ================= */
 .hero{
     width:100%;
     max-width:1100px;
-    height:250px;
+    height:320px;
     margin:20px auto;
-    border-radius:12px;
+    border-radius:14px;
     overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
 
 .hero img{
@@ -37,35 +66,42 @@ body{
 /* ================= ABOUT ================= */
 .about{
     text-align:center;
-    padding:30px 20px;
+    padding:20px;
 }
 
 .about h2{
+    font-size:34px;
     color:#facc15;
     margin-bottom:10px;
 }
 
 .about p{
-    color:#e5e7eb;
-    max-width:700px;
+    max-width:650px;
     margin:10px auto;
+    line-height:1.6;
+    color:#cbd5e1;
 }
 
 /* ================= SERVICES ================= */
 .services{
     display:flex;
-    flex-wrap:wrap;
     justify-content:center;
+    flex-wrap:wrap;
     gap:20px;
     padding:20px;
 }
 
 .card{
     width:300px;
-    background:#1e293b;
-    border-radius:12px;
+    background:#1f2937;
+    border-radius:14px;
     overflow:hidden;
-    text-align:center;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+    transition:0.3s;
+}
+
+.card:hover{
+    transform:translateY(-5px);
 }
 
 .card img{
@@ -74,45 +110,67 @@ body{
     object-fit:cover;
 }
 
+.card h3{
+    margin:10px;
+    color:#facc15;
+}
+
+.card p{
+    color:#cbd5e1;
+}
+
 /* ================= BUTTON ================= */
 .btn{
     display:inline-block;
+    margin:10px;
+    padding:10px 20px;
     background:#facc15;
     color:#000;
-    padding:10px 20px;
-    margin:10px 0;
     border-radius:6px;
     text-decoration:none;
     font-weight:bold;
 }
 
-/* ================= PHONE BOOK ================= */
+/* ================= PHONE ================= */
 .phone-booking{
     text-align:center;
     margin:20px;
     font-size:18px;
     font-weight:bold;
+    color:#facc15;
 }
 
 /* ================= CUSTOMER ================= */
 .contact-box{
-    background:#1e293b;
+    background:#1f2937;
     padding:20px;
-    border-radius:12px;
-    max-width:600px;
+    border-radius:14px;
+    max-width:500px;
     margin:20px auto;
     text-align:center;
+    box-shadow:0 5px 15px rgba(0,0,0,0.4);
 }
 
 .contact-box h3{
     color:#facc15;
 }
 
+.contact-box p{
+    margin:8px 0;
+}
+
+/* ================= FOOTER ================= */
+footer{
+    text-align:center;
+    padding:15px;
+    color:#9ca3af;
+}
+
 /* ================= MOBILE ================= */
 @media(max-width:768px){
 
     .hero{
-        height:180px;
+        height:200px;
         margin:10px;
     }
 
@@ -127,13 +185,11 @@ body{
 </head>
 <body>
 
-<!-- TOP BAR -->
+<!-- TOP -->
 <div class="top-bar">
     <div class="top-links">
-
         <a href="companies/company-login.html">Facility Login</a>
         <a href="login.html">Staff Login</a>
-
     </div>
 </div>
 
@@ -181,9 +237,9 @@ body{
 
 </section>
 
-<!-- PHONE BOOK -->
+<!-- PHONE -->
 <div class="phone-booking">
-    📞 Book by phone: 619-509-7197
+    📞 You can book your trip by phone: 619-509-7197
 </div>
 
 <!-- CUSTOMER -->
@@ -193,7 +249,7 @@ body{
     <p>📧 admin@sunbeamtransportationllc.com</p>
 </div>
 
-<footer style="text-align:center; padding:15px;">
+<footer>
     © Sunbeam Transportation
 </footer>
 
