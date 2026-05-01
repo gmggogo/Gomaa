@@ -1,60 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Sunbeam Transportation</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>Sunbeam Transportation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="icon" href="assets/app-icon.png">
-<link rel="stylesheet" href="style.css">
+    <!-- 🔥 ICON -->
+    <link rel="icon" href="assets/app-icon.png">
+    <link rel="apple-touch-icon" href="assets/app-icon.png">
+
+    <link rel="stylesheet" href="style.css">
 
 <style>
 
-/* ================= BODY ================= */
-body{
-    margin:0;
-    font-family:Arial, sans-serif;
-    background:linear-gradient(180deg,#0f172a,#111827);
-    color:#f1f5f9;
-}
-
-/* ================= TOP BAR ================= */
-.top-bar{
-    background:#020617;
-    padding:10px 15px;
-}
-
-.top-links{
-    display:flex;
-    gap:10px;
-}
-
-.top-links a{
-    padding:8px 14px;
-    border-radius:6px;
-    text-decoration:none;
+/* شيل التظليل الأزرق */
+.highlight{
+    background:none !important;
+    color:inherit;
     font-weight:bold;
-    color:#fff;
 }
 
-.top-links a:first-child{
-    background:#facc15;
-    color:#000;
-}
-
-.top-links a:last-child{
-    background:#16a34a;
-}
-
-/* ================= HERO ================= */
+/* ظبط الصورة */
 .hero{
     width:100%;
     max-width:1100px;
-    height:320px;
+    height:260px;
     margin:20px auto;
-    border-radius:14px;
     overflow:hidden;
-    box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
 
 .hero img{
@@ -63,121 +35,26 @@ body{
     object-fit:cover;
 }
 
-/* ================= ABOUT ================= */
-.about{
-    text-align:center;
-    padding:20px;
+/* موبايل */
+@media(max-width:768px){
+    .hero{
+        height:180px;
+        margin:10px;
+    }
 }
 
-.about h2{
-    font-size:34px;
-    color:#facc15;
-    margin-bottom:10px;
-}
-
-.about p{
-    max-width:650px;
-    margin:10px auto;
-    line-height:1.6;
-    color:#cbd5e1;
-}
-
-/* ================= SERVICES ================= */
-.services{
-    display:flex;
-    justify-content:center;
-    flex-wrap:wrap;
-    gap:20px;
-    padding:20px;
-}
-
-.card{
-    width:300px;
-    background:#1f2937;
-    border-radius:14px;
-    overflow:hidden;
-    box-shadow:0 6px 20px rgba(0,0,0,0.4);
-    transition:0.3s;
-}
-
-.card:hover{
-    transform:translateY(-5px);
-}
-
-.card img{
-    width:100%;
-    height:180px;
-    object-fit:cover;
-}
-
-.card h3{
-    margin:10px;
-    color:#facc15;
-}
-
-.card p{
-    color:#cbd5e1;
-}
-
-/* ================= BUTTON ================= */
-.btn{
-    display:inline-block;
-    margin:10px;
-    padding:10px 20px;
-    background:#facc15;
-    color:#000;
-    border-radius:6px;
-    text-decoration:none;
-    font-weight:bold;
-}
-
-/* ================= PHONE ================= */
-.phone-booking{
+/* الحجز بالتليفون */
+.phone-book{
     text-align:center;
     margin:20px;
     font-size:18px;
     font-weight:bold;
-    color:#facc15;
 }
 
-/* ================= CUSTOMER ================= */
-.contact-box{
-    background:#1f2937;
-    padding:20px;
-    border-radius:14px;
-    max-width:500px;
-    margin:20px auto;
+/* الكاستومر */
+.contact{
     text-align:center;
-    box-shadow:0 5px 15px rgba(0,0,0,0.4);
-}
-
-.contact-box h3{
-    color:#facc15;
-}
-
-.contact-box p{
-    margin:8px 0;
-}
-
-/* ================= FOOTER ================= */
-footer{
-    text-align:center;
-    padding:15px;
-    color:#9ca3af;
-}
-
-/* ================= MOBILE ================= */
-@media(max-width:768px){
-
-    .hero{
-        height:200px;
-        margin:10px;
-    }
-
-    .card{
-        width:90%;
-    }
-
+    margin:20px;
 }
 
 </style>
@@ -185,33 +62,60 @@ footer{
 </head>
 <body>
 
-<!-- TOP -->
+<!-- ================= TOP BAR ================= -->
 <div class="top-bar">
     <div class="top-links">
-        <a href="companies/company-login.html">Facility Login</a>
-        <a href="login.html">Staff Login</a>
+
+        <a href="companies/company-login.html" class="facility-login">
+            Facility Login
+        </a>
+
+        <a href="login.html" class="staff-login">
+            Staff Login
+        </a>
+
     </div>
 </div>
 
-<!-- HERO -->
+<!-- ================= HERO ================= -->
 <section class="hero">
-    <img src="assets/hero.jpeg">
+    <img src="assets/hero.jpeg" alt="Sunbeam Transportation">
 </section>
 
-<!-- ABOUT -->
+<!-- ================= ABOUT ================= -->
 <section class="about">
     <h2>About Sunbeam Transportation</h2>
 
     <p>
-        Sunbeam Transportation is a licensed and professional transportation company specializing in Non-Emergency Medical Transportation (NEMT).
+        Sunbeam Transportation is a <strong>licensed</strong> and professional transportation company
+        specializing in <strong>Non-Emergency Medical Transportation (NEMT)</strong>,
+        airport transfers, and private transportation services.
     </p>
 
     <p>
-        We provide safe, reliable, and high-quality transportation services.
+        We are committed to providing safe, reliable, and high-quality transportation solutions.
     </p>
+
+    <div class="instructions">
+        <p>
+            <strong>For Individual Riders:</strong><br>
+            Click <span class="highlight">Get Quote</span> to book your trip.
+        </p>
+
+        <p>
+            <strong>For Companies:</strong><br>
+            Use <span class="highlight">Facility Login</span>.
+        </p>
+    </div>
 </section>
 
-<!-- SERVICES -->
+<!-- ================= GET QUOTE HEADER ================= -->
+<section class="quote-header">
+    <h2>Get Quote & Book Your Ride</h2>
+    <p>Select your service below to book your trip.</p>
+</section>
+
+<!-- ================= SERVICES ================= -->
 <section class="services">
 
     <div class="card">
@@ -237,20 +141,19 @@ footer{
 
 </section>
 
-<!-- PHONE -->
-<div class="phone-booking">
+<!-- الحجز بالتليفون -->
+<div class="phone-book">
     📞 You can book your trip by phone: 619-509-7197
 </div>
 
-<!-- CUSTOMER -->
-<div class="contact-box">
-    <h3>Customer Support</h3>
-    <p>📞 619-509-7197</p>
-    <p>📧 admin@sunbeamtransportationllc.com</p>
+<!-- الكاستومر -->
+<div class="contact">
+    📧 admin@sunbeamtransportationllc.com
 </div>
 
+<!-- ================= FOOTER ================= -->
 <footer>
-    © Sunbeam Transportation
+    ©️ Sunbeam Transportation
 </footer>
 
 </body>
