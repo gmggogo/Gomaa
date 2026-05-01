@@ -2207,11 +2207,10 @@ setInterval(async () => {
 
       if (!trip.tripDate || !trip.tripTime) continue;
 
-      const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
-
-      const tripTime = new Date(
-        tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
-      );
+     const tripTime = new Date(
+  new Date(`${trip.tripDate}T${trip.tripTime}:00`)
+    .toLocaleString("en-US", { timeZone: "America/Phoenix" })
+);
 
       if (isNaN(tripTime.getTime())) continue;
 
