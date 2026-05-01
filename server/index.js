@@ -2186,7 +2186,7 @@ app.get("/", (req, res) => {
 });
 
   /* =========================
-   TRIP REMINDER (2 HOURS BEFORE) - FINAL PRODUCTION
+   TRIP REMINDER (FIXED 100%)
 ========================= */
 setInterval(async () => {
   try {
@@ -2196,20 +2196,17 @@ setInterval(async () => {
       new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
     );
 
-    // 🔍 هات الرحلات اللي محتاجة Reminder
+    // 🔥 الفلتر الصح
     const trips = await Trip.find({
-      status: { $in: ["Scheduled", "Booked", "Paid"] },
       reminderSent: false,
-      clientEmail: { $ne: "" }
+      clientEmail: { $ne: "" },
+      status: { $ne: "Cancelled" }
     });
 
     for (const trip of trips) {
 
-      // 🛑 حماية بيانات
       if (!trip.tripDate || !trip.tripTime) continue;
-      if (!trip.clientEmail) continue;
 
-      // ⏰ وقت الرحلة
       const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
 
       const tripTime = new Date(
@@ -2220,45 +2217,51 @@ setInterval(async () => {
 
       const diffMinutes = (tripTime - now) / 60000;
 
-      // ⏰ قبل الرحلة بـ 2 ساعة
-      if (diffMinutes <= 120 && diffMinutes > 0) {
+      console.log("CHECK:", trip.tripNumber, diffMinutes);
 
-        // 🔥 LOCK (يمنع التكرار حتى لو السيرفر ضرب)
+      // 🔥 buffer بدل ما تفوت اللحظة
+      if (diffMinutes <= 120 && diffMinutes > 100) {
+
+        // 🔒 lock
         const locked = await Trip.findOneAndUpdate(
           { _id: trip._id, reminderSent: false },
           { reminderSent: true },
           { new: true }
         );
 
-        // لو حد تاني سبقك
         if (!locked) continue;
 
-        // 📧 ابعت الإيميل
-        transporter.sendMail({
-          from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
-          to: trip.clientEmail,
-          subject: "Trip Reminder ⏰",
-          html: `
-            <h2>Reminder 🚗</h2>
-            <p>Your trip is in less than 2 hours.</p>
+        console.log("🔥 SENDING REMINDER:", trip.tripNumber);
 
-            <hr/>
+        try {
 
-            <p><b>Trip #:</b> ${trip.tripNumber}</p>
-            <p><b>Pickup:</b> ${trip.pickup}</p>
-            <p><b>Dropoff:</b> ${trip.dropoff}</p>
-            <p><b>Date:</b> ${trip.tripDate}</p>
-            <p><b>Time:</b> ${trip.tripTime}</p>
+          await transporter.sendMail({
+            from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
+            to: trip.clientEmail,
+            subject: "Trip Reminder ⏰",
+            html: `
+              <h2>Reminder 🚗</h2>
+              <p>Your trip is in less than 2 hours.</p>
 
-            <hr/>
+              <hr/>
 
-            <p>Sunbeam Transportation 🚗</p>
-          `
-        }).then(() => {
-          console.log("⏰ Reminder sent:", trip.tripNumber);
-        }).catch(err => {
+              <p><b>Trip #:</b> ${trip.tripNumber}</p>
+              <p><b>Pickup:</b> ${trip.pickup}</p>
+              <p><b>Dropoff:</b> ${trip.dropoff}</p>
+              <p><b>Date:</b> ${trip.tripDate}</p>
+              <p><b>Time:</b> ${trip.tripTime}</p>
+
+              <hr/>
+
+              <p>Sunbeam Transportation 🚗</p>
+            `
+          });
+
+          console.log("✅ Reminder sent:", trip.tripNumber);
+
+        } catch (err) {
           console.log("❌ Email error:", err.message);
-        });
+        }
 
       }
     }
