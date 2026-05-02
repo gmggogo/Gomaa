@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", function(){
 
-/* ============================= */
-/* AUTH CHECK */
-/* ============================= */
+/* =============================
+   AUTH CHECK
+============================= */
 
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
@@ -13,9 +13,9 @@ if (!token || role !== "company") {
   return;
 }
 
-/* ============================= */
-/* TABS */
-/* ============================= */
+/* =============================
+   TABS
+============================= */
 
 const tabIndividual = document.getElementById("tabIndividual");
 const tabShared = document.getElementById("tabShared");
@@ -46,9 +46,9 @@ if(tabIndividual && tabShared && individualSection && sharedSection){
   });
 }
 
-/* ============================= */
-/* ELEMENTS */
-/* ============================= */
+/* =============================
+   ELEMENTS
+============================= */
 
 const entryName   = document.getElementById("entryName");
 const entryPhone  = document.getElementById("entryPhone");
@@ -74,6 +74,8 @@ const submitTripBtn = document.getElementById("submitTrip");
 
 const sharedEntryName  = document.getElementById("sharedEntryName");
 const sharedEntryPhone = document.getElementById("sharedEntryPhone");
+const editSharedEntry  = document.getElementById("editSharedEntry");
+
 const passengerCount   = document.getElementById("passengerCount");
 const sharedDate       = document.getElementById("sharedDate");
 const sharedTime       = document.getElementById("sharedTime");
@@ -82,15 +84,16 @@ const passengersContainer = document.getElementById("passengersContainer");
 const saveSharedBtn = document.getElementById("saveShared");
 const submitSharedBtn = document.getElementById("submitShared");
 
-/* ============================= */
-/* STATE */
-/* ============================= */
+/* =============================
+   STATE
+============================= */
 
 let stopCounter = 0;
+let googleLoadPromise = null;
 
-/* ============================= */
-/* HELPERS */
-/* ============================= */
+/* =============================
+   HELPERS
+============================= */
 
 function getArizonaNow(){
   return new Date(
@@ -106,24 +109,78 @@ function showAlert(msg){
   alert(msg);
 }
 
+function escapeAttr(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function normalizeAZ(address){
   const value = normalizeText(address);
   const lower = value.toLowerCase();
 
-  if(lower.includes(" az") || lower.includes(",az") || lower.includes("arizona")){
+  if(
+    lower.includes(" az") ||
+    lower.includes(",az") ||
+    lower.includes("arizona")
+  ){
     return value;
   }
 
   return value + ", AZ, USA";
 }
 
-function geocodeAddress(address){
-  return new Promise((resolve, reject) => {
-    if(!window.google || !google.maps || !google.maps.Geocoder){
-      reject("Google Maps is not loaded.");
-      return;
-    }
+/* =============================
+   LOAD GOOGLE FROM RENDER CONFIG
+============================= */
 
+function ensureGoogleLoaded(){
+  if(window.google && google.maps && google.maps.Geocoder){
+    return Promise.resolve();
+  }
+
+  if(googleLoadPromise){
+    return googleLoadPromise;
+  }
+
+  googleLoadPromise = new Promise(async (resolve, reject) => {
+    try{
+      const res = await fetch("/api/config");
+
+      if(!res.ok){
+        reject(new Error("Google config not found."));
+        return;
+      }
+
+      const data = await res.json();
+
+      if(!data.googleKey){
+        reject(new Error("Google key missing from server config."));
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+      script.async = true;
+
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Google Maps failed to load."));
+
+      document.head.appendChild(script);
+    }catch(err){
+      reject(err);
+    }
+  });
+
+  return googleLoadPromise;
+}
+
+async function geocodeAddress(address){
+  await ensureGoogleLoaded();
+
+  return new Promise((resolve, reject) => {
     const geocoder = new google.maps.Geocoder();
 
     geocoder.geocode(
@@ -141,7 +198,7 @@ function geocodeAddress(address){
             lng: loc.lng()
           });
         }else{
-          reject("Address not found: " + address);
+          reject(new Error("Address not found: " + address));
         }
       }
     );
@@ -201,20 +258,38 @@ function loadEntry(){
     entryPhone.value = saved.phone || "";
     entryName.disabled = true;
     entryPhone.disabled = true;
+
     if(editEntry) editEntry.textContent = "Edit";
 
-    if(sharedEntryName) sharedEntryName.value = saved.name || "";
-    if(sharedEntryPhone) sharedEntryPhone.value = saved.phone || "";
+    if(sharedEntryName){
+      sharedEntryName.value = saved.name || "";
+      sharedEntryName.disabled = true;
+    }
+
+    if(sharedEntryPhone){
+      sharedEntryPhone.value = saved.phone || "";
+      sharedEntryPhone.disabled = true;
+    }
+
+    if(editSharedEntry){
+      editSharedEntry.textContent = "Edit";
+    }
+
   }else{
     entryName.disabled = false;
     entryPhone.disabled = false;
+
     if(editEntry) editEntry.textContent = "Save";
+
+    if(sharedEntryName) sharedEntryName.disabled = false;
+    if(sharedEntryPhone) sharedEntryPhone.disabled = false;
+    if(editSharedEntry) editSharedEntry.textContent = "Save";
   }
 }
 
-/* ============================= */
-/* ENTRY EDIT / SAVE */
-/* ============================= */
+/* =============================
+   ENTRY EDIT / SAVE
+============================= */
 
 if(editEntry){
   editEntry.addEventListener("click", function(){
@@ -226,8 +301,19 @@ if(editEntry){
     }else{
       saveEntryInfo();
 
-      if(sharedEntryName) sharedEntryName.value = entryName.value;
-      if(sharedEntryPhone) sharedEntryPhone.value = entryPhone.value;
+      if(sharedEntryName){
+        sharedEntryName.value = entryName.value;
+        sharedEntryName.disabled = true;
+      }
+
+      if(sharedEntryPhone){
+        sharedEntryPhone.value = entryPhone.value;
+        sharedEntryPhone.disabled = true;
+      }
+
+      if(editSharedEntry){
+        editSharedEntry.textContent = "Edit";
+      }
 
       entryName.disabled = true;
       entryPhone.disabled = true;
@@ -239,9 +325,39 @@ if(editEntry){
   });
 }
 
-/* ============================= */
-/* STOPS */
-/* ============================= */
+if(editSharedEntry){
+  editSharedEntry.addEventListener("click", function(){
+
+    if(sharedEntryName.disabled){
+      sharedEntryName.disabled = false;
+      sharedEntryPhone.disabled = false;
+      editSharedEntry.textContent = "Save";
+    }else{
+      localStorage.setItem("entryInfo", JSON.stringify({
+        name: sharedEntryName.value,
+        phone: sharedEntryPhone.value
+      }));
+
+      entryName.value = sharedEntryName.value;
+      entryPhone.value = sharedEntryPhone.value;
+
+      entryName.disabled = true;
+      entryPhone.disabled = true;
+      if(editEntry) editEntry.textContent = "Edit";
+
+      sharedEntryName.disabled = true;
+      sharedEntryPhone.disabled = true;
+      editSharedEntry.textContent = "Edit";
+
+      showAlert("Entry information saved ✔");
+    }
+
+  });
+}
+
+/* =============================
+   STOPS
+============================= */
 
 function createStopInput(value = ""){
   const currentStops = stopsBox.querySelectorAll(".stop-input").length;
@@ -286,9 +402,9 @@ if(addStopBtn){
   });
 }
 
-/* ============================= */
-/* TIME VALIDATION */
-/* ============================= */
+/* =============================
+   TIME VALIDATION
+============================= */
 
 function validateFutureTime(dateValue, timeValue){
   if(!dateValue || !timeValue){
@@ -326,9 +442,9 @@ function check120(dateValue, timeValue){
   return true;
 }
 
-/* ============================= */
-/* INDIVIDUAL DRAFT */
-/* ============================= */
+/* =============================
+   INDIVIDUAL DRAFT
+============================= */
 
 function saveTripDraftToLocal(){
   const draft = {
@@ -386,9 +502,68 @@ if(saveTripBtn){
   });
 }
 
-/* ============================= */
-/* SUBMIT INDIVIDUAL */
-/* ============================= */
+/* =============================
+   ROUTE HELPERS
+============================= */
+
+function getDistance(a, b){
+  const dx = Number(a.lat) - Number(b.lat);
+  const dy = Number(a.lng) - Number(b.lng);
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function sortStopsByNearest(startPoint, stops){
+  const remaining = [...stops];
+  const sorted = [];
+  let current = startPoint;
+
+  while(remaining.length){
+    remaining.sort((a, b) => {
+      return getDistance(current, a) - getDistance(current, b);
+    });
+
+    const next = remaining.shift();
+    sorted.push(next);
+    current = next;
+  }
+
+  return sorted;
+}
+
+function buildIndividualRoute(pickupGeo, stopsGeo, dropoffGeo){
+  const orderedStops = sortStopsByNearest(pickupGeo, stopsGeo);
+
+  const route = [
+    {
+      type: "pickup",
+      address: pickupGeo.address,
+      lat: pickupGeo.lat,
+      lng: pickupGeo.lng
+    },
+    ...orderedStops.map((s, index) => ({
+      type: "stop",
+      stopIndex: index,
+      address: s.address,
+      lat: s.lat,
+      lng: s.lng
+    })),
+    {
+      type: "dropoff",
+      address: dropoffGeo.address,
+      lat: dropoffGeo.lat,
+      lng: dropoffGeo.lng
+    }
+  ];
+
+  return {
+    orderedStops,
+    route
+  };
+}
+
+/* =============================
+   SUBMIT INDIVIDUAL
+============================= */
 
 if(submitTripBtn){
   submitTripBtn.addEventListener("click", async function(){
@@ -431,7 +606,10 @@ if(submitTripBtn){
     try{
       const pickupGeo = await geocodeAddress(pickupInput.value);
       const dropoffGeo = await geocodeAddress(dropoffInput.value);
-      const stopsGeo = await geocodeStops();
+      const stopsGeoRaw = await geocodeStops();
+
+      const builtRoute = buildIndividualRoute(pickupGeo, stopsGeoRaw, dropoffGeo);
+      const stopsGeo = builtRoute.orderedStops;
       const stops = stopsGeo.map(s => s.address);
 
       const trip = {
@@ -457,11 +635,14 @@ if(submitTripBtn){
 
         stops: stops,
         stopsGeo: stopsGeo,
+        route: builtRoute.route,
 
         notes: notes.value,
         status: "Scheduled",
         type: "INDIVIDUAL"
       };
+
+      console.log("SENDING INDIVIDUAL:", trip);
 
       const res = await fetch("/api/trips", {
         method: "POST",
@@ -474,6 +655,7 @@ if(submitTripBtn){
 
       if(!res.ok){
         const errData = await res.json().catch(() => ({}));
+        console.log("SERVER ERROR:", errData);
         throw new Error(errData.message || "Server error");
       }
 
@@ -496,31 +678,65 @@ if(submitTripBtn){
   });
 }
 
-/* ============================= */
-/* SHARED PASSENGERS */
-/* ============================= */
+/* =============================
+   SHARED PASSENGERS
+============================= */
+
+function updatePassengerCountFromCards(){
+  const remaining = document.querySelectorAll(".passenger-card").length;
+
+  if(passengerCount){
+    if(remaining >= 2 && remaining <= 4){
+      passengerCount.value = String(remaining);
+    }else{
+      passengerCount.value = "";
+    }
+  }
+
+  reindexPassengerCards();
+}
+
+function reindexPassengerCards(){
+  document.querySelectorAll(".passenger-card").forEach((card, idx) => {
+    const title = card.querySelector(".passenger-title");
+    if(title){
+      title.textContent = `Passenger ${idx + 1}`;
+    }
+  });
+}
 
 function createPassengerCard(index, data = {}){
   const card = document.createElement("div");
   card.className = "passenger-card";
 
   card.innerHTML = `
-    <h4>Passenger ${index}</h4>
+    <div class="passenger-header">
+      <h4 class="passenger-title">Passenger ${index}</h4>
+      <button type="button" class="remove-passenger">✕</button>
+    </div>
+
     <div class="form-grid">
       <div class="field-wrap">
-        <input class="sharedClientName" placeholder="Client Name" value="${data.clientName || ""}">
+        <input class="sharedClientName" placeholder="Client Name" value="${escapeAttr(data.clientName || "")}">
       </div>
       <div class="field-wrap">
-        <input class="sharedClientPhone" placeholder="Client Phone" value="${data.clientPhone || ""}">
+        <input class="sharedClientPhone" placeholder="Client Phone" value="${escapeAttr(data.clientPhone || "")}">
       </div>
       <div class="field-wrap">
-        <input class="sharedPickup" placeholder="Pickup Address" value="${data.pickup || ""}" autocomplete="off">
+        <input class="sharedPickup" placeholder="Pickup Address" value="${escapeAttr(data.pickup || "")}" autocomplete="off">
       </div>
       <div class="field-wrap">
-        <input class="sharedDropoff" placeholder="Dropoff Address" value="${data.dropoff || ""}" autocomplete="off">
+        <input class="sharedDropoff" placeholder="Dropoff Address" value="${escapeAttr(data.dropoff || "")}" autocomplete="off">
       </div>
     </div>
   `;
+
+  const removeBtn = card.querySelector(".remove-passenger");
+
+  removeBtn.addEventListener("click", function(){
+    card.remove();
+    updatePassengerCountFromCards();
+  });
 
   passengersContainer.appendChild(card);
 }
@@ -533,6 +749,8 @@ function renderSharedPassengers(count, savedPassengers = []){
   for(let i = 1; i <= count; i++){
     createPassengerCard(i, savedPassengers[i - 1] || {});
   }
+
+  updatePassengerCountFromCards();
 }
 
 if(passengerCount){
@@ -542,9 +760,9 @@ if(passengerCount){
   });
 }
 
-/* ============================= */
-/* SHARED DRAFT */
-/* ============================= */
+/* =============================
+   SHARED DRAFT
+============================= */
 
 function collectSharedPassengersRaw(){
   const passengers = [];
@@ -616,15 +834,9 @@ if(saveSharedBtn){
   });
 }
 
-/* ============================= */
-/* ROUTE HELPERS FOR SHARED */
-/* ============================= */
-
-function getDistance(a, b){
-  const dx = Number(a.lat) - Number(b.lat);
-  const dy = Number(a.lng) - Number(b.lng);
-  return Math.sqrt(dx * dx + dy * dy);
-}
+/* =============================
+   SHARED ROUTE
+============================= */
 
 function samePickup(passengers){
   if(passengers.length < 2) return false;
@@ -641,6 +853,8 @@ function buildSamePickupRoute(passengers){
     route.push({
       type: "pickup",
       passengerIndex: index,
+      passengerId: p.passengerId,
+      clientName: p.clientName,
       address: p.pickup,
       lat: p.pickupLat,
       lng: p.pickupLng
@@ -659,9 +873,12 @@ function buildSamePickupRoute(passengers){
 
   sortedDropoffs.forEach(item => {
     const p = passengers[item.index];
+
     route.push({
       type: "dropoff",
       passengerIndex: item.index,
+      passengerId: p.passengerId,
+      clientName: p.clientName,
       address: p.dropoff,
       lat: p.dropoffLat,
       lng: p.dropoffLng
@@ -686,9 +903,12 @@ function buildDifferentPickupRoute(passengers){
 
   sortedPickups.forEach(item => {
     const p = passengers[item.index];
+
     route.push({
       type: "pickup",
       passengerIndex: item.index,
+      passengerId: p.passengerId,
+      clientName: p.clientName,
       address: p.pickup,
       lat: p.pickupLat,
       lng: p.pickupLng
@@ -704,8 +924,16 @@ function buildDifferentPickupRoute(passengers){
 
   while(remainingDropoffs.length){
     remainingDropoffs.sort((a, b) => {
-      const da = getDistance(current, { lat: passengers[a].dropoffLat, lng: passengers[a].dropoffLng });
-      const db = getDistance(current, { lat: passengers[b].dropoffLat, lng: passengers[b].dropoffLng });
+      const da = getDistance(current, {
+        lat: passengers[a].dropoffLat,
+        lng: passengers[a].dropoffLng
+      });
+
+      const db = getDistance(current, {
+        lat: passengers[b].dropoffLat,
+        lng: passengers[b].dropoffLng
+      });
+
       return da - db;
     });
 
@@ -715,12 +943,17 @@ function buildDifferentPickupRoute(passengers){
     route.push({
       type: "dropoff",
       passengerIndex: nextIndex,
+      passengerId: p.passengerId,
+      clientName: p.clientName,
       address: p.dropoff,
       lat: p.dropoffLat,
       lng: p.dropoffLng
     });
 
-    current = { lat: p.dropoffLat, lng: p.dropoffLng };
+    current = {
+      lat: p.dropoffLat,
+      lng: p.dropoffLng
+    };
   }
 
   return route;
@@ -734,9 +967,9 @@ function buildSharedRoute(passengers){
   return buildDifferentPickupRoute(passengers);
 }
 
-/* ============================= */
-/* SUBMIT SHARED */
-/* ============================= */
+/* =============================
+   SUBMIT SHARED
+============================= */
 
 if(submitSharedBtn){
   submitSharedBtn.addEventListener("click", async function(){
@@ -786,6 +1019,7 @@ if(submitSharedBtn){
 
         passengers.push({
           passengerId: `P${i + 1}`,
+
           clientName: p.clientName,
           clientPhone: p.clientPhone,
 
@@ -803,6 +1037,9 @@ if(submitSharedBtn){
 
       const route = buildSharedRoute(passengers);
 
+      const firstPassenger = passengers[0];
+      const lastRouteItem = route[route.length - 1];
+
       const sharedTrip = {
         company: companyName,
 
@@ -813,6 +1050,17 @@ if(submitSharedBtn){
         entryName: sharedEntryName.value,
         entryPhone: sharedEntryPhone.value,
 
+        clientName: "Shared Trip",
+        clientPhone: firstPassenger.clientPhone,
+
+        pickup: firstPassenger.pickup,
+        pickupLat: firstPassenger.pickupLat,
+        pickupLng: firstPassenger.pickupLng,
+
+        dropoff: lastRouteItem.address,
+        dropoffLat: lastRouteItem.lat,
+        dropoffLng: lastRouteItem.lng,
+
         passengerCount: passengers.length,
         passengers: passengers,
 
@@ -820,11 +1068,16 @@ if(submitSharedBtn){
         tripTime: sharedTime.value,
         timezone: "America/Phoenix",
 
+        stops: [],
+        stopsGeo: [],
+
         notes: sharedNotes.value,
 
         route: route,
         status: "Scheduled"
       };
+
+      console.log("SENDING SHARED:", sharedTrip);
 
       const res = await fetch("/api/trips", {
         method: "POST",
@@ -837,6 +1090,7 @@ if(submitSharedBtn){
 
       if(!res.ok){
         const errData = await res.json().catch(() => ({}));
+        console.log("SERVER ERROR:", errData);
         throw new Error(errData.message || "Server error");
       }
 
@@ -857,9 +1111,13 @@ if(submitSharedBtn){
   });
 }
 
-/* ============================= */
-/* INIT */
-/* ============================= */
+/* =============================
+   INIT
+============================= */
+
+ensureGoogleLoaded().catch(err => {
+  console.error("Google load error:", err);
+});
 
 loadEntry();
 loadTripDraft();
