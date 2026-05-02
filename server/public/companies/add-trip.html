@@ -2,73 +2,30 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Transportation – Add Trip</title>
+<title>SUNBEAM TRANSPORTATION – Add Trip</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
-<!-- GOOGLE MAPS -->
 <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_KEY"></script>
 
 <style>
+body{margin:0;font-family:'Segoe UI';background:#f4f8fb;}
+.container{max-width:1500px;margin:auto;padding:50px 25px;}
 
-body{
-margin:0;
-font-family:'Segoe UI', Arial, sans-serif;
-background:#f4f8fb;
-}
+.top-tabs{display:flex;gap:10px;margin-bottom:20px;}
+.tab{flex:1;padding:12px;border:none;border-radius:10px;background:#1e293b;color:#fff;cursor:pointer;}
+.tab.active{background:#2563eb;}
 
-.container{
-max-width:1400px;
-margin:auto;
-padding:40px 20px;
-}
+section{background:#fff;padding:18px;border-radius:14px;margin-bottom:20px;box-shadow:0 6px 16px rgba(0,0,0,.08);}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
 
-section{
-background:#fff;
-padding:20px;
-border-radius:16px;
-margin-bottom:20px;
-box-shadow:0 6px 18px rgba(0,0,0,.06);
-}
+input,textarea,select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;}
 
-.form-grid{
-display:grid;
-grid-template-columns:repeat(2,1fr);
-gap:14px;
-}
+.actions{display:flex;gap:12px;margin-top:12px;}
+button{padding:12px;border:none;border-radius:10px;font-weight:600;cursor:pointer;}
 
-input, textarea{
-width:100%;
-padding:12px;
-border-radius:12px;
-border:1px solid #cbd5e1;
-background:#f8fafc;
-font-size:14px;
-}
-
-input:focus, textarea:focus{
-border-color:#2563eb;
-background:#fff;
-outline:none;
-}
-
-.actions{
-display:flex;
-gap:12px;
-margin-top:15px;
-}
-
-.actions button{
-flex:1;
-padding:14px;
-border:none;
-border-radius:12px;
-font-weight:bold;
-cursor:pointer;
-}
-
-.btn-blue{background:#2563eb;color:#fff;}
+.btn-blue{background:#3b82f6;color:#fff;}
 .btn-green{background:#22c55e;}
 .btn-gray{background:#64748b;color:#fff;}
 .btn-light{background:#0ea5e9;color:#fff;}
@@ -77,25 +34,35 @@ cursor:pointer;
 .form-grid{grid-template-columns:1fr;}
 .actions{flex-direction:column;}
 }
-
 </style>
 </head>
 
 <body>
 
+<div id="layoutHeader"></div>
+
 <div class="container">
 
+<!-- TABS -->
+<div class="top-tabs">
+<button id="tabIndividual" class="tab active">Individual</button>
+<button id="tabShared" class="tab">Shared</button>
+</div>
+
+<!-- ================= INDIVIDUAL ================= -->
+<div id="individualSection">
+
 <section>
-<h3>Entry Info</h3>
+<h3>Entry Information</h3>
 <div class="form-grid">
-<input id="entryName" placeholder="Entry Name">
+<input id="entryName" placeholder="Data Entry Name">
 <input id="entryPhone" placeholder="Phone">
 </div>
-<button class="btn-blue" id="editEntry">Save</button>
+<button id="editEntry" class="btn-blue">Save</button>
 </section>
 
 <section>
-<h3>Client</h3>
+<h3>Client Information</h3>
 <div class="form-grid">
 <input id="clientName" placeholder="Client Name">
 <input id="clientPhone" placeholder="Client Phone">
@@ -103,26 +70,56 @@ cursor:pointer;
 </section>
 
 <section>
-<h3>Trip</h3>
-
+<h3>Trip Details</h3>
 <div class="form-grid">
 <input id="pickup" placeholder="Pickup Address">
 <input id="dropoff" placeholder="Dropoff Address">
 <input id="tripDate" type="date">
 <input id="tripTime" type="time">
 </div>
-
-<div id="stops"></div>
-
-<button class="btn-light" id="addStopBtn">+ Add Stop</button>
-
 <textarea id="notes" placeholder="Notes"></textarea>
-
 </section>
 
 <div class="actions">
-<button class="btn-gray" id="saveTrip">Save</button>
-<button class="btn-green" id="submitTrip">Submit</button>
+<button id="saveTrip" class="btn-gray">Save</button>
+<button id="submitTrip" class="btn-green">Submit</button>
 </div>
 
 </div>
+
+<!-- ================= SHARED ================= -->
+<div id="sharedSection" style="display:none;">
+
+<section>
+<h3>Shared Trip</h3>
+
+<div class="form-grid">
+<select id="passengerCount">
+<option value="">Passengers</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+</select>
+
+<input id="sharedDate" type="date">
+<input id="sharedTime" type="time">
+</div>
+
+<div id="passengersBox"></div>
+
+<div class="actions">
+<button id="saveShared" class="btn-gray">Save</button>
+<button id="submitShared" class="btn-green">Submit Shared</button>
+</div>
+
+</section>
+
+</div>
+
+</div>
+
+<script src="layout.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>

@@ -2,142 +2,108 @@ document.addEventListener("DOMContentLoaded", function(){
 
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
+const companyName = localStorage.getItem("name") || "";
 
-if(!token || role !== "company"){
+if (!token || role !== "company") {
   window.location.replace("company-login.html");
   return;
 }
 
-/* ================= AZ TIME ================= */
+/* TABS */
+const tabInd = document.getElementById("tabIndividual");
+const tabShr = document.getElementById("tabShared");
+const ind = document.getElementById("individualSection");
+const shr = document.getElementById("sharedSection");
 
-function getAZNow(){
-  return new Date(
-    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-  );
+tabInd.onclick = ()=>{ ind.style.display="block"; shr.style.display="none"; tabInd.classList.add("active"); tabShr.classList.remove("active"); };
+tabShr.onclick = ()=>{ ind.style.display="none"; shr.style.display="block"; tabShr.classList.add("active"); tabInd.classList.remove("active"); };
+
+/* AZ */
+function normalizeAZ(a){
+  a=a.toLowerCase();
+  if(a.includes("az")||a.includes("arizona")) return a;
+  return a+", AZ, USA";
 }
 
-/* ================= AZ ADDRESS ================= */
-
-function normalizeAZ(address){
-  const a = address.toLowerCase();
-  if(a.includes("az") || a.includes("arizona")) return address;
-  return address + ", AZ, USA";
-}
-
-function geocodeAddress(address){
-  return new Promise((resolve,reject)=>{
-
-    const geocoder = new google.maps.Geocoder();
-
-    geocoder.geocode({address},(res,status)=>{
-
-      if(status==="OK" && res[0]){
-        const loc = res[0].geometry.location;
-        resolve({
-          address: res[0].formatted_address,
-          lat: loc.lat(),
-          lng: loc.lng()
-        });
-      }else{
-        reject("Invalid address: " + address);
-      }
-
+function geo(a){
+  return new Promise((res,rej)=>{
+    new google.maps.Geocoder().geocode({address:a},(r,s)=>{
+      if(s==="OK") res({
+        address:r[0].formatted_address,
+        lat:r[0].geometry.location.lat(),
+        lng:r[0].geometry.location.lng()
+      });
+      else rej("Bad address");
     });
-
   });
 }
 
-/* ================= ELEMENTS ================= */
+/* INDIVIDUAL SUBMIT */
+document.getElementById("submitTrip").onclick = async ()=>{
 
-const pickupInput  = document.getElementById("pickup");
-const dropoffInput = document.getElementById("dropoff");
+const pickup = document.getElementById("pickup").value;
+const dropoff = document.getElementById("dropoff").value;
+const date = document.getElementById("tripDate").value;
+const time = document.getElementById("tripTime").value;
 
-const tripDate = document.getElementById("tripDate");
-const tripTime = document.getElementById("tripTime");
-
-const submitBtn = document.getElementById("submitTrip");
-
-/* ================= VALIDATION ================= */
-
-function validate(){
-
-  if(!pickupInput.value.trim()){
-    alert("Pickup required");
-    return false;
-  }
-
-  if(!dropoffInput.value.trim()){
-    alert("Dropoff required");
-    return false;
-  }
-
-  if(!tripDate.value || !tripTime.value){
-    alert("Date & time required");
-    return false;
-  }
-
-  const tripDateTime = new Date(`${tripDate.value}T${tripTime.value}`);
-  if(tripDateTime <= getAZNow()){
-    alert("Trip must be in future (Arizona time)");
-    return false;
-  }
-
-  return true;
+if(!pickup || !dropoff || !date || !time){
+alert("Fill all fields");
+return;
 }
 
-/* ================= SUBMIT ================= */
+let p,d;
 
-submitBtn.onclick = async function(){
+try{
+p = await geo(normalizeAZ(pickup));
+d = await geo(normalizeAZ(dropoff));
+}catch(e){
+alert(e);
+return;
+}
 
-  if(!validate()) return;
+await fetch("/api/trips",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+body:JSON.stringify({
+company:companyName,
+pickup:p.address,
+pickupLat:p.lat,
+pickupLng:p.lng,
+dropoff:d.address,
+dropoffLat:d.lat,
+dropoffLng:d.lng,
+tripDate:date,
+tripTime:time,
+status:"Scheduled"
+})
+});
 
-  submitBtn.disabled = true;
-  submitBtn.innerText = "Processing...";
+alert("Trip Added ✔");
+location.reload();
 
-  try{
+};
 
-    const pickup = await geocodeAddress(
-      normalizeAZ(pickupInput.value)
-    );
+/* SHARED BASIC */
 
-    const dropoff = await geocodeAddress(
-      normalizeAZ(dropoffInput.value)
-    );
+const countSel = document.getElementById("passengerCount");
+const box = document.getElementById("passengersBox");
 
-    const trip = {
-      pickup: pickup.address,
-      pickupLat: pickup.lat,
-      pickupLng: pickup.lng,
+countSel.onchange = ()=>{
+box.innerHTML="";
+const n = Number(countSel.value);
 
-      dropoff: dropoff.address,
-      dropoffLat: dropoff.lat,
-      dropoffLng: dropoff.lng,
-
-      tripDate: tripDate.value,
-      tripTime: tripTime.value,
-      status: "Scheduled"
-    };
-
-    await fetch("/api/trips",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer " + token
-      },
-      body: JSON.stringify(trip)
-    });
-
-    alert("Trip submitted ✔");
-
-    location.reload();
-
-  }catch(err){
-    alert(err);
-  }
-
-  submitBtn.disabled = false;
-  submitBtn.innerText = "Submit";
-
+for(let i=0;i<n;i++){
+box.innerHTML+=`
+<div style="margin-top:10px;">
+<input placeholder="Name">
+<input placeholder="Phone">
+<input placeholder="Pickup">
+<input placeholder="Dropoff">
+</div>`;
+}
 };
 
 });
