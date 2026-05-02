@@ -7,33 +7,126 @@
 
 <link rel="stylesheet" href="layout.css">
 
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_KEY"></script>
-
 <style>
-body{margin:0;font-family:'Segoe UI';background:#f4f8fb;}
-.container{max-width:1500px;margin:auto;padding:50px 25px;}
 
-.top-tabs{display:flex;gap:10px;margin-bottom:20px;}
-.tab{flex:1;padding:12px;border:none;border-radius:10px;background:#1e293b;color:#fff;cursor:pointer;}
-.tab.active{background:#2563eb;}
+body{
+margin:0;
+font-family:'Segoe UI', Arial, sans-serif;
+background:#f4f8fb;
+}
 
-section{background:#fff;padding:18px;border-radius:14px;margin-bottom:20px;box-shadow:0 6px 16px rgba(0,0,0,.08);}
-.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.container{
+max-width:1500px;
+margin:auto;
+padding:50px 25px;
+}
 
-input,textarea,select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px;}
+/* TABS */
 
-.actions{display:flex;gap:12px;margin-top:12px;}
-button{padding:12px;border:none;border-radius:10px;font-weight:600;cursor:pointer;}
+.top-tabs{
+display:flex;
+gap:12px;
+margin-bottom:20px;
+}
+
+.tab{
+flex:1;
+padding:14px;
+border:none;
+border-radius:12px;
+background:#1e293b;
+color:#fff;
+font-weight:600;
+cursor:pointer;
+}
+
+.tab.active{
+background:#2563eb;
+}
+
+/* SECTIONS */
+
+section{
+background:#fff;
+padding:18px;
+border-radius:14px;
+margin-bottom:20px;
+box-shadow:0 6px 16px rgba(0,0,0,.08);
+}
+
+section h3{
+margin-bottom:12px;
+font-size:15px;
+color:#0f172a;
+}
+
+/* FORM */
+
+.form-grid{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:12px;
+}
+
+.field-wrap{
+position:relative;
+width:100%;
+}
+
+input, textarea, select{
+width:100%;
+padding:10px;
+font-size:13px;
+border:1px solid #cbd5e1;
+border-radius:10px;
+box-sizing:border-box;
+}
+
+textarea{
+min-height:90px;
+margin-top:12px;
+}
+
+/* BUTTONS */
+
+.actions{
+display:flex;
+gap:12px;
+margin-top:12px;
+}
+
+button{
+padding:12px 22px;
+border:none;
+border-radius:10px;
+font-size:14px;
+font-weight:600;
+cursor:pointer;
+}
 
 .btn-blue{background:#3b82f6;color:#fff;}
-.btn-green{background:#22c55e;}
+.btn-green{background:#22c55e;color:#000;}
 .btn-gray{background:#64748b;color:#fff;}
 .btn-light{background:#0ea5e9;color:#fff;}
 
+/* MOBILE */
+
 @media(max-width:768px){
-.form-grid{grid-template-columns:1fr;}
-.actions{flex-direction:column;}
+
+.form-grid{
+grid-template-columns:1fr;
 }
+
+.actions{
+flex-wrap:wrap;
+}
+
+button{
+width:100%;
+}
+
+}
+
 </style>
 </head>
 
@@ -43,83 +136,128 @@ button{padding:12px;border:none;border-radius:10px;font-weight:600;cursor:pointe
 
 <div class="container">
 
-<!-- TABS -->
+<!-- ================= TABS ================= -->
+
 <div class="top-tabs">
-<button id="tabIndividual" class="tab active">Individual</button>
-<button id="tabShared" class="tab">Shared</button>
+  <button class="tab active">Individual</button>
+  <button class="tab">Shared</button>
 </div>
 
 <!-- ================= INDIVIDUAL ================= -->
+
 <div id="individualSection">
 
 <section>
 <h3>Entry Information</h3>
+
 <div class="form-grid">
-<input id="entryName" placeholder="Data Entry Name">
-<input id="entryPhone" placeholder="Phone">
+  <div class="field-wrap">
+    <input placeholder="Data Entry Name">
+  </div>
+  <div class="field-wrap">
+    <input placeholder="Phone Number">
+  </div>
 </div>
-<button id="editEntry" class="btn-blue">Save</button>
+
+<button class="btn-blue" style="margin-top:10px;">Edit</button>
+
 </section>
 
 <section>
+
 <h3>Client Information</h3>
+
 <div class="form-grid">
-<input id="clientName" placeholder="Client Name">
-<input id="clientPhone" placeholder="Client Phone">
+  <div class="field-wrap">
+    <input placeholder="Client Name">
+  </div>
+  <div class="field-wrap">
+    <input placeholder="Client Phone">
+  </div>
 </div>
+
 </section>
 
 <section>
+
 <h3>Trip Details</h3>
+
 <div class="form-grid">
-<input id="pickup" placeholder="Pickup Address">
-<input id="dropoff" placeholder="Dropoff Address">
-<input id="tripDate" type="date">
-<input id="tripTime" type="time">
+  <div class="field-wrap">
+    <input placeholder="Pickup Address">
+  </div>
+  <div class="field-wrap">
+    <input placeholder="Dropoff Address">
+  </div>
+  <div class="field-wrap">
+    <input type="date">
+  </div>
+  <div class="field-wrap">
+    <input type="time">
+  </div>
 </div>
-<textarea id="notes" placeholder="Notes"></textarea>
+
+<button class="btn-light" style="margin-top:10px;">+ Add Stop</button>
+
+<textarea placeholder="Notes"></textarea>
+
 </section>
 
 <div class="actions">
-<button id="saveTrip" class="btn-gray">Save</button>
-<button id="submitTrip" class="btn-green">Submit</button>
+<button class="btn-gray">Save Trip</button>
+<button class="btn-green">Submit Trip</button>
 </div>
 
 </div>
 
 <!-- ================= SHARED ================= -->
-<div id="sharedSection" style="display:none;">
+
+<div id="sharedSection">
 
 <section>
 <h3>Shared Trip</h3>
 
 <div class="form-grid">
-<select id="passengerCount">
-<option value="">Passengers</option>
-<option value="2">2</option>
-<option value="3">3</option>
-<option value="4">4</option>
-</select>
+  <div class="field-wrap">
+    <select>
+      <option>Passengers</option>
+      <option>2</option>
+      <option>3</option>
+      <option>4</option>
+    </select>
+  </div>
 
-<input id="sharedDate" type="date">
-<input id="sharedTime" type="time">
-</div>
+  <div class="field-wrap">
+    <input type="date">
+  </div>
 
-<div id="passengersBox"></div>
-
-<div class="actions">
-<button id="saveShared" class="btn-gray">Save</button>
-<button id="submitShared" class="btn-green">Submit Shared</button>
+  <div class="field-wrap">
+    <input type="time">
+  </div>
 </div>
 
 </section>
 
+<section>
+<h3>Passengers</h3>
+
+<div class="form-grid">
+  <input placeholder="Name">
+  <input placeholder="Phone">
+  <input placeholder="Pickup">
+  <input placeholder="Dropoff">
+</div>
+
+</section>
+
+<div class="actions">
+<button class="btn-gray">Save</button>
+<button class="btn-green">Submit Shared</button>
 </div>
 
 </div>
 
-<script src="layout.js"></script>
-<script src="script.js"></script>
+</div>
 
 </body>
 </html>
