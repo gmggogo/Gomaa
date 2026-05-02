@@ -8,24 +8,29 @@
 <link rel="stylesheet" href="layout.css">
 
 <style>
+
 body{
   margin:0;
   font-family:'Segoe UI', Arial, sans-serif;
   background:#f4f8fb;
 }
 
+/* HEADER */
 #layoutHeader{
   position:sticky;
   top:0;
   z-index:1000;
+  background:#fff;
 }
 
+/* CONTAINER */
 .container{
   max-width:1500px;
   margin:auto;
-  padding:35px 20px;
+  padding:85px 20px 30px;
 }
 
+/* TABS */
 .tabs{
   display:flex;
   gap:10px;
@@ -41,6 +46,7 @@ body{
   border-radius:11px;
 }
 
+/* SECTIONS */
 section{
   background:#fff;
   padding:18px;
@@ -55,6 +61,7 @@ section h3{
   color:#0f172a;
 }
 
+/* FORM */
 .form-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -63,7 +70,6 @@ section h3{
 
 .field-wrap{
   position:relative;
-  width:100%;
 }
 
 input, textarea, select{
@@ -73,11 +79,9 @@ input, textarea, select{
   border:1px solid #cbd5e1;
   border-radius:10px;
   box-sizing:border-box;
-  background:#fff;
 }
 
-input:focus, textarea:focus, select:focus{
-  outline:none;
+input:focus, textarea:focus{
   border-color:#3b82f6;
   box-shadow:0 0 0 2px rgba(59,130,246,.15);
 }
@@ -87,6 +91,7 @@ textarea{
   margin-top:12px;
 }
 
+/* BUTTONS */
 .actions{
   display:flex;
   gap:12px;
@@ -107,50 +112,53 @@ button{
 .btn-gray{background:#64748b;color:#fff;}
 .btn-light{background:#0ea5e9;color:#fff;}
 
+/* STOPS */
 .stop-row{
-  position:relative;
-  margin-bottom:10px;
+  display:flex;
+  gap:8px;
+  margin-top:10px;
 }
 
 .remove-stop-btn{
-  width:auto;
+  background:#ef4444;
+  color:#fff;
+  border-radius:8px;
+  padding:10px;
 }
 
+/* PASSENGERS */
 .passenger-card{
-  background:#f8fafc;
-  border:1px solid #e2e8f0;
+  background:#f9fafb;
+  border:1px solid #e5e7eb;
   border-radius:14px;
   padding:14px;
   margin-bottom:14px;
 }
 
-.passenger-card h4{
-  margin:0 0 12px;
-  font-size:14px;
-  color:#0f172a;
+.passenger-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
 }
 
+.remove-passenger{
+  background:#ef4444;
+  color:#fff;
+  border:none;
+  padding:6px 10px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+/* MOBILE */
 @media(max-width:768px){
-  .container{
-    padding:20px 12px;
-  }
-
-  .form-grid{
-    grid-template-columns:1fr;
-  }
-
-  .actions{
-    flex-direction:column;
-  }
-
-  button{
-    width:100%;
-  }
-
-  .tabs{
-    gap:6px;
-  }
+  .container{padding:85px 12px 20px;}
+  .form-grid{grid-template-columns:1fr;}
+  .actions{flex-direction:column;}
+  button{width:100%;}
 }
+
 </style>
 </head>
 
@@ -160,40 +168,29 @@ button{
 
 <div class="container">
 
+<!-- TABS -->
 <div class="tabs">
   <button id="tabIndividual" class="btn-blue" type="button">Individual</button>
   <button id="tabShared" class="btn-gray" type="button">Shared</button>
 </div>
 
+<!-- ================= INDIVIDUAL ================= -->
 <div id="individualSection">
 
 <section>
 <h3>Entry Information</h3>
-
 <div class="form-grid">
-  <div class="field-wrap">
-    <input id="entryName" placeholder="Data Entry Name">
-  </div>
-  <div class="field-wrap">
-    <input id="entryPhone" placeholder="Phone Number">
-  </div>
+<input id="entryName" placeholder="Data Entry Name">
+<input id="entryPhone" placeholder="Phone Number">
 </div>
-
-<div style="margin-top:10px;">
-  <button class="btn-blue" id="editEntry" type="button">Edit</button>
-</div>
+<button class="btn-blue" id="editEntry" type="button">Edit</button>
 </section>
 
 <section>
 <h3>Client Information</h3>
-
 <div class="form-grid">
-  <div class="field-wrap">
-    <input id="clientName" placeholder="Client Name">
-  </div>
-  <div class="field-wrap">
-    <input id="clientPhone" placeholder="Client Phone">
-  </div>
+<input id="clientName" placeholder="Client Name">
+<input id="clientPhone" placeholder="Client Phone">
 </div>
 </section>
 
@@ -201,24 +198,13 @@ button{
 <h3>Trip Details</h3>
 
 <div class="form-grid">
-  <div class="field-wrap">
-    <input id="pickup" placeholder="Pickup Address" autocomplete="off">
-  </div>
-
-  <div class="field-wrap">
-    <input id="dropoff" placeholder="Dropoff Address" autocomplete="off">
-  </div>
-
-  <div class="field-wrap">
-    <input id="tripDate" type="date">
-  </div>
-
-  <div class="field-wrap">
-    <input id="tripTime" type="time">
-  </div>
+<input id="pickup" placeholder="Pickup Address">
+<input id="dropoff" placeholder="Dropoff Address">
+<input id="tripDate" type="date">
+<input id="tripTime" type="time">
 </div>
 
-<div id="stops" style="margin-top:12px;"></div>
+<div id="stops"></div>
 
 <button class="btn-light" id="addStopBtn" type="button">+ Add Stop</button>
 
@@ -226,47 +212,35 @@ button{
 </section>
 
 <div class="actions">
-  <button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
-  <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+<button class="btn-gray" id="saveTrip" type="button">Save Trip</button>
+<button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
 </div>
 
 </div>
 
+<!-- ================= SHARED ================= -->
 <div id="sharedSection" style="display:none;">
 
 <section>
 <h3>Entry Information</h3>
-
 <div class="form-grid">
-  <div class="field-wrap">
-    <input id="sharedEntryName" placeholder="Data Entry Name">
-  </div>
-  <div class="field-wrap">
-    <input id="sharedEntryPhone" placeholder="Phone Number">
-  </div>
+<input id="sharedEntryName" placeholder="Data Entry Name">
+<input id="sharedEntryPhone" placeholder="Phone Number">
 </div>
 </section>
 
 <section>
 <h3>Shared Setup</h3>
-
 <div class="form-grid">
-  <div class="field-wrap">
-    <select id="passengerCount">
-      <option value="">Select Passengers</option>
-      <option value="2">2 Passengers</option>
-      <option value="3">3 Passengers</option>
-      <option value="4">4 Passengers</option>
-    </select>
-  </div>
+<select id="passengerCount">
+<option value="">Select Passengers</option>
+<option value="2">2 Passengers</option>
+<option value="3">3 Passengers</option>
+<option value="4">4 Passengers</option>
+</select>
 
-  <div class="field-wrap">
-    <input id="sharedDate" type="date">
-  </div>
-
-  <div class="field-wrap">
-    <input id="sharedTime" type="time">
-  </div>
+<input id="sharedDate" type="date">
+<input id="sharedTime" type="time">
 </div>
 </section>
 
@@ -281,8 +255,8 @@ button{
 </section>
 
 <div class="actions">
-  <button class="btn-gray" id="saveShared" type="button">Save</button>
-  <button class="btn-green" id="submitShared" type="button">Submit Shared</button>
+<button class="btn-gray" id="saveShared" type="button">Save</button>
+<button class="btn-green" id="submitShared" type="button">Submit Shared</button>
 </div>
 
 </div>
@@ -290,7 +264,6 @@ button{
 </div>
 
 <script src="layout.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_KEY"></script>
 <script src="add-trip.js"></script>
 
 </body>
