@@ -624,7 +624,13 @@ async function generateTripNumber(type) {
     if (!isNaN(num)) next = num + 1;
   }
 
-  return monthCode + "-" + next;
+let tripNumber = monthCode + "-" + next;
+
+if (type === "shared" || type === "SHARED") {
+  tripNumber += "-SH";
+}
+
+return tripNumber;
 }
 
 /* =========================
