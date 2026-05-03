@@ -134,7 +134,7 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 
   /* =========================
-   TRIP MODEL (FINAL PRO VERSION)
+   TRIP MODEL (FINAL PRO VERSION + SHARED ADDON)
 ========================= */
 const tripSchema = new mongoose.Schema({
 
@@ -149,7 +149,7 @@ const tripSchema = new mongoose.Schema({
   clientName: { type: String, default: "" },
   clientPhone: { type: String, default: "" },
 
-  // 📧 EMAIL + 💰 PRICE
+  // 📧 EMAIL + 💰 PRICE (Get Quote - untouched)
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
 
@@ -176,38 +176,87 @@ const tripSchema = new mongoose.Schema({
     default: []
   },
 
-  // 💳 PAYMENT
+  /* =========================
+     🔥 SHARED ADDON (NEW)
+  ========================= */
+
+  tripType: { type: String, default: "" }, // INDIVIDUAL / SHARED
+  sharedSuffix: { type: String, default: "" }, // "-SH"
+
+  passengerCount: { type: Number, default: 0 },
+
+  passengers: [{
+    passengerId: { type: String, default: "" },
+
+    clientName: { type: String, default: "" },
+    clientPhone: { type: String, default: "" },
+
+    pickup: { type: String, default: "" },
+    pickupLat: { type: Number, default: null },
+    pickupLng: { type: Number, default: null },
+
+    dropoff: { type: String, default: "" },
+    dropoffLat: { type: Number, default: null },
+    dropoffLng: { type: Number, default: null },
+
+    status: { type: String, default: "Scheduled" },
+
+    basePrice: { type: Number, default: 0 },
+    finalPrice: { type: Number, default: 0 },
+    priceAmount: { type: Number, default: 0 }
+  }],
+
+  route: { type: Array, default: [] },
+
+  distanceMeters: { type: Number, default: 0 },
+  durationSeconds: { type: Number, default: 0 },
+  miles: { type: Number, default: 0 },
+  estimatedMinutes: { type: Number, default: 0 },
+
+  basePrice: { type: Number, default: 0 },
+  finalPrice: { type: Number, default: 0 },
+  pricePerPassenger: { type: Number, default: 0 },
+
+  pricingPolicy: { type: Object, default: {} },
+  googleRoute: { type: Object, default: {} },
+
+  timezone: { type: String, default: "America/Phoenix" },
+
+  /* =========================
+     💳 PAYMENT
+  ========================= */
+
   paymentIntentId: { type: String, default: "" },
 
-  // 🔗 CANCEL
   cancelToken: { type: String, default: "" },
 
-  // 💰 REFUND SYSTEM
   refundId: { type: String, default: "" },
   simpleRefundId: { type: String, default: "" },
   refundAmount: { type: Number, default: 0 },
   cancelFee: { type: Number, default: 0 },
 
-  // ⏰ CANCEL TIME
   cancelDateTime: { type: Date, default: null },
 
-  // 🔥 REFUND STATUS
   refundStatus: {
     type: String,
     enum: ["none", "processing", "refunded", "failed"],
     default: "none"
   },
 
-  // 📅 TRIP TIME
+  /* =========================
+     ⏰ TIME
+  ========================= */
+
   tripDate: { type: String, default: "" },
   tripTime: { type: String, default: "" },
 
   notes: { type: String, default: "" },
 
-  /* 🚗 DISPATCH */
-  dispatchSelected: { type: Boolean, default: false },
+  /* =========================
+     🚗 DISPATCH
+  ========================= */
 
-  /* ENABLE */
+  dispatchSelected: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
 
   driverId: { type: String, default: "" },
@@ -218,13 +267,13 @@ const tripSchema = new mongoose.Schema({
 
   status: { type: String, default: "Scheduled" },
 
-  // 🔥 الجديد (مهم جدا)
   reminderSent: { type: Boolean, default: false },
 
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 
 }, { minimize: false });
+
 /* =========================
    INDEXES
 ========================= */
