@@ -19,18 +19,6 @@ function getAZNow(){
   );
 }
 
-function getTripDateTime(t){
-  if(!t.tripDate || !t.tripTime) return null;
-  const dt = new Date(t.tripDate + "T" + t.tripTime + ":00");
-  return String(dt) === "Invalid Date" ? null : dt;
-}
-
-function minutesToTrip(t){
-  const dt = getTripDateTime(t);
-  if(!dt) return null;
-  return (dt - getAZNow()) / 60000;
-}
-
 function escapeHtml(value){
   return String(value ?? "")
     .replace(/&/g,"&amp;")
@@ -38,10 +26,15 @@ function escapeHtml(value){
     .replace(/>/g,"&gt;");
 }
 
+function minutesToTrip(t){
+  if(!t.tripDate || !t.tripTime) return null;
+  const dt = new Date(t.tripDate + "T" + t.tripTime + ":00");
+  return (dt - getAZNow()) / 60000;
+}
+
 /* ================= SERVER ================= */
 
 async function fetchTrips(){
-
   const url = companyName
     ? "/api/trips/company/" + encodeURIComponent(companyName)
     : "/api/trips/company";
@@ -108,7 +101,6 @@ function render(){
     container.appendChild(title);
 
     const table = document.createElement("table");
-    table.className = "review-table";
 
     table.innerHTML = `
       <tr>
@@ -144,24 +136,23 @@ function render(){
         }
       }
 
-      /* ===== CLIENT / PICKUP / DROP ===== */
+      /* ===== DISPLAY ===== */
+
       let client = t.clientName || "";
       let pickup = t.pickup || "";
-      let drop = t.dropoff || "";
+      let drop   = t.dropoff || "";
 
       if(t.passengers && t.passengers.length){
         client = t.passengers.map((p,i)=>`${i+1}- ${p.clientName}`).join("\n");
         pickup = t.passengers.map((p,i)=>`${i+1}- ${p.pickup}`).join("\n");
-        drop = t.passengers.map((p,i)=>`${i+1}- ${p.dropoff}`).join("\n");
+        drop   = t.passengers.map((p,i)=>`${i+1}- ${p.dropoff}`).join("\n");
       }
 
-      /* ===== STOPS ===== */
       let stops = "";
       if(t.stops && t.stops.length){
         stops = t.stops.map((s,i)=>`${i+1}- ${s}`).join("\n");
       }
 
-      /* ===== NOTES ===== */
       let notes = t.notes || "";
 
       /* ===== BUTTONS ===== */
@@ -246,6 +237,10 @@ container.addEventListener("click", async e=>{
 
   if(action === "delete"){
     await deleteTrip(id);
+  }
+
+  if(action === "edit"){
+    alert("Edit UI later 👌");
   }
 
   trips = await fetchTrips();

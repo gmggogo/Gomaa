@@ -14,13 +14,14 @@ body{
   background:#f4f8fb;
 }
 
-/* CONTENT */
+/* CONTAINER */
 .container{
   max-width:1500px;
   margin:auto;
   padding:50px 25px;
 }
 
+/* DATE TITLE */
 .date-title{
   margin-top:30px;
   font-weight:700;
@@ -39,20 +40,25 @@ table{
   overflow:hidden;
 }
 
+/* CELLS */
 th,td{
   padding:10px;
   font-size:13px;
   border-bottom:1px solid #eee;
   text-align:left;
   vertical-align:top;
-  white-space:pre-line; /* مهم للشير */
+
+  /* مهم للشير */
+  white-space:pre-line;
 }
 
+/* HEADER */
 th{
   background:#0f172a;
   color:#fff;
 }
 
+/* ROW */
 tr{
   transition:background .3s;
 }
@@ -61,7 +67,7 @@ tr:hover{
   background:#f9fafb;
 }
 
-/* COLORS */
+/* STATUS COLORS */
 .yellow{
   background:#fff3cd !important;
 }
@@ -136,10 +142,10 @@ input{
 
 <body>
 
-<!-- HEADER -->
+<!-- HEADER (زي ما هو عندك) -->
 <div id="layoutHeader"></div>
 
-<!-- CONTENT -->
+<!-- MAIN -->
 <div class="container" id="tripsContainer"></div>
 
 <!-- SCRIPTS -->
