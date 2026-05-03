@@ -132,12 +132,117 @@ function normalizeAZ(address){
   return value + ", AZ, USA";
 }
 
+function metersToMiles(meters){
+  return Number((Number(meters || 0) * 0.000621371).toFixed(2));
+}
+
+function secondsToMinutes(seconds){
+  return Math.ceil(Number(seconds || 0) / 60);
+}
+
+function money(value){
+  return Number(Number(value || 0).toFixed(2));
+}
+
+function generateTripNumber(type){
+  const now = new Date();
+  const y = String(now.getFullYear()).slice(2);
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const rand = Math.floor(100 + Math.random() * 900);
+
+  let number = `TR-${y}${m}${d}-${h}${min}${rand}`;
+
+  if(type === "SHARED"){
+    number += "-SH";
+  }
+
+  return number;
+}
+
+/* =============================
+   PRICING POLICY
+============================= */
+
+function calculateIndividualPrice(miles){
+  /*
+    Individual:
+    فتح الرحلة = $25
+    الميل = $2
+  */
+  const base = 25;
+  const perMile = 2;
+
+  return money(base + (Number(miles || 0) * perMile));
+}
+
+function calculateSharedPrice(miles, passengersCount){
+  /*
+    Shared:
+    لكل زبون:
+    فتح الرحلة = $15
+    أول 3 miles included
+    بعد كده الميل = $2
+  */
+  const basePerPassenger = 15;
+  const includedMiles = 3;
+  const perMile = 2;
+
+  const extraMiles = Math.max(0, Number(miles || 0) - includedMiles);
+  const perPassenger = money(basePerPassenger + (extraMiles * perMile));
+  const total = money(perPassenger * Number(passengersCount || 0));
+
+  return {
+    perPassenger,
+    total
+  };
+}
+
+function applyFinalPricingPolicy(basePrice, status, tripDateValue, tripTimeValue, cancelDateTime){
+  /*
+    Completed = السعر كامل
+    NoShow = $15
+    Cancel داخل ساعتين = $15
+    Cancel قبل ساعتين = $0
+  */
+  const NO_SHOW_FEE = 15;
+  const CANCEL_FEE = 15;
+
+  if(status === "Completed"){
+    return money(basePrice);
+  }
+
+  if(status === "NoShow"){
+    return money(NO_SHOW_FEE);
+  }
+
+  if(status === "Cancelled"){
+    if(!cancelDateTime || !tripDateValue || !tripTimeValue){
+      return 0;
+    }
+
+    const tripDT = new Date(`${tripDateValue}T${tripTimeValue}:00`);
+    const cancelDT = new Date(cancelDateTime);
+    const diffMinutes = (tripDT - cancelDT) / 60000;
+
+    if(diffMinutes <= 120){
+      return money(CANCEL_FEE);
+    }
+
+    return 0;
+  }
+
+  return money(basePrice);
+}
+
 /* =============================
    LOAD GOOGLE FROM RENDER CONFIG
 ============================= */
 
 function ensureGoogleLoaded(){
-  if(window.google && google.maps && google.maps.Geocoder){
+  if(window.google && google.maps && google.maps.Geocoder && google.maps.DirectionsService && google.maps.DistanceMatrixService){
     return Promise.resolve();
   }
 
@@ -161,9 +266,18 @@ function ensureGoogleLoaded(){
         return;
       }
 
+      const existing = document.querySelector("script[data-google-maps='true']");
+      if(existing){
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", () => reject(new Error("Google Maps failed to load.")));
+        return;
+      }
+
       const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
       script.async = true;
+      script.defer = true;
+      script.setAttribute("data-google-maps", "true");
 
       script.onload = () => resolve();
       script.onerror = () => reject(new Error("Google Maps failed to load."));
@@ -224,6 +338,170 @@ async function geocodeStops(){
 
   return result;
 }
+
+/* =============================
+   GOOGLE ROUTE HELPERS
+   request واحد للـ route
+============================= */
+
+function getLatLng(point){
+  return new google.maps.LatLng(Number(point.lat), Number(point.lng));
+}
+
+async function getGoogleOptimizedRoute(points, options = {}){
+  /*
+    يعتمد على Google DirectionsService
+    Route request واحد فقط.
+    optimizeWaypoints يشتغل على النقاط اللي في النص.
+  */
+  await ensureGoogleLoaded();
+
+  if(!Array.isArray(points) || points.length < 2){
+    throw new Error("At least pickup and dropoff are required.");
+  }
+
+  const optimizeWaypoints = options.optimizeWaypoints !== false;
+
+  const originPoint = points[0];
+  const destinationPoint = points[points.length - 1];
+  const middlePoints = points.slice(1, -1);
+
+  const waypoints = middlePoints.map(p => ({
+    location: getLatLng(p),
+    stopover: true
+  }));
+
+  return new Promise((resolve, reject) => {
+    const directionsService = new google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin: getLatLng(originPoint),
+        destination: getLatLng(destinationPoint),
+        waypoints: waypoints,
+        optimizeWaypoints: optimizeWaypoints,
+        travelMode: google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date()
+        },
+        unitSystem: google.maps.UnitSystem.IMPERIAL
+      },
+      function(response, status){
+        if(status !== "OK" || !response || !response.routes || !response.routes[0]){
+          reject(new Error("Google route failed: " + status));
+          return;
+        }
+
+        const googleRoute = response.routes[0];
+
+        let distanceMeters = 0;
+        let durationSeconds = 0;
+
+        googleRoute.legs.forEach(leg => {
+          distanceMeters += leg.distance ? leg.distance.value : 0;
+          durationSeconds += leg.duration ? leg.duration.value : 0;
+        });
+
+        const waypointOrder = Array.isArray(googleRoute.waypoint_order)
+          ? googleRoute.waypoint_order
+          : [];
+
+        const orderedMiddlePoints = waypointOrder.length
+          ? waypointOrder.map(i => middlePoints[i])
+          : middlePoints;
+
+        const orderedPoints = [
+          originPoint,
+          ...orderedMiddlePoints,
+          destinationPoint
+        ];
+
+        resolve({
+          distanceMeters,
+          durationSeconds,
+          miles: metersToMiles(distanceMeters),
+          minutes: secondsToMinutes(durationSeconds),
+          waypointOrder,
+          orderedPoints,
+          overviewPolyline: googleRoute.overview_polyline ? googleRoute.overview_polyline.points : "",
+          googleSummary: googleRoute.summary || "",
+          googleLegs: googleRoute.legs.map((leg, index) => ({
+            legIndex: index,
+            startAddress: leg.start_address,
+            endAddress: leg.end_address,
+            distanceText: leg.distance ? leg.distance.text : "",
+            distanceMeters: leg.distance ? leg.distance.value : 0,
+            durationText: leg.duration ? leg.duration.text : "",
+            durationSeconds: leg.duration ? leg.duration.value : 0
+          }))
+        });
+      }
+    );
+  });
+}
+
+async function getDistanceMatrixRoadDistances(origins, destinations){
+  /*
+    request واحد للـ distance matrix
+    بنستخدمه فقط لما نحتاج نختار أقرب pickup/dropoff حسب الشوارع.
+  */
+  await ensureGoogleLoaded();
+
+  if(!Array.isArray(origins) || !origins.length || !Array.isArray(destinations) || !destinations.length){
+    throw new Error("Distance matrix requires origins and destinations.");
+  }
+
+  return new Promise((resolve, reject) => {
+    const service = new google.maps.DistanceMatrixService();
+
+    service.getDistanceMatrix(
+      {
+        origins: origins.map(getLatLng),
+        destinations: destinations.map(getLatLng),
+        travelMode: google.maps.TravelMode.DRIVING,
+        unitSystem: google.maps.UnitSystem.IMPERIAL
+      },
+      function(response, status){
+        if(status !== "OK" || !response){
+          reject(new Error("Google distance matrix failed: " + status));
+          return;
+        }
+
+        const rows = response.rows || [];
+
+        const matrix = rows.map(row => {
+          return (row.elements || []).map(el => ({
+            status: el.status,
+            distanceMeters: el.distance ? el.distance.value : Infinity,
+            durationSeconds: el.duration ? el.duration.value : Infinity,
+            distanceText: el.distance ? el.distance.text : "",
+            durationText: el.duration ? el.duration.text : ""
+          }));
+        });
+
+        resolve(matrix);
+      }
+    );
+  });
+}
+
+function createRouteItemsFromOrderedPoints(orderedPoints){
+  return orderedPoints.map((p, index) => ({
+    type: p.type || "point",
+    pointIndex: index,
+    passengerIndex: p.passengerIndex,
+    passengerId: p.passengerId,
+    clientName: p.clientName,
+    stopIndex: p.stopIndex,
+    address: p.address,
+    lat: p.lat,
+    lng: p.lng
+  }));
+}
+
+/* =============================
+   FORM CLEAR / ENTRY
+============================= */
 
 function clearTripForm(){
   clientName.value = "";
@@ -503,7 +781,8 @@ if(saveTripBtn){
 }
 
 /* =============================
-   ROUTE HELPERS
+   OLD DISTANCE HELPERS
+   موجودة كـ fallback فقط
 ============================= */
 
 function getDistance(a, b){
@@ -562,6 +841,67 @@ function buildIndividualRoute(pickupGeo, stopsGeo, dropoffGeo){
 }
 
 /* =============================
+   BUILD INDIVIDUAL WITH GOOGLE
+============================= */
+
+async function buildIndividualGoogleTrip(pickupGeo, stopsGeoRaw, dropoffGeo){
+  const pickupPoint = {
+    type: "pickup",
+    address: pickupGeo.address,
+    lat: pickupGeo.lat,
+    lng: pickupGeo.lng
+  };
+
+  const stopPoints = stopsGeoRaw.map((s, index) => ({
+    type: "stop",
+    stopIndex: index,
+    address: s.address,
+    lat: s.lat,
+    lng: s.lng
+  }));
+
+  const dropoffPoint = {
+    type: "dropoff",
+    address: dropoffGeo.address,
+    lat: dropoffGeo.lat,
+    lng: dropoffGeo.lng
+  };
+
+  const points = [
+    pickupPoint,
+    ...stopPoints,
+    dropoffPoint
+  ];
+
+  const routeData = await getGoogleOptimizedRoute(points, {
+    optimizeWaypoints: true
+  });
+
+  const route = createRouteItemsFromOrderedPoints(routeData.orderedPoints);
+
+  const orderedStops = route
+    .filter(item => item.type === "stop")
+    .map(item => ({
+      address: item.address,
+      lat: item.lat,
+      lng: item.lng,
+      stopIndex: item.stopIndex
+    }));
+
+  return {
+    route,
+    orderedStops,
+    distanceMeters: routeData.distanceMeters,
+    durationSeconds: routeData.durationSeconds,
+    miles: routeData.miles,
+    minutes: routeData.minutes,
+    overviewPolyline: routeData.overviewPolyline,
+    googleSummary: routeData.googleSummary,
+    googleLegs: routeData.googleLegs
+  };
+}
+
+/* =============================
    SUBMIT INDIVIDUAL
 ============================= */
 
@@ -601,18 +941,34 @@ if(submitTripBtn){
     }
 
     submitTripBtn.disabled = true;
-    submitTripBtn.textContent = "Submitting...";
+    submitTripBtn.textContent = "Calculating...";
 
     try{
       const pickupGeo = await geocodeAddress(pickupInput.value);
       const dropoffGeo = await geocodeAddress(dropoffInput.value);
       const stopsGeoRaw = await geocodeStops();
 
-      const builtRoute = buildIndividualRoute(pickupGeo, stopsGeoRaw, dropoffGeo);
+      const builtRoute = await buildIndividualGoogleTrip(
+        pickupGeo,
+        stopsGeoRaw,
+        dropoffGeo
+      );
+
       const stopsGeo = builtRoute.orderedStops;
       const stops = stopsGeo.map(s => s.address);
 
+      const basePrice = calculateIndividualPrice(builtRoute.miles);
+      const finalPrice = applyFinalPricingPolicy(
+        basePrice,
+        "Scheduled",
+        tripDate.value,
+        tripTime.value,
+        null
+      );
+
       const trip = {
+        tripNumber: generateTripNumber("INDIVIDUAL"),
+
         company: companyName,
 
         entryName: entryName.value,
@@ -637,12 +993,38 @@ if(submitTripBtn){
         stopsGeo: stopsGeo,
         route: builtRoute.route,
 
+        distanceMeters: builtRoute.distanceMeters,
+        durationSeconds: builtRoute.durationSeconds,
+        miles: builtRoute.miles,
+        estimatedMinutes: builtRoute.minutes,
+
+        basePrice: basePrice,
+        finalPrice: finalPrice,
+        priceAmount: finalPrice,
+
+        pricingPolicy: {
+          type: "INDIVIDUAL",
+          baseFare: 25,
+          perMile: 2,
+          includedMiles: 0,
+          noShowFee: 15,
+          cancelWithinTwoHoursFee: 15
+        },
+
+        googleRoute: {
+          overviewPolyline: builtRoute.overviewPolyline,
+          summary: builtRoute.googleSummary,
+          legs: builtRoute.googleLegs
+        },
+
         notes: notes.value,
         status: "Scheduled",
         type: "INDIVIDUAL"
       };
 
       console.log("SENDING INDIVIDUAL:", trip);
+
+      submitTripBtn.textContent = "Submitting...";
 
       const res = await fetch("/api/trips", {
         method: "POST",
@@ -658,6 +1040,14 @@ if(submitTripBtn){
         console.log("SERVER ERROR:", errData);
         throw new Error(errData.message || "Server error");
       }
+
+      const savedTrip = await res.json().catch(() => trip);
+      const reviewTrip = savedTrip && typeof savedTrip === "object"
+        ? { ...trip, ...savedTrip }
+        : trip;
+
+      localStorage.setItem("lastTrip", JSON.stringify(reviewTrip));
+      localStorage.setItem("reviewTrip", JSON.stringify(reviewTrip));
 
       saveEntryInfo();
       removeTripDraft();
@@ -827,6 +1217,15 @@ function clearSharedForm(){
   passengersContainer.innerHTML = "";
 }
 
+/* keep entry info after submit */
+function clearSharedTripOnly(){
+  passengerCount.value = "";
+  sharedDate.value = "";
+  sharedTime.value = "";
+  sharedNotes.value = "";
+  passengersContainer.innerHTML = "";
+}
+
 if(saveSharedBtn){
   saveSharedBtn.addEventListener("click", function(){
     saveSharedDraft();
@@ -835,7 +1234,8 @@ if(saveSharedBtn){
 }
 
 /* =============================
-   SHARED ROUTE
+   SHARED ROUTE OLD HELPERS
+   موجودة كـ fallback
 ============================= */
 
 function samePickup(passengers){
@@ -844,6 +1244,14 @@ function samePickup(passengers){
   const first = passengers[0].pickup.toLowerCase();
 
   return passengers.every(p => p.pickup.toLowerCase() === first);
+}
+
+function sameDropoff(passengers){
+  if(passengers.length < 2) return false;
+
+  const first = passengers[0].dropoff.toLowerCase();
+
+  return passengers.every(p => p.dropoff.toLowerCase() === first);
 }
 
 function buildSamePickupRoute(passengers){
@@ -968,6 +1376,223 @@ function buildSharedRoute(passengers){
 }
 
 /* =============================
+   SHARED GOOGLE ROUTE BUILDER
+============================= */
+
+function makePickupPoint(p, index){
+  return {
+    type: "pickup",
+    passengerIndex: index,
+    passengerId: p.passengerId,
+    clientName: p.clientName,
+    address: p.pickup,
+    lat: p.pickupLat,
+    lng: p.pickupLng
+  };
+}
+
+function makeDropoffPoint(p, index){
+  return {
+    type: "dropoff",
+    passengerIndex: index,
+    passengerId: p.passengerId,
+    clientName: p.clientName,
+    address: p.dropoff,
+    lat: p.dropoffLat,
+    lng: p.dropoffLng
+  };
+}
+
+async function chooseFarthestDropoffFromPickupByRoad(pickupPoint, dropoffPoints){
+  if(dropoffPoints.length === 1){
+    return {
+      destination: dropoffPoints[0],
+      waypoints: []
+    };
+  }
+
+  const matrix = await getDistanceMatrixRoadDistances(
+    [pickupPoint],
+    dropoffPoints
+  );
+
+  const distances = matrix[0] || [];
+
+  let farthestIndex = 0;
+  for(let i = 1; i < distances.length; i++){
+    if(distances[i].distanceMeters > distances[farthestIndex].distanceMeters){
+      farthestIndex = i;
+    }
+  }
+
+  const destination = dropoffPoints[farthestIndex];
+  const waypoints = dropoffPoints.filter((_, index) => index !== farthestIndex);
+
+  return { destination, waypoints };
+}
+
+async function chooseFarthestPickupFromDropoffByRoad(dropoffPoint, pickupPoints){
+  if(pickupPoints.length === 1){
+    return {
+      origin: pickupPoints[0],
+      waypoints: []
+    };
+  }
+
+  const matrix = await getDistanceMatrixRoadDistances(
+    pickupPoints,
+    [dropoffPoint]
+  );
+
+  let farthestIndex = 0;
+
+  for(let i = 1; i < matrix.length; i++){
+    const current = matrix[i] && matrix[i][0] ? matrix[i][0].distanceMeters : Infinity;
+    const farthest = matrix[farthestIndex] && matrix[farthestIndex][0] ? matrix[farthestIndex][0].distanceMeters : Infinity;
+
+    if(current > farthest){
+      farthestIndex = i;
+    }
+  }
+
+  const origin = pickupPoints[farthestIndex];
+  const waypoints = pickupPoints.filter((_, index) => index !== farthestIndex);
+
+  return { origin, waypoints };
+}
+
+async function buildSharedGoogleTrip(passengers){
+  /*
+    مهم:
+    - لو نفس pickup: نحط pickup واحد، وGoogle يرتب dropoffs حسب الشوارع.
+    - لو نفس dropoff: Google يرتب pickups حسب الشوارع.
+    - لو pickups و dropoffs مختلفة: نحافظ على pickups الأول ثم dropoffs، ونستخدم Google route للقياس الفعلي.
+  */
+
+  const pickupPoints = passengers.map((p, index) => makePickupPoint(p, index));
+  const dropoffPoints = passengers.map((p, index) => makeDropoffPoint(p, index));
+
+  let points = [];
+
+  if(samePickup(passengers)){
+    const sharedPickupPoint = {
+      type: "pickup",
+      passengerIndex: null,
+      passengerId: "ALL",
+      clientName: "Shared Pickup",
+      address: passengers[0].pickup,
+      lat: passengers[0].pickupLat,
+      lng: passengers[0].pickupLng
+    };
+
+    const selected = await chooseFarthestDropoffFromPickupByRoad(
+      sharedPickupPoint,
+      dropoffPoints
+    );
+
+    points = [
+      sharedPickupPoint,
+      ...selected.waypoints,
+      selected.destination
+    ];
+
+    const routeData = await getGoogleOptimizedRoute(points, {
+      optimizeWaypoints: true
+    });
+
+    const route = createRouteItemsFromOrderedPoints(routeData.orderedPoints);
+
+    return {
+      route,
+      distanceMeters: routeData.distanceMeters,
+      durationSeconds: routeData.durationSeconds,
+      miles: routeData.miles,
+      minutes: routeData.minutes,
+      overviewPolyline: routeData.overviewPolyline,
+      googleSummary: routeData.googleSummary,
+      googleLegs: routeData.googleLegs
+    };
+  }
+
+  if(sameDropoff(passengers)){
+    const sharedDropoffPoint = {
+      type: "dropoff",
+      passengerIndex: null,
+      passengerId: "ALL",
+      clientName: "Shared Dropoff",
+      address: passengers[0].dropoff,
+      lat: passengers[0].dropoffLat,
+      lng: passengers[0].dropoffLng
+    };
+
+    const selected = await chooseFarthestPickupFromDropoffByRoad(
+      sharedDropoffPoint,
+      pickupPoints
+    );
+
+    points = [
+      selected.origin,
+      ...selected.waypoints,
+      sharedDropoffPoint
+    ];
+
+    const routeData = await getGoogleOptimizedRoute(points, {
+      optimizeWaypoints: true
+    });
+
+    const route = createRouteItemsFromOrderedPoints(routeData.orderedPoints);
+
+    return {
+      route,
+      distanceMeters: routeData.distanceMeters,
+      durationSeconds: routeData.durationSeconds,
+      miles: routeData.miles,
+      minutes: routeData.minutes,
+      overviewPolyline: routeData.overviewPolyline,
+      googleSummary: routeData.googleSummary,
+      googleLegs: routeData.googleLegs
+    };
+  }
+
+  /*
+    الحالة العامة:
+    pickups مختلفة و dropoffs مختلفة.
+    هنا لا نسمح لـ Google يخلط dropoff قبل pickup.
+    نحافظ على ترتيب منطقي:
+    pickups الأول ثم dropoffs.
+    بعدين Google يحسب route الحقيقي حسب الشوارع بدون إعادة ترتيب خطيرة.
+  */
+  const fallbackRoute = buildDifferentPickupRoute(passengers);
+
+  points = fallbackRoute.map(item => ({
+    type: item.type,
+    passengerIndex: item.passengerIndex,
+    passengerId: item.passengerId,
+    clientName: item.clientName,
+    address: item.address,
+    lat: item.lat,
+    lng: item.lng
+  }));
+
+  const routeData = await getGoogleOptimizedRoute(points, {
+    optimizeWaypoints: false
+  });
+
+  const route = createRouteItemsFromOrderedPoints(routeData.orderedPoints);
+
+  return {
+    route,
+    distanceMeters: routeData.distanceMeters,
+    durationSeconds: routeData.durationSeconds,
+    miles: routeData.miles,
+    minutes: routeData.minutes,
+    overviewPolyline: routeData.overviewPolyline,
+    googleSummary: routeData.googleSummary,
+    googleLegs: routeData.googleLegs
+  };
+}
+
+/* =============================
    SUBMIT SHARED
 ============================= */
 
@@ -1006,7 +1631,7 @@ if(submitSharedBtn){
     }
 
     submitSharedBtn.disabled = true;
-    submitSharedBtn.textContent = "Submitting...";
+    submitSharedBtn.textContent = "Calculating...";
 
     try{
       const passengers = [];
@@ -1035,12 +1660,24 @@ if(submitSharedBtn){
         });
       }
 
-      const route = buildSharedRoute(passengers);
+      const builtShared = await buildSharedGoogleTrip(passengers);
 
-      const firstPassenger = passengers[0];
-      const lastRouteItem = route[route.length - 1];
+      const firstRouteItem = builtShared.route[0];
+      const lastRouteItem = builtShared.route[builtShared.route.length - 1];
+
+      const pricing = calculateSharedPrice(builtShared.miles, passengers.length);
+
+      passengers.forEach(p => {
+        p.basePrice = pricing.perPassenger;
+        p.finalPrice = pricing.perPassenger;
+        p.priceAmount = pricing.perPassenger;
+        p.noShowFee = 15;
+        p.cancelWithinTwoHoursFee = 15;
+      });
 
       const sharedTrip = {
+        tripNumber: generateTripNumber("SHARED"),
+
         company: companyName,
 
         type: "SHARED",
@@ -1051,11 +1688,11 @@ if(submitSharedBtn){
         entryPhone: sharedEntryPhone.value,
 
         clientName: "Shared Trip",
-        clientPhone: firstPassenger.clientPhone,
+        clientPhone: passengers[0].clientPhone,
 
-        pickup: firstPassenger.pickup,
-        pickupLat: firstPassenger.pickupLat,
-        pickupLng: firstPassenger.pickupLng,
+        pickup: firstRouteItem.address,
+        pickupLat: firstRouteItem.lat,
+        pickupLng: firstRouteItem.lng,
 
         dropoff: lastRouteItem.address,
         dropoffLat: lastRouteItem.lat,
@@ -1071,13 +1708,40 @@ if(submitSharedBtn){
         stops: [],
         stopsGeo: [],
 
+        distanceMeters: builtShared.distanceMeters,
+        durationSeconds: builtShared.durationSeconds,
+        miles: builtShared.miles,
+        estimatedMinutes: builtShared.minutes,
+
+        pricePerPassenger: pricing.perPassenger,
+        basePrice: pricing.total,
+        finalPrice: pricing.total,
+        priceAmount: pricing.total,
+
+        pricingPolicy: {
+          type: "SHARED",
+          baseFarePerPassenger: 15,
+          includedMiles: 3,
+          perMile: 2,
+          noShowFee: 15,
+          cancelWithinTwoHoursFee: 15
+        },
+
+        googleRoute: {
+          overviewPolyline: builtShared.overviewPolyline,
+          summary: builtShared.googleSummary,
+          legs: builtShared.googleLegs
+        },
+
         notes: sharedNotes.value,
 
-        route: route,
+        route: builtShared.route,
         status: "Scheduled"
       };
 
       console.log("SENDING SHARED:", sharedTrip);
+
+      submitSharedBtn.textContent = "Submitting...";
 
       const res = await fetch("/api/trips", {
         method: "POST",
@@ -1094,8 +1758,18 @@ if(submitSharedBtn){
         throw new Error(errData.message || "Server error");
       }
 
+      const savedTrip = await res.json().catch(() => sharedTrip);
+      const reviewTrip = savedTrip && typeof savedTrip === "object"
+        ? { ...sharedTrip, ...savedTrip }
+        : sharedTrip;
+
+      localStorage.setItem("lastTrip", JSON.stringify(reviewTrip));
+      localStorage.setItem("reviewTrip", JSON.stringify(reviewTrip));
+
       localStorage.removeItem("sharedTripDraft");
-      clearSharedForm();
+
+      saveEntryInfo();
+      clearSharedTripOnly();
 
       showAlert("Shared trip submitted ✔");
     }
