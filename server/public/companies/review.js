@@ -19,16 +19,21 @@ function getAZNow(){
   );
 }
 
-function minutesToTrip(t){
+function getTripDateTime(t){
   if(!t.tripDate || !t.tripTime) return null;
   const dt = new Date(t.tripDate + "T" + t.tripTime + ":00");
+  return String(dt) === "Invalid Date" ? null : dt;
+}
+
+function minutesToTrip(t){
+  const dt = getTripDateTime(t);
+  if(!dt) return null;
   return (dt - getAZNow()) / 60000;
 }
 
 function escapeHtml(value){
   return String(value ?? "")
     .replace(/&/g,"&amp;")
-    .replace(/"/g,"&quot;")
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;");
 }
@@ -115,6 +120,8 @@ function render(){
         <th>Phone</th>
         <th>Pickup</th>
         <th>Drop</th>
+        <th>Stops</th>
+        <th>Notes</th>
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
@@ -127,61 +134,55 @@ function render(){
 
       const mins = minutesToTrip(t);
       const tr = document.createElement("tr");
+      tr.dataset.id = t._id;
 
       /* ===== SH ===== */
       let tripNumber = t.tripNumber || "";
-      if((t.type === "SHARED" || t.tripType === "shared") && !tripNumber.includes("SH")){
-        tripNumber += "-SH";
+      if(t.passengers && t.passengers.length){
+        if(!tripNumber.includes("SH")){
+          tripNumber += "-SH";
+        }
       }
 
       /* ===== CLIENT / PICKUP / DROP ===== */
-      let client = "";
-      let pickup = "";
-      let drop = "";
+      let client = t.clientName || "";
+      let pickup = t.pickup || "";
+      let drop = t.dropoff || "";
 
       if(t.passengers && t.passengers.length){
-
-        client = t.passengers
-          .map((p,i)=>`${i+1}- ${p.clientName || "-"}`)
-          .join("<br>");
-
-        pickup = t.passengers
-          .map((p,i)=>`${i+1}- ${p.pickup || "-"}`)
-          .join("<br>");
-
-        drop = t.passengers
-          .map((p,i)=>`${i+1}- ${p.dropoff || "-"}`)
-          .join("<br>");
-
-      }else{
-        client = escapeHtml(t.clientName || "-");
-        pickup = escapeHtml(t.pickup || "-");
-        drop = escapeHtml(t.dropoff || "-");
+        client = t.passengers.map((p,i)=>`${i+1}- ${p.clientName}`).join("\n");
+        pickup = t.passengers.map((p,i)=>`${i+1}- ${p.pickup}`).join("\n");
+        drop = t.passengers.map((p,i)=>`${i+1}- ${p.dropoff}`).join("\n");
       }
 
-      /* ===== PRICE ===== */
-      let price =
-        t.finalPrice ||
-        t.priceAmount ||
-        (t.passengers
-          ? t.passengers.reduce((sum,p)=> sum + (p.priceAmount || 0),0)
-          : 0);
+      /* ===== STOPS ===== */
+      let stops = "";
+      if(t.stops && t.stops.length){
+        stops = t.stops.map((s,i)=>`${i+1}- ${s}`).join("\n");
+      }
+
+      /* ===== NOTES ===== */
+      let notes = t.notes || "";
 
       /* ===== BUTTONS ===== */
+
       let buttons = "";
 
-      if(t.status !== "Cancelled"){
-        if(mins > 120){
-          buttons = `
-            <button data-action="confirm">Confirm</button>
-            <button data-action="delete">Delete</button>
-          `;
-        }else if(mins > 0){
-          buttons = `
-            <button data-action="confirm">Confirm</button>
-            <button data-action="cancel">Cancel</button>
-          `;
-        }
+      if(t.status === "Cancelled"){
+        buttons = "";
+      }
+      else if(mins > 120){
+        buttons = `
+          <button class="btn edit" data-action="edit">Edit</button>
+          <button class="btn delete" data-action="delete">Delete</button>
+          <button class="btn confirm" data-action="confirm">Confirm</button>
+        `;
+      }
+      else if(mins <= 120 && mins > 0){
+        buttons = `
+          <button class="btn confirm" data-action="confirm">Confirm</button>
+          <button class="btn cancel" data-action="cancel">Cancel</button>
+        `;
       }
 
       tr.innerHTML = `
@@ -190,11 +191,14 @@ function render(){
         <td>${escapeHtml(t.entryName)}</td>
         <td>${escapeHtml(t.entryPhone)}</td>
 
-        <td style="white-space:normal; line-height:1.6">${client}</td>
+        <td style="white-space:pre-line">${escapeHtml(client)}</td>
         <td>${escapeHtml(t.clientPhone || "")}</td>
 
-        <td style="white-space:normal; line-height:1.6">${pickup}</td>
-        <td style="white-space:normal; line-height:1.6">${drop}</td>
+        <td style="white-space:pre-line">${escapeHtml(pickup)}</td>
+        <td style="white-space:pre-line">${escapeHtml(drop)}</td>
+
+        <td style="white-space:pre-line">${escapeHtml(stops)}</td>
+        <td style="white-space:pre-line">${escapeHtml(notes)}</td>
 
         <td>${escapeHtml(t.tripDate)}</td>
         <td>${escapeHtml(t.tripTime)}</td>
@@ -202,7 +206,7 @@ function render(){
         <td>${escapeHtml(t.status)}</td>
 
         <td style="color:#22c55e;font-weight:bold">
-          $${Number(price).toFixed(2)}
+          $${t.priceAmount || 0}
         </td>
 
         <td>${buttons}</td>

@@ -28,6 +28,7 @@ body{
   color:#0f172a;
 }
 
+/* TABLE */
 table{
   width:100%;
   border-collapse:collapse;
@@ -43,8 +44,8 @@ th,td{
   font-size:13px;
   border-bottom:1px solid #eee;
   text-align:left;
-  white-space:pre-line;
   vertical-align:top;
+  white-space:pre-line; /* مهم للشير */
 }
 
 th{
@@ -60,6 +61,7 @@ tr:hover{
   background:#f9fafb;
 }
 
+/* COLORS */
 .yellow{
   background:#fff3cd !important;
 }
@@ -76,6 +78,7 @@ tr:hover{
   background:#fecaca !important;
 }
 
+/* BUTTONS */
 .btn{
   padding:6px 12px;
   border:none;
@@ -106,6 +109,7 @@ tr:hover{
   color:#fff;
 }
 
+/* INPUT */
 input{
   width:100%;
   padding:5px;
@@ -115,6 +119,13 @@ input{
   box-sizing:border-box;
 }
 
+/* PRICE */
+.price{
+  color:#22c55e;
+  font-weight:bold;
+}
+
+/* RESPONSIVE */
 @media(max-width:768px){
   table{
     font-size:11px;
@@ -125,10 +136,13 @@ input{
 
 <body>
 
+<!-- HEADER -->
 <div id="layoutHeader"></div>
 
+<!-- CONTENT -->
 <div class="container" id="tripsContainer"></div>
 
+<!-- SCRIPTS -->
 <script src="layout.js"></script>
 <script src="review.js"></script>
 
