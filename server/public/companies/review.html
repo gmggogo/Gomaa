@@ -105,22 +105,6 @@ tr:hover{
   line-height:1.6;
 }
 
-.shared-box{
-  background:#f8fafc;
-  border:1px dashed #cbd5e1;
-  border-radius:10px;
-  padding:8px;
-}
-
-.passenger-item{
-  padding:6px 0;
-  border-bottom:1px dashed #cbd5e1;
-}
-
-.passenger-item:last-child{
-  border:none;
-}
-
 /* ================= BADGES ================= */
 
 .trip-number-badge{
@@ -138,27 +122,6 @@ tr:hover{
   border-radius:8px;
   font-weight:900;
   box-shadow:0 0 10px rgba(34,197,94,.4);
-}
-
-.status{
-  padding:6px 10px;
-  border-radius:8px;
-  font-weight:700;
-  font-size:12px;
-}
-
-.status-scheduled{
-  background:#fde047;
-}
-
-.status-confirmed{
-  background:#22c55e;
-  color:#fff;
-}
-
-.status-cancelled{
-  background:#ef4444;
-  color:#fff;
 }
 
 /* ================= ROW COLORS ================= */
@@ -237,39 +200,18 @@ tr:hover{
 
 <body>
 
+<!-- HEADER -->
 <div id="layoutHeader"></div>
 
+<!-- MAIN -->
 <div class="container">
 
-  <!-- ================= TABLE HEAD ================= -->
-  <!-- IMPORTANT: JS WILL FILL DATA -->
-  <table class="review-table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Trip#</th>
-        <th>Entry</th>
-        <th>Entry Phone</th>
-        <th>Clients</th>
-        <th>Phones</th>
-        <th>Pickups</th>
-        <th>Drops</th>
-        <th>Stops</th>
-        <th>Notes</th>
-        <th>Date</th>
-        <th>Time</th>
-        <th>Status</th>
-        <th>Price</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-  </table>
-
-  <!-- ================= DATA ================= -->
+  <!-- 🔥 هنا بس، JS هو اللي هيبني كل حاجة -->
   <div id="tripsContainer"></div>
 
 </div>
 
+<!-- SCRIPTS -->
 <script src="layout.js"></script>
 <script src="review.js"></script>
 
