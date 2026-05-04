@@ -1481,7 +1481,7 @@ app.get("/api/trips/:id", async (req, res) => {
 
 
 /* =========================
-   UPDATE TRIP (FIXED PART)
+   UPDATE TRIP (FINAL CLEAN)
 ========================= */
 app.put("/api/trips/:id", async (req, res) => {
   try {
@@ -1500,14 +1500,6 @@ app.put("/api/trips/:id", async (req, res) => {
       });
     }
 
-    // 👇 باقي update logic هنا (سيبه زي ما هو عندك)
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error updating trip" });
-  }
-});
-
     /* =========================
        VALIDATION
     ========================= */
@@ -1515,11 +1507,12 @@ app.put("/api/trips/:id", async (req, res) => {
       return res.status(400).json({ message: "Invalid route data" });
     }
 
+    /* =========================
+       UPDATE DATA
+    ========================= */
     const updateData = {
 
-      /* =========================
-         BASIC
-      ========================= */
+      // BASIC
       type: normalizeTripType(req.body.type || existing.type),
       company: req.body.company ?? existing.company,
 
@@ -1529,9 +1522,7 @@ app.put("/api/trips/:id", async (req, res) => {
       clientName: req.body.clientName ?? existing.clientName,
       clientPhone: req.body.clientPhone ?? existing.clientPhone,
 
-      /* =========================
-         LOCATIONS
-      ========================= */
+      // LOCATIONS
       pickup: req.body.pickup ?? existing.pickup,
       dropoff: req.body.dropoff ?? existing.dropoff,
 
@@ -1559,15 +1550,11 @@ app.put("/api/trips/:id", async (req, res) => {
         ? parseStopCoords(req.body.stopCoords)
         : existing.stopCoords,
 
-      /* =========================
-         🔥 PRICE
-      ========================= */
+      // PRICE
       priceAmount: req.body.priceAmount ?? existing.priceAmount,
       pricePerPassenger: req.body.pricePerPassenger ?? existing.pricePerPassenger,
 
-      /* =========================
-         🔥 ROUTE
-      ========================= */
+      // ROUTE
       miles: req.body.miles ?? existing.miles,
       distanceMeters: req.body.distanceMeters ?? existing.distanceMeters,
       durationSeconds: req.body.durationSeconds ?? existing.durationSeconds,
@@ -1583,9 +1570,7 @@ app.put("/api/trips/:id", async (req, res) => {
           }
         : existing.googleRoute,
 
-      /* =========================
-         🔥 SHARED
-      ========================= */
+      // SHARED
       passengers: Array.isArray(req.body.passengers)
         ? req.body.passengers.map((p, i) => ({
             ...p,
@@ -1599,17 +1584,13 @@ app.put("/api/trips/:id", async (req, res) => {
       isShared: req.body.isShared ?? existing.isShared,
       tripType: req.body.tripType ?? existing.tripType,
 
-      /* =========================
-         TIME
-      ========================= */
+      // TIME
       tripDate: req.body.tripDate ?? existing.tripDate,
       tripTime: req.body.tripTime ?? existing.tripTime,
 
       notes: req.body.notes ?? existing.notes,
 
-      /* =========================
-         DISPATCH
-      ========================= */
+      // DISPATCH
       dispatchSelected: req.body.dispatchSelected ?? existing.dispatchSelected,
       disabled: req.body.disabled ?? existing.disabled,
 
@@ -1619,24 +1600,21 @@ app.put("/api/trips/:id", async (req, res) => {
       driverAddress: req.body.driverAddress ?? existing.driverAddress,
       dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
 
-      /* =========================
-         STATUS
-      ========================= */
+      // STATUS
       status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
     };
 
     /* =========================
-       🔥 CLEAN STOPS
+       CLEAN STOPS
     ========================= */
     updateData.stops = (updateData.stops || []).filter(s => s && s.trim() !== "");
 
     /* =========================
-       🔥 SHARED FIX
+       SHARED FIX
     ========================= */
     if (updateData.isShared && Array.isArray(updateData.passengers)) {
       const p = updateData.passengers;
-
       if (p.length > 0) {
         updateData.pickup = p[0].pickup || updateData.pickup;
         updateData.dropoff = p[p.length - 1].dropoff || updateData.dropoff;
@@ -1644,11 +1622,10 @@ app.put("/api/trips/:id", async (req, res) => {
     }
 
     /* =========================
-       🔥 ROUTE ORDER FIX
+       ROUTE FIX
     ========================= */
     if (updateData.googleRoute && Array.isArray(updateData.googleRoute.legs)) {
       const legs = updateData.googleRoute.legs;
-
       if (legs.length > 0) {
         updateData.pickup = legs[0].startAddress || updateData.pickup;
         updateData.dropoff = legs[legs.length - 1].endAddress || updateData.dropoff;
@@ -1656,7 +1633,7 @@ app.put("/api/trips/:id", async (req, res) => {
     }
 
     /* =========================
-       🔥 PRICE BACKUP
+       PRICE BACKUP
     ========================= */
     if (!updateData.priceAmount || updateData.priceAmount === 0) {
       updateData.priceAmount = calculatePriceServer(updateData);
