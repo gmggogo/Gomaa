@@ -344,8 +344,13 @@ function buildIndividualRoutePoints(trip){
   return points;
 }
 
+/* ================= SAFE CHECK ================= */
+
 function sameValue(list, field){
-  if(!Array.isArray(list) || !list.length) return false;
+
+  if(!Array.isArray(list) || list.length === 0){
+    return false;
+  }
 
   const first = normalizeText(list[0]?.[field]).toLowerCase();
 
@@ -356,113 +361,112 @@ function sameValue(list, field){
   );
 }
 
-function buildSharedRoutePoints(group){
+/* ================= ROUTE POINTS ================= */
 
-  const list = getRealPassengersFromGroup(group) || [];
+function buildIndividualRoutePoints(trip){
   const points = [];
 
-  if(!Array.isArray(list) || list.length === 0){
-    console.log("Empty shared passengers list");
-    return points;
+  if(trip && normalizeText(trip.pickup)){
+    points.push(trip.pickup);
   }
+
+  if(trip && Array.isArray(trip.stops)){
+    trip.stops.forEach(s=>{
+      if(normalizeText(s)){
+        points.push(s);
+      }
+    });
+  }
+
+  if(trip && normalizeText(trip.dropoff)){
+    points.push(trip.dropoff);
+  }
+
+  return points;
+}
+
+/* ================= SAFE CHECK ================= */
+
+function sameValue(list, field){
+
+  if(!Array.isArray(list) || list.length === 0){
+    return false;
+  }
+
+  const first = normalizeText(list[0]?.[field]).toLowerCase();
+  if(!first) return false;
+
+  return list.every(x =>
+    normalizeText(x?.[field]).toLowerCase() === first
+  );
+}
+
+/* ================= SHARED ROUTE ================= */
+
+function buildSharedRoutePoints(group){
+
+  if(!Array.isArray(group) || group.length === 0){
+    return [];
+  }
+
+  const list = getRealPassengersFromGroup(group) || [];
+
+  if(!Array.isArray(list) || list.length === 0){
+    return [];
+  }
+
+  const points = [];
 
   const samePickup = sameValue(list, "pickup");
   const sameDropoff = sameValue(list, "dropoff");
 
-  /* =========================
-     CASE 1: SAME PICKUP
-     Route: pickup → drop1 → drop2 → drop3
-  ========================= */
+  /* ===== CASE 1: SAME PICKUP ===== */
   if(samePickup){
 
-    if(normalizeText(list[0]?.pickup)){
+    if(list[0]?.pickup){
       points.push(list[0].pickup);
     }
 
     list.forEach(p=>{
-      if(normalizeText(p?.dropoff)){
+      if(p?.dropoff && normalizeText(p.dropoff)){
         points.push(p.dropoff);
       }
     });
 
-    return points.filter(Boolean);
+    return points;
   }
 
-  /* =========================
-     CASE 2: SAME DROPOFF
-     Route: pickup1 → pickup2 → pickup3 → dropoff
-  ========================= */
+  /* ===== CASE 2: SAME DROPOFF ===== */
   if(sameDropoff){
 
     list.forEach(p=>{
-      if(normalizeText(p?.pickup)){
+      if(p?.pickup && normalizeText(p.pickup)){
         points.push(p.pickup);
       }
     });
 
-    if(normalizeText(list[0]?.dropoff)){
+    if(list[0]?.dropoff){
       points.push(list[0].dropoff);
     }
 
-    return points.filter(Boolean);
+    return points;
   }
 
-  /* =========================
-     CASE 3: DIFFERENT PICKUPS + DIFFERENT DROPOFFS
-     Route: pickup1 → drop1 → pickup2 → drop2 → pickup3 → drop3
-  ========================= */
+  /* ===== CASE 3: DIFFERENT ===== */
   list.forEach(p=>{
 
-    if(normalizeText(p?.pickup)){
+    if(p?.pickup && normalizeText(p.pickup)){
       points.push(p.pickup);
     }
 
-    if(normalizeText(p?.dropoff)){
+    if(p?.dropoff && normalizeText(p.dropoff)){
       points.push(p.dropoff);
     }
 
   });
 
-  return points.filter(Boolean);
-}/* ================= GROUPING ================= */
-
-function groupByDate(list){
-  const groups = {};
-
-  list.forEach(t=>{
-    const d = t.createdAt ? new Date(t.createdAt) : new Date();
-    const key = d.toLocaleDateString();
-
-    if(!groups[key]) groups[key] = [];
-    groups[key].push(t);
-  });
-
-  return groups;
+  return points;
 }
-
-function getIndividualTrips(){
-  return trips.filter(t => !isSharedTrip(t));
-}
-
-function getSharedGroups(){
-  const map = {};
-
-  trips.filter(t => isSharedTrip(t)).forEach(t=>{
-    const key = getSharedKey(t);
-    if(!map[key]) map[key] = [];
-    map[key].push(t);
-  });
-
-  return Object.values(map).map(group=>{
-    return group.sort((a,b)=>{
-      const ai = Number(a.passengerIndex || 0);
-      const bi = Number(b.passengerIndex || 0);
-      return ai - bi;
-    });
-  });
-}
-
-/* ================= TABS ================= */
 
 function renderTabs(){
   const tabs = document.createElement("div");
