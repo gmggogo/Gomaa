@@ -56,13 +56,6 @@ const container = document.getElementById("tripsContainer");
   .red-dark{background:#7f1d1d;color:#ffffff;}
   .past-row{background:#374151;color:#e5e7eb;}
 
-  .shared-warning{
-    color:#dc2626;
-    font-weight:900;
-    font-size:12px;
-    margin-bottom:4px;
-  }
-
   @keyframes blinkTrip{0%{opacity:1;}50%{opacity:.82;}100%{opacity:1;}}
   .trip-blink{animation:blinkTrip 1.8s infinite;}
 
@@ -141,6 +134,7 @@ function createSharedEditInput(value, tripId, field, type="text"){
 
 function getRealPassengersFromGroup(group){
   const first = group[0] || {};
+
   if(Array.isArray(first.passengers) && first.passengers.length > 0){
     return first.passengers;
   }
@@ -214,18 +208,20 @@ function normalizeAZ(address){
 async function calculateRouteMiles(points){
   await ensureGoogleLoaded();
 
-  const cleanPoints = Array.isArray(points) ? points.map(normalizeText).filter(Boolean) : [];
+  const cleanPoints = Array.isArray(points)
+    ? points.map(p => normalizeAZ(normalizeText(p))).filter(Boolean)
+    : [];
 
   if(cleanPoints.length < 2){
     return { miles:0, distanceMeters:0, durationSeconds:0, estimatedMinutes:0, googleRoute:{} };
   }
 
-  const origin = normalizeAZ(cleanPoints[0]);
-  const destination = normalizeAZ(cleanPoints[cleanPoints.length - 1]);
+  const origin = cleanPoints[0];
+  const destination = cleanPoints[cleanPoints.length - 1];
   const middle = cleanPoints.slice(1, -1);
 
   const waypoints = middle.map(address => ({
-    location: normalizeAZ(address),
+    location: address,
     stopover:true
   }));
 
@@ -266,6 +262,7 @@ async function calculateRouteMiles(points){
           googleRoute:{
             overviewPolyline:route.overview_polyline ? route.overview_polyline.points : "",
             summary:route.summary || "",
+            waypointOrder:route.waypoint_order || [],
             legs:route.legs.map((leg,index)=>({
               legIndex:index,
               startAddress:leg.start_address,
@@ -786,18 +783,19 @@ function renderSharedTable(groups){
         clients = passengers.map((p,idx)=>createSharedEditInput(p.name || p.clientName || "", first._id, `passenger_${idx}_name`)).join("\n");
         phones  = passengers.map((p,idx)=>createSharedEditInput(p.phone || p.clientPhone || "", first._id, `passenger_${idx}_phone`)).join("\n");
         pickups = passengers.map((p,idx)=>createSharedEditInput(p.pickup || "", first._id, `passenger_${idx}_pickup`)).join("\n");
-        drops   = passengers.map((p,idx)=>createSharedEditInput(p.dropoff || "", first._id, `passenger_${idx}_dropoff`)).join("\n");
+
+        drops = passengers.map((p,idx)=>`
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            ${createSharedEditInput(p.dropoff || "", first._id, `passenger_${idx}_dropoff`)}
+            <button class="btn small-delete" data-action="remove-passenger" data-index="${idx}" type="button">✖</button>
+          </div>
+        `).join("");
       }else{
         clients = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`).join("\n");
         phones  = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`).join("\n");
         pickups = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.pickup || "")}`).join("\n");
         drops   = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.dropoff || "")}`).join("\n");
       }
-
-      const mins = minutesToTrip(first);
-      const warningHTML = (mins !== null && mins <= 120 && mins > 0)
-        ? `<div class="shared-warning">⚠ Less than 120 minutes</div>`
-        : "";
 
       const notes = editing
         ? createSharedEditInput(first.notes || "", first._id, "notes")
@@ -815,7 +813,7 @@ function renderSharedTable(groups){
         <td><div class="multi-line">${pickups}</div></td>
         <td><div class="multi-line">${drops}</div></td>
         <td><strong>${stopsCount}</strong></td>
-        <td>${warningHTML}${notes}</td>
+        <td>${notes}</td>
         <td>${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
         <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
         <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
@@ -898,6 +896,44 @@ container.addEventListener("click", async e=>{
         const real = trips.find(x=>x._id === t._id);
         if(real) real.__editing = true;
       });
+
+      render();
+      return;
+    }
+
+    if(action === "remove-passenger"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
+
+      const first = group[0];
+      const passengers = getRealPassengersFromGroup(group).map(p=>({ ...p }));
+
+      if(passengers.length <= 2){
+        alert("Shared trip must have at least 2 passengers.");
+        return;
+      }
+
+      const index = Number(btn.dataset.index);
+      passengers.splice(index, 1);
+
+      first.passengers = passengers;
+      first.totalPassengers = passengers.length;
+      first.pickup = passengers[0]?.pickup || "";
+      first.dropoff = passengers[passengers.length - 1]?.dropoff || "";
+      first.status = "Scheduled";
+      first.priceAmount = 0;
+      first.pricePerPassenger = 0;
+      first.isShared = true;
+      first.tripType = "SHARED";
+
+      await updateTrip(first._id, first);
+
+      trips = await fetchTrips();
+
+      const updated = trips.find(t=>t._id === first._id);
+      if(updated) updated.__editing = true;
 
       render();
       return;
@@ -1051,12 +1087,20 @@ container.addEventListener("click", async e=>{
       const routePoints = buildIndividualRoutePoints(trip);
       const routeData = await calculateRouteMiles(routePoints);
 
+      if(!routeData.miles || routeData.miles <= 0){
+        alert("Route calculation failed ❌");
+        trips = await fetchTrips();
+        render();
+        return;
+      }
+
       trip.priceAmount = calculateIndividualPrice(routeData.miles, trip.status);
       trip.miles = routeData.miles;
       trip.distanceMeters = routeData.distanceMeters;
       trip.durationSeconds = routeData.durationSeconds;
       trip.estimatedMinutes = routeData.estimatedMinutes;
       trip.googleRoute = routeData.googleRoute;
+      trip.routePoints = routePoints;
       trip.status = "Confirmed";
 
       await updateTrip(id, trip);
@@ -1079,6 +1123,14 @@ container.addEventListener("click", async e=>{
 
       const routePoints = buildSharedRoutePoints(group);
       const routeData = await calculateRouteMiles(routePoints);
+
+      if(!routeData.miles || routeData.miles <= 0){
+        alert("Route calculation failed ❌");
+        trips = await fetchTrips();
+        render();
+        return;
+      }
+
       const sharedPrice = calculateSharedPrice(group, routeData.miles);
 
       const updateObj = {
@@ -1091,6 +1143,8 @@ container.addEventListener("click", async e=>{
         durationSeconds: routeData.durationSeconds,
         estimatedMinutes: routeData.estimatedMinutes,
         googleRoute: routeData.googleRoute,
+        routePoints: routePoints,
+        optimizedRoute: routeData.googleRoute,
         status: "Confirmed",
         isShared: true,
         tripType: "SHARED"

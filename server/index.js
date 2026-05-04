@@ -364,6 +364,18 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
+function calculatePriceServer(trip){
+
+  const BASE = 20;
+  const INCLUDED = 3;
+  const PER_MILE = 2.5;
+
+  const miles = Number(trip.miles || 0);
+
+  const extra = Math.max(0, miles - INCLUDED);
+
+  return Number((BASE + (extra * PER_MILE)).toFixed(2));
+}
 function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
@@ -1466,18 +1478,32 @@ app.get("/api/trips/:id", async (req, res) => {
   }
 });
 
-/* =========================
-   UPDATE TRIP
-========================= */
-app.put("/api/trips/:id", async (req, res) => {
-  try {
-    const existing = await Trip.findById(req.params.id);
+const existing = await Trip.findById(req.params.id);
 
-    if (!existing) {
-      return res.status(404).json({ message: "Trip not found" });
+// 1️⃣ لو مش موجود
+if (!existing) {
+  return res.status(404).json({ message: "Trip not found" });
+}
+
+// 2️⃣ لو الرحلة مقفولة
+if (["Completed", "Cancelled"].includes(existing.status)) {
+  return res.status(400).json({
+    message: "Cannot edit completed or cancelled trip"
+  });
+}
+
+    /* =========================
+       VALIDATION
+    ========================= */
+    if (req.body.googleRoute && !req.body.googleRoute.legs) {
+      return res.status(400).json({ message: "Invalid route data" });
     }
 
     const updateData = {
+
+      /* =========================
+         BASIC
+      ========================= */
       type: normalizeTripType(req.body.type || existing.type),
       company: req.body.company ?? existing.company,
 
@@ -1487,21 +1513,87 @@ app.put("/api/trips/:id", async (req, res) => {
       clientName: req.body.clientName ?? existing.clientName,
       clientPhone: req.body.clientPhone ?? existing.clientPhone,
 
+      /* =========================
+         LOCATIONS
+      ========================= */
       pickup: req.body.pickup ?? existing.pickup,
       dropoff: req.body.dropoff ?? existing.dropoff,
-      stops: Array.isArray(req.body.stops) ? parseStops(req.body.stops) : existing.stops,
 
-      pickupLat: req.body.pickupLat !== undefined ? normalizeNumber(req.body.pickupLat) : existing.pickupLat,
-      pickupLng: req.body.pickupLng !== undefined ? normalizeNumber(req.body.pickupLng) : existing.pickupLng,
-      dropoffLat: req.body.dropoffLat !== undefined ? normalizeNumber(req.body.dropoffLat) : existing.dropoffLat,
-      dropoffLng: req.body.dropoffLng !== undefined ? normalizeNumber(req.body.dropoffLng) : existing.dropoffLng,
-      stopCoords: Array.isArray(req.body.stopCoords) ? parseStopCoords(req.body.stopCoords) : existing.stopCoords,
+      stops: Array.isArray(req.body.stops)
+        ? parseStops(req.body.stops)
+        : existing.stops,
 
+      pickupLat: req.body.pickupLat !== undefined
+        ? normalizeNumber(req.body.pickupLat)
+        : existing.pickupLat,
+
+      pickupLng: req.body.pickupLng !== undefined
+        ? normalizeNumber(req.body.pickupLng)
+        : existing.pickupLng,
+
+      dropoffLat: req.body.dropoffLat !== undefined
+        ? normalizeNumber(req.body.dropoffLat)
+        : existing.dropoffLat,
+
+      dropoffLng: req.body.dropoffLng !== undefined
+        ? normalizeNumber(req.body.dropoffLng)
+        : existing.dropoffLng,
+
+      stopCoords: Array.isArray(req.body.stopCoords)
+        ? parseStopCoords(req.body.stopCoords)
+        : existing.stopCoords,
+
+      /* =========================
+         🔥 PRICE
+      ========================= */
+      priceAmount: req.body.priceAmount ?? existing.priceAmount,
+      pricePerPassenger: req.body.pricePerPassenger ?? existing.pricePerPassenger,
+
+      /* =========================
+         🔥 ROUTE
+      ========================= */
+      miles: req.body.miles ?? existing.miles,
+      distanceMeters: req.body.distanceMeters ?? existing.distanceMeters,
+      durationSeconds: req.body.durationSeconds ?? existing.durationSeconds,
+      estimatedMinutes: req.body.estimatedMinutes ?? existing.estimatedMinutes,
+
+      googleRoute: req.body.googleRoute
+        ? {
+            overviewPolyline: req.body.googleRoute.overviewPolyline || "",
+            summary: req.body.googleRoute.summary || "",
+            legs: Array.isArray(req.body.googleRoute.legs)
+              ? req.body.googleRoute.legs
+              : []
+          }
+        : existing.googleRoute,
+
+      /* =========================
+         🔥 SHARED
+      ========================= */
+      passengers: Array.isArray(req.body.passengers)
+        ? req.body.passengers.map((p, i) => ({
+            ...p,
+            passengerId: p.passengerId || "P" + (i + 1)
+          }))
+        : existing.passengers,
+
+      totalPassengers: req.body.totalPassengers ?? existing.totalPassengers,
+      sharedStopsCount: req.body.sharedStopsCount ?? existing.sharedStopsCount,
+
+      isShared: req.body.isShared ?? existing.isShared,
+      tripType: req.body.tripType ?? existing.tripType,
+
+      /* =========================
+         TIME
+      ========================= */
       tripDate: req.body.tripDate ?? existing.tripDate,
       tripTime: req.body.tripTime ?? existing.tripTime,
 
       notes: req.body.notes ?? existing.notes,
 
+      /* =========================
+         DISPATCH
+      ========================= */
       dispatchSelected: req.body.dispatchSelected ?? existing.dispatchSelected,
       disabled: req.body.disabled ?? existing.disabled,
 
@@ -1511,10 +1603,52 @@ app.put("/api/trips/:id", async (req, res) => {
       driverAddress: req.body.driverAddress ?? existing.driverAddress,
       dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
 
+      /* =========================
+         STATUS
+      ========================= */
       status: req.body.status ?? existing.status,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
     };
 
+    /* =========================
+       🔥 CLEAN STOPS
+    ========================= */
+    updateData.stops = (updateData.stops || []).filter(s => s && s.trim() !== "");
+
+    /* =========================
+       🔥 SHARED FIX
+    ========================= */
+    if (updateData.isShared && Array.isArray(updateData.passengers)) {
+      const p = updateData.passengers;
+
+      if (p.length > 0) {
+        updateData.pickup = p[0].pickup || updateData.pickup;
+        updateData.dropoff = p[p.length - 1].dropoff || updateData.dropoff;
+      }
+    }
+
+    /* =========================
+       🔥 ROUTE ORDER FIX
+    ========================= */
+    if (updateData.googleRoute && Array.isArray(updateData.googleRoute.legs)) {
+      const legs = updateData.googleRoute.legs;
+
+      if (legs.length > 0) {
+        updateData.pickup = legs[0].startAddress || updateData.pickup;
+        updateData.dropoff = legs[legs.length - 1].endAddress || updateData.dropoff;
+      }
+    }
+
+    /* =========================
+       🔥 PRICE BACKUP
+    ========================= */
+    if (!updateData.priceAmount || updateData.priceAmount === 0) {
+      updateData.priceAmount = calculatePriceServer(updateData);
+    }
+
+    /* =========================
+       SAVE
+    ========================= */
     const updated = await Trip.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -1524,6 +1658,7 @@ app.put("/api/trips/:id", async (req, res) => {
     await ensureTripCoords(updated);
 
     res.json(updated);
+
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Error updating trip" });
