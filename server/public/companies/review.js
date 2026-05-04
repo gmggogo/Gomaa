@@ -325,84 +325,106 @@ function calculateSharedPrice(group, miles){
 function buildIndividualRoutePoints(trip){
   const points = [];
 
-  if(trip.pickup) points.push(trip.pickup);
+  if(trip && normalizeText(trip.pickup)){
+    points.push(trip.pickup);
+  }
 
-  if(Array.isArray(trip.stops)){
+  if(trip && Array.isArray(trip.stops)){
     trip.stops.forEach(s=>{
-      if(normalizeText(s)) points.push(s);
+      if(normalizeText(s)){
+        points.push(s);
+      }
     });
   }
 
-  if(trip.dropoff) points.push(trip.dropoff);
+  if(trip && normalizeText(trip.dropoff)){
+    points.push(trip.dropoff);
+  }
 
   return points;
 }
 
 function sameValue(list, field){
-  if(!list.length) return false;
+  if(!Array.isArray(list) || !list.length) return false;
 
-  const first = normalizeText(list[0][field]).toLowerCase();
+  const first = normalizeText(list[0]?.[field]).toLowerCase();
+
+  if(!first) return false;
 
   return list.every(x =>
-    normalizeText(x[field]).toLowerCase() === first
+    normalizeText(x?.[field]).toLowerCase() === first
   );
 }
 
 function buildSharedRoutePoints(group){
 
-  const list = getRealPassengersFromGroup(group);
+  const list = getRealPassengersFromGroup(group) || [];
   const points = [];
 
-  if(!list.length) return points;
+  if(!Array.isArray(list) || list.length === 0){
+    console.log("Empty shared passengers list");
+    return points;
+  }
 
   const samePickup = sameValue(list, "pickup");
   const sameDropoff = sameValue(list, "dropoff");
 
-  // ✅ نفس البيكاب
+  /* =========================
+     CASE 1: SAME PICKUP
+     Route: pickup → drop1 → drop2 → drop3
+  ========================= */
   if(samePickup){
-    points.push(list[0].pickup);
+
+    if(normalizeText(list[0]?.pickup)){
+      points.push(list[0].pickup);
+    }
 
     list.forEach(p=>{
-      if(normalizeText(p.dropoff)){
+      if(normalizeText(p?.dropoff)){
         points.push(p.dropoff);
       }
     });
 
-    return points;
+    return points.filter(Boolean);
   }
 
-  // ✅ نفس الدروب
+  /* =========================
+     CASE 2: SAME DROPOFF
+     Route: pickup1 → pickup2 → pickup3 → dropoff
+  ========================= */
   if(sameDropoff){
+
     list.forEach(p=>{
-      if(normalizeText(p.pickup)){
+      if(normalizeText(p?.pickup)){
         points.push(p.pickup);
       }
     });
 
-    points.push(list[0].dropoff);
-    return points;
+    if(normalizeText(list[0]?.dropoff)){
+      points.push(list[0].dropoff);
+    }
+
+    return points.filter(Boolean);
   }
 
-  // 🔥 الحالة العامة (مختلفين)
-
-  // 1️⃣ كل الـ pickups
+  /* =========================
+     CASE 3: DIFFERENT PICKUPS + DIFFERENT DROPOFFS
+     Route: pickup1 → drop1 → pickup2 → drop2 → pickup3 → drop3
+  ========================= */
   list.forEach(p=>{
-    if(normalizeText(p.pickup)){
+
+    if(normalizeText(p?.pickup)){
       points.push(p.pickup);
     }
-  });
 
-  // 2️⃣ كل الـ dropoffs
-  list.forEach(p=>{
-    if(normalizeText(p.dropoff)){
+    if(normalizeText(p?.dropoff)){
       points.push(p.dropoff);
     }
+
   });
 
-  return points;
-}
-
-/* ================= GROUPING ================= */
+  return points.filter(Boolean);
+}/* ================= GROUPING ================= */
 
 function groupByDate(list){
   const groups = {};
