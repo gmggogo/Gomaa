@@ -110,8 +110,8 @@ function formatMoney(value){
 function isSharedTrip(t){
   return (
     t.isShared === true ||
-    String(t.tripType || "").toUpperCase() === "SHARED" ||
-    String(t.tripNumber || "").toUpperCase().includes("SH") ||
+    t.tripType === "SHARED" ||
+    String(t.tripNumber || "").includes("SH") ||
     (Array.isArray(t.passengers) && t.passengers.length > 0)
   );
 }
@@ -133,14 +133,13 @@ function createSharedEditInput(value, tripId, field, type="text"){
 }
 
 function getRealPassengersFromGroup(group){
-  const safeGroup = Array.isArray(group) ? group : [];
-  const first = safeGroup[0] || {};
+  const first = group[0] || {};
 
   if(Array.isArray(first.passengers) && first.passengers.length > 0){
     return first.passengers;
   }
 
-  return safeGroup.map((t,idx)=>({
+  return group.map((t,idx)=>({
     passengerId: "P" + (idx + 1),
     name: t.name || t.clientName || "",
     phone: t.phone || t.clientPhone || "",
@@ -199,14 +198,13 @@ function normalizeAZ(address){
   const v = normalizeText(address);
   const lower = v.toLowerCase();
 
-  if(!v) return "";
-
   if(lower.includes(" az") || lower.includes(",az") || lower.includes("arizona")){
     return v;
   }
 
   return v + ", AZ, USA";
 }
+
 async function calculateRouteMiles(points){
   await ensureGoogleLoaded();
 
@@ -322,99 +320,66 @@ function calculateSharedPrice(group, miles){
   };
 }
 
-/* ================= ROUTE BUILD ================= */
+/* ================= ROUTE POINTS ================= */
 
 function buildIndividualRoutePoints(trip){
   const points = [];
 
-  if(trip && normalizeText(trip.pickup)){
-    points.push(trip.pickup);
-  }
+  if(trip.pickup) points.push(trip.pickup);
 
-  if(trip && Array.isArray(trip.stops)){
+  if(Array.isArray(trip.stops)){
     trip.stops.forEach(s=>{
-      if(normalizeText(s)){
-        points.push(s);
-      }
+      if(normalizeText(s)) points.push(s);
     });
   }
 
-  if(trip && normalizeText(trip.dropoff)){
-    points.push(trip.dropoff);
-  }
+  if(trip.dropoff) points.push(trip.dropoff);
 
   return points;
 }
 
 function sameValue(list, field){
-  if(!Array.isArray(list) || list.length === 0){
-    return false;
-  }
-
-  const first = normalizeText(list[0]?.[field]).toLowerCase();
-  if(!first) return false;
-
-  return list.every(x =>
-    normalizeText(x?.[field]).toLowerCase() === first
-  );
+  if(!list.length) return false;
+  const first = normalizeText(list[0][field]).toLowerCase();
+  return list.every(x => normalizeText(x[field]).toLowerCase() === first);
 }
 
 function buildSharedRoutePoints(group){
-
-  if(!Array.isArray(group) || group.length === 0){
-    return [];
-  }
-
   const list = getRealPassengersFromGroup(group);
-
-  if(!Array.isArray(list) || list.length === 0){
-    return [];
-  }
-
   const points = [];
+
+  if(!list.length) return points;
 
   const samePickup = sameValue(list, "pickup");
   const sameDropoff = sameValue(list, "dropoff");
 
   if(samePickup){
-    if(list[0]?.pickup){
-      points.push(list[0].pickup);
-    }
-
+    points.push(list[0].pickup);
     list.forEach(p=>{
-      if(normalizeText(p?.dropoff)){
-        points.push(p.dropoff);
-      }
+      if(normalizeText(p.dropoff)) points.push(p.dropoff);
     });
-
     return points;
   }
 
   if(sameDropoff){
     list.forEach(p=>{
-      if(normalizeText(p?.pickup)){
-        points.push(p.pickup);
-      }
+      if(normalizeText(p.pickup)) points.push(p.pickup);
     });
-
-    if(list[0]?.dropoff){
-      points.push(list[0].dropoff);
-    }
-
+    points.push(list[0].dropoff);
     return points;
   }
 
   list.forEach(p=>{
-    if(normalizeText(p?.pickup)){
-      points.push(p.pickup);
-    }
-    if(normalizeText(p?.dropoff)){
-      points.push(p.dropoff);
-    }
+    if(normalizeText(p.pickup)) points.push(p.pickup);
+  });
+
+  list.forEach(p=>{
+    if(normalizeText(p.dropoff)) points.push(p.dropoff);
   });
 
   return points;
 }
+
 /* ================= SERVER ================= */
 
 async function fetchTrips(){
@@ -445,11 +410,11 @@ async function updateTrip(id,payload){
   });
 
   if(!res.ok){
-    const err = await res.json().catch(()=>({}));
+    const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Update failed");
   }
 
-  return await res.json().catch(()=>null);
+  return await res.json().catch(() => null);
 }
 
 async function deleteTrip(id){
@@ -459,9 +424,47 @@ async function deleteTrip(id){
   });
 
   if(!res.ok){
-    const err = await res.json().catch(()=>({}));
+    const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Delete failed");
   }
+}
+
+/* ================= GROUPING ================= */
+
+function groupByDate(list){
+  const groups = {};
+
+  list.forEach(t=>{
+    const d = t.createdAt ? new Date(t.createdAt) : new Date();
+    const key = d.toLocaleDateString();
+
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+
+  return groups;
+}
+
+function getIndividualTrips(){
+  return trips.filter(t => !isSharedTrip(t));
+}
+
+function getSharedGroups(){
+  const map = {};
+
+  trips.filter(t => isSharedTrip(t)).forEach(t=>{
+    const key = getSharedKey(t);
+    if(!map[key]) map[key] = [];
+    map[key].push(t);
+  });
+
+  return Object.values(map).map(group=>{
+    return group.sort((a,b)=>{
+      const ai = Number(a.passengerIndex || 0);
+      const bi = Number(b.passengerIndex || 0);
+      return ai - bi;
+    });
+  });
 }
 
 /* ================= TABS ================= */
@@ -471,27 +474,30 @@ function renderTabs(){
   tabs.className = "review-tabs";
 
   tabs.innerHTML = `
-    <button id="tabIndividual" class="${activeTab==="INDIVIDUAL"?"tab-active":"tab-inactive"}">Individual</button>
-    <button id="tabShared" class="${activeTab==="SHARED"?"tab-active":"tab-inactive"}">Shared</button>
+    <button id="reviewIndividualTab" class="${activeTab === "INDIVIDUAL" ? "tab-active" : "tab-inactive"}" type="button">
+      Individual
+    </button>
+    <button id="reviewSharedTab" class="${activeTab === "SHARED" ? "tab-active" : "tab-inactive"}" type="button">
+      Shared
+    </button>
   `;
 
   container.appendChild(tabs);
 
-  document.getElementById("tabIndividual").onclick = ()=>{
+  document.getElementById("reviewIndividualTab").addEventListener("click",()=>{
     activeTab = "INDIVIDUAL";
     render();
-  };
+  });
 
-  document.getElementById("tabShared").onclick = ()=>{
+  document.getElementById("reviewSharedTab").addEventListener("click",()=>{
     activeTab = "SHARED";
     render();
-  };
+  });
 }
 
-/* ================= ROW COLORS ================= */
+/* ================= ROW COLOR ================= */
 
 function applyRowColor(tr, t){
-
   const mins = minutesToTrip(t);
 
   if(t.status === "Cancelled"){
@@ -505,67 +511,71 @@ function applyRowColor(tr, t){
   }
 
   if(mins !== null){
-
     if(mins <= 30){
       tr.classList.add("red-dark");
       if(t.status === "Confirmed") tr.classList.add("trip-blink");
-
     }else if(mins <= 60){
       tr.classList.add("red-mid");
       if(t.status === "Confirmed") tr.classList.add("trip-blink");
-
     }else if(mins <= 120){
       tr.classList.add("red-light");
-
     }else if(mins <= 180){
       tr.classList.add("yellow");
-
     }else if(t.status === "Confirmed"){
       tr.classList.add("confirmed-row");
-
     }else{
       tr.classList.add("scheduled-row");
     }
-
   }
 }
 
-/* ================= GROUP HELP ================= */
+/* ================= INDIVIDUAL RENDER ================= */
 
-function groupByDate(list){
+function renderIndividualButtons(t, editing){
+  const mins = minutesToTrip(t);
 
-  const groups = {};
+  if(editing){
+    return `
+      <div class="actions-wrap">
+        <button class="btn confirm" data-action="save-individual">Save</button>
+        <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
+      </div>
+    `;
+  }
 
-  list.forEach(t=>{
-    const d = t.tripDate || "No Date";
-    if(!groups[d]) groups[d] = [];
-    groups[d].push(t);
-  });
+  if(t.status === "Cancelled") return "";
 
-  return groups;
+  if(mins > 120 || mins === null){
+    return `
+      <div class="actions-wrap">
+        <button class="btn edit" data-action="edit">Edit</button>
+        <button class="btn delete" data-action="delete">Delete</button>
+        <button class="btn confirm" data-action="confirm-individual">Confirm</button>
+      </div>
+    `;
+  }
+
+  if(mins <= 120 && mins > 0 && t.status === "Scheduled"){
+    return `
+      <div class="actions-wrap">
+        <button class="btn confirm" data-action="confirm-individual">Confirm</button>
+        <button class="btn cancel" data-action="cancel">Cancel</button>
+      </div>
+    `;
+  }
+
+  if(mins <= 120 && mins > 0 && t.status === "Confirmed"){
+    return `
+      <div class="actions-wrap">
+        <button class="btn cancel" data-action="cancel">Cancel</button>
+      </div>
+    `;
+  }
+
+  return "";
 }
-
-function getIndividualTrips(){
-  return trips.filter(t => !isSharedTrip(t));
-}
-
-function getSharedGroups(){
-
-  const map = {};
-
-  trips.filter(isSharedTrip).forEach(t=>{
-    const key = getSharedKey(t);
-    if(!map[key]) map[key] = [];
-    map[key].push(t);
-  });
-
-  return Object.values(map);
-}
-
-/* ================= INDIVIDUAL TABLE ================= */
 
 function renderIndividualTable(list){
-
   const groups = groupByDate(list);
   const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
 
@@ -583,10 +593,16 @@ function renderIndividualTable(list){
       <tr>
         <th>#</th>
         <th>Trip#</th>
+        <th>Entry</th>
+        <th>Entry Phone</th>
         <th>Client</th>
         <th>Phone</th>
         <th>Pickup</th>
         <th>Drop</th>
+        <th>Stops</th>
+        <th>Notes</th>
+        <th>Date</th>
+        <th>Time</th>
         <th>Status</th>
         <th>Price</th>
         <th>Actions</th>
@@ -598,71 +614,227 @@ function renderIndividualTable(list){
       const tr = document.createElement("tr");
       tr.dataset.id = t._id;
 
+      const editing = t.__editing === true;
       applyRowColor(tr, t);
+
+      const stops = Array.isArray(t.stops) ? t.stops : [];
 
       tr.innerHTML = `
         <td>${i+1}</td>
-        <td><span class="trip-number-badge">${t.tripNumber || ""}</span></td>
-        <td>${t.clientName || ""}</td>
-        <td>${t.clientPhone || ""}</td>
-        <td>${t.pickup || ""}</td>
-        <td>${t.dropoff || ""}</td>
-        <td>${t.status || "Scheduled"}</td>
+        <td><span class="trip-number-badge">${escapeHtml(getTripNumber(t))}</span></td>
+        <td>${editing ? createEditInput(t.entryName || "", "entryName") : escapeHtml(t.entryName || "")}</td>
+        <td>${editing ? createEditInput(t.entryPhone || "", "entryPhone") : escapeHtml(t.entryPhone || "")}</td>
+        <td>${editing ? createEditInput(t.clientName || "", "clientName") : `<div class="multi-line">${escapeHtml(t.clientName || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.clientPhone || "", "clientPhone") : `<div class="multi-line">${escapeHtml(t.clientPhone || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.pickup || "", "pickup") : `<div class="multi-line">${escapeHtml(t.pickup || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.dropoff || "", "dropoff") : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`}</td>
+        <td>${
+          editing
+            ? stops.map((s,si)=>`<input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">`).join("")
+            : `<div class="multi-line">${stops.map(s=>escapeHtml(s)).join("<br>")}</div>`
+        }</td>
+        <td>${editing ? createEditInput(t.notes || "", "notes") : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
+        <td>${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
+        <td><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
         <td><span class="price-badge">$${formatMoney(t.priceAmount)}</span></td>
-        <td>
-          <button class="btn delete" data-action="delete">Delete</button>
-        </td>
+        <td>${renderIndividualButtons(t, editing)}</td>
       `;
 
       table.appendChild(tr);
+
     });
 
     container.appendChild(table);
+
   });
 
   if(!dates.length){
     const empty = document.createElement("div");
-    empty.innerText = "No trips found";
+    empty.style.padding = "20px";
+    empty.style.fontWeight = "700";
+    empty.style.color = "#0f172a";
+    empty.innerText = "No individual trips found.";
     container.appendChild(empty);
   }
 }
 
-/* ================= SHARED TABLE ================= */
+/* ================= SHARED RENDER ================= */
+
+function getGroupStatus(group){
+  if(group.every(t=>t.status === "Cancelled")) return "Cancelled";
+  if(group.every(t=>t.status === "Confirmed")) return "Confirmed";
+  if(group.some(t=>t.status === "Confirmed")) return "Partially Confirmed";
+  return group[0]?.status || "Scheduled";
+}
+
+function getGroupPrice(group){
+  const firstWithPrice = group.find(t => Number(t.priceAmount || 0) > 0);
+  return firstWithPrice ? Number(firstWithPrice.priceAmount || 0) : 0;
+}
+
+function renderSharedButtons(group, editing){
+  const first = group[0];
+  const mins = minutesToTrip(first);
+  const status = getGroupStatus(group);
+
+  if(editing){
+    return `
+      <div class="actions-wrap">
+        <button class="btn confirm" data-action="save-shared">Save</button>
+        <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
+      </div>
+    `;
+  }
+
+  if(status === "Cancelled") return "";
+
+  if(mins > 120 || mins === null){
+    return `
+      <div class="actions-wrap">
+        <button class="btn edit" data-action="edit-shared">Edit</button>
+        <button class="btn delete" data-action="delete-shared">Delete</button>
+        <button class="btn confirm" data-action="confirm-shared">Confirm</button>
+      </div>
+    `;
+  }
+
+  if(mins <= 120 && mins > 0 && status === "Scheduled"){
+    return `
+      <div class="actions-wrap">
+        <button class="btn confirm" data-action="confirm-shared">Confirm</button>
+        <button class="btn cancel" data-action="cancel-shared">Cancel</button>
+      </div>
+    `;
+  }
+
+  if(mins <= 120 && mins > 0 && status === "Confirmed"){
+    return `
+      <div class="actions-wrap">
+        <button class="btn cancel" data-action="cancel-shared">Cancel</button>
+      </div>
+    `;
+  }
+
+  return "";
+}
 
 function renderSharedTable(groups){
 
-  groups.forEach((group,i)=>{
+  const dateGroups = {};
 
+  groups.forEach(group=>{
     const first = group[0];
-
-    const box = document.createElement("div");
-    box.style.border = "1px solid #ddd";
-    box.style.padding = "10px";
-    box.style.marginBottom = "10px";
-
-    let passengers = "";
-
-    group.forEach((p,idx)=>{
-      passengers += `
-        ${idx+1}. ${p.clientName || ""} - ${p.clientPhone || ""}<br>
-        ${p.pickup} → ${p.dropoff}<br><br>
-      `;
-    });
-
-    box.innerHTML = `
-      <div><b>Trip#:</b> ${first.tripNumber}</div>
-      <div><b>Status:</b> ${first.status}</div>
-      <div><b>Passengers:</b><br>${passengers}</div>
-      <div><b>Price:</b> $${formatMoney(first.priceAmount)}</div>
-      <button class="btn delete" data-id="${first._id}" data-action="delete">Delete</button>
-    `;
-
-    container.appendChild(box);
+    const d = first?.createdAt ? new Date(first.createdAt) : new Date();
+    const key = d.toLocaleDateString();
+    if(!dateGroups[key]) dateGroups[key] = [];
+    dateGroups[key].push(group);
   });
 
-  if(!groups.length){
+  const dates = Object.keys(dateGroups).sort((a,b)=>new Date(b)-new Date(a));
+
+  dates.forEach(date=>{
+
+    const title = document.createElement("div");
+    title.className = "date-title";
+    title.innerText = date;
+    container.appendChild(title);
+
+    const table = document.createElement("table");
+    table.className = "review-table";
+
+    table.innerHTML = `
+      <tr>
+        <th>#</th>
+        <th>Trip#</th>
+        <th>Entry</th>
+        <th>Entry Phone</th>
+        <th>Clients</th>
+        <th>Phones</th>
+        <th>Pickups</th>
+        <th>Drops</th>
+        <th>Stops</th>
+        <th>Notes</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+        <th>Price</th>
+        <th>Actions</th>
+      </tr>
+    `;
+
+    dateGroups[date].forEach((group,i)=>{
+
+      const first = group[0];
+      const tr = document.createElement("tr");
+      tr.dataset.groupId = getSharedKey(first);
+
+      const editing = first.__editing === true;
+      applyRowColor(tr, first);
+
+      const passengers = getRealPassengersFromGroup(group);
+
+      let clients = "";
+      let phones = "";
+      let pickups = "";
+      let drops = "";
+
+      if(editing){
+        clients = passengers.map((p,idx)=>createSharedEditInput(p.name || p.clientName || "", first._id, `passenger_${idx}_name`)).join("\n");
+        phones  = passengers.map((p,idx)=>createSharedEditInput(p.phone || p.clientPhone || "", first._id, `passenger_${idx}_phone`)).join("\n");
+        pickups = passengers.map((p,idx)=>createSharedEditInput(p.pickup || "", first._id, `passenger_${idx}_pickup`)).join("\n");
+
+        drops = passengers.map((p,idx)=>`
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            ${createSharedEditInput(p.dropoff || "", first._id, `passenger_${idx}_dropoff`)}
+            <button class="btn small-delete" data-action="remove-passenger" data-index="${idx}" type="button">✖</button>
+          </div>
+        `).join("");
+      }else{
+        clients = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`).join("\n");
+        phones  = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`).join("\n");
+        pickups = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.pickup || "")}`).join("\n");
+        drops   = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.dropoff || "")}`).join("\n");
+      }
+
+      const notes = editing
+        ? createSharedEditInput(first.notes || "", first._id, "notes")
+        : `<div class="multi-line">${escapeHtml(first.notes || "")}</div>`;
+
+      const stopsCount = Math.max(0, passengers.length - 1);
+
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td><span class="trip-number-badge">${escapeHtml(getTripNumber(first))}</span></td>
+        <td>${editing ? createSharedEditInput(first.entryName || "", first._id, "entryName") : escapeHtml(first.entryName || "")}</td>
+        <td>${editing ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone") : escapeHtml(first.entryPhone || "")}</td>
+        <td><div class="multi-line">${clients}</div></td>
+        <td><div class="multi-line">${phones}</div></td>
+        <td><div class="multi-line">${pickups}</div></td>
+        <td><div class="multi-line">${drops}</div></td>
+        <td><strong>${stopsCount}</strong></td>
+        <td>${notes}</td>
+        <td>${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
+        <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
+        <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
+        <td><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
+        <td>${renderSharedButtons(group, editing)}</td>
+      `;
+
+      table.appendChild(tr);
+
+    });
+
+    container.appendChild(table);
+
+  });
+
+  if(!dates.length){
     const empty = document.createElement("div");
-    empty.innerText = "No shared trips";
+    empty.style.padding = "20px";
+    empty.style.fontWeight = "700";
+    empty.style.color = "#0f172a";
+    empty.innerText = "No shared trips found.";
     container.appendChild(empty);
   }
 }
@@ -670,9 +842,7 @@ function renderSharedTable(groups){
 /* ================= MAIN RENDER ================= */
 
 function render(){
-
   container.innerHTML = "";
-
   renderTabs();
 
   if(activeTab === "INDIVIDUAL"){
@@ -684,7 +854,7 @@ function render(){
 
 /* ================= ACTIONS ================= */
 
-container.addEventListener("click", async (e)=>{
+container.addEventListener("click", async e=>{
 
   const btn = e.target.closest("button");
   if(!btn) return;
@@ -693,45 +863,232 @@ container.addEventListener("click", async (e)=>{
 
   try{
 
-    /* ===== DELETE ===== */
-    if(action === "delete"){
-
+    if(action === "edit"){
       const tr = btn.closest("tr");
-      let id = "";
+      const id = tr.dataset.id;
+      const trip = trips.find(t=>t._id === id);
+      if(!trip) return;
 
-      if(tr){
-        id = tr.dataset.id;
-      }else{
-        id = btn.dataset.id;
+      const mins = minutesToTrip(trip);
+      if(mins !== null && mins <= 120 && mins > 0){
+        const ok = confirm("WARNING: Trip is within 120 minutes. Continue editing?");
+        if(!ok) return;
       }
 
-      const ok = confirm("Delete this trip?");
-      if(!ok) return;
+      trip.__editing = true;
+      render();
+      return;
+    }
 
-      await deleteTrip(id);
+    if(action === "edit-shared"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
+
+      const mins = minutesToTrip(group[0]);
+      if(mins !== null && mins <= 120 && mins > 0){
+        const ok = confirm("WARNING: Shared trip is within 120 minutes. Continue editing?");
+        if(!ok) return;
+      }
+
+      group.forEach(t=>{
+        const real = trips.find(x=>x._id === t._id);
+        if(real) real.__editing = true;
+      });
+
+      render();
+      return;
+    }
+
+    if(action === "remove-passenger"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
+
+      const first = group[0];
+      const passengers = getRealPassengersFromGroup(group).map(p=>({ ...p }));
+
+      if(passengers.length <= 2){
+        alert("Shared trip must have at least 2 passengers.");
+        return;
+      }
+
+      const index = Number(btn.dataset.index);
+      passengers.splice(index, 1);
+
+      first.passengers = passengers;
+      first.totalPassengers = passengers.length;
+      first.pickup = passengers[0]?.pickup || "";
+      first.dropoff = passengers[passengers.length - 1]?.dropoff || "";
+      first.status = "Scheduled";
+      first.priceAmount = 0;
+      first.pricePerPassenger = 0;
+      first.isShared = true;
+      first.tripType = "SHARED";
+
+      await updateTrip(first._id, first);
+
+      trips = await fetchTrips();
+
+      const updated = trips.find(t=>t._id === first._id);
+      if(updated) updated.__editing = true;
+
+      render();
+      return;
+    }
+
+    if(action === "save-individual"){
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
+      const trip = trips.find(t=>t._id === id);
+      if(!trip) return;
+
+      const inputs = tr.querySelectorAll(".edit-input");
+
+      inputs.forEach(input=>{
+        const field = input.dataset.field;
+        const stopIndex = input.dataset.stopIndex;
+
+        if(stopIndex !== undefined){
+          if(!Array.isArray(trip.stops)) trip.stops = [];
+          trip.stops[Number(stopIndex)] = input.value;
+          return;
+        }
+
+        trip[field] = input.value;
+      });
+
+      const newTrip = new Date(normalizeText(trip.tripDate) + "T" + normalizeText(trip.tripTime) + ":00");
+      const now = getAZNow();
+
+      if(isNaN(newTrip.getTime())){
+        alert("Invalid date/time");
+        return;
+      }
+
+      if(newTrip <= now){
+        alert("Cannot set trip in the past ❌");
+        return;
+      }
+
+      const mins = (newTrip - now) / 60000;
+      if(mins <= 120){
+        const ok = confirm("WARNING: Trip is within 120 minutes. Continue saving?");
+        if(!ok) return;
+      }
+
+      trip.status = "Scheduled";
+      trip.priceAmount = 0;
+      trip.__editing = false;
+
+      await updateTrip(id, trip);
 
       trips = await fetchTrips();
       render();
       return;
     }
 
-    /* ===== CONFIRM INDIVIDUAL ===== */
-    if(action === "confirm-individual"){
+    if(action === "save-shared"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
 
+      const first = group[0];
+      const updateObj = { ...first };
+      const passengers = getRealPassengersFromGroup(group).map(p=>({ ...p }));
+
+      const inputs = tr.querySelectorAll(".edit-input");
+
+      inputs.forEach(input=>{
+        const field = input.dataset.field;
+
+        if(field.startsWith("passenger_")){
+          const parts = field.split("_");
+          const index = Number(parts[1]);
+          const key = parts[2];
+
+          if(!passengers[index]) return;
+
+          if(key === "name"){
+            passengers[index].name = input.value;
+            passengers[index].clientName = input.value;
+          }
+
+          if(key === "phone"){
+            passengers[index].phone = input.value;
+            passengers[index].clientPhone = input.value;
+          }
+
+          if(key === "pickup"){
+            passengers[index].pickup = input.value;
+          }
+
+          if(key === "dropoff"){
+            passengers[index].dropoff = input.value;
+          }
+
+          return;
+        }
+
+        updateObj[field] = input.value;
+      });
+
+      const newTrip = new Date(normalizeText(updateObj.tripDate) + "T" + normalizeText(updateObj.tripTime) + ":00");
+      const now = getAZNow();
+
+      if(isNaN(newTrip.getTime())){
+        alert("Invalid date/time");
+        return;
+      }
+
+      if(newTrip <= now){
+        alert("Cannot set trip in the past ❌");
+        return;
+      }
+
+      const mins = (newTrip - now) / 60000;
+      if(mins <= 120){
+        const ok = confirm("WARNING: Shared trip is within 120 minutes. Continue saving?");
+        if(!ok) return;
+      }
+
+      updateObj.passengers = passengers;
+      updateObj.totalPassengers = passengers.length;
+      updateObj.pickup = passengers[0]?.pickup || "";
+      updateObj.dropoff = passengers[passengers.length - 1]?.dropoff || "";
+      updateObj.clientName = "Shared Trip";
+      updateObj.clientPhone = passengers[0]?.phone || passengers[0]?.clientPhone || "";
+      updateObj.status = "Scheduled";
+      updateObj.priceAmount = 0;
+      updateObj.pricePerPassenger = 0;
+      updateObj.isShared = true;
+      updateObj.tripType = "SHARED";
+      updateObj.__editing = false;
+
+      await updateTrip(first._id, updateObj);
+
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
+    if(action === "confirm-individual"){
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
-
       const trip = trips.find(t=>t._id === id);
       if(!trip) return;
 
       btn.disabled = true;
-      btn.innerText = "Calculating...";
+      btn.textContent = "Calculating...";
 
       const routePoints = buildIndividualRoutePoints(trip);
       const routeData = await calculateRouteMiles(routePoints);
 
       if(!routeData.miles || routeData.miles <= 0){
-        alert("Route failed ❌");
+        alert("Route calculation failed ❌");
         trips = await fetchTrips();
         render();
         return;
@@ -739,6 +1096,11 @@ container.addEventListener("click", async (e)=>{
 
       trip.priceAmount = calculateIndividualPrice(routeData.miles, trip.status);
       trip.miles = routeData.miles;
+      trip.distanceMeters = routeData.distanceMeters;
+      trip.durationSeconds = routeData.durationSeconds;
+      trip.estimatedMinutes = routeData.estimatedMinutes;
+      trip.googleRoute = routeData.googleRoute;
+      trip.routePoints = routePoints;
       trip.status = "Confirmed";
 
       await updateTrip(id, trip);
@@ -748,51 +1110,56 @@ container.addEventListener("click", async (e)=>{
       return;
     }
 
-    /* ===== CONFIRM SHARED ===== */
     if(action === "confirm-shared"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
 
-      const id = btn.dataset.id;
-      const trip = trips.find(t=>t._id === id);
-      if(!trip) return;
+      const first = group[0];
 
       btn.disabled = true;
-      btn.innerText = "Calculating...";
-
-      const group = getSharedGroups().find(g=>g[0]._id === id);
-      if(!group) return;
+      btn.textContent = "Calculating...";
 
       const routePoints = buildSharedRoutePoints(group);
       const routeData = await calculateRouteMiles(routePoints);
 
       if(!routeData.miles || routeData.miles <= 0){
-        alert("Route failed ❌");
+        alert("Route calculation failed ❌");
         trips = await fetchTrips();
         render();
         return;
       }
 
-      const price = calculateSharedPrice(group, routeData.miles);
+      const sharedPrice = calculateSharedPrice(group, routeData.miles);
 
       const updateObj = {
-        ...trip,
-        priceAmount: price.total,
+        ...first,
+        priceAmount: sharedPrice.total,
+        pricePerPassenger: sharedPrice.pricePerPassenger,
+        sharedStopsCount: sharedPrice.stopsCount,
+        miles: routeData.miles,
+        distanceMeters: routeData.distanceMeters,
+        durationSeconds: routeData.durationSeconds,
+        estimatedMinutes: routeData.estimatedMinutes,
+        googleRoute: routeData.googleRoute,
+        routePoints: routePoints,
+        optimizedRoute: routeData.googleRoute,
         status: "Confirmed",
-        miles: routeData.miles
+        isShared: true,
+        tripType: "SHARED"
       };
 
-      await updateTrip(id, updateObj);
+      await updateTrip(first._id, updateObj);
 
       trips = await fetchTrips();
       render();
       return;
     }
 
-    /* ===== CANCEL ===== */
     if(action === "cancel"){
-
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
-
       const trip = trips.find(t=>t._id === id);
       if(!trip) return;
 
@@ -803,9 +1170,61 @@ container.addEventListener("click", async (e)=>{
       return;
     }
 
+    if(action === "cancel-shared"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
+
+      const first = group[0];
+
+      await updateTrip(first._id,{ ...first, status:"Cancelled" });
+
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
+    if(action === "delete"){
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
+      const ok = confirm("Delete this trip?");
+      if(!ok) return;
+
+      await deleteTrip(id);
+
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
+    if(action === "delete-shared"){
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
+      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      if(!group) return;
+
+      const ok = confirm("Delete this shared trip?");
+      if(!ok) return;
+
+      await deleteTrip(group[0]._id);
+
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
+    if(action === "cancel-edit"){
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
   }catch(err){
+    alert(err.message || "Server Error");
     console.error(err);
-    alert("Error");
+    trips = await fetchTrips();
+    render();
   }
 
 });
@@ -822,18 +1241,11 @@ await loadTrips();
 /* ================= AUTO REFRESH ================= */
 
 setInterval(async()=>{
-
-  // لو في تعديل شغال متعملش ريفرش
   const hasEditing = trips.some(t=>t.__editing);
   if(hasEditing) return;
 
-  try{
-    trips = await fetchTrips();
-    render();
-  }catch(err){
-    console.error("Auto refresh error", err);
-  }
-
-},30000); // كل 30 ثانية
+  trips = await fetchTrips();
+  render();
+},30000);
 
 });
