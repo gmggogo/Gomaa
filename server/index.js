@@ -356,6 +356,8 @@ function normalizeTripType(rawType) {
   if (t === "gh") return "gh";
   if (t === "individual") return "individual";
   if (t === "company") return "company";
+  if (t === "shared") return "shared";
+  if (t === "quote") return "quote";
 
   return "company";
 }
@@ -364,18 +366,74 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
-function calculatePriceServer(trip){
+/* =========================
+   PRICE ENGINE
+========================= */
+function calculatePriceServer(trip) {
 
-  const BASE = 20;
-  const INCLUDED = 3;
-  const PER_MILE = 2.5;
+  const type = String(trip.tripType || trip.type || "").toLowerCase();
+  const vehicleType = String(
+    trip.vehicleType ||
+    trip.vehicleTypeFromQuote ||
+    trip.vehicle ||
+    ""
+  ).toUpperCase();
 
   const miles = Number(trip.miles || 0);
+  const stopsCount = Array.isArray(trip.stops) ? trip.stops.length : 0;
 
-  const extra = Math.max(0, miles - INCLUDED);
+  /* GET QUOTE - X / XL */
+  if (type === "quote" || vehicleType === "X" || vehicleType === "XL") {
+    const STOP_PRICE = 5;
 
-  return Number((BASE + (extra * PER_MILE)).toFixed(2));
+    if (vehicleType === "XL") {
+      const BASE = 30;
+      const INCLUDED = 5;
+      const PER_MILE = 2.5;
+      const extraMiles = Math.max(0, miles - INCLUDED);
+      return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
+    }
+
+    const BASE = 20;
+    const INCLUDED = 5;
+    const PER_MILE = 2;
+    const extraMiles = Math.max(0, miles - INCLUDED);
+    return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
+  }
+
+  /* COMPANY SHARED */
+  if (trip.isShared === true || type === "shared") {
+    const passengers = Array.isArray(trip.passengers) && trip.passengers.length > 0
+      ? trip.passengers.length
+      : Number(trip.totalPassengers || 1);
+
+    const BASE_PER_PERSON = 15;
+    const INCLUDED_PER_PERSON = 3;
+    const PER_MILE = 2;
+    const STOP_PRICE = 5;
+
+    const baseTotal = passengers * BASE_PER_PERSON;
+    const includedMiles = passengers * INCLUDED_PER_PERSON;
+    const extraMiles = Math.max(0, miles - includedMiles);
+    const milesTotal = extraMiles * PER_MILE;
+    const stopsTotal = stopsCount * STOP_PRICE;
+
+    return Number((baseTotal + milesTotal + stopsTotal).toFixed(2));
+  }
+
+  /* COMPANY INDIVIDUAL */
+  const BASE = 20;
+  const INCLUDED = 5;
+  const PER_MILE = 2.5;
+  const STOP_PRICE = 5;
+
+  const extraMiles = Math.max(0, miles - INCLUDED);
+  const milesTotal = extraMiles * PER_MILE;
+  const stopsTotal = stopsCount * STOP_PRICE;
+
+  return Number((BASE + milesTotal + stopsTotal).toFixed(2));
 }
+
 function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
@@ -705,15 +763,14 @@ async function generateTripNumber(type) {
     if (!isNaN(num)) next = num + 1;
   }
 
-let tripNumber = monthCode + "-" + next;
+  let tripNumber = monthCode + "-" + next;
 
-if (type === "shared" || type === "SHARED") {
-  tripNumber += "-SH";
+  if (type === "shared" || type === "SHARED") {
+    tripNumber += "-SH";
+  }
+
+  return tripNumber;
 }
-
-return tripNumber;
-}
-
 /* =========================
    SMART DISPATCH ENGINE
 ========================= */
