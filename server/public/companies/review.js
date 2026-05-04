@@ -22,181 +22,46 @@ const container = document.getElementById("tripsContainer");
   style.id = "company-review-style";
 
   style.innerHTML = `
+  .review-tabs{display:flex;gap:10px;margin:0 0 20px;background:#e2e8f0;padding:6px;border-radius:14px;}
+  .review-tabs button{flex:1;padding:13px;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;}
+  .tab-active{background:#2563eb;color:#fff;}
+  .tab-inactive{background:#64748b;color:#fff;}
 
-  .review-tabs{
-    display:flex;
-    gap:10px;
-    margin:0 0 20px;
-    background:#e2e8f0;
-    padding:6px;
-    border-radius:14px;
-  }
+  .review-table{width:100%;border-collapse:collapse;margin-bottom:20px;background:#fff;}
+  .review-table th,.review-table td{border:1px solid #dbe2ea;padding:8px;text-align:center;font-size:14px;vertical-align:middle;}
+  .review-table th{background:#0f172a;color:#fff;}
 
-  .review-tabs button{
-    flex:1;
-    padding:13px;
-    border:none;
-    border-radius:11px;
-    font-size:14px;
-    font-weight:700;
-    cursor:pointer;
-  }
+  .date-title{font-size:18px;font-weight:700;margin:20px 0 10px;color:#0f172a;}
 
-  .tab-active{
-    background:#2563eb;
-    color:#fff;
-  }
-
-  .tab-inactive{
-    background:#64748b;
-    color:#fff;
-  }
-
-  .review-table{
-    width:100%;
-    border-collapse:collapse;
-    margin-bottom:20px;
-    background:#fff;
-  }
-
-  .review-table th,
-  .review-table td{
-    border:1px solid #dbe2ea;
-    padding:8px;
-    text-align:center;
-    font-size:14px;
-    vertical-align:middle;
-  }
-
-  .review-table th{
-    background:#0f172a;
-    color:#fff;
-  }
-
-  .date-title{
-    font-size:18px;
-    font-weight:700;
-    margin:20px 0 10px;
-    color:#0f172a;
-  }
-
-  .btn{
-    border:none;
-    padding:6px 10px;
-    border-radius:6px;
-    font-size:13px;
-    font-weight:700;
-    cursor:pointer;
-    margin:2px;
-    white-space:nowrap;
-  }
-
+  .btn{border:none;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;margin:2px;white-space:nowrap;}
   .btn.edit{background:#2563eb;color:#fff;}
   .btn.delete{background:#111827;color:#fff;}
   .btn.confirm{background:#16a34a;color:#fff;}
   .btn.cancel{background:#dc2626;color:#fff;}
   .btn.small-delete{background:#ef4444;color:#fff;font-size:11px;padding:4px 7px;}
 
-  .actions-wrap{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    gap:6px;
-    flex-wrap:wrap;
-  }
+  .actions-wrap{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;}
+  .edit-input{width:100%;box-sizing:border-box;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;}
+  .multi-line{white-space:pre-line;line-height:1.65;text-align:left;}
 
-  .edit-input{
-    width:100%;
-    box-sizing:border-box;
-    padding:6px;
-    border:1px solid #cbd5e1;
-    border-radius:6px;
-    font-size:13px;
-  }
+  .trip-number-badge{display:inline-block;background:#0ea5e9;color:#fff;padding:6px 10px;border-radius:8px;font-weight:800;}
+  .price-badge{display:inline-block;background:#bbf7d0;color:#14532d;padding:6px 10px;border-radius:8px;font-weight:900;box-shadow:0 0 12px rgba(34,197,94,.35);}
 
-  .multi-line{
-    white-space:pre-line;
-    line-height:1.65;
-    text-align:left;
-  }
+  .scheduled-row{background:#ffffff;color:#111827;}
+  .confirmed-row{background:#22c55e;color:#111827;}
+  .cancelled-row{background:#ef4444;color:#111827;}
+  .yellow{background:#fde047;color:#111827;}
+  .red-light{background:#fecaca;color:#111827;}
+  .red-mid{background:#f87171;color:#111827;}
+  .red-dark{background:#7f1d1d;color:#ffffff;}
+  .past-row{background:#374151;color:#e5e7eb;}
 
-  .trip-number-badge{
-    display:inline-block;
-    background:#0ea5e9;
-    color:#fff;
-    padding:6px 10px;
-    border-radius:8px;
-    font-weight:800;
-  }
-
-  .price-badge{
-    display:inline-block;
-    background:#bbf7d0;
-    color:#14532d;
-    padding:6px 10px;
-    border-radius:8px;
-    font-weight:900;
-    box-shadow:0 0 12px rgba(34,197,94,.35);
-  }
-
-  .scheduled-row{
-    background:#ffffff;
-    color:#111827;
-  }
-
-  .confirmed-row{
-    background:#22c55e;
-    color:#111827;
-  }
-
-  .cancelled-row{
-    background:#ef4444;
-    color:#111827;
-  }
-
-  .yellow{
-    background:#fde047;
-    color:#111827;
-  }
-
-  .red-light{
-    background:#fecaca;
-    color:#111827;
-  }
-
-  .red-mid{
-    background:#f87171;
-    color:#111827;
-  }
-
-  .red-dark{
-    background:#7f1d1d;
-    color:#ffffff;
-  }
-
-  .past-row{
-    background:#374151;
-    color:#e5e7eb;
-  }
-
-  @keyframes blinkTrip{
-    0%   { opacity:1; }
-    50%  { opacity:.82; }
-    100% { opacity:1; }
-  }
-
-  .trip-blink{
-    animation:blinkTrip 1.8s infinite;
-  }
+  @keyframes blinkTrip{0%{opacity:1;}50%{opacity:.82;}100%{opacity:1;}}
+  .trip-blink{animation:blinkTrip 1.8s infinite;}
 
   @media(max-width:768px){
-    .review-table th,
-    .review-table td{
-      font-size:11px;
-      padding:6px;
-    }
+    .review-table th,.review-table td{font-size:11px;padding:6px;}
   }
-
   `;
 
   document.head.appendChild(style);
@@ -211,9 +76,7 @@ let trips = [];
 /* ================= HELPERS ================= */
 
 function getAZNow(){
-  return new Date(
-    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-  );
+  return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
 }
 
 function getTripDateTime(t){
@@ -245,12 +108,7 @@ function formatMoney(value){
 }
 
 function isSharedTrip(t){
-  return (
-    t.isShared === true ||
-    t.tripType === "SHARED" ||
-    String(t.tripNumber || "").includes("SH") ||
-    normalizeText(t.groupId) !== ""
-  );
+  return String(t.tripNumber || "").includes("SH");
 }
 
 function getTripNumber(t){
@@ -283,16 +141,10 @@ function ensureGoogleLoaded(){
   googleLoadPromise = new Promise(async (resolve, reject)=>{
     try{
       const res = await fetch("/api/config");
-      if(!res.ok){
-        reject(new Error("Google config not found"));
-        return;
-      }
+      if(!res.ok) return reject(new Error("Google config not found"));
 
       const data = await res.json();
-      if(!data.googleKey){
-        reject(new Error("Google key missing"));
-        return;
-      }
+      if(!data.googleKey) return reject(new Error("Google key missing"));
 
       const existing = document.querySelector("script[data-google-maps='true']");
       if(existing){
@@ -322,11 +174,7 @@ function normalizeAZ(address){
   const v = normalizeText(address);
   const lower = v.toLowerCase();
 
-  if(
-    lower.includes(" az") ||
-    lower.includes(",az") ||
-    lower.includes("arizona")
-  ){
+  if(lower.includes(" az") || lower.includes(",az") || lower.includes("arizona")){
     return v;
   }
 
@@ -336,26 +184,10 @@ function normalizeAZ(address){
 async function calculateRouteMiles(points){
   await ensureGoogleLoaded();
 
-  if(!Array.isArray(points) || points.length < 2){
-    return {
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-      googleRoute:{}
-    };
-  }
-
-  const cleanPoints = points.map(normalizeText).filter(Boolean);
+  const cleanPoints = Array.isArray(points) ? points.map(normalizeText).filter(Boolean) : [];
 
   if(cleanPoints.length < 2){
-    return {
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-      googleRoute:{}
-    };
+    return { miles:0, distanceMeters:0, durationSeconds:0, estimatedMinutes:0, googleRoute:{} };
   }
 
   const origin = normalizeAZ(cleanPoints[0]);
@@ -396,10 +228,8 @@ async function calculateRouteMiles(points){
           seconds += leg.duration ? leg.duration.value : 0;
         });
 
-        const miles = Number((meters * 0.000621371).toFixed(2));
-
         resolve({
-          miles,
+          miles:Number((meters * 0.000621371).toFixed(2)),
           distanceMeters:meters,
           durationSeconds:seconds,
           estimatedMinutes:Math.ceil(seconds / 60),
@@ -430,9 +260,7 @@ function calculateIndividualPrice(miles, status){
   const PER_MILE = 2.5;
   const NO_SHOW = 15;
 
-  if(status === "NoShow"){
-    return NO_SHOW;
-  }
+  if(status === "NoShow") return NO_SHOW;
 
   const extra = Math.max(0, Number(miles || 0) - INCLUDED);
   return Number((BASE + (extra * PER_MILE)).toFixed(2));
@@ -452,9 +280,7 @@ function calculateSharedPrice(group, miles){
   let total = BASE + (extra * PER_MILE) + (stopsCount * STOP_FEE);
 
   group.forEach(t=>{
-    if(t.status === "NoShow"){
-      total += NO_SHOW;
-    }
+    if(t.status === "NoShow") total += NO_SHOW;
   });
 
   total = Number(total.toFixed(2));
@@ -529,7 +355,6 @@ function buildSharedRoutePoints(group){
 /* ================= SERVER ================= */
 
 async function fetchTrips(){
-
   const url = companyName
     ? "/api/trips/company/" + encodeURIComponent(companyName)
     : "/api/trips/company";
@@ -547,7 +372,6 @@ async function fetchTrips(){
 }
 
 async function updateTrip(id,payload){
-
   const res = await fetch("/api/trips/" + id,{
     method:"PUT",
     headers:{
@@ -566,7 +390,6 @@ async function updateTrip(id,payload){
 }
 
 async function deleteTrip(id){
-
   const res = await fetch("/api/trips/" + id,{
     method:"DELETE",
     headers:{ Authorization:"Bearer " + token }
@@ -601,14 +424,11 @@ function getIndividualTrips(){
 function getSharedGroups(){
   const map = {};
 
-  trips
-    .filter(t => isSharedTrip(t))
-    .forEach(t=>{
-      const key = getSharedKey(t);
-
-      if(!map[key]) map[key] = [];
-      map[key].push(t);
-    });
+  trips.filter(t => isSharedTrip(t)).forEach(t=>{
+    const key = getSharedKey(t);
+    if(!map[key]) map[key] = [];
+    map[key].push(t);
+  });
 
   return Object.values(map).map(group=>{
     return group.sort((a,b)=>{
@@ -654,37 +474,29 @@ function applyRowColor(tr, t){
 
   if(t.status === "Cancelled"){
     tr.classList.add("cancelled-row");
+    return;
   }
-  else if(mins !== null && mins <= 0){
+
+  if(mins !== null && mins <= 0){
     tr.classList.add("past-row");
+    return;
   }
-  else{
-    if(mins !== null){
-      if(mins <= 30){
-        tr.classList.add("red-dark");
-        if(t.status === "Confirmed"){
-          tr.classList.add("trip-blink");
-        }
-      }
-      else if(mins <= 60){
-        tr.classList.add("red-mid");
-        if(t.status === "Confirmed"){
-          tr.classList.add("trip-blink");
-        }
-      }
-      else if(mins <= 120){
-        tr.classList.add("red-light");
-      }
-      else if(mins <= 180){
-        tr.classList.add("yellow");
-      }
-      else{
-        if(t.status === "Confirmed"){
-          tr.classList.add("confirmed-row");
-        }else{
-          tr.classList.add("scheduled-row");
-        }
-      }
+
+  if(mins !== null){
+    if(mins <= 30){
+      tr.classList.add("red-dark");
+      if(t.status === "Confirmed") tr.classList.add("trip-blink");
+    }else if(mins <= 60){
+      tr.classList.add("red-mid");
+      if(t.status === "Confirmed") tr.classList.add("trip-blink");
+    }else if(mins <= 120){
+      tr.classList.add("red-light");
+    }else if(mins <= 180){
+      tr.classList.add("yellow");
+    }else if(t.status === "Confirmed"){
+      tr.classList.add("confirmed-row");
+    }else{
+      tr.classList.add("scheduled-row");
     }
   }
 }
@@ -703,9 +515,7 @@ function renderIndividualButtons(t, editing){
     `;
   }
 
-  if(t.status === "Cancelled"){
-    return "";
-  }
+  if(t.status === "Cancelled") return "";
 
   if(mins > 120 || mins === null){
     return `
@@ -793,12 +603,12 @@ function renderIndividualTable(list){
         <td>${
           editing
             ? stops.map((s,si)=>`<input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">`).join("")
-            : `<div class="multi-line">${stops.map(s=>escapeHtml(s)).join("\n")}</div>`
+            : `<div class="multi-line">${stops.map(s=>escapeHtml(s)).join("<br>")}</div>`
         }</td>
         <td>${editing ? createEditInput(t.notes || "", "notes") : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`}</td>
         <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
         <td>${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
-        <td>${escapeHtml(t.status || "")}</td>
+        <td><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
         <td><span class="price-badge">$${formatMoney(t.priceAmount)}</span></td>
         <td>${renderIndividualButtons(t, editing)}</td>
       `;
@@ -849,9 +659,7 @@ function renderSharedButtons(group, editing){
     `;
   }
 
-  if(status === "Cancelled"){
-    return "";
-  }
+  if(status === "Cancelled") return "";
 
   if(mins > 120 || mins === null){
     return `
@@ -885,7 +693,6 @@ function renderSharedButtons(group, editing){
 
 function renderSharedTable(groups){
 
-  const flatForDates = groups.map(g => g[0]).filter(Boolean);
   const dateGroups = {};
 
   groups.forEach(group=>{
@@ -914,10 +721,10 @@ function renderSharedTable(groups){
         <th>Trip#</th>
         <th>Entry</th>
         <th>Entry Phone</th>
-        <th>Client</th>
-        <th>Phone</th>
-        <th>Pickup</th>
-        <th>Drop</th>
+        <th>Clients</th>
+        <th>Phones</th>
+        <th>Pickups</th>
+        <th>Drops</th>
         <th>Stops</th>
         <th>Notes</th>
         <th>Date</th>
@@ -939,23 +746,17 @@ function renderSharedTable(groups){
       applyRowColor(tr, first);
 
       const clients = group.map((t,idx)=>{
-        if(editing){
-          return createSharedEditInput(t.clientName || "", t._id, "clientName");
-        }
+        if(editing) return createSharedEditInput(t.clientName || "", t._id, "clientName");
         return `${idx+1}. ${escapeHtml(t.clientName || "")}`;
       }).join("\n");
 
       const phones = group.map((t,idx)=>{
-        if(editing){
-          return createSharedEditInput(t.clientPhone || "", t._id, "clientPhone");
-        }
+        if(editing) return createSharedEditInput(t.clientPhone || "", t._id, "clientPhone");
         return `${idx+1}. ${escapeHtml(t.clientPhone || "")}`;
       }).join("\n");
 
       const pickups = group.map((t,idx)=>{
-        if(editing){
-          return createSharedEditInput(t.pickup || "", t._id, "pickup");
-        }
+        if(editing) return createSharedEditInput(t.pickup || "", t._id, "pickup");
         return `${idx+1}. ${escapeHtml(t.pickup || "")}`;
       }).join("\n");
 
@@ -990,7 +791,7 @@ function renderSharedTable(groups){
         <td>${notes}</td>
         <td>${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
         <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
-        <td>${escapeHtml(getGroupStatus(group))}</td>
+        <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
         <td><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
         <td>${renderSharedButtons(group, editing)}</td>
       `;
@@ -1016,9 +817,7 @@ function renderSharedTable(groups){
 /* ================= MAIN RENDER ================= */
 
 function render(){
-
   container.innerHTML = "";
-
   renderTabs();
 
   if(activeTab === "INDIVIDUAL"){
@@ -1038,8 +837,6 @@ container.addEventListener("click", async e=>{
   const action = btn.dataset.action;
 
   try{
-
-    /* INDIVIDUAL ACTIONS */
 
     if(action === "edit"){
       const tr = btn.closest("tr");
@@ -1149,8 +946,6 @@ container.addEventListener("click", async e=>{
       render();
       return;
     }
-
-    /* SHARED ACTIONS */
 
     if(action === "edit-shared"){
       const tr = btn.closest("tr");
