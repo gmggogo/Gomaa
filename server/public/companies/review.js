@@ -340,11 +340,16 @@ function buildIndividualRoutePoints(trip){
 
 function sameValue(list, field){
   if(!list.length) return false;
+
   const first = normalizeText(list[0][field]).toLowerCase();
-  return list.every(x => normalizeText(x[field]).toLowerCase() === first);
+
+  return list.every(x =>
+    normalizeText(x[field]).toLowerCase() === first
+  );
 }
 
 function buildSharedRoutePoints(group){
+
   const list = getRealPassengersFromGroup(group);
   const points = [];
 
@@ -353,80 +358,48 @@ function buildSharedRoutePoints(group){
   const samePickup = sameValue(list, "pickup");
   const sameDropoff = sameValue(list, "dropoff");
 
+  // ✅ نفس البيكاب
   if(samePickup){
     points.push(list[0].pickup);
+
     list.forEach(p=>{
-      if(normalizeText(p.dropoff)) points.push(p.dropoff);
+      if(normalizeText(p.dropoff)){
+        points.push(p.dropoff);
+      }
     });
+
     return points;
   }
 
+  // ✅ نفس الدروب
   if(sameDropoff){
     list.forEach(p=>{
-      if(normalizeText(p.pickup)) points.push(p.pickup);
+      if(normalizeText(p.pickup)){
+        points.push(p.pickup);
+      }
     });
+
     points.push(list[0].dropoff);
     return points;
   }
 
+  // 🔥 الحالة العامة (مختلفين)
+
+  // 1️⃣ كل الـ pickups
   list.forEach(p=>{
-    if(normalizeText(p.pickup)) points.push(p.pickup);
+    if(normalizeText(p.pickup)){
+      points.push(p.pickup);
+    }
   });
 
+  // 2️⃣ كل الـ dropoffs
   list.forEach(p=>{
-    if(normalizeText(p.dropoff)) points.push(p.dropoff);
+    if(normalizeText(p.dropoff)){
+      points.push(p.dropoff);
+    }
   });
 
   return points;
-}
-
-/* ================= SERVER ================= */
-
-async function fetchTrips(){
-  const url = companyName
-    ? "/api/trips/company/" + encodeURIComponent(companyName)
-    : "/api/trips/company";
-
-  const res = await fetch(url,{
-    headers:{ Authorization:"Bearer " + token }
-  });
-
-  if(!res.ok){
-    container.innerHTML = "<div>Server Error</div>";
-    return [];
-  }
-
-  return await res.json();
-}
-
-async function updateTrip(id,payload){
-  const res = await fetch("/api/trips/" + id,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:"Bearer " + token
-    },
-    body:JSON.stringify(payload)
-  });
-
-  if(!res.ok){
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Update failed");
-  }
-
-  return await res.json().catch(() => null);
-}
-
-async function deleteTrip(id){
-  const res = await fetch("/api/trips/" + id,{
-    method:"DELETE",
-    headers:{ Authorization:"Bearer " + token }
-  });
-
-  if(!res.ok){
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Delete failed");
-  }
 }
 
 /* ================= GROUPING ================= */
