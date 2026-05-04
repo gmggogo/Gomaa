@@ -325,175 +325,109 @@ function calculateSharedPrice(group, miles){
 function buildIndividualRoutePoints(trip){
   const points = [];
 
-  if(trip && normalizeText(trip.pickup)){
-    points.push(trip.pickup);
-  }
+  if(trip.pickup) points.push(trip.pickup);
 
-  if(trip && Array.isArray(trip.stops)){
+  if(Array.isArray(trip.stops)){
     trip.stops.forEach(s=>{
-      if(normalizeText(s)){
-        points.push(s);
-      }
+      if(normalizeText(s)) points.push(s);
     });
   }
 
-  if(trip && normalizeText(trip.dropoff)){
-    points.push(trip.dropoff);
-  }
+  if(trip.dropoff) points.push(trip.dropoff);
 
   return points;
 }
 
-/* ================= SAFE CHECK ================= */
-
 function sameValue(list, field){
-
-  if(!Array.isArray(list) || list.length === 0){
-    return false;
-  }
-
-  const first = normalizeText(list[0]?.[field]).toLowerCase();
-
-  if(!first) return false;
-
-  return list.every(x =>
-    normalizeText(x?.[field]).toLowerCase() === first
-  );
+  if(!list.length) return false;
+  const first = normalizeText(list[0][field]).toLowerCase();
+  return list.every(x => normalizeText(x[field]).toLowerCase() === first);
 }
-
-/* ================= ROUTE POINTS ================= */
-
-function buildIndividualRoutePoints(trip){
-  const points = [];
-
-  if(trip && normalizeText(trip.pickup)){
-    points.push(trip.pickup);
-  }
-
-  if(trip && Array.isArray(trip.stops)){
-    trip.stops.forEach(s=>{
-      if(normalizeText(s)){
-        points.push(s);
-      }
-    });
-  }
-
-  if(trip && normalizeText(trip.dropoff)){
-    points.push(trip.dropoff);
-  }
-
-  return points;
-}
-
-/* ================= SAFE CHECK ================= */
-
-function sameValue(list, field){
-
-  if(!Array.isArray(list) || list.length === 0){
-    return false;
-  }
-
-  const first = normalizeText(list[0]?.[field]).toLowerCase();
-  if(!first) return false;
-
-  return list.every(x =>
-    normalizeText(x?.[field]).toLowerCase() === first
-  );
-}
-
-/* ================= SHARED ROUTE ================= */
 
 function buildSharedRoutePoints(group){
-
-  if(!Array.isArray(group) || group.length === 0){
-    return [];
-  }
-
-  const list = getRealPassengersFromGroup(group) || [];
-
-  if(!Array.isArray(list) || list.length === 0){
-    return [];
-  }
-
+  const list = getRealPassengersFromGroup(group);
   const points = [];
+
+  if(!list.length) return points;
 
   const samePickup = sameValue(list, "pickup");
   const sameDropoff = sameValue(list, "dropoff");
 
-  /* ===== CASE 1: SAME PICKUP ===== */
   if(samePickup){
-
-    if(list[0]?.pickup){
-      points.push(list[0].pickup);
-    }
-
+    points.push(list[0].pickup);
     list.forEach(p=>{
-      if(p?.dropoff && normalizeText(p.dropoff)){
-        points.push(p.dropoff);
-      }
+      if(normalizeText(p.dropoff)) points.push(p.dropoff);
     });
-
     return points;
   }
 
-  /* ===== CASE 2: SAME DROPOFF ===== */
   if(sameDropoff){
-
     list.forEach(p=>{
-      if(p?.pickup && normalizeText(p.pickup)){
-        points.push(p.pickup);
-      }
+      if(normalizeText(p.pickup)) points.push(p.pickup);
     });
-
-    if(list[0]?.dropoff){
-      points.push(list[0].dropoff);
-    }
-
+    points.push(list[0].dropoff);
     return points;
   }
 
-  /* ===== CASE 3: DIFFERENT ===== */
   list.forEach(p=>{
+    if(normalizeText(p.pickup)) points.push(p.pickup);
+  });
 
-    if(p?.pickup && normalizeText(p.pickup)){
-      points.push(p.pickup);
-    }
-
-    if(p?.dropoff && normalizeText(p.dropoff)){
-      points.push(p.dropoff);
-    }
-
+  list.forEach(p=>{
+    if(normalizeText(p.dropoff)) points.push(p.dropoff);
   });
 
   return points;
 }
 
-function renderTabs(){
-  const tabs = document.createElement("div");
-  tabs.className = "review-tabs";
+/* ================= SERVER ================= */
 
-  tabs.innerHTML = `
-    <button id="reviewIndividualTab" class="${activeTab === "INDIVIDUAL" ? "tab-active" : "tab-inactive"}" type="button">
-      Individual
-    </button>
-    <button id="reviewSharedTab" class="${activeTab === "SHARED" ? "tab-active" : "tab-inactive"}" type="button">
-      Shared
-    </button>
-  `;
+async function fetchTrips(){
+  const url = companyName
+    ? "/api/trips/company/" + encodeURIComponent(companyName)
+    : "/api/trips/company";
 
-  container.appendChild(tabs);
-
-  document.getElementById("reviewIndividualTab").addEventListener("click",()=>{
-    activeTab = "INDIVIDUAL";
-    render();
+  const res = await fetch(url,{
+    headers:{ Authorization:"Bearer " + token }
   });
 
-  document.getElementById("reviewSharedTab").addEventListener("click",()=>{
-    activeTab = "SHARED";
-    render();
-  });
+  if(!res.ok){
+    container.innerHTML = "<div>Server Error</div>";
+    return [];
+  }
+
+  return await res.json();
 }
 
+async function updateTrip(id,payload){
+  const res = await fetch("/api/trips/" + id,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:"Bearer " + token
+    },
+    body:JSON.stringify(payload)
+  });
+
+  if(!res.ok){
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Update failed");
+  }
+
+  return await res.json().catch(() => null);
+}
+
+async function deleteTrip(id){
+  const res = await fetch("/api/trips/" + id,{
+    method:"DELETE",
+    headers:{ Authorization:"Bearer " + token }
+  });
+
+  if(!res.ok){
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Delete failed");
+  }
+}
 /* ================= ROW COLOR ================= */
 
 function applyRowColor(tr, t){
