@@ -325,6 +325,47 @@ function calculateSharedPrice(group, miles){
 function buildIndividualRoutePoints(trip){
   const points = [];
 
+  if(trip && normalizeText(trip.pickup)){
+    points.push(trip.pickup);
+  }
+
+  if(trip && Array.isArray(trip.stops)){
+    trip.stops.forEach(s=>{
+      if(normalizeText(s)){
+        points.push(s);
+      }
+    });
+  }
+
+  if(trip && normalizeText(trip.dropoff)){
+    points.push(trip.dropoff);
+  }
+
+  return points;
+}
+
+/* ================= SAFE CHECK ================= */
+
+function sameValue(list, field){
+
+  if(!Array.isArray(list) || list.length === 0){
+    return false;
+  }
+
+  const first = normalizeText(list[0]?.[field]).toLowerCase();
+
+  if(!first) return false;
+
+  return list.every(x =>
+    normalizeText(x?.[field]).toLowerCase() === first
+  );
+}
+
+/* ================= ROUTE POINTS ================= */
+
+function buildIndividualRoutePoints(trip){
+  const points = [];
+
   if(trip.pickup) points.push(trip.pickup);
 
   if(Array.isArray(trip.stops)){
@@ -428,6 +469,116 @@ async function deleteTrip(id){
     throw new Error(err.message || "Delete failed");
   }
 }
+
+/* ================= SAFE CHECK ================= */
+
+function sameValue(list, field){
+
+  if(!Array.isArray(list) || list.length === 0){
+    return false;
+  }
+
+  const first = normalizeText(list[0]?.[field]).toLowerCase();
+  if(!first) return false;
+
+  return list.every(x =>
+    normalizeText(x?.[field]).toLowerCase() === first
+  );
+}
+
+/* ================= SHARED ROUTE ================= */
+
+function buildSharedRoutePoints(group){
+
+  if(!Array.isArray(group) || group.length === 0){
+    return [];
+  }
+
+  const list = getRealPassengersFromGroup(group) || [];
+
+  if(!Array.isArray(list) || list.length === 0){
+    return [];
+  }
+
+  const points = [];
+
+  const samePickup = sameValue(list, "pickup");
+  const sameDropoff = sameValue(list, "dropoff");
+
+  /* ===== CASE 1: SAME PICKUP ===== */
+  if(samePickup){
+
+    if(list[0]?.pickup){
+      points.push(list[0].pickup);
+    }
+
+    list.forEach(p=>{
+      if(p?.dropoff && normalizeText(p.dropoff)){
+        points.push(p.dropoff);
+      }
+    });
+
+    return points;
+  }
+
+  /* ===== CASE 2: SAME DROPOFF ===== */
+  if(sameDropoff){
+
+    list.forEach(p=>{
+      if(p?.pickup && normalizeText(p.pickup)){
+        points.push(p.pickup);
+      }
+    });
+
+    if(list[0]?.dropoff){
+      points.push(list[0].dropoff);
+    }
+
+    return points;
+  }
+
+  /* ===== CASE 3: DIFFERENT ===== */
+  list.forEach(p=>{
+
+    if(p?.pickup && normalizeText(p.pickup)){
+      points.push(p.pickup);
+    }
+
+    if(p?.dropoff && normalizeText(p.dropoff)){
+      points.push(p.dropoff);
+    }
+
+  });
+
+  return points;
+}
+
+function renderTabs(){
+  const tabs = document.createElement("div");
+  tabs.className = "review-tabs";
+
+  tabs.innerHTML = `
+    <button id="reviewIndividualTab" class="${activeTab === "INDIVIDUAL" ? "tab-active" : "tab-inactive"}" type="button">
+      Individual
+    </button>
+    <button id="reviewSharedTab" class="${activeTab === "SHARED" ? "tab-active" : "tab-inactive"}" type="button">
+      Shared
+    </button>
+  `;
+
+  container.appendChild(tabs);
+
+  document.getElementById("reviewIndividualTab").addEventListener("click",()=>{
+    activeTab = "INDIVIDUAL";
+    render();
+  });
+
+  document.getElementById("reviewSharedTab").addEventListener("click",()=>{
+    activeTab = "SHARED";
+    render();
+  });
+}
+
 /* ================= ROW COLOR ================= */
 
 function applyRowColor(tr, t){
