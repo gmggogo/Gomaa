@@ -14,11 +14,19 @@ body{
   background:#f4f8fb;
 }
 
-/* CONTAINER */
+/* HEADER */
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+}
+
+/* CONTENT */
 .container{
   max-width:1500px;
   margin:auto;
-  padding:50px 25px;
+  padding:90px 20px 30px;
 }
 
 /* DATE TITLE */
@@ -40,25 +48,19 @@ table{
   overflow:hidden;
 }
 
-/* CELLS */
 th,td{
   padding:10px;
   font-size:13px;
   border-bottom:1px solid #eee;
   text-align:left;
-  vertical-align:top;
-
-  /* مهم للشير */
-  white-space:pre-line;
+  vertical-align:middle;
 }
 
-/* HEADER */
 th{
   background:#0f172a;
   color:#fff;
 }
 
-/* ROW */
 tr{
   transition:background .3s;
 }
@@ -67,7 +69,7 @@ tr:hover{
   background:#f9fafb;
 }
 
-/* STATUS COLORS */
+/* OLD COLOR POLICY */
 .yellow{
   background:#fff3cd !important;
 }
@@ -125,15 +127,18 @@ input{
   box-sizing:border-box;
 }
 
-/* PRICE */
-.price{
-  color:#22c55e;
-  font-weight:bold;
-}
-
-/* RESPONSIVE */
+/* MOBILE */
 @media(max-width:768px){
+  .container{
+    padding:90px 10px 20px;
+  }
+
   table{
+    font-size:11px;
+  }
+
+  th,td{
+    padding:6px;
     font-size:11px;
   }
 }
@@ -142,13 +147,12 @@ input{
 
 <body>
 
-<!-- HEADER (زي ما هو عندك) -->
 <div id="layoutHeader"></div>
 
-<!-- MAIN -->
-<div class="container" id="tripsContainer"></div>
+<div class="container">
+  <div id="tripsContainer"></div>
+</div>
 
-<!-- SCRIPTS -->
 <script src="layout.js"></script>
 <script src="review.js"></script>
 
