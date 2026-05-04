@@ -726,7 +726,7 @@ if(submitSharedBtn){
       const sharedTrip = {
         company: companyName,
 
-        type: "shared",
+        type: "company",
         isShared: true,
         tripType: "SHARED",
         sharedSuffix: "-SH",
@@ -734,7 +734,7 @@ if(submitSharedBtn){
         entryName: sharedEntryName.value,
         entryPhone: sharedEntryPhone.value,
 
-        clientName: firstPassenger.clientName,
+        clientName: "Shared Trip",
         clientPhone: firstPassenger.clientPhone,
 
         pickup: firstPassenger.pickup,

@@ -133,7 +133,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
- /* =========================
+/* =========================
    TRIP MODEL (FINAL PRO VERSION + SHARED SUPPORT)
 ========================= */
 const tripSchema = new mongoose.Schema({
@@ -200,6 +200,37 @@ const tripSchema = new mongoose.Schema({
 
   // عدد الركاب في الجروب
   totalPassengers: { type: Number, default: 1 },
+
+  /* =========================
+     🧍 PASSENGERS (🔥 أهم إضافة)
+  ========================= */
+
+  passengers: {
+    type: [
+      {
+        passengerId: { type: String, default: "" },
+
+        name: { type: String, default: "" },
+        phone: { type: String, default: "" },
+
+        clientName: { type: String, default: "" },
+        clientPhone: { type: String, default: "" },
+
+        pickup: { type: String, default: "" },
+        dropoff: { type: String, default: "" },
+
+        pickupLat: { type: Number, default: null },
+        pickupLng: { type: Number, default: null },
+        dropoffLat: { type: Number, default: null },
+        dropoffLng: { type: Number, default: null },
+
+        status: { type: String, default: "Scheduled" },
+
+        priceAmount: { type: Number, default: 0 }
+      }
+    ],
+    default: []
+  },
 
   /* =========================
      💳 PAYMENT
@@ -274,9 +305,7 @@ tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
-const Trip = mongoose.model("Trip", tripSchema);
-
-/* =========================
+const Trip = mongoose.model("Trip", tripSchema);/* =========================
    DRIVER SCHEDULE MODEL
 ========================= */
 const driverScheduleSchema = new mongoose.Schema({
@@ -1255,72 +1284,67 @@ app.post("/api/trips", async (req, res) => {
     }
 
     /* =========================
-       🔴 SHARED CREATE
-    ========================= */
+    /* =========================
+   🔴 SHARED CREATE (FINAL CLEAN)
+========================= */
 
-    if (isShared && passengers.length > 0) {
+if (isShared && passengers.length > 0) {
 
-      const createdTrips = [];
+  const groupId = "GR-" + Date.now();
 
-      for (let i = 0; i < passengers.length; i++) {
+  const trip = await Trip.create({
 
-        const p = passengers[i];
+    type,
+    tripNumber,
 
-        const trip = await Trip.create({
+    // 🔥 SHARED
+    isShared: true,
+    groupId,
+    tripType: "SHARED",
+    sharedSuffix: "-SH",
 
-          type,
-          tripNumber,
+    company: normalizeText(req.body.company),
 
-          // 🔥 SHARED FIELDS
-          isShared: true,
-          groupId,
-          tripType: "SHARED",
-          sharedSuffix: "-SH",
-          passengerIndex: i + 1,
-          totalPassengers,
+    entryName: normalizeText(req.body.entryName),
+    entryPhone: normalizeText(req.body.entryPhone),
 
-          company: normalizeText(req.body.company),
+    // 🔥 كل الركاب هنا
+    passengers: passengers,
 
-          entryName: normalizeText(req.body.entryName),
-          entryPhone: normalizeText(req.body.entryPhone),
+    totalPassengers: passengers.length,
 
-          // 👇 كل راكب لوحده
-          clientName: normalizeText(p.name),
-          clientPhone: normalizeText(p.phone),
+    // 👇 عرض سريع
+    clientName: "Shared Trip",
+    clientPhone: "",
 
-          clientEmail: normalizeText(req.body.clientEmail),
-          priceAmount: Number(req.body.priceAmount || 0),
+    // 👇 route
+    pickup: passengers[0]?.pickup || "",
+    dropoff: passengers[passengers.length - 1]?.dropoff || "",
 
-          vehicle: vehicleTypeFromQuote,
+    pickupLat: null,
+    pickupLng: null,
+    dropoffLat: null,
+    dropoffLng: null,
 
-          pickup,
-          dropoff,
-          stops: parseStops(req.body.stops),
+    stops: [],
+    stopCoords: [],
 
-          pickupLat: normalizeNumber(req.body.pickupLat),
-          pickupLng: normalizeNumber(req.body.pickupLng),
-          dropoffLat: normalizeNumber(req.body.dropoffLat),
-          dropoffLng: normalizeNumber(req.body.dropoffLng),
-          stopCoords: parseStopCoords(req.body.stopCoords),
+    tripDate: normalizeText(req.body.tripDate),
+    tripTime: normalizeText(req.body.tripTime),
 
-          tripDate: normalizeText(req.body.tripDate),
-          tripTime: normalizeText(req.body.tripTime),
+    notes: normalizeText(req.body.notes),
 
-          notes: normalizeText(req.body.notes),
+    priceAmount: 0,
 
-          status: "Booked",
+    status: "Scheduled",
 
-          bookedAt: new Date(),
-          createdAt: new Date()
-        });
+    createdAt: new Date()
+  });
 
-        await ensureTripCoords(trip);
+  await ensureTripCoords(trip);
 
-        createdTrips.push(trip);
-      }
-
-      return res.status(200).json(createdTrips);
-    }
+  return res.status(200).json(trip);
+}
 
     /* =========================
        🟢 INDIVIDUAL CREATE
