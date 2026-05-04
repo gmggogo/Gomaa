@@ -1472,25 +1472,41 @@ app.get("/api/trips/:id", async (req, res) => {
     }
 
     res.json(trip);
+
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Error loading trip" });
   }
 });
 
-const existing = await Trip.findById(req.params.id);
 
-// 1️⃣ لو مش موجود
-if (!existing) {
-  return res.status(404).json({ message: "Trip not found" });
-}
+/* =========================
+   UPDATE TRIP (FIXED PART)
+========================= */
+app.put("/api/trips/:id", async (req, res) => {
+  try {
 
-// 2️⃣ لو الرحلة مقفولة
-if (["Completed", "Cancelled"].includes(existing.status)) {
-  return res.status(400).json({
-    message: "Cannot edit completed or cancelled trip"
-  });
-}
+    const existing = await Trip.findById(req.params.id);
+
+    // 1️⃣ لو مش موجود
+    if (!existing) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    // 2️⃣ منع التعديل لو الرحلة خلصت أو اتلغت
+    if (["Completed", "Cancelled"].includes(existing.status)) {
+      return res.status(400).json({
+        message: "Cannot edit completed or cancelled trip"
+      });
+    }
+
+    // 👇 باقي update logic هنا (سيبه زي ما هو عندك)
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error updating trip" });
+  }
+});
 
     /* =========================
        VALIDATION
