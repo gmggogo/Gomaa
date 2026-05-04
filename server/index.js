@@ -133,8 +133,8 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
-  /* =========================
-   TRIP MODEL (FINAL PRO VERSION + SHARED ADDON)
+ /* =========================
+   TRIP MODEL (FINAL PRO VERSION + SHARED SUPPORT)
 ========================= */
 const tripSchema = new mongoose.Schema({
 
@@ -149,7 +149,7 @@ const tripSchema = new mongoose.Schema({
   clientName: { type: String, default: "" },
   clientPhone: { type: String, default: "" },
 
-  // 📧 EMAIL + 💰 PRICE (Get Quote - untouched)
+  // 📧 EMAIL + 💰 PRICE
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
 
@@ -177,50 +177,29 @@ const tripSchema = new mongoose.Schema({
   },
 
   /* =========================
-     🔥 SHARED ADDON (NEW)
+     🔥 SHARED SUPPORT (IMPORTANT)
   ========================= */
 
-  tripType: { type: String, default: "" }, // INDIVIDUAL / SHARED
-  sharedSuffix: { type: String, default: "" }, // "-SH"
+  isShared: { type: Boolean, default: false },
 
-  passengerCount: { type: Number, default: 0 },
+  // 🔗 بيربط كل الركاب في نفس الرحلة
+  groupId: { type: String, default: "" },
 
-  passengers: [{
-    passengerId: { type: String, default: "" },
+  // نوع الرحلة
+  tripType: {
+    type: String,
+    enum: ["INDIVIDUAL", "SHARED"],
+    default: "INDIVIDUAL"
+  },
 
-    clientName: { type: String, default: "" },
-    clientPhone: { type: String, default: "" },
+  // suffix يظهر في الرقم
+  sharedSuffix: { type: String, default: "" },
 
-    pickup: { type: String, default: "" },
-    pickupLat: { type: Number, default: null },
-    pickupLng: { type: Number, default: null },
+  // ترتيب الراكب داخل الشير
+  passengerIndex: { type: Number, default: 0 },
 
-    dropoff: { type: String, default: "" },
-    dropoffLat: { type: Number, default: null },
-    dropoffLng: { type: Number, default: null },
-
-    status: { type: String, default: "Scheduled" },
-
-    basePrice: { type: Number, default: 0 },
-    finalPrice: { type: Number, default: 0 },
-    priceAmount: { type: Number, default: 0 }
-  }],
-
-  route: { type: Array, default: [] },
-
-  distanceMeters: { type: Number, default: 0 },
-  durationSeconds: { type: Number, default: 0 },
-  miles: { type: Number, default: 0 },
-  estimatedMinutes: { type: Number, default: 0 },
-
-  basePrice: { type: Number, default: 0 },
-  finalPrice: { type: Number, default: 0 },
-  pricePerPassenger: { type: Number, default: 0 },
-
-  pricingPolicy: { type: Object, default: {} },
-  googleRoute: { type: Object, default: {} },
-
-  timezone: { type: String, default: "America/Phoenix" },
+  // عدد الركاب في الجروب
+  totalPassengers: { type: Number, default: 1 },
 
   /* =========================
      💳 PAYMENT
@@ -228,7 +207,15 @@ const tripSchema = new mongoose.Schema({
 
   paymentIntentId: { type: String, default: "" },
 
+  /* =========================
+     🔗 CANCEL
+  ========================= */
+
   cancelToken: { type: String, default: "" },
+
+  /* =========================
+     💰 REFUND SYSTEM
+  ========================= */
 
   refundId: { type: String, default: "" },
   simpleRefundId: { type: String, default: "" },
@@ -244,7 +231,7 @@ const tripSchema = new mongoose.Schema({
   },
 
   /* =========================
-     ⏰ TIME
+     📅 TIME
   ========================= */
 
   tripDate: { type: String, default: "" },
@@ -266,6 +253,10 @@ const tripSchema = new mongoose.Schema({
   dispatchNote: { type: String, default: "" },
 
   status: { type: String, default: "Scheduled" },
+
+  /* =========================
+     🔔 REMINDER
+  ========================= */
 
   reminderSent: { type: Boolean, default: false },
 
@@ -1223,25 +1214,126 @@ app.get("/api/drivers", async (req, res) => {
 });
 
 /* =========================
-   CREATE TRIP (FINAL FIXED)
+   CREATE TRIP (FINAL + SHARED)
 ========================= */
 app.post("/api/trips", async (req, res) => {
   try {
+
     const type = normalizeTripType(req.body.type);
-    const tripNumber = await generateTripNumber(type);
+
+    // 🔥 هل شيرد؟
+    const isShared = req.body.isShared === true;
+
+    // 🔥 رقم الرحلة (لو شيرد يضيف SH)
+    const tripNumber = await generateTripNumber(
+      isShared ? "shared" : type
+    );
 
     const pickup = normalizeText(req.body.pickup);
     const dropoff = normalizeText(req.body.dropoff);
 
-    // 🔥 تأمين نوع العربية
     const vehicleTypeFromQuote =
       ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
         ? req.body.vehicleTypeFromQuote
         : "X";
 
+    /* =========================
+       🧠 SHARED DATA
+    ========================= */
+
+    let groupId = "";
+    let passengers = [];
+    let totalPassengers = 1;
+
+    if (isShared) {
+      groupId = "GR-" + Date.now();
+
+      if (Array.isArray(req.body.passengers)) {
+        passengers = req.body.passengers;
+        totalPassengers = passengers.length;
+      }
+    }
+
+    /* =========================
+       🔴 SHARED CREATE
+    ========================= */
+
+    if (isShared && passengers.length > 0) {
+
+      const createdTrips = [];
+
+      for (let i = 0; i < passengers.length; i++) {
+
+        const p = passengers[i];
+
+        const trip = await Trip.create({
+
+          type,
+          tripNumber,
+
+          // 🔥 SHARED FIELDS
+          isShared: true,
+          groupId,
+          tripType: "SHARED",
+          sharedSuffix: "-SH",
+          passengerIndex: i + 1,
+          totalPassengers,
+
+          company: normalizeText(req.body.company),
+
+          entryName: normalizeText(req.body.entryName),
+          entryPhone: normalizeText(req.body.entryPhone),
+
+          // 👇 كل راكب لوحده
+          clientName: normalizeText(p.name),
+          clientPhone: normalizeText(p.phone),
+
+          clientEmail: normalizeText(req.body.clientEmail),
+          priceAmount: Number(req.body.priceAmount || 0),
+
+          vehicle: vehicleTypeFromQuote,
+
+          pickup,
+          dropoff,
+          stops: parseStops(req.body.stops),
+
+          pickupLat: normalizeNumber(req.body.pickupLat),
+          pickupLng: normalizeNumber(req.body.pickupLng),
+          dropoffLat: normalizeNumber(req.body.dropoffLat),
+          dropoffLng: normalizeNumber(req.body.dropoffLng),
+          stopCoords: parseStopCoords(req.body.stopCoords),
+
+          tripDate: normalizeText(req.body.tripDate),
+          tripTime: normalizeText(req.body.tripTime),
+
+          notes: normalizeText(req.body.notes),
+
+          status: "Booked",
+
+          bookedAt: new Date(),
+          createdAt: new Date()
+        });
+
+        await ensureTripCoords(trip);
+
+        createdTrips.push(trip);
+      }
+
+      return res.status(200).json(createdTrips);
+    }
+
+    /* =========================
+       🟢 INDIVIDUAL CREATE
+    ========================= */
+
     const trip = await Trip.create({
+
       type,
       tripNumber,
+
+      isShared: false,
+      groupId: "",
+      tripType: "INDIVIDUAL",
 
       company: normalizeText(req.body.company),
 
@@ -1251,11 +1343,9 @@ app.post("/api/trips", async (req, res) => {
       clientName: normalizeText(req.body.clientName),
       clientPhone: normalizeText(req.body.clientPhone),
 
-      // 💰 السعر + الإيميل
       priceAmount: Number(req.body.priceAmount || 0),
       clientEmail: normalizeText(req.body.clientEmail),
 
-      // 🔥🔥🔥 التعديل الصح هنا
       vehicle: vehicleTypeFromQuote,
 
       pickup,
@@ -1292,8 +1382,7 @@ app.post("/api/trips", async (req, res) => {
 
     res.status(500).json({ message: "Error creating trip" });
   }
-});
-/* =========================
+});/* =========================
    GET ALL TRIPS
 ========================= */
 app.get("/api/trips", async (req, res) => {

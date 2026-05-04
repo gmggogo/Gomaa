@@ -108,38 +108,6 @@ function escapeAttr(value){
     .replace(/>/g, "&gt;");
 }
 
-function getMonthCode(){
-  const months = [
-    "JA", "FE", "MA", "AP", "MY", "JN",
-    "JL", "AU", "SE", "OC", "NO", "DE"
-  ];
-
-  const now = getArizonaNow();
-  return months[now.getMonth()];
-}
-
-function generateTripNumber(type){
-  const monthCode = getMonthCode();
-  const key = `tripSeq_${monthCode}`;
-  let current = Number(localStorage.getItem(key) || 999);
-
-  current += 1;
-
-  if(current < 1000){
-    current = 1000;
-  }
-
-  localStorage.setItem(key, String(current));
-
-  let tripNumber = `${monthCode}${current}`;
-
-  if(type === "SHARED"){
-    tripNumber += "-SH";
-  }
-
-  return tripNumber;
-}
-
 function validateFutureTime(dateValue, timeValue){
   if(!dateValue || !timeValue){
     showAlert("Please select trip date and time.");
@@ -460,12 +428,11 @@ if(submitTripBtn){
         .filter(Boolean);
 
       const trip = {
-        tripNumber: generateTripNumber("INDIVIDUAL"),
-
         company: companyName,
 
-        type: "INDIVIDUAL",
-        tripType: "individual",
+        type: "company",
+        tripType: "INDIVIDUAL",
+        isShared: false,
 
         entryName: entryName.value,
         entryPhone: entryPhone.value,
@@ -627,16 +594,28 @@ function collectSharedPassengersRaw(){
   const passengers = [];
 
   document.querySelectorAll(".passenger-card").forEach((card, index) => {
+    const clientNameValue = normalizeText(card.querySelector(".sharedClientName")?.value);
+    const clientPhoneValue = normalizeText(card.querySelector(".sharedClientPhone")?.value);
+    const pickupValue = normalizeText(card.querySelector(".sharedPickup")?.value);
+    const dropoffValue = normalizeText(card.querySelector(".sharedDropoff")?.value);
+
     passengers.push({
       passengerId: `P${index + 1}`,
-      clientName: normalizeText(card.querySelector(".sharedClientName")?.value),
-      clientPhone: normalizeText(card.querySelector(".sharedClientPhone")?.value),
-      pickup: normalizeText(card.querySelector(".sharedPickup")?.value),
-      dropoff: normalizeText(card.querySelector(".sharedDropoff")?.value),
+
+      name: clientNameValue,
+      phone: clientPhoneValue,
+
+      clientName: clientNameValue,
+      clientPhone: clientPhoneValue,
+
+      pickup: pickupValue,
+      dropoff: dropoffValue,
+
       pickupLat: null,
       pickupLng: null,
       dropoffLat: null,
       dropoffLng: null,
+
       status: "Scheduled",
       basePrice: 0,
       finalPrice: 0,
@@ -745,18 +724,17 @@ if(submitSharedBtn){
       const lastPassenger = passengers[passengers.length - 1];
 
       const sharedTrip = {
-        tripNumber: generateTripNumber("SHARED"),
-
         company: companyName,
 
-        type: "SHARED",
-        tripType: "shared",
+        type: "shared",
+        isShared: true,
+        tripType: "SHARED",
         sharedSuffix: "-SH",
 
         entryName: sharedEntryName.value,
         entryPhone: sharedEntryPhone.value,
 
-        clientName: "Shared Trip",
+        clientName: firstPassenger.clientName,
         clientPhone: firstPassenger.clientPhone,
 
         pickup: firstPassenger.pickup,
@@ -768,6 +746,7 @@ if(submitSharedBtn){
         dropoffLng: null,
 
         passengerCount: passengers.length,
+        totalPassengers: passengers.length,
         passengers: passengers,
 
         tripDate: sharedDate.value,
