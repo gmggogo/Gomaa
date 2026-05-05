@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 <meta charset="UTF-8">
 <title>Trips Summary</title>
@@ -10,23 +9,24 @@
 
 <style>
 
-body{
-margin:0;
-font-family:Segoe UI;
-background:#f1f5f9;
-}
-
 .page{
-padding:90px 15px 20px;
 max-width:1100px;
 margin:auto;
+padding:100px 15px 30px;
+}
+
+/* HEADER TITLE */
+.title{
+font-size:22px;
+font-weight:bold;
+margin-bottom:10px;
 }
 
 /* TABS */
 .tabs{
 display:flex;
 gap:10px;
-margin-bottom:15px;
+margin-bottom:20px;
 }
 
 .tab{
@@ -35,6 +35,7 @@ border:none;
 border-radius:6px;
 background:#e5e7eb;
 cursor:pointer;
+font-weight:600;
 }
 
 .tab.active{
@@ -42,22 +43,46 @@ background:#2563eb;
 color:#fff;
 }
 
+/* FILTER */
+.filters{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:20px;
+}
+
+.filters input,
+.filters button{
+padding:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+.filters button{
+background:#2563eb;
+color:#fff;
+border:none;
+cursor:pointer;
+}
+
 /* BOX */
 .trip-box{
 background:#fff;
 border-radius:10px;
 margin-bottom:20px;
+box-shadow:0 4px 10px rgba(0,0,0,.08);
 overflow:hidden;
-box-shadow:0 2px 8px rgba(0,0,0,.08);
 }
 
+/* BOX HEADER */
 .trip-header{
-background:#1e293b;
+background:linear-gradient(90deg,#2563eb,#1d4ed8);
 color:#fff;
 padding:10px;
-font-size:14px;
 display:flex;
 justify-content:space-between;
+font-size:13px;
+font-weight:bold;
 }
 
 /* TABLE */
@@ -67,28 +92,34 @@ border-collapse:collapse;
 }
 
 th{
-background:#2563eb;
-color:#fff;
+background:#f1f5f9;
 padding:8px;
-font-size:13px;
+font-size:12px;
 }
 
 td{
 padding:8px;
-border-bottom:1px solid #eee;
-font-size:13px;
 text-align:center;
+border-bottom:1px solid #eee;
+font-size:12px;
 }
 
 /* STATUS COLORS */
-.completed{background:#dcfce7;}
-.cancelled{background:#fee2e2;}
-.noshow{background:#fef9c3;}
+.completed{background:#dcfce7}
+.noshow{background:#fef9c3}
+.cancelled{background:#fee2e2}
 
-.total-row{
-background:#111827;
-color:#fff;
+/* TOTAL */
+.total{
+padding:10px;
+text-align:right;
 font-weight:bold;
+background:#f8fafc;
+}
+
+/* MOBILE */
+@media(max-width:768px){
+td,th{font-size:11px}
 }
 
 </style>
@@ -100,11 +131,18 @@ font-weight:bold;
 
 <div class="page">
 
-<h2>Trips Summary</h2>
+<div class="title">Trips Summary</div>
 
 <div class="tabs">
 <button class="tab active" onclick="switchTab('individual',this)">Individual</button>
 <button class="tab" onclick="switchTab('shared',this)">Shared</button>
+</div>
+
+<div class="filters">
+<input type="date" id="date">
+<input type="text" id="search" placeholder="Search name">
+<button onclick="applyFilter()">Search</button>
+<button onclick="window.print()">Print</button>
 </div>
 
 <div id="content"></div>

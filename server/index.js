@@ -1579,8 +1579,9 @@ app.get("/api/trips/company/:company", async (req, res) => {
     res.status(500).json({ message: "Error loading trips" });
   }
 });
+
 /* =========================
-   SUMMARY TRIPS (🔥 FINAL)
+   SUMMARY TRIPS (FINAL)
 ========================= */
 app.get("/api/trips/summary", async (req, res) => {
   try {
@@ -1589,41 +1590,51 @@ app.get("/api/trips/summary", async (req, res) => {
       .sort({ tripDate: -1, tripTime: -1 })
       .lean();
 
-    // 🔥 فلترة + تعديل الحالات
-    const summaryTrips = trips
-      .map(t => {
+    const result = trips.map(t => {
 
-        let status = t.status || "";
+      // 🔥 normalize status
+      let status = (t.status || "").toLowerCase();
 
-        // ✅ Normalize
-        if (status.includes("Cancel")) {
-          status = "Cancelled";
-        }
+      if (status.includes("cancel")) status = "Cancelled";
+      else if (status.includes("no")) status = "NoShow";
+      else if (status.includes("complete")) status = "Completed";
+      else status = "Scheduled";
 
-        if (status === "No Show" || status === "NoShow") {
-          status = "NoShow";
-        }
+      // 🔥 احسب المايلز
+      let miles = 0;
 
-        if (status === "Completed") {
-          status = "Completed";
-        }
+      if (t.miles && t.miles > 0) {
+        miles = t.miles;
+      } else if (
+        t.pickupLat && t.pickupLng &&
+        t.dropoffLat && t.dropoffLng
+      ) {
+        miles = calcDistanceKm(
+          t.pickupLat,
+          t.pickupLng,
+          t.dropoffLat,
+          t.dropoffLng
+        ) * 0.621371;
+      }
 
-        return {
-          ...t,
-          status
-        };
-      })
-      .filter(t =>
-        t.status === "Completed" ||
-        t.status === "Cancelled" ||
-        t.status === "NoShow"
-      );
+      return {
+        ...t,
+        status,
+        miles: Math.round(miles)
+      };
 
-    res.json(summaryTrips);
+    })
+    .filter(t =>
+      t.status === "Completed" ||
+      t.status === "Cancelled" ||
+      t.status === "NoShow"
+    );
+
+    res.json(result);
 
   } catch (err) {
-    console.log("Summary error:", err);
-    res.status(500).json({ message: "Summary load error" });
+    console.log(err);
+    res.status(500).json({ message: "summary error" });
   }
 });
 
