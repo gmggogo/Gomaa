@@ -1579,25 +1579,54 @@ app.get("/api/trips/company/:company", async (req, res) => {
     res.status(500).json({ message: "Error loading trips" });
   }
 });
-
 /* =========================
-   GET SUMMARY TRIPS (🔥 مهم)
+   SUMMARY TRIPS (🔥 FINAL)
 ========================= */
 app.get("/api/trips/summary", async (req, res) => {
   try {
 
-    const trips = await Trip.find({
-      status: { $in: ["Completed", "NoShow", "Cancelled"] }
-    })
-    .sort({ tripDate: -1, tripTime: -1 });
+    const trips = await Trip.find({})
+      .sort({ tripDate: -1, tripTime: -1 })
+      .lean();
 
-    res.json(trips);
+    // 🔥 فلترة + تعديل الحالات
+    const summaryTrips = trips
+      .map(t => {
+
+        let status = t.status || "";
+
+        // ✅ Normalize
+        if (status.includes("Cancel")) {
+          status = "Cancelled";
+        }
+
+        if (status === "No Show" || status === "NoShow") {
+          status = "NoShow";
+        }
+
+        if (status === "Completed") {
+          status = "Completed";
+        }
+
+        return {
+          ...t,
+          status
+        };
+      })
+      .filter(t =>
+        t.status === "Completed" ||
+        t.status === "Cancelled" ||
+        t.status === "NoShow"
+      );
+
+    res.json(summaryTrips);
 
   } catch (err) {
-    console.log(err);
+    console.log("Summary error:", err);
     res.status(500).json({ message: "Summary load error" });
   }
 });
+
 /* =========================
    GET ONE TRIP
 ========================= */
