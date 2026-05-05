@@ -78,7 +78,7 @@ body{
   padding:10px;
   font-size:13px;
   border:1px solid #dbe2ea;
-  text-align:left;
+  text-align:center;
   vertical-align:top;
 }
 
@@ -103,6 +103,7 @@ tr:hover{
 .multi-line{
   white-space:pre-line;
   line-height:1.6;
+  text-align:left;
 }
 
 /* ================= BADGES ================= */
@@ -122,6 +123,15 @@ tr:hover{
   border-radius:8px;
   font-weight:900;
   box-shadow:0 0 10px rgba(34,197,94,.4);
+}
+
+.miles-badge{
+  background:#dbeafe;
+  color:#1d4ed8;
+  padding:3px 8px;
+  border-radius:8px;
+  font-size:11px;
+  font-weight:800;
 }
 
 /* ================= ROW COLORS ================= */
@@ -146,6 +156,7 @@ tr:hover{
   display:flex;
   gap:6px;
   flex-wrap:wrap;
+  justify-content:center;
 }
 
 .btn{
@@ -206,7 +217,7 @@ tr:hover{
 <!-- MAIN -->
 <div class="container">
 
-  <!-- 🔥 هنا بس، JS هو اللي هيبني كل حاجة -->
+  <!-- 🔥 الجدول بيتبني من JS -->
   <div id="tripsContainer"></div>
 
 </div>

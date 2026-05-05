@@ -623,6 +623,36 @@ function renderIndividualButtons(t, editing){
   return "";
 }
 
+function priceMilesCell(price, miles){
+  return `
+    <div style="
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+    ">
+      <span class="price-badge">
+        $${formatMoney(price)}
+      </span>
+
+      <span style="
+        font-size:11px;
+        color:#2563eb;
+        font-weight:800;
+        background:#dbeafe;
+        padding:2px 8px;
+        border-radius:8px;
+      ">
+        🚗 ${
+          miles !== undefined && miles !== null && miles !== ""
+            ? Number(miles).toFixed(2) + " mi"
+            : "-- mi"
+        }
+      </span>
+    </div>
+  `;
+}
+
 function renderIndividualTable(list){
   const groups = groupByDate(list);
   const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
@@ -652,7 +682,7 @@ function renderIndividualTable(list){
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
-        <th>Price</th>
+        <th>Price / Miles</th>
         <th>Actions</th>
       </tr>
     `;
@@ -669,32 +699,73 @@ function renderIndividualTable(list){
 
       tr.innerHTML = `
         <td>${i+1}</td>
-        <td><span class="trip-number-badge">${escapeHtml(getTripNumber(t))}</span></td>
+
+        <td>
+          <span class="trip-number-badge">
+            ${escapeHtml(getTripNumber(t))}
+          </span>
+        </td>
+
         <td>${editing ? createEditInput(t.entryName || "", "entryName") : escapeHtml(t.entryName || "")}</td>
         <td>${editing ? createEditInput(t.entryPhone || "", "entryPhone") : escapeHtml(t.entryPhone || "")}</td>
+
         <td>${editing ? createEditInput(t.clientName || "", "clientName") : `<div class="multi-line">${escapeHtml(t.clientName || "")}</div>`}</td>
         <td>${editing ? createEditInput(t.clientPhone || "", "clientPhone") : `<div class="multi-line">${escapeHtml(t.clientPhone || "")}</div>`}</td>
+
         <td>${editing ? createEditInput(t.pickup || "", "pickup") : `<div class="multi-line">${escapeHtml(t.pickup || "")}</div>`}</td>
         <td>${editing ? createEditInput(t.dropoff || "", "dropoff") : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`}</td>
-        <td>${
-          editing
-            ? stops.map((s,si)=>`<input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">`).join("")
-            : `<div class="multi-line">${stops.map(s=>escapeHtml(s)).join("<br>")}</div>`
-        }</td>
-        <td>${editing ? createEditInput(t.notes || "", "notes") : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`}</td>
-        <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
-        <td>${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
-        <td><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
-        <td><span class="price-badge">$${formatMoney(t.priceAmount)}</span></td>
-        <td>${renderIndividualButtons(t, editing)}</td>
+
+        <td>
+          ${
+            editing
+              ? stops.map((s,si)=>`
+                  <input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">
+                `).join("")
+              : `<div class="multi-line">${stops.map(s=>escapeHtml(s)).join("<br>")}</div>`
+          }
+        </td>
+
+        <td>
+          ${
+            editing 
+              ? createEditInput(t.notes || "", "notes") 
+              : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`
+          }
+        </td>
+
+        <td>
+          ${
+            editing 
+              ? createEditInput(t.tripDate || "", "tripDate", "date") 
+              : escapeHtml(t.tripDate || "")
+          }
+        </td>
+
+        <td>
+          ${
+            editing 
+              ? createEditInput(t.tripTime || "", "tripTime", "time") 
+              : escapeHtml(t.tripTime || "")
+          }
+        </td>
+
+        <td>
+          <strong>${escapeHtml(t.status || "Scheduled")}</strong>
+        </td>
+
+        <td>
+          ${priceMilesCell(t.priceAmount, t.miles)}
+        </td>
+
+        <td>
+          ${renderIndividualButtons(t, editing)}
+        </td>
       `;
 
       table.appendChild(tr);
-
     });
 
     container.appendChild(table);
-
   });
 
   if(!dates.length){
@@ -775,6 +846,7 @@ function renderSharedTable(groups){
     const first = group[0];
     const d = first?.createdAt ? new Date(first.createdAt) : new Date();
     const key = d.toLocaleDateString();
+
     if(!dateGroups[key]) dateGroups[key] = [];
     dateGroups[key].push(group);
   });
@@ -806,7 +878,7 @@ function renderSharedTable(groups){
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
-        <th>Price</th>
+        <th>Price / Miles</th>
         <th>Actions</th>
       </tr>
     `;
@@ -828,9 +900,17 @@ function renderSharedTable(groups){
       let drops = "";
 
       if(editing){
-        clients = passengers.map((p,idx)=>createSharedEditInput(p.name || p.clientName || "", first._id, `passenger_${idx}_name`)).join("\n");
-        phones  = passengers.map((p,idx)=>createSharedEditInput(p.phone || p.clientPhone || "", first._id, `passenger_${idx}_phone`)).join("\n");
-        pickups = passengers.map((p,idx)=>createSharedEditInput(p.pickup || "", first._id, `passenger_${idx}_pickup`)).join("\n");
+        clients = passengers.map((p,idx)=>
+          createSharedEditInput(p.name || p.clientName || "", first._id, `passenger_${idx}_name`)
+        ).join("\n");
+
+        phones = passengers.map((p,idx)=>
+          createSharedEditInput(p.phone || p.clientPhone || "", first._id, `passenger_${idx}_phone`)
+        ).join("\n");
+
+        pickups = passengers.map((p,idx)=>
+          createSharedEditInput(p.pickup || "", first._id, `passenger_${idx}_pickup`)
+        ).join("\n");
 
         drops = passengers.map((p,idx)=>`
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
@@ -838,6 +918,7 @@ function renderSharedTable(groups){
             <button class="btn small-delete" data-action="remove-passenger" data-index="${idx}" type="button">✖</button>
           </div>
         `).join("");
+
       }else{
         clients = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`).join("\n");
         phones  = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`).join("\n");
@@ -853,28 +934,55 @@ function renderSharedTable(groups){
 
       tr.innerHTML = `
         <td>${i+1}</td>
-        <td><span class="trip-number-badge">${escapeHtml(getTripNumber(first))}</span></td>
-        <td>${editing ? createSharedEditInput(first.entryName || "", first._id, "entryName") : escapeHtml(first.entryName || "")}</td>
-        <td>${editing ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone") : escapeHtml(first.entryPhone || "")}</td>
+
+        <td>
+          <span class="trip-number-badge">
+            ${escapeHtml(getTripNumber(first))}
+          </span>
+        </td>
+
+        <td>
+          ${editing ? createSharedEditInput(first.entryName || "", first._id, "entryName") : escapeHtml(first.entryName || "")}
+        </td>
+
+        <td>
+          ${editing ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone") : escapeHtml(first.entryPhone || "")}
+        </td>
+
         <td><div class="multi-line">${clients}</div></td>
         <td><div class="multi-line">${phones}</div></td>
         <td><div class="multi-line">${pickups}</div></td>
         <td><div class="multi-line">${drops}</div></td>
+
         <td><strong>${stopsCount}</strong></td>
+
         <td>${notes}</td>
-        <td>${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
-        <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
-        <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
-        <td><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
-        <td>${renderSharedButtons(group, editing)}</td>
+
+        <td>
+          ${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}
+        </td>
+
+        <td>
+          ${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}
+        </td>
+
+        <td>
+          <strong>${escapeHtml(getGroupStatus(group))}</strong>
+        </td>
+
+        <td>
+          ${priceMilesCell(getGroupPrice(group), first.miles)}
+        </td>
+
+        <td>
+          ${renderSharedButtons(group, editing)}
+        </td>
       `;
 
       table.appendChild(tr);
-
     });
 
     container.appendChild(table);
-
   });
 
   if(!dates.length){
