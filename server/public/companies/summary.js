@@ -1,16 +1,14 @@
-let allTrips = [];
+let tripsData = [];
 let currentTab = "individual";
 
 /* ================= LOAD ================= */
 async function loadTrips(){
   try{
     const res = await fetch("/api/trips/summary");
-    allTrips = await res.json();
-
+    tripsData = await res.json();
     render();
-
   }catch(err){
-    console.log("Load error:", err);
+    console.log("Load error", err);
   }
 }
 
@@ -35,15 +33,14 @@ function getFiltered(){
   const d = document.getElementById("date").value;
   const s = document.getElementById("search").value.toLowerCase();
 
-  return allTrips.filter(t=>{
+  return tripsData.filter(t=>{
 
     const matchDate = !d || t.tripDate === d;
 
     const matchText =
       !s ||
       (t.tripNumber||"").toLowerCase().includes(s) ||
-      (t.clientName||"").toLowerCase().includes(s) ||
-      (t.clientPhone||"").toLowerCase().includes(s);
+      (t.clientName||"").toLowerCase().includes(s);
 
     return matchDate && matchText;
   });
@@ -53,6 +50,9 @@ function getFiltered(){
 function render(){
 
   const data = getFiltered();
+  const body = document.getElementById("body");
+
+  body.innerHTML = "";
 
   if(currentTab === "individual"){
     renderIndividual(data.filter(t=>!t.isShared));
@@ -64,105 +64,68 @@ function render(){
 /* ================= INDIVIDUAL ================= */
 function renderIndividual(data){
 
-  document.getElementById("individualView").style.display = "block";
-  document.getElementById("sharedView").style.display = "none";
-
-  const body = document.getElementById("individualBody");
-  body.innerHTML = "";
-
-  let totalAll = 0;
+  const body = document.getElementById("body");
 
   data.forEach(t=>{
 
-    const total = getTripTotal(t);
-    totalAll += total;
-
     body.innerHTML += `
-      <tr>
-        <td><span class="trip-badge">${t.tripNumber||"-"}</span></td>
-        <td>${t.tripDate||"-"}</td>
-        <td>${t.tripTime||"-"}</td>
-        <td>${t.clientName||"-"}</td>
-        <td>${t.clientPhone||"-"}</td>
-        <td class="${getStatusClass(t.status)}">${t.status}</td>
-        <td>$${total.toFixed(2)}</td>
-      </tr>
+    <tr>
+      <td><span class="trip-badge">${t.tripNumber||"-"}</span></td>
+      <td>${t.tripDate||"-"}</td>
+      <td>${t.tripTime||"-"}</td>
+      <td>${t.clientName||"-"}</td>
+      <td>${t.clientPhone||"-"}</td>
+      <td>
+        <span class="status ${getStatusClass(t.status)}">
+          ${t.status}
+        </span>
+      </td>
+      <td>$${getTripTotal(t)}</td>
+    </tr>
     `;
   });
-
-  updateTotal(totalAll);
 }
 
 /* ================= SHARED ================= */
 function renderShared(data){
 
-  document.getElementById("individualView").style.display = "none";
-  document.getElementById("sharedView").style.display = "block";
+  const body = document.getElementById("body");
 
-  const container = document.getElementById("sharedView");
-  container.innerHTML = "";
+  data.forEach(t=>{
 
-  let totalAll = 0;
+    const passengers = t.passengers || [];
 
-  data.forEach(trip=>{
+    const names = passengers.map(p=>p.name).join("<br>");
+    const phones = passengers.map(p=>p.phone).join("<br>");
 
-    const passengers = Array.isArray(trip.passengers) ? trip.passengers : [];
-
-    let passengersHTML = "";
-    let tripTotal = 0;
-
-    passengers.forEach(p=>{
-
-      const price = getPassengerPrice(p);
-      tripTotal += price;
-
-      passengersHTML += `
-        <div class="passenger-row">
-          <div class="passenger-name">${p.name || "-"}</div>
-          <div>${p.phone || "-"}</div>
-          <div class="${getStatusClass(p.status)}">${p.status}</div>
-          <div>$${price.toFixed(2)}</div>
-        </div>
-      `;
-    });
-
-    totalAll += tripTotal;
-
-    container.innerHTML += `
-      <div class="shared-card">
-
-        <div class="shared-card-header">
-          <div>
-            <div>Trip: ${trip.tripNumber}</div>
-            <div class="shared-meta">${trip.tripDate} | ${trip.tripTime}</div>
-          </div>
-        </div>
-
-        <div class="passenger-list">
-          ${passengersHTML || `<div class="empty">No passengers</div>`}
-        </div>
-
-        <div class="shared-total">
-          Total: $${tripTotal.toFixed(2)}
-        </div>
-
-      </div>
+    body.innerHTML += `
+    <tr>
+      <td><span class="trip-badge">${t.tripNumber}</span></td>
+      <td>${t.tripDate}</td>
+      <td>${t.tripTime}</td>
+      <td>${names}</td>
+      <td>${phones}</td>
+      <td>
+        <span class="status ${getStatusClass(t.status)}">
+          ${t.status}
+        </span>
+      </td>
+      <td>$${getTripTotal(t)}</td>
+    </tr>
     `;
   });
-
-  updateTotal(totalAll);
 }
 
 /* ================= STATUS ================= */
 function getStatusClass(status){
 
-  if(!status) return "";
+  if(!status) return "status-scheduled";
 
-  status = status.toLowerCase();
+  const s = status.toLowerCase();
 
-  if(status.includes("complete")) return "status-completed";
-  if(status.includes("noshow")) return "status-noshow";
-  if(status.includes("cancel")) return "status-cancelled";
+  if(s.includes("complete")) return "status-completed";
+  if(s.includes("noshow")) return "status-noshow";
+  if(s.includes("cancel")) return "status-cancelled";
 
   return "status-scheduled";
 }
@@ -176,19 +139,6 @@ function getTripTotal(t){
   if(t.status === "Cancelled") return 15;
 
   return Number(t.priceAmount || 0);
-}
-
-function getPassengerPrice(p){
-
-  if(p.status === "NoShow") return 15;
-  if(p.status === "Cancelled") return 15;
-
-  return Number(p.price || 0);
-}
-
-/* ================= TOTAL ================= */
-function updateTotal(v){
-  document.getElementById("totalBox").innerText = "Total: $" + v.toFixed(2);
 }
 
 /* ================= INIT ================= */
