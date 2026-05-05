@@ -1,175 +1,107 @@
-/* =========================
-   STATE
-========================= */
-let allTrips = [];
+let trips = [];
 let currentTab = "individual";
 
-/* =========================
-   LOAD TRIPS
-========================= */
-async function loadTrips(){
-  try{
-    const res = await fetch("/api/trips");
-    allTrips = await res.json();
+/* LOAD */
+async function load(){
+  const res = await fetch("/api/trips/summary");
+  trips = await res.json();
+  apply();
+}
 
-    applySearch();
+/* TAB */
+function switchTab(type,btn){
+  currentTab = type;
 
-  }catch(err){
-    console.log("Load trips error:", err);
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+
+  apply();
+}
+
+/* PRICE */
+function calc(t){
+
+  if(t.status==="Completed"){
+    return Number(t.finalPrice || t.priceAmount || 0);
   }
-}
 
-/* =========================
-   SWITCH TAB
-========================= */
-function switchTab(tab, btn){
+  if(t.status==="NoShow"){
+    return 15;
+  }
 
-  currentTab = tab;
-
-  document.querySelectorAll(".tab").forEach(b=>{
-    b.classList.remove("active");
-  });
-
-  if(btn) btn.classList.add("active");
-
-  applySearch();
-}
-
-/* =========================
-   CALCULATE (INDIVIDUAL)
-========================= */
-function calcTotal(t){
-
-  if(t.status === "NoShow") return 15;
-
-  if(t.status === "Cancelled"){
+  if(t.status==="Cancelled"){
     return Number(t.finalPrice || 15);
-  }
-
-  if(t.status === "Completed"){
-    return Number(t.priceAmount || 0);
   }
 
   return 0;
 }
 
-/* =========================
-   CALCULATE (SHARED)
-========================= */
-function calcSharedTotal(trip){
-
-  let total = 0;
-
-  const passengers = Array.isArray(trip.passengers)
-    ? trip.passengers
-    : [];
-
-  passengers.forEach(p => {
-
-    if(p.status === "Completed"){
-      total += Number(p.priceAmount || 0);
-    }
-
-    if(p.status === "NoShow"){
-      total += 15;
-    }
-
-    if(p.status === "Cancelled"){
-      total += Number(p.cancelFee || 15);
-    }
-
-  });
-
-  return total;
-}
-
-/* =========================
-   STATUS CLASS
-========================= */
-function getStatusClass(status){
-
-  if(status === "Completed") return "status-completed";
-  if(status === "NoShow") return "status-noshow";
-
-  return "status-cancelled";
-}
-
-/* =========================
-   RENDER TABLE
-========================= */
+/* RENDER */
 function render(data){
 
-  const body = document.getElementById("tableBody");
+  const body = document.getElementById("body");
+  body.innerHTML="";
 
-  if(!body) return;
+  let totalMoney = 0;
+  let completed=0,noshow=0,cancel=0;
 
-  body.innerHTML = "";
+  data.forEach(t=>{
 
-  data.forEach(t => {
+    if(currentTab==="individual" && t.isShared) return;
+    if(currentTab==="shared" && !t.isShared) return;
 
-    // 🔥 TAB FILTER
-    if(currentTab === "individual" && t.isShared) return;
-    if(currentTab === "shared" && !t.isShared) return;
+    const total = calc(t);
+    totalMoney += total;
 
-    const total = t.isShared
-      ? calcSharedTotal(t)
-      : calcTotal(t);
+    if(t.status==="Completed") completed++;
+    if(t.status==="NoShow") noshow++;
+    if(t.status==="Cancelled") cancel++;
 
     const tr = document.createElement("tr");
 
-    tr.innerHTML = `
-      <td>${t.tripDate || ""}</td>
-      <td>${t.tripTime || ""}</td>
-      <td>${t.clientName || t.company || "Shared Trip"}</td>
-      <td>${t.clientPhone || ""}</td>
-      <td>${t.tripType || ""}</td>
-      <td class="${getStatusClass(t.status)}">${t.status}</td>
+    tr.innerHTML=`
+      <td>${t.tripDate||""}</td>
+      <td>${t.tripTime||""}</td>
+      <td>${t.clientName||"Shared Trip"}</td>
+      <td>${t.clientPhone||""}</td>
+      <td class="${t.status.toLowerCase()}">${t.status}</td>
       <td>$${total}</td>
     `;
 
     body.appendChild(tr);
-
   });
+
+  document.getElementById("totalTrips").innerText=data.length;
+  document.getElementById("totalMoney").innerText="$"+totalMoney;
+  document.getElementById("completedCount").innerText=completed;
+  document.getElementById("noshowCount").innerText=noshow;
+  document.getElementById("cancelCount").innerText=cancel;
 }
 
-/* =========================
-   SEARCH / FILTER
-========================= */
-function applySearch(){
+/* SEARCH */
+function apply(){
 
-  const date = document.getElementById("searchDate")?.value || "";
-  const text = document.getElementById("searchText")?.value.toLowerCase() || "";
+  const d = document.getElementById("date").value;
+  const s = document.getElementById("search").value.toLowerCase();
 
-  const filtered = allTrips.filter(t => {
+  const filtered = trips.filter(t=>{
 
-    const matchDate =
-      !date || t.tripDate === date;
+    const matchDate = !d || t.tripDate===d;
 
     const matchText =
-      !text ||
-      (t.clientName || "").toLowerCase().includes(text) ||
-      (t.company || "").toLowerCase().includes(text);
+      !s ||
+      (t.clientName||"").toLowerCase().includes(s) ||
+      (t.company||"").toLowerCase().includes(s);
 
     return matchDate && matchText;
-
   });
 
   render(filtered);
 }
 
-/* =========================
-   PRINT
-========================= */
+/* PRINT */
 function printPage(){
   window.print();
 }
 
-/* =========================
-   INIT
-========================= */
-document.addEventListener("DOMContentLoaded", () => {
-
-  // تحميل البيانات
-  loadTrips();
-
-});
+load();

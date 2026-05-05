@@ -1581,6 +1581,24 @@ app.get("/api/trips/company/:company", async (req, res) => {
 });
 
 /* =========================
+   GET SUMMARY TRIPS (🔥 مهم)
+========================= */
+app.get("/api/trips/summary", async (req, res) => {
+  try {
+
+    const trips = await Trip.find({
+      status: { $in: ["Completed", "NoShow", "Cancelled"] }
+    })
+    .sort({ tripDate: -1, tripTime: -1 });
+
+    res.json(trips);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Summary load error" });
+  }
+});
+/* =========================
    GET ONE TRIP
 ========================= */
 app.get("/api/trips/:id", async (req, res) => {

@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
 <meta charset="UTF-8">
@@ -28,25 +27,16 @@ z-index:1000;
 
 /* PAGE */
 .page-body{
-padding-top:300px;
-padding-left:20px;
-padding-right:20px;
-}
-
-@media (max-width:768px){
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
-}
+padding-top:130px;
+padding-left:15px;
+padding-right:15px;
 }
 
 /* TITLE */
 .title{
 font-size:22px;
 font-weight:bold;
-margin-bottom:15px;
-color:#0f172a;
+margin-bottom:10px;
 }
 
 /* TABS */
@@ -54,23 +44,24 @@ color:#0f172a;
 display:flex;
 gap:10px;
 margin-bottom:15px;
+flex-wrap:wrap;
 }
 
 .tab{
-padding:8px 16px;
+padding:10px 20px;
 border:none;
-background:#e2e8f0;
-cursor:pointer;
+background:#1e293b;
+color:#cbd5e1;
 border-radius:6px;
-font-weight:bold;
+cursor:pointer;
 }
 
 .tab.active{
-background:#2563eb;
-color:#fff;
+background:#facc15;
+color:#000;
 }
 
-/* FILTERS */
+/* FILTER */
 .filters{
 display:flex;
 gap:10px;
@@ -79,11 +70,10 @@ margin-bottom:15px;
 }
 
 .filters input,
-.filters select,
 .filters button{
-padding:7px;
+padding:8px;
+border-radius:6px;
 border:1px solid #ccc;
-border-radius:5px;
 }
 
 .filters button{
@@ -93,13 +83,44 @@ border:none;
 cursor:pointer;
 }
 
+/* CARDS */
+.cards{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+gap:10px;
+margin-bottom:15px;
+}
+
+.card{
+background:#fff;
+padding:15px;
+border-radius:8px;
+text-align:center;
+}
+
+.card h3{
+margin:0;
+font-size:14px;
+color:#555;
+}
+
+.card .num{
+font-size:20px;
+font-weight:bold;
+margin-top:5px;
+}
+
 /* TABLE */
+.table-wrap{
+overflow:auto;
+background:#fff;
+border-radius:8px;
+}
+
 table{
 width:100%;
 border-collapse:collapse;
-background:#fff;
-border-radius:8px;
-overflow:hidden;
+min-width:700px;
 }
 
 th{
@@ -111,27 +132,21 @@ font-size:13px;
 
 td{
 padding:10px;
-font-size:13px;
 border-bottom:1px solid #eee;
+font-size:13px;
 text-align:center;
 }
 
-tr:hover{
-background:#f1f5f9;
-}
-
 /* STATUS */
-.status-completed{color:green;font-weight:bold}
-.status-noshow{color:#eab308;font-weight:bold}
-.status-cancelled{color:#ef4444;font-weight:bold}
+.completed{color:green;font-weight:bold}
+.noshow{color:#eab308;font-weight:bold}
+.cancelled{color:#ef4444;font-weight:bold}
 
 </style>
-
 </head>
 
 <body>
 
-<!-- HEADER -->
 <div id="adminHeader"></div>
 
 <div class="page-body">
@@ -146,45 +161,60 @@ background:#f1f5f9;
 
 <!-- FILTER -->
 <div class="filters">
-
-<input type="date" id="searchDate">
-
-<input type="text" id="searchText" placeholder="Search name / company">
-
-<select id="searchType">
-<option value="">All Types</option>
-<option value="INDIVIDUAL">Individual</option>
-<option value="SHARED">Shared</option>
-</select>
-
-<button onclick="applySearch()">Search</button>
-
+<input type="date" id="date">
+<input type="text" id="search" placeholder="Search name/company">
+<button onclick="apply()">Search</button>
 <button onclick="printPage()">Print</button>
+</div>
 
+<!-- CARDS -->
+<div class="cards">
+<div class="card">
+<h3>Total Trips</h3>
+<div class="num" id="totalTrips">0</div>
+</div>
+
+<div class="card">
+<h3>Total Revenue</h3>
+<div class="num" id="totalMoney">$0</div>
+</div>
+
+<div class="card">
+<h3>Completed</h3>
+<div class="num" id="completedCount">0</div>
+</div>
+
+<div class="card">
+<h3>No Show</h3>
+<div class="num" id="noshowCount">0</div>
+</div>
+
+<div class="card">
+<h3>Cancelled</h3>
+<div class="num" id="cancelCount">0</div>
+</div>
 </div>
 
 <!-- TABLE -->
+<div class="table-wrap">
 <table>
-
 <thead>
 <tr>
 <th>Date</th>
 <th>Time</th>
-<th>Name / Company</th>
+<th>Name</th>
 <th>Phone</th>
-<th>Type</th>
 <th>Status</th>
 <th>Total ($)</th>
 </tr>
 </thead>
 
-<tbody id="tableBody"></tbody>
-
+<tbody id="body"></tbody>
 </table>
+</div>
 
 </div>
 
-<!-- SCRIPTS -->
 <script src="/admin/header.js"></script>
 <script src="/admin/summary.js"></script>
 
