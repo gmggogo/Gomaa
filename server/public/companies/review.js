@@ -1205,46 +1205,58 @@ container.addEventListener("click", async e=>{
       return;
     }
 
-    if(action === "cancel"){
-      const tr = btn.closest("tr");
-      const id = tr.dataset.id;
-      const trip = trips.find(t=>t._id === id);
-      if(!trip) return;
+if(action === "cancel"){
 
-      await updateTrip(id,{ ...trip, status:"Cancelled" });
+  const tr = btn.closest("tr");
+  const id = tr.dataset.id;
+  const trip = trips.find(t=>t._id === id);
+  if(!trip) return;
 
-      trips = await fetchTrips();
-      render();
-      return;
-    }
+  const mins = minutesToTrip(trip);
 
-    if(action === "cancel-shared"){
-      const tr = btn.closest("tr");
-      const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
-      if(!group) return;
+  let finalPrice = 0;
 
-      const first = group[0];
+  // 🔥 لو داخل 120 دقيقة
+  if(mins !== null && mins > 0 && mins <= 120){
+    finalPrice = 15;
+  }
 
-      await updateTrip(first._id,{ ...first, status:"Cancelled" });
+  await updateTrip(id,{
+    ...trip,
+    status:"Cancelled",
+    priceAmount: finalPrice
+  });
 
-      trips = await fetchTrips();
-      render();
-      return;
-    }
+  trips = await fetchTrips();
+  render();
+}
 
-    if(action === "delete"){
-      const tr = btn.closest("tr");
-      const id = tr.dataset.id;
-      const ok = confirm("Delete this trip?");
-      if(!ok) return;
+  if(action === "cancel-shared"){
 
-      await deleteTrip(id);
+  const tr = btn.closest("tr");
+  const groupId = tr.dataset.groupId;
+  const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+  if(!group) return;
 
-      trips = await fetchTrips();
-      render();
-      return;
-    }
+  const first = group[0];
+
+  const mins = minutesToTrip(first);
+
+  let finalPrice = 0;
+
+  if(mins !== null && mins > 0 && mins <= 120){
+    finalPrice = 15;
+  }
+
+  await updateTrip(first._id,{
+    ...first,
+    status:"Cancelled",
+    priceAmount: finalPrice
+  });
+
+  trips = await fetchTrips();
+  render();
+}
 
     if(action === "delete-shared"){
       const tr = btn.closest("tr");

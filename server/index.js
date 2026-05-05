@@ -152,6 +152,8 @@ const tripSchema = new mongoose.Schema({
   // 📧 EMAIL + 💰 PRICE
   clientEmail: { type: String, default: "" },
   priceAmount: { type: Number, default: 0 },
+  finalPrice: { type: Number, default: 0 },
+  isFinalized: { type: Boolean, default: false },
 
   // 🚗 VEHICLE
   vehicleTypeFromQuote: { type: String, default: "X" },
@@ -305,7 +307,9 @@ tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
-const Trip = mongoose.model("Trip", tripSchema);/* =========================
+const Trip = mongoose.model("Trip", tripSchema);
+
+/* =========================
    DRIVER SCHEDULE MODEL
 ========================= */
 const driverScheduleSchema = new mongoose.Schema({
@@ -366,7 +370,7 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
- /* =========================
+/* =========================
    PRICE ENGINE
 ========================= */
 function calculatePriceServer(trip) {
@@ -384,6 +388,7 @@ function calculatePriceServer(trip) {
 
   /* ================= GET QUOTE (X / XL) ================= */
   if (type === "quote" || vehicleType === "X" || vehicleType === "XL") {
+
     const STOP_PRICE = 5;
 
     if (vehicleType === "XL") {
@@ -393,7 +398,9 @@ function calculatePriceServer(trip) {
 
       const extraMiles = Math.max(0, miles - INCLUDED);
 
-      return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
+      return Number(
+        (BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2)
+      );
     }
 
     const BASE = 20;
@@ -402,7 +409,9 @@ function calculatePriceServer(trip) {
 
     const extraMiles = Math.max(0, miles - INCLUDED);
 
-    return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
+    return Number(
+      (BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2)
+    );
   }
 
   /* ================= COMPANY SHARED ================= */
@@ -421,25 +430,17 @@ function calculatePriceServer(trip) {
     const STOP_PRICE = 5;
     const NO_SHOW = 15;
 
-    // 🧠 لو كله No Show
     if (count === 0) {
       return Number((noShowPassengers.length * NO_SHOW).toFixed(2));
     }
 
-    // 💰 base
     const baseTotal = count * BASE_PER_PERSON;
-
-    // 🛣️ free miles (مهم جدًا)
     const includedMiles = count * INCLUDED_PER_PERSON;
 
-    // 📏 extra miles
     const extraMiles = Math.max(0, miles - includedMiles);
     const milesTotal = extraMiles * PER_MILE;
 
-    // 📍 stops (عدد الركاب - 1)
     const stopsTotal = Math.max(0, count - 1) * STOP_PRICE;
-
-    // 🚨 no show منفصل
     const noShowTotal = noShowPassengers.length * NO_SHOW;
 
     const total = baseTotal + milesTotal + stopsTotal + noShowTotal;
@@ -448,6 +449,7 @@ function calculatePriceServer(trip) {
   }
 
   /* ================= COMPANY INDIVIDUAL ================= */
+
   const BASE = 20;
   const INCLUDED = 3;
   const PER_MILE = 2.5;
@@ -464,6 +466,37 @@ function calculatePriceServer(trip) {
 
   return Number((BASE + milesTotal + stopsTotal).toFixed(2));
 }
+
+
+/* =========================
+   FINAL PRICE (🔥 مهم جدًا)
+========================= */
+function calculateFinalPrice(trip){
+
+  // 🚨 Cancel
+  if (trip.status === "Cancelled") {
+    return Number(trip.finalPrice || 0);
+  }
+
+  // 🚨 No Show
+  if (trip.status === "NoShow") {
+    return 15;
+  }
+
+  // ✅ Completed
+  if (trip.status === "Completed") {
+
+    // 🔥 أهم تعديل
+    if (!trip.priceAmount || trip.priceAmount === 0) {
+      return calculatePriceServer(trip);
+    }
+
+    return Number(trip.priceAmount);
+  }
+
+  return 0;
+}
+
 function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
@@ -1688,10 +1721,38 @@ app.put("/api/trips/:id", async (req, res) => {
       dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
 
       // STATUS
-      status: req.body.status ?? existing.status,
-      bookedAt: req.body.bookedAt ?? existing.bookedAt
-    };
+status: req.body.status ?? existing.status,
+bookedAt: req.body.bookedAt ?? existing.bookedAt
+};
 
+// 🔥 FINAL PRICE LOGIC
+if (updateData.status === "Cancelled") {
+
+  const now = getArizonaTime();
+
+  if (!updateData.tripDate || !updateData.tripTime) {
+    updateData.finalPrice = 0;
+    updateData.isFinalized = true;
+  } else {
+
+    const tripTimeRaw = new Date(`${updateData.tripDate}T${updateData.tripTime}:00`);
+
+    const tripTime = new Date(
+      tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
+    );
+
+    const diffMinutes = (tripTime - now) / 60000;
+
+    let fee = 0;
+
+    if (diffMinutes <= 120 && diffMinutes > 0) {
+      fee = 15;
+    }
+
+    updateData.finalPrice = fee;
+    updateData.isFinalized = true;
+  }
+}
     /* =========================
        CLEAN STOPS
     ========================= */
@@ -2040,9 +2101,25 @@ app.patch("/api/driver/trips/:id/complete", async (req, res) => {
     if (!trip) {
       return res.status(404).json({ message: "Trip not found" });
     }
+if (trip.isFinalized) {
+  return res.json(trip);
+}
 
-    trip.status = "Completed";
-    await trip.save();
+   trip.status = "Completed";
+
+// 🔥 احسب السعر النهائي
+const final = calculateFinalPrice(trip);
+
+// 🔥 لو priceAmount فاضي
+if (!trip.priceAmount || trip.priceAmount === 0) {
+  trip.priceAmount = final;
+}
+
+// 🔥 خزن النهائي
+trip.finalPrice = final;
+trip.isFinalized = true;
+
+await trip.save();
 
     res.json(trip);
   } catch (err) {
