@@ -366,7 +366,7 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
-/* =========================
+ /* =========================
    PRICE ENGINE
 ========================= */
 function calculatePriceServer(trip) {
@@ -379,10 +379,10 @@ function calculatePriceServer(trip) {
     ""
   ).toUpperCase();
 
-  const miles = Number(trip.miles || 0);
+  const miles = Math.max(0, Number(trip.miles) || 0);
   const stopsCount = Array.isArray(trip.stops) ? trip.stops.length : 0;
 
-  /* GET QUOTE - X / XL */
+  /* ================= GET QUOTE (X / XL) ================= */
   if (type === "quote" || vehicleType === "X" || vehicleType === "XL") {
     const STOP_PRICE = 5;
 
@@ -390,6 +390,7 @@ function calculatePriceServer(trip) {
       const BASE = 30;
       const INCLUDED = 5;
       const PER_MILE = 2.5;
+
       const extraMiles = Math.max(0, miles - INCLUDED);
 
       return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
@@ -398,40 +399,64 @@ function calculatePriceServer(trip) {
     const BASE = 20;
     const INCLUDED = 5;
     const PER_MILE = 2;
+
     const extraMiles = Math.max(0, miles - INCLUDED);
 
     return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
   }
 
-  /* COMPANY SHARED */
+  /* ================= COMPANY SHARED ================= */
   if (trip.isShared === true || type === "shared") {
 
-    const passengers = Array.isArray(trip.passengers) && trip.passengers.length > 0
-      ? trip.passengers.length
-      : Number(trip.totalPassengers || 1);
+    const passengersArr = Array.isArray(trip.passengers) ? trip.passengers : [];
+
+    const activePassengers = passengersArr.filter(p => p.status !== "NoShow");
+    const noShowPassengers = passengersArr.filter(p => p.status === "NoShow");
+
+    const count = activePassengers.length;
 
     const BASE_PER_PERSON = 15;
     const INCLUDED_PER_PERSON = 3;
     const PER_MILE = 2;
     const STOP_PRICE = 5;
+    const NO_SHOW = 15;
 
-    const baseTotal = passengers * BASE_PER_PERSON;
+    // 🧠 لو كله No Show
+    if (count === 0) {
+      return Number((noShowPassengers.length * NO_SHOW).toFixed(2));
+    }
 
-    // 🔥 التعديل هنا بس
-    const includedMiles = INCLUDED_PER_PERSON;
+    // 💰 base
+    const baseTotal = count * BASE_PER_PERSON;
 
+    // 🛣️ free miles (مهم جدًا)
+    const includedMiles = count * INCLUDED_PER_PERSON;
+
+    // 📏 extra miles
     const extraMiles = Math.max(0, miles - includedMiles);
     const milesTotal = extraMiles * PER_MILE;
-    const stopsTotal = stopsCount * STOP_PRICE;
 
-    return Number((baseTotal + milesTotal + stopsTotal).toFixed(2));
+    // 📍 stops (عدد الركاب - 1)
+    const stopsTotal = Math.max(0, count - 1) * STOP_PRICE;
+
+    // 🚨 no show منفصل
+    const noShowTotal = noShowPassengers.length * NO_SHOW;
+
+    const total = baseTotal + milesTotal + stopsTotal + noShowTotal;
+
+    return Number(total.toFixed(2));
   }
 
-  /* COMPANY INDIVIDUAL */
+  /* ================= COMPANY INDIVIDUAL ================= */
   const BASE = 20;
   const INCLUDED = 5;
   const PER_MILE = 2.5;
   const STOP_PRICE = 5;
+  const NO_SHOW = 15;
+
+  if (trip.status === "NoShow") {
+    return NO_SHOW;
+  }
 
   const extraMiles = Math.max(0, miles - INCLUDED);
   const milesTotal = extraMiles * PER_MILE;
@@ -439,7 +464,6 @@ function calculatePriceServer(trip) {
 
   return Number((BASE + milesTotal + stopsTotal).toFixed(2));
 }
-
 function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
