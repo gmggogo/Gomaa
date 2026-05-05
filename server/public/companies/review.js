@@ -281,42 +281,90 @@ async function calculateRouteMiles(points){
 
 /* ================= PRICE ================= */
 
+// 🔵 INDIVIDUAL
 function calculateIndividualPrice(miles, status){
   const BASE = 20;
-  const INCLUDED = 3;
+  const INCLUDED = 5;
   const PER_MILE = 2.5;
   const NO_SHOW = 15;
 
+  // 🚨 No Show
   if(status === "NoShow") return NO_SHOW;
 
-  const extra = Math.max(0, Number(miles || 0) - INCLUDED);
-  return Number((BASE + (extra * PER_MILE)).toFixed(2));
+  const totalMiles = Math.max(0, Number(miles) || 0);
+  const extraMiles = Math.max(0, totalMiles - INCLUDED);
+
+  const total = BASE + (extraMiles * PER_MILE);
+
+  return Number(total.toFixed(2));
 }
 
+
+// 🟢 SHARED (GROUP BASED)
 function calculateSharedPrice(group, miles){
-  const BASE = 15;
-  const INCLUDED = 3;
+  const BASE = 15;        // لكل راكب
+  const INCLUDED = 3;     // لكل راكب (free miles)
   const PER_MILE = 2;
   const STOP_FEE = 5;
   const NO_SHOW = 15;
 
   const passengers = getRealPassengersFromGroup(group);
-  const count = passengers.length || group.length || 1;
+
+  // 🟢 ركاب فعليين
+  const activePassengers = passengers.filter(p => p.status !== "NoShow");
+
+  // 🔴 نو شو
+  const noShowPassengers = passengers.filter(p => p.status === "NoShow");
+
+  const count = activePassengers.length;
+
+  // 🧠 لو كلهم No Show
+  if(count === 0){
+    return {
+      total: noShowPassengers.length * NO_SHOW,
+      pricePerPassenger: 0,
+      stopsCount: 0
+    };
+  }
+
+  // 💰 base
+  const baseTotal = count * BASE;
+
+  // 🛣️ free miles
+  const freeMiles = count * INCLUDED;
+
+  // 📏 extra miles
+  const totalMiles = Math.max(0, Number(miles) || 0);
+  const extraMiles = Math.max(0, totalMiles - freeMiles);
+  const milesCost = extraMiles * PER_MILE;
+
+  // 📍 stops
   const stopsCount = Math.max(0, count - 1);
-  const extra = Math.max(0, Number(miles || 0) - INCLUDED);
+  const stopsCost = stopsCount * STOP_FEE;
 
-  let total = BASE + (extra * PER_MILE) + (stopsCount * STOP_FEE);
+  // 🚨 No Show (منفصل)
+  const noShowCost = noShowPassengers.length * NO_SHOW;
 
-  passengers.forEach(p=>{
-    if(p.status === "NoShow") total += NO_SHOW;
-  });
+  // 🔥 المهم (بدون NoShow)
+  const activeTotal = baseTotal + milesCost + stopsCost;
 
-  total = Number(total.toFixed(2));
+  // 🧾 total النهائي
+  const total = Number((activeTotal + noShowCost).toFixed(2));
 
   return {
     total,
-    pricePerPassenger:Number((total / count).toFixed(2)),
-    stopsCount
+    pricePerPassenger: Number((activeTotal / count).toFixed(2)),
+    stopsCount,
+    breakdown:{
+      baseTotal,
+      freeMiles,
+      extraMiles,
+      milesCost,
+      stopsCost,
+      noShowCost,
+      activePassengers: count,
+      noShowPassengers: noShowPassengers.length
+    }
   };
 }
 

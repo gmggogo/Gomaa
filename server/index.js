@@ -391,6 +391,7 @@ function calculatePriceServer(trip) {
       const INCLUDED = 5;
       const PER_MILE = 2.5;
       const extraMiles = Math.max(0, miles - INCLUDED);
+
       return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
     }
 
@@ -398,11 +399,13 @@ function calculatePriceServer(trip) {
     const INCLUDED = 5;
     const PER_MILE = 2;
     const extraMiles = Math.max(0, miles - INCLUDED);
+
     return Number((BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2));
   }
 
   /* COMPANY SHARED */
   if (trip.isShared === true || type === "shared") {
+
     const passengers = Array.isArray(trip.passengers) && trip.passengers.length > 0
       ? trip.passengers.length
       : Number(trip.totalPassengers || 1);
@@ -413,7 +416,10 @@ function calculatePriceServer(trip) {
     const STOP_PRICE = 5;
 
     const baseTotal = passengers * BASE_PER_PERSON;
-    const includedMiles = passengers * INCLUDED_PER_PERSON;
+
+    // 🔥 التعديل هنا بس
+    const includedMiles = INCLUDED_PER_PERSON;
+
     const extraMiles = Math.max(0, miles - includedMiles);
     const milesTotal = extraMiles * PER_MILE;
     const stopsTotal = stopsCount * STOP_PRICE;
