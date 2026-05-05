@@ -1,114 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Transportation – Summary</title>
+<title>Trips Summary</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
+<link rel="stylesheet" href="summary.css">
 
 <style>
 
-body{
-margin:0;
-font-family:'Segoe UI', Arial, sans-serif;
-background:#f4f7fb;
-}
-
-.container{
-max-width:1500px;
+/* PAGE */
+.page{
+padding:80px 15px 20px;
+max-width:1200px;
 margin:auto;
-padding:50px 25px;
 }
 
-.section-title{
-font-size:22px;
-font-weight:700;
-color:#1e3a8a;
-margin-bottom:30px;
+/* TABS */
+.tabs{
+display:flex;
+gap:10px;
+margin-bottom:15px;
 }
 
-.cards{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-gap:25px;
+.tab{
+padding:8px 18px;
+border:none;
+border-radius:6px;
+background:#e5e7eb;
+cursor:pointer;
 }
 
-.card{
+.tab.active{
+background:#2563eb;
+color:#fff;
+}
+
+/* FILTER */
+.filters{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:15px;
+}
+
+.filters input,
+.filters button{
+padding:8px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+.filters button{
+background:#2563eb;
+color:#fff;
+border:none;
+cursor:pointer;
+}
+
+/* TABLE */
+.table{
 background:#fff;
-padding:30px;
-border-radius:16px;
-box-shadow:0 10px 25px rgba(0,0,0,.07);
-border-left:6px solid #1e3a8a;
+border-radius:8px;
+overflow:auto;
 }
 
-.card h3{
-margin:0;
-font-size:14px;
-color:#64748b;
-text-transform:uppercase;
+table{
+width:100%;
+border-collapse:collapse;
+min-width:700px;
 }
 
-.card p{
-margin-top:18px;
-font-size:34px;
-font-weight:800;
-color:#0f172a;
+th{
+background:#2563eb;
+color:#fff;
+padding:10px;
+font-size:13px;
 }
 
-.placeholder{
-margin-top:60px;
-background:#fff;
-padding:40px;
-border-radius:16px;
-box-shadow:0 8px 20px rgba(0,0,0,.08);
+td{
+padding:10px;
+border-bottom:1px solid #eee;
+font-size:13px;
 text-align:center;
-color:#64748b;
-font-size:16px;
 }
+
+/* STATUS */
+.completed{color:green;font-weight:bold}
+.noshow{color:#eab308;font-weight:bold}
+.cancelled{color:#ef4444;font-weight:bold}
 
 </style>
 </head>
 
 <body>
 
+<!-- ✅ layout بتاع الشركات -->
 <div id="layoutHeader"></div>
 
-<div class="container">
+<div class="page">
 
-<div class="section-title">Trips Summary</div>
+<h2>Trips Summary</h2>
 
-<div class="cards">
-
-<div class="card">
-<h3>Total Trips</h3>
-<p>0</p>
+<!-- TABS -->
+<div class="tabs">
+<button class="tab active" onclick="switchTab('individual',this)">Individual</button>
+<button class="tab" onclick="switchTab('shared',this)">Shared</button>
 </div>
 
-<div class="card">
-<h3>Completed</h3>
-<p>0</p>
+<!-- FILTER -->
+<div class="filters">
+<input type="date" id="date">
+<input type="text" id="search" placeholder="Search">
+<button onclick="apply()">Search</button>
+<button onclick="window.print()">Print</button>
 </div>
 
-<div class="card">
-<h3>No Show</h3>
-<p>0</p>
-</div>
+<!-- TABLE -->
+<div class="table">
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Time</th>
+<th>Name</th>
+<th>Phone</th>
+<th>Status</th>
+<th>Total</th>
+</tr>
+</thead>
 
-<div class="card">
-<h3>Cancelled</h3>
-<p>0</p>
-</div>
-
-</div>
-
-<div class="placeholder">
-Summary analytics will appear here once trips start running.
+<tbody id="body"></tbody>
+</table>
 </div>
 
 </div>
 
 <script src="layout.js"></script>
+<script src="summary.js"></script>
 
 </body>
 </html>

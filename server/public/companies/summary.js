@@ -1,106 +1,127 @@
-/* ===============================
-   HEADER
-================================ */
-const company = JSON.parse(localStorage.getItem("loggedCompany")) || { name: "Company" };
-document.getElementById("companyName").innerText = company.name;
+let trips = [];
+let currentTab = "individual";
 
-function updateClock() {
-  const now = new Date();
-  document.getElementById("clock").innerText = now.toLocaleString();
-  document.getElementById("greeting").innerText =
-    now.getHours() < 12 ? "Good Morning" :
-    now.getHours() < 18 ? "Good Afternoon" :
-    "Good Evening";
+/* LOAD */
+async function load(){
+  const res = await fetch("/api/trips/summary");
+  trips = await res.json();
+  apply();
 }
-setInterval(updateClock, 1000);
-updateClock();
 
-/* ===============================
-   DATA
-================================ */
-let allTrips = JSON.parse(localStorage.getItem("companyTrips")) || [];
-let filteredTrips = [...allTrips];
-const tbody = document.getElementById("summaryBody");
+/* SWITCH TAB */
+function switchTab(type,btn){
+  currentTab = type;
 
-/* ===============================
-   CALCULATION
-================================ */
-function calculateTotal(trip) {
-  const miles = Number(trip.miles || 0);
-  const stops = (trip.stops || []).length;
-  const delayMinutes = Number(trip.delayMinutes || 0);
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
 
-  if (trip.status === "No Show") return 15;
-  if (trip.status === "Cancelled") return 15;
+  apply();
+}
 
-  let total = miles <= 10 ? 30 : 30 + (miles - 10) * 2;
-  total += stops * 5;
+/* PRICE */
+function getPrice(t){
 
-  if (delayMinutes > 15) {
-    total += delayMinutes - 15;
+  if(t.status==="Completed"){
+    return t.finalPrice || t.priceAmount || 0;
   }
 
-  return total;
+  if(t.status==="NoShow") return 15;
+  if(t.status==="Cancelled") return 15;
+
+  return 0;
 }
 
-/* ===============================
-   RENDER
-================================ */
-function renderSummary(trips) {
-  tbody.innerHTML = "";
+/* 🔥 أهم جزء (حل مشكلة الشير) */
+function buildRows(data){
 
-  trips.forEach(trip => {
-    const total = calculateTotal(trip);
+  const rows = [];
+
+  data.forEach(trip=>{
+
+    // 🔵 INDIVIDUAL
+    if(!trip.isShared){
+      if(currentTab==="individual"){
+        rows.push({
+          date: trip.tripDate,
+          time: trip.tripTime,
+          name: trip.clientName,
+          phone: trip.clientPhone,
+          status: trip.status,
+          total: getPrice(trip)
+        });
+      }
+    }
+
+    // 🔴 SHARED
+    if(trip.isShared && currentTab==="shared"){
+
+      const passengers = trip.passengers || [];
+
+      passengers.forEach(p=>{
+
+        rows.push({
+          date: trip.tripDate,
+          time: trip.tripTime,
+          name: p.name,
+          phone: p.phone,
+          status: p.status,
+          total: p.status==="NoShow" ? 15 : getPrice(trip)
+        });
+
+      });
+
+    }
+
+  });
+
+  return rows;
+}
+
+/* RENDER */
+function render(data){
+
+  const body = document.getElementById("body");
+  body.innerHTML="";
+
+  const rows = buildRows(data);
+
+  rows.forEach(r=>{
 
     const tr = document.createElement("tr");
+
     tr.innerHTML = `
-      <td>
-        <strong>${trip.tripNumber}</strong>
-        <small>${trip.date || ""} ${trip.time || ""}</small>
-      </td>
-      <td>${trip.miles || 0}</td>
-      <td>${(trip.stops || []).length}</td>
-      <td>${trip.delayMinutes || 0}</td>
-      <td>${trip.status === "No Show" ? "✔" : "-"}</td>
-      <td>${trip.status === "Cancelled" ? "✔" : "-"}</td>
-      <td>$${total}</td>
+      <td>${r.date||""}</td>
+      <td>${r.time||""}</td>
+      <td>${r.name||""}</td>
+      <td>${r.phone||""}</td>
+      <td class="${(r.status||"").toLowerCase()}">${r.status}</td>
+      <td>$${r.total}</td>
     `;
-    tbody.appendChild(tr);
-  });
-}
 
-renderSummary(filteredTrips);
-
-/* ===============================
-   SEARCH (FULL TRIP NUMBER)
-================================ */
-document.getElementById("searchBtn").onclick = () => {
-  const tripVal = document.getElementById("searchTrip").value.trim();
-  const dateVal = document.getElementById("searchDate").value;
-
-  filteredTrips = allTrips.filter(t => {
-    const fullTrip = String(t.tripNumber).trim();
-    const searchTrip = String(tripVal).trim();
-
-    return (
-      (!searchTrip || fullTrip === searchTrip) &&
-      (!dateVal || t.date === dateVal)
-    );
+    body.appendChild(tr);
   });
 
-  renderSummary(filteredTrips);
-};
-
-document.getElementById("resetBtn").onclick = () => {
-  document.getElementById("searchTrip").value = "";
-  document.getElementById("searchDate").value = "";
-  filteredTrips = [...allTrips];
-  renderSummary(filteredTrips);
-};
-
-/* ===============================
-   EMAIL
-================================ */
-function sendEmail() {
-  alert("Email summary will be implemented next step.");
 }
+
+/* FILTER */
+function apply(){
+
+  const d = document.getElementById("date").value;
+  const s = document.getElementById("search").value.toLowerCase();
+
+  const filtered = trips.filter(t=>{
+
+    const matchDate = !d || t.tripDate===d;
+
+    const matchText =
+      !s ||
+      (t.clientName||"").toLowerCase().includes(s) ||
+      (t.company||"").toLowerCase().includes(s);
+
+    return matchDate && matchText;
+  });
+
+  render(filtered);
+}
+
+load();
