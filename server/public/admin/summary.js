@@ -1,182 +1,175 @@
-// =========================
-// 🔥 LOAD HEADER + SIDEBAR
-// =========================
-async function loadSidebar(){
-  const res = await fetch("/admin/sidebar.html");
-  const html = await res.text();
-  document.getElementById("sidebarContainer").innerHTML = html;
-}
-loadSidebar();
+/* =========================
+   STATE
+========================= */
+let allTrips = [];
+let currentTab = "individual";
 
-
-// =========================
-// 🔥 GLOBAL
-// =========================
-let trips = [];
-let filteredTrips = [];
-
-
-// =========================
-// 🔥 LOAD FROM SERVER
-// =========================
+/* =========================
+   LOAD TRIPS
+========================= */
 async function loadTrips(){
   try{
     const res = await fetch("/api/trips");
-    const data = await res.json();
+    allTrips = await res.json();
 
-    trips = data.filter(t =>
-      t.status === "Completed" ||
-      t.status === "NoShow" ||
-      t.status === "Cancelled"
-    );
-
-    filteredTrips = [...trips];
-
-    renderTable(filteredTrips);
-    updateTotal();
+    applySearch();
 
   }catch(err){
-    console.log("Load error:", err);
+    console.log("Load trips error:", err);
   }
 }
 
-loadTrips();
+/* =========================
+   SWITCH TAB
+========================= */
+function switchTab(tab, btn){
 
+  currentTab = tab;
 
-// =========================
-// 🔥 COST FUNCTIONS
-// =========================
-function stopsCost(stops){
-  return (stops || 0) * 5;
+  document.querySelectorAll(".tab").forEach(b=>{
+    b.classList.remove("active");
+  });
+
+  if(btn) btn.classList.add("active");
+
+  applySearch();
 }
 
-function delayCost(minutes){
-  if(!minutes) return 0;
-  if(minutes <= 15) return 0;
-  return minutes - 15;
-}
+/* =========================
+   CALCULATE (INDIVIDUAL)
+========================= */
+function calcTotal(t){
 
-function totalCost(trip){
+  if(t.status === "NoShow") return 15;
 
-  if(trip.status === "Cancelled"){
-    return trip.finalPrice || 0;
+  if(t.status === "Cancelled"){
+    return Number(t.finalPrice || 15);
   }
 
-  if(trip.status === "NoShow"){
-    return 15;
-  }
-
-  if(trip.status === "Completed"){
-    return trip.finalPrice || trip.priceAmount || 0;
+  if(t.status === "Completed"){
+    return Number(t.priceAmount || 0);
   }
 
   return 0;
 }
 
+/* =========================
+   CALCULATE (SHARED)
+========================= */
+function calcSharedTotal(trip){
 
-// =========================
-// 🔥 RENDER TABLE
-// =========================
-function renderTable(data){
+  let total = 0;
+
+  const passengers = Array.isArray(trip.passengers)
+    ? trip.passengers
+    : [];
+
+  passengers.forEach(p => {
+
+    if(p.status === "Completed"){
+      total += Number(p.priceAmount || 0);
+    }
+
+    if(p.status === "NoShow"){
+      total += 15;
+    }
+
+    if(p.status === "Cancelled"){
+      total += Number(p.cancelFee || 15);
+    }
+
+  });
+
+  return total;
+}
+
+/* =========================
+   STATUS CLASS
+========================= */
+function getStatusClass(status){
+
+  if(status === "Completed") return "status-completed";
+  if(status === "NoShow") return "status-noshow";
+
+  return "status-cancelled";
+}
+
+/* =========================
+   RENDER TABLE
+========================= */
+function render(data){
+
   const body = document.getElementById("tableBody");
+
+  if(!body) return;
+
   body.innerHTML = "";
 
-  data.forEach(trip => {
+  data.forEach(t => {
+
+    // 🔥 TAB FILTER
+    if(currentTab === "individual" && t.isShared) return;
+    if(currentTab === "shared" && !t.isShared) return;
+
+    const total = t.isShared
+      ? calcSharedTotal(t)
+      : calcTotal(t);
 
     const tr = document.createElement("tr");
 
-    const statusClass =
-      trip.status === "Completed"
-        ? "status-completed"
-        : trip.status === "NoShow"
-        ? "status-noshow"
-        : "status-cancel";
-
     tr.innerHTML = `
-      <td>${trip.tripDate || ""}</td>
-      <td>${trip.tripTime || ""}</td>
-      <td>${trip.clientName || trip.company || ""}</td>
-      <td>${trip.clientPhone || ""}</td>
-      <td>${trip.tripType || trip.type || ""}</td>
-      <td>${trip.miles || 0}</td>
-      <td>$${stopsCost(trip.stops?.length)}</td>
-      <td>$${delayCost(trip.delayMinutes)}</td>
-      <td class="${statusClass}">${trip.status}</td>
-      <td>$${totalCost(trip)}</td>
+      <td>${t.tripDate || ""}</td>
+      <td>${t.tripTime || ""}</td>
+      <td>${t.clientName || t.company || "Shared Trip"}</td>
+      <td>${t.clientPhone || ""}</td>
+      <td>${t.tripType || ""}</td>
+      <td class="${getStatusClass(t.status)}">${t.status}</td>
+      <td>$${total}</td>
     `;
 
     body.appendChild(tr);
+
   });
 }
 
-
-// =========================
-// 🔥 SEARCH / FILTER
-// =========================
+/* =========================
+   SEARCH / FILTER
+========================= */
 function applySearch(){
 
-  const date = document.getElementById("searchDate").value;
-  const text = document.getElementById("searchText").value.toLowerCase();
-  const type = document.getElementById("searchType").value;
+  const date = document.getElementById("searchDate")?.value || "";
+  const text = document.getElementById("searchText")?.value.toLowerCase() || "";
 
-  filteredTrips = trips.filter(t => {
+  const filtered = allTrips.filter(t => {
 
-    const matchDate = !date || t.tripDate === date;
+    const matchDate =
+      !date || t.tripDate === date;
 
     const matchText =
       !text ||
       (t.clientName || "").toLowerCase().includes(text) ||
       (t.company || "").toLowerCase().includes(text);
 
-    const matchType =
-      !type ||
-      t.tripType === type ||
-      t.type === type;
+    return matchDate && matchText;
 
-    return matchDate && matchText && matchType;
   });
 
-  renderTable(filteredTrips);
-  updateTotal();
+  render(filtered);
 }
 
-
-// =========================
-// 🔥 TOTAL CALC
-// =========================
-function updateTotal(){
-
-  let total = 0;
-
-  filteredTrips.forEach(t => {
-    total += totalCost(t);
-  });
-
-  const el = document.getElementById("totalBox");
-  if(el){
-    el.innerText = "Total: $" + total.toFixed(2);
-  }
-}
-
-
-// =========================
-// 🔥 PRINT FUNCTION
-// =========================
-function printSummary(){
-
-  const original = document.body.innerHTML;
-
-  const content = document.querySelector(".content").innerHTML;
-
-  document.body.innerHTML = `
-    <div style="padding:20px">
-      <h2>Sunbeam Transportation - Trips Summary</h2>
-      ${content}
-    </div>
-  `;
-
+/* =========================
+   PRINT
+========================= */
+function printPage(){
   window.print();
-
-  document.body.innerHTML = original;
-  location.reload();
 }
+
+/* =========================
+   INIT
+========================= */
+document.addEventListener("DOMContentLoaded", () => {
+
+  // تحميل البيانات
+  loadTrips();
+
+});

@@ -1,135 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
-<title>Trips Summary | Sunbeam</title>
+<title>Trips Summary</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
-.content{
-  margin-left:220px;
-  margin-top:55px;
-  padding:25px;
+
+body{
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
 }
 
-h1{color:#3f51b5;margin-bottom:5px}
-.subtitle{color:#666;margin-bottom:15px}
+/* HEADER */
+#adminHeader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
+}
+
+/* PAGE */
+.page-body{
+padding-top:300px;
+padding-left:20px;
+padding-right:20px;
+}
+
+@media (max-width:768px){
+.page-body{
+padding-top:360px;
+padding-left:10px;
+padding-right:10px;
+}
+}
+
+/* TITLE */
+.title{
+font-size:22px;
+font-weight:bold;
+margin-bottom:15px;
+color:#0f172a;
+}
+
+/* TABS */
+.tabs{
+display:flex;
+gap:10px;
+margin-bottom:15px;
+}
+
+.tab{
+padding:8px 16px;
+border:none;
+background:#e2e8f0;
+cursor:pointer;
+border-radius:6px;
+font-weight:bold;
+}
+
+.tab.active{
+background:#2563eb;
+color:#fff;
+}
 
 /* FILTERS */
 .filters{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-bottom:15px
-}
-.filters input,.filters select,.filters button{
-  padding:7px;
-  border:1px solid #ccc;
-  border-radius:4px
-}
-.filters button{
-  background:#3f51b5;
-  color:#fff;
-  border:none;
-  cursor:pointer
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:15px;
 }
 
-/* TOTAL */
-#totalBox{
-  margin-bottom:10px;
-  font-weight:bold;
-  font-size:16px;
+.filters input,
+.filters select,
+.filters button{
+padding:7px;
+border:1px solid #ccc;
+border-radius:5px;
+}
+
+.filters button{
+background:#2563eb;
+color:#fff;
+border:none;
+cursor:pointer;
 }
 
 /* TABLE */
 table{
-  width:100%;
-  border-collapse:collapse;
-  background:#fff;
-  border-radius:6px;
-  overflow:hidden
+width:100%;
+border-collapse:collapse;
+background:#fff;
+border-radius:8px;
+overflow:hidden;
 }
-th{
-  background:#3f51b5;
-  color:#fff;
-  padding:10px;
-  font-size:13px
-}
-td{
-  padding:10px;
-  font-size:13px;
-  border-bottom:1px solid #eee;
-  text-align:center
-}
-tr:hover{background:#f1f5f9}
 
+th{
+background:#2563eb;
+color:#fff;
+padding:10px;
+font-size:13px;
+}
+
+td{
+padding:10px;
+font-size:13px;
+border-bottom:1px solid #eee;
+text-align:center;
+}
+
+tr:hover{
+background:#f1f5f9;
+}
+
+/* STATUS */
 .status-completed{color:green;font-weight:bold}
 .status-noshow{color:#eab308;font-weight:bold}
-.status-cancel{color:#ef4444;font-weight:bold}
+.status-cancelled{color:#ef4444;font-weight:bold}
+
 </style>
+
 </head>
 
 <body>
 
 <!-- HEADER -->
-<div id="headerContainer"></div>
+<div id="adminHeader"></div>
 
-<!-- SIDEBAR -->
-<div id="sidebarContainer"></div>
+<div class="page-body">
 
-<!-- CONTENT -->
-<div class="content">
+<div class="title">Trips Summary</div>
 
-<h1>Trips Summary</h1>
-<div class="subtitle">
-Completed • No Show • Cancelled Trips – Full Pricing Breakdown
+<!-- TABS -->
+<div class="tabs">
+<button class="tab active" onclick="switchTab('individual',this)">Individual</button>
+<button class="tab" onclick="switchTab('shared',this)">Shared</button>
 </div>
 
-<!-- FILTERS -->
+<!-- FILTER -->
 <div class="filters">
+
 <input type="date" id="searchDate">
 
-<input type="text" id="searchText"
-placeholder="Search by name / company">
+<input type="text" id="searchText" placeholder="Search name / company">
 
 <select id="searchType">
 <option value="">All Types</option>
-<option value="Individual">Individual</option>
-<option value="Company">Company</option>
+<option value="INDIVIDUAL">Individual</option>
+<option value="SHARED">Shared</option>
 </select>
 
 <button onclick="applySearch()">Search</button>
-<button onclick="printSummary()">Print</button>
-</div>
 
-<!-- TOTAL -->
-<div id="totalBox">Total: $0</div>
+<button onclick="printPage()">Print</button>
+
+</div>
 
 <!-- TABLE -->
 <table>
+
 <thead>
 <tr>
 <th>Date</th>
 <th>Time</th>
-<th>Client / Company</th>
+<th>Name / Company</th>
 <th>Phone</th>
 <th>Type</th>
-<th>Miles</th>
-<th>Stops ($)</th>
-<th>Delay ($)</th>
 <th>Status</th>
 <th>Total ($)</th>
 </tr>
 </thead>
 
 <tbody id="tableBody"></tbody>
+
 </table>
 
 </div>
 
-<!-- JS -->
+<!-- SCRIPTS -->
 <script src="/admin/header.js"></script>
 <script src="/admin/summary.js"></script>
 
