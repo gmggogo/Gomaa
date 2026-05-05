@@ -449,7 +449,7 @@ function calculatePriceServer(trip) {
 
   /* ================= COMPANY INDIVIDUAL ================= */
   const BASE = 20;
-  const INCLUDED = 5;
+  const INCLUDED = 3;
   const PER_MILE = 2.5;
   const STOP_PRICE = 5;
   const NO_SHOW = 15;
