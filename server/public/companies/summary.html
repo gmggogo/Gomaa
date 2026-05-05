@@ -7,14 +7,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
-<link rel="stylesheet" href="summary.css">
 
 <style>
 
-/* PAGE */
+body{
+margin:0;
+font-family:Segoe UI;
+background:#f4f6fa;
+}
+
 .page{
-padding:80px 15px 20px;
-max-width:1200px;
+padding:90px 15px;
+max-width:1100px;
 margin:auto;
 }
 
@@ -26,10 +30,10 @@ margin-bottom:15px;
 }
 
 .tab{
-padding:8px 18px;
+padding:8px 15px;
 border:none;
 border-radius:6px;
-background:#e5e7eb;
+background:#ddd;
 cursor:pointer;
 }
 
@@ -46,8 +50,7 @@ flex-wrap:wrap;
 margin-bottom:15px;
 }
 
-.filters input,
-.filters button{
+.filters input,.filters button{
 padding:8px;
 border-radius:6px;
 border:1px solid #ccc;
@@ -57,60 +60,73 @@ border:1px solid #ccc;
 background:#2563eb;
 color:#fff;
 border:none;
-cursor:pointer;
 }
 
 /* TABLE */
-.table{
-background:#fff;
-border-radius:8px;
-overflow:auto;
-}
-
 table{
 width:100%;
 border-collapse:collapse;
-min-width:700px;
+background:#fff;
+border-radius:8px;
+overflow:hidden;
 }
 
 th{
 background:#2563eb;
 color:#fff;
 padding:10px;
-font-size:13px;
 }
 
 td{
 padding:10px;
 border-bottom:1px solid #eee;
-font-size:13px;
 text-align:center;
 }
 
+/* SHARED BOX */
+.shared-box{
+background:#fff;
+border-radius:10px;
+padding:15px;
+margin-bottom:15px;
+box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+.shared-header{
+display:flex;
+justify-content:space-between;
+margin-bottom:10px;
+font-weight:bold;
+}
+
+.passenger{
+display:flex;
+justify-content:space-between;
+padding:6px 0;
+border-bottom:1px dashed #ddd;
+}
+
 /* STATUS */
-.completed{color:green;font-weight:bold}
-.noshow{color:#eab308;font-weight:bold}
-.cancelled{color:#ef4444;font-weight:bold}
+.completed{color:green}
+.noshow{color:#eab308}
+.cancelled{color:red}
 
 </style>
 </head>
 
 <body>
 
-<!-- ✅ layout بتاع الشركات -->
 <div id="layoutHeader"></div>
 
 <div class="page">
 
 <h2>Trips Summary</h2>
 
-<!-- TABS -->
 <div class="tabs">
 <button class="tab active" onclick="switchTab('individual',this)">Individual</button>
 <button class="tab" onclick="switchTab('shared',this)">Shared</button>
 </div>
 
-<!-- FILTER -->
 <div class="filters">
 <input type="date" id="date">
 <input type="text" id="search" placeholder="Search">
@@ -118,23 +134,25 @@ text-align:center;
 <button onclick="window.print()">Print</button>
 </div>
 
-<!-- TABLE -->
-<div class="table">
+<!-- INDIVIDUAL -->
+<div id="individualView">
 <table>
 <thead>
 <tr>
+<th>Trip #</th>
 <th>Date</th>
 <th>Time</th>
 <th>Name</th>
-<th>Phone</th>
 <th>Status</th>
 <th>Total</th>
 </tr>
 </thead>
-
-<tbody id="body"></tbody>
+<tbody id="tableBody"></tbody>
 </table>
 </div>
+
+<!-- SHARED -->
+<div id="sharedView" style="display:none;"></div>
 
 </div>
 

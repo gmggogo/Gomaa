@@ -8,99 +8,103 @@ async function load(){
   apply();
 }
 
-/* SWITCH TAB */
+/* SWITCH */
 function switchTab(type,btn){
   currentTab = type;
 
   document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
 
+  document.getElementById("individualView").style.display =
+    type==="individual" ? "block" : "none";
+
+  document.getElementById("sharedView").style.display =
+    type==="shared" ? "block" : "none";
+
   apply();
 }
 
 /* PRICE */
 function getPrice(t){
-
-  if(t.status==="Completed"){
-    return t.finalPrice || t.priceAmount || 0;
-  }
-
+  if(t.status==="Completed") return t.finalPrice || t.priceAmount || 0;
   if(t.status==="NoShow") return 15;
   if(t.status==="Cancelled") return 15;
-
   return 0;
-}
-
-/* 🔥 أهم جزء (حل مشكلة الشير) */
-function buildRows(data){
-
-  const rows = [];
-
-  data.forEach(trip=>{
-
-    // 🔵 INDIVIDUAL
-    if(!trip.isShared){
-      if(currentTab==="individual"){
-        rows.push({
-          date: trip.tripDate,
-          time: trip.tripTime,
-          name: trip.clientName,
-          phone: trip.clientPhone,
-          status: trip.status,
-          total: getPrice(trip)
-        });
-      }
-    }
-
-    // 🔴 SHARED
-    if(trip.isShared && currentTab==="shared"){
-
-      const passengers = trip.passengers || [];
-
-      passengers.forEach(p=>{
-
-        rows.push({
-          date: trip.tripDate,
-          time: trip.tripTime,
-          name: p.name,
-          phone: p.phone,
-          status: p.status,
-          total: p.status==="NoShow" ? 15 : getPrice(trip)
-        });
-
-      });
-
-    }
-
-  });
-
-  return rows;
 }
 
 /* RENDER */
 function render(data){
 
-  const body = document.getElementById("body");
-  body.innerHTML="";
+  if(currentTab==="individual"){
+    const body = document.getElementById("tableBody");
+    body.innerHTML="";
 
-  const rows = buildRows(data);
+    data.forEach(t=>{
+      if(t.isShared) return;
+      if(!["Completed","Cancelled","NoShow"].includes(t.status)) return;
 
-  rows.forEach(r=>{
+      body.innerHTML += `
+      <tr>
+        <td>${t.tripNumber}</td>
+        <td>${t.tripDate}</td>
+        <td>${t.tripTime}</td>
+        <td>${t.clientName}</td>
+        <td class="${t.status.toLowerCase()}">${t.status}</td>
+        <td>$${getPrice(t)}</td>
+      </tr>`;
+    });
+  }
 
-    const tr = document.createElement("tr");
+  if(currentTab==="shared"){
+    const box = document.getElementById("sharedView");
+    box.innerHTML="";
 
-    tr.innerHTML = `
-      <td>${r.date||""}</td>
-      <td>${r.time||""}</td>
-      <td>${r.name||""}</td>
-      <td>${r.phone||""}</td>
-      <td class="${(r.status||"").toLowerCase()}">${r.status}</td>
-      <td>$${r.total}</td>
-    `;
+    data.forEach(t=>{
 
-    body.appendChild(tr);
-  });
+      if(!t.isShared) return;
 
+      const passengers = (t.passengers || []).filter(p =>
+        ["Completed","Cancelled","NoShow"].includes(p.status)
+      );
+
+      if(passengers.length===0) return;
+
+      let html = `
+      <div class="shared-box">
+
+        <div class="shared-header">
+          <div>Trip # ${t.tripNumber}</div>
+          <div>${t.tripDate} - ${t.tripTime}</div>
+        </div>
+      `;
+
+      passengers.forEach(p=>{
+
+        let price = 0;
+
+        if(p.status==="Completed"){
+          price = t.pricePerPassenger || 15;
+        }
+
+        if(p.status==="NoShow" || p.status==="Cancelled"){
+          price = 15;
+        }
+
+        html += `
+        <div class="passenger">
+          <div>${p.name}</div>
+          <div class="${p.status.toLowerCase()}">${p.status}</div>
+          <div>$${price}</div>
+        </div>
+        `;
+      });
+
+      html += `</div>`;
+
+      box.innerHTML += html;
+
+    });
+  }
 }
 
 /* FILTER */
@@ -116,7 +120,7 @@ function apply(){
     const matchText =
       !s ||
       (t.clientName||"").toLowerCase().includes(s) ||
-      (t.company||"").toLowerCase().includes(s);
+      (t.tripNumber||"").toLowerCase().includes(s);
 
     return matchDate && matchText;
   });
