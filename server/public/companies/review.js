@@ -629,26 +629,21 @@ function priceMilesCell(price, miles){
       display:flex;
       flex-direction:column;
       align-items:center;
-      gap:4px;
+      gap:6px;
     ">
+
       <span class="price-badge">
         $${formatMoney(price)}
       </span>
 
-      <span style="
-        font-size:11px;
-        color:#2563eb;
-        font-weight:800;
-        background:#dbeafe;
-        padding:2px 8px;
-        border-radius:8px;
-      ">
-        🚗 ${
+      <span class="miles-strong">
+        ${
           miles !== undefined && miles !== null && miles !== ""
-            ? Number(miles).toFixed(2) + " mi"
+            ? Number(miles).toFixed(1) + " mi"
             : "-- mi"
         }
       </span>
+
     </div>
   `;
 }
