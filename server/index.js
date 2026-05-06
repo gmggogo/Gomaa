@@ -149,9 +149,26 @@ const tripSchema = new mongoose.Schema({
   clientName: { type: String, default: "" },
   clientPhone: { type: String, default: "" },
 
-  // 📧 EMAIL + 💰 PRICE
+  // 💰 PRICE
   clientEmail: { type: String, default: "" },
+
   priceAmount: { type: Number, default: 0 },
+
+  // 🚗 ROUTE DATA
+  miles: { type: Number, default: 0 },
+
+  estimatedMinutes: { type: Number, default: 0 },
+
+  durationSeconds: { type: Number, default: 0 },
+
+  distanceMeters: { type: Number, default: 0 },
+
+  googleRoute: {
+    type: Object,
+    default: {}
+  },
+
+  finalPrice: { type: Number, default: 0 },
   finalPrice: { type: Number, default: 0 },
   isFinalized: { type: Boolean, default: false },
 
