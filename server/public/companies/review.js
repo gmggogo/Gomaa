@@ -926,15 +926,29 @@ container.addEventListener("click", async e=>{
   try{
 
     if(action === "edit"){
-      const tr = btn.closest("tr");
-      const id = tr.dataset.id;
-      const trip = trips.find(t=>t._id === id);
-      if(!trip) return;
+  const tr = btn.closest("tr");
+  const id = tr.dataset.id;
+  const trip = trips.find(t=>t._id === id);
+  if(!trip) return;
 
-      trip.__editing = true;
-      render();
-      return;
-    }
+  trip.status = "Scheduled";
+  trip.priceAmount = 0;
+
+  trip.miles = 0;
+  trip.distanceMeters = 0;
+  trip.durationSeconds = 0;
+  trip.estimatedMinutes = 0;
+
+  delete trip.googleRoute;
+  delete trip.routePoints;
+
+  trip.__editing = true;
+
+  await updateTrip(id, trip);
+
+  render();
+  return;
+}
 
     if(action === "edit-shared"){
       const tr = btn.closest("tr");
