@@ -1,152 +1,129 @@
-<!-- summary.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Transportation - Summary</title>
+<title>Summary</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="summary.css">
+<link rel="stylesheet" href="layout.css">
 
 <style>
 
-*{
-  box-sizing:border-box;
-}
-
 body{
   margin:0;
-  background:#f3f6fb;
-  font-family:Arial,sans-serif;
-  color:#111827;
+  background:#f4f8fb;
+  font-family:'Segoe UI',sans-serif;
 }
 
 /* HEADER */
+#layoutHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:9999;
+}
 
-.header{
-  background:#0f172a;
-  color:#fff;
-  padding:18px;
-  text-align:center;
-  font-size:24px;
-  font-weight:800;
-  letter-spacing:.5px;
+/* PAGE */
+.summary-page{
+  padding:170px 14px 40px;
 }
 
 /* TABS */
-
-.tabs{
+.summary-tabs{
   display:flex;
-  gap:10px;
-  padding:15px;
-  justify-content:center;
-  flex-wrap:wrap;
+  gap:12px;
+  margin-bottom:18px;
 }
 
-.tab{
+.summary-tab{
+  flex:1;
   border:none;
-  background:#e5e7eb;
-  padding:12px 22px;
-  border-radius:14px;
-  cursor:pointer;
+  height:48px;
+  border-radius:12px;
   font-weight:700;
+  cursor:pointer;
+  background:#d9e2ef;
+  color:#111827;
   transition:.2s;
-  font-size:15px;
 }
 
-.tab.active{
-  background:#2563eb;
+.summary-tab.active{
+  background:#145cff;
   color:#fff;
 }
 
 /* STATS */
-
-.stats{
+.stats-grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:15px;
-  padding:0 15px 15px;
+  gap:14px;
+  margin-bottom:20px;
 }
 
-.stat-box{
+.stat-card{
   background:#fff;
-  border-radius:18px;
+  border-radius:16px;
   padding:18px;
-  box-shadow:0 4px 18px rgba(0,0,0,.07);
+  box-shadow:0 4px 15px rgba(0,0,0,.06);
 }
 
 .stat-title{
+  font-size:13px;
   color:#6b7280;
-  font-size:14px;
-  margin-bottom:8px;
+  margin-bottom:6px;
 }
 
 .stat-value{
   font-size:28px;
   font-weight:800;
+  color:#111827;
 }
 
-/* CONTENT */
-
-#content{
-  display:flex;
-  flex-direction:column;
-  gap:20px;
-  padding:15px;
-}
-
-/* TRIP BOX */
-
+/* TRIP */
 .trip-box{
   background:#fff;
-  border-radius:24px;
+  border-radius:18px;
   overflow:hidden;
-  box-shadow:0 10px 25px rgba(0,0,0,.08);
+  margin-bottom:22px;
+  box-shadow:0 5px 18px rgba(0,0,0,.08);
 }
 
-/* TRIP HEADER */
-
 .trip-header{
-  background:linear-gradient(135deg,#0f172a,#1e293b);
+  background:#1c2440;
   color:#fff;
-  padding:18px;
+  padding:14px 18px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  flex-wrap:wrap;
   gap:10px;
+  flex-wrap:wrap;
 }
 
 .trip-number{
-  font-size:21px;
+  font-size:20px;
   font-weight:800;
 }
 
-.trip-info{
-  font-size:14px;
+.trip-date{
+  font-size:13px;
   opacity:.9;
 }
 
 /* PASSENGERS */
-
 .passengers{
-  padding:15px;
+  padding:14px;
   display:flex;
   flex-direction:column;
-  gap:15px;
+  gap:14px;
 }
-
-/* PASSENGER CARD */
 
 .passenger-card{
-  border-radius:18px;
-  padding:15px;
+  border-radius:14px;
+  overflow:hidden;
   border:2px solid #e5e7eb;
 }
-
-/* COLORS */
 
 .completed-card{
   background:#f0fdf4;
@@ -164,184 +141,176 @@ body{
 }
 
 /* TOP */
-
 .passenger-top{
+  padding:12px 14px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  flex-wrap:wrap;
   gap:10px;
-  margin-bottom:14px;
+  flex-wrap:wrap;
 }
 
 .passenger-name{
-  font-size:18px;
+  font-size:17px;
   font-weight:800;
+  color:#111827;
 }
 
+/* BADGE */
 .status-badge{
   padding:7px 14px;
   border-radius:999px;
   color:#fff;
-  font-size:13px;
+  font-size:12px;
   font-weight:800;
 }
 
-.completed-badge{
+.completed{
   background:#16a34a;
 }
 
-.cancelled-badge{
+.cancelled{
   background:#f59e0b;
 }
 
-.noshow-badge{
+.noshow{
   background:#dc2626;
 }
 
 /* GRID */
-
 .passenger-grid{
+  padding:0 14px 14px;
   display:grid;
-  grid-template-columns:
-    repeat(auto-fit,minmax(180px,1fr));
-  gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
 }
 
 .info-box{
   background:#fff;
-  border-radius:14px;
-  padding:12px;
+  border-radius:12px;
   border:1px solid #e5e7eb;
+  padding:10px;
 }
 
 .info-label{
+  font-size:11px;
   color:#6b7280;
-  font-size:12px;
-  margin-bottom:5px;
+  margin-bottom:4px;
 }
 
 .info-value{
+  font-size:14px;
   font-weight:700;
-  font-size:15px;
+  color:#111827;
   word-break:break-word;
 }
 
 /* TOTAL */
-
 .trip-total{
   background:#111827;
   color:#fff;
-  padding:18px;
+  padding:16px 18px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  font-size:19px;
+  font-size:18px;
   font-weight:800;
 }
 
 /* EMPTY */
-
 .empty-box{
   background:#fff;
-  border-radius:20px;
+  border-radius:18px;
   padding:40px;
   text-align:center;
   font-weight:800;
-  box-shadow:0 5px 18px rgba(0,0,0,.08);
+  box-shadow:0 4px 15px rgba(0,0,0,.06);
 }
 
 /* MOBILE */
-
 @media(max-width:768px){
 
-  .header{
-    font-size:20px;
+  .summary-page{
+    padding:160px 10px 30px;
   }
 
   .trip-number{
-    font-size:18px;
-  }
-
-  .trip-info{
-    font-size:13px;
-  }
-
-  .passenger-name{
-    font-size:16px;
+    font-size:17px;
   }
 
   .trip-total{
-    font-size:16px;
+    font-size:15px;
   }
 
   .stat-value{
-    font-size:24px;
+    font-size:22px;
   }
 
 }
 
 </style>
+
+<script src="layout.js"></script>
+
 </head>
 
 <body>
 
-<div class="header">
-  SUNBEAM TRANSPORTATION SUMMARY
+<div id="layoutHeader"></div>
+
+<div class="summary-page">
+
+  <!-- TABS -->
+  <div class="summary-tabs">
+
+    <button
+      class="summary-tab active"
+      onclick="switchTab('individual',this)">
+      Individual
+    </button>
+
+    <button
+      class="summary-tab"
+      onclick="switchTab('shared',this)">
+      Shared
+    </button>
+
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+
+    <div class="stat-card">
+      <div class="stat-title">Total Trips</div>
+      <div class="stat-value" id="totalTrips">0</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-title">Completed</div>
+      <div class="stat-value" id="completedTrips">0</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-title">Cancelled</div>
+      <div class="stat-value" id="cancelledTrips">0</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-title">No Show</div>
+      <div class="stat-value" id="noShowTrips">0</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-title">Total Revenue</div>
+      <div class="stat-value" id="totalRevenue">$0</div>
+    </div>
+
+  </div>
+
+  <!-- CONTENT -->
+  <div id="summaryContent"></div>
+
 </div>
-
-<!-- TABS -->
-
-<div class="tabs">
-
-  <button
-    class="tab active"
-    onclick="switchTab('individual',this)">
-    Individual
-  </button>
-
-  <button
-    class="tab"
-    onclick="switchTab('shared',this)">
-    Shared
-  </button>
-
-</div>
-
-<!-- STATS -->
-
-<div class="stats">
-
-  <div class="stat-box">
-    <div class="stat-title">Total Trips</div>
-    <div class="stat-value" id="totalTrips">0</div>
-  </div>
-
-  <div class="stat-box">
-    <div class="stat-title">Completed</div>
-    <div class="stat-value" id="completedTrips">0</div>
-  </div>
-
-  <div class="stat-box">
-    <div class="stat-title">Cancelled</div>
-    <div class="stat-value" id="cancelledTrips">0</div>
-  </div>
-
-  <div class="stat-box">
-    <div class="stat-title">No Show</div>
-    <div class="stat-value" id="noShowTrips">0</div>
-  </div>
-
-  <div class="stat-box">
-    <div class="stat-title">Total Revenue</div>
-    <div class="stat-value" id="totalRevenue">$0</div>
-  </div>
-
-</div>
-
-<!-- CONTENT -->
-
-<div id="content"></div>
 
 <script src="summary.js"></script>
 

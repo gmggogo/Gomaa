@@ -1,10 +1,7 @@
-// summary.js
-
 let allTrips = [];
 let mode = "individual";
 
 /* LOAD */
-
 async function load(){
 
   try{
@@ -24,13 +21,12 @@ async function load(){
 }
 
 /* TAB */
-
 function switchTab(m,btn){
 
   mode = m;
 
   document
-    .querySelectorAll(".tab")
+    .querySelectorAll(".summary-tab")
     .forEach(t=>t.classList.remove("active"));
 
   btn.classList.add("active");
@@ -38,13 +34,12 @@ function switchTab(m,btn){
   render();
 }
 
-/* NORMALIZE */
+/* STATUS */
+function normalizeStatus(status){
 
-function norm(status){
+  if(!status) return "Completed";
 
-  if(!status) return "";
-
-  status = status.toLowerCase();
+  status = String(status).toLowerCase();
 
   if(status.includes("cancel"))
     return "Cancelled";
@@ -55,15 +50,11 @@ function norm(status){
   if(status.includes("no show"))
     return "NoShow";
 
-  if(status.includes("complete"))
-    return "Completed";
-
-  return "Scheduled";
+  return "Completed";
 }
 
 /* PRICE */
-
-function price(status){
+function getPrice(status){
 
   if(status === "Cancelled") return 15;
 
@@ -72,24 +63,42 @@ function price(status){
   return 0;
 }
 
-/* STATS */
+/* FILTER */
+function getFilteredTrips(){
 
+  return allTrips.filter(t=>{
+
+    const s = normalizeStatus(t.status);
+
+    return (
+      s === "Completed" ||
+      s === "Cancelled" ||
+      s === "NoShow"
+    );
+
+  });
+
+}
+
+/* STATS */
 function updateStats(data){
 
   let completed = 0;
   let cancelled = 0;
   let noshow = 0;
-  let total = 0;
+  let revenue = 0;
 
   data.forEach(t=>{
 
-    const s = norm(t.status);
+    const s = normalizeStatus(t.status);
 
     if(s === "Completed") completed++;
+
     if(s === "Cancelled") cancelled++;
+
     if(s === "NoShow") noshow++;
 
-    total += price(s);
+    revenue += getPrice(s);
 
   });
 
@@ -106,36 +115,18 @@ function updateStats(data){
     noshow;
 
   document.getElementById("totalRevenue").innerText =
-    `$${total}`;
-}
-
-/* FILTER */
-
-function getFiltered(){
-
-  return allTrips.filter(t=>{
-
-    const s = norm(t.status);
-
-    return (
-      s === "Completed" ||
-      s === "Cancelled" ||
-      s === "NoShow"
-    );
-
-  });
-
+    `$${revenue}`;
 }
 
 /* RENDER */
-
 function render(){
 
-  const wrap = document.getElementById("content");
+  const wrap =
+    document.getElementById("summaryContent");
 
   wrap.innerHTML = "";
 
-  const data = getFiltered();
+  const data = getFilteredTrips();
 
   updateStats(data);
 
@@ -147,15 +138,13 @@ function render(){
 
 }
 
-/* =========================
-   INDIVIDUAL
-========================= */
-
+/* INDIVIDUAL */
 function renderIndividual(data,wrap){
 
   const trips = data.filter(t=>{
 
-    const n = (t.tripNumber || "").toUpperCase();
+    const n =
+      (t.tripNumber || "").toUpperCase();
 
     return !n.endsWith("-SH");
 
@@ -174,29 +163,20 @@ function renderIndividual(data,wrap){
 
   trips.forEach(t=>{
 
-    const s = norm(t.status);
+    const status =
+      normalizeStatus(t.status);
 
-    const pr = price(s);
+    const price =
+      getPrice(status);
 
-    let cardClass = "";
-    let badgeClass = "";
+    const cardClass =
+      status.toLowerCase() + "-card";
 
-    if(s === "Completed"){
-      cardClass = "completed-card";
-      badgeClass = "completed-badge";
-    }
-
-    if(s === "Cancelled"){
-      cardClass = "cancelled-card";
-      badgeClass = "cancelled-badge";
-    }
-
-    if(s === "NoShow"){
-      cardClass = "noshow-card";
-      badgeClass = "noshow-badge";
-    }
+    const badgeClass =
+      status.toLowerCase();
 
     wrap.innerHTML += `
+
     <div class="trip-box">
 
       <div class="trip-header">
@@ -205,10 +185,12 @@ function renderIndividual(data,wrap){
           ${t.tripNumber || "-"}
         </div>
 
-        <div class="trip-info">
+        <div class="trip-date">
           ${t.tripDate || ""}
-          ${t.tripTime ? `| ${t.tripTime}` : ""}
-          | ${Math.round(t.miles || 0)} mi
+          |
+          ${t.tripTime || ""}
+          |
+          ${Math.round(t.miles || 0)} mi
         </div>
 
       </div>
@@ -224,7 +206,7 @@ function renderIndividual(data,wrap){
             </div>
 
             <div class="status-badge ${badgeClass}">
-              ${s}
+              ${status}
             </div>
 
           </div>
@@ -232,16 +214,42 @@ function renderIndividual(data,wrap){
           <div class="passenger-grid">
 
             <div class="info-box">
-              <div class="info-label">Phone</div>
+              <div class="info-label">
+                Phone
+              </div>
+
               <div class="info-value">
                 ${t.clientPhone || "-"}
               </div>
             </div>
 
             <div class="info-box">
-              <div class="info-label">Price</div>
+              <div class="info-label">
+                Pickup
+              </div>
+
               <div class="info-value">
-                $${pr}
+                ${t.pickupAddress || "-"}
+              </div>
+            </div>
+
+            <div class="info-box">
+              <div class="info-label">
+                Dropoff
+              </div>
+
+              <div class="info-value">
+                ${t.dropoffAddress || "-"}
+              </div>
+            </div>
+
+            <div class="info-box">
+              <div class="info-label">
+                Price
+              </div>
+
+              <div class="info-value">
+                $${price}
               </div>
             </div>
 
@@ -255,24 +263,24 @@ function renderIndividual(data,wrap){
 
         <div>TOTAL</div>
 
-        <div>$${pr}</div>
+        <div>$${price}</div>
 
       </div>
 
     </div>
+
     `;
   });
+
 }
 
-/* =========================
-   SHARED
-========================= */
-
+/* SHARED */
 function renderShared(data,wrap){
 
   const trips = data.filter(t=>{
 
-    const n = (t.tripNumber || "").toUpperCase();
+    const n =
+      (t.tripNumber || "").toUpperCase();
 
     return n.endsWith("-SH");
 
@@ -288,8 +296,6 @@ function renderShared(data,wrap){
 
     return;
   }
-
-  /* GROUP */
 
   const groups = {};
 
@@ -313,41 +319,33 @@ function renderShared(data,wrap){
 
     list.forEach(p=>{
 
-      const s = norm(p.status);
+      const status =
+        normalizeStatus(p.status);
 
-      const pr = price(s);
+      const price =
+        getPrice(status);
 
-      total += pr;
+      total += price;
 
-      let cardClass = "";
-      let badgeClass = "";
+      const cardClass =
+        status.toLowerCase() + "-card";
 
-      if(s === "Completed"){
-        cardClass = "completed-card";
-        badgeClass = "completed-badge";
-      }
-
-      if(s === "Cancelled"){
-        cardClass = "cancelled-card";
-        badgeClass = "cancelled-badge";
-      }
-
-      if(s === "NoShow"){
-        cardClass = "noshow-card";
-        badgeClass = "noshow-badge";
-      }
+      const badgeClass =
+        status.toLowerCase();
 
       html += `
+
       <div class="passenger-card ${cardClass}">
 
         <div class="passenger-top">
 
           <div class="passenger-name">
             ${p.clientName || "-"}
+
           </div>
 
           <div class="status-badge ${badgeClass}">
-            ${s}
+            ${status}
           </div>
 
         </div>
@@ -355,28 +353,56 @@ function renderShared(data,wrap){
         <div class="passenger-grid">
 
           <div class="info-box">
-            <div class="info-label">Phone</div>
+            <div class="info-label">
+              Phone
+            </div>
+
             <div class="info-value">
               ${p.clientPhone || "-"}
             </div>
           </div>
 
           <div class="info-box">
-            <div class="info-label">Price</div>
+            <div class="info-label">
+              Pickup
+            </div>
+
             <div class="info-value">
-              $${pr}
+              ${p.pickupAddress || "-"}
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-label">
+              Dropoff
+            </div>
+
+            <div class="info-value">
+              ${p.dropoffAddress || "-"}
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-label">
+              Price
+            </div>
+
+            <div class="info-value">
+              $${price}
             </div>
           </div>
 
         </div>
 
       </div>
+
       `;
     });
 
     const first = list[0];
 
     wrap.innerHTML += `
+
     <div class="trip-box">
 
       <div class="trip-header">
@@ -385,12 +411,15 @@ function renderShared(data,wrap){
           ${key}
         </div>
 
-        <div class="trip-info">
+        <div class="trip-date">
 
           ${first.tripDate || ""}
-          ${first.tripTime ? `| ${first.tripTime}` : ""}
-          | ${Math.round(first.miles || 0)} mi
-          | ${list.length} Passengers
+          |
+          ${first.tripTime || ""}
+          |
+          ${Math.round(first.miles || 0)} mi
+          |
+          ${list.length} Passengers
 
         </div>
 
@@ -411,14 +440,14 @@ function renderShared(data,wrap){
       </div>
 
     </div>
+
     `;
   });
+
 }
 
 /* AUTO REFRESH */
-
 setInterval(load,30000);
 
 /* INIT */
-
 load();
