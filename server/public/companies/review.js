@@ -1291,6 +1291,17 @@ container.addEventListener("click", async e=>{
 
         trip[field] = input.value;
       });
+trip.miles = 0;
+trip.distanceMeters = 0;
+trip.durationSeconds = 0;
+trip.estimatedMinutes = 0;
+
+trip.googleRoute = {};
+trip.routePoints = [];
+
+trip.priceAmount = 0;
+
+trip.status = "Scheduled";
 
       const newTrip = new Date(normalizeText(trip.tripDate) + "T" + normalizeText(trip.tripTime) + ":00");
       const now = getAZNow();
