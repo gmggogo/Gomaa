@@ -195,14 +195,34 @@ function ensureGoogleLoaded(){
 }
 
 function normalizeAZ(address){
-  const v = normalizeText(address);
+
+  let v = normalizeText(address);
+
+  if(!v) return "";
+
+  // 🔥 تنظيف المسافات
+  v = v.replace(/\s+/g," ").trim();
+
+  // 🔥 إصلاح أسماء المدن
+  v = v
+    .replace(/\btemp\b/ig,"Tempe")
+    .replace(/\btempe\b/ig,"Tempe")
+    .replace(/\bchandle\b/ig,"Chandler")
+    .replace(/\bchandler\b/ig,"Chandler")
+    .replace(/\bphoenixx\b/ig,"Phoenix");
+
   const lower = v.toLowerCase();
 
-  if(lower.includes(" az") || lower.includes(",az") || lower.includes("arizona")){
-    return v;
+  // 🔥 لو مفيش AZ ضيفها
+  if(
+    !lower.includes(" az") &&
+    !lower.includes(", az") &&
+    !lower.includes(" arizona")
+  ){
+    v += ", Chandler, AZ 85225, USA";
   }
 
-  return v + ", AZ, USA";
+  return v;
 }
 
 async function calculateRouteMiles(points){
@@ -1285,11 +1305,15 @@ container.addEventListener("click", async e=>{
 
         if(stopIndex !== undefined){
           if(!Array.isArray(trip.stops)) trip.stops = [];
-          trip.stops[Number(stopIndex)] = input.value;
+          trip.stops[Number(stopIndex)] = normalizeAZ(input.value);
           return;
         }
 
-        trip[field] = input.value;
+      if(field === "pickup" || field === "dropoff"){
+  trip[field] = normalizeAZ(input.value);
+}else{
+  trip[field] = input.value;
+}
       });
 trip.miles = 0;
 trip.distanceMeters = 0;
