@@ -1281,8 +1281,29 @@ if(action === "save-shared"){
 
   if(!group) return;
 
-  // 🔥 WARNING IF WITHIN 120 MINUTES
-  const mins = minutesToTrip(group[0]);
+  /* 🔥 GET DATE/TIME FROM INPUTS */
+
+  const dateInput = tr.querySelector('[data-field="tripDate"]');
+  const timeInput = tr.querySelector('[data-field="tripTime"]');
+
+  const editedDate = dateInput
+    ? dateInput.value
+    : group[0].tripDate;
+
+  const editedTime = timeInput
+    ? timeInput.value
+    : group[0].tripTime;
+
+  const editedTripDate = parseTripDateTime(
+    editedDate,
+    editedTime
+  );
+
+  let mins = null;
+
+  if(editedTripDate){
+    mins = (editedTripDate - getAZNow()) / 60000;
+  }
 
   if(mins !== null && mins <= 120){
 
@@ -1395,8 +1416,9 @@ if(action === "save-shared"){
   trips = await fetchTrips();
   render();
   return;
-}
-    /* ================= CONFIRM INDIVIDUAL ================= */
+} 
+
+   /* ================= CONFIRM INDIVIDUAL ================= */
 
     if(action === "confirm-individual"){
 
