@@ -918,6 +918,7 @@ function render(){
 /* ================= ACTIONS ================= */
 
 container.addEventListener("click", async e=>{
+
   const btn = e.target.closest("button");
   if(!btn) return;
 
@@ -925,190 +926,260 @@ container.addEventListener("click", async e=>{
 
   try{
 
+    /* ================= EDIT INDIVIDUAL ================= */
+
     if(action === "edit"){
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
-  const trip = trips.find(t=>t._id === id);
-  if(!trip) return;
 
-  trip.status = "Scheduled";
-  trip.priceAmount = 0;
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
 
-  trip.miles = 0;
-  trip.distanceMeters = 0;
-  trip.durationSeconds = 0;
-  trip.estimatedMinutes = 0;
+      const trip = trips.find(t=>t._id === id);
+      if(!trip) return;
 
-  delete trip.googleRoute;
-  delete trip.routePoints;
+      trip.status = "Scheduled";
 
-  trip.__editing = true;
+      trip.priceAmount = 0;
+      trip.miles = 0;
+      trip.distanceMeters = 0;
+      trip.durationSeconds = 0;
+      trip.estimatedMinutes = 0;
 
-await updateTrip(id,{
-  status:"Scheduled",
-  priceAmount:0,
-  miles:0,
-  distanceMeters:0,
-  durationSeconds:0,
-  estimatedMinutes:0,
-  googleRoute:null,
-  routePoints:[]
-});
+      delete trip.googleRoute;
+      delete trip.routePoints;
 
-trips = await fetchTrips();
+      trip.__editing = true;
 
-const updatedTrip = trips.find(t => t._id === id);
+      await updateTrip(id,{
+        status:"Scheduled",
+        priceAmount:0,
+        miles:0,
+        distanceMeters:0,
+        durationSeconds:0,
+        estimatedMinutes:0,
+        googleRoute:null,
+        routePoints:[]
+      });
 
-if(updatedTrip){
-  updatedTrip.__editing = true;
-}
+      trips = await fetchTrips();
 
-render();
-return;
-}
-   if(action === "edit-shared"){
-  const tr = btn.closest("tr");
-  const groupId = tr.dataset.groupId;
+      const updatedTrip = trips.find(t=>t._id === id);
 
-  const group = getSharedGroups().find(
-    g => getSharedKey(g[0]) === groupId
-  );
+      if(updatedTrip){
+        updatedTrip.__editing = true;
+      }
 
-  if(!group) return;
+      render();
+      return;
+    }
 
-  for(const t of group){
+    /* ================= EDIT SHARED ================= */
 
-    t.status = "Scheduled";
+    if(action === "edit-shared"){
 
-    t.priceAmount = 0;
-    t.pricePerPassenger = 0;
+      const tr = btn.closest("tr");
+      const groupId = tr.dataset.groupId;
 
-    t.miles = 0;
-    t.distanceMeters = 0;
-    t.durationSeconds = 0;
-    t.estimatedMinutes = 0;
+      const group = getSharedGroups().find(
+        g => getSharedKey(g[0]) === groupId
+      );
 
-    delete t.googleRoute;
-    delete t.routePoints;
-    delete t.optimizedRoute;
+      if(!group) return;
 
-    t.__editing = true;
+      btn.disabled = true;
+      btn.textContent = "Loading...";
 
-await updateTrip(t._id,{
-  status:"Scheduled",
-  priceAmount:0,
-  pricePerPassenger:0,
-  miles:0,
-  distanceMeters:0,
-  durationSeconds:0,
-  estimatedMinutes:0,
-  googleRoute:null,
-  routePoints:[],
-  optimizedRoute:null
-});
+      for(const t of group){
 
-trips = await fetchTrips();
+        t.status = "Scheduled";
 
-const refreshedGroup = getSharedGroups().find(
-  g => getSharedKey(g[0]) === groupId
-);
+        t.priceAmount = 0;
+        t.pricePerPassenger = 0;
 
-if(refreshedGroup){
-  refreshedGroup.forEach(t=>{
-    t.__editing = true;
-  });
-}
+        t.miles = 0;
+        t.distanceMeters = 0;
+        t.durationSeconds = 0;
+        t.estimatedMinutes = 0;
 
-render();
-return;  
-}
-  if(action === "cancel-edit"){
+        delete t.googleRoute;
+        delete t.routePoints;
+        delete t.optimizedRoute;
+
+        t.__editing = true;
+
+        await updateTrip(t._id,{
+          status:"Scheduled",
+          priceAmount:0,
+          pricePerPassenger:0,
+          miles:0,
+          distanceMeters:0,
+          durationSeconds:0,
+          estimatedMinutes:0,
+          googleRoute:null,
+          routePoints:[],
+          optimizedRoute:null
+        });
+
+      }
+
+      trips = await fetchTrips();
+
+      const refreshedGroup = getSharedGroups().find(
+        g => getSharedKey(g[0]) === groupId
+      );
+
+      if(refreshedGroup){
+
+        refreshedGroup.forEach(t=>{
+          t.__editing = true;
+        });
+
+      }
+
+      render();
+      return;
+    }
+
+    /* ================= CANCEL EDIT ================= */
+
+    if(action === "cancel-edit"){
+
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= DELETE INDIVIDUAL ================= */
+
     if(action === "delete"){
+
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
+
       if(!id) return;
 
       const ok = confirm("Delete this trip?");
       if(!ok) return;
 
       await deleteTrip(id);
+
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= DELETE SHARED ================= */
+
     if(action === "delete-shared"){
+
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
+
+      const group = getSharedGroups().find(
+        g => getSharedKey(g[0]) === groupId
+      );
+
       if(!group) return;
 
       const ok = confirm("Delete this shared trip?");
       if(!ok) return;
 
-      await deleteTrip(group[0]._id);
+      for(const t of group){
+        await deleteTrip(t._id);
+      }
+
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= SAVE INDIVIDUAL ================= */
+
     if(action === "save-individual"){
+
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
+
       const original = trips.find(t=>t._id === id);
       if(!original) return;
 
       const payload = {};
-      const stops = Array.isArray(original.stops) ? [...original.stops] : [];
+
+      const stops = Array.isArray(original.stops)
+        ? [...original.stops]
+        : [];
 
       tr.querySelectorAll(".edit-input").forEach(input=>{
+
         const field = input.dataset.field;
         const stopIndex = input.dataset.stopIndex;
 
         if(stopIndex !== undefined){
-          stops[Number(stopIndex)] = normalizeAZ(input.value.trim());
+
+          stops[Number(stopIndex)] =
+            normalizeAZ(input.value.trim());
+
           return;
         }
 
         if(field === "pickup" || field === "dropoff"){
-          payload[field] = normalizeAZ(input.value);
+
+          payload[field] =
+            normalizeAZ(input.value);
+
         }else{
+
           payload[field] = input.value;
+
         }
+
       });
 
       payload.stops = stops;
+
       payload.status = "Scheduled";
       payload.priceAmount = 0;
-      payload.miles = 0;
 
-      await updateTrip(id, payload);
+      payload.miles = 0;
+      payload.distanceMeters = 0;
+      payload.durationSeconds = 0;
+      payload.estimatedMinutes = 0;
+
+      payload.googleRoute = null;
+      payload.routePoints = [];
+
+      await updateTrip(id,payload);
 
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= SAVE SHARED ================= */
+
     if(action === "save-shared"){
+
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
+
+      const group = getSharedGroups().find(
+        g => getSharedKey(g[0]) === groupId
+      );
+
       if(!group) return;
 
-      const first = group[0];
-      const passengers = getRealPassengersFromGroup(group).map(p=>({...p}));
+      const passengers = getRealPassengersFromGroup(group)
+        .map(p=>({...p}));
+
       const payload = {};
 
       tr.querySelectorAll(".edit-input").forEach(input=>{
+
         const field = input.dataset.field;
 
         if(field && field.startsWith("passenger_")){
+
           const parts = field.split("_");
+
           const index = Number(parts[1]);
           const key = parts[2];
 
@@ -1125,125 +1196,230 @@ return;
           }
 
           if(key === "pickup"){
-            passengers[index].pickup = normalizeAZ(input.value);
+            passengers[index].pickup =
+              normalizeAZ(input.value);
           }
 
           if(key === "dropoff"){
-            passengers[index].dropoff = normalizeAZ(input.value);
+            passengers[index].dropoff =
+              normalizeAZ(input.value);
           }
 
           return;
         }
 
-        if(field === "tripDate" || field === "tripTime" || field === "entryName" || field === "entryPhone" || field === "notes"){
+        if(
+          field === "tripDate" ||
+          field === "tripTime" ||
+          field === "entryName" ||
+          field === "entryPhone" ||
+          field === "notes"
+        ){
           payload[field] = input.value;
         }
+
       });
 
       payload.passengers = passengers;
-      payload.totalPassengers = passengers.length;
-      payload.pickup = passengers[0]?.pickup || "";
-      payload.dropoff = passengers[passengers.length - 1]?.dropoff || "";
+
+      payload.totalPassengers =
+        passengers.length;
+
+      payload.pickup =
+        passengers[0]?.pickup || "";
+
+      payload.dropoff =
+        passengers[passengers.length - 1]?.dropoff || "";
+
       payload.clientName = "Shared Trip";
-      payload.clientPhone = passengers[0]?.phone || passengers[0]?.clientPhone || "";
+
+      payload.clientPhone =
+        passengers[0]?.phone ||
+        passengers[0]?.clientPhone ||
+        "";
+
       payload.status = "Scheduled";
+
       payload.priceAmount = 0;
       payload.pricePerPassenger = 0;
+
       payload.miles = 0;
+      payload.distanceMeters = 0;
+      payload.durationSeconds = 0;
+      payload.estimatedMinutes = 0;
+
+      payload.googleRoute = null;
+      payload.routePoints = [];
+      payload.optimizedRoute = null;
+
       payload.isShared = true;
       payload.tripType = "SHARED";
 
-      await updateTrip(first._id, payload);
+      for(const t of group){
+
+        await updateTrip(t._id,{
+          ...payload
+        });
+
+      }
 
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= CONFIRM INDIVIDUAL ================= */
+
     if(action === "confirm-individual"){
+
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
+
       const trip = trips.find(t=>t._id === id);
       if(!trip) return;
 
       btn.disabled = true;
       btn.textContent = "Calculating...";
 
-      const routePoints = buildIndividualRoutePoints(trip);
-      const routeData = await calculateRouteMiles(routePoints);
+      const routePoints =
+        buildIndividualRoutePoints(trip);
+
+      const routeData =
+        await calculateRouteMiles(routePoints);
 
       if(!routeData.miles || routeData.miles <= 0){
         throw new Error("Invalid route data");
       }
 
       const payload = {
-        priceAmount:calculateIndividualPrice(routeData.miles, trip.status),
+
+        priceAmount:
+          calculateIndividualPrice(
+            routeData.miles,
+            trip.status
+          ),
+
         miles:routeData.miles,
-        distanceMeters:routeData.distanceMeters,
-        durationSeconds:routeData.durationSeconds,
-        estimatedMinutes:routeData.estimatedMinutes,
-        googleRoute:routeData.googleRoute,
+
+        distanceMeters:
+          routeData.distanceMeters,
+
+        durationSeconds:
+          routeData.durationSeconds,
+
+        estimatedMinutes:
+          routeData.estimatedMinutes,
+
+        googleRoute:
+          routeData.googleRoute,
+
         routePoints:routePoints,
+
         status:"Confirmed"
       };
 
-      await updateTrip(id, payload);
+      await updateTrip(id,payload);
 
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= CONFIRM SHARED ================= */
+
     if(action === "confirm-shared"){
+
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
-      if(!group) return;
 
-      const first = group[0];
+      const group = getSharedGroups().find(
+        g => getSharedKey(g[0]) === groupId
+      );
+
+      if(!group) return;
 
       btn.disabled = true;
       btn.textContent = "Calculating...";
 
-      const routePoints = buildSharedRoutePoints(group);
-      const routeData = await calculateRouteMiles(routePoints);
+      const routePoints =
+        buildSharedRoutePoints(group);
+
+      const routeData =
+        await calculateRouteMiles(routePoints);
 
       if(!routeData.miles || routeData.miles <= 0){
         throw new Error("Invalid route data");
       }
 
-      const sharedPrice = calculateSharedPrice(group, routeData.miles);
+      const sharedPrice =
+        calculateSharedPrice(
+          group,
+          routeData.miles
+        );
 
       const payload = {
-        priceAmount:sharedPrice.total,
-        pricePerPassenger:sharedPrice.pricePerPassenger,
-        sharedStopsCount:sharedPrice.stopsCount,
-        miles:routeData.miles,
-        distanceMeters:routeData.distanceMeters,
-        durationSeconds:routeData.durationSeconds,
-        estimatedMinutes:routeData.estimatedMinutes,
-        googleRoute:routeData.googleRoute,
-        routePoints:routePoints,
-        optimizedRoute:routeData.googleRoute,
+
+        priceAmount:
+          sharedPrice.total,
+
+        pricePerPassenger:
+          sharedPrice.pricePerPassenger,
+
+        sharedStopsCount:
+          sharedPrice.stopsCount,
+
+        miles:
+          routeData.miles,
+
+        distanceMeters:
+          routeData.distanceMeters,
+
+        durationSeconds:
+          routeData.durationSeconds,
+
+        estimatedMinutes:
+          routeData.estimatedMinutes,
+
+        googleRoute:
+          routeData.googleRoute,
+
+        routePoints:
+          routePoints,
+
+        optimizedRoute:
+          routeData.googleRoute,
+
         status:"Confirmed",
+
         isShared:true,
         tripType:"SHARED"
       };
 
-      await updateTrip(first._id, payload);
+      for(const t of group){
+
+        await updateTrip(t._id,{
+          ...payload
+        });
+
+      }
 
       trips = await fetchTrips();
       render();
       return;
     }
 
+    /* ================= CANCEL INDIVIDUAL ================= */
+
     if(action === "cancel"){
+
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
+
       const trip = trips.find(t=>t._id === id);
       if(!trip) return;
 
       const mins = minutesToTrip(trip);
+
       let finalPrice = 0;
 
       if(mins !== null && mins > 0 && mins <= 120){
@@ -1260,24 +1436,37 @@ return;
       return;
     }
 
+    /* ================= CANCEL SHARED ================= */
+
     if(action === "cancel-shared"){
+
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
+
+      const group = getSharedGroups().find(
+        g => getSharedKey(g[0]) === groupId
+      );
+
       if(!group) return;
 
       const first = group[0];
+
       const mins = minutesToTrip(first);
+
       let finalPrice = 0;
 
       if(mins !== null && mins > 0 && mins <= 120){
         finalPrice = 15;
       }
 
-      await updateTrip(first._id,{
-        status:"Cancelled",
-        priceAmount:finalPrice
-      });
+      for(const t of group){
+
+        await updateTrip(t._id,{
+          status:"Cancelled",
+          priceAmount:finalPrice
+        });
+
+      }
 
       trips = await fetchTrips();
       render();
@@ -1285,11 +1474,16 @@ return;
     }
 
   }catch(err){
+
     alert(err.message || "Server Error");
+
     console.error(err);
+
     trips = await fetchTrips();
     render();
+
   }
+
 });
 
 /* ================= INIT ================= */
