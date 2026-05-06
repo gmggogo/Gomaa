@@ -1305,16 +1305,23 @@ container.addEventListener("click", async e=>{
 
         if(stopIndex !== undefined){
           if(!Array.isArray(trip.stops)) trip.stops = [];
-          trip.stops[Number(stopIndex)] = normalizeAZ(input.value);
+          trip.stops[Number(stopIndex)] = normalizeAZ(input.value.trim());
           return;
         }
 
-      if(field === "pickup" || field === "dropoff"){
-  trip[field] = normalizeAZ(input.value);
+if(field === "pickup" || field === "dropoff"){
+
+  const value = normalizeAZ(input.value);
+
+  trip[field] = value;
+
 }else{
+
   trip[field] = input.value;
 }
+
       });
+
 trip.miles = 0;
 trip.distanceMeters = 0;
 trip.durationSeconds = 0;
