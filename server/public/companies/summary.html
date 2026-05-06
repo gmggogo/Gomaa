@@ -18,7 +18,6 @@ body{
   color:#111827;
 }
 
-/* HEADER */
 #layoutHeader{
   position:fixed;
   top:0;
@@ -28,11 +27,11 @@ body{
 }
 
 /* PAGE */
-.summary-page{
-  padding:165px 10px 40px;
+.page{
+  padding:165px 10px 30px;
 }
 
-/* SEARCH */
+/* TOP */
 .top-bar{
   display:flex;
   gap:10px;
@@ -42,14 +41,14 @@ body{
 
 .search-input{
   flex:1;
-  min-width:240px;
+  min-width:220px;
   height:42px;
   border:none;
   border-radius:10px;
   background:#fff;
   padding:0 14px;
   font-size:13px;
-  box-shadow:0 3px 12px rgba(0,0,0,.06);
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
 
 .print-btn{
@@ -63,26 +62,26 @@ body{
   cursor:pointer;
 }
 
-/* FILTERS */
-.filters{
+/* TABS */
+.summary-tabs{
   display:flex;
   gap:10px;
-  margin-bottom:14px;
-  flex-wrap:wrap;
+  margin-bottom:16px;
 }
 
-.filter-btn{
+.summary-tab{
+  flex:1;
+  height:44px;
   border:none;
+  border-radius:10px;
   background:#dbe4f0;
   color:#111827;
-  border-radius:10px;
-  padding:10px 16px;
-  font-size:12px;
-  font-weight:700;
+  font-size:13px;
+  font-weight:800;
   cursor:pointer;
 }
 
-.filter-btn.active{
+.summary-tab.active{
   background:#145cff;
   color:#fff;
 }
@@ -113,14 +112,6 @@ body{
   font-weight:800;
 }
 
-/* SECTION */
-.section-title{
-  margin:28px 0 10px;
-  font-size:18px;
-  font-weight:800;
-  color:#1c2440;
-}
-
 /* DAY */
 .day-title{
   margin:18px 0 8px;
@@ -141,7 +132,7 @@ body{
 .summary-table{
   width:100%;
   border-collapse:collapse;
-  min-width:2100px;
+  min-width:2200px;
 }
 
 .summary-table th{
@@ -149,8 +140,8 @@ body{
   color:#fff;
   font-size:10px;
   padding:10px 6px;
-  white-space:nowrap;
   text-align:left;
+  white-space:nowrap;
 }
 
 .summary-table td{
@@ -162,7 +153,6 @@ body{
   line-height:1.5;
 }
 
-/* STACK */
 .stack{
   display:flex;
   flex-direction:column;
@@ -194,18 +184,16 @@ body{
   color:#991b1b;
 }
 
-/* TOTAL */
 .total{
   font-size:12px !important;
   font-weight:800 !important;
   color:#145cff;
 }
 
-/* MOBILE */
 @media(max-width:768px){
 
-  .summary-page{
-    padding:155px 5px 30px;
+  .page{
+    padding:155px 5px 20px;
   }
 
   .summary-table th,
@@ -220,7 +208,7 @@ body{
 
   #layoutHeader,
   .top-bar,
-  .filters{
+  .summary-tabs{
     display:none !important;
   }
 
@@ -228,7 +216,7 @@ body{
     background:#fff;
   }
 
-  .summary-page{
+  .page{
     padding:0;
   }
 
@@ -244,7 +232,7 @@ body{
 
 <div id="layoutHeader"></div>
 
-<div class="summary-page">
+<div class="page">
 
   <!-- TOP -->
   <div class="top-bar">
@@ -263,13 +251,20 @@ body{
 
   </div>
 
-  <!-- FILTER -->
-  <div class="filters">
+  <!-- TABS -->
+  <div class="summary-tabs">
 
-    <button class="filter-btn active">Today</button>
-    <button class="filter-btn">Week</button>
-    <button class="filter-btn">Month</button>
-    <button class="filter-btn">Year</button>
+    <button
+      class="summary-tab active"
+      onclick="switchTab('individual',this)">
+      Individual
+    </button>
+
+    <button
+      class="summary-tab"
+      onclick="switchTab('shared',this)">
+      Shared
+    </button>
 
   </div>
 
@@ -303,19 +298,8 @@ body{
 
   </div>
 
-  <!-- INDIVIDUAL -->
-  <div class="section-title">
-    Individual Summary
-  </div>
-
-  <div id="individualContent"></div>
-
-  <!-- SHARED -->
-  <div class="section-title">
-    Shared Summary
-  </div>
-
-  <div id="sharedContent"></div>
+  <!-- CONTENT -->
+  <div id="summaryContent"></div>
 
 </div>
 

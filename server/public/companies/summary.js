@@ -1,4 +1,5 @@
 let allTrips = [];
+let currentTab = "individual";
 
 /* LOAD */
 async function load(){
@@ -17,6 +18,21 @@ async function load(){
     console.log(err);
 
   }
+
+}
+
+/* TAB */
+function switchTab(tab,btn){
+
+  currentTab = tab;
+
+  document
+    .querySelectorAll(".summary-tab")
+    .forEach(t=>t.classList.remove("active"));
+
+  btn.classList.add("active");
+
+  render();
 
 }
 
@@ -64,6 +80,38 @@ function getFilteredTrips(){
       .includes(q);
 
   });
+
+}
+
+/* STATUS HTML */
+function statusHTML(status){
+
+  return `
+    <span class="status ${status.toLowerCase()}">
+      ${status}
+    </span>
+  `;
+
+}
+
+/* GROUP */
+function groupByDay(data){
+
+  const groups = {};
+
+  data.forEach(t=>{
+
+    const day = t.tripDate || "Unknown";
+
+    if(!groups[day]){
+      groups[day] = [];
+    }
+
+    groups[day].push(t);
+
+  });
+
+  return groups;
 
 }
 
@@ -132,38 +180,6 @@ function updateStats(data){
 
 }
 
-/* GROUP DAY */
-function groupByDay(data){
-
-  const groups = {};
-
-  data.forEach(t=>{
-
-    const day = t.tripDate || "Unknown";
-
-    if(!groups[day]){
-      groups[day] = [];
-    }
-
-    groups[day].push(t);
-
-  });
-
-  return groups;
-
-}
-
-/* STATUS HTML */
-function statusHTML(status){
-
-  return `
-    <span class="status ${status.toLowerCase()}">
-      ${status}
-    </span>
-  `;
-
-}
-
 /* RENDER */
 function render(){
 
@@ -172,24 +188,17 @@ function render(){
 
   updateStats(data);
 
-  renderIndividual(data);
-
-  renderShared(data);
-
-}
-
-/* INDIVIDUAL */
-function renderIndividual(data){
-
   const wrap =
     document.getElementById(
-      "individualContent"
+      "summaryContent"
     );
 
   wrap.innerHTML = "";
 
   const trips =
-    data.filter(t=>!t.isShared);
+    currentTab === "individual"
+      ? data.filter(t=>!t.isShared)
+      : data.filter(t=>t.isShared);
 
   const groups =
     groupByDay(trips);
@@ -213,22 +222,44 @@ function renderIndividual(data){
             <th>Company</th>
             <th>Entry</th>
             <th>Entry Phone</th>
-            <th>Client</th>
-            <th>Client Phone</th>
+
+            ${
+              currentTab === "individual"
+              ? `
+                <th>Client</th>
+                <th>Client Phone</th>
+              `
+              : `
+                <th>Passengers</th>
+                <th>Phones</th>
+              `
+            }
+
             <th>Pickup</th>
             <th>Dropoff</th>
+
             <th>Trip Date</th>
             <th>Trip Time</th>
+
             <th>Book Date</th>
             <th>Book Time</th>
+
             <th>Miles</th>
+
             <th>Status</th>
+
+            ${
+              currentTab === "shared"
+              ? `<th>Price</th>`
+              : ``
+            }
+
             <th>Total</th>
 
           </tr>
         </thead>
 
-        <tbody id="ind-${day.replaceAll('/','')}"></tbody>
+        <tbody id="body-${day.replaceAll('/','')}"></tbody>
 
       </table>
 
@@ -237,201 +268,140 @@ function renderIndividual(data){
 
     const tbody =
       document.getElementById(
-        `ind-${day.replaceAll('/','')}`
+        `body-${day.replaceAll('/','')}`
       );
 
     groups[day].forEach((t,i)=>{
 
-      tbody.innerHTML += `
-      <tr>
+      /* INDIVIDUAL */
+      if(!t.isShared){
 
-        <td>${i+1}</td>
+        tbody.innerHTML += `
+        <tr>
 
-        <td>${t.tripNumber || "-"}</td>
+          <td>${i+1}</td>
 
-        <td>${t.company || "-"}</td>
+          <td>${t.tripNumber || "-"}</td>
 
-        <td>${t.entryName || "-"}</td>
+          <td>${t.company || "-"}</td>
 
-        <td>${t.entryPhone || "-"}</td>
+          <td>${t.entryName || "-"}</td>
 
-        <td>${t.clientName || "-"}</td>
+          <td>${t.entryPhone || "-"}</td>
 
-        <td>${t.clientPhone || "-"}</td>
+          <td>${t.clientName || "-"}</td>
 
-        <td>${t.pickup || "-"}</td>
+          <td>${t.clientPhone || "-"}</td>
 
-        <td>${t.dropoff || "-"}</td>
+          <td>${t.pickup || "-"}</td>
 
-        <td>${t.tripDate || "-"}</td>
+          <td>${t.dropoff || "-"}</td>
 
-        <td>${t.tripTime || "-"}</td>
+          <td>${t.tripDate || "-"}</td>
 
-        <td>${t.bookingDate || "-"}</td>
+          <td>${t.tripTime || "-"}</td>
 
-        <td>${t.bookingTime || "-"}</td>
+          <td>${t.bookingDate || "-"}</td>
 
-        <td>${t.miles || 0}</td>
+          <td>${t.bookingTime || "-"}</td>
 
-        <td>
-          ${statusHTML(t.status)}
-        </td>
+          <td>${t.miles || 0}</td>
 
-        <td class="total">
-          $${t.totalPrice || 0}
-        </td>
+          <td>
+            ${statusHTML(t.status)}
+          </td>
 
-      </tr>
-      `;
+          <td class="total">
+            $${t.totalPrice || 0}
+          </td>
 
-    });
+        </tr>
+        `;
 
-  });
+      }
 
-}
+      /* SHARED */
+      else{
 
-/* SHARED */
-function renderShared(data){
+        let passengers = "";
+        let phones = "";
+        let pickups = "";
+        let dropoffs = "";
+        let statuses = "";
+        let prices = "";
 
-  const wrap =
-    document.getElementById(
-      "sharedContent"
-    );
+        (t.passengers || [])
+          .forEach(p=>{
 
-  wrap.innerHTML = "";
+            passengers += `
+              <div>${p.clientName}</div>
+            `;
 
-  const trips =
-    data.filter(t=>t.isShared);
+            phones += `
+              <div>${p.clientPhone}</div>
+            `;
 
-  const groups =
-    groupByDay(trips);
+            pickups += `
+              <div>${p.pickup}</div>
+            `;
 
-  Object.keys(groups).forEach(day=>{
+            dropoffs += `
+              <div>${p.dropoff}</div>
+            `;
 
-    wrap.innerHTML += `
-      <div class="day-title">
-        ${day}
-      </div>
+            statuses += `
+              ${statusHTML(p.status)}
+            `;
 
-      <div class="table-wrap">
+            prices += `
+              <div>$${p.price}</div>
+            `;
 
-      <table class="summary-table">
+          });
 
-        <thead>
-          <tr>
+        tbody.innerHTML += `
+        <tr>
 
-            <th>#</th>
-            <th>Trip#</th>
-            <th>Company</th>
-            <th>Entry</th>
-            <th>Entry Phone</th>
-            <th>Passengers</th>
-            <th>Phones</th>
-            <th>Pickup</th>
-            <th>Dropoff</th>
-            <th>Trip Date</th>
-            <th>Trip Time</th>
-            <th>Book Date</th>
-            <th>Book Time</th>
-            <th>Miles</th>
-            <th>Status</th>
-            <th>Price</th>
-            <th>Total</th>
+          <td>${i+1}</td>
 
-          </tr>
-        </thead>
+          <td>${t.tripNumber || "-"}</td>
 
-        <tbody id="sh-${day.replaceAll('/','')}"></tbody>
+          <td>${t.company || "-"}</td>
 
-      </table>
+          <td>${t.entryName || "-"}</td>
 
-      </div>
-    `;
+          <td>${t.entryPhone || "-"}</td>
 
-    const tbody =
-      document.getElementById(
-        `sh-${day.replaceAll('/','')}`
-      );
+          <td><div class="stack">${passengers}</div></td>
 
-    groups[day].forEach((t,i)=>{
+          <td><div class="stack">${phones}</div></td>
 
-      let passengers = "";
-      let phones = "";
-      let pickups = "";
-      let dropoffs = "";
-      let statuses = "";
-      let prices = "";
+          <td><div class="stack">${pickups}</div></td>
 
-      (t.passengers || [])
-        .forEach(p=>{
+          <td><div class="stack">${dropoffs}</div></td>
 
-          passengers += `
-            <div>${p.clientName}</div>
-          `;
+          <td>${t.tripDate || "-"}</td>
 
-          phones += `
-            <div>${p.clientPhone}</div>
-          `;
+          <td>${t.tripTime || "-"}</td>
 
-          pickups += `
-            <div>${p.pickup}</div>
-          `;
+          <td>${t.bookingDate || "-"}</td>
 
-          dropoffs += `
-            <div>${p.dropoff}</div>
-          `;
+          <td>${t.bookingTime || "-"}</td>
 
-          statuses += `
-            ${statusHTML(p.status)}
-          `;
+          <td>${t.miles || 0}</td>
 
-          prices += `
-            <div>$${p.price}</div>
-          `;
+          <td><div class="stack">${statuses}</div></td>
 
-        });
+          <td><div class="stack">${prices}</div></td>
 
-      tbody.innerHTML += `
-      <tr>
+          <td class="total">
+            $${t.totalPrice || 0}
+          </td>
 
-        <td>${i+1}</td>
+        </tr>
+        `;
 
-        <td>${t.tripNumber || "-"}</td>
-
-        <td>${t.company || "-"}</td>
-
-        <td>${t.entryName || "-"}</td>
-
-        <td>${t.entryPhone || "-"}</td>
-
-        <td><div class="stack">${passengers}</div></td>
-
-        <td><div class="stack">${phones}</div></td>
-
-        <td><div class="stack">${pickups}</div></td>
-
-        <td><div class="stack">${dropoffs}</div></td>
-
-        <td>${t.tripDate || "-"}</td>
-
-        <td>${t.tripTime || "-"}</td>
-
-        <td>${t.bookingDate || "-"}</td>
-
-        <td>${t.bookingTime || "-"}</td>
-
-        <td>${t.miles || 0}</td>
-
-        <td><div class="stack">${statuses}</div></td>
-
-        <td><div class="stack">${prices}</div></td>
-
-        <td class="total">
-          $${t.totalPrice || 0}
-        </td>
-
-      </tr>
-      `;
+      }
 
     });
 
