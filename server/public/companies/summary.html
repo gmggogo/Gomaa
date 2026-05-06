@@ -62,6 +62,25 @@ body{
   cursor:pointer;
 }
 
+/* FILTERS */
+.filters{
+  display:flex;
+  gap:10px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
+}
+
+.filters select{
+  height:42px;
+  border:none;
+  border-radius:10px;
+  padding:0 14px;
+  background:#fff;
+  font-size:13px;
+  font-weight:700;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
 /* TABS */
 .summary-tabs{
   display:flex;
@@ -71,9 +90,9 @@ body{
 
 .summary-tab{
   flex:1;
-  height:44px;
+  height:46px;
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   background:#dbe4f0;
   color:#111827;
   font-size:13px;
@@ -89,7 +108,7 @@ body{
 /* STATS */
 .stats-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
   gap:10px;
   margin-bottom:20px;
 }
@@ -114,92 +133,152 @@ body{
 
 /* DAY */
 .day-title{
-  margin:18px 0 8px;
-  font-size:14px;
+  margin:20px 0 10px;
+  font-size:15px;
   font-weight:800;
-  color:#374151;
+  color:#1c2440;
 }
 
-/* TABLE */
-.table-wrap{
-  overflow:auto;
+/* BIG CARD */
+.trip-card{
   background:#fff;
-  border-radius:14px;
-  box-shadow:0 4px 14px rgba(0,0,0,.08);
+  border-radius:16px;
+  overflow:hidden;
   margin-bottom:18px;
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
 }
 
-.summary-table{
-  width:100%;
-  border-collapse:collapse;
-  min-width:2200px;
-}
-
-.summary-table th{
+/* HEADER */
+.trip-header{
   background:#1c2440;
   color:#fff;
-  font-size:10px;
-  padding:10px 6px;
-  text-align:left;
-  white-space:nowrap;
-}
-
-.summary-table td{
-  font-size:10px;
-  padding:8px 6px;
-  border-bottom:1px solid #e5e7eb;
-  vertical-align:top;
-  font-weight:600;
-  line-height:1.5;
-}
-
-.stack{
+  padding:12px;
   display:flex;
-  flex-direction:column;
-  gap:4px;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
 }
 
-/* STATUS */
-.status{
-  display:inline-block;
-  padding:3px 7px;
-  border-radius:999px;
-  font-size:9px;
+.trip-number{
+  font-size:14px;
   font-weight:800;
-  width:max-content;
 }
 
+.trip-info{
+  font-size:11px;
+  opacity:.9;
+}
+
+/* BODY */
+.trip-body{
+  padding:12px;
+}
+
+/* GRID */
+.trip-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.box{
+  background:#f8fafc;
+  border-radius:10px;
+  padding:10px;
+}
+
+.box-title{
+  font-size:10px;
+  color:#6b7280;
+  margin-bottom:5px;
+  font-weight:700;
+}
+
+.box-value{
+  font-size:11px;
+  font-weight:700;
+  word-break:break-word;
+}
+
+/* PASSENGERS */
+.passenger-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:12px;
+}
+
+/* PASSENGER CARD */
+.passenger-card{
+  border-radius:14px;
+  padding:12px;
+  color:#111827;
+}
+
+/* STATUS COLORS */
 .completed{
   background:#dcfce7;
-  color:#166534;
-}
-
-.noshow{
-  background:#fef9c3;
-  color:#854d0e;
+  border:2px solid #22c55e;
 }
 
 .cancelled{
   background:#fee2e2;
-  color:#991b1b;
+  border:2px solid #ef4444;
+}
+
+.noshow{
+  background:#fef9c3;
+  border:2px solid #facc15;
+}
+
+/* PASSENGER */
+.passenger-name{
+  font-size:13px;
+  font-weight:800;
+  margin-bottom:10px;
+}
+
+.passenger-row{
+  margin-bottom:7px;
+  font-size:11px;
+  line-height:1.5;
+}
+
+.passenger-label{
+  font-weight:800;
+}
+
+/* FOOTER */
+.trip-footer{
+  background:#f3f4f6;
+  padding:12px;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:14px;
+  font-size:13px;
+  font-weight:800;
 }
 
 .total{
-  font-size:12px !important;
-  font-weight:800 !important;
   color:#145cff;
+  font-size:18px;
 }
 
+/* MOBILE */
 @media(max-width:768px){
 
   .page{
-    padding:155px 5px 20px;
+    padding:155px 6px 20px;
   }
 
-  .summary-table th,
-  .summary-table td{
-    font-size:9px;
-    padding:7px 5px;
+  .trip-grid{
+    grid-template-columns:1fr;
+  }
+
+  .passenger-grid{
+    grid-template-columns:1fr;
   }
 
 }
@@ -208,6 +287,7 @@ body{
 
   #layoutHeader,
   .top-bar,
+  .filters,
   .summary-tabs{
     display:none !important;
   }
@@ -251,6 +331,15 @@ body{
 
   </div>
 
+  <!-- FILTER -->
+  <div class="filters">
+
+    <select id="yearFilter"></select>
+
+    <select id="monthFilter"></select>
+
+  </div>
+
   <!-- TABS -->
   <div class="summary-tabs">
 
@@ -272,8 +361,13 @@ body{
   <div class="stats-grid">
 
     <div class="stat-card">
-      <div class="stat-title">Trips</div>
-      <div class="stat-value" id="totalTrips">0</div>
+      <div class="stat-title">Individual Trips</div>
+      <div class="stat-value" id="individualTrips">0</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-title">Shared Trips</div>
+      <div class="stat-value" id="sharedTrips">0</div>
     </div>
 
     <div class="stat-card">
