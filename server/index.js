@@ -1694,13 +1694,27 @@ app.put("/api/trips/:id", async (req, res) => {
         message: "Cannot edit completed or cancelled trip"
       });
     }
+   
+if(existing.status === "Confirmed"){
 
-    /* =========================
-       VALIDATION
-    ========================= */
-    if (req.body.googleRoute && !req.body.googleRoute.legs) {
-      return res.status(400).json({ message: "Invalid route data" });
-    }
+  const pickupChanged =
+    String(req.body.pickup || "").trim() !==
+    String(existing.pickup || "").trim();
+
+  const dropoffChanged =
+    String(req.body.dropoff || "").trim() !==
+    String(existing.dropoff || "").trim();
+
+  const stopsChanged =
+    JSON.stringify(req.body.stops || []) !==
+    JSON.stringify(existing.stops || []);
+
+  if(pickupChanged || dropoffChanged || stopsChanged){
+    return res.status(400).json({
+      message:"Cannot change route after confirmation"
+    });
+  }
+}
 
     /* =========================
        UPDATE DATA
