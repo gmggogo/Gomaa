@@ -27,32 +27,36 @@ const container = document.getElementById("tripsContainer");
   .tab-active{background:#2563eb;color:#fff;}
   .tab-inactive{background:#64748b;color:#fff;}
 
-  .review-table{width:100%;border-collapse:collapse;margin-bottom:20px;background:#fff;}
-  .review-table th,.review-table td{border:1px solid #dbe2ea;padding:8px;text-align:center;font-size:14px;vertical-align:middle;}
-  .review-table th{background:#0f172a;color:#fff;}
+  .table-wrap{width:100%;overflow-x:auto;margin-bottom:20px;border-radius:12px;background:#fff;}
+
+  .review-table{width:100%;border-collapse:collapse;background:#fff;min-width:1450px;}
+  .review-table th,.review-table td{border:1px solid #dbe2ea;padding:7px;text-align:center;font-size:12px;vertical-align:middle;}
+  .review-table th{background:#0f172a;color:#fff;font-weight:800;white-space:nowrap;}
 
   .date-title{font-size:18px;font-weight:700;margin:20px 0 10px;color:#0f172a;}
 
-  .btn{border:none;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;margin:2px;white-space:nowrap;}
+  .btn{border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:800;cursor:pointer;margin:2px;white-space:nowrap;}
   .btn.edit{background:#2563eb;color:#fff;}
   .btn.delete{background:#111827;color:#fff;}
   .btn.confirm{background:#16a34a;color:#fff;}
   .btn.cancel{background:#dc2626;color:#fff;}
   .btn.small-delete{background:#ef4444;color:#fff;font-size:11px;padding:4px 7px;}
 
-  .actions-wrap{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;}
-  .edit-input{width:100%;box-sizing:border-box;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;}
-  .multi-line{white-space:pre-line;line-height:1.65;text-align:left;}
+  .actions-wrap{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;min-width:140px;}
+  .edit-input{width:100%;min-width:120px;box-sizing:border-box;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#fff;color:#111827;}
+  .edit-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.15);}
+  .multi-line{white-space:pre-line;line-height:1.5;text-align:left;word-break:break-word;}
 
-  .trip-number-badge{display:inline-block;background:#0ea5e9;color:#fff;padding:6px 10px;border-radius:8px;font-weight:800;}
-  .price-badge{display:inline-block;background:#bbf7d0;color:#14532d;padding:6px 10px;border-radius:8px;font-weight:900;box-shadow:0 0 12px rgba(34,197,94,.35);}
+  .trip-number-badge{font-weight:900;color:#2563eb;white-space:nowrap;}
+  .price-badge{font-weight:900;color:#15803d;white-space:nowrap;}
+  .miles-strong{font-weight:900;color:#2563eb;white-space:nowrap;}
 
   .scheduled-row{background:#ffffff;color:#111827;}
-  .confirmed-row{background:#22c55e;color:#111827;}
-  .cancelled-row{background:#ef4444;color:#111827;}
-  .yellow{background:#fde047;color:#111827;}
+  .confirmed-row{background:#dcfce7;color:#111827;}
+  .cancelled-row{background:#fecaca;color:#111827;}
+  .yellow{background:#fef9c3;color:#111827;}
   .red-light{background:#fecaca;color:#111827;}
-  .red-mid{background:#f87171;color:#111827;}
+  .red-mid{background:#fca5a5;color:#111827;}
   .red-dark{background:#7f1d1d;color:#ffffff;}
   .past-row{background:#374151;color:#e5e7eb;}
 
@@ -60,7 +64,10 @@ const container = document.getElementById("tripsContainer");
   .trip-blink{animation:blinkTrip 1.8s infinite;}
 
   @media(max-width:768px){
-    .review-table th,.review-table td{font-size:11px;padding:6px;}
+    .review-table{min-width:1350px;}
+    .review-table th,.review-table td{font-size:10px;padding:5px;}
+    .btn{font-size:10px;padding:5px 7px;}
+    .edit-input{font-size:11px;min-width:110px;}
   }
   `;
 
@@ -79,16 +86,8 @@ function getAZNow(){
   return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
 }
 
-function getTripDateTime(t){
-  if(!t.tripDate || !t.tripTime) return null;
-  const dt = new Date(t.tripDate + "T" + t.tripTime + ":00");
-  return String(dt) === "Invalid Date" ? null : dt;
-}
-
-function minutesToTrip(t){
-  const dt = getTripDateTime(t);
-  if(!dt) return null;
-  return (dt - getAZNow()) / 60000;
+function normalizeText(v){
+  return String(v ?? "").trim();
 }
 
 function escapeHtml(value){
@@ -99,12 +98,72 @@ function escapeHtml(value){
     .replace(/>/g,"&gt;");
 }
 
-function normalizeText(v){
-  return String(v ?? "").trim();
-}
-
 function formatMoney(value){
   return Number(value || 0).toFixed(2);
+}
+
+function normalizeAZ(address){
+  let v = normalizeText(address);
+  if(!v) return "";
+
+  v = v.replace(/\s+/g," ").trim();
+
+  v = v
+    .replace(/\btemp\b/ig,"Tempe")
+    .replace(/\btempe\b/ig,"Tempe")
+    .replace(/\bchandle\b/ig,"Chandler")
+    .replace(/\bchandler\b/ig,"Chandler")
+    .replace(/\bphoenixx\b/ig,"Phoenix");
+
+  const lower = v.toLowerCase();
+
+  if(
+    !lower.includes(", az") &&
+    !lower.includes(" az ") &&
+    !lower.endsWith(" az") &&
+    !lower.includes("arizona")
+  ){
+    v += ", AZ, USA";
+  }
+
+  return v;
+}
+
+function parseTripDateTime(tripDate, tripTime){
+  const d = normalizeText(tripDate);
+  let t = normalizeText(tripTime);
+
+  if(!d || !t) return null;
+
+  const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if(ampm){
+    let h = Number(ampm[1]);
+    const m = ampm[2];
+    const ap = ampm[3].toUpperCase();
+
+    if(ap === "PM" && h < 12) h += 12;
+    if(ap === "AM" && h === 12) h = 0;
+
+    t = String(h).padStart(2,"0") + ":" + m;
+  }
+
+  if(/^\d{1,2}:\d{2}$/.test(t)){
+    const dt = new Date(d + "T" + t + ":00");
+    return isNaN(dt.getTime()) ? null : dt;
+  }
+
+  return null;
+}
+
+function getTripDateTime(t){
+  return parseTripDateTime(t.tripDate, t.tripTime);
+}
+
+function minutesToTrip(t){
+  const dt = getTripDateTime(t);
+  if(!dt) return null;
+  return (dt - getAZNow()) / 60000;
 }
 
 function isSharedTrip(t){
@@ -140,14 +199,14 @@ function getRealPassengersFromGroup(group){
   }
 
   return group.map((t,idx)=>({
-    passengerId: "P" + (idx + 1),
-    name: t.name || t.clientName || "",
-    phone: t.phone || t.clientPhone || "",
-    clientName: t.clientName || t.name || "",
-    clientPhone: t.clientPhone || t.phone || "",
-    pickup: t.pickup || "",
-    dropoff: t.dropoff || "",
-    status: t.status || "Scheduled"
+    passengerId:"P" + (idx + 1),
+    name:t.name || t.clientName || "",
+    phone:t.phone || t.clientPhone || "",
+    clientName:t.clientName || t.name || "",
+    clientPhone:t.clientPhone || t.phone || "",
+    pickup:t.pickup || "",
+    dropoff:t.dropoff || "",
+    status:t.status || "Scheduled"
   }));
 }
 
@@ -194,42 +253,11 @@ function ensureGoogleLoaded(){
   return googleLoadPromise;
 }
 
-function normalizeAZ(address){
-
-  let v = normalizeText(address);
-
-  if(!v) return "";
-
-  // 🔥 تنظيف المسافات
-  v = v.replace(/\s+/g," ").trim();
-
-  // 🔥 إصلاح أسماء المدن
-  v = v
-    .replace(/\btemp\b/ig,"Tempe")
-    .replace(/\btempe\b/ig,"Tempe")
-    .replace(/\bchandle\b/ig,"Chandler")
-    .replace(/\bchandler\b/ig,"Chandler")
-    .replace(/\bphoenixx\b/ig,"Phoenix");
-
-  const lower = v.toLowerCase();
-
-  // 🔥 لو مفيش AZ ضيفها
-  if(
-    !lower.includes(" az") &&
-    !lower.includes(", az") &&
-    !lower.includes(" arizona")
-  ){
-    v += ", Chandler, AZ 85225, USA";
-  }
-
-  return v;
-}
-
 async function calculateRouteMiles(points){
   await ensureGoogleLoaded();
 
   const cleanPoints = Array.isArray(points)
-    ? points.map(p => normalizeAZ(normalizeText(p))).filter(Boolean)
+    ? points.map(p => normalizeAZ(p)).filter(Boolean)
     : [];
 
   if(cleanPoints.length < 2){
@@ -238,14 +266,14 @@ async function calculateRouteMiles(points){
 
   const origin = cleanPoints[0];
   const destination = cleanPoints[cleanPoints.length - 1];
-  const middle = cleanPoints.slice(1, -1);
+  const middle = cleanPoints.slice(1,-1);
 
-  const waypoints = middle.map(address => ({
-    location: address,
+  const waypoints = middle.map(address=>({
+    location:address,
     stopover:true
   }));
 
-  return new Promise((resolve, reject)=>{
+  return new Promise((resolve,reject)=>{
     const service = new google.maps.DirectionsService();
 
     service.route(
@@ -259,7 +287,7 @@ async function calculateRouteMiles(points){
         unitSystem:google.maps.UnitSystem.IMPERIAL
       },
       function(response,status){
-        if(status !== "OK" || !response || !response.routes || !response.routes[0]){
+        if(status !== "OK" || !response?.routes?.[0]){
           reject(new Error("Google route failed: " + status));
           return;
         }
@@ -301,90 +329,55 @@ async function calculateRouteMiles(points){
 
 /* ================= PRICE ================= */
 
-// 🔵 INDIVIDUAL
 function calculateIndividualPrice(miles, status){
   const BASE = 20;
   const INCLUDED = 3;
   const PER_MILE = 2.5;
   const NO_SHOW = 15;
 
-  // 🚨 No Show
   if(status === "NoShow") return NO_SHOW;
 
   const totalMiles = Math.max(0, Number(miles) || 0);
   const extraMiles = Math.max(0, totalMiles - INCLUDED);
 
-  const total = BASE + (extraMiles * PER_MILE);
-
-  return Number(total.toFixed(2));
+  return Number((BASE + (extraMiles * PER_MILE)).toFixed(2));
 }
 
-
-// 🟢 SHARED (GROUP BASED)
 function calculateSharedPrice(group, miles){
-  const BASE = 15;        // لكل راكب
-  const INCLUDED = 3;     // لكل راكب (free miles)
+  const BASE = 15;
+  const INCLUDED = 3;
   const PER_MILE = 2;
   const STOP_FEE = 5;
   const NO_SHOW = 15;
 
   const passengers = getRealPassengersFromGroup(group);
-
-  // 🟢 ركاب فعليين
   const activePassengers = passengers.filter(p => p.status !== "NoShow");
-
-  // 🔴 نو شو
   const noShowPassengers = passengers.filter(p => p.status === "NoShow");
 
   const count = activePassengers.length;
 
-  // 🧠 لو كلهم No Show
   if(count === 0){
     return {
-      total: noShowPassengers.length * NO_SHOW,
-      pricePerPassenger: 0,
-      stopsCount: 0
+      total:noShowPassengers.length * NO_SHOW,
+      pricePerPassenger:0,
+      stopsCount:0
     };
   }
 
-  // 💰 base
   const baseTotal = count * BASE;
-
-  // 🛣️ free miles
   const freeMiles = count * INCLUDED;
-
-  // 📏 extra miles
   const totalMiles = Math.max(0, Number(miles) || 0);
   const extraMiles = Math.max(0, totalMiles - freeMiles);
   const milesCost = extraMiles * PER_MILE;
-
-  // 📍 stops
   const stopsCount = Math.max(0, count - 1);
   const stopsCost = stopsCount * STOP_FEE;
-
-  // 🚨 No Show (منفصل)
   const noShowCost = noShowPassengers.length * NO_SHOW;
-
-  // 🔥 المهم (بدون NoShow)
   const activeTotal = baseTotal + milesCost + stopsCost;
 
-  // 🧾 total النهائي
-  const total = Number((activeTotal + noShowCost).toFixed(2));
-
   return {
-    total,
-    pricePerPassenger: Number((activeTotal / count).toFixed(2)),
-    stopsCount,
-    breakdown:{
-      baseTotal,
-      freeMiles,
-      extraMiles,
-      milesCost,
-      stopsCost,
-      noShowCost,
-      activePassengers: count,
-      noShowPassengers: noShowPassengers.length
-    }
+    total:Number((activeTotal + noShowCost).toFixed(2)),
+    pricePerPassenger:Number((activeTotal / count).toFixed(2)),
+    stopsCount
   };
 }
 
@@ -418,8 +411,8 @@ function buildSharedRoutePoints(group){
 
   if(!list.length) return points;
 
-  const samePickup = sameValue(list, "pickup");
-  const sameDropoff = sameValue(list, "dropoff");
+  const samePickup = sameValue(list,"pickup");
+  const sameDropoff = sameValue(list,"dropoff");
 
   if(samePickup){
     points.push(list[0].pickup);
@@ -478,11 +471,11 @@ async function updateTrip(id,payload){
   });
 
   if(!res.ok){
-    const err = await res.json().catch(() => ({}));
+    const err = await res.json().catch(()=>({}));
     throw new Error(err.message || "Update failed");
   }
 
-  return await res.json().catch(() => null);
+  return await res.json().catch(()=>null);
 }
 
 async function deleteTrip(id){
@@ -492,7 +485,7 @@ async function deleteTrip(id){
   });
 
   if(!res.ok){
-    const err = await res.json().catch(() => ({}));
+    const err = await res.json().catch(()=>({}));
     throw new Error(err.message || "Delete failed");
   }
 }
@@ -542,12 +535,8 @@ function renderTabs(){
   tabs.className = "review-tabs";
 
   tabs.innerHTML = `
-    <button id="reviewIndividualTab" class="${activeTab === "INDIVIDUAL" ? "tab-active" : "tab-inactive"}" type="button">
-      Individual
-    </button>
-    <button id="reviewSharedTab" class="${activeTab === "SHARED" ? "tab-active" : "tab-inactive"}" type="button">
-      Shared
-    </button>
+    <button id="reviewIndividualTab" class="${activeTab === "INDIVIDUAL" ? "tab-active" : "tab-inactive"}" type="button">Individual</button>
+    <button id="reviewSharedTab" class="${activeTab === "SHARED" ? "tab-active" : "tab-inactive"}" type="button">Shared</button>
   `;
 
   container.appendChild(tabs);
@@ -565,7 +554,7 @@ function renderTabs(){
 
 /* ================= ROW COLOR ================= */
 
-function applyRowColor(tr, t){
+function applyRowColor(tr,t){
   const mins = minutesToTrip(t);
 
   if(t.status === "Cancelled"){
@@ -600,7 +589,6 @@ function applyRowColor(tr, t){
 /* ================= INDIVIDUAL RENDER ================= */
 
 function renderIndividualButtons(t, editing){
-
   const mins = minutesToTrip(t);
 
   if(editing){
@@ -645,26 +633,19 @@ function renderIndividualButtons(t, editing){
 }
 
 function renderIndividualTable(list){
-
   const groups = groupByDate(list);
-
-  const dates = Object.keys(groups)
-    .sort((a,b)=>new Date(b)-new Date(a));
+  const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
 
   dates.forEach(date=>{
-
     const title = document.createElement("div");
-
     title.className = "date-title";
     title.innerText = date;
-
     container.appendChild(title);
 
     const tableWrap = document.createElement("div");
     tableWrap.className = "table-wrap";
 
     const table = document.createElement("table");
-
     table.className = "review-table";
 
     table.innerHTML = `
@@ -689,174 +670,54 @@ function renderIndividualTable(list){
     `;
 
     groups[date].forEach((t,i)=>{
-
       const tr = document.createElement("tr");
-
       tr.dataset.id = t._id;
 
       const editing = t.__editing === true;
+      applyRowColor(tr,t);
 
-      applyRowColor(tr, t);
-
-      const stops = Array.isArray(t.stops)
-        ? t.stops
-        : [];
+      const stops = Array.isArray(t.stops) ? t.stops : [];
 
       tr.innerHTML = `
-
         <td>${i+1}</td>
-
-        <td>
-          ${escapeHtml(getTripNumber(t))}
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createEditInput(t.entryName || "", "entryName")
-              : escapeHtml(t.entryName || "")
-          }
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createEditInput(t.entryPhone || "", "entryPhone")
-              : escapeHtml(t.entryPhone || "")
-          }
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createEditInput(t.clientName || "", "clientName")
-              : `<div class="multi-line">${escapeHtml(t.clientName || "")}</div>`
-          }
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createEditInput(t.clientPhone || "", "clientPhone")
-              : `<div class="multi-line">${escapeHtml(t.clientPhone || "")}</div>`
-          }
-        </td>
-
-        <!-- PICKUP -->
-        <td>
-          ${
-            editing
-              ? createEditInput(t.pickup || "", "pickup")
-              : `<div class="multi-line">${escapeHtml(t.pickup || "")}</div>`
-          }
-        </td>
-
-        <!-- STOPS -->
-        <td>
-          ${
-            editing
-              ? stops.map((s,si)=>`
-                  <input
-                    class="edit-input"
-                    data-stop-index="${si}"
-                    value="${escapeHtml(s)}"
-                  >
-                `).join("")
-              : `
-                  <div class="multi-line">
-                    ${stops.length
-                      ? stops.map(s=>escapeHtml(s)).join("<br>")
-                      : "--"}
-                  </div>
-                `
-          }
-        </td>
-
-        <!-- DROPOFF -->
-        <td>
-          ${
-            editing
-              ? createEditInput(t.dropoff || "", "dropoff")
-              : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`
-          }
-        </td>
-
-        <!-- NOTES -->
-        <td>
-          ${
-            editing
-              ? createEditInput(t.notes || "", "notes")
-              : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`
-          }
-        </td>
-
-        <!-- DATE -->
-        <td>
-          ${
-            editing
-              ? createEditInput(t.tripDate || "", "tripDate", "date")
-              : escapeHtml(t.tripDate || "")
-          }
-        </td>
-
-        <!-- TIME -->
-        <td>
-          ${
-            editing
-              ? createEditInput(t.tripTime || "", "tripTime", "time")
-              : escapeHtml(t.tripTime || "")
-          }
-        </td>
-
-        <!-- STATUS -->
-        <td>
-          <strong>
-            ${escapeHtml(t.status || "Scheduled")}
-          </strong>
-        </td>
-
-        <!-- PRICE -->
-        <td>
-          $${formatMoney(t.priceAmount)}
-        </td>
-
-        <!-- MILES -->
-        <td>
-          ${
-            t.miles !== undefined &&
-            t.miles !== null &&
-            t.miles !== ""
-              ? Number(t.miles).toFixed(1) + " mi"
-              : "-- mi"
-          }
-        </td>
-
-        <!-- ACTIONS -->
-        <td>
-          ${renderIndividualButtons(t, editing)}
-        </td>
+        <td><span class="trip-number-badge">${escapeHtml(getTripNumber(t))}</span></td>
+        <td>${editing ? createEditInput(t.entryName || "", "entryName") : escapeHtml(t.entryName || "")}</td>
+        <td>${editing ? createEditInput(t.entryPhone || "", "entryPhone") : escapeHtml(t.entryPhone || "")}</td>
+        <td>${editing ? createEditInput(t.clientName || "", "clientName") : `<div class="multi-line">${escapeHtml(t.clientName || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.clientPhone || "", "clientPhone") : `<div class="multi-line">${escapeHtml(t.clientPhone || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.pickup || "", "pickup") : `<div class="multi-line">${escapeHtml(t.pickup || "")}</div>`}</td>
+        <td>${
+          editing
+            ? stops.map((s,si)=>`<input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">`).join("")
+            : `<div class="multi-line">${stops.length ? stops.map(s=>escapeHtml(s)).join("<br>") : "--"}</div>`
+        }</td>
+        <td>${editing ? createEditInput(t.dropoff || "", "dropoff") : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.notes || "", "notes") : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`}</td>
+        <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
+        <td>${editing ? createEditInput(t.tripTime || "", "tripTime") : escapeHtml(t.tripTime || "")}</td>
+        <td><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
+        <td><span class="price-badge">$${formatMoney(t.priceAmount)}</span></td>
+        <td><span class="miles-strong">${
+          t.miles !== undefined && t.miles !== null && t.miles !== ""
+            ? Number(t.miles).toFixed(1) + " mi"
+            : "-- mi"
+        }</span></td>
+        <td>${renderIndividualButtons(t, editing)}</td>
       `;
 
       table.appendChild(tr);
-
     });
 
     tableWrap.appendChild(table);
-
     container.appendChild(tableWrap);
-
   });
 
   if(!dates.length){
-
     const empty = document.createElement("div");
-
     empty.style.padding = "20px";
     empty.style.fontWeight = "700";
     empty.style.color = "#0f172a";
-
     empty.innerText = "No individual trips found.";
-
     container.appendChild(empty);
   }
 }
@@ -864,39 +725,20 @@ function renderIndividualTable(list){
 /* ================= SHARED RENDER ================= */
 
 function getGroupStatus(group){
-
-  if(group.every(t=>t.status === "Cancelled")){
-    return "Cancelled";
-  }
-
-  if(group.every(t=>t.status === "Confirmed")){
-    return "Confirmed";
-  }
-
-  if(group.some(t=>t.status === "Confirmed")){
-    return "Partially Confirmed";
-  }
-
+  if(group.every(t=>t.status === "Cancelled")) return "Cancelled";
+  if(group.every(t=>t.status === "Confirmed")) return "Confirmed";
+  if(group.some(t=>t.status === "Confirmed")) return "Partially Confirmed";
   return group[0]?.status || "Scheduled";
 }
 
 function getGroupPrice(group){
-
-  const firstWithPrice = group.find(
-    t => Number(t.priceAmount || 0) > 0
-  );
-
-  return firstWithPrice
-    ? Number(firstWithPrice.priceAmount || 0)
-    : 0;
+  const firstWithPrice = group.find(t=>Number(t.priceAmount || 0) > 0);
+  return firstWithPrice ? Number(firstWithPrice.priceAmount || 0) : 0;
 }
 
 function renderSharedButtons(group, editing){
-
   const first = group[0];
-
   const mins = minutesToTrip(first);
-
   const status = getGroupStatus(group);
 
   if(editing){
@@ -941,43 +783,29 @@ function renderSharedButtons(group, editing){
 }
 
 function renderSharedTable(groups){
-
   const dateGroups = {};
 
   groups.forEach(group=>{
-
     const first = group[0];
-
-    const d = first?.createdAt
-      ? new Date(first.createdAt)
-      : new Date();
-
+    const d = first?.createdAt ? new Date(first.createdAt) : new Date();
     const key = d.toLocaleDateString();
 
-    if(!dateGroups[key]){
-      dateGroups[key] = [];
-    }
-
+    if(!dateGroups[key]) dateGroups[key] = [];
     dateGroups[key].push(group);
   });
 
-  const dates = Object.keys(dateGroups)
-    .sort((a,b)=>new Date(b)-new Date(a));
+  const dates = Object.keys(dateGroups).sort((a,b)=>new Date(b)-new Date(a));
 
   dates.forEach(date=>{
-
     const title = document.createElement("div");
-
     title.className = "date-title";
     title.innerText = date;
-
     container.appendChild(title);
 
     const tableWrap = document.createElement("div");
     tableWrap.className = "table-wrap";
 
     const table = document.createElement("table");
-
     table.className = "review-table";
 
     table.innerHTML = `
@@ -1002,15 +830,11 @@ function renderSharedTable(groups){
     `;
 
     dateGroups[date].forEach((group,i)=>{
-
       const first = group[0];
-
       const tr = document.createElement("tr");
-
       tr.dataset.groupId = getSharedKey(first);
 
       const editing = first.__editing === true;
-
       applyRowColor(tr, first);
 
       const passengers = getRealPassengersFromGroup(group);
@@ -1021,56 +845,15 @@ function renderSharedTable(groups){
       let drops = "";
 
       if(editing){
-
-        clients = passengers.map((p,idx)=>
-          createSharedEditInput(
-            p.name || p.clientName || "",
-            first._id,
-            `passenger_${idx}_name`
-          )
-        ).join("\n");
-
-        phones = passengers.map((p,idx)=>
-          createSharedEditInput(
-            p.phone || p.clientPhone || "",
-            first._id,
-            `passenger_${idx}_phone`
-          )
-        ).join("\n");
-
-        pickups = passengers.map((p,idx)=>
-          createSharedEditInput(
-            p.pickup || "",
-            first._id,
-            `passenger_${idx}_pickup`
-          )
-        ).join("\n");
-
-        drops = passengers.map((p,idx)=>
-          createSharedEditInput(
-            p.dropoff || "",
-            first._id,
-            `passenger_${idx}_dropoff`
-          )
-        ).join("\n");
-
+        clients = passengers.map((p,idx)=>createSharedEditInput(p.name || p.clientName || "", first._id, `passenger_${idx}_name`)).join("\n");
+        phones  = passengers.map((p,idx)=>createSharedEditInput(p.phone || p.clientPhone || "", first._id, `passenger_${idx}_phone`)).join("\n");
+        pickups = passengers.map((p,idx)=>createSharedEditInput(p.pickup || "", first._id, `passenger_${idx}_pickup`)).join("\n");
+        drops   = passengers.map((p,idx)=>createSharedEditInput(p.dropoff || "", first._id, `passenger_${idx}_dropoff`)).join("\n");
       }else{
-
-        clients = passengers
-          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`)
-          .join("\n");
-
-        phones = passengers
-          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`)
-          .join("\n");
-
-        pickups = passengers
-          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.pickup || "")}`)
-          .join("\n");
-
-        drops = passengers
-          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.dropoff || "")}`)
-          .join("\n");
+        clients = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`).join("\n");
+        phones  = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`).join("\n");
+        pickups = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.pickup || "")}`).join("\n");
+        drops   = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.dropoff || "")}`).join("\n");
       }
 
       const notes = editing
@@ -1080,118 +863,46 @@ function renderSharedTable(groups){
       const stopsCount = Math.max(0, passengers.length - 1);
 
       tr.innerHTML = `
-
         <td>${i+1}</td>
-
-        <td>
-          ${escapeHtml(getTripNumber(first))}
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createSharedEditInput(first.entryName || "", first._id, "entryName")
-              : escapeHtml(first.entryName || "")
-          }
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone")
-              : escapeHtml(first.entryPhone || "")
-          }
-        </td>
-
-        <td>
-          <div class="multi-line">${clients}</div>
-        </td>
-
-        <td>
-          <div class="multi-line">${phones}</div>
-        </td>
-
-        <td>
-          <div class="multi-line">${pickups}</div>
-        </td>
-
-        <td>
-          <strong>${stopsCount}</strong>
-        </td>
-
-        <td>
-          <div class="multi-line">${drops}</div>
-        </td>
-
-        <td>
-          ${notes}
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date")
-              : escapeHtml(first.tripDate || "")
-          }
-        </td>
-
-        <td>
-          ${
-            editing
-              ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time")
-              : escapeHtml(first.tripTime || "")
-          }
-        </td>
-
-        <td>
-          <strong>
-            ${escapeHtml(getGroupStatus(group))}
-          </strong>
-        </td>
-
-        <td>
-          $${formatMoney(getGroupPrice(group))}
-        </td>
-
-        <td>
-          ${
-            first.miles !== undefined &&
-            first.miles !== null &&
-            first.miles !== ""
-              ? Number(first.miles).toFixed(1) + " mi"
-              : "-- mi"
-          }
-        </td>
-
-        <td>
-          ${renderSharedButtons(group, editing)}
-        </td>
+        <td><span class="trip-number-badge">${escapeHtml(getTripNumber(first))}</span></td>
+        <td>${editing ? createSharedEditInput(first.entryName || "", first._id, "entryName") : escapeHtml(first.entryName || "")}</td>
+        <td>${editing ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone") : escapeHtml(first.entryPhone || "")}</td>
+        <td><div class="multi-line">${clients}</div></td>
+        <td><div class="multi-line">${phones}</div></td>
+        <td><div class="multi-line">${pickups}</div></td>
+        <td><strong>${stopsCount}</strong></td>
+        <td><div class="multi-line">${drops}</div></td>
+        <td>${notes}</td>
+        <td>${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
+        <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime") : escapeHtml(first.tripTime || "")}</td>
+        <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
+        <td><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
+        <td><span class="miles-strong">${
+          first.miles !== undefined && first.miles !== null && first.miles !== ""
+            ? Number(first.miles).toFixed(1) + " mi"
+            : "-- mi"
+        }</span></td>
+        <td>${renderSharedButtons(group, editing)}</td>
       `;
 
       table.appendChild(tr);
-
     });
 
     tableWrap.appendChild(table);
-
     container.appendChild(tableWrap);
-
   });
 
   if(!dates.length){
-
     const empty = document.createElement("div");
-
     empty.style.padding = "20px";
     empty.style.fontWeight = "700";
     empty.style.color = "#0f172a";
-
     empty.innerText = "No shared trips found.";
-
     container.appendChild(empty);
   }
+}
 
-}/* ================= MAIN RENDER ================= */
+/* ================= MAIN RENDER ================= */
 
 function render(){
   container.innerHTML = "";
@@ -1207,7 +918,6 @@ function render(){
 /* ================= ACTIONS ================= */
 
 container.addEventListener("click", async e=>{
-
   const btn = e.target.closest("button");
   if(!btn) return;
 
@@ -1221,12 +931,6 @@ container.addEventListener("click", async e=>{
       const trip = trips.find(t=>t._id === id);
       if(!trip) return;
 
-      const mins = minutesToTrip(trip);
-      if(mins !== null && mins <= 120 && mins > 0){
-        const ok = confirm("WARNING: Trip is within 120 minutes. Continue editing?");
-        if(!ok) return;
-      }
-
       trip.__editing = true;
       render();
       return;
@@ -1235,14 +939,8 @@ container.addEventListener("click", async e=>{
     if(action === "edit-shared"){
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
       if(!group) return;
-
-      const mins = minutesToTrip(group[0]);
-      if(mins !== null && mins <= 120 && mins > 0){
-        const ok = confirm("WARNING: Shared trip is within 120 minutes. Continue editing?");
-        if(!ok) return;
-      }
 
       group.forEach(t=>{
         const real = trips.find(x=>x._id === t._id);
@@ -1253,40 +951,37 @@ container.addEventListener("click", async e=>{
       return;
     }
 
-    if(action === "remove-passenger"){
+    if(action === "cancel-edit"){
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
+    if(action === "delete"){
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
+      if(!id) return;
+
+      const ok = confirm("Delete this trip?");
+      if(!ok) return;
+
+      await deleteTrip(id);
+      trips = await fetchTrips();
+      render();
+      return;
+    }
+
+    if(action === "delete-shared"){
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
       if(!group) return;
 
-      const first = group[0];
-      const passengers = getRealPassengersFromGroup(group).map(p=>({ ...p }));
+      const ok = confirm("Delete this shared trip?");
+      if(!ok) return;
 
-      if(passengers.length <= 2){
-        alert("Shared trip must have at least 2 passengers.");
-        return;
-      }
-
-      const index = Number(btn.dataset.index);
-      passengers.splice(index, 1);
-
-      first.passengers = passengers;
-      first.totalPassengers = passengers.length;
-      first.pickup = passengers[0]?.pickup || "";
-      first.dropoff = passengers[passengers.length - 1]?.dropoff || "";
-      first.status = "Scheduled";
-      first.priceAmount = 0;
-      first.pricePerPassenger = 0;
-      first.isShared = true;
-      first.tripType = "SHARED";
-
-      await updateTrip(first._id, first);
-
+      await deleteTrip(group[0]._id);
       trips = await fetchTrips();
-
-      const updated = trips.find(t=>t._id === first._id);
-      if(updated) updated.__editing = true;
-
       render();
       return;
     }
@@ -1294,77 +989,34 @@ container.addEventListener("click", async e=>{
     if(action === "save-individual"){
       const tr = btn.closest("tr");
       const id = tr.dataset.id;
-      const trip = trips.find(t=>t._id === id);
-      if(!trip) return;
+      const original = trips.find(t=>t._id === id);
+      if(!original) return;
 
-      const inputs = tr.querySelectorAll(".edit-input");
+      const payload = {};
+      const stops = Array.isArray(original.stops) ? [...original.stops] : [];
 
-      inputs.forEach(input=>{
+      tr.querySelectorAll(".edit-input").forEach(input=>{
         const field = input.dataset.field;
         const stopIndex = input.dataset.stopIndex;
 
         if(stopIndex !== undefined){
-          if(!Array.isArray(trip.stops)) trip.stops = [];
-          trip.stops[Number(stopIndex)] = normalizeAZ(input.value.trim());
+          stops[Number(stopIndex)] = normalizeAZ(input.value.trim());
           return;
         }
 
-if(field === "pickup" || field === "dropoff"){
-
-  const value = normalizeAZ(input.value);
-
-  trip[field] = value;
-
-}else{
-
-  trip[field] = input.value;
-}
-
+        if(field === "pickup" || field === "dropoff"){
+          payload[field] = normalizeAZ(input.value);
+        }else{
+          payload[field] = input.value;
+        }
       });
 
-trip.miles = 0;
-trip.distanceMeters = 0;
-trip.durationSeconds = 0;
-trip.estimatedMinutes = 0;
+      payload.stops = stops;
+      payload.status = "Scheduled";
+      payload.priceAmount = 0;
+      payload.miles = 0;
 
-trip.googleRoute = {};
-trip.routePoints = [];
-
-trip.priceAmount = 0;
-
-trip.status = "Scheduled";
-
-      const newTrip = new Date(normalizeText(trip.tripDate) + "T" + normalizeText(trip.tripTime) + ":00");
-      const now = getAZNow();
-
-      if(isNaN(newTrip.getTime())){
-        alert("Invalid date/time");
-        return;
-      }
-
-      if(newTrip <= now){
-        alert("Cannot set trip in the past ❌");
-        return;
-      }
-
-      const mins = (newTrip - now) / 60000;
-      if(mins <= 120){
-        const ok = confirm("WARNING: Trip is within 120 minutes. Continue saving?");
-        if(!ok) return;
-      }
-
-      trip.status = "Scheduled";
-      trip.priceAmount = 0;
-      trip.__editing = false;
-delete trip.googleRoute;
-delete trip.routePoints;
-delete trip.distanceMeters;
-delete trip.durationSeconds;
-delete trip.estimatedMinutes;
-      console.log("SAVING:", trip);
-alert("SAVE CLICKED");
-
-await updateTrip(id, trip);
+      await updateTrip(id, payload);
 
       trips = await fetchTrips();
       render();
@@ -1374,19 +1026,17 @@ await updateTrip(id, trip);
     if(action === "save-shared"){
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
       if(!group) return;
 
       const first = group[0];
-      const updateObj = { ...first };
-      const passengers = getRealPassengersFromGroup(group).map(p=>({ ...p }));
+      const passengers = getRealPassengersFromGroup(group).map(p=>({...p}));
+      const payload = {};
 
-      const inputs = tr.querySelectorAll(".edit-input");
-
-      inputs.forEach(input=>{
+      tr.querySelectorAll(".edit-input").forEach(input=>{
         const field = input.dataset.field;
 
-        if(field.startsWith("passenger_")){
+        if(field && field.startsWith("passenger_")){
           const parts = field.split("_");
           const index = Number(parts[1]);
           const key = parts[2];
@@ -1404,52 +1054,35 @@ await updateTrip(id, trip);
           }
 
           if(key === "pickup"){
-            passengers[index].pickup = input.value;
+            passengers[index].pickup = normalizeAZ(input.value);
           }
 
           if(key === "dropoff"){
-            passengers[index].dropoff = input.value;
+            passengers[index].dropoff = normalizeAZ(input.value);
           }
 
           return;
         }
 
-        updateObj[field] = input.value;
+        if(field === "tripDate" || field === "tripTime" || field === "entryName" || field === "entryPhone" || field === "notes"){
+          payload[field] = input.value;
+        }
       });
 
-      const newTrip = new Date(normalizeText(updateObj.tripDate) + "T" + normalizeText(updateObj.tripTime) + ":00");
-      const now = getAZNow();
+      payload.passengers = passengers;
+      payload.totalPassengers = passengers.length;
+      payload.pickup = passengers[0]?.pickup || "";
+      payload.dropoff = passengers[passengers.length - 1]?.dropoff || "";
+      payload.clientName = "Shared Trip";
+      payload.clientPhone = passengers[0]?.phone || passengers[0]?.clientPhone || "";
+      payload.status = "Scheduled";
+      payload.priceAmount = 0;
+      payload.pricePerPassenger = 0;
+      payload.miles = 0;
+      payload.isShared = true;
+      payload.tripType = "SHARED";
 
-      if(isNaN(newTrip.getTime())){
-        alert("Invalid date/time");
-        return;
-      }
-
-      if(newTrip <= now){
-        alert("Cannot set trip in the past ❌");
-        return;
-      }
-
-      const mins = (newTrip - now) / 60000;
-      if(mins <= 120){
-        const ok = confirm("WARNING: Shared trip is within 120 minutes. Continue saving?");
-        if(!ok) return;
-      }
-
-      updateObj.passengers = passengers;
-      updateObj.totalPassengers = passengers.length;
-      updateObj.pickup = passengers[0]?.pickup || "";
-      updateObj.dropoff = passengers[passengers.length - 1]?.dropoff || "";
-      updateObj.clientName = "Shared Trip";
-      updateObj.clientPhone = passengers[0]?.phone || passengers[0]?.clientPhone || "";
-      updateObj.status = "Scheduled";
-      updateObj.priceAmount = 0;
-      updateObj.pricePerPassenger = 0;
-      updateObj.isShared = true;
-      updateObj.tripType = "SHARED";
-      updateObj.__editing = false;
-
-      await updateTrip(first._id, updateObj);
+      await updateTrip(first._id, payload);
 
       trips = await fetchTrips();
       render();
@@ -1469,22 +1102,21 @@ await updateTrip(id, trip);
       const routeData = await calculateRouteMiles(routePoints);
 
       if(!routeData.miles || routeData.miles <= 0){
-        alert("Route calculation failed ❌");
-        trips = await fetchTrips();
-        render();
-        return;
+        throw new Error("Invalid route data");
       }
 
-      trip.priceAmount = calculateIndividualPrice(routeData.miles, trip.status);
-      trip.miles = routeData.miles;
-      trip.distanceMeters = routeData.distanceMeters;
-      trip.durationSeconds = routeData.durationSeconds;
-      trip.estimatedMinutes = routeData.estimatedMinutes;
-      trip.googleRoute = routeData.googleRoute;
-      trip.routePoints = routePoints;
-      trip.status = "Confirmed";
+      const payload = {
+        priceAmount:calculateIndividualPrice(routeData.miles, trip.status),
+        miles:routeData.miles,
+        distanceMeters:routeData.distanceMeters,
+        durationSeconds:routeData.durationSeconds,
+        estimatedMinutes:routeData.estimatedMinutes,
+        googleRoute:routeData.googleRoute,
+        routePoints:routePoints,
+        status:"Confirmed"
+      };
 
-      await updateTrip(id, trip);
+      await updateTrip(id, payload);
 
       trips = await fetchTrips();
       render();
@@ -1494,7 +1126,7 @@ await updateTrip(id, trip);
     if(action === "confirm-shared"){
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
       if(!group) return;
 
       const first = group[0];
@@ -1506,108 +1138,76 @@ await updateTrip(id, trip);
       const routeData = await calculateRouteMiles(routePoints);
 
       if(!routeData.miles || routeData.miles <= 0){
-        alert("Route calculation failed ❌");
-        trips = await fetchTrips();
-        render();
-        return;
+        throw new Error("Invalid route data");
       }
 
       const sharedPrice = calculateSharedPrice(group, routeData.miles);
 
-      const updateObj = {
-        ...first,
-        priceAmount: sharedPrice.total,
-        pricePerPassenger: sharedPrice.pricePerPassenger,
-        sharedStopsCount: sharedPrice.stopsCount,
-        miles: routeData.miles,
-        distanceMeters: routeData.distanceMeters,
-        durationSeconds: routeData.durationSeconds,
-        estimatedMinutes: routeData.estimatedMinutes,
-        googleRoute: routeData.googleRoute,
-        routePoints: routePoints,
-        optimizedRoute: routeData.googleRoute,
-        status: "Confirmed",
-        isShared: true,
-        tripType: "SHARED"
+      const payload = {
+        priceAmount:sharedPrice.total,
+        pricePerPassenger:sharedPrice.pricePerPassenger,
+        sharedStopsCount:sharedPrice.stopsCount,
+        miles:routeData.miles,
+        distanceMeters:routeData.distanceMeters,
+        durationSeconds:routeData.durationSeconds,
+        estimatedMinutes:routeData.estimatedMinutes,
+        googleRoute:routeData.googleRoute,
+        routePoints:routePoints,
+        optimizedRoute:routeData.googleRoute,
+        status:"Confirmed",
+        isShared:true,
+        tripType:"SHARED"
       };
 
-      await updateTrip(first._id, updateObj);
+      await updateTrip(first._id, payload);
 
       trips = await fetchTrips();
       render();
       return;
     }
 
-if(action === "cancel"){
+    if(action === "cancel"){
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
+      const trip = trips.find(t=>t._id === id);
+      if(!trip) return;
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
-  const trip = trips.find(t=>t._id === id);
-  if(!trip) return;
+      const mins = minutesToTrip(trip);
+      let finalPrice = 0;
 
-  const mins = minutesToTrip(trip);
+      if(mins !== null && mins > 0 && mins <= 120){
+        finalPrice = 15;
+      }
 
-  let finalPrice = 0;
+      await updateTrip(id,{
+        status:"Cancelled",
+        priceAmount:finalPrice
+      });
 
-  // 🔥 لو داخل 120 دقيقة
-  if(mins !== null && mins > 0 && mins <= 120){
-    finalPrice = 15;
-  }
+      trips = await fetchTrips();
+      render();
+      return;
+    }
 
-  await updateTrip(id,{
-    ...trip,
-    status:"Cancelled",
-    priceAmount: finalPrice
-  });
-
-  trips = await fetchTrips();
-  render();
-}
-
-  if(action === "cancel-shared"){
-
-  const tr = btn.closest("tr");
-  const groupId = tr.dataset.groupId;
-  const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
-  if(!group) return;
-
-  const first = group[0];
-
-  const mins = minutesToTrip(first);
-
-  let finalPrice = 0;
-
-  if(mins !== null && mins > 0 && mins <= 120){
-    finalPrice = 15;
-  }
-
-  await updateTrip(first._id,{
-    ...first,
-    status:"Cancelled",
-    priceAmount: finalPrice
-  });
-
-  trips = await fetchTrips();
-  render();
-}
-
-    if(action === "delete-shared"){
+    if(action === "cancel-shared"){
       const tr = btn.closest("tr");
       const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
       if(!group) return;
 
-      const ok = confirm("Delete this shared trip?");
-      if(!ok) return;
+      const first = group[0];
+      const mins = minutesToTrip(first);
+      let finalPrice = 0;
 
-      await deleteTrip(group[0]._id);
+      if(mins !== null && mins > 0 && mins <= 120){
+        finalPrice = 15;
+      }
 
-      trips = await fetchTrips();
-      render();
-      return;
-    }
+      await updateTrip(first._id,{
+        status:"Cancelled",
+        priceAmount:finalPrice
+      });
 
-    if(action === "cancel-edit"){
       trips = await fetchTrips();
       render();
       return;
@@ -1619,7 +1219,6 @@ if(action === "cancel"){
     trips = await fetchTrips();
     render();
   }
-
 });
 
 /* ================= INIT ================= */
