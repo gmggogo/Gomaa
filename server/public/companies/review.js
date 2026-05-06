@@ -965,7 +965,7 @@ if(updatedTrip){
 
 render();
 return;
-
+}
    if(action === "edit-shared"){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
@@ -1021,7 +1021,7 @@ if(refreshedGroup){
 
 render();
 return;  
-
+}
   if(action === "cancel-edit"){
       trips = await fetchTrips();
       render();
