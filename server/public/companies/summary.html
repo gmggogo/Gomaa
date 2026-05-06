@@ -94,7 +94,7 @@ body{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
   gap:10px;
-  margin-bottom:16px;
+  margin-bottom:18px;
 }
 
 .stat-card{
@@ -117,51 +117,77 @@ body{
 
 /* DAY */
 .day-title{
-  margin:18px 0 8px;
-  font-size:13px;
+  margin:20px 0 8px;
+  font-size:14px;
   font-weight:800;
   color:#1c2440;
+}
+
+/* TRIP BOX */
+.trip-box{
+  background:#fff;
+  border-radius:14px;
+  overflow:hidden;
+  margin-bottom:18px;
+  border:1px solid #dbe4f0;
+  box-shadow:0 3px 12px rgba(0,0,0,.08);
+}
+
+/* HEADER */
+.trip-header{
+  background:#1c2440;
+  color:#fff;
+  padding:10px 14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.trip-left{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.trip-item{
+  font-size:11px;
+  font-weight:800;
 }
 
 /* TABLE */
 .table-wrap{
   overflow-x:auto;
-  background:#fff;
-  border-radius:14px;
-  box-shadow:0 4px 14px rgba(0,0,0,.08);
-  margin-bottom:18px;
 }
 
 .summary-table{
   width:100%;
   border-collapse:collapse;
-  min-width:2100px;
+  min-width:1500px;
 }
 
 .summary-table th{
-  background:#1c2440;
-  color:#fff;
+  background:#f3f4f6;
+  color:#111827;
   padding:8px 5px;
   font-size:9px;
   text-align:left;
   white-space:nowrap;
-  position:sticky;
-  top:0;
+  border-bottom:1px solid #e5e7eb;
 }
 
 .summary-table td{
-  padding:6px 5px;
+  padding:7px 5px;
   font-size:9px;
-  border-bottom:1px solid #e5e7eb;
+  border-bottom:1px solid #edf1f7;
   vertical-align:top;
   line-height:1.4;
   font-weight:600;
 }
 
-.stack{
-  display:flex;
-  flex-direction:column;
-  gap:3px;
+.summary-table tr:last-child td{
+  border-bottom:none;
 }
 
 /* STATUS */
@@ -189,6 +215,7 @@ body{
   color:#854d0e;
 }
 
+/* TOTAL */
 .total{
   font-size:11px;
   font-weight:900;
