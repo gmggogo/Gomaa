@@ -1607,7 +1607,12 @@ app.get("/api/trips/summary", async (req, res) => {
 const filter = {};
 
 if (company) {
-  filter.company = company;
+
+  filter.company = {
+    $regex: "^" + company.trim() + "$",
+    $options: "i"
+  };
+
 }
 
 const trips = await Trip.find(filter)
