@@ -1602,9 +1602,17 @@ app.get("/api/trips/company/:company", async (req, res) => {
 app.get("/api/trips/summary", async (req, res) => {
   try {
 
-    const trips = await Trip.find({})
-      .sort({ tripDate: -1, tripTime: -1 })
-      .lean();
+    const company = normalizeText(req.query.company || "");
+
+const filter = {};
+
+if (company) {
+  filter.company = company;
+}
+
+const trips = await Trip.find(filter)
+  .sort({ tripDate: -1, tripTime: -1 })
+  .lean();
 
     const result = [];
 
