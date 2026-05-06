@@ -507,19 +507,64 @@ function groupByDate(list){
 }
 
 function getIndividualTrips(){
-  return trips.filter(t => !isSharedTrip(t));
+
+  return trips.filter(t => {
+
+    if(isSharedTrip(t)) return false;
+
+    const status = String(t.status || "").toLowerCase();
+
+    return ![
+      "completed",
+      "noshow",
+      "cancelled"
+    ].includes(status);
+
+  });
+
 }
 
 function getSharedGroups(){
   const map = {};
 
-  trips.filter(t => isSharedTrip(t)).forEach(t=>{
-    const key = getSharedKey(t);
+trips.filter(t => {
+
+  if(!isSharedTrip(t)) return false;
+
+  const status = String(t.status || "").toLowerCase();
+
+  return ![
+    "completed",
+    "noshow",
+    "cancelled"
+  ].includes(status);
+
+}).forEach(t=>{    const key = getSharedKey(t);
     if(!map[key]) map[key] = [];
     map[key].push(t);
   });
 
-  return Object.values(map).map(group=>{
+  return Object.values(map)
+
+.filter(group=>{
+
+  const hasActive = group.some(t=>{
+
+    const status = String(t.status || "").toLowerCase();
+
+    return ![
+      "completed",
+      "noshow",
+      "cancelled"
+    ].includes(status);
+
+  });
+
+  return hasActive;
+
+})
+
+.map(group=>{
     return group.sort((a,b)=>{
       const ai = Number(a.passengerIndex || 0);
       const bi = Number(b.passengerIndex || 0);
