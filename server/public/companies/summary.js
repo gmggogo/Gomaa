@@ -8,13 +8,14 @@ async function load(){
 
   try{
 
- const company =
-localStorage.getItem("company") || "";
+    const company =
+      localStorage.getItem("name") || "";
 
-const res =
-await fetch(
-`/api/trips/summary?company=${encodeURIComponent(company)}`
-);
+    const res =
+      await fetch(
+        `/api/trips/summary?company=${encodeURIComponent(company)}`
+      );
+
     allTrips = await res.json();
 
     buildFilters();
