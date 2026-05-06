@@ -1,5 +1,4 @@
 let allTrips = [];
-let mode = "individual";
 
 /* LOAD */
 async function load(){
@@ -18,20 +17,6 @@ async function load(){
 
   }
 
-}
-
-/* TAB */
-function switchTab(m,btn){
-
-  mode = m;
-
-  document
-    .querySelectorAll(".summary-tab")
-    .forEach(t=>t.classList.remove("active"));
-
-  btn.classList.add("active");
-
-  render();
 }
 
 /* STATUS */
@@ -63,18 +48,27 @@ function getPrice(status){
   return 0;
 }
 
-/* FILTER */
+/* SEARCH */
 function getFilteredTrips(){
+
+  const q = document
+    .getElementById("searchInput")
+    .value
+    .toLowerCase()
+    .trim();
 
   return allTrips.filter(t=>{
 
-    const s = normalizeStatus(t.status);
+    const txt = `
+      ${t.tripNumber || ""}
+      ${t.companyName || ""}
+      ${t.entryName || ""}
+      ${t.entryPhone || ""}
+      ${t.clientName || ""}
+      ${t.clientPhone || ""}
+    `.toLowerCase();
 
-    return (
-      s === "Completed" ||
-      s === "Cancelled" ||
-      s === "NoShow"
-    );
+    return txt.includes(q);
 
   });
 
@@ -118,6 +112,26 @@ function updateStats(data){
     `$${revenue}`;
 }
 
+/* GROUP BY DAY */
+function groupByDay(data){
+
+  const groups = {};
+
+  data.forEach(t=>{
+
+    const day = t.tripDate || "Unknown";
+
+    if(!groups[day]){
+      groups[day] = [];
+    }
+
+    groups[day].push(t);
+
+  });
+
+  return groups;
+}
+
 /* RENDER */
 function render(){
 
@@ -130,323 +144,251 @@ function render(){
 
   updateStats(data);
 
-  if(mode === "individual"){
-    renderIndividual(data,wrap);
-  }else{
-    renderShared(data,wrap);
-  }
+  const groups = groupByDay(data);
+
+  Object.keys(groups).forEach(day=>{
+
+    wrap.innerHTML += `
+      <div class="day-title">
+        ${day}
+      </div>
+
+      <div class="table-wrap">
+
+      <table class="summary-table">
+
+        <thead>
+          <tr>
+
+            <th>#</th>
+            <th>Trip#</th>
+            <th>Company</th>
+            <th>Entry</th>
+            <th>Entry Phone</th>
+            <th>Passengers</th>
+            <th>Phones</th>
+            <th>Pickup</th>
+            <th>Dropoff</th>
+            <th>Trip Date</th>
+            <th>Trip Time</th>
+            <th>Book Date</th>
+            <th>Book Time</th>
+            <th>Miles</th>
+            <th>Status</th>
+            <th>Price</th>
+            <th>Total</th>
+
+          </tr>
+        </thead>
+
+        <tbody id="body-${day.replaceAll('/','')}"></tbody>
+
+      </table>
+
+      </div>
+    `;
+
+    renderRows(
+      groups[day],
+      document.getElementById(
+        `body-${day.replaceAll('/','')}`
+      )
+    );
+
+  });
 
 }
 
-/* INDIVIDUAL */
-function renderIndividual(data,wrap){
+/* ROWS */
+function renderRows(data,tbody){
 
-  const trips = data.filter(t=>{
+  const sharedMap = {};
 
-    const n =
-      (t.tripNumber || "").toUpperCase();
+  data.forEach(t=>{
 
-    return !n.endsWith("-SH");
+    const tripNum = t.tripNumber || "";
+
+    if(tripNum.toUpperCase().endsWith("-SH")){
+
+      if(!sharedMap[tripNum]){
+        sharedMap[tripNum] = [];
+      }
+
+      sharedMap[tripNum].push(t);
+
+    }else{
+
+      renderSingle(tbody,t);
+
+    }
 
   });
 
-  if(!trips.length){
+  Object.keys(sharedMap)
+    .forEach(key=>{
 
-    wrap.innerHTML = `
-    <div class="empty-box">
-      No Individual Trips
-    </div>
-    `;
+      renderShared(
+        tbody,
+        sharedMap[key]
+      );
 
-    return;
-  }
+    });
 
-  trips.forEach(t=>{
+}
 
-    const status =
-      normalizeStatus(t.status);
+/* SINGLE */
+function renderSingle(tbody,t){
 
-    const price =
-      getPrice(status);
+  const s = normalizeStatus(t.status);
 
-    const cardClass =
-      status.toLowerCase() + "-card";
+  const p = getPrice(s);
 
-    const badgeClass =
-      status.toLowerCase();
+  tbody.innerHTML += `
+  <tr>
 
-    wrap.innerHTML += `
+    <td>1</td>
 
-    <div class="trip-box">
+    <td>${t.tripNumber || "-"}</td>
 
-      <div class="trip-header">
+    <td>${t.companyName || "-"}</td>
 
-        <div class="trip-number">
-          ${t.tripNumber || "-"}
-        </div>
+    <td>${t.entryName || "-"}</td>
 
-        <div class="trip-date">
-          ${t.tripDate || ""}
-          |
-          ${t.tripTime || ""}
-          |
-          ${Math.round(t.miles || 0)} mi
-        </div>
+    <td>${t.entryPhone || "-"}</td>
 
-      </div>
+    <td>${t.clientName || "-"}</td>
 
-      <div class="passengers">
+    <td>${t.clientPhone || "-"}</td>
 
-        <div class="passenger-card ${cardClass}">
+    <td>${t.pickupAddress || "-"}</td>
 
-          <div class="passenger-top">
+    <td>${t.dropoffAddress || "-"}</td>
 
-            <div class="passenger-name">
-              ${t.clientName || "-"}
-            </div>
+    <td>${t.tripDate || "-"}</td>
 
-            <div class="status-badge ${badgeClass}">
-              ${status}
-            </div>
+    <td>${t.tripTime || "-"}</td>
 
-          </div>
+    <td>${t.createdDate || "-"}</td>
 
-          <div class="passenger-grid">
+    <td>${t.createdTime || "-"}</td>
 
-            <div class="info-box">
-              <div class="info-label">
-                Phone
-              </div>
+    <td>${Math.round(t.miles || 0)}</td>
 
-              <div class="info-value">
-                ${t.clientPhone || "-"}
-              </div>
-            </div>
+    <td>
+      <span class="status ${s.toLowerCase()}">
+        ${s}
+      </span>
+    </td>
 
-            <div class="info-box">
-              <div class="info-label">
-                Pickup
-              </div>
+    <td>$${p}</td>
 
-              <div class="info-value">
-                ${t.pickupAddress || "-"}
-              </div>
-            </div>
+    <td class="total-cell">$${p}</td>
 
-            <div class="info-box">
-              <div class="info-label">
-                Dropoff
-              </div>
-
-              <div class="info-value">
-                ${t.dropoffAddress || "-"}
-              </div>
-            </div>
-
-            <div class="info-box">
-              <div class="info-label">
-                Price
-              </div>
-
-              <div class="info-value">
-                $${price}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="trip-total">
-
-        <div>TOTAL</div>
-
-        <div>$${price}</div>
-
-      </div>
-
-    </div>
-
-    `;
-  });
-
+  </tr>
+  `;
 }
 
 /* SHARED */
-function renderShared(data,wrap){
+function renderShared(tbody,list){
 
-  const trips = data.filter(t=>{
+  const first = list[0];
 
-    const n =
-      (t.tripNumber || "").toUpperCase();
+  let passengers = "";
+  let phones = "";
+  let pickups = "";
+  let dropoffs = "";
+  let statuses = "";
+  let prices = "";
 
-    return n.endsWith("-SH");
+  let total = 0;
 
-  });
+  list.forEach(p=>{
 
-  if(!trips.length){
+    const s = normalizeStatus(p.status);
 
-    wrap.innerHTML = `
-    <div class="empty-box">
-      No Shared Trips
-    </div>
+    const pr = getPrice(s);
+
+    total += pr;
+
+    passengers += `
+      <div>${p.clientName || "-"}</div>
     `;
 
-    return;
-  }
-
-  const groups = {};
-
-  trips.forEach(t=>{
-
-    if(!groups[t.tripNumber]){
-      groups[t.tripNumber] = [];
-    }
-
-    groups[t.tripNumber].push(t);
-
-  });
-
-  Object.keys(groups).forEach(key=>{
-
-    const list = groups[key];
-
-    let total = 0;
-
-    let html = "";
-
-    list.forEach(p=>{
-
-      const status =
-        normalizeStatus(p.status);
-
-      const price =
-        getPrice(status);
-
-      total += price;
-
-      const cardClass =
-        status.toLowerCase() + "-card";
-
-      const badgeClass =
-        status.toLowerCase();
-
-      html += `
-
-      <div class="passenger-card ${cardClass}">
-
-        <div class="passenger-top">
-
-          <div class="passenger-name">
-            ${p.clientName || "-"}
-
-          </div>
-
-          <div class="status-badge ${badgeClass}">
-            ${status}
-          </div>
-
-        </div>
-
-        <div class="passenger-grid">
-
-          <div class="info-box">
-            <div class="info-label">
-              Phone
-            </div>
-
-            <div class="info-value">
-              ${p.clientPhone || "-"}
-            </div>
-          </div>
-
-          <div class="info-box">
-            <div class="info-label">
-              Pickup
-            </div>
-
-            <div class="info-value">
-              ${p.pickupAddress || "-"}
-            </div>
-          </div>
-
-          <div class="info-box">
-            <div class="info-label">
-              Dropoff
-            </div>
-
-            <div class="info-value">
-              ${p.dropoffAddress || "-"}
-            </div>
-          </div>
-
-          <div class="info-box">
-            <div class="info-label">
-              Price
-            </div>
-
-            <div class="info-value">
-              $${price}
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      `;
-    });
-
-    const first = list[0];
-
-    wrap.innerHTML += `
-
-    <div class="trip-box">
-
-      <div class="trip-header">
-
-        <div class="trip-number">
-          ${key}
-        </div>
-
-        <div class="trip-date">
-
-          ${first.tripDate || ""}
-          |
-          ${first.tripTime || ""}
-          |
-          ${Math.round(first.miles || 0)} mi
-          |
-          ${list.length} Passengers
-
-        </div>
-
-      </div>
-
-      <div class="passengers">
-
-        ${html}
-
-      </div>
-
-      <div class="trip-total">
-
-        <div>TOTAL TRIP</div>
-
-        <div>$${total}</div>
-
-      </div>
-
-    </div>
-
+    phones += `
+      <div>${p.clientPhone || "-"}</div>
     `;
+
+    pickups += `
+      <div>${p.pickupAddress || "-"}</div>
+    `;
+
+    dropoffs += `
+      <div>${p.dropoffAddress || "-"}</div>
+    `;
+
+    statuses += `
+      <span class="status ${s.toLowerCase()}">
+        ${s}
+      </span>
+    `;
+
+    prices += `
+      <div>$${pr}</div>
+    `;
+
   });
 
+  tbody.innerHTML += `
+  <tr>
+
+    <td>1</td>
+
+    <td>${first.tripNumber || "-"}</td>
+
+    <td>${first.companyName || "-"}</td>
+
+    <td>${first.entryName || "-"}</td>
+
+    <td>${first.entryPhone || "-"}</td>
+
+    <td><div class="stack">${passengers}</div></td>
+
+    <td><div class="stack">${phones}</div></td>
+
+    <td><div class="stack">${pickups}</div></td>
+
+    <td><div class="stack">${dropoffs}</div></td>
+
+    <td>${first.tripDate || "-"}</td>
+
+    <td>${first.tripTime || "-"}</td>
+
+    <td>${first.createdDate || "-"}</td>
+
+    <td>${first.createdTime || "-"}</td>
+
+    <td>${Math.round(first.miles || 0)}</td>
+
+    <td><div class="stack">${statuses}</div></td>
+
+    <td><div class="stack">${prices}</div></td>
+
+    <td class="total-cell">$${total}</td>
+
+  </tr>
+  `;
 }
 
-/* AUTO REFRESH */
+/* SEARCH */
+document.addEventListener("input",e=>{
+
+  if(e.target.id === "searchInput"){
+    render();
+  }
+
+});
+
+/* AUTO */
 setInterval(load,30000);
 
 /* INIT */

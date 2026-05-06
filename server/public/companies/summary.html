@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <title>Summary</title>
 
@@ -14,6 +15,7 @@ body{
   margin:0;
   background:#f4f8fb;
   font-family:'Segoe UI',sans-serif;
+  color:#111827;
 }
 
 /* HEADER */
@@ -27,29 +29,60 @@ body{
 
 /* PAGE */
 .summary-page{
-  padding:170px 14px 40px;
+  padding:165px 10px 30px;
 }
 
-/* TABS */
-.summary-tabs{
+/* TOP BAR */
+.summary-top{
   display:flex;
-  gap:12px;
-  margin-bottom:18px;
+  gap:10px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
 }
 
-.summary-tab{
+.search-input{
   flex:1;
+  min-width:220px;
+  height:42px;
   border:none;
-  height:48px;
-  border-radius:12px;
+  border-radius:10px;
+  padding:0 14px;
+  font-size:13px;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+.print-btn{
+  border:none;
+  background:#145cff;
+  color:#fff;
+  border-radius:10px;
+  padding:0 18px;
+  font-size:13px;
   font-weight:700;
   cursor:pointer;
-  background:#d9e2ef;
-  color:#111827;
-  transition:.2s;
 }
 
-.summary-tab.active{
+/* FILTERS */
+.filters{
+  display:flex;
+  gap:10px;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+
+.filter-btn{
+  border:none;
+  background:#dbe4f0;
+  color:#111827;
+  border-radius:10px;
+  padding:10px 16px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.filter-btn.active{
   background:#145cff;
   color:#fff;
 }
@@ -57,193 +90,138 @@ body{
 /* STATS */
 .stats-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:14px;
-  margin-bottom:20px;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px;
+  margin-bottom:18px;
 }
 
 .stat-card{
   background:#fff;
-  border-radius:16px;
-  padding:18px;
-  box-shadow:0 4px 15px rgba(0,0,0,.06);
+  border-radius:12px;
+  padding:14px;
+  box-shadow:0 3px 12px rgba(0,0,0,.06);
 }
 
 .stat-title{
-  font-size:13px;
+  font-size:11px;
   color:#6b7280;
   margin-bottom:6px;
 }
 
 .stat-value{
-  font-size:28px;
+  font-size:22px;
   font-weight:800;
-  color:#111827;
 }
 
-/* TRIP */
-.trip-box{
+/* DAY */
+.day-title{
+  font-size:15px;
+  font-weight:800;
+  margin:22px 0 10px;
+  color:#1c2440;
+}
+
+/* TABLE */
+.table-wrap{
+  overflow:auto;
   background:#fff;
-  border-radius:18px;
-  overflow:hidden;
-  margin-bottom:22px;
-  box-shadow:0 5px 18px rgba(0,0,0,.08);
+  border-radius:14px;
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
 }
 
-.trip-header{
+.summary-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:1800px;
+}
+
+.summary-table th{
   background:#1c2440;
   color:#fff;
-  padding:14px 18px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
+  font-size:11px;
+  padding:10px 8px;
+  text-align:left;
+  white-space:nowrap;
 }
 
-.trip-number{
-  font-size:20px;
-  font-weight:800;
+.summary-table td{
+  font-size:11px;
+  padding:8px;
+  border-bottom:1px solid #e5e7eb;
+  vertical-align:top;
+  font-weight:600;
+  line-height:1.5;
 }
 
-.trip-date{
-  font-size:13px;
-  opacity:.9;
-}
-
-/* PASSENGERS */
-.passengers{
-  padding:14px;
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-}
-
-.passenger-card{
-  border-radius:14px;
-  overflow:hidden;
-  border:2px solid #e5e7eb;
-}
-
-.completed-card{
-  background:#f0fdf4;
-  border-color:#22c55e;
-}
-
-.cancelled-card{
-  background:#fff7ed;
-  border-color:#f59e0b;
-}
-
-.noshow-card{
-  background:#fef2f2;
-  border-color:#ef4444;
-}
-
-/* TOP */
-.passenger-top{
-  padding:12px 14px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.passenger-name{
-  font-size:17px;
-  font-weight:800;
-  color:#111827;
-}
-
-/* BADGE */
-.status-badge{
-  padding:7px 14px;
+/* STATUS */
+.status{
+  display:block;
+  padding:3px 7px;
   border-radius:999px;
-  color:#fff;
-  font-size:12px;
+  font-size:10px;
   font-weight:800;
+  margin-bottom:4px;
+  width:max-content;
 }
 
 .completed{
-  background:#16a34a;
-}
-
-.cancelled{
-  background:#f59e0b;
+  background:#dcfce7;
+  color:#166534;
 }
 
 .noshow{
-  background:#dc2626;
+  background:#fef9c3;
+  color:#854d0e;
 }
 
-/* GRID */
-.passenger-grid{
-  padding:0 14px 14px;
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;
-}
-
-.info-box{
-  background:#fff;
-  border-radius:12px;
-  border:1px solid #e5e7eb;
-  padding:10px;
-}
-
-.info-label{
-  font-size:11px;
-  color:#6b7280;
-  margin-bottom:4px;
-}
-
-.info-value{
-  font-size:14px;
-  font-weight:700;
-  color:#111827;
-  word-break:break-word;
+.cancelled{
+  background:#fee2e2;
+  color:#991b1b;
 }
 
 /* TOTAL */
-.trip-total{
-  background:#111827;
-  color:#fff;
-  padding:16px 18px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:18px;
-  font-weight:800;
+.total-cell{
+  font-size:13px !important;
+  font-weight:800 !important;
+  color:#145cff;
 }
 
-/* EMPTY */
-.empty-box{
-  background:#fff;
-  border-radius:18px;
-  padding:40px;
-  text-align:center;
-  font-weight:800;
-  box-shadow:0 4px 15px rgba(0,0,0,.06);
+/* SHARED STACK */
+.stack{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
 }
 
 /* MOBILE */
 @media(max-width:768px){
 
   .summary-page{
-    padding:160px 10px 30px;
+    padding:155px 6px 20px;
   }
 
-  .trip-number{
-    font-size:17px;
+  .summary-table th,
+  .summary-table td{
+    font-size:10px;
+    padding:7px 6px;
   }
 
-  .trip-total{
-    font-size:15px;
+}
+
+@media print{
+
+  #layoutHeader,
+  .summary-top,
+  .filters{
+    display:none !important;
   }
 
-  .stat-value{
-    font-size:22px;
+  body{
+    background:#fff;
+  }
+
+  .summary-page{
+    padding:0;
   }
 
 }
@@ -260,20 +238,30 @@ body{
 
 <div class="summary-page">
 
-  <!-- TABS -->
-  <div class="summary-tabs">
+  <!-- TOP -->
+  <div class="summary-top">
+
+    <input
+      type="text"
+      id="searchInput"
+      class="search-input"
+      placeholder="Search Name / Phone / Trip# / Company">
 
     <button
-      class="summary-tab active"
-      onclick="switchTab('individual',this)">
-      Individual
+      class="print-btn"
+      onclick="window.print()">
+      Print
     </button>
 
-    <button
-      class="summary-tab"
-      onclick="switchTab('shared',this)">
-      Shared
-    </button>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filters">
+
+    <button class="filter-btn active">Today</button>
+    <button class="filter-btn">Week</button>
+    <button class="filter-btn">Month</button>
+    <button class="filter-btn">Year</button>
 
   </div>
 
@@ -281,7 +269,7 @@ body{
   <div class="stats-grid">
 
     <div class="stat-card">
-      <div class="stat-title">Total Trips</div>
+      <div class="stat-title">Trips</div>
       <div class="stat-value" id="totalTrips">0</div>
     </div>
 
@@ -301,7 +289,7 @@ body{
     </div>
 
     <div class="stat-card">
-      <div class="stat-title">Total Revenue</div>
+      <div class="stat-title">Revenue</div>
       <div class="stat-value" id="totalRevenue">$0</div>
     </div>
 
