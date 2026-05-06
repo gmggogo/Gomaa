@@ -5,7 +5,6 @@
 
 <meta charset="UTF-8">
 <title>Sunbeam Summary</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
@@ -146,7 +145,7 @@ body{
   text-align:left;
   padding:8px 5px;
   white-space:nowrap;
-  border-bottom:1px solid #e5e7eb;
+  border-bottom:1px solid #dbe4f0;
 }
 
 .summary-table td{
@@ -158,13 +157,24 @@ body{
   font-weight:600;
 }
 
-.summary-table tr:last-child td{
-  border-bottom:none;
+/* LIGHT SEPARATOR INSIDE SHARED */
+.shared-separator td{
+  border-bottom:1px solid #e5e7eb !important;
 }
 
-/* SHARED SEPARATOR */
-.shared-separator td{
-  border-bottom:1px solid #dbe4f0 !important;
+/* BIG SEPARATOR BETWEEN TRIPS */
+.trip-divider-line td{
+  padding:0 !important;
+  height:4px;
+  background:#cfd8e3;
+  border:none !important;
+}
+
+.trip-divider td{
+  padding:0 !important;
+  height:12px;
+  background:#f4f8fb;
+  border:none !important;
 }
 
 /* STATUS */
@@ -194,10 +204,6 @@ body{
 .total{
   font-weight:900;
   color:#145cff;
-}
-
-.trip-divider{
-  height:10px;
 }
 
 /* MOBILE */

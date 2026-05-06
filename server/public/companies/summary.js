@@ -370,41 +370,35 @@ function render(){
         <tr>
 
           <td>${t.tripNumber || "-"}</td>
-
           <td>${t.company || "-"}</td>
-
           <td>${t.entryName || "-"}</td>
-
           <td>${t.entryPhone || "-"}</td>
-
           <td>${t.clientName || "-"}</td>
-
           <td>${t.clientPhone || "-"}</td>
-
           <td>${t.pickup || "-"}</td>
-
           <td>${t.dropoff || "-"}</td>
-
           <td>${t.tripDate || "-"}</td>
-
           <td>${t.tripTime || "-"}</td>
-
           <td>${t.bookingDate || "-"}</td>
-
           <td>${t.bookingTime || "-"}</td>
-
           <td>${t.miles || 0}</td>
 
-          <td>${statusHTML(t.status)}</td>
-
-          <td class="total">
-            $${t.finalPrice || 0}
+          <td>
+            ${statusHTML(t.status)}
           </td>
 
           <td class="total">
             $${t.finalPrice || 0}
           </td>
 
+          <td class="total">
+            $${t.finalPrice || 0}
+          </td>
+
+        </tr>
+
+        <tr class="trip-divider-line">
+          <td colspan="16"></td>
         </tr>
 
         <tr class="trip-divider">
@@ -513,6 +507,10 @@ function render(){
         });
 
         tbody.innerHTML += `
+        <tr class="trip-divider-line">
+          <td colspan="16"></td>
+        </tr>
+
         <tr class="trip-divider">
           <td colspan="16"></td>
         </tr>
