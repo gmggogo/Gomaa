@@ -135,21 +135,44 @@ function parseTripDateTime(tripDate, tripTime){
 
   if(!d || !t) return null;
 
+  // 🔥 لو الوقت HH:mm
+  if(/^\d{1,2}:\d{2}$/.test(t)){
+
+    const [hh,mm] = t.split(":");
+
+    const dt = new Date(
+      Number(d.split("-")[0]),
+      Number(d.split("-")[1]) - 1,
+      Number(d.split("-")[2]),
+      Number(hh),
+      Number(mm),
+      0
+    );
+
+    return isNaN(dt.getTime()) ? null : dt;
+  }
+
+  // 🔥 لو الوقت AM PM
   const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
 
   if(ampm){
+
     let h = Number(ampm[1]);
-    const m = ampm[2];
+    const m = Number(ampm[2]);
     const ap = ampm[3].toUpperCase();
 
     if(ap === "PM" && h < 12) h += 12;
     if(ap === "AM" && h === 12) h = 0;
 
-    t = String(h).padStart(2,"0") + ":" + m;
-  }
+    const dt = new Date(
+      Number(d.split("-")[0]),
+      Number(d.split("-")[1]) - 1,
+      Number(d.split("-")[2]),
+      h,
+      m,
+      0
+    );
 
-  if(/^\d{1,2}:\d{2}$/.test(t)){
-    const dt = new Date(d + "T" + t + ":00");
     return isNaN(dt.getTime()) ? null : dt;
   }
 
@@ -1158,19 +1181,40 @@ if(action === "save-individual"){
   if(!original) return;
 
   // 🔥 WARNING IF WITHIN 120 MINUTES
-  const mins = minutesToTrip(original);
+// 🔥 GET DATE/TIME FROM INPUTS
+const dateInput = tr.querySelector('[data-field="tripDate"]');
+const timeInput = tr.querySelector('[data-field="tripTime"]');
 
-  if(mins !== null && mins <= 120){
+const editedDate = dateInput
+  ? dateInput.value
+  : original.tripDate;
 
-    const ok = confirm(
-      "WARNING:\n\nThis trip is within 120 minutes.\nCancellation fee may apply.\n\nDo you want to save changes?"
-    );
+const editedTime = timeInput
+  ? timeInput.value
+  : original.tripTime;
 
-    if(!ok){
-      return;
-    }
+const editedTripDate = parseTripDateTime(
+  editedDate,
+  editedTime
+);
 
+let mins = null;
+
+if(editedTripDate){
+  mins = (editedTripDate - getAZNow()) / 60000;
+}
+
+if(mins !== null && mins <= 120){
+
+  const ok = confirm(
+    "WARNING:\n\nThis trip is within 120 minutes.\nCancellation fee may apply.\n\nDo you want to save changes?"
+  );
+
+  if(!ok){
+    return;
   }
+
+}
 
   const payload = {};
 
