@@ -944,11 +944,21 @@ container.addEventListener("click", async e=>{
 
   trip.__editing = true;
 
-  await updateTrip(id, trip);
-
+await updateTrip(id,{
+  status:"Scheduled",
+  priceAmount:0,
+  miles:0,
+  distanceMeters:0,
+  durationSeconds:0,
+  estimatedMinutes:0,
+  googleRoute:null,
+  routePoints:[]
+});
+trips = await fetchTrips();
   render();
   return;
 }
+
 
    if(action === "edit-shared"){
   const tr = btn.closest("tr");
@@ -978,8 +988,19 @@ container.addEventListener("click", async e=>{
 
     t.__editing = true;
 
-    await updateTrip(t._id, t);
-  }
+await updateTrip(t._id,{
+  status:"Scheduled",
+  priceAmount:0,
+  pricePerPassenger:0,
+  miles:0,
+  distanceMeters:0,
+  durationSeconds:0,
+  estimatedMinutes:0,
+  googleRoute:null,
+  routePoints:[],
+  optimizedRoute:null
+});  
+}
 
   trips = await fetchTrips();
 
