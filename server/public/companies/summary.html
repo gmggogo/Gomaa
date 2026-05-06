@@ -1,9 +1,10 @@
+<!-- summary.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 
 <meta charset="UTF-8">
-<title>Summary</title>
+<title>Sunbeam Summary</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -27,152 +28,123 @@ body{
 }
 
 .page{
-  padding:165px 8px 30px;
+  padding:160px 8px 30px;
 }
 
 /* TOP */
 .top-bar{
   display:flex;
-  gap:10px;
-  margin-bottom:10px;
+  gap:8px;
   flex-wrap:wrap;
+  margin-bottom:10px;
 }
 
 .search-input,
 .filter-select{
-  height:40px;
+  height:38px;
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   background:#fff;
-  padding:0 12px;
-  font-size:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
+  padding:0 10px;
+  font-size:11px;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
 }
 
 .search-input{
   flex:1;
-  min-width:240px;
+  min-width:220px;
 }
 
 .print-btn{
   border:none;
   background:#145cff;
   color:#fff;
-  padding:0 18px;
-  border-radius:10px;
-  font-size:12px;
+  border-radius:8px;
+  padding:0 16px;
+  font-size:11px;
   font-weight:800;
   cursor:pointer;
 }
 
 /* TABS */
-.summary-tabs{
+.tabs{
   display:flex;
-  gap:10px;
-  margin-bottom:14px;
+  gap:8px;
+  margin-bottom:12px;
 }
 
-.summary-tab{
+.tab{
   flex:1;
-  height:44px;
+  height:42px;
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   background:#dbe4f0;
   color:#111827;
-  font-size:13px;
+  font-size:12px;
   font-weight:800;
   cursor:pointer;
 }
 
-.summary-tab.active{
+.tab.active{
   background:#145cff;
   color:#fff;
 }
 
 /* STATS */
-.stats-grid{
+.stats{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:10px;
-  margin-bottom:18px;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:8px;
+  margin-bottom:14px;
 }
 
-.stat-card{
+.stat{
   background:#fff;
-  border-radius:12px;
-  padding:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
+  border-radius:10px;
+  padding:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
 }
 
 .stat-title{
-  font-size:10px;
+  font-size:9px;
   color:#6b7280;
-  margin-bottom:4px;
 }
 
 .stat-value{
-  font-size:22px;
+  margin-top:4px;
+  font-size:20px;
   font-weight:800;
 }
 
-/* DAY */
+/* DATE */
 .day-title{
-  margin:20px 0 8px;
-  font-size:14px;
+  margin:18px 0 6px;
+  font-size:12px;
   font-weight:800;
-  color:#1c2440;
-}
-
-/* TRIP BOX */
-.trip-box{
-  background:#fff;
-  border-radius:14px;
-  overflow:hidden;
-  margin-bottom:18px;
-  border:1px solid #dbe4f0;
-  box-shadow:0 3px 12px rgba(0,0,0,.08);
-}
-
-/* HEADER */
-.trip-header{
-  background:#1c2440;
-  color:#fff;
-  padding:10px 14px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.trip-left{
-  display:flex;
-  gap:14px;
-  flex-wrap:wrap;
-}
-
-.trip-item{
-  font-size:11px;
-  font-weight:800;
+  color:#374151;
 }
 
 /* TABLE */
 .table-wrap{
   overflow-x:auto;
+  background:#fff;
+  border-radius:10px;
+  border:1px solid #e5e7eb;
+  margin-bottom:14px;
 }
 
 .summary-table{
   width:100%;
+  min-width:1600px;
   border-collapse:collapse;
-  min-width:1500px;
 }
 
 .summary-table th{
-  background:#f3f4f6;
-  color:#111827;
-  padding:8px 5px;
+  background:#f9fafb;
+  color:#374151;
   font-size:9px;
   text-align:left;
+  padding:8px 5px;
   white-space:nowrap;
   border-bottom:1px solid #e5e7eb;
 }
@@ -182,7 +154,7 @@ body{
   font-size:9px;
   border-bottom:1px solid #edf1f7;
   vertical-align:top;
-  line-height:1.4;
+  line-height:1.5;
   font-weight:600;
 }
 
@@ -190,10 +162,14 @@ body{
   border-bottom:none;
 }
 
+/* SHARED SEPARATOR */
+.shared-separator td{
+  border-bottom:1px solid #dbe4f0 !important;
+}
+
 /* STATUS */
 .status{
   display:inline-block;
-  width:max-content;
   padding:2px 6px;
   border-radius:999px;
   font-size:8px;
@@ -215,17 +191,20 @@ body{
   color:#854d0e;
 }
 
-/* TOTAL */
 .total{
-  font-size:11px;
   font-weight:900;
   color:#145cff;
 }
 
+.trip-divider{
+  height:10px;
+}
+
+/* MOBILE */
 @media(max-width:768px){
 
   .page{
-    padding:155px 4px 20px;
+    padding:150px 4px 20px;
   }
 
   .summary-table th,
@@ -236,11 +215,12 @@ body{
 
 }
 
+/* PRINT */
 @media print{
 
   #layoutHeader,
   .top-bar,
-  .summary-tabs{
+  .tabs{
     display:none !important;
   }
 
@@ -275,15 +255,9 @@ body{
       class="search-input"
       placeholder="Search Name / Phone / Trip# / Company">
 
-    <select
-      id="yearFilter"
-      class="filter-select">
-    </select>
+    <select id="yearFilter" class="filter-select"></select>
 
-    <select
-      id="monthFilter"
-      class="filter-select">
-    </select>
+    <select id="monthFilter" class="filter-select"></select>
 
     <button
       class="print-btn"
@@ -294,16 +268,16 @@ body{
   </div>
 
   <!-- TABS -->
-  <div class="summary-tabs">
+  <div class="tabs">
 
     <button
-      class="summary-tab active"
+      class="tab active"
       onclick="switchTab('individual',this)">
       Individual
     </button>
 
     <button
-      class="summary-tab"
+      class="tab"
       onclick="switchTab('shared',this)">
       Shared
     </button>
@@ -311,34 +285,34 @@ body{
   </div>
 
   <!-- STATS -->
-  <div class="stats-grid">
+  <div class="stats">
 
-    <div class="stat-card">
+    <div class="stat">
       <div class="stat-title">Individual Trips</div>
       <div class="stat-value" id="individualTrips">0</div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat">
       <div class="stat-title">Shared Trips</div>
       <div class="stat-value" id="sharedTrips">0</div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat">
       <div class="stat-title">Completed</div>
       <div class="stat-value" id="completedTrips">0</div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat">
       <div class="stat-title">Cancelled</div>
       <div class="stat-value" id="cancelledTrips">0</div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat">
       <div class="stat-title">No Show</div>
       <div class="stat-value" id="noShowTrips">0</div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat">
       <div class="stat-title">Revenue</div>
       <div class="stat-value" id="totalRevenue">$0</div>
     </div>
