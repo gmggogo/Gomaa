@@ -1147,182 +1147,211 @@ if(mins !== null && mins <= 120 && mins > 0){
       return;
     }
 
-    /* ================= SAVE INDIVIDUAL ================= */
+  /* ================= SAVE INDIVIDUAL ================= */
 
-    if(action === "save-individual"){
+if(action === "save-individual"){
 
-      const tr = btn.closest("tr");
-      const id = tr.dataset.id;
+  const tr = btn.closest("tr");
+  const id = tr.dataset.id;
 
-      const original = trips.find(t=>t._id === id);
-      if(!original) return;
+  const original = trips.find(t=>t._id === id);
+  if(!original) return;
 
-      const payload = {};
+  // 🔥 WARNING IF WITHIN 120 MINUTES
+  const mins = minutesToTrip(original);
 
-      const stops = Array.isArray(original.stops)
-        ? [...original.stops]
-        : [];
+  if(mins !== null && mins <= 120){
 
-      tr.querySelectorAll(".edit-input").forEach(input=>{
+    const ok = confirm(
+      "WARNING:\n\nThis trip is within 120 minutes.\nCancellation fee may apply.\n\nDo you want to save changes?"
+    );
 
-        const field = input.dataset.field;
-        const stopIndex = input.dataset.stopIndex;
-
-        if(stopIndex !== undefined){
-
-          stops[Number(stopIndex)] =
-            normalizeAZ(input.value.trim());
-
-          return;
-        }
-
-        if(field === "pickup" || field === "dropoff"){
-
-          payload[field] =
-            normalizeAZ(input.value);
-
-        }else{
-
-          payload[field] = input.value;
-
-        }
-
-      });
-
-      payload.stops = stops;
-
-      payload.status = "Scheduled";
-      payload.priceAmount = 0;
-
-      payload.miles = 0;
-      payload.distanceMeters = 0;
-      payload.durationSeconds = 0;
-      payload.estimatedMinutes = 0;
-
-      payload.googleRoute = null;
-      payload.routePoints = [];
-
-      await updateTrip(id,payload);
-
-      trips = await fetchTrips();
-      render();
+    if(!ok){
       return;
     }
 
-    /* ================= SAVE SHARED ================= */
+  }
 
-    if(action === "save-shared"){
+  const payload = {};
 
-      const tr = btn.closest("tr");
-      const groupId = tr.dataset.groupId;
+  const stops = Array.isArray(original.stops)
+    ? [...original.stops]
+    : [];
 
-      const group = getSharedGroups().find(
-        g => getSharedKey(g[0]) === groupId
-      );
+  tr.querySelectorAll(".edit-input").forEach(input=>{
 
-      if(!group) return;
+    const field = input.dataset.field;
+    const stopIndex = input.dataset.stopIndex;
 
-      const passengers = getRealPassengersFromGroup(group)
-        .map(p=>({...p}));
+    if(stopIndex !== undefined){
 
-      const payload = {};
+      stops[Number(stopIndex)] =
+        normalizeAZ(input.value.trim());
 
-      tr.querySelectorAll(".edit-input").forEach(input=>{
+      return;
+    }
 
-        const field = input.dataset.field;
+    if(field === "pickup" || field === "dropoff"){
 
-        if(field && field.startsWith("passenger_")){
+      payload[field] =
+        normalizeAZ(input.value);
 
-          const parts = field.split("_");
+    }else{
 
-          const index = Number(parts[1]);
-          const key = parts[2];
+      payload[field] = input.value;
 
-          if(!passengers[index]) return;
+    }
 
-          if(key === "name"){
-            passengers[index].name = input.value;
-            passengers[index].clientName = input.value;
-          }
+  });
 
-          if(key === "phone"){
-            passengers[index].phone = input.value;
-            passengers[index].clientPhone = input.value;
-          }
+  payload.stops = stops;
 
-          if(key === "pickup"){
-            passengers[index].pickup =
-              normalizeAZ(input.value);
-          }
+  payload.status = "Scheduled";
+  payload.priceAmount = 0;
 
-          if(key === "dropoff"){
-            passengers[index].dropoff =
-              normalizeAZ(input.value);
-          }
+  payload.miles = 0;
+  payload.distanceMeters = 0;
+  payload.durationSeconds = 0;
+  payload.estimatedMinutes = 0;
 
-          return;
-        }
+  payload.googleRoute = null;
+  payload.routePoints = [];
 
-        if(
-          field === "tripDate" ||
-          field === "tripTime" ||
-          field === "entryName" ||
-          field === "entryPhone" ||
-          field === "notes"
-        ){
-          payload[field] = input.value;
-        }
+  await updateTrip(id,payload);
 
-      });
+  trips = await fetchTrips();
+  render();
+  return;
+}
 
-      payload.passengers = passengers;
+/* ================= SAVE SHARED ================= */
 
-      payload.totalPassengers =
-        passengers.length;
+if(action === "save-shared"){
 
-      payload.pickup =
-        passengers[0]?.pickup || "";
+  const tr = btn.closest("tr");
+  const groupId = tr.dataset.groupId;
 
-      payload.dropoff =
-        passengers[passengers.length - 1]?.dropoff || "";
+  const group = getSharedGroups().find(
+    g => getSharedKey(g[0]) === groupId
+  );
 
-      payload.clientName = "Shared Trip";
+  if(!group) return;
 
-      payload.clientPhone =
-        passengers[0]?.phone ||
-        passengers[0]?.clientPhone ||
-        "";
+  // 🔥 WARNING IF WITHIN 120 MINUTES
+  const mins = minutesToTrip(group[0]);
 
-      payload.status = "Scheduled";
+  if(mins !== null && mins <= 120){
 
-      payload.priceAmount = 0;
-      payload.pricePerPassenger = 0;
+    const ok = confirm(
+      "WARNING:\n\nThis shared trip is within 120 minutes.\nCancellation fee may apply.\n\nDo you want to save changes?"
+    );
 
-      payload.miles = 0;
-      payload.distanceMeters = 0;
-      payload.durationSeconds = 0;
-      payload.estimatedMinutes = 0;
+    if(!ok){
+      return;
+    }
 
-      payload.googleRoute = null;
-      payload.routePoints = [];
-      payload.optimizedRoute = null;
+  }
 
-      payload.isShared = true;
-      payload.tripType = "SHARED";
+  const passengers = getRealPassengersFromGroup(group)
+    .map(p=>({...p}));
 
-      for(const t of group){
+  const payload = {};
 
-        await updateTrip(t._id,{
-          ...payload
-        });
+  tr.querySelectorAll(".edit-input").forEach(input=>{
 
+    const field = input.dataset.field;
+
+    if(field && field.startsWith("passenger_")){
+
+      const parts = field.split("_");
+
+      const index = Number(parts[1]);
+      const key = parts[2];
+
+      if(!passengers[index]) return;
+
+      if(key === "name"){
+        passengers[index].name = input.value;
+        passengers[index].clientName = input.value;
       }
 
-      trips = await fetchTrips();
-      render();
+      if(key === "phone"){
+        passengers[index].phone = input.value;
+        passengers[index].clientPhone = input.value;
+      }
+
+      if(key === "pickup"){
+        passengers[index].pickup =
+          normalizeAZ(input.value);
+      }
+
+      if(key === "dropoff"){
+        passengers[index].dropoff =
+          normalizeAZ(input.value);
+      }
+
       return;
     }
 
+    if(
+      field === "tripDate" ||
+      field === "tripTime" ||
+      field === "entryName" ||
+      field === "entryPhone" ||
+      field === "notes"
+    ){
+      payload[field] = input.value;
+    }
+
+  });
+
+  payload.passengers = passengers;
+
+  payload.totalPassengers =
+    passengers.length;
+
+  payload.pickup =
+    passengers[0]?.pickup || "";
+
+  payload.dropoff =
+    passengers[passengers.length - 1]?.dropoff || "";
+
+  payload.clientName = "Shared Trip";
+
+  payload.clientPhone =
+    passengers[0]?.phone ||
+    passengers[0]?.clientPhone ||
+    "";
+
+  payload.status = "Scheduled";
+
+  payload.priceAmount = 0;
+  payload.pricePerPassenger = 0;
+
+  payload.miles = 0;
+  payload.distanceMeters = 0;
+  payload.durationSeconds = 0;
+  payload.estimatedMinutes = 0;
+
+  payload.googleRoute = null;
+  payload.routePoints = [];
+  payload.optimizedRoute = null;
+
+  payload.isShared = true;
+  payload.tripType = "SHARED";
+
+  for(const t of group){
+
+    await updateTrip(t._id,{
+      ...payload
+    });
+
+  }
+
+  trips = await fetchTrips();
+  render();
+  return;
+}
     /* ================= CONFIRM INDIVIDUAL ================= */
 
     if(action === "confirm-individual"){
