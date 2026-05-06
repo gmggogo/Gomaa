@@ -580,6 +580,7 @@ function applyRowColor(tr, t){
 /* ================= INDIVIDUAL RENDER ================= */
 
 function renderIndividualButtons(t, editing){
+
   const mins = minutesToTrip(t);
 
   if(editing){
@@ -626,16 +627,24 @@ function renderIndividualButtons(t, editing){
 function renderIndividualTable(list){
 
   const groups = groupByDate(list);
-  const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
+
+  const dates = Object.keys(groups)
+    .sort((a,b)=>new Date(b)-new Date(a));
 
   dates.forEach(date=>{
 
     const title = document.createElement("div");
+
     title.className = "date-title";
     title.innerText = date;
+
     container.appendChild(title);
 
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "table-wrap";
+
     const table = document.createElement("table");
+
     table.className = "review-table";
 
     table.innerHTML = `
@@ -647,15 +656,14 @@ function renderIndividualTable(list){
         <th>Client</th>
         <th>Phone</th>
         <th>Pickup</th>
-        <th>Drop</th>
         <th>Stops</th>
+        <th>Drop</th>
         <th>Notes</th>
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
         <th>Price</th>
         <th>Miles</th>
-        <th>ETA</th>
         <th>Actions</th>
       </tr>
     `;
@@ -663,6 +671,7 @@ function renderIndividualTable(list){
     groups[date].forEach((t,i)=>{
 
       const tr = document.createElement("tr");
+
       tr.dataset.id = t._id;
 
       const editing = t.__editing === true;
@@ -674,12 +683,11 @@ function renderIndividualTable(list){
         : [];
 
       tr.innerHTML = `
+
         <td>${i+1}</td>
 
         <td>
-          <span class="trip-number-badge">
-            ${escapeHtml(getTripNumber(t))}
-          </span>
+          ${escapeHtml(getTripNumber(t))}
         </td>
 
         <td>
@@ -714,6 +722,7 @@ function renderIndividualTable(list){
           }
         </td>
 
+        <!-- PICKUP -->
         <td>
           ${
             editing
@@ -722,14 +731,7 @@ function renderIndividualTable(list){
           }
         </td>
 
-        <td>
-          ${
-            editing
-              ? createEditInput(t.dropoff || "", "dropoff")
-              : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`
-          }
-        </td>
-
+        <!-- STOPS -->
         <td>
           ${
             editing
@@ -741,13 +743,25 @@ function renderIndividualTable(list){
                   >
                 `).join("")
               : `
-                <div class="multi-line">
-                  ${stops.map(s=>escapeHtml(s)).join("<br>")}
-                </div>
-              `
+                  <div class="multi-line">
+                    ${stops.length
+                      ? stops.map(s=>escapeHtml(s)).join("<br>")
+                      : "--"}
+                  </div>
+                `
           }
         </td>
 
+        <!-- DROPOFF -->
+        <td>
+          ${
+            editing
+              ? createEditInput(t.dropoff || "", "dropoff")
+              : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`
+          }
+        </td>
+
+        <!-- NOTES -->
         <td>
           ${
             editing
@@ -756,6 +770,7 @@ function renderIndividualTable(list){
           }
         </td>
 
+        <!-- DATE -->
         <td>
           ${
             editing
@@ -764,6 +779,7 @@ function renderIndividualTable(list){
           }
         </td>
 
+        <!-- TIME -->
         <td>
           ${
             editing
@@ -772,6 +788,7 @@ function renderIndividualTable(list){
           }
         </td>
 
+        <!-- STATUS -->
         <td>
           <strong>
             ${escapeHtml(t.status || "Scheduled")}
@@ -780,33 +797,18 @@ function renderIndividualTable(list){
 
         <!-- PRICE -->
         <td>
-          <span class="price-badge">
-            $${formatMoney(t.priceAmount)}
-          </span>
+          $${formatMoney(t.priceAmount)}
         </td>
 
         <!-- MILES -->
         <td>
-          <span class="miles-strong">
-            ${
-              t.miles !== undefined &&
-              t.miles !== null &&
-              t.miles !== ""
-                ? Number(t.miles).toFixed(1) + " mi"
-                : "-- mi"
-            }
-          </span>
-        </td>
-
-        <!-- ETA -->
-        <td>
-          <span class="eta-strong">
-            ${
-              t.estimatedMinutes
-                ? t.estimatedMinutes + " min"
-                : "--"
-            }
-          </span>
+          ${
+            t.miles !== undefined &&
+            t.miles !== null &&
+            t.miles !== ""
+              ? Number(t.miles).toFixed(1) + " mi"
+              : "-- mi"
+          }
         </td>
 
         <!-- ACTIONS -->
@@ -819,7 +821,9 @@ function renderIndividualTable(list){
 
     });
 
-    container.appendChild(table);
+    tableWrap.appendChild(table);
+
+    container.appendChild(tableWrap);
 
   });
 
@@ -949,6 +953,9 @@ function renderSharedTable(groups){
 
     container.appendChild(title);
 
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "table-wrap";
+
     const table = document.createElement("table");
 
     table.className = "review-table";
@@ -962,15 +969,14 @@ function renderSharedTable(groups){
         <th>Clients</th>
         <th>Phones</th>
         <th>Pickups</th>
-        <th>Drops</th>
         <th>Stops</th>
+        <th>Drops</th>
         <th>Notes</th>
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
         <th>Price</th>
         <th>Miles</th>
-        <th>ETA</th>
         <th>Actions</th>
       </tr>
     `;
@@ -1020,23 +1026,13 @@ function renderSharedTable(groups){
           )
         ).join("\n");
 
-        drops = passengers.map((p,idx)=>`
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-            ${createSharedEditInput(
-              p.dropoff || "",
-              first._id,
-              `passenger_${idx}_dropoff`
-            )}
-            <button
-              class="btn small-delete"
-              data-action="remove-passenger"
-              data-index="${idx}"
-              type="button"
-            >
-              ✖
-            </button>
-          </div>
-        `).join("");
+        drops = passengers.map((p,idx)=>
+          createSharedEditInput(
+            p.dropoff || "",
+            first._id,
+            `passenger_${idx}_dropoff`
+          )
+        ).join("\n");
 
       }else{
 
@@ -1064,12 +1060,11 @@ function renderSharedTable(groups){
       const stopsCount = Math.max(0, passengers.length - 1);
 
       tr.innerHTML = `
+
         <td>${i+1}</td>
 
         <td>
-          <span class="trip-number-badge">
-            ${escapeHtml(getTripNumber(first))}
-          </span>
+          ${escapeHtml(getTripNumber(first))}
         </td>
 
         <td>
@@ -1101,11 +1096,11 @@ function renderSharedTable(groups){
         </td>
 
         <td>
-          <div class="multi-line">${drops}</div>
+          <strong>${stopsCount}</strong>
         </td>
 
         <td>
-          <strong>${stopsCount}</strong>
+          <div class="multi-line">${drops}</div>
         </td>
 
         <td>
@@ -1134,38 +1129,20 @@ function renderSharedTable(groups){
           </strong>
         </td>
 
-        <!-- PRICE -->
         <td>
-          <span class="price-badge">
-            $${formatMoney(getGroupPrice(group))}
-          </span>
+          $${formatMoney(getGroupPrice(group))}
         </td>
 
-        <!-- MILES -->
         <td>
-          <span class="miles-strong">
-            ${
-              first.miles !== undefined &&
-              first.miles !== null &&
-              first.miles !== ""
-                ? Number(first.miles).toFixed(1) + " mi"
-                : "-- mi"
-            }
-          </span>
+          ${
+            first.miles !== undefined &&
+            first.miles !== null &&
+            first.miles !== ""
+              ? Number(first.miles).toFixed(1) + " mi"
+              : "-- mi"
+          }
         </td>
 
-        <!-- ETA -->
-        <td>
-          <span class="eta-strong">
-            ${
-              first.estimatedMinutes
-                ? first.estimatedMinutes + " min"
-                : "--"
-            }
-          </span>
-        </td>
-
-        <!-- ACTIONS -->
         <td>
           ${renderSharedButtons(group, editing)}
         </td>
@@ -1175,7 +1152,9 @@ function renderSharedTable(groups){
 
     });
 
-    container.appendChild(table);
+    tableWrap.appendChild(table);
+
+    container.appendChild(tableWrap);
 
   });
 
@@ -1191,8 +1170,8 @@ function renderSharedTable(groups){
 
     container.appendChild(empty);
   }
-}
-/* ================= MAIN RENDER ================= */
+
+}/* ================= MAIN RENDER ================= */
 
 function render(){
   container.innerHTML = "";

@@ -132,49 +132,25 @@ body{
   word-break:break-word;
 }
 
-/* ================= BADGES ================= */
+/* ================= CLEAN NUMBERS ================= */
 
 .trip-number-badge{
-  display:inline-block;
-  background:#0ea5e9;
-  color:#fff;
-  padding:5px 9px;
-  border-radius:8px;
-  font-size:11px;
+  color:#2563eb;
+  font-size:14px;
   font-weight:900;
   white-space:nowrap;
 }
 
 .price-badge{
-  display:inline-block;
-  background:#bbf7d0;
-  color:#14532d;
-  padding:5px 9px;
-  border-radius:8px;
-  font-size:11px;
+  color:#15803d;
+  font-size:14px;
   font-weight:900;
   white-space:nowrap;
-  box-shadow:0 0 10px rgba(34,197,94,.35);
 }
 
 .miles-strong{
-  display:inline-block;
-  background:#dbeafe;
-  color:#1d4ed8;
-  padding:4px 8px;
-  border-radius:8px;
-  font-size:10px;
-  font-weight:900;
-  white-space:nowrap;
-}
-
-.eta-strong{
-  display:inline-block;
-  background:#ede9fe;
-  color:#6d28d9;
-  padding:4px 8px;
-  border-radius:8px;
-  font-size:10px;
+  color:#2563eb;
+  font-size:13px;
   font-weight:900;
   white-space:nowrap;
 }
@@ -271,12 +247,20 @@ body{
 
 .edit-input{
   width:100%;
-  min-width:110px;
-  padding:5px;
-  border:1px solid #cbd5e1;
+  min-width:140px;
+  padding:8px;
+  border:1px solid #94a3b8;
   border-radius:6px;
-  font-size:11px;
+  font-size:13px;
+  background:#fff;
+  color:#111827;
+  outline:none;
   margin-bottom:4px;
+}
+
+.edit-input:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 2px rgba(37,99,235,.15);
 }
 
 /* ================= SCROLLBAR ================= */
@@ -327,21 +311,26 @@ body{
     font-size:10px;
   }
 
-  .trip-number-badge,
-  .price-badge{
-    font-size:10px;
-    padding:4px 7px;
+  .trip-number-badge{
+    font-size:12px;
   }
 
-  .miles-strong,
-  .eta-strong{
-    font-size:9px;
-    padding:3px 6px;
+  .price-badge{
+    font-size:12px;
+  }
+
+  .miles-strong{
+    font-size:11px;
   }
 
   .btn{
     font-size:9px;
     padding:4px 6px;
+  }
+
+  .edit-input{
+    min-width:120px;
+    font-size:12px;
   }
 
 }
