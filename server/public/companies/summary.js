@@ -1,177 +1,424 @@
+// summary.js
+
 let allTrips = [];
 let mode = "individual";
 
-/* LOAD DATA */
+/* LOAD */
+
 async function load(){
-  const res = await fetch("/api/trips/summary");
-  allTrips = await res.json();
-  render();
+
+  try{
+
+    const res = await fetch("/api/trips/summary");
+
+    allTrips = await res.json();
+
+    render();
+
+  }catch(err){
+
+    console.error(err);
+
+  }
+
 }
 
-/* TAB SWITCH */
+/* TAB */
+
 function switchTab(m,btn){
+
   mode = m;
 
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document
+    .querySelectorAll(".tab")
+    .forEach(t=>t.classList.remove("active"));
+
   btn.classList.add("active");
 
   render();
 }
 
-/* STATUS NORMALIZE */
-function norm(s){
-  if(!s) return "";
-  s = s.toLowerCase();
+/* NORMALIZE */
 
-  if(s.includes("cancel")) return "Cancelled";
-  if(s.includes("no")) return "NoShow";
-  if(s.includes("complete")) return "Completed";
+function norm(status){
+
+  if(!status) return "";
+
+  status = status.toLowerCase();
+
+  if(status.includes("cancel"))
+    return "Cancelled";
+
+  if(status.includes("noshow"))
+    return "NoShow";
+
+  if(status.includes("no show"))
+    return "NoShow";
+
+  if(status.includes("complete"))
+    return "Completed";
 
   return "Scheduled";
 }
 
 /* PRICE */
+
 function price(status){
-  if(status==="Cancelled") return 15;
-  if(status==="NoShow") return 15;
+
+  if(status === "Cancelled") return 15;
+
+  if(status === "NoShow") return 15;
+
   return 0;
 }
 
+/* STATS */
+
+function updateStats(data){
+
+  let completed = 0;
+  let cancelled = 0;
+  let noshow = 0;
+  let total = 0;
+
+  data.forEach(t=>{
+
+    const s = norm(t.status);
+
+    if(s === "Completed") completed++;
+    if(s === "Cancelled") cancelled++;
+    if(s === "NoShow") noshow++;
+
+    total += price(s);
+
+  });
+
+  document.getElementById("totalTrips").innerText =
+    data.length;
+
+  document.getElementById("completedTrips").innerText =
+    completed;
+
+  document.getElementById("cancelledTrips").innerText =
+    cancelled;
+
+  document.getElementById("noShowTrips").innerText =
+    noshow;
+
+  document.getElementById("totalRevenue").innerText =
+    `$${total}`;
+}
+
 /* FILTER */
-function applyFilter(){
-  render();
+
+function getFiltered(){
+
+  return allTrips.filter(t=>{
+
+    const s = norm(t.status);
+
+    return (
+      s === "Completed" ||
+      s === "Cancelled" ||
+      s === "NoShow"
+    );
+
+  });
+
 }
 
 /* RENDER */
+
 function render(){
 
   const wrap = document.getElementById("content");
+
   wrap.innerHTML = "";
 
-  let data = allTrips.filter(t=>{
-    const status = norm(t.status);
-    return status==="Completed" || status==="Cancelled" || status==="NoShow";
-  });
+  const data = getFiltered();
 
-  if(mode==="individual"){
+  updateStats(data);
+
+  if(mode === "individual"){
     renderIndividual(data,wrap);
   }else{
     renderShared(data,wrap);
   }
+
 }
 
 /* =========================
    INDIVIDUAL
 ========================= */
+
 function renderIndividual(data,wrap){
 
-  data.forEach(t=>{
+  const trips = data.filter(t=>{
 
-    const status = norm(t.status);
-    const p = price(status);
+    const n = (t.tripNumber || "").toUpperCase();
+
+    return !n.endsWith("-SH");
+
+  });
+
+  if(!trips.length){
+
+    wrap.innerHTML = `
+    <div class="empty-box">
+      No Individual Trips
+    </div>
+    `;
+
+    return;
+  }
+
+  trips.forEach(t=>{
+
+    const s = norm(t.status);
+
+    const pr = price(s);
+
+    let cardClass = "";
+    let badgeClass = "";
+
+    if(s === "Completed"){
+      cardClass = "completed-card";
+      badgeClass = "completed-badge";
+    }
+
+    if(s === "Cancelled"){
+      cardClass = "cancelled-card";
+      badgeClass = "cancelled-badge";
+    }
+
+    if(s === "NoShow"){
+      cardClass = "noshow-card";
+      badgeClass = "noshow-badge";
+    }
 
     wrap.innerHTML += `
     <div class="trip-box">
 
       <div class="trip-header">
-        <div>${t.tripNumber || "-"}</div>
-        <div>${t.tripDate || ""} | ${Math.round(t.miles || 0)} mi</div>
+
+        <div class="trip-number">
+          ${t.tripNumber || "-"}
+        </div>
+
+        <div class="trip-info">
+          ${t.tripDate || ""}
+          ${t.tripTime ? `| ${t.tripTime}` : ""}
+          | ${Math.round(t.miles || 0)} mi
+        </div>
+
       </div>
 
-      <table>
-        <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Status</th>
-          <th>Price</th>
-        </tr>
+      <div class="passengers">
 
-        <tr class="${status.toLowerCase()}">
-          <td>${t.clientName || "-"}</td>
-          <td>${t.clientPhone || "-"}</td>
-          <td>${status}</td>
-          <td>$${p}</td>
-        </tr>
-      </table>
+        <div class="passenger-card ${cardClass}">
+
+          <div class="passenger-top">
+
+            <div class="passenger-name">
+              ${t.clientName || "-"}
+            </div>
+
+            <div class="status-badge ${badgeClass}">
+              ${s}
+            </div>
+
+          </div>
+
+          <div class="passenger-grid">
+
+            <div class="info-box">
+              <div class="info-label">Phone</div>
+              <div class="info-value">
+                ${t.clientPhone || "-"}
+              </div>
+            </div>
+
+            <div class="info-box">
+              <div class="info-label">Price</div>
+              <div class="info-value">
+                $${pr}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="trip-total">
+
+        <div>TOTAL</div>
+
+        <div>$${pr}</div>
+
+      </div>
 
     </div>
     `;
   });
-
 }
 
 /* =========================
    SHARED
 ========================= */
+
 function renderShared(data,wrap){
 
-  // group by tripNumber
+  const trips = data.filter(t=>{
+
+    const n = (t.tripNumber || "").toUpperCase();
+
+    return n.endsWith("-SH");
+
+  });
+
+  if(!trips.length){
+
+    wrap.innerHTML = `
+    <div class="empty-box">
+      No Shared Trips
+    </div>
+    `;
+
+    return;
+  }
+
+  /* GROUP */
+
   const groups = {};
 
-  data.forEach(t=>{
-    if(!t.tripNumber) return;
+  trips.forEach(t=>{
 
     if(!groups[t.tripNumber]){
       groups[t.tripNumber] = [];
     }
 
     groups[t.tripNumber].push(t);
+
   });
 
   Object.keys(groups).forEach(key=>{
 
     const list = groups[key];
+
     let total = 0;
 
-    let rows = "";
+    let html = "";
 
     list.forEach(p=>{
 
-      const status = norm(p.status);
-      const pr = price(status);
+      const s = norm(p.status);
+
+      const pr = price(s);
 
       total += pr;
 
-      rows += `
-      <tr class="${status.toLowerCase()}">
-        <td>${p.clientName || "-"}</td>
-        <td>${p.clientPhone || "-"}</td>
-        <td>${status}</td>
-        <td>$${pr}</td>
-      </tr>
+      let cardClass = "";
+      let badgeClass = "";
+
+      if(s === "Completed"){
+        cardClass = "completed-card";
+        badgeClass = "completed-badge";
+      }
+
+      if(s === "Cancelled"){
+        cardClass = "cancelled-card";
+        badgeClass = "cancelled-badge";
+      }
+
+      if(s === "NoShow"){
+        cardClass = "noshow-card";
+        badgeClass = "noshow-badge";
+      }
+
+      html += `
+      <div class="passenger-card ${cardClass}">
+
+        <div class="passenger-top">
+
+          <div class="passenger-name">
+            ${p.clientName || "-"}
+          </div>
+
+          <div class="status-badge ${badgeClass}">
+            ${s}
+          </div>
+
+        </div>
+
+        <div class="passenger-grid">
+
+          <div class="info-box">
+            <div class="info-label">Phone</div>
+            <div class="info-value">
+              ${p.clientPhone || "-"}
+            </div>
+          </div>
+
+          <div class="info-box">
+            <div class="info-label">Price</div>
+            <div class="info-value">
+              $${pr}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
       `;
     });
 
-    const t0 = list[0];
+    const first = list[0];
 
     wrap.innerHTML += `
     <div class="trip-box">
 
       <div class="trip-header">
-        <div>${key}</div>
-        <div>${t0.tripDate || ""} | ${Math.round(t0.miles || 0)} mi</div>
+
+        <div class="trip-number">
+          ${key}
+        </div>
+
+        <div class="trip-info">
+
+          ${first.tripDate || ""}
+          ${first.tripTime ? `| ${first.tripTime}` : ""}
+          | ${Math.round(first.miles || 0)} mi
+          | ${list.length} Passengers
+
+        </div>
+
       </div>
 
-      <table>
-        <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Status</th>
-          <th>Price</th>
-        </tr>
+      <div class="passengers">
 
-        ${rows}
-      </table>
+        ${html}
 
-      <div class="total">
-        TOTAL: $${total}
+      </div>
+
+      <div class="trip-total">
+
+        <div>TOTAL TRIP</div>
+
+        <div>$${total}</div>
+
       </div>
 
     </div>
     `;
   });
-
 }
 
+/* AUTO REFRESH */
+
+setInterval(load,30000);
+
 /* INIT */
+
 load();

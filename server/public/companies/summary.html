@@ -1,125 +1,284 @@
+<!-- summary.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Trips Summary</title>
+<title>Sunbeam Transportation - Summary</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="layout.css">
+<link rel="stylesheet" href="summary.css">
 
 <style>
 
-.page{
-max-width:1100px;
-margin:auto;
-padding:100px 15px 30px;
+*{
+  box-sizing:border-box;
 }
 
-/* HEADER TITLE */
-.title{
-font-size:22px;
-font-weight:bold;
-margin-bottom:10px;
+body{
+  margin:0;
+  background:#f3f6fb;
+  font-family:Arial,sans-serif;
+  color:#111827;
+}
+
+/* HEADER */
+
+.header{
+  background:#0f172a;
+  color:#fff;
+  padding:18px;
+  text-align:center;
+  font-size:24px;
+  font-weight:800;
+  letter-spacing:.5px;
 }
 
 /* TABS */
+
 .tabs{
-display:flex;
-gap:10px;
-margin-bottom:20px;
+  display:flex;
+  gap:10px;
+  padding:15px;
+  justify-content:center;
+  flex-wrap:wrap;
 }
 
 .tab{
-padding:8px 18px;
-border:none;
-border-radius:6px;
-background:#e5e7eb;
-cursor:pointer;
-font-weight:600;
+  border:none;
+  background:#e5e7eb;
+  padding:12px 22px;
+  border-radius:14px;
+  cursor:pointer;
+  font-weight:700;
+  transition:.2s;
+  font-size:15px;
 }
 
 .tab.active{
-background:#2563eb;
-color:#fff;
+  background:#2563eb;
+  color:#fff;
 }
 
-/* FILTER */
-.filters{
-display:flex;
-gap:10px;
-flex-wrap:wrap;
-margin-bottom:20px;
+/* STATS */
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:15px;
+  padding:0 15px 15px;
 }
 
-.filters input,
-.filters button{
-padding:8px;
-border-radius:6px;
-border:1px solid #ccc;
+.stat-box{
+  background:#fff;
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 4px 18px rgba(0,0,0,.07);
 }
 
-.filters button{
-background:#2563eb;
-color:#fff;
-border:none;
-cursor:pointer;
+.stat-title{
+  color:#6b7280;
+  font-size:14px;
+  margin-bottom:8px;
 }
 
-/* BOX */
+.stat-value{
+  font-size:28px;
+  font-weight:800;
+}
+
+/* CONTENT */
+
+#content{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  padding:15px;
+}
+
+/* TRIP BOX */
+
 .trip-box{
-background:#fff;
-border-radius:10px;
-margin-bottom:20px;
-box-shadow:0 4px 10px rgba(0,0,0,.08);
-overflow:hidden;
+  background:#fff;
+  border-radius:24px;
+  overflow:hidden;
+  box-shadow:0 10px 25px rgba(0,0,0,.08);
 }
 
-/* BOX HEADER */
+/* TRIP HEADER */
+
 .trip-header{
-background:linear-gradient(90deg,#2563eb,#1d4ed8);
-color:#fff;
-padding:10px;
-display:flex;
-justify-content:space-between;
-font-size:13px;
-font-weight:bold;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:#fff;
+  padding:18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
 }
 
-/* TABLE */
-table{
-width:100%;
-border-collapse:collapse;
+.trip-number{
+  font-size:21px;
+  font-weight:800;
 }
 
-th{
-background:#f1f5f9;
-padding:8px;
-font-size:12px;
+.trip-info{
+  font-size:14px;
+  opacity:.9;
 }
 
-td{
-padding:8px;
-text-align:center;
-border-bottom:1px solid #eee;
-font-size:12px;
+/* PASSENGERS */
+
+.passengers{
+  padding:15px;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
 }
 
-/* STATUS COLORS */
-.completed{background:#dcfce7}
-.noshow{background:#fef9c3}
-.cancelled{background:#fee2e2}
+/* PASSENGER CARD */
+
+.passenger-card{
+  border-radius:18px;
+  padding:15px;
+  border:2px solid #e5e7eb;
+}
+
+/* COLORS */
+
+.completed-card{
+  background:#f0fdf4;
+  border-color:#22c55e;
+}
+
+.cancelled-card{
+  background:#fff7ed;
+  border-color:#f59e0b;
+}
+
+.noshow-card{
+  background:#fef2f2;
+  border-color:#ef4444;
+}
+
+/* TOP */
+
+.passenger-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.passenger-name{
+  font-size:18px;
+  font-weight:800;
+}
+
+.status-badge{
+  padding:7px 14px;
+  border-radius:999px;
+  color:#fff;
+  font-size:13px;
+  font-weight:800;
+}
+
+.completed-badge{
+  background:#16a34a;
+}
+
+.cancelled-badge{
+  background:#f59e0b;
+}
+
+.noshow-badge{
+  background:#dc2626;
+}
+
+/* GRID */
+
+.passenger-grid{
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fit,minmax(180px,1fr));
+  gap:12px;
+}
+
+.info-box{
+  background:#fff;
+  border-radius:14px;
+  padding:12px;
+  border:1px solid #e5e7eb;
+}
+
+.info-label{
+  color:#6b7280;
+  font-size:12px;
+  margin-bottom:5px;
+}
+
+.info-value{
+  font-weight:700;
+  font-size:15px;
+  word-break:break-word;
+}
 
 /* TOTAL */
-.total{
-padding:10px;
-text-align:right;
-font-weight:bold;
-background:#f8fafc;
+
+.trip-total{
+  background:#111827;
+  color:#fff;
+  padding:18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:19px;
+  font-weight:800;
+}
+
+/* EMPTY */
+
+.empty-box{
+  background:#fff;
+  border-radius:20px;
+  padding:40px;
+  text-align:center;
+  font-weight:800;
+  box-shadow:0 5px 18px rgba(0,0,0,.08);
 }
 
 /* MOBILE */
+
 @media(max-width:768px){
-td,th{font-size:11px}
+
+  .header{
+    font-size:20px;
+  }
+
+  .trip-number{
+    font-size:18px;
+  }
+
+  .trip-info{
+    font-size:13px;
+  }
+
+  .passenger-name{
+    font-size:16px;
+  }
+
+  .trip-total{
+    font-size:16px;
+  }
+
+  .stat-value{
+    font-size:24px;
+  }
+
 }
 
 </style>
@@ -127,29 +286,63 @@ td,th{font-size:11px}
 
 <body>
 
-<div id="layoutHeader"></div>
+<div class="header">
+  SUNBEAM TRANSPORTATION SUMMARY
+</div>
 
-<div class="page">
-
-<div class="title">Trips Summary</div>
+<!-- TABS -->
 
 <div class="tabs">
-<button class="tab active" onclick="switchTab('individual',this)">Individual</button>
-<button class="tab" onclick="switchTab('shared',this)">Shared</button>
+
+  <button
+    class="tab active"
+    onclick="switchTab('individual',this)">
+    Individual
+  </button>
+
+  <button
+    class="tab"
+    onclick="switchTab('shared',this)">
+    Shared
+  </button>
+
 </div>
 
-<div class="filters">
-<input type="date" id="date">
-<input type="text" id="search" placeholder="Search name">
-<button onclick="applyFilter()">Search</button>
-<button onclick="window.print()">Print</button>
+<!-- STATS -->
+
+<div class="stats">
+
+  <div class="stat-box">
+    <div class="stat-title">Total Trips</div>
+    <div class="stat-value" id="totalTrips">0</div>
+  </div>
+
+  <div class="stat-box">
+    <div class="stat-title">Completed</div>
+    <div class="stat-value" id="completedTrips">0</div>
+  </div>
+
+  <div class="stat-box">
+    <div class="stat-title">Cancelled</div>
+    <div class="stat-value" id="cancelledTrips">0</div>
+  </div>
+
+  <div class="stat-box">
+    <div class="stat-title">No Show</div>
+    <div class="stat-value" id="noShowTrips">0</div>
+  </div>
+
+  <div class="stat-box">
+    <div class="stat-title">Total Revenue</div>
+    <div class="stat-value" id="totalRevenue">$0</div>
+  </div>
+
 </div>
+
+<!-- CONTENT -->
 
 <div id="content"></div>
 
-</div>
-
-<script src="layout.js"></script>
 <script src="summary.js"></script>
 
 </body>
