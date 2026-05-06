@@ -29,11 +29,11 @@ body{
 
 /* PAGE */
 .summary-page{
-  padding:165px 10px 30px;
+  padding:165px 10px 40px;
 }
 
-/* TOP BAR */
-.summary-top{
+/* SEARCH */
+.top-bar{
   display:flex;
   gap:10px;
   margin-bottom:12px;
@@ -42,22 +42,22 @@ body{
 
 .search-input{
   flex:1;
-  min-width:220px;
+  min-width:240px;
   height:42px;
   border:none;
   border-radius:10px;
+  background:#fff;
   padding:0 14px;
   font-size:13px;
-  background:#fff;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
+  box-shadow:0 3px 12px rgba(0,0,0,.06);
 }
 
 .print-btn{
   border:none;
   background:#145cff;
   color:#fff;
-  border-radius:10px;
   padding:0 18px;
+  border-radius:10px;
   font-size:13px;
   font-weight:700;
   cursor:pointer;
@@ -92,7 +92,7 @@ body{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
   gap:10px;
-  margin-bottom:18px;
+  margin-bottom:20px;
 }
 
 .stat-card{
@@ -105,7 +105,7 @@ body{
 .stat-title{
   font-size:11px;
   color:#6b7280;
-  margin-bottom:6px;
+  margin-bottom:5px;
 }
 
 .stat-value{
@@ -113,12 +113,20 @@ body{
   font-weight:800;
 }
 
+/* SECTION */
+.section-title{
+  margin:28px 0 10px;
+  font-size:18px;
+  font-weight:800;
+  color:#1c2440;
+}
+
 /* DAY */
 .day-title{
-  font-size:15px;
+  margin:18px 0 8px;
+  font-size:14px;
   font-weight:800;
-  margin:22px 0 10px;
-  color:#1c2440;
+  color:#374151;
 }
 
 /* TABLE */
@@ -127,40 +135,47 @@ body{
   background:#fff;
   border-radius:14px;
   box-shadow:0 4px 14px rgba(0,0,0,.08);
+  margin-bottom:18px;
 }
 
 .summary-table{
   width:100%;
   border-collapse:collapse;
-  min-width:1800px;
+  min-width:2100px;
 }
 
 .summary-table th{
   background:#1c2440;
   color:#fff;
-  font-size:11px;
-  padding:10px 8px;
-  text-align:left;
+  font-size:10px;
+  padding:10px 6px;
   white-space:nowrap;
+  text-align:left;
 }
 
 .summary-table td{
-  font-size:11px;
-  padding:8px;
+  font-size:10px;
+  padding:8px 6px;
   border-bottom:1px solid #e5e7eb;
   vertical-align:top;
   font-weight:600;
   line-height:1.5;
 }
 
+/* STACK */
+.stack{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
 /* STATUS */
 .status{
-  display:block;
+  display:inline-block;
   padding:3px 7px;
   border-radius:999px;
-  font-size:10px;
+  font-size:9px;
   font-weight:800;
-  margin-bottom:4px;
   width:max-content;
 }
 
@@ -180,30 +195,23 @@ body{
 }
 
 /* TOTAL */
-.total-cell{
-  font-size:13px !important;
+.total{
+  font-size:12px !important;
   font-weight:800 !important;
   color:#145cff;
-}
-
-/* SHARED STACK */
-.stack{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
 }
 
 /* MOBILE */
 @media(max-width:768px){
 
   .summary-page{
-    padding:155px 6px 20px;
+    padding:155px 5px 30px;
   }
 
   .summary-table th,
   .summary-table td{
-    font-size:10px;
-    padding:7px 6px;
+    font-size:9px;
+    padding:7px 5px;
   }
 
 }
@@ -211,7 +219,7 @@ body{
 @media print{
 
   #layoutHeader,
-  .summary-top,
+  .top-bar,
   .filters{
     display:none !important;
   }
@@ -239,7 +247,7 @@ body{
 <div class="summary-page">
 
   <!-- TOP -->
-  <div class="summary-top">
+  <div class="top-bar">
 
     <input
       type="text"
@@ -295,8 +303,19 @@ body{
 
   </div>
 
-  <!-- CONTENT -->
-  <div id="summaryContent"></div>
+  <!-- INDIVIDUAL -->
+  <div class="section-title">
+    Individual Summary
+  </div>
+
+  <div id="individualContent"></div>
+
+  <!-- SHARED -->
+  <div class="section-title">
+    Shared Summary
+  </div>
+
+  <div id="sharedContent"></div>
 
 </div>
 

@@ -1433,7 +1433,6 @@ app.post("/api/trips", async (req, res) => {
     }
 
     /* =========================
-    /* =========================
    🔴 SHARED CREATE (FINAL CLEAN)
 ========================= */
 
@@ -1598,7 +1597,7 @@ app.get("/api/trips/company/:company", async (req, res) => {
 });
 
 /* =========================
-   SUMMARY TRIPS (FINAL)
+   SUMMARY TRIPS (FINAL REAL)
 ========================= */
 app.get("/api/trips/summary", async (req, res) => {
   try {
@@ -1607,51 +1606,279 @@ app.get("/api/trips/summary", async (req, res) => {
       .sort({ tripDate: -1, tripTime: -1 })
       .lean();
 
-    const result = trips.map(t => {
+    const result = [];
 
-      // 🔥 normalize status
-      let status = (t.status || "").toLowerCase();
+    for (const t of trips) {
 
-      if (status.includes("cancel")) status = "Cancelled";
-      else if (status.includes("no")) status = "NoShow";
-      else if (status.includes("complete")) status = "Completed";
-      else status = "Scheduled";
+      // =========================
+      // STATUS
+      // =========================
+      let status = String(t.status || "")
+        .toLowerCase();
 
-      // 🔥 احسب المايلز
+      if (status.includes("cancel")) {
+        status = "Cancelled";
+      }
+      else if (
+        status.includes("no")
+      ) {
+        status = "NoShow";
+      }
+      else if (
+        status.includes("complete")
+      ) {
+        status = "Completed";
+      }
+      else {
+        continue;
+      }
+
+      // =========================
+      // MILES
+      // =========================
       let miles = 0;
 
       if (t.miles && t.miles > 0) {
-        miles = t.miles;
+
+        miles = Number(t.miles);
+
       } else if (
-        t.pickupLat && t.pickupLng &&
-        t.dropoffLat && t.dropoffLng
+        t.pickupLat &&
+        t.pickupLng &&
+        t.dropoffLat &&
+        t.dropoffLng
       ) {
-        miles = calcDistanceKm(
-          t.pickupLat,
-          t.pickupLng,
-          t.dropoffLat,
-          t.dropoffLng
-        ) * 0.621371;
+
+        miles =
+          calcDistanceKm(
+            t.pickupLat,
+            t.pickupLng,
+            t.dropoffLat,
+            t.dropoffLng
+          ) * 0.621371;
+
       }
 
-      return {
-        ...t,
-        status,
-        miles: Math.round(miles)
-      };
+      miles = Math.round(miles);
 
-    })
-    .filter(t =>
-      t.status === "Completed" ||
-      t.status === "Cancelled" ||
-      t.status === "NoShow"
-    );
+      // =========================
+      // BOOKING DATE/TIME
+      // =========================
+      let bookingDate = "";
+      let bookingTime = "";
+
+      if (t.createdAt) {
+
+        const d = new Date(t.createdAt);
+
+        bookingDate =
+          d.toLocaleDateString("en-US", {
+            timeZone: "America/Phoenix"
+          });
+
+        bookingTime =
+          d.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "America/Phoenix"
+          });
+
+      }
+
+      // =========================
+      // SHARED
+      // =========================
+      if (
+        t.isShared &&
+        Array.isArray(t.passengers)
+      ) {
+
+        const passengers =
+          t.passengers.map(p => {
+
+            let pStatus =
+              String(
+                p.status ||
+                status
+              ).toLowerCase();
+
+            if (pStatus.includes("cancel")) {
+              pStatus = "Cancelled";
+            }
+            else if (
+              pStatus.includes("no")
+            ) {
+              pStatus = "NoShow";
+            }
+            else if (
+              pStatus.includes("complete")
+            ) {
+              pStatus = "Completed";
+            }
+            else {
+              pStatus = status;
+            }
+
+            let passengerPrice = 0;
+
+            if (
+              pStatus === "Cancelled"
+            ) {
+              passengerPrice = 15;
+            }
+
+            if (
+              pStatus === "NoShow"
+            ) {
+              passengerPrice = 15;
+            }
+
+            return {
+
+              clientName:
+                p.clientName || "",
+
+              clientPhone:
+                p.clientPhone || "",
+
+              pickup:
+                p.pickup || "",
+
+              dropoff:
+                p.dropoff || "",
+
+              status:
+                pStatus,
+
+              price:
+                passengerPrice
+            };
+
+          });
+
+        const total =
+          passengers.reduce(
+            (a,b)=>a+b.price,
+            0
+          );
+
+        result.push({
+
+          _id: t._id,
+
+          isShared: true,
+
+          tripNumber:
+            t.tripNumber || "",
+
+          company:
+            t.company || "",
+
+          entryName:
+            t.entryName || "",
+
+          entryPhone:
+            t.entryPhone || "",
+
+          tripDate:
+            t.tripDate || "",
+
+          tripTime:
+            t.tripTime || "",
+
+          bookingDate,
+          bookingTime,
+
+          miles,
+
+          passengers,
+
+          totalPassengers:
+            passengers.length,
+
+          totalPrice:
+            total
+        });
+
+      }
+
+      // =========================
+      // INDIVIDUAL
+      // =========================
+      else {
+
+        let finalPrice = 0;
+
+        if (status === "Cancelled") {
+          finalPrice = 15;
+        }
+
+        if (status === "NoShow") {
+          finalPrice = 15;
+        }
+
+        result.push({
+
+          _id: t._id,
+
+          isShared: false,
+
+          tripNumber:
+            t.tripNumber || "",
+
+          company:
+            t.company || "",
+
+          entryName:
+            t.entryName || "",
+
+          entryPhone:
+            t.entryPhone || "",
+
+          clientName:
+            t.clientName || "",
+
+          clientPhone:
+            t.clientPhone || "",
+
+          pickup:
+            t.pickup || "",
+
+          dropoff:
+            t.dropoff || "",
+
+          tripDate:
+            t.tripDate || "",
+
+          tripTime:
+            t.tripTime || "",
+
+          bookingDate,
+          bookingTime,
+
+          miles,
+
+          status,
+
+          totalPrice:
+            finalPrice
+        });
+
+      }
+
+    }
 
     res.json(result);
 
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "summary error" });
+
+    res.status(500).json({
+      message: "summary error"
+    });
+
   }
 });
 
