@@ -954,11 +954,17 @@ await updateTrip(id,{
   googleRoute:null,
   routePoints:[]
 });
+
 trips = await fetchTrips();
-  render();
-  return;
+
+const updatedTrip = trips.find(t => t._id === id);
+
+if(updatedTrip){
+  updatedTrip.__editing = true;
 }
 
+render();
+return;
 
    if(action === "edit-shared"){
   const tr = btn.closest("tr");
@@ -999,16 +1005,24 @@ await updateTrip(t._id,{
   googleRoute:null,
   routePoints:[],
   optimizedRoute:null
-});  
+});
+
+trips = await fetchTrips();
+
+const refreshedGroup = getSharedGroups().find(
+  g => getSharedKey(g[0]) === groupId
+);
+
+if(refreshedGroup){
+  refreshedGroup.forEach(t=>{
+    t.__editing = true;
+  });
 }
 
-  trips = await fetchTrips();
+render();
+return;  
 
-  render();
-  return;
-}
-
-    if(action === "cancel-edit"){
+  if(action === "cancel-edit"){
       trips = await fetchTrips();
       render();
       return;
