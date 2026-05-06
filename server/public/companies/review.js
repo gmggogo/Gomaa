@@ -623,32 +623,8 @@ function renderIndividualButtons(t, editing){
   return "";
 }
 
-function priceMilesCell(price, miles){
-  return `
-    <div style="
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:6px;
-    ">
-
-      <span class="price-badge">
-        $${formatMoney(price)}
-      </span>
-
-      <span class="miles-strong">
-        ${
-          miles !== undefined && miles !== null && miles !== ""
-            ? Number(miles).toFixed(1) + " mi"
-            : "-- mi"
-        }
-      </span>
-
-    </div>
-  `;
-}
-
 function renderIndividualTable(list){
+
   const groups = groupByDate(list);
   const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
 
@@ -677,7 +653,9 @@ function renderIndividualTable(list){
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
-        <th>Price / Miles</th>
+        <th>Price</th>
+        <th>Miles</th>
+        <th>ETA</th>
         <th>Actions</th>
       </tr>
     `;
@@ -688,9 +666,12 @@ function renderIndividualTable(list){
       tr.dataset.id = t._id;
 
       const editing = t.__editing === true;
+
       applyRowColor(tr, t);
 
-      const stops = Array.isArray(t.stops) ? t.stops : [];
+      const stops = Array.isArray(t.stops)
+        ? t.stops
+        : [];
 
       tr.innerHTML = `
         <td>${i+1}</td>
@@ -701,74 +682,157 @@ function renderIndividualTable(list){
           </span>
         </td>
 
-        <td>${editing ? createEditInput(t.entryName || "", "entryName") : escapeHtml(t.entryName || "")}</td>
-        <td>${editing ? createEditInput(t.entryPhone || "", "entryPhone") : escapeHtml(t.entryPhone || "")}</td>
-
-        <td>${editing ? createEditInput(t.clientName || "", "clientName") : `<div class="multi-line">${escapeHtml(t.clientName || "")}</div>`}</td>
-        <td>${editing ? createEditInput(t.clientPhone || "", "clientPhone") : `<div class="multi-line">${escapeHtml(t.clientPhone || "")}</div>`}</td>
-
-        <td>${editing ? createEditInput(t.pickup || "", "pickup") : `<div class="multi-line">${escapeHtml(t.pickup || "")}</div>`}</td>
-        <td>${editing ? createEditInput(t.dropoff || "", "dropoff") : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`}</td>
-
         <td>
           ${
             editing
-              ? stops.map((s,si)=>`
-                  <input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">
-                `).join("")
-              : `<div class="multi-line">${stops.map(s=>escapeHtml(s)).join("<br>")}</div>`
+              ? createEditInput(t.entryName || "", "entryName")
+              : escapeHtml(t.entryName || "")
           }
         </td>
 
         <td>
           ${
-            editing 
-              ? createEditInput(t.notes || "", "notes") 
+            editing
+              ? createEditInput(t.entryPhone || "", "entryPhone")
+              : escapeHtml(t.entryPhone || "")
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createEditInput(t.clientName || "", "clientName")
+              : `<div class="multi-line">${escapeHtml(t.clientName || "")}</div>`
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createEditInput(t.clientPhone || "", "clientPhone")
+              : `<div class="multi-line">${escapeHtml(t.clientPhone || "")}</div>`
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createEditInput(t.pickup || "", "pickup")
+              : `<div class="multi-line">${escapeHtml(t.pickup || "")}</div>`
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createEditInput(t.dropoff || "", "dropoff")
+              : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? stops.map((s,si)=>`
+                  <input
+                    class="edit-input"
+                    data-stop-index="${si}"
+                    value="${escapeHtml(s)}"
+                  >
+                `).join("")
+              : `
+                <div class="multi-line">
+                  ${stops.map(s=>escapeHtml(s)).join("<br>")}
+                </div>
+              `
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createEditInput(t.notes || "", "notes")
               : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`
           }
         </td>
 
         <td>
           ${
-            editing 
-              ? createEditInput(t.tripDate || "", "tripDate", "date") 
+            editing
+              ? createEditInput(t.tripDate || "", "tripDate", "date")
               : escapeHtml(t.tripDate || "")
           }
         </td>
 
         <td>
           ${
-            editing 
-              ? createEditInput(t.tripTime || "", "tripTime", "time") 
+            editing
+              ? createEditInput(t.tripTime || "", "tripTime", "time")
               : escapeHtml(t.tripTime || "")
           }
         </td>
 
         <td>
-          <strong>${escapeHtml(t.status || "Scheduled")}</strong>
+          <strong>
+            ${escapeHtml(t.status || "Scheduled")}
+          </strong>
         </td>
 
+        <!-- PRICE -->
         <td>
-          ${priceMilesCell(t.priceAmount, t.miles)}
+          <span class="price-badge">
+            $${formatMoney(t.priceAmount)}
+          </span>
         </td>
 
+        <!-- MILES -->
+        <td>
+          <span class="miles-strong">
+            ${
+              t.miles !== undefined &&
+              t.miles !== null &&
+              t.miles !== ""
+                ? Number(t.miles).toFixed(1) + " mi"
+                : "-- mi"
+            }
+          </span>
+        </td>
+
+        <!-- ETA -->
+        <td>
+          <span class="eta-strong">
+            ${
+              t.estimatedMinutes
+                ? t.estimatedMinutes + " min"
+                : "--"
+            }
+          </span>
+        </td>
+
+        <!-- ACTIONS -->
         <td>
           ${renderIndividualButtons(t, editing)}
         </td>
       `;
 
       table.appendChild(tr);
+
     });
 
     container.appendChild(table);
+
   });
 
   if(!dates.length){
+
     const empty = document.createElement("div");
+
     empty.style.padding = "20px";
     empty.style.fontWeight = "700";
     empty.style.color = "#0f172a";
+
     empty.innerText = "No individual trips found.";
+
     container.appendChild(empty);
   }
 }
@@ -776,20 +840,39 @@ function renderIndividualTable(list){
 /* ================= SHARED RENDER ================= */
 
 function getGroupStatus(group){
-  if(group.every(t=>t.status === "Cancelled")) return "Cancelled";
-  if(group.every(t=>t.status === "Confirmed")) return "Confirmed";
-  if(group.some(t=>t.status === "Confirmed")) return "Partially Confirmed";
+
+  if(group.every(t=>t.status === "Cancelled")){
+    return "Cancelled";
+  }
+
+  if(group.every(t=>t.status === "Confirmed")){
+    return "Confirmed";
+  }
+
+  if(group.some(t=>t.status === "Confirmed")){
+    return "Partially Confirmed";
+  }
+
   return group[0]?.status || "Scheduled";
 }
 
 function getGroupPrice(group){
-  const firstWithPrice = group.find(t => Number(t.priceAmount || 0) > 0);
-  return firstWithPrice ? Number(firstWithPrice.priceAmount || 0) : 0;
+
+  const firstWithPrice = group.find(
+    t => Number(t.priceAmount || 0) > 0
+  );
+
+  return firstWithPrice
+    ? Number(firstWithPrice.priceAmount || 0)
+    : 0;
 }
 
 function renderSharedButtons(group, editing){
+
   const first = group[0];
+
   const mins = minutesToTrip(first);
+
   const status = getGroupStatus(group);
 
   if(editing){
@@ -838,24 +921,36 @@ function renderSharedTable(groups){
   const dateGroups = {};
 
   groups.forEach(group=>{
+
     const first = group[0];
-    const d = first?.createdAt ? new Date(first.createdAt) : new Date();
+
+    const d = first?.createdAt
+      ? new Date(first.createdAt)
+      : new Date();
+
     const key = d.toLocaleDateString();
 
-    if(!dateGroups[key]) dateGroups[key] = [];
+    if(!dateGroups[key]){
+      dateGroups[key] = [];
+    }
+
     dateGroups[key].push(group);
   });
 
-  const dates = Object.keys(dateGroups).sort((a,b)=>new Date(b)-new Date(a));
+  const dates = Object.keys(dateGroups)
+    .sort((a,b)=>new Date(b)-new Date(a));
 
   dates.forEach(date=>{
 
     const title = document.createElement("div");
+
     title.className = "date-title";
     title.innerText = date;
+
     container.appendChild(title);
 
     const table = document.createElement("table");
+
     table.className = "review-table";
 
     table.innerHTML = `
@@ -873,7 +968,9 @@ function renderSharedTable(groups){
         <th>Date</th>
         <th>Time</th>
         <th>Status</th>
-        <th>Price / Miles</th>
+        <th>Price</th>
+        <th>Miles</th>
+        <th>ETA</th>
         <th>Actions</th>
       </tr>
     `;
@@ -881,10 +978,13 @@ function renderSharedTable(groups){
     dateGroups[date].forEach((group,i)=>{
 
       const first = group[0];
+
       const tr = document.createElement("tr");
+
       tr.dataset.groupId = getSharedKey(first);
 
       const editing = first.__editing === true;
+
       applyRowColor(tr, first);
 
       const passengers = getRealPassengersFromGroup(group);
@@ -895,30 +995,66 @@ function renderSharedTable(groups){
       let drops = "";
 
       if(editing){
+
         clients = passengers.map((p,idx)=>
-          createSharedEditInput(p.name || p.clientName || "", first._id, `passenger_${idx}_name`)
+          createSharedEditInput(
+            p.name || p.clientName || "",
+            first._id,
+            `passenger_${idx}_name`
+          )
         ).join("\n");
 
         phones = passengers.map((p,idx)=>
-          createSharedEditInput(p.phone || p.clientPhone || "", first._id, `passenger_${idx}_phone`)
+          createSharedEditInput(
+            p.phone || p.clientPhone || "",
+            first._id,
+            `passenger_${idx}_phone`
+          )
         ).join("\n");
 
         pickups = passengers.map((p,idx)=>
-          createSharedEditInput(p.pickup || "", first._id, `passenger_${idx}_pickup`)
+          createSharedEditInput(
+            p.pickup || "",
+            first._id,
+            `passenger_${idx}_pickup`
+          )
         ).join("\n");
 
         drops = passengers.map((p,idx)=>`
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-            ${createSharedEditInput(p.dropoff || "", first._id, `passenger_${idx}_dropoff`)}
-            <button class="btn small-delete" data-action="remove-passenger" data-index="${idx}" type="button">✖</button>
+            ${createSharedEditInput(
+              p.dropoff || "",
+              first._id,
+              `passenger_${idx}_dropoff`
+            )}
+            <button
+              class="btn small-delete"
+              data-action="remove-passenger"
+              data-index="${idx}"
+              type="button"
+            >
+              ✖
+            </button>
           </div>
         `).join("");
 
       }else{
-        clients = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`).join("\n");
-        phones  = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`).join("\n");
-        pickups = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.pickup || "")}`).join("\n");
-        drops   = passengers.map((p,idx)=>`${idx+1}. ${escapeHtml(p.dropoff || "")}`).join("\n");
+
+        clients = passengers
+          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.name || p.clientName || "")}`)
+          .join("\n");
+
+        phones = passengers
+          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "")}`)
+          .join("\n");
+
+        pickups = passengers
+          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.pickup || "")}`)
+          .join("\n");
+
+        drops = passengers
+          .map((p,idx)=>`${idx+1}. ${escapeHtml(p.dropoff || "")}`)
+          .join("\n");
       }
 
       const notes = editing
@@ -937,59 +1073,125 @@ function renderSharedTable(groups){
         </td>
 
         <td>
-          ${editing ? createSharedEditInput(first.entryName || "", first._id, "entryName") : escapeHtml(first.entryName || "")}
+          ${
+            editing
+              ? createSharedEditInput(first.entryName || "", first._id, "entryName")
+              : escapeHtml(first.entryName || "")
+          }
         </td>
 
         <td>
-          ${editing ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone") : escapeHtml(first.entryPhone || "")}
-        </td>
-
-        <td><div class="multi-line">${clients}</div></td>
-        <td><div class="multi-line">${phones}</div></td>
-        <td><div class="multi-line">${pickups}</div></td>
-        <td><div class="multi-line">${drops}</div></td>
-
-        <td><strong>${stopsCount}</strong></td>
-
-        <td>${notes}</td>
-
-        <td>
-          ${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}
+          ${
+            editing
+              ? createSharedEditInput(first.entryPhone || "", first._id, "entryPhone")
+              : escapeHtml(first.entryPhone || "")
+          }
         </td>
 
         <td>
-          ${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}
+          <div class="multi-line">${clients}</div>
         </td>
 
         <td>
-          <strong>${escapeHtml(getGroupStatus(group))}</strong>
+          <div class="multi-line">${phones}</div>
         </td>
 
         <td>
-          ${priceMilesCell(getGroupPrice(group), first.miles)}
+          <div class="multi-line">${pickups}</div>
         </td>
 
+        <td>
+          <div class="multi-line">${drops}</div>
+        </td>
+
+        <td>
+          <strong>${stopsCount}</strong>
+        </td>
+
+        <td>
+          ${notes}
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date")
+              : escapeHtml(first.tripDate || "")
+          }
+        </td>
+
+        <td>
+          ${
+            editing
+              ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time")
+              : escapeHtml(first.tripTime || "")
+          }
+        </td>
+
+        <td>
+          <strong>
+            ${escapeHtml(getGroupStatus(group))}
+          </strong>
+        </td>
+
+        <!-- PRICE -->
+        <td>
+          <span class="price-badge">
+            $${formatMoney(getGroupPrice(group))}
+          </span>
+        </td>
+
+        <!-- MILES -->
+        <td>
+          <span class="miles-strong">
+            ${
+              first.miles !== undefined &&
+              first.miles !== null &&
+              first.miles !== ""
+                ? Number(first.miles).toFixed(1) + " mi"
+                : "-- mi"
+            }
+          </span>
+        </td>
+
+        <!-- ETA -->
+        <td>
+          <span class="eta-strong">
+            ${
+              first.estimatedMinutes
+                ? first.estimatedMinutes + " min"
+                : "--"
+            }
+          </span>
+        </td>
+
+        <!-- ACTIONS -->
         <td>
           ${renderSharedButtons(group, editing)}
         </td>
       `;
 
       table.appendChild(tr);
+
     });
 
     container.appendChild(table);
+
   });
 
   if(!dates.length){
+
     const empty = document.createElement("div");
+
     empty.style.padding = "20px";
     empty.style.fontWeight = "700";
     empty.style.color = "#0f172a";
+
     empty.innerText = "No shared trips found.";
+
     container.appendChild(empty);
   }
 }
-
 /* ================= MAIN RENDER ================= */
 
 function render(){
