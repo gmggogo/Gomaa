@@ -1349,7 +1349,11 @@ trip.status = "Scheduled";
       trip.status = "Scheduled";
       trip.priceAmount = 0;
       trip.__editing = false;
-
+delete trip.googleRoute;
+delete trip.routePoints;
+delete trip.distanceMeters;
+delete trip.durationSeconds;
+delete trip.estimatedMinutes;
       console.log("SAVING:", trip);
 alert("SAVE CLICKED");
 
