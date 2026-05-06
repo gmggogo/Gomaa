@@ -1350,7 +1350,10 @@ trip.status = "Scheduled";
       trip.priceAmount = 0;
       trip.__editing = false;
 
-      await updateTrip(id, trip);
+      console.log("SAVING:", trip);
+alert("SAVE CLICKED");
+
+await updateTrip(id, trip);
 
       trips = await fetchTrips();
       render();
