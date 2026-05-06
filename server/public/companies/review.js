@@ -739,7 +739,7 @@ function renderIndividualTable(list){
         <td>${editing ? createEditInput(t.dropoff || "", "dropoff") : `<div class="multi-line">${escapeHtml(t.dropoff || "")}</div>`}</td>
         <td>${editing ? createEditInput(t.notes || "", "notes") : `<div class="multi-line">${escapeHtml(t.notes || "")}</div>`}</td>
         <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
-        <td>${editing ? createEditInput(t.tripTime || "", "tripTime") : escapeHtml(t.tripTime || "")}</td>
+        <td>${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
         <td><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
         <td><span class="price-badge">$${formatMoney(t.priceAmount)}</span></td>
         <td><span class="miles-strong">${
@@ -920,7 +920,7 @@ function renderSharedTable(groups){
         <td><div class="multi-line">${drops}</div></td>
         <td>${notes}</td>
         <td>${editing ? createSharedEditInput(first.tripDate || "", first._id, "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
-        <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime") : escapeHtml(first.tripTime || "")}</td>
+        <td>${editing ? createSharedEditInput(first.tripTime || "", first._id, "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
         <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
         <td><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
         <td><span class="miles-strong">${
@@ -981,7 +981,16 @@ container.addEventListener("click", async e=>{
 
       const trip = trips.find(t=>t._id === id);
       if(!trip) return;
+const mins = minutesToTrip(trip);
 
+if(mins !== null && mins <= 120 && mins > 0){
+
+  const ok = confirm(
+    "This trip is within 120 minutes.\n\nCancellation fee may apply.\n\nDo you want to continue editing?"
+  );
+
+  if(!ok) return;
+}
       trip.status = "Scheduled";
 
       trip.priceAmount = 0;
