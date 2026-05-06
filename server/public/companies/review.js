@@ -639,7 +639,7 @@ function renderIndividualButtons(t, editing){
   if(editing){
     return `
       <div class="actions-wrap">
-        <button class="btn confirm" data-action="save-individual">Save</button>
+<button class="btn confirm-green" data-action="save-individual">Save</button>
         <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
       </div>
     `;
@@ -652,7 +652,7 @@ function renderIndividualButtons(t, editing){
       <div class="actions-wrap">
         <button class="btn edit" data-action="edit">Edit</button>
         <button class="btn delete" data-action="delete">Delete</button>
-        <button class="btn confirm" data-action="confirm-individual">Confirm</button>
+<button class="btn ${t.status === "Confirmed" ? "confirm-yellow" : "confirm-green"}" data-action="confirm-individual">Confirm</button>
       </div>
     `;
   }
