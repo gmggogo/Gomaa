@@ -789,8 +789,8 @@ function renderSharedButtons(group, editing){
   if(editing){
     return `
       <div class="actions-wrap">
-        <button class="btn confirm" data-action="save-shared">Save</button>
-        <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
+   <button class="btn confirm-green" data-action="save-shared">Save</button>     
+   <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
       </div>
     `;
   }
@@ -802,8 +802,9 @@ function renderSharedButtons(group, editing){
       <div class="actions-wrap">
         <button class="btn edit" data-action="edit-shared">Edit</button>
         <button class="btn delete" data-action="delete-shared">Delete</button>
-        <button class="btn confirm" data-action="confirm-shared">Confirm</button>
-      </div>
+<button class="btn ${status === 'Confirmed' ? 'confirm-yellow' : 'confirm-green'}" data-action="confirm-shared">Confirm</button>   
+
+   </div>
     `;
   }
 
