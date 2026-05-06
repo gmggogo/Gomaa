@@ -1695,26 +1695,6 @@ app.put("/api/trips/:id", async (req, res) => {
       });
     }
    
-if(existing.status === "Confirmed"){
-
-  const pickupChanged =
-    String(req.body.pickup || "").trim() !==
-    String(existing.pickup || "").trim();
-
-  const dropoffChanged =
-    String(req.body.dropoff || "").trim() !==
-    String(existing.dropoff || "").trim();
-
-  const stopsChanged =
-    JSON.stringify(req.body.stops || []) !==
-    JSON.stringify(existing.stops || []);
-
-  if(pickupChanged || dropoffChanged || stopsChanged){
-    return res.status(400).json({
-      message:"Cannot change route after confirmation"
-    });
-  }
-}
 
     /* =========================
        UPDATE DATA
