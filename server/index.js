@@ -1749,15 +1749,20 @@ app.put("/api/trips/:id", async (req, res) => {
       durationSeconds: req.body.durationSeconds ?? existing.durationSeconds,
       estimatedMinutes: req.body.estimatedMinutes ?? existing.estimatedMinutes,
 
-      googleRoute: req.body.googleRoute
-        ? {
-            overviewPolyline: req.body.googleRoute.overviewPolyline || "",
-            summary: req.body.googleRoute.summary || "",
-            legs: Array.isArray(req.body.googleRoute.legs)
-              ? req.body.googleRoute.legs
-              : []
-          }
-        : existing.googleRoute,
+      googleRoute:
+  req.body.googleRoute !== undefined
+    ? req.body.googleRoute
+    : existing.googleRoute,
+
+routePoints:
+  req.body.routePoints !== undefined
+    ? req.body.routePoints
+    : existing.routePoints,
+
+optimizedRoute:
+  req.body.optimizedRoute !== undefined
+    ? req.body.optimizedRoute
+    : existing.optimizedRoute,
 
       // SHARED
       passengers: Array.isArray(req.body.passengers)
@@ -1849,13 +1854,7 @@ if (updateData.status === "Cancelled") {
       }
     }
 
-    /* =========================
-       PRICE BACKUP
-    ========================= */
-    if (!updateData.priceAmount || updateData.priceAmount === 0) {
-      updateData.priceAmount = calculatePriceServer(updateData);
-    }
-
+  
     /* =========================
        SAVE
     ========================= */
