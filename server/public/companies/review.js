@@ -950,20 +950,42 @@ container.addEventListener("click", async e=>{
   return;
 }
 
-    if(action === "edit-shared"){
-      const tr = btn.closest("tr");
-      const groupId = tr.dataset.groupId;
-      const group = getSharedGroups().find(g=>getSharedKey(g[0]) === groupId);
-      if(!group) return;
+   if(action === "edit-shared"){
+  const tr = btn.closest("tr");
+  const groupId = tr.dataset.groupId;
 
-      group.forEach(t=>{
-        const real = trips.find(x=>x._id === t._id);
-        if(real) real.__editing = true;
-      });
+  const group = getSharedGroups().find(
+    g => getSharedKey(g[0]) === groupId
+  );
 
-      render();
-      return;
-    }
+  if(!group) return;
+
+  for(const t of group){
+
+    t.status = "Scheduled";
+
+    t.priceAmount = 0;
+    t.pricePerPassenger = 0;
+
+    t.miles = 0;
+    t.distanceMeters = 0;
+    t.durationSeconds = 0;
+    t.estimatedMinutes = 0;
+
+    delete t.googleRoute;
+    delete t.routePoints;
+    delete t.optimizedRoute;
+
+    t.__editing = true;
+
+    await updateTrip(t._id, t);
+  }
+
+  trips = await fetchTrips();
+
+  render();
+  return;
+}
 
     if(action === "cancel-edit"){
       trips = await fetchTrips();
