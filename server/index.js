@@ -1622,7 +1622,14 @@ const trips = await Trip.find(filter)
     const result = [];
 
     for (const t of trips) {
-
+console.log(
+  "TRIP:",
+  t.tripNumber,
+  "STATUS:",
+  t.status,
+  "FINAL:",
+  t.finalPrice
+);
       // =========================
       // STATUS
       // =========================
