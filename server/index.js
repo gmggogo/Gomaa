@@ -2728,12 +2728,18 @@ app.post("/api/cancel-trip", async (req, res) => {
     // 🔥 SAVE BEFORE STRIPE
     // =========================
     trip.status = "Cancelled";
-    trip.cancelDateTime = new Date(); // 🔥 أهم سطر
 
-    trip.cancelFee = fee;
-    trip.refundAmount = refundAmount;
-    trip.simpleRefundId = simpleRefundId;
+trip.cancelDateTime = new Date();
 
+trip.cancelFee = fee;
+
+trip.finalPrice = fee;
+
+trip.isFinalized = true;
+
+trip.refundAmount = refundAmount;
+
+trip.simpleRefundId = simpleRefundId;
     // أول حالة
     trip.refundStatus = refundAmount > 0 ? "processing" : "none";
 
