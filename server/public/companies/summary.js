@@ -481,7 +481,16 @@ ${
 
             <td>${p.pickup || "-"}</td>
 
-<td>-</td>
+<td>
+
+${
+  passengers.length <= 1
+    ? "Direct"
+    : `${passengers.length - 1} Stops`
+}
+
+</td>          
+          
             <td>${p.dropoff || "-"}</td>
 
             <td>
@@ -545,7 +554,7 @@ ${
 
         tbody.innerHTML += `
         <tr class="trip-divider-line">
-          <td colspan="16"></td>
+          <td colspan="17"></td>
         </tr>
 
         <tr class="trip-divider">
