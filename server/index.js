@@ -1863,7 +1863,10 @@ console.log(
 
           pickup:
             t.pickup || "",
-
+stops:
+  Array.isArray(t.stops)
+    ? t.stops
+    : [],
           dropoff:
             t.dropoff || "",
 
