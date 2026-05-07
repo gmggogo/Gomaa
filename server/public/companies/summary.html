@@ -18,6 +18,10 @@ body{
   color:#111827;
 }
 
+/* =========================
+   HEADER
+========================= */
+
 #layoutHeader{
   position:fixed;
   top:0;
@@ -30,7 +34,10 @@ body{
   padding:160px 8px 30px;
 }
 
-/* TOP */
+/* =========================
+   TOP BAR
+========================= */
+
 .top-bar{
   display:flex;
   gap:8px;
@@ -40,13 +47,22 @@ body{
 
 .search-input,
 .filter-select{
-  height:38px;
+
+  height:40px;
+
   border:none;
+
   border-radius:8px;
+
   background:#fff;
-  padding:0 10px;
+
+  padding:0 12px;
+
   font-size:11px;
+
   box-shadow:0 2px 8px rgba(0,0,0,.05);
+
+  font-weight:700;
 }
 
 .search-input{
@@ -55,17 +71,33 @@ body{
 }
 
 .print-btn{
+
   border:none;
+
   background:#145cff;
+
   color:#fff;
+
   border-radius:8px;
-  padding:0 16px;
+
+  padding:0 18px;
+
   font-size:11px;
-  font-weight:800;
+  font-weight:900;
+
   cursor:pointer;
+
+  transition:.2s;
 }
 
-/* TABS */
+.print-btn:hover{
+  background:#0f46c9;
+}
+
+/* =========================
+   TABS
+========================= */
+
 .tabs{
   display:flex;
   gap:8px;
@@ -73,15 +105,25 @@ body{
 }
 
 .tab{
+
   flex:1;
+
   height:42px;
+
   border:none;
+
   border-radius:8px;
+
   background:#dbe4f0;
+
   color:#111827;
+
   font-size:12px;
-  font-weight:800;
+  font-weight:900;
+
   cursor:pointer;
+
+  transition:.2s;
 }
 
 .tab.active{
@@ -89,7 +131,10 @@ body{
   color:#fff;
 }
 
-/* STATS */
+/* =========================
+   STATS
+========================= */
+
 .stats{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
@@ -98,75 +143,161 @@ body{
 }
 
 .stat{
-  background:#fff;
+
+  background:#16a34a;
+
   border-radius:10px;
+
   padding:10px;
-  box-shadow:0 2px 8px rgba(0,0,0,.05);
+
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+
+  color:#fff;
 }
 
 .stat-title{
   font-size:9px;
-  color:#6b7280;
+  color:#dcfce7;
+  font-weight:700;
 }
 
 .stat-value{
   margin-top:4px;
   font-size:20px;
-  font-weight:800;
+  font-weight:900;
+  color:#fff;
 }
 
-/* DATE */
+/* =========================
+   DATE TITLE
+========================= */
+
 .day-title{
   margin:18px 0 6px;
   font-size:12px;
-  font-weight:800;
+  font-weight:900;
   color:#374151;
 }
 
-/* TABLE */
+/* =========================
+   TABLE WRAP
+========================= */
+
 .table-wrap{
+
   overflow-x:auto;
+
   background:#fff;
+
   border-radius:10px;
-  border:1px solid #e5e7eb;
+
+  border:1px solid #d1d5db;
+
   margin-bottom:14px;
+
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
 }
+
+/* =========================
+   MAIN TABLE
+========================= */
 
 .summary-table{
+
   width:100%;
+
   min-width:1600px;
+
   border-collapse:collapse;
+
+  table-layout:fixed;
 }
+
+/* =========================
+   HEADER
+========================= */
 
 .summary-table th{
-  background:#f9fafb;
-  color:#374151;
+
+  background:#cfd8e3;
+
+  color:#111827;
+
   font-size:9px;
+  font-weight:900;
+
   text-align:left;
-  padding:8px 5px;
+
+  padding:9px 6px;
+
   white-space:nowrap;
-  border-bottom:1px solid #dbe4f0;
+
+  border-bottom:2px solid #94a3b8;
+  border-right:1px solid #cbd5e1;
 }
+
+/* =========================
+   BODY
+========================= */
 
 .summary-table td{
-  padding:7px 5px;
+
+  padding:8px 6px;
+
   font-size:9px;
-  border-bottom:1px solid #edf1f7;
+
+  border-bottom:1px solid #e5e7eb;
+  border-right:1px solid #e5e7eb;
+
   vertical-align:top;
+
   line-height:1.5;
-  font-weight:600;
+
+  font-weight:700;
+
+  color:#111827;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  background:#fff;
 }
 
-/* LIGHT SEPARATOR INSIDE SHARED */
+/* REMOVE LAST BORDER */
+
+.summary-table th:last-child,
+.summary-table td:last-child{
+  border-right:none;
+}
+
+/* ZEBRA */
+
+.summary-table tr:nth-child(even) td{
+  background:#f8fafc;
+}
+
+/* HOVER */
+
+.summary-table tr:hover td{
+  background:#eef4ff;
+}
+
+/* =========================
+   SHARED SEPARATOR
+========================= */
+
 .shared-separator td{
-  border-bottom:1px solid #e5e7eb !important;
+  border-bottom:1px solid #cbd5e1 !important;
 }
 
-/* BIG SEPARATOR BETWEEN TRIPS */
+/* =========================
+   BIG DIVIDER
+========================= */
+
 .trip-divider-line td{
   padding:0 !important;
   height:4px;
-  background:#cfd8e3;
+  background:#94a3b8;
   border:none !important;
 }
 
@@ -177,13 +308,16 @@ body{
   border:none !important;
 }
 
-/* STATUS */
+/* =========================
+   STATUS
+========================= */
+
 .status{
   display:inline-block;
   padding:2px 6px;
   border-radius:999px;
   font-size:8px;
-  font-weight:800;
+  font-weight:900;
 }
 
 .completed{
@@ -201,12 +335,19 @@ body{
   color:#854d0e;
 }
 
+/* =========================
+   TOTAL
+========================= */
+
 .total{
   font-weight:900;
   color:#145cff;
 }
 
-/* MOBILE */
+/* =========================
+   MOBILE
+========================= */
+
 @media(max-width:768px){
 
   .page{
@@ -221,7 +362,10 @@ body{
 
 }
 
-/* PRINT */
+/* =========================
+   PRINT
+========================= */
+
 @media print{
 
   #layoutHeader,
@@ -253,6 +397,7 @@ body{
 <div class="page">
 
   <!-- TOP -->
+
   <div class="top-bar">
 
     <input
@@ -274,6 +419,7 @@ body{
   </div>
 
   <!-- TABS -->
+
   <div class="tabs">
 
     <button
@@ -291,6 +437,7 @@ body{
   </div>
 
   <!-- STATS -->
+
   <div class="stats">
 
     <div class="stat">
@@ -326,6 +473,7 @@ body{
   </div>
 
   <!-- CONTENT -->
+
   <div id="summaryContent"></div>
 
 </div>
