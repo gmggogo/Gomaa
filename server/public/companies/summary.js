@@ -340,6 +340,7 @@ function render(){
             <th>Passenger</th>
             <th>Phone</th>
             <th>Pickup</th>
+            <th>Stops</th>
             <th>Dropoff</th>
             <th>Trip Date</th>
             <th>Trip Time</th>
@@ -381,6 +382,13 @@ function render(){
           <td>${t.clientName || "-"}</td>
           <td>${t.clientPhone || "-"}</td>
           <td>${t.pickup || "-"}</td>
+<td>
+  ${
+    t.stops && t.stops.length
+      ? t.stops.join("<br>")
+      : "-"
+  }
+</td>
           <td>${t.dropoff || "-"}</td>
           <td>${t.tripDate || "-"}</td>
           <td>${t.tripTime || "-"}</td>
@@ -472,7 +480,7 @@ ${
             <td>${p.clientPhone || "-"}</td>
 
             <td>${p.pickup || "-"}</td>
-
+            <td>-</td>
             <td>${p.dropoff || "-"}</td>
 
             <td>
