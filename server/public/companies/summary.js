@@ -392,14 +392,29 @@ function render(){
             ${statusHTML(t.status)}
           </td>
 
-          <td class="total">
-            $${t.finalPrice || 0}
-          </td>
+       <td class="total">
 
-          <td class="total">
-            $${t.finalPrice || 0}
-          </td>
+${
+  t.status === "Cancelled"
+    ? `$${t.cancelFee || 15}`
+    : t.status === "NoShow"
+    ? `$${t.cancelFee || 15}`
+    : `$${t.finalPrice || t.priceAmount || 0}`
+}
 
+</td>
+
+<td class="total">
+
+${
+  t.status === "Cancelled"
+    ? `$${t.cancelFee || 15}`
+    : t.status === "NoShow"
+    ? `$${t.cancelFee || 15}`
+    : `$${t.finalPrice || t.priceAmount || 0}`
+}
+
+</td>
         </tr>
 
         <tr class="trip-divider-line">
