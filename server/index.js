@@ -169,7 +169,6 @@ const tripSchema = new mongoose.Schema({
   },
 
   finalPrice: { type: Number, default: 0 },
-  finalPrice: { type: Number, default: 0 },
   isFinalized: { type: Boolean, default: false },
 
   // 🚗 VEHICLE

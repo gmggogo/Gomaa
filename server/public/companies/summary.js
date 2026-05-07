@@ -497,8 +497,8 @@ function render(){
             </td>
 
             <td class="total">
-              $${p.price || 0}
-            </td>
+  $${p.priceAmount || 0}
+</td>
 
             <td class="total">
               ${index === 0
