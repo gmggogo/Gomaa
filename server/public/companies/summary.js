@@ -383,11 +383,13 @@ function render(){
           <td>${t.clientPhone || "-"}</td>
           <td>${t.pickup || "-"}</td>
 <td>
-  ${
-    t.stops && t.stops.length
-      ? t.stops.join("<br>")
-      : "-"
-  }
+${
+  Array.isArray(t.stops) && t.stops.length
+    ? t.stops.map(s => String(s)).join("<br>")
+    : typeof t.stops === "string" && t.stops.trim()
+    ? t.stops
+    : "-"
+}
 </td>
           <td>${t.dropoff || "-"}</td>
           <td>${t.tripDate || "-"}</td>
