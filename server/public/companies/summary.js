@@ -511,8 +511,16 @@ ${
               )}
             </td>
 
-            <td class="total">
-  $${p.priceAmount || 0}
+  <td class="total">
+
+${
+  p.status === "Cancelled"
+    ? `$${t.cancelFee || 15}`
+    : p.status === "NoShow"
+    ? `$${t.cancelFee || 15}`
+    : `$${p.priceAmount || 0}`
+}
+
 </td>
 
             <td class="total">
