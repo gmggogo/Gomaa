@@ -426,7 +426,7 @@ ${
         </tr>
 
         <tr class="trip-divider-line">
-          <td colspan="16"></td>
+          <td colspan="17"></td>
         </tr>
 
         <tr class="trip-divider">
@@ -480,7 +480,7 @@ ${
             <td>${p.clientPhone || "-"}</td>
 
             <td>${p.pickup || "-"}</td>
-            <td>-</td>
+
             <td>${p.dropoff || "-"}</td>
 
             <td>
