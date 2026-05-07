@@ -481,6 +481,7 @@ ${
 
             <td>${p.pickup || "-"}</td>
 
+<td>-</td>
             <td>${p.dropoff || "-"}</td>
 
             <td>
