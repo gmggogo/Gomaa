@@ -1,91 +1,511 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Company Summary</title>
-  <link rel="stylesheet" href="layout.css">
-  <link rel="stylesheet" href="summary.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Company Summary</title>
+
+<style>
+
+/* =========================
+   BODY
+========================= */
+
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background:#eef2f7;
+  color:#111827;
+}
+
+/* =========================
+   TOP HEADER
+========================= */
+
+.topbar{
+
+  background:linear-gradient(135deg,#0f172a,#1e3a8a);
+
+  padding:20px;
+
+  color:#fff;
+
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+
+  box-shadow:0 4px 15px rgba(0,0,0,0.15);
+}
+
+.logo{
+  font-size:28px;
+  font-weight:900;
+  letter-spacing:1px;
+}
+
+.company-name{
+  font-size:20px;
+  font-weight:700;
+}
+
+.datetime{
+  text-align:right;
+  font-size:14px;
+  line-height:1.6;
+}
+
+/* =========================
+   PAGE
+========================= */
+
+.page{
+  max-width:1500px;
+  margin:auto;
+  padding:25px;
+}
+
+/* =========================
+   NAVIGATION
+========================= */
+
+.navbar{
+
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+
+  margin-bottom:25px;
+}
+
+.navbar a{
+
+  background:#0f172a;
+  color:#fff;
+
+  text-decoration:none;
+
+  padding:12px 18px;
+
+  border-radius:12px;
+
+  font-weight:700;
+
+  transition:0.2s;
+}
+
+.navbar a:hover{
+  background:#2563eb;
+}
+
+.navbar a.active{
+  background:#2563eb;
+}
+
+/* =========================
+   BILLING BOX
+========================= */
+
+.billing-box{
+
+  background:#fff;
+
+  border-radius:18px;
+
+  padding:25px;
+
+  margin-bottom:25px;
+
+  box-shadow:0 4px 18px rgba(0,0,0,0.08);
+}
+
+.billing-box h2{
+  margin-top:0;
+  color:#0f172a;
+}
+
+.billing-box ul{
+  padding-left:20px;
+}
+
+.billing-box li{
+  margin-bottom:10px;
+  font-weight:500;
+}
+
+/* =========================
+   SEARCH
+========================= */
+
+.search-box{
+
+  display:grid;
+  grid-template-columns:1fr 220px 140px 140px;
+  gap:15px;
+
+  background:#fff;
+
+  padding:20px;
+
+  border-radius:18px;
+
+  margin-bottom:25px;
+
+  box-shadow:0 4px 18px rgba(0,0,0,0.08);
+}
+
+.search-box input{
+
+  height:50px;
+
+  border:1px solid #cbd5e1;
+
+  border-radius:12px;
+
+  padding:0 15px;
+
+  font-size:15px;
+
+  outline:none;
+}
+
+.search-box input:focus{
+  border-color:#2563eb;
+}
+
+.search-box button{
+
+  border:none;
+
+  border-radius:12px;
+
+  font-size:15px;
+  font-weight:700;
+
+  cursor:pointer;
+
+  transition:0.2s;
+}
+
+#searchBtn{
+  background:#2563eb;
+  color:#fff;
+}
+
+#resetBtn{
+  background:#e2e8f0;
+}
+
+/* =========================
+   ACTIONS
+========================= */
+
+.actions{
+
+  display:flex;
+  gap:12px;
+
+  margin-bottom:25px;
+}
+
+.actions button{
+
+  background:#111827;
+  color:#fff;
+
+  border:none;
+
+  padding:13px 20px;
+
+  border-radius:12px;
+
+  cursor:pointer;
+
+  font-weight:700;
+
+  transition:0.2s;
+}
+
+.actions button:hover{
+  background:#2563eb;
+}
+
+/* =========================
+   TABLE CONTAINER
+========================= */
+
+.table-box{
+
+  background:#fff;
+
+  border-radius:20px;
+
+  overflow:hidden;
+
+  box-shadow:0 5px 20px rgba(0,0,0,0.08);
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.summary-table{
+
+  width:100%;
+
+  border-collapse:collapse;
+
+  table-layout:fixed;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.summary-table thead{
+
+  background:#1f2937;
+}
+
+.summary-table thead th{
+
+  color:#fff;
+
+  padding:18px 12px;
+
+  font-size:14px;
+  font-weight:800;
+
+  text-align:center;
+
+  border-right:1px solid rgba(255,255,255,0.1);
+}
+
+.summary-table thead th:last-child{
+  border-right:none;
+}
+
+/* =========================
+   BODY
+========================= */
+
+.summary-table tbody td{
+
+  padding:18px 12px;
+
+  text-align:center;
+
+  border-right:1px solid #dbe3ec;
+  border-bottom:1px solid #dbe3ec;
+
+  font-size:14px;
+  font-weight:600;
+
+  background:#fff;
+
+  transition:0.2s;
+}
+
+.summary-table tbody td:last-child{
+  border-right:none;
+}
+
+.summary-table tbody tr:nth-child(even) td{
+  background:#f8fafc;
+}
+
+.summary-table tbody tr:hover td{
+  background:#e8f0ff;
+}
+
+/* =========================
+   TOTAL
+========================= */
+
+.summary-table tbody td:last-child{
+  color:#16a34a;
+  font-size:15px;
+  font-weight:800;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:1000px){
+
+  .search-box{
+    grid-template-columns:1fr;
+  }
+
+}
+
+@media(max-width:768px){
+
+  .topbar{
+    flex-direction:column;
+    gap:10px;
+    text-align:center;
+  }
+
+  .page{
+    padding:15px;
+  }
+
+  .actions{
+    flex-direction:column;
+  }
+
+  .actions button{
+    width:100%;
+  }
+
+  .table-box{
+    overflow-x:auto;
+  }
+
+  .summary-table{
+    min-width:900px;
+  }
+
+}
+
+</style>
 </head>
+
 <body>
 
-<header class="topbar">
-  <div class="logo">Sunbeam</div>
-  <div class="company-name" id="companyName"></div>
+<!-- HEADER -->
+
+<div class="topbar">
+
+  <div class="logo">
+    Sunbeam Transportation
+  </div>
+
+  <div class="company-name" id="companyName">
+    Company Summary
+  </div>
+
   <div class="datetime">
     <div id="greeting"></div>
     <div id="clock"></div>
   </div>
-</header>
 
-<div class="layout">
+</div>
 
-  <aside class="sidebar">
-    <h3>Company Panel</h3>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="review.html">Review Trips</a>
-    <a href="summary.html" class="active">Summary</a>
-    <a href="taxes.html">Taxes</a>
-  </aside>
+<!-- PAGE -->
 
-  <main class="content">
+<div class="page">
 
-    <!-- Billing Explanation -->
-    <div class="billing-box">
-      <h3>Company Billing Summary</h3>
-      <p>This page shows how each trip total is calculated.</p>
-      <ul>
-        <li>$30 covers the first 10 miles</li>
-        <li>$2 per mile after 10 miles</li>
-        <li>$5 per stop</li>
-        <li>$15 No Show fee</li>
-        <li>$15 Cancellation within 2 hours</li>
-        <li>$1 per minute delay after 15 minutes</li>
-      </ul>
-    </div>
+  <!-- NAVBAR -->
 
-    <!-- Search -->
-    <div class="summary-search">
-      <div class="field">
-        <label>Trip Number (Full)</label>
-        <input id="searchTrip" placeholder="TRP-1729458734923">
-      </div>
+  <div class="navbar">
 
-      <div class="field">
-        <label>Date</label>
-        <input type="date" id="searchDate">
-      </div>
+    <a href="dashboard.html">
+      Dashboard
+    </a>
 
-      <button id="searchBtn">Search</button>
-      <button id="resetBtn">Reset</button>
-    </div>
+    <a href="review.html">
+      Review Trips
+    </a>
 
-    <!-- Actions -->
-    <div class="summary-actions">
-      <button onclick="window.print()">🖨 Print</button>
-      <button onclick="sendEmail()">✉ Send Email</button>
-    </div>
+    <a href="summary.html" class="active">
+      Summary
+    </a>
 
-    <!-- Table -->
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Trip</th>
-            <th>Miles</th>
-            <th>Stops</th>
-            <th>Delay</th>
-            <th>No Show</th>
-            <th>Cancelled</th>
-            <th>Total ($)</th>
-          </tr>
-        </thead>
-        <tbody id="summaryBody"></tbody>
-      </table>
-    </div>
+    <a href="taxes.html">
+      Taxes
+    </a>
 
-  </main>
+  </div>
+
+  <!-- BILLING -->
+
+  <div class="billing-box">
+
+    <h2>Billing Information</h2>
+
+    <ul>
+      <li>$30 includes first 10 miles</li>
+      <li>$2 per mile after 10 miles</li>
+      <li>$5 per stop</li>
+      <li>$15 No Show fee</li>
+      <li>$15 cancellation fee inside 2 hours</li>
+      <li>$1 per minute delay after 15 minutes</li>
+    </ul>
+
+  </div>
+
+  <!-- SEARCH -->
+
+  <div class="search-box">
+
+    <input
+      id="searchTrip"
+      placeholder="Search by Trip Number..."
+    >
+
+    <input
+      type="date"
+      id="searchDate"
+    >
+
+    <button id="searchBtn">
+      Search
+    </button>
+
+    <button id="resetBtn">
+      Reset
+    </button>
+
+  </div>
+
+  <!-- ACTIONS -->
+
+  <div class="actions">
+
+    <button onclick="window.print()">
+      🖨 Print
+    </button>
+
+    <button onclick="sendEmail()">
+      ✉ Send Email
+    </button>
+
+  </div>
+
+  <!-- TABLE -->
+
+  <div class="table-box">
+
+    <table class="summary-table">
+
+      <thead>
+
+        <tr>
+
+          <th>Trip</th>
+          <th>Miles</th>
+          <th>Stops</th>
+          <th>Delay</th>
+          <th>No Show</th>
+          <th>Cancelled</th>
+          <th>Total ($)</th>
+
+        </tr>
+
+      </thead>
+
+      <tbody id="summaryBody"></tbody>
+
+    </table>
+
+  </div>
+
 </div>
 
 <script src="summary.js"></script>
+
 </body>
 </html>
