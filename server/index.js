@@ -1825,7 +1825,7 @@ app.post(
       }
 
       /* =========================
-         VALID EMAIL
+         EMAIL REQUIRED
       ========================= */
 
       if(
@@ -1834,7 +1834,7 @@ app.post(
       ){
 
         return res.status(400).json({
-          message:"Company email required"
+          message:"Valid company email required"
         });
 
       }
@@ -1869,7 +1869,7 @@ app.post(
       }
 
       /* =========================
-         CREATE EXPRESS ACCOUNT
+         CREATE STRIPE ACCOUNT
       ========================= */
 
       const account =
@@ -1898,7 +1898,7 @@ app.post(
         });
 
       /* =========================
-         SAVE USER
+         SAVE ACCOUNT
       ========================= */
 
       user.stripeAccountId =
@@ -1910,7 +1910,7 @@ app.post(
       await user.save();
 
       /* =========================
-         CREATE LINK
+         CREATE ONBOARD LINK
       ========================= */
 
       const accountLink =
@@ -1967,7 +1967,6 @@ app.post(
     }
 
 });
-
       /* =========================
          EXISTING ACCOUNT
       ========================= */
