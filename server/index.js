@@ -1775,13 +1775,17 @@ async function updateCompanyBilling(company){
   /* =========================
      COMPANY TRIPS
   ========================== */
+const trips =
+  await Trip.find({
 
-  const trips =
-    await Trip.find({
+    company: company.name,
 
-      company: company.name
+    createdAt:{
+      $gte:startDate,
+      $lte:endDate
+    }
 
-    }).lean();
+  }).lean();
 
   /* TOTAL */
 
@@ -1828,15 +1832,17 @@ async function updateCompanyBilling(company){
 
   /* REVENUE */
 
-  const revenue =
-    trips.reduce((a,t)=>{
+ const revenue =
+  trips.reduce((a,t)=>{
 
-      return a +
-        Number(
-          t.priceAmount || 0
-        );
+    return a +
+      Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        0
+      );
 
-    },0);
+  },0);
 
   /* =========================
      INVOICE
