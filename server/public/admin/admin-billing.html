@@ -1,537 +1,331 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-<title>Billing Management</title>
+<title>Sunbeam Transportation - Admin Billing</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="layout.css">
 
 <style>
 
-/* =========================
-   GLOBAL
-========================= */
-
 body{
-margin:0;
-font-family:'Segoe UI',Arial,sans-serif;
-background:#f1f5f9;
-color:#0f172a;
+  margin:0;
+  background:#f4f7fb;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
 }
 
-/* =========================
-   HEADER
-========================= */
-
-#adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:1000;
-}
-
-/* =========================
-   PAGE
-========================= */
-
-.page-body{
-padding-top:300px;
-padding-left:20px;
-padding-right:20px;
-padding-bottom:50px;
-max-width:1700px;
-margin:auto;
-}
-
-@media(max-width:768px){
-
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
-}
-
-}
-
-/* =========================
-   TOP
-========================= */
-
-.page-top{
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:20px;
-margin-bottom:20px;
-flex-wrap:wrap;
+.billing-wrapper{
+  max-width:1600px;
+  margin:auto;
+  padding:30px 20px;
 }
 
 .page-title{
-font-size:30px;
-font-weight:900;
-color:#0f172a;
+  font-size:28px;
+  font-weight:900;
+  margin-bottom:25px;
+  color:#111827;
 }
 
-.page-subtitle{
-margin-top:5px;
-font-size:13px;
-color:#64748b;
-font-weight:600;
+.top-box{
+  background:#fff;
+  border-radius:18px;
+  padding:25px;
+  margin-bottom:25px;
+  box-shadow:0 10px 25px rgba(0,0,0,.06);
 }
 
-.refresh-btn{
-border:none;
-background:#60a5fa;
-color:#fff;
-padding:10px 18px;
-border-radius:10px;
-font-weight:800;
-cursor:pointer;
-transition:.2s;
+.top-box h2{
+  margin-top:0;
+  font-size:22px;
+  color:#111827;
 }
 
-.refresh-btn:hover{
-background:#3b82f6;
+.top-box p{
+  color:#64748b;
+  line-height:1.7;
+  margin-bottom:20px;
 }
 
-/* =========================
-   METRICS
-========================= */
-
-.metrics-grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-gap:15px;
-margin-bottom:20px;
+.connect-btn{
+  border:none;
+  background:#2563eb;
+  color:#fff;
+  padding:14px 24px;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
 }
 
-.metric-card{
-background:#fff;
-border-radius:14px;
-padding:16px;
-border:1px solid #dbeafe;
-box-shadow:0 4px 12px rgba(0,0,0,.05);
+.connect-btn:hover{
+  background:#1d4ed8;
 }
 
-.metric-title{
-font-size:11px;
-font-weight:900;
-letter-spacing:.5px;
-text-transform:uppercase;
-color:#64748b;
+.search-box{
+  width:100%;
+  padding:14px 18px;
+  border-radius:14px;
+  border:1px solid #dbe2ea;
+  font-size:14px;
+  margin-bottom:25px;
+  box-sizing:border-box;
 }
 
-.metric-value{
-margin-top:8px;
-font-size:24px;
-font-weight:900;
-color:#2563eb;
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 10px 25px rgba(0,0,0,.06);
 }
 
-/* =========================
-   TOOLBAR
-========================= */
-
-.toolbar{
-background:#fff;
-border-radius:14px;
-padding:12px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:12px;
-margin-bottom:18px;
-border:1px solid #dbeafe;
-box-shadow:0 4px 12px rgba(0,0,0,.04);
-flex-wrap:wrap;
+table{
+  width:100%;
+  min-width:1200px;
+  border-collapse:collapse;
 }
 
-.search-input{
-flex:1;
-min-width:220px;
-height:42px;
-border:1px solid #cbd5e1;
-border-radius:10px;
-padding:0 14px;
-font-size:13px;
-outline:none;
-font-weight:700;
+th{
+  background:#f8fafc;
+  color:#000;
+  font-size:13px;
+  font-weight:900;
+  padding:16px;
+  text-align:left;
+  border-bottom:1px solid #e5e7eb;
 }
 
-.filter-select{
-height:42px;
-border:1px solid #cbd5e1;
-border-radius:10px;
-padding:0 14px;
-font-weight:700;
-background:#fff;
+td{
+  padding:16px;
+  border-bottom:1px solid #eef2f7;
+  vertical-align:top;
+  text-align:left;
 }
-
-/* =========================
-   TABLE
-========================= */
-
-.table-wrapper{
-background:#fff;
-border-radius:16px;
-overflow:hidden;
-border:1px solid #dbeafe;
-box-shadow:0 8px 20px rgba(0,0,0,.05);
-overflow-x:auto;
-}
-
-.billing-table{
-width:100%;
-border-collapse:collapse;
-min-width:1000px;
-}
-
-/* TABLE HEADER */
-
-.billing-table thead{
-background:#dbeafe;
-}
-
-.billing-table th{
-padding:12px 10px;
-font-size:11px;
-text-transform:uppercase;
-letter-spacing:.5px;
-color:#111827;
-font-weight:900;
-text-align:left;
-border-bottom:1px solid #bfdbfe;
-}
-
-/* TABLE ROWS */
-
-.billing-table td{
-padding:10px 10px;
-font-size:12px;
-border-bottom:1px solid #f1f5f9;
-vertical-align:top;
-text-align:left !important;
-font-weight:700;
-line-height:1.4;
-}
-
-.billing-table td div,
-.billing-table td span{
-text-align:left !important;
-margin-left:0 !important;
-padding-left:0 !important;
-justify-content:flex-start !important;
-align-items:flex-start !important;
-}
-
-.billing-table tr:hover{
-background:#f8fbff;
-}
-
-/* =========================
-   COMPANY
-========================= */
 
 .company-name{
-font-size:15px;
-font-weight:900;
-color:#2563eb;
-margin-bottom:3px;
-display:block;
-width:100%;
-text-align:left !important;
+  font-size:17px;
+  font-weight:900;
+  color:#111827;
+  margin-bottom:10px;
 }
 
-.company-small{
-font-size:11px;
-color:#475569;
-font-weight:600;
-line-height:1.45;
-display:block;
-width:100%;
-text-align:left !important;
+.company-info{
+  font-size:13px;
+  line-height:1.8;
+  color:#334155;
+  text-align:left;
 }
 
-/* =========================
-   STATUS
-========================= */
-
-.status-badge{
-display:inline-flex;
-align-items:center;
-padding:5px 9px;
-border-radius:999px;
-font-size:10px;
-font-weight:900;
+.status{
+  font-weight:900;
 }
 
 .status-active{
-background:#dcfce7;
-color:#16a34a;
+  color:#16a34a;
 }
 
 .status-past{
-background:#fef9c3;
-color:#ca8a04;
+  color:#ca8a04;
 }
 
 .status-suspended{
-background:#fee2e2;
-color:#dc2626;
+  color:#dc2626;
 }
 
-/* =========================
-   LOCK
-========================= */
-
-.locked-yes{
-color:#dc2626;
-font-weight:900;
-}
-
-.locked-no{
-color:#16a34a;
-font-weight:900;
-}
-
-/* =========================
-   AMOUNT
-========================= */
-
-.amount{
-font-size:13px;
-font-weight:900;
-color:#2563eb;
-}
-
-/* =========================
-   BUTTONS
-========================= */
-
-.action-buttons{
-display:flex;
-gap:5px;
-flex-wrap:wrap;
-}
-
-.btn{
-border:none;
-padding:7px 10px;
-border-radius:8px;
-font-size:10px;
-font-weight:900;
-cursor:pointer;
-transition:.2s;
-}
-
-.btn:hover{
-transform:translateY(-1px);
+.action-btn{
+  border:none;
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
 }
 
 .btn-lock{
-background:#fee2e2;
-color:#dc2626;
+  background:#fee2e2;
+  color:#991b1b;
 }
 
 .btn-unlock{
-background:#dcfce7;
-color:#16a34a;
+  background:#dcfce7;
+  color:#166534;
 }
-
-.btn-edit{
-background:#dbeafe;
-color:#2563eb;
-}
-
-.btn-paid{
-background:#2563eb;
-color:#fff;
-}
-
-/* =========================
-   EMPTY
-========================= */
-
-.empty{
-padding:30px;
-text-align:center;
-font-size:16px;
-font-weight:800;
-color:#64748b;
-}
-
-/* =========================
-   MOBILE
-========================= */
 
 @media(max-width:768px){
 
-.billing-table th{
-padding:10px 8px;
-font-size:10px;
-}
+  .billing-wrapper{
+    padding:15px 10px;
+  }
 
-.billing-table td{
-padding:8px;
-font-size:11px;
-}
+  .page-title{
+    font-size:22px;
+  }
 
-.company-name{
-font-size:13px;
-}
+  table{
+    min-width:900px;
+  }
 
-.company-small{
-font-size:10px;
-line-height:1.35;
-}
+  th,
+  td{
+    padding:12px;
+    font-size:12px;
+  }
 
-.btn{
-padding:6px 8px;
-font-size:9px;
-}
-
-.status-badge{
-font-size:9px;
-padding:4px 7px;
-}
-
-.page-title{
-font-size:24px;
-}
-
-.metric-value{
-font-size:20px;
-}
+  .company-name{
+    font-size:15px;
+  }
 
 }
 
 </style>
-
 </head>
 
 <body>
 
-<!-- HEADER -->
-<div id="adminHeader"></div>
+<div id="layoutHeader"></div>
 
-<!-- PAGE -->
-<div class="page-body">
+<div class="billing-wrapper">
 
-<!-- TOP -->
+  <div class="page-title">
+    Admin Billing Center
+  </div>
 
-<div class="page-top">
+  <!-- STRIPE PLATFORM -->
 
-<div>
+  <div class="top-box">
 
-<div class="page-title">
-Billing Management
+    <h2>Stripe Platform Connect</h2>
+
+    <p>
+      Connect your Stripe platform account for SaaS billing,
+      white-label companies, marketplace payouts,
+      and future automated billing systems.
+    </p>
+
+    <button
+      id="connectStripeBtn"
+      class="connect-btn">
+
+      Connect Stripe Platform
+
+    </button>
+
+  </div>
+
+  <!-- SEARCH -->
+
+  <input
+    type="text"
+    id="searchInput"
+    class="search-box"
+    placeholder="Search company...">
+
+  <!-- TABLE -->
+
+  <div class="table-wrap">
+
+    <table>
+
+      <thead>
+
+        <tr>
+
+          <th>COMPANY</th>
+          <th>STATUS</th>
+          <th>CYCLE</th>
+          <th>INVOICE</th>
+          <th>NEXT BILLING</th>
+          <th>ACTIONS</th>
+
+        </tr>
+
+      </thead>
+
+      <tbody id="billingContainer">
+
+        <tr>
+
+          <td>
+
+            <div class="company-name">
+              Sunbeam Clinic
+            </div>
+
+            <div class="company-info">
+
+              Status:
+              <span class="status status-active">
+                ACTIVE
+              </span>
+
+              <br>
+
+              Cycle: MONTHLY
+
+              <br>
+
+              Invoice: $0.00
+
+              <br>
+
+              Next Billing: --
+
+              <br>
+
+              Locked: NO
+
+              <br>
+
+              Notes: --
+
+            </div>
+
+          </td>
+
+          <td>
+            <span class="status status-active">
+              ACTIVE
+            </span>
+          </td>
+
+          <td>
+            MONTHLY
+          </td>
+
+          <td>
+            $0.00
+          </td>
+
+          <td>
+            --
+          </td>
+
+          <td>
+
+            <button
+              class="action-btn btn-lock">
+
+              Lock
+
+            </button>
+
+          </td>
+
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
 </div>
 
-<div class="page-subtitle">
-Manage company subscriptions, invoices, payment status, and account locks.
-</div>
-
-</div>
-
-<button class="refresh-btn" onclick="location.reload()">
-Refresh
-</button>
-
-</div>
-
-<!-- METRICS -->
-
-<div class="metrics-grid">
-
-<div class="metric-card">
-<div class="metric-title">Total Companies</div>
-<div class="metric-value" id="totalCompanies">0</div>
-</div>
-
-<div class="metric-card">
-<div class="metric-title">Active</div>
-<div class="metric-value" id="activeCompanies">0</div>
-</div>
-
-<div class="metric-card">
-<div class="metric-title">Past Due</div>
-<div class="metric-value" id="pastDueCompanies">0</div>
-</div>
-
-<div class="metric-card">
-<div class="metric-title">Suspended</div>
-<div class="metric-value" id="suspendedCompanies">0</div>
-</div>
-
-</div>
-
-<!-- TOOLBAR -->
-
-<div class="toolbar">
-
-<input
-type="text"
-id="searchInput"
-class="search-input"
-placeholder="Search company..."
->
-
-<select id="statusFilter" class="filter-select">
-
-<option value="">All Status</option>
-<option value="ACTIVE">ACTIVE</option>
-<option value="PAST_DUE">PAST DUE</option>
-<option value="SUSPENDED">SUSPENDED</option>
-
-</select>
-
-</div>
-
-<!-- TABLE -->
-
-<div class="table-wrapper">
-
-<table class="billing-table">
-
-<thead>
-
-<tr>
-
-<th>Company</th>
-<th>Status</th>
-<th>Cycle</th>
-<th>Invoice</th>
-<th>Next Billing</th>
-<th>Locked</th>
-<th>Notes</th>
-<th>Actions</th>
-
-</tr>
-
-</thead>
-
-<tbody id="billingContainer">
-
-<tr>
-<td colspan="8" class="empty">
-Loading billing data...
-</td>
-</tr>
-
-</tbody>
-
-</table>
-
-</div>
-
-</div>
-
-<script src="/admin/header.js"></script>
-<script src="/admin/admin-billing.js"></script>
+<script src="layout.js"></script>
+<script src="admin-billing.js"></script>
 
 </body>
 </html>
