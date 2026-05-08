@@ -1,3 +1,7 @@
+/* =========================
+   AUTH CHECK
+========================= */
+
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -8,114 +12,32 @@ if (!token) {
    ELEMENTS
 ========================= */
 
-const container = document.getElementById("billingContainer");
+const container =
+  document.getElementById("billingContainer");
 
-const totalCompaniesEl = document.getElementById("totalCompanies");
-const activeCompaniesEl = document.getElementById("activeCompanies");
-const pastDueCompaniesEl = document.getElementById("pastDueCompanies");
-const suspendedCompaniesEl = document.getElementById("suspendedCompanies");
+const totalEl =
+  document.getElementById("totalCompanies");
 
-const searchInput = document.getElementById("searchInput");
-const statusFilter = document.getElementById("statusFilter");
+const activeEl =
+  document.getElementById("activeCompanies");
 
-const connectStripeBtn = document.getElementById("connectStripeBtn");
+const pastDueEl =
+  document.getElementById("pastDueCompanies");
+
+const suspendedEl =
+  document.getElementById("suspendedCompanies");
+
+const search =
+  document.getElementById("searchInput");
+
+const filter =
+  document.getElementById("statusFilter");
 
 /* =========================
    DATA
 ========================= */
 
-let allCompanies = [];
-
-/* =========================
-   STRIPE CONNECT
-========================= */
-
-if (connectStripeBtn) {
-  connectStripeBtn.addEventListener("click", async () => {
-    try {
-      connectStripeBtn.disabled = true;
-      connectStripeBtn.innerText = "Connecting...";
-
-      const res = await fetch("/api/company/connect-stripe", {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + token
-        }
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.message || "Stripe error");
-
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      alert("No Stripe URL returned");
-
-    } catch (err) {
-      console.log(err);
-      alert(err.message || "Stripe failed");
-
-      connectStripeBtn.disabled = false;
-      connectStripeBtn.innerText = "Connect Stripe Platform";
-    }
-  });
-}
-
-/* =========================
-   LOAD BILLING
-========================= */
-
-async function loadBilling() {
-  try {
-    const res = await fetch("/api/admin/billing", {
-      headers: {
-        Authorization: "Bearer " + token
-      }
-    });
-
-    const data = await res.json();
-
-    allCompanies = Array.isArray(data) ? data : [];
-
-    updateCounters(allCompanies);
-    renderCompanies(allCompanies);
-
-  } catch (err) {
-    console.log(err);
-
-    container.innerHTML = `
-      <tr>
-        <td colspan="8" style="text-align:center;padding:20px;">
-          Error loading billing data
-        </td>
-      </tr>
-    `;
-  }
-}
-
-/* =========================
-   COUNTERS
-========================= */
-
-function updateCounters(companies) {
-  if (totalCompaniesEl)
-    totalCompaniesEl.innerText = companies.length;
-
-  if (activeCompaniesEl)
-    activeCompaniesEl.innerText =
-      companies.filter(c => c.billingStatus === "ACTIVE").length;
-
-  if (pastDueCompaniesEl)
-    pastDueCompaniesEl.innerText =
-      companies.filter(c => c.billingStatus === "PAST_DUE").length;
-
-  if (suspendedCompaniesEl)
-    suspendedCompaniesEl.innerText =
-      companies.filter(c => c.billingStatus === "SUSPENDED").length;
-}
+let companies = [];
 
 /* =========================
    FORMAT HELPERS
@@ -126,100 +48,120 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString("en-US");
 }
 
-function formatMoney(v) {
+function money(v) {
   return "$" + Number(v || 0).toFixed(2);
 }
 
 /* =========================
-   RENDER TABLE
+   LOAD
 ========================= */
 
-function renderCompanies(companies) {
-  if (!companies.length) {
+async function load() {
+
+  try {
+
+    const res = await fetch("/api/admin/billing", {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    });
+
+    const data = await res.json();
+
+    companies = Array.isArray(data) ? data : [];
+
+    render(companies);
+    updateStats(companies);
+
+  } catch (err) {
+
+    console.log(err);
+
     container.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align:center;padding:20px;">
-          No companies found
-        </td>
+        <td colspan="8">Error loading data</td>
       </tr>
+    `;
+
+  }
+
+}
+
+/* =========================
+   STATS
+========================= */
+
+function updateStats(list) {
+
+  totalEl.innerText = list.length;
+
+  activeEl.innerText =
+    list.filter(x => x.billingStatus === "ACTIVE").length;
+
+  pastDueEl.innerText =
+    list.filter(x => x.billingStatus === "PAST_DUE").length;
+
+  suspendedEl.innerText =
+    list.filter(x => x.billingStatus === "SUSPENDED").length;
+
+}
+
+/* =========================
+   RENDER
+========================= */
+
+function render(list) {
+
+  if (!list.length) {
+    container.innerHTML = `
+      <tr><td colspan="8">No data</td></tr>
     `;
     return;
   }
 
-  container.innerHTML = companies.map(c => {
+  container.innerHTML = list.map(c => {
 
     let statusClass = "status-active";
 
-    if (c.billingStatus === "PAST_DUE") statusClass = "status-past";
-    if (c.billingStatus === "SUSPENDED") statusClass = "status-suspended";
+    if (c.billingStatus === "PAST_DUE")
+      statusClass = "status-past";
 
-    const period =
-      c.billingStartDate && c.billingEndDate
-        ? `${formatDate(c.billingStartDate)} → ${formatDate(c.billingEndDate)}`
-        : "--";
-
-    const grace = c.graceDays ?? 0;
+    if (c.billingStatus === "SUSPENDED")
+      statusClass = "status-suspended";
 
     return `
       <tr>
 
-        <!-- COMPANY -->
         <td>
-          <b>${c.name || "-"}</b>
-          <div style="font-size:12px;color:#64748b;margin-top:5px;">
-            ${c.username || ""}
+          <div class="company-name">${c.name}</div>
+          <div class="company-small">
+            Username: ${c.username}<br>
+            Days Left: ${c.daysLeft ?? 0}<br>
+            Locked: ${c.billingLocked ? "YES" : "NO"}
           </div>
         </td>
 
-        <!-- STATUS -->
         <td>
           <span class="${statusClass}">
-            ${c.billingStatus || "ACTIVE"}
+            ${c.billingStatus}
           </span>
         </td>
 
-        <!-- CYCLE -->
-        <td>
-          ${c.billingCycle || "MONTHLY"}
-        </td>
+        <td>${c.billingCycle}</td>
 
-        <!-- INVOICE -->
-        <td>
-          ${formatMoney(c.invoiceAmount)}
-        </td>
+        <td>${money(c.invoiceAmount)}</td>
 
-        <!-- PERIOD -->
-        <td>
-          ${period}
-        </td>
+        <td>${formatDate(c.billingEndDate)}</td>
 
-        <!-- GRACE -->
-        <td>
-          ${grace} days
-        </td>
+        <td>${c.billingLocked ? "YES" : "NO"}</td>
 
-        <!-- NEXT BILLING -->
-        <td>
-          ${formatDate(c.nextBillingDate)}
-        </td>
+        <td>${c.billingNotes || "--"}</td>
 
-        <!-- LOCK -->
-        <td>
-          ${c.billingLocked ? "🔴 LOCKED" : "🟢 ACTIVE"}
-        </td>
-
-        <!-- ACTIONS -->
         <td>
 
-          ${
-            c.billingLocked
-              ? `<button class="btn btn-unlock" onclick="unlockCompany('${c._id}')">Unlock</button>`
-              : `<button class="btn btn-lock" onclick="lockCompany('${c._id}')">Lock</button>`
-          }
-
-          <button class="btn btn-paid" onclick="markPaid('${c._id}')">
-            Mark Paid
-          </button>
+          <button onclick="lock('${c._id}')">Lock</button>
+          <button onclick="unlock('${c._id}')">Unlock</button>
+          <button onclick="markPaid('${c._id}')">Paid</button>
 
         </td>
 
@@ -227,6 +169,7 @@ function renderCompanies(companies) {
     `;
 
   }).join("");
+
 }
 
 /* =========================
@@ -234,108 +177,76 @@ function renderCompanies(companies) {
 ========================= */
 
 function applyFilters() {
-  let list = [...allCompanies];
 
-  const search = (searchInput?.value || "").toLowerCase();
-  const status = statusFilter?.value || "";
+  let list = [...companies];
 
-  if (search) {
-    list = list.filter(c =>
-      (c.name || "").toLowerCase().includes(search) ||
-      (c.username || "").toLowerCase().includes(search)
+  const s = search.value.toLowerCase().trim();
+  const f = filter.value;
+
+  if (s) {
+    list = list.filter(x =>
+      x.name?.toLowerCase().includes(s) ||
+      x.username?.toLowerCase().includes(s)
     );
   }
 
-  if (status) {
-    list = list.filter(c => c.billingStatus === status);
+  if (f) {
+    list = list.filter(x => x.billingStatus === f);
   }
 
-  // ترتيب مهم
-  list.sort((a, b) => {
-    const order = { SUSPENDED: 1, PAST_DUE: 2, ACTIVE: 3 };
-    return (order[a.billingStatus] || 3) - (order[b.billingStatus] || 3);
-  });
+  render(list);
 
-  renderCompanies(list);
 }
 
 /* =========================
    ACTIONS
 ========================= */
 
-async function lockCompany(id) {
+async function lock(id) {
+
   await fetch(`/api/admin/billing/${id}/lock`, {
     method: "PUT",
-    headers: { Authorization: "Bearer " + token }
+    headers: {
+      Authorization: "Bearer " + token
+    }
   });
 
-  loadBilling();
+  load();
 }
 
-async function unlockCompany(id) {
+async function unlock(id) {
+
   await fetch(`/api/admin/billing/${id}/unlock`, {
     method: "PUT",
-    headers: { Authorization: "Bearer " + token }
+    headers: {
+      Authorization: "Bearer " + token
+    }
   });
 
-  loadBilling();
+  load();
 }
 
 async function markPaid(id) {
+
   await fetch(`/api/admin/billing/${id}/mark-paid`, {
     method: "PUT",
-    headers: { Authorization: "Bearer " + token }
+    headers: {
+      Authorization: "Bearer " + token
+    }
   });
 
-  loadBilling();
-}
-
-/* =========================
-   BILLING SETTINGS SAVE
-========================= */
-
-async function saveBillingSettingsToServer() {
-  const billingCycle = document.getElementById("billingCycle").value;
-  const billingDuration = Number(document.getElementById("billingDuration").value || 30);
-  const graceDays = Number(document.getElementById("graceDays").value || 3);
-
-  try {
-    const res = await fetch("/api/admin/billing/settings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + token
-      },
-      body: JSON.stringify({
-        billingCycle,
-        billingDuration,
-        graceDays
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.message || "Save failed");
-
-    alert("Billing settings saved ✅");
-
-    loadBilling();
-
-  } catch (err) {
-    console.log(err);
-    alert(err.message || "Error saving settings");
-  }
+  load();
 }
 
 /* =========================
    EVENTS
 ========================= */
 
-if (searchInput) searchInput.addEventListener("input", applyFilters);
-if (statusFilter) statusFilter.addEventListener("change", applyFilters);
+search.addEventListener("input", applyFilters);
+filter.addEventListener("change", applyFilters);
 
 /* =========================
    INIT
 ========================= */
 
-loadBilling();
+load();

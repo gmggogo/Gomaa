@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
 <meta charset="UTF-8">
 <title>Admin Billing Center</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,103 +11,175 @@
 <style>
 
 body{
-margin:0;
-font-family:Segoe UI,Arial;
-background:#f1f5f9;
+  margin:0;
+  font-family:Segoe UI,Arial;
+  background:#f1f5f9;
 }
 
+/* HEADER */
 #adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:1000;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
 }
 
+/* PAGE */
 .page-body{
-padding-top:320px;
-padding-left:20px;
-padding-right:20px;
-padding-bottom:40px;
-max-width:1700px;
-margin:auto;
+  padding-top:320px;
+  padding-left:20px;
+  padding-right:20px;
+  padding-bottom:40px;
+  max-width:1700px;
+  margin:auto;
 }
 
-@media (max-width:768px){
-.page-body{
-padding-top:380px;
-}
+/* GRID */
+.top-grid{
+  display:grid;
+  grid-template-columns:420px 1fr;
+  gap:25px;
+  margin-bottom:25px;
 }
 
+@media(max-width:1100px){
+  .top-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+/* CARD */
 .card{
-background:white;
-border-radius:10px;
-padding:20px;
-border:1px solid #e2e8f0;
-box-shadow:0 2px 10px rgba(0,0,0,.06);
-margin-bottom:20px;
+  background:white;
+  border-radius:12px;
+  padding:25px;
+  border:1px solid #e2e8f0;
+  box-shadow:0 2px 10px rgba(0,0,0,.05);
 }
 
-label{
-font-size:12px;
-font-weight:bold;
-display:block;
-margin-bottom:5px;
-color:#334155;
+/* TITLE */
+.title{
+  font-size:22px;
+  font-weight:900;
+  color:#0f172a;
+  margin-bottom:10px;
 }
 
-.search-input,
-.select-input{
-height:45px;
-border:1px solid #dbe2ea;
-border-radius:10px;
-padding:0 10px;
-width:100%;
-font-size:14px;
+.subtitle{
+  font-size:14px;
+  color:#64748b;
+  line-height:1.7;
 }
 
-.btn{
-border:none;
-padding:10px 14px;
-border-radius:8px;
-font-size:12px;
-font-weight:bold;
-cursor:pointer;
+/* STRIPE BUTTON */
+.btn-connect{
+  background:#635bff;
+  color:white;
+  border:none;
+  padding:14px 18px;
+  border-radius:10px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:15px;
 }
 
-.btn-paid{background:#2563eb;color:white;}
-.btn-lock{background:#fee2e2;color:#991b1b;}
-.btn-unlock{background:#dcfce7;color:#166534;}
-
-.status-active{color:#16a34a;font-weight:bold;}
-.status-past{color:#ca8a04;font-weight:bold;}
-.status-suspended{color:#dc2626;font-weight:bold;}
-
-.table-wrap{
-background:white;
-border-radius:10px;
-overflow:auto;
-border:1px solid #e2e8f0;
+/* STATS */
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:15px;
 }
 
+.stat{
+  background:white;
+  padding:18px;
+  border-radius:10px;
+  border:1px solid #e2e8f0;
+}
+
+.stat h4{
+  font-size:12px;
+  color:#64748b;
+}
+
+.stat p{
+  font-size:26px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.green{ color:#16a34a; }
+.orange{ color:#ca8a04; }
+.red{ color:#dc2626; }
+
+/* FILTERS */
+.filters{
+  display:grid;
+  grid-template-columns:1fr 200px;
+  gap:15px;
+  margin-bottom:20px;
+}
+
+.search,
+.select{
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #cbd5e1;
+  outline:none;
+}
+
+/* TABLE */
 table{
-width:100%;
-border-collapse:collapse;
-min-width:1300px;
+  width:100%;
+  border-collapse:collapse;
+  min-width:1200px;
 }
 
 th{
-background:#0f172a;
-color:white;
-padding:12px;
-font-size:13px;
-text-align:left;
+  background:#0f172a;
+  color:white;
+  padding:14px;
+  font-size:13px;
+  text-align:left;
 }
 
 td{
-padding:12px;
-border-bottom:1px solid #e5e7eb;
-font-size:13px;
+  padding:14px;
+  border-bottom:1px solid #e2e8f0;
+  font-size:13px;
+}
+
+/* STATUS */
+.badge{
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:bold;
+}
+
+.active{ background:#dcfce7; color:#166534; }
+.past{ background:#fef9c3; color:#854d0e; }
+.suspended{ background:#fee2e2; color:#991b1b; }
+
+/* BUTTONS */
+.btn{
+  padding:8px 10px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:12px;
+  margin-right:5px;
+}
+
+.lock{ background:#fee2e2; color:#991b1b; }
+.unlock{ background:#dcfce7; color:#166534; }
+.paid{ background:#2563eb; color:white; }
+
+.empty{
+  text-align:center;
+  padding:30px;
+  color:#64748b;
 }
 
 </style>
@@ -121,87 +192,111 @@ font-size:13px;
 
 <div class="page-body">
 
-<!-- =========================
-   BILLING CONTROL PANEL
-========================= -->
-<div class="card">
+<!-- TOP -->
+<div class="top-grid">
 
-<h3>Billing Control Panel</h3>
+  <!-- BILLING INFO -->
+  <div class="card">
 
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:15px;">
+    <div class="title">
+      Billing Control Panel
+    </div>
 
-<div>
-<label>Billing Cycle</label>
-<select id="billingCycle" class="select-input">
-<option value="MONTHLY">Monthly</option>
-<option value="WEEKLY">Weekly</option>
-</select>
+    <div class="subtitle">
+
+      Full billing system with:
+
+      <br><br>
+
+      ✔ Subscription Duration  
+      <br>
+      ✔ Start / End Date  
+      <br>
+      ✔ Grace Period  
+      <br>
+      ✔ Auto Suspend  
+
+    </div>
+
+    <button class="btn-connect" id="connectStripeBtn">
+      Connect Stripe
+    </button>
+
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+
+    <div class="stat">
+      <h4>Total</h4>
+      <p id="totalCompanies">0</p>
+    </div>
+
+    <div class="stat">
+      <h4>Active</h4>
+      <p class="green" id="activeCompanies">0</p>
+    </div>
+
+    <div class="stat">
+      <h4>Past Due</h4>
+      <p class="orange" id="pastDueCompanies">0</p>
+    </div>
+
+    <div class="stat">
+      <h4>Suspended</h4>
+      <p class="red" id="suspendedCompanies">0</p>
+    </div>
+
+  </div>
+
 </div>
 
-<div>
-<label>Duration (Days)</label>
-<input id="billingDuration" type="number" value="30" class="search-input">
-</div>
+<!-- FILTERS -->
+<div class="filters">
 
-<div>
-<label>Grace Period (Days)</label>
-<input id="graceDays" type="number" value="3" class="search-input">
-</div>
+  <input
+    id="searchInput"
+    class="search"
+    placeholder="Search company..."
+  />
 
-</div>
+  <select id="statusFilter" class="select">
 
-<div style="margin-top:15px;">
-<button class="btn btn-paid" onclick="applySettings()">
-Save Settings
-</button>
-</div>
+    <option value="">All</option>
+    <option value="ACTIVE">ACTIVE</option>
+    <option value="PAST_DUE">PAST DUE</option>
+    <option value="SUSPENDED">SUSPENDED</option>
 
-</div>
-
-<!-- =========================
-   STATS
-========================= -->
-<div class="card">
-
-<div id="stats">
-Loading stats...
-</div>
+  </select>
 
 </div>
 
-<!-- =========================
-   FILTERS
-========================= -->
-<div class="card">
-
-<input id="search" class="search-input" placeholder="Search company...">
-
-</div>
-
-<!-- =========================
-   TABLE
-========================= -->
-<div class="table-wrap">
+<!-- TABLE -->
+<div style="overflow:auto; background:white; border-radius:10px;">
 
 <table>
 
 <thead>
 <tr>
-<th>Company</th>
-<th>Status</th>
-<th>Cycle</th>
-<th>Period</th>
-<th>Grace</th>
-<th>Next Billing</th>
-<th>Locked</th>
-<th>Actions</th>
+  <th>Company</th>
+  <th>Status</th>
+  <th>Cycle</th>
+  <th>Invoice</th>
+  <th>End Date</th>
+  <th>Locked</th>
+  <th>Notes</th>
+  <th>Actions</th>
 </tr>
 </thead>
 
 <tbody id="billingContainer">
+
 <tr>
-<td colspan="8">Loading...</td>
+<td colspan="8" class="empty">
+Loading...
+</td>
 </tr>
+
 </tbody>
 
 </table>
@@ -210,134 +305,8 @@ Loading stats...
 
 </div>
 
-<script>
-
-/* =========================
-   SETTINGS STATE
-========================= */
-let settings = {
-  billingCycle: "MONTHLY",
-  billingDuration: 30,
-  graceDays: 3
-};
-
-/* =========================
-   APPLY SETTINGS
-========================= */
-function applySettings(){
-
-  settings.billingCycle =
-    document.getElementById("billingCycle").value;
-
-  settings.billingDuration =
-    Number(document.getElementById("billingDuration").value);
-
-  settings.graceDays =
-    Number(document.getElementById("graceDays").value);
-
-  alert("Settings updated ✅");
-
-}
-
-/* =========================
-   LOAD DATA
-========================= */
-async function loadBilling(){
-
-  const res = await fetch("/api/admin/billing");
-  const data = await res.json();
-
-  render(data);
-
-}
-
-/* =========================
-   RENDER
-========================= */
-function render(data){
-
-  const container =
-    document.getElementById("billingContainer");
-
-  container.innerHTML = "";
-
-  data.forEach(c => {
-
-    const start = c.billingStartDate ?
-      new Date(c.billingStartDate).toLocaleDateString() : "-";
-
-    const end = c.billingEndDate ?
-      new Date(c.billingEndDate).toLocaleDateString() : "-";
-
-    let statusClass =
-      c.billingStatus === "ACTIVE"
-        ? "status-active"
-        : c.billingStatus === "PAST_DUE"
-          ? "status-past"
-          : "status-suspended";
-
-    container.innerHTML += `
-      <tr>
-
-        <td>
-          <b>${c.name}</b>
-        </td>
-
-        <td class="${statusClass}">
-          ${c.billingStatus}
-        </td>
-
-        <td>
-          ${c.billingCycle}
-        </td>
-
-        <td>
-          ${start} → ${end}
-        </td>
-
-        <td>
-          ${c.graceDays || 0} days
-        </td>
-
-        <td>
-          ${c.nextBillingDate ? new Date(c.nextBillingDate).toLocaleDateString() : "-"}
-        </td>
-
-        <td>
-          ${c.billingLocked ? "🔴 YES" : "🟢 NO"}
-        </td>
-
-        <td>
-
-          <button class="btn btn-lock">
-            Lock
-          </button>
-
-          <button class="btn btn-unlock">
-            Unlock
-          </button>
-
-          <button class="btn btn-paid">
-            Mark Paid
-          </button>
-
-        </td>
-
-      </tr>
-    `;
-
-  });
-
-}
-
-/* =========================
-   INIT
-========================= */
-loadBilling();
-
-</script>
-
 <script src="/admin/header.js"></script>
+<script src="/admin/admin-billing.js"></script>
 
 </body>
 </html>

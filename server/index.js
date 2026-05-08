@@ -1643,35 +1643,36 @@ app.delete("/api/users/:id", async (req, res) => {
 /* =========================
    ADMIN BILLING LIST
 ========================= */
-app.get("/api/admin/billing", async (req,res)=>{
 
-  try{
+app.get("/api/admin/billing", async (req, res) => {
 
-   const companies = await User.find({
-  role: "company"
-})
-.sort({ name: 1 })
-.lean();
+  try {
 
-// 🔥 تشغيل البيلينج + حفظ
-const updatedCompanies = await Promise.all(
-  companies.map(updateCompanyBilling)
-);
+    const companies = await User.find({
+      role: "company"
+    })
+    .sort({ name: 1 })
+    .lean();
 
-res.json(updatedCompanies);
+    const updated = await Promise.all(
+      companies.map(async (c) =>
+        await updateCompanyBilling(c)
+      )
+    );
 
-  }catch(err){
+    res.json(updated);
+
+  } catch (err) {
 
     console.log(err);
 
     res.status(500).json({
-      message:"billing error"
+      message: "billing error"
     });
 
   }
 
 });
-
 /* =========================
    BILLING ENGINE (FULL SAVE VERSION)
 ========================= */
