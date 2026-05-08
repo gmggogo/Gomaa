@@ -2587,11 +2587,11 @@ app.post(
 
           ],
 
-          success_url:
-            "https://sunbeam-933q.onrender.com/company/payment.html?success=1",
+         success_url:
+"https://sunbeam-933q.onrender.com/companies/payment.html?success=1",
 
-          cancel_url:
-            "https://sunbeam-933q.onrender.com/company/payment.html?cancel=1"
+cancel_url:
+"https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1"
 
         });
 
