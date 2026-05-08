@@ -8,39 +8,194 @@ if (!token || role !== "company") {
   window.location.replace("company-login.html");
   return;
 }
+/* =========================
+   BILLING CHECK
+========================= */
 
-/* =============================
-   TABS
-============================= */
+async function checkBillingLock(){
 
-const tabIndividual = document.getElementById("tabIndividual");
-const tabShared = document.getElementById("tabShared");
-const individualSection = document.getElementById("individualSection");
-const sharedSection = document.getElementById("sharedSection");
+  try{
 
-if(tabIndividual && tabShared && individualSection && sharedSection){
-  tabIndividual.addEventListener("click", function(){
-    individualSection.style.display = "block";
-    sharedSection.style.display = "none";
+    const res = await fetch(
+      "/api/company/billing",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }
+    );
 
-    tabIndividual.classList.add("btn-blue");
-    tabIndividual.classList.remove("btn-gray");
+    const data = await res.json();
 
-    tabShared.classList.add("btn-gray");
-    tabShared.classList.remove("btn-blue");
-  });
+    if(data.billingLocked){
 
-  tabShared.addEventListener("click", function(){
-    individualSection.style.display = "none";
-    sharedSection.style.display = "block";
+      document.body.innerHTML = `
 
-    tabShared.classList.add("btn-blue");
-    tabShared.classList.remove("btn-gray");
+        <div style="
+          min-height:100vh;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:#f1f5f9;
+          padding:20px;
+          font-family:Segoe UI;
+        ">
 
-    tabIndividual.classList.add("btn-gray");
-    tabIndividual.classList.remove("btn-blue");
-  });
+          <div style="
+            max-width:600px;
+            width:100%;
+            background:#fff;
+            padding:40px;
+            border-radius:20px;
+            text-align:center;
+            box-shadow:0 10px 30px rgba(0,0,0,.08);
+          ">
+
+            <h1 style="
+              color:#dc2626;
+              margin-bottom:15px;
+            ">
+              Account Suspended
+            </h1>
+
+            <p style="
+              color:#475569;
+              font-size:17px;
+              line-height:1.7;
+            ">
+              Your company account is currently locked
+              due to unpaid billing.
+
+              Please complete payment to continue
+              using Sunbeam Transportation.
+            </p>
+
+            <a href="/companies/payment.html"
+              style="
+                display:inline-block;
+                margin-top:25px;
+                background:#2563eb;
+                color:#fff;
+                text-decoration:none;
+                padding:14px 22px;
+                border-radius:12px;
+                font-weight:800;
+              ">
+              Go To Payment Center
+            </a>
+
+          </div>
+
+        </div>
+
+      `;
+
+      return false;
+    }
+
+    return true;
+
+  }catch(err){
+
+    console.log(err);
+
+    return true;
+
+  }
+
 }
+
+(async()=>{
+
+  const ok =
+    await checkBillingLock();
+
+  if(!ok){
+    return;
+  }
+
+  /* =============================
+     TABS
+  ============================= */
+
+  const tabIndividual =
+    document.getElementById("tabIndividual");
+
+  const tabShared =
+    document.getElementById("tabShared");
+
+  const individualSection =
+    document.getElementById("individualSection");
+
+  const sharedSection =
+    document.getElementById("sharedSection");
+
+  if(
+    tabIndividual &&
+    tabShared &&
+    individualSection &&
+    sharedSection
+  ){
+
+    tabIndividual.addEventListener(
+      "click",
+      function(){
+
+        individualSection.style.display =
+          "block";
+
+        sharedSection.style.display =
+          "none";
+
+        tabIndividual.classList.add(
+          "btn-blue"
+        );
+
+        tabIndividual.classList.remove(
+          "btn-gray"
+        );
+
+        tabShared.classList.add(
+          "btn-gray"
+        );
+
+        tabShared.classList.remove(
+          "btn-blue"
+        );
+
+      }
+    );
+
+    tabShared.addEventListener(
+      "click",
+      function(){
+
+        individualSection.style.display =
+          "none";
+
+        sharedSection.style.display =
+          "block";
+
+        tabShared.classList.add(
+          "btn-blue"
+        );
+
+        tabShared.classList.remove(
+          "btn-gray"
+        );
+
+        tabIndividual.classList.add(
+          "btn-gray"
+        );
+
+        tabIndividual.classList.remove(
+          "btn-blue"
+        );
+
+      }
+    );
+
+  }
 
 /* =============================
    ELEMENTS
@@ -819,3 +974,7 @@ loadTripDraft();
 loadSharedDraft();
 
 });
+
+})(); // END ASYNC
+
+}); // END DOMContentLoaded

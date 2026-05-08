@@ -1535,6 +1535,75 @@ app.put("/api/admin/billing/:id/unlock", async (req,res)=>{
   }
 
 });
+
+/* =========================
+   MARK BILLING PAID
+========================= */
+app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
+
+  try{
+
+    const user = await User.findById(
+      req.params.id
+    );
+
+    if(!user){
+
+      return res.status(404).json({
+        message:"Company not found"
+      });
+
+    }
+
+    const now = new Date();
+
+    let nextBillingDate =
+      new Date(now);
+
+    // MONTHLY
+    if(user.billingCycle === "MONTHLY"){
+
+      nextBillingDate.setMonth(
+        nextBillingDate.getMonth() + 1
+      );
+
+    }
+
+    // WEEKLY
+    else{
+
+      nextBillingDate.setDate(
+        nextBillingDate.getDate() + 7
+      );
+
+    }
+
+    user.billingStatus = "ACTIVE";
+
+    user.billingLocked = false;
+
+    user.lastPaymentDate = now;
+
+    user.nextBillingDate = nextBillingDate;
+
+    await user.save();
+
+    res.json({
+      success:true
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"mark paid failed"
+    });
+
+  }
+
+});
+
 /* =========================
    COMPANY BILLING
 ========================= */
