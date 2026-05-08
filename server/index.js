@@ -190,7 +190,20 @@ email:{
     type: Date,
     default: null
   },
+billingStartDate: {
+  type: Date,
+  default: null
+},
 
+billingEndDate: {
+  type: Date,
+  default: null
+},
+
+daysLeft: {
+  type: Number,
+  default: 0
+},
   graceDays: {
     type: Number,
     default: 3
@@ -1634,13 +1647,18 @@ app.get("/api/admin/billing", async (req,res)=>{
 
   try{
 
-    const companies = await User.find({
-      role:"company"
-    })
-    .sort({ name:1 })
-    .lean();
+   const companies = await User.find({
+  role: "company"
+})
+.sort({ name: 1 })
+.lean();
 
-    res.json(companies);
+// 🔥 تشغيل البيلينج + حفظ
+const updatedCompanies = await Promise.all(
+  companies.map(updateCompanyBilling)
+);
+
+res.json(updatedCompanies);
 
   }catch(err){
 
@@ -1654,6 +1672,69 @@ app.get("/api/admin/billing", async (req,res)=>{
 
 });
 
+/* =========================
+   BILLING ENGINE (FULL SAVE VERSION)
+========================= */
+
+async function updateCompanyBilling(company){
+
+  const now = new Date();
+
+  if(!company.nextBillingDate){
+    return company;
+  }
+
+  const nextDate = new Date(company.nextBillingDate);
+
+  const graceMs = (company.graceDays || 3) * 24 * 60 * 60 * 1000;
+
+  const diff = nextDate - now;
+
+  const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+  // 📅 Billing period (month range)
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  let billingStatus = "ACTIVE";
+  let billingLocked = false;
+
+  // ACTIVE
+  if(now <= nextDate){
+    billingStatus = "ACTIVE";
+  }
+
+  // GRACE PERIOD
+  const graceEnd = new Date(nextDate.getTime() + graceMs);
+
+  if(now > nextDate && now <= graceEnd){
+    billingStatus = "PAST_DUE";
+  }
+
+  // SUSPENDED
+  if(now > graceEnd){
+    billingStatus = "SUSPENDED";
+    billingLocked = true;
+  }
+
+  // 🔥 APPLY VALUES
+  company.daysLeft = daysLeft;
+  company.billingStatus = billingStatus;
+  company.billingLocked = billingLocked;
+  company.billingStartDate = startDate;
+  company.billingEndDate = endDate;
+
+  // 🔥 SAVE TO DATABASE
+  await User.findByIdAndUpdate(company._id, {
+    daysLeft,
+    billingStatus,
+    billingLocked,
+    billingStartDate: startDate,
+    billingEndDate: endDate
+  });
+
+  return company;
+}
 
 /* =========================
    LOCK COMPANY
@@ -3783,6 +3864,84 @@ setInterval(async () => {
   }
 
 }, 60000);
+
+/* =========================
+   BILLING ENGINE
+========================= */
+
+function updateCompanyBilling(company){
+
+  const now = new Date();
+
+  if(!company.nextBillingDate){
+    return company;
+  }
+
+  const nextDate =
+    new Date(company.nextBillingDate);
+
+  const graceMs =
+    (company.graceDays || 0)
+    * 24 * 60 * 60 * 1000;
+
+  const diff =
+    nextDate - now;
+
+  const daysLeft =
+    Math.ceil(
+      diff / (1000 * 60 * 60 * 24)
+    );
+
+  company.daysLeft =
+    daysLeft;
+
+  /* =========================
+     ACTIVE
+  ========================= */
+
+  if(now <= nextDate){
+
+    company.billingStatus =
+      "ACTIVE";
+
+    company.billingLocked =
+      false;
+
+    return company;
+  }
+
+  /* =========================
+     GRACE PERIOD
+  ========================= */
+
+  const graceEnd =
+    new Date(
+      nextDate.getTime() + graceMs
+    );
+
+  if(now <= graceEnd){
+
+    company.billingStatus =
+      "PAST_DUE";
+
+    company.billingLocked =
+      false;
+
+    return company;
+  }
+
+  /* =========================
+     SUSPENDED
+  ========================= */
+
+  company.billingStatus =
+    "SUSPENDED";
+
+  company.billingLocked =
+    true;
+
+  return company;
+}
 
 /* =========================
    START SERVER
