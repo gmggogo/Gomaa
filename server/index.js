@@ -2129,36 +2129,43 @@ app.get("/api/company/billing", async (req,res)=>{
 /* =========================
    CREATE ACH PAYMENT
 ========================= */
-app.post("/api/company/create-ach-payment", async (req,res)=>{
 
-  try{
+app.post(
+  "/api/company/create-ach-payment",
+  async (req,res)=>{
 
-    const companyName =
-      String(req.body.company || "").trim();
+    try{
 
-    if(!companyName){
+      const { company } = req.body;
 
-      return res.status(400).json({
-        message:"Company required"
-      });
+      if(!company){
 
-    }
+        return res.status(400).json({
+          message:"Company required"
+        });
 
-    const company = await User.findOne({
-      role:"company",
-      name:{
-        $regex:"^" + companyName + "$",
-        $options:"i"
       }
-    });
 
-    if(!company){
+      /* TEST PAYMENT LINK */
 
-      return res.status(404).json({
-        message:"Company not found"
+      return res.json({
+
+        url:"https://buy.stripe.com/test_14A5kC2tQ4vC3M4000"
+
+      });
+
+    }catch(err){
+
+      console.log(err);
+
+      res.status(500).json({
+        message:"Server error"
       });
 
     }
+
+  }
+);
 
     /* =========================
        STRIPE ACH PLACEHOLDER

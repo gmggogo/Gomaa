@@ -208,11 +208,30 @@ achPayBtn.addEventListener("click", async ()=>{
       })
     });
 
-    const data = await res.json();
+  const text = await res.text();
 
-    if(!res.ok){
-      throw new Error(data.message || "Payment error");
-    }
+let data = {};
+
+try{
+  data = JSON.parse(text);
+}catch{
+
+  console.log("SERVER RESPONSE:");
+  console.log(text);
+
+  throw new Error(
+    "Server did not return JSON.\nCheck backend route."
+  );
+
+}
+
+if(!res.ok){
+
+  throw new Error(
+    data.message || "Payment error"
+  );
+
+}
 
     if(data.url){
       window.location.href = data.url;
