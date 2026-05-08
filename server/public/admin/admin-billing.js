@@ -1,10 +1,10 @@
 /* =========================
-   AUTH CHECK
+   AUTH
 ========================= */
 
 const token = localStorage.getItem("token");
 
-if (!token) {
+if(!token){
   window.location.href = "/admin/login.html";
 }
 
@@ -46,128 +46,141 @@ let companies = [];
    HELPERS
 ========================= */
 
-function formatDate(d) {
-  if (!d) return "--";
+function formatDate(d){
+
+  if(!d) return "--";
 
   const date = new Date(d);
 
-  if (isNaN(date.getTime())) return "--";
+  if(isNaN(date.getTime())) return "--";
 
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric"
+    }
+  );
+
 }
 
-function money(v) {
+function money(v){
   return "$" + Number(v || 0).toFixed(2);
 }
 
-function safeText(v) {
-  return String(v || "--");
-}
+function getDaysClass(days){
 
-function getDaysClass(days) {
-  if (days <= 3) return "days-danger";
-  if (days <= 7) return "days-warning";
+  if(days <= 3) return "days-danger";
+
+  if(days <= 7) return "days-warning";
+
   return "days-good";
+
 }
 
-function getProgressColor(days) {
-  if (days <= 3) return "#dc2626";
-  if (days <= 7) return "#ca8a04";
+function getProgressColor(days){
+
+  if(days <= 3) return "#dc2626";
+
+  if(days <= 7) return "#ca8a04";
+
   return "#16a34a";
+
 }
 
-function getStatusClass(status) {
-  if (status === "PAST_DUE") return "status-past";
-  if (status === "SUSPENDED") return "status-suspended";
-  return "status-active";
-}
+function getStatusClass(status){
 
-function getProgressPercent(c) {
-  const daysLeft = Number(c.daysLeft || 0);
-
-  let totalDays = 30;
-
-  if (c.billingCycle === "WEEKLY") {
-    totalDays = 7;
+  if(status === "PAST_DUE"){
+    return "status-past";
   }
 
-  return Math.max(
-    0,
-    Math.min(100, (daysLeft / totalDays) * 100)
-  );
+  if(status === "SUSPENDED"){
+    return "status-suspended";
+  }
+
+  return "status-active";
+
 }
 
 /* =========================
-   LOAD BILLING
+   LOAD
 ========================= */
 
-async function load() {
-  try {
-    container.innerHTML = `
-      <tr>
-        <td colspan="13" class="empty">
-          Loading billing data...
-        </td>
-      </tr>
-    `;
+async function load(){
 
-    const res = await fetch("/api/admin/billing", {
-      headers: {
-        Authorization: "Bearer " + token
+  try{
+
+    const res = await fetch(
+      "/api/admin/billing",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        }
       }
-    });
+    );
 
     const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.message || "Billing load failed");
-    }
-
-    companies = Array.isArray(data) ? data : [];
+    companies =
+      Array.isArray(data)
+        ? data
+        : [];
 
     render(companies);
+
     updateStats(companies);
 
-  } catch (err) {
+  }catch(err){
+
     console.log(err);
 
     container.innerHTML = `
       <tr>
         <td colspan="13" class="empty">
-          Error loading billing data
+          Error loading data
         </td>
       </tr>
     `;
+
   }
+
 }
 
 /* =========================
    STATS
 ========================= */
 
-function updateStats(list) {
-  totalEl.innerText = list.length;
+function updateStats(list){
+
+  totalEl.innerText =
+    list.length;
 
   activeEl.innerText =
-    list.filter(x => x.billingStatus === "ACTIVE").length;
+    list.filter(
+      x => x.billingStatus === "ACTIVE"
+    ).length;
 
   pastDueEl.innerText =
-    list.filter(x => x.billingStatus === "PAST_DUE").length;
+    list.filter(
+      x => x.billingStatus === "PAST_DUE"
+    ).length;
 
   suspendedEl.innerText =
-    list.filter(x => x.billingStatus === "SUSPENDED").length;
+    list.filter(
+      x => x.billingStatus === "SUSPENDED"
+    ).length;
+
 }
 
 /* =========================
    RENDER
 ========================= */
 
-function render(list) {
-  if (!list.length) {
+function render(list){
+
+  if(!list.length){
+
     container.innerHTML = `
       <tr>
         <td colspan="13" class="empty">
@@ -175,63 +188,61 @@ function render(list) {
         </td>
       </tr>
     `;
+
     return;
   }
 
   container.innerHTML = list.map(c => {
-    const status =
-      c.billingStatus || "ACTIVE";
-
-    const statusClass =
-      getStatusClass(status);
 
     const days =
       Number(c.daysLeft || 0);
 
     const progress =
-      getProgressPercent(c);
-
-    const lockedHtml = c.billingLocked
-      ? `
-        <span style="
-          color:#dc2626;
-          font-weight:900;
-        ">
-          LOCKED
-        </span>
-      `
-      : `
-        <span style="
-          color:#16a34a;
-          font-weight:900;
-        ">
-          OPEN
-        </span>
-      `;
+      Math.max(
+        0,
+        Math.min(
+          100,
+          (days / 30) * 100
+        )
+      );
 
     return `
+
       <tr>
 
         <td>
+
           <div class="company-name">
-            ${safeText(c.name)}
+            ${c.name || "--"}
           </div>
 
           <div class="company-small">
-            Username: ${safeText(c.username)}
+
+            Username:
+            ${c.username || "--"}
+
             <br>
-            Email: ${safeText(c.email)}
+
+            Email:
+            ${c.email || "--"}
+
           </div>
+
         </td>
 
         <td>
-          <span class="badge ${statusClass}">
-            ${status}
+
+          <span class="
+            badge
+            ${getStatusClass(c.billingStatus)}
+          ">
+            ${c.billingStatus || "ACTIVE"}
           </span>
+
         </td>
 
         <td>
-          ${safeText(c.billingCycle || "MONTHLY")}
+          ${c.billingCycle || "MONTHLY"}
         </td>
 
         <td>
@@ -255,11 +266,13 @@ function render(list) {
         </td>
 
         <td>
+
           <div class="${getDaysClass(days)}">
             ${days}
           </div>
 
           <div class="progress">
+
             <div
               class="progress-bar"
               style="
@@ -267,195 +280,296 @@ function render(list) {
                 background:${getProgressColor(days)};
               "
             ></div>
+
           </div>
+
         </td>
 
         <td>
-          ${Number(c.graceDays || 0)} Days
+          ${c.graceDays || 0} Days
         </td>
 
         <td>
-          ${lockedHtml}
+
+          ${
+            c.billingLocked
+            ? `
+              <span class="badge status-suspended">
+                LOCKED
+              </span>
+            `
+            : `
+              <span class="badge status-active">
+                OPEN
+              </span>
+            `
+          }
+
         </td>
 
         <td>
-          ${safeText(c.billingNotes)}
+          ${c.billingNotes || "--"}
         </td>
 
         <td>
+
           <div class="actions">
 
-            <button
-              class="btn lock"
-              onclick="lockCompany('${c._id}')"
+            <input
+              type="date"
+              class="date-input"
+              id="start-${c._id}"
             >
-              Lock
-            </button>
 
-            <button
-              class="btn unlock"
-              onclick="unlockCompany('${c._id}')"
+            <input
+              type="date"
+              class="date-input"
+              id="end-${c._id}"
             >
-              Unlock
-            </button>
 
-            <button
-              class="btn paid"
-              onclick="markPaid('${c._id}')"
-            >
-              Mark Paid
-            </button>
+            <div class="btn-row">
+
+              <button
+                class="btn save"
+                onclick="saveBilling('${c._id}')"
+              >
+                Save
+              </button>
+
+              <button
+                class="btn lock"
+                onclick="lockCompany('${c._id}')"
+              >
+                Lock
+              </button>
+
+              <button
+                class="btn unlock"
+                onclick="unlockCompany('${c._id}')"
+              >
+                Unlock
+              </button>
+
+            </div>
 
           </div>
+
         </td>
 
       </tr>
+
     `;
+
   }).join("");
+
 }
 
 /* =========================
-   FILTER
+   FILTERS
 ========================= */
 
-function applyFilters() {
+function applyFilters(){
+
   let list = [...companies];
 
   const s =
-    search.value.toLowerCase().trim();
+    search.value
+      .toLowerCase()
+      .trim();
 
   const f =
     filter.value;
 
-  if (s) {
+  if(s){
+
     list = list.filter(x =>
-      String(x.name || "").toLowerCase().includes(s) ||
-      String(x.username || "").toLowerCase().includes(s) ||
-      String(x.email || "").toLowerCase().includes(s)
+
+      String(x.name || "")
+        .toLowerCase()
+        .includes(s)
+
+      ||
+
+      String(x.username || "")
+        .toLowerCase()
+        .includes(s)
+
+      ||
+
+      String(x.email || "")
+        .toLowerCase()
+        .includes(s)
+
     );
+
   }
 
-  if (f) {
-    list = list.filter(x => x.billingStatus === f);
+  if(f){
+
+    list = list.filter(
+      x => x.billingStatus === f
+    );
+
   }
 
   render(list);
+
 }
 
 /* =========================
-   ACTIONS
+   SAVE BILLING DATES
 ========================= */
 
-async function lockCompany(id) {
-  try {
-    const ok = confirm(
-      "Are you sure you want to lock this company?"
-    );
+async function saveBilling(id){
 
-    if (!ok) return;
+  try{
+
+    const start =
+      document.getElementById(
+        `start-${id}`
+      ).value;
+
+    const end =
+      document.getElementById(
+        `end-${id}`
+      ).value;
+
+    if(!start || !end){
+
+      alert(
+        "Please select dates"
+      );
+
+      return;
+    }
 
     const res = await fetch(
+      `/api/admin/billing/${id}/dates`,
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        },
+
+        body:JSON.stringify({
+          billingStartDate:start,
+          billingEndDate:end
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Save failed"
+      );
+
+    }
+
+    load();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err.message ||
+      "Save failed"
+    );
+
+  }
+
+}
+
+/* =========================
+   LOCK
+========================= */
+
+async function lockCompany(id){
+
+  try{
+
+    await fetch(
       `/api/admin/billing/${id}/lock`,
       {
-        method: "PUT",
-        headers: {
-          Authorization: "Bearer " + token
+        method:"PUT",
+
+        headers:{
+          Authorization:"Bearer " + token
         }
       }
     );
 
-    const data = await res.json();
+    load();
 
-    if (!res.ok) {
-      throw new Error(data.message || "Lock failed");
-    }
+  }catch(err){
 
-    await load();
-
-  } catch (err) {
     console.log(err);
-    alert(err.message || "Lock failed");
+
   }
-}
 
-async function unlockCompany(id) {
-  try {
-    const res = await fetch(
-      `/api/admin/billing/${id}/unlock`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: "Bearer " + token
-        }
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.message || "Unlock failed");
-    }
-
-    await load();
-
-  } catch (err) {
-    console.log(err);
-    alert(err.message || "Unlock failed");
-  }
-}
-
-async function markPaid(id) {
-  try {
-    const ok = confirm(
-      "Mark this company as paid and renew billing?"
-    );
-
-    if (!ok) return;
-
-    const res = await fetch(
-      `/api/admin/billing/${id}/mark-paid`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: "Bearer " + token
-        }
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.message || "Mark paid failed");
-    }
-
-    await load();
-
-  } catch (err) {
-    console.log(err);
-    alert(err.message || "Mark paid failed");
-  }
 }
 
 /* =========================
-   STRIPE CONNECT
+   UNLOCK
 ========================= */
 
-async function connectStripe() {
-  try {
-    const company =
-      prompt("Enter Company Name");
+async function unlockCompany(id){
 
-    if (!company) return;
+  try{
+
+    await fetch(
+      `/api/admin/billing/${id}/unlock`,
+      {
+        method:"PUT",
+
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }
+    );
+
+    load();
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
+
+/* =========================
+   STRIPE
+========================= */
+
+async function connectStripe(){
+
+  try{
+
+    const company =
+      prompt(
+        "Enter Company Name"
+      );
+
+    if(!company) return;
 
     const res = await fetch(
       "/api/company/connect-stripe",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token
+        method:"POST",
+
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
         },
-        body: JSON.stringify({
+
+        body:JSON.stringify({
           company
         })
       }
@@ -463,38 +577,50 @@ async function connectStripe() {
 
     const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.message || "Stripe connection failed");
+    if(data.url){
+
+      window.location.href =
+        data.url;
+
+    }else{
+
+      alert(
+        data.message ||
+        "Stripe error"
+      );
+
     }
 
-    if (data.url) {
-      window.location.href = data.url;
-      return;
-    }
+  }catch(err){
 
-    alert(data.message || "Stripe connected");
-
-  } catch (err) {
     console.log(err);
-    alert(err.message || "Stripe connection failed");
+
+    alert(
+      "Stripe connection failed"
+    );
+
   }
+
 }
 
 /* =========================
    EVENTS
 ========================= */
 
-if (search) {
-  search.addEventListener("input", applyFilters);
-}
+search.addEventListener(
+  "input",
+  applyFilters
+);
 
-if (filter) {
-  filter.addEventListener("change", applyFilters);
-}
+filter.addEventListener(
+  "change",
+  applyFilters
+);
 
-if (connectStripeBtn) {
-  connectStripeBtn.addEventListener("click", connectStripe);
-}
+connectStripeBtn.addEventListener(
+  "click",
+  connectStripe
+);
 
 /* =========================
    INIT
