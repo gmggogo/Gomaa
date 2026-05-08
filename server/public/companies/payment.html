@@ -1,46 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sunbeam Dashboard</title>
-  <link rel="stylesheet" href="layout.css">
+<meta charset="UTF-8">
+<title>Sunbeam Transportation – Payment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="layout.css">
+
+<style>
+body{
+  margin:0;
+  background:#f4f7fb;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
+}
+
+.payment-wrapper{
+  max-width:1500px;
+  margin:auto;
+  padding:50px 25px;
+}
+
+.page-title{
+  font-size:26px;
+  font-weight:900;
+  margin-bottom:25px;
+  color:#1e3a8a;
+}
+
+.alert{
+  padding:16px 20px;
+  border-radius:14px;
+  margin-bottom:25px;
+  font-weight:800;
+  display:none;
+}
+
+.alert.active{
+  display:block;
+}
+
+.alert-green{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.alert-yellow{
+  background:#fef9c3;
+  color:#854d0e;
+}
+
+.alert-red{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:22px;
+  margin-bottom:35px;
+}
+
+.card{
+  background:#fff;
+  border-radius:18px;
+  padding:25px;
+  box-shadow:0 10px 25px rgba(0,0,0,.07);
+  border-left:6px solid #1e3a8a;
+}
+
+.card h3{
+  margin:0;
+  font-size:13px;
+  color:#64748b;
+  text-transform:uppercase;
+}
+
+.card p{
+  margin:15px 0 0;
+  font-size:26px;
+  font-weight:900;
+}
+
+.status-active{
+  color:#16a34a;
+}
+
+.status-past{
+  color:#ca8a04;
+}
+
+.status-suspended{
+  color:#dc2626;
+}
+
+.payment-box{
+  background:#fff;
+  border-radius:18px;
+  padding:28px;
+  box-shadow:0 10px 25px rgba(0,0,0,.07);
+  margin-bottom:35px;
+}
+
+.payment-box h2{
+  margin-top:0;
+  color:#0f172a;
+}
+
+.methods{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:18px;
+  margin-top:20px;
+}
+
+.method{
+  border:1px solid #dbe2ea;
+  border-radius:14px;
+  padding:18px;
+  background:#f8fafc;
+}
+
+.method h3{
+  margin-top:0;
+  color:#1e3a8a;
+}
+
+.method p{
+  line-height:1.6;
+  font-size:14px;
+}
+
+.pay-btn{
+  border:none;
+  background:#16a34a;
+  color:#fff;
+  border-radius:12px;
+  padding:14px 22px;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+  margin-top:15px;
+}
+
+.pay-btn:disabled{
+  background:#94a3b8;
+  cursor:not-allowed;
+}
+
+.table-wrap{
+  overflow-x:auto;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 10px 25px rgba(0,0,0,.07);
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:850px;
+}
+
+th{
+  background:#0f172a;
+  color:#fff;
+  padding:14px;
+  text-align:left;
+  font-size:13px;
+}
+
+td{
+  padding:14px;
+  border-bottom:1px solid #e5e7eb;
+  font-size:13px;
+  font-weight:700;
+}
+
+.badge{
+  display:inline-block;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.badge-paid{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.badge-unpaid{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+@media(max-width:768px){
+  .payment-wrapper{
+    padding:25px 12px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .card p{
+    font-size:22px;
+  }
+}
+</style>
 </head>
+
 <body>
 
-<header class="topbar">
-  <div class="logo">
-    <img src="../assets/logo.png" alt="Sunbeam">
+<div id="layoutHeader"></div>
+
+<div class="payment-wrapper">
+
+  <div class="page-title">
+    Payment Center
   </div>
 
-  <div class="company-name">
-    Sunbeam Transportation LLC
+  <div id="billingAlert" class="alert"></div>
+
+  <div class="cards">
+
+    <div class="card">
+      <h3>Account Status</h3>
+      <p id="billingStatus">Loading...</p>
+    </div>
+
+    <div class="card">
+      <h3>Invoice Amount</h3>
+      <p id="invoiceAmount">$0.00</p>
+    </div>
+
+    <div class="card">
+      <h3>Next Payment Date</h3>
+      <p id="nextBillingDate">--</p>
+    </div>
+
+    <div class="card">
+      <h3>Billing Cycle</h3>
+      <p id="billingCycle">--</p>
+    </div>
+
   </div>
 
-  <div class="datetime">
-    <div id="greeting"></div>
-    <div id="clock"></div>
+  <div class="payment-box">
+
+    <h2>Current Invoice</h2>
+
+    <p>
+      Please complete payment before the due date to keep Add Trip and trip management active.
+    </p>
+
+    <div class="methods">
+
+      <div class="method">
+        <h3>ACH Bank Payment</h3>
+        <p>
+          Pay securely using your business bank account.
+          ACH is recommended for clinics, hospitals, and facilities.
+        </p>
+
+        <button id="achPayBtn" class="pay-btn">
+          Pay With Bank
+        </button>
+      </div>
+
+      <div class="method">
+        <h3>Manual Payment</h3>
+        <p>
+          If you already paid by Zelle, bank transfer, or check, contact Sunbeam Transportation
+          so your account can be verified and unlocked.
+        </p>
+      </div>
+
+    </div>
+
   </div>
-</header>
 
-<div class="layout">
+  <div class="payment-box">
 
-  <aside class="sidebar">
-    <h3>Company Panel</h3>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="add-trip.html">Add Trip</a>
-    <a href="review.html">Review Trips</a>
-    <a href="monthly.html">Monthly Summary</a>
-    <a href="payment.html">Payments</a>
-    <a href="taxes.html">Taxes</a>
-  </aside>
+    <h2>Payment History</h2>
 
-  <main class="content">
-    <h1>Welcome to Sunbeam Dashboard</h1>
-    <p>Select an option from the sidebar to manage your transportation services.</p>
-  </main>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Method</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+
+        <tbody id="paymentHistoryBody">
+          <tr>
+            <td colspan="5">No payment history yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
 
 </div>
 
 <script src="layout.js"></script>
+<script src="payment.js"></script>
+
 </body>
 </html>

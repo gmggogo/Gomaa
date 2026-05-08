@@ -33,6 +33,8 @@ container.innerHTML = `
 
 <a href="summary.html">Summary</a>
 
+<a href="payment.html">Payment</a>
+
 <a href="taxes.html">Taxes</a>
 
 <a href="#" id="logoutBtn">Logout</a>

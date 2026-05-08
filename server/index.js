@@ -110,25 +110,98 @@ app.use(express.static(path.join(__dirname, "public")));
 mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ Mongo Connected"))
   .catch(err => console.log("❌ Mongo Error:", err));
-
 /* =========================
    USER MODEL
 ========================= */
 const userSchema = new mongoose.Schema({
+
   name: { type: String, required: true },
-  username: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
+
+  username: {
+    type: String,
+    unique: true,
+    required: true
+  },
+
+  password: {
+    type: String,
+    required: true
+  },
+
   role: {
     type: String,
     enum: ["admin", "dispatcher", "driver", "company"],
     required: true
   },
-  active: { type: Boolean, default: true },
+
+  active: {
+    type: Boolean,
+    default: true
+  },
 
   /* OPTIONAL DRIVER / DISPATCH DATA */
-  vehicleNumber: { type: String, default: "" },
-  address: { type: String, default: "" },
-  phone: { type: String, default: "" }
+
+  vehicleNumber: {
+    type: String,
+    default: ""
+  },
+
+  address: {
+    type: String,
+    default: ""
+  },
+
+  phone: {
+    type: String,
+    default: ""
+  },
+
+  /* =========================
+     BILLING SYSTEM
+  ========================= */
+
+  billingStatus: {
+    type: String,
+    enum: ["ACTIVE","PAST_DUE","SUSPENDED"],
+    default: "ACTIVE"
+  },
+
+  billingCycle: {
+    type: String,
+    enum: ["MONTHLY","WEEKLY"],
+    default: "MONTHLY"
+  },
+
+  invoiceAmount: {
+    type: Number,
+    default: 0
+  },
+
+  lastPaymentDate: {
+    type: Date,
+    default: null
+  },
+
+  nextBillingDate: {
+    type: Date,
+    default: null
+  },
+
+  graceDays: {
+    type: Number,
+    default: 3
+  },
+
+  billingLocked: {
+    type: Boolean,
+    default: false
+  },
+
+  billingNotes: {
+    type: String,
+    default: ""
+  }
+
 }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
@@ -1371,6 +1444,234 @@ app.delete("/api/users/:id", async (req, res) => {
     console.log(err);
     res.status(500).json({ message: "Error deleting user" });
   }
+});
+/* =========================
+   ADMIN BILLING LIST
+========================= */
+app.get("/api/admin/billing", async (req,res)=>{
+
+  try{
+
+    const companies = await User.find({
+      role:"company"
+    })
+    .sort({ name:1 })
+    .lean();
+
+    res.json(companies);
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"billing error"
+    });
+
+  }
+
+});
+
+
+/* =========================
+   LOCK COMPANY
+========================= */
+app.put("/api/admin/billing/:id/lock", async (req,res)=>{
+
+  try{
+
+    await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        billingLocked:true,
+        billingStatus:"SUSPENDED"
+      }
+    );
+
+    res.json({
+      success:true
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"lock failed"
+    });
+
+  }
+
+});
+
+
+/* =========================
+   UNLOCK COMPANY
+========================= */
+app.put("/api/admin/billing/:id/unlock", async (req,res)=>{
+
+  try{
+
+    await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        billingLocked:false,
+        billingStatus:"ACTIVE"
+      }
+    );
+
+    res.json({
+      success:true
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"unlock failed"
+    });
+
+  }
+
+});
+/* =========================
+   COMPANY BILLING
+========================= */
+app.get("/api/company/billing", async (req,res)=>{
+
+  try{
+
+    const companyName =
+      String(req.query.company || "").trim();
+
+    if(!companyName){
+
+      return res.status(400).json({
+        message:"Company required"
+      });
+
+    }
+
+    const company = await User.findOne({
+      role:"company",
+      name:{
+        $regex:"^" + companyName + "$",
+        $options:"i"
+      }
+    }).lean();
+
+    if(!company){
+
+      return res.status(404).json({
+        message:"Company not found"
+      });
+
+    }
+
+    res.json({
+
+      _id: company._id,
+
+      name: company.name || "",
+
+      billingStatus:
+        company.billingStatus || "ACTIVE",
+
+      billingCycle:
+        company.billingCycle || "MONTHLY",
+
+      invoiceAmount:
+        company.invoiceAmount || 0,
+
+      lastPaymentDate:
+        company.lastPaymentDate || null,
+
+      nextBillingDate:
+        company.nextBillingDate || null,
+
+      billingLocked:
+        company.billingLocked || false,
+
+      billingNotes:
+        company.billingNotes || ""
+
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"billing load failed"
+    });
+
+  }
+
+});
+
+
+/* =========================
+   CREATE ACH PAYMENT
+========================= */
+app.post("/api/company/create-ach-payment", async (req,res)=>{
+
+  try{
+
+    const companyName =
+      String(req.body.company || "").trim();
+
+    if(!companyName){
+
+      return res.status(400).json({
+        message:"Company required"
+      });
+
+    }
+
+    const company = await User.findOne({
+      role:"company",
+      name:{
+        $regex:"^" + companyName + "$",
+        $options:"i"
+      }
+    });
+
+    if(!company){
+
+      return res.status(404).json({
+        message:"Company not found"
+      });
+
+    }
+
+    /* =========================
+       STRIPE ACH PLACEHOLDER
+    ========================== */
+
+    // 🔥 هنربط Stripe ACH بعدين
+    // دلوقتي بنرجع رسالة فقط
+
+    res.json({
+
+      success:true,
+
+      message:"ACH payment system coming next",
+
+      url:"#"
+
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"payment failed"
+    });
+
+  }
+
 });
 
 /* =========================
