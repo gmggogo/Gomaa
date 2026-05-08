@@ -214,16 +214,19 @@ padding:18px 16px;
 font-size:14px;
 border-bottom:1px solid #f1f5f9;
 vertical-align:top;
-text-align:left;
-font-weight:700;
-}
-
-.billing-table td *{
 text-align:left !important;
+font-weight:700;
+
+display:table-cell;
 }
 
-.billing-table tr:hover{
-background:#f8fbff;
+.billing-table td div,
+.billing-table td span{
+text-align:left !important;
+margin-left:0 !important;
+padding-left:0 !important;
+justify-content:flex-start !important;
+align-items:flex-start !important;
 }
 
 /* =========================
@@ -236,8 +239,8 @@ font-weight:900;
 color:#2563eb;
 margin-bottom:6px;
 text-align:left !important;
-width:100%;
 display:block;
+width:100%;
 }
 
 .company-small{
@@ -246,10 +249,9 @@ color:#475569;
 font-weight:600;
 line-height:1.7;
 text-align:left !important;
-width:100%;
 display:block;
+width:100%;
 }
-
 /* =========================
    STATUS
 ========================= */
