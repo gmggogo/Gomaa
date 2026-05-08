@@ -1673,6 +1673,7 @@ app.get("/api/admin/billing", async (req, res) => {
   }
 
 });
+
 /* =========================
    BILLING ENGINE (FULL SAVE VERSION)
 ========================= */
@@ -1685,56 +1686,247 @@ async function updateCompanyBilling(company){
     return company;
   }
 
-  const nextDate = new Date(company.nextBillingDate);
+  const nextDate =
+    new Date(company.nextBillingDate);
 
-  const graceMs = (company.graceDays || 3) * 24 * 60 * 60 * 1000;
+  const graceMs =
+    (company.graceDays || 3)
+    * 24
+    * 60
+    * 60
+    * 1000;
 
-  const diff = nextDate - now;
+  const diff =
+    nextDate - now;
 
-  const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const daysLeft =
+    Math.ceil(
+      diff / (1000 * 60 * 60 * 24)
+    );
 
-  // 📅 Billing period (month range)
-  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  /* =========================
+     BILLING PERIOD
+  ========================== */
 
-  let billingStatus = "ACTIVE";
-  let billingLocked = false;
+  const startDate =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    );
 
-  // ACTIVE
+  const endDate =
+    new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0
+    );
+
+  let billingStatus =
+    "ACTIVE";
+
+  let billingLocked =
+    false;
+
+  /* =========================
+     ACTIVE
+  ========================== */
+
   if(now <= nextDate){
-    billingStatus = "ACTIVE";
+
+    billingStatus =
+      "ACTIVE";
+
   }
 
-  // GRACE PERIOD
-  const graceEnd = new Date(nextDate.getTime() + graceMs);
+  /* =========================
+     GRACE PERIOD
+  ========================== */
 
-  if(now > nextDate && now <= graceEnd){
-    billingStatus = "PAST_DUE";
+  const graceEnd =
+    new Date(
+      nextDate.getTime() + graceMs
+    );
+
+  if(
+    now > nextDate &&
+    now <= graceEnd
+  ){
+
+    billingStatus =
+      "PAST_DUE";
+
   }
 
-  // SUSPENDED
+  /* =========================
+     SUSPENDED
+  ========================== */
+
   if(now > graceEnd){
-    billingStatus = "SUSPENDED";
-    billingLocked = true;
+
+    billingStatus =
+      "SUSPENDED";
+
+    billingLocked =
+      true;
+
   }
 
-  // 🔥 APPLY VALUES
-  company.daysLeft = daysLeft;
-  company.billingStatus = billingStatus;
-  company.billingLocked = billingLocked;
-  company.billingStartDate = startDate;
-  company.billingEndDate = endDate;
+  /* =========================
+     COMPANY TRIPS
+  ========================== */
 
-  // 🔥 SAVE TO DATABASE
-  await User.findByIdAndUpdate(company._id, {
-    daysLeft,
-    billingStatus,
-    billingLocked,
-    billingStartDate: startDate,
-    billingEndDate: endDate
-  });
+  const trips =
+    await Trip.find({
+
+      company: company.name
+
+    }).lean();
+
+  /* TOTAL */
+
+  const totalTrips =
+    trips.length;
+
+  /* COMPLETED */
+
+  const completedTrips =
+    trips.filter(t =>
+
+      t.status === "Completed"
+
+    ).length;
+
+  /* NO SHOW */
+
+  const noShowTrips =
+    trips.filter(t =>
+
+      t.status === "NoShow"
+
+    ).length;
+
+  /* CANCELLED */
+
+  const cancelledTrips =
+    trips.filter(t =>
+
+      t.status === "Cancelled"
+
+    ).length;
+
+  /* SHARED */
+
+  const sharedTrips =
+    trips.filter(t =>
+
+      String(
+        t.tripNumber || ""
+      ).includes("-SH")
+
+    ).length;
+
+  /* REVENUE */
+
+  const revenue =
+    trips.reduce((a,t)=>{
+
+      return a +
+        Number(
+          t.priceAmount || 0
+        );
+
+    },0);
+
+  /* =========================
+     INVOICE
+  ========================== */
+
+  let invoiceAmount =
+    revenue;
+
+  /* =========================
+     APPLY VALUES
+  ========================== */
+
+  company.daysLeft =
+    daysLeft;
+
+  company.billingStatus =
+    billingStatus;
+
+  company.billingLocked =
+    billingLocked;
+
+  company.billingStartDate =
+    startDate;
+
+  company.billingEndDate =
+    endDate;
+
+  company.totalTrips =
+    totalTrips;
+
+  company.completedTrips =
+    completedTrips;
+
+  company.noShowTrips =
+    noShowTrips;
+
+  company.cancelledTrips =
+    cancelledTrips;
+
+  company.sharedTrips =
+    sharedTrips;
+
+  company.revenue =
+    revenue;
+
+  company.invoiceAmount =
+    invoiceAmount;
+
+  /* =========================
+     SAVE TO DATABASE
+  ========================== */
+
+  await User.findByIdAndUpdate(
+
+    company._id,
+
+    {
+
+      daysLeft,
+
+      billingStatus,
+
+      billingLocked,
+
+      billingStartDate:
+        startDate,
+
+      billingEndDate:
+        endDate,
+
+      totalTrips,
+
+      completedTrips,
+
+      noShowTrips,
+
+      cancelledTrips,
+
+      sharedTrips,
+
+      revenue,
+
+      invoiceAmount
+
+    }
+
+  );
 
   return company;
+
 }
 
 /* =========================
