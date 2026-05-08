@@ -1825,6 +1825,150 @@ app.post(
       }
 
       /* =========================
+         VALID EMAIL
+      ========================= */
+
+      if(
+        !user.email ||
+        !String(user.email).includes("@")
+      ){
+
+        return res.status(400).json({
+          message:"Company email required"
+        });
+
+      }
+
+      /* =========================
+         ALREADY CONNECTED
+      ========================= */
+
+      if(user.stripeAccountId){
+
+        const accountLink =
+          await stripe.accountLinks.create({
+
+            account:
+              user.stripeAccountId,
+
+            refresh_url:
+              "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
+
+            return_url:
+              "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
+
+            type:
+              "account_onboarding"
+
+          });
+
+        return res.json({
+          url:accountLink.url
+        });
+
+      }
+
+      /* =========================
+         CREATE EXPRESS ACCOUNT
+      ========================= */
+
+      const account =
+        await stripe.accounts.create({
+
+          type:"express",
+
+          country:"US",
+
+          email:user.email,
+
+          business_type:"company",
+
+          capabilities:{
+
+            card_payments:{
+              requested:true
+            },
+
+            transfers:{
+              requested:true
+            }
+
+          }
+
+        });
+
+      /* =========================
+         SAVE USER
+      ========================= */
+
+      user.stripeAccountId =
+        account.id;
+
+      user.stripeConnected =
+        true;
+
+      await user.save();
+
+      /* =========================
+         CREATE LINK
+      ========================= */
+
+      const accountLink =
+        await stripe.accountLinks.create({
+
+          account:
+            account.id,
+
+          refresh_url:
+            "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
+
+          return_url:
+            "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
+
+          type:
+            "account_onboarding"
+
+        });
+
+      res.json({
+        url:accountLink.url
+      });
+
+    }catch(err){
+
+      console.log(
+        "========== STRIPE ERROR =========="
+      );
+
+      console.log(err);
+
+      console.log("RAW:");
+      console.log(err.raw);
+
+      console.log("MESSAGE:");
+      console.log(err.message);
+
+      console.log("TYPE:");
+      console.log(err.type);
+
+      console.log("CODE:");
+      console.log(err.code);
+
+      console.log(
+        "================================="
+      );
+
+      res.status(500).json({
+        message:
+          err.message ||
+          "Stripe connect failed"
+      });
+
+    }
+
+});
+
+      /* =========================
          EXISTING ACCOUNT
       ========================= */
 
