@@ -2125,7 +2125,6 @@ app.get("/api/company/billing", async (req,res)=>{
 
 });
 
-
 /* =========================
    CREATE ACH PAYMENT
 ========================= */
@@ -2149,16 +2148,14 @@ app.post(
       /* TEST PAYMENT LINK */
 
       return res.json({
-
         url:"https://buy.stripe.com/test_14A5kC2tQ4vC3M4000"
-
       });
 
     }catch(err){
 
       console.log(err);
 
-      res.status(500).json({
+      return res.status(500).json({
         message:"Server error"
       });
 
