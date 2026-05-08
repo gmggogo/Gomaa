@@ -2135,9 +2135,10 @@ app.post(
 
     try{
 
-      const { company } = req.body;
+      const companyName =
+        String(req.body.company || "").trim();
 
-      if(!company){
+      if(!companyName){
 
         return res.status(400).json({
           message:"Company required"
@@ -2145,11 +2146,103 @@ app.post(
 
       }
 
-      /* REAL STRIPE PAYMENT LINK */
+      /* =========================
+         FIND COMPANY
+      ========================== */
+
+      const company =
+        await User.findOne({
+
+          role:"company",
+
+          name:{
+            $regex:
+              "^" + companyName + "$",
+            $options:"i"
+          }
+
+        });
+
+      if(!company){
+
+        return res.status(404).json({
+          message:"Company not found"
+        });
+
+      }
+
+      /* =========================
+         INVOICE REQUIRED
+      ========================== */
+
+      const amount =
+        Number(company.invoiceAmount || 0);
+
+      if(amount <= 0){
+
+        return res.status(400).json({
+          message:"Invoice amount invalid"
+        });
+
+      }
+
+      /* =========================
+         STRIPE CHECKOUT
+      ========================== */
+
+      const session =
+        await stripe.checkout.sessions.create({
+
+          payment_method_types:[
+            "card",
+            "us_bank_account"
+          ],
+
+          mode:"payment",
+
+          line_items:[
+
+            {
+
+              price_data:{
+
+                currency:"usd",
+
+                product_data:{
+
+                  name:
+                    `${company.name} Billing Invoice`
+
+                },
+
+                unit_amount:
+                  Math.round(amount * 100)
+
+              },
+
+              quantity:1
+
+            }
+
+          ],
+
+          success_url:
+            "https://sunbeam-933q.onrender.com/company/payment.html?success=1",
+
+          cancel_url:
+            "https://sunbeam-933q.onrender.com/company/payment.html?cancel=1"
+
+        });
+
+      /* =========================
+         RESPONSE
+      ========================== */
 
       return res.json({
 
-        url:"https://buy.stripe.com/test_bJe3cv1mx3Kgf7v1FKbbG00"
+        success:true,
+
+        url:session.url
 
       });
 
