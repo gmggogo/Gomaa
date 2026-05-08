@@ -4,78 +4,236 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
 
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
 
+/* =========================
+   BODY
+========================= */
+
 body{
-margin:0;
-font-family:Segoe UI,Arial;
-background:#f1f5f9;
+  margin:0;
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#eef3f9;
+  color:#0f172a;
 }
 
-/* HEADER */
+/* =========================
+   HEADER
+========================= */
 
 #adminHeader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-z-index:1000;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:9999;
 }
 
-/* PAGE */
+/* =========================
+   PAGE
+========================= */
 
 .page-body{
-padding-top:300px;
-padding-left:20px;
-padding-right:20px;
+  padding-top:240px;
+  padding-left:25px;
+  padding-right:25px;
+  padding-bottom:40px;
+  max-width:1700px;
+  margin:auto;
 }
 
-/* MOBILE HEADER SPACE */
+/* =========================
+   TITLE
+========================= */
 
-@media (max-width:768px){
-
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
+.page-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:30px;
+  flex-wrap:wrap;
 }
 
+.page-title h1{
+  margin:0;
+  font-size:34px;
+  font-weight:900;
+  color:#0f172a;
 }
 
-/* DASHBOARD GRID */
+.page-title p{
+  margin:8px 0 0;
+  color:#64748b;
+  font-size:15px;
+  font-weight:600;
+}
+
+/* =========================
+   DASHBOARD GRID
+========================= */
 
 .dashboard-grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:20px;
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fit,minmax(250px,1fr));
+  gap:22px;
 }
 
-/* CARD */
+/* =========================
+   CARD
+========================= */
 
 .dashboard-card{
-background:white;
-border-radius:8px;
-padding:20px;
-text-align:center;
-border:1px solid #e2e8f0;
+  position:relative;
+  overflow:hidden;
+
+  background:#fff;
+
+  border-radius:22px;
+
+  padding:28px;
+
+  border:1px solid #dbe2ea;
+
+  box-shadow:
+    0 12px 35px rgba(0,0,0,.06);
+
+  transition:.25s;
 }
+
+.dashboard-card:hover{
+  transform:translateY(-4px);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,.10);
+}
+
+/* TOP BAR */
+
+.card-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:18px;
+}
+
+/* ICON */
+
+.card-icon{
+  width:58px;
+  height:58px;
+  border-radius:16px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:28px;
+  font-weight:900;
+}
+
+/* COLORS */
+
+.blue{
+  background:#dbeafe;
+  color:#2563eb;
+}
+
+.green{
+  background:#dcfce7;
+  color:#16a34a;
+}
+
+.red{
+  background:#fee2e2;
+  color:#dc2626;
+}
+
+.orange{
+  background:#fef3c7;
+  color:#ca8a04;
+}
+
+.purple{
+  background:#ede9fe;
+  color:#7c3aed;
+}
+
+/* TITLE */
 
 .dashboard-card h3{
-margin:0;
-font-size:15px;
-color:#0f172a;
+  margin:0;
+  font-size:15px;
+  font-weight:800;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.4px;
 }
 
+/* NUMBER */
+
 .dashboard-number{
-font-size:28px;
-font-weight:bold;
-margin-top:10px;
-color:#2563eb;
+  font-size:42px;
+  font-weight:900;
+  line-height:1;
+  margin-bottom:10px;
+  color:#0f172a;
+}
+
+/* SMALL TEXT */
+
+.card-small{
+  font-size:13px;
+  color:#94a3b8;
+  font-weight:700;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:768px){
+
+  .page-body{
+    padding-top:330px;
+    padding-left:12px;
+    padding-right:12px;
+    padding-bottom:20px;
+  }
+
+  .page-title h1{
+    font-size:28px;
+  }
+
+  .dashboard-grid{
+    gap:15px;
+  }
+
+  .dashboard-card{
+    padding:22px;
+    border-radius:18px;
+  }
+
+  .dashboard-number{
+    font-size:36px;
+  }
+
+  .card-icon{
+    width:50px;
+    height:50px;
+    font-size:24px;
+  }
+
 }
 
 </style>
@@ -84,79 +242,257 @@ color:#2563eb;
 
 <body>
 
+<!-- HEADER -->
 <div id="adminHeader"></div>
 
+<!-- PAGE -->
 <div class="page-body">
 
-<div class="dashboard-grid">
+  <!-- TITLE -->
+  <div class="page-title">
 
-<div class="dashboard-card">
-<h3>Total Trips</h3>
-<div class="dashboard-number" id="totalTrips">0</div>
+    <div>
+
+      <h1>
+        Dashboard Overview
+      </h1>
+
+      <p>
+        Sunbeam Transportation Admin System
+      </p>
+
+    </div>
+
+  </div>
+
+  <!-- GRID -->
+  <div class="dashboard-grid">
+
+    <!-- TOTAL -->
+
+    <div class="dashboard-card">
+
+      <div class="card-top">
+
+        <div class="card-icon blue">
+          🚐
+        </div>
+
+      </div>
+
+      <h3>Total Trips</h3>
+
+      <div
+        class="dashboard-number"
+        id="totalTrips">
+
+        0
+
+      </div>
+
+      <div class="card-small">
+        All trips in system
+      </div>
+
+    </div>
+
+    <!-- CONFIRMED -->
+
+    <div class="dashboard-card">
+
+      <div class="card-top">
+
+        <div class="card-icon green">
+          ✔
+        </div>
+
+      </div>
+
+      <h3>Confirmed Trips</h3>
+
+      <div
+        class="dashboard-number"
+        id="confirmedTrips">
+
+        0
+
+      </div>
+
+      <div class="card-small">
+        Approved & scheduled
+      </div>
+
+    </div>
+
+    <!-- CANCELLED -->
+
+    <div class="dashboard-card">
+
+      <div class="card-top">
+
+        <div class="card-icon red">
+          ✖
+        </div>
+
+      </div>
+
+      <h3>Cancelled Trips</h3>
+
+      <div
+        class="dashboard-number"
+        id="cancelledTrips">
+
+        0
+
+      </div>
+
+      <div class="card-small">
+        Cancelled bookings
+      </div>
+
+    </div>
+
+    <!-- COMPLETED -->
+
+    <div class="dashboard-card">
+
+      <div class="card-top">
+
+        <div class="card-icon orange">
+          🏁
+        </div>
+
+      </div>
+
+      <h3>Completed Trips</h3>
+
+      <div
+        class="dashboard-number"
+        id="completedTrips">
+
+        0
+
+      </div>
+
+      <div class="card-small">
+        Successfully completed
+      </div>
+
+    </div>
+
+    <!-- DISPATCH -->
+
+    <div class="dashboard-card">
+
+      <div class="card-top">
+
+        <div class="card-icon purple">
+          📍
+        </div>
+
+      </div>
+
+      <h3>Dispatch Trips</h3>
+
+      <div
+        class="dashboard-number"
+        id="dispatchTrips">
+
+        0
+
+      </div>
+
+      <div class="card-small">
+        Assigned to dispatch
+      </div>
+
+    </div>
+
+  </div>
+
 </div>
 
-<div class="dashboard-card">
-<h3>Confirmed Trips</h3>
-<div class="dashboard-number" id="confirmedTrips">0</div>
-</div>
-
-<div class="dashboard-card">
-<h3>Cancelled Trips</h3>
-<div class="dashboard-number" id="cancelledTrips">0</div>
-</div>
-
-<div class="dashboard-card">
-<h3>Completed Trips</h3>
-<div class="dashboard-number" id="completedTrips">0</div>
-</div>
-
-<div class="dashboard-card">
-<h3>Dispatch Trips</h3>
-<div class="dashboard-number" id="dispatchTrips">0</div>
-</div>
-
-</div>
-
-</div>
-
+<!-- HEADER -->
 <script src="/admin/header.js"></script>
 
 <script>
 
+/* =========================
+   LOAD DASHBOARD
+========================= */
+
 async function loadDashboard(){
 
-try{
+  try{
 
-const res = await fetch("/api/trips")
-const trips = await res.json()
+    const res =
+      await fetch("/api/trips");
 
-document.getElementById("totalTrips").innerText = trips.length
+    const trips =
+      await res.json();
 
-document.getElementById("confirmedTrips").innerText =
-trips.filter(t=>t.status==="confirmed").length
+    document.getElementById(
+      "totalTrips"
+    ).innerText =
+      trips.length || 0;
 
-document.getElementById("cancelledTrips").innerText =
-trips.filter(t=>t.status==="cancelled").length
+    document.getElementById(
+      "confirmedTrips"
+    ).innerText =
+      trips.filter(
+        t =>
+          t.status === "confirmed" ||
+          t.status === "Confirmed"
+      ).length;
 
-document.getElementById("completedTrips").innerText =
-trips.filter(t=>t.status==="completed").length
+    document.getElementById(
+      "cancelledTrips"
+    ).innerText =
+      trips.filter(
+        t =>
+          t.status === "cancelled" ||
+          t.status === "Cancelled"
+      ).length;
 
-document.getElementById("dispatchTrips").innerText =
-trips.filter(t=>t.dispatchSelected).length
+    document.getElementById(
+      "completedTrips"
+    ).innerText =
+      trips.filter(
+        t =>
+          t.status === "completed" ||
+          t.status === "Completed"
+      ).length;
 
-}catch(err){
+    document.getElementById(
+      "dispatchTrips"
+    ).innerText =
+      trips.filter(
+        t => t.dispatchSelected
+      ).length;
 
-console.log("Dashboard error",err)
+  }catch(err){
+
+    console.log(
+      "Dashboard error",
+      err
+    );
+
+  }
 
 }
 
-}
+/* =========================
+   INIT
+========================= */
 
-document.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener(
+  "DOMContentLoaded",
+  ()=>{
 
-loadDashboard()
+    loadDashboard();
 
-})
+  }
+);
 
 </script>
 

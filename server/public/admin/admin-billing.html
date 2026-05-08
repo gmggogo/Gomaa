@@ -4,236 +4,316 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Admin Dashboard</title>
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
-/>
+<title>Admin Billing Center</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
 
-/* =========================
-   BODY
-========================= */
-
 body{
-  margin:0;
-  font-family:'Segoe UI',Arial,sans-serif;
-  background:#eef3f9;
-  color:#0f172a;
+margin:0;
+font-family:Segoe UI,Arial;
+background:#f1f5f9;
 }
 
-/* =========================
-   HEADER
-========================= */
+/* HEADER */
 
 #adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:9999;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+z-index:1000;
 }
 
-/* =========================
-   PAGE
-========================= */
+/* PAGE */
 
 .page-body{
-  padding-top:240px;
-  padding-left:25px;
-  padding-right:25px;
-  padding-bottom:40px;
-  max-width:1700px;
-  margin:auto;
+padding-top:300px;
+padding-left:20px;
+padding-right:20px;
+padding-bottom:40px;
+max-width:1700px;
+margin:auto;
 }
 
-/* =========================
-   TITLE
-========================= */
+/* MOBILE HEADER SPACE */
 
-.page-title{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-  margin-bottom:30px;
-  flex-wrap:wrap;
+@media (max-width:768px){
+
+.page-body{
+padding-top:360px;
+padding-left:10px;
+padding-right:10px;
 }
 
-.page-title h1{
-  margin:0;
-  font-size:34px;
-  font-weight:900;
-  color:#0f172a;
 }
 
-.page-title p{
-  margin:8px 0 0;
-  color:#64748b;
-  font-size:15px;
-  font-weight:600;
+/* TOP GRID */
+
+.top-grid{
+display:grid;
+grid-template-columns:420px 1fr;
+gap:25px;
+margin-bottom:25px;
 }
 
-/* =========================
-   DASHBOARD GRID
-========================= */
+@media(max-width:1100px){
 
-.dashboard-grid{
-  display:grid;
-  grid-template-columns:
-    repeat(auto-fit,minmax(250px,1fr));
-  gap:22px;
+.top-grid{
+grid-template-columns:1fr;
 }
 
-/* =========================
-   CARD
-========================= */
-
-.dashboard-card{
-  position:relative;
-  overflow:hidden;
-
-  background:#fff;
-
-  border-radius:22px;
-
-  padding:28px;
-
-  border:1px solid #dbe2ea;
-
-  box-shadow:
-    0 12px 35px rgba(0,0,0,.06);
-
-  transition:.25s;
 }
 
-.dashboard-card:hover{
-  transform:translateY(-4px);
-  box-shadow:
-    0 18px 45px rgba(0,0,0,.10);
+/* CARD */
+
+.card{
+background:white;
+border-radius:10px;
+padding:25px;
+border:1px solid #e2e8f0;
+box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
 
-/* TOP BAR */
+/* STRIPE */
 
-.card-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-  margin-bottom:18px;
+.stripe-title{
+font-size:24px;
+font-weight:900;
+margin-bottom:10px;
+color:#1e3a8a;
 }
 
-/* ICON */
-
-.card-icon{
-  width:58px;
-  height:58px;
-  border-radius:16px;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  font-size:28px;
-  font-weight:900;
+.stripe-text{
+font-size:14px;
+line-height:1.7;
+color:#64748b;
+margin-bottom:20px;
 }
 
-/* COLORS */
+.connect-btn{
+border:none;
+background:#635bff;
+color:white;
+padding:14px 22px;
+border-radius:10px;
+font-weight:bold;
+font-size:14px;
+cursor:pointer;
+transition:.2s;
+}
 
-.blue{
-  background:#dbeafe;
-  color:#2563eb;
+.connect-btn:hover{
+opacity:.92;
+transform:translateY(-2px);
+}
+
+/* STATS */
+
+.stats{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:20px;
+}
+
+.stat-box{
+background:white;
+border-radius:10px;
+padding:20px;
+border:1px solid #e2e8f0;
+box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
+
+.stat-title{
+font-size:12px;
+font-weight:900;
+color:#64748b;
+text-transform:uppercase;
+}
+
+.stat-value{
+font-size:30px;
+font-weight:bold;
+margin-top:12px;
 }
 
 .green{
-  background:#dcfce7;
-  color:#16a34a;
-}
-
-.red{
-  background:#fee2e2;
-  color:#dc2626;
+color:#16a34a;
 }
 
 .orange{
-  background:#fef3c7;
-  color:#ca8a04;
+color:#ca8a04;
 }
 
-.purple{
-  background:#ede9fe;
-  color:#7c3aed;
+.red{
+color:#dc2626;
 }
 
-/* TITLE */
+/* FILTERS */
 
-.dashboard-card h3{
-  margin:0;
-  font-size:15px;
-  font-weight:800;
-  color:#64748b;
-  text-transform:uppercase;
-  letter-spacing:.4px;
+.filters{
+display:grid;
+grid-template-columns:1fr 240px;
+gap:15px;
+margin-bottom:20px;
 }
 
-/* NUMBER */
+@media(max-width:700px){
 
-.dashboard-number{
-  font-size:42px;
-  font-weight:900;
-  line-height:1;
-  margin-bottom:10px;
-  color:#0f172a;
+.filters{
+grid-template-columns:1fr;
 }
 
-/* SMALL TEXT */
-
-.card-small{
-  font-size:13px;
-  color:#94a3b8;
-  font-weight:700;
 }
 
-/* =========================
-   MOBILE
-========================= */
+.search-input,
+.select-input{
+height:50px;
+border:1px solid #dbe2ea;
+border-radius:10px;
+padding:0 15px;
+font-size:14px;
+background:white;
+outline:none;
+}
 
-@media(max-width:768px){
+/* TABLE */
 
-  .page-body{
-    padding-top:330px;
-    padding-left:12px;
-    padding-right:12px;
-    padding-bottom:20px;
-  }
+.table-wrap{
+background:white;
+border-radius:10px;
+overflow:auto;
+border:1px solid #e2e8f0;
+box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
 
-  .page-title h1{
-    font-size:28px;
-  }
+table{
+width:100%;
+border-collapse:collapse;
+min-width:1250px;
+}
 
-  .dashboard-grid{
-    gap:15px;
-  }
+th{
+background:#0f172a;
+color:white;
+padding:15px;
+font-size:13px;
+text-align:left;
+}
 
-  .dashboard-card{
-    padding:22px;
-    border-radius:18px;
-  }
+td{
+padding:15px;
+border-bottom:1px solid #e5e7eb;
+font-size:13px;
+vertical-align:top;
+text-align:left;
+}
 
-  .dashboard-number{
-    font-size:36px;
-  }
+/* COMPANY */
 
-  .card-icon{
-    width:50px;
-    height:50px;
-    font-size:24px;
-  }
+.company-name{
+font-size:16px;
+font-weight:bold;
+margin-bottom:8px;
+color:#0f172a;
+text-align:left;
+}
 
+.company-small{
+font-size:12px;
+line-height:1.8;
+color:#64748b;
+text-align:left;
+}
+
+/* STATUS */
+
+.status-badge{
+display:inline-block;
+padding:6px 12px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+}
+
+.status-active{
+background:#dcfce7;
+color:#166534;
+}
+
+.status-past{
+background:#fef9c3;
+color:#854d0e;
+}
+
+.status-suspended{
+background:#fee2e2;
+color:#991b1b;
+}
+
+/* MONEY */
+
+.amount{
+font-size:17px;
+font-weight:bold;
+}
+
+/* LOCK */
+
+.locked-yes{
+color:#dc2626;
+font-weight:bold;
+}
+
+.locked-no{
+color:#16a34a;
+font-weight:bold;
+}
+
+/* ACTIONS */
+
+.action-buttons{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+}
+
+.btn{
+border:none;
+padding:10px 14px;
+border-radius:8px;
+font-size:12px;
+font-weight:bold;
+cursor:pointer;
+transition:.2s;
+}
+
+.btn:hover{
+transform:translateY(-1px);
+}
+
+.btn-lock{
+background:#fee2e2;
+color:#991b1b;
+}
+
+.btn-unlock{
+background:#dcfce7;
+color:#166534;
+}
+
+.btn-paid{
+background:#2563eb;
+color:white;
+}
+
+.empty{
+text-align:center;
+padding:40px;
+font-size:15px;
+color:#64748b;
 }
 
 </style>
@@ -242,259 +322,198 @@ body{
 
 <body>
 
-<!-- HEADER -->
+<!-- ADMIN HEADER -->
 <div id="adminHeader"></div>
 
 <!-- PAGE -->
 <div class="page-body">
 
-  <!-- TITLE -->
-  <div class="page-title">
+<!-- TOP -->
+<div class="top-grid">
 
-    <div>
+<!-- STRIPE -->
+<div class="card">
 
-      <h1>
-        Dashboard Overview
-      </h1>
+<div class="stripe-title">
+Stripe Platform Connect
+</div>
 
-      <p>
-        Sunbeam Transportation Admin System
-      </p>
+<div class="stripe-text">
 
-    </div>
+Connect your Stripe platform account for:
 
-  </div>
+<br><br>
 
-  <!-- GRID -->
-  <div class="dashboard-grid">
+• SaaS billing
+<br>
+• White-label companies
+<br>
+• Marketplace payouts
+<br>
+• Future ACH systems
 
-    <!-- TOTAL -->
+</div>
 
-    <div class="dashboard-card">
+<button
+id="connectStripeBtn"
+class="connect-btn">
 
-      <div class="card-top">
+Connect Stripe Platform
 
-        <div class="card-icon blue">
-          🚐
-        </div>
+</button>
 
-      </div>
+</div>
 
-      <h3>Total Trips</h3>
+<!-- STATS -->
+<div class="stats">
 
-      <div
-        class="dashboard-number"
-        id="totalTrips">
+<div class="stat-box">
 
-        0
+<div class="stat-title">
+Total Companies
+</div>
 
-      </div>
+<div
+class="stat-value"
+id="totalCompanies">
 
-      <div class="card-small">
-        All trips in system
-      </div>
+0
 
-    </div>
+</div>
 
-    <!-- CONFIRMED -->
+</div>
 
-    <div class="dashboard-card">
+<div class="stat-box">
 
-      <div class="card-top">
+<div class="stat-title">
+Active
+</div>
 
-        <div class="card-icon green">
-          ✔
-        </div>
+<div
+class="stat-value green"
+id="activeCompanies">
 
-      </div>
+0
 
-      <h3>Confirmed Trips</h3>
+</div>
 
-      <div
-        class="dashboard-number"
-        id="confirmedTrips">
+</div>
 
-        0
+<div class="stat-box">
 
-      </div>
+<div class="stat-title">
+Past Due
+</div>
 
-      <div class="card-small">
-        Approved & scheduled
-      </div>
+<div
+class="stat-value orange"
+id="pastDueCompanies">
 
-    </div>
+0
 
-    <!-- CANCELLED -->
+</div>
 
-    <div class="dashboard-card">
+</div>
 
-      <div class="card-top">
+<div class="stat-box">
 
-        <div class="card-icon red">
-          ✖
-        </div>
+<div class="stat-title">
+Suspended
+</div>
 
-      </div>
+<div
+class="stat-value red"
+id="suspendedCompanies">
 
-      <h3>Cancelled Trips</h3>
+0
 
-      <div
-        class="dashboard-number"
-        id="cancelledTrips">
+</div>
 
-        0
+</div>
 
-      </div>
+</div>
 
-      <div class="card-small">
-        Cancelled bookings
-      </div>
+</div>
 
-    </div>
+<!-- FILTERS -->
+<div class="filters">
 
-    <!-- COMPLETED -->
+<input
+type="text"
+id="searchInput"
+class="search-input"
+placeholder="Search company..."
+>
 
-    <div class="dashboard-card">
+<select
+id="statusFilter"
+class="select-input">
 
-      <div class="card-top">
+<option value="">
+All Statuses
+</option>
 
-        <div class="card-icon orange">
-          🏁
-        </div>
+<option value="ACTIVE">
+ACTIVE
+</option>
 
-      </div>
+<option value="PAST_DUE">
+PAST DUE
+</option>
 
-      <h3>Completed Trips</h3>
+<option value="SUSPENDED">
+SUSPENDED
+</option>
 
-      <div
-        class="dashboard-number"
-        id="completedTrips">
+</select>
 
-        0
+</div>
 
-      </div>
+<!-- TABLE -->
+<div class="table-wrap">
 
-      <div class="card-small">
-        Successfully completed
-      </div>
+<table>
 
-    </div>
+<thead>
 
-    <!-- DISPATCH -->
+<tr>
 
-    <div class="dashboard-card">
+<th>Company</th>
+<th>Status</th>
+<th>Cycle</th>
+<th>Invoice</th>
+<th>Next Billing</th>
+<th>Locked</th>
+<th>Notes</th>
+<th>Actions</th>
 
-      <div class="card-top">
+</tr>
 
-        <div class="card-icon purple">
-          📍
-        </div>
+</thead>
 
-      </div>
+<tbody id="billingContainer">
 
-      <h3>Dispatch Trips</h3>
+<tr>
 
-      <div
-        class="dashboard-number"
-        id="dispatchTrips">
+<td colspan="8" class="empty">
+Loading billing data...
+</td>
 
-        0
+</tr>
 
-      </div>
+</tbody>
 
-      <div class="card-small">
-        Assigned to dispatch
-      </div>
+</table>
 
-    </div>
-
-  </div>
+</div>
 
 </div>
 
 <!-- HEADER -->
 <script src="/admin/header.js"></script>
 
-<script>
-
-/* =========================
-   LOAD DASHBOARD
-========================= */
-
-async function loadDashboard(){
-
-  try{
-
-    const res =
-      await fetch("/api/trips");
-
-    const trips =
-      await res.json();
-
-    document.getElementById(
-      "totalTrips"
-    ).innerText =
-      trips.length || 0;
-
-    document.getElementById(
-      "confirmedTrips"
-    ).innerText =
-      trips.filter(
-        t =>
-          t.status === "confirmed" ||
-          t.status === "Confirmed"
-      ).length;
-
-    document.getElementById(
-      "cancelledTrips"
-    ).innerText =
-      trips.filter(
-        t =>
-          t.status === "cancelled" ||
-          t.status === "Cancelled"
-      ).length;
-
-    document.getElementById(
-      "completedTrips"
-    ).innerText =
-      trips.filter(
-        t =>
-          t.status === "completed" ||
-          t.status === "Completed"
-      ).length;
-
-    document.getElementById(
-      "dispatchTrips"
-    ).innerText =
-      trips.filter(
-        t => t.dispatchSelected
-      ).length;
-
-  }catch(err){
-
-    console.log(
-      "Dashboard error",
-      err
-    );
-
-  }
-
-}
-
-/* =========================
-   INIT
-========================= */
-
-document.addEventListener(
-  "DOMContentLoaded",
-  ()=>{
-
-    loadDashboard();
-
-  }
-);
-
-</script>
+<!-- PAGE -->
+<script src="/admin/admin-billing.js"></script>
 
 </body>
 </html>
