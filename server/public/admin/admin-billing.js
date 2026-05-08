@@ -1,137 +1,100 @@
-/* =========================
-   AUTH
-========================= */
-
 const token = localStorage.getItem("token");
-
-if(!token){
-  window.location.href = "/admin/login.html";
-}
-
-/* =========================
-   ELEMENTS
-========================= */
 
 const container = document.getElementById("billingContainer");
 
-const totalEl = document.getElementById("totalCompanies");
-const activeEl = document.getElementById("activeCompanies");
-const pastEl = document.getElementById("pastDueCompanies");
-const suspEl = document.getElementById("suspendedCompanies");
+/* =========================
+   SAVE SETTINGS
+========================= */
+async function saveSettings(){
 
-const search = document.getElementById("searchInput");
-const filter = document.getElementById("statusFilter");
+  const body = {
+    startDate: document.getElementById("startDate").value,
+    duration: document.getElementById("duration").value,
+    graceDays: document.getElementById("grace").value,
+    cycle: document.getElementById("cycle").value
+  };
+
+  await fetch("/api/admin/billing-settings",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:"Bearer "+token
+    },
+    body: JSON.stringify(body)
+  });
+
+  load();
+}
 
 /* =========================
-   STRIPE CONNECT (FIXED)
+   STRIPE
 ========================= */
-
 document.getElementById("connectStripeBtn")
 .addEventListener("click", async ()=>{
 
-  try{
-
-    const res = await fetch("/api/company/connect-stripe",{
-      method:"POST",
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    });
-
-    const data = await res.json();
-
-    if(!res.ok) throw new Error(data.message);
-
-    if(data.url){
-      window.location.href = data.url;
-    }
-
-  }catch(err){
-    alert(err.message);
-  }
-
-});
-
-/* =========================
-   LOAD
-========================= */
-
-let companies = [];
-
-async function load(){
-
-  const res = await fetch("/api/admin/billing",{
+  const res = await fetch("/api/company/connect-stripe",{
+    method:"POST",
     headers:{
-      Authorization:"Bearer " + token
+      Authorization:"Bearer "+token
     }
   });
 
   const data = await res.json();
 
-  companies = data || [];
-
-  render(companies);
-  stats(companies);
-
-}
+  if(data.url){
+    window.location.href = data.url;
+  }
+});
 
 /* =========================
-   STATS
+   LOAD
 ========================= */
+async function load(){
 
-function stats(list){
+  const res = await fetch("/api/admin/billing",{
+    headers:{Authorization:"Bearer "+token}
+  });
 
-  totalEl.innerText = list.length;
+  const data = await res.json();
 
-  activeEl.innerText =
-    list.filter(x=>x.billingStatus==="ACTIVE").length;
-
-  pastEl.innerText =
-    list.filter(x=>x.billingStatus==="PAST_DUE").length;
-
-  suspEl.innerText =
-    list.filter(x=>x.billingStatus==="SUSPENDED").length;
-
-}
-
-/* =========================
-   RENDER
-========================= */
-
-function render(list){
-
-  container.innerHTML = list.map(c=>{
+  container.innerHTML = data.map(c=>{
 
     let cls = "status-active";
-
     if(c.billingStatus==="PAST_DUE") cls="status-past";
     if(c.billingStatus==="SUSPENDED") cls="status-suspended";
 
     return `
       <tr>
-        <td>${c.name}</td>
+
+        <td><b>${c.name}</b></td>
 
         <td class="${cls}">
           ${c.billingStatus}
         </td>
 
-        <td>${c.billingCycle}</td>
+        <td>${fmt(c.billingStartDate)}</td>
+        <td>${fmt(c.billingEndDate)}</td>
 
-        <td>$${c.invoiceAmount||0}</td>
-
-        <td>${format(c.billingStartDate)}</td>
-
-        <td>${format(c.billingEndDate)}</td>
-
-        <td>${c.daysLeft||0}</td>
-
-        <td>${c.billingLocked?"YES":"NO"}</td>
+        <td>${c.daysLeft || 0}</td>
 
         <td>
-          <button onclick="lock('${c._id}')">Lock</button>
-          <button onclick="unlock('${c._id}')">Unlock</button>
-          <button onclick="paid('${c._id}')">Paid</button>
+
+          <div class="actions">
+
+            ${
+              c.billingLocked
+              ? `<button class="unlock" onclick="unlock('${c._id}')">Unlock</button>`
+              : `<button class="lock" onclick="lock('${c._id}')">Lock</button>`
+            }
+
+            <button class="paid" onclick="paid('${c._id}')">
+              Paid
+            </button>
+
+          </div>
+
         </td>
+
       </tr>
     `;
 
@@ -140,18 +103,8 @@ function render(list){
 }
 
 /* =========================
-   FORMAT
-========================= */
-
-function format(d){
-  if(!d) return "--";
-  return new Date(d).toLocaleDateString();
-}
-
-/* =========================
    ACTIONS
 ========================= */
-
 async function lock(id){
   await fetch(`/api/admin/billing/${id}/lock`,{
     method:"PUT",
@@ -177,24 +130,12 @@ async function paid(id){
 }
 
 /* =========================
-   FILTER
+   FORMAT
 ========================= */
+function fmt(d){
+  if(!d) return "--";
+  return new Date(d).toLocaleDateString();
+}
 
-search.addEventListener("input",()=>{
-  const v = search.value.toLowerCase();
-  render(companies.filter(c=>
-    c.name?.toLowerCase().includes(v)
-  ));
-});
-
-filter.addEventListener("change",()=>{
-  const v = filter.value;
-  if(!v) return render(companies);
-  render(companies.filter(c=>c.billingStatus===v));
-});
-
-/* =========================
-   INIT
-========================= */
-
+/* INIT */
 load();
