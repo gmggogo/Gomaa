@@ -8,50 +8,61 @@ const container = document.getElementById("billingContainer");
 
 let companies = [];
 
-/* =====================
-   LOAD BILLING
-===================== */
+/* =========================
+   LOAD
+========================= */
 async function loadBilling(){
 
   const res = await fetch("/api/admin/billing",{
-    headers:{
-      Authorization:"Bearer " + token
-    }
+    headers:{ Authorization:"Bearer "+token }
   });
 
   companies = await res.json();
 
   render();
+  updateStats();
 }
 
-/* =====================
-   RENDER
-===================== */
+/* =========================
+   STATS
+========================= */
+function updateStats(){
+
+  document.getElementById("totalCompanies").innerText =
+    companies.length;
+
+  document.getElementById("activeCompanies").innerText =
+    companies.filter(c=>c.billingStatus==="ACTIVE").length;
+
+  document.getElementById("pastDueCompanies").innerText =
+    companies.filter(c=>c.billingStatus==="PAST_DUE").length;
+
+  document.getElementById("suspendedCompanies").innerText =
+    companies.filter(c=>c.billingStatus==="SUSPENDED").length;
+}
+
+/* =========================
+   RENDER TABLE
+========================= */
 function render(){
 
   container.innerHTML = "";
 
-  if(!companies.length){
-    container.innerHTML = `
-      <tr><td colspan="6">No companies</td></tr>
-    `;
-    return;
-  }
-
   companies.forEach(c=>{
 
-    let statusClass = "active";
+    let color = "";
 
-    if(c.billingStatus==="PAST_DUE") statusClass="past";
-    if(c.billingStatus==="SUSPENDED") statusClass="suspended";
+    if(c.billingStatus==="ACTIVE") color="green";
+    if(c.billingStatus==="PAST_DUE") color="orange";
+    if(c.billingStatus==="SUSPENDED") color="red";
 
     container.innerHTML += `
       <tr>
 
-        <td>${c.name || "-"}</td>
+        <td>${c.name}</td>
 
-        <td class="${statusClass}">
-          ${c.billingStatus || "ACTIVE"}
+        <td class="${color}">
+          ${c.billingStatus}
         </td>
 
         <td>${format(c.billingStartDate)}</td>
@@ -61,11 +72,11 @@ function render(){
 
         <td>
 
-          <button class="btn-lock" onclick="lock('${c._id}')">Lock</button>
+          <button class="lock" onclick="lock('${c._id}')">Lock</button>
 
-          <button class="btn-unlock" onclick="unlock('${c._id}')">Unlock</button>
+          <button class="unlock" onclick="unlock('${c._id}')">Unlock</button>
 
-          <button class="btn-paid" onclick="paid('${c._id}')">Paid</button>
+          <button class="paid" onclick="paid('${c._id}')">Paid</button>
 
         </td>
 
@@ -74,36 +85,30 @@ function render(){
   });
 }
 
-/* =====================
+/* =========================
    SAVE SETTINGS
-===================== */
+========================= */
 async function saveSettings(){
-
-  const startDate = document.getElementById("startDate").value;
-  const duration = document.getElementById("duration").value;
-  const grace = document.getElementById("grace").value;
 
   await fetch("/api/admin/billing-settings",{
     method:"POST",
     headers:{
       "Content-Type":"application/json",
-      Authorization:"Bearer " + token
+      Authorization:"Bearer "+token
     },
-    body: JSON.stringify({
-      startDate,
-      duration,
-      graceDays: grace
+    body:JSON.stringify({
+      startDate:document.getElementById("startDate").value,
+      duration:document.getElementById("duration").value,
+      graceDays:document.getElementById("grace").value
     })
   });
-
-  alert("Saved");
 
   loadBilling();
 }
 
-/* =====================
+/* =========================
    ACTIONS
-===================== */
+========================= */
 
 async function lock(id){
 
@@ -135,18 +140,16 @@ async function paid(id){
   loadBilling();
 }
 
-/* =====================
+/* =========================
    STRIPE
-===================== */
+========================= */
 
 document.getElementById("connectStripeBtn")
 .addEventListener("click", async ()=>{
 
   const res = await fetch("/api/company/connect-stripe",{
     method:"POST",
-    headers:{
-      Authorization:"Bearer "+token
-    }
+    headers:{ Authorization:"Bearer "+token }
   });
 
   const data = await res.json();
@@ -157,9 +160,9 @@ document.getElementById("connectStripeBtn")
 
 });
 
-/* =====================
-   FORMAT
-===================== */
+/* =========================
+   FORMAT DATE
+========================= */
 function format(d){
   if(!d) return "--";
   return new Date(d).toLocaleDateString();
