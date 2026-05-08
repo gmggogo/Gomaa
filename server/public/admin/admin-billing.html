@@ -9,87 +9,55 @@
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
-
 body{
   margin:0;
   font-family:Segoe UI,Arial;
   background:#f1f5f9;
 }
 
-/* HEADER */
 #adminHeader{
   position:fixed;
   top:0;
-  left:0;
   width:100%;
   z-index:1000;
 }
 
-/* PAGE */
 .page-body{
   padding-top:320px;
+  max-width:1700px;
+  margin:auto;
   padding-left:20px;
   padding-right:20px;
-  padding-bottom:40px;
-  max-width:1800px;
-  margin:auto;
 }
 
 /* GRID */
-.top-grid{
+.top{
   display:grid;
   grid-template-columns:420px 1fr;
-  gap:25px;
-  margin-bottom:25px;
+  gap:20px;
 }
 
-@media(max-width:1100px){
-
-  .top-grid{
-    grid-template-columns:1fr;
-  }
-
-}
-
-/* CARD */
 .card{
-  background:white;
-  border-radius:14px;
-  padding:24px;
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
   border:1px solid #e2e8f0;
-  box-shadow:0 2px 10px rgba(0,0,0,.05);
 }
 
-/* TITLE */
 .title{
-  font-size:24px;
+  font-size:20px;
   font-weight:900;
-  color:#0f172a;
-  margin-bottom:12px;
 }
 
-.subtitle{
-  font-size:14px;
-  color:#64748b;
-  line-height:1.8;
-}
-
-/* STRIPE BUTTON */
-.btn-connect{
+.btn{
   background:#635bff;
-  color:white;
+  color:#fff;
   border:none;
+  padding:12px;
   width:100%;
-  height:48px;
   border-radius:10px;
-  font-weight:bold;
+  margin-top:15px;
   cursor:pointer;
-  margin-top:25px;
-  transition:.2s;
-}
-
-.btn-connect:hover{
-  transform:translateY(-2px);
 }
 
 /* STATS */
@@ -99,218 +67,53 @@ body{
   gap:15px;
 }
 
-@media(max-width:900px){
-
-  .stats{
-    grid-template-columns:repeat(2,1fr);
-  }
-
+.box{
+  background:#fff;
+  padding:15px;
+  border-radius:10px;
 }
 
-.stat{
-  background:white;
-  padding:16px;
-  min-height:120px;
-  border-radius:14px;
-  border:1px solid #e2e8f0;
-  box-shadow:0 2px 10px rgba(0,0,0,.05);
-}
+.green{color:#16a34a}
+.orange{color:#ca8a04}
+.red{color:#dc2626}
 
-.stat h4{
-  font-size:12px;
-  color:#64748b;
-  margin:0;
-}
-
-.stat p{
-  font-size:32px;
-  font-weight:900;
-  margin-top:14px;
-}
-
-.green{ color:#16a34a; }
-.orange{ color:#ca8a04; }
-.red{ color:#dc2626; }
-
-/* FILTERS */
+/* FILTER */
 .filters{
-  display:grid;
-  grid-template-columns:1fr 220px;
-  gap:15px;
-  margin-bottom:20px;
+  display:flex;
+  gap:10px;
+  margin:20px 0;
 }
 
-@media(max-width:700px){
-
-  .filters{
-    grid-template-columns:1fr;
-  }
-
-}
-
-.search,
-.select{
-  padding:14px;
-  border-radius:12px;
-  border:1px solid #cbd5e1;
-  outline:none;
-  font-size:14px;
+input,select{
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
 }
 
 /* TABLE */
-.table-wrap{
-  overflow:auto;
-  background:white;
-  border-radius:14px;
-  border:1px solid #e2e8f0;
-  box-shadow:0 2px 10px rgba(0,0,0,.05);
-}
-
 table{
   width:100%;
   border-collapse:collapse;
-  min-width:1900px;
+  background:#fff;
 }
 
 th{
   background:#0f172a;
-  color:white;
-  padding:15px;
-  font-size:13px;
-  text-align:left;
-  white-space:nowrap;
+  color:#fff;
+  padding:12px;
 }
 
 td{
-  padding:14px;
-  border-bottom:1px solid #e2e8f0;
-  font-size:13px;
-  vertical-align:top;
+  padding:12px;
+  border-bottom:1px solid #eee;
 }
 
-/* BADGES */
-.badge{
-  padding:6px 12px;
-  border-radius:999px;
+.status-active{color:#16a34a;font-weight:bold}
+.status-past{color:#ca8a04;font-weight:bold}
+.status-suspended{color:#dc2626;font-weight:bold}
+
+.small{
   font-size:12px;
-  font-weight:800;
-  display:inline-block;
-}
-
-.status-active{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.status-past{
-  background:#fef9c3;
-  color:#854d0e;
-}
-
-.status-suspended{
-  background:#fee2e2;
-  color:#991b1b;
-}
-
-/* COMPANY */
-.company-name{
-  font-size:14px;
-  font-weight:900;
-  color:#0f172a;
-}
-
-.company-small{
-  margin-top:6px;
-  line-height:1.7;
-  color:#64748b;
-  font-size:12px;
-}
-
-/* DAYS */
-.days-good{
-  color:#16a34a;
-  font-weight:900;
-}
-
-.days-warning{
-  color:#ca8a04;
-  font-weight:900;
-}
-
-.days-danger{
-  color:#dc2626;
-  font-weight:900;
-}
-
-/* PROGRESS */
-.progress{
-  width:100%;
-  height:8px;
-  background:#e2e8f0;
-  border-radius:999px;
-  margin-top:6px;
-  overflow:hidden;
-}
-
-.progress-bar{
-  height:100%;
-  border-radius:999px;
-}
-
-/* ACTIONS */
-.actions{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  min-width:220px;
-}
-
-.date-input{
-  padding:8px;
-  border:1px solid #cbd5e1;
-  border-radius:8px;
-  font-size:12px;
-}
-
-.btn-row{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-.btn{
-  padding:9px 12px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-size:12px;
-  font-weight:bold;
-}
-
-.lock{
-  background:#fee2e2;
-  color:#991b1b;
-}
-
-.unlock{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.paid{
-  background:#2563eb;
-  color:white;
-}
-
-.save{
-  background:#0f172a;
-  color:white;
-}
-
-/* EMPTY */
-.empty{
-  text-align:center;
-  padding:40px;
   color:#64748b;
 }
 
@@ -324,34 +127,18 @@ td{
 
 <div class="page-body">
 
-<div class="top-grid">
+<!-- TOP -->
+<div class="top">
 
   <div class="card">
 
-    <div class="title">
-      Billing Control Panel
+    <div class="title">Billing Control Panel</div>
+
+    <div class="small">
+      Duration + Grace + Auto Suspend + Stripe
     </div>
 
-    <div class="subtitle">
-
-      ✔ Monthly / Weekly Billing
-      <br>
-      ✔ Billing Start / End Date
-      <br>
-      ✔ Grace Period
-      <br>
-      ✔ Auto Suspend
-      <br>
-      ✔ Stripe Integration
-      <br>
-      ✔ Subscription Tracking
-
-    </div>
-
-    <button
-      class="btn-connect"
-      id="connectStripeBtn"
-    >
+    <button id="connectStripeBtn" class="btn">
       Connect Stripe
     </button>
 
@@ -359,93 +146,56 @@ td{
 
   <div class="stats">
 
-    <div class="stat">
-      <h4>Total Companies</h4>
-      <p id="totalCompanies">0</p>
+    <div class="box">
+      Total <div id="totalCompanies">0</div>
     </div>
 
-    <div class="stat">
-      <h4>Active</h4>
-      <p class="green" id="activeCompanies">0</p>
+    <div class="box green">
+      Active <div id="activeCompanies">0</div>
     </div>
 
-    <div class="stat">
-      <h4>Past Due</h4>
-      <p class="orange" id="pastDueCompanies">0</p>
+    <div class="box orange">
+      Past Due <div id="pastDueCompanies">0</div>
     </div>
 
-    <div class="stat">
-      <h4>Suspended</h4>
-      <p class="red" id="suspendedCompanies">0</p>
+    <div class="box red">
+      Suspended <div id="suspendedCompanies">0</div>
     </div>
 
   </div>
 
 </div>
 
+<!-- FILTER -->
 <div class="filters">
-
-  <input
-    id="searchInput"
-    class="search"
-    placeholder="Search company..."
-  />
-
-  <select id="statusFilter" class="select">
-
-    <option value="">All Status</option>
+  <input id="searchInput" placeholder="Search company">
+  <select id="statusFilter">
+    <option value="">All</option>
     <option value="ACTIVE">ACTIVE</option>
     <option value="PAST_DUE">PAST DUE</option>
     <option value="SUSPENDED">SUSPENDED</option>
-
   </select>
-
 </div>
 
-<div class="table-wrap">
-
+<!-- TABLE -->
 <table>
-
 <thead>
-
 <tr>
-
   <th>Company</th>
   <th>Status</th>
   <th>Cycle</th>
   <th>Invoice</th>
-
-  <th>Start Date</th>
-  <th>End Date</th>
-
-  <th>Next Billing</th>
-  <th>Last Payment</th>
-
+  <th>Start</th>
+  <th>End</th>
   <th>Days Left</th>
-  <th>Grace</th>
-
   <th>Locked</th>
-  <th>Notes</th>
-
-  <th>Billing Control</th>
-
+  <th>Actions</th>
 </tr>
-
 </thead>
 
-<tbody id="billingContainer">
-
-<tr>
-<td colspan="13" class="empty">
-Loading...
-</td>
-</tr>
-
-</tbody>
+<tbody id="billingContainer"></tbody>
 
 </table>
-
-</div>
 
 </div>
 

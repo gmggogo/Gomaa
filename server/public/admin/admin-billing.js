@@ -12,138 +12,66 @@ if(!token){
    ELEMENTS
 ========================= */
 
-const container =
-  document.getElementById("billingContainer");
+const container = document.getElementById("billingContainer");
 
-const totalEl =
-  document.getElementById("totalCompanies");
+const totalEl = document.getElementById("totalCompanies");
+const activeEl = document.getElementById("activeCompanies");
+const pastEl = document.getElementById("pastDueCompanies");
+const suspEl = document.getElementById("suspendedCompanies");
 
-const activeEl =
-  document.getElementById("activeCompanies");
-
-const pastDueEl =
-  document.getElementById("pastDueCompanies");
-
-const suspendedEl =
-  document.getElementById("suspendedCompanies");
-
-const search =
-  document.getElementById("searchInput");
-
-const filter =
-  document.getElementById("statusFilter");
-
-const connectStripeBtn =
-  document.getElementById("connectStripeBtn");
+const search = document.getElementById("searchInput");
+const filter = document.getElementById("statusFilter");
 
 /* =========================
-   DATA
+   STRIPE CONNECT (FIXED)
 ========================= */
 
-let companies = [];
+document.getElementById("connectStripeBtn")
+.addEventListener("click", async ()=>{
 
-/* =========================
-   HELPERS
-========================= */
+  try{
 
-function formatDate(d){
+    const res = await fetch("/api/company/connect-stripe",{
+      method:"POST",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
 
-  if(!d) return "--";
+    const data = await res.json();
 
-  const date = new Date(d);
+    if(!res.ok) throw new Error(data.message);
 
-  if(isNaN(date.getTime())) return "--";
-
-  return date.toLocaleDateString(
-    "en-US",
-    {
-      year:"numeric",
-      month:"short",
-      day:"numeric"
+    if(data.url){
+      window.location.href = data.url;
     }
-  );
 
-}
-
-function money(v){
-  return "$" + Number(v || 0).toFixed(2);
-}
-
-function getDaysClass(days){
-
-  if(days <= 3) return "days-danger";
-
-  if(days <= 7) return "days-warning";
-
-  return "days-good";
-
-}
-
-function getProgressColor(days){
-
-  if(days <= 3) return "#dc2626";
-
-  if(days <= 7) return "#ca8a04";
-
-  return "#16a34a";
-
-}
-
-function getStatusClass(status){
-
-  if(status === "PAST_DUE"){
-    return "status-past";
+  }catch(err){
+    alert(err.message);
   }
 
-  if(status === "SUSPENDED"){
-    return "status-suspended";
-  }
-
-  return "status-active";
-
-}
+});
 
 /* =========================
    LOAD
 ========================= */
 
+let companies = [];
+
 async function load(){
 
-  try{
+  const res = await fetch("/api/admin/billing",{
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  });
 
-    const res = await fetch(
-      "/api/admin/billing",
-      {
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
-    );
+  const data = await res.json();
 
-    const data = await res.json();
+  companies = data || [];
 
-    companies =
-      Array.isArray(data)
-        ? data
-        : [];
-
-    render(companies);
-
-    updateStats(companies);
-
-  }catch(err){
-
-    console.log(err);
-
-    container.innerHTML = `
-      <tr>
-        <td colspan="13" class="empty">
-          Error loading data
-        </td>
-      </tr>
-    `;
-
-  }
+  render(companies);
+  stats(companies);
 
 }
 
@@ -151,25 +79,18 @@ async function load(){
    STATS
 ========================= */
 
-function updateStats(list){
+function stats(list){
 
-  totalEl.innerText =
-    list.length;
+  totalEl.innerText = list.length;
 
   activeEl.innerText =
-    list.filter(
-      x => x.billingStatus === "ACTIVE"
-    ).length;
+    list.filter(x=>x.billingStatus==="ACTIVE").length;
 
-  pastDueEl.innerText =
-    list.filter(
-      x => x.billingStatus === "PAST_DUE"
-    ).length;
+  pastEl.innerText =
+    list.filter(x=>x.billingStatus==="PAST_DUE").length;
 
-  suspendedEl.innerText =
-    list.filter(
-      x => x.billingStatus === "SUSPENDED"
-    ).length;
+  suspEl.innerText =
+    list.filter(x=>x.billingStatus==="SUSPENDED").length;
 
 }
 
@@ -179,185 +100,39 @@ function updateStats(list){
 
 function render(list){
 
-  if(!list.length){
+  container.innerHTML = list.map(c=>{
 
-    container.innerHTML = `
-      <tr>
-        <td colspan="13" class="empty">
-          No companies found
-        </td>
-      </tr>
-    `;
+    let cls = "status-active";
 
-    return;
-  }
-
-  container.innerHTML = list.map(c => {
-
-    const days =
-      Number(c.daysLeft || 0);
-
-    const progress =
-      Math.max(
-        0,
-        Math.min(
-          100,
-          (days / 30) * 100
-        )
-      );
+    if(c.billingStatus==="PAST_DUE") cls="status-past";
+    if(c.billingStatus==="SUSPENDED") cls="status-suspended";
 
     return `
-
       <tr>
+        <td>${c.name}</td>
 
-        <td>
-
-          <div class="company-name">
-            ${c.name || "--"}
-          </div>
-
-          <div class="company-small">
-
-            Username:
-            ${c.username || "--"}
-
-            <br>
-
-            Email:
-            ${c.email || "--"}
-
-          </div>
-
+        <td class="${cls}">
+          ${c.billingStatus}
         </td>
 
-        <td>
+        <td>${c.billingCycle}</td>
 
-          <span class="
-            badge
-            ${getStatusClass(c.billingStatus)}
-          ">
-            ${c.billingStatus || "ACTIVE"}
-          </span>
+        <td>$${c.invoiceAmount||0}</td>
 
-        </td>
+        <td>${format(c.billingStartDate)}</td>
 
-        <td>
-          ${c.billingCycle || "MONTHLY"}
-        </td>
+        <td>${format(c.billingEndDate)}</td>
+
+        <td>${c.daysLeft||0}</td>
+
+        <td>${c.billingLocked?"YES":"NO"}</td>
 
         <td>
-          ${money(c.invoiceAmount)}
+          <button onclick="lock('${c._id}')">Lock</button>
+          <button onclick="unlock('${c._id}')">Unlock</button>
+          <button onclick="paid('${c._id}')">Paid</button>
         </td>
-
-        <td>
-          ${formatDate(c.billingStartDate)}
-        </td>
-
-        <td>
-          ${formatDate(c.billingEndDate)}
-        </td>
-
-        <td>
-          ${formatDate(c.nextBillingDate)}
-        </td>
-
-        <td>
-          ${formatDate(c.lastPaymentDate)}
-        </td>
-
-        <td>
-
-          <div class="${getDaysClass(days)}">
-            ${days}
-          </div>
-
-          <div class="progress">
-
-            <div
-              class="progress-bar"
-              style="
-                width:${progress}%;
-                background:${getProgressColor(days)};
-              "
-            ></div>
-
-          </div>
-
-        </td>
-
-        <td>
-          ${c.graceDays || 0} Days
-        </td>
-
-        <td>
-
-          ${
-            c.billingLocked
-            ? `
-              <span class="badge status-suspended">
-                LOCKED
-              </span>
-            `
-            : `
-              <span class="badge status-active">
-                OPEN
-              </span>
-            `
-          }
-
-        </td>
-
-        <td>
-          ${c.billingNotes || "--"}
-        </td>
-
-        <td>
-
-          <div class="actions">
-
-            <input
-              type="date"
-              class="date-input"
-              id="start-${c._id}"
-            >
-
-            <input
-              type="date"
-              class="date-input"
-              id="end-${c._id}"
-            >
-
-            <div class="btn-row">
-
-              <button
-                class="btn save"
-                onclick="saveBilling('${c._id}')"
-              >
-                Save
-              </button>
-
-              <button
-                class="btn lock"
-                onclick="lockCompany('${c._id}')"
-              >
-                Lock
-              </button>
-
-              <button
-                class="btn unlock"
-                onclick="unlockCompany('${c._id}')"
-              >
-                Unlock
-              </button>
-
-            </div>
-
-          </div>
-
-        </td>
-
       </tr>
-
     `;
 
   }).join("");
@@ -365,262 +140,58 @@ function render(list){
 }
 
 /* =========================
-   FILTERS
+   FORMAT
 ========================= */
 
-function applyFilters(){
-
-  let list = [...companies];
-
-  const s =
-    search.value
-      .toLowerCase()
-      .trim();
-
-  const f =
-    filter.value;
-
-  if(s){
-
-    list = list.filter(x =>
-
-      String(x.name || "")
-        .toLowerCase()
-        .includes(s)
-
-      ||
-
-      String(x.username || "")
-        .toLowerCase()
-        .includes(s)
-
-      ||
-
-      String(x.email || "")
-        .toLowerCase()
-        .includes(s)
-
-    );
-
-  }
-
-  if(f){
-
-    list = list.filter(
-      x => x.billingStatus === f
-    );
-
-  }
-
-  render(list);
-
+function format(d){
+  if(!d) return "--";
+  return new Date(d).toLocaleDateString();
 }
 
 /* =========================
-   SAVE BILLING DATES
+   ACTIONS
 ========================= */
 
-async function saveBilling(id){
+async function lock(id){
+  await fetch(`/api/admin/billing/${id}/lock`,{
+    method:"PUT",
+    headers:{Authorization:"Bearer "+token}
+  });
+  load();
+}
 
-  try{
+async function unlock(id){
+  await fetch(`/api/admin/billing/${id}/unlock`,{
+    method:"PUT",
+    headers:{Authorization:"Bearer "+token}
+  });
+  load();
+}
 
-    const start =
-      document.getElementById(
-        `start-${id}`
-      ).value;
-
-    const end =
-      document.getElementById(
-        `end-${id}`
-      ).value;
-
-    if(!start || !end){
-
-      alert(
-        "Please select dates"
-      );
-
-      return;
-    }
-
-    const res = await fetch(
-      `/api/admin/billing/${id}/dates`,
-      {
-        method:"PUT",
-
-        headers:{
-          "Content-Type":"application/json",
-          Authorization:"Bearer " + token
-        },
-
-        body:JSON.stringify({
-          billingStartDate:start,
-          billingEndDate:end
-        })
-      }
-    );
-
-    const data = await res.json();
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Save failed"
-      );
-
-    }
-
-    load();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Save failed"
-    );
-
-  }
-
+async function paid(id){
+  await fetch(`/api/admin/billing/${id}/mark-paid`,{
+    method:"PUT",
+    headers:{Authorization:"Bearer "+token}
+  });
+  load();
 }
 
 /* =========================
-   LOCK
+   FILTER
 ========================= */
 
-async function lockCompany(id){
+search.addEventListener("input",()=>{
+  const v = search.value.toLowerCase();
+  render(companies.filter(c=>
+    c.name?.toLowerCase().includes(v)
+  ));
+});
 
-  try{
-
-    await fetch(
-      `/api/admin/billing/${id}/lock`,
-      {
-        method:"PUT",
-
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
-    );
-
-    load();
-
-  }catch(err){
-
-    console.log(err);
-
-  }
-
-}
-
-/* =========================
-   UNLOCK
-========================= */
-
-async function unlockCompany(id){
-
-  try{
-
-    await fetch(
-      `/api/admin/billing/${id}/unlock`,
-      {
-        method:"PUT",
-
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
-    );
-
-    load();
-
-  }catch(err){
-
-    console.log(err);
-
-  }
-
-}
-
-/* =========================
-   STRIPE
-========================= */
-
-async function connectStripe(){
-
-  try{
-
-    const company =
-      prompt(
-        "Enter Company Name"
-      );
-
-    if(!company) return;
-
-    const res = await fetch(
-      "/api/company/connect-stripe",
-      {
-        method:"POST",
-
-        headers:{
-          "Content-Type":"application/json",
-          Authorization:"Bearer " + token
-        },
-
-        body:JSON.stringify({
-          company
-        })
-      }
-    );
-
-    const data = await res.json();
-
-    if(data.url){
-
-      window.location.href =
-        data.url;
-
-    }else{
-
-      alert(
-        data.message ||
-        "Stripe error"
-      );
-
-    }
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      "Stripe connection failed"
-    );
-
-  }
-
-}
-
-/* =========================
-   EVENTS
-========================= */
-
-search.addEventListener(
-  "input",
-  applyFilters
-);
-
-filter.addEventListener(
-  "change",
-  applyFilters
-);
-
-connectStripeBtn.addEventListener(
-  "click",
-  connectStripe
-);
+filter.addEventListener("change",()=>{
+  const v = filter.value;
+  if(!v) return render(companies);
+  render(companies.filter(c=>c.billingStatus===v));
+});
 
 /* =========================
    INIT
