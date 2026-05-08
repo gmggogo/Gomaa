@@ -190,7 +190,7 @@ border-collapse:collapse;
 min-width:1200px;
 }
 
-/* TABLE HEADER */
+/* HEADER */
 
 .billing-table thead{
 background:#dbeafe;
@@ -216,7 +216,6 @@ border-bottom:1px solid #f1f5f9;
 vertical-align:top;
 text-align:left !important;
 font-weight:700;
-
 display:table-cell;
 }
 
@@ -227,6 +226,10 @@ margin-left:0 !important;
 padding-left:0 !important;
 justify-content:flex-start !important;
 align-items:flex-start !important;
+}
+
+.billing-table tr:hover{
+background:#f8fbff;
 }
 
 /* =========================
@@ -252,6 +255,7 @@ text-align:left !important;
 display:block;
 width:100%;
 }
+
 /* =========================
    STATUS
 ========================= */
@@ -358,6 +362,38 @@ text-align:center;
 font-size:18px;
 font-weight:800;
 color:#64748b;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:768px){
+
+.billing-table td{
+text-align:left !important;
+padding:14px 12px;
+}
+
+.company-name{
+font-size:16px;
+text-align:left !important;
+}
+
+.company-small{
+font-size:12px;
+text-align:left !important;
+line-height:1.6;
+}
+
+.page-title{
+font-size:26px;
+}
+
+.metric-value{
+font-size:24px;
+}
+
 }
 
 </style>
