@@ -1,51 +1,93 @@
 const token = localStorage.getItem("token");
-const companyName = localStorage.getItem("name") || "";
+
+const companyName =
+  localStorage.getItem("name") || "";
 
 if(!token){
-  window.location.href = "company-login.html";
+
+  window.location.href =
+    "company-login.html";
+
 }
 
-const billingStatusEl = document.getElementById("billingStatus");
-const invoiceAmountEl = document.getElementById("invoiceAmount");
-const nextBillingDateEl = document.getElementById("nextBillingDate");
-const billingCycleEl = document.getElementById("billingCycle");
-const billingAlert = document.getElementById("billingAlert");
-const achPayBtn = document.getElementById("achPayBtn");
-const paymentHistoryBody = document.getElementById("paymentHistoryBody");
+/* =========================
+   ELEMENTS
+========================= */
+
+const billingStatusEl =
+  document.getElementById("billingStatus");
+
+const invoiceAmountEl =
+  document.getElementById("invoiceAmount");
+
+const nextBillingDateEl =
+  document.getElementById("nextBillingDate");
+
+const billingCycleEl =
+  document.getElementById("billingCycle");
+
+const billingAlert =
+  document.getElementById("billingAlert");
+
+const achPayBtn =
+  document.getElementById("achPayBtn");
+
+const paymentHistoryBody =
+  document.getElementById("paymentHistoryBody");
 
 /* =========================
    HELPERS
 ========================= */
 
 function formatMoney(value){
-  return "$" + Number(value || 0).toFixed(2);
+
+  return "$" +
+    Number(value || 0).toFixed(2);
+
 }
 
 function formatDate(value){
+
   if(!value) return "--";
 
   const d = new Date(value);
 
-  if(isNaN(d.getTime())) return "--";
+  if(isNaN(d.getTime()))
+    return "--";
 
-  return d.toLocaleDateString("en-US",{
-    year:"numeric",
-    month:"short",
-    day:"numeric"
-  });
+  return d.toLocaleDateString(
+    "en-US",
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric"
+    }
+  );
+
 }
 
 function daysUntil(dateValue){
-  if(!dateValue) return null;
 
-  const due = new Date(dateValue);
-  if(isNaN(due.getTime())) return null;
+  if(!dateValue)
+    return null;
 
-  const now = new Date();
+  const due =
+    new Date(dateValue);
 
-  const diff = due.getTime() - now.getTime();
+  if(isNaN(due.getTime()))
+    return null;
 
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const now =
+    new Date();
+
+  const diff =
+    due.getTime() -
+    now.getTime();
+
+  return Math.ceil(
+    diff / (1000 * 60 * 60 * 24)
+  );
+
 }
 
 function setStatusColor(status){
@@ -53,15 +95,27 @@ function setStatusColor(status){
   billingStatusEl.className = "";
 
   if(status === "ACTIVE"){
-    billingStatusEl.classList.add("status-active");
+
+    billingStatusEl.classList.add(
+      "status-active"
+    );
+
   }
 
   if(status === "PAST_DUE"){
-    billingStatusEl.classList.add("status-past");
+
+    billingStatusEl.classList.add(
+      "status-past"
+    );
+
   }
 
   if(status === "SUSPENDED"){
-    billingStatusEl.classList.add("status-suspended");
+
+    billingStatusEl.classList.add(
+      "status-suspended"
+    );
+
   }
 
 }
@@ -72,48 +126,79 @@ function setStatusColor(status){
 
 function renderAlert(company){
 
-  billingAlert.className = "alert";
+  billingAlert.className =
+    "alert";
 
-  const status = company.billingStatus || "ACTIVE";
-  const locked = company.billingLocked === true;
-  const dueDays = daysUntil(company.nextBillingDate);
+  const status =
+    company.billingStatus ||
+    "ACTIVE";
 
-  if(locked || status === "SUSPENDED"){
+  const locked =
+    company.billingLocked === true;
 
-    billingAlert.classList.add("active","alert-red");
+  const dueDays =
+    daysUntil(
+      company.nextBillingDate
+    );
+
+  if(
+    locked ||
+    status === "SUSPENDED"
+  ){
+
+    billingAlert.classList.add(
+      "active",
+      "alert-red"
+    );
 
     billingAlert.innerHTML = `
       ACCOUNT SUSPENDED — Payment is required to continue adding trips.
     `;
 
     return;
+
   }
 
   if(status === "PAST_DUE"){
 
-    billingAlert.classList.add("active","alert-red");
+    billingAlert.classList.add(
+      "active",
+      "alert-red"
+    );
 
     billingAlert.innerHTML = `
       PAYMENT OVERDUE — Please complete payment to avoid account suspension.
     `;
 
     return;
+
   }
 
-  if(dueDays !== null && dueDays <= 3 && dueDays >= 0){
+  if(
+    dueDays !== null &&
+    dueDays <= 3 &&
+    dueDays >= 0
+  ){
 
-    billingAlert.classList.add("active","alert-yellow");
+    billingAlert.classList.add(
+      "active",
+      "alert-yellow"
+    );
 
     billingAlert.innerHTML = `
       Payment due in ${dueDays} day${dueDays === 1 ? "" : "s"}.
     `;
 
     return;
+
   }
 
   if(status === "ACTIVE"){
 
-    billingAlert.classList.add("active","alert-green");
+    billingAlert.classList.add(
+      "active",
+      "alert-green"
+    );
 
     billingAlert.innerHTML = `
       Account active. Next payment date: ${formatDate(company.nextBillingDate)}.
@@ -131,20 +216,30 @@ async function loadPayment(){
 
   try{
 
-    const res = await fetch(
-      `/api/company/billing?company=${encodeURIComponent(companyName)}`,
+    const res =
+      await fetch(
+
+`/api/company/billing?company=${encodeURIComponent(companyName)}`,
+
       {
         headers:{
-          Authorization:"Bearer " + token
+          Authorization:
+            "Bearer " + token
         }
       }
+
     );
 
     if(!res.ok){
-      throw new Error("Unable to load billing data");
+
+      throw new Error(
+        "Unable to load billing data"
+      );
+
     }
 
-    const company = await res.json();
+    const company =
+      await res.json();
 
     renderBilling(company);
 
@@ -152,8 +247,11 @@ async function loadPayment(){
 
     console.log(err);
 
-    billingAlert.className = "alert active alert-red";
-    billingAlert.innerText = "Unable to load payment information.";
+    billingAlert.className =
+      "alert active alert-red";
+
+    billingAlert.innerText =
+      "Unable to load payment information.";
 
   }
 
@@ -165,23 +263,116 @@ async function loadPayment(){
 
 function renderBilling(company){
 
-  const status = company.billingStatus || "ACTIVE";
+  const status =
+    company.billingStatus ||
+    "ACTIVE";
 
-  billingStatusEl.innerText = status;
+  billingStatusEl.innerText =
+    status;
+
   setStatusColor(status);
 
-  invoiceAmountEl.innerText = formatMoney(company.invoiceAmount || 0);
+  invoiceAmountEl.innerText =
+    formatMoney(
+      company.invoiceAmount || 0
+    );
 
-  nextBillingDateEl.innerText = formatDate(company.nextBillingDate);
+  nextBillingDateEl.innerText =
+    formatDate(
+      company.nextBillingDate
+    );
 
-  billingCycleEl.innerText = company.billingCycle || "MONTHLY";
+  billingCycleEl.innerText =
+    company.billingCycle ||
+    "MONTHLY";
 
   renderAlert(company);
 
-  if(company.billingLocked || status === "SUSPENDED"){
-    achPayBtn.innerText = "Pay To Unlock Account";
+  if(
+    company.billingLocked ||
+    status === "SUSPENDED"
+  ){
+
+    achPayBtn.innerText =
+      "Pay To Unlock Account";
+
   }else{
-    achPayBtn.innerText = "Pay With Bank";
+
+    achPayBtn.innerText =
+      "Pay With Bank";
+
+  }
+
+}
+
+/* =========================
+   VERIFY STRIPE PAYMENT
+========================= */
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+const success =
+  params.get("success");
+
+const sessionId =
+  params.get("session_id");
+
+const companyId =
+  params.get("companyId");
+
+if(
+  success &&
+  sessionId &&
+  companyId
+){
+
+  verifyStripePayment(
+    sessionId,
+    companyId
+  );
+
+}
+
+async function verifyStripePayment(
+  sessionId,
+  companyId
+){
+
+  try{
+
+    const res =
+      await fetch(
+
+`/api/company/check-payment?session_id=${sessionId}&companyId=${companyId}`
+
+      );
+
+    const data =
+      await res.json();
+
+    if(data.paid){
+
+      alert(
+        "Payment Successful"
+      );
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      loadPayment();
+
+    }
+
+  }catch(err){
+
+    console.log(err);
+
   }
 
 }
@@ -190,72 +381,112 @@ function renderBilling(company){
    ACH PAYMENT
 ========================= */
 
-achPayBtn.addEventListener("click", async ()=>{
+achPayBtn.addEventListener(
+  "click",
+  async ()=>{
 
-  try{
+    try{
 
-    achPayBtn.disabled = true;
-    achPayBtn.innerText = "Creating Payment...";
+      achPayBtn.disabled =
+        true;
 
-    const res = await fetch("/api/company/create-ach-payment",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify({
-        company: companyName
-      })
-    });
+      achPayBtn.innerText =
+        "Creating Payment...";
 
-  const text = await res.text();
+      const res =
+        await fetch(
 
-let data = {};
+          "/api/company/create-ach-payment",
 
-try{
-  data = JSON.parse(text);
-}catch{
+          {
+            method:"POST",
 
-  console.log("SERVER RESPONSE:");
-  console.log(text);
+            headers:{
+              "Content-Type":
+                "application/json",
 
-  throw new Error(
-    "Server did not return JSON.\nCheck backend route."
-  );
+              Authorization:
+                "Bearer " + token
+            },
 
-}
+            body:JSON.stringify({
+              company:companyName
+            })
 
-if(!res.ok){
+          }
 
-  throw new Error(
-    data.message || "Payment error"
-  );
+        );
 
-}
+      const text =
+        await res.text();
 
-    if(data.url){
-      window.location.href = data.url;
-      return;
+      let data = {};
+
+      try{
+
+        data =
+          JSON.parse(text);
+
+      }catch{
+
+        console.log(
+          "SERVER RESPONSE:"
+        );
+
+        console.log(text);
+
+        throw new Error(
+          "Server did not return JSON.\nCheck backend route."
+        );
+
+      }
+
+      if(!res.ok){
+
+        throw new Error(
+
+          data.message ||
+          "Payment error"
+
+        );
+
+      }
+
+      if(data.url){
+
+        window.location.href =
+          data.url;
+
+        return;
+
+      }
+
+      alert(
+        "Payment session created, but no checkout URL returned."
+      );
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        err.message ||
+        "Payment failed"
+      );
+
+      achPayBtn.disabled =
+        false;
+
+      achPayBtn.innerText =
+        "Pay With Bank";
+
     }
 
-    alert("Payment session created, but no checkout URL returned.");
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(err.message || "Payment failed");
-
-    achPayBtn.disabled = false;
-    achPayBtn.innerText = "Pay With Bank";
-
   }
-
-});
+);
 
 /* =========================
    INIT
 ========================= */
 
 loadPayment();
-

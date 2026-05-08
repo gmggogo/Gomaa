@@ -2561,6 +2561,13 @@ app.post(
 
           mode:"payment",
 
+          metadata:{
+
+            companyId:
+              company._id.toString()
+
+          },
+
           line_items:[
 
             {
@@ -2587,10 +2594,10 @@ app.post(
 
           ],
 
-         success_url:
-"https://sunbeam-933q.onrender.com/companies/payment.html?success=1",
+          success_url:
+"https://sunbeam-933q.onrender.com/companies/payment.html?success=1&session_id={CHECKOUT_SESSION_ID}&companyId=" + company._id,
 
-cancel_url:
+          cancel_url:
 "https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1"
 
         });
@@ -2612,7 +2619,9 @@ cancel_url:
       console.log(err);
 
       return res.status(500).json({
+
         message:"payment failed"
+
       });
 
     }
