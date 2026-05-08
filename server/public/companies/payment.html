@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="layout.css">
 
 <style>
+
 body{
   margin:0;
   background:#f4f7fb;
@@ -120,16 +121,24 @@ body{
   border-radius:14px;
   padding:18px;
   background:#f8fafc;
+  transition:.25s;
+}
+
+.method:hover{
+  transform:translateY(-4px);
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
 }
 
 .method h3{
   margin-top:0;
   color:#1e3a8a;
+  font-size:18px;
 }
 
 .method p{
   line-height:1.6;
   font-size:14px;
+  color:#475569;
 }
 
 .pay-btn{
@@ -142,11 +151,24 @@ body{
   font-weight:900;
   cursor:pointer;
   margin-top:15px;
+  transition:.2s;
+}
+
+.pay-btn:hover{
+  transform:translateY(-2px);
 }
 
 .pay-btn:disabled{
   background:#94a3b8;
   cursor:not-allowed;
+}
+
+.connect-btn{
+  background:#2563eb;
+}
+
+.connect-btn:hover{
+  background:#1d4ed8;
 }
 
 .table-wrap{
@@ -196,6 +218,7 @@ td{
 }
 
 @media(max-width:768px){
+
   .payment-wrapper{
     padding:25px 12px;
   }
@@ -207,7 +230,9 @@ td{
   .card p{
     font-size:22px;
   }
+
 }
+
 </style>
 </head>
 
@@ -222,6 +247,8 @@ td{
   </div>
 
   <div id="billingAlert" class="alert"></div>
+
+  <!-- TOP CARDS -->
 
   <div class="cards">
 
@@ -247,47 +274,93 @@ td{
 
   </div>
 
+  <!-- CURRENT INVOICE -->
+
   <div class="payment-box">
 
     <h2>Current Invoice</h2>
 
     <p>
-      Please complete payment before the due date to keep Add Trip and trip management active.
+      Please complete payment before the due date
+      to keep Add Trip and trip management active.
     </p>
 
     <div class="methods">
 
+      <!-- ACH -->
+
       <div class="method">
+
         <h3>ACH Bank Payment</h3>
+
         <p>
           Pay securely using your business bank account.
-          ACH is recommended for clinics, hospitals, and facilities.
+          ACH is recommended for clinics, hospitals,
+          and transportation facilities.
         </p>
 
-        <button id="achPayBtn" class="pay-btn">
+        <button
+          id="achPayBtn"
+          class="pay-btn">
+
           Pay With Bank
+
         </button>
+
       </div>
 
+      <!-- MANUAL -->
+
       <div class="method">
+
         <h3>Manual Payment</h3>
+
         <p>
-          If you already paid by Zelle, bank transfer, or check, contact Sunbeam Transportation
+          If you already paid by Zelle, bank transfer,
+          or check, contact Sunbeam Transportation
           so your account can be verified and unlocked.
         </p>
+
+      </div>
+
+      <!-- STRIPE CONNECT -->
+
+      <div class="method">
+
+        <h3>Stripe Connect</h3>
+
+        <p>
+          Connect your company Stripe account
+          to receive payouts directly into your
+          business bank account.
+        </p>
+
+        <button
+          id="connectStripeBtn"
+          class="pay-btn connect-btn">
+
+          Connect Stripe
+
+        </button>
+
       </div>
 
     </div>
 
   </div>
 
+  <!-- PAYMENT HISTORY -->
+
   <div class="payment-box">
 
     <h2>Payment History</h2>
 
     <div class="table-wrap">
+
       <table>
+
         <thead>
+
           <tr>
             <th>Date</th>
             <th>Method</th>
@@ -295,14 +368,21 @@ td{
             <th>Status</th>
             <th>Notes</th>
           </tr>
+
         </thead>
 
         <tbody id="paymentHistoryBody">
+
           <tr>
-            <td colspan="5">No payment history yet.</td>
+            <td colspan="5">
+              No payment history yet.
+            </td>
           </tr>
+
         </tbody>
+
       </table>
+
     </div>
 
   </div>

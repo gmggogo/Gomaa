@@ -239,3 +239,82 @@ achPayBtn.addEventListener("click", async ()=>{
 ========================= */
 
 loadPayment();
+
+/* =========================
+   CONNECT STRIPE
+========================= */
+
+const connectStripeBtn =
+  document.getElementById(
+    "connectStripeBtn"
+  );
+
+if(connectStripeBtn){
+
+  connectStripeBtn.addEventListener(
+    "click",
+    async ()=>{
+
+      try{
+
+        connectStripeBtn.disabled =
+          true;
+
+        connectStripeBtn.innerText =
+          "Connecting...";
+
+        const token =
+          localStorage.getItem("token");
+
+        const res = await fetch(
+          "/api/company/connect-stripe",
+          {
+            method:"POST",
+
+            headers:{
+              Authorization:
+                "Bearer " + token
+            }
+          }
+        );
+
+        const data =
+          await res.json();
+
+        if(!res.ok){
+
+          throw new Error(
+            data.message ||
+            "Stripe connect failed"
+          );
+
+        }
+
+        if(data.url){
+
+          window.location.href =
+            data.url;
+
+        }
+
+      }catch(err){
+
+        console.log(err);
+
+        alert(
+          err.message ||
+          "Stripe connect failed"
+        );
+
+        connectStripeBtn.disabled =
+          false;
+
+        connectStripeBtn.innerText =
+          "Connect Stripe";
+
+      }
+
+    }
+  );
+
+}

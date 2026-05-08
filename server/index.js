@@ -1605,6 +1605,134 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
 });
 
 /* =========================
+   CONNECT STRIPE
+========================= */
+app.post(
+  "/api/company/connect-stripe",
+  async (req,res)=>{
+
+    try{
+
+      const token =
+        req.headers.authorization
+          ?.split(" ")[1];
+
+      if(!token){
+
+        return res.status(401).json({
+          message:"Unauthorized"
+        });
+
+      }
+
+      const decoded =
+        jwt.verify(
+          token,
+          JWT_SECRET
+        );
+
+      const user =
+        await User.findById(decoded.id);
+
+      if(!user){
+
+        return res.status(404).json({
+          message:"User not found"
+        });
+
+      }
+
+      // already connected
+      if(user.stripeAccountId){
+
+        const accountLink =
+          await stripe.accountLinks.create({
+
+            account:
+              user.stripeAccountId,
+
+            refresh_url:
+              "https://sunbeam-933q.onrender.com/companies/payment.html",
+
+            return_url:
+              "https://sunbeam-933q.onrender.com/companies/payment.html",
+
+            type:"account_onboarding"
+
+          });
+
+        return res.json({
+          url:accountLink.url
+        });
+
+      }
+
+      // create stripe express account
+      const account =
+        await stripe.accounts.create({
+
+          type:"express",
+
+          country:"US",
+
+          email:user.username,
+
+          capabilities:{
+
+            card_payments:{
+              requested:true
+            },
+
+            transfers:{
+              requested:true
+            }
+
+          }
+
+        });
+
+      // save to user
+      user.stripeAccountId =
+        account.id;
+
+      user.stripeConnected =
+        true;
+
+      await user.save();
+
+      // onboarding link
+      const accountLink =
+        await stripe.accountLinks.create({
+
+          account:account.id,
+
+          refresh_url:
+            "https://sunbeam-933q.onrender.com/companies/payment.html",
+
+          return_url:
+            "https://sunbeam-933q.onrender.com/companies/payment.html",
+
+          type:"account_onboarding"
+
+        });
+
+      res.json({
+        url:accountLink.url
+      });
+
+    }catch(err){
+
+      console.log(err);
+
+      res.status(500).json({
+        message:"Stripe connect failed"
+      });
+
+    }
+
+});
+
+/* =========================
    COMPANY BILLING
 ========================= */
 app.get("/api/company/billing", async (req,res)=>{
