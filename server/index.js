@@ -2145,16 +2145,20 @@ app.post(
 
       }
 
+      /* REAL STRIPE PAYMENT LINK */
+
       return res.json({
-        url:"https://buy.stripe.com/test_14A5kC2tQ4vC3M4000"
+
+        url:"https://buy.stripe.com/test_bJe3cv1mx3Kgf7v1FKbbG00"
+
       });
 
-    } catch(err){
+    }catch(err){
 
       console.log(err);
 
       return res.status(500).json({
-        message:"Server error"
+        message:"payment failed"
       });
 
     }
