@@ -2145,13 +2145,11 @@ app.post(
 
       }
 
-      /* TEST PAYMENT LINK */
-
       return res.json({
         url:"https://buy.stripe.com/test_14A5kC2tQ4vC3M4000"
       });
 
-    }catch(err){
+    } catch(err){
 
       console.log(err);
 
@@ -2163,35 +2161,6 @@ app.post(
 
   }
 );
-
-    /* =========================
-       STRIPE ACH PLACEHOLDER
-    ========================== */
-
-    // 🔥 هنربط Stripe ACH بعدين
-    // دلوقتي بنرجع رسالة فقط
-
-    res.json({
-
-      success:true,
-
-      message:"ACH payment system coming next",
-
-      url:"#"
-
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
-      message:"payment failed"
-    });
-
-  }
-
-});
 
 /* =========================
    GET DRIVERS
