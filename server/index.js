@@ -1832,15 +1832,85 @@ const trips =
 
   /* REVENUE */
 
- const revenue =
+const revenue =
   trips.reduce((a,t)=>{
 
-    return a +
-      Number(
+    // 🔵 SHARED
+    if(
+      t.isShared &&
+      Array.isArray(t.passengers)
+    ){
+
+      const sharedTotal =
+        t.passengers.reduce((pA,p)=>{
+
+          // cancelled
+          if(
+            String(p.status || "")
+            .toLowerCase()
+            .includes("cancel")
+          ){
+            return pA + 15;
+          }
+
+          // no show
+          if(
+            String(p.status || "")
+            .toLowerCase()
+            .includes("no")
+          ){
+            return pA + 15;
+          }
+
+          // completed
+          if(
+            String(p.status || "")
+            .toLowerCase()
+            .includes("complete")
+          ){
+            return pA + Number(
+              p.priceAmount || 0
+            );
+          }
+
+          return pA;
+
+        },0);
+
+      return a + sharedTotal;
+
+    }
+
+    // 🔵 INDIVIDUAL
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .includes("cancel")
+    ){
+      return a + 15;
+    }
+
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .includes("no")
+    ){
+      return a + 15;
+    }
+
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .includes("complete")
+    ){
+      return a + Number(
         t.finalPrice ||
         t.priceAmount ||
         0
       );
+    }
+
+    return a;
 
   },0);
 
