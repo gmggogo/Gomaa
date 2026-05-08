@@ -1332,123 +1332,301 @@ app.post("/api/auth/login", async (req, res) => {
 /* =========================
    USERS ROUTES
 ========================= */
+
 app.get("/api/users/:role", async (req, res) => {
+
   try {
+
     const role = req.params.role;
 
-    if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
+    if (
+      ![
+        "superadmin",
+        "admin",
+        "dispatcher",
+        "driver",
+        "company"
+      ].includes(role)
+    ) {
+
+      return res.status(400).json({
+        message: "Invalid role"
+      });
+
     }
 
-    const users = await User.find({ role }).sort({ createdAt: -1, name: 1 });
+    const users = await User.find({
+      role
+    }).sort({
+      createdAt: -1,
+      name: 1
+    });
+
     res.json(users);
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Error loading users" });
+
+    res.status(500).json({
+      message: "Error loading users"
+    });
+
   }
+
 });
 
+/* =========================
+   CREATE USER
+========================= */
+
 app.post("/api/users/:role", async (req, res) => {
+
   try {
+
     const role = req.params.role;
+
     const {
       name,
       username,
+      email,
       password,
       vehicleNumber,
       address,
       phone
     } = req.body || {};
 
-    if (!["admin", "dispatcher", "driver", "company"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
+    if (
+      ![
+        "superadmin",
+        "admin",
+        "dispatcher",
+        "driver",
+        "company"
+      ].includes(role)
+    ) {
+
+      return res.status(400).json({
+        message: "Invalid role"
+      });
+
     }
 
-    if (!name || !username || !password) {
-      return res.status(400).json({ message: "Missing fields" });
+    if (
+      !name ||
+      !username ||
+      !password
+    ) {
+
+      return res.status(400).json({
+        message: "Missing fields"
+      });
+
     }
 
-    const exists = await User.findOne({ username: normalizeText(username) });
+    const exists =
+      await User.findOne({
+        username:
+          normalizeText(username)
+      });
 
     if (exists) {
-      return res.status(400).json({ message: "Username exists" });
+
+      return res.status(400).json({
+        message: "Username exists"
+      });
+
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed =
+      await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({
-      name: normalizeText(name),
-      username: normalizeText(username),
-      password: hashed,
-      role,
-      vehicleNumber: normalizeText(vehicleNumber),
-      address: normalizeText(address),
-      phone: normalizeText(phone)
-    });
+    const newUser =
+      await User.create({
+
+        name:
+          normalizeText(name),
+
+        username:
+          normalizeText(username),
+
+        email:
+          normalizeText(email),
+
+        password:
+          hashed,
+
+        role,
+
+        vehicleNumber:
+          normalizeText(vehicleNumber),
+
+        address:
+          normalizeText(address),
+
+        phone:
+          normalizeText(phone)
+
+      });
 
     res.json(newUser);
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Error creating user" });
+
+    res.status(500).json({
+      message: "Error creating user"
+    });
+
   }
+
 });
+
+/* =========================
+   UPDATE USER
+========================= */
 
 app.put("/api/users/:id", async (req, res) => {
+
   try {
-    const { name, username, password, vehicleNumber, address, phone } = req.body || {};
+
+    const {
+      name,
+      username,
+      email,
+      password,
+      vehicleNumber,
+      address,
+      phone
+    } = req.body || {};
 
     const updateData = {
-      name: normalizeText(name),
-      username: normalizeText(username),
-      vehicleNumber: normalizeText(vehicleNumber),
-      address: normalizeText(address),
-      phone: normalizeText(phone)
+
+      name:
+        normalizeText(name),
+
+      username:
+        normalizeText(username),
+
+      email:
+        normalizeText(email),
+
+      vehicleNumber:
+        normalizeText(vehicleNumber),
+
+      address:
+        normalizeText(address),
+
+      phone:
+        normalizeText(phone)
+
     };
 
-    if (password && String(password).trim() !== "") {
-      updateData.password = await bcrypt.hash(password, 10);
+    if (
+      password &&
+      String(password).trim() !== ""
+    ) {
+
+      updateData.password =
+        await bcrypt.hash(password, 10);
+
     }
 
-    const updated = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
+    const updated =
+      await User.findByIdAndUpdate(
+
+        req.params.id,
+
+        updateData,
+
+        {
+          new: true
+        }
+
+      );
 
     res.json(updated);
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Error updating user" });
+
+    res.status(500).json({
+      message: "Error updating user"
+    });
+
   }
+
 });
 
+/* =========================
+   TOGGLE ACTIVE
+========================= */
+
 app.patch("/api/users/:id/toggle", async (req, res) => {
+
   try {
-    const user = await User.findById(req.params.id);
+
+    const user =
+      await User.findById(
+        req.params.id
+      );
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+
+      return res.status(404).json({
+        message: "User not found"
+      });
+
     }
 
     user.active = !user.active;
+
     await user.save();
 
     res.json(user);
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Error toggling user" });
+
+    res.status(500).json({
+      message: "Error toggling user"
+    });
+
   }
+
 });
 
+/* =========================
+   DELETE USER
+========================= */
+
 app.delete("/api/users/:id", async (req, res) => {
+
   try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
+
+    await User.findByIdAndDelete(
+      req.params.id
+    );
+
+    res.json({
+      message: "Deleted"
+    });
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Error deleting user" });
+
+    res.status(500).json({
+      message: "Error deleting user"
+    });
+
   }
+
 });
+
 /* =========================
    ADMIN BILLING LIST
 ========================= */
