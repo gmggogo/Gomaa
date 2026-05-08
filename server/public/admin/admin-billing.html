@@ -1,19 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-<meta charset="UTF-8">
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0">
+<title>Admin Billing Center</title>
 
-<title>
-  Sunbeam Transportation - Admin Billing
-</title>
-
-<link
-  rel="stylesheet"
-  href="/layout.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="layout.css">
 
 <style>
 
@@ -24,163 +18,202 @@ body{
   color:#0f172a;
 }
 
-.billing-wrapper{
+.page{
   max-width:1700px;
   margin:auto;
   padding:25px;
 }
 
-/* PAGE TITLE */
-
-.page-title{
-  font-size:28px;
-  font-weight:900;
-  color:#111827;
+/* HEADER */
+#layoutHeader{
+  width:100%;
   margin-bottom:25px;
 }
 
-/* TOP BOX */
+/* TOP */
+.top-grid{
+  display:grid;
+  grid-template-columns:420px 1fr;
+  gap:25px;
+  margin-bottom:25px;
+}
 
-.top-box{
+@media(max-width:1100px){
+  .top-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+/* CARD */
+.card{
   background:#fff;
-  border-radius:20px;
-  padding:25px;
-  margin-bottom:25px;
-  box-shadow:0 10px 25px rgba(0,0,0,.06);
+  border-radius:18px;
+  padding:24px;
+  box-shadow:0 10px 30px rgba(0,0,0,.06);
 }
 
-.top-box h2{
-  margin:0 0 12px;
-  color:#111827;
+/* STRIPE */
+.stripe-card{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
 }
 
-.top-box p{
-  margin:0 0 18px;
+.stripe-title{
+  font-size:24px;
+  font-weight:900;
+  color:#1e3a8a;
+  margin-bottom:10px;
+}
+
+.stripe-text{
   color:#64748b;
   line-height:1.7;
+  margin-bottom:20px;
+  font-size:14px;
 }
 
 .connect-btn{
   border:none;
-  background:#2563eb;
+  background:#635bff;
   color:#fff;
-  padding:14px 24px;
-  border-radius:12px;
-  font-size:14px;
+  border-radius:14px;
+  padding:15px 22px;
+  font-size:15px;
   font-weight:900;
   cursor:pointer;
+  width:220px;
+  transition:.2s;
 }
 
 .connect-btn:hover{
-  background:#1d4ed8;
+  transform:translateY(-2px);
+  opacity:.95;
 }
 
 /* COUNTERS */
-
-.counters{
+.stats{
   display:grid;
-  grid-template-columns:
-    repeat(auto-fit,minmax(220px,1fr));
-
+  grid-template-columns:repeat(4,1fr);
   gap:18px;
-  margin-bottom:25px;
 }
 
-.counter-card{
+@media(max-width:900px){
+  .stats{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:600px){
+  .stats{
+    grid-template-columns:1fr;
+  }
+}
+
+.stat-box{
   background:#fff;
   border-radius:18px;
-  padding:20px;
-  box-shadow:0 10px 25px rgba(0,0,0,.06);
+  padding:24px;
+  box-shadow:0 10px 30px rgba(0,0,0,.06);
 }
 
-.counter-title{
-  font-size:12px;
-  font-weight:900;
+.stat-title{
+  font-size:13px;
   color:#64748b;
+  font-weight:800;
   text-transform:uppercase;
 }
 
-.counter-value{
-  margin-top:10px;
-  font-size:28px;
+.stat-value{
+  margin-top:15px;
+  font-size:34px;
   font-weight:900;
-  color:#111827;
+}
+
+.green{
+  color:#16a34a;
+}
+
+.orange{
+  color:#ca8a04;
+}
+
+.red{
+  color:#dc2626;
 }
 
 /* FILTERS */
-
 .filters{
-  display:flex;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns:1fr 240px;
   gap:15px;
-  margin-bottom:25px;
+  margin-bottom:20px;
 }
 
-.search-box,
-.filter-select{
-  flex:1;
-  min-width:220px;
-  padding:14px 16px;
+@media(max-width:700px){
+  .filters{
+    grid-template-columns:1fr;
+  }
+}
+
+.search-input,
+.select-input{
+  width:100%;
+  height:50px;
   border-radius:14px;
   border:1px solid #dbe2ea;
+  padding:0 16px;
   font-size:14px;
-  outline:none;
-  box-sizing:border-box;
+  background:#fff;
 }
 
 /* TABLE */
-
 .table-wrap{
+  overflow:auto;
   background:#fff;
   border-radius:20px;
-  overflow-x:auto;
-  box-shadow:0 10px 25px rgba(0,0,0,.06);
+  box-shadow:0 10px 30px rgba(0,0,0,.06);
 }
 
 table{
   width:100%;
+  min-width:1300px;
   border-collapse:collapse;
-  min-width:1250px;
 }
 
 th{
-  background:#f8fafc;
-  color:#000;
+  background:#0f172a;
+  color:#fff;
   padding:16px;
   font-size:13px;
-  font-weight:900;
   text-align:left;
-  border-bottom:1px solid #e5e7eb;
 }
 
 td{
-  padding:18px 16px;
-  border-bottom:1px solid #eef2f7;
+  padding:16px;
+  border-bottom:1px solid #e5e7eb;
   vertical-align:top;
-  text-align:left;
   font-size:13px;
+  font-weight:700;
 }
-
-/* COMPANY */
 
 .company-name{
   font-size:16px;
   font-weight:900;
-  color:#111827;
-  margin-bottom:10px;
+  margin-bottom:8px;
 }
 
-.company-info{
-  line-height:1.9;
-  color:#334155;
-  text-align:left;
+.company-small{
+  color:#64748b;
+  line-height:1.8;
+  font-size:12px;
 }
-
-/* STATUS */
 
 .status-badge{
-  display:inline-block;
-  padding:7px 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:7px 14px;
   border-radius:999px;
   font-size:12px;
   font-weight:900;
@@ -201,27 +234,22 @@ td{
   color:#991b1b;
 }
 
-/* LOCK */
+.amount{
+  font-size:18px;
+  font-weight:900;
+}
 
 .locked-yes{
-  font-weight:900;
   color:#dc2626;
+  font-weight:900;
 }
 
 .locked-no{
-  font-weight:900;
   color:#16a34a;
-}
-
-/* MONEY */
-
-.amount{
   font-weight:900;
-  color:#111827;
 }
 
 /* ACTIONS */
-
 .action-buttons{
   display:flex;
   flex-wrap:wrap;
@@ -230,7 +258,7 @@ td{
 
 .btn{
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   padding:10px 14px;
   font-size:12px;
   font-weight:900;
@@ -254,37 +282,9 @@ td{
 
 .empty{
   text-align:center;
-  padding:30px;
+  padding:40px;
+  font-size:15px;
   color:#64748b;
-  font-weight:800;
-}
-
-/* MOBILE */
-
-@media(max-width:768px){
-
-  .billing-wrapper{
-    padding:15px 10px;
-  }
-
-  .page-title{
-    font-size:22px;
-  }
-
-  .counter-value{
-    font-size:24px;
-  }
-
-  table{
-    min-width:1000px;
-  }
-
-  th,
-  td{
-    padding:12px;
-    font-size:12px;
-  }
-
 }
 
 </style>
@@ -292,105 +292,101 @@ td{
 
 <body>
 
+<!-- HEADER -->
 <div id="layoutHeader"></div>
 
-<div class="billing-wrapper">
+<div class="page">
 
-  <!-- TITLE -->
+  <!-- TOP -->
+  <div class="top-grid">
 
-  <div class="page-title">
-    Admin Billing Center
-  </div>
+    <!-- STRIPE -->
+    <div class="card stripe-card">
 
-  <!-- STRIPE -->
-
-  <div class="top-box">
-
-    <h2>
-      Stripe Platform Connect
-    </h2>
-
-    <p>
-      Connect your Stripe platform account
-      for SaaS billing, white-label companies,
-      marketplace payouts, and future
-      automated payment systems.
-    </p>
-
-    <button
-      id="connectStripeBtn"
-      class="connect-btn">
-
-      Connect Stripe Platform
-
-    </button>
-
-  </div>
-
-  <!-- COUNTERS -->
-
-  <div class="counters">
-
-    <div class="counter-card">
-
-      <div class="counter-title">
-        Total Companies
+      <div class="stripe-title">
+        Stripe Platform Connect
       </div>
 
-      <div
-        class="counter-value"
-        id="totalCompanies">
+      <div class="stripe-text">
+        Connect your main Stripe platform account for:
+        <br><br>
 
-        0
-
+        • SaaS billing
+        <br>
+        • White-label companies
+        <br>
+        • Marketplace payouts
+        <br>
+        • Future ACH systems
       </div>
+
+      <button
+        id="connectStripeBtn"
+        class="connect-btn">
+
+        Connect Stripe Platform
+
+      </button>
 
     </div>
 
-    <div class="counter-card">
+    <!-- STATS -->
+    <div class="stats">
 
-      <div class="counter-title">
-        Active
+      <div class="stat-box">
+        <div class="stat-title">
+          Total Companies
+        </div>
+
+        <div
+          class="stat-value"
+          id="totalCompanies">
+
+          0
+
+        </div>
       </div>
 
-      <div
-        class="counter-value"
-        id="activeCompanies">
+      <div class="stat-box">
+        <div class="stat-title">
+          Active
+        </div>
 
-        0
+        <div
+          class="stat-value green"
+          id="activeCompanies">
 
+          0
+
+        </div>
       </div>
 
-    </div>
+      <div class="stat-box">
+        <div class="stat-title">
+          Past Due
+        </div>
 
-    <div class="counter-card">
+        <div
+          class="stat-value orange"
+          id="pastDueCompanies">
 
-      <div class="counter-title">
-        Past Due
+          0
+
+        </div>
       </div>
 
-      <div
-        class="counter-value"
-        id="pastDueCompanies">
+      <div class="stat-box">
+        <div class="stat-title">
+          Suspended
+        </div>
 
-        0
+        <div
+          class="stat-value red"
+          id="suspendedCompanies">
 
-      </div>
+          0
 
-    </div>
-
-    <div class="counter-card">
-
-      <div class="counter-title">
-        Suspended
-      </div>
-
-      <div
-        class="counter-value"
-        id="suspendedCompanies">
-
-        0
-
+        </div>
       </div>
 
     </div>
@@ -398,18 +394,18 @@ td{
   </div>
 
   <!-- FILTERS -->
-
   <div class="filters">
 
     <input
       type="text"
       id="searchInput"
-      class="search-box"
-      placeholder="Search company...">
+      class="search-input"
+      placeholder="Search company..."
+    >
 
     <select
       id="statusFilter"
-      class="filter-select">
+      class="select-input">
 
       <option value="">
         All Statuses
@@ -432,7 +428,6 @@ td{
   </div>
 
   <!-- TABLE -->
-
   <div class="table-wrap">
 
     <table>
@@ -441,14 +436,14 @@ td{
 
         <tr>
 
-          <th>COMPANY</th>
-          <th>STATUS</th>
-          <th>CYCLE</th>
-          <th>INVOICE</th>
-          <th>NEXT BILLING</th>
-          <th>LOCKED</th>
-          <th>NOTES</th>
-          <th>ACTIONS</th>
+          <th>Company</th>
+          <th>Status</th>
+          <th>Cycle</th>
+          <th>Invoice</th>
+          <th>Next Billing</th>
+          <th>Locked</th>
+          <th>Notes</th>
+          <th>Actions</th>
 
         </tr>
 
@@ -457,15 +452,9 @@ td{
       <tbody id="billingContainer">
 
         <tr>
-
-          <td
-            colspan="8"
-            class="empty">
-
+          <td colspan="8" class="empty">
             Loading billing data...
-
           </td>
-
         </tr>
 
       </tbody>
@@ -476,8 +465,11 @@ td{
 
 </div>
 
-<script src="/layout.js"></script>
-<script src="/admin/admin-billing.js"></script>
+<!-- HEADER SCRIPT -->
+<script src="header.js"></script>
+
+<!-- BILLING SCRIPT -->
+<script src="admin-billing.js"></script>
 
 </body>
 </html>
