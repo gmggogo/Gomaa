@@ -300,8 +300,6 @@ function render(list){
 
         <tr>
 
-          <!-- COMPANY -->
-
           <td>
 
             <div class="company-name">
@@ -324,8 +322,6 @@ function render(list){
 
           </td>
 
-          <!-- STATUS -->
-
           <td>
 
             <span class="
@@ -338,8 +334,6 @@ function render(list){
             </span>
 
           </td>
-
-          <!-- PERIOD -->
 
           <td>
 
@@ -355,43 +349,29 @@ function render(list){
 
           </td>
 
-          <!-- TRIPS -->
-
           <td>
             ${c.totalTrips || 0}
           </td>
-
-          <!-- COMPLETED -->
 
           <td>
             ${c.completedTrips || 0}
           </td>
 
-          <!-- NOSHOW -->
-
           <td>
             ${c.noShowTrips || 0}
           </td>
-
-          <!-- CANCELLED -->
 
           <td>
             ${c.cancelledTrips || 0}
           </td>
 
-          <!-- SHARED -->
-
           <td>
             ${c.sharedTrips || 0}
           </td>
 
-          <!-- REVENUE -->
-
           <td>
             ${money(c.revenue)}
           </td>
-
-          <!-- INVOICE -->
 
           <td>
 
@@ -401,16 +381,12 @@ function render(list){
 
           </td>
 
-          <!-- GRACE -->
-
           <td>
 
             ${c.graceDays || 0}
             days
 
           </td>
-
-          <!-- LAST PAYMENT -->
 
           <td>
 
@@ -419,8 +395,6 @@ function render(list){
             )}
 
           </td>
-
-          <!-- LOCK -->
 
           <td>
 
@@ -451,8 +425,6 @@ function render(list){
             }
 
           </td>
-
-          <!-- ACTIONS -->
 
           <td class="actions">
 
@@ -521,13 +493,6 @@ function render(list){
                 onclick="generateInvoice('${c._id}')"
               >
                 Generate
-              </button>
-
-              <button
-                class="btn btn-dark"
-                onclick="createPayLink('${c.name}')"
-              >
-                Pay Link
               </button>
 
               <button
@@ -642,68 +607,6 @@ async function generateInvoice(id){
     alert(
       err.message ||
       "Generate failed"
-    );
-
-  }
-
-}
-
-/* =========================
-   STRIPE PAYMENT LINK
-========================= */
-
-async function createPayLink(company){
-
-  try{
-
-    const res =
-      await fetch(
-        "/api/company/create-ach-payment",
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              "Bearer " + token
-          },
-
-          body:JSON.stringify({
-            company
-          })
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Stripe error"
-      );
-
-    }
-
-    if(data.url){
-
-      window.open(
-        data.url,
-        "_blank"
-      );
-
-    }
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Stripe payment failed"
     );
 
   }

@@ -1868,6 +1868,99 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
 
 });
 
+
+/* =========================
+   GENERATE INVOICE
+========================= */
+
+app.put(
+  "/api/admin/generate-invoice/:id",
+  async (req,res)=>{
+
+    try{
+
+      const company =
+        await User.findById(
+          req.params.id
+        );
+
+      if(!company){
+
+        return res.status(404).json({
+          message:"Company not found"
+        });
+
+      }
+
+      const {
+
+        billingStartDate,
+        billingEndDate,
+        graceDays,
+        invoiceAmount
+
+      } = req.body;
+
+      /* =========================
+         SAVE BILLING
+      ========================== */
+
+      company.billingStartDate =
+        billingStartDate;
+
+      company.billingEndDate =
+        billingEndDate;
+
+      company.graceDays =
+        Number(graceDays || 3);
+
+      company.invoiceAmount =
+        Number(invoiceAmount || 0);
+
+      company.billingStatus =
+        "ACTIVE";
+
+      company.billingLocked =
+        false;
+
+      /* =========================
+         NEXT BILLING DATE
+      ========================== */
+
+      if(billingEndDate){
+
+        company.nextBillingDate =
+          new Date(billingEndDate);
+
+      }
+
+      await company.save();
+
+      /* =========================
+         RESPONSE
+      ========================== */
+
+      res.json({
+
+        success:true,
+
+        message:"Invoice generated"
+
+      });
+
+    }catch(err){
+
+      console.log(err);
+
+      res.status(500).json({
+        message:"generate invoice failed"
+      });
+
+    }
+
+  }
+);
+
 /* =========================
    CONNECT STRIPE
 ========================= */
