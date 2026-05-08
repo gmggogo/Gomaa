@@ -156,6 +156,10 @@ const userSchema = new mongoose.Schema({
     default: ""
   },
 
+email:{
+  type:String,
+  default:""
+},
   /* =========================
      BILLING SYSTEM
   ========================= */
@@ -1642,7 +1646,10 @@ app.post(
 
       }
 
-      // already connected
+      /* =========================
+         EXISTING ACCOUNT
+      ========================= */
+
       if(user.stripeAccountId){
 
         const accountLink =
@@ -1652,10 +1659,10 @@ app.post(
               user.stripeAccountId,
 
             refresh_url:
-              "https://sunbeam-933q.onrender.com/companies/payment.html",
+              "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
 
             return_url:
-              "https://sunbeam-933q.onrender.com/companies/payment.html",
+              "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
 
             type:"account_onboarding"
 
@@ -1667,7 +1674,10 @@ app.post(
 
       }
 
-      // create stripe express account
+      /* =========================
+         CREATE ACCOUNT
+      ========================= */
+
       const account =
         await stripe.accounts.create({
 
@@ -1675,7 +1685,7 @@ app.post(
 
           country:"US",
 
-          email:user.username,
+          email:user.email || undefined,
 
           capabilities:{
 
@@ -1691,7 +1701,10 @@ app.post(
 
         });
 
-      // save to user
+      /* =========================
+         SAVE ACCOUNT
+      ========================= */
+
       user.stripeAccountId =
         account.id;
 
@@ -1700,23 +1713,27 @@ app.post(
 
       await user.save();
 
-      // onboarding link
+      /* =========================
+         CREATE ONBOARDING LINK
+      ========================= */
+
       const accountLink =
         await stripe.accountLinks.create({
 
-          account:account.id,
+          account:
+            account.id,
 
           refresh_url:
-            "https://sunbeam-933q.onrender.com/companies/payment.html",
+            "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
 
           return_url:
-            "https://sunbeam-933q.onrender.com/companies/payment.html",
+            "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
 
           type:"account_onboarding"
 
         });
 
-      res.json({
+      return res.json({
         url:accountLink.url
       });
 
@@ -1724,7 +1741,7 @@ app.post(
 
       console.log(err);
 
-      res.status(500).json({
+      return res.status(500).json({
         message:"Stripe connect failed"
       });
 

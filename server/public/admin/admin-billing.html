@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Sunbeam Transportation - Admin Billing</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="layout.css">
+<meta charset="UTF-8">
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0">
+
+<title>
+  Sunbeam Transportation - Admin Billing
+</title>
+
+<link
+  rel="stylesheet"
+  href="/layout.css">
 
 <style>
 
@@ -17,36 +25,39 @@ body{
 }
 
 .billing-wrapper{
-  max-width:1600px;
+  max-width:1700px;
   margin:auto;
-  padding:30px 20px;
+  padding:25px;
 }
+
+/* PAGE TITLE */
 
 .page-title{
   font-size:28px;
   font-weight:900;
-  margin-bottom:25px;
   color:#111827;
+  margin-bottom:25px;
 }
+
+/* TOP BOX */
 
 .top-box{
   background:#fff;
-  border-radius:18px;
+  border-radius:20px;
   padding:25px;
   margin-bottom:25px;
   box-shadow:0 10px 25px rgba(0,0,0,.06);
 }
 
 .top-box h2{
-  margin-top:0;
-  font-size:22px;
+  margin:0 0 12px;
   color:#111827;
 }
 
 .top-box p{
+  margin:0 0 18px;
   color:#64748b;
   line-height:1.7;
-  margin-bottom:20px;
 }
 
 .connect-btn{
@@ -55,7 +66,7 @@ body{
   color:#fff;
   padding:14px 24px;
   border-radius:12px;
-  font-size:15px;
+  font-size:14px;
   font-weight:900;
   cursor:pointer;
 }
@@ -64,81 +75,163 @@ body{
   background:#1d4ed8;
 }
 
-.search-box{
-  width:100%;
-  padding:14px 18px;
+/* COUNTERS */
+
+.counters{
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fit,minmax(220px,1fr));
+
+  gap:18px;
+  margin-bottom:25px;
+}
+
+.counter-card{
+  background:#fff;
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.06);
+}
+
+.counter-title{
+  font-size:12px;
+  font-weight:900;
+  color:#64748b;
+  text-transform:uppercase;
+}
+
+.counter-value{
+  margin-top:10px;
+  font-size:28px;
+  font-weight:900;
+  color:#111827;
+}
+
+/* FILTERS */
+
+.filters{
+  display:flex;
+  flex-wrap:wrap;
+  gap:15px;
+  margin-bottom:25px;
+}
+
+.search-box,
+.filter-select{
+  flex:1;
+  min-width:220px;
+  padding:14px 16px;
   border-radius:14px;
   border:1px solid #dbe2ea;
   font-size:14px;
-  margin-bottom:25px;
+  outline:none;
   box-sizing:border-box;
 }
 
+/* TABLE */
+
 .table-wrap{
-  width:100%;
-  overflow-x:auto;
   background:#fff;
-  border-radius:18px;
+  border-radius:20px;
+  overflow-x:auto;
   box-shadow:0 10px 25px rgba(0,0,0,.06);
 }
 
 table{
   width:100%;
-  min-width:1200px;
   border-collapse:collapse;
+  min-width:1250px;
 }
 
 th{
   background:#f8fafc;
   color:#000;
+  padding:16px;
   font-size:13px;
   font-weight:900;
-  padding:16px;
   text-align:left;
   border-bottom:1px solid #e5e7eb;
 }
 
 td{
-  padding:16px;
+  padding:18px 16px;
   border-bottom:1px solid #eef2f7;
   vertical-align:top;
   text-align:left;
+  font-size:13px;
 }
 
+/* COMPANY */
+
 .company-name{
-  font-size:17px;
+  font-size:16px;
   font-weight:900;
   color:#111827;
   margin-bottom:10px;
 }
 
 .company-info{
-  font-size:13px;
-  line-height:1.8;
+  line-height:1.9;
   color:#334155;
   text-align:left;
 }
 
-.status{
+/* STATUS */
+
+.status-badge{
+  display:inline-block;
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:12px;
   font-weight:900;
 }
 
 .status-active{
-  color:#16a34a;
+  background:#dcfce7;
+  color:#166534;
 }
 
 .status-past{
-  color:#ca8a04;
+  background:#fef9c3;
+  color:#854d0e;
 }
 
 .status-suspended{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+/* LOCK */
+
+.locked-yes{
+  font-weight:900;
   color:#dc2626;
 }
 
-.action-btn{
+.locked-no{
+  font-weight:900;
+  color:#16a34a;
+}
+
+/* MONEY */
+
+.amount{
+  font-weight:900;
+  color:#111827;
+}
+
+/* ACTIONS */
+
+.action-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.btn{
   border:none;
-  padding:10px 14px;
   border-radius:10px;
+  padding:10px 14px;
   font-size:12px;
   font-weight:900;
   cursor:pointer;
@@ -154,6 +247,20 @@ td{
   color:#166534;
 }
 
+.btn-paid{
+  background:#2563eb;
+  color:#fff;
+}
+
+.empty{
+  text-align:center;
+  padding:30px;
+  color:#64748b;
+  font-weight:800;
+}
+
+/* MOBILE */
+
 @media(max-width:768px){
 
   .billing-wrapper{
@@ -164,18 +271,18 @@ td{
     font-size:22px;
   }
 
+  .counter-value{
+    font-size:24px;
+  }
+
   table{
-    min-width:900px;
+    min-width:1000px;
   }
 
   th,
   td{
     padding:12px;
     font-size:12px;
-  }
-
-  .company-name{
-    font-size:15px;
   }
 
 }
@@ -189,20 +296,25 @@ td{
 
 <div class="billing-wrapper">
 
+  <!-- TITLE -->
+
   <div class="page-title">
     Admin Billing Center
   </div>
 
-  <!-- STRIPE PLATFORM -->
+  <!-- STRIPE -->
 
   <div class="top-box">
 
-    <h2>Stripe Platform Connect</h2>
+    <h2>
+      Stripe Platform Connect
+    </h2>
 
     <p>
-      Connect your Stripe platform account for SaaS billing,
-      white-label companies, marketplace payouts,
-      and future automated billing systems.
+      Connect your Stripe platform account
+      for SaaS billing, white-label companies,
+      marketplace payouts, and future
+      automated payment systems.
     </p>
 
     <button
@@ -215,13 +327,109 @@ td{
 
   </div>
 
-  <!-- SEARCH -->
+  <!-- COUNTERS -->
 
-  <input
-    type="text"
-    id="searchInput"
-    class="search-box"
-    placeholder="Search company...">
+  <div class="counters">
+
+    <div class="counter-card">
+
+      <div class="counter-title">
+        Total Companies
+      </div>
+
+      <div
+        class="counter-value"
+        id="totalCompanies">
+
+        0
+
+      </div>
+
+    </div>
+
+    <div class="counter-card">
+
+      <div class="counter-title">
+        Active
+      </div>
+
+      <div
+        class="counter-value"
+        id="activeCompanies">
+
+        0
+
+      </div>
+
+    </div>
+
+    <div class="counter-card">
+
+      <div class="counter-title">
+        Past Due
+      </div>
+
+      <div
+        class="counter-value"
+        id="pastDueCompanies">
+
+        0
+
+      </div>
+
+    </div>
+
+    <div class="counter-card">
+
+      <div class="counter-title">
+        Suspended
+      </div>
+
+      <div
+        class="counter-value"
+        id="suspendedCompanies">
+
+        0
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- FILTERS -->
+
+  <div class="filters">
+
+    <input
+      type="text"
+      id="searchInput"
+      class="search-box"
+      placeholder="Search company...">
+
+    <select
+      id="statusFilter"
+      class="filter-select">
+
+      <option value="">
+        All Statuses
+      </option>
+
+      <option value="ACTIVE">
+        ACTIVE
+      </option>
+
+      <option value="PAST_DUE">
+        PAST DUE
+      </option>
+
+      <option value="SUSPENDED">
+        SUSPENDED
+      </option>
+
+    </select>
+
+  </div>
 
   <!-- TABLE -->
 
@@ -238,6 +446,8 @@ td{
           <th>CYCLE</th>
           <th>INVOICE</th>
           <th>NEXT BILLING</th>
+          <th>LOCKED</th>
+          <th>NOTES</th>
           <th>ACTIONS</th>
 
         </tr>
@@ -248,69 +458,11 @@ td{
 
         <tr>
 
-          <td>
+          <td
+            colspan="8"
+            class="empty">
 
-            <div class="company-name">
-              Sunbeam Clinic
-            </div>
-
-            <div class="company-info">
-
-              Status:
-              <span class="status status-active">
-                ACTIVE
-              </span>
-
-              <br>
-
-              Cycle: MONTHLY
-
-              <br>
-
-              Invoice: $0.00
-
-              <br>
-
-              Next Billing: --
-
-              <br>
-
-              Locked: NO
-
-              <br>
-
-              Notes: --
-
-            </div>
-
-          </td>
-
-          <td>
-            <span class="status status-active">
-              ACTIVE
-            </span>
-          </td>
-
-          <td>
-            MONTHLY
-          </td>
-
-          <td>
-            $0.00
-          </td>
-
-          <td>
-            --
-          </td>
-
-          <td>
-
-            <button
-              class="action-btn btn-lock">
-
-              Lock
-
-            </button>
+            Loading billing data...
 
           </td>
 
@@ -324,8 +476,8 @@ td{
 
 </div>
 
-<script src="layout.js"></script>
-<script src="admin-billing.js"></script>
+<script src="/layout.js"></script>
+<script src="/admin/admin-billing.js"></script>
 
 </body>
 </html>
