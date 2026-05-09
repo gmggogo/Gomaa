@@ -429,36 +429,36 @@ function sameValue(list, field){
 }
 
 function buildSharedRoutePoints(group){
+
   const list = getRealPassengersFromGroup(group);
   const points = [];
 
   if(!list.length) return points;
 
-  const samePickup = sameValue(list,"pickup");
-  const sameDropoff = sameValue(list,"dropoff");
+  const added = new Set();
 
-  if(samePickup){
-    points.push(list[0].pickup);
-    list.forEach(p=>{
-      if(normalizeText(p.dropoff)) points.push(p.dropoff);
-    });
-    return points;
+  function addPoint(v){
+
+    const value =
+      normalizeText(v).toLowerCase();
+
+    if(!value) return;
+
+    if(added.has(value)) return;
+
+    added.add(value);
+
+    points.push(v);
   }
 
-  if(sameDropoff){
-    list.forEach(p=>{
-      if(normalizeText(p.pickup)) points.push(p.pickup);
-    });
-    points.push(list[0].dropoff);
-    return points;
-  }
-
+  // pickups
   list.forEach(p=>{
-    if(normalizeText(p.pickup)) points.push(p.pickup);
+    addPoint(p.pickup);
   });
 
+  // dropoffs
   list.forEach(p=>{
-    if(normalizeText(p.dropoff)) points.push(p.dropoff);
+    addPoint(p.dropoff);
   });
 
   return points;
