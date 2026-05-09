@@ -1896,6 +1896,7 @@ const invoiceAmount =
   Number(
     revenue.toFixed(2)
   );
+
   /* =========================
      APPLY VALUES
   ========================== */
