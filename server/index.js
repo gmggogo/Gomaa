@@ -2722,8 +2722,6 @@ if(companyName){
 // 🔥 هل شيرد؟
 const isShared = req.body.isShared === true;
 
-    // 🔥 هل شيرد؟
-    const isShared = req.body.isShared === true;
 
     // 🔥 رقم الرحلة (لو شيرد يضيف SH)
     const tripNumber = await generateTripNumber(
