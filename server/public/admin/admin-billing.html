@@ -27,13 +27,13 @@ body{
 .page-body{
   max-width:1800px;
   margin:auto;
-  padding:320px 18px 40px;
+  padding:170px 18px 40px;
 }
 
 @media(max-width:768px){
 
   .page-body{
-    padding-top:360px;
+    padding-top:210px;
     padding-left:10px;
     padding-right:10px;
   }
@@ -206,6 +206,7 @@ body{
   padding:0 12px;
   background:#fff;
   outline:none;
+  box-sizing:border-box;
 }
 
 .table-wrap{
@@ -218,8 +219,14 @@ body{
 
 table{
   width:100%;
-  min-width:1900px;
+  min-width:1850px;
   border-collapse:collapse;
+}
+
+thead th{
+  position:sticky;
+  top:0;
+  z-index:5;
 }
 
 th{
@@ -236,6 +243,10 @@ td{
   border-bottom:1px solid #e5e7eb;
   font-size:12px;
   vertical-align:top;
+}
+
+tbody tr:hover{
+  background:#f8fafc;
 }
 
 .company-name{
@@ -278,35 +289,13 @@ td{
 }
 
 .actions{
-  min-width:330px;
-}
-
-.control-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-bottom:8px;
-}
-
-.control-grid-3{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:8px;
-  margin-bottom:8px;
-}
-
-.small-input{
-  height:36px;
-  border:1px solid #cbd5e1;
-  border-radius:8px;
-  padding:0 8px;
-  font-size:12px;
+  min-width:340px;
 }
 
 .btn-row{
-  display:flex;
-  gap:7px;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
 }
 
 .empty{
@@ -343,13 +332,8 @@ td{
       </div>
 
       <div class="subtitle">
-
-        Generate invoices by billing period,
-        calculate company ride totals,
-        create Stripe payment links,
-        lock/unlock accounts,
-        and track payments.
-
+        Company invoices, Stripe billing,
+        payment tracking and account management.
       </div>
 
       <div class="stripe-actions">
@@ -365,7 +349,7 @@ td{
           id="openStripeBtn"
           class="btn btn-dark"
         >
-          Open Stripe Dashboard
+          Open Stripe
         </button>
 
       </div>
@@ -421,25 +405,11 @@ td{
       class="select"
     >
 
-      <option value="">
-        All Status
-      </option>
-
-      <option value="ACTIVE">
-        ACTIVE
-      </option>
-
-      <option value="PAST_DUE">
-        PAST DUE
-      </option>
-
-      <option value="SUSPENDED">
-        SUSPENDED
-      </option>
-
-      <option value="PAID">
-        PAID
-      </option>
+      <option value="">All Status</option>
+      <option value="ACTIVE">ACTIVE</option>
+      <option value="PAST_DUE">PAST DUE</option>
+      <option value="SUSPENDED">SUSPENDED</option>
+      <option value="PAID">PAID</option>
 
     </select>
 
@@ -447,11 +417,7 @@ td{
       id="monthFilter"
       class="select"
     >
-
-      <option value="">
-        All Months
-      </option>
-
+      <option value="">All Months</option>
     </select>
 
     <input
@@ -474,14 +440,19 @@ td{
           <th>Company</th>
           <th>Status</th>
           <th>Period</th>
-          <th>Trips</th>
+
+          <th>Total Trips</th>
+          <th>Individual</th>
+          <th>Shared</th>
+
           <th>Completed</th>
           <th>No Show</th>
           <th>Cancelled</th>
-          <th>Shared</th>
+
           <th>Revenue</th>
-          <th>Invoice Amount</th>
-          <th>Grace</th>
+          <th>Invoice</th>
+          <th>Paid</th>
+          <th>Remaining</th>
           <th>Last Payment</th>
           <th>Locked</th>
           <th>Actions</th>
@@ -494,7 +465,7 @@ td{
 
         <tr>
 
-          <td colspan="14" class="empty">
+          <td colspan="17" class="empty">
             Loading billing data...
           </td>
 
@@ -509,7 +480,7 @@ td{
   <div class="card history-card">
 
     <div class="history-title">
-      Billing Log / Invoice History
+      Billing History
     </div>
 
     <div class="table-wrap">
