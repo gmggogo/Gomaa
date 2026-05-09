@@ -354,7 +354,7 @@ function render(list){
           </td>
 
           <td>
-            ${Number(c.totalTrips || 0) - Number(c.sharedTrips || 0)}
+            ${c.individualTrips || 0}
           </td>
 
           <td>
