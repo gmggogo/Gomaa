@@ -1808,8 +1808,6 @@ let noShowTrips = 0;
 
 let revenue = 0;
 
-const sharedGroups = new Set();
-
 trips.forEach(t => {
 
   const isShared =
@@ -1820,7 +1818,11 @@ trips.forEach(t => {
   const status =
     String(
       t.status || ""
-    ).toLowerCase();
+    ).toLowerCase().trim();
+
+  /* =========================
+     ONLY BILLABLE STATUSES
+  ========================== */
 
   if(
     !status.includes("complete") &&
@@ -1830,6 +1832,36 @@ trips.forEach(t => {
     return;
   }
 
+  /* =========================
+     COUNTS
+  ========================== */
+
+  if(isShared){
+
+    sharedTrips++;
+
+  }else{
+
+    individualTrips++;
+
+  }
+
+  if(status.includes("complete")){
+    completedTrips++;
+  }
+
+  if(status.includes("cancel")){
+    cancelledTrips++;
+  }
+
+  if(status.includes("no")){
+    noShowTrips++;
+  }
+
+  /* =========================
+     PRICE
+  ========================== */
+
   let price =
     Number(
       t.finalPrice ||
@@ -1838,47 +1870,26 @@ trips.forEach(t => {
       0
     );
 
-  if(status.includes("complete")){
-    completedTrips++;
-  }
+  /* =========================
+     CANCEL / NO SHOW DEFAULT
+  ========================== */
 
-  if(status.includes("cancel")){
-    cancelledTrips++;
+  if(
+    (status.includes("cancel") ||
+     status.includes("no")) &&
+    !price
+  ){
 
-    if(!price){
-      price = Number(t.cancelFee || 15);
-    }
-  }
+    price =
+      Number(
+        t.cancelFee || 15
+      );
 
-  if(status.includes("no")){
-    noShowTrips++;
-
-    if(!price){
-      price = Number(t.cancelFee || 15);
-    }
   }
 
   revenue += price;
 
-  if(isShared){
-
-    const key =
-      t.groupId ||
-      t.tripNumber;
-
-    sharedGroups.add(key);
-
-  }else{
-
-    individualTrips++;
-
-  }
-
 });
-
-sharedTrips =
-  sharedGroups.size;
-
 
 /* =========================
    TOTALS
