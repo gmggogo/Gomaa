@@ -1,46 +1,103 @@
 /* =========================
-   ADMIN BILLING CENTER
+   AUTH
 ========================= */
 
-const billingContainer =
-document.getElementById("billingContainer");
+const token =
+  localStorage.getItem("token");
+
+if(!token){
+
+  window.location.href =
+    "/admin/login.html";
+
+}
+
+/* =========================
+   ELEMENTS
+========================= */
+
+const container =
+  document.getElementById(
+    "billingContainer"
+  );
 
 const historyContainer =
-document.getElementById("historyContainer");
-
-const totalCompanies =
-document.getElementById("totalCompanies");
-
-const activeCompanies =
-document.getElementById("activeCompanies");
-
-const pastDueCompanies =
-document.getElementById("pastDueCompanies");
-
-const lockedCompanies =
-document.getElementById("lockedCompanies");
-
-const totalRevenue =
-document.getElementById("totalRevenue");
-
-const pendingPayments =
-document.getElementById("pendingPayments");
+  document.getElementById(
+    "historyContainer"
+  );
 
 const searchInput =
-document.getElementById("searchInput");
+  document.getElementById(
+    "searchInput"
+  );
 
 const statusFilter =
-document.getElementById("statusFilter");
+  document.getElementById(
+    "statusFilter"
+  );
 
 const monthFilter =
-document.getElementById("monthFilter");
+  document.getElementById(
+    "monthFilter"
+  );
 
 const yearFilter =
-document.getElementById("yearFilter");
+  document.getElementById(
+    "yearFilter"
+  );
+
+const connectStripeBtn =
+  document.getElementById(
+    "connectStripeBtn"
+  );
+
+const openStripeBtn =
+  document.getElementById(
+    "openStripeBtn"
+  );
+
+/* STATS */
+
+const totalCompaniesEl =
+  document.getElementById(
+    "totalCompanies"
+  );
+
+const activeCompaniesEl =
+  document.getElementById(
+    "activeCompanies"
+  );
+
+const pastDueCompaniesEl =
+  document.getElementById(
+    "pastDueCompanies"
+  );
+
+const lockedCompaniesEl =
+  document.getElementById(
+    "lockedCompanies"
+  );
+
+const totalRevenueEl =
+  document.getElementById(
+    "totalRevenue"
+  );
+
+const pendingPaymentsEl =
+  document.getElementById(
+    "pendingPayments"
+  );
+
+/* =========================
+   DATA
+========================= */
 
 let companies = [];
-let trips = [];
 let invoiceHistory = [];
+
+/* =========================
+   MONTHS
+========================= */
 
 const months = [
   "January",
@@ -57,14 +114,10 @@ const months = [
   "December"
 ];
 
-/* =========================
-   MONTHS
-========================= */
-
 months.forEach((m,i)=>{
 
   monthFilter.innerHTML += `
-    <option value="${i}">
+    <option value="${i+1}">
       ${m}
     </option>
   `;
@@ -77,91 +130,85 @@ months.forEach((m,i)=>{
 
 function money(v){
 
-  return `
-    $${Number(v || 0).toFixed(2)}
-  `;
+  return "$" +
+    Number(v || 0).toFixed(2);
 
 }
 
-function getBadgeClass(status){
+function formatDate(v){
 
-  if(status === "PAST_DUE"){
+  if(!v) return "--";
+
+  const d = new Date(v);
+
+  if(isNaN(d.getTime()))
+    return "--";
+
+  return d.toLocaleDateString(
+    "en-US",
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric"
+    }
+  );
+
+}
+
+function getStatusClass(status){
+
+  if(status === "PAST_DUE")
     return "status-past";
-  }
 
-  if(status === "SUSPENDED"){
+  if(status === "SUSPENDED")
     return "status-suspended";
-  }
 
-  if(status === "PAID"){
+  if(status === "PAID")
     return "status-paid";
-  }
 
   return "status-active";
 
 }
 
 /* =========================
-   LOAD
+   LOAD BILLING
 ========================= */
 
-async function loadData(){
+async function loadBilling(){
 
   try{
 
-    billingContainer.innerHTML = `
-      <tr>
-        <td colspan="17" class="empty">
-          Loading billing data...
-        </td>
-      </tr>
-    `;
+    const res =
+      await fetch(
+        "/api/admin/billing",
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
 
-    /* =========================
-       COMPANIES
-    ========================= */
-
-    let companiesRes =
-    await fetch("/api/company-users");
-
-    if(!companiesRes.ok){
-
-      companiesRes =
-      await fetch("/api/companies");
-
-    }
+    const data =
+      await res.json();
 
     companies =
-    await companiesRes.json();
+      Array.isArray(data)
+        ? data
+        : [];
 
-    if(!Array.isArray(companies)){
-      companies = [];
-    }
+    render(companies);
 
-    /* =========================
-       TRIPS
-    ========================= */
-
-    const tripsRes =
-    await fetch("/api/trips");
-
-    trips =
-    await tripsRes.json();
-
-    if(!Array.isArray(trips)){
-      trips = [];
-    }
-
-    render();
+    updateStats(companies);
 
   }catch(err){
 
-    console.error(err);
+    console.log(err);
 
-    billingContainer.innerHTML = `
+    container.innerHTML = `
       <tr>
-        <td colspan="17" class="empty">
-          Failed to load billing data.
+        <td colspan="15" class="empty">
+          Error loading companies
         </td>
       </tr>
     `;
@@ -171,695 +218,604 @@ async function loadData(){
 }
 
 /* =========================
-   COMPANY MATCH
+   UPDATE STATS
 ========================= */
 
-function tripBelongsToCompany(
-  trip,
-  company
-){
+function updateStats(list){
 
-  const companyId =
-  String(company._id || "");
+  totalCompaniesEl.innerText =
+    list.length;
 
-  const companyName =
-  String(
-    company.companyName ||
-    company.name ||
-    ""
-  ).toLowerCase();
+  activeCompaniesEl.innerText =
+    list.filter(
+      x =>
+        x.billingStatus ===
+        "ACTIVE"
+    ).length;
 
-  const tripCompanyId =
-  String(
-    trip.companyId ||
-    ""
-  );
+  pastDueCompaniesEl.innerText =
+    list.filter(
+      x =>
+        x.billingStatus ===
+        "PAST_DUE"
+    ).length;
 
-  const tripCompanyName =
-  String(
-    trip.company ||
-    trip.companyName ||
-    ""
-  ).toLowerCase();
+  lockedCompaniesEl.innerText =
+    list.filter(
+      x =>
+        x.billingLocked === true
+    ).length;
 
-  return (
-    tripCompanyId === companyId
-    ||
-    tripCompanyName === companyName
-  );
-
-}
-
-/* =========================
-   COMPANY TRIPS
-========================= */
-
-function getCompanyTrips(company){
-
-  return trips.filter(trip=>{
-
-    if(
-      !tripBelongsToCompany(
-        trip,
-        company
-      )
-    ){
-      return false;
-    }
-
-    const search =
-    searchInput.value
-    .toLowerCase()
-    .trim();
-
-    const status =
-    statusFilter.value;
-
-    const month =
-    monthFilter.value;
-
-    const year =
-    yearFilter.value;
-
-    const companyName =
-    String(
-      company.companyName ||
-      company.name ||
-      ""
-    ).toLowerCase();
-
-    if(search){
-
-      if(
-        !companyName.includes(search)
-      ){
-        return false;
-      }
-
-    }
-
-    if(status){
-
-      if(
-        (
-          company.billingStatus ||
-          "ACTIVE"
-        ) !== status
-      ){
-        return false;
-      }
-
-    }
-
-    if(month || year){
-
-      const d =
-      new Date(
-        trip.tripDate ||
-        trip.createdAt
-      );
-
-      if(month){
-
-        if(
-          d.getMonth()
-          !== Number(month)
-        ){
-          return false;
-        }
-
-      }
-
-      if(year){
-
-        if(
-          d.getFullYear()
-          !== Number(year)
-        ){
-          return false;
-        }
-
-      }
-
-    }
-
-    return true;
-
-  });
-
-}
-
-/* =========================
-   RENDER
-========================= */
-
-function render(){
-
-  let html = "";
-
-  let revenue = 0;
-
-  let pending = 0;
-
-  let active = 0;
-  let past = 0;
-  let locked = 0;
-
-  companies.forEach(company=>{
-
-    const companyTrips =
-    getCompanyTrips(company);
-
-    const completed =
-    companyTrips.filter(
-      t=>t.status === "Completed"
-    );
-
-    const noShow =
-    companyTrips.filter(
-      t=>
-        t.status === "NoShow"
-        ||
-        t.status === "No Show"
-    );
-
-    const cancelled =
-    companyTrips.filter(
-      t=>
-        t.status === "Cancelled"
-        ||
-        t.status === "Canceled"
-    );
-
-    const shared =
-    companyTrips.filter(
-      t=>
-        t.sharedGroupId
-        ||
-        t.tripType === "shared"
-        ||
-        t.tripType === "SHARED"
-        ||
-        String(
-          t.tripNumber || ""
-        ).includes("-SH")
-    );
-
-    const individual =
-    companyTrips.filter(
-      t=>
-        !(
-          t.sharedGroupId
-          ||
-          t.tripType === "shared"
-          ||
-          t.tripType === "SHARED"
-          ||
-          String(
-            t.tripNumber || ""
-          ).includes("-SH")
-        )
-    );
-
-    const completedRevenue =
-    completed.reduce((sum,t)=>{
-
-      return (
-        sum +
+  const totalRevenue =
+    list.reduce(
+      (a,b)=>
+        a +
         Number(
-          t.priceAmount ||
-          t.totalPrice ||
-          t.price ||
-          0
-        )
-      );
-
-    },0);
-
-    const noShowRevenue =
-    noShow.reduce((sum,t)=>{
-
-      return (
-        sum +
-        Number(
-          t.cancelFee ||
-          t.noShowFee ||
-          15
-        )
-      );
-
-    },0);
-
-    const invoiceAmount =
-    completedRevenue +
-    noShowRevenue;
-
-    const paidAmount =
-    Number(
-      company.amountPaid ||
+          b.revenue || 0
+        ),
       0
     );
 
-    const remaining =
-    invoiceAmount -
-    paidAmount;
+  totalRevenueEl.innerText =
+    money(totalRevenue);
 
-    revenue += invoiceAmount;
+  const pending =
+    list.reduce(
+      (a,b)=>
+        a +
+        Number(
+          b.invoiceAmount || 0
+        ),
+      0
+    );
 
-    if(remaining > 0){
-      pending += remaining;
-    }
-
-    const status =
-    company.billingStatus ||
-    "ACTIVE";
-
-    if(status === "ACTIVE"){
-      active++;
-    }
-
-    if(status === "PAST_DUE"){
-      past++;
-    }
-
-    if(status === "SUSPENDED"){
-      locked++;
-    }
-
-    const badgeClass =
-    getBadgeClass(status);
-
-    html += `
-
-      <tr>
-
-        <td>
-
-          <div class="company-name">
-            ${
-              company.companyName ||
-              company.name ||
-              "-"
-            }
-          </div>
-
-          <div class="company-small">
-
-            ${
-              company.email || ""
-            }
-
-            <br>
-
-            ${
-              company.phone || ""
-            }
-
-          </div>
-
-        </td>
-
-        <td>
-
-          <span class="badge ${badgeClass}">
-            ${status}
-          </span>
-
-        </td>
-
-        <td>
-
-          ${
-            months[
-              new Date().getMonth()
-            ]
-          }
-
-          ${new Date().getFullYear()}
-
-        </td>
-
-        <td>
-          ${companyTrips.length}
-        </td>
-
-        <td>
-          ${individual.length}
-        </td>
-
-        <td>
-          ${shared.length}
-        </td>
-
-        <td>
-          ${completed.length}
-        </td>
-
-        <td>
-          ${noShow.length}
-        </td>
-
-        <td>
-          ${cancelled.length}
-        </td>
-
-        <td>
-          ${money(completedRevenue)}
-        </td>
-
-        <td>
-          ${money(invoiceAmount)}
-        </td>
-
-        <td>
-          ${money(paidAmount)}
-        </td>
-
-        <td>
-          ${money(remaining)}
-        </td>
-
-        <td>
-
-          ${
-            company.lastPaymentDate
-            ?
-            new Date(
-              company.lastPaymentDate
-            ).toLocaleDateString()
-            :
-            "-"
-          }
-
-        </td>
-
-        <td>
-
-          ${
-            company.locked
-            ?
-            "YES"
-            :
-            "NO"
-          }
-
-        </td>
-
-        <td class="actions">
-
-          <div class="btn-row">
-
-            <button
-              class="btn btn-blue"
-              data-action="generate"
-              data-id="${company._id}"
-            >
-              Generate
-            </button>
-
-            <button
-              class="btn btn-green"
-              data-action="paid"
-              data-id="${company._id}"
-            >
-              Paid
-            </button>
-
-            <button
-              class="btn btn-yellow"
-              data-action="stripe"
-              data-id="${company._id}"
-            >
-              Stripe Link
-            </button>
-
-            <button
-              class="btn btn-red"
-              data-action="lock"
-              data-id="${company._id}"
-            >
-              Lock
-            </button>
-
-            <button
-              class="btn btn-dark"
-              data-action="view"
-              data-id="${company._id}"
-            >
-              View Trips
-            </button>
-
-            <button
-              class="btn btn-stripe"
-              data-action="pdf"
-              data-id="${company._id}"
-            >
-              PDF
-            </button>
-
-          </div>
-
-        </td>
-
-      </tr>
-
-    `;
-
-  });
-
-  if(!html){
-
-    html = `
-      <tr>
-        <td colspan="17" class="empty">
-          No billing data found.
-        </td>
-      </tr>
-    `;
-
-  }
-
-  billingContainer.innerHTML = html;
-
-  totalCompanies.textContent =
-  companies.length;
-
-  activeCompanies.textContent =
-  active;
-
-  pastDueCompanies.textContent =
-  past;
-
-  lockedCompanies.textContent =
-  locked;
-
-  totalRevenue.textContent =
-  money(revenue);
-
-  pendingPayments.textContent =
-  money(pending);
+  pendingPaymentsEl.innerText =
+    money(pending);
 
 }
 
 /* =========================
-   ACTIONS
+   RENDER TABLE
 ========================= */
 
-billingContainer.addEventListener(
-  "click",
-  async e=>{
+function render(list){
 
-    const btn =
-    e.target.closest("button");
+  if(!list.length){
 
-    if(!btn) return;
+    container.innerHTML = `
+      <tr>
+        <td colspan="15" class="empty">
+          No companies found
+        </td>
+      </tr>
+    `;
 
-    const action =
-    btn.dataset.action;
+    return;
+  }
 
-    const id =
-    btn.dataset.id;
+  container.innerHTML =
+    list.map(c=>{
 
-    const company =
-    companies.find(
-      c=>String(c._id) === String(id)
+      return `
+
+        <tr>
+
+          <td>
+
+            <div class="company-name">
+              ${c.name || "--"}
+            </div>
+
+            <div class="company-small">
+
+              ${c.email || "--"}
+
+              <br>
+
+              ${c.phone || "--"}
+
+              <br>
+
+              ${c.username || "--"}
+
+            </div>
+
+          </td>
+
+          <td>
+
+            <span class="
+              badge
+              ${getStatusClass(c.billingStatus)}
+            ">
+
+              ${c.billingStatus || "ACTIVE"}
+
+            </span>
+
+          </td>
+
+          <td>
+
+            ${formatDate(c.billingStartDate)}
+
+            <br>
+
+            →
+
+            <br>
+
+            ${formatDate(c.billingEndDate)}
+
+          </td>
+
+          <td>
+            ${c.totalTrips || 0}
+          </td>
+
+          <td>
+            ${Number(c.totalTrips || 0) - Number(c.sharedTrips || 0)}
+          </td>
+
+          <td>
+            ${c.sharedTrips || 0}
+          </td>
+
+          <td>
+            ${c.completedTrips || 0}
+          </td>
+
+          <td>
+            ${c.noShowTrips || 0}
+          </td>
+
+          <td>
+            ${c.cancelledTrips || 0}
+          </td>
+
+          <td>
+            ${money(c.revenue)}
+          </td>
+
+          <td>
+
+            <b>
+              ${money(c.invoiceAmount)}
+            </b>
+
+          </td>
+
+          <td>
+
+            ${c.graceDays || 0}
+            days
+
+          </td>
+
+          <td>
+
+            ${formatDate(
+              c.lastPaymentDate
+            )}
+
+          </td>
+
+          <td>
+
+            ${
+              c.billingLocked
+
+              ? `
+
+                <span class="
+                  badge
+                  status-suspended
+                ">
+                  LOCKED
+                </span>
+
+              `
+
+              : `
+
+                <span class="
+                  badge
+                  status-active
+                ">
+                  OPEN
+                </span>
+
+              `
+            }
+
+          </td>
+
+          <td class="actions">
+
+            <div class="control-grid">
+
+              <input
+                type="date"
+                class="small-input"
+                id="start-${c._id}"
+                value="${
+                  c.billingStartDate
+                  ? new Date(c.billingStartDate)
+                    .toISOString()
+                    .split("T")[0]
+                  : ""
+                }"
+              >
+
+              <input
+                type="date"
+                class="small-input"
+                id="end-${c._id}"
+                value="${
+                  c.billingEndDate
+                  ? new Date(c.billingEndDate)
+                    .toISOString()
+                    .split("T")[0]
+                  : ""
+                }"
+              >
+
+            </div>
+
+            <div class="control-grid-3">
+
+              <input
+                type="number"
+                class="small-input"
+                placeholder="Grace"
+                id="grace-${c._id}"
+                value="${c.graceDays || 3}"
+              >
+
+              <input
+                type="number"
+                class="small-input"
+                placeholder="Invoice"
+                id="invoice-${c._id}"
+                value="${c.invoiceAmount || 0}"
+              >
+
+              <input
+                type="number"
+                class="small-input"
+                placeholder="Trips"
+                id="trips-${c._id}"
+                value="${c.totalTrips || 0}"
+              >
+
+            </div>
+
+            <div class="btn-row">
+
+              <button
+                class="btn btn-blue"
+                onclick="generateInvoice('${c._id}')"
+              >
+                Generate
+              </button>
+
+              <button
+                class="btn btn-red"
+                onclick="lockCompany('${c._id}')"
+              >
+                Lock
+              </button>
+
+              <button
+                class="btn btn-green"
+                onclick="unlockCompany('${c._id}')"
+              >
+                Unlock
+              </button>
+
+              <button
+                class="btn btn-yellow"
+                onclick="markPaid('${c._id}')"
+              >
+                Paid
+              </button>
+
+            </div>
+
+          </td>
+
+        </tr>
+
+      `;
+
+    }).join("");
+
+}
+
+/* =========================
+   GENERATE INVOICE
+========================= */
+
+async function generateInvoice(id){
+
+  try{
+
+    const start =
+      document.getElementById(
+        `start-${id}`
+      ).value;
+
+    const end =
+      document.getElementById(
+        `end-${id}`
+      ).value;
+
+    const grace =
+      document.getElementById(
+        `grace-${id}`
+      ).value;
+
+    const invoice =
+      document.getElementById(
+        `invoice-${id}`
+      ).value;
+
+    const res =
+      await fetch(
+        `/api/admin/generate-invoice/${id}`,
+        {
+          method:"PUT",
+
+          headers:{
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              "Bearer " + token
+          },
+
+          body:JSON.stringify({
+
+            billingStartDate:start,
+
+            billingEndDate:end,
+
+            graceDays:grace,
+
+            invoiceAmount:invoice
+
+          })
+        }
+      );
+
+    const data =
+      await res.json();
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Invoice error"
+      );
+
+    }
+
+    alert("Invoice generated");
+
+    loadBilling();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err.message ||
+      "Generate failed"
     );
 
-    if(!company) return;
+  }
 
-    /* =========================
-       VIEW
-    ========================= */
+}
 
-    if(action === "view"){
+/* =========================
+   LOCK
+========================= */
 
-      const companyTrips =
-      getCompanyTrips(company);
+async function lockCompany(id){
 
-      alert(
+  try{
 
-        `Company: ${
-          company.companyName
-        }\n\n`
+    await fetch(
+      `/api/admin/billing/${id}/lock`,
+      {
+        method:"PUT",
 
-        +
+        headers:{
+          Authorization:
+            "Bearer " + token
+        }
+      }
+    );
 
-        `Total Trips: ${
-          companyTrips.length
-        }\n`
+    loadBilling();
 
-        +
+  }catch(err){
 
-        `Individual: ${
-          companyTrips.filter(
-            t=>
-              !(
-                t.sharedGroupId
-              )
-          ).length
-        }\n`
-
-        +
-
-        `Shared: ${
-          companyTrips.filter(
-            t=>
-              t.sharedGroupId
-          ).length
-        }\n`
-
-        +
-
-        `Completed: ${
-          companyTrips.filter(
-            t=>
-              t.status === "Completed"
-          ).length
-        }\n`
-
-        +
-
-        `No Show: ${
-          companyTrips.filter(
-            t=>
-              t.status === "NoShow"
-          ).length
-        }`
-
-      );
-
-    }
-
-    /* =========================
-       GENERATE
-    ========================= */
-
-    if(action === "generate"){
-
-      alert(
-        "Invoice generated."
-      );
-
-    }
-
-    /* =========================
-       PAID
-    ========================= */
-
-    if(action === "paid"){
-
-      alert(
-        "Marked as paid."
-      );
-
-    }
-
-    /* =========================
-       STRIPE
-    ========================= */
-
-    if(action === "stripe"){
-
-      alert(
-        "Stripe link created."
-      );
-
-    }
-
-    /* =========================
-       LOCK
-    ========================= */
-
-    if(action === "lock"){
-
-      alert(
-        "Company locked."
-      );
-
-    }
-
-    /* =========================
-       PDF
-    ========================= */
-
-    if(action === "pdf"){
-
-      alert(
-        "PDF generated."
-      );
-
-    }
+    console.log(err);
 
   }
-);
+
+}
+
+/* =========================
+   UNLOCK
+========================= */
+
+async function unlockCompany(id){
+
+  try{
+
+    await fetch(
+      `/api/admin/billing/${id}/unlock`,
+      {
+        method:"PUT",
+
+        headers:{
+          Authorization:
+            "Bearer " + token
+        }
+      }
+    );
+
+    loadBilling();
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
+
+/* =========================
+   MARK PAID
+========================= */
+
+async function markPaid(id){
+
+  try{
+
+    await fetch(
+      `/api/admin/billing/${id}/mark-paid`,
+      {
+        method:"PUT",
+
+        headers:{
+          Authorization:
+            "Bearer " + token
+        }
+      }
+    );
+
+    loadBilling();
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
 
 /* =========================
    FILTERS
 ========================= */
 
-searchInput.addEventListener(
-  "input",
-  render
-);
+function applyFilters(){
 
-statusFilter.addEventListener(
-  "change",
-  render
-);
+  let list = [...companies];
 
-monthFilter.addEventListener(
-  "change",
-  render
-);
+  const s =
+    searchInput.value
+      .toLowerCase()
+      .trim();
 
-yearFilter.addEventListener(
-  "input",
-  render
-);
+  const status =
+    statusFilter.value;
+
+  const month =
+    monthFilter.value;
+
+  const year =
+    yearFilter.value;
+
+  if(s){
+
+    list =
+      list.filter(x=>
+
+        String(x.name || "")
+          .toLowerCase()
+          .includes(s)
+
+      );
+
+  }
+
+  if(status){
+
+    list =
+      list.filter(
+        x =>
+          x.billingStatus === status
+      );
+
+  }
+
+  if(month){
+
+    list =
+      list.filter(x=>{
+
+        if(!x.billingStartDate)
+          return false;
+
+        const d =
+          new Date(
+            x.billingStartDate
+          );
+
+        return (
+          d.getMonth() + 1
+        ) == month;
+
+      });
+
+  }
+
+  if(year){
+
+    list =
+      list.filter(x=>{
+
+        if(!x.billingStartDate)
+          return false;
+
+        const d =
+          new Date(
+            x.billingStartDate
+          );
+
+        return (
+          d.getFullYear()
+        ) == year;
+
+      });
+
+  }
+
+  render(list);
+
+}
 
 /* =========================
    STRIPE BUTTONS
 ========================= */
 
-document
-.getElementById(
-  "connectStripeBtn"
-)
+connectStripeBtn
 .addEventListener(
   "click",
   ()=>{
 
-    alert(
-      "Stripe connect ready."
+    window.open(
+      "https://dashboard.stripe.com",
+      "_blank"
     );
 
   }
 );
 
-document
-.getElementById(
-  "openStripeBtn"
-)
+openStripeBtn
 .addEventListener(
   "click",
   ()=>{
@@ -873,7 +829,31 @@ document
 );
 
 /* =========================
+   EVENTS
+========================= */
+
+searchInput.addEventListener(
+  "input",
+  applyFilters
+);
+
+statusFilter.addEventListener(
+  "change",
+  applyFilters
+);
+
+monthFilter.addEventListener(
+  "change",
+  applyFilters
+);
+
+yearFilter.addEventListener(
+  "input",
+  applyFilters
+);
+
+/* =========================
    INIT
 ========================= */
 
-loadData();
+loadBilling();
