@@ -223,76 +223,178 @@ function updateStats(data){
 
   let individual = 0;
   let shared = 0;
+
   let completed = 0;
   let cancelled = 0;
   let noshow = 0;
+
   let revenue = 0;
 
   data.forEach(t=>{
 
+    /* =========================
+       SHARED
+    ========================= */
     if(t.isShared){
 
       shared++;
 
-      (t.passengers || [])
-      .forEach(p=>{
+      const passengers =
+        Array.isArray(t.passengers)
+          ? t.passengers
+          : [];
 
-        if(p.status === "Completed")
+      passengers.forEach(p=>{
+
+        const status =
+          String(
+            p.status || ""
+          ).trim();
+
+        /* COUNTS */
+        if(status === "Completed"){
           completed++;
+        }
 
-        if(p.status === "Cancelled"){
+        if(status === "Cancelled"){
           cancelled++;
-          revenue += 15;
         }
 
-        if(p.status === "NoShow"){
+        if(status === "NoShow"){
           noshow++;
-          revenue += 15;
         }
+
+        /* PRICE */
+        let price = 0;
+
+        if(status === "Cancelled"){
+
+          price = Number(
+            t.cancelFee ??
+            p.cancelFee ??
+            15
+          );
+
+        }
+
+        else if(status === "NoShow"){
+
+          price = Number(
+            t.cancelFee ??
+            p.cancelFee ??
+            15
+          );
+
+        }
+
+        else{
+
+          price = Number(
+            p.finalPrice ??
+            p.priceAmount ??
+            0
+          );
+
+        }
+
+        revenue += price;
 
       });
 
-    }else{
+    }
+
+    /* =========================
+       INDIVIDUAL
+    ========================= */
+    else{
 
       individual++;
 
-      if(t.status === "Completed")
+      const status =
+        String(
+          t.status || ""
+        ).trim();
+
+      /* COUNTS */
+      if(status === "Completed"){
         completed++;
+      }
 
-      if(t.status === "Cancelled"){
+      if(status === "Cancelled"){
         cancelled++;
-        revenue += 15;
       }
 
-      if(t.status === "NoShow"){
+      if(status === "NoShow"){
         noshow++;
-        revenue += 15;
       }
+
+      /* PRICE */
+      let price = 0;
+
+      if(status === "Cancelled"){
+
+        price = Number(
+          t.cancelFee ??
+          15
+        );
+
+      }
+
+      else if(status === "NoShow"){
+
+        price = Number(
+          t.cancelFee ??
+          15
+        );
+
+      }
+
+      else{
+
+        price = Number(
+          t.finalPrice ??
+          t.priceAmount ??
+          0
+        );
+
+      }
+
+      revenue += price;
 
     }
 
   });
 
-  document.getElementById("individualTrips").innerText =
-    individual;
+  /* =========================
+     OUTPUT
+  ========================= */
 
-  document.getElementById("sharedTrips").innerText =
-    shared;
+  document.getElementById(
+    "individualTrips"
+  ).innerText = individual;
 
-  document.getElementById("completedTrips").innerText =
-    completed;
+  document.getElementById(
+    "sharedTrips"
+  ).innerText = shared;
 
-  document.getElementById("cancelledTrips").innerText =
-    cancelled;
+  document.getElementById(
+    "completedTrips"
+  ).innerText = completed;
 
-  document.getElementById("noShowTrips").innerText =
-    noshow;
+  document.getElementById(
+    "cancelledTrips"
+  ).innerText = cancelled;
 
-  document.getElementById("totalRevenue").innerText =
-    `$${revenue}`;
+  document.getElementById(
+    "noShowTrips"
+  ).innerText = noshow;
+
+  document.getElementById(
+    "totalRevenue"
+  ).innerText =
+    `$${revenue.toFixed(2)}`;
 
 }
-
 /* RENDER */
 function render(){
 
