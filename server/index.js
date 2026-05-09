@@ -1791,13 +1791,6 @@ async function updateCompanyBilling(company){
 
     }).lean();
 
-  /* =========================
-     SHARED GROUPS
-  ========================== */
-
-  const sharedGroups =
-    new Set();
-
  /* =========================
    COUNTS
 ========================= */
