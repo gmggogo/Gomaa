@@ -141,8 +141,9 @@ function formatDate(v){
 
   const d = new Date(v);
 
-  if(isNaN(d.getTime()))
+  if(isNaN(d.getTime())){
     return "--";
+  }
 
   return d.toLocaleDateString(
     "en-US",
@@ -157,16 +158,29 @@ function formatDate(v){
 
 function getStatusClass(status){
 
-  if(status === "PAST_DUE")
+  if(status === "PAST_DUE"){
     return "status-past";
+  }
 
-  if(status === "SUSPENDED")
+  if(status === "SUSPENDED"){
     return "status-suspended";
+  }
 
-  if(status === "PAID")
+  if(status === "PAID"){
     return "status-paid";
+  }
 
   return "status-active";
+
+}
+
+async function safeJson(res){
+
+  try{
+    return await res.json();
+  }catch(err){
+    return {};
+  }
 
 }
 
@@ -190,7 +204,16 @@ async function loadBilling(){
       );
 
     const data =
-      await res.json();
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Billing load failed"
+      );
+
+    }
 
     companies =
       Array.isArray(data)
@@ -486,6 +509,7 @@ function render(list){
                 placeholder="Trips"
                 id="trips-${c._id}"
                 value="${c.totalTrips || 0}"
+                readonly
               >
 
             </div>
@@ -497,6 +521,20 @@ function render(list){
                 onclick="generateInvoice('${c._id}')"
               >
                 Generate
+              </button>
+
+              <button
+                class="btn btn-dark"
+                onclick="openInvoice('${c._id}')"
+              >
+                Invoice
+              </button>
+
+              <button
+                class="btn btn-stripe"
+                onclick="connectCompanyStripe('${c._id}')"
+              >
+                Stripe
               </button>
 
               <button
@@ -589,7 +627,7 @@ async function generateInvoice(id){
       );
 
     const data =
-      await res.json();
+      await safeJson(res);
 
     if(!res.ok){
 
@@ -602,7 +640,7 @@ async function generateInvoice(id){
 
     alert("Invoice generated");
 
-    loadBilling();
+    await loadBilling();
 
   }catch(err){
 
@@ -618,6 +656,19 @@ async function generateInvoice(id){
 }
 
 /* =========================
+   OPEN INVOICE PAGE
+========================= */
+
+function openInvoice(id){
+
+  window.open(
+    `/admin/invoice.html?id=${encodeURIComponent(id)}`,
+    "_blank"
+  );
+
+}
+
+/* =========================
    LOCK
 ========================= */
 
@@ -625,23 +676,48 @@ async function lockCompany(id){
 
   try{
 
-    await fetch(
-      `/api/admin/billing/${id}/lock`,
-      {
-        method:"PUT",
+    const ok =
+      confirm(
+        "Lock this company account?"
+      );
 
-        headers:{
-          Authorization:
-            "Bearer " + token
+    if(!ok) return;
+
+    const res =
+      await fetch(
+        `/api/admin/billing/${id}/lock`,
+        {
+          method:"PUT",
+
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
         }
-      }
-    );
+      );
 
-    loadBilling();
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Lock failed"
+      );
+
+    }
+
+    await loadBilling();
 
   }catch(err){
 
     console.log(err);
+
+    alert(
+      err.message ||
+      "Lock failed"
+    );
 
   }
 
@@ -655,23 +731,41 @@ async function unlockCompany(id){
 
   try{
 
-    await fetch(
-      `/api/admin/billing/${id}/unlock`,
-      {
-        method:"PUT",
+    const res =
+      await fetch(
+        `/api/admin/billing/${id}/unlock`,
+        {
+          method:"PUT",
 
-        headers:{
-          Authorization:
-            "Bearer " + token
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
         }
-      }
-    );
+      );
 
-    loadBilling();
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Unlock failed"
+      );
+
+    }
+
+    await loadBilling();
 
   }catch(err){
 
     console.log(err);
+
+    alert(
+      err.message ||
+      "Unlock failed"
+    );
 
   }
 
@@ -685,23 +779,105 @@ async function markPaid(id){
 
   try{
 
-    await fetch(
-      `/api/admin/billing/${id}/mark-paid`,
-      {
-        method:"PUT",
+    const ok =
+      confirm(
+        "Mark this invoice as paid?"
+      );
 
-        headers:{
-          Authorization:
-            "Bearer " + token
+    if(!ok) return;
+
+    const res =
+      await fetch(
+        `/api/admin/billing/${id}/mark-paid`,
+        {
+          method:"PUT",
+
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
         }
-      }
-    );
+      );
 
-    loadBilling();
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Mark paid failed"
+      );
+
+    }
+
+    await loadBilling();
 
   }catch(err){
 
     console.log(err);
+
+    alert(
+      err.message ||
+      "Mark paid failed"
+    );
+
+  }
+
+}
+
+/* =========================
+   CONNECT STRIPE FOR COMPANY
+========================= */
+
+async function connectCompanyStripe(id){
+
+  try{
+
+    const res =
+      await fetch(
+        `/api/admin/billing/${id}/connect-stripe`,
+        {
+          method:"POST",
+
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Stripe connect failed"
+      );
+
+    }
+
+    if(!data.url){
+
+      throw new Error(
+        "Stripe URL not returned"
+      );
+
+    }
+
+    window.location.href =
+      data.url;
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err.message ||
+      "Stripe connect failed"
+    );
 
   }
 
@@ -757,8 +933,9 @@ function applyFilters(){
     list =
       list.filter(x=>{
 
-        if(!x.billingStartDate)
+        if(!x.billingStartDate){
           return false;
+        }
 
         const d =
           new Date(
@@ -778,8 +955,9 @@ function applyFilters(){
     list =
       list.filter(x=>{
 
-        if(!x.billingStartDate)
+        if(!x.billingStartDate){
           return false;
+        }
 
         const d =
           new Date(
@@ -796,6 +974,8 @@ function applyFilters(){
 
   render(list);
 
+  updateStats(list);
+
 }
 
 /* =========================
@@ -807,9 +987,8 @@ connectStripeBtn
   "click",
   ()=>{
 
-    window.open(
-      "https://dashboard.stripe.com",
-      "_blank"
+    alert(
+      "Use the Stripe button in the company row to connect that company's Stripe account."
     );
 
   }
