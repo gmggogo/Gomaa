@@ -1899,59 +1899,82 @@ const revenue =
       String(t.groupId || "").trim() !== "";
 
     /* =========================
-       SHARED
-    ========================== */
+   SHARED
+========================= */
 
-    if (isShared) {
+if (isShared) {
 
-      const sharedKey =
-        String(
-          t.groupId ||
-          t.sharedTripId ||
-          t.tripNumber ||
-          t._id
-        );
+  // 🚫 لو فيه passengers array
+  if (
+    Array.isArray(t.passengers) &&
+    t.passengers.length
+  ) {
 
-      // 🚫 منع تكرار حساب نفس الشير
-      if (
-        countedSharedRevenue.has(sharedKey)
-      ) {
-        return a;
-      }
+    const total =
+      t.passengers.reduce((sum, p) => {
 
-      countedSharedRevenue.add(sharedKey);
+        const pStatus =
+          String(
+            p.status || ""
+          ).toLowerCase();
 
-      // ❌ Cancelled
-      if (
-        status.includes("cancel")
-      ) {
-        return a + 15;
-      }
+        // cancelled
+        if (
+          pStatus.includes("cancel")
+        ) {
+          return sum + 15;
+        }
 
-      // ❌ No Show
-      if (
-        status.includes("no")
-      ) {
-        return a + 15;
-      }
+        // no show
+        if (
+          pStatus.includes("no")
+        ) {
+          return sum + 15;
+        }
 
-      // ✅ Completed
-      if (
-        status.includes("complete")
-      ) {
+        // completed
+        if (
+          pStatus.includes("complete")
+        ) {
 
-        const amount =
-          Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            0
+          return sum + Number(
+            p.priceAmount || 0
           );
+        }
 
-        return a + amount;
-      }
+        return sum;
 
-      return a;
-    }
+      }, 0);
+
+    return a + total;
+  }
+
+  // fallback
+  if (
+    status.includes("cancel")
+  ) {
+    return a + 15;
+  }
+
+  if (
+    status.includes("no")
+  ) {
+    return a + 15;
+  }
+
+  if (
+    status.includes("complete")
+  ) {
+
+    return a + Number(
+      t.finalPrice ||
+      t.priceAmount ||
+      0
+    );
+  }
+
+  return a;
+}
 
     /* =========================
        INDIVIDUAL
