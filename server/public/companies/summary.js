@@ -500,12 +500,25 @@ function render(){
               $${p.price || 0}
             </td>
 
-            <td class="total">
-              ${index === 0
-                ? `$${t.totalPrice || 0}`
-                : ""}
-            </td>
-
+<td class="total">
+  ${index === 0
+    ? `$${(
+        t.totalPrice ||
+        t.finalPrice ||
+        t.priceAmount ||
+        passengers.reduce(
+          (a,p)=>
+            a + Number(
+              p.finalPrice ||
+              p.priceAmount ||
+              p.price ||
+              0
+            ),
+          0
+        )
+      )}`
+    : ""}
+</td>
           </tr>
           `;
 
