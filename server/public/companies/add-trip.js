@@ -973,8 +973,6 @@ loadEntry();
 loadTripDraft();
 loadSharedDraft();
 
-});
-
 })(); // END ASYNC
 
 }); // END DOMContentLoaded
