@@ -3195,6 +3195,21 @@ else {
 
 }
 
+
+    res.json(result);
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "summary error"
+    });
+
+  }
+
+});
+
 /* =========================
    GET ONE TRIP
 ========================= */
