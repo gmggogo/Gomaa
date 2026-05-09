@@ -1882,95 +1882,20 @@ const cancelledTrips =
    REVENUE
 ========================= */
 
-const countedSharedRevenue =
-  new Set();
-
 const revenue =
-  trips.reduce((a, t) => {
+  trips.reduce((a,t)=>{
 
-    const status =
-      String(
-        t.status || ""
-      ).toLowerCase();
+    return a + Number(
 
-    const isShared =
-      t.isShared === true ||
-      String(t.tripNumber || "").includes("-SH") ||
-      String(t.groupId || "").trim() !== "";
+      t.finalPrice ||
+      t.priceAmount ||
+      0
 
-    /* =========================
-       SHARED
-    ========================== */
+    );
 
-    if (isShared) {
+  },0);
 
-      const sharedKey =
-        String(
-          t.groupId ||
-          t.tripNumber ||
-          t._id
-        );
-
-      // 🚫 امنع تكرار نفس الرحلة الشير
-      if (
-        countedSharedRevenue.has(sharedKey)
-      ) {
-        return a;
-      }
-
-      countedSharedRevenue.add(sharedKey);
-
-      // ❌ Cancelled
-      if (
-        status.includes("cancel")
-      ) {
-        return a + 15;
-      }
-
-      // ❌ No Show
-      if (
-        status.includes("no")
-      ) {
-        return a + 15;
-      }
-
-      // ✅ Confirmed / Completed
-      const amount =
-        Number(
-          t.priceAmount ||
-          t.finalPrice ||
-          0
-        );
-
-      return a + amount;
-    }
-
-    /* =========================
-       INDIVIDUAL
-    ========================== */
-
-    if (
-      status.includes("cancel")
-    ) {
-      return a + 15;
-    }
-
-    if (
-      status.includes("no")
-    ) {
-      return a + 15;
-    }
-
-    const amount =
-      Number(
-        t.priceAmount ||
-        t.finalPrice ||
-        0
-      );
-
-    return a + amount;
-
-  }, 0);  /* =========================
+  /* =========================
      INVOICE
   ========================== */
 
