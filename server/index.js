@@ -3074,12 +3074,17 @@ app.get("/api/trips/summary", async (req, res) => {
 
           });
 
-        const total =
-          Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            0
-          );
+       const total =
+  passengers.reduce((sum,p)=>{
+
+    return sum + Number(
+      p.finalPrice ||
+      p.priceAmount ||
+      p.price ||
+      0
+    );
+
+  },0);
 
         result.push({
 
