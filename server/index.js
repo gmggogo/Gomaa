@@ -1704,32 +1704,36 @@ async function updateCompanyBilling(company){
       diff / (1000 * 60 * 60 * 24)
     );
 
-  /* =========================
-     BILLING PERIOD
-  ========================== */
+ /* =========================
+   BILLING PERIOD
+========================= */
 
-  const startDate =
-    new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1
-    );
+const startDate =
+  company.billingStartDate
+    ? new Date(company.billingStartDate)
+    : new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
 
-  const endDate =
-    new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59
-    );
+const endDate =
+  company.billingEndDate
+    ? new Date(company.billingEndDate)
+    : new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
 
-  let billingStatus =
-    "ACTIVE";
+let billingStatus =
+  "ACTIVE";
 
-  let billingLocked =
-    false;
+let billingLocked =
+  false;
 
   /* =========================
      ACTIVE
@@ -1806,23 +1810,33 @@ trips.forEach(t => {
     String(t.tripNumber || "").includes("-SH") ||
     String(t.groupId || "").trim() !== "";
 
-  if (isShared) {
+ if (isShared) {
 
-    const key =
-      String(
+  const passengersCount =
+    Array.isArray(t.passengers)
+      ? t.passengers.length
+      : 1;
+
+  sharedGroups.add(
+    JSON.stringify({
+
+      key:
         t.groupId ||
         t.sharedTripId ||
         t.tripNumber ||
-        t._id
-      );
+        t._id,
 
-    sharedGroups.add(key);
+      count:
+        passengersCount
 
-  } else {
+    })
+  );
 
-    individualTrips++;
+} else {
 
-  }
+  individualTrips++;
+
+}
 
 });
 
@@ -1830,8 +1844,25 @@ trips.forEach(t => {
    TOTALS
 ========================= */
 
-const sharedTrips =
-  sharedGroups.size;
+let sharedTrips = 0;
+
+sharedGroups.forEach(x => {
+
+  try {
+
+    const obj =
+      JSON.parse(x);
+
+    sharedTrips +=
+      Number(obj.count || 1);
+
+  } catch {
+
+    sharedTrips += 1;
+
+  }
+
+});
 
 const totalTrips =
   individualTrips + sharedTrips;
