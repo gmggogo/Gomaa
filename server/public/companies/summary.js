@@ -223,74 +223,50 @@ function updateStats(data){
 
   let individual = 0;
   let shared = 0;
-
   let completed = 0;
   let cancelled = 0;
   let noshow = 0;
-
   let revenue = 0;
 
   data.forEach(t=>{
 
-    /* =====================
-       SHARED
-    ===================== */
-
     if(t.isShared){
 
-      // ✅ الشير رحلة واحدة
       shared++;
 
-      // ✅ إجمالي الرحلة النهائي
-      revenue += Number(
-        t.totalPrice ||
-        t.finalPrice ||
-        t.priceAmount ||
-        0
-      );
+      (t.passengers || [])
+      .forEach(p=>{
 
-      (t.passengers || []).forEach(p=>{
-
-        if(p.status === "Completed"){
+        if(p.status === "Completed")
           completed++;
-        }
 
         if(p.status === "Cancelled"){
           cancelled++;
+          revenue += 15;
         }
 
         if(p.status === "NoShow"){
           noshow++;
+          revenue += 15;
         }
 
       });
 
-    }
-
-    /* =====================
-       INDIVIDUAL
-    ===================== */
-
-    else{
+    }else{
 
       individual++;
 
-      revenue += Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        0
-      );
-
-      if(t.status === "Completed"){
+      if(t.status === "Completed")
         completed++;
-      }
 
       if(t.status === "Cancelled"){
         cancelled++;
+        revenue += 15;
       }
 
       if(t.status === "NoShow"){
         noshow++;
+        revenue += 15;
       }
 
     }
@@ -313,7 +289,7 @@ function updateStats(data){
     noshow;
 
   document.getElementById("totalRevenue").innerText =
-    `$${revenue.toFixed(2)}`;
+    `$${revenue}`;
 
 }
 
