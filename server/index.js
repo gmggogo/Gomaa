@@ -1877,24 +1877,48 @@ trips.forEach(t => {
      PRICE
   ========================== */
 
-  let price =
-    Number(
-      t.finalPrice ||
-      t.priceAmount ||
-      t.price ||
-      0
-    );
+  let price = 0;
 
+  /* SHARED */
   if(
-    (status.includes("cancel") ||
-     status.includes("no")) &&
-    !price
+    isShared &&
+    Array.isArray(t.passengers)
   ){
 
     price =
+      t.passengers.reduce((sum,p)=>{
+
+        return sum + Number(
+          p.priceAmount || 15
+        );
+
+      },0);
+
+  }
+
+  /* INDIVIDUAL */
+  else{
+
+    price =
       Number(
-        t.cancelFee || 15
+        t.finalPrice ||
+        t.priceAmount ||
+        t.price ||
+        0
       );
+
+    if(
+      (status.includes("cancel") ||
+       status.includes("no")) &&
+      !price
+    ){
+
+      price =
+        Number(
+          t.cancelFee || 15
+        );
+
+    }
 
   }
 
@@ -1916,6 +1940,7 @@ const invoiceAmount =
   Number(
     revenue.toFixed(2)
   );
+
 
   /* =========================
      APPLY VALUES
