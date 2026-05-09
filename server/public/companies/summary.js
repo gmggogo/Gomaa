@@ -306,13 +306,12 @@ function render(){
   const data =
     getFilteredTrips();
 
+  updateStats(data);
 
   const trips =
     currentTab === "individual"
       ? data.filter(t=>!t.isShared)
       : data.filter(t=>t.isShared);
-
-  updateStats(trips);
 
   const groups =
     groupByDay(trips);
