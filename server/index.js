@@ -3729,6 +3729,73 @@ if (!trip.priceAmount || trip.priceAmount === 0) {
 // 🔥 خزن النهائي
 trip.finalPrice = final;
 trip.isFinalized = true;
+if (
+  trip.isShared &&
+  Array.isArray(trip.passengers)
+) {
+
+  const completedPassengers =
+    trip.passengers.filter(p => {
+
+      const s = String(
+        p.status || ""
+      ).toLowerCase();
+
+      return s.includes("complete");
+
+    });
+
+  const count =
+    completedPassengers.length || 1;
+
+  const perPassenger =
+    Number(final) / count;
+
+  trip.passengers =
+    trip.passengers.map(p => {
+
+      const s = String(
+        p.status || ""
+      ).toLowerCase();
+
+      // NO SHOW
+      if (s.includes("no")) {
+
+        return {
+          ...p,
+          finalPrice: 15,
+          priceAmount: 15
+        };
+
+      }
+
+      // CANCELLED
+      if (s.includes("cancel")) {
+
+        return {
+          ...p,
+          finalPrice: 15,
+          priceAmount: 15
+        };
+
+      }
+
+      // COMPLETED
+      if (s.includes("complete")) {
+
+        return {
+          ...p,
+          finalPrice: perPassenger,
+          priceAmount: perPassenger
+        };
+
+      }
+
+      return p;
+
+    });
+
+}
 
 await trip.save();
 
