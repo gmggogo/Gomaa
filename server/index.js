@@ -2703,10 +2703,14 @@ if(companyName){
 
     });
 
-  if(
-    companyUser &&
-    companyUser.billingLocked === true
-  ){
+ if(
+  companyUser &&
+  (
+    companyUser.billingLocked === true ||
+    companyUser.billingLocked === "true" ||
+    companyUser.billingLocked === 1
+  )
+){
 
     return res.status(403).json({
 
