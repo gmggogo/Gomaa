@@ -1795,8 +1795,8 @@ let billingLocked =
 
     }).lean();
 
- /* =========================
-   COUNTS + REVENUE
+/* =========================
+   COUNTS + REVENUE FINAL
 ========================= */
 
 let individualTrips = 0;
@@ -1815,27 +1815,30 @@ trips.forEach(t => {
     String(t.tripNumber || "").includes("-SH") ||
     String(t.groupId || "").trim() !== "";
 
-  /* =========================
-     SHARED
-  ========================== */
-
-  if (isShared) {
+  if(isShared){
 
     const passengers =
       Array.isArray(t.passengers)
         ? t.passengers
         : [];
 
-    sharedTrips += passengers.length || 1;
-
     passengers.forEach(p => {
 
-      const pStatus =
-        String(
-          p.status || ""
-        ).toLowerCase();
+      const status =
+        String(p.status || "")
+          .toLowerCase();
 
-      let passengerPrice =
+      if(
+        !status.includes("complete") &&
+        !status.includes("cancel") &&
+        !status.includes("no")
+      ){
+        return;
+      }
+
+      sharedTrips++;
+
+      let price =
         Number(
           p.finalPrice ||
           p.priceAmount ||
@@ -1843,52 +1846,47 @@ trips.forEach(t => {
           0
         );
 
-      if (pStatus.includes("complete")) {
+      if(status.includes("complete")){
         completedTrips++;
       }
 
-      if (pStatus.includes("cancel")) {
-
+      if(status.includes("cancel")){
         cancelledTrips++;
 
-        if (!passengerPrice) {
-          passengerPrice =
-            Number(t.cancelFee || 15);
+        if(!price){
+          price = Number(t.cancelFee || 15);
         }
-
       }
 
-      if (pStatus.includes("no")) {
-
+      if(status.includes("no")){
         noShowTrips++;
 
-        if (!passengerPrice) {
-          passengerPrice =
-            Number(t.cancelFee || 15);
+        if(!price){
+          price = Number(t.cancelFee || 15);
         }
-
       }
 
-      revenue += Number(passengerPrice || 0);
+      revenue += price;
 
     });
 
-  }
+  }else{
 
-  /* =========================
-     INDIVIDUAL
-  ========================== */
+    const status =
+      String(t.status || "")
+        .toLowerCase();
 
-  else {
+    if(
+      !status.includes("complete") &&
+      !status.includes("cancel") &&
+      !status.includes("no")
+    ){
+      return;
+    }
 
     individualTrips++;
 
-    const status =
-      String(
-        t.status || ""
-      ).toLowerCase();
-
-    let finalPrice =
+    let price =
       Number(
         t.finalPrice ||
         t.priceAmount ||
@@ -1896,51 +1894,37 @@ trips.forEach(t => {
         0
       );
 
-    if (status.includes("complete")) {
+    if(status.includes("complete")){
       completedTrips++;
     }
 
-    if (status.includes("cancel")) {
-
+    if(status.includes("cancel")){
       cancelledTrips++;
 
-      if (!finalPrice) {
-        finalPrice =
-          Number(t.cancelFee || 15);
+      if(!price){
+        price = Number(t.cancelFee || 15);
       }
-
     }
 
-    if (status.includes("no")) {
-
+    if(status.includes("no")){
       noShowTrips++;
 
-      if (!finalPrice) {
-        finalPrice =
-          Number(t.cancelFee || 15);
+      if(!price){
+        price = Number(t.cancelFee || 15);
       }
-
     }
 
-    revenue += Number(finalPrice || 0);
+    revenue += price;
 
   }
 
 });
 
-/* =========================
-   TOTALS
-========================= */
-
 const totalTrips =
   individualTrips + sharedTrips;
 
-  /* =========================
-     INVOICE
-  ========================== */
-
-  const invoiceAmount =
-    revenue;
+const invoiceAmount =
+  revenue;
 
   /* =========================
      APPLY VALUES
