@@ -1912,19 +1912,18 @@ const cancelledTrips =
 /* =========================
    REVENUE
 ========================= */
-
 const revenue =
   trips.reduce((a,t)=>{
 
-    return a + Number(
-
-      t.finalPrice ||
-      t.priceAmount ||
+    const price = Number(
+      t.finalPrice ??
+      t.priceAmount ??
       0
-
     );
 
-  },0);
+    return a + price;
+
+},0);
 
   /* =========================
      INVOICE
