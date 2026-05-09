@@ -4149,18 +4149,19 @@ app.post("/api/cancel-trip-check", async (req, res) => {
 
     if (trip.tripDate && trip.tripTime) {
 
-      // 🔥 FIX TIMEZONE
-      const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+  const tripTime = new Date(
+  `${trip.tripDate}T${trip.tripTime}:00`
+);
 
-      const tripTime = new Date(
-        tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
-      );
+  if (isNaN(tripTime.getTime())) {
+    return res.status(400).json({
+      message: "Invalid trip time"
+    });
+  }
 
-      if (isNaN(tripTime.getTime())) {
-        return res.status(400).json({ message: "Invalid trip time" });
-      }
+  const diffMinutes =
+    (tripTime - now) / 60000;
 
-      const diffMinutes = (tripTime - now) / 60000;
 if (diffMinutes <= 1) {
   return res.status(400).json({
     message: "Trip already started or expired"
