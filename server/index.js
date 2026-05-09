@@ -2876,32 +2876,34 @@ app.get("/api/trips/summary", async (req, res) => {
 
     const company = normalizeText(req.query.company || "");
 
-const filter = {};
+    const filter = {};
 
-if (company) {
+    if (company) {
 
-  filter.company = {
-    $regex: "^" + company.trim() + "$",
-    $options: "i"
-  };
+      filter.company = {
+        $regex: "^" + company.trim() + "$",
+        $options: "i"
+      };
 
-}
+    }
 
-const trips = await Trip.find(filter)
-  .sort({ tripDate: -1, tripTime: -1 })
-  .lean();
+    const trips = await Trip.find(filter)
+      .sort({ tripDate: -1, tripTime: -1 })
+      .lean();
 
     const result = [];
 
     for (const t of trips) {
-console.log(
-  "TRIP:",
-  t.tripNumber,
-  "STATUS:",
-  t.status,
-  "FINAL:",
-  t.finalPrice
-);
+
+      console.log(
+        "TRIP:",
+        t.tripNumber,
+        "STATUS:",
+        t.status,
+        "FINAL:",
+        t.finalPrice
+      );
+
       // =========================
       // STATUS
       // =========================
@@ -3012,18 +3014,33 @@ console.log(
               pStatus = status;
             }
 
-            let passengerPrice = 0;
+            let passengerPrice =
+              Number(
+                p.finalPrice ||
+                p.priceAmount ||
+                0
+              );
 
             if (
               pStatus === "Cancelled"
             ) {
-              passengerPrice = 15;
+              passengerPrice =
+                Number(
+                  p.finalPrice ||
+                  t.cancelFee ||
+                  15
+                );
             }
 
             if (
               pStatus === "NoShow"
             ) {
-              passengerPrice = 15;
+              passengerPrice =
+                Number(
+                  p.finalPrice ||
+                  t.cancelFee ||
+                  15
+                );
             }
 
             return {
@@ -3043,15 +3060,17 @@ console.log(
               status:
                 pStatus,
 
-              price:
+              priceAmount:
                 passengerPrice
+
             };
 
           });
 
         const total =
-          passengers.reduce(
-            (a,b)=>a+b.price,
+          Number(
+            t.finalPrice ||
+            t.priceAmount ||
             0
           );
 
@@ -3100,15 +3119,12 @@ console.log(
       // =========================
       else {
 
-        let finalPrice = 0;
-
-        if (status === "Cancelled") {
-          finalPrice = 15;
-        }
-
-        if (status === "NoShow") {
-          finalPrice = 15;
-        }
+        let finalPrice =
+          Number(
+            t.finalPrice ||
+            t.priceAmount ||
+            0
+          );
 
         result.push({
 
@@ -3136,10 +3152,12 @@ console.log(
 
           pickup:
             t.pickup || "",
-stops:
-  Array.isArray(t.stops)
-    ? t.stops
-    : [],
+
+          stops:
+            Array.isArray(t.stops)
+              ? t.stops
+              : [],
+
           dropoff:
             t.dropoff || "",
 
@@ -3155,6 +3173,9 @@ stops:
           miles,
 
           status,
+
+          finalPrice:
+            finalPrice,
 
           totalPrice:
             finalPrice
