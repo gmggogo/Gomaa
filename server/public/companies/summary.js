@@ -232,7 +232,7 @@ function updateStats(data){
 
     if(t.isShared){
 
-      shared += (t.passengers || []).length || 1;
+      shared++;
 
       (t.passengers || [])
       .forEach(p=>{
