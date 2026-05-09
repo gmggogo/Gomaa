@@ -1879,11 +1879,6 @@ trips.forEach(t => {
 sharedTrips =
   sharedGroups.size;
 
-const totalTrips =
-  individualTrips + sharedTrips;
-
-const invoiceAmount =
-  revenue;
 
 /* =========================
    TOTALS
