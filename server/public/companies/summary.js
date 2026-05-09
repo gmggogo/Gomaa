@@ -232,9 +232,7 @@ function updateStats(data){
 
   data.forEach(t=>{
 
-    /* =========================
-       SHARED
-    ========================= */
+    /* SHARED */
     if(t.isShared){
 
       shared++;
@@ -251,7 +249,6 @@ function updateStats(data){
             p.status || ""
           ).trim();
 
-        /* COUNTS */
         if(status === "Completed"){
           completed++;
         }
@@ -264,38 +261,21 @@ function updateStats(data){
           noshow++;
         }
 
-        /* PRICE */
-        let price = 0;
+        const price = Number(
 
-        if(status === "Cancelled"){
+          status === "Cancelled"
+            ? (t.cancelFee ?? p.cancelFee ?? 15)
 
-          price = Number(
-            t.cancelFee ??
-            p.cancelFee ??
-            15
-          );
+            : status === "NoShow"
+            ? (t.cancelFee ?? p.cancelFee ?? 15)
 
-        }
+            : (
+                p.finalPrice ??
+                p.priceAmount ??
+                0
+              )
 
-        else if(status === "NoShow"){
-
-          price = Number(
-            t.cancelFee ??
-            p.cancelFee ??
-            15
-          );
-
-        }
-
-        else{
-
-          price = Number(
-            p.finalPrice ??
-            p.priceAmount ??
-            0
-          );
-
-        }
+        );
 
         revenue += price;
 
@@ -303,9 +283,7 @@ function updateStats(data){
 
     }
 
-    /* =========================
-       INDIVIDUAL
-    ========================= */
+    /* INDIVIDUAL */
     else{
 
       individual++;
@@ -315,7 +293,6 @@ function updateStats(data){
           t.status || ""
         ).trim();
 
-      /* COUNTS */
       if(status === "Completed"){
         completed++;
       }
@@ -328,46 +305,27 @@ function updateStats(data){
         noshow++;
       }
 
-      /* PRICE */
-      let price = 0;
+      const price = Number(
 
-      if(status === "Cancelled"){
+        status === "Cancelled"
+          ? (t.cancelFee ?? 15)
 
-        price = Number(
-          t.cancelFee ??
-          15
-        );
+          : status === "NoShow"
+          ? (t.cancelFee ?? 15)
 
-      }
+          : (
+              t.finalPrice ??
+              t.priceAmount ??
+              0
+            )
 
-      else if(status === "NoShow"){
-
-        price = Number(
-          t.cancelFee ??
-          15
-        );
-
-      }
-
-      else{
-
-        price = Number(
-          t.finalPrice ??
-          t.priceAmount ??
-          0
-        );
-
-      }
+      );
 
       revenue += price;
 
     }
 
   });
-
-  /* =========================
-     OUTPUT
-  ========================= */
 
   document.getElementById(
     "individualTrips"
@@ -395,6 +353,7 @@ function updateStats(data){
     `$${revenue.toFixed(2)}`;
 
 }
+
 /* RENDER */
 function render(){
 
@@ -424,9 +383,7 @@ function render(){
       <div class="day-title">
         ${day}
       </div>
-    `;
 
-    wrap.innerHTML += `
       <div class="table-wrap">
 
       <table class="summary-table">
@@ -474,6 +431,22 @@ function render(){
       /* INDIVIDUAL */
       if(!t.isShared){
 
+        const price = Number(
+
+          t.status === "Cancelled"
+            ? (t.cancelFee ?? 15)
+
+            : t.status === "NoShow"
+            ? (t.cancelFee ?? 15)
+
+            : (
+                t.finalPrice ??
+                t.priceAmount ??
+                0
+              )
+
+        );
+
         tbody.innerHTML += `
         <tr>
 
@@ -484,49 +457,47 @@ function render(){
           <td>${t.clientName || "-"}</td>
           <td>${t.clientPhone || "-"}</td>
           <td>${t.pickup || "-"}</td>
-<td>
-${
-  Array.isArray(t.stops) && t.stops.length
-    ? t.stops.map(s => String(s)).join("<br>")
-    : typeof t.stops === "string" && t.stops.trim()
-    ? t.stops
-    : "-"
-}
-</td>
+
+          <td>
+          ${
+            Array.isArray(t.stops) &&
+            t.stops.length
+
+              ? t.stops
+                  .map(s=>String(s))
+                  .join("<br>")
+
+              : typeof t.stops === "string" &&
+                t.stops.trim()
+
+              ? t.stops
+
+              : "-"
+          }
+          </td>
+
           <td>${t.dropoff || "-"}</td>
+
           <td>${t.tripDate || "-"}</td>
           <td>${t.tripTime || "-"}</td>
+
           <td>${t.bookingDate || "-"}</td>
           <td>${t.bookingTime || "-"}</td>
+
           <td>${t.miles || 0}</td>
 
           <td>
             ${statusHTML(t.status)}
           </td>
 
-       <td class="total">
+          <td class="total">
+            $${price.toFixed(2)}
+          </td>
 
-${
-  t.status === "Cancelled"
-    ? `$${t.cancelFee || 15}`
-    : t.status === "NoShow"
-    ? `$${t.cancelFee || 15}`
-    : `$${t.finalPrice || t.priceAmount || 0}`
-}
+          <td class="total">
+            $${price.toFixed(2)}
+          </td>
 
-</td>
-
-<td class="total">
-
-${
-  t.status === "Cancelled"
-    ? `$${t.cancelFee || 15}`
-    : t.status === "NoShow"
-    ? `$${t.cancelFee || 15}`
-    : `$${t.finalPrice || t.priceAmount || 0}`
-}
-
-</td>
         </tr>
 
         <tr class="trip-divider-line">
@@ -544,111 +515,155 @@ ${
       else{
 
         const passengers =
-          t.passengers || [];
+          Array.isArray(t.passengers)
+            ? t.passengers
+            : [];
 
         passengers.forEach((p,index)=>{
+
+          const passengerPrice = Number(
+
+            p.status === "Cancelled"
+              ? (
+                  t.cancelFee ??
+                  p.cancelFee ??
+                  15
+                )
+
+              : p.status === "NoShow"
+              ? (
+                  t.cancelFee ??
+                  p.cancelFee ??
+                  15
+                )
+
+              : (
+                  p.finalPrice ??
+                  p.priceAmount ??
+                  0
+                )
+
+          );
 
           tbody.innerHTML += `
           <tr class="${
             index !== passengers.length - 1
-            ? 'shared-separator'
-            : ''
+              ? "shared-separator"
+              : ""
           }">
 
             <td>
-              ${index === 0
-                ? t.tripNumber || "-"
-                : ""}
+              ${
+                index === 0
+                  ? t.tripNumber || "-"
+                  : ""
+              }
             </td>
 
             <td>
-              ${index === 0
-                ? t.company || "-"
-                : ""}
+              ${
+                index === 0
+                  ? t.company || "-"
+                  : ""
+              }
             </td>
 
             <td>
-              ${index === 0
-                ? t.entryName || "-"
-                : ""}
+              ${
+                index === 0
+                  ? t.entryName || "-"
+                  : ""
+              }
             </td>
 
             <td>
-              ${index === 0
-                ? t.entryPhone || "-"
-                : ""}
-            </td>
-
-            <td>${p.clientName || "-"}</td>
-
-            <td>${p.clientPhone || "-"}</td>
-
-            <td>${p.pickup || "-"}</td>
-
-<td>
-
-${
-  passengers.length <= 1
-    ? "Direct"
-    : `${passengers.length - 1} Stops`
-}
-
-</td>          
-          
-            <td>${p.dropoff || "-"}</td>
-
-            <td>
-              ${index === 0
-                ? t.tripDate || "-"
-                : ""}
+              ${
+                index === 0
+                  ? t.entryPhone || "-"
+                  : ""
+              }
             </td>
 
             <td>
-              ${index === 0
-                ? t.tripTime || "-"
-                : ""}
+              ${p.clientName || "-"}
             </td>
 
             <td>
-              ${index === 0
-                ? t.bookingDate || "-"
-                : ""}
+              ${p.clientPhone || "-"}
             </td>
 
             <td>
-              ${index === 0
-                ? t.bookingTime || "-"
-                : ""}
+              ${p.pickup || "-"}
             </td>
 
             <td>
-              ${index === 0
-                ? t.miles || 0
-                : ""}
+
+              ${
+                passengers.length <= 1
+                  ? "Direct"
+                  : `${passengers.length - 1} Stops`
+              }
+
             </td>
 
             <td>
-              ${statusHTML(
-                p.status || "Scheduled"
-              )}
+              ${p.dropoff || "-"}
             </td>
 
-  <td class="total">
+            <td>
+              ${
+                index === 0
+                  ? t.tripDate || "-"
+                  : ""
+              }
+            </td>
 
-${
-  p.status === "Cancelled"
-    ? `$${t.cancelFee || 15}`
-    : p.status === "NoShow"
-    ? `$${t.cancelFee || 15}`
-    : `$${p.priceAmount || 0}`
-}
+            <td>
+              ${
+                index === 0
+                  ? t.tripTime || "-"
+                  : ""
+              }
+            </td>
 
-</td>
+            <td>
+              ${
+                index === 0
+                  ? t.bookingDate || "-"
+                  : ""
+              }
+            </td>
+
+            <td>
+              ${
+                index === 0
+                  ? t.bookingTime || "-"
+                  : ""
+              }
+            </td>
+
+            <td>
+              ${
+                index === 0
+                  ? t.miles || 0
+                  : ""
+              }
+            </td>
+
+            <td>
+              ${
+                statusHTML(
+                  p.status || "Scheduled"
+                )
+              }
+            </td>
 
             <td class="total">
-              ${index === 0
-                ? `$${t.totalPrice || 0}`
-                : ""}
+              $${passengerPrice.toFixed(2)}
+            </td>
+
+            <td class="total">
+              $${passengerPrice.toFixed(2)}
             </td>
 
           </tr>
@@ -657,6 +672,7 @@ ${
         });
 
         tbody.innerHTML += `
+
         <tr class="trip-divider-line">
           <td colspan="17"></td>
         </tr>
@@ -664,6 +680,7 @@ ${
         <tr class="trip-divider">
           <td colspan="16"></td>
         </tr>
+
         `;
 
       }
