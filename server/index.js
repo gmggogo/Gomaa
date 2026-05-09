@@ -1882,7 +1882,7 @@ const cancelledTrips =
    REVENUE
 ========================= */
 
-const countedSharedRevenue =
+const countedShared =
   new Set();
 
 const revenue =
@@ -1895,124 +1895,114 @@ const revenue =
 
     const isShared =
       t.isShared === true ||
-      String(t.tripNumber || "").includes("-SH") ||
-      String(t.groupId || "").trim() !== "";
+      String(
+        t.tripNumber || ""
+      ).includes("-SH");
 
     /* =========================
-   SHARED
-========================= */
+       SHARED
+    ========================== */
 
-if (isShared) {
+    if(isShared){
 
-  // 🚫 لو فيه passengers array
-  if (
-    Array.isArray(t.passengers) &&
-    t.passengers.length
-  ) {
+      const tripKey =
+        String(
+          t.tripNumber || ""
+        );
 
-    const total =
-      t.passengers.reduce((sum, p) => {
+      // 🚫 already counted
+      if(
+        countedShared.has(tripKey)
+      ){
+        return a;
+      }
+
+      countedShared.add(tripKey);
+
+      // كل ركاب نفس الرحلة
+      const sharedPassengers =
+        trips.filter(x =>
+
+          String(
+            x.tripNumber || ""
+          ) === tripKey
+
+        );
+
+      let sharedTotal = 0;
+
+      sharedPassengers.forEach(p => {
 
         const pStatus =
           String(
             p.status || ""
           ).toLowerCase();
 
-        // cancelled
-        if (
+        // Cancel
+        if(
           pStatus.includes("cancel")
-        ) {
-          return sum + 15;
+        ){
+          sharedTotal += 15;
+          return;
         }
 
-        // no show
-        if (
+        // No Show
+        if(
           pStatus.includes("no")
-        ) {
-          return sum + 15;
+        ){
+          sharedTotal += 15;
+          return;
         }
 
-        // completed
-        if (
+        // Complete
+        if(
           pStatus.includes("complete")
-        ) {
+        ){
 
-          return sum + Number(
-            p.priceAmount || 0
+          sharedTotal += Number(
+            p.finalPrice ||
+            p.priceAmount ||
+            0
           );
+
         }
 
-        return sum;
+      });
 
-      }, 0);
-
-    return a + total;
-  }
-
-  // fallback
-  if (
-    status.includes("cancel")
-  ) {
-    return a + 15;
-  }
-
-  if (
-    status.includes("no")
-  ) {
-    return a + 15;
-  }
-
-  if (
-    status.includes("complete")
-  ) {
-
-    return a + Number(
-      t.finalPrice ||
-      t.priceAmount ||
-      0
-    );
-  }
-
-  return a;
-}
+      return a + sharedTotal;
+    }
 
     /* =========================
        INDIVIDUAL
     ========================== */
 
-    // ❌ Cancelled
-    if (
+    if(
       status.includes("cancel")
-    ) {
+    ){
       return a + 15;
     }
 
-    // ❌ No Show
-    if (
+    if(
       status.includes("no")
-    ) {
+    ){
       return a + 15;
     }
 
-    // ✅ Completed
-    if (
+    if(
       status.includes("complete")
-    ) {
+    ){
 
-      const amount =
-        Number(
-          t.finalPrice ||
-          t.priceAmount ||
-          0
-        );
+      return a + Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        0
+      );
 
-      return a + amount;
     }
 
     return a;
 
   }, 0);
-
 
   /* =========================
      INVOICE
