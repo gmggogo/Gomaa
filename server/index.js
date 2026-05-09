@@ -1800,13 +1800,18 @@ let billingLocked =
 ========================= */
 
 let individualTrips = 0;
-let sharedTrips = 0;
 
 let completedTrips = 0;
 let cancelledTrips = 0;
 let noShowTrips = 0;
 
 let revenue = 0;
+
+/* =========================
+   SHARED GROUPS
+========================= */
+
+const sharedGroups = new Set();
 
 trips.forEach(t => {
 
@@ -1821,7 +1826,7 @@ trips.forEach(t => {
     ).toLowerCase().trim();
 
   /* =========================
-     ONLY BILLABLE STATUSES
+     ONLY BILLABLE
   ========================== */
 
   if(
@@ -1833,18 +1838,28 @@ trips.forEach(t => {
   }
 
   /* =========================
-     COUNTS
+     COUNT TRIPS
   ========================== */
 
   if(isShared){
 
-    sharedTrips++;
+    sharedGroups.add(
+      String(
+        t.groupId ||
+        t.tripNumber ||
+        t._id
+      )
+    );
 
   }else{
 
     individualTrips++;
 
   }
+
+  /* =========================
+     STATUS COUNTS
+  ========================== */
 
   if(status.includes("complete")){
     completedTrips++;
@@ -1870,10 +1885,6 @@ trips.forEach(t => {
       0
     );
 
-  /* =========================
-     CANCEL / NO SHOW DEFAULT
-  ========================== */
-
   if(
     (status.includes("cancel") ||
      status.includes("no")) &&
@@ -1894,6 +1905,9 @@ trips.forEach(t => {
 /* =========================
    TOTALS
 ========================= */
+
+const sharedTrips =
+  sharedGroups.size;
 
 const totalTrips =
   individualTrips + sharedTrips;
