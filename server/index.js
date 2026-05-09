@@ -2680,6 +2680,48 @@ app.post("/api/trips", async (req, res) => {
 
     const type = normalizeTripType(req.body.type);
 
+/* =========================
+   COMPANY LOCK CHECK
+========================= */
+
+const companyName =
+  normalizeText(req.body.company);
+
+if(companyName){
+
+  const companyUser =
+    await User.findOne({
+
+      role:"company",
+
+      name:{
+        $regex:
+          "^" + companyName + "$",
+
+        $options:"i"
+      }
+
+    });
+
+  if(
+    companyUser &&
+    companyUser.billingLocked === true
+  ){
+
+    return res.status(403).json({
+
+      message:
+        "Company account locked بسبب عدم الدفع"
+
+    });
+
+  }
+
+}
+
+// 🔥 هل شيرد؟
+const isShared = req.body.isShared === true;
+
     // 🔥 هل شيرد؟
     const isShared = req.body.isShared === true;
 

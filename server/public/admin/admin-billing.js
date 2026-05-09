@@ -530,12 +530,7 @@ function render(list){
                 Invoice
               </button>
 
-              <button
-                class="btn btn-stripe"
-                onclick="connectCompanyStripe('${c._id}')"
-              >
-                Stripe
-              </button>
+            
 
               <button
                 class="btn btn-red"
@@ -676,13 +671,6 @@ async function lockCompany(id){
 
   try{
 
-    const ok =
-      confirm(
-        "Lock this company account?"
-      );
-
-    if(!ok) return;
-
     const res =
       await fetch(
         `/api/admin/billing/${id}/lock`,
@@ -697,16 +685,20 @@ async function lockCompany(id){
       );
 
     const data =
-      await safeJson(res);
+      await res.json();
 
     if(!res.ok){
 
-      throw new Error(
+      alert(
         data.message ||
         "Lock failed"
       );
 
+      return;
+
     }
+
+    alert("Company locked");
 
     await loadBilling();
 
@@ -714,10 +706,7 @@ async function lockCompany(id){
 
     console.log(err);
 
-    alert(
-      err.message ||
-      "Lock failed"
-    );
+    alert("Lock failed");
 
   }
 
@@ -745,16 +734,20 @@ async function unlockCompany(id){
       );
 
     const data =
-      await safeJson(res);
+      await res.json();
 
     if(!res.ok){
 
-      throw new Error(
+      alert(
         data.message ||
         "Unlock failed"
       );
 
+      return;
+
     }
+
+    alert("Company unlocked");
 
     await loadBilling();
 
@@ -762,10 +755,7 @@ async function unlockCompany(id){
 
     console.log(err);
 
-    alert(
-      err.message ||
-      "Unlock failed"
-    );
+    alert("Unlock failed");
 
   }
 
@@ -778,13 +768,6 @@ async function unlockCompany(id){
 async function markPaid(id){
 
   try{
-
-    const ok =
-      confirm(
-        "Mark this invoice as paid?"
-      );
-
-    if(!ok) return;
 
     const res =
       await fetch(
@@ -800,16 +783,20 @@ async function markPaid(id){
       );
 
     const data =
-      await safeJson(res);
+      await res.json();
 
     if(!res.ok){
 
-      throw new Error(
+      alert(
         data.message ||
-        "Mark paid failed"
+        "Payment failed"
       );
 
+      return;
+
     }
+
+    alert("Payment marked successfully");
 
     await loadBilling();
 
@@ -817,10 +804,7 @@ async function markPaid(id){
 
     console.log(err);
 
-    alert(
-      err.message ||
-      "Mark paid failed"
-    );
+    alert("Payment failed");
 
   }
 
@@ -985,11 +969,67 @@ function applyFilters(){
 connectStripeBtn
 .addEventListener(
   "click",
-  ()=>{
+  async ()=>{
 
-    alert(
-      "Use the Stripe button in the company row to connect that company's Stripe account."
-    );
+    try{
+
+      const companyName =
+        prompt(
+          "Enter company name"
+        );
+
+      if(!companyName) return;
+
+      const res =
+        await fetch(
+          "/api/company/connect-stripe",
+          {
+            method:"POST",
+
+            headers:{
+              Authorization:
+                "Bearer " + token,
+
+              "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+              company:companyName
+            })
+          }
+        );
+
+      const data =
+        await res.json();
+
+      if(!res.ok){
+
+        alert(
+          data.message ||
+          "Stripe connect failed"
+        );
+
+        return;
+
+      }
+
+      if(data.url){
+
+        window.open(
+          data.url,
+          "_blank"
+        );
+
+      }
+
+    }catch(err){
+
+      console.log(err);
+
+      alert("Stripe connect failed");
+
+    }
 
   }
 );
