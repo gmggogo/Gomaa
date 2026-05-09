@@ -237,18 +237,21 @@ function updateStats(data){
       (t.passengers || [])
       .forEach(p=>{
 
-        if(p.status === "Completed")
+        if(p.status === "Completed"){
           completed++;
+        }
 
         if(p.status === "Cancelled"){
           cancelled++;
-          revenue += 15;
         }
 
         if(p.status === "NoShow"){
           noshow++;
-          revenue += 15;
         }
+
+        revenue += Number(
+          p.priceAmount || 0
+        );
 
       });
 
@@ -256,18 +259,21 @@ function updateStats(data){
 
       individual++;
 
-      if(t.status === "Completed")
+      if(t.status === "Completed"){
         completed++;
+      }
 
       if(t.status === "Cancelled"){
         cancelled++;
-        revenue += 15;
       }
 
       if(t.status === "NoShow"){
         noshow++;
-        revenue += 15;
       }
+
+      revenue += Number(
+        t.finalPrice || 0
+      );
 
     }
 
@@ -289,7 +295,7 @@ function updateStats(data){
     noshow;
 
   document.getElementById("totalRevenue").innerText =
-    `$${revenue}`;
+    `$${revenue.toFixed(2)}`;
 
 }
 
@@ -497,7 +503,7 @@ function render(){
             </td>
 
             <td class="total">
-              $${p.price || 0}
+              $${p.priceAmount || 0}
             </td>
 
             <td class="total">
