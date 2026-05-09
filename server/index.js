@@ -1806,10 +1806,12 @@ async function updateCompanyBilling(company){
 
   trips.forEach(t=>{
 
-    const isShared =
-      String(
-        t.tripNumber || ""
-      ).includes("-SH");
+   const isShared =
+  t.isShared === true ||
+  String(
+    t.tripNumber || ""
+  ).includes("-SH") ||
+  String(t.groupId || "").trim() !== "";
 
     if(isShared){
 
@@ -1884,47 +1886,83 @@ async function updateCompanyBilling(company){
   ========================== */
 
   const revenue =
-    trips.reduce((a,t)=>{
+  trips.reduce((a,t)=>{
 
-      /* SHARED */
+    /* SHARED */
+
+    const isShared =
+      t.isShared === true ||
+      String(
+        t.tripNumber || ""
+      ).includes("-SH") ||
+      String(t.groupId || "").trim() !== "";
+
+    if(isShared){
 
       if(
-        String(
-          t.tripNumber || ""
-        ).includes("-SH")
+        String(t.status || "")
+        .toLowerCase()
+        .includes("cancel")
       ){
-
-        if(
-          String(t.status || "")
-          .toLowerCase()
-          .includes("cancel")
-        ){
-          return a + 15;
-        }
-
-        if(
-          String(t.status || "")
-          .toLowerCase()
-          .includes("no")
-        ){
-          return a + 15;
-        }
-
-        if(
-          String(t.status || "")
-          .toLowerCase()
-          .includes("complete")
-        ){
-          return a + Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            0
-          );
-        }
-
-        return a;
-
+        return a + 15;
       }
+
+      if(
+        String(t.status || "")
+        .toLowerCase()
+        .includes("no")
+      ){
+        return a + 15;
+      }
+
+      if(
+        String(t.status || "")
+        .toLowerCase()
+        .includes("complete")
+      ){
+        return a + Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          0
+        );
+      }
+
+      return a;
+    }
+
+    /* INDIVIDUAL */
+
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .includes("cancel")
+    ){
+      return a + 15;
+    }
+
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .includes("no")
+    ){
+      return a + 15;
+    }
+
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .includes("complete")
+    ){
+      return a + Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        0
+      );
+    }
+
+    return a;
+
+  },0);
 
       /* INDIVIDUAL */
 
