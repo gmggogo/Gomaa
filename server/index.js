@@ -1798,205 +1798,205 @@ async function updateCompanyBilling(company){
   const sharedGroups =
     new Set();
 
-  /* =========================
-     COUNTS
-  ========================== */
+ /* =========================
+   COUNTS
+========================= */
 
-  let individualTrips = 0;
+const sharedGroups = new Set();
 
-  trips.forEach(t=>{
+let individualTrips = 0;
 
-   const isShared =
-  t.isShared === true ||
-  String(
-    t.tripNumber || ""
-  ).includes("-SH") ||
-  String(t.groupId || "").trim() !== "";
+trips.forEach(t => {
 
-    if(isShared){
+  const isShared =
+    t.isShared === true ||
+    String(t.tripNumber || "").includes("-SH") ||
+    String(t.groupId || "").trim() !== "";
 
-      const key =
+  if (isShared) {
+
+    const key =
+      String(
+        t.groupId ||
         t.sharedTripId ||
-        t.tripNumber;
+        t.tripNumber ||
+        t._id
+      );
 
-      sharedGroups.add(key);
+    sharedGroups.add(key);
 
-    }else{
+  } else {
 
-      individualTrips++;
+    individualTrips++;
 
-    }
+  }
 
-  });
+});
 
-  /* =========================
-     TOTALS
-  ========================== */
+/* =========================
+   TOTALS
+========================= */
 
-  const sharedTrips =
-    sharedGroups.size;
+const sharedTrips =
+  sharedGroups.size;
 
-  const totalTrips =
-    individualTrips + sharedTrips;
+const totalTrips =
+  individualTrips + sharedTrips;
 
-  /* =========================
-     COMPLETED
-  ========================== */
+/* =========================
+   COMPLETED
+========================= */
 
-  const completedTrips =
-    trips.filter(t =>
+const completedTrips =
+  trips.filter(t =>
 
+    String(
+      t.status || ""
+    ).toLowerCase()
+    .includes("complete")
+
+  ).length;
+
+/* =========================
+   NO SHOW
+========================= */
+
+const noShowTrips =
+  trips.filter(t =>
+
+    String(
+      t.status || ""
+    ).toLowerCase()
+    .includes("no")
+
+  ).length;
+
+/* =========================
+   CANCELLED
+========================= */
+
+const cancelledTrips =
+  trips.filter(t =>
+
+    String(
+      t.status || ""
+    ).toLowerCase()
+    .includes("cancel")
+
+  ).length;
+
+/* =========================
+   REVENUE
+========================= */
+
+const countedSharedRevenue =
+  new Set();
+
+const revenue =
+  trips.reduce((a, t) => {
+
+    const status =
       String(
         t.status || ""
-      ).toLowerCase()
-      .includes("complete")
-
-    ).length;
-
-  /* =========================
-     NO SHOW
-  ========================== */
-
-  const noShowTrips =
-    trips.filter(t =>
-
-      String(
-        t.status || ""
-      ).toLowerCase()
-      .includes("no")
-
-    ).length;
-
-  /* =========================
-     CANCELLED
-  ========================== */
-
-  const cancelledTrips =
-    trips.filter(t =>
-
-      String(
-        t.status || ""
-      ).toLowerCase()
-      .includes("cancel")
-
-    ).length;
-
-  /* =========================
-     REVENUE
-  ========================== */
-
-  const revenue =
-  trips.reduce((a,t)=>{
-
-    /* SHARED */
+      ).toLowerCase();
 
     const isShared =
       t.isShared === true ||
-      String(
-        t.tripNumber || ""
-      ).includes("-SH") ||
+      String(t.tripNumber || "").includes("-SH") ||
       String(t.groupId || "").trim() !== "";
 
-    if(isShared){
+    /* =========================
+       SHARED
+    ========================== */
 
-      if(
-        String(t.status || "")
-        .toLowerCase()
-        .includes("cancel")
-      ){
-        return a + 15;
-      }
+    if (isShared) {
 
-      if(
-        String(t.status || "")
-        .toLowerCase()
-        .includes("no")
-      ){
-        return a + 15;
-      }
-
-      if(
-        String(t.status || "")
-        .toLowerCase()
-        .includes("complete")
-      ){
-        return a + Number(
-          t.finalPrice ||
-          t.priceAmount ||
-          0
+      const sharedKey =
+        String(
+          t.groupId ||
+          t.sharedTripId ||
+          t.tripNumber ||
+          t._id
         );
+
+      // 🚫 منع تكرار حساب نفس الشير
+      if (
+        countedSharedRevenue.has(sharedKey)
+      ) {
+        return a;
+      }
+
+      countedSharedRevenue.add(sharedKey);
+
+      // ❌ Cancelled
+      if (
+        status.includes("cancel")
+      ) {
+        return a + 15;
+      }
+
+      // ❌ No Show
+      if (
+        status.includes("no")
+      ) {
+        return a + 15;
+      }
+
+      // ✅ Completed
+      if (
+        status.includes("complete")
+      ) {
+
+        const amount =
+          Number(
+            t.finalPrice ||
+            t.priceAmount ||
+            0
+          );
+
+        return a + amount;
       }
 
       return a;
     }
 
-    /* INDIVIDUAL */
+    /* =========================
+       INDIVIDUAL
+    ========================== */
 
-    if(
-      String(t.status || "")
-      .toLowerCase()
-      .includes("cancel")
-    ){
+    // ❌ Cancelled
+    if (
+      status.includes("cancel")
+    ) {
       return a + 15;
     }
 
-    if(
-      String(t.status || "")
-      .toLowerCase()
-      .includes("no")
-    ){
+    // ❌ No Show
+    if (
+      status.includes("no")
+    ) {
       return a + 15;
     }
 
-    if(
-      String(t.status || "")
-      .toLowerCase()
-      .includes("complete")
-    ){
-      return a + Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        0
-      );
+    // ✅ Completed
+    if (
+      status.includes("complete")
+    ) {
+
+      const amount =
+        Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          0
+        );
+
+      return a + amount;
     }
 
     return a;
 
-  },0);
+  }, 0);
 
-      /* INDIVIDUAL */
-
-      if(
-        String(t.status || "")
-        .toLowerCase()
-        .includes("cancel")
-      ){
-        return a + 15;
-      }
-
-      if(
-        String(t.status || "")
-        .toLowerCase()
-        .includes("no")
-      ){
-        return a + 15;
-      }
-
-      if(
-        String(t.status || "")
-        .toLowerCase()
-        .includes("complete")
-      ){
-        return a + Number(
-          t.finalPrice ||
-          t.priceAmount ||
-          0
-        );
-      }
-
-      return a;
-
-    },0);
 
   /* =========================
      INVOICE
