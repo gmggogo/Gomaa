@@ -613,11 +613,21 @@ function render(trips){
     .toUpperCase()
     .trim();
 
+const tripNo =
+  String(t.tripNumber || "")
+    .toUpperCase()
+    .trim();
+
 const isShared =
+
   t.isShared === true ||
+
   tripNo.includes("-SH") ||
+
   String(t.groupId || "")
-    .trim() !== "";
+    .trim() !== "" ||
+
+  Array.isArray(t.passengers);
 
     const sharedKey = String(
       t.groupId ||
