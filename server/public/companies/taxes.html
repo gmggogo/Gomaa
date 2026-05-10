@@ -608,12 +608,16 @@ function render(trips){
       return;
     }
 
-    const isShared =
-      t.isShared === true ||
-      String(t.tripNumber || "")
-        .includes("-SH") ||
-      String(t.groupId || "")
-        .trim() !== "";
+   const tripNo =
+  String(t.tripNumber || "")
+    .toUpperCase()
+    .trim();
+
+const isShared =
+  t.isShared === true ||
+  tripNo.includes("-SH") ||
+  String(t.groupId || "")
+    .trim() !== "";
 
     const sharedKey = String(
       t.groupId ||
@@ -637,23 +641,20 @@ function render(trips){
 
 /* REVENUE */
 
-if(isShared){
+if(
+  isShared &&
+  Array.isArray(t.passengers) &&
+  t.passengers.length
+){
 
-  const passengersCount =
-    Array.isArray(t.passengers)
-      ? t.passengers.length
-      : 1;
+  revenue =
+    revenue * t.passengers.length;
 
-  totalRevenue +=
-    revenue * passengersCount;
+}
 
-}else{
+totalRevenue += revenue;   
 
-  totalRevenue += revenue;
-
-} 
-
-    totalMiles +=
+ totalMiles +=
       Number(t.miles || 0);
 
     /* COUNTS */
