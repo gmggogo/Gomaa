@@ -1843,19 +1843,19 @@ trips.forEach(t => {
     return;
   }
 
- /* =========================
+/* =========================
    COUNT TRIPS
 ========================= */
 
-const sharedKey = String(
-  t.groupId ||
-  t.tripNumber ||
-  t._id
-);
-
 if(isShared){
 
-  sharedGroups.add(sharedKey);
+  sharedGroups.add(
+    String(
+      t.groupId ||
+      t.tripNumber ||
+      t._id
+    )
+  );
 
 }else{
 
@@ -1868,54 +1868,15 @@ if(isShared){
 ========================= */
 
 if(status.includes("complete")){
-
-  if(isShared){
-
-    if(!completedGroups.has(sharedKey)){
-      completedGroups.add(sharedKey);
-      completedTrips++;
-    }
-
-  }else{
-
-    completedTrips++;
-
-  }
-
+  completedTrips++;
 }
 
 if(status.includes("cancel")){
-
-  if(isShared){
-
-    if(!cancelledGroups.has(sharedKey)){
-      cancelledGroups.add(sharedKey);
-      cancelledTrips++;
-    }
-
-  }else{
-
-    cancelledTrips++;
-
-  }
-
+  cancelledTrips++;
 }
 
 if(status.includes("no")){
-
-  if(isShared){
-
-    if(!noShowGroups.has(sharedKey)){
-      noShowGroups.add(sharedKey);
-      noShowTrips++;
-    }
-
-  }else{
-
-    noShowTrips++;
-
-  }
-
+  noShowTrips++;
 }
 
   /* =========================
