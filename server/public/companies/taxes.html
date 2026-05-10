@@ -465,22 +465,33 @@ async function loadTrips(){
 
   try{
 
-    const res =
-      await fetch("/api/trips",{
+    const companyName =
+      localStorage.getItem("name") || "";
 
-        headers:{
-          Authorization:
-            "Bearer " + token
+    const res =
+      await fetch(
+
+        "/api/trips/summary?company=" +
+        encodeURIComponent(companyName),
+
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
         }
 
-      });
+      );
 
     if(!res.ok){
       throw new Error();
     }
 
-    allTrips =
+    const data =
       await res.json();
+
+    allTrips =
+      data.trips || [];
 
     render(allTrips);
 
