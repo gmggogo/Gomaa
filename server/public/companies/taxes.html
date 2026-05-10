@@ -635,23 +635,23 @@ function render(trips){
       revenue = 15;
     }
 
-    /* REVENUE */
+/* REVENUE */
 
-    if(isShared){
+if(isShared){
 
-      if(!revenueSharedSet.has(sharedKey)){
+  const passengersCount =
+    Array.isArray(t.passengers)
+      ? t.passengers.length
+      : 1;
 
-        revenueSharedSet.add(sharedKey);
+  totalRevenue +=
+    revenue * passengersCount;
 
-        totalRevenue += revenue;
+}else{
 
-      }
+  totalRevenue += revenue;
 
-    }else{
-
-      totalRevenue += revenue;
-
-    }
+} 
 
     totalMiles +=
       Number(t.miles || 0);
