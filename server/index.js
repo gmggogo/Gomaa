@@ -1813,6 +1813,12 @@ let revenue = 0;
 
 const sharedGroups = new Set();
 
+const completedGroups = new Set();
+const cancelledGroups = new Set();
+const noShowGroups = new Set();
+
+const revenueGroups = new Set();
+
 trips.forEach(t => {
 
   const isShared =
@@ -1837,41 +1843,80 @@ trips.forEach(t => {
     return;
   }
 
-  /* =========================
-     COUNT TRIPS
-  ========================== */
+ /* =========================
+   COUNT TRIPS
+========================= */
+
+const sharedKey = String(
+  t.groupId ||
+  t.tripNumber ||
+  t._id
+);
+
+if(isShared){
+
+  sharedGroups.add(sharedKey);
+
+}else{
+
+  individualTrips++;
+
+}
+
+/* =========================
+   STATUS COUNTS
+========================= */
+
+if(status.includes("complete")){
 
   if(isShared){
 
-    sharedGroups.add(
-      String(
-        t.groupId ||
-        t.tripNumber ||
-        t._id
-      )
-    );
+    if(!completedGroups.has(sharedKey)){
+      completedGroups.add(sharedKey);
+      completedTrips++;
+    }
 
   }else{
 
-    individualTrips++;
-
-  }
-
-  /* =========================
-     STATUS COUNTS
-  ========================== */
-
-  if(status.includes("complete")){
     completedTrips++;
+
   }
 
-  if(status.includes("cancel")){
+}
+
+if(status.includes("cancel")){
+
+  if(isShared){
+
+    if(!cancelledGroups.has(sharedKey)){
+      cancelledGroups.add(sharedKey);
+      cancelledTrips++;
+    }
+
+  }else{
+
     cancelledTrips++;
+
   }
 
-  if(status.includes("no")){
+}
+
+if(status.includes("no")){
+
+  if(isShared){
+
+    if(!noShowGroups.has(sharedKey)){
+      noShowGroups.add(sharedKey);
+      noShowTrips++;
+    }
+
+  }else{
+
     noShowTrips++;
+
   }
+
+}
 
   /* =========================
      PRICE
