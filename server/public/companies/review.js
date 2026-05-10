@@ -431,6 +431,7 @@ function sameValue(list, field){
 function buildSharedRoutePoints(group){
 
   const list = getRealPassengersFromGroup(group);
+
   const points = [];
 
   if(!list.length) return points;
@@ -451,14 +452,79 @@ function buildSharedRoutePoints(group){
     points.push(v);
   }
 
-  // pickups
-  list.forEach(p=>{
-    addPoint(p.pickup);
-  });
+  // =========================
+  // SAME PICKUP ?
+  // =========================
 
-  // dropoffs
+  const samePickup = list.every(p =>
+    normalizeText(p.pickup).toLowerCase() ===
+    normalizeText(list[0].pickup).toLowerCase()
+  );
+
+  // =========================
+  // SAME DROPOFF ?
+  // =========================
+
+  const sameDropoff = list.every(p =>
+    normalizeText(p.dropoff).toLowerCase() ===
+    normalizeText(list[0].dropoff).toLowerCase()
+  );
+
+  // ==================================================
+  // CASE 1
+  // SAME PICKUP
+  // pickup → nearest drop → next
+  // ==================================================
+
+  if(samePickup){
+
+    addPoint(list[0].pickup);
+
+    const sortedDrops = [...list].sort((a,b)=>{
+
+      return normalizeText(a.dropoff)
+        .localeCompare(normalizeText(b.dropoff));
+
+    });
+
+    sortedDrops.forEach(p=>{
+      addPoint(p.dropoff);
+    });
+
+    return points;
+  }
+
+  // ==================================================
+  // CASE 2
+  // SAME DROPOFF
+  // farthest pickup → nearest pickup → drop
+  // ==================================================
+
+  if(sameDropoff){
+
+    const reversedPickups = [...list].reverse();
+
+    reversedPickups.forEach(p=>{
+      addPoint(p.pickup);
+    });
+
+    addPoint(list[0].dropoff);
+
+    return points;
+  }
+
+  // ==================================================
+  // CASE 3
+  // MIXED
+  // pickup/drop mixed
+  // ==================================================
+
   list.forEach(p=>{
+
+    addPoint(p.pickup);
+
     addPoint(p.dropoff);
+
   });
 
   return points;
