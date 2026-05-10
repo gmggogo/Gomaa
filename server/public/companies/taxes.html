@@ -9,10 +9,6 @@
 
 <style>
 
-*{
-  box-sizing:border-box;
-}
-
 body{
   margin:0;
   font-family:'Segoe UI',Arial,sans-serif;
@@ -21,9 +17,9 @@ body{
 }
 
 .container{
-  max-width:1800px;
+  max-width:1700px;
   margin:auto;
-  padding:35px 18px 80px;
+  padding:40px 20px 80px;
 }
 
 .top-bar{
@@ -36,7 +32,7 @@ body{
 }
 
 .page-title{
-  font-size:30px;
+  font-size:28px;
   font-weight:900;
   color:#1e3a8a;
 }
@@ -49,26 +45,20 @@ body{
 }
 
 .filter-input{
-  padding:12px 14px;
+  padding:10px 12px;
   border:1px solid #cbd5e1;
-  border-radius:12px;
+  border-radius:10px;
   font-size:14px;
   background:#fff;
-  min-width:160px;
 }
 
 .btn{
   border:none;
-  border-radius:12px;
-  padding:12px 18px;
+  border-radius:10px;
+  padding:11px 16px;
   font-size:14px;
   font-weight:800;
   cursor:pointer;
-  transition:.2s;
-}
-
-.btn:hover{
-  transform:translateY(-1px);
 }
 
 .btn-blue{
@@ -90,9 +80,9 @@ body{
 
 .card{
   background:#fff;
-  border-radius:20px;
-  padding:24px;
-  box-shadow:0 10px 24px rgba(0,0,0,.08);
+  border-radius:18px;
+  padding:22px;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
 }
 
 .card-title{
@@ -103,7 +93,7 @@ body{
 }
 
 .card-value{
-  font-size:30px;
+  font-size:28px;
   font-weight:900;
 }
 
@@ -125,22 +115,22 @@ body{
 
 .section{
   background:#fff;
-  border-radius:20px;
-  padding:22px;
+  border-radius:18px;
+  padding:25px;
   margin-bottom:25px;
-  box-shadow:0 10px 24px rgba(0,0,0,.08);
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
 }
 
 .section-title{
-  font-size:22px;
+  font-size:20px;
   font-weight:900;
-  margin-bottom:18px;
+  margin-bottom:20px;
+  color:#0f172a;
 }
 
 .table-wrap{
   width:100%;
   overflow-x:auto;
-  border-radius:16px;
 }
 
 table{
@@ -152,15 +142,14 @@ table{
 th{
   background:#0f172a;
   color:#fff;
-  padding:14px 10px;
+  padding:12px;
   font-size:13px;
   text-align:center;
-  white-space:nowrap;
 }
 
 td{
   border:1px solid #e2e8f0;
-  padding:12px 10px;
+  padding:12px;
   text-align:center;
   font-size:13px;
 }
@@ -169,59 +158,27 @@ tr:nth-child(even){
   background:#f8fafc;
 }
 
-.status-complete{
-  color:#15803d;
+.total-row{
+  background:#dbeafe !important;
   font-weight:900;
 }
 
-.status-cancel{
-  color:#dc2626;
-  font-weight:900;
-}
-
-.status-noshow{
-  color:#ea580c;
-  font-weight:900;
-}
-
-.money{
-  font-weight:900;
-  color:#15803d;
-}
-
-.trip-badge{
-  font-weight:900;
-  color:#2563eb;
+.print-area{
+  background:#fff;
 }
 
 @media(max-width:768px){
 
   .container{
-    padding:22px 10px 80px;
+    padding:25px 12px 80px;
   }
 
   .page-title{
-    font-size:24px;
-  }
-
-  .card{
-    padding:18px;
+    font-size:22px;
   }
 
   .card-value{
-    font-size:25px;
-  }
-
-  .btn{
-    width:100%;
-  }
-
-  .filters{
-    width:100%;
-  }
-
-  .filter-input{
-    width:100%;
+    font-size:24px;
   }
 
 }
@@ -232,8 +189,8 @@ tr:nth-child(even){
     background:#fff;
   }
 
-  #layoutHeader,
-  .filters{
+  .filters,
+  #layoutHeader{
     display:none !important;
   }
 
@@ -242,8 +199,8 @@ tr:nth-child(even){
     padding:0;
   }
 
-  .card,
-  .section{
+  .section,
+  .card{
     box-shadow:none;
     border:1px solid #ddd;
   }
@@ -257,7 +214,7 @@ tr:nth-child(even){
 
 <div id="layoutHeader"></div>
 
-<div class="container">
+<div class="container print-area">
 
   <div class="top-bar">
 
@@ -373,7 +330,7 @@ tr:nth-child(even){
             <th>Completed</th>
             <th>No Show</th>
             <th>Cancelled</th>
-            <th>Total Miles</th>
+            <th>Miles</th>
             <th>Total Revenue</th>
           </tr>
         </thead>
@@ -386,7 +343,7 @@ tr:nth-child(even){
 
   </div>
 
-  <!-- TRIPS TABLE -->
+  <!-- TRIP TABLE -->
 
   <div class="section">
 
@@ -428,8 +385,7 @@ tr:nth-child(even){
 
 <script>
 
-const token =
-  localStorage.getItem("token");
+const token = localStorage.getItem("token");
 
 const startDateInput =
   document.getElementById("startDate");
@@ -451,58 +407,30 @@ function money(v){
 
 function escapeHtml(v){
   return String(v || "")
-    .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
+    .replace(/>/g,"&gt;");
 }
 
 /* =========================
-   FETCH
+   FETCH TRIPS
 ========================= */
 
 async function loadTrips(){
 
-  try{
-
-    const companyName =
-      localStorage.getItem("name") || "";
-
-    const res =
-      await fetch(
-
-        "/api/trips/summary?company=" +
-        encodeURIComponent(companyName),
-
-        {
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
-
-      );
-
-    if(!res.ok){
-      throw new Error();
+  const res = await fetch("/api/trips",{
+    headers:{
+      Authorization:"Bearer " + token
     }
+  });
 
-const data =
-  await res.json();
-
-allTrips = Array.isArray(data)
-  ? data
-  : (data.trips || []);
-
-render(allTrips);
-  }catch(err){
-
+  if(!res.ok){
     alert("Failed loading trips");
-
-    console.log(err);
-
+    return;
   }
 
+  allTrips = await res.json();
+
+  render(allTrips);
 }
 
 /* =========================
@@ -521,27 +449,28 @@ function applyFilters(){
       ? new Date(endDateInput.value + "T23:59:59")
       : null;
 
-  const filtered =
-    allTrips.filter(t=>{
+  let filtered = [...allTrips];
 
-      const dt =
-        t.createdAt
-          ? new Date(t.createdAt)
-          : null;
+  filtered = filtered.filter(t=>{
 
-      if(!dt) return false;
+    const dt =
+      t.createdAt
+        ? new Date(t.createdAt)
+        : null;
 
-      if(start && dt < start){
-        return false;
-      }
+    if(!dt) return false;
 
-      if(end && dt > end){
-        return false;
-      }
+    if(start && dt < start){
+      return false;
+    }
 
-      return true;
+    if(end && dt > end){
+      return false;
+    }
 
-    });
+    return true;
+
+  });
 
   render(filtered);
 
@@ -567,11 +496,6 @@ function render(trips){
   let totalSharedPassengers = 0;
 
   const sharedSet = new Set();
-  const revenueSharedSet = new Set();
-
-  const completedSharedSet = new Set();
-  const cancelledSharedSet = new Set();
-  const noShowSharedSet = new Set();
 
   const driverMap = {};
 
@@ -580,161 +504,55 @@ function render(trips){
 
   tripBody.innerHTML = "";
 
-  let rowIndex = 1;
-
-  trips.forEach((t)=>{
+  trips.forEach((t,index)=>{
 
     const status =
-      String(t.status || "")
-        .toLowerCase()
-        .trim();
+      String(t.status || "").toLowerCase();
 
-    const isCompleted =
-      status.includes("complete");
+    const isShared =
+      t.isShared === true ||
+      String(t.tripNumber || "").includes("-SH");
 
-    const isCancelled =
-      status.includes("cancel");
-
-    const isNoShow =
-      status.includes("no");
-
-    /* ONLY TAX STATUSES */
-
-    if(
-      !isCompleted &&
-      !isCancelled &&
-      !isNoShow
-    ){
-      return;
-    }
-
-   const tripNo =
-  String(t.tripNumber || "")
-    .toUpperCase()
-    .trim();
-
-
-const isShared =
-
-  t.isShared === true ||
-
-  tripNo.includes("-SH") ||
-
-  String(t.groupId || "")
-    .trim() !== "" ||
-
-  Array.isArray(t.passengers);
-
-    const sharedKey = String(
-      t.groupId ||
-      t.tripNumber ||
-      t._id
+    let revenue = Number(
+      t.finalPrice ||
+      t.priceAmount ||
+      0
     );
 
-    let revenue =
-      Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        0
-      );
-
     if(
-      (isCancelled || isNoShow) &&
+      (status.includes("cancel") ||
+       status.includes("no")) &&
       !revenue
     ){
       revenue = 15;
     }
 
-/* REVENUE */
+    totalRevenue += revenue;
 
-if(
-  isShared &&
-  Array.isArray(t.passengers) &&
-  t.passengers.length
-){
+    totalMiles += Number(t.miles || 0);
 
-  revenue =
-    revenue * t.passengers.length;
-
-}
-
-totalRevenue += revenue;   
-
- totalMiles +=
-      Number(t.miles || 0);
-
-    /* COUNTS */
-
-    if(isCompleted){
-
-      if(isShared){
-
-        if(!completedSharedSet.has(sharedKey)){
-
-          completedSharedSet.add(sharedKey);
-
-          completedTrips++;
-
-        }
-
-      }else{
-
-        completedTrips++;
-
-      }
-
+    if(status.includes("complete")){
+      completedTrips++;
     }
 
-    if(isCancelled){
-
-      if(isShared){
-
-        if(!cancelledSharedSet.has(sharedKey)){
-
-          cancelledSharedSet.add(sharedKey);
-
-          cancelledTrips++;
-
-        }
-
-      }else{
-
-        cancelledTrips++;
-
-      }
-
+    if(status.includes("cancel")){
+      cancelledTrips++;
     }
 
-    if(isNoShow){
-
-      if(isShared){
-
-        if(!noShowSharedSet.has(sharedKey)){
-
-          noShowSharedSet.add(sharedKey);
-
-          noShowTrips++;
-
-        }
-
-      }else{
-
-        noShowTrips++;
-
-      }
-
+    if(status.includes("no")){
+      noShowTrips++;
     }
-
-    /* TRIPS */
 
     if(isShared){
 
-      if(!sharedSet.has(sharedKey)){
+      const key =
+        t.groupId ||
+        t.tripNumber ||
+        t._id;
 
-        sharedSet.add(sharedKey);
-
+      if(!sharedSet.has(key)){
+        sharedSet.add(key);
         sharedTrips++;
-
       }
 
       totalSharedPassengers +=
@@ -743,9 +561,7 @@ totalRevenue += revenue;
           : 0;
 
     }else{
-
       individualTrips++;
-
     }
 
     totalTrips =
@@ -779,88 +595,34 @@ totalRevenue += revenue;
     driverMap[driver].revenue +=
       revenue;
 
-    if(isCompleted){
+    if(status.includes("complete")){
       driverMap[driver].completed++;
     }
 
-    if(isCancelled){
+    if(status.includes("cancel")){
       driverMap[driver].cancelled++;
     }
 
-    if(isNoShow){
+    if(status.includes("no")){
       driverMap[driver].noShow++;
     }
 
-    /* STATUS CLASS */
-
-    let statusClass = "";
-
-    if(isCompleted){
-      statusClass = "status-complete";
-    }
-
-    if(isCancelled){
-      statusClass = "status-cancel";
-    }
-
-    if(isNoShow){
-      statusClass = "status-noshow";
-    }
-
-    /* TABLE */
+    /* TRIP TABLE */
 
     tripBody.innerHTML += `
-
       <tr>
-
-        <td>${rowIndex++}</td>
-
-        <td class="trip-badge">
-          ${escapeHtml(t.tripNumber)}
-        </td>
-
-        <td>
-          ${
-            isShared
-              ? "Shared"
-              : "Individual"
-          }
-        </td>
-
-        <td>
-          ${escapeHtml(t.company)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.clientName)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.pickup)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.dropoff)}
-        </td>
-
-        <td class="${statusClass}">
-          ${escapeHtml(t.status)}
-        </td>
-
-        <td>
-          ${Number(t.miles || 0).toFixed(1)}
-        </td>
-
-        <td class="money">
-          ${money(revenue)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.tripDate || "")}
-        </td>
-
+        <td>${index + 1}</td>
+        <td>${escapeHtml(t.tripNumber)}</td>
+        <td>${isShared ? "Shared" : "Individual"}</td>
+        <td>${escapeHtml(t.company)}</td>
+        <td>${escapeHtml(t.clientName)}</td>
+        <td>${escapeHtml(t.pickup)}</td>
+        <td>${escapeHtml(t.dropoff)}</td>
+        <td>${escapeHtml(t.status)}</td>
+        <td>${Number(t.miles || 0).toFixed(1)}</td>
+        <td>${money(revenue)}</td>
+        <td>${t.tripDate || ""}</td>
       </tr>
-
     `;
 
   });
@@ -917,39 +679,16 @@ totalRevenue += revenue;
     const d = driverMap[driver];
 
     driverBody.innerHTML += `
-
       <tr>
-
         <td>${i++}</td>
-
-        <td>
-          ${escapeHtml(driver)}
-        </td>
-
+        <td>${escapeHtml(driver)}</td>
         <td>${d.trips}</td>
-
-        <td class="status-complete">
-          ${d.completed}
-        </td>
-
-        <td class="status-noshow">
-          ${d.noShow}
-        </td>
-
-        <td class="status-cancel">
-          ${d.cancelled}
-        </td>
-
-        <td>
-          ${d.miles.toFixed(1)}
-        </td>
-
-        <td class="money">
-          ${money(d.revenue)}
-        </td>
-
+        <td>${d.completed}</td>
+        <td>${d.noShow}</td>
+        <td>${d.cancelled}</td>
+        <td>${d.miles.toFixed(1)}</td>
+        <td>${money(d.revenue)}</td>
       </tr>
-
     `;
 
   });
