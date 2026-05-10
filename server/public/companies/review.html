@@ -17,27 +17,18 @@
 
 body{
   margin:0;
-  font-family:'Segoe UI',Arial,sans-serif;
+  font-family:'Segoe UI', Arial, sans-serif;
   background:#f4f8fb;
   color:#111827;
 }
 
-/* ================= HEADER ================= */
-
-#layoutHeader{
-  position:sticky;
-  top:0;
-  z-index:1000;
-  width:100%;
-}
-
-/* ================= CONTAINER ================= */
+/* ================= MAIN ================= */
 
 .container{
   width:100%;
   max-width:1700px;
   margin:auto;
-  padding:24px 12px 40px;
+  padding:88px 14px 24px;
 }
 
 /* ================= TABS ================= */
@@ -46,22 +37,24 @@ body{
   display:flex;
   gap:10px;
   margin-bottom:18px;
-  background:#dbe4f0;
+  background:#e2e8f0;
   padding:6px;
   border-radius:14px;
 }
 
 .review-tabs button{
   flex:1;
+  padding:12px;
   border:none;
   border-radius:10px;
-  padding:12px;
-  cursor:pointer;
-
   font-size:13px;
-  font-weight:900;
-
+  font-weight:800;
+  cursor:pointer;
   transition:.2s;
+}
+
+.review-tabs button:hover{
+  transform:translateY(-1px);
 }
 
 .tab-active{
@@ -70,21 +63,8 @@ body{
 }
 
 .tab-inactive{
-  background:#94a3b8;
+  background:#64748b;
   color:#fff;
-}
-
-.review-tabs button:hover{
-  opacity:.92;
-}
-
-/* ================= DATE TITLE ================= */
-
-.date-title{
-  margin:18px 0 10px;
-  font-size:18px;
-  font-weight:900;
-  color:#0f172a;
 }
 
 /* ================= TABLE WRAP ================= */
@@ -92,84 +72,83 @@ body{
 .table-wrap{
   width:100%;
   overflow-x:auto;
-
-  border-radius:16px;
-
+  border-radius:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.08);
   background:#fff;
-
-  box-shadow:
-    0 8px 24px rgba(0,0,0,.08);
 }
 
 /* ================= TABLE ================= */
 
 .review-table{
   width:100%;
-  min-width:1550px;
+  min-width:1450px;
   border-collapse:collapse;
   background:#fff;
+}
+
+.review-table th,
+.review-table td{
+  border:1px solid #e2e8f0;
+  padding:7px;
+  font-size:11px;
+  text-align:center;
+  vertical-align:middle;
 }
 
 .review-table th{
   background:#0f172a;
   color:#fff;
-
-  padding:10px 8px;
-
   font-size:11px;
-  font-weight:900;
-
-  text-align:center;
+  font-weight:800;
   white-space:nowrap;
-}
-
-.review-table td{
-  border:1px solid #e2e8f0;
-
-  padding:8px;
-
-  font-size:11px;
-
-  text-align:center;
-  vertical-align:middle;
+  position:sticky;
+  top:0;
+  z-index:5;
 }
 
 .review-table tr:hover{
   background:#f8fafc;
 }
 
+/* ================= DATE ================= */
+
+.date-title{
+  margin:22px 0 10px;
+  font-size:17px;
+  font-weight:800;
+  color:#0f172a;
+}
+
 /* ================= TEXT ================= */
 
 .multi-line{
   white-space:pre-line;
-  line-height:1.5;
+  line-height:1.45;
   text-align:left;
-
   min-width:150px;
-  max-width:240px;
-
+  max-width:220px;
   word-break:break-word;
 }
 
-/* ================= BADGES ================= */
+/* ================= CLEAN NUMBERS ================= */
 
 .trip-number-badge{
   color:#2563eb;
-  font-size:13px;
+  font-size:14px;
   font-weight:900;
   white-space:nowrap;
 }
 
 .price-badge{
-  color:#16a34a;
-  font-size:13px;
+  color:#15803d;
+  font-size:14px;
   font-weight:900;
   white-space:nowrap;
 }
 
 .miles-strong{
   color:#2563eb;
-  font-size:12px;
+  font-size:13px;
   font-weight:900;
   white-space:nowrap;
 }
@@ -177,7 +156,7 @@ body{
 /* ================= ROW COLORS ================= */
 
 .scheduled-row{
-  background:#ffffff;
+  background:#fff;
 }
 
 .confirmed-row{
@@ -185,12 +164,7 @@ body{
 }
 
 .cancelled-row{
-  background:#fee2e2;
-}
-
-.past-row{
-  background:#374151;
-  color:#fff;
+  background:#fecaca;
 }
 
 .yellow{
@@ -210,30 +184,30 @@ body{
   color:#fff;
 }
 
-/* ================= ACTION BUTTONS ================= */
+.past-row{
+  background:#374151;
+  color:#f3f4f6;
+}
+
+/* ================= BUTTONS ================= */
 
 .actions-wrap{
   display:flex;
-  justify-content:center;
-  align-items:center;
   gap:4px;
   flex-wrap:wrap;
-
-  min-width:170px;
+  justify-content:center;
+  min-width:160px;
 }
 
 .btn{
   border:none;
-  border-radius:7px;
-
   padding:5px 8px;
-
+  border-radius:6px;
   font-size:10px;
-  font-weight:900;
-
+  font-weight:800;
   cursor:pointer;
-
   transition:.2s;
+  white-space:nowrap;
 }
 
 .btn:hover{
@@ -252,7 +226,7 @@ body{
 
 .btn.confirm-green{
   background:#22c55e;
-  color:#111827;
+  color:#000;
 }
 
 .btn.confirm-yellow{
@@ -268,29 +242,22 @@ body{
 .btn.small-delete{
   background:#dc2626;
   color:#fff;
-
   padding:3px 6px;
   font-size:10px;
 }
 
-/* ================= INPUTS ================= */
+/* ================= INPUT ================= */
 
 .edit-input{
   width:100%;
   min-width:140px;
-
   padding:8px;
-
   border:1px solid #94a3b8;
-  border-radius:7px;
-
-  font-size:12px;
-
-  outline:none;
-
+  border-radius:6px;
+  font-size:13px;
   background:#fff;
   color:#111827;
-
+  outline:none;
   margin-bottom:4px;
 }
 
@@ -315,17 +282,16 @@ body{
 @media(max-width:768px){
 
   .container{
-    padding:14px 4px 30px;
+    padding:84px 6px 18px;
   }
 
   .review-tabs{
-    gap:5px;
-    padding:5px;
+    gap:6px;
   }
 
   .review-tabs button{
-    font-size:10px;
-    padding:10px 4px;
+    font-size:11px;
+    padding:10px;
   }
 
   .table-wrap{
@@ -333,7 +299,7 @@ body{
   }
 
   .review-table{
-    min-width:1450px;
+    min-width:1350px;
   }
 
   .review-table th,
@@ -349,15 +315,15 @@ body{
   }
 
   .trip-number-badge{
-    font-size:11px;
+    font-size:12px;
   }
 
   .price-badge{
-    font-size:11px;
+    font-size:12px;
   }
 
   .miles-strong{
-    font-size:10px;
+    font-size:11px;
   }
 
   .btn{
@@ -365,21 +331,16 @@ body{
     padding:4px 6px;
   }
 
-  .actions-wrap{
-    min-width:150px;
-  }
-
   .edit-input{
-    min-width:110px;
-    font-size:11px;
-    padding:6px;
+    min-width:120px;
+    font-size:12px;
   }
 
 }
 
 /* ================= LARGE SCREEN ================= */
 
-@media(min-width:1700px){
+@media(min-width:1600px){
 
   .review-table th,
   .review-table td{
@@ -396,29 +357,10 @@ body{
 <!-- HEADER -->
 <div id="layoutHeader"></div>
 
-<!-- PAGE -->
+<!-- MAIN -->
 <div class="container">
 
-  <!-- TABS -->
-  <div class="review-tabs">
-
-    <button
-      id="individualTab"
-      class="tab-active"
-    >
-      Individual
-    </button>
-
-    <button
-      id="sharedTab"
-      class="tab-inactive"
-    >
-      Shared
-    </button>
-
-  </div>
-
-  <!-- CONTENT -->
+  <!-- REVIEW CONTENT -->
   <div id="tripsContainer"></div>
 
 </div>
