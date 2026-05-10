@@ -1,8 +1,9 @@
 body{
 margin:0;
-font-family:Segoe UI, Arial, sans-serif;
+font-family:'Segoe UI', Arial, sans-serif;
 background:#f4f8fb;
 overflow-x:hidden;
+padding-top:150px;
 }
 
 /* ================= HEADER ================= */
@@ -17,7 +18,7 @@ width:100%;
 
 background:linear-gradient(90deg,#0f172a,#1e3a8a);
 
-color:white;
+color:#fff;
 
 text-align:center;
 
@@ -29,14 +30,14 @@ box-shadow:0 4px 10px rgba(0,0,0,.2);
 
 }
 
-/* LOGO */
+/* ================= LOGO ================= */
 
 .logo{
 height:40px;
 margin-bottom:3px;
 }
 
-/* COMPANY */
+/* ================= COMPANY ================= */
 
 .logged-company{
 font-size:20px;
@@ -44,7 +45,7 @@ font-weight:700;
 color:#facc15;
 }
 
-/* GREETING */
+/* ================= GREETING ================= */
 
 .greeting{
 font-size:14px;
@@ -53,94 +54,130 @@ margin-top:2px;
 
 .clock{
 font-size:12px;
-opacity:.8;
+opacity:.85;
 }
 
-/* NAV */
+/* ================= NAVBAR ================= */
 
 .nav{
 
 display:flex;
 
 justify-content:center;
+align-items:center;
 
-flex-wrap:wrap;
+flex-wrap:nowrap;
 
-gap:14px;
+gap:12px;
 
 background:#000;
 
-padding:8px;
+padding:8px 12px;
 
 border-radius:12px;
 
 margin:10px auto 0;
 
-max-width:650px;
+width:fit-content;
+max-width:95%;
+
+overflow-x:auto;
+overflow-y:hidden;
+
+scrollbar-width:none;
 
 }
 
+.nav::-webkit-scrollbar{
+display:none;
+}
+
+/* ================= NAV LINKS ================= */
+
 .nav a{
 
-color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+
+height:36px;
+
+color:#fff;
 
 text-decoration:none;
 
 font-size:14px;
+font-weight:700;
 
-padding:6px 14px;
+padding:0 14px;
 
 border-radius:8px;
 
+white-space:nowrap;
+
 transition:.2s;
+
+flex-shrink:0;
 
 }
 
 .nav a:hover{
-
 background:#1e3a8a;
-
 }
 
 .nav a.active{
-
 background:#facc15;
-
-color:black;
-
-font-weight:700;
-
+color:#000;
+font-weight:800;
 }
 
-/* SPACE FOR HEADER */
-
-body{
-padding-top:150px;
-}
-
-/* MOBILE */
+/* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
+body{
+padding-top:170px;
+}
+
 .logo{
-height:36px;
+height:34px;
 }
 
 .logged-company{
-font-size:18px;
+font-size:17px;
+}
+
+.greeting{
+font-size:13px;
+}
+
+.clock{
+font-size:11px;
 }
 
 .nav{
-gap:10px;
+
+justify-content:flex-start;
+
+gap:8px;
+
+padding:8px;
+
+width:100%;
+max-width:100%;
+
+border-radius:10px;
+
 }
 
 .nav a{
-font-size:13px;
-padding:5px 10px;
-}
 
-body{
-padding-top:170px;
+height:34px;
+
+font-size:12px;
+
+padding:0 10px;
+
 }
 
 }
