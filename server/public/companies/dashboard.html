@@ -634,7 +634,8 @@ tr:hover{
 <div class="hero-title">
 
   Welcome,
-<span id="companyName">sunny</span>
+  <span id="companyName"></span>
+
 </div>
 
         <div class="hero-sub">
@@ -1149,7 +1150,9 @@ function statusClass(status){
 
 /* ================= RENDER ================= */
 
-function render(){
+/* ================= RENDER ================= */
+
+window.render = function(){
 
 document.getElementById(
   "companyName"
@@ -1168,35 +1171,35 @@ const now =
     )
   );
 
-  const today =
-    now.toISOString().split("T")[0];
+const today =
+  now.toISOString().split("T")[0];
 
-  const currentMonth =
-    now.getMonth();
+const currentMonth =
+  now.getMonth();
 
-  const currentYear =
-    now.getFullYear();
+const currentYear =
+  now.getFullYear();
 
-  let totalTrips = 0;
-  let completedTrips = 0;
-  let upcomingTrips = 0;
-  let cancelledTrips = 0;
+let totalTrips = 0;
+let completedTrips = 0;
+let upcomingTrips = 0;
+let cancelledTrips = 0;
 
-  let individualTrips = 0;
-  let sharedTrips = 0;
+let individualTrips = 0;
+let sharedTrips = 0;
 
-  let sharedPassengers = 0;
+let sharedPassengers = 0;
 
-  let monthlyRevenue = 0;
+let monthlyRevenue = 0;
 
-  let monthlyMiles = 0;
+let monthlyMiles = 0;
 
-  const tripBody =
-    document.getElementById(
-      "tripsBody"
-    );
+const tripBody =
+  document.getElementById(
+    "tripsBody"
+  );
 
-  tripBody.innerHTML = "";
+tripBody.innerHTML = "";
 
   /* ================= MONTHLY ================= */
 
@@ -1636,9 +1639,13 @@ setInterval(load,30000);
 
 /* ================= INIT ================= */
 
-updateClock();
+window.onload = () => {
 
-load();
+  updateClock();
+
+  load();
+
+};
 
 </script>
 
