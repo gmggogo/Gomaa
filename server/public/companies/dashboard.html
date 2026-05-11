@@ -1154,18 +1154,13 @@ function statusClass(status){
 
 function render(){
 
-const facilityName =
-
-  localStorage.getItem("name")
-
-  ||
-
-  "Facility";
+const company =
+  localStorage.getItem("name") || "";
 
 document.getElementById(
   "companyName"
 ).innerText =
-  facilityName;
+  company;
 
   const now =
     new Date(
