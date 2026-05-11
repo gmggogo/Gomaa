@@ -631,12 +631,14 @@ tr:hover{
 
       <div>
 
-<div class="hero-title">
+        <div class="hero-title">
 
-  Welcome,
-  <span id="companyName"></span>
+          Welcome,
+          <span id="companyName">
+            Facility
+          </span>
 
-</div>
+        </div>
 
         <div class="hero-sub">
 
@@ -1056,20 +1058,7 @@ async function load(){
   try{
 
     const company =
-
-      localStorage.getItem("companyName")
-
-      ||
-
-      localStorage.getItem("userName")
-
-      ||
-
-      localStorage.getItem("name")
-
-      ||
-
-      "";
+      localStorage.getItem("name") || "";
 
     const res =
       await fetch(
@@ -1163,56 +1152,81 @@ function statusClass(status){
 
 /* ================= RENDER ================= */
 
-/* ================= RENDER ================= */
+async function load(){
 
-window.render = function(){
+  try{
 
-document.getElementById(
-  "companyName"
-).innerText =
-  localStorage.getItem("userName")
-  || localStorage.getItem("name")
-  || "Facility";
+    const company =
+      localStorage.getItem("name") || "";
 
-const now =
-  new Date(
-    new Date().toLocaleString(
-      "en-US",
-      {
-        timeZone:"America/Phoenix"
-      }
-    )
-  );
+    const res =
+      await fetch(
+        `/api/trips/summary?company=${encodeURIComponent(company)}`
+      );
 
-const today =
-  now.toISOString().split("T")[0];
+    allTrips =
+      await res.json();
 
-const currentMonth =
-  now.getMonth();
+    /* COMPANY NAME */
 
-const currentYear =
-  now.getFullYear();
+    const facilityName =
+      allTrips.find(t=>t.company)
+      ?.company || "Facility";
 
-let totalTrips = 0;
-let completedTrips = 0;
-let upcomingTrips = 0;
-let cancelledTrips = 0;
+    document.getElementById(
+      "companyName"
+    ).innerText =
+      facilityName;
 
-let individualTrips = 0;
-let sharedTrips = 0;
+    render();
 
-let sharedPassengers = 0;
+  }catch(err){
 
-let monthlyRevenue = 0;
+    console.log(err);
 
-let monthlyMiles = 0;
+  }
 
-const tripBody =
-  document.getElementById(
-    "tripsBody"
-  );
+}
 
-tripBody.innerHTML = "";
+  const now =
+    new Date(
+      new Date().toLocaleString(
+        "en-US",
+        {
+          timeZone:"America/Phoenix"
+        }
+      )
+    );
+
+  const today =
+    now.toISOString().split("T")[0];
+
+  const currentMonth =
+    now.getMonth();
+
+  const currentYear =
+    now.getFullYear();
+
+  let totalTrips = 0;
+  let completedTrips = 0;
+  let upcomingTrips = 0;
+  let cancelledTrips = 0;
+
+  let individualTrips = 0;
+  let sharedTrips = 0;
+
+  let sharedPassengers = 0;
+
+  let monthlyRevenue = 0;
+
+  let monthlyMiles = 0;
+
+  const tripBody =
+    document.getElementById(
+      "tripsBody"
+    );
+
+  tripBody.innerHTML = "";
 
   /* ================= MONTHLY ================= */
 
@@ -1652,13 +1666,9 @@ setInterval(load,30000);
 
 /* ================= INIT ================= */
 
-window.onload = () => {
+updateClock();
 
-  updateClock();
-
-  load();
-
-};
+load();
 
 </script>
 
