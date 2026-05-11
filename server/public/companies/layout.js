@@ -101,19 +101,27 @@ document.querySelectorAll(".nav a").forEach(link=>{
 
 /* ================= COMPANY NAME ================= */
 
-document.getElementById(
-  "companyName"
-).innerText =
+try{
 
-  localStorage.getItem("userName")
+  const res = await fetch("/api/company/me",{
 
-  ||
+    headers:{
+      Authorization:"Bearer " + token
+    }
 
-  localStorage.getItem("name")
+  });
 
-  ||
+  const data = await res.json();
 
-  "Company";
+  document.getElementById("companyName").innerText =
+    data.name || name || "Company";
+
+}catch{
+
+  document.getElementById("companyName").innerText =
+    name || "Company";
+
+}
 
 /* ================= LOGOUT ================= */
 
