@@ -36,6 +36,7 @@ body{
 /* ================= PAGE ================= */
 
 .container{
+  width:100%;
   max-width:1700px;
   margin:auto;
   padding:88px 14px 24px;
@@ -145,7 +146,7 @@ body{
   color:#ea580c;
 }
 
-/* ================= SECTION ================= */
+/* ================= SECTIONS ================= */
 
 .section{
   background:#fff;
@@ -169,10 +170,19 @@ body{
   overflow-x:auto;
 }
 
+.table-wrap::-webkit-scrollbar{
+  height:10px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb{
+  background:#94a3b8;
+  border-radius:10px;
+}
+
 table{
   width:100%;
-  border-collapse:collapse;
   min-width:1200px;
+  border-collapse:collapse;
 }
 
 th{
@@ -200,6 +210,8 @@ tr:nth-child(even){
 tr:hover{
   background:#eef4ff;
 }
+
+/* ================= STATUS ================= */
 
 .money{
   font-weight:900;
@@ -240,12 +252,13 @@ tr:hover{
   }
 
   .cards{
-    grid-template-columns:1fr;
-    gap:14px;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
   }
 
   .card{
-    padding:20px;
+    padding:18px;
+    border-radius:16px;
   }
 
   .card-title{
@@ -253,7 +266,7 @@ tr:hover{
   }
 
   .card-value{
-    font-size:24px;
+    font-size:23px;
   }
 
   .section{
@@ -282,8 +295,7 @@ tr:hover{
 @media print{
 
   #layoutHeader,
-  .filters,
-  .btn{
+  .filters{
     display:none !important;
   }
 
@@ -298,6 +310,7 @@ tr:hover{
 }
 
 </style>
+
 </head>
 
 <body>
@@ -518,7 +531,372 @@ tr:hover{
 </div>
 
 <script src="layout.js"></script>
-<script src="taxes.js"></script>
+
+<script>
+
+const token = localStorage.getItem("token");
+
+const startDateInput =
+document.getElementById("startDate");
+
+const endDateInput =
+document.getElementById("endDate");
+
+const applyBtn =
+document.getElementById("applyBtn");
+
+const printBtn =
+document.getElementById("printBtn");
+
+let allTrips = [];
+
+function money(v){
+
+  return "$" +
+  Number(v || 0).toFixed(2);
+
+}
+
+function escapeHtml(v){
+
+  return String(v || "")
+  .replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;");
+
+}
+
+/* ================= FETCH ================= */
+
+async function loadTrips(){
+
+  try{
+
+    const res = await fetch("/api/trips",{
+      headers:{
+        Authorization:
+        "Bearer " + token
+      }
+    });
+
+    if(!res.ok){
+      alert("Failed loading trips");
+      return;
+    }
+
+    allTrips = await res.json();
+
+    render(allTrips);
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
+
+/* ================= FILTER ================= */
+
+function applyFilters(){
+
+  const start =
+  startDateInput.value
+  ? new Date(startDateInput.value + "T00:00:00")
+  : null;
+
+  const end =
+  endDateInput.value
+  ? new Date(endDateInput.value + "T23:59:59")
+  : null;
+
+  let filtered = [...allTrips];
+
+  filtered = filtered.filter(t=>{
+
+    const dt =
+    t.createdAt
+    ? new Date(t.createdAt)
+    : null;
+
+    if(!dt) return false;
+
+    if(start && dt < start) return false;
+
+    if(end && dt > end) return false;
+
+    return true;
+
+  });
+
+  render(filtered);
+
+}
+
+/* ================= RENDER ================= */
+
+function render(trips){
+
+  let totalRevenue = 0;
+  let totalTrips = 0;
+  let individualTrips = 0;
+  let sharedTrips = 0;
+  let completedTrips = 0;
+  let cancelledTrips = 0;
+  let noShowTrips = 0;
+  let totalMiles = 0;
+  let totalSharedPassengers = 0;
+
+  const driverMap = {};
+
+  const tripBody =
+  document.querySelector("#tripTable tbody");
+
+  const driverBody =
+  document.querySelector("#driverTable tbody");
+
+  tripBody.innerHTML = "";
+  driverBody.innerHTML = "";
+
+  let rowIndex = 1;
+
+  trips.forEach((t)=>{
+
+    const status =
+    String(t.status || "")
+    .toLowerCase()
+    .trim();
+
+    const isCompleted =
+    status === "completed";
+
+    const isCancelled =
+    status === "cancelled";
+
+    const isNoShow =
+    status === "noshow" ||
+    status === "no show";
+
+    if(
+      !isCompleted &&
+      !isCancelled &&
+      !isNoShow
+    ){
+      return;
+    }
+
+    const tripNo =
+    String(t.tripNumber || "")
+    .toUpperCase();
+
+    const isShared =
+    t.isShared === true ||
+    tripNo.includes("-SH");
+
+    let revenue =
+    Number(
+      t.finalPrice ||
+      t.priceAmount ||
+      0
+    );
+
+    if(
+      (isCancelled || isNoShow)
+      && !revenue
+    ){
+      revenue = 15;
+    }
+
+    let passengersCount = 1;
+
+    if(
+      isShared &&
+      Array.isArray(t.passengers)
+    ){
+      passengersCount =
+      t.passengers.length || 1;
+    }
+
+    totalRevenue +=
+    revenue * passengersCount;
+
+    totalMiles +=
+    Number(t.miles || 0);
+
+    if(isShared){
+      sharedTrips++;
+      totalSharedPassengers += passengersCount;
+    }else{
+      individualTrips++;
+    }
+
+    totalTrips++;
+
+    if(isCompleted) completedTrips++;
+    if(isCancelled) cancelledTrips++;
+    if(isNoShow) noShowTrips++;
+
+    const driver =
+    t.driverName || "Unassigned";
+
+    if(!driverMap[driver]){
+
+      driverMap[driver] = {
+        trips:0,
+        completed:0,
+        cancelled:0,
+        noShow:0,
+        miles:0,
+        revenue:0
+      };
+
+    }
+
+    driverMap[driver].trips++;
+    driverMap[driver].miles +=
+    Number(t.miles || 0);
+
+    driverMap[driver].revenue +=
+    revenue;
+
+    if(isCompleted)
+    driverMap[driver].completed++;
+
+    if(isCancelled)
+    driverMap[driver].cancelled++;
+
+    if(isNoShow)
+    driverMap[driver].noShow++;
+
+    tripBody.innerHTML += `
+
+      <tr>
+
+        <td>${rowIndex}</td>
+
+        <td>${escapeHtml(t.tripNumber)}</td>
+
+        <td>
+          ${isShared ? "Shared" : "Individual"}
+        </td>
+
+        <td>${escapeHtml(t.company)}</td>
+
+        <td>
+          ${
+            isShared
+            ? "Shared Trip"
+            : escapeHtml(t.clientName)
+          }
+        </td>
+
+        <td>${escapeHtml(t.pickup)}</td>
+
+        <td>${escapeHtml(t.dropoff)}</td>
+
+        <td>${escapeHtml(t.status)}</td>
+
+        <td>
+          ${Number(t.miles || 0).toFixed(1)}
+        </td>
+
+        <td class="money">
+          ${money(revenue)}
+        </td>
+
+        <td>${t.tripDate || ""}</td>
+
+      </tr>
+
+    `;
+
+    rowIndex++;
+
+  });
+
+  document.getElementById("totalRevenue")
+  .innerText = money(totalRevenue);
+
+  document.getElementById("totalTrips")
+  .innerText = totalTrips;
+
+  document.getElementById("individualTrips")
+  .innerText = individualTrips;
+
+  document.getElementById("sharedTrips")
+  .innerText = sharedTrips;
+
+  document.getElementById("sharedPassengers")
+  .innerText = totalSharedPassengers;
+
+  document.getElementById("completedTrips")
+  .innerText = completedTrips;
+
+  document.getElementById("cancelledTrips")
+  .innerText = cancelledTrips;
+
+  document.getElementById("noShowTrips")
+  .innerText = noShowTrips;
+
+  document.getElementById("totalMiles")
+  .innerText =
+  totalMiles.toFixed(1) + " mi";
+
+  let i = 1;
+
+  Object.keys(driverMap)
+  .forEach(driver=>{
+
+    const d = driverMap[driver];
+
+    driverBody.innerHTML += `
+
+      <tr>
+
+        <td>${i++}</td>
+
+        <td>${escapeHtml(driver)}</td>
+
+        <td>${d.trips}</td>
+
+        <td>${d.completed}</td>
+
+        <td>${d.noShow}</td>
+
+        <td>${d.cancelled}</td>
+
+        <td>${d.miles.toFixed(1)}</td>
+
+        <td class="money">
+          ${money(d.revenue)}
+        </td>
+
+      </tr>
+
+    `;
+
+  });
+
+}
+
+/* ================= EVENTS ================= */
+
+applyBtn.addEventListener(
+"click",
+()=>{
+  applyFilters();
+});
+
+printBtn.addEventListener(
+"click",
+()=>{
+  window.print();
+});
+
+/* ================= INIT ================= */
+
+loadTrips();
+
+</script>
 
 </body>
 </html>
