@@ -144,6 +144,8 @@ transform:translateY(-50%);
 
 text-align:right;
 
+max-width:170px;
+
 }
 
 .clock{
@@ -153,6 +155,12 @@ font-size:11px;
 opacity:.85;
 
 line-height:1.2;
+
+white-space:nowrap;
+
+overflow:hidden;
+
+text-overflow:ellipsis;
 
 }
 
@@ -232,15 +240,61 @@ background:#facc15;
 color:#000;
 }
 
-/* ================= TABLES / PAGE FIX ================= */
+/* ================= PAGE FIX ================= */
 
-table{
+.container{
 width:100%;
-border-collapse:collapse;
+max-width:1700px;
+margin:auto;
+padding-left:16px;
+padding-right:16px;
+box-sizing:border-box;
 }
 
 img{
 max-width:100%;
+}
+
+/* ================= TABLE WRAP ================= */
+
+.table-wrap{
+width:100%;
+overflow-x:auto;
+-webkit-overflow-scrolling:touch;
+border-radius:12px;
+}
+
+/* ================= TABLE ================= */
+
+table{
+width:100%;
+border-collapse:collapse;
+min-width:900px;
+}
+
+/* ================= STATS ================= */
+
+.stats-grid{
+
+display:grid;
+
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+
+gap:16px;
+
+}
+
+.stat-card,
+.card{
+
+background:#fff;
+
+border-radius:18px;
+
+padding:20px;
+
+box-shadow:0 4px 12px rgba(0,0,0,.06);
+
 }
 
 /* ================= MOBILE ================= */
@@ -249,7 +303,10 @@ max-width:100%;
 
 body{
 padding-top:150px;
+overflow-x:hidden;
 }
+
+/* HEADER */
 
 .header{
 padding:8px 0;
@@ -259,87 +316,13 @@ padding:8px 0;
 padding:0 8px;
 }
 
+/* TOP */
+
+.top-section{
+min-height:34px;
+}
+
 /* LOGO */
-
-.logo{
-
-height:20px;
-
-width:58px;
-
-left:2px;
-
-}
-
-/* CENTER TEXT */
-
-.logged-company{
-font-size:15px;
-}
-
-.greeting{
-font-size:10px;
-}
-
-/* TIME */
-
-.clock{
-font-size:8px;
-}
-
-.time-block{
-right:2px;
-}
-
-/* NAV */
-
-.nav{
-
-justify-content:flex-start;
-
-gap:8px;
-
-padding:8px;
-
-width:100%;
-
-max-width:100%;
-
-border-radius:10px;
-
-margin-top:10px;
-
-overflow-x:auto;
-
-overflow-y:hidden;
-
-}
-
-.nav a{
-
-height:32px;
-
-font-size:11px;
-
-padding:0 12px;
-
-border-radius:7px;
-
-flex-shrink:0;
-
-white-space:nowrap;
-
-}
-
-}
-
-/* ================= VERY SMALL MOBILE ================= */
-
-@media(max-width:480px){
-
-body{
-padding-top:145px;
-}
 
 .logo{
 
@@ -347,7 +330,11 @@ height:18px;
 
 width:52px;
 
+left:0;
+
 }
+
+/* COMPANY */
 
 .logged-company{
 font-size:14px;
@@ -357,19 +344,286 @@ font-size:14px;
 font-size:9px;
 }
 
+/* TIME */
+
+.time-block{
+right:0;
+max-width:90px;
+}
+
 .clock{
 font-size:7px;
 }
 
+/* NAV */
+
 .nav{
+
+width:100%;
+
+max-width:100%;
+
 gap:6px;
-padding:7px;
+
+padding:6px;
+
+border-radius:8px;
+
+overflow-x:auto;
+
+justify-content:flex-start;
+
 }
 
 .nav a{
-font-size:10px;
-padding:0 10px;
+
 height:30px;
+
+font-size:10px;
+
+padding:0 10px;
+
+flex-shrink:0;
+
+white-space:nowrap;
+
+}
+
+/* PAGE */
+
+.container{
+padding-left:10px;
+padding-right:10px;
+}
+
+/* FILTERS */
+
+.filters,
+.top-filters{
+
+display:grid !important;
+
+grid-template-columns:1fr 1fr;
+
+gap:10px;
+
+}
+
+/* BUTTONS */
+
+button{
+min-height:42px;
+}
+
+/* STATS */
+
+.stats-grid{
+
+display:grid;
+
+grid-template-columns:1fr 1fr;
+
+gap:12px;
+
+}
+
+/* CARDS */
+
+.stat-card,
+.card{
+
+padding:18px;
+
+border-radius:18px;
+
+min-height:auto;
+
+}
+
+.stat-title{
+font-size:13px;
+}
+
+.stat-value{
+font-size:20px;
+}
+
+/* TABLE */
+
+table{
+min-width:850px;
+}
+
+}
+
+/* ================= TABLET ================= */
+
+@media(min-width:769px) and (max-width:1100px){
+
+body{
+padding-top:155px;
+}
+
+.logo{
+height:22px;
+width:62px;
+}
+
+.logged-company{
+font-size:16px;
+}
+
+.greeting{
+font-size:10px;
+}
+
+.clock{
+font-size:9px;
+}
+
+.nav{
+gap:8px;
+padding:7px 10px;
+}
+
+.nav a{
+font-size:11px;
+padding:0 12px;
+height:32px;
+}
+
+.stats-grid{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+
+/* ================= PRINT ================= */
+
+@media print{
+
+body{
+
+padding-top:0 !important;
+
+background:#fff !important;
+
+zoom:85%;
+
+}
+
+html,
+body{
+overflow:visible !important;
+}
+
+/* HEADER */
+
+.header{
+
+position:relative !important;
+
+top:auto !important;
+
+left:auto !important;
+
+width:100% !important;
+
+padding:8px 0 !important;
+
+box-shadow:none !important;
+
+margin-bottom:12px !important;
+
+}
+
+/* INNER */
+
+.header-inner{
+padding:0 10px !important;
+}
+
+/* TOP */
+
+.top-section{
+min-height:28px !important;
+}
+
+/* LOGO */
+
+.logo{
+
+position:static !important;
+
+transform:none !important;
+
+height:16px !important;
+
+width:48px !important;
+
+margin-right:6px !important;
+
+}
+
+/* TEXT */
+
+.logged-company{
+font-size:13px !important;
+}
+
+.greeting{
+font-size:9px !important;
+}
+
+.clock{
+font-size:7px !important;
+}
+
+/* NAV */
+
+.nav{
+
+width:100% !important;
+
+max-width:100% !important;
+
+justify-content:center !important;
+
+overflow:visible !important;
+
+padding:5px !important;
+
+gap:5px !important;
+
+border-radius:8px !important;
+
+}
+
+/* NAV LINKS */
+
+.nav a{
+
+font-size:8px !important;
+
+height:24px !important;
+
+padding:0 7px !important;
+
+}
+
+/* TABLE */
+
+table{
+font-size:9px !important;
+}
+
+/* AVOID CUT */
+
+.card,
+.table-wrap,
+.stats-grid{
+break-inside:avoid;
+page-break-inside:avoid;
 }
 
 }
