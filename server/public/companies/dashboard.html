@@ -1154,14 +1154,14 @@ function statusClass(status){
 
 function render(){
 
-  const company =
-    localStorage.getItem("name")
-    || "sunny";
+  const facilityName =
+    allTrips.find(t=>t.company)
+    ?.company || "Facility";
 
   document.getElementById(
     "companyName"
   ).innerText =
-    company;
+    facilityName;
 
   const now =
     new Date(
@@ -1172,6 +1172,7 @@ function render(){
         }
       )
     );
+
   const today =
     now.toISOString().split("T")[0];
 
