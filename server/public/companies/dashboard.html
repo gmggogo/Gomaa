@@ -1056,7 +1056,20 @@ async function load(){
   try{
 
     const company =
-      localStorage.getItem("name") || "";
+
+      localStorage.getItem("companyName")
+
+      ||
+
+      localStorage.getItem("userName")
+
+      ||
+
+      localStorage.getItem("name")
+
+      ||
+
+      "";
 
     const res =
       await fetch(
