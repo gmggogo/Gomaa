@@ -3,7 +3,7 @@ margin:0;
 font-family:'Segoe UI', Arial, sans-serif;
 background:#f4f8fb;
 overflow-x:hidden;
-padding-top:150px;
+padding-top:145px;
 }
 
 /* ================= HEADER ================= */
@@ -20,7 +20,7 @@ background:linear-gradient(90deg,#0f172a,#1e3a8a);
 
 color:#fff;
 
-padding:12px 0;
+padding:10px 0;
 
 z-index:9999;
 
@@ -54,7 +54,7 @@ align-items:center;
 
 justify-content:center;
 
-min-height:42px;
+min-height:38px;
 
 }
 
@@ -66,7 +66,7 @@ display:flex;
 
 align-items:center;
 
-gap:10px;
+justify-content:center;
 
 }
 
@@ -96,11 +96,11 @@ top:50%;
 
 transform:translateY(-50%);
 
-height:34px;
+height:24px;
 
-width:auto;
+width:70px;
 
-object-fit:contain;
+object-fit:fill;
 
 }
 
@@ -108,7 +108,7 @@ object-fit:contain;
 
 .logged-company{
 
-font-size:20px;
+font-size:18px;
 
 font-weight:800;
 
@@ -122,7 +122,7 @@ line-height:1.1;
 
 .greeting{
 
-font-size:14px;
+font-size:12px;
 
 line-height:1.1;
 
@@ -148,7 +148,7 @@ text-align:right;
 
 .clock{
 
-font-size:12px;
+font-size:11px;
 
 opacity:.85;
 
@@ -162,6 +162,8 @@ line-height:1.2;
 
 display:flex;
 
+justify-content:center;
+
 align-items:center;
 
 gap:12px;
@@ -172,9 +174,11 @@ padding:8px 12px;
 
 border-radius:12px;
 
-margin:12px auto 0;
+margin:10px auto 0;
 
-width:94%;
+width:fit-content;
+
+max-width:94%;
 
 overflow-x:auto;
 overflow-y:hidden;
@@ -198,7 +202,7 @@ display:flex;
 align-items:center;
 justify-content:center;
 
-height:38px;
+height:36px;
 
 padding:0 16px;
 
@@ -206,7 +210,7 @@ border-radius:8px;
 
 text-decoration:none;
 
-font-size:14px;
+font-size:13px;
 font-weight:700;
 
 color:#fff;
@@ -228,44 +232,70 @@ background:#facc15;
 color:#000;
 }
 
+/* ================= TABLES / PAGE FIX ================= */
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+img{
+max-width:100%;
+}
+
 /* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
 body{
-padding-top:160px;
+padding-top:150px;
 }
 
 .header{
-padding:10px 0;
+padding:8px 0;
 }
 
 .header-inner{
-padding:0 10px;
+padding:0 8px;
 }
+
+/* LOGO */
 
 .logo{
-height:26px;
+
+height:20px;
+
+width:58px;
+
 left:2px;
+
 }
 
-.time-block{
-right:2px;
-}
+/* CENTER TEXT */
 
 .logged-company{
 font-size:15px;
 }
 
 .greeting{
-font-size:11px;
+font-size:10px;
 }
+
+/* TIME */
 
 .clock{
-font-size:9px;
+font-size:8px;
 }
 
+.time-block{
+right:2px;
+}
+
+/* NAV */
+
 .nav{
+
+justify-content:flex-start;
 
 gap:8px;
 
@@ -273,38 +303,50 @@ padding:8px;
 
 width:100%;
 
+max-width:100%;
+
 border-radius:10px;
 
 margin-top:10px;
 
 overflow-x:auto;
 
+overflow-y:hidden;
+
 }
 
 .nav a{
 
-height:34px;
+height:32px;
 
-font-size:12px;
+font-size:11px;
 
 padding:0 12px;
 
 border-radius:7px;
 
-}
+flex-shrink:0;
+
+white-space:nowrap;
 
 }
 
-/* ================= SMALL MOBILE ================= */
+}
+
+/* ================= VERY SMALL MOBILE ================= */
 
 @media(max-width:480px){
 
 body{
-padding-top:165px;
+padding-top:145px;
 }
 
 .logo{
-height:24px;
+
+height:18px;
+
+width:52px;
+
 }
 
 .logged-company{
@@ -312,21 +354,22 @@ font-size:14px;
 }
 
 .greeting{
-font-size:10px;
+font-size:9px;
 }
 
 .clock{
-font-size:8px;
+font-size:7px;
 }
 
 .nav{
 gap:6px;
+padding:7px;
 }
 
 .nav a{
-font-size:11px;
+font-size:10px;
 padding:0 10px;
-height:32px;
+height:30px;
 }
 
 }
