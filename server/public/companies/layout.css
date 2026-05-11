@@ -35,6 +35,7 @@ box-shadow:0 4px 10px rgba(0,0,0,.2);
 .logo{
 height:40px;
 margin-bottom:3px;
+object-fit:contain;
 }
 
 /* ================= COMPANY ================= */
@@ -43,6 +44,7 @@ margin-bottom:3px;
 font-size:20px;
 font-weight:700;
 color:#facc15;
+line-height:1.2;
 }
 
 /* ================= GREETING ================= */
@@ -50,11 +52,13 @@ color:#facc15;
 .greeting{
 font-size:14px;
 margin-top:2px;
+line-height:1.2;
 }
 
 .clock{
 font-size:12px;
 opacity:.85;
+margin-top:2px;
 }
 
 /* ================= NAVBAR ================= */
@@ -66,8 +70,6 @@ display:flex;
 justify-content:center;
 align-items:center;
 
-flex-wrap:nowrap;
-
 gap:12px;
 
 background:#000;
@@ -78,13 +80,15 @@ border-radius:12px;
 
 margin:10px auto 0;
 
-width:fit-content;
+width:max-content;
 max-width:95%;
 
 overflow-x:auto;
 overflow-y:hidden;
 
 scrollbar-width:none;
+
+-webkit-overflow-scrolling:touch;
 
 }
 
@@ -97,10 +101,11 @@ display:none;
 .nav a{
 
 display:flex;
+
 align-items:center;
 justify-content:center;
 
-height:36px;
+height:38px;
 
 color:#fff;
 
@@ -109,7 +114,7 @@ text-decoration:none;
 font-size:14px;
 font-weight:700;
 
-padding:0 14px;
+padding:0 16px;
 
 border-radius:8px;
 
@@ -136,11 +141,15 @@ font-weight:800;
 @media(max-width:768px){
 
 body{
-padding-top:170px;
+padding-top:185px;
+}
+
+.header{
+padding:10px 10px 12px;
 }
 
 .logo{
-height:34px;
+height:32px;
 }
 
 .logged-company{
@@ -161,12 +170,19 @@ justify-content:flex-start;
 
 gap:8px;
 
-padding:8px;
+padding:8px 10px;
 
 width:100%;
+
 max-width:100%;
 
 border-radius:10px;
+
+margin-top:10px;
+
+overflow-x:auto;
+
+overflow-y:hidden;
 
 }
 
@@ -176,8 +192,47 @@ height:34px;
 
 font-size:12px;
 
-padding:0 10px;
+padding:0 12px;
 
+border-radius:7px;
+
+white-space:nowrap;
+
+flex-shrink:0;
+
+}
+
+}
+
+/* ================= SMALL MOBILE ================= */
+
+@media(max-width:480px){
+
+body{
+padding-top:190px;
+}
+
+.nav{
+gap:6px;
+padding:8px;
+}
+
+.nav a{
+font-size:11px;
+padding:0 10px;
+height:32px;
+}
+
+.logged-company{
+font-size:16px;
+}
+
+.greeting{
+font-size:12px;
+}
+
+.clock{
+font-size:10px;
 }
 
 }
