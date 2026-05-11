@@ -3,7 +3,8 @@
 <head>
 
 <meta charset="UTF-8">
-<title>Sunbeam Transportation - Taxes & Earnings</title>
+
+<title>Facility Revenue Report</title>
 
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0">
@@ -21,7 +22,7 @@ content="width=device-width, initial-scale=1.0">
 :root{
 
   --blue:#145cff;
-  --blue-dark:#0f46c9;
+  --blueDark:#0f46c9;
 
   --green:#16a34a;
   --red:#dc2626;
@@ -67,7 +68,7 @@ body{
 
 }
 
-/* ================= TOP BAR ================= */
+/* ================= TOP ================= */
 
 .top-bar{
 
@@ -81,11 +82,11 @@ body{
 
   flex-wrap:wrap;
 
-  margin-bottom:20px;
+  margin-bottom:22px;
 
 }
 
-.page-title-wrap{
+.title-wrap{
   display:flex;
   flex-direction:column;
   gap:4px;
@@ -93,7 +94,7 @@ body{
 
 .page-title{
 
-  font-size:32px;
+  font-size:34px;
 
   font-weight:900;
 
@@ -173,7 +174,7 @@ body{
 }
 
 .btn-blue:hover{
-  background:var(--blue-dark);
+  background:var(--blueDark);
 }
 
 .btn-green{
@@ -183,6 +184,46 @@ body{
 
 .btn-green:hover{
   opacity:.92;
+}
+
+/* ================= FACILITY ================= */
+
+.facility-box{
+
+  background:#fff;
+
+  border-radius:18px;
+
+  padding:20px;
+
+  margin-bottom:20px;
+
+  border:1px solid #eef2f7;
+
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+
+}
+
+.facility-name{
+
+  font-size:26px;
+
+  font-weight:900;
+
+  color:#111827;
+
+}
+
+.facility-sub{
+
+  margin-top:6px;
+
+  color:var(--muted);
+
+  font-size:13px;
+
+  font-weight:700;
+
 }
 
 /* ================= CARDS ================= */
@@ -208,16 +249,10 @@ body{
 
   padding:20px;
 
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
-
   border:1px solid #eef2f7;
 
-  transition:.2s;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
 
-}
-
-.card:hover{
-  transform:translateY(-2px);
 }
 
 .card-title{
@@ -270,9 +305,9 @@ body{
 
   margin-bottom:24px;
 
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
-
   border:1px solid #eef2f7;
+
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
 
 }
 
@@ -302,22 +337,13 @@ body{
 
 }
 
-.table-wrap::-webkit-scrollbar{
-  height:8px;
-}
-
-.table-wrap::-webkit-scrollbar-thumb{
-  background:#cbd5e1;
-  border-radius:999px;
-}
-
 table{
 
   width:100%;
 
   border-collapse:collapse;
 
-  min-width:900px;
+  min-width:850px;
 
 }
 
@@ -417,16 +443,12 @@ tr:hover td{
     padding:84px 8px 20px;
   }
 
-  .top-bar{
-    gap:10px;
-  }
-
   .page-title{
     font-size:26px;
   }
 
-  .page-sub{
-    font-size:12px;
+  .facility-name{
+    font-size:22px;
   }
 
   .filters{
@@ -455,7 +477,6 @@ tr:hover td{
 
   .card{
     padding:14px;
-    border-radius:14px;
   }
 
   .card-title{
@@ -468,7 +489,6 @@ tr:hover td{
 
   .section{
     padding:14px;
-    border-radius:16px;
   }
 
   .section-title{
@@ -510,13 +530,9 @@ tr:hover td{
     max-width:100% !important;
   }
 
-  .cards{
-    grid-template-columns:
-    repeat(3,1fr);
-  }
-
   .card,
-  .section{
+  .section,
+  .facility-box{
 
     box-shadow:none !important;
 
@@ -554,14 +570,14 @@ tr:hover td{
 
   <div class="top-bar">
 
-    <div class="page-title-wrap">
+    <div class="title-wrap">
 
       <div class="page-title">
-        Taxes & Earnings
+        Facility Revenue Report
       </div>
 
       <div class="page-sub">
-        Sunbeam Transportation Financial Dashboard
+        Transportation Billing Summary
       </div>
 
     </div>
@@ -596,6 +612,27 @@ tr:hover td{
 
   </div>
 
+  <!-- FACILITY -->
+
+  <div class="facility-box">
+
+    <div
+      class="facility-name"
+      id="facilityName">
+
+      Facility Name
+
+    </div>
+
+    <div class="facility-sub">
+
+      Generated transportation billing
+      and trip revenue summary.
+
+    </div>
+
+  </div>
+
   <!-- STATS -->
 
   <div class="cards">
@@ -604,7 +641,8 @@ tr:hover td{
       <div class="card-title">
         Total Revenue
       </div>
-      <div class="card-value green"
+      <div
+        class="card-value green"
         id="totalRevenue">
         $0
       </div>
@@ -614,7 +652,8 @@ tr:hover td{
       <div class="card-title">
         Total Trips
       </div>
-      <div class="card-value blue"
+      <div
+        class="card-value blue"
         id="totalTrips">
         0
       </div>
@@ -624,7 +663,8 @@ tr:hover td{
       <div class="card-title">
         Individual Trips
       </div>
-      <div class="card-value blue"
+      <div
+        class="card-value blue"
         id="individualTrips">
         0
       </div>
@@ -634,7 +674,8 @@ tr:hover td{
       <div class="card-title">
         Shared Trips
       </div>
-      <div class="card-value orange"
+      <div
+        class="card-value orange"
         id="sharedTrips">
         0
       </div>
@@ -644,7 +685,8 @@ tr:hover td{
       <div class="card-title">
         Shared Passengers
       </div>
-      <div class="card-value orange"
+      <div
+        class="card-value orange"
         id="sharedPassengers">
         0
       </div>
@@ -654,7 +696,8 @@ tr:hover td{
       <div class="card-title">
         Completed Trips
       </div>
-      <div class="card-value green"
+      <div
+        class="card-value green"
         id="completedTrips">
         0
       </div>
@@ -664,7 +707,8 @@ tr:hover td{
       <div class="card-title">
         Cancelled Trips
       </div>
-      <div class="card-value red"
+      <div
+        class="card-value red"
         id="cancelledTrips">
         0
       </div>
@@ -674,7 +718,8 @@ tr:hover td{
       <div class="card-title">
         No Show Trips
       </div>
-      <div class="card-value red"
+      <div
+        class="card-value red"
         id="noShowTrips">
         0
       </div>
@@ -684,7 +729,8 @@ tr:hover td{
       <div class="card-title">
         Total Miles
       </div>
-      <div class="card-value blue"
+      <div
+        class="card-value blue"
         id="totalMiles">
         0.0 mi
       </div>
@@ -692,47 +738,12 @@ tr:hover td{
 
   </div>
 
-  <!-- DRIVER TABLE -->
+  <!-- TABLE -->
 
   <div class="section">
 
     <div class="section-title">
-      Driver Earnings
-    </div>
-
-    <div class="table-wrap">
-
-      <table id="driverTable">
-
-        <thead>
-
-          <tr>
-            <th>#</th>
-            <th>Driver</th>
-            <th>Total Trips</th>
-            <th>Completed</th>
-            <th>No Show</th>
-            <th>Cancelled</th>
-            <th>Miles</th>
-            <th>Total Revenue</th>
-          </tr>
-
-        </thead>
-
-        <tbody></tbody>
-
-      </table>
-
-    </div>
-
-  </div>
-
-  <!-- TRIPS TABLE -->
-
-  <div class="section">
-
-    <div class="section-title">
-      Trips Report
+      Trips Billing Report
     </div>
 
     <div class="table-wrap">
@@ -745,7 +756,6 @@ tr:hover td{
             <th>#</th>
             <th>Trip#</th>
             <th>Type</th>
-            <th>Company</th>
             <th>Status</th>
             <th>Miles</th>
             <th>Revenue</th>
@@ -924,8 +934,6 @@ function render(trips){
   const noShowGroups =
     new Set();
 
-  const driverMap = {};
-
   const tripBody =
     document.querySelector(
       "#tripTable tbody"
@@ -934,6 +942,15 @@ function render(trips){
   tripBody.innerHTML = "";
 
   let rowIndex = 1;
+
+  const facilityName =
+    trips.find(t=>t.company)
+    ?.company || "Facility";
+
+  document.getElementById(
+    "facilityName"
+  ).innerText =
+    facilityName;
 
   trips.forEach(t=>{
 
@@ -1110,49 +1127,6 @@ function render(trips){
 
     }
 
-    const driver =
-      t.driverName ||
-      "Unassigned";
-
-    if(!driverMap[driver]){
-
-      driverMap[driver] = {
-
-        trips:0,
-        completed:0,
-        cancelled:0,
-        noShow:0,
-        miles:0,
-        revenue:0
-
-      };
-
-    }
-
-    driverMap[driver].trips++;
-
-    if(isCompleted){
-
-      driverMap[driver].miles +=
-        Number(t.miles || 0);
-
-    }
-
-    driverMap[driver].revenue +=
-      revenue * passengersCount;
-
-    if(isCompleted){
-      driverMap[driver].completed++;
-    }
-
-    if(isCancelled){
-      driverMap[driver].cancelled++;
-    }
-
-    if(isNoShow){
-      driverMap[driver].noShow++;
-    }
-
     let statusClass =
       "status-cancelled";
 
@@ -1185,10 +1159,6 @@ function render(trips){
         </td>
 
         <td>
-          ${escapeHtml(t.company)}
-        </td>
-
-        <td>
 
           <span class="
             status-pill
@@ -1216,9 +1186,7 @@ function render(trips){
           )}
         </td>
 
-        <td style="
-          min-width:130px;
-        ">
+        <td>
           ${t.tripDate || ""}
         </td>
 
@@ -1273,53 +1241,6 @@ function render(trips){
   ).innerText =
     totalMiles.toFixed(1) +
     " mi";
-
-  const driverBody =
-    document.querySelector(
-      "#driverTable tbody"
-    );
-
-  driverBody.innerHTML = "";
-
-  let i = 1;
-
-  Object.keys(driverMap)
-    .forEach(driver=>{
-
-      const d =
-        driverMap[driver];
-
-      driverBody.innerHTML += `
-
-        <tr>
-
-          <td>${i++}</td>
-
-          <td>
-            ${escapeHtml(driver)}
-          </td>
-
-          <td>${d.trips}</td>
-
-          <td>${d.completed}</td>
-
-          <td>${d.noShow}</td>
-
-          <td>${d.cancelled}</td>
-
-          <td>
-            ${d.miles.toFixed(1)}
-          </td>
-
-          <td class="money">
-            ${money(d.revenue)}
-          </td>
-
-        </tr>
-
-      `;
-
-    });
 
 }
 
