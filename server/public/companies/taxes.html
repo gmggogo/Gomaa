@@ -14,13 +14,12 @@ body{
   font-family:'Segoe UI',Arial,sans-serif;
   background:#f1f5f9;
   color:#0f172a;
-  overflow-x:hidden;
 }
 
 .container{
   max-width:1700px;
   margin:auto;
-  padding:40px 20px 80px;
+  padding:90px 20px 80px;
 }
 
 .top-bar{
@@ -147,7 +146,6 @@ th{
   padding:12px;
   font-size:13px;
   text-align:center;
-  white-space:nowrap;
 }
 
 td{
@@ -155,7 +153,6 @@ td{
   padding:12px;
   text-align:center;
   font-size:13px;
-  white-space:nowrap;
 }
 
 tr:nth-child(even){
@@ -182,22 +179,15 @@ tr:nth-child(even){
   color:#15803d;
 }
 
-/* ================= MOBILE ================= */
-
 @media(max-width:768px){
 
-  body{
-    overflow-x:hidden;
-  }
-
   .container{
-    padding:85px 8px 25px;
+    padding:85px 10px 80px;
   }
 
   .top-bar{
     flex-direction:column;
     align-items:stretch;
-    gap:12px;
   }
 
   .page-title{
@@ -215,13 +205,11 @@ tr:nth-child(even){
   .filter-input{
     width:100%;
     font-size:13px;
-    padding:10px;
   }
 
   .btn{
     width:100%;
     font-size:13px;
-    padding:12px;
   }
 
   .cards{
@@ -231,7 +219,6 @@ tr:nth-child(even){
 
   .card{
     padding:16px;
-    border-radius:16px;
   }
 
   .card-title{
@@ -243,13 +230,11 @@ tr:nth-child(even){
   }
 
   .section{
-    padding:14px;
-    border-radius:16px;
+    padding:16px;
   }
 
   .section-title{
-    font-size:17px;
-    margin-bottom:14px;
+    font-size:18px;
   }
 
   table{
@@ -258,12 +243,12 @@ tr:nth-child(even){
 
   th{
     font-size:11px;
-    padding:10px 8px;
+    padding:10px;
   }
 
   td{
     font-size:11px;
-    padding:10px 8px;
+    padding:10px;
   }
 
 }
@@ -409,77 +394,14 @@ tr:nth-child(even){
       </div>
     </div>
 
-  </div>
-
-  <!-- DRIVER TABLE -->
-
-  <div class="section">
-
-    <div class="section-title">
-      Driver Earnings
-    </div>
-
-    <div class="table-wrap">
-
-      <table id="driverTable">
-
-        <thead>
-
-          <tr>
-            <th>#</th>
-            <th>Driver</th>
-            <th>Total Trips</th>
-            <th>Completed</th>
-            <th>No Show</th>
-            <th>Cancelled</th>
-            <th>Miles</th>
-            <th>Total Revenue</th>
-          </tr>
-
-        </thead>
-
-        <tbody></tbody>
-
-      </table>
-
-    </div>
-
-  </div>
-
-  <!-- TRIPS TABLE -->
-
-  <div class="section">
-
-    <div class="section-title">
-      Trips Report
-    </div>
-
-    <div class="table-wrap">
-
-      <table id="tripTable">
-
-        <thead>
-
-          <tr>
-            <th>#</th>
-            <th>Trip#</th>
-            <th>Type</th>
-            <th>Company</th>
-            <th>Client</th>
-            <th>Pickup</th>
-            <th>Dropoff</th>
-            <th>Status</th>
-            <th>Miles</th>
-            <th>Revenue</th>
-            <th>Date</th>
-          </tr>
-
-        </thead>
-
-        <tbody></tbody>
-
-      </table>
-
+    <div class="card">
+      <div class="card-title">
+        Average Revenue
+      </div>
+      <div class="card-value green"
+        id="avgRevenue">
+        $0
+      </div>
     </div>
 
   </div>
@@ -487,8 +409,6 @@ tr:nth-child(even){
 </div>
 
 <script src="layout.js"></script>
-
-<script src="taxes.js"></script>
 
 </body>
 </html>
