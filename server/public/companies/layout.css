@@ -3,7 +3,7 @@ margin:0;
 font-family:'Segoe UI', Arial, sans-serif;
 background:#f4f8fb;
 overflow-x:hidden;
-padding-top:155px;
+padding-top:150px;
 }
 
 /* ================= HEADER ================= */
@@ -28,7 +28,7 @@ box-shadow:0 4px 10px rgba(0,0,0,.2);
 
 }
 
-/* ================= HEADER INNER ================= */
+/* ================= INNER ================= */
 
 .header-inner{
 
@@ -47,39 +47,61 @@ box-sizing:border-box;
 
 .top-section{
 
-position:relative;
-
 display:flex;
 
 align-items:center;
 
 justify-content:space-between;
 
-min-height:70px;
+gap:12px;
+
+min-height:72px;
 
 }
 
-/* ================= LEFT ================= */
+/* ================= COMPANY ================= */
 
 .company-block{
 
 display:flex;
 
+align-items:center;
+
+gap:12px;
+
+min-width:0;
+
+}
+
+/* ================= LOGO ================= */
+
+.logo{
+
+width:150px;
+
+height:52px;
+
+object-fit:contain;
+
+filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));
+
+}
+
+/* ================= COMPANY TEXT ================= */
+
+.company-text{
+
+display:flex;
+
 flex-direction:column;
 
-align-items:flex-start;
-
 justify-content:center;
-
-min-width:100px;
-
-z-index:2;
 
 }
 
 .logged-company{
 
-font-size:18px;
+font-size:24px;
 
 font-weight:800;
 
@@ -91,41 +113,29 @@ line-height:1.1;
 
 .greeting{
 
-font-size:12px;
+font-size:14px;
 
-line-height:1.1;
-
-margin-top:3px;
-
-color:#fff;
+margin-top:2px;
 
 }
 
-/* ================= CENTER LOGO ================= */
-
-.logo{
-
-position:absolute;
-
-left:50%;
-
-top:50%;
-
-transform:translate(-50%,-50%);
-
-height:58px;
-
-width:170px;
-
-object-fit:contain;
-
-filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));
-
-}
-
-/* ================= RIGHT ================= */
+/* ================= TIME ================= */
 
 .time-block{
+
+display:flex;
+
+align-items:center;
+
+justify-content:flex-end;
+
+text-align:right;
+
+min-width:150px;
+
+}
+
+.clock{
 
 display:flex;
 
@@ -133,35 +143,9 @@ flex-direction:column;
 
 align-items:flex-end;
 
-justify-content:center;
+line-height:1.35;
 
-text-align:right;
-
-max-width:180px;
-
-z-index:2;
-
-}
-
-/* الساعة فوق التاريخ */
-
-.clock{
-
-font-size:11px;
-
-opacity:.95;
-
-line-height:1.3;
-
-display:flex;
-
-flex-direction:column-reverse;
-
-align-items:flex-end;
-
-white-space:normal;
-
-text-align:right;
+font-size:12px;
 
 }
 
@@ -175,31 +159,22 @@ justify-content:center;
 
 align-items:center;
 
+flex-wrap:wrap;
+
 gap:10px;
 
 background:#000;
 
-padding:8px 10px;
+padding:10px;
 
-border-radius:12px;
+border-radius:14px;
 
 margin:10px auto 0;
 
 width:fit-content;
 
-max-width:96%;
+max-width:100%;
 
-overflow-x:auto;
-overflow-y:hidden;
-
-scrollbar-width:none;
-
--webkit-overflow-scrolling:touch;
-
-}
-
-.nav::-webkit-scrollbar{
-display:none;
 }
 
 /* ================= NAV LINKS ================= */
@@ -209,26 +184,26 @@ display:none;
 display:flex;
 
 align-items:center;
+
 justify-content:center;
 
-height:34px;
+height:38px;
 
-padding:0 14px;
+padding:0 16px;
 
-border-radius:8px;
+border-radius:10px;
 
 text-decoration:none;
 
-font-size:13px;
+font-size:14px;
+
 font-weight:700;
 
 color:#fff;
 
-white-space:nowrap;
-
 transition:.2s;
 
-flex-shrink:0;
+white-space:nowrap;
 
 }
 
@@ -244,55 +219,16 @@ color:#000;
 /* ================= PAGE ================= */
 
 .container{
+
 width:100%;
 max-width:1700px;
+
 margin:auto;
+
 padding-left:16px;
 padding-right:16px;
+
 box-sizing:border-box;
-}
-
-img{
-max-width:100%;
-}
-
-/* ================= TABLE ================= */
-
-.table-wrap{
-width:100%;
-overflow-x:auto;
--webkit-overflow-scrolling:touch;
-border-radius:12px;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-min-width:900px;
-}
-
-/* ================= CARDS ================= */
-
-.stats-grid{
-
-display:grid;
-
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-
-gap:16px;
-
-}
-
-.stat-card,
-.card{
-
-background:#fff;
-
-border-radius:18px;
-
-padding:20px;
-
-box-shadow:0 4px 12px rgba(0,0,0,.06);
 
 }
 
@@ -301,91 +237,100 @@ box-shadow:0 4px 12px rgba(0,0,0,.06);
 @media(max-width:768px){
 
 body{
-padding-top:195px;
-overflow-x:hidden;
+padding-top:220px;
 }
 
-/* ================= TOP ================= */
+/* TOP */
 
 .top-section{
 
-min-height:72px;
+flex-direction:column;
 
-align-items:flex-start;
+align-items:center;
 
-padding-top:4px;
+justify-content:center;
+
+text-align:center;
+
+gap:8px;
+
+min-height:auto;
 
 }
 
-/* ================= LEFT ================= */
+/* COMPANY */
 
 .company-block{
 
-min-width:72px;
+flex-direction:column;
 
+align-items:center;
+
+justify-content:center;
+
+text-align:center;
+
+gap:6px;
+
+}
+
+/* LOGO */
+
+.logo{
+
+width:170px;
+
+height:60px;
+
+}
+
+/* COMPANY TEXT */
+
+.company-text{
+align-items:center;
 }
 
 .logged-company{
 
-font-size:14px;
+font-size:22px;
 
 }
 
 .greeting{
 
-font-size:9px;
-
-margin-top:2px;
+font-size:13px;
 
 }
 
-/* ================= LOGO ================= */
-
-.logo{
-
-height:52px;
-
-width:150px;
-
-top:48%;
-
-}
-
-/* ================= RIGHT ================= */
+/* TIME */
 
 .time-block{
 
-max-width:105px;
+justify-content:center;
 
-align-items:flex-end;
+text-align:center;
+
+min-width:auto;
 
 }
-
-/* الساعة فوق التاريخ */
 
 .clock{
 
-font-size:8px;
+align-items:center;
 
-line-height:1.35;
+font-size:11px;
 
-display:flex;
-
-flex-direction:column-reverse;
-
-align-items:flex-end;
-
-text-align:right;
+line-height:1.4;
 
 }
 
-/* ================= NAV ================= */
+/* NAV */
 
 .nav{
 
-display:grid;
+display:flex;
 
-grid-template-columns:repeat(4,minmax(65px,1fr));
+flex-wrap:wrap;
 
 justify-content:center;
 
@@ -395,73 +340,31 @@ gap:8px;
 
 padding:10px;
 
-border-radius:12px;
-
-margin:10px auto 0;
-
 width:100%;
 
-max-width:100%;
-
-background:#000;
-
-overflow:visible;
+border-radius:14px;
 
 }
 
-/* ================= NAV LINKS ================= */
+/* NAV LINKS */
 
 .nav a{
 
-height:34px;
+height:36px;
 
-font-size:10px;
+padding:0 14px;
 
-padding:0 6px;
+font-size:12px;
 
 border-radius:8px;
 
-width:100%;
-
-display:flex;
-
-align-items:center;
-
-justify-content:center;
-
-text-align:center;
-
 }
 
-/* ================= PAGE ================= */
+/* PAGE */
 
 .container{
 padding-left:10px;
 padding-right:10px;
-}
-
-/* ================= GRID ================= */
-
-.stats-grid{
-grid-template-columns:1fr;
-gap:14px;
-}
-
-/* ================= CARDS ================= */
-
-.stat-card,
-.card{
-
-padding:18px;
-
-border-radius:18px;
-
-}
-
-/* ================= TABLE ================= */
-
-table{
-min-width:850px;
 }
 
 }
@@ -471,38 +374,32 @@ min-width:850px;
 @media(min-width:769px) and (max-width:1100px){
 
 body{
-padding-top:170px;
+padding-top:165px;
 }
 
 .logo{
-height:54px;
-width:160px;
+
+width:135px;
+
+height:48px;
+
 }
 
 .logged-company{
-font-size:16px;
+font-size:20px;
 }
 
 .greeting{
-font-size:10px;
+font-size:12px;
 }
 
 .clock{
-font-size:9px;
-}
-
-.nav{
-gap:8px;
+font-size:10px;
 }
 
 .nav a{
-font-size:11px;
-padding:0 12px;
-height:32px;
-}
-
-.stats-grid{
-grid-template-columns:repeat(2,1fr);
+font-size:13px;
+padding:0 14px;
 }
 
 }
@@ -514,113 +411,38 @@ grid-template-columns:repeat(2,1fr);
 body{
 padding-top:0 !important;
 background:#fff !important;
-zoom:85%;
 }
-
-html,
-body{
-overflow:visible !important;
-}
-
-/* HEADER */
 
 .header{
 
 position:relative !important;
 
-width:100% !important;
-
-padding:8px 0 !important;
-
 box-shadow:none !important;
 
-margin-bottom:12px !important;
-
 }
 
-/* TOP */
-
-.top-section{
-min-height:40px !important;
+.nav{
+display:none !important;
 }
-
-/* LOGO */
 
 .logo{
 
-position:static !important;
+width:90px !important;
 
-transform:none !important;
-
-height:24px !important;
-
-width:80px !important;
-
-margin:auto !important;
-
-display:block !important;
+height:30px !important;
 
 }
 
-/* TEXT */
-
 .logged-company{
-font-size:13px !important;
+font-size:14px !important;
 }
 
 .greeting{
-font-size:9px !important;
+font-size:10px !important;
 }
 
 .clock{
-font-size:7px !important;
-}
-
-/* NAV */
-
-.nav{
-
-width:100% !important;
-
-max-width:100% !important;
-
-justify-content:center !important;
-
-overflow:visible !important;
-
-padding:5px !important;
-
-gap:5px !important;
-
-display:flex !important;
-
-}
-
-/* NAV LINKS */
-
-.nav a{
-
 font-size:8px !important;
-
-height:24px !important;
-
-padding:0 7px !important;
-
-}
-
-/* TABLE */
-
-table{
-font-size:9px !important;
-}
-
-/* AVOID CUT */
-
-.card,
-.table-wrap,
-.stats-grid{
-break-inside:avoid;
-page-break-inside:avoid;
 }
 
 }

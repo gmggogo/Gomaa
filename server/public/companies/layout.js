@@ -18,18 +18,20 @@ container.innerHTML = `
 
       <div class="company-block">
 
-        <div class="logged-company" id="companyName">
-          Loading...
-        </div>
+        <img src="../assets/logo.png" class="logo">
 
-        <div class="greeting" id="greetingText">
+        <div class="company-text">
+
+          <div class="logged-company" id="companyName">
+            Loading...
+          </div>
+
+          <div class="greeting" id="greetingText">
+          </div>
+
         </div>
 
       </div>
-
-      <!-- CENTER LOGO -->
-
-      <img src="../assets/logo.png" class="logo">
 
       <!-- RIGHT -->
 
@@ -123,8 +125,7 @@ try{
 
 /* ================= LOGOUT ================= */
 
-document
-.getElementById("logoutBtn")
+document.getElementById("logoutBtn")
 .addEventListener("click",e=>{
 
   e.preventDefault();
@@ -143,18 +144,10 @@ function updateTime(){
 
   const now = new Date();
 
-  const formatted =
-  now.toLocaleString("en-US",{
+  const time =
+  now.toLocaleTimeString("en-US",{
 
     timeZone:"America/Phoenix",
-
-    weekday:"short",
-
-    month:"short",
-
-    day:"numeric",
-
-    year:"numeric",
 
     hour:"numeric",
 
@@ -166,8 +159,25 @@ function updateTime(){
 
   });
 
-  document.getElementById("azDateTime")
-  .innerText = formatted;
+  const date =
+  now.toLocaleDateString("en-US",{
+
+    timeZone:"America/Phoenix",
+
+    weekday:"short",
+
+    month:"short",
+
+    day:"numeric",
+
+    year:"numeric"
+
+  });
+
+  document.getElementById("azDateTime").innerHTML = `
+    <div>${time}</div>
+    <div>${date}</div>
+  `;
 
   const phoenixHour = Number(
     new Intl.DateTimeFormat("en-US",{
