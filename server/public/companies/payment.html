@@ -1,40 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
+
 <title>Sunbeam Transportation – Payment</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
 <style>
+
+/* ================= GLOBAL ================= */
+
+*{
+  box-sizing:border-box;
+}
 
 body{
   margin:0;
   background:#f4f7fb;
   font-family:'Segoe UI',sans-serif;
   color:#0f172a;
+  overflow-x:hidden;
 }
+
+/* ================= HEADER ================= */
+
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+/* ================= PAGE ================= */
 
 .payment-wrapper{
-  max-width:1500px;
+
+  width:100%;
+
+  max-width:1700px;
+
   margin:auto;
-  padding:50px 25px;
+
+  padding:88px 14px 24px;
+
 }
+
+/* ================= TITLE ================= */
 
 .page-title{
-  font-size:26px;
+
+  font-size:28px;
+
   font-weight:900;
+
   margin-bottom:25px;
+
   color:#1e3a8a;
+
 }
 
+/* ================= ALERT ================= */
+
 .alert{
+
   padding:16px 20px;
+
   border-radius:14px;
+
   margin-bottom:25px;
+
   font-weight:800;
+
   display:none;
+
 }
 
 .alert.active{
@@ -56,33 +100,58 @@ body{
   color:#991b1b;
 }
 
+/* ================= CARDS ================= */
+
 .cards{
+
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(230px,1fr));
+
   gap:22px;
+
   margin-bottom:35px;
+
 }
 
 .card{
+
   background:#fff;
+
   border-radius:18px;
-  padding:25px;
-  box-shadow:0 10px 25px rgba(0,0,0,.07);
+
+  padding:24px;
+
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+
   border-left:6px solid #1e3a8a;
+
 }
 
 .card h3{
+
   margin:0;
+
   font-size:13px;
+
   color:#64748b;
+
   text-transform:uppercase;
+
 }
 
 .card p{
+
   margin:15px 0 0;
+
   font-size:26px;
+
   font-weight:900;
+
 }
+
+/* ================= STATUS COLORS ================= */
 
 .status-active{
   color:#16a34a;
@@ -96,62 +165,111 @@ body{
   color:#dc2626;
 }
 
+/* ================= BOX ================= */
+
 .payment-box{
+
   background:#fff;
+
   border-radius:18px;
+
   padding:28px;
-  box-shadow:0 10px 25px rgba(0,0,0,.07);
+
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+
   margin-bottom:35px;
+
 }
 
 .payment-box h2{
+
   margin-top:0;
+
   color:#0f172a;
+
 }
 
+/* ================= METHODS ================= */
+
 .methods{
+
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(260px,1fr));
+
   gap:18px;
+
   margin-top:20px;
+
 }
 
 .method{
+
   border:1px solid #dbe2ea;
+
   border-radius:14px;
+
   padding:18px;
+
   background:#f8fafc;
+
   transition:.25s;
+
 }
 
 .method:hover{
+
   transform:translateY(-4px);
+
   box-shadow:0 8px 20px rgba(0,0,0,.08);
+
 }
 
 .method h3{
+
   margin-top:0;
+
   color:#1e3a8a;
+
   font-size:18px;
+
 }
 
 .method p{
+
   line-height:1.6;
+
   font-size:14px;
+
   color:#475569;
+
 }
 
+/* ================= BUTTONS ================= */
+
 .pay-btn{
+
   border:none;
+
   background:#16a34a;
+
   color:#fff;
+
   border-radius:12px;
+
   padding:14px 22px;
+
   font-size:15px;
+
   font-weight:900;
+
   cursor:pointer;
+
   margin-top:15px;
+
   transition:.2s;
+
 }
 
 .pay-btn:hover{
@@ -171,40 +289,72 @@ body{
   background:#1d4ed8;
 }
 
+/* ================= TABLE ================= */
+
 .table-wrap{
+
+  width:100%;
+
   overflow-x:auto;
+
   background:#fff;
+
   border-radius:18px;
-  box-shadow:0 10px 25px rgba(0,0,0,.07);
+
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+
 }
 
 table{
+
   width:100%;
-  border-collapse:collapse;
+
   min-width:850px;
+
+  border-collapse:collapse;
+
 }
 
 th{
+
   background:#0f172a;
+
   color:#fff;
+
   padding:14px;
+
   text-align:left;
+
   font-size:13px;
+
 }
 
 td{
+
   padding:14px;
+
   border-bottom:1px solid #e5e7eb;
+
   font-size:13px;
+
   font-weight:700;
+
 }
 
+/* ================= BADGES ================= */
+
 .badge{
+
   display:inline-block;
+
   padding:5px 10px;
+
   border-radius:999px;
+
   font-size:12px;
+
   font-weight:900;
+
 }
 
 .badge-paid{
@@ -217,23 +367,97 @@ td{
   color:#991b1b;
 }
 
+/* ================= MOBILE ================= */
+
 @media(max-width:768px){
 
   .payment-wrapper{
-    padding:25px 12px;
+    padding:84px 6px 18px;
   }
 
   .page-title{
     font-size:22px;
   }
 
+  .cards{
+    grid-template-columns:1fr;
+    gap:16px;
+  }
+
+  .card{
+    padding:20px;
+    border-radius:16px;
+  }
+
   .card p{
     font-size:22px;
+  }
+
+  .payment-box{
+    padding:18px;
+    border-radius:16px;
+  }
+
+  .methods{
+    grid-template-columns:1fr;
+  }
+
+  .method{
+    padding:16px;
+  }
+
+  .method h3{
+    font-size:16px;
+  }
+
+  .method p{
+    font-size:13px;
+  }
+
+  .pay-btn{
+    width:100%;
+    font-size:14px;
+  }
+
+  th,
+  td{
+    font-size:12px;
+    padding:12px;
+  }
+
+}
+
+/* ================= LARGE SCREEN ================= */
+
+@media(min-width:1600px){
+
+  th,
+  td{
+    font-size:14px;
+  }
+
+}
+
+/* ================= PRINT ================= */
+
+@media print{
+
+  #layoutHeader{
+    display:none !important;
+  }
+
+  body{
+    background:#fff;
+  }
+
+  .payment-wrapper{
+    padding:0;
   }
 
 }
 
 </style>
+
 </head>
 
 <body>
@@ -248,7 +472,7 @@ td{
 
   <div id="billingAlert" class="alert"></div>
 
-  <!-- TOP CARDS -->
+  <!-- ================= TOP CARDS ================= -->
 
   <div class="cards">
 
@@ -274,7 +498,7 @@ td{
 
   </div>
 
-  <!-- CURRENT INVOICE -->
+  <!-- ================= CURRENT INVOICE ================= -->
 
   <div class="payment-box">
 
@@ -323,9 +547,11 @@ td{
 
       </div>
 
+    </div>
+
   </div>
 
-  <!-- PAYMENT HISTORY -->
+  <!-- ================= HISTORY ================= -->
 
   <div class="payment-box">
 
@@ -350,9 +576,13 @@ td{
         <tbody id="paymentHistoryBody">
 
           <tr>
+
             <td colspan="5">
+
               No payment history yet.
+
             </td>
+
           </tr>
 
         </tbody>

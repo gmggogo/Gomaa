@@ -1,408 +1,677 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>Sunbeam Transportation - Taxes & Earnings</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Sunbeam Transportation – Payment</title>
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
 <style>
 
+/* ================= GLOBAL ================= */
+
+*{
+  box-sizing:border-box;
+}
+
 body{
   margin:0;
-  font-family:'Segoe UI',Arial,sans-serif;
-  background:#f1f5f9;
+  background:#f4f7fb;
+  font-family:'Segoe UI',sans-serif;
   color:#0f172a;
+  overflow-x:hidden;
 }
 
-.container{
+/* ================= HEADER ================= */
+
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+/* ================= PAGE ================= */
+
+.payment-wrapper{
+
+  width:100%;
+
   max-width:1700px;
+
   margin:auto;
-  padding:40px 20px 80px;
+
+  padding:88px 14px 24px;
+
 }
 
-.top-bar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:15px;
-  flex-wrap:wrap;
-  margin-bottom:25px;
-}
+/* ================= TITLE ================= */
 
 .page-title{
+
   font-size:28px;
+
   font-weight:900;
+
+  margin-bottom:25px;
+
   color:#1e3a8a;
+
 }
 
-.filters{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
+/* ================= ALERT ================= */
 
-.filter-input{
-  padding:10px 12px;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-  font-size:14px;
-  background:#fff;
-}
+.alert{
 
-.btn{
-  border:none;
-  border-radius:10px;
-  padding:11px 16px;
-  font-size:14px;
+  padding:16px 20px;
+
+  border-radius:14px;
+
+  margin-bottom:25px;
+
   font-weight:800;
-  cursor:pointer;
+
+  display:none;
+
 }
 
-.btn-blue{
-  background:#2563eb;
-  color:#fff;
+.alert.active{
+  display:block;
 }
 
-.btn-green{
-  background:#16a34a;
-  color:#fff;
+.alert-green{
+  background:#dcfce7;
+  color:#166534;
 }
+
+.alert-yellow{
+  background:#fef9c3;
+  color:#854d0e;
+}
+
+.alert-red{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+/* ================= CARDS ================= */
 
 .cards{
+
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  gap:18px;
-  margin-bottom:25px;
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(230px,1fr));
+
+  gap:22px;
+
+  margin-bottom:35px;
+
 }
 
 .card{
+
   background:#fff;
+
   border-radius:18px;
-  padding:22px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+  padding:24px;
+
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+
+  border-left:6px solid #1e3a8a;
+
 }
 
-.card-title{
-  font-size:14px;
+.card h3{
+
+  margin:0;
+
+  font-size:13px;
+
   color:#64748b;
-  margin-bottom:10px;
-  font-weight:700;
+
+  text-transform:uppercase;
+
 }
 
-.card-value{
-  font-size:28px;
+.card p{
+
+  margin:15px 0 0;
+
+  font-size:26px;
+
   font-weight:900;
+
 }
 
-.green{
-  color:#15803d;
+/* ================= STATUS COLORS ================= */
+
+.status-active{
+  color:#16a34a;
 }
 
-.blue{
-  color:#2563eb;
+.status-past{
+  color:#ca8a04;
 }
 
-.red{
+.status-suspended{
   color:#dc2626;
 }
 
-.orange{
-  color:#ea580c;
-}
+/* ================= BOX ================= */
 
-.section{
+.payment-box{
+
   background:#fff;
+
   border-radius:18px;
-  padding:25px;
-  margin-bottom:25px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+  padding:28px;
+
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+
+  margin-bottom:35px;
+
 }
 
-.section-title{
-  font-size:20px;
-  font-weight:900;
-  margin-bottom:20px;
+.payment-box h2{
+
+  margin-top:0;
+
+  margin-bottom:12px;
+
   color:#0f172a;
+
+  font-size:24px;
+
 }
+
+/* ================= METHODS ================= */
+
+.methods{
+
+  display:grid;
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(260px,1fr));
+
+  gap:18px;
+
+  margin-top:20px;
+
+}
+
+.method{
+
+  border:1px solid #dbe2ea;
+
+  border-radius:14px;
+
+  padding:18px;
+
+  background:#f8fafc;
+
+  transition:.25s;
+
+}
+
+.method:hover{
+
+  transform:translateY(-4px);
+
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+}
+
+.method h3{
+
+  margin-top:0;
+
+  margin-bottom:10px;
+
+  color:#1e3a8a;
+
+  font-size:18px;
+
+}
+
+.method p{
+
+  line-height:1.6;
+
+  font-size:14px;
+
+  color:#475569;
+
+  margin:0;
+
+}
+
+/* ================= BUTTONS ================= */
+
+.pay-btn{
+
+  border:none;
+
+  background:#16a34a;
+
+  color:#fff;
+
+  border-radius:12px;
+
+  padding:14px 22px;
+
+  font-size:15px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+  margin-top:15px;
+
+  transition:.2s;
+
+}
+
+.pay-btn:hover{
+  transform:translateY(-2px);
+}
+
+.pay-btn:disabled{
+  background:#94a3b8;
+  cursor:not-allowed;
+}
+
+.connect-btn{
+  background:#2563eb;
+}
+
+.connect-btn:hover{
+  background:#1d4ed8;
+}
+
+/* ================= TABLE ================= */
 
 .table-wrap{
+
   width:100%;
+
   overflow-x:auto;
+
+  background:#fff;
+
+  border-radius:18px;
+
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+
 }
 
 table{
+
   width:100%;
+
+  min-width:850px;
+
   border-collapse:collapse;
-  min-width:1200px;
+
 }
 
 th{
+
   background:#0f172a;
+
   color:#fff;
-  padding:12px;
+
+  padding:14px;
+
+  text-align:left;
+
   font-size:13px;
-  text-align:center;
+
+  white-space:nowrap;
+
 }
 
 td{
-  border:1px solid #e2e8f0;
-  padding:12px;
-  text-align:center;
+
+  padding:14px;
+
+  border-bottom:1px solid #e5e7eb;
+
   font-size:13px;
+
+  font-weight:700;
+
 }
 
-tr:nth-child(even){
+tr:hover td{
   background:#f8fafc;
 }
 
-.status-complete{
-  color:#15803d;
+/* ================= BADGES ================= */
+
+.badge{
+
+  display:inline-block;
+
+  padding:5px 10px;
+
+  border-radius:999px;
+
+  font-size:12px;
+
   font-weight:900;
+
 }
 
-.status-cancel{
-  color:#dc2626;
-  font-weight:900;
+.badge-paid{
+  background:#dcfce7;
+  color:#166534;
 }
 
-.status-noshow{
-  color:#ea580c;
-  font-weight:900;
+.badge-unpaid{
+  background:#fee2e2;
+  color:#991b1b;
 }
 
-.money{
-  font-weight:900;
-  color:#15803d;
-}
+/* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
-  .container{
-    padding:25px 12px 80px;
+  .payment-wrapper{
+    padding:84px 6px 18px;
   }
 
   .page-title{
     font-size:22px;
+    margin-bottom:20px;
   }
 
-  .card-value{
-    font-size:24px;
+  .cards{
+    grid-template-columns:1fr;
+    gap:16px;
+  }
+
+  .card{
+    padding:20px;
+    border-radius:16px;
+  }
+
+  .card h3{
+    font-size:12px;
+  }
+
+  .card p{
+    font-size:22px;
+  }
+
+  .payment-box{
+    padding:18px;
+    border-radius:16px;
+    margin-bottom:24px;
+  }
+
+  .payment-box h2{
+    font-size:20px;
+  }
+
+  .methods{
+    grid-template-columns:1fr;
+  }
+
+  .method{
+    padding:16px;
+  }
+
+  .method h3{
+    font-size:16px;
+  }
+
+  .method p{
+    font-size:13px;
+  }
+
+  .pay-btn{
+    width:100%;
+    font-size:14px;
+  }
+
+  table{
+    min-width:750px;
+  }
+
+  th,
+  td{
+    font-size:12px;
+    padding:12px;
+  }
+
+}
+
+/* ================= LARGE SCREEN ================= */
+
+@media(min-width:1600px){
+
+  th,
+  td{
+    font-size:14px;
+  }
+
+}
+
+/* ================= PRINT ================= */
+
+@media print{
+
+  #layoutHeader{
+    display:none !important;
+  }
+
+  body{
+    background:#fff;
+  }
+
+  .payment-wrapper{
+    padding:0;
   }
 
 }
 
 </style>
+
 </head>
 
 <body>
 
 <div id="layoutHeader"></div>
 
-<div class="container">
+<div class="payment-wrapper">
 
-  <div class="top-bar">
+  <!-- ================= TITLE ================= -->
 
-    <div class="page-title">
-      Taxes & Earnings
-    </div>
+  <div class="page-title">
 
-    <div class="filters">
-
-      <input
-        type="date"
-        id="startDate"
-        class="filter-input"
-      >
-
-      <input
-        type="date"
-        id="endDate"
-        class="filter-input"
-      >
-
-      <button
-        class="btn btn-blue"
-        id="applyBtn"
-      >
-        Apply Filter
-      </button>
-
-      <button
-        class="btn btn-green"
-        id="printBtn"
-      >
-        Print Report
-      </button>
-
-    </div>
+    Payment Center
 
   </div>
 
-  <!-- SUMMARY -->
+  <!-- ================= ALERT ================= -->
+
+  <div id="billingAlert"
+       class="alert">
+  </div>
+
+  <!-- ================= CARDS ================= -->
 
   <div class="cards">
 
     <div class="card">
-      <div class="card-title">
-        Total Revenue
-      </div>
-      <div class="card-value green"
-        id="totalRevenue">
-        $0
-      </div>
+
+      <h3>Account Status</h3>
+
+      <p id="billingStatus">
+        Loading...
+      </p>
+
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Total Trips
-      </div>
-      <div class="card-value blue"
-        id="totalTrips">
-        0
-      </div>
+
+      <h3>Invoice Amount</h3>
+
+      <p id="invoiceAmount">
+        $0.00
+      </p>
+
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Individual Trips
-      </div>
-      <div class="card-value blue"
-        id="individualTrips">
-        0
-      </div>
+
+      <h3>Next Payment Date</h3>
+
+      <p id="nextBillingDate">
+        --
+      </p>
+
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Shared Trips
-      </div>
-      <div class="card-value orange"
-        id="sharedTrips">
-        0
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        Shared Passengers
-      </div>
-      <div class="card-value orange"
-        id="sharedPassengers">
-        0
-      </div>
-    </div>
+      <h3>Billing Cycle</h3>
 
-    <div class="card">
-      <div class="card-title">
-        Completed Trips
-      </div>
-      <div class="card-value green"
-        id="completedTrips">
-        0
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        Cancelled Trips
-      </div>
-      <div class="card-value red"
-        id="cancelledTrips">
-        0
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        No Show Trips
-      </div>
-      <div class="card-value red"
-        id="noShowTrips">
-        0
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        Total Miles
-      </div>
-      <div class="card-value blue"
-        id="totalMiles">
-        0
-      </div>
-    </div>
-
-  </div>
-
-  <!-- DRIVER TABLE -->
-
-  <div class="section">
-
-    <div class="section-title">
-      Driver Earnings
-    </div>
-
-    <div class="table-wrap">
-
-      <table id="driverTable">
-
-        <thead>
-
-          <tr>
-            <th>#</th>
-            <th>Driver</th>
-            <th>Total Trips</th>
-            <th>Completed</th>
-            <th>No Show</th>
-            <th>Cancelled</th>
-            <th>Miles</th>
-            <th>Total Revenue</th>
-          </tr>
-
-        </thead>
-
-        <tbody></tbody>
-
-      </table>
+      <p id="billingCycle">
+        --
+      </p>
 
     </div>
 
   </div>
 
-  <!-- TRIPS TABLE -->
+  <!-- ================= CURRENT INVOICE ================= -->
 
-  <div class="section">
+  <div class="payment-box">
 
-    <div class="section-title">
-      Trips Report
+    <h2>
+
+      Current Invoice
+
+    </h2>
+
+    <p>
+
+      Please complete payment before the due date
+      to keep Add Trip and trip management active.
+
+    </p>
+
+    <div class="methods">
+
+      <!-- ACH -->
+
+      <div class="method">
+
+        <h3>
+
+          ACH Bank Payment
+
+        </h3>
+
+        <p>
+
+          Pay securely using your business bank account.
+          ACH is recommended for clinics, hospitals,
+          and transportation facilities.
+
+        </p>
+
+        <button
+          id="achPayBtn"
+          class="pay-btn">
+
+          Pay With Bank
+
+        </button>
+
+      </div>
+
+      <!-- MANUAL -->
+
+      <div class="method">
+
+        <h3>
+
+          Manual Payment
+
+        </h3>
+
+        <p>
+
+          If you already paid by Zelle,
+          bank transfer, or check,
+          contact Sunbeam Transportation
+          so your account can be verified
+          and unlocked.
+
+        </p>
+
+      </div>
+
     </div>
+
+  </div>
+
+  <!-- ================= PAYMENT HISTORY ================= -->
+
+  <div class="payment-box">
+
+    <h2>
+
+      Payment History
+
+    </h2>
 
     <div class="table-wrap">
 
-      <table id="tripTable">
+      <table>
 
         <thead>
 
           <tr>
-            <th>#</th>
-            <th>Trip#</th>
-            <th>Type</th>
-            <th>Company</th>
-            <th>Client</th>
-            <th>Pickup</th>
-            <th>Dropoff</th>
-            <th>Status</th>
-            <th>Miles</th>
-            <th>Revenue</th>
+
             <th>Date</th>
+
+            <th>Method</th>
+
+            <th>Amount</th>
+
+            <th>Status</th>
+
+            <th>Notes</th>
+
           </tr>
 
         </thead>
 
-        <tbody></tbody>
+        <tbody id="paymentHistoryBody">
+
+          <tr>
+
+            <td colspan="5">
+
+              No payment history yet.
+
+            </td>
+
+          </tr>
+
+        </tbody>
 
       </table>
 
@@ -413,613 +682,7 @@ tr:nth-child(even){
 </div>
 
 <script src="layout.js"></script>
-
-<script>
-
-const token =
-  localStorage.getItem("token");
-
-const startDateInput =
-  document.getElementById("startDate");
-
-const endDateInput =
-  document.getElementById("endDate");
-
-const applyBtn =
-  document.getElementById("applyBtn");
-
-const printBtn =
-  document.getElementById("printBtn");
-
-let allTrips = [];
-
-function money(v){
-
-  return "$" +
-    Number(v || 0).toFixed(2);
-
-}
-
-function escapeHtml(v){
-
-  return String(v || "")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
-
-}
-
-/* =========================
-   FETCH
-========================= */
-
-async function loadTrips(){
-
-  try{
-
-    const res =
-      await fetch("/api/trips",{
-
-        headers:{
-          Authorization:
-            "Bearer " + token
-        }
-
-      });
-
-    if(!res.ok){
-
-      alert("Failed loading trips");
-      return;
-
-    }
-
-    allTrips =
-      await res.json();
-
-    render(allTrips);
-
-  }catch(err){
-
-    console.log(err);
-
-  }
-
-}
-
-/* =========================
-   FILTER
-========================= */
-
-function applyFilters(){
-
-  const start =
-    startDateInput.value
-      ? new Date(
-          startDateInput.value +
-          "T00:00:00"
-        )
-      : null;
-
-  const end =
-    endDateInput.value
-      ? new Date(
-          endDateInput.value +
-          "T23:59:59"
-        )
-      : null;
-
-  let filtered =
-    [...allTrips];
-
-  filtered =
-    filtered.filter(t=>{
-
-      const dt =
-        t.createdAt
-          ? new Date(t.createdAt)
-          : null;
-
-      if(!dt){
-        return false;
-      }
-
-      if(start && dt < start){
-        return false;
-      }
-
-      if(end && dt > end){
-        return false;
-      }
-
-      return true;
-
-    });
-
-  render(filtered);
-
-}
-
-/* =========================
-   RENDER
-========================= */
-
-function render(trips){
-
-  let totalRevenue = 0;
-
-  let totalTrips = 0;
-
-  let individualTrips = 0;
-  let sharedTrips = 0;
-
-  let completedTrips = 0;
-  let cancelledTrips = 0;
-  let noShowTrips = 0;
-
-  let totalMiles = 0;
-
-  let totalSharedPassengers = 0;
-
-  const sharedGroups =
-    new Set();
-
-  const completedGroups =
-    new Set();
-
-  const cancelledGroups =
-    new Set();
-
-  const noShowGroups =
-    new Set();
-
-  const driverMap = {};
-
-  const tripBody =
-    document.querySelector(
-      "#tripTable tbody"
-    );
-
-  tripBody.innerHTML = "";
-
-  let rowIndex = 1;
-
-  trips.forEach((t)=>{
-
-    const status =
-      String(t.status || "")
-        .toLowerCase()
-        .trim();
-
-    const isCompleted =
-      status === "completed";
-
-    const isCancelled =
-      status === "cancelled";
-
-    const isNoShow =
-
-      status === "noshow" ||
-
-      status === "no show";
-
-    if(
-      !isCompleted &&
-      !isCancelled &&
-      !isNoShow
-    ){
-      return;
-    }
-
-    const tripNo =
-      String(t.tripNumber || "")
-        .toUpperCase()
-        .trim();
-
-    const isShared =
-
-      t.isShared === true ||
-
-      tripNo.includes("-SH") ||
-
-      String(
-        t.groupId || ""
-      ).trim() !== "";
-
-    const sharedKey =
-      String(
-
-        t.groupId ||
-
-        t.tripNumber ||
-
-        t._id
-
-      );
-
-    let revenue =
-      Number(
-
-        t.finalPrice ||
-
-        t.priceAmount ||
-
-        0
-
-      );
-
-    if(
-      (isCancelled || isNoShow) &&
-      !revenue
-    ){
-      revenue = 15;
-    }
-
-    let passengersCount = 1;
-
-    if(
-      isShared &&
-      Array.isArray(t.passengers) &&
-      t.passengers.length
-    ){
-
-      passengersCount =
-        t.passengers.length;
-
-    }
-
-    totalRevenue +=
-      revenue * passengersCount;
-
-    totalMiles +=
-      Number(t.miles || 0);
-
-    if(isShared){
-
-      if(
-        !sharedGroups.has(sharedKey)
-      ){
-
-        sharedGroups.add(
-          sharedKey
-        );
-
-        sharedTrips++;
-
-      }
-
-      totalSharedPassengers +=
-        passengersCount;
-
-    }else{
-
-      individualTrips++;
-
-    }
-
-    totalTrips =
-      individualTrips +
-      sharedTrips;
-
-    if(isCompleted){
-
-      if(isShared){
-
-        if(
-          !completedGroups.has(
-            sharedKey
-          )
-        ){
-
-          completedGroups.add(
-            sharedKey
-          );
-
-          completedTrips++;
-
-        }
-
-      }else{
-
-        completedTrips++;
-
-      }
-
-    }
-
-    if(isCancelled){
-
-      if(isShared){
-
-        if(
-          !cancelledGroups.has(
-            sharedKey
-          )
-        ){
-
-          cancelledGroups.add(
-            sharedKey
-          );
-
-          cancelledTrips++;
-
-        }
-
-      }else{
-
-        cancelledTrips++;
-
-      }
-
-    }
-
-    if(isNoShow){
-
-      if(isShared){
-
-        if(
-          !noShowGroups.has(
-            sharedKey
-          )
-        ){
-
-          noShowGroups.add(
-            sharedKey
-          );
-
-          noShowTrips++;
-
-        }
-
-      }else{
-
-        noShowTrips++;
-
-      }
-
-    }
-
-    const driver =
-      t.driverName ||
-      "Unassigned";
-
-    if(!driverMap[driver]){
-
-      driverMap[driver] = {
-
-        trips:0,
-        completed:0,
-        cancelled:0,
-        noShow:0,
-        miles:0,
-        revenue:0
-
-      };
-
-    }
-
-    driverMap[driver].trips++;
-
-    driverMap[driver].miles +=
-      Number(t.miles || 0);
-
-    driverMap[driver].revenue +=
-      revenue * passengersCount;
-
-    if(isCompleted){
-      driverMap[driver].completed++;
-    }
-
-    if(isCancelled){
-      driverMap[driver].cancelled++;
-    }
-
-    if(isNoShow){
-      driverMap[driver].noShow++;
-    }
-
-    tripBody.innerHTML += `
-
-      <tr>
-
-        <td>${rowIndex++}</td>
-
-        <td>
-          ${escapeHtml(t.tripNumber)}
-        </td>
-
-        <td>
-          ${
-            isShared
-              ? "Shared"
-              : "Individual"
-          }
-        </td>
-
-        <td>
-          ${escapeHtml(t.company)}
-        </td>
-
-        <td>
-          ${
-            isShared
-              ? "Shared Trip"
-              : escapeHtml(
-                  t.clientName
-                )
-          }
-        </td>
-
-        <td>
-          ${escapeHtml(t.pickup)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.dropoff)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.status)}
-        </td>
-
-        <td>
-          ${Number(
-            t.miles || 0
-          ).toFixed(1)}
-        </td>
-
-        <td class="money">
-          ${money(
-            revenue *
-            passengersCount
-          )}
-        </td>
-
-        <td>
-          ${t.tripDate || ""}
-        </td>
-
-      </tr>
-
-    `;
-
-  });
-
-  document.getElementById(
-    "totalRevenue"
-  ).innerText =
-    money(totalRevenue);
-
-  document.getElementById(
-    "totalTrips"
-  ).innerText =
-    totalTrips;
-
-  document.getElementById(
-    "individualTrips"
-  ).innerText =
-    individualTrips;
-
-  document.getElementById(
-    "sharedTrips"
-  ).innerText =
-    sharedTrips;
-
-  document.getElementById(
-    "sharedPassengers"
-  ).innerText =
-    totalSharedPassengers;
-
-  document.getElementById(
-    "completedTrips"
-  ).innerText =
-    completedTrips;
-
-  document.getElementById(
-    "cancelledTrips"
-  ).innerText =
-    cancelledTrips;
-
-  document.getElementById(
-    "noShowTrips"
-  ).innerText =
-    noShowTrips;
-
-  document.getElementById(
-    "totalMiles"
-  ).innerText =
-    totalMiles.toFixed(1) +
-    " mi";
-
-  document.getElementById(
-    "avgRevenue"
-  ).innerText =
-    money(
-      totalTrips
-        ? totalRevenue /
-          totalTrips
-        : 0
-    );
-
-  const driverBody =
-    document.querySelector(
-      "#driverTable tbody"
-    );
-
-  driverBody.innerHTML = "";
-
-  let i = 1;
-
-  Object.keys(driverMap)
-    .forEach(driver=>{
-
-      const d =
-        driverMap[driver];
-
-      driverBody.innerHTML += `
-
-        <tr>
-
-          <td>${i++}</td>
-
-          <td>
-            ${escapeHtml(driver)}
-          </td>
-
-          <td>${d.trips}</td>
-
-          <td>
-            ${d.completed}
-          </td>
-
-          <td>
-            ${d.noShow}
-          </td>
-
-          <td>
-            ${d.cancelled}
-          </td>
-
-          <td>
-            ${d.miles.toFixed(1)}
-          </td>
-
-          <td class="money">
-            ${money(d.revenue)}
-          </td>
-
-        </tr>
-
-      `;
-
-    });
-
-}
-
-/* =========================
-   EVENTS
-========================= */
-
-applyBtn.addEventListener(
-  "click",
-  ()=>{
-    applyFilters();
-  }
-);
-
-printBtn.addEventListener(
-  "click",
-  ()=>{
-    window.print();
-  }
-);
-
-/* =========================
-   INIT
-========================= */
-
-loadTrips();
-
-</script>
+<script src="payment.js"></script>
 
 </body>
 </html>
