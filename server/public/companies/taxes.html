@@ -9,8 +9,6 @@
 
 <style>
 
-/* ================= GLOBAL ================= */
-
 *{
   box-sizing:border-box;
 }
@@ -23,26 +21,21 @@ body{
   overflow-x:hidden;
 }
 
-/* ================= HEADER ================= */
-
 #layoutHeader{
   position:sticky;
   top:0;
   z-index:1000;
   background:#fff;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
-
-/* ================= PAGE ================= */
 
 .container{
   width:100%;
   max-width:1700px;
   margin:auto;
-  padding:88px 14px 24px;
+  padding:90px 14px 30px;
 }
 
-/* ================= TOP BAR ================= */
+/* ================= TOP ================= */
 
 .top-bar{
   display:flex;
@@ -50,7 +43,7 @@ body{
   align-items:center;
   gap:15px;
   flex-wrap:wrap;
-  margin-bottom:25px;
+  margin-bottom:22px;
 }
 
 .page-title{
@@ -75,8 +68,6 @@ body{
   background:#fff;
   font-weight:700;
 }
-
-/* ================= BUTTONS ================= */
 
 .btn{
   border:none;
@@ -106,16 +97,16 @@ body{
 
 .cards{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:18px;
-  margin-bottom:25px;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:16px;
+  margin-bottom:22px;
 }
 
 .card{
   background:#fff;
   border-radius:18px;
-  padding:22px;
-  box-shadow:0 8px 20px rgba(0,0,0,.06);
+  padding:20px;
+  box-shadow:0 8px 18px rgba(0,0,0,.06);
 }
 
 .card-title{
@@ -146,20 +137,20 @@ body{
   color:#ea580c;
 }
 
-/* ================= SECTIONS ================= */
+/* ================= SECTION ================= */
 
 .section{
   background:#fff;
   border-radius:18px;
-  padding:24px;
-  margin-bottom:25px;
-  box-shadow:0 8px 20px rgba(0,0,0,.06);
+  padding:20px;
+  margin-bottom:22px;
+  box-shadow:0 8px 18px rgba(0,0,0,.06);
 }
 
 .section-title{
-  font-size:22px;
+  font-size:20px;
   font-weight:900;
-  margin-bottom:20px;
+  margin-bottom:18px;
   color:#0f172a;
 }
 
@@ -168,21 +159,13 @@ body{
 .table-wrap{
   width:100%;
   overflow-x:auto;
-}
-
-.table-wrap::-webkit-scrollbar{
-  height:10px;
-}
-
-.table-wrap::-webkit-scrollbar-thumb{
-  background:#94a3b8;
-  border-radius:10px;
+  border-radius:14px;
 }
 
 table{
   width:100%;
-  min-width:1200px;
   border-collapse:collapse;
+  min-width:1100px;
 }
 
 th{
@@ -196,11 +179,11 @@ th{
 
 td{
   border:1px solid #e2e8f0;
-  padding:12px;
+  padding:11px;
   text-align:center;
   font-size:12px;
-  font-weight:700;
   white-space:nowrap;
+  font-weight:700;
 }
 
 tr:nth-child(even){
@@ -210,8 +193,6 @@ tr:nth-child(even){
 tr:hover{
   background:#eef4ff;
 }
-
-/* ================= STATUS ================= */
 
 .money{
   font-weight:900;
@@ -223,7 +204,7 @@ tr:hover{
 @media(max-width:768px){
 
   .container{
-    padding:84px 6px 18px;
+    padding:85px 8px 20px;
   }
 
   .top-bar{
@@ -237,18 +218,16 @@ tr:hover{
 
   .filters{
     width:100%;
-    justify-content:center;
   }
 
   .filter-input{
     flex:1;
-    min-width:140px;
+    min-width:130px;
   }
 
   .btn{
     flex:1;
-    min-width:140px;
-    font-size:12px;
+    min-width:130px;
   }
 
   .cards{
@@ -257,25 +236,25 @@ tr:hover{
   }
 
   .card{
-    padding:18px;
-    border-radius:16px;
-  }
-
-  .card-title{
-    font-size:12px;
-  }
-
-  .card-value{
-    font-size:23px;
-  }
-
-  .section{
     padding:16px;
     border-radius:16px;
   }
 
+  .card-title{
+    font-size:11px;
+  }
+
+  .card-value{
+    font-size:22px;
+  }
+
+  .section{
+    padding:14px;
+    border-radius:16px;
+  }
+
   .section-title{
-    font-size:18px;
+    font-size:17px;
   }
 
   table{
@@ -285,7 +264,7 @@ tr:hover{
   th,
   td{
     font-size:11px;
-    padding:10px;
+    padding:9px;
   }
 
 }
@@ -310,7 +289,6 @@ tr:hover{
 }
 
 </style>
-
 </head>
 
 <body>
@@ -319,7 +297,7 @@ tr:hover{
 
 <div class="container">
 
-  <!-- TOP BAR -->
+  <!-- TOP -->
 
   <div class="top-bar">
 
@@ -342,115 +320,66 @@ tr:hover{
       <button
         class="btn btn-blue"
         id="applyBtn">
-
         Apply Filter
-
       </button>
 
       <button
         class="btn btn-green"
         id="printBtn">
-
         Print Report
-
       </button>
 
     </div>
 
   </div>
 
-  <!-- SUMMARY -->
+  <!-- CARDS -->
 
   <div class="cards">
 
     <div class="card">
-      <div class="card-title">
-        Total Revenue
-      </div>
-      <div class="card-value green"
-        id="totalRevenue">
-        $0
-      </div>
+      <div class="card-title">Total Revenue</div>
+      <div class="card-value green" id="totalRevenue">$0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Total Trips
-      </div>
-      <div class="card-value blue"
-        id="totalTrips">
-        0
-      </div>
+      <div class="card-title">Total Trips</div>
+      <div class="card-value blue" id="totalTrips">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Individual Trips
-      </div>
-      <div class="card-value blue"
-        id="individualTrips">
-        0
-      </div>
+      <div class="card-title">Individual Trips</div>
+      <div class="card-value blue" id="individualTrips">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Shared Trips
-      </div>
-      <div class="card-value orange"
-        id="sharedTrips">
-        0
-      </div>
+      <div class="card-title">Shared Trips</div>
+      <div class="card-value orange" id="sharedTrips">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Shared Passengers
-      </div>
-      <div class="card-value orange"
-        id="sharedPassengers">
-        0
-      </div>
+      <div class="card-title">Shared Passengers</div>
+      <div class="card-value orange" id="sharedPassengers">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Completed Trips
-      </div>
-      <div class="card-value green"
-        id="completedTrips">
-        0
-      </div>
+      <div class="card-title">Completed Trips</div>
+      <div class="card-value green" id="completedTrips">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Cancelled Trips
-      </div>
-      <div class="card-value red"
-        id="cancelledTrips">
-        0
-      </div>
+      <div class="card-title">Cancelled Trips</div>
+      <div class="card-value red" id="cancelledTrips">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        No Show Trips
-      </div>
-      <div class="card-value red"
-        id="noShowTrips">
-        0
-      </div>
+      <div class="card-title">No Show Trips</div>
+      <div class="card-value red" id="noShowTrips">0</div>
     </div>
 
     <div class="card">
-      <div class="card-title">
-        Total Miles
-      </div>
-      <div class="card-value blue"
-        id="totalMiles">
-        0
-      </div>
+      <div class="card-title">Total Miles</div>
+      <div class="card-value blue" id="totalMiles">0</div>
     </div>
 
   </div>
@@ -490,7 +419,7 @@ tr:hover{
 
   </div>
 
-  <!-- TRIPS TABLE -->
+  <!-- TRIPS -->
 
   <div class="section">
 
@@ -537,32 +466,27 @@ tr:hover{
 const token = localStorage.getItem("token");
 
 const startDateInput =
-document.getElementById("startDate");
+  document.getElementById("startDate");
 
 const endDateInput =
-document.getElementById("endDate");
+  document.getElementById("endDate");
 
 const applyBtn =
-document.getElementById("applyBtn");
+  document.getElementById("applyBtn");
 
 const printBtn =
-document.getElementById("printBtn");
+  document.getElementById("printBtn");
 
 let allTrips = [];
 
 function money(v){
-
-  return "$" +
-  Number(v || 0).toFixed(2);
-
+  return "$" + Number(v || 0).toFixed(2);
 }
 
 function escapeHtml(v){
-
   return String(v || "")
-  .replace(/</g,"&lt;")
-  .replace(/>/g,"&gt;");
-
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
 }
 
 /* ================= FETCH ================= */
@@ -573,8 +497,7 @@ async function loadTrips(){
 
     const res = await fetch("/api/trips",{
       headers:{
-        Authorization:
-        "Bearer " + token
+        Authorization:"Bearer " + token
       }
     });
 
@@ -600,23 +523,23 @@ async function loadTrips(){
 function applyFilters(){
 
   const start =
-  startDateInput.value
-  ? new Date(startDateInput.value + "T00:00:00")
-  : null;
+    startDateInput.value
+      ? new Date(startDateInput.value + "T00:00:00")
+      : null;
 
   const end =
-  endDateInput.value
-  ? new Date(endDateInput.value + "T23:59:59")
-  : null;
+    endDateInput.value
+      ? new Date(endDateInput.value + "T23:59:59")
+      : null;
 
   let filtered = [...allTrips];
 
   filtered = filtered.filter(t=>{
 
     const dt =
-    t.createdAt
-    ? new Date(t.createdAt)
-    : null;
+      t.createdAt
+        ? new Date(t.createdAt)
+        : null;
 
     if(!dt) return false;
 
@@ -649,32 +572,28 @@ function render(trips){
   const driverMap = {};
 
   const tripBody =
-  document.querySelector("#tripTable tbody");
-
-  const driverBody =
-  document.querySelector("#driverTable tbody");
+    document.querySelector("#tripTable tbody");
 
   tripBody.innerHTML = "";
-  driverBody.innerHTML = "";
 
   let rowIndex = 1;
 
   trips.forEach((t)=>{
 
     const status =
-    String(t.status || "")
-    .toLowerCase()
-    .trim();
+      String(t.status || "")
+      .toLowerCase()
+      .trim();
 
     const isCompleted =
-    status === "completed";
+      status === "completed";
 
     const isCancelled =
-    status === "cancelled";
+      status === "cancelled";
 
     const isNoShow =
-    status === "noshow" ||
-    status === "no show";
+      status === "noshow" ||
+      status === "no show";
 
     if(
       !isCompleted &&
@@ -685,23 +604,23 @@ function render(trips){
     }
 
     const tripNo =
-    String(t.tripNumber || "")
-    .toUpperCase();
+      String(t.tripNumber || "")
+      .toUpperCase();
 
     const isShared =
-    t.isShared === true ||
-    tripNo.includes("-SH");
+      t.isShared === true ||
+      tripNo.includes("-SH");
 
     let revenue =
-    Number(
-      t.finalPrice ||
-      t.priceAmount ||
-      0
-    );
+      Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        0
+      );
 
     if(
-      (isCancelled || isNoShow)
-      && !revenue
+      (isCancelled || isNoShow) &&
+      !revenue
     ){
       revenue = 15;
     }
@@ -713,14 +632,14 @@ function render(trips){
       Array.isArray(t.passengers)
     ){
       passengersCount =
-      t.passengers.length || 1;
+        t.passengers.length || 1;
     }
 
     totalRevenue +=
-    revenue * passengersCount;
+      revenue * passengersCount;
 
     totalMiles +=
-    Number(t.miles || 0);
+      Number(t.miles || 0);
 
     if(isShared){
       sharedTrips++;
@@ -736,7 +655,7 @@ function render(trips){
     if(isNoShow) noShowTrips++;
 
     const driver =
-    t.driverName || "Unassigned";
+      t.driverName || "Unassigned";
 
     if(!driverMap[driver]){
 
@@ -752,26 +671,18 @@ function render(trips){
     }
 
     driverMap[driver].trips++;
-    driverMap[driver].miles +=
-    Number(t.miles || 0);
+    driverMap[driver].miles += Number(t.miles || 0);
+    driverMap[driver].revenue += revenue;
 
-    driverMap[driver].revenue +=
-    revenue;
-
-    if(isCompleted)
-    driverMap[driver].completed++;
-
-    if(isCancelled)
-    driverMap[driver].cancelled++;
-
-    if(isNoShow)
-    driverMap[driver].noShow++;
+    if(isCompleted) driverMap[driver].completed++;
+    if(isCancelled) driverMap[driver].cancelled++;
+    if(isNoShow) driverMap[driver].noShow++;
 
     tripBody.innerHTML += `
 
       <tr>
 
-        <td>${rowIndex}</td>
+        <td>${rowIndex++}</td>
 
         <td>${escapeHtml(t.tripNumber)}</td>
 
@@ -784,8 +695,8 @@ function render(trips){
         <td>
           ${
             isShared
-            ? "Shared Trip"
-            : escapeHtml(t.clientName)
+              ? "Shared Trip"
+              : escapeHtml(t.clientName)
           }
         </td>
 
@@ -809,42 +720,43 @@ function render(trips){
 
     `;
 
-    rowIndex++;
-
   });
 
-  document.getElementById("totalRevenue")
-  .innerText = money(totalRevenue);
+  document.getElementById("totalRevenue").innerText =
+    money(totalRevenue);
 
-  document.getElementById("totalTrips")
-  .innerText = totalTrips;
+  document.getElementById("totalTrips").innerText =
+    totalTrips;
 
-  document.getElementById("individualTrips")
-  .innerText = individualTrips;
+  document.getElementById("individualTrips").innerText =
+    individualTrips;
 
-  document.getElementById("sharedTrips")
-  .innerText = sharedTrips;
+  document.getElementById("sharedTrips").innerText =
+    sharedTrips;
 
-  document.getElementById("sharedPassengers")
-  .innerText = totalSharedPassengers;
+  document.getElementById("sharedPassengers").innerText =
+    totalSharedPassengers;
 
-  document.getElementById("completedTrips")
-  .innerText = completedTrips;
+  document.getElementById("completedTrips").innerText =
+    completedTrips;
 
-  document.getElementById("cancelledTrips")
-  .innerText = cancelledTrips;
+  document.getElementById("cancelledTrips").innerText =
+    cancelledTrips;
 
-  document.getElementById("noShowTrips")
-  .innerText = noShowTrips;
+  document.getElementById("noShowTrips").innerText =
+    noShowTrips;
 
-  document.getElementById("totalMiles")
-  .innerText =
-  totalMiles.toFixed(1) + " mi";
+  document.getElementById("totalMiles").innerText =
+    totalMiles.toFixed(1) + " mi";
+
+  const driverBody =
+    document.querySelector("#driverTable tbody");
+
+  driverBody.innerHTML = "";
 
   let i = 1;
 
-  Object.keys(driverMap)
-  .forEach(driver=>{
+  Object.keys(driverMap).forEach(driver=>{
 
     const d = driverMap[driver];
 
@@ -881,16 +793,14 @@ function render(trips){
 /* ================= EVENTS ================= */
 
 applyBtn.addEventListener(
-"click",
-()=>{
-  applyFilters();
-});
+  "click",
+  applyFilters
+);
 
 printBtn.addEventListener(
-"click",
-()=>{
-  window.print();
-});
+  "click",
+  ()=>window.print()
+);
 
 /* ================= INIT ================= */
 
