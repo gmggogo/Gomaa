@@ -1152,41 +1152,16 @@ function statusClass(status){
 
 /* ================= RENDER ================= */
 
-async function load(){
+function render(){
 
-  try{
+const facilityName =
+  allTrips.find(t=>t.company)
+  ?.company || "Facility";
 
-    const company =
-      localStorage.getItem("name") || "";
-
-    const res =
-      await fetch(
-        `/api/trips/summary?company=${encodeURIComponent(company)}`
-      );
-
-    allTrips =
-      await res.json();
-
-    /* COMPANY NAME */
-
-    const facilityName =
-      allTrips.find(t=>t.company)
-      ?.company || "Facility";
-
-    document.getElementById(
-      "companyName"
-    ).innerText =
-      facilityName;
-
-    render();
-
-  }catch(err){
-
-    console.log(err);
-
-  }
-
-}
+document.getElementById(
+  "companyName"
+).innerText =
+  facilityName;
 
   const now =
     new Date(
