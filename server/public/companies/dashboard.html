@@ -1154,9 +1154,12 @@ function statusClass(status){
 
 function render(){
 
-  const company =
-    localStorage.getItem("name")
-    || "Facility";
+const company =
+  localStorage.getItem("company")
+  ||
+  localStorage.getItem("name")
+  ||
+  "Sunbeam Facility";
 
   document.getElementById(
     "companyName"
