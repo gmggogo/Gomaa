@@ -1155,19 +1155,19 @@ function render(){
 document.getElementById(
   "companyName"
 ).innerText =
-
   localStorage.getItem("userName")
+  || localStorage.getItem("name")
   || "Facility";
 
-  const now =
-    new Date(
-      new Date().toLocaleString(
-        "en-US",
-        {
-          timeZone:"America/Phoenix"
-        }
-      )
-    );
+const now =
+  new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:"America/Phoenix"
+      }
+    )
+  );
 
   const today =
     now.toISOString().split("T")[0];
