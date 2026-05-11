@@ -3,7 +3,7 @@ margin:0;
 font-family:'Segoe UI', Arial, sans-serif;
 background:#f4f8fb;
 overflow-x:hidden;
-padding-top:140px;
+padding-top:155px;
 }
 
 /* ================= HEADER ================= */
@@ -33,7 +33,6 @@ box-shadow:0 4px 10px rgba(0,0,0,.2);
 .header-inner{
 
 width:100%;
-
 max-width:1700px;
 
 margin:auto;
@@ -56,7 +55,7 @@ align-items:center;
 
 justify-content:space-between;
 
-min-height:52px;
+min-height:70px;
 
 }
 
@@ -72,7 +71,7 @@ align-items:flex-start;
 
 justify-content:center;
 
-min-width:90px;
+min-width:100px;
 
 z-index:2;
 
@@ -96,7 +95,7 @@ font-size:12px;
 
 line-height:1.1;
 
-margin-top:2px;
+margin-top:3px;
 
 color:#fff;
 
@@ -114,11 +113,13 @@ top:50%;
 
 transform:translate(-50%,-50%);
 
-height:38px;
+height:58px;
 
-width:120px;
+width:170px;
 
 object-fit:contain;
+
+filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));
 
 }
 
@@ -128,9 +129,11 @@ object-fit:contain;
 
 display:flex;
 
-align-items:center;
+flex-direction:column;
 
-justify-content:flex-end;
+align-items:flex-end;
+
+justify-content:center;
 
 text-align:right;
 
@@ -144,15 +147,17 @@ z-index:2;
 
 font-size:11px;
 
-opacity:.9;
+opacity:.95;
 
-line-height:1.2;
+line-height:1.4;
 
-white-space:nowrap;
+display:flex;
 
-overflow:hidden;
+flex-direction:column;
 
-text-overflow:ellipsis;
+align-items:flex-end;
+
+white-space:normal;
 
 }
 
@@ -292,13 +297,14 @@ box-shadow:0 4px 12px rgba(0,0,0,.06);
 @media(max-width:768px){
 
 body{
-padding-top:130px;
+padding-top:205px;
+overflow-x:hidden;
 }
 
 /* TOP */
 
 .top-section{
-min-height:42px;
+min-height:72px;
 }
 
 /* LEFT */
@@ -319,31 +325,37 @@ font-size:9px;
 
 .logo{
 
-height:30px;
+height:48px;
 
-width:100px;
+width:145px;
 
 }
 
 /* RIGHT */
 
 .time-block{
-max-width:90px;
+max-width:95px;
 }
 
 .clock{
+
 font-size:8px;
+
+line-height:1.4;
+
 }
 
 /* NAV */
 
 .nav{
 
-justify-content:flex-start;
+display:grid;
 
-gap:4px;
+grid-template-columns:repeat(4,1fr);
 
-padding:5px;
+gap:6px;
+
+padding:6px;
 
 border-radius:8px;
 
@@ -353,7 +365,9 @@ width:100%;
 
 max-width:100%;
 
-overflow-x:auto;
+overflow:visible;
+
+background:#000;
 
 }
 
@@ -361,13 +375,15 @@ overflow-x:auto;
 
 .nav a{
 
-height:28px;
+height:30px;
 
 font-size:9px;
 
-padding:0 8px;
+padding:0 4px;
 
 border-radius:6px;
+
+width:100%;
 
 }
 
@@ -406,12 +422,12 @@ min-width:850px;
 @media(min-width:769px) and (max-width:1100px){
 
 body{
-padding-top:140px;
+padding-top:165px;
 }
 
 .logo{
-height:34px;
-width:110px;
+height:52px;
+width:155px;
 }
 
 .logged-company{
@@ -476,7 +492,7 @@ margin-bottom:12px !important;
 /* TOP */
 
 .top-section{
-min-height:28px !important;
+min-height:40px !important;
 }
 
 /* LOGO */
@@ -487,9 +503,9 @@ position:static !important;
 
 transform:none !important;
 
-height:18px !important;
+height:24px !important;
 
-width:60px !important;
+width:80px !important;
 
 margin:auto !important;
 
@@ -526,6 +542,8 @@ overflow:visible !important;
 padding:5px !important;
 
 gap:5px !important;
+
+display:flex !important;
 
 }
 
