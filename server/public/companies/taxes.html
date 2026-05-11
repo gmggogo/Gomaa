@@ -1,4 +1,4 @@
-الله ي<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -9,18 +9,39 @@
 
 <style>
 
+/* ================= GLOBAL ================= */
+
+*{
+  box-sizing:border-box;
+}
+
 body{
   margin:0;
   font-family:'Segoe UI',Arial,sans-serif;
   background:#f1f5f9;
   color:#0f172a;
+  overflow-x:hidden;
 }
+
+/* ================= HEADER ================= */
+
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+/* ================= PAGE ================= */
 
 .container{
   max-width:1700px;
   margin:auto;
-  padding:40px 20px 80px;
+  padding:88px 14px 24px;
 }
+
+/* ================= TOP BAR ================= */
 
 .top-bar{
   display:flex;
@@ -45,20 +66,29 @@ body{
 }
 
 .filter-input{
-  padding:10px 12px;
+  height:42px;
+  padding:0 12px;
   border:1px solid #cbd5e1;
   border-radius:10px;
-  font-size:14px;
+  font-size:13px;
   background:#fff;
+  font-weight:700;
 }
+
+/* ================= BUTTONS ================= */
 
 .btn{
   border:none;
   border-radius:10px;
   padding:11px 16px;
-  font-size:14px;
-  font-weight:800;
+  font-size:13px;
+  font-weight:900;
   cursor:pointer;
+  transition:.2s;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
 }
 
 .btn-blue{
@@ -71,9 +101,11 @@ body{
   color:#fff;
 }
 
+/* ================= CARDS ================= */
+
 .cards{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:18px;
   margin-bottom:25px;
 }
@@ -82,11 +114,11 @@ body{
   background:#fff;
   border-radius:18px;
   padding:22px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
 }
 
 .card-title{
-  font-size:14px;
+  font-size:13px;
   color:#64748b;
   margin-bottom:10px;
   font-weight:700;
@@ -113,20 +145,24 @@ body{
   color:#ea580c;
 }
 
+/* ================= SECTION ================= */
+
 .section{
   background:#fff;
   border-radius:18px;
-  padding:25px;
+  padding:24px;
   margin-bottom:25px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
 }
 
 .section-title{
-  font-size:20px;
+  font-size:22px;
   font-weight:900;
   margin-bottom:20px;
   color:#0f172a;
 }
+
+/* ================= TABLE ================= */
 
 .table-wrap{
   width:100%;
@@ -143,34 +179,26 @@ th{
   background:#0f172a;
   color:#fff;
   padding:12px;
-  font-size:13px;
+  font-size:12px;
   text-align:center;
+  white-space:nowrap;
 }
 
 td{
   border:1px solid #e2e8f0;
   padding:12px;
   text-align:center;
-  font-size:13px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
 }
 
 tr:nth-child(even){
   background:#f8fafc;
 }
 
-.status-complete{
-  color:#15803d;
-  font-weight:900;
-}
-
-.status-cancel{
-  color:#dc2626;
-  font-weight:900;
-}
-
-.status-noshow{
-  color:#ea580c;
-  font-weight:900;
+tr:hover{
+  background:#eef4ff;
 }
 
 .money{
@@ -178,18 +206,93 @@ tr:nth-child(even){
   color:#15803d;
 }
 
+/* ================= MOBILE ================= */
+
 @media(max-width:768px){
 
   .container{
-    padding:25px 12px 80px;
+    padding:84px 6px 18px;
+  }
+
+  .top-bar{
+    flex-direction:column;
+    align-items:stretch;
   }
 
   .page-title{
     font-size:22px;
   }
 
+  .filters{
+    width:100%;
+    justify-content:center;
+  }
+
+  .filter-input{
+    flex:1;
+    min-width:140px;
+  }
+
+  .btn{
+    flex:1;
+    min-width:140px;
+    font-size:12px;
+  }
+
+  .cards{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+
+  .card{
+    padding:20px;
+  }
+
+  .card-title{
+    font-size:12px;
+  }
+
   .card-value{
     font-size:24px;
+  }
+
+  .section{
+    padding:16px;
+    border-radius:16px;
+  }
+
+  .section-title{
+    font-size:18px;
+  }
+
+  table{
+    min-width:1000px;
+  }
+
+  th,
+  td{
+    font-size:11px;
+    padding:10px;
+  }
+
+}
+
+/* ================= PRINT ================= */
+
+@media print{
+
+  #layoutHeader,
+  .filters,
+  .btn{
+    display:none !important;
+  }
+
+  body{
+    background:#fff;
+  }
+
+  .container{
+    padding:0;
   }
 
 }
@@ -203,6 +306,8 @@ tr:nth-child(even){
 
 <div class="container">
 
+  <!-- TOP BAR -->
+
   <div class="top-bar">
 
     <div class="page-title">
@@ -214,27 +319,27 @@ tr:nth-child(even){
       <input
         type="date"
         id="startDate"
-        class="filter-input"
-      >
+        class="filter-input">
 
       <input
         type="date"
         id="endDate"
-        class="filter-input"
-      >
+        class="filter-input">
 
       <button
         class="btn btn-blue"
-        id="applyBtn"
-      >
+        id="applyBtn">
+
         Apply Filter
+
       </button>
 
       <button
         class="btn btn-green"
-        id="printBtn"
-      >
+        id="printBtn">
+
         Print Report
+
       </button>
 
     </div>
@@ -335,16 +440,6 @@ tr:nth-child(even){
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">
-        Average Revenue
-      </div>
-      <div class="card-value green"
-        id="avgRevenue">
-        $0
-      </div>
-    </div>
-
   </div>
 
   <!-- DRIVER TABLE -->
@@ -423,613 +518,7 @@ tr:nth-child(even){
 </div>
 
 <script src="layout.js"></script>
-
-<script>
-
-const token =
-  localStorage.getItem("token");
-
-const startDateInput =
-  document.getElementById("startDate");
-
-const endDateInput =
-  document.getElementById("endDate");
-
-const applyBtn =
-  document.getElementById("applyBtn");
-
-const printBtn =
-  document.getElementById("printBtn");
-
-let allTrips = [];
-
-function money(v){
-
-  return "$" +
-    Number(v || 0).toFixed(2);
-
-}
-
-function escapeHtml(v){
-
-  return String(v || "")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
-
-}
-
-/* =========================
-   FETCH
-========================= */
-
-async function loadTrips(){
-
-  try{
-
-    const res =
-      await fetch("/api/trips",{
-
-        headers:{
-          Authorization:
-            "Bearer " + token
-        }
-
-      });
-
-    if(!res.ok){
-
-      alert("Failed loading trips");
-      return;
-
-    }
-
-    allTrips =
-      await res.json();
-
-    render(allTrips);
-
-  }catch(err){
-
-    console.log(err);
-
-  }
-
-}
-
-/* =========================
-   FILTER
-========================= */
-
-function applyFilters(){
-
-  const start =
-    startDateInput.value
-      ? new Date(
-          startDateInput.value +
-          "T00:00:00"
-        )
-      : null;
-
-  const end =
-    endDateInput.value
-      ? new Date(
-          endDateInput.value +
-          "T23:59:59"
-        )
-      : null;
-
-  let filtered =
-    [...allTrips];
-
-  filtered =
-    filtered.filter(t=>{
-
-      const dt =
-        t.createdAt
-          ? new Date(t.createdAt)
-          : null;
-
-      if(!dt){
-        return false;
-      }
-
-      if(start && dt < start){
-        return false;
-      }
-
-      if(end && dt > end){
-        return false;
-      }
-
-      return true;
-
-    });
-
-  render(filtered);
-
-}
-
-/* =========================
-   RENDER
-========================= */
-
-function render(trips){
-
-  let totalRevenue = 0;
-
-  let totalTrips = 0;
-
-  let individualTrips = 0;
-  let sharedTrips = 0;
-
-  let completedTrips = 0;
-  let cancelledTrips = 0;
-  let noShowTrips = 0;
-
-  let totalMiles = 0;
-
-  let totalSharedPassengers = 0;
-
-  const sharedGroups =
-    new Set();
-
-  const completedGroups =
-    new Set();
-
-  const cancelledGroups =
-    new Set();
-
-  const noShowGroups =
-    new Set();
-
-  const driverMap = {};
-
-  const tripBody =
-    document.querySelector(
-      "#tripTable tbody"
-    );
-
-  tripBody.innerHTML = "";
-
-  let rowIndex = 1;
-
-  trips.forEach((t)=>{
-
-    const status =
-      String(t.status || "")
-        .toLowerCase()
-        .trim();
-
-    const isCompleted =
-      status === "completed";
-
-    const isCancelled =
-      status === "cancelled";
-
-    const isNoShow =
-
-      status === "noshow" ||
-
-      status === "no show";
-
-    if(
-      !isCompleted &&
-      !isCancelled &&
-      !isNoShow
-    ){
-      return;
-    }
-
-    const tripNo =
-      String(t.tripNumber || "")
-        .toUpperCase()
-        .trim();
-
-    const isShared =
-
-      t.isShared === true ||
-
-      tripNo.includes("-SH") ||
-
-      String(
-        t.groupId || ""
-      ).trim() !== "";
-
-    const sharedKey =
-      String(
-
-        t.groupId ||
-
-        t.tripNumber ||
-
-        t._id
-
-      );
-
-    let revenue =
-      Number(
-
-        t.finalPrice ||
-
-        t.priceAmount ||
-
-        0
-
-      );
-
-    if(
-      (isCancelled || isNoShow) &&
-      !revenue
-    ){
-      revenue = 15;
-    }
-
-    let passengersCount = 1;
-
-    if(
-      isShared &&
-      Array.isArray(t.passengers) &&
-      t.passengers.length
-    ){
-
-      passengersCount =
-        t.passengers.length;
-
-    }
-
-    totalRevenue +=
-      revenue * passengersCount;
-
-    totalMiles +=
-      Number(t.miles || 0);
-
-    if(isShared){
-
-      if(
-        !sharedGroups.has(sharedKey)
-      ){
-
-        sharedGroups.add(
-          sharedKey
-        );
-
-        sharedTrips++;
-
-      }
-
-      totalSharedPassengers +=
-        passengersCount;
-
-    }else{
-
-      individualTrips++;
-
-    }
-
-    totalTrips =
-      individualTrips +
-      sharedTrips;
-
-    if(isCompleted){
-
-      if(isShared){
-
-        if(
-          !completedGroups.has(
-            sharedKey
-          )
-        ){
-
-          completedGroups.add(
-            sharedKey
-          );
-
-          completedTrips++;
-
-        }
-
-      }else{
-
-        completedTrips++;
-
-      }
-
-    }
-
-    if(isCancelled){
-
-      if(isShared){
-
-        if(
-          !cancelledGroups.has(
-            sharedKey
-          )
-        ){
-
-          cancelledGroups.add(
-            sharedKey
-          );
-
-          cancelledTrips++;
-
-        }
-
-      }else{
-
-        cancelledTrips++;
-
-      }
-
-    }
-
-    if(isNoShow){
-
-      if(isShared){
-
-        if(
-          !noShowGroups.has(
-            sharedKey
-          )
-        ){
-
-          noShowGroups.add(
-            sharedKey
-          );
-
-          noShowTrips++;
-
-        }
-
-      }else{
-
-        noShowTrips++;
-
-      }
-
-    }
-
-    const driver =
-      t.driverName ||
-      "Unassigned";
-
-    if(!driverMap[driver]){
-
-      driverMap[driver] = {
-
-        trips:0,
-        completed:0,
-        cancelled:0,
-        noShow:0,
-        miles:0,
-        revenue:0
-
-      };
-
-    }
-
-    driverMap[driver].trips++;
-
-    driverMap[driver].miles +=
-      Number(t.miles || 0);
-
-    driverMap[driver].revenue +=
-      revenue * passengersCount;
-
-    if(isCompleted){
-      driverMap[driver].completed++;
-    }
-
-    if(isCancelled){
-      driverMap[driver].cancelled++;
-    }
-
-    if(isNoShow){
-      driverMap[driver].noShow++;
-    }
-
-    tripBody.innerHTML += `
-
-      <tr>
-
-        <td>${rowIndex++}</td>
-
-        <td>
-          ${escapeHtml(t.tripNumber)}
-        </td>
-
-        <td>
-          ${
-            isShared
-              ? "Shared"
-              : "Individual"
-          }
-        </td>
-
-        <td>
-          ${escapeHtml(t.company)}
-        </td>
-
-        <td>
-          ${
-            isShared
-              ? "Shared Trip"
-              : escapeHtml(
-                  t.clientName
-                )
-          }
-        </td>
-
-        <td>
-          ${escapeHtml(t.pickup)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.dropoff)}
-        </td>
-
-        <td>
-          ${escapeHtml(t.status)}
-        </td>
-
-        <td>
-          ${Number(
-            t.miles || 0
-          ).toFixed(1)}
-        </td>
-
-        <td class="money">
-          ${money(
-            revenue *
-            passengersCount
-          )}
-        </td>
-
-        <td>
-          ${t.tripDate || ""}
-        </td>
-
-      </tr>
-
-    `;
-
-  });
-
-  document.getElementById(
-    "totalRevenue"
-  ).innerText =
-    money(totalRevenue);
-
-  document.getElementById(
-    "totalTrips"
-  ).innerText =
-    totalTrips;
-
-  document.getElementById(
-    "individualTrips"
-  ).innerText =
-    individualTrips;
-
-  document.getElementById(
-    "sharedTrips"
-  ).innerText =
-    sharedTrips;
-
-  document.getElementById(
-    "sharedPassengers"
-  ).innerText =
-    totalSharedPassengers;
-
-  document.getElementById(
-    "completedTrips"
-  ).innerText =
-    completedTrips;
-
-  document.getElementById(
-    "cancelledTrips"
-  ).innerText =
-    cancelledTrips;
-
-  document.getElementById(
-    "noShowTrips"
-  ).innerText =
-    noShowTrips;
-
-  document.getElementById(
-    "totalMiles"
-  ).innerText =
-    totalMiles.toFixed(1) +
-    " mi";
-
-  document.getElementById(
-    "avgRevenue"
-  ).innerText =
-    money(
-      totalTrips
-        ? totalRevenue /
-          totalTrips
-        : 0
-    );
-
-  const driverBody =
-    document.querySelector(
-      "#driverTable tbody"
-    );
-
-  driverBody.innerHTML = "";
-
-  let i = 1;
-
-  Object.keys(driverMap)
-    .forEach(driver=>{
-
-      const d =
-        driverMap[driver];
-
-      driverBody.innerHTML += `
-
-        <tr>
-
-          <td>${i++}</td>
-
-          <td>
-            ${escapeHtml(driver)}
-          </td>
-
-          <td>${d.trips}</td>
-
-          <td>
-            ${d.completed}
-          </td>
-
-          <td>
-            ${d.noShow}
-          </td>
-
-          <td>
-            ${d.cancelled}
-          </td>
-
-          <td>
-            ${d.miles.toFixed(1)}
-          </td>
-
-          <td class="money">
-            ${money(d.revenue)}
-          </td>
-
-        </tr>
-
-      `;
-
-    });
-
-}
-
-/* =========================
-   EVENTS
-========================= */
-
-applyBtn.addEventListener(
-  "click",
-  ()=>{
-    applyFilters();
-  }
-);
-
-printBtn.addEventListener(
-  "click",
-  ()=>{
-    window.print();
-  }
-);
-
-/* =========================
-   INIT
-========================= */
-
-loadTrips();
-
-</script>
+<script src="taxes.js"></script>
 
 </body>
 </html>
