@@ -1152,12 +1152,12 @@ function statusClass(status){
 
 function render(){
 
-  document.getElementById(
-    "companyName"
-  ).innerText =
+document.getElementById(
+  "companyName"
+).innerText =
 
-    localStorage.getItem("name")
-    || "Facility";
+  localStorage.getItem("userName")
+  || "Facility";
 
   const now =
     new Date(
