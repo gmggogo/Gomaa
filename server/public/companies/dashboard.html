@@ -635,7 +635,6 @@ tr:hover{
 
           Welcome,
           <span id="companyName">
-            Facility
           </span>
 
         </div>
@@ -1152,41 +1151,17 @@ function statusClass(status){
 
 /* ================= RENDER ================= */
 
-async function load(){
+function render(){
 
-  try{
+  document.getElementById(
+    "companyName"
+  ).innerText =
 
-    const company =
-      localStorage.getItem("name") || "";
+    localStorage.getItem("userName")
 
-    const res =
-      await fetch(
-        `/api/trips/summary?company=${encodeURIComponent(company)}`
-      );
+    ||
 
-    allTrips =
-      await res.json();
-
-    /* COMPANY NAME */
-
-    const facilityName =
-      allTrips.find(t=>t.company)
-      ?.company || "Facility";
-
-    document.getElementById(
-      "companyName"
-    ).innerText =
-      facilityName;
-
-    render();
-
-  }catch(err){
-
-    console.log(err);
-
-  }
-
-}
+    "Facility";
 
   const now =
     new Date(
@@ -1226,9 +1201,9 @@ async function load(){
       "tripsBody"
     );
 
-  tripBody.innerHTML = "";
+  tripBody.innerHTML = "";  
 
-  /* ================= MONTHLY ================= */
+/* ================= MONTHLY ================= */
 
   allTrips.forEach(t=>{
 
