@@ -353,7 +353,7 @@ async function calculateRouteMiles(points){
 /* ================= PRICE ================= */
 
 function calculateIndividualPrice(miles, status){
-  const BASE = 20;
+  const BASE = 25;
   const INCLUDED = 3;
   const PER_MILE = 2.5;
   const NO_SHOW = 15;
