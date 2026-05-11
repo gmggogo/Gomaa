@@ -38,11 +38,13 @@ max-width:1700px;
 
 margin:auto;
 
-padding:0 16px;
+padding:0 14px;
+
+box-sizing:border-box;
 
 }
 
-/* ================= TOP SECTION ================= */
+/* ================= TOP ================= */
 
 .top-section{
 
@@ -52,59 +54,29 @@ display:flex;
 
 align-items:center;
 
-justify-content:center;
+justify-content:space-between;
 
-min-height:38px;
+min-height:52px;
 
 }
 
-/* ================= COMPANY ================= */
+/* ================= LEFT ================= */
 
 .company-block{
 
 display:flex;
 
-align-items:center;
-
-justify-content:center;
-
-}
-
-.company-text{
-
-display:flex;
-
 flex-direction:column;
 
-align-items:center;
+align-items:flex-start;
 
 justify-content:center;
 
-text-align:center;
+min-width:90px;
+
+z-index:2;
 
 }
-
-/* ================= LOGO ================= */
-
-.logo{
-
-position:absolute;
-
-left:0;
-
-top:50%;
-
-transform:translateY(-50%);
-
-height:24px;
-
-width:72px;
-
-object-fit:fill;
-
-}
-
-/* ================= COMPANY NAME ================= */
 
 .logged-company{
 
@@ -118,8 +90,6 @@ line-height:1.1;
 
 }
 
-/* ================= GREETING ================= */
-
 .greeting{
 
 font-size:12px;
@@ -128,23 +98,45 @@ line-height:1.1;
 
 margin-top:2px;
 
+color:#fff;
+
 }
 
-/* ================= TIME ================= */
+/* ================= CENTER LOGO ================= */
 
-.time-block{
+.logo{
 
 position:absolute;
 
-right:0;
+left:50%;
 
 top:50%;
 
-transform:translateY(-50%);
+transform:translate(-50%,-50%);
+
+height:38px;
+
+width:120px;
+
+object-fit:contain;
+
+}
+
+/* ================= RIGHT ================= */
+
+.time-block{
+
+display:flex;
+
+align-items:center;
+
+justify-content:flex-end;
 
 text-align:right;
 
-max-width:170px;
+max-width:180px;
+
+z-index:2;
 
 }
 
@@ -152,7 +144,7 @@ max-width:170px;
 
 font-size:11px;
 
-opacity:.85;
+opacity:.9;
 
 line-height:1.2;
 
@@ -164,7 +156,7 @@ text-overflow:ellipsis;
 
 }
 
-/* ================= NAVBAR ================= */
+/* ================= NAV ================= */
 
 .nav{
 
@@ -174,11 +166,11 @@ justify-content:center;
 
 align-items:center;
 
-gap:12px;
+gap:10px;
 
 background:#000;
 
-padding:8px 12px;
+padding:8px 10px;
 
 border-radius:12px;
 
@@ -186,7 +178,7 @@ margin:10px auto 0;
 
 width:fit-content;
 
-max-width:94%;
+max-width:96%;
 
 overflow-x:auto;
 overflow-y:hidden;
@@ -210,9 +202,9 @@ display:flex;
 align-items:center;
 justify-content:center;
 
-height:36px;
+height:34px;
 
-padding:0 16px;
+padding:0 14px;
 
 border-radius:8px;
 
@@ -240,7 +232,7 @@ background:#facc15;
 color:#000;
 }
 
-/* ================= PAGE FIX ================= */
+/* ================= PAGE ================= */
 
 .container{
 width:100%;
@@ -255,7 +247,7 @@ img{
 max-width:100%;
 }
 
-/* ================= TABLE WRAP ================= */
+/* ================= TABLE ================= */
 
 .table-wrap{
 width:100%;
@@ -264,15 +256,13 @@ overflow-x:auto;
 border-radius:12px;
 }
 
-/* ================= TABLE ================= */
-
 table{
 width:100%;
 border-collapse:collapse;
 min-width:900px;
 }
 
-/* ================= STATS ================= */
+/* ================= CARDS ================= */
 
 .stats-grid{
 
@@ -302,39 +292,20 @@ box-shadow:0 4px 12px rgba(0,0,0,.06);
 @media(max-width:768px){
 
 body{
-padding-top:145px;
-overflow-x:hidden;
-}
-
-/* HEADER */
-
-.header{
-padding:8px 0;
-}
-
-.header-inner{
-padding:0 6px;
+padding-top:130px;
 }
 
 /* TOP */
 
 .top-section{
-min-height:34px;
+min-height:42px;
 }
 
-/* LOGO */
+/* LEFT */
 
-.logo{
-
-height:18px;
-
-width:65px;
-
-left:0;
-
+.company-block{
+min-width:70px;
 }
-
-/* COMPANY */
 
 .logged-company{
 font-size:14px;
@@ -344,24 +315,31 @@ font-size:14px;
 font-size:9px;
 }
 
-/* TIME */
+/* LOGO */
+
+.logo{
+
+height:30px;
+
+width:100px;
+
+}
+
+/* RIGHT */
 
 .time-block{
-right:0;
-max-width:85px;
+max-width:90px;
 }
 
 .clock{
-font-size:6px;
+font-size:8px;
 }
 
 /* NAV */
 
 .nav{
 
-width:96%;
-
-max-width:96%;
+justify-content:flex-start;
 
 gap:4px;
 
@@ -369,9 +347,13 @@ padding:5px;
 
 border-radius:8px;
 
-overflow-x:auto;
+margin-top:8px;
 
-justify-content:flex-start;
+width:100%;
+
+max-width:100%;
+
+overflow-x:auto;
 
 }
 
@@ -385,10 +367,6 @@ font-size:9px;
 
 padding:0 8px;
 
-flex-shrink:0;
-
-white-space:nowrap;
-
 border-radius:6px;
 
 }
@@ -400,56 +378,19 @@ padding-left:10px;
 padding-right:10px;
 }
 
-/* FILTERS */
-
-.filters,
-.top-filters{
-
-display:grid !important;
-
-grid-template-columns:1fr 1fr;
-
-gap:10px;
-
-}
-
-/* BUTTONS */
-
-button{
-min-height:40px;
-}
-
-/* STATS */
+/* GRID */
 
 .stats-grid{
-
-display:grid;
-
-grid-template-columns:1fr 1fr;
-
+grid-template-columns:1fr;
 gap:12px;
-
 }
 
 /* CARDS */
 
 .stat-card,
 .card{
-
 padding:18px;
-
-border-radius:18px;
-
-min-height:auto;
-
-}
-
-.stat-title{
-font-size:13px;
-}
-
-.stat-value{
-font-size:20px;
+border-radius:16px;
 }
 
 /* TABLE */
@@ -465,12 +406,12 @@ min-width:850px;
 @media(min-width:769px) and (max-width:1100px){
 
 body{
-padding-top:150px;
+padding-top:140px;
 }
 
 .logo{
-height:22px;
-width:66px;
+height:34px;
+width:110px;
 }
 
 .logged-company{
@@ -487,7 +428,6 @@ font-size:9px;
 
 .nav{
 gap:8px;
-padding:7px 10px;
 }
 
 .nav a{
@@ -507,13 +447,9 @@ grid-template-columns:repeat(2,1fr);
 @media print{
 
 body{
-
 padding-top:0 !important;
-
 background:#fff !important;
-
 zoom:85%;
-
 }
 
 html,
@@ -527,10 +463,6 @@ overflow:visible !important;
 
 position:relative !important;
 
-top:auto !important;
-
-left:auto !important;
-
 width:100% !important;
 
 padding:8px 0 !important;
@@ -539,12 +471,6 @@ box-shadow:none !important;
 
 margin-bottom:12px !important;
 
-}
-
-/* INNER */
-
-.header-inner{
-padding:0 10px !important;
 }
 
 /* TOP */
@@ -561,11 +487,13 @@ position:static !important;
 
 transform:none !important;
 
-height:16px !important;
+height:18px !important;
 
-width:52px !important;
+width:60px !important;
 
-margin-right:6px !important;
+margin:auto !important;
+
+display:block !important;
 
 }
 
@@ -598,8 +526,6 @@ overflow:visible !important;
 padding:5px !important;
 
 gap:5px !important;
-
-border-radius:8px !important;
 
 }
 

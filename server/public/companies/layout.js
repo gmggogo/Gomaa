@@ -10,24 +10,28 @@ container.innerHTML = `
 
   <div class="header-inner">
 
+    <!-- ================= TOP ================= -->
+
     <div class="top-section">
+
+      <!-- LEFT -->
 
       <div class="company-block">
 
-        <img src="../assets/logo.png" class="logo">
+        <div class="logged-company" id="companyName">
+          Loading...
+        </div>
 
-        <div class="company-text">
-
-          <div class="logged-company" id="companyName">
-            Loading...
-          </div>
-
-          <div class="greeting" id="greetingText">
-          </div>
-
+        <div class="greeting" id="greetingText">
         </div>
 
       </div>
+
+      <!-- CENTER LOGO -->
+
+      <img src="../assets/logo.png" class="logo">
+
+      <!-- RIGHT -->
 
       <div class="time-block">
 
@@ -37,6 +41,8 @@ container.innerHTML = `
       </div>
 
     </div>
+
+    <!-- ================= NAV ================= -->
 
     <div class="nav">
 
@@ -117,7 +123,8 @@ try{
 
 /* ================= LOGOUT ================= */
 
-document.getElementById("logoutBtn")
+document
+.getElementById("logoutBtn")
 .addEventListener("click",e=>{
 
   e.preventDefault();
