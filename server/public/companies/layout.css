@@ -143,21 +143,25 @@ z-index:2;
 
 }
 
+/* الساعة فوق التاريخ */
+
 .clock{
 
 font-size:11px;
 
 opacity:.95;
 
-line-height:1.4;
+line-height:1.3;
 
 display:flex;
 
-flex-direction:column;
+flex-direction:column-reverse;
 
 align-items:flex-end;
 
 white-space:normal;
+
+text-align:right;
 
 }
 
@@ -297,119 +301,164 @@ box-shadow:0 4px 12px rgba(0,0,0,.06);
 @media(max-width:768px){
 
 body{
-padding-top:205px;
+padding-top:195px;
 overflow-x:hidden;
 }
 
-/* TOP */
+/* ================= TOP ================= */
 
 .top-section{
+
 min-height:72px;
+
+align-items:flex-start;
+
+padding-top:4px;
+
 }
 
-/* LEFT */
+/* ================= LEFT ================= */
 
 .company-block{
-min-width:70px;
+
+min-width:72px;
+
 }
 
 .logged-company{
+
 font-size:14px;
+
 }
 
 .greeting{
+
 font-size:9px;
+
+margin-top:2px;
+
 }
 
-/* LOGO */
+/* ================= LOGO ================= */
 
 .logo{
 
-height:48px;
+height:52px;
 
-width:145px;
+width:150px;
+
+top:48%;
 
 }
 
-/* RIGHT */
+/* ================= RIGHT ================= */
 
 .time-block{
-max-width:95px;
+
+max-width:105px;
+
+align-items:flex-end;
+
 }
+
+/* الساعة فوق التاريخ */
 
 .clock{
 
 font-size:8px;
 
-line-height:1.4;
+line-height:1.35;
+
+display:flex;
+
+flex-direction:column-reverse;
+
+align-items:flex-end;
+
+text-align:right;
 
 }
 
-/* NAV */
+/* ================= NAV ================= */
 
 .nav{
 
 display:grid;
 
-grid-template-columns:repeat(4,1fr);
+grid-template-columns:repeat(4,minmax(65px,1fr));
 
-gap:6px;
+justify-content:center;
 
-padding:6px;
+align-items:center;
 
-border-radius:8px;
+gap:8px;
 
-margin-top:8px;
+padding:10px;
+
+border-radius:12px;
+
+margin:10px auto 0;
 
 width:100%;
 
 max-width:100%;
 
-overflow:visible;
-
 background:#000;
+
+overflow:visible;
 
 }
 
-/* NAV LINKS */
+/* ================= NAV LINKS ================= */
 
 .nav a{
 
-height:30px;
+height:34px;
 
-font-size:9px;
+font-size:10px;
 
-padding:0 4px;
+padding:0 6px;
 
-border-radius:6px;
+border-radius:8px;
 
 width:100%;
 
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+text-align:center;
+
 }
 
-/* PAGE */
+/* ================= PAGE ================= */
 
 .container{
 padding-left:10px;
 padding-right:10px;
 }
 
-/* GRID */
+/* ================= GRID ================= */
 
 .stats-grid{
 grid-template-columns:1fr;
-gap:12px;
+gap:14px;
 }
 
-/* CARDS */
+/* ================= CARDS ================= */
 
 .stat-card,
 .card{
+
 padding:18px;
-border-radius:16px;
+
+border-radius:18px;
+
 }
 
-/* TABLE */
+/* ================= TABLE ================= */
 
 table{
 min-width:850px;
@@ -422,12 +471,12 @@ min-width:850px;
 @media(min-width:769px) and (max-width:1100px){
 
 body{
-padding-top:165px;
+padding-top:170px;
 }
 
 .logo{
-height:52px;
-width:155px;
+height:54px;
+width:160px;
 }
 
 .logged-company{
