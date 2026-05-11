@@ -1152,14 +1152,12 @@ function statusClass(status){
 
 function render(){
 
-const facilityName =
-  allTrips.find(t=>t.company)
-  ?.company || "Facility";
+  document.getElementById(
+    "companyName"
+  ).innerText =
 
-document.getElementById(
-  "companyName"
-).innerText =
-  facilityName;
+    localStorage.getItem("name")
+    || "Facility";
 
   const now =
     new Date(
