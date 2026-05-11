@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <title>Sunbeam Transportation - Taxes & Earnings</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
@@ -15,11 +18,29 @@
   box-sizing:border-box;
 }
 
+:root{
+
+  --blue:#145cff;
+  --blue-dark:#0f46c9;
+
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#ea580c;
+
+  --text:#0f172a;
+  --muted:#64748b;
+
+  --border:#dbe3ee;
+
+  --bg:#f4f8fb;
+
+}
+
 body{
   margin:0;
+  background:var(--bg);
   font-family:'Segoe UI',Arial,sans-serif;
-  background:#f1f5f9;
-  color:#0f172a;
+  color:var(--text);
   overflow-x:hidden;
 }
 
@@ -35,54 +56,94 @@ body{
 
 /* ================= PAGE ================= */
 
-.container{
+.page{
+
   width:100%;
-  max-width:1700px;
+  max-width:1800px;
+
   margin:auto;
+
   padding:88px 14px 24px;
+
 }
 
 /* ================= TOP BAR ================= */
 
 .top-bar{
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:center;
-  gap:15px;
+
+  gap:16px;
+
   flex-wrap:wrap;
+
   margin-bottom:20px;
+
+}
+
+.page-title-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
 }
 
 .page-title{
-  font-size:28px;
+
+  font-size:32px;
+
   font-weight:900;
+
   color:#1e3a8a;
+
+  line-height:1;
+
+}
+
+.page-sub{
+
+  font-size:13px;
+
+  color:var(--muted);
+
+  font-weight:700;
+
 }
 
 .filters{
+
   display:flex;
+
   gap:10px;
+
   flex-wrap:wrap;
+
   align-items:center;
+
 }
 
 .filter-input{
 
-  height:42px;
+  height:44px;
 
   border:none;
 
-  border-radius:10px;
+  border-radius:12px;
 
   background:#fff;
 
-  padding:0 12px;
+  padding:0 14px;
 
-  font-size:12px;
+  font-size:13px;
 
   box-shadow:0 2px 8px rgba(0,0,0,.05);
 
-  font-weight:700;
+  font-weight:800;
+
+  color:var(--text);
 
 }
 
@@ -90,13 +151,13 @@ body{
 
   border:none;
 
-  border-radius:10px;
+  border-radius:12px;
+
+  height:44px;
 
   padding:0 18px;
 
-  height:42px;
-
-  font-size:12px;
+  font-size:13px;
 
   font-weight:900;
 
@@ -107,70 +168,94 @@ body{
 }
 
 .btn-blue{
-  background:#145cff;
+  background:var(--blue);
   color:#fff;
 }
 
 .btn-blue:hover{
-  background:#0f46c9;
+  background:var(--blue-dark);
 }
 
 .btn-green{
-  background:#16a34a;
+  background:var(--green);
   color:#fff;
 }
 
 .btn-green:hover{
-  background:#15803d;
+  opacity:.92;
 }
 
 /* ================= CARDS ================= */
 
 .cards{
+
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(220px,1fr));
+
   gap:14px;
+
   margin-bottom:24px;
+
 }
 
 .card{
 
   background:#fff;
 
-  border-radius:16px;
+  border-radius:18px;
 
   padding:20px;
 
-  box-shadow:0 4px 12px rgba(0,0,0,.08);
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
 
+  border:1px solid #eef2f7;
+
+  transition:.2s;
+
+}
+
+.card:hover{
+  transform:translateY(-2px);
 }
 
 .card-title{
+
   font-size:13px;
-  color:#64748b;
+
+  color:var(--muted);
+
   margin-bottom:10px;
+
   font-weight:800;
+
 }
 
 .card-value{
-  font-size:28px;
+
+  font-size:32px;
+
   font-weight:900;
+
+  line-height:1;
+
 }
 
 .green{
-  color:#16a34a;
+  color:var(--green);
 }
 
 .blue{
-  color:#145cff;
+  color:var(--blue);
 }
 
 .red{
-  color:#dc2626;
+  color:var(--red);
 }
 
 .orange{
-  color:#ea580c;
+  color:var(--orange);
 }
 
 /* ================= SECTION ================= */
@@ -179,21 +264,28 @@ body{
 
   background:#fff;
 
-  border-radius:16px;
+  border-radius:20px;
 
   padding:22px;
 
-  margin-bottom:22px;
+  margin-bottom:24px;
 
-  box-shadow:0 4px 12px rgba(0,0,0,.08);
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+
+  border:1px solid #eef2f7;
 
 }
 
 .section-title{
-  font-size:20px;
+
+  font-size:22px;
+
   font-weight:900;
+
   margin-bottom:18px;
-  color:#0f172a;
+
+  color:var(--text);
+
 }
 
 /* ================= TABLE ================= */
@@ -202,29 +294,38 @@ body{
 
   width:100%;
 
-  overflow-x:hidden;
+  overflow-x:auto;
 
-  border-radius:14px;
+  border-radius:16px;
 
-  border:1px solid #dbe3ee;
+  border:1px solid var(--border);
 
+}
+
+.table-wrap::-webkit-scrollbar{
+  height:8px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb{
+  background:#cbd5e1;
+  border-radius:999px;
 }
 
 table{
 
   width:100%;
 
-  min-width:800px;
-
   border-collapse:collapse;
+
+  min-width:900px;
 
 }
 
 th{
 
-  background:#cfd8e3;
+  background:#dbe4f0;
 
-  color:#111827;
+  color:#0f172a;
 
   font-size:11px;
 
@@ -232,134 +333,237 @@ th{
 
   text-align:center;
 
-  padding:12px 8px;
+  padding:14px 10px;
 
   white-space:nowrap;
 
-  border-bottom:2px solid #94a3b8;
-
-  border-right:1px solid #cbd5e1;
+  border-bottom:2px solid #cbd5e1;
 
 }
 
 td{
 
-  padding:10px 8px;
-
-  text-align:center;
+  padding:12px 10px;
 
   font-size:11px;
 
-  border-bottom:1px solid #e5e7eb;
+  text-align:center;
 
-  border-right:1px solid #e5e7eb;
+  border-bottom:1px solid #eef2f7;
 
   font-weight:700;
 
-  background:#fff;
+  color:#111827;
 
-}
+  white-space:nowrap;
 
-th:last-child,
-td:last-child{
-  border-right:none;
 }
 
 tr:nth-child(even) td{
-  background:#f8fafc;
+  background:#fafcff;
 }
 
 tr:hover td{
-  background:#eef4ff;
+  background:#f1f5ff;
 }
 
 .money{
+  color:var(--green);
   font-weight:900;
-  color:#16a34a;
+}
+
+.status-pill{
+
+  display:inline-flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  min-width:90px;
+
+  height:28px;
+
+  padding:0 10px;
+
+  border-radius:999px;
+
+  font-size:11px;
+
+  font-weight:900;
+
+}
+
+.status-completed{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.status-cancelled{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.status-noshow{
+  background:#fef3c7;
+  color:#92400e;
 }
 
 /* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
-  .container{
-    padding:84px 6px 18px;
+  .page{
+    padding:84px 8px 20px;
   }
 
   .top-bar{
-    gap:6px;
+    gap:10px;
   }
 
   .page-title{
-    font-size:22px;
+    font-size:26px;
+  }
+
+  .page-sub{
+    font-size:12px;
+  }
+
+  .filters{
+    width:100%;
+  }
+
+  .filter-input,
+  .btn{
+
+    width:100%;
+
+    height:42px;
+
+    font-size:12px;
+
+  }
+
+  .cards{
+
+    grid-template-columns:
+    1fr 1fr;
+
+    gap:10px;
+
+  }
+
+  .card{
+    padding:14px;
+    border-radius:14px;
+  }
+
+  .card-title{
+    font-size:11px;
   }
 
   .card-value{
     font-size:24px;
   }
 
-  .filter-input,
-  .btn{
-    height:40px;
-    font-size:11px;
-  }
-
-  .cards{
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-  }
-
-  .card{
+  .section{
     padding:14px;
-    border-radius:12px;
+    border-radius:16px;
+  }
+
+  .section-title{
+    font-size:18px;
   }
 
   table{
-    min-width:750px;
+    min-width:760px;
   }
 
   th,
   td{
-    font-size:9px;
-    padding:6px 5px;
+    font-size:10px;
+    padding:8px 6px;
   }
 
 }
 
 /* ================= PRINT ================= */
 
+@page{
+  size:auto;
+  margin:10mm;
+}
+
 @media print{
+
+  body{
+    background:#fff !important;
+  }
 
   #layoutHeader,
   .filters{
     display:none !important;
   }
 
-  .container{
-    padding:0;
+  .page{
+    padding:0 !important;
+    max-width:100% !important;
   }
 
-  body{
-    background:#fff;
+  .cards{
+    grid-template-columns:
+    repeat(3,1fr);
+  }
+
+  .card,
+  .section{
+
+    box-shadow:none !important;
+
+    border:1px solid #d1d5db;
+
+  }
+
+  .table-wrap{
+    overflow:visible !important;
+  }
+
+  table{
+    min-width:100% !important;
+  }
+
+  th,
+  td{
+    font-size:10px !important;
+    padding:6px !important;
   }
 
 }
 
 </style>
+
 </head>
 
 <body>
 
 <div id="layoutHeader"></div>
 
-<div class="container">
+<div class="page">
 
   <!-- TOP -->
 
   <div class="top-bar">
 
-    <div class="page-title">
-      Taxes & Earnings
+    <div class="page-title-wrap">
+
+      <div class="page-title">
+        Taxes & Earnings
+      </div>
+
+      <div class="page-sub">
+        Sunbeam Transportation Financial Dashboard
+      </div>
+
     </div>
 
     <div class="filters">
@@ -392,7 +596,7 @@ tr:hover td{
 
   </div>
 
-  <!-- SUMMARY -->
+  <!-- STATS -->
 
   <div class="cards">
 
@@ -482,7 +686,7 @@ tr:hover td{
       </div>
       <div class="card-value blue"
         id="totalMiles">
-        0
+        0.0 mi
       </div>
     </div>
 
@@ -545,7 +749,9 @@ tr:hover td{
             <th>Status</th>
             <th>Miles</th>
             <th>Revenue</th>
-            <th>Date</th>
+            <th style="min-width:130px">
+              Date
+            </th>
           </tr>
 
         </thead>
@@ -604,15 +810,20 @@ async function loadTrips(){
 
     const res =
       await fetch("/api/trips",{
+
         headers:{
           Authorization:
             "Bearer " + token
         }
+
       });
 
     if(!res.ok){
+
       alert("Failed loading trips");
+
       return;
+
     }
 
     allTrips =
@@ -688,23 +899,30 @@ function render(trips){
   let totalTrips = 0;
 
   let individualTrips = 0;
+
   let sharedTrips = 0;
 
   let completedTrips = 0;
+
   let cancelledTrips = 0;
+
   let noShowTrips = 0;
 
   let totalMiles = 0;
 
   let totalSharedPassengers = 0;
 
-  const sharedGroups = new Set();
+  const sharedGroups =
+    new Set();
 
-  const completedGroups = new Set();
+  const completedGroups =
+    new Set();
 
-  const cancelledGroups = new Set();
+  const cancelledGroups =
+    new Set();
 
-  const noShowGroups = new Set();
+  const noShowGroups =
+    new Set();
 
   const driverMap = {};
 
@@ -717,7 +935,7 @@ function render(trips){
 
   let rowIndex = 1;
 
-  trips.forEach((t)=>{
+  trips.forEach(t=>{
 
     const status =
       String(t.status || "")
@@ -731,7 +949,9 @@ function render(trips){
       status === "cancelled";
 
     const isNoShow =
+
       status === "noshow" ||
+
       status === "no show";
 
     if(
@@ -793,8 +1013,10 @@ function render(trips){
       revenue * passengersCount;
 
     if(isCompleted){
+
       totalMiles +=
         Number(t.miles || 0);
+
     }
 
     if(isShared){
@@ -910,8 +1132,10 @@ function render(trips){
     driverMap[driver].trips++;
 
     if(isCompleted){
+
       driverMap[driver].miles +=
         Number(t.miles || 0);
+
     }
 
     driverMap[driver].revenue +=
@@ -927,6 +1151,19 @@ function render(trips){
 
     if(isNoShow){
       driverMap[driver].noShow++;
+    }
+
+    let statusClass =
+      "status-cancelled";
+
+    if(isCompleted){
+      statusClass =
+        "status-completed";
+    }
+
+    if(isNoShow){
+      statusClass =
+        "status-noshow";
     }
 
     tripBody.innerHTML += `
@@ -952,7 +1189,14 @@ function render(trips){
         </td>
 
         <td>
-          ${escapeHtml(t.status)}
+
+          <span class="
+            status-pill
+            ${statusClass}
+          ">
+            ${escapeHtml(t.status)}
+          </span>
+
         </td>
 
         <td>
@@ -972,7 +1216,9 @@ function render(trips){
           )}
         </td>
 
-        <td>
+        <td style="
+          min-width:130px;
+        ">
           ${t.tripDate || ""}
         </td>
 
