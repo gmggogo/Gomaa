@@ -9,18 +9,40 @@
 
 <style>
 
+/* ================= GLOBAL ================= */
+
+*{
+  box-sizing:border-box;
+}
+
 body{
   margin:0;
   font-family:'Segoe UI',Arial,sans-serif;
   background:#f1f5f9;
   color:#0f172a;
+  overflow-x:hidden;
 }
 
+/* ================= HEADER ================= */
+
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+/* ================= PAGE ================= */
+
 .container{
+  width:100%;
   max-width:1700px;
   margin:auto;
-  padding:90px 20px 80px;
+  padding:88px 14px 24px;
 }
+
+/* ================= TOP BAR ================= */
 
 .top-bar{
   display:flex;
@@ -28,7 +50,7 @@ body{
   align-items:center;
   gap:15px;
   flex-wrap:wrap;
-  margin-bottom:25px;
+  margin-bottom:20px;
 }
 
 .page-title{
@@ -45,25 +67,52 @@ body{
 }
 
 .filter-input{
-  padding:10px 12px;
-  border:1px solid #cbd5e1;
+
+  height:42px;
+
+  border:none;
+
   border-radius:10px;
-  font-size:14px;
+
   background:#fff;
+
+  padding:0 12px;
+
+  font-size:12px;
+
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+
+  font-weight:700;
+
 }
 
 .btn{
+
   border:none;
+
   border-radius:10px;
-  padding:11px 16px;
-  font-size:14px;
-  font-weight:800;
+
+  padding:0 18px;
+
+  height:42px;
+
+  font-size:12px;
+
+  font-weight:900;
+
   cursor:pointer;
+
+  transition:.2s;
+
 }
 
 .btn-blue{
-  background:#2563eb;
+  background:#145cff;
   color:#fff;
+}
+
+.btn-blue:hover{
+  background:#0f46c9;
 }
 
 .btn-green{
@@ -71,25 +120,36 @@ body{
   color:#fff;
 }
 
+.btn-green:hover{
+  background:#15803d;
+}
+
+/* ================= CARDS ================= */
+
 .cards{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  gap:18px;
-  margin-bottom:25px;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+  margin-bottom:24px;
 }
 
 .card{
+
   background:#fff;
-  border-radius:18px;
-  padding:22px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+  border-radius:16px;
+
+  padding:20px;
+
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
+
 }
 
 .card-title{
-  font-size:14px;
+  font-size:13px;
   color:#64748b;
   margin-bottom:10px;
-  font-weight:700;
+  font-weight:800;
 }
 
 .card-value{
@@ -98,11 +158,11 @@ body{
 }
 
 .green{
-  color:#15803d;
+  color:#16a34a;
 }
 
 .blue{
-  color:#2563eb;
+  color:#145cff;
 }
 
 .red{
@@ -113,142 +173,174 @@ body{
   color:#ea580c;
 }
 
+/* ================= SECTION ================= */
+
 .section{
+
   background:#fff;
-  border-radius:18px;
-  padding:25px;
-  margin-bottom:25px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08);
+
+  border-radius:16px;
+
+  padding:22px;
+
+  margin-bottom:22px;
+
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
+
 }
 
 .section-title{
   font-size:20px;
   font-weight:900;
-  margin-bottom:20px;
+  margin-bottom:18px;
   color:#0f172a;
 }
 
+/* ================= TABLE ================= */
+
 .table-wrap{
+
   width:100%;
+
   overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
+
+  border-radius:14px;
+
+  border:1px solid #dbe3ee;
+
 }
 
 table{
+
   width:100%;
-  border-collapse:collapse;
+
   min-width:1200px;
+
+  border-collapse:collapse;
+
 }
 
 th{
-  background:#0f172a;
-  color:#fff;
-  padding:12px;
-  font-size:13px;
+
+  background:#cfd8e3;
+
+  color:#111827;
+
+  font-size:11px;
+
+  font-weight:900;
+
   text-align:center;
+
+  padding:12px 8px;
+
+  white-space:nowrap;
+
+  border-bottom:2px solid #94a3b8;
+
+  border-right:1px solid #cbd5e1;
+
 }
 
 td{
-  border:1px solid #e2e8f0;
-  padding:12px;
+
+  padding:10px 8px;
+
   text-align:center;
-  font-size:13px;
+
+  font-size:11px;
+
+  border-bottom:1px solid #e5e7eb;
+
+  border-right:1px solid #e5e7eb;
+
+  font-weight:700;
+
+  background:#fff;
+
 }
 
-tr:nth-child(even){
+th:last-child,
+td:last-child{
+  border-right:none;
+}
+
+tr:nth-child(even) td{
   background:#f8fafc;
 }
 
-.status-complete{
-  color:#15803d;
-  font-weight:900;
-}
-
-.status-cancel{
-  color:#dc2626;
-  font-weight:900;
-}
-
-.status-noshow{
-  color:#ea580c;
-  font-weight:900;
+tr:hover td{
+  background:#eef4ff;
 }
 
 .money{
   font-weight:900;
-  color:#15803d;
+  color:#16a34a;
 }
+
+/* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
   .container{
-    padding:85px 10px 80px;
+    padding:84px 6px 18px;
   }
 
   .top-bar{
-    flex-direction:column;
-    align-items:stretch;
+    gap:6px;
   }
 
   .page-title{
     font-size:22px;
-    text-align:center;
   }
 
-  .filters{
-    width:100%;
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:10px;
+  .card-value{
+    font-size:24px;
   }
 
-  .filter-input{
-    width:100%;
-    font-size:13px;
-  }
-
+  .filter-input,
   .btn{
-    width:100%;
-    font-size:13px;
+    height:40px;
+    font-size:11px;
   }
 
   .cards{
     grid-template-columns:1fr 1fr;
-    gap:12px;
+    gap:8px;
   }
 
   .card{
-    padding:16px;
-  }
-
-  .card-title{
-    font-size:12px;
-  }
-
-  .card-value{
-    font-size:22px;
-  }
-
-  .section{
-    padding:16px;
-  }
-
-  .section-title{
-    font-size:18px;
+    padding:14px;
+    border-radius:12px;
   }
 
   table{
-    min-width:1000px;
+    min-width:1100px;
   }
 
-  th{
-    font-size:11px;
-    padding:10px;
-  }
-
+  th,
   td{
-    font-size:11px;
-    padding:10px;
+    font-size:9px;
+    padding:6px 5px;
+  }
+
+}
+
+/* ================= PRINT ================= */
+
+@media print{
+
+  #layoutHeader,
+  .filters{
+    display:none !important;
+  }
+
+  .container{
+    padding:0;
+  }
+
+  body{
+    background:#fff;
   }
 
 }
@@ -261,6 +353,8 @@ tr:nth-child(even){
 <div id="layoutHeader"></div>
 
 <div class="container">
+
+  <!-- TOP -->
 
   <div class="top-bar">
 
@@ -284,15 +378,13 @@ tr:nth-child(even){
 
       <button
         class="btn btn-blue"
-        id="applyBtn"
-      >
+        id="applyBtn">
         Apply Filter
       </button>
 
       <button
         class="btn btn-green"
-        id="printBtn"
-      >
+        id="printBtn">
         Print Report
       </button>
 
@@ -394,14 +486,77 @@ tr:nth-child(even){
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">
-        Average Revenue
-      </div>
-      <div class="card-value green"
-        id="avgRevenue">
-        $0
-      </div>
+  </div>
+
+  <!-- DRIVER TABLE -->
+
+  <div class="section">
+
+    <div class="section-title">
+      Driver Earnings
+    </div>
+
+    <div class="table-wrap">
+
+      <table id="driverTable">
+
+        <thead>
+
+          <tr>
+            <th>#</th>
+            <th>Driver</th>
+            <th>Total Trips</th>
+            <th>Completed</th>
+            <th>No Show</th>
+            <th>Cancelled</th>
+            <th>Miles</th>
+            <th>Total Revenue</th>
+          </tr>
+
+        </thead>
+
+        <tbody></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+  <!-- TRIPS TABLE -->
+
+  <div class="section">
+
+    <div class="section-title">
+      Trips Report
+    </div>
+
+    <div class="table-wrap">
+
+      <table id="tripTable">
+
+        <thead>
+
+          <tr>
+            <th>#</th>
+            <th>Trip#</th>
+            <th>Type</th>
+            <th>Company</th>
+            <th>Client</th>
+            <th>Pickup</th>
+            <th>Dropoff</th>
+            <th>Status</th>
+            <th>Miles</th>
+            <th>Revenue</th>
+            <th>Date</th>
+          </tr>
+
+        </thead>
+
+        <tbody></tbody>
+
+      </table>
+
     </div>
 
   </div>
@@ -409,6 +564,563 @@ tr:nth-child(even){
 </div>
 
 <script src="layout.js"></script>
+
+<script>
+
+const token =
+  localStorage.getItem("token");
+
+const startDateInput =
+  document.getElementById("startDate");
+
+const endDateInput =
+  document.getElementById("endDate");
+
+const applyBtn =
+  document.getElementById("applyBtn");
+
+const printBtn =
+  document.getElementById("printBtn");
+
+let allTrips = [];
+
+function money(v){
+
+  return "$" +
+    Number(v || 0).toFixed(2);
+
+}
+
+function escapeHtml(v){
+
+  return String(v || "")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+
+}
+
+/* ================= FETCH ================= */
+
+async function loadTrips(){
+
+  try{
+
+    const res =
+      await fetch("/api/trips",{
+        headers:{
+          Authorization:
+            "Bearer " + token
+        }
+      });
+
+    if(!res.ok){
+      alert("Failed loading trips");
+      return;
+    }
+
+    allTrips =
+      await res.json();
+
+    render(allTrips);
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
+
+/* ================= FILTER ================= */
+
+function applyFilters(){
+
+  const start =
+    startDateInput.value
+      ? new Date(
+          startDateInput.value +
+          "T00:00:00"
+        )
+      : null;
+
+  const end =
+    endDateInput.value
+      ? new Date(
+          endDateInput.value +
+          "T23:59:59"
+        )
+      : null;
+
+  let filtered =
+    [...allTrips];
+
+  filtered =
+    filtered.filter(t=>{
+
+      const dt =
+        t.createdAt
+          ? new Date(t.createdAt)
+          : null;
+
+      if(!dt){
+        return false;
+      }
+
+      if(start && dt < start){
+        return false;
+      }
+
+      if(end && dt > end){
+        return false;
+      }
+
+      return true;
+
+    });
+
+  render(filtered);
+
+}
+
+/* ================= RENDER ================= */
+
+function render(trips){
+
+  let totalRevenue = 0;
+
+  let totalTrips = 0;
+
+  let individualTrips = 0;
+  let sharedTrips = 0;
+
+  let completedTrips = 0;
+  let cancelledTrips = 0;
+  let noShowTrips = 0;
+
+  let totalMiles = 0;
+
+  let totalSharedPassengers = 0;
+
+  const sharedGroups =
+    new Set();
+
+  const completedGroups =
+    new Set();
+
+  const cancelledGroups =
+    new Set();
+
+  const noShowGroups =
+    new Set();
+
+  const driverMap = {};
+
+  const tripBody =
+    document.querySelector(
+      "#tripTable tbody"
+    );
+
+  tripBody.innerHTML = "";
+
+  let rowIndex = 1;
+
+  trips.forEach((t)=>{
+
+    const status =
+      String(t.status || "")
+        .toLowerCase()
+        .trim();
+
+    const isCompleted =
+      status === "completed";
+
+    const isCancelled =
+      status === "cancelled";
+
+    const isNoShow =
+      status === "noshow" ||
+      status === "no show";
+
+    if(
+      !isCompleted &&
+      !isCancelled &&
+      !isNoShow
+    ){
+      return;
+    }
+
+    const tripNo =
+      String(t.tripNumber || "")
+        .toUpperCase()
+        .trim();
+
+    const isShared =
+
+      t.isShared === true ||
+
+      tripNo.includes("-SH") ||
+
+      String(
+        t.groupId || ""
+      ).trim() !== "";
+
+    const sharedKey =
+      String(
+        t.groupId ||
+        t.tripNumber ||
+        t._id
+      );
+
+    let revenue =
+      Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        0
+      );
+
+    if(
+      (isCancelled || isNoShow) &&
+      !revenue
+    ){
+      revenue = 15;
+    }
+
+    let passengersCount = 1;
+
+    if(
+      isShared &&
+      Array.isArray(t.passengers) &&
+      t.passengers.length
+    ){
+      passengersCount =
+        t.passengers.length;
+    }
+
+    totalRevenue +=
+      revenue * passengersCount;
+
+    if(isCompleted){
+      totalMiles +=
+        Number(t.miles || 0);
+    }
+
+    if(isShared){
+
+      if(
+        !sharedGroups.has(sharedKey)
+      ){
+
+        sharedGroups.add(sharedKey);
+
+        sharedTrips++;
+
+      }
+
+      totalSharedPassengers +=
+        passengersCount;
+
+    }else{
+
+      individualTrips++;
+
+    }
+
+    totalTrips =
+      individualTrips +
+      sharedTrips;
+
+    if(isCompleted){
+
+      if(isShared){
+
+        if(
+          !completedGroups.has(sharedKey)
+        ){
+
+          completedGroups.add(sharedKey);
+
+          completedTrips++;
+
+        }
+
+      }else{
+
+        completedTrips++;
+
+      }
+
+    }
+
+    if(isCancelled){
+
+      if(isShared){
+
+        if(
+          !cancelledGroups.has(sharedKey)
+        ){
+
+          cancelledGroups.add(sharedKey);
+
+          cancelledTrips++;
+
+        }
+
+      }else{
+
+        cancelledTrips++;
+
+      }
+
+    }
+
+    if(isNoShow){
+
+      if(isShared){
+
+        if(
+          !noShowGroups.has(sharedKey)
+        ){
+
+          noShowGroups.add(sharedKey);
+
+          noShowTrips++;
+
+        }
+
+      }else{
+
+        noShowTrips++;
+
+      }
+
+    }
+
+    const driver =
+      t.driverName ||
+      "Unassigned";
+
+    if(!driverMap[driver]){
+
+      driverMap[driver] = {
+
+        trips:0,
+        completed:0,
+        cancelled:0,
+        noShow:0,
+        miles:0,
+        revenue:0
+
+      };
+
+    }
+
+    driverMap[driver].trips++;
+
+    if(isCompleted){
+      driverMap[driver].miles +=
+        Number(t.miles || 0);
+    }
+
+    driverMap[driver].revenue +=
+      revenue * passengersCount;
+
+    if(isCompleted){
+      driverMap[driver].completed++;
+    }
+
+    if(isCancelled){
+      driverMap[driver].cancelled++;
+    }
+
+    if(isNoShow){
+      driverMap[driver].noShow++;
+    }
+
+    tripBody.innerHTML += `
+
+      <tr>
+
+        <td>${rowIndex++}</td>
+
+        <td>
+          ${escapeHtml(t.tripNumber)}
+        </td>
+
+        <td>
+          ${
+            isShared
+              ? "Shared"
+              : "Individual"
+          }
+        </td>
+
+        <td>
+          ${escapeHtml(t.company)}
+        </td>
+
+        <td>
+          ${
+            isShared
+              ? "Shared Trip"
+              : escapeHtml(t.clientName)
+          }
+        </td>
+
+        <td>
+          ${escapeHtml(t.pickup)}
+        </td>
+
+        <td>
+          ${escapeHtml(t.dropoff)}
+        </td>
+
+        <td>
+          ${escapeHtml(t.status)}
+        </td>
+
+        <td>
+          ${
+            isCompleted
+              ? Number(
+                  t.miles || 0
+                ).toFixed(1)
+              : "0.0"
+          }
+        </td>
+
+        <td class="money">
+          ${money(
+            revenue *
+            passengersCount
+          )}
+        </td>
+
+        <td>
+          ${t.tripDate || ""}
+        </td>
+
+      </tr>
+
+    `;
+
+  });
+
+  document.getElementById(
+    "totalRevenue"
+  ).innerText =
+    money(totalRevenue);
+
+  document.getElementById(
+    "totalTrips"
+  ).innerText =
+    totalTrips;
+
+  document.getElementById(
+    "individualTrips"
+  ).innerText =
+    individualTrips;
+
+  document.getElementById(
+    "sharedTrips"
+  ).innerText =
+    sharedTrips;
+
+  document.getElementById(
+    "sharedPassengers"
+  ).innerText =
+    totalSharedPassengers;
+
+  document.getElementById(
+    "completedTrips"
+  ).innerText =
+    completedTrips;
+
+  document.getElementById(
+    "cancelledTrips"
+  ).innerText =
+    cancelledTrips;
+
+  document.getElementById(
+    "noShowTrips"
+  ).innerText =
+    noShowTrips;
+
+  document.getElementById(
+    "totalMiles"
+  ).innerText =
+    totalMiles.toFixed(1) +
+    " mi";
+
+  const driverBody =
+    document.querySelector(
+      "#driverTable tbody"
+    );
+
+  driverBody.innerHTML = "";
+
+  let i = 1;
+
+  Object.keys(driverMap)
+    .forEach(driver=>{
+
+      const d =
+        driverMap[driver];
+
+      driverBody.innerHTML += `
+
+        <tr>
+
+          <td>${i++}</td>
+
+          <td>
+            ${escapeHtml(driver)}
+          </td>
+
+          <td>${d.trips}</td>
+
+          <td>${d.completed}</td>
+
+          <td>${d.noShow}</td>
+
+          <td>${d.cancelled}</td>
+
+          <td>
+            ${d.miles.toFixed(1)}
+          </td>
+
+          <td class="money">
+            ${money(d.revenue)}
+          </td>
+
+        </tr>
+
+      `;
+
+    });
+
+}
+
+/* ================= EVENTS ================= */
+
+applyBtn.addEventListener(
+  "click",
+  ()=>{
+    applyFilters();
+  }
+);
+
+printBtn.addEventListener(
+  "click",
+  ()=>{
+    window.print();
+  }
+);
+
+/* ================= INIT ================= */
+
+loadTrips();
+
+</script>
 
 </body>
 </html>
