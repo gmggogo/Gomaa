@@ -844,29 +844,15 @@ async function loadTrips(){
 
   try{
 
-    const company =
-
-      localStorage.getItem(
-        "userName"
-      )
-
-      ||
-
-      "";
-
     const res =
-      await fetch(
+      await fetch("/api/trips",{
 
-        `/api/trips/summary?company=${encodeURIComponent(company)}`,
-
-        {
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
+        headers:{
+          Authorization:
+            "Bearer " + token
         }
 
-      );
+      });
 
     if(!res.ok){
 
