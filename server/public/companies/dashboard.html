@@ -1155,8 +1155,12 @@ function statusClass(status){
 function render(){
 
 const facilityName =
-  allTrips.find(t=>t.company)
-  ?.company || "Facility";
+
+  localStorage.getItem("name")
+
+  ||
+
+  "Facility";
 
 document.getElementById(
   "companyName"
