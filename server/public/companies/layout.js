@@ -1,51 +1,66 @@
 document.addEventListener("DOMContentLoaded", async () => {
 
 const container = document.getElementById("layoutHeader");
+
 if(!container) return;
 
 container.innerHTML = `
 
 <div class="header">
 
-<div class="top-section">
+  <div class="header-inner">
 
-<div class="company-block">
+    <div class="top-section">
 
-<img src="../assets/logo.png" class="logo">
+      <div class="company-block">
 
-<div class="logged-company" id="companyName">Loading...</div>
+        <img src="../assets/logo.png" class="logo">
 
-<div class="greeting" id="greetingText"></div>
+        <div class="company-text">
 
-<div class="clock" id="azDateTime"></div>
+          <div class="logged-company" id="companyName">
+            Loading...
+          </div>
 
-</div>
+          <div class="greeting" id="greetingText">
+          </div>
 
-</div>
+        </div>
 
-<div class="nav">
+      </div>
 
-<a href="dashboard.html">Dashboard</a>
+      <div class="time-block">
 
-<a href="add-trip.html">Add Trip</a>
+        <div class="clock" id="azDateTime">
+        </div>
 
-<a href="review.html">Review</a>
+      </div>
 
-<a href="summary.html">Summary</a>
+    </div>
 
-<a href="payment.html">Payment</a>
+    <div class="nav">
 
-<a href="taxes.html">Taxes</a>
+      <a href="dashboard.html">Dashboard</a>
 
-<a href="#" id="logoutBtn">Logout</a>
+      <a href="add-trip.html">Add Trip</a>
 
-</div>
+      <a href="review.html">Review</a>
+
+      <a href="summary.html">Summary</a>
+
+      <a href="payment.html">Payment</a>
+
+      <a href="taxes.html">Taxes</a>
+
+      <a href="#" id="logoutBtn">Logout</a>
+
+    </div>
+
+  </div>
 
 </div>
 
 `;
-
-
 
 /* ================= AUTH ================= */
 
@@ -53,101 +68,119 @@ const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
 const name  = localStorage.getItem("name");
 
-if (!token || role !== "company") {
-window.location.replace("company-login.html");
-return;
+if(!token || role !== "company"){
+
+  window.location.replace("company-login.html");
+
+  return;
+
 }
-
-
 
 /* ================= ACTIVE LINK ================= */
 
-const currentPage = window.location.pathname.split("/").pop();
+const currentPage =
+window.location.pathname.split("/").pop();
 
-document.querySelectorAll(".nav a").forEach(link => {
+document.querySelectorAll(".nav a").forEach(link=>{
 
-if(link.getAttribute("href") === currentPage){
+  if(link.getAttribute("href") === currentPage){
 
-link.classList.add("active");
+    link.classList.add("active");
 
-}
+  }
 
 });
-
-
 
 /* ================= COMPANY NAME ================= */
 
 try{
 
-const res = await fetch("/api/company/me",{
+  const res = await fetch("/api/company/me",{
 
-headers:{
-Authorization:"Bearer "+token
-}
+    headers:{
+      Authorization:"Bearer " + token
+    }
 
-});
+  });
 
-const data = await res.json();
+  const data = await res.json();
 
-document.getElementById("companyName").innerText =
-data.name || name || "Company";
+  document.getElementById("companyName").innerText =
+    data.name || name || "Company";
 
 }catch{
 
-document.getElementById("companyName").innerText =
-name || "Company";
+  document.getElementById("companyName").innerText =
+    name || "Company";
 
 }
 
-
-
 /* ================= LOGOUT ================= */
 
-document.getElementById("logoutBtn").addEventListener("click",e=>{
+document.getElementById("logoutBtn")
+.addEventListener("click",e=>{
 
-e.preventDefault();
+  e.preventDefault();
 
-localStorage.removeItem("token");
-localStorage.removeItem("role");
-localStorage.removeItem("name");
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("name");
 
-window.location.replace("company-login.html");
+  window.location.replace("company-login.html");
 
 });
-
-
 
 /* ================= TIME ================= */
 
 function updateTime(){
 
-const now = new Date();
+  const now = new Date();
 
-const formatted = now.toLocaleString("en-US",{
+  const formatted =
+  now.toLocaleString("en-US",{
 
-timeZone:"America/Phoenix",
-weekday:"long",
-year:"numeric",
-month:"long",
-day:"numeric",
-hour:"numeric",
-minute:"2-digit",
-second:"2-digit",
-hour12:true
+    timeZone:"America/Phoenix",
 
-});
+    weekday:"short",
 
-document.getElementById("azDateTime").innerText = formatted;
+    month:"short",
 
-let hour = now.getHours();
+    day:"numeric",
 
-let greeting="Good Evening";
+    year:"numeric",
 
-if(hour < 12) greeting="Good Morning";
-else if(hour < 18) greeting="Good Afternoon";
+    hour:"numeric",
 
-document.getElementById("greetingText").innerText = greeting;
+    minute:"2-digit",
+
+    second:"2-digit",
+
+    hour12:true
+
+  });
+
+  document.getElementById("azDateTime")
+  .innerText = formatted;
+
+  const phoenixHour = Number(
+    new Intl.DateTimeFormat("en-US",{
+      hour:"numeric",
+      hour12:false,
+      timeZone:"America/Phoenix"
+    }).format(now)
+  );
+
+  let greeting = "Good Evening";
+
+  if(phoenixHour < 12){
+    greeting = "Good Morning";
+  }
+  else if(phoenixHour < 18){
+    greeting = "Good Afternoon";
+  }
+
+  document.getElementById("greetingText")
+  .innerText = greeting;
 
 }
 
