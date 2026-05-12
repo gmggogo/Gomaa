@@ -2461,37 +2461,30 @@ app.get("/api/company/billing", async (req,res)=>{
 
     }
 
-    let company = await User.findOne({
+  let company = await User.findOne({
+  role:"company",
+  name:{
+    $regex:"^" + companyName + "$",
+    $options:"i"
+  }
+}).lean();
 
-      role:"company",
+if(!company){
 
-      name:{
-        $regex:"^" + companyName + "$",
-        $options:"i"
-      }
+  return res.status(404).json({
+    message:"Company not found"
+  });
 
-    });
+}
 
-    if(!company){
+/* =========================
+   RECALCULATE
+========================= */
 
-      return res.status(404).json({
-        message:"Company not found"
-      });
+company =
+  await updateCompanyBilling(company);
 
-    }
-
-    /* =========================
-       🔥 RECALCULATE BILLING
-    ========================== */
-
-    company =
-      await updateCompanyBilling(company);
-
-    /* =========================
-       RESPONSE
-    ========================== */
-
-    res.json({
+res.json({
 
       _id: company._id,
 
