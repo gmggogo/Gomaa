@@ -1225,54 +1225,101 @@ let noShowTrips = 0;
 
   tripBody.innerHTML = "";
 
-  /* ================= MONTHLY ================= */
+ /* ================= MONTHLY ================= */
 
-  allTrips.forEach(t=>{
+allTrips.forEach(t=>{
 
-    if(!t.tripDate) return;
+  if(!t.tripDate) return;
 
-    const tripDate =
-      new Date(t.tripDate);
+  const tripDate =
+    new Date(t.tripDate);
 
-    if(
-      tripDate.getMonth()
-      !== currentMonth
-    ) return;
+  if(
+    tripDate.getMonth()
+    !== currentMonth
+  ) return;
 
-    if(
-      tripDate.getFullYear()
-      !== currentYear
-    ) return;
+  if(
+    tripDate.getFullYear()
+    !== currentYear
+  ) return;
 
-    /* INDIVIDUAL */
+  /* ================= INDIVIDUAL ================= */
 
-    if(!t.isShared){
+  if(!t.isShared){
 
-      individualTrips++;
+    individualTrips++;
 
-      if(
-        t.status === "Completed"
-      ){
+    const status =
+      String(t.status || "")
+      .toLowerCase()
+      .replace(/\s/g,"");
+
+    if(status === "completed"){
+
+      completedTrips++;
+
+      monthlyRevenue +=
+        Number(
+          t.finalPrice || 0
+        );
+
+      monthlyMiles +=
+        Number(
+          t.miles || 0
+        );
+
+    }
+
+    if(status === "cancelled"){
+
+      cancelledTrips++;
+
+      monthlyRevenue += 15;
+
+    }
+
+    if(status === "noshow"){
+
+      noShowTrips++;
+
+      monthlyRevenue += 15;
+
+    }
+
+  }
+
+  /* ================= SHARED ================= */
+
+  else{
+
+    sharedTrips++;
+
+    const passengers =
+      t.passengers || [];
+
+    sharedPassengers +=
+      passengers.length;
+
+    passengers.forEach(p=>{
+
+      const pStatus =
+        String(p.status || "")
+        .toLowerCase()
+        .replace(/\s/g,"");
+
+      if(pStatus === "completed"){
 
         completedTrips++;
 
         monthlyRevenue +=
           Number(
-            t.finalPrice || 0
-          );
-
-        monthlyMiles +=
-          Number(
-            t.miles || 0
+            p.price || 0
           );
 
       }
 
-      if(
-        String(t.status || "")
-  .toLowerCase()
-  === "cancelled"
-      ){
+      if(pStatus === "cancelled"){
 
         cancelledTrips++;
 
@@ -1280,84 +1327,33 @@ let noShowTrips = 0;
 
       }
 
-  if(
-  String(t.status || "")
-  .toLowerCase()
-  .replace(/\s/g,"")
-  === "noshow"
-){
+      if(pStatus === "noshow"){
 
-  noShowTrips++;
+        noShowTrips++;
 
-  monthlyRevenue += 15;
-
-}
-
-    }
-
-    /* SHARED */
-
-    else{
-
-      sharedTrips++;
-
-      const passengers =
-        t.passengers || [];
-
-      sharedPassengers +=
-        passengers.length;
-
-      passengers.forEach(p=>{
-
-        if(
-          p.status === "Completed"
-        ){
-
-          completedTrips++;
-
-          monthlyRevenue +=
-            Number(
-              p.price || 0
-            );
-
-        }
-
-        if(
-          p.status === "Cancelled"
-        ){
-
-          noShowTrips++;
-
-          monthlyRevenue += 15;
-
-        }
-
-        if(
-          p.status === "NoShow"
-        ){
-
-          noShowTrips++;
-
-          monthlyRevenue += 15;
-
-        }
-
-      });
-
-      if(
-        t.status === "Completed"
-      ){
-
-        monthlyMiles +=
-          Number(
-            t.miles || 0
-          );
+        monthlyRevenue += 15;
 
       }
 
+    });
+
+    if(
+      String(t.status || "")
+      .toLowerCase()
+      .replace(/\s/g,"")
+      === "completed"
+    ){
+
+      monthlyMiles +=
+        Number(
+          t.miles || 0
+        );
+
     }
 
-  });
+  }
+
+});
 
   /* ================= TODAY ================= */
 
@@ -1383,17 +1379,17 @@ let noShowTrips = 0;
 
     }
 
-    else if(
+   else if(status === "Cancelled"){
 
-      status === "Cancelled" ||
+  cancelledTrips++;
 
-      status === "NoShow"
+}
 
-    ){
+else if(status === "NoShow"){
 
-      cancelledTrips++;
+  noShowTrips++;
 
-    }
+}
 
     else{
 
