@@ -219,6 +219,7 @@ function statusHTML(status){
 }
 
 /* STATS */
+
 function updateStats(data){
 
   let individual = 0;
@@ -230,6 +231,7 @@ function updateStats(data){
 
   data.forEach(t=>{
 
+    /* SHARED */
     if(t.isShared){
 
       shared++;
@@ -237,36 +239,65 @@ function updateStats(data){
       (t.passengers || [])
       .forEach(p=>{
 
-        if(p.status === "Completed")
+        if(p.status === "Completed"){
+
           completed++;
 
+          revenue += Number(
+            p.price || 0
+          );
+
+        }
+
         if(p.status === "Cancelled"){
+
           cancelled++;
+
           revenue += 15;
+
         }
 
         if(p.status === "NoShow"){
+
           noshow++;
+
           revenue += 15;
+
         }
 
       });
 
-    }else{
+    }
+
+    /* INDIVIDUAL */
+    else{
 
       individual++;
 
-      if(t.status === "Completed")
+      if(t.status === "Completed"){
+
         completed++;
 
+        revenue += Number(
+          t.finalPrice || 0
+        );
+
+      }
+
       if(t.status === "Cancelled"){
+
         cancelled++;
+
         revenue += 15;
+
       }
 
       if(t.status === "NoShow"){
+
         noshow++;
+
         revenue += 15;
+
       }
 
     }
@@ -292,6 +323,7 @@ function updateStats(data){
     `$${revenue}`;
 
 }
+
 
 /* RENDER */
 function render(){
