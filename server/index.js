@@ -1888,6 +1888,24 @@ if(isShared){
 }
 
 /* =========================
+   STATUS
+========================= */
+
+const status =
+  String(t.status || "")
+    .replace(/\s+/g,"")
+    .toLowerCase()
+    .trim();
+
+console.log(
+  "BILLING:",
+  t.tripNumber,
+  status,
+  t.finalPrice,
+  t.priceAmount
+);
+
+/* =========================
    STATUS COUNTS
 ========================= */
 
@@ -1903,13 +1921,13 @@ if(status.includes("no")){
   noShowTrips++;
 }
 
-  /* =========================
-     PRICE
-  ========================== */
+/* =========================
+   PRICE
+========================= */
 
-  let price = 0;
+let price = 0;
 
- /* SHARED */
+/* SHARED */
 if(
   isShared &&
   Array.isArray(t.passengers)
@@ -1920,8 +1938,9 @@ if(
 
       const pStatus =
         String(p.status || "")
-        .toLowerCase()
-        .trim();
+          .replace(/\s+/g,"")
+          .toLowerCase()
+          .trim();
 
       /* No Show */
       if(pStatus.includes("no")){
@@ -1958,6 +1977,7 @@ if(
 /* INDIVIDUAL */
 else{
 
+  /* No Show */
   if(status.includes("no")){
 
     price =
@@ -1967,6 +1987,7 @@ else{
 
   }
 
+  /* Cancelled */
   else if(status.includes("cancel")){
 
     price =
@@ -1976,6 +1997,7 @@ else{
 
   }
 
+  /* Completed */
   else if(status.includes("complete")){
 
     price =
@@ -1990,9 +2012,13 @@ else{
 
 }
 
-  revenue += price;
+console.log(
+  "FINAL BILLING PRICE:",
+  t.tripNumber,
+  price
+);
 
-});
+revenue += price;
 
 /* =========================
    TOTALS
