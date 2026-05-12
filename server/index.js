@@ -546,28 +546,13 @@ function calculatePriceServer(trip) {
     const extraMiles = Math.max(0, miles - includedMiles);
     const milesTotal = extraMiles * PER_MILE;
 
-    const stopsTotal =
-  Math.max(0, count - 1) * STOP_PRICE;
+    const stopsTotal = Math.max(0, count - 1) * STOP_PRICE;
+    const noShowTotal = noShowPassengers.length * NO_SHOW;
 
-const noShowTotal =
-  noShowPassengers.length * NO_SHOW;
+    const total = baseTotal + milesTotal + stopsTotal + noShowTotal;
 
-let total = 0;
-
-if(count <= 0){
-
-  total = noShowTotal;
-
-}else{
-
-  total =
-    baseTotal +
-    milesTotal +
-    stopsTotal;
-
-}
-
-return Number(total.toFixed(2));
+    return Number(total.toFixed(2));
+  }
 
   /* ================= COMPANY INDIVIDUAL ================= */
 
@@ -592,9 +577,10 @@ return Number(total.toFixed(2));
 /* =========================
    FINAL PRICE (🔥 مهم جدًا)
 ========================= */
+
 function calculateFinalPrice(trip){
 
-  // 🚨 Cancel
+  // 🚨 Cancelled
   if (trip.status === "Cancelled") {
     return Number(trip.finalPrice || 0);
   }
@@ -607,7 +593,6 @@ function calculateFinalPrice(trip){
   // ✅ Completed
   if (trip.status === "Completed") {
 
-    // 🔥 أهم تعديل
     if (!trip.priceAmount || trip.priceAmount === 0) {
       return calculatePriceServer(trip);
     }
@@ -617,6 +602,7 @@ function calculateFinalPrice(trip){
 
   return 0;
 }
+
 
 function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
