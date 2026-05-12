@@ -1373,33 +1373,15 @@ todayTrips.forEach(t=>{
       t.status || ""
     );
 
-  if(
-    status === "Completed"
-  ){
+if(
+  status !== "Completed" &&
+  status !== "Cancelled" &&
+  status !== "NoShow"
+){
 
-    completedTrips++;
+  upcomingTrips++;
 
-  }
-
-  else if(status === "Cancelled"){
-
-    cancelledTrips++;
-
-  }
-
-  else if(status === "NoShow"){
-
-    noShowTrips++;
-
-  }
-
-  else{
-
-    upcomingTrips++;
-
-  }
-
-  /* ================= TABLE ================= */
+}  /* ================= TABLE ================= */
 
   if(!t.isShared){
 
