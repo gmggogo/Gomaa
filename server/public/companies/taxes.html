@@ -1033,19 +1033,34 @@ function render(trips){
         t._id
       );
 
-    let revenue =
-      Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        0
-      );
+ let revenue = 0;
 
-    if(
-      (isCancelled || isNoShow) &&
-      !revenue
-    ){
-      revenue = 15;
-    }
+/* NO SHOW + CANCELLED */
+
+if(
+  isCancelled ||
+  isNoShow
+){
+
+  revenue = Number(
+    t.cancelFee || 15
+  );
+
+}
+
+/* COMPLETED */
+
+else{
+
+  revenue =
+    Number(
+      t.finalPrice ||
+      t.priceAmount ||
+      t.price ||
+      0
+    );
+
+}
 
     let passengersCount = 1;
 
