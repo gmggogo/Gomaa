@@ -2467,7 +2467,7 @@ app.get("/api/company/billing", async (req,res)=>{
     $regex:"^" + companyName + "$",
     $options:"i"
   }
-}).lean();
+});
 
 if(!company){
 
