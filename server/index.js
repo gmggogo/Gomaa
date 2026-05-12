@@ -1708,26 +1708,41 @@ async function updateCompanyBilling(company){
    BILLING PERIOD
 ========================= */
 
-const startDate =
-  company.billingStartDate
-    ? new Date(company.billingStartDate)
-    : new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        1
-      );
+const startDate = new Date(
+  now.getFullYear(),
+  now.getMonth(),
+  1,
+  0,
+  0,
+  0
+);
 
-const endDate =
-  company.billingEndDate
-    ? new Date(company.billingEndDate)
-    : new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        0,
-        23,
-        59,
-        59
-      );
+const endDate = new Date(
+  now.getFullYear(),
+  now.getMonth() + 1,
+  0,
+  23,
+  59,
+  59
+);
+
+/* =========================
+   AUTO NEXT BILLING DATE
+========================= */
+
+if(!company.nextBillingDate){
+
+  const nextBillingDate =
+    new Date(now);
+
+  nextBillingDate.setMonth(
+    nextBillingDate.getMonth() + 1
+  );
+
+  company.nextBillingDate =
+    nextBillingDate;
+
+}
 
 let billingStatus =
   "ACTIVE";
@@ -1735,53 +1750,53 @@ let billingStatus =
 let billingLocked =
   false;
 
-  /* =========================
-     ACTIVE
-  ========================== */
+/* =========================
+   ACTIVE
+========================= */
 
-  if(now <= nextDate){
+if(now <= nextDate){
 
-    billingStatus =
-      "ACTIVE";
+  billingStatus =
+    "ACTIVE";
 
-  }
+}
 
-  /* =========================
-     GRACE PERIOD
-  ========================== */
+/* =========================
+   GRACE PERIOD
+========================= */
 
-  const graceEnd =
-    new Date(
-      nextDate.getTime() + graceMs
-    );
+const graceEnd =
+  new Date(
+    nextDate.getTime() + graceMs
+  );
 
-  if(
-    now > nextDate &&
-    now <= graceEnd
-  ){
+if(
+  now > nextDate &&
+  now <= graceEnd
+){
 
-    billingStatus =
-      "PAST_DUE";
+  billingStatus =
+    "PAST_DUE";
 
-  }
+}
 
-  /* =========================
-     SUSPENDED
-  ========================== */
+/* =========================
+   SUSPENDED
+========================= */
 
-  if(now > graceEnd){
+if(now > graceEnd){
 
-    billingStatus =
-      "SUSPENDED";
+  billingStatus =
+    "SUSPENDED";
 
-    billingLocked =
-      true;
+  billingLocked =
+    true;
 
-  }
+}
 
-  /* =========================
-     COMPANY TRIPS
-  ========================== */
+/* =========================
+   COMPANY TRIPS
+========================= */
 
 const trips =
   await Trip.find({
