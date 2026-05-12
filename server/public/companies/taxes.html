@@ -839,7 +839,6 @@ function escapeHtml(v){
 }
 
 /* ================= FETCH ================= */
-
 async function loadTrips(){
 
   try{
@@ -864,6 +863,13 @@ async function loadTrips(){
 
     allTrips =
       await res.json();
+
+    const companyName =
+      localStorage.getItem("name");
+
+    allTrips = allTrips.filter(
+      t => t.company === companyName
+    );
 
     render(allTrips);
 
