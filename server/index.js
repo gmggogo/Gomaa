@@ -2461,13 +2461,16 @@ app.get("/api/company/billing", async (req,res)=>{
 
     }
 
-    const company = await User.findOne({
+    let company = await User.findOne({
+
       role:"company",
+
       name:{
         $regex:"^" + companyName + "$",
         $options:"i"
       }
-    }).lean();
+
+    });
 
     if(!company){
 
@@ -2476,6 +2479,17 @@ app.get("/api/company/billing", async (req,res)=>{
       });
 
     }
+
+    /* =========================
+       🔥 RECALCULATE BILLING
+    ========================== */
+
+    company =
+      await updateCompanyBilling(company);
+
+    /* =========================
+       RESPONSE
+    ========================== */
 
     res.json({
 
