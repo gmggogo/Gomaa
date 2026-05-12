@@ -1225,7 +1225,7 @@ let noShowTrips = 0;
 
   tripBody.innerHTML = "";
 
- /* ================= MONTHLY ================= */
+/* ================= MONTHLY ================= */
 
 allTrips.forEach(t=>{
 
@@ -1261,7 +1261,9 @@ allTrips.forEach(t=>{
 
       monthlyRevenue +=
         Number(
-          t.finalPrice || 0
+          t.finalPrice ||
+          t.priceAmount ||
+          0
         );
 
       monthlyMiles +=
@@ -1355,51 +1357,163 @@ allTrips.forEach(t=>{
 
 });
 
-  /* ================= TODAY ================= */
+/* ================= TODAY ================= */
 
-  const todayTrips =
-    allTrips.filter(
-      t=>t.tripDate === today
+const todayTrips =
+  allTrips.filter(
+    t=>t.tripDate === today
+  );
+
+todayTrips.forEach(t=>{
+
+  totalTrips++;
+
+  const status =
+    String(
+      t.status || ""
     );
 
-  todayTrips.forEach(t=>{
+  if(
+    status === "Completed"
+  ){
 
-    totalTrips++;
+    completedTrips++;
 
-    const status =
-      String(
-        t.status || ""
-      );
+  }
 
-    if(
-      status === "Completed"
-    ){
+  else if(status === "Cancelled"){
 
-      completedTrips++;
+    cancelledTrips++;
+
+  }
+
+  else if(status === "NoShow"){
+
+    noShowTrips++;
+
+  }
+
+  else{
+
+    upcomingTrips++;
+
+  }
+
+  /* ================= TABLE ================= */
+
+  if(!t.isShared){
+
+    let revenue = 0;
+
+    const st =
+      String(t.status || "")
+      .toLowerCase()
+      .replace(/\s/g,"");
+
+    if(st === "noshow"){
+
+      revenue =
+        Number(
+          t.cancelFee || 15
+        );
 
     }
 
-   else if(status === "Cancelled"){
+    else if(st === "cancelled"){
 
-  cancelledTrips++;
-
-}
-
-else if(status === "NoShow"){
-
-  noShowTrips++;
-
-}
-
-    else{
-
-      upcomingTrips++;
+      revenue =
+        Number(
+          t.cancelFee || 15
+        );
 
     }
 
-    /* TABLE */
+    else if(st === "completed"){
 
-    if(!t.isShared){
+      revenue =
+        Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          0
+        );
+
+    }
+
+    tripBody.innerHTML += `
+
+    <tr>
+
+      <td>
+        ${t.tripNumber || "-"}
+      </td>
+
+      <td>
+        ${t.clientName || "-"}
+      </td>
+
+      <td>
+        ${t.tripTime || "-"}
+      </td>
+
+      <td>
+        Individual
+      </td>
+
+      <td>
+
+        <span class="
+          status
+          ${statusClass(t.status)}
+        ">
+
+          ${t.status || "-"}
+
+        </span>
+
+      </td>
+
+      <td>
+        ${money(revenue)}
+      </td>
+
+    </tr>
+
+    `;
+
+  }
+
+  else{
+
+    (t.passengers || [])
+    .forEach(p=>{
+
+      let revenue = 0;
+
+      const pStatus =
+        String(p.status || "")
+        .toLowerCase()
+        .replace(/\s/g,"");
+
+      if(pStatus === "noshow"){
+
+        revenue = 15;
+
+      }
+
+      else if(pStatus === "cancelled"){
+
+        revenue = 15;
+
+      }
+
+      else if(pStatus === "completed"){
+
+        revenue =
+          Number(
+            p.price || 0
+          );
+
+      }
 
       tripBody.innerHTML += `
 
@@ -1410,7 +1524,7 @@ else if(status === "NoShow"){
         </td>
 
         <td>
-          ${t.clientName || "-"}
+          ${p.clientName || "-"}
         </td>
 
         <td>
@@ -1418,87 +1532,36 @@ else if(status === "NoShow"){
         </td>
 
         <td>
-          Individual
+          Shared
         </td>
 
         <td>
 
           <span class="
             status
-            ${statusClass(t.status)}
+            ${statusClass(p.status)}
           ">
 
-            ${t.status || "-"}
+            ${p.status || "-"}
 
           </span>
 
         </td>
 
         <td>
-          ${money(
-            t.finalPrice || 0
-          )}
+          ${money(revenue)}
         </td>
 
       </tr>
 
       `;
 
-    }
+    });
 
-    else{
+  }
 
-      (t.passengers || [])
-      .forEach(p=>{
+});
 
-        tripBody.innerHTML += `
-
-        <tr>
-
-          <td>
-            ${t.tripNumber || "-"}
-          </td>
-
-          <td>
-            ${p.clientName || "-"}
-          </td>
-
-          <td>
-            ${t.tripTime || "-"}
-          </td>
-
-          <td>
-            Shared
-          </td>
-
-          <td>
-
-            <span class="
-              status
-              ${statusClass(p.status)}
-            ">
-
-              ${p.status || "-"}
-
-            </span>
-
-          </td>
-
-          <td>
-            ${money(
-              p.price || 0
-            )}
-          </td>
-
-        </tr>
-
-        `;
-
-      });
-
-    }
-
-  });
 
   /* ================= CARDS ================= */
 
