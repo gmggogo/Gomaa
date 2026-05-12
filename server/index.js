@@ -1656,9 +1656,9 @@ app.get("/api/admin/billing", async (req, res) => {
     .lean();
 
     const updated = await Promise.all(
-      companies.map(async (c) =>
-        await updateCompanyBilling(c)
-      )
+      companies.map(async (company) => {
+        return await updateCompanyBilling(company);
+      })
     );
 
     res.json(updated);
@@ -1676,54 +1676,49 @@ app.get("/api/admin/billing", async (req, res) => {
 });
 
 /* =========================
-   BILLING ENGINE (FULL SAVE VERSION)
+   BILLING ENGINE FINAL
 ========================= */
 
 async function updateCompanyBilling(company){
 
   const now = new Date();
 
-/* =========================
-   AUTO NEXT BILLING DATE
-========================= */
+  let nextDate;
 
-let nextDate;
+  if(company.nextBillingDate){
 
-if(company.nextBillingDate){
-
-  nextDate =
-    new Date(company.nextBillingDate);
-
-}else{
-
-  nextDate =
-    new Date(now);
-
-  if(company.billingCycle === "WEEKLY"){
-
-    nextDate.setDate(
-      nextDate.getDate() + 7
-    );
+    nextDate =
+      new Date(company.nextBillingDate);
 
   }else{
 
-    nextDate.setMonth(
-      nextDate.getMonth() + 1
-    );
+    nextDate =
+      new Date(now);
+
+    if(company.billingCycle === "WEEKLY"){
+
+      nextDate.setDate(
+        nextDate.getDate() + 7
+      );
+
+    }else{
+
+      nextDate.setMonth(
+        nextDate.getMonth() + 1
+      );
+
+    }
+
+    company.nextBillingDate =
+      nextDate;
 
   }
 
-  company.nextBillingDate =
-    nextDate;
-
-}
+  const graceDays =
+    Number(company.graceDays || 3);
 
   const graceMs =
-    (company.graceDays || 3)
-    * 24
-    * 60
-    * 60
-    * 1000;
+    graceDays * 24 * 60 * 60 * 1000;
 
   const diff =
     nextDate - now;
@@ -1733,388 +1728,286 @@ if(company.nextBillingDate){
       diff / (1000 * 60 * 60 * 24)
     );
 
-/* =========================
-   BILLING PERIOD
-========================= */
-
-const startDate = new Date(
-  now.getFullYear(),
-  now.getMonth(),
-  1,
-  0,
-  0,
-  0
-);
-
-const endDate = new Date(
-  now.getFullYear(),
-  now.getMonth() + 1,
-  0,
-  23,
-  59,
-  59
-);
-
-let billingStatus =
-  "ACTIVE";
-
-let billingLocked =
-  false;
-
-/* =========================
-   ACTIVE
-========================= */
-
-if(now <= nextDate){
-
-  billingStatus =
-    "ACTIVE";
-
-}
-
-/* =========================
-   GRACE PERIOD
-========================= */
-
-const graceEnd =
-  new Date(
-    nextDate.getTime() + graceMs
-  );
-
-if(
-  now > nextDate &&
-  now <= graceEnd
-){
-
-  billingStatus =
-    "PAST_DUE";
-
-}
-
-/* =========================
-   SUSPENDED
-========================= */
-
-if(now > graceEnd){
-
-  billingStatus =
-    "SUSPENDED";
-
-  billingLocked =
-    true;
-
-}
-
-/* =========================
-   COMPANY TRIPS
-========================= */
-
-const trips =
-  await Trip.find({
-
-    company:{
-      $regex:
-        "^" +
-        String(company.name || "")
-          .trim() +
-        "$",
-
-      $options:"i"
-    },
-
-    createdAt:{
-      $gte:startDate,
-      $lte:endDate
-    }
-
-  }).lean();
-
-/* =========================
-   COUNTS + REVENUE FINAL
-========================= */
-
-let individualTrips = 0;
-
-let completedTrips = 0;
-let cancelledTrips = 0;
-let noShowTrips = 0;
-
-let revenue = 0;
-
-/* =========================
-   SHARED GROUPS
-========================= */
-
-const sharedGroups = new Set();
-
-trips.forEach(t => {
-
-  const isShared =
-    t.isShared === true ||
-    String(t.tripNumber || "").includes("-SH") ||
-    String(t.groupId || "").trim() !== "";
-
-  const status =
-    String(
-      t.status || ""
-    ).toLowerCase().trim();
-
-  /* =========================
-     ONLY BILLABLE
-  ========================== */
-
-  if(
-    !status.includes("complete") &&
-    !status.includes("cancel") &&
-    !status.includes("no")
-  ){
-    return;
-  }
-
-/* =========================
-   COUNT TRIPS
-========================= */
-
-if(isShared){
-
-  sharedGroups.add(
-    String(
-      t.groupId ||
-      t.tripNumber ||
-      t._id
-    )
-  );
-
-}else{
-
-  individualTrips++;
-
-}
-
-/* =========================
-   STATUS COUNTS
-========================= */
-
-if(status.includes("complete")){
-  completedTrips++;
-}
-
-if(status.includes("cancel")){
-  cancelledTrips++;
-}
-
-if(status.includes("no")){
-  noShowTrips++;
-}
-
-/* =========================
-   PRICE
-========================= */
-
-let price = 0;
-
-/* SHARED */
-if(
-  isShared &&
-  Array.isArray(t.passengers)
-){
-
-  price =
-    t.passengers.reduce((sum,p)=>{
-
-      const passengerStatus =
-        String(
-          p.status || ""
-        ).toLowerCase();
-
-      // 🔥 COMPLETED
-      if(passengerStatus.includes("complete")){
-
-        return sum + Number(
-          p.finalPrice ||
-          p.priceAmount ||
+  const startDate =
+    company.billingStartDate
+      ? new Date(company.billingStartDate)
+      : new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          1,
+          0,
+          0,
           0
         );
 
-      }
-
-      // 🔥 NO SHOW
-      if(passengerStatus.includes("no")){
-
-        return sum + 15;
-
-      }
-
-      // 🔥 CANCELLED
-      if(passengerStatus.includes("cancel")){
-
-        return sum + Number(
-          t.cancelFee || 15
+  const endDate =
+    company.billingEndDate
+      ? new Date(company.billingEndDate)
+      : new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59
         );
 
+  const startKey =
+    startDate.toISOString().split("T")[0];
+
+  const endKey =
+    endDate.toISOString().split("T")[0];
+
+  let billingStatus = "ACTIVE";
+  let billingLocked = false;
+
+  const graceEnd =
+    new Date(
+      nextDate.getTime() + graceMs
+    );
+
+  if(
+    now > nextDate &&
+    now <= graceEnd
+  ){
+    billingStatus = "PAST_DUE";
+  }
+
+  if(now > graceEnd){
+    billingStatus = "SUSPENDED";
+    billingLocked = true;
+  }
+
+  const trips =
+    await Trip.find({
+
+      company:{
+        $regex:
+          "^" +
+          String(company.name || "").trim() +
+          "$",
+        $options:"i"
+      },
+
+      tripDate:{
+        $gte:startKey,
+        $lte:endKey
       }
 
-      return sum;
+    }).lean();
 
-    },0);
+  let individualTrips = 0;
+  let completedTrips = 0;
+  let cancelledTrips = 0;
+  let noShowTrips = 0;
+  let revenue = 0;
 
-}
+  const sharedGroups = new Set();
 
-/* INDIVIDUAL */
-else{
+  trips.forEach(t => {
 
-  // 🔥 COMPLETED
-  if(status.includes("complete")){
+    const isShared =
+      t.isShared === true ||
+      String(t.tripNumber || "").includes("-SH") ||
+      String(t.groupId || "").trim() !== "";
 
-    price =
-      Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        t.price ||
-        0
+    const status =
+      String(t.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
+
+    if(
+      !status.includes("complete") &&
+      !status.includes("cancel") &&
+      !status.includes("no")
+    ){
+      return;
+    }
+
+    if(isShared){
+
+      sharedGroups.add(
+        String(
+          t.groupId ||
+          t.tripNumber ||
+          t._id
+        )
       );
 
-  }
+    }else{
 
-  // 🔥 CANCELLED
-  else if(status.includes("cancel")){
+      individualTrips++;
 
-    price =
-      Number(
-        t.finalPrice ||
-        t.cancelFee ||
-        15
-      );
+    }
 
-  }
+    if(status.includes("complete")){
+      completedTrips++;
+    }
 
-  // 🔥 NO SHOW
-  else if(status.includes("no")){
+    if(status.includes("cancel")){
+      cancelledTrips++;
+    }
 
-    price =
-      Number(
-        t.finalPrice ||
-        15
-      );
+    if(status.includes("no")){
+      noShowTrips++;
+    }
 
-  }
+    let price = 0;
 
-}
+    if(
+      isShared &&
+      Array.isArray(t.passengers)
+    ){
 
-revenue += price;
+      price =
+        t.passengers.reduce((sum,p)=>{
 
-});
+          const passengerStatus =
+            String(p.status || "")
+              .replace(/\s+/g,"")
+              .toLowerCase()
+              .trim();
 
-/* =========================
-   TOTALS
-========================= */
+          if(passengerStatus.includes("complete")){
 
-const sharedTrips =
-  sharedGroups.size;
+            return sum + Number(
+              p.finalPrice ||
+              p.priceAmount ||
+              p.price ||
+              0
+            );
 
-const totalTrips =
-  individualTrips + sharedTrips;
+          }
 
-const invoiceAmount =
-  Number(
-    revenue.toFixed(2)
+          if(passengerStatus.includes("no")){
+            return sum + 15;
+          }
+
+          if(passengerStatus.includes("cancel")){
+
+            return sum + Number(
+              p.finalPrice ||
+              p.priceAmount ||
+              t.cancelFee ||
+              15
+            );
+
+          }
+
+          return sum;
+
+        },0);
+
+    }else{
+
+      if(status.includes("complete")){
+
+        price =
+          Number(
+            t.finalPrice ||
+            t.priceAmount ||
+            t.price ||
+            0
+          );
+
+      }
+
+      else if(status.includes("cancel")){
+
+        price =
+          Number(
+            t.finalPrice ||
+            t.cancelFee ||
+            15
+          );
+
+      }
+
+      else if(status.includes("no")){
+
+        price =
+          Number(
+            t.cancelFee ||
+            15
+          );
+
+      }
+
+    }
+
+    revenue += price;
+
+  });
+
+  const sharedTrips =
+    sharedGroups.size;
+
+  const totalTrips =
+    individualTrips + sharedTrips;
+
+  revenue =
+    Number(revenue.toFixed(2));
+
+  const invoiceAmount =
+    Number(company.invoiceAmount || 0);
+
+  await User.findByIdAndUpdate(
+
+    company._id,
+
+    {
+      daysLeft,
+      billingStatus,
+      billingLocked,
+
+      billingStartDate:startDate,
+      billingEndDate:endDate,
+      nextBillingDate:nextDate,
+
+      totalTrips,
+      individualTrips,
+      sharedTrips,
+
+      completedTrips,
+      cancelledTrips,
+      noShowTrips,
+
+      revenue,
+      invoiceAmount
+    }
+
   );
 
-/* =========================
-   APPLY VALUES
-========================= */
-
-company.daysLeft =
-  daysLeft;
-
-company.billingStatus =
-  billingStatus;
-
-company.billingLocked =
-  billingLocked;
-
-company.billingStartDate =
-  startDate;
-
-company.billingEndDate =
-  endDate;
-
-company.totalTrips =
-  totalTrips;
-
-company.individualTrips =
-  individualTrips;
-
-company.sharedTrips =
-  sharedTrips;
-
-company.completedTrips =
-  completedTrips;
-
-company.noShowTrips =
-  noShowTrips;
-
-company.cancelledTrips =
-  cancelledTrips;
-
-company.revenue =
-  revenue;
-
-company.invoiceAmount =
-  invoiceAmount;
-
-/* =========================
-   SAVE TO DATABASE
-========================= */
-
-await User.findByIdAndUpdate(
-
-  company._id,
-
-  {
+  return {
+    ...company,
 
     daysLeft,
-
     billingStatus,
-
     billingLocked,
 
-    billingStartDate:
-      startDate,
-
-    billingEndDate:
-      endDate,
+    billingStartDate:startDate,
+    billingEndDate:endDate,
+    nextBillingDate:nextDate,
 
     totalTrips,
-
     individualTrips,
-
     sharedTrips,
 
     completedTrips,
-
+    cancelledTrips,
     noShowTrips,
 
-    cancelledTrips,
-
     revenue,
-
-    invoiceAmount,
-
-    nextBillingDate:
-      company.nextBillingDate
-
-  }
-
-);
-
-return company;
+    invoiceAmount
+  };
 
 }
 
 /* =========================
    LOCK COMPANY
 ========================= */
+
 app.put("/api/admin/billing/:id/lock", async (req,res)=>{
 
   try{
@@ -2143,10 +2036,10 @@ app.put("/api/admin/billing/:id/lock", async (req,res)=>{
 
 });
 
-
 /* =========================
    UNLOCK COMPANY
 ========================= */
+
 app.put("/api/admin/billing/:id/unlock", async (req,res)=>{
 
   try{
@@ -2178,13 +2071,13 @@ app.put("/api/admin/billing/:id/unlock", async (req,res)=>{
 /* =========================
    MARK BILLING PAID
 ========================= */
+
 app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
 
   try{
 
-    const user = await User.findById(
-      req.params.id
-    );
+    const user =
+      await User.findById(req.params.id);
 
     if(!user){
 
@@ -2199,8 +2092,13 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
     let nextBillingDate =
       new Date(now);
 
-    // MONTHLY
-    if(user.billingCycle === "MONTHLY"){
+    if(user.billingCycle === "WEEKLY"){
+
+      nextBillingDate.setDate(
+        nextBillingDate.getDate() + 7
+      );
+
+    }else{
 
       nextBillingDate.setMonth(
         nextBillingDate.getMonth() + 1
@@ -2208,22 +2106,11 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
 
     }
 
-    // WEEKLY
-    else{
-
-      nextBillingDate.setDate(
-        nextBillingDate.getDate() + 7
-      );
-
-    }
-
     user.billingStatus = "ACTIVE";
-
     user.billingLocked = false;
-
     user.lastPaymentDate = now;
-
     user.nextBillingDate = nextBillingDate;
+    user.invoiceAmount = 0;
 
     await user.save();
 
@@ -2243,284 +2130,80 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
 
 });
 
-
 /* =========================
    GENERATE INVOICE
 ========================= */
 
-app.put(
-  "/api/admin/generate-invoice/:id",
-  async (req,res)=>{
+app.put("/api/admin/generate-invoice/:id", async (req,res)=>{
 
-    try{
+  try{
 
-      const company =
-        await User.findById(
-          req.params.id
-        );
+    const company =
+      await User.findById(req.params.id);
 
-      if(!company){
+    if(!company){
 
-        return res.status(404).json({
-          message:"Company not found"
-        });
-
-      }
-
-      const {
-
-        billingStartDate,
-        billingEndDate,
-        graceDays,
-        invoiceAmount
-
-      } = req.body;
-
-      /* =========================
-         SAVE BILLING
-      ========================== */
-
-      company.billingStartDate =
-        billingStartDate;
-
-      company.billingEndDate =
-        billingEndDate;
-
-      company.graceDays =
-        Number(graceDays || 3);
-
-      company.invoiceAmount =
-        Number(invoiceAmount || 0);
-
-      company.billingStatus =
-        "ACTIVE";
-
-      company.billingLocked =
-        false;
-
-      /* =========================
-         NEXT BILLING DATE
-      ========================== */
-
-      if(billingEndDate){
-
-        company.nextBillingDate =
-          new Date(billingEndDate);
-
-      }
-
-      await company.save();
-
-      /* =========================
-         RESPONSE
-      ========================== */
-
-      res.json({
-
-        success:true,
-
-        message:"Invoice generated"
-
-      });
-
-    }catch(err){
-
-      console.log(err);
-
-      res.status(500).json({
-        message:"generate invoice failed"
+      return res.status(404).json({
+        message:"Company not found"
       });
 
     }
+
+    const {
+      billingStartDate,
+      billingEndDate,
+      graceDays,
+      invoiceAmount
+    } = req.body;
+
+    company.billingStartDate =
+      billingStartDate;
+
+    company.billingEndDate =
+      billingEndDate;
+
+    company.graceDays =
+      Number(graceDays || 3);
+
+    company.invoiceAmount =
+      Number(invoiceAmount || 0);
+
+    company.billingStatus =
+      "ACTIVE";
+
+    company.billingLocked =
+      false;
+
+    if(billingEndDate){
+
+      company.nextBillingDate =
+        new Date(billingEndDate);
+
+    }
+
+    await company.save();
+
+    res.json({
+      success:true,
+      message:"Invoice generated"
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"generate invoice failed"
+    });
 
   }
-);
-
-/* =========================
-   CONNECT STRIPE
-========================= */
-app.post(
-  "/api/company/connect-stripe",
-  async (req,res)=>{
-
-    try{
-
-      const token =
-        req.headers.authorization
-          ?.split(" ")[1];
-
-      if(!token){
-
-        return res.status(401).json({
-          message:"Unauthorized"
-        });
-
-      }
-
-      const decoded =
-        jwt.verify(
-          token,
-          JWT_SECRET
-        );
-
-      const user =
-        await User.findById(decoded.id);
-
-      if(!user){
-
-        return res.status(404).json({
-          message:"User not found"
-        });
-
-      }
-
-      /* =========================
-         EMAIL REQUIRED
-      ========================= */
-
-      if(
-        !user.email ||
-        !String(user.email).includes("@")
-      ){
-
-        return res.status(400).json({
-          message:"Valid company email required"
-        });
-
-      }
-
-      /* =========================
-         ALREADY CONNECTED
-      ========================= */
-
-      if(user.stripeAccountId){
-
-        const accountLink =
-          await stripe.accountLinks.create({
-
-            account:
-              user.stripeAccountId,
-
-            refresh_url:
-              "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
-
-            return_url:
-              "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
-
-            type:
-              "account_onboarding"
-
-          });
-
-        return res.json({
-          url:accountLink.url
-        });
-
-      }
-
-      /* =========================
-         CREATE STRIPE ACCOUNT
-      ========================= */
-
-      const account =
-        await stripe.accounts.create({
-
-          type:"express",
-
-          country:"US",
-
-          email:user.email,
-
-          business_type:"company",
-
-          capabilities:{
-
-            card_payments:{
-              requested:true
-            },
-
-            transfers:{
-              requested:true
-            }
-
-          }
-
-        });
-
-      /* =========================
-         SAVE ACCOUNT
-      ========================= */
-
-      user.stripeAccountId =
-        account.id;
-
-      user.stripeConnected =
-        true;
-
-      await user.save();
-
-      /* =========================
-         CREATE ONBOARD LINK
-      ========================= */
-
-      const accountLink =
-        await stripe.accountLinks.create({
-
-          account:
-            account.id,
-
-          refresh_url:
-            "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
-
-          return_url:
-            "https://sunbeam-933q.onrender.com/admin/admin-billing.html",
-
-          type:
-            "account_onboarding"
-
-        });
-
-      res.json({
-        url:accountLink.url
-      });
-
-    }catch(err){
-
-      console.log(
-        "========== STRIPE ERROR =========="
-      );
-
-      console.log(err);
-
-      console.log("RAW:");
-      console.log(err.raw);
-
-      console.log("MESSAGE:");
-      console.log(err.message);
-
-      console.log("TYPE:");
-      console.log(err.type);
-
-      console.log("CODE:");
-      console.log(err.code);
-
-      console.log(
-        "================================="
-      );
-
-      res.status(500).json({
-        message:
-          err.message ||
-          "Stripe connect failed"
-      });
-
-    }
 
 });
-  
+
 /* =========================
    COMPANY BILLING
 ========================= */
+
 app.get("/api/company/billing", async (req,res)=>{
 
   try{
@@ -2536,34 +2219,30 @@ app.get("/api/company/billing", async (req,res)=>{
 
     }
 
-  let company = await User.findOne({
-  role:"company",
-  name:{
-    $regex:"^" + companyName + "$",
-    $options:"i"
-  }
-});
+    let company =
+      await User.findOne({
+        role:"company",
+        name:{
+          $regex:"^" + companyName + "$",
+          $options:"i"
+        }
+      });
 
-if(!company){
+    if(!company){
 
-  return res.status(404).json({
-    message:"Company not found"
-  });
+      return res.status(404).json({
+        message:"Company not found"
+      });
 
-}
+    }
 
-/* =========================
-   RECALCULATE
-========================= */
+    company =
+      await updateCompanyBilling(company);
 
-company =
-  await updateCompanyBilling(company);
+    res.json({
 
-res.json({
-
-      _id: company._id,
-
-      name: company.name || "",
+      _id:company._id,
+      name:company.name || "",
 
       billingStatus:
         company.billingStatus || "ACTIVE",
@@ -2574,11 +2253,44 @@ res.json({
       invoiceAmount:
         company.invoiceAmount || 0,
 
-      lastPaymentDate:
-        company.lastPaymentDate || null,
+      revenue:
+        company.revenue || 0,
+
+      totalTrips:
+        company.totalTrips || 0,
+
+      individualTrips:
+        company.individualTrips || 0,
+
+      sharedTrips:
+        company.sharedTrips || 0,
+
+      completedTrips:
+        company.completedTrips || 0,
+
+      cancelledTrips:
+        company.cancelledTrips || 0,
+
+      noShowTrips:
+        company.noShowTrips || 0,
+
+      billingStartDate:
+        company.billingStartDate || null,
+
+      billingEndDate:
+        company.billingEndDate || null,
 
       nextBillingDate:
         company.nextBillingDate || null,
+
+      lastPaymentDate:
+        company.lastPaymentDate || null,
+
+      daysLeft:
+        company.daysLeft || 0,
+
+      graceDays:
+        company.graceDays || 0,
 
       billingLocked:
         company.billingLocked || false,
@@ -2604,268 +2316,187 @@ res.json({
    CREATE ACH PAYMENT
 ========================= */
 
-app.post(
-  "/api/company/create-ach-payment",
-  async (req,res)=>{
+app.post("/api/company/create-ach-payment", async (req,res)=>{
 
-    try{
+  try{
 
-      const companyName =
-        String(req.body.company || "").trim();
+    const companyName =
+      String(req.body.company || "").trim();
 
-      if(!companyName){
+    if(!companyName){
 
-        return res.status(400).json({
-          message:"Company required"
-        });
-
-      }
-
-      /* =========================
-         FIND COMPANY
-      ========================== */
-
-      const company =
-        await User.findOne({
-
-          role:"company",
-
-          name:{
-            $regex:
-              "^" + companyName + "$",
-            $options:"i"
-          }
-
-        });
-
-      if(!company){
-
-        return res.status(404).json({
-          message:"Company not found"
-        });
-
-      }
-
-      /* =========================
-         INVOICE REQUIRED
-      ========================== */
-
-      const amount =
-        Number(company.invoiceAmount || 0);
-
-      if(amount <= 0){
-
-        return res.status(400).json({
-          message:"Invoice amount invalid"
-        });
-
-      }
-
-      /* =========================
-         STRIPE CHECKOUT
-      ========================== */
-
-      const session =
-        await stripe.checkout.sessions.create({
-
-          payment_method_types:[
-            "card",
-            "us_bank_account"
-          ],
-
-          mode:"payment",
-
-          metadata:{
-
-            companyId:
-              company._id.toString()
-
-          },
-
-          line_items:[
-
-            {
-
-              price_data:{
-
-                currency:"usd",
-
-                product_data:{
-
-                  name:
-                    `${company.name} Billing Invoice`
-
-                },
-
-                unit_amount:
-                  Math.round(amount * 100)
-
-              },
-
-              quantity:1
-
-            }
-
-          ],
-
-          success_url:
-"https://sunbeam-933q.onrender.com/companies/payment.html?success=1&session_id={CHECKOUT_SESSION_ID}&companyId=" + company._id,
-
-          cancel_url:
-"https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1"
-
-        });
-
-      /* =========================
-         RESPONSE
-      ========================== */
-
-      return res.json({
-
-        success:true,
-
-        url:session.url
-
-      });
-
-    }catch(err){
-
-      console.log(err);
-
-      return res.status(500).json({
-
-        message:"payment failed"
-
+      return res.status(400).json({
+        message:"Company required"
       });
 
     }
 
+    const company =
+      await User.findOne({
+        role:"company",
+        name:{
+          $regex:"^" + companyName + "$",
+          $options:"i"
+        }
+      });
+
+    if(!company){
+
+      return res.status(404).json({
+        message:"Company not found"
+      });
+
+    }
+
+    const amount =
+      Number(company.invoiceAmount || 0);
+
+    if(amount <= 0){
+
+      return res.status(400).json({
+        message:"Invoice amount invalid"
+      });
+
+    }
+
+    const session =
+      await stripe.checkout.sessions.create({
+
+        payment_method_types:[
+          "card",
+          "us_bank_account"
+        ],
+
+        mode:"payment",
+
+        metadata:{
+          companyId:company._id.toString()
+        },
+
+        line_items:[{
+          price_data:{
+            currency:"usd",
+            product_data:{
+              name:`${company.name} Billing Invoice`
+            },
+            unit_amount:Math.round(amount * 100)
+          },
+          quantity:1
+        }],
+
+        success_url:
+          "https://sunbeam-933q.onrender.com/companies/payment.html?success=1&session_id={CHECKOUT_SESSION_ID}&companyId=" + company._id,
+
+        cancel_url:
+          "https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1"
+
+      });
+
+    res.json({
+      success:true,
+      url:session.url
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"payment failed"
+    });
+
   }
-);
+
+});
 
 /* =========================
    VERIFY COMPANY PAYMENT
 ========================= */
 
-app.get(
-  "/api/company/check-payment",
-  async (req,res)=>{
+app.get("/api/company/check-payment", async (req,res)=>{
 
-    try{
+  try{
 
-      const sessionId =
-        req.query.session_id;
+    const sessionId =
+      req.query.session_id;
 
-      const companyId =
-        req.query.companyId;
+    const companyId =
+      req.query.companyId;
 
-      if(
-        !sessionId ||
-        !companyId
-      ){
+    if(!sessionId || !companyId){
 
-        return res.status(400).json({
-          paid:false
-        });
-
-      }
-
-      /* =========================
-         GET STRIPE SESSION
-      ========================== */
-
-      const session =
-        await stripe.checkout.sessions.retrieve(
-          sessionId
-        );
-
-      if(
-        session.payment_status !==
-        "paid"
-      ){
-
-        return res.json({
-          paid:false
-        });
-
-      }
-
-      /* =========================
-         FIND COMPANY
-      ========================== */
-
-      const company =
-        await User.findById(
-          companyId
-        );
-
-      if(!company){
-
-        return res.status(404).json({
-          paid:false
-        });
-
-      }
-
-      /* =========================
-         RESET BILLING
-      ========================== */
-
-      const now = new Date();
-
-      let nextBillingDate =
-        new Date(now);
-
-      if(
-        company.billingCycle ===
-        "WEEKLY"
-      ){
-
-        nextBillingDate.setDate(
-          nextBillingDate.getDate() + 7
-        );
-
-      }else{
-
-        nextBillingDate.setMonth(
-          nextBillingDate.getMonth() + 1
-        );
-
-      }
-
-      company.billingStatus =
-        "ACTIVE";
-
-      company.billingLocked =
-        false;
-
-      company.invoiceAmount =
-        0;
-
-      company.lastPaymentDate =
-        now;
-
-      company.nextBillingDate =
-        nextBillingDate;
-
-      await company.save();
-
-      return res.json({
-        paid:true
-      });
-
-    }catch(err){
-
-      console.log(err);
-
-      return res.status(500).json({
+      return res.status(400).json({
         paid:false
       });
 
     }
 
+    const session =
+      await stripe.checkout.sessions.retrieve(
+        sessionId
+      );
+
+    if(session.payment_status !== "paid"){
+
+      return res.json({
+        paid:false
+      });
+
+    }
+
+    const company =
+      await User.findById(companyId);
+
+    if(!company){
+
+      return res.status(404).json({
+        paid:false
+      });
+
+    }
+
+    const now = new Date();
+
+    let nextBillingDate =
+      new Date(now);
+
+    if(company.billingCycle === "WEEKLY"){
+
+      nextBillingDate.setDate(
+        nextBillingDate.getDate() + 7
+      );
+
+    }else{
+
+      nextBillingDate.setMonth(
+        nextBillingDate.getMonth() + 1
+      );
+
+    }
+
+    company.billingStatus = "ACTIVE";
+    company.billingLocked = false;
+    company.invoiceAmount = 0;
+    company.lastPaymentDate = now;
+    company.nextBillingDate = nextBillingDate;
+
+    await company.save();
+
+    res.json({
+      paid:true
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      paid:false
+    });
+
   }
-);
+
+});
 
 
 /* =========================
