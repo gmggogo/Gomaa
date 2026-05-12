@@ -941,6 +941,19 @@ tr:hover{
       </div>
     </div>
 
+<div class="card">
+
+  <div class="card-title">
+    Total Trips
+  </div>
+
+  <div
+    class="card-value"
+    id="monthlyTotalTrips">
+    0
+  </div>
+
+</div>
     <div class="card">
       <div class="card-title">
         Individual Trips
@@ -1571,6 +1584,11 @@ document.getElementById(
   "noShowTrips"
 ).innerText =
   noShowTrips;
+
+document.getElementById(
+  "monthlyTotalTrips"
+).innerText =
+  individualTrips + sharedTrips;
 
   document.getElementById(
     "individualTrips"
