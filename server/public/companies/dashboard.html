@@ -985,7 +985,7 @@ function getPassengerRevenue(p){
 
 /* ================= RENDER ================= */
 
-function render(){
+async function render(){
 
   setCompanyName();
 
@@ -1007,6 +1007,29 @@ function render(){
 
   const currentYear =
     now.getFullYear();
+
+  const company =
+    localStorage.getItem("name") || "";
+
+  /* ================= BILLING ================= */
+
+  let billing = {};
+
+  try{
+
+    const billingRes =
+      await fetch(
+        `/api/company/billing?company=${encodeURIComponent(company)}`
+      );
+
+    billing =
+      await billingRes.json();
+
+  }catch(err){
+
+    console.log(err);
+
+  }
 
   let totalTripsToday = 0;
   let completedToday = 0;
@@ -1191,65 +1214,17 @@ function render(){
 
   /* ================= BILLING PERIOD ================= */
 
-  const firstDay =
-    new Date(
-      currentYear,
-      currentMonth,
-      1
-    );
+  const billingStart =
+    billing.startDate
+      ? new Date(billing.startDate)
+      : new Date(currentYear,currentMonth,1);
 
-  const lastDay =
-    new Date(
-      currentYear,
-      currentMonth + 1,
-      0
-    );
+  const billingEnd =
+    billing.endDate
+      ? new Date(billing.endDate)
+      : new Date(currentYear,currentMonth+1,0);
 
   document.getElementById("billingPeriod").innerText =
-    firstDay.toLocaleDateString(
-      "en-US",
-      {
-        month:"short",
-        day:"numeric"
-      }
-    )
-    +
-    " – "
-    +
-    lastDay.toLocaleDateString(
-      "en-US",
-      {
-        month:"short",
-        day:"numeric"
-      }
-    );
-
-/* ================= PAYMENT DUE ================= */
-
-const billingStart =
-  billing.billingStartDate
-    ? new Date(billing.billingStartDate)
-    : null;
-
-const billingEnd =
-  billing.billingEndDate
-    ? new Date(billing.billingEndDate)
-    : null;
-
-const nextBilling =
-  billing.nextBillingDate
-    ? new Date(billing.nextBillingDate)
-    : null;
-
-/* ================= BILLING PERIOD ================= */
-
-if(
-  billingStart &&
-  billingEnd
-){
-
-  document.getElementById("billingPeriod").innerText =
-
     billingStart.toLocaleDateString(
       "en-US",
       {
@@ -1257,13 +1232,9 @@ if(
         day:"numeric"
       }
     )
-
     +
-
     " – "
-
     +
-
     billingEnd.toLocaleDateString(
       "en-US",
       {
@@ -1272,15 +1243,15 @@ if(
       }
     );
 
-}
+  /* ================= PAYMENT DUE ================= */
 
-/* ================= PAYMENT DATE ================= */
-
-if(nextBilling){
+  const dueDate =
+    billing.dueDate
+      ? new Date(billing.dueDate)
+      : new Date(currentYear,currentMonth,28);
 
   document.getElementById("paymentDue").innerText =
-
-    nextBilling.toLocaleDateString(
+    dueDate.toLocaleDateString(
       "en-US",
       {
         month:"short",
@@ -1288,88 +1259,75 @@ if(nextBilling){
       }
     );
 
-}
+  const diff =
+    Math.ceil(
+      (dueDate - now) /
+      (1000 * 60 * 60 * 24)
+    );
 
-/* ================= DAYS LEFT ================= */
+  const paymentStatus =
+    document.getElementById("paymentStatus");
 
-const diff =
-  nextBilling
-    ? Math.ceil(
-        (nextBilling - now) /
-        (1000 * 60 * 60 * 24)
-      )
-    : 0;
+  const paymentCard =
+    document.getElementById("paymentCard");
 
-const paymentStatus =
-  document.getElementById("paymentStatus");
-
-const paymentCard =
-  document.getElementById("paymentCard");
-
-paymentCard.classList.remove(
-  "yellow",
-  "orange",
-  "red"
-);
-
-paymentStatus.className =
-  "payment-sub";
-
-/* SAFE */
-if(diff > 9){
-
-  paymentStatus.innerText =
-    diff + " Days Left";
-
-}
-
-/* DUE SOON */
-else if(diff >= 3){
-
-  paymentStatus.innerText =
-    diff + " Days Left";
-
-  paymentCard.classList.add(
-    "yellow"
-  );
-
-  paymentStatus.classList.add(
-    "payment-yellow-text"
-  );
-
-}
-
-/* VERY SOON */
-else if(diff >= 1){
-
-  paymentStatus.innerText =
-    diff + " Days Left";
-
-  paymentCard.classList.add(
-    "orange"
-  );
-
-  paymentStatus.classList.add(
-    "payment-orange-text"
-  );
-
-}
-
-/* PAST DUE */
-else{
-
-  paymentStatus.innerText =
-    "Past Due";
-
-  paymentCard.classList.add(
+  paymentCard.classList.remove(
+    "yellow",
+    "orange",
     "red"
   );
 
-  paymentStatus.classList.add(
-    "payment-red-text"
-  );
+  paymentStatus.className =
+    "payment-sub";
+
+  if(diff > 9){
+
+    paymentStatus.innerText =
+      diff + " Days Left";
+
+  }
+
+  else if(diff >= 3){
+
+    paymentStatus.innerText =
+      diff + " Days Left";
+
+    paymentCard.classList.add("yellow");
+
+    paymentStatus.classList.add(
+      "payment-yellow-text"
+    );
+
+  }
+
+  else if(diff >= 1){
+
+    paymentStatus.innerText =
+      diff + " Days Left";
+
+    paymentCard.classList.add("orange");
+
+    paymentStatus.classList.add(
+      "payment-orange-text"
+    );
+
+  }
+
+  else{
+
+    paymentStatus.innerText =
+      "Past Due";
+
+    paymentCard.classList.add("red");
+
+    paymentStatus.classList.add(
+      "payment-red-text"
+    );
+
+  }
 
 }
+
 /* ================= AUTO ================= */
 
 setInterval(updateClock,1000);
