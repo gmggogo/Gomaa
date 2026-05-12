@@ -1051,11 +1051,28 @@ tr:hover{
 
 let allTrips = [];
 
+/* ================= SET COMPANY NAME ================= */
+
+function setCompanyName(){
+
+  const company =
+    localStorage.getItem("name")
+    || "Facility";
+
+  document.getElementById(
+    "companyName"
+  ).innerText =
+    company;
+
+}
+
 /* ================= LOAD ================= */
 
 async function load(){
 
   try{
+
+    setCompanyName();
 
     const company =
       localStorage.getItem("name") || "";
@@ -1154,14 +1171,7 @@ function statusClass(status){
 
 function render(){
 
-const facilityName =
-  localStorage.getItem("name")
-  || "Facility";
-
-document.getElementById(
-  "companyName"
-).innerText =
-  facilityName;
+  setCompanyName();
 
   const now =
     new Date(
@@ -1352,7 +1362,7 @@ document.getElementById(
       status === "Completed"
     ){
 
-      upcomingTrips++;
+      completedTrips++;
 
     }
 
@@ -1640,6 +1650,8 @@ setInterval(updateClock,1000);
 setInterval(load,30000);
 
 /* ================= INIT ================= */
+
+setCompanyName();
 
 updateClock();
 
