@@ -957,6 +957,9 @@ function render(trips){
   const sharedGroups =
     new Set();
 
+  const revenueGroups =
+    new Set();
+
   const completedGroups =
     new Set();
 
@@ -998,9 +1001,7 @@ function render(trips){
       status === "cancelled";
 
     const isNoShow =
-
       status === "noshow" ||
-
       status === "no show";
 
     if(
@@ -1017,11 +1018,8 @@ function render(trips){
         .trim();
 
     const isShared =
-
       t.isShared === true ||
-
       tripNo.includes("-SH") ||
-
       String(
         t.groupId || ""
       ).trim() !== "";
@@ -1033,19 +1031,47 @@ function render(trips){
         t._id
       );
 
-    let revenue =
-      Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        0
-      );
+    /* ================= REVENUE ================= */
 
-    if(
-      (isCancelled || isNoShow) &&
-      !revenue
-    ){
-      revenue = 15;
+    let revenue = 0;
+
+    /* NO SHOW */
+
+    if(isNoShow){
+
+      revenue =
+        Number(
+          t.cancelFee || 15
+        );
+
     }
+
+    /* CANCELLED */
+
+    else if(isCancelled){
+
+      revenue =
+        Number(
+          t.cancelFee || 15
+        );
+
+    }
+
+    /* COMPLETED */
+
+    else if(isCompleted){
+
+      revenue =
+        Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          t.price ||
+          0
+        );
+
+    }
+
+    /* ================= PASSENGERS ================= */
 
     let passengersCount = 1;
 
@@ -1054,21 +1080,44 @@ function render(trips){
       Array.isArray(t.passengers) &&
       t.passengers.length
     ){
+
       passengersCount =
         t.passengers.length;
+
     }
 
-    totalRevenue +=
-      revenue * passengersCount;
+    /* ================= TOTAL REVENUE ================= */
 
-  if(isCompleted){
+    if(isShared){
 
-  totalMiles +=
-    Math.round(
-      Number(t.miles || 0)
-    );
+      if(
+        !revenueGroups.has(sharedKey)
+      ){
 
-}
+        revenueGroups.add(sharedKey);
+
+        totalRevenue += revenue;
+
+      }
+
+    }else{
+
+      totalRevenue += revenue;
+
+    }
+
+    /* ================= TOTAL MILES ================= */
+
+    if(isCompleted){
+
+      totalMiles +=
+        Math.round(
+          Number(t.miles || 0)
+        );
+
+    }
+
+    /* ================= SHARED / INDIVIDUAL ================= */
 
     if(isShared){
 
@@ -1091,9 +1140,13 @@ function render(trips){
 
     }
 
+    /* ================= TOTAL TRIPS ================= */
+
     totalTrips =
       individualTrips +
       sharedTrips;
+
+    /* ================= COMPLETED ================= */
 
     if(isCompleted){
 
@@ -1117,6 +1170,8 @@ function render(trips){
 
     }
 
+    /* ================= CANCELLED ================= */
+
     if(isCancelled){
 
       if(isShared){
@@ -1138,6 +1193,8 @@ function render(trips){
       }
 
     }
+
+    /* ================= NO SHOW ================= */
 
     if(isNoShow){
 
@@ -1161,18 +1218,26 @@ function render(trips){
 
     }
 
+    /* ================= STATUS CLASS ================= */
+
     let statusClass =
       "status-cancelled";
 
     if(isCompleted){
+
       statusClass =
         "status-completed";
+
     }
 
     if(isNoShow){
+
       statusClass =
         "status-noshow";
+
     }
+
+    /* ================= TABLE ROW ================= */
 
     tripBody.innerHTML += `
 
@@ -1203,21 +1268,18 @@ function render(trips){
 
         </td>
 
-       <td>
-  ${
-    isCompleted
-      ? Math.round(
-          Number(t.miles || 0)
-        )
-      : "0.0"
-  }
-</td>
+        <td>
+          ${
+            isCompleted
+              ? Math.round(
+                  Number(t.miles || 0)
+                )
+              : "0.0"
+          }
+        </td>
 
         <td class="money">
-          ${money(
-            revenue *
-            passengersCount
-          )}
+          ${money(revenue)}
         </td>
 
         <td>
@@ -1276,7 +1338,7 @@ function render(trips){
     totalMiles.toFixed(1) +
     " mi";
 
-}
+} 
 
 /* ================= EVENTS ================= */
 
