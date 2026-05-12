@@ -546,17 +546,32 @@ function calculatePriceServer(trip) {
     const extraMiles = Math.max(0, miles - includedMiles);
     const milesTotal = extraMiles * PER_MILE;
 
-    const stopsTotal = Math.max(0, count - 1) * STOP_PRICE;
-    const noShowTotal = noShowPassengers.length * NO_SHOW;
+    const stopsTotal =
+  Math.max(0, count - 1) * STOP_PRICE;
 
-    const total = baseTotal + milesTotal + stopsTotal + noShowTotal;
+const noShowTotal =
+  noShowPassengers.length * NO_SHOW;
 
-    return Number(total.toFixed(2));
-  }
+let total = 0;
+
+if(count <= 0){
+
+  total = noShowTotal;
+
+}else{
+
+  total =
+    baseTotal +
+    milesTotal +
+    stopsTotal;
+
+}
+
+return Number(total.toFixed(2));
 
   /* ================= COMPANY INDIVIDUAL ================= */
 
-  const BASE = 20;
+  const BASE = 25;
   const INCLUDED = 3;
   const PER_MILE = 2.5;
   const STOP_PRICE = 5;
