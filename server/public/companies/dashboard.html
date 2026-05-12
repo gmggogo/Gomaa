@@ -1269,7 +1269,9 @@ let noShowTrips = 0;
       }
 
       if(
-        t.status === "Cancelled"
+        String(t.status || "")
+  .toLowerCase()
+  === "cancelled"
       ){
 
         cancelledTrips++;
@@ -1279,7 +1281,10 @@ let noShowTrips = 0;
       }
 
   if(
-  t.status === "NoShow"
+  String(t.status || "")
+  .toLowerCase()
+  .replace(/\s/g,"")
+  === "noshow"
 ){
 
   noShowTrips++;
