@@ -2676,6 +2676,131 @@ app.post(
 );
 
 /* =========================
+   VERIFY COMPANY PAYMENT
+========================= */
+
+app.get(
+  "/api/company/check-payment",
+  async (req,res)=>{
+
+    try{
+
+      const sessionId =
+        req.query.session_id;
+
+      const companyId =
+        req.query.companyId;
+
+      if(
+        !sessionId ||
+        !companyId
+      ){
+
+        return res.status(400).json({
+          paid:false
+        });
+
+      }
+
+      /* =========================
+         GET STRIPE SESSION
+      ========================== */
+
+      const session =
+        await stripe.checkout.sessions.retrieve(
+          sessionId
+        );
+
+      if(
+        session.payment_status !==
+        "paid"
+      ){
+
+        return res.json({
+          paid:false
+        });
+
+      }
+
+      /* =========================
+         FIND COMPANY
+      ========================== */
+
+      const company =
+        await User.findById(
+          companyId
+        );
+
+      if(!company){
+
+        return res.status(404).json({
+          paid:false
+        });
+
+      }
+
+      /* =========================
+         RESET BILLING
+      ========================== */
+
+      const now = new Date();
+
+      let nextBillingDate =
+        new Date(now);
+
+      if(
+        company.billingCycle ===
+        "WEEKLY"
+      ){
+
+        nextBillingDate.setDate(
+          nextBillingDate.getDate() + 7
+        );
+
+      }else{
+
+        nextBillingDate.setMonth(
+          nextBillingDate.getMonth() + 1
+        );
+
+      }
+
+      company.billingStatus =
+        "ACTIVE";
+
+      company.billingLocked =
+        false;
+
+      company.invoiceAmount =
+        0;
+
+      company.lastPaymentDate =
+        now;
+
+      company.nextBillingDate =
+        nextBillingDate;
+
+      await company.save();
+
+      return res.json({
+        paid:true
+      });
+
+    }catch(err){
+
+      console.log(err);
+
+      return res.status(500).json({
+        paid:false
+      });
+
+    }
+
+  }
+);
+
+
+/* =========================
    GET DRIVERS
 ========================= */
 app.get("/api/drivers", async (req, res) => {
