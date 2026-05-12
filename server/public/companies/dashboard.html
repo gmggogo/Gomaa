@@ -649,34 +649,7 @@ tr:hover{
 
   </div>
 
-  <div class="table-section">
-
-    <div class="section-title">
-      Today's Trips
-    </div>
-
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-          <tr>
-            <th>Trip#</th>
-            <th>Client</th>
-            <th>Pickup Time</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Revenue</th>
-          </tr>
-        </thead>
-
-        <tbody id="tripsBody"></tbody>
-
-      </table>
-
-    </div>
-
-  </div>
+   </div>
 
 </div>
 
@@ -880,7 +853,6 @@ function render(){
   const tripBody =
     document.getElementById("tripsBody");
 
-  tripBody.innerHTML = "";
 
   allTrips.forEach(t=>{
 
