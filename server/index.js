@@ -2165,8 +2165,10 @@ app.put("/api/admin/generate-invoice/:id", async (req,res)=>{
     company.graceDays =
       Number(graceDays || 3);
 
-    company.invoiceAmount =
-      Number(invoiceAmount || 0);
+  company.invoiceAmount =
+  Number(
+    company.revenue || 0
+  );
 
     company.billingStatus =
       "ACTIVE";
