@@ -1224,17 +1224,47 @@ function render(){
       }
     );
 
-  /* ================= PAYMENT DUE ================= */
+/* ================= PAYMENT DUE ================= */
 
-  const dueDate =
-    new Date(
-      currentYear,
-      currentMonth,
-      28
-    );
+const billingStart =
+  billing.billingStartDate
+    ? new Date(billing.billingStartDate)
+    : null;
 
-  document.getElementById("paymentDue").innerText =
-    dueDate.toLocaleDateString(
+const billingEnd =
+  billing.billingEndDate
+    ? new Date(billing.billingEndDate)
+    : null;
+
+const nextBilling =
+  billing.nextBillingDate
+    ? new Date(billing.nextBillingDate)
+    : null;
+
+/* ================= BILLING PERIOD ================= */
+
+if(
+  billingStart &&
+  billingEnd
+){
+
+  document.getElementById("billingPeriod").innerText =
+
+    billingStart.toLocaleDateString(
+      "en-US",
+      {
+        month:"short",
+        day:"numeric"
+      }
+    )
+
+    +
+
+    " – "
+
+    +
+
+    billingEnd.toLocaleDateString(
       "en-US",
       {
         month:"short",
@@ -1242,75 +1272,104 @@ function render(){
       }
     );
 
-  const diff =
-    Math.ceil(
-      (dueDate - now) /
-      (1000 * 60 * 60 * 24)
+}
+
+/* ================= PAYMENT DATE ================= */
+
+if(nextBilling){
+
+  document.getElementById("paymentDue").innerText =
+
+    nextBilling.toLocaleDateString(
+      "en-US",
+      {
+        month:"short",
+        day:"numeric"
+      }
     );
-
-  const paymentStatus =
-    document.getElementById("paymentStatus");
-
-  const paymentCard =
-    document.getElementById("paymentCard");
-
-  paymentCard.classList.remove(
-    "yellow",
-    "orange",
-    "red"
-  );
-
-  paymentStatus.className =
-    "payment-sub";
-
-  if(diff > 9){
-
-    paymentStatus.innerText =
-      diff + " Days Left";
-
-  }
-
-  else if(diff >= 3){
-
-    paymentStatus.innerText =
-      diff + " Days Left";
-
-    paymentCard.classList.add("yellow");
-
-    paymentStatus.classList.add(
-      "payment-yellow-text"
-    );
-
-  }
-
-  else if(diff >= 1){
-
-    paymentStatus.innerText =
-      diff + " Days Left";
-
-    paymentCard.classList.add("orange");
-
-    paymentStatus.classList.add(
-      "payment-orange-text"
-    );
-
-  }
-
-  else{
-
-    paymentStatus.innerText =
-      "Past Due";
-
-    paymentCard.classList.add("red");
-
-    paymentStatus.classList.add(
-      "payment-red-text"
-    );
-
-  }
 
 }
 
+/* ================= DAYS LEFT ================= */
+
+const diff =
+  nextBilling
+    ? Math.ceil(
+        (nextBilling - now) /
+        (1000 * 60 * 60 * 24)
+      )
+    : 0;
+
+const paymentStatus =
+  document.getElementById("paymentStatus");
+
+const paymentCard =
+  document.getElementById("paymentCard");
+
+paymentCard.classList.remove(
+  "yellow",
+  "orange",
+  "red"
+);
+
+paymentStatus.className =
+  "payment-sub";
+
+/* SAFE */
+if(diff > 9){
+
+  paymentStatus.innerText =
+    diff + " Days Left";
+
+}
+
+/* DUE SOON */
+else if(diff >= 3){
+
+  paymentStatus.innerText =
+    diff + " Days Left";
+
+  paymentCard.classList.add(
+    "yellow"
+  );
+
+  paymentStatus.classList.add(
+    "payment-yellow-text"
+  );
+
+}
+
+/* VERY SOON */
+else if(diff >= 1){
+
+  paymentStatus.innerText =
+    diff + " Days Left";
+
+  paymentCard.classList.add(
+    "orange"
+  );
+
+  paymentStatus.classList.add(
+    "payment-orange-text"
+  );
+
+}
+
+/* PAST DUE */
+else{
+
+  paymentStatus.innerText =
+    "Past Due";
+
+  paymentCard.classList.add(
+    "red"
+  );
+
+  paymentStatus.classList.add(
+    "payment-red-text"
+  );
+
+}
 /* ================= AUTO ================= */
 
 setInterval(updateClock,1000);
