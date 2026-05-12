@@ -1936,11 +1936,7 @@ if(
   price =
     t.passengers.reduce((sum,p)=>{
 
-      const pStatus =
-        String(p.status || "")
-          .replace(/\s+/g,"")
-          .toLowerCase()
-          .trim();
+  
 
       /* No Show */
       if(pStatus.includes("no")){
