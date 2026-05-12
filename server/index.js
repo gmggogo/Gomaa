@@ -1888,19 +1888,6 @@ if(isShared){
 }
 
 /* =========================
-   STATUS
-========================= */
-
-
-console.log(
-  "BILLING:",
-  t.tripNumber,
-  status,
-  t.finalPrice,
-  t.priceAmount
-);
-
-/* =========================
    STATUS COUNTS
 ========================= */
 
@@ -1916,84 +1903,31 @@ if(status.includes("no")){
   noShowTrips++;
 }
 
-/* =========================
-   PRICE
-========================= */
+  /* =========================
+     PRICE
+  ========================== */
 
-let price = 0;
+  let price = 0;
 
-/* SHARED */
-if(
-  isShared &&
-  Array.isArray(t.passengers)
-){
+  /* SHARED */
+  if(
+    isShared &&
+    Array.isArray(t.passengers)
+  ){
 
-  price =
-    t.passengers.reduce((sum,p)=>{
-
-      const pStatus =
-        String(p.status || "")
-          .replace(/\s+/g,"")
-          .toLowerCase()
-          .trim();
-
-      /* No Show */
-      if(pStatus.includes("no")){
-
-        return sum + 15;
-
-      }
-
-      /* Cancelled */
-      if(pStatus.includes("cancel")){
-
-        return sum + 15;
-
-      }
-
-      /* Completed */
-      if(pStatus.includes("complete")){
+    price =
+      t.passengers.reduce((sum,p)=>{
 
         return sum + Number(
-          p.priceAmount ||
-          p.finalPrice ||
-          p.price ||
-          0
+          p.priceAmount || 15
         );
 
-      }
-
-      return sum;
-
-    },0);
-
-}
-
-/* INDIVIDUAL */
-else{
-
-  /* No Show */
-  if(status.includes("no")){
-
-    price =
-      Number(
-        t.cancelFee || 15
-      );
+      },0);
 
   }
 
-  /* Cancelled */
-  else if(status.includes("cancel")){
-
-    price =
-      Number(
-        t.cancelFee || 15
-      );
-
-  }
-
-  /* Completed */
-  else if(status.includes("complete")){
+  /* INDIVIDUAL */
+  else{
 
     price =
       Number(
@@ -2003,17 +1937,24 @@ else{
         0
       );
 
+    if(
+      (status.includes("cancel") ||
+       status.includes("no")) &&
+      !price
+    ){
+
+      price =
+        Number(
+          t.cancelFee || 15
+        );
+
+    }
+
   }
 
-}
+  revenue += price;
 
-console.log(
-  "FINAL BILLING PRICE:",
-  t.tripNumber,
-  price
-);
-
-revenue += price;
+});
 
 /* =========================
    TOTALS
