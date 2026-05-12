@@ -424,13 +424,31 @@ function render(){
             ${statusHTML(t.status)}
           </td>
 
-          <td class="total">
-            $${t.finalPrice || 0}
-          </td>
+        <td class="total">
 
-          <td class="total">
-            $${t.finalPrice || 0}
-          </td>
+  ${
+    t.status === "NoShow" ||
+    t.status === "Cancelled"
+
+    ? "$15"
+
+    : `$${t.finalPrice || 0}`
+  }
+
+</td>
+
+<td class="total">
+
+  ${
+    t.status === "NoShow" ||
+    t.status === "Cancelled"
+
+    ? "$15"
+
+    : `$${t.finalPrice || 0}`
+  }
+
+</td>
 
         </tr>
 
@@ -528,14 +546,41 @@ function render(){
               )}
             </td>
 
-            <td class="total">
-              $${p.price || 0}
-            </td>
+           <td class="total">
+
+  ${
+    p.status === "NoShow" ||
+    p.status === "Cancelled"
+
+    ? "$15"
+
+    : `$${p.price || 0}`
+  }
+
+</td>
 
             <td class="total">
               ${index === 0
-                ? `$${t.totalPrice || 0}`
-                : ""}
+
+  ? `$${(t.passengers || [])
+      .reduce((sum,p)=>{
+
+        if(
+          p.status === "NoShow" ||
+          p.status === "Cancelled"
+        ){
+          return sum + 15;
+        }
+
+        return sum + Number(
+          p.price || 0
+        );
+
+      },0)}`
+
+  : ""
+}
+
             </td>
 
           </tr>
