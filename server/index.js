@@ -1909,25 +1909,74 @@ if(status.includes("no")){
 
   let price = 0;
 
-  /* SHARED */
-  if(
-    isShared &&
-    Array.isArray(t.passengers)
-  ){
+ /* SHARED */
+if(
+  isShared &&
+  Array.isArray(t.passengers)
+){
 
-    price =
-      t.passengers.reduce((sum,p)=>{
+  price =
+    t.passengers.reduce((sum,p)=>{
+
+      const pStatus =
+        String(p.status || "")
+        .toLowerCase()
+        .trim();
+
+      /* No Show */
+      if(pStatus.includes("no")){
+
+        return sum + 15;
+
+      }
+
+      /* Cancelled */
+      if(pStatus.includes("cancel")){
+
+        return sum + 15;
+
+      }
+
+      /* Completed */
+      if(pStatus.includes("complete")){
 
         return sum + Number(
-          p.priceAmount || 15
+          p.priceAmount ||
+          p.finalPrice ||
+          p.price ||
+          0
         );
 
-      },0);
+      }
+
+      return sum;
+
+    },0);
+
+}
+
+/* INDIVIDUAL */
+else{
+
+  if(status.includes("no")){
+
+    price =
+      Number(
+        t.cancelFee || 15
+      );
 
   }
 
-  /* INDIVIDUAL */
-  else{
+  else if(status.includes("cancel")){
+
+    price =
+      Number(
+        t.cancelFee || 15
+      );
+
+  }
+
+  else if(status.includes("complete")){
 
     price =
       Number(
@@ -1937,20 +1986,9 @@ if(status.includes("no")){
         0
       );
 
-    if(
-      (status.includes("cancel") ||
-       status.includes("no")) &&
-      !price
-    ){
-
-      price =
-        Number(
-          t.cancelFee || 15
-        );
-
-    }
-
   }
+
+}
 
   revenue += price;
 
