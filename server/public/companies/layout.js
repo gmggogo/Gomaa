@@ -101,27 +101,9 @@ document.querySelectorAll(".nav a").forEach(link=>{
 
 /* ================= COMPANY NAME ================= */
 
-try{
 
-  const res = await fetch("/api/company/me",{
-
-    headers:{
-      Authorization:"Bearer " + token
-    }
-
-  });
-
-  const data = await res.json();
-
-  document.getElementById("companyName").innerText =
-    data.name || name || "Company";
-
-}catch{
-
-  document.getElementById("companyName").innerText =
-    name || "Company";
-
-}
+document.getElementById("companyName").innerText =
+  name || "Company";
 
 /* ================= LOGOUT ================= */
 
