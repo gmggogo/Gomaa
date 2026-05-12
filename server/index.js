@@ -1683,12 +1683,40 @@ async function updateCompanyBilling(company){
 
   const now = new Date();
 
-  if(!company.nextBillingDate){
-    return company;
+/* =========================
+   AUTO NEXT BILLING DATE
+========================= */
+
+let nextDate;
+
+if(company.nextBillingDate){
+
+  nextDate =
+    new Date(company.nextBillingDate);
+
+}else{
+
+  nextDate =
+    new Date(now);
+
+  if(company.billingCycle === "WEEKLY"){
+
+    nextDate.setDate(
+      nextDate.getDate() + 7
+    );
+
+  }else{
+
+    nextDate.setMonth(
+      nextDate.getMonth() + 1
+    );
+
   }
 
-  const nextDate =
-    new Date(company.nextBillingDate);
+  company.nextBillingDate =
+    nextDate;
+
+}
 
   const graceMs =
     (company.graceDays || 3)
@@ -1705,7 +1733,7 @@ async function updateCompanyBilling(company){
       diff / (1000 * 60 * 60 * 24)
     );
 
- /* =========================
+/* =========================
    BILLING PERIOD
 ========================= */
 
@@ -1726,24 +1754,6 @@ const endDate = new Date(
   59,
   59
 );
-
-/* =========================
-   AUTO NEXT BILLING DATE
-========================= */
-
-if(!company.nextBillingDate){
-
-  const nextBillingDate =
-    new Date(now);
-
-  nextBillingDate.setMonth(
-    nextBillingDate.getMonth() + 1
-  );
-
-  company.nextBillingDate =
-    nextBillingDate;
-
-}
 
 let billingStatus =
   "ACTIVE";
@@ -1837,12 +1847,6 @@ let revenue = 0;
 
 const sharedGroups = new Set();
 
-const completedGroups = new Set();
-const cancelledGroups = new Set();
-const noShowGroups = new Set();
-
-const revenueGroups = new Set();
-
 trips.forEach(t => {
 
   const isShared =
@@ -1903,31 +1907,64 @@ if(status.includes("no")){
   noShowTrips++;
 }
 
-  /* =========================
-     PRICE
-  ========================== */
+/* =========================
+   PRICE
+========================= */
 
-  let price = 0;
+let price = 0;
 
-  /* SHARED */
-  if(
-    isShared &&
-    Array.isArray(t.passengers)
-  ){
+/* SHARED */
+if(
+  isShared &&
+  Array.isArray(t.passengers)
+){
 
-    price =
-      t.passengers.reduce((sum,p)=>{
+  price =
+    t.passengers.reduce((sum,p)=>{
+
+      const passengerStatus =
+        String(
+          p.status || ""
+        ).toLowerCase();
+
+      // 🔥 COMPLETED
+      if(passengerStatus.includes("complete")){
 
         return sum + Number(
-          p.priceAmount || 15
+          p.finalPrice ||
+          p.priceAmount ||
+          0
         );
 
-      },0);
+      }
 
-  }
+      // 🔥 NO SHOW
+      if(passengerStatus.includes("no")){
 
-  /* INDIVIDUAL */
-  else{
+        return sum + 15;
+
+      }
+
+      // 🔥 CANCELLED
+      if(passengerStatus.includes("cancel")){
+
+        return sum + Number(
+          t.cancelFee || 15
+        );
+
+      }
+
+      return sum;
+
+    },0);
+
+}
+
+/* INDIVIDUAL */
+else{
+
+  // 🔥 COMPLETED
+  if(status.includes("complete")){
 
     price =
       Number(
@@ -1937,22 +1974,34 @@ if(status.includes("no")){
         0
       );
 
-    if(
-      (status.includes("cancel") ||
-       status.includes("no")) &&
-      !price
-    ){
+  }
 
-      price =
-        Number(
-          t.cancelFee || 15
-        );
+  // 🔥 CANCELLED
+  else if(status.includes("cancel")){
 
-    }
+    price =
+      Number(
+        t.finalPrice ||
+        t.cancelFee ||
+        15
+      );
 
   }
 
-  revenue += price;
+  // 🔥 NO SHOW
+  else if(status.includes("no")){
+
+    price =
+      Number(
+        t.finalPrice ||
+        15
+      );
+
+  }
+
+}
+
+revenue += price;
 
 });
 
@@ -1971,93 +2020,95 @@ const invoiceAmount =
     revenue.toFixed(2)
   );
 
+/* =========================
+   APPLY VALUES
+========================= */
 
-  /* =========================
-     APPLY VALUES
-  ========================== */
+company.daysLeft =
+  daysLeft;
 
-  company.daysLeft =
-    daysLeft;
+company.billingStatus =
+  billingStatus;
 
-  company.billingStatus =
-    billingStatus;
+company.billingLocked =
+  billingLocked;
 
-  company.billingLocked =
-    billingLocked;
+company.billingStartDate =
+  startDate;
 
-  company.billingStartDate =
-    startDate;
+company.billingEndDate =
+  endDate;
 
-  company.billingEndDate =
-    endDate;
+company.totalTrips =
+  totalTrips;
 
-  company.totalTrips =
-    totalTrips;
+company.individualTrips =
+  individualTrips;
 
-  company.individualTrips =
-    individualTrips;
+company.sharedTrips =
+  sharedTrips;
 
-  company.sharedTrips =
-    sharedTrips;
+company.completedTrips =
+  completedTrips;
 
-  company.completedTrips =
-    completedTrips;
+company.noShowTrips =
+  noShowTrips;
 
-  company.noShowTrips =
-    noShowTrips;
+company.cancelledTrips =
+  cancelledTrips;
 
-  company.cancelledTrips =
-    cancelledTrips;
+company.revenue =
+  revenue;
 
-  company.revenue =
-    revenue;
+company.invoiceAmount =
+  invoiceAmount;
 
-  company.invoiceAmount =
-    invoiceAmount;
+/* =========================
+   SAVE TO DATABASE
+========================= */
 
-  /* =========================
-     SAVE TO DATABASE
-  ========================== */
+await User.findByIdAndUpdate(
 
-  await User.findByIdAndUpdate(
+  company._id,
 
-    company._id,
+  {
 
-    {
+    daysLeft,
 
-      daysLeft,
+    billingStatus,
 
-      billingStatus,
+    billingLocked,
 
-      billingLocked,
+    billingStartDate:
+      startDate,
 
-      billingStartDate:
-        startDate,
+    billingEndDate:
+      endDate,
 
-      billingEndDate:
-        endDate,
+    totalTrips,
 
-      totalTrips,
+    individualTrips,
 
-      individualTrips,
+    sharedTrips,
 
-      sharedTrips,
+    completedTrips,
 
-      completedTrips,
+    noShowTrips,
 
-      noShowTrips,
+    cancelledTrips,
 
-      cancelledTrips,
+    revenue,
 
-      revenue,
+    invoiceAmount,
 
-      invoiceAmount
+    nextBillingDate:
+      company.nextBillingDate
 
-    }
+  }
 
-  );
+);
 
-  return company;
+return company;
 
 }
 
