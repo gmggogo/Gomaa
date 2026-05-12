@@ -1063,10 +1063,10 @@ function render(trips){
 
     if(isCompleted){
 
-      totalMiles +=
-        Number(t.miles || 0);
-
-    }
+totalMiles +=
+  Math.round(
+    Number(t.miles || 0)
+  );
 
     if(isShared){
 
@@ -1201,15 +1201,15 @@ function render(trips){
 
         </td>
 
-        <td>
-          ${
-            isCompleted
-              ? Number(
-                  t.miles || 0
-                ).toFixed(1)
-              : "0.0"
-          }
-        </td>
+       <td>
+  ${
+    isCompleted
+      ? Math.round(
+          Number(t.miles || 0)
+        )
+      : "0.0"
+  }
+</td>
 
         <td class="money">
           ${money(
