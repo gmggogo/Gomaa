@@ -1061,12 +1061,14 @@ function render(trips){
     totalRevenue +=
       revenue * passengersCount;
 
-    if(isCompleted){
+  if(isCompleted){
 
-totalMiles +=
-  Math.round(
-    Number(t.miles || 0)
-  );
+  totalMiles +=
+    Math.round(
+      Number(t.miles || 0)
+    );
+
+}
 
     if(isShared){
 
