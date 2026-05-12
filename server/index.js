@@ -1783,17 +1783,25 @@ let billingLocked =
      COMPANY TRIPS
   ========================== */
 
-  const trips =
-    await Trip.find({
+const trips =
+  await Trip.find({
 
-      company: company.name,
+    company:{
+      $regex:
+        "^" +
+        String(company.name || "")
+          .trim() +
+        "$",
 
-      createdAt:{
-        $gte:startDate,
-        $lte:endDate
-      }
+      $options:"i"
+    },
 
-    }).lean();
+    createdAt:{
+      $gte:startDate,
+      $lte:endDate
+    }
+
+  }).lean();
 
 /* =========================
    COUNTS + REVENUE FINAL
