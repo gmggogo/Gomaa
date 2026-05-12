@@ -898,16 +898,27 @@ tr:hover{
       </div>
     </div>
 
-    <div class="card red">
-      <div class="card-title">
-        Cancelled / No Show
-      </div>
+   <div class="card red">
+  <div class="card-title">
+    Cancelled Trips
+  </div>
 
-      <div class="card-value"
-        id="cancelledTrips">
-        0
-      </div>
-    </div>
+  <div class="card-value"
+    id="cancelledTrips">
+    0
+  </div>
+</div>
+
+<div class="card orange">
+  <div class="card-title">
+    No Show Trips
+  </div>
+
+  <div class="card-value"
+    id="noShowTrips">
+    0
+  </div>
+</div>
 
   </div>
 
@@ -1196,6 +1207,7 @@ function render(){
   let completedTrips = 0;
   let upcomingTrips = 0;
   let cancelledTrips = 0;
+let noShowTrips = 0;
 
   let individualTrips = 0;
   let sharedTrips = 0;
@@ -1266,15 +1278,15 @@ function render(){
 
       }
 
-      if(
-        t.status === "NoShow"
-      ){
+  if(
+  t.status === "NoShow"
+){
 
-        cancelledTrips++;
+  noShowTrips++;
 
-        monthlyRevenue += 15;
+  monthlyRevenue += 15;
 
-      }
+}
 
     }
 
@@ -1309,7 +1321,7 @@ function render(){
           p.status === "Cancelled"
         ){
 
-          cancelledTrips++;
+          noShowTrips++;
 
           monthlyRevenue += 15;
 
@@ -1319,7 +1331,7 @@ function render(){
           p.status === "NoShow"
         ){
 
-          cancelledTrips++;
+          noShowTrips++;
 
           monthlyRevenue += 15;
 
@@ -1504,10 +1516,15 @@ function render(){
   ).innerText =
     upcomingTrips;
 
-  document.getElementById(
-    "cancelledTrips"
-  ).innerText =
-    cancelledTrips;
+document.getElementById(
+  "cancelledTrips"
+).innerText =
+  cancelledTrips;
+
+document.getElementById(
+  "noShowTrips"
+).innerText =
+  noShowTrips;
 
   document.getElementById(
     "individualTrips"
