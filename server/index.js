@@ -218,7 +218,45 @@ daysLeft: {
     type: String,
     default: ""
   }
+totalTrips: {
+  type: Number,
+  default: 0
+},
 
+individualTrips: {
+  type: Number,
+  default: 0
+},
+
+sharedTrips: {
+  type: Number,
+  default: 0
+},
+
+sharedPassengers: {
+  type: Number,
+  default: 0
+},
+
+completedTrips: {
+  type: Number,
+  default: 0
+},
+
+cancelledTrips: {
+  type: Number,
+  default: 0
+},
+
+noShowTrips: {
+  type: Number,
+  default: 0
+},
+
+revenue: {
+  type: Number,
+  default: 0
+},
 }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
