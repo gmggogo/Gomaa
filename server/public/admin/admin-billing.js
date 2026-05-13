@@ -82,14 +82,33 @@ function money(value){
 
 }
 
+/* =========================
+   ARIZONA DATE HELPERS
+========================= */
+
+function getArizonaDate(value){
+
+  if(!value) return null;
+
+  return new Date(
+    new Date(value).toLocaleString(
+      "en-US",
+      {
+        timeZone:"America/Phoenix"
+      }
+    )
+  );
+
+}
+
 function formatDate(value){
 
   if(!value) return "--";
 
   const d =
-    new Date(value);
+    getArizonaDate(value);
 
-  if(isNaN(d.getTime())){
+  if(!d || isNaN(d.getTime())){
     return "--";
   }
 
@@ -98,7 +117,8 @@ function formatDate(value){
     {
       year:"numeric",
       month:"short",
-      day:"numeric"
+      day:"numeric",
+      timeZone:"America/Phoenix"
     }
   );
 
@@ -108,9 +128,10 @@ function toInputDate(value){
 
   if(!value) return "";
 
-  const d = new Date(value);
+  const d =
+    getArizonaDate(value);
 
-  if(isNaN(d.getTime())){
+  if(!d || isNaN(d.getTime())){
     return "";
   }
 
@@ -128,6 +149,19 @@ function toInputDate(value){
   return `${year}-${month}-${day}`;
 
 }
+
+async function safeJson(res){
+
+  try{
+
+    return await res.json();
+
+  }catch(err){
+
+    return {};
+
+  }
+
 }
 
 /* =========================
