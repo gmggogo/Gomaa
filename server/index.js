@@ -2062,6 +2062,7 @@ trips.forEach(t => {
   }
 
 });
+
 /* =========================
    TOTALS
 ========================= */
@@ -2081,7 +2082,6 @@ if(company.lastPaymentDate){
   invoiceAmount = Number(
 
     trips
-
       .filter(t => {
 
         if(!t.createdAt){
