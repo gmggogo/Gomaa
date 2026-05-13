@@ -2193,6 +2193,10 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
     let nextBillingDate =
       new Date(now);
 
+    /* =========================
+       NEXT BILLING DATE
+    ========================= */
+
     if(user.billingCycle === "WEEKLY"){
 
       nextBillingDate.setDate(
@@ -2207,27 +2211,71 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
 
     }
 
+    /* =========================
+       BILLING STATUS
+    ========================= */
+
     user.billingStatus = "ACTIVE";
 
     user.billingLocked = false;
 
+    /* =========================
+       PAYMENT DATES
+    ========================= */
+
     user.lastPaymentDate = now;
 
     /* 🔥 بداية دورة جديدة */
-    user.billingStartDate = now;
+    user.billingStartDate =
+      new Date(
+        now.toISOString()
+      );
 
     /* 🔥 نهاية الدورة الجديدة */
-    user.billingEndDate = nextBillingDate;
+    user.billingEndDate =
+      new Date(
+        nextBillingDate.toISOString()
+      );
 
-    user.nextBillingDate = nextBillingDate;
+    user.nextBillingDate =
+      new Date(
+        nextBillingDate.toISOString()
+      );
+
+    /* =========================
+       RESET BILLING
+    ========================= */
 
     /* 🔥 تصفير الفاتورة */
     user.invoiceAmount = 0;
 
+    /* 🔥 تصفير الإيراد الحالي */
+    user.revenue = 0;
+
+    /* 🔥 تصفير الإحصائيات */
+    user.totalTrips = 0;
+
+    user.individualTrips = 0;
+
+    user.sharedTrips = 0;
+
+    user.sharedPassengers = 0;
+
+    user.completedTrips = 0;
+
+    user.cancelledTrips = 0;
+
+    user.noShowTrips = 0;
+
+    /* =========================
+       SAVE
+    ========================= */
+
     await user.save();
 
     res.json({
-      success:true
+      success:true,
+      message:"Billing marked paid"
     });
 
   }catch(err){
