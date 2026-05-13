@@ -1641,6 +1641,111 @@ app.delete("/api/users/:id", async (req, res) => {
 
 });
 
+function calculateCompanyStats(trips){
+
+  let individualTrips = 0;
+  let sharedTrips = 0;
+
+  let completedTrips = 0;
+  let cancelledTrips = 0;
+  let noShowTrips = 0;
+
+  let revenue = 0;
+
+  trips.forEach(t=>{
+
+    /* SHARED */
+    if(t.isShared){
+
+      sharedTrips++;
+
+      (t.passengers || [])
+      .forEach(p=>{
+
+        if(p.status === "Completed"){
+
+          completedTrips++;
+
+          revenue += Number(
+            p.price || 0
+          );
+
+        }
+
+        if(p.status === "Cancelled"){
+
+          cancelledTrips++;
+
+          revenue += 15;
+
+        }
+
+        if(p.status === "NoShow"){
+
+          noShowTrips++;
+
+          revenue += 15;
+
+        }
+
+      });
+
+    }
+
+    /* INDIVIDUAL */
+    else{
+
+      individualTrips++;
+
+      if(t.status === "Completed"){
+
+        completedTrips++;
+
+        revenue += Number(
+          t.finalPrice || 0
+        );
+
+      }
+
+      if(t.status === "Cancelled"){
+
+        cancelledTrips++;
+
+        revenue += 15;
+
+      }
+
+      if(t.status === "NoShow"){
+
+        noShowTrips++;
+
+        revenue += 15;
+
+      }
+
+    }
+
+  });
+
+  return {
+
+    totalTrips:
+      individualTrips + sharedTrips,
+
+    individualTrips,
+    sharedTrips,
+
+    completedTrips,
+    cancelledTrips,
+    noShowTrips,
+
+    revenue:
+      Number(revenue.toFixed(2))
+
+  };
+
+}
+
 /* =========================
    ADMIN BILLING LIST
 ========================= */
@@ -1796,116 +1901,30 @@ async function updateCompanyBilling(company){
 
     }).lean();
 
-  let individualTrips = 0;
-  let completedTrips = 0;
-  let cancelledTrips = 0;
-  let noShowTrips = 0;
-  let revenue = 0;
+const stats =
+  calculateCompanyStats(trips);
 
-  const sharedGroups = new Set();
+const totalTrips =
+  stats.totalTrips;
 
-  trips.forEach(t => {
+const individualTrips =
+  stats.individualTrips;
 
-    const isShared =
-      t.isShared === true ||
-      String(t.tripNumber || "").includes("-SH") ||
-      String(t.groupId || "").trim() !== "";
+const sharedTrips =
+  stats.sharedTrips;
 
-    const status =
-      String(t.status || "")
-        .replace(/\s+/g,"")
-        .toLowerCase()
-        .trim();
+const completedTrips =
+  stats.completedTrips;
 
-if(isShared){
+const cancelledTrips =
+  stats.cancelledTrips;
 
-  sharedGroups.add(
-    String(
-      t.groupId ||
-      t.tripNumber ||
-      t._id
-    )
-  );
+const noShowTrips =
+  stats.noShowTrips;
 
-  (t.passengers || [])
-  .forEach(p=>{
+const revenue =
+  stats.revenue;
 
-    const passengerStatus =
-      String(p.status || "")
-        .replace(/\s+/g,"")
-        .toLowerCase()
-        .trim();
-
-    if(passengerStatus.includes("complete")){
-
-      completedTrips++;
-
-      revenue += Number(
-        p.price || 0
-      );
-
-    }
-
-    if(passengerStatus.includes("cancel")){
-
-      cancelledTrips++;
-
-      revenue += 15;
-
-    }
-
-    if(passengerStatus.includes("no")){
-
-      noShowTrips++;
-
-      revenue += 15;
-
-    }
-
-  });
-
-}else{
-
-  individualTrips++;
-
-  if(status.includes("complete")){
-
-    completedTrips++;
-
-    revenue += Number(
-      t.finalPrice || 0
-    );
-
-  }
-
-  if(status.includes("cancel")){
-
-    cancelledTrips++;
-
-    revenue += 15;
-
-  }
-
-  if(status.includes("no")){
-
-    noShowTrips++;
-
-    revenue += 15;
-
-  }
-
-}
-
-});
-
-  const sharedTrips =
-    sharedGroups.size;
-
-  const totalTrips =
-    individualTrips + sharedTrips;
-
-  revenue =
-    Number(revenue.toFixed(2));
 
   const invoiceAmount =
     Number(company.invoiceAmount || 0);
