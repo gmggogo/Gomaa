@@ -1,30 +1,28 @@
 const express = require("express");
-
 const router = express.Router();
 
-const Service =
-require("../models/service");
+const Service = require("../models/service.js");
 
 /* =========================
    GET SERVICES
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get("/", async (req, res) => {
 
-  try{
+  try {
 
     const services =
       await Service.find({})
-      .sort({ createdAt:1 });
+      .sort({ createdAt: 1 });
 
     res.json(services);
 
-  }catch(err){
+  } catch (err) {
 
     console.log(err);
 
     res.status(500).json({
-      message:"Failed to load services"
+      message: "Failed to load services"
     });
 
   }
@@ -35,25 +33,25 @@ router.get("/", async (req,res)=>{
    UPDATE SERVICE
 ========================= */
 
-router.put("/:id", async (req,res)=>{
+router.put("/:id", async (req, res) => {
 
-  try{
+  try {
 
     const updated =
       await Service.findByIdAndUpdate(
         req.params.id,
         req.body,
-        { new:true }
+        { new: true }
       );
 
     res.json(updated);
 
-  }catch(err){
+  } catch (err) {
 
     console.log(err);
 
     res.status(500).json({
-      message:"Update failed"
+      message: "Update failed"
     });
 
   }
