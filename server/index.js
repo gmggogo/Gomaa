@@ -2208,9 +2208,20 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
     }
 
     user.billingStatus = "ACTIVE";
+
     user.billingLocked = false;
+
     user.lastPaymentDate = now;
+
+    /* 🔥 بداية دورة جديدة */
+    user.billingStartDate = now;
+
+    /* 🔥 نهاية الدورة الجديدة */
+    user.billingEndDate = nextBillingDate;
+
     user.nextBillingDate = nextBillingDate;
+
+    /* 🔥 تصفير الفاتورة */
     user.invoiceAmount = 0;
 
     await user.save();
@@ -2253,36 +2264,37 @@ app.put("/api/admin/generate-invoice/:id", async (req,res)=>{
     const {
       billingStartDate,
       billingEndDate,
-      graceDays,
-      invoiceAmount
+      graceDays
     } = req.body;
 
+    /* 🔥 حفظ الفترة الجديدة */
+
     company.billingStartDate =
-      billingStartDate;
+      new Date(billingStartDate);
 
     company.billingEndDate =
-      billingEndDate;
+      new Date(billingEndDate);
+
+    company.nextBillingDate =
+      new Date(billingEndDate);
+
+    /* 🔥 Grace */
 
     company.graceDays =
       Number(graceDays || 3);
 
-  company.invoiceAmount =
-  Number(
-    company.revenue || 0
-  );
+    /* 🔥 الفاتورة الحالية */
+
+    company.invoiceAmount =
+      Number(company.revenue || 0);
+
+    /* 🔥 فتح الشركة */
 
     company.billingStatus =
       "ACTIVE";
 
     company.billingLocked =
       false;
-
-    if(billingEndDate){
-
-      company.nextBillingDate =
-        new Date(billingEndDate);
-
-    }
 
     await company.save();
 
