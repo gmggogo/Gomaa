@@ -1817,47 +1817,7 @@ async function updateCompanyBilling(company){
         .toLowerCase()
         .trim();
 
-   /* =========================
-   BILLABLE CHECK
-========================= */
-
-const hasPassengerStatuses =
-
-  isShared &&
-
-  Array.isArray(t.passengers) &&
-
-  t.passengers.some(p=>{
-
-    const s =
-      String(p.status || "")
-        .replace(/\s+/g,"")
-        .toLowerCase()
-        .trim();
-
-    return (
-      s.includes("complete") ||
-      s.includes("cancel") ||
-      s.includes("no")
-    );
-
-  });
-
-const tripBillable =
-
-  status.includes("complete") ||
-  status.includes("cancel") ||
-  status.includes("no");
-
-/* 🔥 لو لا الرحلة ولا الركاب billable */
-
-if(
-  !tripBillable &&
-  !hasPassengerStatuses
-){
-  return;
-}
-    if(isShared){
+if(isShared){
 
   sharedGroups.add(
     String(
@@ -1867,176 +1827,74 @@ if(
     )
   );
 
+  (t.passengers || [])
+  .forEach(p=>{
+
+    const passengerStatus =
+      String(p.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
+
+    if(passengerStatus.includes("complete")){
+
+      completedTrips++;
+
+      revenue += Number(
+        p.price || 0
+      );
+
+    }
+
+    if(passengerStatus.includes("cancel")){
+
+      cancelledTrips++;
+
+      revenue += 15;
+
+    }
+
+    if(passengerStatus.includes("no")){
+
+      noShowTrips++;
+
+      revenue += 15;
+
+    }
+
+  });
+
 }else{
 
   individualTrips++;
 
-}
-
-/* =========================
-   STATUS COUNTS
-========================= */
-
-if(status.includes("complete")){
-  completedTrips++;
-}
-
-if(status.includes("cancel")){
-  cancelledTrips++;
-}
-
-if(status.includes("no")){
-  noShowTrips++;
-}
-
-/* =========================
-   PRICE
-========================= */
-
-let price = 0;
-
-/* =========================
-   SHARED PRICE
-========================= */
-
-if(isShared){
-
-  /* 🔥 لو passengers موجود */
-
-  if(
-    Array.isArray(t.passengers) &&
-    t.passengers.length > 0
-  ){
-
-    price =
-      t.passengers.reduce((sum,p)=>{
-
-        const passengerStatus =
-          String(p.status || "")
-            .replace(/\s+/g,"")
-            .toLowerCase()
-            .trim();
-
-        /* COMPLETE */
-        if(passengerStatus.includes("complete")){
-
-          return sum + Number(
-            p.finalPrice ||
-            p.priceAmount ||
-            p.price ||
-            0
-          );
-
-        }
-
-        /* NO SHOW */
-        if(passengerStatus.includes("no")){
-
-          return sum + 15;
-
-        }
-
-        /* CANCEL */
-        if(passengerStatus.includes("cancel")){
-
-          return sum + Number(
-            p.finalPrice ||
-            p.priceAmount ||
-            t.cancelFee ||
-            15
-          );
-
-        }
-
-        return sum;
-
-      },0);
-
-  }
-
-  /* 🔥 fallback لو passengers مش متخزن */
-
-  else{
-
-    if(status.includes("complete")){
-
-      price =
-        Number(
-          t.finalPrice ||
-          t.priceAmount ||
-          t.price ||
-          0
-        );
-
-    }
-
-    else if(status.includes("cancel")){
-
-      price =
-        Number(
-          t.finalPrice ||
-          t.cancelFee ||
-          15
-        );
-
-    }
-
-    else if(status.includes("no")){
-
-      price =
-        Number(
-          t.cancelFee ||
-          15
-        );
-
-    }
-
-  }
-
-}
-
-/* =========================
-   INDIVIDUAL PRICE
-========================= */
-
-else{
-
   if(status.includes("complete")){
 
-    price =
-      Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        t.price ||
-        0
-      );
+    completedTrips++;
+
+    revenue += Number(
+      t.finalPrice || 0
+    );
 
   }
 
-  else if(status.includes("cancel")){
+  if(status.includes("cancel")){
 
-    price =
-      Number(
-        t.finalPrice ||
-        t.cancelFee ||
-        15
-      );
+    cancelledTrips++;
+
+    revenue += 15;
 
   }
 
-  else if(status.includes("no")){
+  if(status.includes("no")){
 
-    price =
-      Number(
-        t.cancelFee ||
-        15
-      );
+    noShowTrips++;
+
+    revenue += 15;
 
   }
 
 }
-
-revenue += Number(price || 0);
 
 });
 
