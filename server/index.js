@@ -2681,19 +2681,15 @@ app.get("/api/company/check-payment", async (req,res)=>{
     company.billingLocked =
       false;
 
-    /* 🔥 تصفير الفاتورة */
     company.invoiceAmount =
       0;
 
-    /* 🔥 تاريخ آخر دفع */
     company.lastPaymentDate =
       now;
 
-    /* 🔥 بداية الدورة الجديدة */
     company.billingStartDate =
       now;
 
-    /* 🔥 نهاية الدورة الجديدة */
     company.billingEndDate =
       nextBillingDate;
 
@@ -2710,18 +2706,19 @@ app.get("/api/company/check-payment", async (req,res)=>{
       "COMPANY SAVED"
     );
 
-    /* 🔥 منع تكرار التحديث */
+    /* 🔥 منع التكرار */
 
     await stripe.checkout.sessions.update(
       sessionId,
       {
         metadata:{
+          ...session.metadata,
           verified:"true"
         }
       }
     );
 
-  console.log(
+    console.log(
       "PAYMENT UPDATED"
     );
 
@@ -2745,41 +2742,33 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
 });
 
-    /* =========================
-       RESPONSE
-    ========================= */
-
-    res.json({
-      paid:true
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
-      paid:false
-    });
-
-  }
-
-});
 
 /* =========================
    GET DRIVERS
 ========================= */
+
 app.get("/api/drivers", async (req, res) => {
+
   try {
-    const drivers = await User.find({
-      role: "driver",
-      active: true
-    }).sort({ name: 1 });
+
+    const drivers =
+      await User.find({
+        role: "driver",
+        active: true
+      }).sort({ name: 1 });
 
     res.json(drivers);
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Error loading drivers" });
+
+    res.status(500).json({
+      message: "Error loading drivers"
+    });
+
   }
+
 });
 
 /* =========================
