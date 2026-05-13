@@ -6,17 +6,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
-.page{max-width:900px;margin:auto;padding:15px}
+
+body{
+  font-family:Arial;
+  background:#f8fafc;
+  margin:0;
+  color:#111827;
+}
+
+.page{
+  max-width:900px;
+  margin:auto;
+  padding:15px;
+}
 
 /* MOBILE */
+
 @media(max-width:600px){
-  .page{padding:10px}
-  h1{font-size:22px}
-  #map{height:250px}
+
+  .page{
+    padding:10px;
+  }
+
+  h1{
+    font-size:22px;
+  }
+
+  #map{
+    height:250px;
+  }
+
 }
 
 /* HERO */
+
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
@@ -39,6 +62,7 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
 }
 
 /* CARD */
+
 .card{
   background:#fff;
   border-radius:16px;
@@ -48,6 +72,7 @@ body{font-family:Arial;background:#f8fafc;margin:0;color:#111827}
 }
 
 /* INPUT */
+
 input{
   width:100%;
   padding:12px;
@@ -59,6 +84,7 @@ input{
 }
 
 /* BUTTON */
+
 button{
   width:100%;
   padding:12px;
@@ -69,11 +95,23 @@ button{
   cursor:pointer;
 }
 
-.btn-primary{background:#2563eb;color:#fff}
-.btn-success{background:#22c55e;color:#fff}
-.btn-stop{background:#f97316;color:#fff}
+.btn-primary{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn-success{
+  background:#22c55e;
+  color:#fff;
+}
+
+.btn-stop{
+  background:#f97316;
+  color:#fff;
+}
 
 /* VEHICLE */
+
 .vehicle-pricing{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -119,13 +157,8 @@ button{
   margin-bottom:4px;
 }
 
-.vehicle-option span{
-  display:block;
-  font-size:13px;
-  color:#374151;
-}
-
 /* STOP */
+
 .stop-row{
   display:flex;
   gap:6px;
@@ -142,12 +175,14 @@ button{
 }
 
 /* MAP */
+
 #map{
   height:300px;
   border-radius:12px;
 }
 
 /* RESULT CARDS */
+
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -171,28 +206,60 @@ button{
 }
 
 /* COLORS */
-#distance{color:#60a5fa;text-shadow:0 0 10px #60a5fa;}
-#time{color:#fb923c;text-shadow:0 0 10px #fb923c;}
-#price{color:#4ade80;text-shadow:0 0 15px #4ade80;}
-#stopsCount{color:#facc15;text-shadow:0 0 10px #facc15;}
 
-/* BOOK BUTTON BLINK */
+#distance{
+  color:#60a5fa;
+  text-shadow:0 0 10px #60a5fa;
+}
+
+#time{
+  color:#fb923c;
+  text-shadow:0 0 10px #fb923c;
+}
+
+#price{
+  color:#4ade80;
+  text-shadow:0 0 15px #4ade80;
+}
+
+#stopsCount{
+  color:#facc15;
+  text-shadow:0 0 10px #facc15;
+}
+
+/* BOOK BUTTON */
+
 .btn-success.active{
   animation:blinkBtn 0.7s infinite;
 }
 
 @keyframes blinkBtn{
-  0%{opacity:1;box-shadow:0 0 0px #22c55e;}
-  50%{opacity:0.45;box-shadow:0 0 28px #22c55e,0 0 40px #22c55e;}
-  100%{opacity:1;box-shadow:0 0 0px #22c55e;}
+
+  0%{
+    opacity:1;
+    box-shadow:0 0 0px #22c55e;
+  }
+
+  50%{
+    opacity:0.45;
+    box-shadow:0 0 28px #22c55e,0 0 40px #22c55e;
+  }
+
+  100%{
+    opacity:1;
+    box-shadow:0 0 0px #22c55e;
+  }
+
 }
 
-.hidden{display:none}
+.hidden{
+  display:none;
+}
 
 .pricing{
   margin-top:12px;
   font-size:14px;
-  line-height:1.6;
+  line-height:1.9;
 }
 
 .loading-services{
@@ -201,6 +268,16 @@ button{
   color:#64748b;
   font-weight:bold;
 }
+
+.dynamic-line{
+  padding:4px 0;
+  font-size:14px;
+}
+
+.dynamic-line b{
+  color:#fff;
+}
+
 </style>
 </head>
 
@@ -210,49 +287,113 @@ button{
 
 <div class="hero">
 
-<div class="lang-btn" onclick="toggleLang()" id="langBtn">English / Spanish</div>
+<div
+class="lang-btn"
+onclick="toggleLang()"
+id="langBtn"
+>
+English / Spanish
+</div>
 
-<h1 id="title">Get Quote</h1>
+<h1 id="title">
+Get Quote
+</h1>
 
-<div style="margin-top:10px;font-weight:bold;font-size:15px">
+<div
+style="
+margin-top:10px;
+font-weight:bold;
+font-size:15px
+"
+>
 Payment Calculation
 </div>
 
-<div class="pricing" id="pricing">
-<b>Prices are controlled from Service Management</b><br>
-Select a service below to calculate your quote.<br>
-Stops, No Show, and Cancellation fees are based on admin settings.
+<div
+class="pricing"
+id="pricing"
+>
+Loading Services...
 </div>
 
 </div>
 
 <div class="card">
 
-<div class="vehicle-pricing" id="vehicleContainer">
-  <div class="loading-services">Loading services...</div>
+<div
+class="vehicle-pricing"
+id="vehicleContainer"
+>
+<div class="loading-services">
+Loading services...
+</div>
 </div>
 
-<label id="pickupLabel">Pickup</label>
+<label id="pickupLabel">
+Pickup
+</label>
+
 <input id="pickup">
 
 <div id="stops"></div>
 
-<button class="btn-stop" onclick="addStop()">+ Add Stop</button>
+<button
+class="btn-stop"
+onclick="addStop()"
+>
++ Add Stop
+</button>
 
-<label id="dropLabel">Dropoff</label>
+<label id="dropLabel">
+Dropoff
+</label>
+
 <input id="dropoff">
 
-<button class="btn-primary" onclick="calculate()">Calculate</button>
+<button
+class="btn-primary"
+onclick="calculate()"
+>
+Calculate
+</button>
 
-<button class="btn-success hidden" id="bookBtn" onclick="bookTrip()">Booking Now</button>
+<button
+class="btn-success hidden"
+id="bookBtn"
+onclick="bookTrip()"
+>
+Booking Now
+</button>
 
-<div id="priceBox" class="hidden">
+<div
+id="priceBox"
+class="hidden"
+>
+
 <div class="quote-grid">
-<div>Distance<b id="distance"></b></div>
-<div>Stops<b id="stopsCount"></b></div>
-<div>Time<b id="time"></b></div>
-<div>Price<b id="price">$0</b></div>
+
+<div>
+Distance
+<b id="distance"></b>
 </div>
+
+<div>
+Stops
+<b id="stopsCount"></b>
+</div>
+
+<div>
+Time
+<b id="time"></b>
+</div>
+
+<div>
+Price
+<b id="price">$0</b>
+</div>
+
+</div>
+
 </div>
 
 </div>
@@ -276,7 +417,7 @@ let directionsService;
 let directionsRenderer;
 
 /* =========================
-   SERVICE ICONS / IMAGES
+   ICONS
 ========================= */
 
 function getServiceImage(serviceKey){
@@ -297,7 +438,7 @@ function getServiceEmoji(serviceKey){
   if(serviceKey === "STANDARD") return "🚗";
   if(serviceKey === "XL") return "🚐";
   if(serviceKey === "TAXI") return "🚕";
-  if(serviceKey === "LIMO") return "🖤";
+  if(serviceKey === "LIMO") return "🚘";
   if(serviceKey === "WHEELCHAIR") return "🦽";
   if(serviceKey === "AIRPORT") return "✈️";
 
@@ -311,7 +452,14 @@ function getServiceEmoji(serviceKey){
 async function loadServices(){
 
   const container =
-    document.getElementById("vehicleContainer");
+    document.getElementById(
+      "vehicleContainer"
+    );
+
+  const pricingBox =
+    document.getElementById(
+      "pricing"
+    );
 
   try{
 
@@ -330,8 +478,9 @@ async function loadServices(){
       servicesData.filter(service=>{
 
         const key =
-          String(service.serviceKey || "")
-            .toUpperCase();
+          String(
+            service.serviceKey || ""
+          ).toUpperCase();
 
         if(key === "SHARED"){
           return false;
@@ -340,6 +489,39 @@ async function loadServices(){
         return service.enabled === true;
 
       });
+
+    pricingBox.innerHTML =
+      visibleServices.map(service=>{
+
+        const mode =
+          String(
+            service.pricingMode || ""
+          ).toUpperCase();
+
+        const title =
+          service.title ||
+          service.name ||
+          "";
+
+        if(mode === "HOURLY"){
+
+          return `
+            <div class="dynamic-line">
+              <b>${title}</b>
+              — Hourly Pricing
+            </div>
+          `;
+
+        }
+
+        return `
+          <div class="dynamic-line">
+            <b>${title}</b>
+            — Per Mile Pricing
+          </div>
+        `;
+
+      }).join("");
 
     container.innerHTML = "";
 
@@ -357,8 +539,9 @@ async function loadServices(){
     visibleServices.forEach(service=>{
 
       const serviceKey =
-        String(service.serviceKey || "")
-          .toUpperCase();
+        String(
+          service.serviceKey || ""
+        ).toUpperCase();
 
       const title =
         service.title ||
@@ -371,64 +554,29 @@ async function loadServices(){
       const emoji =
         getServiceEmoji(serviceKey);
 
-      const baseFare =
-        Number(service.baseFare || 0);
-
-      const includedMiles =
-        Number(service.includedMiles || 0);
-
-      const perMile =
-        Number(service.perMile || 0);
-
-      const hourlyRate =
-        Number(service.hourlyRate || 0);
-
-      const sharedPrice =
-        Number(service.sharedPrice || 0);
-
-      const pricingMode =
-        String(service.pricingMode || "PER_MILE");
-
       const card =
         document.createElement("div");
 
-      card.className = "vehicle-option";
+      card.className =
+        "vehicle-option";
 
       let mediaHtml = "";
 
       if(image){
-        mediaHtml = `<img src="${image}">`;
-      }else{
-        mediaHtml = `<div class="vehicle-emoji">${emoji}</div>`;
-      }
 
-      let priceLines = "";
-
-      if(pricingMode === "HOURLY"){
-
-        priceLines = `
-          <span>$${hourlyRate} / hour</span>
-        `;
-
-      }else if(pricingMode === "SHARED"){
-
-        priceLines = `
-          <span>$${sharedPrice} shared price</span>
-        `;
+        mediaHtml =
+          `<img src="${image}">`;
 
       }else{
 
-        priceLines = `
-          <span>$${baseFare} base</span>
-          <span>$${perMile} / mile after ${includedMiles} miles</span>
-        `;
+        mediaHtml =
+          `<div class="vehicle-emoji">${emoji}</div>`;
 
       }
 
       card.innerHTML = `
         ${mediaHtml}
         <b>${title}</b>
-        ${priceLines}
       `;
 
       card.onclick = function(){
@@ -459,7 +607,7 @@ async function loadServices(){
 }
 
 /* =========================
-   SELECT SERVICE
+   SELECT
 ========================= */
 
 function selectService(service, card){
@@ -467,8 +615,9 @@ function selectService(service, card){
   selectedServiceData = service;
 
   selectedService =
-    String(service.serviceKey || "")
-      .toUpperCase();
+    String(
+      service.serviceKey || ""
+    ).toUpperCase();
 
   document
     .querySelectorAll(".vehicle-option")
@@ -492,38 +641,40 @@ function toggleLang(){
 
     lang="es";
 
-    langBtn.innerText="Spanish / English";
-    title.innerText="Cotizar Viaje";
-    pickupLabel.innerText="Origen";
-    dropLabel.innerText="Destino";
+    langBtn.innerText =
+      "Spanish / English";
 
-    pricing.innerHTML=`
-<b>Los precios se controlan desde Service Management</b><br>
-Seleccione un servicio para calcular su viaje.<br>
-Paradas, No Show y cancelación dependen de la configuración del admin.
-`;
+    title.innerText =
+      "Cotizar Viaje";
+
+    pickupLabel.innerText =
+      "Origen";
+
+    dropLabel.innerText =
+      "Destino";
 
   }else{
 
     lang="en";
 
-    langBtn.innerText="English / Spanish";
-    title.innerText="Get Quote";
-    pickupLabel.innerText="Pickup";
-    dropLabel.innerText="Dropoff";
+    langBtn.innerText =
+      "English / Spanish";
 
-    pricing.innerHTML=`
-<b>Prices are controlled from Service Management</b><br>
-Select a service below to calculate your quote.<br>
-Stops, No Show, and Cancellation fees are based on admin settings.
-`;
+    title.innerText =
+      "Get Quote";
+
+    pickupLabel.innerText =
+      "Pickup";
+
+    dropLabel.innerText =
+      "Dropoff";
 
   }
 
 }
 
 /* =========================
-   GOOGLE MAP
+   MAP
 ========================= */
 
 function initGoogle(){
@@ -563,7 +714,8 @@ function addStop(){
   const row =
     document.createElement("div");
 
-  row.className = "stop-row";
+  row.className =
+    "stop-row";
 
   const input =
     document.createElement("input");
@@ -582,7 +734,9 @@ function addStop(){
     document.createElement("button");
 
   remove.innerText = "X";
-  remove.className = "remove-btn";
+
+  remove.className =
+    "remove-btn";
 
   remove.onclick = function(){
 
@@ -608,16 +762,25 @@ function addStop(){
 function resetUI(){
 
   bookBtn.classList.add("hidden");
+
   bookBtn.classList.remove("active");
+
   priceBox.classList.add("hidden");
 
 }
 
-pickup.addEventListener("input", resetUI);
-dropoff.addEventListener("input", resetUI);
+pickup.addEventListener(
+  "input",
+  resetUI
+);
+
+dropoff.addEventListener(
+  "input",
+  resetUI
+);
 
 /* =========================
-   FIX ARIZONA
+   FIX AZ
 ========================= */
 
 function fixAZ(address){
@@ -693,8 +856,11 @@ function calculate(){
   directionsService.route({
 
     origin:pickupVal,
+
     destination:dropVal,
+
     waypoints:stopsInputs,
+
     travelMode:"DRIVING",
 
     drivingOptions:{
@@ -750,9 +916,16 @@ function calculate(){
             },
 
             body:JSON.stringify({
-              serviceKey:selectedService,
+
+              serviceKey:
+                selectedService,
+
               miles:miles,
+
+              minutes:mins,
+
               stops:stops
+
             })
           }
         );
@@ -762,45 +935,41 @@ function calculate(){
 
       if(!pricingData.success){
 
-        alert(
-          lang === "en"
-            ? "Pricing error"
-            : "Error de precio"
-        );
+        alert("Pricing error");
 
         return;
 
       }
 
-  let totalPrice = 0;
+      let totalPrice = 0;
 
-const pricingMode =
-  String(
-    pricingData.pricingMode || ""
-  ).toUpperCase();
+      const pricingMode =
+        String(
+          pricingData.pricingMode || ""
+        ).toUpperCase();
 
-if(pricingMode === "HOURLY"){
+      if(pricingMode === "HOURLY"){
 
-  const hours =
-    Math.max(
-      1,
-      Math.ceil(mins / 60)
-    );
+        const hours =
+          Math.max(
+            1,
+            Math.ceil(mins / 60)
+          );
 
-  totalPrice =
-    hours *
-    Number(
-      pricingData.hourlyRate || 0
-    );
+        totalPrice =
+          hours *
+          Number(
+            pricingData.hourlyRate || 0
+          );
 
-}else{
+      }else{
 
-  totalPrice =
-    Number(
-      pricingData.total || 0
-    );
+        totalPrice =
+          Number(
+            pricingData.total || 0
+          );
 
-}
+      }
 
       distance.innerText =
         miles.toFixed(2) + " mi";
@@ -812,22 +981,20 @@ if(pricingMode === "HOURLY"){
         mins + " min";
 
       price.innerText =
-        "$" + totalPrice.toFixed(2);
+        "$" +
+        totalPrice.toFixed(2);
 
       priceBox.classList.remove("hidden");
 
       bookBtn.classList.remove("hidden");
+
       bookBtn.classList.add("active");
 
     }catch(err){
 
       console.log(err);
 
-      alert(
-        lang === "en"
-          ? "Server pricing failed"
-          : "Falló el precio del servidor"
-      );
+      alert("Server pricing failed");
 
     }
 
@@ -844,7 +1011,9 @@ function bookTrip(){
   const stops = [];
 
   document
-    .querySelectorAll(".stop-row input")
+    .querySelectorAll(
+      ".stop-row input"
+    )
     .forEach(i=>{
 
       if(i.value){
@@ -853,37 +1022,6 @@ function bookTrip(){
 
     });
 
-  let vehicleType =
-    "standard";
-
-  let vehicleTypeFromQuote =
-    "X";
-
-  let vehicleName =
-    selectedServiceData?.title ||
-    selectedService ||
-    "";
-
-  if(selectedService === "XL"){
-
-    vehicleType =
-      "minivan";
-
-    vehicleTypeFromQuote =
-      "XL";
-
-  }
-
-  if(selectedService === "STANDARD"){
-
-    vehicleType =
-      "standard";
-
-    vehicleTypeFromQuote =
-      "X";
-
-  }
-
   const trip = {
 
     serviceKey:
@@ -891,15 +1029,6 @@ function bookTrip(){
 
     serviceTitle:
       selectedServiceData?.title || "",
-
-    vehicleType:
-      vehicleType,
-
-    vehicleTypeFromQuote:
-      vehicleTypeFromQuote,
-
-    vehicleName:
-      vehicleName,
 
     pickup:
       pickup.value,
