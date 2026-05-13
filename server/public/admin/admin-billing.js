@@ -342,8 +342,10 @@ function render(list){
 
   }
 
-  container.innerHTML =
-    list.map(c=>{
+ container.innerHTML =
+  list
+    .filter(c => c)
+    .map(c=>{
 
       return `
 
