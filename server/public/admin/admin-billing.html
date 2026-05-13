@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Transportation • Billing Center</title>
+<title>Admin Billing Center</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
@@ -34,11 +34,8 @@
   --green:#16a34a;
   --greenBg:#dcfce7;
 
-  --orange:#ea580c;
-  --orangeBg:#ffedd5;
-
-  --yellow:#ca8a04;
-  --yellowBg:#fef3c7;
+  --orange:#f59e0b;
+  --orangeBg:#fef3c7;
 
   --red:#dc2626;
   --redBg:#fee2e2;
@@ -64,32 +61,59 @@ body{
   z-index:9999;
 }
 
+/* =========================
+   PAGE
+========================= */
+
 .page-body{
   max-width:1900px;
   margin:auto;
   padding:320px 18px 50px;
 }
 
+@media(max-width:768px){
+
+  .page-body{
+    padding-top:360px;
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+}
+
 /* =========================
-   TOP
+   TOP GRID
 ========================= */
 
 .top-grid{
   display:grid;
   grid-template-columns:420px 1fr;
   gap:18px;
-  margin-bottom:20px;
+  margin-bottom:22px;
 }
+
+@media(max-width:1200px){
+
+  .top-grid{
+    grid-template-columns:1fr;
+  }
+
+}
+
+/* =========================
+   CARDS
+========================= */
 
 .card{
-  background:var(--card);
-  border-radius:22px;
+  background:#fff;
+  border-radius:24px;
   border:1px solid var(--border);
-  padding:24px;
   box-shadow:var(--shadow);
+  padding:24px;
 }
 
-.main-card{
+.billing-card{
+
   background:
     linear-gradient(
       135deg,
@@ -101,41 +125,54 @@ body{
 
   position:relative;
   overflow:hidden;
+
 }
 
-.main-card::before{
+.billing-card::before{
+
   content:"";
+
   position:absolute;
-  right:-60px;
-  top:-60px;
+
+  right:-50px;
+  top:-50px;
+
   width:180px;
   height:180px;
+
   border-radius:50%;
-  background:rgba(255,255,255,.08);
+
+  background:
+    rgba(255,255,255,.08);
+
 }
 
 .title{
+
   font-size:30px;
   font-weight:900;
   margin-bottom:10px;
+
 }
 
 .subtitle{
-  line-height:1.8;
-  font-size:14px;
-  color:#dbeafe;
-}
 
-.stripe-actions{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:22px;
+  font-size:14px;
+  line-height:1.8;
+  color:#dbeafe;
+
 }
 
 /* =========================
    BUTTONS
 ========================= */
+
+.stripe-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:22px;
+}
 
 .btn{
   border:none;
@@ -145,16 +182,14 @@ body{
   font-weight:900;
   cursor:pointer;
   transition:.18s;
-  white-space:nowrap;
 }
 
 .btn:hover{
   transform:translateY(-2px);
-  opacity:.95;
 }
 
-.btn-blue{
-  background:var(--blue);
+.btn-stripe{
+  background:#635bff;
   color:#fff;
 }
 
@@ -163,24 +198,24 @@ body{
   color:#fff;
 }
 
+.btn-blue{
+  background:#2563eb;
+  color:#fff;
+}
+
 .btn-green{
-  background:var(--greenBg);
+  background:#dcfce7;
   color:#166534;
 }
 
 .btn-red{
-  background:var(--redBg);
+  background:#fee2e2;
   color:#991b1b;
 }
 
 .btn-yellow{
-  background:var(--yellowBg);
-  color:#854d0e;
-}
-
-.btn-stripe{
-  background:#635bff;
-  color:#fff;
+  background:#fef3c7;
+  color:#92400e;
 }
 
 /* =========================
@@ -193,47 +228,83 @@ body{
   gap:14px;
 }
 
+@media(max-width:1300px){
+
+  .stats{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+}
+
+@media(max-width:650px){
+
+  .stats{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+}
+
 .stat{
-  min-height:145px;
+
   border-radius:22px;
   padding:20px;
   color:#fff;
   position:relative;
   overflow:hidden;
+  min-height:145px;
   box-shadow:var(--shadow);
+
 }
 
 .stat::before{
+
   content:"";
+
   position:absolute;
+
   right:-25px;
   bottom:-25px;
+
   width:90px;
   height:90px;
+
   border-radius:50%;
-  background:rgba(255,255,255,.10);
+
+  background:
+    rgba(255,255,255,.10);
+
 }
 
 .stat h4{
+
   margin:0;
-  font-size:12px;
-  letter-spacing:.5px;
+
+  font-size:11px;
+
   text-transform:uppercase;
-  opacity:.92;
+
+  letter-spacing:.5px;
+
+  opacity:.95;
+
 }
 
 .stat p{
-  margin:38px 0 0;
+
+  margin:40px 0 0;
+
   font-size:34px;
+
   font-weight:900;
+
 }
 
-.stat.blue{
+.stat.dark{
   background:
     linear-gradient(
       135deg,
-      #2563eb,
-      #1d4ed8
+      #334155,
+      #1e293b
     );
 }
 
@@ -241,8 +312,8 @@ body{
   background:
     linear-gradient(
       135deg,
-      #16a34a,
-      #15803d
+      #22c55e,
+      #16a34a
     );
 }
 
@@ -259,17 +330,17 @@ body{
   background:
     linear-gradient(
       135deg,
-      #dc2626,
-      #b91c1c
+      #ef4444,
+      #dc2626
     );
 }
 
-.stat.dark{
+.stat.blue{
   background:
     linear-gradient(
       135deg,
-      #0f172a,
-      #1e293b
+      #3b82f6,
+      #2563eb
     );
 }
 
@@ -278,29 +349,63 @@ body{
 ========================= */
 
 .filters{
+
   display:grid;
-  grid-template-columns:1fr 180px 180px 180px;
+
+  grid-template-columns:
+    1fr 180px 180px 180px;
+
   gap:12px;
+
   margin-bottom:18px;
+
+}
+
+@media(max-width:900px){
+
+  .filters{
+    grid-template-columns:1fr 1fr;
+  }
+
+}
+
+@media(max-width:550px){
+
+  .filters{
+    grid-template-columns:1fr;
+  }
+
 }
 
 .input,
 .select{
+
   width:100%;
+
   height:50px;
+
   border-radius:14px;
+
   border:1px solid #cbd5e1;
+
   background:#fff;
+
   padding:0 14px;
+
   font-size:14px;
+
   outline:none;
+
 }
 
 .input:focus,
 .select:focus{
-  border-color:var(--blue);
+
+  border-color:#2563eb;
+
   box-shadow:
     0 0 0 3px rgba(37,99,235,.12);
+
 }
 
 /* =========================
@@ -308,55 +413,151 @@ body{
 ========================= */
 
 .table-wrap{
-  overflow:auto;
+
+  overflow-x:auto;
+  overflow-y:hidden;
+
   background:#fff;
-  border-radius:22px;
+
+  border-radius:24px;
+
   border:1px solid var(--border);
+
   box-shadow:var(--shadow);
+
+}
+
+.table-wrap::-webkit-scrollbar{
+  height:10px;
+}
+
+.table-wrap::-webkit-scrollbar-track{
+  background:#e2e8f0;
+  border-radius:999px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb{
+  background:#94a3b8;
+  border-radius:999px;
 }
 
 table{
+
   width:100%;
-  min-width:2100px;
-  border-collapse:collapse;
+
+  min-width:2150px;
+
+  border-collapse:separate;
+
+  border-spacing:0;
+
 }
 
-thead th{
-  background:#0f172a;
-  color:#fff;
-  padding:16px 14px;
-  font-size:12px;
-  text-align:left;
-  white-space:nowrap;
+/* =========================
+   TABLE HEADER
+========================= */
+
+th{
+
   position:sticky;
+
   top:0;
-  z-index:2;
+
+  z-index:5;
+
+  background:
+    linear-gradient(
+      135deg,
+      #0f172a,
+      #1e293b
+    );
+
+  color:#fff;
+
+  padding:16px 14px;
+
+  font-size:11px;
+
+  font-weight:900;
+
+  text-transform:uppercase;
+
+  letter-spacing:.4px;
+
+  white-space:nowrap;
+
+  text-align:left;
+
 }
+
+th:first-child{
+  border-top-left-radius:20px;
+}
+
+th:last-child{
+  border-top-right-radius:20px;
+}
+
+/* =========================
+   TABLE BODY
+========================= */
 
 tbody tr{
+
   transition:.15s;
+
+}
+
+tbody tr:nth-child(even){
+
+  background:#f8fafc;
+
 }
 
 tbody tr:hover{
-  background:#f8fafc;
+
+  background:#eef4ff;
+
 }
 
 td{
+
   padding:16px 14px;
+
   border-bottom:1px solid #e5e7eb;
-  vertical-align:top;
+
   font-size:12px;
+
+  vertical-align:top;
+
+  white-space:nowrap;
+
 }
 
+/* =========================
+   COMPANY
+========================= */
+
 .company-name{
-  font-size:15px;
+
+  font-size:14px;
+
   font-weight:900;
+
+  color:#111827;
+
 }
 
 .company-small{
-  margin-top:8px;
+
+  margin-top:7px;
+
+  color:#64748b;
+
   line-height:1.7;
-  color:var(--muted);
+
+  font-size:11px;
+
 }
 
 /* =========================
@@ -364,27 +565,39 @@ td{
 ========================= */
 
 .badge{
+
   display:inline-flex;
+
   align-items:center;
+
   justify-content:center;
+
+  min-width:82px;
+
   padding:7px 12px;
+
   border-radius:999px;
-  font-size:11px;
+
+  font-size:10px;
+
   font-weight:900;
+
+  letter-spacing:.4px;
+
 }
 
 .status-active{
-  background:var(--greenBg);
+  background:#dcfce7;
   color:#166534;
 }
 
 .status-past{
-  background:var(--yellowBg);
+  background:#fef3c7;
   color:#854d0e;
 }
 
 .status-suspended{
-  background:var(--redBg);
+  background:#fee2e2;
   color:#991b1b;
 }
 
@@ -398,7 +611,7 @@ td{
 ========================= */
 
 .actions{
-  min-width:420px;
+  min-width:430px;
 }
 
 .control-grid{
@@ -416,18 +629,36 @@ td{
 }
 
 .small-input{
-  width:100%;
+
   height:38px;
-  border-radius:10px;
+
   border:1px solid #cbd5e1;
+
+  border-radius:10px;
+
   padding:0 10px;
+
+  font-size:12px;
+
+  background:#fff;
+
   outline:none;
+
+}
+
+.small-input:focus{
+
+  border-color:#2563eb;
+
+  box-shadow:
+    0 0 0 3px rgba(37,99,235,.12);
+
 }
 
 .btn-row{
   display:flex;
+  gap:7px;
   flex-wrap:wrap;
-  gap:8px;
 }
 
 /* =========================
@@ -435,11 +666,17 @@ td{
 ========================= */
 
 .empty{
-  padding:45px;
+
   text-align:center;
-  color:var(--muted);
+
+  color:#64748b;
+
+  padding:45px;
+
   font-size:14px;
+
   font-weight:700;
+
 }
 
 /* =========================
@@ -451,64 +688,33 @@ td{
 }
 
 .history-title{
-  font-size:22px;
+
+  font-size:20px;
+
   font-weight:900;
-  margin-bottom:16px;
+
+  margin-bottom:14px;
+
 }
 
 /* =========================
    MOBILE
 ========================= */
 
-@media(max-width:1400px){
+@media(max-width:768px){
 
-  .stats{
-    grid-template-columns:repeat(3,1fr);
+  td{
+    padding:14px 10px;
+    font-size:11px;
   }
 
-}
-
-@media(max-width:1100px){
-
-  .top-grid{
-    grid-template-columns:1fr;
-  }
-
-}
-
-@media(max-width:900px){
-
-  .page-body{
-    padding-top:360px;
-  }
-
-  .filters{
-    grid-template-columns:1fr 1fr;
-  }
-
-}
-
-@media(max-width:650px){
-
-  .page-body{
-    padding-left:10px;
-    padding-right:10px;
-  }
-
-  .stats{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .filters{
-    grid-template-columns:1fr;
+  th{
+    padding:14px 10px;
+    font-size:10px;
   }
 
   .title{
     font-size:24px;
-  }
-
-  .stat{
-    min-height:130px;
   }
 
   .stat p{
@@ -532,16 +738,16 @@ td{
 
   <div class="top-grid">
 
-    <div class="card main-card">
+    <div class="card billing-card">
 
       <div class="title">
         Billing Center
       </div>
 
       <div class="subtitle">
-        Generate invoices, monitor revenue,
-        manage billing cycles, track company
-        payments, and lock or unlock accounts.
+        Generate invoices, calculate totals,
+        manage Stripe accounts, track payments,
+        and control company billing access.
       </div>
 
       <div class="stripe-actions">
@@ -644,7 +850,7 @@ td{
   </div>
 
   <!-- =========================
-       BILLING TABLE
+       TABLE
   ========================== -->
 
   <div class="table-wrap">
@@ -652,7 +858,9 @@ td{
     <table>
 
       <thead>
+
         <tr>
+
           <th>Company</th>
           <th>Status</th>
           <th>Period</th>
@@ -668,15 +876,19 @@ td{
           <th>Last Payment</th>
           <th>Locked</th>
           <th>Actions</th>
+
         </tr>
+
       </thead>
 
       <tbody id="billingContainer">
 
         <tr>
+
           <td colspan="15" class="empty">
             Loading billing data...
           </td>
+
         </tr>
 
       </tbody>
@@ -700,22 +912,28 @@ td{
       <table>
 
         <thead>
+
           <tr>
+
             <th>Company</th>
             <th>Invoice #</th>
             <th>Period</th>
             <th>Amount</th>
             <th>Status</th>
             <th>Created</th>
+
           </tr>
+
         </thead>
 
         <tbody id="historyContainer">
 
           <tr>
+
             <td colspan="6" class="empty">
               No invoice history loaded.
             </td>
+
           </tr>
 
         </tbody>
