@@ -2737,7 +2737,6 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
   }
 
-});
 
     /* =========================
        UPDATE BILLING
