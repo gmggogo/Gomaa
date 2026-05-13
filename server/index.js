@@ -1817,14 +1817,46 @@ async function updateCompanyBilling(company){
         .toLowerCase()
         .trim();
 
-    if(
-      !status.includes("complete") &&
-      !status.includes("cancel") &&
-      !status.includes("no")
-    ){
-      return;
-    }
+   /* =========================
+   BILLABLE CHECK
+========================= */
 
+const hasPassengerStatuses =
+
+  isShared &&
+
+  Array.isArray(t.passengers) &&
+
+  t.passengers.some(p=>{
+
+    const s =
+      String(p.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
+
+    return (
+      s.includes("complete") ||
+      s.includes("cancel") ||
+      s.includes("no")
+    );
+
+  });
+
+const tripBillable =
+
+  status.includes("complete") ||
+  status.includes("cancel") ||
+  status.includes("no");
+
+/* 🔥 لو لا الرحلة ولا الركاب billable */
+
+if(
+  !tripBillable &&
+  !hasPassengerStatuses
+){
+  return;
+}
     if(isShared){
 
   sharedGroups.add(
