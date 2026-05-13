@@ -9,8 +9,19 @@ const path = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+
 const serviceRoutes =
 require("./routes/serviceRoutes");
+
+const pricingRoutes =
+require("./routes/pricingRoutes");
+
+const app = express();
+
+app.use(
+  "/api/pricing",
+  pricingRoutes
+);
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
@@ -21,8 +32,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
-
-const app = express();
 
 /* =========================
    ENV
