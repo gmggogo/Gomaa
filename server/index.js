@@ -2062,7 +2062,6 @@ trips.forEach(t => {
   }
 
 });
-
 /* =========================
    TOTALS
 ========================= */
@@ -2073,8 +2072,68 @@ const sharedTrips =
 const totalTrips =
   individualTrips + sharedTrips;
 
-const invoiceAmount =
-  Number(revenue.toFixed(2));
+/* 🔥 الفاتورة = فقط الرحلات بعد آخر دفعة */
+
+let invoiceAmount = 0;
+
+if(company.lastPaymentDate){
+
+  invoiceAmount = Number(
+
+    trips
+
+      .filter(t => {
+
+        if(!t.createdAt){
+          return false;
+        }
+
+        return (
+          new Date(t.createdAt) >
+          new Date(company.lastPaymentDate)
+        );
+
+      })
+
+      .reduce((sum,t)=>{
+
+        const status =
+          String(t.status || "")
+            .toLowerCase();
+
+        if(status.includes("complete")){
+
+          return sum + Number(
+            t.finalPrice ||
+            t.priceAmount ||
+            0
+          );
+
+        }
+
+        if(
+          status.includes("cancel") ||
+          status.includes("no")
+        ){
+
+          return sum + 15;
+
+        }
+
+        return sum;
+
+      },0)
+
+      .toFixed(2)
+
+  );
+
+}else{
+
+  invoiceAmount =
+    Number(revenue.toFixed(2));
+
+}
 
 await User.findByIdAndUpdate(
   company._id,
@@ -2096,14 +2155,12 @@ await User.findByIdAndUpdate(
     cancelledTrips,
     noShowTrips,
 
-    revenue,
-    invoiceAmount
+    revenue: invoiceAmount,
+    invoiceAmount: invoiceAmount
   }
 );
 
 return await User.findById(company._id).lean();
-
-}
 
 /* =========================
    LOCK COMPANY
