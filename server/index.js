@@ -1955,12 +1955,11 @@ if(
 
     if(ps === "completed"){
 
-      amount += Number(
-        p.price ||
-        p.priceAmount ||
-        p.finalPrice ||
-        0
-      );
+amount += Number(
+ p.finalPrice ||
+p.priceAmount ||
+p.price ||
+15
 
     }
 
