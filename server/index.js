@@ -2040,9 +2040,6 @@ revenue += Number(price || 0);
 
 });
 
-const sharedTrips =
-    sharedGroups.size;
-
 /* =========================
    SHARED PASSENGERS
 ========================= */
@@ -2101,120 +2098,15 @@ trips.forEach(t => {
 
 });
 
+/* =========================
+   TOTALS
+========================= */
+
 const sharedTrips =
   sharedGroups.size;
 
 const totalTrips =
   individualTrips + sharedPassengers;
-
-/* =========================
-   INDIVIDUAL REVENUE
-========================= */
-
-const individualRevenue =
-  trips
-    .filter(t => {
-
-      const isShared =
-        t.isShared === true ||
-        String(t.tripNumber || "").includes("-SH") ||
-        String(t.groupId || "").trim() !== "";
-
-      return !isShared;
-
-    })
-    .reduce((sum, t) => {
-
-      let price = 0;
-
-      const status =
-        String(t.status || "")
-          .toLowerCase();
-
-      if(status.includes("complete")){
-
-        price =
-          Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            t.price ||
-            25
-          );
-
-      }else if(
-        status.includes("cancel") ||
-        status.includes("no")
-      ){
-
-        price =
-          Number(
-            t.cancelFee ||
-            15
-          );
-
-      }
-
-      return sum + price;
-
-    }, 0);
-
-/* =========================
-   SHARED REVENUE
-========================= */
-
-const sharedRevenue =
-  trips
-    .filter(t => {
-
-      return (
-        t.isShared === true ||
-        String(t.tripNumber || "").includes("-SH") ||
-        String(t.groupId || "").trim() !== ""
-      );
-
-    })
-    .reduce((sum, t) => {
-
-      let price = 0;
-
-      const status =
-        String(t.status || "")
-          .toLowerCase();
-
-      if(status.includes("complete")){
-
-        price =
-          Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            t.price ||
-            25
-          );
-
-      }else if(
-        status.includes("cancel") ||
-        status.includes("no")
-      ){
-
-        price =
-          Number(
-            t.cancelFee ||
-            15
-          );
-
-      }
-
-      return sum + price;
-
-    }, 0);
-
-/* =========================
-   FINAL TOTALS
-========================= */
-
-const revenue =
-  Number(individualRevenue || 0) +
-  Number(sharedRevenue || 0);
 
 const invoiceAmount =
   Number(revenue.toFixed(2));
@@ -2246,7 +2138,6 @@ await User.findByIdAndUpdate(
   }
 
 );
-
 
 /* =========================
    LOCK COMPANY
