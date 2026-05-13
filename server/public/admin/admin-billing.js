@@ -22,6 +22,15 @@ const container =
 const searchInput =
   document.getElementById("searchInput");
 
+const statusFilter =
+  document.getElementById("statusFilter");
+
+const monthFilter =
+  document.getElementById("monthFilter");
+
+const yearFilter =
+  document.getElementById("yearFilter");
+
 /* =========================
    DATA
 ========================= */
@@ -29,22 +38,56 @@ const searchInput =
 let companies = [];
 
 /* =========================
-   HELPERS
+   MONTHS
 ========================= */
 
-function money(v){
+const months = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+];
 
-  return "$" +
-    Number(v || 0).toFixed(2);
+if(monthFilter){
+
+  months.forEach((m,i)=>{
+
+    monthFilter.innerHTML += `
+      <option value="${i + 1}">
+        ${m}
+      </option>
+    `;
+
+  });
 
 }
 
-function formatDate(v){
+/* =========================
+   HELPERS
+========================= */
 
-  if(!v) return "--";
+function money(value){
+
+  return "$" +
+    Number(value || 0)
+      .toFixed(2);
+
+}
+
+function formatDate(value){
+
+  if(!value) return "--";
 
   const d =
-    new Date(v);
+    new Date(value);
 
   if(isNaN(d.getTime())){
     return "--";
@@ -61,12 +104,12 @@ function formatDate(v){
 
 }
 
-function toInputDate(v){
+function toInputDate(value){
 
-  if(!v) return "";
+  if(!value) return "";
 
   const d =
-    new Date(v);
+    new Date(value);
 
   if(isNaN(d.getTime())){
     return "";
@@ -77,34 +120,12 @@ function toInputDate(v){
 
 }
 
-function getStatusClass(status){
-
-  const s =
-    String(status || "")
-      .toUpperCase();
-
-  if(s === "PAST_DUE"){
-    return "status-past";
-  }
-
-  if(s === "SUSPENDED"){
-    return "status-suspended";
-  }
-
-  return "status-active";
-
-}
-
 async function safeJson(res){
 
   try{
-
     return await res.json();
-
   }catch{
-
     return {};
-
   }
 
 }
@@ -119,7 +140,7 @@ async function loadBilling(){
 
     container.innerHTML = `
       <div class="empty">
-        Loading billing data...
+        Loading billing...
       </div>
     `;
 
@@ -186,182 +207,275 @@ function render(list){
   }
 
   container.innerHTML =
-    list.map(c=>`
+    list.map(c=>{
 
-      <div class="company-card">
+      return `
 
-        <div class="card-top">
+        <div class="company-card">
 
-          <div class="company-box">
+          <!-- TOP -->
 
-            <h3>
-              ${c.name || "--"}
-            </h3>
+          <div class="company-top">
 
-            <p>
-              ${c.email || "--"}
-              <br>
-              ${c.phone || "--"}
-              <br>
-              ${c.username || "--"}
-            </p>
+            <div class="company-box">
+
+              <div class="company-name">
+                ${c.name || "--"}
+              </div>
+
+              <div class="company-small">
+                ${c.email || "--"}
+                <br>
+                ${c.phone || "--"}
+                <br>
+                ${c.username || "--"}
+              </div>
+
+            </div>
+
+            <div>
+
+              ${
+                c.billingLocked
+
+                ? `
+                  <span class="badge locked">
+                    LOCKED
+                  </span>
+                `
+
+                : `
+                  <span class="badge active">
+                    ACTIVE
+                  </span>
+                `
+              }
+
+            </div>
 
           </div>
 
-          <div class="
-            status-box
-            ${getStatusClass(c.billingStatus)}
-          ">
+          <!-- STATS -->
 
-            ${c.billingStatus || "ACTIVE"}
+          <div class="stats-grid">
+
+            <div class="stat-box">
+              <div class="stat-label">
+                Trips
+              </div>
+              <div class="stat-value">
+                ${c.totalTrips || 0}
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-label">
+                Completed
+              </div>
+              <div class="stat-value">
+                ${c.completedTrips || 0}
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-label">
+                Shared
+              </div>
+              <div class="stat-value">
+                ${c.sharedTrips || 0}
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-label">
+                No Show
+              </div>
+              <div class="stat-value">
+                ${c.noShowTrips || 0}
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-label">
+                Revenue
+              </div>
+              <div class="stat-value">
+                ${money(c.revenue)}
+              </div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-label">
+                Invoice
+              </div>
+              <div class="stat-value">
+                ${money(c.invoiceAmount)}
+              </div>
+            </div>
+
+          </div>
+
+          <!-- BILLING -->
+
+          <div class="billing-grid">
+
+            <div class="field">
+
+              <label>
+                Billing Start
+              </label>
+
+              <input
+                type="date"
+                class="small-input"
+                id="start-${c._id}"
+                value="${toInputDate(c.billingStartDate)}"
+                disabled
+              >
+
+            </div>
+
+            <div class="field">
+
+              <label>
+                Billing End
+              </label>
+
+              <input
+                type="date"
+                class="small-input"
+                id="end-${c._id}"
+                value="${toInputDate(c.billingEndDate)}"
+                disabled
+              >
+
+            </div>
+
+            <div class="field">
+
+              <label>
+                Grace Days
+              </label>
+
+              <input
+                type="number"
+                class="small-input"
+                id="grace-${c._id}"
+                value="${c.graceDays || 3}"
+                disabled
+              >
+
+            </div>
+
+            <div class="field">
+
+              <label>
+                Last Payment
+              </label>
+
+              <input
+                type="text"
+                class="small-input"
+                value="${formatDate(c.lastPaymentDate)}"
+                disabled
+              >
+
+            </div>
+
+          </div>
+
+          <!-- BUTTONS -->
+
+          <div class="btn-row">
+
+            <button
+              class="btn btn-blue"
+              onclick="editBilling('${c._id}')"
+              id="editBtn-${c._id}"
+            >
+              Edit
+            </button>
+
+            <button
+              class="btn btn-green"
+              onclick="saveBilling('${c._id}')"
+              id="saveBtn-${c._id}"
+              style="display:none;"
+            >
+              Save
+            </button>
+
+            <button
+              class="btn btn-dark"
+              onclick="openInvoice('${c._id}')"
+            >
+              Open Invoice
+            </button>
+
+            <button
+              class="btn btn-yellow"
+              onclick="markPaid('${c._id}')"
+            >
+              Mark Paid
+            </button>
+
+            <button
+              class="btn btn-red"
+              onclick="lockCompany('${c._id}')"
+            >
+              Lock
+            </button>
+
+            <button
+              class="btn btn-green"
+              onclick="unlockCompany('${c._id}')"
+            >
+              Unlock
+            </button>
 
           </div>
 
         </div>
 
-        <div class="stats-grid">
+      `;
 
-          <div class="stat">
-            <h4>Total Trips</h4>
-            <p>${c.totalTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Completed</h4>
-            <p>${c.completedTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Shared</h4>
-            <p>${c.sharedTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>No Show</h4>
-            <p>${c.noShowTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Revenue</h4>
-            <p>${money(c.revenue)}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Invoice</h4>
-            <p>${money(c.invoiceAmount)}</p>
-          </div>
-
-        </div>
-
-        <div class="settings-grid">
-
-          <div class="field">
-
-            <label>
-              Billing Start
-            </label>
-
-            <input
-              type="date"
-              id="start-${c._id}"
-              value="${toInputDate(c.billingStartDate)}"
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>
-              Billing End
-            </label>
-
-            <input
-              type="date"
-              id="end-${c._id}"
-              value="${toInputDate(c.billingEndDate)}"
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>
-              Grace Days
-            </label>
-
-            <input
-              type="number"
-              id="grace-${c._id}"
-              value="${c.graceDays || 3}"
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>
-              Last Payment
-            </label>
-
-            <input
-              value="${formatDate(c.lastPaymentDate)}"
-              readonly
-            >
-
-          </div>
-
-        </div>
-
-        <div class="actions">
-
-          <button
-            class="btn btn-blue"
-            onclick="generateInvoice('${c._id}')"
-          >
-            Generate Invoice
-          </button>
-
-          <button
-            class="btn btn-dark"
-            onclick="openInvoice('${c._id}')"
-          >
-            Open Invoice
-          </button>
-
-          <button
-            class="btn btn-yellow"
-            onclick="markPaid('${c._id}')"
-          >
-            Mark Paid
-          </button>
-
-          <button
-            class="btn btn-red"
-            onclick="lockCompany('${c._id}')"
-          >
-            Lock
-          </button>
-
-          <button
-            class="btn btn-green"
-            onclick="unlockCompany('${c._id}')"
-          >
-            Unlock
-          </button>
-
-        </div>
-
-      </div>
-
-    `).join("");
+    }).join("");
 
 }
 
 /* =========================
-   GENERATE INVOICE
+   EDIT
 ========================= */
 
-async function generateInvoice(id){
+function editBilling(id){
+
+  document.getElementById(
+    `start-${id}`
+  ).disabled = false;
+
+  document.getElementById(
+    `end-${id}`
+  ).disabled = false;
+
+  document.getElementById(
+    `grace-${id}`
+  ).disabled = false;
+
+  document.getElementById(
+    `editBtn-${id}`
+  ).style.display = "none";
+
+  document.getElementById(
+    `saveBtn-${id}`
+  ).style.display = "inline-flex";
+
+}
+
+/* =========================
+   SAVE
+========================= */
+
+async function saveBilling(id){
 
   try{
 
@@ -383,19 +497,12 @@ async function generateInvoice(id){
     if(!start || !end){
 
       alert(
-        "Select billing dates first"
+        "Please select dates"
       );
 
       return;
 
     }
-
-    const ok =
-      confirm(
-        "Generate invoice for this company?"
-      );
-
-    if(!ok) return;
 
     const res =
       await fetch(
@@ -430,16 +537,34 @@ async function generateInvoice(id){
 
       throw new Error(
         data.message ||
-        "Invoice failed"
+        "Save failed"
       );
 
     }
 
-    alert(
-      "Invoice generated successfully"
-    );
+    document.getElementById(
+      `start-${id}`
+    ).disabled = true;
 
-    loadBilling();
+    document.getElementById(
+      `end-${id}`
+    ).disabled = true;
+
+    document.getElementById(
+      `grace-${id}`
+    ).disabled = true;
+
+    document.getElementById(
+      `editBtn-${id}`
+    ).style.display = "inline-flex";
+
+    document.getElementById(
+      `saveBtn-${id}`
+    ).style.display = "none";
+
+    alert("Saved");
+
+    await loadBilling();
 
   }catch(err){
 
@@ -447,7 +572,7 @@ async function generateInvoice(id){
 
     alert(
       err.message ||
-      "Generate failed"
+      "Save failed"
     );
 
   }
@@ -475,13 +600,6 @@ async function lockCompany(id){
 
   try{
 
-    const ok =
-      confirm(
-        "Lock this company?"
-      );
-
-    if(!ok) return;
-
     const res =
       await fetch(
         `/api/admin/billing/${id}/lock`,
@@ -507,11 +625,7 @@ async function lockCompany(id){
 
     }
 
-    alert(
-      "Company locked"
-    );
-
-    loadBilling();
+    await loadBilling();
 
   }catch(err){
 
@@ -559,11 +673,7 @@ async function unlockCompany(id){
 
     }
 
-    alert(
-      "Company unlocked"
-    );
-
-    loadBilling();
+    await loadBilling();
 
   }catch(err){
 
@@ -585,13 +695,6 @@ async function unlockCompany(id){
 async function markPaid(id){
 
   try{
-
-    const ok =
-      confirm(
-        "Mark invoice as paid?"
-      );
-
-    if(!ok) return;
 
     const res =
       await fetch(
@@ -618,11 +721,9 @@ async function markPaid(id){
 
     }
 
-    alert(
-      "Invoice marked as paid"
-    );
+    alert("Marked Paid");
 
-    loadBilling();
+    await loadBilling();
 
   }catch(err){
 
@@ -638,41 +739,123 @@ async function markPaid(id){
 }
 
 /* =========================
-   SEARCH
+   FILTERS
 ========================= */
 
-if(searchInput){
+function applyFilters(){
 
-  searchInput.addEventListener(
-    "input",
-    ()=>{
+  let list =
+    [...companies];
 
-      const value =
-        searchInput.value
-          .toLowerCase()
-          .trim();
+  const search =
+    searchInput.value
+      .toLowerCase()
+      .trim();
 
-      const filtered =
-        companies.filter(c=>{
+  const status =
+    statusFilter.value;
 
-          const text = `
-            ${c.name || ""}
-            ${c.email || ""}
-            ${c.phone || ""}
-            ${c.username || ""}
-          `
-          .toLowerCase();
+  const month =
+    monthFilter.value;
 
-          return text.includes(value);
+  const year =
+    yearFilter.value;
 
-        });
+  if(search){
 
-      render(filtered);
+    list =
+      list.filter(c=>{
 
-    }
-  );
+        const text = `
+          ${c.name || ""}
+          ${c.email || ""}
+          ${c.phone || ""}
+          ${c.username || ""}
+        `
+        .toLowerCase();
+
+        return text.includes(search);
+
+      });
+
+  }
+
+  if(status){
+
+    list =
+      list.filter(c=>
+        c.billingStatus === status
+      );
+
+  }
+
+  if(month){
+
+    list =
+      list.filter(c=>{
+
+        if(!c.billingStartDate){
+          return false;
+        }
+
+        const d =
+          new Date(c.billingStartDate);
+
+        return (
+          d.getMonth() + 1
+        ) == month;
+
+      });
+
+  }
+
+  if(year){
+
+    list =
+      list.filter(c=>{
+
+        if(!c.billingStartDate){
+          return false;
+        }
+
+        const d =
+          new Date(c.billingStartDate);
+
+        return (
+          d.getFullYear()
+        ) == year;
+
+      });
+
+  }
+
+  render(list);
 
 }
+
+/* =========================
+   EVENTS
+========================= */
+
+searchInput.addEventListener(
+  "input",
+  applyFilters
+);
+
+statusFilter.addEventListener(
+  "change",
+  applyFilters
+);
+
+monthFilter.addEventListener(
+  "change",
+  applyFilters
+);
+
+yearFilter.addEventListener(
+  "input",
+  applyFilters
+);
 
 /* =========================
    INIT

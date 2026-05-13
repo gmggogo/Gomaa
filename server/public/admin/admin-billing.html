@@ -17,11 +17,32 @@
   box-sizing:border-box;
 }
 
+:root{
+
+  --bg:#eef3f9;
+  --card:#ffffff;
+
+  --text:#0f172a;
+  --muted:#64748b;
+
+  --border:#dbe4ee;
+
+  --blue:#2563eb;
+  --green:#16a34a;
+  --red:#dc2626;
+  --yellow:#f59e0b;
+
+  --shadow:
+    0 10px 30px rgba(15,23,42,.06);
+
+}
+
 body{
   margin:0;
-  background:#eef3f9;
+  background:var(--bg);
+  color:var(--text);
   font-family:Segoe UI,Arial,sans-serif;
-  color:#0f172a;
+  overflow-x:hidden;
 }
 
 #adminHeader{
@@ -31,6 +52,10 @@ body{
   width:100%;
   z-index:9999;
 }
+
+/* =========================
+   PAGE
+========================= */
 
 .page-body{
   max-width:1800px;
@@ -49,120 +74,148 @@ body{
 }
 
 /* =========================
-   TOP
+   FILTERS
 ========================= */
 
-.top-bar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:15px;
+.filters{
+
+  display:grid;
+
+  grid-template-columns:
+    1fr 180px 180px 180px;
+
+  gap:12px;
+
   margin-bottom:20px;
-  flex-wrap:wrap;
+
 }
 
-.page-title{
-  font-size:34px;
-  font-weight:900;
+@media(max-width:900px){
+
+  .filters{
+    grid-template-columns:1fr 1fr;
+  }
+
 }
 
-.search-box{
-  width:320px;
-  max-width:100%;
+@media(max-width:550px){
+
+  .filters{
+    grid-template-columns:1fr;
+  }
+
 }
 
-.search-input{
+.input,
+.select{
+
   width:100%;
   height:50px;
-  border:none;
-  border-radius:16px;
-  padding:0 16px;
-  font-size:14px;
+
+  border-radius:14px;
+
+  border:1px solid #cbd5e1;
+
   background:#fff;
-  box-shadow:0 6px 20px rgba(0,0,0,.05);
+
+  padding:0 14px;
+
+  font-size:14px;
+
   outline:none;
+
 }
 
-.search-input:focus{
-  box-shadow:0 0 0 4px rgba(37,99,235,.15);
+.input:focus,
+.select:focus{
+
+  border-color:#2563eb;
+
+  box-shadow:
+    0 0 0 3px rgba(37,99,235,.12);
+
 }
 
 /* =========================
-   BILLING LIST
+   CARDS
 ========================= */
 
-.billing-list{
-  display:flex;
-  flex-direction:column;
+.cards{
+  display:grid;
   gap:18px;
 }
-
-/* =========================
-   COMPANY CARD
-========================= */
 
 .company-card{
 
   background:#fff;
 
-  border-radius:26px;
+  border-radius:24px;
+
+  border:1px solid var(--border);
+
+  box-shadow:var(--shadow);
 
   padding:22px;
-
-  box-shadow:
-    0 10px 30px rgba(15,23,42,.06);
-
-  border:1px solid #dbe4ee;
 
 }
 
 /* =========================
-   CARD TOP
+   TOP
 ========================= */
 
-.card-top{
+.company-top{
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:flex-start;
+
   gap:20px;
+
+  margin-bottom:18px;
+
   flex-wrap:wrap;
+
 }
 
 .company-box{
 
   background:#dcfce7;
 
-  color:#166534;
-
-  padding:12px 18px;
+  padding:18px;
 
   border-radius:18px;
 
-  min-width:220px;
-
-  border:1px solid #bbf7d0;
+  min-width:240px;
 
 }
 
-.company-box h3{
-  margin:0;
-  font-size:20px;
+.company-name{
+
+  font-size:22px;
+
   font-weight:900;
+
+  color:#166534;
+
+  margin-bottom:8px;
+
 }
 
-.company-box p{
-  margin:8px 0 0;
-  font-size:12px;
-  line-height:1.7;
+.company-small{
+
+  color:#166534;
+
+  line-height:1.8;
+
+  font-size:13px;
+
 }
 
-/* =========================
-   STATUS
-========================= */
+.badge{
 
-.status-box{
-
-  padding:10px 18px;
+  padding:10px 16px;
 
   border-radius:999px;
 
@@ -172,23 +225,18 @@ body{
 
 }
 
-.status-active{
+.active{
   background:#dcfce7;
   color:#166534;
 }
 
-.status-past{
-  background:#fef3c7;
-  color:#854d0e;
-}
-
-.status-suspended{
+.locked{
   background:#fee2e2;
   color:#991b1b;
 }
 
 /* =========================
-   STATS GRID
+   STATS
 ========================= */
 
 .stats-grid{
@@ -198,9 +246,9 @@ body{
   grid-template-columns:
     repeat(6,1fr);
 
-  gap:14px;
+  gap:12px;
 
-  margin-top:22px;
+  margin-bottom:18px;
 
 }
 
@@ -220,120 +268,134 @@ body{
 
 }
 
-.stat{
+.stat-box{
 
   background:#f8fafc;
+
+  border:1px solid #e2e8f0;
 
   border-radius:18px;
 
   padding:16px;
 
-  border:1px solid #e2e8f0;
-
 }
 
-.stat h4{
-  margin:0;
+.stat-label{
+
   font-size:11px;
+
   color:#64748b;
+
+  margin-bottom:8px;
+
   text-transform:uppercase;
+
+  font-weight:700;
+
 }
 
-.stat p{
-  margin:12px 0 0;
-  font-size:24px;
+.stat-value{
+
+  font-size:28px;
+
   font-weight:900;
+
 }
 
 /* =========================
-   BILLING SETTINGS
+   BILLING
 ========================= */
 
-.settings-grid{
+.billing-grid{
 
   display:grid;
 
   grid-template-columns:
     repeat(4,1fr);
 
-  gap:14px;
+  gap:12px;
 
-  margin-top:20px;
+  margin-bottom:18px;
 
 }
 
-@media(max-width:900px){
+@media(max-width:1000px){
 
-  .settings-grid{
+  .billing-grid{
     grid-template-columns:1fr 1fr;
   }
 
 }
 
-@media(max-width:550px){
+@media(max-width:600px){
 
-  .settings-grid{
+  .billing-grid{
     grid-template-columns:1fr;
   }
 
 }
 
 .field{
+
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:6px;
+
 }
 
 .field label{
+
   font-size:12px;
+
   font-weight:700;
+
   color:#64748b;
+
 }
 
-.field input{
+.small-input{
 
-  height:46px;
-
-  border-radius:14px;
+  height:42px;
 
   border:1px solid #cbd5e1;
 
-  padding:0 14px;
+  border-radius:12px;
 
-  font-size:14px;
+  padding:0 12px;
+
+  font-size:13px;
+
+  background:#fff;
 
   outline:none;
 
 }
 
-.field input:focus{
-  border-color:#2563eb;
-  box-shadow:0 0 0 3px rgba(37,99,235,.15);
+.small-input:disabled{
+
+  background:#f1f5f9;
+
+  color:#64748b;
+
 }
 
 /* =========================
    BUTTONS
 ========================= */
 
-.actions{
-
+.btn-row{
   display:flex;
-
   gap:10px;
-
   flex-wrap:wrap;
-
-  margin-top:22px;
-
 }
 
 .btn{
 
   border:none;
 
-  border-radius:14px;
+  border-radius:12px;
 
-  padding:12px 18px;
+  padding:11px 16px;
 
   font-size:12px;
 
@@ -341,12 +403,6 @@ body{
 
   cursor:pointer;
 
-  transition:.18s;
-
-}
-
-.btn:hover{
-  transform:translateY(-2px);
 }
 
 .btn-blue{
@@ -371,20 +427,22 @@ body{
 
 .btn-yellow{
   background:#fef3c7;
-  color:#854d0e;
+  color:#92400e;
 }
 
 .empty{
 
+  background:#fff;
+
+  border-radius:20px;
+
+  padding:50px;
+
   text-align:center;
 
-  padding:80px;
-
-  font-size:18px;
+  color:#64748b;
 
   font-weight:700;
-
-  color:#64748b;
 
 }
 
@@ -397,31 +455,50 @@ body{
 
 <div class="page-body">
 
-  <div class="top-bar">
+  <!-- FILTERS -->
 
-    <div class="page-title">
-      Billing Center
-    </div>
+  <div class="filters">
 
-    <div class="search-box">
+    <input
+      id="searchInput"
+      class="input"
+      placeholder="Search company..."
+    >
 
-      <input
-        id="searchInput"
-        class="search-input"
-        placeholder="Search company..."
-      >
+    <select
+      id="statusFilter"
+      class="select"
+    >
+      <option value="">All Status</option>
+      <option value="ACTIVE">ACTIVE</option>
+      <option value="SUSPENDED">SUSPENDED</option>
+    </select>
 
-    </div>
+    <select
+      id="monthFilter"
+      class="select"
+    >
+      <option value="">All Months</option>
+    </select>
+
+    <input
+      id="yearFilter"
+      class="input"
+      type="number"
+      placeholder="Year"
+    >
 
   </div>
 
+  <!-- CARDS -->
+
   <div
+    class="cards"
     id="billingContainer"
-    class="billing-list"
   >
 
     <div class="empty">
-      Loading billing data...
+      Loading billing...
     </div>
 
   </div>
@@ -429,490 +506,7 @@ body{
 </div>
 
 <script src="/admin/header.js"></script>
-
-<script>
-
-/* =========================
-   AUTH
-========================= */
-
-const token =
-  localStorage.getItem("token");
-
-if(!token){
-
-  window.location.href =
-    "/admin/login.html";
-
-}
-
-/* =========================
-   ELEMENTS
-========================= */
-
-const container =
-  document.getElementById("billingContainer");
-
-const searchInput =
-  document.getElementById("searchInput");
-
-/* =========================
-   DATA
-========================= */
-
-let companies = [];
-
-/* =========================
-   HELPERS
-========================= */
-
-function money(v){
-
-  return "$" +
-    Number(v || 0).toFixed(2);
-
-}
-
-function formatDate(v){
-
-  if(!v) return "--";
-
-  const d = new Date(v);
-
-  if(isNaN(d.getTime())){
-    return "--";
-  }
-
-  return d.toLocaleDateString(
-    "en-US",
-    {
-      year:"numeric",
-      month:"short",
-      day:"numeric"
-    }
-  );
-
-}
-
-function toInputDate(v){
-
-  if(!v) return "";
-
-  const d = new Date(v);
-
-  if(isNaN(d.getTime())){
-    return "";
-  }
-
-  return d.toISOString()
-    .split("T")[0];
-
-}
-
-function getStatusClass(status){
-
-  const s =
-    String(status || "")
-      .toUpperCase();
-
-  if(s === "PAST_DUE"){
-    return "status-past";
-  }
-
-  if(s === "SUSPENDED"){
-    return "status-suspended";
-  }
-
-  return "status-active";
-
-}
-
-async function safeJson(res){
-
-  try{
-    return await res.json();
-  }catch{
-    return {};
-  }
-
-}
-
-/* =========================
-   LOAD
-========================= */
-
-async function loadBilling(){
-
-  try{
-
-    const res =
-      await fetch(
-        "/api/admin/billing",
-        {
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
-      );
-
-    const data =
-      await safeJson(res);
-
-    companies =
-      Array.isArray(data)
-        ? data
-        : [];
-
-    render(companies);
-
-  }catch(err){
-
-    console.log(err);
-
-    container.innerHTML = `
-      <div class="empty">
-        Error loading billing
-      </div>
-    `;
-
-  }
-
-}
-
-/* =========================
-   RENDER
-========================= */
-
-function render(list){
-
-  if(!list.length){
-
-    container.innerHTML = `
-      <div class="empty">
-        No companies found
-      </div>
-    `;
-
-    return;
-
-  }
-
-  container.innerHTML =
-    list.map(c=>`
-
-      <div class="company-card">
-
-        <div class="card-top">
-
-          <div class="company-box">
-
-            <h3>
-              ${c.name || "--"}
-            </h3>
-
-            <p>
-              ${c.email || "--"}
-              <br>
-              ${c.phone || "--"}
-              <br>
-              ${c.username || "--"}
-            </p>
-
-          </div>
-
-          <div class="
-            status-box
-            ${getStatusClass(c.billingStatus)}
-          ">
-
-            ${c.billingStatus || "ACTIVE"}
-
-          </div>
-
-        </div>
-
-        <div class="stats-grid">
-
-          <div class="stat">
-            <h4>Trips</h4>
-            <p>${c.totalTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Completed</h4>
-            <p>${c.completedTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Shared</h4>
-            <p>${c.sharedTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>No Show</h4>
-            <p>${c.noShowTrips || 0}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Revenue</h4>
-            <p>${money(c.revenue)}</p>
-          </div>
-
-          <div class="stat">
-            <h4>Invoice</h4>
-            <p>${money(c.invoiceAmount)}</p>
-          </div>
-
-        </div>
-
-        <div class="settings-grid">
-
-          <div class="field">
-
-            <label>Billing Start</label>
-
-            <input
-              type="date"
-              id="start-${c._id}"
-              value="${toInputDate(c.billingStartDate)}"
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>Billing End</label>
-
-            <input
-              type="date"
-              id="end-${c._id}"
-              value="${toInputDate(c.billingEndDate)}"
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>Grace Days</label>
-
-            <input
-              type="number"
-              id="grace-${c._id}"
-              value="${c.graceDays || 3}"
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>Last Payment</label>
-
-            <input
-              value="${formatDate(c.lastPaymentDate)}"
-              readonly
-            >
-
-          </div>
-
-        </div>
-
-        <div class="actions">
-
-          <button
-            class="btn btn-blue"
-            onclick="generateInvoice('${c._id}')"
-          >
-            Generate Invoice
-          </button>
-
-          <button
-            class="btn btn-dark"
-            onclick="openInvoice('${c._id}')"
-          >
-            Open Invoice
-          </button>
-
-          <button
-            class="btn btn-yellow"
-            onclick="markPaid('${c._id}')"
-          >
-            Mark Paid
-          </button>
-
-          <button
-            class="btn btn-red"
-            onclick="lockCompany('${c._id}')"
-          >
-            Lock
-          </button>
-
-          <button
-            class="btn btn-green"
-            onclick="unlockCompany('${c._id}')"
-          >
-            Unlock
-          </button>
-
-        </div>
-
-      </div>
-
-    `).join("");
-
-}
-
-/* =========================
-   ACTIONS
-========================= */
-
-async function generateInvoice(id){
-
-  const start =
-    document.getElementById(
-      `start-${id}`
-    ).value;
-
-  const end =
-    document.getElementById(
-      `end-${id}`
-    ).value;
-
-  const grace =
-    document.getElementById(
-      `grace-${id}`
-    ).value;
-
-  const res =
-    await fetch(
-      `/api/admin/generate-invoice/${id}`,
-      {
-        method:"PUT",
-
-        headers:{
-          "Content-Type":"application/json",
-          Authorization:"Bearer " + token
-        },
-
-        body:JSON.stringify({
-          billingStartDate:start,
-          billingEndDate:end,
-          graceDays:grace
-        })
-      }
-    );
-
-  const data =
-    await safeJson(res);
-
-  if(!res.ok){
-
-    alert(data.message || "Error");
-    return;
-
-  }
-
-  alert("Invoice generated");
-
-  loadBilling();
-
-}
-
-function openInvoice(id){
-
-  window.open(
-    `/admin/invoice.html?id=${id}`,
-    "_blank"
-  );
-
-}
-
-async function lockCompany(id){
-
-  await fetch(
-    `/api/admin/billing/${id}/lock`,
-    {
-      method:"PUT",
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    }
-  );
-
-  loadBilling();
-
-}
-
-async function unlockCompany(id){
-
-  await fetch(
-    `/api/admin/billing/${id}/unlock`,
-    {
-      method:"PUT",
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    }
-  );
-
-  loadBilling();
-
-}
-
-async function markPaid(id){
-
-  await fetch(
-    `/api/admin/billing/${id}/mark-paid`,
-    {
-      method:"PUT",
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    }
-  );
-
-  loadBilling();
-
-}
-
-/* =========================
-   SEARCH
-========================= */
-
-searchInput.addEventListener(
-  "input",
-  ()=>{
-
-    const val =
-      searchInput.value
-        .toLowerCase()
-        .trim();
-
-    const filtered =
-      companies.filter(c=>{
-
-        return `
-          ${c.name || ""}
-          ${c.email || ""}
-          ${c.username || ""}
-        `
-        .toLowerCase()
-        .includes(val);
-
-      });
-
-    render(filtered);
-
-  }
-);
-
-/* =========================
-   INIT
-========================= */
-
-loadBilling();
-
-</script>
+<script src="/admin/admin-billing.js"></script>
 
 </body>
 </html>
