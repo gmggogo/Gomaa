@@ -730,6 +730,36 @@ async function markPaid(id){
 
   try{
 
+    const company =
+      companies.find(c => c._id === id);
+
+    if(!company){
+      return;
+    }
+
+    const ok = confirm(
+
+      `Mark invoice as PAID?\n\n` +
+
+      `Company: ${company.name}\n` +
+
+      `Invoice Amount: ${money(company.invoiceAmount)}\n\n` +
+
+      `This will:\n\n` +
+
+      `• Reset invoice to $0\n` +
+      `• Unlock company\n` +
+      `• Start new billing cycle\n` +
+      `• Reset current billing stats\n\n` +
+
+      `Continue?`
+
+    );
+
+    if(!ok){
+      return;
+    }
+
     const res =
       await fetch(
         `/api/admin/billing/${id}/mark-paid`,
@@ -755,7 +785,9 @@ async function markPaid(id){
 
     }
 
-    alert("Marked Paid");
+    alert(
+      "Invoice marked as PAID successfully"
+    );
 
     await loadBilling();
 
