@@ -2269,14 +2269,22 @@ app.put("/api/admin/generate-invoice/:id", async (req,res)=>{
 
     /* 🔥 حفظ الفترة الجديدة */
 
-    company.billingStartDate =
-      new Date(billingStartDate);
+/* 🔥 ARIZONA SAFE DATES */
 
-    company.billingEndDate =
-      new Date(billingEndDate);
+company.billingStartDate =
+  new Date(
+    billingStartDate + "T12:00:00"
+  );
 
-    company.nextBillingDate =
-      new Date(billingEndDate);
+company.billingEndDate =
+  new Date(
+    billingEndDate + "T12:00:00"
+  );
+
+company.nextBillingDate =
+  new Date(
+    billingEndDate + "T12:00:00"
+  );
 
     /* 🔥 Grace */
 
