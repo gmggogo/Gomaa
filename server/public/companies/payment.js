@@ -323,10 +323,18 @@ const sessionId =
 const companyId =
   params.get("companyId");
 
+/* 🔥 PREVENT DOUBLE PAYMENT VERIFY */
+
+const alreadyVerified =
+  sessionStorage.getItem(
+    "paymentVerified"
+  );
+
 if(
   success &&
   sessionId &&
-  companyId
+  companyId &&
+  alreadyVerified !== sessionId
 ){
 
   verifyStripePayment(
@@ -355,9 +363,18 @@ async function verifyStripePayment(
 
     if(data.paid){
 
+      /* 🔥 SAVE VERIFIED SESSION */
+
+      sessionStorage.setItem(
+        "paymentVerified",
+        sessionId
+      );
+
       alert(
         "Payment Successful"
       );
+
+      /* 🔥 REMOVE URL PARAMS */
 
       window.history.replaceState(
         {},
@@ -365,7 +382,9 @@ async function verifyStripePayment(
         window.location.pathname
       );
 
-      loadPayment();
+      /* 🔥 RELOAD BILLING */
+
+      await loadPayment();
 
     }
 
