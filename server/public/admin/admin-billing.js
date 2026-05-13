@@ -948,14 +948,13 @@ function applyFilters(){
     list =
       list.filter(company => {
 
-        const text =
-          `
-          ${company.name || ""}
-          ${company.email || ""}
-          ${company.phone || ""}
-          ${company.username || ""}
-          `
-          .toLowerCase();
+        const text = `
+${company?.name || ""}
+${company?.email || ""}
+${company?.phone || ""}
+${company?.username || ""}
+`
+.toLowerCase();
 
         return text.includes(search);
 
