@@ -18,11 +18,18 @@ require("./routes/pricingRoutes");
 
 const app = express();
 
+app.use(cors());
+
+app.use(express.json());
+
+app.use(express.urlencoded({
+  extended:true
+}));
+
 app.use(
   "/api/pricing",
   pricingRoutes
 );
-
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
   port: 465,
