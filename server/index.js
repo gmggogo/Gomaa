@@ -2162,6 +2162,8 @@ await User.findByIdAndUpdate(
 
 return await User.findById(company._id).lean();
 
+}
+
 /* =========================
    LOCK COMPANY
 ========================= */
