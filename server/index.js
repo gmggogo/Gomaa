@@ -9,6 +9,8 @@ const path = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const serviceRoutes =
+require("./routes/serviceRoutes");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
@@ -89,7 +91,12 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
 
 // ✅ باقي الميدل وير
 app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));/* =========================
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(
+  "/api/services",
+  serviceRoutes
+);
+/* =========================
    PUBLIC CONFIG - GOOGLE KEY
 ========================= */
 app.get("/api/config", (req, res) => {
