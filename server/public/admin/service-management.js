@@ -2,13 +2,13 @@ const servicesGrid =
 document.getElementById("servicesGrid");
 
 /* =========================
-   TEST SERVICES
+   SERVICES
 ========================= */
 
-let services = [
+const services = [
 
   {
-    _id:"1",
+    id:"1",
     name:"Standard",
     icon:"🚗",
     enabled:true,
@@ -23,7 +23,7 @@ let services = [
   },
 
   {
-    _id:"2",
+    id:"2",
     name:"XL",
     icon:"🚐",
     enabled:true,
@@ -38,10 +38,40 @@ let services = [
   },
 
   {
-    _id:"3",
+    id:"3",
+    name:"Taxi",
+    icon:"🚕",
+    enabled:false,
+    pricingMode:"MILE",
+    baseFare:15,
+    includedMiles:3,
+    perMile:2,
+    hourlyRate:0,
+    stopFee:3,
+    noShowFee:10,
+    sharedPrice:0
+  },
+
+  {
+    id:"4",
+    name:"Limousine",
+    icon:"🖤",
+    enabled:false,
+    pricingMode:"HOURLY",
+    baseFare:0,
+    includedMiles:0,
+    perMile:0,
+    hourlyRate:80,
+    stopFee:0,
+    noShowFee:40,
+    sharedPrice:0
+  },
+
+  {
+    id:"5",
     name:"Wheelchair",
     icon:"🦽",
-    enabled:false,
+    enabled:true,
     pricingMode:"MILE",
     baseFare:50,
     includedMiles:5,
@@ -50,6 +80,21 @@ let services = [
     stopFee:10,
     noShowFee:25,
     sharedPrice:0
+  },
+
+  {
+    id:"6",
+    name:"Shared",
+    icon:"👥",
+    enabled:true,
+    pricingMode:"SHARED",
+    baseFare:0,
+    includedMiles:0,
+    perMile:0,
+    hourlyRate:0,
+    stopFee:5,
+    noShowFee:10,
+    sharedPrice:15
   }
 
 ];
@@ -72,10 +117,6 @@ function renderServices(){
 
     card.innerHTML = `
 
-      <!-- =====================
-           TOP
-      ====================== -->
-
       <div class="service-top">
 
         <div class="service-info">
@@ -90,17 +131,12 @@ function renderServices(){
               ${service.name}
             </div>
 
-            <div style="
-              font-size:13px;
-              color:#64748b;
-              margin-top:4px;
-              font-weight:600;
-            ">
+            <div class="service-status">
 
               ${
                 service.enabled
-                ? "Service Visible To Customers"
-                : "Service Hidden From Customers"
+                ? "Visible To Customers"
+                : "Hidden From Customers"
               }
 
             </div>
@@ -109,17 +145,16 @@ function renderServices(){
 
         </div>
 
-        <!-- =====================
-             ENABLE BUTTON
-        ====================== -->
-
         <button
           class="
-            service-toggle-btn
-            ${service.enabled ? "enabled" : "disabled"}
+            toggle-btn
+            ${service.enabled
+              ? "toggle-on"
+              : "toggle-off"
+            }
           "
           onclick="
-            toggleService('${service._id}')
+            toggleService('${service.id}')
           "
         >
 
@@ -133,26 +168,24 @@ function renderServices(){
 
       </div>
 
-      <!-- =====================
-           WARNING
-      ====================== -->
-
       <div class="
         warning-box
-        ${service.enabled ? "green":"red"}
+        ${
+          service.enabled
+          ? "warning-green"
+          : "warning-red"
+        }
       ">
 
         ${
           service.enabled
-          ? "Customers Can See And Book This Service"
-          : "This Service Is Hidden From Customers"
+
+          ? "Customers Can Book This Service"
+
+          : "This Service Is Hidden"
         }
 
       </div>
-
-      <!-- =====================
-           FIELDS
-      ====================== -->
 
       <div class="fields">
 
@@ -163,7 +196,7 @@ function renderServices(){
           </label>
 
           <select
-            id="mode-${service._id}"
+            id="mode-${service.id}"
             disabled
           >
 
@@ -212,7 +245,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="base-${service._id}"
+            id="base-${service.id}"
             value="${service.baseFare}"
             disabled
           >
@@ -227,7 +260,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="included-${service._id}"
+            id="included-${service.id}"
             value="${service.includedMiles}"
             disabled
           >
@@ -242,7 +275,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="mile-${service._id}"
+            id="mile-${service.id}"
             value="${service.perMile}"
             disabled
           >
@@ -257,7 +290,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="hour-${service._id}"
+            id="hour-${service.id}"
             value="${service.hourlyRate}"
             disabled
           >
@@ -272,7 +305,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="stop-${service._id}"
+            id="stop-${service.id}"
             value="${service.stopFee}"
             disabled
           >
@@ -287,7 +320,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="noshow-${service._id}"
+            id="noshow-${service.id}"
             value="${service.noShowFee}"
             disabled
           >
@@ -302,7 +335,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="shared-${service._id}"
+            id="shared-${service.id}"
             value="${service.sharedPrice}"
             disabled
           >
@@ -311,16 +344,12 @@ function renderServices(){
 
       </div>
 
-      <!-- =====================
-           BUTTONS
-      ====================== -->
-
-      <div class="action-buttons">
+      <div class="buttons">
 
         <button
           class="edit-btn"
           onclick="
-            enableEdit('${service._id}')
+            enableEdit('${service.id}')
           "
         >
           EDIT
@@ -329,7 +358,7 @@ function renderServices(){
         <button
           class="save-btn"
           onclick="
-            saveService('${service._id}')
+            saveService('${service.id}')
           "
         >
           SAVE
@@ -391,67 +420,8 @@ function enableEdit(id){
 
 function saveService(id){
 
-  const service =
-  services.find(s=>s._id===id);
-
-  if(!service) return;
-
-  service.pricingMode =
-  document.getElementById(
-    `mode-${id}`
-  ).value;
-
-  service.baseFare =
-  Number(
-    document.getElementById(
-      `base-${id}`
-    ).value
-  );
-
-  service.includedMiles =
-  Number(
-    document.getElementById(
-      `included-${id}`
-    ).value
-  );
-
-  service.perMile =
-  Number(
-    document.getElementById(
-      `mile-${id}`
-    ).value
-  );
-
-  service.hourlyRate =
-  Number(
-    document.getElementById(
-      `hour-${id}`
-    ).value
-  );
-
-  service.stopFee =
-  Number(
-    document.getElementById(
-      `stop-${id}`
-    ).value
-  );
-
-  service.noShowFee =
-  Number(
-    document.getElementById(
-      `noshow-${id}`
-    ).value
-  );
-
-  service.sharedPrice =
-  Number(
-    document.getElementById(
-      `shared-${id}`
-    ).value
-  );
-
   alert(
-    `${service.name} Updated Successfully`
+    "Service Saved Successfully"
   );
 
   renderServices();
@@ -459,28 +429,28 @@ function saveService(id){
 }
 
 /* =========================
-   TOGGLE SERVICE
+   TOGGLE
 ========================= */
 
 function toggleService(id){
 
   const service =
-  services.find(s=>s._id===id);
+  services.find(s=>s.id===id);
 
   if(!service) return;
 
-  const confirmed =
+  const ok =
   confirm(
 
     service.enabled
 
     ? `Disable ${service.name}?\n\nCustomers Will NOT See This Service.`
 
-    : `Enable ${service.name}?\n\nCustomers Will Be Able To Book This Service.`
+    : `Enable ${service.name}?\n\nCustomers CAN Book This Service.`
 
   );
 
-  if(!confirmed) return;
+  if(!ok) return;
 
   service.enabled =
   !service.enabled;

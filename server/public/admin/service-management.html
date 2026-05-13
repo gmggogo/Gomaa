@@ -18,7 +18,7 @@ content="width=device-width, initial-scale=1.0"
 <style>
 
 /* =========================
-   PAGE
+   BODY
 ========================= */
 
 body{
@@ -37,11 +37,11 @@ body{
 }
 
 /* =========================
-   PAGE BODY
+   PAGE
 ========================= */
 
 .page-body{
-  max-width:1700px;
+  max-width:1800px;
   margin:auto;
   padding:260px 20px 80px;
 }
@@ -61,17 +61,9 @@ body{
 ========================= */
 
 .page-title{
-  font-size:34px;
-  font-weight:800;
-  margin-bottom:24px;
-}
-
-@media(max-width:768px){
-
-  .page-title{
-    font-size:28px;
-  }
-
+  font-size:36px;
+  font-weight:900;
+  margin-bottom:30px;
 }
 
 /* =========================
@@ -79,12 +71,14 @@ body{
 ========================= */
 
 .services-grid{
+
   display:grid;
 
   grid-template-columns:
-  repeat(auto-fit,minmax(340px,1fr));
+  repeat(auto-fit,minmax(380px,1fr));
 
-  gap:22px;
+  gap:24px;
+
 }
 
 /* =========================
@@ -95,12 +89,12 @@ body{
 
   background:#fff;
 
-  border-radius:24px;
+  border-radius:28px;
 
   padding:24px;
 
   box-shadow:
-  0 10px 30px rgba(0,0,0,.06);
+  0 15px 35px rgba(0,0,0,.08);
 
 }
 
@@ -126,17 +120,17 @@ body{
 
   align-items:center;
 
-  gap:14px;
+  gap:16px;
 
 }
 
 .service-icon{
 
-  width:62px;
+  width:72px;
 
-  height:62px;
+  height:72px;
 
-  border-radius:18px;
+  border-radius:22px;
 
   background:#eff6ff;
 
@@ -146,15 +140,27 @@ body{
 
   justify-content:center;
 
-  font-size:32px;
+  font-size:38px;
 
 }
 
 .service-name{
 
-  font-size:22px;
+  font-size:25px;
 
-  font-weight:800;
+  font-weight:900;
+
+}
+
+.service-status{
+
+  margin-top:5px;
+
+  font-size:13px;
+
+  font-weight:700;
+
+  color:#64748b;
 
 }
 
@@ -162,54 +168,58 @@ body{
    TOGGLE
 ========================= */
 
-.toggle{
+.toggle-btn{
 
-  width:70px;
+  border:none;
 
-  height:36px;
+  padding:14px 22px;
 
-  border-radius:999px;
+  border-radius:18px;
 
-  position:relative;
+  font-size:14px;
+
+  font-weight:900;
 
   cursor:pointer;
 
-  transition:.25s;
+  color:#fff;
 
 }
 
-.toggle.active{
+.toggle-on{
   background:#16a34a;
 }
 
-.toggle.inactive{
-  background:#cbd5e1;
+.toggle-off{
+  background:#dc2626;
 }
 
-.toggle-ball{
+/* =========================
+   WARNING
+========================= */
 
-  width:30px;
+.warning-box{
 
-  height:30px;
+  padding:14px;
 
-  border-radius:50%;
+  border-radius:16px;
 
-  background:#fff;
+  font-size:14px;
 
-  position:absolute;
+  font-weight:700;
 
-  top:3px;
-
-  transition:.25s;
+  margin-bottom:20px;
 
 }
 
-.toggle.active .toggle-ball{
-  left:37px;
+.warning-green{
+  background:#dcfce7;
+  color:#166534;
 }
 
-.toggle.inactive .toggle-ball{
-  left:3px;
+.warning-red{
+  background:#fee2e2;
+  color:#991b1b;
 }
 
 /* =========================
@@ -222,7 +232,15 @@ body{
 
   grid-template-columns:1fr 1fr;
 
-  gap:14px;
+  gap:16px;
+
+}
+
+@media(max-width:768px){
+
+  .fields{
+    grid-template-columns:1fr;
+  }
 
 }
 
@@ -240,7 +258,7 @@ body{
 
   font-size:13px;
 
-  font-weight:700;
+  font-weight:800;
 
   color:#475569;
 
@@ -253,56 +271,68 @@ body{
 
   border:1px solid #cbd5e1;
 
-  border-radius:14px;
+  border-radius:16px;
 
-  padding:12px;
+  padding:14px;
 
-  font-size:14px;
+  font-size:15px;
+
+  background:#f8fafc;
 
   outline:none;
 
 }
 
+.field input:disabled,
+.field select:disabled{
+
+  opacity:.7;
+
+  cursor:not-allowed;
+
+}
+
 /* =========================
-   SAVE BUTTON
+   BUTTONS
 ========================= */
 
+.buttons{
+
+  display:flex;
+
+  gap:14px;
+
+  margin-top:24px;
+
+}
+
+.edit-btn,
 .save-btn{
 
-  margin-top:22px;
-
-  width:100%;
+  flex:1;
 
   border:none;
 
-  background:#145cff;
+  border-radius:18px;
 
-  color:#fff;
+  padding:16px;
 
-  padding:15px;
+  font-size:15px;
 
-  border-radius:16px;
-
-  font-size:16px;
-
-  font-weight:800;
+  font-weight:900;
 
   cursor:pointer;
 
-  transition:.2s;
-
 }
 
-.save-btn:hover{
-  background:#0f46c9;
+.edit-btn{
+  background:#f59e0b;
+  color:#fff;
 }
 
-@media(max-width:768px){
-
-  .fields{
-    grid-template-columns:1fr;
-  }
-
+.save-btn{
+  background:#145cff;
+  color:#fff;
 }
 
 </style>
@@ -311,15 +341,7 @@ body{
 
 <body>
 
-<!-- =========================
-     HEADER
-========================= -->
-
 <div id="adminHeader"></div>
-
-<!-- =========================
-     PAGE
-========================= -->
 
 <div class="page-body">
 
@@ -338,11 +360,9 @@ body{
 
 <script>
 
-/* =========================
-   LOAD HEADER
-========================= */
-
-loadHeader("Service Management");
+if(typeof loadHeader === "function"){
+  loadHeader("Service Management");
+}
 
 </script>
 
