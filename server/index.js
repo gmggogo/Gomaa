@@ -2671,7 +2671,9 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    /* 🔥 UPDATE COMPANY */
+    /* =========================
+       UPDATE BILLING
+    ========================= */
 
     company.billingStatus =
       "ACTIVE";
@@ -2679,15 +2681,19 @@ app.get("/api/company/check-payment", async (req,res)=>{
     company.billingLocked =
       false;
 
+    /* 🔥 تصفير الفاتورة */
     company.invoiceAmount =
       0;
 
+    /* 🔥 تاريخ آخر دفع */
     company.lastPaymentDate =
       now;
 
+    /* 🔥 بداية الدورة الجديدة */
     company.billingStartDate =
       now;
 
+    /* 🔥 نهاية الدورة الجديدة */
     company.billingEndDate =
       nextBillingDate;
 
@@ -2704,7 +2710,7 @@ app.get("/api/company/check-payment", async (req,res)=>{
       "COMPANY SAVED"
     );
 
-    /* 🔥 MARK SESSION VERIFIED */
+    /* 🔥 منع تكرار التحديث */
 
     await stripe.checkout.sessions.update(
       sessionId,
@@ -2737,37 +2743,7 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
   }
 
-
-    /* =========================
-       UPDATE BILLING
-    ========================= */
-
-    company.billingStatus =
-      "ACTIVE";
-
-    company.billingLocked =
-      false;
-
-    /* 🔥 تصفير الفاتورة */
-    company.invoiceAmount = 0;
-
-    /* 🔥 تاريخ آخر دفع */
-    company.lastPaymentDate =
-      now;
-
-    /* 🔥 بداية الدورة الجديدة */
-    company.billingStartDate =
-      now;
-
-    /* 🔥 نهاية الدورة الجديدة */
-    company.billingEndDate =
-      nextBillingDate;
-
-    /* 🔥 ميعاد الدفع القادم */
-    company.nextBillingDate =
-      nextBillingDate;
-
-    await company.save();
+});
 
     /* =========================
        RESPONSE
