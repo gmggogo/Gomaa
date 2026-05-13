@@ -214,10 +214,11 @@ daysLeft: {
     default: false
   },
 
-  billingNotes: {
-    type: String,
-    default: ""
-  }
+ billingNotes: {
+  type: String,
+  default: ""
+},
+
 totalTrips: {
   type: Number,
   default: 0
@@ -256,7 +257,8 @@ noShowTrips: {
 revenue: {
   type: Number,
   default: 0
-},
+}
+
 }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
