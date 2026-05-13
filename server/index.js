@@ -1947,11 +1947,31 @@ if(
 
   t.passengers.forEach(p=>{
 
-    amount += Number(
-      p.priceAmount ||
-      p.finalPrice ||
-      0
-    );
+    const ps =
+      String(p.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
+
+    if(ps === "completed"){
+
+      amount += Number(
+        p.price ||
+        p.priceAmount ||
+        p.finalPrice ||
+        0
+      );
+
+    }
+
+    else if(
+      ps === "cancelled" ||
+      ps === "noshow"
+    ){
+
+      amount += 15;
+
+    }
 
   });
 
@@ -1963,11 +1983,27 @@ if(
 
 else{
 
-  amount = Number(
-    t.finalPrice ||
-    t.priceAmount ||
-    0
-  );
+  if(status === "completed"){
+
+    amount = Number(
+      t.finalPrice ||
+      t.priceAmount ||
+      t.price ||
+      0
+    );
+
+  }
+
+  else if(
+    status === "cancelled" ||
+    status === "noshow"
+  ){
+
+    amount = Number(
+      t.cancelFee || 15
+    );
+
+  }
 
 }
 
