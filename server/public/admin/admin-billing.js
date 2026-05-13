@@ -254,26 +254,31 @@ async function loadBilling(){
 
 function updateStats(list){
 
+  const safeList =
+    Array.isArray(list)
+      ? list.filter(x => x)
+      : [];
+
   const totalCompanies =
-    list.length;
+    safeList.length;
 
   const activeCompanies =
-    list.filter(x =>
+    safeList.filter(x =>
       x.billingStatus === "ACTIVE"
     ).length;
 
   const pastDueCompanies =
-    list.filter(x =>
+    safeList.filter(x =>
       x.billingStatus === "PAST_DUE"
     ).length;
 
   const lockedCompanies =
-    list.filter(x =>
+    safeList.filter(x =>
       x.billingLocked === true
     ).length;
 
   const totalRevenue =
-    list.reduce((sum,c)=>{
+    safeList.reduce((sum,c)=>{
 
       return sum + Number(
         c.revenue || 0
@@ -282,7 +287,7 @@ function updateStats(list){
     },0);
 
   const pendingPayments =
-    list.reduce((sum,c)=>{
+    safeList.reduce((sum,c)=>{
 
       return sum + Number(
         c.invoiceAmount || 0
@@ -291,33 +296,45 @@ function updateStats(list){
     },0);
 
   if(totalCompaniesEl){
+
     totalCompaniesEl.innerText =
       totalCompanies;
+
   }
 
   if(activeCompaniesEl){
+
     activeCompaniesEl.innerText =
       activeCompanies;
+
   }
 
   if(pastDueCompaniesEl){
+
     pastDueCompaniesEl.innerText =
       pastDueCompanies;
+
   }
 
   if(lockedCompaniesEl){
+
     lockedCompaniesEl.innerText =
       lockedCompanies;
+
   }
 
   if(totalRevenueEl){
+
     totalRevenueEl.innerText =
       money(totalRevenue);
+
   }
 
   if(pendingPaymentsEl){
+
     pendingPaymentsEl.innerText =
       money(pendingPayments);
+
   }
 
 }
