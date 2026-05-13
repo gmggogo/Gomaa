@@ -2640,11 +2640,13 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    /* 🔥 PREVENT DOUBLE VERIFY */
+    /* 🔥 منع التكرار */
 
     if(session.metadata?.verified === "true"){
 
-      console.log("ALREADY VERIFIED");
+      console.log(
+        "ALREADY VERIFIED"
+      );
 
       return res.json({
         paid:true
@@ -2652,7 +2654,8 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    const now = new Date();
+    const now =
+      new Date();
 
     let nextBillingDate =
       new Date(now);
@@ -2681,21 +2684,31 @@ app.get("/api/company/check-payment", async (req,res)=>{
     company.billingLocked =
       false;
 
-    /* 🔥 تصفير الفاتورة */
     company.invoiceAmount =
       0;
 
-    /* 🔥 تاريخ آخر دفع */
     company.lastPaymentDate =
       now;
 
-    /* 🔥 بداية الدورة الجديدة */
     company.billingStartDate =
-      now;
+      new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0
+      );
 
-    /* 🔥 نهاية الدورة الجديدة */
     company.billingEndDate =
-      nextBillingDate;
+      new Date(
+        nextBillingDate.getFullYear(),
+        nextBillingDate.getMonth(),
+        nextBillingDate.getDate(),
+        23,
+        59,
+        59
+      );
 
     company.nextBillingDate =
       nextBillingDate;
@@ -2710,12 +2723,13 @@ app.get("/api/company/check-payment", async (req,res)=>{
       "COMPANY SAVED"
     );
 
-    /* 🔥 منع تكرار التحديث */
+    /* 🔥 منع تكرار الدفع */
 
     await stripe.checkout.sessions.update(
       sessionId,
       {
         metadata:{
+          ...session.metadata,
           verified:"true"
         }
       }
@@ -2744,6 +2758,7 @@ app.get("/api/company/check-payment", async (req,res)=>{
   }
 
 });
+
 
     /* =========================
        RESPONSE
