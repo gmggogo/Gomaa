@@ -1818,23 +1818,24 @@ async function updateCompanyBilling(company){
     billingLocked = true;
   }
 
-  const trips =
-    await Trip.find({
+const trips =
+  await Trip.find({
 
-      company:{
-        $regex:
-          "^" +
-          String(company.name || "").trim() +
-          "$",
-        $options:"i"
-      },
+    company:{
+      $regex:
+        "^" +
+        String(company.name || "").trim() +
+        "$",
+      $options:"i"
+    },
 
-      tripDate:{
-        $gte:startKey,
-        $lte:endKey
-      }
+    createdAt:{
+      $gte:
+        company.billingStartDate ||
+        new Date(0)
+    }
 
-    }).lean();
+  }).lean();
 
   let individualTrips = 0;
   let completedTrips = 0;
