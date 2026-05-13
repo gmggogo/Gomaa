@@ -1827,118 +1827,186 @@ async function updateCompanyBilling(company){
 
     if(isShared){
 
-      sharedGroups.add(
-        String(
-          t.groupId ||
-          t.tripNumber ||
-          t._id
-        )
-      );
+  sharedGroups.add(
+    String(
+      t.groupId ||
+      t.tripNumber ||
+      t._id
+    )
+  );
 
-    }else{
+}else{
 
-      individualTrips++;
+  individualTrips++;
 
-    }
+}
 
-    if(status.includes("complete")){
-      completedTrips++;
-    }
+/* =========================
+   STATUS COUNTS
+========================= */
 
-    if(status.includes("cancel")){
-      cancelledTrips++;
-    }
+if(status.includes("complete")){
+  completedTrips++;
+}
 
-    if(status.includes("no")){
-      noShowTrips++;
-    }
+if(status.includes("cancel")){
+  cancelledTrips++;
+}
 
-    let price = 0;
+if(status.includes("no")){
+  noShowTrips++;
+}
 
-    if(
-      isShared &&
-      Array.isArray(t.passengers)
-    ){
+/* =========================
+   PRICE
+========================= */
 
-      price =
-        t.passengers.reduce((sum,p)=>{
+let price = 0;
 
-          const passengerStatus =
-            String(p.status || "")
-              .replace(/\s+/g,"")
-              .toLowerCase()
-              .trim();
+/* =========================
+   SHARED PRICE
+========================= */
 
-          if(passengerStatus.includes("complete")){
+if(isShared){
 
-            return sum + Number(
-              p.finalPrice ||
-              p.priceAmount ||
-              p.price ||
-              0
-            );
+  /* 🔥 لو passengers موجود */
 
-          }
+  if(
+    Array.isArray(t.passengers) &&
+    t.passengers.length > 0
+  ){
 
-          if(passengerStatus.includes("no")){
-            return sum + 15;
-          }
+    price =
+      t.passengers.reduce((sum,p)=>{
 
-          if(passengerStatus.includes("cancel")){
+        const passengerStatus =
+          String(p.status || "")
+            .replace(/\s+/g,"")
+            .toLowerCase()
+            .trim();
 
-            return sum + Number(
-              p.finalPrice ||
-              p.priceAmount ||
-              t.cancelFee ||
-              15
-            );
+        /* COMPLETE */
+        if(passengerStatus.includes("complete")){
 
-          }
-
-          return sum;
-
-        },0);
-
-    }else{
-
-      if(status.includes("complete")){
-
-        price =
-          Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            t.price ||
+          return sum + Number(
+            p.finalPrice ||
+            p.priceAmount ||
+            p.price ||
             0
           );
 
-      }
+        }
 
-      else if(status.includes("cancel")){
+        /* NO SHOW */
+        if(passengerStatus.includes("no")){
 
-        price =
-          Number(
-            t.finalPrice ||
+          return sum + 15;
+
+        }
+
+        /* CANCEL */
+        if(passengerStatus.includes("cancel")){
+
+          return sum + Number(
+            p.finalPrice ||
+            p.priceAmount ||
             t.cancelFee ||
             15
           );
 
-      }
+        }
 
-      else if(status.includes("no")){
+        return sum;
 
-        price =
-          Number(
-            t.cancelFee ||
-            15
-          );
+      },0);
 
-      }
+  }
+
+  /* 🔥 fallback لو passengers مش متخزن */
+
+  else{
+
+    if(status.includes("complete")){
+
+      price =
+        Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          t.price ||
+          0
+        );
 
     }
 
-    revenue += price;
+    else if(status.includes("cancel")){
 
-  });
+      price =
+        Number(
+          t.finalPrice ||
+          t.cancelFee ||
+          15
+        );
+
+    }
+
+    else if(status.includes("no")){
+
+      price =
+        Number(
+          t.cancelFee ||
+          15
+        );
+
+    }
+
+  }
+
+}
+
+/* =========================
+   INDIVIDUAL PRICE
+========================= */
+
+else{
+
+  if(status.includes("complete")){
+
+    price =
+      Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        t.price ||
+        0
+      );
+
+  }
+
+  else if(status.includes("cancel")){
+
+    price =
+      Number(
+        t.finalPrice ||
+        t.cancelFee ||
+        15
+      );
+
+  }
+
+  else if(status.includes("no")){
+
+    price =
+      Number(
+        t.cancelFee ||
+        15
+      );
+
+  }
+
+}
+
+revenue += Number(price || 0);
+
+});
 
   const sharedTrips =
     sharedGroups.size;
