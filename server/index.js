@@ -2580,6 +2580,7 @@ app.post("/api/company/create-ach-payment", async (req,res)=>{
 
 });
 
+
 /* =========================
    VERIFY COMPANY PAYMENT
 ========================= */
@@ -2587,6 +2588,9 @@ app.post("/api/company/create-ach-payment", async (req,res)=>{
 app.get("/api/company/check-payment", async (req,res)=>{
 
   try{
+
+    console.log("CHECK PAYMENT HIT");
+    console.log(req.query);
 
     const sessionId =
       req.query.session_id;
@@ -2607,6 +2611,11 @@ app.get("/api/company/check-payment", async (req,res)=>{
         sessionId
       );
 
+    console.log(
+      "PAYMENT STATUS:",
+      session.payment_status
+    );
+
     if(session.payment_status !== "paid"){
 
       return res.json({
@@ -2618,10 +2627,27 @@ app.get("/api/company/check-payment", async (req,res)=>{
     const company =
       await User.findById(companyId);
 
+    console.log(
+      "COMPANY FOUND:",
+      !!company
+    );
+
     if(!company){
 
       return res.status(404).json({
         paid:false
+      });
+
+    }
+
+    /* 🔥 PREVENT DOUBLE VERIFY */
+
+    if(session.metadata?.verified === "true"){
+
+      console.log("ALREADY VERIFIED");
+
+      return res.json({
+        paid:true
       });
 
     }
@@ -2644,6 +2670,74 @@ app.get("/api/company/check-payment", async (req,res)=>{
       );
 
     }
+
+    /* 🔥 UPDATE COMPANY */
+
+    company.billingStatus =
+      "ACTIVE";
+
+    company.billingLocked =
+      false;
+
+    company.invoiceAmount =
+      0;
+
+    company.lastPaymentDate =
+      now;
+
+    company.billingStartDate =
+      now;
+
+    company.billingEndDate =
+      nextBillingDate;
+
+    company.nextBillingDate =
+      nextBillingDate;
+
+    console.log(
+      "UPDATING COMPANY..."
+    );
+
+    await company.save();
+
+    console.log(
+      "COMPANY SAVED"
+    );
+
+    /* 🔥 MARK SESSION VERIFIED */
+
+    await stripe.checkout.sessions.update(
+      sessionId,
+      {
+        metadata:{
+          verified:"true"
+        }
+      }
+    );
+
+    console.log(
+      "PAYMENT UPDATED"
+    );
+
+    res.json({
+      paid:true
+    });
+
+  }catch(err){
+
+    console.log(
+      "VERIFY ERROR:"
+    );
+
+    console.log(err);
+
+    res.status(500).json({
+      paid:false
+    });
+
+  }
+
+});
 
     /* =========================
        UPDATE BILLING
