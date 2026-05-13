@@ -5,10 +5,11 @@ document.getElementById("servicesGrid");
    SERVICES
 ========================= */
 
-const services = [
+let services = [
 
   {
     id:"1",
+    serviceKey:"STANDARD",
     name:"Standard",
     icon:"🚗",
     enabled:true,
@@ -24,6 +25,7 @@ const services = [
 
   {
     id:"2",
+    serviceKey:"XL",
     name:"XL",
     icon:"🚐",
     enabled:true,
@@ -39,6 +41,7 @@ const services = [
 
   {
     id:"3",
+    serviceKey:"TAXI",
     name:"Taxi",
     icon:"🚕",
     enabled:false,
@@ -54,6 +57,7 @@ const services = [
 
   {
     id:"4",
+    serviceKey:"LIMO",
     name:"Limousine",
     icon:"🖤",
     enabled:false,
@@ -69,6 +73,7 @@ const services = [
 
   {
     id:"5",
+    serviceKey:"WHEELCHAIR",
     name:"Wheelchair",
     icon:"🦽",
     enabled:true,
@@ -84,6 +89,7 @@ const services = [
 
   {
     id:"6",
+    serviceKey:"SHARED",
     name:"Shared",
     icon:"👥",
     enabled:true,
@@ -98,6 +104,47 @@ const services = [
   }
 
 ];
+
+/* =========================
+   LOAD FROM STORAGE
+========================= */
+
+function loadServices(){
+
+  const saved =
+    localStorage.getItem(
+      "sunbeam_services"
+    );
+
+  if(saved){
+
+    try{
+
+      services =
+        JSON.parse(saved);
+
+    }catch(err){
+
+      console.log(err);
+
+    }
+
+  }
+
+}
+
+/* =========================
+   SAVE TO STORAGE
+========================= */
+
+function persistServices(){
+
+  localStorage.setItem(
+    "sunbeam_services",
+    JSON.stringify(services)
+  );
+
+}
 
 /* =========================
    RENDER
@@ -148,7 +195,8 @@ function renderServices(){
         <button
           class="
             toggle-btn
-            ${service.enabled
+            ${
+              service.enabled
               ? "toggle-on"
               : "toggle-off"
             }
@@ -179,9 +227,7 @@ function renderServices(){
 
         ${
           service.enabled
-
           ? "Customers Can Book This Service"
-
           : "This Service Is Hidden"
         }
 
@@ -420,8 +466,69 @@ function enableEdit(id){
 
 function saveService(id){
 
+  const service =
+  services.find(s=>s.id===id);
+
+  if(!service) return;
+
+  service.pricingMode =
+  document.getElementById(
+    `mode-${id}`
+  ).value;
+
+  service.baseFare =
+  Number(
+    document.getElementById(
+      `base-${id}`
+    ).value
+  );
+
+  service.includedMiles =
+  Number(
+    document.getElementById(
+      `included-${id}`
+    ).value
+  );
+
+  service.perMile =
+  Number(
+    document.getElementById(
+      `mile-${id}`
+    ).value
+  );
+
+  service.hourlyRate =
+  Number(
+    document.getElementById(
+      `hour-${id}`
+    ).value
+  );
+
+  service.stopFee =
+  Number(
+    document.getElementById(
+      `stop-${id}`
+    ).value
+  );
+
+  service.noShowFee =
+  Number(
+    document.getElementById(
+      `noshow-${id}`
+    ).value
+  );
+
+  service.sharedPrice =
+  Number(
+    document.getElementById(
+      `shared-${id}`
+    ).value
+  );
+
+  persistServices();
+
   alert(
-    "Service Saved Successfully"
+    `${service.name} Saved`
   );
 
   renderServices();
@@ -455,6 +562,8 @@ function toggleService(id){
   service.enabled =
   !service.enabled;
 
+  persistServices();
+
   renderServices();
 
 }
@@ -462,5 +571,7 @@ function toggleService(id){
 /* =========================
    START
 ========================= */
+
+loadServices();
 
 renderServices();
