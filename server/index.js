@@ -1641,111 +1641,6 @@ app.delete("/api/users/:id", async (req, res) => {
 
 });
 
-function calculateCompanyStats(trips){
-
-  let individualTrips = 0;
-  let sharedTrips = 0;
-
-  let completedTrips = 0;
-  let cancelledTrips = 0;
-  let noShowTrips = 0;
-
-  let revenue = 0;
-
-  trips.forEach(t=>{
-
-    /* SHARED */
-    if(t.isShared){
-
-      sharedTrips++;
-
-      (t.passengers || [])
-      .forEach(p=>{
-
-        if(p.status === "Completed"){
-
-          completedTrips++;
-
-          revenue += Number(
-            p.price || 0
-          );
-
-        }
-
-        if(p.status === "Cancelled"){
-
-          cancelledTrips++;
-
-          revenue += 15;
-
-        }
-
-        if(p.status === "NoShow"){
-
-          noShowTrips++;
-
-          revenue += 15;
-
-        }
-
-      });
-
-    }
-
-    /* INDIVIDUAL */
-    else{
-
-      individualTrips++;
-
-      if(t.status === "Completed"){
-
-        completedTrips++;
-
-        revenue += Number(
-          t.finalPrice || 0
-        );
-
-      }
-
-      if(t.status === "Cancelled"){
-
-        cancelledTrips++;
-
-        revenue += 15;
-
-      }
-
-      if(t.status === "NoShow"){
-
-        noShowTrips++;
-
-        revenue += 15;
-
-      }
-
-    }
-
-  });
-
-  return {
-
-    totalTrips:
-      individualTrips + sharedTrips,
-
-    individualTrips,
-    sharedTrips,
-
-    completedTrips,
-    cancelledTrips,
-    noShowTrips,
-
-    revenue:
-      Number(revenue.toFixed(2))
-
-  };
-
-}
-
 /* =========================
    ADMIN BILLING LIST
 ========================= */
@@ -1901,33 +1796,261 @@ async function updateCompanyBilling(company){
 
     }).lean();
 
-const stats =
-  calculateCompanyStats(trips);
+  let individualTrips = 0;
+  let completedTrips = 0;
+  let cancelledTrips = 0;
+  let noShowTrips = 0;
+  let revenue = 0;
 
-const totalTrips =
-  stats.totalTrips;
+  const sharedGroups = new Set();
 
-const individualTrips =
-  stats.individualTrips;
+  trips.forEach(t => {
 
-const sharedTrips =
-  stats.sharedTrips;
+    const isShared =
+      t.isShared === true ||
+      String(t.tripNumber || "").includes("-SH") ||
+      String(t.groupId || "").trim() !== "";
 
-const completedTrips =
-  stats.completedTrips;
+    const status =
+      String(t.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
 
-const cancelledTrips =
-  stats.cancelledTrips;
+   /* =========================
+   BILLABLE CHECK
+========================= */
 
-const noShowTrips =
-  stats.noShowTrips;
+const hasPassengerStatuses =
 
-const revenue =
-  stats.revenue;
+  isShared &&
 
+  Array.isArray(t.passengers) &&
 
-const invoiceAmount =
-  revenue;
+  t.passengers.some(p=>{
+
+    const s =
+      String(p.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
+
+    return (
+      s.includes("complete") ||
+      s.includes("cancel") ||
+      s.includes("no")
+    );
+
+  });
+
+const tripBillable =
+
+  status.includes("complete") ||
+  status.includes("cancel") ||
+  status.includes("no");
+
+/* 🔥 لو لا الرحلة ولا الركاب billable */
+
+if(
+  !tripBillable &&
+  !hasPassengerStatuses
+){
+  return;
+}
+    if(isShared){
+
+  sharedGroups.add(
+    String(
+      t.groupId ||
+      t.tripNumber ||
+      t._id
+    )
+  );
+
+}else{
+
+  individualTrips++;
+
+}
+
+/* =========================
+   STATUS COUNTS
+========================= */
+
+if(status.includes("complete")){
+  completedTrips++;
+}
+
+if(status.includes("cancel")){
+  cancelledTrips++;
+}
+
+if(status.includes("no")){
+  noShowTrips++;
+}
+
+/* =========================
+   PRICE
+========================= */
+
+let price = 0;
+
+/* =========================
+   SHARED PRICE
+========================= */
+
+if(isShared){
+
+  /* 🔥 لو passengers موجود */
+
+  if(
+    Array.isArray(t.passengers) &&
+    t.passengers.length > 0
+  ){
+
+    price =
+      t.passengers.reduce((sum,p)=>{
+
+        const passengerStatus =
+          String(p.status || "")
+            .replace(/\s+/g,"")
+            .toLowerCase()
+            .trim();
+
+        /* COMPLETE */
+        if(passengerStatus.includes("complete")){
+
+          return sum + Number(
+            p.finalPrice ||
+            p.priceAmount ||
+            p.price ||
+            0
+          );
+
+        }
+
+        /* NO SHOW */
+        if(passengerStatus.includes("no")){
+
+          return sum + 15;
+
+        }
+
+        /* CANCEL */
+        if(passengerStatus.includes("cancel")){
+
+          return sum + Number(
+            p.finalPrice ||
+            p.priceAmount ||
+            t.cancelFee ||
+            15
+          );
+
+        }
+
+        return sum;
+
+      },0);
+
+  }
+
+  /* 🔥 fallback لو passengers مش متخزن */
+
+  else{
+
+    if(status.includes("complete")){
+
+      price =
+        Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          t.price ||
+          0
+        );
+
+    }
+
+    else if(status.includes("cancel")){
+
+      price =
+        Number(
+          t.finalPrice ||
+          t.cancelFee ||
+          15
+        );
+
+    }
+
+    else if(status.includes("no")){
+
+      price =
+        Number(
+          t.cancelFee ||
+          15
+        );
+
+    }
+
+  }
+
+}
+
+/* =========================
+   INDIVIDUAL PRICE
+========================= */
+
+else{
+
+  if(status.includes("complete")){
+
+    price =
+      Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        t.price ||
+        0
+      );
+
+  }
+
+  else if(status.includes("cancel")){
+
+    price =
+      Number(
+        t.finalPrice ||
+        t.cancelFee ||
+        15
+      );
+
+  }
+
+  else if(status.includes("no")){
+
+    price =
+      Number(
+        t.cancelFee ||
+        15
+      );
+
+  }
+
+}
+
+revenue += Number(price || 0);
+
+});
+
+  const sharedTrips =
+    sharedGroups.size;
+
+  const totalTrips =
+    individualTrips + sharedTrips;
+
+  revenue =
+    Number(revenue.toFixed(2));
+
+  const invoiceAmount =
+    Number(company.invoiceAmount || 0);
 
   await User.findByIdAndUpdate(
 
