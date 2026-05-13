@@ -2125,8 +2125,7 @@ const invoiceAmount =
 
       totalTrips,
       individualTrips,
-      sharedTrips,
-sharedPassengers,
+     sharedTrips: sharedPassengers,
 
       completedTrips,
       cancelledTrips,
@@ -2151,8 +2150,7 @@ sharedPassengers,
 
     totalTrips,
     individualTrips,
-    sharedTrips,
-sharedPassengers,
+sharedTrips: sharedPassengers,
 
     completedTrips,
     cancelledTrips,
