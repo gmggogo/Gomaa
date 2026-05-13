@@ -1941,24 +1941,27 @@ let amount = 0;
 
 if(
   isShared &&
-  Array.isArray(t.passengers)
+  Array.isArray(t.passengers) &&
+  t.passengers.length > 0
 ){
 
   t.passengers.forEach(p=>{
 
     amount += Number(
-      p.finalPrice ||
       p.priceAmount ||
+      p.finalPrice ||
       0
     );
 
   });
 
-}else{
+}
 
-  /* =========================
-     INDIVIDUAL PRICE
-  ========================= */
+/* =========================
+   INDIVIDUAL PRICE
+========================= */
+
+else{
 
   amount = Number(
     t.finalPrice ||
@@ -1969,7 +1972,6 @@ if(
 }
 
 revenue += Number(amount || 0);
-
 });
 
 /* =========================
