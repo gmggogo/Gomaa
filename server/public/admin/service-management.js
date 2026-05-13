@@ -5,144 +5,31 @@ document.getElementById("servicesGrid");
    SERVICES
 ========================= */
 
-let services = [
-
-  {
-    id:"1",
-    serviceKey:"STANDARD",
-    name:"Standard",
-    icon:"🚗",
-    enabled:true,
-    pricingMode:"MILE",
-    baseFare:20,
-    includedMiles:5,
-    perMile:2,
-    hourlyRate:0,
-    stopFee:5,
-    noShowFee:15,
-    sharedPrice:0
-  },
-
-  {
-    id:"2",
-    serviceKey:"XL",
-    name:"XL",
-    icon:"🚐",
-    enabled:true,
-    pricingMode:"MILE",
-    baseFare:30,
-    includedMiles:5,
-    perMile:2.5,
-    hourlyRate:0,
-    stopFee:5,
-    noShowFee:15,
-    sharedPrice:0
-  },
-
-  {
-    id:"3",
-    serviceKey:"TAXI",
-    name:"Taxi",
-    icon:"🚕",
-    enabled:false,
-    pricingMode:"MILE",
-    baseFare:15,
-    includedMiles:3,
-    perMile:2,
-    hourlyRate:0,
-    stopFee:3,
-    noShowFee:10,
-    sharedPrice:0
-  },
-
-  {
-    id:"4",
-    serviceKey:"LIMO",
-    name:"Limousine",
-    icon:"🖤",
-    enabled:false,
-    pricingMode:"HOURLY",
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:80,
-    stopFee:0,
-    noShowFee:40,
-    sharedPrice:0
-  },
-
-  {
-    id:"5",
-    serviceKey:"WHEELCHAIR",
-    name:"Wheelchair",
-    icon:"🦽",
-    enabled:true,
-    pricingMode:"MILE",
-    baseFare:50,
-    includedMiles:5,
-    perMile:4,
-    hourlyRate:0,
-    stopFee:10,
-    noShowFee:25,
-    sharedPrice:0
-  },
-
-  {
-    id:"6",
-    serviceKey:"SHARED",
-    name:"Shared",
-    icon:"👥",
-    enabled:true,
-    pricingMode:"SHARED",
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-    stopFee:5,
-    noShowFee:10,
-    sharedPrice:15
-  }
-
-];
+let services = [];
 
 /* =========================
-   LOAD FROM STORAGE
+   LOAD SERVICES
 ========================= */
 
-function loadServices(){
+async function loadServices(){
 
-  const saved =
-    localStorage.getItem(
-      "sunbeam_services"
-    );
+  try{
 
-  if(saved){
+    const res =
+      await fetch("/api/services");
 
-    try{
+    services =
+      await res.json();
 
-      services =
-        JSON.parse(saved);
+    renderServices();
 
-    }catch(err){
+  }catch(err){
 
-      console.log(err);
+    console.log(err);
 
-    }
+    alert("Failed To Load Services");
 
   }
-
-}
-
-/* =========================
-   SAVE TO STORAGE
-========================= */
-
-function persistServices(){
-
-  localStorage.setItem(
-    "sunbeam_services",
-    JSON.stringify(services)
-  );
 
 }
 
@@ -169,13 +56,13 @@ function renderServices(){
         <div class="service-info">
 
           <div class="service-icon">
-            ${service.icon}
+            ${service.icon || "🚘"}
           </div>
 
           <div>
 
             <div class="service-name">
-              ${service.name}
+              ${service.name || ""}
             </div>
 
             <div class="service-status">
@@ -202,7 +89,7 @@ function renderServices(){
             }
           "
           onclick="
-            toggleService('${service.id}')
+            toggleService('${service._id}')
           "
         >
 
@@ -242,7 +129,7 @@ function renderServices(){
           </label>
 
           <select
-            id="mode-${service.id}"
+            id="mode-${service._id}"
             disabled
           >
 
@@ -291,8 +178,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="base-${service.id}"
-            value="${service.baseFare}"
+            id="base-${service._id}"
+            value="${service.baseFare || 0}"
             disabled
           >
 
@@ -306,8 +193,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="included-${service.id}"
-            value="${service.includedMiles}"
+            id="included-${service._id}"
+            value="${service.includedMiles || 0}"
             disabled
           >
 
@@ -321,8 +208,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="mile-${service.id}"
-            value="${service.perMile}"
+            id="mile-${service._id}"
+            value="${service.perMile || 0}"
             disabled
           >
 
@@ -336,8 +223,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="hour-${service.id}"
-            value="${service.hourlyRate}"
+            id="hour-${service._id}"
+            value="${service.hourlyRate || 0}"
             disabled
           >
 
@@ -351,8 +238,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="stop-${service.id}"
-            value="${service.stopFee}"
+            id="stop-${service._id}"
+            value="${service.stopFee || 0}"
             disabled
           >
 
@@ -366,8 +253,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="noshow-${service.id}"
-            value="${service.noShowFee}"
+            id="noshow-${service._id}"
+            value="${service.noShowFee || 0}"
             disabled
           >
 
@@ -381,8 +268,8 @@ function renderServices(){
 
           <input
             type="number"
-            id="shared-${service.id}"
-            value="${service.sharedPrice}"
+            id="shared-${service._id}"
+            value="${service.sharedPrice || 0}"
             disabled
           >
 
@@ -395,7 +282,7 @@ function renderServices(){
         <button
           class="edit-btn"
           onclick="
-            enableEdit('${service.id}')
+            enableEdit('${service._id}')
           "
         >
           EDIT
@@ -404,7 +291,7 @@ function renderServices(){
         <button
           class="save-btn"
           onclick="
-            saveService('${service.id}')
+            saveService('${service._id}')
           "
         >
           SAVE
@@ -461,77 +348,92 @@ function enableEdit(id){
 }
 
 /* =========================
-   SAVE
+   SAVE SERVICE
 ========================= */
 
-function saveService(id){
+async function saveService(id){
 
-  const service =
-  services.find(s=>s.id===id);
+  try{
 
-  if(!service) return;
+    const payload = {
 
-  service.pricingMode =
-  document.getElementById(
-    `mode-${id}`
-  ).value;
+      pricingMode:
+      document.getElementById(
+        `mode-${id}`
+      ).value,
 
-  service.baseFare =
-  Number(
-    document.getElementById(
-      `base-${id}`
-    ).value
-  );
+      baseFare:Number(
+        document.getElementById(
+          `base-${id}`
+        ).value
+      ),
 
-  service.includedMiles =
-  Number(
-    document.getElementById(
-      `included-${id}`
-    ).value
-  );
+      includedMiles:Number(
+        document.getElementById(
+          `included-${id}`
+        ).value
+      ),
 
-  service.perMile =
-  Number(
-    document.getElementById(
-      `mile-${id}`
-    ).value
-  );
+      perMile:Number(
+        document.getElementById(
+          `mile-${id}`
+        ).value
+      ),
 
-  service.hourlyRate =
-  Number(
-    document.getElementById(
-      `hour-${id}`
-    ).value
-  );
+      hourlyRate:Number(
+        document.getElementById(
+          `hour-${id}`
+        ).value
+      ),
 
-  service.stopFee =
-  Number(
-    document.getElementById(
-      `stop-${id}`
-    ).value
-  );
+      stopFee:Number(
+        document.getElementById(
+          `stop-${id}`
+        ).value
+      ),
 
-  service.noShowFee =
-  Number(
-    document.getElementById(
-      `noshow-${id}`
-    ).value
-  );
+      noShowFee:Number(
+        document.getElementById(
+          `noshow-${id}`
+        ).value
+      ),
 
-  service.sharedPrice =
-  Number(
-    document.getElementById(
-      `shared-${id}`
-    ).value
-  );
+      sharedPrice:Number(
+        document.getElementById(
+          `shared-${id}`
+        ).value
+      )
 
-  persistServices();
+    };
 
-  alert(
-    `${service.name} Saved`
-  );
+    await fetch(
 
-  renderServices();
+      `/api/services/${id}`,
+
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify(payload)
+
+      }
+
+    );
+
+    alert("Service Saved");
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Save Failed");
+
+  }
 
 }
 
@@ -539,10 +441,12 @@ function saveService(id){
    TOGGLE
 ========================= */
 
-function toggleService(id){
+async function toggleService(id){
 
   const service =
-  services.find(s=>s.id===id);
+  services.find(
+    s=>s._id===id
+  );
 
   if(!service) return;
 
@@ -559,12 +463,36 @@ function toggleService(id){
 
   if(!ok) return;
 
-  service.enabled =
-  !service.enabled;
+  try{
 
-  persistServices();
+    await fetch(
 
-  renderServices();
+      `/api/services/${id}`,
+
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+          enabled:!service.enabled
+        })
+
+      }
+
+    );
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Toggle Failed");
+
+  }
 
 }
 
@@ -573,5 +501,3 @@ function toggleService(id){
 ========================= */
 
 loadServices();
-
-renderServices();
