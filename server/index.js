@@ -1979,36 +1979,7 @@ if(
 
 }else{
 
-  amount = Number(
-    t.finalPrice ||
-    t.priceAmount ||
-    t.price ||
-    0
-  );
-
-}
-
-revenue += Number(amount || 0);
-    else if(
-      ps === "cancelled" ||
-      ps === "noshow"
-    ){
-
-      amount += 15;
-
-    }
-
-  });
-
-}
-
-/* =========================
-   INDIVIDUAL PRICE
-========================= */
-
-else{
-
-  if(status === "completed"){
+  if(status.includes("complete")){
 
     amount = Number(
       t.finalPrice ||
@@ -2017,11 +1988,9 @@ else{
       0
     );
 
-  }
-
-  else if(
-    status === "cancelled" ||
-    status === "noshow"
+  }else if(
+    status.includes("cancel") ||
+    status.includes("no")
   ){
 
     amount = Number(
@@ -2033,11 +2002,13 @@ else{
 }
 
 revenue += Number(amount || 0);
+
 });
 
 /* =========================
    SHARED PASSENGERS
 ========================= */
+
 let sharedPassengers = 0;
 
 trips.forEach(t => {
@@ -2104,6 +2075,7 @@ const totalTrips =
 
 const invoiceAmount =
   Number(revenue.toFixed(2));
+
 await User.findByIdAndUpdate(
   company._id,
   {
@@ -2132,6 +2104,7 @@ await User.findByIdAndUpdate(
 return await User.findById(company._id).lean();
 
 }
+
 /* =========================
    LOCK COMPANY
 ========================= */
