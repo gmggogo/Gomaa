@@ -11,76 +11,88 @@ require("../models/Service");
 
 async function seedServices(){
 
-  const count =
-    await Service.countDocuments();
+  try{
 
-  if(count > 0){
-    return;
-  }
+    const count =
+      await Service.countDocuments();
 
-  await Service.insertMany([
-
-    {
-      serviceKey:"STANDARD",
-      title:"Standard",
-      icon:"🚗",
-      enabled:true,
-      pricingMode:"MILE",
-      baseFare:20,
-      includedMiles:5,
-      perMile:2,
-      hourlyRate:0,
-      stopFee:5,
-      noShowFee:15,
-      sharedPrice:0
-    },
-
-    {
-      serviceKey:"XL",
-      title:"XL",
-      icon:"🚐",
-      enabled:true,
-      pricingMode:"MILE",
-      baseFare:30,
-      includedMiles:5,
-      perMile:2.5,
-      hourlyRate:0,
-      stopFee:5,
-      noShowFee:15,
-      sharedPrice:0
-    },
-
-    {
-      serviceKey:"WHEELCHAIR",
-      title:"Wheelchair",
-      icon:"🦽",
-      enabled:true,
-      pricingMode:"MILE",
-      baseFare:45,
-      includedMiles:5,
-      perMile:3,
-      hourlyRate:0,
-      stopFee:10,
-      noShowFee:25,
-      sharedPrice:0
-    },
-
-    {
-      serviceKey:"SHARED",
-      title:"Shared",
-      icon:"👥",
-      enabled:true,
-      pricingMode:"SHARED",
-      baseFare:0,
-      includedMiles:0,
-      perMile:0,
-      hourlyRate:0,
-      stopFee:5,
-      noShowFee:10,
-      sharedPrice:15
+    if(count > 0){
+      return;
     }
 
-  ]);
+    await Service.insertMany([
+
+      {
+        serviceKey:"STANDARD",
+        title:"Standard",
+        icon:"🚗",
+        enabled:true,
+        pricingMode:"MILE",
+        baseFare:20,
+        includedMiles:5,
+        perMile:2,
+        hourlyRate:0,
+        stopFee:5,
+        noShowFee:15,
+        sharedPrice:0
+      },
+
+      {
+        serviceKey:"XL",
+        title:"XL",
+        icon:"🚐",
+        enabled:true,
+        pricingMode:"MILE",
+        baseFare:30,
+        includedMiles:5,
+        perMile:2.5,
+        hourlyRate:0,
+        stopFee:5,
+        noShowFee:15,
+        sharedPrice:0
+      },
+
+      {
+        serviceKey:"WHEELCHAIR",
+        title:"Wheelchair",
+        icon:"🦽",
+        enabled:true,
+        pricingMode:"MILE",
+        baseFare:45,
+        includedMiles:5,
+        perMile:3,
+        hourlyRate:0,
+        stopFee:10,
+        noShowFee:25,
+        sharedPrice:0
+      },
+
+      {
+        serviceKey:"SHARED",
+        title:"Shared",
+        icon:"👥",
+        enabled:true,
+        pricingMode:"SHARED",
+        baseFare:0,
+        includedMiles:0,
+        perMile:0,
+        hourlyRate:0,
+        stopFee:5,
+        noShowFee:10,
+        sharedPrice:15
+      }
+
+    ]);
+
+    console.log(
+      "Default Services Seeded"
+    );
+
+  }catch(err){
+
+    console.log(err);
+
+  }
 
 }
 
@@ -105,6 +117,7 @@ router.get("/", async (req,res)=>{
     console.log(err);
 
     res.status(500).json({
+      success:false,
       message:"Failed to load services"
     });
 
@@ -125,13 +138,24 @@ router.put("/:id", async (req,res)=>{
 
         req.params.id,
 
-        req.body,
+        {
+          $set:req.body
+        },
 
         {
           new:true
         }
 
       );
+
+    if(!updated){
+
+      return res.status(404).json({
+        success:false,
+        message:"Service not found"
+      });
+
+    }
 
     res.json({
       success:true,
