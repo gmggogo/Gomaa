@@ -2101,6 +2101,11 @@ trips.forEach(t => {
 
 });
 
+const sharedTrips =
+  sharedGroups.size;
+
+const totalTrips =
+  individualTrips + sharedPassengers;
 const totalTrips =
   individualTrips + sharedPassengers;
 
