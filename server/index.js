@@ -2759,27 +2759,6 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
 });
 
-
-    /* =========================
-       RESPONSE
-    ========================= */
-
-    res.json({
-      paid:true
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
-      paid:false
-    });
-
-  }
-
-});
-
 /* =========================
    GET DRIVERS
 ========================= */
