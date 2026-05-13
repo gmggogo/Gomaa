@@ -495,14 +495,7 @@ function render(list){
                 value="${c.graceDays || 3}"
               >
 
-              <input
-                type="number"
-                class="small-input"
-                placeholder="Invoice"
-                id="invoice-${c._id}"
-                value="${c.invoiceAmount || 0}"
-              >
-
+           
               <input
                 type="number"
                 class="small-input"
@@ -615,7 +608,6 @@ async function generateInvoice(id){
 
             graceDays:grace,
 
-            invoiceAmount:invoice
 
           })
         }
