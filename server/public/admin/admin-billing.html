@@ -17,40 +17,11 @@
   box-sizing:border-box;
 }
 
-:root{
-
-  --bg:#eef3f9;
-
-  --card:#ffffff;
-
-  --text:#0f172a;
-  --muted:#64748b;
-
-  --border:#dbe4ee;
-
-  --blue:#2563eb;
-  --blueDark:#1d4ed8;
-
-  --green:#16a34a;
-  --greenBg:#dcfce7;
-
-  --orange:#f59e0b;
-  --orangeBg:#fef3c7;
-
-  --red:#dc2626;
-  --redBg:#fee2e2;
-
-  --shadow:
-    0 10px 30px rgba(15,23,42,.06);
-
-}
-
 body{
   margin:0;
-  background:var(--bg);
-  color:var(--text);
+  background:#eef3f9;
   font-family:Segoe UI,Arial,sans-serif;
-  overflow-x:hidden;
+  color:#0f172a;
 }
 
 #adminHeader{
@@ -61,12 +32,8 @@ body{
   z-index:9999;
 }
 
-/* =========================
-   PAGE
-========================= */
-
 .page-body{
-  max-width:1900px;
+  max-width:1800px;
   margin:auto;
   padding:320px 18px 50px;
 }
@@ -82,507 +49,126 @@ body{
 }
 
 /* =========================
-   TOP GRID
+   TOP
 ========================= */
 
-.top-grid{
-  display:grid;
-  grid-template-columns:420px 1fr;
-  gap:18px;
-  margin-bottom:22px;
-}
-
-@media(max-width:1200px){
-
-  .top-grid{
-    grid-template-columns:1fr;
-  }
-
-}
-
-/* =========================
-   CARDS
-========================= */
-
-.card{
-  background:#fff;
-  border-radius:24px;
-  border:1px solid var(--border);
-  box-shadow:var(--shadow);
-  padding:24px;
-}
-
-.billing-card{
-
-  background:
-    linear-gradient(
-      135deg,
-      #0f172a,
-      #1e3a8a
-    );
-
-  color:#fff;
-
-  position:relative;
-  overflow:hidden;
-
-}
-
-.billing-card::before{
-
-  content:"";
-
-  position:absolute;
-
-  right:-50px;
-  top:-50px;
-
-  width:180px;
-  height:180px;
-
-  border-radius:50%;
-
-  background:
-    rgba(255,255,255,.08);
-
-}
-
-.title{
-
-  font-size:30px;
-  font-weight:900;
-  margin-bottom:10px;
-
-}
-
-.subtitle{
-
-  font-size:14px;
-  line-height:1.8;
-  color:#dbeafe;
-
-}
-
-/* =========================
-   BUTTONS
-========================= */
-
-.stripe-actions{
+.top-bar{
   display:flex;
-  gap:10px;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
+  margin-bottom:20px;
   flex-wrap:wrap;
-  margin-top:22px;
 }
 
-.btn{
-  border:none;
-  border-radius:12px;
-  padding:11px 15px;
-  font-size:12px;
-  font-weight:900;
-  cursor:pointer;
-  transition:.18s;
-}
-
-.btn:hover{
-  transform:translateY(-2px);
-}
-
-.btn-stripe{
-  background:#635bff;
-  color:#fff;
-}
-
-.btn-dark{
-  background:#111827;
-  color:#fff;
-}
-
-.btn-blue{
-  background:#2563eb;
-  color:#fff;
-}
-
-.btn-green{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.btn-red{
-  background:#fee2e2;
-  color:#991b1b;
-}
-
-.btn-yellow{
-  background:#fef3c7;
-  color:#92400e;
-}
-
-/* =========================
-   STATS
-========================= */
-
-.stats{
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  gap:14px;
-}
-
-@media(max-width:1300px){
-
-  .stats{
-    grid-template-columns:repeat(3,1fr);
-  }
-
-}
-
-@media(max-width:650px){
-
-  .stats{
-    grid-template-columns:repeat(2,1fr);
-  }
-
-}
-
-.stat{
-
-  border-radius:22px;
-  padding:20px;
-  color:#fff;
-  position:relative;
-  overflow:hidden;
-  min-height:145px;
-  box-shadow:var(--shadow);
-
-}
-
-.stat::before{
-
-  content:"";
-
-  position:absolute;
-
-  right:-25px;
-  bottom:-25px;
-
-  width:90px;
-  height:90px;
-
-  border-radius:50%;
-
-  background:
-    rgba(255,255,255,.10);
-
-}
-
-.stat h4{
-
-  margin:0;
-
-  font-size:11px;
-
-  text-transform:uppercase;
-
-  letter-spacing:.5px;
-
-  opacity:.95;
-
-}
-
-.stat p{
-
-  margin:40px 0 0;
-
+.page-title{
   font-size:34px;
-
   font-weight:900;
-
 }
 
-.stat.dark{
-  background:
-    linear-gradient(
-      135deg,
-      #334155,
-      #1e293b
-    );
+.search-box{
+  width:320px;
+  max-width:100%;
 }
 
-.stat.green{
-  background:
-    linear-gradient(
-      135deg,
-      #22c55e,
-      #16a34a
-    );
+.search-input{
+  width:100%;
+  height:50px;
+  border:none;
+  border-radius:16px;
+  padding:0 16px;
+  font-size:14px;
+  background:#fff;
+  box-shadow:0 6px 20px rgba(0,0,0,.05);
+  outline:none;
 }
 
-.stat.orange{
-  background:
-    linear-gradient(
-      135deg,
-      #f59e0b,
-      #d97706
-    );
-}
-
-.stat.red{
-  background:
-    linear-gradient(
-      135deg,
-      #ef4444,
-      #dc2626
-    );
-}
-
-.stat.blue{
-  background:
-    linear-gradient(
-      135deg,
-      #3b82f6,
-      #2563eb
-    );
+.search-input:focus{
+  box-shadow:0 0 0 4px rgba(37,99,235,.15);
 }
 
 /* =========================
-   FILTERS
+   BILLING LIST
 ========================= */
 
-.filters{
-
-  display:grid;
-
-  grid-template-columns:
-    1fr 180px 180px 180px;
-
-  gap:12px;
-
-  margin-bottom:18px;
-
+.billing-list{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
 }
 
-@media(max-width:900px){
+/* =========================
+   COMPANY CARD
+========================= */
 
-  .filters{
-    grid-template-columns:1fr 1fr;
-  }
-
-}
-
-@media(max-width:550px){
-
-  .filters{
-    grid-template-columns:1fr;
-  }
-
-}
-
-.input,
-.select{
-
-  width:100%;
-
-  height:50px;
-
-  border-radius:14px;
-
-  border:1px solid #cbd5e1;
+.company-card{
 
   background:#fff;
 
-  padding:0 14px;
+  border-radius:26px;
 
-  font-size:14px;
-
-  outline:none;
-
-}
-
-.input:focus,
-.select:focus{
-
-  border-color:#2563eb;
+  padding:22px;
 
   box-shadow:
-    0 0 0 3px rgba(37,99,235,.12);
+    0 10px 30px rgba(15,23,42,.06);
+
+  border:1px solid #dbe4ee;
 
 }
 
 /* =========================
-   TABLE
+   CARD TOP
 ========================= */
 
-.table-wrap{
+.card-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:20px;
+  flex-wrap:wrap;
+}
 
-  overflow-x:auto;
-  overflow-y:hidden;
+.company-box{
 
-  background:#fff;
+  background:#dcfce7;
 
-  border-radius:24px;
+  color:#166534;
 
-  border:1px solid var(--border);
+  padding:12px 18px;
 
-  box-shadow:var(--shadow);
+  border-radius:18px;
+
+  min-width:220px;
+
+  border:1px solid #bbf7d0;
 
 }
 
-.table-wrap::-webkit-scrollbar{
-  height:10px;
-}
-
-.table-wrap::-webkit-scrollbar-track{
-  background:#e2e8f0;
-  border-radius:999px;
-}
-
-.table-wrap::-webkit-scrollbar-thumb{
-  background:#94a3b8;
-  border-radius:999px;
-}
-
-table{
-
-  width:100%;
-
-  min-width:2150px;
-
-  border-collapse:separate;
-
-  border-spacing:0;
-
-}
-
-/* =========================
-   TABLE HEADER
-========================= */
-
-th{
-
-  position:sticky;
-
-  top:0;
-
-  z-index:5;
-
-  background:
-    linear-gradient(
-      135deg,
-      #0f172a,
-      #1e293b
-    );
-
-  color:#fff;
-
-  padding:16px 14px;
-
-  font-size:11px;
-
+.company-box h3{
+  margin:0;
+  font-size:20px;
   font-weight:900;
-
-  text-transform:uppercase;
-
-  letter-spacing:.4px;
-
-  white-space:nowrap;
-
-  text-align:left;
-
 }
 
-th:first-child{
-  border-top-left-radius:20px;
-}
-
-th:last-child{
-  border-top-right-radius:20px;
+.company-box p{
+  margin:8px 0 0;
+  font-size:12px;
+  line-height:1.7;
 }
 
 /* =========================
-   TABLE BODY
+   STATUS
 ========================= */
 
-tbody tr{
+.status-box{
 
-  transition:.15s;
+  padding:10px 18px;
 
-}
-
-tbody tr:nth-child(even){
-
-  background:#f8fafc;
-
-}
-
-tbody tr:hover{
-
-  background:#eef4ff;
-
-}
-
-td{
-
-  padding:16px 14px;
-
-  border-bottom:1px solid #e5e7eb;
+  border-radius:999px;
 
   font-size:12px;
 
-  vertical-align:top;
-
-  white-space:nowrap;
-
-}
-
-/* =========================
-   COMPANY
-========================= */
-
-.company-name{
-
-  font-size:14px;
-
   font-weight:900;
-
-  color:#111827;
-
-}
-
-.company-small{
-
-  margin-top:7px;
-
-  color:#64748b;
-
-  line-height:1.7;
-
-  font-size:11px;
-
-}
-
-/* =========================
-   BADGES
-========================= */
-
-.badge{
-
-  display:inline-flex;
-
-  align-items:center;
-
-  justify-content:center;
-
-  min-width:82px;
-
-  padding:7px 12px;
-
-  border-radius:999px;
-
-  font-size:10px;
-
-  font-weight:900;
-
-  letter-spacing:.4px;
 
 }
 
@@ -601,125 +187,204 @@ td{
   color:#991b1b;
 }
 
-.status-paid{
-  background:#dbeafe;
-  color:#1d4ed8;
+/* =========================
+   STATS GRID
+========================= */
+
+.stats-grid{
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(6,1fr);
+
+  gap:14px;
+
+  margin-top:22px;
+
+}
+
+@media(max-width:1200px){
+
+  .stats-grid{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+}
+
+@media(max-width:700px){
+
+  .stats-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+}
+
+.stat{
+
+  background:#f8fafc;
+
+  border-radius:18px;
+
+  padding:16px;
+
+  border:1px solid #e2e8f0;
+
+}
+
+.stat h4{
+  margin:0;
+  font-size:11px;
+  color:#64748b;
+  text-transform:uppercase;
+}
+
+.stat p{
+  margin:12px 0 0;
+  font-size:24px;
+  font-weight:900;
 }
 
 /* =========================
-   ACTIONS
+   BILLING SETTINGS
 ========================= */
 
-.actions{
-  min-width:430px;
-}
+.settings-grid{
 
-.control-grid{
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-bottom:8px;
+
+  grid-template-columns:
+    repeat(4,1fr);
+
+  gap:14px;
+
+  margin-top:20px;
+
 }
 
-.control-grid-3{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:8px;
-  margin-bottom:8px;
+@media(max-width:900px){
+
+  .settings-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
 }
 
-.small-input{
+@media(max-width:550px){
 
-  height:38px;
+  .settings-grid{
+    grid-template-columns:1fr;
+  }
+
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.field label{
+  font-size:12px;
+  font-weight:700;
+  color:#64748b;
+}
+
+.field input{
+
+  height:46px;
+
+  border-radius:14px;
 
   border:1px solid #cbd5e1;
 
-  border-radius:10px;
+  padding:0 14px;
 
-  padding:0 10px;
-
-  font-size:12px;
-
-  background:#fff;
+  font-size:14px;
 
   outline:none;
 
 }
 
-.small-input:focus{
-
+.field input:focus{
   border-color:#2563eb;
-
-  box-shadow:
-    0 0 0 3px rgba(37,99,235,.12);
-
-}
-
-.btn-row{
-  display:flex;
-  gap:7px;
-  flex-wrap:wrap;
+  box-shadow:0 0 0 3px rgba(37,99,235,.15);
 }
 
 /* =========================
-   EMPTY
+   BUTTONS
 ========================= */
+
+.actions{
+
+  display:flex;
+
+  gap:10px;
+
+  flex-wrap:wrap;
+
+  margin-top:22px;
+
+}
+
+.btn{
+
+  border:none;
+
+  border-radius:14px;
+
+  padding:12px 18px;
+
+  font-size:12px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+  transition:.18s;
+
+}
+
+.btn:hover{
+  transform:translateY(-2px);
+}
+
+.btn-blue{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn-dark{
+  background:#111827;
+  color:#fff;
+}
+
+.btn-green{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.btn-red{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.btn-yellow{
+  background:#fef3c7;
+  color:#854d0e;
+}
 
 .empty{
 
   text-align:center;
 
-  color:#64748b;
+  padding:80px;
 
-  padding:45px;
-
-  font-size:14px;
+  font-size:18px;
 
   font-weight:700;
 
-}
-
-/* =========================
-   HISTORY
-========================= */
-
-.history-card{
-  margin-top:22px;
-}
-
-.history-title{
-
-  font-size:20px;
-
-  font-weight:900;
-
-  margin-bottom:14px;
-
-}
-
-/* =========================
-   MOBILE
-========================= */
-
-@media(max-width:768px){
-
-  td{
-    padding:14px 10px;
-    font-size:11px;
-  }
-
-  th{
-    padding:14px 10px;
-    font-size:10px;
-  }
-
-  .title{
-    font-size:24px;
-  }
-
-  .stat p{
-    font-size:28px;
-  }
+  color:#64748b;
 
 }
 
@@ -732,214 +397,31 @@ td{
 
 <div class="page-body">
 
-  <!-- =========================
-       TOP
-  ========================== -->
+  <div class="top-bar">
 
-  <div class="top-grid">
-
-    <div class="card billing-card">
-
-      <div class="title">
-        Billing Center
-      </div>
-
-      <div class="subtitle">
-        Generate invoices, calculate totals,
-        manage Stripe accounts, track payments,
-        and control company billing access.
-      </div>
-
-      <div class="stripe-actions">
-
-        <button
-          id="connectStripeBtn"
-          class="btn btn-stripe"
-        >
-          Connect Stripe
-        </button>
-
-        <button
-          id="openStripeBtn"
-          class="btn btn-dark"
-        >
-          Open Stripe Dashboard
-        </button>
-
-      </div>
-
+    <div class="page-title">
+      Billing Center
     </div>
 
-    <!-- =========================
-         STATS
-    ========================== -->
+    <div class="search-box">
 
-    <div class="stats">
-
-      <div class="stat dark">
-        <h4>Total Companies</h4>
-        <p id="totalCompanies">0</p>
-      </div>
-
-      <div class="stat green">
-        <h4>Active</h4>
-        <p id="activeCompanies">0</p>
-      </div>
-
-      <div class="stat orange">
-        <h4>Past Due</h4>
-        <p id="pastDueCompanies">0</p>
-      </div>
-
-      <div class="stat red">
-        <h4>Locked</h4>
-        <p id="lockedCompanies">0</p>
-      </div>
-
-      <div class="stat blue">
-        <h4>Total Revenue</h4>
-        <p id="totalRevenue">$0.00</p>
-      </div>
-
-      <div class="stat orange">
-        <h4>Pending</h4>
-        <p id="pendingPayments">$0.00</p>
-      </div>
+      <input
+        id="searchInput"
+        class="search-input"
+        placeholder="Search company..."
+      >
 
     </div>
 
   </div>
 
-  <!-- =========================
-       FILTERS
-  ========================== -->
+  <div
+    id="billingContainer"
+    class="billing-list"
+  >
 
-  <div class="filters">
-
-    <input
-      id="searchInput"
-      class="input"
-      placeholder="Search company..."
-    >
-
-    <select
-      id="statusFilter"
-      class="select"
-    >
-      <option value="">All Status</option>
-      <option value="ACTIVE">ACTIVE</option>
-      <option value="PAST_DUE">PAST DUE</option>
-      <option value="SUSPENDED">SUSPENDED</option>
-      <option value="PAID">PAID</option>
-    </select>
-
-    <select
-      id="monthFilter"
-      class="select"
-    >
-      <option value="">All Months</option>
-    </select>
-
-    <input
-      id="yearFilter"
-      class="input"
-      type="number"
-      placeholder="Year"
-    >
-
-  </div>
-
-  <!-- =========================
-       TABLE
-  ========================== -->
-
-  <div class="table-wrap">
-
-    <table>
-
-      <thead>
-
-        <tr>
-
-          <th>Company</th>
-          <th>Status</th>
-          <th>Period</th>
-          <th>Trips</th>
-          <th>Individual</th>
-          <th>Shared</th>
-          <th>Completed</th>
-          <th>No Show</th>
-          <th>Cancelled</th>
-          <th>Revenue</th>
-          <th>Invoice Amount</th>
-          <th>Grace</th>
-          <th>Last Payment</th>
-          <th>Locked</th>
-          <th>Actions</th>
-
-        </tr>
-
-      </thead>
-
-      <tbody id="billingContainer">
-
-        <tr>
-
-          <td colspan="15" class="empty">
-            Loading billing data...
-          </td>
-
-        </tr>
-
-      </tbody>
-
-    </table>
-
-  </div>
-
-  <!-- =========================
-       HISTORY
-  ========================== -->
-
-  <div class="card history-card">
-
-    <div class="history-title">
-      Billing Log / Invoice History
-    </div>
-
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-
-          <tr>
-
-            <th>Company</th>
-            <th>Invoice #</th>
-            <th>Period</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Created</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody id="historyContainer">
-
-          <tr>
-
-            <td colspan="6" class="empty">
-              No invoice history loaded.
-            </td>
-
-          </tr>
-
-        </tbody>
-
-      </table>
-
+    <div class="empty">
+      Loading billing data...
     </div>
 
   </div>
@@ -947,7 +429,490 @@ td{
 </div>
 
 <script src="/admin/header.js"></script>
-<script src="/admin/admin-billing.js"></script>
+
+<script>
+
+/* =========================
+   AUTH
+========================= */
+
+const token =
+  localStorage.getItem("token");
+
+if(!token){
+
+  window.location.href =
+    "/admin/login.html";
+
+}
+
+/* =========================
+   ELEMENTS
+========================= */
+
+const container =
+  document.getElementById("billingContainer");
+
+const searchInput =
+  document.getElementById("searchInput");
+
+/* =========================
+   DATA
+========================= */
+
+let companies = [];
+
+/* =========================
+   HELPERS
+========================= */
+
+function money(v){
+
+  return "$" +
+    Number(v || 0).toFixed(2);
+
+}
+
+function formatDate(v){
+
+  if(!v) return "--";
+
+  const d = new Date(v);
+
+  if(isNaN(d.getTime())){
+    return "--";
+  }
+
+  return d.toLocaleDateString(
+    "en-US",
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric"
+    }
+  );
+
+}
+
+function toInputDate(v){
+
+  if(!v) return "";
+
+  const d = new Date(v);
+
+  if(isNaN(d.getTime())){
+    return "";
+  }
+
+  return d.toISOString()
+    .split("T")[0];
+
+}
+
+function getStatusClass(status){
+
+  const s =
+    String(status || "")
+      .toUpperCase();
+
+  if(s === "PAST_DUE"){
+    return "status-past";
+  }
+
+  if(s === "SUSPENDED"){
+    return "status-suspended";
+  }
+
+  return "status-active";
+
+}
+
+async function safeJson(res){
+
+  try{
+    return await res.json();
+  }catch{
+    return {};
+  }
+
+}
+
+/* =========================
+   LOAD
+========================= */
+
+async function loadBilling(){
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/admin/billing",
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    companies =
+      Array.isArray(data)
+        ? data
+        : [];
+
+    render(companies);
+
+  }catch(err){
+
+    console.log(err);
+
+    container.innerHTML = `
+      <div class="empty">
+        Error loading billing
+      </div>
+    `;
+
+  }
+
+}
+
+/* =========================
+   RENDER
+========================= */
+
+function render(list){
+
+  if(!list.length){
+
+    container.innerHTML = `
+      <div class="empty">
+        No companies found
+      </div>
+    `;
+
+    return;
+
+  }
+
+  container.innerHTML =
+    list.map(c=>`
+
+      <div class="company-card">
+
+        <div class="card-top">
+
+          <div class="company-box">
+
+            <h3>
+              ${c.name || "--"}
+            </h3>
+
+            <p>
+              ${c.email || "--"}
+              <br>
+              ${c.phone || "--"}
+              <br>
+              ${c.username || "--"}
+            </p>
+
+          </div>
+
+          <div class="
+            status-box
+            ${getStatusClass(c.billingStatus)}
+          ">
+
+            ${c.billingStatus || "ACTIVE"}
+
+          </div>
+
+        </div>
+
+        <div class="stats-grid">
+
+          <div class="stat">
+            <h4>Trips</h4>
+            <p>${c.totalTrips || 0}</p>
+          </div>
+
+          <div class="stat">
+            <h4>Completed</h4>
+            <p>${c.completedTrips || 0}</p>
+          </div>
+
+          <div class="stat">
+            <h4>Shared</h4>
+            <p>${c.sharedTrips || 0}</p>
+          </div>
+
+          <div class="stat">
+            <h4>No Show</h4>
+            <p>${c.noShowTrips || 0}</p>
+          </div>
+
+          <div class="stat">
+            <h4>Revenue</h4>
+            <p>${money(c.revenue)}</p>
+          </div>
+
+          <div class="stat">
+            <h4>Invoice</h4>
+            <p>${money(c.invoiceAmount)}</p>
+          </div>
+
+        </div>
+
+        <div class="settings-grid">
+
+          <div class="field">
+
+            <label>Billing Start</label>
+
+            <input
+              type="date"
+              id="start-${c._id}"
+              value="${toInputDate(c.billingStartDate)}"
+            >
+
+          </div>
+
+          <div class="field">
+
+            <label>Billing End</label>
+
+            <input
+              type="date"
+              id="end-${c._id}"
+              value="${toInputDate(c.billingEndDate)}"
+            >
+
+          </div>
+
+          <div class="field">
+
+            <label>Grace Days</label>
+
+            <input
+              type="number"
+              id="grace-${c._id}"
+              value="${c.graceDays || 3}"
+            >
+
+          </div>
+
+          <div class="field">
+
+            <label>Last Payment</label>
+
+            <input
+              value="${formatDate(c.lastPaymentDate)}"
+              readonly
+            >
+
+          </div>
+
+        </div>
+
+        <div class="actions">
+
+          <button
+            class="btn btn-blue"
+            onclick="generateInvoice('${c._id}')"
+          >
+            Generate Invoice
+          </button>
+
+          <button
+            class="btn btn-dark"
+            onclick="openInvoice('${c._id}')"
+          >
+            Open Invoice
+          </button>
+
+          <button
+            class="btn btn-yellow"
+            onclick="markPaid('${c._id}')"
+          >
+            Mark Paid
+          </button>
+
+          <button
+            class="btn btn-red"
+            onclick="lockCompany('${c._id}')"
+          >
+            Lock
+          </button>
+
+          <button
+            class="btn btn-green"
+            onclick="unlockCompany('${c._id}')"
+          >
+            Unlock
+          </button>
+
+        </div>
+
+      </div>
+
+    `).join("");
+
+}
+
+/* =========================
+   ACTIONS
+========================= */
+
+async function generateInvoice(id){
+
+  const start =
+    document.getElementById(
+      `start-${id}`
+    ).value;
+
+  const end =
+    document.getElementById(
+      `end-${id}`
+    ).value;
+
+  const grace =
+    document.getElementById(
+      `grace-${id}`
+    ).value;
+
+  const res =
+    await fetch(
+      `/api/admin/generate-invoice/${id}`,
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        },
+
+        body:JSON.stringify({
+          billingStartDate:start,
+          billingEndDate:end,
+          graceDays:grace
+        })
+      }
+    );
+
+  const data =
+    await safeJson(res);
+
+  if(!res.ok){
+
+    alert(data.message || "Error");
+    return;
+
+  }
+
+  alert("Invoice generated");
+
+  loadBilling();
+
+}
+
+function openInvoice(id){
+
+  window.open(
+    `/admin/invoice.html?id=${id}`,
+    "_blank"
+  );
+
+}
+
+async function lockCompany(id){
+
+  await fetch(
+    `/api/admin/billing/${id}/lock`,
+    {
+      method:"PUT",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  loadBilling();
+
+}
+
+async function unlockCompany(id){
+
+  await fetch(
+    `/api/admin/billing/${id}/unlock`,
+    {
+      method:"PUT",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  loadBilling();
+
+}
+
+async function markPaid(id){
+
+  await fetch(
+    `/api/admin/billing/${id}/mark-paid`,
+    {
+      method:"PUT",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  loadBilling();
+
+}
+
+/* =========================
+   SEARCH
+========================= */
+
+searchInput.addEventListener(
+  "input",
+  ()=>{
+
+    const val =
+      searchInput.value
+        .toLowerCase()
+        .trim();
+
+    const filtered =
+      companies.filter(c=>{
+
+        return `
+          ${c.name || ""}
+          ${c.email || ""}
+          ${c.username || ""}
+        `
+        .toLowerCase()
+        .includes(val);
+
+      });
+
+    render(filtered);
+
+  }
+);
+
+/* =========================
+   INIT
+========================= */
+
+loadBilling();
+
+</script>
 
 </body>
 </html>

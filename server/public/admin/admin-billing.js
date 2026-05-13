@@ -19,46 +19,8 @@ if(!token){
 const container =
   document.getElementById("billingContainer");
 
-const historyContainer =
-  document.getElementById("historyContainer");
-
 const searchInput =
   document.getElementById("searchInput");
-
-const statusFilter =
-  document.getElementById("statusFilter");
-
-const monthFilter =
-  document.getElementById("monthFilter");
-
-const yearFilter =
-  document.getElementById("yearFilter");
-
-const connectStripeBtn =
-  document.getElementById("connectStripeBtn");
-
-const openStripeBtn =
-  document.getElementById("openStripeBtn");
-
-/* STATS */
-
-const totalCompaniesEl =
-  document.getElementById("totalCompanies");
-
-const activeCompaniesEl =
-  document.getElementById("activeCompanies");
-
-const pastDueCompaniesEl =
-  document.getElementById("pastDueCompanies");
-
-const lockedCompaniesEl =
-  document.getElementById("lockedCompanies");
-
-const totalRevenueEl =
-  document.getElementById("totalRevenue");
-
-const pendingPaymentsEl =
-  document.getElementById("pendingPayments");
 
 /* =========================
    DATA
@@ -67,55 +29,22 @@ const pendingPaymentsEl =
 let companies = [];
 
 /* =========================
-   MONTHS
-========================= */
-
-const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December"
-];
-
-if(monthFilter){
-
-  months.forEach((m,i)=>{
-
-    monthFilter.innerHTML += `
-      <option value="${i + 1}">
-        ${m}
-      </option>
-    `;
-
-  });
-
-}
-
-/* =========================
    HELPERS
 ========================= */
 
-function money(value){
+function money(v){
 
   return "$" +
-    Number(value || 0).toFixed(2);
+    Number(v || 0).toFixed(2);
 
 }
 
-function formatDate(value){
+function formatDate(v){
 
-  if(!value) return "--";
+  if(!v) return "--";
 
   const d =
-    new Date(value);
+    new Date(v);
 
   if(isNaN(d.getTime())){
     return "--";
@@ -132,12 +61,12 @@ function formatDate(value){
 
 }
 
-function toInputDate(value){
+function toInputDate(v){
 
-  if(!value) return "";
+  if(!v) return "";
 
   const d =
-    new Date(value);
+    new Date(v);
 
   if(isNaN(d.getTime())){
     return "";
@@ -162,10 +91,6 @@ function getStatusClass(status){
     return "status-suspended";
   }
 
-  if(s === "PAID"){
-    return "status-paid";
-  }
-
   return "status-active";
 
 }
@@ -176,7 +101,7 @@ async function safeJson(res){
 
     return await res.json();
 
-  }catch(err){
+  }catch{
 
     return {};
 
@@ -193,11 +118,9 @@ async function loadBilling(){
   try{
 
     container.innerHTML = `
-      <tr>
-        <td colspan="15" class="empty">
-          Loading billing data...
-        </td>
-      </tr>
+      <div class="empty">
+        Loading billing data...
+      </div>
     `;
 
     const res =
@@ -230,18 +153,14 @@ async function loadBilling(){
 
     render(companies);
 
-    updateStats(companies);
-
   }catch(err){
 
     console.log(err);
 
     container.innerHTML = `
-      <tr>
-        <td colspan="15" class="empty">
-          Error loading companies
-        </td>
-      </tr>
+      <div class="empty">
+        Error loading companies
+      </div>
     `;
 
   }
@@ -249,98 +168,7 @@ async function loadBilling(){
 }
 
 /* =========================
-   UPDATE STATS
-========================= */
-
-function updateStats(list){
-
-  const safeList =
-    Array.isArray(list)
-      ? list.filter(x => x)
-      : [];
-
-  const totalCompanies =
-    safeList.length;
-
-  const activeCompanies =
-    safeList.filter(x =>
-      x.billingStatus === "ACTIVE"
-    ).length;
-
-  const pastDueCompanies =
-    safeList.filter(x =>
-      x.billingStatus === "PAST_DUE"
-    ).length;
-
-  const lockedCompanies =
-    safeList.filter(x =>
-      x.billingLocked === true
-    ).length;
-
-  const totalRevenue =
-    safeList.reduce((sum,c)=>{
-
-      return sum + Number(
-        c.revenue || 0
-      );
-
-    },0);
-
-  const pendingPayments =
-    safeList.reduce((sum,c)=>{
-
-      return sum + Number(
-        c.invoiceAmount || 0
-      );
-
-    },0);
-
-  if(totalCompaniesEl){
-
-    totalCompaniesEl.innerText =
-      totalCompanies;
-
-  }
-
-  if(activeCompaniesEl){
-
-    activeCompaniesEl.innerText =
-      activeCompanies;
-
-  }
-
-  if(pastDueCompaniesEl){
-
-    pastDueCompaniesEl.innerText =
-      pastDueCompanies;
-
-  }
-
-  if(lockedCompaniesEl){
-
-    lockedCompaniesEl.innerText =
-      lockedCompanies;
-
-  }
-
-  if(totalRevenueEl){
-
-    totalRevenueEl.innerText =
-      money(totalRevenue);
-
-  }
-
-  if(pendingPaymentsEl){
-
-    pendingPaymentsEl.innerText =
-      money(pendingPayments);
-
-  }
-
-}
-
-/* =========================
-   RENDER TABLE
+   RENDER
 ========================= */
 
 function render(list){
@@ -348,229 +176,184 @@ function render(list){
   if(!list.length){
 
     container.innerHTML = `
-      <tr>
-        <td colspan="15" class="empty">
-          No companies found
-        </td>
-      </tr>
+      <div class="empty">
+        No companies found
+      </div>
     `;
 
     return;
 
   }
 
- container.innerHTML =
-  list
-    .filter(c => c)
-    .map(c=>{
+  container.innerHTML =
+    list.map(c=>`
 
-      return `
+      <div class="company-card">
 
-        <tr>
+        <div class="card-top">
 
-          <td>
+          <div class="company-box">
 
-            <div class="company-name">
+            <h3>
               ${c.name || "--"}
-            </div>
+            </h3>
 
-            <div class="company-small">
+            <p>
               ${c.email || "--"}
               <br>
               ${c.phone || "--"}
               <br>
               ${c.username || "--"}
-            </div>
+            </p>
 
-          </td>
+          </div>
 
-          <td>
+          <div class="
+            status-box
+            ${getStatusClass(c.billingStatus)}
+          ">
 
-            <span class="
-              badge
-              ${getStatusClass(c.billingStatus)}
-            ">
-              ${c.billingStatus || "ACTIVE"}
-            </span>
+            ${c.billingStatus || "ACTIVE"}
 
-          </td>
+          </div>
 
-          <td>
+        </div>
 
-            ${formatDate(c.billingStartDate)}
+        <div class="stats-grid">
 
-            <br>
+          <div class="stat">
+            <h4>Total Trips</h4>
+            <p>${c.totalTrips || 0}</p>
+          </div>
 
-            →
+          <div class="stat">
+            <h4>Completed</h4>
+            <p>${c.completedTrips || 0}</p>
+          </div>
 
-            <br>
+          <div class="stat">
+            <h4>Shared</h4>
+            <p>${c.sharedTrips || 0}</p>
+          </div>
 
-            ${formatDate(c.billingEndDate)}
+          <div class="stat">
+            <h4>No Show</h4>
+            <p>${c.noShowTrips || 0}</p>
+          </div>
 
-          </td>
+          <div class="stat">
+            <h4>Revenue</h4>
+            <p>${money(c.revenue)}</p>
+          </div>
 
-          <td>
-            ${c.totalTrips || 0}
-          </td>
+          <div class="stat">
+            <h4>Invoice</h4>
+            <p>${money(c.invoiceAmount)}</p>
+          </div>
 
-          <td>
-            ${c.individualTrips || 0}
-          </td>
+        </div>
 
-          <td>
-            ${c.sharedTrips || 0}
-          </td>
+        <div class="settings-grid">
 
-          <td>
-            ${c.completedTrips || 0}
-          </td>
+          <div class="field">
 
-          <td>
-            ${c.noShowTrips || 0}
-          </td>
+            <label>
+              Billing Start
+            </label>
 
-          <td>
-            ${c.cancelledTrips || 0}
-          </td>
+            <input
+              type="date"
+              id="start-${c._id}"
+              value="${toInputDate(c.billingStartDate)}"
+            >
 
-          <td>
-            ${money(c.revenue)}
-          </td>
+          </div>
 
-          <td>
-            <b>
-              ${money(c.invoiceAmount)}
-            </b>
-          </td>
+          <div class="field">
 
-          <td>
-            ${c.graceDays || 0} days
-          </td>
+            <label>
+              Billing End
+            </label>
 
-          <td>
-            ${formatDate(c.lastPaymentDate)}
-          </td>
+            <input
+              type="date"
+              id="end-${c._id}"
+              value="${toInputDate(c.billingEndDate)}"
+            >
 
-          <td>
+          </div>
 
-            ${
-              c.billingLocked
+          <div class="field">
 
-              ? `
-                <span class="
-                  badge
-                  status-suspended
-                ">
-                  LOCKED
-                </span>
-              `
+            <label>
+              Grace Days
+            </label>
 
-              : `
-                <span class="
-                  badge
-                  status-active
-                ">
-                  OPEN
-                </span>
-              `
-            }
+            <input
+              type="number"
+              id="grace-${c._id}"
+              value="${c.graceDays || 3}"
+            >
 
-          </td>
+          </div>
 
-          <td class="actions">
+          <div class="field">
 
-            <div class="control-grid">
+            <label>
+              Last Payment
+            </label>
 
-              <input
-                type="date"
-                class="small-input"
-                id="start-${c._id}"
-                value="${toInputDate(c.billingStartDate)}"
-              >
+            <input
+              value="${formatDate(c.lastPaymentDate)}"
+              readonly
+            >
 
-              <input
-                type="date"
-                class="small-input"
-                id="end-${c._id}"
-                value="${toInputDate(c.billingEndDate)}"
-              >
+          </div>
 
-            </div>
+        </div>
 
-            <div class="control-grid-3">
+        <div class="actions">
 
-              <input
-                type="number"
-                class="small-input"
-                placeholder="Grace"
-                id="grace-${c._id}"
-                value="${c.graceDays || 3}"
-              >
+          <button
+            class="btn btn-blue"
+            onclick="generateInvoice('${c._id}')"
+          >
+            Generate Invoice
+          </button>
 
-              <input
-                type="number"
-                class="small-input"
-                placeholder="Trips"
-                id="trips-${c._id}"
-                value="${c.totalTrips || 0}"
-                readonly
-              >
+          <button
+            class="btn btn-dark"
+            onclick="openInvoice('${c._id}')"
+          >
+            Open Invoice
+          </button>
 
-              <input
-                type="text"
-                class="small-input"
-                value="${money(c.revenue)}"
-                readonly
-              >
+          <button
+            class="btn btn-yellow"
+            onclick="markPaid('${c._id}')"
+          >
+            Mark Paid
+          </button>
 
-            </div>
+          <button
+            class="btn btn-red"
+            onclick="lockCompany('${c._id}')"
+          >
+            Lock
+          </button>
 
-            <div class="btn-row">
+          <button
+            class="btn btn-green"
+            onclick="unlockCompany('${c._id}')"
+          >
+            Unlock
+          </button>
 
-              <button
-                class="btn btn-blue"
-                onclick="generateInvoice('${c._id}')"
-              >
-                Generate
-              </button>
+        </div>
 
-              <button
-                class="btn btn-dark"
-                onclick="openInvoice('${c._id}')"
-              >
-                Invoice
-              </button>
+      </div>
 
-              <button
-                class="btn btn-red"
-                onclick="lockCompany('${c._id}')"
-              >
-                Lock
-              </button>
-
-              <button
-                class="btn btn-green"
-                onclick="unlockCompany('${c._id}')"
-              >
-                Unlock
-              </button>
-
-              <button
-                class="btn btn-yellow"
-                onclick="markPaid('${c._id}')"
-              >
-                Paid
-              </button>
-
-            </div>
-
-          </td>
-
-        </tr>
-
-      `;
-
-    }).join("");
+    `).join("");
 
 }
 
@@ -582,54 +365,37 @@ async function generateInvoice(id){
 
   try{
 
-    const startInput =
+    const start =
       document.getElementById(
         `start-${id}`
-      );
-
-    const endInput =
-      document.getElementById(
-        `end-${id}`
-      );
-
-    const graceInput =
-      document.getElementById(
-        `grace-${id}`
-      );
-
-    const start =
-      startInput
-        ? startInput.value
-        : "";
+      ).value;
 
     const end =
-      endInput
-        ? endInput.value
-        : "";
+      document.getElementById(
+        `end-${id}`
+      ).value;
 
     const grace =
-      graceInput
-        ? graceInput.value
-        : 3;
+      document.getElementById(
+        `grace-${id}`
+      ).value;
 
     if(!start || !end){
 
       alert(
-        "Please select billing start and end dates."
+        "Select billing dates first"
       );
 
       return;
 
     }
 
-    const confirmGenerate =
+    const ok =
       confirm(
-        "Generate invoice from real revenue for this billing period?"
+        "Generate invoice for this company?"
       );
 
-    if(!confirmGenerate){
-      return;
-    }
+    if(!ok) return;
 
     const res =
       await fetch(
@@ -647,14 +413,11 @@ async function generateInvoice(id){
 
           body:JSON.stringify({
 
-            billingStartDate:
-              start,
+            billingStartDate:start,
 
-            billingEndDate:
-              end,
+            billingEndDate:end,
 
-            graceDays:
-              grace
+            graceDays:grace
 
           })
         }
@@ -667,7 +430,7 @@ async function generateInvoice(id){
 
       throw new Error(
         data.message ||
-        "Invoice error"
+        "Invoice failed"
       );
 
     }
@@ -676,7 +439,7 @@ async function generateInvoice(id){
       "Invoice generated successfully"
     );
 
-    await loadBilling();
+    loadBilling();
 
   }catch(err){
 
@@ -692,13 +455,13 @@ async function generateInvoice(id){
 }
 
 /* =========================
-   OPEN INVOICE PAGE
+   OPEN INVOICE
 ========================= */
 
 function openInvoice(id){
 
   window.open(
-    `/admin/invoice.html?id=${encodeURIComponent(id)}`,
+    `/admin/invoice.html?id=${id}`,
     "_blank"
   );
 
@@ -714,7 +477,7 @@ async function lockCompany(id){
 
     const ok =
       confirm(
-        "Are you sure you want to lock this company?"
+        "Lock this company?"
       );
 
     if(!ok) return;
@@ -748,7 +511,7 @@ async function lockCompany(id){
       "Company locked"
     );
 
-    await loadBilling();
+    loadBilling();
 
   }catch(err){
 
@@ -800,7 +563,7 @@ async function unlockCompany(id){
       "Company unlocked"
     );
 
-    await loadBilling();
+    loadBilling();
 
   }catch(err){
 
@@ -825,7 +588,7 @@ async function markPaid(id){
 
     const ok =
       confirm(
-        "Mark this invoice as paid?"
+        "Mark invoice as paid?"
       );
 
     if(!ok) return;
@@ -856,10 +619,10 @@ async function markPaid(id){
     }
 
     alert(
-      "Payment marked successfully"
+      "Invoice marked as paid"
     );
 
-    await loadBilling();
+    loadBilling();
 
   }catch(err){
 
@@ -875,299 +638,38 @@ async function markPaid(id){
 }
 
 /* =========================
-   CONNECT STRIPE FOR COMPANY
-========================= */
-
-async function connectCompanyStripe(id){
-
-  try{
-
-    const res =
-      await fetch(
-        `/api/admin/billing/${id}/connect-stripe`,
-        {
-          method:"POST",
-
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
-      );
-
-    const data =
-      await safeJson(res);
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Stripe connect failed"
-      );
-
-    }
-
-    if(!data.url){
-
-      throw new Error(
-        "Stripe URL not returned"
-      );
-
-    }
-
-    window.location.href =
-      data.url;
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Stripe connect failed"
-    );
-
-  }
-
-}
-
-/* =========================
-   FILTERS
-========================= */
-
-function applyFilters(){
-
-  let list =
-    [...companies];
-
-  const search =
-    searchInput
-      ? searchInput.value
-        .toLowerCase()
-        .trim()
-      : "";
-
-  const status =
-    statusFilter
-      ? statusFilter.value
-      : "";
-
-  const month =
-    monthFilter
-      ? monthFilter.value
-      : "";
-
-  const year =
-    yearFilter
-      ? yearFilter.value
-      : "";
-
-  if(search){
-
-    list =
-      list.filter(company => {
-
-        const text = `
-${company?.name || ""}
-${company?.email || ""}
-${company?.phone || ""}
-${company?.username || ""}
-`
-.toLowerCase();
-
-        return text.includes(search);
-
-      });
-
-  }
-
-  if(status){
-
-    list =
-      list.filter(company =>
-        company.billingStatus === status
-      );
-
-  }
-
-  if(month){
-
-    list =
-      list.filter(company => {
-
-        if(!company.billingStartDate){
-          return false;
-        }
-
-        const d =
-          new Date(
-            company.billingStartDate
-          );
-
-        return (
-          d.getMonth() + 1
-        ) == month;
-
-      });
-
-  }
-
-  if(year){
-
-    list =
-      list.filter(company => {
-
-        if(!company.billingStartDate){
-          return false;
-        }
-
-        const d =
-          new Date(
-            company.billingStartDate
-          );
-
-        return (
-          d.getFullYear()
-        ) == year;
-
-      });
-
-  }
-
-  render(list);
-
-  updateStats(list);
-
-}
-
-/* =========================
-   STRIPE BUTTONS
-========================= */
-
-if(connectStripeBtn){
-
-  connectStripeBtn.addEventListener(
-    "click",
-    async ()=>{
-
-      try{
-
-        const companyName =
-          prompt(
-            "Enter company name"
-          );
-
-        if(!companyName) return;
-
-        const res =
-          await fetch(
-            "/api/company/connect-stripe",
-            {
-              method:"POST",
-
-              headers:{
-                Authorization:
-                  "Bearer " + token,
-
-                "Content-Type":
-                  "application/json"
-              },
-
-              body:JSON.stringify({
-                company:companyName
-              })
-            }
-          );
-
-        const data =
-          await safeJson(res);
-
-        if(!res.ok){
-
-          throw new Error(
-            data.message ||
-            "Stripe connect failed"
-          );
-
-        }
-
-        if(data.url){
-
-          window.open(
-            data.url,
-            "_blank"
-          );
-
-        }
-
-      }catch(err){
-
-        console.log(err);
-
-        alert(
-          err.message ||
-          "Stripe connect failed"
-        );
-
-      }
-
-    }
-  );
-
-}
-
-if(openStripeBtn){
-
-  openStripeBtn.addEventListener(
-    "click",
-    ()=>{
-
-      window.open(
-        "https://dashboard.stripe.com",
-        "_blank"
-      );
-
-    }
-  );
-
-}
-
-/* =========================
-   EVENTS
+   SEARCH
 ========================= */
 
 if(searchInput){
 
   searchInput.addEventListener(
     "input",
-    applyFilters
-  );
+    ()=>{
 
-}
+      const value =
+        searchInput.value
+          .toLowerCase()
+          .trim();
 
-if(statusFilter){
+      const filtered =
+        companies.filter(c=>{
 
-  statusFilter.addEventListener(
-    "change",
-    applyFilters
-  );
+          const text = `
+            ${c.name || ""}
+            ${c.email || ""}
+            ${c.phone || ""}
+            ${c.username || ""}
+          `
+          .toLowerCase();
 
-}
+          return text.includes(value);
 
-if(monthFilter){
+        });
 
-  monthFilter.addEventListener(
-    "change",
-    applyFilters
-  );
+      render(filtered);
 
-}
-
-if(yearFilter){
-
-  yearFilter.addEventListener(
-    "input",
-    applyFilters
+    }
   );
 
 }
