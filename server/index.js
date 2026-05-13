@@ -2111,9 +2111,7 @@ const totalTrips =
 const invoiceAmount =
   Number(revenue.toFixed(2));
 await User.findByIdAndUpdate(
-
   company._id,
-
   {
     daysLeft,
     billingStatus,
@@ -2135,11 +2133,11 @@ await User.findByIdAndUpdate(
     revenue,
     invoiceAmount
   }
-
 );
 
-}
+return await User.findById(company._id).lean();
 
+}
 /* =========================
    LOCK COMPANY
 ========================= */
