@@ -2645,13 +2645,40 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    company.billingStatus = "ACTIVE";
-    company.billingLocked = false;
+    /* =========================
+       UPDATE BILLING
+    ========================= */
+
+    company.billingStatus =
+      "ACTIVE";
+
+    company.billingLocked =
+      false;
+
+    /* 🔥 تصفير الفاتورة */
     company.invoiceAmount = 0;
-    company.lastPaymentDate = now;
-    company.nextBillingDate = nextBillingDate;
+
+    /* 🔥 تاريخ آخر دفع */
+    company.lastPaymentDate =
+      now;
+
+    /* 🔥 بداية الدورة الجديدة */
+    company.billingStartDate =
+      now;
+
+    /* 🔥 نهاية الدورة الجديدة */
+    company.billingEndDate =
+      nextBillingDate;
+
+    /* 🔥 ميعاد الدفع القادم */
+    company.nextBillingDate =
+      nextBillingDate;
 
     await company.save();
+
+    /* =========================
+       RESPONSE
+    ========================= */
 
     res.json({
       paid:true
@@ -2668,7 +2695,6 @@ app.get("/api/company/check-payment", async (req,res)=>{
   }
 
 });
-
 
 /* =========================
    GET DRIVERS
