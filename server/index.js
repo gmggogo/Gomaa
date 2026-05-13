@@ -1818,24 +1818,23 @@ async function updateCompanyBilling(company){
     billingLocked = true;
   }
 
-const trips =
-  await Trip.find({
+  const trips =
+    await Trip.find({
 
-    company:{
-      $regex:
-        "^" +
-        String(company.name || "").trim() +
-        "$",
-      $options:"i"
-    },
+      company:{
+        $regex:
+          "^" +
+          String(company.name || "").trim() +
+          "$",
+        $options:"i"
+      },
 
-    createdAt:{
-      $gte:
-        company.billingStartDate ||
-        new Date(0)
-    }
+      tripDate:{
+        $gte:startKey,
+        $lte:endKey
+      }
 
-  }).lean();
+    }).lean();
 
   let individualTrips = 0;
   let completedTrips = 0;
@@ -2641,13 +2640,11 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    /* 🔥 منع التكرار */
+    /* 🔥 PREVENT DOUBLE VERIFY */
 
     if(session.metadata?.verified === "true"){
 
-      console.log(
-        "ALREADY VERIFIED"
-      );
+      console.log("ALREADY VERIFIED");
 
       return res.json({
         paid:true
@@ -2655,8 +2652,7 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    const now =
-      new Date();
+    const now = new Date();
 
     let nextBillingDate =
       new Date(now);
@@ -2675,9 +2671,7 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    /* =========================
-       UPDATE BILLING
-    ========================= */
+    /* 🔥 UPDATE COMPANY */
 
     company.billingStatus =
       "ACTIVE";
@@ -2692,24 +2686,10 @@ app.get("/api/company/check-payment", async (req,res)=>{
       now;
 
     company.billingStartDate =
-      new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0
-      );
+      now;
 
     company.billingEndDate =
-      new Date(
-        nextBillingDate.getFullYear(),
-        nextBillingDate.getMonth(),
-        nextBillingDate.getDate(),
-        23,
-        59,
-        59
-      );
+      nextBillingDate;
 
     company.nextBillingDate =
       nextBillingDate;
@@ -2724,13 +2704,12 @@ app.get("/api/company/check-payment", async (req,res)=>{
       "COMPANY SAVED"
     );
 
-    /* 🔥 منع تكرار الدفع */
+    /* 🔥 MARK SESSION VERIFIED */
 
     await stripe.checkout.sessions.update(
       sessionId,
       {
         metadata:{
-          ...session.metadata,
           verified:"true"
         }
       }
@@ -2760,33 +2739,72 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
 });
 
+    /* =========================
+       UPDATE BILLING
+    ========================= */
 
-/* =========================
-   GET DRIVERS
-========================= */
+    company.billingStatus =
+      "ACTIVE";
 
-app.get("/api/drivers", async (req, res) => {
+    company.billingLocked =
+      false;
 
-  try {
+    /* 🔥 تصفير الفاتورة */
+    company.invoiceAmount = 0;
 
-    const drivers =
-      await User.find({
-        role: "driver",
-        active: true
-      }).sort({ name: 1 });
+    /* 🔥 تاريخ آخر دفع */
+    company.lastPaymentDate =
+      now;
 
-    res.json(drivers);
+    /* 🔥 بداية الدورة الجديدة */
+    company.billingStartDate =
+      now;
 
-  } catch (err) {
+    /* 🔥 نهاية الدورة الجديدة */
+    company.billingEndDate =
+      nextBillingDate;
+
+    /* 🔥 ميعاد الدفع القادم */
+    company.nextBillingDate =
+      nextBillingDate;
+
+    await company.save();
+
+    /* =========================
+       RESPONSE
+    ========================= */
+
+    res.json({
+      paid:true
+    });
+
+  }catch(err){
 
     console.log(err);
 
     res.status(500).json({
-      message: "Error loading drivers"
+      paid:false
     });
 
   }
 
+});
+
+/* =========================
+   GET DRIVERS
+========================= */
+app.get("/api/drivers", async (req, res) => {
+  try {
+    const drivers = await User.find({
+      role: "driver",
+      active: true
+    }).sort({ name: 1 });
+
+    res.json(drivers);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Error loading drivers" });
+  }
 });
 
 /* =========================
