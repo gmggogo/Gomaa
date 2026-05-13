@@ -1956,10 +1956,11 @@ if(
     if(ps === "completed"){
 
 amount += Number(
- p.finalPrice ||
-p.priceAmount ||
-p.price ||
-15
+  p.finalPrice ||
+  p.priceAmount ||
+  p.price ||
+  15
+);
 
     }
 
