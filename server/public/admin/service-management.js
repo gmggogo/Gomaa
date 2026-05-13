@@ -62,7 +62,7 @@ function renderServices(){
           <div>
 
             <div class="service-name">
-              ${service.name || ""}
+              ${service.title || ""}
             </div>
 
             <div class="service-status">
@@ -455,9 +455,9 @@ async function toggleService(id){
 
     service.enabled
 
-    ? `Disable ${service.name}?\n\nCustomers Will NOT See This Service.`
+    ? `Disable ${service.title}?\n\nCustomers Will NOT See This Service.`
 
-    : `Enable ${service.name}?\n\nCustomers CAN Book This Service.`
+    : `Enable ${service.title}?\n\nCustomers CAN Book This Service.`
 
   );
 

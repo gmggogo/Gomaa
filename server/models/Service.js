@@ -4,17 +4,18 @@ const serviceSchema = new mongoose.Schema({
 
   serviceKey:{
     type:String,
+    required:true,
     unique:true
   },
 
   title:{
     type:String,
-    default:""
+    required:true
   },
 
-  description:{
+  icon:{
     type:String,
-    default:""
+    default:"🚘"
   },
 
   enabled:{
@@ -24,7 +25,7 @@ const serviceSchema = new mongoose.Schema({
 
   pricingMode:{
     type:String,
-    default:"PER_MILE"
+    default:"MILE"
   },
 
   baseFare:{
@@ -54,7 +55,7 @@ const serviceSchema = new mongoose.Schema({
 
   noShowFee:{
     type:Number,
-    default:15
+    default:0
   },
 
   sharedPrice:{
