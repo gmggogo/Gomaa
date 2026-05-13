@@ -1954,13 +1954,11 @@ if(
 
   });
 
-}
+}else{
 
-/* =========================
-   INDIVIDUAL PRICE
-========================= */
-
-else{
+  /* =========================
+     INDIVIDUAL PRICE
+  ========================= */
 
   amount = Number(
     t.finalPrice ||
@@ -2038,7 +2036,7 @@ const sharedTrips =
   sharedGroups.size;
 
 const totalTrips =
-  individualTrips + sharedPassengers;
+  individualTrips + sharedTrips;
 
 const invoiceAmount =
   Number(revenue.toFixed(2));
