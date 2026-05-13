@@ -1935,10 +1935,6 @@ if(status.includes("no")){
 
 let amount = 0;
 
-/* =========================
-   SHARED PRICE
-========================= */
-
 if(
   isShared &&
   Array.isArray(t.passengers) &&
@@ -1947,23 +1943,52 @@ if(
 
   t.passengers.forEach(p=>{
 
-    const ps =
+    let ps =
       String(p.status || "")
         .replace(/\s+/g,"")
         .toLowerCase()
         .trim();
 
-    if(ps === "completed"){
+    if(
+      !ps ||
+      ps === "scheduled" ||
+      ps === "booked"
+    ){
+      ps = status;
+    }
 
-amount += Number(
-  p.finalPrice ||
-  p.priceAmount ||
-  p.price ||
-  15
-);
+    if(ps.includes("complete")){
+
+      amount += Number(
+        p.finalPrice ||
+        p.priceAmount ||
+        p.price ||
+        0
+      );
+
+    }else if(
+      ps.includes("cancel") ||
+      ps.includes("no")
+    ){
+
+      amount += 15;
 
     }
 
+  });
+
+}else{
+
+  amount = Number(
+    t.finalPrice ||
+    t.priceAmount ||
+    t.price ||
+    0
+  );
+
+}
+
+revenue += Number(amount || 0);
     else if(
       ps === "cancelled" ||
       ps === "noshow"
