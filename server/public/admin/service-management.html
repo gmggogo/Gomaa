@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+Service Management
+</title>
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+
+/* =========================
+   PAGE
+========================= */
+
+body{
+  margin:0;
+  background:#f1f5f9;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
+}
+
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
+}
+
+/* =========================
+   PAGE BODY
+========================= */
+
+.page-body{
+  max-width:1700px;
+  margin:auto;
+  padding:260px 20px 80px;
+}
+
+@media(max-width:768px){
+
+  .page-body{
+    padding-top:320px;
+    padding-left:12px;
+    padding-right:12px;
+  }
+
+}
+
+/* =========================
+   TITLE
+========================= */
+
+.page-title{
+  font-size:34px;
+  font-weight:800;
+  margin-bottom:24px;
+}
+
+@media(max-width:768px){
+
+  .page-title{
+    font-size:28px;
+  }
+
+}
+
+/* =========================
+   GRID
+========================= */
+
+.services-grid{
+  display:grid;
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(340px,1fr));
+
+  gap:22px;
+}
+
+/* =========================
+   CARD
+========================= */
+
+.service-card{
+
+  background:#fff;
+
+  border-radius:24px;
+
+  padding:24px;
+
+  box-shadow:
+  0 10px 30px rgba(0,0,0,.06);
+
+}
+
+/* =========================
+   TOP
+========================= */
+
+.service-top{
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:space-between;
+
+  margin-bottom:22px;
+
+}
+
+.service-info{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:14px;
+
+}
+
+.service-icon{
+
+  width:62px;
+
+  height:62px;
+
+  border-radius:18px;
+
+  background:#eff6ff;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  font-size:32px;
+
+}
+
+.service-name{
+
+  font-size:22px;
+
+  font-weight:800;
+
+}
+
+/* =========================
+   TOGGLE
+========================= */
+
+.toggle{
+
+  width:70px;
+
+  height:36px;
+
+  border-radius:999px;
+
+  position:relative;
+
+  cursor:pointer;
+
+  transition:.25s;
+
+}
+
+.toggle.active{
+  background:#16a34a;
+}
+
+.toggle.inactive{
+  background:#cbd5e1;
+}
+
+.toggle-ball{
+
+  width:30px;
+
+  height:30px;
+
+  border-radius:50%;
+
+  background:#fff;
+
+  position:absolute;
+
+  top:3px;
+
+  transition:.25s;
+
+}
+
+.toggle.active .toggle-ball{
+  left:37px;
+}
+
+.toggle.inactive .toggle-ball{
+  left:3px;
+}
+
+/* =========================
+   FIELDS
+========================= */
+
+.fields{
+
+  display:grid;
+
+  grid-template-columns:1fr 1fr;
+
+  gap:14px;
+
+}
+
+.field{
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:6px;
+
+}
+
+.field label{
+
+  font-size:13px;
+
+  font-weight:700;
+
+  color:#475569;
+
+}
+
+.field input,
+.field select{
+
+  width:100%;
+
+  border:1px solid #cbd5e1;
+
+  border-radius:14px;
+
+  padding:12px;
+
+  font-size:14px;
+
+  outline:none;
+
+}
+
+/* =========================
+   SAVE BUTTON
+========================= */
+
+.save-btn{
+
+  margin-top:22px;
+
+  width:100%;
+
+  border:none;
+
+  background:#145cff;
+
+  color:#fff;
+
+  padding:15px;
+
+  border-radius:16px;
+
+  font-size:16px;
+
+  font-weight:800;
+
+  cursor:pointer;
+
+  transition:.2s;
+
+}
+
+.save-btn:hover{
+  background:#0f46c9;
+}
+
+@media(max-width:768px){
+
+  .fields{
+    grid-template-columns:1fr;
+  }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- =========================
+     HEADER
+========================= -->
+
+<div id="adminHeader"></div>
+
+<!-- =========================
+     PAGE
+========================= -->
+
+<div class="page-body">
+
+  <div class="page-title">
+    Service Management
+  </div>
+
+  <div
+    class="services-grid"
+    id="servicesGrid"
+  ></div>
+
+</div>
+
+<script src="header.js"></script>
+
+<script>
+
+/* =========================
+   LOAD HEADER
+========================= */
+
+loadHeader("Service Management");
+
+</script>
+
+<script src="service-management.js"></script>
+
+</body>
+</html>
