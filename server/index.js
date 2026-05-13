@@ -2106,8 +2106,6 @@ const sharedTrips =
 
 const totalTrips =
   individualTrips + sharedPassengers;
-const totalTrips =
-  individualTrips + sharedPassengers;
 
 /* =========================
    INDIVIDUAL REVENUE
@@ -2131,7 +2129,7 @@ const individualRevenue =
 
       const status =
         String(t.status || "")
-        .toLowerCase();
+          .toLowerCase();
 
       if(status.includes("complete")){
 
@@ -2181,7 +2179,7 @@ const sharedRevenue =
 
       const status =
         String(t.status || "")
-        .toLowerCase();
+          .toLowerCase();
 
       if(status.includes("complete")){
 
@@ -2247,7 +2245,10 @@ await User.findByIdAndUpdate(
     invoiceAmount
   }
 
-);/* =========================
+);
+
+
+/* =========================
    LOCK COMPANY
 ========================= */
 
