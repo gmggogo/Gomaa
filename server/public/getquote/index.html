@@ -55,6 +55,7 @@ input{
   border-radius:10px;
   margin-bottom:10px;
   font-size:16px;
+  box-sizing:border-box;
 }
 
 /* BUTTON */
@@ -97,13 +98,19 @@ button{
   transform:scale(1.03);
 }
 
-/* 👇 التعديل الوحيد: تصغير الأيقونات */
 .vehicle-option img{
   width:70px;
   height:45px;
   object-fit:contain;
   margin:0 auto 6px;
   display:block;
+}
+
+.vehicle-emoji{
+  font-size:42px;
+  height:45px;
+  line-height:45px;
+  margin-bottom:6px;
 }
 
 .vehicle-option b{
@@ -129,6 +136,9 @@ button{
   color:#fff;
   padding:10px;
   border-radius:10px;
+  width:55px;
+  margin-top:0;
+  margin-bottom:10px;
 }
 
 /* MAP */
@@ -184,6 +194,13 @@ button{
   font-size:14px;
   line-height:1.6;
 }
+
+.loading-services{
+  text-align:center;
+  padding:20px;
+  color:#64748b;
+  font-weight:bold;
+}
 </style>
 </head>
 
@@ -202,36 +219,17 @@ Payment Calculation
 </div>
 
 <div class="pricing" id="pricing">
-<b>Base fare includes first 5 miles</b><br>
-Car (X): $20 base + $2 per mile after 5 miles<br>
-Minivan (XL - 7 seats): $30 base + $2.5 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-No Show: $15<br>
-Cancellation: $15 within 2 hours
+<b>Prices are controlled from Service Management</b><br>
+Select a service below to calculate your quote.<br>
+Stops, No Show, and Cancellation fees are based on admin settings.
 </div>
 
 </div>
 
 <div class="card">
 
-<div class="vehicle-pricing">
-
-<div class="vehicle-option" id="standardBtn" onclick="selectVehicle('standard')">
-  <img src="11.jpeg">
-  <b>Car (X)</b>
-  <span>$20 base</span>
-  <span>$2 / mile after 5 miles</span>
-</div>
-
-<div class="vehicle-option" id="minivanBtn" onclick="selectVehicle('minivan')">
-  <img src="10.jpeg">
-  <b>Minivan (XL)</b>
-  <span>7 seats</span>
-  <span>$30 base</span>
-  <span>$2.5 / mile after 5 miles</span>
-</div>
-
+<div class="vehicle-pricing" id="vehicleContainer">
+  <div class="loading-services">Loading services...</div>
 </div>
 
 <label id="pickupLabel">Pickup</label>
@@ -267,29 +265,231 @@ Cancellation: $15 within 2 hours
 
 <script>
 
-let lang="en";
-let vehicleType = null;
+let lang = "en";
 
-/* VEHICLE */
-function selectVehicle(type){
-  vehicleType = type;
+let selectedService = null;
+let selectedServiceData = null;
+let servicesData = [];
 
-  document.getElementById("standardBtn").classList.remove("active");
-  document.getElementById("minivanBtn").classList.remove("active");
+let map;
+let directionsService;
+let directionsRenderer;
 
-  if(type === "standard"){
-    document.getElementById("standardBtn").classList.add("active");
-  }else{
-    document.getElementById("minivanBtn").classList.add("active");
+/* =========================
+   SERVICE ICONS / IMAGES
+========================= */
+
+function getServiceImage(serviceKey){
+
+  if(serviceKey === "STANDARD"){
+    return "11.jpeg";
   }
 
-  resetUI();
+  if(serviceKey === "XL"){
+    return "10.jpeg";
+  }
+
+  return "";
 }
 
-/* LANGUAGE */
+function getServiceEmoji(serviceKey){
+
+  if(serviceKey === "STANDARD") return "🚗";
+  if(serviceKey === "XL") return "🚐";
+  if(serviceKey === "TAXI") return "🚕";
+  if(serviceKey === "LIMO") return "🖤";
+  if(serviceKey === "WHEELCHAIR") return "🦽";
+  if(serviceKey === "AIRPORT") return "✈️";
+
+  return "🚘";
+}
+
+/* =========================
+   LOAD SERVICES
+========================= */
+
+async function loadServices(){
+
+  const container =
+    document.getElementById("vehicleContainer");
+
+  try{
+
+    const res =
+      await fetch("/api/services");
+
+    const data =
+      await res.json();
+
+    servicesData =
+      Array.isArray(data)
+        ? data
+        : [];
+
+    const visibleServices =
+      servicesData.filter(service=>{
+
+        const key =
+          String(service.serviceKey || "")
+            .toUpperCase();
+
+        if(key === "SHARED"){
+          return false;
+        }
+
+        return service.enabled === true;
+
+      });
+
+    container.innerHTML = "";
+
+    if(visibleServices.length === 0){
+
+      container.innerHTML = `
+        <div class="loading-services">
+          No services available
+        </div>
+      `;
+
+      return;
+    }
+
+    visibleServices.forEach(service=>{
+
+      const serviceKey =
+        String(service.serviceKey || "")
+          .toUpperCase();
+
+      const title =
+        service.title ||
+        service.name ||
+        serviceKey;
+
+      const image =
+        getServiceImage(serviceKey);
+
+      const emoji =
+        getServiceEmoji(serviceKey);
+
+      const baseFare =
+        Number(service.baseFare || 0);
+
+      const includedMiles =
+        Number(service.includedMiles || 0);
+
+      const perMile =
+        Number(service.perMile || 0);
+
+      const hourlyRate =
+        Number(service.hourlyRate || 0);
+
+      const sharedPrice =
+        Number(service.sharedPrice || 0);
+
+      const pricingMode =
+        String(service.pricingMode || "PER_MILE");
+
+      const card =
+        document.createElement("div");
+
+      card.className = "vehicle-option";
+
+      let mediaHtml = "";
+
+      if(image){
+        mediaHtml = `<img src="${image}">`;
+      }else{
+        mediaHtml = `<div class="vehicle-emoji">${emoji}</div>`;
+      }
+
+      let priceLines = "";
+
+      if(pricingMode === "HOURLY"){
+
+        priceLines = `
+          <span>$${hourlyRate} / hour</span>
+        `;
+
+      }else if(pricingMode === "SHARED"){
+
+        priceLines = `
+          <span>$${sharedPrice} shared price</span>
+        `;
+
+      }else{
+
+        priceLines = `
+          <span>$${baseFare} base</span>
+          <span>$${perMile} / mile after ${includedMiles} miles</span>
+        `;
+
+      }
+
+      card.innerHTML = `
+        ${mediaHtml}
+        <b>${title}</b>
+        ${priceLines}
+      `;
+
+      card.onclick = function(){
+
+        selectService(
+          service,
+          card
+        );
+
+      };
+
+      container.appendChild(card);
+
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    container.innerHTML = `
+      <div class="loading-services">
+        Failed to load services
+      </div>
+    `;
+
+  }
+
+}
+
+/* =========================
+   SELECT SERVICE
+========================= */
+
+function selectService(service, card){
+
+  selectedServiceData = service;
+
+  selectedService =
+    String(service.serviceKey || "")
+      .toUpperCase();
+
+  document
+    .querySelectorAll(".vehicle-option")
+    .forEach(el=>{
+      el.classList.remove("active");
+    });
+
+  card.classList.add("active");
+
+  resetUI();
+
+}
+
+/* =========================
+   LANGUAGE
+========================= */
+
 function toggleLang(){
 
   if(lang==="en"){
+
     lang="es";
 
     langBtn.innerText="Spanish / English";
@@ -298,16 +498,12 @@ function toggleLang(){
     dropLabel.innerText="Destino";
 
     pricing.innerHTML=`
-<b>La tarifa base incluye las primeras 5 millas</b><br>
-Carro (X): $20 base + $2 por milla después de 5 millas<br>
-Minivan (XL - 7 asientos): $30 base + $2.5 por milla después de 5 millas<br>
-Parada: $5 cada una<br>
-Espera: 10 minutos<br>
-No Show: $15<br>
-Cancelación: $15 dentro de 2 horas
+<b>Los precios se controlan desde Service Management</b><br>
+Seleccione un servicio para calcular su viaje.<br>
+Paradas, No Show y cancelación dependen de la configuración del admin.
 `;
 
-  } else {
+  }else{
 
     lang="en";
 
@@ -317,193 +513,434 @@ Cancelación: $15 dentro de 2 horas
     dropLabel.innerText="Dropoff";
 
     pricing.innerHTML=`
-<b>Base fare includes first 5 miles</b><br>
-Car (X): $20 base + $2 per mile after 5 miles<br>
-Minivan (XL - 7 seats): $30 base + $2.5 per mile after 5 miles<br>
-Stop: $5 each<br>
-Waiting: 10 minutes after pickup time<br>
-No Show: $15<br>
-Cancellation: $15 within 2 hours
+<b>Prices are controlled from Service Management</b><br>
+Select a service below to calculate your quote.<br>
+Stops, No Show, and Cancellation fees are based on admin settings.
 `;
+
   }
+
 }
 
-/* MAP */
-let map, directionsService, directionsRenderer;
-
-const STOP_PRICE = 5;
+/* =========================
+   GOOGLE MAP
+========================= */
 
 function initGoogle(){
-  map = new google.maps.Map(document.getElementById("map"), {
-    center:{lat:33.4484,lng:-112.0740},
-    zoom:11
-  });
 
-  directionsService = new google.maps.DirectionsService();
+  map =
+    new google.maps.Map(
+      document.getElementById("map"),
+      {
+        center:{
+          lat:33.4484,
+          lng:-112.0740
+        },
+        zoom:11
+      }
+    );
 
-  directionsRenderer = new google.maps.DirectionsRenderer({
-    map,
-    polylineOptions:{
-      strokeColor:"#2563eb",
-      strokeWeight:5
-    }
-  });
+  directionsService =
+    new google.maps.DirectionsService();
+
+  directionsRenderer =
+    new google.maps.DirectionsRenderer({
+      map,
+      polylineOptions:{
+        strokeColor:"#2563eb",
+        strokeWeight:5
+      }
+    });
+
 }
 
-/* STOP */
+/* =========================
+   STOPS
+========================= */
+
 function addStop(){
-  const row = document.createElement("div");
+
+  const row =
+    document.createElement("div");
+
   row.className = "stop-row";
 
-  const input = document.createElement("input");
-  input.placeholder = lang==="es" ? "Parada" : "Stop";
-  input.addEventListener("input", resetUI);
+  const input =
+    document.createElement("input");
 
-  const remove = document.createElement("button");
+  input.placeholder =
+    lang==="es"
+      ? "Parada"
+      : "Stop";
+
+  input.addEventListener(
+    "input",
+    resetUI
+  );
+
+  const remove =
+    document.createElement("button");
+
   remove.innerText = "X";
   remove.className = "remove-btn";
 
-  remove.onclick = () => {
+  remove.onclick = function(){
+
     row.remove();
+
     resetUI();
+
   };
 
   row.appendChild(input);
   row.appendChild(remove);
 
-  document.getElementById("stops").appendChild(row);
+  document
+    .getElementById("stops")
+    .appendChild(row);
+
 }
 
-/* RESET */
+/* =========================
+   RESET
+========================= */
+
 function resetUI(){
+
   bookBtn.classList.add("hidden");
   bookBtn.classList.remove("active");
   priceBox.classList.add("hidden");
+
 }
 
-[pickup, dropoff].forEach(input=>{
-  input.addEventListener("input", resetUI);
-});
+pickup.addEventListener("input", resetUI);
+dropoff.addEventListener("input", resetUI);
 
-/* FIX AZ */
+/* =========================
+   FIX ARIZONA
+========================= */
+
 function fixAZ(address){
-  address = address.trim();
-  if(address === "") return "";
-  if(!address.toLowerCase().includes("arizona")){
+
+  address =
+    String(address || "")
+      .trim();
+
+  if(address === ""){
+    return "";
+  }
+
+  if(
+    !address
+      .toLowerCase()
+      .includes("arizona")
+  ){
     return address + ", Arizona";
   }
+
   return address;
+
 }
 
-/* CALCULATE */
+/* =========================
+   CALCULATE
+========================= */
+
 function calculate(){
 
-  if(!vehicleType){
-    alert(lang === "en" ? "Select vehicle type" : "Seleccione el tipo de vehículo");
+  if(!selectedService){
+
+    alert(
+      lang === "en"
+        ? "Select service type"
+        : "Seleccione el tipo de servicio"
+    );
+
     return;
+
   }
 
-  let pickupVal = fixAZ(pickup.value);
-  let dropVal = fixAZ(dropoff.value);
+  const pickupVal =
+    fixAZ(pickup.value);
+
+  const dropVal =
+    fixAZ(dropoff.value);
 
   if(!pickupVal || !dropVal){
-    alert(lang === "en" ? "Enter valid address" : "Ingrese una dirección válida");
+
+    alert(
+      lang === "en"
+        ? "Enter valid address"
+        : "Ingrese una dirección válida"
+    );
+
     return;
+
   }
 
-  let OPEN = 20;
-  let PER_MILE = 2;
-
-  if(vehicleType === "minivan"){
-    OPEN = 30;
-    PER_MILE = 2.5;
-  }
-
-  const stopsInputs = Array.from(document.querySelectorAll(".stop-row input"))
-    .filter(i => i.value)
-    .map(i => ({ location: fixAZ(i.value) }));
+  const stopsInputs =
+    Array
+      .from(
+        document.querySelectorAll(
+          ".stop-row input"
+        )
+      )
+      .filter(i=>i.value)
+      .map(i=>({
+        location:fixAZ(i.value)
+      }));
 
   directionsService.route({
-    origin: pickupVal,
-    destination: dropVal,
-    waypoints: stopsInputs,
-    travelMode: "DRIVING",
+
+    origin:pickupVal,
+    destination:dropVal,
+    waypoints:stopsInputs,
+    travelMode:"DRIVING",
+
     drivingOptions:{
-      departureTime: new Date(),
+      departureTime:new Date(),
       trafficModel:"bestguess"
     }
 
-  }, (res, status)=>{
+  }, async function(res,status){
 
     if(status !== "OK"){
-      alert(lang === "en" ? "Address not valid" : "Dirección no válida");
+
+      alert(
+        lang === "en"
+          ? "Address not valid"
+          : "Dirección no válida"
+      );
+
       return;
+
     }
 
     directionsRenderer.setDirections(res);
 
-    let meters=0, sec=0;
+    let meters = 0;
+    let sec = 0;
 
     res.routes[0].legs.forEach(l=>{
-      meters+=l.distance.value;
-      sec+=l.duration.value;
+
+      meters += l.distance.value;
+      sec += l.duration.value;
+
     });
 
-    let miles = meters/1609;
-    let mins = Math.round(sec/60);
-    let stops = stopsInputs.length;
+    const miles =
+      meters / 1609;
 
-    let extraMiles = Math.max(0, miles - 5);
-    let totalPrice = OPEN + (extraMiles * PER_MILE) + (stops * STOP_PRICE);
+    const mins =
+      Math.round(sec / 60);
 
-    distance.innerText = miles.toFixed(2)+" mi";
-    stopsCount.innerText = stops;
-    time.innerText = mins+" min";
-    price.innerText = "$"+totalPrice.toFixed(2);
+    const stops =
+      stopsInputs.length;
 
-    priceBox.classList.remove("hidden");
-    bookBtn.classList.remove("hidden");
-    bookBtn.classList.add("active");
+    try{
+
+      const pricingRes =
+        await fetch(
+          "/api/pricing/calculate",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":"application/json"
+            },
+
+            body:JSON.stringify({
+              serviceKey:selectedService,
+              miles:miles,
+              stops:stops
+            })
+          }
+        );
+
+      const pricingData =
+        await pricingRes.json();
+
+      if(!pricingData.success){
+
+        alert(
+          lang === "en"
+            ? "Pricing error"
+            : "Error de precio"
+        );
+
+        return;
+
+      }
+
+      const totalPrice =
+        Number(pricingData.total || 0);
+
+      distance.innerText =
+        miles.toFixed(2) + " mi";
+
+      stopsCount.innerText =
+        stops;
+
+      time.innerText =
+        mins + " min";
+
+      price.innerText =
+        "$" + totalPrice.toFixed(2);
+
+      priceBox.classList.remove("hidden");
+
+      bookBtn.classList.remove("hidden");
+      bookBtn.classList.add("active");
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        lang === "en"
+          ? "Server pricing failed"
+          : "Falló el precio del servidor"
+      );
+
+    }
 
   });
+
 }
 
-/* BOOK */
+/* =========================
+   BOOK
+========================= */
+
 function bookTrip(){
+
   const stops = [];
-  document.querySelectorAll(".stop-row input").forEach(i=>{
-    if(i.value) stops.push(i.value);
-  });
+
+  document
+    .querySelectorAll(".stop-row input")
+    .forEach(i=>{
+
+      if(i.value){
+        stops.push(i.value);
+      }
+
+    });
+
+  let vehicleType =
+    "standard";
+
+  let vehicleTypeFromQuote =
+    "X";
+
+  let vehicleName =
+    selectedServiceData?.title ||
+    selectedService ||
+    "";
+
+  if(selectedService === "XL"){
+
+    vehicleType =
+      "minivan";
+
+    vehicleTypeFromQuote =
+      "XL";
+
+  }
+
+  if(selectedService === "STANDARD"){
+
+    vehicleType =
+      "standard";
+
+    vehicleTypeFromQuote =
+      "X";
+
+  }
 
   const trip = {
-    vehicleType: vehicleType,
-    vehicleName: vehicleType === "minivan" ? "Minivan (XL - 7 seats)" : "Car (X)",
-    pickup: pickup.value,
-    dropoff: dropoff.value,
+
+    serviceKey:
+      selectedService,
+
+    serviceTitle:
+      selectedServiceData?.title || "",
+
+    vehicleType:
+      vehicleType,
+
+    vehicleTypeFromQuote:
+      vehicleTypeFromQuote,
+
+    vehicleName:
+      vehicleName,
+
+    pickup:
+      pickup.value,
+
+    dropoff:
+      dropoff.value,
+
     stops,
-    distance: distance.innerText,
-    time: time.innerText,
-    price: price.innerText
+
+    distance:
+      distance.innerText,
+
+    time:
+      time.innerText,
+
+    price:
+      price.innerText
+
   };
 
-  localStorage.setItem("pendingTrip", JSON.stringify(trip));
-  window.location.href="/booking/index.html";
+  localStorage.setItem(
+    "pendingTrip",
+    JSON.stringify(trip)
+  );
+
+  window.location.href =
+    "/booking/index.html";
+
 }
 
-/* LOAD GOOGLE */
-async function loadGoogle(){
-  const res = await fetch("/api/config");
-  const data = await res.json();
+/* =========================
+   LOAD GOOGLE
+========================= */
 
-  const script = document.createElement("script");
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+async function loadGoogle(){
+
+  const res =
+    await fetch("/api/config");
+
+  const data =
+    await res.json();
+
+  const script =
+    document.createElement("script");
+
+  script.src =
+    `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+
   script.async = true;
 
   document.head.appendChild(script);
-  script.onload = initGoogle;
+
+  script.onload =
+    initGoogle;
+
 }
 
-window.onload = loadGoogle;
+/* =========================
+   START
+========================= */
+
+window.onload = async function(){
+
+  await loadServices();
+
+  await loadGoogle();
+
+};
 
 </script>
 
