@@ -1926,8 +1926,8 @@ const revenue =
   stats.revenue;
 
 
-  const invoiceAmount =
-    Number(company.invoiceAmount || 0);
+const invoiceAmount =
+  revenue;
 
   await User.findByIdAndUpdate(
 
