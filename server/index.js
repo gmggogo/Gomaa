@@ -2721,7 +2721,7 @@ app.get("/api/company/check-payment", async (req,res)=>{
       }
     );
 
-    console.log(
+  console.log(
       "PAYMENT UPDATED"
     );
 
