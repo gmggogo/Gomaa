@@ -258,8 +258,6 @@ button{
 
 .pricing{
   margin-top:12px;
-  font-size:14px;
-  line-height:1.9;
 }
 
 .loading-services{
@@ -436,11 +434,14 @@ function getServiceImage(serviceKey){
 function getServiceEmoji(serviceKey){
 
   if(serviceKey === "STANDARD") return "🚗";
+
   if(serviceKey === "XL") return "🚐";
+
   if(serviceKey === "TAXI") return "🚕";
+
   if(serviceKey === "LIMO") return "🚘";
+
   if(serviceKey === "WHEELCHAIR") return "🦽";
-  if(serviceKey === "AIRPORT") return "✈️";
 
   return "🚘";
 }
@@ -490,51 +491,170 @@ async function loadServices(){
 
       });
 
-    pricingBox.innerHTML =
-      visibleServices.map(service=>{
+/* =========================
+   DYNAMIC CARDS
+========================= */
 
-        const mode =
-          String(
-            service.pricingMode || ""
-          ).toUpperCase();
+pricingBox.innerHTML =
+`
+<div style="
+display:grid;
+grid-template-columns:
+repeat(auto-fit,minmax(220px,1fr));
+gap:12px;
+margin-top:15px;
+">
 
-        const title =
-          service.title ||
-          service.name ||
-          "";
+${
+visibleServices.map(service=>{
 
-        if(mode === "HOURLY"){
+const mode =
+String(
+service.pricingMode || ""
+).toUpperCase();
 
-          return `
-            <div class="dynamic-line">
-              <b>${title}</b>
-              — Hourly Pricing
-            </div>
-          `;
+const title =
+service.title ||
+service.name ||
+"";
 
-        }
+let lines = "";
 
-        return `
-          <div class="dynamic-line">
-            <b>${title}</b>
-            — Per Mile Pricing
-          </div>
-        `;
+/* =========================
+   HOURLY
+========================= */
 
-      }).join("");
+if(mode === "HOURLY"){
+
+lines = `
+
+<div class="dynamic-line">
+💰 Hourly:
+<b>
+$${Number(service.hourlyRate || 0)}
+/ hour
+</b>
+</div>
+
+`;
+
+}
+
+/* =========================
+   SHARED
+========================= */
+
+else if(mode === "SHARED"){
+
+lines = `
+
+<div class="dynamic-line">
+👥 Shared:
+<b>
+$${Number(service.sharedPrice || 0)}
+</b>
+</div>
+
+<div class="dynamic-line">
+🛑 Stop Fee:
+<b>
+$${Number(service.stopFee || 0)}
+</b>
+</div>
+
+`;
+
+}
+
+/* =========================
+   PER MILE
+========================= */
+
+else{
+
+lines = `
+
+<div class="dynamic-line">
+🚘 Base Fare:
+<b>
+$${Number(service.baseFare || 0)}
+</b>
+</div>
+
+<div class="dynamic-line">
+📍 Included:
+<b>
+${Number(service.includedMiles || 0)}
+mi
+</b>
+</div>
+
+<div class="dynamic-line">
+🛣 Per Mile:
+<b>
+$${Number(service.perMile || 0)}
+</b>
+</div>
+
+`;
+
+}
+
+return `
+
+<div style="
+background:rgba(255,255,255,.12);
+border:1px solid rgba(255,255,255,.15);
+backdrop-filter:blur(6px);
+border-radius:18px;
+padding:14px;
+text-align:left;
+">
+
+<div style="
+font-size:18px;
+font-weight:900;
+margin-bottom:10px;
+">
+
+${title}
+
+</div>
+
+${lines}
+
+<div class="dynamic-line">
+⏱ Waiting:
+<b>
+15 min
+</b>
+</div>
+
+<div class="dynamic-line">
+❌ No Show:
+<b>
+$${Number(service.noShowFee || 0)}
+</b>
+</div>
+
+<div class="dynamic-line">
+🚫 Cancellation:
+<b>
+$15
+</b>
+</div>
+
+</div>
+
+`;
+
+}).join("")
+}
+
+</div>
+`;
 
     container.innerHTML = "";
-
-    if(visibleServices.length === 0){
-
-      container.innerHTML = `
-        <div class="loading-services">
-          No services available
-        </div>
-      `;
-
-      return;
-    }
 
     visibleServices.forEach(service=>{
 
@@ -595,12 +715,6 @@ async function loadServices(){
   }catch(err){
 
     console.log(err);
-
-    container.innerHTML = `
-      <div class="loading-services">
-        Failed to load services
-      </div>
-    `;
 
   }
 
@@ -813,11 +927,7 @@ function calculate(){
 
   if(!selectedService){
 
-    alert(
-      lang === "en"
-        ? "Select service type"
-        : "Seleccione el tipo de servicio"
-    );
+    alert("Select service");
 
     return;
 
@@ -831,11 +941,7 @@ function calculate(){
 
   if(!pickupVal || !dropVal){
 
-    alert(
-      lang === "en"
-        ? "Enter valid address"
-        : "Ingrese una dirección válida"
-    );
+    alert("Enter valid address");
 
     return;
 
@@ -872,11 +978,7 @@ function calculate(){
 
     if(status !== "OK"){
 
-      alert(
-        lang === "en"
-          ? "Address not valid"
-          : "Dirección no válida"
-      );
+      alert("Address not valid");
 
       return;
 
@@ -1007,52 +1109,6 @@ function calculate(){
 ========================= */
 
 function bookTrip(){
-
-  const stops = [];
-
-  document
-    .querySelectorAll(
-      ".stop-row input"
-    )
-    .forEach(i=>{
-
-      if(i.value){
-        stops.push(i.value);
-      }
-
-    });
-
-  const trip = {
-
-    serviceKey:
-      selectedService,
-
-    serviceTitle:
-      selectedServiceData?.title || "",
-
-    pickup:
-      pickup.value,
-
-    dropoff:
-      dropoff.value,
-
-    stops,
-
-    distance:
-      distance.innerText,
-
-    time:
-      time.innerText,
-
-    price:
-      price.innerText
-
-  };
-
-  localStorage.setItem(
-    "pendingTrip",
-    JSON.stringify(trip)
-  );
 
   window.location.href =
     "/booking/index.html";
