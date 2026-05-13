@@ -2110,7 +2110,6 @@ const totalTrips =
 
 const invoiceAmount =
   Number(revenue.toFixed(2));
-
 await User.findByIdAndUpdate(
 
   company._id,
@@ -2138,6 +2137,8 @@ await User.findByIdAndUpdate(
   }
 
 );
+
+}
 
 /* =========================
    LOCK COMPANY
