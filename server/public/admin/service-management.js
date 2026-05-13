@@ -1,6 +1,8 @@
+console.log("SERVICE JS LOADED");
+alert("SERVICE JS WORKING");
+
 const servicesGrid =
 document.getElementById("servicesGrid");
-
 /* =========================
    SERVICES
 ========================= */
