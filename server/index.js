@@ -1929,109 +1929,26 @@ if(status.includes("no")){
   noShowTrips++;
 }
 
-/* =========================
-   PRICE
-========================= */
-
-let price = 0;
+let amount = 0;
 
 /* =========================
    SHARED PRICE
 ========================= */
 
-if(isShared){
+if(
+  isShared &&
+  Array.isArray(t.passengers)
+){
 
-  /* 🔥 لو passengers موجود */
+  t.passengers.forEach(p=>{
 
-  if(
-    Array.isArray(t.passengers) &&
-    t.passengers.length > 0
-  ){
+    amount += Number(
+      p.finalPrice ||
+      p.priceAmount ||
+      0
+    );
 
-    price =
-      t.passengers.reduce((sum,p)=>{
-
-        const passengerStatus =
-          String(p.status || "")
-            .replace(/\s+/g,"")
-            .toLowerCase()
-            .trim();
-
-        /* COMPLETE */
-        if(passengerStatus.includes("complete")){
-
-          return sum + Number(
-            p.finalPrice ||
-            p.priceAmount ||
-            p.price ||
-            0
-          );
-
-        }
-
-        /* NO SHOW */
-        if(passengerStatus.includes("no")){
-
-          return sum + 15;
-
-        }
-
-        /* CANCEL */
-        if(passengerStatus.includes("cancel")){
-
-          return sum + Number(
-            p.finalPrice ||
-            p.priceAmount ||
-            t.cancelFee ||
-            15
-          );
-
-        }
-
-        return sum;
-
-      },0);
-
-  }
-
-  /* 🔥 fallback لو passengers مش متخزن */
-
-  else{
-
-    if(status.includes("complete")){
-
-      price =
-        Number(
-          t.finalPrice ||
-          t.priceAmount ||
-          t.price ||
-          0
-        );
-
-    }
-
-    else if(status.includes("cancel")){
-
-      price =
-        Number(
-          t.finalPrice ||
-          t.cancelFee ||
-          15
-        );
-
-    }
-
-    else if(status.includes("no")){
-
-      price =
-        Number(
-          t.cancelFee ||
-          15
-        );
-
-    }
-
-  }
+  });
 
 }
 
@@ -2041,45 +1958,15 @@ if(isShared){
 
 else{
 
-  if(status.includes("complete")){
-
-    price =
-      Number(
-        t.finalPrice ||
-        t.priceAmount ||
-        t.price ||
-        0
-      );
-
-  }
-
-  else if(status.includes("cancel")){
-
-    price =
-      Number(
-        t.finalPrice ||
-        t.cancelFee ||
-        15
-      );
-
-  }
-
-  else if(status.includes("no")){
-
-    price =
-      Number(
-        t.cancelFee ||
-        15
-      );
-
-  }
+  amount = Number(
+    t.finalPrice ||
+    t.priceAmount ||
+    0
+  );
 
 }
 
-revenue += Number(price || 0);
-
-});
-
+revenue += Number(amount || 0);
 /* =========================
    SHARED PASSENGERS
 ========================= */
