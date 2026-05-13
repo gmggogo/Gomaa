@@ -2040,17 +2040,75 @@ revenue += Number(price || 0);
 
 });
 
-  const sharedTrips =
+const sharedTrips =
     sharedGroups.size;
 
-  const totalTrips =
-    individualTrips + sharedTrips;
+/* =========================
+   SHARED PASSENGERS
+========================= */
 
-  revenue =
+let sharedPassengers = 0;
+
+trips.forEach(t => {
+
+  const isShared =
+    t.isShared === true ||
+    String(t.tripNumber || "").includes("-SH") ||
+    String(t.groupId || "").trim() !== "";
+
+  if(!isShared) return;
+
+  if(
+    Array.isArray(t.passengers) &&
+    t.passengers.length > 0
+  ){
+
+    t.passengers.forEach(p => {
+
+      const s =
+        String(p.status || "")
+          .replace(/\s+/g,"")
+          .toLowerCase()
+          .trim();
+
+      if(
+        s.includes("complete") ||
+        s.includes("cancel") ||
+        s.includes("no")
+      ){
+        sharedPassengers++;
+      }
+
+    });
+
+  }else{
+
+    const status =
+      String(t.status || "")
+        .replace(/\s+/g,"")
+        .toLowerCase()
+        .trim();
+
+    if(
+      status.includes("complete") ||
+      status.includes("cancel") ||
+      status.includes("no")
+    ){
+      sharedPassengers++;
+    }
+
+  }
+
+});
+
+const totalTrips =
+    individualTrips + sharedPassengers;
+
+revenue =
     Number(revenue.toFixed(2));
 
-  const invoiceAmount =
-    Number(company.invoiceAmount || 0);
+const invoiceAmount =
+    Number(revenue || 0);
 
   await User.findByIdAndUpdate(
 
@@ -2068,6 +2126,7 @@ revenue += Number(price || 0);
       totalTrips,
       individualTrips,
       sharedTrips,
+sharedPassengers,
 
       completedTrips,
       cancelledTrips,
@@ -2093,6 +2152,7 @@ revenue += Number(price || 0);
     totalTrips,
     individualTrips,
     sharedTrips,
+sharedPassengers,
 
     completedTrips,
     cancelledTrips,
