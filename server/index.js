@@ -2102,7 +2102,12 @@ trips.forEach(t => {
 });
 
 const totalTrips =
-    individualTrips + sharedPassengers;
+  individualTrips + sharedPassengers;
+
+/* =========================
+   INDIVIDUAL REVENUE
+========================= */
+
 const individualRevenue =
   trips
     .filter(t => {
@@ -2150,6 +2155,10 @@ const individualRevenue =
 
     }, 0);
 
+/* =========================
+   SHARED REVENUE
+========================= */
+
 const sharedRevenue =
   trips
     .filter(t => {
@@ -2196,39 +2205,44 @@ const sharedRevenue =
 
     }, 0);
 
+/* =========================
+   FINAL TOTALS
+========================= */
+
 const revenue =
   Number(individualRevenue || 0) +
   Number(sharedRevenue || 0);
 
 const invoiceAmount =
   Number(revenue.toFixed(2));
-  await User.findByIdAndUpdate(
 
-    company._id,
+await User.findByIdAndUpdate(
 
-    {
-      daysLeft,
-      billingStatus,
-      billingLocked,
+  company._id,
 
-      billingStartDate:startDate,
-      billingEndDate:endDate,
-      nextBillingDate:nextDate,
+  {
+    daysLeft,
+    billingStatus,
+    billingLocked,
 
-      totalTrips,
-      individualTrips,
-     sharedTrips: sharedPassengers,
+    billingStartDate:startDate,
+    billingEndDate:endDate,
+    nextBillingDate:nextDate,
 
-      completedTrips,
-      cancelledTrips,
-      noShowTrips,
+    totalTrips,
+    individualTrips,
+    sharedTrips,
+    sharedPassengers,
 
-      revenue,
-      invoiceAmount
-    }
+    completedTrips,
+    cancelledTrips,
+    noShowTrips,
 
-  );
+    revenue,
+    invoiceAmount
+  }
 
+);
   return {
     ...company,
 
