@@ -772,8 +772,35 @@ function calculate(){
 
       }
 
-      const totalPrice =
-        Number(pricingData.total || 0);
+  let totalPrice = 0;
+
+const pricingMode =
+  String(
+    pricingData.pricingMode || ""
+  ).toUpperCase();
+
+if(pricingMode === "HOURLY"){
+
+  const hours =
+    Math.max(
+      1,
+      Math.ceil(mins / 60)
+    );
+
+  totalPrice =
+    hours *
+    Number(
+      pricingData.hourlyRate || 0
+    );
+
+}else{
+
+  totalPrice =
+    Number(
+      pricingData.total || 0
+    );
+
+}
 
       distance.innerText =
         miles.toFixed(2) + " mi";
