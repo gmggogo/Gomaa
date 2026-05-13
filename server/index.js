@@ -1970,10 +1970,11 @@ if(
 
 revenue += Number(amount || 0);
 
+});
+
 /* =========================
    SHARED PASSENGERS
 ========================= */
-
 let sharedPassengers = 0;
 
 trips.forEach(t => {
