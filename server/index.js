@@ -2674,89 +2674,61 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    /* =========================
-       UPDATE BILLING
-    ========================= */
+/* =========================
+   UPDATE BILLING
+========================= */
 
-    company.billingStatus =
-      "ACTIVE";
+company.billingStatus =
+  "ACTIVE";
 
-    company.billingLocked =
-      false;
+company.billingLocked =
+  false;
 
-    company.invoiceAmount =
-      0;
+company.invoiceAmount =
+  0;
 
-    company.lastPaymentDate =
-      now;
+company.lastPaymentDate =
+  now;
 
-    company.billingStartDate =
-      new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0
-      );
+/* 🔥 رجعها بسيطة زي الأول */
 
-    company.billingEndDate =
-      new Date(
-        nextBillingDate.getFullYear(),
-        nextBillingDate.getMonth(),
-        nextBillingDate.getDate(),
-        23,
-        59,
-        59
-      );
+company.billingStartDate =
+  now;
 
-    company.nextBillingDate =
-      nextBillingDate;
+company.billingEndDate =
+  nextBillingDate;
 
-    console.log(
-      "UPDATING COMPANY..."
-    );
+company.nextBillingDate =
+  nextBillingDate;
 
-    await company.save();
+console.log(
+  "UPDATING COMPANY..."
+);
 
-    console.log(
-      "COMPANY SAVED"
-    );
+await company.save();
 
-    /* 🔥 منع تكرار الدفع */
+console.log(
+  "COMPANY SAVED"
+);
 
-    await stripe.checkout.sessions.update(
-      sessionId,
-      {
-        metadata:{
-          ...session.metadata,
-          verified:"true"
-        }
-      }
-    );
+/* 🔥 منع تكرار الدفع */
 
-    console.log(
-      "PAYMENT UPDATED"
-    );
-
-    res.json({
-      paid:true
-    });
-
-  }catch(err){
-
-    console.log(
-      "VERIFY ERROR:"
-    );
-
-    console.log(err);
-
-    res.status(500).json({
-      paid:false
-    });
-
+await stripe.checkout.sessions.update(
+  sessionId,
+  {
+    metadata:{
+      ...session.metadata,
+      verified:"true"
+    }
   }
+);
 
+console.log(
+  "PAYMENT UPDATED"
+);
+
+res.json({
+  paid:true
 });
 
 /* =========================
