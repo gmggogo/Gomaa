@@ -17,83 +17,54 @@ if(!token){
 ========================= */
 
 const container =
-  document.getElementById(
-    "billingContainer"
-  );
+  document.getElementById("billingContainer");
 
 const historyContainer =
-  document.getElementById(
-    "historyContainer"
-  );
+  document.getElementById("historyContainer");
 
 const searchInput =
-  document.getElementById(
-    "searchInput"
-  );
+  document.getElementById("searchInput");
 
 const statusFilter =
-  document.getElementById(
-    "statusFilter"
-  );
+  document.getElementById("statusFilter");
 
 const monthFilter =
-  document.getElementById(
-    "monthFilter"
-  );
+  document.getElementById("monthFilter");
 
 const yearFilter =
-  document.getElementById(
-    "yearFilter"
-  );
+  document.getElementById("yearFilter");
 
 const connectStripeBtn =
-  document.getElementById(
-    "connectStripeBtn"
-  );
+  document.getElementById("connectStripeBtn");
 
 const openStripeBtn =
-  document.getElementById(
-    "openStripeBtn"
-  );
+  document.getElementById("openStripeBtn");
 
 /* STATS */
 
 const totalCompaniesEl =
-  document.getElementById(
-    "totalCompanies"
-  );
+  document.getElementById("totalCompanies");
 
 const activeCompaniesEl =
-  document.getElementById(
-    "activeCompanies"
-  );
+  document.getElementById("activeCompanies");
 
 const pastDueCompaniesEl =
-  document.getElementById(
-    "pastDueCompanies"
-  );
+  document.getElementById("pastDueCompanies");
 
 const lockedCompaniesEl =
-  document.getElementById(
-    "lockedCompanies"
-  );
+  document.getElementById("lockedCompanies");
 
 const totalRevenueEl =
-  document.getElementById(
-    "totalRevenue"
-  );
+  document.getElementById("totalRevenue");
 
 const pendingPaymentsEl =
-  document.getElementById(
-    "pendingPayments"
-  );
+  document.getElementById("pendingPayments");
 
 /* =========================
    DATA
 ========================= */
 
 let companies = [];
-let invoiceHistory = [];
 
 /* =========================
    MONTHS
@@ -114,32 +85,37 @@ const months = [
   "December"
 ];
 
-months.forEach((m,i)=>{
+if(monthFilter){
 
-  monthFilter.innerHTML += `
-    <option value="${i+1}">
-      ${m}
-    </option>
-  `;
+  months.forEach((m,i)=>{
 
-});
+    monthFilter.innerHTML += `
+      <option value="${i + 1}">
+        ${m}
+      </option>
+    `;
+
+  });
+
+}
 
 /* =========================
    HELPERS
 ========================= */
 
-function money(v){
+function money(value){
 
   return "$" +
-    Number(v || 0).toFixed(2);
+    Number(value || 0).toFixed(2);
 
 }
 
-function formatDate(v){
+function formatDate(value){
 
-  if(!v) return "--";
+  if(!value) return "--";
 
-  const d = new Date(v);
+  const d =
+    new Date(value);
 
   if(isNaN(d.getTime())){
     return "--";
@@ -156,17 +132,37 @@ function formatDate(v){
 
 }
 
+function toInputDate(value){
+
+  if(!value) return "";
+
+  const d =
+    new Date(value);
+
+  if(isNaN(d.getTime())){
+    return "";
+  }
+
+  return d.toISOString()
+    .split("T")[0];
+
+}
+
 function getStatusClass(status){
 
-  if(status === "PAST_DUE"){
+  const s =
+    String(status || "")
+      .toUpperCase();
+
+  if(s === "PAST_DUE"){
     return "status-past";
   }
 
-  if(status === "SUSPENDED"){
+  if(s === "SUSPENDED"){
     return "status-suspended";
   }
 
-  if(status === "PAID"){
+  if(s === "PAID"){
     return "status-paid";
   }
 
@@ -177,9 +173,13 @@ function getStatusClass(status){
 async function safeJson(res){
 
   try{
+
     return await res.json();
+
   }catch(err){
+
     return {};
+
   }
 
 }
@@ -191,6 +191,14 @@ async function safeJson(res){
 async function loadBilling(){
 
   try{
+
+    container.innerHTML = `
+      <tr>
+        <td colspan="15" class="empty">
+          Loading billing data...
+        </td>
+      </tr>
+    `;
 
     const res =
       await fetch(
@@ -246,54 +254,71 @@ async function loadBilling(){
 
 function updateStats(list){
 
-  totalCompaniesEl.innerText =
+  const totalCompanies =
     list.length;
 
-  activeCompaniesEl.innerText =
-    list.filter(
-      x =>
-        x.billingStatus ===
-        "ACTIVE"
+  const activeCompanies =
+    list.filter(x =>
+      x.billingStatus === "ACTIVE"
     ).length;
 
-  pastDueCompaniesEl.innerText =
-    list.filter(
-      x =>
-        x.billingStatus ===
-        "PAST_DUE"
+  const pastDueCompanies =
+    list.filter(x =>
+      x.billingStatus === "PAST_DUE"
     ).length;
 
-  lockedCompaniesEl.innerText =
-    list.filter(
-      x =>
-        x.billingLocked === true
+  const lockedCompanies =
+    list.filter(x =>
+      x.billingLocked === true
     ).length;
 
   const totalRevenue =
-    list.reduce(
-      (a,b)=>
-        a +
-        Number(
-          b.revenue || 0
-        ),
-      0
-    );
+    list.reduce((sum,c)=>{
 
-  totalRevenueEl.innerText =
-    money(totalRevenue);
+      return sum + Number(
+        c.revenue || 0
+      );
 
-  const pending =
-    list.reduce(
-      (a,b)=>
-        a +
-        Number(
-          b.invoiceAmount || 0
-        ),
-      0
-    );
+    },0);
 
-  pendingPaymentsEl.innerText =
-    money(pending);
+  const pendingPayments =
+    list.reduce((sum,c)=>{
+
+      return sum + Number(
+        c.invoiceAmount || 0
+      );
+
+    },0);
+
+  if(totalCompaniesEl){
+    totalCompaniesEl.innerText =
+      totalCompanies;
+  }
+
+  if(activeCompaniesEl){
+    activeCompaniesEl.innerText =
+      activeCompanies;
+  }
+
+  if(pastDueCompaniesEl){
+    pastDueCompaniesEl.innerText =
+      pastDueCompanies;
+  }
+
+  if(lockedCompaniesEl){
+    lockedCompaniesEl.innerText =
+      lockedCompanies;
+  }
+
+  if(totalRevenueEl){
+    totalRevenueEl.innerText =
+      money(totalRevenue);
+  }
+
+  if(pendingPaymentsEl){
+    pendingPaymentsEl.innerText =
+      money(pendingPayments);
+  }
 
 }
 
@@ -314,6 +339,7 @@ function render(list){
     `;
 
     return;
+
   }
 
   container.innerHTML =
@@ -330,17 +356,11 @@ function render(list){
             </div>
 
             <div class="company-small">
-
               ${c.email || "--"}
-
               <br>
-
               ${c.phone || "--"}
-
               <br>
-
               ${c.username || "--"}
-
             </div>
 
           </td>
@@ -351,9 +371,7 @@ function render(list){
               badge
               ${getStatusClass(c.billingStatus)}
             ">
-
               ${c.billingStatus || "ACTIVE"}
-
             </span>
 
           </td>
@@ -401,26 +419,17 @@ function render(list){
           </td>
 
           <td>
-
             <b>
               ${money(c.invoiceAmount)}
             </b>
-
           </td>
 
           <td>
-
-            ${c.graceDays || 0}
-            days
-
+            ${c.graceDays || 0} days
           </td>
 
           <td>
-
-            ${formatDate(
-              c.lastPaymentDate
-            )}
-
+            ${formatDate(c.lastPaymentDate)}
           </td>
 
           <td>
@@ -429,25 +438,21 @@ function render(list){
               c.billingLocked
 
               ? `
-
                 <span class="
                   badge
                   status-suspended
                 ">
                   LOCKED
                 </span>
-
               `
 
               : `
-
                 <span class="
                   badge
                   status-active
                 ">
                   OPEN
                 </span>
-
               `
             }
 
@@ -461,26 +466,14 @@ function render(list){
                 type="date"
                 class="small-input"
                 id="start-${c._id}"
-                value="${
-                  c.billingStartDate
-                  ? new Date(c.billingStartDate)
-                    .toISOString()
-                    .split("T")[0]
-                  : ""
-                }"
+                value="${toInputDate(c.billingStartDate)}"
               >
 
               <input
                 type="date"
                 class="small-input"
                 id="end-${c._id}"
-                value="${
-                  c.billingEndDate
-                  ? new Date(c.billingEndDate)
-                    .toISOString()
-                    .split("T")[0]
-                  : ""
-                }"
+                value="${toInputDate(c.billingEndDate)}"
               >
 
             </div>
@@ -495,13 +488,19 @@ function render(list){
                 value="${c.graceDays || 3}"
               >
 
-           
               <input
                 type="number"
                 class="small-input"
                 placeholder="Trips"
                 id="trips-${c._id}"
                 value="${c.totalTrips || 0}"
+                readonly
+              >
+
+              <input
+                type="text"
+                class="small-input"
+                value="${money(c.revenue)}"
                 readonly
               >
 
@@ -522,8 +521,6 @@ function render(list){
               >
                 Invoice
               </button>
-
-            
 
               <button
                 class="btn btn-red"
@@ -566,25 +563,54 @@ async function generateInvoice(id){
 
   try{
 
-    const start =
+    const startInput =
       document.getElementById(
         `start-${id}`
-      ).value;
+      );
 
-    const end =
+    const endInput =
       document.getElementById(
         `end-${id}`
-      ).value;
+      );
 
-    const grace =
+    const graceInput =
       document.getElementById(
         `grace-${id}`
-      ).value;
+      );
 
-    const invoice =
-      document.getElementById(
-        `invoice-${id}`
-      ).value;
+    const start =
+      startInput
+        ? startInput.value
+        : "";
+
+    const end =
+      endInput
+        ? endInput.value
+        : "";
+
+    const grace =
+      graceInput
+        ? graceInput.value
+        : 3;
+
+    if(!start || !end){
+
+      alert(
+        "Please select billing start and end dates."
+      );
+
+      return;
+
+    }
+
+    const confirmGenerate =
+      confirm(
+        "Generate invoice from real revenue for this billing period?"
+      );
+
+    if(!confirmGenerate){
+      return;
+    }
 
     const res =
       await fetch(
@@ -602,12 +628,14 @@ async function generateInvoice(id){
 
           body:JSON.stringify({
 
-            billingStartDate:start,
+            billingStartDate:
+              start,
 
-            billingEndDate:end,
+            billingEndDate:
+              end,
 
-            graceDays:grace,
-
+            graceDays:
+              grace
 
           })
         }
@@ -625,7 +653,9 @@ async function generateInvoice(id){
 
     }
 
-    alert("Invoice generated");
+    alert(
+      "Invoice generated successfully"
+    );
 
     await loadBilling();
 
@@ -663,6 +693,13 @@ async function lockCompany(id){
 
   try{
 
+    const ok =
+      confirm(
+        "Are you sure you want to lock this company?"
+      );
+
+    if(!ok) return;
+
     const res =
       await fetch(
         `/api/admin/billing/${id}/lock`,
@@ -677,20 +714,20 @@ async function lockCompany(id){
       );
 
     const data =
-      await res.json();
+      await safeJson(res);
 
     if(!res.ok){
 
-      alert(
+      throw new Error(
         data.message ||
         "Lock failed"
       );
 
-      return;
-
     }
 
-    alert("Company locked");
+    alert(
+      "Company locked"
+    );
 
     await loadBilling();
 
@@ -698,7 +735,10 @@ async function lockCompany(id){
 
     console.log(err);
 
-    alert("Lock failed");
+    alert(
+      err.message ||
+      "Lock failed"
+    );
 
   }
 
@@ -726,20 +766,20 @@ async function unlockCompany(id){
       );
 
     const data =
-      await res.json();
+      await safeJson(res);
 
     if(!res.ok){
 
-      alert(
+      throw new Error(
         data.message ||
         "Unlock failed"
       );
 
-      return;
-
     }
 
-    alert("Company unlocked");
+    alert(
+      "Company unlocked"
+    );
 
     await loadBilling();
 
@@ -747,7 +787,10 @@ async function unlockCompany(id){
 
     console.log(err);
 
-    alert("Unlock failed");
+    alert(
+      err.message ||
+      "Unlock failed"
+    );
 
   }
 
@@ -760,6 +803,13 @@ async function unlockCompany(id){
 async function markPaid(id){
 
   try{
+
+    const ok =
+      confirm(
+        "Mark this invoice as paid?"
+      );
+
+    if(!ok) return;
 
     const res =
       await fetch(
@@ -775,20 +825,20 @@ async function markPaid(id){
       );
 
     const data =
-      await res.json();
+      await safeJson(res);
 
     if(!res.ok){
 
-      alert(
+      throw new Error(
         data.message ||
         "Payment failed"
       );
 
-      return;
-
     }
 
-    alert("Payment marked successfully");
+    alert(
+      "Payment marked successfully"
+    );
 
     await loadBilling();
 
@@ -796,7 +846,10 @@ async function markPaid(id){
 
     console.log(err);
 
-    alert("Payment failed");
+    alert(
+      err.message ||
+      "Payment failed"
+    );
 
   }
 
@@ -865,41 +918,56 @@ async function connectCompanyStripe(id){
 
 function applyFilters(){
 
-  let list = [...companies];
+  let list =
+    [...companies];
 
-  const s =
-    searchInput.value
-      .toLowerCase()
-      .trim();
+  const search =
+    searchInput
+      ? searchInput.value
+        .toLowerCase()
+        .trim()
+      : "";
 
   const status =
-    statusFilter.value;
+    statusFilter
+      ? statusFilter.value
+      : "";
 
   const month =
-    monthFilter.value;
+    monthFilter
+      ? monthFilter.value
+      : "";
 
   const year =
-    yearFilter.value;
+    yearFilter
+      ? yearFilter.value
+      : "";
 
-  if(s){
+  if(search){
 
     list =
-      list.filter(x=>
+      list.filter(company => {
 
-        String(x.name || "")
-          .toLowerCase()
-          .includes(s)
+        const text =
+          `
+          ${company.name || ""}
+          ${company.email || ""}
+          ${company.phone || ""}
+          ${company.username || ""}
+          `
+          .toLowerCase();
 
-      );
+        return text.includes(search);
+
+      });
 
   }
 
   if(status){
 
     list =
-      list.filter(
-        x =>
-          x.billingStatus === status
+      list.filter(company =>
+        company.billingStatus === status
       );
 
   }
@@ -907,15 +975,15 @@ function applyFilters(){
   if(month){
 
     list =
-      list.filter(x=>{
+      list.filter(company => {
 
-        if(!x.billingStartDate){
+        if(!company.billingStartDate){
           return false;
         }
 
         const d =
           new Date(
-            x.billingStartDate
+            company.billingStartDate
           );
 
         return (
@@ -929,15 +997,15 @@ function applyFilters(){
   if(year){
 
     list =
-      list.filter(x=>{
+      list.filter(company => {
 
-        if(!x.billingStartDate){
+        if(!company.billingStartDate){
           return false;
         }
 
         const d =
           new Date(
-            x.billingStartDate
+            company.billingStartDate
           );
 
         return (
@@ -958,110 +1026,133 @@ function applyFilters(){
    STRIPE BUTTONS
 ========================= */
 
-connectStripeBtn
-.addEventListener(
-  "click",
-  async ()=>{
+if(connectStripeBtn){
 
-    try{
+  connectStripeBtn.addEventListener(
+    "click",
+    async ()=>{
 
-      const companyName =
-        prompt(
-          "Enter company name"
-        );
+      try{
 
-      if(!companyName) return;
+        const companyName =
+          prompt(
+            "Enter company name"
+          );
 
-      const res =
-        await fetch(
-          "/api/company/connect-stripe",
-          {
-            method:"POST",
+        if(!companyName) return;
 
-            headers:{
-              Authorization:
-                "Bearer " + token,
+        const res =
+          await fetch(
+            "/api/company/connect-stripe",
+            {
+              method:"POST",
 
-              "Content-Type":
-                "application/json"
-            },
+              headers:{
+                Authorization:
+                  "Bearer " + token,
 
-            body:JSON.stringify({
-              company:companyName
-            })
-          }
-        );
+                "Content-Type":
+                  "application/json"
+              },
 
-      const data =
-        await res.json();
+              body:JSON.stringify({
+                company:companyName
+              })
+            }
+          );
 
-      if(!res.ok){
+        const data =
+          await safeJson(res);
+
+        if(!res.ok){
+
+          throw new Error(
+            data.message ||
+            "Stripe connect failed"
+          );
+
+        }
+
+        if(data.url){
+
+          window.open(
+            data.url,
+            "_blank"
+          );
+
+        }
+
+      }catch(err){
+
+        console.log(err);
 
         alert(
-          data.message ||
+          err.message ||
           "Stripe connect failed"
         );
 
-        return;
-
       }
-
-      if(data.url){
-
-        window.open(
-          data.url,
-          "_blank"
-        );
-
-      }
-
-    }catch(err){
-
-      console.log(err);
-
-      alert("Stripe connect failed");
 
     }
+  );
 
-  }
-);
+}
 
-openStripeBtn
-.addEventListener(
-  "click",
-  ()=>{
+if(openStripeBtn){
 
-    window.open(
-      "https://dashboard.stripe.com",
-      "_blank"
-    );
+  openStripeBtn.addEventListener(
+    "click",
+    ()=>{
 
-  }
-);
+      window.open(
+        "https://dashboard.stripe.com",
+        "_blank"
+      );
+
+    }
+  );
+
+}
 
 /* =========================
    EVENTS
 ========================= */
 
-searchInput.addEventListener(
-  "input",
-  applyFilters
-);
+if(searchInput){
 
-statusFilter.addEventListener(
-  "change",
-  applyFilters
-);
+  searchInput.addEventListener(
+    "input",
+    applyFilters
+  );
 
-monthFilter.addEventListener(
-  "change",
-  applyFilters
-);
+}
 
-yearFilter.addEventListener(
-  "input",
-  applyFilters
-);
+if(statusFilter){
+
+  statusFilter.addEventListener(
+    "change",
+    applyFilters
+  );
+
+}
+
+if(monthFilter){
+
+  monthFilter.addEventListener(
+    "change",
+    applyFilters
+  );
+
+}
+
+if(yearFilter){
+
+  yearFilter.addEventListener(
+    "input",
+    applyFilters
+  );
+
+}
 
 /* =========================
    INIT
