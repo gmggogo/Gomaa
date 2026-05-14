@@ -321,23 +321,31 @@ async function confirmBooking(){
     }
   }
 
-  const data = {
-    type:"individual",
-    pickup:tripData.pickup,
-    dropoff:tripData.dropoff,
-    stops:tripData.stops || [],
-    priceAmount:cleanPrice,
+const data = {
 
-    clientName:name,
-    clientPhone:phone,
-    clientEmail:email,
+  type:"individual",
 
-    serviceKey:serviceKey,
+  pickup:tripData.pickup,
+  dropoff:tripData.dropoff,
 
-    tripDate:date,
-    tripTime:time,
-    notes:notes
-  };
+  stops:tripData.stops || [],
+
+  priceAmount:cleanPrice,
+
+  clientName:name,
+  clientPhone:phone,
+  clientEmail:email,
+
+  serviceKey: serviceKey,
+
+  vehicleTypeFromQuote: serviceKey,
+
+  tripDate:date,
+  tripTime:time,
+
+  notes:notes
+
+};
 
   try{
 
