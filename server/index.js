@@ -2985,13 +2985,6 @@ app.post("/api/trips", async (req, res) => {
    SHARED + VEHICLE SETUP (FIXED)
 ========================= */
 
-// 🔥 هل الرحلة شيرد؟
-const isShared = req.body.isShared === true;
-
-/* =========================
-   VEHICLE TYPE (FIXED)
-========================= */
-
 const vehicleTypeFromQuote =
   ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
     ? req.body.vehicleTypeFromQuote
