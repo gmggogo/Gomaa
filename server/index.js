@@ -947,10 +947,23 @@ const cleanKey =
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "");
+let suffix = "";
 
-const suffix =
-  SERVICE_SUFFIX_MAP[cleanKey] || cleanKey.slice(0, 2);
-
+if(cleanKey === "STANDARD"){
+  suffix = "ST";
+}
+else if(cleanKey === "XL"){
+  suffix = "XL";
+}
+else if(cleanKey === "WHEELCHAIR"){
+  suffix = "WH";
+}
+else if(cleanKey === "TAXI"){
+  suffix = "TX";
+}
+else if(cleanKey === "LIMO"){
+  suffix = "LM";
+}
 
   /* =========================
      GH TYPE
