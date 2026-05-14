@@ -61,79 +61,79 @@ body{
   font-weight:bold;
 }
 
-/* =========================
-   TOP PRICING BAR
-========================= */
+/* ================= PRICING ================= */
 
-.pricing-bar{
+.pricing-wrap{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
   margin-top:18px;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.14);
-  border-radius:18px;
-  overflow:hidden;
-  backdrop-filter:blur(5px);
-  box-shadow:0 10px 25px rgba(0,0,0,.15);
 }
 
-.pricing-service{
-  padding:14px 18px;
-  border-bottom:1px solid rgba(255,255,255,.08);
+.pricing-card{
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.20);
+  border-radius:18px;
+  padding:14px;
+  backdrop-filter:blur(6px);
   transition:.25s;
 }
 
-.pricing-service:last-child{
-  border-bottom:none;
+.pricing-card.active{
+  border:2px solid #fff;
+  background:rgba(255,255,255,.18);
+  box-shadow:0 0 22px rgba(255,255,255,.20);
+  transform:scale(1.02);
 }
 
-.pricing-service.active{
-  background:rgba(255,255,255,.12);
-  box-shadow:inset 0 0 18px rgba(255,255,255,.06);
+.pricing-card.last-center{
+  grid-column:1 / -1;
+  width:48%;
+  margin:auto;
 }
 
-.pricing-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  margin-bottom:6px;
-}
-
-.pricing-name{
-  font-size:15px;
+.pricing-title{
+  text-align:center;
+  font-size:16px;
   font-weight:900;
+  margin-bottom:12px;
   color:#fff;
-  letter-spacing:.3px;
 }
 
-.pricing-price{
-  font-size:18px;
-  font-weight:900;
-  color:#fff;
-  white-space:nowrap;
+.pricing-table{
+  width:100%;
+  border-collapse:collapse;
 }
 
-.pricing-details{
-  font-size:12px;
-  opacity:.88;
-  line-height:1.6;
-  color:#e5e7eb;
+.pricing-table th{
+  font-size:11px;
+  font-weight:700;
+  color:#dbeafe;
+  padding-bottom:6px;
+}
+
+.pricing-table td{
+  font-size:13px;
+  font-weight:800;
+  color:#fff;
+  text-align:center;
 }
 
 @media(max-width:600px){
 
-  .pricing-service{
-    padding:13px 14px;
+  .pricing-wrap{
+    grid-template-columns:1fr;
   }
 
-  .pricing-name{
-    font-size:14px;
+  .pricing-card.last-center{
+    width:100%;
   }
 
-  .pricing-price{
-    font-size:16px;
+  .pricing-table th{
+    font-size:10px;
   }
 
-  .pricing-details{
+  .pricing-table td{
     font-size:11px;
   }
 
@@ -194,15 +194,15 @@ button{
 .vehicle-pricing{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:10px;
-  margin-bottom:14px;
+  gap:12px;
+  margin-bottom:15px;
 }
 
 .vehicle-option{
-  background:linear-gradient(135deg,#f8fafc,#e2e8f0);
-  border:2px solid #e5e7eb;
-  border-radius:16px;
-  padding:12px;
+  background:linear-gradient(135deg,#ffffff,#f1f5f9);
+  border:2px solid #e2e8f0;
+  border-radius:18px;
+  padding:14px;
   text-align:center;
   cursor:pointer;
   transition:.25s;
@@ -211,7 +211,7 @@ button{
 .vehicle-option.active{
   border-color:#2563eb;
   background:linear-gradient(135deg,#eff6ff,#dbeafe);
-  box-shadow:0 0 18px rgba(37,99,235,.30);
+  box-shadow:0 0 20px rgba(37,99,235,.22);
   transform:scale(1.03);
 }
 
@@ -234,7 +234,7 @@ button{
   font-size:14px;
 }
 
-.vehicle-last{
+.vehicle-pricing .vehicle-option:last-child:nth-child(odd){
   grid-column:1 / -1;
   width:48%;
   margin:auto;
@@ -242,7 +242,11 @@ button{
 
 @media(max-width:600px){
 
-  .vehicle-last{
+  .vehicle-pricing{
+    grid-template-columns:1fr;
+  }
+
+  .vehicle-pricing .vehicle-option:last-child:nth-child(odd){
     width:100%;
   }
 
@@ -371,10 +375,7 @@ font-size:15px;
 Payment Calculation
 </div>
 
-<div
-class="pricing-bar"
-id="pricing"
->
+<div id="pricing">
 Loading Services...
 </div>
 
@@ -471,16 +472,37 @@ Price
 let lang = "en";
 
 let selectedService = null;
-let selectedServiceData = null;
 let servicesData = [];
 
 let map;
 let directionsService;
 let directionsRenderer;
 
-/* =========================
-   IMAGES
-========================= */
+/* ================= TRANSLATE ================= */
+
+const words = {
+
+  en:{
+    base:"Base",
+    mile:"Mile",
+    hourly:"Hourly",
+    noShow:"NoShow",
+    cancel:"Cancel",
+    wait:"Wait"
+  },
+
+  es:{
+    base:"Base",
+    mile:"Milla",
+    hourly:"Hora",
+    noShow:"NoShow",
+    cancel:"Cancelar",
+    wait:"Espera"
+  }
+
+};
+
+/* ================= IMAGES ================= */
 
 function getServiceImage(serviceKey){
 
@@ -508,9 +530,7 @@ function getServiceEmoji(serviceKey){
 
 }
 
-/* =========================
-   LOAD SERVICES
-========================= */
+/* ================= LOAD SERVICES ================= */
 
 async function loadServices(){
 
@@ -553,15 +573,13 @@ async function loadServices(){
 
     });
 
-/* =========================
-   PRICING TABLE
-========================= */
+/* ================= PRICING ================= */
 
 pricingBox.innerHTML = `
 
-<div class="pricing-bar">
+<div class="pricing-wrap">
 
-${visibleServices.map(service=>{
+${visibleServices.map((service,index)=>{
 
 const mode =
 String(
@@ -569,51 +587,74 @@ service.pricingMode || ""
 ).toUpperCase();
 
 const title =
-service.title || "";
+lang === "es"
+? (service.titleEs || service.title || "")
+: (service.title || "");
 
-let priceText = "";
-let detailsText = "";
+let headers = "";
+let values = "";
 
 if(mode === "HOURLY"){
 
-priceText =
-`$${Number(service.hourlyRate || 0)}/hr`;
+headers = `
+<th>${words[lang].hourly}</th>
+<th>${words[lang].noShow}</th>
+<th>${words[lang].cancel}</th>
+<th>${words[lang].wait}</th>
+`;
 
-detailsText =
-`15m wait • $${Number(service.noShowFee || 0)} no-show • $15 cancel`;
+values = `
+<td>$${Number(service.hourlyRate || 0)}/hr</td>
+<td>$${Number(service.noShowFee || 0)}</td>
+<td>$15</td>
+<td>15m</td>
+`;
 
 }else{
 
-priceText =
-`From $${Number(service.baseFare || 0)}`;
+headers = `
+<th>${words[lang].base}</th>
+<th>${words[lang].mile}</th>
+<th>${words[lang].noShow}</th>
+<th>${words[lang].cancel}</th>
+<th>${words[lang].wait}</th>
+`;
 
-detailsText =
-`$${Number(service.perMile || 0)}/mi • ${Number(service.includedMiles || 0)} included • 15m wait • $15 no-show`;
+values = `
+<td>$${Number(service.baseFare || 0)}</td>
+<td>$${Number(service.perMile || 0)}/mi</td>
+<td>$${Number(service.noShowFee || 0)}</td>
+<td>$15</td>
+<td>15m</td>
+`;
 
 }
 
 return `
 
 <div
-class="pricing-service"
+class="
+pricing-card
+${index === visibleServices.length - 1 && visibleServices.length % 2 !== 0 ? "last-center" : ""}
+"
 id="price-card-${service.serviceKey}"
 >
 
-<div class="pricing-top">
-
-<div class="pricing-name">
+<div class="pricing-title">
 ${title}
 </div>
 
-<div class="pricing-price">
-${priceText}
-</div>
+<table class="pricing-table">
 
-</div>
+<tr>
+${headers}
+</tr>
 
-<div class="pricing-details">
-${detailsText}
-</div>
+<tr>
+${values}
+</tr>
+
+</table>
 
 </div>
 
@@ -625,13 +666,11 @@ ${detailsText}
 
 `;
 
-/* =========================
-   VEHICLES
-========================= */
+/* ================= VEHICLES ================= */
 
 container.innerHTML = "";
 
-visibleServices.forEach((service,index)=>{
+visibleServices.forEach(service=>{
 
 const serviceKey =
 String(
@@ -639,8 +678,9 @@ service.serviceKey || ""
 ).toUpperCase();
 
 const title =
-service.title ||
-serviceKey;
+lang === "es"
+? (service.titleEs || service.title || serviceKey)
+: (service.title || serviceKey);
 
 const image =
 getServiceImage(serviceKey);
@@ -652,10 +692,7 @@ const card =
 document.createElement("div");
 
 card.className =
-`
-vehicle-option
-${index === 4 ? "vehicle-last" : ""}
-`;
+"vehicle-option";
 
 let mediaHtml = "";
 
@@ -701,13 +738,9 @@ console.log(err);
 
 }
 
-/* =========================
-   SELECT
-========================= */
+/* ================= SELECT ================= */
 
 function selectService(service,card){
-
-selectedServiceData = service;
 
 selectedService =
 String(
@@ -723,7 +756,7 @@ document
 card.classList.add("active");
 
 document
-.querySelectorAll(".pricing-item")
+.querySelectorAll(".pricing-card")
 .forEach(el=>{
   el.classList.remove("active");
 });
@@ -741,9 +774,7 @@ resetUI();
 
 }
 
-/* =========================
-   LANGUAGE
-========================= */
+/* ================= LANGUAGE ================= */
 
 function toggleLang(){
 
@@ -781,11 +812,11 @@ dropLabel.innerText =
 
 }
 
+loadServices();
+
 }
 
-/* =========================
-   MAP
-========================= */
+/* ================= MAP ================= */
 
 function initGoogle(){
 
@@ -830,9 +861,7 @@ directionsRenderer.setMap(map);
 
 }
 
-/* =========================
-   STOPS
-========================= */
+/* ================= STOP ================= */
 
 function addStop(){
 
@@ -880,9 +909,7 @@ document
 
 }
 
-/* =========================
-   RESET
-========================= */
+/* ================= RESET ================= */
 
 function resetUI(){
 
@@ -904,9 +931,7 @@ dropoff.addEventListener(
 resetUI
 );
 
-/* =========================
-   FIX AZ
-========================= */
+/* ================= FIX AZ ================= */
 
 function fixAZ(address){
 
@@ -930,9 +955,7 @@ return address;
 
 }
 
-/* =========================
-   CALCULATE
-========================= */
+/* ================= CALCULATE ================= */
 
 function calculate(){
 
@@ -1074,10 +1097,6 @@ pricingData.pricingMode || ""
 
 let totalPrice = 0;
 
-/* =========================
-   HOURLY
-========================= */
-
 if(pricingMode === "HOURLY"){
 
 const hourlyRate =
@@ -1094,13 +1113,7 @@ Math.ceil(mins / 60)
 totalPrice =
 hours * hourlyRate;
 
-}
-
-/* =========================
-   PER MILE
-========================= */
-
-else{
+}else{
 
 totalPrice =
 Number(
@@ -1108,10 +1121,6 @@ pricingData.total || 0
 );
 
 }
-
-/* =========================
-   SHOW
-========================= */
 
 distance.innerText =
 miles.toFixed(2) + " mi";
@@ -1144,9 +1153,7 @@ alert("Server pricing failed");
 
 }
 
-/* =========================
-   BOOK
-========================= */
+/* ================= BOOK ================= */
 
 function bookTrip(){
 
@@ -1155,9 +1162,7 @@ window.location.href =
 
 }
 
-/* =========================
-   GOOGLE
-========================= */
+/* ================= GOOGLE ================= */
 
 async function loadGoogle(){
 
@@ -1182,9 +1187,7 @@ initGoogle;
 
 }
 
-/* =========================
-   START
-========================= */
+/* ================= START ================= */
 
 window.onload = async function(){
 
