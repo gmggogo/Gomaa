@@ -26,7 +26,6 @@ body{
   position:relative;
 }
 
-/* LANGUAGE */
 .langBox{
   position:absolute;
   top:15px;
@@ -121,7 +120,6 @@ button{
 
 <div class="box">
 
-<!-- LANGUAGE -->
 <div class="langBox">
   <button id="enBtn" onclick="setLang('en')">English</button>
   <button id="esBtn" onclick="setLang('es')">Español</button>
@@ -187,19 +185,16 @@ button{
 
 <script>
 
-/* =======================
-   LANGUAGE
-======================= */
+/* ================= LANGUAGE ================= */
 
-let lang = "en";
+let lang="en";
 
 function setLang(l){
-  lang = l;
+  lang=l;
   applyLang();
 }
 
 function applyLang(){
-
   if(lang==="es"){
     title.innerText="Confirmar Reserva";
     pickupL.innerText="Origen";
@@ -208,7 +203,7 @@ function applyLang(){
     priceL.innerText="Precio";
     vehicleL.innerText="Servicio";
     payBtn.innerText="Pagar";
-  }else{
+  } else {
     title.innerText="Confirm Booking";
     pickupL.innerText="Pickup";
     dropoffL.innerText="Dropoff";
@@ -224,9 +219,7 @@ function applyLang(){
 
 applyLang();
 
-/* =======================
-   LOAD DATA
-======================= */
+/* ================= LOAD ================= */
 
 const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
 
@@ -235,29 +228,40 @@ if(!tripData){
   location.href="/getquote/index.html";
 }
 
-/* =======================
-   FILL
-======================= */
+/* ================= FILL ================= */
 
 pickup.value = tripData.pickup || "";
 dropoff.value = tripData.dropoff || "";
 miles.value = tripData.distance || "";
 price.value = tripData.price || "";
 
-/* =======================
-   SERVICE FIX
-======================= */
+/* ================= SERVICE FIX (IMPORTANT) ================= */
 
-const serviceKey = tripData.serviceKey || "STANDARD";
+const raw = String(
+  tripData.serviceKey ||
+  tripData.vehicleType ||
+  ""
+).trim().toUpperCase();
+
+const SERVICE_MAP = {
+  STANDARD: "STANDARD",
+  WHEELCHAIR: "WHEELCHAIR",
+  WHEEL: "WHEELCHAIR",
+  XL: "XL",
+  TAXI: "TAXI",
+  LIMO: "LIMO",
+  LIMOSINE: "LIMO"
+};
+
+const serviceKey = SERVICE_MAP[raw] || raw || "STANDARD";
+
 vehicleDisplay.innerText = serviceKey;
 
-/* =======================
-   STOPS
-======================= */
+/* ================= STOPS ================= */
 
 function renderStops(){
   const box = document.getElementById("stopsBox");
-  box.innerHTML = "";
+  box.innerHTML="";
 
   if(Array.isArray(tripData.stops)){
     tripData.stops.forEach((s,i)=>{
@@ -268,42 +272,37 @@ function renderStops(){
     });
   }
 }
+
 renderStops();
 
-/* =======================
-   TIME
-======================= */
+/* ================= TIME ================= */
 
 function minutesUntilTrip(date,time){
-  const now = new Date();
-  const trip = new Date(date+"T"+time);
+  const now=new Date();
+  const trip=new Date(date+"T"+time);
   return (trip-now)/60000;
 }
 
-/* =======================
-   RESET
-======================= */
+/* ================= RESET ================= */
 
 function recalculate(){
   localStorage.removeItem("pendingTrip");
   location.href="/getquote/index.html";
 }
 
-/* =======================
-   CONFIRM
-======================= */
+/* ================= SUBMIT ================= */
 
 async function confirmBooking(){
 
-  const btn = document.getElementById("payBtn");
-  btn.disabled = true;
+  const btn=document.getElementById("payBtn");
+  btn.disabled=true;
 
-  const name = name.value.trim();
-  const phone = phone.value.trim();
-  const email = email.value.trim();
-  const date = date.value;
-  const time = time.value;
-  const notes = notes.value;
+  const name=document.getElementById("name").value.trim();
+  const phone=document.getElementById("phone").value.trim();
+  const email=document.getElementById("email").value.trim();
+  const date=document.getElementById("date").value;
+  const time=document.getElementById("time").value;
+  const notes=document.getElementById("notes").value;
 
   if(!name || !phone || !email || !date || !time){
     alert("Fill all fields");
@@ -311,8 +310,7 @@ async function confirmBooking(){
     return;
   }
 
-  const cleanPrice =
-    Number(String(tripData.price).replace(/[^0-9.]/g,""));
+  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
 
   const mins = minutesUntilTrip(date,time);
 
@@ -324,44 +322,41 @@ async function confirmBooking(){
   }
 
   const data = {
-
     type:"individual",
+    pickup:tripData.pickup,
+    dropoff:tripData.dropoff,
+    stops:tripData.stops || [],
+    priceAmount:cleanPrice,
 
-    pickup: tripData.pickup,
-    dropoff: tripData.dropoff,
-    stops: tripData.stops || [],
+    clientName:name,
+    clientPhone:phone,
+    clientEmail:email,
 
-    priceAmount: cleanPrice,
+    serviceKey:serviceKey,
 
-    clientName: name,
-    clientPhone: phone,
-    clientEmail: email,
-
-    serviceKey: serviceKey,
-
-    tripDate: date,
-    tripTime: time,
-    notes: notes
+    tripDate:date,
+    tripTime:time,
+    notes:notes
   };
 
   try{
 
-    const res = await fetch("/api/trips",{
+    const res=await fetch("/api/trips",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify(data)
     });
 
-    const trip = await res.json();
+    const trip=await res.json();
 
     resultBox.style.display="block";
-    resultBox.innerHTML = `
+    resultBox.innerHTML=`
       Trip Created Successfully<br><br>
       Trip #: <b>${trip.tripNumber}</b>
     `;
 
     setTimeout(()=>{
-      location.href = `/booking/payment.html?tripId=${trip._id}`;
+      location.href=`/booking/payment.html?tripId=${trip._id}`;
     },1500);
 
   }catch(err){
