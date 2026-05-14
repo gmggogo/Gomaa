@@ -927,8 +927,32 @@ async function ensureDriverScheduleCoords(driverId, scheduleRow) {
   };
 }
 
-async function generateTripNumber(type) {
+async function generateTripNumber(type, serviceKey = "") {
+
+  /* =========================
+     SERVICE SUFFIX
+  ========================= */
+
+  const SERVICE_SUFFIX_MAP = {
+    STANDARD: "ST",
+    XL: "XL",
+    TAXI: "TA",
+    LIMO: "LI",
+    WHEELCHAIR: "WH",
+    SHARED: "SH"
+  };
+
+  const suffix =
+    SERVICE_SUFFIX_MAP[
+      String(serviceKey || "").toUpperCase()
+    ] || String(serviceKey || "").slice(0, 2);
+
+  /* =========================
+     GH TYPE
+  ========================= */
+
   if (type === "gh") {
+
     const lastTrip = await Trip.findOne({
       tripNumber: { $regex: /^GH\d+$/ }
     }).sort({ createdAt: -1, _id: -1 });
@@ -936,14 +960,28 @@ async function generateTripNumber(type) {
     let next = 100;
 
     if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("GH", ""), 10);
+      const num = parseInt(
+        lastTrip.tripNumber.replace("GH", ""),
+        10
+      );
       if (!isNaN(num)) next = num + 1;
     }
 
-    return "GH" + next;
+    let tripNumber = "GH" + next;
+
+    if (suffix) {
+      tripNumber = `${tripNumber}-${suffix}`;
+    }
+
+    return tripNumber;
   }
 
+  /* =========================
+     RESERVED
+  ========================= */
+
   if (type === "reserved") {
+
     const lastTrip = await Trip.findOne({
       tripNumber: { $regex: /^RV-\d+$/ }
     }).sort({ createdAt: -1, _id: -1 });
@@ -951,14 +989,28 @@ async function generateTripNumber(type) {
     let next = 1001;
 
     if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("RV-", ""), 10);
+      const num = parseInt(
+        lastTrip.tripNumber.replace("RV-", ""),
+        10
+      );
       if (!isNaN(num)) next = num + 1;
     }
 
-    return "RV-" + next;
+    let tripNumber = "RV-" + next;
+
+    if (suffix) {
+      tripNumber = `${tripNumber}-${suffix}`;
+    }
+
+    return tripNumber;
   }
 
+  /* =========================
+     INDIVIDUAL
+  ========================= */
+
   if (type === "individual") {
+
     const lastTrip = await Trip.findOne({
       tripNumber: { $regex: /^IN-\d+$/ }
     }).sort({ createdAt: -1, _id: -1 });
@@ -966,26 +1018,46 @@ async function generateTripNumber(type) {
     let next = 1001;
 
     if (lastTrip?.tripNumber) {
-      const num = parseInt(lastTrip.tripNumber.replace("IN-", ""), 10);
+      const num = parseInt(
+        lastTrip.tripNumber.replace("IN-", ""),
+        10
+      );
       if (!isNaN(num)) next = num + 1;
     }
 
-    return "IN-" + next;
+    let tripNumber = "IN-" + next;
+
+    if (suffix) {
+      tripNumber = `${tripNumber}-${suffix}`;
+    }
+
+    return tripNumber;
   }
 
+  /* =========================
+     MONTHLY
+  ========================= */
+
   const now = getArizonaTime();
+
   const months = [
     "JA", "FE", "MA", "AP", "MY", "JN",
     "JL", "AU", "SE", "OC", "NO", "DE"
   ];
 
   const monthCode = months[now.getMonth()];
-  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const startMonth =
+    new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const endMonth =
+    new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
   const lastTrip = await Trip.findOne({
     createdAt: { $gte: startMonth, $lt: endMonth },
-    tripNumber: { $regex: new RegExp("^" + monthCode + "-") }
+    tripNumber: {
+      $regex: new RegExp("^" + monthCode + "-")
+    }
   }).sort({ createdAt: -1, _id: -1 });
 
   let next = 1000;
@@ -1002,8 +1074,13 @@ async function generateTripNumber(type) {
     tripNumber += "-SH";
   }
 
+  if (suffix) {
+    tripNumber = `${tripNumber}-${suffix}`;
+  }
+
   return tripNumber;
 }
+
 /* =========================
    SMART DISPATCH ENGINE
 ========================= */
