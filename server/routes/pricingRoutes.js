@@ -182,6 +182,15 @@ String(
   service.pricingMode || ""
 ).toUpperCase();
 
+console.log(
+  "MODE:",
+  pricingMode,
+  "RATE:",
+  service.hourlyRate,
+  "MINUTES:",
+  minutes
+);
+
 /* =========================
    HOURLY
 ========================= */
