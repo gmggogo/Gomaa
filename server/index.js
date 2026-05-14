@@ -2981,7 +2981,7 @@ app.post("/api/trips", async (req, res) => {
     // 🔥 هل شيرد؟
     const isShared = req.body.isShared === true;
 
-/* =========================
+ /* =========================
    SHARED + VEHICLE SETUP (FIXED)
 ========================= */
 
@@ -3005,14 +3005,13 @@ const pickup = normalizeText(req.body.pickup);
 const dropoff = normalizeText(req.body.dropoff);
 
 /* =========================
-   SHARED DATA (SAFE FIX)
+   SHARED DATA (FIXED)
 ========================= */
 
 let groupId = "";
 let passengers = [];
 let totalPassengers = 0;
 
-// 🔥 لازم shared يكون عنده passengers حقيقيين
 if (isShared) {
 
   if (
@@ -3023,7 +3022,7 @@ if (isShared) {
     passengers = req.body.passengers;
     totalPassengers = passengers.length;
 
-    // optional: generate groupId if empty
+    // 🔥 generate groupId
     groupId = "GRP-" + Date.now();
 
   } else {
@@ -3061,11 +3060,11 @@ if (isShared) {
     passengers,
     totalPassengers,
 
-    // fallback display
+    // display fallback
     clientName: "Shared Trip",
     clientPhone: "",
 
-    // 🔥 ROUTE LOGIC
+    // 🔥 ROUTE SAFETY
     pickup: passengers[0]?.pickup || pickup,
     dropoff: passengers[passengers.length - 1]?.dropoff || dropoff,
 
@@ -3093,6 +3092,7 @@ if (isShared) {
 
   return res.status(200).json(trip);
 }
+
     /* =========================
        🟢 INDIVIDUAL CREATE
     ========================= */
