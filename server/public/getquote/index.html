@@ -801,7 +801,14 @@ function initGoogle(){
           lat:33.4484,
           lng:-112.0740
         },
-        zoom:11
+
+        zoom:11,
+
+        mapTypeControl:true,
+
+        fullscreenControl:true,
+
+        streetViewControl:false
       }
     );
 
@@ -810,15 +817,24 @@ function initGoogle(){
 
   directionsRenderer =
     new google.maps.DirectionsRenderer({
-      map,
+
+      suppressMarkers:false,
+
+      preserveViewport:false,
+
       polylineOptions:{
         strokeColor:"#2563eb",
-        strokeWeight:5
+        strokeOpacity:1,
+        strokeWeight:6
       }
+
     });
 
-}
+  /* 🔥 IMPORTANT */
 
+  directionsRenderer.setMap(map);
+
+}
 /* =========================
    STOPS
 ========================= */
@@ -985,7 +1001,22 @@ function calculate(){
     }
 
     directionsRenderer.setDirections(res);
+const bounds =
+  new google.maps.LatLngBounds();
 
+res.routes[0].legs.forEach(leg=>{
+
+  bounds.extend(
+    leg.start_location
+  );
+
+  bounds.extend(
+    leg.end_location
+  );
+
+});
+
+map.fitBounds(bounds);
     let meters = 0;
     let sec = 0;
 
