@@ -2998,15 +2998,32 @@ app.post("/api/trips", async (req, res) => {
  // 🔥 هل شيرد؟
 const isShared = req.body.isShared === true;
 
-/* =========================
-   SHARED + VEHICLE SETUP (FIXED)
-========================= */
+/***************************
+ VEHICLE TYPE FINAL FIX
+***************************/
+
+const rawVehicle =
+  String(
+    req.body.serviceKey ||
+    req.body.vehicleTypeFromQuote ||
+    req.body.vehicleType ||
+    ""
+  )
+  .trim()
+  .toUpperCase();
+
+const allowedVehicles = [
+  "STANDARD",
+  "XL",
+  "WHEELCHAIR",
+  "TAXI",
+  "LIMO"
+];
 
 const vehicleTypeFromQuote =
-  ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
-    ? req.body.vehicleTypeFromQuote
+  allowedVehicles.includes(rawVehicle)
+    ? rawVehicle
     : "STANDARD";
-
 /* =========================
    TRIP NUMBER
 ========================= */
