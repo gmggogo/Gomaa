@@ -61,72 +61,80 @@ body{
   font-weight:bold;
 }
 
-/* ================= TOP PRICING ================= */
+/* =========================
+   TOP PRICING BAR
+========================= */
 
 .pricing-bar{
   margin-top:18px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  overflow:hidden;
+  backdrop-filter:blur(5px);
+  box-shadow:0 10px 25px rgba(0,0,0,.15);
 }
 
-.pricing-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:10px;
-}
-
-.pricing-item{
-  background:rgba(255,255,255,.10);
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:15px;
-  padding:12px;
-  backdrop-filter:blur(6px);
+.pricing-service{
+  padding:14px 18px;
+  border-bottom:1px solid rgba(255,255,255,.08);
   transition:.25s;
 }
 
-.pricing-item.active{
-  border:2px solid #fff;
-  background:rgba(255,255,255,.18);
-  box-shadow:0 0 22px rgba(255,255,255,.25);
-  transform:scale(1.02);
+.pricing-service:last-child{
+  border-bottom:none;
 }
 
-.pricing-last{
-  grid-column:1 / -1;
-  width:48%;
-  margin:auto;
+.pricing-service.active{
+  background:rgba(255,255,255,.12);
+  box-shadow:inset 0 0 18px rgba(255,255,255,.06);
 }
 
-.pricing-title{
-  font-size:15px;
-  font-weight:900;
-  margin-bottom:8px;
-  text-align:center;
-}
-
-.pricing-row{
+.pricing-top{
   display:flex;
   justify-content:space-between;
-  gap:10px;
-  font-size:12px;
-  padding:3px 0;
+  align-items:center;
+  gap:12px;
+  margin-bottom:6px;
 }
 
-.pricing-label{
-  opacity:.85;
-}
-
-.pricing-value{
-  font-weight:800;
+.pricing-name{
+  font-size:15px;
+  font-weight:900;
   color:#fff;
+  letter-spacing:.3px;
+}
+
+.pricing-price{
+  font-size:18px;
+  font-weight:900;
+  color:#fff;
+  white-space:nowrap;
+}
+
+.pricing-details{
+  font-size:12px;
+  opacity:.88;
+  line-height:1.6;
+  color:#e5e7eb;
 }
 
 @media(max-width:600px){
 
-  .pricing-grid{
-    grid-template-columns:1fr;
+  .pricing-service{
+    padding:13px 14px;
   }
 
-  .pricing-last{
-    width:100%;
+  .pricing-name{
+    font-size:14px;
+  }
+
+  .pricing-price{
+    font-size:16px;
+  }
+
+  .pricing-details{
+    font-size:11px;
   }
 
 }
@@ -551,9 +559,9 @@ async function loadServices(){
 
 pricingBox.innerHTML = `
 
-<div class="pricing-grid">
+<div class="pricing-bar">
 
-${visibleServices.map((service,index)=>{
+${visibleServices.map(service=>{
 
 const mode =
 String(
@@ -563,96 +571,48 @@ service.pricingMode || ""
 const title =
 service.title || "";
 
-let rows = "";
+let priceText = "";
+let detailsText = "";
 
 if(mode === "HOURLY"){
 
-rows = `
+priceText =
+`$${Number(service.hourlyRate || 0)}/hr`;
 
-<div class="pricing-row">
-<div class="pricing-label">
-Hourly
-</div>
-
-<div class="pricing-value">
-$${Number(service.hourlyRate || 0)}/h
-</div>
-</div>
-
-`;
+detailsText =
+`15m wait • $${Number(service.noShowFee || 0)} no-show • $15 cancel`;
 
 }else{
 
-rows = `
+priceText =
+`From $${Number(service.baseFare || 0)}`;
 
-<div class="pricing-row">
-<div class="pricing-label">
-Base
-</div>
-
-<div class="pricing-value">
-$${Number(service.baseFare || 0)}
-</div>
-</div>
-
-<div class="pricing-row">
-<div class="pricing-label">
-Per Mile
-</div>
-
-<div class="pricing-value">
-$${Number(service.perMile || 0)}
-</div>
-</div>
-
-`;
+detailsText =
+`$${Number(service.perMile || 0)}/mi • ${Number(service.includedMiles || 0)} included • 15m wait • $15 no-show`;
 
 }
 
 return `
 
 <div
-class="
-pricing-item
-${index === 4 ? "pricing-last" : ""}
-"
+class="pricing-service"
 id="price-card-${service.serviceKey}"
 >
 
-<div class="pricing-title">
+<div class="pricing-top">
+
+<div class="pricing-name">
 ${title}
 </div>
 
-${rows}
-
-<div class="pricing-row">
-<div class="pricing-label">
-Waiting
+<div class="pricing-price">
+${priceText}
 </div>
 
-<div class="pricing-value">
-15m
-</div>
 </div>
 
-<div class="pricing-row">
-<div class="pricing-label">
-No Show
-</div>
-
-<div class="pricing-value">
-$${Number(service.noShowFee || 0)}
-</div>
-</div>
-
-<div class="pricing-row">
-<div class="pricing-label">
-Cancel
-</div>
-
-<div class="pricing-value">
-$15
-</div>
+<div class="pricing-details">
+${detailsText}
 </div>
 
 </div>
