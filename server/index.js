@@ -2995,11 +2995,22 @@ const vehicleTypeFromQuote =
    TRIP NUMBER
 ========================= */
 
-const tripNumber = await generateTripNumber(
-  isShared ? "shared" : type,
-  vehicleTypeFromQuote
-);
+let tripNumber = "";
+let exists = true;
 
+while (exists) {
+
+  tripNumber = await generateTripNumber(
+    isShared ? "shared" : type,
+    vehicleTypeFromQuote
+  );
+
+  const oldTrip = await Trip.findOne({
+    tripNumber
+  });
+
+  exists = !!oldTrip;
+}
 /* =========================
    BASIC FIELDS
 ========================= */
