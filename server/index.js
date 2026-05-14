@@ -2941,34 +2941,10 @@ app.get("/api/drivers", async (req, res) => {
 app.post("/api/trips", async (req, res) => {
   try {
 
-const type = normalizeTripType(req.body.type);
+    const type = normalizeTripType(req.body.type);
 
-/* ================= SERVICE FIX (FINAL CLEAN) ================= */
-
-const rawService = String(
-  req.body.serviceKey ||
-  req.body.vehicleTypeFromQuote ||
-  req.body.vehicleType ||
-  req.body.serviceTitle ||
-  ""
-)
-.toUpperCase()
-.replace(/\s+/g, "");
-
-let serviceKey = "STANDARD";
-
-if (rawService.includes("WHEEL")) {
-  serviceKey = "WHEELCHAIR";
-}
-else if (rawService.includes("XL")) {
-  serviceKey = "XL";
-}
-else if (rawService.includes("TAXI")) {
-  serviceKey = "TAXI";
-}
-else if (rawService.includes("LIMO")) {
-  serviceKey = "LIMO";
-}
+/* =========================
+   COMPANY LOCK CHECK
 ========================= */
 
 const companyName =
@@ -3036,7 +3012,6 @@ const isShared = req.body.isShared === true;
     let totalPassengers = 1;
 
     if (isShared) {
-      groupId = "GR-" + Date.now();
 
       if (Array.isArray(req.body.passengers)) {
         passengers = req.body.passengers;
@@ -3049,8 +3024,6 @@ const isShared = req.body.isShared === true;
 ========================= */
 
 if (isShared && passengers.length > 0) {
-
-  const groupId = "GR-" + Date.now();
 
   const trip = await Trip.create({
 
