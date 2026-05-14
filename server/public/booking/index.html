@@ -347,17 +347,34 @@ async function confirmBooking(){
       body:JSON.stringify(data)
     });
 
-    const trip=await res.json();
+   const trip = await res.json();
 
-    resultBox.style.display="block";
-    resultBox.innerHTML=`
-      Trip Created Successfully<br><br>
-      Trip #: <b>${trip.tripNumber}</b>
-    `;
+console.log("TRIP RESPONSE:", trip);
 
-    setTimeout(()=>{
-      location.href=`/booking/payment.html?tripId=${trip._id}`;
-    },1500);
+if(!trip || !trip._id){
+
+  alert(
+    trip.message ||
+    "Trip create failed"
+  );
+
+  btn.disabled = false;
+  return;
+}
+
+resultBox.style.display = "block";
+
+resultBox.innerHTML = `
+Trip Created Successfully<br><br>
+Trip #: <b>${trip.tripNumber}</b>
+`;
+
+setTimeout(()=>{
+
+location.href =
+`/booking/payment.html?tripId=${trip._id}`;
+
+},1500);
 
   }catch(err){
     console.log(err);
