@@ -1010,34 +1010,48 @@ const suffix =
     return tripNumber;
   }
 
-  /* =========================
-     INDIVIDUAL
-  ========================= */
+/* =========================
+   INDIVIDUAL
+========================= */
 
-  if (type === "individual") {
+if (type === "individual") {
 
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^IN-\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
+  const lastTrip = await Trip.findOne({
+    tripNumber: { $regex: /^IN-\d+$/ }
+  }).sort({ createdAt: -1, _id: -1 });
 
-    let next = 1001;
+  let next = 1001;
 
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(
-        lastTrip.tripNumber.replace("IN-", ""),
-        10
-      );
-      if (!isNaN(num)) next = num + 1;
+  if (lastTrip?.tripNumber) {
+
+    const num = parseInt(
+      lastTrip.tripNumber.replace("IN-", ""),
+      10
+    );
+
+    if (!isNaN(num)) {
+      next = num + 1;
     }
 
-    let tripNumber = "IN-" + next;
-
-    if (suffix) {
-      tripNumber = `${tripNumber}-${suffix}`;
-    }
-
-    return tripNumber;
   }
+
+  let tripNumber = "IN-" + next;
+
+  if (suffix) {
+    tripNumber = `${tripNumber}-${suffix}`;
+  }
+
+  const exists = await Trip.findOne({
+    tripNumber
+  });
+
+  if (exists) {
+    return generateTripNumber(type, serviceKey);
+  }
+
+  return tripNumber;
+
+}
 
   /* =========================
      MONTHLY
@@ -2995,22 +3009,11 @@ const vehicleTypeFromQuote =
    TRIP NUMBER
 ========================= */
 
-let tripNumber = "";
-let exists = true;
+const tripNumber = await generateTripNumber(
+  isShared ? "shared" : type,
+  vehicleTypeFromQuote
+);
 
-while (exists) {
-
-  tripNumber = await generateTripNumber(
-    isShared ? "shared" : type,
-    vehicleTypeFromQuote
-  );
-
-  const oldTrip = await Trip.findOne({
-    tripNumber
-  });
-
-  exists = !!oldTrip;
-}
 /* =========================
    BASIC FIELDS
 ========================= */
