@@ -1,8 +1,8 @@
 console.log("SERVICE JS LOADED");
-alert("SERVICE JS WORKING");
 
 const servicesGrid =
 document.getElementById("servicesGrid");
+
 /* =========================
    SERVICES
 ========================= */
@@ -18,7 +18,9 @@ async function loadServices(){
   try{
 
     const res =
-      await fetch("/api/services");
+      await fetch(
+        "/api/pricing/services"
+      );
 
     services =
       await res.json();
@@ -91,7 +93,7 @@ function renderServices(){
             }
           "
           onclick="
-            toggleService('${service._id}')
+            toggleService('${service.serviceKey}')
           "
         >
 
@@ -131,14 +133,15 @@ function renderServices(){
           </label>
 
           <select
-            id="mode-${service._id}"
+            id="mode-${service.serviceKey}"
             disabled
           >
 
             <option
               value="MILE"
               ${
-                service.pricingMode==="MILE"
+                String(service.pricingMode)
+                .toUpperCase()==="MILE"
                 ? "selected"
                 : ""
               }
@@ -149,7 +152,8 @@ function renderServices(){
             <option
               value="HOURLY"
               ${
-                service.pricingMode==="HOURLY"
+                String(service.pricingMode)
+                .toUpperCase()==="HOURLY"
                 ? "selected"
                 : ""
               }
@@ -160,7 +164,8 @@ function renderServices(){
             <option
               value="SHARED"
               ${
-                service.pricingMode==="SHARED"
+                String(service.pricingMode)
+                .toUpperCase()==="SHARED"
                 ? "selected"
                 : ""
               }
@@ -180,7 +185,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="base-${service._id}"
+            id="base-${service.serviceKey}"
             value="${service.baseFare || 0}"
             disabled
           >
@@ -195,7 +200,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="included-${service._id}"
+            id="included-${service.serviceKey}"
             value="${service.includedMiles || 0}"
             disabled
           >
@@ -210,7 +215,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="mile-${service._id}"
+            id="mile-${service.serviceKey}"
             value="${service.perMile || 0}"
             disabled
           >
@@ -225,7 +230,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="hour-${service._id}"
+            id="hour-${service.serviceKey}"
             value="${service.hourlyRate || 0}"
             disabled
           >
@@ -240,7 +245,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="stop-${service._id}"
+            id="stop-${service.serviceKey}"
             value="${service.stopFee || 0}"
             disabled
           >
@@ -255,7 +260,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="noshow-${service._id}"
+            id="noshow-${service.serviceKey}"
             value="${service.noShowFee || 0}"
             disabled
           >
@@ -270,7 +275,7 @@ function renderServices(){
 
           <input
             type="number"
-            id="shared-${service._id}"
+            id="shared-${service.serviceKey}"
             value="${service.sharedPrice || 0}"
             disabled
           >
@@ -284,7 +289,7 @@ function renderServices(){
         <button
           class="edit-btn"
           onclick="
-            enableEdit('${service._id}')
+            enableEdit('${service.serviceKey}')
           "
         >
           EDIT
@@ -293,7 +298,7 @@ function renderServices(){
         <button
           class="save-btn"
           onclick="
-            saveService('${service._id}')
+            saveService('${service.serviceKey}')
           "
         >
           SAVE
@@ -313,18 +318,18 @@ function renderServices(){
    ENABLE EDIT
 ========================= */
 
-function enableEdit(id){
+function enableEdit(key){
 
   const fields = [
 
-    `mode-${id}`,
-    `base-${id}`,
-    `included-${id}`,
-    `mile-${id}`,
-    `hour-${id}`,
-    `stop-${id}`,
-    `noshow-${id}`,
-    `shared-${id}`
+    `mode-${key}`,
+    `base-${key}`,
+    `included-${key}`,
+    `mile-${key}`,
+    `hour-${key}`,
+    `stop-${key}`,
+    `noshow-${key}`,
+    `shared-${key}`
 
   ];
 
@@ -353,7 +358,7 @@ function enableEdit(id){
    SAVE SERVICE
 ========================= */
 
-async function saveService(id){
+async function saveService(key){
 
   try{
 
@@ -361,69 +366,80 @@ async function saveService(id){
 
       pricingMode:
       document.getElementById(
-        `mode-${id}`
+        `mode-${key}`
       ).value,
 
       baseFare:Number(
         document.getElementById(
-          `base-${id}`
+          `base-${key}`
         ).value
       ),
 
       includedMiles:Number(
         document.getElementById(
-          `included-${id}`
+          `included-${key}`
         ).value
       ),
 
       perMile:Number(
         document.getElementById(
-          `mile-${id}`
+          `mile-${key}`
         ).value
       ),
 
       hourlyRate:Number(
         document.getElementById(
-          `hour-${id}`
+          `hour-${key}`
         ).value
       ),
 
       stopFee:Number(
         document.getElementById(
-          `stop-${id}`
+          `stop-${key}`
         ).value
       ),
 
       noShowFee:Number(
         document.getElementById(
-          `noshow-${id}`
+          `noshow-${key}`
         ).value
       ),
 
       sharedPrice:Number(
         document.getElementById(
-          `shared-${id}`
+          `shared-${key}`
         ).value
       )
 
     };
 
-    await fetch(
+    const res =
+      await fetch(
 
-      `/api/services/${id}`,
+        `/api/pricing/services/${key}`,
 
-      {
-        method:"PUT",
+        {
+          method:"PUT",
 
-        headers:{
-          "Content-Type":"application/json"
-        },
+          headers:{
+            "Content-Type":"application/json"
+          },
 
-        body:JSON.stringify(payload)
+          body:JSON.stringify(payload)
 
-      }
+        }
 
-    );
+      );
+
+    const data =
+      await res.json();
+
+    if(!data.success){
+
+      alert("Save Failed");
+      return;
+
+    }
 
     alert("Service Saved");
 
@@ -443,11 +459,11 @@ async function saveService(id){
    TOGGLE
 ========================= */
 
-async function toggleService(id){
+async function toggleService(key){
 
   const service =
   services.find(
-    s=>s._id===id
+    s=>s.serviceKey===key
   );
 
   if(!service) return;
@@ -469,7 +485,7 @@ async function toggleService(id){
 
     await fetch(
 
-      `/api/services/${id}`,
+      `/api/pricing/services/${key}`,
 
       {
         method:"PUT",

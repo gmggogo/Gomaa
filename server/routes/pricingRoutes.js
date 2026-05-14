@@ -1,542 +1,292 @@
-console.log("SERVICE JS LOADED");
+const express = require("express");
 
-const servicesGrid =
-document.getElementById("servicesGrid");
+const router = express.Router();
 
-/* =========================
-   SERVICES
-========================= */
-
-let services = [];
+const Service =
+require("../models/Service");
 
 /* =========================
-   LOAD SERVICES
+   TEST
 ========================= */
 
-async function loadServices(){
+router.get("/", (req,res)=>{
 
-  try{
+  res.json({
+    ok:true,
+    message:"Pricing Route Working"
+  });
 
-    const res =
-      await fetch("/api/services");
-
-    services =
-      await res.json();
-
-    renderServices();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert("Failed To Load Services");
-
-  }
-
-}
+});
 
 /* =========================
-   RENDER
+   CALCULATE PRICE
 ========================= */
 
-function renderServices(){
+router.post(
+"/calculate",
+async (req,res)=>{
 
-  servicesGrid.innerHTML = "";
+try{
 
-  services.forEach(service=>{
+const {
+  serviceKey,
+  miles,
+  stops,
+  minutes
+} = req.body;
 
-    const card =
-    document.createElement("div");
+/* =========================
+   VALIDATE
+========================= */
 
-    card.className =
-    "service-card";
+if(!serviceKey){
 
-    card.innerHTML = `
+  return res.json({
 
-      <div class="service-top">
+    success:false,
 
-        <div class="service-info">
-
-          <div class="service-icon">
-            ${service.icon || "🚘"}
-          </div>
-
-          <div>
-
-            <div class="service-name">
-              ${service.title || ""}
-            </div>
-
-            <div class="service-status">
-
-              ${
-                service.enabled
-                ? "Visible To Customers"
-                : "Hidden From Customers"
-              }
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <button
-          class="
-            toggle-btn
-            ${
-              service.enabled
-              ? "toggle-on"
-              : "toggle-off"
-            }
-          "
-          onclick="
-            toggleService('${service._id}')
-          "
-        >
-
-          ${
-            service.enabled
-            ? "ACTIVE"
-            : "DISABLED"
-          }
-
-        </button>
-
-      </div>
-
-      <div class="
-        warning-box
-        ${
-          service.enabled
-          ? "warning-green"
-          : "warning-red"
-        }
-      ">
-
-        ${
-          service.enabled
-          ? "Customers Can Book This Service"
-          : "This Service Is Hidden"
-        }
-
-      </div>
-
-      <div class="fields">
-
-        <div class="field">
-
-          <label>
-            Pricing Mode
-          </label>
-
-          <select
-            id="mode-${service._id}"
-            disabled
-          >
-
-            <option
-              value="MILE"
-              ${
-                String(service.pricingMode)
-                .toUpperCase()==="MILE"
-                ? "selected"
-                : ""
-              }
-            >
-              Per Mile
-            </option>
-
-            <option
-              value="HOURLY"
-              ${
-                String(service.pricingMode)
-                .toUpperCase()==="HOURLY"
-                ? "selected"
-                : ""
-              }
-            >
-              Hourly
-            </option>
-
-            <option
-              value="SHARED"
-              ${
-                String(service.pricingMode)
-                .toUpperCase()==="SHARED"
-                ? "selected"
-                : ""
-              }
-            >
-              Shared
-            </option>
-
-          </select>
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Base Fare
-          </label>
-
-          <input
-            type="number"
-            id="base-${service._id}"
-            value="${service.baseFare || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Included Miles
-          </label>
-
-          <input
-            type="number"
-            id="included-${service._id}"
-            value="${service.includedMiles || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Per Mile
-          </label>
-
-          <input
-            type="number"
-            id="mile-${service._id}"
-            value="${service.perMile || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Hourly Rate
-          </label>
-
-          <input
-            type="number"
-            id="hour-${service._id}"
-            value="${service.hourlyRate || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Stop Fee
-          </label>
-
-          <input
-            type="number"
-            id="stop-${service._id}"
-            value="${service.stopFee || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            No Show Fee
-          </label>
-
-          <input
-            type="number"
-            id="noshow-${service._id}"
-            value="${service.noShowFee || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Shared Price
-          </label>
-
-          <input
-            type="number"
-            id="shared-${service._id}"
-            value="${service.sharedPrice || 0}"
-            disabled
-          >
-
-        </div>
-
-      </div>
-
-      <div class="buttons">
-
-        <button
-          class="edit-btn"
-          onclick="
-            enableEdit('${service._id}')
-          "
-        >
-          EDIT
-        </button>
-
-        <button
-          class="save-btn"
-          onclick="
-            saveService('${service._id}')
-          "
-        >
-          SAVE
-        </button>
-
-      </div>
-
-    `;
-
-    servicesGrid.appendChild(card);
+    message:"Missing service key"
 
   });
 
 }
 
 /* =========================
-   ENABLE EDIT
+   FIND SERVICE
 ========================= */
 
-function enableEdit(id){
+const service =
+await Service.findOne({
 
-  const fields = [
+  serviceKey:
+  String(serviceKey)
+  .toUpperCase()
 
-    `mode-${id}`,
-    `base-${id}`,
-    `included-${id}`,
-    `mile-${id}`,
-    `hour-${id}`,
-    `stop-${id}`,
-    `noshow-${id}`,
-    `shared-${id}`
+});
 
-  ];
+if(!service){
 
-  fields.forEach(fieldId=>{
+  return res.json({
 
-    const el =
-    document.getElementById(fieldId);
+    success:false,
 
-    if(el){
+    message:"Service not found"
 
-      el.disabled = false;
+  });
 
-      el.style.background =
-      "#fff";
+}
 
-      el.style.border =
-      "2px solid #145cff";
+if(service.enabled !== true){
 
-    }
+  return res.json({
+
+    success:false,
+
+    message:"Service disabled"
 
   });
 
 }
 
 /* =========================
-   SAVE SERVICE
+   MODE
 ========================= */
 
-async function saveService(id){
+const pricingMode =
 
-  try{
+String(
+  service.pricingMode || ""
+)
+.trim()
+.toUpperCase();
 
-    const service =
-      services.find(
-        s => s._id === id
-      );
+let total = 0;
 
-    if(!service){
+/* =========================
+   HOURLY
+========================= */
 
-      alert("Service Not Found");
-      return;
+if(pricingMode === "HOURLY"){
 
-    }
+  const totalMinutes =
 
-    const payload = {
+    Number(minutes || 0);
 
-      pricingMode:
-      document.getElementById(
-        `mode-${id}`
-      ).value,
+  const hours =
 
-      baseFare:Number(
-        document.getElementById(
-          `base-${id}`
-        ).value
-      ),
+    Math.max(
+      1,
+      Math.ceil(
+        totalMinutes / 60
+      )
+    );
 
-      includedMiles:Number(
-        document.getElementById(
-          `included-${id}`
-        ).value
-      ),
+  total =
 
-      perMile:Number(
-        document.getElementById(
-          `mile-${id}`
-        ).value
-      ),
+    hours *
 
-      hourlyRate:Number(
-        document.getElementById(
-          `hour-${id}`
-        ).value
-      ),
+    Number(
+      service.hourlyRate || 0
+    );
 
-      stopFee:Number(
-        document.getElementById(
-          `stop-${id}`
-        ).value
-      ),
+}
 
-      noShowFee:Number(
-        document.getElementById(
-          `noshow-${id}`
-        ).value
-      ),
+/* =========================
+   SHARED
+========================= */
 
-      sharedPrice:Number(
-        document.getElementById(
-          `shared-${id}`
-        ).value
+else if(
+  pricingMode === "SHARED"
+){
+
+  total =
+
+    Number(
+      service.sharedPrice || 0
+    )
+
+    +
+
+    (
+      Number(stops || 0)
+
+      *
+
+      Number(
+        service.stopFee || 0
+      )
+    );
+
+}
+
+/* =========================
+   PER MILE
+========================= */
+
+else{
+
+  const extraMiles =
+
+    Math.max(
+
+      0,
+
+      Number(miles || 0)
+
+      -
+
+      Number(
+        service.includedMiles || 0
       )
 
-    };
-
-    console.log(
-      "SAVING:",
-      service.serviceKey,
-      payload
     );
 
-    const res =
-      await fetch(
+  total =
 
-        `/api/pricing/services/${service.serviceKey}`,
+    Number(
+      service.baseFare || 0
+    )
 
-        {
-          method:"PUT",
+    +
 
-          headers:{
-            "Content-Type":"application/json"
-          },
+    (
+      extraMiles
 
-          body:JSON.stringify(payload)
+      *
 
-        }
+      Number(
+        service.perMile || 0
+      )
+    )
 
-      );
+    +
 
-    const data =
-      await res.json();
+    (
+      Number(stops || 0)
 
-    console.log(
-      "SAVE RESPONSE:",
-      data
+      *
+
+      Number(
+        service.stopFee || 0
+      )
     );
-
-    if(!data.success){
-
-      alert("Save Failed");
-      return;
-
-    }
-
-    alert("Service Saved");
-
-    await loadServices();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert("Save Failed");
-
-  }
 
 }
 
 /* =========================
-   TOGGLE
+   RESPONSE
 ========================= */
 
-async function toggleService(id){
+return res.json({
 
-  const service =
-  services.find(
-    s=>s._id===id
-  );
+  success:true,
 
-  if(!service) return;
+  pricingMode,
 
-  const ok =
-  confirm(
+  total:
+  Number(
+    total.toFixed(2)
+  ),
 
-    service.enabled
+  service:{
+    title:
+    service.title,
 
-    ? `Disable ${service.title}?\n\nCustomers Will NOT See This Service.`
+    pricingMode,
 
-    : `Enable ${service.title}?\n\nCustomers CAN Book This Service.`
+    baseFare:
+    Number(
+      service.baseFare || 0
+    ),
 
-  );
+    includedMiles:
+    Number(
+      service.includedMiles || 0
+    ),
 
-  if(!ok) return;
+    perMile:
+    Number(
+      service.perMile || 0
+    ),
 
-  try{
+    hourlyRate:
+    Number(
+      service.hourlyRate || 0
+    ),
 
-    await fetch(
+    stopFee:
+    Number(
+      service.stopFee || 0
+    ),
 
-      `/api/pricing/services/${service.serviceKey}`,
+    noShowFee:
+    Number(
+      service.noShowFee || 0
+    ),
 
-      {
-        method:"PUT",
-
-        headers:{
-          "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify({
-          enabled:!service.enabled
-        })
-
-      }
-
-    );
-
-    await loadServices();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert("Toggle Failed");
+    sharedPrice:
+    Number(
+      service.sharedPrice || 0
+    )
 
   }
 
+});
+
+}catch(err){
+
+console.log(err);
+
+return res.status(500).json({
+
+  success:false,
+
+  message:"Pricing Failed"
+
+});
+
 }
 
-/* =========================
-   START
-========================= */
+});
 
-loadServices();
+module.exports = router;
