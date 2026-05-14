@@ -2941,10 +2941,34 @@ app.get("/api/drivers", async (req, res) => {
 app.post("/api/trips", async (req, res) => {
   try {
 
-    const type = normalizeTripType(req.body.type);
+const type = normalizeTripType(req.body.type);
 
-/* =========================
-   COMPANY LOCK CHECK
+/* ================= SERVICE FIX (FINAL CLEAN) ================= */
+
+const rawService = String(
+  req.body.serviceKey ||
+  req.body.vehicleTypeFromQuote ||
+  req.body.vehicleType ||
+  req.body.serviceTitle ||
+  ""
+)
+.toUpperCase()
+.replace(/\s+/g, "");
+
+let serviceKey = "STANDARD";
+
+if (rawService.includes("WHEEL")) {
+  serviceKey = "WHEELCHAIR";
+}
+else if (rawService.includes("XL")) {
+  serviceKey = "XL";
+}
+else if (rawService.includes("TAXI")) {
+  serviceKey = "TAXI";
+}
+else if (rawService.includes("LIMO")) {
+  serviceKey = "LIMO";
+}
 ========================= */
 
 const companyName =
