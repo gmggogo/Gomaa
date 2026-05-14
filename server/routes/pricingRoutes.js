@@ -11,15 +11,47 @@ require("../models/Service");
 
 router.get("/", (req,res)=>{
 
-  res.json({
-    ok:true,
+  return res.json({
+    success:true,
     message:"Pricing Route Working"
   });
 
 });
 
 /* =========================
-   CALCULATE PRICE
+   GET SERVICES
+========================= */
+
+router.get(
+"/services",
+async (req,res)=>{
+
+try{
+
+const services =
+await Service.find({})
+.sort({createdAt:1});
+
+return res.json(services);
+
+}catch(err){
+
+console.log(err);
+
+return res.status(500).json({
+
+  success:false,
+
+  message:"Failed To Load Services"
+
+});
+
+}
+
+});
+
+/* =========================
+   CALCULATE
 ========================= */
 
 router.post(
@@ -27,6 +59,11 @@ router.post(
 async (req,res)=>{
 
 try{
+
+console.log(
+  "PRICE BODY:",
+  req.body
+);
 
 const {
   serviceKey,
@@ -45,7 +82,7 @@ if(!serviceKey){
 
     success:false,
 
-    message:"Missing service key"
+    message:"Missing Service Key"
 
   });
 
@@ -60,6 +97,7 @@ await Service.findOne({
 
   serviceKey:
   String(serviceKey)
+  .trim()
   .toUpperCase()
 
 });
@@ -70,7 +108,7 @@ if(!service){
 
     success:false,
 
-    message:"Service not found"
+    message:"Service Not Found"
 
   });
 
@@ -82,7 +120,7 @@ if(service.enabled !== true){
 
     success:false,
 
-    message:"Service disabled"
+    message:"Service Disabled"
 
   });
 
@@ -148,6 +186,7 @@ else if(
     +
 
     (
+
       Number(stops || 0)
 
       *
@@ -155,6 +194,7 @@ else if(
       Number(
         service.stopFee || 0
       )
+
     );
 
 }
@@ -190,6 +230,7 @@ else{
     +
 
     (
+
       extraMiles
 
       *
@@ -197,11 +238,13 @@ else{
       Number(
         service.perMile || 0
       )
+
     )
 
     +
 
     (
+
       Number(stops || 0)
 
       *
@@ -209,6 +252,7 @@ else{
       Number(
         service.stopFee || 0
       )
+
     );
 
 }
@@ -229,6 +273,13 @@ return res.json({
   ),
 
   service:{
+
+    _id:
+    service._id,
+
+    serviceKey:
+    service.serviceKey,
+
     title:
     service.title,
 
@@ -275,13 +326,87 @@ return res.json({
 
 }catch(err){
 
-console.log(err);
+console.log(
+  "PRICING ERROR:",
+  err
+);
 
 return res.status(500).json({
 
   success:false,
 
   message:"Pricing Failed"
+
+});
+
+}
+
+});
+
+/* =========================
+   UPDATE SERVICE
+========================= */
+
+router.put(
+"/services/:serviceKey",
+async (req,res)=>{
+
+try{
+
+const key =
+
+String(
+  req.params.serviceKey || ""
+)
+.trim()
+.toUpperCase();
+
+const updated =
+await Service.findOneAndUpdate(
+
+  {
+    serviceKey:key
+  },
+
+  {
+    $set:req.body
+  },
+
+  {
+    new:true
+  }
+
+);
+
+if(!updated){
+
+  return res.json({
+
+    success:false,
+
+    message:"Service Not Found"
+
+  });
+
+}
+
+return res.json({
+
+  success:true,
+
+  service:updated
+
+});
+
+}catch(err){
+
+console.log(err);
+
+return res.status(500).json({
+
+  success:false,
+
+  message:"Update Failed"
 
 });
 
