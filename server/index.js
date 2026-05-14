@@ -2979,9 +2979,10 @@ app.post("/api/trips", async (req, res) => {
     }
 
     // 🔥 هل شيرد؟
-    const isShared = req.body.isShared === true;
+ // 🔥 هل شيرد؟
+const isShared = req.body.isShared === true;
 
- /* =========================
+/* =========================
    SHARED + VEHICLE SETUP (FIXED)
 ========================= */
 
@@ -2989,6 +2990,15 @@ const vehicleTypeFromQuote =
   ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
     ? req.body.vehicleTypeFromQuote
     : "STANDARD";
+
+/* =========================
+   TRIP NUMBER
+========================= */
+
+const tripNumber = await generateTripNumber(
+  isShared ? "shared" : type,
+  vehicleTypeFromQuote
+);
 
 /* =========================
    BASIC FIELDS
