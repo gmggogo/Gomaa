@@ -1104,11 +1104,44 @@ Number(
 pricingData.service?.hourlyRate || 0
 );
 
-const hours =
+const billingMode =
+
+String(
+pricingData.service?.hourlyBillingMode || ""
+)
+.toUpperCase();
+
+let hours = 1;
+
+/* =========================
+   QUARTER
+========================= */
+
+if(billingMode === "QUARTER"){
+
+hours =
+
+Math.max(
+1,
+Math.ceil(mins / 15) / 4
+);
+
+}
+
+/* =========================
+   FULL
+========================= */
+
+else{
+
+hours =
+
 Math.max(
 1,
 Math.ceil(mins / 60)
 );
+
+}
 
 totalPrice =
 hours * hourlyRate;
