@@ -27,6 +27,7 @@ body{
 }
 
 /* 🔥 LANGUAGE */
+
 .langBox{
   position:absolute;
   top:15px;
@@ -49,7 +50,9 @@ body{
   color:#fff;
 }
 
-h2{margin-top:0}
+h2{
+  margin-top:0;
+}
 
 label{
   margin-top:12px;
@@ -67,14 +70,18 @@ input,textarea{
   font-size:16px;
 }
 
-textarea{min-height:90px}
+textarea{
+  min-height:90px;
+}
 
 .row{
   display:flex;
   gap:10px;
 }
 
-.row div{flex:1}
+.row div{
+  flex:1;
+}
 
 .actions{
   margin-top:20px;
@@ -92,8 +99,15 @@ button{
   font-size:15px;
 }
 
-.recalc{background:#dc2626;color:#fff}
-.confirm{background:#2563eb;color:#fff}
+.recalc{
+  background:#dc2626;
+  color:#fff;
+}
+
+.confirm{
+  background:#2563eb;
+  color:#fff;
+}
 
 .vehicleBox{
   margin-top:5px;
@@ -101,6 +115,8 @@ button{
   background:#e5e7eb;
   border-radius:8px;
   font-weight:bold;
+  text-align:center;
+  font-size:16px;
 }
 
 .result{
@@ -114,9 +130,19 @@ button{
 }
 
 @media(max-width:768px){
-  body{padding:10px}
-  .row{flex-direction:column}
-  .actions{flex-direction:column}
+
+  body{
+    padding:10px;
+  }
+
+  .row{
+    flex-direction:column;
+  }
+
+  .actions{
+    flex-direction:column;
+  }
+
 }
 </style>
 </head>
@@ -126,254 +152,599 @@ button{
 <div class="box">
 
 <!-- 🔥 LANGUAGE -->
+
 <div class="langBox">
-  <button id="enBtn" onclick="setLang('en')">English</button>
-  <button id="esBtn" onclick="setLang('es')">Español</button>
+
+  <button
+    id="enBtn"
+    onclick="setLang('en')"
+  >
+    English
+  </button>
+
+  <button
+    id="esBtn"
+    onclick="setLang('es')"
+  >
+    Español
+  </button>
+
 </div>
 
-<h2 id="title">Confirm Booking</h2>
+<h2 id="title">
+Confirm Booking
+</h2>
 
-<label id="pickupL">Pickup</label>
+<label id="pickupL">
+Pickup
+</label>
+
 <input id="pickup" readonly>
 
 <div id="stopsBox"></div>
 
-<label id="dropoffL">Dropoff</label>
+<label id="dropoffL">
+Dropoff
+</label>
+
 <input id="dropoff" readonly>
 
 <div class="row">
+
   <div>
-    <label id="distanceL">Distance</label>
+
+    <label id="distanceL">
+      Distance
+    </label>
+
     <input id="miles" readonly>
+
   </div>
+
   <div>
-    <label id="priceL">Price</label>
+
+    <label id="priceL">
+      Price
+    </label>
+
     <input id="price" readonly>
+
   </div>
+
 </div>
 
-<!-- 🔥 FIXED VEHICLE (LOCKED) -->
-<label id="vehicleL">Vehicle Type</label>
-<div id="vehicleDisplay" class="vehicleBox"></div>
+<!-- 🔥 DYNAMIC SERVICE -->
 
-<label id="nameL">Passenger Name</label>
+<label id="vehicleL">
+Service Type
+</label>
+
+<div
+  id="vehicleDisplay"
+  class="vehicleBox"
+></div>
+
+<label id="nameL">
+Passenger Name
+</label>
+
 <input id="name">
 
-<label id="phoneL">Phone</label>
+<label id="phoneL">
+Phone
+</label>
+
 <input id="phone">
 
-<label id="emailL">Email</label>
-<input id="email" type="email">
+<label id="emailL">
+Email
+</label>
+
+<input
+  id="email"
+  type="email"
+>
 
 <div class="row">
+
   <div>
-    <label id="dateL">Date</label>
-    <input type="date" id="date">
+
+    <label id="dateL">
+      Date
+    </label>
+
+    <input
+      type="date"
+      id="date"
+    >
+
   </div>
+
   <div>
-    <label id="timeL">Time</label>
-    <input type="time" id="time">
+
+    <label id="timeL">
+      Time
+    </label>
+
+    <input
+      type="time"
+      id="time"
+    >
+
   </div>
+
 </div>
 
-<label id="notesL">Notes</label>
+<label id="notesL">
+Notes
+</label>
+
 <textarea id="notes"></textarea>
 
 <div class="actions">
-  <button class="recalc" onclick="recalculate()">Recalculate</button>
-  <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
+
+  <button
+    class="recalc"
+    onclick="recalculate()"
+  >
+    Recalculate
+  </button>
+
+  <button
+    class="confirm"
+    onclick="confirmBooking()"
+    id="payBtn"
+  >
+    Pay Now
+  </button>
+
 </div>
 
-<div id="resultBox" class="result"></div>
+<div
+  id="resultBox"
+  class="result"
+></div>
 
 </div>
 
 <script>
 
-// =======================
-// LANGUAGE
-// =======================
-let lang="en";
+/* =======================
+   LANGUAGE
+======================= */
+
+let lang = "en";
 
 function setLang(l){
-  lang=l;
+
+  lang = l;
+
   applyLang();
+
 }
 
 function applyLang(){
 
   if(lang==="es"){
-    title.innerText="Confirmar Reserva";
-    pickupL.innerText="Origen";
-    dropoffL.innerText="Destino";
-    distanceL.innerText="Distancia";
-    priceL.innerText="Precio";
-    vehicleL.innerText="Vehículo";
-    nameL.innerText="Nombre";
-    phoneL.innerText="Teléfono";
-    emailL.innerText="Correo";
-    dateL.innerText="Fecha";
-    timeL.innerText="Hora";
-    notesL.innerText="Notas";
-    payBtn.innerText="Pagar";
+
+    title.innerText =
+    "Confirmar Reserva";
+
+    pickupL.innerText =
+    "Origen";
+
+    dropoffL.innerText =
+    "Destino";
+
+    distanceL.innerText =
+    "Distancia";
+
+    priceL.innerText =
+    "Precio";
+
+    vehicleL.innerText =
+    "Servicio";
+
+    nameL.innerText =
+    "Nombre";
+
+    phoneL.innerText =
+    "Teléfono";
+
+    emailL.innerText =
+    "Correo";
+
+    dateL.innerText =
+    "Fecha";
+
+    timeL.innerText =
+    "Hora";
+
+    notesL.innerText =
+    "Notas";
+
+    payBtn.innerText =
+    "Pagar";
+
   }else{
-    title.innerText="Confirm Booking";
-    pickupL.innerText="Pickup";
-    dropoffL.innerText="Dropoff";
-    distanceL.innerText="Distance";
-    priceL.innerText="Price";
-    vehicleL.innerText="Vehicle Type";
-    nameL.innerText="Passenger Name";
-    phoneL.innerText="Phone";
-    emailL.innerText="Email";
-    dateL.innerText="Date";
-    timeL.innerText="Time";
-    notesL.innerText="Notes";
-    payBtn.innerText="Pay Now";
+
+    title.innerText =
+    "Confirm Booking";
+
+    pickupL.innerText =
+    "Pickup";
+
+    dropoffL.innerText =
+    "Dropoff";
+
+    distanceL.innerText =
+    "Distance";
+
+    priceL.innerText =
+    "Price";
+
+    vehicleL.innerText =
+    "Service Type";
+
+    nameL.innerText =
+    "Passenger Name";
+
+    phoneL.innerText =
+    "Phone";
+
+    emailL.innerText =
+    "Email";
+
+    dateL.innerText =
+    "Date";
+
+    timeL.innerText =
+    "Time";
+
+    notesL.innerText =
+    "Notes";
+
+    payBtn.innerText =
+    "Pay Now";
+
   }
 
-  enBtn.classList.toggle("active",lang==="en");
-  esBtn.classList.toggle("active",lang==="es");
+  enBtn.classList.toggle(
+    "active",
+    lang==="en"
+  );
+
+  esBtn.classList.toggle(
+    "active",
+    lang==="es"
+  );
+
 }
 
 applyLang();
 
-// =======================
-// LOAD TRIP
-// =======================
-const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
+/* =======================
+   LOAD TRIP
+======================= */
+
+const tripData = JSON.parse(
+  localStorage.getItem("pendingTrip")
+);
 
 if(!tripData){
+
   alert("Session expired");
-  location.href="/getquote/index.html";
+
+  location.href =
+  "/getquote/index.html";
+
 }
 
-pickup.value = tripData.pickup || "";
-dropoff.value = tripData.dropoff || "";
-miles.value = tripData.distance || "";
-price.value = tripData.price || "";
+/* =======================
+   FILL
+======================= */
 
-// 🔥 VEHICLE FIX (IMPORTANT)
-const rawVehicle = tripData.vehicleType;
+pickup.value =
+tripData.pickup || "";
 
-const vehicleType =
-  rawVehicle === "minivan" ? "XL" :
-  rawVehicle === "standard" ? "X" :
-  rawVehicle || "X";
+dropoff.value =
+tripData.dropoff || "";
+
+miles.value =
+tripData.distance || "";
+
+price.value =
+tripData.price || "";
+
+/* =======================
+   DYNAMIC SERVICE
+======================= */
+
+const serviceTitle =
+
+tripData.serviceTitle ||
+
+tripData.vehicleType ||
+
+tripData.serviceKey ||
+
+"STANDARD";
 
 vehicleDisplay.innerText =
-  vehicleType === "XL"
-    ? "Large (XL)"
-    : "Standard (X)";
+serviceTitle;
 
-// =======================
-// STOPS
-// =======================
+/* =======================
+   STOPS
+======================= */
+
 function renderStops(){
-  const box = document.getElementById("stopsBox");
+
+  const box =
+  document.getElementById(
+    "stopsBox"
+  );
+
   box.innerHTML = "";
 
   if(Array.isArray(tripData.stops)){
+
     tripData.stops.forEach((s,i)=>{
+
       box.innerHTML += `
-        <label>Stop ${i+1}</label>
-        <input value="${s}" readonly>
+
+        <label>
+          Stop ${i+1}
+        </label>
+
+        <input
+          value="${s}"
+          readonly
+        >
+
       `;
+
     });
+
   }
+
 }
+
 renderStops();
 
-// =======================
+/* =======================
+   MINUTES
+======================= */
+
 function minutesUntilTrip(date,time){
-  const now = new Date();
-  const trip = new Date(date+"T"+time);
-  return (trip-now)/60000;
+
+  const now =
+  new Date();
+
+  const trip =
+  new Date(date+"T"+time);
+
+  return (
+    trip-now
+  ) / 60000;
+
 }
 
-// =======================
+/* =======================
+   RECALCULATE
+======================= */
+
 function recalculate(){
-  localStorage.removeItem("pendingTrip");
-  location.href="/getquote/index.html";
+
+  localStorage.removeItem(
+    "pendingTrip"
+  );
+
+  location.href =
+  "/getquote/index.html";
+
 }
 
-// =======================
-// CONFIRM BOOKING
-// =======================
+/* =======================
+   CONFIRM BOOKING
+======================= */
+
 async function confirmBooking(){
 
-  const btn = document.getElementById("payBtn");
+  const btn =
+  document.getElementById(
+    "payBtn"
+  );
+
   btn.disabled = true;
 
-  const name  = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const date  = document.getElementById("date").value;
-  const time  = document.getElementById("time").value;
-  const notes = document.getElementById("notes").value;
+  const name =
+  document.getElementById(
+    "name"
+  ).value.trim();
 
-  if(!name || !phone || !email || !date || !time){
+  const phone =
+  document.getElementById(
+    "phone"
+  ).value.trim();
+
+  const email =
+  document.getElementById(
+    "email"
+  ).value.trim();
+
+  const date =
+  document.getElementById(
+    "date"
+  ).value;
+
+  const time =
+  document.getElementById(
+    "time"
+  ).value;
+
+  const notes =
+  document.getElementById(
+    "notes"
+  ).value;
+
+  if(
+    !name ||
+    !phone ||
+    !email ||
+    !date ||
+    !time
+  ){
+
     alert("Fill all fields");
+
     btn.disabled=false;
+
     return;
+
   }
 
-  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
+  const cleanPrice =
 
-  const mins = minutesUntilTrip(date,time);
+  Number(
+
+    String(tripData.price)
+    .replace(/[^0-9.]/g,"")
+
+  );
+
+  const mins =
+  minutesUntilTrip(
+    date,
+    time
+  );
 
   if(mins <= 120){
-    if(!confirm("Trip is within 120 minutes. Cancellation fee will be $15. Continue?")){
+
+    if(
+
+      !confirm(
+
+        "Trip is within 120 minutes. Cancellation fee will be $15. Continue?"
+
+      )
+
+    ){
+
       btn.disabled=false;
+
       return;
+
     }
+
   }
 
   const data = {
+
     type:"individual",
 
-    pickup: tripData.pickup,
-    dropoff: tripData.dropoff,
-    stops: tripData.stops || [],
+    pickup:
+    tripData.pickup,
 
-    priceAmount: cleanPrice,
+    dropoff:
+    tripData.dropoff,
 
-    clientName: name,
-    clientPhone: phone,
-    clientEmail: email,
+    stops:
+    tripData.stops || [],
 
-    // 🔥 مهم
-    vehicleTypeFromQuote: vehicleType,
+    priceAmount:
+    cleanPrice,
 
-    tripDate: date,
-    tripTime: time,
-    notes: notes
+    clientName:
+    name,
+
+    clientPhone:
+    phone,
+
+    clientEmail:
+    email,
+
+    /* 🔥 SERVICE */
+
+    serviceKey:
+
+    tripData.serviceKey ||
+
+    "STANDARD",
+
+    serviceTitle:
+
+    serviceTitle,
+
+    /* 🔥 DATE */
+
+    tripDate:
+    date,
+
+    tripTime:
+    time,
+
+    notes:
+    notes
+
   };
 
   try{
 
-    const res = await fetch("/api/trips",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(data)
-    });
+    const res =
+    await fetch(
 
-    const trip = await res.json();
+      "/api/trips",
 
-    document.getElementById("resultBox").style.display="block";
-    document.getElementById("resultBox").innerHTML = `
-      Trip Created Successfully<br><br>
-      Trip #: <b>${trip.tripNumber}</b>
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify(data)
+      }
+
+    );
+
+    const trip =
+    await res.json();
+
+    document.getElementById(
+      "resultBox"
+    ).style.display="block";
+
+    document.getElementById(
+      "resultBox"
+    ).innerHTML = `
+
+      Trip Created Successfully
+
+      <br><br>
+
+      Trip #:
+      <b>
+        ${trip.tripNumber}
+      </b>
+
     `;
 
     setTimeout(()=>{
-      window.location.href = `/booking/payment.html?tripId=${trip._id}`;
+
+      window.location.href =
+
+      `/booking/payment.html?tripId=${trip._id}`;
+
     },1500);
 
   }catch{
+
     alert("Server error");
+
     btn.disabled=false;
+
   }
+
 }
 
 </script>
