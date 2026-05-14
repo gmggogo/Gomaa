@@ -1190,6 +1190,49 @@ alert("Server pricing failed");
 
 function bookTrip(){
 
+const pickupVal =
+fixAZ(pickup.value);
+
+const dropVal =
+fixAZ(dropoff.value);
+
+const stops =
+Array
+.from(
+document.querySelectorAll(
+".stop-row input"
+)
+)
+.filter(i=>i.value)
+.map(i=>fixAZ(i.value));
+
+const tripData = {
+
+pickup: pickupVal,
+
+dropoff: dropVal,
+
+stops: stops,
+
+distance:
+document.getElementById("distance").innerText,
+
+price:
+document.getElementById("price").innerText,
+
+serviceKey:
+selectedService,
+
+vehicleType:
+selectedService
+
+};
+
+localStorage.setItem(
+"pendingTrip",
+JSON.stringify(tripData)
+);
+
 window.location.href =
 "/booking/index.html";
 
