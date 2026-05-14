@@ -8,7 +8,7 @@
 <style>
 
 body{
-  font-family:Arial;
+  font-family:Arial,sans-serif;
   background:#f8fafc;
   margin:0;
   color:#111827;
@@ -20,8 +20,6 @@ body{
   padding:15px;
 }
 
-/* MOBILE */
-
 @media(max-width:600px){
 
   .page{
@@ -29,7 +27,7 @@ body{
   }
 
   h1{
-    font-size:22px;
+    font-size:24px;
   }
 
   #map{
@@ -38,40 +36,112 @@ body{
 
 }
 
-/* HERO */
+/* ================= HERO ================= */
 
 .hero{
   background:linear-gradient(135deg,#0f172a,#2563eb);
   color:#fff;
-  border-radius:16px;
-  padding:20px;
+  border-radius:20px;
+  padding:22px;
   text-align:center;
   position:relative;
+  overflow:hidden;
 }
 
 .lang-btn{
   position:absolute;
-  right:10px;
-  top:10px;
+  right:12px;
+  top:12px;
   background:#fff;
   color:#111;
-  padding:6px 10px;
-  border-radius:8px;
+  padding:7px 12px;
+  border-radius:10px;
   font-size:12px;
   cursor:pointer;
+  font-weight:bold;
 }
 
-/* CARD */
+/* ================= TOP PRICING ================= */
+
+.pricing-bar{
+  margin-top:18px;
+}
+
+.pricing-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+
+.pricing-item{
+  background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:15px;
+  padding:12px;
+  backdrop-filter:blur(6px);
+  transition:.25s;
+}
+
+.pricing-item.active{
+  border:2px solid #fff;
+  background:rgba(255,255,255,.18);
+  box-shadow:0 0 22px rgba(255,255,255,.25);
+  transform:scale(1.02);
+}
+
+.pricing-last{
+  grid-column:1 / -1;
+  width:48%;
+  margin:auto;
+}
+
+.pricing-title{
+  font-size:15px;
+  font-weight:900;
+  margin-bottom:8px;
+  text-align:center;
+}
+
+.pricing-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-size:12px;
+  padding:3px 0;
+}
+
+.pricing-label{
+  opacity:.85;
+}
+
+.pricing-value{
+  font-weight:800;
+  color:#fff;
+}
+
+@media(max-width:600px){
+
+  .pricing-grid{
+    grid-template-columns:1fr;
+  }
+
+  .pricing-last{
+    width:100%;
+  }
+
+}
+
+/* ================= CARD ================= */
 
 .card{
   background:#fff;
-  border-radius:16px;
+  border-radius:18px;
   padding:15px;
   margin-top:15px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.08)
+  box-shadow:0 5px 18px rgba(0,0,0,0.08);
 }
 
-/* INPUT */
+/* ================= INPUT ================= */
 
 input{
   width:100%;
@@ -83,7 +153,7 @@ input{
   box-sizing:border-box;
 }
 
-/* BUTTON */
+/* ================= BUTTON ================= */
 
 button{
   width:100%;
@@ -93,6 +163,7 @@ button{
   font-weight:bold;
   margin-top:8px;
   cursor:pointer;
+  transition:.25s;
 }
 
 .btn-primary{
@@ -110,54 +181,66 @@ button{
   color:#fff;
 }
 
-/* VEHICLE */
+/* ================= VEHICLES ================= */
 
 .vehicle-pricing{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:10px;
-  margin-bottom:12px;
+  margin-bottom:14px;
 }
 
 .vehicle-option{
   background:linear-gradient(135deg,#f8fafc,#e2e8f0);
   border:2px solid #e5e7eb;
   border-radius:16px;
-  padding:14px;
+  padding:12px;
   text-align:center;
   cursor:pointer;
-  transition:0.25s;
+  transition:.25s;
 }
 
 .vehicle-option.active{
   border-color:#2563eb;
   background:linear-gradient(135deg,#eff6ff,#dbeafe);
-  box-shadow:0 0 20px rgba(37,99,235,0.35);
+  box-shadow:0 0 18px rgba(37,99,235,.30);
   transform:scale(1.03);
 }
 
 .vehicle-option img{
-  width:70px;
-  height:45px;
+  width:62px;
+  height:40px;
   object-fit:contain;
-  margin:0 auto 6px;
+  margin:auto;
   display:block;
+  margin-bottom:6px;
 }
 
 .vehicle-emoji{
-  font-size:42px;
-  height:45px;
-  line-height:45px;
+  font-size:34px;
   margin-bottom:6px;
 }
 
 .vehicle-option b{
   display:block;
-  font-size:15px;
-  margin-bottom:4px;
+  font-size:14px;
 }
 
-/* STOP */
+.vehicle-last{
+  grid-column:1 / -1;
+  width:48%;
+  margin:auto;
+}
+
+@media(max-width:600px){
+
+  .vehicle-last{
+    width:100%;
+  }
+
+}
+
+/* ================= STOP ================= */
 
 .stop-row{
   display:flex;
@@ -167,27 +250,25 @@ button{
 .remove-btn{
   background:#ef4444;
   color:#fff;
-  padding:10px;
-  border-radius:10px;
   width:55px;
   margin-top:0;
   margin-bottom:10px;
 }
 
-/* MAP */
+/* ================= MAP ================= */
 
 #map{
   height:300px;
-  border-radius:12px;
+  border-radius:14px;
 }
 
-/* RESULT CARDS */
+/* ================= RESULT ================= */
 
 .quote-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:10px;
-  margin-top:15px
+  margin-top:15px;
 }
 
 .quote-grid div{
@@ -196,84 +277,59 @@ button{
   padding:14px;
   border-radius:12px;
   text-align:center;
-  box-shadow:0 8px 20px rgba(0,0,0,0.25);
 }
 
 .quote-grid b{
   display:block;
   margin-top:6px;
-  font-size:18px;
+  font-size:20px;
 }
-
-/* COLORS */
 
 #distance{
   color:#60a5fa;
-  text-shadow:0 0 10px #60a5fa;
 }
 
 #time{
   color:#fb923c;
-  text-shadow:0 0 10px #fb923c;
 }
 
 #price{
   color:#4ade80;
-  text-shadow:0 0 15px #4ade80;
 }
 
 #stopsCount{
   color:#facc15;
-  text-shadow:0 0 10px #facc15;
-}
-
-/* BOOK BUTTON */
-
-.btn-success.active{
-  animation:blinkBtn 0.7s infinite;
-}
-
-@keyframes blinkBtn{
-
-  0%{
-    opacity:1;
-    box-shadow:0 0 0px #22c55e;
-  }
-
-  50%{
-    opacity:0.45;
-    box-shadow:0 0 28px #22c55e,0 0 40px #22c55e;
-  }
-
-  100%{
-    opacity:1;
-    box-shadow:0 0 0px #22c55e;
-  }
-
 }
 
 .hidden{
   display:none;
 }
 
-.pricing{
-  margin-top:12px;
-}
-
 .loading-services{
   text-align:center;
   padding:20px;
-  color:#64748b;
-  font-weight:bold;
-}
-
-.dynamic-line{
-  padding:4px 0;
-  font-size:14px;
-}
-
-.dynamic-line b{
   color:#fff;
+}
+
+.btn-success.active{
+  animation:blinkBtn .7s infinite;
+}
+
+@keyframes blinkBtn{
+
+  0%{
+    opacity:1;
+  }
+
+  50%{
+    opacity:.5;
+    box-shadow:0 0 25px #22c55e;
+  }
+
+  100%{
+    opacity:1;
+  }
+
 }
 
 </style>
@@ -301,14 +357,14 @@ Get Quote
 style="
 margin-top:10px;
 font-weight:bold;
-font-size:15px
+font-size:15px;
 "
 >
 Payment Calculation
 </div>
 
 <div
-class="pricing"
+class="pricing-bar"
 id="pricing"
 >
 Loading Services...
@@ -323,7 +379,7 @@ class="vehicle-pricing"
 id="vehicleContainer"
 >
 <div class="loading-services">
-Loading services...
+Loading...
 </div>
 </div>
 
@@ -415,7 +471,7 @@ let directionsService;
 let directionsRenderer;
 
 /* =========================
-   ICONS
+   IMAGES
 ========================= */
 
 function getServiceImage(serviceKey){
@@ -429,21 +485,19 @@ function getServiceImage(serviceKey){
   }
 
   return "";
+
 }
 
 function getServiceEmoji(serviceKey){
 
   if(serviceKey === "STANDARD") return "🚗";
-
   if(serviceKey === "XL") return "🚐";
-
   if(serviceKey === "TAXI") return "🚕";
-
   if(serviceKey === "LIMO") return "🚘";
-
   if(serviceKey === "WHEELCHAIR") return "🦽";
 
   return "🚘";
+
 }
 
 /* =========================
@@ -453,60 +507,53 @@ function getServiceEmoji(serviceKey){
 async function loadServices(){
 
   const container =
-    document.getElementById(
-      "vehicleContainer"
-    );
+  document.getElementById(
+    "vehicleContainer"
+  );
 
   const pricingBox =
-    document.getElementById(
-      "pricing"
-    );
+  document.getElementById(
+    "pricing"
+  );
 
   try{
 
     const res =
-      await fetch("/api/services");
+    await fetch("/api/services");
 
     const data =
-      await res.json();
+    await res.json();
 
     servicesData =
-      Array.isArray(data)
-        ? data
-        : [];
+    Array.isArray(data)
+    ? data
+    : [];
 
     const visibleServices =
-      servicesData.filter(service=>{
+    servicesData.filter(service=>{
 
-        const key =
-          String(
-            service.serviceKey || ""
-          ).toUpperCase();
+      const key =
+      String(
+        service.serviceKey || ""
+      ).toUpperCase();
 
-        if(key === "SHARED"){
-          return false;
-        }
+      if(key === "SHARED"){
+        return false;
+      }
 
-        return service.enabled === true;
+      return service.enabled === true;
 
-      });
+    });
 
 /* =========================
-   DYNAMIC CARDS
+   PRICING TABLE
 ========================= */
 
-pricingBox.innerHTML =
-`
-<div style="
-display:grid;
-grid-template-columns:
-repeat(auto-fit,minmax(220px,1fr));
-gap:12px;
-margin-top:15px;
-">
+pricingBox.innerHTML = `
 
-${
-visibleServices.map(service=>{
+<div class="pricing-grid">
+
+${visibleServices.map((service,index)=>{
 
 const mode =
 String(
@@ -514,86 +561,48 @@ service.pricingMode || ""
 ).toUpperCase();
 
 const title =
-service.title ||
-service.name ||
-"";
+service.title || "";
 
-let lines = "";
-
-/* =========================
-   HOURLY
-========================= */
+let rows = "";
 
 if(mode === "HOURLY"){
 
-lines = `
+rows = `
 
-<div class="dynamic-line">
-💰 Hourly:
-<b>
-$${Number(service.hourlyRate || 0)}
-/ hour
-</b>
+<div class="pricing-row">
+<div class="pricing-label">
+Hourly
+</div>
+
+<div class="pricing-value">
+$${Number(service.hourlyRate || 0)}/h
+</div>
 </div>
 
 `;
 
-}
+}else{
 
-/* =========================
-   SHARED
-========================= */
+rows = `
 
-else if(mode === "SHARED"){
-
-lines = `
-
-<div class="dynamic-line">
-👥 Shared:
-<b>
-$${Number(service.sharedPrice || 0)}
-</b>
+<div class="pricing-row">
+<div class="pricing-label">
+Base
 </div>
 
-<div class="dynamic-line">
-🛑 Stop Fee:
-<b>
-$${Number(service.stopFee || 0)}
-</b>
-</div>
-
-`;
-
-}
-
-/* =========================
-   PER MILE
-========================= */
-
-else{
-
-lines = `
-
-<div class="dynamic-line">
-🚘 Base Fare:
-<b>
+<div class="pricing-value">
 $${Number(service.baseFare || 0)}
-</b>
+</div>
 </div>
 
-<div class="dynamic-line">
-📍 Included:
-<b>
-${Number(service.includedMiles || 0)}
-mi
-</b>
+<div class="pricing-row">
+<div class="pricing-label">
+Per Mile
 </div>
 
-<div class="dynamic-line">
-🛣 Per Mile:
-<b>
+<div class="pricing-value">
 $${Number(service.perMile || 0)}
-</b>
+</div>
 </div>
 
 `;
@@ -602,121 +611,133 @@ $${Number(service.perMile || 0)}
 
 return `
 
-<div style="
-background:rgba(255,255,255,.12);
-border:1px solid rgba(255,255,255,.15);
-backdrop-filter:blur(6px);
-border-radius:18px;
-padding:14px;
-text-align:left;
-">
+<div
+class="
+pricing-item
+${index === 4 ? "pricing-last" : ""}
+"
+id="price-card-${service.serviceKey}"
+>
 
-<div style="
-font-size:18px;
-font-weight:900;
-margin-bottom:10px;
-">
-
+<div class="pricing-title">
 ${title}
-
 </div>
 
-${lines}
+${rows}
 
-<div class="dynamic-line">
-⏱ Waiting:
-<b>
-15 min
-</b>
+<div class="pricing-row">
+<div class="pricing-label">
+Waiting
 </div>
 
-<div class="dynamic-line">
-❌ No Show:
-<b>
+<div class="pricing-value">
+15m
+</div>
+</div>
+
+<div class="pricing-row">
+<div class="pricing-label">
+No Show
+</div>
+
+<div class="pricing-value">
 $${Number(service.noShowFee || 0)}
-</b>
+</div>
 </div>
 
-<div class="dynamic-line">
-🚫 Cancellation:
-<b>
+<div class="pricing-row">
+<div class="pricing-label">
+Cancel
+</div>
+
+<div class="pricing-value">
 $15
-</b>
+</div>
 </div>
 
 </div>
 
 `;
 
-}).join("")
+}).join("")}
+
+</div>
+
+`;
+
+/* =========================
+   VEHICLES
+========================= */
+
+container.innerHTML = "";
+
+visibleServices.forEach((service,index)=>{
+
+const serviceKey =
+String(
+service.serviceKey || ""
+).toUpperCase();
+
+const title =
+service.title ||
+serviceKey;
+
+const image =
+getServiceImage(serviceKey);
+
+const emoji =
+getServiceEmoji(serviceKey);
+
+const card =
+document.createElement("div");
+
+card.className =
+`
+vehicle-option
+${index === 4 ? "vehicle-last" : ""}
+`;
+
+let mediaHtml = "";
+
+if(image){
+
+mediaHtml =
+`<img src="${image}">`;
+
+}else{
+
+mediaHtml =
+`
+<div class="vehicle-emoji">
+${emoji}
+</div>
+`;
+
 }
 
-</div>
+card.innerHTML = `
+${mediaHtml}
+<b>${title}</b>
 `;
 
-    container.innerHTML = "";
+card.onclick = function(){
 
-    visibleServices.forEach(service=>{
+selectService(
+service,
+card
+);
 
-      const serviceKey =
-        String(
-          service.serviceKey || ""
-        ).toUpperCase();
+};
 
-      const title =
-        service.title ||
-        service.name ||
-        serviceKey;
+container.appendChild(card);
 
-      const image =
-        getServiceImage(serviceKey);
+});
 
-      const emoji =
-        getServiceEmoji(serviceKey);
+}catch(err){
 
-      const card =
-        document.createElement("div");
+console.log(err);
 
-      card.className =
-        "vehicle-option";
-
-      let mediaHtml = "";
-
-      if(image){
-
-        mediaHtml =
-          `<img src="${image}">`;
-
-      }else{
-
-        mediaHtml =
-          `<div class="vehicle-emoji">${emoji}</div>`;
-
-      }
-
-      card.innerHTML = `
-        ${mediaHtml}
-        <b>${title}</b>
-      `;
-
-      card.onclick = function(){
-
-        selectService(
-          service,
-          card
-        );
-
-      };
-
-      container.appendChild(card);
-
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-  }
+}
 
 }
 
@@ -724,24 +745,39 @@ $15
    SELECT
 ========================= */
 
-function selectService(service, card){
+function selectService(service,card){
 
-  selectedServiceData = service;
+selectedServiceData = service;
 
-  selectedService =
-    String(
-      service.serviceKey || ""
-    ).toUpperCase();
+selectedService =
+String(
+service.serviceKey || ""
+).toUpperCase();
 
-  document
-    .querySelectorAll(".vehicle-option")
-    .forEach(el=>{
-      el.classList.remove("active");
-    });
+document
+.querySelectorAll(".vehicle-option")
+.forEach(el=>{
+  el.classList.remove("active");
+});
 
-  card.classList.add("active");
+card.classList.add("active");
 
-  resetUI();
+document
+.querySelectorAll(".pricing-item")
+.forEach(el=>{
+  el.classList.remove("active");
+});
+
+const selectedPriceCard =
+document.getElementById(
+`price-card-${selectedService}`
+);
+
+if(selectedPriceCard){
+selectedPriceCard.classList.add("active");
+}
+
+resetUI();
 
 }
 
@@ -751,39 +787,39 @@ function selectService(service, card){
 
 function toggleLang(){
 
-  if(lang==="en"){
+if(lang==="en"){
 
-    lang="es";
+lang="es";
 
-    langBtn.innerText =
-      "Spanish / English";
+langBtn.innerText =
+"Spanish / English";
 
-    title.innerText =
-      "Cotizar Viaje";
+title.innerText =
+"Cotizar Viaje";
 
-    pickupLabel.innerText =
-      "Origen";
+pickupLabel.innerText =
+"Origen";
 
-    dropLabel.innerText =
-      "Destino";
+dropLabel.innerText =
+"Destino";
 
-  }else{
+}else{
 
-    lang="en";
+lang="en";
 
-    langBtn.innerText =
-      "English / Spanish";
+langBtn.innerText =
+"English / Spanish";
 
-    title.innerText =
-      "Get Quote";
+title.innerText =
+"Get Quote";
 
-    pickupLabel.innerText =
-      "Pickup";
+pickupLabel.innerText =
+"Pickup";
 
-    dropLabel.innerText =
-      "Dropoff";
+dropLabel.innerText =
+"Dropoff";
 
-  }
+}
 
 }
 
@@ -793,95 +829,94 @@ function toggleLang(){
 
 function initGoogle(){
 
-  map =
-    new google.maps.Map(
-      document.getElementById("map"),
-      {
-        center:{
-          lat:33.4484,
-          lng:-112.0740
-        },
+map =
+new google.maps.Map(
+document.getElementById("map"),
+{
+center:{
+lat:33.4484,
+lng:-112.0740
+},
 
-        zoom:11,
+zoom:11,
 
-        mapTypeControl:true,
+mapTypeControl:true,
 
-        fullscreenControl:true,
+fullscreenControl:true,
 
-        streetViewControl:false
-      }
-    );
+streetViewControl:false
+}
+);
 
-  directionsService =
-    new google.maps.DirectionsService();
+directionsService =
+new google.maps.DirectionsService();
 
-  directionsRenderer =
-    new google.maps.DirectionsRenderer({
+directionsRenderer =
+new google.maps.DirectionsRenderer({
 
-      suppressMarkers:false,
+suppressMarkers:false,
 
-      preserveViewport:false,
+preserveViewport:false,
 
-      polylineOptions:{
-        strokeColor:"#2563eb",
-        strokeOpacity:1,
-        strokeWeight:6
-      }
+polylineOptions:{
+strokeColor:"#2563eb",
+strokeOpacity:1,
+strokeWeight:6
+}
 
-    });
+});
 
-  /* 🔥 IMPORTANT */
-
-  directionsRenderer.setMap(map);
+directionsRenderer.setMap(map);
 
 }
+
 /* =========================
    STOPS
 ========================= */
 
 function addStop(){
 
-  const row =
-    document.createElement("div");
+const row =
+document.createElement("div");
 
-  row.className =
-    "stop-row";
+row.className =
+"stop-row";
 
-  const input =
-    document.createElement("input");
+const input =
+document.createElement("input");
 
-  input.placeholder =
-    lang==="es"
-      ? "Parada"
-      : "Stop";
+input.placeholder =
+lang==="es"
+? "Parada"
+: "Stop";
 
-  input.addEventListener(
-    "input",
-    resetUI
-  );
+input.addEventListener(
+"input",
+resetUI
+);
 
-  const remove =
-    document.createElement("button");
+const remove =
+document.createElement("button");
 
-  remove.innerText = "X";
+remove.innerText = "X";
 
-  remove.className =
-    "remove-btn";
+remove.className =
+"remove-btn";
 
-  remove.onclick = function(){
+remove.onclick = function(){
 
-    row.remove();
+row.remove();
 
-    resetUI();
+resetUI();
 
-  };
+};
 
-  row.appendChild(input);
-  row.appendChild(remove);
+row.appendChild(input);
+row.appendChild(remove);
 
-  document
-    .getElementById("stops")
-    .appendChild(row);
+document
+.getElementById("stops")
+.appendChild(row);
 
 }
 
@@ -891,22 +926,22 @@ function addStop(){
 
 function resetUI(){
 
-  bookBtn.classList.add("hidden");
+bookBtn.classList.add("hidden");
 
-  bookBtn.classList.remove("active");
+bookBtn.classList.remove("active");
 
-  priceBox.classList.add("hidden");
+priceBox.classList.add("hidden");
 
 }
 
 pickup.addEventListener(
-  "input",
-  resetUI
+"input",
+resetUI
 );
 
 dropoff.addEventListener(
-  "input",
-  resetUI
+"input",
+resetUI
 );
 
 /* =========================
@@ -915,23 +950,23 @@ dropoff.addEventListener(
 
 function fixAZ(address){
 
-  address =
-    String(address || "")
-      .trim();
+address =
+String(address || "")
+.trim();
 
-  if(address === ""){
-    return "";
-  }
+if(address === ""){
+return "";
+}
 
-  if(
-    !address
-      .toLowerCase()
-      .includes("arizona")
-  ){
-    return address + ", Arizona";
-  }
+if(
+!address
+.toLowerCase()
+.includes("arizona")
+){
+return address + ", Arizona";
+}
 
-  return address;
+return address;
 
 }
 
@@ -941,197 +976,211 @@ function fixAZ(address){
 
 function calculate(){
 
-  if(!selectedService){
+if(!selectedService){
 
-    alert("Select service");
+alert("Select service");
+return;
 
-    return;
+}
 
-  }
+const pickupVal =
+fixAZ(pickup.value);
 
-  const pickupVal =
-    fixAZ(pickup.value);
+const dropVal =
+fixAZ(dropoff.value);
 
-  const dropVal =
-    fixAZ(dropoff.value);
+if(!pickupVal || !dropVal){
 
-  if(!pickupVal || !dropVal){
+alert("Enter valid address");
+return;
 
-    alert("Enter valid address");
+}
 
-    return;
+const stopsInputs =
+Array
+.from(
+document.querySelectorAll(
+".stop-row input"
+)
+)
+.filter(i=>i.value)
+.map(i=>({
+location:fixAZ(i.value)
+}));
 
-  }
+directionsService.route({
 
-  const stopsInputs =
-    Array
-      .from(
-        document.querySelectorAll(
-          ".stop-row input"
-        )
-      )
-      .filter(i=>i.value)
-      .map(i=>({
-        location:fixAZ(i.value)
-      }));
+origin:pickupVal,
 
-  directionsService.route({
+destination:dropVal,
 
-    origin:pickupVal,
+waypoints:stopsInputs,
 
-    destination:dropVal,
+travelMode:"DRIVING",
 
-    waypoints:stopsInputs,
+drivingOptions:{
+departureTime:new Date(),
+trafficModel:"bestguess"
+}
 
-    travelMode:"DRIVING",
+}, async function(res,status){
 
-    drivingOptions:{
-      departureTime:new Date(),
-      trafficModel:"bestguess"
-    }
+if(status !== "OK"){
 
-  }, async function(res,status){
+alert("Address not valid");
+return;
 
-    if(status !== "OK"){
+}
 
-      alert("Address not valid");
+directionsRenderer.setDirections(res);
 
-      return;
-
-    }
-
-    directionsRenderer.setDirections(res);
 const bounds =
-  new google.maps.LatLngBounds();
+new google.maps.LatLngBounds();
 
 res.routes[0].legs.forEach(leg=>{
 
-  bounds.extend(
-    leg.start_location
-  );
+bounds.extend(
+leg.start_location
+);
 
-  bounds.extend(
-    leg.end_location
-  );
+bounds.extend(
+leg.end_location
+);
 
 });
 
 map.fitBounds(bounds);
-    let meters = 0;
-    let sec = 0;
 
-    res.routes[0].legs.forEach(l=>{
+let meters = 0;
+let sec = 0;
 
-      meters += l.distance.value;
-      sec += l.duration.value;
+res.routes[0].legs.forEach(l=>{
 
-    });
+meters += l.distance.value;
+sec += l.duration.value;
 
-    const miles =
-      meters / 1609;
+});
 
-    const mins =
-      Math.round(sec / 60);
+const miles =
+meters / 1609;
 
-    const stops =
-      stopsInputs.length;
+const mins =
+Math.round(sec / 60);
 
-    try{
+const stops =
+stopsInputs.length;
 
-      const pricingRes =
-        await fetch(
-          "/api/pricing/calculate",
-          {
-            method:"POST",
+try{
 
-            headers:{
-              "Content-Type":"application/json"
-            },
+const pricingRes =
+await fetch(
+"/api/pricing/calculate",
+{
+method:"POST",
 
-            body:JSON.stringify({
+headers:{
+"Content-Type":"application/json"
+},
 
-              serviceKey:
-                selectedService,
+body:JSON.stringify({
 
-              miles:miles,
+serviceKey:
+selectedService,
 
-              minutes:mins,
+miles:miles,
 
-              stops:stops
+minutes:mins,
 
-            })
-          }
-        );
+stops:stops
 
-      const pricingData =
-        await pricingRes.json();
+})
+}
+);
 
-      if(!pricingData.success){
+const pricingData =
+await pricingRes.json();
 
-        alert("Pricing error");
+if(!pricingData.success){
 
-        return;
+alert("Pricing error");
+return;
 
-      }
+}
 
-      let totalPrice = 0;
+const pricingMode =
+String(
+pricingData.pricingMode || ""
+).toUpperCase();
 
-      const pricingMode =
-        String(
-          pricingData.pricingMode || ""
-        ).toUpperCase();
+let totalPrice = 0;
 
-      if(pricingMode === "HOURLY"){
+/* =========================
+   HOURLY
+========================= */
 
-        const hours =
-          Math.max(
-            1,
-            Math.ceil(mins / 60)
-          );
+if(pricingMode === "HOURLY"){
 
-        totalPrice =
-          hours *
-          Number(
-            pricingData.hourlyRate || 0
-          );
+const hourlyRate =
+Number(
+pricingData.service?.hourlyRate || 0
+);
 
-      }else{
+const hours =
+Math.max(
+1,
+Math.ceil(mins / 60)
+);
 
-        totalPrice =
-          Number(
-            pricingData.total || 0
-          );
+totalPrice =
+hours * hourlyRate;
 
-      }
+}
 
-      distance.innerText =
-        miles.toFixed(2) + " mi";
+/* =========================
+   PER MILE
+========================= */
 
-      stopsCount.innerText =
-        stops;
+else{
 
-      time.innerText =
-        mins + " min";
+totalPrice =
+Number(
+pricingData.total || 0
+);
 
-      price.innerText =
-        "$" +
-        totalPrice.toFixed(2);
+}
 
-      priceBox.classList.remove("hidden");
+/* =========================
+   SHOW
+========================= */
 
-      bookBtn.classList.remove("hidden");
+distance.innerText =
+miles.toFixed(2) + " mi";
 
-      bookBtn.classList.add("active");
+stopsCount.innerText =
+stops;
 
-    }catch(err){
+time.innerText =
+mins + " min";
 
-      console.log(err);
+price.innerText =
+"$" +
+Number(totalPrice).toFixed(2);
 
-      alert("Server pricing failed");
+priceBox.classList.remove("hidden");
 
-    }
+bookBtn.classList.remove("hidden");
 
-  });
+bookBtn.classList.add("active");
+
+}catch(err){
+
+console.log(err);
+
+alert("Server pricing failed");
+
+}
+
+});
 
 }
 
@@ -1141,35 +1190,35 @@ map.fitBounds(bounds);
 
 function bookTrip(){
 
-  window.location.href =
-    "/booking/index.html";
+window.location.href =
+"/booking/index.html";
 
 }
 
 /* =========================
-   LOAD GOOGLE
+   GOOGLE
 ========================= */
 
 async function loadGoogle(){
 
-  const res =
-    await fetch("/api/config");
+const res =
+await fetch("/api/config");
 
-  const data =
-    await res.json();
+const data =
+await res.json();
 
-  const script =
-    document.createElement("script");
+const script =
+document.createElement("script");
 
-  script.src =
-    `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+script.src =
+`https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
 
-  script.async = true;
+script.async = true;
 
-  document.head.appendChild(script);
+document.head.appendChild(script);
 
-  script.onload =
-    initGoogle;
+script.onload =
+initGoogle;
 
 }
 
@@ -1179,9 +1228,9 @@ async function loadGoogle(){
 
 window.onload = async function(){
 
-  await loadServices();
+await loadServices();
 
-  await loadGoogle();
+await loadGoogle();
 
 };
 
