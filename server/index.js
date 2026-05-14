@@ -1017,40 +1017,29 @@ const suffix =
 if (type === "individual") {
 
   const lastTrip = await Trip.findOne({
-    tripNumber: { $regex: /^IN-\d+$/ }
+    tripNumber: { $regex: /^IN-\d+/ }
   }).sort({ createdAt: -1, _id: -1 });
 
   let next = 1001;
 
   if (lastTrip?.tripNumber) {
 
-    const num = parseInt(
-      lastTrip.tripNumber.replace("IN-", ""),
-      10
-    );
+    const match =
+      lastTrip.tripNumber.match(/\d+/);
 
-    if (!isNaN(num)) {
-      next = num + 1;
+    if (match) {
+      next = Number(match[0]) + 1;
     }
 
   }
 
-  let tripNumber = "IN-" + next;
+  let tripNumber = `IN-${next}`;
 
   if (suffix) {
-    tripNumber = `${tripNumber}-${suffix}`;
-  }
-
-  const exists = await Trip.findOne({
-    tripNumber
-  });
-
-  if (exists) {
-    return generateTripNumber(type, serviceKey);
+    tripNumber += `-${suffix}`;
   }
 
   return tripNumber;
-
 }
 
   /* =========================
