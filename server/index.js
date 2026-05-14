@@ -929,23 +929,28 @@ async function ensureDriverScheduleCoords(driverId, scheduleRow) {
 
 async function generateTripNumber(type, serviceKey = "") {
 
-  /* =========================
-     SERVICE SUFFIX
-  ========================= */
+/* =========================
+   SERVICE SUFFIX (CLEAN FINAL)
+========================= */
 
-  const SERVICE_SUFFIX_MAP = {
-    STANDARD: "ST",
-    XL: "XL",
-    TAXI: "TA",
-    LIMO: "LI",
-    WHEELCHAIR: "WH",
-    SHARED: "SH"
-  };
+const SERVICE_SUFFIX_MAP = {
+  STANDARD: "ST",
+  XL: "XL",
+  TAXI: "TA",
+  LIMO: "LI",
+  WHEELCHAIR: "WH",
+  SHARED: "SH"
+};
 
-  const suffix =
-    SERVICE_SUFFIX_MAP[
-      String(serviceKey || "").toUpperCase()
-    ] || String(serviceKey || "").slice(0, 2);
+const cleanKey =
+  String(serviceKey || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
+const suffix =
+  SERVICE_SUFFIX_MAP[cleanKey] || cleanKey.slice(0, 2);
+
 
   /* =========================
      GH TYPE
@@ -2943,116 +2948,126 @@ app.post("/api/trips", async (req, res) => {
 
     const type = normalizeTripType(req.body.type);
 
-/* =========================
-   COMPANY LOCK CHECK
-========================= */
-
-const companyName =
-  normalizeText(req.body.company);
-
-if(companyName){
-
-  const companyUser =
-    await User.findOne({
-
-      role:"company",
-
-      name:{
-        $regex:
-          "^" + companyName + "$",
-
-        $options:"i"
-      }
-
-    });
-
- if(
-  companyUser &&
-  (
-    companyUser.billingLocked === true ||
-    companyUser.billingLocked === "true" ||
-    companyUser.billingLocked === 1
-  )
-){
-
-    return res.status(403).json({
-
-      message:
-        "Company account locked بسبب عدم الدفع"
-
-    });
-
-  }
-
-}
-
-// 🔥 هل شيرد؟
-const isShared = req.body.isShared === true;
-
-
-    // 🔥 رقم الرحلة (لو شيرد يضيف SH)
-    const tripNumber = await generateTripNumber(
-      isShared ? "shared" : type
-    );
-
-    const pickup = normalizeText(req.body.pickup);
-    const dropoff = normalizeText(req.body.dropoff);
-
-    const vehicleTypeFromQuote =
-      ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
-        ? req.body.vehicleTypeFromQuote
-        : "X";
-
     /* =========================
-       🧠 SHARED DATA
+       COMPANY LOCK CHECK
     ========================= */
 
-    let groupId = "";
-    let passengers = [];
-    let totalPassengers = 1;
+    const companyName = normalizeText(req.body.company);
 
-    if (isShared) {
+    if (companyName) {
 
-      if (Array.isArray(req.body.passengers)) {
-        passengers = req.body.passengers;
-        totalPassengers = passengers.length;
+      const companyUser = await User.findOne({
+        role: "company",
+        name: {
+          $regex: "^" + companyName + "$",
+          $options: "i"
+        }
+      });
+
+      if (
+        companyUser &&
+        (
+          companyUser.billingLocked === true ||
+          companyUser.billingLocked === "true" ||
+          companyUser.billingLocked === 1
+        )
+      ) {
+        return res.status(403).json({
+          message: "Company account locked بسبب عدم الدفع"
+        });
       }
     }
 
-    /* =========================
-   🔴 SHARED CREATE (FINAL CLEAN)
+    // 🔥 هل شيرد؟
+    const isShared = req.body.isShared === true;
+
+/* =========================
+   SHARED + VEHICLE SETUP (FIXED)
 ========================= */
 
-if (isShared && passengers.length > 0) {
+// 🔥 هل الرحلة شيرد؟
+const isShared = req.body.isShared === true;
+
+/* =========================
+   VEHICLE TYPE (FIXED)
+========================= */
+
+const vehicleTypeFromQuote =
+  ["X", "XL"].includes(req.body.vehicleTypeFromQuote)
+    ? req.body.vehicleTypeFromQuote
+    : "STANDARD";
+
+/* =========================
+   BASIC FIELDS
+========================= */
+
+const pickup = normalizeText(req.body.pickup);
+const dropoff = normalizeText(req.body.dropoff);
+
+/* =========================
+   SHARED DATA (SAFE FIX)
+========================= */
+
+let groupId = "";
+let passengers = [];
+let totalPassengers = 0;
+
+// 🔥 لازم shared يكون عنده passengers حقيقيين
+if (isShared) {
+
+  if (
+    Array.isArray(req.body.passengers) &&
+    req.body.passengers.length > 0
+  ) {
+
+    passengers = req.body.passengers;
+    totalPassengers = passengers.length;
+
+    // optional: generate groupId if empty
+    groupId = "GRP-" + Date.now();
+
+  } else {
+
+    return res.status(400).json({
+      message: "Shared trip must include passengers"
+    });
+
+  }
+}
+
+/* =========================
+   SHARED CREATE (FINAL CLEAN)
+========================= */
+
+if (isShared) {
 
   const trip = await Trip.create({
 
     type,
     tripNumber,
 
-    // 🔥 SHARED
+    // 🔥 SHARED FLAGS
     isShared: true,
     groupId,
     tripType: "SHARED",
-    sharedSuffix: "-SH",
+    sharedSuffix: "SH",
 
     company: normalizeText(req.body.company),
 
     entryName: normalizeText(req.body.entryName),
     entryPhone: normalizeText(req.body.entryPhone),
 
-    // 🔥 كل الركاب هنا
-    passengers: passengers,
+    // 🔥 PASSENGERS
+    passengers,
+    totalPassengers,
 
-    totalPassengers: passengers.length,
-
-    // 👇 عرض سريع
+    // fallback display
     clientName: "Shared Trip",
     clientPhone: "",
 
-    // 👇 route
-    pickup: passengers[0]?.pickup || "",
-    dropoff: passengers[passengers.length - 1]?.dropoff || "",
+    // 🔥 ROUTE LOGIC
+    pickup: passengers[0]?.pickup || pickup,
+    dropoff: passengers[passengers.length - 1]?.dropoff || dropoff,
 
     pickupLat: null,
     pickupLng: null,
@@ -3078,7 +3093,6 @@ if (isShared && passengers.length > 0) {
 
   return res.status(200).json(trip);
 }
-
     /* =========================
        🟢 INDIVIDUAL CREATE
     ========================= */
