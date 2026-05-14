@@ -48,6 +48,15 @@ const serviceSchema = new mongoose.Schema({
     default:0
   },
 
+  /* =========================
+     HOURLY BILLING MODE
+  ========================= */
+
+  hourlyBillingMode:{
+    type:String,
+    default:"FULL"
+  },
+
   stopFee:{
     type:Number,
     default:0

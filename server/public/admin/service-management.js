@@ -239,6 +239,51 @@ function renderServices(){
 
         </div>
 
+        <!-- =========================
+             NEW HOURLY BILLING
+        ========================== -->
+
+        <div class="field">
+
+          <label>
+            Hourly Billing
+          </label>
+
+          <select
+            id="hourmode-${service._id}"
+            disabled
+          >
+
+            <option
+              value="FULL"
+              ${
+                String(
+                  service.hourlyBillingMode || ""
+                ).toUpperCase()==="FULL"
+                ? "selected"
+                : ""
+              }
+            >
+              Full Hour
+            </option>
+
+            <option
+              value="QUARTER"
+              ${
+                String(
+                  service.hourlyBillingMode || ""
+                ).toUpperCase()==="QUARTER"
+                ? "selected"
+                : ""
+              }
+            >
+              Quarter Hour
+            </option>
+
+          </select>
+
+        </div>
+
         <div class="field">
 
           <label>
@@ -329,6 +374,10 @@ function enableEdit(id){
     `included-${id}`,
     `mile-${id}`,
     `hour-${id}`,
+
+    /* 🔥 NEW */
+    `hourmode-${id}`,
+
     `stop-${id}`,
     `noshow-${id}`,
     `shared-${id}`
@@ -394,6 +443,12 @@ async function saveService(id){
           `hour-${id}`
         ).value
       ),
+
+      /* 🔥 NEW */
+      hourlyBillingMode:
+      document.getElementById(
+        `hourmode-${id}`
+      ).value,
 
       stopFee:Number(
         document.getElementById(

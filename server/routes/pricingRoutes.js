@@ -150,14 +150,52 @@ if(pricingMode === "HOURLY"){
 
     Number(minutes || 0);
 
-  const hours =
+  let hours = 1;
 
-    Math.max(
-      1,
-      Math.ceil(
-        totalMinutes / 60
-      )
-    );
+  /* =========================
+     QUARTER HOUR
+  ========================== */
+
+  if(
+
+    String(
+      service.hourlyBillingMode || ""
+    )
+    .toUpperCase()
+
+    ===
+
+    "QUARTER"
+
+  ){
+
+    hours =
+
+      Math.max(
+        1,
+        Math.ceil(
+          totalMinutes / 15
+        ) / 4
+      );
+
+  }
+
+  /* =========================
+     FULL HOUR
+  ========================== */
+
+  else{
+
+    hours =
+
+      Math.max(
+        1,
+        Math.ceil(
+          totalMinutes / 60
+        )
+      );
+
+  }
 
   total =
 
@@ -284,6 +322,9 @@ return res.json({
     service.title,
 
     pricingMode,
+
+    hourlyBillingMode:
+    service.hourlyBillingMode,
 
     baseFare:
     Number(
