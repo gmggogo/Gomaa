@@ -1,9 +1,17 @@
+<!-- =========================
+FILE: public/index.html
+========================= -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>Sunbeam Transportation</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>GH Mobility</title>
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <!-- ICON -->
 <link rel="icon" href="assets/app-icon.png">
@@ -13,19 +21,37 @@
 
 <style>
 
-/* شيل التظليل */
+/* =========================
+GLOBAL
+========================= */
+
+body{
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    background:#f8fafc;
+    color:#0f172a;
+}
+
 .highlight{
     background:none !important;
     color:inherit;
     font-weight:bold;
 }
 
-/* layout */
+/* =========================
+TOP BAR
+========================= */
+
 .top-bar{
     display:flex;
     justify-content:space-between;
     align-items:center;
-    padding:10px;
+    padding:12px 16px;
+    background:#fff;
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
+    position:sticky;
+    top:0;
+    z-index:999;
 }
 
 .top-links{
@@ -33,165 +59,450 @@
     gap:10px;
 }
 
-/* اللغة */
-.lang-right{
-    display:flex;
-    gap:5px;
+.top-links a{
+    text-decoration:none;
+    padding:10px 14px;
+    border-radius:12px;
+    font-size:14px;
+    font-weight:700;
+    color:#fff;
 }
 
-/* ================= MOBILE ================= */
+.facility-login{
+    background:#2563eb;
+}
+
+.staff-login{
+    background:#0f172a;
+}
+
+.lang-right{
+    display:flex;
+    gap:8px;
+}
+
+.lang-right button{
+    border:none;
+    border-radius:20px;
+    padding:8px 14px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    background:#e2e8f0;
+}
+
+/* =========================
+HERO
+========================= */
+
+.hero{
+    width:100%;
+    height:420px;
+    overflow:hidden;
+    position:relative;
+}
+
+.hero img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.hero-overlay{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.35);
+
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    text-align:center;
+    color:#fff;
+
+    padding:20px;
+}
+
+.hero-overlay h1{
+    font-size:52px;
+    margin:0 0 15px;
+}
+
+.hero-overlay p{
+    max-width:800px;
+    font-size:20px;
+    line-height:1.6;
+}
+
+/* =========================
+ABOUT
+========================= */
+
+.about{
+    padding:70px 20px;
+    text-align:center;
+    max-width:1000px;
+    margin:auto;
+}
+
+.about h2{
+    font-size:38px;
+    margin-bottom:20px;
+}
+
+.about p{
+    font-size:18px;
+    line-height:1.9;
+    color:#475569;
+}
+
+/* =========================
+QUOTE HEADER
+========================= */
+
+.quote-header{
+    text-align:center;
+    padding:20px;
+}
+
+.quote-header h2{
+    font-size:36px;
+    margin-bottom:10px;
+}
+
+.quote-header p{
+    color:#64748b;
+    font-size:18px;
+}
+
+/* =========================
+SERVICES
+========================= */
+
+.services{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:25px;
+    padding:40px 20px 60px;
+    max-width:1400px;
+    margin:auto;
+}
+
+.card{
+    background:#fff;
+    border-radius:24px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.08);
+    transition:.25s;
+}
+
+.card:hover{
+    transform:translateY(-5px);
+}
+
+.card img{
+    width:100%;
+    height:220px;
+    object-fit:cover;
+}
+
+.card-content{
+    padding:20px;
+    text-align:center;
+}
+
+.card h3{
+    margin-top:0;
+    font-size:28px;
+}
+
+.card p{
+    color:#64748b;
+    line-height:1.7;
+}
+
+.btn{
+    display:inline-block;
+    margin-top:15px;
+    text-decoration:none;
+    background:#2563eb;
+    color:#fff;
+    padding:12px 20px;
+    border-radius:14px;
+    font-weight:700;
+}
+
+/* =========================
+CONTACT
+========================= */
+
+.contact-section{
+    text-align:center;
+    padding:50px 20px;
+    font-size:18px;
+    line-height:2;
+}
+
+/* =========================
+FOOTER
+========================= */
+
+footer{
+    background:#0f172a;
+    color:#fff;
+    text-align:center;
+    padding:22px;
+    font-size:15px;
+}
+
+/* =========================
+MOBILE
+========================= */
+
 @media(max-width:768px){
 
     .top-bar{
         flex-direction:row;
-        justify-content:space-between;
         align-items:center;
     }
 
-    /* الشمال */
     .top-links a{
         font-size:12px;
-        padding:6px 8px;
+        padding:7px 10px;
     }
 
-    /* اليمين */
     .lang-right button{
         font-size:12px;
-        padding:5px 8px;
-        border-radius:15px;
+        padding:6px 10px;
     }
-}
 
-/* تحت الكروت */
-.contact-section{
-    text-align:center;
-    margin:40px 0;
-    font-size:18px;
-    line-height:1.8;
+    .hero{
+        height:320px;
+    }
+
+    .hero-overlay h1{
+        font-size:34px;
+    }
+
+    .hero-overlay p{
+        font-size:16px;
+    }
+
+    .about h2,
+    .quote-header h2{
+        font-size:28px;
+    }
+
 }
 
 </style>
 
 </head>
+
 <body>
 
-<!-- ================= TOP BAR ================= -->
+<!-- =========================
+TOP BAR
+========================= -->
+
 <div class="top-bar">
 
-    <!-- LEFT -->
     <div class="top-links">
-        <a href="companies/company-login.html" class="facility-login">
+
+        <a href="companies/company-login.html"
+           class="facility-login">
             Facility Login
         </a>
 
-        <a href="login.html" class="staff-login">
+        <a href="login.html"
+           class="staff-login">
             Staff Login
         </a>
+
     </div>
 
-    <!-- RIGHT -->
     <div class="lang-right">
-        <button onclick="setLang('en')">English</button>
-        <button onclick="setLang('es')">Spanish</button>
+
+        <button onclick="setLang('en')">
+            English
+        </button>
+
+        <button onclick="setLang('es')">
+            Spanish
+        </button>
+
     </div>
 
 </div>
 
-<!-- ================= HERO ================= -->
-<section class="hero">
-    <img src="assets/hero.jpeg" alt="Sunbeam Transportation">
+<!-- =========================
+HERO
+========================= -->
+
+<section class="hero"
+id="heroSection">
+
+    <img
+        src="assets/hero.jpeg"
+        id="heroImage"
+    >
+
+    <div class="hero-overlay">
+
+        <h1 id="heroTitle">
+            GH Mobility
+        </h1>
+
+        <p id="heroSubtitle">
+            Professional Transportation Solutions
+        </p>
+
+    </div>
+
 </section>
 
-<!-- ================= ABOUT ================= -->
-<section class="about">
-    <h2 data-en="About Sunbeam Transportation"
-        data-es="Sobre Sunbeam Transportation">
-        About Sunbeam Transportation
+<!-- =========================
+ABOUT
+========================= -->
+
+<section class="about"
+id="aboutSection">
+
+    <h2 id="aboutTitle">
+        About Us
     </h2>
 
-    <p data-en="Sunbeam Transportation is a licensed and professional transportation company specializing in Non-Emergency Medical Transportation (NEMT), airport transfers, and private transportation services."
-       data-es="Sunbeam Transportation es una empresa de transporte profesional con licencia, especializada en transporte médico no urgente (NEMT), traslados al aeropuerto y servicios privados.">
-        Sunbeam Transportation is a licensed and professional transportation company specializing in Non-Emergency Medical Transportation (NEMT), airport transfers, and private transportation services.
+    <p id="aboutDescription">
+        Professional transportation services.
     </p>
 
-    <p data-en="We are committed to providing safe, reliable, and high-quality transportation solutions."
-       data-es="Estamos comprometidos a brindar transporte seguro y confiable.">
-        We are committed to providing safe, reliable, and high-quality transportation solutions.
-    </p>
 </section>
 
-<!-- ================= GET QUOTE ================= -->
+<!-- =========================
+QUOTE HEADER
+========================= -->
+
 <section class="quote-header">
-    <h2 data-en="Get Quote & Book Your Ride"
-        data-es="Obtenga precio y reserve su viaje">
+
+    <h2>
         Get Quote & Book Your Ride
     </h2>
 
-    <p data-en="Select your service below to receive a price estimate and book your trip."
-       data-es="Seleccione su servicio para reservar su viaje.">
-        Select your service below to receive a price estimate and book your trip.
+    <p>
+        Select your service below.
     </p>
+
 </section>
 
-<!-- ================= SERVICES ================= -->
+<!-- =========================
+SERVICES
+========================= -->
+
 <section class="services">
 
+    <!-- NEMT -->
+
     <div class="card">
+
         <img src="assets/nemt.jpeg">
-        <h3>NEMT</h3>
-        <p data-en="Medical appointments & clinics"
-           data-es="Citas médicas y clínicas">
-            Medical appointments & clinics
-        </p>
-        <a href="getquote/index.html" class="btn">Get Quote</a>
+
+        <div class="card-content">
+
+            <h3>NEMT</h3>
+
+            <p>
+                Medical appointments & clinics
+            </p>
+
+            <a href="getquote/index.html"
+               class="btn">
+                Get Quote
+            </a>
+
+        </div>
+
     </div>
 
+    <!-- AIRPORT -->
+
     <div class="card">
+
         <img src="assets/airport.jpeg">
-        <h3>Airport</h3>
-        <p data-en="Airport pickup & drop-off"
-           data-es="Traslados al aeropuerto">
-            Airport pickup & drop-off
-        </p>
-        <a href="getquote/index.html" class="btn">Get Quote</a>
+
+        <div class="card-content">
+
+            <h3>Airport</h3>
+
+            <p>
+                Airport pickup & drop-off
+            </p>
+
+            <a href="getquote/index.html"
+               class="btn">
+                Get Quote
+            </a>
+
+        </div>
+
     </div>
 
+    <!-- BUSINESS -->
+
     <div class="card">
+
         <img src="assets/business.jpeg">
-        <h3>Business</h3>
-        <p data-en="Corporate & private rides"
-           data-es="Viajes corporativos y privados">
-            Corporate & private rides
-        </p>
-        <a href="getquote/index.html" class="btn">Get Quote</a>
+
+        <div class="card-content">
+
+            <h3>Business</h3>
+
+            <p>
+                Corporate & private rides
+            </p>
+
+            <a href="getquote/index.html"
+               class="btn">
+                Get Quote
+            </a>
+
+        </div>
+
     </div>
 
 </section>
 
-<!-- ================= CONTACT ================= -->
+<!-- =========================
+CONTACT
+========================= -->
+
 <div class="contact-section">
 
-    <strong>Customer Support</strong><br>
+    <strong>
+        Customer Support
+    </strong>
 
-    📞 619-509-7197<br>
-    📧 admin@sunbeamtransportationllc.com<br><br>
+    <br>
 
-    📱 You can book your trip directly by phone
+    📞 619-509-7197
+
+    <br>
+
+    📧 admin@ghmobility.com
 
 </div>
 
-<!-- ================= FOOTER ================= -->
+<!-- =========================
+FOOTER
+========================= -->
+
 <footer>
-    ©️ Sunbeam Transportation
+
+    © GH Mobility
+
 </footer>
 
-<script>
-function setLang(lang){
-    document.querySelectorAll("[data-en]").forEach(el=>{
-        el.innerText = el.getAttribute("data-" + lang);
-    });
-}
-</script>
+<script src="index.js"></script>
 
 </body>
 </html>

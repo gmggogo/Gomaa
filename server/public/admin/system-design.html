@@ -1,0 +1,288 @@
+<!-- =========================
+FILE: system-design.html
+PLACE:
+public/admin/system-design.html
+========================= -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>GH Mobility - System Design</title>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+
+body{
+    margin:0;
+    background:#f1f5f9;
+    font-family:'Segoe UI',sans-serif;
+}
+
+#sidebar-container{
+    position:fixed;
+    top:0;
+    left:0;
+    width:260px;
+    height:100vh;
+    z-index:1000;
+}
+
+#header-container{
+    position:fixed;
+    top:0;
+    left:260px;
+    right:0;
+    z-index:999;
+}
+
+.main-content{
+    margin-left:260px;
+    padding:120px 25px 40px;
+}
+
+.page-title{
+    font-size:34px;
+    font-weight:800;
+    margin-bottom:30px;
+    color:#0f172a;
+}
+
+.section-box{
+    background:#fff;
+    border-radius:24px;
+    padding:24px;
+    margin-bottom:30px;
+    box-shadow:0 10px 30px rgba(0,0,0,.08);
+}
+
+.section-title{
+    font-size:24px;
+    font-weight:800;
+    margin-bottom:25px;
+    color:#0f172a;
+}
+
+.form-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:18px;
+}
+
+.input-group{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.input-group label{
+    font-size:14px;
+    font-weight:700;
+    color:#334155;
+}
+
+.input-group input,
+.input-group textarea,
+.input-group select{
+    border:1px solid #cbd5e1;
+    border-radius:14px;
+    padding:14px;
+    font-size:15px;
+    outline:none;
+}
+
+.input-group textarea{
+    min-height:120px;
+    resize:vertical;
+}
+
+.preview-image{
+    width:100%;
+    height:180px;
+    object-fit:cover;
+    border-radius:18px;
+    background:#e2e8f0;
+}
+
+.upload-btn,
+.save-btn{
+    border:none;
+    border-radius:14px;
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.upload-btn{
+    background:#2563eb;
+    color:#fff;
+}
+
+.save-btn{
+    background:#16a34a;
+    color:#fff;
+    margin-top:25px;
+    width:220px;
+}
+
+.toggle-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:10px;
+}
+
+@media(max-width:900px){
+
+    #sidebar-container{
+        display:none;
+    }
+
+    #header-container{
+        left:0;
+    }
+
+    .main-content{
+        margin-left:0;
+        padding:110px 14px 30px;
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="sidebar-container"></div>
+
+<div id="header-container"></div>
+
+<div class="main-content">
+
+    <div class="page-title">
+        System Design
+    </div>
+
+    <!-- HERO -->
+
+    <div class="section-box">
+
+        <div class="section-title">
+            Hero Section
+        </div>
+
+        <div class="form-grid">
+
+            <div class="input-group">
+                <label>Hero Title EN</label>
+                <input type="text" id="heroTitleEn">
+            </div>
+
+            <div class="input-group">
+                <label>Hero Title ES</label>
+                <input type="text" id="heroTitleEs">
+            </div>
+
+            <div class="input-group">
+                <label>Hero Subtitle EN</label>
+                <textarea id="heroSubEn"></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>Hero Subtitle ES</label>
+                <textarea id="heroSubEs"></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>Hero Image</label>
+
+                <img
+                    src="../assets/hero.jpeg"
+                    class="preview-image"
+                    id="heroPreview"
+                >
+
+                <input
+                    type="file"
+                    id="heroInput"
+                    hidden
+                    accept="image/*"
+                >
+
+                <button
+                    class="upload-btn"
+                    onclick="document.getElementById('heroInput').click()"
+                >
+                    Upload Hero Image
+                </button>
+            </div>
+
+        </div>
+
+        <div class="toggle-row">
+            <input type="checkbox" id="heroActive" checked>
+            <label>Show Hero Section</label>
+        </div>
+
+        <button class="save-btn">
+            Save Hero
+        </button>
+
+    </div>
+
+    <!-- ABOUT -->
+
+    <div class="section-box">
+
+        <div class="section-title">
+            About Section
+        </div>
+
+        <div class="form-grid">
+
+            <div class="input-group">
+                <label>About Title EN</label>
+                <input type="text" id="aboutTitleEn">
+            </div>
+
+            <div class="input-group">
+                <label>About Title ES</label>
+                <input type="text" id="aboutTitleEs">
+            </div>
+
+            <div class="input-group">
+                <label>About Description EN</label>
+                <textarea id="aboutDescEn"></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>About Description ES</label>
+                <textarea id="aboutDescEs"></textarea>
+            </div>
+
+        </div>
+
+        <div class="toggle-row">
+            <input type="checkbox" id="aboutActive" checked>
+            <label>Show About Section</label>
+        </div>
+
+        <button class="save-btn">
+            Save About
+        </button>
+
+    </div>
+
+</div>
+
+<script src="system-design.js"></script>
+
+</body>
+</html>
