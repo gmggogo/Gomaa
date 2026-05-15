@@ -25,11 +25,15 @@ GLOBAL
     box-sizing:border-box;
 }
 
+html,
 body{
 
     margin:0;
+    padding:0;
 
-    font-family:'Segoe UI',sans-serif;
+    font-family:
+    'Segoe UI',
+    sans-serif;
 
     background:#f1f5f9;
 
@@ -45,15 +49,18 @@ TOP BAR
 
 .top-bar{
 
+    width:100%;
+
     display:flex;
 
-    justify-content:space-between;
+    justify-content:
+    space-between;
 
     align-items:center;
 
-    padding:14px 20px;
+    padding:14px 18px;
 
-    background:#fff;
+    background:#ffffff;
 
     position:sticky;
 
@@ -61,83 +68,80 @@ TOP BAR
 
     z-index:999;
 
-    box-shadow:0 2px 10px rgba(0,0,0,.06);
+    box-shadow:
+    0 2px 12px
+    rgba(0,0,0,.06);
 
 }
 
-/* =========================
-LEFT BUTTONS
-========================= */
-
-.top-links{
+.top-left,
+.top-right{
 
     display:flex;
 
-    gap:12px;
-
-}
-
-.top-links a{
-
-    text-decoration:none;
-
-    color:#fff;
-
-    padding:12px 18px;
-
-    border-radius:16px;
-
-    font-size:15px;
-
-    font-weight:700;
-
-    transition:.2s;
-
-}
-
-.facility-login{
-    background:#2563eb;
-}
-
-.staff-login{
-    background:#0f172a;
-}
-
-/* =========================
-LANGUAGE
-========================= */
-
-.lang-right{
-
-    display:flex;
+    align-items:center;
 
     gap:10px;
 
 }
 
-.lang-btn{
+/* =========================
+BUTTONS
+========================= */
+
+.top-btn{
 
     border:none;
 
-    background:#e2e8f0;
+    text-decoration:none;
 
-    color:#2563eb;
+    cursor:pointer;
 
-    border-radius:18px;
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    min-height:44px;
 
     padding:10px 18px;
+
+    border-radius:14px;
 
     font-size:14px;
 
     font-weight:700;
 
-    cursor:pointer;
-
     transition:.2s;
+
+    white-space:nowrap;
 
 }
 
-/* ACTIVE */
+.facility-btn{
+
+    background:#2563eb;
+
+    color:#fff;
+
+}
+
+.staff-btn{
+
+    background:#0f172a;
+
+    color:#fff;
+
+}
+
+.lang-btn{
+
+    background:#e2e8f0;
+
+    color:#2563eb;
+
+}
 
 .active-lang{
 
@@ -155,19 +159,13 @@ HERO
 
     width:100%;
 
-    height:540px;
+    height:520px;
 
     background:#111827;
 
     position:relative;
 
     overflow:hidden;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
 
 }
 
@@ -181,6 +179,8 @@ HERO
 
     object-position:center center;
 
+    display:block;
+
 }
 
 /* =========================
@@ -191,11 +191,12 @@ POWERED
 
     position:absolute;
 
-    left:20px;
+    left:18px;
 
-    bottom:20px;
+    bottom:18px;
 
-    background:rgba(0,0,0,.45);
+    background:
+    rgba(0,0,0,.45);
 
     color:#fff;
 
@@ -207,7 +208,8 @@ POWERED
 
     font-weight:700;
 
-    backdrop-filter:blur(5px);
+    backdrop-filter:
+    blur(5px);
 
 }
 
@@ -217,27 +219,31 @@ ABOUT
 
 .about{
 
-    text-align:center;
-
-    padding:70px 20px 40px;
-
     max-width:1100px;
 
     margin:auto;
+
+    text-align:center;
+
+    padding:
+    70px 20px
+    40px;
 
 }
 
 .about h2{
 
-    font-size:46px;
+    margin:0 0 20px;
 
-    margin-bottom:20px;
+    font-size:48px;
 
     color:#1e3a5f;
 
 }
 
 .about p{
+
+    margin:0;
 
     color:#64748b;
 
@@ -255,23 +261,27 @@ QUOTE
 
     text-align:center;
 
-    padding:20px;
+    padding:
+    10px 20px
+    30px;
 
 }
 
 .quote-header h2{
 
+    margin:0 0 16px;
+
     font-size:54px;
 
     line-height:1.15;
-
-    margin-bottom:15px;
 
     color:#1e3a5f;
 
 }
 
 .quote-header p{
+
+    margin:0;
 
     color:#64748b;
 
@@ -289,7 +299,10 @@ SERVICES
 
     margin:auto;
 
-    padding:30px 20px 80px;
+    padding:
+    20px
+    20px
+    80px;
 
     display:flex;
 
@@ -297,9 +310,13 @@ SERVICES
 
     justify-content:center;
 
-    gap:30px;
+    gap:28px;
 
 }
+
+/* =========================
+CARD
+========================= */
 
 .card{
 
@@ -311,9 +328,18 @@ SERVICES
 
     overflow:hidden;
 
-    box-shadow:0 10px 30px rgba(0,0,0,.08);
+    box-shadow:
+    0 10px 30px
+    rgba(0,0,0,.08);
 
     transition:.25s;
+
+}
+
+.card:hover{
+
+    transform:
+    translateY(-4px);
 
 }
 
@@ -321,15 +347,17 @@ SERVICES
 
     width:100%;
 
-    height:220px;
+    height:210px;
 
     object-fit:cover;
+
+    display:block;
 
 }
 
 .card-content{
 
-    padding:24px;
+    padding:22px;
 
     text-align:center;
 
@@ -337,7 +365,8 @@ SERVICES
 
 .card h3{
 
-    margin:0 0 10px;
+    margin:
+    0 0 10px;
 
     font-size:30px;
 
@@ -347,17 +376,19 @@ SERVICES
 
 .card p{
 
+    margin:0;
+
+    min-height:60px;
+
     color:#64748b;
 
     font-size:16px;
 
     line-height:1.7;
 
-    min-height:60px;
-
 }
 
-.btn{
+.card-btn{
 
     display:inline-block;
 
@@ -369,7 +400,8 @@ SERVICES
 
     text-decoration:none;
 
-    padding:13px 24px;
+    padding:
+    13px 24px;
 
     border-radius:14px;
 
@@ -380,12 +412,13 @@ SERVICES
 }
 
 /* =========================
-CUSTOM BOX
+CUSTOM SECTION
 ========================= */
 
 .custom-section{
 
-    padding:0 20px 70px;
+    padding:
+    0 20px 70px;
 
 }
 
@@ -395,13 +428,15 @@ CUSTOM BOX
 
     margin:auto;
 
-    border:2px dashed #cbd5e1;
+    background:#fff;
+
+    border:
+    2px dashed #cbd5e1;
 
     border-radius:30px;
 
-    background:#fff;
-
-    padding:70px 20px;
+    padding:
+    70px 20px;
 
     text-align:center;
 
@@ -421,7 +456,8 @@ CONTACT
 
     text-align:center;
 
-    padding:70px 20px;
+    padding:
+    70px 20px;
 
     line-height:2.1;
 
@@ -453,51 +489,33 @@ MOBILE
 
 @media(max-width:768px){
 
+    /* TOP */
+
     .top-bar{
 
-        padding:10px 12px;
-
-        gap:10px;
-
-        flex-direction:column;
-
-        align-items:stretch;
-
-    }
-
-    .top-links,
-    .lang-right{
-
-        display:flex;
+        padding:10px;
 
         gap:8px;
 
-        width:100%;
+    }
+
+    .top-left,
+    .top-right{
+
+        gap:8px;
 
     }
 
-    .top-links a,
-    .lang-btn{
+    .top-btn{
 
-        flex:1;
+        min-height:38px;
 
-        min-height:46px;
+        padding:
+        8px 12px;
 
-        padding:8px 10px;
+        border-radius:12px;
 
-        border-radius:16px;
-
-        font-size:13px;
-
-        font-weight:700;
-
-        display:flex;
-
-        align-items:center;
-
-        justify-content:center;
-
-        text-align:center;
+        font-size:12px;
 
     }
 
@@ -505,7 +523,7 @@ MOBILE
 
     .hero{
 
-        height:520px;
+        height:430px;
 
     }
 
@@ -519,13 +537,14 @@ MOBILE
 
     .powered-by{
 
-        left:16px;
+        left:14px;
 
-        bottom:16px;
+        bottom:14px;
 
-        font-size:13px;
+        font-size:12px;
 
-        padding:10px 16px;
+        padding:
+        9px 14px;
 
     }
 
@@ -533,7 +552,9 @@ MOBILE
 
     .about{
 
-        padding:55px 20px 35px;
+        padding:
+        50px 18px
+        30px;
 
     }
 
@@ -559,7 +580,7 @@ MOBILE
 
     .quote-header p{
 
-        font-size:17px;
+        font-size:16px;
 
     }
 
@@ -567,9 +588,11 @@ MOBILE
 
     .services{
 
-        gap:24px;
+        gap:22px;
 
-        padding:25px 18px 60px;
+        padding:
+        20px 18px
+        60px;
 
     }
 
@@ -583,7 +606,7 @@ MOBILE
 
     .card img{
 
-        height:240px;
+        height:230px;
 
     }
 
@@ -593,7 +616,7 @@ MOBILE
 
     }
 
-    .btn{
+    .card-btn{
 
         width:100%;
 
@@ -607,7 +630,16 @@ MOBILE
 
         font-size:22px;
 
-        padding:50px 18px;
+        padding:
+        50px 18px;
+
+    }
+
+    /* CONTACT */
+
+    .contact-section{
+
+        font-size:16px;
 
     }
 
@@ -625,17 +657,25 @@ TOP BAR
 
 <div class="top-bar">
 
-    <div class="top-links">
+    <!-- LEFT -->
 
-        <a href="companies/company-login.html"
-        class="facility-login">
+    <div class="top-left">
+
+        <a
+        href="companies/company-login.html"
+        class="
+        top-btn
+        facility-btn">
 
             Facility Login
 
         </a>
 
-        <a href="login.html"
-        class="staff-login">
+        <a
+        href="login.html"
+        class="
+        top-btn
+        staff-btn">
 
             Staff Login
 
@@ -643,11 +683,17 @@ TOP BAR
 
     </div>
 
-    <div class="lang-right">
+    <!-- RIGHT -->
+
+    <div class="top-right">
 
         <button
         id="lang-en"
-        class="lang-btn active-lang"
+        class="
+        top-btn
+        lang-btn
+        active-lang"
+
         onclick="setLang('en')">
 
             English
@@ -656,7 +702,10 @@ TOP BAR
 
         <button
         id="lang-es"
-        class="lang-btn"
+        class="
+        top-btn
+        lang-btn"
+
         onclick="setLang('es')">
 
             Spanish
@@ -692,7 +741,9 @@ ABOUT
 <section class="about">
 
     <h2
+
     data-en="About Us"
+
     data-es="Sobre nosotros">
 
         About Us
@@ -700,8 +751,14 @@ ABOUT
     </h2>
 
     <p
-    data-en="Professional transportation services."
-    data-es="Servicios profesionales de transporte.">
+
+    data-en="
+    Professional transportation services.
+    "
+
+    data-es="
+    Servicios profesionales de transporte.
+    ">
 
         Professional transportation services.
 
@@ -710,22 +767,34 @@ ABOUT
 </section>
 
 <!-- =========================
-QUOTE HEADER
+QUOTE
 ========================= -->
 
 <section class="quote-header">
 
     <h2
-    data-en="Get Quote & Book Your Ride"
-    data-es="Obtenga precio y reserve su viaje">
+
+    data-en="
+    Get Quote & Book Your Ride
+    "
+
+    data-es="
+    Obtenga precio y reserve su viaje
+    ">
 
         Get Quote & Book Your Ride
 
     </h2>
 
     <p
-    data-en="Select your service below"
-    data-es="Seleccione su servicio abajo">
+
+    data-en="
+    Select your service below
+    "
+
+    data-es="
+    Seleccione su servicio abajo
+    ">
 
         Select your service below
 
@@ -737,21 +806,30 @@ QUOTE HEADER
 SERVICES
 ========================= -->
 
-<section class="services"
+<section
+class="services"
+
 id="servicesContainer">
 
 </section>
 
 <!-- =========================
-CUSTOM BOX
+CUSTOM SECTION
 ========================= -->
 
 <section class="custom-section">
 
-    <div class="custom-box"
+    <div
 
-    data-en="Future Custom Section"
-    data-es="Sección personalizada futura">
+    class="custom-box"
+
+    data-en="
+    Future Custom Section
+    "
+
+    data-es="
+    Sección personalizada futura
+    ">
 
         Future Custom Section
 
@@ -766,8 +844,14 @@ CONTACT
 <div class="contact-section">
 
     <strong
-    data-en="Customer Support"
-    data-es="Atención al cliente">
+
+    data-en="
+    Customer Support
+    "
+
+    data-es="
+    Atención al cliente
+    ">
 
         Customer Support
 
@@ -793,22 +877,30 @@ FOOTER
 
 </footer>
 
+<!-- =========================
+LANGUAGE SCRIPT
+========================= -->
+
 <script>
 
-/* =========================
-LANGUAGE SWITCH
-========================= */
-
 function setLang(lang){
+
+    /* TEXT */
 
     document
     .querySelectorAll("[data-en]")
     .forEach(el=>{
 
-        el.innerText =
+        const value =
         el.getAttribute(
             "data-" + lang
         );
+
+        if(value){
+
+            el.innerText = value;
+
+        }
 
     });
 
@@ -826,15 +918,28 @@ function setLang(lang){
 
     /* ADD ACTIVE */
 
-    document
-    .getElementById(
+    const activeBtn =
+    document.getElementById(
         "lang-" + lang
-    )
-    .classList.add(
-        "active-lang"
     );
 
+    if(activeBtn){
+
+        activeBtn.classList.add(
+            "active-lang"
+        );
+
+    }
+
 }
+
+window.addEventListener(
+"DOMContentLoaded",
+()=>{
+
+    setLang("en");
+
+});
 
 </script>
 
