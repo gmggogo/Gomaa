@@ -300,7 +300,7 @@ SERVICES
 
     width:100%;
 
-    padding:60px 30px 100px;
+    padding:60px 30px 70px;
 
     display:grid;
 
@@ -384,11 +384,11 @@ BUTTON
 
     margin-top:22px;
 
-    min-width:150px;
+    min-width:160px;
 
-    height:52px;
+    height:58px;
 
-    padding:0 26px;
+    padding:0 28px;
 
     background:#2563eb;
 
@@ -398,7 +398,7 @@ BUTTON
 
     border-radius:14px;
 
-    font-size:20px;
+    font-size:22px;
 
     font-weight:800;
 
@@ -416,6 +416,60 @@ BUTTON
     transform:translateY(-2px);
 
     background:#1d4ed8;
+
+}
+
+/* =========================
+EXTRA SECTIONS
+========================= */
+
+.extra-sections{
+
+    width:100%;
+
+    padding:20px 30px 70px;
+
+    display:grid;
+
+    grid-template-columns:
+    repeat(auto-fit,minmax(320px,1fr));
+
+    gap:25px;
+
+}
+
+.extra-box{
+
+    background:#ffffff;
+
+    border-radius:24px;
+
+    padding:35px;
+
+    box-shadow:
+    0 10px 25px rgba(0,0,0,.08);
+
+    min-height:220px;
+
+}
+
+.extra-box h3{
+
+    font-size:32px;
+
+    color:#1e3a6d;
+
+    margin-bottom:18px;
+
+}
+
+.extra-box p{
+
+    font-size:20px;
+
+    color:#6b7280;
+
+    line-height:1.8;
 
 }
 
@@ -579,7 +633,7 @@ MOBILE
 
         grid-template-columns:1fr;
 
-        padding:40px 20px 80px;
+        padding:40px 20px 60px;
 
     }
 
@@ -605,13 +659,39 @@ MOBILE
 
         width:100%;
 
-        max-width:180px;
+        max-width:190px;
 
-        height:50px;
+        height:52px;
 
-        font-size:18px;
+        font-size:20px;
 
         margin-top:18px;
+
+    }
+
+    .extra-sections{
+
+        padding:10px 20px 60px;
+
+    }
+
+    .extra-box{
+
+        padding:25px;
+
+        min-height:auto;
+
+    }
+
+    .extra-box h3{
+
+        font-size:26px;
+
+    }
+
+    .extra-box p{
+
+        font-size:18px;
 
     }
 
@@ -756,254 +836,173 @@ SERVICES
 <section class="services">
 
     <div class="card">
-
         <img src="assets/nemt.jpeg">
-
         <div class="card-content">
-
             <h3>NEMT</h3>
-
-            <p
-            data-en="Medical appointments & clinics"
+            <p data-en="Medical appointments & clinics"
             data-es="Citas médicas y clínicas">
-
-                Medical appointments & clinics
-
+            Medical appointments & clinics
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
-
     </div>
 
     <div class="card">
-
         <img src="assets/airport.jpeg">
-
         <div class="card-content">
-
-            <h3
-            data-en="Airport"
+            <h3 data-en="Airport"
             data-es="Aeropuerto">
-
-                Airport
-
+            Airport
             </h3>
-
-            <p
-            data-en="Airport pickup & drop-off"
+            <p data-en="Airport pickup & drop-off"
             data-es="Traslados al aeropuerto">
-
-                Airport pickup & drop-off
-
+            Airport pickup & drop-off
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
-
     </div>
 
     <div class="card">
-
         <img src="assets/business.jpeg">
-
         <div class="card-content">
-
-            <h3
-            data-en="Business"
+            <h3 data-en="Business"
             data-es="Negocios">
-
-                Business
-
+            Business
             </h3>
-
-            <p
-            data-en="Corporate & private rides"
+            <p data-en="Corporate & private rides"
             data-es="Viajes corporativos y privados">
-
-                Corporate & private rides
-
+            Corporate & private rides
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
-
     </div>
 
     <div class="card">
-
         <img src="assets/business.jpeg">
-
         <div class="card-content">
-
-            <h3
-            data-en="Taxi"
-            data-es="Taxi">
-
-                Taxi
-
-            </h3>
-
-            <p
-            data-en="Daily city transportation"
+            <h3>Taxi</h3>
+            <p data-en="Daily city transportation"
             data-es="Transporte diario en la ciudad">
-
-                Daily city transportation
-
+            Daily city transportation
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
-
     </div>
 
     <div class="card">
-
         <img src="assets/business.jpeg">
-
         <div class="card-content">
-
-            <h3
-            data-en="Limo"
-            data-es="Limusina">
-
-                Limo
-
-            </h3>
-
-            <p
-            data-en="Luxury transportation service"
+            <h3>Limo</h3>
+            <p data-en="Luxury transportation service"
             data-es="Servicio de transporte de lujo">
-
-                Luxury transportation service
-
+            Luxury transportation service
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
-
     </div>
 
     <div class="card">
-
         <img src="assets/business.jpeg">
-
         <div class="card-content">
-
             <h3>XL</h3>
-
-            <p
-            data-en="Large family transportation"
+            <p data-en="Large family transportation"
             data-es="Transporte familiar grande">
-
-                Large family transportation
-
+            Large family transportation
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
-
     </div>
 
     <div class="card">
-
         <img src="assets/nemt.jpeg">
-
         <div class="card-content">
-
-            <h3
-            data-en="Wheelchair"
+            <h3 data-en="Wheelchair"
             data-es="Silla de ruedas">
-
-                Wheelchair
-
+            Wheelchair
             </h3>
-
-            <p
-            data-en="Wheelchair accessible rides"
+            <p data-en="Wheelchair accessible rides"
             data-es="Viajes accesibles para silla de ruedas">
-
-                Wheelchair accessible rides
-
+            Wheelchair accessible rides
             </p>
-
             <a href="getquote/index.html"
             class="btn">
-
-                Get Quote
-
+            Get Quote
             </a>
-
         </div>
+    </div>
+
+</section>
+
+<!-- =========================
+EXTRA SECTIONS
+========================= -->
+
+<section class="extra-sections">
+
+    <div class="extra-box"
+    id="extraBox1">
+
+        <h3
+        data-en="Extra Information"
+        data-es="Información adicional">
+
+        Extra Information
+
+        </h3>
+
+        <p
+        data-en="You can add any text, promotion, pricing, notices, announcements, or company information here."
+        data-es="Puede agregar cualquier texto, promociones, precios, anuncios o información de la empresa aquí.">
+
+        You can add any text,
+        promotion,
+        pricing,
+        notices,
+        announcements,
+        or company information here.
+
+        </p>
 
     </div>
 
-    <div class="card">
+    <div class="extra-box"
+    id="extraBox2">
 
-        <img src="assets/airport.jpeg">
+        <h3
+        data-en="Additional Services"
+        data-es="Servicios adicionales">
 
-        <div class="card-content">
+        Additional Services
 
-            <h3
-            data-en="Shared Ride"
-            data-es="Viaje compartido">
+        </h3>
 
-                Shared Ride
+        <p
+        data-en="This section can later be shown or hidden from admin panel."
+        data-es="Esta sección podrá mostrarse u ocultarse desde el panel de administración.">
 
-            </h3>
+        This section can later
+        be shown or hidden
+        from admin panel.
 
-            <p
-            data-en="Affordable shared rides"
-            data-es="Viajes compartidos económicos">
-
-                Affordable shared rides
-
-            </p>
-
-            <a href="getquote/index.html"
-            class="btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
+        </p>
 
     </div>
 
@@ -1040,10 +1039,6 @@ FOOTER
     © Sunbeam Transportation
 
 </footer>
-
-<!-- =========================
-SCRIPT
-========================= -->
 
 <script>
 
