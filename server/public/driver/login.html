@@ -4,17 +4,12 @@
 
 <meta charset="UTF-8">
 
-<title>
-Sunbeam Driver Login
-</title>
+<title>Driver Login</title>
 
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<!-- APP -->
-
-<link rel="manifest"
-href="install.json">
+<link rel="manifest" href="install.json">
 
 <link rel="apple-touch-icon"
 href="sunbeamllc.jpeg">
@@ -52,8 +47,6 @@ padding:20px;
 
 }
 
-/* ================= LOGIN BOX ================= */
-
 .login-box{
 
 background:#ffffff;
@@ -64,7 +57,7 @@ max-width:360px;
 
 padding:26px;
 
-border-radius:16px;
+border-radius:20px;
 
 box-shadow:
 0 10px 25px rgba(0,0,0,0.25);
@@ -73,75 +66,75 @@ text-align:center;
 
 }
 
-/* ================= LOGO ================= */
+/* LOGO */
 
 .driver-logo{
 
-width:150px;
+width:140px;
 
 max-width:90%;
 
 object-fit:contain;
 
-margin-bottom:10px;
+margin-bottom:14px;
 
 }
 
-/* ================= TITLE ================= */
+/* TITLE */
 
-h1{
+.login-title{
 
-margin:0;
+font-size:30px;
 
-font-size:26px;
+font-weight:700;
 
 color:#2563eb;
 
-}
-
-h1 span{
-color:#facc15;
-}
-
-p{
-
-margin:6px 0 20px;
-
-color:#555;
-
-font-size:14px;
+margin-bottom:8px;
 
 }
 
-/* ================= TIME ================= */
+/* SUB TITLE */
 
-.login-time{
+.login-sub{
 
-font-size:12px;
+font-size:15px;
 
 color:#64748b;
 
-margin-bottom:18px;
+margin-bottom:20px;
+
+}
+
+/* TIME */
+
+.login-time{
+
+font-size:13px;
+
+color:#64748b;
+
+margin-bottom:22px;
 
 line-height:1.5;
 
 }
 
-/* ================= INPUTS ================= */
+/* INPUTS */
 
 input{
 
 width:100%;
 
-padding:12px;
+padding:14px;
 
-margin-bottom:12px;
+margin-bottom:14px;
 
-border-radius:10px;
+border-radius:14px;
 
-border:1px solid #ccc;
+border:1px solid #d1d5db;
 
-font-size:15px;
+font-size:16px;
 
 }
 
@@ -153,19 +146,19 @@ border-color:#2563eb;
 
 }
 
-/* ================= BUTTON ================= */
+/* BUTTON */
 
 button{
 
 width:100%;
 
-padding:13px;
+padding:15px;
 
 border:none;
 
-border-radius:12px;
+border-radius:16px;
 
-font-size:16px;
+font-size:18px;
 
 background:
 linear-gradient(
@@ -182,7 +175,7 @@ cursor:pointer;
 
 }
 
-/* ================= ERROR ================= */
+/* ERROR */
 
 #error{
 
@@ -194,21 +187,21 @@ color:red;
 
 }
 
-/* ================= FOOTER ================= */
+/* FOOTER */
 
 .footer{
 
-margin-top:18px;
+margin-top:22px;
 
-font-size:12px;
+font-size:13px;
 
 color:#64748b;
 
-line-height:1.6;
+line-height:1.8;
 
 }
 
-/* ================= MOBILE ================= */
+/* MOBILE */
 
 @media(max-width:480px){
 
@@ -216,25 +209,25 @@ line-height:1.6;
 
 padding:22px;
 
-border-radius:14px;
+border-radius:18px;
 
 }
 
 .driver-logo{
 
-width:120px;
+width:115px;
 
 }
 
-h1{
+.login-title{
 
-font-size:22px;
+font-size:26px;
 
 }
 
 button{
 
-font-size:15px;
+font-size:16px;
 
 }
 
@@ -254,26 +247,29 @@ font-size:15px;
 class="driver-logo app-logo"
 alt="Company Logo">
 
-<h1>
+<!-- TITLE -->
 
-Sunbeam
-<span>Driver</span>
+<div class="login-title">
 
-</h1>
+Driver
 
-<p>
+</div>
+
+<div class="login-sub">
 
 Driver Login
 
-</p>
+</div>
 
-<!-- GLOBAL TIME -->
+<!-- TIME -->
 
 <div
 class="login-time"
 id="driverTime">
 
 </div>
+
+<!-- FORM -->
 
 <form id="loginForm">
 
@@ -299,13 +295,11 @@ LOGIN
 
 <div id="error"></div>
 
+<!-- FOOTER -->
+
 <div class="footer">
 
 Powered by GH Mobility
-
-<br>
-
-© Sunbeam Transportation
 
 </div>
 
@@ -332,7 +326,11 @@ localStorage.setItem(
 
 /* START CLOCK */
 
+if(typeof startClock === "function"){
+
 startClock("driverTime");
+
+}
 
 </script>
 
