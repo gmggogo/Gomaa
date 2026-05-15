@@ -26,13 +26,15 @@ color:white;
 
 padding-bottom:110px;
 
+overflow-x:hidden;
+
 }
 
 /* ================= TOP ================= */
 
 .top-bar{
 
-padding:22px 24px 10px;
+padding:18px 18px 8px;
 
 display:flex;
 
@@ -54,17 +56,19 @@ width:100%;
 
 #datetime{
 
-font-size:15px;
+font-size:14px;
 
-opacity:.92;
+opacity:.95;
 
 background:rgba(255,255,255,.08);
 
 padding:10px 16px;
 
-border-radius:14px;
+border-radius:16px;
 
 backdrop-filter:blur(6px);
+
+white-space:nowrap;
 
 }
 
@@ -74,19 +78,19 @@ backdrop-filter:blur(6px);
 
 text-align:center;
 
-margin-top:8px;
+margin-top:6px;
 
 }
 
 .driver-logo{
 
-width:120px;
+width:115px;
 
 max-width:90%;
 
 object-fit:contain;
 
-margin-bottom:14px;
+margin-bottom:12px;
 
 }
 
@@ -94,7 +98,7 @@ margin-bottom:14px;
 
 .main-title{
 
-font-size:26px;
+font-size:28px;
 
 font-weight:700;
 
@@ -112,9 +116,9 @@ text-align:center;
 
 font-size:11px;
 
-opacity:.7;
+opacity:.75;
 
-margin-bottom:22px;
+margin-bottom:24px;
 
 letter-spacing:.5px;
 
@@ -126,11 +130,11 @@ letter-spacing:.5px;
 
 text-align:center;
 
-font-size:20px;
+font-size:22px;
 
-opacity:.95;
+font-weight:500;
 
-margin-bottom:30px;
+margin-bottom:28px;
 
 }
 
@@ -146,11 +150,11 @@ background:#020617;
 
 padding:24px;
 
-border-radius:24px;
+border-radius:28px;
 
-font-size:28px;
+font-size:30px;
 
-margin-bottom:30px;
+margin-bottom:28px;
 
 }
 
@@ -174,9 +178,9 @@ display:grid;
 
 grid-template-columns:1fr 1fr;
 
-gap:24px;
+gap:22px;
 
-margin-bottom:30px;
+margin-bottom:28px;
 
 }
 
@@ -184,9 +188,9 @@ margin-bottom:30px;
 
 background:#020617;
 
-border-radius:28px;
+border-radius:30px;
 
-height:220px;
+height:210px;
 
 display:flex;
 
@@ -216,9 +220,9 @@ transform:scale(1.03);
 
 .card-icon{
 
-font-size:48px;
+font-size:50px;
 
-margin-bottom:18px;
+margin-bottom:16px;
 
 }
 
@@ -232,9 +236,9 @@ margin:auto;
 
 background:#020617;
 
-border-radius:28px;
+border-radius:30px;
 
-padding:34px;
+padding:30px;
 
 display:flex;
 
@@ -242,9 +246,11 @@ justify-content:center;
 
 align-items:center;
 
-gap:16px;
+gap:14px;
 
 font-size:28px;
+
+font-weight:700;
 
 cursor:pointer;
 
@@ -268,7 +274,7 @@ display:flex;
 
 justify-content:space-around;
 
-padding:16px 0;
+padding:14px 0;
 
 z-index:999;
 
@@ -282,7 +288,7 @@ flex-direction:column;
 
 align-items:center;
 
-font-size:16px;
+font-size:14px;
 
 cursor:pointer;
 
@@ -300,7 +306,7 @@ opacity:1;
 
 .nav-icon{
 
-font-size:34px;
+font-size:32px;
 
 margin-bottom:4px;
 
@@ -310,9 +316,15 @@ margin-bottom:4px;
 
 @media(max-width:480px){
 
+body{
+
+padding-bottom:100px;
+
+}
+
 .top-bar{
 
-padding:18px 16px 8px;
+padding:16px 14px 8px;
 
 }
 
@@ -320,19 +332,35 @@ padding:18px 16px 8px;
 
 font-size:13px;
 
-padding:8px 12px;
+padding:10px 14px;
+
+max-width:100%;
+
+overflow:hidden;
+
+text-overflow:ellipsis;
 
 }
 
 .driver-logo{
 
-width:105px;
+width:100px;
+
+margin-bottom:10px;
 
 }
 
 .main-title{
 
-font-size:22px;
+font-size:24px;
+
+}
+
+.powered-gh{
+
+font-size:11px;
+
+margin-bottom:20px;
 
 }
 
@@ -340,13 +368,23 @@ font-size:22px;
 
 font-size:18px;
 
+margin-bottom:24px;
+
 }
 
 .status-box{
 
-font-size:22px;
+font-size:24px;
 
 padding:20px;
+
+border-radius:24px;
+
+}
+
+.cards{
+
+gap:18px;
 
 }
 
@@ -356,11 +394,15 @@ height:180px;
 
 font-size:22px;
 
+border-radius:26px;
+
 }
 
 .card-icon{
 
-font-size:40px;
+font-size:42px;
+
+margin-bottom:14px;
 
 }
 
@@ -368,7 +410,21 @@ font-size:40px;
 
 font-size:22px;
 
-padding:28px;
+padding:24px;
+
+border-radius:26px;
+
+}
+
+.nav-icon{
+
+font-size:28px;
+
+}
+
+.nav-item{
+
+font-size:13px;
 
 }
 
@@ -595,8 +651,6 @@ Logout
 
 <script>
 
-/* DEFAULT LOGO */
-
 if(!localStorage.getItem("appLogo")){
 
 localStorage.setItem(
@@ -605,8 +659,6 @@ localStorage.setItem(
 );
 
 }
-
-/* START CLOCK */
 
 if(typeof startClock === "function"){
 
