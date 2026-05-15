@@ -1,13 +1,31 @@
+<!-- =========================================
+FILE:
+public/admin/system-design.html
+========================================= -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>System Design</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
+
+<title>
+System Design
+</title>
 
 <link rel="stylesheet" href="style.css">
 
 <style>
+
+/* =========================
+BODY
+========================= */
+
 body{
   margin:0;
   background:#f1f5f9;
@@ -23,155 +41,269 @@ body{
   z-index:1000;
 }
 
+/* =========================
+PAGE
+========================= */
+
 .page-body{
-  max-width:1800px;
+  max-width:1900px;
   margin:auto;
-  padding:270px 20px 80px;
+  padding:260px 22px 80px;
 }
 
+@media(max-width:768px){
+
+  .page-body{
+    padding-top:320px;
+    padding-left:12px;
+    padding-right:12px;
+  }
+
+}
+
+/* =========================
+TITLE
+========================= */
+
 .page-title{
-  font-size:36px;
+  font-size:38px;
   font-weight:900;
   margin-bottom:30px;
 }
 
+/* =========================
+SECTION
+========================= */
+
 .section-box{
+
   background:#fff;
-  border-radius:26px;
+
+  border-radius:28px;
+
   padding:26px;
+
   margin-bottom:28px;
-  box-shadow:0 15px 35px rgba(0,0,0,.08);
+
+  box-shadow:
+  0 12px 35px rgba(0,0,0,.08);
+
 }
 
 .section-title{
-  font-size:24px;
+
+  font-size:26px;
+
   font-weight:900;
+
   margin-bottom:22px;
+
 }
+
+/* =========================
+GRID
+========================= */
 
 .form-grid{
+
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:18px;
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(320px,1fr));
+
+  gap:20px;
+
 }
 
+/* =========================
+INPUT GROUP
+========================= */
+
 .input-group{
+
   display:flex;
+
   flex-direction:column;
+
   gap:8px;
+
 }
 
 .input-group label{
+
   font-size:14px;
+
   font-weight:800;
+
   color:#475569;
+
 }
 
 .input-group input,
 .input-group textarea,
 .input-group select{
+
   width:100%;
+
   border:1px solid #cbd5e1;
-  border-radius:16px;
-  padding:14px;
+
+  border-radius:18px;
+
+  padding:15px;
+
   font-size:15px;
+
+  background:#fff;
+
   outline:none;
-  background:#f8fafc;
+
 }
 
 .input-group textarea{
-  min-height:110px;
+
+  min-height:120px;
+
   resize:vertical;
+
 }
+
+/* =========================
+PREVIEW
+========================= */
 
 .preview-image{
+
   width:100%;
+
   height:180px;
+
   object-fit:cover;
-  border-radius:18px;
+
+  border-radius:20px;
+
   background:#e2e8f0;
-  border:1px solid #cbd5e1;
+
+  border:2px dashed #cbd5e1;
+
 }
 
-.logo-preview{
-  object-fit:contain;
-  background:#0f172a;
-  padding:12px;
-}
+/* =========================
+BUTTONS
+========================= */
 
 .upload-btn,
 .save-btn,
 .reset-btn{
+
   border:none;
-  border-radius:16px;
-  padding:14px 18px;
+
+  border-radius:18px;
+
+  padding:15px;
+
   font-size:15px;
+
   font-weight:900;
+
   cursor:pointer;
+
+  color:#fff;
+
 }
 
 .upload-btn{
-  background:#2563eb;
-  color:#fff;
+  background:#145cff;
 }
 
 .save-btn{
   background:#16a34a;
-  color:#fff;
 }
 
 .reset-btn{
   background:#dc2626;
-  color:#fff;
 }
 
-.buttons-row{
+.bottom-buttons{
+
   display:flex;
+
   gap:14px;
-  margin-top:24px;
+
+  margin-top:25px;
+
   flex-wrap:wrap;
+
+}
+
+/* =========================
+TOGGLE
+========================= */
+
+.toggle-row{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+  margin-top:10px;
+
+  font-size:14px;
+
+  font-weight:700;
+
+}
+
+/* =========================
+CARDS
+========================= */
+
+.cards-grid{
+
+  display:grid;
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(360px,1fr));
+
+  gap:24px;
+
 }
 
 .service-card{
+
   border:1px solid #e2e8f0;
-  border-radius:22px;
-  padding:18px;
-  background:#f8fafc;
+
+  border-radius:24px;
+
+  padding:20px;
+
+  background:#fff;
+
 }
 
 .service-top{
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:center;
-  gap:12px;
-  margin-bottom:14px;
+
+  margin-bottom:18px;
+
 }
 
 .service-title{
-  font-size:20px;
+
+  font-size:22px;
+
   font-weight:900;
+
 }
 
-.toggle-row{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-weight:800;
-  color:#334155;
-}
-
-@media(max-width:768px){
-  .page-body{
-    padding-top:340px;
-    padding-left:12px;
-    padding-right:12px;
-  }
-
-  .page-title{
-    font-size:30px;
-  }
-}
 </style>
+
 </head>
 
 <body>
@@ -184,7 +316,10 @@ body{
     System Design
   </div>
 
-  <!-- BRANDING -->
+  <!-- =========================
+       BRANDING
+  ========================== -->
+
   <div class="section-box">
 
     <div class="section-title">
@@ -194,42 +329,114 @@ body{
     <div class="form-grid">
 
       <div class="input-group">
-        <label>Company Name</label>
-        <input type="text" id="companyNameInput" placeholder="Company Name">
+
+        <label>
+          Company Name
+        </label>
+
+        <input
+          type="text"
+          id="companyNameInput"
+        >
+
       </div>
 
       <div class="input-group">
-        <label>Timezone</label>
+
+        <label>
+          Timezone
+        </label>
+
         <select id="timezoneInput">
-          <option value="America/Phoenix">Arizona / Phoenix</option>
-          <option value="America/Los_Angeles">California</option>
-          <option value="America/New_York">New York</option>
-          <option value="America/Chicago">Chicago</option>
-          <option value="Africa/Cairo">Egypt / Cairo</option>
-          <option value="America/Bogota">Colombia / Bogota</option>
-          <option value="UTC">UTC</option>
+
+          <option value="America/Phoenix">
+            Arizona / Phoenix
+          </option>
+
+          <option value="America/New_York">
+            New York
+          </option>
+
+          <option value="America/Chicago">
+            Chicago
+          </option>
+
         </select>
+
       </div>
 
-      <div class="input-group">
-        <label>Main Logo</label>
-        <img id="mainLogoPreview" class="preview-image logo-preview">
-        <input type="file" id="mainLogoInput" hidden accept="image/*">
-        <button class="upload-btn" onclick="mainLogoInput.click()">Upload Main Logo</button>
-      </div>
+      <!-- MAIN LOGO -->
 
       <div class="input-group">
-        <label>Driver Logo</label>
-        <img id="driverLogoPreview" class="preview-image logo-preview">
-        <input type="file" id="driverLogoInput" hidden accept="image/*">
-        <button class="upload-btn" onclick="driverLogoInput.click()">Upload Driver Logo</button>
+
+        <label>
+          Main Logo
+        </label>
+
+        <img
+          id="mainLogoPreview"
+          class="preview-image"
+        >
+
+        <input
+          type="file"
+          id="mainLogoInput"
+          hidden
+          accept="image/*"
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          document.getElementById('mainLogoInput').click()
+          "
+        >
+          Upload Main Logo
+        </button>
+
+      </div>
+
+      <!-- DRIVER LOGO -->
+
+      <div class="input-group">
+
+        <label>
+          Driver Logo
+        </label>
+
+        <img
+          id="driverLogoPreview"
+          class="preview-image"
+        >
+
+        <input
+          type="file"
+          id="driverLogoInput"
+          hidden
+          accept="image/*"
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          document.getElementById('driverLogoInput').click()
+          "
+        >
+          Upload Driver Logo
+        </button>
+
       </div>
 
     </div>
 
   </div>
 
-  <!-- HOMEPAGE -->
+  <!-- =========================
+       HOMEPAGE
+  ========================== -->
+
   <div class="section-box">
 
     <div class="section-title">
@@ -238,66 +445,175 @@ body{
 
     <div class="form-grid">
 
+      <!-- HERO -->
+
       <div class="input-group">
-        <label>Hero Image</label>
-        <img id="heroImagePreview" class="preview-image">
-        <input type="file" id="heroImageInput" hidden accept="image/*">
-        <button class="upload-btn" onclick="heroImageInput.click()">Upload Hero Image</button>
+
+        <label>
+          Hero Image
+        </label>
+
+        <img
+          id="heroImagePreview"
+          class="preview-image"
+        >
+
+        <input
+          type="file"
+          id="heroImageInput"
+          hidden
+          accept="image/*"
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          document.getElementById('heroImageInput').click()
+          "
+        >
+          Upload Hero Image
+        </button>
+
+      </div>
+
+      <!-- EXTRA 1 -->
+
+      <div class="input-group">
+
+        <label>
+          Extra Box 1 Title
+        </label>
+
+        <input
+          type="text"
+          id="extra1Title"
+        >
+
       </div>
 
       <div class="input-group">
-        <label>Extra Box 1 Title</label>
-        <input type="text" id="extra1Title">
+
+        <label>
+          Extra Box 1 Text
+        </label>
+
+        <textarea
+          id="extra1Text"
+        ></textarea>
+
+      </div>
+
+      <!-- EXTRA 2 -->
+
+      <div class="input-group">
+
+        <label>
+          Extra Box 2 Title
+        </label>
+
+        <input
+          type="text"
+          id="extra2Title"
+        >
+
       </div>
 
       <div class="input-group">
-        <label>Extra Box 1 Text</label>
-        <textarea id="extra1Text"></textarea>
-      </div>
 
-      <div class="input-group">
-        <label>Extra Box 2 Title</label>
-        <input type="text" id="extra2Title">
-      </div>
+        <label>
+          Extra Box 2 Text
+        </label>
 
-      <div class="input-group">
-        <label>Extra Box 2 Text</label>
-        <textarea id="extra2Text"></textarea>
+        <textarea
+          id="extra2Text"
+        ></textarea>
+
       </div>
 
     </div>
 
     <div class="toggle-row">
-      <input type="checkbox" id="extra1Active">
-      <label>Show Extra Box 1</label>
+
+      <input
+        type="checkbox"
+        id="extra1Active"
+      >
+
+      <label>
+        Show Extra Box 1
+      </label>
+
     </div>
 
     <div class="toggle-row">
-      <input type="checkbox" id="extra2Active">
-      <label>Show Extra Box 2</label>
+
+      <input
+        type="checkbox"
+        id="extra2Active"
+      >
+
+      <label>
+        Show Extra Box 2
+      </label>
+
     </div>
 
   </div>
 
-  <!-- SERVICE CARDS -->
+  <!-- =========================
+       HOMEPAGE CARDS
+  ========================== -->
+
   <div class="section-box">
 
     <div class="section-title">
       Homepage Service Cards
     </div>
 
-    <div class="form-grid" id="cardsEditor"></div>
+    <div
+      class="cards-grid"
+      id="cardsEditor"
+    ></div>
 
   </div>
 
-  <div class="buttons-row">
-    <button class="save-btn" onclick="saveSystemDesign()">Save All Settings</button>
-    <button class="reset-btn" onclick="resetSystemDesign()">Reset</button>
+  <!-- =========================
+       BUTTONS
+  ========================== -->
+
+  <div class="bottom-buttons">
+
+    <button
+      class="save-btn"
+      onclick="saveSystemDesign()"
+    >
+      Save All Settings
+    </button>
+
+    <button
+      class="reset-btn"
+      onclick="resetSystemDesign()"
+    >
+      Reset
+    </button>
+
   </div>
 
 </div>
 
 <script src="header.js"></script>
+
+<script>
+
+if(typeof loadHeader === "function"){
+  loadHeader("System Design");
+}
+
+</script>
+
+<script src="/core/branding.js"></script>
+
 <script src="system-design.js"></script>
 
 </body>

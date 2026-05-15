@@ -1,82 +1,136 @@
+// =========================================
+// FILE:
+// public/admin/system-design.js
+// =========================================
+
 console.log("SYSTEM DESIGN LOADED");
 
 /* =========================
-DEFAULT DATA
+DEFAULT SERVICES
 ========================= */
 
 const DEFAULT_SERVICES = [
+
   {
     key:"nemt",
     active:true,
-    image:"assets/nemt.jpeg",
+    image:"/assets/nemt.jpeg",
+
     title_en:"NEMT",
     title_es:"NEMT",
-    description_en:"Medical appointments & clinics",
-    description_es:"Citas médicas y clínicas"
+
+    description_en:
+    "Medical appointments & clinics",
+
+    description_es:
+    "Citas médicas y clínicas"
   },
+
   {
     key:"airport",
     active:true,
-    image:"assets/airport.jpeg",
+    image:"/assets/airport.jpeg",
+
     title_en:"Airport",
     title_es:"Aeropuerto",
-    description_en:"Airport pickup & drop-off",
-    description_es:"Traslados al aeropuerto"
+
+    description_en:
+    "Airport pickup & drop-off",
+
+    description_es:
+    "Traslados al aeropuerto"
   },
+
   {
     key:"business",
     active:true,
-    image:"assets/business.jpeg",
+    image:"/assets/business.jpeg",
+
     title_en:"Business",
     title_es:"Negocios",
-    description_en:"Corporate & private rides",
-    description_es:"Viajes corporativos y privados"
+
+    description_en:
+    "Corporate & private rides",
+
+    description_es:
+    "Viajes corporativos y privados"
   },
+
   {
     key:"taxi",
     active:true,
-    image:"assets/business.jpeg",
+    image:"/assets/business.jpeg",
+
     title_en:"Taxi",
     title_es:"Taxi",
-    description_en:"Daily city transportation",
-    description_es:"Transporte diario en la ciudad"
+
+    description_en:
+    "Daily city transportation",
+
+    description_es:
+    "Transporte diario en la ciudad"
   },
+
   {
     key:"limo",
     active:true,
-    image:"assets/business.jpeg",
+    image:"/assets/business.jpeg",
+
     title_en:"Limo",
     title_es:"Limusina",
-    description_en:"Luxury transportation service",
-    description_es:"Servicio de lujo"
+
+    description_en:
+    "Luxury transportation service",
+
+    description_es:
+    "Servicio de lujo"
   },
+
   {
     key:"xl",
     active:true,
-    image:"assets/business.jpeg",
+    image:"/assets/business.jpeg",
+
     title_en:"XL",
     title_es:"XL",
-    description_en:"Large family transportation",
-    description_es:"Transporte familiar"
+
+    description_en:
+    "Large family transportation",
+
+    description_es:
+    "Transporte familiar"
   },
+
   {
     key:"wheelchair",
     active:true,
-    image:"assets/nemt.jpeg",
+    image:"/assets/nemt.jpeg",
+
     title_en:"Wheelchair",
     title_es:"Silla de ruedas",
-    description_en:"Wheelchair accessible rides",
-    description_es:"Viajes accesibles"
+
+    description_en:
+    "Wheelchair accessible rides",
+
+    description_es:
+    "Viajes accesibles"
   },
+
   {
     key:"shared",
     active:true,
-    image:"assets/airport.jpeg",
+    image:"/assets/airport.jpeg",
+
     title_en:"Shared Ride",
     title_es:"Viaje compartido",
-    description_en:"Affordable shared rides",
-    description_es:"Viajes compartidos económicos"
+
+    description_en:
+    "Affordable shared rides",
+
+    description_es:
+    "Viajes compartidos económicos"
   }
+
 ];
 
 /* =========================
@@ -86,11 +140,19 @@ HELPERS
 function getSavedDesign(){
 
   try{
+
     return JSON.parse(
-      localStorage.getItem("ghSystemDesign") || "{}"
+
+      localStorage.getItem(
+        "ghSystemDesign"
+      ) || "{}"
+
     );
+
   }catch{
+
     return {};
+
   }
 
 }
@@ -104,16 +166,22 @@ function saveDesignObject(data){
 
 }
 
-function readFileAsDataURL(input, callback){
+function readFile(input,callback){
 
-  const file = input.files[0];
+  const file =
+  input.files[0];
 
   if(!file) return;
 
-  const reader = new FileReader();
+  const reader =
+  new FileReader();
 
-  reader.onload = e => {
-    callback(e.target.result);
+  reader.onload = e=>{
+
+    callback(
+      e.target.result
+    );
+
   };
 
   reader.readAsDataURL(file);
@@ -121,74 +189,101 @@ function readFileAsDataURL(input, callback){
 }
 
 /* =========================
-LOAD HEADER
+INIT
 ========================= */
 
-document.addEventListener("DOMContentLoaded", async ()=>{
-
-  if(typeof loadHeader === "function"){
-    loadHeader("System Design");
-  }
+document.addEventListener(
+"DOMContentLoaded",
+()=>{
 
   initSystemDesign();
 
 });
 
 /* =========================
-INIT
+INIT SYSTEM
 ========================= */
 
 function initSystemDesign(){
 
-  const saved = getSavedDesign();
+  const saved =
+  getSavedDesign();
 
-  const branding = saved.branding || {};
-  const homepage = saved.homepage || {};
-  const cards = saved.services || DEFAULT_SERVICES;
+  const branding =
+  saved.branding || {};
 
-  /* BRANDING */
+  const homepage =
+  saved.homepage || {};
+
+  const services =
+  saved.services ||
+  DEFAULT_SERVICES;
+
+  /* =========================
+     BRANDING
+  ========================== */
 
   companyNameInput.value =
+
     branding.companyName ||
-    localStorage.getItem("appCompanyName") ||
+
+    localStorage.getItem(
+      "companyName"
+    ) ||
+
     "Sunbeam Transportation";
 
   timezoneInput.value =
+
     branding.timezone ||
-    localStorage.getItem("systemTimezone") ||
+
+    localStorage.getItem(
+      "systemTimezone"
+    ) ||
+
     "America/Phoenix";
 
   mainLogoPreview.src =
+
     branding.mainLogo ||
-    localStorage.getItem("appLogo") ||
+
+    localStorage.getItem(
+      "appLogo"
+    ) ||
+
     "/assets/logo.png";
 
   driverLogoPreview.src =
+
     branding.driverLogo ||
-    localStorage.getItem("driverLogo") ||
+
+    localStorage.getItem(
+      "driverLogo"
+    ) ||
+
     "/assets/logo.png";
 
-  /* HOMEPAGE */
+  /* =========================
+     HOMEPAGE
+  ========================== */
 
   heroImagePreview.src =
+
     homepage.heroImage ||
-    "assets/hero.jpeg";
+
+    "/assets/hero.jpeg";
 
   extra1Title.value =
-    homepage.extra1Title ||
-    "Extra Information";
+    homepage.extra1Title || "";
 
   extra1Text.value =
-    homepage.extra1Text ||
-    "";
+    homepage.extra1Text || "";
 
   extra2Title.value =
-    homepage.extra2Title ||
-    "Additional Services";
+    homepage.extra2Title || "";
 
   extra2Text.value =
-    homepage.extra2Text ||
-    "";
+    homepage.extra2Text || "";
 
   extra1Active.checked =
     homepage.extra1Active !== false;
@@ -196,9 +291,17 @@ function initSystemDesign(){
   extra2Active.checked =
     homepage.extra2Active !== false;
 
-  /* CARDS */
+  /* =========================
+     RENDER CARDS
+  ========================== */
 
-  renderCardsEditor(cards);
+  renderCardsEditor(
+    services
+  );
+
+  /* =========================
+     BIND UPLOADS
+  ========================== */
 
   bindUploads();
 
@@ -210,151 +313,257 @@ UPLOADS
 
 function bindUploads(){
 
-  mainLogoInput.addEventListener("change", ()=>{
+  /* MAIN LOGO */
 
-    readFileAsDataURL(mainLogoInput, data=>{
+  mainLogoInput.addEventListener(
+  "change",
+  ()=>{
 
-      mainLogoPreview.src = data;
+    readFile(
+      mainLogoInput,
+      data=>{
 
-      localStorage.setItem("appLogo", data);
+        mainLogoPreview.src =
+        data;
 
-      autoSaveSystemDesign();
+        autoSave();
 
-    });
-
-  });
-
-  driverLogoInput.addEventListener("change", ()=>{
-
-    readFileAsDataURL(driverLogoInput, data=>{
-
-      driverLogoPreview.src = data;
-
-      localStorage.setItem("driverLogo", data);
-
-      autoSaveSystemDesign();
-
-    });
+      }
+    );
 
   });
 
-  heroImageInput.addEventListener("change", ()=>{
+  /* DRIVER LOGO */
 
-    readFileAsDataURL(heroImageInput, data=>{
+  driverLogoInput.addEventListener(
+  "change",
+  ()=>{
 
-      heroImagePreview.src = data;
+    readFile(
+      driverLogoInput,
+      data=>{
 
-      autoSaveSystemDesign();
+        driverLogoPreview.src =
+        data;
 
-    });
+        autoSave();
+
+      }
+    );
+
+  });
+
+  /* HERO */
+
+  heroImageInput.addEventListener(
+  "change",
+  ()=>{
+
+    readFile(
+      heroImageInput,
+      data=>{
+
+        heroImagePreview.src =
+        data;
+
+        autoSave();
+
+      }
+    );
 
   });
 
 }
 
 /* =========================
-CARDS EDITOR
+RENDER CARDS
 ========================= */
 
 function renderCardsEditor(cards){
 
-  const box =
-    document.getElementById("cardsEditor");
+  const container =
+  document.getElementById(
+    "cardsEditor"
+  );
 
-  box.innerHTML = "";
+  container.innerHTML = "";
 
   cards.forEach((card,index)=>{
 
     const div =
-      document.createElement("div");
+    document.createElement("div");
 
     div.className =
-      "service-card";
+    "service-card";
 
     div.innerHTML = `
 
       <div class="service-top">
 
         <div class="service-title">
-          ${card.title_en || "Service"}
+
+          ${
+            card.title_en ||
+            "Service"
+          }
+
         </div>
 
         <div class="toggle-row">
+
           <input
             type="checkbox"
             id="cardActive-${index}"
-            ${card.active ? "checked" : ""}
+            ${
+              card.active
+              ? "checked"
+              : ""
+            }
           >
-          <label>Active</label>
+
+          <label>
+            Active
+          </label>
+
         </div>
 
       </div>
 
+      <!-- IMAGE -->
+
       <div class="input-group">
 
-        <label>Card Image</label>
+        <label>
+          Card Image
+        </label>
 
         <img
           id="cardImagePreview-${index}"
           class="preview-image"
-          src="${card.image || ""}"
+          src="${
+            card.image || ""
+          }"
         >
 
         <input
           type="file"
-          id="cardImageInput-${index}"
           hidden
           accept="image/*"
+          id="cardImageInput-${index}"
         >
 
         <button
           class="upload-btn"
           type="button"
-          onclick="document.getElementById('cardImageInput-${index}').click()"
+          onclick="
+          document.getElementById(
+          'cardImageInput-${index}'
+          ).click()
+          "
         >
-          Upload Card Image
+          Upload Image
         </button>
 
       </div>
 
-      <div class="input-group">
-        <label>Title EN</label>
-        <input type="text" id="cardTitleEn-${index}" value="${card.title_en || ""}">
-      </div>
+      <!-- TITLE EN -->
 
       <div class="input-group">
-        <label>Title ES</label>
-        <input type="text" id="cardTitleEs-${index}" value="${card.title_es || ""}">
+
+        <label>
+          Title EN
+        </label>
+
+        <input
+          type="text"
+          id="cardTitleEn-${index}"
+          value="${
+            card.title_en || ""
+          }"
+        >
+
       </div>
 
-      <div class="input-group">
-        <label>Description EN</label>
-        <textarea id="cardDescEn-${index}">${card.description_en || ""}</textarea>
-      </div>
+      <!-- TITLE ES -->
 
       <div class="input-group">
-        <label>Description ES</label>
-        <textarea id="cardDescEs-${index}">${card.description_es || ""}</textarea>
+
+        <label>
+          Title ES
+        </label>
+
+        <input
+          type="text"
+          id="cardTitleEs-${index}"
+          value="${
+            card.title_es || ""
+          }"
+        >
+
+      </div>
+
+      <!-- DESC EN -->
+
+      <div class="input-group">
+
+        <label>
+          Description EN
+        </label>
+
+        <textarea
+          id="cardDescEn-${index}"
+        >${
+          card.description_en || ""
+        }</textarea>
+
+      </div>
+
+      <!-- DESC ES -->
+
+      <div class="input-group">
+
+        <label>
+          Description ES
+        </label>
+
+        <textarea
+          id="cardDescEs-${index}"
+        >${
+          card.description_es || ""
+        }</textarea>
+
       </div>
 
     `;
 
-    box.appendChild(div);
+    container.appendChild(div);
 
-    const imgInput =
-      document.getElementById(`cardImageInput-${index}`);
+    /* IMAGE INPUT */
 
-    imgInput.addEventListener("change",()=>{
+    const imageInput =
 
-      readFileAsDataURL(imgInput,data=>{
+    document.getElementById(
+      `cardImageInput-${index}`
+    );
 
-        document.getElementById(
-          `cardImagePreview-${index}`
-        ).src = data;
+    imageInput.addEventListener(
+    "change",
+    ()=>{
 
-        autoSaveSystemDesign();
+      readFile(
+        imageInput,
+        data=>{
 
-      });
+          document.getElementById(
+
+            `cardImagePreview-${index}`
+
+          ).src = data;
+
+          autoSave();
+
+        }
+      );
 
     });
 
@@ -366,48 +575,53 @@ function renderCardsEditor(cards){
 COLLECT DATA
 ========================= */
 
-function collectSystemDesign(){
+function collectData(){
 
-  const currentSaved =
-    getSavedDesign();
+  const services =
 
-  const services = DEFAULT_SERVICES.map((old,index)=>{
-
-    const preview =
-      document.getElementById(
-        `cardImagePreview-${index}`
-      );
+  DEFAULT_SERVICES.map(
+  (old,index)=>{
 
     return {
+
       key:old.key,
 
       active:
+
       document.getElementById(
         `cardActive-${index}`
       ).checked,
 
       image:
-      preview?.src || old.image,
+
+      document.getElementById(
+        `cardImagePreview-${index}`
+      ).src,
 
       title_en:
+
       document.getElementById(
         `cardTitleEn-${index}`
       ).value,
 
       title_es:
+
       document.getElementById(
         `cardTitleEs-${index}`
       ).value,
 
       description_en:
+
       document.getElementById(
         `cardDescEn-${index}`
       ).value,
 
       description_es:
+
       document.getElementById(
         `cardDescEs-${index}`
       ).value
+
     };
 
   });
@@ -415,6 +629,7 @@ function collectSystemDesign(){
   return {
 
     branding:{
+
       companyName:
       companyNameInput.value,
 
@@ -426,9 +641,11 @@ function collectSystemDesign(){
 
       driverLogo:
       driverLogoPreview.src
+
     },
 
     homepage:{
+
       heroImage:
       heroImagePreview.src,
 
@@ -449,15 +666,13 @@ function collectSystemDesign(){
 
       extra2Active:
       extra2Active.checked
+
     },
 
     services,
 
     updatedAt:
-    new Date().toISOString(),
-
-    old:
-    currentSaved.old || null
+    new Date().toISOString()
 
   };
 
@@ -470,17 +685,19 @@ SAVE
 function saveSystemDesign(){
 
   const data =
-    collectSystemDesign();
+  collectData();
 
   saveDesignObject(data);
 
+  /* GLOBAL */
+
   localStorage.setItem(
-    "appCompanyName",
+    "companyName",
     data.branding.companyName
   );
 
   localStorage.setItem(
-    "companyName",
+    "appCompanyName",
     data.branding.companyName
   );
 
@@ -504,7 +721,9 @@ function saveSystemDesign(){
     data.branding.driverLogo
   );
 
-  alert("System Design Saved Successfully");
+  alert(
+    "System Design Saved Successfully"
+  );
 
 }
 
@@ -512,10 +731,10 @@ function saveSystemDesign(){
 AUTO SAVE
 ========================= */
 
-function autoSaveSystemDesign(){
+function autoSave(){
 
   const data =
-    collectSystemDesign();
+  collectData();
 
   saveDesignObject(data);
 
@@ -528,17 +747,39 @@ RESET
 function resetSystemDesign(){
 
   const ok =
-    confirm("Reset system design settings?");
+  confirm(
+    "Reset all settings?"
+  );
 
   if(!ok) return;
 
-  localStorage.removeItem("ghSystemDesign");
-  localStorage.removeItem("appLogo");
-  localStorage.removeItem("driverLogo");
-  localStorage.removeItem("appCompanyName");
-  localStorage.removeItem("companyName");
-  localStorage.removeItem("systemTimezone");
-  localStorage.removeItem("appTimezone");
+  localStorage.removeItem(
+    "ghSystemDesign"
+  );
+
+  localStorage.removeItem(
+    "companyName"
+  );
+
+  localStorage.removeItem(
+    "appCompanyName"
+  );
+
+  localStorage.removeItem(
+    "systemTimezone"
+  );
+
+  localStorage.removeItem(
+    "appTimezone"
+  );
+
+  localStorage.removeItem(
+    "appLogo"
+  );
+
+  localStorage.removeItem(
+    "driverLogo"
+  );
 
   location.reload();
 
