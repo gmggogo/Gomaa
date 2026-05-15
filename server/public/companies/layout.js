@@ -1,8 +1,24 @@
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener(
+"DOMContentLoaded",
+async ()=>{
 
-const container = document.getElementById("layoutHeader");
+const container =
+document.getElementById(
+"layoutHeader"
+);
 
 if(!container) return;
+
+/* ================= DEFAULT LOGO ================= */
+
+if(!localStorage.getItem("appLogo")){
+
+localStorage.setItem(
+"appLogo",
+"/assets/logo.png"
+);
+
+}
 
 container.innerHTML = `
 
@@ -18,15 +34,31 @@ container.innerHTML = `
 
       <div class="company-block">
 
-        <img src="../assets/logo.png" class="logo">
+        <img
+        class="logo app-logo">
 
         <div class="company-text">
 
-          <div class="logged-company" id="companyName">
+          <div
+          class="logged-company"
+          id="companyName">
+
             Loading...
+
           </div>
 
-          <div class="greeting" id="greetingText">
+          <div
+          class="greeting"
+          id="greetingText">
+
+          </div>
+
+          <div
+          class="powered-by">
+
+            Powered by
+            GH Mobility
+
           </div>
 
         </div>
@@ -37,7 +69,10 @@ container.innerHTML = `
 
       <div class="time-block">
 
-        <div class="clock" id="azDateTime">
+        <div
+        class="clock"
+        id="azDateTime">
+
         </div>
 
       </div>
@@ -48,19 +83,37 @@ container.innerHTML = `
 
     <div class="nav">
 
-      <a href="dashboard.html">Dashboard</a>
+      <a href="dashboard.html">
+      Dashboard
+      </a>
 
-      <a href="add-trip.html">Add Trip</a>
+      <a href="add-trip.html">
+      Add Trip
+      </a>
 
-      <a href="review.html">Review</a>
+      <a href="review.html">
+      Review
+      </a>
 
-      <a href="summary.html">Summary</a>
+      <a href="summary.html">
+      Summary
+      </a>
 
-      <a href="payment.html">Payment</a>
+      <a href="payment.html">
+      Payment
+      </a>
 
-      <a href="taxes.html">Taxes</a>
+      <a href="taxes.html">
+      Taxes
+      </a>
 
-      <a href="#" id="logoutBtn">Logout</a>
+      <a
+      href="#"
+      id="logoutBtn">
+
+      Logout
+
+      </a>
 
     </div>
 
@@ -70,121 +123,193 @@ container.innerHTML = `
 
 `;
 
+/* ================= LOAD ENGINES ================= */
+
+const brandingScript =
+document.createElement("script");
+
+brandingScript.src =
+"/core/branding.js";
+
+document.body.appendChild(
+brandingScript
+);
+
+const timeScript =
+document.createElement("script");
+
+timeScript.src =
+"/core/time.js";
+
+document.body.appendChild(
+timeScript
+);
+
 /* ================= AUTH ================= */
 
-const token = localStorage.getItem("token");
-const role  = localStorage.getItem("role");
-const name  = localStorage.getItem("name");
+const token =
+localStorage.getItem(
+"token"
+);
+
+const role =
+localStorage.getItem(
+"role"
+);
+
+const name =
+localStorage.getItem(
+"name"
+);
 
 if(!token || role !== "company"){
 
-  window.location.replace("company-login.html");
+window.location.replace(
+"company-login.html"
+);
 
-  return;
+return;
 
 }
 
 /* ================= ACTIVE LINK ================= */
 
 const currentPage =
-window.location.pathname.split("/").pop();
+window.location.pathname
+.split("/")
+.pop();
 
-document.querySelectorAll(".nav a").forEach(link=>{
+document
+.querySelectorAll(".nav a")
+.forEach(link=>{
 
-  if(link.getAttribute("href") === currentPage){
+if(
+link.getAttribute("href")
+=== currentPage
+){
 
-    link.classList.add("active");
+link.classList.add(
+"active"
+);
 
-  }
+}
 
 });
 
 /* ================= COMPANY NAME ================= */
 
-
-document.getElementById("companyName").innerText =
-  name || "Company";
+document.getElementById(
+"companyName"
+).innerText =
+name || "Company";
 
 /* ================= LOGOUT ================= */
 
-document.getElementById("logoutBtn")
-.addEventListener("click",e=>{
+document.getElementById(
+"logoutBtn"
+)
+.addEventListener(
+"click",
+e=>{
 
-  e.preventDefault();
+e.preventDefault();
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  localStorage.removeItem("name");
+localStorage.removeItem(
+"token"
+);
 
-  window.location.replace("company-login.html");
+localStorage.removeItem(
+"role"
+);
+
+localStorage.removeItem(
+"name"
+);
+
+window.location.replace(
+"company-login.html"
+);
 
 });
 
-/* ================= TIME ================= */
+/* ================= GLOBAL TIME ================= */
 
-function updateTime(){
+function startGlobalClock(){
 
-  const now = new Date();
+if(typeof startClock === "function"){
 
-  const time =
-  now.toLocaleTimeString("en-US",{
+startClock(
+"azDateTime"
+);
 
-    timeZone:"America/Phoenix",
-
-    hour:"numeric",
-
-    minute:"2-digit",
-
-    second:"2-digit",
-
-    hour12:true
-
-  });
-
-  const date =
-  now.toLocaleDateString("en-US",{
-
-    timeZone:"America/Phoenix",
-
-    weekday:"short",
-
-    month:"short",
-
-    day:"numeric",
-
-    year:"numeric"
-
-  });
-
-  document.getElementById("azDateTime").innerHTML = `
-    <div>${time}</div>
-    <div>${date}</div>
-  `;
-
-  const phoenixHour = Number(
-    new Intl.DateTimeFormat("en-US",{
-      hour:"numeric",
-      hour12:false,
-      timeZone:"America/Phoenix"
-    }).format(now)
-  );
-
-  let greeting = "Good Evening";
-
-  if(phoenixHour < 12){
-    greeting = "Good Morning";
-  }
-  else if(phoenixHour < 18){
-    greeting = "Good Afternoon";
-  }
-
-  document.getElementById("greetingText")
-  .innerText = greeting;
+return true;
 
 }
 
-updateTime();
+return false;
 
-setInterval(updateTime,1000);
+}
+
+const waitClock =
+setInterval(()=>{
+
+if(startGlobalClock()){
+
+clearInterval(waitClock);
+
+}
+
+},200);
+
+/* ================= GREETING ================= */
+
+function updateGreeting(){
+
+const now = new Date();
+
+const phoenixHour =
+Number(
+
+new Intl.DateTimeFormat(
+"en-US",
+{
+hour:"numeric",
+hour12:false,
+timeZone:"America/Phoenix"
+}
+).format(now)
+
+);
+
+let greeting =
+"Good Evening";
+
+if(phoenixHour < 12){
+
+greeting =
+"Good Morning";
+
+}
+
+else if(phoenixHour < 18){
+
+greeting =
+"Good Afternoon";
+
+}
+
+document.getElementById(
+"greetingText"
+).innerText =
+greeting;
+
+}
+
+updateGreeting();
+
+setInterval(
+updateGreeting,
+60000
+);
 
 });
