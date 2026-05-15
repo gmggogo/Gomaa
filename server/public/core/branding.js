@@ -1,11 +1,11 @@
-/* =========================
-GH MOBILITY
-GLOBAL BRANDING ENGINE
-FILE:
-public/core/branding.js
-========================= */
+// =========================
+// FILE: public/core/branding.js
+// GH MOBILITY BRANDING ENGINE
+// =========================
 
-console.log("BRANDING ENGINE LOADED");
+console.log(
+  "BRANDING ENGINE LOADED"
+);
 
 window.Branding = {
 
@@ -81,6 +81,8 @@ window.Branding = {
 
     return (
 
+      this.data?.companyName ||
+
       this.data?.branding
       ?.companyName ||
 
@@ -97,6 +99,8 @@ window.Branding = {
   getMainLogo(){
 
     return (
+
+      this.data?.mainLogo ||
 
       this.data?.branding
       ?.mainLogo ||
@@ -115,6 +119,8 @@ window.Branding = {
 
     return (
 
+      this.data?.driverLogo ||
+
       this.data?.branding
       ?.driverLogo ||
 
@@ -132,6 +138,8 @@ window.Branding = {
 
     return (
 
+      this.data?.heroImage ||
+
       this.data?.homepage
       ?.heroImage ||
 
@@ -148,146 +156,21 @@ window.Branding = {
   getServices(){
 
     const services =
-    this.data?.services;
+
+    this.data?.services ||
+
+    this.data?.homepage
+    ?.services ||
+
+    [];
 
     if(
-
-      Array.isArray(services) &&
-      services.length
-
+      Array.isArray(services)
     ){
-
       return services;
-
     }
 
-    /* =========================
-    DEFAULT SERVICES
-    ========================= */
-
-    return [
-
-      {
-        active:true,
-
-        image:"assets/nemt.jpeg",
-
-        title_en:"NEMT",
-        title_es:"NEMT",
-
-        description_en:
-        "Medical appointments & clinics",
-
-        description_es:
-        "Citas médicas y clínicas"
-      },
-
-      {
-        active:true,
-
-        image:"assets/airport.jpeg",
-
-        title_en:"Airport",
-        title_es:"Aeropuerto",
-
-        description_en:
-        "Airport pickup & drop-off",
-
-        description_es:
-        "Traslados al aeropuerto"
-      },
-
-      {
-        active:true,
-
-        image:"assets/business.jpeg",
-
-        title_en:"Business",
-        title_es:"Negocios",
-
-        description_en:
-        "Corporate & private rides",
-
-        description_es:
-        "Viajes corporativos y privados"
-      },
-
-      {
-        active:true,
-
-        image:"assets/business.jpeg",
-
-        title_en:"Taxi",
-        title_es:"Taxi",
-
-        description_en:
-        "Daily city transportation",
-
-        description_es:
-        "Transporte diario en la ciudad"
-      },
-
-      {
-        active:true,
-
-        image:"assets/business.jpeg",
-
-        title_en:"Limo",
-        title_es:"Limusina",
-
-        description_en:
-        "Luxury transportation service",
-
-        description_es:
-        "Servicio de lujo"
-      },
-
-      {
-        active:true,
-
-        image:"assets/business.jpeg",
-
-        title_en:"XL",
-        title_es:"XL",
-
-        description_en:
-        "Large family transportation",
-
-        description_es:
-        "Transporte familiar"
-      },
-
-      {
-        active:true,
-
-        image:"assets/nemt.jpeg",
-
-        title_en:"Wheelchair",
-        title_es:"Silla de ruedas",
-
-        description_en:
-        "Wheelchair accessible rides",
-
-        description_es:
-        "Viajes accesibles"
-      },
-
-      {
-        active:true,
-
-        image:"assets/airport.jpeg",
-
-        title_en:"Shared Ride",
-        title_es:"Viaje compartido",
-
-        description_en:
-        "Affordable shared rides",
-
-        description_es:
-        "Viajes compartidos económicos"
-      }
-
-    ];
+    return [];
 
   },
 
@@ -313,12 +196,16 @@ window.Branding = {
 
   applyGlobalBranding(){
 
-    /* TITLE */
+    /* =========================
+    TITLE
+    ========================= */
 
     document.title =
     this.getCompanyName();
 
-    /* COMPANY NAME */
+    /* =========================
+    COMPANY NAME
+    ========================= */
 
     document
     .querySelectorAll(
@@ -331,7 +218,9 @@ window.Branding = {
 
     });
 
-    /* MAIN LOGO */
+    /* =========================
+    MAIN LOGO
+    ========================= */
 
     document
     .querySelectorAll(
@@ -344,7 +233,9 @@ window.Branding = {
 
     });
 
-    /* DRIVER LOGO */
+    /* =========================
+    DRIVER LOGO
+    ========================= */
 
     document
     .querySelectorAll(
@@ -357,7 +248,9 @@ window.Branding = {
 
     });
 
-    /* HERO IMAGE */
+    /* =========================
+    HERO IMAGE
+    ========================= */
 
     document
     .querySelectorAll(
@@ -401,25 +294,50 @@ window.Branding = {
 
     container.innerHTML = "";
 
-    services.forEach(service=>{
+    /* =========================
+    NO SERVICES
+    ========================= */
 
-      if(!service.active) return;
+    const activeServices =
+    services.filter(
+      s => s.active
+    );
+
+    if(!activeServices.length){
+
+      container.innerHTML = `
+
+      <div style="
+      width:100%;
+      text-align:center;
+      padding:50px;
+      font-size:24px;
+      color:#64748b;
+      ">
+
+        No Active Services
+
+      </div>
+
+      `;
+
+      return;
+
+    }
+
+    /* =========================
+    RENDER
+    ========================= */
+
+    activeServices.forEach(service=>{
 
       const title =
 
-      lang === "es"
-
-      ? service.title_es
-
-      : service.title_en;
+      service.title || "";
 
       const desc =
 
-      lang === "es"
-
-      ? service.description_es
-
-      : service.description_en;
+      service.description || "";
 
       const buttonText =
 
@@ -452,7 +370,10 @@ window.Branding = {
           </p>
 
           <a
-          href="getquote/index.html"
+          href="${
+            service.link ||
+            "getquote/index.html"
+          }"
           class="card-btn">
 
             ${buttonText}
