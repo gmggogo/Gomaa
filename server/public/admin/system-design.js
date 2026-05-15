@@ -1,5 +1,6 @@
 // =========================================
-// FILE: public/admin/system-design.js
+// FILE:
+// public/admin/system-design.js
 // =========================================
 
 let systemDesign =
@@ -9,6 +10,41 @@ localStorage.getItem("ghSystemDesign")
 );
 
 /* =========================================
+SAVE STORAGE
+========================================= */
+
+function saveStorage(){
+
+  localStorage.setItem(
+    "ghSystemDesign",
+    JSON.stringify(systemDesign)
+  );
+
+}
+
+/* =========================================
+BASE64
+========================================= */
+
+function fileToBase64(file){
+
+  return new Promise((resolve)=>{
+
+    const reader = new FileReader();
+
+    reader.onload = e=>{
+
+      resolve(e.target.result);
+
+    };
+
+    reader.readAsDataURL(file);
+
+  });
+
+}
+
+/* =========================================
 DEFAULT SERVICES
 ========================================= */
 
@@ -16,7 +52,7 @@ const defaultServices = [
 
 {
   id:"nemt",
-  active:true,
+  active:false,
   title:"NEMT",
   description:"Medical appointments & clinics",
   image:"/assets/nemt.jpeg",
@@ -25,7 +61,7 @@ const defaultServices = [
 
 {
   id:"airport",
-  active:true,
+  active:false,
   title:"Airport",
   description:"Airport pickup & drop-off",
   image:"/assets/airport.jpeg",
@@ -34,7 +70,7 @@ const defaultServices = [
 
 {
   id:"business",
-  active:true,
+  active:false,
   title:"Business",
   description:"Corporate & private rides",
   image:"/assets/business.jpeg",
@@ -97,10 +133,12 @@ if(!systemDesign.services){
   systemDesign.services =
   defaultServices;
 
+  saveStorage();
+
 }
 
 /* =========================================
-RENDER CARDS
+RENDER
 ========================================= */
 
 function renderCardsEditor(){
@@ -124,7 +162,9 @@ function renderCardsEditor(){
       <div class="service-top">
 
         <div class="service-title">
+
           ${service.title}
+
         </div>
 
         <label>
@@ -146,8 +186,6 @@ function renderCardsEditor(){
 
       </div>
 
-      <!-- TITLE -->
-
       <div class="input-group">
 
         <label>
@@ -168,8 +206,6 @@ function renderCardsEditor(){
 
       </div>
 
-      <!-- DESCRIPTION -->
-
       <div class="input-group">
 
         <label>
@@ -188,8 +224,6 @@ function renderCardsEditor(){
 
       </div>
 
-      <!-- IMAGE -->
-
       <div class="input-group">
 
         <label>
@@ -205,12 +239,12 @@ function renderCardsEditor(){
         <input
           type="file"
           hidden
-          id="imageInput-${index}"
           accept="image/*"
+          id="upload-${index}"
           onchange="
           uploadCardImage(
             ${index},
-            this
+            this.files[0]
           )
           "
         >
@@ -221,7 +255,7 @@ function renderCardsEditor(){
           onclick="
           document
           .getElementById(
-            'imageInput-${index}'
+            'upload-${index}'
           )
           .click()
           "
@@ -252,10 +286,12 @@ function(index,key,value){
   .services[index][key] =
   value;
 
+  saveStorage();
+
 };
 
 /* =========================================
-TOGGLE CARD
+TOGGLE
 ========================================= */
 
 window.toggleCard =
@@ -265,6 +301,8 @@ function(index,state){
   .services[index]
   .active = state;
 
+  saveStorage();
+
 };
 
 /* =========================================
@@ -272,39 +310,22 @@ UPLOAD IMAGE
 ========================================= */
 
 window.uploadCardImage =
-function(index,input){
-
-  const file =
-  input.files[0];
+async function(index,file){
 
   if(!file) return;
 
-  const reader =
-  new FileReader();
+  const base64 =
+  await fileToBase64(file);
 
-  reader.onload =
-  function(e){
+  systemDesign
+  .services[index]
+  .image = base64;
 
-    systemDesign
-    .services[index]
-    .image =
-    e.target.result;
+  document.getElementById(
+    `preview-${index}`
+  ).src = base64;
 
-    const preview =
-    document.getElementById(
-      `preview-${index}`
-    );
-
-    if(preview){
-
-      preview.src =
-      e.target.result;
-
-    }
-
-  };
-
-  reader.readAsDataURL(file);
+  saveStorage();
 
 };
 
@@ -318,51 +339,11 @@ function(){
   systemDesign.companyName =
   document.getElementById(
     "companyNameInput"
-  )?.value || "";
+  ).value;
 
-  systemDesign.timezone =
-  document.getElementById(
-    "timezoneInput"
-  )?.value || "America/Phoenix";
+  saveStorage();
 
-  systemDesign.extra1Title =
-  document.getElementById(
-    "extra1Title"
-  )?.value || "";
-
-  systemDesign.extra1Text =
-  document.getElementById(
-    "extra1Text"
-  )?.value || "";
-
-  systemDesign.extra2Title =
-  document.getElementById(
-    "extra2Title"
-  )?.value || "";
-
-  systemDesign.extra2Text =
-  document.getElementById(
-    "extra2Text"
-  )?.value || "";
-
-  systemDesign.extra1Active =
-  document.getElementById(
-    "extra1Active"
-  )?.checked || false;
-
-  systemDesign.extra2Active =
-  document.getElementById(
-    "extra2Active"
-  )?.checked || false;
-
-  localStorage.setItem(
-    "ghSystemDesign",
-    JSON.stringify(systemDesign)
-  );
-
-  alert(
-    "System Design Saved"
-  );
+  alert("Saved");
 
 };
 
@@ -373,13 +354,6 @@ RESET
 window.resetSystemDesign =
 function(){
 
-  const ok =
-  confirm(
-    "Reset all system design settings?"
-  );
-
-  if(!ok) return;
-
   localStorage.removeItem(
     "ghSystemDesign"
   );
@@ -389,63 +363,12 @@ function(){
 };
 
 /* =========================================
-LOAD FORM
-========================================= */
-
-function loadFormValues(){
-
-  document.getElementById(
-    "companyNameInput"
-  ).value =
-  systemDesign.companyName || "";
-
-  document.getElementById(
-    "timezoneInput"
-  ).value =
-  systemDesign.timezone
-  || "America/Phoenix";
-
-  document.getElementById(
-    "extra1Title"
-  ).value =
-  systemDesign.extra1Title || "";
-
-  document.getElementById(
-    "extra1Text"
-  ).value =
-  systemDesign.extra1Text || "";
-
-  document.getElementById(
-    "extra2Title"
-  ).value =
-  systemDesign.extra2Title || "";
-
-  document.getElementById(
-    "extra2Text"
-  ).value =
-  systemDesign.extra2Text || "";
-
-  document.getElementById(
-    "extra1Active"
-  ).checked =
-  systemDesign.extra1Active || false;
-
-  document.getElementById(
-    "extra2Active"
-  ).checked =
-  systemDesign.extra2Active || false;
-
-}
-
-/* =========================================
 LOAD
 ========================================= */
 
 window.addEventListener(
 "DOMContentLoaded",
 ()=>{
-
-  loadFormValues();
 
   renderCardsEditor();
 
