@@ -42,6 +42,8 @@ body{
 
     color:#0f172a;
 
+    overflow-x:hidden;
+
 }
 
 /* =========================
@@ -56,7 +58,7 @@ TOP BAR
 
     align-items:center;
 
-    padding:10px 14px;
+    padding:12px 16px;
 
     background:#fff;
 
@@ -74,7 +76,7 @@ TOP BAR
 
     display:flex;
 
-    gap:8px;
+    gap:10px;
 
 }
 
@@ -84,11 +86,11 @@ TOP BAR
 
     color:#fff;
 
-    padding:8px 14px;
+    padding:10px 16px;
 
-    border-radius:12px;
+    border-radius:14px;
 
-    font-size:13px;
+    font-size:14px;
 
     font-weight:700;
 
@@ -106,7 +108,7 @@ TOP BAR
 
     display:flex;
 
-    gap:6px;
+    gap:8px;
 
 }
 
@@ -118,13 +120,15 @@ TOP BAR
 
     border-radius:18px;
 
-    padding:7px 12px;
+    padding:8px 14px;
 
-    font-size:12px;
+    font-size:13px;
 
     font-weight:700;
 
     cursor:pointer;
+
+    color:#2563eb;
 
 }
 
@@ -136,17 +140,19 @@ HERO
 
     width:100%;
 
-    height:460px;
+    height:560px;
 
     position:relative;
 
     overflow:hidden;
 
-    background:#0f172a;
+    background:#111827;
 
 }
 
-/* 🔥 الصورة */
+/* =========================
+HERO IMAGE
+========================= */
 
 .hero img{
 
@@ -158,10 +164,11 @@ HERO
 
     object-position:center bottom;
 
-    transform:scale(1.55)
-    translateY(40px);
+    transform:
+    scale(1.75)
+    translateY(85px);
 
-    filter:brightness(.96);
+    filter:brightness(.98);
 
 }
 
@@ -173,23 +180,23 @@ POWERED
 
     position:absolute;
 
-    left:15px;
+    left:18px;
 
-    bottom:15px;
+    bottom:18px;
+
+    background:rgba(0,0,0,.35);
 
     color:#fff;
+
+    padding:8px 14px;
+
+    border-radius:20px;
 
     font-size:12px;
 
     font-weight:700;
 
-    background:rgba(0,0,0,.35);
-
-    padding:7px 12px;
-
-    border-radius:20px;
-
-    backdrop-filter:blur(5px);
+    backdrop-filter:blur(6px);
 
 }
 
@@ -205,15 +212,17 @@ ABOUT
 
     text-align:center;
 
-    padding:55px 20px 35px;
+    padding:60px 20px 40px;
 
 }
 
 .about h2{
 
-    font-size:36px;
+    font-size:42px;
 
-    margin-bottom:16px;
+    margin-bottom:18px;
+
+    color:#1e3a5f;
 
 }
 
@@ -223,7 +232,7 @@ ABOUT
 
     line-height:1.9;
 
-    font-size:17px;
+    font-size:19px;
 
 }
 
@@ -235,15 +244,19 @@ QUOTE HEADER
 
     text-align:center;
 
-    padding:10px 20px 25px;
+    padding:20px;
 
 }
 
 .quote-header h2{
 
-    font-size:34px;
+    font-size:48px;
 
-    margin-bottom:10px;
+    line-height:1.2;
+
+    margin-bottom:14px;
+
+    color:#1e3a5f;
 
 }
 
@@ -251,7 +264,7 @@ QUOTE HEADER
 
     color:#64748b;
 
-    font-size:16px;
+    font-size:20px;
 
 }
 
@@ -261,11 +274,11 @@ SERVICES
 
 .services-wrapper{
 
-    max-width:1450px;
+    max-width:1500px;
 
     margin:auto;
 
-    padding:0 20px 40px;
+    padding:20px 20px 60px;
 
 }
 
@@ -277,35 +290,41 @@ SERVICES
 
     justify-content:center;
 
-    gap:24px;
+    gap:28px;
 
 }
 
+/* =========================
+CARD
+========================= */
+
 .card{
 
-    width:300px;
+    width:310px;
 
     background:#fff;
 
-    border-radius:24px;
+    border-radius:26px;
 
     overflow:hidden;
 
-    box-shadow:0 10px 30px rgba(0,0,0,.08);
+    box-shadow:0 12px 35px rgba(0,0,0,.08);
 
     transition:.25s;
 
 }
 
 .card:hover{
-    transform:translateY(-4px);
+
+    transform:translateY(-5px);
+
 }
 
 .card img{
 
     width:100%;
 
-    height:190px;
+    height:210px;
 
     object-fit:cover;
 
@@ -313,7 +332,7 @@ SERVICES
 
 .card-content{
 
-    padding:18px;
+    padding:22px;
 
     text-align:center;
 
@@ -323,7 +342,11 @@ SERVICES
 
     margin-top:0;
 
-    font-size:27px;
+    margin-bottom:10px;
+
+    font-size:30px;
+
+    color:#1e3a5f;
 
 }
 
@@ -333,7 +356,9 @@ SERVICES
 
     line-height:1.7;
 
-    min-height:52px;
+    min-height:60px;
+
+    font-size:16px;
 
 }
 
@@ -341,7 +366,7 @@ SERVICES
 
     display:inline-block;
 
-    margin-top:15px;
+    margin-top:18px;
 
     text-decoration:none;
 
@@ -349,11 +374,13 @@ SERVICES
 
     color:#fff;
 
-    padding:12px 20px;
+    padding:13px 24px;
 
     border-radius:14px;
 
     font-weight:700;
+
+    font-size:15px;
 
 }
 
@@ -363,13 +390,13 @@ CUSTOM BOX
 
 .custom-section{
 
-    padding:10px 20px 45px;
+    padding:0 20px 60px;
 
 }
 
 .custom-box{
 
-    max-width:1400px;
+    max-width:1450px;
 
     margin:auto;
 
@@ -379,13 +406,13 @@ CUSTOM BOX
 
     border-radius:28px;
 
-    padding:55px 20px;
+    padding:60px 20px;
 
     text-align:center;
 
     color:#94a3b8;
 
-    font-size:24px;
+    font-size:26px;
 
     font-weight:700;
 
@@ -399,11 +426,11 @@ CONTACT
 
     text-align:center;
 
-    padding:50px 20px;
+    padding:60px 20px;
 
-    line-height:2;
+    line-height:2.1;
 
-    font-size:17px;
+    font-size:18px;
 
 }
 
@@ -419,7 +446,7 @@ footer{
 
     text-align:center;
 
-    padding:20px;
+    padding:22px;
 
     font-size:14px;
 
@@ -432,59 +459,110 @@ MOBILE
 @media(max-width:768px){
 
     .top-bar{
-        padding:8px;
+
+        padding:10px;
+
+    }
+
+    .top-links{
+
+        gap:6px;
+
     }
 
     .top-links a{
 
         font-size:11px;
 
-        padding:6px 8px;
+        padding:8px 10px;
+
+        border-radius:12px;
+
+    }
+
+    .lang-right{
+
+        gap:5px;
 
     }
 
     .lang-right button{
 
-        font-size:10px;
+        font-size:11px;
 
-        padding:5px 8px;
+        padding:7px 10px;
 
     }
 
+    /* HERO */
+
     .hero{
 
-        height:260px;
+        height:430px;
 
     }
 
     .hero img{
 
-        transform:scale(1.9)
-        translateY(28px);
+        transform:
+        scale(2.65)
+        translateY(105px);
+
+        object-position:center bottom;
 
     }
 
     .powered-by{
 
-        left:10px;
+        left:12px;
 
-        bottom:10px;
+        bottom:14px;
 
-        font-size:9px;
+        font-size:10px;
+
+        padding:7px 12px;
 
     }
 
-    .about h2,
+    /* ABOUT */
+
+    .about{
+
+        padding:45px 18px 30px;
+
+    }
+
+    .about h2{
+
+        font-size:28px;
+
+    }
+
+    .about p{
+
+        font-size:15px;
+
+    }
+
+    /* QUOTE */
+
     .quote-header h2{
 
-        font-size:26px;
+        font-size:30px;
 
     }
 
-    .about p,
     .quote-header p{
 
-        font-size:14px;
+        font-size:16px;
+
+    }
+
+    /* CARDS */
+
+    .services{
+
+        gap:20px;
 
     }
 
@@ -492,21 +570,51 @@ MOBILE
 
         width:100%;
 
-        max-width:340px;
+        max-width:360px;
 
     }
 
     .card img{
 
-        height:180px;
+        height:220px;
 
     }
 
+    .card h3{
+
+        font-size:26px;
+
+    }
+
+    .card p{
+
+        font-size:15px;
+
+    }
+
+    .btn{
+
+        width:100%;
+
+        text-align:center;
+
+    }
+
+    /* CUSTOM */
+
     .custom-box{
 
-        font-size:18px;
+        font-size:19px;
 
-        padding:35px 15px;
+        padding:40px 16px;
+
+    }
+
+    /* CONTACT */
+
+    .contact-section{
+
+        font-size:16px;
 
     }
 
@@ -545,11 +653,15 @@ TOP BAR
     <div class="lang-right">
 
         <button onclick="setLang('en')">
+
             English
+
         </button>
 
         <button onclick="setLang('es')">
+
             Spanish
+
         </button>
 
     </div>
@@ -562,12 +674,10 @@ HERO
 
 <section class="hero">
 
-    <!-- 🔥 الصورة بس -->
     <img
     src="assets/hero.jpeg"
     alt="GH Mobility">
 
-    <!-- 🔥 Powered فقط -->
     <div class="powered-by">
 
         Powered by GH Mobility
