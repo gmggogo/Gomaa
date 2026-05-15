@@ -1,84 +1,181 @@
 <header class="admin-header">
 
-<!-- TOP BAR -->
+<!-- ================= TOP BAR ================= -->
 
 <div class="top-bar">
 
-<div class="top-left">
+  <!-- LEFT -->
 
-<img class="logo app-logo" alt="Company Logo">
+  <div class="top-left">
 
-<div class="info">
+    <!-- 🔥 Dynamic Logo -->
 
-<div class="company" id="dynamicCompanyName">Loading...</div>
+    <img
+      class="logo app-logo"
+      alt="Company Logo">
 
-<div class="admin">Admin Panel</div>
+    <div class="info">
+
+      <!-- 🔥 Dynamic Company -->
+
+      <div
+        class="company"
+        id="dynamicCompanyName">
+
+        Loading...
+
+      </div>
+
+      <div class="admin">
+
+        Admin Panel
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- CENTER -->
+
+  <div class="top-center">
+
+    <div class="welcome-box">
+
+      <span id="weatherIcon"></span>
+
+      <span id="welcomeMessage"></span>
+
+    </div>
+
+  </div>
+
+
+  <!-- RIGHT -->
+
+  <div class="top-right">
+
+    <!-- 🔥 Dynamic Time -->
+
+    <span id="azTime"></span>
+
+    <button
+      class="logout-btn"
+      onclick="logout()">
+
+      Logout
+
+    </button>
+
+  </div>
 
 </div>
 
-</div>
 
+<!-- ================= NAV ================= -->
 
-<div class="top-center">
-
-<div class="welcome-box">
-
-<span id="weatherIcon"></span>
-
-<span id="welcomeMessage"></span>
-
-</div>
-
-</div>
-
-
-<div class="top-right">
-
-<span id="azTime"></span>
-
-<button class="logout-btn" onclick="logout()">Logout</button>
-
-</div>
-
-</div>
-
-
-<!-- NAV BAR -->
+<div class="admin-nav-wrapper">
 
 <nav class="admin-nav">
 
-<a href="dashboard.html" class="nav-btn">Dashboard</a>
+<a href="dashboard.html" class="nav-btn">
+Dashboard
+</a>
 
-<a href="trips-hub.html" class="nav-btn">Trips Hub</a>
+<a href="trips-hub.html" class="nav-btn">
+Trips Hub
+</a>
 
-<a href="trips.html" class="nav-btn">Trips</a>
+<a href="trips.html" class="nav-btn">
+Trips
+</a>
 
-<a href="dispatch.html" class="nav-btn">Dispatch</a>
+<a href="dispatch.html" class="nav-btn">
+Dispatch
+</a>
 
-<a href="driver-schedule.html" class="nav-btn">Driver Schedule</a>
+<a href="driver-schedule.html" class="nav-btn">
+Driver Schedule
+</a>
 
-<a href="maps.html" class="nav-btn">Drivers Map</a>
+<a href="maps.html" class="nav-btn">
+Drivers Map
+</a>
 
-<a href="users.html" class="nav-btn">Add User</a>
+<a href="users.html" class="nav-btn">
+Add User
+</a>
 
-<a href="summary.html" class="nav-btn">Summary</a>
+<a href="summary.html" class="nav-btn">
+Summary
+</a>
 
-<a href="payments.html" class="nav-btn">Payments</a>
+<a href="payments.html" class="nav-btn">
+Payments
+</a>
 
-<a href="settings.html" class="nav-btn">Settings</a>
+<a href="settings.html" class="nav-btn">
+Settings
+</a>
 
-<a href="refunds.html" class="nav-btn">Refunds</a>
+<a href="refunds.html" class="nav-btn">
+Refunds
+</a>
 
-<a href="admin-billing.html" class="nav-btn">Admin-billing</a>
+<a href="admin-billing.html" class="nav-btn">
+Admin-billing
+</a>
 
-<a href="service-management.html" class="nav-btn">
-  Service Management
+<a
+href="service-management.html"
+class="nav-btn">
+
+Service Management
+
 </a>
 
 </nav>
 
+<!-- 🔥 GH -->
+
 <div class="gh-powered">
+
 Powered by GH Mobility
+
+</div>
+
 </div>
 
 </header>
+
+
+<style>
+
+.admin-nav-wrapper{
+
+background:#111827;
+
+}
+
+.gh-powered{
+
+width:100%;
+
+text-align:center;
+
+font-size:10px;
+
+color:#cbd5e1;
+
+opacity:.75;
+
+padding:4px 0 6px;
+
+letter-spacing:.5px;
+
+border-top:1px solid rgba(255,255,255,.05);
+
+}
+
+</style>
