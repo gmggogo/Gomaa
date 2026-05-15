@@ -4,41 +4,71 @@
 
 <div class="top-bar">
 
-<div class="top-left">
+  <!-- LEFT -->
 
-<img src="../assets/logo.png" class="logo">
+  <div class="top-left">
 
-<div class="info">
+    <!-- 🔥 Dynamic Logo -->
 
-<div class="company">Sunbeam Transportation</div>
+    <img
+      class="logo app-logo"
+      alt="Company Logo">
 
-<div class="admin">Admin Panel</div>
+    <div class="info">
 
-</div>
+      <!-- 🔥 Dynamic Company -->
 
-</div>
+      <div
+        class="company"
+        id="dynamicCompanyName">
+
+        Loading...
+
+      </div>
+
+      <div class="admin">
+
+        Admin Panel
+
+      </div>
+
+    </div>
+
+  </div>
 
 
-<div class="top-center">
+  <!-- CENTER -->
 
-<div class="welcome-box">
+  <div class="top-center">
 
-<span id="weatherIcon"></span>
+    <div class="welcome-box">
 
-<span id="welcomeMessage"></span>
+      <span id="weatherIcon"></span>
 
-</div>
+      <span id="welcomeMessage"></span>
 
-</div>
+    </div>
+
+  </div>
 
 
-<div class="top-right">
+  <!-- RIGHT -->
 
-<span id="azTime"></span>
+  <div class="top-right">
 
-<button class="logout-btn" onclick="logout()">Logout</button>
+    <!-- 🔥 Dynamic Time -->
 
-</div>
+    <span id="dynamicTime"></span>
+
+    <button
+      class="logout-btn"
+      onclick="logout()">
+
+      Logout
+
+    </button>
+
+  </div>
 
 </div>
 
@@ -47,34 +77,189 @@
 
 <nav class="admin-nav">
 
-<a href="dashboard.html" class="nav-btn">Dashboard</a>
+  <a href="dashboard.html" class="nav-btn">
+    Dashboard
+  </a>
 
-<a href="trips-hub.html" class="nav-btn">Trips Hub</a>
+  <a href="trips-hub.html" class="nav-btn">
+    Trips Hub
+  </a>
 
-<a href="trips.html" class="nav-btn">Trips</a>
+  <a href="trips.html" class="nav-btn">
+    Trips
+  </a>
 
-<a href="dispatch.html" class="nav-btn">Dispatch</a>
+  <a href="dispatch.html" class="nav-btn">
+    Dispatch
+  </a>
 
-<a href="driver-schedule.html" class="nav-btn">Driver Schedule</a>
+  <a href="driver-schedule.html" class="nav-btn">
+    Driver Schedule
+  </a>
 
-<a href="maps.html" class="nav-btn">Drivers Map</a>
+  <a href="maps.html" class="nav-btn">
+    Drivers Map
+  </a>
 
-<a href="users.html" class="nav-btn">Add User</a>
+  <a href="users.html" class="nav-btn">
+    Add User
+  </a>
 
-<a href="summary.html" class="nav-btn">Summary</a>
+  <a href="summary.html" class="nav-btn">
+    Summary
+  </a>
 
-<a href="payments.html" class="nav-btn">Payments</a>
+  <a href="payments.html" class="nav-btn">
+    Payments
+  </a>
 
-<a href="settings.html" class="nav-btn">Settings</a>
+  <a href="settings.html" class="nav-btn">
+    Settings
+  </a>
 
-<a href="refunds.html" class="nav-btn">Refunds</a>
+  <a href="refunds.html" class="nav-btn">
+    Refunds
+  </a>
 
-<a href="admin-billing.html" class="nav-btn">Admin-billing</a>
+  <a href="admin-billing.html" class="nav-btn">
+    Admin-billing
+  </a>
 
-<a href="service-management.html" class="nav-btn">
-  Service Management
-</a>
+  <a
+    href="service-management.html"
+    class="nav-btn">
+
+    Service Management
+
+  </a>
 
 </nav>
 
+
+<!-- 🔥 GH -->
+
+<div class="gh-powered">
+
+  Powered by GH Mobility
+
+</div>
+
 </header>
+
+
+<!-- 🔥 Branding Engine -->
+
+<script src="/core/branding.js"></script>
+
+
+<style>
+
+.gh-powered{
+
+width:100%;
+
+text-align:center;
+
+font-size:11px;
+
+color:#cbd5e1;
+
+opacity:.7;
+
+padding:5px 0 8px;
+
+letter-spacing:.5px;
+
+background:#111827;
+
+border-top:1px solid rgba(255,255,255,.05);
+
+}
+
+</style>
+
+
+<script>
+
+/* =========================
+   DYNAMIC COMPANY
+========================= */
+
+const dynamicCompany =
+
+document.getElementById(
+"dynamicCompanyName"
+);
+
+if(dynamicCompany){
+
+dynamicCompany.innerText =
+
+localStorage.getItem(
+"companyName"
+)
+
+|| "Company";
+
+}
+
+/* =========================
+   DYNAMIC TIME
+========================= */
+
+function updateDynamicTime(){
+
+const timezone =
+
+localStorage.getItem(
+"systemTimezone"
+)
+
+|| "America/Phoenix";
+
+const now = new Date();
+
+const date = now.toLocaleDateString(
+"en-US",
+{
+timeZone:timezone,
+month:"short",
+day:"numeric",
+year:"numeric"
+}
+);
+
+const time = now.toLocaleTimeString(
+"en-US",
+{
+timeZone:timezone,
+hour:"numeric",
+minute:"2-digit",
+second:"2-digit",
+hour12:true
+}
+);
+
+const el =
+document.getElementById(
+"dynamicTime"
+);
+
+if(el){
+
+el.innerHTML = `
+${date} ${time}
+`;
+
+}
+
+}
+
+updateDynamicTime();
+
+setInterval(
+updateDynamicTime,
+1000
+);
+
+</script>
