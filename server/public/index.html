@@ -373,10 +373,6 @@ SERVICES
 
 }
 
-/* =========================
-BUTTON
-========================= */
-
 .card-btn{
 
     display:inline-flex;
@@ -644,38 +640,6 @@ MOBILE
 
     }
 
-    .extra-sections{
-
-        padding:10px 20px 60px;
-
-    }
-
-    .extra-box{
-
-        padding:25px;
-
-    }
-
-    .extra-box h3{
-
-        font-size:26px;
-
-    }
-
-    .extra-box p{
-
-        font-size:18px;
-
-    }
-
-    .contact-section{
-
-        font-size:22px;
-
-        padding:50px 20px;
-
-    }
-
 }
 
 </style>
@@ -683,10 +647,6 @@ MOBILE
 </head>
 
 <body>
-
-<!-- =========================
-TOP BAR
-========================= -->
 
 <div class="top-bar">
 
@@ -734,10 +694,6 @@ TOP BAR
 
 </div>
 
-<!-- =========================
-HERO
-========================= -->
-
 <section class="hero">
 
     <div class="hero-inner">
@@ -756,10 +712,6 @@ HERO
     </div>
 
 </section>
-
-<!-- =========================
-ABOUT
-========================= -->
 
 <section class="about">
 
@@ -781,10 +733,6 @@ ABOUT
 
 </section>
 
-<!-- =========================
-QUOTE
-========================= -->
-
 <section class="quote-header">
 
     <h2
@@ -805,18 +753,10 @@ QUOTE
 
 </section>
 
-<!-- =========================
-SERVICES
-========================= -->
-
 <section
 class="services"
 id="servicesContainer">
 </section>
-
-<!-- =========================
-EXTRA
-========================= -->
 
 <section class="extra-sections">
 
@@ -859,10 +799,6 @@ EXTRA
 
 </section>
 
-<!-- =========================
-CONTACT
-========================= -->
-
 <div class="contact-section">
 
     <strong>
@@ -881,33 +817,17 @@ CONTACT
 
 </div>
 
-<!-- =========================
-FOOTER
-========================= -->
-
 <footer class="company-name">
 
-    © Sunbeam Transportation
+    ©️ Sunbeam Transportation
 
 </footer>
 
-<!-- =========================
-BRANDING ENGINE
-========================= -->
-
 <script src="/core/branding.js"></script>
-
-<!-- =========================
-MAIN ENGINE
-========================= -->
 
 <script>
 
 let currentLang = "en";
-
-/* =========================
-LANGUAGE
-========================= */
 
 window.setLang = function(lang){
 
@@ -967,51 +887,18 @@ window.setLang = function(lang){
 
 };
 
-/* =========================
-LOAD
-========================= */
-
 window.addEventListener(
 "DOMContentLoaded",
 async ()=>{
 
     await Branding.load();
 
-    /* HERO */
-
-    document
-    .querySelectorAll(".hero-image")
-    .forEach(img=>{
-
-        img.src =
-        Branding.getHeroImage();
-
-    });
-
-    /* TITLE */
-
-    document.title =
-    Branding.getCompanyName();
-
-    /* COMPANY */
-
-    document
-    .querySelectorAll(".company-name")
-    .forEach(el=>{
-
-        el.innerText =
-        Branding.getCompanyName();
-
-    });
-
-    /* SERVICES */
+    Branding.applyGlobalBranding();
 
     Branding.renderHomepageCards(
         "servicesContainer",
         currentLang
     );
-
-    /* DEFAULT */
 
     setLang("en");
 
