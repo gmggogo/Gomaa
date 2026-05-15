@@ -1,24 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 
 <meta charset="UTF-8">
-
-<title>
-Service Management
-</title>
 
 <meta
 name="viewport"
 content="width=device-width, initial-scale=1.0"
 />
 
-<link rel="stylesheet" href="style.css">
+<title>
+Service Management
+</title>
+
+<link
+rel="stylesheet"
+href="style.css"
+/>
 
 <style>
 
 /* =========================
-   BODY
+BODY
 ========================= */
 
 body{
@@ -28,16 +32,20 @@ body{
   color:#0f172a;
 }
 
+/* =========================
+HEADER
+========================= */
+
 #adminHeader{
   position:fixed;
   top:0;
   left:0;
   width:100%;
-  z-index:1000;
+  z-index:9999;
 }
 
 /* =========================
-   PAGE
+PAGE
 ========================= */
 
 .page-body{
@@ -49,7 +57,7 @@ body{
 @media(max-width:768px){
 
   .page-body{
-    padding-top:320px;
+    padding-top:340px;
     padding-left:12px;
     padding-right:12px;
   }
@@ -57,17 +65,17 @@ body{
 }
 
 /* =========================
-   TITLE
+TITLE
 ========================= */
 
 .page-title{
-  font-size:36px;
+  font-size:34px;
   font-weight:900;
-  margin-bottom:30px;
+  margin-bottom:28px;
 }
 
 /* =========================
-   GRID
+GRID
 ========================= */
 
 .services-grid{
@@ -75,14 +83,14 @@ body{
   display:grid;
 
   grid-template-columns:
-  repeat(auto-fit,minmax(380px,1fr));
+  repeat(auto-fit,minmax(360px,1fr));
 
   gap:24px;
 
 }
 
 /* =========================
-   CARD
+CARD
 ========================= */
 
 .service-card{
@@ -99,7 +107,7 @@ body{
 }
 
 /* =========================
-   TOP
+TOP
 ========================= */
 
 .service-top{
@@ -140,13 +148,21 @@ body{
 
   justify-content:center;
 
-  font-size:38px;
+  overflow:hidden;
+
+}
+
+.service-icon img{
+
+  width:100%;
+  height:100%;
+  object-fit:cover;
 
 }
 
 .service-name{
 
-  font-size:25px;
+  font-size:24px;
 
   font-weight:900;
 
@@ -165,18 +181,18 @@ body{
 }
 
 /* =========================
-   TOGGLE
+TOGGLE
 ========================= */
 
 .toggle-btn{
 
   border:none;
 
-  padding:14px 22px;
+  padding:14px 20px;
 
   border-radius:18px;
 
-  font-size:14px;
+  font-size:13px;
 
   font-weight:900;
 
@@ -195,7 +211,7 @@ body{
 }
 
 /* =========================
-   WARNING
+WARNING
 ========================= */
 
 .warning-box{
@@ -223,7 +239,7 @@ body{
 }
 
 /* =========================
-   FIELDS
+FIELDS
 ========================= */
 
 .fields{
@@ -283,17 +299,8 @@ body{
 
 }
 
-.field input:disabled,
-.field select:disabled{
-
-  opacity:.7;
-
-  cursor:not-allowed;
-
-}
-
 /* =========================
-   BUTTONS
+BUTTONS
 ========================= */
 
 .buttons{
@@ -341,7 +348,15 @@ body{
 
 <body>
 
+<!-- =========================
+HEADER
+========================= -->
+
 <div id="adminHeader"></div>
+
+<!-- =========================
+BODY
+========================= -->
 
 <div class="page-body">
 
@@ -358,15 +373,8 @@ body{
 
 <script src="header.js"></script>
 
-<script>
-
-if(typeof loadHeader === "function"){
-  loadHeader("Service Management");
-}
-
-</script>
-
 <script src="service-management.js"></script>
 
 </body>
+
 </html>
