@@ -8,7 +8,8 @@
 Sunbeam Transportation
 </title>
 
-<meta name="viewport"
+<meta
+name="viewport"
 content="width=device-width, initial-scale=1.0">
 
 <link rel="icon"
@@ -188,13 +189,15 @@ HERO
 
 }
 
-.hero img{
+.hero-image{
 
     width:100%;
 
     height:auto;
 
     display:block;
+
+    border-radius:20px;
 
 }
 
@@ -332,7 +335,7 @@ SERVICES
 
 }
 
-.card img{
+.card-image{
 
     width:100%;
 
@@ -342,7 +345,7 @@ SERVICES
 
 }
 
-.card-content{
+.card-body{
 
     padding:25px;
 
@@ -374,7 +377,7 @@ SERVICES
 BUTTON
 ========================= */
 
-.btn{
+.card-btn{
 
     display:inline-flex;
 
@@ -411,7 +414,7 @@ BUTTON
 
 }
 
-.btn:hover{
+.card-btn:hover{
 
     transform:translateY(-2px);
 
@@ -420,7 +423,7 @@ BUTTON
 }
 
 /* =========================
-EXTRA SECTIONS
+EXTRA
 ========================= */
 
 .extra-sections{
@@ -448,8 +451,6 @@ EXTRA SECTIONS
 
     box-shadow:
     0 10px 25px rgba(0,0,0,.08);
-
-    min-height:220px;
 
 }
 
@@ -563,19 +564,9 @@ MOBILE
 
     }
 
-    .hero-inner{
+    .hero-image{
 
-        max-width:100%;
-
-    }
-
-    .hero img{
-
-        width:100%;
-
-        height:auto;
-
-        display:block;
+        border-radius:0;
 
     }
 
@@ -591,29 +582,15 @@ MOBILE
 
     }
 
-    .about{
-
-        padding:70px 20px 20px;
-
-    }
-
     .about h2{
 
         font-size:42px;
-
-        margin-bottom:20px;
 
     }
 
     .about p{
 
         font-size:20px;
-
-    }
-
-    .quote-header{
-
-        padding:50px 20px 10px;
 
     }
 
@@ -637,7 +614,7 @@ MOBILE
 
     }
 
-    .card img{
+    .card-image{
 
         height:240px;
 
@@ -655,7 +632,7 @@ MOBILE
 
     }
 
-    .btn{
+    .card-btn{
 
         width:100%;
 
@@ -664,8 +641,6 @@ MOBILE
         height:52px;
 
         font-size:20px;
-
-        margin-top:18px;
 
     }
 
@@ -678,8 +653,6 @@ MOBILE
     .extra-box{
 
         padding:25px;
-
-        min-height:auto;
 
     }
 
@@ -719,14 +692,16 @@ TOP BAR
 
     <div class="top-links">
 
-        <a href="companies/company-login.html"
+        <a
+        href="companies/company-login.html"
         class="facility-login">
 
             Facility Login
 
         </a>
 
-        <a href="login.html"
+        <a
+        href="login.html"
         class="staff-login">
 
             Staff Login
@@ -769,7 +744,8 @@ HERO
 
         <img
         src="assets/hero.jpeg"
-        alt="Sunbeam Transportation">
+        class="hero-image"
+        alt="Hero">
 
         <div class="powered-box">
 
@@ -833,174 +809,49 @@ QUOTE
 SERVICES
 ========================= -->
 
-<section class="services">
-
-    <div class="card">
-        <img src="assets/nemt.jpeg">
-        <div class="card-content">
-            <h3>NEMT</h3>
-            <p data-en="Medical appointments & clinics"
-            data-es="Citas médicas y clínicas">
-            Medical appointments & clinics
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <img src="assets/airport.jpeg">
-        <div class="card-content">
-            <h3 data-en="Airport"
-            data-es="Aeropuerto">
-            Airport
-            </h3>
-            <p data-en="Airport pickup & drop-off"
-            data-es="Traslados al aeropuerto">
-            Airport pickup & drop-off
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <img src="assets/business.jpeg">
-        <div class="card-content">
-            <h3 data-en="Business"
-            data-es="Negocios">
-            Business
-            </h3>
-            <p data-en="Corporate & private rides"
-            data-es="Viajes corporativos y privados">
-            Corporate & private rides
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <img src="assets/business.jpeg">
-        <div class="card-content">
-            <h3>Taxi</h3>
-            <p data-en="Daily city transportation"
-            data-es="Transporte diario en la ciudad">
-            Daily city transportation
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <img src="assets/business.jpeg">
-        <div class="card-content">
-            <h3>Limo</h3>
-            <p data-en="Luxury transportation service"
-            data-es="Servicio de transporte de lujo">
-            Luxury transportation service
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <img src="assets/business.jpeg">
-        <div class="card-content">
-            <h3>XL</h3>
-            <p data-en="Large family transportation"
-            data-es="Transporte familiar grande">
-            Large family transportation
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <img src="assets/nemt.jpeg">
-        <div class="card-content">
-            <h3 data-en="Wheelchair"
-            data-es="Silla de ruedas">
-            Wheelchair
-            </h3>
-            <p data-en="Wheelchair accessible rides"
-            data-es="Viajes accesibles para silla de ruedas">
-            Wheelchair accessible rides
-            </p>
-            <a href="getquote/index.html"
-            class="btn">
-            Get Quote
-            </a>
-        </div>
-    </div>
-
+<section
+class="services"
+id="servicesContainer">
 </section>
 
 <!-- =========================
-EXTRA SECTIONS
+EXTRA
 ========================= -->
 
 <section class="extra-sections">
 
-    <div class="extra-box"
-    id="extraBox1">
+    <div class="extra-box">
 
-        <h3
-        data-en="Extra Information"
-        data-es="Información adicional">
+        <h3>
 
-        Extra Information
+            Extra Information
 
         </h3>
 
-        <p
-        data-en="You can add any text, promotion, pricing, notices, announcements, or company information here."
-        data-es="Puede agregar cualquier texto, promociones, precios, anuncios o información de la empresa aquí.">
+        <p>
 
-        You can add any text,
-        promotion,
-        pricing,
-        notices,
-        announcements,
-        or company information here.
+            You can add pricing,
+            announcements,
+            promotions,
+            or company information here.
 
         </p>
 
     </div>
 
-    <div class="extra-box"
-    id="extraBox2">
+    <div class="extra-box">
 
-        <h3
-        data-en="Additional Services"
-        data-es="Servicios adicionales">
+        <h3>
 
-        Additional Services
+            Additional Services
 
         </h3>
 
-        <p
-        data-en="This section can later be shown or hidden from admin panel."
-        data-es="Esta sección podrá mostrarse u ocultarse desde el panel de administración.">
+        <p>
 
-        This section can later
-        be shown or hidden
-        from admin panel.
+            This section can later
+            be managed from
+            the admin panel.
 
         </p>
 
@@ -1034,15 +885,33 @@ CONTACT
 FOOTER
 ========================= -->
 
-<footer>
+<footer class="company-name">
 
     © Sunbeam Transportation
 
 </footer>
 
+<!-- =========================
+BRANDING ENGINE
+========================= -->
+
+<script src="/core/branding.js"></script>
+
+<!-- =========================
+MAIN ENGINE
+========================= -->
+
 <script>
 
-function setLang(lang){
+let currentLang = "en";
+
+/* =========================
+LANGUAGE
+========================= */
+
+window.setLang = function(lang){
+
+    currentLang = lang;
 
     document
     .querySelectorAll(".lang-btn")
@@ -1091,11 +960,58 @@ function setLang(lang){
 
     });
 
-}
+    Branding.renderHomepageCards(
+        "servicesContainer",
+        currentLang
+    );
+
+};
+
+/* =========================
+LOAD
+========================= */
 
 window.addEventListener(
 "DOMContentLoaded",
-()=>{
+async ()=>{
+
+    await Branding.load();
+
+    /* HERO */
+
+    document
+    .querySelectorAll(".hero-image")
+    .forEach(img=>{
+
+        img.src =
+        Branding.getHeroImage();
+
+    });
+
+    /* TITLE */
+
+    document.title =
+    Branding.getCompanyName();
+
+    /* COMPANY */
+
+    document
+    .querySelectorAll(".company-name")
+    .forEach(el=>{
+
+        el.innerText =
+        Branding.getCompanyName();
+
+    });
+
+    /* SERVICES */
+
+    Branding.renderHomepageCards(
+        "servicesContainer",
+        currentLang
+    );
+
+    /* DEFAULT */
 
     setLang("en");
 

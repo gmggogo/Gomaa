@@ -1,303 +1,279 @@
 // =========================
-// FILE: public/index.js
+// FILE: public/core/branding.js
+// CENTRAL BRANDING ENGINE
 // =========================
 
-let currentLang = "en";
+console.log("BRANDING ENGINE LOADED");
 
-/* =========================
-SETTINGS
-========================= */
+window.Branding = {
 
-const settingsRaw =
-localStorage.getItem(
-    "ghSystemDesign"
-);
+  data: {},
 
-let settings = {};
+  /* =========================
+  LOAD
+  ========================= */
 
-if(settingsRaw){
+  async load(){
 
     try{
 
-        settings =
-        JSON.parse(settingsRaw);
+      const local =
+      localStorage.getItem(
+        "ghSystemDesign"
+      );
+
+      if(local){
+
+        this.data =
+        JSON.parse(local);
+
+      }else{
+
+        this.data = {};
+
+      }
 
     }catch(err){
 
-        settings = {};
+      console.log(
+        "Branding Load Error",
+        err
+      );
+
+      this.data = {};
 
     }
 
-}
+    this.applyGlobalBranding();
 
-/* =========================
-SERVICES
-========================= */
+    return this.data;
 
-const services = [
+  },
 
-{
-    active:true,
+  /* =========================
+  SAVE
+  ========================= */
 
-    image:"assets/nemt.jpeg",
+  save(data){
 
-    title_en:"NEMT",
-    title_es:"NEMT",
+    this.data = data || {};
 
-    description_en:
-    "Medical appointments & clinics",
+    localStorage.setItem(
+      "ghSystemDesign",
+      JSON.stringify(this.data)
+    );
 
-    description_es:
-    "Citas médicas y clínicas",
+    this.applyGlobalBranding();
 
-    link:"getquote/index.html"
-},
+  },
 
-{
-    active:true,
+  /* =========================
+  GETTERS
+  ========================= */
 
-    image:"assets/airport.jpeg",
+  getCompanyName(){
 
-    title_en:"Airport",
-    title_es:"Aeropuerto",
+    return (
+      this.data?.branding
+      ?.companyName ||
 
-    description_en:
-    "Airport pickup & drop-off",
+      "Sunbeam Transportation"
+    );
 
-    description_es:
-    "Traslados al aeropuerto",
+  },
 
-    link:"getquote/index.html"
-},
+  getTimezone(){
 
-{
-    active:true,
+    return (
+      this.data?.branding
+      ?.timezone ||
 
-    image:"assets/business.jpeg",
+      "America/Phoenix"
+    );
 
-    title_en:"Business",
-    title_es:"Negocios",
+  },
 
-    description_en:
-    "Corporate & private rides",
+  getMainLogo(){
 
-    description_es:
-    "Viajes corporativos y privados",
+    return (
+      this.data?.branding
+      ?.mainLogo ||
 
-    link:"getquote/index.html"
-},
+      "/assets/logo.png"
+    );
 
-{
-    active:true,
+  },
 
-    image:"assets/business.jpeg",
+  getDriverLogo(){
 
-    title_en:"Taxi",
-    title_es:"Taxi",
+    return (
+      this.data?.branding
+      ?.driverLogo ||
 
-    description_en:
-    "Daily city transportation",
+      "/assets/logo.png"
+    );
 
-    description_es:
-    "Transporte diario en la ciudad",
+  },
 
-    link:"getquote/index.html"
-},
+  getHeroImage(){
 
-{
-    active:true,
+    return (
+      this.data?.homepage
+      ?.heroImage ||
 
-    image:"assets/business.jpeg",
+      "/assets/hero.jpeg"
+    );
 
-    title_en:"Limo",
-    title_es:"Limusina",
+  },
 
-    description_en:
-    "Luxury transportation service",
+  getServices(){
 
-    description_es:
-    "Servicio de lujo",
+    return (
+      this.data?.services ||
 
-    link:"getquote/index.html"
-},
+      []
+    );
 
-{
-    active:true,
+  },
 
-    image:"assets/business.jpeg",
+  /* =========================
+  APPLY GLOBAL
+  ========================= */
 
-    title_en:"XL",
-    title_es:"XL",
+  applyGlobalBranding(){
 
-    description_en:
-    "Large family transportation",
+    /* TITLE */
 
-    description_es:
-    "Transporte familiar",
+    document.title =
+    this.getCompanyName();
 
-    link:"getquote/index.html"
-},
-
-{
-    active:true,
-
-    image:"assets/nemt.jpeg",
-
-    title_en:"Wheelchair",
-    title_es:"Silla de ruedas",
-
-    description_en:
-    "Wheelchair accessible rides",
-
-    description_es:
-    "Viajes accesibles",
-
-    link:"getquote/index.html"
-},
-
-{
-    active:true,
-
-    image:"assets/airport.jpeg",
-
-    title_en:"Shared Ride",
-    title_es:"Viaje compartido",
-
-    description_en:
-    "Affordable shared rides",
-
-    description_es:
-    "Viajes compartidos económicos",
-
-    link:"getquote/index.html"
-}
-
-];
-
-/* =========================
-HELPER
-========================= */
-
-function getText(en,es){
-
-    if(currentLang === "es"){
-        return es || en || "";
-    }
-
-    return en || es || "";
-
-}
-
-/* =========================
-TRANSLATE STATIC
-========================= */
-
-function translateStatic(){
+    /* COMPANY NAME */
 
     document
-    .querySelectorAll("[data-en]")
+    .querySelectorAll(
+      ".company-name"
+    )
     .forEach(el=>{
 
-        const en =
-        el.getAttribute("data-en");
-
-        const es =
-        el.getAttribute("data-es");
-
-        el.innerText =
-        getText(en,es);
+      el.innerText =
+      this.getCompanyName();
 
     });
 
-}
+    /* MAIN LOGO */
 
-/* =========================
-SERVICES RENDER
-========================= */
+    document
+    .querySelectorAll(
+      ".main-logo"
+    )
+    .forEach(el=>{
 
-function renderServices(){
+      el.src =
+      this.getMainLogo();
+
+    });
+
+    /* DRIVER LOGO */
+
+    document
+    .querySelectorAll(
+      ".driver-logo"
+    )
+    .forEach(el=>{
+
+      el.src =
+      this.getDriverLogo();
+
+    });
+
+    /* HERO IMAGE */
+
+    document
+    .querySelectorAll(
+      ".hero-image"
+    )
+    .forEach(el=>{
+
+      el.src =
+      this.getHeroImage();
+
+    });
+
+  },
+
+  /* =========================
+  RENDER SERVICES
+  ========================= */
+
+  renderHomepageCards(
+    containerId,
+    lang = "en"
+  ){
 
     const container =
     document.getElementById(
-        "servicesContainer"
+      containerId
     );
 
     if(!container) return;
+
+    const services =
+    this.getServices();
 
     container.innerHTML = "";
 
     services.forEach(service=>{
 
-        if(!service.active) return;
+      if(!service.active) return;
 
-        const title =
-        getText(
-            service.title_en,
-            service.title_es
-        );
+      const title =
+      lang === "es"
+      ? service.title_es
+      : service.title_en;
 
-        const description =
-        getText(
-            service.description_en,
-            service.description_es
-        );
+      const desc =
+      lang === "es"
+      ? service.description_es
+      : service.description_en;
 
-        const buttonText =
-        currentLang === "es"
-        ? "Obtener precio"
-        : "Get Quote";
+      container.innerHTML += `
 
-        container.innerHTML += `
+      <div class="card">
 
-        <div class="card">
+        <img
+          src="${service.image}"
+          class="card-image"
+        >
 
-            <img src="${service.image}">
+        <div class="card-body">
 
-            <div class="card-content">
+          <h3>
+            ${title || ""}
+          </h3>
 
-                <h3>
-                    ${title}
-                </h3>
+          <p>
+            ${desc || ""}
+          </p>
 
-                <p>
-                    ${description}
-                </p>
-
-                <a href="${service.link}"
-                class="btn">
-
-                    ${buttonText}
-
-                </a>
-
-            </div>
+          <a
+            href="getquote/index.html"
+            class="card-btn"
+          >
+            ${
+              lang === "es"
+              ? "Obtener precio"
+              : "Get Quote"
+            }
+          </a>
 
         </div>
 
-        `;
+      </div>
+
+      `;
 
     });
 
-}
-
-/* =========================
-LANGUAGE
-========================= */
-
-window.setLang = function(lang){
-
-    currentLang = lang;
-
-    translateStatic();
-
-    renderServices();
+  }
 
 };
-
-/* =========================
-INIT
-========================= */
-
-translateStatic();
-
-renderServices();
