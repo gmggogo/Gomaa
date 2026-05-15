@@ -1,57 +1,125 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener(
+"DOMContentLoaded",
+function(){
 
-  const form = document.getElementById("loginForm");
-  const errorBox = document.getElementById("errorMessage");
+const form =
+document.getElementById(
+"loginForm"
+);
 
-  form.addEventListener("submit", async function (e) {
-    e.preventDefault();
+const errorBox =
+document.getElementById(
+"errorMessage"
+);
 
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+form.addEventListener(
+"submit",
+async function(e){
 
-    errorBox.innerText = "";
+e.preventDefault();
 
-    if (!username || !password) {
-      errorBox.innerText = "Please enter username and password.";
-      return;
-    }
+const username =
+document.getElementById(
+"username"
+).value.trim();
 
-    try {
+const password =
+document.getElementById(
+"password"
+).value.trim();
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ username, password })
-      });
+errorBox.innerText = "";
 
-      const data = await response.json();
+if(!username || !password){
 
-      if (!response.ok) {
-        errorBox.innerText = data.message || "Invalid credentials.";
-        return;
-      }
+errorBox.innerText =
+"Please enter username and password.";
 
-      // لازم يكون شركة
-      if (data.user.role !== "company") {
-        errorBox.innerText = "This account is not a company account.";
-        return;
-      }
+return;
 
-      // 🔥 تخزين موحد لكل النظام
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("role", data.user.role);
-      localStorage.setItem("name", data.user.name);
+}
 
-      // تحويل للداشبورد
-      window.location.replace("/companies/dashboard.html");
+try{
 
-    } catch (err) {
-      console.error("Login error:", err);
-      errorBox.innerText = "Server error. Please try again.";
-    }
+const response =
+await fetch(
+"/api/auth/login",
+{
+method:"POST",
 
-  });
+headers:{
+"Content-Type":
+"application/json"
+},
+
+body:JSON.stringify({
+username,
+password
+})
+}
+);
+
+const data =
+await response.json();
+
+if(!response.ok){
+
+errorBox.innerText =
+data.message ||
+"Invalid credentials.";
+
+return;
+
+}
+
+/* MUST BE COMPANY */
+
+if(data.user.role !== "company"){
+
+errorBox.innerText =
+"This account is not a company account.";
+
+return;
+
+}
+
+/* SAVE LOGIN */
+
+localStorage.setItem(
+"token",
+data.token
+);
+
+localStorage.setItem(
+"role",
+data.user.role
+);
+
+localStorage.setItem(
+"name",
+data.user.name
+);
+
+/* REDIRECT */
+
+window.location.replace(
+"/companies/dashboard.html"
+);
+
+}
+
+catch(err){
+
+console.error(
+"Login error:",
+err
+);
+
+errorBox.innerText =
+"Server error. Please try again.";
+
+}
+
+});
 
 });

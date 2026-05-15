@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>Organization Login | Sunbeam</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>
+Organization Login | Sunbeam
+</title>
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <style>
 
@@ -14,107 +20,214 @@ box-sizing:border-box;
 }
 
 body{
+
 margin:0;
-font-family:'Segoe UI', Arial, sans-serif;
-background:linear-gradient(135deg,#0f172a,#1e3a8a);
+
+font-family:
+'Segoe UI',
+Arial,
+sans-serif;
+
+background:
+linear-gradient(
+135deg,
+#0f172a,
+#1e3a8a
+);
+
 min-height:100vh;
+
 display:flex;
+
 flex-direction:column;
+
 align-items:center;
+
 justify-content:center;
+
 color:white;
+
 padding:20px;
+
 }
 
 /* ===== LOGO + DATE ===== */
 
 .top-section{
+
 text-align:center;
+
 margin-bottom:30px;
+
 }
 
 .top-section img{
+
 width:220px;
+
 max-width:85%;
-filter:drop-shadow(0 10px 20px rgba(0,0,0,0.4));
+
+object-fit:contain;
+
+filter:
+drop-shadow(
+0 10px 20px
+rgba(0,0,0,0.4)
+);
+
 }
 
 .datetime{
+
 margin-top:10px;
+
 font-size:14px;
+
 opacity:.9;
+
 letter-spacing:.5px;
+
+min-height:18px;
+
 }
 
 /* ===== LOGIN CARD ===== */
 
 .login-card{
+
 width:360px;
+
 max-width:100%;
+
 background:white;
+
 padding:32px;
+
 border-radius:16px;
-box-shadow:0 25px 60px rgba(0,0,0,0.35);
+
+box-shadow:
+0 25px 60px rgba(0,0,0,0.35);
+
 text-align:center;
+
 color:#0f172a;
-animation:fadeIn .35s ease-in-out;
+
+animation:
+fadeIn .35s ease-in-out;
+
 }
 
 @keyframes fadeIn{
-from{opacity:0; transform:translateY(12px);}
-to{opacity:1; transform:translateY(0);}
+
+from{
+opacity:0;
+transform:translateY(12px);
+}
+
+to{
+opacity:1;
+transform:translateY(0);
+}
+
 }
 
 .login-card h1{
+
 color:#1e3a8a;
+
 font-weight:700;
+
 font-size:22px;
+
 margin-bottom:22px;
+
 }
 
 /* ===== INPUTS ===== */
 
 .login-card input{
+
 width:100%;
+
 padding:13px;
+
 margin-bottom:15px;
+
 border-radius:8px;
+
 border:1px solid #cbd5e1;
+
 font-size:14px;
+
 transition:.2s;
+
 }
 
 .login-card input:focus{
+
 border-color:#2563eb;
+
 outline:none;
-box-shadow:0 0 0 2px rgba(37,99,235,0.15);
+
+box-shadow:
+0 0 0 2px rgba(37,99,235,0.15);
+
 }
 
 /* ===== BUTTON ===== */
 
 .login-card button{
+
 width:100%;
+
 padding:13px;
+
 border:none;
+
 border-radius:8px;
-background:linear-gradient(90deg,#1e3a8a,#2563eb);
+
+background:
+linear-gradient(
+90deg,
+#1e3a8a,
+#2563eb
+);
+
 color:white;
+
 font-size:15px;
+
 font-weight:600;
+
 cursor:pointer;
+
 transition:.25s;
+
 }
 
 .login-card button:hover{
-background:linear-gradient(90deg,#d4af37,#facc15);
+
+background:
+linear-gradient(
+90deg,
+#d4af37,
+#facc15
+);
+
 color:#0f172a;
+
 }
 
 .error{
+
 margin-top:12px;
+
 color:#dc2626;
+
 font-size:12px;
+
 min-height:16px;
+
 }
 
 /* ===== MOBILE ===== */
@@ -145,61 +258,93 @@ font-size:20px;
 }
 
 </style>
+
 </head>
 
 <body>
 
 <div class="top-section">
-<img src="/assets/logo.png" alt="Sunbeam Transportation">
-<div class="datetime" id="datetime"></div>
+
+<img
+class="app-logo"
+alt="Company Logo">
+
+<div
+class="datetime"
+id="datetime">
+
+</div>
+
 </div>
 
 <div class="login-card">
 
-<h1>Organization Login</h1>
+<h1>
+
+Organization Login
+
+</h1>
 
 <form id="loginForm">
-<input type="text" id="username" placeholder="Username" autocomplete="username" required>
-<input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
-<button type="submit">Login</button>
+
+<input
+type="text"
+id="username"
+placeholder="Username"
+autocomplete="username"
+required>
+
+<input
+type="password"
+id="password"
+placeholder="Password"
+autocomplete="current-password"
+required>
+
+<button type="submit">
+
+Login
+
+</button>
+
 </form>
 
-<div id="errorMessage" class="error"></div>
+<div
+id="errorMessage"
+class="error">
 
 </div>
 
-<script src="/companies/company-login.js"></script>
+</div>
+
+<!-- BRANDING -->
+
+<script src="/core/branding.js"></script>
+
+<!-- TIME -->
+
+<script src="/core/time.js"></script>
 
 <script>
 
-function updateDateTime(){
+/* DEFAULT LOGO */
 
-const now = new Date(
-new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+if(!localStorage.getItem("appLogo")){
+
+localStorage.setItem(
+"appLogo",
+"/assets/logo.png"
 );
-
-const date = now.toLocaleDateString("en-US",{
-weekday:"long",
-year:"numeric",
-month:"long",
-day:"numeric"
-});
-
-const time = now.toLocaleTimeString("en-US",{
-hour:"2-digit",
-minute:"2-digit",
-second:"2-digit"
-});
-
-document.getElementById("datetime").innerText =
-date + " | " + time;
 
 }
 
-setInterval(updateDateTime,1000);
-updateDateTime();
+/* START CLOCK */
+
+startClock("datetime");
 
 </script>
+
+<script src="/companies/company-login.js"></script>
 
 </body>
 </html>
