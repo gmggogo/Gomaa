@@ -56,4 +56,67 @@ password
 const data =
 await res.json();
 
-if(!
+if(!res.ok){
+
+msg.innerText=
+data.message ||
+"Login failed";
+
+return;
+
+}
+
+/* SAVE LOGIN */
+
+localStorage.setItem(
+"token",
+data.token
+);
+
+localStorage.setItem(
+"role",
+data.user.role
+);
+
+localStorage.setItem(
+"name",
+data.user.name
+);
+
+/* REDIRECT */
+
+if(data.user.role==="admin"){
+
+window.location.replace(
+"/admin/dashboard.html"
+);
+
+}
+
+else if(
+data.user.role==="dispatcher"
+){
+
+window.location.replace(
+"/dispatcher/dashboard.html"
+);
+
+}
+
+else{
+
+msg.innerText=
+"This account cannot login here";
+
+}
+
+}
+
+catch(err){
+
+msg.innerText=
+"Server error";
+
+}
+
+}

@@ -76,7 +76,7 @@ body{
 
   width:140px;
 
-  margin-bottom:20px;
+  margin-bottom:18px;
 
   object-fit:contain;
 
@@ -107,6 +107,8 @@ body{
   color:#ddd;
 
   margin-bottom:25px;
+
+  min-height:16px;
 
 }
 
@@ -261,6 +263,29 @@ Sign In
 <!-- BRANDING -->
 
 <script src="/core/branding.js"></script>
+
+<!-- TIME -->
+
+<script src="/core/time.js"></script>
+
+<script>
+
+/* DEFAULT LOGO */
+
+if(!localStorage.getItem("appLogo")){
+
+  localStorage.setItem(
+    "appLogo",
+    "/assets/logo.png"
+  );
+
+}
+
+/* START CLOCK */
+
+startClock("azTime");
+
+</script>
 
 <script src="login.js"></script>
 
