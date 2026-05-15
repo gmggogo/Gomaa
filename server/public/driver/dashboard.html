@@ -1,572 +1,264 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
-
-<title>Driver Dashboard</title>
-
-<style>
-
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:Arial,sans-serif;
-}
-
-body{
-
-background:#133a7c;
-
-color:white;
-
-overflow-x:hidden;
-
-padding-bottom:110px;
-
-}
-
-/* ================= TOP ================= */
-
-.top-bar{
-
-padding:16px;
-
-display:flex;
-
-justify-content:flex-start;
-
-align-items:center;
-
-}
-
-#datetime{
-
-font-size:13px;
-
-opacity:.95;
-
-}
-
-/* ================= LOGO ================= */
-
-.logo-wrap{
-
-text-align:center;
-
-margin-top:10px;
-
-}
-
-.driver-logo{
-
-width:110px;
-
-height:auto;
-
-object-fit:contain;
-
-display:block;
-
-margin:auto;
-
-}
-
-/* ================= TITLES ================= */
-
-.main-title{
-
-font-size:28px;
-
-font-weight:700;
-
-color:#facc15;
-
-text-align:center;
-
-margin-top:18px;
-
-margin-bottom:6px;
-
-}
-
-.powered-gh{
-
-text-align:center;
-
-font-size:11px;
-
-opacity:.7;
-
-margin-bottom:28px;
-
-}
-
-/* ================= DRIVER NAME ================= */
-
-.driver-name{
-
-text-align:center;
-
-font-size:20px;
-
-font-weight:500;
-
-margin-bottom:30px;
-
-}
-
-/* ================= STATUS ================= */
-
-.status-box{
-
-width:90%;
-
-margin:auto;
-
-background:#020617;
-
-padding:24px;
-
-border-radius:28px;
-
-font-size:30px;
-
-margin-bottom:30px;
-
-}
-
-.online{
-
-color:#22c55e;
-
-font-weight:700;
-
-}
-
-/* ================= CARDS ================= */
-
-.cards{
-
-width:90%;
-
-margin:auto;
-
-display:grid;
-
-grid-template-columns:1fr 1fr;
-
-gap:24px;
-
-margin-bottom:28px;
-
-}
-
-.card{
-
-background:#020617;
-
-border-radius:30px;
-
-height:210px;
-
-display:flex;
-
-flex-direction:column;
-
-justify-content:center;
-
-align-items:center;
-
-text-align:center;
-
-font-size:22px;
-
-font-weight:700;
-
-cursor:pointer;
-
-}
-
-.card-icon{
-
-font-size:34px;
-
-margin-bottom:12px;
-
-}
-
-/* ================= SUMMARY ================= */
-
-.summary-card{
-
-width:90%;
-
-margin:auto;
-
-background:#020617;
-
-border-radius:30px;
-
-padding:28px;
-
-display:flex;
-
-justify-content:center;
-
-align-items:center;
-
-gap:14px;
-
-font-size:22px;
-
-font-weight:700;
-
-margin-bottom:30px;
-
-cursor:pointer;
-
-}
-
-/* ================= NAV ================= */
-
-.bottom-nav{
-
-position:fixed;
-
-bottom:0;
-
-left:0;
-
-width:100%;
-
-background:#020617;
-
-display:flex;
-
-justify-content:space-around;
-
-padding:14px 0;
-
-z-index:999;
-
-}
-
-.nav-item{
-
-display:flex;
-
-flex-direction:column;
-
-align-items:center;
-
-font-size:13px;
-
-opacity:.85;
-
-cursor:pointer;
-
-}
-
-.nav-item.active{
-
-color:#facc15;
-
-opacity:1;
-
-}
-
-.nav-icon{
-
-font-size:28px;
-
-margin-bottom:4px;
-
-}
-
-/* ================= MOBILE ================= */
-
-@media(max-width:480px){
-
-.driver-logo{
-
-width:95px;
-
-}
-
-.main-title{
-
-font-size:24px;
-
-}
-
-.driver-name{
-
-font-size:18px;
-
-}
-
-.status-box{
-
-font-size:24px;
-
-padding:22px;
-
-}
-
-.card{
-
-height:190px;
-
-font-size:20px;
-
-}
-
-.card-icon{
-
-font-size:32px;
-
-}
-
-.summary-card{
-
-font-size:20px;
-
-padding:24px;
-
-}
-
-}
-
-</style>
-
+  <meta charset="UTF-8" />
+  <title>Sunbeam Driver Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
+
+  <style>
+    :root{
+      --blue:#0b1f3a;
+      --blue2:#123a7a;
+      --gold:#facc15;
+      --dark:#020617;
+      --muted:#cbd5e1;
+      --text:#ffffff;
+      --green:#22c55e;
+    }
+
+    *{
+      box-sizing:border-box;
+      font-family:Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body{
+      margin:0;
+      background:linear-gradient(180deg,var(--blue),var(--blue2));
+      color:var(--text);
+      min-height:100vh;
+      padding-bottom:92px;
+    }
+
+    .header{
+      position:relative;
+      padding:40px 20px 20px;
+      text-align:center;
+    }
+
+    .top-datetime{
+      position:absolute;
+      top:8px;
+      left:12px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    /* 🔥 Dynamic Logo */
+
+    .logo{
+      width:90px;
+      height:auto;
+      margin-bottom:10px;
+      object-fit:contain;
+    }
+
+    .company-name{
+      font-size:26px;
+      font-weight:bold;
+      color:var(--gold);
+    }
+
+    .driver-name{
+      margin-top:6px;
+      font-size:15px;
+      color:#e5e7eb;
+    }
+
+    .status{
+      margin:20px;
+      padding:16px;
+      background:var(--dark);
+      border-radius:16px;
+      font-size:18px;
+    }
+
+    .status span{
+      color:var(--green);
+      font-weight:bold;
+    }
+
+    .grid{
+      padding:10px 20px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+
+    .card{
+      background:var(--dark);
+      border-radius:18px;
+      padding:28px 20px;
+      text-align:center;
+      cursor:pointer;
+      transition:.2s;
+      border:1px solid rgba(255,255,255,.05);
+      color:#fff;
+    }
+
+    .card:active{
+      transform:scale(.98);
+    }
+
+    /* 🔥 ICONS SMALLER 30% */
+
+    .card .icon{
+      font-size:25px;
+      margin-bottom:10px;
+    }
+
+    .card .title{
+      font-size:16px;
+      font-weight:bold;
+    }
+
+    .summary{
+      margin:20px;
+      padding:18px;
+      background:var(--dark);
+      border-radius:16px;
+      text-align:center;
+      font-size:17px;
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .summary:active{
+      transform:scale(.99);
+    }
+
+    .nav{
+      position:fixed;
+      bottom:0;
+      left:0;
+      right:0;
+      height:74px;
+      background:var(--dark);
+      display:flex;
+      justify-content:space-around;
+      align-items:center;
+      border-top:1px solid rgba(255,255,255,.08);
+      z-index:999;
+    }
+
+    .nav button{
+      background:none;
+      border:none;
+      color:#9ca3af;
+      font-size:11px;
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      min-width:52px;
+    }
+
+    /* 🔥 NAV ICONS SMALLER */
+
+    .nav button span{
+      font-size:14px;
+      line-height:1;
+    }
+
+    .nav button.active{
+      color:var(--gold);
+    }
+  </style>
 </head>
 
 <body>
 
-<!-- TIME -->
+  <div class="header">
 
-<div class="top-bar">
+    <div class="top-datetime" id="datetime"></div>
 
-<div id="datetime"></div>
+    <!-- 🔥 Dynamic Logo -->
 
-</div>
+    <img
+      class="logo app-logo"
+      alt="Company Logo"
+    />
 
-<!-- LOGO -->
+    <div class="company-name">
+      Sunbeam Transportation
+    </div>
 
-<div class="logo-wrap">
+    <div class="driver-name" id="driverName">
+      Driver
+    </div>
 
-<img
-src="/assets/logo.png"
-class="driver-logo app-logo"
-alt="Company Logo">
+  </div>
 
-</div>
+  <div class="status">
+    Status: <span>ONLINE</span>
+  </div>
 
-<!-- TITLE -->
+  <div class="grid">
 
-<div class="main-title">
+    <div class="card" id="cardTrips">
+      <div class="icon">🚗</div>
+      <div class="title">Trips</div>
+    </div>
 
-Welcome Driver
+    <div class="card" id="cardMap">
+      <div class="icon">🗺️</div>
+      <div class="title">Live Map</div>
+    </div>
 
-</div>
+    <div class="card" id="cardHours">
+      <div class="icon">⏱️</div>
+      <div class="title">Work Hours</div>
+    </div>
 
-<div class="powered-gh">
+    <div class="card" id="cardEarnings">
+      <div class="icon">💰</div>
+      <div class="title">Earnings</div>
+    </div>
 
-Powered by GH Mobility
+  </div>
 
-</div>
+  <div class="summary" id="cardSummary">
+    📊 View Summary
+  </div>
 
-<!-- DRIVER NAME -->
+  <div class="nav">
 
-<div
-class="driver-name"
-id="driverName">
+    <button class="active" id="navHome" type="button">
+      <span>🏠</span>
+      Home
+    </button>
 
-MIDO KING
+    <button id="navTrips" type="button">
+      <span>🚗</span>
+      Trips
+    </button>
 
-</div>
+    <button id="navMap" type="button">
+      <span>🗺️</span>
+      Map
+    </button>
 
-<!-- STATUS -->
+    <button id="navChat" type="button">
+      <span>💬</span>
+      Chat
+    </button>
 
-<div class="status-box">
+    <button id="navLogout" type="button">
+      <span>🚪</span>
+      Logout
+    </button>
 
-Status:
-<span class="online">
+  </div>
 
-ONLINE
+  <!-- 🔥 Dynamic Branding -->
 
-</span>
+  <script src="/core/branding.js"></script>
 
-</div>
-
-<!-- CARDS -->
-
-<div class="cards">
-
-<div
-class="card"
-id="cardTrips">
-
-<div class="card-icon">
-
-🚗
-
-</div>
-
-Trips
-
-</div>
-
-<div
-class="card"
-id="cardMap">
-
-<div class="card-icon">
-
-🗺️
-
-</div>
-
-Live Map
-
-</div>
-
-<div
-class="card"
-id="cardHours">
-
-<div class="card-icon">
-
-⏱️
-
-</div>
-
-Work Hours
-
-</div>
-
-<div
-class="card"
-id="cardEarnings">
-
-<div class="card-icon">
-
-💰
-
-</div>
-
-Earnings
-
-</div>
-
-</div>
-
-<!-- SUMMARY -->
-
-<div
-class="summary-card"
-id="cardSummary">
-
-📊 View Summary
-
-</div>
-
-<!-- NAV -->
-
-<div class="bottom-nav">
-
-<div
-class="nav-item active"
-id="navHome">
-
-<div class="nav-icon">
-
-🏠
-
-</div>
-
-Home
-
-</div>
-
-<div
-class="nav-item"
-id="navTrips">
-
-<div class="nav-icon">
-
-🚗
-
-</div>
-
-Trips
-
-</div>
-
-<div
-class="nav-item"
-id="navMap">
-
-<div class="nav-icon">
-
-🗺️
-
-</div>
-
-Map
-
-</div>
-
-<div
-class="nav-item"
-id="navChat">
-
-<div class="nav-icon">
-
-💬
-
-</div>
-
-Chat
-
-</div>
-
-<div
-class="nav-item"
-id="navLogout">
-
-<div class="nav-icon">
-
-🚪
-
-</div>
-
-Logout
-
-</div>
-
-</div>
-
-<script src="/core/branding.js"></script>
-
-<script src="/core/time.js"></script>
-
-<script src="dashboard.js"></script>
-
-<script>
-
-if(typeof startClock === "function"){
-
-startClock("datetime");
-
-}
-
-</script>
+  <script src="dashboard.js" defer></script>
 
 </body>
 </html>
