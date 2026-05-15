@@ -453,62 +453,33 @@ footer{
 }
 
 /* =========================
-MOBILE
+MOBILE HERO FIX
 ========================= */
 
 @media(max-width:768px){
 
-    .top-bar{
-
-        padding:10px;
-
-    }
-
-    .top-links{
-
-        gap:6px;
-
-    }
-
-    .top-links a{
-
-        font-size:11px;
-
-        padding:8px 10px;
-
-        border-radius:12px;
-
-    }
-
-    .lang-right{
-
-        gap:5px;
-
-    }
-
-    .lang-right button{
-
-        font-size:11px;
-
-        padding:7px 10px;
-
-    }
-
-    /* HERO */
-
     .hero{
 
-        height:430px;
+        height:250px !important;
+
+        background:#111827;
 
     }
 
     .hero img{
 
-        transform:
-        scale(2.65)
-        translateY(105px);
+        width:100%;
 
-        object-position:center bottom;
+        height:100%;
+
+        object-fit:cover !important;
+
+        object-position:center bottom !important;
+
+        /* 🔥 أهم تعديل */
+        transform:none !important;
+
+        filter:brightness(.98);
 
     }
 
@@ -516,13 +487,15 @@ MOBILE
 
         left:12px;
 
-        bottom:14px;
+        bottom:12px;
 
         font-size:10px;
 
         padding:7px 12px;
 
     }
+
+}
 
     /* ABOUT */
 
