@@ -24,9 +24,9 @@ background:#133a7c;
 
 color:white;
 
-padding-bottom:105px;
-
 overflow-x:hidden;
+
+padding-bottom:110px;
 
 }
 
@@ -34,23 +34,13 @@ overflow-x:hidden;
 
 .top-bar{
 
-padding:18px 16px 8px;
+padding:16px;
 
 display:flex;
 
-justify-content:flex-end;
+justify-content:flex-start;
 
 align-items:center;
-
-}
-
-.datetime-box{
-
-width:100%;
-
-display:flex;
-
-justify-content:flex-end;
 
 }
 
@@ -58,21 +48,7 @@ justify-content:flex-end;
 
 font-size:13px;
 
-background:rgba(255,255,255,.08);
-
-padding:10px 14px;
-
-border-radius:16px;
-
-backdrop-filter:blur(6px);
-
-white-space:nowrap;
-
-max-width:95%;
-
-overflow:hidden;
-
-text-overflow:ellipsis;
+opacity:.95;
 
 }
 
@@ -82,19 +58,21 @@ text-overflow:ellipsis;
 
 text-align:center;
 
-margin-top:8px;
+margin-top:10px;
 
 }
 
 .driver-logo{
 
-width:105px;
+width:110px;
 
-max-width:90%;
+height:auto;
 
 object-fit:contain;
 
-margin-bottom:12px;
+display:block;
+
+margin:auto;
 
 }
 
@@ -102,7 +80,7 @@ margin-bottom:12px;
 
 .main-title{
 
-font-size:24px;
+font-size:28px;
 
 font-weight:700;
 
@@ -110,7 +88,9 @@ color:#facc15;
 
 text-align:center;
 
-margin-bottom:4px;
+margin-top:18px;
+
+margin-bottom:6px;
 
 }
 
@@ -120,11 +100,9 @@ text-align:center;
 
 font-size:11px;
 
-opacity:.75;
+opacity:.7;
 
-margin-bottom:20px;
-
-letter-spacing:.5px;
+margin-bottom:28px;
 
 }
 
@@ -134,11 +112,11 @@ letter-spacing:.5px;
 
 text-align:center;
 
-font-size:18px;
+font-size:20px;
 
 font-weight:500;
 
-margin-bottom:26px;
+margin-bottom:30px;
 
 }
 
@@ -152,13 +130,13 @@ margin:auto;
 
 background:#020617;
 
-padding:22px;
+padding:24px;
 
-border-radius:26px;
+border-radius:28px;
 
-font-size:24px;
+font-size:30px;
 
-margin-bottom:26px;
+margin-bottom:30px;
 
 }
 
@@ -182,9 +160,9 @@ display:grid;
 
 grid-template-columns:1fr 1fr;
 
-gap:20px;
+gap:24px;
 
-margin-bottom:26px;
+margin-bottom:28px;
 
 }
 
@@ -192,9 +170,9 @@ margin-bottom:26px;
 
 background:#020617;
 
-border-radius:28px;
+border-radius:30px;
 
-height:190px;
+height:210px;
 
 display:flex;
 
@@ -204,21 +182,13 @@ justify-content:center;
 
 align-items:center;
 
+text-align:center;
+
 font-size:22px;
 
 font-weight:700;
 
 cursor:pointer;
-
-transition:.25s;
-
-text-align:center;
-
-}
-
-.card:hover{
-
-transform:scale(1.03);
 
 }
 
@@ -226,7 +196,7 @@ transform:scale(1.03);
 
 font-size:34px;
 
-margin-bottom:10px;
+margin-bottom:12px;
 
 }
 
@@ -240,9 +210,9 @@ margin:auto;
 
 background:#020617;
 
-border-radius:28px;
+border-radius:30px;
 
-padding:26px;
+padding:28px;
 
 display:flex;
 
@@ -252,15 +222,17 @@ align-items:center;
 
 gap:14px;
 
-font-size:24px;
+font-size:22px;
 
 font-weight:700;
+
+margin-bottom:30px;
 
 cursor:pointer;
 
 }
 
-/* ================= BOTTOM NAV ================= */
+/* ================= NAV ================= */
 
 .bottom-nav{
 
@@ -294,9 +266,9 @@ align-items:center;
 
 font-size:13px;
 
-cursor:pointer;
-
 opacity:.85;
+
+cursor:pointer;
 
 }
 
@@ -316,61 +288,55 @@ margin-bottom:4px;
 
 }
 
-/* ================= DESKTOP ================= */
+/* ================= MOBILE ================= */
 
-@media(min-width:768px){
+@media(max-width:480px){
 
 .driver-logo{
 
-width:120px;
+width:95px;
 
 }
 
 .main-title{
 
-font-size:30px;
+font-size:24px;
 
 }
 
 .driver-name{
 
-font-size:22px;
-
-}
-
-.cards{
-
-max-width:850px;
-
-}
-
-.card{
-
-height:220px;
-
-font-size:26px;
-
-}
-
-.card-icon{
-
-font-size:42px;
-
-}
-
-.summary-card{
-
-max-width:850px;
-
-font-size:28px;
+font-size:18px;
 
 }
 
 .status-box{
 
-max-width:850px;
+font-size:24px;
 
-font-size:28px;
+padding:22px;
+
+}
+
+.card{
+
+height:190px;
+
+font-size:20px;
+
+}
+
+.card-icon{
+
+font-size:32px;
+
+}
+
+.summary-card{
+
+font-size:20px;
+
+padding:24px;
 
 }
 
@@ -382,15 +348,11 @@ font-size:28px;
 
 <body>
 
-<!-- TOP -->
+<!-- TIME -->
 
 <div class="top-bar">
 
-<div class="datetime-box">
-
 <div id="datetime"></div>
-
-</div>
 
 </div>
 
@@ -399,6 +361,7 @@ font-size:28px;
 <div class="logo-wrap">
 
 <img
+src="/assets/logo.png"
 class="driver-logo app-logo"
 alt="Company Logo">
 
@@ -424,7 +387,7 @@ Powered by GH Mobility
 class="driver-name"
 id="driverName">
 
-Driver
+MIDO KING
 
 </div>
 
@@ -513,7 +476,7 @@ id="cardSummary">
 
 </div>
 
-<!-- BOTTOM NAV -->
+<!-- NAV -->
 
 <div class="bottom-nav">
 
@@ -589,22 +552,13 @@ Logout
 
 </div>
 
-<!-- ENGINES -->
-
 <script src="/core/branding.js"></script>
 
 <script src="/core/time.js"></script>
 
+<script src="dashboard.js"></script>
+
 <script>
-
-if(!localStorage.getItem("appLogo")){
-
-localStorage.setItem(
-"appLogo",
-"/assets/logo.png"
-);
-
-}
 
 if(typeof startClock === "function"){
 
@@ -613,8 +567,6 @@ startClock("datetime");
 }
 
 </script>
-
-<script src="dashboard.js"></script>
 
 </body>
 </html>
