@@ -1,287 +1,303 @@
-<!-- =========================
-FILE: system-design.html
-PLACE:
-public/admin/system-design.html
-========================= -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
+<title>System Design</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>GH Mobility - System Design</title>
 
 <link rel="stylesheet" href="style.css">
 
 <style>
-
 body{
-    margin:0;
-    background:#f1f5f9;
-    font-family:'Segoe UI',sans-serif;
+  margin:0;
+  background:#f1f5f9;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
 }
 
-#sidebar-container{
-    position:fixed;
-    top:0;
-    left:0;
-    width:260px;
-    height:100vh;
-    z-index:1000;
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
 }
 
-#header-container{
-    position:fixed;
-    top:0;
-    left:260px;
-    right:0;
-    z-index:999;
-}
-
-.main-content{
-    margin-left:260px;
-    padding:120px 25px 40px;
+.page-body{
+  max-width:1800px;
+  margin:auto;
+  padding:270px 20px 80px;
 }
 
 .page-title{
-    font-size:34px;
-    font-weight:800;
-    margin-bottom:30px;
-    color:#0f172a;
+  font-size:36px;
+  font-weight:900;
+  margin-bottom:30px;
 }
 
 .section-box{
-    background:#fff;
-    border-radius:24px;
-    padding:24px;
-    margin-bottom:30px;
-    box-shadow:0 10px 30px rgba(0,0,0,.08);
+  background:#fff;
+  border-radius:26px;
+  padding:26px;
+  margin-bottom:28px;
+  box-shadow:0 15px 35px rgba(0,0,0,.08);
 }
 
 .section-title{
-    font-size:24px;
-    font-weight:800;
-    margin-bottom:25px;
-    color:#0f172a;
+  font-size:24px;
+  font-weight:900;
+  margin-bottom:22px;
 }
 
 .form-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-    gap:18px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:18px;
 }
 
 .input-group{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
 }
 
 .input-group label{
-    font-size:14px;
-    font-weight:700;
-    color:#334155;
+  font-size:14px;
+  font-weight:800;
+  color:#475569;
 }
 
 .input-group input,
 .input-group textarea,
 .input-group select{
-    border:1px solid #cbd5e1;
-    border-radius:14px;
-    padding:14px;
-    font-size:15px;
-    outline:none;
+  width:100%;
+  border:1px solid #cbd5e1;
+  border-radius:16px;
+  padding:14px;
+  font-size:15px;
+  outline:none;
+  background:#f8fafc;
 }
 
 .input-group textarea{
-    min-height:120px;
-    resize:vertical;
+  min-height:110px;
+  resize:vertical;
 }
 
 .preview-image{
-    width:100%;
-    height:180px;
-    object-fit:cover;
-    border-radius:18px;
-    background:#e2e8f0;
+  width:100%;
+  height:180px;
+  object-fit:cover;
+  border-radius:18px;
+  background:#e2e8f0;
+  border:1px solid #cbd5e1;
+}
+
+.logo-preview{
+  object-fit:contain;
+  background:#0f172a;
+  padding:12px;
 }
 
 .upload-btn,
-.save-btn{
-    border:none;
-    border-radius:14px;
-    padding:14px;
-    font-size:15px;
-    font-weight:700;
-    cursor:pointer;
+.save-btn,
+.reset-btn{
+  border:none;
+  border-radius:16px;
+  padding:14px 18px;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
 }
 
 .upload-btn{
-    background:#2563eb;
-    color:#fff;
+  background:#2563eb;
+  color:#fff;
 }
 
 .save-btn{
-    background:#16a34a;
-    color:#fff;
-    margin-top:25px;
-    width:220px;
+  background:#16a34a;
+  color:#fff;
+}
+
+.reset-btn{
+  background:#dc2626;
+  color:#fff;
+}
+
+.buttons-row{
+  display:flex;
+  gap:14px;
+  margin-top:24px;
+  flex-wrap:wrap;
+}
+
+.service-card{
+  border:1px solid #e2e8f0;
+  border-radius:22px;
+  padding:18px;
+  background:#f8fafc;
+}
+
+.service-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.service-title{
+  font-size:20px;
+  font-weight:900;
 }
 
 .toggle-row{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    margin-top:10px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:800;
+  color:#334155;
 }
 
-@media(max-width:900px){
+@media(max-width:768px){
+  .page-body{
+    padding-top:340px;
+    padding-left:12px;
+    padding-right:12px;
+  }
 
-    #sidebar-container{
-        display:none;
-    }
-
-    #header-container{
-        left:0;
-    }
-
-    .main-content{
-        margin-left:0;
-        padding:110px 14px 30px;
-    }
-
+  .page-title{
+    font-size:30px;
+  }
 }
-
 </style>
-
 </head>
 
 <body>
 
-<div id="sidebar-container"></div>
+<div id="adminHeader"></div>
 
-<div id="header-container"></div>
+<div class="page-body">
 
-<div class="main-content">
+  <div class="page-title">
+    System Design
+  </div>
 
-    <div class="page-title">
-        System Design
+  <!-- BRANDING -->
+  <div class="section-box">
+
+    <div class="section-title">
+      Branding
     </div>
 
-    <!-- HERO -->
+    <div class="form-grid">
 
-    <div class="section-box">
+      <div class="input-group">
+        <label>Company Name</label>
+        <input type="text" id="companyNameInput" placeholder="Company Name">
+      </div>
 
-        <div class="section-title">
-            Hero Section
-        </div>
+      <div class="input-group">
+        <label>Timezone</label>
+        <select id="timezoneInput">
+          <option value="America/Phoenix">Arizona / Phoenix</option>
+          <option value="America/Los_Angeles">California</option>
+          <option value="America/New_York">New York</option>
+          <option value="America/Chicago">Chicago</option>
+          <option value="Africa/Cairo">Egypt / Cairo</option>
+          <option value="America/Bogota">Colombia / Bogota</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
 
-        <div class="form-grid">
+      <div class="input-group">
+        <label>Main Logo</label>
+        <img id="mainLogoPreview" class="preview-image logo-preview">
+        <input type="file" id="mainLogoInput" hidden accept="image/*">
+        <button class="upload-btn" onclick="mainLogoInput.click()">Upload Main Logo</button>
+      </div>
 
-            <div class="input-group">
-                <label>Hero Title EN</label>
-                <input type="text" id="heroTitleEn">
-            </div>
-
-            <div class="input-group">
-                <label>Hero Title ES</label>
-                <input type="text" id="heroTitleEs">
-            </div>
-
-            <div class="input-group">
-                <label>Hero Subtitle EN</label>
-                <textarea id="heroSubEn"></textarea>
-            </div>
-
-            <div class="input-group">
-                <label>Hero Subtitle ES</label>
-                <textarea id="heroSubEs"></textarea>
-            </div>
-
-            <div class="input-group">
-                <label>Hero Image</label>
-
-                <img
-                    src="../assets/hero.jpeg"
-                    class="preview-image"
-                    id="heroPreview"
-                >
-
-                <input
-                    type="file"
-                    id="heroInput"
-                    hidden
-                    accept="image/*"
-                >
-
-                <button
-                    class="upload-btn"
-                    onclick="document.getElementById('heroInput').click()"
-                >
-                    Upload Hero Image
-                </button>
-            </div>
-
-        </div>
-
-        <div class="toggle-row">
-            <input type="checkbox" id="heroActive" checked>
-            <label>Show Hero Section</label>
-        </div>
-
-        <button class="save-btn">
-            Save Hero
-        </button>
+      <div class="input-group">
+        <label>Driver Logo</label>
+        <img id="driverLogoPreview" class="preview-image logo-preview">
+        <input type="file" id="driverLogoInput" hidden accept="image/*">
+        <button class="upload-btn" onclick="driverLogoInput.click()">Upload Driver Logo</button>
+      </div>
 
     </div>
 
-    <!-- ABOUT -->
+  </div>
 
-    <div class="section-box">
+  <!-- HOMEPAGE -->
+  <div class="section-box">
 
-        <div class="section-title">
-            About Section
-        </div>
+    <div class="section-title">
+      Homepage
+    </div>
 
-        <div class="form-grid">
+    <div class="form-grid">
 
-            <div class="input-group">
-                <label>About Title EN</label>
-                <input type="text" id="aboutTitleEn">
-            </div>
+      <div class="input-group">
+        <label>Hero Image</label>
+        <img id="heroImagePreview" class="preview-image">
+        <input type="file" id="heroImageInput" hidden accept="image/*">
+        <button class="upload-btn" onclick="heroImageInput.click()">Upload Hero Image</button>
+      </div>
 
-            <div class="input-group">
-                <label>About Title ES</label>
-                <input type="text" id="aboutTitleEs">
-            </div>
+      <div class="input-group">
+        <label>Extra Box 1 Title</label>
+        <input type="text" id="extra1Title">
+      </div>
 
-            <div class="input-group">
-                <label>About Description EN</label>
-                <textarea id="aboutDescEn"></textarea>
-            </div>
+      <div class="input-group">
+        <label>Extra Box 1 Text</label>
+        <textarea id="extra1Text"></textarea>
+      </div>
 
-            <div class="input-group">
-                <label>About Description ES</label>
-                <textarea id="aboutDescEs"></textarea>
-            </div>
+      <div class="input-group">
+        <label>Extra Box 2 Title</label>
+        <input type="text" id="extra2Title">
+      </div>
 
-        </div>
-
-        <div class="toggle-row">
-            <input type="checkbox" id="aboutActive" checked>
-            <label>Show About Section</label>
-        </div>
-
-        <button class="save-btn">
-            Save About
-        </button>
+      <div class="input-group">
+        <label>Extra Box 2 Text</label>
+        <textarea id="extra2Text"></textarea>
+      </div>
 
     </div>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="extra1Active">
+      <label>Show Extra Box 1</label>
+    </div>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="extra2Active">
+      <label>Show Extra Box 2</label>
+    </div>
+
+  </div>
+
+  <!-- SERVICE CARDS -->
+  <div class="section-box">
+
+    <div class="section-title">
+      Homepage Service Cards
+    </div>
+
+    <div class="form-grid" id="cardsEditor"></div>
+
+  </div>
+
+  <div class="buttons-row">
+    <button class="save-btn" onclick="saveSystemDesign()">Save All Settings</button>
+    <button class="reset-btn" onclick="resetSystemDesign()">Reset</button>
+  </div>
 
 </div>
 
+<script src="header.js"></script>
 <script src="system-design.js"></script>
 
 </body>
