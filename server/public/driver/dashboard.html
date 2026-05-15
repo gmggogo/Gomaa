@@ -36,17 +36,35 @@ padding:22px 24px 10px;
 
 display:flex;
 
-justify-content:space-between;
+justify-content:flex-end;
 
-align-items:flex-start;
+align-items:center;
+
+}
+
+.datetime-box{
+
+display:flex;
+
+justify-content:flex-end;
+
+width:100%;
 
 }
 
 #datetime{
 
-font-size:16px;
+font-size:15px;
 
-opacity:.9;
+opacity:.92;
+
+background:rgba(255,255,255,.08);
+
+padding:10px 16px;
+
+border-radius:14px;
+
+backdrop-filter:blur(6px);
 
 }
 
@@ -56,7 +74,7 @@ opacity:.9;
 
 text-align:center;
 
-margin-top:10px;
+margin-top:8px;
 
 }
 
@@ -68,7 +86,7 @@ max-width:90%;
 
 object-fit:contain;
 
-margin-bottom:18px;
+margin-bottom:14px;
 
 }
 
@@ -76,7 +94,7 @@ margin-bottom:18px;
 
 .main-title{
 
-font-size:34px;
+font-size:26px;
 
 font-weight:700;
 
@@ -292,9 +310,29 @@ margin-bottom:4px;
 
 @media(max-width:480px){
 
+.top-bar{
+
+padding:18px 16px 8px;
+
+}
+
+#datetime{
+
+font-size:13px;
+
+padding:8px 12px;
+
+}
+
+.driver-logo{
+
+width:105px;
+
+}
+
 .main-title{
 
-font-size:28px;
+font-size:22px;
 
 }
 
@@ -346,7 +384,11 @@ padding:28px;
 
 <div class="top-bar">
 
+<div class="datetime-box">
+
 <div id="datetime"></div>
+
+</div>
 
 </div>
 
