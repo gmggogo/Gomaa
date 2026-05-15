@@ -1,11 +1,6 @@
-document.addEventListener(
-"DOMContentLoaded",
-async ()=>{
+document.addEventListener("DOMContentLoaded", async () => {
 
-const container =
-document.getElementById(
-"layoutHeader"
-);
+const container = document.getElementById("layoutHeader");
 
 if(!container) return;
 
@@ -13,10 +8,10 @@ if(!container) return;
 
 if(!localStorage.getItem("appLogo")){
 
-localStorage.setItem(
-"appLogo",
-"/assets/logo.png"
-);
+  localStorage.setItem(
+    "appLogo",
+    "/assets/logo.png"
+  );
 
 }
 
@@ -34,31 +29,15 @@ container.innerHTML = `
 
       <div class="company-block">
 
-        <img
-        class="logo app-logo">
+        <img class="logo app-logo">
 
         <div class="company-text">
 
-          <div
-          class="logged-company"
-          id="companyName">
-
+          <div class="logged-company" id="companyName">
             Loading...
-
           </div>
 
-          <div
-          class="greeting"
-          id="greetingText">
-
-          </div>
-
-          <div
-          class="powered-by">
-
-            Powered by
-            GH Mobility
-
+          <div class="greeting" id="greetingText">
           </div>
 
         </div>
@@ -69,10 +48,7 @@ container.innerHTML = `
 
       <div class="time-block">
 
-        <div
-        class="clock"
-        id="azDateTime">
-
+        <div class="clock" id="azDateTime">
         </div>
 
       </div>
@@ -83,37 +59,27 @@ container.innerHTML = `
 
     <div class="nav">
 
-      <a href="dashboard.html">
-      Dashboard
-      </a>
+      <a href="dashboard.html">Dashboard</a>
 
-      <a href="add-trip.html">
-      Add Trip
-      </a>
+      <a href="add-trip.html">Add Trip</a>
 
-      <a href="review.html">
-      Review
-      </a>
+      <a href="review.html">Review</a>
 
-      <a href="summary.html">
-      Summary
-      </a>
+      <a href="summary.html">Summary</a>
 
-      <a href="payment.html">
-      Payment
-      </a>
+      <a href="payment.html">Payment</a>
 
-      <a href="taxes.html">
-      Taxes
-      </a>
+      <a href="taxes.html">Taxes</a>
 
-      <a
-      href="#"
-      id="logoutBtn">
+      <a href="#" id="logoutBtn">Logout</a>
 
-      Logout
+    </div>
 
-      </a>
+    <!-- ================= POWERED ================= -->
+
+    <div class="powered-footer">
+
+      Powered by GH Mobility
 
     </div>
 
@@ -147,117 +113,76 @@ timeScript
 
 /* ================= AUTH ================= */
 
-const token =
-localStorage.getItem(
-"token"
-);
-
-const role =
-localStorage.getItem(
-"role"
-);
-
-const name =
-localStorage.getItem(
-"name"
-);
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+const name  = localStorage.getItem("name");
 
 if(!token || role !== "company"){
 
-window.location.replace(
-"company-login.html"
-);
+  window.location.replace("company-login.html");
 
-return;
+  return;
 
 }
 
 /* ================= ACTIVE LINK ================= */
 
 const currentPage =
-window.location.pathname
-.split("/")
-.pop();
+window.location.pathname.split("/").pop();
 
-document
-.querySelectorAll(".nav a")
-.forEach(link=>{
+document.querySelectorAll(".nav a").forEach(link=>{
 
-if(
-link.getAttribute("href")
-=== currentPage
-){
+  if(link.getAttribute("href") === currentPage){
 
-link.classList.add(
-"active"
-);
+    link.classList.add("active");
 
-}
+  }
 
 });
 
 /* ================= COMPANY NAME ================= */
 
-document.getElementById(
-"companyName"
-).innerText =
-name || "Company";
+document.getElementById("companyName").innerText =
+  name || "Company";
 
 /* ================= LOGOUT ================= */
 
-document.getElementById(
-"logoutBtn"
-)
-.addEventListener(
-"click",
-e=>{
+document.getElementById("logoutBtn")
+.addEventListener("click",e=>{
 
-e.preventDefault();
+  e.preventDefault();
 
-localStorage.removeItem(
-"token"
-);
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("name");
 
-localStorage.removeItem(
-"role"
-);
-
-localStorage.removeItem(
-"name"
-);
-
-window.location.replace(
-"company-login.html"
-);
+  window.location.replace("company-login.html");
 
 });
 
-/* ================= GLOBAL TIME ================= */
+/* ================= GLOBAL CLOCK ================= */
 
 function startGlobalClock(){
 
-if(typeof startClock === "function"){
+  if(typeof startClock === "function"){
 
-startClock(
-"azDateTime"
-);
+    startClock("azDateTime");
 
-return true;
+    return true;
 
-}
+  }
 
-return false;
+  return false;
 
 }
 
-const waitClock =
-setInterval(()=>{
+const waitClock = setInterval(()=>{
 
-if(startGlobalClock()){
+  if(startGlobalClock()){
 
-clearInterval(waitClock);
+    clearInterval(waitClock);
 
-}
+  }
 
 },200);
 
@@ -265,51 +190,43 @@ clearInterval(waitClock);
 
 function updateGreeting(){
 
-const now = new Date();
+  const now = new Date();
 
-const phoenixHour =
-Number(
+  const phoenixHour = Number(
 
-new Intl.DateTimeFormat(
-"en-US",
-{
-hour:"numeric",
-hour12:false,
-timeZone:"America/Phoenix"
-}
-).format(now)
+    new Intl.DateTimeFormat("en-US",{
 
-);
+      hour:"numeric",
 
-let greeting =
-"Good Evening";
+      hour12:false,
 
-if(phoenixHour < 12){
+      timeZone:"America/Phoenix"
 
-greeting =
-"Good Morning";
+    }).format(now)
 
-}
+  );
 
-else if(phoenixHour < 18){
+  let greeting = "Good Evening";
 
-greeting =
-"Good Afternoon";
+  if(phoenixHour < 12){
 
-}
+    greeting = "Good Morning";
 
-document.getElementById(
-"greetingText"
-).innerText =
-greeting;
+  }
+
+  else if(phoenixHour < 18){
+
+    greeting = "Good Afternoon";
+
+  }
+
+  document.getElementById("greetingText")
+  .innerText = greeting;
 
 }
 
 updateGreeting();
 
-setInterval(
-updateGreeting,
-60000
-);
+setInterval(updateGreeting,60000);
 
 });
