@@ -1,145 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sunbeam Login</title>
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>
+Sunbeam Login
+</title>
 
 <style>
 
 body{
+
   margin:0;
+
   min-height:100vh;
+
   display:flex;
+
   justify-content:center;
+
   align-items:center;
-  background: radial-gradient(circle at center, #1e3cff 0%, #001b7a 100%);
-  font-family: Arial, sans-serif;
+
+  background:
+  radial-gradient(
+  circle at center,
+  #1e3cff 0%,
+  #001b7a 100%
+  );
+
+  font-family:
+  Arial,
+  sans-serif;
+
   padding:20px;
+
 }
 
 /* LOGIN CARD */
+
 .login-card{
+
   width:360px;
+
   max-width:100%;
+
   padding:40px 30px;
+
   border-radius:20px;
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 40px rgba(0,0,0,0.4);
+
+  background:
+  rgba(255,255,255,0.05);
+
+  backdrop-filter:blur(10px);
+
+  box-shadow:
+  0 0 40px rgba(0,0,0,0.4);
+
   text-align:center;
+
   display:flex;
+
   flex-direction:column;
+
   align-items:center;
+
 }
 
 /* LOGO */
+
 .logo{
+
   width:140px;
+
   margin-bottom:20px;
+
+  object-fit:contain;
+
 }
 
 /* TITLE */
+
 .title{
+
   color:#ffffff;
+
   font-size:20px;
+
   letter-spacing:2px;
+
   margin-bottom:10px;
+
+  font-weight:bold;
+
 }
 
 /* TIME */
+
 .az-time{
+
   font-size:12px;
+
   color:#ddd;
+
   margin-bottom:25px;
+
 }
 
 /* INPUTS */
+
 .login-card input{
+
   width:100%;
+
   padding:12px;
+
   margin-bottom:15px;
+
   border:none;
+
   border-radius:8px;
+
   font-size:14px;
+
   outline:none;
+
   text-align:center;
+
 }
 
 /* BUTTON */
+
 .login-card button{
+
   width:100%;
+
   padding:12px;
+
   border:none;
+
   border-radius:8px;
+
   background:#facc15;
+
   color:#000;
+
   font-weight:bold;
+
   cursor:pointer;
+
   transition:0.3s;
+
+  font-size:15px;
+
 }
 
 .login-card button:hover{
+
   background:#ffdd33;
+
 }
 
 #msg{
+
   margin-top:10px;
+
   color:white;
+
   font-size:13px;
+
 }
 
-/* =========================
-MOBILE FIX
-========================= */
+/* MOBILE */
 
 @media (max-width:480px){
 
-body{
-  align-items:flex-start;
-  padding-top:60px;
-}
+  body{
 
-.login-card{
-  width:100%;
-  padding:30px 20px;
-}
+    align-items:flex-start;
 
-.logo{
-  width:120px;
-}
+    padding-top:60px;
 
-.title{
-  font-size:18px;
-}
+  }
 
-.login-card input{
-  font-size:15px;
-}
+  .login-card{
+
+    width:100%;
+
+    padding:30px 20px;
+
+  }
+
+  .logo{
+
+    width:120px;
+
+  }
+
+  .title{
+
+    font-size:18px;
+
+  }
+
+  .login-card input{
+
+    font-size:15px;
+
+  }
 
 }
 
 </style>
+
 </head>
 
 <body>
 
 <div class="login-card">
 
-<img src="assets/logo.png" class="logo" alt="Sunbeam Logo">
+<img
+class="logo app-logo"
+alt="Company Logo">
 
-<div class="title">STAFF LOGIN</div>
+<div class="title">
 
-<div id="azTime" class="az-time"></div>
+STAFF LOGIN
 
-<input type="text" id="username" placeholder="Username">
-<input type="password" id="password" placeholder="Password">
+</div>
 
-<button onclick="login()">Sign In</button>
+<div
+id="azTime"
+class="az-time">
+
+</div>
+
+<input
+type="text"
+id="username"
+placeholder="Username">
+
+<input
+type="password"
+id="password"
+placeholder="Password">
+
+<button onclick="login()">
+
+Sign In
+
+</button>
 
 <div id="msg"></div>
 
 </div>
+
+<!-- BRANDING -->
+
+<script src="/core/branding.js"></script>
 
 <script src="login.js"></script>
 
