@@ -1,48 +1,23 @@
 // =========================================
+// SYSTEM DESIGN ENGINE
 // FILE:
 // public/admin/system-design.js
 // =========================================
 
-let systemDesign =
-JSON.parse(
-localStorage.getItem("ghSystemDesign")
-|| "{}"
+console.log(
+  "SYSTEM DESIGN LOADED"
 );
 
 /* =========================================
-SAVE STORAGE
+LOAD STORAGE
 ========================================= */
 
-function saveStorage(){
-
-  localStorage.setItem(
-    "ghSystemDesign",
-    JSON.stringify(systemDesign)
-  );
-
-}
-
-/* =========================================
-BASE64
-========================================= */
-
-function fileToBase64(file){
-
-  return new Promise((resolve)=>{
-
-    const reader = new FileReader();
-
-    reader.onload = e=>{
-
-      resolve(e.target.result);
-
-    };
-
-    reader.readAsDataURL(file);
-
-  });
-
-}
+let systemDesign =
+JSON.parse(
+localStorage.getItem(
+  "ghSystemDesign"
+) || "{}"
+);
 
 /* =========================================
 DEFAULT SERVICES
@@ -138,6 +113,42 @@ if(!systemDesign.services){
 }
 
 /* =========================================
+SAVE STORAGE
+========================================= */
+
+function saveStorage(){
+
+  localStorage.setItem(
+    "ghSystemDesign",
+    JSON.stringify(systemDesign)
+  );
+
+}
+
+/* =========================================
+BASE64
+========================================= */
+
+function fileToBase64(file){
+
+  return new Promise(resolve=>{
+
+    const reader =
+    new FileReader();
+
+    reader.onload = e=>{
+
+      resolve(e.target.result);
+
+    };
+
+    reader.readAsDataURL(file);
+
+  });
+
+}
+
+/* =========================================
 RENDER
 ========================================= */
 
@@ -167,22 +178,24 @@ function renderCardsEditor(){
 
         </div>
 
-        <label>
+        <button
+          class="
+          ${service.active
+          ? 'save-btn'
+          : 'disable-btn'}
+          "
+          onclick="
+          toggleCard(
+            ${index}
+          )
+          "
+        >
 
-          <input
-            type="checkbox"
-            ${service.active ? "checked" : ""}
-            onchange="
-            toggleCard(
-              ${index},
-              this.checked
-            )
-            "
-          >
+          ${service.active
+          ? 'ACTIVE'
+          : 'DISABLED'}
 
-          Active
-
-        </label>
+        </button>
 
       </div>
 
@@ -194,14 +207,8 @@ function renderCardsEditor(){
 
         <input
           type="text"
+          id="title-${index}"
           value="${service.title}"
-          onchange="
-          updateCard(
-            ${index},
-            'title',
-            this.value
-          )
-          "
         >
 
       </div>
@@ -213,13 +220,7 @@ function renderCardsEditor(){
         </label>
 
         <textarea
-          onchange="
-          updateCard(
-            ${index},
-            'description',
-            this.value
-          )
-          "
+          id="desc-${index}"
         >${service.description}</textarea>
 
       </div>
@@ -267,6 +268,22 @@ function renderCardsEditor(){
 
       </div>
 
+      <button
+        class="
+        save-btn
+        card-save
+        "
+        onclick="
+        saveCard(
+          ${index}
+        )
+        "
+      >
+
+        Save Card
+
+      </button>
+
     </div>
 
     `;
@@ -276,32 +293,23 @@ function renderCardsEditor(){
 }
 
 /* =========================================
-UPDATE CARD
-========================================= */
-
-window.updateCard =
-function(index,key,value){
-
-  systemDesign
-  .services[index][key] =
-  value;
-
-  saveStorage();
-
-};
-
-/* =========================================
 TOGGLE
 ========================================= */
 
 window.toggleCard =
-function(index,state){
+function(index){
 
   systemDesign
   .services[index]
-  .active = state;
+  .active = !
+
+  systemDesign
+  .services[index]
+  .active;
 
   saveStorage();
+
+  renderCardsEditor();
 
 };
 
@@ -321,29 +329,67 @@ async function(index,file){
   .services[index]
   .image = base64;
 
-  document.getElementById(
-    `preview-${index}`
-  ).src = base64;
-
   saveStorage();
+
+  renderCardsEditor();
 
 };
 
 /* =========================================
-SAVE
+SAVE CARD
 ========================================= */
 
-window.saveSystemDesign =
-function(){
+window.saveCard =
+function(index){
 
-  systemDesign.companyName =
+  systemDesign
+  .services[index]
+  .title =
+
   document.getElementById(
-    "companyNameInput"
+    `title-${index}`
+  ).value;
+
+  systemDesign
+  .services[index]
+  .description =
+
+  document.getElementById(
+    `desc-${index}`
   ).value;
 
   saveStorage();
 
-  alert("Saved");
+  alert(
+    "Card Saved"
+  );
+
+};
+
+/* =========================================
+SAVE ALL
+========================================= */
+
+window.saveAllSystemDesign =
+function(){
+
+  systemDesign.companyName =
+
+  document.getElementById(
+    "companyNameInput"
+  ).value;
+
+  systemDesign.timezone =
+
+  document.getElementById(
+    "timezoneInput"
+  ).value;
+
+  saveStorage();
+
+  alert(
+    "All Settings Saved"
+  );
 
 };
 
@@ -353,6 +399,13 @@ RESET
 
 window.resetSystemDesign =
 function(){
+
+  const ok =
+  confirm(
+    "Reset System Design?"
+  );
+
+  if(!ok) return;
 
   localStorage.removeItem(
     "ghSystemDesign"
@@ -369,6 +422,19 @@ LOAD
 window.addEventListener(
 "DOMContentLoaded",
 ()=>{
+
+  document.getElementById(
+    "companyNameInput"
+  ).value =
+
+  systemDesign.companyName || "";
+
+  document.getElementById(
+    "timezoneInput"
+  ).value =
+
+  systemDesign.timezone
+  || "America/Phoenix";
 
   renderCardsEditor();
 
