@@ -4,10 +4,12 @@
 
 <meta charset="UTF-8">
 
+<title>
+Sunbeam Transportation
+</title>
+
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0">
-
-<title>GH Mobility</title>
 
 <link rel="icon"
 href="assets/app-icon.png">
@@ -22,24 +24,23 @@ GLOBAL
 ========================= */
 
 *{
+    margin:0;
+    padding:0;
     box-sizing:border-box;
 }
 
-html,
 body{
-
-    margin:0;
-    padding:0;
 
     font-family:
     'Segoe UI',
+    Arial,
     sans-serif;
 
-    background:#f1f5f9;
-
-    color:#0f172a;
+    background:#f3f4f6;
 
     overflow-x:hidden;
+
+    color:#0f172a;
 
 }
 
@@ -53,93 +54,97 @@ TOP BAR
 
     display:flex;
 
-    justify-content:
-    space-between;
+    justify-content:space-between;
 
     align-items:center;
 
-    padding:14px 18px;
+    gap:20px;
 
-    background:#ffffff;
+    padding:18px 24px;
 
-    position:sticky;
+    background:#f8fafc;
 
-    top:0;
-
-    z-index:999;
-
-    box-shadow:
-    0 2px 12px
-    rgba(0,0,0,.06);
-
-}
-
-.top-left,
-.top-right{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
+    flex-wrap:wrap;
 
 }
 
 /* =========================
-BUTTONS
+LEFT BUTTONS
 ========================= */
 
-.top-btn{
-
-    border:none;
-
-    text-decoration:none;
-
-    cursor:pointer;
+.top-links{
 
     display:flex;
 
-    align-items:center;
+    gap:12px;
 
-    justify-content:center;
+    flex-wrap:wrap;
 
-    min-height:44px;
+}
 
-    padding:10px 18px;
+.top-links a{
 
-    border-radius:14px;
+    text-decoration:none;
 
-    font-size:14px;
+    padding:14px 24px;
+
+    border-radius:18px;
+
+    font-size:18px;
 
     font-weight:700;
 
-    transition:.2s;
+    color:#fff;
 
-    white-space:nowrap;
+    transition:.2s;
 
 }
 
-.facility-btn{
+.facility-login{
 
     background:#2563eb;
 
-    color:#fff;
-
 }
 
-.staff-btn{
+.staff-login{
 
     background:#0f172a;
 
-    color:#fff;
+}
+
+/* =========================
+LANGUAGE
+========================= */
+
+.lang-right{
+
+    display:flex;
+
+    gap:12px;
+
+    flex-wrap:wrap;
 
 }
 
 .lang-btn{
 
-    background:#e2e8f0;
+    border:none;
+
+    cursor:pointer;
+
+    padding:14px 24px;
+
+    border-radius:18px;
+
+    font-size:18px;
+
+    font-weight:700;
+
+    background:#dbe1ea;
 
     color:#2563eb;
+
+    transition:.2s;
 
 }
 
@@ -159,13 +164,27 @@ HERO
 
     width:100%;
 
-    height:520px;
-
     background:#111827;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    overflow:hidden;
+
+    padding:20px;
+
+}
+
+.hero-inner{
 
     position:relative;
 
-    overflow:hidden;
+    width:100%;
+
+    max-width:1200px;
 
 }
 
@@ -173,11 +192,7 @@ HERO
 
     width:100%;
 
-    height:100%;
-
-    object-fit:contain;
-
-    object-position:center center;
+    height:auto;
 
     display:block;
 
@@ -187,29 +202,25 @@ HERO
 POWERED
 ========================= */
 
-.powered-by{
+.powered-box{
 
     position:absolute;
 
-    left:18px;
+    left:30px;
 
-    bottom:18px;
+    bottom:30px;
 
-    background:
-    rgba(0,0,0,.45);
+    background:rgba(0,0,0,.70);
 
     color:#fff;
 
-    padding:10px 18px;
+    padding:16px 28px;
 
-    border-radius:24px;
+    border-radius:50px;
 
-    font-size:13px;
+    font-size:18px;
 
     font-weight:700;
-
-    backdrop-filter:
-    blur(5px);
 
 }
 
@@ -219,37 +230,33 @@ ABOUT
 
 .about{
 
-    max-width:1100px;
-
-    margin:auto;
-
     text-align:center;
 
-    padding:
-    70px 20px
-    40px;
+    padding:90px 20px 40px;
 
 }
 
 .about h2{
 
-    margin:0 0 20px;
+    font-size:60px;
 
-    font-size:48px;
+    color:#1e3a6d;
 
-    color:#1e3a5f;
+    margin-bottom:30px;
 
 }
 
 .about p{
 
-    margin:0;
+    font-size:28px;
 
-    color:#64748b;
+    color:#6b7280;
 
-    font-size:20px;
+    max-width:1000px;
 
-    line-height:1.9;
+    margin:auto;
+
+    line-height:1.8;
 
 }
 
@@ -261,31 +268,27 @@ QUOTE
 
     text-align:center;
 
-    padding:
-    10px 20px
-    30px;
+    padding:60px 20px 20px;
 
 }
 
 .quote-header h2{
 
-    margin:0 0 16px;
+    font-size:70px;
 
-    font-size:54px;
+    color:#1e3a6d;
 
-    line-height:1.15;
+    margin-bottom:25px;
 
-    color:#1e3a5f;
+    line-height:1.1;
 
 }
 
 .quote-header p{
 
-    margin:0;
+    font-size:32px;
 
-    color:#64748b;
-
-    font-size:20px;
+    color:#6b7280;
 
 }
 
@@ -295,42 +298,29 @@ SERVICES
 
 .services{
 
-    max-width:1500px;
+    width:100%;
 
-    margin:auto;
+    padding:60px 30px 100px;
 
-    padding:
-    20px
-    20px
-    80px;
+    display:grid;
 
-    display:flex;
+    grid-template-columns:
+    repeat(auto-fit,minmax(260px,1fr));
 
-    flex-wrap:wrap;
-
-    justify-content:center;
-
-    gap:28px;
+    gap:30px;
 
 }
 
-/* =========================
-CARD
-========================= */
-
 .card{
-
-    width:300px;
 
     background:#fff;
 
-    border-radius:28px;
+    border-radius:25px;
 
     overflow:hidden;
 
     box-shadow:
-    0 10px 30px
-    rgba(0,0,0,.08);
+    0 10px 25px rgba(0,0,0,.08);
 
     transition:.25s;
 
@@ -338,8 +328,7 @@ CARD
 
 .card:hover{
 
-    transform:
-    translateY(-4px);
+    transform:translateY(-6px);
 
 }
 
@@ -347,17 +336,15 @@ CARD
 
     width:100%;
 
-    height:210px;
+    height:240px;
 
     object-fit:cover;
-
-    display:block;
 
 }
 
 .card-content{
 
-    padding:22px;
+    padding:25px;
 
     text-align:center;
 
@@ -365,86 +352,70 @@ CARD
 
 .card h3{
 
-    margin:
-    0 0 10px;
+    font-size:34px;
 
-    font-size:30px;
+    margin-bottom:12px;
 
-    color:#1e3a5f;
+    color:#0f172a;
 
 }
 
 .card p{
 
-    margin:0;
+    font-size:20px;
+
+    color:#6b7280;
 
     min-height:60px;
-
-    color:#64748b;
-
-    font-size:16px;
-
-    line-height:1.7;
-
-}
-
-.card-btn{
-
-    display:inline-block;
-
-    margin-top:18px;
-
-    background:#2563eb;
-
-    color:#fff;
-
-    text-decoration:none;
-
-    padding:
-    13px 24px;
-
-    border-radius:14px;
-
-    font-size:15px;
-
-    font-weight:700;
 
 }
 
 /* =========================
-CUSTOM SECTION
+BUTTON
 ========================= */
 
-.custom-section{
+.btn{
 
-    padding:
-    0 20px 70px;
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    margin-top:22px;
+
+    min-width:150px;
+
+    height:52px;
+
+    padding:0 26px;
+
+    background:#2563eb;
+
+    color:#fff !important;
+
+    text-decoration:none;
+
+    border-radius:14px;
+
+    font-size:20px;
+
+    font-weight:800;
+
+    letter-spacing:.3px;
+
+    transition:.2s;
+
+    box-shadow:
+    0 6px 18px rgba(37,99,235,.35);
 
 }
 
-.custom-box{
+.btn:hover{
 
-    max-width:1450px;
+    transform:translateY(-2px);
 
-    margin:auto;
-
-    background:#fff;
-
-    border:
-    2px dashed #cbd5e1;
-
-    border-radius:30px;
-
-    padding:
-    70px 20px;
-
-    text-align:center;
-
-    font-size:28px;
-
-    color:#94a3b8;
-
-    font-weight:700;
+    background:#1d4ed8;
 
 }
 
@@ -456,12 +427,15 @@ CONTACT
 
     text-align:center;
 
-    padding:
-    70px 20px;
+    padding:70px 20px;
 
-    line-height:2.1;
+    background:#fff;
 
-    font-size:18px;
+    font-size:28px;
+
+    line-height:2;
+
+    color:#111827;
 
 }
 
@@ -471,15 +445,15 @@ FOOTER
 
 footer{
 
-    background:#0f172a;
+    background:#111827;
 
     color:#fff;
 
     text-align:center;
 
-    padding:24px;
+    padding:30px;
 
-    font-size:14px;
+    font-size:18px;
 
 }
 
@@ -489,124 +463,129 @@ MOBILE
 
 @media(max-width:768px){
 
-    /* TOP */
-
     .top-bar{
 
-        padding:10px;
+        flex-direction:column;
 
-        gap:8px;
+        align-items:stretch;
 
-    }
+        gap:14px;
 
-    .top-left,
-    .top-right{
-
-        gap:8px;
+        padding:16px;
 
     }
 
-    .top-btn{
+    .top-links,
+    .lang-right{
 
-        min-height:38px;
+        width:100%;
 
-        padding:
-        8px 12px;
+        display:grid;
 
-        border-radius:12px;
+        grid-template-columns:1fr 1fr;
 
-        font-size:12px;
+        gap:12px;
 
     }
 
-    /* HERO */
+    .top-links a,
+    .lang-btn{
+
+        width:100%;
+
+        text-align:center;
+
+        font-size:14px;
+
+        padding:14px 8px;
+
+        border-radius:16px;
+
+    }
 
     .hero{
 
-        height:430px;
+        padding:0;
+
+    }
+
+    .hero-inner{
+
+        max-width:100%;
 
     }
 
     .hero img{
 
-        object-fit:cover;
+        width:100%;
 
-        object-position:center center;
+        height:auto;
 
-    }
-
-    .powered-by{
-
-        left:14px;
-
-        bottom:14px;
-
-        font-size:12px;
-
-        padding:
-        9px 14px;
+        display:block;
 
     }
 
-    /* ABOUT */
+    .powered-box{
+
+        left:18px;
+
+        bottom:18px;
+
+        font-size:14px;
+
+        padding:12px 20px;
+
+    }
 
     .about{
 
-        padding:
-        50px 18px
-        30px;
+        padding:70px 20px 20px;
 
     }
 
     .about h2{
 
-        font-size:34px;
+        font-size:42px;
+
+        margin-bottom:20px;
 
     }
 
     .about p{
 
-        font-size:17px;
+        font-size:20px;
 
     }
 
-    /* QUOTE */
+    .quote-header{
+
+        padding:50px 20px 10px;
+
+    }
 
     .quote-header h2{
 
-        font-size:34px;
+        font-size:52px;
 
     }
 
     .quote-header p{
 
-        font-size:16px;
+        font-size:20px;
 
     }
-
-    /* SERVICES */
 
     .services{
 
-        gap:22px;
+        grid-template-columns:1fr;
 
-        padding:
-        20px 18px
-        60px;
-
-    }
-
-    .card{
-
-        width:100%;
-
-        max-width:380px;
+        padding:40px 20px 80px;
 
     }
 
     .card img{
 
-        height:230px;
+        height:240px;
 
     }
 
@@ -616,30 +595,31 @@ MOBILE
 
     }
 
-    .card-btn{
+    .card p{
+
+        font-size:18px;
+
+    }
+
+    .btn{
 
         width:100%;
 
-        text-align:center;
+        max-width:180px;
+
+        height:50px;
+
+        font-size:18px;
+
+        margin-top:18px;
 
     }
-
-    /* CUSTOM */
-
-    .custom-box{
-
-        font-size:22px;
-
-        padding:
-        50px 18px;
-
-    }
-
-    /* CONTACT */
 
     .contact-section{
 
-        font-size:16px;
+        font-size:22px;
+
+        padding:50px 20px;
 
     }
 
@@ -657,25 +637,17 @@ TOP BAR
 
 <div class="top-bar">
 
-    <!-- LEFT -->
+    <div class="top-links">
 
-    <div class="top-left">
-
-        <a
-        href="companies/company-login.html"
-        class="
-        top-btn
-        facility-btn">
+        <a href="companies/company-login.html"
+        class="facility-login">
 
             Facility Login
 
         </a>
 
-        <a
-        href="login.html"
-        class="
-        top-btn
-        staff-btn">
+        <a href="login.html"
+        class="staff-login">
 
             Staff Login
 
@@ -683,17 +655,11 @@ TOP BAR
 
     </div>
 
-    <!-- RIGHT -->
-
-    <div class="top-right">
+    <div class="lang-right">
 
         <button
         id="lang-en"
-        class="
-        top-btn
-        lang-btn
-        active-lang"
-
+        class="lang-btn active-lang"
         onclick="setLang('en')">
 
             English
@@ -702,10 +668,7 @@ TOP BAR
 
         <button
         id="lang-es"
-        class="
-        top-btn
-        lang-btn"
-
+        class="lang-btn"
         onclick="setLang('es')">
 
             Spanish
@@ -722,13 +685,17 @@ HERO
 
 <section class="hero">
 
-    <img
-    src="assets/hero.jpeg"
-    alt="GH Mobility">
+    <div class="hero-inner">
 
-    <div class="powered-by">
+        <img
+        src="assets/hero.jpeg"
+        alt="Sunbeam Transportation">
 
-        Powered by GH Mobility
+        <div class="powered-box">
+
+            Powered by GH Mobility
+
+        </div>
 
     </div>
 
@@ -741,9 +708,7 @@ ABOUT
 <section class="about">
 
     <h2
-
     data-en="About Us"
-
     data-es="Sobre nosotros">
 
         About Us
@@ -751,14 +716,8 @@ ABOUT
     </h2>
 
     <p
-
-    data-en="
-    Professional transportation services.
-    "
-
-    data-es="
-    Servicios profesionales de transporte.
-    ">
+    data-en="Professional transportation services."
+    data-es="Servicios profesionales de transporte.">
 
         Professional transportation services.
 
@@ -773,28 +732,16 @@ QUOTE
 <section class="quote-header">
 
     <h2
-
-    data-en="
-    Get Quote & Book Your Ride
-    "
-
-    data-es="
-    Obtenga precio y reserve su viaje
-    ">
+    data-en="Get Quote & Book Your Ride"
+    data-es="Obtenga precio y reserve su viaje">
 
         Get Quote & Book Your Ride
 
     </h2>
 
     <p
-
-    data-en="
-    Select your service below
-    "
-
-    data-es="
-    Seleccione su servicio abajo
-    ">
+    data-en="Select your service below"
+    data-es="Seleccione su servicio abajo">
 
         Select your service below
 
@@ -806,32 +753,257 @@ QUOTE
 SERVICES
 ========================= -->
 
-<section
-class="services"
+<section class="services">
 
-id="servicesContainer">
+    <div class="card">
 
-</section>
+        <img src="assets/nemt.jpeg">
 
-<!-- =========================
-CUSTOM SECTION
-========================= -->
+        <div class="card-content">
 
-<section class="custom-section">
+            <h3>NEMT</h3>
 
-    <div
+            <p
+            data-en="Medical appointments & clinics"
+            data-es="Citas médicas y clínicas">
 
-    class="custom-box"
+                Medical appointments & clinics
 
-    data-en="
-    Future Custom Section
-    "
+            </p>
 
-    data-es="
-    Sección personalizada futura
-    ">
+            <a href="getquote/index.html"
+            class="btn">
 
-        Future Custom Section
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/airport.jpeg">
+
+        <div class="card-content">
+
+            <h3
+            data-en="Airport"
+            data-es="Aeropuerto">
+
+                Airport
+
+            </h3>
+
+            <p
+            data-en="Airport pickup & drop-off"
+            data-es="Traslados al aeropuerto">
+
+                Airport pickup & drop-off
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/business.jpeg">
+
+        <div class="card-content">
+
+            <h3
+            data-en="Business"
+            data-es="Negocios">
+
+                Business
+
+            </h3>
+
+            <p
+            data-en="Corporate & private rides"
+            data-es="Viajes corporativos y privados">
+
+                Corporate & private rides
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/business.jpeg">
+
+        <div class="card-content">
+
+            <h3
+            data-en="Taxi"
+            data-es="Taxi">
+
+                Taxi
+
+            </h3>
+
+            <p
+            data-en="Daily city transportation"
+            data-es="Transporte diario en la ciudad">
+
+                Daily city transportation
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/business.jpeg">
+
+        <div class="card-content">
+
+            <h3
+            data-en="Limo"
+            data-es="Limusina">
+
+                Limo
+
+            </h3>
+
+            <p
+            data-en="Luxury transportation service"
+            data-es="Servicio de transporte de lujo">
+
+                Luxury transportation service
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/business.jpeg">
+
+        <div class="card-content">
+
+            <h3>XL</h3>
+
+            <p
+            data-en="Large family transportation"
+            data-es="Transporte familiar grande">
+
+                Large family transportation
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/nemt.jpeg">
+
+        <div class="card-content">
+
+            <h3
+            data-en="Wheelchair"
+            data-es="Silla de ruedas">
+
+                Wheelchair
+
+            </h3>
+
+            <p
+            data-en="Wheelchair accessible rides"
+            data-es="Viajes accesibles para silla de ruedas">
+
+                Wheelchair accessible rides
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <img src="assets/airport.jpeg">
+
+        <div class="card-content">
+
+            <h3
+            data-en="Shared Ride"
+            data-es="Viaje compartido">
+
+                Shared Ride
+
+            </h3>
+
+            <p
+            data-en="Affordable shared rides"
+            data-es="Viajes compartidos económicos">
+
+                Affordable shared rides
+
+            </p>
+
+            <a href="getquote/index.html"
+            class="btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
 
     </div>
 
@@ -843,27 +1015,19 @@ CONTACT
 
 <div class="contact-section">
 
-    <strong
-
-    data-en="
-    Customer Support
-    "
-
-    data-es="
-    Atención al cliente
-    ">
+    <strong>
 
         Customer Support
 
     </strong>
 
-    <br>
+    <br><br>
 
     📞 619-509-7197
 
     <br>
 
-    📧 admin@ghmobility.com
+    📧 admin@sunbeamtransportationllc.com
 
 </div>
 
@@ -873,38 +1037,17 @@ FOOTER
 
 <footer>
 
-    © GH Mobility
+    © Sunbeam Transportation
 
 </footer>
 
 <!-- =========================
-LANGUAGE SCRIPT
+SCRIPT
 ========================= -->
 
 <script>
 
 function setLang(lang){
-
-    /* TEXT */
-
-    document
-    .querySelectorAll("[data-en]")
-    .forEach(el=>{
-
-        const value =
-        el.getAttribute(
-            "data-" + lang
-        );
-
-        if(value){
-
-            el.innerText = value;
-
-        }
-
-    });
-
-    /* REMOVE ACTIVE */
 
     document
     .querySelectorAll(".lang-btn")
@@ -916,20 +1059,42 @@ function setLang(lang){
 
     });
 
-    /* ADD ACTIVE */
+    if(lang === "en"){
 
-    const activeBtn =
-    document.getElementById(
-        "lang-" + lang
-    );
-
-    if(activeBtn){
-
-        activeBtn.classList.add(
+        document
+        .getElementById("lang-en")
+        .classList.add(
             "active-lang"
         );
 
     }
+
+    if(lang === "es"){
+
+        document
+        .getElementById("lang-es")
+        .classList.add(
+            "active-lang"
+        );
+
+    }
+
+    document
+    .querySelectorAll("[data-en]")
+    .forEach(el=>{
+
+        const text =
+        el.getAttribute(
+            "data-" + lang
+        );
+
+        if(text){
+
+            el.innerText = text;
+
+        }
+
+    });
 
 }
 
@@ -942,8 +1107,6 @@ window.addEventListener(
 });
 
 </script>
-
-<script src="index.js"></script>
 
 </body>
 </html>
