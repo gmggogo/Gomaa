@@ -1,232 +1,141 @@
-/* =========================
-   DYNAMIC COMPANY
-========================= */
+document.addEventListener("DOMContentLoaded", async () => {
 
-const dynamicCompany =
+  const headerContainer =
+    document.getElementById("adminHeader") ||
+    document.getElementById("headerContainer") ||
+    document.getElementById("header-container");
 
-document.getElementById(
-"dynamicCompanyName"
-);
+  if (!headerContainer) return;
 
-if(dynamicCompany){
+  const res = await fetch("header.html");
+  const html = await res.text();
 
-dynamicCompany.innerText =
+  headerContainer.innerHTML = html;
+
+  /* =========================
+     DEFAULT LOGO
+  ========================= */
+
+  if (!localStorage.getItem("appLogo")) {
+    localStorage.setItem("appLogo", "/assets/logo.png");
+  }
+
+  /* =========================
+     LOAD BRANDING
+  ========================= */
 
-localStorage.getItem(
-"companyName"
-)
+  if (!document.querySelector('script[src="/core/branding.js"]')) {
+    const brandingScript = document.createElement("script");
+    brandingScript.src = "/core/branding.js";
+    document.body.appendChild(brandingScript);
+  }
 
-|| "Company";
+  /* =========================
+     DYNAMIC COMPANY NAME
+  ========================= */
 
-}
+  const companyEl = document.getElementById("dynamicCompanyName");
 
+  if (companyEl) {
+    companyEl.innerText =
+      localStorage.getItem("companyName") ||
+      localStorage.getItem("name") ||
+      "Company";
+  }
 
-/* =========================
-   DYNAMIC TIME
-========================= */
+  /* =========================
+     DYNAMIC TIME
+  ========================= */
 
-function updateDynamicTime(){
+  function updateAdminTime() {
 
-const timezone =
+    const timezone =
+      localStorage.getItem("systemTimezone") ||
+      localStorage.getItem("appTimezone") ||
+      "America/Phoenix";
 
-localStorage.getItem(
-"systemTimezone"
-)
+    const now = new Date();
 
-|| "America/Phoenix";
+    const date = now.toLocaleDateString("en-US", {
+      timeZone: timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
 
-const now = new Date();
+    const time = now.toLocaleTimeString("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true
+    });
 
-/* DATE */
+    const el = document.getElementById("azTime");
 
-const date = now.toLocaleDateString(
-"en-US",
-{
-timeZone:timezone,
-month:"short",
-day:"numeric",
-year:"numeric"
-}
-);
+    if (el) {
+      el.innerHTML = `${date}<br>${time}`;
+    }
 
-/* TIME */
+  }
 
-const time = now.toLocaleTimeString(
-"en-US",
-{
-timeZone:timezone,
-hour:"numeric",
-minute:"2-digit",
-second:"2-digit",
-hour12:true
-}
-);
+  updateAdminTime();
+  setInterval(updateAdminTime, 1000);
 
-/* RENDER */
+  /* =========================
+     WELCOME MESSAGE
+  ========================= */
 
-const timeEl =
+  function updateWelcome() {
 
-document.getElementById(
-"dynamicTime"
-);
+    const timezone =
+      localStorage.getItem("systemTimezone") ||
+      localStorage.getItem("appTimezone") ||
+      "America/Phoenix";
 
-if(timeEl){
+    const now = new Date();
 
-timeEl.innerHTML =
-
-`${date} ${time}`;
-
-}
-
-}
-
-updateDynamicTime();
-
-setInterval(
-updateDynamicTime,
-1000
-);
-
-
-/* =========================
-   WELCOME MESSAGE
-========================= */
-
-function updateWelcome(){
-
-const timezone =
-
-localStorage.getItem(
-"systemTimezone"
-)
-
-|| "America/Phoenix";
-
-const now = new Date();
-
-const hour = Number(
-
-new Intl.DateTimeFormat(
-"en-US",
-{
-hour:"numeric",
-hour12:false,
-timeZone:timezone
-}
-).format(now)
-
-);
-
-let text = "Good Evening";
-let icon = "🌙";
-
-if(hour >= 5 && hour < 12){
-
-text = "Good Morning";
-icon = "☀️";
-
-}
-
-else if(hour >= 12 && hour < 18){
-
-text = "Good Afternoon";
-icon = "🌤️";
-
-}
-
-const welcomeEl =
-document.getElementById(
-"welcomeMessage"
-);
-
-const iconEl =
-document.getElementById(
-"weatherIcon"
-);
-
-if(welcomeEl){
-
-welcomeEl.innerText = text;
-
-}
-
-if(iconEl){
-
-iconEl.innerText = icon;
-
-}
-
-}
-
-updateWelcome();
-
-setInterval(
-updateWelcome,
-60000
-);
-
-
-/* =========================
-   ACTIVE NAV
-========================= */
-
-const currentPage =
-
-window.location.pathname
-.split("/")
-.pop();
-
-document
-.querySelectorAll(".nav-btn")
-.forEach(btn=>{
-
-const href =
-btn.getAttribute("href");
-
-if(href === currentPage){
-
-btn.classList.add("active");
-
-}
+    const hour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: timezone
+      }).format(now)
+    );
+
+    let message = "Good Evening";
+    let icon = "🌙";
+
+    if (hour < 12) {
+      message = "Good Morning";
+      icon = "☀️";
+    } else if (hour < 18) {
+      message = "Good Afternoon";
+      icon = "🌤️";
+    }
+
+    const welcomeEl = document.getElementById("welcomeMessage");
+    const iconEl = document.getElementById("weatherIcon");
+
+    if (welcomeEl) welcomeEl.innerText = message;
+    if (iconEl) iconEl.innerText = icon;
+
+  }
+
+  updateWelcome();
+  setInterval(updateWelcome, 60000);
+
+  /* =========================
+     ACTIVE NAV
+  ========================= */
+
+  const currentPage = window.location.pathname.split("/").pop();
+
+  document.querySelectorAll(".admin-nav .nav-btn").forEach(link => {
+    if (link.getAttribute("href") === currentPage) {
+      link.classList.add("active");
+    }
+  });
 
 });
-
-
-/* =========================
-   LOGOUT
-========================= */
-
-function logout(){
-
-localStorage.removeItem(
-"token"
-);
-
-localStorage.removeItem(
-"role"
-);
-
-localStorage.removeItem(
-"name"
-);
-
-window.location.href =
-"/admin/login.html";
-
-}
-
-
-/* =========================
-   DEFAULT LOGO
-========================= */
-
-if(!localStorage.getItem(
-"appLogo"
-)){
-
-localStorage.setItem(
-"appLogo",
-"/assets/logo.png"
-);
-
-}
