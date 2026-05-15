@@ -1,7 +1,3 @@
-<!-- =========================
-FILE: public/index.html
-========================= -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -69,6 +65,10 @@ TOP BAR
 
 }
 
+/* =========================
+LEFT BUTTONS
+========================= */
+
 .top-links{
 
     display:flex;
@@ -103,11 +103,9 @@ TOP BAR
     background:#0f172a;
 }
 
-.top-links a:hover{
-
-    transform:translateY(-2px);
-
-}
+/* =========================
+LANGUAGE
+========================= */
 
 .lang-right{
 
@@ -117,7 +115,7 @@ TOP BAR
 
 }
 
-.lang-right button{
+.lang-btn{
 
     border:none;
 
@@ -134,6 +132,18 @@ TOP BAR
     font-weight:700;
 
     cursor:pointer;
+
+    transition:.2s;
+
+}
+
+/* ACTIVE */
+
+.active-lang{
+
+    background:#16a34a !important;
+
+    color:#fff !important;
 
 }
 
@@ -307,12 +317,6 @@ SERVICES
 
 }
 
-.card:hover{
-
-    transform:translateY(-5px);
-
-}
-
 .card img{
 
     width:100%;
@@ -449,43 +453,41 @@ MOBILE
 
 @media(max-width:768px){
 
-    /* TOP BAR */
-
     .top-bar{
+
+        padding:10px 12px;
+
+        gap:10px;
 
         flex-direction:column;
 
         align-items:stretch;
-
-        gap:14px;
-
-        padding:14px;
 
     }
 
     .top-links,
     .lang-right{
 
+        display:flex;
+
+        gap:8px;
+
         width:100%;
-
-        display:grid;
-
-        grid-template-columns:1fr 1fr;
-
-        gap:12px;
 
     }
 
     .top-links a,
-    .lang-right button{
+    .lang-btn{
 
-        width:100%;
+        flex:1;
 
-        min-height:62px;
+        min-height:46px;
 
-        border-radius:22px;
+        padding:8px 10px;
 
-        font-size:16px;
+        border-radius:16px;
+
+        font-size:13px;
 
         font-weight:700;
 
@@ -496,8 +498,6 @@ MOBILE
         justify-content:center;
 
         text-align:center;
-
-        padding:12px;
 
     }
 
@@ -526,8 +526,6 @@ MOBILE
         font-size:13px;
 
         padding:10px 16px;
-
-        border-radius:24px;
 
     }
 
@@ -647,13 +645,19 @@ TOP BAR
 
     <div class="lang-right">
 
-        <button onclick="setLang('en')">
+        <button
+        id="lang-en"
+        class="lang-btn active-lang"
+        onclick="setLang('en')">
 
             English
 
         </button>
 
-        <button onclick="setLang('es')">
+        <button
+        id="lang-es"
+        class="lang-btn"
+        onclick="setLang('es')">
 
             Spanish
 
@@ -788,6 +792,51 @@ FOOTER
     © GH Mobility
 
 </footer>
+
+<script>
+
+/* =========================
+LANGUAGE SWITCH
+========================= */
+
+function setLang(lang){
+
+    document
+    .querySelectorAll("[data-en]")
+    .forEach(el=>{
+
+        el.innerText =
+        el.getAttribute(
+            "data-" + lang
+        );
+
+    });
+
+    /* REMOVE ACTIVE */
+
+    document
+    .querySelectorAll(".lang-btn")
+    .forEach(btn=>{
+
+        btn.classList.remove(
+            "active-lang"
+        );
+
+    });
+
+    /* ADD ACTIVE */
+
+    document
+    .getElementById(
+        "lang-" + lang
+    )
+    .classList.add(
+        "active-lang"
+    );
+
+}
+
+</script>
 
 <script src="index.js"></script>
 
