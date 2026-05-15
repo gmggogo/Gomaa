@@ -134,8 +134,8 @@ function renderCardsEditor(){
             ${service.active ? "checked" : ""}
             onchange="
             toggleCard(
-            ${index},
-            this.checked
+              ${index},
+              this.checked
             )
             "
           >
@@ -145,6 +145,8 @@ function renderCardsEditor(){
         </label>
 
       </div>
+
+      <!-- TITLE -->
 
       <div class="input-group">
 
@@ -157,14 +159,16 @@ function renderCardsEditor(){
           value="${service.title}"
           onchange="
           updateCard(
-          ${index},
-          'title',
-          this.value
+            ${index},
+            'title',
+            this.value
           )
           "
         >
 
       </div>
+
+      <!-- DESCRIPTION -->
 
       <div class="input-group">
 
@@ -175,14 +179,16 @@ function renderCardsEditor(){
         <textarea
           onchange="
           updateCard(
-          ${index},
-          'description',
-          this.value
+            ${index},
+            'description',
+            this.value
           )
           "
         >${service.description}</textarea>
 
       </div>
+
+      <!-- IMAGE -->
 
       <div class="input-group">
 
@@ -193,7 +199,37 @@ function renderCardsEditor(){
         <img
           src="${service.image}"
           class="preview-image"
+          id="preview-${index}"
         >
+
+        <input
+          type="file"
+          hidden
+          id="imageInput-${index}"
+          accept="image/*"
+          onchange="
+          uploadCardImage(
+            ${index},
+            this
+          )
+          "
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          document
+          .getElementById(
+            'imageInput-${index}'
+          )
+          .click()
+          "
+        >
+
+          Upload Image
+
+        </button>
 
       </div>
 
@@ -206,26 +242,69 @@ function renderCardsEditor(){
 }
 
 /* =========================================
-UPDATE
+UPDATE CARD
 ========================================= */
 
 window.updateCard =
 function(index,key,value){
 
-  systemDesign.services[index][key] =
+  systemDesign
+  .services[index][key] =
   value;
 
 };
 
 /* =========================================
-TOGGLE
+TOGGLE CARD
 ========================================= */
 
 window.toggleCard =
 function(index,state){
 
-  systemDesign.services[index].active =
-  state;
+  systemDesign
+  .services[index]
+  .active = state;
+
+};
+
+/* =========================================
+UPLOAD IMAGE
+========================================= */
+
+window.uploadCardImage =
+function(index,input){
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  const reader =
+  new FileReader();
+
+  reader.onload =
+  function(e){
+
+    systemDesign
+    .services[index]
+    .image =
+    e.target.result;
+
+    const preview =
+    document.getElementById(
+      `preview-${index}`
+    );
+
+    if(preview){
+
+      preview.src =
+      e.target.result;
+
+    }
+
+  };
+
+  reader.readAsDataURL(file);
 
 };
 
@@ -239,14 +318,51 @@ function(){
   systemDesign.companyName =
   document.getElementById(
     "companyNameInput"
-  ).value;
+  )?.value || "";
+
+  systemDesign.timezone =
+  document.getElementById(
+    "timezoneInput"
+  )?.value || "America/Phoenix";
+
+  systemDesign.extra1Title =
+  document.getElementById(
+    "extra1Title"
+  )?.value || "";
+
+  systemDesign.extra1Text =
+  document.getElementById(
+    "extra1Text"
+  )?.value || "";
+
+  systemDesign.extra2Title =
+  document.getElementById(
+    "extra2Title"
+  )?.value || "";
+
+  systemDesign.extra2Text =
+  document.getElementById(
+    "extra2Text"
+  )?.value || "";
+
+  systemDesign.extra1Active =
+  document.getElementById(
+    "extra1Active"
+  )?.checked || false;
+
+  systemDesign.extra2Active =
+  document.getElementById(
+    "extra2Active"
+  )?.checked || false;
 
   localStorage.setItem(
     "ghSystemDesign",
     JSON.stringify(systemDesign)
   );
 
-  alert("Saved");
+  alert(
+    "System Design Saved"
+  );
 
 };
 
@@ -257,6 +373,13 @@ RESET
 window.resetSystemDesign =
 function(){
 
+  const ok =
+  confirm(
+    "Reset all system design settings?"
+  );
+
+  if(!ok) return;
+
   localStorage.removeItem(
     "ghSystemDesign"
   );
@@ -266,12 +389,63 @@ function(){
 };
 
 /* =========================================
+LOAD FORM
+========================================= */
+
+function loadFormValues(){
+
+  document.getElementById(
+    "companyNameInput"
+  ).value =
+  systemDesign.companyName || "";
+
+  document.getElementById(
+    "timezoneInput"
+  ).value =
+  systemDesign.timezone
+  || "America/Phoenix";
+
+  document.getElementById(
+    "extra1Title"
+  ).value =
+  systemDesign.extra1Title || "";
+
+  document.getElementById(
+    "extra1Text"
+  ).value =
+  systemDesign.extra1Text || "";
+
+  document.getElementById(
+    "extra2Title"
+  ).value =
+  systemDesign.extra2Title || "";
+
+  document.getElementById(
+    "extra2Text"
+  ).value =
+  systemDesign.extra2Text || "";
+
+  document.getElementById(
+    "extra1Active"
+  ).checked =
+  systemDesign.extra1Active || false;
+
+  document.getElementById(
+    "extra2Active"
+  ).checked =
+  systemDesign.extra2Active || false;
+
+}
+
+/* =========================================
 LOAD
 ========================================= */
 
 window.addEventListener(
 "DOMContentLoaded",
 ()=>{
+
+  loadFormValues();
 
   renderCardsEditor();
 
