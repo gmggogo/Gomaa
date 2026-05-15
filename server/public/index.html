@@ -136,7 +136,7 @@ HERO
 
     width:100%;
 
-    height:340px;
+    height:460px;
 
     position:relative;
 
@@ -145,6 +145,8 @@ HERO
     background:#0f172a;
 
 }
+
+/* 🔥 الصورة */
 
 .hero img{
 
@@ -156,79 +158,38 @@ HERO
 
     object-position:center bottom;
 
-    transform:scale(.88);
+    transform:scale(1.55)
+    translateY(40px);
 
-    filter:brightness(.88);
+    filter:brightness(.96);
 
 }
 
 /* =========================
-OVERLAY
+POWERED
 ========================= */
-
-.hero-overlay{
-
-    position:absolute;
-
-    inset:0;
-
-    display:flex;
-
-    flex-direction:column;
-
-    justify-content:flex-end;
-
-    align-items:center;
-
-    text-align:center;
-
-    color:#fff;
-
-    padding:30px;
-
-}
-
-.hero-overlay h1{
-
-    margin:0 0 8px;
-
-    font-size:42px;
-
-    font-weight:800;
-
-    text-shadow:0 3px 15px rgba(0,0,0,.45);
-
-}
-
-.hero-overlay p{
-
-    margin:0;
-
-    font-size:16px;
-
-    text-shadow:0 2px 10px rgba(0,0,0,.45);
-
-}
 
 .powered-by{
 
     position:absolute;
 
-    right:12px;
+    left:15px;
 
-    bottom:12px;
+    bottom:15px;
 
-    background:rgba(0,0,0,.45);
+    color:#fff;
+
+    font-size:12px;
+
+    font-weight:700;
+
+    background:rgba(0,0,0,.35);
 
     padding:7px 12px;
 
     border-radius:20px;
 
-    font-size:10px;
-
-    font-weight:700;
-
-    backdrop-filter:blur(6px);
+    backdrop-filter:blur(5px);
 
 }
 
@@ -492,31 +453,24 @@ MOBILE
 
     .hero{
 
-        height:240px;
+        height:260px;
 
     }
 
     .hero img{
 
-        transform:scale(.95);
+        transform:scale(1.9)
+        translateY(28px);
 
     }
 
-    .hero-overlay{
+    .powered-by{
 
-        padding:18px;
+        left:10px;
 
-    }
+        bottom:10px;
 
-    .hero-overlay h1{
-
-        font-size:28px;
-
-    }
-
-    .hero-overlay p{
-
-        font-size:12px;
+        font-size:9px;
 
     }
 
@@ -606,26 +560,17 @@ TOP BAR
 HERO
 ========================= -->
 
-<section class="hero"
-id="heroSection">
+<section class="hero">
 
+    <!-- 🔥 الصورة بس -->
     <img
     src="assets/hero.jpeg"
-    id="heroImage">
+    alt="GH Mobility">
 
-    <div class="hero-overlay">
+    <!-- 🔥 Powered فقط -->
+    <div class="powered-by">
 
-        <h1 id="heroTitle">
-            GH Mobility
-        </h1>
-
-        <p id="heroSubtitle">
-            Professional Transportation Solutions
-        </p>
-
-        <div class="powered-by">
-            Powered by GH Mobility
-        </div>
+        Powered by GH Mobility
 
     </div>
 
@@ -635,12 +580,9 @@ id="heroSection">
 ABOUT
 ========================= -->
 
-<section class="about"
-id="aboutSection">
+<section class="about">
 
     <h2
-    id="aboutTitle"
-
     data-en="About Us"
     data-es="Sobre nosotros">
 
@@ -649,8 +591,6 @@ id="aboutSection">
     </h2>
 
     <p
-    id="aboutDescription"
-
     data-en="Professional transportation services."
     data-es="Servicios profesionales de transporte.">
 
@@ -667,7 +607,6 @@ QUOTE HEADER
 <section class="quote-header">
 
     <h2
-
     data-en="Get Quote & Book Your Ride"
     data-es="Obtenga precio y reserve su viaje">
 
@@ -676,7 +615,6 @@ QUOTE HEADER
     </h2>
 
     <p
-
     data-en="Select your service below"
     data-es="Seleccione su servicio abajo">
 
@@ -700,7 +638,7 @@ SERVICES
 </div>
 
 <!-- =========================
-CUSTOM SECTION
+CUSTOM BOX
 ========================= -->
 
 <section class="custom-section">
@@ -723,7 +661,6 @@ CONTACT
 <div class="contact-section">
 
     <strong
-
     data-en="Customer Support"
     data-es="Atención al cliente">
 
