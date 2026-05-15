@@ -1,38 +1,66 @@
-/* =====================================================
-   SUNBEAM DRIVER LOGIN
-===================================================== */
+document.addEventListener(
+"DOMContentLoaded",
+()=>{
 
-document.addEventListener("DOMContentLoaded", () => {
+const form =
+document.getElementById(
+"loginForm"
+);
 
-const form = document.getElementById("loginForm");
-const errorBox = document.getElementById("error");
+const errorBox =
+document.getElementById(
+"error"
+);
 
-if (!form) {
-console.error("loginForm not found");
+if(!form){
+
+console.error(
+"loginForm not found"
+);
+
 return;
+
 }
 
-form.addEventListener("submit", async (e) => {
+form.addEventListener(
+"submit",
+async (e)=>{
 
 e.preventDefault();
+
 errorBox.innerText = "";
 
-const username = document.getElementById("username").value.trim();
-const password = document.getElementById("password").value.trim();
+const username =
+document.getElementById(
+"username"
+).value.trim();
 
-if (!username || !password) {
-errorBox.innerText = "Enter username and password";
+const password =
+document.getElementById(
+"password"
+).value.trim();
+
+if(!username || !password){
+
+errorBox.innerText =
+"Enter username and password";
+
 return;
+
 }
 
 try{
 
-const res = await fetch("/api/auth/login",{
+const res =
+await fetch(
+"/api/auth/login",
+{
 
 method:"POST",
 
 headers:{
-"Content-Type":"application/json"
+"Content-Type":
+"application/json"
 },
 
 body:JSON.stringify({
@@ -42,46 +70,74 @@ password
 
 });
 
-const data = await res.json();
+const data =
+await res.json();
 
 if(!res.ok){
-errorBox.innerText = data.message || "Login failed";
+
+errorBox.innerText =
+data.message ||
+"Login failed";
+
 return;
+
 }
 
 if(!data.user){
-errorBox.innerText = "User data missing";
+
+errorBox.innerText =
+"User data missing";
+
 return;
+
 }
 
-/* نتأكد أنه Driver */
+/* MUST BE DRIVER */
 
 if(data.user.role !== "driver"){
-errorBox.innerText = "This account is not a driver";
+
+errorBox.innerText =
+"This account is not a driver";
+
 return;
+
 }
 
-/* حفظ session */
+/* SAVE SESSION */
 
-localStorage.setItem("loggedDriver", JSON.stringify({
+localStorage.setItem(
+"loggedDriver",
+JSON.stringify({
 
 token:data.token,
+
 id:data.user.id,
+
 name:data.user.name,
+
 username:data.user.username,
+
 role:data.user.role,
+
 loginAt:Date.now()
 
-}));
+})
 
-/* فتح الداشبورد */
+);
 
-window.location.href="/driver/dashboard.html";
+/* REDIRECT */
 
-}catch(err){
+window.location.href =
+"/driver/dashboard.html";
+
+}
+
+catch(err){
 
 console.error(err);
-errorBox.innerText="Server error";
+
+errorBox.innerText =
+"Server error";
 
 }
 
