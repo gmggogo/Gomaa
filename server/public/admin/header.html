@@ -135,7 +135,6 @@
 
 </nav>
 
-
 <!-- 🔥 GH -->
 
 <div class="gh-powered">
@@ -146,120 +145,6 @@
 
 </header>
 
-
 <!-- 🔥 Branding Engine -->
 
 <script src="/core/branding.js"></script>
-
-
-<style>
-
-.gh-powered{
-
-width:100%;
-
-text-align:center;
-
-font-size:11px;
-
-color:#cbd5e1;
-
-opacity:.7;
-
-padding:5px 0 8px;
-
-letter-spacing:.5px;
-
-background:#111827;
-
-border-top:1px solid rgba(255,255,255,.05);
-
-}
-
-</style>
-
-
-<script>
-
-/* =========================
-   DYNAMIC COMPANY
-========================= */
-
-const dynamicCompany =
-
-document.getElementById(
-"dynamicCompanyName"
-);
-
-if(dynamicCompany){
-
-dynamicCompany.innerText =
-
-localStorage.getItem(
-"companyName"
-)
-
-|| "Company";
-
-}
-
-/* =========================
-   DYNAMIC TIME
-========================= */
-
-function updateDynamicTime(){
-
-const timezone =
-
-localStorage.getItem(
-"systemTimezone"
-)
-
-|| "America/Phoenix";
-
-const now = new Date();
-
-const date = now.toLocaleDateString(
-"en-US",
-{
-timeZone:timezone,
-month:"short",
-day:"numeric",
-year:"numeric"
-}
-);
-
-const time = now.toLocaleTimeString(
-"en-US",
-{
-timeZone:timezone,
-hour:"numeric",
-minute:"2-digit",
-second:"2-digit",
-hour12:true
-}
-);
-
-const el =
-document.getElementById(
-"dynamicTime"
-);
-
-if(el){
-
-el.innerHTML = `
-${date} ${time}
-`;
-
-}
-
-}
-
-updateDynamicTime();
-
-setInterval(
-updateDynamicTime,
-1000
-);
-
-</script>
