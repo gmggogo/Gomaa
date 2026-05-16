@@ -175,16 +175,8 @@ window.Branding = {
 
   applyGlobalBranding(){
 
-    /* =========================
-    PAGE TITLE
-    ========================= */
-
     document.title =
     this.getCompanyName();
-
-    /* =========================
-    COMPANY NAME
-    ========================= */
 
     document
     .querySelectorAll(
@@ -197,10 +189,6 @@ window.Branding = {
 
     });
 
-    /* =========================
-    MAIN LOGO
-    ========================= */
-
     document
     .querySelectorAll(
       ".main-logo"
@@ -211,10 +199,6 @@ window.Branding = {
       this.getMainLogo();
 
     });
-
-    /* =========================
-    DRIVER LOGO
-    ========================= */
 
     document
     .querySelectorAll(
@@ -227,10 +211,6 @@ window.Branding = {
 
     });
 
-    /* =========================
-    HERO IMAGE
-    ========================= */
-
     document
     .querySelectorAll(
       ".hero-image"
@@ -241,77 +221,6 @@ window.Branding = {
       this.getHeroImage();
 
     });
-
-    /* =========================
-    TEXT CONTENT
-    ========================= */
-
-    const setText = (
-      id,
-      value
-    )=>{
-
-      const el =
-      document.getElementById(id);
-
-      if(el){
-
-        el.innerText =
-        value || "";
-
-      }
-
-    };
-
-    setText(
-      "aboutTitle",
-      this.data?.aboutTitle
-    );
-
-    setText(
-      "aboutText",
-      this.data?.aboutText
-    );
-
-    setText(
-      "quoteTitle",
-      this.data?.quoteTitle
-    );
-
-    setText(
-      "quoteText",
-      this.data?.quoteText
-    );
-
-    setText(
-      "extra1Title",
-      this.data?.extra1Title
-    );
-
-    setText(
-      "extra1Text",
-      this.data?.extra1Text
-    );
-
-    setText(
-      "extra2Title",
-      this.data?.extra2Title
-    );
-
-    setText(
-      "extra2Text",
-      this.data?.extra2Text
-    );
-
-    setText(
-      "contactTitle",
-      this.data?.contactTitle
-    );
-
-    setText(
-      "footerText",
-      this.data?.footerText
-    );
 
   },
 
@@ -369,7 +278,11 @@ window.Branding = {
       color:#64748b;
       ">
 
-        No Active Services
+        ${
+          lang === "es"
+          ? "No hay servicios activos"
+          : "No Active Services"
+        }
 
       </div>
 
@@ -387,11 +300,33 @@ window.Branding = {
 
       const title =
 
-      service.title || "";
+      lang === "es"
+
+      ? (
+          service.titleEs ||
+          service.title ||
+          ""
+        )
+
+      : (
+          service.title ||
+          ""
+        );
 
       const desc =
 
-      service.description || "";
+      lang === "es"
+
+      ? (
+          service.descriptionEs ||
+          service.description ||
+          ""
+        )
+
+      : (
+          service.description ||
+          ""
+        );
 
       const image =
 
@@ -402,9 +337,15 @@ window.Branding = {
 
       lang === "es"
 
-      ? "Obtener precio"
+      ? (
+          service.buttonEs ||
+          "Obtener precio"
+        )
 
-      : "Get Quote";
+      : (
+          service.button ||
+          "Get Quote"
+        );
 
       container.innerHTML += `
 
