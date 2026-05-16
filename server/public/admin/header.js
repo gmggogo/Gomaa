@@ -260,3 +260,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
 });
+
+/* =========================
+   GLOBAL LOGOUT
+========================= */
+
+function logout(){
+
+  localStorage.removeItem(
+    "token"
+  );
+
+  localStorage.removeItem(
+    "role"
+  );
+
+  localStorage.removeItem(
+    "name"
+  );
+
+  localStorage.removeItem(
+    "companyName"
+  );
+
+  window.location.href =
+  "/login.html";
+
+}
