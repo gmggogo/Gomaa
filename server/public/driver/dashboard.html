@@ -103,8 +103,6 @@
       transform:scale(.98);
     }
 
-    /* 🔥 ICONS SMALLER 30% */
-
     .card .icon{
       font-size:25px;
       margin-bottom:10px;
@@ -157,8 +155,6 @@
       min-width:52px;
     }
 
-    /* 🔥 NAV ICONS SMALLER */
-
     .nav button span{
       font-size:14px;
       line-height:1;
@@ -183,9 +179,9 @@
       alt="Company Logo"
     />
 
-  <div class="company-name">
-  Welcome Driver
-</div>
+    <div class="company-name">
+      Welcome Driver
+    </div>
 
     <div class="driver-name" id="driverName">
       Driver
@@ -257,6 +253,22 @@
   <!-- 🔥 Dynamic Branding -->
 
   <script src="/core/branding.js"></script>
+
+  <script>
+
+  window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    if(window.Branding){
+
+      await Branding.load();
+
+    }
+
+  });
+
+  </script>
 
   <script src="dashboard.js" defer></script>
 
