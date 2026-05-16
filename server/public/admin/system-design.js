@@ -37,17 +37,9 @@ const defaultSystemDesign = {
 
   aboutText:"Professional transportation services.",
 
-  aboutTitleEs:"Sobre Nosotros",
-
-  aboutTextEs:"Servicios profesionales de transporte.",
-
   quoteTitle:"Get Quote & Book Your Ride",
 
   quoteText:"Select your service below",
-
-  quoteTitleEs:"Obtenga precio y reserve su viaje",
-
-  quoteTextEs:"Seleccione su servicio abajo",
 
   extra1Active:true,
 
@@ -55,23 +47,13 @@ const defaultSystemDesign = {
 
   extra1Text:"You can add pricing, announcements, promotions, or company information here.",
 
-  extra1TitleEs:"Información Extra",
-
-  extra1TextEs:"Puede agregar promociones o información aquí.",
-
   extra2Active:true,
 
   extra2Title:"Additional Services",
 
   extra2Text:"This section can later be managed from the admin panel.",
 
-  extra2TitleEs:"Servicios Adicionales",
-
-  extra2TextEs:"Esta sección puede administrarse desde el panel.",
-
   contactTitle:"Customer Support",
-
-  contactTitleEs:"Atención al Cliente",
 
   contactPhone:"619-509-7197",
 
@@ -79,112 +61,762 @@ const defaultSystemDesign = {
 
   footerText:"©️ Sunbeam Transportation",
 
-  footerTextEs:"©️ Sunbeam Transportation",
-
   services:[
 
     {
       id:"standard",
       active:false,
-
       title:"Standard",
-
-      titleEs:"Estándar",
-
       description:"Standard transportation service",
-
-      descriptionEs:"Servicio de transporte estándar",
-
       image:"/assets/business.jpeg",
-
       link:"getquote/index.html"
     },
 
     {
       id:"xl",
       active:false,
-
       title:"XL",
-
-      titleEs:"XL",
-
       description:"Large vehicle transportation",
-
-      descriptionEs:"Transporte de vehículos grandes",
-
       image:"/assets/business.jpeg",
-
       link:"getquote/index.html"
     },
 
     {
       id:"taxi",
       active:false,
-
       title:"Taxi",
-
-      titleEs:"Taxi",
-
       description:"Daily city transportation",
-
-      descriptionEs:"Transporte diario en la ciudad",
-
       image:"/assets/business.jpeg",
-
       link:"getquote/index.html"
     },
 
     {
       id:"limo",
       active:false,
-
       title:"Limo",
-
-      titleEs:"Limusina",
-
       description:"Luxury transportation service",
-
-      descriptionEs:"Servicio de transporte de lujo",
-
       image:"/assets/business.jpeg",
-
       link:"getquote/index.html"
     },
 
     {
       id:"wheelchair",
       active:false,
-
       title:"Wheelchair",
-
-      titleEs:"Silla de ruedas",
-
       description:"Wheelchair accessible rides",
-
-      descriptionEs:"Viajes accesibles para silla de ruedas",
-
       image:"/assets/nemt.jpeg",
-
       link:"getquote/index.html"
     },
 
     {
       id:"shared",
       active:false,
-
       title:"Shared Ride",
-
-      titleEs:"Viaje Compartido",
-
       description:"Affordable shared rides",
-
-      descriptionEs:"Viajes compartidos económicos",
-
       image:"/assets/airport.jpeg",
-
       link:"getquote/index.html"
     }
 
   ]
 
 };
+
+/* =========================
+LOAD FROM SERVER
+========================= */
+
+async function loadSystemDesign(){
+
+  try{
+
+    const res =
+    await fetch(
+      "/api/system-design"
+    );
+
+    const data =
+    await res.json();
+
+    systemDesign = {
+
+      ...defaultSystemDesign,
+
+      ...data,
+
+      services:
+      Array.isArray(data.services)
+      && data.services.length
+      ? data.services
+      : defaultSystemDesign.services
+
+    };
+
+  }catch(err){
+
+    console.log(
+      "LOAD ERROR",
+      err
+    );
+
+    systemDesign =
+    defaultSystemDesign;
+
+  }
+
+}
+
+/* =========================
+SAVE TO SERVER
+========================= */
+
+async function saveSystemDesign(){
+
+  try{
+
+    const res =
+    await fetch(
+      "/api/system-design",
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
+
+        body:JSON.stringify(
+          systemDesign
+        )
+
+      }
+    );
+
+    return await res.json();
+
+  }catch(err){
+
+    console.log(
+      "SAVE ERROR",
+      err
+    );
+
+  }
+
+}
+
+/* =========================
+SAFE SET
+========================= */
+
+function setValue(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.value =
+    value || "";
+
+  }
+
+}
+
+function setChecked(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.checked =
+    !!value;
+
+  }
+
+}
+
+function setImage(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.src =
+    value || "";
+
+  }
+
+}
+
+/* =========================
+LOAD FORM VALUES
+========================= */
+
+function loadFormValues(){
+
+  setValue(
+    "companyNameInput",
+    systemDesign.companyName
+  );
+
+  setValue(
+    "timezoneInput",
+    systemDesign.timezone
+  );
+
+  setImage(
+    "mainLogoPreview",
+    systemDesign.mainLogo
+  );
+
+  setImage(
+    "driverLogoPreview",
+    systemDesign.driverLogo
+  );
+
+  setImage(
+    "heroImagePreview",
+    systemDesign.heroImage
+  );
+
+  setValue(
+    "aboutTitleInput",
+    systemDesign.aboutTitle
+  );
+
+  setValue(
+    "aboutTextInput",
+    systemDesign.aboutText
+  );
+
+  setValue(
+    "quoteTitleInput",
+    systemDesign.quoteTitle
+  );
+
+  setValue(
+    "quoteTextInput",
+    systemDesign.quoteText
+  );
+
+  setChecked(
+    "extra1Active",
+    systemDesign.extra1Active
+  );
+
+  setValue(
+    "extra1Title",
+    systemDesign.extra1Title
+  );
+
+  setValue(
+    "extra1Text",
+    systemDesign.extra1Text
+  );
+
+  setChecked(
+    "extra2Active",
+    systemDesign.extra2Active
+  );
+
+  setValue(
+    "extra2Title",
+    systemDesign.extra2Title
+  );
+
+  setValue(
+    "extra2Text",
+    systemDesign.extra2Text
+  );
+
+  setValue(
+    "contactTitleInput",
+    systemDesign.contactTitle
+  );
+
+  setValue(
+    "contactPhoneInput",
+    systemDesign.contactPhone
+  );
+
+  setValue(
+    "contactEmailInput",
+    systemDesign.contactEmail
+  );
+
+  setValue(
+    "footerTextInput",
+    systemDesign.footerText
+  );
+
+}
+
+/* =========================
+UPLOAD MAIN IMAGE
+========================= */
+
+async function uploadMainImage(
+  input,
+  key,
+  previewId
+){
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+    formData.append(
+      "image",
+      file
+    );
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign[key] =
+    data.image;
+
+    setImage(
+      previewId,
+      data.image
+    );
+
+    await saveSystemDesign();
+
+    alert("Image Uploaded");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
+
+}
+
+/* =========================
+WINDOW UPLOAD HANDLERS
+========================= */
+
+window.uploadMainLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "mainLogo",
+    "mainLogoPreview"
+  );
+
+};
+
+window.uploadDriverLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "driverLogo",
+    "driverLogoPreview"
+  );
+
+};
+
+window.uploadHeroImage =
+function(input){
+
+  uploadMainImage(
+    input,
+    "heroImage",
+    "heroImagePreview"
+  );
+
+};
+
+/* =========================
+RENDER SERVICE CARDS
+========================= */
+
+function renderCardsEditor(){
+
+  const container =
+  document.getElementById(
+    "cardsEditor"
+  );
+
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  const services =
+  systemDesign.services || [];
+
+  services.forEach((service,index)=>{
+
+    container.innerHTML += `
+
+    <div class="service-card">
+
+      <div class="service-top">
+
+        <div class="service-title">
+
+          ${service.title || ""}
+
+        </div>
+
+        <button
+          class="${
+            service.active
+            ? "save-btn"
+            : "disable-btn"
+          }"
+          onclick="toggleCard(${index})"
+        >
+
+          ${
+            service.active
+            ? "ACTIVE"
+            : "DISABLED"
+          }
+
+        </button>
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+
+          Service Name
+
+        </label>
+
+        <input
+          type="text"
+          id="title-${index}"
+          value="${service.title || ""}"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+
+          Description
+
+        </label>
+
+        <textarea
+          id="desc-${index}"
+        >${service.description || ""}</textarea>
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+
+          Card Image
+
+        </label>
+
+        <img
+          src="${
+            service.image ||
+            "/assets/logo.png"
+          }"
+          class="preview-image"
+          id="preview-${index}"
+        >
+
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          id="upload-${index}"
+          onchange="
+          uploadCardImage(
+            ${index},
+            this.files[0]
+          )
+          "
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          document
+          .getElementById(
+            'upload-${index}'
+          )
+          .click()
+          "
+        >
+
+          Upload Image
+
+        </button>
+
+      </div>
+
+      <button
+        class="save-btn card-save"
+        onclick="saveCard(${index})"
+      >
+
+        Save Card
+
+      </button>
+
+    </div>
+
+    `;
+
+  });
+
+}
+
+/* =========================
+CARD ACTIONS
+========================= */
+
+window.toggleCard =
+function(index){
+
+  systemDesign.services[index].active =
+  !systemDesign.services[index].active;
+
+  saveStorage();
+
+  renderCardsEditor();
+
+};
+
+window.uploadCardImage =
+async function(index,file){
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+    formData.append(
+      "image",
+      file
+    );
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign.services[index].image =
+    data.image;
+
+    await saveSystemDesign();
+
+    renderCardsEditor();
+
+    alert("Card Image Saved");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
+
+};
+
+window.saveCard =
+function(index){
+
+  systemDesign.services[index].title =
+  document.getElementById(
+    `title-${index}`
+  ).value;
+
+  systemDesign.services[index].description =
+  document.getElementById(
+    `desc-${index}`
+  ).value;
+
+  saveStorage();
+
+  alert("Card Saved");
+
+};
+
+/* =========================
+SAVE ALL
+========================= */
+
+window.saveAllSystemDesign =
+function(){
+
+  systemDesign.companyName =
+  document.getElementById(
+    "companyNameInput"
+  )?.value || "";
+
+  systemDesign.timezone =
+  document.getElementById(
+    "timezoneInput"
+  )?.value || "America/Phoenix";
+
+  systemDesign.aboutTitle =
+  document.getElementById(
+    "aboutTitleInput"
+  )?.value || "";
+
+  systemDesign.aboutText =
+  document.getElementById(
+    "aboutTextInput"
+  )?.value || "";
+
+  systemDesign.quoteTitle =
+  document.getElementById(
+    "quoteTitleInput"
+  )?.value || "";
+
+  systemDesign.quoteText =
+  document.getElementById(
+    "quoteTextInput"
+  )?.value || "";
+
+  systemDesign.extra1Active =
+  document.getElementById(
+    "extra1Active"
+  )?.checked || false;
+
+  systemDesign.extra1Title =
+  document.getElementById(
+    "extra1Title"
+  )?.value || "";
+
+  systemDesign.extra1Text =
+  document.getElementById(
+    "extra1Text"
+  )?.value || "";
+
+  systemDesign.extra2Active =
+  document.getElementById(
+    "extra2Active"
+  )?.checked || false;
+
+  systemDesign.extra2Title =
+  document.getElementById(
+    "extra2Title"
+  )?.value || "";
+
+  systemDesign.extra2Text =
+  document.getElementById(
+    "extra2Text"
+  )?.value || "";
+
+  systemDesign.contactTitle =
+  document.getElementById(
+    "contactTitleInput"
+  )?.value || "";
+
+  systemDesign.contactPhone =
+  document.getElementById(
+    "contactPhoneInput"
+  )?.value || "";
+
+  systemDesign.contactEmail =
+  document.getElementById(
+    "contactEmailInput"
+  )?.value || "";
+
+  systemDesign.footerText =
+  document.getElementById(
+    "footerTextInput"
+  )?.value || "";
+
+  saveStorage();
+
+  alert("All Settings Saved");
+
+};
+
+/* =========================
+RESET
+========================= */
+
+window.resetSystemDesign =
+function(){
+
+  const ok =
+  confirm(
+    "Reset System Design?"
+  );
+
+  if(!ok) return;
+
+  location.reload();
+
+};
+
+/* =========================
+INIT
+========================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    await loadSystemDesign();
+
+    loadFormValues();
+
+    renderCardsEditor();
+
+  }
+);
