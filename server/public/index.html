@@ -479,6 +479,8 @@ EXTRA
 
     margin:auto;
 
+    justify-content:center;
+
 }
 
 .extra-box{
@@ -894,7 +896,9 @@ class="services"
 id="servicesContainer">
 </section>
 
-<section class="extra-sections">
+<section
+class="extra-sections"
+id="extraSections">
 
     <div
     class="extra-box"
@@ -960,13 +964,7 @@ id="servicesContainer">
 
 let currentLang = "en";
 
-/* =========================
-LANG SWITCH
-========================= */
-
-window.setLang = function(lang){
-
-    currentLang = lang;
+function updateLangButtons(){
 
     document
     .querySelectorAll(".lang-btn")
@@ -978,7 +976,7 @@ window.setLang = function(lang){
 
     });
 
-    if(lang === "en"){
+    if(currentLang === "en"){
 
         document
         .getElementById("lang-en")
@@ -988,7 +986,7 @@ window.setLang = function(lang){
 
     }
 
-    if(lang === "es"){
+    if(currentLang === "es"){
 
         document
         .getElementById("lang-es")
@@ -998,114 +996,198 @@ window.setLang = function(lang){
 
     }
 
-    Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
-    );
+}
 
-};
-
-/* =========================
-LOAD PAGE
-========================= */
-
-window.addEventListener(
-"DOMContentLoaded",
-async ()=>{
-
-    await Branding.load();
+function renderPage(){
 
     const data =
     Branding.data || {};
-
-    /* ABOUT */
 
     document.getElementById(
     "aboutTitle"
     ).innerText =
 
-    data.aboutTitle ||
-    "Professional Transportation Across Arizona";
+    currentLang === "es"
+    ? (
+        data.aboutTitleEs ||
+        data.aboutTitle ||
+        "Transporte profesional en Arizona"
+      )
+    : (
+        data.aboutTitle ||
+        "Professional Transportation Across Arizona"
+      );
 
     document.getElementById(
     "aboutText"
     ).innerText =
 
-    data.aboutText ||
-    "Sunbeam Transportation provides safe transportation services.";
-
-    /* QUOTE */
+    currentLang === "es"
+    ? (
+        data.aboutTextEs ||
+        data.aboutText ||
+        ""
+      )
+    : (
+        data.aboutText ||
+        ""
+      );
 
     document.getElementById(
     "quoteTitle"
     ).innerText =
 
-    data.quoteTitle ||
-    "Book Your Ride Today";
+    currentLang === "es"
+    ? (
+        data.quoteTitleEs ||
+        data.quoteTitle ||
+        ""
+      )
+    : (
+        data.quoteTitle ||
+        ""
+      );
 
     document.getElementById(
     "quoteText"
     ).innerText =
 
-    data.quoteText ||
-    "Professional transportation across Arizona.";
-
-    /* EXTRA 1 */
+    currentLang === "es"
+    ? (
+        data.quoteTextEs ||
+        data.quoteText ||
+        ""
+      )
+    : (
+        data.quoteText ||
+        ""
+      );
 
     document.getElementById(
     "extra1TitleView"
     ).innerText =
 
-    data.extra1Title ||
-    "Why Choose Sunbeam?";
+    currentLang === "es"
+    ? (
+        data.extra1TitleEs ||
+        data.extra1Title ||
+        ""
+      )
+    : (
+        data.extra1Title ||
+        ""
+      );
 
     document.getElementById(
     "extra1TextView"
     ).innerHTML =
 
-    data.extra1Text ||
-    "";
-
-    document.getElementById(
-    "extraBox1"
-    ).style.display =
-
-    data.extra1Active
-    ? "block"
-    : "none";
-
-    /* EXTRA 2 */
+    currentLang === "es"
+    ? (
+        data.extra1TextEs ||
+        data.extra1Text ||
+        ""
+      )
+    : (
+        data.extra1Text ||
+        ""
+      );
 
     document.getElementById(
     "extra2TitleView"
     ).innerText =
 
-    data.extra2Title ||
-    "Serving All Arizona";
+    currentLang === "es"
+    ? (
+        data.extra2TitleEs ||
+        data.extra2Title ||
+        ""
+      )
+    : (
+        data.extra2Title ||
+        ""
+      );
 
     document.getElementById(
     "extra2TextView"
     ).innerHTML =
 
-    data.extra2Text ||
-    "";
+    currentLang === "es"
+    ? (
+        data.extra2TextEs ||
+        data.extra2Text ||
+        ""
+      )
+    : (
+        data.extra2Text ||
+        ""
+      );
 
+    const extraBox1 =
     document.getElementById(
-    "extraBox2"
-    ).style.display =
+        "extraBox1"
+    );
 
-    data.extra2Active
-    ? "block"
-    : "none";
+    const extraBox2 =
+    document.getElementById(
+        "extraBox2"
+    );
 
-    /* CONTACT */
+    extraBox1.style.display =
+
+    data.extra1Active === false
+    ? "none"
+    : "block";
+
+    extraBox2.style.display =
+
+    data.extra2Active === false
+    ? "none"
+    : "block";
+
+    const extraSection =
+    document.getElementById(
+        "extraSections"
+    );
+
+    const box1Visible =
+    extraBox1.style.display !== "none";
+
+    const box2Visible =
+    extraBox2.style.display !== "none";
+
+    if(
+        (box1Visible && !box2Visible) ||
+        (!box1Visible && box2Visible)
+    ){
+
+        extraSection.style.gridTemplateColumns =
+        "minmax(520px,900px)";
+
+        extraSection.style.justifyContent =
+        "center";
+
+    }else{
+
+        extraSection.style.gridTemplateColumns =
+        "repeat(auto-fit,minmax(520px,1fr))";
+
+    }
 
     document.getElementById(
     "contactTitleView"
     ).innerText =
 
-    data.contactTitle ||
-    "Customer Support";
+    currentLang === "es"
+    ? (
+        data.contactTitleEs ||
+        data.contactTitle ||
+        "Atención al cliente"
+      )
+    : (
+        data.contactTitle ||
+        "Customer Support"
+      );
 
     document.getElementById(
     "contactPhoneView"
@@ -1121,23 +1203,45 @@ async ()=>{
     data.contactEmail ||
     "admin@sunbeamtransportationllc.com";
 
-    /* FOOTER */
-
     document.getElementById(
     "footerView"
     ).innerText =
 
-    data.footerText ||
-    "©️ Sunbeam Transportation";
-
-    /* SERVICES */
+    currentLang === "es"
+    ? (
+        data.footerTextEs ||
+        data.footerText ||
+        "© Sunbeam Transportation"
+      )
+    : (
+        data.footerText ||
+        "© Sunbeam Transportation"
+      );
 
     Branding.renderHomepageCards(
         "servicesContainer",
         currentLang
     );
 
-    setLang("en");
+    updateLangButtons();
+
+}
+
+window.setLang = function(lang){
+
+    currentLang = lang;
+
+    renderPage();
+
+};
+
+window.addEventListener(
+"DOMContentLoaded",
+async ()=>{
+
+    await Branding.load();
+
+    renderPage();
 
 });
 
