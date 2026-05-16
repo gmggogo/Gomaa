@@ -67,6 +67,15 @@ TOP BAR
 
     flex-wrap:wrap;
 
+    position:sticky;
+
+    top:0;
+
+    z-index:999;
+
+    box-shadow:
+    0 2px 10px rgba(0,0,0,.05);
+
 }
 
 /* =========================
@@ -98,6 +107,12 @@ LEFT BUTTONS
     color:#fff;
 
     transition:.2s;
+
+}
+
+.top-links a:hover{
+
+    transform:translateY(-2px);
 
 }
 
@@ -185,7 +200,7 @@ HERO
 
     width:100%;
 
-    max-width:1400px;
+    max-width:1500px;
 
 }
 
@@ -193,11 +208,9 @@ HERO
 
     width:100%;
 
-    height:auto;
-
     display:block;
 
-    border-radius:24px;
+    border-radius:28px;
 
 }
 
@@ -209,21 +222,23 @@ POWERED
 
     position:absolute;
 
-    left:24px;
+    left:26px;
 
-    bottom:24px;
+    bottom:26px;
 
-    background:rgba(0,0,0,.70);
+    background:rgba(0,0,0,.75);
 
     color:#fff;
 
-    padding:12px 22px;
+    padding:14px 24px;
 
     border-radius:40px;
 
     font-size:15px;
 
     font-weight:700;
+
+    backdrop-filter:blur(8px);
 
 }
 
@@ -235,31 +250,33 @@ ABOUT
 
     text-align:center;
 
-    padding:80px 20px 40px;
+    padding:90px 20px 40px;
 
 }
 
 .about h2{
 
-    font-size:54px;
+    font-size:60px;
 
     color:#1e3a6d;
 
-    margin-bottom:18px;
+    margin-bottom:20px;
+
+    font-weight:900;
 
 }
 
 .about p{
 
-    font-size:24px;
+    font-size:25px;
 
     color:#6b7280;
 
-    max-width:900px;
+    max-width:1100px;
 
     margin:auto;
 
-    line-height:1.8;
+    line-height:1.9;
 
 }
 
@@ -277,13 +294,15 @@ QUOTE
 
 .quote-header h2{
 
-    font-size:64px;
+    font-size:70px;
 
     color:#1e3a6d;
 
-    margin-bottom:14px;
+    margin-bottom:18px;
 
-    line-height:1.15;
+    line-height:1.1;
+
+    font-weight:900;
 
 }
 
@@ -292,6 +311,12 @@ QUOTE
     font-size:24px;
 
     color:#6b7280;
+
+    max-width:1000px;
+
+    margin:auto;
+
+    line-height:1.8;
 
 }
 
@@ -310,9 +335,9 @@ SERVICES
     justify-content:center;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(280px,320px));
+    repeat(auto-fit,minmax(300px,360px));
 
-    gap:28px;
+    gap:32px;
 
 }
 
@@ -342,13 +367,16 @@ CARD
     transform:
     translateY(-8px);
 
+    box-shadow:
+    0 16px 40px rgba(37,99,235,.18);
+
 }
 
 .card-image{
 
     width:100%;
 
-    height:220px;
+    height:240px;
 
     object-fit:cover;
 
@@ -358,7 +386,7 @@ CARD
 
 .card-body{
 
-    padding:22px;
+    padding:24px;
 
     text-align:center;
 
@@ -366,9 +394,9 @@ CARD
 
 .card h3{
 
-    font-size:28px;
+    font-size:30px;
 
-    margin-bottom:10px;
+    margin-bottom:12px;
 
     color:#111827;
 
@@ -378,13 +406,13 @@ CARD
 
 .card p{
 
-    font-size:16px;
+    font-size:17px;
 
     color:#6b7280;
 
     line-height:1.7;
 
-    min-height:70px;
+    min-height:72px;
 
 }
 
@@ -398,9 +426,9 @@ CARD
 
     width:100%;
 
-    height:54px;
+    height:58px;
 
-    margin-top:18px;
+    margin-top:20px;
 
     background:#2563eb;
 
@@ -408,9 +436,9 @@ CARD
 
     text-decoration:none;
 
-    border-radius:14px;
+    border-radius:16px;
 
-    font-size:18px;
+    font-size:20px;
 
     font-weight:800;
 
@@ -432,14 +460,18 @@ EXTRA
 
     width:100%;
 
-    padding:20px 20px 70px;
+    padding:20px 20px 80px;
 
     display:grid;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(350px,1fr));
+    repeat(auto-fit,minmax(420px,1fr));
 
-    gap:24px;
+    gap:28px;
+
+    max-width:1500px;
+
+    margin:auto;
 
 }
 
@@ -447,32 +479,48 @@ EXTRA
 
     background:#fff;
 
-    border-radius:24px;
+    border-radius:28px;
 
-    padding:34px;
+    padding:36px;
 
     box-shadow:
-    0 8px 22px rgba(0,0,0,.08);
+    0 10px 30px rgba(0,0,0,.08);
+
+    transition:.25s;
+
+}
+
+.extra-box:hover{
+
+    transform:
+    translateY(-6px);
+
+    box-shadow:
+    0 16px 40px rgba(37,99,235,.14);
 
 }
 
 .extra-box h3{
 
-    font-size:32px;
+    font-size:42px;
 
     color:#1e3a6d;
 
-    margin-bottom:16px;
+    margin-bottom:22px;
+
+    font-weight:900;
+
+    line-height:1.2;
 
 }
 
 .extra-box p{
 
-    font-size:18px;
+    font-size:22px;
 
     color:#6b7280;
 
-    line-height:1.9;
+    line-height:2;
 
 }
 
@@ -484,13 +532,21 @@ CONTACT
 
     text-align:center;
 
-    padding:70px 20px;
+    padding:80px 20px;
 
     background:#fff;
 
     font-size:24px;
 
-    line-height:2.1;
+    line-height:2.2;
+
+    color:#111827;
+
+}
+
+.contact-section strong{
+
+    font-size:42px;
 
     color:#111827;
 
@@ -508,9 +564,11 @@ footer{
 
     text-align:center;
 
-    padding:28px;
+    padding:30px;
 
-    font-size:18px;
+    font-size:20px;
+
+    font-weight:700;
 
 }
 
@@ -586,37 +644,41 @@ MOBILE
 
     .about{
 
-        padding:50px 14px 20px;
+        padding:60px 16px 20px;
 
     }
 
     .about h2{
 
-        font-size:36px;
+        font-size:38px;
 
     }
 
     .about p{
 
-        font-size:16px;
+        font-size:18px;
+
+        line-height:1.9;
 
     }
 
     .quote-header{
 
-        padding:30px 14px 16px;
+        padding:36px 16px 18px;
 
     }
 
     .quote-header h2{
 
-        font-size:40px;
+        font-size:50px;
 
     }
 
     .quote-header p{
 
-        font-size:16px;
+        font-size:18px;
+
+        line-height:1.8;
 
     }
 
@@ -626,37 +688,37 @@ MOBILE
 
         grid-template-columns:1fr;
 
-        gap:18px;
+        gap:22px;
 
     }
 
     .card{
 
-        border-radius:18px;
+        border-radius:22px;
 
     }
 
     .card-image{
 
-        height:190px;
+        height:240px;
 
     }
 
     .card-body{
 
-        padding:18px;
+        padding:20px;
 
     }
 
     .card h3{
 
-        font-size:24px;
+        font-size:26px;
 
     }
 
     .card p{
 
-        font-size:14px;
+        font-size:16px;
 
         min-height:auto;
 
@@ -664,9 +726,9 @@ MOBILE
 
     .card-btn{
 
-        height:48px;
+        height:54px;
 
-        font-size:16px;
+        font-size:18px;
 
     }
 
@@ -676,23 +738,29 @@ MOBILE
 
         grid-template-columns:1fr;
 
+        gap:18px;
+
     }
 
     .extra-box{
 
-        padding:24px;
+        padding:28px;
+
+        border-radius:24px;
 
     }
 
     .extra-box h3{
 
-        font-size:24px;
+        font-size:32px;
 
     }
 
     .extra-box p{
 
-        font-size:15px;
+        font-size:18px;
+
+        line-height:1.9;
 
     }
 
@@ -700,7 +768,19 @@ MOBILE
 
         font-size:18px;
 
-        padding:50px 14px;
+        padding:60px 14px;
+
+    }
+
+    .contact-section strong{
+
+        font-size:32px;
+
+    }
+
+    footer{
+
+        font-size:18px;
 
     }
 
@@ -781,13 +861,13 @@ MOBILE
 
     <h2 id="aboutTitle">
 
-        About Us
+        Professional Transportation Across Arizona
 
     </h2>
 
     <p id="aboutText">
 
-        Professional transportation services.
+        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona. We specialize in Non-Emergency Medical Transportation (NEMT), airport transfers, business transportation, wheelchair-accessible rides, and everyday travel.
 
     </p>
 
@@ -797,13 +877,13 @@ MOBILE
 
     <h2 id="quoteTitle">
 
-        Get Quote & Book Your Ride
+        Book Your Ride Today
 
     </h2>
 
     <p id="quoteText">
 
-        Select your service below
+        Fast booking, professional drivers, clean vehicles, and reliable transportation for medical appointments, airport transfers, business rides, and everyday travel across Arizona.
 
     </p>
 
@@ -822,13 +902,23 @@ id="servicesContainer">
 
         <h3 id="extra1TitleView">
 
-            Extra Information
+            Why Choose Sunbeam?
 
         </h3>
 
         <p id="extra1TextView">
 
-            Extra info here
+• Professional Drivers<br><br>
+
+• Clean & Comfortable Vehicles<br><br>
+
+• Affordable Pricing<br><br>
+
+• On-Time Pickup<br><br>
+
+• Wheelchair Accessible Rides<br><br>
+
+• Airport & Business Transportation
 
         </p>
 
@@ -840,13 +930,13 @@ id="servicesContainer">
 
         <h3 id="extra2TitleView">
 
-            Additional Services
+            Serving All Arizona
 
         </h3>
 
         <p id="extra2TextView">
 
-            Extra services here
+Sunbeam Transportation proudly serves Phoenix, Chandler, Mesa, Tempe, Scottsdale, Glendale, Tucson, and surrounding Arizona areas with reliable and professional transportation services.
 
         </p>
 
@@ -940,121 +1030,6 @@ window.addEventListener(
 async ()=>{
 
     await Branding.load();
-
-    const data =
-    Branding.data || {};
-
-    /* ABOUT */
-
-    document.getElementById(
-    "aboutTitle"
-    ).innerText =
-
-    data.aboutTitle ||
-    "About Us";
-
-    document.getElementById(
-    "aboutText"
-    ).innerText =
-
-    data.aboutText ||
-    "Professional transportation services.";
-
-    /* QUOTE */
-
-    document.getElementById(
-    "quoteTitle"
-    ).innerText =
-
-    data.quoteTitle ||
-    "Get Quote & Book Your Ride";
-
-    document.getElementById(
-    "quoteText"
-    ).innerText =
-
-    data.quoteText ||
-    "Select your service below";
-
-    /* EXTRA 1 */
-
-    document.getElementById(
-    "extra1TitleView"
-    ).innerText =
-
-    data.extra1Title ||
-    "Extra Information";
-
-    document.getElementById(
-    "extra1TextView"
-    ).innerText =
-
-    data.extra1Text ||
-    "";
-
-    document.getElementById(
-    "extraBox1"
-    ).style.display =
-
-    data.extra1Active
-    ? "block"
-    : "none";
-
-    /* EXTRA 2 */
-
-    document.getElementById(
-    "extra2TitleView"
-    ).innerText =
-
-    data.extra2Title ||
-    "Additional Services";
-
-    document.getElementById(
-    "extra2TextView"
-    ).innerText =
-
-    data.extra2Text ||
-    "";
-
-    document.getElementById(
-    "extraBox2"
-    ).style.display =
-
-    data.extra2Active
-    ? "block"
-    : "none";
-
-    /* CONTACT */
-
-    document.getElementById(
-    "contactTitleView"
-    ).innerText =
-
-    data.contactTitle ||
-    "Customer Support";
-
-    document.getElementById(
-    "contactPhoneView"
-    ).innerText =
-
-    data.contactPhone ||
-    "619-509-7197";
-
-    document.getElementById(
-    "contactEmailView"
-    ).innerText =
-
-    data.contactEmail ||
-    "admin@sunbeamtransportationllc.com";
-
-    /* FOOTER */
-
-    document.getElementById(
-    "footerView"
-    ).innerText =
-
-    data.footerText ||
-    "©️ Sunbeam Transportation";
 
     Branding.renderHomepageCards(
         "servicesContainer",
