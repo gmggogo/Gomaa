@@ -101,59 +101,85 @@ const defaultSystemDesign = {
 };
 
 /* =========================
-LOAD / SAVE
+LOAD FROM SERVER
 ========================= */
 
-function loadSystemDesign(){
+async function loadSystemDesign(){
 
   try{
 
-    const saved =
-    JSON.parse(
-      localStorage.getItem("ghSystemDesign") || "{}"
+    const res =
+    await fetch(
+      "/api/system-design"
     );
 
+    const data =
+    await res.json();
+
     systemDesign = {
+
       ...defaultSystemDesign,
-      ...saved,
-      services: saved.services || defaultSystemDesign.services
+
+      ...data,
+
+      services:
+      data.services?.length
+      ? data.services
+      : defaultSystemDesign.services
+
     };
 
   }catch(err){
 
-    systemDesign = defaultSystemDesign;
+    console.log(
+      "LOAD ERROR",
+      err
+    );
+
+    systemDesign =
+    defaultSystemDesign;
 
   }
 
 }
 
-function saveStorage(){
-
-  localStorage.setItem(
-    "ghSystemDesign",
-    JSON.stringify(systemDesign)
-  );
-
-}
-
 /* =========================
-FILE TO BASE64
+SAVE TO SERVER
 ========================= */
 
-function fileToBase64(file){
+async function saveSystemDesign(){
 
-  return new Promise(resolve=>{
+  try{
 
-    const reader =
-    new FileReader();
+    const res =
+    await fetch(
+      "/api/system-design",
+      {
 
-    reader.onload = e=>{
-      resolve(e.target.result);
-    };
+        method:"POST",
 
-    reader.readAsDataURL(file);
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
 
-  });
+        body:JSON.stringify(
+          systemDesign
+        )
+
+      }
+    );
+
+    return await res.json();
+
+  }catch(err){
+
+    console.log(
+      "SAVE ERROR",
+      err
+    );
+
+  }
 
 }
 
