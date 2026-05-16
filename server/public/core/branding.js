@@ -1,7 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
-// FINAL SERVER VERSION
+// SERVER VERSION
 // =========================
 
 console.log(
