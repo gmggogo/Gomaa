@@ -860,15 +860,11 @@ MOBILE
 <section class="about">
 
     <h2 id="aboutTitle">
-
         Professional Transportation Across Arizona
-
     </h2>
 
     <p id="aboutText">
-
-        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona. We specialize in Non-Emergency Medical Transportation (NEMT), airport transfers, business transportation, wheelchair-accessible rides, and everyday travel.
-
+        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
     </p>
 
 </section>
@@ -876,15 +872,11 @@ MOBILE
 <section class="quote-header">
 
     <h2 id="quoteTitle">
-
         Book Your Ride Today
-
     </h2>
 
     <p id="quoteText">
-
-        Fast booking, professional drivers, clean vehicles, and reliable transportation for medical appointments, airport transfers, business rides, and everyday travel across Arizona.
-
+        Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
     </p>
 
 </section>
@@ -901,25 +893,11 @@ id="servicesContainer">
     id="extraBox1">
 
         <h3 id="extra1TitleView">
-
             Why Choose Sunbeam?
-
         </h3>
 
         <p id="extra1TextView">
-
-• Professional Drivers<br><br>
-
-• Clean & Comfortable Vehicles<br><br>
-
-• Affordable Pricing<br><br>
-
-• On-Time Pickup<br><br>
-
-• Wheelchair Accessible Rides<br><br>
-
-• Airport & Business Transportation
-
+            Professional Drivers
         </p>
 
     </div>
@@ -929,15 +907,11 @@ id="servicesContainer">
     id="extraBox2">
 
         <h3 id="extra2TitleView">
-
             Serving All Arizona
-
         </h3>
 
         <p id="extra2TextView">
-
-Sunbeam Transportation proudly serves Phoenix, Chandler, Mesa, Tempe, Scottsdale, Glendale, Tucson, and surrounding Arizona areas with reliable and professional transportation services.
-
+            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
         </p>
 
     </div>
@@ -947,27 +921,21 @@ Sunbeam Transportation proudly serves Phoenix, Chandler, Mesa, Tempe, Scottsdale
 <div class="contact-section">
 
     <strong id="contactTitleView">
-
         Customer Support
-
     </strong>
 
     <br><br>
 
     📞
     <span id="contactPhoneView">
-
         619-509-7197
-
     </span>
 
     <br>
 
     📧
     <span id="contactEmailView">
-
         admin@sunbeamtransportationllc.com
-
     </span>
 
 </div>
@@ -983,6 +951,10 @@ Sunbeam Transportation proudly serves Phoenix, Chandler, Mesa, Tempe, Scottsdale
 <script>
 
 let currentLang = "en";
+
+/* =========================
+LANG SWITCH
+========================= */
 
 window.setLang = function(lang){
 
@@ -1025,11 +997,132 @@ window.setLang = function(lang){
 
 };
 
+/* =========================
+LOAD PAGE
+========================= */
+
 window.addEventListener(
 "DOMContentLoaded",
 async ()=>{
 
     await Branding.load();
+
+    const data =
+    Branding.data || {};
+
+    /* ABOUT */
+
+    document.getElementById(
+    "aboutTitle"
+    ).innerText =
+
+    data.aboutTitle ||
+    "Professional Transportation Across Arizona";
+
+    document.getElementById(
+    "aboutText"
+    ).innerText =
+
+    data.aboutText ||
+    "Sunbeam Transportation provides safe transportation services.";
+
+    /* QUOTE */
+
+    document.getElementById(
+    "quoteTitle"
+    ).innerText =
+
+    data.quoteTitle ||
+    "Book Your Ride Today";
+
+    document.getElementById(
+    "quoteText"
+    ).innerText =
+
+    data.quoteText ||
+    "Professional transportation across Arizona.";
+
+    /* EXTRA 1 */
+
+    document.getElementById(
+    "extra1TitleView"
+    ).innerText =
+
+    data.extra1Title ||
+    "Why Choose Sunbeam?";
+
+    document.getElementById(
+    "extra1TextView"
+    ).innerHTML =
+
+    data.extra1Text ||
+    "";
+
+    document.getElementById(
+    "extraBox1"
+    ).style.display =
+
+    data.extra1Active
+    ? "block"
+    : "none";
+
+    /* EXTRA 2 */
+
+    document.getElementById(
+    "extra2TitleView"
+    ).innerText =
+
+    data.extra2Title ||
+    "Serving All Arizona";
+
+    document.getElementById(
+    "extra2TextView"
+    ).innerHTML =
+
+    data.extra2Text ||
+    "";
+
+    document.getElementById(
+    "extraBox2"
+    ).style.display =
+
+    data.extra2Active
+    ? "block"
+    : "none";
+
+    /* CONTACT */
+
+    document.getElementById(
+    "contactTitleView"
+    ).innerText =
+
+    data.contactTitle ||
+    "Customer Support";
+
+    document.getElementById(
+    "contactPhoneView"
+    ).innerText =
+
+    data.contactPhone ||
+    "619-509-7197";
+
+    document.getElementById(
+    "contactEmailView"
+    ).innerText =
+
+    data.contactEmail ||
+    "admin@sunbeamtransportationllc.com";
+
+    /* FOOTER */
+
+    document.getElementById(
+    "footerView"
+    ).innerText =
+
+    data.footerText ||
+    "©️ Sunbeam Transportation";
+
+    /* SERVICES */
 
     Branding.renderHomepageCards(
         "servicesContainer",
