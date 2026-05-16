@@ -802,7 +802,7 @@ MOBILE
 
 <body>
 
-<!-- نفس الـ HTML اللي بعتّه بدون أي حذف -->
+<!-- نفس الـ BODY بالكامل بدون أي حذف -->
 
 <script src="/core/branding.js"></script>
 
@@ -849,7 +849,169 @@ function renderPage(){
     const data =
     Branding.data || {};
 
-    /* نفس renderPage بتاعتك بدون حذف */
+    document.getElementById(
+    "aboutTitle"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.aboutTitleEs ||
+        data.aboutTitle ||
+        "Transporte profesional en Arizona"
+      )
+    : (
+        data.aboutTitle ||
+        "Professional Transportation Across Arizona"
+      );
+
+    document.getElementById(
+    "aboutText"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.aboutTextEs ||
+        data.aboutText ||
+        ""
+      )
+    : (
+        data.aboutText ||
+        ""
+      );
+
+    document.getElementById(
+    "quoteTitle"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.quoteTitleEs ||
+        data.quoteTitle ||
+        ""
+      )
+    : (
+        data.quoteTitle ||
+        ""
+      );
+
+    document.getElementById(
+    "quoteText"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.quoteTextEs ||
+        data.quoteText ||
+        ""
+      )
+    : (
+        data.quoteText ||
+        ""
+      );
+
+    document.getElementById(
+    "extra1TitleView"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.extra1TitleEs ||
+        data.extra1Title ||
+        ""
+      )
+    : (
+        data.extra1Title ||
+        ""
+      );
+
+    document.getElementById(
+    "extra1TextView"
+    ).innerHTML =
+
+    currentLang === "es"
+    ? (
+        data.extra1TextEs ||
+        data.extra1Text ||
+        ""
+      )
+    : (
+        data.extra1Text ||
+        ""
+      );
+
+    document.getElementById(
+    "extra2TitleView"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.extra2TitleEs ||
+        data.extra2Title ||
+        ""
+      )
+    : (
+        data.extra2Title ||
+        ""
+      );
+
+    document.getElementById(
+    "extra2TextView"
+    ).innerHTML =
+
+    currentLang === "es"
+    ? (
+        data.extra2TextEs ||
+        data.extra2Text ||
+        ""
+      )
+    : (
+        data.extra2Text ||
+        ""
+      );
+
+    document.getElementById(
+    "contactTitleView"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.contactTitleEs ||
+        data.contactTitle ||
+        "Atención al cliente"
+      )
+    : (
+        data.contactTitle ||
+        "Customer Support"
+      );
+
+    document.getElementById(
+    "contactPhoneView"
+    ).innerText =
+
+    data.contactPhone ||
+    "619-509-7197";
+
+    document.getElementById(
+    "contactEmailView"
+    ).innerText =
+
+    data.contactEmail ||
+    "admin@sunbeamtransportationllc.com";
+
+    document.getElementById(
+    "footerView"
+    ).innerText =
+
+    currentLang === "es"
+    ? (
+        data.footerTextEs ||
+        data.footerText ||
+        "©️ Sunbeam Transportation"
+      )
+    : (
+        data.footerText ||
+        "©️ Sunbeam Transportation"
+      );
 
     Branding.renderHomepageCards(
         "servicesContainer",
@@ -865,10 +1027,6 @@ window.setLang = function(lang){
     currentLang = lang;
 
     renderPage();
-
-    /* =========================
-    AUTO GOOGLE TRANSLATE
-    ========================= */
 
     setTimeout(()=>{
 
@@ -901,10 +1059,6 @@ async ()=>{
 });
 
 </script>
-
-<!-- =========================
-GOOGLE TRANSLATE
-========================= -->
 
 <div
 id="google_translate_element"
