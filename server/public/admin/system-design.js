@@ -8,6 +8,16 @@ console.log("SYSTEM DESIGN LOADED");
 let systemDesign = {};
 
 /* =========================
+SAVE STORAGE
+========================= */
+
+function saveStorage(){
+
+  saveSystemDesign();
+
+}
+
+/* =========================
 DEFAULT DATA
 ========================= */
 
@@ -38,7 +48,7 @@ const defaultSystemDesign = {
   contactPhone:"619-509-7197",
   contactEmail:"admin@sunbeamtransportationllc.com",
 
-  footerText:"© Sunbeam Transportation",
+  footerText:"©️ Sunbeam Transportation",
 
   services:[
 
@@ -123,7 +133,8 @@ async function loadSystemDesign(){
       ...data,
 
       services:
-      data.services?.length
+      Array.isArray(data.services)
+      && data.services.length
       ? data.services
       : defaultSystemDesign.services
 
@@ -180,6 +191,27 @@ async function saveSystemDesign(){
     );
 
   }
+
+}
+
+/* =========================
+FILE TO BASE64
+========================= */
+
+function fileToBase64(file){
+
+  return new Promise(resolve=>{
+
+    const reader =
+    new FileReader();
+
+    reader.onload = e=>{
+      resolve(e.target.result);
+    };
+
+    reader.readAsDataURL(file);
+
+  });
 
 }
 
@@ -544,8 +576,6 @@ function(){
 
   if(!ok) return;
 
-  localStorage.removeItem("ghSystemDesign");
-
   location.reload();
 
 };
@@ -554,12 +584,15 @@ function(){
 INIT
 ========================= */
 
-window.addEventListener("DOMContentLoaded",()=>{
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
 
-  loadSystemDesign();
+    await loadSystemDesign();
 
-  loadFormValues();
+    loadFormValues();
 
-  renderCardsEditor();
+    renderCardsEditor();
 
-});
+  }
+);
