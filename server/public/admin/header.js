@@ -24,11 +24,56 @@ document.addEventListener("DOMContentLoaded", async () => {
      LOAD BRANDING
   ========================= */
 
-  if (!document.querySelector('script[src="/core/branding.js"]')) {
-    const brandingScript = document.createElement("script");
-    brandingScript.src = "/core/branding.js";
-    document.body.appendChild(brandingScript);
-  }
+async function loadBrandingScript(){
+
+  return new Promise((resolve)=>{
+
+    if(window.Branding){
+
+      resolve();
+      return;
+
+    }
+
+    const oldScript =
+    document.querySelector(
+      'script[src="/core/branding.js"]'
+    );
+
+    if(oldScript){
+
+      oldScript.onload = ()=>resolve();
+
+      setTimeout(resolve,500);
+
+      return;
+
+    }
+
+    const brandingScript =
+    document.createElement("script");
+
+    brandingScript.src =
+    "/core/branding.js";
+
+    brandingScript.onload =
+    ()=>resolve();
+
+    document.body.appendChild(
+      brandingScript
+    );
+
+  });
+
+}
+
+await loadBrandingScript();
+
+if(window.Branding){
+
+  await Branding.load();
+
+}
 
   /* =========================
      DYNAMIC COMPANY NAME
