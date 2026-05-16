@@ -195,7 +195,9 @@ function setLang(l){
 }
 
 function applyLang(){
+
   if(lang==="es"){
+
     title.innerText="Confirmar Reserva";
     pickupL.innerText="Origen";
     dropoffL.innerText="Destino";
@@ -203,7 +205,9 @@ function applyLang(){
     priceL.innerText="Precio";
     vehicleL.innerText="Servicio";
     payBtn.innerText="Pagar";
-  } else {
+
+  }else{
+
     title.innerText="Confirm Booking";
     pickupL.innerText="Pickup";
     dropoffL.innerText="Dropoff";
@@ -211,22 +215,92 @@ function applyLang(){
     priceL.innerText="Price";
     vehicleL.innerText="Service Type";
     payBtn.innerText="Pay Now";
+
   }
 
   enBtn.classList.toggle("active",lang==="en");
   esBtn.classList.toggle("active",lang==="es");
+
 }
 
 applyLang();
 
 /* ================= LOAD ================= */
 
-const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
+const tripData =
+JSON.parse(
+  localStorage.getItem("pendingTrip")
+);
 
 if(!tripData){
+
   alert("Session expired");
-  location.href="/getquote/index.html";
+
+  location.href =
+  "/getquote/index.html";
+
 }
+
+/* ================= SYSTEM SETTINGS ================= */
+
+let systemTimezone =
+localStorage.getItem("systemTimezone") ||
+localStorage.getItem("appTimezone") ||
+"America/Phoenix";
+
+let tripWarningMinutes =
+Number(
+  localStorage.getItem("tripWarningMinutes")
+) || 120;
+
+/* ================= LOAD SYSTEM DESIGN ================= */
+
+async function loadDynamicSettings(){
+
+  try{
+
+    const res =
+    await fetch("/api/system-design");
+
+    const data =
+    await res.json();
+
+    if(data.timezone){
+
+      systemTimezone =
+      data.timezone;
+
+      localStorage.setItem(
+        "systemTimezone",
+        systemTimezone
+      );
+
+    }
+
+    if(data.tripWarningMinutes){
+
+      tripWarningMinutes =
+      Number(data.tripWarningMinutes) || 120;
+
+      localStorage.setItem(
+        "tripWarningMinutes",
+        tripWarningMinutes
+      );
+
+    }
+
+  }catch(err){
+
+    console.log(
+      "System settings load error",
+      err
+    );
+
+  }
+
+}
+
+loadDynamicSettings();
 
 /* ================= FILL ================= */
 
@@ -235,7 +309,7 @@ dropoff.value = tripData.dropoff || "";
 miles.value = tripData.distance || "";
 price.value = tripData.price || "";
 
-/* ================= SERVICE FIX (IMPORTANT) ================= */
+/* ================= SERVICE FIX ================= */
 
 const raw = String(
   tripData.serviceKey ||
@@ -244,151 +318,279 @@ const raw = String(
 ).trim().toUpperCase();
 
 const SERVICE_MAP = {
-  STANDARD: "STANDARD",
-  WHEELCHAIR: "WHEELCHAIR",
-  WHEEL: "WHEELCHAIR",
-  XL: "XL",
-  TAXI: "TAXI",
-  LIMO: "LIMO",
-  LIMOSINE: "LIMO"
+  STANDARD:"STANDARD",
+  WHEELCHAIR:"WHEELCHAIR",
+  WHEEL:"WHEELCHAIR",
+  XL:"XL",
+  TAXI:"TAXI",
+  LIMO:"LIMO",
+  LIMOSINE:"LIMO"
 };
 
-const serviceKey = SERVICE_MAP[raw] || raw || "STANDARD";
+const serviceKey =
+SERVICE_MAP[raw] ||
+raw ||
+"STANDARD";
 
-vehicleDisplay.innerText = serviceKey;
+vehicleDisplay.innerText =
+serviceKey;
 
 /* ================= STOPS ================= */
 
 function renderStops(){
-  const box = document.getElementById("stopsBox");
+
+  const box =
+  document.getElementById("stopsBox");
+
   box.innerHTML="";
 
   if(Array.isArray(tripData.stops)){
+
     tripData.stops.forEach((s,i)=>{
+
       box.innerHTML += `
         <label>Stop ${i+1}</label>
         <input value="${s}" readonly>
       `;
+
     });
+
   }
+
 }
 
 renderStops();
 
 /* ================= TIME ================= */
 
+function getNowInTimezone(){
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:systemTimezone
+      }
+    )
+  );
+
+}
+
 function minutesUntilTrip(date,time){
-  const now=new Date();
-  const trip=new Date(date+"T"+time);
-  return (trip-now)/60000;
+
+  const now =
+  getNowInTimezone();
+
+  const trip =
+  new Date(
+    `${date}T${time}:00`
+  );
+
+  return (
+    trip - now
+  ) / 60000;
+
+}
+
+function warningTimeText(minutes){
+
+  const m =
+  Number(minutes) || 120;
+
+  if(m < 60){
+
+    return `${m} minutes`;
+
+  }
+
+  const hours =
+  m / 60;
+
+  if(Number.isInteger(hours)){
+
+    return hours === 1
+    ? "1 hour"
+    : `${hours} hours`;
+
+  }
+
+  return `${hours.toFixed(1)} hours`;
+
 }
 
 /* ================= RESET ================= */
 
 function recalculate(){
-  localStorage.removeItem("pendingTrip");
-  location.href="/getquote/index.html";
+
+  localStorage.removeItem(
+    "pendingTrip"
+  );
+
+  location.href =
+  "/getquote/index.html";
+
 }
 
 /* ================= SUBMIT ================= */
 
 async function confirmBooking(){
 
-  const btn=document.getElementById("payBtn");
+  await loadDynamicSettings();
+
+  const btn =
+  document.getElementById("payBtn");
+
   btn.disabled=true;
 
-  const name=document.getElementById("name").value.trim();
-  const phone=document.getElementById("phone").value.trim();
-  const email=document.getElementById("email").value.trim();
-  const date=document.getElementById("date").value;
-  const time=document.getElementById("time").value;
-  const notes=document.getElementById("notes").value;
+  const name =
+  document.getElementById("name").value.trim();
+
+  const phone =
+  document.getElementById("phone").value.trim();
+
+  const email =
+  document.getElementById("email").value.trim();
+
+  const date =
+  document.getElementById("date").value;
+
+  const time =
+  document.getElementById("time").value;
+
+  const notes =
+  document.getElementById("notes").value;
 
   if(!name || !phone || !email || !date || !time){
+
     alert("Fill all fields");
+
     btn.disabled=false;
+
     return;
+
   }
 
-  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
+  const cleanPrice =
+  Number(
+    String(tripData.price)
+    .replace(/[^0-9.]/g,"")
+  );
 
-  const mins = minutesUntilTrip(date,time);
+  const mins =
+  minutesUntilTrip(date,time);
 
-  if(mins <= 120){
-    if(!confirm("Trip is within 120 minutes. Continue?")){
+  if(mins <= tripWarningMinutes){
+
+    const warningText =
+    warningTimeText(
+      tripWarningMinutes
+    );
+
+    const ok =
+    confirm(
+      `WARNING:\n\nThis trip is within ${warningText}.\nCancellation fee may apply.\n\nDo you want to continue?`
+    );
+
+    if(!ok){
+
       btn.disabled=false;
+
       return;
+
     }
+
   }
 
-const data = {
+  const data = {
 
-  type:"individual",
+    type:"individual",
 
-  pickup:tripData.pickup,
-  dropoff:tripData.dropoff,
+    pickup:tripData.pickup,
 
-  stops:tripData.stops || [],
+    dropoff:tripData.dropoff,
 
-  priceAmount:cleanPrice,
+    stops:tripData.stops || [],
 
-  clientName:name,
-  clientPhone:phone,
-  clientEmail:email,
+    priceAmount:cleanPrice,
 
-  serviceKey: serviceKey,
+    clientName:name,
 
-  vehicleTypeFromQuote: serviceKey,
+    clientPhone:phone,
 
-  tripDate:date,
-  tripTime:time,
+    clientEmail:email,
 
-  notes:notes
+    serviceKey:serviceKey,
 
-};
+    vehicleTypeFromQuote:serviceKey,
+
+    tripDate:date,
+
+    tripTime:time,
+
+    notes:notes
+
+  };
 
   try{
 
-    const res=await fetch("/api/trips",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(data)
-    });
+    const res =
+    await fetch(
+      "/api/trips",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify(data)
+      }
+    );
 
-   const trip = await res.json();
+    const trip =
+    await res.json();
 
-console.log("TRIP RESPONSE:", trip);
+    console.log(
+      "TRIP RESPONSE:",
+      trip
+    );
 
-if(!trip || !trip._id){
+    if(!trip || !trip._id){
 
-  alert(
-    trip.message ||
-    "Trip create failed"
-  );
+      alert(
+        trip.message ||
+        "Trip create failed"
+      );
 
-  btn.disabled = false;
-  return;
-}
+      btn.disabled=false;
 
-resultBox.style.display = "block";
+      return;
 
-resultBox.innerHTML = `
-Trip Created Successfully<br><br>
-Trip #: <b>${trip.tripNumber}</b>
-`;
+    }
 
-setTimeout(()=>{
+    resultBox.style.display =
+    "block";
 
-location.href =
-`/booking/payment.html?tripId=${trip._id}`;
+    resultBox.innerHTML = `
+      Trip Created Successfully<br><br>
+      Trip #: <b>${trip.tripNumber}</b>
+    `;
 
-},1500);
+    setTimeout(()=>{
+
+      location.href =
+      `/booking/payment.html?tripId=${trip._id}`;
+
+    },1500);
 
   }catch(err){
+
     console.log(err);
+
     alert("Server error");
+
     btn.disabled=false;
+
   }
+
 }
 
 </script>
