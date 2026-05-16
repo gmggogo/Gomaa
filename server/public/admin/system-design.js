@@ -24,28 +24,39 @@ DEFAULT DATA
 const defaultSystemDesign = {
 
   companyName:"Sunbeam Transportation",
+
   timezone:"America/Phoenix",
 
   mainLogo:"/assets/logo.png",
+
   driverLogo:"/assets/logo.png",
+
   heroImage:"/assets/hero.jpeg",
 
   aboutTitle:"About Us",
+
   aboutText:"Professional transportation services.",
 
   quoteTitle:"Get Quote & Book Your Ride",
+
   quoteText:"Select your service below",
 
   extra1Active:true,
+
   extra1Title:"Extra Information",
+
   extra1Text:"You can add pricing, announcements, promotions, or company information here.",
 
   extra2Active:true,
+
   extra2Title:"Additional Services",
+
   extra2Text:"This section can later be managed from the admin panel.",
 
   contactTitle:"Customer Support",
+
   contactPhone:"619-509-7197",
+
   contactEmail:"admin@sunbeamtransportationllc.com",
 
   footerText:"©️ Sunbeam Transportation",
@@ -195,27 +206,6 @@ async function saveSystemDesign(){
 }
 
 /* =========================
-FILE TO BASE64
-========================= */
-
-function fileToBase64(file){
-
-  return new Promise(resolve=>{
-
-    const reader =
-    new FileReader();
-
-    reader.onload = e=>{
-      resolve(e.target.result);
-    };
-
-    reader.readAsDataURL(file);
-
-  });
-
-}
-
-/* =========================
 SAFE SET
 ========================= */
 
@@ -225,7 +215,10 @@ function setValue(id,value){
   document.getElementById(id);
 
   if(el){
-    el.value = value || "";
+
+    el.value =
+    value || "";
+
   }
 
 }
@@ -236,7 +229,10 @@ function setChecked(id,value){
   document.getElementById(id);
 
   if(el){
-    el.checked = !!value;
+
+    el.checked =
+    !!value;
+
   }
 
 }
@@ -247,7 +243,10 @@ function setImage(id,value){
   document.getElementById(id);
 
   if(el){
-    el.src = value || "";
+
+    el.src =
+    value || "";
+
   }
 
 }
@@ -258,37 +257,105 @@ LOAD FORM VALUES
 
 function loadFormValues(){
 
-  setValue("companyNameInput",systemDesign.companyName);
-  setValue("timezoneInput",systemDesign.timezone);
+  setValue(
+    "companyNameInput",
+    systemDesign.companyName
+  );
 
-  setImage("mainLogoPreview",systemDesign.mainLogo);
-  setImage("driverLogoPreview",systemDesign.driverLogo);
-  setImage("heroImagePreview",systemDesign.heroImage);
+  setValue(
+    "timezoneInput",
+    systemDesign.timezone
+  );
 
-  setValue("aboutTitleInput",systemDesign.aboutTitle);
-  setValue("aboutTextInput",systemDesign.aboutText);
+  setImage(
+    "mainLogoPreview",
+    systemDesign.mainLogo
+  );
 
-  setValue("quoteTitleInput",systemDesign.quoteTitle);
-  setValue("quoteTextInput",systemDesign.quoteText);
+  setImage(
+    "driverLogoPreview",
+    systemDesign.driverLogo
+  );
 
-  setChecked("extra1Active",systemDesign.extra1Active);
-  setValue("extra1Title",systemDesign.extra1Title);
-  setValue("extra1Text",systemDesign.extra1Text);
+  setImage(
+    "heroImagePreview",
+    systemDesign.heroImage
+  );
 
-  setChecked("extra2Active",systemDesign.extra2Active);
-  setValue("extra2Title",systemDesign.extra2Title);
-  setValue("extra2Text",systemDesign.extra2Text);
+  setValue(
+    "aboutTitleInput",
+    systemDesign.aboutTitle
+  );
 
-  setValue("contactTitleInput",systemDesign.contactTitle);
-  setValue("contactPhoneInput",systemDesign.contactPhone);
-  setValue("contactEmailInput",systemDesign.contactEmail);
+  setValue(
+    "aboutTextInput",
+    systemDesign.aboutText
+  );
 
-  setValue("footerTextInput",systemDesign.footerText);
+  setValue(
+    "quoteTitleInput",
+    systemDesign.quoteTitle
+  );
+
+  setValue(
+    "quoteTextInput",
+    systemDesign.quoteText
+  );
+
+  setChecked(
+    "extra1Active",
+    systemDesign.extra1Active
+  );
+
+  setValue(
+    "extra1Title",
+    systemDesign.extra1Title
+  );
+
+  setValue(
+    "extra1Text",
+    systemDesign.extra1Text
+  );
+
+  setChecked(
+    "extra2Active",
+    systemDesign.extra2Active
+  );
+
+  setValue(
+    "extra2Title",
+    systemDesign.extra2Title
+  );
+
+  setValue(
+    "extra2Text",
+    systemDesign.extra2Text
+  );
+
+  setValue(
+    "contactTitleInput",
+    systemDesign.contactTitle
+  );
+
+  setValue(
+    "contactPhoneInput",
+    systemDesign.contactPhone
+  );
+
+  setValue(
+    "contactEmailInput",
+    systemDesign.contactEmail
+  );
+
+  setValue(
+    "footerTextInput",
+    systemDesign.footerText
+  );
 
 }
 
 /* =========================
-UPLOAD MAIN IMAGES
+UPLOAD MAIN IMAGE
 ========================= */
 
 async function uploadMainImage(
@@ -342,6 +409,8 @@ async function uploadMainImage(
 
     await saveSystemDesign();
 
+    alert("Image Uploaded");
+
   }catch(err){
 
     console.log(err);
@@ -353,13 +422,52 @@ async function uploadMainImage(
 }
 
 /* =========================
+WINDOW UPLOAD HANDLERS
+========================= */
+
+window.uploadMainLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "mainLogo",
+    "mainLogoPreview"
+  );
+
+};
+
+window.uploadDriverLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "driverLogo",
+    "driverLogoPreview"
+  );
+
+};
+
+window.uploadHeroImage =
+function(input){
+
+  uploadMainImage(
+    input,
+    "heroImage",
+    "heroImagePreview"
+  );
+
+};
+
+/* =========================
 RENDER SERVICE CARDS
 ========================= */
 
 function renderCardsEditor(){
 
   const container =
-  document.getElementById("cardsEditor");
+  document.getElementById(
+    "cardsEditor"
+  );
 
   if(!container) return;
 
@@ -377,7 +485,9 @@ function renderCardsEditor(){
       <div class="service-top">
 
         <div class="service-title">
+
           ${service.title || ""}
+
         </div>
 
         <button
@@ -388,11 +498,13 @@ function renderCardsEditor(){
           }"
           onclick="toggleCard(${index})"
         >
+
           ${
             service.active
             ? "ACTIVE"
             : "DISABLED"
           }
+
         </button>
 
       </div>
@@ -400,7 +512,9 @@ function renderCardsEditor(){
       <div class="input-group">
 
         <label>
+
           Service Name
+
         </label>
 
         <input
@@ -414,7 +528,9 @@ function renderCardsEditor(){
       <div class="input-group">
 
         <label>
+
           Description
+
         </label>
 
         <textarea
@@ -426,7 +542,9 @@ function renderCardsEditor(){
       <div class="input-group">
 
         <label>
+
           Card Image
+
         </label>
 
         <img
@@ -544,6 +662,8 @@ async function(index,file){
 
     renderCardsEditor();
 
+    alert("Card Image Saved");
+
   }catch(err){
 
     console.log(err);
@@ -558,10 +678,14 @@ window.saveCard =
 function(index){
 
   systemDesign.services[index].title =
-  document.getElementById(`title-${index}`).value;
+  document.getElementById(
+    `title-${index}`
+  ).value;
 
   systemDesign.services[index].description =
-  document.getElementById(`desc-${index}`).value;
+  document.getElementById(
+    `desc-${index}`
+  ).value;
 
   saveStorage();
 
@@ -577,52 +701,84 @@ window.saveAllSystemDesign =
 function(){
 
   systemDesign.companyName =
-  document.getElementById("companyNameInput")?.value || "";
+  document.getElementById(
+    "companyNameInput"
+  )?.value || "";
 
   systemDesign.timezone =
-  document.getElementById("timezoneInput")?.value || "America/Phoenix";
+  document.getElementById(
+    "timezoneInput"
+  )?.value || "America/Phoenix";
 
   systemDesign.aboutTitle =
-  document.getElementById("aboutTitleInput")?.value || "";
+  document.getElementById(
+    "aboutTitleInput"
+  )?.value || "";
 
   systemDesign.aboutText =
-  document.getElementById("aboutTextInput")?.value || "";
+  document.getElementById(
+    "aboutTextInput"
+  )?.value || "";
 
   systemDesign.quoteTitle =
-  document.getElementById("quoteTitleInput")?.value || "";
+  document.getElementById(
+    "quoteTitleInput"
+  )?.value || "";
 
   systemDesign.quoteText =
-  document.getElementById("quoteTextInput")?.value || "";
+  document.getElementById(
+    "quoteTextInput"
+  )?.value || "";
 
   systemDesign.extra1Active =
-  document.getElementById("extra1Active")?.checked || false;
+  document.getElementById(
+    "extra1Active"
+  )?.checked || false;
 
   systemDesign.extra1Title =
-  document.getElementById("extra1Title")?.value || "";
+  document.getElementById(
+    "extra1Title"
+  )?.value || "";
 
   systemDesign.extra1Text =
-  document.getElementById("extra1Text")?.value || "";
+  document.getElementById(
+    "extra1Text"
+  )?.value || "";
 
   systemDesign.extra2Active =
-  document.getElementById("extra2Active")?.checked || false;
+  document.getElementById(
+    "extra2Active"
+  )?.checked || false;
 
   systemDesign.extra2Title =
-  document.getElementById("extra2Title")?.value || "";
+  document.getElementById(
+    "extra2Title"
+  )?.value || "";
 
   systemDesign.extra2Text =
-  document.getElementById("extra2Text")?.value || "";
+  document.getElementById(
+    "extra2Text"
+  )?.value || "";
 
   systemDesign.contactTitle =
-  document.getElementById("contactTitleInput")?.value || "";
+  document.getElementById(
+    "contactTitleInput"
+  )?.value || "";
 
   systemDesign.contactPhone =
-  document.getElementById("contactPhoneInput")?.value || "";
+  document.getElementById(
+    "contactPhoneInput"
+  )?.value || "";
 
   systemDesign.contactEmail =
-  document.getElementById("contactEmailInput")?.value || "";
+  document.getElementById(
+    "contactEmailInput"
+  )?.value || "";
 
   systemDesign.footerText =
-  document.getElementById("footerTextInput")?.value || "";
+  document.getElementById(
+    "footerTextInput"
+  )?.value || "";
 
   saveStorage();
 
@@ -638,7 +794,9 @@ window.resetSystemDesign =
 function(){
 
   const ok =
-  confirm("Reset System Design?");
+  confirm(
+    "Reset System Design?"
+  );
 
   if(!ok) return;
 
