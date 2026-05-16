@@ -178,6 +178,10 @@ window.Branding = {
     document.title =
     this.getCompanyName();
 
+    /* =========================
+    COMPANY NAME
+    ========================= */
+
     document
     .querySelectorAll(
       ".company-name"
@@ -188,6 +192,10 @@ window.Branding = {
       this.getCompanyName();
 
     });
+
+    /* =========================
+    MAIN LOGO
+    ========================= */
 
     document
     .querySelectorAll(
@@ -200,6 +208,25 @@ window.Branding = {
 
     });
 
+    /* =========================
+    APP LOGO
+    ========================= */
+
+    document
+    .querySelectorAll(
+      ".app-logo"
+    )
+    .forEach(img=>{
+
+      img.src =
+      this.getMainLogo();
+
+    });
+
+    /* =========================
+    DRIVER LOGO
+    ========================= */
+
     document
     .querySelectorAll(
       ".driver-logo"
@@ -210,6 +237,10 @@ window.Branding = {
       this.getDriverLogo();
 
     });
+
+    /* =========================
+    HERO IMAGE
+    ========================= */
 
     document
     .querySelectorAll(
