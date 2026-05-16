@@ -89,9 +89,9 @@ LEFT BUTTONS
 
     padding:14px 24px;
 
-    border-radius:18px;
+    border-radius:16px;
 
-    font-size:18px;
+    font-size:16px;
 
     font-weight:700;
 
@@ -133,11 +133,11 @@ LANGUAGE
 
     cursor:pointer;
 
-    padding:14px 24px;
+    padding:14px 22px;
 
-    border-radius:18px;
+    border-radius:16px;
 
-    font-size:18px;
+    font-size:16px;
 
     font-weight:700;
 
@@ -209,19 +209,19 @@ POWERED
 
     position:absolute;
 
-    left:30px;
+    left:24px;
 
-    bottom:30px;
+    bottom:24px;
 
     background:rgba(0,0,0,.70);
 
     color:#fff;
 
-    padding:16px 28px;
+    padding:12px 22px;
 
-    border-radius:50px;
+    border-radius:40px;
 
-    font-size:18px;
+    font-size:15px;
 
     font-weight:700;
 
@@ -235,31 +235,31 @@ ABOUT
 
     text-align:center;
 
-    padding:90px 20px 40px;
+    padding:70px 20px 30px;
 
 }
 
 .about h2{
 
-    font-size:60px;
+    font-size:42px;
 
     color:#1e3a6d;
 
-    margin-bottom:30px;
+    margin-bottom:16px;
 
 }
 
 .about p{
 
-    font-size:28px;
+    font-size:20px;
 
     color:#6b7280;
 
-    max-width:1000px;
+    max-width:800px;
 
     margin:auto;
 
-    line-height:1.8;
+    line-height:1.7;
 
 }
 
@@ -271,25 +271,25 @@ QUOTE
 
     text-align:center;
 
-    padding:60px 20px 20px;
+    padding:40px 20px 14px;
 
 }
 
 .quote-header h2{
 
-    font-size:70px;
+    font-size:52px;
 
     color:#1e3a6d;
 
-    margin-bottom:25px;
+    margin-bottom:14px;
 
-    line-height:1.1;
+    line-height:1.15;
 
 }
 
 .quote-header p{
 
-    font-size:32px;
+    font-size:22px;
 
     color:#6b7280;
 
@@ -303,35 +303,43 @@ SERVICES
 
     width:100%;
 
-    padding:60px 30px 70px;
+    padding:24px 16px 50px;
 
     display:grid;
 
-    grid-template-columns:
-    repeat(auto-fit,minmax(260px,1fr));
+    justify-content:center;
 
-    gap:30px;
+    grid-template-columns:
+    repeat(auto-fit,minmax(180px,220px));
+
+    gap:16px;
 
 }
 
+/* =========================
+CARD
+========================= */
+
 .card{
+
+    width:100%;
 
     background:#fff;
 
-    border-radius:25px;
+    border-radius:18px;
 
     overflow:hidden;
 
     box-shadow:
-    0 10px 25px rgba(0,0,0,.08);
+    0 4px 14px rgba(0,0,0,.06);
 
-    transition:.25s;
+    transition:.2s;
 
 }
 
 .card:hover{
 
-    transform:translateY(-6px);
+    transform:translateY(-4px);
 
 }
 
@@ -339,15 +347,17 @@ SERVICES
 
     width:100%;
 
-    height:240px;
+    height:95px;
 
     object-fit:cover;
+
+    background:#e2e8f0;
 
 }
 
 .card-body{
 
-    padding:25px;
+    padding:12px;
 
     text-align:center;
 
@@ -355,39 +365,39 @@ SERVICES
 
 .card h3{
 
-    font-size:34px;
+    font-size:16px;
 
-    margin-bottom:12px;
+    margin-bottom:4px;
 
-    color:#0f172a;
+    color:#111827;
 
 }
 
 .card p{
 
-    font-size:20px;
+    font-size:11px;
 
     color:#6b7280;
 
-    min-height:60px;
+    line-height:1.4;
+
+    min-height:30px;
 
 }
 
 .card-btn{
 
-    display:inline-flex;
+    display:flex;
 
     align-items:center;
 
     justify-content:center;
 
-    margin-top:22px;
+    width:100%;
 
-    min-width:160px;
+    height:36px;
 
-    height:58px;
-
-    padding:0 28px;
+    margin-top:10px;
 
     background:#2563eb;
 
@@ -395,24 +405,17 @@ SERVICES
 
     text-decoration:none;
 
-    border-radius:14px;
+    border-radius:10px;
 
-    font-size:22px;
+    font-size:13px;
 
     font-weight:800;
 
-    letter-spacing:.3px;
-
     transition:.2s;
-
-    box-shadow:
-    0 6px 18px rgba(37,99,235,.35);
 
 }
 
 .card-btn:hover{
-
-    transform:translateY(-2px);
 
     background:#1d4ed8;
 
@@ -426,47 +429,47 @@ EXTRA
 
     width:100%;
 
-    padding:20px 30px 70px;
+    padding:10px 16px 50px;
 
     display:grid;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(320px,1fr));
+    repeat(auto-fit,minmax(260px,1fr));
 
-    gap:25px;
+    gap:18px;
 
 }
 
 .extra-box{
 
-    background:#ffffff;
+    background:#fff;
 
-    border-radius:24px;
+    border-radius:18px;
 
-    padding:35px;
+    padding:24px;
 
     box-shadow:
-    0 10px 25px rgba(0,0,0,.08);
+    0 6px 18px rgba(0,0,0,.06);
 
 }
 
 .extra-box h3{
 
-    font-size:32px;
+    font-size:22px;
 
     color:#1e3a6d;
 
-    margin-bottom:18px;
+    margin-bottom:12px;
 
 }
 
 .extra-box p{
 
-    font-size:20px;
+    font-size:15px;
 
     color:#6b7280;
 
-    line-height:1.8;
+    line-height:1.7;
 
 }
 
@@ -478,11 +481,11 @@ CONTACT
 
     text-align:center;
 
-    padding:70px 20px;
+    padding:50px 20px;
 
     background:#fff;
 
-    font-size:28px;
+    font-size:18px;
 
     line-height:2;
 
@@ -502,9 +505,9 @@ footer{
 
     text-align:center;
 
-    padding:30px;
+    padding:24px;
 
-    font-size:18px;
+    font-size:15px;
 
 }
 
@@ -520,9 +523,9 @@ MOBILE
 
         align-items:stretch;
 
-        gap:14px;
+        gap:12px;
 
-        padding:16px;
+        padding:14px;
 
     }
 
@@ -535,7 +538,7 @@ MOBILE
 
         grid-template-columns:1fr 1fr;
 
-        gap:12px;
+        gap:10px;
 
     }
 
@@ -546,11 +549,11 @@ MOBILE
 
         text-align:center;
 
-        font-size:14px;
+        font-size:13px;
 
-        padding:14px 8px;
+        padding:12px 8px;
 
-        border-radius:16px;
+        border-radius:12px;
 
     }
 
@@ -568,75 +571,138 @@ MOBILE
 
     .powered-box{
 
-        left:18px;
+        left:12px;
 
-        bottom:18px;
+        bottom:12px;
 
-        font-size:14px;
+        font-size:11px;
 
-        padding:12px 20px;
+        padding:8px 14px;
+
+    }
+
+    .about{
+
+        padding:50px 14px 20px;
 
     }
 
     .about h2{
 
-        font-size:42px;
+        font-size:30px;
 
     }
 
     .about p{
 
-        font-size:20px;
+        font-size:15px;
+
+    }
+
+    .quote-header{
+
+        padding:26px 14px 10px;
 
     }
 
     .quote-header h2{
 
-        font-size:52px;
+        font-size:34px;
 
     }
 
     .quote-header p{
 
-        font-size:20px;
+        font-size:15px;
 
     }
 
     .services{
 
-        grid-template-columns:1fr;
+        padding:16px 10px 40px;
 
-        padding:40px 20px 60px;
+        gap:10px;
+
+        grid-template-columns:
+        repeat(auto-fit,minmax(145px,170px));
+
+    }
+
+    .card{
+
+        border-radius:14px;
 
     }
 
     .card-image{
 
-        height:240px;
+        height:80px;
+
+    }
+
+    .card-body{
+
+        padding:10px;
 
     }
 
     .card h3{
 
-        font-size:28px;
+        font-size:14px;
 
     }
 
     .card p{
 
-        font-size:18px;
+        font-size:10px;
+
+        min-height:24px;
 
     }
 
     .card-btn{
 
-        width:100%;
+        height:32px;
 
-        max-width:190px;
+        font-size:11px;
 
-        height:52px;
+        border-radius:8px;
 
-        font-size:20px;
+        margin-top:8px;
+
+    }
+
+    .extra-sections{
+
+        padding:8px 10px 40px;
+
+        gap:12px;
+
+    }
+
+    .extra-box{
+
+        padding:18px;
+
+    }
+
+    .extra-box h3{
+
+        font-size:18px;
+
+    }
+
+    .extra-box p{
+
+        font-size:13px;
+
+    }
+
+    .contact-section{
+
+        font-size:15px;
+
+        padding:40px 14px;
 
     }
 
