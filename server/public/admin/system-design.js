@@ -1,303 +1,190 @@
-// =========================
-// ADD THIS INSIDE
-// defaultSystemDesign
-// =========================
+// =========================================
+// FILE: public/admin/system-design.js
+// UNIFIED SYSTEM DESIGN ENGINE
+// =========================================
 
-aboutTitleEs:"Sobre Nosotros",
+console.log("SYSTEM DESIGN LOADED");
 
-aboutTextEs:"Servicios profesionales de transporte.",
+let systemDesign = {};
 
-quoteTitleEs:"Obtenga precio y reserve su viaje",
+/* =========================
+SAVE STORAGE
+========================= */
 
-quoteTextEs:"Seleccione el servicio abajo",
+function saveStorage(){
 
-extra1TitleEs:"Información Extra",
+  saveSystemDesign();
 
-extra1TextEs:"Puede agregar promociones o información aquí.",
+}
 
-extra2TitleEs:"Servicios Adicionales",
+/* =========================
+DEFAULT DATA
+========================= */
 
-extra2TextEs:"Esta sección puede administrarse desde el panel.",
+const defaultSystemDesign = {
 
-contactTitleEs:"Atención al Cliente",
+  companyName:"Sunbeam Transportation",
 
-footerTextEs:"©️ Sunbeam Transportation",
+  timezone:"America/Phoenix",
 
-services:[
+  mainLogo:"/assets/logo.png",
 
-  {
-    id:"standard",
-    active:false,
+  driverLogo:"/assets/logo.png",
 
-    title:"Standard",
-    titleEs:"Estándar",
+  heroImage:"/assets/hero.jpeg",
 
-    description:"Standard transportation service",
+  aboutTitle:"About Us",
 
-    descriptionEs:"Servicio de transporte estándar",
+  aboutText:"Professional transportation services.",
 
-    buttonEs:"Obtener precio",
+  aboutTitleEs:"Sobre Nosotros",
 
-    image:"/assets/business.jpeg",
+  aboutTextEs:"Servicios profesionales de transporte.",
 
-    link:"getquote/index.html"
-  },
+  quoteTitle:"Get Quote & Book Your Ride",
 
-  {
-    id:"xl",
-    active:false,
+  quoteText:"Select your service below",
 
-    title:"XL",
-    titleEs:"XL",
+  quoteTitleEs:"Obtenga precio y reserve su viaje",
 
-    description:"Large vehicle transportation",
+  quoteTextEs:"Seleccione su servicio abajo",
 
-    descriptionEs:"Transporte de vehículos grandes",
+  extra1Active:true,
 
-    buttonEs:"Obtener precio",
+  extra1Title:"Extra Information",
 
-    image:"/assets/business.jpeg",
+  extra1Text:"You can add pricing, announcements, promotions, or company information here.",
 
-    link:"getquote/index.html"
-  },
+  extra1TitleEs:"Información Extra",
 
-  {
-    id:"taxi",
-    active:false,
+  extra1TextEs:"Puede agregar promociones o información aquí.",
 
-    title:"Taxi",
-    titleEs:"Taxi",
+  extra2Active:true,
 
-    description:"Daily city transportation",
+  extra2Title:"Additional Services",
 
-    descriptionEs:"Transporte diario en la ciudad",
+  extra2Text:"This section can later be managed from the admin panel.",
 
-    buttonEs:"Obtener precio",
+  extra2TitleEs:"Servicios Adicionales",
 
-    image:"/assets/business.jpeg",
+  extra2TextEs:"Esta sección puede administrarse desde el panel.",
 
-    link:"getquote/index.html"
-  },
+  contactTitle:"Customer Support",
 
-  {
-    id:"limo",
-    active:false,
+  contactTitleEs:"Atención al Cliente",
 
-    title:"Limo",
-    titleEs:"Limusina",
+  contactPhone:"619-509-7197",
 
-    description:"Luxury transportation service",
+  contactEmail:"admin@sunbeamtransportationllc.com",
 
-    descriptionEs:"Servicio de transporte de lujo",
+  footerText:"©️ Sunbeam Transportation",
 
-    buttonEs:"Obtener precio",
+  footerTextEs:"©️ Sunbeam Transportation",
 
-    image:"/assets/business.jpeg",
+  services:[
 
-    link:"getquote/index.html"
-  },
+    {
+      id:"standard",
+      active:false,
 
-  {
-    id:"wheelchair",
-    active:false,
+      title:"Standard",
 
-    title:"Wheelchair",
-    titleEs:"Silla de ruedas",
+      titleEs:"Estándar",
 
-    description:"Wheelchair accessible rides",
+      description:"Standard transportation service",
 
-    descriptionEs:"Viajes accesibles para silla de ruedas",
+      descriptionEs:"Servicio de transporte estándar",
 
-    buttonEs:"Obtener precio",
+      image:"/assets/business.jpeg",
 
-    image:"/assets/nemt.jpeg",
+      link:"getquote/index.html"
+    },
 
-    link:"getquote/index.html"
-  },
+    {
+      id:"xl",
+      active:false,
 
-  {
-    id:"shared",
-    active:false,
+      title:"XL",
 
-    title:"Shared Ride",
-    titleEs:"Viaje Compartido",
+      titleEs:"XL",
 
-    description:"Affordable shared rides",
+      description:"Large vehicle transportation",
 
-    descriptionEs:"Viajes compartidos económicos",
+      descriptionEs:"Transporte de vehículos grandes",
 
-    buttonEs:"Obtener precio",
+      image:"/assets/business.jpeg",
 
-    image:"/assets/airport.jpeg",
+      link:"getquote/index.html"
+    },
 
-    link:"getquote/index.html"
-  }
+    {
+      id:"taxi",
+      active:false,
 
-]
+      title:"Taxi",
 
-// =========================
-// ADD INSIDE
-// loadFormValues()
-// =========================
-
-setValue(
-  "aboutTitleEsInput",
-  systemDesign.aboutTitleEs
-);
-
-setValue(
-  "aboutTextEsInput",
-  systemDesign.aboutTextEs
-);
-
-setValue(
-  "quoteTitleEsInput",
-  systemDesign.quoteTitleEs
-);
+      titleEs:"Taxi",
 
-setValue(
-  "quoteTextEsInput",
-  systemDesign.quoteTextEs
-);
+      description:"Daily city transportation",
 
-setValue(
-  "extra1TitleEs",
-  systemDesign.extra1TitleEs
-);
+      descriptionEs:"Transporte diario en la ciudad",
 
-setValue(
-  "extra1TextEs",
-  systemDesign.extra1TextEs
-);
+      image:"/assets/business.jpeg",
 
-setValue(
-  "extra2TitleEs",
-  systemDesign.extra2TitleEs
-);
+      link:"getquote/index.html"
+    },
 
-setValue(
-  "extra2TextEs",
-  systemDesign.extra2TextEs
-);
+    {
+      id:"limo",
+      active:false,
 
-setValue(
-  "contactTitleEsInput",
-  systemDesign.contactTitleEs
-);
+      title:"Limo",
 
-setValue(
-  "footerTextEsInput",
-  systemDesign.footerTextEs
-);
+      titleEs:"Limusina",
 
-// =========================
-// ADD INSIDE
-// saveAllSystemDesign()
-// =========================
+      description:"Luxury transportation service",
 
-systemDesign.aboutTitleEs =
-document.getElementById(
-  "aboutTitleEsInput"
-)?.value || "";
+      descriptionEs:"Servicio de transporte de lujo",
 
-systemDesign.aboutTextEs =
-document.getElementById(
-  "aboutTextEsInput"
-)?.value || "";
+      image:"/assets/business.jpeg",
 
-systemDesign.quoteTitleEs =
-document.getElementById(
-  "quoteTitleEsInput"
-)?.value || "";
+      link:"getquote/index.html"
+    },
 
-systemDesign.quoteTextEs =
-document.getElementById(
-  "quoteTextEsInput"
-)?.value || "";
+    {
+      id:"wheelchair",
+      active:false,
 
-systemDesign.extra1TitleEs =
-document.getElementById(
-  "extra1TitleEs"
-)?.value || "";
+      title:"Wheelchair",
 
-systemDesign.extra1TextEs =
-document.getElementById(
-  "extra1TextEs"
-)?.value || "";
+      titleEs:"Silla de ruedas",
 
-systemDesign.extra2TitleEs =
-document.getElementById(
-  "extra2TitleEs"
-)?.value || "";
+      description:"Wheelchair accessible rides",
 
-systemDesign.extra2TextEs =
-document.getElementById(
-  "extra2TextEs"
-)?.value || "";
+      descriptionEs:"Viajes accesibles para silla de ruedas",
 
-systemDesign.contactTitleEs =
-document.getElementById(
-  "contactTitleEsInput"
-)?.value || "";
+      image:"/assets/nemt.jpeg",
 
-systemDesign.footerTextEs =
-document.getElementById(
-  "footerTextEsInput"
-)?.value || "";
+      link:"getquote/index.html"
+    },
 
-// =========================
-// ADD INSIDE
-// renderCardsEditor()
-// AFTER SERVICE NAME
-// =========================
+    {
+      id:"shared",
+      active:false,
 
-<div class="input-group">
+      title:"Shared Ride",
 
-  <label>
+      titleEs:"Viaje Compartido",
 
-    Service Name Spanish
+      description:"Affordable shared rides",
 
-  </label>
+      descriptionEs:"Viajes compartidos económicos",
 
-  <input
-    type="text"
-    id="titleEs-${index}"
-    value="${service.titleEs || ""}"
-  >
+      image:"/assets/airport.jpeg",
 
-</div>
+      link:"getquote/index.html"
+    }
 
-// =========================
-// ADD INSIDE
-// renderCardsEditor()
-// AFTER DESCRIPTION
-// =========================
+  ]
 
-<div class="input-group">
-
-  <label>
-
-    Description Spanish
-
-  </label>
-
-  <textarea
-    id="descEs-${index}"
-  >${service.descriptionEs || ""}</textarea>
-
-</div>
-
-// =========================
-// ADD INSIDE
-// saveCard()
-// =========================
-
-systemDesign.services[index].titleEs =
-document.getElementById(
-  `titleEs-${index}`
-).value;
-
-systemDesign.services[index].descriptionEs =
-document.getElementById(
-  `descEs-${index}`
-).value;
+};
