@@ -30,10 +30,6 @@ GLOBAL
     box-sizing:border-box;
 }
 
-html{
-    scroll-behavior:smooth;
-}
-
 body{
 
     font-family:
@@ -65,7 +61,7 @@ TOP BAR
 
     gap:20px;
 
-    padding:20px 34px;
+    padding:18px 24px;
 
     background:#f8fafc;
 
@@ -78,7 +74,7 @@ TOP BAR
     z-index:999;
 
     box-shadow:
-    0 2px 12px rgba(0,0,0,.05);
+    0 2px 10px rgba(0,0,0,.05);
 
 }
 
@@ -90,7 +86,7 @@ LEFT BUTTONS
 
     display:flex;
 
-    gap:14px;
+    gap:12px;
 
     flex-wrap:wrap;
 
@@ -100,13 +96,13 @@ LEFT BUTTONS
 
     text-decoration:none;
 
-    padding:15px 28px;
+    padding:14px 24px;
 
-    border-radius:18px;
+    border-radius:16px;
 
     font-size:16px;
 
-    font-weight:800;
+    font-weight:700;
 
     color:#fff;
 
@@ -152,13 +148,13 @@ LANGUAGE
 
     cursor:pointer;
 
-    padding:15px 24px;
+    padding:14px 22px;
 
-    border-radius:18px;
+    border-radius:16px;
 
     font-size:16px;
 
-    font-weight:800;
+    font-weight:700;
 
     background:#dbe1ea;
 
@@ -194,7 +190,7 @@ HERO
 
     overflow:hidden;
 
-    padding:24px;
+    padding:20px;
 
 }
 
@@ -204,28 +200,7 @@ HERO
 
     width:100%;
 
-    max-width:2200px;
-
-}
-
-.hero-inner::after{
-
-    content:"";
-
-    position:absolute;
-
-    inset:0;
-
-    background:
-    linear-gradient(
-    to top,
-    rgba(0,0,0,.45),
-    rgba(0,0,0,.08)
-    );
-
-    border-radius:34px;
-
-    pointer-events:none;
+    max-width:1500px;
 
 }
 
@@ -233,13 +208,9 @@ HERO
 
     width:100%;
 
-    height:650px;
-
-    object-fit:cover;
-
     display:block;
 
-    border-radius:34px;
+    border-radius:28px;
 
 }
 
@@ -251,23 +222,21 @@ POWERED
 
     position:absolute;
 
-    left:34px;
+    left:26px;
 
-    bottom:34px;
-
-    z-index:5;
+    bottom:26px;
 
     background:rgba(0,0,0,.75);
 
     color:#fff;
 
-    padding:16px 30px;
+    padding:14px 24px;
 
     border-radius:40px;
 
-    font-size:16px;
+    font-size:15px;
 
-    font-weight:800;
+    font-weight:700;
 
     backdrop-filter:blur(8px);
 
@@ -281,35 +250,33 @@ ABOUT
 
     text-align:center;
 
-    padding:100px 40px 60px;
+    padding:90px 20px 40px;
 
 }
 
 .about h2{
 
-    font-size:72px;
+    font-size:60px;
 
     color:#1e3a6d;
 
-    margin-bottom:24px;
+    margin-bottom:20px;
 
     font-weight:900;
-
-    line-height:1.2;
 
 }
 
 .about p{
 
-    font-size:28px;
+    font-size:25px;
 
     color:#6b7280;
 
-    max-width:1500px;
+    max-width:1100px;
 
     margin:auto;
 
-    line-height:2;
+    line-height:1.9;
 
 }
 
@@ -321,17 +288,17 @@ QUOTE
 
     text-align:center;
 
-    padding:50px 40px 40px;
+    padding:40px 20px 24px;
 
 }
 
 .quote-header h2{
 
-    font-size:82px;
+    font-size:70px;
 
     color:#1e3a6d;
 
-    margin-bottom:22px;
+    margin-bottom:18px;
 
     line-height:1.1;
 
@@ -341,15 +308,15 @@ QUOTE
 
 .quote-header p{
 
-    font-size:28px;
+    font-size:24px;
 
     color:#6b7280;
 
-    max-width:1500px;
+    max-width:1000px;
 
     margin:auto;
 
-    line-height:2;
+    line-height:1.8;
 
 }
 
@@ -361,21 +328,20 @@ SERVICES
 
     width:100%;
 
-    max-width:2500px;
+    max-width:2600px;
 
     margin:auto;
 
-    padding:60px 70px 120px;
+    padding:60px 60px 140px;
 
-    display:flex;
+    display:grid;
 
-    flex-wrap:wrap;
+    grid-template-columns:
+    repeat(auto-fit,minmax(280px,1fr));
 
-    justify-content:center;
+    gap:28px;
 
-    align-items:stretch;
-
-    gap:42px;
+    align-items:start;
 
 }
 
@@ -385,26 +351,18 @@ CARD
 
 .card{
 
-    flex:1 1 420px;
-
-    min-width:380px;
-
-    max-width:460px;
+    width:100%;
 
     background:#fff;
 
-    border-radius:32px;
+    border-radius:26px;
 
     overflow:hidden;
 
     box-shadow:
-    0 10px 30px rgba(15,23,42,.08);
+    0 10px 30px rgba(0,0,0,.10);
 
     transition:.25s;
-
-    display:flex;
-
-    flex-direction:column;
 
 }
 
@@ -414,7 +372,7 @@ CARD
     translateY(-8px);
 
     box-shadow:
-    0 18px 42px rgba(37,99,235,.18);
+    0 16px 40px rgba(37,99,235,.18);
 
 }
 
@@ -422,61 +380,43 @@ CARD
 
     width:100%;
 
-    height:310px;
+    height:240px;
 
     object-fit:cover;
 
     background:#e2e8f0;
 
-    transition:.35s;
-
-}
-
-.card:hover .card-image{
-
-    transform:scale(1.04);
-
 }
 
 .card-body{
 
-    padding:34px;
+    padding:24px;
 
     text-align:center;
-
-    display:flex;
-
-    flex-direction:column;
-
-    flex:1;
 
 }
 
 .card h3{
 
-    font-size:38px;
+    font-size:30px;
 
-    margin-bottom:18px;
+    margin-bottom:12px;
 
     color:#111827;
 
-    font-weight:900;
-
-    line-height:1.3;
-
-    word-break:break-word;
+    font-weight:800;
 
 }
 
 .card p{
 
-    font-size:21px;
+    font-size:17px;
 
     color:#6b7280;
 
-    line-height:2;
+    line-height:1.9;
 
-    flex:1;
+    min-height:120px;
 
     word-break:break-word;
 
@@ -492,11 +432,9 @@ CARD
 
     width:100%;
 
-    min-height:66px;
+    height:58px;
 
-    padding:18px;
-
-    margin-top:28px;
+    margin-top:20px;
 
     background:#2563eb;
 
@@ -504,20 +442,13 @@ CARD
 
     text-decoration:none;
 
-    border-radius:18px;
+    border-radius:16px;
 
-    font-size:22px;
+    font-size:20px;
 
-    font-weight:900;
-
-    letter-spacing:.3px;
+    font-weight:800;
 
     transition:.2s;
-
-    box-shadow:
-    0 8px 20px rgba(37,99,235,.25);
-
-    text-align:center;
 
 }
 
@@ -535,40 +466,31 @@ EXTRA
 
     width:100%;
 
-    max-width:2300px;
+    padding:40px 60px 140px;
+
+    display:grid;
+
+    grid-template-columns:
+    repeat(auto-fit,minmax(520px,1fr));
+
+    gap:34px;
+
+    max-width:2600px;
 
     margin:auto;
-
-    padding:40px 70px 120px;
-
-    display:flex;
-
-    flex-wrap:wrap;
-
-    justify-content:center;
-
-    align-items:stretch;
-
-    gap:42px;
 
 }
 
 .extra-box{
 
-    flex:1 1 850px;
-
-    min-width:520px;
-
-    max-width:1100px;
-
     background:#fff;
 
-    border-radius:34px;
+    border-radius:28px;
 
-    padding:54px;
+    padding:44px;
 
     box-shadow:
-    0 12px 34px rgba(0,0,0,.08);
+    0 10px 30px rgba(0,0,0,.08);
 
     transition:.25s;
 
@@ -580,33 +502,31 @@ EXTRA
     translateY(-6px);
 
     box-shadow:
-    0 18px 44px rgba(37,99,235,.14);
+    0 16px 40px rgba(37,99,235,.14);
 
 }
 
 .extra-box h3{
 
-    font-size:54px;
+    font-size:42px;
 
     color:#1e3a6d;
 
-    margin-bottom:30px;
+    margin-bottom:22px;
 
     font-weight:900;
 
-    line-height:1.3;
-
-    word-break:break-word;
+    line-height:1.2;
 
 }
 
 .extra-box p{
 
-    font-size:30px;
+    font-size:22px;
 
     color:#6b7280;
 
-    line-height:2.2;
+    line-height:2;
 
     word-break:break-word;
 
@@ -620,13 +540,13 @@ CONTACT
 
     text-align:center;
 
-    padding:100px 40px;
+    padding:80px 20px;
 
     background:#fff;
 
-    font-size:30px;
+    font-size:24px;
 
-    line-height:2.4;
+    line-height:2.2;
 
     color:#111827;
 
@@ -634,7 +554,7 @@ CONTACT
 
 .contact-section strong{
 
-    font-size:54px;
+    font-size:42px;
 
     color:#111827;
 
@@ -652,11 +572,11 @@ footer{
 
     text-align:center;
 
-    padding:38px;
+    padding:30px;
 
-    font-size:22px;
+    font-size:20px;
 
-    font-weight:800;
+    font-weight:700;
 
 }
 
@@ -712,15 +632,7 @@ MOBILE
 
     }
 
-    .hero-inner::after{
-
-        border-radius:0;
-
-    }
-
     .hero-image{
-
-        height:340px;
 
         border-radius:0;
 
@@ -746,13 +658,15 @@ MOBILE
 
     .about h2{
 
-        font-size:42px;
+        font-size:38px;
 
     }
 
     .about p{
 
         font-size:18px;
+
+        line-height:1.9;
 
     }
 
@@ -764,7 +678,7 @@ MOBILE
 
     .quote-header h2{
 
-        font-size:52px;
+        font-size:50px;
 
     }
 
@@ -772,29 +686,23 @@ MOBILE
 
         font-size:18px;
 
+        line-height:1.8;
+
     }
 
     .services{
 
-        padding:24px 16px 80px;
+        padding:20px 18px 80px;
 
-        flex-direction:column;
+        grid-template-columns:1fr;
 
-        align-items:center;
-
-        gap:24px;
+        gap:22px;
 
     }
 
     .card{
 
-        width:100%;
-
-        min-width:100%;
-
-        max-width:100%;
-
-        border-radius:24px;
+        border-radius:22px;
 
     }
 
@@ -806,51 +714,45 @@ MOBILE
 
     .card-body{
 
-        padding:24px;
+        padding:20px;
 
     }
 
     .card h3{
 
-        font-size:28px;
+        font-size:26px;
 
     }
 
     .card p{
 
-        font-size:17px;
+        font-size:16px;
+
+        min-height:auto;
 
     }
 
     .card-btn{
 
-        font-size:18px;
+        height:54px;
 
-        min-height:56px;
+        font-size:18px;
 
     }
 
     .extra-sections{
 
-        padding:16px 16px 80px;
+        padding:20px 18px 80px;
 
-        flex-direction:column;
+        grid-template-columns:1fr;
 
-        align-items:center;
-
-        gap:24px;
+        gap:22px;
 
     }
 
     .extra-box{
 
-        width:100%;
-
-        min-width:100%;
-
-        max-width:100%;
-
-        padding:34px;
+        padding:28px;
 
         border-radius:24px;
 
@@ -858,7 +760,7 @@ MOBILE
 
     .extra-box h3{
 
-        font-size:34px;
+        font-size:32px;
 
     }
 
@@ -866,7 +768,7 @@ MOBILE
 
         font-size:18px;
 
-        line-height:2;
+        line-height:1.9;
 
     }
 
@@ -880,7 +782,7 @@ MOBILE
 
     .contact-section strong{
 
-        font-size:34px;
+        font-size:32px;
 
     }
 
@@ -924,7 +826,8 @@ MOBILE
 
         <button
         id="lang-en"
-        class="lang-btn active-lang">
+        class="lang-btn active-lang"
+        onclick="setLang('en')">
 
             English
 
@@ -932,7 +835,8 @@ MOBILE
 
         <button
         id="lang-es"
-        class="lang-btn">
+        class="lang-btn"
+        onclick="setLang('es')">
 
             Spanish
 
@@ -963,11 +867,11 @@ MOBILE
 
 <section class="about">
 
-    <h2>
+    <h2 id="aboutTitle">
         Professional Transportation Across Arizona
     </h2>
 
-    <p>
+    <p id="aboutText">
         Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
     </p>
 
@@ -975,11 +879,11 @@ MOBILE
 
 <section class="quote-header">
 
-    <h2>
+    <h2 id="quoteTitle">
         Book Your Ride Today
     </h2>
 
-    <p>
+    <p id="quoteText">
         Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
     </p>
 
@@ -992,26 +896,30 @@ id="servicesContainer">
 
 <section class="extra-sections">
 
-    <div class="extra-box">
+    <div
+    class="extra-box"
+    id="extraBox1">
 
-        <h3>
+        <h3 id="extra1TitleView">
             Why Choose Sunbeam?
         </h3>
 
-        <p>
-            Professional drivers, clean vehicles, fast response times, reliable transportation, and premium customer support across Arizona.
+        <p id="extra1TextView">
+            Professional Drivers
         </p>
 
     </div>
 
-    <div class="extra-box">
+    <div
+    class="extra-box"
+    id="extraBox2">
 
-        <h3>
+        <h3 id="extra2TitleView">
             Serving All Arizona
         </h3>
 
-        <p>
-            Phoenix, Chandler, Mesa, Tempe, Scottsdale, Gilbert, Glendale, Peoria, Tucson, and surrounding areas.
+        <p id="extra2TextView">
+            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
         </p>
 
     </div>
@@ -1020,21 +928,27 @@ id="servicesContainer">
 
 <div class="contact-section">
 
-    <strong>
+    <strong id="contactTitleView">
         Customer Support
     </strong>
 
     <br><br>
 
-    📞 619-509-7197
+    📞
+    <span id="contactPhoneView">
+        619-509-7197
+    </span>
 
     <br>
 
-    📧 admin@sunbeamtransportationllc.com
+    📧
+    <span id="contactEmailView">
+        admin@sunbeamtransportationllc.com
+    </span>
 
 </div>
 
-<footer>
+<footer id="footerView">
 
     ©️ Sunbeam Transportation
 
@@ -1044,21 +958,186 @@ id="servicesContainer">
 
 <script>
 
-window.addEventListener(
-"DOMContentLoaded",
-()=>{
+let currentLang = "en";
 
-    if(
-        window.Branding &&
-        typeof Branding.renderHomepageCards === "function"
-    ){
+/* =========================
+LANG SWITCH
+========================= */
 
-        Branding.renderHomepageCards(
-            "servicesContainer",
-            "en"
+window.setLang = function(lang){
+
+    currentLang = lang;
+
+    document
+    .querySelectorAll(".lang-btn")
+    .forEach(btn=>{
+
+        btn.classList.remove(
+            "active-lang"
+        );
+
+    });
+
+    if(lang === "en"){
+
+        document
+        .getElementById("lang-en")
+        .classList.add(
+            "active-lang"
         );
 
     }
+
+    if(lang === "es"){
+
+        document
+        .getElementById("lang-es")
+        .classList.add(
+            "active-lang"
+        );
+
+    }
+
+    Branding.renderHomepageCards(
+        "servicesContainer",
+        currentLang
+    );
+
+};
+
+/* =========================
+LOAD PAGE
+========================= */
+
+window.addEventListener(
+"DOMContentLoaded",
+async ()=>{
+
+    await Branding.load();
+
+    const data =
+    Branding.data || {};
+
+    /* ABOUT */
+
+    document.getElementById(
+    "aboutTitle"
+    ).innerText =
+
+    data.aboutTitle ||
+    "Professional Transportation Across Arizona";
+
+    document.getElementById(
+    "aboutText"
+    ).innerText =
+
+    data.aboutText ||
+    "Sunbeam Transportation provides safe transportation services.";
+
+    /* QUOTE */
+
+    document.getElementById(
+    "quoteTitle"
+    ).innerText =
+
+    data.quoteTitle ||
+    "Book Your Ride Today";
+
+    document.getElementById(
+    "quoteText"
+    ).innerText =
+
+    data.quoteText ||
+    "Professional transportation across Arizona.";
+
+    /* EXTRA 1 */
+
+    document.getElementById(
+    "extra1TitleView"
+    ).innerText =
+
+    data.extra1Title ||
+    "Why Choose Sunbeam?";
+
+    document.getElementById(
+    "extra1TextView"
+    ).innerHTML =
+
+    data.extra1Text ||
+    "";
+
+    document.getElementById(
+    "extraBox1"
+    ).style.display =
+
+    data.extra1Active
+    ? "block"
+    : "none";
+
+    /* EXTRA 2 */
+
+    document.getElementById(
+    "extra2TitleView"
+    ).innerText =
+
+    data.extra2Title ||
+    "Serving All Arizona";
+
+    document.getElementById(
+    "extra2TextView"
+    ).innerHTML =
+
+    data.extra2Text ||
+    "";
+
+    document.getElementById(
+    "extraBox2"
+    ).style.display =
+
+    data.extra2Active
+    ? "block"
+    : "none";
+
+    /* CONTACT */
+
+    document.getElementById(
+    "contactTitleView"
+    ).innerText =
+
+    data.contactTitle ||
+    "Customer Support";
+
+    document.getElementById(
+    "contactPhoneView"
+    ).innerText =
+
+    data.contactPhone ||
+    "619-509-7197";
+
+    document.getElementById(
+    "contactEmailView"
+    ).innerText =
+
+    data.contactEmail ||
+    "admin@sunbeamtransportationllc.com";
+
+    /* FOOTER */
+
+    document.getElementById(
+    "footerView"
+    ).innerText =
+
+    data.footerText ||
+    "©️ Sunbeam Transportation";
+
+    /* SERVICES */
+
+    Branding.renderHomepageCards(
+        "servicesContainer",
+        currentLang
+    );
+
+    setLang("en");
 
 });
 
