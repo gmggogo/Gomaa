@@ -12,11 +12,8 @@ Sunbeam Transportation
 name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<link rel="icon"
-href="assets/app-icon.png">
-
-<link rel="apple-touch-icon"
-href="assets/app-icon.png">
+<link rel="icon" href="assets/app-icon.png">
+<link rel="apple-touch-icon" href="assets/app-icon.png">
 
 <style>
 
@@ -320,6 +317,10 @@ QUOTE
 
 }
 
+/* =========================
+SERVICES
+========================= */
+
 .services{
 
     width:100%;
@@ -337,7 +338,11 @@ QUOTE
 
     gap:28px;
 
-    align-items:start;
+    align-items:stretch;
+
+    min-height:auto;
+
+    overflow:visible;
 
 }
 
@@ -359,6 +364,10 @@ CARD
     0 10px 30px rgba(0,0,0,.10);
 
     transition:.25s;
+
+    display:flex;
+
+    flex-direction:column;
 
 }
 
@@ -390,6 +399,12 @@ CARD
 
     text-align:center;
 
+    flex:1;
+
+    display:flex;
+
+    flex-direction:column;
+
 }
 
 .card h3{
@@ -412,7 +427,7 @@ CARD
 
     line-height:1.7;
 
-    min-height:72px;
+    flex:1;
 
 }
 
@@ -472,6 +487,12 @@ EXTRA
     max-width:1500px;
 
     margin:auto;
+
+    clear:both;
+
+    position:relative;
+
+    z-index:1;
 
 }
 
@@ -720,8 +741,6 @@ MOBILE
 
         font-size:16px;
 
-        min-height:auto;
-
     }
 
     .card-btn{
@@ -818,8 +837,7 @@ MOBILE
 
         <button
         id="lang-en"
-        class="lang-btn active-lang"
-        onclick="setLang('en')">
+        class="lang-btn active-lang">
 
             English
 
@@ -827,8 +845,7 @@ MOBILE
 
         <button
         id="lang-es"
-        class="lang-btn"
-        onclick="setLang('es')">
+        class="lang-btn">
 
             Spanish
 
@@ -859,11 +876,11 @@ MOBILE
 
 <section class="about">
 
-    <h2 id="aboutTitle">
+    <h2>
         Professional Transportation Across Arizona
     </h2>
 
-    <p id="aboutText">
+    <p>
         Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
     </p>
 
@@ -871,46 +888,218 @@ MOBILE
 
 <section class="quote-header">
 
-    <h2 id="quoteTitle">
+    <h2>
         Book Your Ride Today
     </h2>
 
-    <p id="quoteText">
+    <p>
         Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
     </p>
 
 </section>
 
-<section
-class="services"
-id="servicesContainer">
+<section class="services">
+
+    <!-- CARD 1 -->
+    <div class="card">
+
+        <img
+        class="card-image"
+        src="/assets/standard.jpeg">
+
+        <div class="card-body">
+
+            <h3>
+                Standard
+            </h3>
+
+            <p>
+                Standard transportation service.
+            </p>
+
+            <a
+            href="/getquote/index.html"
+            class="card-btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- CARD 2 -->
+    <div class="card">
+
+        <img
+        class="card-image"
+        src="/assets/xl.jpeg">
+
+        <div class="card-body">
+
+            <h3>
+                XL
+            </h3>
+
+            <p>
+                Large vehicle transportation.
+            </p>
+
+            <a
+            href="/getquote/index.html"
+            class="card-btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- CARD 3 -->
+    <div class="card">
+
+        <img
+        class="card-image"
+        src="/assets/wheelchair.jpeg">
+
+        <div class="card-body">
+
+            <h3>
+                Wheelchair
+            </h3>
+
+            <p>
+                Wheelchair accessible rides.
+            </p>
+
+            <a
+            href="/getquote/index.html"
+            class="card-btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- CARD 4 -->
+    <div class="card">
+
+        <img
+        class="card-image"
+        src="/assets/shared.jpeg">
+
+        <div class="card-body">
+
+            <h3>
+                Shared Ride
+            </h3>
+
+            <p>
+                Affordable shared rides.
+            </p>
+
+            <a
+            href="/getquote/index.html"
+            class="card-btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- CARD 5 -->
+    <div class="card">
+
+        <img
+        class="card-image"
+        src="/assets/taxi.jpeg">
+
+        <div class="card-body">
+
+            <h3>
+                Taxi
+            </h3>
+
+            <p>
+                Fast city transportation service.
+            </p>
+
+            <a
+            href="/getquote/index.html"
+            class="card-btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- CARD 6 -->
+    <div class="card">
+
+        <img
+        class="card-image"
+        src="/assets/limo.jpeg">
+
+        <div class="card-body">
+
+            <h3>
+                Limo
+            </h3>
+
+            <p>
+                Luxury transportation experience.
+            </p>
+
+            <a
+            href="/getquote/index.html"
+            class="card-btn">
+
+                Get Quote
+
+            </a>
+
+        </div>
+
+    </div>
+
 </section>
 
 <section class="extra-sections">
 
-    <div
-    class="extra-box"
-    id="extraBox1">
+    <div class="extra-box">
 
-        <h3 id="extra1TitleView">
+        <h3>
             Why Choose Sunbeam?
         </h3>
 
-        <p id="extra1TextView">
-            Professional Drivers
+        <p>
+            Professional Drivers<br>
+            Clean Vehicles<br>
+            Reliable Service<br>
+            Safe Transportation
         </p>
 
     </div>
 
-    <div
-    class="extra-box"
-    id="extraBox2">
+    <div class="extra-box">
 
-        <h3 id="extra2TitleView">
+        <h3>
             Serving All Arizona
         </h3>
 
-        <p id="extra2TextView">
+        <p>
             Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
         </p>
 
@@ -920,220 +1109,25 @@ id="servicesContainer">
 
 <div class="contact-section">
 
-    <strong id="contactTitleView">
+    <strong>
         Customer Support
     </strong>
 
     <br><br>
 
-    📞
-    <span id="contactPhoneView">
-        619-509-7197
-    </span>
+    📞 619-509-7197
 
     <br>
 
-    📧
-    <span id="contactEmailView">
-        admin@sunbeamtransportationllc.com
-    </span>
+    📧 admin@sunbeamtransportationllc.com
 
 </div>
 
-<footer id="footerView">
+<footer>
 
     ©️ Sunbeam Transportation
 
 </footer>
-
-<script src="/core/branding.js"></script>
-
-<script>
-
-let currentLang = "en";
-
-/* =========================
-LANG SWITCH
-========================= */
-
-window.setLang = function(lang){
-
-    currentLang = lang;
-
-    document
-    .querySelectorAll(".lang-btn")
-    .forEach(btn=>{
-
-        btn.classList.remove(
-            "active-lang"
-        );
-
-    });
-
-    if(lang === "en"){
-
-        document
-        .getElementById("lang-en")
-        .classList.add(
-            "active-lang"
-        );
-
-    }
-
-    if(lang === "es"){
-
-        document
-        .getElementById("lang-es")
-        .classList.add(
-            "active-lang"
-        );
-
-    }
-
-    Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
-    );
-
-};
-
-/* =========================
-LOAD PAGE
-========================= */
-
-window.addEventListener(
-"DOMContentLoaded",
-async ()=>{
-
-    await Branding.load();
-
-    const data =
-    Branding.data || {};
-
-    /* ABOUT */
-
-    document.getElementById(
-    "aboutTitle"
-    ).innerText =
-
-    data.aboutTitle ||
-    "Professional Transportation Across Arizona";
-
-    document.getElementById(
-    "aboutText"
-    ).innerText =
-
-    data.aboutText ||
-    "Sunbeam Transportation provides safe transportation services.";
-
-    /* QUOTE */
-
-    document.getElementById(
-    "quoteTitle"
-    ).innerText =
-
-    data.quoteTitle ||
-    "Book Your Ride Today";
-
-    document.getElementById(
-    "quoteText"
-    ).innerText =
-
-    data.quoteText ||
-    "Professional transportation across Arizona.";
-
-    /* EXTRA 1 */
-
-    document.getElementById(
-    "extra1TitleView"
-    ).innerText =
-
-    data.extra1Title ||
-    "Why Choose Sunbeam?";
-
-    document.getElementById(
-    "extra1TextView"
-    ).innerHTML =
-
-    data.extra1Text ||
-    "";
-
-    document.getElementById(
-    "extraBox1"
-    ).style.display =
-
-    data.extra1Active
-    ? "block"
-    : "none";
-
-    /* EXTRA 2 */
-
-    document.getElementById(
-    "extra2TitleView"
-    ).innerText =
-
-    data.extra2Title ||
-    "Serving All Arizona";
-
-    document.getElementById(
-    "extra2TextView"
-    ).innerHTML =
-
-    data.extra2Text ||
-    "";
-
-    document.getElementById(
-    "extraBox2"
-    ).style.display =
-
-    data.extra2Active
-    ? "block"
-    : "none";
-
-    /* CONTACT */
-
-    document.getElementById(
-    "contactTitleView"
-    ).innerText =
-
-    data.contactTitle ||
-    "Customer Support";
-
-    document.getElementById(
-    "contactPhoneView"
-    ).innerText =
-
-    data.contactPhone ||
-    "619-509-7197";
-
-    document.getElementById(
-    "contactEmailView"
-    ).innerText =
-
-    data.contactEmail ||
-    "admin@sunbeamtransportationllc.com";
-
-    /* FOOTER */
-
-    document.getElementById(
-    "footerView"
-    ).innerText =
-
-    data.footerText ||
-    "©️ Sunbeam Transportation";
-
-    /* SERVICES */
-
-    Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
-    );
-
-    setLang("en");
-
-});
-
-</script>
 
 </body>
 </html>
