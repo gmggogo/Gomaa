@@ -89,27 +89,59 @@ container.innerHTML = `
 
 `;
 
-/* ================= LOAD ENGINES ================= */
+/* ================= LOAD BRANDING ================= */
 
-const brandingScript =
-document.createElement("script");
+async function loadBranding(){
 
-brandingScript.src =
-"/core/branding.js";
+  return new Promise((resolve)=>{
 
-document.body.appendChild(
-brandingScript
-);
+    if(window.Branding){
 
-const timeScript =
-document.createElement("script");
+      resolve();
+      return;
 
-timeScript.src =
-"/core/time.js";
+    }
 
-document.body.appendChild(
-timeScript
-);
+    const oldScript =
+    document.querySelector(
+      'script[src="/core/branding.js"]'
+    );
+
+    if(oldScript){
+
+      oldScript.onload =
+      ()=>resolve();
+
+      setTimeout(resolve,500);
+
+      return;
+
+    }
+
+    const brandingScript =
+    document.createElement("script");
+
+    brandingScript.src =
+    "/core/branding.js";
+
+    brandingScript.onload =
+    ()=>resolve();
+
+    document.body.appendChild(
+      brandingScript
+    );
+
+  });
+
+}
+
+await loadBranding();
+
+if(window.Branding){
+
+  await Branding.load();
+
+}
 
 /* ================= AUTH ================= */
 
