@@ -302,7 +302,10 @@ function renderCardsEditor(){
 
   container.innerHTML = "";
 
-  systemDesign.services.forEach((service,index)=>{
+  const services =
+  systemDesign.services || [];
+
+  services.forEach((service,index)=>{
 
     container.innerHTML += `
 
@@ -311,21 +314,31 @@ function renderCardsEditor(){
       <div class="service-top">
 
         <div class="service-title">
-          ${service.title}
+          ${service.title || ""}
         </div>
 
         <button
-          class="${service.active ? "save-btn" : "disable-btn"}"
+          class="${
+            service.active
+            ? "save-btn"
+            : "disable-btn"
+          }"
           onclick="toggleCard(${index})"
         >
-          ${service.active ? "ACTIVE" : "DISABLED"}
+          ${
+            service.active
+            ? "ACTIVE"
+            : "DISABLED"
+          }
         </button>
 
       </div>
 
       <div class="input-group">
 
-        <label>Service Name</label>
+        <label>
+          Service Name
+        </label>
 
         <input
           type="text"
@@ -337,7 +350,9 @@ function renderCardsEditor(){
 
       <div class="input-group">
 
-        <label>Description</label>
+        <label>
+          Description
+        </label>
 
         <textarea
           id="desc-${index}"
@@ -347,10 +362,15 @@ function renderCardsEditor(){
 
       <div class="input-group">
 
-        <label>Card Image</label>
+        <label>
+          Card Image
+        </label>
 
         <img
-          src="${service.image || "/assets/logo.png"}"
+          src="${
+            service.image ||
+            "/assets/logo.png"
+          }"
           class="preview-image"
           id="preview-${index}"
         >
@@ -360,15 +380,28 @@ function renderCardsEditor(){
           hidden
           accept="image/*"
           id="upload-${index}"
-          onchange="uploadCardImage(${index},this.files[0])"
+          onchange="
+          uploadCardImage(
+            ${index},
+            this.files[0]
+          )
+          "
         >
 
         <button
           class="upload-btn"
           type="button"
-          onclick="document.getElementById('upload-${index}').click()"
+          onclick="
+          document
+          .getElementById(
+            'upload-${index}'
+          )
+          .click()
+          "
         >
+
           Upload Image
+
         </button>
 
       </div>
@@ -377,7 +410,9 @@ function renderCardsEditor(){
         class="save-btn card-save"
         onclick="saveCard(${index})"
       >
+
         Save Card
+
       </button>
 
     </div>
