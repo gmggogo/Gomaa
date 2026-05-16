@@ -33,7 +33,7 @@ body{
   top:0;
   left:0;
   width:100%;
-  z-index:9999;
+  z-index:1000;
 }
 
 /* =========================
@@ -61,7 +61,7 @@ TITLE
 ========================= */
 
 .page-title{
-  font-size:40px;
+  font-size:38px;
   font-weight:900;
   margin-bottom:30px;
 }
@@ -91,7 +91,7 @@ SECTION
 
   font-weight:900;
 
-  margin-bottom:24px;
+  margin-bottom:22px;
 
 }
 
@@ -111,7 +111,7 @@ GRID
 }
 
 /* =========================
-INPUTS
+INPUT GROUP
 ========================= */
 
 .input-group{
@@ -170,11 +170,11 @@ PREVIEW
 
   width:100%;
 
-  height:200px;
+  height:180px;
 
   object-fit:cover;
 
-  border-radius:22px;
+  border-radius:20px;
 
   background:#e2e8f0;
 
@@ -188,6 +188,7 @@ BUTTONS
 
 .upload-btn,
 .save-btn,
+.reset-btn,
 .disable-btn{
 
   border:none;
@@ -214,13 +215,13 @@ BUTTONS
   background:#16a34a;
 }
 
-.disable-btn{
+.reset-btn{
   background:#dc2626;
 }
 
-/* =========================
-BOTTOM BUTTONS
-========================= */
+.disable-btn{
+  background:#64748b;
+}
 
 .bottom-buttons{
 
@@ -228,9 +229,29 @@ BOTTOM BUTTONS
 
   gap:14px;
 
+  margin-top:25px;
+
   flex-wrap:wrap;
 
-  margin-top:24px;
+}
+
+/* =========================
+TOGGLE
+========================= */
+
+.toggle-row{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+  margin-top:10px;
+
+  font-size:14px;
+
+  font-weight:700;
 
 }
 
@@ -243,7 +264,7 @@ CARDS
   display:grid;
 
   grid-template-columns:
-  repeat(auto-fit,minmax(380px,1fr));
+  repeat(auto-fit,minmax(360px,1fr));
 
   gap:24px;
 
@@ -253,9 +274,9 @@ CARDS
 
   border:1px solid #e2e8f0;
 
-  border-radius:28px;
+  border-radius:24px;
 
-  padding:22px;
+  padding:20px;
 
   background:#fff;
 
@@ -269,23 +290,47 @@ CARDS
 
   align-items:center;
 
-  margin-bottom:20px;
+  gap:14px;
+
+  margin-bottom:18px;
 
 }
 
 .service-title{
 
-  font-size:24px;
+  font-size:22px;
 
   font-weight:900;
 
 }
 
 .card-save{
-
   width:100%;
-
   margin-top:18px;
+}
+
+/* =========================
+MOBILE
+========================= */
+
+@media(max-width:768px){
+
+  .page-title{
+    font-size:30px;
+  }
+
+  .section-title{
+    font-size:22px;
+  }
+
+  .cards-grid{
+    grid-template-columns:1fr;
+  }
+
+  .service-top{
+    flex-direction:column;
+    align-items:stretch;
+  }
 
 }
 
@@ -295,15 +340,7 @@ CARDS
 
 <body>
 
-<!-- =========================
-HEADER
-========================= -->
-
 <div id="adminHeader"></div>
-
-<!-- =========================
-PAGE
-========================= -->
 
 <div class="page-body">
 
@@ -312,7 +349,7 @@ PAGE
   </div>
 
   <!-- =========================
-  BRANDING
+       BRANDING
   ========================== -->
 
   <div class="section-box">
@@ -360,12 +397,342 @@ PAGE
 
       </div>
 
+      <!-- MAIN LOGO -->
+
+      <div class="input-group">
+
+        <label>
+          Main Logo
+        </label>
+
+        <img
+          id="mainLogoPreview"
+          class="preview-image"
+        >
+
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          onchange="uploadMainLogo(this)"
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          this.previousElementSibling.click()
+          "
+        >
+          Upload Main Logo
+        </button>
+
+      </div>
+
+      <!-- DRIVER LOGO -->
+
+      <div class="input-group">
+
+        <label>
+          Driver Logo
+        </label>
+
+        <img
+          id="driverLogoPreview"
+          class="preview-image"
+        >
+
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          onchange="uploadDriverLogo(this)"
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          this.previousElementSibling.click()
+          "
+        >
+          Upload Driver Logo
+        </button>
+
+      </div>
+
     </div>
 
   </div>
 
   <!-- =========================
-  SERVICE CARDS
+       HOMEPAGE
+  ========================== -->
+
+  <div class="section-box">
+
+    <div class="section-title">
+      Homepage
+    </div>
+
+    <div class="form-grid">
+
+      <!-- HERO -->
+
+      <div class="input-group">
+
+        <label>
+          Hero Image
+        </label>
+
+        <img
+          id="heroImagePreview"
+          class="preview-image"
+        >
+
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          onchange="uploadHeroImage(this)"
+        >
+
+        <button
+          class="upload-btn"
+          type="button"
+          onclick="
+          this.previousElementSibling.click()
+          "
+        >
+          Upload Hero Image
+        </button>
+
+      </div>
+
+      <!-- ABOUT -->
+
+      <div class="input-group">
+
+        <label>
+          About Title
+        </label>
+
+        <input
+          type="text"
+          id="aboutTitleInput"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          About Text
+        </label>
+
+        <textarea
+          id="aboutTextInput"
+        ></textarea>
+
+      </div>
+
+      <!-- QUOTE -->
+
+      <div class="input-group">
+
+        <label>
+          Quote Title
+        </label>
+
+        <input
+          type="text"
+          id="quoteTitleInput"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Quote Text
+        </label>
+
+        <textarea
+          id="quoteTextInput"
+        ></textarea>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+       EXTRA BOXES
+  ========================== -->
+
+  <div class="section-box">
+
+    <div class="section-title">
+      Extra Boxes
+    </div>
+
+    <div class="form-grid">
+
+      <!-- EXTRA 1 -->
+
+      <div class="input-group">
+
+        <label>
+          Extra Box 1 Title
+        </label>
+
+        <input
+          type="text"
+          id="extra1Title"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Extra Box 1 Text
+        </label>
+
+        <textarea
+          id="extra1Text"
+        ></textarea>
+
+      </div>
+
+      <!-- EXTRA 2 -->
+
+      <div class="input-group">
+
+        <label>
+          Extra Box 2 Title
+        </label>
+
+        <input
+          type="text"
+          id="extra2Title"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Extra Box 2 Text
+        </label>
+
+        <textarea
+          id="extra2Text"
+        ></textarea>
+
+      </div>
+
+    </div>
+
+    <div class="toggle-row">
+
+      <input
+        type="checkbox"
+        id="extra1Active"
+      >
+
+      <label>
+        Show Extra Box 1
+      </label>
+
+    </div>
+
+    <div class="toggle-row">
+
+      <input
+        type="checkbox"
+        id="extra2Active"
+      >
+
+      <label>
+        Show Extra Box 2
+      </label>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+       CONTACT
+  ========================== -->
+
+  <div class="section-box">
+
+    <div class="section-title">
+      Contact & Footer
+    </div>
+
+    <div class="form-grid">
+
+      <div class="input-group">
+
+        <label>
+          Contact Title
+        </label>
+
+        <input
+          type="text"
+          id="contactTitleInput"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Phone Number
+        </label>
+
+        <input
+          type="text"
+          id="contactPhoneInput"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Email Address
+        </label>
+
+        <input
+          type="text"
+          id="contactEmailInput"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Footer Text
+        </label>
+
+        <input
+          type="text"
+          id="footerTextInput"
+        >
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+       SERVICES
   ========================== -->
 
   <div class="section-box">
@@ -382,7 +749,7 @@ PAGE
   </div>
 
   <!-- =========================
-  SAVE
+       BUTTONS
   ========================== -->
 
   <div class="bottom-buttons">
@@ -395,7 +762,7 @@ PAGE
     </button>
 
     <button
-      class="disable-btn"
+      class="reset-btn"
       onclick="resetSystemDesign()"
     >
       Reset
@@ -405,33 +772,17 @@ PAGE
 
 </div>
 
-<!-- =========================
-HEADER ENGINE
-========================= -->
-
 <script src="header.js"></script>
 
 <script>
 
 if(typeof loadHeader === "function"){
-
-  loadHeader(
-    "System Design"
-  );
-
+  loadHeader("System Design");
 }
 
 </script>
 
-<!-- =========================
-BRANDING
-========================= -->
-
 <script src="/core/branding.js"></script>
-
-<!-- =========================
-SYSTEM DESIGN
-========================= -->
 
 <script src="system-design.js"></script>
 
