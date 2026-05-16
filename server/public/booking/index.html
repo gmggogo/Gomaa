@@ -6,7 +6,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-*{box-sizing:border-box}
+
+*{
+  box-sizing:border-box;
+}
 
 body{
   font-family:Arial;
@@ -48,7 +51,9 @@ body{
   color:#fff;
 }
 
-h2{margin-top:0}
+h2{
+  margin-top:0;
+}
 
 label{
   margin-top:12px;
@@ -57,7 +62,8 @@ label{
   font-weight:bold;
 }
 
-input,textarea{
+input,
+textarea{
   width:100%;
   padding:12px;
   margin-top:5px;
@@ -66,14 +72,18 @@ input,textarea{
   font-size:16px;
 }
 
-textarea{min-height:90px}
+textarea{
+  min-height:90px;
+}
 
 .row{
   display:flex;
   gap:10px;
 }
 
-.row div{flex:1}
+.row div{
+  flex:1;
+}
 
 .actions{
   margin-top:20px;
@@ -91,8 +101,15 @@ button{
   font-size:15px;
 }
 
-.recalc{background:#dc2626;color:#fff}
-.confirm{background:#2563eb;color:#fff}
+.recalc{
+  background:#dc2626;
+  color:#fff;
+}
+
+.confirm{
+  background:#2563eb;
+  color:#fff;
+}
 
 .vehicleBox{
   margin-top:5px;
@@ -113,6 +130,7 @@ button{
   text-align:center;
   display:none;
 }
+
 </style>
 </head>
 
@@ -121,65 +139,189 @@ button{
 <div class="box">
 
 <div class="langBox">
-  <button id="enBtn" onclick="setLang('en')">English</button>
-  <button id="esBtn" onclick="setLang('es')">Español</button>
+
+  <button
+    id="enBtn"
+    onclick="setLang('en')">
+
+    English
+
+  </button>
+
+  <button
+    id="esBtn"
+    onclick="setLang('es')">
+
+    Español
+
+  </button>
+
 </div>
 
-<h2 id="title">Confirm Booking</h2>
+<h2 id="title">
 
-<label id="pickupL">Pickup</label>
-<input id="pickup" readonly>
+Confirm Booking
+
+</h2>
+
+<label id="pickupL">
+
+Pickup
+
+</label>
+
+<input
+id="pickup"
+readonly>
 
 <div id="stopsBox"></div>
 
-<label id="dropoffL">Dropoff</label>
-<input id="dropoff" readonly>
+<label id="dropoffL">
+
+Dropoff
+
+</label>
+
+<input
+id="dropoff"
+readonly>
 
 <div class="row">
+
   <div>
-    <label id="distanceL">Distance</label>
-    <input id="miles" readonly>
+
+    <label id="distanceL">
+
+      Distance
+
+    </label>
+
+    <input
+      id="miles"
+      readonly>
+
   </div>
 
   <div>
-    <label id="priceL">Price</label>
-    <input id="price" readonly>
+
+    <label id="priceL">
+
+      Price
+
+    </label>
+
+    <input
+      id="price"
+      readonly>
+
   </div>
+
 </div>
 
-<label id="vehicleL">Service Type</label>
-<div id="vehicleDisplay" class="vehicleBox"></div>
+<label id="vehicleL">
 
-<label>Passenger Name</label>
+Service Type
+
+</label>
+
+<div
+id="vehicleDisplay"
+class="vehicleBox">
+
+</div>
+
+<label>
+
+Passenger Name
+
+</label>
+
 <input id="name">
 
-<label>Phone</label>
+<label>
+
+Phone
+
+</label>
+
 <input id="phone">
 
-<label>Email</label>
-<input id="email" type="email">
+<label>
+
+Email
+
+</label>
+
+<input
+id="email"
+type="email">
 
 <div class="row">
+
   <div>
-    <label>Date</label>
-    <input type="date" id="date">
+
+    <label>
+
+      Date
+
+    </label>
+
+    <input
+      type="date"
+      id="date">
+
   </div>
 
   <div>
-    <label>Time</label>
-    <input type="time" id="time">
+
+    <label>
+
+      Time
+
+    </label>
+
+    <input
+      type="time"
+      id="time">
+
   </div>
+
 </div>
 
-<label>Notes</label>
+<label>
+
+Notes
+
+</label>
+
 <textarea id="notes"></textarea>
 
 <div class="actions">
-  <button class="recalc" onclick="recalculate()">Recalculate</button>
-  <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
+
+  <button
+    class="recalc"
+    onclick="recalculate()">
+
+    Recalculate
+
+  </button>
+
+  <button
+    class="confirm"
+    onclick="confirmBooking()"
+    id="payBtn">
+
+    Pay Now
+
+  </button>
+
 </div>
 
-<div id="resultBox" class="result"></div>
+<div
+id="resultBox"
+class="result">
+
+</div>
 
 </div>
 
@@ -187,39 +329,77 @@ button{
 
 /* ================= LANGUAGE ================= */
 
-let lang="en";
+let lang = "en";
 
 function setLang(l){
-  lang=l;
+
+  lang = l;
+
   applyLang();
+
 }
 
 function applyLang(){
 
-  if(lang==="es"){
+  if(lang === "es"){
 
-    title.innerText="Confirmar Reserva";
-    pickupL.innerText="Origen";
-    dropoffL.innerText="Destino";
-    distanceL.innerText="Distancia";
-    priceL.innerText="Precio";
-    vehicleL.innerText="Servicio";
-    payBtn.innerText="Pagar";
+    title.innerText =
+    "Confirmar Reserva";
 
-  }else{
+    pickupL.innerText =
+    "Origen";
 
-    title.innerText="Confirm Booking";
-    pickupL.innerText="Pickup";
-    dropoffL.innerText="Dropoff";
-    distanceL.innerText="Distance";
-    priceL.innerText="Price";
-    vehicleL.innerText="Service Type";
-    payBtn.innerText="Pay Now";
+    dropoffL.innerText =
+    "Destino";
+
+    distanceL.innerText =
+    "Distancia";
+
+    priceL.innerText =
+    "Precio";
+
+    vehicleL.innerText =
+    "Servicio";
+
+    payBtn.innerText =
+    "Pagar";
 
   }
 
-  enBtn.classList.toggle("active",lang==="en");
-  esBtn.classList.toggle("active",lang==="es");
+  else{
+
+    title.innerText =
+    "Confirm Booking";
+
+    pickupL.innerText =
+    "Pickup";
+
+    dropoffL.innerText =
+    "Dropoff";
+
+    distanceL.innerText =
+    "Distance";
+
+    priceL.innerText =
+    "Price";
+
+    vehicleL.innerText =
+    "Service Type";
+
+    payBtn.innerText =
+    "Pay Now";
+
+  }
+
+  enBtn.classList.toggle(
+    "active",
+    lang === "en"
+  );
+
+  esBtn.classList.toggle(
+    "active",
+    lang === "es"
+  );
 
 }
 
@@ -229,7 +409,9 @@ applyLang();
 
 const tripData =
 JSON.parse(
-  localStorage.getItem("pendingTrip")
+  localStorage.getItem(
+    "pendingTrip"
+  )
 );
 
 if(!tripData){
@@ -241,95 +423,68 @@ if(!tripData){
 
 }
 
-/* ================= SYSTEM SETTINGS ================= */
+/* ================= WARNING SETTINGS ================= */
 
-let systemTimezone =
-localStorage.getItem("systemTimezone") ||
-localStorage.getItem("appTimezone") ||
-"America/Phoenix";
+const tripWarningMinutes =
 
-let tripWarningMinutes =
 Number(
-  localStorage.getItem("tripWarningMinutes")
+
+  localStorage.getItem(
+    "tripWarningMinutes"
+  )
+
 ) || 120;
-
-/* ================= LOAD SYSTEM DESIGN ================= */
-
-async function loadDynamicSettings(){
-
-  try{
-
-    const res =
-    await fetch("/api/system-design");
-
-    const data =
-    await res.json();
-
-    if(data.timezone){
-
-      systemTimezone =
-      data.timezone;
-
-      localStorage.setItem(
-        "systemTimezone",
-        systemTimezone
-      );
-
-    }
-
-    if(data.tripWarningMinutes){
-
-      tripWarningMinutes =
-      Number(data.tripWarningMinutes) || 120;
-
-      localStorage.setItem(
-        "tripWarningMinutes",
-        tripWarningMinutes
-      );
-
-    }
-
-  }catch(err){
-
-    console.log(
-      "System settings load error",
-      err
-    );
-
-  }
-
-}
-
-loadDynamicSettings();
 
 /* ================= FILL ================= */
 
-pickup.value = tripData.pickup || "";
-dropoff.value = tripData.dropoff || "";
-miles.value = tripData.distance || "";
-price.value = tripData.price || "";
+pickup.value =
+tripData.pickup || "";
+
+dropoff.value =
+tripData.dropoff || "";
+
+miles.value =
+tripData.distance || "";
+
+price.value =
+tripData.price || "";
 
 /* ================= SERVICE FIX ================= */
 
 const raw = String(
+
   tripData.serviceKey ||
+
   tripData.vehicleType ||
+
   ""
+
 ).trim().toUpperCase();
 
 const SERVICE_MAP = {
+
   STANDARD:"STANDARD",
+
   WHEELCHAIR:"WHEELCHAIR",
+
   WHEEL:"WHEELCHAIR",
+
   XL:"XL",
+
   TAXI:"TAXI",
+
   LIMO:"LIMO",
+
   LIMOSINE:"LIMO"
+
 };
 
 const serviceKey =
+
 SERVICE_MAP[raw] ||
+
 raw ||
+
 "STANDARD";
 
 vehicleDisplay.innerText =
@@ -340,17 +495,28 @@ serviceKey;
 function renderStops(){
 
   const box =
-  document.getElementById("stopsBox");
+  document.getElementById(
+    "stopsBox"
+  );
 
-  box.innerHTML="";
+  box.innerHTML = "";
 
   if(Array.isArray(tripData.stops)){
 
     tripData.stops.forEach((s,i)=>{
 
       box.innerHTML += `
-        <label>Stop ${i+1}</label>
-        <input value="${s}" readonly>
+
+        <label>
+
+          Stop ${i+1}
+
+        </label>
+
+        <input
+          value="${s}"
+          readonly>
+
       `;
 
     });
@@ -363,23 +529,13 @@ renderStops();
 
 /* ================= TIME ================= */
 
-function getNowInTimezone(){
-
-  return new Date(
-    new Date().toLocaleString(
-      "en-US",
-      {
-        timeZone:systemTimezone
-      }
-    )
-  );
-
-}
-
-function minutesUntilTrip(date,time){
+function minutesUntilTrip(
+  date,
+  time
+){
 
   const now =
-  getNowInTimezone();
+  new Date();
 
   const trip =
   new Date(
@@ -389,32 +545,6 @@ function minutesUntilTrip(date,time){
   return (
     trip - now
   ) / 60000;
-
-}
-
-function warningTimeText(minutes){
-
-  const m =
-  Number(minutes) || 120;
-
-  if(m < 60){
-
-    return `${m} minutes`;
-
-  }
-
-  const hours =
-  m / 60;
-
-  if(Number.isInteger(hours)){
-
-    return hours === 1
-    ? "1 hour"
-    : `${hours} hours`;
-
-  }
-
-  return `${hours.toFixed(1)} hours`;
 
 }
 
@@ -435,65 +565,119 @@ function recalculate(){
 
 async function confirmBooking(){
 
-  await loadDynamicSettings();
-
   const btn =
-  document.getElementById("payBtn");
+  document.getElementById(
+    "payBtn"
+  );
 
-  btn.disabled=true;
+  btn.disabled = true;
 
   const name =
-  document.getElementById("name").value.trim();
+  document.getElementById(
+    "name"
+  ).value.trim();
 
   const phone =
-  document.getElementById("phone").value.trim();
+  document.getElementById(
+    "phone"
+  ).value.trim();
 
   const email =
-  document.getElementById("email").value.trim();
+  document.getElementById(
+    "email"
+  ).value.trim();
 
   const date =
-  document.getElementById("date").value;
+  document.getElementById(
+    "date"
+  ).value;
 
   const time =
-  document.getElementById("time").value;
+  document.getElementById(
+    "time"
+  ).value;
 
   const notes =
-  document.getElementById("notes").value;
+  document.getElementById(
+    "notes"
+  ).value;
 
-  if(!name || !phone || !email || !date || !time){
+  if(
+    !name ||
+    !phone ||
+    !email ||
+    !date ||
+    !time
+  ){
 
     alert("Fill all fields");
 
-    btn.disabled=false;
+    btn.disabled = false;
 
     return;
 
   }
 
-  const cleanPrice =
-  Number(
-    String(tripData.price)
-    .replace(/[^0-9.]/g,"")
+  const cleanPrice = Number(
+
+    String(
+      tripData.price
+    ).replace(
+      /[^0-9.]/g,
+      ""
+    )
+
   );
 
   const mins =
-  minutesUntilTrip(date,time);
+  minutesUntilTrip(
+    date,
+    time
+  );
+
+  /* ================= WARNING ================= */
 
   if(mins <= tripWarningMinutes){
 
-    const warningText =
-    warningTimeText(
-      tripWarningMinutes
-    );
+    let warningText = "";
 
-    const ok =
-    confirm(
-      `WARNING:\n\nThis trip is within ${warningText}.\nCancellation fee may apply.\n\nDo you want to continue?`
+    if(tripWarningMinutes < 60){
+
+      warningText =
+      `${tripWarningMinutes} minutes`;
+
+    }
+
+    else{
+
+      const hrs =
+      tripWarningMinutes / 60;
+
+      warningText =
+
+      hrs % 1 === 0
+
+      ? `${hrs} hour(s)`
+
+      : `${hrs.toFixed(1)} hour(s)`;
+
+    }
+
+    const ok = confirm(
+
+`WARNING:
+
+This trip is within ${warningText}.
+
+Cancellation fee may apply.
+
+Do you want to continue?`
+
     );
 
     if(!ok){
 
-      btn.disabled=false;
+      btn.disabled = false;
 
       return;
 
@@ -505,29 +689,41 @@ async function confirmBooking(){
 
     type:"individual",
 
-    pickup:tripData.pickup,
+    pickup:
+    tripData.pickup,
 
-    dropoff:tripData.dropoff,
+    dropoff:
+    tripData.dropoff,
 
-    stops:tripData.stops || [],
+    stops:
+    tripData.stops || [],
 
-    priceAmount:cleanPrice,
+    priceAmount:
+    cleanPrice,
 
-    clientName:name,
+    clientName:
+    name,
 
-    clientPhone:phone,
+    clientPhone:
+    phone,
 
-    clientEmail:email,
+    clientEmail:
+    email,
 
-    serviceKey:serviceKey,
+    serviceKey:
+    serviceKey,
 
-    vehicleTypeFromQuote:serviceKey,
+    vehicleTypeFromQuote:
+    serviceKey,
 
-    tripDate:date,
+    tripDate:
+    date,
 
-    tripTime:time,
+    tripTime:
+    time,
 
-    notes:notes
+    notes:
+    notes
 
   };
 
@@ -537,11 +733,18 @@ async function confirmBooking(){
     await fetch(
       "/api/trips",
       {
+
         method:"POST",
+
         headers:{
-          "Content-Type":"application/json"
+          "Content-Type":
+          "application/json"
         },
-        body:JSON.stringify(data)
+
+        body:JSON.stringify(
+          data
+        )
+
       }
     );
 
@@ -553,14 +756,20 @@ async function confirmBooking(){
       trip
     );
 
-    if(!trip || !trip._id){
+    if(
+      !trip ||
+      !trip._id
+    ){
 
       alert(
+
         trip.message ||
+
         "Trip create failed"
+
       );
 
-      btn.disabled=false;
+      btn.disabled = false;
 
       return;
 
@@ -570,24 +779,32 @@ async function confirmBooking(){
     "block";
 
     resultBox.innerHTML = `
-      Trip Created Successfully<br><br>
-      Trip #: <b>${trip.tripNumber}</b>
+
+      Trip Created Successfully
+      <br><br>
+
+      Trip #:
+      <b>${trip.tripNumber}</b>
+
     `;
 
     setTimeout(()=>{
 
       location.href =
-      `/booking/payment.html?tripId=${trip._id}`;
+
+      \`/booking/payment.html?tripId=\${trip._id}\`;
 
     },1500);
 
-  }catch(err){
+  }
+
+  catch(err){
 
     console.log(err);
 
     alert("Server error");
 
-    btn.disabled=false;
+    btn.disabled = false;
 
   }
 
