@@ -4,68 +4,27 @@ const router = express.Router();
 
 const multer = require("multer");
 
-const path = require("path");
-
-const fs = require("fs");
-
 const SystemDesign =
 require("../models/SystemDesign");
 
 /* =========================
-UPLOAD FOLDER
-========================= */
-
-const uploadPath =
-path.join(
-  __dirname,
-  "../public/assets/uploads"
-);
-
-if(!fs.existsSync(uploadPath)){
-
-  fs.mkdirSync(
-    uploadPath,
-    { recursive:true }
-  );
-
-}
-
-/* =========================
-MULTER
+MULTER MEMORY STORAGE
 ========================= */
 
 const storage =
-multer.diskStorage({
+multer.memoryStorage();
 
-  destination:
-  function(req,file,cb){
+const upload =
+multer({
 
-    cb(null,uploadPath);
+  storage,
 
-  },
-
-  filename:
-  function(req,file,cb){
-
-    const unique =
-    Date.now() +
-    "-" +
-    Math.round(
-      Math.random()*1e9
-    );
-
-    cb(
-      null,
-      unique +
-      path.extname(file.originalname)
-    );
-
+  limits:{
+    fileSize:
+    10 * 1024 * 1024
   }
 
 });
-
-const upload =
-multer({ storage });
 
 /* =========================
 GET SYSTEM DESIGN
@@ -82,8 +41,10 @@ router.get("/", async(req,res)=>{
 
       design =
       await SystemDesign.create({
+
         companyName:
         "Sunbeam Transportation"
+
       });
 
     }
@@ -128,8 +89,11 @@ router.post("/", async(req,res)=>{
     await design.save();
 
     res.json({
+
       success:true,
+
       design
+
     });
 
   }catch(err){
@@ -165,16 +129,21 @@ async(req,res)=>{
 
     }
 
-    const imageUrl =
+    /* =========================
+    BASE64 IMAGE
+    ========================= */
 
-    "/assets/uploads/" +
-    req.file.filename;
+    const base64 =
+
+    `data:${req.file.mimetype};base64,${
+      req.file.buffer.toString("base64")
+    }`;
 
     res.json({
 
       success:true,
 
-      image:imageUrl
+      image:base64
 
     });
 
