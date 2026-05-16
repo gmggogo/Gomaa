@@ -291,35 +291,66 @@ function loadFormValues(){
 UPLOAD MAIN IMAGES
 ========================= */
 
-async function uploadMainImage(input,key,previewId){
+async function uploadMainImage(
+  input,
+  key,
+  previewId
+){
 
   const file =
   input.files[0];
 
   if(!file) return;
 
-  const base64 =
-  await fileToBase64(file);
+  try{
 
-  systemDesign[key] = base64;
+    const formData =
+    new FormData();
 
-  setImage(previewId,base64);
+    formData.append(
+      "image",
+      file
+    );
 
-  saveStorage();
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign[key] =
+    data.image;
+
+    setImage(
+      previewId,
+      data.image
+    );
+
+    await saveSystemDesign();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
 
 }
-
-window.uploadMainLogo = function(input){
-  uploadMainImage(input,"mainLogo","mainLogoPreview");
-};
-
-window.uploadDriverLogo = function(input){
-  uploadMainImage(input,"driverLogo","driverLogoPreview");
-};
-
-window.uploadHeroImage = function(input){
-  uploadMainImage(input,"heroImage","heroImagePreview");
-};
 
 /* =========================
 RENDER SERVICE CARDS
@@ -476,15 +507,50 @@ async function(index,file){
 
   if(!file) return;
 
-  const base64 =
-  await fileToBase64(file);
+  try{
 
-  systemDesign.services[index].image =
-  base64;
+    const formData =
+    new FormData();
 
-  saveStorage();
+    formData.append(
+      "image",
+      file
+    );
 
-  renderCardsEditor();
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign.services[index].image =
+    data.image;
+
+    await saveSystemDesign();
+
+    renderCardsEditor();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
 
 };
 
