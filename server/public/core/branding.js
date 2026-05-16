@@ -1,6 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
+// SERVER VERSION
 // =========================
 
 console.log(
@@ -16,28 +17,23 @@ window.Branding = {
   data:{},
 
   /* =========================
-  LOAD
+  LOAD FROM SERVER
   ========================= */
 
   async load(){
 
     try{
 
-      const raw =
-      localStorage.getItem(
-        "ghSystemDesign"
+      const res =
+      await fetch(
+        "/api/system-design"
       );
 
-      if(raw){
+      const data =
+      await res.json();
 
-        this.data =
-        JSON.parse(raw);
-
-      }else{
-
-        this.data = {};
-
-      }
+      this.data =
+      data || {};
 
     }catch(err){
 
@@ -53,23 +49,6 @@ window.Branding = {
     this.applyGlobalBranding();
 
     return this.data;
-
-  },
-
-  /* =========================
-  SAVE
-  ========================= */
-
-  save(data){
-
-    this.data = data || {};
-
-    localStorage.setItem(
-      "ghSystemDesign",
-      JSON.stringify(this.data)
-    );
-
-    this.applyGlobalBranding();
 
   },
 
@@ -295,13 +274,17 @@ window.Branding = {
     container.innerHTML = "";
 
     /* =========================
-    NO SERVICES
+    ACTIVE SERVICES
     ========================= */
 
     const activeServices =
     services.filter(
       s => s.active
     );
+
+    /* =========================
+    NO SERVICES
+    ========================= */
 
     if(!activeServices.length){
 
@@ -310,7 +293,7 @@ window.Branding = {
       <div style="
       width:100%;
       text-align:center;
-      padding:50px;
+      padding:50px 20px;
       font-size:24px;
       color:#64748b;
       ">
@@ -339,6 +322,11 @@ window.Branding = {
 
       service.description || "";
 
+      const image =
+
+      service.image ||
+      "/assets/logo.png";
+
       const buttonText =
 
       lang === "es"
@@ -352,7 +340,7 @@ window.Branding = {
       <div class="card">
 
         <img
-        src="${service.image}"
+        src="${image}"
         class="card-image">
 
         <div class="card-body">
