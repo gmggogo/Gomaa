@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* =========================
-     LOAD LOGO
+     🔥 LOAD LOGO ONLY
   ========================= */
 
   setTimeout(async ()=>{
@@ -58,21 +58,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   },200);
 
   /* =========================
-     DYNAMIC ADMIN NAME
+     DYNAMIC COMPANY NAME
   ========================= */
 
-  const adminEl =
+  const companyEl =
     document.getElementById(
-      "dynamicAdminName"
+      "dynamicCompanyName"
     );
 
-  if(adminEl){
+  if (companyEl) {
 
-    adminEl.innerText =
+    companyEl.innerText =
 
-      localStorage.getItem("name") ||
+      localStorage.getItem(
+        "companyName"
+      ) ||
 
-      "Admin";
+      localStorage.getItem(
+        "name"
+      ) ||
+
+      "Company";
 
   }
 
@@ -96,27 +102,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const now = new Date();
 
-    const date = now.toLocaleDateString(
-      "en-US",
-      {
-        timeZone: timezone,
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-      }
-    );
+    const date =
+      now.toLocaleDateString(
+        "en-US",
+        {
+          timeZone: timezone,
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        }
+      );
 
-    const time = now.toLocaleTimeString(
-      "en-US",
-      {
-        timeZone: timezone,
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true
-      }
-    );
+    const time =
+      now.toLocaleTimeString(
+        "en-US",
+        {
+          timeZone: timezone,
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true
+        }
+      );
 
     const el =
       document.getElementById(
