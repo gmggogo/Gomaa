@@ -344,6 +344,22 @@ startClock("datetime");
 
 </script>
 
+<script>
+
+window.addEventListener(
+"DOMContentLoaded",
+async ()=>{
+
+  if(window.Branding){
+
+    await Branding.load();
+
+  }
+
+});
+
+</script>
+
 <script src="/companies/company-login.js"></script>
 
 </body>
