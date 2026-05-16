@@ -4,65 +4,15 @@ const router = express.Router();
 
 const multer = require("multer");
 
-const path = require("path");
-
-const fs = require("fs");
-
 const SystemDesign =
 require("../models/SystemDesign");
 
 /* =========================
-UPLOAD FOLDER
-========================= */
-
-const uploadPath =
-path.join(
-  __dirname,
-  "../public/assets/uploads"
-);
-
-if(!fs.existsSync(uploadPath)){
-
-  fs.mkdirSync(
-    uploadPath,
-    { recursive:true }
-  );
-
-}
-
-/* =========================
-MULTER
+MULTER MEMORY STORAGE
 ========================= */
 
 const storage =
-multer.diskStorage({
-
-  destination:
-  function(req,file,cb){
-
-    cb(null,uploadPath);
-
-  },
-
-  filename:
-  function(req,file,cb){
-
-    const unique =
-    Date.now() +
-    "-" +
-    Math.round(
-      Math.random()*1e9
-    );
-
-    cb(
-      null,
-      unique +
-      path.extname(file.originalname)
-    );
-
-  }
-
-});
+multer.memoryStorage();
 
 const upload =
 multer({
@@ -174,16 +124,17 @@ async(req,res)=>{
 
     }
 
-    const imageUrl =
+    const image =
 
-    "/assets/uploads/" +
-    req.file.filename;
+    `data:${req.file.mimetype};base64,${
+      req.file.buffer.toString("base64")
+    }`;
 
     res.json({
 
       success:true,
 
-      image:imageUrl
+      image
 
     });
 
