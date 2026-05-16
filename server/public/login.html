@@ -287,6 +287,22 @@ startClock("azTime");
 
 </script>
 
+<script>
+
+window.addEventListener(
+"DOMContentLoaded",
+async ()=>{
+
+  if(window.Branding){
+
+    await Branding.load();
+
+  }
+
+});
+
+</script>
+
 <script src="login.js"></script>
 
 </body>
