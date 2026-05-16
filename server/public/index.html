@@ -30,6 +30,10 @@ GLOBAL
     box-sizing:border-box;
 }
 
+html{
+    scroll-behavior:smooth;
+}
+
 body{
 
     font-family:
@@ -204,9 +208,34 @@ HERO
 
 }
 
+.hero-inner::after{
+
+    content:"";
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+    linear-gradient(
+    to top,
+    rgba(0,0,0,.45),
+    rgba(0,0,0,.05)
+    );
+
+    border-radius:28px;
+
+    pointer-events:none;
+
+}
+
 .hero-image{
 
     width:100%;
+
+    height:520px;
+
+    object-fit:cover;
 
     display:block;
 
@@ -225,6 +254,8 @@ POWERED
     left:26px;
 
     bottom:26px;
+
+    z-index:5;
 
     background:rgba(0,0,0,.75);
 
@@ -352,7 +383,9 @@ CARD
 
 .card{
 
-    width:320px;
+    width:340px;
+
+    max-width:100%;
 
     background:#fff;
 
@@ -361,9 +394,11 @@ CARD
     overflow:hidden;
 
     box-shadow:
-    0 10px 30px rgba(0,0,0,.10);
+    0 8px 24px rgba(15,23,42,.08);
 
     transition:.25s;
+
+    flex-shrink:0;
 
     display:flex;
 
@@ -389,9 +424,15 @@ CARD
 
     object-fit:cover;
 
-    display:block;
-
     background:#e2e8f0;
+
+    transition:.35s;
+
+}
+
+.card:hover .card-image{
+
+    transform:scale(1.04);
 
 }
 
@@ -418,6 +459,8 @@ CARD
     color:#111827;
 
     font-weight:800;
+
+    line-height:1.2;
 
 }
 
@@ -459,7 +502,12 @@ CARD
 
     font-weight:800;
 
+    letter-spacing:.3px;
+
     transition:.2s;
+
+    box-shadow:
+    0 8px 20px rgba(37,99,235,.25);
 
 }
 
@@ -479,10 +527,13 @@ EXTRA
 
     padding:20px 20px 80px;
 
-    display:grid;
+    display:flex;
 
-    grid-template-columns:
-    repeat(auto-fit,minmax(420px,1fr));
+    flex-wrap:wrap;
+
+    justify-content:center;
+
+    align-items:stretch;
 
     gap:28px;
 
@@ -493,6 +544,10 @@ EXTRA
 }
 
 .extra-box{
+
+    width:100%;
+
+    max-width:700px;
 
     background:#fff;
 
@@ -641,7 +696,15 @@ MOBILE
 
     }
 
+    .hero-inner::after{
+
+        border-radius:0;
+
+    }
+
     .hero-image{
+
+        height:340px;
 
         border-radius:0;
 
@@ -703,7 +766,11 @@ MOBILE
 
         padding:20px 14px 50px;
 
-        justify-content:center;
+        display:flex;
+
+        flex-direction:column;
+
+        align-items:center;
 
         gap:22px;
 
@@ -712,8 +779,6 @@ MOBILE
     .card{
 
         width:100%;
-
-        max-width:420px;
 
         border-radius:22px;
 
@@ -755,13 +820,19 @@ MOBILE
 
         padding:14px;
 
-        grid-template-columns:1fr;
+        flex-direction:column;
+
+        align-items:center;
 
         gap:18px;
 
     }
 
     .extra-box{
+
+        width:100%;
+
+        max-width:100%;
 
         padding:28px;
 
@@ -808,4 +879,435 @@ MOBILE
 </style>
 
 </head>
+
 <body>
+
+<div class="top-bar">
+
+    <div class="top-links">
+
+        <a
+        href="companies/company-login.html"
+        class="facility-login">
+
+            Facility Login
+
+        </a>
+
+        <a
+        href="login.html"
+        class="staff-login">
+
+            Staff Login
+
+        </a>
+
+    </div>
+
+    <div class="lang-right">
+
+        <button
+        id="lang-en"
+        class="lang-btn active-lang"
+        onclick="setLang('en')">
+
+            English
+
+        </button>
+
+        <button
+        id="lang-es"
+        class="lang-btn"
+        onclick="setLang('es')">
+
+            Spanish
+
+        </button>
+
+    </div>
+
+</div>
+
+<section class="hero">
+
+    <div class="hero-inner">
+
+        <img
+        class="hero-image"
+        src="/assets/hero.jpeg"
+        alt="Hero">
+
+        <div class="powered-box">
+
+            Powered by GH Mobility
+
+        </div>
+
+    </div>
+
+</section>
+
+<section class="about">
+
+    <h2 id="aboutTitle">
+        Professional Transportation Across Arizona
+    </h2>
+
+    <p id="aboutText">
+        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
+    </p>
+
+</section>
+
+<section class="quote-header">
+
+    <h2 id="quoteTitle">
+        Book Your Ride Today
+    </h2>
+
+    <p id="quoteText">
+        Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
+    </p>
+
+</section>
+
+<section
+class="services"
+id="servicesContainer">
+</section>
+
+<section
+class="extra-sections"
+id="extraSections">
+
+    <div
+    class="extra-box"
+    id="extraBox1">
+
+        <h3 id="extra1TitleView">
+            Why Choose Sunbeam?
+        </h3>
+
+        <p id="extra1TextView">
+            Professional Drivers
+        </p>
+
+    </div>
+
+    <div
+    class="extra-box"
+    id="extraBox2">
+
+        <h3 id="extra2TitleView">
+            Serving All Arizona
+        </h3>
+
+        <p id="extra2TextView">
+            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
+        </p>
+
+    </div>
+
+</section>
+
+<div class="contact-section">
+
+    <strong id="contactTitleView">
+        Customer Support
+    </strong>
+
+    <br><br>
+
+    📞
+    <span id="contactPhoneView">
+        619-509-7197
+    </span>
+
+    <br>
+
+    📧
+    <span id="contactEmailView">
+        admin@sunbeamtransportationllc.com
+    </span>
+
+</div>
+
+<footer id="footerView">
+
+    ©️ Sunbeam Transportation
+
+</footer>
+
+<script src="/core/branding.js"></script>
+
+<script>
+
+let currentLang = "en";
+
+/* =========================
+SAFE TEXT
+========================= */
+
+function setText(id,value,fallback){
+
+    const el =
+    document.getElementById(id);
+
+    if(!el){
+        return;
+    }
+
+    el.innerText =
+    value ||
+    fallback ||
+    "";
+
+}
+
+function setHTML(id,value,fallback){
+
+    const el =
+    document.getElementById(id);
+
+    if(!el){
+        return;
+    }
+
+    el.innerHTML =
+    value ||
+    fallback ||
+    "";
+
+}
+
+/* =========================
+LANG SWITCH
+========================= */
+
+window.setLang = function(lang){
+
+    currentLang = lang;
+
+    document
+    .querySelectorAll(".lang-btn")
+    .forEach(btn=>{
+
+        btn.classList.remove(
+            "active-lang"
+        );
+
+    });
+
+    if(lang === "en"){
+
+        document
+        .getElementById("lang-en")
+        .classList.add(
+            "active-lang"
+        );
+
+    }
+
+    if(lang === "es"){
+
+        document
+        .getElementById("lang-es")
+        .classList.add(
+            "active-lang"
+        );
+
+    }
+
+    if(
+        window.Branding &&
+        typeof Branding.renderHomepageCards === "function"
+    ){
+
+        Branding.renderHomepageCards(
+            "servicesContainer",
+            currentLang
+        );
+
+    }
+
+};
+
+/* =========================
+LOAD PAGE
+========================= */
+
+window.addEventListener(
+"DOMContentLoaded",
+async ()=>{
+
+    try{
+
+        if(
+            window.Branding &&
+            typeof Branding.load === "function"
+        ){
+
+            await Branding.load();
+
+        }
+
+    }catch(err){
+
+        console.error(
+            "Branding load error:",
+            err
+        );
+
+    }
+
+    const data =
+    (
+        window.Branding &&
+        Branding.data
+    )
+    ? Branding.data
+    : {};
+
+    console.log(
+        "BRANDING DATA:",
+        data
+    );
+
+    /* ABOUT */
+
+    setText(
+        "aboutTitle",
+        data.aboutTitle,
+        "Professional Transportation Across Arizona"
+    );
+
+    setText(
+        "aboutText",
+        data.aboutText,
+        "Sunbeam Transportation provides safe transportation services."
+    );
+
+    /* QUOTE */
+
+    setText(
+        "quoteTitle",
+        data.quoteTitle,
+        "Book Your Ride Today"
+    );
+
+    setText(
+        "quoteText",
+        data.quoteText,
+        "Professional transportation across Arizona."
+    );
+
+    /* EXTRA 1 */
+
+    setText(
+        "extra1TitleView",
+        data.extra1Title,
+        "Why Choose Sunbeam?"
+    );
+
+    setHTML(
+        "extra1TextView",
+        data.extra1Text,
+        "Professional Drivers"
+    );
+
+    document.getElementById(
+        "extraBox1"
+    ).style.display =
+
+    data.extra1Active === false
+    ? "none"
+    : "block";
+
+    /* EXTRA 2 */
+
+    setText(
+        "extra2TitleView",
+        data.extra2Title,
+        "Serving All Arizona"
+    );
+
+    setHTML(
+        "extra2TextView",
+        data.extra2Text,
+        "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas."
+    );
+
+    document.getElementById(
+        "extraBox2"
+    ).style.display =
+
+    data.extra2Active === false
+    ? "none"
+    : "block";
+
+    /* EXTRA SECTION SAFETY */
+
+    const box1Visible =
+    document.getElementById("extraBox1").style.display !== "none";
+
+    const box2Visible =
+    document.getElementById("extraBox2").style.display !== "none";
+
+    document.getElementById(
+        "extraSections"
+    ).style.display =
+
+    (box1Visible || box2Visible)
+    ? "flex"
+    : "none";
+
+    /* CONTACT */
+
+    setText(
+        "contactTitleView",
+        data.contactTitle,
+        "Customer Support"
+    );
+
+    setText(
+        "contactPhoneView",
+        data.contactPhone,
+        "619-509-7197"
+    );
+
+    setText(
+        "contactEmailView",
+        data.contactEmail,
+        "admin@sunbeamtransportationllc.com"
+    );
+
+    /* FOOTER */
+
+    setText(
+        "footerView",
+        data.footerText,
+        "©️ Sunbeam Transportation"
+    );
+
+    /* SERVICES */
+
+    if(
+        window.Branding &&
+        typeof Branding.renderHomepageCards === "function"
+    ){
+
+        Branding.renderHomepageCards(
+            "servicesContainer",
+            currentLang
+        );
+
+    }
+
+    setLang("en");
+
+});
+
+</script>
+
+</body>
+</html>
