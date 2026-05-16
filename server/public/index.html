@@ -12,8 +12,11 @@ Sunbeam Transportation
 name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<link rel="icon" href="assets/app-icon.png">
-<link rel="apple-touch-icon" href="assets/app-icon.png">
+<link rel="icon"
+href="assets/app-icon.png">
+
+<link rel="apple-touch-icon"
+href="assets/app-icon.png">
 
 <style>
 
@@ -331,18 +334,15 @@ SERVICES
 
     padding:40px 20px 80px;
 
-    display:grid;
+    display:flex;
 
-    grid-template-columns:
-    repeat(auto-fit,minmax(280px,1fr));
+    flex-wrap:wrap;
 
-    gap:28px;
+    justify-content:center;
 
     align-items:stretch;
 
-    min-height:auto;
-
-    overflow:visible;
+    gap:28px;
 
 }
 
@@ -352,7 +352,7 @@ CARD
 
 .card{
 
-    width:100%;
+    width:320px;
 
     background:#fff;
 
@@ -389,6 +389,8 @@ CARD
 
     object-fit:cover;
 
+    display:block;
+
     background:#e2e8f0;
 
 }
@@ -399,11 +401,11 @@ CARD
 
     text-align:center;
 
-    flex:1;
-
     display:flex;
 
     flex-direction:column;
+
+    flex:1;
 
 }
 
@@ -487,12 +489,6 @@ EXTRA
     max-width:1500px;
 
     margin:auto;
-
-    clear:both;
-
-    position:relative;
-
-    z-index:1;
 
 }
 
@@ -707,13 +703,17 @@ MOBILE
 
         padding:20px 14px 50px;
 
-        grid-template-columns:1fr;
+        justify-content:center;
 
         gap:22px;
 
     }
 
     .card{
+
+        width:100%;
+
+        max-width:420px;
 
         border-radius:22px;
 
@@ -808,326 +808,4 @@ MOBILE
 </style>
 
 </head>
-
 <body>
-
-<div class="top-bar">
-
-    <div class="top-links">
-
-        <a
-        href="companies/company-login.html"
-        class="facility-login">
-
-            Facility Login
-
-        </a>
-
-        <a
-        href="login.html"
-        class="staff-login">
-
-            Staff Login
-
-        </a>
-
-    </div>
-
-    <div class="lang-right">
-
-        <button
-        id="lang-en"
-        class="lang-btn active-lang">
-
-            English
-
-        </button>
-
-        <button
-        id="lang-es"
-        class="lang-btn">
-
-            Spanish
-
-        </button>
-
-    </div>
-
-</div>
-
-<section class="hero">
-
-    <div class="hero-inner">
-
-        <img
-        class="hero-image"
-        src="/assets/hero.jpeg"
-        alt="Hero">
-
-        <div class="powered-box">
-
-            Powered by GH Mobility
-
-        </div>
-
-    </div>
-
-</section>
-
-<section class="about">
-
-    <h2>
-        Professional Transportation Across Arizona
-    </h2>
-
-    <p>
-        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
-    </p>
-
-</section>
-
-<section class="quote-header">
-
-    <h2>
-        Book Your Ride Today
-    </h2>
-
-    <p>
-        Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
-    </p>
-
-</section>
-
-<section class="services">
-
-    <!-- CARD 1 -->
-    <div class="card">
-
-        <img
-        class="card-image"
-        src="/assets/standard.jpeg">
-
-        <div class="card-body">
-
-            <h3>
-                Standard
-            </h3>
-
-            <p>
-                Standard transportation service.
-            </p>
-
-            <a
-            href="/getquote/index.html"
-            class="card-btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
-
-    </div>
-
-    <!-- CARD 2 -->
-    <div class="card">
-
-        <img
-        class="card-image"
-        src="/assets/xl.jpeg">
-
-        <div class="card-body">
-
-            <h3>
-                XL
-            </h3>
-
-            <p>
-                Large vehicle transportation.
-            </p>
-
-            <a
-            href="/getquote/index.html"
-            class="card-btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
-
-    </div>
-
-    <!-- CARD 3 -->
-    <div class="card">
-
-        <img
-        class="card-image"
-        src="/assets/wheelchair.jpeg">
-
-        <div class="card-body">
-
-            <h3>
-                Wheelchair
-            </h3>
-
-            <p>
-                Wheelchair accessible rides.
-            </p>
-
-            <a
-            href="/getquote/index.html"
-            class="card-btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
-
-    </div>
-
-    <!-- CARD 4 -->
-    <div class="card">
-
-        <img
-        class="card-image"
-        src="/assets/shared.jpeg">
-
-        <div class="card-body">
-
-            <h3>
-                Shared Ride
-            </h3>
-
-            <p>
-                Affordable shared rides.
-            </p>
-
-            <a
-            href="/getquote/index.html"
-            class="card-btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
-
-    </div>
-
-    <!-- CARD 5 -->
-    <div class="card">
-
-        <img
-        class="card-image"
-        src="/assets/taxi.jpeg">
-
-        <div class="card-body">
-
-            <h3>
-                Taxi
-            </h3>
-
-            <p>
-                Fast city transportation service.
-            </p>
-
-            <a
-            href="/getquote/index.html"
-            class="card-btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
-
-    </div>
-
-    <!-- CARD 6 -->
-    <div class="card">
-
-        <img
-        class="card-image"
-        src="/assets/limo.jpeg">
-
-        <div class="card-body">
-
-            <h3>
-                Limo
-            </h3>
-
-            <p>
-                Luxury transportation experience.
-            </p>
-
-            <a
-            href="/getquote/index.html"
-            class="card-btn">
-
-                Get Quote
-
-            </a>
-
-        </div>
-
-    </div>
-
-</section>
-
-<section class="extra-sections">
-
-    <div class="extra-box">
-
-        <h3>
-            Why Choose Sunbeam?
-        </h3>
-
-        <p>
-            Professional Drivers<br>
-            Clean Vehicles<br>
-            Reliable Service<br>
-            Safe Transportation
-        </p>
-
-    </div>
-
-    <div class="extra-box">
-
-        <h3>
-            Serving All Arizona
-        </h3>
-
-        <p>
-            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
-        </p>
-
-    </div>
-
-</section>
-
-<div class="contact-section">
-
-    <strong>
-        Customer Support
-    </strong>
-
-    <br><br>
-
-    📞 619-509-7197
-
-    <br>
-
-    📧 admin@sunbeamtransportationllc.com
-
-</div>
-
-<footer>
-
-    ©️ Sunbeam Transportation
-
-</footer>
-
-</body>
-</html>
