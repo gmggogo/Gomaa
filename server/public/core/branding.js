@@ -1,7 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
-// SERVER VERSION
+// FINAL SERVER VERSION
 // =========================
 
 console.log(
@@ -176,7 +176,7 @@ window.Branding = {
   applyGlobalBranding(){
 
     /* =========================
-    TITLE
+    PAGE TITLE
     ========================= */
 
     document.title =
@@ -241,6 +241,77 @@ window.Branding = {
       this.getHeroImage();
 
     });
+
+    /* =========================
+    TEXT CONTENT
+    ========================= */
+
+    const setText = (
+      id,
+      value
+    )=>{
+
+      const el =
+      document.getElementById(id);
+
+      if(el){
+
+        el.innerText =
+        value || "";
+
+      }
+
+    };
+
+    setText(
+      "aboutTitle",
+      this.data?.aboutTitle
+    );
+
+    setText(
+      "aboutText",
+      this.data?.aboutText
+    );
+
+    setText(
+      "quoteTitle",
+      this.data?.quoteTitle
+    );
+
+    setText(
+      "quoteText",
+      this.data?.quoteText
+    );
+
+    setText(
+      "extra1Title",
+      this.data?.extra1Title
+    );
+
+    setText(
+      "extra1Text",
+      this.data?.extra1Text
+    );
+
+    setText(
+      "extra2Title",
+      this.data?.extra2Title
+    );
+
+    setText(
+      "extra2Text",
+      this.data?.extra2Text
+    );
+
+    setText(
+      "contactTitle",
+      this.data?.contactTitle
+    );
+
+    setText(
+      "footerText",
+      this.data?.footerText
+    );
 
   },
 
