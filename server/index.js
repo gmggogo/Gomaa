@@ -30,6 +30,8 @@ app.use(
   "/api/pricing",
   pricingRoutes
 );
+
+
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
   port: 465,
@@ -112,6 +114,12 @@ app.use(
   "/api/services",
   serviceRoutes
 );
+
+app.use(
+  "/api/system-design",
+  require("./routes/system-design")
+);
+
 /* =========================
    PUBLIC CONFIG - GOOGLE KEY
 ========================= */
