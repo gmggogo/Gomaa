@@ -341,13 +341,13 @@ SERVICES
     display:grid;
 
     grid-template-columns:
-    repeat(3,1fr);
+    repeat(3,340px);
+
+    justify-content:center;
 
     gap:28px;
 
     align-items:start;
-
-    justify-items:center;
 
 }
 
@@ -360,15 +360,7 @@ SMART LAYOUTS
 .services.layout-1{
 
     grid-template-columns:
-    repeat(3,340px);
-
-    justify-content:center;
-
-}
-
-.services.layout-1 .card{
-
-    grid-column:2;
+    340px;
 
 }
 
@@ -377,21 +369,7 @@ SMART LAYOUTS
 .services.layout-2{
 
     grid-template-columns:
-    repeat(4,340px);
-
-    justify-content:center;
-
-}
-
-.services.layout-2 .card:nth-child(1){
-
-    grid-column:2;
-
-}
-
-.services.layout-2 .card:nth-child(2){
-
-    grid-column:3;
+    repeat(2,340px);
 
 }
 
@@ -402,8 +380,6 @@ SMART LAYOUTS
     grid-template-columns:
     repeat(2,340px);
 
-    justify-content:center;
-
 }
 
 /* 5 CARDS */
@@ -411,41 +387,21 @@ SMART LAYOUTS
 .services.layout-5{
 
     grid-template-columns:
-    repeat(6,340px);
-
-    justify-content:center;
-
-    gap:28px;
+    repeat(3,340px);
 
 }
 
-.services.layout-5 .card:nth-child(1){
-
-    grid-column:2;
-
-}
-
-.services.layout-5 .card:nth-child(2){
-
-    grid-column:3;
-
-}
-
-.services.layout-5 .card:nth-child(3){
-
-    grid-column:4;
-
-}
+/* خلي آخر صف متوسّط */
 
 .services.layout-5 .card:nth-child(4){
 
-    grid-column:3;
+    grid-column:1;
 
 }
 
 .services.layout-5 .card:nth-child(5){
 
-    grid-column:4;
+    grid-column:2;
 
 }
 
@@ -455,9 +411,7 @@ CARD
 
 .card{
 
-    width:100%;
-
-    max-width:340px;
+    width:340px;
 
     background:#fff;
 
