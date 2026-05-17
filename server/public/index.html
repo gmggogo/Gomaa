@@ -355,10 +355,14 @@ SERVICES
 SMART LAYOUTS
 ========================= */
 
+/* 1 CARD */
+
 .services.layout-1{
 
     grid-template-columns:
-    repeat(3,1fr);
+    repeat(3,340px);
+
+    justify-content:center;
 
 }
 
@@ -368,16 +372,20 @@ SMART LAYOUTS
 
 }
 
+/* 2 CARDS */
+
 .services.layout-2{
 
     grid-template-columns:
-    repeat(3,1fr);
+    repeat(4,340px);
+
+    justify-content:center;
 
 }
 
 .services.layout-2 .card:nth-child(1){
 
-    grid-column:1;
+    grid-column:2;
 
 }
 
@@ -387,31 +395,55 @@ SMART LAYOUTS
 
 }
 
+/* 4 CARDS */
+
 .services.layout-4{
 
     grid-template-columns:
-    repeat(2,1fr);
+    repeat(2,340px);
 
-    max-width:900px;
+    justify-content:center;
 
 }
+
+/* 5 CARDS */
 
 .services.layout-5{
 
     grid-template-columns:
-    repeat(3,1fr);
+    repeat(6,170px);
+
+    justify-content:center;
+
+}
+
+.services.layout-5 .card:nth-child(1){
+
+    grid-column:1 / span 2;
+
+}
+
+.services.layout-5 .card:nth-child(2){
+
+    grid-column:3 / span 2;
+
+}
+
+.services.layout-5 .card:nth-child(3){
+
+    grid-column:5 / span 2;
 
 }
 
 .services.layout-5 .card:nth-child(4){
 
-    grid-column:1;
+    grid-column:2 / span 2;
 
 }
 
 .services.layout-5 .card:nth-child(5){
 
-    grid-column:3;
+    grid-column:4 / span 2;
 
 }
 
