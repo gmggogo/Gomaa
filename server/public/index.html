@@ -350,7 +350,45 @@ SERVICES
     justify-items:center;
 
 }
+/* =========================
+SMART LAYOUTS
+========================= */
 
+.services.layout-1{
+
+    grid-template-columns:
+    340px;
+
+    justify-content:center;
+
+}
+
+.services.layout-2{
+
+    grid-template-columns:
+    repeat(2,340px);
+
+    justify-content:center;
+
+}
+
+.services.layout-4{
+
+    grid-template-columns:
+    repeat(2,340px);
+
+    justify-content:center;
+
+}
+
+.services.layout-5{
+
+    grid-template-columns:
+    repeat(3,340px);
+
+    justify-content:center;
+
+}
 /* =========================
 CARD
 ========================= */
@@ -1205,9 +1243,11 @@ function renderPage(){
       );
 
     Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
-    );
+    "servicesContainer",
+    currentLang
+);
+
+updateServicesLayout();
 
     updateLangButtons();
 
@@ -1231,6 +1271,61 @@ async ()=>{
 
 });
 
+
+function updateServicesLayout(){
+
+    const services =
+    document.getElementById(
+    "servicesContainer"
+    );
+
+    if(!services) return;
+
+    const count =
+    services.querySelectorAll(".card").length;
+
+    services.classList.remove(
+        "layout-1",
+        "layout-2",
+        "layout-4",
+        "layout-5"
+    );
+
+    if(count === 1){
+
+        services.classList.add(
+        "layout-1"
+        );
+
+    }
+
+    else if(count === 2){
+
+        services.classList.add(
+        "layout-2"
+        );
+
+    }
+
+    else if(count === 4){
+
+        services.classList.add(
+        "layout-4"
+        );
+
+    }
+
+    else if(count === 5){
+
+        services.classList.add(
+        "layout-5"
+        );
+
+    }
+
+}
+
+</script>
 </script>
 
 </body>
