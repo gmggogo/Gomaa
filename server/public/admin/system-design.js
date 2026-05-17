@@ -53,6 +53,32 @@ const defaultSystemDesign = {
 
   extra2Text:"This section can later be managed from the admin panel.",
 
+  /* =========================
+  EXTRA BOX THEME ENGINE
+  ========================= */
+
+  extraBoxBg:"#ffffff",
+
+  extraBoxBorder:"#dbeafe",
+
+  extraBoxTitleColor:"#145cff",
+
+  extraBoxTextColor:"#334155",
+
+  extraBoxRadius:"28",
+
+  extraBoxPadding:"40",
+
+  extraBoxAlign:"center",
+
+  extraBoxTitleSize:"32",
+
+  extraBoxTextSize:"18",
+
+  extraBoxBorderSize:"2",
+
+  extraBoxShadow:true,
+
   contactTitle:"Customer Support",
 
   contactPhone:"619-509-7197",
@@ -330,6 +356,65 @@ function loadFormValues(){
   setValue(
     "extra2Text",
     systemDesign.extra2Text
+  );
+
+  /* =========================
+  THEME ENGINE LOAD
+  ========================= */
+
+  setValue(
+    "extraBoxBg",
+    systemDesign.extraBoxBg
+  );
+
+  setValue(
+    "extraBoxBorder",
+    systemDesign.extraBoxBorder
+  );
+
+  setValue(
+    "extraBoxTitleColor",
+    systemDesign.extraBoxTitleColor
+  );
+
+  setValue(
+    "extraBoxTextColor",
+    systemDesign.extraBoxTextColor
+  );
+
+  setValue(
+    "extraBoxRadius",
+    systemDesign.extraBoxRadius
+  );
+
+  setValue(
+    "extraBoxPadding",
+    systemDesign.extraBoxPadding
+  );
+
+  setValue(
+    "extraBoxAlign",
+    systemDesign.extraBoxAlign
+  );
+
+  setValue(
+    "extraBoxTitleSize",
+    systemDesign.extraBoxTitleSize
+  );
+
+  setValue(
+    "extraBoxTextSize",
+    systemDesign.extraBoxTextSize
+  );
+
+  setValue(
+    "extraBoxBorderSize",
+    systemDesign.extraBoxBorderSize
+  );
+
+  setChecked(
+    "extraBoxShadow",
+    systemDesign.extraBoxShadow
   );
 
   setValue(
@@ -759,6 +844,65 @@ function(){
   document.getElementById(
     "extra2Text"
   )?.value || "";
+
+  /* =========================
+  THEME ENGINE SAVE
+  ========================= */
+
+  systemDesign.extraBoxBg =
+  document.getElementById(
+  "extraBoxBg"
+  )?.value || "#ffffff";
+
+  systemDesign.extraBoxBorder =
+  document.getElementById(
+  "extraBoxBorder"
+  )?.value || "#dbeafe";
+
+  systemDesign.extraBoxTitleColor =
+  document.getElementById(
+  "extraBoxTitleColor"
+  )?.value || "#145cff";
+
+  systemDesign.extraBoxTextColor =
+  document.getElementById(
+  "extraBoxTextColor"
+  )?.value || "#334155";
+
+  systemDesign.extraBoxRadius =
+  document.getElementById(
+  "extraBoxRadius"
+  )?.value || "28";
+
+  systemDesign.extraBoxPadding =
+  document.getElementById(
+  "extraBoxPadding"
+  )?.value || "40";
+
+  systemDesign.extraBoxAlign =
+  document.getElementById(
+  "extraBoxAlign"
+  )?.value || "center";
+
+  systemDesign.extraBoxTitleSize =
+  document.getElementById(
+  "extraBoxTitleSize"
+  )?.value || "32";
+
+  systemDesign.extraBoxTextSize =
+  document.getElementById(
+  "extraBoxTextSize"
+  )?.value || "18";
+
+  systemDesign.extraBoxBorderSize =
+  document.getElementById(
+  "extraBoxBorderSize"
+  )?.value || "2";
+
+  systemDesign.extraBoxShadow =
+  document.getElementById(
+  "extraBoxShadow"
+  )?.checked || false;
 
   systemDesign.contactTitle =
   document.getElementById(
