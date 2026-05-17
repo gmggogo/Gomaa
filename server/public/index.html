@@ -341,7 +341,7 @@ SERVICES
     display:grid;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(260px,1fr));
+    repeat(3,1fr);
 
     gap:28px;
 
@@ -467,6 +467,32 @@ CARD
 .card-btn:hover{
 
     background:#1d4ed8;
+
+}
+
+/* =========================
+AUTO CENTER LAST ROW
+========================= */
+
+/* 1 card in last row */
+
+.services .card:last-child:nth-child(3n + 1){
+
+    grid-column:2;
+
+}
+
+/* 2 cards in last row */
+
+.services .card:nth-last-child(2):nth-child(3n + 1){
+
+    grid-column:1;
+
+}
+
+.services .card:last-child:nth-child(3n + 2){
+
+    grid-column:2;
 
 }
 
