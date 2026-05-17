@@ -332,20 +332,20 @@ SERVICES
 
     width:100%;
 
-    max-width:1500px;
+    max-width:1700px;
 
     margin:auto;
 
-    padding:60px 60px 140px;
+    padding:60px 50px 140px;
 
     display:grid;
 
     grid-template-columns:
-    repeat(3,minmax(0,1fr));
+    repeat(auto-fit,minmax(380px,1fr));
 
-    gap:28px;
+    gap:34px;
 
-    align-items:start;
+    align-items:stretch;
 
 }
 
@@ -368,6 +368,12 @@ CARD
 
     transition:.25s;
 
+    display:flex;
+
+    flex-direction:column;
+
+    height:100%;
+
 }
 
 .card:hover{
@@ -384,31 +390,37 @@ CARD
 
     width:100%;
 
-    height:240px;
+    height:320px;
 
-    object-fit:contain;
+    object-fit:cover;
 
     object-position:center;
 
     background:#eef2f7;
 
-    padding:8px;
+    display:block;
 
 }
 
 .card-body{
 
-    padding:24px;
+    padding:28px;
 
     text-align:center;
+
+    display:flex;
+
+    flex-direction:column;
+
+    flex:1;
 
 }
 
 .card h3{
 
-    font-size:30px;
+    font-size:34px;
 
-    margin-bottom:12px;
+    margin-bottom:14px;
 
     color:#111827;
 
@@ -424,7 +436,7 @@ CARD
 
     line-height:1.9;
 
-    min-height:120px;
+    flex:1;
 
     word-break:break-word;
 
@@ -440,9 +452,9 @@ CARD
 
     width:100%;
 
-    height:58px;
+    height:62px;
 
-    margin-top:20px;
+    margin-top:24px;
 
     background:#2563eb;
 
@@ -450,9 +462,9 @@ CARD
 
     text-decoration:none;
 
-    border-radius:16px;
+    border-radius:18px;
 
-    font-size:20px;
+    font-size:21px;
 
     font-weight:800;
 
@@ -595,17 +607,55 @@ MOBILE
 
 @media(max-width:768px){
 
-    .top-bar{
+    .services{
 
-        flex-direction:column;
+        padding:20px 18px 80px;
 
-        align-items:stretch;
+        grid-template-columns:1fr;
 
-        gap:12px;
-
-        padding:14px;
+        gap:22px;
 
     }
+
+    .card{
+
+        border-radius:22px;
+
+    }
+
+    .card-image{
+
+        height:240px;
+
+    }
+
+    .card-body{
+
+        padding:20px;
+
+    }
+
+    .card h3{
+
+        font-size:26px;
+
+    }
+
+    .card p{
+
+        font-size:16px;
+
+    }
+
+    .card-btn{
+
+        height:54px;
+
+        font-size:18px;
+
+    }
+
+}
 
     .top-links,
     .lang-right{
