@@ -264,23 +264,56 @@ CARDS
   display:grid;
 
   grid-template-columns:
-  repeat(auto-fit,minmax(360px,1fr));
+  repeat(auto-fit,minmax(420px,1fr));
 
-  gap:24px;
+  gap:28px;
+
+  align-items:start;
 
 }
+
+/* =========================
+SERVICE CARD
+========================= */
 
 .service-card{
 
-  border:1px solid #e2e8f0;
+  background:
+  linear-gradient(
+  135deg,
+  #ffffff,
+  #f8fbff
+  );
 
-  border-radius:24px;
+  border:
+  2px solid #dbeafe;
 
-  padding:20px;
+  border-radius:32px;
 
-  background:#fff;
+  padding:34px;
+
+  box-shadow:
+  0 14px 40px rgba(37,99,235,.08);
+
+  transition:.25s;
 
 }
+
+.service-card:hover{
+
+  transform:
+  translateY(-4px);
+
+  box-shadow:
+  0 18px 50px rgba(37,99,235,.16);
+
+  border-color:#93c5fd;
+
+}
+
+/* =========================
+TOP
+========================= */
 
 .service-top{
 
@@ -290,23 +323,194 @@ CARDS
 
   align-items:center;
 
-  gap:14px;
+  gap:18px;
 
-  margin-bottom:18px;
+  margin-bottom:28px;
+
+  flex-wrap:wrap;
 
 }
 
 .service-title{
 
-  font-size:22px;
+  font-size:30px;
 
   font-weight:900;
+
+  color:#1d4ed8;
+
+  line-height:1.2;
+
+}
+
+/* =========================
+INPUT GROUP
+========================= */
+
+.input-group{
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:10px;
+
+  margin-bottom:24px;
+
+}
+
+.input-group label{
+
+  font-size:16px;
+
+  font-weight:900;
+
+  color:#334155;
+
+}
+
+.input-group input,
+.input-group textarea,
+.input-group select{
+
+  width:100%;
+
+  border:
+  2px solid #dbeafe;
+
+  border-radius:20px;
+
+  padding:18px;
+
+  font-size:16px;
+
+  background:#ffffff;
+
+  outline:none;
+
+  transition:.2s;
+
+  color:#0f172a;
+
+}
+
+.input-group input:focus,
+.input-group textarea:focus,
+.input-group select:focus{
+
+  border-color:#2563eb;
+
+  box-shadow:
+  0 0 0 4px rgba(37,99,235,.10);
+
+}
+
+.input-group textarea{
+
+  min-height:150px;
+
+  resize:vertical;
+
+  line-height:1.9;
+
+}
+
+/* =========================
+IMAGE
+========================= */
+
+.preview-image{
+
+  width:100%;
+
+  height:220px;
+
+  object-fit:cover;
+
+  border-radius:24px;
+
+  background:#eef2ff;
+
+  border:
+  2px solid #dbeafe;
+
+  margin-bottom:18px;
+
+}
+
+/* =========================
+BUTTONS
+========================= */
+
+.upload-btn,
+.save-btn,
+.reset-btn,
+.disable-btn{
+
+  border:none;
+
+  border-radius:18px;
+
+  padding:16px 22px;
+
+  font-size:16px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+  color:#fff;
+
+  transition:.2s;
+
+}
+
+.upload-btn{
+
+  background:#2563eb;
+
+}
+
+.save-btn{
+
+  background:#16a34a;
+
+}
+
+.reset-btn{
+
+  background:#dc2626;
+
+}
+
+.disable-btn{
+
+  background:#64748b;
+
+}
+
+.upload-btn:hover,
+.save-btn:hover,
+.reset-btn:hover,
+.disable-btn:hover{
+
+  transform:
+  translateY(-2px);
+
+  opacity:.94;
 
 }
 
 .card-save{
+
   width:100%;
-  margin-top:18px;
+
+  margin-top:14px;
+
+  min-height:58px;
+
+  font-size:18px;
+
 }
 
 /* =========================
@@ -315,38 +519,35 @@ MOBILE
 
 @media(max-width:768px){
 
-  .page-title{
-    font-size:30px;
-  }
-
-  .section-title{
-    font-size:22px;
-  }
-
   .cards-grid{
+
     grid-template-columns:1fr;
+
+  }
+
+  .service-card{
+
+    padding:22px;
+
+    border-radius:24px;
+
+  }
+
+  .service-title{
+
+    font-size:24px;
+
   }
 
   .service-top{
+
     flex-direction:column;
+
     align-items:stretch;
+
   }
 
 }
-
-</style>
-
-</head>
-
-<body>
-
-<div id="adminHeader"></div>
-
-<div class="page-body">
-
-  <div class="page-title">
-    System Design
-  </div>
 
   <!-- =========================
        BRANDING
