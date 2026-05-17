@@ -208,9 +208,13 @@ HERO
 
     width:100%;
 
+    height:auto;
+
     display:block;
 
     border-radius:28px;
+
+    object-fit:contain;
 
 }
 
@@ -328,7 +332,7 @@ SERVICES
 
     width:100%;
 
-    max-width:2600px;
+    max-width:1500px;
 
     margin:auto;
 
@@ -337,7 +341,7 @@ SERVICES
     display:grid;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(280px,1fr));
+    repeat(3,1fr);
 
     gap:28px;
 
@@ -382,9 +386,13 @@ CARD
 
     height:240px;
 
-    object-fit:cover;
+    object-fit:contain;
 
-    background:#e2e8f0;
+    object-position:center;
+
+    background:#eef2f7;
+
+    padding:8px;
 
 }
 
@@ -466,24 +474,23 @@ EXTRA
 
     width:100%;
 
-    padding:40px 60px 140px;
-
-    display:grid;
-
-    grid-template-columns:
-    repeat(auto-fit,minmax(520px,1fr));
-
-    gap:34px;
-
-    max-width:2600px;
+    max-width:1400px;
 
     margin:auto;
 
-    justify-content:center;
+    padding:40px 60px 140px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:28px;
 
 }
 
 .extra-box{
+
+    width:100%;
 
     background:#fff;
 
@@ -744,33 +751,33 @@ MOBILE
 
     .extra-sections{
 
-        padding:20px 18px 80px;
+        padding:20px 14px 80px;
 
-        grid-template-columns:1fr;
-
-        gap:22px;
+        gap:18px;
 
     }
 
     .extra-box{
 
-        padding:28px;
+        padding:22px;
 
-        border-radius:24px;
+        border-radius:20px;
 
     }
 
     .extra-box h3{
 
-        font-size:32px;
+        font-size:28px;
+
+        line-height:1.3;
 
     }
 
     .extra-box p{
 
-        font-size:18px;
+        font-size:16px;
 
-        line-height:1.9;
+        line-height:1.8;
 
     }
 
@@ -799,453 +806,3 @@ MOBILE
 </style>
 
 </head>
-
-<body>
-
-<div class="top-bar">
-
-    <div class="top-links">
-
-        <a
-        href="companies/company-login.html"
-        class="facility-login">
-
-            Facility Login
-
-        </a>
-
-        <a
-        href="login.html"
-        class="staff-login">
-
-            Staff Login
-
-        </a>
-
-    </div>
-
-    <div class="lang-right">
-
-        <button
-        id="lang-en"
-        class="lang-btn active-lang"
-        onclick="setLang('en')">
-
-            English
-
-        </button>
-
-        <button
-        id="lang-es"
-        class="lang-btn"
-        onclick="setLang('es')">
-
-            Spanish
-
-        </button>
-
-    </div>
-
-</div>
-
-<section class="hero">
-
-    <div class="hero-inner">
-
-        <img
-        class="hero-image"
-        src="/assets/hero.jpeg"
-        alt="Hero">
-
-        <div class="powered-box">
-
-            Powered by GH Mobility
-
-        </div>
-
-    </div>
-
-</section>
-
-<section class="about">
-
-    <h2 id="aboutTitle">
-        Professional Transportation Across Arizona
-    </h2>
-
-    <p id="aboutText">
-        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
-    </p>
-
-</section>
-
-<section class="quote-header">
-
-    <h2 id="quoteTitle">
-        Book Your Ride Today
-    </h2>
-
-    <p id="quoteText">
-        Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
-    </p>
-
-</section>
-
-<section
-class="services"
-id="servicesContainer">
-</section>
-
-<section
-class="extra-sections"
-id="extraSections">
-
-    <div
-    class="extra-box"
-    id="extraBox1">
-
-        <h3 id="extra1TitleView">
-            Why Choose Sunbeam?
-        </h3>
-
-        <p id="extra1TextView">
-            Professional Drivers
-        </p>
-
-    </div>
-
-    <div
-    class="extra-box"
-    id="extraBox2">
-
-        <h3 id="extra2TitleView">
-            Serving All Arizona
-        </h3>
-
-        <p id="extra2TextView">
-            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
-        </p>
-
-    </div>
-
-</section>
-
-<div class="contact-section">
-
-    <strong id="contactTitleView">
-        Customer Support
-    </strong>
-
-    <br><br>
-
-    📞
-    <span id="contactPhoneView">
-        619-509-7197
-    </span>
-
-    <br>
-
-    📧
-    <span id="contactEmailView">
-        admin@sunbeamtransportationllc.com
-    </span>
-
-</div>
-
-<footer id="footerView">
-
-    ©️ Sunbeam Transportation
-
-</footer>
-
-<script src="/core/branding.js"></script>
-
-<script>
-
-let currentLang = "en";
-
-function updateLangButtons(){
-
-    document
-    .querySelectorAll(".lang-btn")
-    .forEach(btn=>{
-
-        btn.classList.remove(
-            "active-lang"
-        );
-
-    });
-
-    if(currentLang === "en"){
-
-        document
-        .getElementById("lang-en")
-        .classList.add(
-            "active-lang"
-        );
-
-    }
-
-    if(currentLang === "es"){
-
-        document
-        .getElementById("lang-es")
-        .classList.add(
-            "active-lang"
-        );
-
-    }
-
-}
-
-function renderPage(){
-
-    const data =
-    Branding.data || {};
-
-    document.getElementById(
-    "aboutTitle"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.aboutTitleEs ||
-        data.aboutTitle ||
-        "Transporte profesional en Arizona"
-      )
-    : (
-        data.aboutTitle ||
-        "Professional Transportation Across Arizona"
-      );
-
-    document.getElementById(
-    "aboutText"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.aboutTextEs ||
-        data.aboutText ||
-        ""
-      )
-    : (
-        data.aboutText ||
-        ""
-      );
-
-    document.getElementById(
-    "quoteTitle"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.quoteTitleEs ||
-        data.quoteTitle ||
-        ""
-      )
-    : (
-        data.quoteTitle ||
-        ""
-      );
-
-    document.getElementById(
-    "quoteText"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.quoteTextEs ||
-        data.quoteText ||
-        ""
-      )
-    : (
-        data.quoteText ||
-        ""
-      );
-
-    document.getElementById(
-    "extra1TitleView"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.extra1TitleEs ||
-        data.extra1Title ||
-        ""
-      )
-    : (
-        data.extra1Title ||
-        ""
-      );
-
-    document.getElementById(
-    "extra1TextView"
-    ).innerHTML =
-
-    currentLang === "es"
-    ? (
-        data.extra1TextEs ||
-        data.extra1Text ||
-        ""
-      )
-    : (
-        data.extra1Text ||
-        ""
-      );
-
-    document.getElementById(
-    "extra2TitleView"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.extra2TitleEs ||
-        data.extra2Title ||
-        ""
-      )
-    : (
-        data.extra2Title ||
-        ""
-      );
-
-    document.getElementById(
-    "extra2TextView"
-    ).innerHTML =
-
-    currentLang === "es"
-    ? (
-        data.extra2TextEs ||
-        data.extra2Text ||
-        ""
-      )
-    : (
-        data.extra2Text ||
-        ""
-      );
-
-    const extraBox1 =
-    document.getElementById(
-        "extraBox1"
-    );
-
-    const extraBox2 =
-    document.getElementById(
-        "extraBox2"
-    );
-
-    extraBox1.style.display =
-
-    data.extra1Active === false
-    ? "none"
-    : "block";
-
-    extraBox2.style.display =
-
-    data.extra2Active === false
-    ? "none"
-    : "block";
-
-    const extraSection =
-    document.getElementById(
-        "extraSections"
-    );
-
-    const box1Visible =
-    extraBox1.style.display !== "none";
-
-    const box2Visible =
-    extraBox2.style.display !== "none";
-
-    if(
-        (box1Visible && !box2Visible) ||
-        (!box1Visible && box2Visible)
-    ){
-
-        extraSection.style.gridTemplateColumns =
-        "minmax(520px,900px)";
-
-        extraSection.style.justifyContent =
-        "center";
-
-    }else{
-
-        extraSection.style.gridTemplateColumns =
-        "repeat(auto-fit,minmax(520px,1fr))";
-
-    }
-
-    document.getElementById(
-    "contactTitleView"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.contactTitleEs ||
-        data.contactTitle ||
-        "Atención al cliente"
-      )
-    : (
-        data.contactTitle ||
-        "Customer Support"
-      );
-
-    document.getElementById(
-    "contactPhoneView"
-    ).innerText =
-
-    data.contactPhone ||
-    "619-509-7197";
-
-    document.getElementById(
-    "contactEmailView"
-    ).innerText =
-
-    data.contactEmail ||
-    "admin@sunbeamtransportationllc.com";
-
-    document.getElementById(
-    "footerView"
-    ).innerText =
-
-    currentLang === "es"
-    ? (
-        data.footerTextEs ||
-        data.footerText ||
-        "© Sunbeam Transportation"
-      )
-    : (
-        data.footerText ||
-        "© Sunbeam Transportation"
-      );
-
-    Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
-    );
-
-    updateLangButtons();
-
-}
-
-window.setLang = function(lang){
-
-    currentLang = lang;
-
-    renderPage();
-
-};
-
-window.addEventListener(
-"DOMContentLoaded",
-async ()=>{
-
-    await Branding.load();
-
-    renderPage();
-
-});
-
-</script>
-
-</body>
-</html>
