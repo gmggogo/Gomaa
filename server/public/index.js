@@ -17,21 +17,13 @@ window.Branding = {
 
     try{
 
-      const local =
-      localStorage.getItem(
-        "ghSystemDesign"
+      const res =
+      await fetch(
+        "/api/system-design"
       );
 
-      if(local){
-
-        this.data =
-        JSON.parse(local);
-
-      }else{
-
-        this.data = {};
-
-      }
+      this.data =
+      await res.json();
 
     }catch(err){
 
@@ -56,7 +48,8 @@ window.Branding = {
 
   save(data){
 
-    this.data = data || {};
+    this.data =
+    data || {};
 
     localStorage.setItem(
       "ghSystemDesign",
@@ -74,9 +67,7 @@ window.Branding = {
   getCompanyName(){
 
     return (
-      this.data?.branding
-      ?.companyName ||
-
+      this.data?.companyName ||
       "Sunbeam Transportation"
     );
 
@@ -85,9 +76,7 @@ window.Branding = {
   getTimezone(){
 
     return (
-      this.data?.branding
-      ?.timezone ||
-
+      this.data?.timezone ||
       "America/Phoenix"
     );
 
@@ -96,9 +85,7 @@ window.Branding = {
   getMainLogo(){
 
     return (
-      this.data?.branding
-      ?.mainLogo ||
-
+      this.data?.mainLogo ||
       "/assets/logo.png"
     );
 
@@ -107,9 +94,7 @@ window.Branding = {
   getDriverLogo(){
 
     return (
-      this.data?.branding
-      ?.driverLogo ||
-
+      this.data?.driverLogo ||
       "/assets/logo.png"
     );
 
@@ -118,9 +103,7 @@ window.Branding = {
   getHeroImage(){
 
     return (
-      this.data?.homepage
-      ?.heroImage ||
-
+      this.data?.heroImage ||
       "/assets/hero.jpeg"
     );
 
@@ -130,7 +113,6 @@ window.Branding = {
 
     return (
       this.data?.services ||
-
       []
     );
 
@@ -142,17 +124,11 @@ window.Branding = {
 
   applyGlobalBranding(){
 
-    /* TITLE */
-
     document.title =
     this.getCompanyName();
 
-    /* COMPANY NAME */
-
     document
-    .querySelectorAll(
-      ".company-name"
-    )
+    .querySelectorAll(".company-name")
     .forEach(el=>{
 
       el.innerText =
@@ -160,12 +136,8 @@ window.Branding = {
 
     });
 
-    /* MAIN LOGO */
-
     document
-    .querySelectorAll(
-      ".main-logo"
-    )
+    .querySelectorAll(".main-logo")
     .forEach(el=>{
 
       el.src =
@@ -173,12 +145,8 @@ window.Branding = {
 
     });
 
-    /* DRIVER LOGO */
-
     document
-    .querySelectorAll(
-      ".driver-logo"
-    )
+    .querySelectorAll(".driver-logo")
     .forEach(el=>{
 
       el.src =
@@ -186,12 +154,8 @@ window.Branding = {
 
     });
 
-    /* HERO IMAGE */
-
     document
-    .querySelectorAll(
-      ".hero-image"
-    )
+    .querySelectorAll(".hero-image")
     .forEach(el=>{
 
       el.src =
@@ -199,10 +163,77 @@ window.Branding = {
 
     });
 
+    this.applyThemeEngine();
+
   },
 
   /* =========================
-  RENDER SERVICES
+  APPLY THEME ENGINE
+  ========================= */
+
+  applyThemeEngine(){
+
+    const d =
+    this.data || {};
+
+    document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
+
+      box.style.background =
+      d.extraBoxBg || "#ffffff";
+
+      box.style.border =
+      `${d.extraBoxBorderSize || 2}px solid ${
+        d.extraBoxBorder || "#dbeafe"
+      }`;
+
+      box.style.borderRadius =
+      `${d.extraBoxRadius || 28}px`;
+
+      box.style.padding =
+      `${d.extraBoxPadding || 40}px`;
+
+      box.style.textAlign =
+      d.extraBoxAlign || "center";
+
+      box.style.boxShadow =
+      d.extraBoxShadow
+      ? "0 12px 35px rgba(0,0,0,.10)"
+      : "none";
+
+    });
+
+    document
+    .querySelectorAll(
+      ".extra-box h2, .extra-box h3"
+    )
+    .forEach(title=>{
+
+      title.style.color =
+      d.extraBoxTitleColor || "#145cff";
+
+      title.style.fontSize =
+      `${d.extraBoxTitleSize || 32}px`;
+
+    });
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+      text.style.color =
+      d.extraBoxTextColor || "#334155";
+
+      text.style.fontSize =
+      `${d.extraBoxTextSize || 18}px`;
+
+    });
+
+  },
+
+  /* =========================
+  RENDER HOMEPAGE CARDS
   ========================= */
 
   renderHomepageCards(
@@ -228,35 +259,58 @@ window.Branding = {
 
       const title =
       lang === "es"
-      ? service.title_es
-      : service.title_en;
+      ? (
+          service.title_es ||
+          service.titleEs ||
+          service.title ||
+          service.title_en ||
+          ""
+        )
+      : (
+          service.title_en ||
+          service.title ||
+          ""
+        );
 
       const desc =
       lang === "es"
-      ? service.description_es
-      : service.description_en;
+      ? (
+          service.description_es ||
+          service.descriptionEs ||
+          service.description ||
+          service.description_en ||
+          ""
+        )
+      : (
+          service.description_en ||
+          service.description ||
+          ""
+        );
 
       container.innerHTML += `
 
       <div class="card">
 
         <img
-          src="${service.image}"
+          src="${service.image || "/assets/logo.png"}"
           class="card-image"
         >
 
         <div class="card-body">
 
           <h3>
-            ${title || ""}
+            ${title}
           </h3>
 
           <p>
-            ${desc || ""}
+            ${desc}
           </p>
 
           <a
-            href="getquote/index.html"
+            href="${
+              service.link ||
+              "getquote/index.html"
+            }"
             class="card-btn"
           >
             ${
