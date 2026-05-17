@@ -74,39 +74,45 @@ TOP BAR
     z-index:999;
 
     box-shadow:
-    0 2px 10px rgba(0,0,0,.06);
+    0 2px 10px rgba(0,0,0,.05);
 
 }
 
-.top-links,
-.lang-right{
+/* =========================
+LEFT BUTTONS
+========================= */
+
+.top-links{
 
     display:flex;
 
     gap:12px;
 
-    align-items:center;
+    flex-wrap:wrap;
 
 }
 
-.top-links a,
-.lang-btn{
-
-    border:none;
+.top-links a{
 
     text-decoration:none;
 
-    padding:14px 22px;
+    padding:14px 24px;
 
     border-radius:16px;
 
-    font-size:15px;
+    font-size:16px;
 
     font-weight:700;
 
-    cursor:pointer;
+    color:#fff;
 
-    transition:.25s;
+    transition:.2s;
+
+}
+
+.top-links a:hover{
+
+    transform:translateY(-2px);
 
 }
 
@@ -114,31 +120,55 @@ TOP BAR
 
     background:#2563eb;
 
-    color:#fff;
-
 }
 
 .staff-login{
 
-    background:#020f37;
+    background:#0f172a;
 
-    color:#fff;
+}
+
+/* =========================
+LANGUAGE
+========================= */
+
+.lang-right{
+
+    display:flex;
+
+    gap:12px;
+
+    flex-wrap:wrap;
 
 }
 
 .lang-btn{
 
-    background:#d1d5db;
+    border:none;
+
+    cursor:pointer;
+
+    padding:14px 22px;
+
+    border-radius:16px;
+
+    font-size:16px;
+
+    font-weight:700;
+
+    background:#dbe1ea;
 
     color:#2563eb;
+
+    transition:.2s;
 
 }
 
 .active-lang{
 
-    background:#16a34a;
+    background:#16a34a !important;
 
-    color:#fff;
+    color:#fff !important;
 
 }
 
@@ -150,19 +180,27 @@ HERO
 
     width:100%;
 
+    background:#111827;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    overflow:hidden;
+
     padding:20px;
 
 }
 
 .hero-inner{
 
+    position:relative;
+
     width:100%;
 
-    max-width:1700px;
-
-    margin:auto;
-
-    position:relative;
+    max-width:1500px;
 
 }
 
@@ -170,31 +208,33 @@ HERO
 
     width:100%;
 
-    height:auto;
-
     display:block;
 
-    border-radius:30px;
+    border-radius:28px;
 
 }
+
+/* =========================
+POWERED
+========================= */
 
 .powered-box{
 
     position:absolute;
 
-    left:24px;
+    left:26px;
 
-    bottom:24px;
+    bottom:26px;
 
-    background:rgba(0,0,0,.7);
+    background:rgba(0,0,0,.75);
 
     color:#fff;
 
-    padding:12px 18px;
+    padding:14px 24px;
 
-    border-radius:18px;
+    border-radius:40px;
 
-    font-size:14px;
+    font-size:15px;
 
     font-weight:700;
 
@@ -210,43 +250,45 @@ ABOUT
 
     text-align:center;
 
-    padding:80px 20px 30px;
+    padding:90px 20px 40px;
 
 }
 
 .about h2{
 
-    font-size:58px;
+    font-size:60px;
+
+    color:#1e3a6d;
 
     margin-bottom:20px;
 
-    color:#1e3a8a;
+    font-weight:900;
 
 }
 
 .about p{
 
+    font-size:25px;
+
+    color:#6b7280;
+
     max-width:1100px;
 
     margin:auto;
 
-    font-size:22px;
-
-    line-height:2;
-
-    color:#475569;
+    line-height:1.9;
 
 }
 
 /* =========================
-QUOTE HEADER
+QUOTE
 ========================= */
 
 .quote-header{
 
     text-align:center;
 
-    padding:50px 20px 30px;
+    padding:40px 20px 24px;
 
 }
 
@@ -254,23 +296,27 @@ QUOTE HEADER
 
     font-size:70px;
 
-    color:#1d4ed8;
+    color:#1e3a6d;
 
-    margin-bottom:20px;
+    margin-bottom:18px;
+
+    line-height:1.1;
+
+    font-weight:900;
 
 }
 
 .quote-header p{
 
-    max-width:1100px;
+    font-size:24px;
+
+    color:#6b7280;
+
+    max-width:1000px;
 
     margin:auto;
 
-    font-size:22px;
-
-    line-height:2;
-
-    color:#64748b;
+    line-height:1.8;
 
 }
 
@@ -282,39 +328,51 @@ SERVICES
 
     width:100%;
 
-    max-width:1700px;
+    max-width:2600px;
 
     margin:auto;
 
-    padding:20px 30px 80px;
+    padding:60px 60px 140px;
 
     display:grid;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(380px,1fr));
+    repeat(auto-fit,minmax(280px,1fr));
 
     gap:28px;
 
+    align-items:start;
+
 }
+
+/* =========================
+CARD
+========================= */
 
 .card{
 
+    width:100%;
+
     background:#fff;
 
-    border-radius:28px;
+    border-radius:26px;
 
     overflow:hidden;
 
     box-shadow:
-    0 10px 30px rgba(0,0,0,.08);
+    0 10px 30px rgba(0,0,0,.10);
 
-    transition:.3s;
+    transition:.25s;
 
 }
 
 .card:hover{
 
-    transform:translateY(-6px);
+    transform:
+    translateY(-8px);
+
+    box-shadow:
+    0 16px 40px rgba(37,99,235,.18);
 
 }
 
@@ -322,23 +380,17 @@ SERVICES
 
     width:100%;
 
-    height:260px;
+    height:240px;
 
     object-fit:cover;
 
-    object-position:center;
-
-    display:block;
-
-    border-radius:22px 22px 0 0;
-
-    background:#fff;
+    background:#e2e8f0;
 
 }
 
 .card-body{
 
-    padding:28px;
+    padding:24px;
 
     text-align:center;
 
@@ -346,68 +398,88 @@ SERVICES
 
 .card h3{
 
-    font-size:34px;
+    font-size:30px;
 
-    margin-bottom:16px;
+    margin-bottom:12px;
+
+    color:#111827;
+
+    font-weight:800;
 
 }
 
 .card p{
 
-    font-size:18px;
+    font-size:17px;
 
     color:#6b7280;
 
-    line-height:1.8;
+    line-height:1.9;
 
-    min-height:70px;
+    min-height:120px;
+
+    word-break:break-word;
 
 }
 
 .card-btn{
 
-    margin-top:24px;
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
 
     width:100%;
 
-    height:60px;
+    height:58px;
 
-    border:none;
-
-    border-radius:18px;
+    margin-top:20px;
 
     background:#2563eb;
 
-    color:#fff;
+    color:#fff !important;
+
+    text-decoration:none;
+
+    border-radius:16px;
 
     font-size:20px;
 
     font-weight:800;
 
-    cursor:pointer;
+    transition:.2s;
+
+}
+
+.card-btn:hover{
+
+    background:#1d4ed8;
 
 }
 
 /* =========================
-EXTRA SECTIONS
+EXTRA
 ========================= */
 
 .extra-sections{
 
     width:100%;
 
-    max-width:1700px;
-
-    margin:auto;
-
-    padding:20px 30px 80px;
+    padding:40px 60px 140px;
 
     display:grid;
 
     grid-template-columns:
     repeat(auto-fit,minmax(520px,1fr));
 
-    gap:28px;
+    gap:34px;
+
+    max-width:2600px;
+
+    margin:auto;
+
+    justify-content:center;
 
 }
 
@@ -415,22 +487,38 @@ EXTRA SECTIONS
 
     background:#fff;
 
-    padding:40px;
+    border-radius:28px;
 
-    border-radius:30px;
+    padding:44px;
 
     box-shadow:
     0 10px 30px rgba(0,0,0,.08);
+
+    transition:.25s;
+
+}
+
+.extra-box:hover{
+
+    transform:
+    translateY(-6px);
+
+    box-shadow:
+    0 16px 40px rgba(37,99,235,.14);
 
 }
 
 .extra-box h3{
 
-    font-size:44px;
+    font-size:42px;
 
-    margin-bottom:18px;
+    color:#1e3a6d;
 
-    color:#1d4ed8;
+    margin-bottom:22px;
+
+    font-weight:900;
+
+    line-height:1.2;
 
 }
 
@@ -438,9 +526,11 @@ EXTRA SECTIONS
 
     font-size:22px;
 
+    color:#6b7280;
+
     line-height:2;
 
-    color:#475569;
+    word-break:break-word;
 
 }
 
@@ -450,21 +540,25 @@ CONTACT
 
 .contact-section{
 
-    background:#0f172a;
-
-    color:#fff;
-
     text-align:center;
 
     padding:80px 20px;
 
-    font-size:22px;
+    background:#fff;
+
+    font-size:24px;
+
+    line-height:2.2;
+
+    color:#111827;
 
 }
 
 .contact-section strong{
 
-    font-size:48px;
+    font-size:42px;
+
+    color:#111827;
 
 }
 
@@ -474,15 +568,17 @@ FOOTER
 
 footer{
 
-    background:#020617;
+    background:#111827;
 
     color:#fff;
 
     text-align:center;
 
-    padding:22px;
+    padding:30px;
 
     font-size:20px;
+
+    font-weight:700;
 
 }
 
@@ -608,31 +704,13 @@ MOBILE
 
     .card{
 
-        width:100%;
-
-        max-width:100%;
-
-        overflow:hidden;
-
         border-radius:22px;
 
     }
 
     .card-image{
 
-        width:100%;
-
         height:240px;
-
-        object-fit:cover;
-
-        object-position:center;
-
-        display:block;
-
-        border-radius:22px 22px 0 0;
-
-        background:#fff;
 
     }
 
@@ -666,25 +744,15 @@ MOBILE
 
     .extra-sections{
 
-        display:grid;
+        padding:20px 18px 80px;
 
         grid-template-columns:1fr;
 
         gap:22px;
 
-        padding:20px 18px 80px;
-
-        width:100%;
-
     }
 
     .extra-box{
-
-        width:100%;
-
-        max-width:100%;
-
-        overflow:hidden;
 
         padding:28px;
 
@@ -723,34 +791,6 @@ MOBILE
     footer{
 
         font-size:18px;
-
-    }
-
-}
-
-/* =========================
-DESKTOP IMAGE FIX
-========================= */
-
-@media(min-width:769px){
-
-    .card-image{
-
-        width:100%;
-
-        height:280px;
-
-        object-fit:contain;
-
-        object-position:center;
-
-        display:block;
-
-        padding:10px;
-
-        background:#fff;
-
-        border-radius:22px 22px 0 0;
 
     }
 
@@ -958,29 +998,6 @@ function updateLangButtons(){
 
 }
 
-function triggerGoogleTranslate(lang){
-
-    setTimeout(()=>{
-
-        const combo =
-        document.querySelector(
-            ".goog-te-combo"
-        );
-
-        if(!combo){
-            return;
-        }
-
-        combo.value = lang;
-
-        combo.dispatchEvent(
-            new Event("change")
-        );
-
-    },700);
-
-}
-
 function renderPage(){
 
     const data =
@@ -1139,33 +1156,21 @@ function renderPage(){
     const box2Visible =
     extraBox2.style.display !== "none";
 
-    if(window.innerWidth <= 768){
+    if(
+        (box1Visible && !box2Visible) ||
+        (!box1Visible && box2Visible)
+    ){
 
         extraSection.style.gridTemplateColumns =
-        "1fr";
+        "minmax(520px,900px)";
 
         extraSection.style.justifyContent =
-        "stretch";
+        "center";
 
     }else{
 
-        if(
-            (box1Visible && !box2Visible) ||
-            (!box1Visible && box2Visible)
-        ){
-
-            extraSection.style.gridTemplateColumns =
-            "minmax(520px,900px)";
-
-            extraSection.style.justifyContent =
-            "center";
-
-        }else{
-
-            extraSection.style.gridTemplateColumns =
-            "repeat(auto-fit,minmax(520px,1fr))";
-
-        }
+        extraSection.style.gridTemplateColumns =
+        "repeat(auto-fit,minmax(520px,1fr))";
 
     }
 
@@ -1206,11 +1211,11 @@ function renderPage(){
     ? (
         data.footerTextEs ||
         data.footerText ||
-        "©️ Sunbeam Transportation"
+        "© Sunbeam Transportation"
       )
     : (
         data.footerText ||
-        "©️ Sunbeam Transportation"
+        "© Sunbeam Transportation"
       );
 
     Branding.renderHomepageCards(
@@ -1219,10 +1224,6 @@ function renderPage(){
     );
 
     updateLangButtons();
-
-    triggerGoogleTranslate(
-        currentLang
-    );
 
 }
 
@@ -1244,34 +1245,6 @@ async ()=>{
 
 });
 
-</script>
-
-<div
-id="google_translate_element"
-style="display:none;">
-</div>
-
-<script>
-
-function googleTranslateElementInit(){
-
-    new google.translate.TranslateElement({
-
-        pageLanguage:'en',
-
-        includedLanguages:'en,es',
-
-        autoDisplay:false
-
-    },
-    'google_translate_element');
-
-}
-
-</script>
-
-<script
-src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit">
 </script>
 
 </body>
