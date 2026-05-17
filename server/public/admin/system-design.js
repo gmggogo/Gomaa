@@ -1,6 +1,6 @@
 // =========================================
 // FILE: public/admin/system-design.js
-// UNIFIED SYSTEM DESIGN ENGINE
+// FINAL LIVE THEME ENGINE
 // =========================================
 
 console.log("SYSTEM DESIGN LOADED");
@@ -12,9 +12,7 @@ SAVE STORAGE
 ========================= */
 
 function saveStorage(){
-
   saveSystemDesign();
-
 }
 
 /* =========================
@@ -156,9 +154,7 @@ async function loadSystemDesign(){
   try{
 
     const res =
-    await fetch(
-      "/api/system-design"
-    );
+    await fetch("/api/system-design");
 
     const data =
     await res.json();
@@ -179,10 +175,7 @@ async function loadSystemDesign(){
 
   }catch(err){
 
-    console.log(
-      "LOAD ERROR",
-      err
-    );
+    console.log("LOAD ERROR",err);
 
     systemDesign =
     defaultSystemDesign;
@@ -222,10 +215,7 @@ async function saveSystemDesign(){
 
   }catch(err){
 
-    console.log(
-      "SAVE ERROR",
-      err
-    );
+    console.log("SAVE ERROR",err);
 
   }
 
@@ -363,78 +353,58 @@ function loadFormValues(){
   ========================= */
 
   setValue(
-    "extraBoxBg",
+    "extraBoxBgInput",
     systemDesign.extraBoxBg
   );
 
   setValue(
-    "extraBoxBorder",
+    "extraBoxBorderInput",
     systemDesign.extraBoxBorder
   );
 
   setValue(
-    "extraBoxTitleColor",
+    "extraBoxTitleColorInput",
     systemDesign.extraBoxTitleColor
   );
 
   setValue(
-    "extraBoxTextColor",
+    "extraBoxTextColorInput",
     systemDesign.extraBoxTextColor
   );
 
   setValue(
-    "extraBoxRadius",
+    "extraBoxRadiusInput",
     systemDesign.extraBoxRadius
   );
 
   setValue(
-    "extraBoxPadding",
+    "extraBoxPaddingInput",
     systemDesign.extraBoxPadding
   );
 
   setValue(
-    "extraBoxAlign",
+    "extraBoxAlignInput",
     systemDesign.extraBoxAlign
   );
 
   setValue(
-    "extraBoxTitleSize",
+    "extraBoxTitleSizeInput",
     systemDesign.extraBoxTitleSize
   );
 
   setValue(
-    "extraBoxTextSize",
+    "extraBoxTextSizeInput",
     systemDesign.extraBoxTextSize
   );
 
   setValue(
-    "extraBoxBorderSize",
+    "extraBoxBorderSizeInput",
     systemDesign.extraBoxBorderSize
   );
 
   setChecked(
-    "extraBoxShadow",
+    "extraBoxShadowInput",
     systemDesign.extraBoxShadow
-  );
-
-  setValue(
-    "contactTitleInput",
-    systemDesign.contactTitle
-  );
-
-  setValue(
-    "contactPhoneInput",
-    systemDesign.contactPhone
-  );
-
-  setValue(
-    "contactEmailInput",
-    systemDesign.contactEmail
-  );
-
-  setValue(
-    "footerTextInput",
-    systemDesign.footerText
   );
 
 }
@@ -544,6 +514,153 @@ function(input){
 };
 
 /* =========================
+LIVE PREVIEW ENGINE
+========================= */
+
+function previewExtraBoxes(){
+
+  const bg =
+  document.getElementById(
+  "extraBoxBgInput"
+  )?.value || "#ffffff";
+
+  const border =
+  document.getElementById(
+  "extraBoxBorderInput"
+  )?.value || "#dbeafe";
+
+  const titleColor =
+  document.getElementById(
+  "extraBoxTitleColorInput"
+  )?.value || "#145cff";
+
+  const textColor =
+  document.getElementById(
+  "extraBoxTextColorInput"
+  )?.value || "#334155";
+
+  const radius =
+  document.getElementById(
+  "extraBoxRadiusInput"
+  )?.value || 28;
+
+  const padding =
+  document.getElementById(
+  "extraBoxPaddingInput"
+  )?.value || 40;
+
+  const borderSize =
+  document.getElementById(
+  "extraBoxBorderSizeInput"
+  )?.value || 2;
+
+  const titleSize =
+  document.getElementById(
+  "extraBoxTitleSizeInput"
+  )?.value || 32;
+
+  const align =
+  document.getElementById(
+  "extraBoxAlignInput"
+  )?.value || "center";
+
+  const shadow =
+  document.getElementById(
+  "extraBoxShadowInput"
+  )?.checked;
+
+  document
+  .querySelectorAll(".service-card")
+  .forEach(card=>{
+
+    card.style.background = bg;
+
+    card.style.border =
+    `${borderSize}px solid ${border}`;
+
+    card.style.borderRadius =
+    `${radius}px`;
+
+    card.style.padding =
+    `${padding}px`;
+
+    card.style.textAlign =
+    align;
+
+    card.style.boxShadow =
+    shadow
+    ? "0 12px 35px rgba(0,0,0,.10)"
+    : "none";
+
+  });
+
+  document
+  .querySelectorAll(".service-title")
+  .forEach(title=>{
+
+    title.style.color =
+    titleColor;
+
+    title.style.fontSize =
+    `${titleSize}px`;
+
+  });
+
+  document
+  .querySelectorAll(".service-card label")
+  .forEach(label=>{
+
+    label.style.color =
+    textColor;
+
+  });
+
+}
+
+/* =========================
+LIVE EVENTS
+========================= */
+
+function initLivePreview(){
+
+  const ids = [
+
+    "extraBoxBgInput",
+    "extraBoxBorderInput",
+    "extraBoxTitleColorInput",
+    "extraBoxTextColorInput",
+    "extraBoxRadiusInput",
+    "extraBoxPaddingInput",
+    "extraBoxBorderSizeInput",
+    "extraBoxTitleSizeInput",
+    "extraBoxTextSizeInput",
+    "extraBoxAlignInput",
+    "extraBoxShadowInput"
+
+  ];
+
+  ids.forEach(id=>{
+
+    const el =
+    document.getElementById(id);
+
+    if(!el) return;
+
+    el.addEventListener(
+      "input",
+      previewExtraBoxes
+    );
+
+    el.addEventListener(
+      "change",
+      previewExtraBoxes
+    );
+
+  });
+
+}
+
+/* =========================
 RENDER SERVICE CARDS
 ========================= */
 
@@ -570,9 +687,7 @@ function renderCardsEditor(){
       <div class="service-top">
 
         <div class="service-title">
-
           ${service.title || ""}
-
         </div>
 
         <button
@@ -597,9 +712,7 @@ function renderCardsEditor(){
       <div class="input-group">
 
         <label>
-
           Service Name
-
         </label>
 
         <input
@@ -613,9 +726,7 @@ function renderCardsEditor(){
       <div class="input-group">
 
         <label>
-
           Description
-
         </label>
 
         <textarea
@@ -627,9 +738,7 @@ function renderCardsEditor(){
       <div class="input-group">
 
         <label>
-
           Card Image
-
         </label>
 
         <img
@@ -638,37 +747,7 @@ function renderCardsEditor(){
             "/assets/logo.png"
           }"
           class="preview-image"
-          id="preview-${index}"
         >
-
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          id="upload-${index}"
-          onchange="
-          uploadCardImage(
-            ${index},
-            this.files[0]
-          )
-          "
-        >
-
-        <button
-          class="upload-btn"
-          type="button"
-          onclick="
-          document
-          .getElementById(
-            'upload-${index}'
-          )
-          .click()
-          "
-        >
-
-          Upload Image
-
-        </button>
 
       </div>
 
@@ -703,59 +782,7 @@ function(index){
 
   renderCardsEditor();
 
-};
-
-window.uploadCardImage =
-async function(index,file){
-
-  if(!file) return;
-
-  try{
-
-    const formData =
-    new FormData();
-
-    formData.append(
-      "image",
-      file
-    );
-
-    const res =
-    await fetch(
-      "/api/system-design/upload",
-      {
-        method:"POST",
-        body:formData
-      }
-    );
-
-    const data =
-    await res.json();
-
-    if(!data.success){
-
-      alert("Upload Failed");
-
-      return;
-
-    }
-
-    systemDesign.services[index].image =
-    data.image;
-
-    await saveSystemDesign();
-
-    renderCardsEditor();
-
-    alert("Card Image Saved");
-
-  }catch(err){
-
-    console.log(err);
-
-    alert("Upload Error");
-
-  }
+  previewExtraBoxes();
 
 };
 
@@ -785,144 +812,60 @@ SAVE ALL
 window.saveAllSystemDesign =
 function(){
 
-  systemDesign.companyName =
-  document.getElementById(
-    "companyNameInput"
-  )?.value || "";
-
-  systemDesign.timezone =
-  document.getElementById(
-    "timezoneInput"
-  )?.value || "America/Phoenix";
-
-  systemDesign.aboutTitle =
-  document.getElementById(
-    "aboutTitleInput"
-  )?.value || "";
-
-  systemDesign.aboutText =
-  document.getElementById(
-    "aboutTextInput"
-  )?.value || "";
-
-  systemDesign.quoteTitle =
-  document.getElementById(
-    "quoteTitleInput"
-  )?.value || "";
-
-  systemDesign.quoteText =
-  document.getElementById(
-    "quoteTextInput"
-  )?.value || "";
-
-  systemDesign.extra1Active =
-  document.getElementById(
-    "extra1Active"
-  )?.checked || false;
-
-  systemDesign.extra1Title =
-  document.getElementById(
-    "extra1Title"
-  )?.value || "";
-
-  systemDesign.extra1Text =
-  document.getElementById(
-    "extra1Text"
-  )?.value || "";
-
-  systemDesign.extra2Active =
-  document.getElementById(
-    "extra2Active"
-  )?.checked || false;
-
-  systemDesign.extra2Title =
-  document.getElementById(
-    "extra2Title"
-  )?.value || "";
-
-  systemDesign.extra2Text =
-  document.getElementById(
-    "extra2Text"
-  )?.value || "";
-
-  /* =========================
-  THEME ENGINE SAVE
-  ========================= */
-
   systemDesign.extraBoxBg =
   document.getElementById(
-  "extraBoxBg"
+  "extraBoxBgInput"
   )?.value || "#ffffff";
 
   systemDesign.extraBoxBorder =
   document.getElementById(
-  "extraBoxBorder"
+  "extraBoxBorderInput"
   )?.value || "#dbeafe";
 
   systemDesign.extraBoxTitleColor =
   document.getElementById(
-  "extraBoxTitleColor"
+  "extraBoxTitleColorInput"
   )?.value || "#145cff";
 
   systemDesign.extraBoxTextColor =
   document.getElementById(
-  "extraBoxTextColor"
+  "extraBoxTextColorInput"
   )?.value || "#334155";
 
   systemDesign.extraBoxRadius =
   document.getElementById(
-  "extraBoxRadius"
+  "extraBoxRadiusInput"
   )?.value || "28";
 
   systemDesign.extraBoxPadding =
   document.getElementById(
-  "extraBoxPadding"
+  "extraBoxPaddingInput"
   )?.value || "40";
 
   systemDesign.extraBoxAlign =
   document.getElementById(
-  "extraBoxAlign"
+  "extraBoxAlignInput"
   )?.value || "center";
 
   systemDesign.extraBoxTitleSize =
   document.getElementById(
-  "extraBoxTitleSize"
+  "extraBoxTitleSizeInput"
   )?.value || "32";
 
   systemDesign.extraBoxTextSize =
   document.getElementById(
-  "extraBoxTextSize"
+  "extraBoxTextSizeInput"
   )?.value || "18";
 
   systemDesign.extraBoxBorderSize =
   document.getElementById(
-  "extraBoxBorderSize"
+  "extraBoxBorderSizeInput"
   )?.value || "2";
 
   systemDesign.extraBoxShadow =
   document.getElementById(
-  "extraBoxShadow"
+  "extraBoxShadowInput"
   )?.checked || false;
-
-  systemDesign.contactTitle =
-  document.getElementById(
-    "contactTitleInput"
-  )?.value || "";
-
-  systemDesign.contactPhone =
-  document.getElementById(
-    "contactPhoneInput"
-  )?.value || "";
-
-  systemDesign.contactEmail =
-  document.getElementById(
-    "contactEmailInput"
-  )?.value || "";
-
-  systemDesign.footerText =
-  document.getElementById(
-    "footerTextInput"
-  )?.value || "";
 
   saveStorage();
 
@@ -961,6 +904,10 @@ window.addEventListener(
     loadFormValues();
 
     renderCardsEditor();
+
+    initLivePreview();
+
+    previewExtraBoxes();
 
   }
 );
