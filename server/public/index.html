@@ -389,19 +389,23 @@ SMART LAYOUTS
     grid-template-columns:
     repeat(3,340px);
 
-}
+    justify-content:center;
 
-/* خلي آخر صف متوسّط */
+}
 
 .services.layout-5 .card:nth-child(4){
 
-    grid-column:1;
+    grid-column:1 / span 1;
+
+    transform:translateX(184px);
 
 }
 
 .services.layout-5 .card:nth-child(5){
 
-    grid-column:2;
+    grid-column:2 / span 1;
+
+    transform:translateX(184px);
 
 }
 
