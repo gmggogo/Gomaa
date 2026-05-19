@@ -33,7 +33,8 @@ GLOBAL
 html,
 body{
     width:100%;
-    overflow-x:hidden;
+    max-width:100%;
+    overflow-x:hidden !important;
 }
 
 body{
@@ -352,24 +353,15 @@ SMART LAYOUTS
 ========================= */
 
 .services.layout-1{
-
-    grid-template-columns:
-    340px;
-
+    grid-template-columns:340px;
 }
 
 .services.layout-2{
-
-    grid-template-columns:
-    repeat(2,340px);
-
+    grid-template-columns:repeat(2,340px);
 }
 
 .services.layout-4{
-
-    grid-template-columns:
-    repeat(2,340px);
-
+    grid-template-columns:repeat(2,340px);
 }
 
 .services.layout-5{
@@ -509,9 +501,7 @@ CARD
 }
 
 .card-btn:hover{
-
     background:#1d4ed8;
-
 }
 
 /* =========================
@@ -519,21 +509,15 @@ AUTO CENTER LAST ROW
 ========================= */
 
 .services .card:last-child:nth-child(3n + 1){
-
     grid-column:2;
-
 }
 
 .services .card:nth-last-child(2):nth-child(3n + 1){
-
     grid-column:1;
-
 }
 
 .services .card:last-child:nth-child(3n + 2){
-
     grid-column:2;
-
 }
 
 /* =========================
@@ -669,17 +653,15 @@ GOOGLE TRANSLATE HIDE
     pointer-events:none;
 }
 
-.goog-logo-link{
+.goog-logo-link,
+.goog-te-gadget span,
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame{
     display:none !important;
 }
 
 .goog-te-gadget{
-    color:transparent !important;
     font-size:0 !important;
-}
-
-.goog-te-banner-frame{
-    display:none !important;
 }
 
 body{
@@ -687,12 +669,25 @@ body{
 }
 
 /* =========================
-MOBILE
+MOBILE FIX FINAL
 ========================= */
 
 @media(max-width:768px){
 
+    html,
+    body{
+        width:100%;
+        max-width:100%;
+        overflow-x:hidden !important;
+    }
+
+    *{
+        max-width:100%;
+    }
+
     .top-bar{
+
+        width:100%;
 
         flex-direction:column;
 
@@ -733,11 +728,35 @@ MOBILE
     }
 
     .hero{
+
+        width:100%;
+
         padding:0;
+
+        overflow:hidden;
+
+    }
+
+    .hero-inner{
+
+        width:100%;
+
+        max-width:100%;
+
     }
 
     .hero-image{
+
+        width:100%;
+
+        height:auto;
+
+        display:block;
+
         border-radius:0;
+
+        object-fit:cover;
+
     }
 
     .powered-box{
@@ -750,19 +769,29 @@ MOBILE
 
         padding:8px 14px;
 
+        border-radius:20px;
+
     }
 
     .about{
+
+        width:100%;
 
         padding:60px 16px 20px;
 
     }
 
     .about h2{
+
         font-size:38px;
+
+        line-height:1.2;
+
     }
 
     .about p{
+
+        width:100%;
 
         font-size:18px;
 
@@ -772,15 +801,23 @@ MOBILE
 
     .quote-header{
 
+        width:100%;
+
         padding:36px 16px 18px;
 
     }
 
     .quote-header h2{
-        font-size:50px;
+
+        font-size:46px;
+
+        line-height:1.15;
+
     }
 
     .quote-header p{
+
+        width:100%;
 
         font-size:18px;
 
@@ -790,24 +827,57 @@ MOBILE
 
     .services{
 
-        padding:20px 18px 80px;
+        width:100%;
 
-        grid-template-columns:1fr;
+        max-width:100%;
+
+        padding:20px 14px 80px;
+
+        display:grid;
+
+        grid-template-columns:1fr !important;
+
+        justify-content:center;
 
         gap:22px;
 
     }
 
+    .services .card:last-child:nth-child(3n + 1),
+    .services .card:nth-last-child(2):nth-child(3n + 1),
+    .services .card:last-child:nth-child(3n + 2){
+
+        grid-column:auto !important;
+
+    }
+
+    .services.layout-5 .card:nth-child(4),
+    .services.layout-5 .card:nth-child(5){
+
+        grid-column:auto !important;
+
+        transform:none !important;
+
+    }
+
     .card{
 
-        width:100%;
+        width:100% !important;
+
+        max-width:100% !important;
 
         border-radius:22px;
 
     }
 
     .card-image{
+
+        width:100%;
+
         height:240px;
+
+        object-fit:contain;
+
     }
 
     .card-body{
@@ -815,12 +885,18 @@ MOBILE
     }
 
     .card h3{
+
         font-size:26px;
+
+        line-height:1.3;
+
     }
 
     .card p{
 
         font-size:16px;
+
+        line-height:1.8;
 
         min-height:auto;
 
@@ -836,6 +912,8 @@ MOBILE
 
     .extra-sections{
 
+        width:100%;
+
         padding:20px 14px 80px;
 
         gap:18px;
@@ -844,15 +922,17 @@ MOBILE
 
     .extra-box{
 
-        padding:22px;
+        width:100%;
 
-        border-radius:20px;
+        padding:22px !important;
+
+        border-radius:20px !important;
 
     }
 
     .extra-box h3{
 
-        font-size:28px;
+        font-size:28px !important;
 
         line-height:1.3;
 
@@ -860,13 +940,15 @@ MOBILE
 
     .extra-box p{
 
-        font-size:16px;
+        font-size:16px !important;
 
         line-height:1.8;
 
     }
 
     .contact-section{
+
+        width:100%;
 
         font-size:18px;
 
@@ -879,7 +961,13 @@ MOBILE
     }
 
     footer{
+
+        width:100%;
+
         font-size:18px;
+
+        padding:24px 14px;
+
     }
 
 }
@@ -946,9 +1034,7 @@ MOBILE
         alt="Hero">
 
         <div class="powered-box">
-
             Powered by GH Mobility
-
         </div>
 
     </div>
@@ -1041,9 +1127,7 @@ id="extraSections">
 </div>
 
 <footer id="footerView">
-
     ©️ Sunbeam Transportation
-
 </footer>
 
 <div id="google_translate_element"></div>
@@ -1085,25 +1169,13 @@ function updateLangButtons(){
 
     });
 
-    if(currentLang === "en"){
-
-        document
-        .getElementById("lang-en")
-        .classList.add(
-            "active-lang"
-        );
-
-    }
-
-    if(currentLang === "es"){
-
-        document
-        .getElementById("lang-es")
-        .classList.add(
-            "active-lang"
-        );
-
-    }
+    document
+    .getElementById(
+        "lang-" + currentLang
+    )
+    .classList.add(
+        "active-lang"
+    );
 
 }
 
@@ -1111,7 +1183,7 @@ function triggerGoogleTranslate(lang){
 
     const select =
     document.querySelector(
-    ".goog-te-combo"
+        ".goog-te-combo"
     );
 
     if(!select) return;
@@ -1119,7 +1191,7 @@ function triggerGoogleTranslate(lang){
     select.value = lang;
 
     select.dispatchEvent(
-    new Event("change")
+        new Event("change")
     );
 
 }
@@ -1185,6 +1257,10 @@ function renderPage(){
 
     const data =
     Branding.data || {};
+
+    document.title =
+    data.companyName ||
+    "Sunbeam Transportation";
 
     document.getElementById(
     "aboutTitle"
@@ -1351,8 +1427,8 @@ function renderPage(){
       );
 
     Branding.renderHomepageCards(
-    "servicesContainer",
-    currentLang
+        "servicesContainer",
+        currentLang
     );
 
     applyExtraBoxesTheme(data);
@@ -1370,13 +1446,9 @@ window.setLang = function(lang){
     renderPage();
 
     if(lang === "es"){
-
         triggerGoogleTranslate("es");
-
     }else{
-
         triggerGoogleTranslate("en");
-
     }
 
 };
@@ -1395,7 +1467,7 @@ function updateServicesLayout(){
 
     const services =
     document.getElementById(
-    "servicesContainer"
+        "servicesContainer"
     );
 
     if(!services) return;
@@ -1413,7 +1485,7 @@ function updateServicesLayout(){
     if(count === 1){
 
         services.classList.add(
-        "layout-1"
+            "layout-1"
         );
 
     }
@@ -1421,7 +1493,7 @@ function updateServicesLayout(){
     else if(count === 2){
 
         services.classList.add(
-        "layout-2"
+            "layout-2"
         );
 
     }
@@ -1429,7 +1501,7 @@ function updateServicesLayout(){
     else if(count === 4){
 
         services.classList.add(
-        "layout-4"
+            "layout-4"
         );
 
     }
@@ -1437,7 +1509,7 @@ function updateServicesLayout(){
     else if(count === 5){
 
         services.classList.add(
-        "layout-5"
+            "layout-5"
         );
 
     }
