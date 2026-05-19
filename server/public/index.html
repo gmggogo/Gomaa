@@ -4,13 +4,13 @@
 
 <meta charset="UTF-8">
 
-<title>
-Sunbeam Transportation
-</title>
-
 <meta
 name="viewport"
 content="width=device-width, initial-scale=1.0">
+
+<title>
+Sunbeam Transportation
+</title>
 
 <link rel="icon"
 href="assets/app-icon.png">
@@ -30,6 +30,12 @@ GLOBAL
     box-sizing:border-box;
 }
 
+html,
+body{
+    width:100%;
+    overflow-x:hidden;
+}
+
 body{
 
     font-family:
@@ -38,8 +44,6 @@ body{
     sans-serif;
 
     background:#f3f4f6;
-
-    overflow-x:hidden;
 
     color:#0f172a;
 
@@ -113,15 +117,11 @@ TOP BAR
 }
 
 .facility-login{
-
     background:#2563eb;
-
 }
 
 .staff-login{
-
     background:#0f172a;
-
 }
 
 /* =========================
@@ -210,7 +210,7 @@ HERO
 
     border-radius:28px;
 
-    object-fit:contain;
+    object-fit:cover;
 
 }
 
@@ -332,12 +332,12 @@ SERVICES
 
     margin:auto;
 
-    padding:60px 60px 140px;
+    padding:60px 24px 140px;
 
     display:grid;
 
     grid-template-columns:
-    repeat(3,340px);
+    repeat(auto-fit,minmax(340px,340px));
 
     justify-content:center;
 
@@ -354,6 +354,8 @@ CARD
 .card{
 
     width:340px;
+
+    max-width:100%;
 
     background:#fff;
 
@@ -424,6 +426,8 @@ CARD
 
     min-height:120px;
 
+    word-break:break-word;
+
 }
 
 .card-btn{
@@ -463,7 +467,7 @@ CARD
 }
 
 /* =========================
-EXTRA BOXES
+EXTRA
 ========================= */
 
 .extra-sections{
@@ -488,7 +492,52 @@ EXTRA BOXES
 
     width:100%;
 
+    background:#fff;
+
+    border-radius:28px;
+
+    padding:44px;
+
+    box-shadow:
+    0 10px 30px rgba(0,0,0,.08);
+
     transition:.25s;
+
+}
+
+.extra-box:hover{
+
+    transform:
+    translateY(-6px);
+
+    box-shadow:
+    0 16px 40px rgba(37,99,235,.14);
+
+}
+
+.extra-box h3{
+
+    font-size:42px;
+
+    color:#1e3a6d;
+
+    margin-bottom:22px;
+
+    font-weight:900;
+
+    line-height:1.2;
+
+}
+
+.extra-box p{
+
+    font-size:22px;
+
+    color:#6b7280;
+
+    line-height:2;
+
+    word-break:break-word;
 
 }
 
@@ -515,6 +564,8 @@ CONTACT
 .contact-section strong{
 
     font-size:42px;
+
+    color:#111827;
 
 }
 
@@ -543,24 +594,7 @@ GOOGLE TRANSLATE
 ========================= */
 
 #google_translate_element{
-
-    position:fixed;
-
-    right:18px;
-
-    bottom:18px;
-
-    z-index:99999;
-
-    background:#fff;
-
-    padding:10px 14px;
-
-    border-radius:16px;
-
-    box-shadow:
-    0 10px 25px rgba(0,0,0,.15);
-
+    display:none;
 }
 
 .goog-logo-link{
@@ -568,19 +602,11 @@ GOOGLE TRANSLATE
 }
 
 .goog-te-gadget{
-    font-size:0 !important;
     color:transparent !important;
-}
-
-.goog-te-gadget span{
-    display:none !important;
+    font-size:0 !important;
 }
 
 .goog-te-banner-frame{
-    display:none !important;
-}
-
-iframe.goog-te-banner-frame{
     display:none !important;
 }
 
@@ -635,33 +661,82 @@ MOBILE
     }
 
     .hero{
-
         padding:0;
-
-    }
-
-    .hero-inner{
-
-        width:100%;
-        max-width:100%;
-
     }
 
     .hero-image{
 
         width:100%;
+
         height:auto;
-        border-radius:0;
-        object-fit:contain;
+
         display:block;
+
+        border-radius:0;
+
+        object-fit:cover;
+
+    }
+
+    .powered-box{
+
+        left:12px;
+
+        bottom:12px;
+
+        font-size:11px;
+
+        padding:8px 14px;
+
+    }
+
+    .about{
+
+        padding:60px 16px 20px;
+
+    }
+
+    .about h2{
+        font-size:38px;
+    }
+
+    .about p{
+
+        font-size:18px;
+
+        line-height:1.9;
+
+    }
+
+    .quote-header{
+
+        padding:36px 16px 18px;
+
+    }
+
+    .quote-header h2{
+        font-size:50px;
+    }
+
+    .quote-header p{
+
+        font-size:18px;
+
+        line-height:1.8;
 
     }
 
     .services{
 
-        padding:20px 18px 80px;
+        width:100%;
+
+        padding:20px 14px 80px;
+
+        display:grid;
 
         grid-template-columns:1fr;
+
+        justify-content:center;
 
         gap:22px;
 
@@ -671,6 +746,86 @@ MOBILE
 
         width:100%;
 
+        max-width:100%;
+
+        border-radius:22px;
+
+    }
+
+    .card-image{
+        height:240px;
+    }
+
+    .card-body{
+        padding:20px;
+    }
+
+    .card h3{
+        font-size:26px;
+    }
+
+    .card p{
+
+        font-size:16px;
+
+        min-height:auto;
+
+    }
+
+    .card-btn{
+
+        height:54px;
+
+        font-size:18px;
+
+    }
+
+    .extra-sections{
+
+        padding:20px 14px 80px;
+
+        gap:18px;
+
+    }
+
+    .extra-box{
+
+        padding:22px;
+
+        border-radius:20px;
+
+    }
+
+    .extra-box h3{
+
+        font-size:28px;
+
+        line-height:1.3;
+
+    }
+
+    .extra-box p{
+
+        font-size:16px;
+
+        line-height:1.8;
+
+    }
+
+    .contact-section{
+
+        font-size:18px;
+
+        padding:60px 14px;
+
+    }
+
+    .contact-section strong{
+        font-size:32px;
+    }
+
+    footer{
+        font-size:18px;
     }
 
 }
@@ -753,7 +908,7 @@ MOBILE
     </h2>
 
     <p id="aboutText">
-        Professional transportation services.
+        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
     </p>
 
 </section>
@@ -765,7 +920,7 @@ MOBILE
     </h2>
 
     <p id="quoteText">
-        Fast booking and reliable rides.
+        Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
     </p>
 
 </section>
@@ -784,11 +939,11 @@ id="extraSections">
     id="extraBox1">
 
         <h3 id="extra1TitleView">
-            Extra Box
+            Why Choose Sunbeam?
         </h3>
 
         <p id="extra1TextView">
-            Extra text
+            Professional Drivers
         </p>
 
     </div>
@@ -798,11 +953,11 @@ id="extraSections">
     id="extraBox2">
 
         <h3 id="extra2TitleView">
-            Extra Box
+            Serving All Arizona
         </h3>
 
         <p id="extra2TextView">
-            Extra text
+            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
         </p>
 
     </div>
@@ -843,16 +998,14 @@ id="extraSections">
 
 function googleTranslateElementInit(){
 
-  new google.translate.TranslateElement({
+    new google.translate.TranslateElement({
 
-    pageLanguage:"en",
+        pageLanguage:"en",
+        includedLanguages:"es,en",
+        autoDisplay:false
 
-    includedLanguages:"en,es",
-
-    autoDisplay:false
-
-  },
-  "google_translate_element");
+    },
+    "google_translate_element");
 
 }
 
@@ -865,10 +1018,6 @@ function googleTranslateElementInit(){
 <script>
 
 let currentLang = "en";
-
-/* =========================
-LANG BUTTONS
-========================= */
 
 function updateLangButtons(){
 
@@ -884,23 +1033,19 @@ function updateLangButtons(){
 
     document
     .getElementById(
-    "lang-" + currentLang
+        "lang-" + currentLang
     )
     .classList.add(
-    "active-lang"
+        "active-lang"
     );
 
 }
-
-/* =========================
-GOOGLE TRANSLATE
-========================= */
 
 function triggerGoogleTranslate(lang){
 
     const select =
     document.querySelector(
-    ".goog-te-combo"
+        ".goog-te-combo"
     );
 
     if(!select) return;
@@ -908,14 +1053,10 @@ function triggerGoogleTranslate(lang){
     select.value = lang;
 
     select.dispatchEvent(
-    new Event("change")
+        new Event("change")
     );
 
 }
-
-/* =========================
-LANG SWITCH
-========================= */
 
 window.setLang = function(lang){
 
@@ -923,38 +1064,74 @@ window.setLang = function(lang){
 
     updateLangButtons();
 
-    renderPage();
+    if(lang === "es"){
 
-    triggerGoogleTranslate(lang);
+        triggerGoogleTranslate("es");
+
+    }else{
+
+        triggerGoogleTranslate("en");
+
+    }
 
 };
 
-/* =========================
-SERVICES LAYOUT
-========================= */
+function applyExtraBoxesTheme(data){
 
-function updateServicesLayout(){
+    document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
 
-    const services =
-    document.getElementById(
-    "servicesContainer"
-    );
+        box.style.background =
+        data.extraBoxBg || "#fff";
 
-    if(!services) return;
+        box.style.border =
+        `${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`;
 
-    const count =
-    services.querySelectorAll(".card").length;
+        box.style.borderRadius =
+        `${data.extraBoxRadius || 28}px`;
 
-    services.style.gridTemplateColumns =
-    count <= 2
-    ? `repeat(${count},340px)`
-    : "repeat(3,340px)";
+        box.style.padding =
+        `${data.extraBoxPadding || 44}px`;
+
+        box.style.textAlign =
+        data.extraBoxAlign || "left";
+
+        box.style.boxShadow =
+
+        data.extraBoxShadow
+
+        ? "0 10px 30px rgba(0,0,0,.08)"
+
+        : "none";
+
+    });
+
+    document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+        title.style.color =
+        data.extraBoxTitleColor || "#1e3a6d";
+
+        title.style.fontSize =
+        `${data.extraBoxTitleSize || 42}px`;
+
+    });
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+        text.style.color =
+        data.extraBoxTextColor || "#6b7280";
+
+        text.style.fontSize =
+        `${data.extraBoxTextSize || 22}px`;
+
+    });
 
 }
-
-/* =========================
-RENDER PAGE
-========================= */
 
 function renderPage(){
 
@@ -968,157 +1145,83 @@ function renderPage(){
     document.getElementById(
     "aboutTitle"
     ).innerText =
-    data.aboutTitle || "";
+    data.aboutTitle ||
+    "";
 
     document.getElementById(
     "aboutText"
     ).innerText =
-    data.aboutText || "";
+    data.aboutText ||
+    "";
 
     document.getElementById(
     "quoteTitle"
     ).innerText =
-    data.quoteTitle || "";
+    data.quoteTitle ||
+    "";
 
     document.getElementById(
     "quoteText"
     ).innerText =
-    data.quoteText || "";
+    data.quoteText ||
+    "";
 
     document.getElementById(
     "extra1TitleView"
     ).innerText =
-    data.extra1Title || "";
+    data.extra1Title ||
+    "";
 
     document.getElementById(
     "extra1TextView"
     ).innerHTML =
-    data.extra1Text || "";
+    data.extra1Text ||
+    "";
 
     document.getElementById(
     "extra2TitleView"
     ).innerText =
-    data.extra2Title || "";
+    data.extra2Title ||
+    "";
 
     document.getElementById(
     "extra2TextView"
     ).innerHTML =
-    data.extra2Text || "";
+    data.extra2Text ||
+    "";
 
     document.getElementById(
     "contactTitleView"
     ).innerText =
-    data.contactTitle || "";
+    data.contactTitle ||
+    "";
 
     document.getElementById(
     "contactPhoneView"
     ).innerText =
-    data.contactPhone || "";
+    data.contactPhone ||
+    "";
 
     document.getElementById(
     "contactEmailView"
     ).innerText =
-    data.contactEmail || "";
+    data.contactEmail ||
+    "";
 
     document.getElementById(
     "footerView"
     ).innerText =
-    data.footerText || "";
-
-    /* =========================
-    SHOW/HIDE BOXES
-    ========================= */
-
-    document.getElementById(
-    "extraBox1"
-    ).style.display =
-    data.extra1Active
-    ? "block"
-    : "none";
-
-    document.getElementById(
-    "extraBox2"
-    ).style.display =
-    data.extra2Active
-    ? "block"
-    : "none";
-
-    /* =========================
-    APPLY BOX THEME
-    ========================= */
-
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
-
-        box.style.background =
-        data.extraBoxBg ||
-        "#ffffff";
-
-        box.style.border =
-        `${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`;
-
-        box.style.borderRadius =
-        `${data.extraBoxRadius || 28}px`;
-
-        box.style.padding =
-        `${data.extraBoxPadding || 44}px`;
-
-        box.style.textAlign =
-        data.extraBoxAlign ||
-        "center";
-
-        box.style.boxShadow =
-        data.extraBoxShadow
-        ? "0 10px 30px rgba(0,0,0,.08)"
-        : "none";
-
-    });
-
-    document
-    .querySelectorAll(".extra-box h3")
-    .forEach(title=>{
-
-        title.style.color =
-        data.extraBoxTitleColor ||
-        "#1e3a6d";
-
-        title.style.fontSize =
-        `${data.extraBoxTitleSize || 42}px`;
-
-    });
-
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
-
-        text.style.color =
-        data.extraBoxTextColor ||
-        "#6b7280";
-
-        text.style.fontSize =
-        `${data.extraBoxTextSize || 22}px`;
-
-    });
-
-    /* =========================
-    SERVICES
-    ========================= */
+    data.footerText ||
+    "";
 
     Branding.renderHomepageCards(
-    "servicesContainer",
-    currentLang
+        "servicesContainer",
+        currentLang
     );
 
-    updateServicesLayout();
-
-    updateLangButtons();
+    applyExtraBoxesTheme(data);
 
 }
-
-/* =========================
-INIT
-========================= */
 
 window.addEventListener(
 "DOMContentLoaded",
