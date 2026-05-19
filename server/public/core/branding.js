@@ -1,7 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
-// SERVER VERSION
+// FINAL SERVER VERSION
 // =========================
 
 console.log(
@@ -62,9 +62,6 @@ window.Branding = {
 
       this.data?.companyName ||
 
-      this.data?.branding
-      ?.companyName ||
-
       "Sunbeam Transportation"
 
     );
@@ -80,9 +77,6 @@ window.Branding = {
     return (
 
       this.data?.mainLogo ||
-
-      this.data?.branding
-      ?.mainLogo ||
 
       "/assets/logo.png"
 
@@ -100,9 +94,6 @@ window.Branding = {
 
       this.data?.driverLogo ||
 
-      this.data?.branding
-      ?.driverLogo ||
-
       "/assets/logo.png"
 
     );
@@ -118,9 +109,6 @@ window.Branding = {
     return (
 
       this.data?.heroImage ||
-
-      this.data?.homepage
-      ?.heroImage ||
 
       "/assets/hero.jpeg"
 
@@ -138,9 +126,6 @@ window.Branding = {
 
     this.data?.services ||
 
-    this.data?.homepage
-    ?.services ||
-
     [];
 
     if(
@@ -150,22 +135,6 @@ window.Branding = {
     }
 
     return [];
-
-  },
-
-  /* =========================
-  HOMEPAGE
-  ========================= */
-
-  getHomepage(){
-
-    return (
-
-      this.data?.homepage ||
-
-      {}
-
-    );
 
   },
 
@@ -256,6 +225,88 @@ window.Branding = {
   },
 
   /* =========================
+  THEME ENGINE
+  ========================= */
+
+  applyThemeEngine(){
+
+    const data =
+    this.data || {};
+
+    /* =========================
+    EXTRA BOXES
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
+
+        box.style.background =
+        data.extraBoxBg ||
+        "#ffffff";
+
+        box.style.border =
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`;
+
+        box.style.borderRadius =
+        `${data.extraBoxRadius || 28}px`;
+
+        box.style.padding =
+        `${data.extraBoxPadding || 44}px`;
+
+        box.style.textAlign =
+        data.extraBoxAlign ||
+        "center";
+
+        box.style.boxShadow =
+
+        data.extraBoxShadow
+
+        ? "0 10px 30px rgba(0,0,0,.08)"
+
+        : "none";
+
+    });
+
+    /* =========================
+    EXTRA TITLES
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+        title.style.color =
+        data.extraBoxTitleColor ||
+        "#1e3a6d";
+
+        title.style.fontSize =
+        `${data.extraBoxTitleSize || 42}px`;
+
+    });
+
+    /* =========================
+    EXTRA TEXT
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+        text.style.color =
+        data.extraBoxTextColor ||
+        "#6b7280";
+
+        text.style.fontSize =
+        `${data.extraBoxTextSize || 22}px`;
+
+    });
+
+  },
+
+  /* =========================
   HOMEPAGE CARDS
   ========================= */
 
@@ -324,7 +375,7 @@ window.Branding = {
     }
 
     /* =========================
-    RENDER
+    RENDER SERVICES
     ========================= */
 
     activeServices.forEach(service=>{
