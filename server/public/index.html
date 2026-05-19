@@ -4,13 +4,13 @@
 
 <meta charset="UTF-8">
 
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0">
-
 <title>
 Sunbeam Transportation
 </title>
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <link rel="icon"
 href="assets/app-icon.png">
@@ -210,7 +210,7 @@ HERO
 
     border-radius:28px;
 
-    object-fit:cover;
+    object-fit:contain;
 
 }
 
@@ -332,12 +332,12 @@ SERVICES
 
     margin:auto;
 
-    padding:60px 24px 140px;
+    padding:60px 60px 140px;
 
     display:grid;
 
     grid-template-columns:
-    repeat(auto-fit,minmax(340px,340px));
+    repeat(3,340px);
 
     justify-content:center;
 
@@ -348,14 +348,62 @@ SERVICES
 }
 
 /* =========================
+SMART LAYOUTS
+========================= */
+
+.services.layout-1{
+
+    grid-template-columns:
+    340px;
+
+}
+
+.services.layout-2{
+
+    grid-template-columns:
+    repeat(2,340px);
+
+}
+
+.services.layout-4{
+
+    grid-template-columns:
+    repeat(2,340px);
+
+}
+
+.services.layout-5{
+
+    grid-template-columns:
+    repeat(3,340px);
+
+    justify-content:center;
+
+}
+
+.services.layout-5 .card:nth-child(4){
+
+    grid-column:1 / span 1;
+
+    transform:translateX(184px);
+
+}
+
+.services.layout-5 .card:nth-child(5){
+
+    grid-column:2 / span 1;
+
+    transform:translateX(184px);
+
+}
+
+/* =========================
 CARD
 ========================= */
 
 .card{
 
     width:340px;
-
-    max-width:100%;
 
     background:#fff;
 
@@ -463,6 +511,28 @@ CARD
 .card-btn:hover{
 
     background:#1d4ed8;
+
+}
+
+/* =========================
+AUTO CENTER LAST ROW
+========================= */
+
+.services .card:last-child:nth-child(3n + 1){
+
+    grid-column:2;
+
+}
+
+.services .card:nth-last-child(2):nth-child(3n + 1){
+
+    grid-column:1;
+
+}
+
+.services .card:last-child:nth-child(3n + 2){
+
+    grid-column:2;
 
 }
 
@@ -590,11 +660,13 @@ footer{
 }
 
 /* =========================
-GOOGLE TRANSLATE
+GOOGLE TRANSLATE HIDE
 ========================= */
 
 #google_translate_element{
-    display:none;
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
 }
 
 .goog-logo-link{
@@ -665,17 +737,7 @@ MOBILE
     }
 
     .hero-image{
-
-        width:100%;
-
-        height:auto;
-
-        display:block;
-
         border-radius:0;
-
-        object-fit:cover;
-
     }
 
     .powered-box{
@@ -728,15 +790,9 @@ MOBILE
 
     .services{
 
-        width:100%;
-
-        padding:20px 14px 80px;
-
-        display:grid;
+        padding:20px 18px 80px;
 
         grid-template-columns:1fr;
-
-        justify-content:center;
 
         gap:22px;
 
@@ -745,8 +801,6 @@ MOBILE
     .card{
 
         width:100%;
-
-        max-width:100%;
 
         border-radius:22px;
 
@@ -1001,7 +1055,7 @@ function googleTranslateElementInit(){
     new google.translate.TranslateElement({
 
         pageLanguage:"en",
-        includedLanguages:"es,en",
+        includedLanguages:"en,es",
         autoDisplay:false
 
     },
@@ -1031,13 +1085,25 @@ function updateLangButtons(){
 
     });
 
-    document
-    .getElementById(
-        "lang-" + currentLang
-    )
-    .classList.add(
-        "active-lang"
-    );
+    if(currentLang === "en"){
+
+        document
+        .getElementById("lang-en")
+        .classList.add(
+            "active-lang"
+        );
+
+    }
+
+    if(currentLang === "es"){
+
+        document
+        .getElementById("lang-es")
+        .classList.add(
+            "active-lang"
+        );
+
+    }
 
 }
 
@@ -1045,7 +1111,7 @@ function triggerGoogleTranslate(lang){
 
     const select =
     document.querySelector(
-        ".goog-te-combo"
+    ".goog-te-combo"
     );
 
     if(!select) return;
@@ -1053,28 +1119,10 @@ function triggerGoogleTranslate(lang){
     select.value = lang;
 
     select.dispatchEvent(
-        new Event("change")
+    new Event("change")
     );
 
 }
-
-window.setLang = function(lang){
-
-    currentLang = lang;
-
-    updateLangButtons();
-
-    if(lang === "es"){
-
-        triggerGoogleTranslate("es");
-
-    }else{
-
-        triggerGoogleTranslate("en");
-
-    }
-
-};
 
 function applyExtraBoxesTheme(data){
 
@@ -1083,7 +1131,7 @@ function applyExtraBoxesTheme(data){
     .forEach(box=>{
 
         box.style.background =
-        data.extraBoxBg || "#fff";
+        data.extraBoxBg || "#ffffff";
 
         box.style.border =
         `${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`;
@@ -1138,90 +1186,200 @@ function renderPage(){
     const data =
     Branding.data || {};
 
-    document.title =
-    data.companyName ||
-    "Sunbeam Transportation";
-
     document.getElementById(
     "aboutTitle"
     ).innerText =
-    data.aboutTitle ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.aboutTitleEs ||
+        data.aboutTitle ||
+        "Transporte profesional en Arizona"
+      )
+    : (
+        data.aboutTitle ||
+        "Professional Transportation Across Arizona"
+      );
 
     document.getElementById(
     "aboutText"
     ).innerText =
-    data.aboutText ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.aboutTextEs ||
+        data.aboutText ||
+        ""
+      )
+    : (
+        data.aboutText ||
+        ""
+      );
 
     document.getElementById(
     "quoteTitle"
     ).innerText =
-    data.quoteTitle ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.quoteTitleEs ||
+        data.quoteTitle ||
+        ""
+      )
+    : (
+        data.quoteTitle ||
+        ""
+      );
 
     document.getElementById(
     "quoteText"
     ).innerText =
-    data.quoteText ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.quoteTextEs ||
+        data.quoteText ||
+        ""
+      )
+    : (
+        data.quoteText ||
+        ""
+      );
 
     document.getElementById(
     "extra1TitleView"
     ).innerText =
-    data.extra1Title ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.extra1TitleEs ||
+        data.extra1Title ||
+        ""
+      )
+    : (
+        data.extra1Title ||
+        ""
+      );
 
     document.getElementById(
     "extra1TextView"
     ).innerHTML =
-    data.extra1Text ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.extra1TextEs ||
+        data.extra1Text ||
+        ""
+      )
+    : (
+        data.extra1Text ||
+        ""
+      );
 
     document.getElementById(
     "extra2TitleView"
     ).innerText =
-    data.extra2Title ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.extra2TitleEs ||
+        data.extra2Title ||
+        ""
+      )
+    : (
+        data.extra2Title ||
+        ""
+      );
 
     document.getElementById(
     "extra2TextView"
     ).innerHTML =
-    data.extra2Text ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.extra2TextEs ||
+        data.extra2Text ||
+        ""
+      )
+    : (
+        data.extra2Text ||
+        ""
+      );
 
     document.getElementById(
     "contactTitleView"
     ).innerText =
-    data.contactTitle ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.contactTitleEs ||
+        data.contactTitle ||
+        "Atención al cliente"
+      )
+    : (
+        data.contactTitle ||
+        "Customer Support"
+      );
 
     document.getElementById(
     "contactPhoneView"
     ).innerText =
+
     data.contactPhone ||
-    "";
+    "619-509-7197";
 
     document.getElementById(
     "contactEmailView"
     ).innerText =
+
     data.contactEmail ||
-    "";
+    "admin@sunbeamtransportationllc.com";
 
     document.getElementById(
     "footerView"
     ).innerText =
-    data.footerText ||
-    "";
+
+    currentLang === "es"
+    ? (
+        data.footerTextEs ||
+        data.footerText ||
+        "©️ Sunbeam Transportation"
+      )
+    : (
+        data.footerText ||
+        "©️ Sunbeam Transportation"
+      );
 
     Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
+    "servicesContainer",
+    currentLang
     );
 
     applyExtraBoxesTheme(data);
 
+    updateServicesLayout();
+
+    updateLangButtons();
+
 }
+
+window.setLang = function(lang){
+
+    currentLang = lang;
+
+    renderPage();
+
+    if(lang === "es"){
+
+        triggerGoogleTranslate("es");
+
+    }else{
+
+        triggerGoogleTranslate("en");
+
+    }
+
+};
 
 window.addEventListener(
 "DOMContentLoaded",
@@ -1232,6 +1390,59 @@ async ()=>{
     renderPage();
 
 });
+
+function updateServicesLayout(){
+
+    const services =
+    document.getElementById(
+    "servicesContainer"
+    );
+
+    if(!services) return;
+
+    const count =
+    services.querySelectorAll(".card").length;
+
+    services.classList.remove(
+        "layout-1",
+        "layout-2",
+        "layout-4",
+        "layout-5"
+    );
+
+    if(count === 1){
+
+        services.classList.add(
+        "layout-1"
+        );
+
+    }
+
+    else if(count === 2){
+
+        services.classList.add(
+        "layout-2"
+        );
+
+    }
+
+    else if(count === 4){
+
+        services.classList.add(
+        "layout-4"
+        );
+
+    }
+
+    else if(count === 5){
+
+        services.classList.add(
+        "layout-5"
+        );
+
+    }
+
+}
 
 </script>
 
