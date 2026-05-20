@@ -684,7 +684,6 @@ document
     data.contactAlign || "center",
     "important"
   );
-
 });
 
 /* CONTACT TITLE */
@@ -706,6 +705,8 @@ document
   );
 
 });
+
+},
 
   /* =========================
   HOMEPAGE CARDS
