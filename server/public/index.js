@@ -171,7 +171,7 @@ window.Branding = {
   APPLY THEME ENGINE
   ========================= */
 
-  applyThemeEngine(){
+ applyThemeEngine(){
 
     const d =
     this.data || {};
@@ -180,27 +180,45 @@ window.Branding = {
     .querySelectorAll(".extra-box")
     .forEach(box=>{
 
-      box.style.background =
-      d.extraBoxBg || "#ffffff";
+      box.style.setProperty(
+        "background",
+        d.extraBoxBg || "#ffffff",
+        "important"
+      );
 
-      box.style.border =
-      `${d.extraBoxBorderSize || 2}px solid ${
-        d.extraBoxBorder || "#dbeafe"
-      }`;
+      box.style.setProperty(
+        "border",
+        `${d.extraBoxBorderSize || 2}px solid ${
+          d.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
 
-      box.style.borderRadius =
-      `${d.extraBoxRadius || 28}px`;
+      box.style.setProperty(
+        "border-radius",
+        `${d.extraBoxRadius || 28}px`,
+        "important"
+      );
 
-      box.style.padding =
-      `${d.extraBoxPadding || 40}px`;
+      box.style.setProperty(
+        "padding",
+        `${d.extraBoxPadding || 40}px`,
+        "important"
+      );
 
-      box.style.textAlign =
-      d.extraBoxAlign || "center";
+      box.style.setProperty(
+        "text-align",
+        d.extraBoxAlign || "center",
+        "important"
+      );
 
-      box.style.boxShadow =
-      d.extraBoxShadow
-      ? "0 12px 35px rgba(0,0,0,.10)"
-      : "none";
+      box.style.setProperty(
+        "box-shadow",
+        d.extraBoxShadow
+        ? "0 12px 35px rgba(0,0,0,.10)"
+        : "none",
+        "important"
+      );
 
     });
 
@@ -210,11 +228,17 @@ window.Branding = {
     )
     .forEach(title=>{
 
-      title.style.color =
-      d.extraBoxTitleColor || "#145cff";
+      title.style.setProperty(
+        "color",
+        d.extraBoxTitleColor || "#145cff",
+        "important"
+      );
 
-      title.style.fontSize =
-      `${d.extraBoxTitleSize || 32}px`;
+      title.style.setProperty(
+        "font-size",
+        `${d.extraBoxTitleSize || 32}px`,
+        "important"
+      );
 
     });
 
@@ -222,15 +246,21 @@ window.Branding = {
     .querySelectorAll(".extra-box p")
     .forEach(text=>{
 
-      text.style.color =
-      d.extraBoxTextColor || "#334155";
+      text.style.setProperty(
+        "color",
+        d.extraBoxTextColor || "#334155",
+        "important"
+      );
 
-      text.style.fontSize =
-      `${d.extraBoxTextSize || 18}px`;
+      text.style.setProperty(
+        "font-size",
+        `${d.extraBoxTextSize || 18}px`,
+        "important"
+      );
 
     });
 
-  },
+},
 
   /* =========================
   RENDER HOMEPAGE CARDS
