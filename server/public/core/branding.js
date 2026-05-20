@@ -225,6 +225,9 @@ window.Branding = {
     const data =
     this.data || {};
 
+    const mobile =
+    window.innerWidth <= 768;
+
     /* =========================
     BODY
     ========================= */
@@ -241,280 +244,297 @@ window.Branding = {
       "important"
     );
 
-
-  /* ABOUT TITLE */
-
-document
-.querySelectorAll(".about h2")
-.forEach(el=>{
-
-  el.style.setProperty(
-    "color",
-    data.aboutTitleColor || "#145cff",
-    "important"
-  );
-
-  if(window.innerWidth > 768){
-
-    el.style.setProperty(
-      "font-size",
-      `${data.aboutTitleSize || 34}px`,
-      "important"
-    );
-
-  }
-
-  el.style.setProperty(
-    "text-align",
-    data.aboutTitleAlign || "center",
-    "important"
-  );
-
-});
-
-/* ABOUT TEXT */
-
-document
-.querySelectorAll(".about p")
-.forEach(el=>{
-
-  el.style.setProperty(
-    "color",
-    data.aboutTextColor || "#334155",
-    "important"
-  );
-
-  if(window.innerWidth > 768){
-
-    el.style.setProperty(
-      "font-size",
-      `${data.aboutTextSize || 18}px`,
-      "important"
-    );
-
-  }
-
-  el.style.setProperty(
-    "text-align",
-    data.aboutTextAlign || "center",
-    "important"
-  );
-
-});
-
-/* =========================
-QUOTE SECTION
-========================= */
-
-document
-.querySelectorAll(".quote-header")
-.forEach(box=>{
-
-  box.style.setProperty(
-    "background",
-    data.quoteBg || "#ffffff",
-    "important"
-  );
-
-  box.style.setProperty(
-    "border",
-    `2px solid ${
-      data.quoteBorder || "#dbeafe"
-    }`,
-    "important"
-  );
-
-  box.style.setProperty(
-    "border-radius",
-    `${data.quoteRadius || 28}px`,
-    "important"
-  );
-
-  box.style.setProperty(
-    "padding",
-    `${data.quotePadding || 40}px`,
-    "important"
-  );
-
-  box.style.setProperty(
-    "box-shadow",
-    data.extraBoxShadow
-    ? "0 10px 30px rgba(0,0,0,.08)"
-    : "none",
-    "important"
-  );
-
-});
-
-/* QUOTE TITLE */
-
-document
-.querySelectorAll(".quote-header h2")
-.forEach(el=>{
-
-  el.style.setProperty(
-    "color",
-    data.quoteTitleColor || "#145cff",
-    "important"
-  );
-
-  if(window.innerWidth > 768){
-
-    el.style.setProperty(
-      "font-size",
-      `${data.quoteTitleSize || 34}px`,
-      "important"
-    );
-
-  }
-
-  el.style.setProperty(
-    "text-align",
-    data.quoteTitleAlign || "center",
-    "important"
-  );
-
-});
-
-/* QUOTE TEXT */
-
-document
-.querySelectorAll(".quote-header p")
-.forEach(el=>{
-
-  el.style.setProperty(
-    "color",
-    data.quoteTextColor || "#334155",
-    "important"
-  );
-
-  if(window.innerWidth > 768){
-
-    el.style.setProperty(
-      "font-size",
-      `${data.quoteTextSize || 18}px`,
-      "important"
-    );
-
-  }
-
-  el.style.setProperty(
-    "text-align",
-    data.quoteTextAlign || "center",
-    "important"
-  );
-
-});
-
-/* =========================
-EXTRA BOXES
-========================= */
-
-document
-.querySelectorAll(".extra-box")
-.forEach(box=>{
-
-  box.style.setProperty(
-    "background",
-    data.extraBoxBg || "#ffffff",
-    "important"
-  );
-
-  box.style.setProperty(
-    "border",
-    `${data.extraBoxBorderSize || 2}px solid ${
-      data.extraBoxBorder || "#dbeafe"
-    }`,
-    "important"
-  );
-
-  box.style.setProperty(
-    "border-radius",
-    `${data.extraBoxRadius || 28}px`,
-    "important"
-  );
-
-  box.style.setProperty(
-    "padding",
-    `${data.extraBoxPadding || 44}px`,
-    "important"
-  );
-
-  box.style.setProperty(
-    "text-align",
-    data.extraBoxAlign || "center",
-    "important"
-  );
-
-  box.style.setProperty(
-    "box-shadow",
-    data.extraBoxShadow
-    ? "0 10px 30px rgba(0,0,0,.08)"
-    : "none",
-    "important"
-  );
-
-});
-
-/* EXTRA TITLES */
-
-document
-.querySelectorAll(".extra-box h3")
-.forEach(title=>{
-
-  title.style.setProperty(
-    "color",
-    data.extraBoxTitleColor || "#145cff",
-    "important"
-  );
-
-  if(window.innerWidth > 768){
-
-    title.style.setProperty(
-      "font-size",
-      `${data.extraBoxTitleSize || 42}px`,
-      "important"
-    );
-
-  }
-
-  title.style.setProperty(
-    "text-align",
-    data.extraBoxAlign || "center",
-    "important"
-  );
-
-});
-
-/* EXTRA TEXT */
-
-document
-.querySelectorAll(".extra-box p")
-.forEach(text=>{
-
-  text.style.setProperty(
-    "color",
-    data.extraBoxTextColor || "#334155",
-    "important"
-  );
-
-  if(window.innerWidth > 768){
-
-    text.style.setProperty(
-      "font-size",
-      `${data.extraBoxTextSize || 22}px`,
-      "important"
-    );
-
-  }
-
-  text.style.setProperty(
-    "text-align",
-    data.extraBoxAlign || "center",
-    "important"
-  );
-
-});
+    /* =========================
+    ABOUT TITLE
+    ========================= */
+
+    document
+    .querySelectorAll(".about h2")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? Number(data.aboutTitleSize || 34) * 0.65
+      : Number(data.aboutTitleSize || 34);
+
+      el.style.setProperty(
+        "color",
+        data.aboutTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.aboutTitleAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    ABOUT TEXT
+    ========================= */
+
+    document
+    .querySelectorAll(".about p")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? Number(data.aboutTextSize || 18) * 0.82
+      : Number(data.aboutTextSize || 18);
+
+      el.style.setProperty(
+        "color",
+        data.aboutTextColor || "#334155",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.aboutTextAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    QUOTE SECTION
+    ========================= */
+
+    document
+    .querySelectorAll(".quote-header")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.quoteBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `2px solid ${
+          data.quoteBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.quoteRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${mobile ? 24 : (data.quotePadding || 40)}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    QUOTE TITLE
+    ========================= */
+
+    document
+    .querySelectorAll(".quote-header h2")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? Number(data.quoteTitleSize || 34) * 0.65
+      : Number(data.quoteTitleSize || 34);
+
+      el.style.setProperty(
+        "color",
+        data.quoteTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTitleAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    QUOTE TEXT
+    ========================= */
+
+    document
+    .querySelectorAll(".quote-header p")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? Number(data.quoteTextSize || 18) * 0.82
+      : Number(data.quoteTextSize || 18);
+
+      el.style.setProperty(
+        "color",
+        data.quoteTextColor || "#334155",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTextAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    EXTRA BOXES
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${mobile ? 22 : (data.extraBoxPadding || 44)}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    EXTRA TITLES
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+      const size =
+      mobile
+      ? Number(data.extraBoxTitleSize || 42) * 0.62
+      : Number(data.extraBoxTitleSize || 42);
+
+      title.style.setProperty(
+        "color",
+        data.extraBoxTitleColor || "#145cff",
+        "important"
+      );
+
+      title.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      title.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    EXTRA TEXT
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+      const size =
+      mobile
+      ? Number(data.extraBoxTextSize || 22) * 0.80
+      : Number(data.extraBoxTextSize || 22);
+
+      text.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#334155",
+        "important"
+      );
+
+      text.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      text.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
 
     /* =========================
     SERVICE CARDS
@@ -554,7 +574,9 @@ document
 
     });
 
-    /* CARD TITLES */
+    /* =========================
+    CARD TITLES
+    ========================= */
 
     document
     .querySelectorAll(".card h3")
@@ -574,7 +596,9 @@ document
 
     });
 
-    /* CARD TEXT */
+    /* =========================
+    CARD TEXT
+    ========================= */
 
     document
     .querySelectorAll(".card p")
@@ -594,7 +618,9 @@ document
 
     });
 
-    /* CARD BUTTONS */
+    /* =========================
+    CARD BUTTONS
+    ========================= */
 
     document
     .querySelectorAll(".card-btn")
@@ -614,131 +640,140 @@ document
 
     });
 
-/* CONTACT */
+    /* =========================
+    CONTACT
+    ========================= */
 
-document
-.querySelectorAll(
-  ".contact-section, #contactSection, .contact-box"
-)
-.forEach(el=>{
+    document
+    .querySelectorAll(
+      ".contact-section, #contactSection, .contact-box"
+    )
+    .forEach(el=>{
 
-  el.style.setProperty(
-    "background",
-    data.contactBg || "#ffffff",
-    "important"
-  );
+      el.style.setProperty(
+        "background",
+        data.contactBg || "#ffffff",
+        "important"
+      );
 
-  el.style.setProperty(
-    "border",
-    `${data.contactBorderSize || 2}px solid ${
-      data.contactBorder || "#dbeafe"
-    }`,
-    "important"
-  );
+      el.style.setProperty(
+        "border",
+        `${data.contactBorderSize || 2}px solid ${
+          data.contactBorder || "#dbeafe"
+        }`,
+        "important"
+      );
 
-  el.style.setProperty(
-    "border-radius",
-    `${data.contactRadius || 28}px`,
-    "important"
-  );
+      el.style.setProperty(
+        "border-radius",
+        `${data.contactRadius || 28}px`,
+        "important"
+      );
 
-  el.style.setProperty(
-    "padding",
-    "20px",
-    "important"
-  );
+      el.style.setProperty(
+        "padding",
+        `${mobile ? 18 : 20}px`,
+        "important"
+      );
 
-  el.style.setProperty(
-    "display",
-    "flex",
-    "important"
-  );
+      el.style.setProperty(
+        "display",
+        "flex",
+        "important"
+      );
 
-  el.style.setProperty(
-    "flex-direction",
-    "column",
-    "important"
-  );
+      el.style.setProperty(
+        "flex-direction",
+        "column",
+        "important"
+      );
 
-  el.style.setProperty(
-    "align-items",
-    data.contactAlign || "center",
-    "important"
-  );
+      el.style.setProperty(
+        "align-items",
+        data.contactAlign || "center",
+        "important"
+      );
 
-  el.style.setProperty(
-    "justify-content",
-    "flex-start",
-    "important"
-  );
+      el.style.setProperty(
+        "justify-content",
+        "flex-start",
+        "important"
+      );
 
-  el.style.setProperty(
-    "gap",
-    "10px",
-    "important"
-  );
+      el.style.setProperty(
+        "gap",
+        "10px",
+        "important"
+      );
 
-  el.style.setProperty(
-    "box-shadow",
-    data.extraBoxShadow
-    ? "0 10px 30px rgba(0,0,0,.08)"
-    : "none",
-    "important"
-  );
+      el.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
 
-  el.style.setProperty(
-    "color",
-    data.contactTextColor || "#6b7280",
-    "important"
-  );
+      el.style.setProperty(
+        "color",
+        data.contactTextColor || "#6b7280",
+        "important"
+      );
 
-  el.style.setProperty(
-    "text-align",
-    data.contactAlign || "center",
-    "important"
-  );
+      el.style.setProperty(
+        "text-align",
+        data.contactAlign || "center",
+        "important"
+      );
 
-  el.querySelectorAll("*").forEach(child=>{
+      el.querySelectorAll("*").forEach(child=>{
 
-    child.style.setProperty(
-      "margin",
-      "0",
-      "important"
-    );
+        child.style.setProperty(
+          "margin",
+          "0",
+          "important"
+        );
 
-  });
+      });
 
-});
+    });
 
-/* CONTACT TITLE */
+    /* =========================
+    CONTACT TITLE
+    ========================= */
 
-document
-.querySelectorAll(
-  ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
-)
-.forEach(el=>{
+    document
+    .querySelectorAll(
+      ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
+    )
+    .forEach(el=>{
 
-  el.style.setProperty(
-    "color",
-    data.contactTitleColor || "#145cff",
-    "important"
-  );
+      const size =
+      mobile
+      ? Number(data.contactTitleSize || 30) * 0.72
+      : Number(data.contactTitleSize || 30);
 
-  el.style.setProperty(
-    "font-size",
-    `${data.contactTitleSize || 30}px`,
-    "important"
-  );
+      el.style.setProperty(
+        "color",
+        data.contactTitleColor || "#145cff",
+        "important"
+      );
 
-});
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+    });
 
   },
 
-/* =========================
+  /* =========================
   HOMEPAGE CARDS
   ========================= */
 
-renderHomepageCards(
+  renderHomepageCards(
     containerId,
     lang="en"
   ){
