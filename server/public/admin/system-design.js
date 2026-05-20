@@ -1,4 +1,4 @@
-استبدل ملف public/admin/system-design.js كله بده كامل:
+أيوه كان ناقص. ده الملف كامل من أوله لآخره:
 
 // =========================================
 // FILE: public/admin/system-design.js
@@ -132,7 +132,8 @@ async function loadSystemDesign(){
     };
   }catch(err){
     console.log("LOAD ERROR",err);
-    systemDesign = defaultSystemDesign;
+    systemDesign =
+    defaultSystemDesign;
   }
 }
 /* =========================
