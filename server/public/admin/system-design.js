@@ -804,43 +804,61 @@ function renderCardsEditor(){
 
       </div>
 
-      <div class="input-group">
+    <div class="input-group">
 
-        <label>
-          Card Image
-        </label>
+  <label>
+    Card Image
+  </label>
 
-        <img
-          src="${
-            service.image ||
-            "/assets/logo.png"
-          }"
-          class="preview-image"
-          style="
-            width:100%;
-            height:180px;
-            object-fit:cover;
-            border-radius:14px;
-            margin-top:10px;
-          "
-        >
+  <img
+    src="${
+      service.image ||
+      "/assets/logo.png"
+    }"
+    class="preview-image"
+    style="
+      width:100%;
+      height:180px;
+      object-fit:cover;
+      border-radius:14px;
+      margin-top:10px;
+    "
+  >
 
-      </div>
+  <input
+    type="file"
+    hidden
+    accept="image/*"
+    id="cardUpload-${index}"
+    onchange="uploadCardImage(this,${index})"
+  >
 
-      <button
-        class="save-btn card-save"
-        onclick="saveCard(${index})"
-      >
+  <button
+    class="upload-btn"
+    type="button"
+    onclick="
+    document.getElementById(
+      'cardUpload-${index}'
+    ).click()
+    "
+  >
+    Upload Card Image
+  </button>
 
-        Save Card
+</div>
 
-      </button>
+<button
+  class="save-btn card-save"
+  onclick="saveCard(${index})"
+>
 
-    </div>
+  Save Card
 
-    `;
+</button>
 
-  });
+</div>
+
+});
 
 }
 
@@ -1148,6 +1166,67 @@ async function(){
   await saveSystemDesign();
 
   alert("Saved");
+
+};
+
+/* =========================
+UPLOAD CARD IMAGE
+========================= */
+
+window.uploadCardImage =
+async function(input,index){
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+    formData.append(
+      "image",
+      file
+    );
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign.services[index].image =
+    data.image;
+
+    await saveSystemDesign();
+
+    renderCardsEditor();
+
+    alert("Card Image Updated");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
 
 };
 
