@@ -80,12 +80,61 @@ new mongoose.Schema({
   },
 
   /* =========================
-  HOMEPAGE
+  BODY
   ========================= */
+
+  bodyBg:{
+    type:String,
+    default:"#f1f5f9"
+  },
+
+  bodyTextColor:{
+    type:String,
+    default:"#0f172a"
+  },
+
+  /* =========================
+  ABOUT
+  ========================= */
+
+  aboutBg:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  aboutBorder:{
+    type:String,
+    default:"#dbeafe"
+  },
+
+  aboutRadius:{
+    type:String,
+    default:"28"
+  },
+
+  aboutPadding:{
+    type:String,
+    default:"40"
+  },
 
   aboutTitle:{
     type:String,
     default:"About Us"
+  },
+
+  aboutTitleColor:{
+    type:String,
+    default:"#145cff"
+  },
+
+  aboutTitleSize:{
+    type:String,
+    default:"34"
+  },
+
+  aboutTitleAlign:{
+    type:String,
+    default:"center"
   },
 
   aboutText:{
@@ -93,14 +142,83 @@ new mongoose.Schema({
     default:"Professional transportation services."
   },
 
+  aboutTextColor:{
+    type:String,
+    default:"#334155"
+  },
+
+  aboutTextSize:{
+    type:String,
+    default:"18"
+  },
+
+  aboutTextAlign:{
+    type:String,
+    default:"center"
+  },
+
+  /* =========================
+  QUOTE
+  ========================= */
+
+  quoteBg:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  quoteBorder:{
+    type:String,
+    default:"#dbeafe"
+  },
+
+  quoteRadius:{
+    type:String,
+    default:"28"
+  },
+
+  quotePadding:{
+    type:String,
+    default:"40"
+  },
+
   quoteTitle:{
     type:String,
     default:"Get Quote & Book Your Ride"
   },
 
+  quoteTitleColor:{
+    type:String,
+    default:"#145cff"
+  },
+
+  quoteTitleSize:{
+    type:String,
+    default:"34"
+  },
+
+  quoteTitleAlign:{
+    type:String,
+    default:"center"
+  },
+
   quoteText:{
     type:String,
     default:"Select your service below"
+  },
+
+  quoteTextColor:{
+    type:String,
+    default:"#334155"
+  },
+
+  quoteTextSize:{
+    type:String,
+    default:"18"
+  },
+
+  quoteTextAlign:{
+    type:String,
+    default:"center"
   },
 
   /* =========================
@@ -138,7 +256,7 @@ new mongoose.Schema({
   },
 
   /* =========================
-  EXTRA BOX THEME ENGINE
+  EXTRA BOX DESIGN
   ========================= */
 
   extraBoxBg:{
