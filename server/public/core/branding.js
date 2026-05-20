@@ -1,657 +1,318 @@
 // =========================
-// FILE: public/core/branding.js
-// GH MOBILITY BRANDING ENGINE
-// FINAL SERVER VERSION
+// FILE: models/SystemDesign.js
+// COMPLETE FINAL THEME ENGINE MODEL
 // =========================
 
-console.log(
-  "BRANDING ENGINE LOADED"
-);
+const mongoose = require("mongoose");
 
-window.Branding = {
+/* =========================
+SERVICE SCHEMA
+========================= */
+
+const ServiceSchema = new mongoose.Schema({
+
+  id:String,
+
+  active:{
+    type:Boolean,
+    default:false
+  },
+
+  title:String,
+
+  titleEs:String,
+
+  description:String,
+
+  descriptionEs:String,
+
+  button:String,
+
+  buttonEs:String,
+
+  image:String,
+
+  link:String
+
+});
+
+/* =========================
+SYSTEM DESIGN
+========================= */
+
+const SystemDesignSchema =
+new mongoose.Schema({
 
   /* =========================
-  STORAGE
+  COMPANY
   ========================= */
 
-  data:{},
+  companyName:{
+    type:String,
+    default:"Sunbeam Transportation"
+  },
 
-  /* =========================
-  LOAD FROM SERVER
-  ========================= */
+  timezone:{
+    type:String,
+    default:"America/Phoenix"
+  },
 
-  async load(){
+  mainLogo:{
+    type:String,
+    default:"/assets/logo.png"
+  },
 
-    try{
+  driverLogo:{
+    type:String,
+    default:"/assets/logo.png"
+  },
 
-      const res =
-      await fetch(
-        "/api/system-design"
-      );
-
-      const data =
-      await res.json();
-
-      this.data =
-      data || {};
-
-    }catch(err){
-
-      console.log(
-        "BRANDING LOAD ERROR",
-        err
-      );
-
-      this.data = {};
-
-    }
-
-    this.applyGlobalBranding();
-
-    /* 🔥 APPLY THEME ENGINE */
-    this.applyThemeEngine();
-
-    return this.data;
-
+  heroImage:{
+    type:String,
+    default:"/assets/hero.jpeg"
   },
 
   /* =========================
-  COMPANY NAME
+  ABOUT
   ========================= */
 
-  getCompanyName(){
+  aboutTitle:String,
 
-    return (
+  aboutTitleEs:String,
 
-      this.data?.companyName ||
+  aboutText:String,
 
-      "Sunbeam Transportation"
+  aboutTextEs:String,
 
-    );
+  /* =========================
+  QUOTE
+  ========================= */
 
+  quoteTitle:String,
+
+  quoteTitleEs:String,
+
+  quoteText:String,
+
+  quoteTextEs:String,
+
+  /* =========================
+  EXTRA BOXES
+  ========================= */
+
+  extra1Active:{
+    type:Boolean,
+    default:true
+  },
+
+  extra1Title:String,
+
+  extra1TitleEs:String,
+
+  extra1Text:String,
+
+  extra1TextEs:String,
+
+  extra2Active:{
+    type:Boolean,
+    default:true
+  },
+
+  extra2Title:String,
+
+  extra2TitleEs:String,
+
+  extra2Text:String,
+
+  extra2TextEs:String,
+
+  /* =========================
+  GLOBAL THEME ENGINE
+  ========================= */
+
+  /* BACKGROUNDS */
+
+  pageBackground:{
+    type:String,
+    default:"#f3f4f6"
+  },
+
+  sectionBackground:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  cardBackground:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  extraBoxBg:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  /* TEXT COLORS */
+
+  titleColor:{
+    type:String,
+    default:"#1e3a6d"
+  },
+
+  textColor:{
+    type:String,
+    default:"#6b7280"
+  },
+
+  extraBoxTitleColor:{
+    type:String,
+    default:"#145cff"
+  },
+
+  extraBoxTextColor:{
+    type:String,
+    default:"#334155"
+  },
+
+  /* BUTTONS */
+
+  buttonColor:{
+    type:String,
+    default:"#2563eb"
+  },
+
+  buttonTextColor:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  /* BORDER */
+
+  borderColor:{
+    type:String,
+    default:"#dbeafe"
+  },
+
+  extraBoxBorder:{
+    type:String,
+    default:"#dbeafe"
+  },
+
+  extraBoxBorderSize:{
+    type:String,
+    default:"2"
+  },
+
+  /* RADIUS */
+
+  borderRadius:{
+    type:String,
+    default:"28"
+  },
+
+  extraBoxRadius:{
+    type:String,
+    default:"28"
+  },
+
+  /* PADDING */
+
+  extraBoxPadding:{
+    type:String,
+    default:"40"
+  },
+
+  /* ALIGN */
+
+  textAlign:{
+    type:String,
+    default:"center"
+  },
+
+  extraBoxAlign:{
+    type:String,
+    default:"center"
+  },
+
+  /* FONT SIZES */
+
+  titleSize:{
+    type:String,
+    default:"42"
+  },
+
+  textSize:{
+    type:String,
+    default:"20"
+  },
+
+  extraBoxTitleSize:{
+    type:String,
+    default:"32"
+  },
+
+  extraBoxTextSize:{
+    type:String,
+    default:"18"
+  },
+
+  /* SHADOW */
+
+  enableShadow:{
+    type:Boolean,
+    default:true
+  },
+
+  extraBoxShadow:{
+    type:Boolean,
+    default:true
   },
 
   /* =========================
-  MAIN LOGO
+  CONTACT
   ========================= */
 
-  getMainLogo(){
+  contactTitle:{
+    type:String,
+    default:"Customer Support"
+  },
 
-    return (
+  contactTitleEs:String,
 
-      this.data?.mainLogo ||
+  contactPhone:{
+    type:String,
+    default:"619-509-7197"
+  },
 
-      "/assets/logo.png"
-
-    );
-
+  contactEmail:{
+    type:String,
+    default:"admin@sunbeamtransportationllc.com"
   },
 
   /* =========================
-  DRIVER LOGO
+  FOOTER
   ========================= */
 
-  getDriverLogo(){
-
-    return (
-
-      this.data?.driverLogo ||
-
-      "/assets/logo.png"
-
-    );
-
+  footerText:{
+    type:String,
+    default:"©️ Sunbeam Transportation"
   },
 
-  /* =========================
-  HERO IMAGE
-  ========================= */
-
-  getHeroImage(){
-
-    return (
-
-      this.data?.heroImage ||
-
-      "/assets/hero.jpeg"
-
-    );
-
-  },
+  footerTextEs:String,
 
   /* =========================
   SERVICES
   ========================= */
 
-  getServices(){
-
-    const services =
-
-    this.data?.services ||
-
-    [];
-
-    if(
-      Array.isArray(services)
-    ){
-      return services;
-    }
-
-    return [];
-
-  },
-
-  /* =========================
-  APPLY GLOBAL
-  ========================= */
-
-  applyGlobalBranding(){
-
-    document.title =
-    this.getCompanyName();
-
-    /* =========================
-    COMPANY NAME
-    ========================= */
-
-    document
-    .querySelectorAll(
-      ".company-name"
-    )
-    .forEach(el=>{
-
-      el.innerText =
-      this.getCompanyName();
-
-    });
-
-    /* =========================
-    MAIN LOGO
-    ========================= */
-
-    document
-    .querySelectorAll(
-      ".main-logo"
-    )
-    .forEach(img=>{
-
-      img.src =
-      this.getMainLogo();
-
-    });
-
-    /* =========================
-    APP LOGO
-    ========================= */
-
-    document
-    .querySelectorAll(
-      ".app-logo"
-    )
-    .forEach(img=>{
-
-      img.src =
-      this.getMainLogo();
-
-    });
-
-    /* =========================
-    DRIVER LOGO
-    ========================= */
-
-    document
-    .querySelectorAll(
-      ".driver-logo"
-    )
-    .forEach(img=>{
-
-      img.src =
-      this.getDriverLogo();
-
-    });
-
-    /* =========================
-    HERO IMAGE
-    ========================= */
-
-    document
-    .querySelectorAll(
-      ".hero-image"
-    )
-    .forEach(img=>{
-
-      img.src =
-      this.getHeroImage();
-
-    });
-
-  },
-
-  /* =========================
-  THEME ENGINE
-  ========================= */
-
-  applyThemeEngine(){
-
-    const data =
-    this.data || {};
-
-    /* =========================
-    EXTRA BOXES
-    ========================= */
-
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
-
-        box.style.setProperty(
-          "background",
-          data.extraBoxBg || "#ffffff",
-          "important"
-        );
-
-        box.style.setProperty(
-          "border",
-          `${data.extraBoxBorderSize || 2}px solid ${
-            data.extraBoxBorder || "#dbeafe"
-          }`,
-          "important"
-        );
-
-        box.style.setProperty(
-          "border-radius",
-          `${data.extraBoxRadius || 28}px`,
-          "important"
-        );
-
-        box.style.setProperty(
-          "padding",
-          `${data.extraBoxPadding || 44}px`,
-          "important"
-        );
-
-        box.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-        box.style.setProperty(
-          "box-shadow",
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.08)"
-          : "none",
-          "important"
-        );
-
-    });
-
-    /* =========================
-    EXTRA TITLES
-    ========================= */
-
-    document
-    .querySelectorAll(".extra-box h3")
-    .forEach(title=>{
-
-        title.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
-
-        title.style.setProperty(
-          "font-size",
-          `${data.extraBoxTitleSize || 42}px`,
-          "important"
-        );
-
-        title.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    /* =========================
-    EXTRA TEXT
-    ========================= */
-
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
-
-        text.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
-
-        text.style.setProperty(
-          "font-size",
-          `${data.extraBoxTextSize || 22}px`,
-          "important"
-        );
-
-        text.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    /* =========================
-    ABOUT SECTION
-    ========================= */
-
-    document
-    .querySelectorAll(".about h2")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    document
-    .querySelectorAll(".about p")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    /* =========================
-    QUOTE SECTION
-    ========================= */
-
-    document
-    .querySelectorAll(".quote-header h2")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    document
-    .querySelectorAll(".quote-header p")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    /* =========================
-    SERVICE CARDS
-    ========================= */
-
-    document
-    .querySelectorAll(".card")
-    .forEach(card=>{
-
-        card.style.setProperty(
-          "background",
-          data.extraBoxBg || "#ffffff",
-          "important"
-        );
-
-        card.style.setProperty(
-          "border-radius",
-          `${data.extraBoxRadius || 28}px`,
-          "important"
-        );
-
-    });
-
-    document
-    .querySelectorAll(".card h3")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    document
-    .querySelectorAll(".card p")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-    /* =========================
-    CONTACT SECTION
-    ========================= */
-
-    document
-    .querySelectorAll(".contact-section")
-    .forEach(el=>{
-
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
-
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-    });
-
-  },
-
-  /* =========================
-  HOMEPAGE CARDS
-  ========================= */
-
-  renderHomepageCards(
-    containerId,
-    lang="en"
-  ){
-
-    const container =
-    document.getElementById(
-      containerId
-    );
-
-    if(!container){
-
-      console.log(
-        "SERVICES CONTAINER NOT FOUND"
-      );
-
-      return;
-
-    }
-
-    const services =
-    this.getServices();
-
-    container.innerHTML = "";
-
-    const activeServices =
-    services.filter(
-      s => s.active
-    );
-
-    if(!activeServices.length){
-
-      container.innerHTML = `
-
-      <div style="
-      width:100%;
-      text-align:center;
-      padding:50px 20px;
-      font-size:24px;
-      color:#64748b;
-      ">
-
-        ${
-          lang === "es"
-          ? "No hay servicios activos"
-          : "No Active Services"
-        }
-
-      </div>
-
-      `;
-
-      return;
-
-    }
-
-    activeServices.forEach(service=>{
-
-      const title =
-
-      lang === "es"
-
-      ? (
-          service.titleEs ||
-          service.title ||
-          ""
-        )
-
-      : (
-          service.title ||
-          ""
-        );
-
-      const desc =
-
-      lang === "es"
-
-      ? (
-          service.descriptionEs ||
-          service.description ||
-          ""
-        )
-
-      : (
-          service.description ||
-          ""
-        );
-
-      const image =
-
-      service.image ||
-      "/assets/logo.png";
-
-      const buttonText =
-
-      lang === "es"
-
-      ? (
-          service.buttonEs ||
-          "Obtener precio"
-        )
-
-      : (
-          service.button ||
-          "Get Quote"
-        );
-
-      container.innerHTML += `
-
-      <div class="card">
-
-        <img
-        src="${image}"
-        class="card-image">
-
-        <div class="card-body">
-
-          <h3>
-            ${title}
-          </h3>
-
-          <p>
-            ${desc}
-          </p>
-
-          <a
-          href="${
-            service.link ||
-            "getquote/index.html"
-          }"
-          class="card-btn">
-
-            ${buttonText}
-
-          </a>
-
-        </div>
-
-      </div>
-
-      `;
-
-    });
-
-  }
-
-};
+  services:[ServiceSchema]
+
+},
+{
+  timestamps:true
+});
+
+module.exports =
+mongoose.model(
+  "SystemDesign",
+  SystemDesignSchema
+);
