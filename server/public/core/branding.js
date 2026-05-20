@@ -275,6 +275,14 @@ window.Branding = {
         "important"
       );
 
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
+
     });
 
     /* ABOUT TITLE */
@@ -360,6 +368,14 @@ window.Branding = {
       box.style.setProperty(
         "padding",
         `${data.quotePadding || 40}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
         "important"
       );
 
@@ -534,6 +550,14 @@ window.Branding = {
       );
 
       card.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      card.style.setProperty(
         "border-radius",
         `${data.extraBoxRadius || 28}px`,
         "important"
@@ -614,6 +638,40 @@ window.Branding = {
     document
     .querySelectorAll(".contact-section")
     .forEach(el=>{
+
+      el.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 28}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "padding",
+        `${data.extraBoxPadding || 40}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
 
       el.style.setProperty(
         "color",
