@@ -227,182 +227,322 @@ window.Branding = {
 
   },
 
+ /* =========================
+THEME ENGINE
+========================= */
+
+applyThemeEngine(){
+
+  const data =
+  this.data || {};
+
   /* =========================
-  THEME ENGINE
+  BODY
   ========================= */
 
-  applyThemeEngine(){
+  document.body.style.setProperty(
+    "background",
+    data.bodyBg || "#f1f5f9",
+    "important"
+  );
 
-    const data =
-    this.data || {};
+  document.body.style.setProperty(
+    "color",
+    data.bodyTextColor || "#0f172a",
+    "important"
+  );
 
-    /* =========================
-    EXTRA BOXES
-    ========================= */
+  /* =========================
+  ABOUT SECTION BOX
+  ========================= */
 
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
+  document
+  .querySelectorAll(".about")
+  .forEach(box=>{
 
-        box.style.setProperty(
-          "background",
-          data.extraBoxBg || "#ffffff",
-          "important"
-        );
+    box.style.setProperty(
+      "background",
+      data.aboutBg || "#ffffff",
+      "important"
+    );
 
-        box.style.setProperty(
-          "border",
-          `${data.extraBoxBorderSize || 2}px solid ${
-            data.extraBoxBorder || "#dbeafe"
-          }`,
-          "important"
-        );
+    box.style.setProperty(
+      "border",
+      `2px solid ${
+        data.aboutBorder || "#dbeafe"
+      }`,
+      "important"
+    );
 
-        box.style.setProperty(
-          "border-radius",
-          `${data.extraBoxRadius || 28}px`,
-          "important"
-        );
+    box.style.setProperty(
+      "border-radius",
+      `${data.aboutRadius || 28}px`,
+      "important"
+    );
 
-        box.style.setProperty(
-          "padding",
-          `${data.extraBoxPadding || 44}px`,
-          "important"
-        );
+    box.style.setProperty(
+      "padding",
+      `${data.aboutPadding || 40}px`,
+      "important"
+    );
 
-        box.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+  });
 
-        box.style.setProperty(
-          "box-shadow",
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.08)"
-          : "none",
-          "important"
-        );
+  /* =========================
+  ABOUT TITLE
+  ========================= */
 
-    });
+  document
+  .querySelectorAll(".about h2")
+  .forEach(el=>{
 
-    /* =========================
-    EXTRA TITLES
-    ========================= */
+    el.style.setProperty(
+      "color",
+      data.aboutTitleColor || "#145cff",
+      "important"
+    );
 
-    document
-    .querySelectorAll(".extra-box h3")
-    .forEach(title=>{
+    el.style.setProperty(
+      "font-size",
+      `${data.aboutTitleSize || 34}px`,
+      "important"
+    );
 
-        title.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
+    el.style.setProperty(
+      "text-align",
+      data.aboutTitleAlign || "center",
+      "important"
+    );
 
-        title.style.setProperty(
-          "font-size",
-          `${data.extraBoxTitleSize || 42}px`,
-          "important"
-        );
+  });
 
-        title.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+  /* =========================
+  ABOUT TEXT
+  ========================= */
 
-    });
+  document
+  .querySelectorAll(".about p")
+  .forEach(el=>{
 
-    /* =========================
-    EXTRA TEXT
-    ========================= */
+    el.style.setProperty(
+      "color",
+      data.aboutTextColor || "#334155",
+      "important"
+    );
 
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
+    el.style.setProperty(
+      "font-size",
+      `${data.aboutTextSize || 18}px`,
+      "important"
+    );
 
-        text.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
+    el.style.setProperty(
+      "text-align",
+      data.aboutTextAlign || "center",
+      "important"
+    );
 
-        text.style.setProperty(
-          "font-size",
-          `${data.extraBoxTextSize || 22}px`,
-          "important"
-        );
+  });
 
-        text.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+  /* =========================
+  QUOTE SECTION BOX
+  ========================= */
 
-    });
+  document
+  .querySelectorAll(".quote-header")
+  .forEach(box=>{
 
-    /* =========================
-    ABOUT SECTION
-    ========================= */
+    box.style.setProperty(
+      "background",
+      data.quoteBg || "#ffffff",
+      "important"
+    );
 
-    document
-    .querySelectorAll(".about h2")
-    .forEach(el=>{
+    box.style.setProperty(
+      "border",
+      `2px solid ${
+        data.quoteBorder || "#dbeafe"
+      }`,
+      "important"
+    );
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
+    box.style.setProperty(
+      "border-radius",
+      `${data.quoteRadius || 28}px`,
+      "important"
+    );
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+    box.style.setProperty(
+      "padding",
+      `${data.quotePadding || 40}px`,
+      "important"
+    );
 
-    });
+  });
 
-    document
-    .querySelectorAll(".about p")
-    .forEach(el=>{
+  /* =========================
+  QUOTE TITLE
+  ========================= */
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
+  document
+  .querySelectorAll(".quote-header h2")
+  .forEach(el=>{
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+    el.style.setProperty(
+      "color",
+      data.quoteTitleColor || "#145cff",
+      "important"
+    );
 
-    });
+    el.style.setProperty(
+      "font-size",
+      `${data.quoteTitleSize || 34}px`,
+      "important"
+    );
 
-    /* =========================
-    QUOTE SECTION
-    ========================= */
+    el.style.setProperty(
+      "text-align",
+      data.quoteTitleAlign || "center",
+      "important"
+    );
 
-    document
-    .querySelectorAll(".quote-header h2")
-    .forEach(el=>{
+  });
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
+  /* =========================
+  QUOTE TEXT
+  ========================= */
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+  document
+  .querySelectorAll(".quote-header p")
+  .forEach(el=>{
 
-    });
+    el.style.setProperty(
+      "color",
+      data.quoteTextColor || "#334155",
+      "important"
+    );
+
+    el.style.setProperty(
+      "font-size",
+      `${data.quoteTextSize || 18}px`,
+      "important"
+    );
+
+    el.style.setProperty(
+      "text-align",
+      data.quoteTextAlign || "center",
+      "important"
+    );
+
+  });
+
+  /* =========================
+  EXTRA BOXES
+  ========================= */
+
+  document
+  .querySelectorAll(".extra-box")
+  .forEach(box=>{
+
+    box.style.setProperty(
+      "background",
+      data.extraBoxBg || "#ffffff",
+      "important"
+    );
+
+    box.style.setProperty(
+      "border",
+      `${data.extraBoxBorderSize || 2}px solid ${
+        data.extraBoxBorder || "#dbeafe"
+      }`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "border-radius",
+      `${data.extraBoxRadius || 28}px`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "padding",
+      `${data.extraBoxPadding || 44}px`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "text-align",
+      data.extraBoxAlign || "center",
+      "important"
+    );
+
+    box.style.setProperty(
+      "box-shadow",
+      data.extraBoxShadow
+      ? "0 10px 30px rgba(0,0,0,.08)"
+      : "none",
+      "important"
+    );
+
+  });
+
+  /* =========================
+  EXTRA TITLES
+  ========================= */
+
+  document
+  .querySelectorAll(".extra-box h3")
+  .forEach(title=>{
+
+    title.style.setProperty(
+      "color",
+      data.extraBoxTitleColor || "#145cff",
+      "important"
+    );
+
+    title.style.setProperty(
+      "font-size",
+      `${data.extraBoxTitleSize || 42}px`,
+      "important"
+    );
+
+    title.style.setProperty(
+      "text-align",
+      data.extraBoxAlign || "center",
+      "important"
+    );
+
+  });
+
+  /* =========================
+  EXTRA TEXT
+  ========================= */
+
+  document
+  .querySelectorAll(".extra-box p")
+  .forEach(text=>{
+
+    text.style.setProperty(
+      "color",
+      data.extraBoxTextColor || "#334155",
+      "important"
+    );
+
+    text.style.setProperty(
+      "font-size",
+      `${data.extraBoxTextSize || 22}px`,
+      "important"
+    );
+
+    text.style.setProperty(
+      "text-align",
+      data.extraBoxAlign || "center",
+      "important"
+    );
+
+  });
+
+}
 
     document
     .querySelectorAll(".quote-header p")

@@ -1,92 +1,102 @@
+استبدل ملف system-design.js كله بالكامل بده، ده فيه:
+
+* BODY controls
+* ABOUT controls
+* QUOTE controls
+* حفظ + تحميل + لايف بريفيو
+* كل جزء مستقل لوحده
+* بدون ما نرجع نعدل تاني في نفس النقطة
+
 // =========================================
 // FILE: public/admin/system-design.js
-// FINAL LIVE THEME ENGINE
+// COMPLETE SYSTEM DESIGN ENGINE
 // =========================================
-
 console.log("SYSTEM DESIGN LOADED");
-
 let systemDesign = {};
-
-/* =========================
-SAVE STORAGE
-========================= */
-
-function saveStorage(){
-  saveSystemDesign();
-}
-
 /* =========================
 DEFAULT DATA
 ========================= */
-
 const defaultSystemDesign = {
-
   companyName:"Sunbeam Transportation",
-
   timezone:"America/Phoenix",
-
   mainLogo:"/assets/logo.png",
-
   driverLogo:"/assets/logo.png",
-
   heroImage:"/assets/hero.jpeg",
-
-  aboutTitle:"About Us",
-
-  aboutText:"Professional transportation services.",
-
-  quoteTitle:"Get Quote & Book Your Ride",
-
-  quoteText:"Select your service below",
-
-  extra1Active:true,
-
-  extra1Title:"Extra Information",
-
-  extra1Text:"You can add pricing, announcements, promotions, or company information here.",
-
-  extra2Active:true,
-
-  extra2Title:"Additional Services",
-
-  extra2Text:"This section can later be managed from the admin panel.",
-
   /* =========================
-  EXTRA BOX THEME ENGINE
+  BODY
   ========================= */
-
+  bodyBg:"#f1f5f9",
+  bodyTextColor:"#0f172a",
+  /* =========================
+  ABOUT
+  ========================= */
+  aboutBg:"#ffffff",
+  aboutBorder:"#dbeafe",
+  aboutRadius:"28",
+  aboutPadding:"40",
+  aboutTitle:"About Us",
+  aboutTitleColor:"#145cff",
+  aboutTitleSize:"34",
+  aboutTitleAlign:"center",
+  aboutText:
+  "Professional transportation services.",
+  aboutTextColor:"#334155",
+  aboutTextSize:"18",
+  aboutTextAlign:"center",
+  /* =========================
+  QUOTE
+  ========================= */
+  quoteBg:"#ffffff",
+  quoteBorder:"#dbeafe",
+  quoteRadius:"28",
+  quotePadding:"40",
+  quoteTitle:
+  "Get Quote & Book Your Ride",
+  quoteTitleColor:"#145cff",
+  quoteTitleSize:"34",
+  quoteTitleAlign:"center",
+  quoteText:
+  "Select your service below",
+  quoteTextColor:"#334155",
+  quoteTextSize:"18",
+  quoteTextAlign:"center",
+  /* =========================
+  EXTRA BOXES
+  ========================= */
+  extra1Active:true,
+  extra1Title:"Extra Information",
+  extra1Text:
+  "You can add pricing, announcements, promotions, or company information here.",
+  extra2Active:true,
+  extra2Title:"Additional Services",
+  extra2Text:
+  "This section can later be managed from the admin panel.",
+  /* =========================
+  EXTRA BOX DESIGN
+  ========================= */
   extraBoxBg:"#ffffff",
-
   extraBoxBorder:"#dbeafe",
-
   extraBoxTitleColor:"#145cff",
-
   extraBoxTextColor:"#334155",
-
   extraBoxRadius:"28",
-
   extraBoxPadding:"40",
-
   extraBoxAlign:"center",
-
   extraBoxTitleSize:"32",
-
   extraBoxTextSize:"18",
-
   extraBoxBorderSize:"2",
-
   extraBoxShadow:true,
-
+  /* =========================
+  CONTACT
+  ========================= */
   contactTitle:"Customer Support",
-
   contactPhone:"619-509-7197",
-
-  contactEmail:"admin@sunbeamtransportationllc.com",
-
-  footerText:"©️ Sunbeam Transportation",
-
+  contactEmail:
+  "admin@sunbeamtransportationllc.com",
+  footerText:"© Sunbeam Transportation",
+  /* =========================
+  SERVICES
+  ========================= */
   services:[
-
     {
       id:"standard",
       active:false,
@@ -95,7 +105,6 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
-
     {
       id:"xl",
       active:false,
@@ -104,7 +113,6 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
-
     {
       id:"taxi",
       active:false,
@@ -113,7 +121,6 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
-
     {
       id:"limo",
       active:false,
@@ -122,7 +129,6 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
-
     {
       id:"wheelchair",
       active:false,
@@ -131,7 +137,6 @@ const defaultSystemDesign = {
       image:"/assets/nemt.jpeg",
       link:"getquote/index.html"
     },
-
     {
       id:"shared",
       active:false,
@@ -140,866 +145,424 @@ const defaultSystemDesign = {
       image:"/assets/airport.jpeg",
       link:"getquote/index.html"
     }
-
   ]
-
 };
-
 /* =========================
-LOAD FROM SERVER
+LOAD
 ========================= */
-
 async function loadSystemDesign(){
-
   try{
-
     const res =
     await fetch("/api/system-design");
-
     const data =
     await res.json();
-
     systemDesign = {
-
       ...defaultSystemDesign,
-
       ...data,
-
       services:
       Array.isArray(data.services)
       && data.services.length
       ? data.services
       : defaultSystemDesign.services
-
     };
-
   }catch(err){
-
-    console.log("LOAD ERROR",err);
-
+    console.log(err);
     systemDesign =
     defaultSystemDesign;
-
   }
-
 }
-
 /* =========================
-SAVE TO SERVER
+SAVE
 ========================= */
-
 async function saveSystemDesign(){
-
   try{
-
-    const res =
     await fetch(
       "/api/system-design",
       {
-
         method:"POST",
-
         headers:{
           "Content-Type":
           "application/json"
         },
-
-        body:JSON.stringify(
-          systemDesign
-        )
-
+        body:
+        JSON.stringify(systemDesign)
       }
     );
-
-    return await res.json();
-
   }catch(err){
-
-    console.log("SAVE ERROR",err);
-
+    console.log(err);
   }
-
 }
-
 /* =========================
-SAFE SET
+HELPERS
 ========================= */
-
 function setValue(id,value){
-
   const el =
   document.getElementById(id);
-
   if(el){
-
-    el.value =
-    value || "";
-
+    el.value = value || "";
   }
-
 }
-
 function setChecked(id,value){
-
   const el =
   document.getElementById(id);
-
   if(el){
-
-    el.checked =
-    !!value;
-
+    el.checked = !!value;
   }
-
 }
-
 function setImage(id,value){
-
   const el =
   document.getElementById(id);
-
   if(el){
-
-    el.src =
-    value || "";
-
+    el.src = value || "";
   }
-
 }
-
 /* =========================
-LOAD FORM VALUES
+LOAD VALUES
 ========================= */
-
 function loadFormValues(){
-
+  /* BASIC */
   setValue(
     "companyNameInput",
     systemDesign.companyName
   );
-
   setValue(
     "timezoneInput",
     systemDesign.timezone
   );
-
+  /* IMAGES */
   setImage(
     "mainLogoPreview",
     systemDesign.mainLogo
   );
-
   setImage(
     "driverLogoPreview",
     systemDesign.driverLogo
   );
-
   setImage(
     "heroImagePreview",
     systemDesign.heroImage
   );
-
+  /* BODY */
+  setValue(
+    "bodyBgInput",
+    systemDesign.bodyBg
+  );
+  setValue(
+    "bodyTextColorInput",
+    systemDesign.bodyTextColor
+  );
+  /* ABOUT */
+  setValue(
+    "aboutBgInput",
+    systemDesign.aboutBg
+  );
+  setValue(
+    "aboutBorderInput",
+    systemDesign.aboutBorder
+  );
+  setValue(
+    "aboutRadiusInput",
+    systemDesign.aboutRadius
+  );
+  setValue(
+    "aboutPaddingInput",
+    systemDesign.aboutPadding
+  );
   setValue(
     "aboutTitleInput",
     systemDesign.aboutTitle
   );
-
+  setValue(
+    "aboutTitleColorInput",
+    systemDesign.aboutTitleColor
+  );
+  setValue(
+    "aboutTitleSizeInput",
+    systemDesign.aboutTitleSize
+  );
+  setValue(
+    "aboutTitleAlignInput",
+    systemDesign.aboutTitleAlign
+  );
   setValue(
     "aboutTextInput",
     systemDesign.aboutText
   );
-
+  setValue(
+    "aboutTextColorInput",
+    systemDesign.aboutTextColor
+  );
+  setValue(
+    "aboutTextSizeInput",
+    systemDesign.aboutTextSize
+  );
+  setValue(
+    "aboutTextAlignInput",
+    systemDesign.aboutTextAlign
+  );
+  /* QUOTE */
+  setValue(
+    "quoteBgInput",
+    systemDesign.quoteBg
+  );
+  setValue(
+    "quoteBorderInput",
+    systemDesign.quoteBorder
+  );
+  setValue(
+    "quoteRadiusInput",
+    systemDesign.quoteRadius
+  );
+  setValue(
+    "quotePaddingInput",
+    systemDesign.quotePadding
+  );
   setValue(
     "quoteTitleInput",
     systemDesign.quoteTitle
   );
-
+  setValue(
+    "quoteTitleColorInput",
+    systemDesign.quoteTitleColor
+  );
+  setValue(
+    "quoteTitleSizeInput",
+    systemDesign.quoteTitleSize
+  );
+  setValue(
+    "quoteTitleAlignInput",
+    systemDesign.quoteTitleAlign
+  );
   setValue(
     "quoteTextInput",
     systemDesign.quoteText
   );
-
-  setChecked(
-    "extra1Active",
-    systemDesign.extra1Active
-  );
-
   setValue(
-    "extra1Title",
-    systemDesign.extra1Title
+    "quoteTextColorInput",
+    systemDesign.quoteTextColor
   );
-
   setValue(
-    "extra1Text",
-    systemDesign.extra1Text
+    "quoteTextSizeInput",
+    systemDesign.quoteTextSize
   );
-
-  setChecked(
-    "extra2Active",
-    systemDesign.extra2Active
-  );
-
   setValue(
-    "extra2Title",
-    systemDesign.extra2Title
+    "quoteTextAlignInput",
+    systemDesign.quoteTextAlign
   );
-
-  setValue(
-    "extra2Text",
-    systemDesign.extra2Text
-  );
-
-  /* =========================
-  THEME ENGINE LOAD
-  ========================= */
-
-  setValue(
-    "extraBoxBgInput",
-    systemDesign.extraBoxBg
-  );
-
-  setValue(
-    "extraBoxBorderInput",
-    systemDesign.extraBoxBorder
-  );
-
-  setValue(
-    "extraBoxTitleColorInput",
-    systemDesign.extraBoxTitleColor
-  );
-
-  setValue(
-    "extraBoxTextColorInput",
-    systemDesign.extraBoxTextColor
-  );
-
-  setValue(
-    "extraBoxRadiusInput",
-    systemDesign.extraBoxRadius
-  );
-
-  setValue(
-    "extraBoxPaddingInput",
-    systemDesign.extraBoxPadding
-  );
-
-  setValue(
-    "extraBoxAlignInput",
-    systemDesign.extraBoxAlign
-  );
-
-  setValue(
-    "extraBoxTitleSizeInput",
-    systemDesign.extraBoxTitleSize
-  );
-
-  setValue(
-    "extraBoxTextSizeInput",
-    systemDesign.extraBoxTextSize
-  );
-
-  setValue(
-    "extraBoxBorderSizeInput",
-    systemDesign.extraBoxBorderSize
-  );
-
-  setChecked(
-    "extraBoxShadowInput",
-    systemDesign.extraBoxShadow
-  );
-
 }
-
 /* =========================
-UPLOAD MAIN IMAGE
+UPLOADS
 ========================= */
-
 async function uploadMainImage(
   input,
   key,
   previewId
 ){
-
   const file =
   input.files[0];
-
   if(!file) return;
-
-  try{
-
-    const formData =
-    new FormData();
-
-    formData.append(
-      "image",
-      file
-    );
-
-    const res =
-    await fetch(
-      "/api/system-design/upload",
-      {
-        method:"POST",
-        body:formData
-      }
-    );
-
-    const data =
-    await res.json();
-
-    if(!data.success){
-
-      alert("Upload Failed");
-
-      return;
-
+  const formData =
+  new FormData();
+  formData.append("image",file);
+  const res =
+  await fetch(
+    "/api/system-design/upload",
+    {
+      method:"POST",
+      body:formData
     }
-
-    systemDesign[key] =
-    data.image;
-
-    setImage(
-      previewId,
-      data.image
-    );
-
-    await saveSystemDesign();
-
-    alert("Image Uploaded");
-
-  }catch(err){
-
-    console.log(err);
-
-    alert("Upload Error");
-
+  );
+  const data =
+  await res.json();
+  if(!data.success){
+    alert("Upload Failed");
+    return;
   }
-
+  systemDesign[key] =
+  data.image;
+  setImage(
+    previewId,
+    data.image
+  );
+  await saveSystemDesign();
+  alert("Uploaded");
 }
-
-/* =========================
-WINDOW UPLOAD HANDLERS
-========================= */
-
 window.uploadMainLogo =
-function(input){
-
-  uploadMainImage(
-    input,
-    "mainLogo",
-    "mainLogoPreview"
-  );
-
-};
-
+input =>
+uploadMainImage(
+  input,
+  "mainLogo",
+  "mainLogoPreview"
+);
 window.uploadDriverLogo =
-function(input){
-
-  uploadMainImage(
-    input,
-    "driverLogo",
-    "driverLogoPreview"
-  );
-
-};
-
+input =>
+uploadMainImage(
+  input,
+  "driverLogo",
+  "driverLogoPreview"
+);
 window.uploadHeroImage =
-function(input){
-
-  uploadMainImage(
-    input,
-    "heroImage",
-    "heroImagePreview"
-  );
-
-};
-
+input =>
+uploadMainImage(
+  input,
+  "heroImage",
+  "heroImagePreview"
+);
 /* =========================
-LIVE PREVIEW ENGINE
+LIVE PREVIEW
 ========================= */
-
-function previewExtraBoxes(){
-
-  const bg =
+function previewLive(){
+  document.body.style.background =
   document.getElementById(
-  "extraBoxBgInput"
-  )?.value || "#ffffff";
-
-  const border =
+  "bodyBgInput"
+  )?.value || "#f1f5f9";
+  document.body.style.color =
   document.getElementById(
-  "extraBoxBorderInput"
-  )?.value || "#dbeafe";
-
-  const titleColor =
-  document.getElementById(
-  "extraBoxTitleColorInput"
-  )?.value || "#145cff";
-
-  const textColor =
-  document.getElementById(
-  "extraBoxTextColorInput"
-  )?.value || "#334155";
-
-  const radius =
-  document.getElementById(
-  "extraBoxRadiusInput"
-  )?.value || 28;
-
-  const padding =
-  document.getElementById(
-  "extraBoxPaddingInput"
-  )?.value || 40;
-
-  const borderSize =
-  document.getElementById(
-  "extraBoxBorderSizeInput"
-  )?.value || 2;
-
-  const titleSize =
-  document.getElementById(
-  "extraBoxTitleSizeInput"
-  )?.value || 32;
-
-  const align =
-  document.getElementById(
-  "extraBoxAlignInput"
-  )?.value || "center";
-
-  const shadow =
-  document.getElementById(
-  "extraBoxShadowInput"
-  )?.checked;
-
-  document
-  .querySelectorAll(".service-card")
-  .forEach(card=>{
-
-    card.style.background = bg;
-
-    card.style.border =
-    `${borderSize}px solid ${border}`;
-
-    card.style.borderRadius =
-    `${radius}px`;
-
-    card.style.padding =
-    `${padding}px`;
-
-    card.style.textAlign =
-    align;
-
-    card.style.boxShadow =
-    shadow
-    ? "0 12px 35px rgba(0,0,0,.10)"
-    : "none";
-
-  });
-
-  document
-  .querySelectorAll(".service-title")
-  .forEach(title=>{
-
-    title.style.color =
-    titleColor;
-
-    title.style.fontSize =
-    `${titleSize}px`;
-
-  });
-
-  document
-  .querySelectorAll(".service-card label")
-  .forEach(label=>{
-
-    label.style.color =
-    textColor;
-
-  });
-
+  "bodyTextColorInput"
+  )?.value || "#0f172a";
 }
-
-/* =========================
-LIVE EVENTS
-========================= */
-
-function initLivePreview(){
-
-  const ids = [
-
-    "extraBoxBgInput",
-    "extraBoxBorderInput",
-    "extraBoxTitleColorInput",
-    "extraBoxTextColorInput",
-    "extraBoxRadiusInput",
-    "extraBoxPaddingInput",
-    "extraBoxBorderSizeInput",
-    "extraBoxTitleSizeInput",
-    "extraBoxTextSizeInput",
-    "extraBoxAlignInput",
-    "extraBoxShadowInput"
-
-  ];
-
-  ids.forEach(id=>{
-
-    const el =
-    document.getElementById(id);
-
-    if(!el) return;
-
-    el.addEventListener(
-      "input",
-      previewExtraBoxes
-    );
-
-    el.addEventListener(
-      "change",
-      previewExtraBoxes
-    );
-
-  });
-
-}
-
-/* =========================
-RENDER SERVICE CARDS
-========================= */
-
-function renderCardsEditor(){
-
-  const container =
-  document.getElementById(
-    "cardsEditor"
-  );
-
-  if(!container) return;
-
-  container.innerHTML = "";
-
-  const services =
-  systemDesign.services || [];
-
-  services.forEach((service,index)=>{
-
-    container.innerHTML += `
-
-    <div class="service-card">
-
-      <div class="service-top">
-
-        <div class="service-title">
-          ${service.title || ""}
-        </div>
-
-        <button
-          class="${
-            service.active
-            ? "save-btn"
-            : "disable-btn"
-          }"
-          onclick="toggleCard(${index})"
-        >
-
-          ${
-            service.active
-            ? "ACTIVE"
-            : "DISABLED"
-          }
-
-        </button>
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Service Name
-        </label>
-
-        <input
-          type="text"
-          id="title-${index}"
-          value="${service.title || ""}"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Description
-        </label>
-
-        <textarea
-          id="desc-${index}"
-        >${service.description || ""}</textarea>
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Card Image
-        </label>
-
-        <img
-          src="${
-            service.image ||
-            "/assets/logo.png"
-          }"
-          class="preview-image"
-        >
-
-      </div>
-
-      <button
-        class="save-btn card-save"
-        onclick="saveCard(${index})"
-      >
-
-        Save Card
-
-      </button>
-
-    </div>
-
-    `;
-
-  });
-
-}
-
-/* =========================
-CARD ACTIONS
-========================= */
-
-window.toggleCard =
-function(index){
-
-  systemDesign.services[index].active =
-  !systemDesign.services[index].active;
-
-  saveStorage();
-
-  renderCardsEditor();
-
-  previewExtraBoxes();
-
-};
-
-window.saveCard =
-function(index){
-
-  systemDesign.services[index].title =
-  document.getElementById(
-    `title-${index}`
-  ).value;
-
-  systemDesign.services[index].description =
-  document.getElementById(
-    `desc-${index}`
-  ).value;
-
-  saveStorage();
-
-  alert("Card Saved");
-
-};
-
 /* =========================
 SAVE ALL
 ========================= */
-
 window.saveAllSystemDesign =
-function(){
-
-  /* =========================
-  BASIC INFO
-  ========================= */
-
+async function(){
+  /* BASIC */
   systemDesign.companyName =
   document.getElementById(
   "companyNameInput"
   )?.value || "";
-
   systemDesign.timezone =
   document.getElementById(
   "timezoneInput"
   )?.value || "";
-
+  /* BODY */
+  systemDesign.bodyBg =
+  document.getElementById(
+  "bodyBgInput"
+  )?.value || "";
+  systemDesign.bodyTextColor =
+  document.getElementById(
+  "bodyTextColorInput"
+  )?.value || "";
+  /* ABOUT */
+  systemDesign.aboutBg =
+  document.getElementById(
+  "aboutBgInput"
+  )?.value || "";
+  systemDesign.aboutBorder =
+  document.getElementById(
+  "aboutBorderInput"
+  )?.value || "";
+  systemDesign.aboutRadius =
+  document.getElementById(
+  "aboutRadiusInput"
+  )?.value || "";
+  systemDesign.aboutPadding =
+  document.getElementById(
+  "aboutPaddingInput"
+  )?.value || "";
   systemDesign.aboutTitle =
   document.getElementById(
   "aboutTitleInput"
   )?.value || "";
-
+  systemDesign.aboutTitleColor =
+  document.getElementById(
+  "aboutTitleColorInput"
+  )?.value || "";
+  systemDesign.aboutTitleSize =
+  document.getElementById(
+  "aboutTitleSizeInput"
+  )?.value || "";
+  systemDesign.aboutTitleAlign =
+  document.getElementById(
+  "aboutTitleAlignInput"
+  )?.value || "";
   systemDesign.aboutText =
   document.getElementById(
   "aboutTextInput"
   )?.value || "";
-
+  systemDesign.aboutTextColor =
+  document.getElementById(
+  "aboutTextColorInput"
+  )?.value || "";
+  systemDesign.aboutTextSize =
+  document.getElementById(
+  "aboutTextSizeInput"
+  )?.value || "";
+  systemDesign.aboutTextAlign =
+  document.getElementById(
+  "aboutTextAlignInput"
+  )?.value || "";
+  /* QUOTE */
+  systemDesign.quoteBg =
+  document.getElementById(
+  "quoteBgInput"
+  )?.value || "";
+  systemDesign.quoteBorder =
+  document.getElementById(
+  "quoteBorderInput"
+  )?.value || "";
+  systemDesign.quoteRadius =
+  document.getElementById(
+  "quoteRadiusInput"
+  )?.value || "";
+  systemDesign.quotePadding =
+  document.getElementById(
+  "quotePaddingInput"
+  )?.value || "";
   systemDesign.quoteTitle =
   document.getElementById(
   "quoteTitleInput"
   )?.value || "";
-
+  systemDesign.quoteTitleColor =
+  document.getElementById(
+  "quoteTitleColorInput"
+  )?.value || "";
+  systemDesign.quoteTitleSize =
+  document.getElementById(
+  "quoteTitleSizeInput"
+  )?.value || "";
+  systemDesign.quoteTitleAlign =
+  document.getElementById(
+  "quoteTitleAlignInput"
+  )?.value || "";
   systemDesign.quoteText =
   document.getElementById(
   "quoteTextInput"
   )?.value || "";
-
-  systemDesign.extra1Title =
+  systemDesign.quoteTextColor =
   document.getElementById(
-  "extra1Title"
+  "quoteTextColorInput"
   )?.value || "";
-
-  systemDesign.extra1Text =
+  systemDesign.quoteTextSize =
   document.getElementById(
-  "extra1Text"
+  "quoteTextSizeInput"
   )?.value || "";
-
-  systemDesign.extra2Title =
+  systemDesign.quoteTextAlign =
   document.getElementById(
-  "extra2Title"
+  "quoteTextAlignInput"
   )?.value || "";
-
-  systemDesign.extra2Text =
-  document.getElementById(
-  "extra2Text"
-  )?.value || "";
-
-  systemDesign.extra1Active =
-  document.getElementById(
-  "extra1Active"
-  )?.checked || false;
-
-  systemDesign.extra2Active =
-  document.getElementById(
-  "extra2Active"
-  )?.checked || false;
-
-  systemDesign.contactTitle =
-  document.getElementById(
-  "contactTitleInput"
-  )?.value || "";
-
-  systemDesign.contactPhone =
-  document.getElementById(
-  "contactPhoneInput"
-  )?.value || "";
-
-  systemDesign.contactEmail =
-  document.getElementById(
-  "contactEmailInput"
-  )?.value || "";
-
-  systemDesign.footerText =
-  document.getElementById(
-  "footerTextInput"
-  )?.value || "";
-
-  /* =========================
-  THEME ENGINE
-  ========================= */
-
-  systemDesign.extraBoxBg =
-  document.getElementById(
-  "extraBoxBgInput"
-  )?.value || "#ffffff";
-
-  systemDesign.extraBoxBorder =
-  document.getElementById(
-  "extraBoxBorderInput"
-  )?.value || "#dbeafe";
-
-  systemDesign.extraBoxTitleColor =
-  document.getElementById(
-  "extraBoxTitleColorInput"
-  )?.value || "#145cff";
-
-  systemDesign.extraBoxTextColor =
-  document.getElementById(
-  "extraBoxTextColorInput"
-  )?.value || "#334155";
-
-  systemDesign.extraBoxRadius =
-  document.getElementById(
-  "extraBoxRadiusInput"
-  )?.value || "28";
-
-  systemDesign.extraBoxPadding =
-  document.getElementById(
-  "extraBoxPaddingInput"
-  )?.value || "40";
-
-  systemDesign.extraBoxAlign =
-  document.getElementById(
-  "extraBoxAlignInput"
-  )?.value || "center";
-
-  systemDesign.extraBoxTitleSize =
-  document.getElementById(
-  "extraBoxTitleSizeInput"
-  )?.value || "32";
-
-  systemDesign.extraBoxTextSize =
-  document.getElementById(
-  "extraBoxTextSizeInput"
-  )?.value || "18";
-
-  systemDesign.extraBoxBorderSize =
-  document.getElementById(
-  "extraBoxBorderSizeInput"
-  )?.value || "2";
-
-  systemDesign.extraBoxShadow =
-  document.getElementById(
-  "extraBoxShadowInput"
-  )?.checked || false;
-
-  /* =========================
-  SAVE
-  ========================= */
-
-  saveStorage();
-
-  alert("All Settings Saved");
-
+  await saveSystemDesign();
+  alert("Saved");
 };
-
 /* =========================
 RESET
 ========================= */
-
 window.resetSystemDesign =
 function(){
-
   const ok =
-  confirm(
-    "Reset System Design?"
-  );
-
+  confirm("Reset System Design?");
   if(!ok) return;
-
   location.reload();
-
 };
-
 /* =========================
 INIT
 ========================= */
-
 window.addEventListener(
   "DOMContentLoaded",
   async ()=>{
-
     await loadSystemDesign();
-
     loadFormValues();
-
-    renderCardsEditor();
-
-    initLivePreview();
-
-    previewExtraBoxes();
-
+    previewLive();
   }
 );

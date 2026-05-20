@@ -461,101 +461,473 @@ MOBILE
 
   </div>
 
-  <!-- =========================
-       HOMEPAGE
-  ========================== -->
+<!-- =========================
+     HOMEPAGE
+========================== -->
 
-  <div class="section-box">
+<div class="section-box">
 
-    <div class="section-title">
-      Homepage
+  <div class="section-title">
+    Homepage
+  </div>
+
+  <div class="form-grid">
+
+    <!-- =========================
+    HERO IMAGE
+    ========================== -->
+
+    <div class="input-group">
+
+      <label>
+        Hero Image
+      </label>
+
+      <img
+        id="heroImagePreview"
+        class="preview-image"
+      >
+
+      <input
+        type="file"
+        hidden
+        accept="image/*"
+        onchange="uploadHeroImage(this)"
+      >
+
+      <button
+        class="upload-btn"
+        type="button"
+        onclick="
+        this.previousElementSibling.click()
+        "
+      >
+        Upload Hero Image
+      </button>
+
     </div>
 
-    <div class="form-grid">
+    <!-- =========================
+    BODY BACKGROUND
+    ========================== -->
 
-      <div class="input-group">
+    <div class="input-group">
 
-        <label>
-          Hero Image
-        </label>
+      <label>
+        Body Background Color
+      </label>
 
-        <img
-          id="heroImagePreview"
-          class="preview-image"
-        >
+      <input
+        type="color"
+        id="bodyBgInput"
+      >
 
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          onchange="uploadHeroImage(this)"
-        >
+    </div>
 
-        <button
-          class="upload-btn"
-          type="button"
-          onclick="
-          this.previousElementSibling.click()
-          "
-        >
-          Upload Hero Image
-        </button>
+    <!-- =========================
+    BODY TEXT COLOR
+    ========================== -->
 
-      </div>
+    <div class="input-group">
 
-      <div class="input-group">
+      <label>
+        Body Text Color
+      </label>
 
-        <label>
-          About Title
-        </label>
-
-        <input
-          type="text"
-          id="aboutTitleInput"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          About Text
-        </label>
-
-        <textarea
-          id="aboutTextInput"
-        ></textarea>
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Quote Title
-        </label>
-
-        <input
-          type="text"
-          id="quoteTitleInput"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Quote Text
-        </label>
-
-        <textarea
-          id="quoteTextInput"
-        ></textarea>
-
-      </div>
+      <input
+        type="color"
+        id="bodyTextColorInput"
+      >
 
     </div>
 
   </div>
+
+  <!-- =========================
+       ABOUT SECTION
+  ========================== -->
+
+  <div class="section-title"
+  style="margin-top:35px;">
+
+    About Section
+
+  </div>
+
+  <div class="form-grid">
+
+    <div class="input-group">
+
+      <label>
+        About Background Color
+      </label>
+
+      <input
+        type="color"
+        id="aboutBgInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Border Color
+      </label>
+
+      <input
+        type="color"
+        id="aboutBorderInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Border Radius
+      </label>
+
+      <input
+        type="number"
+        id="aboutRadiusInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Padding
+      </label>
+
+      <input
+        type="number"
+        id="aboutPaddingInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Title
+      </label>
+
+      <input
+        type="text"
+        id="aboutTitleInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Title Color
+      </label>
+
+      <input
+        type="color"
+        id="aboutTitleColorInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Title Size
+      </label>
+
+      <input
+        type="number"
+        id="aboutTitleSizeInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Title Align
+      </label>
+
+      <select id="aboutTitleAlignInput">
+
+        <option value="left">
+          Left
+        </option>
+
+        <option value="center">
+          Center
+        </option>
+
+        <option value="right">
+          Right
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Text
+      </label>
+
+      <textarea
+        id="aboutTextInput"
+      ></textarea>
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Text Color
+      </label>
+
+      <input
+        type="color"
+        id="aboutTextColorInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Text Size
+      </label>
+
+      <input
+        type="number"
+        id="aboutTextSizeInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        About Text Align
+      </label>
+
+      <select id="aboutTextAlignInput">
+
+        <option value="left">
+          Left
+        </option>
+
+        <option value="center">
+          Center
+        </option>
+
+        <option value="right">
+          Right
+        </option>
+
+      </select>
+
+    </div>
+
+  </div>
+
+  <!-- =========================
+       QUOTE SECTION
+  ========================== -->
+
+  <div class="section-title"
+  style="margin-top:35px;">
+
+    Quote Section
+
+  </div>
+
+  <div class="form-grid">
+
+    <div class="input-group">
+
+      <label>
+        Quote Background Color
+      </label>
+
+      <input
+        type="color"
+        id="quoteBgInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Border Color
+      </label>
+
+      <input
+        type="color"
+        id="quoteBorderInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Border Radius
+      </label>
+
+      <input
+        type="number"
+        id="quoteRadiusInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Padding
+      </label>
+
+      <input
+        type="number"
+        id="quotePaddingInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Title
+      </label>
+
+      <input
+        type="text"
+        id="quoteTitleInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Title Color
+      </label>
+
+      <input
+        type="color"
+        id="quoteTitleColorInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Title Size
+      </label>
+
+      <input
+        type="number"
+        id="quoteTitleSizeInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Title Align
+      </label>
+
+      <select id="quoteTitleAlignInput">
+
+        <option value="left">
+          Left
+        </option>
+
+        <option value="center">
+          Center
+        </option>
+
+        <option value="right">
+          Right
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Text
+      </label>
+
+      <textarea
+        id="quoteTextInput"
+      ></textarea>
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Text Color
+      </label>
+
+      <input
+        type="color"
+        id="quoteTextColorInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Text Size
+      </label>
+
+      <input
+        type="number"
+        id="quoteTextSizeInput"
+      >
+
+    </div>
+
+    <div class="input-group">
+
+      <label>
+        Quote Text Align
+      </label>
+
+      <select id="quoteTextAlignInput">
+
+        <option value="left">
+          Left
+        </option>
+
+        <option value="center">
+          Center
+        </option>
+
+        <option value="right">
+          Right
+        </option>
+
+      </select>
+
+    </div>
+
+  </div>
+
+</div>
 
   <!-- =========================
        EXTRA BOXES
