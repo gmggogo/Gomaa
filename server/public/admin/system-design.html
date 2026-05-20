@@ -1,1241 +1,538 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+أيوه كان ناقص. ده الملف كامل من أوله لآخره:
 
-<meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
-/>
-
-<title>
-System Design
-</title>
-
-<link rel="stylesheet" href="style.css">
-
-<style>
-
+// =========================================
+// FILE: public/admin/system-design.js
+// COMPLETE SYSTEM DESIGN ENGINE
+// =========================================
+console.log("SYSTEM DESIGN LOADED");
+let systemDesign = {};
 /* =========================
-BODY
+DEFAULT DATA
 ========================= */
-
-body{
-  margin:0;
-  background:#f1f5f9;
-  font-family:'Segoe UI',sans-serif;
-  color:#0f172a;
-}
-
-#adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:1000;
-}
-
+const defaultSystemDesign = {
+  companyName:"Sunbeam Transportation",
+  timezone:"America/Phoenix",
+  mainLogo:"/assets/logo.png",
+  driverLogo:"/assets/logo.png",
+  heroImage:"/assets/hero.jpeg",
+  bodyBg:"#f1f5f9",
+  bodyTextColor:"#0f172a",
+  aboutBg:"#ffffff",
+  aboutBorder:"#dbeafe",
+  aboutRadius:"28",
+  aboutPadding:"40",
+  aboutTitle:"About Us",
+  aboutTitleColor:"#145cff",
+  aboutTitleSize:"34",
+  aboutTitleAlign:"center",
+  aboutText:"Professional transportation services.",
+  aboutTextColor:"#334155",
+  aboutTextSize:"18",
+  aboutTextAlign:"center",
+  quoteBg:"#ffffff",
+  quoteBorder:"#dbeafe",
+  quoteRadius:"28",
+  quotePadding:"40",
+  quoteTitle:"Get Quote & Book Your Ride",
+  quoteTitleColor:"#145cff",
+  quoteTitleSize:"34",
+  quoteTitleAlign:"center",
+  quoteText:"Select your service below",
+  quoteTextColor:"#334155",
+  quoteTextSize:"18",
+  quoteTextAlign:"center",
+  extra1Active:true,
+  extra1Title:"Extra Information",
+  extra1Text:"You can add pricing, announcements, promotions, or company information here.",
+  extra2Active:true,
+  extra2Title:"Additional Services",
+  extra2Text:"This section can later be managed from the admin panel.",
+  extraBoxBg:"#ffffff",
+  extraBoxBorder:"#dbeafe",
+  extraBoxTitleColor:"#145cff",
+  extraBoxTextColor:"#334155",
+  extraBoxRadius:"28",
+  extraBoxPadding:"40",
+  extraBoxAlign:"center",
+  extraBoxTitleSize:"32",
+  extraBoxTextSize:"18",
+  extraBoxBorderSize:"2",
+  extraBoxShadow:true,
+  contactTitle:"Customer Support",
+  contactPhone:"619-509-7197",
+  contactEmail:"admin@sunbeamtransportationllc.com",
+  footerText:"©️ Sunbeam Transportation",
+  services:[
+    {
+      id:"standard",
+      active:false,
+      title:"Standard",
+      description:"Standard transportation service",
+      image:"/assets/business.jpeg",
+      link:"getquote/index.html"
+    },
+    {
+      id:"xl",
+      active:false,
+      title:"XL",
+      description:"Large vehicle transportation",
+      image:"/assets/business.jpeg",
+      link:"getquote/index.html"
+    },
+    {
+      id:"taxi",
+      active:false,
+      title:"Taxi",
+      description:"Daily city transportation",
+      image:"/assets/business.jpeg",
+      link:"getquote/index.html"
+    },
+    {
+      id:"limo",
+      active:false,
+      title:"Limo",
+      description:"Luxury transportation service",
+      image:"/assets/business.jpeg",
+      link:"getquote/index.html"
+    },
+    {
+      id:"wheelchair",
+      active:false,
+      title:"Wheelchair",
+      description:"Wheelchair accessible rides",
+      image:"/assets/nemt.jpeg",
+      link:"getquote/index.html"
+    },
+    {
+      id:"shared",
+      active:false,
+      title:"Shared Ride",
+      description:"Affordable shared rides",
+      image:"/assets/airport.jpeg",
+      link:"getquote/index.html"
+    }
+  ]
+};
 /* =========================
-PAGE
+LOAD
 ========================= */
-
-.page-body{
-  max-width:1900px;
-  margin:auto;
-  padding:260px 22px 80px;
-}
-
-@media(max-width:768px){
-
-  .page-body{
-    padding-top:320px;
-    padding-left:12px;
-    padding-right:12px;
+async function loadSystemDesign(){
+  try{
+    const res =
+    await fetch("/api/system-design");
+    const data =
+    await res.json();
+    systemDesign = {
+      ...defaultSystemDesign,
+      ...data,
+      services:
+      Array.isArray(data.services) && data.services.length
+      ? data.services
+      : defaultSystemDesign.services
+    };
+  }catch(err){
+    console.log("LOAD ERROR",err);
+    systemDesign =
+    defaultSystemDesign;
   }
-
 }
-
 /* =========================
-TITLE
+SAVE
 ========================= */
-
-.page-title{
-  font-size:38px;
-  font-weight:900;
-  margin-bottom:30px;
-}
-
-/* =========================
-SECTION
-========================= */
-
-.section-box{
-
-  background:#fff;
-
-  border-radius:28px;
-
-  padding:26px;
-
-  margin-bottom:28px;
-
-  box-shadow:
-  0 12px 35px rgba(0,0,0,.08);
-
-}
-
-.section-title{
-
-  font-size:26px;
-
-  font-weight:900;
-
-  margin-bottom:22px;
-
-}
-
-/* =========================
-GRID
-========================= */
-
-.form-grid{
-
-  display:grid;
-
-  grid-template-columns:
-  repeat(auto-fit,minmax(320px,1fr));
-
-  gap:20px;
-
-}
-
-/* =========================
-INPUT GROUP
-========================= */
-
-.input-group{
-
-  display:flex;
-
-  flex-direction:column;
-
-  gap:8px;
-
-}
-
-.input-group label{
-
-  font-size:14px;
-
-  font-weight:800;
-
-  color:#475569;
-
-}
-
-.input-group input,
-.input-group textarea,
-.input-group select{
-
-  width:100%;
-
-  border:1px solid #cbd5e1;
-
-  border-radius:18px;
-
-  padding:15px;
-
-  font-size:15px;
-
-  background:#fff;
-
-  outline:none;
-
-}
-
-.input-group textarea{
-
-  min-height:120px;
-
-  resize:vertical;
-
-}
-
-/* =========================
-PREVIEW
-========================= */
-
-.preview-image{
-
-  width:100%;
-
-  height:180px;
-
-  object-fit:cover;
-
-  border-radius:20px;
-
-  background:#e2e8f0;
-
-  border:2px dashed #cbd5e1;
-
-}
-
-/* =========================
-BUTTONS
-========================= */
-
-.upload-btn,
-.save-btn,
-.reset-btn,
-.disable-btn{
-
-  border:none;
-
-  border-radius:18px;
-
-  padding:15px;
-
-  font-size:15px;
-
-  font-weight:900;
-
-  cursor:pointer;
-
-  color:#fff;
-
-}
-
-.upload-btn{
-  background:#145cff;
-}
-
-.save-btn{
-  background:#16a34a;
-}
-
-.reset-btn{
-  background:#dc2626;
-}
-
-.disable-btn{
-  background:#64748b;
-}
-
-.bottom-buttons{
-
-  display:flex;
-
-  gap:14px;
-
-  margin-top:25px;
-
-  flex-wrap:wrap;
-
-}
-
-/* =========================
-TOGGLE
-========================= */
-
-.toggle-row{
-
-  display:flex;
-
-  align-items:center;
-
-  gap:10px;
-
-  margin-top:10px;
-
-  font-size:14px;
-
-  font-weight:700;
-
-}
-
-/* =========================
-CARDS
-========================= */
-
-.cards-grid{
-
-  display:grid;
-
-  grid-template-columns:
-  repeat(auto-fit,minmax(360px,1fr));
-
-  gap:24px;
-
-}
-
-.service-card{
-
-  border:1px solid #e2e8f0;
-
-  border-radius:24px;
-
-  padding:20px;
-
-  background:#fff;
-
-}
-
-.service-top{
-
-  display:flex;
-
-  justify-content:space-between;
-
-  align-items:center;
-
-  gap:14px;
-
-  margin-bottom:18px;
-
-}
-
-.service-title{
-
-  font-size:22px;
-
-  font-weight:900;
-
-}
-
-.card-save{
-  width:100%;
-  margin-top:18px;
-}
-
-/* =========================
-MOBILE
-========================= */
-
-@media(max-width:768px){
-
-  .page-title{
-    font-size:30px;
+async function saveSystemDesign(){
+  try{
+    await fetch(
+      "/api/system-design",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify(systemDesign)
+      }
+    );
+  }catch(err){
+    console.log("SAVE ERROR",err);
   }
-
-  .section-title{
-    font-size:22px;
-  }
-
-  .cards-grid{
-    grid-template-columns:1fr;
-  }
-
-  .service-top{
-    flex-direction:column;
-    align-items:stretch;
-  }
-
 }
-
-</style>
-
-</head>
-
-<body>
-
-<div id="adminHeader"></div>
-
-<div class="page-body">
-
-  <div class="page-title">
-    System Design
-  </div>
-
-  <!-- =========================
-       BRANDING
-  ========================== -->
-
-  <div class="section-box">
-
-    <div class="section-title">
-      Branding
-    </div>
-
-    <div class="form-grid">
-
+/* =========================
+HELPERS
+========================= */
+function setValue(id,value){
+  const el =
+  document.getElementById(id);
+  if(el){
+    el.value = value ?? "";
+  }
+}
+function setChecked(id,value){
+  const el =
+  document.getElementById(id);
+  if(el){
+    el.checked = !!value;
+  }
+}
+function setImage(id,value){
+  const el =
+  document.getElementById(id);
+  if(el){
+    el.src = value || "";
+  }
+}
+function getValue(id,fallback=""){
+  return document.getElementById(id)?.value || fallback;
+}
+function getChecked(id){
+  return document.getElementById(id)?.checked || false;
+}
+/* =========================
+LOAD FORM VALUES
+========================= */
+function loadFormValues(){
+  setValue("companyNameInput",systemDesign.companyName);
+  setValue("timezoneInput",systemDesign.timezone);
+  setImage("mainLogoPreview",systemDesign.mainLogo);
+  setImage("driverLogoPreview",systemDesign.driverLogo);
+  setImage("heroImagePreview",systemDesign.heroImage);
+  setValue("bodyBgInput",systemDesign.bodyBg);
+  setValue("bodyTextColorInput",systemDesign.bodyTextColor);
+  setValue("aboutBgInput",systemDesign.aboutBg);
+  setValue("aboutBorderInput",systemDesign.aboutBorder);
+  setValue("aboutRadiusInput",systemDesign.aboutRadius);
+  setValue("aboutPaddingInput",systemDesign.aboutPadding);
+  setValue("aboutTitleInput",systemDesign.aboutTitle);
+  setValue("aboutTitleColorInput",systemDesign.aboutTitleColor);
+  setValue("aboutTitleSizeInput",systemDesign.aboutTitleSize);
+  setValue("aboutTitleAlignInput",systemDesign.aboutTitleAlign);
+  setValue("aboutTextInput",systemDesign.aboutText);
+  setValue("aboutTextColorInput",systemDesign.aboutTextColor);
+  setValue("aboutTextSizeInput",systemDesign.aboutTextSize);
+  setValue("aboutTextAlignInput",systemDesign.aboutTextAlign);
+  setValue("quoteBgInput",systemDesign.quoteBg);
+  setValue("quoteBorderInput",systemDesign.quoteBorder);
+  setValue("quoteRadiusInput",systemDesign.quoteRadius);
+  setValue("quotePaddingInput",systemDesign.quotePadding);
+  setValue("quoteTitleInput",systemDesign.quoteTitle);
+  setValue("quoteTitleColorInput",systemDesign.quoteTitleColor);
+  setValue("quoteTitleSizeInput",systemDesign.quoteTitleSize);
+  setValue("quoteTitleAlignInput",systemDesign.quoteTitleAlign);
+  setValue("quoteTextInput",systemDesign.quoteText);
+  setValue("quoteTextColorInput",systemDesign.quoteTextColor);
+  setValue("quoteTextSizeInput",systemDesign.quoteTextSize);
+  setValue("quoteTextAlignInput",systemDesign.quoteTextAlign);
+  setValue("extra1Title",systemDesign.extra1Title);
+  setValue("extra1Text",systemDesign.extra1Text);
+  setChecked("extra1Active",systemDesign.extra1Active);
+  setValue("extra2Title",systemDesign.extra2Title);
+  setValue("extra2Text",systemDesign.extra2Text);
+  setChecked("extra2Active",systemDesign.extra2Active);
+  setValue("extraBoxBgInput",systemDesign.extraBoxBg);
+  setValue("extraBoxBorderInput",systemDesign.extraBoxBorder);
+  setValue("extraBoxTitleColorInput",systemDesign.extraBoxTitleColor);
+  setValue("extraBoxTextColorInput",systemDesign.extraBoxTextColor);
+  setValue("extraBoxRadiusInput",systemDesign.extraBoxRadius);
+  setValue("extraBoxPaddingInput",systemDesign.extraBoxPadding);
+  setValue("extraBoxAlignInput",systemDesign.extraBoxAlign);
+  setValue("extraBoxTitleSizeInput",systemDesign.extraBoxTitleSize);
+  setValue("extraBoxTextSizeInput",systemDesign.extraBoxTextSize);
+  setValue("extraBoxBorderSizeInput",systemDesign.extraBoxBorderSize);
+  setChecked("extraBoxShadowInput",systemDesign.extraBoxShadow);
+  setValue("contactTitleInput",systemDesign.contactTitle);
+  setValue("contactPhoneInput",systemDesign.contactPhone);
+  setValue("contactEmailInput",systemDesign.contactEmail);
+  setValue("footerTextInput",systemDesign.footerText);
+}
+/* =========================
+UPLOADS
+========================= */
+async function uploadMainImage(input,key,previewId){
+  const file =
+  input.files[0];
+  if(!file) return;
+  try{
+    const formData =
+    new FormData();
+    formData.append("image",file);
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+    const data =
+    await res.json();
+    if(!data.success){
+      alert("Upload Failed");
+      return;
+    }
+    systemDesign[key] =
+    data.image;
+    setImage(previewId,data.image);
+    await saveSystemDesign();
+    alert("Uploaded");
+  }catch(err){
+    console.log("UPLOAD ERROR",err);
+    alert("Upload Error");
+  }
+}
+window.uploadMainLogo =
+function(input){
+  uploadMainImage(
+    input,
+    "mainLogo",
+    "mainLogoPreview"
+  );
+};
+window.uploadDriverLogo =
+function(input){
+  uploadMainImage(
+    input,
+    "driverLogo",
+    "driverLogoPreview"
+  );
+};
+window.uploadHeroImage =
+function(input){
+  uploadMainImage(
+    input,
+    "heroImage",
+    "heroImagePreview"
+  );
+};
+/* =========================
+LIVE PREVIEW
+========================= */
+function previewLive(){
+  document.body.style.background =
+  getValue("bodyBgInput","#f1f5f9");
+  document.body.style.color =
+  getValue("bodyTextColorInput","#0f172a");
+}
+/* =========================
+RENDER SERVICE CARDS
+========================= */
+function renderCardsEditor(){
+  const container =
+  document.getElementById("cardsEditor");
+  if(!container) return;
+  container.innerHTML = "";
+  const services =
+  systemDesign.services || [];
+  services.forEach((service,index)=>{
+    container.innerHTML += `
+    <div class="service-card">
+      <div class="service-top">
+        <div class="service-title">
+          ${service.title || ""}
+        </div>
+        <button
+          class="${
+            service.active
+            ? "save-btn"
+            : "disable-btn"
+          }"
+          onclick="toggleCard(${index})"
+        >
+          ${
+            service.active
+            ? "ACTIVE"
+            : "DISABLED"
+          }
+        </button>
+      </div>
       <div class="input-group">
-
         <label>
-          Company Name
+          Service Name
         </label>
-
         <input
           type="text"
-          id="companyNameInput"
+          id="title-${index}"
+          value="${service.title || ""}"
         >
-
       </div>
-
       <div class="input-group">
-
         <label>
-          Timezone
+          Description
         </label>
-
-        <select id="timezoneInput">
-
-          <option value="America/Phoenix">
-            Arizona / Phoenix
-          </option>
-
-          <option value="America/New_York">
-            New York
-          </option>
-
-          <option value="America/Chicago">
-            Chicago
-          </option>
-
-        </select>
-
+        <textarea
+          id="desc-${index}"
+        >${service.description || ""}</textarea>
       </div>
-
       <div class="input-group">
-
         <label>
-          Main Logo
+          Card Image
         </label>
-
         <img
-          id="mainLogoPreview"
+          src="${
+            service.image ||
+            "/assets/logo.png"
+          }"
           class="preview-image"
-        >
-
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          onchange="uploadMainLogo(this)"
-        >
-
-        <button
-          class="upload-btn"
-          type="button"
-          onclick="
-          this.previousElementSibling.click()
+          style="
+            width:100%;
+            height:180px;
+            object-fit:cover;
+            border-radius:14px;
+            margin-top:10px;
           "
         >
-          Upload Main Logo
-        </button>
-
       </div>
-
-      <div class="input-group">
-
-        <label>
-          Driver Logo
-        </label>
-
-        <img
-          id="driverLogoPreview"
-          class="preview-image"
-        >
-
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          onchange="uploadDriverLogo(this)"
-        >
-
-        <button
-          class="upload-btn"
-          type="button"
-          onclick="
-          this.previousElementSibling.click()
-          "
-        >
-          Upload Driver Logo
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-<!-- =========================
-     HOMEPAGE
-========================== -->
-
-<div class="section-box">
-
-  <div class="section-title">
-    Homepage
-  </div>
-
-  <div class="form-grid">
-
-    <!-- =========================
-    HERO IMAGE
-    ========================== -->
-
-    <div class="input-group">
-
-      <label>
-        Hero Image
-      </label>
-
-      <img
-        id="heroImagePreview"
-        class="preview-image"
-      >
-
-      <input
-        type="file"
-        hidden
-        accept="image/*"
-        onchange="uploadHeroImage(this)"
-      >
-
       <button
-        class="upload-btn"
-        type="button"
-        onclick="
-        this.previousElementSibling.click()
-        "
+        class="save-btn card-save"
+        onclick="saveCard(${index})"
       >
-        Upload Hero Image
+        Save Card
       </button>
-
     </div>
-
-    <!-- =========================
-    BODY BACKGROUND
-    ========================== -->
-
-    <div class="input-group">
-
-      <label>
-        Body Background Color
-      </label>
-
-      <input
-        type="color"
-        id="bodyBgInput"
-      >
-
-    </div>
-
-    <!-- =========================
-    BODY TEXT COLOR
-    ========================== -->
-
-    <div class="input-group">
-
-      <label>
-        Body Text Color
-      </label>
-
-      <input
-        type="color"
-        id="bodyTextColorInput"
-      >
-
-    </div>
-
-  </div>
-
-  <!-- =========================
-       ABOUT SECTION
-  ========================== -->
-
-  <div class="section-title"
-  style="margin-top:35px;">
-
-    About Section
-
-  </div>
-
-  <div class="form-grid">
-
-    <div class="input-group">
-
-      <label>
-        About Background Color
-      </label>
-
-      <input
-        type="color"
-        id="aboutBgInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Border Color
-      </label>
-
-      <input
-        type="color"
-        id="aboutBorderInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Border Radius
-      </label>
-
-      <input
-        type="number"
-        id="aboutRadiusInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Padding
-      </label>
-
-      <input
-        type="number"
-        id="aboutPaddingInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Title
-      </label>
-
-      <input
-        type="text"
-        id="aboutTitleInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Title Color
-      </label>
-
-      <input
-        type="color"
-        id="aboutTitleColorInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Title Size
-      </label>
-
-      <input
-        type="number"
-        id="aboutTitleSizeInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Title Align
-      </label>
-
-      <select id="aboutTitleAlignInput">
-
-        <option value="left">
-          Left
-        </option>
-
-        <option value="center">
-          Center
-        </option>
-
-        <option value="right">
-          Right
-        </option>
-
-      </select>
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Text
-      </label>
-
-      <textarea
-        id="aboutTextInput"
-      ></textarea>
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Text Color
-      </label>
-
-      <input
-        type="color"
-        id="aboutTextColorInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Text Size
-      </label>
-
-      <input
-        type="number"
-        id="aboutTextSizeInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        About Text Align
-      </label>
-
-      <select id="aboutTextAlignInput">
-
-        <option value="left">
-          Left
-        </option>
-
-        <option value="center">
-          Center
-        </option>
-
-        <option value="right">
-          Right
-        </option>
-
-      </select>
-
-    </div>
-
-  </div>
-
-  <!-- =========================
-       QUOTE SECTION
-  ========================== -->
-
-  <div class="section-title"
-  style="margin-top:35px;">
-
-    Quote Section
-
-  </div>
-
-  <div class="form-grid">
-
-    <div class="input-group">
-
-      <label>
-        Quote Background Color
-      </label>
-
-      <input
-        type="color"
-        id="quoteBgInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Border Color
-      </label>
-
-      <input
-        type="color"
-        id="quoteBorderInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Border Radius
-      </label>
-
-      <input
-        type="number"
-        id="quoteRadiusInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Padding
-      </label>
-
-      <input
-        type="number"
-        id="quotePaddingInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Title
-      </label>
-
-      <input
-        type="text"
-        id="quoteTitleInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Title Color
-      </label>
-
-      <input
-        type="color"
-        id="quoteTitleColorInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Title Size
-      </label>
-
-      <input
-        type="number"
-        id="quoteTitleSizeInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Title Align
-      </label>
-
-      <select id="quoteTitleAlignInput">
-
-        <option value="left">
-          Left
-        </option>
-
-        <option value="center">
-          Center
-        </option>
-
-        <option value="right">
-          Right
-        </option>
-
-      </select>
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Text
-      </label>
-
-      <textarea
-        id="quoteTextInput"
-      ></textarea>
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Text Color
-      </label>
-
-      <input
-        type="color"
-        id="quoteTextColorInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Text Size
-      </label>
-
-      <input
-        type="number"
-        id="quoteTextSizeInput"
-      >
-
-    </div>
-
-    <div class="input-group">
-
-      <label>
-        Quote Text Align
-      </label>
-
-      <select id="quoteTextAlignInput">
-
-        <option value="left">
-          Left
-        </option>
-
-        <option value="center">
-          Center
-        </option>
-
-        <option value="right">
-          Right
-        </option>
-
-      </select>
-
-    </div>
-
-  </div>
-
-</div>
-
-  <!-- =========================
-       EXTRA BOXES
-  ========================== -->
-
-  <div class="section-box">
-
-    <div class="section-title">
-      Extra Boxes
-    </div>
-
-    <div class="form-grid">
-
-      <div class="input-group">
-
-        <label>
-          Extra Box 1 Title
-        </label>
-
-        <input
-          type="text"
-          id="extra1Title"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Extra Box 1 Text
-        </label>
-
-        <textarea
-          id="extra1Text"
-        ></textarea>
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Extra Box 2 Title
-        </label>
-
-        <input
-          type="text"
-          id="extra2Title"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Extra Box 2 Text
-        </label>
-
-        <textarea
-          id="extra2Text"
-        ></textarea>
-
-      </div>
-
-    </div>
-
-    <div class="toggle-row">
-
-      <input
-        type="checkbox"
-        id="extra1Active"
-      >
-
-      <label>
-        Show Extra Box 1
-      </label>
-
-    </div>
-
-    <div class="toggle-row">
-
-      <input
-        type="checkbox"
-        id="extra2Active"
-      >
-
-      <label>
-        Show Extra Box 2
-      </label>
-
-    </div>
-
-    <!-- =========================
-         EXTRA BOX DESIGN
-    ========================== -->
-
-    <div class="section-title"
-    style="margin-top:35px;">
-
-      Extra Box Design
-
-    </div>
-
-    <div class="form-grid">
-
-      <div class="input-group">
-        <label>Background Color</label>
-        <input type="color" id="extraBoxBgInput">
-      </div>
-
-      <div class="input-group">
-        <label>Border Color</label>
-        <input type="color" id="extraBoxBorderInput">
-      </div>
-
-      <div class="input-group">
-        <label>Title Color</label>
-        <input type="color" id="extraBoxTitleColorInput">
-      </div>
-
-      <div class="input-group">
-        <label>Text Color</label>
-        <input type="color" id="extraBoxTextColorInput">
-      </div>
-
-      <div class="input-group">
-        <label>Border Radius</label>
-        <input type="number" id="extraBoxRadiusInput">
-      </div>
-
-      <div class="input-group">
-        <label>Padding</label>
-        <input type="number" id="extraBoxPaddingInput">
-      </div>
-
-      <div class="input-group">
-        <label>Border Size</label>
-        <input type="number" id="extraBoxBorderSizeInput">
-      </div>
-
-      <div class="input-group">
-        <label>Title Size</label>
-        <input type="number" id="extraBoxTitleSizeInput">
-      </div>
-
-      <div class="input-group">
-        <label>Text Size</label>
-        <input type="number" id="extraBoxTextSizeInput">
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Text Align
-        </label>
-
-        <select id="extraBoxAlignInput">
-
-          <option value="left">
-            Left
-          </option>
-
-          <option value="center">
-            Center
-          </option>
-
-          <option value="right">
-            Right
-          </option>
-
-        </select>
-
-      </div>
-
-    </div>
-
-    <div class="toggle-row">
-
-      <input
-        type="checkbox"
-        id="extraBoxShadowInput"
-      >
-
-      <label>
-        Enable Shadow
-      </label>
-
-    </div>
-
-  </div>
-
-  <!-- =========================
-       CONTACT
-  ========================== -->
-
-  <div class="section-box">
-
-    <div class="section-title">
-      Contact & Footer
-    </div>
-
-    <div class="form-grid">
-
-      <div class="input-group">
-
-        <label>
-          Contact Title
-        </label>
-
-        <input
-          type="text"
-          id="contactTitleInput"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Phone Number
-        </label>
-
-        <input
-          type="text"
-          id="contactPhoneInput"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Email Address
-        </label>
-
-        <input
-          type="text"
-          id="contactEmailInput"
-        >
-
-      </div>
-
-      <div class="input-group">
-
-        <label>
-          Footer Text
-        </label>
-
-        <input
-          type="text"
-          id="footerTextInput"
-        >
-
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- =========================
-       SERVICES
-  ========================== -->
-
-  <div class="section-box">
-
-    <div class="section-title">
-      Homepage Service Cards
-    </div>
-
-    <div
-      class="cards-grid"
-      id="cardsEditor"
-    ></div>
-
-  </div>
-
-  <div class="bottom-buttons">
-
-    <button
-      class="save-btn"
-      onclick="saveAllSystemDesign()"
-    >
-      Save All Settings
-    </button>
-
-    <button
-      class="reset-btn"
-      onclick="resetSystemDesign()"
-    >
-      Reset
-    </button>
-
-  </div>
-
-</div>
-
-<script src="header.js"></script>
-
-<script>
-
-if(typeof loadHeader === "function"){
-  loadHeader("System Design");
+    `;
+  });
 }
-
-</script>
-
-<script src="/core/branding.js"></script>
-
-<script src="system-design.js"></script>
-
-</body>
-</html>
+/* =========================
+CARD ACTIONS
+========================= */
+window.toggleCard =
+async function(index){
+  systemDesign.services[index].active =
+  !systemDesign.services[index].active;
+  await saveSystemDesign();
+  renderCardsEditor();
+};
+window.saveCard =
+async function(index){
+  systemDesign.services[index].title =
+  getValue(`title-${index}`);
+  systemDesign.services[index].description =
+  getValue(`desc-${index}`);
+  await saveSystemDesign();
+  alert("Card Saved");
+};
+/* =========================
+SAVE ALL
+========================= */
+window.saveAllSystemDesign =
+async function(){
+  systemDesign.companyName =
+  getValue("companyNameInput");
+  systemDesign.timezone =
+  getValue("timezoneInput");
+  systemDesign.bodyBg =
+  getValue("bodyBgInput");
+  systemDesign.bodyTextColor =
+  getValue("bodyTextColorInput");
+  systemDesign.aboutBg =
+  getValue("aboutBgInput");
+  systemDesign.aboutBorder =
+  getValue("aboutBorderInput");
+  systemDesign.aboutRadius =
+  getValue("aboutRadiusInput");
+  systemDesign.aboutPadding =
+  getValue("aboutPaddingInput");
+  systemDesign.aboutTitle =
+  getValue("aboutTitleInput");
+  systemDesign.aboutTitleColor =
+  getValue("aboutTitleColorInput");
+  systemDesign.aboutTitleSize =
+  getValue("aboutTitleSizeInput");
+  systemDesign.aboutTitleAlign =
+  getValue("aboutTitleAlignInput");
+  systemDesign.aboutText =
+  getValue("aboutTextInput");
+  systemDesign.aboutTextColor =
+  getValue("aboutTextColorInput");
+  systemDesign.aboutTextSize =
+  getValue("aboutTextSizeInput");
+  systemDesign.aboutTextAlign =
+  getValue("aboutTextAlignInput");
+  systemDesign.quoteBg =
+  getValue("quoteBgInput");
+  systemDesign.quoteBorder =
+  getValue("quoteBorderInput");
+  systemDesign.quoteRadius =
+  getValue("quoteRadiusInput");
+  systemDesign.quotePadding =
+  getValue("quotePaddingInput");
+  systemDesign.quoteTitle =
+  getValue("quoteTitleInput");
+  systemDesign.quoteTitleColor =
+  getValue("quoteTitleColorInput");
+  systemDesign.quoteTitleSize =
+  getValue("quoteTitleSizeInput");
+  systemDesign.quoteTitleAlign =
+  getValue("quoteTitleAlignInput");
+  systemDesign.quoteText =
+  getValue("quoteTextInput");
+  systemDesign.quoteTextColor =
+  getValue("quoteTextColorInput");
+  systemDesign.quoteTextSize =
+  getValue("quoteTextSizeInput");
+  systemDesign.quoteTextAlign =
+  getValue("quoteTextAlignInput");
+  systemDesign.extra1Title =
+  getValue("extra1Title");
+  systemDesign.extra1Text =
+  getValue("extra1Text");
+  systemDesign.extra1Active =
+  getChecked("extra1Active");
+  systemDesign.extra2Title =
+  getValue("extra2Title");
+  systemDesign.extra2Text =
+  getValue("extra2Text");
+  systemDesign.extra2Active =
+  getChecked("extra2Active");
+  systemDesign.extraBoxBg =
+  getValue("extraBoxBgInput");
+  systemDesign.extraBoxBorder =
+  getValue("extraBoxBorderInput");
+  systemDesign.extraBoxTitleColor =
+  getValue("extraBoxTitleColorInput");
+  systemDesign.extraBoxTextColor =
+  getValue("extraBoxTextColorInput");
+  systemDesign.extraBoxRadius =
+  getValue("extraBoxRadiusInput");
+  systemDesign.extraBoxPadding =
+  getValue("extraBoxPaddingInput");
+  systemDesign.extraBoxAlign =
+  getValue("extraBoxAlignInput","center");
+  systemDesign.extraBoxTitleSize =
+  getValue("extraBoxTitleSizeInput");
+  systemDesign.extraBoxTextSize =
+  getValue("extraBoxTextSizeInput");
+  systemDesign.extraBoxBorderSize =
+  getValue("extraBoxBorderSizeInput");
+  systemDesign.extraBoxShadow =
+  getChecked("extraBoxShadowInput");
+  systemDesign.contactTitle =
+  getValue("contactTitleInput");
+  systemDesign.contactPhone =
+  getValue("contactPhoneInput");
+  systemDesign.contactEmail =
+  getValue("contactEmailInput");
+  systemDesign.footerText =
+  getValue("footerTextInput");
+  await saveSystemDesign();
+  alert("Saved");
+};
+/* =========================
+RESET
+========================= */
+window.resetSystemDesign =
+function(){
+  const ok =
+  confirm("Reset System Design?");
+  if(!ok) return;
+  location.reload();
+};
+/* =========================
+INIT
+========================= */
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+    await loadSystemDesign();
+    loadFormValues();
+    renderCardsEditor();
+    previewLive();
+  }
+);
