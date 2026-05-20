@@ -135,22 +135,32 @@ const defaultSystemDesign = {
 
   extraBoxShadow:true,
 
-  /* =========================
-  CONTACT
-  ========================= */
+/* =========================
+CONTACT
+========================= */
 
-  contactTitle:"Customer Support",
+contactTitle:"Customer Support",
 
-  contactPhone:"619-509-7197",
+contactPhone:"619-509-7197",
 
-  contactEmail:
-  "admin@sunbeamtransportationllc.com",
+contactEmail:
+"admin@sunbeamtransportationllc.com",
 
-  footerText:"©️ Sunbeam Transportation",
+footerText:"©️ Sunbeam Transportation",
 
-  /* =========================
-  SERVICES
-  ========================= */
+contactTitleColor:"#145cff",
+
+contactTitleSize:"34",
+
+contactBg:"#ffffff",
+
+contactBorder:"#dbeafe",
+
+contactRadius:"28",
+
+/* =========================
+SERVICES
+================
 
   services:[
 
@@ -604,10 +614,35 @@ function loadFormValues(){
     systemDesign.contactEmail
   );
 
-  setValue(
-    "footerTextInput",
-    systemDesign.footerText
-  );
+setValue(
+  "footerTextInput",
+  systemDesign.footerText
+);
+
+setValue(
+  "contactTitleColorInput",
+  systemDesign.contactTitleColor
+);
+
+setValue(
+  "contactTitleSizeInput",
+  systemDesign.contactTitleSize
+);
+
+setValue(
+  "contactBgInput",
+  systemDesign.contactBg
+);
+
+setValue(
+  "contactBorderInput",
+  systemDesign.contactBorder
+);
+
+setValue(
+  "contactRadiusInput",
+  systemDesign.contactRadius
+);
 
 }
 
@@ -1160,14 +1195,39 @@ async function(){
     "contactEmailInput"
   )?.value || "";
 
-  systemDesign.footerText =
-  document.getElementById(
-    "footerTextInput"
-  )?.value || "";
+systemDesign.footerText =
+document.getElementById(
+  "footerTextInput"
+)?.value || "";
 
-  await saveSystemDesign();
+systemDesign.contactTitleColor =
+document.getElementById(
+  "contactTitleColorInput"
+)?.value || "";
 
-  alert("Saved");
+systemDesign.contactTitleSize =
+document.getElementById(
+  "contactTitleSizeInput"
+)?.value || "";
+
+systemDesign.contactBg =
+document.getElementById(
+  "contactBgInput"
+)?.value || "";
+
+systemDesign.contactBorder =
+document.getElementById(
+  "contactBorderInput"
+)?.value || "";
+
+systemDesign.contactRadius =
+document.getElementById(
+  "contactRadiusInput"
+)?.value || "";
+
+await saveSystemDesign();
+
+alert("Saved");
 
 };
 
