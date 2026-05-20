@@ -808,6 +808,8 @@ window.addEventListener(
 
     loadFormValues();
 
+    renderCardsEditor();
+
     previewLive();
 
   }
