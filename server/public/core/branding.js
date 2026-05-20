@@ -663,13 +663,7 @@ document
 
   el.style.setProperty(
     "padding",
-    `${data.contactPadding || 40}px`,
-    "important"
-  );
-
-  el.style.setProperty(
-    "min-height",
-    "220px",
+    "20px",
     "important"
   );
 
@@ -693,7 +687,13 @@ document
 
   el.style.setProperty(
     "justify-content",
-    data.contactJustify || "center",
+    "flex-start",
+    "important"
+  );
+
+  el.style.setProperty(
+    "gap",
+    "10px",
     "important"
   );
 
@@ -741,50 +741,6 @@ document
 
 });
 
-/* CONTACT TITLE */
-
-document
-.querySelectorAll(
-  ".contact-section h2, .contact-section h3, .contact-title"
-)
-.forEach(el=>{
-
-  el.style.setProperty(
-    "color",
-    data.contactTitleColor || "#145cff",
-    "important"
-  );
-
-  el.style.setProperty(
-    "font-size",
-    `${data.contactTitleSize || 30}px`,
-    "important"
-  );
-
-});
-
-/* CONTACT TITLE */
-
-document
-.querySelectorAll(
-  ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
-)
-.forEach(el=>{
-
-  el.style.setProperty(
-    "color",
-    data.contactTitleColor || "#145cff",
-    "important"
-  );
-
-  el.style.setProperty(
-    "font-size",
-    `${data.contactTitleSize || 30}px`,
-    "important"
-  );
-
-});
-},
 
   /* =========================
   HOMEPAGE CARDS
