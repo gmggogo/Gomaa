@@ -1,26 +1,54 @@
 const mongoose = require("mongoose");
 
-const ServiceSchema = new mongoose.Schema({
+/* =========================
+SERVICES
+========================= */
 
-  id:String,
+const ServiceSchema =
+new mongoose.Schema({
+
+  id:{
+    type:String,
+    default:""
+  },
 
   active:{
     type:Boolean,
     default:false
   },
 
-  title:String,
+  title:{
+    type:String,
+    default:""
+  },
 
-  description:String,
+  description:{
+    type:String,
+    default:""
+  },
 
-  image:String,
+  image:{
+    type:String,
+    default:""
+  },
 
-  link:String
+  link:{
+    type:String,
+    default:"getquote/index.html"
+  }
 
 });
 
+/* =========================
+SYSTEM DESIGN
+========================= */
+
 const SystemDesignSchema =
 new mongoose.Schema({
+
+  /* =========================
+  COMPANY
+  ========================= */
 
   companyName:{
     type:String,
@@ -32,41 +60,174 @@ new mongoose.Schema({
     default:"America/Phoenix"
   },
 
-  mainLogo:String,
+  /* =========================
+  LOGOS
+  ========================= */
 
-  driverLogo:String,
+  mainLogo:{
+    type:String,
+    default:"/assets/logo.png"
+  },
 
-  heroImage:String,
+  driverLogo:{
+    type:String,
+    default:"/assets/logo.png"
+  },
 
-  aboutTitle:String,
+  heroImage:{
+    type:String,
+    default:"/assets/hero.jpeg"
+  },
 
-  aboutText:String,
+  /* =========================
+  HOMEPAGE
+  ========================= */
 
-  quoteTitle:String,
+  aboutTitle:{
+    type:String,
+    default:"About Us"
+  },
 
-  quoteText:String,
+  aboutText:{
+    type:String,
+    default:"Professional transportation services."
+  },
 
-  extra1Active:Boolean,
+  quoteTitle:{
+    type:String,
+    default:"Get Quote & Book Your Ride"
+  },
 
-  extra1Title:String,
+  quoteText:{
+    type:String,
+    default:"Select your service below"
+  },
 
-  extra1Text:String,
+  /* =========================
+  EXTRA BOXES
+  ========================= */
 
-  extra2Active:Boolean,
+  extra1Active:{
+    type:Boolean,
+    default:true
+  },
 
-  extra2Title:String,
+  extra1Title:{
+    type:String,
+    default:"Extra Information"
+  },
 
-  extra2Text:String,
+  extra1Text:{
+    type:String,
+    default:"You can add pricing, announcements, promotions, or company information here."
+  },
 
-  contactTitle:String,
+  extra2Active:{
+    type:Boolean,
+    default:true
+  },
 
-  contactPhone:String,
+  extra2Title:{
+    type:String,
+    default:"Additional Services"
+  },
 
-  contactEmail:String,
+  extra2Text:{
+    type:String,
+    default:"This section can later be managed from the admin panel."
+  },
 
-  footerText:String,
+  /* =========================
+  EXTRA BOX THEME ENGINE
+  ========================= */
 
-  services:[ServiceSchema]
+  extraBoxBg:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  extraBoxBorder:{
+    type:String,
+    default:"#dbeafe"
+  },
+
+  extraBoxTitleColor:{
+    type:String,
+    default:"#145cff"
+  },
+
+  extraBoxTextColor:{
+    type:String,
+    default:"#334155"
+  },
+
+  extraBoxRadius:{
+    type:String,
+    default:"28"
+  },
+
+  extraBoxPadding:{
+    type:String,
+    default:"40"
+  },
+
+  extraBoxAlign:{
+    type:String,
+    default:"center"
+  },
+
+  extraBoxTitleSize:{
+    type:String,
+    default:"32"
+  },
+
+  extraBoxTextSize:{
+    type:String,
+    default:"18"
+  },
+
+  extraBoxBorderSize:{
+    type:String,
+    default:"2"
+  },
+
+  extraBoxShadow:{
+    type:Boolean,
+    default:true
+  },
+
+  /* =========================
+  CONTACT
+  ========================= */
+
+  contactTitle:{
+    type:String,
+    default:"Customer Support"
+  },
+
+  contactPhone:{
+    type:String,
+    default:"619-509-7197"
+  },
+
+  contactEmail:{
+    type:String,
+    default:"admin@sunbeamtransportationllc.com"
+  },
+
+  footerText:{
+    type:String,
+    default:"©️ Sunbeam Transportation"
+  },
+
+  /* =========================
+  SERVICES
+  ========================= */
+
+  services:{
+    type:[ServiceSchema],
+    default:[]
+  }
 
 },
 {
