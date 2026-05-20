@@ -1,68 +1,158 @@
-استبدل ملف public/admin/system-design.js كله بده كامل:
-
 // =========================================
 // FILE: public/admin/system-design.js
 // COMPLETE SYSTEM DESIGN ENGINE
 // =========================================
+
 console.log("SYSTEM DESIGN LOADED");
+
 let systemDesign = {};
+
 /* =========================
 DEFAULT DATA
 ========================= */
+
 const defaultSystemDesign = {
+
   companyName:"Sunbeam Transportation",
+
   timezone:"America/Phoenix",
+
   mainLogo:"/assets/logo.png",
+
   driverLogo:"/assets/logo.png",
+
   heroImage:"/assets/hero.jpeg",
+
+  /* =========================
+  BODY
+  ========================= */
+
   bodyBg:"#f1f5f9",
+
   bodyTextColor:"#0f172a",
+
+  /* =========================
+  ABOUT
+  ========================= */
+
   aboutBg:"#ffffff",
+
   aboutBorder:"#dbeafe",
+
   aboutRadius:"28",
+
   aboutPadding:"40",
+
   aboutTitle:"About Us",
+
   aboutTitleColor:"#145cff",
+
   aboutTitleSize:"34",
+
   aboutTitleAlign:"center",
-  aboutText:"Professional transportation services.",
+
+  aboutText:
+  "Professional transportation services.",
+
   aboutTextColor:"#334155",
+
   aboutTextSize:"18",
+
   aboutTextAlign:"center",
+
+  /* =========================
+  QUOTE
+  ========================= */
+
   quoteBg:"#ffffff",
+
   quoteBorder:"#dbeafe",
+
   quoteRadius:"28",
+
   quotePadding:"40",
-  quoteTitle:"Get Quote & Book Your Ride",
+
+  quoteTitle:
+  "Get Quote & Book Your Ride",
+
   quoteTitleColor:"#145cff",
+
   quoteTitleSize:"34",
+
   quoteTitleAlign:"center",
-  quoteText:"Select your service below",
+
+  quoteText:
+  "Select your service below",
+
   quoteTextColor:"#334155",
+
   quoteTextSize:"18",
+
   quoteTextAlign:"center",
+
+  /* =========================
+  EXTRA BOXES
+  ========================= */
+
   extra1Active:true,
+
   extra1Title:"Extra Information",
-  extra1Text:"You can add pricing, announcements, promotions, or company information here.",
+
+  extra1Text:
+  "You can add pricing, announcements, promotions, or company information here.",
+
   extra2Active:true,
+
   extra2Title:"Additional Services",
-  extra2Text:"This section can later be managed from the admin panel.",
+
+  extra2Text:
+  "This section can later be managed from the admin panel.",
+
+  /* =========================
+  EXTRA BOX DESIGN
+  ========================= */
+
   extraBoxBg:"#ffffff",
+
   extraBoxBorder:"#dbeafe",
+
   extraBoxTitleColor:"#145cff",
+
   extraBoxTextColor:"#334155",
+
   extraBoxRadius:"28",
+
   extraBoxPadding:"40",
+
   extraBoxAlign:"center",
+
   extraBoxTitleSize:"32",
+
   extraBoxTextSize:"18",
+
   extraBoxBorderSize:"2",
+
   extraBoxShadow:true,
+
+  /* =========================
+  CONTACT
+  ========================= */
+
   contactTitle:"Customer Support",
+
   contactPhone:"619-509-7197",
-  contactEmail:"admin@sunbeamtransportationllc.com",
+
+  contactEmail:
+  "admin@sunbeamtransportationllc.com",
+
   footerText:"©️ Sunbeam Transportation",
+
+  /* =========================
+  SERVICES
+  ========================= */
+
   services:[
+
     {
       id:"standard",
       active:false,
@@ -71,6 +161,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"xl",
       active:false,
@@ -79,6 +170,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"taxi",
       active:false,
@@ -87,6 +179,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"limo",
       active:false,
@@ -95,6 +188,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"wheelchair",
       active:false,
@@ -103,6 +197,7 @@ const defaultSystemDesign = {
       image:"/assets/nemt.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"shared",
       active:false,
@@ -111,147 +206,378 @@ const defaultSystemDesign = {
       image:"/assets/airport.jpeg",
       link:"getquote/index.html"
     }
+
   ]
+
 };
+
 /* =========================
 LOAD
 ========================= */
+
 async function loadSystemDesign(){
+
   try{
+
     const res =
     await fetch("/api/system-design");
+
     const data =
     await res.json();
+
     systemDesign = {
+
       ...defaultSystemDesign,
+
       ...data,
+
       services:
-      Array.isArray(data.services) && data.services.length
+      Array.isArray(data.services)
+      && data.services.length
       ? data.services
       : defaultSystemDesign.services
+
     };
+
   }catch(err){
-    console.log("LOAD ERROR",err);
-    systemDesign = defaultSystemDesign;
+
+    console.log(err);
+
+    systemDesign =
+    defaultSystemDesign;
+
   }
+
 }
+
 /* =========================
 SAVE
 ========================= */
+
 async function saveSystemDesign(){
+
   try{
+
     await fetch(
       "/api/system-design",
       {
+
         method:"POST",
+
         headers:{
-          "Content-Type":"application/json"
+          "Content-Type":
+          "application/json"
         },
-        body:JSON.stringify(systemDesign)
+
+        body:
+        JSON.stringify(systemDesign)
+
       }
     );
+
   }catch(err){
-    console.log("SAVE ERROR",err);
+
+    console.log(err);
+
   }
+
 }
+
 /* =========================
 HELPERS
 ========================= */
+
 function setValue(id,value){
+
   const el =
   document.getElementById(id);
+
   if(el){
-    el.value = value ?? "";
+
+    el.value = value || "";
+
   }
+
 }
+
 function setChecked(id,value){
+
   const el =
   document.getElementById(id);
+
   if(el){
+
     el.checked = !!value;
+
   }
+
 }
+
 function setImage(id,value){
+
   const el =
   document.getElementById(id);
+
   if(el){
+
     el.src = value || "";
+
   }
+
 }
-function getValue(id,fallback=""){
-  return document.getElementById(id)?.value || fallback;
-}
-function getChecked(id){
-  return document.getElementById(id)?.checked || false;
-}
+
 /* =========================
-LOAD FORM VALUES
+LOAD VALUES
 ========================= */
+
 function loadFormValues(){
-  setValue("companyNameInput",systemDesign.companyName);
-  setValue("timezoneInput",systemDesign.timezone);
-  setImage("mainLogoPreview",systemDesign.mainLogo);
-  setImage("driverLogoPreview",systemDesign.driverLogo);
-  setImage("heroImagePreview",systemDesign.heroImage);
-  setValue("bodyBgInput",systemDesign.bodyBg);
-  setValue("bodyTextColorInput",systemDesign.bodyTextColor);
-  setValue("aboutBgInput",systemDesign.aboutBg);
-  setValue("aboutBorderInput",systemDesign.aboutBorder);
-  setValue("aboutRadiusInput",systemDesign.aboutRadius);
-  setValue("aboutPaddingInput",systemDesign.aboutPadding);
-  setValue("aboutTitleInput",systemDesign.aboutTitle);
-  setValue("aboutTitleColorInput",systemDesign.aboutTitleColor);
-  setValue("aboutTitleSizeInput",systemDesign.aboutTitleSize);
-  setValue("aboutTitleAlignInput",systemDesign.aboutTitleAlign);
-  setValue("aboutTextInput",systemDesign.aboutText);
-  setValue("aboutTextColorInput",systemDesign.aboutTextColor);
-  setValue("aboutTextSizeInput",systemDesign.aboutTextSize);
-  setValue("aboutTextAlignInput",systemDesign.aboutTextAlign);
-  setValue("quoteBgInput",systemDesign.quoteBg);
-  setValue("quoteBorderInput",systemDesign.quoteBorder);
-  setValue("quoteRadiusInput",systemDesign.quoteRadius);
-  setValue("quotePaddingInput",systemDesign.quotePadding);
-  setValue("quoteTitleInput",systemDesign.quoteTitle);
-  setValue("quoteTitleColorInput",systemDesign.quoteTitleColor);
-  setValue("quoteTitleSizeInput",systemDesign.quoteTitleSize);
-  setValue("quoteTitleAlignInput",systemDesign.quoteTitleAlign);
-  setValue("quoteTextInput",systemDesign.quoteText);
-  setValue("quoteTextColorInput",systemDesign.quoteTextColor);
-  setValue("quoteTextSizeInput",systemDesign.quoteTextSize);
-  setValue("quoteTextAlignInput",systemDesign.quoteTextAlign);
-  setValue("extra1Title",systemDesign.extra1Title);
-  setValue("extra1Text",systemDesign.extra1Text);
-  setChecked("extra1Active",systemDesign.extra1Active);
-  setValue("extra2Title",systemDesign.extra2Title);
-  setValue("extra2Text",systemDesign.extra2Text);
-  setChecked("extra2Active",systemDesign.extra2Active);
-  setValue("extraBoxBgInput",systemDesign.extraBoxBg);
-  setValue("extraBoxBorderInput",systemDesign.extraBoxBorder);
-  setValue("extraBoxTitleColorInput",systemDesign.extraBoxTitleColor);
-  setValue("extraBoxTextColorInput",systemDesign.extraBoxTextColor);
-  setValue("extraBoxRadiusInput",systemDesign.extraBoxRadius);
-  setValue("extraBoxPaddingInput",systemDesign.extraBoxPadding);
-  setValue("extraBoxAlignInput",systemDesign.extraBoxAlign);
-  setValue("extraBoxTitleSizeInput",systemDesign.extraBoxTitleSize);
-  setValue("extraBoxTextSizeInput",systemDesign.extraBoxTextSize);
-  setValue("extraBoxBorderSizeInput",systemDesign.extraBoxBorderSize);
-  setChecked("extraBoxShadowInput",systemDesign.extraBoxShadow);
-  setValue("contactTitleInput",systemDesign.contactTitle);
-  setValue("contactPhoneInput",systemDesign.contactPhone);
-  setValue("contactEmailInput",systemDesign.contactEmail);
-  setValue("footerTextInput",systemDesign.footerText);
+
+  /* BASIC */
+
+  setValue(
+    "companyNameInput",
+    systemDesign.companyName
+  );
+
+  setValue(
+    "timezoneInput",
+    systemDesign.timezone
+  );
+
+  /* IMAGES */
+
+  setImage(
+    "mainLogoPreview",
+    systemDesign.mainLogo
+  );
+
+  setImage(
+    "driverLogoPreview",
+    systemDesign.driverLogo
+  );
+
+  setImage(
+    "heroImagePreview",
+    systemDesign.heroImage
+  );
+
+  /* BODY */
+
+  setValue(
+    "bodyBgInput",
+    systemDesign.bodyBg
+  );
+
+  setValue(
+    "bodyTextColorInput",
+    systemDesign.bodyTextColor
+  );
+
+  /* ABOUT */
+
+  setValue(
+    "aboutBgInput",
+    systemDesign.aboutBg
+  );
+
+  setValue(
+    "aboutBorderInput",
+    systemDesign.aboutBorder
+  );
+
+  setValue(
+    "aboutRadiusInput",
+    systemDesign.aboutRadius
+  );
+
+  setValue(
+    "aboutPaddingInput",
+    systemDesign.aboutPadding
+  );
+
+  setValue(
+    "aboutTitleInput",
+    systemDesign.aboutTitle
+  );
+
+  setValue(
+    "aboutTitleColorInput",
+    systemDesign.aboutTitleColor
+  );
+
+  setValue(
+    "aboutTitleSizeInput",
+    systemDesign.aboutTitleSize
+  );
+
+  setValue(
+    "aboutTitleAlignInput",
+    systemDesign.aboutTitleAlign
+  );
+
+  setValue(
+    "aboutTextInput",
+    systemDesign.aboutText
+  );
+
+  setValue(
+    "aboutTextColorInput",
+    systemDesign.aboutTextColor
+  );
+
+  setValue(
+    "aboutTextSizeInput",
+    systemDesign.aboutTextSize
+  );
+
+  setValue(
+    "aboutTextAlignInput",
+    systemDesign.aboutTextAlign
+  );
+
+  /* QUOTE */
+
+  setValue(
+    "quoteBgInput",
+    systemDesign.quoteBg
+  );
+
+  setValue(
+    "quoteBorderInput",
+    systemDesign.quoteBorder
+  );
+
+  setValue(
+    "quoteRadiusInput",
+    systemDesign.quoteRadius
+  );
+
+  setValue(
+    "quotePaddingInput",
+    systemDesign.quotePadding
+  );
+
+  setValue(
+    "quoteTitleInput",
+    systemDesign.quoteTitle
+  );
+
+  setValue(
+    "quoteTitleColorInput",
+    systemDesign.quoteTitleColor
+  );
+
+  setValue(
+    "quoteTitleSizeInput",
+    systemDesign.quoteTitleSize
+  );
+
+  setValue(
+    "quoteTitleAlignInput",
+    systemDesign.quoteTitleAlign
+  );
+
+  setValue(
+    "quoteTextInput",
+    systemDesign.quoteText
+  );
+
+  setValue(
+    "quoteTextColorInput",
+    systemDesign.quoteTextColor
+  );
+
+  setValue(
+    "quoteTextSizeInput",
+    systemDesign.quoteTextSize
+  );
+
+  setValue(
+    "quoteTextAlignInput",
+    systemDesign.quoteTextAlign
+  );
+
+  /* EXTRA BOXES */
+
+  setValue(
+    "extra1TitleInput",
+    systemDesign.extra1Title
+  );
+
+  setValue(
+    "extra1TextInput",
+    systemDesign.extra1Text
+  );
+
+  setChecked(
+    "extra1ActiveInput",
+    systemDesign.extra1Active
+  );
+
+  setValue(
+    "extra2TitleInput",
+    systemDesign.extra2Title
+  );
+
+  setValue(
+    "extra2TextInput",
+    systemDesign.extra2Text
+  );
+
+  setChecked(
+    "extra2ActiveInput",
+    systemDesign.extra2Active
+  );
+
+  /* CONTACT */
+
+  setValue(
+    "contactTitleInput",
+    systemDesign.contactTitle
+  );
+
+  setValue(
+    "contactPhoneInput",
+    systemDesign.contactPhone
+  );
+
+  setValue(
+    "contactEmailInput",
+    systemDesign.contactEmail
+  );
+
+  setValue(
+    "footerTextInput",
+    systemDesign.footerText
+  );
+
 }
+
 /* =========================
 UPLOADS
 ========================= */
-async function uploadMainImage(input,key,previewId){
+
+async function uploadMainImage(
+  input,
+  key,
+  previewId
+){
+
   const file =
   input.files[0];
+
   if(!file) return;
+
   try{
+
     const formData =
     new FormData();
-    formData.append("image",file);
+
+    formData.append(
+      "image",
+      file
+    );
+
     const res =
     await fetch(
       "/api/system-design/upload",
@@ -260,72 +586,121 @@ async function uploadMainImage(input,key,previewId){
         body:formData
       }
     );
+
     const data =
     await res.json();
+
     if(!data.success){
+
       alert("Upload Failed");
+
       return;
+
     }
+
     systemDesign[key] =
     data.image;
-    setImage(previewId,data.image);
+
+    setImage(
+      previewId,
+      data.image
+    );
+
     await saveSystemDesign();
+
     alert("Uploaded");
+
   }catch(err){
-    console.log("UPLOAD ERROR",err);
+
+    console.log(err);
+
     alert("Upload Error");
+
   }
+
 }
+
 window.uploadMainLogo =
 function(input){
+
   uploadMainImage(
     input,
     "mainLogo",
     "mainLogoPreview"
   );
+
 };
+
 window.uploadDriverLogo =
 function(input){
+
   uploadMainImage(
     input,
     "driverLogo",
     "driverLogoPreview"
   );
+
 };
+
 window.uploadHeroImage =
 function(input){
+
   uploadMainImage(
     input,
     "heroImage",
     "heroImagePreview"
   );
+
 };
+
 /* =========================
 LIVE PREVIEW
 ========================= */
+
 function previewLive(){
+
   document.body.style.background =
-  getValue("bodyBgInput","#f1f5f9");
+  document.getElementById(
+    "bodyBgInput"
+  )?.value || "#f1f5f9";
+
   document.body.style.color =
-  getValue("bodyTextColorInput","#0f172a");
+  document.getElementById(
+    "bodyTextColorInput"
+  )?.value || "#0f172a";
+
 }
+
 /* =========================
 RENDER SERVICE CARDS
 ========================= */
+
 function renderCardsEditor(){
+
   const container =
-  document.getElementById("cardsEditor");
+  document.getElementById(
+    "cardsEditor"
+  );
+
   if(!container) return;
+
   container.innerHTML = "";
+
   const services =
   systemDesign.services || [];
+
   services.forEach((service,index)=>{
+
     container.innerHTML += `
+
     <div class="service-card">
+
       <div class="service-top">
+
         <div class="service-title">
           ${service.title || ""}
         </div>
+
         <button
           class="${
             service.active
@@ -334,35 +709,49 @@ function renderCardsEditor(){
           }"
           onclick="toggleCard(${index})"
         >
+
           ${
             service.active
             ? "ACTIVE"
             : "DISABLED"
           }
+
         </button>
+
       </div>
+
       <div class="input-group">
+
         <label>
           Service Name
         </label>
+
         <input
           type="text"
           id="title-${index}"
           value="${service.title || ""}"
         >
+
       </div>
+
       <div class="input-group">
+
         <label>
           Description
         </label>
+
         <textarea
           id="desc-${index}"
         >${service.description || ""}</textarea>
+
       </div>
+
       <div class="input-group">
+
         <label>
           Card Image
         </label>
+
         <img
           src="${
             service.image ||
@@ -377,161 +766,309 @@ function renderCardsEditor(){
             margin-top:10px;
           "
         >
+
       </div>
+
       <button
         class="save-btn card-save"
         onclick="saveCard(${index})"
       >
+
         Save Card
+
       </button>
+
     </div>
+
     `;
+
   });
+
 }
+
 /* =========================
 CARD ACTIONS
 ========================= */
+
 window.toggleCard =
-async function(index){
+function(index){
+
   systemDesign.services[index].active =
   !systemDesign.services[index].active;
-  await saveSystemDesign();
+
+  saveSystemDesign();
+
   renderCardsEditor();
+
 };
+
 window.saveCard =
 async function(index){
+
   systemDesign.services[index].title =
-  getValue(`title-${index}`);
+  document.getElementById(
+    `title-${index}`
+  ).value;
+
   systemDesign.services[index].description =
-  getValue(`desc-${index}`);
+  document.getElementById(
+    `desc-${index}`
+  ).value;
+
   await saveSystemDesign();
+
   alert("Card Saved");
+
 };
+
 /* =========================
 SAVE ALL
 ========================= */
+
 window.saveAllSystemDesign =
 async function(){
+
+  /* BASIC */
+
   systemDesign.companyName =
-  getValue("companyNameInput");
+  document.getElementById(
+    "companyNameInput"
+  )?.value || "";
+
   systemDesign.timezone =
-  getValue("timezoneInput");
+  document.getElementById(
+    "timezoneInput"
+  )?.value || "";
+
+  /* BODY */
+
   systemDesign.bodyBg =
-  getValue("bodyBgInput");
+  document.getElementById(
+    "bodyBgInput"
+  )?.value || "";
+
   systemDesign.bodyTextColor =
-  getValue("bodyTextColorInput");
+  document.getElementById(
+    "bodyTextColorInput"
+  )?.value || "";
+
+  /* ABOUT */
+
   systemDesign.aboutBg =
-  getValue("aboutBgInput");
+  document.getElementById(
+    "aboutBgInput"
+  )?.value || "";
+
   systemDesign.aboutBorder =
-  getValue("aboutBorderInput");
+  document.getElementById(
+    "aboutBorderInput"
+  )?.value || "";
+
   systemDesign.aboutRadius =
-  getValue("aboutRadiusInput");
+  document.getElementById(
+    "aboutRadiusInput"
+  )?.value || "";
+
   systemDesign.aboutPadding =
-  getValue("aboutPaddingInput");
+  document.getElementById(
+    "aboutPaddingInput"
+  )?.value || "";
+
   systemDesign.aboutTitle =
-  getValue("aboutTitleInput");
+  document.getElementById(
+    "aboutTitleInput"
+  )?.value || "";
+
   systemDesign.aboutTitleColor =
-  getValue("aboutTitleColorInput");
+  document.getElementById(
+    "aboutTitleColorInput"
+  )?.value || "";
+
   systemDesign.aboutTitleSize =
-  getValue("aboutTitleSizeInput");
+  document.getElementById(
+    "aboutTitleSizeInput"
+  )?.value || "";
+
   systemDesign.aboutTitleAlign =
-  getValue("aboutTitleAlignInput");
+  document.getElementById(
+    "aboutTitleAlignInput"
+  )?.value || "";
+
   systemDesign.aboutText =
-  getValue("aboutTextInput");
+  document.getElementById(
+    "aboutTextInput"
+  )?.value || "";
+
   systemDesign.aboutTextColor =
-  getValue("aboutTextColorInput");
+  document.getElementById(
+    "aboutTextColorInput"
+  )?.value || "";
+
   systemDesign.aboutTextSize =
-  getValue("aboutTextSizeInput");
+  document.getElementById(
+    "aboutTextSizeInput"
+  )?.value || "";
+
   systemDesign.aboutTextAlign =
-  getValue("aboutTextAlignInput");
+  document.getElementById(
+    "aboutTextAlignInput"
+  )?.value || "";
+
+  /* QUOTE */
+
   systemDesign.quoteBg =
-  getValue("quoteBgInput");
+  document.getElementById(
+    "quoteBgInput"
+  )?.value || "";
+
   systemDesign.quoteBorder =
-  getValue("quoteBorderInput");
+  document.getElementById(
+    "quoteBorderInput"
+  )?.value || "";
+
   systemDesign.quoteRadius =
-  getValue("quoteRadiusInput");
+  document.getElementById(
+    "quoteRadiusInput"
+  )?.value || "";
+
   systemDesign.quotePadding =
-  getValue("quotePaddingInput");
+  document.getElementById(
+    "quotePaddingInput"
+  )?.value || "";
+
   systemDesign.quoteTitle =
-  getValue("quoteTitleInput");
+  document.getElementById(
+    "quoteTitleInput"
+  )?.value || "";
+
   systemDesign.quoteTitleColor =
-  getValue("quoteTitleColorInput");
+  document.getElementById(
+    "quoteTitleColorInput"
+  )?.value || "";
+
   systemDesign.quoteTitleSize =
-  getValue("quoteTitleSizeInput");
+  document.getElementById(
+    "quoteTitleSizeInput"
+  )?.value || "";
+
   systemDesign.quoteTitleAlign =
-  getValue("quoteTitleAlignInput");
+  document.getElementById(
+    "quoteTitleAlignInput"
+  )?.value || "";
+
   systemDesign.quoteText =
-  getValue("quoteTextInput");
+  document.getElementById(
+    "quoteTextInput"
+  )?.value || "";
+
   systemDesign.quoteTextColor =
-  getValue("quoteTextColorInput");
+  document.getElementById(
+    "quoteTextColorInput"
+  )?.value || "";
+
   systemDesign.quoteTextSize =
-  getValue("quoteTextSizeInput");
+  document.getElementById(
+    "quoteTextSizeInput"
+  )?.value || "";
+
   systemDesign.quoteTextAlign =
-  getValue("quoteTextAlignInput");
+  document.getElementById(
+    "quoteTextAlignInput"
+  )?.value || "";
+
+  /* EXTRA BOXES */
+
   systemDesign.extra1Title =
-  getValue("extra1Title");
+  document.getElementById(
+    "extra1TitleInput"
+  )?.value || "";
+
   systemDesign.extra1Text =
-  getValue("extra1Text");
+  document.getElementById(
+    "extra1TextInput"
+  )?.value || "";
+
   systemDesign.extra1Active =
-  getChecked("extra1Active");
+  document.getElementById(
+    "extra1ActiveInput"
+  )?.checked || false;
+
   systemDesign.extra2Title =
-  getValue("extra2Title");
+  document.getElementById(
+    "extra2TitleInput"
+  )?.value || "";
+
   systemDesign.extra2Text =
-  getValue("extra2Text");
+  document.getElementById(
+    "extra2TextInput"
+  )?.value || "";
+
   systemDesign.extra2Active =
-  getChecked("extra2Active");
-  systemDesign.extraBoxBg =
-  getValue("extraBoxBgInput");
-  systemDesign.extraBoxBorder =
-  getValue("extraBoxBorderInput");
-  systemDesign.extraBoxTitleColor =
-  getValue("extraBoxTitleColorInput");
-  systemDesign.extraBoxTextColor =
-  getValue("extraBoxTextColorInput");
-  systemDesign.extraBoxRadius =
-  getValue("extraBoxRadiusInput");
-  systemDesign.extraBoxPadding =
-  getValue("extraBoxPaddingInput");
-  systemDesign.extraBoxAlign =
-  getValue("extraBoxAlignInput","center");
-  systemDesign.extraBoxTitleSize =
-  getValue("extraBoxTitleSizeInput");
-  systemDesign.extraBoxTextSize =
-  getValue("extraBoxTextSizeInput");
-  systemDesign.extraBoxBorderSize =
-  getValue("extraBoxBorderSizeInput");
-  systemDesign.extraBoxShadow =
-  getChecked("extraBoxShadowInput");
+  document.getElementById(
+    "extra2ActiveInput"
+  )?.checked || false;
+
+  /* CONTACT */
+
   systemDesign.contactTitle =
-  getValue("contactTitleInput");
+  document.getElementById(
+    "contactTitleInput"
+  )?.value || "";
+
   systemDesign.contactPhone =
-  getValue("contactPhoneInput");
+  document.getElementById(
+    "contactPhoneInput"
+  )?.value || "";
+
   systemDesign.contactEmail =
-  getValue("contactEmailInput");
+  document.getElementById(
+    "contactEmailInput"
+  )?.value || "";
+
   systemDesign.footerText =
-  getValue("footerTextInput");
+  document.getElementById(
+    "footerTextInput"
+  )?.value || "";
+
   await saveSystemDesign();
+
   alert("Saved");
+
 };
+
 /* =========================
 RESET
 ========================= */
+
 window.resetSystemDesign =
 function(){
+
   const ok =
-  confirm("Reset System Design?");
+  confirm(
+    "Reset System Design?"
+  );
+
   if(!ok) return;
+
   location.reload();
+
 };
+
 /* =========================
 INIT
 ========================= */
+
 window.addEventListener(
   "DOMContentLoaded",
   async ()=>{
+
     await loadSystemDesign();
+
     loadFormValues();
+
     renderCardsEditor();
+
     previewLive();
+
   }
 );
