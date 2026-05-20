@@ -48,6 +48,9 @@ window.Branding = {
 
     this.applyGlobalBranding();
 
+    /* 🔥 APPLY THEME ENGINE */
+    this.applyThemeEngine();
+
     return this.data;
 
   },
@@ -241,32 +244,45 @@ window.Branding = {
     .querySelectorAll(".extra-box")
     .forEach(box=>{
 
-        box.style.background =
-        data.extraBoxBg ||
-        "#ffffff";
+        box.style.setProperty(
+          "background",
+          data.extraBoxBg || "#ffffff",
+          "important"
+        );
 
-        box.style.border =
-        `${data.extraBoxBorderSize || 2}px solid ${
-          data.extraBoxBorder || "#dbeafe"
-        }`;
+        box.style.setProperty(
+          "border",
+          `${data.extraBoxBorderSize || 2}px solid ${
+            data.extraBoxBorder || "#dbeafe"
+          }`,
+          "important"
+        );
 
-        box.style.borderRadius =
-        `${data.extraBoxRadius || 28}px`;
+        box.style.setProperty(
+          "border-radius",
+          `${data.extraBoxRadius || 28}px`,
+          "important"
+        );
 
-        box.style.padding =
-        `${data.extraBoxPadding || 44}px`;
+        box.style.setProperty(
+          "padding",
+          `${data.extraBoxPadding || 44}px`,
+          "important"
+        );
 
-        box.style.textAlign =
-        data.extraBoxAlign ||
-        "center";
+        box.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
 
-        box.style.boxShadow =
-
-        data.extraBoxShadow
-
-        ? "0 10px 30px rgba(0,0,0,.08)"
-
-        : "none";
+        box.style.setProperty(
+          "box-shadow",
+          data.extraBoxShadow
+          ? "0 10px 30px rgba(0,0,0,.08)"
+          : "none",
+          "important"
+        );
 
     });
 
@@ -278,12 +294,17 @@ window.Branding = {
     .querySelectorAll(".extra-box h3")
     .forEach(title=>{
 
-        title.style.color =
-        data.extraBoxTitleColor ||
-        "#1e3a6d";
+        title.style.setProperty(
+          "color",
+          data.extraBoxTitleColor || "#1e3a6d",
+          "important"
+        );
 
-        title.style.fontSize =
-        `${data.extraBoxTitleSize || 42}px`;
+        title.style.setProperty(
+          "font-size",
+          `${data.extraBoxTitleSize || 42}px`,
+          "important"
+        );
 
     });
 
@@ -295,12 +316,17 @@ window.Branding = {
     .querySelectorAll(".extra-box p")
     .forEach(text=>{
 
-        text.style.color =
-        data.extraBoxTextColor ||
-        "#6b7280";
+        text.style.setProperty(
+          "color",
+          data.extraBoxTextColor || "#6b7280",
+          "important"
+        );
 
-        text.style.fontSize =
-        `${data.extraBoxTextSize || 22}px`;
+        text.style.setProperty(
+          "font-size",
+          `${data.extraBoxTextSize || 22}px`,
+          "important"
+        );
 
     });
 
