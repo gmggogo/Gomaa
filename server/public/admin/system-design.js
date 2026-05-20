@@ -1,6 +1,7 @@
 // =========================================
 // FILE: public/admin/system-design.js
 // COMPLETE SYSTEM DESIGN ENGINE
+// FINAL FIXED VERSION
 // =========================================
 
 console.log("SYSTEM DESIGN LOADED");
@@ -500,33 +501,90 @@ function loadFormValues(){
   /* EXTRA BOXES */
 
   setValue(
-    "extra1TitleInput",
+    "extra1Title",
     systemDesign.extra1Title
   );
 
   setValue(
-    "extra1TextInput",
+    "extra1Text",
     systemDesign.extra1Text
   );
 
   setChecked(
-    "extra1ActiveInput",
+    "extra1Active",
     systemDesign.extra1Active
   );
 
   setValue(
-    "extra2TitleInput",
+    "extra2Title",
     systemDesign.extra2Title
   );
 
   setValue(
-    "extra2TextInput",
+    "extra2Text",
     systemDesign.extra2Text
   );
 
   setChecked(
-    "extra2ActiveInput",
+    "extra2Active",
     systemDesign.extra2Active
+  );
+
+  /* EXTRA BOX DESIGN */
+
+  setValue(
+    "extraBoxBgInput",
+    systemDesign.extraBoxBg
+  );
+
+  setValue(
+    "extraBoxBorderInput",
+    systemDesign.extraBoxBorder
+  );
+
+  setValue(
+    "extraBoxTitleColorInput",
+    systemDesign.extraBoxTitleColor
+  );
+
+  setValue(
+    "extraBoxTextColorInput",
+    systemDesign.extraBoxTextColor
+  );
+
+  setValue(
+    "extraBoxRadiusInput",
+    systemDesign.extraBoxRadius
+  );
+
+  setValue(
+    "extraBoxPaddingInput",
+    systemDesign.extraBoxPadding
+  );
+
+  setValue(
+    "extraBoxAlignInput",
+    systemDesign.extraBoxAlign
+  );
+
+  setValue(
+    "extraBoxTitleSizeInput",
+    systemDesign.extraBoxTitleSize
+  );
+
+  setValue(
+    "extraBoxTextSizeInput",
+    systemDesign.extraBoxTextSize
+  );
+
+  setValue(
+    "extraBoxBorderSizeInput",
+    systemDesign.extraBoxBorderSize
+  );
+
+  setChecked(
+    "extraBoxShadowInput",
+    systemDesign.extraBoxShadow
   );
 
   /* CONTACT */
@@ -980,32 +1038,89 @@ async function(){
 
   systemDesign.extra1Title =
   document.getElementById(
-    "extra1TitleInput"
+    "extra1Title"
   )?.value || "";
 
   systemDesign.extra1Text =
   document.getElementById(
-    "extra1TextInput"
+    "extra1Text"
   )?.value || "";
 
   systemDesign.extra1Active =
   document.getElementById(
-    "extra1ActiveInput"
+    "extra1Active"
   )?.checked || false;
 
   systemDesign.extra2Title =
   document.getElementById(
-    "extra2TitleInput"
+    "extra2Title"
   )?.value || "";
 
   systemDesign.extra2Text =
   document.getElementById(
-    "extra2TextInput"
+    "extra2Text"
   )?.value || "";
 
   systemDesign.extra2Active =
   document.getElementById(
-    "extra2ActiveInput"
+    "extra2Active"
+  )?.checked || false;
+
+  /* EXTRA BOX DESIGN */
+
+  systemDesign.extraBoxBg =
+  document.getElementById(
+    "extraBoxBgInput"
+  )?.value || "";
+
+  systemDesign.extraBoxBorder =
+  document.getElementById(
+    "extraBoxBorderInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTitleColor =
+  document.getElementById(
+    "extraBoxTitleColorInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTextColor =
+  document.getElementById(
+    "extraBoxTextColorInput"
+  )?.value || "";
+
+  systemDesign.extraBoxRadius =
+  document.getElementById(
+    "extraBoxRadiusInput"
+  )?.value || "";
+
+  systemDesign.extraBoxPadding =
+  document.getElementById(
+    "extraBoxPaddingInput"
+  )?.value || "";
+
+  systemDesign.extraBoxAlign =
+  document.getElementById(
+    "extraBoxAlignInput"
+  )?.value || "center";
+
+  systemDesign.extraBoxTitleSize =
+  document.getElementById(
+    "extraBoxTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTextSize =
+  document.getElementById(
+    "extraBoxTextSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxBorderSize =
+  document.getElementById(
+    "extraBoxBorderSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxShadow =
+  document.getElementById(
+    "extraBoxShadowInput"
   )?.checked || false;
 
   /* CONTACT */
