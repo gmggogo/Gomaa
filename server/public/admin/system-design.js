@@ -812,6 +812,94 @@ SAVE ALL
 window.saveAllSystemDesign =
 function(){
 
+  /* =========================
+  BASIC INFO
+  ========================= */
+
+  systemDesign.companyName =
+  document.getElementById(
+  "companyNameInput"
+  )?.value || "";
+
+  systemDesign.timezone =
+  document.getElementById(
+  "timezoneInput"
+  )?.value || "";
+
+  systemDesign.aboutTitle =
+  document.getElementById(
+  "aboutTitleInput"
+  )?.value || "";
+
+  systemDesign.aboutText =
+  document.getElementById(
+  "aboutTextInput"
+  )?.value || "";
+
+  systemDesign.quoteTitle =
+  document.getElementById(
+  "quoteTitleInput"
+  )?.value || "";
+
+  systemDesign.quoteText =
+  document.getElementById(
+  "quoteTextInput"
+  )?.value || "";
+
+  systemDesign.extra1Title =
+  document.getElementById(
+  "extra1Title"
+  )?.value || "";
+
+  systemDesign.extra1Text =
+  document.getElementById(
+  "extra1Text"
+  )?.value || "";
+
+  systemDesign.extra2Title =
+  document.getElementById(
+  "extra2Title"
+  )?.value || "";
+
+  systemDesign.extra2Text =
+  document.getElementById(
+  "extra2Text"
+  )?.value || "";
+
+  systemDesign.extra1Active =
+  document.getElementById(
+  "extra1Active"
+  )?.checked || false;
+
+  systemDesign.extra2Active =
+  document.getElementById(
+  "extra2Active"
+  )?.checked || false;
+
+  systemDesign.contactTitle =
+  document.getElementById(
+  "contactTitleInput"
+  )?.value || "";
+
+  systemDesign.contactPhone =
+  document.getElementById(
+  "contactPhoneInput"
+  )?.value || "";
+
+  systemDesign.contactEmail =
+  document.getElementById(
+  "contactEmailInput"
+  )?.value || "";
+
+  systemDesign.footerText =
+  document.getElementById(
+  "footerTextInput"
+  )?.value || "";
+
+  /* =========================
+  THEME ENGINE
+  ========================= */
+
   systemDesign.extraBoxBg =
   document.getElementById(
   "extraBoxBgInput"
@@ -866,6 +954,10 @@ function(){
   document.getElementById(
   "extraBoxShadowInput"
   )?.checked || false;
+
+  /* =========================
+  SAVE
+  ========================= */
 
   saveStorage();
 
