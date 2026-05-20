@@ -689,7 +689,9 @@ document
 /* CONTACT TITLE */
 
 document
-.querySelectorAll(".contact-section h2")
+.querySelectorAll(
+  ".contact-section h2, .contact-section h3, .contact-title"
+)
 .forEach(el=>{
 
   el.style.setProperty(
@@ -705,8 +707,6 @@ document
   );
 
 });
-
-},
 
   /* =========================
   HOMEPAGE CARDS
