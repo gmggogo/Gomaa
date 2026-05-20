@@ -633,10 +633,12 @@ document
 
     });
 
-   /* CONTACT */
+ /* CONTACT */
 
 document
-.querySelectorAll(".contact-section")
+.querySelectorAll(
+  ".contact-section, #contactSection, .contact-box"
+)
 .forEach(el=>{
 
   el.style.setProperty(
@@ -666,6 +668,18 @@ document
   );
 
   el.style.setProperty(
+    "min-height",
+    "220px",
+    "important"
+  );
+
+  el.style.setProperty(
+    "display",
+    "block",
+    "important"
+  );
+
+  el.style.setProperty(
     "box-shadow",
     data.extraBoxShadow
     ? "0 10px 30px rgba(0,0,0,.08)"
@@ -684,6 +698,29 @@ document
     data.contactAlign || "center",
     "important"
   );
+
+});
+
+/* CONTACT TITLE */
+
+document
+.querySelectorAll(
+  ".contact-section h2, .contact-section h3, .contact-title"
+)
+.forEach(el=>{
+
+  el.style.setProperty(
+    "color",
+    data.contactTitleColor || "#145cff",
+    "important"
+  );
+
+  el.style.setProperty(
+    "font-size",
+    `${data.contactTitleSize || 30}px`,
+    "important"
+  );
+
 });
 
 /* CONTACT TITLE */
