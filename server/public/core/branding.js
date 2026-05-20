@@ -590,20 +590,42 @@ window.Branding = {
 
     });
 
-/* CONTACT */
+المشكلة واضحة دلوقتي.
+أنت ناقص تقفل forEach بتاع الـ CONTACT 😅
 
+أنت عندك ده:
+
+el.querySelectorAll("*").forEach(child=>{
+  child.style.setProperty(
+    "margin",
+    "0",
+    "important"
+  );
+});
+
+وبعده دخلت مباشرة على:
+
+/* CONTACT TITLE */
+
+من غير ما تقفل الـ forEach(el=>{
+
+لازم تضيف دي قبل /* CONTACT TITLE */
+
+});
+
+يعني الجزء الصحيح يبقى كده بالكامل 👇
+
+/* CONTACT */
 document
 .querySelectorAll(
   ".contact-section, #contactSection, .contact-box"
 )
 .forEach(el=>{
-
   el.style.setProperty(
     "background",
     data.contactBg || "#ffffff",
     "important"
   );
-
   el.style.setProperty(
     "border",
     `${data.contactBorderSize || 2}px solid ${
@@ -611,49 +633,41 @@ document
     }`,
     "important"
   );
-
   el.style.setProperty(
     "border-radius",
     `${data.contactRadius || 28}px`,
     "important"
   );
-
   el.style.setProperty(
     "padding",
     "20px",
     "important"
   );
-
   el.style.setProperty(
     "display",
     "flex",
     "important"
   );
-
   el.style.setProperty(
     "flex-direction",
     "column",
     "important"
   );
-
   el.style.setProperty(
     "align-items",
     data.contactAlign || "center",
     "important"
   );
-
   el.style.setProperty(
     "justify-content",
     "flex-start",
     "important"
   );
-
   el.style.setProperty(
     "gap",
     "10px",
     "important"
   );
-
   el.style.setProperty(
     "box-shadow",
     data.extraBoxShadow
@@ -661,53 +675,41 @@ document
     : "none",
     "important"
   );
-
   el.style.setProperty(
     "color",
     data.contactTextColor || "#6b7280",
     "important"
   );
-
   el.style.setProperty(
     "text-align",
     data.contactAlign || "center",
     "important"
   );
-
   el.querySelectorAll("*").forEach(child=>{
-
     child.style.setProperty(
       "margin",
       "0",
       "important"
     );
-
   });
-
-
+});
 /* CONTACT TITLE */
-
 document
 .querySelectorAll(
   ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
 )
 .forEach(el=>{
-
   el.style.setProperty(
     "color",
     data.contactTitleColor || "#145cff",
     "important"
   );
-
   el.style.setProperty(
     "font-size",
     `${data.contactTitleSize || 30}px`,
     "important"
   );
-
-});  
-
-},
+});
 
 /* =========================
   HOMEPAGE CARDS
