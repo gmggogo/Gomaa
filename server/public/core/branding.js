@@ -690,7 +690,7 @@ document
 
 document
 .querySelectorAll(
-  ".contact-section h2, .contact-section h3, .contact-title"
+  ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
 )
 .forEach(el=>{
 
