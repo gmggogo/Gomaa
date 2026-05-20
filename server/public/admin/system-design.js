@@ -618,6 +618,156 @@ function previewLive(){
 }
 
 /* =========================
+RENDER SERVICE CARDS
+========================= */
+
+function renderCardsEditor(){
+
+  const container =
+  document.getElementById(
+    "cardsEditor"
+  );
+
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  const services =
+  systemDesign.services || [];
+
+  services.forEach((service,index)=>{
+
+    container.innerHTML += `
+
+    <div class="service-card">
+
+      <div class="service-top">
+
+        <div class="service-title">
+          ${service.title || ""}
+        </div>
+
+        <button
+          class="${
+            service.active
+            ? "save-btn"
+            : "disable-btn"
+          }"
+          onclick="toggleCard(${index})"
+        >
+
+          ${
+            service.active
+            ? "ACTIVE"
+            : "DISABLED"
+          }
+
+        </button>
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Service Name
+        </label>
+
+        <input
+          type="text"
+          id="title-${index}"
+          value="${service.title || ""}"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Description
+        </label>
+
+        <textarea
+          id="desc-${index}"
+        >${service.description || ""}</textarea>
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Card Image
+        </label>
+
+        <img
+          src="${
+            service.image ||
+            "/assets/logo.png"
+          }"
+          class="preview-image"
+          style="
+            width:100%;
+            height:180px;
+            object-fit:cover;
+            border-radius:14px;
+            margin-top:10px;
+          "
+        >
+
+      </div>
+
+      <button
+        class="save-btn card-save"
+        onclick="saveCard(${index})"
+      >
+
+        Save Card
+
+      </button>
+
+    </div>
+
+    `;
+
+  });
+
+}
+
+/* =========================
+CARD ACTIONS
+========================= */
+
+window.toggleCard =
+function(index){
+
+  systemDesign.services[index].active =
+  !systemDesign.services[index].active;
+
+  saveSystemDesign();
+
+  renderCardsEditor();
+
+};
+
+window.saveCard =
+async function(index){
+
+  systemDesign.services[index].title =
+  document.getElementById(
+    `title-${index}`
+  ).value;
+
+  systemDesign.services[index].description =
+  document.getElementById(
+    `desc-${index}`
+  ).value;
+
+  await saveSystemDesign();
+
+  alert("Card Saved");
+
+};
+
+/* =========================
 SAVE ALL
 ========================= */
 
