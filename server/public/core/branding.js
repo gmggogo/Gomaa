@@ -674,6 +674,16 @@ document
     "important"
   );
 
+  el.querySelectorAll("*").forEach(child=>{
+
+    child.style.setProperty(
+      "margin",
+      "0",
+      "important"
+    );
+
+  });
+
 });
 
 /* CONTACT TITLE */
@@ -696,11 +706,9 @@ document
     "important"
   );
 
-});
+});  
 
-},
-
-  /* =========================
+/* =========================
   HOMEPAGE CARDS
   ========================= */
 
