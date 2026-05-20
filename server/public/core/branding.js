@@ -684,7 +684,6 @@ document
 
   });
 
-});
 
 /* CONTACT TITLE */
 
