@@ -858,7 +858,9 @@ function renderCardsEditor(){
 
 </div>
 
-});
+`;
+
+  });
 
 }
 
