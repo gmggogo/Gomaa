@@ -241,6 +241,49 @@ window.Branding = {
       "important"
     );
 
+  /* =========================
+CONTACT SECTION
+========================= */
+
+document
+.querySelectorAll(".contact-section")
+.forEach(box=>{
+
+  box.style.setProperty(
+    "background",
+    data.contactBg || "#ffffff",
+    "important"
+  );
+
+  box.style.setProperty(
+    "border",
+    `2px solid ${
+      data.contactBorder || "#dbeafe"
+    }`,
+    "important"
+  );
+
+  box.style.setProperty(
+    "border-radius",
+    `${data.contactRadius || 28}px`,
+    "important"
+  );
+
+  box.style.setProperty(
+    "padding",
+    `40px`,
+    "important"
+  );
+
+  box.style.setProperty(
+    "box-shadow",
+    data.extraBoxShadow
+    ? "0 10px 30px rgba(0,0,0,.08)"
+    : "none",
+    "important"
+  );
+
+});
 
     /* ABOUT TITLE */
 
@@ -674,16 +717,7 @@ document
     "important"
   );
 
-  el.querySelectorAll("*").forEach(child=>{
-
-    child.style.setProperty(
-      "margin",
-      "0",
-      "important"
-    );
-
-  });
-
+});
 
 /* CONTACT TITLE */
 
@@ -705,11 +739,10 @@ document
     "important"
   );
 
-});  
+});
 
-},
 
-/* =========================
+  /* =========================
   HOMEPAGE CARDS
   ========================= */
 
