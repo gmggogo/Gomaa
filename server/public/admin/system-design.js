@@ -1,102 +1,158 @@
-استبدل ملف system-design.js كله بالكامل بده، ده فيه:
-
-* BODY controls
-* ABOUT controls
-* QUOTE controls
-* حفظ + تحميل + لايف بريفيو
-* كل جزء مستقل لوحده
-* بدون ما نرجع نعدل تاني في نفس النقطة
-
 // =========================================
 // FILE: public/admin/system-design.js
 // COMPLETE SYSTEM DESIGN ENGINE
 // =========================================
+
 console.log("SYSTEM DESIGN LOADED");
+
 let systemDesign = {};
+
 /* =========================
 DEFAULT DATA
 ========================= */
+
 const defaultSystemDesign = {
+
   companyName:"Sunbeam Transportation",
+
   timezone:"America/Phoenix",
+
   mainLogo:"/assets/logo.png",
+
   driverLogo:"/assets/logo.png",
+
   heroImage:"/assets/hero.jpeg",
+
   /* =========================
   BODY
   ========================= */
+
   bodyBg:"#f1f5f9",
+
   bodyTextColor:"#0f172a",
+
   /* =========================
   ABOUT
   ========================= */
+
   aboutBg:"#ffffff",
+
   aboutBorder:"#dbeafe",
+
   aboutRadius:"28",
+
   aboutPadding:"40",
+
   aboutTitle:"About Us",
+
   aboutTitleColor:"#145cff",
+
   aboutTitleSize:"34",
+
   aboutTitleAlign:"center",
+
   aboutText:
   "Professional transportation services.",
+
   aboutTextColor:"#334155",
+
   aboutTextSize:"18",
+
   aboutTextAlign:"center",
+
   /* =========================
   QUOTE
   ========================= */
+
   quoteBg:"#ffffff",
+
   quoteBorder:"#dbeafe",
+
   quoteRadius:"28",
+
   quotePadding:"40",
+
   quoteTitle:
   "Get Quote & Book Your Ride",
+
   quoteTitleColor:"#145cff",
+
   quoteTitleSize:"34",
+
   quoteTitleAlign:"center",
+
   quoteText:
   "Select your service below",
+
   quoteTextColor:"#334155",
+
   quoteTextSize:"18",
+
   quoteTextAlign:"center",
+
   /* =========================
   EXTRA BOXES
   ========================= */
+
   extra1Active:true,
+
   extra1Title:"Extra Information",
+
   extra1Text:
   "You can add pricing, announcements, promotions, or company information here.",
+
   extra2Active:true,
+
   extra2Title:"Additional Services",
+
   extra2Text:
   "This section can later be managed from the admin panel.",
+
   /* =========================
   EXTRA BOX DESIGN
   ========================= */
+
   extraBoxBg:"#ffffff",
+
   extraBoxBorder:"#dbeafe",
+
   extraBoxTitleColor:"#145cff",
+
   extraBoxTextColor:"#334155",
+
   extraBoxRadius:"28",
+
   extraBoxPadding:"40",
+
   extraBoxAlign:"center",
+
   extraBoxTitleSize:"32",
+
   extraBoxTextSize:"18",
+
   extraBoxBorderSize:"2",
+
   extraBoxShadow:true,
+
   /* =========================
   CONTACT
   ========================= */
+
   contactTitle:"Customer Support",
+
   contactPhone:"619-509-7197",
+
   contactEmail:
   "admin@sunbeamtransportationllc.com",
-  footerText:"© Sunbeam Transportation",
+
+  footerText:"©️ Sunbeam Transportation",
+
   /* =========================
   SERVICES
   ========================= */
+
   services:[
+
     {
       id:"standard",
       active:false,
@@ -105,6 +161,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"xl",
       active:false,
@@ -113,6 +170,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"taxi",
       active:false,
@@ -121,6 +179,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"limo",
       active:false,
@@ -129,6 +188,7 @@ const defaultSystemDesign = {
       image:"/assets/business.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"wheelchair",
       active:false,
@@ -137,6 +197,7 @@ const defaultSystemDesign = {
       image:"/assets/nemt.jpeg",
       link:"getquote/index.html"
     },
+
     {
       id:"shared",
       active:false,
@@ -145,424 +206,609 @@ const defaultSystemDesign = {
       image:"/assets/airport.jpeg",
       link:"getquote/index.html"
     }
+
   ]
+
 };
+
 /* =========================
 LOAD
 ========================= */
+
 async function loadSystemDesign(){
+
   try{
+
     const res =
     await fetch("/api/system-design");
+
     const data =
     await res.json();
+
     systemDesign = {
+
       ...defaultSystemDesign,
+
       ...data,
+
       services:
       Array.isArray(data.services)
       && data.services.length
       ? data.services
       : defaultSystemDesign.services
+
     };
+
   }catch(err){
+
     console.log(err);
+
     systemDesign =
     defaultSystemDesign;
+
   }
+
 }
+
 /* =========================
 SAVE
 ========================= */
+
 async function saveSystemDesign(){
+
   try{
+
     await fetch(
       "/api/system-design",
       {
+
         method:"POST",
+
         headers:{
           "Content-Type":
           "application/json"
         },
+
         body:
         JSON.stringify(systemDesign)
+
       }
     );
+
   }catch(err){
+
     console.log(err);
+
   }
+
 }
+
 /* =========================
 HELPERS
 ========================= */
+
 function setValue(id,value){
+
   const el =
   document.getElementById(id);
+
   if(el){
+
     el.value = value || "";
+
   }
+
 }
+
 function setChecked(id,value){
+
   const el =
   document.getElementById(id);
+
   if(el){
+
     el.checked = !!value;
+
   }
+
 }
+
 function setImage(id,value){
+
   const el =
   document.getElementById(id);
+
   if(el){
+
     el.src = value || "";
+
   }
+
 }
+
 /* =========================
 LOAD VALUES
 ========================= */
+
 function loadFormValues(){
+
   /* BASIC */
+
   setValue(
     "companyNameInput",
     systemDesign.companyName
   );
+
   setValue(
     "timezoneInput",
     systemDesign.timezone
   );
+
   /* IMAGES */
+
   setImage(
     "mainLogoPreview",
     systemDesign.mainLogo
   );
+
   setImage(
     "driverLogoPreview",
     systemDesign.driverLogo
   );
+
   setImage(
     "heroImagePreview",
     systemDesign.heroImage
   );
+
   /* BODY */
+
   setValue(
     "bodyBgInput",
     systemDesign.bodyBg
   );
+
   setValue(
     "bodyTextColorInput",
     systemDesign.bodyTextColor
   );
+
   /* ABOUT */
+
   setValue(
     "aboutBgInput",
     systemDesign.aboutBg
   );
+
   setValue(
     "aboutBorderInput",
     systemDesign.aboutBorder
   );
+
   setValue(
     "aboutRadiusInput",
     systemDesign.aboutRadius
   );
+
   setValue(
     "aboutPaddingInput",
     systemDesign.aboutPadding
   );
+
   setValue(
     "aboutTitleInput",
     systemDesign.aboutTitle
   );
+
   setValue(
     "aboutTitleColorInput",
     systemDesign.aboutTitleColor
   );
+
   setValue(
     "aboutTitleSizeInput",
     systemDesign.aboutTitleSize
   );
+
   setValue(
     "aboutTitleAlignInput",
     systemDesign.aboutTitleAlign
   );
+
   setValue(
     "aboutTextInput",
     systemDesign.aboutText
   );
+
   setValue(
     "aboutTextColorInput",
     systemDesign.aboutTextColor
   );
+
   setValue(
     "aboutTextSizeInput",
     systemDesign.aboutTextSize
   );
+
   setValue(
     "aboutTextAlignInput",
     systemDesign.aboutTextAlign
   );
+
   /* QUOTE */
+
   setValue(
     "quoteBgInput",
     systemDesign.quoteBg
   );
+
   setValue(
     "quoteBorderInput",
     systemDesign.quoteBorder
   );
+
   setValue(
     "quoteRadiusInput",
     systemDesign.quoteRadius
   );
+
   setValue(
     "quotePaddingInput",
     systemDesign.quotePadding
   );
+
   setValue(
     "quoteTitleInput",
     systemDesign.quoteTitle
   );
+
   setValue(
     "quoteTitleColorInput",
     systemDesign.quoteTitleColor
   );
+
   setValue(
     "quoteTitleSizeInput",
     systemDesign.quoteTitleSize
   );
+
   setValue(
     "quoteTitleAlignInput",
     systemDesign.quoteTitleAlign
   );
+
   setValue(
     "quoteTextInput",
     systemDesign.quoteText
   );
+
   setValue(
     "quoteTextColorInput",
     systemDesign.quoteTextColor
   );
+
   setValue(
     "quoteTextSizeInput",
     systemDesign.quoteTextSize
   );
+
   setValue(
     "quoteTextAlignInput",
     systemDesign.quoteTextAlign
   );
+
 }
+
 /* =========================
 UPLOADS
 ========================= */
+
 async function uploadMainImage(
   input,
   key,
   previewId
 ){
+
   const file =
   input.files[0];
+
   if(!file) return;
-  const formData =
-  new FormData();
-  formData.append("image",file);
-  const res =
-  await fetch(
-    "/api/system-design/upload",
-    {
-      method:"POST",
-      body:formData
+
+  try{
+
+    const formData =
+    new FormData();
+
+    formData.append(
+      "image",
+      file
+    );
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
     }
-  );
-  const data =
-  await res.json();
-  if(!data.success){
-    alert("Upload Failed");
-    return;
+
+    systemDesign[key] =
+    data.image;
+
+    setImage(
+      previewId,
+      data.image
+    );
+
+    await saveSystemDesign();
+
+    alert("Uploaded");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
   }
-  systemDesign[key] =
-  data.image;
-  setImage(
-    previewId,
-    data.image
-  );
-  await saveSystemDesign();
-  alert("Uploaded");
+
 }
+
 window.uploadMainLogo =
-input =>
-uploadMainImage(
-  input,
-  "mainLogo",
-  "mainLogoPreview"
-);
+function(input){
+
+  uploadMainImage(
+    input,
+    "mainLogo",
+    "mainLogoPreview"
+  );
+
+};
+
 window.uploadDriverLogo =
-input =>
-uploadMainImage(
-  input,
-  "driverLogo",
-  "driverLogoPreview"
-);
+function(input){
+
+  uploadMainImage(
+    input,
+    "driverLogo",
+    "driverLogoPreview"
+  );
+
+};
+
 window.uploadHeroImage =
-input =>
-uploadMainImage(
-  input,
-  "heroImage",
-  "heroImagePreview"
-);
+function(input){
+
+  uploadMainImage(
+    input,
+    "heroImage",
+    "heroImagePreview"
+  );
+
+};
+
 /* =========================
 LIVE PREVIEW
 ========================= */
+
 function previewLive(){
+
   document.body.style.background =
   document.getElementById(
-  "bodyBgInput"
+    "bodyBgInput"
   )?.value || "#f1f5f9";
+
   document.body.style.color =
   document.getElementById(
-  "bodyTextColorInput"
+    "bodyTextColorInput"
   )?.value || "#0f172a";
+
 }
+
 /* =========================
 SAVE ALL
 ========================= */
+
 window.saveAllSystemDesign =
 async function(){
+
   /* BASIC */
+
   systemDesign.companyName =
   document.getElementById(
-  "companyNameInput"
+    "companyNameInput"
   )?.value || "";
+
   systemDesign.timezone =
   document.getElementById(
-  "timezoneInput"
+    "timezoneInput"
   )?.value || "";
+
   /* BODY */
+
   systemDesign.bodyBg =
   document.getElementById(
-  "bodyBgInput"
+    "bodyBgInput"
   )?.value || "";
+
   systemDesign.bodyTextColor =
   document.getElementById(
-  "bodyTextColorInput"
+    "bodyTextColorInput"
   )?.value || "";
+
   /* ABOUT */
+
   systemDesign.aboutBg =
   document.getElementById(
-  "aboutBgInput"
+    "aboutBgInput"
   )?.value || "";
+
   systemDesign.aboutBorder =
   document.getElementById(
-  "aboutBorderInput"
+    "aboutBorderInput"
   )?.value || "";
+
   systemDesign.aboutRadius =
   document.getElementById(
-  "aboutRadiusInput"
+    "aboutRadiusInput"
   )?.value || "";
+
   systemDesign.aboutPadding =
   document.getElementById(
-  "aboutPaddingInput"
+    "aboutPaddingInput"
   )?.value || "";
+
   systemDesign.aboutTitle =
   document.getElementById(
-  "aboutTitleInput"
+    "aboutTitleInput"
   )?.value || "";
+
   systemDesign.aboutTitleColor =
   document.getElementById(
-  "aboutTitleColorInput"
+    "aboutTitleColorInput"
   )?.value || "";
+
   systemDesign.aboutTitleSize =
   document.getElementById(
-  "aboutTitleSizeInput"
+    "aboutTitleSizeInput"
   )?.value || "";
+
   systemDesign.aboutTitleAlign =
   document.getElementById(
-  "aboutTitleAlignInput"
+    "aboutTitleAlignInput"
   )?.value || "";
+
   systemDesign.aboutText =
   document.getElementById(
-  "aboutTextInput"
+    "aboutTextInput"
   )?.value || "";
+
   systemDesign.aboutTextColor =
   document.getElementById(
-  "aboutTextColorInput"
+    "aboutTextColorInput"
   )?.value || "";
+
   systemDesign.aboutTextSize =
   document.getElementById(
-  "aboutTextSizeInput"
+    "aboutTextSizeInput"
   )?.value || "";
+
   systemDesign.aboutTextAlign =
   document.getElementById(
-  "aboutTextAlignInput"
+    "aboutTextAlignInput"
   )?.value || "";
+
   /* QUOTE */
+
   systemDesign.quoteBg =
   document.getElementById(
-  "quoteBgInput"
+    "quoteBgInput"
   )?.value || "";
+
   systemDesign.quoteBorder =
   document.getElementById(
-  "quoteBorderInput"
+    "quoteBorderInput"
   )?.value || "";
+
   systemDesign.quoteRadius =
   document.getElementById(
-  "quoteRadiusInput"
+    "quoteRadiusInput"
   )?.value || "";
+
   systemDesign.quotePadding =
   document.getElementById(
-  "quotePaddingInput"
+    "quotePaddingInput"
   )?.value || "";
+
   systemDesign.quoteTitle =
   document.getElementById(
-  "quoteTitleInput"
+    "quoteTitleInput"
   )?.value || "";
+
   systemDesign.quoteTitleColor =
   document.getElementById(
-  "quoteTitleColorInput"
+    "quoteTitleColorInput"
   )?.value || "";
+
   systemDesign.quoteTitleSize =
   document.getElementById(
-  "quoteTitleSizeInput"
+    "quoteTitleSizeInput"
   )?.value || "";
+
   systemDesign.quoteTitleAlign =
   document.getElementById(
-  "quoteTitleAlignInput"
+    "quoteTitleAlignInput"
   )?.value || "";
+
   systemDesign.quoteText =
   document.getElementById(
-  "quoteTextInput"
+    "quoteTextInput"
   )?.value || "";
+
   systemDesign.quoteTextColor =
   document.getElementById(
-  "quoteTextColorInput"
+    "quoteTextColorInput"
   )?.value || "";
+
   systemDesign.quoteTextSize =
   document.getElementById(
-  "quoteTextSizeInput"
+    "quoteTextSizeInput"
   )?.value || "";
+
   systemDesign.quoteTextAlign =
   document.getElementById(
-  "quoteTextAlignInput"
+    "quoteTextAlignInput"
   )?.value || "";
+
   await saveSystemDesign();
+
   alert("Saved");
+
 };
+
 /* =========================
 RESET
 ========================= */
+
 window.resetSystemDesign =
 function(){
+
   const ok =
-  confirm("Reset System Design?");
+  confirm(
+    "Reset System Design?"
+  );
+
   if(!ok) return;
+
   location.reload();
+
 };
+
 /* =========================
 INIT
 ========================= */
+
 window.addEventListener(
   "DOMContentLoaded",
   async ()=>{
+
     await loadSystemDesign();
+
     loadFormValues();
+
     previewLive();
+
   }
 );
