@@ -306,6 +306,12 @@ window.Branding = {
           "important"
         );
 
+        title.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
     });
 
     /* =========================
@@ -325,6 +331,172 @@ window.Branding = {
         text.style.setProperty(
           "font-size",
           `${data.extraBoxTextSize || 22}px`,
+          "important"
+        );
+
+        text.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    /* =========================
+    ABOUT SECTION
+    ========================= */
+
+    document
+    .querySelectorAll(".about h2")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTitleColor || "#1e3a6d",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    document
+    .querySelectorAll(".about p")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTextColor || "#6b7280",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    /* =========================
+    QUOTE SECTION
+    ========================= */
+
+    document
+    .querySelectorAll(".quote-header h2")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTitleColor || "#1e3a6d",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    document
+    .querySelectorAll(".quote-header p")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTextColor || "#6b7280",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    /* =========================
+    SERVICE CARDS
+    ========================= */
+
+    document
+    .querySelectorAll(".card")
+    .forEach(card=>{
+
+        card.style.setProperty(
+          "background",
+          data.extraBoxBg || "#ffffff",
+          "important"
+        );
+
+        card.style.setProperty(
+          "border-radius",
+          `${data.extraBoxRadius || 28}px`,
+          "important"
+        );
+
+    });
+
+    document
+    .querySelectorAll(".card h3")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTitleColor || "#1e3a6d",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    document
+    .querySelectorAll(".card p")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTextColor || "#6b7280",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
+          "important"
+        );
+
+    });
+
+    /* =========================
+    CONTACT SECTION
+    ========================= */
+
+    document
+    .querySelectorAll(".contact-section")
+    .forEach(el=>{
+
+        el.style.setProperty(
+          "color",
+          data.extraBoxTextColor || "#6b7280",
+          "important"
+        );
+
+        el.style.setProperty(
+          "text-align",
+          data.extraBoxAlign || "center",
           "important"
         );
 
@@ -361,18 +533,10 @@ window.Branding = {
 
     container.innerHTML = "";
 
-    /* =========================
-    ACTIVE SERVICES
-    ========================= */
-
     const activeServices =
     services.filter(
       s => s.active
     );
-
-    /* =========================
-    NO SERVICES
-    ========================= */
 
     if(!activeServices.length){
 
@@ -399,10 +563,6 @@ window.Branding = {
       return;
 
     }
-
-    /* =========================
-    RENDER SERVICES
-    ========================= */
 
     activeServices.forEach(service=>{
 
@@ -466,15 +626,11 @@ window.Branding = {
         <div class="card-body">
 
           <h3>
-
             ${title}
-
           </h3>
 
           <p>
-
             ${desc}
-
           </p>
 
           <a
