@@ -610,26 +610,57 @@ window.Branding = {
     });
 
     /* CONTACT */
+document
+.querySelectorAll(".contact-section")
+.forEach(el=>{
 
-    document
-    .querySelectorAll(".contact-section")
-    .forEach(el=>{
+  el.style.setProperty(
+    "background",
+    data.extraBoxBg || "#ffffff",
+    "important"
+  );
 
-      el.style.setProperty(
-        "color",
-        data.extraBoxTextColor || "#6b7280",
-        "important"
-      );
+  el.style.setProperty(
+    "border",
+    `${data.extraBoxBorderSize || 2}px solid ${
+      data.extraBoxBorder || "#dbeafe"
+    }`,
+    "important"
+  );
 
-      el.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
+  el.style.setProperty(
+    "border-radius",
+    `${data.extraBoxRadius || 28}px`,
+    "important"
+  );
 
-    });
+  el.style.setProperty(
+    "padding",
+    `${data.extraBoxPadding || 40}px`,
+    "important"
+  );
 
-  },
+  el.style.setProperty(
+    "box-shadow",
+    data.extraBoxShadow
+    ? "0 10px 30px rgba(0,0,0,.08)"
+    : "none",
+    "important"
+  );
+
+  el.style.setProperty(
+    "color",
+    data.extraBoxTextColor || "#6b7280",
+    "important"
+  );
+
+  el.style.setProperty(
+    "text-align",
+    data.extraBoxAlign || "center",
+    "important"
+  );
+
+});
 
   /* =========================
   HOMEPAGE CARDS
