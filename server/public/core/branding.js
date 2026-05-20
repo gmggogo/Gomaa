@@ -708,11 +708,13 @@ document
 
 });
 
+  },
+
 /* =========================
   HOMEPAGE CARDS
   ========================= */
 
-  renderHomepageCards(
+renderHomepageCards(
     containerId,
     lang="en"
   ){
