@@ -242,255 +242,279 @@ window.Branding = {
     );
 
 
-    /* ABOUT TITLE */
+  /* ABOUT TITLE */
 
-    document
-    .querySelectorAll(".about h2")
-    .forEach(el=>{
+document
+.querySelectorAll(".about h2")
+.forEach(el=>{
 
-      el.style.setProperty(
-        "color",
-        data.aboutTitleColor || "#145cff",
-        "important"
-      );
+  el.style.setProperty(
+    "color",
+    data.aboutTitleColor || "#145cff",
+    "important"
+  );
 
-      el.style.setProperty(
-        "font-size",
-        `${data.aboutTitleSize || 34}px`,
-        "important"
-      );
+  if(window.innerWidth > 768){
 
-      el.style.setProperty(
-        "text-align",
-        data.aboutTitleAlign || "center",
-        "important"
-      );
+    el.style.setProperty(
+      "font-size",
+      `${data.aboutTitleSize || 34}px`,
+      "important"
+    );
 
-    });
+  }
 
-    /* ABOUT TEXT */
+  el.style.setProperty(
+    "text-align",
+    data.aboutTitleAlign || "center",
+    "important"
+  );
 
-    document
-    .querySelectorAll(".about p")
-    .forEach(el=>{
+});
 
-      el.style.setProperty(
-        "color",
-        data.aboutTextColor || "#334155",
-        "important"
-      );
+/* ABOUT TEXT */
 
-      el.style.setProperty(
-        "font-size",
-        `${data.aboutTextSize || 18}px`,
-        "important"
-      );
+document
+.querySelectorAll(".about p")
+.forEach(el=>{
 
-      el.style.setProperty(
-        "text-align",
-        data.aboutTextAlign || "center",
-        "important"
-      );
+  el.style.setProperty(
+    "color",
+    data.aboutTextColor || "#334155",
+    "important"
+  );
 
-    });
+  if(window.innerWidth > 768){
 
-    /* =========================
-    QUOTE SECTION
-    ========================= */
+    el.style.setProperty(
+      "font-size",
+      `${data.aboutTextSize || 18}px`,
+      "important"
+    );
 
-    document
-    .querySelectorAll(".quote-header")
-    .forEach(box=>{
+  }
 
-      box.style.setProperty(
-        "background",
-        data.quoteBg || "#ffffff",
-        "important"
-      );
+  el.style.setProperty(
+    "text-align",
+    data.aboutTextAlign || "center",
+    "important"
+  );
 
-      box.style.setProperty(
-        "border",
-        `2px solid ${
-          data.quoteBorder || "#dbeafe"
-        }`,
-        "important"
-      );
+});
 
-      box.style.setProperty(
-        "border-radius",
-        `${data.quoteRadius || 28}px`,
-        "important"
-      );
+/* =========================
+QUOTE SECTION
+========================= */
 
-      box.style.setProperty(
-        "padding",
-        `${data.quotePadding || 40}px`,
-        "important"
-      );
+document
+.querySelectorAll(".quote-header")
+.forEach(box=>{
 
-      box.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow
-        ? "0 10px 30px rgba(0,0,0,.08)"
-        : "none",
-        "important"
-      );
+  box.style.setProperty(
+    "background",
+    data.quoteBg || "#ffffff",
+    "important"
+  );
 
-    });
+  box.style.setProperty(
+    "border",
+    `2px solid ${
+      data.quoteBorder || "#dbeafe"
+    }`,
+    "important"
+  );
 
-    /* QUOTE TITLE */
+  box.style.setProperty(
+    "border-radius",
+    `${data.quoteRadius || 28}px`,
+    "important"
+  );
 
-    document
-    .querySelectorAll(".quote-header h2")
-    .forEach(el=>{
+  box.style.setProperty(
+    "padding",
+    `${data.quotePadding || 40}px`,
+    "important"
+  );
 
-      el.style.setProperty(
-        "color",
-        data.quoteTitleColor || "#145cff",
-        "important"
-      );
+  box.style.setProperty(
+    "box-shadow",
+    data.extraBoxShadow
+    ? "0 10px 30px rgba(0,0,0,.08)"
+    : "none",
+    "important"
+  );
 
-      el.style.setProperty(
-        "font-size",
-        `${data.quoteTitleSize || 34}px`,
-        "important"
-      );
+});
 
-      el.style.setProperty(
-        "text-align",
-        data.quoteTitleAlign || "center",
-        "important"
-      );
+/* QUOTE TITLE */
 
-    });
+document
+.querySelectorAll(".quote-header h2")
+.forEach(el=>{
 
-    /* QUOTE TEXT */
+  el.style.setProperty(
+    "color",
+    data.quoteTitleColor || "#145cff",
+    "important"
+  );
 
-    document
-    .querySelectorAll(".quote-header p")
-    .forEach(el=>{
+  if(window.innerWidth > 768){
 
-      el.style.setProperty(
-        "color",
-        data.quoteTextColor || "#334155",
-        "important"
-      );
+    el.style.setProperty(
+      "font-size",
+      `${data.quoteTitleSize || 34}px`,
+      "important"
+    );
 
-      el.style.setProperty(
-        "font-size",
-        `${data.quoteTextSize || 18}px`,
-        "important"
-      );
+  }
 
-      el.style.setProperty(
-        "text-align",
-        data.quoteTextAlign || "center",
-        "important"
-      );
+  el.style.setProperty(
+    "text-align",
+    data.quoteTitleAlign || "center",
+    "important"
+  );
 
-    });
+});
 
-    /* =========================
-    EXTRA BOXES
-    ========================= */
+/* QUOTE TEXT */
 
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
+document
+.querySelectorAll(".quote-header p")
+.forEach(el=>{
 
-      box.style.setProperty(
-        "background",
-        data.extraBoxBg || "#ffffff",
-        "important"
-      );
+  el.style.setProperty(
+    "color",
+    data.quoteTextColor || "#334155",
+    "important"
+  );
 
-      box.style.setProperty(
-        "border",
-        `${data.extraBoxBorderSize || 2}px solid ${
-          data.extraBoxBorder || "#dbeafe"
-        }`,
-        "important"
-      );
+  if(window.innerWidth > 768){
 
-      box.style.setProperty(
-        "border-radius",
-        `${data.extraBoxRadius || 28}px`,
-        "important"
-      );
+    el.style.setProperty(
+      "font-size",
+      `${data.quoteTextSize || 18}px`,
+      "important"
+    );
 
-      box.style.setProperty(
-        "padding",
-        `${data.extraBoxPadding || 44}px`,
-        "important"
-      );
+  }
 
-      box.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
+  el.style.setProperty(
+    "text-align",
+    data.quoteTextAlign || "center",
+    "important"
+  );
 
-      box.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow
-        ? "0 10px 30px rgba(0,0,0,.08)"
-        : "none",
-        "important"
-      );
+});
 
-    });
+/* =========================
+EXTRA BOXES
+========================= */
 
-    /* EXTRA TITLES */
+document
+.querySelectorAll(".extra-box")
+.forEach(box=>{
 
-    document
-    .querySelectorAll(".extra-box h3")
-    .forEach(title=>{
+  box.style.setProperty(
+    "background",
+    data.extraBoxBg || "#ffffff",
+    "important"
+  );
 
-      title.style.setProperty(
-        "color",
-        data.extraBoxTitleColor || "#145cff",
-        "important"
-      );
+  box.style.setProperty(
+    "border",
+    `${data.extraBoxBorderSize || 2}px solid ${
+      data.extraBoxBorder || "#dbeafe"
+    }`,
+    "important"
+  );
 
-      title.style.setProperty(
-        "font-size",
-        `${data.extraBoxTitleSize || 42}px`,
-        "important"
-      );
+  box.style.setProperty(
+    "border-radius",
+    `${data.extraBoxRadius || 28}px`,
+    "important"
+  );
 
-      title.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
+  box.style.setProperty(
+    "padding",
+    `${data.extraBoxPadding || 44}px`,
+    "important"
+  );
 
-    });
+  box.style.setProperty(
+    "text-align",
+    data.extraBoxAlign || "center",
+    "important"
+  );
 
-    /* EXTRA TEXT */
+  box.style.setProperty(
+    "box-shadow",
+    data.extraBoxShadow
+    ? "0 10px 30px rgba(0,0,0,.08)"
+    : "none",
+    "important"
+  );
 
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
+});
 
-      text.style.setProperty(
-        "color",
-        data.extraBoxTextColor || "#334155",
-        "important"
-      );
+/* EXTRA TITLES */
 
-      text.style.setProperty(
-        "font-size",
-        `${data.extraBoxTextSize || 22}px`,
-        "important"
-      );
+document
+.querySelectorAll(".extra-box h3")
+.forEach(title=>{
 
-      text.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
+  title.style.setProperty(
+    "color",
+    data.extraBoxTitleColor || "#145cff",
+    "important"
+  );
 
-    });
+  if(window.innerWidth > 768){
+
+    title.style.setProperty(
+      "font-size",
+      `${data.extraBoxTitleSize || 42}px`,
+      "important"
+    );
+
+  }
+
+  title.style.setProperty(
+    "text-align",
+    data.extraBoxAlign || "center",
+    "important"
+  );
+
+});
+
+/* EXTRA TEXT */
+
+document
+.querySelectorAll(".extra-box p")
+.forEach(text=>{
+
+  text.style.setProperty(
+    "color",
+    data.extraBoxTextColor || "#334155",
+    "important"
+  );
+
+  if(window.innerWidth > 768){
+
+    text.style.setProperty(
+      "font-size",
+      `${data.extraBoxTextSize || 22}px`,
+      "important"
+    );
+
+  }
+
+  text.style.setProperty(
+    "text-align",
+    data.extraBoxAlign || "center",
+    "important"
+  );
+
+});
 
     /* =========================
     SERVICE CARDS
