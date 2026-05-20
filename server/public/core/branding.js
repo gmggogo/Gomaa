@@ -633,7 +633,7 @@ document
 
     });
 
- /* CONTACT */
+/* CONTACT */
 
 document
 .querySelectorAll(
@@ -675,7 +675,25 @@ document
 
   el.style.setProperty(
     "display",
-    "block",
+    "flex",
+    "important"
+  );
+
+  el.style.setProperty(
+    "flex-direction",
+    "column",
+    "important"
+  );
+
+  el.style.setProperty(
+    "align-items",
+    data.contactAlign || "center",
+    "important"
+  );
+
+  el.style.setProperty(
+    "justify-content",
+    data.contactJustify || "center",
     "important"
   );
 
@@ -696,6 +714,28 @@ document
   el.style.setProperty(
     "text-align",
     data.contactAlign || "center",
+    "important"
+  );
+
+});
+
+/* CONTACT TITLE */
+
+document
+.querySelectorAll(
+  ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
+)
+.forEach(el=>{
+
+  el.style.setProperty(
+    "color",
+    data.contactTitleColor || "#145cff",
+    "important"
+  );
+
+  el.style.setProperty(
+    "font-size",
+    `${data.contactTitleSize || 30}px`,
     "important"
   );
 

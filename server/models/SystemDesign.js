@@ -339,6 +339,60 @@ new mongoose.Schema({
   },
 
   /* =========================
+  CONTACT DESIGN
+  ========================= */
+
+  contactTitleColor:{
+    type:String,
+    default:"#145cff"
+  },
+
+  contactTitleSize:{
+    type:String,
+    default:"30"
+  },
+
+  contactBg:{
+    type:String,
+    default:"#ffffff"
+  },
+
+  contactBorder:{
+    type:String,
+    default:"#dbeafe"
+  },
+
+  contactRadius:{
+    type:String,
+    default:"28"
+  },
+
+  contactPadding:{
+    type:String,
+    default:"40"
+  },
+
+  contactBorderSize:{
+    type:String,
+    default:"2"
+  },
+
+  contactTextColor:{
+    type:String,
+    default:"#334155"
+  },
+
+  contactAlign:{
+    type:String,
+    default:"center"
+  },
+
+  contactJustify:{
+    type:String,
+    default:"space-between"
+  },
+
+  /* =========================
   SERVICES
   ========================= */
 

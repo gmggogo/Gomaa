@@ -644,12 +644,21 @@ setValue(
   systemDesign.contactRadius
 );
 
+setValue(
+  "contactAlignInput",
+  systemDesign.contactAlign
+);
+
+setValue(
+  "contactJustifyInput",
+  systemDesign.contactJustify
+);
+
 }
 
 /* =========================
 UPLOADS
 ========================= */
-
 async function uploadMainImage(
   input,
   key,
@@ -1224,6 +1233,16 @@ systemDesign.contactRadius =
 document.getElementById(
   "contactRadiusInput"
 )?.value || "";
+
+systemDesign.contactAlign =
+document.getElementById(
+  "contactAlignInput"
+)?.value || "center";
+
+systemDesign.contactJustify =
+document.getElementById(
+  "contactJustifyInput"
+)?.value || "center";
 
 await saveSystemDesign();
 
