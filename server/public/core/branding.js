@@ -1,185 +1,672 @@
-معاك حق. ده ملف public/core/branding.js كامل من أوله لآخره، بدون قص:
-
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
 // FINAL CLEAN VERSION
 // =========================
-console.log("BRANDING ENGINE LOADED");
+
+console.log(
+  "BRANDING ENGINE LOADED"
+);
+
 window.Branding = {
+
+  /* =========================
+  STORAGE
+  ========================= */
+
   data:{},
+
+  /* =========================
+  LOAD FROM SERVER
+  ========================= */
+
   async load(){
+
     try{
-      const res = await fetch("/api/system-design");
-      const data = await res.json();
-      this.data = data || {};
+
+      const res =
+      await fetch(
+        "/api/system-design"
+      );
+
+      const data =
+      await res.json();
+
+      this.data =
+      data || {};
+
     }catch(err){
-      console.log("BRANDING LOAD ERROR",err);
+
+      console.log(
+        "BRANDING LOAD ERROR",
+        err
+      );
+
       this.data = {};
+
     }
+
     this.applyGlobalBranding();
+
     this.applyThemeEngine();
+
     return this.data;
+
   },
+
+  /* =========================
+  COMPANY NAME
+  ========================= */
+
   getCompanyName(){
-    return this.data?.companyName || "Sunbeam Transportation";
+
+    return (
+
+      this.data?.companyName ||
+
+      "Sunbeam Transportation"
+
+    );
+
   },
+
+  /* =========================
+  MAIN LOGO
+  ========================= */
+
   getMainLogo(){
-    return this.data?.mainLogo || "/assets/logo.png";
+
+    return (
+
+      this.data?.mainLogo ||
+
+      "/assets/logo.png"
+
+    );
+
   },
+
+  /* =========================
+  DRIVER LOGO
+  ========================= */
+
   getDriverLogo(){
-    return this.data?.driverLogo || "/assets/logo.png";
+
+    return (
+
+      this.data?.driverLogo ||
+
+      "/assets/logo.png"
+
+    );
+
   },
+
+  /* =========================
+  HERO IMAGE
+  ========================= */
+
   getHeroImage(){
-    return this.data?.heroImage || "/assets/hero.jpeg";
+
+    return (
+
+      this.data?.heroImage ||
+
+      "/assets/hero.jpeg"
+
+    );
+
   },
+
+  /* =========================
+  SERVICES
+  ========================= */
+
   getServices(){
-    const services = this.data?.services || [];
-    if(Array.isArray(services)){
+
+    const services =
+
+    this.data?.services ||
+
+    [];
+
+    if(
+      Array.isArray(services)
+    ){
       return services;
     }
+
     return [];
+
   },
+
+  /* =========================
+  APPLY GLOBAL
+  ========================= */
+
   applyGlobalBranding(){
-    document.title = this.getCompanyName();
-    document.querySelectorAll(".company-name").forEach(el=>{
-      el.innerText = this.getCompanyName();
+
+    document.title =
+    this.getCompanyName();
+
+    /* COMPANY NAME */
+
+    document
+    .querySelectorAll(
+      ".company-name"
+    )
+    .forEach(el=>{
+
+      el.innerText =
+      this.getCompanyName();
+
     });
-    document.querySelectorAll(".main-logo").forEach(img=>{
-      img.src = this.getMainLogo();
+
+    /* MAIN LOGO */
+
+    document
+    .querySelectorAll(
+      ".main-logo"
+    )
+    .forEach(img=>{
+
+      img.src =
+      this.getMainLogo();
+
     });
-    document.querySelectorAll(".app-logo").forEach(img=>{
-      img.src = this.getMainLogo();
+
+    /* APP LOGO */
+
+    document
+    .querySelectorAll(
+      ".app-logo"
+    )
+    .forEach(img=>{
+
+      img.src =
+      this.getMainLogo();
+
     });
-    document.querySelectorAll(".driver-logo").forEach(img=>{
-      img.src = this.getDriverLogo();
+
+    /* DRIVER LOGO */
+
+    document
+    .querySelectorAll(
+      ".driver-logo"
+    )
+    .forEach(img=>{
+
+      img.src =
+      this.getDriverLogo();
+
     });
-    document.querySelectorAll(".hero-image").forEach(img=>{
-      img.src = this.getHeroImage();
+
+    /* HERO IMAGE */
+
+    document
+    .querySelectorAll(
+      ".hero-image"
+    )
+    .forEach(img=>{
+
+      img.src =
+      this.getHeroImage();
+
     });
+
   },
+
+  /* =========================
+  THEME ENGINE
+  ========================= */
+
   applyThemeEngine(){
-    const data = this.data || {};
+
+    const data =
+    this.data || {};
+
+    /* =========================
+    BODY
+    ========================= */
+
     document.body.style.setProperty(
       "background",
       data.bodyBg || "#f1f5f9",
       "important"
     );
+
     document.body.style.setProperty(
       "color",
       data.bodyTextColor || "#0f172a",
       "important"
     );
-    document.querySelectorAll(".about").forEach(box=>{
-      box.style.setProperty("background",data.aboutBg || "#ffffff","important");
-      box.style.setProperty("border",`2px solid ${data.aboutBorder || "#dbeafe"}`,"important");
-      box.style.setProperty("border-radius",`${data.aboutRadius || 28}px`,"important");
-      box.style.setProperty("padding",`${data.aboutPadding || 40}px`,"important");
+
+    /* =========================
+    ABOUT SECTION
+    ========================= */
+
+    document
+    .querySelectorAll(".about")
+    .forEach(box=>{
+
       box.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow ? "0 10px 30px rgba(0,0,0,.08)" : "none",
+        "background",
+        data.aboutBg || "#ffffff",
         "important"
       );
-    });
-    document.querySelectorAll(".about h2").forEach(el=>{
-      el.style.setProperty("color",data.aboutTitleColor || "#145cff","important");
-      el.style.setProperty("font-size",`${data.aboutTitleSize || 34}px`,"important");
-      el.style.setProperty("text-align",data.aboutTitleAlign || "center","important");
-    });
-    document.querySelectorAll(".about p").forEach(el=>{
-      el.style.setProperty("color",data.aboutTextColor || "#334155","important");
-      el.style.setProperty("font-size",`${data.aboutTextSize || 18}px`,"important");
-      el.style.setProperty("text-align",data.aboutTextAlign || "center","important");
-    });
-    document.querySelectorAll(".quote-header").forEach(box=>{
-      box.style.setProperty("background",data.quoteBg || "#ffffff","important");
-      box.style.setProperty("border",`2px solid ${data.quoteBorder || "#dbeafe"}`,"important");
-      box.style.setProperty("border-radius",`${data.quoteRadius || 28}px`,"important");
-      box.style.setProperty("padding",`${data.quotePadding || 40}px`,"important");
+
       box.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow ? "0 10px 30px rgba(0,0,0,.08)" : "none",
+        "border",
+        `2px solid ${
+          data.aboutBorder || "#dbeafe"
+        }`,
         "important"
       );
-    });
-    document.querySelectorAll(".quote-header h2").forEach(el=>{
-      el.style.setProperty("color",data.quoteTitleColor || "#145cff","important");
-      el.style.setProperty("font-size",`${data.quoteTitleSize || 34}px`,"important");
-      el.style.setProperty("text-align",data.quoteTitleAlign || "center","important");
-    });
-    document.querySelectorAll(".quote-header p").forEach(el=>{
-      el.style.setProperty("color",data.quoteTextColor || "#334155","important");
-      el.style.setProperty("font-size",`${data.quoteTextSize || 18}px`,"important");
-      el.style.setProperty("text-align",data.quoteTextAlign || "center","important");
-    });
-    document.querySelectorAll(".extra-box").forEach(box=>{
-      box.style.setProperty("background",data.extraBoxBg || "#ffffff","important");
-      box.style.setProperty("border",`${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`,"important");
-      box.style.setProperty("border-radius",`${data.extraBoxRadius || 28}px`,"important");
-      box.style.setProperty("padding",`${data.extraBoxPadding || 44}px`,"important");
-      box.style.setProperty("text-align",data.extraBoxAlign || "center","important");
+
       box.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow ? "0 10px 30px rgba(0,0,0,.08)" : "none",
+        "border-radius",
+        `${data.aboutRadius || 28}px`,
         "important"
       );
+
+      box.style.setProperty(
+        "padding",
+        `${data.aboutPadding || 40}px`,
+        "important"
+      );
+
     });
-    document.querySelectorAll(".extra-box h3").forEach(title=>{
-      title.style.setProperty("color",data.extraBoxTitleColor || "#145cff","important");
-      title.style.setProperty("font-size",`${data.extraBoxTitleSize || 42}px`,"important");
-      title.style.setProperty("text-align",data.extraBoxAlign || "center","important");
+
+    /* ABOUT TITLE */
+
+    document
+    .querySelectorAll(".about h2")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.aboutTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${data.aboutTitleSize || 34}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.aboutTitleAlign || "center",
+        "important"
+      );
+
     });
-    document.querySelectorAll(".extra-box p").forEach(text=>{
-      text.style.setProperty("color",data.extraBoxTextColor || "#334155","important");
-      text.style.setProperty("font-size",`${data.extraBoxTextSize || 22}px`,"important");
-      text.style.setProperty("text-align",data.extraBoxAlign || "center","important");
+
+    /* ABOUT TEXT */
+
+    document
+    .querySelectorAll(".about p")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.aboutTextColor || "#334155",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${data.aboutTextSize || 18}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.aboutTextAlign || "center",
+        "important"
+      );
+
     });
-    document.querySelectorAll(".card").forEach(card=>{
-      card.style.setProperty("background",data.extraBoxBg || "#ffffff","important");
-      card.style.setProperty("border",`${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`,"important");
-      card.style.setProperty("border-radius",`${data.extraBoxRadius || 28}px`,"important");
+
+    /* =========================
+    QUOTE SECTION
+    ========================= */
+
+    document
+    .querySelectorAll(".quote-header")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.quoteBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `2px solid ${
+          data.quoteBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.quoteRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${data.quotePadding || 40}px`,
+        "important"
+      );
+
+    });
+
+    /* QUOTE TITLE */
+
+    document
+    .querySelectorAll(".quote-header h2")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.quoteTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${data.quoteTitleSize || 34}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTitleAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* QUOTE TEXT */
+
+    document
+    .querySelectorAll(".quote-header p")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.quoteTextColor || "#334155",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${data.quoteTextSize || 18}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTextAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    EXTRA BOXES
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${data.extraBoxPadding || 44}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
+
+    });
+
+    /* EXTRA TITLES */
+
+    document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+      title.style.setProperty(
+        "color",
+        data.extraBoxTitleColor || "#145cff",
+        "important"
+      );
+
+      title.style.setProperty(
+        "font-size",
+        `${data.extraBoxTitleSize || 42}px`,
+        "important"
+      );
+
+      title.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* EXTRA TEXT */
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+      text.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#334155",
+        "important"
+      );
+
+      text.style.setProperty(
+        "font-size",
+        `${data.extraBoxTextSize || 22}px`,
+        "important"
+      );
+
+      text.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    SERVICE CARDS
+    ========================= */
+
+    document
+    .querySelectorAll(".card")
+    .forEach(card=>{
+
+      card.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      card.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 28}px`,
+        "important"
+      );
+
       card.style.setProperty(
         "box-shadow",
-        data.extraBoxShadow ? "0 10px 30px rgba(0,0,0,.10)" : "none",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.10)"
+        : "none",
         "important"
       );
+
     });
-    document.querySelectorAll(".card h3").forEach(el=>{
-      el.style.setProperty("color",data.extraBoxTitleColor || "#1e3a6d","important");
-      el.style.setProperty("text-align",data.extraBoxAlign || "center","important");
-    });
-    document.querySelectorAll(".card p").forEach(el=>{
-      el.style.setProperty("color",data.extraBoxTextColor || "#6b7280","important");
-      el.style.setProperty("text-align",data.extraBoxAlign || "center","important");
-    });
-    document.querySelectorAll(".card-btn").forEach(btn=>{
-      btn.style.setProperty("background",data.buttonColor || "#2563eb","important");
-      btn.style.setProperty("color",data.buttonTextColor || "#ffffff","important");
-    });
-    document.querySelectorAll(".contact-section").forEach(el=>{
-      el.style.setProperty("background",data.extraBoxBg || "#ffffff","important");
-      el.style.setProperty("border",`${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`,"important");
-      el.style.setProperty("border-radius",`${data.extraBoxRadius || 28}px`,"important");
-      el.style.setProperty("padding",`${data.extraBoxPadding || 40}px`,"important");
+
+    /* CARD TITLES */
+
+    document
+    .querySelectorAll(".card h3")
+    .forEach(el=>{
+
       el.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow ? "0 10px 30px rgba(0,0,0,.08)" : "none",
+        "color",
+        data.extraBoxTitleColor || "#1e3a6d",
         "important"
       );
-      el.style.setProperty("color",data.extraBoxTextColor || "#334155","important");
-      el.style.setProperty("text-align",data.extraBoxAlign || "center","important");
+
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
     });
+
+    /* CARD TEXT */
+
+    document
+    .querySelectorAll(".card p")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#6b7280",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* CARD BUTTONS */
+
+    document
+    .querySelectorAll(".card-btn")
+    .forEach(btn=>{
+
+      btn.style.setProperty(
+        "background",
+        data.buttonColor || "#2563eb",
+        "important"
+      );
+
+      btn.style.setProperty(
+        "color",
+        data.buttonTextColor || "#ffffff",
+        "important"
+      );
+
+    });
+
+    /* CONTACT */
+
+    document
+    .querySelectorAll(".contact-section")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#6b7280",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
   },
-  renderHomepageCards(containerId,lang="en"){
-    const container = document.getElementById(containerId);
+
+  /* =========================
+  HOMEPAGE CARDS
+  ========================= */
+
+  renderHomepageCards(
+    containerId,
+    lang="en"
+  ){
+
+    const container =
+    document.getElementById(
+      containerId
+    );
+
     if(!container){
-      console.log("SERVICES CONTAINER NOT FOUND");
+
+      console.log(
+        "SERVICES CONTAINER NOT FOUND"
+      );
+
       return;
+
     }
-    const services = this.getServices();
+
+    const services =
+    this.getServices();
+
     container.innerHTML = "";
-    const activeServices = services.filter(s=>s.active);
+
+    const activeServices =
+    services.filter(
+      s => s.active
+    );
+
     if(!activeServices.length){
+
       container.innerHTML = `
       <div style="
       width:100%;
@@ -195,45 +682,93 @@ window.Branding = {
       }
       </div>
       `;
+
       return;
+
     }
+
     activeServices.forEach(service=>{
+
       const title =
+
       lang === "es"
-      ? (service.titleEs || service.title || "")
-      : (service.title || "");
+      ? (
+        service.titleEs ||
+        service.title ||
+        ""
+      )
+      : (
+        service.title ||
+        ""
+      );
+
       const desc =
+
       lang === "es"
-      ? (service.descriptionEs || service.description || "")
-      : (service.description || "");
+      ? (
+        service.descriptionEs ||
+        service.description ||
+        ""
+      )
+      : (
+        service.description ||
+        ""
+      );
+
       const image =
-      service.image || "/assets/logo.png";
+
+      service.image ||
+      "/assets/logo.png";
+
       const buttonText =
+
       lang === "es"
-      ? (service.buttonEs || "Obtener precio")
-      : (service.button || "Get Quote");
+      ? (
+        service.buttonEs ||
+        "Obtener precio"
+      )
+      : (
+        service.button ||
+        "Get Quote"
+      );
+
       container.innerHTML += `
+
       <div class="card">
+
         <img
-          src="${image}"
-          class="card-image"
-        >
+        src="${image}"
+        class="card-image">
+
         <div class="card-body">
+
           <h3>
             ${title}
           </h3>
+
           <p>
             ${desc}
           </p>
+
           <a
-            href="${service.link || "getquote/index.html"}"
-            class="card-btn"
-          >
+          href="${
+            service.link ||
+            "getquote/index.html"
+          }"
+          class="card-btn">
+
             ${buttonText}
+
           </a>
+
         </div>
+
       </div>
+
       `;
+
     });
+
   }
+
 };
