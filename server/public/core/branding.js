@@ -1,7 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
-// FINAL SERVER VERSION
+// FINAL CLEAN VERSION
 // =========================
 
 console.log(
@@ -48,7 +48,6 @@ window.Branding = {
 
     this.applyGlobalBranding();
 
-    /* 🔥 APPLY THEME ENGINE */
     this.applyThemeEngine();
 
     return this.data;
@@ -150,9 +149,7 @@ window.Branding = {
     document.title =
     this.getCompanyName();
 
-    /* =========================
-    COMPANY NAME
-    ========================= */
+    /* COMPANY NAME */
 
     document
     .querySelectorAll(
@@ -165,9 +162,7 @@ window.Branding = {
 
     });
 
-    /* =========================
-    MAIN LOGO
-    ========================= */
+    /* MAIN LOGO */
 
     document
     .querySelectorAll(
@@ -180,9 +175,7 @@ window.Branding = {
 
     });
 
-    /* =========================
-    APP LOGO
-    ========================= */
+    /* APP LOGO */
 
     document
     .querySelectorAll(
@@ -195,9 +188,7 @@ window.Branding = {
 
     });
 
-    /* =========================
-    DRIVER LOGO
-    ========================= */
+    /* DRIVER LOGO */
 
     document
     .querySelectorAll(
@@ -210,9 +201,7 @@ window.Branding = {
 
     });
 
-    /* =========================
-    HERO IMAGE
-    ========================= */
+    /* HERO IMAGE */
 
     document
     .querySelectorAll(
@@ -227,338 +216,306 @@ window.Branding = {
 
   },
 
- /* =========================
-THEME ENGINE
-========================= */
-
-applyThemeEngine(){
-
-  const data =
-  this.data || {};
-
   /* =========================
-  BODY
+  THEME ENGINE
   ========================= */
 
-  document.body.style.setProperty(
-    "background",
-    data.bodyBg || "#f1f5f9",
-    "important"
-  );
+  applyThemeEngine(){
 
-  document.body.style.setProperty(
-    "color",
-    data.bodyTextColor || "#0f172a",
-    "important"
-  );
+    const data =
+    this.data || {};
 
-  /* =========================
-  ABOUT SECTION BOX
-  ========================= */
+    /* =========================
+    BODY
+    ========================= */
 
-  document
-  .querySelectorAll(".about")
-  .forEach(box=>{
-
-    box.style.setProperty(
+    document.body.style.setProperty(
       "background",
-      data.aboutBg || "#ffffff",
+      data.bodyBg || "#f1f5f9",
       "important"
     );
 
-    box.style.setProperty(
-      "border",
-      `2px solid ${
-        data.aboutBorder || "#dbeafe"
-      }`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "border-radius",
-      `${data.aboutRadius || 28}px`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "padding",
-      `${data.aboutPadding || 40}px`,
-      "important"
-    );
-
-  });
-
-  /* =========================
-  ABOUT TITLE
-  ========================= */
-
-  document
-  .querySelectorAll(".about h2")
-  .forEach(el=>{
-
-    el.style.setProperty(
+    document.body.style.setProperty(
       "color",
-      data.aboutTitleColor || "#145cff",
+      data.bodyTextColor || "#0f172a",
       "important"
     );
 
-    el.style.setProperty(
-      "font-size",
-      `${data.aboutTitleSize || 34}px`,
-      "important"
-    );
+    /* =========================
+    ABOUT SECTION
+    ========================= */
 
-    el.style.setProperty(
-      "text-align",
-      data.aboutTitleAlign || "center",
-      "important"
-    );
+    document
+    .querySelectorAll(".about")
+    .forEach(box=>{
 
-  });
+      box.style.setProperty(
+        "background",
+        data.aboutBg || "#ffffff",
+        "important"
+      );
 
-  /* =========================
-  ABOUT TEXT
-  ========================= */
+      box.style.setProperty(
+        "border",
+        `2px solid ${
+          data.aboutBorder || "#dbeafe"
+        }`,
+        "important"
+      );
 
-  document
-  .querySelectorAll(".about p")
-  .forEach(el=>{
+      box.style.setProperty(
+        "border-radius",
+        `${data.aboutRadius || 28}px`,
+        "important"
+      );
 
-    el.style.setProperty(
-      "color",
-      data.aboutTextColor || "#334155",
-      "important"
-    );
+      box.style.setProperty(
+        "padding",
+        `${data.aboutPadding || 40}px`,
+        "important"
+      );
 
-    el.style.setProperty(
-      "font-size",
-      `${data.aboutTextSize || 18}px`,
-      "important"
-    );
+    });
 
-    el.style.setProperty(
-      "text-align",
-      data.aboutTextAlign || "center",
-      "important"
-    );
+    /* ABOUT TITLE */
 
-  });
+    document
+    .querySelectorAll(".about h2")
+    .forEach(el=>{
 
-  /* =========================
-  QUOTE SECTION BOX
-  ========================= */
+      el.style.setProperty(
+        "color",
+        data.aboutTitleColor || "#145cff",
+        "important"
+      );
 
-  document
-  .querySelectorAll(".quote-header")
-  .forEach(box=>{
+      el.style.setProperty(
+        "font-size",
+        `${data.aboutTitleSize || 34}px`,
+        "important"
+      );
 
-    box.style.setProperty(
-      "background",
-      data.quoteBg || "#ffffff",
-      "important"
-    );
+      el.style.setProperty(
+        "text-align",
+        data.aboutTitleAlign || "center",
+        "important"
+      );
 
-    box.style.setProperty(
-      "border",
-      `2px solid ${
-        data.quoteBorder || "#dbeafe"
-      }`,
-      "important"
-    );
+    });
 
-    box.style.setProperty(
-      "border-radius",
-      `${data.quoteRadius || 28}px`,
-      "important"
-    );
+    /* ABOUT TEXT */
 
-    box.style.setProperty(
-      "padding",
-      `${data.quotePadding || 40}px`,
-      "important"
-    );
+    document
+    .querySelectorAll(".about p")
+    .forEach(el=>{
 
-  });
+      el.style.setProperty(
+        "color",
+        data.aboutTextColor || "#334155",
+        "important"
+      );
 
-  /* =========================
-  QUOTE TITLE
-  ========================= */
+      el.style.setProperty(
+        "font-size",
+        `${data.aboutTextSize || 18}px`,
+        "important"
+      );
 
-  document
-  .querySelectorAll(".quote-header h2")
-  .forEach(el=>{
+      el.style.setProperty(
+        "text-align",
+        data.aboutTextAlign || "center",
+        "important"
+      );
 
-    el.style.setProperty(
-      "color",
-      data.quoteTitleColor || "#145cff",
-      "important"
-    );
+    });
 
-    el.style.setProperty(
-      "font-size",
-      `${data.quoteTitleSize || 34}px`,
-      "important"
-    );
+    /* =========================
+    QUOTE SECTION
+    ========================= */
 
-    el.style.setProperty(
-      "text-align",
-      data.quoteTitleAlign || "center",
-      "important"
-    );
+    document
+    .querySelectorAll(".quote-header")
+    .forEach(box=>{
 
-  });
+      box.style.setProperty(
+        "background",
+        data.quoteBg || "#ffffff",
+        "important"
+      );
 
-  /* =========================
-  QUOTE TEXT
-  ========================= */
+      box.style.setProperty(
+        "border",
+        `2px solid ${
+          data.quoteBorder || "#dbeafe"
+        }`,
+        "important"
+      );
 
-  document
-  .querySelectorAll(".quote-header p")
-  .forEach(el=>{
+      box.style.setProperty(
+        "border-radius",
+        `${data.quoteRadius || 28}px`,
+        "important"
+      );
 
-    el.style.setProperty(
-      "color",
-      data.quoteTextColor || "#334155",
-      "important"
-    );
+      box.style.setProperty(
+        "padding",
+        `${data.quotePadding || 40}px`,
+        "important"
+      );
 
-    el.style.setProperty(
-      "font-size",
-      `${data.quoteTextSize || 18}px`,
-      "important"
-    );
+    });
 
-    el.style.setProperty(
-      "text-align",
-      data.quoteTextAlign || "center",
-      "important"
-    );
+    /* QUOTE TITLE */
 
-  });
+    document
+    .querySelectorAll(".quote-header h2")
+    .forEach(el=>{
 
-  /* =========================
-  EXTRA BOXES
-  ========================= */
+      el.style.setProperty(
+        "color",
+        data.quoteTitleColor || "#145cff",
+        "important"
+      );
 
-  document
-  .querySelectorAll(".extra-box")
-  .forEach(box=>{
+      el.style.setProperty(
+        "font-size",
+        `${data.quoteTitleSize || 34}px`,
+        "important"
+      );
 
-    box.style.setProperty(
-      "background",
-      data.extraBoxBg || "#ffffff",
-      "important"
-    );
+      el.style.setProperty(
+        "text-align",
+        data.quoteTitleAlign || "center",
+        "important"
+      );
 
-    box.style.setProperty(
-      "border",
-      `${data.extraBoxBorderSize || 2}px solid ${
-        data.extraBoxBorder || "#dbeafe"
-      }`,
-      "important"
-    );
+    });
 
-    box.style.setProperty(
-      "border-radius",
-      `${data.extraBoxRadius || 28}px`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "padding",
-      `${data.extraBoxPadding || 44}px`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "text-align",
-      data.extraBoxAlign || "center",
-      "important"
-    );
-
-    box.style.setProperty(
-      "box-shadow",
-      data.extraBoxShadow
-      ? "0 10px 30px rgba(0,0,0,.08)"
-      : "none",
-      "important"
-    );
-
-  });
-
-  /* =========================
-  EXTRA TITLES
-  ========================= */
-
-  document
-  .querySelectorAll(".extra-box h3")
-  .forEach(title=>{
-
-    title.style.setProperty(
-      "color",
-      data.extraBoxTitleColor || "#145cff",
-      "important"
-    );
-
-    title.style.setProperty(
-      "font-size",
-      `${data.extraBoxTitleSize || 42}px`,
-      "important"
-    );
-
-    title.style.setProperty(
-      "text-align",
-      data.extraBoxAlign || "center",
-      "important"
-    );
-
-  });
-
-  /* =========================
-  EXTRA TEXT
-  ========================= */
-
-  document
-  .querySelectorAll(".extra-box p")
-  .forEach(text=>{
-
-    text.style.setProperty(
-      "color",
-      data.extraBoxTextColor || "#334155",
-      "important"
-    );
-
-    text.style.setProperty(
-      "font-size",
-      `${data.extraBoxTextSize || 22}px`,
-      "important"
-    );
-
-    text.style.setProperty(
-      "text-align",
-      data.extraBoxAlign || "center",
-      "important"
-    );
-
-  });
-
-}
+    /* QUOTE TEXT */
 
     document
     .querySelectorAll(".quote-header p")
     .forEach(el=>{
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
+      el.style.setProperty(
+        "color",
+        data.quoteTextColor || "#334155",
+        "important"
+      );
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+      el.style.setProperty(
+        "font-size",
+        `${data.quoteTextSize || 18}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTextAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* =========================
+    EXTRA BOXES
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${data.extraBoxPadding || 44}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.08)"
+        : "none",
+        "important"
+      );
+
+    });
+
+    /* EXTRA TITLES */
+
+    document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+      title.style.setProperty(
+        "color",
+        data.extraBoxTitleColor || "#145cff",
+        "important"
+      );
+
+      title.style.setProperty(
+        "font-size",
+        `${data.extraBoxTitleSize || 42}px`,
+        "important"
+      );
+
+      title.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* EXTRA TEXT */
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+      text.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#334155",
+        "important"
+      );
+
+      text.style.setProperty(
+        "font-size",
+        `${data.extraBoxTextSize || 22}px`,
+        "important"
+      );
+
+      text.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
 
     });
 
@@ -570,105 +527,105 @@ applyThemeEngine(){
     .querySelectorAll(".card")
     .forEach(card=>{
 
-        card.style.setProperty(
-          "background",
-          data.extraBoxBg || "#ffffff",
-          "important"
-        );
+      card.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
 
-        card.style.setProperty(
-          "border-radius",
-          `${data.extraBoxRadius || 28}px`,
-          "important"
-        );
+      card.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 28}px`,
+        "important"
+      );
 
-        card.style.setProperty(
-          "box-shadow",
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.10)"
-          : "none",
-          "important"
-        );
+      card.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+        ? "0 10px 30px rgba(0,0,0,.10)"
+        : "none",
+        "important"
+      );
 
     });
+
+    /* CARD TITLES */
 
     document
     .querySelectorAll(".card h3")
     .forEach(el=>{
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTitleColor || "#1e3a6d",
-          "important"
-        );
+      el.style.setProperty(
+        "color",
+        data.extraBoxTitleColor || "#1e3a6d",
+        "important"
+      );
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
 
     });
+
+    /* CARD TEXT */
 
     document
     .querySelectorAll(".card p")
     .forEach(el=>{
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
+      el.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#6b7280",
+        "important"
+      );
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
 
     });
 
-    /* =========================
-    CARD BUTTONS
-    ========================= */
+    /* CARD BUTTONS */
 
     document
     .querySelectorAll(".card-btn")
     .forEach(btn=>{
 
-        btn.style.setProperty(
-          "background",
-          data.buttonColor || "#2563eb",
-          "important"
-        );
+      btn.style.setProperty(
+        "background",
+        data.buttonColor || "#2563eb",
+        "important"
+      );
 
-        btn.style.setProperty(
-          "color",
-          data.buttonTextColor || "#ffffff",
-          "important"
-        );
+      btn.style.setProperty(
+        "color",
+        data.buttonTextColor || "#ffffff",
+        "important"
+      );
 
     });
 
-    /* =========================
-    CONTACT SECTION
-    ========================= */
+    /* CONTACT */
 
     document
     .querySelectorAll(".contact-section")
     .forEach(el=>{
 
-        el.style.setProperty(
-          "color",
-          data.extraBoxTextColor || "#6b7280",
-          "important"
-        );
+      el.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#6b7280",
+        "important"
+      );
 
-        el.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
 
     });
 
@@ -711,7 +668,6 @@ applyThemeEngine(){
     if(!activeServices.length){
 
       container.innerHTML = `
-
       <div style="
       width:100%;
       text-align:center;
@@ -719,15 +675,12 @@ applyThemeEngine(){
       font-size:24px;
       color:#64748b;
       ">
-
-        ${
-          lang === "es"
-          ? "No hay servicios activos"
-          : "No Active Services"
-        }
-
+      ${
+        lang === "es"
+        ? "No hay servicios activos"
+        : "No Active Services"
+      }
       </div>
-
       `;
 
       return;
@@ -739,32 +692,28 @@ applyThemeEngine(){
       const title =
 
       lang === "es"
-
       ? (
-          service.titleEs ||
-          service.title ||
-          ""
-        )
-
+        service.titleEs ||
+        service.title ||
+        ""
+      )
       : (
-          service.title ||
-          ""
-        );
+        service.title ||
+        ""
+      );
 
       const desc =
 
       lang === "es"
-
       ? (
-          service.descriptionEs ||
-          service.description ||
-          ""
-        )
-
+        service.descriptionEs ||
+        service.description ||
+        ""
+      )
       : (
-          service.description ||
-          ""
-        );
+        service.description ||
+        ""
+      );
 
       const image =
 
@@ -774,16 +723,14 @@ applyThemeEngine(){
       const buttonText =
 
       lang === "es"
-
       ? (
-          service.buttonEs ||
-          "Obtener precio"
-        )
-
+        service.buttonEs ||
+        "Obtener precio"
+      )
       : (
-          service.button ||
-          "Get Quote"
-        );
+        service.button ||
+        "Get Quote"
+      );
 
       container.innerHTML += `
 
