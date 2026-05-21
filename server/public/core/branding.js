@@ -175,6 +175,200 @@ window.Branding = {
       "important"
     );
 
+    /* ABOUT TITLE */
+
+    document
+    .querySelectorAll(".about h2")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? 34
+      : Number(data.aboutTitleSize || 60);
+
+      el.style.setProperty(
+        "color",
+        data.aboutTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "line-height",
+        mobile ? "1.25" : "1.2",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.aboutTitleAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* ABOUT TEXT */
+
+    document
+    .querySelectorAll(".about p")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? 17
+      : Number(data.aboutTextSize || 25);
+
+      el.style.setProperty(
+        "color",
+        data.aboutTextColor || "#334155",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "line-height",
+        mobile ? "1.9" : "1.9",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.aboutTextAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* QUOTE SECTION */
+
+    document
+    .querySelectorAll(".quote-header")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.quoteBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `2px solid ${
+          data.quoteBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.quoteRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${mobile ? 30 : (data.quotePadding || 40)}px 16px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        mobile
+        ? "0 4px 10px rgba(0,0,0,.06)"
+        : (
+          data.extraBoxShadow
+          ? "0 10px 30px rgba(0,0,0,.08)"
+          : "none"
+        ),
+        "important"
+      );
+
+    });
+
+    /* QUOTE TITLE */
+
+    document
+    .querySelectorAll(".quote-header h2")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? 40
+      : Number(data.quoteTitleSize || 70);
+
+      el.style.setProperty(
+        "color",
+        data.quoteTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "line-height",
+        mobile ? "1.15" : "1.1",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTitleAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* QUOTE TEXT */
+
+    document
+    .querySelectorAll(".quote-header p")
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? 17
+      : Number(data.quoteTextSize || 24);
+
+      el.style.setProperty(
+        "color",
+        data.quoteTextColor || "#334155",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "line-height",
+        mobile ? "1.8" : "1.8",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.quoteTextAlign || "center",
+        "important"
+      );
+
+    });
+
   },
 
   renderHomepageCards(
