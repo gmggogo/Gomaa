@@ -930,15 +930,93 @@ async function ensureDriverScheduleCoords(driverId, scheduleRow) {
     console.log("Driver schedule coord save error:", err?.message || err);
   }
 
-  return {
-    ...scheduleRow,
-    lat: geo.lat,
-    lng: geo.lng
+ return {
+  ...scheduleRow,
+  lat: geo.lat,
+  lng: geo.lng
   };
 }
 
-async function generateTripNumber(type, serviceKey = "") {
+/* =========================
+   COMPANY TRIP NUMBER
+========================= */
 
+async function generateCompanyTripNumber(serviceType = "STANDARD"){
+
+  const now = getArizonaTime();
+
+  const months = [
+    "JA", "FE", "MA", "AP", "MY", "JN",
+    "JL", "AU", "SE", "OC", "NO", "DE"
+  ];
+
+  const monthCode =
+    months[now.getMonth()];
+
+  let suffix = "ST";
+
+  const clean =
+    String(serviceType || "")
+      .trim()
+      .toUpperCase();
+
+  if(clean === "XL"){
+    suffix = "XL";
+  }
+  else if(clean === "WHEELCHAIR"){
+    suffix = "WH";
+  }
+  else if(clean === "TAXI"){
+    suffix = "TX";
+  }
+  else if(clean === "LIMO"){
+    suffix = "LM";
+  }
+  else if(clean === "SHARED"){
+    suffix = "SH";
+  }
+
+  const lastTrip =
+    await Trip.findOne({
+
+      tripNumber:{
+        $regex:
+          new RegExp(
+            "^C-" + monthCode + "-\\d+"
+          )
+      }
+
+    })
+    .sort({
+      createdAt:-1,
+      _id:-1
+    });
+
+  let next = 1000;
+
+  if(lastTrip?.tripNumber){
+
+    const match =
+      lastTrip.tripNumber.match(/\d+/g);
+
+    if(match && match[1]){
+
+      next =
+        Number(match[1]) + 1;
+
+    }
+
+  }
+
+  return `C-${monthCode}-${next}-${suffix}`;
+
+}
+
+/* =========================
+   GENERATE TRIP NUMBER
+========================= */
+
+async function generateTripNumber(type, serviceKey = "") {
 /* =========================
    SERVICE SUFFIX (CLEAN FINAL)
 ========================= */
@@ -3009,10 +3087,28 @@ const vehicleTypeFromQuote =
    TRIP NUMBER
 ========================= */
 
-const tripNumber = await generateTripNumber(
-  isShared ? "shared" : type,
-  vehicleTypeFromQuote
-);
+let tripNumber = "";
+
+if(type === "company"){
+
+  tripNumber =
+    await generateCompanyTripNumber(
+
+      isShared
+        ? "SHARED"
+        : vehicleTypeFromQuote
+
+    );
+
+}else{
+
+  tripNumber =
+    await generateTripNumber(
+      isShared ? "shared" : type,
+      vehicleTypeFromQuote
+    );
+
+}
 
 /* =========================
    BASIC FIELDS
