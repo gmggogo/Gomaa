@@ -1,52 +1,59 @@
 const express = require("express");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
-const Service =
-require("../models/Service");
-
-/* =========================
-   TEST
-========================= */
-
-router.get("/", (req,res)=>{
-
-  return res.json({
-    success:true,
-    message:"Pricing Route Working"
-  });
-
-});
+const Service = require("../models/Service");
 
 /* =========================
    GET SERVICES
 ========================= */
 
-router.get(
-"/services",
-async (req,res)=>{
+router.get("/", async (req,res)=>{
 
-try{
+  try{
 
-const services =
-await Service.find({})
-.sort({createdAt:1});
+    const services = await Service.find({})
+      .sort({createdAt:1});
 
-return res.json(services);
+    return res.json(services);
 
-}catch(err){
+  }catch(err){
 
-console.log(err);
+    console.log(err);
 
-return res.status(500).json({
+    return res.status(500).json({
+      success:false,
+      message:"Failed To Load Services"
+    });
 
-  success:false,
-
-  message:"Failed To Load Services"
+  }
 
 });
 
-}
+/* =========================
+   OLD ALIAS SUPPORT
+========================= */
+
+router.get("/services", async (req,res)=>{
+
+  try{
+
+    const services = await Service.find({})
+      .sort({createdAt:1});
+
+    return res.json(services);
+
+  }catch(err){
+
+    console.log(err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Failed To Load Services"
+    });
+
+  }
 
 });
 
@@ -54,448 +61,179 @@ return res.status(500).json({
    CALCULATE
 ========================= */
 
-router.post(
-"/calculate",
-async (req,res)=>{
+router.post("/calculate", async (req,res)=>{
 
-try{
+  try{
 
-console.log(
-  "PRICE BODY:",
-  req.body
-);
+    const {
+      serviceKey,
+      miles,
+      stops,
+      minutes
+    } = req.body || {};
 
-const {
-  serviceKey,
-  miles,
-  stops,
-  minutes
-} = req.body;
+    if(!serviceKey){
+      return res.json({
+        success:false,
+        message:"Missing Service Key"
+      });
+    }
 
-/* =========================
-   VALIDATE
-========================= */
+    const service = await Service.findOne({
+      serviceKey:String(serviceKey).trim().toUpperCase()
+    });
 
-if(!serviceKey){
+    if(!service){
+      return res.json({
+        success:false,
+        message:"Service Not Found"
+      });
+    }
 
-  return res.json({
+    if(service.enabled !== true){
+      return res.json({
+        success:false,
+        message:"Service Disabled"
+      });
+    }
 
-    success:false,
+    const pricingMode =
+      String(service.pricingMode || "")
+      .trim()
+      .toUpperCase();
 
-    message:"Missing Service Key"
+    let total = 0;
 
-  });
+    if(pricingMode === "HOURLY"){
 
-}
+      const totalMinutes = Number(minutes || 0);
+      let hours = 1;
 
-/* =========================
-   FIND SERVICE
-========================= */
+      if(
+        String(service.hourlyBillingMode || "")
+        .toUpperCase() === "QUARTER"
+      ){
+        hours = Math.max(1, Math.ceil(totalMinutes / 15) / 4);
+      }else{
+        hours = Math.max(1, Math.ceil(totalMinutes / 60));
+      }
 
-const service =
-await Service.findOne({
+      total =
+        hours *
+        Number(service.hourlyRate || 0);
 
-  serviceKey:
-  String(serviceKey)
-  .trim()
-  .toUpperCase()
+    }else if(pricingMode === "SHARED"){
+
+      total =
+        Number(service.sharedPrice || 0) +
+        (
+          Number(stops || 0) *
+          Number(service.stopFee || 0)
+        );
+
+    }else{
+
+      const extraMiles =
+        Math.max(
+          0,
+          Number(miles || 0) -
+          Number(service.includedMiles || 0)
+        );
+
+      total =
+        Number(service.baseFare || 0) +
+        (
+          extraMiles *
+          Number(service.perMile || 0)
+        ) +
+        (
+          Number(stops || 0) *
+          Number(service.stopFee || 0)
+        );
+
+    }
+
+    return res.json({
+      success:true,
+      pricingMode,
+      total:Number(total.toFixed(2)),
+      service
+    });
+
+  }catch(err){
+
+    console.log("PRICING ERROR:", err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Pricing Failed"
+    });
+
+  }
 
 });
 
-if(!service){
-
-  return res.json({
-
-    success:false,
-
-    message:"Service Not Found"
-
-  });
-
-}
-
-if(service.enabled !== true){
-
-  return res.json({
-
-    success:false,
-
-    message:"Service Disabled"
-
-  });
-
-}
-
 /* =========================
-   MODE
+   UPDATE HELPER
 ========================= */
 
-const pricingMode =
+async function updateService(req,res){
 
-String(
-  service.pricingMode || ""
-)
-.trim()
-.toUpperCase();
+  try{
 
-let total = 0;
+    const idOrKey =
+      String(req.params.idOrKey || "")
+      .trim();
 
-/* =========================
-   HOURLY
-========================= */
+    let filter = {};
 
-if(pricingMode === "HOURLY"){
+    if(mongoose.Types.ObjectId.isValid(idOrKey)){
+      filter = {_id:idOrKey};
+    }else{
+      filter = {
+        serviceKey:idOrKey.toUpperCase()
+      };
+    }
 
-  const totalMinutes =
-
-    Number(minutes || 0);
-
-  let hours = 1;
-
-  /* =========================
-     QUARTER HOUR
-  ========================== */
-
-  if(
-
-    String(
-      service.hourlyBillingMode || ""
-    )
-    .toUpperCase()
-
-    ===
-
-    "QUARTER"
-
-  ){
-
-    hours =
-
-      Math.max(
-        1,
-        Math.ceil(
-          totalMinutes / 15
-        ) / 4
+    const updated =
+      await Service.findOneAndUpdate(
+        filter,
+        {$set:req.body},
+        {new:true}
       );
 
-  }
-
-  /* =========================
-     FULL HOUR
-  ========================== */
-
-  else{
-
-    hours =
-
-      Math.max(
-        1,
-        Math.ceil(
-          totalMinutes / 60
-        )
-      );
-
-  }
-
-  total =
-
-    hours *
-
-    Number(
-      service.hourlyRate || 0
-    );
-
-}
-
-/* =========================
-   SHARED
-========================= */
-
-else if(
-  pricingMode === "SHARED"
-){
-
-  total =
-
-    Number(
-      service.sharedPrice || 0
-    )
-
-    +
-
-    (
-
-      Number(stops || 0)
-
-      *
-
-      Number(
-        service.stopFee || 0
-      )
-
-    );
-
-}
-
-/* =========================
-   PER MILE
-========================= */
-
-else{
-
-  const extraMiles =
-
-    Math.max(
-
-      0,
-
-      Number(miles || 0)
-
-      -
-
-      Number(
-        service.includedMiles || 0
-      )
-
-    );
-
-  total =
-
-    Number(
-      service.baseFare || 0
-    )
-
-    +
-
-    (
-
-      extraMiles
-
-      *
-
-      Number(
-        service.perMile || 0
-      )
-
-    )
-
-    +
-
-    (
-
-      Number(stops || 0)
-
-      *
-
-      Number(
-        service.stopFee || 0
-      )
-
-    );
-
-}
-
-/* =========================
-   RESPONSE
-========================= */
-
-return res.json({
-
-  success:true,
-
-  pricingMode,
-
-  total:
-  Number(
-    total.toFixed(2)
-  ),
-
-  service:{
-
-    _id:
-    service._id,
-
-    serviceKey:
-    service.serviceKey,
-
-    title:
-    service.title,
-
-    pricingMode,
-
-    hourlyBillingMode:
-    service.hourlyBillingMode,
-
-    baseFare:
-    Number(
-      service.baseFare || 0
-    ),
-
-    includedMiles:
-    Number(
-      service.includedMiles || 0
-    ),
-
-    perMile:
-    Number(
-      service.perMile || 0
-    ),
-
-    hourlyRate:
-    Number(
-      service.hourlyRate || 0
-    ),
-
-    stopFee:
-    Number(
-      service.stopFee || 0
-    ),
-
-    noShowFee:
-    Number(
-      service.noShowFee || 0
-    ),
-
-    sharedPrice:
-    Number(
-      service.sharedPrice || 0
-    ),
-
-    /* =========================
-       INDIVIDUAL WARNING
-    ========================= */
-
-    warningEnabled:
-    service.warningEnabled === true,
-
-    warningMinutes:
-    Number(
-      service.warningMinutes || 0
-    ),
-
-    cancelFee:
-    Number(
-      service.cancelFee || 0
-    ),
-
-    /* =========================
-       COMPANY SETTINGS
-    ========================= */
-
-    companyEnabled:
-    service.companyEnabled === true,
-
-    companyShared:
-    service.companyShared === true,
-
-    companySuffix:
-    service.companySuffix || "ST",
-
-    companyWarningEnabled:
-    service.companyWarningEnabled === true,
-
-    companyWarningMinutes:
-    Number(
-      service.companyWarningMinutes || 0
-    ),
-
-    companyCancelFee:
-    Number(
-      service.companyCancelFee || 0
-    )
+    if(!updated){
+      return res.json({
+        success:false,
+        message:"Service Not Found"
+      });
+    }
+
+    return res.json({
+      success:true,
+      service:updated
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Update Failed"
+    });
 
   }
 
-});
-
-}catch(err){
-
-console.log(
-  "PRICING ERROR:",
-  err
-);
-
-return res.status(500).json({
-
-  success:false,
-
-  message:"Pricing Failed"
-
-});
-
 }
-
-});
 
 /* =========================
    UPDATE SERVICE
 ========================= */
 
-router.put(
-"/services/:serviceKey",
-async (req,res)=>{
+router.put("/:idOrKey", updateService);
 
-try{
-
-const key =
-
-String(
-  req.params.serviceKey || ""
-)
-.trim()
-.toUpperCase();
-
-const updated =
-await Service.findOneAndUpdate(
-
-  {
-    serviceKey:key
-  },
-
-  {
-    $set:req.body
-  },
-
-  {
-    new:true
-  }
-
-);
-
-if(!updated){
-
-  return res.json({
-
-    success:false,
-
-    message:"Service Not Found"
-
-  });
-
-}
-
-return res.json({
-
-  success:true,
-
-  service:updated
-
-});
-
-}catch(err){
-
-console.log(err);
-
-return res.status(500).json({
-
-  success:false,
-
-  message:"Update Failed"
-
-});
-
-}
-
-});
+/* OLD ALIAS SUPPORT */
+router.put("/services/:idOrKey", updateService);
 
 module.exports = router;
