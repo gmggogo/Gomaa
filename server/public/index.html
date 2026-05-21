@@ -1345,6 +1345,38 @@ function renderPage(){
         ""
       );
 
+    /* =========================
+       EXTRA BOXES SHOW/HIDE
+    ========================= */
+
+    const extraBox1 =
+    document.getElementById(
+    "extraBox1"
+    );
+
+    if(extraBox1){
+
+        extraBox1.style.display =
+        data.extra1Active === false
+        ? "none"
+        : "block";
+
+    }
+
+    const extraBox2 =
+    document.getElementById(
+    "extraBox2"
+    );
+
+    if(extraBox2){
+
+        extraBox2.style.display =
+        data.extra2Active === false
+        ? "none"
+        : "block";
+
+    }
+
     document.getElementById(
     "extra1TitleView"
     ).innerText =
@@ -1455,6 +1487,32 @@ function renderPage(){
     );
 
     applyExtraBoxesTheme(data);
+
+    /* =========================
+       MOBILE EXTRA BOX FIX
+    ========================= */
+
+    document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+        title.style.fontSize =
+        window.innerWidth <= 768
+        ? `${data.extraBoxTitleMobileSize || 28}px`
+        : `${data.extraBoxTitleSize || 42}px`;
+
+    });
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+        text.style.fontSize =
+        window.innerWidth <= 768
+        ? `${data.extraBoxTextMobileSize || 16}px`
+        : `${data.extraBoxTextSize || 22}px`;
+
+    });
 
     updateServicesLayout();
 
