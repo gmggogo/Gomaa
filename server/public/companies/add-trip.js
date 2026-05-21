@@ -32,28 +32,65 @@ async function loadCompanyServices(){
   try{
 
     const res = await fetch(
-      "/api/services",
-      {
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
+      "/api/services"
     );
 
     if(!res.ok){
-      throw new Error("Failed loading services");
+      throw new Error(
+        "Failed loading services"
+      );
     }
 
-    const data = await res.json();
+    const data =
+    await res.json();
 
     COMPANY_SERVICES =
+
     Array.isArray(data)
-    ? data.filter(s=>s.active === true)
+
+    ? data
+      .filter(
+        s => s.companyEnabled === true
+      )
+
+      .map(service => ({
+
+        key:
+        service.serviceKey,
+
+        title:
+        service.title,
+
+        suffix:
+        service.companySuffix || "ST",
+
+        shared:
+        service.companyShared === true,
+
+        active:
+        service.companyEnabled === true,
+
+        warningEnabled:
+        service.companyWarningEnabled === true,
+
+        warningMinutes:
+        Number(
+          service.companyWarningMinutes || 0
+        ),
+
+        cancelFee:
+        Number(
+          service.companyCancelFee || 0
+        )
+
+      }))
+
     : [];
 
     if(COMPANY_SERVICES.length === 0){
 
       COMPANY_SERVICES = [
+
         {
           key:"STANDARD",
           title:"Standard",
@@ -64,6 +101,7 @@ async function loadCompanyServices(){
           warningMinutes:120,
           cancelFee:15
         }
+
       ];
 
     }
