@@ -7,180 +7,11 @@ const companyServicesGrid =
 document.getElementById("companyServicesGrid");
 
 /* =========================
-   INDIVIDUAL SERVICES
+   SERVICES
 ========================= */
 
 let services = [];
-
-/* =========================
-   COMPANY SERVICES
-========================= */
-
-let companyServices = [
-
-  {
-    _id:"company-standard",
-    title:"Standard",
-    icon:"🚘",
-    suffix:"ST",
-
-    enabled:true,
-    shared:false,
-
-    pricingMode:"MILE",
-
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-
-    hourlyBillingMode:"FULL",
-
-    stopFee:0,
-    noShowFee:15,
-    sharedPrice:0,
-
-    warningEnabled:true,
-    warningMinutes:120,
-    cancelFee:15
-  },
-
-  {
-    _id:"company-xl",
-    title:"XL",
-    icon:"🚐",
-    suffix:"XL",
-
-    enabled:true,
-    shared:false,
-
-    pricingMode:"MILE",
-
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-
-    hourlyBillingMode:"FULL",
-
-    stopFee:0,
-    noShowFee:25,
-    sharedPrice:0,
-
-    warningEnabled:true,
-    warningMinutes:180,
-    cancelFee:25
-  },
-
-  {
-    _id:"company-wheelchair",
-    title:"Wheelchair",
-    icon:"♿",
-    suffix:"WH",
-
-    enabled:true,
-    shared:false,
-
-    pricingMode:"MILE",
-
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-
-    hourlyBillingMode:"FULL",
-
-    stopFee:0,
-    noShowFee:30,
-    sharedPrice:0,
-
-    warningEnabled:true,
-    warningMinutes:240,
-    cancelFee:30
-  },
-
-  {
-    _id:"company-taxi",
-    title:"Taxi",
-    icon:"🚕",
-    suffix:"TX",
-
-    enabled:true,
-    shared:false,
-
-    pricingMode:"MILE",
-
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-
-    hourlyBillingMode:"FULL",
-
-    stopFee:0,
-    noShowFee:0,
-    sharedPrice:0,
-
-    warningEnabled:false,
-    warningMinutes:0,
-    cancelFee:0
-  },
-
-  {
-    _id:"company-limo",
-    title:"Limousine",
-    icon:"🥂",
-    suffix:"LM",
-
-    enabled:true,
-    shared:false,
-
-    pricingMode:"HOURLY",
-
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-
-    hourlyBillingMode:"FULL",
-
-    stopFee:0,
-    noShowFee:50,
-    sharedPrice:0,
-
-    warningEnabled:true,
-    warningMinutes:360,
-    cancelFee:50
-  },
-
-  {
-    _id:"company-shared",
-    title:"Shared",
-    icon:"👥",
-    suffix:"SH",
-
-    enabled:true,
-    shared:true,
-
-    pricingMode:"SHARED",
-
-    baseFare:0,
-    includedMiles:0,
-    perMile:0,
-    hourlyRate:0,
-
-    hourlyBillingMode:"FULL",
-
-    stopFee:0,
-    noShowFee:15,
-    sharedPrice:0,
-
-    warningEnabled:true,
-    warningMinutes:120,
-    cancelFee:15
-  }
-
-];
+let companyServices = [];
 
 /* =========================
    LOAD SERVICES
@@ -191,17 +22,49 @@ async function loadServices(){
   try{
 
     const res =
-      await fetch("/api/services");
+    await fetch("/api/services");
 
     services =
-      await res.json();
+    await res.json();
 
     if(!Array.isArray(services)){
       services = [];
     }
 
-    renderServices();
+    /* =========================
+       COMPANY SERVICES
+    ========================== */
 
+    companyServices =
+    services.map(service=>({
+
+      ...service,
+
+      enabled:
+      service.companyEnabled === true,
+
+      shared:
+      service.companyShared === true,
+
+      suffix:
+      service.companySuffix || "ST",
+
+      warningEnabled:
+      service.companyWarningEnabled === true,
+
+      warningMinutes:
+      Number(
+        service.companyWarningMinutes || 0
+      ),
+
+      cancelFee:
+      Number(
+        service.companyCancelFee || 0
+      )
+
+    }));
+
+    renderServices();
     renderCompanyServices();
 
   }catch(err){
@@ -305,9 +168,7 @@ function renderServices(){
 
         <div class="field">
 
-          <label>
-            Pricing Mode
-          </label>
+          <label>Pricing Mode</label>
 
           <select
             id="mode-${service._id}"
@@ -355,10 +216,7 @@ function renderServices(){
         </div>
 
         <div class="field">
-
-          <label>
-            Base Fare
-          </label>
+          <label>Base Fare</label>
 
           <input
             type="number"
@@ -366,14 +224,10 @@ function renderServices(){
             value="${service.baseFare || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
-
-          <label>
-            Included Miles
-          </label>
+          <label>Included Miles</label>
 
           <input
             type="number"
@@ -381,14 +235,10 @@ function renderServices(){
             value="${service.includedMiles || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
-
-          <label>
-            Per Mile
-          </label>
+          <label>Per Mile</label>
 
           <input
             type="number"
@@ -396,14 +246,10 @@ function renderServices(){
             value="${service.perMile || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
-
-          <label>
-            Hourly Rate
-          </label>
+          <label>Hourly Rate</label>
 
           <input
             type="number"
@@ -411,14 +257,11 @@ function renderServices(){
             value="${service.hourlyRate || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
 
-          <label>
-            Hourly Billing
-          </label>
+          <label>Hourly Billing</label>
 
           <select
             id="hourmode-${service._id}"
@@ -455,61 +298,8 @@ function renderServices(){
 
         </div>
 
-        <!-- =========================
-             FUTURE WARNING POLICY
-        ========================== -->
-
         <div class="field">
-
-          <label>
-            Warning Enabled
-          </label>
-
-          <select
-            disabled
-          >
-
-            <option selected>
-              Future Feature
-            </option>
-
-          </select>
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Warning Minutes
-          </label>
-
-          <input
-            type="number"
-            value="120"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Cancel Fee
-          </label>
-
-          <input
-            type="number"
-            value="15"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Stop Fee
-          </label>
+          <label>Stop Fee</label>
 
           <input
             type="number"
@@ -517,14 +307,10 @@ function renderServices(){
             value="${service.stopFee || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
-
-          <label>
-            No Show Fee
-          </label>
+          <label>No Show Fee</label>
 
           <input
             type="number"
@@ -532,14 +318,10 @@ function renderServices(){
             value="${service.noShowFee || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
-
-          <label>
-            Shared Price
-          </label>
+          <label>Shared Price</label>
 
           <input
             type="number"
@@ -547,7 +329,6 @@ function renderServices(){
             value="${service.sharedPrice || 0}"
             disabled
           >
-
         </div>
 
       </div>
@@ -672,10 +453,7 @@ function renderCompanyServices(){
       <div class="fields">
 
         <div class="field">
-
-          <label>
-            Service Suffix
-          </label>
+          <label>Service Suffix</label>
 
           <input
             type="text"
@@ -683,14 +461,11 @@ function renderCompanyServices(){
             value="${service.suffix || ""}"
             disabled
           >
-
         </div>
 
         <div class="field">
 
-          <label>
-            Shared Service
-          </label>
+          <label>Shared Service</label>
 
           <select
             id="company-shared-${service._id}"
@@ -717,161 +492,7 @@ function renderCompanyServices(){
 
         <div class="field">
 
-          <label>
-            Pricing Mode
-          </label>
-
-          <select
-            id="company-mode-${service._id}"
-            disabled
-          >
-
-            <option
-              value="MILE"
-              ${
-                String(service.pricingMode || "")
-                .toUpperCase()==="MILE"
-                ? "selected"
-                : ""
-              }
-            >
-              Per Mile
-            </option>
-
-            <option
-              value="HOURLY"
-              ${
-                String(service.pricingMode || "")
-                .toUpperCase()==="HOURLY"
-                ? "selected"
-                : ""
-              }
-            >
-              Hourly
-            </option>
-
-            <option
-              value="SHARED"
-              ${
-                String(service.pricingMode || "")
-                .toUpperCase()==="SHARED"
-                ? "selected"
-                : ""
-              }
-            >
-              Shared
-            </option>
-
-          </select>
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Base Fare
-          </label>
-
-          <input
-            type="number"
-            id="company-base-${service._id}"
-            value="${service.baseFare || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Included Miles
-          </label>
-
-          <input
-            type="number"
-            id="company-included-${service._id}"
-            value="${service.includedMiles || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Per Mile
-          </label>
-
-          <input
-            type="number"
-            id="company-mile-${service._id}"
-            value="${service.perMile || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Hourly Rate
-          </label>
-
-          <input
-            type="number"
-            id="company-hour-${service._id}"
-            value="${service.hourlyRate || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Hourly Billing
-          </label>
-
-          <select
-            id="company-hourmode-${service._id}"
-            disabled
-          >
-
-            <option
-              value="FULL"
-              ${
-                String(
-                  service.hourlyBillingMode || ""
-                ).toUpperCase()==="FULL"
-                ? "selected"
-                : ""
-              }
-            >
-              Full Hour
-            </option>
-
-            <option
-              value="QUARTER"
-              ${
-                String(
-                  service.hourlyBillingMode || ""
-                ).toUpperCase()==="QUARTER"
-                ? "selected"
-                : ""
-              }
-            >
-              Quarter Hour
-            </option>
-
-          </select>
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Warning Enabled
-          </label>
+          <label>Warning Enabled</label>
 
           <select
             id="company-warning-${service._id}"
@@ -897,10 +518,7 @@ function renderCompanyServices(){
         </div>
 
         <div class="field">
-
-          <label>
-            Warning Minutes
-          </label>
+          <label>Warning Minutes</label>
 
           <input
             type="number"
@@ -908,14 +526,10 @@ function renderCompanyServices(){
             value="${service.warningMinutes || 0}"
             disabled
           >
-
         </div>
 
         <div class="field">
-
-          <label>
-            Cancel Fee
-          </label>
+          <label>Cancel Fee</label>
 
           <input
             type="number"
@@ -923,52 +537,6 @@ function renderCompanyServices(){
             value="${service.cancelFee || 0}"
             disabled
           >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Stop Fee
-          </label>
-
-          <input
-            type="number"
-            id="company-stop-${service._id}"
-            value="${service.stopFee || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            No Show Fee
-          </label>
-
-          <input
-            type="number"
-            id="company-noshow-${service._id}"
-            value="${service.noShowFee || 0}"
-            disabled
-          >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Shared Price
-          </label>
-
-          <input
-            type="number"
-            id="company-sharedprice-${service._id}"
-            value="${service.sharedPrice || 0}"
-            disabled
-          >
-
         </div>
 
       </div>
@@ -1054,18 +622,9 @@ function enableCompanyEdit(id){
 
     `company-suffix-${id}`,
     `company-shared-${id}`,
-    `company-mode-${id}`,
-    `company-base-${id}`,
-    `company-included-${id}`,
-    `company-mile-${id}`,
-    `company-hour-${id}`,
-    `company-hourmode-${id}`,
     `company-warning-${id}`,
     `company-minutes-${id}`,
-    `company-cancel-${id}`,
-    `company-stop-${id}`,
-    `company-noshow-${id}`,
-    `company-sharedprice-${id}`
+    `company-cancel-${id}`
 
   ];
 
@@ -1091,46 +650,246 @@ function enableCompanyEdit(id){
 }
 
 /* =========================
-   SAVE SERVICE
+   SAVE INDIVIDUAL
 ========================= */
 
 async function saveService(id){
 
-  alert(
-    "Individual Services Save Ready"
-  );
+  try{
+
+    const payload = {
+
+      pricingMode:
+      document.getElementById(
+        `mode-${id}`
+      ).value,
+
+      baseFare:Number(
+        document.getElementById(
+          `base-${id}`
+        ).value
+      ),
+
+      includedMiles:Number(
+        document.getElementById(
+          `included-${id}`
+        ).value
+      ),
+
+      perMile:Number(
+        document.getElementById(
+          `mile-${id}`
+        ).value
+      ),
+
+      hourlyRate:Number(
+        document.getElementById(
+          `hour-${id}`
+        ).value
+      ),
+
+      hourlyBillingMode:
+      document.getElementById(
+        `hourmode-${id}`
+      ).value,
+
+      stopFee:Number(
+        document.getElementById(
+          `stop-${id}`
+        ).value
+      ),
+
+      noShowFee:Number(
+        document.getElementById(
+          `noshow-${id}`
+        ).value
+      ),
+
+      sharedPrice:Number(
+        document.getElementById(
+          `shared-${id}`
+        ).value
+      )
+
+    };
+
+    const res =
+    await fetch(
+
+      `/api/services/${id}`,
+
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify(payload)
+
+      }
+
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Save Failed");
+      return;
+
+    }
+
+    alert("Service Saved");
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Save Failed");
+
+  }
 
 }
 
 /* =========================
-   SAVE COMPANY SERVICE
+   SAVE COMPANY
 ========================= */
 
 async function saveCompanyService(id){
 
-  alert(
-    "Company Service Saved"
-  );
+  try{
+
+    const payload = {
+
+      companySuffix:
+      document.getElementById(
+        `company-suffix-${id}`
+      ).value,
+
+      companyShared:
+      document.getElementById(
+        `company-shared-${id}`
+      ).value === "true",
+
+      companyWarningEnabled:
+      document.getElementById(
+        `company-warning-${id}`
+      ).value === "true",
+
+      companyWarningMinutes:Number(
+        document.getElementById(
+          `company-minutes-${id}`
+        ).value
+      ),
+
+      companyCancelFee:Number(
+        document.getElementById(
+          `company-cancel-${id}`
+        ).value
+      )
+
+    };
+
+    const res =
+    await fetch(
+
+      `/api/services/${id}`,
+
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify(payload)
+
+      }
+
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Save Failed");
+      return;
+
+    }
+
+    alert("Company Service Saved");
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Save Failed");
+
+  }
 
 }
 
 /* =========================
-   TOGGLE
+   TOGGLE INDIVIDUAL
 ========================= */
 
 async function toggleService(id){
 
-  const service =
-  services.find(
-    s=>s._id===id
-  );
+  try{
 
-  if(!service) return;
+    const service =
+    services.find(
+      s=>s._id===id
+    );
 
-  service.enabled =
-  !service.enabled;
+    if(!service) return;
 
-  renderServices();
+    const res =
+    await fetch(
+
+      `/api/services/${id}`,
+
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+          enabled:!service.enabled
+        })
+
+      }
+
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Toggle Failed");
+      return;
+
+    }
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Toggle Failed");
+
+  }
 
 }
 
@@ -1140,17 +899,55 @@ async function toggleService(id){
 
 async function toggleCompanyService(id){
 
-  const service =
-  companyServices.find(
-    s=>s._id===id
-  );
+  try{
 
-  if(!service) return;
+    const service =
+    companyServices.find(
+      s=>s._id===id
+    );
 
-  service.enabled =
-  !service.enabled;
+    if(!service) return;
 
-  renderCompanyServices();
+    const res =
+    await fetch(
+
+      `/api/services/${id}`,
+
+      {
+        method:"PUT",
+
+        headers:{
+          "Content-Type":"application/json"
+        },
+
+        body:JSON.stringify({
+          companyEnabled:
+          !service.enabled
+        })
+
+      }
+
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Toggle Failed");
+      return;
+
+    }
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Toggle Failed");
+
+  }
 
 }
 
