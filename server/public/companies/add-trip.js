@@ -1,6 +1,6 @@
 /* =====================================================
-   FILE: add-trip.js
-   FINAL DYNAMIC COMPANY SERVICES SYSTEM
+FILE: add-trip.js
+FINAL DYNAMIC COMPANY SERVICES VERSION
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -25,7 +25,15 @@ let COMPANY_SERVICES = [
     title:"Standard",
     suffix:"ST",
     shared:false,
-    active:true
+    active:true,
+
+    warningEnabled:true,
+    warningMinutes:120,
+
+    warningMessage:
+    "Trip is within 120 minutes.\nEditing may be restricted.\nContinue?",
+
+    cancelFee:15
   },
 
   {
@@ -33,7 +41,15 @@ let COMPANY_SERVICES = [
     title:"XL",
     suffix:"XL",
     shared:false,
-    active:true
+    active:true,
+
+    warningEnabled:true,
+    warningMinutes:180,
+
+    warningMessage:
+    "XL trip is within 180 minutes.\nContinue?",
+
+    cancelFee:25
   },
 
   {
@@ -41,7 +57,14 @@ let COMPANY_SERVICES = [
     title:"Taxi",
     suffix:"TX",
     shared:false,
-    active:true
+    active:true,
+
+    warningEnabled:false,
+    warningMinutes:0,
+
+    warningMessage:"",
+
+    cancelFee:0
   },
 
   {
@@ -49,7 +72,15 @@ let COMPANY_SERVICES = [
     title:"Limousine",
     suffix:"LM",
     shared:false,
-    active:true
+    active:true,
+
+    warningEnabled:true,
+    warningMinutes:360,
+
+    warningMessage:
+    "Limousine booking is within 6 hours.\nContinue?",
+
+    cancelFee:50
   },
 
   {
@@ -57,7 +88,15 @@ let COMPANY_SERVICES = [
     title:"Wheelchair",
     suffix:"WH",
     shared:false,
-    active:true
+    active:true,
+
+    warningEnabled:true,
+    warningMinutes:240,
+
+    warningMessage:
+    "Wheelchair trip is within restricted time.\nContinue?",
+
+    cancelFee:30
   },
 
   {
@@ -65,7 +104,15 @@ let COMPANY_SERVICES = [
     title:"Shared",
     suffix:"SH",
     shared:true,
-    active:true
+    active:true,
+
+    warningEnabled:true,
+    warningMinutes:120,
+
+    warningMessage:
+    "Shared trip is within 120 minutes.\nContinue?",
+
+    cancelFee:15
   }
 
 ];
@@ -332,7 +379,6 @@ buildDynamicTabs();
 
 const entryName   = document.getElementById("entryName");
 const entryPhone  = document.getElementById("entryPhone");
-const editEntry   = document.getElementById("editEntry");
 
 const clientName  = document.getElementById("clientName");
 const clientPhone = document.getElementById("clientPhone");
@@ -347,12 +393,11 @@ const notes    = document.getElementById("notes");
 const stopsBox   = document.getElementById("stops");
 const addStopBtn = document.getElementById("addStopBtn");
 
-const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
 /* SHARED */
 
-const sharedEntryName  =
+const sharedEntryName =
 document.getElementById(
   "sharedEntryName"
 );
@@ -360,11 +405,6 @@ document.getElementById(
 const sharedEntryPhone =
 document.getElementById(
   "sharedEntryPhone"
-);
-
-const editSharedEntry  =
-document.getElementById(
-  "editSharedEntry"
 );
 
 const passengerCount =
@@ -392,17 +432,10 @@ document.getElementById(
   "passengersContainer"
 );
 
-const saveSharedBtn =
-document.getElementById(
-  "saveShared"
-);
-
 const submitSharedBtn =
 document.getElementById(
   "submitShared"
 );
-
-let stopCounter = 0;
 
 /* =====================================================
    HELPERS
@@ -433,6 +466,14 @@ function normalizeText(value){
 function showAlert(msg){
 
   alert(msg);
+
+}
+
+function getCurrentServiceConfig(){
+
+  return COMPANY_SERVICES.find(
+    s => s.key === activeService
+  ) || {};
 
 }
 
@@ -487,13 +528,19 @@ function validateFutureTime(
 
 }
 
-function check120(
+function checkDynamicWarning(
   dateValue,
   timeValue
 ){
 
-  if(!dateValue || !timeValue)
+  const config =
+  getCurrentServiceConfig();
+
+  if(
+    config.warningEnabled === false
+  ){
     return true;
+  }
 
   const tripDateTime =
   new Date(
@@ -506,10 +553,19 @@ function check120(
   const diff =
   (tripDateTime - now) / 60000;
 
-  if(diff < 120){
+  const warningMinutes =
+  Number(
+    config.warningMinutes || 0
+  );
+
+  if(diff < warningMinutes){
 
     return confirm(
-      "Trip is within 120 minutes.\n\nContinue?"
+
+      config.warningMessage ||
+
+      `Trip is within ${warningMinutes} minutes.\nContinue?`
+
     );
 
   }
@@ -517,58 +573,6 @@ function check120(
   return true;
 
 }
-
-/* =====================================================
-   ENTRY STORAGE
-===================================================== */
-
-function saveEntryInfo(){
-
-  localStorage.setItem(
-    "entryInfo",
-    JSON.stringify({
-      name:entryName.value,
-      phone:entryPhone.value
-    })
-  );
-
-}
-
-function loadEntry(){
-
-  let saved = null;
-
-  try{
-
-    saved = JSON.parse(
-      localStorage.getItem(
-        "entryInfo"
-      )
-    );
-
-  }catch(e){
-
-    saved = null;
-
-  }
-
-  if(!saved) return;
-
-  entryName.value =
-  saved.name || "";
-
-  entryPhone.value =
-  saved.phone || "";
-
-  sharedEntryName.value =
-  saved.name || "";
-
-  sharedEntryPhone.value =
-  saved.phone || "";
-
-}
-
-loadEntry();
 
 /* =====================================================
    STOPS
@@ -778,7 +782,7 @@ if(
 }
 
 if(
-  !check120(
+  !checkDynamicWarning(
     tripDate.value,
     tripTime.value
   )
@@ -893,11 +897,6 @@ if(!res.ok){
 const savedTrip =
 await res.json();
 
-localStorage.setItem(
-  "reviewTrip",
-  JSON.stringify(savedTrip)
-);
-
 showAlert(
   `Trip Saved ✔\n\nTrip #: ${savedTrip.tripNumber}`
 );
@@ -954,7 +953,7 @@ if(
 }
 
 if(
-  !check120(
+  !checkDynamicWarning(
     sharedDate.value,
     sharedTime.value
   )
@@ -1117,11 +1116,6 @@ if(!res.ok){
 
 const savedTrip =
 await res.json();
-
-localStorage.setItem(
-  "reviewTrip",
-  JSON.stringify(savedTrip)
-);
 
 showAlert(
   `Shared Trip Saved ✔\n\nTrip #: ${savedTrip.tripNumber}`
