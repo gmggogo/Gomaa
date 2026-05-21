@@ -557,9 +557,11 @@ async function loadCompanyServices(){
 
     ? data
 
-      .filter(
-        s => s.companyEnabled === true
-      )
+     .filter(
+  s =>
+    s.enabled === true &&
+    s.companyEnabled === true
+)
 
       .map(service => ({
 
