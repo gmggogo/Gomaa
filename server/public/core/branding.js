@@ -239,6 +239,18 @@ window.Branding = {
       );
 
       el.style.setProperty(
+        "width",
+        "100%",
+        "important"
+      );
+
+      el.style.setProperty(
+        "display",
+        "block",
+        "important"
+      );
+
+      el.style.setProperty(
         "text-align",
         mobile
         ? "left"
@@ -286,6 +298,12 @@ window.Branding = {
       );
 
       el.style.setProperty(
+        "display",
+        "block",
+        "important"
+      );
+
+      el.style.setProperty(
         "word-spacing",
         "normal",
         "important"
@@ -318,7 +336,7 @@ window.Branding = {
       el.style.setProperty(
         "text-align",
         mobile
-        ? "left"
+        ? "justify"
         : (data.aboutTextAlign || "center"),
         "important"
       );
@@ -401,6 +419,18 @@ window.Branding = {
       );
 
       el.style.setProperty(
+        "width",
+        "100%",
+        "important"
+      );
+
+      el.style.setProperty(
+        "display",
+        "block",
+        "important"
+      );
+
+      el.style.setProperty(
         "text-align",
         mobile
         ? "left"
@@ -448,6 +478,12 @@ window.Branding = {
       );
 
       el.style.setProperty(
+        "display",
+        "block",
+        "important"
+      );
+
+      el.style.setProperty(
         "word-spacing",
         "normal",
         "important"
@@ -480,7 +516,7 @@ window.Branding = {
       el.style.setProperty(
         "text-align",
         mobile
-        ? "left"
+        ? "justify"
         : (data.quoteTextAlign || "center"),
         "important"
       );
@@ -599,6 +635,12 @@ window.Branding = {
       );
 
       title.style.setProperty(
+        "display",
+        "block",
+        "important"
+      );
+
+      title.style.setProperty(
         "line-height",
         mobile ? "1.3" : "1.2",
         "important"
@@ -696,10 +738,146 @@ window.Branding = {
       text.style.setProperty(
         "text-align",
         mobile
-        ? "left"
+        ? "justify"
         : (data.extraBoxAlign || "center"),
         "important"
       );
+
+    });
+
+  },
+
+  /* =========================
+  HOMEPAGE CARDS
+  ========================= */
+
+  renderHomepageCards(
+    containerId,
+    lang="en"
+  ){
+
+    const container =
+    document.getElementById(
+      containerId
+    );
+
+    if(!container){
+
+      console.log(
+        "SERVICES CONTAINER NOT FOUND"
+      );
+
+      return;
+
+    }
+
+    const services =
+    this.getServices();
+
+    container.innerHTML = "";
+
+    const activeServices =
+    services.filter(
+      s => s.active
+    );
+
+    if(!activeServices.length){
+
+      container.innerHTML = `
+      <div style="
+      width:100%;
+      text-align:center;
+      padding:50px 20px;
+      font-size:24px;
+      color:#64748b;
+      ">
+      ${
+        lang === "es"
+        ? "No hay servicios activos"
+        : "No Active Services"
+      }
+      </div>
+      `;
+
+      return;
+
+    }
+
+    activeServices.forEach(service=>{
+
+      const title =
+      lang === "es"
+      ? (
+        service.titleEs ||
+        service.title ||
+        ""
+      )
+      : (
+        service.title ||
+        ""
+      );
+
+      const desc =
+      lang === "es"
+      ? (
+        service.descriptionEs ||
+        service.description ||
+        ""
+      )
+      : (
+        service.description ||
+        ""
+      );
+
+      const image =
+      service.image ||
+      "/assets/logo.png";
+
+      const buttonText =
+      lang === "es"
+      ? (
+        service.buttonEs ||
+        "Obtener precio"
+      )
+      : (
+        service.button ||
+        "Get Quote"
+      );
+
+      container.innerHTML += `
+
+      <div class="card">
+
+        <img
+        src="${image}"
+        class="card-image">
+
+        <div class="card-body">
+
+          <h3>
+            ${title}
+          </h3>
+
+          <p>
+            ${desc}
+          </p>
+
+          <a
+          href="${
+            service.link ||
+            "getquote/index.html"
+          }"
+          class="card-btn">
+
+            ${buttonText}
+
+          </a>
+
+        </div>
+
+      </div>
+
+      `;
 
     });
 
