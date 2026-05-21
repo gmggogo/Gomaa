@@ -3153,58 +3153,84 @@ if (isShared) {
 
 if (isShared) {
 
-  const trip = await Trip.create({
+  let trip = null;
 
-    type,
-    tripNumber,
+  let attempts = 0;
 
-    // 🔥 SHARED FLAGS
-    isShared: true,
-    groupId,
-    tripType: "SHARED",
-    sharedSuffix: "SH",
+  while(!trip && attempts < 5){
 
-    company: normalizeText(req.body.company),
+    try{
 
-    entryName: normalizeText(req.body.entryName),
-    entryPhone: normalizeText(req.body.entryPhone),
+      attempts++;
 
-    // 🔥 PASSENGERS
-    passengers,
-    totalPassengers,
+      trip = await Trip.create({
 
-    // display fallback
-    clientName: "Shared Trip",
-    clientPhone: "",
+        type,
+        tripNumber,
 
-    // 🔥 ROUTE SAFETY
-    pickup: passengers[0]?.pickup || pickup,
-    dropoff: passengers[passengers.length - 1]?.dropoff || dropoff,
+        // 🔥 SHARED FLAGS
+        isShared: true,
+        groupId,
+        tripType: "SHARED",
+        sharedSuffix: "SH",
 
-    pickupLat: null,
-    pickupLng: null,
-    dropoffLat: null,
-    dropoffLng: null,
+        company: normalizeText(req.body.company),
 
-    stops: [],
-    stopCoords: [],
+        entryName: normalizeText(req.body.entryName),
+        entryPhone: normalizeText(req.body.entryPhone),
 
-    tripDate: normalizeText(req.body.tripDate),
-    tripTime: normalizeText(req.body.tripTime),
+        // 🔥 PASSENGERS
+        passengers,
+        totalPassengers,
 
-    notes: normalizeText(req.body.notes),
+        // display fallback
+        clientName: "Shared Trip",
+        clientPhone: "",
 
-    priceAmount: 0,
+        // 🔥 ROUTE SAFETY
+        pickup: passengers[0]?.pickup || pickup,
+        dropoff: passengers[passengers.length - 1]?.dropoff || dropoff,
 
-    status: "Scheduled",
+        pickupLat: null,
+        pickupLng: null,
+        dropoffLat: null,
+        dropoffLng: null,
 
-    createdAt: new Date()
-  });
+        stops: [],
+        stopCoords: [],
+
+        tripDate: normalizeText(req.body.tripDate),
+        tripTime: normalizeText(req.body.tripTime),
+
+        notes: normalizeText(req.body.notes),
+
+        priceAmount: 0,
+
+        status: "Scheduled",
+
+        createdAt: new Date()
+      });
+
+    }catch(err){
+
+      if(err.code !== 11000){
+        throw err;
+      }
+
+      tripNumber =
+        await generateCompanyTripNumber(
+          "SHARED"
+        );
+
+    }
+
+  }
 
   await ensureTripCoords(trip);
 
   return res.status(200).json(trip);
 }
+
 
     /* =========================
        🟢 INDIVIDUAL CREATE
