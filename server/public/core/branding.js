@@ -1,7 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // GH MOBILITY BRANDING ENGINE
-// FINAL MOBILE + ALIGN FIX
+// FINAL CLEAN VERSION
 // =========================
 
 console.log(
@@ -10,15 +10,7 @@ console.log(
 
 window.Branding = {
 
-  /* =========================
-  STORAGE
-  ========================= */
-
   data:{},
-
-  /* =========================
-  LOAD FROM SERVER
-  ========================= */
 
   async load(){
 
@@ -54,10 +46,6 @@ window.Branding = {
 
   },
 
-  /* =========================
-  COMPANY NAME
-  ========================= */
-
   getCompanyName(){
 
     return (
@@ -66,10 +54,6 @@ window.Branding = {
     );
 
   },
-
-  /* =========================
-  MAIN LOGO
-  ========================= */
 
   getMainLogo(){
 
@@ -80,10 +64,6 @@ window.Branding = {
 
   },
 
-  /* =========================
-  DRIVER LOGO
-  ========================= */
-
   getDriverLogo(){
 
     return (
@@ -93,10 +73,6 @@ window.Branding = {
 
   },
 
-  /* =========================
-  HERO IMAGE
-  ========================= */
-
   getHeroImage(){
 
     return (
@@ -105,10 +81,6 @@ window.Branding = {
     );
 
   },
-
-  /* =========================
-  SERVICES
-  ========================= */
 
   getServices(){
 
@@ -122,10 +94,6 @@ window.Branding = {
     return [];
 
   },
-
-  /* =========================
-  APPLY GLOBAL
-  ========================= */
 
   applyGlobalBranding(){
 
@@ -179,10 +147,6 @@ window.Branding = {
 
   },
 
-  /* =========================
-  THEME ENGINE
-  ========================= */
-
   applyThemeEngine(){
 
     const data =
@@ -190,10 +154,6 @@ window.Branding = {
 
     const mobile =
     window.innerWidth <= 768;
-
-    /* =========================
-    BODY
-    ========================= */
 
     document.body.style.setProperty(
       "background",
@@ -207,9 +167,7 @@ window.Branding = {
       "important"
     );
 
-    /* =========================
-    ABOUT TITLE
-    ========================= */
+    /* ABOUT TITLE */
 
     document
     .querySelectorAll(".about h2")
@@ -239,30 +197,14 @@ window.Branding = {
       );
 
       el.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      el.style.setProperty(
-        "display",
-        "block",
-        "important"
-      );
-
-      el.style.setProperty(
         "text-align",
-        mobile
-        ? "left"
-        : (data.aboutTitleAlign || "center"),
+        data.aboutTitleAlign || "center",
         "important"
       );
 
     });
 
-    /* =========================
-    ABOUT TEXT
-    ========================= */
+    /* ABOUT TEXT */
 
     document
     .querySelectorAll(".about p")
@@ -292,60 +234,14 @@ window.Branding = {
       );
 
       el.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      el.style.setProperty(
-        "display",
-        "block",
-        "important"
-      );
-
-      el.style.setProperty(
-        "word-spacing",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "letter-spacing",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "word-break",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "overflow-wrap",
-        "break-word",
-        "important"
-      );
-
-      el.style.setProperty(
-        "hyphens",
-        "none",
-        "important"
-      );
-
-      el.style.setProperty(
         "text-align",
-        mobile
-        ? "justify"
-        : (data.aboutTextAlign || "center"),
+        data.aboutTextAlign || "center",
         "important"
       );
 
     });
 
-    /* =========================
-    QUOTE SECTION
-    ========================= */
+    /* QUOTE SECTION */
 
     document
     .querySelectorAll(".quote-header")
@@ -373,23 +269,25 @@ window.Branding = {
 
       box.style.setProperty(
         "padding",
-        `${mobile ? 24 : (data.quotePadding || 40)}px`,
+        `${mobile ? 30 : (data.quotePadding || 40)}px 16px`,
         "important"
       );
 
       box.style.setProperty(
         "box-shadow",
-        data.extraBoxShadow
-        ? "0 10px 30px rgba(0,0,0,.08)"
-        : "none",
+        mobile
+        ? "0 4px 10px rgba(0,0,0,.06)"
+        : (
+          data.extraBoxShadow
+          ? "0 10px 30px rgba(0,0,0,.08)"
+          : "none"
+        ),
         "important"
       );
 
     });
 
-    /* =========================
-    QUOTE TITLE
-    ========================= */
+    /* QUOTE TITLE */
 
     document
     .querySelectorAll(".quote-header h2")
@@ -419,30 +317,14 @@ window.Branding = {
       );
 
       el.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      el.style.setProperty(
-        "display",
-        "block",
-        "important"
-      );
-
-      el.style.setProperty(
         "text-align",
-        mobile
-        ? "left"
-        : (data.quoteTitleAlign || "center"),
+        data.quoteTitleAlign || "center",
         "important"
       );
 
     });
 
-    /* =========================
-    QUOTE TEXT
-    ========================= */
+    /* QUOTE TEXT */
 
     document
     .querySelectorAll(".quote-header p")
@@ -472,60 +354,14 @@ window.Branding = {
       );
 
       el.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      el.style.setProperty(
-        "display",
-        "block",
-        "important"
-      );
-
-      el.style.setProperty(
-        "word-spacing",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "letter-spacing",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "word-break",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "overflow-wrap",
-        "break-word",
-        "important"
-      );
-
-      el.style.setProperty(
-        "hyphens",
-        "none",
-        "important"
-      );
-
-      el.style.setProperty(
         "text-align",
-        mobile
-        ? "justify"
-        : (data.quoteTextAlign || "center"),
+        data.quoteTextAlign || "center",
         "important"
       );
 
     });
 
-    /* =========================
-    EXTRA BOXES
-    ========================= */
+    /* EXTRA BOXES */
 
     document
     .querySelectorAll(".extra-box")
@@ -553,59 +389,31 @@ window.Branding = {
 
       box.style.setProperty(
         "padding",
-        `${mobile ? 22 : (data.extraBoxPadding || 44)}px`,
+        `${mobile ? 16 : (data.extraBoxPadding || 44)}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
         "important"
       );
 
       box.style.setProperty(
         "box-shadow",
-        data.extraBoxShadow
-        ? "0 10px 30px rgba(0,0,0,.08)"
-        : "none",
+        mobile
+        ? "0 4px 10px rgba(0,0,0,.06)"
+        : (
+          data.extraBoxShadow
+          ? "0 10px 30px rgba(0,0,0,.08)"
+          : "none"
+        ),
         "important"
       );
 
-      if(mobile){
-
-        box.style.setProperty(
-          "text-align",
-          "left",
-          "important"
-        );
-
-        box.style.setProperty(
-          "display",
-          "flex",
-          "important"
-        );
-
-        box.style.setProperty(
-          "flex-direction",
-          "column",
-          "important"
-        );
-
-        box.style.setProperty(
-          "align-items",
-          "flex-start",
-          "important"
-        );
-
-      }else{
-
-        box.style.setProperty(
-          "text-align",
-          data.extraBoxAlign || "center",
-          "important"
-        );
-
-      }
-
     });
 
-    /* =========================
-    EXTRA TITLES
-    ========================= */
+    /* EXTRA TITLES */
 
     document
     .querySelectorAll(".extra-box h3")
@@ -613,7 +421,7 @@ window.Branding = {
 
       const size =
       mobile
-      ? Number(data.extraBoxTitleSize || 42) * 0.62
+      ? 22
       : Number(data.extraBoxTitleSize || 42);
 
       title.style.setProperty(
@@ -629,18 +437,6 @@ window.Branding = {
       );
 
       title.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      title.style.setProperty(
-        "display",
-        "block",
-        "important"
-      );
-
-      title.style.setProperty(
         "line-height",
         mobile ? "1.3" : "1.2",
         "important"
@@ -648,23 +444,19 @@ window.Branding = {
 
       title.style.setProperty(
         "margin-bottom",
-        mobile ? "14px" : "22px",
+        mobile ? "10px" : "22px",
         "important"
       );
 
       title.style.setProperty(
         "text-align",
-        mobile
-        ? "left"
-        : (data.extraBoxAlign || "center"),
+        data.extraBoxAlign || "center",
         "important"
       );
 
     });
 
-    /* =========================
-    EXTRA TEXT
-    ========================= */
+    /* EXTRA TEXT */
 
     document
     .querySelectorAll(".extra-box p")
@@ -672,7 +464,7 @@ window.Branding = {
 
       const size =
       mobile
-      ? Number(data.extraBoxTextSize || 22) * 0.80
+      ? 15
       : Number(data.extraBoxTextSize || 22);
 
       text.style.setProperty(
@@ -688,68 +480,341 @@ window.Branding = {
       );
 
       text.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      text.style.setProperty(
-        "display",
-        "block",
-        "important"
-      );
-
-      text.style.setProperty(
         "line-height",
-        mobile ? "1.85" : "2",
-        "important"
-      );
-
-      text.style.setProperty(
-        "word-spacing",
-        "normal",
-        "important"
-      );
-
-      text.style.setProperty(
-        "letter-spacing",
-        "normal",
-        "important"
-      );
-
-      text.style.setProperty(
-        "word-break",
-        "normal",
-        "important"
-      );
-
-      text.style.setProperty(
-        "overflow-wrap",
-        "break-word",
-        "important"
-      );
-
-      text.style.setProperty(
-        "hyphens",
-        "none",
+        mobile ? "1.75" : "2",
         "important"
       );
 
       text.style.setProperty(
         "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+    });
+
+    /* SERVICE CARDS */
+
+    document
+    .querySelectorAll(".card")
+    .forEach(card=>{
+
+      card.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      card.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${
+          data.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      card.style.setProperty(
+        "border-radius",
+        `${mobile ? 20 : (data.extraBoxRadius || 28)}px`,
+        "important"
+      );
+
+      card.style.setProperty(
+        "box-shadow",
         mobile
-        ? "justify"
-        : (data.extraBoxAlign || "center"),
+        ? "0 4px 10px rgba(0,0,0,.06)"
+        : (
+          data.extraBoxShadow
+          ? "0 10px 30px rgba(0,0,0,.10)"
+          : "none"
+        ),
+        "important"
+      );
+
+      if(mobile){
+
+        card.style.setProperty(
+          "transition",
+          "none",
+          "important"
+        );
+
+        card.style.setProperty(
+          "transform",
+          "none",
+          "important"
+        );
+
+      }
+
+    });
+
+    /* CARD TITLES */
+
+    document
+    .querySelectorAll(".card h3")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.extraBoxTitleColor || "#1e3a6d",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+      if(mobile){
+
+        el.style.setProperty(
+          "font-size",
+          "24px",
+          "important"
+        );
+
+        el.style.setProperty(
+          "line-height",
+          "1.3",
+          "important"
+        );
+
+      }
+
+    });
+
+    /* CARD TEXT */
+
+    document
+    .querySelectorAll(".card p")
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#6b7280",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.extraBoxAlign || "center",
+        "important"
+      );
+
+      if(mobile){
+
+        el.style.setProperty(
+          "font-size",
+          "15px",
+          "important"
+        );
+
+        el.style.setProperty(
+          "line-height",
+          "1.8",
+          "important"
+        );
+
+        el.style.setProperty(
+          "min-height",
+          "auto",
+          "important"
+        );
+
+      }
+
+    });
+
+    /* CARD BUTTONS */
+
+    document
+    .querySelectorAll(".card-btn")
+    .forEach(btn=>{
+
+      btn.style.setProperty(
+        "background",
+        data.buttonColor || "#2563eb",
+        "important"
+      );
+
+      btn.style.setProperty(
+        "color",
+        data.buttonTextColor || "#ffffff",
+        "important"
+      );
+
+      if(mobile){
+
+        btn.style.setProperty(
+          "font-size",
+          "16px",
+          "important"
+        );
+
+        btn.style.setProperty(
+          "height",
+          "50px",
+          "important"
+        );
+
+      }
+
+    });
+
+    /* CONTACT */
+
+    document
+    .querySelectorAll(
+      ".contact-section, #contactSection, .contact-box"
+    )
+    .forEach(el=>{
+
+      el.style.setProperty(
+        "background",
+        data.contactBg || "#ffffff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "border",
+        `${data.contactBorderSize || 2}px solid ${
+          data.contactBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "border-radius",
+        `${data.contactRadius || 28}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "padding",
+        `${mobile ? 36 : 20}px 14px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "display",
+        "flex",
+        "important"
+      );
+
+      el.style.setProperty(
+        "flex-direction",
+        "column",
+        "important"
+      );
+
+      el.style.setProperty(
+        "align-items",
+        data.contactAlign || "center",
+        "important"
+      );
+
+      el.style.setProperty(
+        "justify-content",
+        "flex-start",
+        "important"
+      );
+
+      el.style.setProperty(
+        "gap",
+        mobile ? "8px" : "10px",
+        "important"
+      );
+
+      el.style.setProperty(
+        "box-shadow",
+        mobile
+        ? "0 4px 10px rgba(0,0,0,.06)"
+        : (
+          data.extraBoxShadow
+          ? "0 10px 30px rgba(0,0,0,.08)"
+          : "none"
+        ),
+        "important"
+      );
+
+      el.style.setProperty(
+        "color",
+        data.contactTextColor || "#6b7280",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        mobile ? "15px" : "24px",
+        "important"
+      );
+
+      el.style.setProperty(
+        "line-height",
+        mobile ? "1.8" : "2",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-align",
+        data.contactAlign || "center",
+        "important"
+      );
+
+      el.querySelectorAll("*").forEach(child=>{
+
+        child.style.setProperty(
+          "margin",
+          "0",
+          "important"
+        );
+
+      });
+
+    });
+
+    /* CONTACT TITLE */
+
+    document
+    .querySelectorAll(
+      ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
+    )
+    .forEach(el=>{
+
+      const size =
+      mobile
+      ? 24
+      : Number(data.contactTitleSize || 30);
+
+      el.style.setProperty(
+        "color",
+        data.contactTitleColor || "#145cff",
+        "important"
+      );
+
+      el.style.setProperty(
+        "font-size",
+        `${size}px`,
+        "important"
+      );
+
+      el.style.setProperty(
+        "line-height",
+        "1.3",
+        "important"
+      );
+
+      el.style.setProperty(
+        "margin-bottom",
+        mobile ? "10px" : "0",
         "important"
       );
 
     });
 
   },
-
-  /* =========================
-  HOMEPAGE CARDS
-  ========================= */
 
   renderHomepageCards(
     containerId,
