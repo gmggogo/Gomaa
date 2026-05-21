@@ -14,7 +14,25 @@ window.Branding = {
 
   async load(){
 
-    try{
+  const cachedLogo =
+
+  localStorage.getItem(
+    "cachedMainLogo"
+  );
+
+  if(cachedLogo){
+
+    document
+    .querySelectorAll(".main-logo")
+    .forEach(img=>{
+
+      img.src = cachedLogo;
+
+    });
+
+  }
+
+  try{
 
       const res =
       await fetch(
@@ -24,8 +42,13 @@ window.Branding = {
       const data =
       await res.json();
 
-      this.data =
-      data || {};
+    this.data =
+data || {};
+
+localStorage.setItem(
+  "cachedMainLogo",
+  this.getMainLogo()
+);
 
     }catch(err){
 
