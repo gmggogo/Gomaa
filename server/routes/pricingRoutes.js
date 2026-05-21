@@ -359,6 +359,49 @@ return res.json({
     sharedPrice:
     Number(
       service.sharedPrice || 0
+    ),
+
+    /* =========================
+       INDIVIDUAL WARNING
+    ========================= */
+
+    warningEnabled:
+    service.warningEnabled === true,
+
+    warningMinutes:
+    Number(
+      service.warningMinutes || 0
+    ),
+
+    cancelFee:
+    Number(
+      service.cancelFee || 0
+    ),
+
+    /* =========================
+       COMPANY SETTINGS
+    ========================= */
+
+    companyEnabled:
+    service.companyEnabled === true,
+
+    companyShared:
+    service.companyShared === true,
+
+    companySuffix:
+    service.companySuffix || "ST",
+
+    companyWarningEnabled:
+    service.companyWarningEnabled === true,
+
+    companyWarningMinutes:
+    Number(
+      service.companyWarningMinutes || 0
+    ),
+
+    companyCancelFee:
+    Number(
+      service.companyCancelFee || 0
     )
 
   }

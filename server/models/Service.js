@@ -70,6 +70,59 @@ const serviceSchema = new mongoose.Schema({
   sharedPrice:{
     type:Number,
     default:0
+  },
+
+  /* =========================
+     INDIVIDUAL WARNING POLICY
+  ========================= */
+
+  warningEnabled:{
+    type:Boolean,
+    default:true
+  },
+
+  warningMinutes:{
+    type:Number,
+    default:120
+  },
+
+  cancelFee:{
+    type:Number,
+    default:15
+  },
+
+  /* =========================
+     COMPANY SETTINGS
+  ========================= */
+
+  companyEnabled:{
+    type:Boolean,
+    default:true
+  },
+
+  companyShared:{
+    type:Boolean,
+    default:false
+  },
+
+  companySuffix:{
+    type:String,
+    default:"ST"
+  },
+
+  companyWarningEnabled:{
+    type:Boolean,
+    default:true
+  },
+
+  companyWarningMinutes:{
+    type:Number,
+    default:120
+  },
+
+  companyCancelFee:{
+    type:Number,
+    default:15
   }
 
 },{
