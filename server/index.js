@@ -537,7 +537,6 @@ function normalizeTripType(rawType) {
   const t = String(rawType || "").trim().toLowerCase();
 
   if (t === "reserved") return "reserved";
-  if (t === "gh") return "gh";
   if (t === "individual") return "individual";
   if (t === "company") return "company";
   if (t === "shared") return "shared";
@@ -975,35 +974,6 @@ else if(cleanKey === "TAXI"){
 else if(cleanKey === "LIMO"){
   suffix = "LM";
 }
-
-  /* =========================
-     GH TYPE
-  ========================= */
-
-  if (type === "gh") {
-
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^GH\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
-
-    let next = 100;
-
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(
-        lastTrip.tripNumber.replace("GH", ""),
-        10
-      );
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    let tripNumber = "GH" + next;
-
-    if (suffix) {
-      tripNumber = `${tripNumber}-${suffix}`;
-    }
-
-    return tripNumber;
-  }
 
   /* =========================
      RESERVED
