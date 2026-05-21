@@ -1008,7 +1008,7 @@ async function generateCompanyTripNumber(serviceType = "STANDARD"){
 
   }
 
-  return `C-${monthCode}-${next}-${suffix}`;
+return `${monthCode}-${next}-${suffix}`;
 
 }
 

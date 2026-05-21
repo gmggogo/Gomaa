@@ -1,6 +1,6 @@
 <!-- =====================================================
 FILE: add-trip.html
-FINAL DYNAMIC COMPANY SERVICES VERSION
+FINAL ADMIN DYNAMIC SERVICES VERSION
 ===================================================== -->
 
 <!DOCTYPE html>
@@ -295,22 +295,6 @@ button:hover{
 
 }
 
-/* ================= LARGE SCREEN ================= */
-
-@media(min-width:1600px){
-
-  section h3{
-    font-size:17px;
-  }
-
-  input,
-  textarea,
-  select{
-    font-size:14px;
-  }
-
-}
-
 </style>
 </head>
 
@@ -338,19 +322,41 @@ button:hover{
 <div class="form-grid">
 
   <div class="field-wrap">
-    <input id="entryName" placeholder="Data Entry Name">
+    <input
+      id="entryName"
+      placeholder="Data Entry Name"
+      readonly
+    >
   </div>
 
   <div class="field-wrap">
-    <input id="entryPhone" placeholder="Phone Number">
+    <input
+      id="entryPhone"
+      placeholder="Phone Number"
+      readonly
+    >
   </div>
 
 </div>
 
-<div style="margin-top:10px;">
-  <button class="btn-blue" id="editEntry" type="button">
+<div class="actions">
+
+  <button
+    class="btn-blue"
+    id="editEntryBtn"
+    type="button"
+  >
     Edit
   </button>
+
+  <button
+    class="btn-light"
+    id="saveEntryBtn"
+    type="button"
+  >
+    Save Entry Info
+  </button>
+
 </div>
 
 </section>
@@ -415,11 +421,19 @@ button:hover{
 
 <div class="actions">
 
-  <button class="btn-gray" id="saveTrip" type="button">
-    Save Trip
+  <button
+    class="btn-gray"
+    id="saveDraftBtn"
+    type="button"
+  >
+    Save Draft
   </button>
 
-  <button class="btn-green" id="submitTrip" type="button">
+  <button
+    class="btn-green"
+    id="submitTrip"
+    type="button"
+  >
     Submit Trip
   </button>
 
@@ -438,19 +452,33 @@ button:hover{
 <div class="form-grid">
 
   <div class="field-wrap">
-    <input id="sharedEntryName" placeholder="Data Entry Name">
+    <input
+      id="sharedEntryName"
+      placeholder="Data Entry Name"
+      readonly
+    >
   </div>
 
   <div class="field-wrap">
-    <input id="sharedEntryPhone" placeholder="Phone Number">
+    <input
+      id="sharedEntryPhone"
+      placeholder="Phone Number"
+      readonly
+    >
   </div>
 
 </div>
 
-<div style="margin-top:10px;">
-  <button class="btn-blue" id="editSharedEntry" type="button">
+<div class="actions">
+
+  <button
+    class="btn-blue"
+    id="editSharedEntryBtn"
+    type="button"
+  >
     Edit
   </button>
+
 </div>
 
 </section>
@@ -500,11 +528,19 @@ button:hover{
 
 <div class="actions">
 
-  <button class="btn-gray" id="saveShared" type="button">
-    Save
+  <button
+    class="btn-gray"
+    id="saveSharedDraftBtn"
+    type="button"
+  >
+    Save Draft
   </button>
 
-  <button class="btn-green" id="submitShared" type="button">
+  <button
+    class="btn-green"
+    id="submitShared"
+    type="button"
+  >
     Submit Shared
   </button>
 

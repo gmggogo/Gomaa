@@ -1,6 +1,6 @@
 /* =====================================================
 FILE: add-trip.js
-FINAL DYNAMIC COMPANY SERVICES VERSION
+FINAL ADMIN DYNAMIC SERVICES VERSION
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -15,110 +15,68 @@ if (!token || role !== "company") {
 }
 
 /* =====================================================
-   COMPANY SERVICES
+   DYNAMIC SERVICES
 ===================================================== */
 
-let COMPANY_SERVICES = [
-
-  {
-    key:"STANDARD",
-    title:"Standard",
-    suffix:"ST",
-    shared:false,
-    active:true,
-
-    warningEnabled:true,
-    warningMinutes:120,
-
-    warningMessage:
-    "Trip is within 120 minutes.\nEditing may be restricted.\nContinue?",
-
-    cancelFee:15
-  },
-
-  {
-    key:"XL",
-    title:"XL",
-    suffix:"XL",
-    shared:false,
-    active:true,
-
-    warningEnabled:true,
-    warningMinutes:180,
-
-    warningMessage:
-    "XL trip is within 180 minutes.\nContinue?",
-
-    cancelFee:25
-  },
-
-  {
-    key:"TAXI",
-    title:"Taxi",
-    suffix:"TX",
-    shared:false,
-    active:true,
-
-    warningEnabled:false,
-    warningMinutes:0,
-
-    warningMessage:"",
-
-    cancelFee:0
-  },
-
-  {
-    key:"LIMO",
-    title:"Limousine",
-    suffix:"LM",
-    shared:false,
-    active:true,
-
-    warningEnabled:true,
-    warningMinutes:360,
-
-    warningMessage:
-    "Limousine booking is within 6 hours.\nContinue?",
-
-    cancelFee:50
-  },
-
-  {
-    key:"WHEELCHAIR",
-    title:"Wheelchair",
-    suffix:"WH",
-    shared:false,
-    active:true,
-
-    warningEnabled:true,
-    warningMinutes:240,
-
-    warningMessage:
-    "Wheelchair trip is within restricted time.\nContinue?",
-
-    cancelFee:30
-  },
-
-  {
-    key:"SHARED",
-    title:"Shared",
-    suffix:"SH",
-    shared:true,
-    active:true,
-
-    warningEnabled:true,
-    warningMinutes:120,
-
-    warningMessage:
-    "Shared trip is within 120 minutes.\nContinue?",
-
-    cancelFee:15
-  }
-
-];
+let COMPANY_SERVICES = [];
 
 let activeService = "STANDARD";
 let activeSuffix  = "ST";
+
+/* =====================================================
+   LOAD SERVICES FROM ADMIN
+===================================================== */
+
+async function loadCompanyServices(){
+
+  try{
+
+    const res = await fetch(
+      "/api/admin/services",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
+
+    const data = await res.json();
+
+    COMPANY_SERVICES =
+    Array.isArray(data)
+    ? data.filter(s=>s.active === true)
+    : [];
+
+    if(COMPANY_SERVICES.length === 0){
+
+      COMPANY_SERVICES = [
+        {
+          key:"STANDARD",
+          title:"Standard",
+          suffix:"ST",
+          shared:false,
+          active:true,
+          warningEnabled:true,
+          warningMinutes:120,
+          cancelFee:15
+        }
+      ];
+
+    }
+
+    buildDynamicTabs();
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
 
 /* =====================================================
    BILLING CHECK
@@ -129,7 +87,8 @@ async function checkBillingLock(){
   try{
 
     const res = await fetch(
-      "/api/company/billing",
+      "/api/company/billing?company=" +
+      encodeURIComponent(companyName),
       {
         headers:{
           Authorization:"Bearer " + token
@@ -177,9 +136,6 @@ async function checkBillingLock(){
             ">
               Your company account is currently locked
               due to unpaid billing.
-
-              Please complete payment to continue
-              using Sunbeam Transportation.
             </p>
 
             <a href="/companies/payment.html"
@@ -226,23 +182,241 @@ if(!ok){
 }
 
 /* =====================================================
-   DYNAMIC TABS
+   ELEMENTS
 ===================================================== */
 
 const companyTabs =
-document.getElementById(
-  "companyTabs"
-);
+document.getElementById("companyTabs");
 
 const individualSection =
-document.getElementById(
-  "individualSection"
-);
+document.getElementById("individualSection");
 
 const sharedSection =
-document.getElementById(
-  "sharedSection"
-);
+document.getElementById("sharedSection");
+
+const entryName =
+document.getElementById("entryName");
+
+const entryPhone =
+document.getElementById("entryPhone");
+
+const saveEntryBtn =
+document.getElementById("saveEntryBtn");
+
+const editEntryBtn =
+document.getElementById("editEntryBtn");
+
+const saveDraftBtn =
+document.getElementById("saveDraftBtn");
+
+const clientName =
+document.getElementById("clientName");
+
+const clientPhone =
+document.getElementById("clientPhone");
+
+const pickupInput =
+document.getElementById("pickup");
+
+const dropoffInput =
+document.getElementById("dropoff");
+
+const tripDate =
+document.getElementById("tripDate");
+
+const tripTime =
+document.getElementById("tripTime");
+
+const notes =
+document.getElementById("notes");
+
+const stopsBox =
+document.getElementById("stops");
+
+const addStopBtn =
+document.getElementById("addStopBtn");
+
+const submitTripBtn =
+document.getElementById("submitTrip");
+
+/* SHARED */
+
+const sharedEntryName =
+document.getElementById("sharedEntryName");
+
+const sharedEntryPhone =
+document.getElementById("sharedEntryPhone");
+
+const passengerCount =
+document.getElementById("passengerCount");
+
+const sharedDate =
+document.getElementById("sharedDate");
+
+const sharedTime =
+document.getElementById("sharedTime");
+
+const sharedNotes =
+document.getElementById("sharedNotes");
+
+const passengersContainer =
+document.getElementById("passengersContainer");
+
+const submitSharedBtn =
+document.getElementById("submitShared");
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function getArizonaNow(){
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:"America/Phoenix"
+      }
+    )
+  );
+
+}
+
+function normalizeText(value){
+
+  return String(value ?? "").trim();
+
+}
+
+function showAlert(msg){
+
+  alert(msg);
+
+}
+
+function getCurrentServiceConfig(){
+
+  return COMPANY_SERVICES.find(
+    s => s.key === activeService
+  ) || {};
+
+}
+
+/* =====================================================
+   ENTRY INFO SAVE
+===================================================== */
+
+function loadEntryInfo(){
+
+  const saved =
+  JSON.parse(
+    localStorage.getItem("entryInfo") || "{}"
+  );
+
+  entryName.value =
+  saved.entryName || "";
+
+  entryPhone.value =
+  saved.entryPhone || "";
+
+  sharedEntryName.value =
+  saved.entryName || "";
+
+  sharedEntryPhone.value =
+  saved.entryPhone || "";
+
+}
+
+function saveEntryInfo(){
+
+  localStorage.setItem(
+    "entryInfo",
+    JSON.stringify({
+      entryName:entryName.value,
+      entryPhone:entryPhone.value
+    })
+  );
+
+  showAlert(
+    "Entry information saved successfully."
+  );
+
+}
+
+if(saveEntryBtn){
+
+  saveEntryBtn.onclick =
+  saveEntryInfo;
+
+}
+
+if(editEntryBtn){
+
+  editEntryBtn.onclick = ()=>{
+
+    entryName.removeAttribute("readonly");
+    entryPhone.removeAttribute("readonly");
+
+    sharedEntryName.removeAttribute("readonly");
+    sharedEntryPhone.removeAttribute("readonly");
+
+    entryName.focus();
+
+  };
+
+}
+
+loadEntryInfo();
+
+/* =====================================================
+   SAVE DRAFT
+===================================================== */
+
+if(saveDraftBtn){
+
+  saveDraftBtn.onclick = ()=>{
+
+    const draft = {
+
+      clientName:
+      clientName.value,
+
+      clientPhone:
+      clientPhone.value,
+
+      pickup:
+      pickupInput.value,
+
+      dropoff:
+      dropoffInput.value,
+
+      tripDate:
+      tripDate.value,
+
+      tripTime:
+      tripTime.value,
+
+      notes:
+      notes.value
+
+    };
+
+    localStorage.setItem(
+      "companyTripDraft",
+      JSON.stringify(draft)
+    );
+
+    showAlert(
+      "Draft saved successfully."
+    );
+
+  };
+
+}
+
+/* =====================================================
+   DYNAMIC TABS
+===================================================== */
 
 function buildDynamicTabs(){
 
@@ -250,18 +424,11 @@ function buildDynamicTabs(){
 
   companyTabs.innerHTML = "";
 
-  const activeTabs =
-  COMPANY_SERVICES.filter(
-    s => s.active === true
-  );
-
-  activeTabs.forEach(
+  COMPANY_SERVICES.forEach(
     (service,index)=>{
 
       const btn =
-      document.createElement(
-        "button"
-      );
+      document.createElement("button");
 
       btn.type = "button";
 
@@ -275,11 +442,35 @@ function buildDynamicTabs(){
       service.suffix;
 
       btn.className =
-        index === 0
-        ? "btn-blue"
-        : "btn-gray";
+      index === 0
+      ? "btn-blue"
+      : "btn-gray";
 
       if(index === 0){
+
+        activeService =
+        service.key;
+
+        activeSuffix =
+        service.suffix;
+
+      }
+
+      companyTabs.appendChild(btn);
+
+      btn.onclick = ()=>{
+
+        companyTabs
+        .querySelectorAll("button")
+        .forEach(b=>{
+
+          b.classList.remove("btn-blue");
+          b.classList.add("btn-gray");
+
+        });
+
+        btn.classList.remove("btn-gray");
+        btn.classList.add("btn-blue");
 
         activeService =
         service.key;
@@ -305,177 +496,16 @@ function buildDynamicTabs(){
 
         }
 
-      }
-
-      companyTabs.appendChild(
-        btn
-      );
-
-      btn.addEventListener(
-        "click",
-        function(){
-
-          companyTabs
-          .querySelectorAll(
-            "button"
-          )
-          .forEach(b=>{
-
-            b.classList.remove(
-              "btn-blue"
-            );
-
-            b.classList.add(
-              "btn-gray"
-            );
-
-          });
-
-          btn.classList.remove(
-            "btn-gray"
-          );
-
-          btn.classList.add(
-            "btn-blue"
-          );
-
-          activeService =
-          service.key;
-
-          activeSuffix =
-          service.suffix;
-
-          if(service.shared){
-
-            individualSection.style.display =
-            "none";
-
-            sharedSection.style.display =
-            "block";
-
-          }else{
-
-            individualSection.style.display =
-            "block";
-
-            sharedSection.style.display =
-            "none";
-
-          }
-
-        }
-      );
+      };
 
     }
   );
 
 }
 
-buildDynamicTabs();
-
 /* =====================================================
-   ELEMENTS
+   VALIDATE TIME
 ===================================================== */
-
-const entryName   = document.getElementById("entryName");
-const entryPhone  = document.getElementById("entryPhone");
-
-const clientName  = document.getElementById("clientName");
-const clientPhone = document.getElementById("clientPhone");
-
-const pickupInput  = document.getElementById("pickup");
-const dropoffInput = document.getElementById("dropoff");
-
-const tripDate = document.getElementById("tripDate");
-const tripTime = document.getElementById("tripTime");
-const notes    = document.getElementById("notes");
-
-const stopsBox   = document.getElementById("stops");
-const addStopBtn = document.getElementById("addStopBtn");
-
-const submitTripBtn = document.getElementById("submitTrip");
-
-/* SHARED */
-
-const sharedEntryName =
-document.getElementById(
-  "sharedEntryName"
-);
-
-const sharedEntryPhone =
-document.getElementById(
-  "sharedEntryPhone"
-);
-
-const passengerCount =
-document.getElementById(
-  "passengerCount"
-);
-
-const sharedDate =
-document.getElementById(
-  "sharedDate"
-);
-
-const sharedTime =
-document.getElementById(
-  "sharedTime"
-);
-
-const sharedNotes =
-document.getElementById(
-  "sharedNotes"
-);
-
-const passengersContainer =
-document.getElementById(
-  "passengersContainer"
-);
-
-const submitSharedBtn =
-document.getElementById(
-  "submitShared"
-);
-
-/* =====================================================
-   HELPERS
-===================================================== */
-
-function getArizonaNow(){
-
-  return new Date(
-    new Date().toLocaleString(
-      "en-US",
-      {
-        timeZone:
-        "America/Phoenix"
-      }
-    )
-  );
-
-}
-
-function normalizeText(value){
-
-  return String(
-    value ?? ""
-  ).trim();
-
-}
-
-function showAlert(msg){
-
-  alert(msg);
-
-}
-
-function getCurrentServiceConfig(){
-
-  return COMPANY_SERVICES.find(
-    s => s.key === activeService
-  ) || {};
-
-}
 
 function validateFutureTime(
   dateValue,
@@ -500,20 +530,6 @@ function validateFutureTime(
   const now =
   getArizonaNow();
 
-  if(
-    isNaN(
-      tripDateTime.getTime()
-    )
-  ){
-
-    showAlert(
-      "Invalid trip date/time."
-    );
-
-    return false;
-
-  }
-
   if(tripDateTime <= now){
 
     showAlert(
@@ -527,6 +543,10 @@ function validateFutureTime(
   return true;
 
 }
+
+/* =====================================================
+   DYNAMIC WARNING
+===================================================== */
 
 function checkDynamicWarning(
   dateValue,
@@ -554,9 +574,7 @@ function checkDynamicWarning(
   (tripDateTime - now) / 60000;
 
   const warningMinutes =
-  Number(
-    config.warningMinutes || 0
-  );
+  Number(config.warningMinutes || 0);
 
   if(diff < warningMinutes){
 
@@ -578,9 +596,7 @@ function checkDynamicWarning(
    STOPS
 ===================================================== */
 
-function createStopInput(
-  value = ""
-){
+function createStopInput(value=""){
 
   const currentStops =
   stopsBox.querySelectorAll(
@@ -603,162 +619,38 @@ function createStopInput(
   wrapper.className =
   "stop-row";
 
-  const input =
-  document.createElement("input");
+  wrapper.innerHTML = `
 
-  input.type = "text";
+    <input
+      type="text"
+      class="stop-input"
+      placeholder="Stop address"
+      value="${value}"
+    >
 
-  input.className =
-  "stop-input";
+    <button
+      type="button"
+      class="remove-stop-btn"
+    >
+      ✕
+    </button>
 
-  input.placeholder =
-  "Stop address";
+  `;
 
-  input.value = value;
-
-  const removeBtn =
-  document.createElement(
-    "button"
-  );
-
-  removeBtn.type = "button";
-
-  removeBtn.className =
-  "remove-stop-btn";
-
-  removeBtn.innerText = "✕";
-
-  removeBtn.onclick = ()=>{
+  wrapper.querySelector(
+    ".remove-stop-btn"
+  ).onclick = ()=>{
     wrapper.remove();
   };
 
-  wrapper.appendChild(input);
-
-  wrapper.appendChild(
-    removeBtn
-  );
-
-  stopsBox.appendChild(
-    wrapper
-  );
+  stopsBox.appendChild(wrapper);
 
 }
 
 if(addStopBtn){
 
-  addStopBtn.addEventListener(
-    "click",
-    function(){
-
-      createStopInput();
-
-    }
-  );
-
-}
-
-/* =====================================================
-   SHARED PASSENGERS
-===================================================== */
-
-function renderSharedPassengers(
-  count
-){
-
-  passengersContainer.innerHTML =
-  "";
-
-  for(
-    let i = 1;
-    i <= count;
-    i++
-  ){
-
-    const card =
-    document.createElement("div");
-
-    card.className =
-    "passenger-card";
-
-    card.innerHTML = `
-
-      <div class="passenger-header">
-
-        <h4>
-          Passenger ${i}
-        </h4>
-
-        <button
-          type="button"
-          class="remove-passenger"
-        >
-          ✕
-        </button>
-
-      </div>
-
-      <div class="form-grid">
-
-        <div class="field-wrap">
-          <input
-            class="sharedClientName"
-            placeholder="Client Name"
-          >
-        </div>
-
-        <div class="field-wrap">
-          <input
-            class="sharedClientPhone"
-            placeholder="Client Phone"
-          >
-        </div>
-
-        <div class="field-wrap">
-          <input
-            class="sharedPickup"
-            placeholder="Pickup Address"
-          >
-        </div>
-
-        <div class="field-wrap">
-          <input
-            class="sharedDropoff"
-            placeholder="Dropoff Address"
-          >
-        </div>
-
-      </div>
-
-    `;
-
-    card.querySelector(
-      ".remove-passenger"
-    ).onclick = ()=>{
-
-      card.remove();
-
-    };
-
-    passengersContainer.appendChild(
-      card
-    );
-
-  }
-
-}
-
-if(passengerCount){
-
-  passengerCount.addEventListener(
-    "change",
-    function(){
-
-      renderSharedPassengers(
-        Number(this.value)
-      );
-
-    }
-  );
+  addStopBtn.onclick =
+  ()=>createStopInput();
 
 }
 
@@ -768,8 +660,7 @@ if(passengerCount){
 
 if(submitTripBtn){
 
-submitTripBtn.addEventListener(
-"click",
+submitTripBtn.onclick =
 async function(){
 
 if(
@@ -793,7 +684,7 @@ if(
 submitTripBtn.disabled = true;
 
 submitTripBtn.innerText =
-"Saving...";
+"Submitting...";
 
 try{
 
@@ -840,7 +731,7 @@ const trip = {
   dropoff:
   dropoffInput.value,
 
-  stops:stops,
+  stops,
 
   tripDate:
   tripDate.value,
@@ -850,16 +741,6 @@ const trip = {
 
   notes:
   notes.value,
-
-  priceAmount:0,
-
-  miles:0,
-
-  estimatedMinutes:0,
-
-  durationSeconds:0,
-
-  distanceMeters:0,
 
   status:"Scheduled"
 
@@ -873,7 +754,6 @@ await fetch(
     headers:{
       "Content-Type":
       "application/json",
-
       Authorization:
       "Bearer " + token
     },
@@ -884,8 +764,7 @@ await fetch(
 if(!res.ok){
 
   const err =
-  await res.json()
-  .catch(()=>({}));
+  await res.json();
 
   throw new Error(
     err.message ||
@@ -894,12 +773,11 @@ if(!res.ok){
 
 }
 
-const savedTrip =
-await res.json();
-
 showAlert(
-  `Trip Saved ✔\n\nTrip #: ${savedTrip.tripNumber}`
+  "Trip submitted successfully ✔"
 );
+
+/* 🔥 لا تفضي بيانات المدخل */
 
 clientName.value = "";
 clientPhone.value = "";
@@ -911,14 +789,18 @@ notes.value = "";
 
 stopsBox.innerHTML = "";
 
+localStorage.removeItem(
+  "companyTripDraft"
+);
+
 }catch(err){
+
+console.log(err);
 
 showAlert(
   err.message ||
   "Server Error"
 );
-
-console.log(err);
 
 }finally{
 
@@ -930,229 +812,15 @@ submitTripBtn.innerText =
 
 }
 
-});
+};
+
 }
 
 /* =====================================================
-   SUBMIT SHARED
+   LOAD SERVICES
 ===================================================== */
 
-if(submitSharedBtn){
-
-submitSharedBtn.addEventListener(
-"click",
-async function(){
-
-if(
-  !validateFutureTime(
-    sharedDate.value,
-    sharedTime.value
-  )
-){
-  return;
-}
-
-if(
-  !checkDynamicWarning(
-    sharedDate.value,
-    sharedTime.value
-  )
-){
-  return;
-}
-
-const passengers = [];
-
-document
-.querySelectorAll(
-  ".passenger-card"
-)
-.forEach((card,index)=>{
-
-  passengers.push({
-
-    passengerId:
-    "P" + (index + 1),
-
-    name:
-    card.querySelector(
-      ".sharedClientName"
-    ).value,
-
-    phone:
-    card.querySelector(
-      ".sharedClientPhone"
-    ).value,
-
-    clientName:
-    card.querySelector(
-      ".sharedClientName"
-    ).value,
-
-    clientPhone:
-    card.querySelector(
-      ".sharedClientPhone"
-    ).value,
-
-    pickup:
-    card.querySelector(
-      ".sharedPickup"
-    ).value,
-
-    dropoff:
-    card.querySelector(
-      ".sharedDropoff"
-    ).value,
-
-    status:"Scheduled"
-
-  });
-
-});
-
-submitSharedBtn.disabled =
-true;
-
-submitSharedBtn.innerText =
-"Saving...";
-
-try{
-
-const sharedTrip = {
-
-  company:companyName,
-
-  type:"company",
-
-  isShared:true,
-
-  tripType:"SHARED",
-
-  serviceType:"SHARED",
-
-  serviceSuffix:"SH",
-
-  sharedSuffix:"-SH",
-
-  entryName:
-  sharedEntryName.value,
-
-  entryPhone:
-  sharedEntryPhone.value,
-
-  clientName:
-  "Shared Trip",
-
-  clientPhone:
-  passengers[0]?.phone || "",
-
-  pickup:
-  passengers[0]?.pickup || "",
-
-  dropoff:
-  passengers[
-    passengers.length - 1
-  ]?.dropoff || "",
-
-  passengers:
-  passengers,
-
-  totalPassengers:
-  passengers.length,
-
-  tripDate:
-  sharedDate.value,
-
-  tripTime:
-  sharedTime.value,
-
-  notes:
-  sharedNotes.value,
-
-  priceAmount:0,
-
-  miles:0,
-
-  estimatedMinutes:0,
-
-  durationSeconds:0,
-
-  distanceMeters:0,
-
-  status:"Scheduled"
-
-};
-
-const res =
-await fetch(
-  "/api/trips",
-  {
-    method:"POST",
-    headers:{
-      "Content-Type":
-      "application/json",
-
-      Authorization:
-      "Bearer " + token
-    },
-    body:JSON.stringify(
-      sharedTrip
-    )
-  }
-);
-
-if(!res.ok){
-
-  const err =
-  await res.json()
-  .catch(()=>({}));
-
-  throw new Error(
-    err.message ||
-    "Server Error"
-  );
-
-}
-
-const savedTrip =
-await res.json();
-
-showAlert(
-  `Shared Trip Saved ✔\n\nTrip #: ${savedTrip.tripNumber}`
-);
-
-passengersContainer.innerHTML =
-"";
-
-sharedNotes.value = "";
-
-sharedDate.value = "";
-
-sharedTime.value = "";
-
-passengerCount.value = "";
-
-}catch(err){
-
-showAlert(
-  err.message ||
-  "Server Error"
-);
-
-console.log(err);
-
-}finally{
-
-submitSharedBtn.disabled =
-false;
-
-submitSharedBtn.innerText =
-"Submit Shared";
-
-}
-
-});
-}
+await loadCompanyServices();
 
 })(); // END ASYNC
 
