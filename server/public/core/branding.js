@@ -38,13 +38,21 @@ window.Branding = {
 
     }
 
-    this.applyGlobalBranding();
+this.applyGlobalBranding();
 
-    this.applyThemeEngine();
+const isHomePage =
 
-    return this.data;
+window.location.pathname === "/" ||
 
-  },
+window.location.pathname.includes("index");
+
+if(isHomePage){
+
+  this.applyThemeEngine();
+
+}
+
+},
 
   getCompanyName(){
 
