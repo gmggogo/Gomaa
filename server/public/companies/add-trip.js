@@ -1,3 +1,8 @@
+/* =====================================================
+   FILE: add-trip.js
+   FINAL DYNAMIC COMPANY SERVICES SYSTEM
+===================================================== */
+
 document.addEventListener("DOMContentLoaded", function(){
 
 const token = localStorage.getItem("token");
@@ -8,9 +13,69 @@ if (!token || role !== "company") {
   window.location.replace("company-login.html");
   return;
 }
-/* =========================
+
+/* =====================================================
+   COMPANY SERVICES
+===================================================== */
+
+let COMPANY_SERVICES = [
+
+  {
+    key:"STANDARD",
+    title:"Standard",
+    suffix:"ST",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"XL",
+    title:"XL",
+    suffix:"XL",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"TAXI",
+    title:"Taxi",
+    suffix:"TX",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"LIMO",
+    title:"Limousine",
+    suffix:"LM",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"WHEELCHAIR",
+    title:"Wheelchair",
+    suffix:"WH",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"SHARED",
+    title:"Shared",
+    suffix:"SH",
+    shared:true,
+    active:true
+  }
+
+];
+
+let activeService = "STANDARD";
+let activeSuffix  = "ST";
+
+/* =====================================================
    BILLING CHECK
-========================= */
+===================================================== */
 
 async function checkBillingLock(){
 
@@ -107,99 +172,163 @@ async function checkBillingLock(){
 
 (async()=>{
 
-  const ok =
-    await checkBillingLock();
+const ok = await checkBillingLock();
 
-  if(!ok){
-    return;
-  }
+if(!ok){
+  return;
+}
 
-  /* =============================
-     TABS
-  ============================= */
+/* =====================================================
+   DYNAMIC TABS
+===================================================== */
 
-  const tabIndividual =
-    document.getElementById("tabIndividual");
+const companyTabs =
+document.getElementById(
+  "companyTabs"
+);
 
-  const tabShared =
-    document.getElementById("tabShared");
+const individualSection =
+document.getElementById(
+  "individualSection"
+);
 
-  const individualSection =
-    document.getElementById("individualSection");
+const sharedSection =
+document.getElementById(
+  "sharedSection"
+);
 
-  const sharedSection =
-    document.getElementById("sharedSection");
+function buildDynamicTabs(){
 
-  if(
-    tabIndividual &&
-    tabShared &&
-    individualSection &&
-    sharedSection
-  ){
+  if(!companyTabs) return;
 
-    tabIndividual.addEventListener(
-      "click",
-      function(){
+  companyTabs.innerHTML = "";
 
-        individualSection.style.display =
-          "block";
+  const activeTabs =
+  COMPANY_SERVICES.filter(
+    s => s.active === true
+  );
 
-        sharedSection.style.display =
+  activeTabs.forEach(
+    (service,index)=>{
+
+      const btn =
+      document.createElement(
+        "button"
+      );
+
+      btn.type = "button";
+
+      btn.innerText =
+      service.title;
+
+      btn.dataset.service =
+      service.key;
+
+      btn.dataset.suffix =
+      service.suffix;
+
+      btn.className =
+        index === 0
+        ? "btn-blue"
+        : "btn-gray";
+
+      if(index === 0){
+
+        activeService =
+        service.key;
+
+        activeSuffix =
+        service.suffix;
+
+        if(service.shared){
+
+          individualSection.style.display =
           "none";
 
-        tabIndividual.classList.add(
-          "btn-blue"
-        );
-
-        tabIndividual.classList.remove(
-          "btn-gray"
-        );
-
-        tabShared.classList.add(
-          "btn-gray"
-        );
-
-        tabShared.classList.remove(
-          "btn-blue"
-        );
-
-      }
-    );
-
-    tabShared.addEventListener(
-      "click",
-      function(){
-
-        individualSection.style.display =
-          "none";
-
-        sharedSection.style.display =
+          sharedSection.style.display =
           "block";
 
-        tabShared.classList.add(
-          "btn-blue"
-        );
+        }else{
 
-        tabShared.classList.remove(
-          "btn-gray"
-        );
+          individualSection.style.display =
+          "block";
 
-        tabIndividual.classList.add(
-          "btn-gray"
-        );
+          sharedSection.style.display =
+          "none";
 
-        tabIndividual.classList.remove(
-          "btn-blue"
-        );
+        }
 
       }
-    );
 
-  }
+      companyTabs.appendChild(
+        btn
+      );
 
-/* =============================
+      btn.addEventListener(
+        "click",
+        function(){
+
+          companyTabs
+          .querySelectorAll(
+            "button"
+          )
+          .forEach(b=>{
+
+            b.classList.remove(
+              "btn-blue"
+            );
+
+            b.classList.add(
+              "btn-gray"
+            );
+
+          });
+
+          btn.classList.remove(
+            "btn-gray"
+          );
+
+          btn.classList.add(
+            "btn-blue"
+          );
+
+          activeService =
+          service.key;
+
+          activeSuffix =
+          service.suffix;
+
+          if(service.shared){
+
+            individualSection.style.display =
+            "none";
+
+            sharedSection.style.display =
+            "block";
+
+          }else{
+
+            individualSection.style.display =
+            "block";
+
+            sharedSection.style.display =
+            "none";
+
+          }
+
+        }
+      );
+
+    }
+  );
+
+}
+
+buildDynamicTabs();
+
+/* =====================================================
    ELEMENTS
-============================= */
+===================================================== */
 
 const entryName   = document.getElementById("entryName");
 const entryPhone  = document.getElementById("entryPhone");
@@ -221,758 +350,816 @@ const addStopBtn = document.getElementById("addStopBtn");
 const saveTripBtn   = document.getElementById("saveTrip");
 const submitTripBtn = document.getElementById("submitTrip");
 
-/* SHARED ELEMENTS */
+/* SHARED */
 
-const sharedEntryName  = document.getElementById("sharedEntryName");
-const sharedEntryPhone = document.getElementById("sharedEntryPhone");
-const editSharedEntry  = document.getElementById("editSharedEntry");
+const sharedEntryName  =
+document.getElementById(
+  "sharedEntryName"
+);
 
-const passengerCount   = document.getElementById("passengerCount");
-const sharedDate       = document.getElementById("sharedDate");
-const sharedTime       = document.getElementById("sharedTime");
-const sharedNotes      = document.getElementById("sharedNotes");
-const passengersContainer = document.getElementById("passengersContainer");
-const saveSharedBtn = document.getElementById("saveShared");
-const submitSharedBtn = document.getElementById("submitShared");
+const sharedEntryPhone =
+document.getElementById(
+  "sharedEntryPhone"
+);
+
+const editSharedEntry  =
+document.getElementById(
+  "editSharedEntry"
+);
+
+const passengerCount =
+document.getElementById(
+  "passengerCount"
+);
+
+const sharedDate =
+document.getElementById(
+  "sharedDate"
+);
+
+const sharedTime =
+document.getElementById(
+  "sharedTime"
+);
+
+const sharedNotes =
+document.getElementById(
+  "sharedNotes"
+);
+
+const passengersContainer =
+document.getElementById(
+  "passengersContainer"
+);
+
+const saveSharedBtn =
+document.getElementById(
+  "saveShared"
+);
+
+const submitSharedBtn =
+document.getElementById(
+  "submitShared"
+);
 
 let stopCounter = 0;
 
-/* =============================
+/* =====================================================
    HELPERS
-============================= */
+===================================================== */
 
 function getArizonaNow(){
+
   return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+        "America/Phoenix"
+      }
+    )
   );
+
 }
 
 function normalizeText(value){
-  return String(value ?? "").trim();
+
+  return String(
+    value ?? ""
+  ).trim();
+
 }
 
 function showAlert(msg){
+
   alert(msg);
+
 }
 
-function escapeAttr(value){
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+function validateFutureTime(
+  dateValue,
+  timeValue
+){
 
-function validateFutureTime(dateValue, timeValue){
   if(!dateValue || !timeValue){
-    showAlert("Please select trip date and time.");
+
+    showAlert(
+      "Please select trip date and time."
+    );
+
     return false;
+
   }
 
-  const tripDateTime = new Date(`${dateValue}T${timeValue}:00`);
-  const now = getArizonaNow();
+  const tripDateTime =
+  new Date(
+    `${dateValue}T${timeValue}:00`
+  );
 
-  if(isNaN(tripDateTime.getTime())){
-    showAlert("Invalid trip date/time.");
+  const now =
+  getArizonaNow();
+
+  if(
+    isNaN(
+      tripDateTime.getTime()
+    )
+  ){
+
+    showAlert(
+      "Invalid trip date/time."
+    );
+
     return false;
+
   }
 
   if(tripDateTime <= now){
-    showAlert("Trip time already passed. You cannot add a past trip.");
+
+    showAlert(
+      "Trip time already passed."
+    );
+
     return false;
+
   }
 
   return true;
+
 }
 
-function check120(dateValue, timeValue){
-  if(!dateValue || !timeValue) return true;
+function check120(
+  dateValue,
+  timeValue
+){
 
-  const tripDateTime = new Date(`${dateValue}T${timeValue}:00`);
-  const now = getArizonaNow();
-  const diff = (tripDateTime - now) / 60000;
+  if(!dateValue || !timeValue)
+    return true;
+
+  const tripDateTime =
+  new Date(
+    `${dateValue}T${timeValue}:00`
+  );
+
+  const now =
+  getArizonaNow();
+
+  const diff =
+  (tripDateTime - now) / 60000;
 
   if(diff < 120){
-    return confirm("Trip is within 120 minutes.\nEditing may be restricted.\nContinue?");
+
+    return confirm(
+      "Trip is within 120 minutes.\n\nContinue?"
+    );
+
   }
 
   return true;
+
 }
 
-/* =============================
-   ENTRY INFO
-============================= */
+/* =====================================================
+   ENTRY STORAGE
+===================================================== */
 
 function saveEntryInfo(){
-  localStorage.setItem("entryInfo", JSON.stringify({
-    name: entryName.value,
-    phone: entryPhone.value
-  }));
+
+  localStorage.setItem(
+    "entryInfo",
+    JSON.stringify({
+      name:entryName.value,
+      phone:entryPhone.value
+    })
+  );
+
 }
 
 function loadEntry(){
+
   let saved = null;
 
   try{
-    saved = JSON.parse(localStorage.getItem("entryInfo"));
+
+    saved = JSON.parse(
+      localStorage.getItem(
+        "entryInfo"
+      )
+    );
+
   }catch(e){
+
     saved = null;
+
   }
 
-  if(saved){
-    entryName.value  = saved.name || "";
-    entryPhone.value = saved.phone || "";
-    entryName.disabled = true;
-    entryPhone.disabled = true;
+  if(!saved) return;
 
-    if(editEntry) editEntry.textContent = "Edit";
+  entryName.value =
+  saved.name || "";
 
-    if(sharedEntryName){
-      sharedEntryName.value = saved.name || "";
-      sharedEntryName.disabled = true;
-    }
+  entryPhone.value =
+  saved.phone || "";
 
-    if(sharedEntryPhone){
-      sharedEntryPhone.value = saved.phone || "";
-      sharedEntryPhone.disabled = true;
-    }
+  sharedEntryName.value =
+  saved.name || "";
 
-    if(editSharedEntry){
-      editSharedEntry.textContent = "Edit";
-    }
-  }else{
-    entryName.disabled = false;
-    entryPhone.disabled = false;
+  sharedEntryPhone.value =
+  saved.phone || "";
 
-    if(editEntry) editEntry.textContent = "Save";
-
-    if(sharedEntryName) sharedEntryName.disabled = false;
-    if(sharedEntryPhone) sharedEntryPhone.disabled = false;
-    if(editSharedEntry) editSharedEntry.textContent = "Save";
-  }
 }
 
-if(editEntry){
-  editEntry.addEventListener("click", function(){
+loadEntry();
 
-    if(entryName.disabled){
-      entryName.disabled = false;
-      entryPhone.disabled = false;
-      editEntry.textContent = "Save";
-    }else{
-      saveEntryInfo();
-
-      if(sharedEntryName){
-        sharedEntryName.value = entryName.value;
-        sharedEntryName.disabled = true;
-      }
-
-      if(sharedEntryPhone){
-        sharedEntryPhone.value = entryPhone.value;
-        sharedEntryPhone.disabled = true;
-      }
-
-      if(editSharedEntry){
-        editSharedEntry.textContent = "Edit";
-      }
-
-      entryName.disabled = true;
-      entryPhone.disabled = true;
-      editEntry.textContent = "Edit";
-
-      showAlert("Entry information saved ✔");
-    }
-
-  });
-}
-
-if(editSharedEntry){
-  editSharedEntry.addEventListener("click", function(){
-
-    if(sharedEntryName.disabled){
-      sharedEntryName.disabled = false;
-      sharedEntryPhone.disabled = false;
-      editSharedEntry.textContent = "Save";
-    }else{
-      localStorage.setItem("entryInfo", JSON.stringify({
-        name: sharedEntryName.value,
-        phone: sharedEntryPhone.value
-      }));
-
-      entryName.value = sharedEntryName.value;
-      entryPhone.value = sharedEntryPhone.value;
-
-      entryName.disabled = true;
-      entryPhone.disabled = true;
-      if(editEntry) editEntry.textContent = "Edit";
-
-      sharedEntryName.disabled = true;
-      sharedEntryPhone.disabled = true;
-      editSharedEntry.textContent = "Edit";
-
-      showAlert("Entry information saved ✔");
-    }
-
-  });
-}
-
-/* =============================
+/* =====================================================
    STOPS
-============================= */
+===================================================== */
 
-function createStopInput(value = ""){
-  const currentStops = stopsBox.querySelectorAll(".stop-input").length;
+function createStopInput(
+  value = ""
+){
+
+  const currentStops =
+  stopsBox.querySelectorAll(
+    ".stop-input"
+  ).length;
 
   if(currentStops >= 5){
-    showAlert("Maximum 5 stops allowed.");
-    return null;
+
+    showAlert(
+      "Maximum 5 stops allowed."
+    );
+
+    return;
+
   }
 
-  const wrapper = document.createElement("div");
-  wrapper.className = "stop-row";
+  const wrapper =
+  document.createElement("div");
 
-  const input = document.createElement("input");
+  wrapper.className =
+  "stop-row";
+
+  const input =
+  document.createElement("input");
+
   input.type = "text";
-  input.placeholder = "Stop address";
-  input.className = "stop-input";
+
+  input.className =
+  "stop-input";
+
+  input.placeholder =
+  "Stop address";
+
   input.value = value;
 
-  stopCounter += 1;
-  input.dataset.stopId = `stop_${stopCounter}`;
+  const removeBtn =
+  document.createElement(
+    "button"
+  );
 
-  const removeBtn = document.createElement("button");
   removeBtn.type = "button";
-  removeBtn.className = "remove-stop-btn btn-gray";
-  removeBtn.textContent = "✕";
-  removeBtn.style.marginTop = "6px";
+
+  removeBtn.className =
+  "remove-stop-btn";
+
+  removeBtn.innerText = "✕";
+
+  removeBtn.onclick = ()=>{
+    wrapper.remove();
+  };
 
   wrapper.appendChild(input);
-  wrapper.appendChild(removeBtn);
-  stopsBox.appendChild(wrapper);
 
-  removeBtn.addEventListener("click", function(){
-    wrapper.remove();
-  });
+  wrapper.appendChild(
+    removeBtn
+  );
 
-  return input;
+  stopsBox.appendChild(
+    wrapper
+  );
+
 }
 
 if(addStopBtn){
-  addStopBtn.addEventListener("click", function(){
-    createStopInput();
-  });
+
+  addStopBtn.addEventListener(
+    "click",
+    function(){
+
+      createStopInput();
+
+    }
+  );
+
 }
 
-/* =============================
-   INDIVIDUAL DRAFT
-============================= */
-
-function saveTripDraftToLocal(){
-  const draft = {
-    clientName: clientName.value,
-    clientPhone: clientPhone.value,
-    pickup: pickupInput.value,
-    dropoff: dropoffInput.value,
-    tripDate: tripDate.value,
-    tripTime: tripTime.value,
-    notes: notes.value,
-    stops: [...stopsBox.querySelectorAll(".stop-input")].map(input => input.value)
-  };
-
-  localStorage.setItem("tripDraft", JSON.stringify(draft));
-}
-
-function loadTripDraft(){
-  let draft = null;
-
-  try{
-    draft = JSON.parse(localStorage.getItem("tripDraft"));
-  }catch(e){
-    draft = null;
-  }
-
-  if(!draft) return;
-
-  clientName.value  = draft.clientName || "";
-  clientPhone.value = draft.clientPhone || "";
-
-  pickupInput.value  = draft.pickup || "";
-  dropoffInput.value = draft.dropoff || "";
-
-  tripDate.value = draft.tripDate || "";
-  tripTime.value = draft.tripTime || "";
-  notes.value    = draft.notes || "";
-
-  stopsBox.innerHTML = "";
-  stopCounter = 0;
-
-  const draftStops = Array.isArray(draft.stops) ? draft.stops : [];
-  draftStops.forEach(stopText => {
-    createStopInput(stopText || "");
-  });
-}
-
-function removeTripDraft(){
-  localStorage.removeItem("tripDraft");
-}
-
-if(saveTripBtn){
-  saveTripBtn.addEventListener("click", function(){
-    saveTripDraftToLocal();
-    showAlert("Trip saved locally ✔");
-  });
-}
-
-function clearTripForm(){
-  clientName.value = "";
-  clientPhone.value = "";
-  pickupInput.value = "";
-  dropoffInput.value = "";
-  tripDate.value = "";
-  tripTime.value = "";
-  notes.value = "";
-  stopsBox.innerHTML = "";
-  stopCounter = 0;
-}
-
-/* =============================
-   SUBMIT INDIVIDUAL
-============================= */
-
-if(submitTripBtn){
-  submitTripBtn.addEventListener("click", async function(){
-
-    if(!validateFutureTime(tripDate.value, tripTime.value)){
-      return;
-    }
-
-    if(!check120(tripDate.value, tripTime.value)){
-      return;
-    }
-
-    if(!normalizeText(clientName.value)){
-      showAlert("Client name required.");
-      clientName.focus();
-      return;
-    }
-
-    if(!normalizeText(clientPhone.value)){
-      showAlert("Client phone required.");
-      clientPhone.focus();
-      return;
-    }
-
-    if(!normalizeText(pickupInput.value)){
-      showAlert("Pickup address required.");
-      pickupInput.focus();
-      return;
-    }
-
-    if(!normalizeText(dropoffInput.value)){
-      showAlert("Dropoff address required.");
-      dropoffInput.focus();
-      return;
-    }
-
-    submitTripBtn.disabled = true;
-    submitTripBtn.textContent = "Saving...";
-
-    try{
-      const stops = [...stopsBox.querySelectorAll(".stop-input")]
-        .map(input => normalizeText(input.value))
-        .filter(Boolean);
-
-      const trip = {
-        company: companyName,
-
-        type: "company",
-        tripType: "INDIVIDUAL",
-        isShared: false,
-
-        entryName: entryName.value,
-        entryPhone: entryPhone.value,
-
-        clientName: clientName.value,
-        clientPhone: clientPhone.value,
-
-        pickup: pickupInput.value,
-        dropoff: dropoffInput.value,
-
-        pickupLat: null,
-        pickupLng: null,
-        dropoffLat: null,
-        dropoffLng: null,
-
-        stops: stops,
-        stopCoords: [],
-
-        tripDate: tripDate.value,
-        tripTime: tripTime.value,
-        timezone: "America/Phoenix",
-
-        notes: notes.value,
-
-        priceAmount: 0,
-        basePrice: 0,
-        finalPrice: 0,
-        miles: 0,
-        distanceMeters: 0,
-        durationSeconds: 0,
-        estimatedMinutes: 0,
-
-        status: "Scheduled"
-      };
-
-      const res = await fetch("/api/trips", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify(trip)
-      });
-
-      if(!res.ok){
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Server error");
-      }
-
-      const savedTrip = await res.json().catch(() => trip);
-      localStorage.setItem("lastTrip", JSON.stringify(savedTrip));
-      localStorage.setItem("reviewTrip", JSON.stringify(savedTrip));
-
-      saveEntryInfo();
-      removeTripDraft();
-      clearTripForm();
-
-      showAlert("Trip saved ✔");
-      clientName.focus();
-
-    }catch(err){
-      showAlert(err.message || "Server error saving trip.");
-      console.error(err);
-    }finally{
-      submitTripBtn.disabled = false;
-      submitTripBtn.textContent = "Submit Trip";
-    }
-
-  });
-}
-
-/* =============================
+/* =====================================================
    SHARED PASSENGERS
-============================= */
+===================================================== */
 
-function updatePassengerCountFromCards(){
-  const remaining = document.querySelectorAll(".passenger-card").length;
+function renderSharedPassengers(
+  count
+){
 
-  if(passengerCount){
-    if(remaining >= 2 && remaining <= 4){
-      passengerCount.value = String(remaining);
-    }else{
-      passengerCount.value = "";
-    }
+  passengersContainer.innerHTML =
+  "";
+
+  for(
+    let i = 1;
+    i <= count;
+    i++
+  ){
+
+    const card =
+    document.createElement("div");
+
+    card.className =
+    "passenger-card";
+
+    card.innerHTML = `
+
+      <div class="passenger-header">
+
+        <h4>
+          Passenger ${i}
+        </h4>
+
+        <button
+          type="button"
+          class="remove-passenger"
+        >
+          ✕
+        </button>
+
+      </div>
+
+      <div class="form-grid">
+
+        <div class="field-wrap">
+          <input
+            class="sharedClientName"
+            placeholder="Client Name"
+          >
+        </div>
+
+        <div class="field-wrap">
+          <input
+            class="sharedClientPhone"
+            placeholder="Client Phone"
+          >
+        </div>
+
+        <div class="field-wrap">
+          <input
+            class="sharedPickup"
+            placeholder="Pickup Address"
+          >
+        </div>
+
+        <div class="field-wrap">
+          <input
+            class="sharedDropoff"
+            placeholder="Dropoff Address"
+          >
+        </div>
+
+      </div>
+
+    `;
+
+    card.querySelector(
+      ".remove-passenger"
+    ).onclick = ()=>{
+
+      card.remove();
+
+    };
+
+    passengersContainer.appendChild(
+      card
+    );
+
   }
 
-  reindexPassengerCards();
-}
-
-function reindexPassengerCards(){
-  document.querySelectorAll(".passenger-card").forEach((card, idx) => {
-    const title = card.querySelector(".passenger-title");
-    if(title){
-      title.textContent = `Passenger ${idx + 1}`;
-    }
-  });
-}
-
-function createPassengerCard(index, data = {}){
-  const card = document.createElement("div");
-  card.className = "passenger-card";
-
-  card.innerHTML = `
-    <div class="passenger-header">
-      <h4 class="passenger-title">Passenger ${index}</h4>
-      <button type="button" class="remove-passenger">✕</button>
-    </div>
-
-    <div class="form-grid">
-      <div class="field-wrap">
-        <input class="sharedClientName" placeholder="Client Name" value="${escapeAttr(data.clientName || "")}">
-      </div>
-      <div class="field-wrap">
-        <input class="sharedClientPhone" placeholder="Client Phone" value="${escapeAttr(data.clientPhone || "")}">
-      </div>
-      <div class="field-wrap">
-        <input class="sharedPickup" placeholder="Pickup Address" value="${escapeAttr(data.pickup || "")}" autocomplete="off">
-      </div>
-      <div class="field-wrap">
-        <input class="sharedDropoff" placeholder="Dropoff Address" value="${escapeAttr(data.dropoff || "")}" autocomplete="off">
-      </div>
-    </div>
-  `;
-
-  const removeBtn = card.querySelector(".remove-passenger");
-
-  removeBtn.addEventListener("click", function(){
-    card.remove();
-    updatePassengerCountFromCards();
-  });
-
-  passengersContainer.appendChild(card);
-}
-
-function renderSharedPassengers(count, savedPassengers = []){
-  passengersContainer.innerHTML = "";
-
-  if(count < 2 || count > 4) return;
-
-  for(let i = 1; i <= count; i++){
-    createPassengerCard(i, savedPassengers[i - 1] || {});
-  }
-
-  updatePassengerCountFromCards();
 }
 
 if(passengerCount){
-  passengerCount.addEventListener("change", function(){
-    const count = Number(this.value);
-    renderSharedPassengers(count);
-  });
+
+  passengerCount.addEventListener(
+    "change",
+    function(){
+
+      renderSharedPassengers(
+        Number(this.value)
+      );
+
+    }
+  );
+
 }
 
-/* =============================
-   SHARED DRAFT
-============================= */
+/* =====================================================
+   SUBMIT INDIVIDUAL
+===================================================== */
 
-function collectSharedPassengersRaw(){
-  const passengers = [];
+if(submitTripBtn){
 
-  document.querySelectorAll(".passenger-card").forEach((card, index) => {
-    const clientNameValue = normalizeText(card.querySelector(".sharedClientName")?.value);
-    const clientPhoneValue = normalizeText(card.querySelector(".sharedClientPhone")?.value);
-    const pickupValue = normalizeText(card.querySelector(".sharedPickup")?.value);
-    const dropoffValue = normalizeText(card.querySelector(".sharedDropoff")?.value);
+submitTripBtn.addEventListener(
+"click",
+async function(){
 
-    passengers.push({
-      passengerId: `P${index + 1}`,
-
-      name: clientNameValue,
-      phone: clientPhoneValue,
-
-      clientName: clientNameValue,
-      clientPhone: clientPhoneValue,
-
-      pickup: pickupValue,
-      dropoff: dropoffValue,
-
-      pickupLat: null,
-      pickupLng: null,
-      dropoffLat: null,
-      dropoffLng: null,
-
-      status: "Scheduled",
-      basePrice: 0,
-      finalPrice: 0,
-      priceAmount: 0
-    });
-  });
-
-  return passengers;
+if(
+  !validateFutureTime(
+    tripDate.value,
+    tripTime.value
+  )
+){
+  return;
 }
 
-function saveSharedDraft(){
-  const draft = {
-    entryName: sharedEntryName.value,
-    entryPhone: sharedEntryPhone.value,
-    passengerCount: passengerCount.value,
-    sharedDate: sharedDate.value,
-    sharedTime: sharedTime.value,
-    sharedNotes: sharedNotes.value,
-    passengers: collectSharedPassengersRaw()
-  };
-
-  localStorage.setItem("sharedTripDraft", JSON.stringify(draft));
+if(
+  !check120(
+    tripDate.value,
+    tripTime.value
+  )
+){
+  return;
 }
 
-function loadSharedDraft(){
-  let draft = null;
+submitTripBtn.disabled = true;
 
-  try{
-    draft = JSON.parse(localStorage.getItem("sharedTripDraft"));
-  }catch(e){
-    draft = null;
+submitTripBtn.innerText =
+"Saving...";
+
+try{
+
+const stops =
+[
+  ...document.querySelectorAll(
+    ".stop-input"
+  )
+]
+.map(i=>normalizeText(i.value))
+.filter(Boolean);
+
+const trip = {
+
+  company:companyName,
+
+  type:"company",
+
+  tripType:"INDIVIDUAL",
+
+  isShared:false,
+
+  serviceType:
+  activeService,
+
+  serviceSuffix:
+  activeSuffix,
+
+  entryName:
+  entryName.value,
+
+  entryPhone:
+  entryPhone.value,
+
+  clientName:
+  clientName.value,
+
+  clientPhone:
+  clientPhone.value,
+
+  pickup:
+  pickupInput.value,
+
+  dropoff:
+  dropoffInput.value,
+
+  stops:stops,
+
+  tripDate:
+  tripDate.value,
+
+  tripTime:
+  tripTime.value,
+
+  notes:
+  notes.value,
+
+  priceAmount:0,
+
+  miles:0,
+
+  estimatedMinutes:0,
+
+  durationSeconds:0,
+
+  distanceMeters:0,
+
+  status:"Scheduled"
+
+};
+
+const res =
+await fetch(
+  "/api/trips",
+  {
+    method:"POST",
+    headers:{
+      "Content-Type":
+      "application/json",
+
+      Authorization:
+      "Bearer " + token
+    },
+    body:JSON.stringify(trip)
   }
+);
 
-  if(!draft) return;
+if(!res.ok){
 
-  sharedEntryName.value = draft.entryName || "";
-  sharedEntryPhone.value = draft.entryPhone || "";
-  passengerCount.value = draft.passengerCount || "";
-  sharedDate.value = draft.sharedDate || "";
-  sharedTime.value = draft.sharedTime || "";
-  sharedNotes.value = draft.sharedNotes || "";
+  const err =
+  await res.json()
+  .catch(()=>({}));
 
-  if(draft.passengerCount){
-    renderSharedPassengers(Number(draft.passengerCount), draft.passengers || []);
-  }
+  throw new Error(
+    err.message ||
+    "Server Error"
+  );
+
 }
 
-function clearSharedTripOnly(){
-  passengerCount.value = "";
-  sharedDate.value = "";
-  sharedTime.value = "";
-  sharedNotes.value = "";
-  passengersContainer.innerHTML = "";
+const savedTrip =
+await res.json();
+
+localStorage.setItem(
+  "reviewTrip",
+  JSON.stringify(savedTrip)
+);
+
+showAlert(
+  `Trip Saved ✔\n\nTrip #: ${savedTrip.tripNumber}`
+);
+
+clientName.value = "";
+clientPhone.value = "";
+pickupInput.value = "";
+dropoffInput.value = "";
+tripDate.value = "";
+tripTime.value = "";
+notes.value = "";
+
+stopsBox.innerHTML = "";
+
+}catch(err){
+
+showAlert(
+  err.message ||
+  "Server Error"
+);
+
+console.log(err);
+
+}finally{
+
+submitTripBtn.disabled =
+false;
+
+submitTripBtn.innerText =
+"Submit Trip";
+
 }
 
-if(saveSharedBtn){
-  saveSharedBtn.addEventListener("click", function(){
-    saveSharedDraft();
-    showAlert("Shared trip saved locally ✔");
-  });
+});
 }
 
-/* =============================
+/* =====================================================
    SUBMIT SHARED
-============================= */
+===================================================== */
 
 if(submitSharedBtn){
-  submitSharedBtn.addEventListener("click", async function(){
 
-    const count = Number(passengerCount.value);
+submitSharedBtn.addEventListener(
+"click",
+async function(){
 
-    if(count < 2 || count > 4){
-      showAlert("Please select 2 to 4 passengers.");
-      return;
-    }
-
-    if(!validateFutureTime(sharedDate.value, sharedTime.value)){
-      return;
-    }
-
-    if(!check120(sharedDate.value, sharedTime.value)){
-      return;
-    }
-
-    const passengers = collectSharedPassengersRaw();
-
-    if(passengers.length !== count){
-      showAlert("Passenger cards are not complete.");
-      return;
-    }
-
-    for(let i = 0; i < passengers.length; i++){
-      const p = passengers[i];
-
-      if(!p.clientName || !p.clientPhone || !p.pickup || !p.dropoff){
-        showAlert(`Passenger ${i + 1} is missing required information.`);
-        return;
-      }
-    }
-
-    submitSharedBtn.disabled = true;
-    submitSharedBtn.textContent = "Saving...";
-
-    try{
-      const firstPassenger = passengers[0];
-      const lastPassenger = passengers[passengers.length - 1];
-
-      const sharedTrip = {
-        company: companyName,
-
-        type: "company",
-        isShared: true,
-        tripType: "SHARED",
-        sharedSuffix: "-SH",
-
-        entryName: sharedEntryName.value,
-        entryPhone: sharedEntryPhone.value,
-
-        clientName: "Shared Trip",
-        clientPhone: firstPassenger.clientPhone,
-
-        pickup: firstPassenger.pickup,
-        pickupLat: null,
-        pickupLng: null,
-
-        dropoff: lastPassenger.dropoff,
-        dropoffLat: null,
-        dropoffLng: null,
-
-        passengerCount: passengers.length,
-        totalPassengers: passengers.length,
-        passengers: passengers,
-
-        tripDate: sharedDate.value,
-        tripTime: sharedTime.value,
-        timezone: "America/Phoenix",
-
-        stops: [],
-        stopCoords: [],
-
-        notes: sharedNotes.value,
-
-        priceAmount: 0,
-        basePrice: 0,
-        finalPrice: 0,
-        pricePerPassenger: 0,
-        miles: 0,
-        distanceMeters: 0,
-        durationSeconds: 0,
-        estimatedMinutes: 0,
-
-        route: [],
-        pricingPolicy: {},
-        googleRoute: {},
-
-        status: "Scheduled"
-      };
-
-      const res = await fetch("/api/trips", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify(sharedTrip)
-      });
-
-      if(!res.ok){
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Server error");
-      }
-
-      const savedTrip = await res.json().catch(() => sharedTrip);
-      localStorage.setItem("lastTrip", JSON.stringify(savedTrip));
-      localStorage.setItem("reviewTrip", JSON.stringify(savedTrip));
-
-      localStorage.removeItem("sharedTripDraft");
-
-      saveEntryInfo();
-      clearSharedTripOnly();
-
-      showAlert("Shared trip saved ✔");
-
-    }catch(err){
-      showAlert(err.message || "Server error saving shared trip.");
-      console.error(err);
-    }finally{
-      submitSharedBtn.disabled = false;
-      submitSharedBtn.textContent = "Submit Shared";
-    }
-
-  });
+if(
+  !validateFutureTime(
+    sharedDate.value,
+    sharedTime.value
+  )
+){
+  return;
 }
 
-/* =============================
-   INIT
-============================= */
+if(
+  !check120(
+    sharedDate.value,
+    sharedTime.value
+  )
+){
+  return;
+}
 
-loadEntry();
-loadTripDraft();
-loadSharedDraft();
+const passengers = [];
+
+document
+.querySelectorAll(
+  ".passenger-card"
+)
+.forEach((card,index)=>{
+
+  passengers.push({
+
+    passengerId:
+    "P" + (index + 1),
+
+    name:
+    card.querySelector(
+      ".sharedClientName"
+    ).value,
+
+    phone:
+    card.querySelector(
+      ".sharedClientPhone"
+    ).value,
+
+    clientName:
+    card.querySelector(
+      ".sharedClientName"
+    ).value,
+
+    clientPhone:
+    card.querySelector(
+      ".sharedClientPhone"
+    ).value,
+
+    pickup:
+    card.querySelector(
+      ".sharedPickup"
+    ).value,
+
+    dropoff:
+    card.querySelector(
+      ".sharedDropoff"
+    ).value,
+
+    status:"Scheduled"
+
+  });
+
+});
+
+submitSharedBtn.disabled =
+true;
+
+submitSharedBtn.innerText =
+"Saving...";
+
+try{
+
+const sharedTrip = {
+
+  company:companyName,
+
+  type:"company",
+
+  isShared:true,
+
+  tripType:"SHARED",
+
+  serviceType:"SHARED",
+
+  serviceSuffix:"SH",
+
+  sharedSuffix:"-SH",
+
+  entryName:
+  sharedEntryName.value,
+
+  entryPhone:
+  sharedEntryPhone.value,
+
+  clientName:
+  "Shared Trip",
+
+  clientPhone:
+  passengers[0]?.phone || "",
+
+  pickup:
+  passengers[0]?.pickup || "",
+
+  dropoff:
+  passengers[
+    passengers.length - 1
+  ]?.dropoff || "",
+
+  passengers:
+  passengers,
+
+  totalPassengers:
+  passengers.length,
+
+  tripDate:
+  sharedDate.value,
+
+  tripTime:
+  sharedTime.value,
+
+  notes:
+  sharedNotes.value,
+
+  priceAmount:0,
+
+  miles:0,
+
+  estimatedMinutes:0,
+
+  durationSeconds:0,
+
+  distanceMeters:0,
+
+  status:"Scheduled"
+
+};
+
+const res =
+await fetch(
+  "/api/trips",
+  {
+    method:"POST",
+    headers:{
+      "Content-Type":
+      "application/json",
+
+      Authorization:
+      "Bearer " + token
+    },
+    body:JSON.stringify(
+      sharedTrip
+    )
+  }
+);
+
+if(!res.ok){
+
+  const err =
+  await res.json()
+  .catch(()=>({}));
+
+  throw new Error(
+    err.message ||
+    "Server Error"
+  );
+
+}
+
+const savedTrip =
+await res.json();
+
+localStorage.setItem(
+  "reviewTrip",
+  JSON.stringify(savedTrip)
+);
+
+showAlert(
+  `Shared Trip Saved ✔\n\nTrip #: ${savedTrip.tripNumber}`
+);
+
+passengersContainer.innerHTML =
+"";
+
+sharedNotes.value = "";
+
+sharedDate.value = "";
+
+sharedTime.value = "";
+
+passengerCount.value = "";
+
+}catch(err){
+
+showAlert(
+  err.message ||
+  "Server Error"
+);
+
+console.log(err);
+
+}finally{
+
+submitSharedBtn.disabled =
+false;
+
+submitSharedBtn.innerText =
+"Submit Shared";
+
+}
+
+});
+}
 
 })(); // END ASYNC
 
-}); // END DOMContentLoaded
+}); // END DOM

@@ -49,16 +49,19 @@ body{
   background:#e2e8f0;
   padding:6px;
   border-radius:14px;
+  overflow-x:auto;
 }
 
 .tabs button{
   flex:1;
+  min-width:120px;
   padding:13px;
   border:none;
   border-radius:11px;
   font-size:13px;
   font-weight:700;
   cursor:pointer;
+  white-space:nowrap;
 }
 
 /* ================= BUTTON COLORS ================= */
@@ -235,6 +238,7 @@ button:hover{
   .tabs button{
     font-size:11px;
     padding:11px;
+    min-width:100px;
   }
 
   .form-grid{
@@ -287,22 +291,6 @@ button:hover{
 
 }
 
-/* ================= LARGE SCREEN ================= */
-
-@media(min-width:1600px){
-
-  section h3{
-    font-size:17px;
-  }
-
-  input,
-  textarea,
-  select{
-    font-size:14px;
-  }
-
-}
-
 </style>
 </head>
 
@@ -312,12 +300,11 @@ button:hover{
 
 <div class="container">
 
-<div class="tabs">
-  <button id="tabIndividual" class="btn-blue" type="button">Individual</button>
-  <button id="tabShared" class="btn-gray" type="button">Shared</button>
-</div>
+<!-- ================= DYNAMIC COMPANY TABS ================= -->
 
-<!-- ================= INDIVIDUAL ================= -->
+<div class="tabs" id="companyTabs"></div>
+
+<!-- ================= INDIVIDUAL SERVICES ================= -->
 
 <div id="individualSection">
 
@@ -503,6 +490,178 @@ button:hover{
 </div>
 
 </div>
+
+<script>
+
+/* =========================
+DYNAMIC COMPANY SERVICES
+========================= */
+
+const COMPANY_SERVICES = [
+
+  {
+    key:"STANDARD",
+    title:"Standard",
+    suffix:"ST",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"XL",
+    title:"XL",
+    suffix:"XL",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"TAXI",
+    title:"Taxi",
+    suffix:"TX",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"LIMO",
+    title:"Limousine",
+    suffix:"LM",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"WHEELCHAIR",
+    title:"Wheelchair",
+    suffix:"WH",
+    shared:false,
+    active:true
+  },
+
+  {
+    key:"SHARED",
+    title:"Shared",
+    suffix:"SH",
+    shared:true,
+    active:true
+  }
+
+];
+
+/* =========================
+BUILD TABS
+========================= */
+
+const companyTabs =
+document.getElementById(
+  "companyTabs"
+);
+
+const individualSection =
+document.getElementById(
+  "individualSection"
+);
+
+const sharedSection =
+document.getElementById(
+  "sharedSection"
+);
+
+let activeService =
+"STANDARD";
+
+let activeSuffix =
+"ST";
+
+function buildCompanyTabs(){
+
+  companyTabs.innerHTML = "";
+
+  COMPANY_SERVICES
+  .filter(service => service.active)
+  .forEach((service,index)=>{
+
+    const btn =
+    document.createElement(
+      "button"
+    );
+
+    btn.type = "button";
+
+    btn.innerText =
+    service.title;
+
+    btn.dataset.service =
+    service.key;
+
+    btn.dataset.suffix =
+    service.suffix;
+
+    btn.className =
+      index === 0
+      ? "btn-blue"
+      : "btn-gray";
+
+    companyTabs.appendChild(
+      btn
+    );
+
+    btn.addEventListener(
+      "click",
+      function(){
+
+        companyTabs
+        .querySelectorAll("button")
+        .forEach(b=>{
+
+          b.classList.remove(
+            "btn-blue"
+          );
+
+          b.classList.add(
+            "btn-gray"
+          );
+
+        });
+
+        btn.classList.remove(
+          "btn-gray"
+        );
+
+        btn.classList.add(
+          "btn-blue"
+        );
+
+        activeService =
+          service.key;
+
+        activeSuffix =
+          service.suffix;
+
+        const isShared =
+          service.shared === true;
+
+        individualSection.style.display =
+          isShared
+          ? "none"
+          : "block";
+
+        sharedSection.style.display =
+          isShared
+          ? "block"
+          : "none";
+
+      }
+    );
+
+  });
+
+}
+
+buildCompanyTabs();
+
+</script>
 
 <script src="layout.js"></script>
 <script src="add-trip.js"></script>
