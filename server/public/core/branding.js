@@ -456,42 +456,84 @@ window.Branding = {
 
     });
 
-    /* EXTRA TEXT */
+   /* EXTRA TEXT */
 
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
+document
+.querySelectorAll(".extra-box p")
+.forEach(text=>{
 
-      const size =
-      mobile
-      ? 15
-      : Number(data.extraBoxTextSize || 22);
+  const size =
+  mobile
+  ? 15
+  : Number(data.extraBoxTextSize || 22);
 
-      text.style.setProperty(
-        "color",
-        data.extraBoxTextColor || "#334155",
-        "important"
-      );
+  text.style.setProperty(
+    "color",
+    data.extraBoxTextColor || "#334155",
+    "important"
+  );
 
-      text.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
+  text.style.setProperty(
+    "font-size",
+    `${size}px`,
+    "important"
+  );
 
-      text.style.setProperty(
-        "line-height",
-        mobile ? "1.75" : "2",
-        "important"
-      );
+  text.style.setProperty(
+    "line-height",
+    mobile ? "1.65" : "2",
+    "important"
+  );
 
-      text.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
+  text.style.setProperty(
+    "text-align",
+    "justify",
+    "important"
+  );
 
-    });
+  text.style.setProperty(
+    "text-align-last",
+    "left",
+    "important"
+  );
+
+  text.style.setProperty(
+    "text-justify",
+    "inter-word",
+    "important"
+  );
+
+  text.style.setProperty(
+    "word-spacing",
+    "0.5px",
+    "important"
+  );
+
+  text.style.setProperty(
+    "letter-spacing",
+    "-0.1px",
+    "important"
+  );
+
+  text.style.setProperty(
+    "overflow-wrap",
+    "break-word",
+    "important"
+  );
+
+  text.style.setProperty(
+    "hyphens",
+    "auto",
+    "important"
+  );
+
+  text.style.setProperty(
+    "width",
+    "100%",
+    "important"
+  );
+
+});
 
     /* SERVICE CARDS */
 
