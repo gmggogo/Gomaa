@@ -32,7 +32,7 @@ async function loadCompanyServices(){
   try{
 
     const res = await fetch(
-      "/api/admin/services",
+      "/api/services",
       {
         headers:{
           Authorization:"Bearer " + token
