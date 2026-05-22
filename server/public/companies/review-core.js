@@ -697,7 +697,13 @@ function applyRowColor(tr,t){
 function renderTripButtons(t,editing){
   const service = getServiceByTrip(t);
   const mins = minutesToTrip(t);
-  const warningMinutes = getWarningMinutes(service);
+  const warningMinutes =
+
+  warningEnabled(service)
+
+  ? getWarningMinutes(service)
+
+  : 0;
   if(editing){
     return `
       <div class="actions-wrap">
