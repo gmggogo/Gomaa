@@ -798,7 +798,25 @@ function buildDynamicTabs(){
         activeSuffix =
         service.companySuffix || "ST";
 
-        if(service.companyShared){
+        if(
+
+  service.companyShared === true ||
+
+  service.shared === true ||
+
+  String(
+    service.serviceType || ""
+  ).toUpperCase() === "SHARED" ||
+
+  String(
+    service.type || ""
+  ).toUpperCase() === "SHARED" ||
+
+  String(
+    service.title || ""
+  ).toUpperCase() === "SHARED"
+
+){
 
           individualSection.style.display =
           "none";
@@ -848,7 +866,25 @@ function buildDynamicTabs(){
         activeSuffix =
         service.companySuffix || "ST";
 
-        if(service.companyShared){
+        if(
+
+  service.companyShared === true ||
+
+  service.shared === true ||
+
+  String(
+    service.serviceType || ""
+  ).toUpperCase() === "SHARED" ||
+
+  String(
+    service.type || ""
+  ).toUpperCase() === "SHARED" ||
+
+  String(
+    service.title || ""
+  ).toUpperCase() === "SHARED"
+
+){
 
           individualSection.style.display =
           "none";
