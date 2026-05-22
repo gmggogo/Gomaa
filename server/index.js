@@ -3060,6 +3060,7 @@ const isShared = req.body.isShared === true;
 
 const rawVehicle =
   String(
+    req.body.serviceType ||
     req.body.serviceKey ||
     req.body.vehicleTypeFromQuote ||
     req.body.vehicleType ||
@@ -3067,6 +3068,7 @@ const rawVehicle =
   )
   .trim()
   .toUpperCase();
+  
 
 const allowedVehicles = [
   "STANDARD",
