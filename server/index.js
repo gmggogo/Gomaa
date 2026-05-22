@@ -1045,30 +1045,25 @@ const cleanKey =
     .toUpperCase()
     .replace(/\s+/g,"");
 
-const services =
-await Service.find({});
+let suffix = "ST";
 
-const selectedService =
+if(cleanKey === "XL"){
+  suffix = "XL";
+}
+else if(cleanKey === "WHEELCHAIR"){
+  suffix = "WH";
+}
+else if(cleanKey === "TAXI"){
+  suffix = "TX";
+}
+else if(cleanKey === "LIMO"){
+  suffix = "LM";
+}
+else if(cleanKey === "SHARED"){
+  suffix = "SH";
+} 
 
-services.find(s => {
-
-  const title =
-    String(s.title || "")
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g,"");
-
-  return title === cleanKey;
-
-});
-
-const suffix =
-
-selectedService?.companySuffix ||
-selectedService?.suffix ||
-"ST";
-
-  /* =========================
+ /* =========================
      RESERVED
   ========================= */
 
