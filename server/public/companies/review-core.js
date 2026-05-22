@@ -1,12 +1,30 @@
-window.ReviewApp = {};
+window.ReviewApp = {
+container:null,
+trips:[],
+COMPANY_SERVICES:[]
+};
+
 window.addEventListener("DOMContentLoaded", async () => {
-const token = localStorage.getItem("token");
-const role  = localStorage.getItem("role");
-const companyName = localStorage.getItem("name") || "";
-if (!token || role !== "company") {
-  window.location.replace("company-login.html");
-  return;
+
+const token =
+localStorage.getItem("token");
+
+const role =
+localStorage.getItem("role");
+
+const companyName =
+localStorage.getItem("name") || "";
+
+if(
+!token ||
+role !== "company"
+){
+window.location.replace(
+"company-login.html"
+);
+return;
 }
+
 const container =
 document.getElementById(
 "tripsContainer"
@@ -14,6 +32,13 @@ document.getElementById(
 
 window.ReviewApp.container =
 container;
+
+window.ReviewApp.trips =
+trips;
+
+window.ReviewApp.COMPANY_SERVICES =
+COMPANY_SERVICES;
+
 /* ================= STYLE ================= */
 (function injectStyles(){
   const oldStyle = document.getElementById("company-review-style");
