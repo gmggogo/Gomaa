@@ -7,7 +7,13 @@ if (!token || role !== "company") {
   window.location.replace("company-login.html");
   return;
 }
-const container = document.getElementById("tripsContainer");
+const container =
+document.getElementById(
+"tripsContainer"
+);
+
+window.ReviewApp.container =
+container;
 /* ================= STYLE ================= */
 (function injectStyles(){
   const oldStyle = document.getElementById("company-review-style");
