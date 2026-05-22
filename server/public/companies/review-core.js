@@ -228,9 +228,21 @@ function getServiceCodeFromTrip(trip){
   const parts = String(trip.tripNumber || "").split("-");
   return normalizeText(parts[parts.length - 1] || "").toUpperCase();
 }
+
 function getServiceByTrip(trip){
-  const code = getServiceCodeFromTrip(trip);
+
+  const code =
+    getServiceCodeFromTrip(trip);
+
+  const tripType =
+    normalizeText(
+      trip.tripType ||
+      trip.type ||
+      ""
+    ).toUpperCase();
+
   return COMPANY_SERVICES.find(s => {
+
     const serviceCode =
       normalizeText(
         s.code ||
@@ -240,9 +252,31 @@ function getServiceByTrip(trip){
         s.companySuffix ||
         ""
       ).toUpperCase();
+
+    const serviceType =
+      normalizeText(
+        s.type ||
+        s.serviceType ||
+        s.title ||
+        s.name ||
+        ""
+      ).toUpperCase();
+
+    /* SHARED FIX */
+
+    if(
+      code === "SH" &&
+      serviceType === "SHARED"
+    ){
+      return true;
+    }
+
     return serviceCode === code;
+
   }) || null;
+
 }
+
 function isSharedService(service){
   if(!service) return false;
   return (
