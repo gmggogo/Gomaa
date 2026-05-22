@@ -352,7 +352,29 @@ function isSharedTrip(t){
 }
 function sharedEnabled(){
 
-  return true;
+  return COMPANY_SERVICES.some(service =>
+
+    service.companyEnabled === true &&
+
+    (
+      service.companyShared === true ||
+
+      service.shared === true ||
+
+      String(
+        service.serviceType || ""
+      ).toUpperCase() === "SHARED" ||
+
+      String(
+        service.type || ""
+      ).toUpperCase() === "SHARED" ||
+
+      String(
+        service.title || ""
+      ).toUpperCase() === "SHARED"
+    )
+
+  );
 
 }
 function getWarningMinutes(service){
