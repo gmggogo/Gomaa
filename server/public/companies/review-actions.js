@@ -1,39 +1,33 @@
+
 /* =========================================
 FILE: review-actions.js
 FINAL COMPLETE
 ========================================= */
 
-const Review = window.ReviewApp;
+window.addEventListener(
+"DOMContentLoaded",
+() => {
 
-const {
-  container,
-  normalizeAZ,
-  parseTripDateTime,
-  getAZNow,
-  minutesToTrip,
+const Review =
+window.ReviewApp;
 
-  getServiceByTrip,
-  getWarningMinutes,
-  getCancelFee,
+if(!Review){
+console.error(
+"ReviewApp missing"
+);
+return;
+}
 
-  calculateRouteMiles,
-  calculateTripPrice,
-  calculateSharedPrice,
-  buildPricingSnapshot,
+const container =
+Review.container;
 
-  buildIndividualRoutePoints,
-  buildSharedRoutePoints,
+if(!container){
+console.error(
+"Container missing"
+);
+return;
+}
 
-  getTripsTabData,
-  getSharedGroups,
-  getRealPassengersFromGroup,
-
-  updateTrip,
-  deleteTrip,
-  fetchTrips,
-
-  render
-} = Review;
 
 /* =========================================
 RELOAD
