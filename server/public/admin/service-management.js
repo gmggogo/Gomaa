@@ -1,3 +1,8 @@
+// =========================
+// FILE: public/admin/service-management.js
+// FULL FINAL VERSION
+// =========================
+
 console.log("SERVICE JS LOADED");
 
 const servicesGrid =
@@ -65,6 +70,7 @@ async function loadServices(){
     }));
 
     renderServices();
+
     renderCompanyServices();
 
   }catch(err){
@@ -216,6 +222,7 @@ function renderServices(){
         </div>
 
         <div class="field">
+
           <label>Base Fare</label>
 
           <input
@@ -224,9 +231,11 @@ function renderServices(){
             value="${service.baseFare || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
+
           <label>Included Miles</label>
 
           <input
@@ -235,9 +244,11 @@ function renderServices(){
             value="${service.includedMiles || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
+
           <label>Per Mile</label>
 
           <input
@@ -246,9 +257,11 @@ function renderServices(){
             value="${service.perMile || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
+
           <label>Hourly Rate</label>
 
           <input
@@ -257,6 +270,7 @@ function renderServices(){
             value="${service.hourlyRate || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
@@ -299,6 +313,7 @@ function renderServices(){
         </div>
 
         <div class="field">
+
           <label>Stop Fee</label>
 
           <input
@@ -307,9 +322,11 @@ function renderServices(){
             value="${service.stopFee || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
+
           <label>No Show Fee</label>
 
           <input
@@ -318,9 +335,11 @@ function renderServices(){
             value="${service.noShowFee || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
+
           <label>Shared Price</label>
 
           <input
@@ -329,6 +348,66 @@ function renderServices(){
             value="${service.sharedPrice || 0}"
             disabled
           >
+
+        </div>
+
+        <!-- WARNING POLICY -->
+
+        <div class="policy-title">
+          Warning Policy
+        </div>
+
+        <div class="field">
+
+          <label>Warning Enabled</label>
+
+          <select
+            id="warning-${service._id}"
+            disabled
+          >
+
+            <option
+              value="true"
+              ${service.warningEnabled ? "selected" : ""}
+            >
+              Enabled
+            </option>
+
+            <option
+              value="false"
+              ${!service.warningEnabled ? "selected" : ""}
+            >
+              Disabled
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="field">
+
+          <label>Warning Minutes</label>
+
+          <input
+            type="number"
+            id="minutes-${service._id}"
+            value="${service.warningMinutes || 0}"
+            disabled
+          >
+
+        </div>
+
+        <div class="field">
+
+          <label>Cancel Fee</label>
+
+          <input
+            type="number"
+            id="cancel-${service._id}"
+            value="${service.cancelFee || 0}"
+            disabled
+          >
+
         </div>
 
       </div>
@@ -453,6 +532,7 @@ function renderCompanyServices(){
       <div class="fields">
 
         <div class="field">
+
           <label>Service Suffix</label>
 
           <input
@@ -461,6 +541,7 @@ function renderCompanyServices(){
             value="${service.suffix || ""}"
             disabled
           >
+
         </div>
 
         <div class="field">
@@ -488,6 +569,12 @@ function renderCompanyServices(){
 
           </select>
 
+        </div>
+
+        <!-- COMPANY WARNING POLICY -->
+
+        <div class="policy-title">
+          Company Warning Policy
         </div>
 
         <div class="field">
@@ -518,6 +605,7 @@ function renderCompanyServices(){
         </div>
 
         <div class="field">
+
           <label>Warning Minutes</label>
 
           <input
@@ -526,9 +614,11 @@ function renderCompanyServices(){
             value="${service.warningMinutes || 0}"
             disabled
           >
+
         </div>
 
         <div class="field">
+
           <label>Cancel Fee</label>
 
           <input
@@ -537,6 +627,7 @@ function renderCompanyServices(){
             value="${service.cancelFee || 0}"
             disabled
           >
+
         </div>
 
       </div>
@@ -587,7 +678,11 @@ function enableEdit(id){
     `hourmode-${id}`,
     `stop-${id}`,
     `noshow-${id}`,
-    `shared-${id}`
+    `shared-${id}`,
+
+    `warning-${id}`,
+    `minutes-${id}`,
+    `cancel-${id}`
 
   ];
 
@@ -708,6 +803,23 @@ async function saveService(id){
       sharedPrice:Number(
         document.getElementById(
           `shared-${id}`
+        ).value
+      ),
+
+      warningEnabled:
+      document.getElementById(
+        `warning-${id}`
+      ).value === "true",
+
+      warningMinutes:Number(
+        document.getElementById(
+          `minutes-${id}`
+        ).value
+      ),
+
+      cancelFee:Number(
+        document.getElementById(
+          `cancel-${id}`
         ).value
       )
 

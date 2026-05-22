@@ -103,9 +103,21 @@ body{
   display:grid;
 
   grid-template-columns:
-  repeat(auto-fit,minmax(380px,1fr));
+  repeat(auto-fit,minmax(420px,1fr));
 
   gap:24px;
+
+}
+
+@media(max-width:768px){
+
+  .services-grid{
+
+    grid-template-columns:1fr;
+
+    gap:18px;
+
+  }
 
 }
 
@@ -121,8 +133,24 @@ body{
 
   padding:24px;
 
+  overflow:hidden;
+
   box-shadow:
   0 15px 35px rgba(0,0,0,.08);
+
+  border:1px solid #e2e8f0;
+
+}
+
+@media(max-width:768px){
+
+  .service-card{
+
+    padding:18px;
+
+    border-radius:22px;
+
+  }
 
 }
 
@@ -138,7 +166,21 @@ body{
 
   justify-content:space-between;
 
+  gap:12px;
+
   margin-bottom:22px;
+
+}
+
+@media(max-width:768px){
+
+  .service-top{
+
+    flex-direction:column;
+
+    align-items:flex-start;
+
+  }
 
 }
 
@@ -150,6 +192,8 @@ body{
 
   gap:16px;
 
+  min-width:0;
+
 }
 
 .service-icon{
@@ -157,6 +201,8 @@ body{
   width:72px;
 
   height:72px;
+
+  min-width:72px;
 
   border-radius:22px;
 
@@ -172,11 +218,43 @@ body{
 
 }
 
+@media(max-width:768px){
+
+  .service-icon{
+
+    width:62px;
+
+    height:62px;
+
+    min-width:62px;
+
+    font-size:32px;
+
+    border-radius:18px;
+
+  }
+
+}
+
 .service-name{
 
   font-size:25px;
 
   font-weight:900;
+
+  line-height:1.2;
+
+  word-break:break-word;
+
+}
+
+@media(max-width:768px){
+
+  .service-name{
+
+    font-size:22px;
+
+  }
 
 }
 
@@ -189,6 +267,8 @@ body{
   font-weight:700;
 
   color:#64748b;
+
+  line-height:1.5;
 
 }
 
@@ -212,6 +292,14 @@ body{
 
   color:#fff;
 
+  transition:.2s;
+
+}
+
+.toggle-btn:hover{
+
+  transform:translateY(-1px);
+
 }
 
 .toggle-on{
@@ -222,13 +310,25 @@ body{
   background:#dc2626;
 }
 
+@media(max-width:768px){
+
+  .toggle-btn{
+
+    width:100%;
+
+    padding:15px;
+
+  }
+
+}
+
 /* =========================
    WARNING
 ========================= */
 
 .warning-box{
 
-  padding:14px;
+  padding:14px 16px;
 
   border-radius:16px;
 
@@ -236,7 +336,9 @@ body{
 
   font-weight:700;
 
-  margin-bottom:20px;
+  margin-bottom:22px;
+
+  line-height:1.6;
 
 }
 
@@ -260,6 +362,8 @@ body{
 
   grid-template-columns:1fr 1fr;
 
+  align-items:start;
+
   gap:16px;
 
 }
@@ -267,7 +371,11 @@ body{
 @media(max-width:768px){
 
   .fields{
+
     grid-template-columns:1fr;
+
+    gap:14px;
+
   }
 
 }
@@ -290,6 +398,8 @@ body{
 
   color:#475569;
 
+  line-height:1.4;
+
 }
 
 .field input,
@@ -308,6 +418,19 @@ body{
   background:#f8fafc;
 
   outline:none;
+
+  transition:.2s;
+
+  min-height:54px;
+
+}
+
+.field input:focus,
+.field select:focus{
+
+  border-color:#145cff;
+
+  background:#fff;
 
 }
 
@@ -330,7 +453,17 @@ body{
 
   gap:14px;
 
-  margin-top:24px;
+  margin-top:26px;
+
+}
+
+@media(max-width:768px){
+
+  .buttons{
+
+    flex-direction:column;
+
+  }
 
 }
 
@@ -351,6 +484,15 @@ body{
 
   cursor:pointer;
 
+  transition:.2s;
+
+}
+
+.edit-btn:hover,
+.save-btn:hover{
+
+  transform:translateY(-1px);
+
 }
 
 .edit-btn{
@@ -361,6 +503,32 @@ body{
 .save-btn{
   background:#145cff;
   color:#fff;
+}
+
+/* =========================
+   POLICY TITLE
+========================= */
+
+.policy-title{
+
+  grid-column:1/-1;
+
+  margin-top:6px;
+
+  margin-bottom:-2px;
+
+  padding:10px 14px;
+
+  border-radius:14px;
+
+  background:#eff6ff;
+
+  color:#145cff;
+
+  font-size:14px;
+
+  font-weight:900;
+
 }
 
 </style>
@@ -385,7 +553,9 @@ body{
 
     Control customer booking services,
     pricing, visibility,
-    and future warning policies.
+    warning policies,
+    cancellation fees,
+    and future booking behavior.
 
   </div>
 
