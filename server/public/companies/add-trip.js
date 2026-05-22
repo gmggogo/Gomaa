@@ -163,6 +163,8 @@ document.getElementById(
   "sharedSection"
 );
 
+/* ================= INDIVIDUAL ================= */
+
 const entryName =
 document.getElementById(
   "entryName"
@@ -175,12 +177,17 @@ document.getElementById(
 
 const editEntryBtn =
 document.getElementById(
-  "editEntry"
+  "editEntryBtn"
+);
+
+const saveEntryBtn =
+document.getElementById(
+  "saveEntryBtn"
 );
 
 const saveDraftBtn =
 document.getElementById(
-  "saveTrip"
+  "saveDraftBtn"
 );
 
 const clientName =
@@ -233,7 +240,7 @@ document.getElementById(
   "submitTrip"
 );
 
-/* SHARED */
+/* ================= SHARED ================= */
 
 const sharedEntryName =
 document.getElementById(
@@ -243,6 +250,11 @@ document.getElementById(
 const sharedEntryPhone =
 document.getElementById(
   "sharedEntryPhone"
+);
+
+const editSharedEntryBtn =
+document.getElementById(
+  "editSharedEntryBtn"
 );
 
 const passengerCount =
@@ -273,6 +285,11 @@ document.getElementById(
 const submitSharedBtn =
 document.getElementById(
   "submitShared"
+);
+
+const saveSharedDraftBtn =
+document.getElementById(
+  "saveSharedDraftBtn"
 );
 
 /* =====================================================
@@ -374,67 +391,94 @@ function saveEntryInfo(){
 
 let entryEditMode = false;
 
-if(editEntryBtn){
+function toggleEntryEdit(){
 
-  editEntryBtn.onclick = ()=>{
+  if(!entryEditMode){
 
-    if(!entryEditMode){
+    entryEditMode = true;
 
-      entryEditMode = true;
+    entryName.removeAttribute(
+      "readonly"
+    );
 
-      entryName.removeAttribute(
-        "readonly"
-      );
+    entryPhone.removeAttribute(
+      "readonly"
+    );
 
-      entryPhone.removeAttribute(
-        "readonly"
-      );
+    sharedEntryName.removeAttribute(
+      "readonly"
+    );
 
-      sharedEntryName.removeAttribute(
-        "readonly"
-      );
+    sharedEntryPhone.removeAttribute(
+      "readonly"
+    );
 
-      sharedEntryPhone.removeAttribute(
-        "readonly"
-      );
-
+    if(editEntryBtn){
       editEntryBtn.innerText =
       "Save";
-
-      entryName.focus();
-
-    }else{
-
-      saveEntryInfo();
-
-      entryEditMode = false;
-
-      entryName.setAttribute(
-        "readonly",
-        true
-      );
-
-      entryPhone.setAttribute(
-        "readonly",
-        true
-      );
-
-      sharedEntryName.setAttribute(
-        "readonly",
-        true
-      );
-
-      sharedEntryPhone.setAttribute(
-        "readonly",
-        true
-      );
-
-      editEntryBtn.innerText =
-      "Edit";
-
     }
 
-  };
+    if(editSharedEntryBtn){
+      editSharedEntryBtn.innerText =
+      "Save";
+    }
+
+    entryName.focus();
+
+  }else{
+
+    saveEntryInfo();
+
+    entryEditMode = false;
+
+    entryName.setAttribute(
+      "readonly",
+      true
+    );
+
+    entryPhone.setAttribute(
+      "readonly",
+      true
+    );
+
+    sharedEntryName.setAttribute(
+      "readonly",
+      true
+    );
+
+    sharedEntryPhone.setAttribute(
+      "readonly",
+      true
+    );
+
+    if(editEntryBtn){
+      editEntryBtn.innerText =
+      "Edit";
+    }
+
+    if(editSharedEntryBtn){
+      editSharedEntryBtn.innerText =
+      "Edit";
+    }
+
+  }
+
+}
+
+if(editEntryBtn){
+  editEntryBtn.onclick =
+  toggleEntryEdit;
+}
+
+if(editSharedEntryBtn){
+  editSharedEntryBtn.onclick =
+  toggleEntryEdit;
+}
+
+if(saveEntryBtn){
+
+  saveEntryBtn.onclick =
+  saveEntryInfo;
 
 }
 
@@ -477,7 +521,80 @@ function loadDraft(){
 
 }
 
+function loadSharedDraft(){
+
+  const draft = JSON.parse(
+
+    localStorage.getItem(
+      "companySharedDraft"
+    ) || "{}"
+
+  );
+
+  passengerCount.value =
+  draft.passengerCount || "";
+
+  sharedDate.value =
+  draft.sharedDate || "";
+
+  sharedTime.value =
+  draft.sharedTime || "";
+
+  sharedNotes.value =
+  draft.sharedNotes || "";
+
+  if(
+    Number(draft.passengerCount) >= 2
+  ){
+
+    renderSharedPassengers(
+      Number(draft.passengerCount)
+    );
+
+    setTimeout(()=>{
+
+      const cards =
+      document.querySelectorAll(
+        ".passenger-card"
+      );
+
+      (draft.passengers || [])
+      .forEach((p,index)=>{
+
+        const card = cards[index];
+
+        if(!card) return;
+
+        card.querySelector(
+          ".sharedClientName"
+        ).value =
+        p.clientName || "";
+
+        card.querySelector(
+          ".sharedClientPhone"
+        ).value =
+        p.clientPhone || "";
+
+        card.querySelector(
+          ".sharedPickup"
+        ).value =
+        p.pickup || "";
+
+        card.querySelector(
+          ".sharedDropoff"
+        ).value =
+        p.dropoff || "";
+
+      });
+
+    },100);
+
+  }
+
+}
+
 loadDraft();
+loadSharedDraft();
 
 /* =====================================================
    SAVE DRAFT
@@ -528,6 +645,76 @@ if(saveDraftBtn){
 
 }
 
+if(saveSharedDraftBtn){
+
+  saveSharedDraftBtn.onclick = ()=>{
+
+    const passengers = [];
+
+    document
+    .querySelectorAll(
+      ".passenger-card"
+    )
+    .forEach(card=>{
+
+      passengers.push({
+
+        clientName:
+        card.querySelector(
+          ".sharedClientName"
+        ).value,
+
+        clientPhone:
+        card.querySelector(
+          ".sharedClientPhone"
+        ).value,
+
+        pickup:
+        card.querySelector(
+          ".sharedPickup"
+        ).value,
+
+        dropoff:
+        card.querySelector(
+          ".sharedDropoff"
+        ).value
+
+      });
+
+    });
+
+    localStorage.setItem(
+
+      "companySharedDraft",
+
+      JSON.stringify({
+
+        passengerCount:
+        passengerCount.value,
+
+        passengers,
+
+        sharedDate:
+        sharedDate.value,
+
+        sharedTime:
+        sharedTime.value,
+
+        sharedNotes:
+        sharedNotes.value
+
+      })
+
+    );
+
+    showAlert(
+      "Shared Draft Saved ✔"
+    );
+
+  };
+
+}
+
 /* =====================================================
    LOAD SERVICES
 ===================================================== */
@@ -558,68 +745,49 @@ async function loadCompanyServices(){
     ? data
 
      .filter(
-  s =>
-    s.enabled === true &&
-    s.companyEnabled === true
-)
+      s =>
+      s.enabled === true &&
+      s.companyEnabled === true
+    )
 
-      .map(service => ({
+    .map(service => ({
 
-        key:
-        service.serviceKey,
+      key:
+      service.serviceKey,
 
-        title:
-        service.title,
+      title:
+      service.title,
 
-        suffix:
-        service.companySuffix || "ST",
+      suffix:
+      service.companySuffix || "ST",
 
-        shared:
-        service.companyShared === true,
+      shared:
+      service.companyShared === true,
 
-        active:
-        service.companyEnabled === true,
+      active:
+      service.companyEnabled === true,
 
-        warningEnabled:
-        service.companyWarningEnabled === true,
+      warningEnabled:
+      service.companyWarningEnabled === true,
 
-        warningMinutes:
-        Number(
-          service.companyWarningMinutes || 0
-        ),
+      warningMinutes:
+      Number(
+        service.companyWarningMinutes || 0
+      ),
 
-        warningMessage:
-        `Trip is within ${
-          service.companyWarningMinutes || 0
-        } minutes.\nContinue?`,
+      warningMessage:
+      `Trip is within ${
+        service.companyWarningMinutes || 0
+      } minutes.\nContinue?`,
 
-        cancelFee:
-        Number(
-          service.companyCancelFee || 0
-        )
+      cancelFee:
+      Number(
+        service.companyCancelFee || 0
+      )
 
-      }))
+    }))
 
     : [];
-
-    if(COMPANY_SERVICES.length === 0){
-
-      COMPANY_SERVICES = [
-
-        {
-          key:"STANDARD",
-          title:"Standard",
-          suffix:"ST",
-          shared:false,
-          active:true,
-          warningEnabled:true,
-          warningMinutes:120,
-          cancelFee:15
-        }
-
-      ];
-
-    }
 
     buildDynamicTabs();
 
@@ -632,7 +800,7 @@ async function loadCompanyServices(){
 }
 
 /* =====================================================
-   BUILD DYNAMIC TABS
+   BUILD TABS
 ===================================================== */
 
 function buildDynamicTabs(){
@@ -654,19 +822,11 @@ function buildDynamicTabs(){
       btn.innerText =
       service.title || "Service";
 
-      btn.dataset.service =
-      service.key || "STANDARD";
-
-      btn.dataset.suffix =
-      service.suffix || "ST";
-
       btn.className =
 
-        index === 0
-
-        ? "btn-blue"
-
-        : "btn-gray";
+      index === 0
+      ? "btn-blue"
+      : "btn-gray";
 
       if(index === 0){
 
@@ -695,8 +855,6 @@ function buildDynamicTabs(){
         }
 
       }
-
-      companyTabs.appendChild(btn);
 
       btn.onclick = ()=>{
 
@@ -748,100 +906,11 @@ function buildDynamicTabs(){
 
       };
 
+      companyTabs.appendChild(btn);
+
     }
 
   );
-
-}
-
-/* =====================================================
-   VALIDATE TIME
-===================================================== */
-
-function validateFutureTime(
-  dateValue,
-  timeValue
-){
-
-  if(!dateValue || !timeValue){
-
-    showAlert(
-      "Please select trip date and time."
-    );
-
-    return false;
-
-  }
-
-  const tripDateTime =
-  new Date(
-    `${dateValue}T${timeValue}:00`
-  );
-
-  const now =
-  getArizonaNow();
-
-  if(tripDateTime <= now){
-
-    showAlert(
-      "Trip time already passed."
-    );
-
-    return false;
-
-  }
-
-  return true;
-
-}
-
-/* =====================================================
-   WARNING POLICY
-===================================================== */
-
-function checkDynamicWarning(
-  dateValue,
-  timeValue
-){
-
-  const config =
-  getCurrentServiceConfig();
-
-  if(
-    config.warningEnabled === false
-  ){
-    return true;
-  }
-
-  const tripDateTime =
-  new Date(
-    `${dateValue}T${timeValue}:00`
-  );
-
-  const now =
-  getArizonaNow();
-
-  const diff =
-  (tripDateTime - now) / 60000;
-
-  const warningMinutes =
-  Number(
-    config.warningMinutes || 0
-  );
-
-  if(diff < warningMinutes){
-
-    return confirm(
-
-      config.warningMessage ||
-
-      `Trip is within ${warningMinutes} minutes.\nContinue?`
-
-    );
-
-  }
-
-  return true;
 
 }
 
@@ -921,6 +990,10 @@ function renderSharedPassengers(
   passengersContainer.innerHTML =
   "";
 
+  if(count < 2){
+    return;
+  }
+
   for(
     let i = 1;
     i <= count;
@@ -987,363 +1060,14 @@ function renderSharedPassengers(
 
 if(passengerCount){
 
-  passengerCount.onchange = function(){
+  passengerCount.onchange =
+  function(){
 
     renderSharedPassengers(
       Number(this.value)
     );
 
   };
-
-}
-
-/* =====================================================
-   SUBMIT INDIVIDUAL
-===================================================== */
-
-if(submitTripBtn){
-
-submitTripBtn.onclick =
-async function(){
-
-if(
-  !validateFutureTime(
-    tripDate.value,
-    tripTime.value
-  )
-){
-  return;
-}
-
-if(
-  !checkDynamicWarning(
-    tripDate.value,
-    tripTime.value
-  )
-){
-  return;
-}
-
-submitTripBtn.disabled =
-true;
-
-submitTripBtn.innerText =
-"Submitting...";
-
-try{
-
-const stops =
-
-[
-  ...document.querySelectorAll(
-    ".stop-input"
-  )
-]
-
-.map(i=>normalizeText(i.value))
-
-.filter(Boolean);
-
-const trip = {
-
-  company:companyName,
-
-  type:"company",
-
-  tripType:"INDIVIDUAL",
-
-  isShared:false,
-
-  serviceType:
-  activeService,
-
-  serviceSuffix:
-  activeSuffix,
-
-  entryName:
-  entryName.value,
-
-  entryPhone:
-  entryPhone.value,
-
-  clientName:
-  clientName.value,
-
-  clientPhone:
-  clientPhone.value,
-
-  pickup:
-  pickupInput.value,
-
-  dropoff:
-  dropoffInput.value,
-
-  stops,
-
-  tripDate:
-  tripDate.value,
-
-  tripTime:
-  tripTime.value,
-
-  notes:
-  notes.value,
-
-  status:"Scheduled"
-
-};
-
-const res = await fetch(
-
-  "/api/trips",
-
-  {
-    method:"POST",
-
-    headers:{
-      "Content-Type":
-      "application/json",
-
-      Authorization:
-      "Bearer " + token
-    },
-
-    body:JSON.stringify(trip)
-  }
-
-);
-
-if(!res.ok){
-
-  const err =
-  await res.json();
-
-  throw new Error(
-    err.message ||
-    "Server Error"
-  );
-
-}
-
-showAlert(
-  "Trip Submitted Successfully ✔"
-);
-
-clientName.value = "";
-clientPhone.value = "";
-pickupInput.value = "";
-dropoffInput.value = "";
-tripDate.value = "";
-tripTime.value = "";
-notes.value = "";
-
-stopsBox.innerHTML = "";
-
-localStorage.removeItem(
-  "companyTripDraft"
-);
-
-}catch(err){
-
-console.log(err);
-
-showAlert(
-  err.message ||
-  "Server Error"
-);
-
-}finally{
-
-submitTripBtn.disabled =
-false;
-
-submitTripBtn.innerText =
-"Submit Trip";
-
-}
-
-};
-
-}
-
-/* =====================================================
-   SUBMIT SHARED
-===================================================== */
-
-if(submitSharedBtn){
-
-submitSharedBtn.onclick =
-async function(){
-
-if(
-  !validateFutureTime(
-    sharedDate.value,
-    sharedTime.value
-  )
-){
-  return;
-}
-
-if(
-  !checkDynamicWarning(
-    sharedDate.value,
-    sharedTime.value
-  )
-){
-  return;
-}
-
-const passengers = [];
-
-document
-.querySelectorAll(
-  ".passenger-card"
-)
-.forEach((card,index)=>{
-
-  passengers.push({
-
-    passengerId:
-    "P" + (index + 1),
-
-    clientName:
-    card.querySelector(
-      ".sharedClientName"
-    ).value,
-
-    clientPhone:
-    card.querySelector(
-      ".sharedClientPhone"
-    ).value,
-
-    pickup:
-    card.querySelector(
-      ".sharedPickup"
-    ).value,
-
-    dropoff:
-    card.querySelector(
-      ".sharedDropoff"
-    ).value,
-
-    status:"Scheduled"
-
-  });
-
-});
-
-submitSharedBtn.disabled =
-true;
-
-submitSharedBtn.innerText =
-"Submitting...";
-
-try{
-
-const sharedTrip = {
-
-  company:companyName,
-
-  type:"company",
-
-  isShared:true,
-
-  tripType:"SHARED",
-
-  serviceType:
-  activeService,
-
-  serviceSuffix:
-  activeSuffix,
-
-  passengers,
-
-  totalPassengers:
-  passengers.length,
-
-  entryName:
-  sharedEntryName.value,
-
-  entryPhone:
-  sharedEntryPhone.value,
-
-  tripDate:
-  sharedDate.value,
-
-  tripTime:
-  sharedTime.value,
-
-  notes:
-  sharedNotes.value,
-
-  status:"Scheduled"
-
-};
-
-const res = await fetch(
-
-  "/api/trips",
-
-  {
-    method:"POST",
-
-    headers:{
-      "Content-Type":
-      "application/json",
-
-      Authorization:
-      "Bearer " + token
-    },
-
-    body:JSON.stringify(sharedTrip)
-  }
-
-);
-
-if(!res.ok){
-
-  const err =
-  await res.json();
-
-  throw new Error(
-    err.message ||
-    "Server Error"
-  );
-
-}
-
-showAlert(
-  "Shared Trip Submitted Successfully ✔"
-);
-
-passengersContainer.innerHTML =
-"";
-
-sharedDate.value = "";
-sharedTime.value = "";
-sharedNotes.value = "";
-passengerCount.value = "";
-
-}catch(err){
-
-console.log(err);
-
-showAlert(
-  err.message ||
-  "Server Error"
-);
-
-}finally{
-
-submitSharedBtn.disabled =
-false;
-
-submitSharedBtn.innerText =
-"Submit Shared";
-
-}
-
-};
 
 }
 
