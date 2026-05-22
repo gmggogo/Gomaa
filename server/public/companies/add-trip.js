@@ -1,6 +1,7 @@
 /* =====================================================
 FILE: add-trip.js
 FINAL ADMIN DYNAMIC SERVICES VERSION
+FULL COMPLETE VERSION
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -485,7 +486,7 @@ if(saveEntryBtn){
 loadEntryInfo();
 
 /* =====================================================
-   LOAD DRAFT
+   LOAD DRAFTS
 ===================================================== */
 
 function loadDraft(){
@@ -597,7 +598,7 @@ loadDraft();
 loadSharedDraft();
 
 /* =====================================================
-   SAVE DRAFT
+   SAVE DRAFTS
 ===================================================== */
 
 if(saveDraftBtn){
@@ -742,50 +743,11 @@ async function loadCompanyServices(){
 
     Array.isArray(data)
 
-    ? data
-
-     .filter(
+    ? data.filter(
       s =>
       s.enabled === true &&
       s.companyEnabled === true
     )
-
-    .map(service => ({
-
-      key:
-      service.serviceKey,
-
-      title:
-      service.title,
-
-      suffix:
-      service.companySuffix || "ST",
-
-      shared:
-      service.companyShared === true,
-
-      active:
-      service.companyEnabled === true,
-
-      warningEnabled:
-      service.companyWarningEnabled === true,
-
-      warningMinutes:
-      Number(
-        service.companyWarningMinutes || 0
-      ),
-
-      warningMessage:
-      `Trip is within ${
-        service.companyWarningMinutes || 0
-      } minutes.\nContinue?`,
-
-      cancelFee:
-      Number(
-        service.companyCancelFee || 0
-      )
-
-    }))
 
     : [];
 
@@ -831,12 +793,12 @@ function buildDynamicTabs(){
       if(index === 0){
 
         activeService =
-        service.key;
+        service.serviceKey;
 
         activeSuffix =
-        service.suffix;
+        service.companySuffix || "ST";
 
-        if(service.shared){
+        if(service.companyShared){
 
           individualSection.style.display =
           "none";
@@ -881,12 +843,12 @@ function buildDynamicTabs(){
         );
 
         activeService =
-        service.key;
+        service.serviceKey;
 
         activeSuffix =
-        service.suffix;
+        service.companySuffix || "ST";
 
-        if(service.shared){
+        if(service.companyShared){
 
           individualSection.style.display =
           "none";
@@ -1072,7 +1034,345 @@ if(passengerCount){
 }
 
 /* =====================================================
-   LOAD SERVICES
+   SUBMIT INDIVIDUAL
+===================================================== */
+
+if(submitTripBtn){
+
+submitTripBtn.onclick =
+async function(){
+
+submitTripBtn.disabled =
+true;
+
+submitTripBtn.innerText =
+"Submitting...";
+
+try{
+
+const stops =
+
+[
+  ...document.querySelectorAll(
+    ".stop-input"
+  )
+]
+
+.map(i=>normalizeText(i.value))
+
+.filter(Boolean);
+
+const trip = {
+
+  company:companyName,
+
+  type:"company",
+
+  tripType:"INDIVIDUAL",
+
+  isShared:false,
+
+  serviceType:
+  activeService,
+
+  serviceSuffix:
+  activeSuffix,
+
+  entryName:
+  entryName.value,
+
+  entryPhone:
+  entryPhone.value,
+
+  clientName:
+  clientName.value,
+
+  clientPhone:
+  clientPhone.value,
+
+  pickup:
+  pickupInput.value,
+
+  dropoff:
+  dropoffInput.value,
+
+  stops,
+
+  tripDate:
+  tripDate.value,
+
+  tripTime:
+  tripTime.value,
+
+  notes:
+  notes.value,
+
+  status:"Scheduled"
+
+};
+
+const res = await fetch(
+
+  "/api/trips",
+
+  {
+    method:"POST",
+
+    headers:{
+      "Content-Type":
+      "application/json",
+
+      Authorization:
+      "Bearer " + token
+    },
+
+    body:JSON.stringify(trip)
+  }
+
+);
+
+if(!res.ok){
+
+  const err =
+  await res.json();
+
+  throw new Error(
+    err.message ||
+    "Server Error"
+  );
+
+}
+
+showAlert(
+  "Trip Submitted Successfully ✔"
+);
+
+clientName.value = "";
+clientPhone.value = "";
+pickupInput.value = "";
+dropoffInput.value = "";
+tripDate.value = "";
+tripTime.value = "";
+notes.value = "";
+
+stopsBox.innerHTML = "";
+
+localStorage.removeItem(
+  "companyTripDraft"
+);
+
+}catch(err){
+
+console.log(err);
+
+showAlert(
+  err.message ||
+  "Server Error"
+);
+
+}finally{
+
+submitTripBtn.disabled =
+false;
+
+submitTripBtn.innerText =
+"Submit Trip";
+
+}
+
+};
+
+}
+
+/* =====================================================
+   SUBMIT SHARED
+===================================================== */
+
+if(submitSharedBtn){
+
+submitSharedBtn.onclick =
+async function(){
+
+if(
+  !sharedDate.value ||
+  !sharedTime.value
+){
+  showAlert(
+    "Select shared date/time"
+  );
+  return;
+}
+
+const passengers = [];
+
+document
+.querySelectorAll(
+  ".passenger-card"
+)
+.forEach((card,index)=>{
+
+  passengers.push({
+
+    passengerId:
+    "P" + (index + 1),
+
+    clientName:
+    card.querySelector(
+      ".sharedClientName"
+    ).value,
+
+    clientPhone:
+    card.querySelector(
+      ".sharedClientPhone"
+    ).value,
+
+    pickup:
+    card.querySelector(
+      ".sharedPickup"
+    ).value,
+
+    dropoff:
+    card.querySelector(
+      ".sharedDropoff"
+    ).value,
+
+    status:"Scheduled"
+
+  });
+
+});
+
+if(passengers.length < 2){
+
+  showAlert(
+    "Minimum 2 passengers"
+  );
+
+  return;
+
+}
+
+submitSharedBtn.disabled =
+true;
+
+submitSharedBtn.innerText =
+"Submitting...";
+
+try{
+
+const sharedTrip = {
+
+  company:companyName,
+
+  type:"company",
+
+  isShared:true,
+
+  tripType:"SHARED",
+
+  serviceType:
+  activeService,
+
+  serviceSuffix:
+  activeSuffix,
+
+  passengers,
+
+  totalPassengers:
+  passengers.length,
+
+  entryName:
+  sharedEntryName.value,
+
+  entryPhone:
+  sharedEntryPhone.value,
+
+  tripDate:
+  sharedDate.value,
+
+  tripTime:
+  sharedTime.value,
+
+  notes:
+  sharedNotes.value,
+
+  status:"Scheduled"
+
+};
+
+const res = await fetch(
+
+  "/api/trips",
+
+  {
+    method:"POST",
+
+    headers:{
+      "Content-Type":
+      "application/json",
+
+      Authorization:
+      "Bearer " + token
+    },
+
+    body:JSON.stringify(sharedTrip)
+  }
+
+);
+
+if(!res.ok){
+
+  const err =
+  await res.json();
+
+  throw new Error(
+    err.message ||
+    "Server Error"
+  );
+
+}
+
+showAlert(
+  "Shared Trip Submitted ✔"
+);
+
+passengersContainer.innerHTML =
+"";
+
+sharedDate.value = "";
+sharedTime.value = "";
+sharedNotes.value = "";
+passengerCount.value = "";
+
+localStorage.removeItem(
+  "companySharedDraft"
+);
+
+}catch(err){
+
+console.log(err);
+
+showAlert(
+  err.message ||
+  "Server Error"
+);
+
+}finally{
+
+submitSharedBtn.disabled =
+false;
+
+submitSharedBtn.innerText =
+"Submit Shared";
+
+}
+
+};
+
+}
+
+/* =====================================================
+   INIT
 ===================================================== */
 
 await loadCompanyServices();
