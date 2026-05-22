@@ -1,6 +1,3 @@
-تمام. هنبدأ بـ review-core.js كامل.
-انسخه كله داخل review-core.js فقط.
-
 window.ReviewApp = {};
 window.addEventListener("DOMContentLoaded", async () => {
 const token = localStorage.getItem("token");
