@@ -1018,40 +1018,37 @@ return `${monthCode}-${next}-${suffix}`;
 
 async function generateTripNumber(type, serviceKey = "") {
 /* =========================
-   SERVICE SUFFIX (CLEAN FINAL)
+   SERVICE SUFFIX
 ========================= */
-
-const SERVICE_SUFFIX_MAP = {
-  STANDARD: "ST",
-  XL: "XL",
-  TAXI: "TA",
-  LIMO: "LI",
-  WHEELCHAIR: "WH",
-  SHARED: "SH"
-};
 
 const cleanKey =
   String(serviceKey || "")
     .trim()
     .toUpperCase()
-    .replace(/\s+/g, "");
-let suffix = "";
+    .replace(/\s+/g,"");
 
-if(cleanKey === "STANDARD"){
-  suffix = "ST";
-}
-else if(cleanKey === "XL"){
-  suffix = "XL";
-}
-else if(cleanKey === "WHEELCHAIR"){
-  suffix = "WH";
-}
-else if(cleanKey === "TAXI"){
-  suffix = "TX";
-}
-else if(cleanKey === "LIMO"){
-  suffix = "LM";
-}
+const services =
+await Service.find({});
+
+const selectedService =
+
+services.find(s => {
+
+  const title =
+    String(s.title || "")
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g,"");
+
+  return title === cleanKey;
+
+});
+
+const suffix =
+
+selectedService?.companySuffix ||
+selectedService?.suffix ||
+"ST";
 
   /* =========================
      RESERVED
