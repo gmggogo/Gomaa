@@ -653,64 +653,86 @@ CLICK EVENTS
 ========================================= */
 
 container.addEventListener(
-"click",
-async e=>{
+  "click",
+  async e=>{
 
-const btn =
-  e.target.closest("button");
+  const btn =
+    e.target.closest("button");
 
-if(!btn) return;
+  if(!btn) return;
 
-const action =
-  btn.dataset.action;
+  const action =
+    btn.dataset.action;
 
-try{
+  try{
 
-  if(action === "edit-trip"){
-    await handleEditTrip(btn);
+    /* ================= EDIT ================= */
+
+    if(action === "edit-trip"){
+      await handleEditTrip(btn);
+    }
+
+    if(action === "edit-shared"){
+      await handleEditShared(btn);
+    }
+
+    /* ================= CANCEL EDIT ================= */
+
+    if(action === "cancel-edit"){
+      await handleCancelEdit();
+    }
+
+    /* ================= DELETE ================= */
+
+    if(action === "delete-trip"){
+      await handleDeleteTrip(btn);
+    }
+
+    if(action === "delete-shared"){
+      await handleDeleteShared(btn);
+    }
+
+    /* ================= SAVE ================= */
+
+    if(action === "save-trip"){
+      await handleSaveTrip(btn);
+    }
+
+    if(action === "save-shared"){
+      await handleSaveShared(btn);
+    }
+
+    /* ================= CONFIRM ================= */
+
+    if(action === "confirm-trip"){
+      await handleConfirmTrip(btn);
+    }
+
+    if(action === "confirm-shared"){
+      await handleConfirmShared(btn);
+    }
+
+    /* ================= CANCEL ================= */
+
+    if(action === "cancel-trip"){
+      await handleCancelTrip(btn);
+    }
+
+    if(action === "cancel-shared"){
+      await handleCancelShared(btn);
+    }
+
+  }catch(err){
+
+    console.error(err);
+
+    alert(
+      err.message ||
+      "Server Error"
+    );
+
+    await reloadTrips();
+
   }
-
-  if(action === "edit-shared"){
-    await handleEditShared(btn);
-  }
-
-  if(action === "cancel-edit"){
-    await handleCancelEdit();
-  }
-
-  if(action === "delete-trip"){
-    await handleDeleteTrip(btn);
-  }
-
-  if(action === "delete-shared"){
-    await handleDeleteShared(btn);
-  }
-
-  if(action === "save-trip"){
-    await handleSaveTrip(btn);
-  }
-
-  if(action === "confirm-trip"){
-    await handleConfirmTrip(btn);
-  }
-
-  if(action === "confirm-shared"){
-    await handleConfirmShared(btn);
-  }
-
-}catch(err){
-
-  console.error(err);
-
-  alert(
-    err.message ||
-    "Server Error"
-  );
-
-  await reloadTrips();
-
-}
-
-});
 
 });
