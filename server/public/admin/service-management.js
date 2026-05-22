@@ -531,6 +531,8 @@ function renderCompanyServices(){
 
       <div class="fields">
 
+        <!-- SERVICE SUFFIX -->
+
         <div class="field">
 
           <label>Service Suffix</label>
@@ -543,6 +545,8 @@ function renderCompanyServices(){
           >
 
         </div>
+
+        <!-- SHARED SERVICE -->
 
         <div class="field">
 
@@ -571,7 +575,245 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- COMPANY WARNING POLICY -->
+        <!-- PRICING MODE -->
+
+        <div class="field">
+
+          <label>Pricing Mode</label>
+
+          <select
+            id="company-mode-${service._id}"
+            disabled
+          >
+
+            <option
+              value="MILE"
+              ${
+                String(
+                  service.companyPricingMode ||
+                  service.pricingMode ||
+                  ""
+                ).toUpperCase()==="MILE"
+                ? "selected"
+                : ""
+              }
+            >
+              Per Mile
+            </option>
+
+            <option
+              value="HOURLY"
+              ${
+                String(
+                  service.companyPricingMode ||
+                  service.pricingMode ||
+                  ""
+                ).toUpperCase()==="HOURLY"
+                ? "selected"
+                : ""
+              }
+            >
+              Hourly
+            </option>
+
+            <option
+              value="SHARED"
+              ${
+                String(
+                  service.companyPricingMode ||
+                  service.pricingMode ||
+                  ""
+                ).toUpperCase()==="SHARED"
+                ? "selected"
+                : ""
+              }
+            >
+              Shared
+            </option>
+
+          </select>
+
+        </div>
+
+        <!-- BASE FARE -->
+
+        <div class="field">
+
+          <label>Base Fare</label>
+
+          <input
+            type="number"
+            id="company-base-${service._id}"
+            value="${
+              service.companyBaseFare ??
+              service.baseFare ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- INCLUDED MILES -->
+
+        <div class="field">
+
+          <label>Included Miles</label>
+
+          <input
+            type="number"
+            id="company-included-${service._id}"
+            value="${
+              service.companyIncludedMiles ??
+              service.includedMiles ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- PER MILE -->
+
+        <div class="field">
+
+          <label>Per Mile</label>
+
+          <input
+            type="number"
+            id="company-mile-${service._id}"
+            value="${
+              service.companyPerMile ??
+              service.perMile ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- HOURLY RATE -->
+
+        <div class="field">
+
+          <label>Hourly Rate</label>
+
+          <input
+            type="number"
+            id="company-hour-${service._id}"
+            value="${
+              service.companyHourlyRate ??
+              service.hourlyRate ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- HOURLY BILLING -->
+
+        <div class="field">
+
+          <label>Hourly Billing</label>
+
+          <select
+            id="company-hourmode-${service._id}"
+            disabled
+          >
+
+            <option
+              value="FULL"
+              ${
+                String(
+                  service.companyHourlyBillingMode ||
+                  service.hourlyBillingMode ||
+                  ""
+                ).toUpperCase()==="FULL"
+                ? "selected"
+                : ""
+              }
+            >
+              Full Hour
+            </option>
+
+            <option
+              value="QUARTER"
+              ${
+                String(
+                  service.companyHourlyBillingMode ||
+                  service.hourlyBillingMode ||
+                  ""
+                ).toUpperCase()==="QUARTER"
+                ? "selected"
+                : ""
+              }
+            >
+              Quarter Hour
+            </option>
+
+          </select>
+
+        </div>
+
+        <!-- STOP FEE -->
+
+        <div class="field">
+
+          <label>Stop Fee</label>
+
+          <input
+            type="number"
+            id="company-stop-${service._id}"
+            value="${
+              service.companyStopFee ??
+              service.stopFee ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- NO SHOW -->
+
+        <div class="field">
+
+          <label>No Show Fee</label>
+
+          <input
+            type="number"
+            id="company-noshow-${service._id}"
+            value="${
+              service.companyNoShowFee ??
+              service.noShowFee ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- SHARED PRICE -->
+
+        <div class="field">
+
+          <label>Shared Price</label>
+
+          <input
+            type="number"
+            id="company-sharedprice-${service._id}"
+            value="${
+              service.companySharedPrice ??
+              service.sharedPrice ??
+              0
+            }"
+            disabled
+          >
+
+        </div>
+
+        <!-- WARNING POLICY -->
 
         <div class="policy-title">
           Company Warning Policy
