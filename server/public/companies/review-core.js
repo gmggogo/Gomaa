@@ -574,21 +574,136 @@ function buildIndividualRoutePoints(trip){
   return points;
 }
 function buildSharedRoutePoints(group){
-  const list = getRealPassengersFromGroup(group);
-  const points = [];
-  const added = new Set();
-  function addPoint(v){
-    const value = normalizeText(v).toLowerCase();
-    if(!value || added.has(value)) return;
-    added.add(value);
-    points.push(v);
+
+  const passengers =
+    getRealPassengersFromGroup(group);
+
+  if(!passengers.length){
+    return [];
   }
-  list.forEach(p=>{
-    addPoint(p.pickup);
-    addPoint(p.dropoff);
+
+  /* =========================
+     SAME PICKUP CHECK
+  ========================= */
+
+  const firstPickup =
+    normalizeText(
+      passengers[0].pickup
+    ).toLowerCase();
+
+  const samePickup =
+    passengers.every(p =>
+
+      normalizeText(
+        p.pickup
+      ).toLowerCase()
+
+      === firstPickup
+
+    );
+
+  /* =========================
+     SAME PICKUP
+     SORT DROP OFFS
+  ========================= */
+
+  if(samePickup){
+
+    const sorted =
+      [...passengers];
+
+    sorted.sort((a,b)=>{
+
+      const aLen =
+        normalizeText(
+          a.dropoff
+        ).length;
+
+      const bLen =
+        normalizeText(
+          b.dropoff
+        ).length;
+
+      return aLen - bLen;
+
+    });
+
+    const points = [];
+
+    points.push(
+      passengers[0].pickup
+    );
+
+    sorted.forEach(p=>{
+
+      if(p.dropoff){
+
+        points.push(
+          p.dropoff
+        );
+
+      }
+
+    });
+
+    return points;
+
+  }
+
+  /* =========================
+     DIFFERENT PICKUPS
+     PICKUPS FIRST
+  ========================= */
+
+  const sortedPickups =
+    [...passengers];
+
+  sortedPickups.sort((a,b)=>{
+
+    const aLen =
+      normalizeText(
+        a.pickup
+      ).length;
+
+    const bLen =
+      normalizeText(
+        b.pickup
+      ).length;
+
+    return aLen - bLen;
+
   });
+
+  const points = [];
+
+  sortedPickups.forEach(p=>{
+
+    if(p.pickup){
+
+      points.push(
+        p.pickup
+      );
+
+    }
+
+  });
+
+  sortedPickups.forEach(p=>{
+
+    if(p.dropoff){
+
+      points.push(
+        p.dropoff
+      );
+
+    }
+
+  });
+
   return points;
+
 }
+
 /* ================= SERVER ================= */
 async function fetchTrips(){
   const url = companyName
