@@ -976,40 +976,58 @@ async function generateCompanyTripNumber(serviceType = "STANDARD"){
     suffix = "SH";
   }
 
-  const lastTrip =
-    await Trip.findOne({
+ const lastTrip =
+await Trip.findOne({
 
-      tripNumber:{
-        $regex:
-          new RegExp(
-            "^C-" + monthCode + "-\\d+"
-          )
-      }
+tripNumber:{
+$regex:
+new RegExp(
+"^" +
+monthCode +
+"-\\d+-" +
+suffix +
+"$"
+)
+}
 
-    })
-    .sort({
-      createdAt:-1,
-      _id:-1
-    });
+})
+.sort({
+createdAt:-1,
+_id:-1
+});
+
 
   let next = 1000;
 
-  if(lastTrip?.tripNumber){
+if(lastTrip?.tripNumber){
 
-    const match =
-      lastTrip.tripNumber.match(/\d+/g);
+const parts =
+lastTrip.tripNumber.split("-");
 
-    if(match && match[1]){
+const num =
+Number(parts[1]);
 
-      next =
-        Number(match[1]) + 1;
+if(!isNaN(num)){
 
-    }
+next = num + 1;
 
-  }
+}
+
+}
+
+const exists =
+await Trip.findOne({
+tripNumber:
+`${monthCode}-${next}-${suffix}`
+});
+
+if(exists){
+
+next++;
+
+}
 
 return `${monthCode}-${next}-${suffix}`;
-
 }
 
 /* =========================
