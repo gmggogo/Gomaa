@@ -1,6 +1,6 @@
 /* =========================================
 FILE: review-actions.js
-FINAL COMPLETE FIXED
+FINAL COMPLETE FIXED VERSION
 ========================================= */
 
 window.addEventListener(
@@ -11,20 +11,20 @@ const Review =
 window.ReviewApp;
 
 if(!Review){
-console.error(
-"ReviewApp missing"
-);
-return;
+  console.error(
+    "ReviewApp missing"
+  );
+  return;
 }
 
 const container =
 Review.container;
 
 if(!container){
-console.error(
-"Container missing"
-);
-return;
+  console.error(
+    "Container missing"
+  );
+  return;
 }
 
 /* =========================================
@@ -33,10 +33,10 @@ RELOAD
 
 async function reloadTrips(){
 
-Review.trips =
-  await Review.fetchTrips();
+  Review.trips =
+    await Review.fetchTrips();
 
-Review.render();
+  Review.render();
 
 }
 
@@ -46,70 +46,70 @@ EDIT TRIP
 
 async function handleEditTrip(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const id =
-  tr.dataset.id;
+  const id =
+    tr.dataset.id;
 
-const trip =
-  Review.trips.find(
-    t => t._id === id
-  );
+  const trip =
+    Review.trips.find(
+      t => t._id === id
+    );
 
-if(!trip) return;
+  if(!trip) return;
 
-const service =
-  Review.getServiceByTrip(trip);
+  const service =
+    Review.getServiceByTrip(trip);
 
-const mins =
-  Review.minutesToTrip(trip);
+  const mins =
+    Review.minutesToTrip(trip);
 
-const warningMinutes =
-  Review.getWarningMinutes(service);
+  const warningMinutes =
+    Review.getWarningMinutes(service);
 
-if(
-  mins !== null &&
-  mins <= warningMinutes &&
-  mins > 0
-){
+  if(
+    mins !== null &&
+    mins <= warningMinutes &&
+    mins > 0
+  ){
 
-  const ok = confirm(
+    const ok = confirm(
 `This trip is within ${warningMinutes} minutes.
 
 Cancellation fee may apply.
 
 Continue editing?`
+    );
+
+    if(!ok) return;
+
+  }
+
+  trip.__editing = true;
+
+  trip.status = "Scheduled";
+
+  trip.priceAmount = 0;
+
+  trip.miles = 0;
+
+  await Review.updateTrip(
+    id,
+    {
+      status:"Scheduled",
+      priceAmount:0,
+      miles:0,
+      distanceMeters:0,
+      durationSeconds:0,
+      estimatedMinutes:0,
+      googleRoute:null,
+      routePoints:[],
+      priceSnapshot:null
+    }
   );
 
-  if(!ok) return;
-
-}
-
-trip.__editing = true;
-
-trip.status = "Scheduled";
-
-trip.priceAmount = 0;
-
-trip.miles = 0;
-
-await Review.updateTrip(
-  id,
-  {
-    status:"Scheduled",
-    priceAmount:0,
-    miles:0,
-    distanceMeters:0,
-    durationSeconds:0,
-    estimatedMinutes:0,
-    googleRoute:null,
-    routePoints:[],
-    priceSnapshot:null
-  }
-);
-
-Review.render();
+  Review.render();
 
 }
 
@@ -119,85 +119,85 @@ EDIT SHARED
 
 async function handleEditShared(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const groupId =
-  tr.dataset.groupId;
+  const groupId =
+    tr.dataset.groupId;
 
-const group =
-  Review.getSharedGroups().find(
-    g =>
-      Review.getSharedKey(g[0]) ===
-      groupId
-  );
+  const group =
+    Review.getSharedGroups().find(
+      g =>
+        Review.getSharedKey(g[0]) ===
+        groupId
+    );
 
-if(!group) return;
+  if(!group) return;
 
-const first =
-  group[0];
+  const first =
+    group[0];
 
-const service =
-  Review.getServiceByTrip(first);
+  const service =
+    Review.getServiceByTrip(first);
 
-const mins =
-  Review.minutesToTrip(first);
+  const mins =
+    Review.minutesToTrip(first);
 
-const warningMinutes =
-  Review.getWarningMinutes(service);
+  const warningMinutes =
+    Review.getWarningMinutes(service);
 
-if(
-  mins !== null &&
-  mins <= warningMinutes &&
-  mins > 0
-){
+  if(
+    mins !== null &&
+    mins <= warningMinutes &&
+    mins > 0
+  ){
 
-  const ok = confirm(
+    const ok = confirm(
 `This shared trip is within ${warningMinutes} minutes.
 
 Cancellation fee may apply.
 
 Continue editing?`
-  );
+    );
 
-  if(!ok) return;
+    if(!ok) return;
 
-}
+  }
 
-group.forEach(t=>{
+  group.forEach(t=>{
 
-  t.__editing = true;
+    t.__editing = true;
 
-  t.status = "Scheduled";
+    t.status = "Scheduled";
 
-  t.priceAmount = 0;
+    t.priceAmount = 0;
 
-  t.pricePerPassenger = 0;
+    t.pricePerPassenger = 0;
 
-});
+  });
 
-for(const t of group){
+  for(const t of group){
 
-  await Review.updateTrip(
-    t._id,
-    {
-      status:"Scheduled",
-      priceAmount:0,
-      pricePerPassenger:0,
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-      googleRoute:null,
-      routePoints:[],
-      optimizedRoute:null,
-      priceSnapshot:null
-    }
-  );
+    await Review.updateTrip(
+      t._id,
+      {
+        status:"Scheduled",
+        priceAmount:0,
+        pricePerPassenger:0,
+        miles:0,
+        distanceMeters:0,
+        durationSeconds:0,
+        estimatedMinutes:0,
+        googleRoute:null,
+        routePoints:[],
+        optimizedRoute:null,
+        priceSnapshot:null
+      }
+    );
 
-}
+  }
 
-Review.render();
+  Review.render();
 
 }
 
@@ -207,7 +207,7 @@ CANCEL EDIT
 
 async function handleCancelEdit(){
 
-await reloadTrips();
+  await reloadTrips();
 
 }
 
@@ -217,24 +217,24 @@ DELETE TRIP
 
 async function handleDeleteTrip(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const id =
-  tr.dataset.id;
+  const id =
+    tr.dataset.id;
 
-if(!id) return;
+  if(!id) return;
 
-const ok =
-  confirm(
-    "Delete this trip?"
-  );
+  const ok =
+    confirm(
+      "Delete this trip?"
+    );
 
-if(!ok) return;
+  if(!ok) return;
 
-await Review.deleteTrip(id);
+  await Review.deleteTrip(id);
 
-await reloadTrips();
+  await reloadTrips();
 
 }
 
@@ -244,37 +244,37 @@ DELETE SHARED
 
 async function handleDeleteShared(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const groupId =
-  tr.dataset.groupId;
+  const groupId =
+    tr.dataset.groupId;
 
-const group =
-  Review.getSharedGroups().find(
-    g =>
-      Review.getSharedKey(g[0]) ===
-      groupId
-  );
+  const group =
+    Review.getSharedGroups().find(
+      g =>
+        Review.getSharedKey(g[0]) ===
+        groupId
+    );
 
-if(!group) return;
+  if(!group) return;
 
-const ok =
-  confirm(
-    "Delete this shared trip?"
-  );
+  const ok =
+    confirm(
+      "Delete this shared trip?"
+    );
 
-if(!ok) return;
+  if(!ok) return;
 
-for(const t of group){
+  for(const t of group){
 
-  await Review.deleteTrip(
-    t._id
-  );
+    await Review.deleteTrip(
+      t._id
+    );
 
-}
+  }
 
-await reloadTrips();
+  await reloadTrips();
 
 }
 
@@ -284,161 +284,225 @@ SAVE TRIP
 
 async function handleSaveTrip(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const id =
-  tr.dataset.id;
+  const id =
+    tr.dataset.id;
 
-const trip =
-  Review.trips.find(
-    t => t._id === id
+  const trip =
+    Review.trips.find(
+      t => t._id === id
+    );
+
+  if(!trip) return;
+
+  const payload = {};
+
+  const stops =
+    Array.isArray(trip.stops)
+    ? [...trip.stops]
+    : [];
+
+  tr.querySelectorAll(
+    ".edit-input"
+  ).forEach(input=>{
+
+    const field =
+      input.dataset.field;
+
+    const stopIndex =
+      input.dataset.stopIndex;
+
+    if(
+      stopIndex !== undefined
+    ){
+
+      stops[
+        Number(stopIndex)
+      ] =
+        Review.normalizeAZ(
+          input.value
+        );
+
+      return;
+
+    }
+
+    if(
+      field === "pickup" ||
+      field === "dropoff"
+    ){
+
+      payload[field] =
+        Review.normalizeAZ(
+          input.value
+        );
+
+    }else{
+
+      payload[field] =
+        input.value;
+
+    }
+
+  });
+
+  payload.stops = stops;
+
+  payload.status = "Scheduled";
+
+  payload.priceAmount = 0;
+
+  payload.pricePerPassenger = 0;
+
+  payload.miles = 0;
+
+  payload.distanceMeters = 0;
+
+  payload.durationSeconds = 0;
+
+  payload.estimatedMinutes = 0;
+
+  payload.googleRoute = null;
+
+  payload.routePoints = [];
+
+  payload.priceSnapshot = null;
+
+  await Review.updateTrip(
+    id,
+    payload
   );
 
-if(!trip) return;
-
-const service =
-  Review.getServiceByTrip(trip);
-
-const warningMinutes =
-  Review.getWarningMinutes(service);
-
-const dateInput =
-  tr.querySelector(
-    '[data-field="tripDate"]'
-  );
-
-const timeInput =
-  tr.querySelector(
-    '[data-field="tripTime"]'
-  );
-
-const editedDate =
-  dateInput
-  ? dateInput.value
-  : trip.tripDate;
-
-const editedTime =
-  timeInput
-  ? timeInput.value
-  : trip.tripTime;
-
-const editedTripDate =
-  Review.parseTripDateTime(
-    editedDate,
-    editedTime
-  );
-
-let mins = null;
-
-if(editedTripDate){
-
-  mins =
-    (
-      editedTripDate -
-      Review.getAZNow()
-    ) / 60000;
+  await reloadTrips();
 
 }
 
-if(
-  mins !== null &&
-  mins <= warningMinutes
-){
+/* =========================================
+SAVE SHARED
+========================================= */
 
-  const ok = confirm(
-`WARNING
+async function handleSaveShared(btn){
 
-This trip is within ${warningMinutes} minutes.
+  const tr =
+    btn.closest("tr");
 
-Cancellation fee may apply.
+  const groupId =
+    tr.dataset.groupId;
 
-Save changes?`
-  );
+  const group =
+    Review.getSharedGroups().find(
+      g =>
+        Review.getSharedKey(g[0]) ===
+        groupId
+    );
 
-  if(!ok) return;
+  if(!group) return;
 
-}
+  const passengers =
+    Review.getRealPassengersFromGroup(
+      group
+    ).map(p=>({...p}));
 
-const payload = {};
+  const payload = {};
 
-const stops =
-  Array.isArray(trip.stops)
-  ? [...trip.stops]
-  : [];
+  tr.querySelectorAll(
+    ".edit-input"
+  ).forEach(input=>{
 
-tr.querySelectorAll(
-  ".edit-input"
-).forEach(input=>{
+    const field =
+      input.dataset.field;
 
-  const field =
-    input.dataset.field;
+    if(
+      field &&
+      field.startsWith(
+        "passenger_"
+      )
+    ){
 
-  const stopIndex =
-    input.dataset.stopIndex;
+      const parts =
+        field.split("_");
 
-  if(
-    stopIndex !== undefined
-  ){
+      const index =
+        Number(parts[1]);
 
-    stops[
-      Number(stopIndex)
-    ] =
-      Review.normalizeAZ(
-        input.value
-      );
+      const key =
+        parts[2];
 
-    return;
+      if(!passengers[index]){
+        return;
+      }
 
-  }
+      if(key === "name"){
+        passengers[index].name =
+          input.value;
+      }
 
-  if(
-    field === "pickup" ||
-    field === "dropoff"
-  ){
+      if(key === "phone"){
+        passengers[index].phone =
+          input.value;
+      }
 
-    payload[field] =
-      Review.normalizeAZ(
-        input.value
-      );
+      if(key === "pickup"){
+        passengers[index].pickup =
+          Review.normalizeAZ(
+            input.value
+          );
+      }
 
-  }else{
+      if(key === "dropoff"){
+        passengers[index].dropoff =
+          Review.normalizeAZ(
+            input.value
+          );
+      }
+
+      return;
+
+    }
 
     payload[field] =
       input.value;
 
+  });
+
+  payload.passengers =
+    passengers;
+
+  payload.status =
+    "Scheduled";
+
+  payload.priceAmount = 0;
+
+  payload.pricePerPassenger = 0;
+
+  payload.miles = 0;
+
+  payload.distanceMeters = 0;
+
+  payload.durationSeconds = 0;
+
+  payload.estimatedMinutes = 0;
+
+  payload.googleRoute = null;
+
+  payload.routePoints = [];
+
+  payload.optimizedRoute = null;
+
+  payload.priceSnapshot = null;
+
+  for(const t of group){
+
+    await Review.updateTrip(
+      t._id,
+      payload
+    );
+
   }
 
-});
-
-payload.stops = stops;
-
-payload.status = "Scheduled";
-
-payload.priceAmount = 0;
-
-payload.pricePerPassenger = 0;
-
-payload.miles = 0;
-
-payload.distanceMeters = 0;
-
-payload.durationSeconds = 0;
-
-payload.estimatedMinutes = 0;
-
-payload.googleRoute = null;
-
-payload.routePoints = [];
-
-payload.priceSnapshot = null;
-
-await Review.updateTrip(
-  id,
-  payload
-);
-
-await reloadTrips();
+  await reloadTrips();
 
 }
 
@@ -448,83 +512,73 @@ CONFIRM TRIP
 
 async function handleConfirmTrip(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const id =
-  tr.dataset.id;
+  const id =
+    tr.dataset.id;
 
-const trip =
-  Review.trips.find(
-    t => t._id === id
+  const trip =
+    Review.trips.find(
+      t => t._id === id
+    );
+
+  if(!trip) return;
+
+  const service =
+    Review.getServiceByTrip(trip);
+
+  btn.disabled = true;
+
+  btn.textContent =
+    "Calculating...";
+
+  const routePoints =
+    Review.buildIndividualRoutePoints(
+      trip
+    );
+
+  const routeData =
+    await Review.calculateRouteMiles(
+      routePoints
+    );
+
+  const price =
+    Review.calculateTripPrice(
+      service,
+      routeData.miles,
+      trip.status,
+      Array.isArray(trip.stops)
+      ? trip.stops.length
+      : 0
+    );
+
+  const snapshot =
+    Review.buildPricingSnapshot(
+      service,
+      routeData.miles,
+      price
+    );
+
+  await Review.updateTrip(
+    id,
+    {
+      status:"Confirmed",
+      priceAmount:Number(price),
+      miles:routeData.miles,
+      distanceMeters:routeData.distanceMeters,
+      durationSeconds:routeData.durationSeconds,
+      estimatedMinutes:routeData.estimatedMinutes,
+      googleRoute:routeData.googleRoute,
+      routePoints:routePoints,
+      serviceName:service?.name || "",
+      serviceCode:service?.code || "",
+      serviceId:service?._id || "",
+      priceSnapshot:snapshot
+    }
   );
 
-if(!trip) return;
-
-const service =
-  Review.getServiceByTrip(trip);
-
-if(!service){
-
-  alert(
-    "Service not found"
-  );
-
-  return;
-
-}
-
-btn.disabled = true;
-
-btn.textContent =
-  "Calculating...";
-
-const routePoints =
-  Review.buildIndividualRoutePoints(
-    trip
-  );
-
-const routeData =
-  await Review.calculateRouteMiles(
-    routePoints
-  );
-
-const price =
-  Review.calculateTripPrice(
-    service,
-    routeData.miles,
-    trip.status,
-    Array.isArray(trip.stops)
-    ? trip.stops.length
-    : 0
-  );
-
-const snapshot =
-  Review.buildPricingSnapshot(
-    service,
-    routeData.miles,
-    price
-  );
-
-await Review.updateTrip(
-  id,
-  {
-    status:"Confirmed",
-    priceAmount:Number(price),
-    miles:routeData.miles,
-    distanceMeters:routeData.distanceMeters,
-    durationSeconds:routeData.durationSeconds,
-    estimatedMinutes:routeData.estimatedMinutes,
-    googleRoute:routeData.googleRoute,
-    routePoints:routePoints,
-    serviceName:service.name || "",
-    serviceCode:service.code || "",
-    serviceId:service._id || "",
-    priceSnapshot:snapshot
-  }
-);
-
-await reloadTrips();
+  await reloadTrips();
 
 }
 
@@ -534,117 +588,238 @@ CONFIRM SHARED
 
 async function handleConfirmShared(btn){
 
-const tr =
-  btn.closest("tr");
+  const tr =
+    btn.closest("tr");
 
-const groupId =
-  tr.dataset.groupId;
+  const groupId =
+    tr.dataset.groupId;
 
-const group =
-  Review.getSharedGroups().find(
-    g =>
-      Review.getSharedKey(g[0]) ===
-      groupId
-  );
+  const group =
+    Review.getSharedGroups().find(
+      g =>
+        Review.getSharedKey(g[0]) ===
+        groupId
+    );
 
-if(!group) return;
+  if(!group) return;
 
-const first =
-  group[0];
+  const first =
+    group[0];
 
-const service =
-  Review.getServiceByTrip(first);
+  const service =
+    Review.getServiceByTrip(first);
 
-btn.disabled = true;
+  btn.disabled = true;
 
-btn.textContent =
-  "Calculating...";
+  btn.textContent =
+    "Calculating...";
 
-const routePoints =
-  Review.buildSharedRoutePoints(
-    group
-  );
+  const routePoints =
+    Review.buildSharedRoutePoints(
+      group
+    );
 
-const routeData =
-  await Review.calculateRouteMiles(
-    routePoints
-  );
+  const routeData =
+    await Review.calculateRouteMiles(
+      routePoints
+    );
 
-const sharedPrice =
-  Review.calculateSharedPrice(
-    group,
-    routeData.miles
-  );
+  const sharedPrice =
+    Review.calculateSharedPrice(
+      group,
+      routeData.miles
+    );
 
-const snapshot =
-  Review.buildPricingSnapshot(
-    service,
-    routeData.miles,
-    sharedPrice.total
-  );
+  const snapshot =
+    Review.buildPricingSnapshot(
+      service,
+      routeData.miles,
+      sharedPrice.total
+    );
 
-const payload = {
+  const payload = {
 
-  status:"Confirmed",
+    status:"Confirmed",
 
-  isShared:true,
+    isShared:true,
 
-  tripType:"SHARED",
+    tripType:"SHARED",
 
-  serviceName:
-    service.name || "",
+    serviceName:
+      service?.name || "",
 
-  serviceCode:
-    service.code || "",
+    serviceCode:
+      service?.code || "",
 
-  serviceId:
-    service._id || "",
+    serviceId:
+      service?._id || "",
 
-  priceAmount:
-    sharedPrice.total,
+    priceAmount:
+      sharedPrice.total,
 
-  pricePerPassenger:
-    sharedPrice.pricePerPassenger,
+    pricePerPassenger:
+      sharedPrice.pricePerPassenger,
 
-  sharedStopsCount:
-    sharedPrice.stopsCount,
+    sharedStopsCount:
+      sharedPrice.stopsCount,
 
-  miles:
-    routeData.miles,
+    miles:
+      routeData.miles,
 
-  distanceMeters:
-    routeData.distanceMeters,
+    distanceMeters:
+      routeData.distanceMeters,
 
-  durationSeconds:
-    routeData.durationSeconds,
+    durationSeconds:
+      routeData.durationSeconds,
 
-  estimatedMinutes:
-    routeData.estimatedMinutes,
+    estimatedMinutes:
+      routeData.estimatedMinutes,
 
-  googleRoute:
-    routeData.googleRoute,
+    googleRoute:
+      routeData.googleRoute,
 
-  routePoints:
-    routePoints,
+    routePoints:
+      routePoints,
 
-  optimizedRoute:
-    routeData.googleRoute,
+    optimizedRoute:
+      routeData.googleRoute,
 
-  priceSnapshot:
-    snapshot
+    priceSnapshot:
+      snapshot
 
-};
+  };
 
-for(const t of group){
+  for(const t of group){
 
-  await Review.updateTrip(
-    t._id,
-    payload
-  );
+    await Review.updateTrip(
+      t._id,
+      payload
+    );
+
+  }
+
+  await reloadTrips();
 
 }
 
-await reloadTrips();
+/* =========================================
+CANCEL TRIP
+========================================= */
+
+async function handleCancelTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    Review.trips.find(
+      t => t._id === id
+    );
+
+  if(!trip) return;
+
+  const service =
+    Review.getServiceByTrip(trip);
+
+  const mins =
+    Review.minutesToTrip(trip);
+
+  const warningMinutes =
+    Review.getWarningMinutes(service);
+
+  const cancelFee =
+    Review.getCancelFee(service);
+
+  let finalPrice = 0;
+
+  if(
+    mins !== null &&
+    mins > 0 &&
+    mins <= warningMinutes
+  ){
+    finalPrice =
+      Number(cancelFee);
+  }
+
+  await Review.updateTrip(
+    id,
+    {
+      status:"Cancelled",
+      priceAmount:Number(finalPrice),
+      cancelFee:Number(finalPrice),
+      cancelledAt:new Date().toISOString()
+    }
+  );
+
+  await reloadTrips();
+
+}
+
+/* =========================================
+CANCEL SHARED
+========================================= */
+
+async function handleCancelShared(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const groupId =
+    tr.dataset.groupId;
+
+  const group =
+    Review.getSharedGroups().find(
+      g =>
+        Review.getSharedKey(g[0]) ===
+        groupId
+    );
+
+  if(!group) return;
+
+  const first =
+    group[0];
+
+  const service =
+    Review.getServiceByTrip(first);
+
+  const mins =
+    Review.minutesToTrip(first);
+
+  const warningMinutes =
+    Review.getWarningMinutes(service);
+
+  const cancelFee =
+    Review.getCancelFee(service);
+
+  let finalPrice = 0;
+
+  if(
+    mins !== null &&
+    mins > 0 &&
+    mins <= warningMinutes
+  ){
+    finalPrice =
+      Number(cancelFee);
+  }
+
+  for(const t of group){
+
+    await Review.updateTrip(
+      t._id,
+      {
+        status:"Cancelled",
+        priceAmount:Number(finalPrice),
+        cancelFee:Number(finalPrice),
+        cancelledAt:new Date().toISOString()
+      }
+    );
+
+  }
+
+  await reloadTrips();
 
 }
 
@@ -666,8 +841,6 @@ container.addEventListener(
 
   try{
 
-    /* ================= EDIT ================= */
-
     if(action === "edit-trip"){
       await handleEditTrip(btn);
     }
@@ -676,13 +849,9 @@ container.addEventListener(
       await handleEditShared(btn);
     }
 
-    /* ================= CANCEL EDIT ================= */
-
     if(action === "cancel-edit"){
       await handleCancelEdit();
     }
-
-    /* ================= DELETE ================= */
 
     if(action === "delete-trip"){
       await handleDeleteTrip(btn);
@@ -692,8 +861,6 @@ container.addEventListener(
       await handleDeleteShared(btn);
     }
 
-    /* ================= SAVE ================= */
-
     if(action === "save-trip"){
       await handleSaveTrip(btn);
     }
@@ -702,8 +869,6 @@ container.addEventListener(
       await handleSaveShared(btn);
     }
 
-    /* ================= CONFIRM ================= */
-
     if(action === "confirm-trip"){
       await handleConfirmTrip(btn);
     }
@@ -711,8 +876,6 @@ container.addEventListener(
     if(action === "confirm-shared"){
       await handleConfirmShared(btn);
     }
-
-    /* ================= CANCEL ================= */
 
     if(action === "cancel-trip"){
       await handleCancelTrip(btn);
@@ -736,4 +899,5 @@ container.addEventListener(
   }
 
 });
+
 });
