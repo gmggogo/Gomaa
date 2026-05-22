@@ -8,12 +8,7 @@
 <link rel="stylesheet" href="layout.css">
 
 <style>
-
-/* ================= GLOBAL ================= */
-
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 body{
   margin:0;
@@ -79,11 +74,9 @@ body{
   background:#fff;
 }
 
-/* ================= TABLE ================= */
-
 .review-table{
   width:100%;
-  min-width:1450px;
+  min-width:1700px;
   border-collapse:collapse;
   background:#fff;
 }
@@ -94,7 +87,7 @@ body{
   padding:7px;
   font-size:11px;
   text-align:center;
-  vertical-align:middle;
+  vertical-align:top;
 }
 
 .review-table th{
@@ -132,6 +125,51 @@ body{
   word-break:break-word;
 }
 
+/* ================= SHARED PASSENGER CARDS ================= */
+
+.shared-passenger-box{
+  background:#f8fafc;
+  border:1px solid #cbd5e1;
+  border-radius:14px;
+  padding:10px;
+  margin-bottom:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  text-align:left;
+  min-width:170px;
+}
+
+.shared-passenger-title{
+  font-size:11px;
+  font-weight:900;
+  color:#2563eb;
+  margin-bottom:8px;
+  padding-bottom:6px;
+  border-bottom:1px dashed #cbd5e1;
+}
+
+.shared-passenger-text{
+  font-size:11px;
+  line-height:1.55;
+  color:#111827;
+  word-break:break-word;
+}
+
+.shared-passenger-client{
+  border-left:5px solid #f59e0b;
+}
+
+.shared-passenger-phone{
+  border-left:5px solid #0ea5e9;
+}
+
+.shared-passenger-pickup{
+  border-left:5px solid #22c55e;
+}
+
+.shared-passenger-drop{
+  border-left:5px solid #ef4444;
+}
+
 /* ================= CLEAN NUMBERS ================= */
 
 .trip-number-badge{
@@ -157,39 +195,14 @@ body{
 
 /* ================= ROW COLORS ================= */
 
-.scheduled-row{
-  background:#fff;
-}
-
-.confirmed-row{
-  background:#dcfce7;
-}
-
-.cancelled-row{
-  background:#fecaca;
-}
-
-.yellow{
-  background:#fef9c3;
-}
-
-.red-light{
-  background:#fecaca;
-}
-
-.red-mid{
-  background:#fca5a5;
-}
-
-.red-dark{
-  background:#7f1d1d;
-  color:#fff;
-}
-
-.past-row{
-  background:#374151;
-  color:#f3f4f6;
-}
+.scheduled-row{background:#fff;}
+.confirmed-row{background:#dcfce7;}
+.cancelled-row{background:#fecaca;}
+.yellow{background:#fef9c3;}
+.red-light{background:#fecaca;}
+.red-mid{background:#fca5a5;}
+.red-dark{background:#7f1d1d;color:#fff;}
+.past-row{background:#374151;color:#f3f4f6;}
 
 /* ================= BUTTONS ================= */
 
@@ -216,30 +229,12 @@ body{
   transform:translateY(-1px);
 }
 
-.btn.edit{
-  background:#2563eb;
-  color:#fff;
-}
-
-.btn.delete{
-  background:#dc2626;
-  color:#fff;
-}
-
-.btn.confirm-green{
-  background:#22c55e;
-  color:#000;
-}
-
-.btn.confirm-yellow{
-  background:#facc15;
-  color:#111827;
-}
-
-.btn.cancel{
-  background:#ef4444;
-  color:#fff;
-}
+.btn.edit{background:#2563eb;color:#fff;}
+.btn.delete{background:#dc2626;color:#fff;}
+.btn.confirm{background:#16a34a;color:#fff;}
+.btn.confirm-green{background:#22c55e;color:#000;}
+.btn.confirm-yellow{background:#facc15;color:#111827;}
+.btn.cancel{background:#ef4444;color:#fff;}
 
 .btn.small-delete{
   background:#dc2626;
@@ -301,7 +296,7 @@ body{
   }
 
   .review-table{
-    min-width:1350px;
+    min-width:1500px;
   }
 
   .review-table th,
@@ -313,6 +308,20 @@ body{
   .multi-line{
     min-width:120px;
     max-width:180px;
+    font-size:10px;
+  }
+
+  .shared-passenger-box{
+    min-width:140px;
+    padding:8px;
+    border-radius:12px;
+  }
+
+  .shared-passenger-title{
+    font-size:10px;
+  }
+
+  .shared-passenger-text{
     font-size:10px;
   }
 
@@ -350,7 +359,6 @@ body{
   }
 
 }
-
 </style>
 </head>
 
