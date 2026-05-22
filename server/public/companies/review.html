@@ -1,24 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
-
-<title>
-SUNBEAM TRANSPORTATION – Review
-</title>
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0">
+<title>SUNBEAM TRANSPORTATION – Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
 <style>
 
-/* =========================
-GLOBAL
-========================= */
+/* ================= GLOBAL ================= */
 
 *{
   box-sizing:border-box;
@@ -26,7 +17,7 @@ GLOBAL
 
 body{
   margin:0;
-  font-family:'Segoe UI',Arial,sans-serif;
+  font-family:'Segoe UI', Arial, sans-serif;
   background:#f4f8fb;
   color:#111827;
 }
@@ -39,10 +30,6 @@ body{
   box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
 
-/* =========================
-CONTAINER
-========================= */
-
 .container{
   width:100%;
   max-width:1700px;
@@ -50,48 +37,26 @@ CONTAINER
   padding:88px 14px 24px;
 }
 
-/* =========================
-REVIEW TABS
-========================= */
+/* ================= TABS ================= */
 
 .review-tabs{
-
   display:flex;
-
   gap:10px;
-
-  margin:0 0 20px;
-
+  margin-bottom:18px;
   background:#e2e8f0;
-
   padding:6px;
-
   border-radius:14px;
-
-  flex-wrap:wrap;
-
 }
 
 .review-tabs button{
-
   flex:1;
-
-  min-width:120px;
-
-  padding:13px;
-
+  padding:12px;
   border:none;
-
-  border-radius:11px;
-
-  font-size:14px;
-
+  border-radius:10px;
+  font-size:13px;
   font-weight:800;
-
   cursor:pointer;
-
   transition:.2s;
-
 }
 
 .tab-active{
@@ -104,303 +69,147 @@ REVIEW TABS
   color:#fff;
 }
 
-/* =========================
-EMPTY STATE
-========================= */
-
-.empty-services{
-
-  background:#fff;
-
-  border-radius:18px;
-
-  padding:40px 20px;
-
-  text-align:center;
-
-  box-shadow:
-  0 8px 24px rgba(0,0,0,.08);
-
-}
-
-.empty-services h2{
-
-  margin:0 0 12px;
-
-  color:#dc2626;
-
-  font-size:30px;
-
-}
-
-.empty-services p{
-
-  margin:0;
-
-  color:#64748b;
-
-  line-height:1.8;
-
-  font-size:16px;
-
-}
-
-/* =========================
-TABLE WRAP
-========================= */
+/* ================= TABLE WRAP ================= */
 
 .table-wrap{
-
   width:100%;
-
   overflow-x:auto;
-
-  margin-bottom:20px;
-
-  border-radius:12px;
-
+  border-radius:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.08);
   background:#fff;
-
-  box-shadow:
-  0 6px 18px rgba(0,0,0,.08);
-
 }
 
-/* =========================
-TABLE
-========================= */
+/* ================= TABLE ================= */
 
 .review-table{
-
   width:100%;
-
   min-width:1450px;
-
   border-collapse:collapse;
-
   background:#fff;
-
 }
 
 .review-table th,
 .review-table td{
-
-  border:1px solid #dbe2ea;
-
+  border:1px solid #e2e8f0;
   padding:7px;
-
+  font-size:11px;
   text-align:center;
-
-  font-size:12px;
-
   vertical-align:middle;
-
 }
 
 .review-table th{
-
   background:#0f172a;
-
   color:#fff;
-
+  font-size:11px;
   font-weight:800;
-
   white-space:nowrap;
-
   position:sticky;
-
   top:0;
-
   z-index:5;
-
 }
 
 .review-table tr:hover{
   background:#f8fafc;
 }
 
-/* =========================
-DATE TITLE
-========================= */
+/* ================= DATE ================= */
 
 .date-title{
-
-  font-size:18px;
-
+  margin:22px 0 10px;
+  font-size:17px;
   font-weight:800;
-
-  margin:22px 0 12px;
-
   color:#0f172a;
-
 }
 
-/* =========================
-TEXT
-========================= */
+/* ================= TEXT ================= */
 
 .multi-line{
-
   white-space:pre-line;
-
-  line-height:1.5;
-
+  line-height:1.45;
   text-align:left;
-
-  word-break:break-word;
-
   min-width:150px;
-
   max-width:220px;
-
+  word-break:break-word;
 }
 
-/* =========================
-BADGES
-========================= */
+/* ================= CLEAN NUMBERS ================= */
 
 .trip-number-badge{
-
-  font-weight:900;
-
   color:#2563eb;
-
-  white-space:nowrap;
-
   font-size:14px;
-
+  font-weight:900;
+  white-space:nowrap;
 }
 
 .price-badge{
-
-  font-weight:900;
-
   color:#15803d;
-
-  white-space:nowrap;
-
   font-size:14px;
-
+  font-weight:900;
+  white-space:nowrap;
 }
 
 .miles-strong{
-
-  font-weight:900;
-
   color:#2563eb;
-
-  white-space:nowrap;
-
   font-size:13px;
-
+  font-weight:900;
+  white-space:nowrap;
 }
 
-/* =========================
-ROW COLORS
-========================= */
+/* ================= ROW COLORS ================= */
 
 .scheduled-row{
-  background:#ffffff;
-  color:#111827;
+  background:#fff;
 }
 
 .confirmed-row{
   background:#dcfce7;
-  color:#111827;
 }
 
 .cancelled-row{
   background:#fecaca;
-  color:#111827;
 }
 
 .yellow{
   background:#fef9c3;
-  color:#111827;
 }
 
 .red-light{
   background:#fecaca;
-  color:#111827;
 }
 
 .red-mid{
   background:#fca5a5;
-  color:#111827;
 }
 
 .red-dark{
   background:#7f1d1d;
-  color:#ffffff;
+  color:#fff;
 }
 
 .past-row{
   background:#374151;
-  color:#e5e7eb;
+  color:#f3f4f6;
 }
 
-/* =========================
-BLINK
-========================= */
-
-@keyframes blinkTrip{
-
-  0%{
-    opacity:1;
-  }
-
-  50%{
-    opacity:.82;
-  }
-
-  100%{
-    opacity:1;
-  }
-
-}
-
-.trip-blink{
-  animation:blinkTrip 1.8s infinite;
-}
-
-/* =========================
-BUTTONS
-========================= */
+/* ================= BUTTONS ================= */
 
 .actions-wrap{
-
   display:flex;
-
-  justify-content:center;
-
-  align-items:center;
-
-  gap:6px;
-
+  gap:4px;
   flex-wrap:wrap;
-
+  justify-content:center;
   min-width:160px;
-
 }
 
 .btn{
-
   border:none;
-
-  padding:6px 10px;
-
+  padding:5px 8px;
   border-radius:6px;
-
-  font-size:12px;
-
+  font-size:10px;
   font-weight:800;
-
   cursor:pointer;
-
   transition:.2s;
-
   white-space:nowrap;
-
 }
 
 .btn:hover{
@@ -413,18 +222,13 @@ BUTTONS
 }
 
 .btn.delete{
-  background:#111827;
-  color:#fff;
-}
-
-.btn.confirm{
-  background:#16a34a;
+  background:#dc2626;
   color:#fff;
 }
 
 .btn.confirm-green{
-  background:#16a34a;
-  color:#fff;
+  background:#22c55e;
+  color:#000;
 }
 
 .btn.confirm-yellow{
@@ -433,59 +237,38 @@ BUTTONS
 }
 
 .btn.cancel{
-  background:#dc2626;
+  background:#ef4444;
   color:#fff;
 }
 
 .btn.small-delete{
-  background:#ef4444;
+  background:#dc2626;
   color:#fff;
-  font-size:11px;
-  padding:4px 7px;
+  padding:3px 6px;
+  font-size:10px;
 }
 
-/* =========================
-INPUTS
-========================= */
+/* ================= INPUT ================= */
 
 .edit-input{
-
   width:100%;
-
-  min-width:120px;
-
-  box-sizing:border-box;
-
+  min-width:140px;
   padding:8px;
-
-  border:1px solid #cbd5e1;
-
+  border:1px solid #94a3b8;
   border-radius:6px;
-
-  font-size:12px;
-
+  font-size:13px;
   background:#fff;
-
   color:#111827;
-
   outline:none;
-
   margin-bottom:4px;
-
 }
 
 .edit-input:focus{
-
   border-color:#2563eb;
-
-  box-shadow:
-  0 0 0 2px rgba(37,99,235,.15);
-
+  box-shadow:0 0 0 2px rgba(37,99,235,.15);
 }
 
-/* =========================
-SCROLLBAR
-========================= */
+/* ================= SCROLLBAR ================= */
 
 .table-wrap::-webkit-scrollbar{
   height:10px;
@@ -496,70 +279,7 @@ SCROLLBAR
   border-radius:10px;
 }
 
-/* =========================
-LOADING
-========================= */
-
-.loading-wrap{
-
-  background:#fff;
-
-  border-radius:18px;
-
-  padding:50px 20px;
-
-  text-align:center;
-
-  box-shadow:
-  0 8px 24px rgba(0,0,0,.08);
-
-}
-
-.loading-spinner{
-
-  width:60px;
-
-  height:60px;
-
-  border-radius:50%;
-
-  border:6px solid #dbeafe;
-
-  border-top:6px solid #2563eb;
-
-  margin:auto;
-
-  animation:spin 1s linear infinite;
-
-}
-
-@keyframes spin{
-
-  0%{
-    transform:rotate(0deg);
-  }
-
-  100%{
-    transform:rotate(360deg);
-  }
-
-}
-
-.loading-text{
-
-  margin-top:18px;
-
-  font-size:18px;
-
-  font-weight:800;
-
-  color:#2563eb;
-
-}
-
-/* =========================
-MOBILE
-========================= */
+/* ================= MOBILE ================= */
 
 @media(max-width:768px){
 
@@ -576,29 +296,24 @@ MOBILE
     padding:10px;
   }
 
+  .table-wrap{
+    border-radius:10px;
+  }
+
   .review-table{
     min-width:1350px;
   }
 
   .review-table th,
   .review-table td{
-    font-size:10px;
     padding:5px;
-  }
-
-  .btn{
     font-size:10px;
-    padding:5px 7px;
-  }
-
-  .edit-input{
-    font-size:11px;
-    min-width:110px;
   }
 
   .multi-line{
     min-width:120px;
     max-width:180px;
+    font-size:10px;
   }
 
   .trip-number-badge{
@@ -613,11 +328,19 @@ MOBILE
     font-size:11px;
   }
 
+  .btn{
+    font-size:9px;
+    padding:4px 6px;
+  }
+
+  .edit-input{
+    min-width:120px;
+    font-size:12px;
+  }
+
 }
 
-/* =========================
-LARGE SCREEN
-========================= */
+/* ================= LARGE SCREEN ================= */
 
 @media(min-width:1600px){
 
@@ -629,36 +352,25 @@ LARGE SCREEN
 }
 
 </style>
-
 </head>
 
 <body>
 
-<!-- =========================
-HEADER
-========================= -->
-
+<!-- HEADER -->
 <div id="layoutHeader"></div>
 
-<!-- =========================
-MAIN
-========================= -->
-
+<!-- MAIN -->
 <div class="container">
 
-  <!-- DYNAMIC REVIEW CONTENT -->
+  <!-- REVIEW CONTENT -->
   <div id="tripsContainer"></div>
 
 </div>
 
-<!-- =========================
-SCRIPTS
-========================= -->
-
+<!-- SCRIPTS -->
 <script src="layout.js"></script>
-
-<!-- 🔥 REVIEW ENGINE -->
-<script src="review.js"></script>
+<script src="review-core.js"></script>
+<script src="review-actions.js"></script>
 
 </body>
 </html>
