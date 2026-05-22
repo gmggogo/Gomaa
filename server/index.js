@@ -3249,11 +3249,21 @@ if (isShared) {
 }
 
 
-    /* =========================
-       🟢 INDIVIDUAL CREATE
-    ========================= */
+/* =========================
+   🟢 INDIVIDUAL CREATE
+========================= */
 
-    const trip = await Trip.create({
+let trip = null;
+
+let attempts = 0;
+
+while(!trip && attempts < 5){
+
+  try{
+
+    attempts++;
+
+    trip = await Trip.create({
 
       type,
       tripNumber,
@@ -3294,22 +3304,50 @@ if (isShared) {
 
       bookedAt: req.body.bookedAt || new Date(),
       createdAt: new Date()
+
     });
 
-    await ensureTripCoords(trip);
+  }catch(err){
 
-    res.status(200).json(trip);
-
-  } catch (err) {
-    console.log(err);
-
-    if (err && err.code === 11000) {
-      return res.status(409).json({ message: "Duplicate trip number" });
+    if(err.code !== 11000){
+      throw err;
     }
 
-    res.status(500).json({ message: "Error creating trip" });
+    tripNumber =
+      await generateTripNumber(
+        type,
+        vehicleTypeFromQuote
+      );
+
   }
-});/* =========================
+
+}
+
+await ensureTripCoords(trip);
+
+res.status(200).json(trip);
+
+} catch (err) {
+
+  console.log(err);
+
+  if (err && err.code === 11000) {
+
+    return res.status(409).json({
+      message: "Duplicate trip number"
+    });
+
+  }
+
+  res.status(500).json({
+    message: "Error creating trip"
+  });
+
+}
+
+});
+
+/* =========================
    GET ALL TRIPS
 ========================= */
 app.get("/api/trips", async (req, res) => {
