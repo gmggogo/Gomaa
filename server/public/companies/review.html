@@ -27,9 +27,9 @@ body{
 
 .container{
   width:100%;
-  max-width:100%;
+  max-width:1700px;
   margin:auto;
-  padding:88px 12px 24px;
+  padding:88px 14px 24px;
 }
 
 /* ================= TABS ================= */
@@ -41,12 +41,10 @@ body{
   background:#e2e8f0;
   padding:6px;
   border-radius:14px;
-  overflow-x:auto;
 }
 
 .review-tabs button{
   flex:1;
-  min-width:120px;
   padding:12px;
   border:none;
   border-radius:10px;
@@ -76,11 +74,9 @@ body{
   background:#fff;
 }
 
-/* ================= TABLE ================= */
-
 .review-table{
-  width:max-content;
-  min-width:100%;
+  width:100%;
+  min-width:1700px;
   border-collapse:collapse;
   background:#fff;
 }
@@ -88,18 +84,18 @@ body{
 .review-table th,
 .review-table td{
   border:1px solid #e2e8f0;
-  padding:8px;
-  font-size:12px;
+  padding:7px;
+  font-size:11px;
   text-align:center;
   vertical-align:top;
-  white-space:nowrap;
 }
 
 .review-table th{
   background:#0f172a;
   color:#fff;
-  font-size:12px;
+  font-size:11px;
   font-weight:800;
+  white-space:nowrap;
   position:sticky;
   top:0;
   z-index:5;
@@ -113,7 +109,7 @@ body{
 
 .date-title{
   margin:22px 0 10px;
-  font-size:18px;
+  font-size:17px;
   font-weight:800;
   color:#0f172a;
 }
@@ -122,28 +118,28 @@ body{
 
 .multi-line{
   white-space:pre-line;
-  line-height:1.5;
+  line-height:1.45;
   text-align:left;
-  min-width:260px;
-  max-width:360px;
+  min-width:150px;
+  max-width:220px;
   word-break:break-word;
 }
 
-/* ================= SHARED PASSENGERS ================= */
+/* ================= SHARED PASSENGER CARDS ================= */
 
 .shared-passenger-box{
   background:#f8fafc;
   border:1px solid #cbd5e1;
   border-radius:14px;
-  padding:12px;
+  padding:10px;
   margin-bottom:10px;
   box-shadow:0 2px 8px rgba(0,0,0,.06);
   text-align:left;
-  min-width:240px;
+  min-width:170px;
 }
 
 .shared-passenger-title{
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
   color:#2563eb;
   margin-bottom:8px;
@@ -152,8 +148,8 @@ body{
 }
 
 .shared-passenger-text{
-  font-size:12px;
-  line-height:1.6;
+  font-size:11px;
+  line-height:1.55;
   color:#111827;
   word-break:break-word;
 }
@@ -174,78 +170,55 @@ body{
   border-left:5px solid #ef4444;
 }
 
-/* ================= BADGES ================= */
+/* ================= CLEAN NUMBERS ================= */
 
 .trip-number-badge{
   color:#2563eb;
-  font-size:15px;
+  font-size:14px;
   font-weight:900;
+  white-space:nowrap;
 }
 
 .price-badge{
   color:#15803d;
-  font-size:15px;
+  font-size:14px;
   font-weight:900;
+  white-space:nowrap;
 }
 
 .miles-strong{
   color:#2563eb;
-  font-size:14px;
+  font-size:13px;
   font-weight:900;
+  white-space:nowrap;
 }
 
 /* ================= ROW COLORS ================= */
 
-.scheduled-row{
-  background:#fff;
-}
+.scheduled-row{background:#fff;}
+.confirmed-row{background:#dcfce7;}
+.cancelled-row{background:#fecaca;}
+.yellow{background:#fef9c3;}
+.red-light{background:#fecaca;}
+.red-mid{background:#fca5a5;}
+.red-dark{background:#7f1d1d;color:#fff;}
+.past-row{background:#374151;color:#f3f4f6;}
 
-.confirmed-row{
-  background:#dcfce7;
-}
-
-.cancelled-row{
-  background:#fecaca;
-}
-
-.yellow{
-  background:#fef9c3;
-}
-
-.red-light{
-  background:#fecaca;
-}
-
-.red-mid{
-  background:#fca5a5;
-}
-
-.red-dark{
-  background:#7f1d1d;
-  color:#fff;
-}
-
-.past-row{
-  background:#374151;
-  color:#f3f4f6;
-}
-
-/* ================= ACTIONS ================= */
+/* ================= BUTTONS ================= */
 
 .actions-wrap{
   display:flex;
-  gap:6px;
+  gap:4px;
   flex-wrap:wrap;
   justify-content:center;
-  align-items:center;
-  min-width:260px;
+  min-width:160px;
 }
 
 .btn{
   border:none;
-  padding:7px 10px;
-  border-radius:7px;
-  font-size:11px;
+  padding:5px 8px;
+  border-radius:6px;
+  font-size:10px;
   font-weight:800;
   cursor:pointer;
   transition:.2s;
@@ -256,40 +229,17 @@ body{
   transform:translateY(-1px);
 }
 
-.btn.edit{
-  background:#2563eb;
-  color:#fff;
-}
-
-.btn.delete{
-  background:#dc2626;
-  color:#fff;
-}
-
-.btn.confirm{
-  background:#16a34a;
-  color:#fff;
-}
-
-.btn.confirm-green{
-  background:#22c55e;
-  color:#000;
-}
-
-.btn.confirm-yellow{
-  background:#facc15;
-  color:#111827;
-}
-
-.btn.cancel{
-  background:#ef4444;
-  color:#fff;
-}
+.btn.edit{background:#2563eb;color:#fff;}
+.btn.delete{background:#dc2626;color:#fff;}
+.btn.confirm{background:#16a34a;color:#fff;}
+.btn.confirm-green{background:#22c55e;color:#000;}
+.btn.confirm-yellow{background:#facc15;color:#111827;}
+.btn.cancel{background:#ef4444;color:#fff;}
 
 .btn.small-delete{
   background:#dc2626;
   color:#fff;
-  padding:4px 7px;
+  padding:3px 6px;
   font-size:10px;
 }
 
@@ -297,15 +247,15 @@ body{
 
 .edit-input{
   width:100%;
-  min-width:220px;
-  padding:9px;
+  min-width:140px;
+  padding:8px;
   border:1px solid #94a3b8;
   border-radius:6px;
   font-size:13px;
   background:#fff;
   color:#111827;
   outline:none;
-  margin-bottom:5px;
+  margin-bottom:4px;
 }
 
 .edit-input:focus{
@@ -316,7 +266,7 @@ body{
 /* ================= SCROLLBAR ================= */
 
 .table-wrap::-webkit-scrollbar{
-  height:11px;
+  height:10px;
 }
 
 .table-wrap::-webkit-scrollbar-thumb{
@@ -329,22 +279,24 @@ body{
 @media(max-width:768px){
 
   .container{
-    padding:82px 4px 16px;
+    padding:84px 6px 18px;
   }
 
   .review-tabs{
-    gap:5px;
+    gap:6px;
   }
 
   .review-tabs button{
-    font-size:10px;
-    padding:9px;
-    min-width:110px;
+    font-size:11px;
+    padding:10px;
+  }
+
+  .table-wrap{
+    border-radius:10px;
   }
 
   .review-table{
-    width:max-content;
-    min-width:1700px;
+    min-width:1500px;
   }
 
   .review-table th,
@@ -354,14 +306,15 @@ body{
   }
 
   .multi-line{
-    min-width:180px;
-    max-width:240px;
+    min-width:120px;
+    max-width:180px;
     font-size:10px;
   }
 
   .shared-passenger-box{
-    min-width:180px;
+    min-width:140px;
     padding:8px;
+    border-radius:12px;
   }
 
   .shared-passenger-title{
@@ -386,16 +339,12 @@ body{
 
   .btn{
     font-size:9px;
-    padding:5px 7px;
-  }
-
-  .actions-wrap{
-    min-width:220px;
+    padding:4px 6px;
   }
 
   .edit-input{
-    min-width:170px;
-    font-size:11px;
+    min-width:120px;
+    font-size:12px;
   }
 
 }
@@ -404,19 +353,12 @@ body{
 
 @media(min-width:1600px){
 
-  .container{
-    max-width:100%;
-    padding:90px 20px 30px;
-  }
-
   .review-table th,
   .review-table td{
-    font-size:13px;
-    padding:10px;
+    font-size:12px;
   }
 
 }
-
 </style>
 </head>
 
