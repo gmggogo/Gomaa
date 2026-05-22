@@ -1,7 +1,5 @@
 window.ReviewApp = {
-container:null,
-trips:[],
-COMPANY_SERVICES:[]
+container:null
 };
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -33,13 +31,8 @@ document.getElementById(
 window.ReviewApp.container =
 container;
 
-window.ReviewApp.trips =
-trips;
-
-window.ReviewApp.COMPANY_SERVICES =
-COMPANY_SERVICES;
-
 /* ================= STYLE ================= */
+
 (function injectStyles(){
   const oldStyle = document.getElementById("company-review-style");
   if(oldStyle) oldStyle.remove();
