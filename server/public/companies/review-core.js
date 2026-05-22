@@ -287,16 +287,68 @@ function isSharedService(service){
   );
 }
 function isSharedTrip(t){
-  const service = getServiceByTrip(t);
-  if(service){
-    return isSharedService(service);
-  }
-  return (
+
+  /* DIRECT FLAGS */
+
+  if(
     t.isShared === true ||
-    t.tripType === "SHARED" ||
-    String(t.tripNumber || "").includes("-SH") ||
-    (Array.isArray(t.passengers) && t.passengers.length > 0)
-  );
+    String(t.tripType || "")
+      .toUpperCase() === "SHARED"
+  ){
+    return true;
+  }
+
+  /* TRIP NUMBER */
+
+  if(
+    String(t.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH")
+  ){
+    return true;
+  }
+
+  /* PASSENGERS ARRAY */
+
+  if(
+    Array.isArray(t.passengers) &&
+    t.passengers.length > 0
+  ){
+    return true;
+  }
+
+  /* SERVICE DETECTION */
+
+  const service =
+    getServiceByTrip(t);
+
+  if(service){
+
+    if(
+      service.companyShared === true ||
+      service.shared === true
+    ){
+      return true;
+    }
+
+    const type =
+      String(
+        service.type ||
+        service.serviceType ||
+        service.title ||
+        ""
+      ).toUpperCase();
+
+    if(
+      type.includes("SHARED")
+    ){
+      return true;
+    }
+
+  }
+
+  return false;
+
 }
 function sharedEnabled(){
 
