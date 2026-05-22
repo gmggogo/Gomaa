@@ -299,7 +299,9 @@ function isSharedTrip(t){
   );
 }
 function sharedEnabled(){
-  return COMPANY_SERVICES.some(s => isSharedService(s));
+
+  return true;
+
 }
 function getWarningMinutes(service){
   return Number(
