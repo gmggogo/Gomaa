@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const serviceSchema = new mongoose.Schema({
 
+  /* =========================
+     BASIC INFO
+  ========================= */
+
   serviceKey:{
     type:String,
     required:true,
@@ -22,6 +26,10 @@ const serviceSchema = new mongoose.Schema({
     type:Boolean,
     default:true
   },
+
+  /* =========================
+     INDIVIDUAL PRICING
+  ========================= */
 
   pricingMode:{
     type:String,
@@ -47,10 +55,6 @@ const serviceSchema = new mongoose.Schema({
     type:Number,
     default:0
   },
-
-  /* =========================
-     HOURLY BILLING MODE
-  ========================= */
 
   hourlyBillingMode:{
     type:String,
@@ -109,6 +113,59 @@ const serviceSchema = new mongoose.Schema({
     type:String,
     default:"ST"
   },
+
+  /* =========================
+     COMPANY PRICING
+  ========================= */
+
+  companyPricingMode:{
+    type:String,
+    default:"MILE"
+  },
+
+  companyBaseFare:{
+    type:Number,
+    default:0
+  },
+
+  companyIncludedMiles:{
+    type:Number,
+    default:0
+  },
+
+  companyPerMile:{
+    type:Number,
+    default:0
+  },
+
+  companyHourlyRate:{
+    type:Number,
+    default:0
+  },
+
+  companyHourlyBillingMode:{
+    type:String,
+    default:"FULL"
+  },
+
+  companyStopFee:{
+    type:Number,
+    default:0
+  },
+
+  companyNoShowFee:{
+    type:Number,
+    default:0
+  },
+
+  companySharedPrice:{
+    type:Number,
+    default:0
+  },
+
+  /* =========================
+     COMPANY WARNING POLICY
+  ========================= */
 
   companyWarningEnabled:{
     type:Boolean,
