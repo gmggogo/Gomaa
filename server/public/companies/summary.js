@@ -2,7 +2,9 @@
 
 let allTrips = [];
 
-let currentTab = "ALL";
+let currentTab = "TRIPS";
+
+let currentService = "ALL";
 
 let COMPANY_SERVICES = [];
 
@@ -42,345 +44,6 @@ async function loadServices(){
 }
 
 /* =========================
-GET SERVICE CODE
-========================= */
-
-function getTripServiceCode(t){
-
-  return String(
-
-    t.serviceCode ||
-
-    t.serviceSuffix ||
-
-    t.serviceType ||
-
-    ""
-
-  )
-  .toUpperCase()
-  .trim();
-
-}
-
-/* =========================
-BUILD TABS
-========================= */
-
-function buildTabs(){
-
-  const tabs =
-    document.getElementById(
-      "dynamicTabs"
-    );
-
-  if(!tabs) return;
-
-  tabs.innerHTML = "";
-
-  /* =========================
-  ALL TAB
-  ========================= */
-
-  const allBtn =
-    document.createElement("button");
-
-  allBtn.className =
-    currentTab === "ALL"
-    ? "tab active"
-    : "tab";
-
-  allBtn.innerText =
-    `Trips (${allTrips.length})`;
-
-  allBtn.onclick = ()=>{
-
-    currentTab = "ALL";
-
-    render();
-
-  };
-
-  tabs.appendChild(allBtn);
-
-  /* =========================
-  SERVICES
-  ========================= */
-
-  COMPANY_SERVICES.forEach(service=>{
-
-    const code =
-      String(
-        service.code ||
-        service.serviceCode ||
-        service.serviceKey ||
-        service.companySuffix ||
-        ""
-      )
-      .toUpperCase();
-
-    const count =
-      allTrips.filter(t=>
-        getTripServiceCode(t) === code
-      ).length;
-
-    const btn =
-      document.createElement("button");
-
-    btn.className =
-      currentTab === code
-      ? "tab active"
-      : "tab";
-
-    btn.innerText =
-      `${service.title || service.name} (${count})`;
-
-    btn.onclick = ()=>{
-
-      currentTab = code;
-
-      render();
-
-    };
-
-    tabs.appendChild(btn);
-
-  });
-
-}
-
-/* =========================
-BUILD STATS
-========================= */
-
-function buildStats(data){
-
-  const wrap =
-    document.getElementById(
-      "dynamicStats"
-    );
-
-  if(!wrap) return;
-
-  wrap.innerHTML = "";
-
-  COMPANY_SERVICES.forEach(service=>{
-
-    const code =
-      String(
-        service.code ||
-        service.serviceCode ||
-        service.serviceKey ||
-        service.companySuffix ||
-        ""
-      )
-      .toUpperCase();
-
-    const trips =
-      data.filter(t=>
-        getTripServiceCode(t) === code
-      );
-
-    const total =
-      trips.length;
-
-    const card =
-      document.createElement("div");
-
-    card.className = "stat";
-
-    card.innerHTML = `
-
-      <div class="stat-title">
-        ${service.title || service.name}
-      </div>
-
-      <div class="stat-value">
-        ${total}
-      </div>
-
-    `;
-
-    wrap.appendChild(card);
-
-  });
-
-  /* =========================
-  COMPLETED
-  ========================= */
-
-  const completed =
-    data.filter(t=>{
-
-      if(t.isShared){
-
-        return (
-          t.passengers || []
-        ).some(
-          p => p.status === "Completed"
-        );
-
-      }
-
-      return t.status === "Completed";
-
-    }).length;
-
-  /* =========================
-  CANCELLED
-  ========================= */
-
-  const cancelled =
-    data.filter(t=>{
-
-      if(t.isShared){
-
-        return (
-          t.passengers || []
-        ).some(
-          p => p.status === "Cancelled"
-        );
-
-      }
-
-      return t.status === "Cancelled";
-
-    }).length;
-
-  /* =========================
-  NOSHOW
-  ========================= */
-
-  const noshow =
-    data.filter(t=>{
-
-      if(t.isShared){
-
-        return (
-          t.passengers || []
-        ).some(
-          p => p.status === "NoShow"
-        );
-
-      }
-
-      return t.status === "NoShow";
-
-    }).length;
-
-  /* =========================
-  REVENUE
-  ========================= */
-
-  let revenue = 0;
-
-  data.forEach(t=>{
-
-    if(t.isShared){
-
-      (t.passengers || [])
-      .forEach(p=>{
-
-        if(
-          p.status === "Completed"
-        ){
-
-          revenue += Number(
-            p.price || 0
-          );
-
-        }
-
-        if(
-          p.status === "Cancelled" ||
-          p.status === "NoShow"
-        ){
-
-          revenue += 15;
-
-        }
-
-      });
-
-    }else{
-
-      if(
-        t.status === "Completed"
-      ){
-
-        revenue += Number(
-          t.finalPrice || 0
-        );
-
-      }
-
-      if(
-        t.status === "Cancelled" ||
-        t.status === "NoShow"
-      ){
-
-        revenue += 15;
-
-      }
-
-    }
-
-  });
-
-  /* =========================
-  EXTRA CARDS
-  ========================= */
-
-  const extra = [
-
-    {
-      title:"Completed",
-      value:completed
-    },
-
-    {
-      title:"Cancelled",
-      value:cancelled
-    },
-
-    {
-      title:"No Show",
-      value:noshow
-    },
-
-    {
-      title:"Revenue",
-      value:`$${revenue}`
-    }
-
-  ];
-
-  extra.forEach(item=>{
-
-    const card =
-      document.createElement("div");
-
-    card.className = "stat";
-
-    card.innerHTML = `
-
-      <div class="stat-title">
-        ${item.title}
-      </div>
-
-      <div class="stat-value">
-        ${item.value}
-      </div>
-
-    `;
-
-    wrap.appendChild(card);
-
-  });
-
-}
-
-/* =========================
 LOAD
 ========================= */
 
@@ -412,6 +75,398 @@ async function load(){
     console.log(err);
 
   }
+
+}
+
+/* =========================
+HELPERS
+========================= */
+
+function getServiceCode(t){
+
+  return String(
+
+    t.serviceSuffix ||
+
+    t.serviceCode ||
+
+    t.serviceType ||
+
+    ""
+
+  )
+  .toUpperCase()
+  .trim();
+
+}
+
+function isSharedTrip(t){
+
+  return (
+
+    t.isShared === true ||
+
+    String(
+      t.tripType || ""
+    ).toUpperCase() === "SHARED"
+
+  );
+
+}
+
+function getTripsData(){
+
+  let trips =
+    getFilteredTrips();
+
+  /* =========================
+  MAIN TAB
+  ========================= */
+
+  if(currentTab === "TRIPS"){
+
+    trips =
+      trips.filter(
+        t => !isSharedTrip(t)
+      );
+
+  }
+
+  if(currentTab === "SHARED"){
+
+    trips =
+      trips.filter(
+        t => isSharedTrip(t)
+      );
+
+  }
+
+  /* =========================
+  SERVICE FILTER
+  ========================= */
+
+  if(currentService !== "ALL"){
+
+    trips =
+      trips.filter(t=>
+
+        getServiceCode(t)
+
+        === currentService
+
+      );
+
+  }
+
+  return trips;
+
+}
+
+/* =========================
+BUILD TABS
+========================= */
+
+function buildTabs(){
+
+  const wrap =
+    document.getElementById(
+      "dynamicTabs"
+    );
+
+  if(!wrap) return;
+
+  wrap.innerHTML = "";
+
+  /* =========================
+  NORMAL SERVICES
+  ========================= */
+
+  const normalServices =
+    COMPANY_SERVICES.filter(s=>
+
+      s.companyShared !== true &&
+
+      s.shared !== true &&
+
+      String(
+        s.serviceType || ""
+      ).toUpperCase() !== "SHARED"
+
+    );
+
+  /* =========================
+  SHARED SERVICES
+  ========================= */
+
+  const sharedServices =
+    COMPANY_SERVICES.filter(s=>
+
+      s.companyShared === true ||
+
+      s.shared === true ||
+
+      String(
+        s.serviceType || ""
+      ).toUpperCase() === "SHARED"
+
+    );
+
+  /* =========================
+  TRIPS TAB
+  ========================= */
+
+  if(normalServices.length){
+
+    const count =
+      allTrips.filter(t=>
+
+        !isSharedTrip(t)
+
+      ).length;
+
+    const btn =
+      document.createElement("button");
+
+    btn.className =
+      currentTab === "TRIPS"
+      ? "tab active"
+      : "tab";
+
+    btn.innerText =
+      `Trips (${count})`;
+
+    btn.onclick = ()=>{
+
+      currentTab = "TRIPS";
+
+      currentService = "ALL";
+
+      buildTabs();
+
+      render();
+
+    };
+
+    wrap.appendChild(btn);
+
+  }
+
+  /* =========================
+  SHARED TAB
+  ========================= */
+
+  if(sharedServices.length){
+
+    const count =
+      allTrips.filter(t=>
+
+        isSharedTrip(t)
+
+      ).length;
+
+    const btn =
+      document.createElement("button");
+
+    btn.className =
+      currentTab === "SHARED"
+      ? "tab active"
+      : "tab";
+
+    btn.innerText =
+      `Shared (${count})`;
+
+    btn.onclick = ()=>{
+
+      currentTab = "SHARED";
+
+      currentService = "ALL";
+
+      buildTabs();
+
+      render();
+
+    };
+
+    wrap.appendChild(btn);
+
+  }
+
+}
+
+/* =========================
+BUILD STATS
+========================= */
+
+function buildStats(){
+
+  const wrap =
+    document.getElementById(
+      "dynamicStats"
+    );
+
+  if(!wrap) return;
+
+  wrap.innerHTML = "";
+
+  const trips =
+    getTripsData();
+
+  const services =
+    currentTab === "TRIPS"
+
+    ? COMPANY_SERVICES.filter(s=>
+
+        s.companyShared !== true &&
+
+        s.shared !== true &&
+
+        String(
+          s.serviceType || ""
+        ).toUpperCase() !== "SHARED"
+
+      )
+
+    : COMPANY_SERVICES.filter(s=>
+
+        s.companyShared === true ||
+
+        s.shared === true ||
+
+        String(
+          s.serviceType || ""
+        ).toUpperCase() === "SHARED"
+
+      );
+
+  services.forEach(service=>{
+
+    const code =
+      String(
+
+        service.companySuffix ||
+
+        service.serviceCode ||
+
+        service.serviceKey ||
+
+        service.code ||
+
+        ""
+
+      )
+      .toUpperCase();
+
+    const serviceTrips =
+      trips.filter(t=>
+
+        getServiceCode(t)
+
+        === code
+
+      );
+
+    let revenue = 0;
+
+    serviceTrips.forEach(t=>{
+
+      if(t.isShared){
+
+        (t.passengers || [])
+        .forEach(p=>{
+
+          if(
+            p.status === "Completed"
+          ){
+
+            revenue += Number(
+              p.price || 0
+            );
+
+          }
+
+          if(
+            p.status === "Cancelled" ||
+            p.status === "NoShow"
+          ){
+
+            revenue += 15;
+
+          }
+
+        });
+
+      }else{
+
+        if(
+          t.status === "Completed"
+        ){
+
+          revenue += Number(
+            t.finalPrice || 0
+          );
+
+        }
+
+        if(
+          t.status === "Cancelled" ||
+          t.status === "NoShow"
+        ){
+
+          revenue += 15;
+
+        }
+
+      }
+
+    });
+
+    const card =
+      document.createElement("div");
+
+    card.className = "stat";
+
+    if(currentService === code){
+
+      card.style.outline =
+        "3px solid #145cff";
+
+    }
+
+    card.innerHTML = `
+
+      <div class="stat-title">
+        ${service.title || service.name}
+      </div>
+
+      <div class="stat-value">
+        ${serviceTrips.length}
+      </div>
+
+      <div class="stat-money">
+        $${revenue}
+      </div>
+
+    `;
+
+    card.onclick = ()=>{
+
+      if(currentService === code){
+
+        currentService = "ALL";
+
+      }else{
+
+        currentService = code;
+
+      }
+
+      render();
+
+    };
+
+    wrap.appendChild(card);
+
+  });
 
 }
 
@@ -606,6 +661,8 @@ RENDER
 
 function render(){
 
+  buildStats();
+
   const wrap =
     document.getElementById(
       "summaryContent"
@@ -613,25 +670,8 @@ function render(){
 
   wrap.innerHTML = "";
 
-  const data =
-    getFilteredTrips();
-
-  buildStats(data);
-
-  let trips = data;
-
-  if(currentTab !== "ALL"){
-
-    trips =
-      data.filter(t =>
-
-        getTripServiceCode(t)
-
-        === currentTab
-
-      );
-
-  }
+  const trips =
+    getTripsData();
 
   const groups =
     groupByDay(trips);

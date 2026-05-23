@@ -114,14 +114,11 @@ body{
   display:flex;
   gap:8px;
   margin-bottom:14px;
-  flex-wrap:wrap;
 }
 
 .tab{
 
   flex:1;
-
-  min-width:120px;
 
   height:44px;
 
@@ -169,6 +166,14 @@ body{
 
   color:#fff;
 
+  cursor:pointer;
+
+  transition:.2s;
+
+}
+
+.stat:hover{
+  transform:translateY(-2px);
 }
 
 .stat-title{
@@ -182,6 +187,13 @@ body{
   font-size:24px;
   font-weight:900;
   color:#fff;
+}
+
+.stat-money{
+  margin-top:4px;
+  font-size:12px;
+  font-weight:800;
+  color:#fef9c3;
 }
 
 /* ================= DATE TITLE ================= */
@@ -284,36 +296,12 @@ body{
   border-right:none;
 }
 
-/* ================= ROW COLORS ================= */
-
 .summary-table tr:nth-child(even) td{
   background:#f8fafc;
 }
 
 .summary-table tr:hover td{
   background:#eef4ff;
-}
-
-/* ================= SHARED ================= */
-
-.shared-separator td{
-  border-bottom:1px solid #cbd5e1 !important;
-}
-
-/* ================= DIVIDERS ================= */
-
-.trip-divider-line td{
-  padding:0 !important;
-  height:4px;
-  background:#94a3b8;
-  border:none !important;
-}
-
-.trip-divider td{
-  padding:0 !important;
-  height:12px;
-  background:#f4f8fb;
-  border:none !important;
 }
 
 /* ================= STATUS ================= */
@@ -341,43 +329,27 @@ body{
   color:#854d0e;
 }
 
-/* ================= TOTAL ================= */
-
 .total{
   font-weight:900;
   color:#145cff;
 }
 
-/* ================= SPECIAL COLORS ================= */
-
-.summary-table td:first-child{
-
-  background:#dbeafe !important;
-
-  color:#1d4ed8;
-
-  font-weight:900;
-
+.shared-separator td{
+  border-bottom:1px solid #cbd5e1 !important;
 }
 
-.summary-table td:nth-child(16){
-
-  background:#fef9c3 !important;
-
-  color:#854d0e;
-
-  font-weight:900;
-
+.trip-divider-line td{
+  padding:0 !important;
+  height:4px;
+  background:#94a3b8;
+  border:none !important;
 }
 
-.summary-table td:nth-child(17){
-
-  background:#dcfce7 !important;
-
-  color:#166534;
-
-  font-weight:900;
-
+.trip-divider td{
+  padding:0 !important;
+  height:12px;
+  background:#f4f8fb;
+  border:none !important;
 }
 
 /* ================= MOBILE ================= */
@@ -399,10 +371,6 @@ body{
     font-size:11px;
   }
 
-  .tabs{
-    gap:6px;
-  }
-
   .tab{
     font-size:11px;
     height:40px;
@@ -410,20 +378,6 @@ body{
 
   .stats{
     grid-template-columns:1fr 1fr;
-    gap:8px;
-  }
-
-  .stat{
-    padding:12px;
-    border-radius:12px;
-  }
-
-  .stat-title{
-    font-size:10px;
-  }
-
-  .stat-value{
-    font-size:20px;
   }
 
   .summary-table{
@@ -434,37 +388,6 @@ body{
   .summary-table td{
     font-size:8px;
     padding:5px 4px;
-  }
-
-}
-
-/* ================= LARGE SCREEN ================= */
-
-@media(min-width:1600px){
-
-  .summary-table th,
-  .summary-table td{
-    font-size:11px;
-  }
-
-}
-
-/* ================= PRINT ================= */
-
-@media print{
-
-  #layoutHeader,
-  .top-bar,
-  .tabs{
-    display:none !important;
-  }
-
-  .page{
-    padding:0;
-  }
-
-  body{
-    background:#fff;
   }
 
 }
@@ -489,22 +412,14 @@ body{
       class="search-input"
       placeholder="Search Name / Phone / Trip# / Company">
 
-    <select
-      id="yearFilter"
-      class="filter-select">
-    </select>
+    <select id="yearFilter" class="filter-select"></select>
 
-    <select
-      id="monthFilter"
-      class="filter-select">
-    </select>
+    <select id="monthFilter" class="filter-select"></select>
 
     <button
       class="print-btn"
       onclick="window.print()">
-
       Print
-
     </button>
 
   </div>
