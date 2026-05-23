@@ -62,9 +62,28 @@ async function load(){
 HELPERS
 ========================= */
 
+function getTripSuffix(trip){
+
+  const parts =
+    String(
+      trip.tripNumber || ""
+    )
+    .split("-");
+
+  return String(
+    parts[parts.length - 1] || ""
+  )
+  .trim()
+  .toUpperCase();
+
+}
+
 function isSharedTrip(trip){
 
-  return trip?.isShared === true;
+  return (
+    trip?.isShared === true ||
+    getTripSuffix(trip) === "SH"
+  );
 
 }
 
@@ -110,6 +129,30 @@ function safeText(v){
   return String(v || "")
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;");
+
+}
+
+function isCompleted(status){
+
+  return String(status || "")
+    .toLowerCase()
+    .includes("complete");
+
+}
+
+function isCancelled(status){
+
+  return String(status || "")
+    .toLowerCase()
+    .includes("cancel");
+
+}
+
+function isNoShow(status){
+
+  return String(status || "")
+    .toLowerCase()
+    .includes("no");
 
 }
 
@@ -344,15 +387,15 @@ function statusHTML(status){
 
   let cls = "";
 
-  if(status === "Completed"){
+  if(isCompleted(status)){
     cls = "completed";
   }
 
-  else if(status === "Cancelled"){
+  else if(isCancelled(status)){
     cls = "cancelled";
   }
 
-  else if(status === "NoShow"){
+  else if(isNoShow(status)){
     cls = "noshow";
   }
 
@@ -365,16 +408,136 @@ function statusHTML(status){
 }
 
 /* =========================
-STATS
+GREEN SERVICES
+========================= */
+
+function getServiceCards(data){
+
+  const services = [
+
+    {
+      title:"Standard",
+      code:"ST"
+    },
+
+    {
+      title:"XL",
+      code:"XL"
+    },
+
+    {
+      title:"Wheelchair",
+      code:"WH"
+    },
+
+    {
+      title:"Shared",
+      code:"SH"
+    },
+
+    {
+      title:"Taxi",
+      code:"TX"
+    },
+
+    {
+      title:"Limousine",
+      code:"LM"
+    }
+
+  ];
+
+  return services.map(service=>{
+
+    const serviceTrips =
+      data.filter(t =>
+        getTripSuffix(t) === service.code
+      );
+
+    let trips = 0;
+
+    let passengers = 0;
+
+    let miles = 0;
+
+    let revenue = 0;
+
+    serviceTrips.forEach(t=>{
+
+      if(isSharedTrip(t)){
+
+        (t.passengers || [])
+        .forEach(p=>{
+
+          if(
+            isCompleted(p.status) ||
+            isCancelled(p.status) ||
+            isNoShow(p.status)
+          ){
+
+            passengers++;
+
+            trips++;
+
+            miles += Number(
+              t.miles || 0
+            );
+
+            revenue +=
+              getPassengerPrice(p);
+
+          }
+
+        });
+
+      }else{
+
+        if(
+          isCompleted(t.status) ||
+          isCancelled(t.status) ||
+          isNoShow(t.status)
+        ){
+
+          trips++;
+
+          miles += Number(
+            t.miles || 0
+          );
+
+          revenue +=
+            getTripPrice(t);
+
+        }
+
+      }
+
+    });
+
+    return {
+
+      ...service,
+
+      trips,
+
+      passengers,
+
+      miles,
+
+      revenue
+
+    };
+
+  });
+
+}
+
+/* =========================
+TOTAL STATS
 ========================= */
 
 function updateStats(data){
 
   let totalTrips = 0;
-
-  let individual = 0;
-
-  let shared = 0;
 
   let completed = 0;
 
@@ -388,32 +551,27 @@ function updateStats(data){
 
   data.forEach(t=>{
 
-    /* =========================
-    SHARED
-    ========================= */
-
     if(isSharedTrip(t)){
-
-      shared++;
 
       (t.passengers || [])
       .forEach(p=>{
 
         totalTrips++;
 
-        if(p.status === "Completed"){
+        if(isCompleted(p.status)){
           completed++;
         }
 
-        if(p.status === "Cancelled"){
+        if(isCancelled(p.status)){
           cancelled++;
         }
 
-        if(p.status === "NoShow"){
+        if(isNoShow(p.status)){
           noshow++;
         }
 
-        revenue += getPassengerPrice(p);
+        revenue +=
+          getPassengerPrice(p);
 
         miles += Number(
           t.miles || 0
@@ -421,31 +579,24 @@ function updateStats(data){
 
       });
 
-    }
-
-    /* =========================
-    INDIVIDUAL
-    ========================= */
-
-    else{
+    }else{
 
       totalTrips++;
 
-      individual++;
-
-      if(t.status === "Completed"){
+      if(isCompleted(t.status)){
         completed++;
       }
 
-      if(t.status === "Cancelled"){
+      if(isCancelled(t.status)){
         cancelled++;
       }
 
-      if(t.status === "NoShow"){
+      if(isNoShow(t.status)){
         noshow++;
       }
 
-      revenue += getTripPrice(t);
+      revenue +=
+        getTripPrice(t);
 
       miles += Number(
         t.miles || 0
@@ -456,7 +607,7 @@ function updateStats(data){
   });
 
   /* =========================
-  GREEN CARDS
+  GREEN
   ========================= */
 
   const servicesWrap =
@@ -466,53 +617,47 @@ function updateStats(data){
 
   if(servicesWrap){
 
-    servicesWrap.innerHTML = `
+    const services =
+      getServiceCards(data);
 
-      <div class="stat">
+    servicesWrap.innerHTML = "";
 
-        <div class="stat-title">
-          Individual Trips
+    services.forEach(s=>{
+
+      servicesWrap.innerHTML += `
+
+        <div class="stat">
+
+          <div class="stat-title">
+            ${s.title}
+          </div>
+
+          <div class="stat-lines">
+
+            Trips ${s.trips}<br>
+
+            ${
+              s.code === "SH"
+              ? `Passengers ${s.passengers}`
+              : `Miles ${s.miles.toFixed(1)}`
+            }
+
+            <br>
+
+            Revenue $${s.revenue.toFixed(2)}
+
+          </div>
+
         </div>
 
-        <div class="stat-lines">
-          Trips ${individual}<br>
-          Revenue $${revenue.toFixed(2)}
-        </div>
+      `;
 
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Shared Trips
-        </div>
-
-        <div class="stat-lines">
-          Groups ${shared}<br>
-          Passengers ${totalTrips}
-        </div>
-
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Completed
-        </div>
-
-        <div class="stat-lines">
-          Trips ${completed}<br>
-          Miles ${miles.toFixed(1)}
-        </div>
-
-      </div>
-
-    `;
+    });
 
   }
 
   /* =========================
-  BLUE CARDS
+  BLUE
   ========================= */
 
   const totalsWrap =
@@ -580,6 +725,18 @@ function updateStats(data){
 
         <div class="stat-value">
           $${revenue.toFixed(2)}
+        </div>
+
+      </div>
+
+      <div class="stat">
+
+        <div class="stat-title">
+          Miles
+        </div>
+
+        <div class="stat-value">
+          ${miles.toFixed(1)}
         </div>
 
       </div>
