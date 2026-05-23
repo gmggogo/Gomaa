@@ -741,16 +741,24 @@ async function handleCancelTrip(btn){
 console.log(service);
 console.log(cancelFee);
 
-  let finalPrice = 0;
+let finalPrice = 0;
+
+if(
+  Review.warningEnabled(service)
+){
 
   if(
     mins !== null &&
     mins > 0 &&
     mins <= warningMinutes
   ){
+
     finalPrice =
       Number(cancelFee);
+
   }
+
+}
 
   await Review.updateTrip(
     id,
