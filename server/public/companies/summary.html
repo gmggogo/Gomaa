@@ -1,907 +1,589 @@
-/* =========================
-SUMMARY FINAL ENGINE
-========================= */
+<!-- summary.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
 
-let allTrips = [];
-let currentTab = "individual";
+<meta charset="UTF-8">
 
-/* =========================
-LOAD
-========================= */
+<title>
+Sunbeam Summary
+</title>
 
-async function load(){
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
 
-  try{
+<link rel="stylesheet" href="layout.css">
 
-    const company =
-      localStorage.getItem("name") || "";
+<style>
 
-    const res =
-      await fetch(
-        `/api/trips/summary?company=${encodeURIComponent(company)}`
-      );
+/* ================= GLOBAL ================= */
 
-    allTrips =
-      await res.json();
+*{
+  box-sizing:border-box;
+}
 
-    buildFilters();
+body{
+  margin:0;
+  background:#f4f8fb;
+  font-family:'Segoe UI',sans-serif;
+  color:#111827;
+  overflow-x:hidden;
+}
 
-    render();
+/* ================= HEADER ================= */
 
-  }catch(err){
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
 
-    console.log(err);
+/* ================= PAGE ================= */
 
+.page{
+  width:100%;
+  max-width:1700px;
+  margin:auto;
+  padding:88px 14px 24px;
+}
+
+/* ================= TOP BAR ================= */
+
+.top-bar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.search-input,
+.filter-select{
+
+  height:40px;
+
+  border:none;
+
+  border-radius:10px;
+
+  background:#fff;
+
+  padding:0 12px;
+
+  font-size:12px;
+
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+
+  font-weight:700;
+
+}
+
+.search-input{
+  flex:1;
+  min-width:220px;
+}
+
+.print-btn{
+
+  border:none;
+
+  background:#145cff;
+
+  color:#fff;
+
+  border-radius:10px;
+
+  padding:0 18px;
+
+  font-size:12px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+}
+
+/* ================= TABS ================= */
+
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.tab{
+
+  flex:1;
+
+  height:38px;
+
+  border:none;
+
+  border-radius:10px;
+
+  background:#dbe4f0;
+
+  color:#111827;
+
+  font-size:12px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+}
+
+.tab.active{
+  background:#145cff;
+  color:#fff;
+}
+
+/* ================= GREEN SERVICES ================= */
+
+.services-stats{
+
+  display:grid;
+
+  grid-template-columns:
+  repeat(auto-fit,minmax(140px,1fr));
+
+  gap:8px;
+
+  margin-bottom:10px;
+
+}
+
+.services-stats .stat{
+
+  background:#16a34a;
+
+  border-radius:12px;
+
+  padding:10px 12px;
+
+  min-height:80px;
+
+  color:#fff;
+
+  box-shadow:
+  0 3px 10px rgba(0,0,0,.08);
+
+}
+
+.services-stats .stat-title{
+
+  font-size:10px;
+
+  color:#dcfce7;
+
+  font-weight:800;
+
+  margin-bottom:5px;
+
+}
+
+.services-stats .stat-lines{
+
+  font-size:11px;
+
+  line-height:1.45;
+
+  font-weight:800;
+
+}
+
+/* ================= BLUE TOTALS ================= */
+
+.totals-stats{
+
+  display:grid;
+
+  grid-template-columns:
+  repeat(5,minmax(120px,1fr));
+
+  gap:8px;
+
+  margin-bottom:18px;
+
+}
+
+.totals-stats .stat{
+
+  background:#145cff;
+
+  border-radius:12px;
+
+  padding:10px 12px;
+
+  min-height:80px;
+
+  color:#fff;
+
+  box-shadow:
+  0 3px 10px rgba(0,0,0,.08);
+
+}
+
+.totals-stats .stat-title{
+
+  font-size:10px;
+
+  color:#dbeafe;
+
+  font-weight:800;
+
+}
+
+.totals-stats .stat-value{
+
+  margin-top:6px;
+
+  font-size:19px;
+
+  font-weight:900;
+
+}
+
+/* ================= DATE TITLE ================= */
+
+.day-title{
+  margin:22px 0 8px;
+  font-size:14px;
+  font-weight:900;
+  color:#374151;
+}
+
+/* ================= TABLE WRAP ================= */
+
+.table-wrap{
+
+  width:100%;
+
+  overflow-x:auto;
+
+  background:#fff;
+
+  border-radius:14px;
+
+  border:1px solid #d1d5db;
+
+  margin-bottom:18px;
+
+  box-shadow:0 4px 12px rgba(0,0,0,.06);
+
+}
+
+/* ================= TABLE ================= */
+
+.summary-table{
+
+  width:100%;
+
+  min-width:1600px;
+
+  border-collapse:collapse;
+
+  table-layout:fixed;
+
+}
+
+/* ================= TABLE HEADER ================= */
+
+.summary-table th{
+
+  background:#cfd8e3;
+
+  color:#111827;
+
+  font-size:10px;
+
+  font-weight:900;
+
+  text-align:left;
+
+  padding:10px 6px;
+
+  white-space:nowrap;
+
+  border-bottom:2px solid #94a3b8;
+
+  border-right:1px solid #cbd5e1;
+
+}
+
+/* ================= TABLE BODY ================= */
+
+.summary-table td{
+
+  padding:8px 6px;
+
+  font-size:9px;
+
+  border-bottom:1px solid #e5e7eb;
+
+  border-right:1px solid #e5e7eb;
+
+  vertical-align:top;
+
+  line-height:1.5;
+
+  font-weight:700;
+
+  color:#111827;
+
+  overflow:hidden;
+
+  text-overflow:ellipsis;
+
+  background:#fff;
+
+}
+
+.summary-table th:last-child,
+.summary-table td:last-child{
+  border-right:none;
+}
+
+/* ================= ROW COLORS ================= */
+
+.summary-table tr:nth-child(even) td{
+  background:#f8fafc;
+}
+
+.summary-table tr:hover td{
+  background:#eef4ff;
+}
+
+/* ================= SHARED ================= */
+
+.shared-separator td{
+  border-bottom:1px solid #cbd5e1 !important;
+}
+
+/* ================= DIVIDERS ================= */
+
+.trip-divider-line td{
+  padding:0 !important;
+  height:4px;
+  background:#94a3b8;
+  border:none !important;
+}
+
+.trip-divider td{
+  padding:0 !important;
+  height:12px;
+  background:#f4f8fb;
+  border:none !important;
+}
+
+/* ================= STATUS ================= */
+
+.status{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  font-size:8px;
+  font-weight:900;
+}
+
+.completed{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.cancelled{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.noshow{
+  background:#fef9c3;
+  color:#854d0e;
+}
+
+/* ================= TOTAL ================= */
+
+.total{
+  font-weight:900;
+  color:#145cff;
+}
+
+/* ================= SPECIAL COLORS ================= */
+
+.summary-table td:first-child{
+
+  background:#dbeafe !important;
+
+  color:#1d4ed8;
+
+  font-weight:900;
+
+}
+
+.summary-table td:nth-child(16){
+
+  background:#fef9c3 !important;
+
+  color:#854d0e;
+
+  font-weight:900;
+
+}
+
+.summary-table td:nth-child(17){
+
+  background:#dcfce7 !important;
+
+  color:#166534;
+
+  font-weight:900;
+
+}
+
+/* ================= MOBILE ================= */
+
+@media(max-width:768px){
+
+  .page{
+    padding:84px 6px 18px;
+  }
+
+  .top-bar{
+    gap:6px;
+  }
+
+  .search-input,
+  .filter-select,
+  .print-btn{
+    height:38px;
+    font-size:11px;
+  }
+
+  .tab{
+    font-size:11px;
+    height:36px;
+  }
+
+  .services-stats{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .totals-stats{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .summary-table{
+    min-width:1450px;
+  }
+
+  .summary-table th,
+  .summary-table td{
+    font-size:8px;
+    padding:5px 4px;
   }
 
 }
 
-/* =========================
-HELPERS
-========================= */
+/* ================= PRINT ================= */
 
-function getTripSuffix(trip){
+@media print{
 
-  const parts =
-    String(
-      trip.tripNumber || ""
-    )
-    .split("-");
-
-  return String(
-    parts[parts.length - 1] || ""
-  )
-  .trim()
-  .toUpperCase();
-
-}
-
-function isSharedTrip(trip){
-
-  return (
-    trip.isShared === true ||
-    getTripSuffix(trip) === "SH"
-  );
-
-}
-
-function isCompleted(status){
-
-  return String(status || "")
-    .toLowerCase() === "completed";
-
-}
-
-function isCancelled(status){
-
-  return String(status || "")
-    .toLowerCase() === "cancelled";
-
-}
-
-function isNoShow(status){
-
-  return String(status || "")
-    .toLowerCase() === "noshow";
-
-}
-
-/* =========================
-TAB
-========================= */
-
-function switchTab(tab,btn){
-
-  currentTab = tab;
-
-  document
-    .querySelectorAll(".tab")
-    .forEach(t=>
-      t.classList.remove("active")
-    );
-
-  btn.classList.add("active");
-
-  render();
-
-}
-
-/* =========================
-FILTERS
-========================= */
-
-function buildFilters(){
-
-  const year =
-    document.getElementById(
-      "yearFilter"
-    );
-
-  const month =
-    document.getElementById(
-      "monthFilter"
-    );
-
-  if(year.options.length){
-    return;
+  #layoutHeader,
+  .top-bar,
+  .tabs{
+    display:none !important;
   }
 
-  const years =
-    new Set();
-
-  allTrips.forEach(t=>{
-
-    if(t.tripDate){
-
-      years.add(
-        t.tripDate.split("-")[0]
-      );
-
-    }
-
-  });
-
-  year.innerHTML =
-    `<option value="">
-      All Years
-    </option>`;
-
-  [...years]
-  .sort((a,b)=>b-a)
-  .forEach(y=>{
-
-    year.innerHTML += `
-      <option value="${y}">
-        ${y}
-      </option>
-    `;
-
-  });
-
-  month.innerHTML = `
-    <option value="">All Months</option>
-    <option value="01">January</option>
-    <option value="02">February</option>
-    <option value="03">March</option>
-    <option value="04">April</option>
-    <option value="05">May</option>
-    <option value="06">June</option>
-    <option value="07">July</option>
-    <option value="08">August</option>
-    <option value="09">September</option>
-    <option value="10">October</option>
-    <option value="11">November</option>
-    <option value="12">December</option>
-  `;
-
-}
-
-/* =========================
-FILTER
-========================= */
-
-function getFilteredTrips(){
-
-  const q =
-    document
-      .getElementById("searchInput")
-      .value
-      .toLowerCase()
-      .trim();
-
-  const year =
-    document
-      .getElementById("yearFilter")
-      .value;
-
-  const month =
-    document
-      .getElementById("monthFilter")
-      .value;
-
-  let data =
-    allTrips.filter(t=>{
-
-      let txt = `
-        ${t.tripNumber || ""}
-        ${t.company || ""}
-        ${t.entryName || ""}
-        ${t.entryPhone || ""}
-        ${t.clientName || ""}
-        ${t.clientPhone || ""}
-      `;
-
-      if(t.passengers){
-
-        t.passengers.forEach(p=>{
-
-          txt += `
-            ${p.clientName || ""}
-            ${p.clientPhone || ""}
-          `;
-
-        });
-
-      }
-
-      txt =
-        txt.toLowerCase();
-
-      if(q && !txt.includes(q)){
-        return false;
-      }
-
-      if(t.tripDate){
-
-        const parts =
-          t.tripDate.split("-");
-
-        if(year && parts[0] !== year){
-          return false;
-        }
-
-        if(month && parts[1] !== month){
-          return false;
-        }
-
-      }
-
-      return true;
-
-    });
-
-  if(currentTab === "individual"){
-
-    data =
-      data.filter(t =>
-        !isSharedTrip(t)
-      );
-
-  }else{
-
-    data =
-      data.filter(t =>
-        isSharedTrip(t)
-      );
-
+  .page{
+    padding:0;
   }
 
-  return data;
-
-}
-
-/* =========================
-GROUP
-========================= */
-
-function groupByDay(data){
-
-  const groups = {};
-
-  data.forEach(t=>{
-
-    const d =
-      t.tripDate || "Unknown";
-
-    if(!groups[d]){
-      groups[d] = [];
-    }
-
-    groups[d].push(t);
-
-  });
-
-  return groups;
-
-}
-
-/* =========================
-STATUS
-========================= */
-
-function statusHTML(status){
-
-  let cls = "";
-
-  if(isCompleted(status))
-    cls = "completed";
-
-  else if(isCancelled(status))
-    cls = "cancelled";
-
-  else if(isNoShow(status))
-    cls = "noshow";
-
-  return `
-    <span class="status ${cls}">
-      ${status || "-"}
-    </span>
-  `;
-
-}
-
-/* =========================
-SERVICE STATS
-========================= */
-
-function getServiceCards(data){
-
-  const services = [
-    {
-      title:"Standard",
-      code:"ST"
-    },
-    {
-      title:"XL",
-      code:"XL"
-    },
-    {
-      title:"Wheelchair",
-      code:"WC"
-    },
-    {
-      title:"Shared",
-      code:"SH"
-    },
-    {
-      title:"Taxi",
-      code:"TX"
-    },
-    {
-      title:"Limousine",
-      code:"LM"
-    }
-  ];
-
-  return services.map(service=>{
-
-    const serviceTrips =
-      data.filter(t =>
-        getTripSuffix(t) === service.code
-      );
-
-    let trips = 0;
-    let miles = 0;
-    let revenue = 0;
-
-    serviceTrips.forEach(t=>{
-
-      if(isSharedTrip(t)){
-
-        (t.passengers || [])
-        .forEach(p=>{
-
-          if(
-            isCompleted(p.status)
-          ){
-
-            trips++;
-
-            miles += Number(
-              t.miles || 0
-            );
-
-            revenue += Number(
-              p.price || 0
-            );
-
-          }
-
-        });
-
-      }else{
-
-        if(
-          isCompleted(t.status)
-        ){
-
-          trips++;
-
-          miles += Number(
-            t.miles || 0
-          );
-
-          revenue += Number(
-            t.finalPrice || 0
-          );
-
-        }
-
-      }
-
-    });
-
-    return {
-      ...service,
-      trips,
-      miles,
-      revenue
-    };
-
-  });
-
-}
-
-/* =========================
-TOTAL STATS
-========================= */
-
-function getTotals(data){
-
-  let completed = 0;
-  let cancelled = 0;
-  let noshow = 0;
-  let revenue = 0;
-  let miles = 0;
-
-  data.forEach(t=>{
-
-    if(isSharedTrip(t)){
-
-      (t.passengers || [])
-      .forEach(p=>{
-
-        if(isCompleted(p.status)){
-
-          completed++;
-
-          revenue += Number(
-            p.price || 0
-          );
-
-          miles += Number(
-            t.miles || 0
-          );
-
-        }
-
-        if(isCancelled(p.status)){
-          cancelled++;
-        }
-
-        if(isNoShow(p.status)){
-          noshow++;
-        }
-
-      });
-
-    }else{
-
-      if(isCompleted(t.status)){
-
-        completed++;
-
-        revenue += Number(
-          t.finalPrice || 0
-        );
-
-        miles += Number(
-          t.miles || 0
-        );
-
-      }
-
-      if(isCancelled(t.status)){
-        cancelled++;
-      }
-
-      if(isNoShow(t.status)){
-        noshow++;
-      }
-
-    }
-
-  });
-
-  return {
-    completed,
-    cancelled,
-    noshow,
-    revenue,
-    miles
-  };
-
-}
-
-/* =========================
-RENDER STATS
-========================= */
-
-function renderStats(data){
-
-  const wrap =
-    document.querySelector(".stats");
-
-  const services =
-    getServiceCards(data);
-
-  const totals =
-    getTotals(data);
-
-  wrap.innerHTML = "";
-
-  /* =========================
-  GREEN ROW
-  ========================= */
-
-  services.forEach(s=>{
-
-    wrap.innerHTML += `
-      <div class="stat">
-
-        <div class="stat-title">
-          ${s.title}
-        </div>
-
-        <div style="
-          font-size:11px;
-          margin-top:6px;
-          line-height:1.5;
-          font-weight:800;
-        ">
-
-          Trips ${s.trips}<br>
-
-          Miles ${s.miles.toFixed(1)}<br>
-
-          Revenue $${s.revenue.toFixed(2)}
-
-        </div>
-
-      </div>
-    `;
-
-  });
-
-  /* =========================
-  BLUE ROW
-  ========================= */
-
-  const blue = [
-    {
-      title:"Completed",
-      value:totals.completed
-    },
-    {
-      title:"Cancelled",
-      value:totals.cancelled
-    },
-    {
-      title:"No Show",
-      value:totals.noshow
-    },
-    {
-      title:"Revenue",
-      value:`$${totals.revenue.toFixed(2)}`
-    },
-    {
-      title:"Miles",
-      value:totals.miles.toFixed(1)
-    }
-  ];
-
-  blue.forEach(item=>{
-
-    wrap.innerHTML += `
-      <div
-        class="stat"
-        style="
-          background:#145cff;
-        ">
-
-        <div class="stat-title"
-        style="
-          color:#dbeafe;
-        ">
-          ${item.title}
-        </div>
-
-        <div class="stat-value">
-          ${item.value}
-        </div>
-
-      </div>
-    `;
-
-  });
-
-}
-
-/* =========================
-RENDER
-========================= */
-
-function render(){
-
-  const wrap =
-    document.getElementById(
-      "summaryContent"
-    );
-
-  wrap.innerHTML = "";
-
-  const data =
-    getFilteredTrips();
-
-  renderStats(data);
-
-  const groups =
-    groupByDay(data);
-
-  Object.keys(groups)
-  .sort((a,b)=>
-    new Date(b) - new Date(a)
-  )
-  .forEach(day=>{
-
-    wrap.innerHTML += `
-      <div class="day-title">
-        ${day}
-      </div>
-    `;
-
-    wrap.innerHTML += `
-      <div class="table-wrap">
-
-      <table class="summary-table">
-
-        <thead>
-
-          <tr>
-
-            <th>Trip#</th>
-            <th>Company</th>
-            <th>Entry</th>
-            <th>Entry Phone</th>
-            <th>Passenger</th>
-            <th>Phone</th>
-            <th>Pickup</th>
-            <th>Dropoff</th>
-            <th>Trip Date</th>
-            <th>Trip Time</th>
-            <th>Book Date</th>
-            <th>Book Time</th>
-            <th>Miles</th>
-            <th>Status</th>
-            <th>Price</th>
-            <th>Total</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody id="tbody-${day}">
-        </tbody>
-
-      </table>
-
-      </div>
-    `;
-
-    const tbody =
-      document.getElementById(
-        `tbody-${day}`
-      );
-
-    groups[day].forEach(t=>{
-
-      /* =========================
-      INDIVIDUAL
-      ========================= */
-
-      if(!isSharedTrip(t)){
-
-        tbody.innerHTML += `
-        <tr>
-
-          <td>${t.tripNumber || "-"}</td>
-          <td>${t.company || "-"}</td>
-          <td>${t.entryName || "-"}</td>
-          <td>${t.entryPhone || "-"}</td>
-          <td>${t.clientName || "-"}</td>
-          <td>${t.clientPhone || "-"}</td>
-          <td>${t.pickup || "-"}</td>
-          <td>${t.dropoff || "-"}</td>
-          <td>${t.tripDate || "-"}</td>
-          <td>${t.tripTime || "-"}</td>
-          <td>${t.bookingDate || "-"}</td>
-          <td>${t.bookingTime || "-"}</td>
-          <td>${t.miles || 0}</td>
-
-          <td>
-            ${statusHTML(t.status)}
-          </td>
-
-          <td class="total">
-            $${t.finalPrice || 0}
-          </td>
-
-          <td class="total">
-            $${t.finalPrice || 0}
-          </td>
-
-        </tr>
-
-        <tr class="trip-divider-line">
-          <td colspan="16"></td>
-        </tr>
-
-        <tr class="trip-divider">
-          <td colspan="16"></td>
-        </tr>
-        `;
-
-      }
-
-      /* =========================
-      SHARED
-      ========================= */
-
-      else{
-
-        const passengers =
-          t.passengers || [];
-
-        passengers.forEach((p,index)=>{
-
-          tbody.innerHTML += `
-          <tr class="${
-            index !== passengers.length - 1
-            ? "shared-separator"
-            : ""
-          }">
-
-            <td>
-              ${index === 0
-                ? t.tripNumber || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.company || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.entryName || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.entryPhone || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${p.clientName || "-"}
-            </td>
-
-            <td>
-              ${p.clientPhone || "-"}
-            </td>
-
-            <td>
-              ${p.pickup || "-"}
-            </td>
-
-            <td>
-              ${p.dropoff || "-"}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.tripDate || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.tripTime || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.bookingDate || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.bookingTime || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.miles || 0
-                : ""}
-            </td>
-
-            <td>
-              ${statusHTML(
-                p.status || "Scheduled"
-              )}
-            </td>
-
-            <td class="total">
-              $${p.price || 0}
-            </td>
-
-            <td class="total">
-
-              ${
-                index === 0
-
-                ? `$${(t.passengers || [])
-                  .reduce((sum,p)=>
-                    sum + Number(
-                      p.price || 0
-                    )
-                  ,0)}`
-
-                : ""
-              }
-
-            </td>
-
-          </tr>
-          `;
-
-        });
-
-        tbody.innerHTML += `
-        <tr class="trip-divider-line">
-          <td colspan="16"></td>
-        </tr>
-
-        <tr class="trip-divider">
-          <td colspan="16"></td>
-        </tr>
-        `;
-
-      }
-
-    });
-
-  });
-
-}
-
-/* =========================
-EVENTS
-========================= */
-
-document.addEventListener("input",e=>{
-
-  if(e.target.id === "searchInput"){
-    render();
+  body{
+    background:#fff;
   }
 
-});
+}
 
-document.addEventListener("change",e=>{
+</style>
 
-  if(
-    e.target.id === "yearFilter" ||
-    e.target.id === "monthFilter"
-  ){
-    render();
-  }
+</head>
 
-});
+<body>
 
-/* =========================
-AUTO
-========================= */
+<!-- ================= HEADER ================= -->
 
-setInterval(load,30000);
+<div id="layoutHeader"></div>
 
-/* =========================
-INIT
-========================= */
+<!-- ================= PAGE ================= -->
 
-load();
+<div class="page">
+
+  <!-- ================= TOP BAR ================= -->
+
+  <div class="top-bar">
+
+    <input
+      type="text"
+      id="searchInput"
+      class="search-input"
+      placeholder="Search Name / Phone / Trip# / Company">
+
+    <select
+      id="yearFilter"
+      class="filter-select">
+    </select>
+
+    <select
+      id="monthFilter"
+      class="filter-select">
+    </select>
+
+    <button
+      class="print-btn"
+      onclick="window.print()">
+      Print
+    </button>
+
+  </div>
+
+  <!-- ================= TABS ================= -->
+
+  <div class="tabs">
+
+    <button
+      class="tab active"
+      onclick="switchTab('individual',this)">
+      Trips
+    </button>
+
+    <button
+      class="tab"
+      onclick="switchTab('shared',this)">
+      Shared
+    </button>
+
+  </div>
+
+  <!-- ================= GREEN SERVICES ================= -->
+
+  <div class="services-stats">
+  </div>
+
+  <!-- ================= BLUE TOTALS ================= -->
+
+  <div class="totals-stats">
+  </div>
+
+  <!-- ================= CONTENT ================= -->
+
+  <div id="summaryContent"></div>
+
+</div>
+
+<script src="layout.js"></script>
+<script src="summary.js"></script>
+
+</body>
+</html>
