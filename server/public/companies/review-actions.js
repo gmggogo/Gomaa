@@ -572,7 +572,10 @@ async function handleConfirmTrip(btn){
       googleRoute:routeData.googleRoute,
       routePoints:routePoints,
       serviceName:service?.name || "",
-      serviceCode:service?.code || "",
+      serviceCode:
+  service?.serviceKey ||
+  service?.companySuffix ||
+  "",
       serviceId:service?._id || "",
       priceSnapshot:snapshot
     }
@@ -648,8 +651,10 @@ async function handleConfirmShared(btn){
     serviceName:
       service?.name || "",
 
-    serviceCode:
-      service?.code || "",
+   serviceCode:
+  service?.serviceKey ||
+  service?.companySuffix ||
+  "",
 
     serviceId:
       service?._id || "",
@@ -730,8 +735,11 @@ async function handleCancelTrip(btn){
   const warningMinutes =
     Review.getWarningMinutes(service);
 
-  const cancelFee =
-    Review.getCancelFee(service);
+ const cancelFee =
+  Review.getCancelFee(service);
+
+console.log(service);
+console.log(cancelFee);
 
   let finalPrice = 0;
 
