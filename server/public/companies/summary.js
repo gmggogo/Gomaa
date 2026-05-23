@@ -86,6 +86,12 @@ function isNoShow(status){
 
 }
 
+function safe(v){
+
+  return String(v ?? "-");
+
+}
+
 /* =========================
 TAB
 ========================= */
@@ -509,8 +515,22 @@ RENDER STATS
 
 function renderStats(data){
 
-  const wrap =
-    document.querySelector(".stats");
+  const servicesWrap =
+    document.querySelector(
+      ".services-stats"
+    );
+
+  const totalsWrap =
+    document.querySelector(
+      ".totals-stats"
+    );
+
+  if(!servicesWrap || !totalsWrap){
+    return;
+  }
+
+  servicesWrap.innerHTML = "";
+  totalsWrap.innerHTML = "";
 
   const services =
     getServiceCards(data);
@@ -518,27 +538,19 @@ function renderStats(data){
   const totals =
     getTotals(data);
 
-  wrap.innerHTML = "";
-
-  /* =========================
-  GREEN ROW
-  ========================= */
+  /* GREEN */
 
   services.forEach(s=>{
 
-    wrap.innerHTML += `
+    servicesWrap.innerHTML += `
+
       <div class="stat">
 
         <div class="stat-title">
           ${s.title}
         </div>
 
-        <div style="
-          font-size:11px;
-          margin-top:6px;
-          line-height:1.5;
-          font-weight:800;
-        ">
+        <div class="stat-lines">
 
           Trips ${s.trips}<br>
 
@@ -549,50 +561,49 @@ function renderStats(data){
         </div>
 
       </div>
+
     `;
 
   });
 
-  /* =========================
-  BLUE ROW
-  ========================= */
+  /* BLUE */
 
   const blue = [
+
     {
       title:"Completed",
       value:totals.completed
     },
+
     {
       title:"Cancelled",
       value:totals.cancelled
     },
+
     {
       title:"No Show",
       value:totals.noshow
     },
+
     {
       title:"Revenue",
       value:`$${totals.revenue.toFixed(2)}`
     },
+
     {
       title:"Miles",
       value:totals.miles.toFixed(1)
     }
+
   ];
 
   blue.forEach(item=>{
 
-    wrap.innerHTML += `
-      <div
-        class="stat"
-        style="
-          background:#145cff;
-        ">
+    totalsWrap.innerHTML += `
 
-        <div class="stat-title"
-        style="
-          color:#dbeafe;
-        ">
+      <div class="stat">
+
+        <div class="stat-title">
           ${item.title}
         </div>
 
@@ -601,6 +612,7 @@ function renderStats(data){
         </div>
 
       </div>
+
     `;
 
   });
@@ -685,39 +697,41 @@ function render(){
 
     groups[day].forEach(t=>{
 
-      /* =========================
-      INDIVIDUAL
-      ========================= */
+      /* INDIVIDUAL */
 
       if(!isSharedTrip(t)){
 
         tbody.innerHTML += `
         <tr>
 
-          <td>${t.tripNumber || "-"}</td>
-          <td>${t.company || "-"}</td>
-          <td>${t.entryName || "-"}</td>
-          <td>${t.entryPhone || "-"}</td>
-          <td>${t.clientName || "-"}</td>
-          <td>${t.clientPhone || "-"}</td>
-          <td>${t.pickup || "-"}</td>
-          <td>${t.dropoff || "-"}</td>
-          <td>${t.tripDate || "-"}</td>
-          <td>${t.tripTime || "-"}</td>
-          <td>${t.bookingDate || "-"}</td>
-          <td>${t.bookingTime || "-"}</td>
-          <td>${t.miles || 0}</td>
+          <td>${safe(t.tripNumber)}</td>
+          <td>${safe(t.company)}</td>
+          <td>${safe(t.entryName)}</td>
+          <td>${safe(t.entryPhone)}</td>
+          <td>${safe(t.clientName)}</td>
+          <td>${safe(t.clientPhone)}</td>
+          <td>${safe(t.pickup)}</td>
+          <td>${safe(t.dropoff)}</td>
+          <td>${safe(t.tripDate)}</td>
+          <td>${safe(t.tripTime)}</td>
+          <td>${safe(t.bookingDate)}</td>
+          <td>${safe(t.bookingTime)}</td>
+          <td>${safe(t.miles || 0)}</td>
 
           <td>
             ${statusHTML(t.status)}
           </td>
 
           <td class="total">
-            $${t.finalPrice || 0}
+            $${Number(
+              t.finalPrice || 0
+            ).toFixed(2)}
           </td>
 
           <td class="total">
-            $${t.finalPrice || 0}
+            $${Number(
+              t.finalPrice || 0
+            ).toFixed(2)}
           </td>
 
         </tr>
@@ -733,9 +747,7 @@ function render(){
 
       }
 
-      /* =========================
-      SHARED
-      ========================= */
+      /* SHARED */
 
       else{
 
@@ -753,71 +765,75 @@ function render(){
 
             <td>
               ${index === 0
-                ? t.tripNumber || "-"
+                ? safe(t.tripNumber)
                 : ""}
             </td>
 
             <td>
               ${index === 0
-                ? t.company || "-"
+                ? safe(t.company)
                 : ""}
             </td>
 
             <td>
               ${index === 0
-                ? t.entryName || "-"
+                ? safe(t.entryName)
                 : ""}
             </td>
 
             <td>
               ${index === 0
-                ? t.entryPhone || "-"
+                ? safe(t.entryPhone)
                 : ""}
             </td>
 
             <td>
-              ${p.clientName || "-"}
+              ${safe(
+                p.clientName
+              )}
             </td>
 
             <td>
-              ${p.clientPhone || "-"}
+              ${safe(
+                p.clientPhone
+              )}
             </td>
 
             <td>
-              ${p.pickup || "-"}
+              ${safe(p.pickup)}
             </td>
 
             <td>
-              ${p.dropoff || "-"}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.tripDate || "-"
-                : ""}
-            </td>
-
-            <td>
-              ${index === 0
-                ? t.tripTime || "-"
-                : ""}
+              ${safe(p.dropoff)}
             </td>
 
             <td>
               ${index === 0
-                ? t.bookingDate || "-"
+                ? safe(t.tripDate)
                 : ""}
             </td>
 
             <td>
               ${index === 0
-                ? t.bookingTime || "-"
+                ? safe(t.tripTime)
                 : ""}
             </td>
 
             <td>
               ${index === 0
-                ? t.miles || 0
+                ? safe(t.bookingDate)
+                : ""}
+            </td>
+
+            <td>
+              ${index === 0
+                ? safe(t.bookingTime)
+                : ""}
+            </td>
+
+            <td>
+              ${index === 0
+                ? safe(t.miles || 0)
                 : ""}
             </td>
 
@@ -828,7 +844,9 @@ function render(){
             </td>
 
             <td class="total">
-              $${p.price || 0}
+              $${Number(
+                p.price || 0
+              ).toFixed(2)}
             </td>
 
             <td class="total">
@@ -841,7 +859,8 @@ function render(){
                     sum + Number(
                       p.price || 0
                     )
-                  ,0)}`
+                  ,0)
+                  .toFixed(2)}`
 
                 : ""
               }
