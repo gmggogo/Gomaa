@@ -810,16 +810,24 @@ async function handleCancelShared(btn){
   const cancelFee =
     Review.getCancelFee(service);
 
-  let finalPrice = 0;
+ let finalPrice = 0;
+
+if(
+  Review.warningEnabled(service)
+){
 
   if(
     mins !== null &&
     mins > 0 &&
     mins <= warningMinutes
   ){
+
     finalPrice =
       Number(cancelFee);
+
   }
+
+}
 
   for(const t of group){
 
