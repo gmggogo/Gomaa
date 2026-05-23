@@ -491,19 +491,68 @@ async function calculateRouteMiles(points){
   });
 }
 /* ================= PRICE ================= */
-function calculateTripPrice(service, miles, status, stopsCount = 0){
+function calculateTripPrice(
+  service,
+  miles,
+  status,
+  stopsCount = 0
+){
+
   if(!service) return 0;
-  if(status === "NoShow"){
-    return Number(service.companyNoShowFee ?? service.noShowFee ?? 0);
-  }
-  const baseFare = Number(service.companyBaseFare ?? service.baseFare ?? 0);
-  const includedMiles = Number(service.companyIncludedMiles ?? service.includedMiles ?? 0);
-  const perMile = Number(service.companyPerMile ?? service.perMile ?? 0);
-  const stopFee = Number(service.companyStopFee ?? service.stopFee ?? 0);
-  const totalMiles = Math.max(0, Number(miles || 0));
-  const extraMiles = Math.max(0, totalMiles - includedMiles);
-  return Number((baseFare + (extraMiles * perMile) + (Number(stopsCount || 0) * stopFee)).toFixed(2));
+
+  const baseFare =
+    Number(
+      service.companyBaseFare ??
+      service.baseFare ??
+      0
+    );
+
+  const includedMiles =
+    Number(
+      service.companyIncludedMiles ??
+      service.includedMiles ??
+      0
+    );
+
+  const perMile =
+    Number(
+      service.companyPerMile ??
+      service.perMile ??
+      0
+    );
+
+  const stopFee =
+    Number(
+      service.companyStopFee ??
+      service.stopFee ??
+      0
+    );
+
+  const totalMiles =
+    Math.max(
+      0,
+      Number(miles || 0)
+    );
+
+  const extraMiles =
+    Math.max(
+      0,
+      totalMiles - includedMiles
+    );
+
+  return Number(
+    (
+      baseFare +
+      (extraMiles * perMile) +
+      (
+        Number(stopsCount || 0)
+        * stopFee
+      )
+    ).toFixed(2)
+  );
+
 }
+
 function calculateSharedPrice(group, miles){
   const first = group[0] || {};
   const service = getServiceByTrip(first);
