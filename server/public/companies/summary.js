@@ -1,15 +1,3 @@
-استبدل ملف summary.js بالكامل بالكود ده عشان كل الحسابات تبقى شغالة صح مع:
-
-* Shared
-* Individual
-* Final Price
-* No Show
-* Cancelled
-* الكروت الخضرا
-* التوتال
-* الإيراد
-* الـ SH
-* XL / ST / WC / TX / LM
 
 /* =========================
 SUMMARY FINAL ENGINE
