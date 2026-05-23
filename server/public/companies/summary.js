@@ -1,6 +1,6 @@
 // =========================================
 // SUMMARY.JS
-// FINAL CLEAN VERSION
+// FINAL PROFESSIONAL VERSION
 // =========================================
 
 let allTrips = [];
@@ -29,6 +29,8 @@ async function load(){
       await res.json();
 
     buildFilters();
+
+    fixCurrentTab();
 
     buildTabs();
 
@@ -158,6 +160,40 @@ function isSharedTrip(trip){
 
 }
 
+function hasSharedTrips(){
+
+  return allTrips.some(
+    t => isSharedTrip(t)
+  );
+
+}
+
+function hasNormalTrips(){
+
+  return allTrips.some(
+    t => !isSharedTrip(t)
+  );
+
+}
+
+function fixCurrentTab(){
+
+  if(
+    currentTab === "SHARED" &&
+    !hasSharedTrips()
+  ){
+    currentTab = "TRIPS";
+  }
+
+  if(
+    currentTab === "TRIPS" &&
+    !hasNormalTrips()
+  ){
+    currentTab = "SHARED";
+  }
+
+}
+
 /* =========================================
 FILTERS
 ========================================= */
@@ -268,23 +304,6 @@ function getFilteredTrips(){
       ${t.clientPhone || ""}
     `;
 
-    if(
-      Array.isArray(
-        t.passengers
-      )
-    ){
-
-      t.passengers.forEach(p=>{
-
-        txt += `
-          ${p.clientName || ""}
-          ${p.clientPhone || ""}
-        `;
-
-      });
-
-    }
-
     txt =
       txt.toLowerCase();
 
@@ -335,6 +354,8 @@ function buildTabs(){
 
   if(!wrap) return;
 
+  wrap.innerHTML = "";
+
   const allData =
     getFilteredTrips();
 
@@ -348,16 +369,7 @@ function buildTabs(){
       t => isSharedTrip(t)
     ).length;
 
-  wrap.innerHTML = "";
-
-  if(
-    COMPANY_SERVICES.some(
-      s =>
-        cleanCode(
-          s.companySuffix
-        ) !== "SH"
-    )
-  ){
+  if(hasNormalTrips()){
 
     wrap.innerHTML += `
       <button
@@ -381,14 +393,7 @@ function buildTabs(){
 
   }
 
-  if(
-    COMPANY_SERVICES.some(
-      s =>
-        cleanCode(
-          s.companySuffix
-        ) === "SH"
-    )
-  ){
+  if(hasSharedTrips()){
 
     wrap.innerHTML += `
       <button
@@ -438,16 +443,20 @@ function getTripsByTab(){
 }
 
 /* =========================================
-MONEY
+REVENUE
 ========================================= */
+
+function isCompletedTrip(t){
+
+  return (
+    t.status === "Completed"
+  );
+
+}
 
 function getTripRevenue(t){
 
-  /* ONLY COMPLETED */
-
-  if(
-    t.status !== "Completed"
-  ){
+  if(!isCompletedTrip(t)){
     return 0;
   }
 
@@ -461,10 +470,7 @@ function getTripRevenue(t){
 
 function getTripMiles(t){
 
-  if(
-    t.status === "Cancelled" ||
-    t.status === "NoShow"
-  ){
+  if(!isCompletedTrip(t)){
     return 0;
   }
 
@@ -493,7 +499,7 @@ function buildStats(){
     getFilteredTrips();
 
   /* =========================================
-  SERVICE CARDS
+  GREEN SERVICE CARDS
   ========================================= */
 
   COMPANY_SERVICES.forEach(service=>{
@@ -511,8 +517,6 @@ function buildStats(){
 
     let serviceTrips = [];
 
-    /* SHARED */
-
     if(suffix === "SH"){
 
       serviceTrips =
@@ -520,11 +524,7 @@ function buildStats(){
           t => isSharedTrip(t)
         );
 
-    }
-
-    /* NORMAL */
-
-    else{
+    }else{
 
       serviceTrips =
         allData.filter(t => {
@@ -542,11 +542,16 @@ function buildStats(){
 
     }
 
+    const completedTrips =
+      serviceTrips.filter(
+        t => isCompletedTrip(t)
+      );
+
     const totalTrips =
-      serviceTrips.length;
+      completedTrips.length;
 
     const totalMiles =
-      serviceTrips.reduce(
+      completedTrips.reduce(
         (sum,t)=>
           sum +
           getTripMiles(t),
@@ -554,7 +559,7 @@ function buildStats(){
       );
 
     const totalRevenue =
-      serviceTrips.reduce(
+      completedTrips.reduce(
         (sum,t)=>
           sum +
           getTripRevenue(t),
@@ -620,40 +625,40 @@ function buildStats(){
   });
 
   /* =========================================
-  FIXED TOTAL CARDS
+  FIXED BLUE CARDS
   ========================================= */
 
-  const completedTrips =
+  const completed =
     allData.filter(
       t =>
         t.status ===
         "Completed"
-    );
+    ).length;
 
-  const cancelledTrips =
+  const cancelled =
     allData.filter(
       t =>
         t.status ===
         "Cancelled"
-    );
+    ).length;
 
-  const noShowTrips =
+  const noShow =
     allData.filter(
       t =>
         t.status ===
         "NoShow"
-    );
+    ).length;
 
-  const totalRevenue =
-    completedTrips.reduce(
+  const revenue =
+    allData.reduce(
       (sum,t)=>
         sum +
         getTripRevenue(t),
       0
     );
 
-  const totalMiles =
-    completedTrips.reduce(
+  const miles =
+    allData.reduce(
       (sum,t)=>
         sum +
         getTripMiles(t),
@@ -664,27 +669,30 @@ function buildStats(){
 
     {
       title:"Completed",
-      value:completedTrips.length
+      value:completed
     },
 
     {
       title:"Cancelled",
-      value:cancelledTrips.length
+      value:cancelled
     },
 
     {
       title:"No Show",
-      value:noShowTrips.length
+      value:noShow
     },
 
     {
       title:"Revenue",
-      value:`$${totalRevenue.toFixed(2)}`
+      value:
+      "$" +
+      revenue.toFixed(2)
     },
 
     {
       title:"Miles",
-      value:totalMiles.toFixed(1)
+      value:
+      miles.toFixed(1)
     }
 
   ];
@@ -693,7 +701,10 @@ function buildStats(){
 
     wrap.innerHTML += `
 
-      <div class="stat total-card">
+      <div class="
+        stat
+        total-card
+      ">
 
         <div class="stat-title">
           ${card.title}
@@ -769,6 +780,8 @@ RENDER
 ========================================= */
 
 function render(){
+
+  buildTabs();
 
   buildStats();
 
@@ -872,7 +885,11 @@ function render(){
             </td>
 
             <td>
-              ${t.miles || 0}
+              ${
+                isCompletedTrip(t)
+                ? (t.miles || 0)
+                : 0
+              }
             </td>
 
             <td>
@@ -880,7 +897,14 @@ function render(){
             </td>
 
             <td class="total">
-              $${getTripRevenue(t)}
+
+              ${
+                isCompletedTrip(t)
+                ? "$" +
+                  getTripRevenue(t)
+                : "$0"
+              }
+
             </td>
 
           </tr>
