@@ -5,7 +5,10 @@
 
 <meta charset="UTF-8">
 <title>Sunbeam Summary</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
@@ -111,11 +114,14 @@ body{
   display:flex;
   gap:8px;
   margin-bottom:14px;
+  flex-wrap:wrap;
 }
 
 .tab{
 
   flex:1;
+
+  min-width:120px;
 
   height:44px;
 
@@ -483,70 +489,38 @@ body{
       class="search-input"
       placeholder="Search Name / Phone / Trip# / Company">
 
-    <select id="yearFilter" class="filter-select"></select>
+    <select
+      id="yearFilter"
+      class="filter-select">
+    </select>
 
-    <select id="monthFilter" class="filter-select"></select>
+    <select
+      id="monthFilter"
+      class="filter-select">
+    </select>
 
     <button
       class="print-btn"
       onclick="window.print()">
+
       Print
+
     </button>
 
   </div>
 
-  <!-- TABS -->
+  <!-- DYNAMIC TABS -->
 
-  <div class="tabs">
-
-    <button
-      class="tab active"
-      onclick="switchTab('individual',this)">
-      Individual
-    </button>
-
-    <button
-      class="tab"
-      onclick="switchTab('shared',this)">
-      Shared
-    </button>
-
+  <div
+    class="tabs"
+    id="dynamicTabs">
   </div>
 
-  <!-- STATS -->
+  <!-- DYNAMIC STATS -->
 
-  <div class="stats">
-
-    <div class="stat">
-      <div class="stat-title">Individual Trips</div>
-      <div class="stat-value" id="individualTrips">0</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-title">Shared Trips</div>
-      <div class="stat-value" id="sharedTrips">0</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-title">Completed</div>
-      <div class="stat-value" id="completedTrips">0</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-title">Cancelled</div>
-      <div class="stat-value" id="cancelledTrips">0</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-title">No Show</div>
-      <div class="stat-value" id="noShowTrips">0</div>
-    </div>
-
-    <div class="stat">
-      <div class="stat-title">Revenue</div>
-      <div class="stat-value" id="totalRevenue">$0</div>
-    </div>
-
+  <div
+    class="stats"
+    id="dynamicStats">
   </div>
 
   <!-- CONTENT -->

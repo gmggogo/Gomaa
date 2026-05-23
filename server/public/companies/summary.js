@@ -1,9 +1,389 @@
 // summary.js
 
 let allTrips = [];
-let currentTab = "individual";
 
-/* LOAD */
+let currentTab = "ALL";
+
+let COMPANY_SERVICES = [];
+
+/* =========================
+LOAD SERVICES
+========================= */
+
+async function loadServices(){
+
+  try{
+
+    const res =
+      await fetch("/api/services");
+
+    const data =
+      await res.json();
+
+    COMPANY_SERVICES =
+      Array.isArray(data)
+
+      ? data.filter(
+          s =>
+            s.enabled === true &&
+            s.companyEnabled === true
+        )
+
+      : [];
+
+  }catch(err){
+
+    console.log(err);
+
+    COMPANY_SERVICES = [];
+
+  }
+
+}
+
+/* =========================
+GET SERVICE CODE
+========================= */
+
+function getTripServiceCode(t){
+
+  return String(
+
+    t.serviceCode ||
+
+    t.serviceSuffix ||
+
+    t.serviceType ||
+
+    ""
+
+  )
+  .toUpperCase()
+  .trim();
+
+}
+
+/* =========================
+BUILD TABS
+========================= */
+
+function buildTabs(){
+
+  const tabs =
+    document.getElementById(
+      "dynamicTabs"
+    );
+
+  if(!tabs) return;
+
+  tabs.innerHTML = "";
+
+  /* =========================
+  ALL TAB
+  ========================= */
+
+  const allBtn =
+    document.createElement("button");
+
+  allBtn.className =
+    currentTab === "ALL"
+    ? "tab active"
+    : "tab";
+
+  allBtn.innerText =
+    `Trips (${allTrips.length})`;
+
+  allBtn.onclick = ()=>{
+
+    currentTab = "ALL";
+
+    render();
+
+  };
+
+  tabs.appendChild(allBtn);
+
+  /* =========================
+  SERVICES
+  ========================= */
+
+  COMPANY_SERVICES.forEach(service=>{
+
+    const code =
+      String(
+        service.code ||
+        service.serviceCode ||
+        service.serviceKey ||
+        service.companySuffix ||
+        ""
+      )
+      .toUpperCase();
+
+    const count =
+      allTrips.filter(t=>
+        getTripServiceCode(t) === code
+      ).length;
+
+    const btn =
+      document.createElement("button");
+
+    btn.className =
+      currentTab === code
+      ? "tab active"
+      : "tab";
+
+    btn.innerText =
+      `${service.title || service.name} (${count})`;
+
+    btn.onclick = ()=>{
+
+      currentTab = code;
+
+      render();
+
+    };
+
+    tabs.appendChild(btn);
+
+  });
+
+}
+
+/* =========================
+BUILD STATS
+========================= */
+
+function buildStats(data){
+
+  const wrap =
+    document.getElementById(
+      "dynamicStats"
+    );
+
+  if(!wrap) return;
+
+  wrap.innerHTML = "";
+
+  COMPANY_SERVICES.forEach(service=>{
+
+    const code =
+      String(
+        service.code ||
+        service.serviceCode ||
+        service.serviceKey ||
+        service.companySuffix ||
+        ""
+      )
+      .toUpperCase();
+
+    const trips =
+      data.filter(t=>
+        getTripServiceCode(t) === code
+      );
+
+    const total =
+      trips.length;
+
+    const card =
+      document.createElement("div");
+
+    card.className = "stat";
+
+    card.innerHTML = `
+
+      <div class="stat-title">
+        ${service.title || service.name}
+      </div>
+
+      <div class="stat-value">
+        ${total}
+      </div>
+
+    `;
+
+    wrap.appendChild(card);
+
+  });
+
+  /* =========================
+  COMPLETED
+  ========================= */
+
+  const completed =
+    data.filter(t=>{
+
+      if(t.isShared){
+
+        return (
+          t.passengers || []
+        ).some(
+          p => p.status === "Completed"
+        );
+
+      }
+
+      return t.status === "Completed";
+
+    }).length;
+
+  /* =========================
+  CANCELLED
+  ========================= */
+
+  const cancelled =
+    data.filter(t=>{
+
+      if(t.isShared){
+
+        return (
+          t.passengers || []
+        ).some(
+          p => p.status === "Cancelled"
+        );
+
+      }
+
+      return t.status === "Cancelled";
+
+    }).length;
+
+  /* =========================
+  NOSHOW
+  ========================= */
+
+  const noshow =
+    data.filter(t=>{
+
+      if(t.isShared){
+
+        return (
+          t.passengers || []
+        ).some(
+          p => p.status === "NoShow"
+        );
+
+      }
+
+      return t.status === "NoShow";
+
+    }).length;
+
+  /* =========================
+  REVENUE
+  ========================= */
+
+  let revenue = 0;
+
+  data.forEach(t=>{
+
+    if(t.isShared){
+
+      (t.passengers || [])
+      .forEach(p=>{
+
+        if(
+          p.status === "Completed"
+        ){
+
+          revenue += Number(
+            p.price || 0
+          );
+
+        }
+
+        if(
+          p.status === "Cancelled" ||
+          p.status === "NoShow"
+        ){
+
+          revenue += 15;
+
+        }
+
+      });
+
+    }else{
+
+      if(
+        t.status === "Completed"
+      ){
+
+        revenue += Number(
+          t.finalPrice || 0
+        );
+
+      }
+
+      if(
+        t.status === "Cancelled" ||
+        t.status === "NoShow"
+      ){
+
+        revenue += 15;
+
+      }
+
+    }
+
+  });
+
+  /* =========================
+  EXTRA CARDS
+  ========================= */
+
+  const extra = [
+
+    {
+      title:"Completed",
+      value:completed
+    },
+
+    {
+      title:"Cancelled",
+      value:cancelled
+    },
+
+    {
+      title:"No Show",
+      value:noshow
+    },
+
+    {
+      title:"Revenue",
+      value:`$${revenue}`
+    }
+
+  ];
+
+  extra.forEach(item=>{
+
+    const card =
+      document.createElement("div");
+
+    card.className = "stat";
+
+    card.innerHTML = `
+
+      <div class="stat-title">
+        ${item.title}
+      </div>
+
+      <div class="stat-value">
+        ${item.value}
+      </div>
+
+    `;
+
+    wrap.appendChild(card);
+
+  });
+
+}
+
+/* =========================
+LOAD
+========================= */
+
 async function load(){
 
   try{
@@ -11,14 +391,19 @@ async function load(){
     const company =
       localStorage.getItem("name") || "";
 
+    await loadServices();
+
     const res =
       await fetch(
         `/api/trips/summary?company=${encodeURIComponent(company)}`
       );
 
-    allTrips = await res.json();
+    allTrips =
+      await res.json();
 
     buildFilters();
+
+    buildTabs();
 
     render();
 
@@ -30,22 +415,10 @@ async function load(){
 
 }
 
-/* TAB */
-function switchTab(tab,btn){
+/* =========================
+FILTERS
+========================= */
 
-  currentTab = tab;
-
-  document
-    .querySelectorAll(".tab")
-    .forEach(t=>t.classList.remove("active"));
-
-  btn.classList.add("active");
-
-  render();
-
-}
-
-/* FILTERS */
 function buildFilters(){
 
   const year =
@@ -103,7 +476,10 @@ function buildFilters(){
 
 }
 
-/* FILTER */
+/* =========================
+FILTER
+========================= */
+
 function getFilteredTrips(){
 
   const q =
@@ -174,7 +550,10 @@ function getFilteredTrips(){
 
 }
 
-/* GROUP */
+/* =========================
+GROUP
+========================= */
+
 function groupByDay(data){
 
   const groups = {};
@@ -196,7 +575,10 @@ function groupByDay(data){
 
 }
 
-/* STATUS */
+/* =========================
+STATUS
+========================= */
+
 function statusHTML(status){
 
   let cls = "";
@@ -218,114 +600,10 @@ function statusHTML(status){
 
 }
 
-/* STATS */
+/* =========================
+RENDER
+========================= */
 
-function updateStats(data){
-
-  let individual = 0;
-  let shared = 0;
-  let completed = 0;
-  let cancelled = 0;
-  let noshow = 0;
-  let revenue = 0;
-
-  data.forEach(t=>{
-
-    /* SHARED */
-    if(t.isShared){
-
-      shared++;
-
-      (t.passengers || [])
-      .forEach(p=>{
-
-        if(p.status === "Completed"){
-
-          completed++;
-
-          revenue += Number(
-            p.price || 0
-          );
-
-        }
-
-        if(p.status === "Cancelled"){
-
-          cancelled++;
-
-          revenue += 15;
-
-        }
-
-        if(p.status === "NoShow"){
-
-          noshow++;
-
-          revenue += 15;
-
-        }
-
-      });
-
-    }
-
-    /* INDIVIDUAL */
-    else{
-
-      individual++;
-
-      if(t.status === "Completed"){
-
-        completed++;
-
-        revenue += Number(
-          t.finalPrice || 0
-        );
-
-      }
-
-      if(t.status === "Cancelled"){
-
-        cancelled++;
-
-        revenue += 15;
-
-      }
-
-      if(t.status === "NoShow"){
-
-        noshow++;
-
-        revenue += 15;
-
-      }
-
-    }
-
-  });
-
-  document.getElementById("individualTrips").innerText =
-    individual;
-
-  document.getElementById("sharedTrips").innerText =
-    shared;
-
-  document.getElementById("completedTrips").innerText =
-    completed;
-
-  document.getElementById("cancelledTrips").innerText =
-    cancelled;
-
-  document.getElementById("noShowTrips").innerText =
-    noshow;
-
-  document.getElementById("totalRevenue").innerText =
-    `$${revenue}`;
-
-}
-
-
-/* RENDER */
 function render(){
 
   const wrap =
@@ -338,12 +616,22 @@ function render(){
   const data =
     getFilteredTrips();
 
-  updateStats(data);
+  buildStats(data);
 
-  const trips =
-    currentTab === "individual"
-      ? data.filter(t=>!t.isShared)
-      : data.filter(t=>t.isShared);
+  let trips = data;
+
+  if(currentTab !== "ALL"){
+
+    trips =
+      data.filter(t =>
+
+        getTripServiceCode(t)
+
+        === currentTab
+
+      );
+
+  }
 
   const groups =
     groupByDay(trips);
@@ -400,7 +688,10 @@ function render(){
 
     groups[day].forEach(t=>{
 
-      /* INDIVIDUAL */
+      /* =========================
+      INDIVIDUAL
+      ========================= */
+
       if(!t.isShared){
 
         tbody.innerHTML += `
@@ -424,31 +715,31 @@ function render(){
             ${statusHTML(t.status)}
           </td>
 
-        <td class="total">
+          <td class="total">
 
-  ${
-    t.status === "NoShow" ||
-    t.status === "Cancelled"
+            ${
+              t.status === "NoShow" ||
+              t.status === "Cancelled"
 
-    ? "$15"
+              ? "$15"
 
-    : `$${t.finalPrice || 0}`
-  }
+              : `$${t.finalPrice || 0}`
+            }
 
-</td>
+          </td>
 
-<td class="total">
+          <td class="total">
 
-  ${
-    t.status === "NoShow" ||
-    t.status === "Cancelled"
+            ${
+              t.status === "NoShow" ||
+              t.status === "Cancelled"
 
-    ? "$15"
+              ? "$15"
 
-    : `$${t.finalPrice || 0}`
-  }
+              : `$${t.finalPrice || 0}`
+            }
 
-</td>
+          </td>
 
         </tr>
 
@@ -463,7 +754,10 @@ function render(){
 
       }
 
-      /* SHARED */
+      /* =========================
+      SHARED
+      ========================= */
+
       else{
 
         const passengers =
@@ -546,40 +840,41 @@ function render(){
               )}
             </td>
 
-           <td class="total">
+            <td class="total">
 
-  ${
-    p.status === "NoShow" ||
-    p.status === "Cancelled"
+              ${
+                p.status === "NoShow" ||
+                p.status === "Cancelled"
 
-    ? "$15"
+                ? "$15"
 
-    : `$${p.price || 0}`
-  }
+                : `$${p.price || 0}`
+              }
 
-</td>
+            </td>
 
             <td class="total">
+
               ${index === 0
 
-  ? `$${(t.passengers || [])
-      .reduce((sum,p)=>{
+                ? `$${(t.passengers || [])
+                    .reduce((sum,p)=>{
 
-        if(
-          p.status === "NoShow" ||
-          p.status === "Cancelled"
-        ){
-          return sum + 15;
-        }
+                      if(
+                        p.status === "NoShow" ||
+                        p.status === "Cancelled"
+                      ){
+                        return sum + 15;
+                      }
 
-        return sum + Number(
-          p.price || 0
-        );
+                      return sum + Number(
+                        p.price || 0
+                      );
 
-      },0)}`
+                    },0)}`
 
-  : ""
-}
+                : ""
+              }
 
             </td>
 
@@ -606,7 +901,10 @@ function render(){
 
 }
 
-/* EVENTS */
+/* =========================
+EVENTS
+========================= */
+
 document.addEventListener("input",e=>{
 
   if(e.target.id === "searchInput"){
@@ -626,8 +924,14 @@ document.addEventListener("change",e=>{
 
 });
 
-/* AUTO */
+/* =========================
+AUTO
+========================= */
+
 setInterval(load,30000);
 
-/* INIT */
+/* =========================
+INIT
+========================= */
+
 load();
