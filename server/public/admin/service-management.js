@@ -957,8 +957,25 @@ function enableCompanyEdit(id){
 
   const fields = [
 
+    /* BASIC */
+
     `company-suffix-${id}`,
     `company-shared-${id}`,
+
+    /* PRICING */
+
+    `company-mode-${id}`,
+    `company-base-${id}`,
+    `company-included-${id}`,
+    `company-mile-${id}`,
+    `company-hour-${id}`,
+    `company-hourmode-${id}`,
+    `company-stop-${id}`,
+    `company-noshow-${id}`,
+    `company-sharedprice-${id}`,
+
+    /* WARNING POLICY */
+
     `company-warning-${id}`,
     `company-minutes-${id}`,
     `company-cancel-${id}`
@@ -974,11 +991,27 @@ function enableCompanyEdit(id){
 
       el.disabled = false;
 
+      el.readOnly = false;
+
+      el.removeAttribute(
+        "disabled"
+      );
+
+      el.removeAttribute(
+        "readonly"
+      );
+
       el.style.background =
       "#fff";
 
       el.style.border =
       "2px solid #145cff";
+
+      el.style.opacity =
+      "1";
+
+      el.style.cursor =
+      "text";
 
     }
 
@@ -1119,6 +1152,8 @@ async function saveCompanyService(id){
 
     const payload = {
 
+      /* BASIC */
+
       companySuffix:
       document.getElementById(
         `company-suffix-${id}`
@@ -1128,6 +1163,62 @@ async function saveCompanyService(id){
       document.getElementById(
         `company-shared-${id}`
       ).value === "true",
+
+      /* PRICING */
+
+      companyPricingMode:
+      document.getElementById(
+        `company-mode-${id}`
+      ).value,
+
+      companyBaseFare:Number(
+        document.getElementById(
+          `company-base-${id}`
+        ).value
+      ),
+
+      companyIncludedMiles:Number(
+        document.getElementById(
+          `company-included-${id}`
+        ).value
+      ),
+
+      companyPerMile:Number(
+        document.getElementById(
+          `company-mile-${id}`
+        ).value
+      ),
+
+      companyHourlyRate:Number(
+        document.getElementById(
+          `company-hour-${id}`
+        ).value
+      ),
+
+      companyHourlyBillingMode:
+      document.getElementById(
+        `company-hourmode-${id}`
+      ).value,
+
+      companyStopFee:Number(
+        document.getElementById(
+          `company-stop-${id}`
+        ).value
+      ),
+
+      companyNoShowFee:Number(
+        document.getElementById(
+          `company-noshow-${id}`
+        ).value
+      ),
+
+      companySharedPrice:Number(
+        document.getElementById(
+          `company-sharedprice-${id}`
+        ).value
+      ),
+
+      /* WARNING POLICY */
 
       companyWarningEnabled:
       document.getElementById(
@@ -1172,6 +1263,7 @@ async function saveCompanyService(id){
     if(!data.success){
 
       alert("Save Failed");
+
       return;
 
     }
