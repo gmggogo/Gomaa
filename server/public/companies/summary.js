@@ -1,196 +1,410 @@
 // summary.js
 
 let allTrips = [];
-let currentTab = "TRIPS";
-let currentService = "ALL";
 let COMPANY_SERVICES = [];
 
-const SERVICE_NAMES = {
-  ST:"Standard",
-  TX:"Taxi",
-  WH:"Wheelchair",
-  XL:"XL",
-  LM:"Limo"
-};
+let currentTab = "TRIPS";
+let currentService = "ALL";
+
+/* ================= LOAD ================= */
 
 async function load(){
+
   try{
+
+    const company =
+      localStorage.getItem("name") || "";
+
     await loadServices();
 
-    const company = localStorage.getItem("name") || "";
-    const res = await fetch(`/api/trips/summary?company=${encodeURIComponent(company)}`);
-    allTrips = await res.json();
+    const res =
+      await fetch(
+        `/api/trips/summary?company=${encodeURIComponent(company)}`
+      );
+
+    allTrips =
+      await res.json();
 
     buildFilters();
-    fixTab();
+
+    fixCurrentTab();
+
+    buildTabs();
+
     render();
 
   }catch(err){
+
     console.log(err);
+
   }
+
 }
 
+/* ================= SERVICES ================= */
+
 async function loadServices(){
+
   try{
-    const token = localStorage.getItem("token") || "";
-    const res = await fetch("/api/services",{
-      headers:{ Authorization:"Bearer " + token }
-    });
 
-    const data = await res.json();
+    const token =
+      localStorage.getItem("token") || "";
 
-    COMPANY_SERVICES = Array.isArray(data)
-      ? data.filter(s => s.enabled === true && s.companyEnabled === true)
+    const res =
+      await fetch("/api/services",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
+
+    const data =
+      await res.json();
+
+    COMPANY_SERVICES =
+      Array.isArray(data)
+      ? data.filter(s =>
+          s.enabled === true &&
+          s.companyEnabled === true
+        )
       : [];
 
   }catch(err){
+
+    console.log(err);
+
     COMPANY_SERVICES = [];
+
   }
+
+}
+
+/* ================= HELPERS ================= */
+
+function normalize(v){
+
+  return String(v ?? "")
+    .trim();
+
 }
 
 function clean(v){
-  return String(v || "").replace(/^-/,"").trim().toUpperCase();
+
+  return normalize(v)
+    .replace(/^-/,"")
+    .toUpperCase();
+
 }
 
-function getTripLastCode(t){
-  const parts = String(t.tripNumber || "").toUpperCase().split("-");
-  return clean(parts[parts.length - 1]);
+function safe(v){
+
+  return String(v ?? "-");
+
+}
+
+/* ================= SHARED ================= */
+
+function isSharedService(service){
+
+  return (
+
+    service?.companyShared === true ||
+
+    service?.shared === true ||
+
+    clean(service?.serviceType) === "SHARED" ||
+
+    clean(service?.type) === "SHARED" ||
+
+    clean(service?.title) === "SHARED"
+
+  );
+
 }
 
 function isSharedTrip(t){
+
   return (
+
     t.isShared === true ||
+
     clean(t.tripType) === "SHARED" ||
-    getTripLastCode(t) === "SH" ||
-    (Array.isArray(t.passengers) && t.passengers.length > 0)
-  );
-}
 
-/* الخدمة مش الشير */
-function getTripServiceCode(t){
-  return clean(
-    t.serviceSuffix ||
-    t.serviceCode ||
-    t.serviceType ||
+    String(t.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH") ||
+
     (
-      getTripLastCode(t) !== "SH"
-      ? getTripLastCode(t)
-      : ""
+      Array.isArray(t.passengers) &&
+      t.passengers.length > 0
     )
+
   );
+
 }
 
-function getServiceName(code){
-  const service = COMPANY_SERVICES.find(s=>{
-    const c = clean(
-      s.companySuffix ||
-      s.serviceSuffix ||
-      s.serviceCode ||
-      s.code ||
-      s.serviceKey
+/* ================= SERVICE CODE ================= */
+
+function getServiceCodeFromService(service){
+
+  return clean(
+
+    service.companySuffix ||
+
+    service.serviceSuffix ||
+
+    service.serviceCode ||
+
+    service.code ||
+
+    service.serviceKey ||
+
+    ""
+
+  );
+
+}
+
+function getTripSuffixFromNumber(t){
+
+  const num =
+    String(t.tripNumber || "")
+      .toUpperCase();
+
+  const parts =
+    num.split("-");
+
+  const last =
+    parts[parts.length - 1] || "";
+
+  if(/^\d+$/.test(last)){
+    return "";
+  }
+
+  return clean(last);
+
+}
+
+function getTripServiceCode(t){
+
+  const direct =
+    clean(
+
+      t.serviceSuffix ||
+
+      t.serviceCode ||
+
+      t.serviceKey ||
+
+      t.serviceType ||
+
+      t.vehicle ||
+
+      t.vehicleType ||
+
+      ""
+
     );
-    return c === code;
-  });
 
-  return service?.title || service?.name || SERVICE_NAMES[code] || code;
-}
-
-function getMoney(t){
-  if(isSharedTrip(t)){
-    if(Number(t.finalPrice || 0) > 0) return Number(t.finalPrice);
-    if(Number(t.priceAmount || 0) > 0) return Number(t.priceAmount);
-
-    return (t.passengers || []).reduce((sum,p)=>{
-      if(p.status === "NoShow" || p.status === "Cancelled"){
-        return sum + Number(p.price || 15);
-      }
-      return sum + Number(p.price || 0);
-    },0);
+  if(direct){
+    return direct;
   }
 
-  if(t.status === "NoShow" || t.status === "Cancelled"){
-    return Number(t.finalPrice || t.priceAmount || t.cancelFee || 15);
-  }
+  return getTripSuffixFromNumber(t);
 
-  return Number(t.finalPrice || t.priceAmount || 0);
 }
 
-function getMiles(t){
-  return Number(t.miles || 0);
+function getServiceByTrip(t){
+
+  const tripCode =
+    getTripServiceCode(t);
+
+  return COMPANY_SERVICES.find(service=>{
+
+    const serviceCode =
+      getServiceCodeFromService(service);
+
+    return serviceCode === tripCode;
+
+  }) || null;
+
 }
 
-function hasTrips(){
-  return allTrips.some(t => !isSharedTrip(t));
+function tripMatchesService(t,service){
+
+  const serviceCode =
+    getServiceCodeFromService(service);
+
+  const tripCode =
+    getTripServiceCode(t);
+
+  return serviceCode === tripCode;
+
 }
 
-function hasShared(){
-  return allTrips.some(t => isSharedTrip(t));
+/* ================= TABS ================= */
+
+function hasTripsTab(){
+
+  return COMPANY_SERVICES.some(
+    s => !isSharedService(s)
+  );
+
 }
 
-function fixTab(){
-  if(currentTab === "SHARED" && !hasShared()){
+function hasSharedTab(){
+
+  return COMPANY_SERVICES.some(
+    s => isSharedService(s)
+  );
+
+}
+
+function fixCurrentTab(){
+
+  if(
+    currentTab === "SHARED" &&
+    !hasSharedTab()
+  ){
     currentTab = "TRIPS";
   }
 
-  if(currentTab === "TRIPS" && !hasTrips() && hasShared()){
+  if(
+    currentTab === "TRIPS" &&
+    !hasTripsTab()
+  ){
     currentTab = "SHARED";
   }
+
 }
 
 function buildTabs(){
-  const wrap = document.getElementById("dynamicTabs");
+
+  const wrap =
+    document.getElementById(
+      "dynamicTabs"
+    );
+
   if(!wrap) return;
 
   wrap.innerHTML = "";
 
-  if(hasTrips()){
-    const count = getFilteredTrips().filter(t=>!isSharedTrip(t)).length;
+  /* ================= TRIPS ================= */
 
-    const btn = document.createElement("button");
-    btn.className = currentTab === "TRIPS" ? "tab active" : "tab";
-    btn.innerText = `Trips (${count})`;
+  if(hasTripsTab()){
+
+    const count =
+      getFilteredTrips()
+        .filter(t => !isSharedTrip(t))
+        .length;
+
+    const btn =
+      document.createElement("button");
+
+    btn.className =
+      currentTab === "TRIPS"
+      ? "tab active"
+      : "tab";
+
+    btn.innerText =
+      `Trips (${count})`;
+
     btn.onclick = ()=>{
+
       currentTab = "TRIPS";
+
       currentService = "ALL";
+
+      buildTabs();
+
       render();
+
     };
+
     wrap.appendChild(btn);
+
   }
 
-  if(hasShared()){
-    const count = getFilteredTrips().filter(t=>isSharedTrip(t)).length;
+  /* ================= SHARED ================= */
 
-    const btn = document.createElement("button");
-    btn.className = currentTab === "SHARED" ? "tab active" : "tab";
-    btn.innerText = `Shared (${count})`;
+  if(hasSharedTab()){
+
+    const count =
+      getFilteredTrips()
+        .filter(t => isSharedTrip(t))
+        .length;
+
+    const btn =
+      document.createElement("button");
+
+    btn.className =
+      currentTab === "SHARED"
+      ? "tab active"
+      : "tab";
+
+    btn.innerText =
+      `Shared (${count})`;
+
     btn.onclick = ()=>{
+
       currentTab = "SHARED";
+
       currentService = "ALL";
+
+      buildTabs();
+
       render();
+
     };
+
     wrap.appendChild(btn);
+
   }
+
 }
 
+/* ================= FILTERS ================= */
+
 function buildFilters(){
-  const year = document.getElementById("yearFilter");
-  const month = document.getElementById("monthFilter");
 
-  if(year.options.length) return;
+  const year =
+    document.getElementById("yearFilter");
 
-  const years = new Set();
+  const month =
+    document.getElementById("monthFilter");
+
+  if(year.options.length){
+    return;
+  }
+
+  const years =
+    new Set();
 
   allTrips.forEach(t=>{
+
     if(t.tripDate){
-      years.add(t.tripDate.split("-")[0]);
+
+      years.add(
+        t.tripDate.split("-")[0]
+      );
+
     }
+
   });
 
-  year.innerHTML = `<option value="">All Years</option>`;
+  year.innerHTML =
+    `<option value="">All Years</option>`;
 
-  [...years].sort((a,b)=>b-a).forEach(y=>{
-    year.innerHTML += `<option value="${y}">${y}</option>`;
-  });
+  [...years]
+    .sort((a,b)=>b-a)
+    .forEach(y=>{
+
+      year.innerHTML += `
+        <option value="${y}">
+          ${y}
+        </option>
+      `;
+
+    });
 
   month.innerHTML = `
     <option value="">All Months</option>
@@ -207,14 +421,30 @@ function buildFilters(){
     <option value="11">November</option>
     <option value="12">December</option>
   `;
+
 }
 
 function getFilteredTrips(){
-  const q = document.getElementById("searchInput").value.toLowerCase().trim();
-  const year = document.getElementById("yearFilter").value;
-  const month = document.getElementById("monthFilter").value;
+
+  const q =
+    document
+      .getElementById("searchInput")
+      .value
+      .toLowerCase()
+      .trim();
+
+  const year =
+    document
+      .getElementById("yearFilter")
+      .value;
+
+  const month =
+    document
+      .getElementById("monthFilter")
+      .value;
 
   return allTrips.filter(t=>{
+
     let txt = `
       ${t.tripNumber || ""}
       ${t.company || ""}
@@ -222,89 +452,239 @@ function getFilteredTrips(){
       ${t.entryPhone || ""}
       ${t.clientName || ""}
       ${t.clientPhone || ""}
-      ${t.serviceSuffix || ""}
-      ${t.serviceType || ""}
     `;
 
     if(Array.isArray(t.passengers)){
+
       t.passengers.forEach(p=>{
+
         txt += `
           ${p.clientName || ""}
           ${p.clientPhone || ""}
-          ${p.name || ""}
-          ${p.phone || ""}
         `;
+
       });
+
     }
 
-    txt = txt.toLowerCase();
+    txt =
+      txt.toLowerCase();
 
-    if(q && !txt.includes(q)) return false;
+    if(q && !txt.includes(q)){
+      return false;
+    }
 
     if(t.tripDate){
-      const parts = t.tripDate.split("-");
-      if(year && parts[0] !== year) return false;
-      if(month && parts[1] !== month) return false;
+
+      const parts =
+        t.tripDate.split("-");
+
+      if(year && parts[0] !== year){
+        return false;
+      }
+
+      if(month && parts[1] !== month){
+        return false;
+      }
+
     }
 
     return true;
+
   });
+
 }
 
+/* ================= DATA ================= */
+
 function getTabTrips(){
-  let data = getFilteredTrips();
+
+  let data =
+    getFilteredTrips();
 
   if(currentTab === "TRIPS"){
-    data = data.filter(t=>!isSharedTrip(t));
+
+    data =
+      data.filter(t =>
+        !isSharedTrip(t)
+      );
+
   }
 
   if(currentTab === "SHARED"){
-    data = data.filter(t=>isSharedTrip(t));
+
+    data =
+      data.filter(t =>
+        isSharedTrip(t)
+      );
+
   }
 
   return data;
+
 }
 
 function getTripsData(){
-  let data = getTabTrips();
+
+  let data =
+    getTabTrips();
 
   if(currentService !== "ALL"){
-    data = data.filter(t=>getTripServiceCode(t) === currentService);
+
+    data =
+      data.filter(t=>{
+
+        const service =
+          getServiceByTrip(t);
+
+        if(!service){
+          return false;
+        }
+
+        return (
+          getServiceCodeFromService(service)
+          === currentService
+        );
+
+      });
+
   }
 
   return data;
+
 }
 
-/* الخانات الخضرا */
+function getServicesForCurrentTab(){
+
+  if(currentTab === "TRIPS"){
+
+    return COMPANY_SERVICES.filter(
+      s => !isSharedService(s)
+    );
+
+  }
+
+  return COMPANY_SERVICES.filter(
+    s => isSharedService(s)
+  );
+
+}
+
+/* ================= MONEY ================= */
+
+function getTripMoney(t){
+
+  if(isSharedTrip(t)){
+
+    if(Number(t.priceAmount || 0) > 0){
+      return Number(t.priceAmount);
+    }
+
+    let total = 0;
+
+    (t.passengers || [])
+      .forEach(p=>{
+
+        if(
+          p.status === "Cancelled" ||
+          p.status === "NoShow"
+        ){
+          total += Number(
+            p.price || 15
+          );
+        }else{
+          total += Number(
+            p.price || 0
+          );
+        }
+
+      });
+
+    return total;
+
+  }
+
+  if(
+    t.status === "Cancelled" ||
+    t.status === "NoShow"
+  ){
+
+    return Number(
+      t.cancelFee ||
+      t.finalPrice ||
+      t.priceAmount ||
+      15
+    );
+
+  }
+
+  return Number(
+    t.finalPrice ||
+    t.priceAmount ||
+    0
+  );
+
+}
+
+/* ================= STATS ================= */
+
 function buildStats(){
-  const wrap = document.getElementById("dynamicStats");
+
+  const wrap =
+    document.getElementById(
+      "dynamicStats"
+    );
+
   if(!wrap) return;
 
   wrap.innerHTML = "";
 
-  const tabTrips = getTabTrips();
-  const map = {};
+  const tabTrips =
+    getTabTrips();
 
-  tabTrips.forEach(t=>{
-    const code = getTripServiceCode(t);
+  const services =
+    getServicesForCurrentTab();
 
-    if(!code || code === "SH") return;
+  /* ================= DYNAMIC SERVICES ================= */
 
-    if(!map[code]){
-      map[code] = {
-        trips:0,
-        miles:0,
-        money:0
-      };
+  services.forEach(service=>{
+
+    const code =
+      getServiceCodeFromService(
+        service
+      );
+
+    if(
+      !code ||
+      code === "SH"
+    ){
+      return;
     }
 
-    map[code].trips += 1;
-    map[code].miles += getMiles(t);
-    map[code].money += getMoney(t);
-  });
+    const serviceTrips =
+      tabTrips.filter(t =>
+        tripMatchesService(t,service)
+      );
 
-  Object.keys(map).forEach(code=>{
-    const card = document.createElement("div");
+    const totalTrips =
+      serviceTrips.length;
+
+    const totalMiles =
+      serviceTrips.reduce(
+        (sum,t)=>
+          sum + Number(t.miles || 0),
+        0
+      );
+
+    const totalMoney =
+      serviceTrips.reduce(
+        (sum,t)=>
+          sum + getTripMoney(t),
+        0
+      );
+
+    const card =
+      document.createElement("div");
 
     card.className =
       currentService === code
@@ -312,67 +692,172 @@ function buildStats(){
       : "stat";
 
     card.innerHTML = `
-      <div class="stat-title">${getServiceName(code)}</div>
-      <div class="stat-value">${map[code].trips}</div>
-      <div class="stat-money">${map[code].miles.toFixed(1)} mi</div>
-      <div class="stat-money">$${map[code].money.toFixed(2)}</div>
+      <div class="stat-title">
+        ${service.title || code}
+      </div>
+
+      <div class="stat-value">
+        ${totalTrips}
+      </div>
+
+      <div class="stat-sub">
+        ${totalMiles.toFixed(1)} mi
+      </div>
+
+      <div class="stat-money">
+        $${totalMoney.toFixed(2)}
+      </div>
     `;
 
     card.onclick = ()=>{
-      currentService = currentService === code ? "ALL" : code;
+
+      currentService =
+        currentService === code
+        ? "ALL"
+        : code;
+
       render();
+
     };
 
     wrap.appendChild(card);
+
   });
+
+  /* ================= TOTAL CARDS ================= */
+
+  const totalTrips =
+    tabTrips.length;
+
+  const totalMiles =
+    tabTrips.reduce(
+      (sum,t)=>
+        sum + Number(t.miles || 0),
+      0
+    );
+
+  const totalMoney =
+    tabTrips.reduce(
+      (sum,t)=>
+        sum + getTripMoney(t),
+      0
+    );
+
+  const totalCard =
+    document.createElement("div");
+
+  totalCard.className =
+    "stat total-card";
+
+  totalCard.innerHTML = `
+    <div class="stat-title">
+      Total Trips
+    </div>
+
+    <div class="stat-value">
+      ${totalTrips}
+    </div>
+
+    <div class="stat-sub">
+      ${totalMiles.toFixed(1)} mi
+    </div>
+
+    <div class="stat-money">
+      $${totalMoney.toFixed(2)}
+    </div>
+  `;
+
+  wrap.appendChild(totalCard);
+
 }
 
+/* ================= GROUP ================= */
+
 function groupByDay(data){
+
   const groups = {};
 
   data.forEach(t=>{
-    const d = t.tripDate || "Unknown";
-    if(!groups[d]) groups[d] = [];
+
+    const d =
+      t.tripDate || "Unknown";
+
+    if(!groups[d]){
+      groups[d] = [];
+    }
+
     groups[d].push(t);
+
   });
 
   return groups;
+
 }
+
+/* ================= STATUS ================= */
 
 function statusHTML(status){
+
   let cls = "";
 
-  if(status === "Completed") cls = "completed";
-  else if(status === "Cancelled") cls = "cancelled";
-  else if(status === "NoShow") cls = "noshow";
+  if(status === "Completed"){
+    cls = "completed";
+  }
 
-  return `<span class="status ${cls}">${status || "Scheduled"}</span>`;
+  else if(status === "Cancelled"){
+    cls = "cancelled";
+  }
+
+  else if(status === "NoShow"){
+    cls = "noshow";
+  }
+
+  return `
+    <span class="status ${cls}">
+      ${status || "Scheduled"}
+    </span>
+  `;
+
 }
 
-function safe(v){
-  return String(v ?? "-");
-}
+/* ================= RENDER ================= */
 
 function render(){
-  fixTab();
+
   buildTabs();
+
   buildStats();
 
-  const wrap = document.getElementById("summaryContent");
+  const wrap =
+    document.getElementById(
+      "summaryContent"
+    );
+
   wrap.innerHTML = "";
 
-  const trips = getTripsData();
-  const groups = groupByDay(trips);
+  const trips =
+    getTripsData();
+
+  const groups =
+    groupByDay(trips);
 
   Object.keys(groups)
-    .sort((a,b)=>new Date(b) - new Date(a))
+    .sort((a,b)=>
+      new Date(b) - new Date(a)
+    )
     .forEach(day=>{
 
       wrap.innerHTML += `
-        <div class="day-title">${day}</div>
+        <div class="day-title">
+          ${day}
+        </div>
+
         <div class="table-wrap">
+
           <table class="summary-table">
+
             <thead>
+
               <tr>
                 <th>Trip#</th>
                 <th>Company</th>
@@ -384,28 +869,38 @@ function render(){
                 <th>Dropoff</th>
                 <th>Trip Date</th>
                 <th>Trip Time</th>
-                <th>Book Date</th>
-                <th>Book Time</th>
                 <th>Miles</th>
                 <th>Status</th>
                 <th>Price</th>
                 <th>Total</th>
               </tr>
+
             </thead>
+
             <tbody id="tbody-${day}"></tbody>
+
           </table>
+
         </div>
       `;
 
-      const tbody = document.getElementById(`tbody-${day}`);
+      const tbody =
+        document.getElementById(
+          `tbody-${day}`
+        );
 
       groups[day].forEach(t=>{
 
+        /* ================= INDIVIDUAL ================= */
+
         if(!isSharedTrip(t)){
-          const money = getMoney(t);
+
+          const money =
+            getTripMoney(t);
 
           tbody.innerHTML += `
             <tr>
+
               <td>${safe(t.tripNumber)}</td>
               <td>${safe(t.company)}</td>
               <td>${safe(t.entryName)}</td>
@@ -416,85 +911,177 @@ function render(){
               <td>${safe(t.dropoff)}</td>
               <td>${safe(t.tripDate)}</td>
               <td>${safe(t.tripTime)}</td>
-              <td>${safe(t.bookingDate)}</td>
-              <td>${safe(t.bookingTime)}</td>
-              <td>${safe(t.miles || 0)}</td>
+              <td>${Number(t.miles || 0).toFixed(1)}</td>
               <td>${statusHTML(t.status)}</td>
               <td class="total">$${money.toFixed(2)}</td>
               <td class="total">$${money.toFixed(2)}</td>
+
             </tr>
 
             <tr class="trip-divider-line">
-              <td colspan="16"></td>
+              <td colspan="14"></td>
             </tr>
 
             <tr class="trip-divider">
-              <td colspan="16"></td>
+              <td colspan="14"></td>
             </tr>
           `;
 
           return;
+
         }
 
-        const passengers = t.passengers || [];
-        const total = getMoney(t);
+        /* ================= SHARED ================= */
+
+        const passengers =
+          t.passengers || [];
+
+        const sharedTotal =
+          getTripMoney(t);
 
         passengers.forEach((p,index)=>{
-          const price =
-            p.status === "NoShow" || p.status === "Cancelled"
+
+          const passengerPrice =
+            (
+              p.status === "Cancelled" ||
+              p.status === "NoShow"
+            )
             ? Number(p.price || 15)
             : Number(p.price || 0);
 
           tbody.innerHTML += `
-            <tr class="${index !== passengers.length - 1 ? "shared-separator" : ""}">
-              <td>${index === 0 ? safe(t.tripNumber) : ""}</td>
-              <td>${index === 0 ? safe(t.company) : ""}</td>
-              <td>${index === 0 ? safe(t.entryName) : ""}</td>
-              <td>${index === 0 ? safe(t.entryPhone) : ""}</td>
-              <td>${safe(p.clientName || p.name)}</td>
-              <td>${safe(p.clientPhone || p.phone)}</td>
+            <tr class="${
+              index !== passengers.length - 1
+              ? "shared-separator"
+              : ""
+            }">
+
+              <td>
+                ${index === 0
+                  ? safe(t.tripNumber)
+                  : ""}
+              </td>
+
+              <td>
+                ${index === 0
+                  ? safe(t.company)
+                  : ""}
+              </td>
+
+              <td>
+                ${index === 0
+                  ? safe(t.entryName)
+                  : ""}
+              </td>
+
+              <td>
+                ${index === 0
+                  ? safe(t.entryPhone)
+                  : ""}
+              </td>
+
+              <td>
+                ${safe(
+                  p.clientName ||
+                  p.name
+                )}
+              </td>
+
+              <td>
+                ${safe(
+                  p.clientPhone ||
+                  p.phone
+                )}
+              </td>
+
               <td>${safe(p.pickup)}</td>
+
               <td>${safe(p.dropoff)}</td>
-              <td>${index === 0 ? safe(t.tripDate) : ""}</td>
-              <td>${index === 0 ? safe(t.tripTime) : ""}</td>
-              <td>${index === 0 ? safe(t.bookingDate) : ""}</td>
-              <td>${index === 0 ? safe(t.bookingTime) : ""}</td>
-              <td>${index === 0 ? safe(t.miles || 0) : ""}</td>
-              <td>${statusHTML(p.status || t.status)}</td>
-              <td class="total">$${price.toFixed(2)}</td>
-              <td class="total">${index === 0 ? "$" + total.toFixed(2) : ""}</td>
+
+              <td>
+                ${index === 0
+                  ? safe(t.tripDate)
+                  : ""}
+              </td>
+
+              <td>
+                ${index === 0
+                  ? safe(t.tripTime)
+                  : ""}
+              </td>
+
+              <td>
+                ${index === 0
+                  ? Number(t.miles || 0).toFixed(1)
+                  : ""}
+              </td>
+
+              <td>
+                ${statusHTML(
+                  p.status || t.status
+                )}
+              </td>
+
+              <td class="total">
+                $${passengerPrice.toFixed(2)}
+              </td>
+
+              <td class="total">
+                ${
+                  index === 0
+                  ? "$" + sharedTotal.toFixed(2)
+                  : ""
+                }
+              </td>
+
             </tr>
           `;
+
         });
 
         tbody.innerHTML += `
           <tr class="trip-divider-line">
-            <td colspan="16"></td>
+            <td colspan="14"></td>
           </tr>
 
           <tr class="trip-divider">
-            <td colspan="16"></td>
+            <td colspan="14"></td>
           </tr>
         `;
+
       });
+
     });
+
 }
 
+/* ================= EVENTS ================= */
+
 document.addEventListener("input",e=>{
-  if(e.target.id === "searchInput"){
+
+  if(
+    e.target.id === "searchInput"
+  ){
     render();
   }
+
 });
 
 document.addEventListener("change",e=>{
+
   if(
     e.target.id === "yearFilter" ||
     e.target.id === "monthFilter"
   ){
     render();
   }
+
 });
 
+/* ================= AUTO ================= */
+
 setInterval(load,30000);
+
+/* ================= INIT ================= */
 
 load();
