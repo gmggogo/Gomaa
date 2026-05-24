@@ -508,6 +508,15 @@ function getServiceCards(data){
 
     serviceTrips.forEach(t=>{
 
+  console.log(
+    "TRIP:",
+    t.tripNumber,
+    "SUFFIX:",
+    getTripSuffix(t)
+  );
+
+  /* SHARED */
+
       /* SHARED */
 
       if(isSharedTrip(t)){
