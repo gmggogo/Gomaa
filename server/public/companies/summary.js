@@ -128,9 +128,9 @@ function getTripPrice(t){
   if(isCancelled(t.status)){
 
     return Number(
-      t.cancelFee ||
-      t.cancelCharge ||
-      t.cancelAmount ||
+      t.finalPrice ??
+      t.priceAmount ??
+      t.price ??
       0
     );
 
@@ -139,18 +139,18 @@ function getTripPrice(t){
   if(isNoShow(t.status)){
 
     return Number(
-      t.noShowFee ||
-      t.noShowCharge ||
-      t.noShowAmount ||
+      t.finalPrice ??
+      t.priceAmount ??
+      t.price ??
       0
     );
 
   }
 
   return Number(
-    t.finalPrice ||
-    t.priceAmount ||
-    t.price ||
+    t.finalPrice ??
+    t.priceAmount ??
+    t.price ??
     0
   );
 
