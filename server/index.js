@@ -112,9 +112,11 @@ console.log(
   "✅ Trip Paid:",
   trip.tripNumber
 );
-    res.sendStatus(200);
+   res.sendStatus(200);
 
-  } catch (err) {
+} 
+
+catch (err) {
     console.log("🔥 Webhook Processing Error:", err);
     res.sendStatus(500);
   }
