@@ -632,7 +632,20 @@ async function handleConfirmShared(btn){
       group,
       routeData.miles
     );
+console.log(
+  "🔥 ROUTE DATA:",
+  routeData
+);
 
+console.log(
+  "🔥 SHARED PRICE:",
+  sharedPrice
+);
+
+console.log(
+  "🔥 ROUTE MILES:",
+  routeData.miles
+);
   const snapshot =
     Review.buildPricingSnapshot(
       service,
@@ -651,10 +664,7 @@ async function handleConfirmShared(btn){
     serviceName:
       service?.name || "",
 
-   serviceCode:
-  service?.serviceKey ||
-  service?.companySuffix ||
-  "",
+  serviceCode:"SH",
 
     serviceId:
       service?._id || "",
