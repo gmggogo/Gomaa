@@ -5114,7 +5114,7 @@ if(diffMinutes > cancelLimit){
 
     trip.finalPrice ||
 
-    15
+0
 
   );
 
