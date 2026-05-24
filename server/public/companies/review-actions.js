@@ -760,15 +760,20 @@ if(
 
 }
 
-  await Review.updateTrip(
-    id,
-    {
-      status:"Cancelled",
-      priceAmount:Number(finalPrice),
-      cancelFee:Number(finalPrice),
-      cancelledAt:new Date().toISOString()
-    }
-  );
+ await Review.updateTrip(
+  id,
+  {
+    status:"Cancelled",
+
+    priceAmount:Number(finalPrice),
+
+    finalPrice:Number(finalPrice),
+
+    cancelFee:Number(finalPrice),
+
+    cancelledAt:new Date().toISOString()
+  }
+);
 
   await reloadTrips();
 
@@ -829,19 +834,24 @@ if(
 
 }
 
-  for(const t of group){
+ for(const t of group){
 
-    await Review.updateTrip(
-      t._id,
-      {
-        status:"Cancelled",
-        priceAmount:Number(finalPrice),
-        cancelFee:Number(finalPrice),
-        cancelledAt:new Date().toISOString()
-      }
-    );
+  await Review.updateTrip(
+    t._id,
+    {
+      status:"Cancelled",
 
-  }
+      priceAmount:Number(finalPrice),
+
+      finalPrice:Number(finalPrice),
+
+      cancelFee:Number(finalPrice),
+
+      cancelledAt:new Date().toISOString()
+    }
+  );
+
+}
 
   await reloadTrips();
 
