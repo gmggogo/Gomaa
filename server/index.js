@@ -5136,8 +5136,7 @@ if(diffMinutes > cancelLimit){
 
         await trip.save();
 
-      }catch(stripeErr){
-
+} catch(stripeErr){
         console.log(
           "STRIPE REFUND ERROR",
           stripeErr
