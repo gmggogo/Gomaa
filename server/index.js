@@ -2309,23 +2309,27 @@ if(company.lastPaymentDate){
 
         }
 
-    if(status.includes("cancel")){
+        if(status.includes("cancel")){
 
-  return sum + Number(
-    t.cancelFee || 0
+          return sum + Number(
+            t.cancelFee || 0
+          );
+
+        }
+
+        if(status.includes("no")){
+
+          return sum + Number(
+            t.noShowFee || 0
+          );
+
+        }
+
+        return sum;
+
+      },0)
+
   );
-
-}
-
-if(status.includes("no")){
-
-  return sum + Number(
-    t.noShowFee || 0
-  );
-
-}
-
-return sum;
 
 }else{
 
