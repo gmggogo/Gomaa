@@ -2156,14 +2156,19 @@ if(
         0
       );
 
-    }else if(
-      ps.includes("cancel") ||
-      ps.includes("no")
-    ){
+}else if(ps.includes("cancel")){
 
-      amount += 15;
+  amount += Number(
+    t.cancelFee || 0
+  );
 
-    }
+}else if(ps.includes("no")){
+
+  amount += Number(
+    t.noShowFee || 0
+  );
+
+}
 
   });
 
@@ -2178,16 +2183,19 @@ if(
       0
     );
 
-  }else if(
-    status.includes("cancel") ||
-    status.includes("no")
-  ){
+ }else if(status.includes("cancel")){
 
-    amount = Number(
-      t.cancelFee || 15
-    );
+  amount = Number(
+    t.cancelFee || 0
+  );
 
-  }
+}else if(status.includes("no")){
+
+  amount = Number(
+    t.noShowFee || 0
+  );
+
+}
 
 }
 
@@ -2301,18 +2309,23 @@ if(company.lastPaymentDate){
 
         }
 
-        if(
-          status.includes("cancel") ||
-          status.includes("no")
-        ){
+    if(status.includes("cancel")){
 
-          return sum + 15;
+  return sum + Number(
+    t.cancelFee || 0
+  );
 
-        }
+}
 
-        return sum;
+if(status.includes("no")){
 
-      },0)
+  return sum + Number(
+    t.noShowFee || 0
+  );
+
+}
+
+return sum;
 
       .toFixed(2)
 
@@ -2345,7 +2358,7 @@ await User.findByIdAndUpdate(
     cancelledTrips,
     noShowTrips,
 
-    revenue: invoiceAmount,
+    revenue: Number(revenue.toFixed(2)),
     invoiceAmount: invoiceAmount
   }
 );
@@ -4242,102 +4255,188 @@ app.patch("/api/driver/trips/:id/start", async (req, res) => {
 
 app.patch("/api/driver/trips/:id/complete", async (req, res) => {
   try {
-    const trip = await Trip.findById(req.params.id);
+
+    const trip =
+      await Trip.findById(
+        req.params.id
+      );
 
     if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
+
+      return res.status(404).json({
+        message: "Trip not found"
+      });
+
     }
-if (trip.isFinalized) {
-  return res.json(trip);
-}
 
-   trip.status = "Completed";
+    /* =========================
+       FINALIZED
+    ========================= */
 
-// 🔥 احسب السعر النهائي
-const final = calculateFinalPrice(trip);
+    if (trip.isFinalized) {
+      return res.json(trip);
+    }
 
-// 🔥 لو priceAmount فاضي
-if (!trip.priceAmount || trip.priceAmount === 0) {
-  trip.priceAmount = final;
-}
+    /* =========================
+       COMPLETE
+    ========================= */
 
-// 🔥 خزن النهائي
-trip.finalPrice = final;
-trip.isFinalized = true;
-if (
-  trip.isShared &&
-  Array.isArray(trip.passengers)
-) {
+    trip.status = "Completed";
 
-  const completedPassengers =
-    trip.passengers.filter(p => {
+    /* =========================
+       FINAL PRICE
+    ========================= */
 
-      const s = String(
-        p.status || ""
-      ).toLowerCase();
+    const final =
+      calculateFinalPrice(trip);
 
-      return s.includes("complete");
+    /* =========================
+       PRICE AMOUNT
+    ========================= */
 
-    });
+    if (
+      !trip.priceAmount ||
+      trip.priceAmount === 0
+    ) {
 
-  const count =
-    completedPassengers.length || 1;
+      trip.priceAmount = final;
 
-  const perPassenger =
-    Number(final) / count;
+    }
 
-  trip.passengers =
-    trip.passengers.map(p => {
+    /* =========================
+       SAVE FINAL
+    ========================= */
 
-      const s = String(
-        p.status || ""
-      ).toLowerCase();
+    trip.finalPrice =
+      Number(final || 0);
 
-      // NO SHOW
-      if (s.includes("no")) {
+    trip.isFinalized = true;
 
-        return {
-          ...p,
-          finalPrice: 15,
-          priceAmount: 15
-        };
+    /* =========================
+       SHARED
+    ========================= */
 
-      }
+    if (
+      trip.isShared &&
+      Array.isArray(trip.passengers)
+    ) {
 
-      // CANCELLED
-      if (s.includes("cancel")) {
+      const completedPassengers =
+        trip.passengers.filter(p => {
 
-        return {
-          ...p,
-          finalPrice: 15,
-          priceAmount: 15
-        };
+          const s = String(
+            p.status || ""
+          ).toLowerCase();
 
-      }
+          return s.includes("complete");
 
-      // COMPLETED
-      if (s.includes("complete")) {
+        });
 
-        return {
-          ...p,
-          finalPrice: perPassenger,
-          priceAmount: perPassenger
-        };
+      const count =
+        completedPassengers.length || 1;
 
-      }
+      const perPassenger =
+        Number(final || 0) / count;
 
-      return p;
+      trip.passengers =
+        trip.passengers.map(p => {
 
-    });
+          const s = String(
+            p.status || ""
+          ).toLowerCase();
 
-}
+          /* =========================
+             NO SHOW
+          ========================= */
 
-await trip.save();
+          if (s.includes("no")) {
+
+            return {
+
+              ...p,
+
+              finalPrice: Number(
+                trip.noShowFee || 0
+              ),
+
+              priceAmount: Number(
+                trip.noShowFee || 0
+              )
+
+            };
+
+          }
+
+          /* =========================
+             CANCELLED
+          ========================= */
+
+          if (s.includes("cancel")) {
+
+            return {
+
+              ...p,
+
+              finalPrice: Number(
+                trip.cancelFee || 0
+              ),
+
+              priceAmount: Number(
+                trip.cancelFee || 0
+              )
+
+            };
+
+          }
+
+          /* =========================
+             COMPLETED
+          ========================= */
+
+          if (s.includes("complete")) {
+
+            return {
+
+              ...p,
+
+              finalPrice: Number(
+                perPassenger || 0
+              ),
+
+              priceAmount: Number(
+                perPassenger || 0
+              )
+
+            };
+
+          }
+
+          /* =========================
+             DEFAULT
+          ========================= */
+
+          return p;
+
+        });
+
+    }
+
+    /* =========================
+       SAVE
+    ========================= */
+
+    await trip.save();
 
     res.json(trip);
+
   } catch (err) {
+
     console.log(err);
-    res.status(500).json({ message: "Complete trip error" });
+
+    res.status(500).json({
+      message: "Complete trip error"
+    });
+
   }
 });
 
