@@ -34,6 +34,8 @@ app.use(
   pricingRoutes
 );
 
+const SystemDesign =
+require("./models/SystemDesign");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.com",
@@ -107,78 +109,255 @@ app.post(
 
     try {
 
-      /* =========================
-         PAYMENT SUCCESS
-      ========================= */
+     /* =========================
+   PAYMENT SUCCESS
+========================= */
 
-      if (
-        event.type ===
-        "payment_intent.succeeded"
-      ) {
+if (
 
-        const paymentIntent =
-          event.data.object;
+  event.type ===
+  "payment_intent.succeeded"
 
-        const tripId =
-          paymentIntent.metadata?.tripId;
+  ||
 
-        if (!tripId) {
-          return res.sendStatus(200);
-        }
+  event.type ===
+  "checkout.session.completed"
 
-        const trip =
-          await Trip.findById(tripId);
+) {
 
-        if (!trip) {
-          return res.sendStatus(200);
-        }
+  const stripeObject =
+    event.data.object;
 
-        // 🔥 لو مدفوعة بالفعل
-        if (trip.status === "Paid") {
-          return res.sendStatus(200);
-        }
+  const paymentIntent =
+    stripeObject;
 
-        // 🔥 توليد cancel token
-        if (!trip.cancelToken) {
+  const tripId =
 
-          trip.cancelToken =
-            crypto
-              .randomBytes(32)
-              .toString("hex");
+    stripeObject.metadata?.tripId
 
-        }
+    ||
 
-        /* =========================
-           STATUS
-        ========================= */
+    stripeObject.client_reference_id;
 
-        if (
-          trip.type === "individual" ||
-          trip.type === "reserved" ||
-          trip.type === "quote"
-        ) {
+  if (!tripId) {
+    return res.sendStatus(200);
+  }
 
-          trip.status = "Paid";
+  const trip =
+    await Trip.findById(tripId);
 
-        }
+  if (!trip) {
+    return res.sendStatus(200);
+  }
 
-        /* =========================
-           SAVE DATA
-        ========================= */
+  // 🔥 لو مدفوعة بالفعل
+  if (trip.status === "Paid") {
+    return res.sendStatus(200);
+  }
 
-        trip.paymentIntentId =
-          paymentIntent.id;
+  // 🔥 توليد cancel token
+  if (!trip.cancelToken) {
 
-        trip.dispatchSelected = true;
+    trip.cancelToken =
+      crypto
+        .randomBytes(32)
+        .toString("hex");
 
-        await trip.save();
+  }
 
-        console.log(
-          "✅ Trip Paid:",
-          trip.tripNumber
-        );
+  /* =========================
+     STATUS
+  ========================= */
 
-      }
+  if (
+
+    trip.type === "individual"
+
+    ||
+
+    trip.type === "reserved"
+
+    ||
+
+    trip.type === "quote"
+
+  ) {
+
+    trip.status = "Paid";
+
+  }
+
+  /* =========================
+     SAVE DATA
+  ========================= */
+
+  trip.paymentIntentId =
+    paymentIntent.id;
+
+  trip.dispatchSelected =
+    true;
+
+  await trip.save();
+
+  /* =========================
+     SEND EMAIL
+  ========================= */
+
+  try {
+
+    const settings =
+      await SystemDesign.findOne({});
+
+    const companyEmail =
+
+      settings?.companyEmail
+
+      ||
+
+      process.env.EMAIL_USER;
+
+    const displayName =
+
+      settings?.companyDisplayName
+
+      ||
+
+      "Sunbeam Transportation";
+
+    const emailSubject =
+
+      settings?.bookingEmailSubject
+
+      ||
+
+      "Booking Confirmation";
+
+    const emailMessage =
+
+      settings?.bookingEmailMessage
+
+      ||
+
+      "Your trip is confirmed.";
+
+    const cancelPolicy =
+
+      settings?.cancelPolicyText
+
+      ||
+
+      "Free cancellation up to 2 hours before trip time.";
+
+    const cancelLink =
+
+      `${process.env.BASE_URL}/booking/cancel.html?token=${trip.cancelToken}`;
+
+    if (trip.clientEmail) {
+
+      await transporter.sendMail({
+
+        from:
+        `"${displayName}" <${companyEmail}>`,
+
+        to:
+        trip.clientEmail,
+
+        subject:
+        emailSubject,
+
+        html:`
+
+        <h2>
+          Payment Successful ✅
+        </h2>
+
+        <p>
+          ${emailMessage}
+        </p>
+
+        <hr/>
+
+        <p>
+          <b>Trip Number:</b>
+          ${trip.tripNumber}
+        </p>
+
+        <p>
+          <b>Pickup:</b>
+          ${trip.pickup}
+        </p>
+
+        <p>
+          <b>Dropoff:</b>
+          ${trip.dropoff}
+        </p>
+
+        <p>
+          <b>Date:</b>
+          ${trip.tripDate}
+        </p>
+
+        <p>
+          <b>Time:</b>
+          ${trip.tripTime}
+        </p>
+
+        <p>
+          <b>Amount Paid:</b>
+          $${trip.priceAmount}
+        </p>
+
+        <hr/>
+
+        <p style="color:red;">
+          ${cancelPolicy}
+        </p>
+
+        <a href="${cancelLink}" style="
+          display:inline-block;
+          padding:14px 22px;
+          background:#dc2626;
+          color:#fff;
+          text-decoration:none;
+          border-radius:10px;
+          font-weight:bold;
+        ">
+          Cancel Trip
+        </a>
+
+        <hr/>
+
+        <p>
+          Thank you for choosing
+          ${displayName} 🚗
+        </p>
+
+        `
+
+      });
+
+      console.log(
+        "📧 EMAIL SENT:",
+        trip.clientEmail
+      );
+
+    }
+
+  } catch(emailErr) {
+
+    console.log(
+      "EMAIL ERROR:",
+      emailErr.message
+    );
+
+  }
+
+  console.log(
+    "✅ Trip Paid:",
+    trip.tripNumber
+  );
+
+}
 
       /* =========================
          SUCCESS
@@ -436,8 +615,20 @@ const tripSchema = new mongoose.Schema({
     default: {}
   },
 
-  finalPrice: { type: Number, default: 0 },
-  isFinalized: { type: Boolean, default: false },
+finalPrice: {
+  type: Number,
+  default: 0
+},
+
+isFinalized: {
+  type: Boolean,
+  default: false
+},
+
+confirmationEmailSent: {
+  type: Boolean,
+  default: false
+},
 
   // 🚗 VEHICLE
   vehicleTypeFromQuote: { type: String, default: "X" },
@@ -4670,120 +4861,6 @@ app.post("/api/create-payment-intent", async (req, res) => {
   } catch (err) {
     console.log("Stripe Error:", err);
     res.status(500).json({ message: "Payment error" });
-  }
-});
-
- /* =========================
-   PAYMENT SUCCESS → SEND EMAIL + CANCEL LINK (FINAL)
-========================= */
-app.post("/api/payment-success", async (req, res) => {
-  try {
-    const { tripId, paymentIntentId } = req.body;
-
-    if (!tripId) {
-      return res.status(400).json({ message: "Missing tripId" });
-    }
-
-    const trip = await Trip.findById(tripId);
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    // =========================
-    // 🔐 CREATE CANCEL TOKEN
-    // =========================
-
-    if (!trip.cancelToken) {
-      trip.cancelToken = crypto.randomBytes(32).toString("hex");
-    }
-
-    // =========================
-    // 💳 SAVE PAYMENT
-    // =========================
-    trip.paymentIntentId = paymentIntentId || "";
-    trip.status = "Paid";
-    trip.dispatchSelected = true;
-
-    await trip.save();
-
-    console.log("✅ Payment saved:", paymentIntentId);
-
-    // =========================
-    // 🔥 CORRECT CANCEL LINK
-    // =========================
-    const cancelLink = `https://sunbeam-933q.onrender.com/booking/cancel.html?token=${trip.cancelToken}`;
-
-    // =========================
-    // 📧 SEND EMAIL (SAFE MODE)
-    // =========================
-    if (trip.clientEmail) {
-
-      try {
-
-        await transporter.sendMail({
-          from: `"Sunbeam Transportation" <${process.env.EMAIL_USER}>`,
-          to: trip.clientEmail,
-          subject: "Booking Confirmation",
-
-          html: `
-            <h2>Payment Successful ✅</h2>
-            <p>Your trip is confirmed.</p>
-
-            <hr/>
-
-            <p><b>Trip Number:</b> ${trip.tripNumber}</p>
-            <p><b>Pickup:</b> ${trip.pickup}</p>
-            <p><b>Dropoff:</b> ${trip.dropoff}</p>
-            <p><b>Date:</b> ${trip.tripDate}</p>
-            <p><b>Time:</b> ${trip.tripTime}</p>
-            <p><b>Vehicle Type:</b> ${trip.vehicle || "X"}</p>
-
-            <p><b>Amount Paid:</b> $${trip.priceAmount}</p>
-
-            <hr/>
-
-            <h3>Cancel your trip</h3>
-
-            <p style="color:red;">
-              Free cancellation up to 2 hours before trip time.<br/>
-              After that, $15 fee will apply.
-            </p>
-
-            <a href="${cancelLink}" style="
-              display:inline-block;
-              padding:14px 22px;
-              background:#dc2626;
-              color:#fff;
-              text-decoration:none;
-              border-radius:10px;
-              font-weight:bold;
-              font-size:16px;
-            ">
-              Cancel Trip
-            </a>
-
-            <hr/>
-
-            <p>Thank you for choosing Sunbeam Transportation 🚗</p>
-          `
-        });
-
-        console.log("📧 Email sent:", trip.clientEmail);
-
-      } catch (emailErr) {
-        console.log("❌ EMAIL ERROR:", emailErr.message);
-      }
-    }
-
-    // =========================
-    // RESPONSE
-    // =========================
-    res.json({ success: true });
-
-  } catch (err) {
-    console.log("🔥 SERVER ERROR:", err);
-    res.status(500).json({ message: "Server error" });
   }
 });
 

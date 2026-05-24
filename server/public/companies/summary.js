@@ -191,13 +191,12 @@ function getPassengerPrice(p){
 
 function getMiles(status,miles){
 
-  if(
-    isCancelled(status) ||
-    isNoShow(status)
-  ){
+  // ❌ Cancelled only = no miles
+  if(isCancelled(status)){
     return 0;
   }
 
+  // ✅ NoShow still counts miles
   return Number(miles || 0);
 
 }
@@ -508,16 +507,9 @@ function getServiceCards(data){
 
     serviceTrips.forEach(t=>{
 
-  console.log(
-    "TRIP:",
-    t.tripNumber,
-    "SUFFIX:",
-    getTripSuffix(t)
-  );
-
-  /* SHARED */
-
-      /* SHARED */
+      /* =========================
+         SHARED
+      ========================= */
 
       if(isSharedTrip(t)){
 
@@ -550,7 +542,9 @@ function getServiceCards(data){
 
       }
 
-      /* INDIVIDUAL */
+      /* =========================
+         INDIVIDUAL
+      ========================= */
 
       else{
 
@@ -591,11 +585,6 @@ TOTAL STATS
 
 function updateStats(filteredData){
 
-  /* IMPORTANT:
-  BLUE STATS = ALL TRIPS
-  NOT CURRENT TAB
-  */
-
   const globalData =
     allTrips;
 
@@ -613,7 +602,9 @@ function updateStats(filteredData){
 
   globalData.forEach(t=>{
 
-    /* SHARED */
+    /* =========================
+       SHARED
+    ========================= */
 
     if(isSharedTrip(t)){
 
@@ -626,16 +617,22 @@ function updateStats(filteredData){
       .forEach(p=>{
 
         if(isCompleted(p.status)){
+
           completed++;
           hasCompleted = true;
+
         }
 
         if(isCancelled(p.status)){
+
           cancelled++;
+
         }
 
         if(isNoShow(p.status)){
+
           noshow++;
+
         }
 
         totalRevenue +=
@@ -653,30 +650,34 @@ function updateStats(filteredData){
 
     }
 
-    /* INDIVIDUAL */
+    /* =========================
+       INDIVIDUAL
+    ========================= */
 
     else{
 
       totalTrips += 1;
 
       if(isCompleted(t.status)){
+
         completed++;
+
       }
 
       if(isCancelled(t.status)){
+
         cancelled++;
+
       }
 
       if(isNoShow(t.status)){
+
         noshow++;
+
       }
 
-    if(!isCancelled(t.status)){
-
-  totalRevenue +=
-    getTripPrice(t);
-
-}
+      totalRevenue +=
+        getTripPrice(t);
 
       totalMiles +=
         getMiles(
@@ -689,7 +690,7 @@ function updateStats(filteredData){
   });
 
   /* =========================
-  GREEN
+     GREEN SERVICE CARDS
   ========================= */
 
   const servicesWrap =
@@ -700,7 +701,7 @@ function updateStats(filteredData){
   if(servicesWrap){
 
     const services =
-      getServiceCards(filteredData);
+      getServiceCards(allTrips);
 
     servicesWrap.innerHTML = "";
 
@@ -734,7 +735,7 @@ function updateStats(filteredData){
   }
 
   /* =========================
-  BLUE
+     BLUE TOTAL CARDS
   ========================= */
 
   const totalsWrap =
@@ -920,7 +921,9 @@ function render(){
 
     groups[day].forEach(t=>{
 
-      /* INDIVIDUAL */
+      /* =========================
+         INDIVIDUAL
+      ========================= */
 
       if(!isSharedTrip(t)){
 
@@ -980,7 +983,9 @@ function render(){
 
       }
 
-      /* SHARED */
+      /* =========================
+         SHARED
+      ========================= */
 
       else{
 

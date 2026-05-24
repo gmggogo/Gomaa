@@ -211,8 +211,6 @@ async function seedServices(){
         pricingMode:"MILE",
         companyPricingMode:"MILE",
 
-        /* INDIVIDUAL */
-
         baseFare:15,
         includedMiles:3,
         perMile:1.75,
@@ -225,8 +223,6 @@ async function seedServices(){
         warningEnabled:true,
         warningMinutes:120,
         cancelFee:10,
-
-        /* COMPANY */
 
         companyBaseFare:15,
         companyIncludedMiles:3,
@@ -245,7 +241,7 @@ async function seedServices(){
         companySuffix:"TX"
       },
 
-      /* ================= LIMOUSINE ================= */
+      /* ================= LIMO ================= */
 
       {
         serviceKey:"LIMO",
@@ -257,8 +253,6 @@ async function seedServices(){
 
         pricingMode:"HOURLY",
         companyPricingMode:"HOURLY",
-
-        /* INDIVIDUAL */
 
         baseFare:120,
         includedMiles:0,
@@ -272,8 +266,6 @@ async function seedServices(){
         warningEnabled:true,
         warningMinutes:240,
         cancelFee:75,
-
-        /* COMPANY */
 
         companyBaseFare:120,
         companyIncludedMiles:0,
@@ -502,7 +494,7 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
-    /* ================= PER MILE ================= */
+    /* ================= MILE ================= */
 
     else{
 
@@ -574,6 +566,38 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
+    /* =========================
+       DYNAMIC CANCEL SETTINGS
+    ========================= */
+
+    const cancelFee =
+      Number(
+
+        isCompany
+        ? (
+            service.companyCancelFee ??
+            service.cancelFee
+          )
+        : service.cancelFee
+
+      );
+
+    const warningMinutes =
+      Number(
+
+        isCompany
+        ? (
+            service.companyWarningMinutes ??
+            service.warningMinutes
+          )
+        : service.warningMinutes
+
+      );
+
+    /* =========================
+       RESPONSE
+    ========================= */
+
     return res.json({
 
       success:true,
@@ -583,6 +607,10 @@ router.post("/calculate", async (req,res)=>{
       total:Number(
         total.toFixed(2)
       ),
+
+      cancelFee,
+
+      warningMinutes,
 
       service
 
