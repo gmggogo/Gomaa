@@ -638,10 +638,19 @@ console.log(
 );
 
 console.log(
-  "🔥 SHARED PRICE:",
-  sharedPrice
+  "🔥 SHARED TOTAL:",
+  sharedPrice.total
 );
 
+console.log(
+  "🔥 PRICE PER PASSENGER:",
+  sharedPrice.pricePerPassenger
+);
+
+console.log(
+  "🔥 STOPS COUNT:",
+  sharedPrice.stopsCount
+);
 console.log(
   "🔥 ROUTE MILES:",
   routeData.miles
