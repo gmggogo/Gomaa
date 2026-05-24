@@ -588,7 +588,6 @@ async function handleConfirmTrip(btn){
 /* =========================================
 CONFIRM SHARED
 ========================================= */
-
 async function handleConfirmShared(btn){
 
   const tr =
@@ -627,39 +626,93 @@ async function handleConfirmShared(btn){
       routePoints
     );
 
-  const sharedPrice =
-    Review.calculateSharedPrice(
-      group,
-      routeData.miles
+  const passengers =
+    Review.getRealPassengersFromGroup(
+      group
     );
-console.log(
-  "🔥 ROUTE DATA:",
-  routeData
-);
 
-console.log(
-  "🔥 SHARED TOTAL:",
-  sharedPrice.total
-);
+  const activePassengers =
+    passengers.filter(p=>{
 
-console.log(
-  "🔥 PRICE PER PASSENGER:",
-  sharedPrice.pricePerPassenger
-);
+      const status =
+        String(p.status || "")
+        .toLowerCase();
 
-console.log(
-  "🔥 STOPS COUNT:",
-  sharedPrice.stopsCount
-);
-console.log(
-  "🔥 ROUTE MILES:",
-  routeData.miles
-);
+      return (
+        !status.includes("no") &&
+        !status.includes("cancel")
+      );
+
+    });
+
+  const count =
+    activePassengers.length || passengers.length || 1;
+
+  const sharedBase =
+    Number(
+      service?.companySharedPrice ??
+      service?.sharedPrice ??
+      15
+    );
+
+  const includedMiles =
+    Number(
+      service?.companyIncludedMiles ??
+      service?.includedMiles ??
+      3
+    );
+
+  const perMile =
+    Number(
+      service?.companyPerMile ??
+      service?.perMile ??
+      2
+    );
+
+  const stopFee =
+    Number(
+      service?.companyStopFee ??
+      service?.stopFee ??
+      5
+    );
+
+  const totalMiles =
+    Number(routeData.miles || 0);
+
+  const freeMiles =
+    count * includedMiles;
+
+  const extraMiles =
+    Math.max(
+      0,
+      totalMiles - freeMiles
+    );
+
+  const stopsCount =
+    Math.max(
+      0,
+      count - 1
+    );
+
+  const total =
+    Number(
+      (
+        (count * sharedBase) +
+        (extraMiles * perMile) +
+        (stopsCount * stopFee)
+      ).toFixed(2)
+    );
+
+  const pricePerPassenger =
+    Number(
+      (total / count).toFixed(2)
+    );
+
   const snapshot =
     Review.buildPricingSnapshot(
       service,
       routeData.miles,
-      sharedPrice.total
+      total
     );
 
   const payload = {
@@ -671,25 +724,30 @@ console.log(
     tripType:"SHARED",
 
     serviceName:
-      service?.name || "",
+      service?.name ||
+      service?.title ||
+      "Shared",
 
-  serviceCode:
-  service?.serviceKey ||
-  service?.companySuffix ||
-  service?.code ||
-  "",
+    serviceCode:
+      service?.serviceKey ||
+      service?.companySuffix ||
+      service?.code ||
+      "SH",
 
     serviceId:
       service?._id || "",
 
     priceAmount:
-      sharedPrice.total,
+      total,
+
+    finalPrice:
+      total,
 
     pricePerPassenger:
-      sharedPrice.pricePerPassenger,
+      pricePerPassenger,
 
     sharedStopsCount:
-      sharedPrice.stopsCount,
+      stopsCount,
 
     miles:
       routeData.miles,
@@ -729,7 +787,6 @@ console.log(
   await reloadTrips();
 
 }
-
 /* =========================================
 CANCEL TRIP
 ========================================= */
