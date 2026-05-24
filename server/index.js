@@ -58,80 +58,181 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 app.use(cors());
 
-// 🔥 مهم: webhook قبل أي json
-app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  let event;
+/* =========================
+   STRIPE WEBHOOK
+========================= */
 
-  try {
-    const sig = req.headers["stripe-signature"];
+app.post(
+  "/api/stripe-webhook",
+  express.raw({
+    type:"application/json"
+  }),
+  async (req,res)=>{
 
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    let event;
 
-  } catch (err) {
-    console.log("❌ Webhook Error:", err.message);
-    return res.sendStatus(400);
+    try{
+
+      const sig =
+        req.headers["stripe-signature"];
+
+      event =
+        stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+
+    }catch(err){
+
+      console.log(
+        "❌ Webhook Error:",
+        err.message
+      );
+
+      return res.sendStatus(400);
+
+    }
+
+    try{
+
+      /* =========================
+         PAYMENT SUCCESS
+      ========================== */
+
+      if(
+        event.type ===
+        "payment_intent.succeeded"
+      ){
+
+        const paymentIntent =
+          event.data.object;
+
+        const tripId =
+          paymentIntent.metadata?.tripId;
+
+        if(!tripId){
+
+          return res.sendStatus(200);
+
+        }
+
+        const trip =
+          await Trip.findById(tripId);
+
+        if(!trip){
+
+          return res.sendStatus(200);
+
+        }
+
+        /* =========================
+           PREVENT DUPLICATE
+        ========================== */
+
+        if(
+          trip.paymentIntentId ===
+          paymentIntent.id
+        ){
+
+          return res.sendStatus(200);
+
+        }
+
+        /* =========================
+           CANCEL TOKEN
+        ========================== */
+
+        if(!trip.cancelToken){
+
+          trip.cancelToken =
+            crypto
+              .randomBytes(32)
+              .toString("hex");
+
+        }
+
+        /* =========================
+           INDIVIDUAL ONLY = PAID
+        ========================== */
+
+        const tripType =
+          String(
+            trip.type || ""
+          )
+          .trim()
+          .toLowerCase();
+
+        if(
+
+          tripType === "individual" ||
+
+          tripType === "reserved" ||
+
+          tripType === "quote"
+
+        ){
+
+          trip.status = "Paid";
+
+        }
+
+        /* =========================
+           SAVE PAYMENT INFO
+        ========================== */
+
+        trip.paymentIntentId =
+          paymentIntent.id;
+
+        trip.dispatchSelected =
+          true;
+
+        await trip.save();
+
+        console.log(
+          "✅ Trip Paid:",
+          trip.tripNumber
+        );
+
+      }
+
+      return res.sendStatus(200);
+
+    }catch(err){
+
+      console.log(
+        "🔥 Webhook Processing Error:",
+        err
+      );
+
+      return res.sendStatus(500);
+
+    }
+
   }
+);
 
-  try {
-   if (event.type === "payment_intent.succeeded") {
+/* =========================
+   BODY PARSERS
+========================= */
 
-  const paymentIntent = event.data.object;
-  const tripId = paymentIntent.metadata?.tripId;
+app.use(
+  express.json({
+    limit:"10mb"
+  })
+);
 
-  if (!tripId) return res.sendStatus(200);
+app.use(
+  express.urlencoded({
+    extended:true,
+    limit:"10mb"
+  })
+);
 
-  const trip = await Trip.findById(tripId);
+/* =========================
+   ROUTES
+========================= */
 
-  if (!trip) return res.sendStatus(200);
-
-  if (trip.status === "Paid")
-    return res.sendStatus(200);
-
-  if (!trip.cancelToken) {
-
-    trip.cancelToken =
-      crypto.randomBytes(32).toString("hex");
-
-  }
-
-  if(
-    trip.type === "individual" ||
-    trip.type === "reserved" ||
-    trip.type === "quote"
-  ){
-
-    trip.status = "Paid";
-
-  }
-
-  trip.paymentIntentId =
-    paymentIntent.id;
-
-  trip.dispatchSelected = true;
-
-  await trip.save();
-
-  console.log(
-    "✅ Trip Paid:",
-    trip.tripNumber
-  );
-
-}
-    res.sendStatus(200);
-
-  } catch (err) {
-    console.log("🔥 Webhook Processing Error:", err);
-    res.sendStatus(500);
-  }
-});
-
-// ✅ باقي الميدل وير
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(
   "/api/services",
   serviceRoutes
@@ -141,7 +242,6 @@ app.use(
   "/api/system-design",
   require("./routes/system-design")
 );
-
 /* =========================
    PUBLIC CONFIG - GOOGLE KEY
 ========================= */
