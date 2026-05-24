@@ -77,38 +77,50 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
   }
 
   try {
-    if (event.type === "payment_intent.succeeded") {
+   if (event.type === "payment_intent.succeeded") {
 
-      const paymentIntent = event.data.object;
-      const tripId = paymentIntent.metadata?.tripId;
+  const paymentIntent = event.data.object;
+  const tripId = paymentIntent.metadata?.tripId;
 
-      if (!tripId) return res.sendStatus(200);
+  if (!tripId) return res.sendStatus(200);
 
-      const trip = await Trip.findById(tripId);
-      if (!trip) return res.sendStatus(200);
+  const trip = await Trip.findById(tripId);
 
-      if (trip.status === "Paid") return res.sendStatus(200);
+  if (!trip) return res.sendStatus(200);
 
-      if (!trip.cancelToken) {
-        trip.cancelToken = crypto.randomBytes(32).toString("hex");
-      }
+  if (trip.status === "Paid")
+    return res.sendStatus(200);
 
-if(
-  trip.type === "individual" ||
-  trip.type === "reserved" ||
-  trip.type === "quote"
-){
+  if (!trip.cancelToken) {
 
-  trip.status = "Paid";
+    trip.cancelToken =
+      crypto.randomBytes(32).toString("hex");
 
-}      trip.paymentIntentId = paymentIntent.id;
-      trip.dispatchSelected = true;
+  }
 
-      await trip.save();
+  if(
+    trip.type === "individual" ||
+    trip.type === "reserved" ||
+    trip.type === "quote"
+  ){
 
-      console.log("✅ Trip Paid:", trip.tripNumber);
-    }
+    trip.status = "Paid";
 
+  }
+
+  trip.paymentIntentId =
+    paymentIntent.id;
+
+  trip.dispatchSelected = true;
+
+  await trip.save();
+
+  console.log(
+    "✅ Trip Paid:",
+    trip.tripNumber
+  );
+
+}
     res.sendStatus(200);
 
   } catch (err) {
