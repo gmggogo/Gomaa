@@ -662,8 +662,12 @@ function updateStats(filteredData){
         noshow++;
       }
 
-      totalRevenue +=
-        getTripPrice(t);
+    if(!isCancelled(t.status)){
+
+  totalRevenue +=
+    getTripPrice(t);
+
+}
 
       totalMiles +=
         getMiles(
