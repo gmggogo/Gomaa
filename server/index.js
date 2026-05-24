@@ -93,8 +93,15 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
         trip.cancelToken = crypto.randomBytes(32).toString("hex");
       }
 
-      trip.status = "Paid";
-      trip.paymentIntentId = paymentIntent.id;
+if(
+  trip.type === "individual" ||
+  trip.type === "reserved" ||
+  trip.type === "quote"
+){
+
+  trip.status = "Paid";
+
+}      trip.paymentIntentId = paymentIntent.id;
       trip.dispatchSelected = true;
 
       await trip.save();
@@ -4683,71 +4690,408 @@ app.post("/api/payment-success", async (req, res) => {
   }
 });
 
- /* =========================
-   CANCEL TRIP + REFUND (FINAL FIXED)
+/* =========================
+   CANCEL TRIP + REFUND
+   FINAL DYNAMIC TIMEZONE
 ========================= */
+
 app.post("/api/cancel-trip", async (req, res) => {
-  try {
+
+  try{
+
     const { token } = req.body;
 
-    if (!token) {
-      return res.status(400).json({ message: "Missing token" });
-    }
+    if(!token){
 
-    const trip = await Trip.findOne({ cancelToken: token });
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    // لو متكنسلة قبل كده
-    if (trip.status === "Cancelled") {
-      return res.json({
-        success: true,
-        refund: trip.refundAmount || 0,
-        fee: trip.cancelFee || 0,
-        refundId: trip.simpleRefundId || "",
-        refundStatus: trip.refundStatus || "none"
+      return res.status(400).json({
+        message:"Missing token"
       });
+
     }
 
-    // ⏰ Arizona Time
-    function getArizonaNow() {
+    const trip =
+    await Trip.findOne({
+      cancelToken:token
+    });
+
+    if(!trip){
+
+      return res.status(404).json({
+        message:"Trip not found"
+      });
+
+    }
+
+    /* =========================
+       ALREADY CANCELLED
+    ========================== */
+
+    if(trip.status === "Cancelled"){
+
+      return res.json({
+
+        success:true,
+
+        refund:
+        trip.refundAmount || 0,
+
+        fee:
+        trip.cancelFee || 0,
+
+        refundId:
+        trip.simpleRefundId || "",
+
+        refundStatus:
+        trip.refundStatus || "none"
+
+      });
+
+    }
+
+    /* =========================
+       SYSTEM TIMEZONE
+    ========================== */
+
+    const settings =
+    await SystemDesign.findOne({});
+
+    const systemTimezone =
+
+      settings?.timezone ||
+      "America/Phoenix";
+
+    function getSystemNow(){
+
       return new Date(
-        new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
+
+        new Date().toLocaleString(
+          "en-US",
+          {
+            timeZone:systemTimezone
+          }
+        )
+
       );
+
     }
 
-    const now = getArizonaNow();
+    const now =
+    getSystemNow();
 
-    // 🔥 FIX TIMEZONE (أهم تعديل)
-    const tripTimeRaw = new Date(`${trip.tripDate}T${trip.tripTime}:00`);
+    /* =========================
+       TRIP TIME
+    ========================== */
 
-    const tripTime = new Date(
-      tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
+    const tripTimeRaw =
+    new Date(
+      `${trip.tripDate}T${trip.tripTime}:00`
     );
 
-    if (isNaN(tripTime.getTime())) {
-      return res.status(400).json({ message: "Invalid trip time" });
+    const tripTime =
+    new Date(
+
+      tripTimeRaw.toLocaleString(
+        "en-US",
+        {
+          timeZone:systemTimezone
+        }
+      )
+
+    );
+
+    if(
+      isNaN(tripTime.getTime())
+    ){
+
+      return res.status(400).json({
+        message:"Invalid trip time"
+      });
+
     }
 
-    const diffMinutes = (tripTime - now) / 60000;
+    /* =========================
+       CALCULATE DIFFERENCE
+    ========================== */
 
-    const totalAmount = Number(trip.priceAmount || 0);
+    const diffMinutes =
+      (tripTime - now) / 60000;
+
+    const totalAmount =
+      Number(
+        trip.priceAmount || 0
+      );
+
     let refundAmount = 0;
+
     let fee = 0;
 
-    if (diffMinutes > 120) {
-      refundAmount = totalAmount;
-    } else {
-      fee = 15;
-      refundAmount = totalAmount - fee;
-      if (refundAmount < 0) refundAmount = 0;
+  /* =========================
+   LOAD SERVICE
+========================= */
+
+const tripVehicle =
+  String(
+    trip.vehicle ||
+    trip.serviceType ||
+    trip.serviceKey ||
+    "STANDARD"
+  )
+  .trim()
+  .toUpperCase();
+
+const service =
+await Service.findOne({
+
+  $or:[
+
+    {
+      serviceKey:tripVehicle
+    },
+
+    {
+      companySuffix:tripVehicle
     }
 
-    const simpleRefundId = "RF-" + (trip.tripNumber || "0000");
+  ]
 
-    // =========================
+});
+
+/* =========================
+   DYNAMIC WARNING MINUTES
+========================= */
+
+const tripType =
+  String(trip.type || "")
+    .toLowerCase()
+    .trim();
+
+const isCompanyTrip =
+
+  trip.company ||
+
+  tripType.includes("company") ||
+
+  tripType.includes("facility");
+const cancelLimit = Number(
+
+  isCompanyTrip
+
+  ? (
+      service?.companyWarningMinutes ||
+      service?.warningMinutes ||
+      120
+    )
+
+  : (
+      service?.warningMinutes ||
+      120
+    )
+
+);
+
+/* =========================
+   FREE CANCEL
+========================= */
+
+if(diffMinutes > cancelLimit){
+
+  refundAmount =
+    totalAmount;
+
+}else{
+
+  /* =========================
+     DYNAMIC CANCEL FEE
+  ========================== */
+
+  let serviceFee = 0;
+
+  if(service){
+
+    if(isCompanyTrip){
+
+      serviceFee = Number(
+
+        service.companyCancelFee ||
+
+        service.cancelFee ||
+
+        0
+
+      );
+
+    }else{
+
+      serviceFee = Number(
+
+        service.cancelFee || 0
+
+      );
+
+    }
+
+  }
+
+  fee = Number(
+
+    serviceFee ||
+
+    trip.cancelFee ||
+
+    trip.finalPrice ||
+
+    15
+
+  );
+
+  refundAmount =
+    totalAmount - fee;
+
+  if(refundAmount < 0){
+
+    refundAmount = 0;
+
+  }
+
+}
+
+    /* =========================
+       REFUND ID
+    ========================== */
+
+    const simpleRefundId =
+
+      "RF-" +
+      (trip.tripNumber || "0000");
+
+    /* =========================
+       SAVE BEFORE STRIPE
+    ========================== */
+
+    trip.status = "Cancelled";
+
+    trip.cancelDateTime =
+      new Date();
+
+    trip.cancelFee =
+      Number(fee || 0);
+
+    trip.finalPrice =
+      Number(fee || 0);
+
+    trip.priceAmount =
+      Number(fee || 0);
+
+    trip.isFinalized = true;
+
+    trip.refundAmount =
+      refundAmount;
+
+    trip.simpleRefundId =
+      simpleRefundId;
+
+    trip.refundStatus =
+
+      refundAmount > 0
+      ? "processing"
+      : "none";
+
+    await trip.save();
+
+    /* =========================
+       STRIPE REFUND
+    ========================== */
+
+    let stripeRefundId = null;
+
+    if(
+
+      refundAmount > 0 &&
+
+      trip.paymentIntentId
+
+    ){
+
+      try{
+
+        const refund =
+
+        await stripe.refunds.create({
+
+          payment_intent:
+          trip.paymentIntentId,
+
+          amount:
+          Math.round(
+            refundAmount * 100
+          )
+
+        });
+
+        stripeRefundId =
+          refund.id;
+
+        trip.refundId =
+          refund.id;
+
+        trip.refundStatus =
+          "refunded";
+
+        await trip.save();
+
+      }catch(stripeErr){
+
+        console.log(
+          "STRIPE REFUND ERROR",
+          stripeErr
+        );
+
+        trip.refundStatus =
+          "failed";
+
+        await trip.save();
+
+      }
+
+    }
+
+    /* =========================
+       RESPONSE
+    ========================== */
+
+    return res.json({
+
+      success:true,
+
+      refund:
+      refundAmount,
+
+      fee:
+      fee,
+
+      refundId:
+
+        stripeRefundId ||
+        simpleRefundId,
+
+      refundStatus:
+      trip.refundStatus
+
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    return res.status(500).json({
+      message:"Server Error"
+    });
+
+  }
+
+});  
+
+  // =========================
     // 🔥 SAVE BEFORE STRIPE
     // =========================
     trip.status = "Cancelled";
