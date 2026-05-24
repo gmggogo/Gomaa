@@ -1171,8 +1171,22 @@ window.ReviewApp = {
   buildSharedRoutePoints,
   fetchTrips,
   updateTrip,
-  deleteTrip,
+deleteTrip,
   getTripsTabData,
   getSharedGroups
 };
 
+await refreshData();
+
+setInterval(async()=>{
+
+  const hasEditing =
+    trips.some(t=>t.__editing);
+
+  if(hasEditing) return;
+
+  await refreshData();
+
+},30000);
+
+});
