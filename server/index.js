@@ -5148,10 +5148,12 @@ if(diffMinutes > cancelLimit){
       new Date();
 
     trip.cancelFee =
-      Number(fee || 0);
+  Number(fee || 0);
 
-    trip.isFinalized = true;
+trip.finalPrice =
+  Number(fee || 0);
 
+trip.isFinalized = true;
     trip.refundAmount =
       refundAmount;
 
