@@ -2327,10 +2327,6 @@ if(status.includes("no")){
 
 return sum;
 
-      .toFixed(2)
-
-  );
-
 }else{
 
   invoiceAmount =
