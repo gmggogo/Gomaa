@@ -108,16 +108,25 @@ if(
 
       await trip.save();
 
-      console.log("✅ Trip Paid:", trip.tripNumber);
-   
-    res.sendStatus(200);
+    console.log(
+  "✅ Trip Paid:",
+  trip.tripNumber
+);
 
-  } catch (err) {
-    console.log("🔥 Webhook Processing Error:", err);
-    res.sendStatus(500);
-  }
-});
+}
 
+res.sendStatus(200);
+
+} catch (err) {
+
+  console.log(
+    "🔥 Webhook Processing Error:",
+    err
+  );
+
+  res.sendStatus(500);
+
+}
 // ✅ باقي الميدل وير
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
