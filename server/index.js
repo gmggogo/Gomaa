@@ -2183,12 +2183,18 @@ if(
       0
     );
 
- }else if(status.includes("cancel")){
+}else if(status.includes("cancel")){
 
   amount = Number(
-    t.cancelFee || 0
+
+    t.finalPrice ||
+    t.cancelFee ||
+    t.priceAmount ||
+    0
+
   );
 
+}
 }else if(status.includes("no")){
 
   amount = Number(
@@ -3285,13 +3291,22 @@ while(!trip && attempts < 5){
       entryName: normalizeText(req.body.entryName),
       entryPhone: normalizeText(req.body.entryPhone),
 
-      clientName: normalizeText(req.body.clientName),
-      clientPhone: normalizeText(req.body.clientPhone),
+     clientName: normalizeText(req.body.clientName),
+clientPhone: normalizeText(req.body.clientPhone),
 
-      priceAmount: Number(req.body.priceAmount || 0),
-      clientEmail: normalizeText(req.body.clientEmail),
+priceAmount:
+  Number(req.body.priceAmount || 0),
 
-      vehicle: vehicleTypeFromQuote,
+cancelFee:
+  Number(req.body.cancelFee || 0),
+
+noShowFee:
+  Number(req.body.noShowFee || 0),
+
+clientEmail:
+  normalizeText(req.body.clientEmail),
+
+vehicle: vehicleTypeFromQuote,
 
       pickup,
       dropoff,
