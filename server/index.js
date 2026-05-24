@@ -5151,43 +5151,7 @@ if(diffMinutes > cancelLimit){
 
     }
 
-    /* =========================
-       RESPONSE
-    ========================== */
-
-    return res.json({
-
-      success:true,
-
-      refund:
-      refundAmount,
-
-      fee:
-      fee,
-
-      refundId:
-
-        stripeRefundId ||
-        simpleRefundId,
-
-      refundStatus:
-      trip.refundStatus
-
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-    return res.status(500).json({
-      message:"Server Error"
-    });
-
-  }
-
-});  
-
-
+   
     // =========================
     // RESPONSE
     // =========================
