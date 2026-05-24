@@ -109,8 +109,7 @@ if(
       await trip.save();
 
       console.log("✅ Trip Paid:", trip.tripNumber);
-    }
-
+   
     res.sendStatus(200);
 
   } catch (err) {
