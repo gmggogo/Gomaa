@@ -58,73 +58,165 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 app.use(cors());
 
+/* =========================
+   STRIPE WEBHOOK
+========================= */
+
 // 🔥 مهم: webhook قبل أي json
-app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  let event;
 
-  try {
-    const sig = req.headers["stripe-signature"];
+app.post(
+  "/api/stripe-webhook",
+  express.raw({
+    type: "application/json"
+  }),
 
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+  async (req, res) => {
 
-  } catch (err) {
-    console.log("❌ Webhook Error:", err.message);
-    return res.sendStatus(400);
-  }
+    let event;
 
-  try {
-    if (event.type === "payment_intent.succeeded") {
+    /* =========================
+       VERIFY WEBHOOK
+    ========================= */
 
-      const paymentIntent = event.data.object;
-      const tripId = paymentIntent.metadata?.tripId;
+    try {
 
-      if (!tripId) return res.sendStatus(200);
+      const sig =
+        req.headers["stripe-signature"];
 
-      const trip = await Trip.findById(tripId);
-      if (!trip) return res.sendStatus(200);
+      event =
+        stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
 
-      if (trip.status === "Paid") return res.sendStatus(200);
+    } catch (err) {
 
-      if (!trip.cancelToken) {
-        trip.cancelToken = crypto.randomBytes(32).toString("hex");
+      console.log(
+        "❌ Webhook Error:",
+        err.message
+      );
+
+      return res.sendStatus(400);
+
+    }
+
+    /* =========================
+       HANDLE EVENTS
+    ========================= */
+
+    try {
+
+      /* =========================
+         PAYMENT SUCCESS
+      ========================= */
+
+      if (
+        event.type ===
+        "payment_intent.succeeded"
+      ) {
+
+        const paymentIntent =
+          event.data.object;
+
+        const tripId =
+          paymentIntent.metadata?.tripId;
+
+        if (!tripId) {
+          return res.sendStatus(200);
+        }
+
+        const trip =
+          await Trip.findById(tripId);
+
+        if (!trip) {
+          return res.sendStatus(200);
+        }
+
+        // 🔥 لو مدفوعة بالفعل
+        if (trip.status === "Paid") {
+          return res.sendStatus(200);
+        }
+
+        // 🔥 توليد cancel token
+        if (!trip.cancelToken) {
+
+          trip.cancelToken =
+            crypto
+              .randomBytes(32)
+              .toString("hex");
+
+        }
+
+        /* =========================
+           STATUS
+        ========================= */
+
+        if (
+          trip.type === "individual" ||
+          trip.type === "reserved" ||
+          trip.type === "quote"
+        ) {
+
+          trip.status = "Paid";
+
+        }
+
+        /* =========================
+           SAVE DATA
+        ========================= */
+
+        trip.paymentIntentId =
+          paymentIntent.id;
+
+        trip.dispatchSelected = true;
+
+        await trip.save();
+
+        console.log(
+          "✅ Trip Paid:",
+          trip.tripNumber
+        );
+
       }
-if(
-  trip.type === "individual" ||
-  trip.type === "reserved" ||
-  trip.type === "quote"
-){
 
-  trip.status = "Paid";
+      /* =========================
+         SUCCESS
+      ========================= */
 
-}
+      return res.sendStatus(200);
 
-trip.paymentIntentId = paymentIntent.id;
+    } catch (err) {
 
-trip.dispatchSelected = true;
+      console.log(
+        "🔥 Webhook Processing Error:",
+        err
+      );
 
-await trip.save();
+      return res.sendStatus(500);
 
-console.log(
-  "✅ Trip Paid:",
-  trip.tripNumber
-);
-   res.sendStatus(200);
+    }
 
-} 
-
-catch (err) {
-    console.log("🔥 Webhook Processing Error:", err);
-    res.sendStatus(500);
   }
-});
+);
 
-// ✅ باقي الميدل وير
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+/* =========================
+   باقي الميدل وير
+========================= */
+
+app.use(
+  express.json({
+    limit: "10mb"
+  })
+);
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10mb"
+  })
+);
+
 app.use(
   "/api/services",
   serviceRoutes
