@@ -2156,19 +2156,24 @@ if(
         0
       );
 
-}else if(ps.includes("cancel")){
+    }else if(ps.includes("cancel")){
 
-  amount += Number(
-    t.cancelFee || 0
-  );
+      amount += Number(
 
-}else if(ps.includes("no")){
+        p.finalPrice ||
+        t.finalPrice ||
+        t.cancelFee ||
+        0
 
-  amount += Number(
-    t.noShowFee || 0
-  );
+      );
 
-}
+    }else if(ps.includes("no")){
+
+      amount += Number(
+        t.noShowFee || 0
+      );
+
+    }
 
   });
 
@@ -2183,25 +2188,24 @@ if(
       0
     );
 
-}else if(status.includes("cancel")){
+  }else if(status.includes("cancel")){
 
-  amount = Number(
+    amount = Number(
 
-    t.finalPrice ||
-    t.cancelFee ||
-    t.priceAmount ||
-    0
+      t.finalPrice ||
+      t.cancelFee ||
+      t.priceAmount ||
+      0
 
-  );
+    );
 
-}
-}else if(status.includes("no")){
+  }else if(status.includes("no")){
 
-  amount = Number(
-    t.noShowFee || 0
-  );
+    amount = Number(
+      t.noShowFee || 0
+    );
 
-}
+  }
 
 }
 
