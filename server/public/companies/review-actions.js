@@ -664,7 +664,11 @@ console.log(
     serviceName:
       service?.name || "",
 
-  serviceCode:"SH",
+  serviceCode:
+  service?.serviceKey ||
+  service?.companySuffix ||
+  service?.code ||
+  "",
 
     serviceId:
       service?._id || "",
