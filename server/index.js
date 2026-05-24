@@ -425,8 +425,23 @@ app.use(express.static(path.join(__dirname, "public")));
    MONGO CONNECT
 ========================= */
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("✅ Mongo Connected"))
-  .catch(err => console.log("❌ Mongo Error:", err));
+
+.then(async () => {
+
+  await loadSystemTimezone();
+
+  console.log("✅ Mongo Connected");
+
+})
+
+.catch(err =>
+
+  console.log(
+    "❌ Mongo Error:",
+    err
+  )
+
+);
 /* =========================
    USER MODEL
 ========================= */
@@ -1030,45 +1045,200 @@ function calcDistanceKm(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-function parseTripDateTime(tripDate, tripTime) {
-  const d = normalizeText(tripDate);
-  if (!d) return null;
+/* =========================
+   GLOBAL TIMEZONE ENGINE
+========================= */
 
-  const t = normalizeText(tripTime) || "00:00";
-  const iso = `${d}T${t}`;
-  const dt = new Date(iso);
+let SYSTEM_TIMEZONE =
+  "America/Phoenix";
 
-  if (Number.isNaN(dt.getTime())) return null;
+/* =========================
+   LOAD SYSTEM TIMEZONE
+========================= */
+
+async function loadSystemTimezone(){
+
+  try{
+
+    const settings =
+      await SystemDesign.findOne({});
+
+    SYSTEM_TIMEZONE =
+
+      settings?.timezone ||
+
+      "America/Phoenix";
+
+    console.log(
+      "🌍 SYSTEM TIMEZONE:",
+      SYSTEM_TIMEZONE
+    );
+
+  }catch(err){
+
+    console.log(
+      "TIMEZONE LOAD ERROR:",
+      err?.message || err
+    );
+
+    SYSTEM_TIMEZONE =
+      "America/Phoenix";
+
+  }
+
+}
+
+/* =========================
+   SYSTEM NOW
+========================= */
+
+function getSystemNow(){
+
+  return new Date(
+
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+          SYSTEM_TIMEZONE
+      }
+    )
+
+  );
+
+}
+
+/* =========================
+   PARSE TRIP DATE TIME
+========================= */
+
+function parseTripDateTime(
+  tripDate,
+  tripTime
+){
+
+  const d =
+    normalizeText(tripDate);
+
+  if(!d){
+    return null;
+  }
+
+  const t =
+    normalizeText(tripTime)
+    || "00:00";
+
+  const iso =
+    `${d}T${t}`;
+
+  const dt =
+    new Date(iso);
+
+  if(
+    Number.isNaN(
+      dt.getTime()
+    )
+  ){
+    return null;
+  }
+
   return dt;
+
 }
 
-function sortTripsByDateTime(trips) {
-  return [...trips].sort((a, b) => {
-    const da = parseTripDateTime(a.tripDate, a.tripTime);
-    const db = parseTripDateTime(b.tripDate, b.tripTime);
+/* =========================
+   SORT TRIPS
+========================= */
 
-    const ta = da ? da.getTime() : 0;
-    const tb = db ? db.getTime() : 0;
+function sortTripsByDateTime(
+  trips
+){
 
-    if (ta !== tb) return ta - tb;
+  return [...trips].sort(
+    (a,b)=>{
 
-    const aNum = normalizeText(a.tripNumber);
-    const bNum = normalizeText(b.tripNumber);
-    return aNum.localeCompare(bNum);
-  });
+      const da =
+        parseTripDateTime(
+          a.tripDate,
+          a.tripTime
+        );
+
+      const db =
+        parseTripDateTime(
+          b.tripDate,
+          b.tripTime
+        );
+
+      const ta =
+        da
+        ? da.getTime()
+        : 0;
+
+      const tb =
+        db
+        ? db.getTime()
+        : 0;
+
+      if(ta !== tb){
+
+        return ta - tb;
+
+      }
+
+      const aNum =
+        normalizeText(
+          a.tripNumber
+        );
+
+      const bNum =
+        normalizeText(
+          b.tripNumber
+        );
+
+      return aNum.localeCompare(
+        bNum
+      );
+
+    }
+  );
+
 }
 
-function getDayShort(dateStr) {
-  const d = normalizeText(dateStr);
-  if (!d) return "";
+/* =========================
+   GET DAY SHORT
+========================= */
 
-  const dt = new Date(`${d}T12:00:00`);
-  if (Number.isNaN(dt.getTime())) return "";
+function getDayShort(dateStr){
 
-  return dt.toLocaleDateString("en-US", {
-    weekday: "short",
-    timeZone: "America/Phoenix"
-  });
+  const d =
+    normalizeText(dateStr);
+
+  if(!d){
+    return "";
+  }
+
+  const dt =
+    new Date(
+      `${d}T12:00:00`
+    );
+
+  if(
+    Number.isNaN(
+      dt.getTime()
+    )
+  ){
+    return "";
+  }
+
+  return dt.toLocaleDateString(
+    "en-US",
+    {
+      weekday:"short",
+      timeZone:
+        SYSTEM_TIMEZONE
+    }
+  );
+
 }
 
 function isDriverEnabledBySchedule(driverId, schedule) {
@@ -5248,82 +5418,249 @@ trip.isFinalized = true;
 }); // 🔥🔥🔥 مهم جدًا
 
 /* =========================
-   CHECK CANCEL TOKEN (FINAL FIX - TIME SAFE)
+   CHECK CANCEL TOKEN
+   FINAL DYNAMIC VERSION
 ========================= */
-app.post("/api/cancel-trip-check", async (req, res) => {
-  try {
 
-    const token = req.body?.token || req.query?.token;
+app.post(
+  "/api/cancel-trip-check",
+  async (req, res) => {
 
-    if (!token) {
-      return res.status(400).json({ message: "Missing token" });
-    }
+    try {
 
-    const trip = await Trip.findOne({ cancelToken: token });
+      const token =
+        req.body?.token ||
+        req.query?.token;
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
+      if (!token) {
 
-    // ⏰ Arizona time
-    const now = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
-    );
-
-    let fee = 0;
-
-    if (trip.tripDate && trip.tripTime) {
-
-  const tripTime = new Date(
-  `${trip.tripDate}T${trip.tripTime}:00`
-);
-
-  if (isNaN(tripTime.getTime())) {
-    return res.status(400).json({
-      message: "Invalid trip time"
-    });
-  }
-
-  const diffMinutes =
-    (tripTime - now) / 60000;
-
-if (diffMinutes <= 1) {
-  return res.status(400).json({
-    message: "Trip already started or expired"
-  });
-}
-
-      // 🔴 لو الرحلة فاتت → الكنسلة مقفولة
-      if (diffMinutes <= 0) {
-        return res.json({
-          success: false,
-          expired: true,
-          message: "Trip already started or expired"
+        return res.status(400).json({
+          message: "Missing token"
         });
+
       }
 
-      // ⏰ أقل من ساعتين → في fee
-      if (diffMinutes <= 120) {
-        fee = 15;
+      /* =========================
+         TRIP
+      ========================= */
+
+      const trip =
+        await Trip.findOne({
+          cancelToken: token
+        });
+
+      if (!trip) {
+
+        return res.status(404).json({
+          message: "Trip not found"
+        });
+
       }
+
+      /* =========================
+         SYSTEM DESIGN
+      ========================= */
+
+      const settings =
+        await SystemDesign.findOne({});
+
+      const timezone =
+
+        settings?.timezone ||
+
+        "America/Phoenix";
+
+      /* =========================
+         CURRENT TIME
+      ========================= */
+
+      const now =
+        new Date(
+          new Date().toLocaleString(
+            "en-US",
+            {
+              timeZone: timezone
+            }
+          )
+        );
+
+      let fee = 0;
+
+      /* =========================
+         GET SERVICE
+      ========================= */
+
+      const service =
+        await Service.findOne({
+
+          $or:[
+
+            {
+              serviceKey:
+              trip.serviceCode
+            },
+
+            {
+              companySuffix:
+              trip.serviceCode
+            },
+
+            {
+              code:
+              trip.serviceCode
+            }
+
+          ]
+
+        });
+
+      /* =========================
+         WARNING MINUTES
+      ========================= */
+
+      const warningMinutes =
+        Number(
+
+          service?.companyWarningMinutes ??
+
+          service?.warningMinutes ??
+
+          120
+
+        );
+
+      /* =========================
+         CANCEL FEE
+      ========================= */
+
+      const cancelFee =
+        Number(
+
+          service?.companyCancelFee ??
+
+          service?.cancelFee ??
+
+          trip.cancelFee ??
+
+          0
+
+        );
+
+      /* =========================
+         TRIP TIME
+      ========================= */
+
+      if (
+        trip.tripDate &&
+        trip.tripTime
+      ) {
+
+        const tripTime =
+          new Date(
+            `${trip.tripDate}T${trip.tripTime}:00`
+          );
+
+        if (
+          isNaN(
+            tripTime.getTime()
+          )
+        ) {
+
+          return res.status(400).json({
+            message:
+            "Invalid trip time"
+          });
+
+        }
+
+        const diffMinutes =
+
+          (tripTime - now) / 60000;
+
+        /* =========================
+           EXPIRED
+        ========================= */
+
+        if (diffMinutes <= 0) {
+
+          return res.json({
+
+            success: false,
+
+            expired: true,
+
+            message:
+            "Trip already started or expired"
+
+          });
+
+        }
+
+        /* =========================
+           APPLY CANCEL FEE
+        ========================= */
+
+        if (
+          diffMinutes <=
+          warningMinutes
+        ) {
+
+          fee =
+            Number(cancelFee);
+
+        }
+
+      }
+
+      /* =========================
+         RESPONSE
+      ========================= */
+
+      res.json({
+
+        success: true,
+
+        tripNumber:
+          trip.tripNumber,
+
+        clientName:
+          trip.clientName,
+
+        tripDate:
+          trip.tripDate,
+
+        tripTime:
+          trip.tripTime,
+
+        status:
+          trip.status,
+
+        fee,
+
+        timezone,
+
+        alreadyCancelled:
+
+          trip.status ===
+          "Cancelled"
+
+      });
+
+    } catch (err) {
+
+      console.log(
+        "CHECK ERROR:",
+        err
+      );
+
+      res.status(500).json({
+        message: "Server error"
+      });
+
     }
 
-    res.json({
-      success: true,
-      tripNumber: trip.tripNumber,
-      clientName: trip.clientName,
-      tripDate: trip.tripDate,
-      tripTime: trip.tripTime,
-      status: trip.status,
-      fee: fee,
-      alreadyCancelled: trip.status === "Cancelled"
-    });
-
-  } catch (err) {
-    console.log("CHECK ERROR:", err);
-    res.status(500).json({ message: "Server error" });
   }
-});
+);
 
 /* =========================
    GET REFUNDS
