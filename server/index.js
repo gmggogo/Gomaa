@@ -93,40 +93,23 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
         trip.cancelToken = crypto.randomBytes(32).toString("hex");
       }
 
-if(
-  trip.type === "individual" ||
-  trip.type === "reserved" ||
-  trip.type === "quote"
-){
-
-  trip.status = "Paid";
-
-}    
-
-  trip.paymentIntentId = paymentIntent.id;
+      trip.status = "Paid";
+      trip.paymentIntentId = paymentIntent.id;
       trip.dispatchSelected = true;
 
       await trip.save();
 
-    console.log(
-  "✅ Trip Paid:",
-  trip.tripNumber
-);
+      console.log("✅ Trip Paid:", trip.tripNumber);
+    }
 
-}
+    res.sendStatus(200);
 
-res.sendStatus(200);
+  } catch (err) {
+    console.log("🔥 Webhook Processing Error:", err);
+    res.sendStatus(500);
+  }
+});
 
-} catch (err) {
-
-  console.log(
-    "🔥 Webhook Processing Error:",
-    err
-  );
-
-  res.sendStatus(500);
-
-}
 // ✅ باقي الميدل وير
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
