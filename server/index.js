@@ -93,8 +93,15 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
         trip.cancelToken = crypto.randomBytes(32).toString("hex");
       }
 
-      trip.status = "Paid";
-      trip.paymentIntentId = paymentIntent.id;
+if(
+  trip.type === "individual" ||
+  trip.type === "reserved" ||
+  trip.type === "quote"
+){
+
+  trip.status = "Paid";
+
+}      trip.paymentIntentId = paymentIntent.id;
       trip.dispatchSelected = true;
 
       await trip.save();
