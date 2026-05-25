@@ -8,7 +8,8 @@
 Organization Login | Sunbeam
 </title>
 
-<meta name="viewport"
+<meta
+name="viewport"
 content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -16,38 +17,38 @@ content="width=device-width, initial-scale=1.0">
 /* ===== GLOBAL ===== */
 
 *{
-box-sizing:border-box;
+  box-sizing:border-box;
 }
 
 body{
 
-margin:0;
+  margin:0;
 
-font-family:
-'Segoe UI',
-Arial,
-sans-serif;
+  font-family:
+  'Segoe UI',
+  Arial,
+  sans-serif;
 
-background:
-linear-gradient(
-135deg,
-#0f172a,
-#1e3a8a
-);
+  background:
+  linear-gradient(
+    135deg,
+    #0f172a,
+    #1e3a8a
+  );
 
-min-height:100vh;
+  min-height:100vh;
 
-display:flex;
+  display:flex;
 
-flex-direction:column;
+  flex-direction:column;
 
-align-items:center;
+  align-items:center;
 
-justify-content:center;
+  justify-content:center;
 
-color:white;
+  color:white;
 
-padding:20px;
+  padding:20px;
 
 }
 
@@ -55,39 +56,41 @@ padding:20px;
 
 .top-section{
 
-text-align:center;
+  text-align:center;
 
-margin-bottom:30px;
+  margin-bottom:30px;
 
 }
 
 .top-section img{
 
-width:220px;
+  width:220px;
 
-max-width:85%;
+  max-width:85%;
 
-object-fit:contain;
+  object-fit:contain;
 
-filter:
-drop-shadow(
-0 10px 20px
-rgba(0,0,0,0.4)
-);
+  filter:
+  drop-shadow(
+    0 10px 20px
+    rgba(0,0,0,0.4)
+  );
 
 }
 
 .datetime{
 
-margin-top:10px;
+  margin-top:10px;
 
-font-size:14px;
+  font-size:14px;
 
-opacity:.9;
+  opacity:.9;
 
-letter-spacing:.5px;
+  letter-spacing:.5px;
 
-min-height:18px;
+  min-height:18px;
+
+  line-height:1.6;
 
 }
 
@@ -95,51 +98,51 @@ min-height:18px;
 
 .login-card{
 
-width:360px;
+  width:360px;
 
-max-width:100%;
+  max-width:100%;
 
-background:white;
+  background:white;
 
-padding:32px;
+  padding:32px;
 
-border-radius:16px;
+  border-radius:16px;
 
-box-shadow:
-0 25px 60px rgba(0,0,0,0.35);
+  box-shadow:
+  0 25px 60px rgba(0,0,0,0.35);
 
-text-align:center;
+  text-align:center;
 
-color:#0f172a;
+  color:#0f172a;
 
-animation:
-fadeIn .35s ease-in-out;
+  animation:
+  fadeIn .35s ease-in-out;
 
 }
 
 @keyframes fadeIn{
 
-from{
-opacity:0;
-transform:translateY(12px);
-}
+  from{
+    opacity:0;
+    transform:translateY(12px);
+  }
 
-to{
-opacity:1;
-transform:translateY(0);
-}
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
 
 }
 
 .login-card h1{
 
-color:#1e3a8a;
+  color:#1e3a8a;
 
-font-weight:700;
+  font-weight:700;
 
-font-size:22px;
+  font-size:22px;
 
-margin-bottom:22px;
+  margin-bottom:22px;
 
 }
 
@@ -147,30 +150,30 @@ margin-bottom:22px;
 
 .login-card input{
 
-width:100%;
+  width:100%;
 
-padding:13px;
+  padding:13px;
 
-margin-bottom:15px;
+  margin-bottom:15px;
 
-border-radius:8px;
+  border-radius:8px;
 
-border:1px solid #cbd5e1;
+  border:1px solid #cbd5e1;
 
-font-size:14px;
+  font-size:14px;
 
-transition:.2s;
+  transition:.2s;
 
 }
 
 .login-card input:focus{
 
-border-color:#2563eb;
+  border-color:#2563eb;
 
-outline:none;
+  outline:none;
 
-box-shadow:
-0 0 0 2px rgba(37,99,235,0.15);
+  box-shadow:
+  0 0 0 2px rgba(37,99,235,0.15);
 
 }
 
@@ -178,55 +181,55 @@ box-shadow:
 
 .login-card button{
 
-width:100%;
+  width:100%;
 
-padding:13px;
+  padding:13px;
 
-border:none;
+  border:none;
 
-border-radius:8px;
+  border-radius:8px;
 
-background:
-linear-gradient(
-90deg,
-#1e3a8a,
-#2563eb
-);
+  background:
+  linear-gradient(
+    90deg,
+    #1e3a8a,
+    #2563eb
+  );
 
-color:white;
+  color:white;
 
-font-size:15px;
+  font-size:15px;
 
-font-weight:600;
+  font-weight:600;
 
-cursor:pointer;
+  cursor:pointer;
 
-transition:.25s;
+  transition:.25s;
 
 }
 
 .login-card button:hover{
 
-background:
-linear-gradient(
-90deg,
-#d4af37,
-#facc15
-);
+  background:
+  linear-gradient(
+    90deg,
+    #d4af37,
+    #facc15
+  );
 
-color:#0f172a;
+  color:#0f172a;
 
 }
 
 .error{
 
-margin-top:12px;
+  margin-top:12px;
 
-color:#dc2626;
+  color:#dc2626;
 
-font-size:12px;
+  font-size:12px;
 
-min-height:16px;
+  min-height:16px;
 
 }
 
@@ -234,26 +237,26 @@ min-height:16px;
 
 @media(max-width:480px){
 
-body{
-padding:30px 18px;
-}
+  body{
+    padding:30px 18px;
+  }
 
-.top-section img{
-width:170px;
-}
+  .top-section img{
+    width:170px;
+  }
 
-.datetime{
-font-size:13px;
-}
+  .datetime{
+    font-size:13px;
+  }
 
-.login-card{
-padding:26px;
-border-radius:14px;
-}
+  .login-card{
+    padding:26px;
+    border-radius:14px;
+  }
 
-.login-card h1{
-font-size:20px;
-}
+  .login-card h1{
+    font-size:20px;
+  }
 
 }
 
@@ -265,55 +268,55 @@ font-size:20px;
 
 <div class="top-section">
 
-<img
-class="app-logo"
-alt="Company Logo">
+  <img
+  class="app-logo"
+  alt="Company Logo">
 
-<div
-class="datetime"
-id="datetime">
+  <div
+  class="datetime"
+  id="datetime">
 
-</div>
+  </div>
 
 </div>
 
 <div class="login-card">
 
-<h1>
+  <h1>
 
-Organization Login
+    Organization Login
 
-</h1>
+  </h1>
 
-<form id="loginForm">
+  <form id="loginForm">
 
-<input
-type="text"
-id="username"
-placeholder="Username"
-autocomplete="username"
-required>
+    <input
+    type="text"
+    id="username"
+    placeholder="Username"
+    autocomplete="username"
+    required>
 
-<input
-type="password"
-id="password"
-placeholder="Password"
-autocomplete="current-password"
-required>
+    <input
+    type="password"
+    id="password"
+    placeholder="Password"
+    autocomplete="current-password"
+    required>
 
-<button type="submit">
+    <button type="submit">
 
-Login
+      Login
 
-</button>
+    </button>
 
-</form>
+  </form>
 
-<div
-id="errorMessage"
-class="error">
+  <div
+  id="errorMessage"
+  class="error">
 
-</div>
+  </div>
 
 </div>
 
@@ -321,42 +324,125 @@ class="error">
 
 <script src="/core/branding.js"></script>
 
-<!-- TIME -->
-
-<script src="/core/time.js"></script>
-
 <script>
 
-/* DEFAULT LOGO */
+/* =========================
+DEFAULT LOGO
+========================= */
 
 if(!localStorage.getItem("appLogo")){
 
-localStorage.setItem(
-"appLogo",
-"/assets/logo.png"
-);
+  localStorage.setItem(
+    "appLogo",
+    "/assets/logo.png"
+  );
 
 }
 
-/* START CLOCK */
+/* =========================
+CLOCK
+========================= */
 
-startClock("datetime");
+function updateOrganizationClock(){
 
-</script>
+  const el =
+    document.getElementById(
+      "datetime"
+    );
 
-<script>
+  if(!el) return;
 
-window.addEventListener(
-"DOMContentLoaded",
-async ()=>{
+  const timezone =
+
+    window.Branding?.data?.timezone ||
+
+    "America/Phoenix";
+
+  const now =
+    new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone: timezone,
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        timeZone: timezone,
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit",
+        hour12:true
+      }
+    );
+
+  el.innerHTML =
+
+    `
+    <div style="
+      font-size:13px;
+      font-weight:700;
+      color:#e2e8f0;
+      margin-bottom:4px;
+    ">
+      ${date}
+    </div>
+
+    <div style="
+      font-size:18px;
+      font-weight:900;
+      color:#facc15;
+    ">
+      ${time}
+    </div>
+    `;
+
+}
+
+/* =========================
+START CLOCK
+========================= */
+
+async function startOrganizationClock(){
 
   if(window.Branding){
 
-    await Branding.load();
+    try{
+
+      await Branding.load();
+
+    }
+
+    catch(err){
+
+      console.log(err);
+
+    }
 
   }
 
-});
+  updateOrganizationClock();
+
+  setInterval(
+    updateOrganizationClock,
+    1000
+  );
+
+}
+
+window.addEventListener(
+  "DOMContentLoaded",
+  startOrganizationClock
+);
 
 </script>
 
