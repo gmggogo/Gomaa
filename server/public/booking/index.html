@@ -352,7 +352,13 @@ minutesUntilTrip(
   time
 );
 
-if(mins <= tripWarningMinutes){
+if(
+
+  tripData.warningEnabled === true &&
+
+  mins <= tripWarningMinutes
+
+){
 
   let warningText = "";
 

@@ -18,22 +18,6 @@ require("./routes/pricingRoutes");
 
 const app = express();
 
-app.use(cors());
-
-app.use(express.json({
-  limit:"50mb"
-}));
-
-app.use(express.urlencoded({
-  extended:true,
-  limit:"50mb"
-}));
-
-app.use(
-  "/api/pricing",
-  pricingRoutes
-);
-
 const SystemDesign =
 require("./models/SystemDesign");
 
@@ -379,32 +363,6 @@ if (
   }
 );
 
-/* =========================
-   باقي الميدل وير
-========================= */
-
-app.use(
-  express.json({
-    limit: "10mb"
-  })
-);
-
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: "10mb"
-  })
-);
-
-app.use(
-  "/api/services",
-  serviceRoutes
-);
-
-app.use(
-  "/api/system-design",
-  require("./routes/system-design")
-);
 
 /* =========================
    PUBLIC CONFIG - GOOGLE KEY
