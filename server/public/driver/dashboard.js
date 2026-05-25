@@ -86,77 +86,101 @@
   }
 
   /* =====================================================
-     TIMEZONE
+     GET TIMEZONE
   ===================================================== */
 
   function getTimezone(){
 
-    const driver =
-      getLoggedDriver();
+    try{
 
-    return (
+      return (
 
-      driver?.timezone ||
+        window.Branding?.data?.timezone ||
 
-      localStorage.getItem(
-        "systemTimezone"
-      ) ||
+        localStorage.getItem(
+          "systemTimezone"
+        ) ||
 
-      "America/Phoenix"
+        localStorage.getItem(
+          "appTimezone"
+        ) ||
 
-    );
+        "America/Phoenix"
+
+      );
+
+    }
+
+    catch{
+
+      return "America/Phoenix";
+
+    }
 
   }
 
-/* =====================================================
-   GET TIMEZONE
-===================================================== */
+  /* =====================================================
+     GLOBAL CLOCK
+  ===================================================== */
 
-function getTimezone(){
+  function updateTime(){
 
-  return (
+    const el =
+      $("datetime");
 
-    localStorage.getItem(
-      "systemTimezone"
-    ) ||
+    if(!el) return;
 
-    localStorage.getItem(
-      "appTimezone"
-    ) ||
+    const timezone =
+      getTimezone();
 
-    "America/Phoenix"
+    const now =
+      new Date();
 
-  );
+    const date =
+      now.toLocaleDateString(
+        "en-US",
+        {
+          timeZone: timezone,
+          weekday:"short",
+          month:"short",
+          day:"numeric",
+          year:"numeric"
+        }
+      );
 
-}
+    const time =
+      now.toLocaleTimeString(
+        "en-US",
+        {
+          timeZone: timezone,
+          hour:"numeric",
+          minute:"2-digit",
+          second:"2-digit",
+          hour12:true
+        }
+      );
 
-/* =====================================================
-   GET TIMEZONE
-===================================================== */
+    el.innerHTML =
 
-function getTimezone(){
+      `
+      <div style="
+        font-size:13px;
+        font-weight:700;
+        color:#facc15;
+      ">
+        ${date}
+      </div>
 
-  return (
+      <div style="
+        font-size:18px;
+        font-weight:900;
+        color:white;
+      ">
+        ${time}
+      </div>
+      `;
 
-    /* SERVER BRANDING */
-
-    window.Branding?.data?.timezone ||
-
-    /* FALLBACK */
-
-    localStorage.getItem(
-      "systemTimezone"
-    ) ||
-
-    localStorage.getItem(
-      "appTimezone"
-    ) ||
-
-    "America/Phoenix"
-
-  );
-
-}
+  }
 
   /* =====================================================
      DRIVER NAME
@@ -228,6 +252,10 @@ function getTimezone(){
 
     localStorage.removeItem(
       "companyName"
+    );
+
+    localStorage.removeItem(
+      "systemTimezone"
     );
 
     window.location.href =
