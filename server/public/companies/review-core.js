@@ -1119,8 +1119,23 @@ function getGroupStatus(group){
   return group[0]?.status || "Scheduled";
 }
 function getGroupPrice(group){
-  const firstWithPrice = group.find(t=>Number(t.priceAmount || 0) > 0);
-  return firstWithPrice ? Number(firstWithPrice.priceAmount || 0) : 0;
+
+  const first =
+    group[0] || {};
+
+  const miles =
+    Number(first.miles || 0);
+
+  const pricing =
+    calculateSharedPrice(
+      group,
+      miles
+    );
+
+  return Number(
+    pricing.total || 0
+  );
+
 }
 /* ================= TRIPS TABLE ================= */
 function renderTripsTable(list){
