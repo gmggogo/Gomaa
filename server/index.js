@@ -2605,9 +2605,9 @@ if(
   !tripBillable &&
   !hasPassengerStatuses
 ){
-  return;
-}
-    if(isShared){
+  continue;
+}   
+ if(isShared){
 
   sharedGroups.add(
     String(
