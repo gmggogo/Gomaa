@@ -2566,7 +2566,6 @@ const isShared =
         .replace(/\s+/g,"")
         .toLowerCase()
         .trim();
-}
 
    /* =========================
    BILLABLE CHECK
@@ -2732,7 +2731,7 @@ if(
 
 revenue += Number(amount || 0);
 
-});
+}
 
 /* =========================
    SHARED PASSENGERS
