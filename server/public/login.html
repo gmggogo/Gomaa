@@ -4,7 +4,8 @@
 
 <meta charset="UTF-8">
 
-<meta name="viewport"
+<meta
+name="viewport"
 content="width=device-width, initial-scale=1.0">
 
 <title>
@@ -27,9 +28,9 @@ body{
 
   background:
   radial-gradient(
-  circle at center,
-  #1e3cff 0%,
-  #001b7a 100%
+    circle at center,
+    #1e3cff 0%,
+    #001b7a 100%
   );
 
   font-family:
@@ -109,6 +110,8 @@ body{
   margin-bottom:25px;
 
   min-height:16px;
+
+  line-height:1.6;
 
 }
 
@@ -224,39 +227,39 @@ body{
 
 <div class="login-card">
 
-<img
-class="logo app-logo"
-alt="Company Logo">
+  <img
+  class="logo app-logo"
+  alt="Company Logo">
 
-<div class="title">
+  <div class="title">
 
-STAFF LOGIN
+    STAFF LOGIN
 
-</div>
+  </div>
 
-<div
-id="azTime"
-class="az-time">
+  <div
+  id="azTime"
+  class="az-time">
 
-</div>
+  </div>
 
-<input
-type="text"
-id="username"
-placeholder="Username">
+  <input
+  type="text"
+  id="username"
+  placeholder="Username">
 
-<input
-type="password"
-id="password"
-placeholder="Password">
+  <input
+  type="password"
+  id="password"
+  placeholder="Password">
 
-<button onclick="login()">
+  <button onclick="login()">
 
-Sign In
+    Sign In
 
-</button>
+  </button>
 
-<div id="msg"></div>
+  <div id="msg"></div>
 
 </div>
 
@@ -264,13 +267,11 @@ Sign In
 
 <script src="/core/branding.js"></script>
 
-<!-- TIME -->
-
-<script src="/core/time.js"></script>
-
 <script>
 
-/* DEFAULT LOGO */
+/* =========================
+DEFAULT LOGO
+========================= */
 
 if(!localStorage.getItem("appLogo")){
 
@@ -281,25 +282,110 @@ if(!localStorage.getItem("appLogo")){
 
 }
 
-/* START CLOCK */
+/* =========================
+CLOCK
+========================= */
 
-startClock("azTime");
+function updateStaffClock(){
 
-</script>
+  const el =
+    document.getElementById(
+      "azTime"
+    );
 
-<script>
+  if(!el) return;
 
-window.addEventListener(
-"DOMContentLoaded",
-async ()=>{
+  const timezone =
+
+    window.Branding?.data?.timezone ||
+
+    "America/Phoenix";
+
+  const now =
+    new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone: timezone,
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        timeZone: timezone,
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit",
+        hour12:true
+      }
+    );
+
+  el.innerHTML =
+
+    `
+    <div style="
+      font-size:13px;
+      font-weight:700;
+      color:#e2e8f0;
+      margin-bottom:4px;
+    ">
+      ${date}
+    </div>
+
+    <div style="
+      font-size:18px;
+      font-weight:900;
+      color:#facc15;
+    ">
+      ${time}
+    </div>
+    `;
+
+}
+
+/* =========================
+START CLOCK
+========================= */
+
+async function startStaffClock(){
 
   if(window.Branding){
 
-    await Branding.load();
+    try{
+
+      await Branding.load();
+
+    }
+
+    catch(err){
+
+      console.log(err);
+
+    }
 
   }
 
-});
+  updateStaffClock();
+
+  setInterval(
+    updateStaffClock,
+    1000
+  );
+
+}
+
+window.addEventListener(
+  "DOMContentLoaded",
+  startStaffClock
+);
 
 </script>
 
