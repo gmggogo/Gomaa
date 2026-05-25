@@ -860,8 +860,48 @@ function normalizeText(v) {
 }
 
 /* =========================
+   GET SERVICE BY TRIP
+========================= */
+
+async function getServiceByTrip(trip){
+
+  const key =
+    String(
+
+      trip.serviceKey ||
+
+      trip.serviceType ||
+
+      trip.serviceCode ||
+
+      trip.vehicle ||
+
+      "STANDARD"
+
+    )
+    .trim()
+    .toUpperCase();
+
+  return await Service.findOne({
+
+    $or:[
+
+      { serviceKey:key },
+
+      { companySuffix:key },
+
+      { code:key }
+
+    ]
+
+  });
+
+}
+
+/* =========================
    PRICE ENGINE
 ========================= */
+
 function calculatePriceServer(trip) {
 
   const type = String(trip.tripType || trip.type || "").toLowerCase();
@@ -2499,18 +2539,34 @@ async function updateCompanyBilling(company){
 
   const sharedGroups = new Set();
 
-  trips.forEach(t => {
+for (const t of trips) {
+   const service =
+  await getServiceByTrip(t);
 
-    const isShared =
-      t.isShared === true ||
-      String(t.tripNumber || "").includes("-SH") ||
-      String(t.groupId || "").trim() !== "";
+const isShared =
+
+  t.isShared === true ||
+
+  String(t.tripType || "")
+    .toUpperCase()
+    .includes("SHARED") ||
+
+  String(service?.serviceKey || "")
+    .toUpperCase()
+    .includes("SHARED") ||
+
+  String(t.tripNumber || "")
+    .includes("-SH") ||
+
+  String(t.groupId || "")
+    .trim() !== "";
 
     const status =
       String(t.status || "")
         .replace(/\s+/g,"")
         .toLowerCase()
         .trim();
+}
 
    /* =========================
    BILLABLE CHECK
@@ -2716,14 +2772,126 @@ trips.forEach(t => {
 
     });
 
-  }else{
+}else{
 
-    const status =
-      String(t.status || "")
-        .replace(/\s+/g,"")
+  const status =
+    String(t.status || "")
+      .replace(/\s+/g,"")
+      .toLowerCase()
+      .trim();
+
+}
+
+/* =========================
+   SHARED COUNT
+========================= */
+
+if(isShared){
+
+  const sharedKey =
+
+    String(
+      t.groupId ||
+      t.tripNumber ||
+      t._id
+    );
+
+  sharedGroups.add(sharedKey);
+
+}else{
+
+  individualTrips++;
+
+}
+
+/* =========================
+   STATUS COUNT
+========================= */
+
+if(
+  status.includes("complete")
+){
+
+  completedTrips++;
+
+}else if(
+  status.includes("cancel")
+){
+
+  cancelledTrips++;
+
+}else if(
+  status.includes("noshow") ||
+  status.includes("no-show") ||
+  status.includes("no_show")
+){
+
+  noShowTrips++;
+
+}
+
+/* =========================
+   REVENUE
+========================= */
+
+if(isShared){
+
+  if(
+    Array.isArray(t.passengers)
+  ){
+
+    for(const p of t.passengers){
+
+      const pStatus =
+        String(
+          p.status || ""
+        )
         .toLowerCase()
+        .replace(/\s+/g,"")
         .trim();
 
+      const pPrice =
+        Number(
+          p.finalPrice ||
+          p.priceAmount ||
+          p.price ||
+          0
+        );
+
+      if(
+        pStatus.includes("complete") ||
+        pStatus.includes("cancel") ||
+        pStatus.includes("noshow")
+      ){
+
+        revenue += pPrice;
+
+      }
+
+    }
+
+  }
+
+}else{
+
+  const tripPrice =
+    Number(
+      t.finalPrice ||
+      t.priceAmount ||
+      0
+    );
+
+  if(
+    status.includes("complete") ||
+    status.includes("cancel") ||
+    status.includes("noshow")
+  ){
+
+    revenue += tripPrice;
+
+  }
+
+}
     if(
       status.includes("complete") ||
       status.includes("cancel") ||
@@ -2745,7 +2913,26 @@ const sharedTrips =
 
 const totalTrips =
   individualTrips + sharedTrips;
+company.revenue =
+  Number(revenue || 0);
 
+company.totalTrips =
+  totalTrips;
+
+company.individualTrips =
+  individualTrips;
+
+company.sharedTrips =
+  sharedTrips;
+
+company.completedTrips =
+  completedTrips;
+
+company.cancelledTrips =
+  cancelledTrips;
+
+company.noShowTrips =
+  noShowTrips;
 /* 🔥 الفاتورة = فقط الرحلات بعد آخر دفعة */
 
 let invoiceAmount = 0;
@@ -3669,10 +3856,15 @@ if (isShared) {
         tripNumber,
 
         // 🔥 SHARED FLAGS
-        isShared: true,
-        groupId,
-        tripType: "SHARED",
-        sharedSuffix: "SH",
+       isShared: true,
+groupId,
+tripType: "SHARED",
+sharedSuffix: "SH",
+
+sharedSource:
+  companyName
+    ? "COMPANY"
+    : "INDIVIDUAL",
 
         company: normalizeText(req.body.company),
 
@@ -3776,6 +3968,10 @@ clientEmail:
   normalizeText(req.body.clientEmail),
 
 vehicle: vehicleTypeFromQuote,
+
+serviceType: vehicleTypeFromQuote,
+serviceKey: vehicleTypeFromQuote,
+serviceCode: vehicleTypeFromQuote,
 
       pickup,
       dropoff,
@@ -5185,33 +5381,9 @@ app.post("/api/cancel-trip", async (req, res) => {
    LOAD SERVICE
 ========================= */
 
-const tripVehicle =
-  String(
-    trip.vehicle ||
-    trip.serviceType ||
-    trip.serviceKey ||
-    "STANDARD"
-  )
-  .trim()
-  .toUpperCase();
-
 const service =
-await Service.findOne({
-
-  $or:[
-
-    {
-      serviceKey:tripVehicle
-    },
-
-    {
-      companySuffix:tripVehicle
-    }
-
-  ]
-
-});
-
+  await getServiceByTrip(trip);
+  
 /* =========================
    DYNAMIC WARNING MINUTES
 ========================= */
