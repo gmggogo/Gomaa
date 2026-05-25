@@ -904,134 +904,358 @@ async function getServiceByTrip(trip){
 
 }
 
+استبدل الجزء القديم ده بالكامل:
+
 /* =========================
    PRICE ENGINE
 ========================= */
-
 function calculatePriceServer(trip) {
 
-  const type = String(trip.tripType || trip.type || "").toLowerCase();
-  const vehicleType = String(
-    trip.vehicleType ||
-    trip.vehicleTypeFromQuote ||
-    trip.vehicle ||
-    ""
-  ).toUpperCase();
+لحد آخر قفلة قبل:
 
-  const miles = Math.max(0, Number(trip.miles) || 0);
-  const stopsCount = Array.isArray(trip.stops) ? trip.stops.length : 0;
+function normalizeNumber(v)
 
-  /* ================= GET QUOTE (X / XL) ================= */
-  if (type === "quote" || vehicleType === "X" || vehicleType === "XL") {
-
-    const STOP_PRICE = 5;
-
-    if (vehicleType === "XL") {
-      const BASE = 30;
-      const INCLUDED = 5;
-      const PER_MILE = 2.5;
-
-      const extraMiles = Math.max(0, miles - INCLUDED);
-
-      return Number(
-        (BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2)
-      );
-    }
-
-    const BASE = 20;
-    const INCLUDED = 5;
-    const PER_MILE = 2;
-
-    const extraMiles = Math.max(0, miles - INCLUDED);
-
-    return Number(
-      (BASE + (extraMiles * PER_MILE) + (stopsCount * STOP_PRICE)).toFixed(2)
-    );
-  }
-
-  /* ================= COMPANY SHARED ================= */
-  if (trip.isShared === true || type === "shared") {
-
-    const passengersArr = Array.isArray(trip.passengers) ? trip.passengers : [];
-
-    const activePassengers = passengersArr.filter(p => p.status !== "NoShow");
-    const noShowPassengers = passengersArr.filter(p => p.status === "NoShow");
-
-    const count = activePassengers.length;
-
-    const BASE_PER_PERSON = 15;
-    const INCLUDED_PER_PERSON = 3;
-    const PER_MILE = 2;
-    const STOP_PRICE = 5;
-    const NO_SHOW = 15;
-
-    if (count === 0) {
-      return Number((noShowPassengers.length * NO_SHOW).toFixed(2));
-    }
-
-    const baseTotal = count * BASE_PER_PERSON;
-    const includedMiles = count * INCLUDED_PER_PERSON;
-
-    const extraMiles = Math.max(0, miles - includedMiles);
-    const milesTotal = extraMiles * PER_MILE;
-
-    const stopsTotal = Math.max(0, count - 1) * STOP_PRICE;
-    const noShowTotal = noShowPassengers.length * NO_SHOW;
-
-    const total = baseTotal + milesTotal + stopsTotal + noShowTotal;
-
-    return Number(total.toFixed(2));
-  }
-
-  /* ================= COMPANY INDIVIDUAL ================= */
-
-  const BASE = 25;
-  const INCLUDED = 3;
-  const PER_MILE = 2.5;
-  const STOP_PRICE = 5;
-  const NO_SHOW = 15;
-
-  if (trip.status === "NoShow") {
-    return NO_SHOW;
-  }
-
-  const extraMiles = Math.max(0, miles - INCLUDED);
-  const milesTotal = extraMiles * PER_MILE;
-  const stopsTotal = stopsCount * STOP_PRICE;
-
-  return Number((BASE + milesTotal + stopsTotal).toFixed(2));
-}
-
+وحط ده مكانه بالكامل:
 
 /* =========================
-   FINAL PRICE (🔥 مهم جدًا)
+   PRICE ENGINE
 ========================= */
-
-function calculateFinalPrice(trip){
-
-  // 🚨 Cancelled
-  if (trip.status === "Cancelled") {
-    return Number(trip.finalPrice || 0);
-  }
-
-  // 🚨 No Show
-  if (trip.status === "NoShow") {
-    return 15;
-  }
-
-  // ✅ Completed
-  if (trip.status === "Completed") {
-
-    if (!trip.priceAmount || trip.priceAmount === 0) {
-      return calculatePriceServer(trip);
+function calculatePriceServer(trip){
+  const type =
+    String(
+      trip.tripType ||
+      trip.type ||
+      ""
+    )
+    .toLowerCase()
+    .trim();
+  const vehicleType =
+    String(
+      trip.vehicleType ||
+      trip.vehicleTypeFromQuote ||
+      trip.vehicle ||
+      ""
+    )
+    .toUpperCase()
+    .trim();
+  const miles =
+    Math.max(
+      0,
+      Number(trip.miles || 0)
+    );
+  const stopsCount =
+    Array.isArray(trip.stops)
+      ? trip.stops.length
+      : 0;
+  /* =========================
+     GET QUOTE
+  ========================= */
+  if(
+    type === "quote" ||
+    vehicleType === "X" ||
+    vehicleType === "XL"
+  ){
+    const STOP_PRICE =
+      Number(
+        trip.stopFee ?? 0
+      );
+    /* ================= XL ================= */
+    if(vehicleType === "XL"){
+      const BASE =
+        Number(
+          trip.baseFare ?? 0
+        );
+      const INCLUDED =
+        Number(
+          trip.includedMiles ?? 0
+        );
+      const PER_MILE =
+        Number(
+          trip.perMile ?? 0
+        );
+      const extraMiles =
+        Math.max(
+          0,
+          miles - INCLUDED
+        );
+      return Number(
+        (
+          BASE +
+          (extraMiles * PER_MILE) +
+          (stopsCount * STOP_PRICE)
+        ).toFixed(2)
+      );
     }
-
-    return Number(trip.priceAmount);
+    /* ================= X ================= */
+    const BASE =
+      Number(
+        trip.baseFare ?? 0
+      );
+    const INCLUDED =
+      Number(
+        trip.includedMiles ?? 0
+      );
+    const PER_MILE =
+      Number(
+        trip.perMile ?? 0
+      );
+    const extraMiles =
+      Math.max(
+        0,
+        miles - INCLUDED
+      );
+    return Number(
+      (
+        BASE +
+        (extraMiles * PER_MILE) +
+        (stopsCount * STOP_PRICE)
+      ).toFixed(2)
+    );
   }
-
+  /* =========================
+     COMPANY SHARED
+  ========================= */
+  if(
+    trip.isShared === true ||
+    type === "shared"
+  ){
+    const passengersArr =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+        : [];
+    const activePassengers =
+      passengersArr.filter(p=>{
+        const s =
+          String(p.status || "")
+            .toLowerCase()
+            .trim();
+        return (
+          !s.includes("no") &&
+          !s.includes("cancel")
+        );
+      });
+    const noShowPassengers =
+      passengersArr.filter(p=>{
+        const s =
+          String(p.status || "")
+            .toLowerCase()
+            .trim();
+        return s.includes("no");
+      });
+    const cancelledPassengers =
+      passengersArr.filter(p=>{
+        const s =
+          String(p.status || "")
+            .toLowerCase()
+            .trim();
+        return s.includes("cancel");
+      });
+    const count =
+      activePassengers.length;
+    /* =========================
+       DYNAMIC ONLY
+    ========================= */
+    const BASE_PER_PERSON =
+      Number(
+        trip.companySharedPrice ??
+        trip.sharedPrice ??
+        trip.baseFare ??
+        0
+      );
+    const INCLUDED_PER_PERSON =
+      Number(
+        trip.companyIncludedMiles ??
+        trip.includedMiles ??
+        0
+      );
+    const PER_MILE =
+      Number(
+        trip.companyPerMile ??
+        trip.perMile ??
+        0
+      );
+    const STOP_PRICE =
+      Number(
+        trip.companyStopFee ??
+        trip.stopFee ??
+        0
+      );
+    const NO_SHOW =
+      Number(
+        trip.noShowFee ??
+        0
+      );
+    const CANCEL_FEE =
+      Number(
+        trip.cancelFee ??
+        0
+      );
+    /* =========================
+       ALL NO SHOW
+    ========================= */
+    if(
+      count === 0 &&
+      noShowPassengers.length > 0
+    ){
+      return Number(
+        (
+          noShowPassengers.length *
+          NO_SHOW
+        ).toFixed(2)
+      );
+    }
+    /* =========================
+       TOTAL
+    ========================= */
+    const baseTotal =
+      count * BASE_PER_PERSON;
+    const includedMiles =
+      count * INCLUDED_PER_PERSON;
+    const extraMiles =
+      Math.max(
+        0,
+        miles - includedMiles
+      );
+    const milesTotal =
+      extraMiles * PER_MILE;
+    const stopsTotal =
+      Math.max(
+        0,
+        count - 1
+      ) * STOP_PRICE;
+    const noShowTotal =
+      noShowPassengers.length *
+      NO_SHOW;
+    const cancelledTotal =
+      cancelledPassengers.length *
+      CANCEL_FEE;
+    const total =
+      baseTotal +
+      milesTotal +
+      stopsTotal +
+      noShowTotal +
+      cancelledTotal;
+    return Number(
+      total.toFixed(2)
+    );
+  }
+  /* =========================
+     COMPANY INDIVIDUAL
+  ========================= */
+  const BASE =
+    Number(
+      trip.baseFare ?? 0
+    );
+  const INCLUDED =
+    Number(
+      trip.includedMiles ?? 0
+    );
+  const PER_MILE =
+    Number(
+      trip.perMile ?? 0
+    );
+  const STOP_PRICE =
+    Number(
+      trip.stopFee ?? 0
+    );
+  const NO_SHOW =
+    Number(
+      trip.noShowFee ?? 0
+    );
+  /* =========================
+     NO SHOW
+  ========================= */
+  if(
+    String(trip.status || "")
+      .toLowerCase()
+      .includes("no")
+  ){
+    return NO_SHOW;
+  }
+  /* =========================
+     CANCELLED
+  ========================= */
+  if(
+    String(trip.status || "")
+      .toLowerCase()
+      .includes("cancel")
+  ){
+    return Number(
+      trip.cancelFee ??
+      trip.finalPrice ??
+      0
+    );
+  }
+  /* =========================
+     COMPLETED
+  ========================= */
+  const extraMiles =
+    Math.max(
+      0,
+      miles - INCLUDED
+    );
+  const milesTotal =
+    extraMiles * PER_MILE;
+  const stopsTotal =
+    stopsCount * STOP_PRICE;
+  return Number(
+    (
+      BASE +
+      milesTotal +
+      stopsTotal
+    ).toFixed(2)
+  );
+}
+/* =========================
+   FINAL PRICE
+========================= */
+function calculateFinalPrice(trip){
+  const status =
+    String(trip.status || "")
+      .toLowerCase()
+      .trim();
+  /* =========================
+     CANCELLED
+  ========================= */
+  if(
+    status.includes("cancel")
+  ){
+    return Number(
+      trip.cancelFee ??
+      trip.finalPrice ??
+      0
+    );
+  }
+  /* =========================
+     NO SHOW
+  ========================= */
+  if(
+    status.includes("no")
+  ){
+    return Number(
+      trip.noShowFee ??
+      0
+    );
+  }
+  /* =========================
+     COMPLETED
+  ========================= */
+  if(
+    status.includes("complete")
+  ){
+    if(
+      Number(trip.priceAmount || 0) <= 0
+    ){
+      return Number(
+        calculatePriceServer(trip) || 0
+      );
+    }
+    return Number(
+      trip.priceAmount || 0
+    );
+  }
   return 0;
 }
-
 
 function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
@@ -4128,227 +4352,291 @@ app.get("/api/trips/summary", async (req, res) => {
 
       }
 
-      // =========================
-      // SHARED
-      // =========================
-      if (
-        t.isShared &&
-        Array.isArray(t.passengers)
+     // =========================
+// SHARED
+// =========================
+if (
+  t.isShared &&
+  Array.isArray(t.passengers)
+) {
+
+  const passengers =
+    t.passengers.map(p => {
+
+      let pStatus =
+        String(
+          p.status ||
+          status
+        ).toLowerCase();
+
+      if (pStatus.includes("cancel")) {
+        pStatus = "Cancelled";
+      }
+      else if (
+        pStatus.includes("no")
       ) {
-
-        const passengers =
-          t.passengers.map(p => {
-
-            let pStatus =
-              String(
-                p.status ||
-                status
-              ).toLowerCase();
-
-            if (pStatus.includes("cancel")) {
-              pStatus = "Cancelled";
-            }
-            else if (
-              pStatus.includes("no")
-            ) {
-              pStatus = "NoShow";
-            }
-            else if (
-              pStatus.includes("complete")
-            ) {
-              pStatus = "Completed";
-            }
-            else {
-              pStatus = status;
-            }
-
-            let passengerPrice =
-              Number(
-                p.finalPrice ||
-                p.priceAmount ||
-                0
-              );
-
-            if (
-              pStatus === "Cancelled"
-            ) {
-              passengerPrice =
-                Number(
-                  p.finalPrice ||
-                  t.cancelFee ||
-                  15
-                );
-            }
-
-            if (
-              pStatus === "NoShow"
-            ) {
-              passengerPrice =
-                Number(
-                  p.finalPrice ||
-                  t.cancelFee ||
-                  15
-                );
-            }
-
-            return {
-
-              clientName:
-                p.clientName || "",
-
-              clientPhone:
-                p.clientPhone || "",
-
-              pickup:
-                p.pickup || "",
-
-              dropoff:
-                p.dropoff || "",
-
-              status:
-                pStatus,
-
-              // 🔥 OLD SUPPORT
-              price:
-                passengerPrice,
-
-              // 🔥 NEW SUPPORT
-              priceAmount:
-                passengerPrice,
-
-              finalPrice:
-                passengerPrice
-
-            };
-
-          });
-
-       const total =
-  passengers.reduce((sum,p)=>{
-
-    return sum + Number(
-      p.finalPrice ||
-      p.priceAmount ||
-      p.price ||
-      0
-    );
-
-  },0);
-
-        result.push({
-
-          _id: t._id,
-
-          isShared: true,
-
-          tripNumber:
-            t.tripNumber || "",
-
-          company:
-            t.company || "",
-
-          entryName:
-            t.entryName || "",
-
-          entryPhone:
-            t.entryPhone || "",
-
-          tripDate:
-            t.tripDate || "",
-
-          tripTime:
-            t.tripTime || "",
-
-          bookingDate,
-          bookingTime,
-
-          miles,
-
-          passengers,
-
-          totalPassengers:
-            passengers.length,
-
-          totalPrice:
-            total
-        });
-
+        pStatus = "NoShow";
+      }
+      else if (
+        pStatus.includes("complete")
+      ) {
+        pStatus = "Completed";
+      }
+      else {
+        pStatus = status;
       }
 
-      // =========================
-      // INDIVIDUAL
-      // =========================
-      else {
+      let passengerPrice = 0;
 
-        let finalPrice =
+      // =========================
+      // COMPLETED
+      // =========================
+      if (
+        pStatus === "Completed"
+      ) {
+
+        passengerPrice =
           Number(
-            t.finalPrice ||
-            t.priceAmount ||
+            p.finalPrice ||
+            p.priceAmount ||
             0
           );
 
-        result.push({
+      }
 
-          _id: t._id,
+      // =========================
+      // CANCELLED
+      // =========================
+      else if (
+        pStatus === "Cancelled"
+      ) {
 
-          isShared: false,
+        passengerPrice =
+          Number(
 
-          tripNumber:
-            t.tripNumber || "",
+            p.cancelFee ||
+            t.cancelFee ||
+            p.finalPrice ||
+            0
 
-          company:
-            t.company || "",
-
-          entryName:
-            t.entryName || "",
-
-          entryPhone:
-            t.entryPhone || "",
-
-          clientName:
-            t.clientName || "",
-
-          clientPhone:
-            t.clientPhone || "",
-
-          pickup:
-            t.pickup || "",
-
-          stops:
-            Array.isArray(t.stops)
-              ? t.stops
-              : [],
-
-          dropoff:
-            t.dropoff || "",
-
-          tripDate:
-            t.tripDate || "",
-
-          tripTime:
-            t.tripTime || "",
-
-          bookingDate,
-          bookingTime,
-
-          miles,
-
-          status,
-
-          // 🔥 OLD SUPPORT
-          price:
-            finalPrice,
-
-          // 🔥 NEW SUPPORT
-          finalPrice:
-            finalPrice,
-
-          totalPrice:
-            finalPrice
-
-        });
+          );
 
       }
+
+      // =========================
+      // NO SHOW
+      // =========================
+      else if (
+        pStatus === "NoShow"
+      ) {
+
+        passengerPrice =
+          Number(
+
+            p.noShowFee ||
+            t.noShowFee ||
+            p.finalPrice ||
+            0
+
+          );
+
+      }
+
+      return {
+
+        clientName:
+          p.clientName || "",
+
+        clientPhone:
+          p.clientPhone || "",
+
+        pickup:
+          p.pickup || "",
+
+        dropoff:
+          p.dropoff || "",
+
+        status:
+          pStatus,
+
+        // 🔥 OLD SUPPORT
+        price:
+          passengerPrice,
+
+        // 🔥 NEW SUPPORT
+        priceAmount:
+          passengerPrice,
+
+        finalPrice:
+          passengerPrice
+
+      };
+
+    });
+
+  const total =
+    passengers.reduce((sum,p)=>{
+
+      return sum + Number(
+        p.finalPrice ||
+        p.priceAmount ||
+        p.price ||
+        0
+      );
+
+    },0);
+
+  result.push({
+
+    _id: t._id,
+
+    isShared: true,
+
+    tripNumber:
+      t.tripNumber || "",
+
+    company:
+      t.company || "",
+
+    entryName:
+      t.entryName || "",
+
+    entryPhone:
+      t.entryPhone || "",
+
+    tripDate:
+      t.tripDate || "",
+
+    tripTime:
+      t.tripTime || "",
+
+    bookingDate,
+    bookingTime,
+
+    miles,
+
+    passengers,
+
+    totalPassengers:
+      passengers.length,
+
+    totalPrice:
+      total
+  });
+
+}
+
+// =========================
+// INDIVIDUAL
+// =========================
+else {
+
+  let finalPrice = 0;
+
+  // =========================
+  // CANCELLED
+  // =========================
+  if(status === "Cancelled"){
+
+    finalPrice =
+      Number(
+        t.cancelFee ||
+        t.finalPrice ||
+        0
+      );
+
+  }
+
+  // =========================
+  // NO SHOW
+  // =========================
+  else if(status === "NoShow"){
+
+    finalPrice =
+      Number(
+        t.noShowFee ||
+        t.finalPrice ||
+        0
+      );
+
+  }
+
+  // =========================
+  // COMPLETED
+  // =========================
+  else{
+
+    finalPrice =
+      Number(
+        t.finalPrice ||
+        t.priceAmount ||
+        0
+      );
+
+  }
+
+  result.push({
+
+    _id: t._id,
+
+    isShared: false,
+
+    tripNumber:
+      t.tripNumber || "",
+
+    company:
+      t.company || "",
+
+    entryName:
+      t.entryName || "",
+
+    entryPhone:
+      t.entryPhone || "",
+
+    clientName:
+      t.clientName || "",
+
+    clientPhone:
+      t.clientPhone || "",
+
+    pickup:
+      t.pickup || "",
+
+    stops:
+      Array.isArray(t.stops)
+        ? t.stops
+        : [],
+
+    dropoff:
+      t.dropoff || "",
+
+    tripDate:
+      t.tripDate || "",
+
+    tripTime:
+      t.tripTime || "",
+
+    bookingDate,
+    bookingTime,
+
+    miles,
+
+    status,
+
+    // 🔥 OLD SUPPORT
+    price:
+      finalPrice,
+
+    // 🔥 NEW SUPPORT
+    finalPrice:
+      finalPrice,
+
+    totalPrice:
+      finalPrice
+
+  });
+
+}
 
     }
 
@@ -4524,32 +4812,63 @@ bookedAt: req.body.bookedAt ?? existing.bookedAt
 // 🔥 FINAL PRICE LOGIC
 if (updateData.status === "Cancelled") {
 
-  const now = getArizonaTime();
+  const now = getSystemNow();
 
-  if (!updateData.tripDate || !updateData.tripTime) {
+  if (
+    !updateData.tripDate ||
+    !updateData.tripTime
+  ){
+
     updateData.finalPrice = 0;
+    updateData.cancelFee = 0;
     updateData.isFinalized = true;
-  } else {
 
-    const tripTimeRaw = new Date(`${updateData.tripDate}T${updateData.tripTime}:00`);
+  }else{
 
-    const tripTime = new Date(
-      tripTimeRaw.toLocaleString("en-US", { timeZone: "America/Phoenix" })
-    );
-
-    const diffMinutes = (tripTime - now) / 60000;
+    const tripTime =
+      parseTripDateTime(
+        updateData.tripDate,
+        updateData.tripTime
+      );
 
     let fee = 0;
 
-    if (diffMinutes <= 120 && diffMinutes > 0) {
-      fee = 15;
+    if(tripTime){
+
+      const diffMinutes =
+        (tripTime - now) / 60000;
+
+      const cancelWindow =
+        Number(
+          updateData.cancelWarningMinutes ??
+          existing?.cancelWarningMinutes ??
+          120
+        );
+
+      const dynamicCancelFee =
+        Number(
+          updateData.cancelFee ??
+          existing?.cancelFee ??
+          0
+        );
+
+      if(
+        diffMinutes <= cancelWindow &&
+        diffMinutes > 0
+      ){
+        fee = dynamicCancelFee;
+      }
+
     }
 
     updateData.finalPrice = fee;
+    updateData.cancelFee = fee;
     updateData.isFinalized = true;
+
   }
-}
-    /* =========================
+}   
+
+ /* =========================
        CLEAN STOPS
     ========================= */
     updateData.stops = (updateData.stops || []).filter(s => s && s.trim() !== "");
