@@ -1083,6 +1083,33 @@ stops:stops
 const pricingData =
 await pricingRes.json();
 
+/* =========================
+SAVE WARNING POLICY
+========================= */
+
+window.selectedWarningPolicy = {
+
+  warningMinutes:
+
+  Number(
+    pricingData.service?.warningMinutes || 0
+  ),
+
+  cancelFee:
+
+  Number(
+    pricingData.service?.cancelFee || 0
+  ),
+
+  noShowFee:
+
+  Number(
+    pricingData.service?.noShowFee || 0
+  )
+
+};
+
+
 if(!pricingData.success){
 
 alert("Pricing error");
