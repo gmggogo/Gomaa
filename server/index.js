@@ -907,18 +907,9 @@ async function getServiceByTrip(trip){
 /* =========================
    PRICE ENGINE
 ========================= */
-function calculatePriceServer(trip) {
 
-لحد آخر قفلة قبل:
-
-function normalizeNumber(v)
-
-وحط ده مكانه بالكامل:
-
-/* =========================
-   PRICE ENGINE
-========================= */
 function calculatePriceServer(trip){
+
   const type =
     String(
       trip.tripType ||
@@ -927,6 +918,7 @@ function calculatePriceServer(trip){
     )
     .toLowerCase()
     .trim();
+
   const vehicleType =
     String(
       trip.vehicleType ||
@@ -936,16 +928,18 @@ function calculatePriceServer(trip){
     )
     .toUpperCase()
     .trim();
+
   const miles =
     Math.max(
       0,
       Number(trip.miles || 0)
     );
+
   const stopsCount =
     Array.isArray(trip.stops)
       ? trip.stops.length
-      : 0;
-  /* =========================
+      : 0; 
+ /* =========================
      GET QUOTE
   ========================= */
   if(
