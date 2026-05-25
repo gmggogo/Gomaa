@@ -88,17 +88,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function updateAdminTime() {
 
-    const timezone =
+  const timezone =
 
-      localStorage.getItem(
-        "systemTimezone"
-      ) ||
+  window.Branding?.data?.timezone ||
 
-      localStorage.getItem(
-        "appTimezone"
-      ) ||
+  localStorage.getItem(
+    "systemTimezone"
+  ) ||
 
-      "America/Phoenix";
+  "America/Phoenix";
 
     const now = new Date();
 
