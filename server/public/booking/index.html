@@ -314,65 +314,92 @@ async function confirmBooking(){
 
   /* ================= DYNAMIC WARNING ================= */
 
-  const tripWarningMinutes =
+const tripWarningMinutes =
 
-  Number(
+Number(
 
-    localStorage.getItem(
-      "tripWarningMinutes"
-    )
+  tripData.warningMinutes ||
 
-  ) || 120;
+  tripData.companyWarningMinutes ||
 
-  const mins = minutesUntilTrip(date,time);
+  localStorage.getItem(
+    "tripWarningMinutes"
+  )
 
-  if(mins <= tripWarningMinutes){
+) || 120;
 
-    let warningText = "";
+/* =========================
+DYNAMIC CANCEL FEE
+========================= */
 
-    if(tripWarningMinutes < 60){
+const cancelFee =
 
-      warningText =
-      `${tripWarningMinutes} minutes`;
+Number(
 
-    }
+  tripData.cancelFee ||
 
-    else{
+  tripData.companyCancelFee ||
 
-      const hrs =
-      tripWarningMinutes / 60;
+  localStorage.getItem(
+    "cancelFee"
+  )
 
-      warningText =
+) || 0;
 
-      hrs % 1 === 0
+const mins =
+minutesUntilTrip(
+  date,
+  time
+);
 
-      ? `${hrs} hour(s)`
+if(mins <= tripWarningMinutes){
 
-      : `${hrs.toFixed(1)} hour(s)`;
+  let warningText = "";
 
-    }
+  if(tripWarningMinutes < 60){
 
-    const ok = confirm(
+    warningText =
+    `${tripWarningMinutes} minutes`;
+
+  }
+
+  else{
+
+    const hrs =
+    tripWarningMinutes / 60;
+
+    warningText =
+
+    hrs % 1 === 0
+
+    ? `${hrs} hour(s)`
+
+    : `${hrs.toFixed(1)} hour(s)`;
+
+  }
+
+  const ok = confirm(
 
 `WARNING:
 
 This trip is within ${warningText}.
 
-Cancellation fee may apply.
+Cancellation Fee:
+$${cancelFee.toFixed(2)}
 
 Do you want to continue?`
 
-    );
+  );
 
-    if(!ok){
+  if(!ok){
 
-      btn.disabled=false;
+    btn.disabled = false;
 
-      return;
-
-    }
+    return;
 
   }
+
+}
 
 const data = {
 
