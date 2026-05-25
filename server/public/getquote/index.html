@@ -1206,25 +1206,65 @@ document.querySelectorAll(
 .filter(i=>i.value)
 .map(i=>fixAZ(i.value));
 
+const selectedServiceData =
+
+servicesData.find(s =>
+
+String(
+  s.serviceKey || ""
+).toUpperCase()
+
+===
+
+String(
+  selectedService || ""
+).toUpperCase()
+
+);
+
 const tripData = {
 
-pickup: pickupVal,
+  pickup: pickupVal,
 
-dropoff: dropVal,
+  dropoff: dropVal,
 
-stops: stops,
+  stops: stops,
 
-distance:
-document.getElementById("distance").innerText,
+  distance:
+  document.getElementById(
+    "distance"
+  ).innerText,
 
-price:
-document.getElementById("price").innerText,
+  price:
+  document.getElementById(
+    "price"
+  ).innerText,
 
-serviceKey:
-selectedService,
+  serviceKey:
+  selectedService,
 
-vehicleType:
-selectedService
+  vehicleType:
+  selectedService,
+
+  /* 🔥 WARNING */
+
+  warningMinutes:
+
+  Number(
+    selectedServiceData?.warningMinutes || 0
+  ),
+
+  cancelFee:
+
+  Number(
+    selectedServiceData?.cancelFee || 0
+  ),
+
+  noShowFee:
+
+  Number(
+    selectedServiceData?.noShowFee || 0
+  )
 
 };
 
