@@ -264,15 +264,24 @@ function getServiceByTrip(trip){
 
     /* SHARED FIX */
 
-    if(
-      code === "SH" &&
-      serviceType === "SHARED"
-    ){
-      return true;
-    }
+if(
+  (
+    code === "SH" ||
+    code === "SHARED"
+  ) &&
+  (
+    serviceCode === "SHARED" ||
+    serviceType === "SHARED"
+  )
+){
+  return true;
+}
 
-    return serviceCode === code;
-
+return (
+  serviceCode === code ||
+  serviceCode === "SHARED"
+    && code === "SH"
+);
   }) || null;
 
 }
