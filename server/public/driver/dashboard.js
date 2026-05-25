@@ -131,68 +131,20 @@ function getTimezone(){
 }
 
   /* =====================================================
-     GLOBAL CLOCK
-  ===================================================== */
+   GET TIMEZONE
+===================================================== */
 
-  function updateTime(){
+function getTimezone(){
 
-    const el =
-      $("datetime");
+  return (
 
-    if(!el) return;
+    window.Branding?.data?.timezone ||
 
-    const timezone =
-      getTimezone();
+    "America/Phoenix"
 
-    const now =
-      new Date();
+  );
 
-    const date =
-      now.toLocaleDateString(
-        "en-US",
-        {
-          timeZone: timezone,
-          weekday:"short",
-          month:"short",
-          day:"numeric",
-          year:"numeric"
-        }
-      );
-
-    const time =
-      now.toLocaleTimeString(
-        "en-US",
-        {
-          timeZone: timezone,
-          hour:"numeric",
-          minute:"2-digit",
-          second:"2-digit",
-          hour12:true
-        }
-      );
-
-    el.innerHTML =
-
-      `
-      <div style="
-        font-size:13px;
-        font-weight:700;
-        color:#facc15;
-      ">
-        ${date}
-      </div>
-
-      <div style="
-        font-size:18px;
-        font-weight:900;
-        color:white;
-      ">
-        ${time}
-      </div>
-      `;
-
-  }
-
+}
   /* =====================================================
      DRIVER NAME
   ===================================================== */

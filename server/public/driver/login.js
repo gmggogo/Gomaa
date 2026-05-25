@@ -183,38 +183,51 @@ GLOBAL SESSION
 ========================= */
 
 localStorage.setItem(
-"token",
-data.token
+  "token",
+  data.token
 );
 
 localStorage.setItem(
-"role",
-"driver"
+  "role",
+  "driver"
 );
 
 localStorage.setItem(
-"driverName",
-data.user.name || ""
+  "driverName",
+  data.user.name || ""
 );
 
 localStorage.setItem(
-"name",
-data.user.name || ""
+  "name",
+  data.user.name || ""
 );
 
 localStorage.setItem(
-"companyName",
-data.user.company || ""
+  "companyName",
+  data.user.company || ""
 );
 
-localStorage.setItem(
-"systemTimezone",
+/* =========================
+OPTIONAL DRIVER DATA
+========================= */
 
-data.user.timezone ||
+if(data.user.driverId){
 
-"America/Phoenix"
-);
+  localStorage.setItem(
+    "driverId",
+    data.user.driverId
+  );
 
+}
+
+if(data.user.company){
+
+  localStorage.setItem(
+    "company",
+    data.user.company
+  );
+
+}
 /* =========================
 OPTIONAL DRIVER DATA
 ========================= */
