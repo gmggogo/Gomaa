@@ -2753,25 +2753,25 @@ trips.forEach(t => {
     t.passengers.length > 0
   ){
 
-    t.passengers.forEach(p => {
+   t.passengers.forEach(p => {
 
-      const s =
-        String(p.status || "")
-          .replace(/\s+/g,"")
-          .toLowerCase()
-          .trim();
+  const s =
+    String(p.status || "")
+      .replace(/\s+/g,"")
+      .toLowerCase()
+      .trim();
 
-      if(
-        s.includes("complete") ||
-        s.includes("cancel") ||
-        s.includes("no")
-      ){
-        sharedPassengers++;
-      }
+  if(
+    s.includes("complete") ||
+    s.includes("cancel") ||
+    s.includes("no")
+  ){
+    sharedPassengers++;
+  }
 
-    });
+});
 
-}else{
+} else {
 
   const status =
     String(t.status || "")
