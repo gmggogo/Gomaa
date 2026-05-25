@@ -648,6 +648,12 @@ confirmationEmailSent: {
   // 🚗 VEHICLE
   vehicleTypeFromQuote: { type: String, default: "X" },
 
+serviceType: { type: String, default: "" },
+
+serviceKey: { type: String, default: "" },
+
+serviceCode: { type: String, default: "" },
+
   // 📍 LOCATIONS
   pickup: { type: String, default: "" },
   dropoff: { type: String, default: "" },
@@ -3777,10 +3783,16 @@ if (isShared) {
 
       attempts++;
 
-      trip = await Trip.create({
+trip = await Trip.create({
 
-        type,
-        tripNumber,
+  type,
+  tripNumber,
+
+  serviceType:"SHARED",
+
+  serviceKey:"SHARED",
+
+  serviceCode:"SHARED",
 
         // 🔥 SHARED FLAGS
        isShared: true,
