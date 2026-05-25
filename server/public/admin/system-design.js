@@ -16,9 +16,11 @@ const defaultSystemDesign = {
 
   companyName:"Sunbeam Transportation",
 
-  timezone:"America/Phoenix",
+timezone:"America/Phoenix",
 
-  mainLogo:"/assets/logo.png",
+invoiceEmail:"billing@sunbeamtransportation.com",
+
+mainLogo:"/assets/logo.png",
 
   driverLogo:"/assets/logo.png",
 
@@ -354,6 +356,11 @@ function loadFormValues(){
     "timezoneInput",
     systemDesign.timezone
   );
+
+setValue(
+  "invoiceEmailInput",
+  systemDesign.invoiceEmail
+);
 
   /* IMAGES */
 
@@ -961,6 +968,11 @@ async function(){
   document.getElementById(
     "timezoneInput"
   )?.value || "";
+
+systemDesign.invoiceEmail =
+document.getElementById(
+  "invoiceEmailInput"
+)?.value || "";
 
   /* BODY */
 

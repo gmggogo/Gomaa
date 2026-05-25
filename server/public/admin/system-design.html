@@ -348,118 +348,149 @@ MOBILE
     System Design
   </div>
 
-  <!-- =========================
+ <!-- =========================
        BRANDING
-  ========================== -->
+========================= -->
 
-  <div class="section-box">
+<div class="section-box">
 
-    <div class="section-title">
-      Branding
+  <div class="section-title">
+    Branding
+  </div>
+
+  <div class="form-grid">
+
+    <!-- COMPANY NAME -->
+
+    <div class="input-group">
+
+      <label>
+        Company Name
+      </label>
+
+      <input
+        type="text"
+        id="companyNameInput"
+      >
+
     </div>
 
-    <div class="form-grid">
+    <!-- TIMEZONE -->
 
-      <div class="input-group">
+    <div class="input-group">
 
-        <label>
-          Company Name
-        </label>
+      <label>
+        Timezone
+      </label>
 
-        <input
-          type="text"
-          id="companyNameInput"
-        >
+      <input
+        type="text"
+        id="timezoneInput"
+        placeholder="America/Phoenix"
+      />
 
-      </div>
+      <div style="
+      font-size:13px;
+      color:#64748b;
+      margin-top:6px;
+      ">
 
-      <div class="input-group">
+        Examples:<br>
 
-        <label>
-          Timezone
-        </label>
-
-        <select id="timezoneInput">
-
-          <option value="America/Phoenix">
-            Arizona / Phoenix
-          </option>
-
-          <option value="America/New_York">
-            New York
-          </option>
-
-          <option value="America/Chicago">
-            Chicago
-          </option>
-
-        </select>
+        America/New_York<br>
+        America/Los_Angeles<br>
+        Europe/London<br>
+        Asia/Dubai<br>
+        Africa/Cairo<br>
+        Asia/Tokyo
 
       </div>
 
-      <div class="input-group">
+    </div>
 
-        <label>
-          Main Logo
-        </label>
+    <!-- INVOICE EMAIL -->
 
-        <img
-          id="mainLogoPreview"
-          class="preview-image"
-        >
+    <div class="input-group">
 
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          onchange="uploadMainLogo(this)"
-        >
+      <label>
+        Invoice Email
+      </label>
 
-        <button
-          class="upload-btn"
-          type="button"
-          onclick="
-          this.previousElementSibling.click()
-          "
-        >
-          Upload Main Logo
-        </button>
+      <input
+        type="email"
+        id="invoiceEmailInput"
+        placeholder="billing@company.com"
+      >
 
-      </div>
+    </div>
 
-      <div class="input-group">
+    <!-- MAIN LOGO -->
 
-        <label>
-          Driver Logo
-        </label>
+    <div class="input-group">
 
-        <img
-          id="driverLogoPreview"
-          class="preview-image"
-        >
+      <label>
+        Main Logo
+      </label>
 
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          onchange="uploadDriverLogo(this)"
-        >
+      <img
+        id="mainLogoPreview"
+        class="preview-image"
+      >
 
-        <button
-          class="upload-btn"
-          type="button"
-          onclick="
-          this.previousElementSibling.click()
-          "
-        >
-          Upload Driver Logo
-        </button>
+      <input
+        type="file"
+        hidden
+        accept="image/*"
+        onchange="uploadMainLogo(this)"
+      >
 
-      </div>
+      <button
+        class="upload-btn"
+        type="button"
+        onclick="
+        this.previousElementSibling.click()
+        "
+      >
+        Upload Main Logo
+      </button>
+
+    </div>
+
+    <!-- DRIVER LOGO -->
+
+    <div class="input-group">
+
+      <label>
+        Driver Logo
+      </label>
+
+      <img
+        id="driverLogoPreview"
+        class="preview-image"
+      >
+
+      <input
+        type="file"
+        hidden
+        accept="image/*"
+        onchange="uploadDriverLogo(this)"
+      >
+
+      <button
+        class="upload-btn"
+        type="button"
+        onclick="
+        this.previousElementSibling.click()
+        "
+      >
+        Upload Driver Logo
+      </button>
 
     </div>
 
   </div>
+
+</div>
 
 <!-- =========================
      HOMEPAGE
@@ -1350,8 +1381,6 @@ MOBILE
   >
     Reset
   </button>
-
-</div>
 
 </div>
 
