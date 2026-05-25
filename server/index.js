@@ -2895,10 +2895,10 @@ if(isShared){
     status.includes("cancel") ||
     status.includes("no")
   ){
-    sharedPassengers++;
-  }
 
-}
+    sharedPassengers++;
+
+  }
 
 }
 
