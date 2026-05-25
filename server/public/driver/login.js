@@ -165,10 +165,6 @@ role:data.user.role,
 company:
 data.user.company || "",
 
-timezone:
-data.user.timezone ||
-"America/Phoenix",
-
 driverId:
 data.user.driverId || "",
 
@@ -183,28 +179,28 @@ GLOBAL SESSION
 ========================= */
 
 localStorage.setItem(
-  "token",
-  data.token
+"token",
+data.token
 );
 
 localStorage.setItem(
-  "role",
-  "driver"
+"role",
+"driver"
 );
 
 localStorage.setItem(
-  "driverName",
-  data.user.name || ""
+"driverName",
+data.user.name || ""
 );
 
 localStorage.setItem(
-  "name",
-  data.user.name || ""
+"name",
+data.user.name || ""
 );
 
 localStorage.setItem(
-  "companyName",
-  data.user.company || ""
+"companyName",
+data.user.company || ""
 );
 
 /* =========================
@@ -228,27 +224,21 @@ if(data.user.company){
   );
 
 }
+
 /* =========================
-OPTIONAL DRIVER DATA
+🔥 IMPORTANT
+NO LOCAL TIMEZONE SAVE
+TIMEZONE COMES FROM BRANDING
+ON RENDER SERVER
 ========================= */
 
-if(data.user.driverId){
-
-localStorage.setItem(
-"driverId",
-data.user.driverId
+localStorage.removeItem(
+  "systemTimezone"
 );
 
-}
-
-if(data.user.company){
-
-localStorage.setItem(
-"company",
-data.user.company
+localStorage.removeItem(
+  "appTimezone"
 );
-
-}
 
 /* =========================
 REDIRECT
