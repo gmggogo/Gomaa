@@ -363,6 +363,27 @@ if (
   }
 );
 
+/* =========================
+   JSON MIDDLEWARE AFTER WEBHOOK
+========================= */
+
+app.use(express.json({
+  limit:"50mb"
+}));
+
+app.use(express.urlencoded({
+  extended:true,
+  limit:"50mb"
+}));
+
+app.use("/api/pricing", pricingRoutes);
+
+app.use("/api/services", serviceRoutes);
+
+app.use(
+  "/api/system-design",
+  require("./routes/system-design")
+);
 
 /* =========================
    PUBLIC CONFIG - GOOGLE KEY
