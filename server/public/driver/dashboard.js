@@ -130,7 +130,7 @@ function getTimezone(){
 
 }
 
-  /* =====================================================
+/* =====================================================
    GET TIMEZONE
 ===================================================== */
 
@@ -138,13 +138,26 @@ function getTimezone(){
 
   return (
 
+    /* SERVER BRANDING */
+
     window.Branding?.data?.timezone ||
+
+    /* FALLBACK */
+
+    localStorage.getItem(
+      "systemTimezone"
+    ) ||
+
+    localStorage.getItem(
+      "appTimezone"
+    ) ||
 
     "America/Phoenix"
 
   );
 
 }
+
   /* =====================================================
      DRIVER NAME
   ===================================================== */
