@@ -5416,8 +5416,13 @@ app.get("/api/admin/live-drivers", (req, res) => {
 ========================= */
 app.post("/api/create-payment-intent", async (req, res) => {
   try {
-    const { tripId } = req.body;
 
+  console.log(
+    "PAYMENT BODY:",
+    req.body
+  );
+
+  const { tripId } = req.body;
     // تحقق
     if (!tripId) {
       return res.status(400).json({ message: "Missing tripId" });
