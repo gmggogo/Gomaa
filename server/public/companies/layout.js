@@ -1,12 +1,19 @@
 document.addEventListener("DOMContentLoaded", async () => {
 
-const container = document.getElementById("layoutHeader");
+const container =
+document.getElementById(
+  "layoutHeader"
+);
 
 if(!container) return;
 
 /* ================= DEFAULT LOGO ================= */
 
-if(!localStorage.getItem("appLogo")){
+if(
+  !localStorage.getItem(
+    "appLogo"
+  )
+){
 
   localStorage.setItem(
     "appLogo",
@@ -14,6 +21,8 @@ if(!localStorage.getItem("appLogo")){
   );
 
 }
+
+/* ================= HTML ================= */
 
 container.innerHTML = `
 
@@ -33,11 +42,17 @@ container.innerHTML = `
 
         <div class="company-text">
 
-          <div class="logged-company" id="companyName">
+          <div
+            class="logged-company"
+            id="companyName"
+          >
             Loading...
           </div>
 
-          <div class="greeting" id="greetingText">
+          <div
+            class="greeting"
+            id="greetingText"
+          >
           </div>
 
         </div>
@@ -48,7 +63,10 @@ container.innerHTML = `
 
       <div class="time-block">
 
-        <div class="clock" id="azDateTime">
+        <div
+          class="clock"
+          id="azDateTime"
+        >
         </div>
 
       </div>
@@ -59,19 +77,36 @@ container.innerHTML = `
 
     <div class="nav">
 
-      <a href="dashboard.html">Dashboard</a>
+      <a href="dashboard.html">
+        Dashboard
+      </a>
 
-      <a href="add-trip.html">Add Trip</a>
+      <a href="add-trip.html">
+        Add Trip
+      </a>
 
-      <a href="review.html">Review</a>
+      <a href="review.html">
+        Review
+      </a>
 
-      <a href="summary.html">Summary</a>
+      <a href="summary.html">
+        Summary
+      </a>
 
-      <a href="payment.html">Payment</a>
+      <a href="payment.html">
+        Payment
+      </a>
 
-      <a href="taxes.html">Taxes</a>
+      <a href="taxes.html">
+        Taxes
+      </a>
 
-      <a href="#" id="logoutBtn">Logout</a>
+      <a
+        href="#"
+        id="logoutBtn"
+      >
+        Logout
+      </a>
 
     </div>
 
@@ -112,14 +147,19 @@ async function loadBranding(){
       oldScript.onload =
       ()=>resolve();
 
-      setTimeout(resolve,500);
+      setTimeout(
+        resolve,
+        500
+      );
 
       return;
 
     }
 
     const brandingScript =
-    document.createElement("script");
+    document.createElement(
+      "script"
+    );
 
     brandingScript.src =
     "/core/branding.js";
@@ -143,15 +183,103 @@ if(window.Branding){
 
 }
 
+/* ================= CLOCK ================= */
+
+function startClock(elementId){
+
+  const el =
+    document.getElementById(
+      elementId
+    );
+
+  if(!el) return;
+
+  function updateClock(){
+
+    const timezone =
+
+      window.Branding?.data?.timezone ||
+
+      "America/Phoenix";
+
+    const now =
+      new Date();
+
+    const date =
+      now.toLocaleDateString(
+        "en-US",
+        {
+          timeZone: timezone
+        }
+      );
+
+    const time =
+      now.toLocaleTimeString(
+        "en-US",
+        {
+          timeZone: timezone,
+          hour:"2-digit",
+          minute:"2-digit",
+          second:"2-digit"
+        }
+      );
+
+    el.innerHTML =
+
+      `
+      <div style="
+        font-size:13px;
+        color:#facc15;
+        font-weight:700;
+      ">
+        ${date}
+      </div>
+
+      <div style="
+        font-size:18px;
+        color:white;
+        font-weight:900;
+      ">
+        ${time}
+      </div>
+      `;
+
+  }
+
+  updateClock();
+
+  setInterval(
+    updateClock,
+    1000
+  );
+
+}
+
 /* ================= AUTH ================= */
 
-const token = localStorage.getItem("token");
-const role  = localStorage.getItem("role");
-const name  = localStorage.getItem("name");
+const token =
+localStorage.getItem(
+  "token"
+);
 
-if(!token || role !== "company"){
+const role =
+localStorage.getItem(
+  "role"
+);
 
-  window.location.replace("company-login.html");
+const name =
+localStorage.getItem(
+  "name"
+);
+
+if(
+  !token ||
+  role !== "company"
+){
+
+  window.location.replace(
+    "company-login.html"
+  );
 
   return;
 
@@ -160,13 +288,23 @@ if(!token || role !== "company"){
 /* ================= ACTIVE LINK ================= */
 
 const currentPage =
-window.location.pathname.split("/").pop();
 
-document.querySelectorAll(".nav a").forEach(link=>{
+window.location.pathname
+.split("/")
+.pop();
 
-  if(link.getAttribute("href") === currentPage){
+document
+.querySelectorAll(".nav a")
+.forEach(link=>{
 
-    link.classList.add("active");
+  if(
+    link.getAttribute("href")
+    === currentPage
+  ){
+
+    link.classList.add(
+      "active"
+    );
 
   }
 
@@ -174,49 +312,46 @@ document.querySelectorAll(".nav a").forEach(link=>{
 
 /* ================= COMPANY NAME ================= */
 
-document.getElementById("companyName").innerText =
-  name || "Company";
+document.getElementById(
+  "companyName"
+).innerText =
+
+name || "Company";
 
 /* ================= LOGOUT ================= */
 
-document.getElementById("logoutBtn")
-.addEventListener("click",e=>{
+document
+.getElementById(
+  "logoutBtn"
+)
+.addEventListener(
+  "click",
+  e=>{
 
-  e.preventDefault();
+    e.preventDefault();
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  localStorage.removeItem("name");
+    localStorage.removeItem(
+      "token"
+    );
 
-  window.location.replace("company-login.html");
+    localStorage.removeItem(
+      "role"
+    );
 
-});
+    localStorage.removeItem(
+      "name"
+    );
 
-/* ================= GLOBAL CLOCK ================= */
-
-function startGlobalClock(){
-
-  if(typeof startClock === "function"){
-
-    startClock("azDateTime");
-
-    return true;
-
-  }
-
-  return false;
-
-}
-
-const waitClock = setInterval(()=>{
-
-  if(startGlobalClock()){
-
-    clearInterval(waitClock);
+    window.location.replace(
+      "company-login.html"
+    );
 
   }
+);
 
-},200);
+/* ================= START CLOCK ================= */
+
+startClock("azDateTime");
 
 /* ================= GREETING ================= */
 
@@ -228,9 +363,11 @@ function updateGreeting(){
 
     "America/Phoenix";
 
-  const now = new Date();
+  const now =
+    new Date();
 
-  const currentHour = Number(
+  const currentHour =
+  Number(
 
     new Intl.DateTimeFormat(
       "en-US",
@@ -268,6 +405,9 @@ function updateGreeting(){
 
 updateGreeting();
 
-setInterval(updateGreeting,60000);
+setInterval(
+  updateGreeting,
+  60000
+);
 
 });
