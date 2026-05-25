@@ -1186,16 +1186,15 @@ alert("Server pricing failed");
 
 }
 
+استبدل جزء bookTrip() كله بالكامل بده:
+
 /* ================= BOOK ================= */
 
 function bookTrip(){
-
 const pickupVal =
 fixAZ(pickup.value);
-
 const dropVal =
 fixAZ(dropoff.value);
-
 const stops =
 Array
 .from(
@@ -1205,77 +1204,73 @@ document.querySelectorAll(
 )
 .filter(i=>i.value)
 .map(i=>fixAZ(i.value));
-
+/* =========================
+   GET SERVICE DATA
+========================= */
 const selectedServiceData =
-
 servicesData.find(s =>
-
 String(
   s.serviceKey || ""
-).toUpperCase()
-
+)
+.trim()
+.toUpperCase()
 ===
-
 String(
   selectedService || ""
-).toUpperCase()
-
+)
+.trim()
+.toUpperCase()
 );
-
+/* =========================
+   TRIP DATA
+========================= */
 const tripData = {
-
   pickup: pickupVal,
-
   dropoff: dropVal,
-
   stops: stops,
-
   distance:
   document.getElementById(
     "distance"
   ).innerText,
-
   price:
   document.getElementById(
     "price"
   ).innerText,
-
   serviceKey:
   selectedService,
-
   vehicleType:
   selectedService,
-
-  /* 🔥 WARNING */
-
+  /* =========================
+     WARNING POLICY
+  ========================= */
+  warningEnabled:
+  selectedServiceData?.warningEnabled
+  || false,
   warningMinutes:
-
   Number(
     selectedServiceData?.warningMinutes || 0
   ),
-
   cancelFee:
-
   Number(
     selectedServiceData?.cancelFee || 0
   ),
-
   noShowFee:
-
   Number(
     selectedServiceData?.noShowFee || 0
   )
-
 };
-
+/* =========================
+   SAVE
+========================= */
 localStorage.setItem(
-"pendingTrip",
-JSON.stringify(tripData)
+  "pendingTrip",
+  JSON.stringify(tripData)
 );
-
+/* =========================
+   REDIRECT
+========================= */
 window.location.href =
 "/booking/index.html";
-
 }
 
 /* ================= GOOGLE ================= */
