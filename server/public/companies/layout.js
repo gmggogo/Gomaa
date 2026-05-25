@@ -222,38 +222,47 @@ const waitClock = setInterval(()=>{
 
 function updateGreeting(){
 
+  const timezone =
+
+    window.Branding?.data?.timezone ||
+
+    "America/Phoenix";
+
   const now = new Date();
 
-  const phoenixHour = Number(
+  const currentHour = Number(
 
-    new Intl.DateTimeFormat("en-US",{
-
-      hour:"numeric",
-
-      hour12:false,
-
-      timeZone:"America/Phoenix"
-
-    }).format(now)
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        hour:"numeric",
+        hour12:false,
+        timeZone: timezone
+      }
+    ).format(now)
 
   );
 
-  let greeting = "Good Evening";
+  let greeting =
+    "Good Evening";
 
-  if(phoenixHour < 12){
+  if(currentHour < 12){
 
-    greeting = "Good Morning";
-
-  }
-
-  else if(phoenixHour < 18){
-
-    greeting = "Good Afternoon";
+    greeting =
+      "Good Morning";
 
   }
 
-  document.getElementById("greetingText")
-  .innerText = greeting;
+  else if(currentHour < 18){
+
+    greeting =
+      "Good Afternoon";
+
+  }
+
+  document.getElementById(
+    "greetingText"
+  ).innerText = greeting;
 
 }
 
