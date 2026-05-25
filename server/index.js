@@ -2890,19 +2890,19 @@ if(isShared){
 
   }
 
-}
-    if(
-      status.includes("complete") ||
-      status.includes("cancel") ||
-      status.includes("no")
-    ){
-      sharedPassengers++;
-    }
-
+  if(
+    status.includes("complete") ||
+    status.includes("cancel") ||
+    status.includes("no")
+  ){
+    sharedPassengers++;
   }
 
-});
+}
 
+}
+
+});
 /* =========================
    TOTALS
 ========================= */
