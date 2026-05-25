@@ -108,6 +108,28 @@
 
   }
 
+/* =====================================================
+   GET TIMEZONE
+===================================================== */
+
+function getTimezone(){
+
+  return (
+
+    localStorage.getItem(
+      "systemTimezone"
+    ) ||
+
+    localStorage.getItem(
+      "appTimezone"
+    ) ||
+
+    "America/Phoenix"
+
+  );
+
+}
+
   /* =====================================================
      GLOBAL CLOCK
   ===================================================== */
