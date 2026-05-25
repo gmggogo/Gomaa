@@ -728,11 +728,12 @@ async function handleConfirmShared(btn){
       service?.title ||
       "Shared",
 
-    serviceCode:
-      service?.serviceKey ||
-      service?.companySuffix ||
-      service?.code ||
-      "SH",
+serviceCode:
+  service?.serviceKey ||
+  service?.companySuffix ||
+  service?.code ||
+  service?.serviceCode ||
+  "SH",
 
     serviceId:
       service?._id || "",
