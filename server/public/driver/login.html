@@ -6,63 +6,68 @@
 
 <title>Driver Login</title>
 
-<meta name="viewport"
+<meta
+name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<link rel="manifest" href="install.json">
+<link
+rel="manifest"
+href="install.json">
 
-<link rel="apple-touch-icon"
+<link
+rel="apple-touch-icon"
 href="sunbeamllc.jpeg">
 
-<meta name="theme-color"
+<meta
+name="theme-color"
 content="#0f172a">
 
 <style>
 
 *{
-box-sizing:border-box;
-font-family:Arial,sans-serif;
+  box-sizing:border-box;
+  font-family:Arial,sans-serif;
 }
 
 body{
 
-margin:0;
+  margin:0;
 
-min-height:100vh;
+  min-height:100vh;
 
-background:
-linear-gradient(
-135deg,
-#0f172a,
-#2563eb
-);
+  background:
+  linear-gradient(
+    135deg,
+    #0f172a,
+    #2563eb
+  );
 
-display:flex;
+  display:flex;
 
-align-items:center;
+  align-items:center;
 
-justify-content:center;
+  justify-content:center;
 
-padding:20px;
+  padding:20px;
 
 }
 
 .login-box{
 
-background:#ffffff;
+  background:#ffffff;
 
-width:100%;
+  width:100%;
 
-max-width:360px;
+  max-width:360px;
 
-padding:26px;
+  padding:26px;
 
-border-radius:20px;
+  border-radius:20px;
 
-box-shadow:
-0 10px 25px rgba(0,0,0,0.25);
+  box-shadow:
+  0 10px 25px rgba(0,0,0,0.25);
 
-text-align:center;
+  text-align:center;
 
 }
 
@@ -70,13 +75,13 @@ text-align:center;
 
 .driver-logo{
 
-width:140px;
+  width:140px;
 
-max-width:90%;
+  max-width:90%;
 
-object-fit:contain;
+  object-fit:contain;
 
-margin-bottom:14px;
+  margin-bottom:14px;
 
 }
 
@@ -84,13 +89,13 @@ margin-bottom:14px;
 
 .login-title{
 
-font-size:30px;
+  font-size:30px;
 
-font-weight:700;
+  font-weight:700;
 
-color:#2563eb;
+  color:#2563eb;
 
-margin-bottom:8px;
+  margin-bottom:8px;
 
 }
 
@@ -98,11 +103,11 @@ margin-bottom:8px;
 
 .login-sub{
 
-font-size:15px;
+  font-size:15px;
 
-color:#64748b;
+  color:#64748b;
 
-margin-bottom:20px;
+  margin-bottom:20px;
 
 }
 
@@ -110,13 +115,13 @@ margin-bottom:20px;
 
 .login-time{
 
-font-size:13px;
+  font-size:13px;
 
-color:#64748b;
+  color:#64748b;
 
-margin-bottom:22px;
+  margin-bottom:22px;
 
-line-height:1.5;
+  line-height:1.5;
 
 }
 
@@ -124,25 +129,25 @@ line-height:1.5;
 
 input{
 
-width:100%;
+  width:100%;
 
-padding:14px;
+  padding:14px;
 
-margin-bottom:14px;
+  margin-bottom:14px;
 
-border-radius:14px;
+  border-radius:14px;
 
-border:1px solid #d1d5db;
+  border:1px solid #d1d5db;
 
-font-size:16px;
+  font-size:16px;
 
 }
 
 input:focus{
 
-outline:none;
+  outline:none;
 
-border-color:#2563eb;
+  border-color:#2563eb;
 
 }
 
@@ -150,28 +155,28 @@ border-color:#2563eb;
 
 button{
 
-width:100%;
+  width:100%;
 
-padding:15px;
+  padding:15px;
 
-border:none;
+  border:none;
 
-border-radius:16px;
+  border-radius:16px;
 
-font-size:18px;
+  font-size:18px;
 
-background:
-linear-gradient(
-90deg,
-#facc15,
-#eab308
-);
+  background:
+  linear-gradient(
+    90deg,
+    #facc15,
+    #eab308
+  );
 
-color:#111;
+  color:#111;
 
-font-weight:bold;
+  font-weight:bold;
 
-cursor:pointer;
+  cursor:pointer;
 
 }
 
@@ -179,11 +184,11 @@ cursor:pointer;
 
 #error{
 
-margin-top:10px;
+  margin-top:10px;
 
-font-size:13px;
+  font-size:13px;
 
-color:red;
+  color:red;
 
 }
 
@@ -191,13 +196,13 @@ color:red;
 
 .footer{
 
-margin-top:22px;
+  margin-top:22px;
 
-font-size:13px;
+  font-size:13px;
 
-color:#64748b;
+  color:#64748b;
 
-line-height:1.8;
+  line-height:1.8;
 
 }
 
@@ -205,31 +210,31 @@ line-height:1.8;
 
 @media(max-width:480px){
 
-.login-box{
+  .login-box{
 
-padding:22px;
+    padding:22px;
 
-border-radius:18px;
+    border-radius:18px;
 
-}
+  }
 
-.driver-logo{
+  .driver-logo{
 
-width:115px;
+    width:115px;
 
-}
+  }
 
-.login-title{
+  .login-title{
 
-font-size:26px;
+    font-size:26px;
 
-}
+  }
 
-button{
+  button{
 
-font-size:16px;
+    font-size:16px;
 
-}
+  }
 
 }
 
@@ -241,98 +246,179 @@ font-size:16px;
 
 <div class="login-box">
 
-<!-- DYNAMIC LOGO -->
+  <!-- DYNAMIC LOGO -->
 
-<img
-class="driver-logo app-logo"
-alt="Company Logo">
+  <img
+  class="driver-logo app-logo"
+  alt="Company Logo">
 
-<!-- TIME -->
+  <!-- TIME -->
 
-<div
-class="login-time"
-id="driverTime">
+  <div
+  class="login-time"
+  id="driverTime">
+
+  </div>
+
+  <!-- FORM -->
+
+  <form id="loginForm">
+
+    <input
+    id="username"
+    type="text"
+    placeholder="Username"
+    required>
+
+    <input
+    id="password"
+    type="password"
+    placeholder="Password"
+    required>
+
+    <button type="submit">
+
+      LOGIN
+
+    </button>
+
+  </form>
+
+  <div id="error"></div>
+
+  <!-- FOOTER -->
+
+  <div class="footer">
+
+    Powered by GH Mobility
+
+  </div>
 
 </div>
 
-<!-- FORM -->
-
-<form id="loginForm">
-
-<input
-id="username"
-type="text"
-placeholder="Username"
-required>
-
-<input
-id="password"
-type="password"
-placeholder="Password"
-required>
-
-<button type="submit">
-
-LOGIN
-
-</button>
-
-</form>
-
-<div id="error"></div>
-
-<!-- FOOTER -->
-
-<div class="footer">
-
-Powered by GH Mobility
-
-</div>
-
-</div>
-
-<!-- ENGINES -->
+<!-- BRANDING -->
 
 <script src="/core/branding.js"></script>
 
-<script src="/core/time.js"></script>
-
 <script>
 
-/* DEFAULT LOGO */
+/* =========================
+DEFAULT LOGO
+========================= */
 
 if(!localStorage.getItem("appLogo")){
 
-localStorage.setItem(
-"appLogo",
-"/assets/logo.png"
-);
+  localStorage.setItem(
+    "appLogo",
+    "/assets/logo.png"
+  );
 
 }
 
-/* START CLOCK */
+/* =========================
+CLOCK
+========================= */
 
-if(typeof startClock === "function"){
+function updateDriverLoginClock(){
 
-startClock("driverTime");
+  const el =
+    document.getElementById(
+      "driverTime"
+    );
+
+  if(!el) return;
+
+  const timezone =
+
+    window.Branding?.data?.timezone ||
+
+    "America/Phoenix";
+
+  const now =
+    new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone: timezone,
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        timeZone: timezone,
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit",
+        hour12:true
+      }
+    );
+
+  el.innerHTML =
+
+    `
+    <div style="
+      font-size:13px;
+      font-weight:700;
+      color:#64748b;
+      margin-bottom:4px;
+    ">
+      ${date}
+    </div>
+
+    <div style="
+      font-size:18px;
+      font-weight:900;
+      color:#2563eb;
+    ">
+      ${time}
+    </div>
+    `;
 
 }
 
-</script>
+/* =========================
+START CLOCK
+========================= */
 
-<script>
-
-window.addEventListener(
-"DOMContentLoaded",
-async ()=>{
+async function startDriverClock(){
 
   if(window.Branding){
 
-    await Branding.load();
+    try{
+
+      await Branding.load();
+
+    }
+
+    catch(err){
+
+      console.log(err);
+
+    }
 
   }
 
-});
+  updateDriverLoginClock();
+
+  setInterval(
+    updateDriverLoginClock,
+    1000
+  );
+
+}
+
+window.addEventListener(
+  "DOMContentLoaded",
+  startDriverClock
+);
 
 </script>
 
