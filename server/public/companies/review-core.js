@@ -241,6 +241,34 @@ function getServiceByTrip(trip){
       ""
     ).toUpperCase();
 
+if(
+  trip?.isShared === true ||
+  tripType === "SHARED" ||
+  String(trip.tripNumber || "")
+    .toUpperCase()
+    .includes("-SH")
+){
+
+  return COMPANY_SERVICES.find(s => {
+
+    const key =
+      normalizeText(s.serviceKey)
+      .toUpperCase();
+
+    const title =
+      normalizeText(s.title || s.name)
+      .toUpperCase();
+
+    return (
+      key === "SHARED" ||
+      title === "SHARED" ||
+      s.companyShared === true
+    );
+
+  }) || null;
+
+}
+
   return COMPANY_SERVICES.find(s => {
 
     const serviceCode =
