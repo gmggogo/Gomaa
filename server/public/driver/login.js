@@ -26,6 +26,10 @@ return;
 
 }
 
+/* =====================================================
+   SUBMIT
+===================================================== */
+
 form.addEventListener(
 "submit",
 async (e)=>{
@@ -33,6 +37,10 @@ async (e)=>{
 e.preventDefault();
 
 errorBox.innerText = "";
+
+/* =========================
+GET VALUES
+========================= */
 
 const username =
 document.getElementById(
@@ -44,7 +52,14 @@ document.getElementById(
 "password"
 ).value.trim();
 
-if(!username || !password){
+/* =========================
+VALIDATION
+========================= */
+
+if(
+!username ||
+!password
+){
 
 errorBox.innerText =
 "Enter username and password";
@@ -54,6 +69,10 @@ return;
 }
 
 try{
+
+/* =========================
+LOGIN REQUEST
+========================= */
 
 const res =
 await fetch(
@@ -68,8 +87,10 @@ headers:{
 },
 
 body:JSON.stringify({
+
 username,
 password
+
 })
 
 });
@@ -77,15 +98,25 @@ password
 const data =
 await res.json();
 
+/* =========================
+ERROR
+========================= */
+
 if(!res.ok){
 
 errorBox.innerText =
+
 data.message ||
+
 "Login failed";
 
 return;
 
 }
+
+/* =========================
+USER CHECK
+========================= */
 
 if(!data.user){
 
@@ -96,9 +127,13 @@ return;
 
 }
 
-/* MUST BE DRIVER */
+/* =========================
+ROLE CHECK
+========================= */
 
-if(data.user.role !== "driver"){
+if(
+data.user.role !== "driver"
+){
 
 errorBox.innerText =
 "This account is not a driver";
@@ -107,10 +142,14 @@ return;
 
 }
 
-/* SAVE SESSION */
+/* =========================
+SAVE DRIVER SESSION
+========================= */
 
 localStorage.setItem(
+
 "loggedDriver",
+
 JSON.stringify({
 
 token:data.token,
@@ -123,18 +162,93 @@ username:data.user.username,
 
 role:data.user.role,
 
+company:
+data.user.company || "",
+
+timezone:
+data.user.timezone ||
+"America/Phoenix",
+
+driverId:
+data.user.driverId || "",
+
 loginAt:Date.now()
 
 })
 
 );
 
-/* REDIRECT */
+/* =========================
+GLOBAL SESSION
+========================= */
+
+localStorage.setItem(
+"token",
+data.token
+);
+
+localStorage.setItem(
+"role",
+"driver"
+);
+
+localStorage.setItem(
+"driverName",
+data.user.name || ""
+);
+
+localStorage.setItem(
+"name",
+data.user.name || ""
+);
+
+localStorage.setItem(
+"companyName",
+data.user.company || ""
+);
+
+localStorage.setItem(
+"systemTimezone",
+
+data.user.timezone ||
+
+"America/Phoenix"
+);
+
+/* =========================
+OPTIONAL DRIVER DATA
+========================= */
+
+if(data.user.driverId){
+
+localStorage.setItem(
+"driverId",
+data.user.driverId
+);
+
+}
+
+if(data.user.company){
+
+localStorage.setItem(
+"company",
+data.user.company
+);
+
+}
+
+/* =========================
+REDIRECT
+========================= */
 
 window.location.href =
 "/driver/dashboard.html";
 
 }
+
+/* =========================
+SERVER ERROR
+========================= */
 
 catch(err){
 

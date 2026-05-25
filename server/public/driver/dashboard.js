@@ -1,126 +1,514 @@
 (function () {
-  if (window.__SUNBEAM_DRIVER_DASHBOARD__) return;
-  window.__SUNBEAM_DRIVER_DASHBOARD__ = true;
+
+  if(window.__SUNBEAM_DRIVER_DASHBOARD__)
+    return;
+
+  window.__SUNBEAM_DRIVER_DASHBOARD__ =
+    true;
+
+  /* =====================================================
+     ROUTES
+  ===================================================== */
 
   const ROUTES = {
-    dashboard: "dashboard.html",
-    trips: "trips.html",
-    map: "map.html",
-    hours: "work-hours.html",
-    earnings: "earnings.html",
-    summary: "summary.html",
-    chat: "chat.html",
-    login: "login.html"
+
+    dashboard:
+    "dashboard.html",
+
+    trips:
+    "trips.html",
+
+    map:
+    "map.html",
+
+    hours:
+    "work-hours.html",
+
+    earnings:
+    "earnings.html",
+
+    summary:
+    "summary.html",
+
+    chat:
+    "chat.html",
+
+    login:
+    "login.html"
+
   };
 
-  function $(id) {
+  /* =====================================================
+     HELPERS
+  ===================================================== */
+
+  function $(id){
+
     return document.getElementById(id);
+
   }
 
-  function safeParse(json, fallback = null) {
-    try {
+  function safeParse(
+    json,
+    fallback = null
+  ){
+
+    try{
+
       return JSON.parse(json);
-    } catch {
+
+    }
+
+    catch{
+
       return fallback;
+
     }
+
   }
 
-  function getLoggedDriver() {
-    return safeParse(localStorage.getItem("loggedDriver"), {});
+  /* =====================================================
+     DRIVER SESSION
+  ===================================================== */
+
+  function getLoggedDriver(){
+
+    return safeParse(
+
+      localStorage.getItem(
+        "loggedDriver"
+      ),
+
+      {}
+
+    );
+
   }
 
-  function updateTime() {
-    const el = $("datetime");
-    if (!el) return;
+  /* =====================================================
+     TIMEZONE
+  ===================================================== */
 
-    const now = new Date();
-    el.textContent = now.toLocaleString("en-US", {
-      timeZone: "America/Phoenix"
-    });
+  function getTimezone(){
+
+    const driver =
+      getLoggedDriver();
+
+    return (
+
+      driver?.timezone ||
+
+      localStorage.getItem(
+        "systemTimezone"
+      ) ||
+
+      "America/Phoenix"
+
+    );
+
   }
 
-  function loadDriverName() {
-    const el = $("driverName");
-    if (!el) return;
+  /* =====================================================
+     GLOBAL CLOCK
+  ===================================================== */
 
-    const driver = getLoggedDriver();
+  function updateTime(){
+
+    const el =
+      $("datetime");
+
+    if(!el) return;
+
+    const timezone =
+      getTimezone();
+
+    const now =
+      new Date();
+
+    const date =
+      now.toLocaleDateString(
+        "en-US",
+        {
+          timeZone: timezone,
+          weekday:"short",
+          month:"short",
+          day:"numeric",
+          year:"numeric"
+        }
+      );
+
+    const time =
+      now.toLocaleTimeString(
+        "en-US",
+        {
+          timeZone: timezone,
+          hour:"numeric",
+          minute:"2-digit",
+          second:"2-digit",
+          hour12:true
+        }
+      );
+
+    el.innerHTML =
+
+      `
+      <div style="
+        font-size:13px;
+        font-weight:700;
+        color:#facc15;
+      ">
+        ${date}
+      </div>
+
+      <div style="
+        font-size:18px;
+        font-weight:900;
+        color:white;
+      ">
+        ${time}
+      </div>
+      `;
+
+  }
+
+  /* =====================================================
+     DRIVER NAME
+  ===================================================== */
+
+  function loadDriverName(){
+
+    const el =
+      $("driverName");
+
+    if(!el) return;
+
+    const driver =
+      getLoggedDriver();
+
     el.textContent =
+
       driver?.name ||
+
       driver?.username ||
+
       driver?.email ||
+
       "Driver";
+
   }
 
-  function go(pageKey) {
-    const target = ROUTES[pageKey];
-    if (!target) return;
-    window.location.href = target;
+  /* =====================================================
+     NAVIGATION
+  ===================================================== */
+
+  function go(pageKey){
+
+    const target =
+      ROUTES[pageKey];
+
+    if(!target) return;
+
+    window.location.href =
+      target;
+
   }
 
-  function logout() {
-    localStorage.removeItem("driverToken");
-    localStorage.removeItem("loggedDriver");
-    window.location.href = ROUTES.login;
+  /* =====================================================
+     LOGOUT
+  ===================================================== */
+
+  function logout(){
+
+    localStorage.removeItem(
+      "driverToken"
+    );
+
+    localStorage.removeItem(
+      "loggedDriver"
+    );
+
+    localStorage.removeItem(
+      "token"
+    );
+
+    localStorage.removeItem(
+      "role"
+    );
+
+    localStorage.removeItem(
+      "driverName"
+    );
+
+    localStorage.removeItem(
+      "companyName"
+    );
+
+    window.location.href =
+      ROUTES.login;
+
   }
 
-  function ensureSession() {
-    const driver = getLoggedDriver();
-    if (!driver || Object.keys(driver).length === 0) {
-      window.location.href = ROUTES.login;
+  /* =====================================================
+     SESSION CHECK
+  ===================================================== */
+
+  function ensureSession(){
+
+    const driver =
+      getLoggedDriver();
+
+    if(
+      !driver ||
+
+      Object.keys(driver)
+      .length === 0
+    ){
+
+      window.location.href =
+        ROUTES.login;
+
       return false;
+
     }
+
     return true;
+
   }
 
-  function bindClick(id, handler) {
-    const el = $(id);
-    if (el) el.addEventListener("click", handler);
+  /* =====================================================
+     BIND CLICK
+  ===================================================== */
+
+  function bindClick(
+    id,
+    handler
+  ){
+
+    const el =
+      $(id);
+
+    if(el){
+
+      el.addEventListener(
+        "click",
+        handler
+      );
+
+    }
+
   }
 
-  function bindNavigation() {
-    bindClick("cardTrips", () => go("trips"));
-    bindClick("cardMap", () => go("map"));
-    bindClick("cardHours", () => go("hours"));
-    bindClick("cardEarnings", () => go("earnings"));
-    bindClick("cardSummary", () => go("summary"));
+  /* =====================================================
+     NAVIGATION EVENTS
+  ===================================================== */
 
-    bindClick("navHome", () => go("dashboard"));
-    bindClick("navTrips", () => go("trips"));
-    bindClick("navMap", () => go("map"));
-    bindClick("navChat", () => go("chat"));
-    bindClick("navLogout", logout);
+  function bindNavigation(){
+
+    bindClick(
+      "cardTrips",
+      ()=>go("trips")
+    );
+
+    bindClick(
+      "cardMap",
+      ()=>go("map")
+    );
+
+    bindClick(
+      "cardHours",
+      ()=>go("hours")
+    );
+
+    bindClick(
+      "cardEarnings",
+      ()=>go("earnings")
+    );
+
+    bindClick(
+      "cardSummary",
+      ()=>go("summary")
+    );
+
+    bindClick(
+      "navHome",
+      ()=>go("dashboard")
+    );
+
+    bindClick(
+      "navTrips",
+      ()=>go("trips")
+    );
+
+    bindClick(
+      "navMap",
+      ()=>go("map")
+    );
+
+    bindClick(
+      "navChat",
+      ()=>go("chat")
+    );
+
+    bindClick(
+      "navLogout",
+      logout
+    );
+
   }
 
-  function exposeGlobals() {
-    window.goTrips = () => go("trips");
-    window.goMap = () => go("map");
-    window.goHours = () => go("hours");
-    window.goEarnings = () => go("earnings");
-    window.goSummary = () => go("summary");
-    window.goChat = () => go("chat");
-    window.logout = logout;
+  /* =====================================================
+     GLOBAL FUNCTIONS
+  ===================================================== */
+
+  function exposeGlobals(){
+
+    window.goTrips =
+      ()=>go("trips");
+
+    window.goMap =
+      ()=>go("map");
+
+    window.goHours =
+      ()=>go("hours");
+
+    window.goEarnings =
+      ()=>go("earnings");
+
+    window.goSummary =
+      ()=>go("summary");
+
+    window.goChat =
+      ()=>go("chat");
+
+    window.logout =
+      logout;
+
   }
 
-  function init() {
-    if (!ensureSession()) return;
+  /* =====================================================
+     GREETING
+  ===================================================== */
+
+  function updateGreeting(){
+
+    const timezone =
+      getTimezone();
+
+    const now =
+      new Date();
+
+    const hour =
+      Number(
+
+        new Intl.DateTimeFormat(
+          "en-US",
+          {
+            hour:"numeric",
+            hour12:false,
+            timeZone: timezone
+          }
+        ).format(now)
+
+      );
+
+    let greeting =
+      "Good Evening";
+
+    if(hour < 12){
+
+      greeting =
+        "Good Morning";
+
+    }
+
+    else if(hour < 18){
+
+      greeting =
+        "Good Afternoon";
+
+    }
+
+    const el =
+      $("greetingText");
+
+    if(el){
+
+      el.innerText =
+        greeting;
+
+    }
+
+  }
+
+  /* =====================================================
+     INIT
+  ===================================================== */
+
+  function init(){
+
+    if(
+      !ensureSession()
+    ) return;
 
     updateTime();
+
+    updateGreeting();
+
     loadDriverName();
+
     bindNavigation();
+
     exposeGlobals();
 
-    setInterval(updateTime, 1000);
+    setInterval(
+      updateTime,
+      1000
+    );
 
-    document.addEventListener("visibilitychange", function () {
-      if (!document.hidden) {
-        ensureSession();
+    setInterval(
+      updateGreeting,
+      60000
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      function(){
+
+        if(!document.hidden){
+
+          ensureSession();
+
+          updateTime();
+
+          updateGreeting();
+
+        }
+
       }
-    });
+    );
+
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  /* =====================================================
+     START
+  ===================================================== */
+
+  if(
+    document.readyState
+    === "loading"
+  ){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      init
+    );
+
   }
+
+  else{
+
+    init();
+
+  }
+
 })();
