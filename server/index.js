@@ -4314,9 +4314,21 @@ app.put("/api/trips/:id", async (req, res) => {
         ? parseStopCoords(req.body.stopCoords)
         : existing.stopCoords,
 
-      // PRICE
-      priceAmount: req.body.priceAmount ?? existing.priceAmount,
-      pricePerPassenger: req.body.pricePerPassenger ?? existing.pricePerPassenger,
+     // PRICE
+priceAmount:
+  req.body.priceAmount !== undefined
+    ? Number(req.body.priceAmount)
+    : Number(existing.priceAmount || 0),
+
+finalPrice:
+  req.body.finalPrice !== undefined
+    ? Number(req.body.finalPrice)
+    : Number(existing.finalPrice || 0),
+
+pricePerPassenger:
+  req.body.pricePerPassenger !== undefined
+    ? Number(req.body.pricePerPassenger)
+    : Number(existing.pricePerPassenger || 0),
 
       // ROUTE
       miles: req.body.miles ?? existing.miles,
