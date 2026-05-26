@@ -165,10 +165,12 @@ const tripId =
     return res.sendStatus(200);
   }
 
-  // 🔥 لو مدفوعة بالفعل
-  if (trip.status === "Paid") {
-    return res.sendStatus(200);
-  }
+if (
+  trip.status === "Paid" &&
+  trip.confirmationEmailSent === true
+){
+  return res.sendStatus(200);
+}
 
   // 🔥 توليد cancel token
   if (!trip.cancelToken) {
@@ -385,7 +387,9 @@ console.log(
       "EMAIL SENT SUCCESS:",
       info
     );
+trip.confirmationEmailSent = true;
 
+await trip.save();
   } else {
 
     console.log(
@@ -483,14 +487,6 @@ app.post(
         return res.status(404).json({
           message:"Trip not found"
         });
-
-      }
-
-      if(
-        trip.status !== "Paid"
-      ){
-
-        trip.status = "Paid";
 
       }
 
