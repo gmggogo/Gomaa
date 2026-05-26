@@ -379,7 +379,40 @@ setValue(
   "invoiceEmailInput",
   systemDesign.invoiceEmail
 );
+setValue(
+  "smtpHostInput",
+  systemDesign.smtpHost
+);
 
+setValue(
+  "smtpPortInput",
+  systemDesign.smtpPort
+);
+
+setValue(
+  "smtpUserInput",
+  systemDesign.smtpUser
+);
+
+setValue(
+  "smtpPassInput",
+  systemDesign.smtpPass
+);
+
+setValue(
+  "bookingEmailSubjectInput",
+  systemDesign.bookingEmailSubject
+);
+
+setValue(
+  "bookingEmailMessageInput",
+  systemDesign.bookingEmailMessage
+);
+
+setValue(
+  "cancelPolicyTextInput",
+  systemDesign.cancelPolicyText
+);
   /* IMAGES */
 
   setImage(
