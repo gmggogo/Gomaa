@@ -40,17 +40,17 @@ function createEmailTransporter(settings){
 
     secure:true,
 
-    auth:{
+auth:{
 
-      user:
-        settings?.smtpEmail ||
-        process.env.EMAIL_USER,
+  user:
+    settings?.smtpUser ||
+    process.env.EMAIL_USER,
 
-      pass:
-        settings?.smtpPassword ||
-        process.env.EMAIL_PASS
+  pass:
+    settings?.smtpPass ||
+    process.env.EMAIL_PASS
 
-    }
+}
 
   });
 
@@ -217,21 +217,17 @@ if (
     const settings =
       await SystemDesign.findOne({});
 
-    const companyEmail =
+const companyEmail =
 
-      settings?.companyEmail
+  settings?.smtpUser ||
 
-      ||
+  process.env.EMAIL_USER;
 
-      process.env.EMAIL_USER;
+const displayName =
 
-    const displayName =
+  settings?.companyName ||
 
-      settings?.companyDisplayName
-
-      ||
-
-      "Sunbeam Transportation";
+  "Sunbeam Transportation";
 
     const emailSubject =
 
