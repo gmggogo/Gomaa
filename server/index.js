@@ -6219,36 +6219,26 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-استبدل الـ Trip Reminder كله بده 🔥
-ده متظبط بالكامل مع:
-
-* SYSTEM_TIMEZONE
-* getSystemNow()
-* transporter
-* dynamic timezone
-* منع التكرار
-* منع فوات الريمايندر
-* support للساعة الديناميكية
-
 /* =========================
    TRIP REMINDER
 ========================= */
+
 setInterval(async () => {
+
   try {
-    /* =========================
-       SYSTEM TIME
-    ========================= */
+
     const now =
       getSystemNow();
-    /* =========================
-       GET TRIPS
-    ========================= */
+
     const trips =
       await Trip.find({
+
         reminderSent:false,
+
         clientEmail:{
           $ne:""
         },
+
         status:{
           $nin:[
             "Cancelled",
@@ -6256,72 +6246,159 @@ setInterval(async () => {
             "No Show"
           ]
         }
+
       });
+
     for(const trip of trips){
+
       try{
+
         if(
           !trip.tripDate ||
           !trip.tripTime
         ){
           continue;
         }
-        /* =========================
-           PARSE TRIP TIME
-        ========================= */
+
         const tripDateTime =
           parseTripDateTime(
             trip.tripDate,
             trip.tripTime
           );
-        if(
-          !tripDateTime
-        ){
+
+        if(!tripDateTime){
           continue;
         }
-        /* =========================
-           DIFF
-        ========================= */
+
         const diffMinutes =
+
           (
             tripDateTime.getTime() -
             now.getTime()
           ) / 60000;
-        console.log(
-          "⏰ REMINDER CHECK:",
-          trip.tripNumber,
-          diffMinutes
-        );
-        /* =========================
-           SEND WINDOW
-        ========================= */
+
         if(
           diffMinutes <= 120 &&
           diffMinutes > 0
         ){
-          /* =========================
-             LOCK
-          ========================= */
+
           const locked =
             await Trip.findOneAndUpdate(
+
               {
                 _id:trip._id,
                 reminderSent:false
               },
+
               {
                 reminderSent:true
               },
+
               {
                 new:true
               }
+
             );
+
           if(!locked){
             continue;
           }
-          console.log(
-            "🔥 SENDING REMINDER:",
-            trip.tripNumber
-          );
-          /* =========================
+
+          const settings =
+            await SystemDesign.findOne({});
+
+          const transporter =
+            createEmailTransporter(
+              settings
+            );
+
+          const companyName =
+
+            settings?.companyName ||
+
+            "Sunbeam Transportation";
+
+          const companyEmail =
+
+            settings?.smtpUser ||
+
+            process.env.EMAIL_USER;
+
+          await transporter.sendMail({
+
+            from:
+            `"${companyName}" <${companyEmail}>`,
+
+            to:
+            trip.clientEmail,
+
+            subject:
+            "Trip Reminder",
+
+            html:`
+
+              <h2>
+                Trip Reminder
+              </h2>
+
+              <p>
+                Your trip is in less than 2 hours.
+              </p>
+
+              <hr/>
+
+              <p>
+                <b>Trip #:</b>
+                ${trip.tripNumber}
+              </p>
+
+              <p>
+                <b>Pickup:</b>
+                ${trip.pickup}
+              </p>
+
+              <p>
+                <b>Dropoff:</b>
+                ${trip.dropoff}
+              </p>
+
+              <p>
+                <b>Date:</b>
+                ${trip.tripDate}
+              </p>
+
+              <p>
+                <b>Time:</b>
+                ${trip.tripTime}
+              </p>
+
+            `
+
+          });
+
+        }
+
+      }catch(innerErr){
+
+        console.log(
+          innerErr.message
+        );
+
+      }
+
+    }
+
+  }catch(err){
+
+    console.log(
+      err.message
+    );
+
+  }
+
+}, 60000);         
+
+ /* =========================
              SETTINGS
           ========================= */
           const settings =
