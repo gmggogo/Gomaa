@@ -5869,9 +5869,10 @@ if(diffMinutes > cancelLimit){
   }
 if(cancelDisabled){
 
-  serviceFee = 0;
+  fee = 0;
 
-}
+}else{
+
   fee = Number(
 
     serviceFee ||
@@ -5880,10 +5881,11 @@ if(cancelDisabled){
 
     trip.finalPrice ||
 
-0
+    0
 
   );
 
+}
   refundAmount =
     totalAmount - fee;
 
