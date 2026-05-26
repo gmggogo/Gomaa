@@ -5804,11 +5804,6 @@ if(cancelDisabled){
    DYNAMIC WARNING MINUTES
 ========================= */
 
-const tripType =
-  String(trip.type || "")
-    .toLowerCase()
-    .trim();
-
 const isCompanyTrip =
 
   trip.company ||
