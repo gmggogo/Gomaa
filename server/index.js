@@ -21,15 +21,40 @@ const app = express();
 const SystemDesign =
 require("./models/SystemDesign");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.zoho.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+/* =========================
+   EMAIL TRANSPORTER ENGINE
+========================= */
+
+function createEmailTransporter(settings){
+
+  return nodemailer.createTransport({
+
+    host:
+      settings?.smtpHost ||
+      "smtp.zoho.com",
+
+    port:
+      Number(
+        settings?.smtpPort || 465
+      ),
+
+    secure:true,
+
+    auth:{
+
+      user:
+        settings?.smtpEmail ||
+        process.env.EMAIL_USER,
+
+      pass:
+        settings?.smtpPassword ||
+        process.env.EMAIL_PASS
+
+    }
+
+  });
+
+}
 
 /* =========================
    ENV
@@ -238,7 +263,12 @@ if (
 
     if (trip.clientEmail) {
 
-      await transporter.sendMail({
+      const transporter =
+  createEmailTransporter(
+    settings
+  );
+
+await transporter.sendMail({
 
         from:
         `"${displayName}" <${companyEmail}>`,

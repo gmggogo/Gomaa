@@ -20,8 +20,26 @@ timezone:"America/Phoenix",
 
 invoiceEmail:"billing@sunbeamtransportation.com",
 
-mainLogo:"/assets/logo.png",
+smtpHost:"smtp.zoho.com",
 
+smtpPort:"465",
+
+smtpSecure:true,
+
+smtpUser:"",
+
+smtpPass:"",
+
+bookingEmailSubject:
+"Booking Confirmation",
+
+bookingEmailMessage:
+"Your trip is confirmed.",
+
+cancelPolicyText:
+"Free cancellation up to 2 hours before trip time.",
+
+mainLogo:"/assets/logo.png",
   driverLogo:"/assets/logo.png",
 
   heroImage:"/assets/hero.jpeg",
@@ -972,6 +990,41 @@ async function(){
 systemDesign.invoiceEmail =
 document.getElementById(
   "invoiceEmailInput"
+)?.value || "";
+
+systemDesign.smtpHost =
+document.getElementById(
+  "smtpHostInput"
+)?.value || "";
+
+systemDesign.smtpPort =
+document.getElementById(
+  "smtpPortInput"
+)?.value || "";
+
+systemDesign.smtpUser =
+document.getElementById(
+  "smtpUserInput"
+)?.value || "";
+
+systemDesign.smtpPass =
+document.getElementById(
+  "smtpPassInput"
+)?.value || "";
+
+systemDesign.bookingEmailSubject =
+document.getElementById(
+  "bookingEmailSubjectInput"
+)?.value || "";
+
+systemDesign.bookingEmailMessage =
+document.getElementById(
+  "bookingEmailMessageInput"
+)?.value || "";
+
+systemDesign.cancelPolicyText =
+document.getElementById(
+  "cancelPolicyTextInput"
 )?.value || "";
 
   /* BODY */
