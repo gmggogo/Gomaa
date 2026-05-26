@@ -239,7 +239,15 @@ try {
   console.log(
     "SETTINGS LOADED"
   );
+console.log(
+  "SMTP USER:",
+  settings?.smtpUser
+);
 
+console.log(
+  "SMTP PASS:",
+  settings?.smtpPass
+);
   const companyEmail =
 
     settings?.smtpUser ||
