@@ -23,6 +23,9 @@ const app = express();
 const SystemDesign =
 require("./models/SystemDesign");
 
+const Service =
+require("./models/Service");
+
 /* =========================
    EMAIL TRANSPORTER ENGINE
 ========================= */
