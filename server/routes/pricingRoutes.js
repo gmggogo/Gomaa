@@ -153,12 +153,37 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
-    return res.json({
-      success:true,
-      pricingMode,
-      total:Number(total.toFixed(2)),
-      service
-    });
+  return res.json({
+
+  success:true,
+
+  pricingMode,
+
+  total:Number(
+    total.toFixed(2)
+  ),
+
+  disableCancel:
+
+  Boolean(
+    service.disableCancel
+  ),
+
+  cancelFee:
+
+  Number(
+    service.cancelFee || 0
+  ),
+
+  warningMinutes:
+
+  Number(
+    service.warningMinutes || 0
+  ),
+
+  service
+
+});
 
   }catch(err){
 

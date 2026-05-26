@@ -1090,21 +1090,24 @@ SAVE WARNING POLICY
 window.selectedWarningPolicy = {
 
   warningMinutes:
-
   Number(
     pricingData.service?.warningMinutes || 0
   ),
 
   cancelFee:
-
   Number(
     pricingData.service?.cancelFee || 0
   ),
 
   noShowFee:
-
   Number(
     pricingData.service?.noShowFee || 0
+  ),
+
+  disableCancel:
+
+  Boolean(
+    pricingData.disableCancel
   )
 
 };
@@ -1279,13 +1282,19 @@ const tripData = {
     ?.cancelFee || 0
   ),
 
-  noShowFee:
+noShowFee:
 
-  Number(
-    window.selectedWarningPolicy
-    ?.noShowFee || 0
-  )
+Number(
+  window.selectedWarningPolicy
+  ?.noShowFee || 0
+),
 
+disableCancel:
+
+Boolean(
+  window.selectedWarningPolicy
+  ?.disableCancel
+)
 };
 
 /* =========================
