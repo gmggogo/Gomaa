@@ -140,13 +140,17 @@ if (
   const paymentIntent =
     stripeObject;
 
-  const tripId =
+const tripId =
 
-    stripeObject.metadata?.tripId
+  paymentIntent.metadata?.tripId
 
-    ||
+  ||
 
-    stripeObject.client_reference_id;
+  stripeObject.metadata?.tripId
+
+  ||
+
+  stripeObject.client_reference_id;
 
   if (!tripId) {
     return res.sendStatus(200);
