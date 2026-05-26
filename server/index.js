@@ -6219,7 +6219,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-اfunction getSystemNow(){
+function getSystemNow(){
 
   const timezone =
     process.env.SYSTEM_TIMEZONE ||
