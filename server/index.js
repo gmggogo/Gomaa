@@ -208,63 +208,90 @@ if (
 
   await trip.save();
 
-  /* =========================
-     SEND EMAIL
-  ========================= */
+ /* =========================
+   SEND EMAIL
+========================= */
 
-  try {
+try {
 
-    const settings =
-      await SystemDesign.findOne({});
-
-const companyEmail =
-
-  settings?.smtpUser ||
-
-  process.env.EMAIL_USER;
-
-const displayName =
-
-  settings?.companyName ||
-
-  "Sunbeam Transportation";
-
-    const emailSubject =
-
-      settings?.bookingEmailSubject
-
-      ||
-
-      "Booking Confirmation";
-
-    const emailMessage =
-
-      settings?.bookingEmailMessage
-
-      ||
-
-      "Your trip is confirmed.";
-
-    const cancelPolicy =
-
-      settings?.cancelPolicyText
-
-      ||
-
-      "Free cancellation up to 2 hours before trip time.";
-
-    const cancelLink =
-
-      `${process.env.BASE_URL}/booking/cancel.html?token=${trip.cancelToken}`;
-
-    if (trip.clientEmail) {
-
-      const transporter =
-  createEmailTransporter(
-    settings
+  console.log(
+    "START EMAIL ENGINE"
   );
 
-await transporter.sendMail({
+  const settings =
+    await SystemDesign.findOne({});
+
+  console.log(
+    "SETTINGS LOADED"
+  );
+
+  const companyEmail =
+
+    settings?.smtpUser ||
+
+    process.env.EMAIL_USER;
+
+  const displayName =
+
+    settings?.companyName ||
+
+    "Sunbeam Transportation";
+
+  console.log(
+    "CLIENT EMAIL:",
+    trip.clientEmail
+  );
+
+  console.log(
+    "SMTP EMAIL:",
+    companyEmail
+  );
+
+  const emailSubject =
+
+    settings?.bookingEmailSubject
+
+    ||
+
+    "Booking Confirmation";
+
+  const emailMessage =
+
+    settings?.bookingEmailMessage
+
+    ||
+
+    "Your trip is confirmed.";
+
+  const cancelPolicy =
+
+    settings?.cancelPolicyText
+
+    ||
+
+    "Free cancellation up to 2 hours before trip time.";
+
+  const cancelLink =
+
+    `${process.env.BASE_URL}/booking/cancel.html?token=${trip.cancelToken}`;
+
+  if (trip.clientEmail) {
+
+    console.log(
+      "CREATING TRANSPORTER"
+    );
+
+    const transporter =
+      createEmailTransporter(
+        settings
+      );
+
+    console.log(
+      "SENDING EMAIL NOW"
+    );
+
+    const info =
+      await transporter.sendMail({
 
         from:
         `"${displayName}" <${companyEmail}>`,
@@ -278,7 +305,7 @@ await transporter.sendMail({
         html:`
 
         <h2>
-          Payment Successful ✅
+          Payment Successful
         </h2>
 
         <p>
@@ -319,48 +346,39 @@ await transporter.sendMail({
 
         <hr/>
 
-        <p style="color:red;">
+        <p>
           ${cancelPolicy}
         </p>
 
-        <a href="${cancelLink}" style="
-          display:inline-block;
-          padding:14px 22px;
-          background:#dc2626;
-          color:#fff;
-          text-decoration:none;
-          border-radius:10px;
-          font-weight:bold;
-        ">
+        <a href="${cancelLink}">
           Cancel Trip
         </a>
-
-        <hr/>
-
-        <p>
-          Thank you for choosing
-          ${displayName} 🚗
-        </p>
 
         `
 
       });
 
-      console.log(
-        "📧 EMAIL SENT:",
-        trip.clientEmail
-      );
+    console.log(
+      "EMAIL SENT SUCCESS:",
+      info
+    );
 
-    }
-
-  } catch(emailErr) {
+  } else {
 
     console.log(
-      "EMAIL ERROR:",
-      emailErr.message
+      "NO CLIENT EMAIL FOUND"
     );
 
   }
+
+} catch(emailErr) {
+
+  console.log(
+    "EMAIL ERROR FULL:",
+    emailErr
+  );
+
+}
 
   console.log(
     "✅ Trip Paid:",
