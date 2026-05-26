@@ -5772,7 +5772,26 @@ app.post("/api/cancel-trip", async (req, res) => {
 const service =
   await getServiceByTrip(trip);
 
-  if(service?.disableCancel === true){
+  const tripType =
+  String(trip.type || "")
+    .toLowerCase()
+    .trim();
+
+const cancelDisabled =
+
+  trip.company ||
+
+  tripType.includes("company")
+
+  ||
+
+  tripType.includes("facility")
+
+    ? service?.companyDisableCancel === true
+
+    : service?.disableCancel === true;
+
+if(cancelDisabled){
 
   return res.status(403).json({
     success:false,
@@ -6095,7 +6114,26 @@ app.post(
 
         });
 
-if(service?.disableCancel === true){
+const tripType =
+  String(trip.type || "")
+    .toLowerCase()
+    .trim();
+
+const cancelDisabled =
+
+  trip.company ||
+
+  tripType.includes("company")
+
+  ||
+
+  tripType.includes("facility")
+
+    ? service?.companyDisableCancel === true
+
+    : service?.disableCancel === true;
+
+if(cancelDisabled){
 
   return res.status(403).json({
     success:false,

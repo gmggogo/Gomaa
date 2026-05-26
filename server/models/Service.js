@@ -94,6 +94,10 @@ const serviceSchema = new mongoose.Schema({
     type:Number,
     default:15
   },
+disableCancel:{
+  type:Boolean,
+  default:false
+},
 
   /* =========================
      COMPANY SETTINGS
@@ -181,6 +185,10 @@ const serviceSchema = new mongoose.Schema({
     type:Number,
     default:15
   }
+companyDisableCancel:{
+  type:Boolean,
+  default:false
+},
 
 },{
   timestamps:true
