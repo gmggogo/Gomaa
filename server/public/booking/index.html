@@ -222,7 +222,7 @@ applyLang();
 /* ================= LOAD ================= */
 
 const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
-
+console.log(tripData);
 if(!tripData){
   alert("Session expired");
   location.href="/getquote/index.html";
