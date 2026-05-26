@@ -347,9 +347,15 @@ Number(
 
 const disableCancel =
 
-  Boolean(
-    tripData.disableCancel
-  );
+Boolean(
+  tripData.disableCancel
+);
+
+const warningEnabled =
+
+Boolean(
+  tripData.warningEnabled
+);
 
 const mins =
 minutesUntilTrip(
@@ -358,6 +364,8 @@ minutesUntilTrip(
 );
 
 if(
+
+  warningEnabled === true &&
 
   disableCancel !== true &&
 
