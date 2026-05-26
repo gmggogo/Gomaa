@@ -206,8 +206,17 @@ const tripId =
      SAVE DATA
   ========================= */
 
-  trip.paymentIntentId =
-    paymentIntent.id;
+trip.paymentIntentId =
+
+paymentIntent.id ||
+
+paymentIntent.payment_intent ||
+
+"";
+
+console.log(
+  "START EMAIL ENGINE"
+);
 
   trip.dispatchSelected =
     true;
