@@ -6210,11 +6210,11 @@ if(cancelDisabled){
 
         }
 
-        /* =========================
-           APPLY CANCEL FEE
-        ========================= */
+    /* =========================
+   APPLY CANCEL FEE
+========================= */
 
-  if(
+if(
   cancelDisabled === true
 ){
 
@@ -6222,7 +6222,7 @@ if(cancelDisabled){
 
 }
 
-else if (
+else if(
 
   diffMinutes <=
   warningMinutes
@@ -6231,6 +6231,12 @@ else if (
 
   fee =
     Number(cancelFee);
+
+}
+
+else{
+
+  fee = 0;
 
 }
 
