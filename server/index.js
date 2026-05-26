@@ -6219,6 +6219,61 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+اfunction getSystemNow(){
+
+  const timezone =
+    process.env.SYSTEM_TIMEZONE ||
+    "America/Phoenix";
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone: timezone
+      }
+    )
+  );
+
+}
+
+function parseTripDateTime(
+  tripDate,
+  tripTime
+){
+
+  if(
+    !tripDate ||
+    !tripTime
+  ){
+    return null;
+  }
+
+  const timezone =
+    process.env.SYSTEM_TIMEZONE ||
+    "America/Phoenix";
+
+  const date =
+    new Date(
+      `${tripDate}T${tripTime}:00`
+    );
+
+  if(
+    isNaN(date.getTime())
+  ){
+    return null;
+  }
+
+  return new Date(
+    date.toLocaleString(
+      "en-US",
+      {
+        timeZone: timezone
+      }
+    )
+  );
+
+}
+
 /* =========================
    TRIP REMINDER
 ========================= */
