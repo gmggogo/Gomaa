@@ -391,6 +391,54 @@ new mongoose.Schema({
     type:String,
     default:"space-between"
   },
+/* =========================
+EMAIL SETTINGS
+========================= */
+
+invoiceEmail:{
+  type:String,
+  default:"billing@sunbeamtransportation.com"
+},
+
+smtpHost:{
+  type:String,
+  default:"smtp.zoho.com"
+},
+
+smtpPort:{
+  type:String,
+  default:"465"
+},
+
+smtpSecure:{
+  type:Boolean,
+  default:true
+},
+
+smtpUser:{
+  type:String,
+  default:""
+},
+
+smtpPass:{
+  type:String,
+  default:""
+},
+
+bookingEmailSubject:{
+  type:String,
+  default:"Booking Confirmation"
+},
+
+bookingEmailMessage:{
+  type:String,
+  default:"Your trip is confirmed."
+},
+
+cancelPolicyText:{
+  type:String,
+  default:"Free cancellation up to 2 hours before trip time."
+},
 
   /* =========================
   SERVICES
