@@ -6084,161 +6084,150 @@ app.post(
 
       let fee = 0;
 
-      /* =========================
-         GET SERVICE
-      ========================= */
+    /* =========================
+   GET SERVICE
+========================= */
 
-      const service =
-        await Service.findOne({
+const service =
+  await Service.findOne({
 
-          $or:[
+    $or:[
 
-            {
-              serviceKey:
-              trip.serviceCode
-            },
+      {
+        serviceKey:
+        trip.serviceCode
+      },
 
-            {
-              companySuffix:
-              trip.serviceCode
-            },
+      {
+        companySuffix:
+        trip.serviceCode
+      },
 
-            {
-              code:
-              trip.serviceCode
-            }
+      {
+        code:
+        trip.serviceCode
+      }
 
-          ]
+    ]
 
-        });
+  });
 
 const isCompanyTrip =
   !!trip.company;
 
 const cancelDisabled =
+
   isCompanyTrip
-    ? service?.companyDisableCancel === true
-    : service?.disableCancel === true;
-if(cancelDisabled){
 
-  return res.status(403).json({
-    success:false,
-    message:"Cancellation disabled"
-  });
+  ? service?.companyDisableCancel === true
 
-}
+  : service?.disableCancel === true;
 
-      /* =========================
-         WARNING MINUTES
-      ========================= */
-
-      const warningMinutes =
-        Number(
-
-          service?.companyWarningMinutes ??
-
-          service?.warningMinutes ??
-
-          120
-
-        );
-
-      /* =========================
-         CANCEL FEE
-      ========================= */
-
-      const cancelFee =
-        Number(
-
-          service?.companyCancelFee ??
-
-          service?.cancelFee ??
-
-          trip.cancelFee ??
-
-          0
-
-        );
-
-      /* =========================
-         TRIP TIME
-      ========================= */
-
-      if (
-        trip.tripDate &&
-        trip.tripTime
-      ) {
-
-        const tripTime =
-          new Date(
-            `${trip.tripDate}T${trip.tripTime}:00`
-          );
-
-        if (
-          isNaN(
-            tripTime.getTime()
-          )
-        ) {
-
-          return res.status(400).json({
-            message:
-            "Invalid trip time"
-          });
-
-        }
-
-        const diffMinutes =
-
-          (tripTime - now) / 60000;
-
-        /* =========================
-           EXPIRED
-        ========================= */
-
-        if (diffMinutes <= 0) {
-
-          return res.json({
-
-            success: false,
-
-            expired: true,
-
-            message:
-            "Trip already started or expired"
-
-          });
-
-        }
-
-    /* =========================
-   APPLY CANCEL FEE
+/* =========================
+   WARNING MINUTES
 ========================= */
 
-if(
-  cancelDisabled === true
-){
+const warningMinutes =
+  Number(
 
-  fee = 0;
+    service?.companyWarningMinutes ??
 
-}
+    service?.warningMinutes ??
 
-else if(
+    120
 
-  diffMinutes <=
-  warningMinutes
+  );
 
-){
+/* =========================
+   CANCEL FEE
+========================= */
 
-  fee =
-    Number(cancelFee);
+const cancelFee =
+  Number(
 
-}
+    service?.companyCancelFee ??
 
-else{
+    service?.cancelFee ??
 
-  fee = 0;
+    trip.cancelFee ??
 
-}
+    0
+
+  );
+
+/* =========================
+   TRIP TIME
+========================= */
+
+if (
+  trip.tripDate &&
+  trip.tripTime
+) {
+
+  const tripTime =
+    new Date(
+      `${trip.tripDate}T${trip.tripTime}:00`
+    );
+
+  if (
+    isNaN(
+      tripTime.getTime()
+    )
+  ) {
+
+    return res.status(400).json({
+      message:
+      "Invalid trip time"
+    });
+
+  }
+
+  const diffMinutes =
+
+    (tripTime - now) / 60000;
+
+  /* =========================
+     EXPIRED
+  ========================= */
+
+  if (diffMinutes <= 0) {
+
+    return res.json({
+
+      success: false,
+
+      expired: true,
+
+      message:
+      "Trip already started or expired"
+
+    });
+
+  }
+
+  /* =========================
+     APPLY CANCEL FEE
+  ========================= */
+
+  if(
+
+    cancelDisabled !== true &&
+
+    diffMinutes <=
+    warningMinutes
+
+  ){
+
+    fee =
+      Number(cancelFee);
+
+  }
+
+  else{
+
+    fee = 0;
+
+  }
 
 }
 
