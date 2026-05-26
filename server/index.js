@@ -5771,7 +5771,16 @@ app.post("/api/cancel-trip", async (req, res) => {
 
 const service =
   await getServiceByTrip(trip);
-  
+
+  if(service?.disableCancel === true){
+
+  return res.status(403).json({
+    success:false,
+    message:"Cancellation disabled"
+  });
+
+}
+
 /* =========================
    DYNAMIC WARNING MINUTES
 ========================= */
@@ -6085,6 +6094,15 @@ app.post(
           ]
 
         });
+
+if(service?.disableCancel === true){
+
+  return res.status(403).json({
+    success:false,
+    message:"Cancellation disabled"
+  });
+
+}
 
       /* =========================
          WARNING MINUTES
