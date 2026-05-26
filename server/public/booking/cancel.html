@@ -1,184 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>Cancel Trip – Sunbeam</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
+
+<title>
+Cancel Trip
+</title>
+
+<script src="/core/branding.js"></script>
 
 <style>
+
+*{
+  box-sizing:border-box;
+}
+
 body{
-  font-family:Arial;
-  background:#f8fafc;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  height:100vh;
+
   margin:0;
+
+  min-height:100vh;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  padding:20px;
+
+  font-family:
+  'Segoe UI',
+  Arial,
+  sans-serif;
+
+  background:
+  linear-gradient(
+    135deg,
+    #0f172a,
+    #145cff
+  );
+
+  color:#fff;
+
 }
 
 .box{
-  background:#fff;
-  padding:30px;
-  border-radius:16px;
+
   width:100%;
-  max-width:400px;
+
+  max-width:450px;
+
+  background:#ffffff;
+
+  color:#0f172a;
+
+  border-radius:28px;
+
+  padding:35px 28px;
+
   text-align:center;
-  box-shadow:0 10px 25px rgba(0,0,0,.1);
+
+  box-shadow:
+  0 20px 50px rgba(0,0,0,.25);
+
 }
 
-h2{margin-bottom:10px}
+.logo{
+
+  width:120px;
+
+  height:120px;
+
+  object-fit:contain;
+
+  margin:auto auto 20px;
+
+  display:block;
+
+}
+
+h2{
+
+  margin:0 0 14px;
+
+  font-size:30px;
+
+  font-weight:900;
+
+}
+
+.company-name{
+
+  font-size:16px;
+
+  color:#475569;
+
+  margin-bottom:20px;
+
+}
 
 .msg{
-  margin:15px 0;
+
+  margin:20px 0;
+
   font-size:15px;
+
+  line-height:1.7;
+
+  font-weight:600;
+
+}
+
+.trip-box{
+
+  background:#f8fafc;
+
+  border:1px solid #dbeafe;
+
+  border-radius:20px;
+
+  padding:18px;
+
+  margin-top:20px;
+
+  text-align:left;
+
+  display:none;
+
+}
+
+.trip-item{
+
+  margin-bottom:12px;
+
+  font-size:14px;
+
   line-height:1.5;
+
+}
+
+.trip-item b{
+
+  color:#145cff;
+
 }
 
 button{
+
   width:100%;
-  padding:14px;
-  margin-top:10px;
+
+  padding:16px;
+
   border:none;
-  border-radius:10px;
+
+  border-radius:18px;
+
   font-size:15px;
+
+  font-weight:900;
+
   cursor:pointer;
-  font-weight:bold;
+
+  transition:.2s;
+
+}
+
+button:hover{
+  transform:translateY(-2px);
 }
 
 .confirm{
+
   background:#dc2626;
+
   color:#fff;
+
+  margin-top:20px;
+
 }
 
 .cancel{
-  background:#e5e7eb;
+
+  background:#e2e8f0;
+
+  color:#0f172a;
+
+  margin-top:12px;
+
 }
 
-.success{color:#16a34a}
-.error{color:#dc2626}
-.warning{color:#d97706}
+.success{
+  color:#16a34a;
+}
+
+.error{
+  color:#dc2626;
+}
+
+.warning{
+  color:#d97706;
+}
+
+.loading{
+  color:#145cff;
+}
+
+.hidden{
+  display:none;
+}
+
 </style>
+
 </head>
 
 <body>
 
 <div class="box">
 
-<h2>Cancel Trip</h2>
+  <img
+    id="companyLogo"
+    class="logo"
+    src="/assets/logo.png"
+  >
 
-<div id="msg" class="msg">Checking your trip...</div>
+  <h2 id="cancelTitle">
+    Cancel Trip
+  </h2>
 
-<div id="actions" style="display:none">
-  <button class="confirm" onclick="confirmCancel()">Confirm Cancellation</button>
-  <button class="cancel" onclick="goBack()">Go Back</button>
-</div>
+  <div
+    id="companyName"
+    class="company-name"
+  >
+    Transportation Service
+  </div>
+
+  <div
+    id="msg"
+    class="msg"
+  >
+    Loading your trip...
+  </div>
+
+  <div
+    id="tripBox"
+    class="trip-box"
+  >
+
+    <div class="trip-item">
+      <b>Trip Number:</b>
+      <span id="tripNumber"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Pickup:</b>
+      <span id="pickupText"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Dropoff:</b>
+      <span id="dropoffText"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Date:</b>
+      <span id="tripDate"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Time:</b>
+      <span id="tripTime"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Amount:</b>
+      $<span id="tripAmount"></span>
+    </div>
+
+  </div>
+
+  <div
+    id="actions"
+    class="hidden"
+  >
+
+    <button
+      class="confirm"
+      onclick="confirmCancel()"
+    >
+      Confirm Cancellation
+    </button>
+
+    <button
+      class="cancel"
+      onclick="goBack()"
+    >
+      Go Back
+    </button>
+
+  </div>
 
 </div>
 
 <script>
 
-const params = new URLSearchParams(window.location.search);
-const token = params.get("token");
+const params =
+new URLSearchParams(
+  window.location.search
+);
 
-let lateCancel = false;
+const token =
+params.get("token");
 
-// =======================
-// CHECK TRIP STATUS
-// =======================
-async function checkTrip(){
+let currentTrip = null;
 
-  if(!token){
-    showError("Invalid cancellation link.");
-    return;
+/* =========================
+   BRANDING
+========================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    try{
+
+      if(window.Branding){
+
+        await Branding.load();
+
+        const companyName =
+        Branding.getCompanyName();
+
+        document.title =
+        `Cancel Trip – ${companyName}`;
+
+        document.getElementById(
+          "cancelTitle"
+        ).innerText =
+        "Cancel Trip";
+
+        document.getElementById(
+          "companyName"
+        ).innerText =
+        companyName;
+
+        const logo =
+        localStorage.getItem(
+          "appLogo"
+        );
+
+        if(logo){
+
+          document.getElementById(
+            "companyLogo"
+          ).src = logo;
+
+        }
+
+      }
+
+    }catch(err){
+
+      console.log(err);
+
+    }
+
   }
+);
 
-  try{
+/* =========================
+   HELPERS
+========================= */
 
-    const res = await fetch("/api/cancel-trip-check",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({token})
-    });
-
-    const data = await res.json();
-
-    if(!res.ok){
-      showError(data.message || "Error loading trip.");
-      return;
-    }
-
-    if(data.alreadyCancelled){
-      showSuccess("This trip has already been cancelled.");
-      return;
-    }
-
-    if(data.fee === 15){
-      lateCancel = true;
-      showWarning("You are cancelling within 2 hours. A $15 fee will apply.");
-    }else{
-      showSuccess("You will receive a full refund.");
-    }
-
-    document.getElementById("actions").style.display = "block";
-
-  }catch{
-    showError("Server error.");
-  }
-}
-
-// =======================
-// CONFIRM CANCEL
-// =======================
-async function confirmCancel(){
-
-  try{
-
-    const res = await fetch("/api/cancel-trip",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({token})
-    });
-
-    const data = await res.json();
-
-    if(!res.ok){
-      showError(data.message || "Cancel failed.");
-      return;
-    }
-
-    if(data.fee === 0){
-      showSuccess("Trip cancelled successfully. Full refund issued.");
-    }else{
-      showWarning("Trip cancelled. $15 fee applied.");
-    }
-
-    document.getElementById("actions").style.display = "none";
-
-  }catch{
-    showError("Server error.");
-  }
-}
-
-// =======================
-// UI HELPERS
-// =======================
 function showSuccess(text){
-  document.getElementById("msg").innerHTML = `<span class="success">${text}</span>`;
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="success">${text}</span>`;
+
 }
 
 function showError(text){
-  document.getElementById("msg").innerHTML = `<span class="error">${text}</span>`;
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="error">${text}</span>`;
+
 }
 
 function showWarning(text){
-  document.getElementById("msg").innerHTML = `<span class="warning">${text}</span>`;
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="warning">${text}</span>`;
+
+}
+
+function showLoading(text){
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="loading">${text}</span>`;
+
 }
 
 function goBack(){
   window.history.back();
 }
 
-// =======================
+/* =========================
+   LOAD TRIP
+========================= */
+
+async function checkTrip(){
+
+  if(!token){
+
+    showError(
+      "Invalid cancellation link."
+    );
+
+    return;
+
+  }
+
+  try{
+
+    showLoading(
+      "Checking your trip..."
+    );
+
+    const res =
+    await fetch(
+      "/api/cancel-trip-check",
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
+
+        body:JSON.stringify({
+          token
+        })
+
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!res.ok){
+
+      showError(
+        data.message ||
+        "Unable to load trip."
+      );
+
+      return;
+
+    }
+
+    if(data.alreadyCancelled){
+
+      showWarning(
+        "This trip has already been cancelled."
+      );
+
+      return;
+
+    }
+
+    currentTrip =
+    data.trip || null;
+
+    if(currentTrip){
+
+      document.getElementById(
+        "tripBox"
+      ).style.display =
+      "block";
+
+      document.getElementById(
+        "tripNumber"
+      ).innerText =
+      currentTrip.tripNumber || "";
+
+      document.getElementById(
+        "pickupText"
+      ).innerText =
+      currentTrip.pickup || "";
+
+      document.getElementById(
+        "dropoffText"
+      ).innerText =
+      currentTrip.dropoff || "";
+
+      document.getElementById(
+        "tripDate"
+      ).innerText =
+      currentTrip.tripDate || "";
+
+      document.getElementById(
+        "tripTime"
+      ).innerText =
+      currentTrip.tripTime || "";
+
+      document.getElementById(
+        "tripAmount"
+      ).innerText =
+      Number(
+        currentTrip.priceAmount || 0
+      ).toFixed(2);
+
+    }
+
+    if(Number(data.fee || 0) > 0){
+
+      showWarning(
+        `$${data.fee} cancellation fee will apply.`
+      );
+
+    }else{
+
+      showSuccess(
+        "You are eligible for a full refund."
+      );
+
+    }
+
+    document.getElementById(
+      "actions"
+    ).classList.remove(
+      "hidden"
+    );
+
+  }catch(err){
+
+    console.log(err);
+
+    showError(
+      "Server error."
+    );
+
+  }
+
+}
+
+/* =========================
+   CONFIRM CANCEL
+========================= */
+
+async function confirmCancel(){
+
+  try{
+
+    showLoading(
+      "Cancelling trip..."
+    );
+
+    const res =
+    await fetch(
+      "/api/cancel-trip",
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
+
+        body:JSON.stringify({
+          token
+        })
+
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!res.ok){
+
+      showError(
+        data.message ||
+        "Cancellation failed."
+      );
+
+      return;
+
+    }
+
+    if(Number(data.fee || 0) > 0){
+
+      showWarning(
+        `Trip cancelled successfully. $${data.fee} fee applied.`
+      );
+
+    }else{
+
+      showSuccess(
+        "Trip cancelled successfully. Full refund issued."
+      );
+
+    }
+
+    document.getElementById(
+      "actions"
+    ).classList.add(
+      "hidden"
+    );
+
+  }catch(err){
+
+    console.log(err);
+
+    showError(
+      "Server error."
+    );
+
+  }
+
+}
+
+/* =========================
+   START
+========================= */
+
 checkTrip();
 
 </script>
