@@ -308,8 +308,18 @@ router.get("/", async (req,res)=>{
 
   try{
 
+    const isCompany =
+      String(req.query.company || "")
+      .toLowerCase() === "true";
+
     const services =
-      await Service.find({})
+      await Service.find(
+
+        isCompany
+        ? { companyEnabled:true }
+        : { enabled:true }
+
+      )
       .sort({createdAt:1});
 
     return res.json(services);
