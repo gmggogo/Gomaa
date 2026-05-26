@@ -5793,10 +5793,7 @@ const cancelDisabled =
 
 if(cancelDisabled){
 
-  return res.status(403).json({
-    success:false,
-    message:"Cancellation disabled"
-  });
+  fee = 0;
 
 }
 
@@ -5870,7 +5867,11 @@ if(diffMinutes > cancelLimit){
     }
 
   }
+if(cancelDisabled){
 
+  serviceFee = 0;
+
+}
   fee = Number(
 
     serviceFee ||
