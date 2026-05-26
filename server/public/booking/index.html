@@ -331,7 +331,6 @@ Number(
 /* =========================
 DYNAMIC CANCEL FEE
 ========================= */
-
 const cancelFee =
 
 Number(
@@ -346,6 +345,12 @@ Number(
 
 ) || 0;
 
+const disableCancel =
+
+  Boolean(
+    tripData.disableCancel
+  );
+
 const mins =
 minutesUntilTrip(
   date,
@@ -354,10 +359,11 @@ minutesUntilTrip(
 
 if(
 
+  disableCancel !== true &&
+
   mins <= tripWarningMinutes
 
 ){
-
   let warningText = "";
 
   if(tripWarningMinutes < 60){
