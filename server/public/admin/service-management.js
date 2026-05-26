@@ -409,7 +409,32 @@ function renderServices(){
           >
 
         </div>
+<div class="field">
 
+  <label>Disable Cancel Fee</label>
+
+  <select
+    id="disablecancel-${service._id}"
+    disabled
+  >
+
+    <option
+      value="false"
+      ${!service.disableCancel ? "selected" : ""}
+    >
+      OFF
+    </option>
+
+    <option
+      value="true"
+      ${service.disableCancel ? "selected" : ""}
+    >
+      ON
+    </option>
+
+  </select>
+
+</div>
       </div>
 
       <div class="buttons">
@@ -924,8 +949,8 @@ function enableEdit(id){
 
     `warning-${id}`,
     `minutes-${id}`,
-    `cancel-${id}`
-
+`cancel-${id}`,
+`disablecancel-${id}`
   ];
 
   fields.forEach(fieldId=>{
@@ -1093,10 +1118,16 @@ async function saveService(id){
       ),
 
       cancelFee:Number(
-        document.getElementById(
-          `cancel-${id}`
-        ).value
-      )
+  document.getElementById(
+    `cancel-${id}`
+  ).value
+),
+
+disableCancel:
+
+document.getElementById(
+  `disablecancel-${id}`
+).value === "true"
 
     };
 
