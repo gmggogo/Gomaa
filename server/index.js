@@ -386,6 +386,94 @@ app.use(
 );
 
 /* =========================
+   PAYMENT SUCCESS
+========================= */
+
+app.post(
+  "/api/payment-success",
+  async (req, res) => {
+
+    try {
+
+      const {
+        tripId,
+        paymentIntentId
+      } = req.body;
+
+      if(!tripId){
+
+        return res.status(400).json({
+          message:"Missing tripId"
+        });
+
+      }
+
+      const trip =
+        await Trip.findById(tripId);
+
+      if(!trip){
+
+        return res.status(404).json({
+          message:"Trip not found"
+        });
+
+      }
+
+      if(
+        trip.status !== "Paid"
+      ){
+
+        trip.status = "Paid";
+
+      }
+
+      if(paymentIntentId){
+
+        trip.paymentIntentId =
+          paymentIntentId;
+
+      }
+
+      trip.dispatchSelected =
+        true;
+
+      if(!trip.cancelToken){
+
+        trip.cancelToken =
+          crypto
+          .randomBytes(32)
+          .toString("hex");
+
+      }
+
+      await trip.save();
+
+      console.log(
+        "✅ PAYMENT SUCCESS:",
+        trip.tripNumber
+      );
+
+      return res.json({
+        success:true
+      });
+
+    } catch(err){
+
+      console.log(
+        "PAYMENT SUCCESS ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:"Server error"
+      });
+
+    }
+
+  }
+);
+
+/* =========================
    PUBLIC CONFIG - GOOGLE KEY
 ========================= */
 app.get("/api/config", (req, res) => {
