@@ -6214,17 +6214,25 @@ if(cancelDisabled){
            APPLY CANCEL FEE
         ========================= */
 
-        if (
-          diffMinutes <=
-          warningMinutes
-        ) {
+  if(
+  cancelDisabled === true
+){
 
-          fee =
-            Number(cancelFee);
+  fee = 0;
 
-        }
+}
 
-      }
+else if (
+
+  diffMinutes <=
+  warningMinutes
+
+){
+
+  fee =
+    Number(cancelFee);
+
+}
 
       /* =========================
          RESPONSE
