@@ -181,10 +181,11 @@ disableCancel:{
     default:120
   },
 
-  companyCancelFee:{
-    type:Number,
-    default:15
-  }
+companyCancelFee:{
+  type:Number,
+  default:15
+},
+
 companyDisableCancel:{
   type:Boolean,
   default:false
