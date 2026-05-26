@@ -6109,25 +6109,13 @@ app.post(
 
         });
 
-const tripType =
-  String(trip.type || "")
-    .toLowerCase()
-    .trim();
+const isCompanyTrip =
+  !!trip.company;
 
 const cancelDisabled =
-
-  trip.company ||
-
-  tripType.includes("company")
-
-  ||
-
-  tripType.includes("facility")
-
+  isCompanyTrip
     ? service?.companyDisableCancel === true
-
     : service?.disableCancel === true;
-
 if(cancelDisabled){
 
   return res.status(403).json({
