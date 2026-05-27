@@ -5772,6 +5772,7 @@ app.post("/api/cancel-trip", async (req, res) => {
 ========================= */
 const service =
   await getServiceByTrip(trip);
+
 /* =========================
    TRIP TYPE
 ========================= */
@@ -5779,67 +5780,96 @@ const tripType =
   String(trip.type || "")
     .toLowerCase()
     .trim();
+
 /* =========================
    COMPANY CHECK
 ========================= */
 const isCompanyTrip =
-  trip.type === "company";
+
+  tripType.includes("company") ||
+
+  tripType.includes("facility");
+
 /* =========================
    CANCEL DISABLED
 ========================= */
 const cancelDisabled =
+
   isCompanyTrip
+
     ? service?.companyDisableCancel === true
+
     : service?.disableCancel === true;
+
 /* =========================
    WARNING MINUTES
 ========================= */
 const warningMinutes =
   Number(
+
     isCompanyTrip
+
       ? (
           service?.companyWarningMinutes ||
           service?.warningMinutes ||
           120
         )
+
       : (
           service?.warningMinutes ||
           120
         )
+
   );
+
 /* =========================
    CANCEL FEE
 ========================= */
 const cancelFee =
   Number(
+
     isCompanyTrip
+
       ? (
           service?.companyCancelFee ||
           service?.cancelFee ||
           0
         )
+
       : (
           service?.cancelFee ||
           0
         )
+
   );
 
 /* =========================
-   DISABLED CANCEL FEE
+   FREE CANCEL
 ========================= */
-if(cancelDisabled){
+
+if(diffMinutes > warningMinutes){
+
+  refundAmount =
+    totalAmount;
+
   fee = 0;
+
 }
 
-  /* =========================
-     APPLY SERVICE FEE
-  ========================= */
+/* =========================
+   APPLY CANCEL FEE
+========================= */
 
-  else{
+else{
 
-    fee = Number(
-      cancelFee || 0
-    );
+  if(cancelDisabled){
+
+    fee = 0;
+
+  }else{
+
+    fee =
+      Number(cancelFee || 0);
 
   }
 
@@ -5854,127 +5884,148 @@ if(cancelDisabled){
 
 }
 
-    /* =========================
-       REFUND ID
-    ========================== */
+/* =========================
+   REFUND ID
+========================= */
 
-    const simpleRefundId =
+const simpleRefundId =
 
-      "RF-" +
-      (trip.tripNumber || "0000");
+  "RF-" +
+  (trip.tripNumber || "0000");
 
-    /* =========================
-       SAVE BEFORE STRIPE
-    ========================== */
+/* =========================
+   SAVE BEFORE STRIPE
+========================= */
 
-    trip.status = "Cancelled";
+trip.status = "Cancelled";
 
-    trip.cancelDateTime =
-      new Date();
+trip.cancelDateTime =
+  new Date();
 
-    trip.cancelFee =
+trip.cancelFee =
   Number(fee || 0);
 
 trip.finalPrice =
   Number(fee || 0);
 
 trip.isFinalized = true;
-    trip.refundAmount =
-      refundAmount;
 
-    trip.simpleRefundId =
-      simpleRefundId;
+trip.refundAmount =
+  refundAmount;
 
-    trip.refundStatus =
+trip.simpleRefundId =
+  simpleRefundId;
 
-      refundAmount > 0
-      ? "processing"
-      : "none";
+trip.refundStatus =
 
-    await trip.save();
+  refundAmount > 0
+    ? "processing"
+    : "none";
 
-    /* =========================
-       STRIPE REFUND
-    ========================== */
+await trip.save();
 
-    let stripeRefundId = null;
+/* =========================
+   STRIPE REFUND
+========================= */
 
-    if(
+let stripeRefundId = null;
 
-      refundAmount > 0 &&
+if(
 
-      trip.paymentIntentId
+  refundAmount > 0 &&
 
-    ){
+  trip.paymentIntentId
 
-      try{
+){
 
-        const refund =
+  try{
 
-        await stripe.refunds.create({
+    const refund =
 
-          payment_intent:
+      await stripe.refunds.create({
+
+        payment_intent:
           trip.paymentIntentId,
 
-          amount:
+        amount:
           Math.round(
             refundAmount * 100
           )
 
-        });
+      });
 
-        stripeRefundId =
-          refund.id;
+    stripeRefundId =
+      refund.id;
 
-        trip.refundId =
-          refund.id;
+    trip.refundId =
+      refund.id;
 
-        trip.refundStatus =
-          "refunded";
+    trip.refundStatus =
+      "refunded";
 
-        await trip.save();
+    await trip.save();
 
-} catch(stripeErr){
-        console.log(
-          "STRIPE REFUND ERROR",
-          stripeErr
-        );
+  }catch(stripeErr){
 
-        trip.refundStatus =
-          "failed";
+    console.log(
+      "STRIPE REFUND ERROR",
+      stripeErr
+    );
 
-        await trip.save();
+    trip.refundStatus =
+      "failed";
 
-      }
+    await trip.save();
 
-    }
+  }
 
-   
-    // =========================
-    // RESPONSE
-    // =========================
-    res.json({
-      success: true,
-      refund: refundAmount,
-      fee: fee,
-      refundId: simpleRefundId,
-      refundStatus: trip.refundStatus
-    });
+}
 
-  } catch (err) {
-  console.log("🔥 CANCEL ERROR FULL:", err);
+/* =========================
+   RESPONSE
+========================= */
+
+res.json({
+
+  success:true,
+
+  refund:
+    refundAmount,
+
+  fee:
+    fee,
+
+  refundId:
+    simpleRefundId,
+
+  refundStatus:
+    trip.refundStatus
+
+});
+
+} catch (err) {
+
+  console.log(
+    "🔥 CANCEL ERROR FULL:",
+    err
+  );
 
   res.status(500).json({
-    message: err.message || "Server error",
-    error: err.toString()
+
+    message:
+      err.message || "Server error",
+
+    error:
+      err.toString()
+
   });
+
 }
 
 }); // 🔥🔥🔥 مهم جدًا
 
 /* =========================
    CHECK CANCEL TOKEN
-   FINAL DYNAMIC VERSION
 ========================= */
 
 app.post(
@@ -5984,13 +6035,15 @@ app.post(
     try {
 
       const token =
+
         req.body?.token ||
+
         req.query?.token;
 
       if (!token) {
 
         return res.status(400).json({
-          message: "Missing token"
+          message:"Missing token"
         });
 
       }
@@ -6001,13 +6054,13 @@ app.post(
 
       const trip =
         await Trip.findOne({
-          cancelToken: token
+          cancelToken:token
         });
 
       if (!trip) {
 
         return res.status(404).json({
-          message: "Trip not found"
+          message:"Trip not found"
         });
 
       }
@@ -6034,167 +6087,163 @@ app.post(
           new Date().toLocaleString(
             "en-US",
             {
-              timeZone: timezone
+              timeZone:timezone
             }
           )
         );
 
       let fee = 0;
 
-    /* =========================
-   GET SERVICE
-========================= */
+      /* =========================
+         LOAD SERVICE
+      ========================= */
 
-const service =
-  await getServiceByTrip(trip);
+      const service =
+        await getServiceByTrip(trip);
 
-    $or:[
+      const tripType =
+        String(trip.type || "")
+          .toLowerCase()
+          .trim();
 
-      {
-        serviceKey:
-        trip.serviceCode
-      },
+      const isCompanyTrip =
 
-      {
-        companySuffix:
-        trip.serviceCode
-      },
+        tripType.includes("company") ||
 
-      {
-        code:
-        trip.serviceCode
+        tripType.includes("facility");
+
+      /* =========================
+         CANCEL DISABLED
+      ========================= */
+
+      const cancelDisabled =
+
+        isCompanyTrip
+
+          ? service?.companyDisableCancel === true
+
+          : service?.disableCancel === true;
+
+      /* =========================
+         WARNING MINUTES
+      ========================= */
+
+      const warningMinutes =
+        Number(
+
+          isCompanyTrip
+
+            ? (
+                service?.companyWarningMinutes ||
+                service?.warningMinutes ||
+                120
+              )
+
+            : (
+                service?.warningMinutes ||
+                120
+              )
+
+        );
+
+      /* =========================
+         CANCEL FEE
+      ========================= */
+
+      const cancelFee =
+        Number(
+
+          isCompanyTrip
+
+            ? (
+                service?.companyCancelFee ||
+                service?.cancelFee ||
+                trip.cancelFee ||
+                0
+              )
+
+            : (
+                service?.cancelFee ||
+                trip.cancelFee ||
+                0
+              )
+
+        );
+
+      /* =========================
+         TRIP TIME
+      ========================= */
+
+      if(
+        trip.tripDate &&
+        trip.tripTime
+      ){
+
+        const tripTime =
+          new Date(
+            `${trip.tripDate}T${trip.tripTime}:00`
+          );
+
+        if(
+          isNaN(
+            tripTime.getTime()
+          )
+        ){
+
+          return res.status(400).json({
+            message:"Invalid trip time"
+          });
+
+        }
+
+        const diffMinutes =
+
+          (tripTime - now) / 60000;
+
+        /* =========================
+           EXPIRED
+        ========================= */
+
+        if(diffMinutes <= 0){
+
+          return res.json({
+
+            success:false,
+
+            expired:true,
+
+            message:
+              "Trip already started or expired"
+
+          });
+
+        }
+
+        /* =========================
+           APPLY CANCEL FEE
+        ========================= */
+
+        if(
+
+          cancelDisabled !== true &&
+
+          diffMinutes <=
+          warningMinutes
+
+        ){
+
+          fee =
+            Number(cancelFee);
+
+        }
+
+        else{
+
+          fee = 0;
+
+        }
+
       }
-
-    ]
-
-  });
-
-const tripType =
-  String(trip.type || "")
-    .toLowerCase()
-    .trim();
-
-const isCompanyTrip =
-
-  tripType.includes("company") ||
-
-  tripType.includes("facility");
-
-const cancelDisabled =
-
-  isCompanyTrip
-
-  ? service?.companyDisableCancel === true
-
-  : service?.disableCancel === true;
-
-/* =========================
-   WARNING MINUTES
-========================= */
-
-const warningMinutes =
-  Number(
-
-    service?.companyWarningMinutes ??
-
-    service?.warningMinutes ??
-
-    120
-
-  );
-
-/* =========================
-   CANCEL FEE
-========================= */
-
-const cancelFee =
-  Number(
-
-    service?.companyCancelFee ??
-
-    service?.cancelFee ??
-
-    trip.cancelFee ??
-
-    0
-
-  );
-
-/* =========================
-   TRIP TIME
-========================= */
-
-if (
-  trip.tripDate &&
-  trip.tripTime
-) {
-
-  const tripTime =
-    new Date(
-      `${trip.tripDate}T${trip.tripTime}:00`
-    );
-
-  if (
-    isNaN(
-      tripTime.getTime()
-    )
-  ) {
-
-    return res.status(400).json({
-      message:
-      "Invalid trip time"
-    });
-
-  }
-
-  const diffMinutes =
-
-    (tripTime - now) / 60000;
-
-  /* =========================
-     EXPIRED
-  ========================= */
-
-  if (diffMinutes <= 0) {
-
-    return res.json({
-
-      success: false,
-
-      expired: true,
-
-      message:
-      "Trip already started or expired"
-
-    });
-
-  }
-
-  /* =========================
-     APPLY CANCEL FEE
-  ========================= */
-
-  if(
-
-    cancelDisabled !== true &&
-
-    diffMinutes <=
-    warningMinutes
-
-  ){
-
-    fee =
-      Number(cancelFee);
-
-  }
-
-  else{
-
-    fee = 0;
-
-  }
-
-}
 
       /* =========================
          RESPONSE
@@ -6202,7 +6251,7 @@ if (
 
       res.json({
 
-        success: true,
+        success:true,
 
         tripNumber:
           trip.tripNumber,
@@ -6238,7 +6287,7 @@ if (
       );
 
       res.status(500).json({
-        message: "Server error"
+        message:"Server error"
       });
 
     }
