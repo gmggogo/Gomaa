@@ -5765,119 +5765,80 @@ app.post("/api/cancel-trip", async (req, res) => {
 
     let fee = 0;
 
-  /* =========================
+ استبدل الجزء كله بالكامل بده:
+
+/* =========================
    LOAD SERVICE
 ========================= */
-
 const service =
   await getServiceByTrip(trip);
-
-  const tripType =
+/* =========================
+   TRIP TYPE
+========================= */
+const tripType =
   String(trip.type || "")
     .toLowerCase()
     .trim();
-
-const cancelDisabled =
-
-  trip.company ||
-
-  tripType.includes("company")
-
-  ||
-
-  tripType.includes("facility")
-
-    ? service?.companyDisableCancel === true
-
-    : service?.disableCancel === true;
-
-if(cancelDisabled){
-
-  fee = 0;
-
-}
-
 /* =========================
-   DYNAMIC WARNING MINUTES
+   COMPANY CHECK
 ========================= */
-
 const isCompanyTrip =
-
-  tripType.includes("company") ||
-
-  tripType.includes("facility");
-
+  trip.type === "company";
+/* =========================
+   CANCEL DISABLED
+========================= */
+const cancelDisabled =
+  isCompanyTrip
+    ? service?.companyDisableCancel === true
+    : service?.disableCancel === true;
+/* =========================
+   WARNING MINUTES
+========================= */
 const warningMinutes =
   Number(
-
     isCompanyTrip
-
-    ? (
-        service?.companyWarningMinutes ||
-        service?.warningMinutes ||
-        120
-      )
-
-    : (
-        service?.warningMinutes ||
-        120
-      )
-
+      ? (
+          service?.companyWarningMinutes ||
+          service?.warningMinutes ||
+          120
+        )
+      : (
+          service?.warningMinutes ||
+          120
+        )
   );
-
 /* =========================
-   DYNAMIC CANCEL FEE
+   CANCEL FEE
 ========================= */
-
 const cancelFee =
   Number(
-
     isCompanyTrip
-
-    ? (
-        service?.companyCancelFee ||
-        service?.cancelFee ||
-        0
-      )
-
-    : (
-        service?.cancelFee ||
-        0
-      )
-
+      ? (
+          service?.companyCancelFee ||
+          service?.cancelFee ||
+          0
+        )
+      : (
+          service?.cancelFee ||
+          0
+        )
   );
+
 /* =========================
-   FREE CANCEL
+   DISABLED CANCEL FEE
 ========================= */
-
-if(diffMinutes > warningMinutes){
-
-  refundAmount =
-    totalAmount;
-
-}else{
+if(cancelDisabled){
+  fee = 0;
+}
 
   /* =========================
-     DYNAMIC CANCEL FEE
-  ========================== */
+     APPLY SERVICE FEE
+  ========================= */
 
-
-  if(cancelDisabled){
-
-    fee = 0;
-
-  }else{
+  else{
 
     fee = Number(
-
-      serviceFee ||
-
-      trip.cancelFee ||
-
-      trip.finalPrice ||
-
-      0
-
+      cancelFee || 0
     );
 
   }
@@ -6085,7 +6046,7 @@ app.post(
 ========================= */
 
 const service =
-  await Service.findOne({
+  await getServiceByTrip(trip);
 
     $or:[
 
