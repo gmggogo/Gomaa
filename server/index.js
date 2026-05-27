@@ -6217,31 +6217,36 @@ app.post(
 
         }
 
-        /* =========================
-           APPLY CANCEL FEE
-        ========================= */
+/* =========================
+   FREE CANCEL
+========================= */
 
-        if(
+if(diffMinutes > warningMinutes){
 
-          cancelDisabled !== true &&
+  fee = 0;
 
-          diffMinutes <=
-          warningMinutes
+}
 
-        ){
+/* =========================
+   CANCEL DISABLED
+========================= */
 
-          fee =
-            Number(cancelFee);
+else if(cancelDisabled === true){
 
-        }
+  fee = 0;
 
-        else{
+}
 
-          fee = 0;
+/* =========================
+   APPLY CANCEL FEE
+========================= */
 
-        }
+else{
 
-      }
+  fee =
+    Number(cancelFee || 0);
+
+}
 
       /* =========================
          RESPONSE
