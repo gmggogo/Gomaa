@@ -356,10 +356,9 @@ Number(
 
 const disableCancel =
 
-  String(
-    tripData.disableCancel || ""
-  )
-  .toLowerCase() === "on";
+Boolean(
+  tripData.disableCancel
+);
 
 const warningEnabled =
 
@@ -380,8 +379,7 @@ const mins =
 
 if(
 
-  disableCancel !== true &&
-
+disableCancel !== true
   warningEnabled === true &&
 
   mins <= tripWarningMinutes
