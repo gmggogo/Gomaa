@@ -1299,8 +1299,14 @@ disableCancel:
 Boolean(
   window.selectedWarningPolicy
   ?.disableCancel
+),
+
+warningEnabled:
+
+String(
+  pricingData.service?.warningEnabled || "enabled"
 )
-};
+.toLowerCase(),
 
 /* =========================
 SAVE
