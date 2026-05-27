@@ -403,7 +403,7 @@ body{
 }
 
 .field input,
-.field select{
+.field select:not(.status-on):not(.status-off){
 
   width:100%;
 
@@ -422,6 +422,38 @@ body{
   transition:.2s;
 
   min-height:54px;
+
+}
+
+.field select.status-on{
+
+  background:#16a34a !important;
+
+  color:#fff !important;
+
+  border:2px solid #16a34a !important;
+
+  appearance:none;
+
+  -webkit-appearance:none;
+
+  -moz-appearance:none;
+
+}
+
+.field select.status-off{
+
+  background:#dc2626 !important;
+
+  color:#fff !important;
+
+  border:2px solid #dc2626 !important;
+
+  appearance:none;
+
+  -webkit-appearance:none;
+
+  -moz-appearance:none;
 
 }
 
