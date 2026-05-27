@@ -73,125 +73,236 @@ router.post("/calculate", async (req,res)=>{
     } = req.body || {};
 
     if(!serviceKey){
+
       return res.json({
         success:false,
         message:"Missing Service Key"
       });
+
     }
 
-    const service = await Service.findOne({
-      serviceKey:String(serviceKey).trim().toUpperCase()
-    });
+    const service =
+      await Service.findOne({
+
+        serviceKey:
+          String(serviceKey)
+            .trim()
+            .toUpperCase()
+
+      });
 
     if(!service){
+
       return res.json({
         success:false,
         message:"Service Not Found"
       });
+
     }
 
     if(service.enabled !== true){
+
       return res.json({
         success:false,
         message:"Service Disabled"
       });
+
     }
 
     const pricingMode =
-      String(service.pricingMode || "")
+      String(
+        service.pricingMode || ""
+      )
       .trim()
       .toUpperCase();
 
     let total = 0;
 
+    /* =========================
+       HOURLY
+    ========================= */
+
     if(pricingMode === "HOURLY"){
 
-      const totalMinutes = Number(minutes || 0);
+      const totalMinutes =
+        Number(minutes || 0);
+
       let hours = 1;
 
       if(
-        String(service.hourlyBillingMode || "")
+
+        String(
+          service.hourlyBillingMode || ""
+        )
         .toUpperCase() === "QUARTER"
+
       ){
-        hours = Math.max(1, Math.ceil(totalMinutes / 15) / 4);
+
+        hours =
+          Math.max(
+            1,
+            Math.ceil(totalMinutes / 15) / 4
+          );
+
       }else{
-        hours = Math.max(1, Math.ceil(totalMinutes / 60));
+
+        hours =
+          Math.max(
+            1,
+            Math.ceil(totalMinutes / 60)
+          );
+
       }
 
       total =
+
         hours *
-        Number(service.hourlyRate || 0);
 
-    }else if(pricingMode === "SHARED"){
-
-      total =
-        Number(service.sharedPrice || 0) +
-        (
-          Number(stops || 0) *
-          Number(service.stopFee || 0)
-        );
-
-    }else{
-
-      const extraMiles =
-        Math.max(
-          0,
-          Number(miles || 0) -
-          Number(service.includedMiles || 0)
-        );
-
-      total =
-        Number(service.baseFare || 0) +
-        (
-          extraMiles *
-          Number(service.perMile || 0)
-        ) +
-        (
-          Number(stops || 0) *
-          Number(service.stopFee || 0)
+        Number(
+          service.hourlyRate || 0
         );
 
     }
 
-  return res.json({
+    /* =========================
+       SHARED
+    ========================= */
 
-  success:true,
+    else if(pricingMode === "SHARED"){
 
-  pricingMode,
+      total =
 
-  total:Number(
-    total.toFixed(2)
-  ),
+        Number(
+          service.sharedPrice || 0
+        ) +
 
-  disableCancel:
+        (
+          Number(stops || 0) *
 
-  Boolean(
-    service.disableCancel
-  ),
+          Number(
+            service.stopFee || 0
+          )
+        );
 
-  cancelFee:
+    }
 
-  Number(
-    service.cancelFee || 0
-  ),
+    /* =========================
+       STANDARD
+    ========================= */
 
-  warningMinutes:
+    else{
 
-  Number(
-    service.warningMinutes || 0
-  ),
+      const extraMiles =
 
-  service
+        Math.max(
+          0,
 
-});
+          Number(miles || 0) -
+
+          Number(
+            service.includedMiles || 0
+          )
+        );
+
+      total =
+
+        Number(
+          service.baseFare || 0
+        ) +
+
+        (
+          extraMiles *
+
+          Number(
+            service.perMile || 0
+          )
+        ) +
+
+        (
+          Number(stops || 0) *
+
+          Number(
+            service.stopFee || 0
+          )
+        );
+
+    }
+
+    /* =========================
+       RESPONSE
+    ========================= */
+
+    return res.json({
+
+      success:true,
+
+      pricingMode,
+
+      total:Number(
+        total.toFixed(2)
+      ),
+
+      /* =========================
+         INDIVIDUAL
+      ========================= */
+
+      disableCancel:
+
+        Boolean(
+          service.disableCancel
+        ),
+
+      cancelFee:
+
+        Number(
+          service.cancelFee || 0
+        ),
+
+      warningMinutes:
+
+        Number(
+          service.warningMinutes || 0
+        ),
+
+      /* =========================
+         COMPANY
+      ========================= */
+
+      companyDisableCancel:
+
+        Boolean(
+          service.companyDisableCancel
+        ),
+
+      companyCancelFee:
+
+        Number(
+          service.companyCancelFee || 0
+        ),
+
+      companyWarningMinutes:
+
+        Number(
+          service.companyWarningMinutes || 0
+        ),
+
+      service
+
+    });
 
   }catch(err){
 
-    console.log("PRICING ERROR:", err);
+    console.log(
+      "PRICING ERROR:",
+      err
+    );
 
     return res.status(500).json({
+
       success:false,
+
       message:"Pricing Failed"
+
     });
 
   }
