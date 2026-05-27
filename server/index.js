@@ -6138,8 +6138,16 @@ const service =
 
   });
 
+const tripType =
+  String(trip.type || "")
+    .toLowerCase()
+    .trim();
+
 const isCompanyTrip =
-  !!trip.company;
+
+  tripType.includes("company") ||
+
+  tripType.includes("facility");
 
 const cancelDisabled =
 
