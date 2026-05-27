@@ -5784,9 +5784,11 @@ const tripType =
 ========================= */
 const isCompanyTrip =
 
-  tripType.includes("company") ||
+trip.company ||
 
-  tripType.includes("facility");
+tripType.includes("company") ||
+
+tripType.includes("facility");
 
 /* =========================
    CANCEL DISABLED
@@ -6106,9 +6108,11 @@ app.post(
 
       const isCompanyTrip =
 
-        tripType.includes("company") ||
+  trip.company ||
 
-        tripType.includes("facility");
+  tripType.includes("company") ||
+
+  tripType.includes("facility");
 
       /* =========================
          CANCEL DISABLED
