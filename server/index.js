@@ -5801,30 +5801,56 @@ if(cancelDisabled){
    DYNAMIC WARNING MINUTES
 ========================= */
 
-const isCompanyTrip =
+const tripType =
+  String(trip.type || "")
+    .toLowerCase()
+    .trim();
 
-  trip.company ||
+const isCompanyTrip =
 
   tripType.includes("company") ||
 
   tripType.includes("facility");
-const cancelLimit = Number(
 
-  isCompanyTrip
+const warningMinutes =
+  Number(
 
-  ? (
-      service?.companyWarningMinutes ||
-      service?.warningMinutes ||
-      120
-    )
+    isCompanyTrip
 
-  : (
-      service?.warningMinutes ||
-      120
-    )
+    ? (
+        service?.companyWarningMinutes ||
+        service?.warningMinutes ||
+        120
+      )
 
-);
+    : (
+        service?.warningMinutes ||
+        120
+      )
 
+  );
+
+/* =========================
+   DYNAMIC CANCEL FEE
+========================= */
+
+const cancelFee =
+  Number(
+
+    isCompanyTrip
+
+    ? (
+        service?.companyCancelFee ||
+        service?.cancelFee ||
+        0
+      )
+
+    : (
+        service?.cancelFee ||
+        0
+      )
+
+  );
 /* =========================
    FREE CANCEL
 ========================= */
