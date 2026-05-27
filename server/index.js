@@ -5857,21 +5857,20 @@ if(diffMinutes > warningMinutes){
 }
 
 /* =========================
-   APPLY CANCEL FEE
+   APPLY CANCEL LOGIC
 ========================= */
 
-else{
+if(cancelDisabled){
 
-  if(cancelDisabled){
+  fee = 0;
 
-    fee = 0;
+  refundAmount =
+    totalAmount;
 
-  }else{
+}else{
 
-    fee =
-      Number(cancelFee || 0);
-
-  }
+  fee =
+    Number(cancelFee || 0);
 
   refundAmount =
     totalAmount - fee;
