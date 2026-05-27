@@ -1107,11 +1107,16 @@ window.selectedWarningPolicy = {
   disableCancel:
 
 Boolean(
-  pricingData.service?.disableCancel
+  window.selectedWarningPolicy
+  ?.disableCancel
+),
+
+warningEnabled:
+
+String(
+  pricingData.service?.warningEnabled || "enabled"
 )
-
 };
-
 
 if(!pricingData.success){
 
