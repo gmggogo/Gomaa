@@ -5825,6 +5825,7 @@ const warningMinutes =
 /* =========================
    CANCEL FEE
 ========================= */
+
 const cancelFee =
   Number(
 
@@ -5844,23 +5845,16 @@ const cancelFee =
   );
 
 /* =========================
-   FREE CANCEL
-========================= */
-
-if(diffMinutes > warningMinutes){
-
-  refundAmount =
-    totalAmount;
-
-  fee = 0;
-
-}
-
-/* =========================
    APPLY CANCEL LOGIC
 ========================= */
 
-if(cancelDisabled){
+if(
+
+  cancelDisabled ||
+
+  diffMinutes > warningMinutes
+
+){
 
   fee = 0;
 
