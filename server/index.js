@@ -5861,33 +5861,6 @@ if(diffMinutes > warningMinutes){
      DYNAMIC CANCEL FEE
   ========================== */
 
-  let serviceFee = 0;
-
-  if(service){
-
-    if(isCompanyTrip){
-
-      serviceFee = Number(
-
-        service.companyCancelFee ||
-
-        service.cancelFee ||
-
-        0
-
-      );
-
-    }else{
-
-      serviceFee = Number(
-
-        service.cancelFee || 0
-
-      );
-
-    }
-
-  }
 
   if(cancelDisabled){
 
