@@ -5801,11 +5801,6 @@ if(cancelDisabled){
    DYNAMIC WARNING MINUTES
 ========================= */
 
-const tripType =
-  String(trip.type || "")
-    .toLowerCase()
-    .trim();
-
 const isCompanyTrip =
 
   tripType.includes("company") ||
@@ -5855,7 +5850,7 @@ const cancelFee =
    FREE CANCEL
 ========================= */
 
-if(diffMinutes > cancelLimit){
+if(diffMinutes > warningMinutes)
 
   refundAmount =
     totalAmount;
