@@ -482,49 +482,44 @@ async function checkTrip(){
 
     }
 
-    currentTrip =
-    data.trip || null;
+    currentTrip = data;
 
-    if(currentTrip){
+    document.getElementById(
+      "tripBox"
+    ).style.display =
+    "block";
 
-      document.getElementById(
-        "tripBox"
-      ).style.display =
-      "block";
+    document.getElementById(
+      "tripNumber"
+    ).innerText =
+    data.tripNumber || "";
 
-      document.getElementById(
-        "tripNumber"
-      ).innerText =
-      currentTrip.tripNumber || "";
+    document.getElementById(
+      "pickupText"
+    ).innerText =
+    data.pickup || "";
 
-      document.getElementById(
-        "pickupText"
-      ).innerText =
-      currentTrip.pickup || "";
+    document.getElementById(
+      "dropoffText"
+    ).innerText =
+    data.dropoff || "";
 
-      document.getElementById(
-        "dropoffText"
-      ).innerText =
-      currentTrip.dropoff || "";
+    document.getElementById(
+      "tripDate"
+    ).innerText =
+    data.tripDate || "";
 
-      document.getElementById(
-        "tripDate"
-      ).innerText =
-      currentTrip.tripDate || "";
+    document.getElementById(
+      "tripTime"
+    ).innerText =
+    data.tripTime || "";
 
-      document.getElementById(
-        "tripTime"
-      ).innerText =
-      currentTrip.tripTime || "";
-
-      document.getElementById(
-        "tripAmount"
-      ).innerText =
-      Number(
-        currentTrip.priceAmount || 0
-      ).toFixed(2);
-
-    }
+    document.getElementById(
+      "tripAmount"
+    ).innerText =
+    Number(
+      data.priceAmount || 0
+    ).toFixed(2);
 
     if(Number(data.fee || 0) > 0){
 
