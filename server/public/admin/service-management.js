@@ -36,10 +36,6 @@ async function loadServices(){
       services = [];
     }
 
-    /* =========================
-       COMPANY SERVICES
-    ========================== */
-
     companyServices =
     services.map(service=>({
 
@@ -53,9 +49,6 @@ async function loadServices(){
 
       suffix:
       service.companySuffix || "ST",
-
-      warningEnabled:
-      service.companyWarningEnabled === true,
 
       warningMinutes:
       Number(
@@ -351,37 +344,8 @@ function renderServices(){
 
         </div>
 
-        <!-- WARNING POLICY -->
-
         <div class="policy-title">
           Warning Policy
-        </div>
-
-        <div class="field">
-
-          <label>Warning Enabled</label>
-
-          <select
-            id="warning-${service._id}"
-            disabled
-          >
-
-            <option
-              value="true"
-              ${service.warningEnabled ? "selected" : ""}
-            >
-              Enabled
-            </option>
-
-            <option
-              value="false"
-              ${!service.warningEnabled ? "selected" : ""}
-            >
-              Disabled
-            </option>
-
-          </select>
-
         </div>
 
         <div class="field">
@@ -409,32 +373,36 @@ function renderServices(){
           >
 
         </div>
-<div class="field">
 
-  <label>Disable Cancel Fee</label>
+        <div class="field">
 
-  <select
-    id="disablecancel-${service._id}"
-    disabled
-  >
+          <label>
+            Turn Warning & Fee ON/OFF
+          </label>
 
-    <option
-      value="false"
-      ${!service.disableCancel ? "selected" : ""}
-    >
-      OFF
-    </option>
+          <select
+            id="disablecancel-${service._id}"
+            disabled
+          >
 
-    <option
-      value="true"
-      ${service.disableCancel ? "selected" : ""}
-    >
-      ON
-    </option>
+            <option
+              value="false"
+              ${!service.disableCancel ? "selected" : ""}
+            >
+              ON
+            </option>
 
-  </select>
+            <option
+              value="true"
+              ${service.disableCancel ? "selected" : ""}
+            >
+              OFF
+            </option>
 
-</div>
+          </select>
+
+        </div>
+
       </div>
 
       <div class="buttons">
@@ -556,8 +524,6 @@ function renderCompanyServices(){
 
       <div class="fields">
 
-        <!-- SERVICE SUFFIX -->
-
         <div class="field">
 
           <label>Service Suffix</label>
@@ -570,8 +536,6 @@ function renderCompanyServices(){
           >
 
         </div>
-
-        <!-- SHARED SERVICE -->
 
         <div class="field">
 
@@ -599,8 +563,6 @@ function renderCompanyServices(){
           </select>
 
         </div>
-
-        <!-- PRICING MODE -->
 
         <div class="field">
 
@@ -660,8 +622,6 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- BASE FARE -->
-
         <div class="field">
 
           <label>Base Fare</label>
@@ -678,8 +638,6 @@ function renderCompanyServices(){
           >
 
         </div>
-
-        <!-- INCLUDED MILES -->
 
         <div class="field">
 
@@ -698,8 +656,6 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- PER MILE -->
-
         <div class="field">
 
           <label>Per Mile</label>
@@ -717,8 +673,6 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- HOURLY RATE -->
-
         <div class="field">
 
           <label>Hourly Rate</label>
@@ -735,8 +689,6 @@ function renderCompanyServices(){
           >
 
         </div>
-
-        <!-- HOURLY BILLING -->
 
         <div class="field">
 
@@ -781,8 +733,6 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- STOP FEE -->
-
         <div class="field">
 
           <label>Stop Fee</label>
@@ -799,8 +749,6 @@ function renderCompanyServices(){
           >
 
         </div>
-
-        <!-- NO SHOW -->
 
         <div class="field">
 
@@ -819,8 +767,6 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- SHARED PRICE -->
-
         <div class="field">
 
           <label>Shared Price</label>
@@ -838,37 +784,8 @@ function renderCompanyServices(){
 
         </div>
 
-        <!-- WARNING POLICY -->
-
         <div class="policy-title">
           Company Warning Policy
-        </div>
-
-        <div class="field">
-
-          <label>Warning Enabled</label>
-
-          <select
-            id="company-warning-${service._id}"
-            disabled
-          >
-
-            <option
-              value="true"
-              ${service.warningEnabled ? "selected" : ""}
-            >
-              Enabled
-            </option>
-
-            <option
-              value="false"
-              ${!service.warningEnabled ? "selected" : ""}
-            >
-              Disabled
-            </option>
-
-          </select>
-
         </div>
 
         <div class="field">
@@ -894,6 +811,35 @@ function renderCompanyServices(){
             value="${service.cancelFee || 0}"
             disabled
           >
+
+        </div>
+
+        <div class="field">
+
+          <label>
+            Turn Warning & Fee ON/OFF
+          </label>
+
+          <select
+            id="company-disablecancel-${service._id}"
+            disabled
+          >
+
+            <option
+              value="false"
+              ${!service.companyDisableCancel ? "selected" : ""}
+            >
+              ON
+            </option>
+
+            <option
+              value="true"
+              ${service.companyDisableCancel ? "selected" : ""}
+            >
+              OFF
+            </option>
+
+          </select>
 
         </div>
 
@@ -946,11 +892,10 @@ function enableEdit(id){
     `stop-${id}`,
     `noshow-${id}`,
     `shared-${id}`,
-
-    `warning-${id}`,
     `minutes-${id}`,
-`cancel-${id}`,
-`disablecancel-${id}`
+    `cancel-${id}`,
+    `disablecancel-${id}`
+
   ];
 
   fields.forEach(fieldId=>{
@@ -982,13 +927,8 @@ function enableCompanyEdit(id){
 
   const fields = [
 
-    /* BASIC */
-
     `company-suffix-${id}`,
     `company-shared-${id}`,
-
-    /* PRICING */
-
     `company-mode-${id}`,
     `company-base-${id}`,
     `company-included-${id}`,
@@ -998,12 +938,9 @@ function enableCompanyEdit(id){
     `company-stop-${id}`,
     `company-noshow-${id}`,
     `company-sharedprice-${id}`,
-
-    /* WARNING POLICY */
-
-    `company-warning-${id}`,
     `company-minutes-${id}`,
-    `company-cancel-${id}`
+    `company-cancel-${id}`,
+    `company-disablecancel-${id}`
 
   ];
 
@@ -1016,27 +953,11 @@ function enableCompanyEdit(id){
 
       el.disabled = false;
 
-      el.readOnly = false;
-
-      el.removeAttribute(
-        "disabled"
-      );
-
-      el.removeAttribute(
-        "readonly"
-      );
-
       el.style.background =
       "#fff";
 
       el.style.border =
       "2px solid #145cff";
-
-      el.style.opacity =
-      "1";
-
-      el.style.cursor =
-      "text";
 
     }
 
@@ -1106,11 +1027,6 @@ async function saveService(id){
         ).value
       ),
 
-      warningEnabled:
-      document.getElementById(
-        `warning-${id}`
-      ).value === "true",
-
       warningMinutes:Number(
         document.getElementById(
           `minutes-${id}`
@@ -1118,16 +1034,15 @@ async function saveService(id){
       ),
 
       cancelFee:Number(
-  document.getElementById(
-    `cancel-${id}`
-  ).value
-),
+        document.getElementById(
+          `cancel-${id}`
+        ).value
+      ),
 
-disableCancel:
-
-document.getElementById(
-  `disablecancel-${id}`
-).value === "true"
+      disableCancel:
+      document.getElementById(
+        `disablecancel-${id}`
+      ).value === "true"
 
     };
 
@@ -1183,8 +1098,6 @@ async function saveCompanyService(id){
 
     const payload = {
 
-      /* BASIC */
-
       companySuffix:
       document.getElementById(
         `company-suffix-${id}`
@@ -1194,8 +1107,6 @@ async function saveCompanyService(id){
       document.getElementById(
         `company-shared-${id}`
       ).value === "true",
-
-      /* PRICING */
 
       companyPricingMode:
       document.getElementById(
@@ -1249,13 +1160,6 @@ async function saveCompanyService(id){
         ).value
       ),
 
-      /* WARNING POLICY */
-
-      companyWarningEnabled:
-      document.getElementById(
-        `company-warning-${id}`
-      ).value === "true",
-
       companyWarningMinutes:Number(
         document.getElementById(
           `company-minutes-${id}`
@@ -1266,7 +1170,12 @@ async function saveCompanyService(id){
         document.getElementById(
           `company-cancel-${id}`
         ).value
-      )
+      ),
+
+      companyDisableCancel:
+      document.getElementById(
+        `company-disablecancel-${id}`
+      ).value === "true"
 
     };
 
@@ -1294,7 +1203,6 @@ async function saveCompanyService(id){
     if(!data.success){
 
       alert("Save Failed");
-
       return;
 
     }
