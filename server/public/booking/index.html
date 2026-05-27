@@ -6,113 +6,212 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-*{box-sizing:border-box}
+
+*{
+  box-sizing:border-box;
+}
 
 body{
+
   font-family:Arial;
+
   background:#f8fafc;
+
   margin:0;
+
   padding:20px;
+
   color:#111827;
+
 }
 
 .box{
+
   background:#fff;
+
   padding:20px;
+
   border-radius:14px;
+
   max-width:750px;
+
   margin:auto;
+
   box-shadow:0 5px 20px rgba(0,0,0,.08);
+
   position:relative;
+
 }
 
 .langBox{
+
   position:absolute;
+
   top:15px;
+
   right:15px;
+
   display:flex;
+
   gap:6px;
+
 }
 
 .langBox button{
+
   padding:3px 8px;
+
   font-size:11px;
+
   border-radius:20px;
+
   border:1px solid #cbd5e1;
+
   background:#f1f5f9;
+
   cursor:pointer;
+
 }
 
 .langBox .active{
+
+  background:#2563eb;
+
+  color:#fff;
+
+}
+
+h2{
+  margin-top:0;
+}
+
+label{
+
+  margin-top:12px;
+
+  display:block;
+
+  font-size:13px;
+
+  font-weight:bold;
+
+}
+
+input,
+textarea{
+
+  width:100%;
+
+  padding:12px;
+
+  margin-top:5px;
+
+  border:1px solid #ddd;
+
+  border-radius:8px;
+
+  font-size:16px;
+
+}
+
+textarea{
+  min-height:90px;
+}
+
+.row{
+
+  display:flex;
+
+  gap:10px;
+
+}
+
+.row div{
+  flex:1;
+}
+
+.actions{
+
+  margin-top:20px;
+
+  display:flex;
+
+  gap:10px;
+
+}
+
+button{
+
+  flex:1;
+
+  padding:14px;
+
+  border:none;
+
+  border-radius:8px;
+
+  cursor:pointer;
+
+  font-weight:bold;
+
+  font-size:15px;
+
+}
+
+.recalc{
+  background:#dc2626;
+  color:#fff;
+}
+
+.confirm{
   background:#2563eb;
   color:#fff;
 }
 
-h2{margin-top:0}
+.confirm:disabled{
 
-label{
-  margin-top:12px;
-  display:block;
-  font-size:13px;
-  font-weight:bold;
+  opacity:.7;
+
+  cursor:not-allowed;
+
 }
-
-input,textarea{
-  width:100%;
-  padding:12px;
-  margin-top:5px;
-  border:1px solid #ddd;
-  border-radius:8px;
-  font-size:16px;
-}
-
-textarea{min-height:90px}
-
-.row{
-  display:flex;
-  gap:10px;
-}
-
-.row div{flex:1}
-
-.actions{
-  margin-top:20px;
-  display:flex;
-  gap:10px;
-}
-
-button{
-  flex:1;
-  padding:14px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-  font-size:15px;
-}
-
-.recalc{background:#dc2626;color:#fff}
-.confirm{background:#2563eb;color:#fff}
 
 .vehicleBox{
+
   margin-top:5px;
+
   padding:12px;
+
   background:#e5e7eb;
+
   border-radius:8px;
+
   font-weight:bold;
+
   text-align:center;
+
   font-size:16px;
+
 }
 
 .result{
+
   margin-top:20px;
+
   padding:15px;
+
   background:#ecfdf5;
+
   border:1px solid #22c55e;
+
   border-radius:10px;
+
   text-align:center;
+
   display:none;
+
 }
+
 </style>
 </head>
 
@@ -120,367 +219,727 @@ button{
 
 <div class="box">
 
-<div class="langBox">
-  <button id="enBtn" onclick="setLang('en')">English</button>
-  <button id="esBtn" onclick="setLang('es')">Español</button>
-</div>
+  <div class="langBox">
 
-<h2 id="title">Confirm Booking</h2>
+    <button
+      id="enBtn"
+      onclick="setLang('en')"
+    >
+      English
+    </button>
 
-<label id="pickupL">Pickup</label>
-<input id="pickup" readonly>
+    <button
+      id="esBtn"
+      onclick="setLang('es')"
+    >
+      Español
+    </button>
 
-<div id="stopsBox"></div>
-
-<label id="dropoffL">Dropoff</label>
-<input id="dropoff" readonly>
-
-<div class="row">
-  <div>
-    <label id="distanceL">Distance</label>
-    <input id="miles" readonly>
   </div>
 
-  <div>
-    <label id="priceL">Price</label>
-    <input id="price" readonly>
+  <h2 id="title">
+    Confirm Booking
+  </h2>
+
+  <label id="pickupL">
+    Pickup
+  </label>
+
+  <input
+    id="pickup"
+    readonly
+  >
+
+  <div id="stopsBox"></div>
+
+  <label id="dropoffL">
+    Dropoff
+  </label>
+
+  <input
+    id="dropoff"
+    readonly
+  >
+
+  <div class="row">
+
+    <div>
+
+      <label id="distanceL">
+        Distance
+      </label>
+
+      <input
+        id="miles"
+        readonly
+      >
+
+    </div>
+
+    <div>
+
+      <label id="priceL">
+        Price
+      </label>
+
+      <input
+        id="price"
+        readonly
+      >
+
+    </div>
+
   </div>
-</div>
 
-<label id="vehicleL">Service Type</label>
-<div id="vehicleDisplay" class="vehicleBox"></div>
+  <label id="vehicleL">
+    Service Type
+  </label>
 
-<label>Passenger Name</label>
-<input id="name">
+  <div
+    id="vehicleDisplay"
+    class="vehicleBox"
+  ></div>
 
-<label>Phone</label>
-<input id="phone">
+  <label>
+    Passenger Name
+  </label>
 
-<label>Email</label>
-<input id="email" type="email">
+  <input id="name">
 
-<div class="row">
-  <div>
-    <label>Date</label>
-    <input type="date" id="date">
+  <label>
+    Phone
+  </label>
+
+  <input id="phone">
+
+  <label>
+    Email
+  </label>
+
+  <input
+    id="email"
+    type="email"
+  >
+
+  <div class="row">
+
+    <div>
+
+      <label>
+        Date
+      </label>
+
+      <input
+        type="date"
+        id="date"
+      >
+
+    </div>
+
+    <div>
+
+      <label>
+        Time
+      </label>
+
+      <input
+        type="time"
+        id="time"
+      >
+
+    </div>
+
   </div>
 
-  <div>
-    <label>Time</label>
-    <input type="time" id="time">
+  <label>
+    Notes
+  </label>
+
+  <textarea id="notes"></textarea>
+
+  <div class="actions">
+
+    <button
+      class="recalc"
+      onclick="recalculate()"
+    >
+      Recalculate
+    </button>
+
+    <button
+      class="confirm"
+      onclick="confirmBooking()"
+      id="payBtn"
+    >
+      Pay Now
+    </button>
+
   </div>
-</div>
 
-<label>Notes</label>
-<textarea id="notes"></textarea>
-
-<div class="actions">
-  <button class="recalc" onclick="recalculate()">Recalculate</button>
-  <button class="confirm" onclick="confirmBooking()" id="payBtn">Pay Now</button>
-</div>
-
-<div id="resultBox" class="result"></div>
+  <div
+    id="resultBox"
+    class="result"
+  ></div>
 
 </div>
 
 <script>
 
-/* ================= LANGUAGE ================= */
+/* =========================
+   LANGUAGE
+========================= */
 
-let lang="en";
+let lang = "en";
 
 function setLang(l){
-  lang=l;
+
+  lang = l;
+
   applyLang();
+
 }
 
 function applyLang(){
-  if(lang==="es"){
-    title.innerText="Confirmar Reserva";
-    pickupL.innerText="Origen";
-    dropoffL.innerText="Destino";
-    distanceL.innerText="Distancia";
-    priceL.innerText="Precio";
-    vehicleL.innerText="Servicio";
-    payBtn.innerText="Pagar";
-  } else {
-    title.innerText="Confirm Booking";
-    pickupL.innerText="Pickup";
-    dropoffL.innerText="Dropoff";
-    distanceL.innerText="Distance";
-    priceL.innerText="Price";
-    vehicleL.innerText="Service Type";
-    payBtn.innerText="Pay Now";
-  }
 
-  enBtn.classList.toggle("active",lang==="en");
-  esBtn.classList.toggle("active",lang==="es");
-}
+  if(lang === "es"){
 
-applyLang();
+    title.innerText =
+    "Confirmar Reserva";
 
-/* ================= LOAD ================= */
+    pickupL.innerText =
+    "Origen";
 
-const tripData = JSON.parse(localStorage.getItem("pendingTrip"));
-console.log(tripData);
-console.log(
-  "warningEnabled:",
-  tripData.warningEnabled
-);
+    dropoffL.innerText =
+    "Destino";
 
-console.log(
-  "disableCancel:",
-  tripData.disableCancel
-);
-if(!tripData){
-  alert("Session expired");
-  location.href="/getquote/index.html";
-}
+    distanceL.innerText =
+    "Distancia";
 
-/* ================= FILL ================= */
+    priceL.innerText =
+    "Precio";
 
-pickup.value = tripData.pickup || "";
-dropoff.value = tripData.dropoff || "";
-miles.value = tripData.distance || "";
-price.value = tripData.price || "";
+    vehicleL.innerText =
+    "Servicio";
 
-/* ================= SERVICE FIX (IMPORTANT) ================= */
-
-const raw = String(
-  tripData.serviceKey ||
-  tripData.vehicleType ||
-  ""
-).trim().toUpperCase();
-
-const SERVICE_MAP = {
-  STANDARD: "STANDARD",
-  WHEELCHAIR: "WHEELCHAIR",
-  WHEEL: "WHEELCHAIR",
-  XL: "XL",
-  TAXI: "TAXI",
-  LIMO: "LIMO",
-  LIMOSINE: "LIMO"
-};
-
-const serviceKey = SERVICE_MAP[raw] || raw || "STANDARD";
-
-vehicleDisplay.innerText = serviceKey;
-
-/* ================= STOPS ================= */
-
-function renderStops(){
-  const box = document.getElementById("stopsBox");
-  box.innerHTML="";
-
-  if(Array.isArray(tripData.stops)){
-    tripData.stops.forEach((s,i)=>{
-      box.innerHTML += `
-        <label>Stop ${i+1}</label>
-        <input value="${s}" readonly>
-      `;
-    });
-  }
-}
-
-renderStops();
-
-/* ================= TIME ================= */
-
-function minutesUntilTrip(date,time){
-  const now=new Date();
-  const trip=new Date(date+"T"+time);
-  return (trip-now)/60000;
-}
-
-/* ================= RESET ================= */
-
-function recalculate(){
-  localStorage.removeItem("pendingTrip");
-  location.href="/getquote/index.html";
-}
-
-/* ================= SUBMIT ================= */
-
-async function confirmBooking(){
-
-  const btn=document.getElementById("payBtn");
-  btn.disabled=true;
-btn.innerText = "Processing...";
- const name=document.getElementById("name").value.trim();
-const phone=document.getElementById("phone").value.trim();
-const email=document.getElementById("email").value.trim();
-const date=document.getElementById("date").value;
-const time=document.getElementById("time").value;
-const notes=document.getElementById("notes").value;
-
-/* =========================
-   CLEAN PRICE
-========================= */
-
-const cleanPrice = Number(
-  String(tripData.price)
-  .replace(/[^0-9.]/g,"")
-);
-
-/* =========================
-   VALIDATION
-========================= */
-
-if(
-
-  !name ||
-  !phone ||
-  !email ||
-  !date ||
-  !time ||
-
-  !tripData.pickup ||
-  !tripData.dropoff ||
-  !cleanPrice ||
-
-  String(cleanPrice) === "0"
-
-){
-
-  alert(
-    "Please fill all required fields"
-  );
-
-  btn.disabled = false;
-btn.innerText = "Pay Now";
-  return;
-
-}
-
-/* =========================
-   PREVENT PAST TIME
-========================= */
-
-const now = new Date();
-
-const tripDateTime =
-new Date(`${date}T${time}`);
-
-if(
-
-  isNaN(tripDateTime.getTime())
-
-){
-
-  alert("Invalid date or time");
-
-  btn.disabled = false;
-btn.innerText = "Pay Now";
-  return;
-
-}
-
-if(
-
-  tripDateTime <= now
-
-){
-
-  alert(
-    "Trip time already passed"
-  );
-
-  btn.disabled = false;
-btn.innerText = "Pay Now";
-  return;
-
-}
-
-  /* ================= DYNAMIC WARNING ================= */
-
-const tripWarningMinutes =
-
-Number(
-
-  tripData.warningMinutes ||
-
-  tripData.companyWarningMinutes ||
-
-  localStorage.getItem(
-    "tripWarningMinutes"
-  )
-
-) || 120;
-
-/* =========================
-DYNAMIC CANCEL FEE
-========================= */
-const cancelFee =
-
-Number(
-
-  tripData.cancelFee ||
-
-  tripData.companyCancelFee ||
-
-  localStorage.getItem(
-    "cancelFee"
-  )
-
-) || 0;
-
-const disableCancel =
-
-["true","on",true,1,"1"]
-.includes(
-  tripData.disableCancel
-);
-
-const warningEnabled =
-
-  String(
-    tripData.warningEnabled || "enabled"
-  )
-  .toLowerCase() === "enabled";
-
-const mins =
-  minutesUntilTrip(
-    date,
-    time
-  );
-
-/* =========================
-   CANCEL WARNING
-========================= */
-
-if(
-
-  disableCancel !== true &&
-  warningEnabled === true &&
-  mins <= tripWarningMinutes
-
-){
-
-  let warningText = "";
-
-  if(tripWarningMinutes < 60){
-
-    warningText =
-    `${tripWarningMinutes} minutes`;
+    payBtn.innerText =
+    "Pagar";
 
   }
 
   else{
 
-    const hrs =
-    tripWarningMinutes / 60;
+    title.innerText =
+    "Confirm Booking";
 
-    warningText =
+    pickupL.innerText =
+    "Pickup";
 
-    hrs % 1 === 0
+    dropoffL.innerText =
+    "Dropoff";
 
-    ? `${hrs} hour(s)`
+    distanceL.innerText =
+    "Distance";
 
-    : `${hrs.toFixed(1)} hour(s)`;
+    priceL.innerText =
+    "Price";
+
+    vehicleL.innerText =
+    "Service Type";
+
+    payBtn.innerText =
+    "Pay Now";
 
   }
 
-  const ok = confirm(
+  enBtn.classList.toggle(
+    "active",
+    lang === "en"
+  );
+
+  esBtn.classList.toggle(
+    "active",
+    lang === "es"
+  );
+
+}
+
+applyLang();
+
+/* =========================
+   LOAD
+========================= */
+
+const tripData = JSON.parse(
+  localStorage.getItem(
+    "pendingTrip"
+  )
+);
+
+if(!tripData){
+
+  alert("Session expired");
+
+  location.href =
+  "/getquote/index.html";
+
+}
+
+/* =========================
+   FILL
+========================= */
+
+pickup.value =
+tripData.pickup || "";
+
+dropoff.value =
+tripData.dropoff || "";
+
+miles.value =
+tripData.distance || "";
+
+price.value =
+tripData.price || "";
+
+/* =========================
+   SERVICE FIX
+========================= */
+
+const raw = String(
+
+  tripData.serviceKey ||
+
+  tripData.vehicleType ||
+
+  ""
+
+).trim().toUpperCase();
+
+const SERVICE_MAP = {
+
+  STANDARD:"STANDARD",
+
+  WHEELCHAIR:"WHEELCHAIR",
+
+  WHEEL:"WHEELCHAIR",
+
+  XL:"XL",
+
+  TAXI:"TAXI",
+
+  LIMO:"LIMO",
+
+  LIMOSINE:"LIMO"
+
+};
+
+const serviceKey =
+
+SERVICE_MAP[raw] ||
+
+raw ||
+
+"STANDARD";
+
+vehicleDisplay.innerText =
+serviceKey;
+
+/* =========================
+   STOPS
+========================= */
+
+function renderStops(){
+
+  const box =
+  document.getElementById(
+    "stopsBox"
+  );
+
+  box.innerHTML = "";
+
+  if(Array.isArray(tripData.stops)){
+
+    tripData.stops.forEach((s,i)=>{
+
+      box.innerHTML += `
+
+        <label>
+          Stop ${i+1}
+        </label>
+
+        <input
+          value="${s}"
+          readonly
+        >
+
+      `;
+
+    });
+
+  }
+
+}
+
+renderStops();
+
+/* =========================
+   SYSTEM TIME
+========================= */
+
+function getSystemTime(){
+
+  const timezone =
+
+    localStorage.getItem(
+      "systemTimezone"
+    ) ||
+
+    "America/Phoenix";
+
+  return new Date(
+
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:timezone
+      }
+    )
+
+  );
+
+}
+
+/* =========================
+   MINUTES UNTIL
+========================= */
+
+function minutesUntilTrip(
+  date,
+  time
+){
+
+  const now =
+  getSystemTime();
+
+  const parts =
+  date.split("-");
+
+  const trip =
+  new Date(
+
+    Number(parts[0]),
+
+    Number(parts[1]) - 1,
+
+    Number(parts[2]),
+
+    Number(
+      time.split(":")[0]
+    ),
+
+    Number(
+      time.split(":")[1]
+    )
+
+  );
+
+  return (
+
+    trip.getTime()
+
+    -
+
+    now.getTime()
+
+  ) / 60000;
+
+}
+
+/* =========================
+   RESET
+========================= */
+
+function recalculate(){
+
+  localStorage.removeItem(
+    "pendingTrip"
+  );
+
+  location.href =
+  "/getquote/index.html";
+
+}
+
+/* =========================
+   SUBMIT
+========================= */
+
+async function confirmBooking(){
+
+  const btn =
+  document.getElementById(
+    "payBtn"
+  );
+
+  btn.disabled = true;
+
+  btn.innerText =
+  "Processing...";
+
+  const name =
+  document.getElementById(
+    "name"
+  ).value.trim();
+
+  const phone =
+  document.getElementById(
+    "phone"
+  ).value.trim();
+
+  const email =
+  document.getElementById(
+    "email"
+  ).value.trim();
+
+  const date =
+  document.getElementById(
+    "date"
+  ).value;
+
+  const time =
+  document.getElementById(
+    "time"
+  ).value;
+
+  const notes =
+  document.getElementById(
+    "notes"
+  ).value;
+
+  /* =========================
+     CLEAN PRICE
+  ========================= */
+
+  const cleanPrice = Number(
+
+    String(tripData.price)
+    .replace(/[^0-9.]/g,"")
+
+  );
+
+  /* =========================
+     VALIDATION
+  ========================= */
+
+  if(
+
+    !name ||
+    !phone ||
+    !email ||
+    !date ||
+    !time ||
+
+    !tripData.pickup ||
+    !tripData.dropoff ||
+
+    !cleanPrice ||
+
+    String(cleanPrice) === "0"
+
+  ){
+
+    alert(
+      "Please fill all required fields"
+    );
+
+    btn.disabled = false;
+
+    btn.innerText =
+    "Pay Now";
+
+    return;
+
+  }
+
+  /* =========================
+     BUILD TRIP DATE
+  ========================= */
+
+  const parts =
+  date.split("-");
+
+  const tripDateTime =
+  new Date(
+
+    Number(parts[0]),
+
+    Number(parts[1]) - 1,
+
+    Number(parts[2]),
+
+    Number(
+      time.split(":")[0]
+    ),
+
+    Number(
+      time.split(":")[1]
+    )
+
+  );
+
+  /* =========================
+     INVALID DATE
+  ========================= */
+
+  if(
+
+    isNaN(
+      tripDateTime.getTime()
+    )
+
+  ){
+
+    alert(
+      "Invalid date/time"
+    );
+
+    btn.disabled = false;
+
+    btn.innerText =
+    "Pay Now";
+
+    return;
+
+  }
+
+  /* =========================
+     PREVENT PAST TIME
+  ========================= */
+
+  const now =
+  getSystemTime();
+
+  if(
+
+    tripDateTime.getTime()
+
+    <=
+
+    now.getTime()
+
+  ){
+
+    alert(
+      "Trip date/time already passed"
+    );
+
+    btn.disabled = false;
+
+    btn.innerText =
+    "Pay Now";
+
+    return;
+
+  }
+
+  /* =========================
+     DYNAMIC WARNING
+  ========================= */
+
+  const tripWarningMinutes =
+
+  Number(
+
+    tripData.warningMinutes ||
+
+    tripData.companyWarningMinutes ||
+
+    localStorage.getItem(
+      "tripWarningMinutes"
+    )
+
+  ) || 120;
+
+  /* =========================
+     CANCEL FEE
+  ========================= */
+
+  const cancelFee =
+
+  Number(
+
+    tripData.cancelFee ||
+
+    tripData.companyCancelFee ||
+
+    localStorage.getItem(
+      "cancelFee"
+    )
+
+  ) || 0;
+
+  const disableCancel =
+
+  ["true","on",true,1,"1"]
+  .includes(
+    tripData.disableCancel
+  );
+
+  const warningEnabled =
+
+  String(
+
+    tripData.warningEnabled ||
+
+    "enabled"
+
+  )
+  .toLowerCase() === "enabled";
+
+  const mins =
+  minutesUntilTrip(
+    date,
+    time
+  );
+
+  /* =========================
+     WARNING
+  ========================= */
+
+  if(
+
+    disableCancel !== true &&
+
+    warningEnabled === true &&
+
+    mins <= tripWarningMinutes
+
+  ){
+
+    let warningText = "";
+
+    if(tripWarningMinutes < 60){
+
+      warningText =
+      `${tripWarningMinutes} minutes`;
+
+    }
+
+    else{
+
+      const hrs =
+      tripWarningMinutes / 60;
+
+      warningText =
+
+      hrs % 1 === 0
+
+      ? `${hrs} hour(s)`
+
+      : `${hrs.toFixed(1)} hour(s)`;
+
+    }
+
+    const ok = confirm(
 
 `WARNING:
 
@@ -491,93 +950,158 @@ $${cancelFee.toFixed(2)}
 
 Do you want to continue?`
 
-  );
+    );
 
-  if(!ok){
+    if(!ok){
 
-    btn.disabled = false;
-btn.innerText = "Pay Now";
-    return;
+      btn.disabled = false;
+
+      btn.innerText =
+      "Pay Now";
+
+      return;
+
+    }
 
   }
 
-}
+  /* =========================
+     DATA
+  ========================= */
 
-const data = {
+  const data = {
 
-  type:"individual",
+    type:"individual",
 
-  pickup:tripData.pickup,
-  dropoff:tripData.dropoff,
+    pickup:
+    tripData.pickup,
 
-  stops:tripData.stops || [],
+    dropoff:
+    tripData.dropoff,
 
-  priceAmount:cleanPrice,
+    stops:
+    tripData.stops || [],
 
-  clientName:name,
-  clientPhone:phone,
-  clientEmail:email,
+    priceAmount:
+    cleanPrice,
 
-  serviceKey: serviceKey,
+    clientName:
+    name,
 
-  vehicleTypeFromQuote: serviceKey,
+    clientPhone:
+    phone,
 
-  tripDate:date,
-  tripTime:time,
+    clientEmail:
+    email,
 
-  notes:notes
+    serviceKey:
+    serviceKey,
 
-};
+    vehicleTypeFromQuote:
+    serviceKey,
+
+    tripDate:
+    date,
+
+    tripTime:
+    time,
+
+    notes:
+    notes
+
+  };
+
+  /* =========================
+     SAVE
+  ========================= */
 
   try{
 
-    const res=await fetch("/api/trips",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(data)
-    });
+    const res =
+    await fetch(
+      "/api/trips",
+      {
+        method:"POST",
 
-   const trip = await res.json();
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
 
-console.log("TRIP RESPONSE:", trip);
+        body:JSON.stringify(data)
+      }
+    );
 
-if(!trip || !trip._id){
+    const trip =
+    await res.json();
 
-  alert(
-    trip.message ||
-    "Trip create failed"
-  );
+    console.log(
+      "TRIP RESPONSE:",
+      trip
+    );
 
-  btn.disabled = false;
-btn.innerText = "Pay Now";
-  return;
-}
+    if(
 
-resultBox.style.display = "block";
+      !trip ||
 
-resultBox.innerHTML = `
-Trip Created Successfully<br><br>
-Trip #: <b>${trip.tripNumber}</b>
-`;
+      !trip._id
 
-setTimeout(()=>{
+    ){
 
-location.href =
-`/booking/payment.html?tripId=${trip._id}`;
+      alert(
 
-},1500);
+        trip.message ||
 
-}catch(err){
+        "Trip create failed"
 
-  console.log(err);
+      );
 
-  alert("Server error");
+      btn.disabled = false;
 
-  btn.disabled = false;
+      btn.innerText =
+      "Pay Now";
 
-  btn.innerText = "Pay Now";
+      return;
 
-}
+    }
+
+    resultBox.style.display =
+    "block";
+
+    resultBox.innerHTML = `
+
+      Trip Created Successfully
+
+      <br><br>
+
+      Trip #:
+      <b>${trip.tripNumber}</b>
+
+    `;
+
+    setTimeout(()=>{
+
+      location.href =
+
+      `/booking/payment.html?tripId=${trip._id}`;
+
+    },1500);
+
+  }
+
+  catch(err){
+
+    console.log(err);
+
+    alert("Server error");
+
+    btn.disabled = false;
+
+    btn.innerText =
+    "Pay Now";
+
+  }
+
 }
 
 </script>
