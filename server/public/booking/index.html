@@ -356,7 +356,8 @@ Number(
 
 const disableCancel =
 
-Boolean(
+["true","on",true,1,"1"]
+.includes(
   tripData.disableCancel
 );
 

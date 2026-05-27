@@ -1104,9 +1104,10 @@ window.selectedWarningPolicy = {
     pricingData.service?.noShowFee || 0
   ),
 
- disableCancel:
+disableCancel:
 
-Boolean(
+["true","on",true,1,"1"]
+.includes(
   pricingData.service?.disableCancel
 ),
 
