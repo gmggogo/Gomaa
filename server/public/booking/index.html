@@ -305,21 +305,91 @@ async function confirmBooking(){
 
   const btn=document.getElementById("payBtn");
   btn.disabled=true;
+btn.innerText = "Processing...";
+ const name=document.getElementById("name").value.trim();
+const phone=document.getElementById("phone").value.trim();
+const email=document.getElementById("email").value.trim();
+const date=document.getElementById("date").value;
+const time=document.getElementById("time").value;
+const notes=document.getElementById("notes").value;
 
-  const name=document.getElementById("name").value.trim();
-  const phone=document.getElementById("phone").value.trim();
-  const email=document.getElementById("email").value.trim();
-  const date=document.getElementById("date").value;
-  const time=document.getElementById("time").value;
-  const notes=document.getElementById("notes").value;
+/* =========================
+   CLEAN PRICE
+========================= */
 
-  if(!name || !phone || !email || !date || !time){
-    alert("Fill all fields");
-    btn.disabled=false;
-    return;
-  }
+const cleanPrice = Number(
+  String(tripData.price)
+  .replace(/[^0-9.]/g,"")
+);
 
-  const cleanPrice = Number(String(tripData.price).replace(/[^0-9.]/g,""));
+/* =========================
+   VALIDATION
+========================= */
+
+if(
+
+  !name ||
+  !phone ||
+  !email ||
+  !date ||
+  !time ||
+
+  !tripData.pickup ||
+  !tripData.dropoff ||
+  !cleanPrice ||
+
+  String(cleanPrice) === "0"
+
+){
+
+  alert(
+    "Please fill all required fields"
+  );
+
+  btn.disabled = false;
+btn.innerText = "Pay Now";
+  return;
+
+}
+
+/* =========================
+   PREVENT PAST TIME
+========================= */
+
+const now = new Date();
+
+const tripDateTime =
+new Date(`${date}T${time}`);
+
+if(
+
+  isNaN(tripDateTime.getTime())
+
+){
+
+  alert("Invalid date or time");
+
+  btn.disabled = false;
+btn.innerText = "Pay Now";
+  return;
+
+}
+
+if(
+
+  tripDateTime <= now
+
+){
+
+  alert(
+    "Trip time already passed"
+  );
+
+  btn.disabled = false;
+btn.innerText = "Pay Now";
+  return;
+
+}
 
   /* ================= DYNAMIC WARNING ================= */
 
@@ -426,7 +496,7 @@ Do you want to continue?`
   if(!ok){
 
     btn.disabled = false;
-
+btn.innerText = "Pay Now";
     return;
 
   }
@@ -479,6 +549,7 @@ if(!trip || !trip._id){
   );
 
   btn.disabled = false;
+btn.innerText = "Pay Now";
   return;
 }
 
@@ -496,11 +567,17 @@ location.href =
 
 },1500);
 
-  }catch(err){
-    console.log(err);
-    alert("Server error");
-    btn.disabled=false;
-  }
+}catch(err){
+
+  console.log(err);
+
+  alert("Server error");
+
+  btn.disabled = false;
+
+  btn.innerText = "Pay Now";
+
+}
 }
 
 </script>
