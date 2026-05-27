@@ -1104,18 +1104,17 @@ window.selectedWarningPolicy = {
     pricingData.service?.noShowFee || 0
   ),
 
-  disableCancel:
+ disableCancel:
 
 Boolean(
-  window.selectedWarningPolicy
-  ?.disableCancel
+  pricingData.service?.disableCancel
 ),
 
 warningEnabled:
 
 String(
   pricingData.service?.warningEnabled || "enabled"
-)
+).toLowerCase()
 };
 
 if(!pricingData.success){
@@ -1304,7 +1303,8 @@ Boolean(
 warningEnabled:
 
 String(
-  pricingData.service?.warningEnabled || "enabled"
+  window.selectedWarningPolicy
+  ?.warningEnabled || "enabled"
 )
 .toLowerCase(),
 
