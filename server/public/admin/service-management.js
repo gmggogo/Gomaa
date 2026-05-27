@@ -354,10 +354,17 @@ function renderServices(){
             Turn Warning & Fee ON/OFF
           </label>
 
-          <select
-            id="disablecancel-${service._id}"
-            disabled
-          >
+         <select
+  id="disablecancel-${service._id}"
+  disabled
+  class="
+    ${
+      service.disableCancel
+      ? "status-on"
+      : "status-off"
+    }
+  "
+>
 
             <option
               value="true"
@@ -805,9 +812,16 @@ function renderCompanyServices(){
           </label>
 
           <select
-            id="company-disablecancel-${service._id}"
-            disabled
-          >
+  id="company-disablecancel-${service._id}"
+  disabled
+  class="
+    ${
+      service.companyDisableCancel
+      ? "status-on"
+      : "status-off"
+    }
+  "
+>
 
             <option
               value="true"
