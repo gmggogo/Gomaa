@@ -5850,7 +5850,7 @@ const cancelFee =
    FREE CANCEL
 ========================= */
 
-if(diffMinutes > warningMinutes)
+if(diffMinutes > warningMinutes){
 
   refundAmount =
     totalAmount;
@@ -5888,25 +5888,27 @@ if(diffMinutes > warningMinutes)
     }
 
   }
-if(cancelDisabled){
 
-  fee = 0;
+  if(cancelDisabled){
 
-}else{
+    fee = 0;
 
-  fee = Number(
+  }else{
 
-    serviceFee ||
+    fee = Number(
 
-    trip.cancelFee ||
+      serviceFee ||
 
-    trip.finalPrice ||
+      trip.cancelFee ||
 
-    0
+      trip.finalPrice ||
 
-  );
+      0
 
-}
+    );
+
+  }
+
   refundAmount =
     totalAmount - fee;
 
