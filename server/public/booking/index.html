@@ -379,12 +379,12 @@ const mins =
 
 if(
 
-disableCancel !== true
+  disableCancel !== true &&
   warningEnabled === true &&
-
   mins <= tripWarningMinutes
 
 ){
+
   let warningText = "";
 
   if(tripWarningMinutes < 60){
