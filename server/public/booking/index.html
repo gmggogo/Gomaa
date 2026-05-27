@@ -347,13 +347,17 @@ Number(
 
 const disableCancel =
 
-  tripData.disableCancel === true ||
-
-  tripData.disableCancel === "true";
+  String(
+    tripData.disableCancel || ""
+  )
+  .toLowerCase() === "on";
 
 const warningEnabled =
 
-  tripData.warningEnabled !== false;
+  String(
+    tripData.warningEnabled || ""
+  )
+  .toLowerCase() === "enabled";
 
 const mins =
   minutesUntilTrip(
