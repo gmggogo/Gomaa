@@ -350,6 +350,45 @@ function renderServices(){
 
         <div class="field">
 
+          <label>
+            Turn Warning & Fee ON/OFF
+          </label>
+
+          <select
+            id="disablecancel-${service._id}"
+            disabled
+          >
+
+            <option
+              value="true"
+              ${service.disableCancel ? "selected" : ""}
+              style="
+                background:#16a34a;
+                color:#fff;
+                font-weight:700;
+              "
+            >
+              ON
+            </option>
+
+            <option
+              value="false"
+              ${!service.disableCancel ? "selected" : ""}
+              style="
+                background:#dc2626;
+                color:#fff;
+                font-weight:700;
+              "
+            >
+              OFF
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="field">
+
           <label>Warning Minutes</label>
 
           <input
@@ -371,35 +410,6 @@ function renderServices(){
             value="${service.cancelFee || 0}"
             disabled
           >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Turn Warning & Fee ON/OFF
-          </label>
-
-          <select
-            id="disablecancel-${service._id}"
-            disabled
-          >
-
-            <option
-              value="false"
-              ${!service.disableCancel ? "selected" : ""}
-            >
-              ON
-            </option>
-
-            <option
-              value="true"
-              ${service.disableCancel ? "selected" : ""}
-            >
-              OFF
-            </option>
-
-          </select>
 
         </div>
 
@@ -790,6 +800,45 @@ function renderCompanyServices(){
 
         <div class="field">
 
+          <label>
+            Turn Warning & Fee ON/OFF
+          </label>
+
+          <select
+            id="company-disablecancel-${service._id}"
+            disabled
+          >
+
+            <option
+              value="true"
+              ${service.companyDisableCancel ? "selected" : ""}
+              style="
+                background:#16a34a;
+                color:#fff;
+                font-weight:700;
+              "
+            >
+              ON
+            </option>
+
+            <option
+              value="false"
+              ${!service.companyDisableCancel ? "selected" : ""}
+              style="
+                background:#dc2626;
+                color:#fff;
+                font-weight:700;
+              "
+            >
+              OFF
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="field">
+
           <label>Warning Minutes</label>
 
           <input
@@ -811,35 +860,6 @@ function renderCompanyServices(){
             value="${service.cancelFee || 0}"
             disabled
           >
-
-        </div>
-
-        <div class="field">
-
-          <label>
-            Turn Warning & Fee ON/OFF
-          </label>
-
-          <select
-            id="company-disablecancel-${service._id}"
-            disabled
-          >
-
-            <option
-              value="false"
-              ${!service.companyDisableCancel ? "selected" : ""}
-            >
-              ON
-            </option>
-
-            <option
-              value="true"
-              ${service.companyDisableCancel ? "selected" : ""}
-            >
-              OFF
-            </option>
-
-          </select>
 
         </div>
 
