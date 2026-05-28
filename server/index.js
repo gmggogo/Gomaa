@@ -306,18 +306,21 @@ app.post(
 
       }
 
-   await trip.save();
+    await trip.save();
 
-/* confirmation email removed */
+await sendTripStatusEmail(
+  trip,
+  "CONFIRMED"
+);
 
 console.log(
   "✅ PAYMENT SUCCESS:",
   trip.tripNumber
 );
 
-return res.json({
-  success:true
-});
+      return res.json({
+        success:true
+      });
 
     } catch(err){
 
