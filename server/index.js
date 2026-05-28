@@ -287,28 +287,28 @@ app.post(
 
       }
 
-     if(paymentIntentId){
+      if(paymentIntentId){
 
-  trip.paymentIntentId =
-    paymentIntentId;
+        trip.paymentIntentId =
+          paymentIntentId;
 
-}
+      }
 
-trip.dispatchSelected =
-  true;
+      trip.dispatchSelected =
+        true;
 
-if(!trip.cancelToken){
+      if(!trip.cancelToken){
 
-  trip.cancelToken =
-    crypto
-    .randomBytes(32)
-    .toString("hex");
+        trip.cancelToken =
+          crypto
+          .randomBytes(32)
+          .toString("hex");
 
-}
+      }
 
-await trip.save();
+   await trip.save();
 
-/* confirmation removed */
+/* confirmation email removed */
 
 console.log(
   "✅ PAYMENT SUCCESS:",
@@ -318,6 +318,7 @@ console.log(
 return res.json({
   success:true
 });
+
     } catch(err){
 
       console.log(
