@@ -208,7 +208,19 @@ console.log(
 
 return res.sendStatus(200);
 
-}
+    } catch (err) {
+
+      console.log(
+        "🔥 Webhook Processing Error:",
+        err
+      );
+
+      return res.sendStatus(500);
+
+    }
+
+  }
+
 );
 
 /* =========================
