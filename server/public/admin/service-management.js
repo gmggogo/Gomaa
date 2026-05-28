@@ -420,6 +420,43 @@ function renderServices(){
 
         </div>
 
+<div class="field">
+
+  <label>
+    Show Top Pricing Card
+  </label>
+
+  <select
+    id="pricingcard-${service._id}"
+    disabled
+  >
+
+    <option
+      value="true"
+      ${
+        service.showPricingCard !== false
+        ? "selected"
+        : ""
+      }
+    >
+      ON
+    </option>
+
+    <option
+      value="false"
+      ${
+        service.showPricingCard === false
+        ? "selected"
+        : ""
+      }
+    >
+      OFF
+    </option>
+
+  </select>
+
+</div>
+
       </div>
 
       <div class="buttons">
@@ -928,8 +965,8 @@ function enableEdit(id){
     `shared-${id}`,
     `minutes-${id}`,
     `cancel-${id}`,
-    `disablecancel-${id}`
-
+`disablecancel-${id}`,
+`pricingcard-${id}`,
   ];
 
   fields.forEach(fieldId=>{
@@ -1073,10 +1110,17 @@ async function saveService(id){
         ).value
       ),
 
-      disableCancel:
-      document.getElementById(
-        `disablecancel-${id}`
-      ).value === "true"
+   disableCancel:
+
+document.getElementById(
+  `disablecancel-${id}`
+).value === "true",
+
+showPricingCard:
+
+document.getElementById(
+  `pricingcard-${id}`
+).value === "true"
 
     };
 

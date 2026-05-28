@@ -565,11 +565,15 @@ async function loadServices(){
         service.serviceKey || ""
       ).toUpperCase();
 
-      if(key === "SHARED"){
-        return false;
-      }
+     if(key === "SHARED"){
+  return false;
+}
 
-      return service.enabled === true;
+if(service.enabled !== true){
+  return false;
+}
+
+return service.showPricingCard !== false;
 
     });
 

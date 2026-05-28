@@ -26,7 +26,10 @@ const serviceSchema = new mongoose.Schema({
     type:Boolean,
     default:true
   },
-
+showPricingCard:{
+  type:Boolean,
+  default:true
+},
   /* =========================
      INDIVIDUAL PRICING
   ========================= */
