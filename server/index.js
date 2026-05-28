@@ -306,12 +306,9 @@ app.post(
 
       }
 
-     await trip.save();
+    await trip.save();
 
-await sendTripStatusEmail(
-  trip,
-  "CONFIRMED"
-);
+
 
 console.log(
   "✅ PAYMENT SUCCESS:",
@@ -335,8 +332,7 @@ console.log(
 
     }
 
-  }
-);
+});
 
 /* =========================
    PUBLIC CONFIG - GOOGLE KEY
