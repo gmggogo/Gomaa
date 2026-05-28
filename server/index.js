@@ -333,8 +333,7 @@ console.log(
 
     }
 
-  }
-);
+  );
 
 /* =========================
    PUBLIC CONFIG - GOOGLE KEY
