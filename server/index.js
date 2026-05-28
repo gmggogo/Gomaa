@@ -9,7 +9,6 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
 const serviceRoutes =
@@ -30,40 +29,6 @@ const {
 } = require(
   "./utils/tripEmailEngine"
 );
-/* =========================
-   EMAIL TRANSPORTER ENGINE
-========================= */
-
-function createEmailTransporter(settings){
-
-  return nodemailer.createTransport({
-
-    host:
-      settings?.smtpHost ||
-      "smtp.zoho.com",
-
-    port:
-      Number(
-        settings?.smtpPort || 465
-      ),
-
-    secure:true,
-
-auth:{
-
-  user:
-    settings?.smtpUser ||
-    process.env.EMAIL_USER,
-
-  pass:
-    settings?.smtpPass ||
-    process.env.EMAIL_PASS
-
-}
-
-  });
-
-}
 
 /* =========================
    ENV
@@ -211,9 +176,9 @@ if (
 
   }
 
-  /* =========================
-     SAVE DATA
-  ========================= */
+ /* =========================
+   SAVE DATA
+========================= */
 
 trip.paymentIntentId =
 
@@ -223,11 +188,7 @@ paymentIntent.payment_intent ||
 
 "";
 
-console.log(
-  "START EMAIL ENGINE"
-);
-
-  trip.dispatchSelected = true;
+trip.dispatchSelected = true;
 
 await trip.save();
 
@@ -236,200 +197,10 @@ await sendTripStatusEmail(
   "CONFIRMED"
 );
 
- /* =========================
-   SEND EMAIL
-========================= */
-
-try {
-
-  console.log(
-    "START EMAIL ENGINE"
-  );
-
-  const settings =
-    await SystemDesign.findOne({});
-
-  console.log(
-    "SETTINGS LOADED"
-  );
 console.log(
-  "SMTP USER:",
-  settings?.smtpUser
+  "✅ Trip Paid:",
+  trip.tripNumber
 );
-
-console.log(
-  "SMTP PASS:",
-  settings?.smtpPass
-);
-  const companyEmail =
-
-    settings?.smtpUser ||
-
-    process.env.EMAIL_USER;
-
-  const displayName =
-
-    settings?.companyName ||
-
-    "Sunbeam Transportation";
-
-  console.log(
-    "CLIENT EMAIL:",
-    trip.clientEmail
-  );
-
-  console.log(
-    "SMTP EMAIL:",
-    companyEmail
-  );
-
-  const emailSubject =
-
-    settings?.bookingEmailSubject
-
-    ||
-
-    "Booking Confirmation";
-
-  const emailMessage =
-
-    settings?.bookingEmailMessage
-
-    ||
-
-    "Your trip is confirmed.";
-
-  const cancelPolicy =
-
-    settings?.cancelPolicyText
-
-    ||
-
-    "Free cancellation up to 2 hours before trip time.";
-
-  const cancelLink =
-
-    `${process.env.BASE_URL}/booking/cancel.html?token=${trip.cancelToken}`;
-
-  if (trip.clientEmail) {
-
-    console.log(
-      "CREATING TRANSPORTER"
-    );
-
-    const transporter =
-      createEmailTransporter(
-        settings
-      );
-
-    console.log(
-      "SENDING EMAIL NOW"
-    );
-
-    const info =
-      await transporter.sendMail({
-
-        from:
-        `"${displayName}" <${companyEmail}>`,
-
-        to:
-        trip.clientEmail,
-
-        subject:
-        emailSubject,
-
-        html:`
-
-        <h2>
-          Payment Successful
-        </h2>
-
-        <p>
-          ${emailMessage}
-        </p>
-
-        <hr/>
-
-        <p>
-          <b>Trip Number:</b>
-          ${trip.tripNumber}
-        </p>
-
-        <p>
-          <b>Pickup:</b>
-          ${trip.pickup}
-        </p>
-
-        <p>
-          <b>Dropoff:</b>
-          ${trip.dropoff}
-        </p>
-
-        <p>
-          <b>Date:</b>
-          ${trip.tripDate}
-        </p>
-
-        <p>
-          <b>Time:</b>
-          ${trip.tripTime}
-        </p>
-
-        <p>
-          <b>Amount Paid:</b>
-          $${trip.priceAmount}
-        </p>
-
-        <hr/>
-
-        <p>
-          ${cancelPolicy}
-        </p>
-
-        <a href="${cancelLink}">
-          Cancel Trip
-        </a>
-
-        `
-
-      });
-
-    console.log(
-      "EMAIL SENT SUCCESS:",
-      info
-    );
-trip.confirmationEmailSent = true;
-
-await trip.save();
-
-await sendTripStatusEmail(
-  trip,
-  "CONFIRMED"
-);  
-
-} else {
-
-    console.log(
-      "NO CLIENT EMAIL FOUND"
-    );
-
-  }
-
-} catch(emailErr) {
-
-  console.log(
-    "EMAIL ERROR FULL:",
-    emailErr
-  );
-
-}
-
-  console.log(
-    "✅ Trip Paid:",
-    trip.tripNumber
-  );
-
-}
 
       /* =========================
          SUCCESS
@@ -6550,21 +6321,21 @@ setInterval(async () => {
 
       });
 
-   for(const trip of trips){
+    for(const trip of trips){
 
-  const isCompanyTrip =
+      const isCompanyTrip =
 
-    trip.company ||
+        trip.company ||
 
-    String(trip.type || "")
-      .toLowerCase()
-      .includes("company");
+        String(trip.type || "")
+          .toLowerCase()
+          .includes("company");
 
-  if(isCompanyTrip){
-    continue;
-  }
+      if(isCompanyTrip){
+        continue;
+      }
 
-  try{
+      try{
 
         if(
           !trip.tripDate ||
@@ -6617,77 +6388,10 @@ setInterval(async () => {
             continue;
           }
 
-          const settings =
-            await SystemDesign.findOne({});
-
-          const transporter =
-            createEmailTransporter(
-              settings
-            );
-
-          const companyName =
-
-            settings?.companyName ||
-
-            "Sunbeam Transportation";
-
-          const companyEmail =
-
-            settings?.smtpUser ||
-
-            process.env.EMAIL_USER;
-
-          await transporter.sendMail({
-
-            from:
-            `"${companyName}" <${companyEmail}>`,
-
-            to:
-            trip.clientEmail,
-
-            subject:
-            "Trip Reminder",
-
-            html:`
-
-              <h2>
-                Trip Reminder
-              </h2>
-
-              <p>
-                Your trip is in less than 2 hours.
-              </p>
-
-              <hr/>
-
-              <p>
-                <b>Trip #:</b>
-                ${trip.tripNumber}
-              </p>
-
-              <p>
-                <b>Pickup:</b>
-                ${trip.pickup}
-              </p>
-
-              <p>
-                <b>Dropoff:</b>
-                ${trip.dropoff}
-              </p>
-
-              <p>
-                <b>Date:</b>
-                ${trip.tripDate}
-              </p>
-
-              <p>
-                <b>Time:</b>
-                ${trip.tripTime}
-              </p>
-
-            `
-
-          });
+          await sendTripStatusEmail(
+            locked,
+            "REMINDER"
+          );
 
         }
 
@@ -6709,8 +6413,7 @@ setInterval(async () => {
 
   }
 
-}, 60000);         
-
+}, 60000);
  
 /* =========================
    START SERVER
