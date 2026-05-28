@@ -192,17 +192,10 @@ trip.dispatchSelected = true;
 
 await trip.save();
 
-sendTripStatusEmail(
+await sendTripStatusEmail(
   trip,
   "CONFIRMED"
-).catch(err=>{
-
-  console.log(
-    "EMAIL ERROR:",
-    err
-  );
-
-});
+);
 
 console.log(
   "✅ Trip Paid:",
@@ -313,19 +306,12 @@ app.post(
 
       }
 
-  await trip.save();
+     await trip.save();
 
-sendTripStatusEmail(
+await sendTripStatusEmail(
   trip,
   "CONFIRMED"
-).catch(err=>{
-
-  console.log(
-    "EMAIL ERROR:",
-    err
-  );
-
-});
+);
 
 console.log(
   "✅ PAYMENT SUCCESS:",
