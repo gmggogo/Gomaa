@@ -208,7 +208,8 @@ console.log(
 
 return res.sendStatus(200);
 
-});
+}
+);
 
 /* =========================
    JSON MIDDLEWARE AFTER WEBHOOK
