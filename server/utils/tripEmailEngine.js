@@ -135,254 +135,264 @@ async function sendTripStatusEmail(
 
     let statusBlock = "";
 
-    /* =========================
-       CONFIRMED
-    ========================= */
+  /* =========================
+   CONFIRMED
+========================= */
 
-    if(type === "CONFIRMED"){
+if(type === "CONFIRMED"){
 
-      subject =
-        "Trip Confirmation";
+  subject =
+    "Trip Confirmation";
 
-      statusBlock = `
+  statusBlock = `
 
-        <p>
-          Your booking has been confirmed.
-        </p>
+    <p>
+      Your booking has been confirmed.
+    </p>
 
-        <p>
-          <b>Total Paid:</b>
-          $${trip.priceAmount || 0}
-        </p>
+    <p>
+      <b>Total Paid:</b>
+      $${Number(
+        trip.priceAmount || 0
+      ).toFixed(2)}
+    </p>
 
-        ${
-          cancelLink
-          ? `
-          <hr/>
+    ${
+      cancelLink
+      ? `
+      <hr/>
 
-          <a
-            href="${cancelLink}"
-            style="
-              display:inline-block;
-              padding:12px 18px;
-              background:#dc2626;
-              color:#fff;
-              text-decoration:none;
-              border-radius:8px;
-              font-weight:bold;
-            "
-          >
-            Cancel Trip
-          </a>
-          `
-          : ""
-        }
-
-      `;
-
-    }
-
-    /* =========================
-       REMINDER
-    ========================= */
-
-    else if(type === "REMINDER"){
-
-      subject =
-        "Trip Reminder";
-
-      statusBlock = `
-
-        <p>
-          Your trip is in less than 2 hours.
-        </p>
-
-        ${
-          cancelLink
-          ? `
-          <hr/>
-
-          <a
-            href="${cancelLink}"
-            style="
-              display:inline-block;
-              padding:12px 18px;
-              background:#dc2626;
-              color:#fff;
-              text-decoration:none;
-              border-radius:8px;
-              font-weight:bold;
-            "
-          >
-            Cancel Trip
-          </a>
-          `
-          : ""
-        }
-
-      `;
-
-    }
-
-    /* =========================
-       CANCELLED
-    ========================= */
-
-    else if(type === "CANCELLED"){
-
-      subject =
-        "Trip Cancelled";
-
-      statusBlock = `
-
-        <p>
-          Your trip has been cancelled.
-        </p>
-
-        <p>
-          <b>Refund:</b>
-          $${trip.refundAmount || 0}
-        </p>
-
-        <p>
-          <b>Cancel Fee:</b>
-          $${trip.cancelFee || 0}
-        </p>
-
-        <p>
-          <b>Refund Status:</b>
-          ${trip.refundStatus || "none"}
-        </p>
-
-      `;
-
-    }
-
-    /* =========================
-       NO SHOW
-    ========================= */
-
-    else if(type === "NOSHOW"){
-
-      subject =
-        "No Show Charge";
-
-      statusBlock = `
-
-        <p>
-          Trip marked as No Show.
-        </p>
-
-        <p>
-          <b>No Show Fee:</b>
-          $${trip.noShowFee || 0}
-        </p>
-
-      `;
-
-    }
-
-    /* =========================
-       COMPLETED
-    ========================= */
-
-    else if(type === "COMPLETED"){
-
-      subject =
-        "Trip Completed";
-
-      statusBlock = `
-
-        <p>
-          Thank you for riding with us.
-        </p>
-
-        <p>
-          <b>Total:</b>
-          $${trip.finalPrice || 0}
-        </p>
-
-      `;
-
-    }
-
-    else{
-
-      return;
-
-    }
-
-    /* =========================
-       SEND EMAIL
-    ========================= */
-
-    await transporter.sendMail({
-
-      from:
-      `"${companyName}" <${companyEmail}>`,
-
-      to:
-      trip.clientEmail,
-
-      subject,
-
-      html:`
-
-      <div
+      <a
+        href="${cancelLink}"
         style="
-          font-family:Arial;
-          max-width:650px;
-          margin:auto;
-          padding:20px;
-          border:1px solid #e5e7eb;
-          border-radius:12px;
+          display:inline-block;
+          padding:12px 18px;
+          background:#dc2626;
+          color:#fff;
+          text-decoration:none;
+          border-radius:8px;
+          font-weight:bold;
         "
       >
-
-        <h2
-          style="
-            color:#0f172a;
-          "
-        >
-          ${subject}
-        </h2>
-
-        <hr/>
-
-        <p>
-          <b>Trip #:</b>
-          ${trip.tripNumber || ""}
-        </p>
-
-        <p>
-          <b>Pickup:</b>
-          ${trip.pickup || ""}
-        </p>
-
-        <p>
-          <b>Dropoff:</b>
-          ${trip.dropoff || ""}
-        </p>
-
-        <p>
-          <b>Date:</b>
-          ${trip.tripDate || ""}
-        </p>
-
-        <p>
-          <b>Time:</b>
-          ${trip.tripTime || ""}
-        </p>
-
-        <hr/>
-
-        ${statusBlock}
-
-      </div>
-
+        Cancel Trip
+      </a>
       `
+      : ""
+    }
 
-    });
+  `;
+
+}
+
+/* =========================
+   REMINDER
+========================= */
+
+else if(type === "REMINDER"){
+
+  subject =
+    "Trip Reminder";
+
+  statusBlock = `
+
+    <p>
+      Your trip is in less than 2 hours.
+    </p>
+
+    ${
+      cancelLink
+      ? `
+      <hr/>
+
+      <a
+        href="${cancelLink}"
+        style="
+          display:inline-block;
+          padding:12px 18px;
+          background:#dc2626;
+          color:#fff;
+          text-decoration:none;
+          border-radius:8px;
+          font-weight:bold;
+        "
+      >
+        Cancel Trip
+      </a>
+      `
+      : ""
+    }
+
+  `;
+
+}
+
+/* =========================
+   CANCELLED
+========================= */
+
+else if(type === "CANCELLED"){
+
+  subject =
+    "Trip Cancelled";
+
+  statusBlock = `
+
+    <p>
+      Your trip has been cancelled.
+    </p>
+
+    <p>
+      <b>Refund:</b>
+      $${Number(
+        trip.refundAmount || 0
+      ).toFixed(2)}
+    </p>
+
+    <p>
+      <b>Cancel Fee:</b>
+      $${Number(
+        trip.cancelFee || 0
+      ).toFixed(2)}
+    </p>
+
+    <p>
+      <b>Refund Status:</b>
+      ${trip.refundStatus || "none"}
+    </p>
+
+  `;
+
+}
+
+/* =========================
+   NO SHOW
+========================= */
+
+else if(type === "NOSHOW"){
+
+  subject =
+    "No Show Charge";
+
+  statusBlock = `
+
+    <p>
+      Trip marked as No Show.
+    </p>
+
+    <p>
+      <b>No Show Fee:</b>
+      $${Number(
+        trip.noShowFee || 0
+      ).toFixed(2)}
+    </p>
+
+  `;
+
+}
+
+/* =========================
+   COMPLETED
+========================= */
+
+else if(type === "COMPLETED"){
+
+  subject =
+    "Trip Completed";
+
+  statusBlock = `
+
+    <p>
+      Thank you for riding with us.
+    </p>
+
+    <p>
+      <b>Total:</b>
+      $${Number(
+        trip.finalPrice || 0
+      ).toFixed(2)}
+    </p>
+
+  `;
+
+}
+
+else{
+
+  return;
+
+}
+
+/* =========================
+   SEND EMAIL
+========================= */
+
+await transporter.sendMail({
+
+  from:
+  `"${companyName}" <${companyEmail}>`,
+
+  to:
+  trip.clientEmail,
+
+  subject,
+
+  html:`
+
+  <div
+    style="
+      font-family:Arial;
+      max-width:650px;
+      margin:auto;
+      padding:20px;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+    "
+  >
+
+    <h2
+      style="
+        color:#0f172a;
+      "
+    >
+      ${subject}
+    </h2>
+
+    <hr/>
+
+    <p>
+      <b>Trip #:</b>
+      ${trip.tripNumber || ""}
+    </p>
+
+    <p>
+      <b>Pickup:</b>
+      ${trip.pickup || ""}
+    </p>
+
+    <p>
+      <b>Dropoff:</b>
+      ${trip.dropoff || ""}
+    </p>
+
+    <p>
+      <b>Date:</b>
+      ${trip.tripDate || ""}
+    </p>
+
+    <p>
+      <b>Time:</b>
+      ${trip.tripTime || ""}
+    </p>
+
+    <hr/>
+
+    ${statusBlock}
+
+  </div>
+
+  `
+
+});
 
     /* =========================
        SAVE CONFIRM FLAG
