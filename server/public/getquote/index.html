@@ -931,27 +931,72 @@ dropoff.addEventListener(
 resetUI
 );
 
-/* ================= FIX AZ ================= */
+/* =========================
+   SYSTEM REGION
+========================= */
 
-function fixAZ(address){
+function getSystemRegion(){
 
-address =
-String(address || "")
-.trim();
+  return (
 
-if(address === ""){
-return "";
+    localStorage.getItem(
+      "systemRegion"
+    ) ||
+
+    "Arizona"
+
+  );
+
 }
 
-if(
-!address
-.toLowerCase()
-.includes("arizona")
-){
-return address + ", Arizona";
+/* =========================
+   SYSTEM TIMEZONE
+========================= */
+
+function getSystemTimezone(){
+
+  return (
+
+    localStorage.getItem(
+      "systemTimezone"
+    ) ||
+
+    "America/Phoenix"
+
+  );
+
 }
 
-return address;
+/* =========================
+   FIX REGION
+========================= */
+
+function fixRegion(address){
+
+  address =
+  String(address || "")
+  .trim();
+
+  if(address === ""){
+    return "";
+  }
+
+  const region =
+  getSystemRegion();
+
+  if(
+    !address
+    .toLowerCase()
+    .includes(
+      region.toLowerCase()
+    )
+  ){
+
+    return `${address}, ${region}`;
+
+  }
+
+  return address;
 
 }
 
@@ -967,10 +1012,10 @@ return;
 }
 
 const pickupVal =
-fixAZ(pickup.value);
+fixRegion(pickup.value);
 
 const dropVal =
-fixAZ(dropoff.value);
+fixRegion(dropoff.value);
 
 if(!pickupVal || !dropVal){
 
@@ -988,7 +1033,7 @@ document.querySelectorAll(
 )
 .filter(i=>i.value)
 .map(i=>({
-location:fixAZ(i.value)
+  location:fixRegion(i.value)
 }));
 
 directionsService.route({
@@ -1226,10 +1271,10 @@ alert("Server pricing failed");
 function bookTrip(){
 
 const pickupVal =
-fixAZ(pickup.value);
+fixRegion(pickup.value);
 
 const dropVal =
-fixAZ(dropoff.value);
+fixRegion(dropoff.value);
 
 const stops =
 Array
@@ -1239,7 +1284,7 @@ document.querySelectorAll(
 )
 )
 .filter(i=>i.value)
-.map(i=>fixAZ(i.value));
+.map(i=>fixRegion(i.value));
 
 /* =========================
 TRIP DATA

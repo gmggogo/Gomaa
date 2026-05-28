@@ -6251,36 +6251,45 @@ else{
          RESPONSE
       ========================= */
 
-      res.json({
+     res.json({
 
-        success:true,
+  success:true,
 
-        tripNumber:
-          trip.tripNumber,
+  tripNumber:
+    trip.tripNumber,
 
-        clientName:
-          trip.clientName,
+  clientName:
+    trip.clientName,
 
-        tripDate:
-          trip.tripDate,
+  pickup:
+    trip.pickup,
 
-        tripTime:
-          trip.tripTime,
+  dropoff:
+    trip.dropoff,
 
-        status:
-          trip.status,
+  tripDate:
+    trip.tripDate,
 
-        fee,
+  tripTime:
+    trip.tripTime,
 
-        timezone,
+  priceAmount:
+    Number(
+      trip.priceAmount || 0
+    ),
 
-        alreadyCancelled:
+  status:
+    trip.status,
 
-          trip.status ===
-          "Cancelled"
+  fee,
 
-      });
+  timezone,
 
+  alreadyCancelled:
+    trip.status ===
+    "Cancelled"
+
+});
     } catch (err) {
 
       console.log(
