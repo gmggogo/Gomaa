@@ -135,60 +135,11 @@ async function sendTripStatusEmail(
 
     let statusBlock = "";
 
-  /* =========================
-   CONFIRMED
-========================= */
-
-if(type === "CONFIRMED"){
-
-  subject =
-    "Trip Confirmation";
-
-  statusBlock = `
-
-    <p>
-      Your booking has been confirmed.
-    </p>
-
-    <p>
-      <b>Total Paid:</b>
-      $${Number(
-        trip.priceAmount || 0
-      ).toFixed(2)}
-    </p>
-
-    ${
-      cancelLink
-      ? `
-      <hr/>
-
-      <a
-        href="${cancelLink}"
-        style="
-          display:inline-block;
-          padding:12px 18px;
-          background:#dc2626;
-          color:#fff;
-          text-decoration:none;
-          border-radius:8px;
-          font-weight:bold;
-        "
-      >
-        Cancel Trip
-      </a>
-      `
-      : ""
-    }
-
-  `;
-
-}
-
 /* =========================
    REMINDER
 ========================= */
 
-else if(type === "REMINDER"){
+if(type === "REMINDER"){
 
   subject =
     "Trip Reminder";
