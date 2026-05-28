@@ -6194,22 +6194,25 @@ else{
     trip.status ===
     "Cancelled"
 
+
+   res.status(500).json({
+  message:"Server error"
 });
-    } catch (err) {
 
-      console.log(
-        "CHECK ERROR:",
-        err
-      );
+} catch (err) {
 
-      res.status(500).json({
-        message:"Server error"
-      });
+  console.log(
+    "CHECK ERROR:",
+    err
+  );
 
-    }
+  res.status(500).json({
+    message:"Server error"
+  });
 
-  }
-);
+}
+
+  });
 
 /* =========================
    GET REFUNDS
