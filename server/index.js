@@ -308,10 +308,7 @@ app.post(
 
     await trip.save();
 
-await sendTripStatusEmail(
-  trip,
-  "CONFIRMED"
-);
+
 
 console.log(
   "✅ PAYMENT SUCCESS:",
