@@ -208,12 +208,14 @@ console.log(
 
 return res.sendStatus(200);
 
-    } catch (err) {
+}
 
-      console.log(
-        "🔥 Webhook Processing Error:",
-        err
-      );
+} catch (err) {
+
+   console.log(
+  "Webhook Processing Error:",
+  err
+);
 
       return res.sendStatus(500);
 
@@ -2084,7 +2086,8 @@ async function persistAssignedTrips(trips) {
 
   if (ops.length > 0) {
     try {
-      await Trip.bulkWrite(ops, { ordered: false });
+      await Trip.bulkWrite(ops, { ordered: false }
+);
     } catch (err) {
       console.log("Bulk trip save error:", err?.message || err);
     }
