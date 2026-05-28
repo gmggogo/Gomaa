@@ -25,7 +25,11 @@ require("./models/SystemDesign");
 
 const Service =
 require("./models/Service");
-
+const {
+  sendTripStatusEmail
+} = require(
+  "./utils/tripEmailEngine"
+);
 /* =========================
    EMAIL TRANSPORTER ENGINE
 ========================= */
@@ -223,10 +227,14 @@ console.log(
   "START EMAIL ENGINE"
 );
 
-  trip.dispatchSelected =
-    true;
+  trip.dispatchSelected = true;
 
-  await trip.save();
+await trip.save();
+
+await sendTripStatusEmail(
+  trip,
+  "CONFIRMED"
+);
 
  /* =========================
    SEND EMAIL
@@ -393,7 +401,13 @@ console.log(
 trip.confirmationEmailSent = true;
 
 await trip.save();
-  } else {
+
+await sendTripStatusEmail(
+  trip,
+  "CONFIRMED"
+);  
+
+} else {
 
     console.log(
       "NO CLIENT EMAIL FOUND"
@@ -512,12 +526,17 @@ app.post(
 
       }
 
-      await trip.save();
+    await trip.save();
 
-      console.log(
-        "✅ PAYMENT SUCCESS:",
-        trip.tripNumber
-      );
+await sendTripStatusEmail(
+  trip,
+  "CONFIRMED"
+);
+
+console.log(
+  "✅ PAYMENT SUCCESS:",
+  trip.tripNumber
+);
 
       return res.json({
         success:true
@@ -5516,6 +5535,121 @@ app.patch("/api/driver/trips/:id/complete", async (req, res) => {
 });
 
 /* =========================
+   DRIVER NO SHOW
+========================= */
+app.patch("/api/driver/trips/:id/no-show", async (req, res) => {
+
+  try {
+
+    const trip =
+      await Trip.findById(
+        req.params.id
+      );
+
+    if (!trip) {
+
+      return res.status(404).json({
+        message: "Trip not found"
+      });
+
+    }
+
+    /* =========================
+       FINALIZED
+    ========================= */
+
+    if (trip.isFinalized) {
+
+      return res.json(trip);
+
+    }
+
+    /* =========================
+       NO SHOW
+    ========================= */
+
+    trip.status = "No Show";
+
+    const noShowFee =
+      Number(
+        trip.noShowFee || 0
+      );
+
+    trip.finalPrice =
+      noShowFee;
+
+    trip.priceAmount =
+      noShowFee;
+
+    trip.isFinalized = true;
+
+    /* =========================
+       SHARED SUPPORT
+    ========================= */
+
+    if (
+      trip.isShared &&
+      Array.isArray(trip.passengers)
+    ) {
+
+      trip.passengers =
+        trip.passengers.map(p => ({
+
+          ...p,
+
+          status: "No Show",
+
+          finalPrice:
+            noShowFee,
+
+          priceAmount:
+            noShowFee
+
+        }));
+
+    }
+
+    /* =========================
+       SAVE
+    ========================= */
+
+    await trip.save();
+
+    /* =========================
+       EMAIL
+    ========================= */
+
+    try {
+
+      await sendTripStatusEmail(
+        trip,
+        "NOSHOW"
+      );
+
+    } catch(emailErr){
+
+      console.log(
+        "NO SHOW EMAIL ERROR:",
+        emailErr
+      );
+
+    }
+
+    res.json(trip);
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "No Show error"
+    });
+
+  }
+
+});
+
+/* =========================
    LIVE DRIVER TRACKING
 ========================= */
 app.post("/api/driver/location", (req, res) => {
@@ -6416,9 +6550,21 @@ setInterval(async () => {
 
       });
 
-    for(const trip of trips){
+   for(const trip of trips){
 
-      try{
+  const isCompanyTrip =
+
+    trip.company ||
+
+    String(trip.type || "")
+      .toLowerCase()
+      .includes("company");
+
+  if(isCompanyTrip){
+    continue;
+  }
+
+  try{
 
         if(
           !trip.tripDate ||
