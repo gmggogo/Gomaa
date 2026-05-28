@@ -49,7 +49,7 @@ function isCompanyTrip(trip){
 
   return (
 
-    trip?.company ||
+    !!trip?.company ||
 
     type.includes("company") ||
 
@@ -69,7 +69,7 @@ function buildCancelLink(trip){
   }
 
   return `
-    https://sunbeam-933q.onrender.com/cancel-trip.html?token=${trip.cancelToken}
+    https://sunbeam-933q.onrender.com/booking/cancel.html?token=${trip.cancelToken}
   `;
 
 }
@@ -96,9 +96,18 @@ async function sendTripStatusEmail(
       !trip.clientEmail ||
       isCompanyTrip(trip)
     ){
-
       return;
+    }
 
+    /* =========================
+       DUPLICATE PROTECTION
+    ========================= */
+
+    if(
+      type === "CONFIRMED" &&
+      trip.confirmationEmailSent === true
+    ){
+      return;
     }
 
     const settings =
@@ -304,7 +313,7 @@ async function sendTripStatusEmail(
     }
 
     /* =========================
-       SEND
+       SEND EMAIL
     ========================= */
 
     await transporter.sendMail({
@@ -374,6 +383,36 @@ async function sendTripStatusEmail(
       `
 
     });
+
+    /* =========================
+       SAVE CONFIRM FLAG
+    ========================= */
+
+    if(type === "CONFIRMED"){
+
+      const Trip =
+        require("../index").Trip ||
+        require("../models/Trip");
+
+      try{
+
+        await Trip.findByIdAndUpdate(
+          trip._id,
+          {
+            confirmationEmailSent:true
+          }
+        );
+
+      }catch(saveErr){
+
+        console.log(
+          "CONFIRM FLAG ERROR:",
+          saveErr
+        );
+
+      }
+
+    }
 
     console.log(
       "EMAIL SENT:",
