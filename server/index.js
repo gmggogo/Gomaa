@@ -176,17 +176,17 @@ if (
 
   }
 
- /* =========================
+/* =========================
    SAVE DATA
 ========================= */
 
 trip.paymentIntentId =
 
-paymentIntent.id ||
+  paymentIntent.id ||
 
-paymentIntent.payment_intent ||
+  paymentIntent.payment_intent ||
 
-"";
+  "";
 
 trip.dispatchSelected = true;
 
@@ -202,11 +202,11 @@ console.log(
   trip.tripNumber
 );
 
-      /* =========================
-         SUCCESS
-      ========================= */
+/* =========================
+   SUCCESS
+========================= */
 
-      return res.sendStatus(200);
+return res.sendStatus(200);
 
 });
 
@@ -223,9 +223,15 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
-app.use("/api/pricing", pricingRoutes);
+app.use(
+  "/api/pricing",
+  pricingRoutes
+);
 
-app.use("/api/services", serviceRoutes);
+app.use(
+  "/api/services",
+  serviceRoutes
+);
 
 app.use(
   "/api/system-design",
