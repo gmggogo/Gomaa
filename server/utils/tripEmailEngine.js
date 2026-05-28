@@ -1,4 +1,3 @@
-حط فيه الكود ده كامل زي ما هو 👇
 
 const nodemailer = require("nodemailer");
 const SystemDesign =
