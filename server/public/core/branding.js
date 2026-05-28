@@ -878,84 +878,81 @@ window.Branding = {
 
     }
 
-    activeServices.forEach(service=>{
+let html = "";
 
-      const title =
-      lang === "es"
-      ? (
-        service.titleEs ||
-        service.title ||
-        ""
-      )
-      : (
-        service.title ||
-        ""
-      );
+activeServices.forEach(service=>{
 
-      const desc =
-      lang === "es"
-      ? (
-        service.descriptionEs ||
-        service.description ||
-        ""
-      )
-      : (
-        service.description ||
-        ""
-      );
+  const title =
+  lang === "es"
+  ? (
+    service.titleEs ||
+    service.title ||
+    ""
+  )
+  : (
+    service.title ||
+    ""
+  );
 
-      const image =
-      service.image ||
-      "/assets/logo.png";
+  const desc =
+  lang === "es"
+  ? (
+    service.descriptionEs ||
+    service.description ||
+    ""
+  )
+  : (
+    service.description ||
+    ""
+  );
 
-      const buttonText =
-      lang === "es"
-      ? (
-        service.buttonEs ||
-        "Obtener precio"
-      )
-      : (
-        service.button ||
-        "Get Quote"
-      );
+  const image =
+  service.image ||
+  "/assets/logo.png";
 
-      container.innerHTML += `
+  const buttonText =
+  lang === "es"
+  ? (
+    service.buttonEs ||
+    "Obtener precio"
+  )
+  : (
+    service.button ||
+    "Get Quote"
+  );
 
-      <div class="card">
+  html += `
 
-        <img
-        src="${image}"
-        class="card-image">
+  <div class="card">
 
-        <div class="card-body">
+    <img
+    src="${image}"
+    class="card-image"
+    loading="lazy">
 
-          <h3>
-            ${title}
-          </h3>
+    <div class="card-body">
 
-          <p>
-            ${desc}
-          </p>
+      <h3>${title}</h3>
 
-          <a
-          href="${
-            service.link ||
-            "getquote/index.html"
-          }"
-          class="card-btn">
+      <p>${desc}</p>
 
-            ${buttonText}
+      <a
+      href="${
+        service.link ||
+        "getquote/index.html"
+      }"
+      class="card-btn">
 
-          </a>
+        ${buttonText}
 
-        </div>
+      </a>
 
-      </div>
+    </div>
 
-      `;
+  </div>
 
-    });
+  `;
 
-  }
+});
 
-};
+container.innerHTML = html;
