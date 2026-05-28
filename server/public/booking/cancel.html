@@ -349,20 +349,15 @@ window.addEventListener(
           "companyName"
         ).innerText =
         companyName;
+const logo =
 
-        const logo =
-        localStorage.getItem(
-          "appLogo"
-        );
+  Branding.data?.mainLogo ||
 
-        if(logo){
+  "/assets/logo.png";
 
-          document.getElementById(
-            "companyLogo"
-          ).src = logo;
-
-        }
-
+document.getElementById(
+  "companyLogo"
+).src = logo;
       }
 
     }catch(err){
