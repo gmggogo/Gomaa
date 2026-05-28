@@ -5824,17 +5824,20 @@ trip.simpleRefundId =
   simpleRefundId;
 
 trip.refundStatus =
-
   refundAmount > 0
     ? "processing"
     : "none";
 
 await trip.save();
 
+await sendTripStatusEmail(
+  trip,
+  "CANCELLED"
+);
+
 /* =========================
    STRIPE REFUND
 ========================= */
-
 let stripeRefundId = null;
 
 if(
