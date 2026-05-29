@@ -17,7 +17,9 @@ const defaultSystemDesign = {
   companyName:"Sunbeam Transportation",
 
 timezone:"America/Phoenix",
+region:"Arizona",
 
+country:"USA",
 invoiceEmail:"billing@sunbeamtransportation.com",
 
 smtpHost:"smtp.zoho.com",
@@ -374,7 +376,15 @@ function loadFormValues(){
     "timezoneInput",
     systemDesign.timezone
   );
+setValue(
+  "regionInput",
+  systemDesign.region
+);
 
+setValue(
+  "countryInput",
+  systemDesign.country
+);
 setValue(
   "invoiceEmailInput",
   systemDesign.invoiceEmail
@@ -1025,6 +1035,15 @@ async function(){
     "timezoneInput"
   )?.value || "";
 
+systemDesign.region =
+document.getElementById(
+  "regionInput"
+)?.value || "";
+
+systemDesign.country =
+document.getElementById(
+  "countryInput"
+)?.value || "";
 systemDesign.invoiceEmail =
 document.getElementById(
   "invoiceEmailInput"
