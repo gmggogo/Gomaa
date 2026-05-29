@@ -75,6 +75,8 @@ const sharedNotes = document.getElementById("sharedNotes");
 const passengersContainer = document.getElementById("passengersContainer");
 const submitSharedBtn = document.getElementById("submitShared");
 const saveSharedDraftBtn = document.getElementById("saveSharedDraftBtn");
+
+
 /* ================= HELPERS ================= */
 function normalizeText(v){
   return String(v ?? "").trim();
@@ -84,7 +86,12 @@ function showAlert(msg){
 }
 function getArizonaNow(){
   return new Date(
-    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:"America/Phoenix"
+      }
+    )
   );
 }
 function getCurrentServiceConfig(){
@@ -102,66 +109,46 @@ function isSharedService(service){
     String(service.title || "").toUpperCase() === "SHARED"
   );
 }
-
 function checkDynamicWarning(dateValue,timeValue){
-
   if(!dateValue || !timeValue){
     return true;
   }
-
-  console.log("activeService =", activeService);
-
-const service = getCurrentServiceConfig();
-
-alert(
-  JSON.stringify(
-    service,
-    null,
-    2
-  )
-);
-
-console.log("service =", service);
-  console.log("service =", service);
-
+  const service =
+    getCurrentServiceConfig();
+  console.log("ACTIVE SERVICE =", activeService);
+  console.log("SERVICE DATA =", service);
   const warningEnabled =
     service.companyWarningEnabled !== false &&
     service.warningEnabled !== false;
-
   if(!warningEnabled){
     return true;
   }
-
-  const warningMinutes = Number(
-    service.companyWarningMinutes ||
-    service.warningMinutes ||
-    120
-  );
-
+  const warningMinutes =
+    Number(
+      service.companyWarningMinutes ??
+      service.warningMinutes ??
+      120
+    );
   const tripDateTime =
     new Date(`${dateValue}T${timeValue}:00`);
-
-const now = getArizonaNow();
-
-const diff =
-(tripDateTime - now) / 60000;
-
-alert(
-"Trip = " + tripDateTime +
-"\nNow = " + now +
-"\nDiff = " + diff +
-"\nWarning = " + warningMinutes
-);
-
-if(diff <= warningMinutes){
-
-  return confirm(
+  const now =
+    getArizonaNow();
+  const diff =
+    (tripDateTime - now) / 60000;
+  console.log("TRIP TIME =", tripDateTime);
+  console.log("NOW =", now);
+  console.log("DIFF =", diff);
+  console.log("WARNING MINUTES =", warningMinutes);
+  if(
+    diff > 0 &&
+    diff <= warningMinutes
+  ){
+    return confirm(
 `WARNING
 This trip is within ${warningMinutes} minutes.
 Continue anyway?`
-  );
-
-}
+    );
+  }
   return true;
 }
 
