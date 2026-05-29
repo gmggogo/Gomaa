@@ -733,10 +733,15 @@ async function uploadMainImage(
     const formData =
     new FormData();
 
-    formData.append(
-      "image",
-      file
-    );
+formData.append(
+  "image",
+  file
+);
+
+formData.append(
+  "key",
+  key
+);
 
     const res =
     await fetch(
@@ -1365,10 +1370,15 @@ async function(input,index){
     const formData =
     new FormData();
 
-    formData.append(
-      "image",
-      file
-    );
+formData.append(
+  "image",
+  file
+);
+
+formData.append(
+  "key",
+  `services.${index}.image`
+);
 
     const res =
     await fetch(

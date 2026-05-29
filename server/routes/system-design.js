@@ -64,7 +64,7 @@ multer({
 
   limits:{
     fileSize:
-    1 * 1024 * 1024
+    2.5 * 1024 * 1024
   }
 
 });
@@ -197,9 +197,117 @@ router.post(
 
       }
 
+      const key =
+      req.body.key;
+
       const image =
 
       `/uploads/${req.file.filename}`;
+
+      const design =
+      await SystemDesign.findOne();
+
+      let oldImage = "";
+
+      /* =========================
+      MAIN LOGOS + HERO
+      ========================= */
+
+      if(
+        design &&
+        key &&
+        !key.startsWith(
+          "services."
+        )
+      ){
+
+        oldImage =
+        design[key];
+
+      }
+
+      /* =========================
+      SERVICE CARDS
+      ========================= */
+
+      if(
+        design &&
+        key &&
+        key.startsWith(
+          "services."
+        )
+      ){
+
+        const parts =
+        key.split(".");
+
+        const index =
+        Number(parts[1]);
+
+        if(
+          Array.isArray(
+            design.services
+          ) &&
+          design.services[index]
+        ){
+
+          oldImage =
+          design
+          .services[index]
+          .image;
+
+        }
+
+      }
+
+      /* =========================
+      DELETE OLD IMAGE
+      ========================= */
+
+      if(
+        oldImage &&
+        String(oldImage)
+        .startsWith(
+          "/uploads/"
+        )
+      ){
+
+        const oldFile =
+        path.join(
+          __dirname,
+          "../public",
+          oldImage
+        );
+
+        if(
+          fs.existsSync(
+            oldFile
+          )
+        ){
+
+          try{
+
+            fs.unlinkSync(
+              oldFile
+            );
+
+            console.log(
+              "OLD IMAGE DELETED:",
+              oldFile
+            );
+
+          }catch(err){
+
+            console.log(
+              "DELETE OLD IMAGE ERROR",
+              err
+            );
+
+          }
+
+        }
+
+      }
 
       res.json({
 
