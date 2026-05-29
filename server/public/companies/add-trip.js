@@ -111,8 +111,17 @@ function checkDynamicWarning(dateValue,timeValue){
 
   console.log("activeService =", activeService);
 
-  const service = getCurrentServiceConfig();
+const service = getCurrentServiceConfig();
 
+alert(
+  JSON.stringify(
+    service,
+    null,
+    2
+  )
+);
+
+console.log("service =", service);
   console.log("service =", service);
 
   const warningEnabled =
