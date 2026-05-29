@@ -97,30 +97,78 @@ function escapeHtml(value){
 function formatMoney(value){
   return Number(value || 0).toFixed(2);
 }
+
 function getAZNow(){
   return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
 }
-function normalizeAZ(address){
-  let v = normalizeText(address);
-  if(!v) return "";
-  v = v.replace(/\s+/g," ").trim();
-  v = v
-    .replace(/\btemp\b/ig,"Tempe")
-    .replace(/\btempe\b/ig,"Tempe")
-    .replace(/\bchandle\b/ig,"Chandler")
-    .replace(/\bchandler\b/ig,"Chandler")
-    .replace(/\bphoenixx\b/ig,"Phoenix");
-  const lower = v.toLowerCase();
-  if(
-    !lower.includes(", az") &&
-    !lower.includes(" az ") &&
-    !lower.endsWith(" az") &&
-    !lower.includes("arizona")
-  ){
-    v += ", AZ, USA";
+let SYSTEM_REGION = "";
+let SYSTEM_COUNTRY = "";
+
+async function loadSystemRegion(){
+
+  try{
+
+    const res =
+      await fetch("/api/system-design");
+
+    const data =
+      await res.json();
+
+    SYSTEM_REGION =
+      data?.region || "";
+
+    SYSTEM_COUNTRY =
+      data?.country || "";
+
+  }catch(err){
+
+    console.log(err);
+
+    SYSTEM_REGION = "";
+    SYSTEM_COUNTRY = "";
+
   }
-  return v;
+
 }
+
+function normalizeAddress(address){
+
+  let v =
+    normalizeText(address);
+
+  if(!v){
+    return "";
+  }
+
+  v =
+    v.replace(/\s+/g," ")
+     .trim();
+
+  const lower =
+    v.toLowerCase();
+
+  if(
+    SYSTEM_REGION &&
+    !lower.includes(
+      SYSTEM_REGION.toLowerCase()
+    )
+  ){
+    v += ", " + SYSTEM_REGION;
+  }
+
+  if(
+    SYSTEM_COUNTRY &&
+    !lower.includes(
+      SYSTEM_COUNTRY.toLowerCase()
+    )
+  ){
+    v += ", " + SYSTEM_COUNTRY;
+  }
+
+  return v;
+
+}
+
 function parseTripDateTime(tripDate, tripTime){
   const d = normalizeText(tripDate);
   let t = normalizeText(tripTime);
@@ -467,7 +515,7 @@ function ensureGoogleLoaded(){
 async function calculateRouteMiles(points){
   await ensureGoogleLoaded();
   const cleanPoints = Array.isArray(points)
-    ? points.map(p => normalizeAZ(p)).filter(Boolean)
+    ? points.map(p => normalizeAddress(p)).filter(Boolean)
     : [];
   if(cleanPoints.length < 2){
     return { miles:0, distanceMeters:0, durationSeconds:0, estimatedMinutes:0, googleRoute:{} };
@@ -1294,10 +1342,17 @@ function render(){
   }
 }
 async function refreshData(){
+
+  await loadSystemRegion();
+
   await loadServices();
+
   trips = await fetchTrips();
+
   render();
+
 }
+
 /* ================= EXPORT ================= */
 window.ReviewApp = {
   token,
@@ -1312,7 +1367,7 @@ window.ReviewApp = {
   escapeHtml,
   formatMoney,
   getAZNow,
-  normalizeAZ,
+  normalizeAddress,
   parseTripDateTime,
   minutesToTrip,
   getSharedKey,
