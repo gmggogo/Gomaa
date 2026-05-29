@@ -1,18 +1,41 @@
 const express = require("express");
-
 const router = express.Router();
 
 const multer = require("multer");
+const path = require("path");
 
 const SystemDesign =
 require("../models/SystemDesign");
 
 /* =========================
-MULTER MEMORY STORAGE
+MULTER DISK STORAGE
 ========================= */
 
 const storage =
-multer.memoryStorage();
+multer.diskStorage({
+
+  destination:(req,file,cb)=>{
+
+    cb(
+      null,
+      "public/uploads"
+    );
+
+  },
+
+  filename:(req,file,cb)=>{
+
+    cb(
+      null,
+      Date.now() +
+      path.extname(
+        file.originalname
+      )
+    );
+
+  }
+
+});
 
 const upload =
 multer({
@@ -21,7 +44,7 @@ multer({
 
   limits:{
     fileSize:
-    10 * 1024 * 1024
+    1 * 1024 * 1024
   }
 
 });
@@ -84,11 +107,30 @@ router.post("/", async(req,res)=>{
       req.body
     );
 
+    const size =
+    JSON.stringify(
+      design
+    ).length;
+
+    if(size > 500000){
+
+      return res
+      .status(400)
+      .json({
+        message:
+        "System Design Too Large"
+      });
+
+    }
+
     await design.save();
 
     res.json({
+
       success:true,
+
       design
+
     });
 
   }catch(err){
@@ -108,46 +150,47 @@ UPLOAD IMAGE
 ========================= */
 
 router.post(
-"/upload",
-upload.single("image"),
-async(req,res)=>{
+  "/upload",
+  upload.single("image"),
+  async(req,res)=>{
 
-  try{
+    try{
 
-    if(!req.file){
+      if(!req.file){
 
-      return res
-      .status(400)
-      .json({
-        message:"No file uploaded"
+        return res
+        .status(400)
+        .json({
+          message:
+          "No file uploaded"
+        });
+
+      }
+
+      const image =
+
+      `/uploads/${req.file.filename}`;
+
+      res.json({
+
+        success:true,
+
+        image
+
+      });
+
+    }catch(err){
+
+      console.log(err);
+
+      res.status(500).json({
+        message:
+        "Upload Failed"
       });
 
     }
 
-    const image =
-
-    `data:${req.file.mimetype};base64,${
-      req.file.buffer.toString("base64")
-    }`;
-
-    res.json({
-
-      success:true,
-
-      image
-
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
-      message:"Upload Failed"
-    });
-
   }
+);
 
-});
-
-module.exports = router;
+module.exports = router;r;
