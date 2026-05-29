@@ -239,17 +239,28 @@ if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
 /* ================= SERVICES ================= */
 async function loadCompanyServices(){
   try{
-    const res = await fetch(
-  "/api/services?company=true"
+const res = await fetch(
+  "/api/services?company=true",
+  {
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  }
 );
     if(!res.ok){
       throw new Error("Failed loading services");
     }
-    const data = await res.json();
-   COMPANY_SERVICES =
-  Array.isArray(data)
-  ? data
-  : [];
+  const data = await res.json();
+
+console.log(
+  "COMPANY SERVICES",
+  data
+);
+
+COMPANY_SERVICES =
+Array.isArray(data)
+? data
+: [];
     if(COMPANY_SERVICES.length === 0){
       COMPANY_SERVICES = [{
         serviceKey:"STANDARD",
