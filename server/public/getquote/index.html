@@ -557,25 +557,27 @@ async function loadServices(){
     ? data
     : [];
 
-    const visibleServices =
-    servicesData.filter(service=>{
+  const activeServices =
+servicesData.filter(service=>{
 
-      const key =
-      String(
-        service.serviceKey || ""
-      ).toUpperCase();
+  const key =
+  String(service.serviceKey || "")
+  .toUpperCase();
 
-     if(key === "SHARED"){
-  return false;
-}
+  if(key === "SHARED"){
+    return false;
+  }
 
-if(service.enabled !== true){
-  return false;
-}
+  return service.enabled === true;
 
-return service.showPricingCard !== false;
+});
 
-    });
+const pricingServices =
+activeServices.filter(service=>{
+
+  return service.showPricingCard !== false;
+
+});
 
 /* ================= PRICING ================= */
 
@@ -583,11 +585,11 @@ pricingBox.innerHTML = `
 
 <div class="pricing-wrap">
 
-${visibleServices.map((service,index)=>{
+${pricingServices.map((service,index)=>{
 
 const mode =
 String(
-service.pricingMode || ""
+  service.pricingMode || ""
 ).toUpperCase();
 
 const title =
@@ -600,37 +602,37 @@ let values = "";
 
 if(mode === "HOURLY"){
 
-headers = `
-<th>${words[lang].hourly}</th>
-<th>${words[lang].noShow}</th>
-<th>${words[lang].cancel}</th>
-<th>${words[lang].wait}</th>
-`;
+  headers = `
+  <th>${words[lang].hourly}</th>
+  <th>${words[lang].noShow}</th>
+  <th>${words[lang].cancel}</th>
+  <th>${words[lang].wait}</th>
+  `;
 
-values = `
-<td>$${Number(service.hourlyRate || 0)}/hr</td>
-<td>$${Number(service.noShowFee || 0)}</td>
-<td>$15</td>
-<td>15m</td>
-`;
+  values = `
+  <td>$${Number(service.hourlyRate || 0)}/hr</td>
+  <td>$${Number(service.noShowFee || 0)}</td>
+  <td>$15</td>
+  <td>15m</td>
+  `;
 
 }else{
 
-headers = `
-<th>${words[lang].base}</th>
-<th>${words[lang].mile}</th>
-<th>${words[lang].noShow}</th>
-<th>${words[lang].cancel}</th>
-<th>${words[lang].wait}</th>
-`;
+  headers = `
+  <th>${words[lang].base}</th>
+  <th>${words[lang].mile}</th>
+  <th>${words[lang].noShow}</th>
+  <th>${words[lang].cancel}</th>
+  <th>${words[lang].wait}</th>
+  `;
 
-values = `
-<td>$${Number(service.baseFare || 0)}</td>
-<td>$${Number(service.perMile || 0)}/mi</td>
-<td>$${Number(service.noShowFee || 0)}</td>
-<td>$15</td>
-<td>15m</td>
-`;
+  values = `
+  <td>$${Number(service.baseFare || 0)}</td>
+  <td>$${Number(service.perMile || 0)}/mi</td>
+  <td>$${Number(service.noShowFee || 0)}</td>
+  <td>$15</td>
+  <td>15m</td>
+  `;
 
 }
 
@@ -639,7 +641,12 @@ return `
 <div
 class="
 pricing-card
-${index === visibleServices.length - 1 && visibleServices.length % 2 !== 0 ? "last-center" : ""}
+${
+  index === pricingServices.length - 1 &&
+  pricingServices.length % 2 !== 0
+  ? "last-center"
+  : ""
+}
 "
 id="price-card-${service.serviceKey}"
 >
@@ -670,11 +677,17 @@ ${values}
 
 `;
 
+if(pricingServices.length === 0){
+
+  pricingBox.innerHTML = "";
+
+}
+
 /* ================= VEHICLES ================= */
 
 container.innerHTML = "";
 
-visibleServices.forEach(service=>{
+activeServices.forEach(service=>{
 
 const serviceKey =
 String(
