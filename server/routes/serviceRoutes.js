@@ -301,6 +301,33 @@ async function seedServices(){
 seedServices();
 
 /* =========================
+   GET SERVICES FOR ADMIN
+========================= */
+
+router.get("/admin", async (req,res)=>{
+
+  try{
+
+    const services =
+    await Service.find({})
+    .sort({createdAt:1});
+
+    return res.json(services);
+
+  }catch(err){
+
+    console.log(err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Failed To Load Services"
+    });
+
+  }
+
+});
+
+/* =========================
    GET SERVICES
 ========================= */
 
@@ -580,20 +607,26 @@ router.post("/calculate", async (req,res)=>{
        DYNAMIC CANCEL SETTINGS
     ========================= */
 
-    const cancelFee =
-      Number(
+   const cancelFee =
+Number(
 
-        isCompany
-        ? (
-            service.companyCancelFee ??
-            service.cancelFee
-          )
-        : service.cancelFee
+  isCompany
+  ? (
+      service.companyCancelFee ??
+      service.cancelFee
+    )
+  : service.cancelFee
 
-      );
+);
 
-    const warningMinutes =
-      Number(
+const disableCancel =
+
+  isCompany
+  ? service.companyDisableCancel
+  : service.disableCancel;
+
+const warningMinutes =
+Number(
 
         isCompany
         ? (
@@ -618,11 +651,10 @@ router.post("/calculate", async (req,res)=>{
         total.toFixed(2)
       ),
 
-      cancelFee,
-
-      warningMinutes,
-
-      service
+   cancelFee,
+warningMinutes,
+disableCancel,
+service
 
     });
 

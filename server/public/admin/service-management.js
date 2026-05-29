@@ -27,7 +27,7 @@ async function loadServices(){
   try{
 
     const res =
-    await fetch("/api/services");
+    await fetch("/api/services/admin");
 
     services =
     await res.json();
