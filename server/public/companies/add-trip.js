@@ -141,7 +141,7 @@ console.log("service =", service);
   const tripDateTime =
     new Date(`${dateValue}T${timeValue}:00`);
 
-  const now = getArizonaNow();
+const now = getArizonaNow();
 
 const diff =
 (tripDateTime - now) / 60000;
@@ -153,19 +153,15 @@ alert(
 "\nWarning = " + warningMinutes
 );
 
-  const diff =
-    (tripDateTime - now) / 60000;
+if(diff <= warningMinutes){
 
-  if(diff <= warningMinutes){
-
-    return confirm(
+  return confirm(
 `WARNING
 This trip is within ${warningMinutes} minutes.
 Continue anyway?`
-    );
+  );
 
-  }
-
+}
   return true;
 }
 
