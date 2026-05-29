@@ -102,34 +102,54 @@ function isSharedService(service){
     String(service.title || "").toUpperCase() === "SHARED"
   );
 }
+
 function checkDynamicWarning(dateValue,timeValue){
+
   if(!dateValue || !timeValue){
     return true;
   }
+
+  console.log("activeService =", activeService);
+
   const service = getCurrentServiceConfig();
+
+  console.log("service =", service);
+
   const warningEnabled =
     service.companyWarningEnabled !== false &&
     service.warningEnabled !== false;
+
   if(!warningEnabled){
     return true;
   }
+
   const warningMinutes = Number(
     service.companyWarningMinutes ||
     service.warningMinutes ||
     120
   );
-  const tripDateTime = new Date(`${dateValue}T${timeValue}:00`);
+
+  const tripDateTime =
+    new Date(`${dateValue}T${timeValue}:00`);
+
   const now = getArizonaNow();
-  const diff = (tripDateTime - now) / 60000;
+
+  const diff =
+    (tripDateTime - now) / 60000;
+
   if(diff <= warningMinutes){
+
     return confirm(
 `WARNING
 This trip is within ${warningMinutes} minutes.
 Continue anyway?`
     );
+
   }
+
   return true;
 }
+
 /* ================= ENTRY ================= */
 function loadEntryInfo(){
   const saved = JSON.parse(localStorage.getItem("entryInfo") || "{}");
