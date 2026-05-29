@@ -1509,7 +1509,26 @@ async function geocodeAddress(address) {
 
     const GOOGLE_KEY = process.env.GOOGLE_KEY;
 
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${GOOGLE_KEY}`;
+const settings =
+  await SystemDesign.findOne({});
+
+const region =
+  settings?.region || "";
+
+const country =
+  settings?.country || "";
+
+const searchAddress =
+  [
+    q,
+    region,
+    country
+  ]
+  .filter(Boolean)
+  .join(", ");
+
+const url =
+`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchAddress)}&key=${GOOGLE_KEY}`;
 
     const resp = await fetch(url);
     const data = await resp.json();

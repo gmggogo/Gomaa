@@ -59,7 +59,15 @@ new mongoose.Schema({
     type:String,
     default:"America/Phoenix"
   },
+region:{
+  type:String,
+  default:"Arizona"
+},
 
+country:{
+  type:String,
+  default:"USA"
+},
   /* =========================
   LOGOS
   ========================= */
