@@ -19,6 +19,16 @@ require("./routes/pricingRoutes");
 
 const app = express();
 
+app.use(
+  "/uploads",
+  express.static(
+    path.join(
+      __dirname,
+      "public/uploads"
+    )
+  )
+);
+
 const SystemDesign =
 require("./models/SystemDesign");
 

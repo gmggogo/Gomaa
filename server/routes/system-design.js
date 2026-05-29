@@ -3,9 +3,29 @@ const router = express.Router();
 
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 
 const SystemDesign =
 require("../models/SystemDesign");
+
+/* =========================
+CREATE UPLOAD FOLDER
+========================= */
+
+const uploadDir =
+path.join(
+  __dirname,
+  "../public/uploads"
+);
+
+if(!fs.existsSync(uploadDir)){
+
+  fs.mkdirSync(
+    uploadDir,
+    { recursive:true }
+  );
+
+}
 
 /* =========================
 MULTER DISK STORAGE
@@ -18,7 +38,7 @@ multer.diskStorage({
 
     cb(
       null,
-      "public/uploads"
+      uploadDir
     );
 
   },
@@ -64,8 +84,10 @@ router.get("/", async(req,res)=>{
 
       design =
       await SystemDesign.create({
+
         companyName:
         "Sunbeam Transportation"
+
       });
 
     }
@@ -77,7 +99,9 @@ router.get("/", async(req,res)=>{
     console.log(err);
 
     res.status(500).json({
+
       message:"Server Error"
+
     });
 
   }
@@ -108,17 +132,19 @@ router.post("/", async(req,res)=>{
     );
 
     const size =
-    JSON.stringify(
-      design
-    ).length;
+    Buffer.byteLength(
+      JSON.stringify(design)
+    );
 
     if(size > 500000){
 
       return res
       .status(400)
       .json({
+
         message:
         "System Design Too Large"
+
       });
 
     }
@@ -138,7 +164,9 @@ router.post("/", async(req,res)=>{
     console.log(err);
 
     res.status(500).json({
+
       message:"Save Failed"
+
     });
 
   }
@@ -161,8 +189,10 @@ router.post(
         return res
         .status(400)
         .json({
+
           message:
           "No file uploaded"
+
         });
 
       }
@@ -184,8 +214,11 @@ router.post(
       console.log(err);
 
       res.status(500).json({
+
         message:
+        err.message ||
         "Upload Failed"
+
       });
 
     }
