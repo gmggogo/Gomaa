@@ -143,6 +143,16 @@ console.log("service =", service);
 
   const now = getArizonaNow();
 
+const diff =
+(tripDateTime - now) / 60000;
+
+alert(
+"Trip = " + tripDateTime +
+"\nNow = " + now +
+"\nDiff = " + diff +
+"\nWarning = " + warningMinutes
+);
+
   const diff =
     (tripDateTime - now) / 60000;
 
