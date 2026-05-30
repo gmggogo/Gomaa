@@ -648,12 +648,12 @@ async function handleConfirmShared(btn){
   const count =
     activePassengers.length || passengers.length || 1;
 
-  const sharedBase =
-    Number(
-      service?.companySharedPrice ??
-      service?.sharedPrice ??
-      15
-    );
+ const sharedBase =
+  Number(
+    service?.companyBaseFare ??
+    service?.baseFare ??
+    0
+  );
 
   const includedMiles =
     Number(
