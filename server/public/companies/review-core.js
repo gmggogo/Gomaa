@@ -70,8 +70,10 @@ window.ReviewApp.container = container;
 let activeTab = "TRIPS";
 let trips = [];
 let COMPANY_SERVICES = [];
+
 let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
+let SYSTEM_TIMEZONE = "America/Phoenix";
 
 /* ================= HELPERS ================= */
 
@@ -92,11 +94,18 @@ function formatMoney(value){
 }
 
 function getAZNow(){
+
   return new Date(
-    new Date().toLocaleString("en-US",{
-      timeZone:"America/Phoenix"
-    })
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+          SYSTEM_TIMEZONE ||
+          "America/Phoenix"
+      }
+    )
   );
+
 }
 
 async function loadSystemRegion(){
@@ -105,6 +114,10 @@ async function loadSystemRegion(){
     const data = await res.json();
     SYSTEM_REGION = data?.region || "";
     SYSTEM_COUNTRY = data?.country || "";
+SYSTEM_TIMEZONE =
+  data?.timezone ||
+  "America/Phoenix";
+
   }catch(err){
     console.log(err);
     SYSTEM_REGION = "";
