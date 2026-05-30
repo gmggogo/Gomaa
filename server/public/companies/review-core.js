@@ -295,14 +295,6 @@ function getServiceCodeFromTrip(trip){
 
 function getServiceByTrip(trip){
 
-alert(JSON.stringify({
-  tripNumber:trip.tripNumber,
-  tripType:trip.tripType,
-  type:trip.type,
-  isShared:trip.isShared,
-  passengers:Array.isArray(trip.passengers)
-},null,2));
-
   if(!trip) return null;
 
   const code = getServiceCodeFromTrip(trip);
