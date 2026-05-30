@@ -318,12 +318,12 @@ async function handleSaveTrip(btn){
       stopIndex !== undefined
     ){
 
-      stops[
-        Number(stopIndex)
-      ] =
-        Review.normalizeAZ(
-          input.value
-        );
+     stops[
+  Number(stopIndex)
+] =
+Review.normalizeAddress(
+  input.value
+);
 
       return;
 
@@ -334,10 +334,10 @@ async function handleSaveTrip(btn){
       field === "dropoff"
     ){
 
-      payload[field] =
-        Review.normalizeAZ(
-          input.value
-        );
+     payload[field] =
+Review.normalizeAddress(
+  input.value
+);
 
     }else{
 
@@ -444,19 +444,19 @@ async function handleSaveShared(btn){
           input.value;
       }
 
-      if(key === "pickup"){
-        passengers[index].pickup =
-          Review.normalizeAZ(
-            input.value
-          );
-      }
+if(key === "pickup"){
+  passengers[index].pickup =
+    Review.normalizeAddress(
+      input.value
+    );
+}
 
-      if(key === "dropoff"){
-        passengers[index].dropoff =
-          Review.normalizeAZ(
-            input.value
-          );
-      }
+if(key === "dropoff"){
+  passengers[index].dropoff =
+    Review.normalizeAddress(
+      input.value
+    );
+}
 
       return;
 
