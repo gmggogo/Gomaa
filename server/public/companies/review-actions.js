@@ -611,6 +611,8 @@ async function handleConfirmShared(btn){
   const service =
     Review.getServiceByTrip(first);
 
+console.log("SERVICE =", service);
+alert(JSON.stringify(service,null,2));
   btn.disabled = true;
 
   btn.textContent =
@@ -809,7 +811,7 @@ async function handleCancelTrip(btn){
 
   const service =
     Review.getServiceByTrip(trip);
-console.log("SERVICE =", service);
+
   const mins =
     Review.minutesToTrip(trip);
 
