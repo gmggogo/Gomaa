@@ -244,43 +244,37 @@ function getRealPassengersFromGroup(group){
     status:t.status || "Scheduled"
   }));
 }
-/* ================= SERVICES ================= */
-async function loadServices(){
-  try{
-    const res = await fetch("/api/services",{
-      headers:{ Authorization:"Bearer " + token }
-    });
-    if(!res.ok){
-      COMPANY_SERVICES = [];
-      return;
-    }
-    const data = await res.json();
-    COMPANY_SERVICES = Array.isArray(data)
-      ? data.filter(s => s.enabled === true && s.companyEnabled === true)
-      : [];
-  }catch(err){
-    console.log(err);
-    COMPANY_SERVICES = [];
-  }
-}
-function getServiceCodeFromTrip(trip){
-  const direct =
-    normalizeText(
-      trip.serviceCode ||
-      trip.serviceKey ||
-      trip.serviceType ||
-      trip.vehicle ||
-      ""
-    ).toUpperCase();
-  if(direct) return direct;
-  const parts = String(trip.tripNumber || "").split("-");
-  return normalizeText(parts[parts.length - 1] || "").toUpperCase();
-}
-
 function getServiceByTrip(trip){
+
+  alert(
+    JSON.stringify(
+      {
+        tripNumber: trip.tripNumber,
+        serviceType: trip.serviceType,
+        serviceCode: trip.serviceCode,
+        tripType: trip.tripType,
+        isShared: trip.isShared
+      },
+      null,
+      2
+    )
+  );
 
   const code =
     getServiceCodeFromTrip(trip);
+
+  alert(
+    "CODE = " + code
+  );
+
+  alert(
+    "SERVICES =\n\n" +
+    JSON.stringify(
+      COMPANY_SERVICES,
+      null,
+      2
+    )
+  );
 
   const tripType =
     normalizeText(
@@ -289,76 +283,103 @@ function getServiceByTrip(trip){
       ""
     ).toUpperCase();
 
-if(
-  trip?.isShared === true ||
-  tripType === "SHARED" ||
-  String(trip.tripNumber || "")
-    .toUpperCase()
-    .includes("-SH")
-){
+  if(
+    trip?.isShared === true ||
+    tripType === "SHARED" ||
+    String(trip.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH")
+  ){
 
-  return COMPANY_SERVICES.find(s => {
+    const sharedService =
+      COMPANY_SERVICES.find(s => {
 
-    const key =
-      normalizeText(s.serviceKey)
-      .toUpperCase();
+        const key =
+          normalizeText(
+            s.serviceKey
+          ).toUpperCase();
 
-    const title =
-      normalizeText(s.title || s.name)
-      .toUpperCase();
+        const title =
+          normalizeText(
+            s.title || s.name
+          ).toUpperCase();
 
-    return (
-      key === "SHARED" ||
-      title === "SHARED" ||
-      s.companyShared === true
+        return (
+          key === "SHARED" ||
+          title === "SHARED" ||
+          s.companyShared === true
+        );
+
+      }) || null;
+
+    alert(
+      "SHARED RESULT =\n\n" +
+      JSON.stringify(
+        sharedService,
+        null,
+        2
+      )
     );
 
-  }) || null;
+    return sharedService;
 
-}
+  }
 
-  return COMPANY_SERVICES.find(s => {
+  const foundService =
+    COMPANY_SERVICES.find(s => {
 
-    const serviceCode =
-      normalizeText(
-        s.code ||
-        s.serviceCode ||
-        s.serviceKey ||
-        s.suffix ||
-        s.companySuffix ||
-        ""
-      ).toUpperCase();
+      const serviceCode =
+        normalizeText(
+          s.code ||
+          s.serviceCode ||
+          s.serviceKey ||
+          s.suffix ||
+          s.companySuffix ||
+          ""
+        ).toUpperCase();
 
-    const serviceType =
-      normalizeText(
-        s.type ||
-        s.serviceType ||
-        s.title ||
-        s.name ||
-        ""
-      ).toUpperCase();
+      const serviceType =
+        normalizeText(
+          s.type ||
+          s.serviceType ||
+          s.title ||
+          s.name ||
+          ""
+        ).toUpperCase();
 
-    /* SHARED FIX */
+      if(
+        (
+          code === "SH" ||
+          code === "SHARED"
+        ) &&
+        (
+          serviceCode === "SHARED" ||
+          serviceType === "SHARED"
+        )
+      ){
+        return true;
+      }
 
-if(
-  (
-    code === "SH" ||
-    code === "SHARED"
-  ) &&
-  (
-    serviceCode === "SHARED" ||
-    serviceType === "SHARED"
-  )
-){
-  return true;
-}
+      return (
+        serviceCode === code ||
+        (
+          serviceCode === "SHARED" &&
+          code === "SH"
+        )
+      );
 
-return (
-  serviceCode === code ||
-  serviceCode === "SHARED"
-    && code === "SH"
-);
-  }) || null;
+    }) || null;
+
+  alert(
+    "FOUND SERVICE =\n\n" +
+    JSON.stringify(
+      foundService,
+      null,
+      2
+    )
+  );
+
+  return foundService;
 
 }
 
