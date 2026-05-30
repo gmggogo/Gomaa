@@ -608,12 +608,27 @@ async function handleConfirmShared(btn){
   const first =
     group[0];
 
-  const service =
-    Review.getServiceByTrip(first);
+ const service =
+  Review.getServiceByTrip(first);
 
-console.log("SERVICE =", service);
-alert(JSON.stringify(service,null,2));
-  btn.disabled = true;
+alert(
+  Review.COMPANY_SERVICES
+    .map(s => ({
+      title: s.title,
+      serviceKey: s.serviceKey,
+      companyShared: s.companyShared,
+      baseFare: s.baseFare,
+      companyBaseFare: s.companyBaseFare,
+      includedMiles: s.includedMiles,
+      companyIncludedMiles: s.companyIncludedMiles,
+      perMile: s.perMile,
+      companyPerMile: s.companyPerMile
+    }))
+    .map(x => JSON.stringify(x,null,2))
+    .join("\n\n=================\n\n")
+);
+
+btn.disabled = true;
 
   btn.textContent =
     "Calculating...";
