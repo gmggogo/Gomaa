@@ -568,15 +568,15 @@ function calculateSharedPrice(group,miles){
   const first = group[0] || {};
   let service = getServiceByTrip(first);
 
-  if(!service){
-    service = {
-      companySharedPrice:15,
-      companyIncludedMiles:3,
-      companyPerMile:2,
-      companyStopFee:5,
-      companyNoShowFee:15
-    };
-  }
+if(!service){
+  service = {
+    companySharedPrice:15,
+    companyIncludedMiles:3,
+    companyPerMile:2,
+    companyStopFee:5,
+    companyNoShowFee:15
+  };
+}
 
   const passengers = getRealPassengersFromGroup(group);
 
