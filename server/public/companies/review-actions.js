@@ -809,7 +809,7 @@ async function handleCancelTrip(btn){
 
   const service =
     Review.getServiceByTrip(trip);
-
+console.log("SERVICE =", service);
   const mins =
     Review.minutesToTrip(trip);
 
