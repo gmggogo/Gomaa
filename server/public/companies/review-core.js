@@ -592,7 +592,14 @@ function calculateSharedPrice(group,miles){
 
   const activeCount = activePassengers.length;
 
-  const sharedBase = Number(service.companySharedPrice ?? service.sharedPrice ?? 15);
+ const sharedBase =
+ Number(
+   service.companySharedPrice ||
+   service.sharedPrice ||
+   service.companyBaseFare ||
+   service.baseFare ||
+   15
+ );
   const includedMiles = Number(service.companyIncludedMiles ?? service.includedMiles ?? 3);
   const perMile = Number(service.companyPerMile ?? service.perMile ?? 2);
   const stopFee = Number(service.companyStopFee ?? service.stopFee ?? 5);
@@ -667,52 +674,34 @@ function buildIndividualRoutePoints(trip){
 }
 
 function buildSharedRoutePoints(group){
-  const passengers = getRealPassengersFromGroup(group);
 
-  if(!passengers.length) return [];
+  const passengers =
+    getRealPassengersFromGroup(group);
 
-  const firstPickup = normalizeText(passengers[0].pickup).toLowerCase();
-
-  const samePickup = passengers.every(p =>
-    normalizeText(p.pickup).toLowerCase() === firstPickup
-  );
-
-  if(samePickup){
-    const sorted = [...passengers];
-
-    sorted.sort((a,b)=>{
-      const aLen = normalizeText(a.dropoff).length;
-      const bLen = normalizeText(b.dropoff).length;
-      return aLen - bLen;
-    });
-
-    const points = [];
-
-    points.push(passengers[0].pickup);
-
-    sorted.forEach(p=>{
-      if(p.dropoff) points.push(p.dropoff);
-    });
-
-    return points;
+  if(!passengers.length){
+    return [];
   }
-
-  const sortedPickups = [...passengers];
-
-  sortedPickups.sort((a,b)=>{
-    const aLen = normalizeText(a.pickup).length;
-    const bLen = normalizeText(b.pickup).length;
-    return aLen - bLen;
-  });
 
   const points = [];
 
-  sortedPickups.forEach(p=>{
-    if(p.pickup) points.push(p.pickup);
+  passengers.forEach(p=>{
+
+    if(p.pickup){
+      points.push(
+        normalizeAddress(p.pickup)
+      );
+    }
+
   });
 
-  sortedPickups.forEach(p=>{
-    if(p.dropoff) points.push(p.dropoff);
+  passengers.forEach(p=>{
+
+    if(p.dropoff){
+      points.push(
+        normalizeAddress(p.dropoff)
+      );
+    }
+
   });
 
   return points;
