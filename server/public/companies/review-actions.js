@@ -409,6 +409,142 @@ async function buildFixedSharedRoutePoints(group){
 
 }
 
+async function calculateFixedRouteMiles(points){
+
+  await ensureFixedGoogleLoaded();
+
+  const cleanPoints =
+    Array.isArray(points)
+      ? points
+          .map(p => normalizeUniqueAddress(p))
+          .filter(Boolean)
+      : [];
+
+  if(cleanPoints.length < 2){
+    return {
+      miles:0,
+      distanceMeters:0,
+      durationSeconds:0,
+      estimatedMinutes:0,
+      googleRoute:{}
+    };
+  }
+
+  const origin =
+    cleanPoints[0];
+
+  const destination =
+    cleanPoints[
+      cleanPoints.length - 1
+    ];
+
+  const middle =
+    cleanPoints.slice(1,-1);
+
+  const waypoints =
+    middle.map(address=>({
+      location:address,
+      stopover:true
+    }));
+
+  return new Promise((resolve,reject)=>{
+
+    const service =
+      new google.maps.DirectionsService();
+
+    service.route(
+      {
+        origin,
+        destination,
+        waypoints,
+        optimizeWaypoints:false,
+        travelMode:
+          google.maps.TravelMode.DRIVING,
+        unitSystem:
+          google.maps.UnitSystem.IMPERIAL
+      },
+      function(response,status){
+
+        if(
+          status !== "OK" ||
+          !response?.routes?.[0]
+        ){
+          reject(
+            new Error(
+              "Google route failed: " + status
+            )
+          );
+          return;
+        }
+
+        const route =
+          response.routes[0];
+
+        let meters = 0;
+        let seconds = 0;
+
+        route.legs.forEach(leg=>{
+          meters += leg.distance
+            ? leg.distance.value
+            : 0;
+
+          seconds += leg.duration
+            ? leg.duration.value
+            : 0;
+        });
+
+        resolve({
+          miles:Number(
+            (meters * 0.000621371)
+            .toFixed(2)
+          ),
+
+          distanceMeters:meters,
+          durationSeconds:seconds,
+          estimatedMinutes:
+            Math.ceil(seconds / 60),
+
+          googleRoute:{
+            summary:
+              route.summary || "",
+
+            waypointOrder:
+              route.waypoint_order || [],
+
+            legs:
+              route.legs.map((leg,index)=>({
+                legIndex:index,
+                startAddress:
+                  leg.start_address,
+                endAddress:
+                  leg.end_address,
+                distanceText:
+                  leg.distance
+                    ? leg.distance.text
+                    : "",
+                distanceMeters:
+                  leg.distance
+                    ? leg.distance.value
+                    : 0,
+                durationText:
+                  leg.duration
+                    ? leg.duration.text
+                    : "",
+                durationSeconds:
+                  leg.duration
+                    ? leg.duration.value
+                    : 0
+              }))
+          }
+        });
+
+      }
+    );
+
+  });
+
+}
+
 /* =========================================
 RELOAD
 ========================================= */
