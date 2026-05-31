@@ -998,14 +998,10 @@ function getGroupPrice(group){
 
   const first = group[0] || {};
 
-  const pricing =
-    calculateSharedPrice(
-      group,
-      Number(first.miles || 0)
-    );
-
   return Number(
-    pricing.total || 0
+    first.finalPrice ||
+    first.priceAmount ||
+    0
   );
 
 }
