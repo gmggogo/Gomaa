@@ -13,6 +13,11 @@ if(!token || role !== "company"){
   return;
 }
 
+if(!window.CompanyPricing){
+  console.error("CompanyPricing missing");
+  return;
+}
+
 const container = document.getElementById("tripsContainer");
 window.ReviewApp.container = container;
 
@@ -94,7 +99,6 @@ function formatMoney(value){
 }
 
 function getAZNow(){
-
   return new Date(
     new Date().toLocaleString(
       "en-US",
@@ -105,18 +109,18 @@ function getAZNow(){
       }
     )
   );
-
 }
 
 async function loadSystemRegion(){
   try{
     const res = await fetch("/api/system-design");
     const data = await res.json();
+
     SYSTEM_REGION = data?.region || "";
     SYSTEM_COUNTRY = data?.country || "";
-SYSTEM_TIMEZONE =
-  data?.timezone ||
-  "America/Phoenix";
+    SYSTEM_TIMEZONE =
+      data?.timezone ||
+      "America/Phoenix";
 
   }catch(err){
     console.log(err);
@@ -404,12 +408,19 @@ function getCancelFee(service){
 }
 
 function warningEnabled(service){
-  return (
+
+  if(
     service?.companyDisableCancel === true ||
-    service?.disableCancel === true ||
+    service?.disableCancel === true
+  ){
+    return false;
+  }
+
+  return (
     service?.companyWarningEnabled === true ||
     service?.warningEnabled === true
   );
+
 }
 
 /* ================= GOOGLE ================= */
@@ -543,127 +554,92 @@ async function calculateRouteMiles(points){
   });
 }
 
-/* ================= PRICE ================= */
+/* ================= PRICE WRAPPERS ================= */
 
 function calculateTripPrice(service,miles,status,stopsCount = 0){
-  if(!service) return 0;
 
-  const baseFare = Number(service.companyBaseFare ?? service.baseFare ?? 0);
-  const includedMiles = Number(service.companyIncludedMiles ?? service.includedMiles ?? 0);
-  const perMile = Number(service.companyPerMile ?? service.perMile ?? 0);
-  const stopFee = Number(service.companyStopFee ?? service.stopFee ?? 0);
+  if(!service || !window.CompanyPricing){
+    return 0;
+  }
 
-  const totalMiles = Math.max(0, Number(miles || 0));
-  const extraMiles = Math.max(0, totalMiles - includedMiles);
+  const pricing =
+    window.CompanyPricing.calculate(
+      service,
+      {
+        miles,
+        stopsCount
+      }
+    );
 
   return Number(
-    (
-      baseFare +
-      (extraMiles * perMile) +
-      (Number(stopsCount || 0) * stopFee)
-    ).toFixed(2)
+    pricing?.total || 0
   );
+
 }
 
 function calculateSharedPrice(group,miles){
-  const first = group[0] || {};
-  let service = getServiceByTrip(first);
 
-if(!service){
-  service = {
-    companySharedPrice:15,
-    companyIncludedMiles:3,
-    companyPerMile:2,
-    companyStopFee:5,
-    companyNoShowFee:15
-  };
-}
-
-  const passengers = getRealPassengersFromGroup(group);
-
-  const activePassengers = passengers.filter(p=>{
-    const status = String(p.status || "").toLowerCase();
-    return !status.includes("no") && !status.includes("cancel");
-  });
-
-  const noShowPassengers = passengers.filter(p=>{
-    const status = String(p.status || "").toLowerCase();
-    return status.includes("no");
-  });
-
-  const activeCount = activePassengers.length;
-
- const sharedBase =
- Number(
-   service.companySharedPrice ||
-   service.sharedPrice ||
-   service.companyBaseFare ||
-   service.baseFare ||
-   15
- );
-  const includedMiles = Number(service.companyIncludedMiles ?? service.includedMiles ?? 3);
-  const perMile = Number(service.companyPerMile ?? service.perMile ?? 2);
-  const stopFee = Number(service.companyStopFee ?? service.stopFee ?? 5);
-  const noShowFee = Number(service.companyNoShowFee ?? service.noShowFee ?? 15);
-
-  const noShowTotal = noShowPassengers.length * noShowFee;
-
-  if(activeCount === 0){
+  if(!window.CompanyPricing){
     return {
-      total:Number(noShowTotal.toFixed(2)),
+      total:0,
       pricePerPassenger:0,
       stopsCount:0
     };
   }
 
-  const totalMiles = Math.max(0, Number(miles || 0));
- const freeMiles =
-  includedMiles;
+  const first = group[0] || {};
+  const service = getServiceByTrip(first);
+  const passengers = getRealPassengersFromGroup(group);
 
-const extraMiles =
-  Math.max(
-    0,
-    totalMiles - freeMiles
-  );
+  const activePassengers =
+    passengers.filter(p=>{
+      const status =
+        String(p.status || "").toLowerCase();
+
+      return (
+        !status.includes("no") &&
+        !status.includes("cancel")
+      );
+    });
+
+  const activeCount =
+    activePassengers.length;
+
   const stopsCount =
-  Math.max(
-    0,
-    passengers.length - 1
-  );
+    Math.max(
+      0,
+      activeCount - 1
+    );
 
-  const activeTotal =
-    (activeCount * sharedBase) +
-    (extraMiles * perMile) +
-    (stopsCount * stopFee);
-
-  const total = activeTotal + noShowTotal;
+  const pricing =
+    window.CompanyPricing.calculate(
+      service,
+      {
+        passengers,
+        miles,
+        stopsCount
+      }
+    );
 
   return {
-    total:Number(total.toFixed(2)),
-    pricePerPassenger:Number((activeTotal / activeCount).toFixed(2)),
+    ...pricing,
     stopsCount
   };
+
 }
 
 function buildPricingSnapshot(service,miles,finalPrice){
-  if(!service) return {};
 
-  return {
-    serviceId:service._id || "",
-    serviceName:service.name || service.title || "",
-    serviceCode:service.serviceKey || service.companySuffix || service.code || "",
-    baseFare:Number(service.companyBaseFare ?? service.baseFare ?? 0),
-    sharedPrice:Number(service.companySharedPrice ?? service.sharedPrice ?? 0),
-    includedMiles:Number(service.companyIncludedMiles ?? service.includedMiles ?? 0),
-    perMile:Number(service.companyPerMile ?? service.perMile ?? 0),
-    stopFee:Number(service.companyStopFee ?? service.stopFee ?? 0),
-    noShowFee:Number(service.companyNoShowFee ?? service.noShowFee ?? 0),
-    cancelFee:Number(service.companyCancelFee ?? service.cancelFee ?? 0),
-    warningMinutes:Number(service.companyWarningMinutes ?? service.warningMinutes ?? 120),
-    miles:Number(miles || 0),
-    finalPrice:Number(finalPrice || 0),
-    calculatedAt:new Date().toISOString()
-  };
+  if(!window.CompanyPricing){
+    return {};
+  }
+
+  return window.CompanyPricing.buildPricingSnapshot(
+    service,
+    miles,
+    finalPrice
+  );
+
 }
 
 /* ================= ROUTE POINTS ================= */
@@ -696,23 +672,19 @@ function buildSharedRoutePoints(group){
   const points = [];
 
   passengers.forEach(p=>{
-
     if(p.pickup){
       points.push(
         normalizeAddress(p.pickup)
       );
     }
-
   });
 
   passengers.forEach(p=>{
-
     if(p.dropoff){
       points.push(
         normalizeAddress(p.dropoff)
       );
     }
-
   });
 
   return points;
@@ -800,7 +772,6 @@ function getSharedGroups(){
     const key = getSharedKey(t);
 
     if(!map[key]) map[key] = [];
-
     map[key].push(t);
   });
 
@@ -995,7 +966,6 @@ function getGroupStatus(group){
 }
 
 function getGroupPrice(group){
-
   const first = group[0] || {};
 
   return Number(
@@ -1003,7 +973,6 @@ function getGroupPrice(group){
     first.priceAmount ||
     0
   );
-
 }
 
 /* ================= TRIPS TABLE ================= */
@@ -1093,7 +1062,6 @@ function renderSharedTable(groups){
     const key = d.toLocaleDateString();
 
     if(!dateGroups[key]) dateGroups[key] = [];
-
     dateGroups[key].push(group);
   });
 
