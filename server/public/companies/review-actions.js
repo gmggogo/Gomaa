@@ -237,259 +237,175 @@ async function buildFixedSharedRoutePoints(group){
     return [];
   }
 
-  const pickups = [];
-  const dropoffs = [];
+  const activePassengers =
+    passengers.filter(p=>{
 
-  passengers.forEach(p=>{
-    if(p.pickup){
-      pushUnique(pickups,p.pickup);
-    }
-  });
+      const s =
+        String(p.status || "")
+          .toLowerCase();
 
-  passengers.forEach(p=>{
-    if(p.dropoff){
-      pushUnique(dropoffs,p.dropoff);
-    }
-  });
-
-  if(pickups.length === 0){
-    return dropoffs;
-  }
-
-  if(dropoffs.length === 0){
-    return pickups;
-  }
-
-  /* =========================
-     CASE 1:
-     SAME PICKUP / MANY DROPS
-  ========================= */
-
-  if(
-    pickups.length === 1 &&
-    dropoffs.length > 1
-  ){
-
-    const orderedDropoffs =
-      await orderPointsByNearestRoute(
-        pickups[0],
-        dropoffs
+      return (
+        !s.includes("no") &&
+        !s.includes("cancel") &&
+        p.pickup &&
+        p.dropoff
       );
 
-    return [
-      pickups[0],
-      ...orderedDropoffs
-    ];
+    });
+
+  if(!activePassengers.length){
+    return [];
+  }
+
+  const route = [];
+
+  const onboard = [];
+  const waiting = activePassengers.map((p,index)=>({
+
+    id:index,
+
+    pickup:
+      normalizeUniqueAddress(
+        p.pickup
+      ),
+
+    dropoff:
+      normalizeUniqueAddress(
+        p.dropoff
+      )
+
+  }));
+
+  let current =
+    waiting[0].pickup;
+
+  pushUnique(route,current);
+
+  for(let i=waiting.length-1;i>=0;i--){
+
+    if(
+      waiting[i].pickup
+        .toLowerCase() ===
+      current.toLowerCase()
+    ){
+
+      onboard.push(waiting[i]);
+      waiting.splice(i,1);
+
+    }
 
   }
 
-  /* =========================
-     CASE 2:
-     MANY PICKUPS / SAME DROP
-  ========================= */
-
-  if(
-    pickups.length > 1 &&
-    dropoffs.length === 1
+  while(
+    waiting.length ||
+    onboard.length
   ){
 
-    const orderedPickups =
-      await orderPointsByNearestRoute(
-        pickups[0],
-        pickups.slice(1)
-      );
+    let best = null;
 
-    return [
-      pickups[0],
-      ...orderedPickups,
-      dropoffs[0]
-    ];
+    let bestMeters =
+      Number.MAX_SAFE_INTEGER;
 
-  }
+    for(const p of waiting){
 
-  /* =========================
-     CASE 3:
-     MANY PICKUPS / MANY DROPS
-  ========================= */
+      const meters =
+        await getDrivingMetersBetween(
+          current,
+          p.pickup
+        );
 
-  const orderedPickups =
-    await orderPointsByNearestRoute(
-      pickups[0],
-      pickups.slice(1)
-    );
+      if(meters < bestMeters){
 
-  const pickupRoute = [
-    pickups[0],
-    ...orderedPickups
-  ];
+        bestMeters = meters;
 
-  const lastPickup =
-    pickupRoute[pickupRoute.length - 1];
-
-  const orderedDropoffs =
-    await orderPointsByNearestRoute(
-      lastPickup,
-      dropoffs
-    );
-
-  return [
-    ...pickupRoute,
-    ...orderedDropoffs
-  ];
-
-}
-async function calculateFixedRouteMiles(points){
-
-  await ensureFixedGoogleLoaded();
-
-  const cleanPoints =
-    Array.isArray(points)
-      ? points
-          .map(p => normalizeUniqueAddress(p))
-          .filter(Boolean)
-      : [];
-
-  if(cleanPoints.length < 2){
-    return {
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-      googleRoute:{}
-    };
-  }
-
-  const origin =
-    cleanPoints[0];
-
-  const destination =
-    cleanPoints[
-      cleanPoints.length - 1
-    ];
-
-  const middle =
-    cleanPoints.slice(1,-1);
-
-  const waypoints =
-    middle.map(address=>({
-      location:address,
-      stopover:true
-    }));
-
-  return new Promise((resolve,reject)=>{
-
-    const service =
-      new google.maps.DirectionsService();
-
-    service.route(
-      {
-        origin,
-        destination,
-        waypoints,
-
-        // 🔥 مهم جدا
-        // ممنوع جوجل يعيد ترتيب الشيرد
-        optimizeWaypoints:false,
-
-        travelMode:
-          google.maps.TravelMode.DRIVING,
-
-        drivingOptions:{
-          departureTime:new Date()
-        },
-
-        unitSystem:
-          google.maps.UnitSystem.IMPERIAL
-      },
-      function(response,status){
-
-        if(
-          status !== "OK" ||
-          !response?.routes?.[0]
-        ){
-          reject(
-            new Error(
-              "Google route failed: " + status
-            )
-          );
-          return;
-        }
-
-        const route =
-          response.routes[0];
-
-        let meters = 0;
-        let seconds = 0;
-
-        route.legs.forEach(leg=>{
-          meters += leg.distance
-            ? leg.distance.value
-            : 0;
-
-          seconds += leg.duration
-            ? leg.duration.value
-            : 0;
-        });
-
-        resolve({
-          miles:
-            Number(
-              (meters * 0.000621371)
-              .toFixed(2)
-            ),
-
-          distanceMeters:
-            meters,
-
-          durationSeconds:
-            seconds,
-
-          estimatedMinutes:
-            Math.ceil(seconds / 60),
-
-          googleRoute:{
-            overviewPolyline:
-              route.overview_polyline
-                ? route.overview_polyline.points
-                : "",
-
-            summary:
-              route.summary || "",
-
-            waypointOrder:
-              route.waypoint_order || [],
-
-            legs:
-              route.legs.map((leg,index)=>({
-                legIndex:index,
-                startAddress:
-                  leg.start_address,
-                endAddress:
-                  leg.end_address,
-                distanceText:
-                  leg.distance
-                    ? leg.distance.text
-                    : "",
-                distanceMeters:
-                  leg.distance
-                    ? leg.distance.value
-                    : 0,
-                durationText:
-                  leg.duration
-                    ? leg.duration.text
-                    : "",
-                durationSeconds:
-                  leg.duration
-                    ? leg.duration.value
-                    : 0
-              }))
-          }
-        });
+        best = {
+          type:"pickup",
+          passenger:p,
+          address:p.pickup
+        };
 
       }
+
+    }
+
+    for(const p of onboard){
+
+      const meters =
+        await getDrivingMetersBetween(
+          current,
+          p.dropoff
+        );
+
+      if(meters < bestMeters){
+
+        bestMeters = meters;
+
+        best = {
+          type:"dropoff",
+          passenger:p,
+          address:p.dropoff
+        };
+
+      }
+
+    }
+
+    if(!best){
+      break;
+    }
+
+    current =
+      best.address;
+
+    pushUnique(
+      route,
+      current
     );
 
-  });
+    if(
+      best.type === "pickup"
+    ){
+
+      for(
+        let i=waiting.length-1;
+        i>=0;
+        i--
+      ){
+
+        if(
+          waiting[i].pickup
+            .toLowerCase() ===
+          current.toLowerCase()
+        ){
+
+          onboard.push(
+            waiting[i]
+          );
+
+          waiting.splice(i,1);
+
+        }
+
+      }
+
+    }else{
+
+      const idx =
+        onboard.findIndex(
+          x =>
+            x.id ===
+            best.passenger.id
+        );
+
+      if(idx > -1){
+        onboard.splice(idx,1);
+      }
+
+    }
+
+  }
+
+  return route;
 
 }
 
