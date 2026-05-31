@@ -602,7 +602,15 @@ async function handleEditShared(btn){
 
   const service =
     Review.getServiceByTrip(first);
+console.log("SERVICE =", service);
 
+console.log(
+  "SERVICE KEY =",
+  service?.serviceKey,
+  service?.title,
+  service?.companySharedPrice,
+  service?.companyBaseFare
+);
   const mins =
     Review.minutesToTrip(first);
 
