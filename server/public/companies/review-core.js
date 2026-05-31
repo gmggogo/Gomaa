@@ -617,9 +617,19 @@ if(!service){
   }
 
   const totalMiles = Math.max(0, Number(miles || 0));
-  const freeMiles = activeCount * includedMiles;
-  const extraMiles = Math.max(0, totalMiles - freeMiles);
-  const stopsCount = Math.max(0, activeCount - 1);
+ const freeMiles =
+  includedMiles;
+
+const extraMiles =
+  Math.max(
+    0,
+    totalMiles - freeMiles
+  );
+  const stopsCount =
+  Math.max(
+    0,
+    passengers.length - 1
+  );
 
   const activeTotal =
     (activeCount * sharedBase) +
