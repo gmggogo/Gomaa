@@ -11,9 +11,7 @@ const Review =
 window.ReviewApp;
 
 if(!Review){
-  console.error(
-    "ReviewApp missing"
-  );
+  console.error("ReviewApp missing");
   return;
 }
 
@@ -21,10 +19,430 @@ const container =
 Review.container;
 
 if(!container){
-  console.error(
-    "Container missing"
-  );
+  console.error("Container missing");
   return;
+}
+
+/* =========================================
+GOOGLE FIXED ROUTE ENGINE
+========================================= */
+
+let fixedGooglePromise = null;
+
+function normalizeUniqueAddress(address){
+  return Review.normalizeAddress(address);
+}
+
+function pushUnique(arr,value){
+  const v = normalizeUniqueAddress(value);
+  if(!v) return;
+
+  const exists =
+    arr.some(x =>
+      String(x).toLowerCase() ===
+      String(v).toLowerCase()
+    );
+
+  if(!exists){
+    arr.push(v);
+  }
+}
+
+async function ensureFixedGoogleLoaded(){
+
+  if(
+    window.google &&
+    google.maps &&
+    google.maps.DirectionsService
+  ){
+    return;
+  }
+
+  if(fixedGooglePromise){
+    return fixedGooglePromise;
+  }
+
+  fixedGooglePromise =
+    new Promise(async (resolve,reject)=>{
+
+      try{
+
+        const res =
+          await fetch("/api/config");
+
+        const data =
+          await res.json();
+
+        if(!data.googleKey){
+          reject(
+            new Error("Google key missing")
+          );
+          return;
+        }
+
+        const existing =
+          document.querySelector(
+            "script[data-google-maps='true']"
+          );
+
+        if(existing){
+
+          if(
+            window.google &&
+            google.maps &&
+            google.maps.DirectionsService
+          ){
+            resolve();
+            return;
+          }
+
+          existing.addEventListener(
+            "load",
+            () => resolve()
+          );
+
+          existing.addEventListener(
+            "error",
+            () => reject(
+              new Error("Google failed")
+            )
+          );
+
+          return;
+        }
+
+        const script =
+          document.createElement("script");
+
+        script.src =
+          `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+
+        script.async = true;
+        script.defer = true;
+
+        script.setAttribute(
+          "data-google-maps",
+          "true"
+        );
+
+        script.onload =
+          () => resolve();
+
+        script.onerror =
+          () => reject(
+            new Error("Google failed")
+          );
+
+        document.head.appendChild(script);
+
+      }catch(err){
+        reject(err);
+      }
+
+    });
+
+  return fixedGooglePromise;
+
+}
+
+async function getDrivingMetersBetween(origin,destination){
+
+  await ensureFixedGoogleLoaded();
+
+  return new Promise((resolve)=>{
+
+    const service =
+      new google.maps.DirectionsService();
+
+    service.route(
+      {
+        origin,
+        destination,
+        travelMode:
+          google.maps.TravelMode.DRIVING,
+        unitSystem:
+          google.maps.UnitSystem.IMPERIAL
+      },
+      function(response,status){
+
+        if(
+          status !== "OK" ||
+          !response?.routes?.[0]
+        ){
+          resolve(Number.MAX_SAFE_INTEGER);
+          return;
+        }
+
+        let meters = 0;
+
+        response.routes[0].legs.forEach(leg=>{
+          meters += leg.distance
+            ? leg.distance.value
+            : 0;
+        });
+
+        resolve(meters);
+
+      }
+    );
+
+  });
+
+}
+
+async function orderDropoffsByNearestRoute(startPoint,dropoffs){
+
+  const remaining =
+    [...dropoffs];
+
+  const ordered = [];
+
+  let current =
+    startPoint;
+
+  while(remaining.length){
+
+    let bestIndex = 0;
+    let bestMeters = Number.MAX_SAFE_INTEGER;
+
+    for(
+      let i = 0;
+      i < remaining.length;
+      i++
+    ){
+
+      const meters =
+        await getDrivingMetersBetween(
+          current,
+          remaining[i]
+        );
+
+      if(meters < bestMeters){
+        bestMeters = meters;
+        bestIndex = i;
+      }
+
+    }
+
+    const selected =
+      remaining.splice(
+        bestIndex,
+        1
+      )[0];
+
+    ordered.push(selected);
+
+    current = selected;
+
+  }
+
+  return ordered;
+
+}
+
+async function buildFixedSharedRoutePoints(group){
+
+  const passengers =
+    Review.getRealPassengersFromGroup(group);
+
+  if(!passengers.length){
+    return [];
+  }
+
+  const pickups = [];
+  const dropoffs = [];
+
+  passengers.forEach(p=>{
+    if(p.pickup){
+      pushUnique(
+        pickups,
+        p.pickup
+      );
+    }
+  });
+
+  passengers.forEach(p=>{
+    if(p.dropoff){
+      pushUnique(
+        dropoffs,
+        p.dropoff
+      );
+    }
+  });
+
+  if(pickups.length === 0){
+    return dropoffs;
+  }
+
+  const lastPickup =
+    pickups[pickups.length - 1];
+
+  const orderedDropoffs =
+    await orderDropoffsByNearestRoute(
+      lastPickup,
+      dropoffs
+    );
+
+  return [
+    ...pickups,
+    ...orderedDropoffs
+  ];
+
+}
+
+async function calculateFixedRouteMiles(points){
+
+  await ensureFixedGoogleLoaded();
+
+  const cleanPoints =
+    Array.isArray(points)
+      ? points
+          .map(p => normalizeUniqueAddress(p))
+          .filter(Boolean)
+      : [];
+
+  if(cleanPoints.length < 2){
+    return {
+      miles:0,
+      distanceMeters:0,
+      durationSeconds:0,
+      estimatedMinutes:0,
+      googleRoute:{}
+    };
+  }
+
+  const origin =
+    cleanPoints[0];
+
+  const destination =
+    cleanPoints[
+      cleanPoints.length - 1
+    ];
+
+  const middle =
+    cleanPoints.slice(1,-1);
+
+  const waypoints =
+    middle.map(address=>({
+      location:address,
+      stopover:true
+    }));
+
+  return new Promise((resolve,reject)=>{
+
+    const service =
+      new google.maps.DirectionsService();
+
+    service.route(
+      {
+        origin,
+        destination,
+        waypoints,
+
+        // 🔥 مهم جدا
+        // ممنوع جوجل يعيد ترتيب الشيرد
+        optimizeWaypoints:false,
+
+        travelMode:
+          google.maps.TravelMode.DRIVING,
+
+        drivingOptions:{
+          departureTime:new Date()
+        },
+
+        unitSystem:
+          google.maps.UnitSystem.IMPERIAL
+      },
+      function(response,status){
+
+        if(
+          status !== "OK" ||
+          !response?.routes?.[0]
+        ){
+          reject(
+            new Error(
+              "Google route failed: " + status
+            )
+          );
+          return;
+        }
+
+        const route =
+          response.routes[0];
+
+        let meters = 0;
+        let seconds = 0;
+
+        route.legs.forEach(leg=>{
+          meters += leg.distance
+            ? leg.distance.value
+            : 0;
+
+          seconds += leg.duration
+            ? leg.duration.value
+            : 0;
+        });
+
+        resolve({
+          miles:
+            Number(
+              (meters * 0.000621371)
+              .toFixed(2)
+            ),
+
+          distanceMeters:
+            meters,
+
+          durationSeconds:
+            seconds,
+
+          estimatedMinutes:
+            Math.ceil(seconds / 60),
+
+          googleRoute:{
+            overviewPolyline:
+              route.overview_polyline
+                ? route.overview_polyline.points
+                : "",
+
+            summary:
+              route.summary || "",
+
+            waypointOrder:
+              route.waypoint_order || [],
+
+            legs:
+              route.legs.map((leg,index)=>({
+                legIndex:index,
+                startAddress:
+                  leg.start_address,
+                endAddress:
+                  leg.end_address,
+                distanceText:
+                  leg.distance
+                    ? leg.distance.text
+                    : "",
+                distanceMeters:
+                  leg.distance
+                    ? leg.distance.value
+                    : 0,
+                durationText:
+                  leg.duration
+                    ? leg.duration.text
+                    : "",
+                durationSeconds:
+                  leg.duration
+                    ? leg.duration.value
+                    : 0
+              }))
+          }
+        });
+
+      }
+    );
+
+  });
+
 }
 
 /* =========================================
@@ -87,11 +505,8 @@ Continue editing?`
   }
 
   trip.__editing = true;
-
   trip.status = "Scheduled";
-
   trip.priceAmount = 0;
-
   trip.miles = 0;
 
   await Review.updateTrip(
@@ -165,15 +580,10 @@ Continue editing?`
   }
 
   group.forEach(t=>{
-
     t.__editing = true;
-
     t.status = "Scheduled";
-
     t.priceAmount = 0;
-
     t.pricePerPassenger = 0;
-
   });
 
   for(const t of group){
@@ -206,9 +616,7 @@ CANCEL EDIT
 ========================================= */
 
 async function handleCancelEdit(){
-
   await reloadTrips();
-
 }
 
 /* =========================================
@@ -226,9 +634,7 @@ async function handleDeleteTrip(btn){
   if(!id) return;
 
   const ok =
-    confirm(
-      "Delete this trip?"
-    );
+    confirm("Delete this trip?");
 
   if(!ok) return;
 
@@ -260,18 +666,12 @@ async function handleDeleteShared(btn){
   if(!group) return;
 
   const ok =
-    confirm(
-      "Delete this shared trip?"
-    );
+    confirm("Delete this shared trip?");
 
   if(!ok) return;
 
   for(const t of group){
-
-    await Review.deleteTrip(
-      t._id
-    );
-
+    await Review.deleteTrip(t._id);
   }
 
   await reloadTrips();
@@ -301,8 +701,8 @@ async function handleSaveTrip(btn){
 
   const stops =
     Array.isArray(trip.stops)
-    ? [...trip.stops]
-    : [];
+      ? [...trip.stops]
+      : [];
 
   tr.querySelectorAll(
     ".edit-input"
@@ -314,16 +714,14 @@ async function handleSaveTrip(btn){
     const stopIndex =
       input.dataset.stopIndex;
 
-    if(
-      stopIndex !== undefined
-    ){
+    if(stopIndex !== undefined){
 
-     stops[
-  Number(stopIndex)
-] =
-Review.normalizeAddress(
-  input.value
-);
+      stops[
+        Number(stopIndex)
+      ] =
+        Review.normalizeAddress(
+          input.value
+        );
 
       return;
 
@@ -334,10 +732,10 @@ Review.normalizeAddress(
       field === "dropoff"
     ){
 
-     payload[field] =
-Review.normalizeAddress(
-  input.value
-);
+      payload[field] =
+        Review.normalizeAddress(
+          input.value
+        );
 
     }else{
 
@@ -349,25 +747,15 @@ Review.normalizeAddress(
   });
 
   payload.stops = stops;
-
   payload.status = "Scheduled";
-
   payload.priceAmount = 0;
-
   payload.pricePerPassenger = 0;
-
   payload.miles = 0;
-
   payload.distanceMeters = 0;
-
   payload.durationSeconds = 0;
-
   payload.estimatedMinutes = 0;
-
   payload.googleRoute = null;
-
   payload.routePoints = [];
-
   payload.priceSnapshot = null;
 
   await Review.updateTrip(
@@ -416,9 +804,7 @@ async function handleSaveShared(btn){
 
     if(
       field &&
-      field.startsWith(
-        "passenger_"
-      )
+      field.startsWith("passenger_")
     ){
 
       const parts =
@@ -437,26 +823,32 @@ async function handleSaveShared(btn){
       if(key === "name"){
         passengers[index].name =
           input.value;
+
+        passengers[index].clientName =
+          input.value;
       }
 
       if(key === "phone"){
         passengers[index].phone =
           input.value;
+
+        passengers[index].clientPhone =
+          input.value;
       }
 
-if(key === "pickup"){
-  passengers[index].pickup =
-    Review.normalizeAddress(
-      input.value
-    );
-}
+      if(key === "pickup"){
+        passengers[index].pickup =
+          Review.normalizeAddress(
+            input.value
+          );
+      }
 
-if(key === "dropoff"){
-  passengers[index].dropoff =
-    Review.normalizeAddress(
-      input.value
-    );
-}
+      if(key === "dropoff"){
+        passengers[index].dropoff =
+          Review.normalizeAddress(
+            input.value
+          );
+      }
 
       return;
 
@@ -467,30 +859,17 @@ if(key === "dropoff"){
 
   });
 
-  payload.passengers =
-    passengers;
-
-  payload.status =
-    "Scheduled";
-
+  payload.passengers = passengers;
+  payload.status = "Scheduled";
   payload.priceAmount = 0;
-
   payload.pricePerPassenger = 0;
-
   payload.miles = 0;
-
   payload.distanceMeters = 0;
-
   payload.durationSeconds = 0;
-
   payload.estimatedMinutes = 0;
-
   payload.googleRoute = null;
-
   payload.routePoints = [];
-
   payload.optimizedRoute = null;
-
   payload.priceSnapshot = null;
 
   for(const t of group){
@@ -529,9 +908,7 @@ async function handleConfirmTrip(btn){
     Review.getServiceByTrip(trip);
 
   btn.disabled = true;
-
-  btn.textContent =
-    "Calculating...";
+  btn.textContent = "Calculating...";
 
   const routePoints =
     Review.buildIndividualRoutePoints(
@@ -539,7 +916,7 @@ async function handleConfirmTrip(btn){
     );
 
   const routeData =
-    await Review.calculateRouteMiles(
+    await calculateFixedRouteMiles(
       routePoints
     );
 
@@ -549,8 +926,8 @@ async function handleConfirmTrip(btn){
       routeData.miles,
       trip.status,
       Array.isArray(trip.stops)
-      ? trip.stops.length
-      : 0
+        ? trip.stops.length
+        : 0
     );
 
   const snapshot =
@@ -573,9 +950,9 @@ async function handleConfirmTrip(btn){
       routePoints:routePoints,
       serviceName:service?.name || "",
       serviceCode:
-  service?.serviceKey ||
-  service?.companySuffix ||
-  "",
+        service?.serviceKey ||
+        service?.companySuffix ||
+        "",
       serviceId:service?._id || "",
       priceSnapshot:snapshot
     }
@@ -588,6 +965,7 @@ async function handleConfirmTrip(btn){
 /* =========================================
 CONFIRM SHARED
 ========================================= */
+
 async function handleConfirmShared(btn){
 
   const tr =
@@ -608,40 +986,11 @@ async function handleConfirmShared(btn){
   const first =
     group[0];
 
- const service =
-  Review.getServiceByTrip(first);
+  const service =
+    Review.getServiceByTrip(first);
 
-alert(
-  Review.COMPANY_SERVICES
-    .map(s => ({
-      title: s.title,
-      serviceKey: s.serviceKey,
-      companyShared: s.companyShared,
-      baseFare: s.baseFare,
-      companyBaseFare: s.companyBaseFare,
-      includedMiles: s.includedMiles,
-      companyIncludedMiles: s.companyIncludedMiles,
-      perMile: s.perMile,
-      companyPerMile: s.companyPerMile
-    }))
-    .map(x => JSON.stringify(x,null,2))
-    .join("\n\n=================\n\n")
-);
-
-btn.disabled = true;
-
-  btn.textContent =
-    "Calculating...";
-
-  const routePoints =
-    Review.buildSharedRoutePoints(
-      group
-    );
-alert(JSON.stringify(routePoints,null,2));
-  const routeData =
-    await Review.calculateRouteMiles(
-      routePoints
-    );
+  btn.disabled = true;
+  btn.textContent = "Calculating...";
 
   const passengers =
     Review.getRealPassengersFromGroup(
@@ -653,7 +1002,7 @@ alert(JSON.stringify(routePoints,null,2));
 
       const status =
         String(p.status || "")
-        .toLowerCase();
+          .toLowerCase();
 
       return (
         !status.includes("no") &&
@@ -663,34 +1012,48 @@ alert(JSON.stringify(routePoints,null,2));
     });
 
   const count =
-    activePassengers.length || passengers.length || 1;
+    activePassengers.length ||
+    passengers.length ||
+    1;
 
- const sharedBase =
-  Number(
-    service?.companyBaseFare ??
-    service?.baseFare ??
-    0
-  );
+  const routePoints =
+    await buildFixedSharedRoutePoints(
+      group
+    );
+
+  const routeData =
+    await calculateFixedRouteMiles(
+      routePoints
+    );
+
+  const sharedBase =
+    Number(
+      service?.companySharedPrice ??
+      service?.sharedPrice ??
+      service?.companyBaseFare ??
+      service?.baseFare ??
+      0
+    );
 
   const includedMiles =
     Number(
       service?.companyIncludedMiles ??
       service?.includedMiles ??
-      3
+      0
     );
 
   const perMile =
     Number(
       service?.companyPerMile ??
       service?.perMile ??
-      2
+      0
     );
 
   const stopFee =
     Number(
       service?.companyStopFee ??
       service?.stopFee ??
-      5
+      0
     );
 
   const totalMiles =
@@ -708,7 +1071,7 @@ alert(JSON.stringify(routePoints,null,2));
   const stopsCount =
     Math.max(
       0,
-      count - 1
+      routePoints.length - 2
     );
 
   const total =
@@ -732,6 +1095,32 @@ alert(JSON.stringify(routePoints,null,2));
       total
     );
 
+  const updatedPassengers =
+    passengers.map(p=>{
+
+      const s =
+        String(p.status || "")
+          .toLowerCase()
+          .trim();
+
+      if(
+        s.includes("no") ||
+        s.includes("cancel")
+      ){
+        return p;
+      }
+
+      return {
+        ...p,
+        status:"Confirmed",
+        priceAmount:
+          Number(pricePerPassenger || 0),
+        finalPrice:
+          Number(pricePerPassenger || 0)
+      };
+
+    });
+
   const payload = {
 
     status:"Confirmed",
@@ -745,15 +1134,21 @@ alert(JSON.stringify(routePoints,null,2));
       service?.title ||
       "Shared",
 
-serviceCode:
-  service?.serviceKey ||
-  service?.companySuffix ||
-  service?.code ||
-  service?.serviceCode ||
-  "SH",
+    serviceCode:
+      service?.serviceKey ||
+      service?.companySuffix ||
+      service?.code ||
+      service?.serviceCode ||
+      "SH",
 
     serviceId:
       service?._id || "",
+
+    passengers:
+      updatedPassengers,
+
+    totalPassengers:
+      passengers.length,
 
     priceAmount:
       total,
@@ -805,6 +1200,7 @@ serviceCode:
   await reloadTrips();
 
 }
+
 /* =========================================
 CANCEL TRIP
 ========================================= */
@@ -833,45 +1229,34 @@ async function handleCancelTrip(btn){
   const warningMinutes =
     Review.getWarningMinutes(service);
 
- const cancelFee =
-  Review.getCancelFee(service);
+  const cancelFee =
+    Review.getCancelFee(service);
 
-console.log(service);
-console.log(cancelFee);
+  let finalPrice = 0;
 
-let finalPrice = 0;
+  if(Review.warningEnabled(service)){
 
-if(
-  Review.warningEnabled(service)
-){
-
-  if(
-    mins !== null &&
-    mins > 0 &&
-    mins <= warningMinutes
-  ){
-
-    finalPrice =
-      Number(cancelFee);
+    if(
+      mins !== null &&
+      mins > 0 &&
+      mins <= warningMinutes
+    ){
+      finalPrice =
+        Number(cancelFee);
+    }
 
   }
 
-}
-
- await Review.updateTrip(
-  id,
-  {
-    status:"Cancelled",
-
-    priceAmount:Number(finalPrice),
-
-    finalPrice:Number(finalPrice),
-
-    cancelFee:Number(finalPrice),
-
-    cancelledAt:new Date().toISOString()
-  }
-);
+  await Review.updateTrip(
+    id,
+    {
+      status:"Cancelled",
+      priceAmount:Number(finalPrice),
+      finalPrice:Number(finalPrice),
+      cancelFee:Number(finalPrice),
+      cancelledAt:new Date().toISOString()
+    }
+  );
 
   await reloadTrips();
 
@@ -913,43 +1298,47 @@ async function handleCancelShared(btn){
   const cancelFee =
     Review.getCancelFee(service);
 
- let finalPrice = 0;
+  let finalPrice = 0;
 
-if(
-  Review.warningEnabled(service)
-){
+  if(Review.warningEnabled(service)){
 
-  if(
-    mins !== null &&
-    mins > 0 &&
-    mins <= warningMinutes
-  ){
-
-    finalPrice =
-      Number(cancelFee);
+    if(
+      mins !== null &&
+      mins > 0 &&
+      mins <= warningMinutes
+    ){
+      finalPrice =
+        Number(cancelFee);
+    }
 
   }
 
-}
-
- for(const t of group){
-
-  await Review.updateTrip(
-    t._id,
-    {
+  const passengers =
+    Review.getRealPassengersFromGroup(
+      group
+    ).map(p=>({
+      ...p,
       status:"Cancelled",
-
-      priceAmount:Number(finalPrice),
-
-      finalPrice:Number(finalPrice),
-
       cancelFee:Number(finalPrice),
+      finalPrice:Number(finalPrice),
+      priceAmount:Number(finalPrice)
+    }));
 
-      cancelledAt:new Date().toISOString()
-    }
-  );
+  for(const t of group){
 
-}
+    await Review.updateTrip(
+      t._id,
+      {
+        status:"Cancelled",
+        passengers,
+        priceAmount:Number(finalPrice),
+        finalPrice:Number(finalPrice),
+        cancelFee:Number(finalPrice),
+        cancelledAt:new Date().toISOString()
+      }
+    );
+
+  }
 
   await reloadTrips();
 
