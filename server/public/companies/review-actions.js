@@ -190,26 +190,18 @@ async function getDrivingMetersBetween(origin,destination){
 
 }
 
-async function orderDropoffsByNearestRoute(startPoint,dropoffs){
+async function orderPointsByNearestRoute(startPoint,points){
 
-  const remaining =
-    [...dropoffs];
-
+  const remaining = [...points];
   const ordered = [];
-
-  let current =
-    startPoint;
+  let current = startPoint;
 
   while(remaining.length){
 
     let bestIndex = 0;
     let bestMeters = Number.MAX_SAFE_INTEGER;
 
-    for(
-      let i = 0;
-      i < remaining.length;
-      i++
-    ){
+    for(let i = 0; i < remaining.length; i++){
 
       const meters =
         await getDrivingMetersBetween(
@@ -225,13 +217,9 @@ async function orderDropoffsByNearestRoute(startPoint,dropoffs){
     }
 
     const selected =
-      remaining.splice(
-        bestIndex,
-        1
-      )[0];
+      remaining.splice(bestIndex,1)[0];
 
     ordered.push(selected);
-
     current = selected;
 
   }
@@ -254,19 +242,13 @@ async function buildFixedSharedRoutePoints(group){
 
   passengers.forEach(p=>{
     if(p.pickup){
-      pushUnique(
-        pickups,
-        p.pickup
-      );
+      pushUnique(pickups,p.pickup);
     }
   });
 
   passengers.forEach(p=>{
     if(p.dropoff){
-      pushUnique(
-        dropoffs,
-        p.dropoff
-      );
+      pushUnique(dropoffs,p.dropoff);
     }
   });
 
@@ -274,22 +256,88 @@ async function buildFixedSharedRoutePoints(group){
     return dropoffs;
   }
 
+  if(dropoffs.length === 0){
+    return pickups;
+  }
+
+  /* =========================
+     CASE 1:
+     SAME PICKUP / MANY DROPS
+  ========================= */
+
+  if(
+    pickups.length === 1 &&
+    dropoffs.length > 1
+  ){
+
+    const orderedDropoffs =
+      await orderPointsByNearestRoute(
+        pickups[0],
+        dropoffs
+      );
+
+    return [
+      pickups[0],
+      ...orderedDropoffs
+    ];
+
+  }
+
+  /* =========================
+     CASE 2:
+     MANY PICKUPS / SAME DROP
+  ========================= */
+
+  if(
+    pickups.length > 1 &&
+    dropoffs.length === 1
+  ){
+
+    const orderedPickups =
+      await orderPointsByNearestRoute(
+        pickups[0],
+        pickups.slice(1)
+      );
+
+    return [
+      pickups[0],
+      ...orderedPickups,
+      dropoffs[0]
+    ];
+
+  }
+
+  /* =========================
+     CASE 3:
+     MANY PICKUPS / MANY DROPS
+  ========================= */
+
+  const orderedPickups =
+    await orderPointsByNearestRoute(
+      pickups[0],
+      pickups.slice(1)
+    );
+
+  const pickupRoute = [
+    pickups[0],
+    ...orderedPickups
+  ];
+
   const lastPickup =
-    pickups[pickups.length - 1];
+    pickupRoute[pickupRoute.length - 1];
 
   const orderedDropoffs =
-    await orderDropoffsByNearestRoute(
+    await orderPointsByNearestRoute(
       lastPickup,
       dropoffs
     );
 
   return [
-    ...pickups,
+    ...pickupRoute,
     ...orderedDropoffs
   ];
 
 }
-
 async function calculateFixedRouteMiles(points){
 
   await ensureFixedGoogleLoaded();
@@ -1026,14 +1074,13 @@ async function handleConfirmShared(btn){
       routePoints
     );
 
-  const sharedBase =
-    Number(
-      service?.companySharedPrice ??
-      service?.sharedPrice ??
-      service?.companyBaseFare ??
-      service?.baseFare ??
-      0
-    );
+ const sharedBase =
+  Number(
+    service?.companySharedPrice ||
+    service?.companyBaseFare ||
+    service?.baseFare ||
+    0
+  );
 
   const includedMiles =
     Number(
