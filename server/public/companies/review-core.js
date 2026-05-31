@@ -995,10 +995,19 @@ function getGroupStatus(group){
 }
 
 function getGroupPrice(group){
+
   const first = group[0] || {};
-  const miles = Number(first.miles || 0);
-  const pricing = calculateSharedPrice(group,miles);
-  return Number(pricing.total || 0);
+
+  const pricing =
+    calculateSharedPrice(
+      group,
+      Number(first.miles || 0)
+    );
+
+  return Number(
+    pricing.total || 0
+  );
+
 }
 
 /* ================= TRIPS TABLE ================= */
