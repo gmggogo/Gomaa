@@ -1074,12 +1074,13 @@ async function handleConfirmShared(btn){
       routePoints
     );
 
- const sharedBase =
+const sharedBase =
   Number(
     service?.companySharedPrice ||
+    service?.sharedPrice ||
     service?.companyBaseFare ||
     service?.baseFare ||
-    0
+    15
   );
 
   const includedMiles =
@@ -1115,11 +1116,11 @@ async function handleConfirmShared(btn){
       totalMiles - freeMiles
     );
 
-  const stopsCount =
-    Math.max(
-      0,
-      routePoints.length - 2
-    );
+const stopsCount =
+  Math.max(
+    0,
+    count - 1
+  );
 
   const total =
     Number(
