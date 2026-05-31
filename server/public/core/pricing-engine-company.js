@@ -332,22 +332,26 @@ window.CompanyPricing = {
         freeMiles
       );
 
-    const activeTotal =
+  const activeTotal =
 
-      (
-        activeCount *
-        cfg.sharedPrice
-      ) +
+(
+  activeCount *
+  (
+    cfg.sharedPrice > 0
+      ? cfg.sharedPrice
+      : cfg.baseFare
+  )
+) +
 
-      (
-        extraMiles *
-        cfg.perMile
-      ) +
+(
+  extraMiles *
+  cfg.perMile
+) +
 
-      (
-        Number(stopsCount || 0) *
-        cfg.stopFee
-      );
+(
+  Number(stopsCount || 0) *
+  cfg.stopFee
+);
 
     const noShowTotal =
 
