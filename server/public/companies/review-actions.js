@@ -637,7 +637,7 @@ btn.disabled = true;
     Review.buildSharedRoutePoints(
       group
     );
-
+alert(JSON.stringify(routePoints,null,2));
   const routeData =
     await Review.calculateRouteMiles(
       routePoints
