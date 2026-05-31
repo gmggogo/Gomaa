@@ -293,7 +293,10 @@ window.CompanyPricing = {
       });
 
     const activeCount =
-      activePassengers.length;
+  Math.max(
+    1,
+    passengers.length
+  );
 
     if(activeCount === 0){
 
