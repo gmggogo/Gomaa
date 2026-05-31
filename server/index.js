@@ -654,32 +654,38 @@ serviceCode: { type: String, default: "" },
      🧍 PASSENGERS (🔥 أهم إضافة)
   ========================= */
 
-  passengers: {
-    type: [
-      {
-        passengerId: { type: String, default: "" },
+passengers: {
+  type: [
+    {
+      passengerId: { type: String, default: "" },
 
-        name: { type: String, default: "" },
-        phone: { type: String, default: "" },
+      name: { type: String, default: "" },
+      phone: { type: String, default: "" },
 
-        clientName: { type: String, default: "" },
-        clientPhone: { type: String, default: "" },
+      clientName: { type: String, default: "" },
+      clientPhone: { type: String, default: "" },
 
-        pickup: { type: String, default: "" },
-        dropoff: { type: String, default: "" },
+      pickup: { type: String, default: "" },
+      dropoff: { type: String, default: "" },
 
-        pickupLat: { type: Number, default: null },
-        pickupLng: { type: Number, default: null },
-        dropoffLat: { type: Number, default: null },
-        dropoffLng: { type: Number, default: null },
+      pickupLat: { type: Number, default: null },
+      pickupLng: { type: Number, default: null },
+      dropoffLat: { type: Number, default: null },
+      dropoffLng: { type: Number, default: null },
 
-        status: { type: String, default: "Scheduled" },
+      status: { type: String, default: "Scheduled" },
 
-        priceAmount: { type: Number, default: 0 }
-      }
-    ],
-    default: []
-  },
+      priceAmount: { type: Number, default: 0 },
+
+      finalPrice: { type: Number, default: 0 },
+
+      cancelFee: { type: Number, default: 0 },
+
+      noShowFee: { type: Number, default: 0 }
+    }
+  ],
+  default: []
+},
 
   /* =========================
      💳 PAYMENT
@@ -2946,81 +2952,29 @@ trips.forEach(t => {
     t.passengers.length > 0
   ){
 
-   t.passengers.forEach(p => {
+    t.passengers.forEach(p => {
 
-  const s =
-    String(p.status || "")
-      .replace(/\s+/g,"")
-      .toLowerCase()
-      .trim();
+      const s =
+        String(p.status || "")
+          .replace(/\s+/g,"")
+          .toLowerCase()
+          .trim();
 
-  if(
-    s.includes("complete") ||
-    s.includes("cancel") ||
-    s.includes("no")
-  ){
-    sharedPassengers++;
+      if(
+        s.includes("complete") ||
+        s.includes("cancel") ||
+        s.includes("no")
+      ){
+        sharedPassengers++;
+      }
+
+    });
+
+  } else {
+
+    // intentionally empty
+
   }
-
-});
-
-} else {
-
-  const status =
-    String(t.status || "")
-      .replace(/\s+/g,"")
-      .toLowerCase()
-      .trim();
-
-}
-
-/* =========================
-   SHARED COUNT
-========================= */
-
-if(isShared){
-
-  const sharedKey =
-
-    String(
-      t.groupId ||
-      t.tripNumber ||
-      t._id
-    );
-
-  sharedGroups.add(sharedKey);
-
-}else{
-
-  individualTrips++;
-
-}
-
-/* =========================
-   STATUS COUNT
-========================= */
-
-if(
-  status.includes("complete")
-){
-
-  completedTrips++;
-
-}else if(
-  status.includes("cancel")
-){
-
-  cancelledTrips++;
-
-}else if(
-  status.includes("noshow") ||
-  status.includes("no-show") ||
-  status.includes("no_show")
-){
-
-  noShowTrips++;
-
-}
 
 });
 
@@ -3033,6 +2987,7 @@ const sharedTrips =
 
 const totalTrips =
   individualTrips + sharedTrips;
+
 company.revenue =
   Number(revenue || 0);
 
@@ -3053,6 +3008,7 @@ company.cancelledTrips =
 
 company.noShowTrips =
   noShowTrips;
+
 /* 🔥 الفاتورة = فقط الرحلات بعد آخر دفعة */
 
 let invoiceAmount = 0;
@@ -3140,8 +3096,8 @@ await User.findByIdAndUpdate(
     cancelledTrips,
     noShowTrips,
 
-    revenue: Number(revenue.toFixed(2)),
-    invoiceAmount: invoiceAmount
+    revenue:Number(revenue.toFixed(2)),
+    invoiceAmount:invoiceAmount
   }
 );
 
@@ -3925,7 +3881,7 @@ const pickup = normalizeText(req.body.pickup);
 const dropoff = normalizeText(req.body.dropoff);
 
 /* =========================
-   SHARED DATA (FIXED)
+   SHARED DATA (FINAL)
 ========================= */
 
 let groupId = "";
@@ -3939,23 +3895,70 @@ if (isShared) {
     req.body.passengers.length > 0
   ) {
 
-    passengers = req.body.passengers;
-    totalPassengers = passengers.length;
+    passengers = req.body.passengers.map((p, i) => ({
 
-    // 🔥 generate groupId
-    groupId = "GRP-" + Date.now();
+      passengerId:
+        p.passengerId ||
+        "P" + (i + 1),
+
+      clientName:
+        normalizeText(p.clientName),
+
+      clientPhone:
+        normalizeText(p.clientPhone),
+
+      pickup:
+        normalizeText(p.pickup),
+
+      dropoff:
+        normalizeText(p.dropoff),
+
+      status:
+        normalizeText(
+          p.status || "Scheduled"
+        ),
+
+      priceAmount:
+        Number(
+          p.priceAmount || 0
+        ),
+
+      finalPrice:
+        Number(
+          p.finalPrice || 0
+        ),
+
+      cancelFee:
+        Number(
+          p.cancelFee || 0
+        ),
+
+      noShowFee:
+        Number(
+          p.noShowFee || 0
+        )
+
+    }));
+
+    totalPassengers =
+      passengers.length;
+
+    groupId =
+      "GRP-" + Date.now();
 
   } else {
 
     return res.status(400).json({
-      message: "Shared trip must include passengers"
+      message:
+        "Shared trip must include passengers"
     });
 
   }
+
 }
 
 /* =========================
-   SHARED CREATE (FINAL CLEAN)
+   SHARED CREATE (FINAL)
 ========================= */
 
 if (isShared) {
@@ -3964,74 +3967,181 @@ if (isShared) {
 
   let attempts = 0;
 
-  while(!trip && attempts < 5){
+  while (!trip && attempts < 5) {
 
-    try{
+    try {
 
       attempts++;
 
-trip = await Trip.create({
+      trip = await Trip.create({
 
-  type,
-  tripNumber,
+        /* BASIC */
 
-  serviceType:"SHARED",
+        type,
+        tripNumber,
 
-  serviceKey:"SHARED",
+        /* SERVICE */
 
-  serviceCode:"SHARED",
+        serviceType: "SHARED",
+        serviceKey: "SHARED",
+        serviceCode: "SHARED",
 
-        // 🔥 SHARED FLAGS
-       isShared: true,
-groupId,
-tripType: "SHARED",
-sharedSuffix: "SH",
+        /* SHARED FLAGS */
 
-sharedSource:
-  companyName
-    ? "COMPANY"
-    : "INDIVIDUAL",
+        isShared: true,
 
-        company: normalizeText(req.body.company),
+        groupId,
 
-        entryName: normalizeText(req.body.entryName),
-        entryPhone: normalizeText(req.body.entryPhone),
+        tripType: "SHARED",
 
-        // 🔥 PASSENGERS
+        sharedSuffix: "SH",
+
+        sharedSource:
+          companyName
+            ? "COMPANY"
+            : "INDIVIDUAL",
+
+        /* COMPANY */
+
+        company:
+          normalizeText(
+            req.body.company
+          ),
+
+        entryName:
+          normalizeText(
+            req.body.entryName
+          ),
+
+        entryPhone:
+          normalizeText(
+            req.body.entryPhone
+          ),
+
+        /* PASSENGERS */
+
         passengers,
+
         totalPassengers,
 
-        // display fallback
-        clientName: "Shared Trip",
-        clientPhone: "",
+        sharedStopsCount:
+          Number(
+            req.body.sharedStopsCount || 0
+          ),
 
-        // 🔥 ROUTE SAFETY
-        pickup: passengers[0]?.pickup || pickup,
-        dropoff: passengers[passengers.length - 1]?.dropoff || dropoff,
+        /* DISPLAY */
 
-        pickupLat: null,
-        pickupLng: null,
-        dropoffLat: null,
-        dropoffLng: null,
+        clientName:
+          "Shared Trip",
 
-        stops: [],
-        stopCoords: [],
+        clientPhone:
+          "",
 
-        tripDate: normalizeText(req.body.tripDate),
-        tripTime: normalizeText(req.body.tripTime),
+        /* ROUTE */
 
-        notes: normalizeText(req.body.notes),
+        pickup:
+          passengers?.[0]?.pickup ||
+          pickup,
 
-        priceAmount: 0,
+        dropoff:
+          passengers?.[
+            passengers.length - 1
+          ]?.dropoff ||
+          dropoff,
 
-        status: "Scheduled",
+        pickupLat:
+          normalizeNumber(
+            req.body.pickupLat
+          ),
 
-        createdAt: new Date()
+        pickupLng:
+          normalizeNumber(
+            req.body.pickupLng
+          ),
+
+        dropoffLat:
+          normalizeNumber(
+            req.body.dropoffLat
+          ),
+
+        dropoffLng:
+          normalizeNumber(
+            req.body.dropoffLng
+          ),
+
+        stops:
+          Array.isArray(req.body.stops)
+            ? parseStops(req.body.stops)
+            : [],
+
+        stopCoords:
+          Array.isArray(req.body.stopCoords)
+            ? parseStopCoords(req.body.stopCoords)
+            : [],
+
+        /* DATE */
+
+        tripDate:
+          normalizeText(
+            req.body.tripDate
+          ),
+
+        tripTime:
+          normalizeText(
+            req.body.tripTime
+          ),
+
+        notes:
+          normalizeText(
+            req.body.notes
+          ),
+
+        /* PRICE */
+
+        priceAmount:
+          Number(
+            req.body.priceAmount || 0
+          ),
+
+        finalPrice:
+          Number(
+            req.body.finalPrice || 0
+          ),
+
+        pricePerPassenger:
+          Number(
+            req.body.pricePerPassenger || 0
+          ),
+
+        cancelFee:
+          Number(
+            req.body.cancelFee || 0
+          ),
+
+        noShowFee:
+          Number(
+            req.body.noShowFee || 0
+          ),
+
+        /* STATUS */
+
+        status:
+          normalizeText(
+            req.body.status
+          ) || "Scheduled",
+
+        bookedAt:
+          req.body.bookedAt ||
+          new Date(),
+
+        createdAt:
+          new Date()
+
       });
 
-    }catch(err){
+    } catch (err) {
 
-      if(err.code !== 11000){
+      if (err.code !== 11000) {
         throw err;
       }
 
@@ -4047,8 +4157,8 @@ sharedSource:
   await ensureTripCoords(trip);
 
   return res.status(200).json(trip);
-}
 
+}
 
 /* =========================
    🟢 INDIVIDUAL CREATE
@@ -5234,105 +5344,136 @@ app.patch("/api/driver/trips/:id/complete", async (req, res) => {
       Array.isArray(trip.passengers)
     ) {
 
-      const completedPassengers =
-        trip.passengers.filter(p => {
+   const activePassengers =
+  trip.passengers.filter(p => {
 
-          const s = String(
-            p.status || ""
-          ).toLowerCase();
+    const s =
+      String(
+        p.status || ""
+      )
+      .toLowerCase()
+      .trim();
 
-          return s.includes("complete");
+    return (
 
-        });
+      !s.includes("cancel") &&
 
-      const count =
-        completedPassengers.length || 1;
+      !s.includes("no")
 
-      const perPassenger =
-        Number(final || 0) / count;
+    );
 
-      trip.passengers =
-        trip.passengers.map(p => {
+  });
 
-          const s = String(
-            p.status || ""
-          ).toLowerCase();
+const count =
+  activePassengers.length || 1;
 
-          /* =========================
-             NO SHOW
-          ========================= */
+const perPassenger =
+  Number(final || 0) / count;
 
-          if (s.includes("no")) {
+trip.pricePerPassenger =
+  Number(perPassenger || 0);
 
-            return {
+trip.passengers =
+  trip.passengers.map(p => {
 
-              ...p,
+    const s =
+      String(
+        p.status || ""
+      )
+      .toLowerCase()
+      .trim();
 
-              finalPrice: Number(
-                trip.noShowFee || 0
-              ),
+    if(
+      !s ||
+      s === "scheduled" ||
+      s === "booked"
+    ){
 
-              priceAmount: Number(
-                trip.noShowFee || 0
-              )
+      return {
 
-            };
+        ...p,
 
-          }
+        status:"Completed",
 
-          /* =========================
-             CANCELLED
-          ========================= */
+        finalPrice:
+          Number(
+            perPassenger || 0
+          ),
 
-          if (s.includes("cancel")) {
+        priceAmount:
+          Number(
+            perPassenger || 0
+          )
 
-            return {
-
-              ...p,
-
-              finalPrice: Number(
-                trip.cancelFee || 0
-              ),
-
-              priceAmount: Number(
-                trip.cancelFee || 0
-              )
-
-            };
-
-          }
-
-          /* =========================
-             COMPLETED
-          ========================= */
-
-          if (s.includes("complete")) {
-
-            return {
-
-              ...p,
-
-              finalPrice: Number(
-                perPassenger || 0
-              ),
-
-              priceAmount: Number(
-                perPassenger || 0
-              )
-
-            };
-
-          }
-
-          /* =========================
-             DEFAULT
-          ========================= */
-
-          return p;
-
-        });
+      };
 
     }
+
+    if (s.includes("no")) {
+
+      return {
+
+        ...p,
+
+        finalPrice:
+          Number(
+            trip.noShowFee || 0
+          ),
+
+        priceAmount:
+          Number(
+            trip.noShowFee || 0
+          )
+
+      };
+
+    }
+
+    if (s.includes("cancel")) {
+
+      return {
+
+        ...p,
+
+        finalPrice:
+          Number(
+            trip.cancelFee || 0
+          ),
+
+        priceAmount:
+          Number(
+            trip.cancelFee || 0
+          )
+
+      };
+
+    }
+
+    if (s.includes("complete")) {
+
+      return {
+
+        ...p,
+
+        finalPrice:
+          Number(
+            perPassenger || 0
+          ),
+
+        priceAmount:
+          Number(
+            perPassenger || 0
+          )
+
+      };
+
+    }
+
+    return p;
+
+  });
+
+}
 
     /* =========================
        SAVE
