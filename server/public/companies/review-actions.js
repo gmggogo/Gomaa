@@ -15,14 +15,6 @@ if(!Review){
   return;
 }
 
-const CompanyPricing =
-window.CompanyPricing;
-
-if(!CompanyPricing){
-  console.error("CompanyPricing missing");
-  return;
-}
-
 const container =
 Review.container;
 
@@ -266,24 +258,23 @@ async function buildFixedSharedRoutePoints(group){
   }
 
   const route = [];
+
   const onboard = [];
+  const waiting = activePassengers.map((p,index)=>({
 
-  const waiting =
-    activePassengers.map((p,index)=>({
+    id:index,
 
-      id:index,
+    pickup:
+      normalizeUniqueAddress(
+        p.pickup
+      ),
 
-      pickup:
-        normalizeUniqueAddress(
-          p.pickup
-        ),
+    dropoff:
+      normalizeUniqueAddress(
+        p.dropoff
+      )
 
-      dropoff:
-        normalizeUniqueAddress(
-          p.dropoff
-        )
-
-    }));
+  }));
 
   let current =
     waiting[0].pickup;
@@ -293,11 +284,14 @@ async function buildFixedSharedRoutePoints(group){
   for(let i=waiting.length-1;i>=0;i--){
 
     if(
-      waiting[i].pickup.toLowerCase() ===
+      waiting[i].pickup
+        .toLowerCase() ===
       current.toLowerCase()
     ){
+
       onboard.push(waiting[i]);
       waiting.splice(i,1);
+
     }
 
   }
@@ -308,6 +302,7 @@ async function buildFixedSharedRoutePoints(group){
   ){
 
     let best = null;
+
     let bestMeters =
       Number.MAX_SAFE_INTEGER;
 
@@ -362,18 +357,33 @@ async function buildFixedSharedRoutePoints(group){
     current =
       best.address;
 
-    pushUnique(route,current);
+    pushUnique(
+      route,
+      current
+    );
 
-    if(best.type === "pickup"){
+    if(
+      best.type === "pickup"
+    ){
 
-      for(let i=waiting.length-1;i>=0;i--){
+      for(
+        let i=waiting.length-1;
+        i>=0;
+        i--
+      ){
 
         if(
-          waiting[i].pickup.toLowerCase() ===
+          waiting[i].pickup
+            .toLowerCase() ===
           current.toLowerCase()
         ){
-          onboard.push(waiting[i]);
+
+          onboard.push(
+            waiting[i]
+          );
+
           waiting.splice(i,1);
+
         }
 
       }
@@ -644,7 +654,15 @@ async function handleEditShared(btn){
 
   const service =
     Review.getServiceByTrip(first);
+console.log("SERVICE =", service);
 
+console.log(
+  "SERVICE KEY =",
+  service?.serviceKey,
+  service?.title,
+  service?.companySharedPrice,
+  service?.companyBaseFare
+);
   const mins =
     Review.minutesToTrip(first);
 
@@ -1010,32 +1028,18 @@ async function handleConfirmTrip(btn){
       routePoints
     );
 
-  const stopsCount =
-    Array.isArray(trip.stops)
-      ? trip.stops.length
-      : 0;
-
-  const pricing =
-    CompanyPricing.calculate(
-      service,
-      {
-        miles:
-          routeData.miles,
-
-        minutes:
-          routeData.estimatedMinutes,
-
-        stopsCount
-      }
-    );
-
   const price =
-    Number(
-      pricing.total || 0
+    Review.calculateTripPrice(
+      service,
+      routeData.miles,
+      trip.status,
+      Array.isArray(trip.stops)
+        ? trip.stops.length
+        : 0
     );
 
   const snapshot =
-    CompanyPricing.buildPricingSnapshot(
+    Review.buildPricingSnapshot(
       service,
       routeData.miles,
       price
@@ -1046,28 +1050,18 @@ async function handleConfirmTrip(btn){
     {
       status:"Confirmed",
       priceAmount:Number(price),
-      finalPrice:Number(price),
-
       miles:routeData.miles,
       distanceMeters:routeData.distanceMeters,
       durationSeconds:routeData.durationSeconds,
       estimatedMinutes:routeData.estimatedMinutes,
       googleRoute:routeData.googleRoute,
       routePoints:routePoints,
-
-      serviceName:
-        service?.name ||
-        service?.title ||
-        "",
-
+      serviceName:service?.name || "",
       serviceCode:
         service?.serviceKey ||
         service?.companySuffix ||
         "",
-
-      serviceId:
-        service?._id || "",
-
+      serviceId:service?._id || "",
       priceSnapshot:snapshot
     }
   );
@@ -1140,37 +1134,70 @@ async function handleConfirmShared(btn){
       routePoints
     );
 
-  const stopsCount =
-    Math.max(
-      0,
-      count - 1
+const sharedBase =
+  Number(
+    service?.companySharedPrice ||
+    service?.sharedPrice ||
+    service?.companyBaseFare ||
+    service?.baseFare ||
+    15
+  );
+
+  const includedMiles =
+    Number(
+      service?.companyIncludedMiles ??
+      service?.includedMiles ??
+      0
     );
 
-  const pricing =
-    CompanyPricing.calculate(
-      service,
-      {
-        passengers,
-        miles:
-          routeData.miles,
-        minutes:
-          routeData.estimatedMinutes,
-        stopsCount
-      }
+  const perMile =
+    Number(
+      service?.companyPerMile ??
+      service?.perMile ??
+      0
     );
+
+  const stopFee =
+    Number(
+      service?.companyStopFee ??
+      service?.stopFee ??
+      0
+    );
+
+  const totalMiles =
+    Number(routeData.miles || 0);
+
+  const freeMiles =
+    count * includedMiles;
+
+  const extraMiles =
+    Math.max(
+      0,
+      totalMiles - freeMiles
+    );
+
+const stopsCount =
+  Math.max(
+    0,
+    count - 1
+  );
 
   const total =
     Number(
-      pricing.total || 0
+      (
+        (count * sharedBase) +
+        (extraMiles * perMile) +
+        (stopsCount * stopFee)
+      ).toFixed(2)
     );
 
   const pricePerPassenger =
     Number(
-      pricing.pricePerPassenger || 0
+      (total / count).toFixed(2)
     );
 
   const snapshot =
-    CompanyPricing.buildPricingSnapshot(
+    Review.buildPricingSnapshot(
       service,
       routeData.miles,
       total
@@ -1307,11 +1334,26 @@ async function handleCancelTrip(btn){
   const mins =
     Review.minutesToTrip(trip);
 
-  const finalPrice =
-    CompanyPricing.calculateCancelFee(
-      service,
-      mins
-    );
+  const warningMinutes =
+    Review.getWarningMinutes(service);
+
+  const cancelFee =
+    Review.getCancelFee(service);
+
+  let finalPrice = 0;
+
+  if(Review.warningEnabled(service)){
+
+    if(
+      mins !== null &&
+      mins > 0 &&
+      mins <= warningMinutes
+    ){
+      finalPrice =
+        Number(cancelFee);
+    }
+
+  }
 
   await Review.updateTrip(
     id,
@@ -1358,11 +1400,26 @@ async function handleCancelShared(btn){
   const mins =
     Review.minutesToTrip(first);
 
-  const finalPrice =
-    CompanyPricing.calculateCancelFee(
-      service,
-      mins
-    );
+  const warningMinutes =
+    Review.getWarningMinutes(service);
+
+  const cancelFee =
+    Review.getCancelFee(service);
+
+  let finalPrice = 0;
+
+  if(Review.warningEnabled(service)){
+
+    if(
+      mins !== null &&
+      mins > 0 &&
+      mins <= warningMinutes
+    ){
+      finalPrice =
+        Number(cancelFee);
+    }
+
+  }
 
   const passengers =
     Review.getRealPassengersFromGroup(

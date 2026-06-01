@@ -1189,13 +1189,20 @@ function calculateFinalPrice(trip){
   /* =========================
      COMPLETED
   ========================= */
-if(
-  status.includes("complete")
-){
-  return Number(
-    trip.priceAmount || 0
-  );
-}
+  if(
+    status.includes("complete")
+  ){
+    if(
+      Number(trip.priceAmount || 0) <= 0
+    ){
+      return Number(
+        calculatePriceServer(trip) || 0
+      );
+    }
+    return Number(
+      trip.priceAmount || 0
+    );
+  }
   return 0;
 }
 
