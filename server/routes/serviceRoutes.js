@@ -494,42 +494,69 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
-    /* ================= SHARED ================= */
+   /* ================= SHARED ================= */
 
-    else if(pricingMode === "SHARED"){
+else if(pricingMode === "SHARED"){
 
-      const sharedPrice =
-        Number(
+  const passengerCount =
+    Number(req.body.passengerCount || 1);
 
-          isCompany
-          ? (
-              service.companySharedPrice ??
-              service.sharedPrice
-            )
-          : service.sharedPrice
+  const includedMiles =
+    Number(
+      isCompany
+      ? (
+          service.companyIncludedMiles ??
+          service.includedMiles
+        )
+      : service.includedMiles
+    );
 
-        );
+  const perMile =
+    Number(
+      isCompany
+      ? (
+          service.companyPerMile ??
+          service.perMile
+        )
+      : service.perMile
+    );
 
-      const stopFee =
-        Number(
+  const baseFare =
+    Number(
+      isCompany
+      ? (
+          service.companyBaseFare ??
+          service.baseFare
+        )
+      : service.baseFare
+    );
 
-          isCompany
-          ? (
-              service.companyStopFee ??
-              service.stopFee
-            )
-          : service.stopFee
+  const stopFee =
+    Number(
+      isCompany
+      ? (
+          service.companyStopFee ??
+          service.stopFee
+        )
+      : service.stopFee
+    );
 
-        );
+  const extraMiles =
+    Math.max(
+      0,
+      Number(miles || 0) -
+      includedMiles
+    );
 
-      total =
-        sharedPrice +
-        (
-          Number(stops || 0) *
-          stopFee
-        );
+  const passengerPrice =
+    baseFare +
+    (extraMiles * perMile);
 
-    }
+  total =
+    (passengerPrice * passengerCount) +
+    (Number(stops || 0) * stopFee);
+
+}
 
     /* ================= MILE ================= */
 
