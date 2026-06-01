@@ -408,19 +408,12 @@ function getCancelFee(service){
 }
 
 function warningEnabled(service){
-
-  if(
-    service?.companyDisableCancel === true ||
-    service?.disableCancel === true
-  ){
-    return false;
-  }
-
   return (
+    service?.companyDisableCancel === true ||
+    service?.disableCancel === true ||
     service?.companyWarningEnabled === true ||
     service?.warningEnabled === true
   );
-
 }
 
 /* ================= GOOGLE ================= */
