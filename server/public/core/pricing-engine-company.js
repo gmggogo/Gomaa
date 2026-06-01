@@ -252,6 +252,15 @@ window.CompanyPricing = {
 
     const cfg =
       this.getSettings(service);
+console.log(
+  "SHARED DEBUG",
+  {
+    passengersLength: passengers.length,
+    passengers,
+    sharedPrice: cfg.sharedPrice,
+    baseFare: cfg.baseFare
+  }
+);
 
     const allPassengers =
       Array.isArray(passengers)
