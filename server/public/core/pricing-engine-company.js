@@ -1,6 +1,7 @@
 /* =========================================
 FILE: public/core/pricing-engine-company.js
 SUNBEAM COMPANY PRICING ENGINE
+FINAL FIXED VERSION
 ========================================= */
 
 window.CompanyPricing = {
@@ -31,6 +32,8 @@ window.CompanyPricing = {
         Number(
           service?.companySharedPrice ??
           service?.sharedPrice ??
+          service?.companyBaseFare ??
+          service?.baseFare ??
           0
         ),
 
@@ -103,27 +106,15 @@ window.CompanyPricing = {
     const cfg =
       this.getSettings(service);
 
-    switch(cfg.pricingMode){
-
-      case "SHARED":
-        return this.calculateShared(
-          service,
-          data
-        );
-
-      case "HOURLY":
-        return this.calculateHourly(
-          service,
-          data
-        );
-
-      default:
-        return this.calculateMile(
-          service,
-          data
-        );
-
+    if(cfg.pricingMode === "SHARED"){
+      return this.calculateShared(service,data);
     }
+
+    if(cfg.pricingMode === "HOURLY"){
+      return this.calculateHourly(service,data);
+    }
+
+    return this.calculateMile(service,data);
 
   },
 
@@ -148,37 +139,38 @@ window.CompanyPricing = {
     const extraMiles =
       Math.max(
         0,
-        totalMiles -
-        cfg.includedMiles
+        totalMiles - cfg.includedMiles
       );
+
+    const baseTotal =
+      cfg.baseFare;
+
+    const mileageTotal =
+      extraMiles * cfg.perMile;
+
+    const stopsTotal =
+      Number(stopsCount || 0) * cfg.stopFee;
 
     const total =
-
-      cfg.baseFare +
-
-      (
-        extraMiles *
-        cfg.perMile
-      ) +
-
-      (
-        Number(stopsCount || 0) *
-        cfg.stopFee
-      );
+      baseTotal + mileageTotal + stopsTotal;
 
     return {
 
       pricingMode:"MILE",
 
-      total:
-        Number(
-          total.toFixed(2)
-        ),
+      total:Number(total.toFixed(2)),
 
-      miles:
-        totalMiles,
+      baseTotal:Number(baseTotal.toFixed(2)),
 
-      extraMiles
+      mileageTotal:Number(mileageTotal.toFixed(2)),
+
+      stopsTotal:Number(stopsTotal.toFixed(2)),
+
+      miles:totalMiles,
+
+      includedMiles:cfg.includedMiles,
+
+      extraMiles:Number(extraMiles.toFixed(2))
 
     };
 
@@ -203,17 +195,12 @@ window.CompanyPricing = {
 
     let hours = 1;
 
-    if(
-      cfg.hourlyBillingMode ===
-      "QUARTER"
-    ){
+    if(cfg.hourlyBillingMode === "QUARTER"){
 
       hours =
         Math.max(
           1,
-          Math.ceil(
-            totalMinutes / 15
-          ) / 4
+          Math.ceil(totalMinutes / 15) / 4
         );
 
     }else{
@@ -221,27 +208,23 @@ window.CompanyPricing = {
       hours =
         Math.max(
           1,
-          Math.ceil(
-            totalMinutes / 60
-          )
+          Math.ceil(totalMinutes / 60)
         );
 
     }
 
     const total =
-      hours *
-      cfg.hourlyRate;
+      hours * cfg.hourlyRate;
 
     return {
 
       pricingMode:"HOURLY",
 
-      total:
-        Number(
-          total.toFixed(2)
-        ),
+      total:Number(total.toFixed(2)),
 
-      hours
+      hours,
+
+      hourlyRate:cfg.hourlyRate
 
     };
 
@@ -249,6 +232,13 @@ window.CompanyPricing = {
 
   /* =========================
      SHARED
+     RULES:
+     - Active passenger = base/shared fare per passenger
+     - Active included miles = active passengers × includedMiles
+     - Extra miles charged once on total route
+     - Stops charged once per shared route
+     - No Show charged per no-show passenger
+     - Cancel charged per cancelled passenger
   ========================= */
 
   calculateShared(
@@ -263,13 +253,17 @@ window.CompanyPricing = {
     const cfg =
       this.getSettings(service);
 
+    const allPassengers =
+      Array.isArray(passengers)
+        ? passengers
+        : [];
+
     const activePassengers =
-      passengers.filter(p=>{
+      allPassengers.filter(p=>{
 
         const s =
-          String(
-            p?.status || ""
-          ).toLowerCase();
+          String(p?.status || "")
+          .toLowerCase();
 
         return (
           !s.includes("no") &&
@@ -279,131 +273,132 @@ window.CompanyPricing = {
       });
 
     const noShowPassengers =
-      passengers.filter(p=>{
+      allPassengers.filter(p=>{
 
         const s =
-          String(
-            p?.status || ""
-          ).toLowerCase();
+          String(p?.status || "")
+          .toLowerCase();
 
-        return (
-          s.includes("no")
-        );
+        return s.includes("no");
+
+      });
+
+    const cancelledPassengers =
+      allPassengers.filter(p=>{
+
+        const s =
+          String(p?.status || "")
+          .toLowerCase();
+
+        return s.includes("cancel");
 
       });
 
     const activeCount =
-  Math.max(
-    1,
-    passengers.length
-  );
+      activePassengers.length;
 
-    if(activeCount === 0){
+    const noShowCount =
+      noShowPassengers.length;
 
-      const total =
-        noShowPassengers.length *
-        cfg.noShowFee;
+    const cancelledCount =
+      cancelledPassengers.length;
 
-      return {
+    const totalPassengers =
+      allPassengers.length;
 
-        pricingMode:"SHARED",
-
-        total:
-          Number(
-            total.toFixed(2)
-          ),
-
-        pricePerPassenger:0,
-
-        activeCount:0
-
-      };
-
-    }
+    const passengerFare =
+      Number(
+        cfg.sharedPrice ||
+        cfg.baseFare ||
+        0
+      );
 
     const totalMiles =
       Number(miles || 0);
 
-    const freeMiles =
-      activeCount *
-      cfg.includedMiles;
+    const includedMilesTotal =
+      activeCount * cfg.includedMiles;
 
     const extraMiles =
       Math.max(
         0,
-        totalMiles -
-        freeMiles
+        totalMiles - includedMilesTotal
       );
 
-  const activeTotal =
+    const activeBaseTotal =
+      activeCount * passengerFare;
 
-(
-  activeCount *
-  (
-    cfg.sharedPrice > 0
-      ? cfg.sharedPrice
-      : cfg.baseFare
-  )
-) +
+    const mileageTotal =
+      extraMiles * cfg.perMile;
 
-(
-  extraMiles *
-  cfg.perMile
-) +
-
-(
-  Number(stopsCount || 0) *
-  cfg.stopFee
-);
+    const stopsTotal =
+      Number(stopsCount || 0) * cfg.stopFee;
 
     const noShowTotal =
+      noShowCount * cfg.noShowFee;
 
-      noShowPassengers.length *
-      cfg.noShowFee;
+    const cancelTotal =
+      cancelledCount * cfg.cancelFee;
+
+    const activeTotal =
+      activeBaseTotal +
+      mileageTotal +
+      stopsTotal;
 
     const grandTotal =
       activeTotal +
-      noShowTotal;
+      noShowTotal +
+      cancelTotal;
 
     return {
 
       pricingMode:"SHARED",
 
-      total:
-        Number(
-          grandTotal.toFixed(2)
-        ),
+      total:Number(grandTotal.toFixed(2)),
 
-      activeTotal:
-        Number(
-          activeTotal.toFixed(2)
-        ),
+      activeTotal:Number(activeTotal.toFixed(2)),
 
-      noShowTotal:
-        Number(
-          noShowTotal.toFixed(2)
-        ),
+      activeBaseTotal:Number(activeBaseTotal.toFixed(2)),
+
+      mileageTotal:Number(mileageTotal.toFixed(2)),
+
+      stopsTotal:Number(stopsTotal.toFixed(2)),
+
+      noShowTotal:Number(noShowTotal.toFixed(2)),
+
+      cancelTotal:Number(cancelTotal.toFixed(2)),
 
       pricePerPassenger:
-        Number(
-          (
-            activeTotal /
-            activeCount
-          ).toFixed(2)
-        ),
+        activeCount > 0
+          ? Number((activeTotal / activeCount).toFixed(2))
+          : 0,
+
+      passengerFare:Number(passengerFare.toFixed(2)),
 
       activeCount,
 
-      freeMiles,
+      noShowCount,
 
-      extraMiles
+      cancelledCount,
+
+      totalPassengers,
+
+      totalMiles:Number(totalMiles.toFixed(2)),
+
+      includedMilesPerPassenger:cfg.includedMiles,
+
+      includedMilesTotal:Number(includedMilesTotal.toFixed(2)),
+
+      extraMiles:Number(extraMiles.toFixed(2)),
+
+      stopsCount:Number(stopsCount || 0)
 
     };
 
   },
 
   /* =========================
-     CANCEL
+     CANCEL SINGLE TRIP
   ========================= */
 
   calculateCancelFee(
@@ -414,14 +409,17 @@ window.CompanyPricing = {
     const cfg =
       this.getSettings(service);
 
+    const mins =
+      Number(minutesToTrip);
+
     if(
-      minutesToTrip > 0 &&
-      minutesToTrip <=
-      cfg.warningMinutes
+      Number.isFinite(mins) &&
+      mins > 0 &&
+      mins <= cfg.warningMinutes
     ){
 
       return Number(
-        cfg.cancelFee
+        cfg.cancelFee || 0
       );
 
     }
@@ -437,7 +435,8 @@ window.CompanyPricing = {
   buildPricingSnapshot(
     service,
     miles,
-    finalPrice
+    finalPrice,
+    extra = {}
   ){
 
     const cfg =
@@ -456,26 +455,25 @@ window.CompanyPricing = {
       serviceCode:
         service?.serviceKey ||
         service?.companySuffix ||
+        service?.code ||
+        service?.serviceCode ||
         "",
 
       pricingMode:
         cfg.pricingMode,
 
       miles:
-        Number(
-          miles || 0
-        ),
+        Number(miles || 0),
 
       finalPrice:
-        Number(
-          finalPrice || 0
-        ),
+        Number(finalPrice || 0),
 
       settings:cfg,
 
+      details:extra || {},
+
       createdAt:
-        new Date()
-        .toISOString()
+        new Date().toISOString()
 
     };
 
