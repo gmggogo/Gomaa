@@ -3783,9 +3783,7 @@ app.post("/api/trips", async (req, res) => {
   try {
 
     const type = normalizeTripType(req.body.type);
-console.log("============== CREATE TRIP ==============");
-console.log(JSON.stringify(req.body, null, 2));
-console.log("=========================================");
+
     /* =========================
        COMPANY LOCK CHECK
     ========================= */
@@ -4752,9 +4750,17 @@ app.get("/api/trips/:id", async (req, res) => {
    UPDATE TRIP (FINAL CLEAN)
 ========================= */
 app.put("/api/trips/:id", async (req, res) => {
+
+  console.log("=========== UPDATE TRIP ===========");
+  console.log("ID =", req.params.id);
+  console.log(JSON.stringify(req.body, null, 2));
+  console.log("===================================");
+
   try {
 
     const existing = await Trip.findById(req.params.id);
+
+    ...
 
     // 1️⃣ لو مش موجود
     if (!existing) {
