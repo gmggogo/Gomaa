@@ -1369,7 +1369,7 @@ async function handleConfirmShared(btn){
     miles:routeData.miles,
     stops:Math.max(0,activeCount - 1),
     minutes:routeData.estimatedMinutes,
-    passengersCount:activeCount
+    passengerCount:activeCount
   });
 
   const pricePerPassenger =
