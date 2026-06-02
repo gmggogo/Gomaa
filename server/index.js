@@ -4886,73 +4886,60 @@ optimizedRoute:
 status: req.body.status ?? existing.status,
 bookedAt: req.body.bookedAt ?? existing.bookedAt
 };
-
 if(updateData.status === "Confirmed"){
 
   updateData.dispatchSelected = true;
-
   updateData.isFinalized = false;
 
-}
+  const service = await getServiceByTrip(updateData);
 
-// 🔥 FINAL PRICE LOGIC
-if (updateData.status === "Cancelled") {
+  if(service){
 
-  const now = getSystemNow();
+    updateData.serviceName =
+      service.title || service.name || updateData.serviceName || "";
 
-  if (
-    !updateData.tripDate ||
-    !updateData.tripTime
-  ){
+    updateData.serviceId =
+      String(service._id || updateData.serviceId || "");
 
-    updateData.finalPrice = 0;
-    updateData.cancelFee = 0;
-    updateData.isFinalized = true;
+    updateData.baseFare =
+      Number(service.baseFare || 0);
 
-  }else{
+    updateData.includedMiles =
+      Number(service.includedMiles || 0);
 
-    const tripTime =
-      parseTripDateTime(
-        updateData.tripDate,
-        updateData.tripTime
-      );
+    updateData.perMile =
+      Number(service.perMile || 0);
 
-    let fee = 0;
+    updateData.stopFee =
+      Number(service.stopFee || 0);
 
-    if(tripTime){
+    updateData.sharedPrice =
+      Number(service.sharedPrice || 0);
 
-      const diffMinutes =
-        (tripTime - now) / 60000;
+    updateData.companyBaseFare =
+      Number(service.companyBaseFare ?? service.baseFare ?? 0);
 
-      const cancelWindow =
-        Number(
-          updateData.cancelWarningMinutes ??
-          existing?.cancelWarningMinutes ??
-          120
-        );
+    updateData.companyIncludedMiles =
+      Number(service.companyIncludedMiles ?? service.includedMiles ?? 0);
 
-      const dynamicCancelFee =
-        Number(
-          updateData.cancelFee ??
-          existing?.cancelFee ??
-          0
-        );
+    updateData.companyPerMile =
+      Number(service.companyPerMile ?? service.perMile ?? 0);
 
-      if(
-        diffMinutes <= cancelWindow &&
-        diffMinutes > 0
-      ){
-        fee = dynamicCancelFee;
-      }
+    updateData.companyStopFee =
+      Number(service.companyStopFee ?? service.stopFee ?? 0);
 
-    }
+    updateData.companySharedPrice =
+      Number(service.companySharedPrice ?? service.sharedPrice ?? 0);
 
-    updateData.finalPrice = fee;
-    updateData.cancelFee = fee;
-    updateData.isFinalized = true;
+    updateData.noShowFee =
+      Number(service.companyNoShowFee ?? service.noShowFee ?? updateData.noShowFee ?? 0);
+
+    updateData.cancelFee =
+      Number(service.companyCancelFee ?? service.cancelFee ?? updateData.cancelFee ?? 0);
 
   }
-}   
+
+}
 
  /* =========================
        CLEAN STOPS
