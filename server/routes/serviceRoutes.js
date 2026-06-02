@@ -513,8 +513,11 @@ if(!service){
 else if(pricingMode === "SHARED"){
 
   const passengerCount =
-    Number(req.body.passengerCount || 1);
-
+  Number(
+    req.body.passengersCount ||
+    req.body.passengerCount ||
+    1
+  );
   const includedMiles =
     Number(
       isCompany
