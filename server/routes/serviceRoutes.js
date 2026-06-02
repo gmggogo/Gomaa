@@ -390,7 +390,28 @@ router.post("/calculate", async (req,res)=>{
     }
 
     const service =
-      await Service.findOne({
+  await Service.findOne({
+    serviceKey:
+      String(serviceKey)
+      .trim()
+      .toUpperCase()
+  });
+
+console.log("========== PRICING ==========");
+console.log("BODY =", req.body);
+
+console.log("SERVICE =", service?.serviceKey);
+
+console.log("IS COMPANY =", isCompany);
+
+console.log("COMPANY BASE =", service?.companyBaseFare);
+console.log("COMPANY MILE =", service?.companyPerMile);
+
+console.log("NORMAL BASE =", service?.baseFare);
+console.log("NORMAL MILE =", service?.perMile);
+
+console.log("COMPANY MODE =", service?.companyPricingMode);
+console.log("NORMAL MODE =", service?.pricingMode);
 
         serviceKey:
         String(serviceKey)
