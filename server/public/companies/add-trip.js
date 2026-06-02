@@ -515,14 +515,17 @@ submitSharedBtn.disabled = true;
 submitSharedBtn.innerText = "Submitting...";
 try{
 const sharedTrip = {
-  company:companyName,
-  type:"company",
-  isShared:true,
-  tripType:"SHARED",
-  serviceType:activeService,
-  serviceSuffix:activeSuffix,
+  company: companyName,
+  type: "company",
+  isShared: true,
+  tripType: "SHARED",
+  serviceType: activeService,
+  serviceSuffix: activeSuffix,
+
   passengers,
-  totalPassengers:passengers.length,
+  passengersCount: passengers.length,
+
+  totalPassengers: passengers.length,
   entryName:sharedEntryName.value,
   entryPhone:sharedEntryPhone.value,
   tripDate:sharedDate.value,
