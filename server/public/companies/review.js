@@ -1,7 +1,7 @@
 /* =========================================
 FILE: review.js
 COMPANY REVIEW - ONE FILE
-NO FRONTEND PRICE CALCULATION
+SERVER PRICING ONLY
 ========================================= */
 
 window.ReviewApp = { container:null };
@@ -89,6 +89,13 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
+function cleanStatus(v){
+  return String(v || "")
+    .replace(/\s+/g,"")
+    .toLowerCase()
+    .trim();
+}
+
 function escapeHtml(value){
   return String(value ?? "")
     .replace(/&/g,"&amp;")
@@ -102,7 +109,15 @@ function formatMoney(value){
 }
 
 function getTripPrice(t){
-  return Number(t.finalPrice || t.priceAmount || 0);
+  const priceAmount = Number(t.priceAmount || 0);
+  const finalPrice = Number(t.finalPrice || 0);
+  return priceAmount > 0 ? priceAmount : finalPrice;
+}
+
+function getPassengerPrice(p){
+  const priceAmount = Number(p.priceAmount || 0);
+  const finalPrice = Number(p.finalPrice || 0);
+  return priceAmount > 0 ? priceAmount : finalPrice;
 }
 
 function getAZNow(){
@@ -162,8 +177,10 @@ function parseTripDateTime(tripDate, tripTime){
     let h = Number(ampm[1]);
     const m = Number(ampm[2]);
     const ap = ampm[3].toUpperCase();
+
     if(ap === "PM" && h < 12) h += 12;
     if(ap === "AM" && h === 12) h = 0;
+
     const dt = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]), h, m, 0);
     return isNaN(dt.getTime()) ? null : dt;
   }
@@ -215,7 +232,9 @@ function getRealPassengersFromGroup(group){
     clientPhone:t.clientPhone || t.phone || "",
     pickup:t.pickup || "",
     dropoff:t.dropoff || "",
-    status:t.status || "Scheduled"
+    status:t.status || "Scheduled",
+    priceAmount:t.priceAmount || 0,
+    finalPrice:t.finalPrice || 0
   }));
 }
 
@@ -226,12 +245,15 @@ async function loadServices(){
     const res = await fetch("/api/services?company=true",{
       headers:{ Authorization:"Bearer " + token }
     });
+
     if(!res.ok){
       COMPANY_SERVICES = [];
       return;
     }
+
     const data = await res.json();
     COMPANY_SERVICES = Array.isArray(data) ? data : [];
+
   }catch(err){
     console.log(err);
     COMPANY_SERVICES = [];
@@ -240,8 +262,8 @@ async function loadServices(){
 
 function getServiceCodeFromTrip(trip){
   const direct = normalizeText(
-    trip.serviceCode ||
     trip.serviceKey ||
+    trip.serviceCode ||
     trip.serviceType ||
     trip.serviceSuffix ||
     trip.vehicle ||
@@ -262,8 +284,9 @@ function isSharedService(service){
     service.shared === true ||
     String(service.type || "").toUpperCase() === "SHARED" ||
     String(service.serviceType || "").toUpperCase() === "SHARED" ||
-    String(service.title || "").toUpperCase() === "SHARED" ||
-    String(service.serviceKey || "").toUpperCase() === "SHARED"
+    String(service.title || service.name || "").toUpperCase() === "SHARED" ||
+    String(service.serviceKey || "").toUpperCase() === "SHARED" ||
+    String(service.companySuffix || service.suffix || "").toUpperCase() === "SH"
   );
 }
 
@@ -277,14 +300,9 @@ function getServiceByTrip(trip){
     trip.isShared === true ||
     tripType === "SHARED" ||
     String(trip.tripNumber || "").toUpperCase().includes("-SH") ||
-    Array.isArray(trip.passengers)
+    (Array.isArray(trip.passengers) && trip.passengers.length > 0)
   ){
-    return COMPANY_SERVICES.find(s=>{
-      const key = normalizeText(s.serviceKey).toUpperCase();
-      const suffix = normalizeText(s.companySuffix || s.suffix).toUpperCase();
-      const title = normalizeText(s.title || s.name).toUpperCase();
-      return key === "SHARED" || suffix === "SH" || title === "SHARED" || s.companyShared === true;
-    }) || null;
+    return COMPANY_SERVICES.find(s=>isSharedService(s)) || null;
   }
 
   return COMPANY_SERVICES.find(s=>{
@@ -292,7 +310,15 @@ function getServiceByTrip(trip){
     const suffix = normalizeText(s.companySuffix || s.suffix).toUpperCase();
     const serviceCode = normalizeText(s.serviceCode || s.code).toUpperCase();
     const title = normalizeText(s.title || s.name).toUpperCase();
-    return key === code || suffix === code || serviceCode === code || title === code;
+
+    return (
+      key === code ||
+      suffix === code ||
+      serviceCode === code ||
+      title === code ||
+      (code === "WH" && key === "WHEELCHAIR") ||
+      (code === "WC" && key === "WHEELCHAIR")
+    );
   }) || null;
 }
 
@@ -307,7 +333,9 @@ function isSharedTrip(t){
 }
 
 function sharedEnabled(){
-  return COMPANY_SERVICES.some(service => isSharedService(service));
+  const hasSharedTrips = trips.some(t=>isSharedTrip(t));
+  const hasSharedService = COMPANY_SERVICES.some(s=>isSharedService(s));
+  return hasSharedTrips || hasSharedService;
 }
 
 function getWarningMinutes(service){
@@ -321,6 +349,35 @@ function warningEnabled(service){
     service?.companyWarningEnabled === true ||
     service?.warningEnabled === true
   );
+}
+
+/* ================= SERVER PRICING ================= */
+
+async function calculateServerPrice({serviceKey,miles,stops,minutes,passengerCount}){
+
+  const res = await fetch("/api/pricing/calculate",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:"Bearer " + token
+    },
+    body:JSON.stringify({
+      serviceKey,
+      miles:Number(miles || 0),
+      stops:Number(stops || 0),
+      minutes:Number(minutes || 0),
+      passengerCount:Number(passengerCount || 1),
+      isCompany:true
+    })
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(data.message || "Pricing failed");
+  }
+
+  return Number(data.total || 0);
 }
 
 /* ================= GOOGLE ================= */
@@ -355,11 +412,13 @@ async function ensureGoogleLoaded(){
       }
 
       const existing = document.querySelector("script[data-google-maps='true']");
+
       if(existing){
         if(window.google && google.maps && google.maps.DirectionsService){
           resolve();
           return;
         }
+
         existing.addEventListener("load",()=>resolve());
         existing.addEventListener("error",()=>reject(new Error("Google failed")));
         return;
@@ -402,6 +461,7 @@ async function getDrivingMetersBetween(origin,destination){
         }
 
         let meters = 0;
+
         response.routes[0].legs.forEach(leg=>{
           meters += leg.distance ? leg.distance.value : 0;
         });
@@ -511,7 +571,7 @@ async function buildSharedRoutePoints(group){
   const passengers = getRealPassengersFromGroup(group);
 
   const activePassengers = passengers.filter(p=>{
-    const s = String(p.status || "").toLowerCase();
+    const s = cleanStatus(p.status);
     return !s.includes("no") && !s.includes("cancel") && p.pickup && p.dropoff;
   });
 
@@ -579,6 +639,8 @@ async function buildSharedRoutePoints(group){
 /* ================= SERVER ================= */
 
 async function fetchTrips(){
+  let list = [];
+
   const url = companyName
     ? "/api/trips/company/" + encodeURIComponent(companyName)
     : "/api/trips/company";
@@ -587,12 +649,28 @@ async function fetchTrips(){
     headers:{ Authorization:"Bearer " + token }
   });
 
-  if(!res.ok){
-    container.innerHTML = "<div>Server Error</div>";
+  if(res.ok){
+    list = await res.json();
+  }
+
+  if((!Array.isArray(list) || list.length === 0) && companyName){
+    const allRes = await fetch("/api/trips/company",{
+      headers:{ Authorization:"Bearer " + token }
+    });
+
+    if(allRes.ok){
+      const all = await allRes.json();
+      list = Array.isArray(all)
+        ? all.filter(t => String(t.company || "").trim().toLowerCase() === String(companyName).trim().toLowerCase())
+        : [];
+    }
+  }
+
+  if(!Array.isArray(list)){
     return [];
   }
 
-  return await res.json();
+  return list;
 }
 
 async function updateTrip(id,payload){
@@ -627,17 +705,20 @@ async function deleteTrip(id){
 
 /* ================= FILTERS ================= */
 
+function isHiddenStatus(status){
+  const s = cleanStatus(status);
+  return (
+    s.includes("complete") ||
+    s.includes("cancel") ||
+    s.includes("noshow") ||
+    s === "no"
+  );
+}
+
 function getTripsTabData(){
   return trips.filter(t=>{
     if(isSharedTrip(t)) return false;
-
-    const status = String(t.status || "").toLowerCase();
-
-    return ![
-      "completed",
-      "noshow",
-      "cancelled"
-    ].includes(status);
+    return !isHiddenStatus(t.status);
   });
 }
 
@@ -646,14 +727,7 @@ function getSharedGroups(){
 
   trips.filter(t=>{
     if(!isSharedTrip(t)) return false;
-
-    const status = String(t.status || "").toLowerCase();
-
-    return ![
-      "completed",
-      "noshow",
-      "cancelled"
-    ].includes(status);
+    return !isHiddenStatus(t.status);
   }).forEach(t=>{
     const key = getSharedKey(t);
     if(!map[key]) map[key] = [];
@@ -701,8 +775,9 @@ function renderTabs(){
 
 function applyRowColor(tr,t){
   const mins = minutesToTrip(t);
+  const status = cleanStatus(t.status);
 
-  if(t.status === "Cancelled"){
+  if(status.includes("cancel")){
     tr.classList.add("cancelled-row");
     return;
   }
@@ -715,15 +790,15 @@ function applyRowColor(tr,t){
   if(mins !== null){
     if(mins <= 30){
       tr.classList.add("red-dark");
-      if(t.status === "Confirmed") tr.classList.add("trip-blink");
+      if(status.includes("confirm")) tr.classList.add("trip-blink");
     }else if(mins <= 60){
       tr.classList.add("red-mid");
-      if(t.status === "Confirmed") tr.classList.add("trip-blink");
+      if(status.includes("confirm")) tr.classList.add("trip-blink");
     }else if(mins <= 120){
       tr.classList.add("red-light");
     }else if(mins <= 180){
       tr.classList.add("yellow");
-    }else if(t.status === "Confirmed"){
+    }else if(status.includes("confirm")){
       tr.classList.add("confirmed-row");
     }else{
       tr.classList.add("scheduled-row");
@@ -734,8 +809,8 @@ function applyRowColor(tr,t){
 function renderTripButtons(t,editing){
   const service = getServiceByTrip(t);
   const mins = minutesToTrip(t);
-
   const warningMinutes = warningEnabled(service) ? getWarningMinutes(service) : 0;
+  const status = cleanStatus(t.status);
 
   if(editing){
     return `
@@ -746,7 +821,7 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  if(t.status === "Cancelled") return "";
+  if(status.includes("cancel")) return "";
 
   if(mins > warningMinutes || mins === null){
     return `
@@ -758,7 +833,7 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  if(mins <= warningMinutes && mins > 0 && t.status === "Scheduled"){
+  if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
@@ -767,7 +842,7 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  if(mins <= warningMinutes && mins > 0 && t.status === "Confirmed"){
+  if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-trip">Cancel</button>
@@ -779,15 +854,24 @@ function renderTripButtons(t,editing){
 }
 
 function getGroupStatus(group){
-  if(group.every(t=>t.status === "Cancelled")) return "Cancelled";
-  if(group.every(t=>t.status === "Confirmed")) return "Confirmed";
-  if(group.some(t=>t.status === "Confirmed")) return "Partially Confirmed";
+  if(group.every(t=>cleanStatus(t.status).includes("cancel"))) return "Cancelled";
+  if(group.every(t=>cleanStatus(t.status).includes("confirm"))) return "Confirmed";
+  if(group.some(t=>cleanStatus(t.status).includes("confirm"))) return "Partially Confirmed";
   return group[0]?.status || "Scheduled";
 }
 
 function getGroupPrice(group){
   const first = group[0] || {};
-  return Number(first.finalPrice || first.priceAmount || 0);
+
+  if(Array.isArray(first.passengers) && first.passengers.length){
+    const passengerTotal = first.passengers.reduce((sum,p)=>{
+      return sum + getPassengerPrice(p);
+    },0);
+
+    if(passengerTotal > 0) return passengerTotal;
+  }
+
+  return Number(first.priceAmount || first.finalPrice || 0);
 }
 
 function renderSharedButtons(group,editing){
@@ -795,7 +879,7 @@ function renderSharedButtons(group,editing){
   const service = getServiceByTrip(first);
   const mins = minutesToTrip(first);
   const warningMinutes = warningEnabled(service) ? getWarningMinutes(service) : 0;
-  const status = getGroupStatus(group);
+  const status = cleanStatus(getGroupStatus(group));
 
   if(editing){
     return `
@@ -806,7 +890,7 @@ function renderSharedButtons(group,editing){
     `;
   }
 
-  if(status === "Cancelled") return "";
+  if(status.includes("cancel")) return "";
 
   if(mins > warningMinutes || mins === null){
     return `
@@ -818,7 +902,7 @@ function renderSharedButtons(group,editing){
     `;
   }
 
-  if(mins <= warningMinutes && mins > 0 && status === "Scheduled"){
+  if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-shared">Confirm</button>
@@ -827,7 +911,7 @@ function renderSharedButtons(group,editing){
     `;
   }
 
-  if(mins <= warningMinutes && mins > 0 && status === "Confirmed"){
+  if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-shared">Cancel</button>
@@ -1048,14 +1132,12 @@ async function handleEditTrip(btn){
   trip.status = "Scheduled";
 
   await updateTrip(id,{ status:"Scheduled" });
-
   render();
 }
 
 async function handleEditShared(btn){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
-
   const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
   if(!group) return;
 
@@ -1100,7 +1182,6 @@ async function handleDeleteTrip(btn){
 async function handleDeleteShared(btn){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
-
   const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
   if(!group) return;
 
@@ -1149,7 +1230,6 @@ async function handleSaveTrip(btn){
 async function handleSaveShared(btn){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
-
   const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
   if(!group) return;
 
@@ -1209,14 +1289,41 @@ async function handleConfirmTrip(btn){
 
   const service = getServiceByTrip(trip);
 
+  if(!service){
+    throw new Error("Service not found for this trip");
+  }
+
   btn.disabled = true;
   btn.textContent = "Routing...";
 
   const routePoints = buildIndividualRoutePoints(trip);
   const routeData = await calculateRouteMiles(routePoints);
 
+  btn.textContent = "Pricing...";
+
+  const serviceKey =
+    service.serviceKey ||
+    trip.serviceKey ||
+    trip.serviceType ||
+    "STANDARD";
+
+  const stopsCount =
+    Array.isArray(trip.stops) ? trip.stops.length : 0;
+
+  const total =
+    await calculateServerPrice({
+      serviceKey,
+      miles:routeData.miles,
+      stops:stopsCount,
+      minutes:routeData.estimatedMinutes,
+      passengerCount:1
+    });
+
   await updateTrip(id,{
     status:"Confirmed",
+    dispatchSelected:true,
+    priceAmount:total,
+    finalPrice:total,
     miles:routeData.miles,
     distanceMeters:routeData.distanceMeters,
     durationSeconds:routeData.durationSeconds,
@@ -1234,20 +1341,48 @@ async function handleConfirmTrip(btn){
 async function handleConfirmShared(btn){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
-
   const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
   if(!group) return;
 
   const first = group[0];
   const service = getServiceByTrip(first);
 
+  if(!service){
+    throw new Error("Shared service not found");
+  }
+
   btn.disabled = true;
   btn.textContent = "Routing...";
 
   const passengers = getRealPassengersFromGroup(group);
 
+  const activePassengers = passengers.filter(p=>{
+    const s = cleanStatus(p.status);
+    return !s.includes("no") && !s.includes("cancel");
+  });
+
+  const activeCount =
+    activePassengers.length || passengers.length || 1;
+
+  const routePoints = await buildSharedRoutePoints(group);
+  const routeData = await calculateRouteMiles(routePoints);
+
+  btn.textContent = "Pricing...";
+
+  const total =
+    await calculateServerPrice({
+      serviceKey:"SHARED",
+      miles:routeData.miles,
+      stops:Math.max(0,activeCount - 1),
+      minutes:routeData.estimatedMinutes,
+      passengerCount:activeCount
+    });
+
+  const pricePerPassenger =
+    Number((total / activeCount).toFixed(2));
+
   const updatedPassengers = passengers.map(p=>{
-    const s = String(p.status || "").toLowerCase().trim();
+    const s = cleanStatus(p.status);
 
     if(s.includes("no") || s.includes("cancel")){
       return p;
@@ -1255,15 +1390,15 @@ async function handleConfirmShared(btn){
 
     return {
       ...p,
-      status:"Confirmed"
+      status:"Confirmed",
+      priceAmount:pricePerPassenger,
+      finalPrice:pricePerPassenger
     };
   });
 
-  const routePoints = await buildSharedRoutePoints(group);
-  const routeData = await calculateRouteMiles(routePoints);
-
   const payload = {
     status:"Confirmed",
+    dispatchSelected:true,
     isShared:true,
     tripType:"SHARED",
     serviceName:service?.name || service?.title || "Shared",
@@ -1271,6 +1406,10 @@ async function handleConfirmShared(btn){
     serviceId:service?._id || "",
     passengers:updatedPassengers,
     totalPassengers:passengers.length,
+    priceAmount:total,
+    finalPrice:total,
+    pricePerPassenger:pricePerPassenger,
+    sharedStopsCount:Math.max(0,activeCount - 1),
     miles:routeData.miles,
     distanceMeters:routeData.distanceMeters,
     durationSeconds:routeData.durationSeconds,
@@ -1306,7 +1445,6 @@ async function handleCancelTrip(btn){
 async function handleCancelShared(btn){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
-
   const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
   if(!group) return;
 
@@ -1393,7 +1531,8 @@ window.ReviewApp = {
   updateTrip,
   deleteTrip,
   getTripsTabData,
-  getSharedGroups
+  getSharedGroups,
+  calculateServerPrice
 };
 
 /* ================= LOAD ================= */
