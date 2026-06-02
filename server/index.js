@@ -2915,11 +2915,11 @@ if(status.includes("no")){
 let amount = 0;
 
 if(
+  false &&
   isShared &&
   Array.isArray(t.passengers) &&
   t.passengers.length > 0
 ){
-
   t.passengers.forEach(p=>{
 
     let ps =
