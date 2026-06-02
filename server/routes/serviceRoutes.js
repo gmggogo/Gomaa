@@ -389,19 +389,19 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
-    const service =
+   const service =
   await Service.findOne({
+
     serviceKey:
-      String(serviceKey)
-      .trim()
-      .toUpperCase()
+    String(serviceKey)
+    .trim()
+    .toUpperCase()
+
   });
 
 console.log("========== PRICING ==========");
 console.log("BODY =", req.body);
-
 console.log("SERVICE =", service?.serviceKey);
-
 console.log("IS COMPANY =", isCompany);
 
 console.log("COMPANY BASE =", service?.companyBaseFare);
@@ -413,23 +413,16 @@ console.log("NORMAL MILE =", service?.perMile);
 console.log("COMPANY MODE =", service?.companyPricingMode);
 console.log("NORMAL MODE =", service?.pricingMode);
 
-        serviceKey:
-        String(serviceKey)
-        .trim()
-        .toUpperCase()
+if(!service){
 
-      });
+  return res.json({
+    success:false,
+    message:"Service Not Found"
+  });
 
-    if(!service){
+}
 
-      return res.json({
-        success:false,
-        message:"Service Not Found"
-      });
-
-    }
-
-    const enabled =
+   const enabled =
       isCompany
       ? service.companyEnabled
       : service.enabled;
