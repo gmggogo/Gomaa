@@ -291,12 +291,12 @@ const sharedPassengers =
        company uses companySharedPrice
     ========================= */
 
-   else if(pricingMode === "SHARED"){
+  else if(pricingMode === "SHARED"){
 
   total =
 
     (
-      sharedPrice *
+      baseFare *
       sharedPassengers
     ) +
 
