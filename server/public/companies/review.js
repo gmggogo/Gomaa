@@ -353,32 +353,42 @@ function warningEnabled(service){
 
 /* ================= SERVER PRICING ================= */
 
-async function calculateServerPrice({serviceKey,miles,stops,minutes,passengerCount}){
+async function calculateServerPrice({
+  serviceKey,
+  miles,
+  stops,
+  minutes,
+  passengerCount
+}){
 
-  const res = await fetch("/api/pricing/calculate",{
+const res = await fetch(
+  "/api/pricing/calculate",
+  {
     method:"POST",
+
     headers:{
       "Content-Type":"application/json",
       Authorization:"Bearer " + token
     },
 
-   body:JSON.stringify({
-  serviceKey,
-  miles:Number(miles || 0),
-  stops:Number(stops || 0),
-  minutes:Number(minutes || 0),
-  passengersCount:Number(passengerCount || 1),
-  isCompany:true
-})
+    body:JSON.stringify({
 
-  const data = await res.json().catch(()=>({}));
+      serviceKey,
 
-  if(!res.ok || data.success === false){
-    throw new Error(data.message || "Pricing failed");
+      miles:Number(miles || 0),
+
+      stops:Number(stops || 0),
+
+      minutes:Number(minutes || 0),
+
+      passengersCount:Number(passengerCount || 1),
+
+      isCompany:true
+
+    })
+
   }
-
-  return Number(data.total || 0);
-}
+);
 
 /* ================= GOOGLE ================= */
 
