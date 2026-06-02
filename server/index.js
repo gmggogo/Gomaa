@@ -3783,7 +3783,9 @@ app.post("/api/trips", async (req, res) => {
   try {
 
     const type = normalizeTripType(req.body.type);
-
+console.log("============== CREATE TRIP ==============");
+console.log(JSON.stringify(req.body, null, 2));
+console.log("=========================================");
     /* =========================
        COMPANY LOCK CHECK
     ========================= */
