@@ -107,7 +107,6 @@ router.post("/calculate", async (req,res)=>{
   stops,
   minutes,
 
-  // accepted aliases from company pages
   isCompany,
   companyMode,
   pricingScope,
@@ -190,60 +189,27 @@ router.post("/calculate", async (req,res)=>{
     ========================= */
 
     const baseFare =
-      pick(
-        requestIsCompany,
-        service.companyBaseFare,
-        service.baseFare,
-        0
-      );
+      pick(requestIsCompany, service.companyBaseFare, service.baseFare, 0);
 
     const includedMiles =
-      pick(
-        requestIsCompany,
-        service.companyIncludedMiles,
-        service.includedMiles,
-        0
-      );
+      pick(requestIsCompany, service.companyIncludedMiles, service.includedMiles, 0);
 
     const perMile =
-      pick(
-        requestIsCompany,
-        service.companyPerMile,
-        service.perMile,
-        0
-      );
+      pick(requestIsCompany, service.companyPerMile, service.perMile, 0);
 
     const stopFee =
-      pick(
-        requestIsCompany,
-        service.companyStopFee,
-        service.stopFee,
-        0
-      );
+      pick(requestIsCompany, service.companyStopFee, service.stopFee, 0);
 
     const sharedPrice =
-      pick(
-        requestIsCompany,
-        service.companySharedPrice,
-        service.sharedPrice,
-        0
-      );
+      pick(requestIsCompany, service.companySharedPrice, service.sharedPrice, 0);
 
     const hourlyRate =
-      pick(
-        requestIsCompany,
-        service.companyHourlyRate,
-        service.hourlyRate,
-        0
-      );
+      pick(requestIsCompany, service.companyHourlyRate, service.hourlyRate, 0);
 
     let total = 0;
 
-const sharedPassengers =
-  Math.max(
-    1,
-    n(passengersCount, 1)
-  );
+    const sharedPassengers =
+      Math.max(1, n(passengersCount, 1));
 
     /* =========================
        HOURLY
@@ -251,89 +217,78 @@ const sharedPassengers =
 
     if(pricingMode === "HOURLY"){
 
-      const totalMinutes =
-        n(minutes, 0);
+      const totalMinutes = n(minutes, 0);
 
       let hours = 1;
 
-      if(
+      if(String(service.hourlyBillingMode || "").toUpperCase() === "QUARTER"){
 
-        String(
-          service.hourlyBillingMode || ""
-        )
-        .toUpperCase() === "QUARTER"
-
-      ){
-
-        hours =
-          Math.max(
-            1,
-            Math.ceil(totalMinutes / 15) / 4
-          );
+        hours = Math.max(1, Math.ceil(totalMinutes / 15) / 4);
 
       }else{
 
-        hours =
-          Math.max(
-            1,
-            Math.ceil(totalMinutes / 60)
-          );
+        hours = Math.max(1, Math.ceil(totalMinutes / 60));
 
       }
 
-      total =
-        hours * hourlyRate;
+      total = hours * hourlyRate;
 
     }
 
     /* =========================
-       SHARED
-       company uses companySharedPrice
+       SHARED (FIXED FINAL VERSION)
     ========================= */
 
-  else if(pricingMode === "SHARED"){
+    else if(pricingMode === "SHARED"){
 
-  total =
+      const passengerCount =
+        Math.max(1, n(passengersCount, 1));
 
-    (
-      baseFare *
-      sharedPassengers
-    ) +
+      const base =
+        requestIsCompany
+          ? Number(service.companySharedPrice || service.companyBaseFare || 0)
+          : Number(service.sharedPrice || service.baseFare || 0);
 
-    (
-      n(stops, 0) *
-      stopFee
-    );
+      const stopFeeValue =
+        requestIsCompany
+          ? Number(service.companyStopFee || service.stopFee || 0)
+          : Number(service.stopFee || 0);
 
-}
+      const includedMilesValue =
+        requestIsCompany
+          ? Number(service.companyIncludedMiles || service.includedMiles || 0)
+          : Number(service.includedMiles || 0);
+
+      const perMileValue =
+        requestIsCompany
+          ? Number(service.companyPerMile || service.perMile || 0)
+          : Number(service.perMile || 0);
+
+      const extraMiles =
+        Math.max(0, n(miles, 0) - includedMilesValue);
+
+      const perPassenger =
+        base + (extraMiles * perMileValue);
+
+      total =
+        (perPassenger * passengerCount) +
+        (n(stops, 0) * stopFeeValue);
+
+    }
 
     /* =========================
        STANDARD / MILE
-       company uses companyBaseFare etc
     ========================= */
 
     else{
 
       const extraMiles =
-
-        Math.max(
-          0,
-          n(miles, 0) - includedMiles
-        );
+        Math.max(0, n(miles, 0) - includedMiles);
 
       total =
-
         baseFare +
-
-        (
-          extraMiles *
-          perMile
-        ) +
-
-        (
-          n(stops, 0) *
-          stopFee
-        );
+        (extraMiles * perMile) +
+        (n(stops, 0) * stopFee);
 
     }
 
@@ -344,14 +299,9 @@ const sharedPassengers =
     return res.json({
 
       success:true,
-
       isCompany:requestIsCompany,
-
       pricingMode,
-
-      total:Number(
-        total.toFixed(2)
-      ),
+      total:Number(total.toFixed(2)),
 
       usedPricing:{
         baseFare,
@@ -362,53 +312,13 @@ const sharedPassengers =
         hourlyRate
       },
 
-      /* =========================
-         INDIVIDUAL / PUBLIC
-      ========================= */
+      disableCancel:Boolean(service.disableCancel),
+      cancelFee:n(service.cancelFee,0),
+      warningMinutes:n(service.warningMinutes,0),
 
-      disableCancel:
-
-        Boolean(
-          service.disableCancel
-        ),
-
-      cancelFee:
-
-        n(
-          service.cancelFee,
-          0
-        ),
-
-      warningMinutes:
-
-        n(
-          service.warningMinutes,
-          0
-        ),
-
-      /* =========================
-         COMPANY
-      ========================= */
-
-      companyDisableCancel:
-
-        Boolean(
-          service.companyDisableCancel
-        ),
-
-      companyCancelFee:
-
-        n(
-          service.companyCancelFee,
-          0
-        ),
-
-      companyWarningMinutes:
-
-        n(
-          service.companyWarningMinutes,
-          0
-        ),
+      companyDisableCancel:Boolean(service.companyDisableCancel),
+      companyCancelFee:n(service.companyCancelFee,0),
+      companyWarningMinutes:n(service.companyWarningMinutes,0),
 
       service
 
@@ -416,17 +326,11 @@ const sharedPassengers =
 
   }catch(err){
 
-    console.log(
-      "PRICING ERROR:",
-      err
-    );
+    console.log("PRICING ERROR:", err);
 
     return res.status(500).json({
-
       success:false,
-
       message:"Pricing Failed"
-
     });
 
   }
@@ -434,25 +338,22 @@ const sharedPassengers =
 });
 
 /* =========================
-   UPDATE HELPER
+   UPDATE SERVICE
 ========================= */
 
-async function updateService(req,res){
+router.put("/:idOrKey", async (req,res)=>{
 
   try{
 
     const idOrKey =
-      String(req.params.idOrKey || "")
-      .trim();
+      String(req.params.idOrKey || "").trim();
 
     let filter = {};
 
     if(mongoose.Types.ObjectId.isValid(idOrKey)){
       filter = {_id:idOrKey};
     }else{
-      filter = {
-        serviceKey:idOrKey.toUpperCase()
-      };
+      filter = {serviceKey:idOrKey.toUpperCase()};
     }
 
     const updated =
@@ -485,15 +386,6 @@ async function updateService(req,res){
 
   }
 
-}
-
-/* =========================
-   UPDATE SERVICE
-========================= */
-
-router.put("/:idOrKey", updateService);
-
-/* OLD ALIAS SUPPORT */
-router.put("/services/:idOrKey", updateService);
+});
 
 module.exports = router;
