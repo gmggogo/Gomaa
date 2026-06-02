@@ -512,12 +512,18 @@ if(!service){
 
 else if(pricingMode === "SHARED"){
 
-  const passengerCount =
+ const passengerCount =
   Number(
     req.body.passengersCount ||
     req.body.passengerCount ||
     1
   );
+
+console.log("========== SHARED DEBUG ==========");
+console.log("PASSENGER COUNT =", passengerCount);
+console.log("MILES =", miles);
+console.log("STOPS =", stops);
+console.log("BODY =", req.body);
   const includedMiles =
     Number(
       isCompany

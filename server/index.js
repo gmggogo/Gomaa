@@ -966,11 +966,8 @@ function calculatePriceServer(trip){
    COMPANY SHARED
 ========================= */
 if(
-  false &&
-  (
-    trip.isShared === true ||
-    type === "shared"
-  )
+  trip.isShared === true ||
+  type === "shared"
 ){
 
   const passengersArr =
@@ -2915,11 +2912,11 @@ if(status.includes("no")){
 let amount = 0;
 
 if(
-  false &&
   isShared &&
   Array.isArray(t.passengers) &&
   t.passengers.length > 0
 ){
+
   t.passengers.forEach(p=>{
 
     let ps =
