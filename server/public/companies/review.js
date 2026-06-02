@@ -361,15 +361,15 @@ async function calculateServerPrice({serviceKey,miles,stops,minutes,passengerCou
       "Content-Type":"application/json",
       Authorization:"Bearer " + token
     },
-    body:JSON.stringify({
-      serviceKey,
-      miles:Number(miles || 0),
-      stops:Number(stops || 0),
-      minutes:Number(minutes || 0),
-      passengerCount:Number(passengerCount || 1),
-      isCompany:true
-    })
-  });
+
+   body:JSON.stringify({
+  serviceKey,
+  miles:Number(miles || 0),
+  stops:Number(stops || 0),
+  minutes:Number(minutes || 0),
+  passengersCount:Number(passengerCount || 1),
+  isCompany:true
+})
 
   const data = await res.json().catch(()=>({}));
 
