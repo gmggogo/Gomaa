@@ -58,6 +58,42 @@ router.get("/services", async (req,res)=>{
 });
 
 /* =========================
+   NUMBER HELPER
+========================= */
+
+function n(value, fallback = 0){
+
+  const num = Number(value);
+
+  if(Number.isFinite(num)){
+    return num;
+  }
+
+  return fallback;
+
+}
+
+/* =========================
+   FIELD PICKER
+========================= */
+
+function pick(companyMode, companyValue, normalValue, fallback = 0){
+
+  if(companyMode){
+
+    if(companyValue !== undefined && companyValue !== null && companyValue !== ""){
+      return n(companyValue, fallback);
+    }
+
+    return n(normalValue, fallback);
+
+  }
+
+  return n(normalValue, fallback);
+
+}
+
+/* =========================
    CALCULATE
 ========================= */
 
@@ -69,7 +105,14 @@ router.post("/calculate", async (req,res)=>{
       serviceKey,
       miles,
       stops,
-      minutes
+      minutes,
+
+      // accepted aliases from company pages
+      isCompany,
+      companyMode,
+      pricingScope,
+      source,
+      tripSource
     } = req.body || {};
 
     if(!serviceKey){
@@ -100,21 +143,97 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
-    if(service.enabled !== true){
+    const requestIsCompany =
+      isCompany === true ||
+      companyMode === true ||
+      String(pricingScope || "").toLowerCase() === "company" ||
+      String(source || "").toLowerCase() === "company" ||
+      String(tripSource || "").toLowerCase() === "company";
 
-      return res.json({
-        success:false,
-        message:"Service Disabled"
-      });
+    if(requestIsCompany){
+
+      if(service.companyEnabled === false){
+
+        return res.json({
+          success:false,
+          message:"Company Service Disabled"
+        });
+
+      }
+
+    }else{
+
+      if(service.enabled !== true){
+
+        return res.json({
+          success:false,
+          message:"Service Disabled"
+        });
+
+      }
 
     }
 
     const pricingMode =
       String(
-        service.pricingMode || ""
+        requestIsCompany
+          ? (service.companyPricingMode || service.pricingMode || "")
+          : (service.pricingMode || "")
       )
       .trim()
       .toUpperCase();
+
+    /* =========================
+       COMPANY / PUBLIC VALUES
+    ========================= */
+
+    const baseFare =
+      pick(
+        requestIsCompany,
+        service.companyBaseFare,
+        service.baseFare,
+        0
+      );
+
+    const includedMiles =
+      pick(
+        requestIsCompany,
+        service.companyIncludedMiles,
+        service.includedMiles,
+        0
+      );
+
+    const perMile =
+      pick(
+        requestIsCompany,
+        service.companyPerMile,
+        service.perMile,
+        0
+      );
+
+    const stopFee =
+      pick(
+        requestIsCompany,
+        service.companyStopFee,
+        service.stopFee,
+        0
+      );
+
+    const sharedPrice =
+      pick(
+        requestIsCompany,
+        service.companySharedPrice,
+        service.sharedPrice,
+        0
+      );
+
+    const hourlyRate =
+      pick(
+        requestIsCompany,
+        service.companyHourlyRate,
+        service.hourlyRate,
+        0
+      );
 
     let total = 0;
 
@@ -125,7 +244,7 @@ router.post("/calculate", async (req,res)=>{
     if(pricingMode === "HOURLY"){
 
       const totalMinutes =
-        Number(minutes || 0);
+        n(minutes, 0);
 
       let hours = 1;
 
@@ -155,39 +274,31 @@ router.post("/calculate", async (req,res)=>{
       }
 
       total =
-
-        hours *
-
-        Number(
-          service.hourlyRate || 0
-        );
+        hours * hourlyRate;
 
     }
 
     /* =========================
        SHARED
+       company uses companySharedPrice
     ========================= */
 
     else if(pricingMode === "SHARED"){
 
       total =
 
-        Number(
-          service.sharedPrice || 0
-        ) +
+        sharedPrice +
 
         (
-          Number(stops || 0) *
-
-          Number(
-            service.stopFee || 0
-          )
+          n(stops, 0) *
+          stopFee
         );
 
     }
 
     /* =========================
-       STANDARD
+       STANDARD / MILE
+       company uses companyBaseFare etc
     ========================= */
 
     else{
@@ -196,34 +307,21 @@ router.post("/calculate", async (req,res)=>{
 
         Math.max(
           0,
-
-          Number(miles || 0) -
-
-          Number(
-            service.includedMiles || 0
-          )
+          n(miles, 0) - includedMiles
         );
 
       total =
 
-        Number(
-          service.baseFare || 0
-        ) +
+        baseFare +
 
         (
           extraMiles *
-
-          Number(
-            service.perMile || 0
-          )
+          perMile
         ) +
 
         (
-          Number(stops || 0) *
-
-          Number(
-            service.stopFee || 0
-          )
+          n(stops, 0) *
+          stopFee
         );
 
     }
@@ -236,14 +334,25 @@ router.post("/calculate", async (req,res)=>{
 
       success:true,
 
+      isCompany:requestIsCompany,
+
       pricingMode,
 
       total:Number(
         total.toFixed(2)
       ),
 
+      usedPricing:{
+        baseFare,
+        includedMiles,
+        perMile,
+        stopFee,
+        sharedPrice,
+        hourlyRate
+      },
+
       /* =========================
-         INDIVIDUAL
+         INDIVIDUAL / PUBLIC
       ========================= */
 
       disableCancel:
@@ -254,14 +363,16 @@ router.post("/calculate", async (req,res)=>{
 
       cancelFee:
 
-        Number(
-          service.cancelFee || 0
+        n(
+          service.cancelFee,
+          0
         ),
 
       warningMinutes:
 
-        Number(
-          service.warningMinutes || 0
+        n(
+          service.warningMinutes,
+          0
         ),
 
       /* =========================
@@ -276,14 +387,16 @@ router.post("/calculate", async (req,res)=>{
 
       companyCancelFee:
 
-        Number(
-          service.companyCancelFee || 0
+        n(
+          service.companyCancelFee,
+          0
         ),
 
       companyWarningMinutes:
 
-        Number(
-          service.companyWarningMinutes || 0
+        n(
+          service.companyWarningMinutes,
+          0
         ),
 
       service
