@@ -1011,40 +1011,6 @@ if(
   const count =
     activePassengers.length;
 
-  /* =========================
-     DYNAMIC ONLY
-  ========================= */
-
-  const BASE_PER_PERSON =
-    Number(
-      trip.companyBaseFare ??
-      trip.companySharedPrice ??
-      trip.baseFare ??
-      trip.sharedPrice ??
-      0
-    );
-
-  const INCLUDED_PER_PERSON =
-    Number(
-      trip.companyIncludedMiles ??
-      trip.includedMiles ??
-      0
-    );
-
-  const PER_MILE =
-    Number(
-      trip.companyPerMile ??
-      trip.perMile ??
-      0
-    );
-
-  const STOP_PRICE =
-    Number(
-      trip.companyStopFee ??
-      trip.stopFee ??
-      0
-    );
-
   const NO_SHOW =
     Number(
       trip.companyNoShowFee ??
@@ -1078,14 +1044,78 @@ if(
   }
 
   /* =========================
-     TOTAL
+     FIXED SHARED PRICE
   ========================= */
 
+  const sharedPrice =
+    Number(
+      trip.companySharedPrice ??
+      trip.sharedPrice ??
+      0
+    );
+
+  if(
+    sharedPrice > 0
+  ){
+
+    const noShowTotal =
+      noShowPassengers.length *
+      NO_SHOW;
+
+    const cancelledTotal =
+      cancelledPassengers.length *
+      CANCEL_FEE;
+
+    const total =
+      (sharedPrice * count) +
+      noShowTotal +
+      cancelledTotal;
+
+    return Number(
+      total.toFixed(2)
+    );
+
+  }
+
+  /* =========================
+     DYNAMIC SHARED
+  ========================= */
+
+  const BASE_PER_PERSON =
+    Number(
+      trip.companyBaseFare ??
+      trip.baseFare ??
+      0
+    );
+
+  const INCLUDED_PER_PERSON =
+    Number(
+      trip.companyIncludedMiles ??
+      trip.includedMiles ??
+      0
+    );
+
+  const PER_MILE =
+    Number(
+      trip.companyPerMile ??
+      trip.perMile ??
+      0
+    );
+
+  const STOP_PRICE =
+    Number(
+      trip.companyStopFee ??
+      trip.stopFee ??
+      0
+    );
+
   const baseTotal =
-    count * BASE_PER_PERSON;
+    count *
+    BASE_PER_PERSON;
 
   const includedMiles =
-    count * INCLUDED_PER_PERSON;
+    count *
+    INCLUDED_PER_PERSON;
 
   const extraMiles =
     Math.max(
@@ -1094,13 +1124,15 @@ if(
     );
 
   const milesTotal =
-    extraMiles * PER_MILE;
+    extraMiles *
+    PER_MILE;
 
   const stopsTotal =
     Math.max(
       0,
       count - 1
-    ) * STOP_PRICE;
+    ) *
+    STOP_PRICE;
 
   const noShowTotal =
     noShowPassengers.length *
@@ -1117,34 +1149,12 @@ if(
     noShowTotal +
     cancelledTotal;
 
-  /* =========================
-     SHARED FIX (ONLY ADDITION)
-  ========================= */
-
-  if (
-    trip.isShared === true ||
-    type === "shared"
-  ) {
-
-    const sharedPrice =
-      Number(
-        trip.companySharedPrice ??
-        trip.sharedPrice ??
-        0
-      );
-
-    if (sharedPrice > 0) {
-      return Number(
-        (sharedPrice * count).toFixed(2)
-      );
-    }
-  }
-
   return Number(
     total.toFixed(2)
   );
 
 }
+
   /* =========================
      COMPANY INDIVIDUAL
   ========================= */
