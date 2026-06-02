@@ -1117,12 +1117,34 @@ if(
     noShowTotal +
     cancelledTotal;
 
+  /* =========================
+     SHARED FIX (ONLY ADDITION)
+  ========================= */
+
+  if (
+    trip.isShared === true ||
+    type === "shared"
+  ) {
+
+    const sharedPrice =
+      Number(
+        trip.companySharedPrice ??
+        trip.sharedPrice ??
+        0
+      );
+
+    if (sharedPrice > 0) {
+      return Number(
+        (sharedPrice * count).toFixed(2)
+      );
+    }
+  }
+
   return Number(
     total.toFixed(2)
   );
 
 }
-
   /* =========================
      COMPANY INDIVIDUAL
   ========================= */
