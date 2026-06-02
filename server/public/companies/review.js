@@ -1310,14 +1310,8 @@ async function handleConfirmTrip(btn){
   const stopsCount =
     Array.isArray(trip.stops) ? trip.stops.length : 0;
 
-  const total =
-    await calculateServerPrice({
-      serviceKey,
-      miles:routeData.miles,
-      stops:stopsCount,
-      minutes:routeData.estimatedMinutes,
-      passengerCount:1
-    });
+
+
 
   await updateTrip(id,{
     status:"Confirmed",
@@ -1369,14 +1363,14 @@ async function handleConfirmShared(btn){
 
   btn.textContent = "Pricing...";
 
-  const total =
-    await calculateServerPrice({
-      serviceKey:"SHARED",
-      miles:routeData.miles,
-      stops:Math.max(0,activeCount - 1),
-      minutes:routeData.estimatedMinutes,
-      passengerCount:activeCount
-    });
+ const total =
+  await calculateServerPrice({
+    serviceKey:"SHARED",
+    miles:routeData.miles,
+    stops:Math.max(0,activeCount - 1),
+    minutes:routeData.estimatedMinutes,
+    passengersCount:activeCount
+  });
 
   const pricePerPassenger =
     Number((total / activeCount).toFixed(2));

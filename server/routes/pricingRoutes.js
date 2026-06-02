@@ -101,19 +101,21 @@ router.post("/calculate", async (req,res)=>{
 
   try{
 
-    const {
-      serviceKey,
-      miles,
-      stops,
-      minutes,
+   const {
+  serviceKey,
+  miles,
+  stops,
+  minutes,
 
-      // accepted aliases from company pages
-      isCompany,
-      companyMode,
-      pricingScope,
-      source,
-      tripSource
-    } = req.body || {};
+  // accepted aliases from company pages
+  isCompany,
+  companyMode,
+  pricingScope,
+  source,
+  tripSource,
+
+  passengersCount
+} = req.body || {};
 
     if(!serviceKey){
 
@@ -237,6 +239,12 @@ router.post("/calculate", async (req,res)=>{
 
     let total = 0;
 
+const sharedPassengers =
+  Math.max(
+    1,
+    n(passengersCount, 1)
+  );
+
     /* =========================
        HOURLY
     ========================= */
@@ -283,18 +291,21 @@ router.post("/calculate", async (req,res)=>{
        company uses companySharedPrice
     ========================= */
 
-    else if(pricingMode === "SHARED"){
+   else if(pricingMode === "SHARED"){
 
-      total =
+  total =
 
-        sharedPrice +
+    (
+      sharedPrice *
+      sharedPassengers
+    ) +
 
-        (
-          n(stops, 0) *
-          stopFee
-        );
+    (
+      n(stops, 0) *
+      stopFee
+    );
 
-    }
+}
 
     /* =========================
        STANDARD / MILE
