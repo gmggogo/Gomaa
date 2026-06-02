@@ -361,33 +361,46 @@ async function calculateServerPrice({
   passengerCount
 }){
 
-const res = await fetch(
-  "/api/pricing/calculate",
-  {
-    method:"POST",
+  const res = await fetch(
+    "/api/pricing/calculate",
+    {
+      method:"POST",
 
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:"Bearer " + token
-    },
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
 
-    body:JSON.stringify({
+      body:JSON.stringify({
+        serviceKey,
+        miles:Number(miles || 0),
+        stops:Number(stops || 0),
+        minutes:Number(minutes || 0),
+        passengersCount:Number(passengerCount || 1),
+        isCompany:true
+      })
+    }
+  );
 
-      serviceKey,
+  const data =
+    await res.json()
+      .catch(()=>({}));
 
-      miles:Number(miles || 0),
-
-      stops:Number(stops || 0),
-
-      minutes:Number(minutes || 0),
-
-      passengersCount:Number(passengerCount || 1),
-
-      isCompany:true
-
-    })
-
+  if(
+    !res.ok ||
+    data.success === false
+  ){
+    throw new Error(
+      data.message ||
+      "Pricing failed"
+    );
   }
+
+  return Number(
+    data.total || 0
+  );
+}
+
 );
 
 /* ================= GOOGLE ================= */
