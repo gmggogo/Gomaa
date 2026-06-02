@@ -4760,20 +4760,17 @@ app.put("/api/trips/:id", async (req, res) => {
 
     const existing = await Trip.findById(req.params.id);
 
-    ...
-
-    // 1️⃣ لو مش موجود
     if (!existing) {
-      return res.status(404).json({ message: "Trip not found" });
+      return res.status(404).json({
+        message: "Trip not found"
+      });
     }
 
-    // 2️⃣ منع التعديل لو الرحلة خلصت أو اتلغت
     if (["Completed", "Cancelled"].includes(existing.status)) {
       return res.status(400).json({
         message: "Cannot edit completed or cancelled trip"
       });
-    }
-   
+    }   
 
     /* =========================
        UPDATE DATA
