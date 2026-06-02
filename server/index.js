@@ -966,8 +966,11 @@ function calculatePriceServer(trip){
    COMPANY SHARED
 ========================= */
 if(
-  trip.isShared === true ||
-  type === "shared"
+  false &&
+  (
+    trip.isShared === true ||
+    type === "shared"
+  )
 ){
 
   const passengersArr =
