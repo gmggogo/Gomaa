@@ -4882,6 +4882,14 @@ status: req.body.status ?? existing.status,
 bookedAt: req.body.bookedAt ?? existing.bookedAt
 };
 
+if(updateData.status === "Confirmed"){
+
+  updateData.dispatchSelected = true;
+
+  updateData.isFinalized = false;
+
+}
+
 // 🔥 FINAL PRICE LOGIC
 if (updateData.status === "Cancelled") {
 
