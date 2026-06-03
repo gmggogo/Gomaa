@@ -242,17 +242,8 @@ if(!service){
 
     else if(pricingMode === "SHARED"){
 
-const passengerCount =
-  Math.max(1, n(passengersCount, 1));
-
-console.log("========== SHARED DEBUG ==========");
-console.log("PASSENGER COUNT =", passengerCount);
-console.log("REQUEST IS COMPANY =", requestIsCompany);
-console.log("BODY =", req.body);
-console.log("COMPANY BASE =", service.companyBaseFare);
-console.log("COMPANY SHARED PRICE =", service.companySharedPrice);
-console.log("COMPANY PER MILE =", service.companyPerMile);
-console.log("==================================");
+      const passengerCount =
+        Math.max(1, n(passengersCount, 1));
 
       const base =
         requestIsCompany
