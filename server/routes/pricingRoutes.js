@@ -251,14 +251,17 @@ return res.json({
 
     else if(pricingMode === "SHARED"){
 
-      const passengerCount =
-        Math.max(1, n(passengersCount, 1));
+     const passengerCount =
+  Math.max(1, n(passengersCount, 1));
 
-      const base =
-        requestIsCompany
-          ? Number(service.companySharedPrice || service.companyBaseFare || 0)
-          : Number(service.sharedPrice || service.baseFare || 0);
+console.log("========== SHARED DEBUG ==========");
+console.log("PASSENGER COUNT =", passengerCount);
+console.log("BODY =", req.body);
 
+const base =
+  requestIsCompany
+    ? Number(service.companySharedPrice || service.companyBaseFare || 0)
+    : Number(service.sharedPrice || service.baseFare || 0);
       const stopFeeValue =
         requestIsCompany
           ? Number(service.companyStopFee || service.stopFee || 0)
