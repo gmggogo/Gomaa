@@ -2231,6 +2231,26 @@ app.get("/api/admin/billing", async (req, res) => {
 
 });
 
+async function getServiceByTrip(trip){
+
+  const serviceKey =
+    String(
+      trip.serviceKey ||
+      trip.serviceType ||
+      ""
+    )
+    .trim()
+    .toUpperCase();
+
+  if(!serviceKey){
+    return null;
+  }
+
+  return await Service.findOne({
+    serviceKey
+  }).lean();
+
+}
 /* =========================
    BILLING ENGINE FINAL
 ========================= */
