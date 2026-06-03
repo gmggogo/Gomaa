@@ -362,7 +362,7 @@ async function calculateServerPrice({
 }) {
 
  const res = await fetch(
-  "/api/company-services/calculate",
+  "/api/company-core/calculate",
     {
       method: "POST",
 
