@@ -1127,7 +1127,7 @@ document.getElementById(
     const res =
     await fetch(
 
-      `/api/services/${id}`,
+      `/api/company-services/${id}`,
 
       {
         method:"PUT",
