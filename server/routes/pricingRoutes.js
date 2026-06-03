@@ -144,15 +144,6 @@ if(!service){
 
 }
 
-return res.json({
-  success:true,
-  pricingMode:"TEST",
-  total:0,
-  cancelFee:0,
-  warningMinutes:0,
-  disableCancel:false,
-  service
-});
 
     const requestIsCompany =
       isCompany === true ||
@@ -251,17 +242,23 @@ return res.json({
 
     else if(pricingMode === "SHARED"){
 
-     const passengerCount =
+const passengerCount =
   Math.max(1, n(passengersCount, 1));
 
 console.log("========== SHARED DEBUG ==========");
 console.log("PASSENGER COUNT =", passengerCount);
+console.log("REQUEST IS COMPANY =", requestIsCompany);
 console.log("BODY =", req.body);
+console.log("COMPANY BASE =", service.companyBaseFare);
+console.log("COMPANY SHARED PRICE =", service.companySharedPrice);
+console.log("COMPANY PER MILE =", service.companyPerMile);
+console.log("==================================");
 
-const base =
-  requestIsCompany
-    ? Number(service.companySharedPrice || service.companyBaseFare || 0)
-    : Number(service.sharedPrice || service.baseFare || 0);
+      const base =
+        requestIsCompany
+          ? Number(service.companySharedPrice || service.companyBaseFare || 0)
+          : Number(service.sharedPrice || service.baseFare || 0);
+
       const stopFeeValue =
         requestIsCompany
           ? Number(service.companyStopFee || service.stopFee || 0)
