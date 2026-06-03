@@ -1322,23 +1322,41 @@ async function handleConfirmTrip(btn){
 
   btn.textContent = "Pricing...";
 
-  const serviceKey =
-    service.serviceKey ||
-    trip.serviceKey ||
-    trip.serviceType ||
-    "STANDARD";
+ const serviceKey =
+  service.serviceKey ||
+  trip.serviceKey ||
+  trip.serviceType ||
+  "STANDARD";
 
-  const stopsCount =
-    Array.isArray(trip.stops) ? trip.stops.length : 0;
+const stopsCount =
+  Array.isArray(trip.stops)
+    ? trip.stops.length
+    : 0;
 
+const total =
+  await calculateServerPrice({
 
+    serviceKey,
 
+    miles:
+      routeData.miles,
 
-  await updateTrip(id,{
+    stops:
+      stopsCount,
+
+    minutes:
+      routeData.estimatedMinutes,
+
+    passengerCount:1
+
+  });
+
+await updateTrip(id,{
+
     status:"Confirmed",
     dispatchSelected:true,
-    priceAmount: Number(data?.total || 0),
-finalPrice: Number(data?.total || 0),
+   priceAmount: total,
+finalPrice: total,
     miles:routeData.miles,
     distanceMeters:routeData.distanceMeters,
     durationSeconds:routeData.durationSeconds,
