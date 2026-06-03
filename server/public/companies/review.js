@@ -361,8 +361,8 @@ async function calculateServerPrice({
   passengerCount
 }) {
 
-  const res = await fetch(
-    "/api/pricing/calculate",
+ const res = await fetch(
+  "/api/company-services/calculate",
     {
       method: "POST",
 
