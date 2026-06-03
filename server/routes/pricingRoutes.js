@@ -135,14 +135,24 @@ router.post("/calculate", async (req,res)=>{
 
       });
 
-    if(!service){
+if(!service){
 
-      return res.json({
-        success:false,
-        message:"Service Not Found"
-      });
+  return res.json({
+    success:false,
+    message:"Service Not Found"
+  });
 
-    }
+}
+
+return res.json({
+  success:true,
+  pricingMode:"TEST",
+  total:0,
+  cancelFee:0,
+  warningMinutes:0,
+  disableCancel:false,
+  service
+});
 
     const requestIsCompany =
       isCompany === true ||
