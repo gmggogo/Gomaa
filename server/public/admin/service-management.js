@@ -1127,7 +1127,7 @@ document.getElementById(
     const res =
     await fetch(
 
-      `/api/company-services/${id}`,
+      `/api/services/${id}`,
 
       {
         method:"PUT",
@@ -1258,9 +1258,8 @@ async function saveCompanyService(id){
     };
 
     const res =
-    await fetch(
-
-      `/api/services/${id}`,
+  await fetch(
+  `/api/company-services/${id}`,
 
       {
         method:"PUT",
@@ -1372,9 +1371,8 @@ async function toggleCompanyService(id){
     if(!service) return;
 
     const res =
-    await fetch(
-
-      `/api/services/${id}`,
+   await fetch(
+  `/api/company-services/${id}`,
 
       {
         method:"PUT",
