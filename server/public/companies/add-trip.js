@@ -274,15 +274,17 @@ if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
 /* ================= SERVICES ================= */
 async function loadCompanyServices(){
   try{
+
 const res = await fetch(
-  "/api/services?company=true",
+  "/api/company-services?company=true",
   {
     headers:{
       Authorization:"Bearer " + token
     }
   }
-);
-    if(!res.ok){
+);  
+
+  if(!res.ok){
       throw new Error("Failed loading services");
     }
   const data = await res.json();

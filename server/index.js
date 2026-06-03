@@ -31,7 +31,8 @@ app.use(
 
 const SystemDesign =
 require("./models/SystemDesign");
-
+const serviceRoutes =
+require("./routes/serviceRoutes");
 const Service =
 require("./models/Service");
 const {
@@ -268,6 +269,11 @@ app.use(
 app.use(
   "/api/system-design",
   require("./routes/system-design")
+);
+
+app.use(
+  "/api/services",
+  serviceRoutes
 );
 
 /* =========================
