@@ -1378,11 +1378,13 @@ async function handleConfirmShared(btn){
   if(!group) return;
 
   const first = group[0];
-  const service = getServiceByTrip(first);
-
-  if(!service){
-    throw new Error("Shared service not found");
-  }
+const service =
+  getServiceByTrip(first) ||
+  COMPANY_SERVICES.find(
+    s =>
+      String(s.serviceKey || "")
+      .toUpperCase() === "SHARED"
+  );
 
   btn.disabled = true;
   btn.textContent = "Routing...";
