@@ -180,6 +180,162 @@ Continue anyway?`
   return true;
 }
 
+/* ================= VALIDATION ================= */
+
+function validateIndividualTrip(){
+
+  if(!normalizeText(entryName.value)){
+    showAlert("Entry Name Required");
+    return false;
+  }
+
+  if(!normalizeText(entryPhone.value)){
+    showAlert("Entry Phone Required");
+    return false;
+  }
+
+  if(!normalizeText(clientName.value)){
+    showAlert("Client Name Required");
+    return false;
+  }
+
+  if(!normalizeText(clientPhone.value)){
+    showAlert("Client Phone Required");
+    return false;
+  }
+
+  if(!normalizeText(pickupInput.value)){
+    showAlert("Pickup Required");
+    return false;
+  }
+
+  if(!normalizeText(dropoffInput.value)){
+    showAlert("Dropoff Required");
+    return false;
+  }
+
+  if(!tripDate.value){
+    showAlert("Trip Date Required");
+    return false;
+  }
+
+  if(!tripTime.value){
+    showAlert("Trip Time Required");
+    return false;
+  }
+
+  const tripDateTime =
+    new Date(
+      `${tripDate.value}T${tripTime.value}:00`
+    );
+
+  if(tripDateTime <= getSystemNow()){
+    showAlert(
+      "Trip Date/Time Already Passed"
+    );
+    return false;
+  }
+
+  return true;
+}
+
+function validateSharedTrip(){
+
+  if(!normalizeText(sharedEntryName.value)){
+    showAlert("Entry Name Required");
+    return false;
+  }
+
+  if(!normalizeText(sharedEntryPhone.value)){
+    showAlert("Entry Phone Required");
+    return false;
+  }
+
+  if(!sharedDate.value){
+    showAlert("Trip Date Required");
+    return false;
+  }
+
+  if(!sharedTime.value){
+    showAlert("Trip Time Required");
+    return false;
+  }
+
+  const tripDateTime =
+    new Date(
+      `${sharedDate.value}T${sharedTime.value}:00`
+    );
+
+  if(tripDateTime <= getSystemNow()){
+    showAlert(
+      "Trip Date/Time Already Passed"
+    );
+    return false;
+  }
+
+  const cards =
+    document.querySelectorAll(
+      ".passenger-card"
+    );
+
+  if(cards.length < 2){
+    showAlert(
+      "Minimum 2 Passengers"
+    );
+    return false;
+  }
+
+  for(const card of cards){
+
+    if(
+      !normalizeText(
+        card.querySelector(".sharedClientName").value
+      )
+    ){
+      showAlert(
+        "Passenger Name Required"
+      );
+      return false;
+    }
+
+    if(
+      !normalizeText(
+        card.querySelector(".sharedClientPhone").value
+      )
+    ){
+      showAlert(
+        "Passenger Phone Required"
+      );
+      return false;
+    }
+
+    if(
+      !normalizeText(
+        card.querySelector(".sharedPickup").value
+      )
+    ){
+      showAlert(
+        "Passenger Pickup Required"
+      );
+      return false;
+    }
+
+    if(
+      !normalizeText(
+        card.querySelector(".sharedDropoff").value
+      )
+    ){
+      showAlert(
+        "Passenger Dropoff Required"
+      );
+      return false;
+    }
+
+  }
+
+  return true;
+}
+
 /* ================= ENTRY ================= */
 function loadEntryInfo(){
   const saved = JSON.parse(localStorage.getItem("entryInfo") || "{}");
