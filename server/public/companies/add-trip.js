@@ -14,6 +14,7 @@ if(!token || role !== "company"){
 let COMPANY_SERVICES = [];
 let activeService = "STANDARD";
 let activeSuffix  = "ST";
+let SYSTEM_TIMEZONE = "America/Phoenix";
 /* ================= BILLING ================= */
 async function checkBillingLock(){
   try{
@@ -84,12 +85,26 @@ function normalizeText(v){
 function showAlert(msg){
   alert(msg);
 }
-function getArizonaNow(){
+async function loadSystemTimezone(){
+  try{
+    const res = await fetch("/api/system-design");
+    const data = await res.json();
+
+    SYSTEM_TIMEZONE =
+      data?.timezone ||
+      "America/Phoenix";
+
+  }catch(err){
+    console.log(err);
+  }
+}
+
+function getSystemNow(){
   return new Date(
     new Date().toLocaleString(
       "en-US",
       {
-        timeZone:"America/Phoenix"
+        timeZone:SYSTEM_TIMEZONE
       }
     )
   );
@@ -141,8 +156,8 @@ function checkDynamicWarning(dateValue,timeValue){
   const tripDateTime =
     new Date(`${dateValue}T${timeValue}:00`);
 
-  const now =
-    getArizonaNow();
+ const now =
+  getSystemNow();
 
   const diff =
     (tripDateTime - now) / 60000;
@@ -419,15 +434,19 @@ if(passengerCount){
 /* ================= SUBMIT INDIVIDUAL ================= */
 if(submitTripBtn){
 submitTripBtn.onclick = async function(){
-if(
-  !checkDynamicWarning(
-    tripDate.value,
-    tripTime.value
-  )
-){
-  return;
-}
-submitTripBtn.disabled = true;
+
+  if(!validateIndividualTrip()){
+    return;
+  }
+
+  if(
+    !checkDynamicWarning(
+      tripDate.value,
+      tripTime.value
+    )
+  ){
+    return;
+  }submitTripBtn.disabled = true;
 submitTripBtn.innerText = "Submitting...";
 try{
 const stops = [...document.querySelectorAll(".stop-input")]
@@ -486,14 +505,20 @@ localStorage.removeItem("companyTripDraft");
 /* ================= SUBMIT SHARED ================= */
 if(submitSharedBtn){
 submitSharedBtn.onclick = async function(){
-if(
-  !checkDynamicWarning(
-    sharedDate.value,
-    sharedTime.value
-  )
-){
-  return;
-}
+
+  if(!validateSharedTrip()){
+    return;
+  }
+
+  if(
+    !checkDynamicWarning(
+      sharedDate.value,
+      sharedTime.value
+    )
+  ){
+    return;
+  }
+
 if(!sharedDate.value || !sharedTime.value){
   showAlert("Select shared date/time");
   return;
@@ -566,6 +591,8 @@ localStorage.removeItem("companySharedDraft");
 /* ================= INIT ================= */
 loadDraft();
 loadSharedDraft();
+
+await loadSystemTimezone();
 await loadCompanyServices();
 })(); 
 });
