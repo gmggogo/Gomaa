@@ -6123,10 +6123,8 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
         trip.passengers.length ||
         1;
 
-      const perPassengerFee =
-        Number(
-          (totalCancelFee / count).toFixed(2)
-        );
+     const perPassengerFee =
+  Number(totalCancelFee || 0);
 
       trip.status = "Cancelled";
       trip.cancelFee = totalCancelFee;
