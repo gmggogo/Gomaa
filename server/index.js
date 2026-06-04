@@ -6078,36 +6078,119 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
   try{
 
     const trip =
-      await Trip.findById(
-        req.params.id
-      );
+      await Trip.findById(req.params.id);
 
     if(!trip){
-
       return res.status(404).json({
         message:"Trip not found"
       });
-
     }
 
     const service =
       await getServiceByTrip(trip);
 
-    const fee =
+    const totalCancelFee =
       Number(
         service?.companyCancelFee ||
         service?.cancelFee ||
+        trip.cancelFee ||
         0
       );
+
+    if(
+      trip.isShared === true &&
+      Array.isArray(trip.passengers) &&
+      trip.passengers.length > 0
+    ){
+
+      const activePassengers =
+        trip.passengers.filter(p=>{
+
+          const s =
+            String(p.status || "")
+              .toLowerCase()
+              .trim();
+
+          return (
+            !s.includes("cancel") &&
+            !s.includes("no")
+          );
+
+        });
+
+      const count =
+        activePassengers.length ||
+        trip.passengers.length ||
+        1;
+
+      const perPassengerFee =
+        Number(
+          (totalCancelFee / count).toFixed(2)
+        );
+
+      trip.status = "Cancelled";
+      trip.cancelFee = totalCancelFee;
+      trip.finalPrice = totalCancelFee;
+      trip.priceAmount = totalCancelFee;
+      trip.refundAmount = 0;
+      trip.cancelDateTime = new Date();
+      trip.isFinalized = true;
+      trip.finalizedAt = new Date();
+
+      trip.passengers =
+        trip.passengers.map(p=>{
+
+          const s =
+            String(p.status || "")
+              .toLowerCase()
+              .trim();
+
+          if(
+            s.includes("cancel") ||
+            s.includes("no")
+          ){
+            return p;
+          }
+
+          return {
+            ...p,
+            status:"Cancelled",
+            cancelFee:perPassengerFee,
+            finalPrice:perPassengerFee,
+            priceAmount:perPassengerFee,
+            isFinalized:true,
+            finalizedAt:new Date()
+          };
+
+        });
+
+      trip.groupTotal =
+        trip.passengers.reduce((sum,p)=>{
+          return sum + Number(p.finalPrice || 0);
+        },0);
+
+      trip.groupStatus = "Cancelled";
+
+      await trip.save();
+
+      return res.json({
+        success:true
+      });
+
+    }
 
     await finalizeIndividualTrip(
       trip,
       "CANCEL",
       {
-        cancelFee: fee,
+        cancelFee: totalCancelFee,
         refundAmount: 0
       }
     );
+
+    trip.priceAmount = totalCancelFee;
+
+    await trip.save();
 
     res.json({
       success:true

@@ -1736,18 +1736,32 @@ async function handleCancelShared(btn){
   const ok = confirm("Cancel this shared trip?");
   if(!ok) return;
 
-  const passengers = getRealPassengersFromGroup(group).map(p=>({
-    ...p,
-    status:"Cancelled"
-  }));
+ for(const t of group){
 
-  for(const t of group){
-    await updateTrip(t._id,{
-      status:"Cancelled",
-      passengers,
-      cancelledAt:new Date().toISOString()
-    });
+  const res = await fetch(
+    "/api/company/cancel-trip/" + t._id,
+    {
+      method:"POST",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  if(!res.ok){
+
+    const err =
+      await res.json()
+      .catch(()=>({}));
+
+    throw new Error(
+      err.message ||
+      "Cancel shared failed"
+    );
+
   }
+
+}
 
   await reloadTrips();
 }
