@@ -17,6 +17,8 @@ require("./routes/companyServerRoutes");
 const CompanyCoreEngine =
 require("./routes/CompanyCoreEngine");
 
+const GetQuoteEngine =
+require("./routes/GetQuoteEngine");
 const app = express();
 
 app.use(
@@ -262,10 +264,14 @@ app.use(
 );
 
 app.use(
+  "/api/getquote-core",
+  GetQuoteEngine
+);
+
+app.use(
   "/api/company-services",
   companyServerRoutes
 );
-
 app.use(
   "/api/system-design",
   require("./routes/system-design")

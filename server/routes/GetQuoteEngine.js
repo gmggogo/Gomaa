@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -20,33 +19,6 @@ function n(value, fallback = 0){
   return fallback;
 
 }
-
-/* =========================
-   GET SERVICES
-========================= */
-
-router.get("/", async (req,res)=>{
-
-  try{
-
-    const services =
-      await Service.find({})
-      .sort({ createdAt:1 });
-
-    return res.json(services);
-
-  }catch(err){
-
-    console.log(err);
-
-    return res.status(500).json({
-      success:false,
-      message:"Failed To Load Services"
-    });
-
-  }
-
-});
 
 /* =========================
    CALCULATE
@@ -90,41 +62,39 @@ router.post("/calculate", async (req,res)=>{
 
     }
 
-    if(service.companyEnabled === false){
+    if(service.enabled === false){
 
       return res.json({
         success:false,
-        message:"Company Service Disabled"
+        message:"Service Disabled"
       });
 
     }
 
     const pricingMode =
       String(
-        service.companyPricingMode ||
-        service.pricingMode ||
-        ""
+        service.pricingMode || ""
       )
       .trim()
       .toUpperCase();
 
     const baseFare =
-      n(service.companyBaseFare);
+      n(service.baseFare);
 
     const includedMiles =
-      n(service.companyIncludedMiles);
+      n(service.includedMiles);
 
     const perMile =
-      n(service.companyPerMile);
+      n(service.perMile);
 
     const stopFee =
-      n(service.companyStopFee);
+      n(service.stopFee);
 
     const sharedPrice =
-      n(service.companySharedPrice);
+      n(service.sharedPrice);
 
     const hourlyRate =
-      n(service.companyHourlyRate);
+      n(service.hourlyRate);
 
     let total = 0;
 
@@ -136,34 +106,32 @@ router.post("/calculate", async (req,res)=>{
 
       let hours = 1;
 
-   const hourlyBillingMode =
-  String(
-    service.companyHourlyBillingMode ||
-    service.hourlyBillingMode ||
-    ""
-  ).toUpperCase();
+      const hourlyBillingMode =
+        String(
+          service.hourlyBillingMode || ""
+        ).toUpperCase();
 
-if(hourlyBillingMode === "QUARTER"){
+      if(hourlyBillingMode === "QUARTER"){
 
-  hours =
-    Math.max(
-      1,
-      Math.ceil(
-        n(minutes) / 15
-      ) / 4
-    );
+        hours =
+          Math.max(
+            1,
+            Math.ceil(
+              n(minutes) / 15
+            ) / 4
+          );
 
-}else{
+      }else{
 
-  hours =
-    Math.max(
-      1,
-      Math.ceil(
-        n(minutes) / 60
-      )
-    );
+        hours =
+          Math.max(
+            1,
+            Math.ceil(
+              n(minutes) / 60
+            )
+          );
 
-}
+      }
 
       total =
         hours *
@@ -257,28 +225,36 @@ if(hourlyBillingMode === "QUARTER"){
       ),
 
       usedPricing:{
+
         baseFare,
         includedMiles,
         perMile,
         stopFee,
         sharedPrice,
         hourlyRate
+
       },
 
-      companyDisableCancel:
+      disableCancel:
         Boolean(
-          service.companyDisableCancel
+          service.disableCancel
         ),
 
-      companyCancelFee:
+      cancelFee:
         n(
-          service.companyCancelFee,
+          service.cancelFee,
           0
         ),
 
-      companyWarningMinutes:
+      warningMinutes:
         n(
-          service.companyWarningMinutes,
+          service.warningMinutes,
+          0
+        ),
+
+      noShowFee:
+        n(
+          service.noShowFee,
           0
         ),
 
@@ -289,80 +265,13 @@ if(hourlyBillingMode === "QUARTER"){
   }catch(err){
 
     console.log(
-      "COMPANY CORE ERROR:",
+      "GETQUOTE ENGINE ERROR:",
       err
     );
 
     return res.status(500).json({
       success:false,
       message:"Pricing Failed"
-    });
-
-  }
-
-});
-
-/* =========================
-   UPDATE SERVICE
-========================= */
-
-router.put("/:idOrKey", async (req,res)=>{
-
-  try{
-
-    const idOrKey =
-      String(
-        req.params.idOrKey || ""
-      ).trim();
-
-    let filter = {};
-
-    if(
-      mongoose.Types.ObjectId
-      .isValid(idOrKey)
-    ){
-
-      filter = {
-        _id:idOrKey
-      };
-
-    }else{
-
-      filter = {
-        serviceKey:
-          idOrKey.toUpperCase()
-      };
-
-    }
-
-    const updated =
-      await Service.findOneAndUpdate(
-        filter,
-        { $set:req.body },
-        { new:true }
-      );
-
-    if(!updated){
-
-      return res.json({
-        success:false,
-        message:"Service Not Found"
-      });
-
-    }
-
-    return res.json({
-      success:true,
-      service:updated
-    });
-
-  }catch(err){
-
-    console.log(err);
-
-    return res.status(500).json({
-      success:false,
-      message:"Update Failed"
     });
 
   }
