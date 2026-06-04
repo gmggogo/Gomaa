@@ -6089,12 +6089,24 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
     const service =
       await getServiceByTrip(trip);
 
-    const totalCancelFee =
-      Number(
+  const totalCancelFee =
+
+  service?.companyDisableCancel === true ||
+
+  service?.disableCancel === true
+
+    ? 0
+
+    : Number(
+
         service?.companyCancelFee ||
+
         service?.cancelFee ||
+
         trip.cancelFee ||
+
         0
+
       );
 
     if(
