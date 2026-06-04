@@ -6089,25 +6089,26 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
     const service =
       await getServiceByTrip(trip);
 
- const cancelDisabled =
+ const cancelFeeEnabled =
 
-  service?.companyDisableCancel === false ||
-  service?.disableCancel === false;
+  service?.companyWarningEnabled === true ||
+  service?.warningEnabled === true;
 
 const totalCancelFee =
 
-  cancelDisabled
+  cancelFeeEnabled
 
-    ? 0
-
-    : Number(
+    ? Number(
         service?.companyCancelFee ||
         service?.cancelFee ||
         trip.cancelFee ||
         0
-      );
+      )
+
+    : 0;
 
     if(
+
       trip.isShared === true &&
       Array.isArray(trip.passengers) &&
       trip.passengers.length > 0
