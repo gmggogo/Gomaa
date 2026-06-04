@@ -105,39 +105,23 @@ app.post(
 
     try {
 
-     /* =========================
+   /* =========================
    PAYMENT SUCCESS
 ========================= */
 
 if (
-
   event.type ===
   "payment_intent.succeeded"
-
-  ||
-
-  event.type ===
-  "checkout.session.completed"
-
 ) {
 
-  const stripeObject =
+  const paymentIntent =
     event.data.object;
 
-  const paymentIntent =
-    stripeObject;
+  const tripId =
 
-const tripId =
+    paymentIntent.metadata?.tripId ||
 
-  paymentIntent.metadata?.tripId
-
-  ||
-
-  stripeObject.metadata?.tripId
-
-  ||
-
-  stripeObject.client_reference_id;
+    paymentIntent.client_reference_id;
 
   if (!tripId) {
     return res.sendStatus(200);
@@ -150,14 +134,21 @@ const tripId =
     return res.sendStatus(200);
   }
 
-if (
-  trip.status === "Paid" &&
-  trip.confirmationEmailSent === true
-){
-  return res.sendStatus(200);
-}
+  /* =========================
+     ALREADY PROCESSED
+  ========================= */
 
-  // 🔥 توليد cancel token
+  if (
+    trip.status === "Paid" &&
+    trip.confirmationEmailSent === true
+  ){
+    return res.sendStatus(200);
+  }
+
+  /* =========================
+     CANCEL TOKEN
+  ========================= */
+
   if (!trip.cancelToken) {
 
     trip.cancelToken =
