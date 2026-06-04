@@ -6073,6 +6073,58 @@ app.get("/api/refunds", async (req, res) => {
   }
 });
 
+app.post("/api/company/cancel-trip/:id", async (req,res)=>{
+
+  try{
+
+    const trip =
+      await Trip.findById(
+        req.params.id
+      );
+
+    if(!trip){
+
+      return res.status(404).json({
+        message:"Trip not found"
+      });
+
+    }
+
+    const service =
+      await getServiceByTrip(trip);
+
+    const fee =
+      Number(
+        service?.companyCancelFee ||
+        service?.cancelFee ||
+        0
+      );
+
+    await finalizeIndividualTrip(
+      trip,
+      "CANCEL",
+      {
+        cancelFee: fee,
+        refundAmount: 0
+      }
+    );
+
+    res.json({
+      success:true
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    res.status(500).json({
+      message:"Cancel failed"
+    });
+
+  }
+
+});
+
 /* =========================
    ROOT
 ========================= */
