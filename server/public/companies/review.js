@@ -193,6 +193,65 @@ function minutesToTrip(t){
   if(!dt) return null;
   return (dt - getAZNow()) / 60000;
 }
+function validateRequiredTripFields(data){
+
+  const required = [
+    "entryName",
+    "entryPhone",
+    "clientName",
+    "clientPhone",
+    "pickup",
+    "dropoff",
+    "tripDate",
+    "tripTime"
+  ];
+
+  for(const field of required){
+
+    if(!String(data[field] || "").trim()){
+
+      throw new Error(
+        field + " is required"
+      );
+
+    }
+
+  }
+
+}
+
+function validateFutureTripDateTime(
+  tripDate,
+  tripTime
+){
+
+  const tripDT =
+    parseTripDateTime(
+      tripDate,
+      tripTime
+    );
+
+  if(!tripDT){
+
+    throw new Error(
+      "Invalid date/time"
+    );
+
+  }
+
+  const now =
+    getAZNow();
+
+  if(tripDT <= now){
+
+    throw new Error(
+      "Trip time already passed"
+    );
+
+  }
+
+}
+
 
 function getSharedKey(t){
   return normalizeText(t.groupId) || normalizeText(t.tripNumber) || String(t._id);
@@ -1241,6 +1300,85 @@ async function handleSaveTrip(btn){
     }
   });
 
+validateRequiredTripFields({
+
+  entryName:
+    payload.entryName ??
+    trip.entryName,
+
+  entryPhone:
+    payload.entryPhone ??
+    trip.entryPhone,
+
+  clientName:
+    payload.clientName ??
+    trip.clientName,
+
+  clientPhone:
+    payload.clientPhone ??
+    trip.clientPhone,
+
+  pickup:
+    payload.pickup ??
+    trip.pickup,
+
+  dropoff:
+    payload.dropoff ??
+    trip.dropoff,
+
+  tripDate:
+    payload.tripDate ??
+    trip.tripDate,
+
+  tripTime:
+    payload.tripTime ??
+    trip.tripTime
+
+});
+
+validateFutureTripDateTime(
+
+  payload.tripDate ??
+  trip.tripDate,
+
+  payload.tripTime ??
+  trip.tripTime
+
+);
+
+const service =
+  getServiceByTrip(trip);
+
+const mins =
+  minutesToTrip({
+
+    tripDate:
+      payload.tripDate ??
+      trip.tripDate,
+
+    tripTime:
+      payload.tripTime ??
+      trip.tripTime
+
+  });
+
+if(
+  warningEnabled(service) &&
+  mins !== null &&
+  mins > 0 &&
+  mins <= getWarningMinutes(service)
+){
+
+  const ok = confirm(
+
+    `Warning: Trip is inside ${getWarningMinutes(service)} minute window.\n\nContinue saving?`
+
+  );
+
+  if(!ok) return;
+
+}
+
   payload.stops = stops;
   payload.status = "Scheduled";
 
@@ -1292,6 +1430,100 @@ async function handleSaveShared(btn){
     payload[field] = input.value;
   });
 
+for(const p of passengers){
+
+  if(
+    !String(
+      p.clientName ||
+      p.name ||
+      ""
+    ).trim()
+  ){
+    throw new Error(
+      "Passenger name required"
+    );
+  }
+
+  if(
+    !String(
+      p.clientPhone ||
+      p.phone ||
+      ""
+    ).trim()
+  ){
+    throw new Error(
+      "Passenger phone required"
+    );
+  }
+
+  if(
+    !String(
+      p.pickup || ""
+    ).trim()
+  ){
+    throw new Error(
+      "Passenger pickup required"
+    );
+  }
+
+  if(
+    !String(
+      p.dropoff || ""
+    ).trim()
+  ){
+    throw new Error(
+      "Passenger dropoff required"
+    );
+  }
+
+}
+
+validateFutureTripDateTime(
+
+  payload.tripDate ??
+  group[0].tripDate,
+
+  payload.tripTime ??
+  group[0].tripTime
+
+);
+
+const service =
+  getServiceByTrip(group[0]);
+
+const mins =
+  minutesToTrip({
+
+    tripDate:
+      payload.tripDate ??
+      group[0].tripDate,
+
+    tripTime:
+      payload.tripTime ??
+      group[0].tripTime
+
+  });
+
+if(
+
+  warningEnabled(service) &&
+
+  mins !== null &&
+
+  mins <=
+  getWarningMinutes(service)
+
+){
+
+  const ok = confirm(
+
+    `Warning: Shared trip is inside ${getWarningMinutes(service)} minute window.\n\nContinue saving?`
+
+  );
+
+  if(!ok) return;
+
+}
   payload.passengers = passengers;
   payload.status = "Scheduled";
 
