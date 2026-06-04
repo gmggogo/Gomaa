@@ -4602,7 +4602,53 @@ if(updateData.status === "Confirmed"){
       }
     }
 
-  
+  /* =========================
+   FINALIZER
+========================= */
+
+if(updateData.status === "Cancelled"){
+
+  updateData.isFinalized = true;
+
+  updateData.cancelDateTime =
+    new Date();
+
+  updateData.finalPrice =
+    Number(
+      existing.cancelFee ||
+      updateData.cancelFee ||
+      existing.finalPrice ||
+      0
+    );
+
+}
+
+else if(updateData.status === "No Show"){
+
+  updateData.isFinalized = true;
+
+  updateData.finalPrice =
+    Number(
+      existing.noShowFee ||
+      updateData.noShowFee ||
+      existing.finalPrice ||
+      0
+    );
+
+}
+
+else if(updateData.status === "Completed"){
+
+  updateData.isFinalized = true;
+
+  updateData.finalPrice =
+    Number(
+      existing.finalPrice ||
+      existing.priceAmount ||
+      0
+    );
+
+}
     /* =========================
        SAVE
     ========================= */
