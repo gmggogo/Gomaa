@@ -337,18 +337,6 @@ app.post(
 
   await trip.save();
 
-sendTripStatusEmail(
-  trip,
-  "CONFIRMED"
-).catch(err=>{
-
-  console.log(
-    "EMAIL ERROR:",
-    err
-  );
-
-});
-
 console.log(
   "✅ PAYMENT SUCCESS:",
   trip.tripNumber
@@ -5963,7 +5951,7 @@ app.post(
 
         }
 
-       /* =========================
+    /* =========================
    FREE CANCEL
 ========================= */
 
@@ -5974,27 +5962,25 @@ if(diffMinutes > warningMinutes){
 }
 
 /* =========================
-   CANCEL DISABLED
+   WARNING ACTIVE
 ========================= */
 
 else if(cancelDisabled === true){
-
-  fee = 0;
-
-}
-
-/* =========================
-   APPLY CANCEL FEE
-========================= */
-
-else{
 
   fee =
     Number(cancelFee || 0);
 
 }
 
-      }
+/* =========================
+   FREE INSIDE WINDOW
+========================= */
+
+else{
+
+  fee = 0;
+
+}
 
       /* =========================
          RESPONSE
