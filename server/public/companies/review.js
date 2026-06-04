@@ -1701,10 +1701,28 @@ async function handleCancelTrip(btn){
   const ok = confirm("Cancel this trip?");
   if(!ok) return;
 
-  await updateTrip(id,{
-    status:"Cancelled",
-    cancelledAt:new Date().toISOString()
-  });
+ const res = await fetch(
+  "/api/company/cancel-trip/" + id,
+  {
+    method:"POST",
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  }
+);
+
+if(!res.ok){
+
+  const err =
+    await res.json()
+    .catch(()=>({}));
+
+  throw new Error(
+    err.message ||
+    "Cancel failed"
+  );
+
+}
 
   await reloadTrips();
 }
