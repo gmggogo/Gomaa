@@ -43,6 +43,13 @@ const {
   "./utils/tripEmailEngine"
 );
 
+const {
+  finalizeIndividualTrip,
+  finalizeSharedPassenger
+} = require(
+  "./utils/trip-finalizer"
+);
+
 /* =========================
    ENV
 ========================= */
@@ -4931,40 +4938,20 @@ app.patch("/api/driver/trips/:id/complete", async (req, res) => {
        COMPLETE
     ========================= */
 
-    trip.status = "Completed";
+const final =
+Number(
+  trip.finalPrice ||
+  trip.priceAmount ||
+  0
+);
 
-    /* =========================
-       FINAL PRICE
-    ========================= */
-
-  const final =
-  Number(
-    trip.finalPrice ||
-    trip.priceAmount ||
-    0
-  );
-
-    /* =========================
-       PRICE AMOUNT
-    ========================= */
-
-    if (
-      !trip.priceAmount ||
-      trip.priceAmount === 0
-    ) {
-
-      trip.priceAmount = final;
-
-    }
-
-    /* =========================
-       SAVE FINAL
-    ========================= */
-
-    trip.finalPrice =
-      Number(final || 0);
-
-    trip.isFinalized = true;
+await finalizeIndividualTrip(
+  trip,
+  "COMPLETE",
+  {
+    finalPrice: final
+  }
+);
 
     /* =========================
        SHARED
@@ -5106,13 +5093,7 @@ trip.passengers =
 
 }
 
-    /* =========================
-       SAVE
-    ========================= */
-
-    await trip.save();
-
-    res.json(trip);
+res.json(trip);
 
   } catch (err) {
 
@@ -5123,6 +5104,7 @@ trip.passengers =
     });
 
   }
+
 });
 
 /* =========================
@@ -5159,20 +5141,21 @@ app.patch("/api/driver/trips/:id/no-show", async (req, res) => {
        NO SHOW
     ========================= */
 
-    trip.status = "No Show";
+const noShowFee =
+  Number(
+    trip.noShowFee ||
+    trip.finalPrice ||
+    trip.priceAmount ||
+    0
+  );
 
-    const noShowFee =
-      Number(
-        trip.noShowFee || 0
-      );
-
-    trip.finalPrice =
-      noShowFee;
-
-    trip.priceAmount =
-      noShowFee;
-
-    trip.isFinalized = true;
+await finalizeIndividualTrip(
+  trip,
+  "NOSHOW",
+  {
+    noShowFee
+  }
+);
 
     /* =========================
        SHARED SUPPORT
@@ -5199,12 +5182,6 @@ app.patch("/api/driver/trips/:id/no-show", async (req, res) => {
         }));
 
     }
-
-    /* =========================
-       SAVE
-    ========================= */
-
-    await trip.save();
 
     /* =========================
        EMAIL
@@ -5618,22 +5595,14 @@ const simpleRefundId =
    SAVE BEFORE STRIPE
 ========================= */
 
-trip.status = "Cancelled";
-
-trip.cancelDateTime =
-  new Date();
-
-trip.cancelFee =
-  Number(fee || 0);
-
-trip.finalPrice =
-  Number(fee || 0);
-
-trip.isFinalized = true;
-
-trip.refundAmount =
-  refundAmount;
-
+await finalizeIndividualTrip(
+  trip,
+  "CANCEL",
+  {
+    cancelFee: fee,
+    refundAmount
+  }
+);
 trip.simpleRefundId =
   simpleRefundId;
 
