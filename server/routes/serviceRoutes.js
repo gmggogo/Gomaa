@@ -12,10 +12,17 @@ router.get("/", async (req,res)=>{
 
   try{
 
+    const isCompany =
+      String(req.query.company || "")
+      .toLowerCase() === "true";
+
+    const filter =
+      isCompany
+      ? { companyEnabled:true }
+      : { enabled:true };
+
     const services =
-      await Service.find({
-        enabled:true
-      })
+      await Service.find(filter)
       .sort({ createdAt:1 });
 
     return res.json(services);
