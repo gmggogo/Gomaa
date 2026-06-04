@@ -5977,7 +5977,7 @@ else{
          RESPONSE
       ========================= */
 
-     res.json({
+    res.json({
 
   success:true,
 
@@ -6011,26 +6011,26 @@ else{
 
   timezone,
 
-alreadyCancelled:
-  trip.status ===
-  "Cancelled"
-
-      });
-
-    } catch (err) {
-
-      console.log(
-        "CHECK ERROR:",
-        err
-      );
-
-      res.status(500).json({
-        message:"Server error"
-      });
-
-    }
+  alreadyCancelled:
+    trip.status ===
+    "Cancelled"
 
 });
+
+}
+
+catch (err) {
+
+  console.log(
+    "CHECK ERROR:",
+    err
+  );
+
+  res.status(500).json({
+    message:"Server error"
+  });
+
+}
 
 /* =========================
    GET REFUNDS
