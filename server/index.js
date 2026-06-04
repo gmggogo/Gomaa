@@ -5573,20 +5573,15 @@ const cancelFee =
    APPLY CANCEL LOGIC
 ========================= */
 
-if(
-
-  cancelDisabled ||
-
-  diffMinutes > warningMinutes
-
-){
+if(diffMinutes > warningMinutes){
 
   fee = 0;
 
   refundAmount =
     totalAmount;
 
-}else{
+}
+else if(cancelDisabled === true){
 
   fee =
     Number(cancelFee || 0);
@@ -5599,6 +5594,14 @@ if(
     refundAmount = 0;
 
   }
+
+}
+else{
+
+  fee = 0;
+
+  refundAmount =
+    totalAmount;
 
 }
 
