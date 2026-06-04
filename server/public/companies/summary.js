@@ -161,6 +161,7 @@ function getPassengerPrice(p){
   if(isCancelled(p.status)){
 
     return Number(
+      p.cancelFee ??
       p.finalPrice ??
       p.priceAmount ??
       p.price ??
@@ -172,6 +173,7 @@ function getPassengerPrice(p){
   if(isNoShow(p.status)){
 
     return Number(
+      p.noShowFee ??
       p.finalPrice ??
       p.priceAmount ??
       p.price ??
