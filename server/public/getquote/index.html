@@ -1166,18 +1166,16 @@ window.selectedWarningPolicy = {
     pricingData.service?.noShowFee || 0
   ),
 
-disableCancel:
+  disableCancel:
 
-["true","on",true,1,"1"]
-.includes(
-  pricingData.disableCancel
-),
+  pricingData.disableCancel === true,
 
-warningEnabled:
+  warningEnabled:
 
-String(
-  pricingData.service?.warningEnabled || "enabled"
-).toLowerCase()
+  String(
+    pricingData.service?.warningEnabled || "enabled"
+  ).toLowerCase()
+
 };
 
 if(!pricingData.success){
