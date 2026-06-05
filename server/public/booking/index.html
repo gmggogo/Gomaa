@@ -905,15 +905,15 @@ async function confirmBooking(){
      WARNING
   ========================= */
 
-  if(
+if(
 
-    disableCancel === true &&
+  disableCancel === false &&
 
-    warningEnabled === true &&
+  warningEnabled === true &&
 
-    mins <= tripWarningMinutes
+  mins <= tripWarningMinutes
 
-  ){
+){
 
     let warningText = "";
 
