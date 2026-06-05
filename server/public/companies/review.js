@@ -1197,41 +1197,71 @@ async function reloadTrips(){
 }
 
 async function handleEditTrip(btn){
+
   const tr = btn.closest("tr");
   const id = tr.dataset.id;
   const trip = trips.find(t => t._id === id);
+
   if(!trip) return;
 
   const service = getServiceByTrip(trip);
   const mins = minutesToTrip(trip);
-  const warningMinutes = getWarningMinutes(service);
 
-  if(mins !== null && mins <= warningMinutes && mins > 0){
-    const ok = confirm(`This trip is within ${warningMinutes} minutes.\n\nContinue editing?`);
+  if(
+    warningEnabled(service) &&
+    mins !== null &&
+    mins <= getWarningMinutes(service) &&
+    mins > 0
+  ){
+
+    const ok = confirm(
+      `This trip is within ${getWarningMinutes(service)} minutes.\n\nContinue editing?`
+    );
+
     if(!ok) return;
+
   }
 
   trip.__editing = true;
   trip.status = "Scheduled";
 
-  await updateTrip(id,{ status:"Scheduled" });
-  render();
-}
+  await updateTrip(id,{
+    status:"Scheduled"
+  });
 
+  render();
+
+}
 async function handleEditShared(btn){
+
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
-  const group = getSharedGroups().find(g => getSharedKey(g[0]) === groupId);
+
+  const group =
+    getSharedGroups().find(
+      g => getSharedKey(g[0]) === groupId
+    );
+
   if(!group) return;
 
   const first = group[0];
+
   const service = getServiceByTrip(first);
   const mins = minutesToTrip(first);
-  const warningMinutes = getWarningMinutes(service);
 
-  if(mins !== null && mins <= warningMinutes && mins > 0){
-    const ok = confirm(`This shared trip is within ${warningMinutes} minutes.\n\nContinue editing?`);
+  if(
+    warningEnabled(service) &&
+    mins !== null &&
+    mins <= getWarningMinutes(service) &&
+    mins > 0
+  ){
+
+    const ok = confirm(
+      `This shared trip is within ${getWarningMinutes(service)} minutes.\n\nContinue editing?`
+    );
+
     if(!ok) return;
+
   }
 
   group.forEach(t=>{
@@ -1240,12 +1270,17 @@ async function handleEditShared(btn){
   });
 
   for(const t of group){
-    await updateTrip(t._id,{ status:"Scheduled" });
+
+    await updateTrip(
+      t._id,
+      { status:"Scheduled" }
+    );
+
   }
 
   render();
-}
 
+}
 async function handleCancelEdit(){
   await reloadTrips();
 }
