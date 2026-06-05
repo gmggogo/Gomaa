@@ -135,8 +135,8 @@ function checkDynamicWarning(dateValue,timeValue){
     getCurrentServiceConfig();
 
   const warningOn =
-    service.companyDisableCancel === true ||
-    service.disableCancel === true;
+  service.companyDisableCancel !== true &&
+service.disableCancel !== true
 
   if(!warningOn){
     return true;
