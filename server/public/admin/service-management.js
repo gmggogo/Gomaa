@@ -350,9 +350,9 @@ function renderServices(){
 
         <div class="field">
 
-          <label>
-            Turn Warning & Fee ON/OFF
-          </label>
+      <label>
+Warning & Cancel Fee Status
+</label>
 
          <select
   id="disablecancel-${service._id}"
@@ -366,29 +366,29 @@ function renderServices(){
   "
 >
 
-            <option
-              value="true"
-              ${service.disableCancel ? "selected" : ""}
-              style="
-                background:#16a34a;
-                color:#fff;
-                font-weight:700;
-              "
-            >
-              ON
-            </option>
+           <option
+  value="true"
+  ${service.disableCancel ? "selected" : ""}
+  style="
+    background:#16a34a;
+    color:#fff;
+    font-weight:700;
+  "
+>
+  DISABLED
+</option>
 
-            <option
-              value="false"
-              ${!service.disableCancel ? "selected" : ""}
-              style="
-                background:#dc2626;
-                color:#fff;
-                font-weight:700;
-              "
-            >
-              OFF
-            </option>
+<option
+  value="false"
+  ${!service.disableCancel ? "selected" : ""}
+  style="
+    background:#dc2626;
+    color:#fff;
+    font-weight:700;
+  "
+>
+  ENABLED
+</option>
 
           </select>
 
@@ -844,9 +844,9 @@ function renderCompanyServices(){
 
         <div class="field">
 
-          <label>
-            Turn Warning & Fee ON/OFF
-          </label>
+<label>
+Warning & Cancel Fee Status
+</label>
 
           <select
   id="company-disablecancel-${service._id}"
@@ -860,31 +860,31 @@ function renderCompanyServices(){
   "
 >
 
-            <option
-              value="true"
-              ${service.companyDisableCancel ? "selected" : ""}
-              style="
-                background:#16a34a;
-                color:#fff;
-                font-weight:700;
-              "
-            >
-              ON
-            </option>
+<option
+  value="true"
+  ${service.companyDisableCancel ? "selected" : ""}
+  style="
+    background:#16a34a;
+    color:#fff;
+    font-weight:700;
+  "
+>
+  DISABLED
+</option>
 
-            <option
-              value="false"
-              ${!service.companyDisableCancel ? "selected" : ""}
-              style="
-                background:#dc2626;
-                color:#fff;
-                font-weight:700;
-              "
-            >
-              OFF
-            </option>
+<option
+  value="false"
+  ${!service.companyDisableCancel ? "selected" : ""}
+  style="
+    background:#dc2626;
+    color:#fff;
+    font-weight:700;
+  "
+>
+  ENABLED
+</option>   
 
-          </select>
+       </select>
 
         </div>
 
