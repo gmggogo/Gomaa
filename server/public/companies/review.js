@@ -402,12 +402,15 @@ function getWarningMinutes(service){
 }
 
 function warningEnabled(service){
-  return (
+
+  const disabled =
+
     service?.companyDisableCancel === true ||
-    service?.disableCancel === true ||
-    service?.companyWarningEnabled === true ||
-    service?.warningEnabled === true
-  );
+
+    service?.disableCancel === true;
+
+  return !disabled;
+
 }
 
 /* ================= SERVER PRICING ================= */
