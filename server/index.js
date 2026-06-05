@@ -5604,7 +5604,7 @@ if(diffMinutes > warningMinutes){
     totalAmount;
 
 }
-else if(cancelDisabled === true){
+else if(cancelDisabled === false){
 
   fee =
     Number(cancelFee || 0);
@@ -5974,7 +5974,7 @@ if(diffMinutes > warningMinutes){
    WARNING ACTIVE
 ========================= */
 
-else if(cancelDisabled === true){
+else if(cancelDisabled === false){
 
   fee =
     Number(cancelFee || 0);
@@ -6089,10 +6089,10 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
     const service =
       await getServiceByTrip(trip);
 
- const totalCancelFee =
+const totalCancelFee =
 
-  service?.companyDisableCancel === false ||
-  service?.disableCancel === false
+  service?.companyDisableCancel === true ||
+  service?.disableCancel === true
 
     ? 0
 
