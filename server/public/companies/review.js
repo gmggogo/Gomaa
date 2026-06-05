@@ -1617,8 +1617,37 @@ async function handleConfirmTrip(btn){
   btn.disabled = true;
   btn.textContent = "Routing...";
 
-  const routePoints = buildIndividualRoutePoints(trip);
-  const routeData = await calculateRouteMiles(routePoints);
+const routePoints = [];
+
+if(trip.pickup){
+
+  routePoints.push(
+    normalizeUniqueAddress(trip.pickup)
+  );
+
+}
+
+(trip.stops || []).forEach(stop=>{
+
+  if(stop){
+
+    routePoints.push(
+      normalizeUniqueAddress(stop)
+    );
+
+  }
+
+});
+
+if(trip.dropoff){
+
+  routePoints.push(
+    normalizeUniqueAddress(trip.dropoff)
+  );
+
+}  
+
+const routeData = await calculateRouteMiles(routePoints);
 
   btn.textContent = "Pricing...";
 
