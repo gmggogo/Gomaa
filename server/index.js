@@ -5604,7 +5604,8 @@ if(diffMinutes > warningMinutes){
     totalAmount;
 
 }
-else if(cancelDisabled === true){
+
+else if(cancelDisabled === false){
 
   fee =
     Number(cancelFee || 0);
