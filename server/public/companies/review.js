@@ -916,14 +916,14 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
-    return `
-      <div class="actions-wrap">
-        <button class="btn confirm" data-action="confirm-trip">Confirm</button>
-        <button class="btn cancel" data-action="cancel-trip">Cancel</button>
-      </div>
-    `;
-  }
+if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
+  return `
+    <div class="actions-wrap">
+      <button class="btn confirm" data-action="confirm-trip">Confirm</button>
+      <button class="btn delete" data-action="delete-trip">Delete</button>
+    </div>
+  `;
+}
 
   if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
     return `
@@ -985,19 +985,19 @@ function renderSharedButtons(group,editing){
     `;
   }
 
-  if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
-    return `
-      <div class="actions-wrap">
-        <button class="btn confirm" data-action="confirm-shared">Confirm</button>
-        <button class="btn cancel" data-action="cancel-shared">Cancel</button>
-      </div>
-    `;
-  }
+if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
+  return `
+    <div class="actions-wrap">
+      <button class="btn confirm" data-action="confirm-trip">Confirm</button>
+      <button class="btn delete" data-action="delete-trip">Delete</button>
+    </div>
+  `;
+}
 
   if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
     return `
       <div class="actions-wrap">
-        <button class="btn cancel" data-action="cancel-shared">Cancel</button>
+        <button class="btn delete" data-action="delete-shared">Delete</button>
       </div>
     `;
   }
