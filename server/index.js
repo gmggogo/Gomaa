@@ -6401,16 +6401,18 @@ setInterval(async () => {
    AUTO CLOSE OLD TRIPS
 ========================= */
 
+const now = getSystemNow();
+
 const oldTrips = await Trip.find({
 
-status:{
-  $nin:[
-    "Completed",
-    "Cancelled",
-    "No Show",
-    "Not Completed"
-  ]
-}
+  status:{
+    $nin:[
+      "Completed",
+      "Cancelled",
+      "No Show",
+      "Not Completed"
+    ]
+  }
 
 });
 
