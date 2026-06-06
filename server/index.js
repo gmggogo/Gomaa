@@ -6429,24 +6429,38 @@ for(const trip of oldTrips){
     }
 
     const diffHours =
-      (now - tripDateTime) /
-      (1000 * 60 * 60);
+  (now - tripDateTime) /
+  (1000 * 60 * 60);
+
+console.log(
+  "AUTO CHECK",
+  trip.tripNumber,
+  trip.tripDate,
+  trip.tripTime,
+  diffHours
+);
 
 if(diffHours >= 0.01){
-      await Trip.findByIdAndUpdate(
-        trip._id,
-        {
-          status:"Not Completed",
-          priceAmount:0,
-          finalPrice:0,
-          miles:0,
-          distanceMeters:0,
-          durationSeconds:0,
-          estimatedMinutes:0
-        }
-      );
 
+  console.log(
+    "AUTO CLOSE",
+    trip.tripNumber
+  );
+
+  await Trip.findByIdAndUpdate(
+    trip._id,
+    {
+      status:"Not Completed",
+      priceAmount:0,
+      finalPrice:0,
+      miles:0,
+      distanceMeters:0,
+      durationSeconds:0,
+      estimatedMinutes:0
     }
+  );
+
+}
 
   }catch(err){
 
