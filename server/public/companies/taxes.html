@@ -3,38 +3,26 @@
 <head>
 
 <meta charset="UTF-8">
-
 <title>Facility Revenue Report</title>
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="layout.css">
 
 <style>
-
-/* ================= GLOBAL ================= */
-
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 :root{
-
   --blue:#145cff;
   --blueDark:#0f46c9;
-
   --green:#16a34a;
   --red:#dc2626;
   --orange:#ea580c;
-
+  --purple:#7c3aed;
   --text:#0f172a;
   --muted:#64748b;
-
   --border:#dbe3ee;
-
   --bg:#f4f8fb;
-
+  --card:#ffffff;
 }
 
 body{
@@ -45,8 +33,6 @@ body{
   overflow-x:hidden;
 }
 
-/* ================= HEADER ================= */
-
 #layoutHeader{
   position:sticky;
   top:0;
@@ -55,117 +41,69 @@ body{
   box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
 
-/* ================= PAGE ================= */
-
 .page{
-
   width:100%;
   max-width:1800px;
-
   margin:auto;
-
-  padding:88px 14px 24px;
-
+  padding:88px 14px 26px;
 }
 
-/* ================= TOP ================= */
-
 .top-bar{
-
   display:flex;
-
   justify-content:space-between;
-
-  align-items:center;
-
+  align-items:flex-start;
   gap:16px;
-
   flex-wrap:wrap;
-
-  margin-bottom:22px;
-
+  margin-bottom:18px;
 }
 
 .title-wrap{
   display:flex;
   flex-direction:column;
-  gap:4px;
+  gap:6px;
 }
 
 .page-title{
-
   font-size:34px;
-
   font-weight:900;
-
   color:#1e3a8a;
-
   line-height:1;
-
 }
 
 .page-sub{
-
   font-size:13px;
-
   color:var(--muted);
-
-  font-weight:700;
-
+  font-weight:800;
 }
 
 .filters{
-
   display:flex;
-
   gap:10px;
-
   flex-wrap:wrap;
-
   align-items:center;
-
 }
 
 .filter-input{
-
   height:44px;
-
   border:none;
-
   border-radius:12px;
-
   background:#fff;
-
   padding:0 14px;
-
   font-size:13px;
-
   box-shadow:0 2px 8px rgba(0,0,0,.05);
-
   font-weight:800;
-
   color:var(--text);
-
 }
 
 .btn{
-
   border:none;
-
   border-radius:12px;
-
   height:44px;
-
   padding:0 18px;
-
   font-size:13px;
-
   font-weight:900;
-
   cursor:pointer;
-
   transition:.2s;
-
 }
 
 .btn-blue{
@@ -186,218 +124,193 @@ body{
   opacity:.92;
 }
 
-/* ================= FACILITY ================= */
-
-.facility-box{
-
-  background:#fff;
-
-  border-radius:18px;
-
-  padding:20px;
-
-  margin-bottom:20px;
-
-  border:1px solid #eef2f7;
-
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
-
+.btn-dark{
+  background:#111827;
+  color:#fff;
 }
 
-.facility-name{
+/* ================= REPORT HEADER ================= */
 
-  font-size:26px;
+.report-head{
+  background:linear-gradient(135deg,#ffffff,#f8fbff);
+  border:1px solid #e5edf7;
+  border-radius:22px;
+  padding:22px;
+  margin-bottom:18px;
+  box-shadow:0 10px 28px rgba(15,23,42,.07);
+  display:grid;
+  grid-template-columns:1.2fr 1fr;
+  gap:18px;
+}
 
+.report-main-title{
+  font-size:28px;
   font-weight:900;
-
-  color:#111827;
-
+  color:#0f172a;
+  margin-bottom:8px;
 }
 
-.facility-sub{
-
-  margin-top:6px;
-
-  color:var(--muted);
-
+.report-line{
   font-size:13px;
-
-  font-weight:700;
-
-}
-.provider-info{
-
-  margin-top:10px;
-
-  font-size:13px;
-
+  font-weight:800;
   color:#334155;
-
-  font-weight:700;
-
+  line-height:1.8;
 }
 
-.provider-info strong{
-  color:#111827;
+.report-line strong{
+  color:#0f172a;
+}
+
+.report-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.meta-box{
+  background:#fff;
+  border:1px solid #e5edf7;
+  border-radius:16px;
+  padding:14px;
+}
+
+.meta-label{
+  font-size:11px;
+  color:var(--muted);
+  font-weight:900;
+  margin-bottom:8px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.meta-value{
+  font-size:15px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+/* ================= SECTIONS ================= */
+
+.section{
+  background:#fff;
+  border-radius:22px;
+  padding:20px;
+  margin-bottom:18px;
+  border:1px solid #eef2f7;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+}
+
+.section-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.section-title{
+  font-size:21px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.section-note{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:800;
 }
 
 /* ================= CARDS ================= */
 
 .cards{
-
   display:grid;
-
-  grid-template-columns:
-  repeat(auto-fit,minmax(220px,1fr));
-
-  gap:14px;
-
-  margin-bottom:24px;
-
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:12px;
 }
 
 .card{
-
   background:#fff;
-
   border-radius:18px;
+  padding:18px;
+  border:1px solid #eaf0f7;
+  box-shadow:0 5px 15px rgba(15,23,42,.05);
+  position:relative;
+  overflow:hidden;
+}
 
-  padding:20px;
-
-  border:1px solid #eef2f7;
-
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
-
+.card:before{
+  content:"";
+  position:absolute;
+  right:-28px;
+  top:-28px;
+  width:85px;
+  height:85px;
+  border-radius:50%;
+  background:rgba(20,92,255,.08);
 }
 
 .card-title{
-
-  font-size:13px;
-
+  font-size:12px;
   color:var(--muted);
-
   margin-bottom:10px;
-
-  font-weight:800;
-
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.03em;
 }
 
 .card-value{
-
-  font-size:32px;
-
+  font-size:30px;
   font-weight:900;
-
   line-height:1;
-
 }
 
-.green{
-  color:var(--green);
+.card-small{
+  margin-top:8px;
+  font-size:11px;
+  color:var(--muted);
+  font-weight:800;
 }
 
-.blue{
-  color:var(--blue);
-}
-
-.red{
-  color:var(--red);
-}
-
-.orange{
-  color:var(--orange);
-}
-
-/* ================= SECTION ================= */
-
-.section{
-
-  background:#fff;
-
-  border-radius:20px;
-
-  padding:22px;
-
-  margin-bottom:24px;
-
-  border:1px solid #eef2f7;
-
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
-
-}
-
-.section-title{
-
-  font-size:22px;
-
-  font-weight:900;
-
-  margin-bottom:18px;
-
-  color:var(--text);
-
-}
+.green{color:var(--green);}
+.blue{color:var(--blue);}
+.red{color:var(--red);}
+.orange{color:var(--orange);}
+.purple{color:var(--purple);}
 
 /* ================= TABLE ================= */
 
 .table-wrap{
-
   width:100%;
-
   overflow-x:auto;
-
   border-radius:16px;
-
   border:1px solid var(--border);
-
 }
 
 table{
-
   width:100%;
-
   border-collapse:collapse;
-
-  min-width:850px;
-
+  min-width:1050px;
 }
 
 th{
-
   background:#dbe4f0;
-
   color:#0f172a;
-
   font-size:11px;
-
   font-weight:900;
-
   text-align:center;
-
-  padding:14px 10px;
-
+  padding:13px 10px;
   white-space:nowrap;
-
   border-bottom:2px solid #cbd5e1;
-
 }
 
 td{
-
   padding:12px 10px;
-
   font-size:11px;
-
   text-align:center;
-
   border-bottom:1px solid #eef2f7;
-
-  font-weight:700;
-
+  font-weight:800;
   color:#111827;
-
   white-space:nowrap;
-
 }
 
 tr:nth-child(even) td{
@@ -414,25 +327,15 @@ tr:hover td{
 }
 
 .status-pill{
-
   display:inline-flex;
-
   align-items:center;
-
   justify-content:center;
-
-  min-width:90px;
-
+  min-width:94px;
   height:28px;
-
   padding:0 10px;
-
   border-radius:999px;
-
   font-size:11px;
-
   font-weight:900;
-
 }
 
 .status-completed{
@@ -450,6 +353,13 @@ tr:hover td{
   color:#92400e;
 }
 
+.empty{
+  padding:26px;
+  text-align:center;
+  color:var(--muted);
+  font-weight:900;
+}
+
 /* ================= MOBILE ================= */
 
 @media(max-width:768px){
@@ -459,11 +369,7 @@ tr:hover td{
   }
 
   .page-title{
-    font-size:26px;
-  }
-
-  .facility-name{
-    font-size:22px;
+    font-size:25px;
   }
 
   .filters{
@@ -472,22 +378,27 @@ tr:hover td{
 
   .filter-input,
   .btn{
-
     width:100%;
-
     height:42px;
-
     font-size:12px;
+  }
 
+  .report-head{
+    grid-template-columns:1fr;
+    padding:16px;
+  }
+
+  .report-main-title{
+    font-size:23px;
+  }
+
+  .report-meta{
+    grid-template-columns:1fr;
   }
 
   .cards{
-
-    grid-template-columns:
-    1fr 1fr;
-
+    grid-template-columns:1fr 1fr;
     gap:10px;
-
   }
 
   .card{
@@ -495,11 +406,11 @@ tr:hover td{
   }
 
   .card-title{
-    font-size:11px;
+    font-size:10px;
   }
 
   .card-value{
-    font-size:24px;
+    font-size:23px;
   }
 
   .section{
@@ -511,7 +422,7 @@ tr:hover td{
   }
 
   table{
-    min-width:760px;
+    min-width:980px;
   }
 
   th,
@@ -545,14 +456,32 @@ tr:hover td{
     max-width:100% !important;
   }
 
+  .top-bar{
+    margin-bottom:10px;
+  }
+
+  .report-head,
   .card,
-  .section,
-  .facility-box{
-
+  .section{
     box-shadow:none !important;
+    border:1px solid #d1d5db !important;
+    break-inside:avoid;
+  }
 
-    border:1px solid #d1d5db;
+  .cards{
+    grid-template-columns:repeat(4,1fr) !important;
+  }
 
+  .card{
+    padding:10px !important;
+  }
+
+  .card-title{
+    font-size:9px !important;
+  }
+
+  .card-value{
+    font-size:18px !important;
   }
 
   .table-wrap{
@@ -565,8 +494,8 @@ tr:hover td{
 
   th,
   td{
-    font-size:10px !important;
-    padding:6px !important;
+    font-size:9px !important;
+    padding:5px !important;
   }
 
 }
@@ -581,20 +510,15 @@ tr:hover td{
 
 <div class="page">
 
-  <!-- TOP -->
-
   <div class="top-bar">
 
     <div class="title-wrap">
-
       <div class="page-title">
         Facility Revenue Report
       </div>
-
       <div class="page-sub">
-        Transportation Billing Summary
+        Transportation Billing & Tax Summary
       </div>
-
     </div>
 
     <div class="filters">
@@ -618,6 +542,12 @@ tr:hover td{
       </button>
 
       <button
+        class="btn btn-dark"
+        id="csvBtn">
+        Export CSV
+      </button>
+
+      <button
         class="btn btn-green"
         id="printBtn">
         Print Report
@@ -627,139 +557,286 @@ tr:hover td{
 
   </div>
 
-  <!-- FACILITY -->
+  <!-- REPORT HEADER -->
 
-<div class="facility-box">
+  <div class="report-head">
 
-  <div
-    class="facility-name"
-    id="facilityName">
+    <div>
 
-    Facility Name
+      <div class="report-main-title">
+        Tax & Revenue Statement
+      </div>
+
+      <div class="report-line">
+        Facility:
+        <strong id="facilityName">
+          --
+        </strong>
+      </div>
+
+      <div class="report-line">
+        Transportation Provider:
+        <strong id="providerName">
+          --
+        </strong>
+      </div>
+
+      <div class="report-line">
+        Report Type:
+        <strong>
+          Facility Revenue / Billing Tax Summary
+        </strong>
+      </div>
+
+    </div>
+
+    <div class="report-meta">
+
+      <div class="meta-box">
+        <div class="meta-label">
+          Billing Start
+        </div>
+        <div
+          class="meta-value"
+          id="billingStart">
+          --
+        </div>
+      </div>
+
+      <div class="meta-box">
+        <div class="meta-label">
+          Billing End
+        </div>
+        <div
+          class="meta-value"
+          id="billingEnd">
+          --
+        </div>
+      </div>
+
+      <div class="meta-box">
+        <div class="meta-label">
+          Generated Date
+        </div>
+        <div
+          class="meta-value"
+          id="generatedDate">
+          --
+        </div>
+      </div>
+
+      <div class="meta-box">
+        <div class="meta-label">
+          Records
+        </div>
+        <div
+          class="meta-value"
+          id="recordCount">
+          0
+        </div>
+      </div>
+
+    </div>
 
   </div>
 
-  <div class="facility-sub">
+  <!-- REVENUE SUMMARY -->
 
-    Generated transportation billing
-    and trip revenue summary.
+  <div class="section">
+
+    <div class="section-top">
+      <div class="section-title">
+        Revenue Summary
+      </div>
+      <div class="section-note">
+        Completed, Cancelled, and No Show billable amounts
+      </div>
+    </div>
+
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-title">
+          Total Revenue
+        </div>
+        <div
+          class="card-value green"
+          id="totalRevenue">
+          $0.00
+        </div>
+        <div class="card-small">
+          All billable activity
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Completed Revenue
+        </div>
+        <div
+          class="card-value green"
+          id="completedRevenue">
+          $0.00
+        </div>
+        <div class="card-small">
+          Completed trips only
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Cancelled Revenue
+        </div>
+        <div
+          class="card-value red"
+          id="cancelledRevenue">
+          $0.00
+        </div>
+        <div class="card-small">
+          Cancellation fees
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          No Show Revenue
+        </div>
+        <div
+          class="card-value orange"
+          id="noShowRevenue">
+          $0.00
+        </div>
+        <div class="card-small">
+          No show fees
+        </div>
+      </div>
+
+    </div>
 
   </div>
 
-  <!-- ADD THIS -->
+  <!-- TRIP SUMMARY -->
 
-  <div class="provider-info">
+  <div class="section">
 
-    Transportation Provider:
-    <strong>
-      Sunbeam Transportation LLC
-    </strong>
+    <div class="section-top">
+      <div class="section-title">
+        Trip Summary
+      </div>
+      <div class="section-note">
+        Operational activity for selected period
+      </div>
+    </div>
+
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-title">
+          Total Trips
+        </div>
+        <div
+          class="card-value blue"
+          id="totalTrips">
+          0
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Individual Trips
+        </div>
+        <div
+          class="card-value blue"
+          id="individualTrips">
+          0
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Shared Trips
+        </div>
+        <div
+          class="card-value orange"
+          id="sharedTrips">
+          0
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Shared Passengers
+        </div>
+        <div
+          class="card-value orange"
+          id="sharedPassengers">
+          0
+        </div>
+      </div>
+
+    </div>
 
   </div>
 
-</div>
+  <!-- STATUS SUMMARY -->
 
-  <!-- STATS -->
+  <div class="section">
 
-  <div class="cards">
-
-    <div class="card">
-      <div class="card-title">
-        Total Revenue
+    <div class="section-top">
+      <div class="section-title">
+        Status Summary
       </div>
-      <div
-        class="card-value green"
-        id="totalRevenue">
-        $0
+      <div class="section-note">
+        Billable status count
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">
-        Total Trips
-      </div>
-      <div
-        class="card-value blue"
-        id="totalTrips">
-        0
-      </div>
-    </div>
+    <div class="cards">
 
-    <div class="card">
-      <div class="card-title">
-        Individual Trips
+      <div class="card">
+        <div class="card-title">
+          Completed Trips
+        </div>
+        <div
+          class="card-value green"
+          id="completedTrips">
+          0
+        </div>
       </div>
-      <div
-        class="card-value blue"
-        id="individualTrips">
-        0
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        Shared Trips
+      <div class="card">
+        <div class="card-title">
+          Cancelled Trips
+        </div>
+        <div
+          class="card-value red"
+          id="cancelledTrips">
+          0
+        </div>
       </div>
-      <div
-        class="card-value orange"
-        id="sharedTrips">
-        0
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        Shared Passengers
+      <div class="card">
+        <div class="card-title">
+          No Show Trips
+        </div>
+        <div
+          class="card-value orange"
+          id="noShowTrips">
+          0
+        </div>
       </div>
-      <div
-        class="card-value orange"
-        id="sharedPassengers">
-        0
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        Completed Trips
+      <div class="card">
+        <div class="card-title">
+          Total Miles
+        </div>
+        <div
+          class="card-value purple"
+          id="totalMiles">
+          0.0
+        </div>
       </div>
-      <div
-        class="card-value green"
-        id="completedTrips">
-        0
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">
-        Cancelled Trips
-      </div>
-      <div
-        class="card-value red"
-        id="cancelledTrips">
-        0
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        No Show Trips
-      </div>
-      <div
-        class="card-value red"
-        id="noShowTrips">
-        0
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        Total Miles
-      </div>
-      <div
-        class="card-value blue"
-        id="totalMiles">
-        0.0 mi
-      </div>
     </div>
 
   </div>
@@ -768,8 +845,13 @@ tr:hover td{
 
   <div class="section">
 
-    <div class="section-title">
-      Trips Billing Report
+    <div class="section-top">
+      <div class="section-title">
+        Detailed Billing Records
+      </div>
+      <div class="section-note">
+        Source records used to calculate report totals
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -777,19 +859,17 @@ tr:hover td{
       <table id="tripTable">
 
         <thead>
-
           <tr>
             <th>#</th>
-            <th>Trip#</th>
+            <th>Trip #</th>
             <th>Type</th>
             <th>Status</th>
+            <th>Passengers</th>
             <th>Miles</th>
             <th>Revenue</th>
-            <th style="min-width:130px">
-              Date
-            </th>
+            <th>Trip Date</th>
+            <th>Booking Date</th>
           </tr>
-
         </thead>
 
         <tbody></tbody>
@@ -809,6 +889,9 @@ tr:hover td{
 const token =
   localStorage.getItem("token");
 
+const loggedCompanyName =
+  localStorage.getItem("name") || "";
+
 const startDateInput =
   document.getElementById("startDate");
 
@@ -821,63 +904,168 @@ const applyBtn =
 const printBtn =
   document.getElementById("printBtn");
 
+const csvBtn =
+  document.getElementById("csvBtn");
+
 let allTrips = [];
+let currentRows = [];
+let providerName = "";
+
+/* ================= HELPERS ================= */
 
 function money(v){
+  return "$" + Number(v || 0).toFixed(2);
+}
 
-  return "$" +
-    Number(v || 0).toFixed(2);
-
+function num(v){
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
 }
 
 function escapeHtml(v){
-
-  return String(v || "")
+  return String(v ?? "")
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;");
+}
+
+function formatDate(value){
+
+  if(!value){
+    return "--";
+  }
+
+  const d =
+    new Date(value);
+
+  if(isNaN(d.getTime())){
+    return "--";
+  }
+
+  return d.toLocaleDateString(
+    "en-US",
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric"
+    }
+  );
 
 }
 
-/* ================= FETCH ================= */
-async function loadTrips(){
+function statusKey(status){
+
+  const s =
+    String(status || "")
+      .toLowerCase()
+      .replace(/\s+/g,"")
+      .trim();
+
+  if(s.includes("complete")){
+    return "completed";
+  }
+
+  if(s.includes("cancel")){
+    return "cancelled";
+  }
+
+  if(s.includes("no")){
+    return "noshow";
+  }
+
+  return "";
+
+}
+
+function isSharedTrip(t){
+
+  return (
+    t?.isShared === true ||
+    String(t?.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH") ||
+    String(t?.groupId || "")
+      .trim() !== "" ||
+    String(t?.tripType || "")
+      .toUpperCase()
+      .includes("SHARED")
+  );
+
+}
+
+function getTripDate(t){
+  return t.tripDate || "";
+}
+
+function getBookingDate(t){
+  return t.createdAt || t.bookedAt || "";
+}
+
+/* ================= BRANDING ================= */
+
+async function loadBranding(){
 
   try{
 
     const res =
-      await fetch("/api/trips",{
+      await fetch("/api/system-design");
 
+    const data =
+      await res.json();
+
+    providerName =
+      data.companyName ||
+      "Transportation Provider";
+
+  }catch(err){
+
+    providerName =
+      "Transportation Provider";
+
+  }
+
+  document.getElementById(
+    "providerName"
+  ).innerText =
+    providerName;
+
+}
+
+/* ================= FETCH ================= */
+
+async function loadTrips(){
+
+  const res =
+    await fetch(
+      "/api/trips",
+      {
         headers:{
           Authorization:
             "Bearer " + token
         }
-
-      });
-
-    if(!res.ok){
-
-      alert("Failed loading trips");
-
-      return;
-
-    }
-
-    allTrips =
-      await res.json();
-
-    const companyName =
-      localStorage.getItem("name");
-
-    allTrips = allTrips.filter(
-      t => t.company === companyName
+      }
     );
 
-    render(allTrips);
-
-  }catch(err){
-
-    console.log(err);
-
+  if(!res.ok){
+    alert("Failed loading trips");
+    return;
   }
+
+  const data =
+    await res.json();
+
+  allTrips =
+    Array.isArray(data)
+      ? data.filter(t =>
+          String(t.company || "")
+            .trim()
+            .toLowerCase() ===
+          String(loggedCompanyName || "")
+            .trim()
+            .toLowerCase()
+        )
+      : [];
+
+  render(allTrips);
 
 }
 
@@ -887,18 +1075,12 @@ function applyFilters(){
 
   const start =
     startDateInput.value
-      ? new Date(
-          startDateInput.value +
-          "T00:00:00"
-        )
+      ? new Date(startDateInput.value + "T00:00:00")
       : null;
 
   const end =
     endDateInput.value
-      ? new Date(
-          endDateInput.value +
-          "T23:59:59"
-        )
+      ? new Date(endDateInput.value + "T23:59:59")
       : null;
 
   let filtered =
@@ -907,12 +1089,20 @@ function applyFilters(){
   filtered =
     filtered.filter(t=>{
 
-      const dt =
-        t.createdAt
-          ? new Date(t.createdAt)
-          : null;
+      const raw =
+        getTripDate(t) ||
+        getBookingDate(t);
 
-      if(!dt){
+      if(!raw){
+        return false;
+      }
+
+      const dt =
+        getTripDate(t)
+          ? new Date(getTripDate(t) + "T12:00:00")
+          : new Date(raw);
+
+      if(isNaN(dt.getTime())){
         return false;
       }
 
@@ -932,386 +1122,485 @@ function applyFilters(){
 
 }
 
+/* ================= BUILD BILLABLE ROWS ================= */
+
+function buildRows(trips){
+
+  const rows = [];
+
+  trips.forEach(t=>{
+
+    const shared =
+      isSharedTrip(t);
+
+    if(
+      shared &&
+      Array.isArray(t.passengers) &&
+      t.passengers.length
+    ){
+
+      const validPassengers =
+        t.passengers.filter(p =>
+          statusKey(p.status || t.status)
+        );
+
+      if(!validPassengers.length){
+        return;
+      }
+
+      let totalRevenue = 0;
+
+      validPassengers.forEach(p=>{
+
+        const ps =
+          statusKey(p.status || t.status);
+
+        if(ps === "completed"){
+
+          totalRevenue += num(
+            p.finalPrice ||
+            p.priceAmount ||
+            p.price ||
+            0
+          );
+
+        }
+
+        if(ps === "cancelled"){
+
+          totalRevenue += num(
+            p.cancelFee ||
+            p.finalPrice ||
+            p.priceAmount ||
+            t.cancelFee ||
+            0
+          );
+
+        }
+
+        if(ps === "noshow"){
+
+          totalRevenue += num(
+            p.noShowFee ||
+            p.finalPrice ||
+            p.priceAmount ||
+            t.noShowFee ||
+            0
+          );
+
+        }
+
+      });
+
+      const groupStatus =
+        statusKey(t.status) ||
+        statusKey(validPassengers[0]?.status);
+
+      rows.push({
+        id:t._id,
+        tripNumber:t.tripNumber || "",
+        type:"Shared",
+        status:groupStatus,
+        passengers:validPassengers.length,
+        miles:
+          groupStatus === "completed"
+            ? num(t.miles)
+            : 0,
+        revenue:totalRevenue,
+        tripDate:getTripDate(t),
+        bookingDate:getBookingDate(t)
+      });
+
+      return;
+
+    }
+
+    const s =
+      statusKey(t.status);
+
+    if(!s){
+      return;
+    }
+
+    let revenue = 0;
+
+    if(s === "completed"){
+
+      revenue =
+        num(
+          t.finalPrice ||
+          t.priceAmount ||
+          t.price ||
+          0
+        );
+
+    }
+
+    if(s === "cancelled"){
+
+      revenue =
+        num(
+          t.cancelFee ||
+          t.finalPrice ||
+          t.priceAmount ||
+          0
+        );
+
+    }
+
+    if(s === "noshow"){
+
+      revenue =
+        num(
+          t.noShowFee ||
+          t.finalPrice ||
+          t.priceAmount ||
+          0
+        );
+
+    }
+
+    rows.push({
+      id:t._id,
+      tripNumber:t.tripNumber || "",
+      type:"Individual",
+      status:s,
+      passengers:1,
+      miles:
+        s === "completed"
+          ? num(t.miles)
+          : 0,
+      revenue,
+      tripDate:getTripDate(t),
+      bookingDate:getBookingDate(t)
+    });
+
+  });
+
+  return rows;
+
+}
+
 /* ================= RENDER ================= */
 
 function render(trips){
 
-  let totalRevenue = 0;
+  currentRows =
+    buildRows(trips);
 
-  let totalTrips = 0;
+  let totalRevenue = 0;
+  let completedRevenue = 0;
+  let cancelledRevenue = 0;
+  let noShowRevenue = 0;
 
   let individualTrips = 0;
-
   let sharedTrips = 0;
+  let sharedPassengers = 0;
 
   let completedTrips = 0;
-
   let cancelledTrips = 0;
-
   let noShowTrips = 0;
 
   let totalMiles = 0;
 
-  let totalSharedPassengers = 0;
+  currentRows.forEach(r=>{
 
-  const sharedGroups =
-    new Set();
+    totalRevenue += r.revenue;
+    totalMiles += r.miles;
 
-  const completedGroups =
-    new Set();
+    if(r.type === "Shared"){
+      sharedTrips++;
+      sharedPassengers += r.passengers;
+    }else{
+      individualTrips++;
+    }
 
-  const cancelledGroups =
-    new Set();
+    if(r.status === "completed"){
+      completedTrips++;
+      completedRevenue += r.revenue;
+    }
 
-  const noShowGroups =
-    new Set();
+    if(r.status === "cancelled"){
+      cancelledTrips++;
+      cancelledRevenue += r.revenue;
+    }
 
-  const tripBody =
+    if(r.status === "noshow"){
+      noShowTrips++;
+      noShowRevenue += r.revenue;
+    }
+
+  });
+
+  const totalTrips =
+    individualTrips + sharedTrips;
+
+  document.getElementById("facilityName").innerText =
+    loggedCompanyName || "Facility";
+
+  document.getElementById("generatedDate").innerText =
+    formatDate(new Date());
+
+  document.getElementById("recordCount").innerText =
+    currentRows.length;
+
+  let periodStart =
+    startDateInput.value
+      ? formatDate(startDateInput.value + "T12:00:00")
+      : "--";
+
+  let periodEnd =
+    endDateInput.value
+      ? formatDate(endDateInput.value + "T12:00:00")
+      : "--";
+
+  if(!startDateInput.value || !endDateInput.value){
+
+    const dates =
+      currentRows
+        .map(r => r.tripDate)
+        .filter(Boolean)
+        .sort();
+
+    if(dates.length){
+
+      if(!startDateInput.value){
+        periodStart =
+          formatDate(dates[0] + "T12:00:00");
+      }
+
+      if(!endDateInput.value){
+        periodEnd =
+          formatDate(dates[dates.length - 1] + "T12:00:00");
+      }
+
+    }
+
+  }
+
+  document.getElementById("billingStart").innerText =
+    periodStart;
+
+  document.getElementById("billingEnd").innerText =
+    periodEnd;
+
+  document.getElementById("totalRevenue").innerText =
+    money(totalRevenue);
+
+  document.getElementById("completedRevenue").innerText =
+    money(completedRevenue);
+
+  document.getElementById("cancelledRevenue").innerText =
+    money(cancelledRevenue);
+
+  document.getElementById("noShowRevenue").innerText =
+    money(noShowRevenue);
+
+  document.getElementById("totalTrips").innerText =
+    totalTrips;
+
+  document.getElementById("individualTrips").innerText =
+    individualTrips;
+
+  document.getElementById("sharedTrips").innerText =
+    sharedTrips;
+
+  document.getElementById("sharedPassengers").innerText =
+    sharedPassengers;
+
+  document.getElementById("completedTrips").innerText =
+    completedTrips;
+
+  document.getElementById("cancelledTrips").innerText =
+    cancelledTrips;
+
+  document.getElementById("noShowTrips").innerText =
+    noShowTrips;
+
+  document.getElementById("totalMiles").innerText =
+    totalMiles.toFixed(1);
+
+  const tbody =
     document.querySelector(
       "#tripTable tbody"
     );
 
-  tripBody.innerHTML = "";
+  if(!currentRows.length){
 
-  let rowIndex = 1;
-
-  const facilityName =
-    trips.find(t=>t.company)
-    ?.company || "Facility";
-
-  document.getElementById(
-    "facilityName"
-  ).innerText =
-    facilityName;
-
-  trips.forEach(t=>{
-
-    const status =
-      String(t.status || "")
-        .toLowerCase()
-        .trim();
-
-    const isCompleted =
-      status === "completed";
-
-    const isCancelled =
-      status === "cancelled";
-
-    const isNoShow =
-
-      status === "noshow" ||
-
-      status === "no show";
-
-    if(
-      !isCompleted &&
-      !isCancelled &&
-      !isNoShow
-    ){
-      return;
-    }
-
-    const tripNo =
-      String(t.tripNumber || "")
-        .toUpperCase()
-        .trim();
-
-    const isShared =
-
-      t.isShared === true ||
-
-      tripNo.includes("-SH") ||
-
-      String(
-        t.groupId || ""
-      ).trim() !== "";
-
-    const sharedKey =
-      String(
-        t.groupId ||
-        t.tripNumber ||
-        t._id
-      );
-
- let revenue = 0;
-
-/* NO SHOW + CANCELLED */
-
-if(
-  isCancelled ||
-  isNoShow
-){
-
-  revenue = Number(
-    t.cancelFee || 15
-  );
-
-}
-
-/* COMPLETED */
-
-else{
-
-  revenue =
-    Number(
-      t.finalPrice ||
-      t.priceAmount ||
-      t.price ||
-      0
-    );
-
-}
-
-    let passengersCount = 1;
-
-    if(
-      isShared &&
-      Array.isArray(t.passengers) &&
-      t.passengers.length
-    ){
-      passengersCount =
-        t.passengers.length;
-    }
-
-    totalRevenue +=
-      revenue * passengersCount;
-
-  if(isCompleted){
-
-  totalMiles +=
-    Math.round(
-      Number(t.miles || 0)
-    );
-
-}
-
-    if(isShared){
-
-      if(
-        !sharedGroups.has(sharedKey)
-      ){
-
-        sharedGroups.add(sharedKey);
-
-        sharedTrips++;
-
-      }
-
-      totalSharedPassengers +=
-        passengersCount;
-
-    }else{
-
-      individualTrips++;
-
-    }
-
-    totalTrips =
-      individualTrips +
-      sharedTrips;
-
-    if(isCompleted){
-
-      if(isShared){
-
-        if(
-          !completedGroups.has(sharedKey)
-        ){
-
-          completedGroups.add(sharedKey);
-
-          completedTrips++;
-
-        }
-
-      }else{
-
-        completedTrips++;
-
-      }
-
-    }
-
-    if(isCancelled){
-
-      if(isShared){
-
-        if(
-          !cancelledGroups.has(sharedKey)
-        ){
-
-          cancelledGroups.add(sharedKey);
-
-          cancelledTrips++;
-
-        }
-
-      }else{
-
-        cancelledTrips++;
-
-      }
-
-    }
-
-    if(isNoShow){
-
-      if(isShared){
-
-        if(
-          !noShowGroups.has(sharedKey)
-        ){
-
-          noShowGroups.add(sharedKey);
-
-          noShowTrips++;
-
-        }
-
-      }else{
-
-        noShowTrips++;
-
-      }
-
-    }
-
-    let statusClass =
-      "status-cancelled";
-
-    if(isCompleted){
-      statusClass =
-        "status-completed";
-    }
-
-    if(isNoShow){
-      statusClass =
-        "status-noshow";
-    }
-
-    tripBody.innerHTML += `
-
+    tbody.innerHTML = `
       <tr>
-
-        <td>${rowIndex++}</td>
-
-        <td>
-          ${escapeHtml(t.tripNumber)}
+        <td colspan="9">
+          <div class="empty">
+            No billable records found
+          </div>
         </td>
-
-        <td>
-          ${
-            isShared
-              ? "Shared"
-              : "Individual"
-          }
-        </td>
-
-        <td>
-
-          <span class="
-            status-pill
-            ${statusClass}
-          ">
-            ${escapeHtml(t.status)}
-          </span>
-
-        </td>
-
-       <td>
-  ${
-    isCompleted
-      ? Math.round(
-          Number(t.miles || 0)
-        )
-      : "0.0"
-  }
-</td>
-
-        <td class="money">
-          ${money(
-            revenue *
-            passengersCount
-          )}
-        </td>
-
-        <td>
-          ${t.tripDate || ""}
-        </td>
-
       </tr>
-
     `;
+
+    return;
+
+  }
+
+  tbody.innerHTML =
+    currentRows.map((r,i)=>{
+
+      let statusLabel = "";
+      let statusClass = "";
+
+      if(r.status === "completed"){
+        statusLabel = "Completed";
+        statusClass = "status-completed";
+      }
+
+      if(r.status === "cancelled"){
+        statusLabel = "Cancelled";
+        statusClass = "status-cancelled";
+      }
+
+      if(r.status === "noshow"){
+        statusLabel = "No Show";
+        statusClass = "status-noshow";
+      }
+
+      return `
+        <tr>
+          <td>${i + 1}</td>
+
+          <td>
+            ${escapeHtml(r.tripNumber)}
+          </td>
+
+          <td>
+            ${escapeHtml(r.type)}
+          </td>
+
+          <td>
+            <span class="status-pill ${statusClass}">
+              ${statusLabel}
+            </span>
+          </td>
+
+          <td>
+            ${r.passengers}
+          </td>
+
+          <td>
+            ${Number(r.miles || 0).toFixed(1)}
+          </td>
+
+          <td class="money">
+            ${money(r.revenue)}
+          </td>
+
+          <td>
+            ${escapeHtml(r.tripDate || "--")}
+          </td>
+
+          <td>
+            ${formatDate(r.bookingDate)}
+          </td>
+        </tr>
+      `;
+
+    }).join("");
+
+}
+
+/* ================= CSV ================= */
+
+function exportCSV(){
+
+  const lines = [];
+
+  lines.push([
+    "Provider",
+    providerName
+  ].join(","));
+
+  lines.push([
+    "Facility",
+    loggedCompanyName
+  ].join(","));
+
+  lines.push([
+    "Generated",
+    new Date().toLocaleDateString()
+  ].join(","));
+
+  lines.push("");
+
+  lines.push([
+    "#",
+    "Trip Number",
+    "Type",
+    "Status",
+    "Passengers",
+    "Miles",
+    "Revenue",
+    "Trip Date",
+    "Booking Date"
+  ].join(","));
+
+  currentRows.forEach((r,i)=>{
+
+    lines.push([
+      i + 1,
+      `"${String(r.tripNumber || "").replace(/"/g,'""')}"`,
+      r.type,
+      r.status,
+      r.passengers,
+      Number(r.miles || 0).toFixed(1),
+      Number(r.revenue || 0).toFixed(2),
+      r.tripDate || "",
+      formatDate(r.bookingDate)
+    ].join(","));
 
   });
 
-  document.getElementById(
-    "totalRevenue"
-  ).innerText =
-    money(totalRevenue);
+  const blob =
+    new Blob(
+      [lines.join("\n")],
+      {
+        type:"text/csv;charset=utf-8;"
+      }
+    );
 
-  document.getElementById(
-    "totalTrips"
-  ).innerText =
-    totalTrips;
+  const url =
+    URL.createObjectURL(blob);
 
-  document.getElementById(
-    "individualTrips"
-  ).innerText =
-    individualTrips;
+  const a =
+    document.createElement("a");
 
-  document.getElementById(
-    "sharedTrips"
-  ).innerText =
-    sharedTrips;
+  a.href = url;
 
-  document.getElementById(
-    "sharedPassengers"
-  ).innerText =
-    totalSharedPassengers;
+  a.download =
+    "facility-revenue-report.csv";
 
-  document.getElementById(
-    "completedTrips"
-  ).innerText =
-    completedTrips;
+  a.click();
 
-  document.getElementById(
-    "cancelledTrips"
-  ).innerText =
-    cancelledTrips;
-
-  document.getElementById(
-    "noShowTrips"
-  ).innerText =
-    noShowTrips;
-
-  document.getElementById(
-    "totalMiles"
-  ).innerText =
-    totalMiles.toFixed(1) +
-    " mi";
+  URL.revokeObjectURL(url);
 
 }
 
 /* ================= EVENTS ================= */
 
-applyBtn.addEventListener(
-  "click",
-  ()=>{
-    applyFilters();
-  }
-);
+applyBtn.addEventListener("click",applyFilters);
 
-printBtn.addEventListener(
-  "click",
-  ()=>{
-    window.print();
-  }
-);
+printBtn.addEventListener("click",()=>{
+  window.print();
+});
+
+csvBtn.addEventListener("click",exportCSV);
 
 /* ================= INIT ================= */
 
-loadTrips();
+(async ()=>{
+
+  await loadBranding();
+
+  await loadTrips();
+
+})();
 
 </script>
 
