@@ -1,8 +1,10 @@
 // summary.js
+// COMPANY SUMMARY - FULL DYNAMIC VERSION
 
 let allTrips = [];
-
-let currentTab = "individual";
+let SERVICES = [];
+let currentTab = "ALL";
+let autoRefreshTimer = null;
 
 /* =========================
 LOAD
@@ -12,27 +14,11 @@ async function load(){
 
   try{
 
-    const company =
-      localStorage.getItem("name") || "";
-
-    const res =
-      await fetch(
-        `/api/trips/summary?company=${encodeURIComponent(company)}`
-      );
-
-    if(!res.ok){
-      throw new Error("Failed loading summary");
-    }
-
-    allTrips =
-      await res.json();
-
-    if(!Array.isArray(allTrips)){
-      allTrips = [];
-    }
+    await loadServices();
+    await loadTrips();
 
     buildFilters();
-
+    buildTabs();
     render();
 
   }catch(err){
@@ -40,21 +26,79 @@ async function load(){
     console.log(err);
 
     const wrap =
-      document.getElementById(
-        "summaryContent"
-      );
+      document.getElementById("summaryContent");
 
     if(wrap){
-
       wrap.innerHTML = `
         <div class="empty-state">
-          Failed To Load Trips
+          Failed To Load Summary
         </div>
       `;
-
     }
 
   }
+
+}
+
+async function loadServices(){
+
+  const token =
+    localStorage.getItem("token") || "";
+
+  const res =
+    await fetch("/api/services?company=true",{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
+
+  if(!res.ok){
+    throw new Error("Failed loading services");
+  }
+
+  const data =
+    await res.json();
+
+  SERVICES =
+    Array.isArray(data)
+    ? data.filter(s =>
+        s &&
+        s.companyEnabled !== false &&
+        s.enabled !== false
+      )
+    : [];
+
+}
+
+async function loadTrips(){
+
+  const company =
+    localStorage.getItem("name") || "";
+
+  const token =
+    localStorage.getItem("token") || "";
+
+  const res =
+    await fetch(
+      `/api/trips/summary?company=${encodeURIComponent(company)}`,
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }
+    );
+
+  if(!res.ok){
+    throw new Error("Failed loading trips");
+  }
+
+  const data =
+    await res.json();
+
+  allTrips =
+    Array.isArray(data)
+    ? data
+    : [];
 
 }
 
@@ -62,19 +106,99 @@ async function load(){
 HELPERS
 ========================= */
 
+function safeText(v){
+  return String(v ?? "")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
+
+function num(v){
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function money(v){
+  return "$" + num(v).toFixed(2);
+}
+
 function getTripSuffix(trip){
 
   const parts =
-    String(
-      trip.tripNumber || ""
-    )
+    String(trip?.tripNumber || "")
     .split("-");
 
+  return String(parts[parts.length - 1] || "")
+    .trim()
+    .toUpperCase();
+
+}
+
+function getServiceKey(service){
+
   return String(
-    parts[parts.length - 1] || ""
-  )
-  .trim()
-  .toUpperCase();
+    service.serviceKey ||
+    service.key ||
+    service.code ||
+    service.title ||
+    ""
+  ).trim().toUpperCase();
+
+}
+
+function getServiceTitle(service){
+
+  return (
+    service.title ||
+    service.name ||
+    service.serviceName ||
+    getServiceKey(service) ||
+    "Service"
+  );
+
+}
+
+function getServiceCode(service){
+
+  const key =
+    getServiceKey(service);
+
+  if(key === "STANDARD") return "ST";
+  if(key === "WHEELCHAIR") return "WH";
+  if(key === "SHARED") return "SH";
+  if(key === "LIMO" || key === "LIMOUSINE") return "LM";
+  if(key === "TAXI") return "TX";
+  if(key === "XL") return "XL";
+
+  return String(
+    service.suffix ||
+    service.code ||
+    key
+  ).trim().toUpperCase();
+
+}
+
+function getTripServiceCode(trip){
+
+  const direct =
+    String(
+      trip.serviceCode ||
+      trip.serviceSuffix ||
+      trip.serviceKey ||
+      trip.service ||
+      ""
+    ).trim().toUpperCase();
+
+  if(direct){
+    if(direct === "STANDARD") return "ST";
+    if(direct === "WHEELCHAIR") return "WH";
+    if(direct === "SHARED") return "SH";
+    if(direct === "LIMO" || direct === "LIMOUSINE") return "LM";
+    if(direct === "TAXI") return "TX";
+    if(direct === "XL") return "XL";
+    return direct;
+  }
+
+  return getTripSuffix(trip);
 
 }
 
@@ -82,75 +206,145 @@ function isSharedTrip(trip){
 
   return (
     trip?.isShared === true ||
-    getTripSuffix(trip) === "SH"
+    getTripSuffix(trip) === "SH" ||
+    getTripServiceCode(trip) === "SH" ||
+    Array.isArray(trip?.passengers)
   );
 
 }
 
-function safeText(v){
+function normalizeStatus(status){
 
-  return String(v || "")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
+  return String(status || "")
+    .trim()
+    .toLowerCase();
 
 }
 
 function isCompleted(status){
-
-  return String(status || "")
-    .toLowerCase()
-    .includes("complete");
-
+  return normalizeStatus(status).includes("complete");
 }
 
 function isCancelled(status){
-
-  return String(status || "")
-    .toLowerCase()
-    .includes("cancel");
-
+  return normalizeStatus(status).includes("cancel");
 }
 
 function isNoShow(status){
+  return (
+    normalizeStatus(status).includes("no show") ||
+    normalizeStatus(status).includes("noshow")
+  );
+}
 
-  return String(status || "")
-    .toLowerCase()
-    .includes("no");
+function isScheduled(status){
+  return normalizeStatus(status) === "scheduled";
+}
+
+function isConfirmed(status){
+  return normalizeStatus(status) === "confirmed";
+}
+
+function getTripDateTime(t){
+
+  if(!t || !t.tripDate){
+    return null;
+  }
+
+  const date =
+    String(t.tripDate || "").trim();
+
+  let time =
+    String(t.tripTime || "00:00").trim();
+
+  if(!time){
+    time = "00:00";
+  }
+
+  const d =
+    new Date(`${date}T${time}`);
+
+  if(isNaN(d.getTime())){
+    return null;
+  }
+
+  return d;
+
+}
+
+function isNotCompletedTrip(t){
+
+  if(!t){
+    return false;
+  }
+
+  if(isSharedTrip(t)){
+
+    const passengers =
+      Array.isArray(t.passengers)
+      ? t.passengers
+      : [];
+
+    return passengers.some(p =>
+      isNotCompletedStatus(p.status,t)
+    );
+
+  }
+
+  return isNotCompletedStatus(t.status,t);
+
+}
+
+function isNotCompletedStatus(status,trip){
+
+  if(
+    isCompleted(status) ||
+    isCancelled(status) ||
+    isNoShow(status)
+  ){
+    return false;
+  }
+
+  if(
+    !isScheduled(status) &&
+    !isConfirmed(status)
+  ){
+    return false;
+  }
+
+  const dt =
+    getTripDateTime(trip);
+
+  if(!dt){
+    return false;
+  }
+
+  const diff =
+    Date.now() - dt.getTime();
+
+  return diff >= 10 * 60 * 60 * 1000;
+
+}
+
+function displayStatus(status,trip){
+
+  if(isNotCompletedStatus(status,trip)){
+    return "Not Completed";
+  }
+
+  return status || "-";
 
 }
 
 /* =========================
-PRICE ENGINE
+PRICE / MILES
 ========================= */
 
 function getTripPrice(t){
 
-  if(isCancelled(t.status)){
-
-    return Number(
-      t.finalPrice ??
-      t.priceAmount ??
-      t.price ??
-      0
-    );
-
-  }
-
-  if(isNoShow(t.status)){
-
-    return Number(
-      t.finalPrice ??
-      t.priceAmount ??
-      t.price ??
-      0
-    );
-
-  }
-
-  return Number(
-    t.finalPrice ??
-    t.priceAmount ??
-    t.price ??
+  return num(
+    t?.finalPrice ??
+    t?.priceAmount ??
+    t?.price ??
     0
   );
 
@@ -158,62 +352,120 @@ function getTripPrice(t){
 
 function getPassengerPrice(p){
 
-  if(isCancelled(p.status)){
-
-    return Number(
-      p.cancelFee ??
-      p.finalPrice ??
-      p.priceAmount ??
-      p.price ??
+  if(isCancelled(p?.status)){
+    return num(
+      p?.cancelFee ??
+      p?.finalPrice ??
+      p?.priceAmount ??
+      p?.price ??
       0
     );
-
   }
 
-  if(isNoShow(p.status)){
-
-    return Number(
-      p.noShowFee ??
-      p.finalPrice ??
-      p.priceAmount ??
-      p.price ??
+  if(isNoShow(p?.status)){
+    return num(
+      p?.noShowFee ??
+      p?.finalPrice ??
+      p?.priceAmount ??
+      p?.price ??
       0
     );
-
   }
 
-  return Number(
-    p.finalPrice ??
-    p.priceAmount ??
-    p.price ??
+  return num(
+    p?.priceAmount ??
+    p?.finalPrice ??
+    p?.price ??
     0
   );
 
 }
 
-function getMiles(status,miles){
+function getIndividualMiles(t){
 
-  // ❌ Cancelled only = no miles
-  if(isCancelled(status)){
+  if(isCancelled(t?.status)){
     return 0;
   }
 
-  // ✅ NoShow still counts miles
-  return Number(miles || 0);
+  if(isNotCompletedStatus(t?.status,t)){
+    return 0;
+  }
+
+  return num(t?.miles);
+
+}
+
+function getSharedMiles(t){
+
+  const passengers =
+    Array.isArray(t?.passengers)
+    ? t.passengers
+    : [];
+
+  const hasCompleted =
+    passengers.some(p =>
+      isCompleted(p.status)
+    );
+
+  if(!hasCompleted){
+    return 0;
+  }
+
+  return num(t?.miles);
 
 }
 
 /* =========================
-TAB
+TABS
 ========================= */
+
+function buildTabs(){
+
+  const wrap =
+    document.getElementById("serviceTabs");
+
+  if(!wrap){
+    return;
+  }
+
+  let html = `
+    <button
+      class="tab ${currentTab === "ALL" ? "active" : ""}"
+      onclick="switchTab('ALL',this)">
+      All
+    </button>
+  `;
+
+  SERVICES.forEach(s=>{
+
+    const code =
+      getServiceCode(s);
+
+    const title =
+      getServiceTitle(s);
+
+    html += `
+      <button
+        class="tab ${currentTab === code ? "active" : ""}"
+        onclick="switchTab('${safeText(code)}',this)">
+        ${safeText(title)}
+      </button>
+    `;
+
+  });
+
+  wrap.innerHTML = html;
+
+}
 
 function switchTab(tab,btn){
 
-  currentTab = tab;
+  currentTab =
+    String(tab || "ALL").toUpperCase();
 
   document
     .querySelectorAll(".tab")
-    .forEach(t=>
+    .forEach(t =>
       t.classList.remove("active")
     );
 
@@ -232,22 +484,20 @@ FILTERS
 function buildFilters(){
 
   const year =
-    document.getElementById(
-      "yearFilter"
-    );
+    document.getElementById("yearFilter");
 
   const month =
-    document.getElementById(
-      "monthFilter"
-    );
+    document.getElementById("monthFilter");
 
   if(!year || !month){
     return;
   }
 
-  if(year.dataset.loaded === "true"){
-    return;
-  }
+  const oldYear =
+    year.value || "";
+
+  const oldMonth =
+    month.value || "";
 
   const years =
     new Set();
@@ -269,22 +519,20 @@ function buildFilters(){
   });
 
   year.innerHTML = `
-    <option value="">
-      All Years
-    </option>
+    <option value="">All Years</option>
   `;
 
   [...years]
-  .sort((a,b)=>b-a)
-  .forEach(y=>{
+    .sort((a,b)=>Number(b)-Number(a))
+    .forEach(y=>{
 
-    year.innerHTML += `
-      <option value="${y}">
-        ${y}
-      </option>
-    `;
+      year.innerHTML += `
+        <option value="${safeText(y)}">
+          ${safeText(y)}
+        </option>
+      `;
 
-  });
+    });
 
   month.innerHTML = `
     <option value="">All Months</option>
@@ -302,12 +550,13 @@ function buildFilters(){
     <option value="12">December</option>
   `;
 
-  year.dataset.loaded = "true";
+  year.value = oldYear;
+  month.value = oldMonth;
 
 }
 
 /* =========================
-FILTER
+FILTER DATA
 ========================= */
 
 function getFilteredTrips(){
@@ -348,6 +597,8 @@ function getFilteredTrips(){
           txt += `
             ${p.clientName || ""}
             ${p.clientPhone || ""}
+            ${p.passengerName || ""}
+            ${p.passengerPhone || ""}
           `;
 
         });
@@ -364,8 +615,7 @@ function getFilteredTrips(){
       if(t.tripDate){
 
         const parts =
-          String(t.tripDate)
-          .split("-");
+          String(t.tripDate).split("-");
 
         if(year && parts[0] !== year){
           return false;
@@ -381,23 +631,249 @@ function getFilteredTrips(){
 
     });
 
-  if(currentTab === "individual"){
+  if(currentTab !== "ALL"){
 
     data =
       data.filter(t =>
-        !isSharedTrip(t)
-      );
-
-  }else{
-
-    data =
-      data.filter(t =>
-        isSharedTrip(t)
+        getTripServiceCode(t) === currentTab
       );
 
   }
 
   return data;
+
+}
+
+/* =========================
+STATS
+========================= */
+
+function buildServiceStats(data){
+
+  return SERVICES.map(service=>{
+
+    const code =
+      getServiceCode(service);
+
+    const serviceTrips =
+      data.filter(t =>
+        getTripServiceCode(t) === code
+      );
+
+    let trips = 0;
+    let miles = 0;
+    let revenue = 0;
+    let passengers = 0;
+
+    serviceTrips.forEach(t=>{
+
+      trips++;
+
+      if(isSharedTrip(t)){
+
+        const list =
+          Array.isArray(t.passengers)
+          ? t.passengers
+          : [];
+
+        passengers += list.length;
+
+        revenue += list.reduce((sum,p)=>{
+          return sum + getPassengerPrice(p);
+        },0);
+
+        miles += getSharedMiles(t);
+
+      }else{
+
+        revenue += getTripPrice(t);
+        miles += getIndividualMiles(t);
+
+      }
+
+    });
+
+    return {
+      title:getServiceTitle(service),
+      code,
+      trips,
+      miles,
+      revenue,
+      passengers
+    };
+
+  });
+
+}
+
+function updateStats(filteredData){
+
+  let totalTrips = 0;
+  let completed = 0;
+  let cancelled = 0;
+  let noshow = 0;
+  let notCompleted = 0;
+  let totalRevenue = 0;
+  let totalMiles = 0;
+  let totalPassengers = 0;
+
+  filteredData.forEach(t=>{
+
+    totalTrips++;
+
+    if(isSharedTrip(t)){
+
+      const passengers =
+        Array.isArray(t.passengers)
+        ? t.passengers
+        : [];
+
+      totalPassengers += passengers.length;
+
+      passengers.forEach(p=>{
+
+        if(isCompleted(p.status)){
+          completed++;
+        }
+
+        else if(isCancelled(p.status)){
+          cancelled++;
+        }
+
+        else if(isNoShow(p.status)){
+          noshow++;
+        }
+
+        else if(isNotCompletedStatus(p.status,t)){
+          notCompleted++;
+        }
+
+        totalRevenue +=
+          getPassengerPrice(p);
+
+      });
+
+      totalMiles +=
+        getSharedMiles(t);
+
+    }else{
+
+      if(isCompleted(t.status)){
+        completed++;
+      }
+
+      else if(isCancelled(t.status)){
+        cancelled++;
+      }
+
+      else if(isNoShow(t.status)){
+        noshow++;
+      }
+
+      else if(isNotCompletedStatus(t.status,t)){
+        notCompleted++;
+      }
+
+      totalRevenue +=
+        getTripPrice(t);
+
+      totalMiles +=
+        getIndividualMiles(t);
+
+    }
+
+  });
+
+  const servicesWrap =
+    document.getElementById("servicesStats");
+
+  if(servicesWrap){
+
+    const services =
+      buildServiceStats(filteredData);
+
+    servicesWrap.innerHTML =
+      services.map(s=>`
+
+        <div class="stat">
+
+          <div class="stat-title">
+            ${safeText(s.title)}
+          </div>
+
+          <div class="stat-lines">
+            Trips:
+            <span class="big">${s.trips}</span><br>
+
+            Miles:
+            <span class="big">${s.miles.toFixed(1)}</span><br>
+
+            Revenue:
+            <span class="big">${money(s.revenue)}</span>
+
+            ${
+              s.code === "SH"
+              ? `<br>Passengers: <span class="big">${s.passengers}</span>`
+              : ""
+            }
+          </div>
+
+        </div>
+
+      `).join("");
+
+  }
+
+  const totalsWrap =
+    document.getElementById("totalsStats");
+
+  if(totalsWrap){
+
+    totalsWrap.innerHTML = `
+
+      <div class="stat">
+        <div class="stat-title">Total Trips</div>
+        <div class="stat-value">${totalTrips}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Completed</div>
+        <div class="stat-value">${completed}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Cancelled</div>
+        <div class="stat-value">${cancelled}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">No Show</div>
+        <div class="stat-value">${noshow}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Not Completed</div>
+        <div class="stat-value">${notCompleted}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Revenue</div>
+        <div class="stat-value">${money(totalRevenue)}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Miles</div>
+        <div class="stat-value">${totalMiles.toFixed(1)}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Passengers</div>
+        <div class="stat-value">${totalPassengers}</div>
+      </div>
+
+    `;
+
+  }
 
 }
 
@@ -427,14 +903,21 @@ function groupByDay(data){
 }
 
 /* =========================
-STATUS
+STATUS HTML
 ========================= */
 
-function statusHTML(status){
+function statusHTML(status,trip){
+
+  const label =
+    displayStatus(status,trip);
 
   let cls = "";
 
-  if(isCompleted(status)){
+  if(label === "Not Completed"){
+    cls = "notcompleted";
+  }
+
+  else if(isCompleted(status)){
     cls = "completed";
   }
 
@@ -446,384 +929,19 @@ function statusHTML(status){
     cls = "noshow";
   }
 
+  else if(isScheduled(status)){
+    cls = "scheduled";
+  }
+
+  else if(isConfirmed(status)){
+    cls = "confirmed";
+  }
+
   return `
     <span class="status ${cls}">
-      ${safeText(status || "-")}
+      ${safeText(label)}
     </span>
   `;
-
-}
-
-/* =========================
-GREEN SERVICES
-========================= */
-
-function getServiceCards(data){
-
-  const services = [
-
-    {
-      title:"Standard",
-      code:"ST"
-    },
-
-    {
-      title:"XL",
-      code:"XL"
-    },
-
-    {
-      title:"Wheelchair",
-      code:"WH"
-    },
-
-    {
-      title:"Shared",
-      code:"SH"
-    },
-
-    {
-      title:"Taxi",
-      code:"TX"
-    },
-
-    {
-      title:"Limousine",
-      code:"LM"
-    }
-
-  ];
-
-  return services.map(service=>{
-
-    const serviceTrips =
-      data.filter(t =>
-        getTripSuffix(t) === service.code
-      );
-
-    let trips = 0;
-
-    let miles = 0;
-
-    let revenue = 0;
-
-    serviceTrips.forEach(t=>{
-
-      /* =========================
-         SHARED
-      ========================= */
-
-      if(isSharedTrip(t)){
-
-        trips += 1;
-
-        revenue +=
-          (t.passengers || [])
-          .reduce((sum,p)=>{
-
-            return (
-              sum +
-              getPassengerPrice(p)
-            );
-
-          },0);
-
-        const hasCompleted =
-          (t.passengers || [])
-          .some(p =>
-            isCompleted(p.status)
-          );
-
-        if(hasCompleted){
-
-          miles += Number(
-            t.miles || 0
-          );
-
-        }
-
-      }
-
-      /* =========================
-         INDIVIDUAL
-      ========================= */
-
-      else{
-
-        trips += 1;
-
-        revenue +=
-          getTripPrice(t);
-
-        miles +=
-          getMiles(
-            t.status,
-            t.miles
-          );
-
-      }
-
-    });
-
-    return {
-
-      ...service,
-
-      trips,
-
-      miles,
-
-      revenue
-
-    };
-
-  });
-
-}
-
-/* =========================
-TOTAL STATS
-========================= */
-
-function updateStats(filteredData){
-
-  const globalData =
-    allTrips;
-
-  let totalTrips = 0;
-
-  let completed = 0;
-
-  let cancelled = 0;
-
-  let noshow = 0;
-
-  let totalRevenue = 0;
-
-  let totalMiles = 0;
-
-  globalData.forEach(t=>{
-
-    /* =========================
-       SHARED
-    ========================= */
-
-    if(isSharedTrip(t)){
-
-      totalTrips += 1;
-
-      let hasCompleted =
-        false;
-
-      (t.passengers || [])
-      .forEach(p=>{
-
-        if(isCompleted(p.status)){
-
-          completed++;
-          hasCompleted = true;
-
-        }
-
-        if(isCancelled(p.status)){
-
-          cancelled++;
-
-        }
-
-        if(isNoShow(p.status)){
-
-          noshow++;
-
-        }
-
-        totalRevenue +=
-          getPassengerPrice(p);
-
-      });
-
-      if(hasCompleted){
-
-        totalMiles += Number(
-          t.miles || 0
-        );
-
-      }
-
-    }
-
-    /* =========================
-       INDIVIDUAL
-    ========================= */
-
-    else{
-
-      totalTrips += 1;
-
-      if(isCompleted(t.status)){
-
-        completed++;
-
-      }
-
-      if(isCancelled(t.status)){
-
-        cancelled++;
-
-      }
-
-      if(isNoShow(t.status)){
-
-        noshow++;
-
-      }
-
-      totalRevenue +=
-        getTripPrice(t);
-
-      totalMiles +=
-        getMiles(
-          t.status,
-          t.miles
-        );
-
-    }
-
-  });
-
-  /* =========================
-     GREEN SERVICE CARDS
-  ========================= */
-
-  const servicesWrap =
-    document.querySelector(
-      ".services-stats"
-    );
-
-  if(servicesWrap){
-
-    const services =
-      getServiceCards(allTrips);
-
-    servicesWrap.innerHTML = "";
-
-    services.forEach(s=>{
-
-      servicesWrap.innerHTML += `
-
-        <div class="stat">
-
-          <div class="stat-title">
-            ${s.title}
-          </div>
-
-          <div class="stat-lines">
-
-            Trips ${s.trips}<br>
-
-            Miles ${s.miles.toFixed(1)}<br>
-
-            Total Revenue
-            $${s.revenue.toFixed(2)}
-
-          </div>
-
-        </div>
-
-      `;
-
-    });
-
-  }
-
-  /* =========================
-     BLUE TOTAL CARDS
-  ========================= */
-
-  const totalsWrap =
-    document.querySelector(
-      ".totals-stats"
-    );
-
-  if(totalsWrap){
-
-    totalsWrap.innerHTML = `
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Total Trips
-        </div>
-
-        <div class="stat-value">
-          ${totalTrips}
-        </div>
-
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Completed
-        </div>
-
-        <div class="stat-value">
-          ${completed}
-        </div>
-
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Cancelled
-        </div>
-
-        <div class="stat-value">
-          ${cancelled}
-        </div>
-
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          No Show
-        </div>
-
-        <div class="stat-value">
-          ${noshow}
-        </div>
-
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Total Revenue
-        </div>
-
-        <div class="stat-value">
-          $${totalRevenue.toFixed(2)}
-        </div>
-
-      </div>
-
-      <div class="stat">
-
-        <div class="stat-title">
-          Miles
-        </div>
-
-        <div class="stat-value">
-          ${totalMiles.toFixed(1)}
-        </div>
-
-      </div>
-
-    `;
-
-  }
 
 }
 
@@ -834,29 +952,27 @@ RENDER
 function render(){
 
   const wrap =
-    document.getElementById(
-      "summaryContent"
-    );
+    document.getElementById("summaryContent");
 
   if(!wrap){
     return;
   }
-
-  wrap.innerHTML = "";
 
   const data =
     getFilteredTrips();
 
   updateStats(data);
 
+  wrap.innerHTML = "";
+
   const groups =
     groupByDay(data);
 
   const sortedDays =
     Object.keys(groups)
-    .sort((a,b)=>
-      new Date(b) - new Date(a)
-    );
+      .sort((a,b)=>
+        new Date(b) - new Date(a)
+      );
 
   if(!sortedDays.length){
 
@@ -880,52 +996,41 @@ function render(){
 
       <div class="table-wrap">
 
-      <table class="summary-table">
+        <table class="summary-table">
 
-        <thead>
+          <thead>
+            <tr>
+              <th>Trip#</th>
+              <th>Company</th>
+              <th>Entry</th>
+              <th>Entry Phone</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Dropoff</th>
+              <th>Trip Date</th>
+              <th>Trip Time</th>
+              <th>Book Date</th>
+              <th>Book Time</th>
+              <th>Miles</th>
+              <th>Status</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
 
-          <tr>
+          <tbody id="tbody-${safeText(day)}"></tbody>
 
-            <th>Trip#</th>
-            <th>Company</th>
-            <th>Entry</th>
-            <th>Entry Phone</th>
-            <th>Passenger</th>
-            <th>Phone</th>
-            <th>Pickup</th>
-            <th>Dropoff</th>
-            <th>Trip Date</th>
-            <th>Trip Time</th>
-            <th>Book Date</th>
-            <th>Book Time</th>
-            <th>Miles</th>
-            <th>Status</th>
-            <th>Price</th>
-            <th>Total</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody id="tbody-${day}">
-        </tbody>
-
-      </table>
+        </table>
 
       </div>
 
     `;
 
     const tbody =
-      document.getElementById(
-        `tbody-${day}`
-      );
+      document.getElementById(`tbody-${day}`);
 
     groups[day].forEach(t=>{
-
-      /* =========================
-         INDIVIDUAL
-      ========================= */
 
       if(!isSharedTrip(t)){
 
@@ -933,63 +1038,40 @@ function render(){
           getTripPrice(t);
 
         const miles =
-          getMiles(
-            t.status,
-            t.miles
-          );
+          getIndividualMiles(t);
 
         tbody.innerHTML += `
 
-        <tr>
+          <tr>
+            <td>${safeText(t.tripNumber || "-")}</td>
+            <td>${safeText(t.company || "-")}</td>
+            <td>${safeText(t.entryName || "-")}</td>
+            <td>${safeText(t.entryPhone || "-")}</td>
+            <td>${safeText(t.clientName || "-")}</td>
+            <td>${safeText(t.clientPhone || "-")}</td>
+            <td>${safeText(t.pickup || "-")}</td>
+            <td>${safeText(t.dropoff || "-")}</td>
+            <td>${safeText(t.tripDate || "-")}</td>
+            <td>${safeText(t.tripTime || "-")}</td>
+            <td>${safeText(t.bookingDate || "-")}</td>
+            <td>${safeText(t.bookingTime || "-")}</td>
+            <td>${miles.toFixed(1)}</td>
+            <td>${statusHTML(t.status,t)}</td>
+            <td class="total">${money(total)}</td>
+            <td class="total">${money(total)}</td>
+          </tr>
 
-          <td>${safeText(t.tripNumber || "-")}</td>
-          <td>${safeText(t.company || "-")}</td>
-          <td>${safeText(t.entryName || "-")}</td>
-          <td>${safeText(t.entryPhone || "-")}</td>
-          <td>${safeText(t.clientName || "-")}</td>
-          <td>${safeText(t.clientPhone || "-")}</td>
-          <td>${safeText(t.pickup || "-")}</td>
-          <td>${safeText(t.dropoff || "-")}</td>
-          <td>${safeText(t.tripDate || "-")}</td>
-          <td>${safeText(t.tripTime || "-")}</td>
-          <td>${safeText(t.bookingDate || "-")}</td>
-          <td>${safeText(t.bookingTime || "-")}</td>
+          <tr class="trip-divider-line">
+            <td colspan="16"></td>
+          </tr>
 
-          <td>
-            ${miles.toFixed(1)}
-          </td>
-
-          <td>
-            ${statusHTML(t.status)}
-          </td>
-
-          <td class="total">
-            $${total.toFixed(2)}
-          </td>
-
-          <td class="total">
-            $${total.toFixed(2)}
-          </td>
-
-        </tr>
-
-        <tr class="trip-divider-line">
-          <td colspan="16"></td>
-        </tr>
-
-        <tr class="trip-divider">
-          <td colspan="16"></td>
-        </tr>
+          <tr class="trip-divider">
+            <td colspan="16"></td>
+          </tr>
 
         `;
 
-      }
-
-      /* =========================
-         SHARED
-      ========================= */
-
-      else{
+      }else{
 
         const passengers =
           Array.isArray(t.passengers)
@@ -998,23 +1080,11 @@ function render(){
 
         const sharedTotal =
           passengers.reduce((sum,p)=>{
-
-            return (
-              sum +
-              getPassengerPrice(p)
-            );
-
+            return sum + getPassengerPrice(p);
           },0);
 
-        const hasCompleted =
-          passengers.some(p =>
-            isCompleted(p.status)
-          );
-
         const sharedMiles =
-          hasCompleted
-          ? Number(t.miles || 0)
-          : 0;
+          getSharedMiles(t);
 
         passengers.forEach((p,index)=>{
 
@@ -1023,119 +1093,102 @@ function render(){
 
           tbody.innerHTML += `
 
-          <tr class="${
-            index !== passengers.length - 1
-            ? "shared-separator"
-            : ""
-          }">
+            <tr class="${
+              index !== passengers.length - 1
+              ? "shared-separator"
+              : ""
+            }">
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.tripNumber || "-")
-                : ""
-              }
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.tripNumber || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.company || "-")
-                : ""
-              }
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.company || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.entryName || "-")
-                : ""
-              }
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.entryName || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.entryPhone || "-")
-                : ""
-              }
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.entryPhone || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${safeText(p.clientName || "-")}
-            </td>
+              <td>${safeText(p.clientName || p.passengerName || "-")}</td>
+              <td>${safeText(p.clientPhone || p.passengerPhone || "-")}</td>
+              <td>${safeText(p.pickup || "-")}</td>
+              <td>${safeText(p.dropoff || "-")}</td>
 
-            <td>
-              ${safeText(p.clientPhone || "-")}
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.tripDate || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${safeText(p.pickup || "-")}
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.tripTime || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${safeText(p.dropoff || "-")}
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.bookingDate || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.tripDate || "-")
-                : ""
-              }
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.bookingTime || "-")
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.tripTime || "-")
-                : ""
-              }
-            </td>
+              <td>
+                ${
+                  index === 0
+                  ? sharedMiles.toFixed(1)
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.bookingDate || "-")
-                : ""
-              }
-            </td>
+              <td>${statusHTML(p.status || "Scheduled",t)}</td>
 
-            <td>
-              ${
-                index === 0
-                ? safeText(t.bookingTime || "-")
-                : ""
-              }
-            </td>
+              <td class="total">${money(passengerPrice)}</td>
 
-            <td>
-              ${
-                index === 0
-                ? sharedMiles.toFixed(1)
-                : ""
-              }
-            </td>
+              <td class="total">
+                ${
+                  index === 0
+                  ? money(sharedTotal)
+                  : ""
+                }
+              </td>
 
-            <td>
-              ${statusHTML(
-                p.status || "Scheduled"
-              )}
-            </td>
-
-            <td class="total">
-              $${passengerPrice.toFixed(2)}
-            </td>
-
-            <td class="total">
-              ${
-                index === 0
-                ? `$${sharedTotal.toFixed(2)}`
-                : ""
-              }
-            </td>
-
-          </tr>
+            </tr>
 
           `;
 
@@ -1143,13 +1196,13 @@ function render(){
 
         tbody.innerHTML += `
 
-        <tr class="trip-divider-line">
-          <td colspan="16"></td>
-        </tr>
+          <tr class="trip-divider-line">
+            <td colspan="16"></td>
+          </tr>
 
-        <tr class="trip-divider">
-          <td colspan="16"></td>
-        </tr>
+          <tr class="trip-divider">
+            <td colspan="16"></td>
+          </tr>
 
         `;
 
@@ -1185,13 +1238,38 @@ document.addEventListener("change",e=>{
 });
 
 /* =========================
-AUTO RELOAD
+AUTO REFRESH
 ========================= */
 
-setInterval(load,30000);
+function startAutoRefresh(){
+
+  if(autoRefreshTimer){
+    clearInterval(autoRefreshTimer);
+  }
+
+  autoRefreshTimer =
+    setInterval(async ()=>{
+
+      const oldTab =
+        currentTab;
+
+      await loadTrips();
+
+      currentTab =
+        oldTab;
+
+      buildFilters();
+      buildTabs();
+      render();
+
+    },30000);
+
+}
 
 /* =========================
 INIT
 ========================= */
 
-load();
+load().then(()=>{
+  startAutoRefresh();
+});
