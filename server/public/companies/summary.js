@@ -236,6 +236,40 @@ function isNoShow(status){
   );
 }
 
+function isNotCompleted(trip){
+
+  const status =
+    String(trip.status || "")
+    .toLowerCase();
+
+  if(
+    status.includes("complete") ||
+    status.includes("cancel") ||
+    status.includes("show")
+  ){
+    return false;
+  }
+
+  if(!trip.tripDate){
+    return false;
+  }
+
+  const tripDateTime =
+    new Date(
+      `${trip.tripDate} ${trip.tripTime || "00:00"}`
+    );
+
+  if(isNaN(tripDateTime.getTime())){
+    return false;
+  }
+
+  const diffHours =
+    (Date.now() - tripDateTime.getTime())
+    / 1000 / 60 / 60;
+
+  return diffHours >= 10;
+}
+
 function isScheduled(status){
   return normalizeStatus(status) === "scheduled";
 }
@@ -338,44 +372,36 @@ function displayStatus(status,trip){
 /* =========================
 PRICE / MILES
 ========================= */
-
-function getTripPrice(t){
-
-  return num(
-    t?.finalPrice ??
-    t?.priceAmount ??
-    t?.price ??
-    0
-  );
-
-}
-
 function getPassengerPrice(p){
 
-  if(isCancelled(p?.status)){
-    return num(
-      p?.cancelFee ??
-      p?.finalPrice ??
-      p?.priceAmount ??
-      p?.price ??
+  if(isCancelled(p.status)){
+
+    return Number(
+      p.cancelFee ??
+      p.finalPrice ??
+      p.priceAmount ??
+      p.price ??
       0
     );
+
   }
 
-  if(isNoShow(p?.status)){
-    return num(
-      p?.noShowFee ??
-      p?.finalPrice ??
-      p?.priceAmount ??
-      p?.price ??
+  if(isNoShow(p.status)){
+
+    return Number(
+      p.noShowFee ??
+      p.finalPrice ??
+      p.priceAmount ??
+      p.price ??
       0
     );
+
   }
 
-  return num(
-    p?.priceAmount ??
-    p?.finalPrice ??
-    p?.price ??
+  return Number(
+    p.finalPrice ??
+    p.priceAmount ??
+    p.price ??
     0
   );
 
@@ -412,6 +438,42 @@ function getSharedMiles(t){
   }
 
   return num(t?.miles);
+
+}
+
+function getTripPrice(t){
+
+  if(isNotCompletedStatus(t?.status,t)){
+    return 0;
+  }
+
+  if(isCancelled(t?.status)){
+
+    return num(
+      t.cancelFee ??
+      t.finalPrice ??
+      t.priceAmount ??
+      0
+    );
+
+  }
+
+  if(isNoShow(t?.status)){
+
+    return num(
+      t.noShowFee ??
+      t.finalPrice ??
+      t.priceAmount ??
+      0
+    );
+
+  }
+
+  return num(
+    t.finalPrice ??
+    t.priceAmount ??
+    0
+  );
 
 }
 
