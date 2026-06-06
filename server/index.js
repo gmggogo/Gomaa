@@ -50,6 +50,10 @@ const {
   "./utils/trip-finalizer"
 );
 
+const BillingHistory =
+require("./models/BillingHistory"
+);
+
 /* =========================
    ENV
 ========================= */
@@ -737,6 +741,11 @@ passengers: {
   dispatchNote: { type: String, default: "" },
 
   status: { type: String, default: "Scheduled" },
+
+billingPaid: {
+  type:Boolean,
+  default:false
+},
 
   /* =========================
      🔔 REMINDER
@@ -2347,22 +2356,26 @@ async function updateCompanyBilling(company){
   }
 
   const trips =
-    await Trip.find({
+  await Trip.find({
 
-      company:{
-        $regex:
-          "^" +
-          String(company.name || "").trim() +
-          "$",
-        $options:"i"
-      },
+    company:{
+      $regex:
+        "^" +
+        String(company.name || "").trim() +
+        "$",
+      $options:"i"
+    },
 
-      tripDate:{
-        $gte:startKey,
-        $lte:endKey
-      }
+    billingPaid:{
+      $ne:true
+    },
 
-    }).lean();
+    tripDate:{
+      $gte:startKey,
+      $lte:endKey
+    }
+
+  }).lean();
 
   let individualTrips = 0;
   let completedTrips = 0;
@@ -3327,8 +3340,44 @@ console.log(
   "COMPANY SAVED"
 );
 
-/* PREVENT DUPLICATE VERIFY */
+const tripsToMark = {
+  company:{
+    $regex:
+      "^" +
+      String(company.name || "").trim() +
+      "$",
+    $options:"i"
+  },
 
+  billingPaid:{
+    $ne:true
+  }
+};
+
+const count =
+  await Trip.countDocuments(
+    tripsToMark
+  );
+
+console.log(
+  "TRIPS TO MARK PAID =",
+  count
+);
+
+const result =
+  await Trip.updateMany(
+    tripsToMark,
+    {
+      $set:{
+        billingPaid:true
+      }
+    }
+  );
+
+console.log(
+  "UPDATED =",
+  result.modifiedCount
+);
 await stripe.checkout.sessions.update(
   sessionId,
   {
