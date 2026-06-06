@@ -1255,9 +1255,26 @@ async function handleEditTrip(btn){
   trip.__editing = true;
   trip.status = "Scheduled";
 
-  await updateTrip(id,{
-    status:"Scheduled"
-  });
+  await updateTrip(
+  id,
+  {
+
+    status:"Scheduled",
+
+    priceAmount:0,
+    finalPrice:0,
+
+    miles:0,
+    distanceMeters:0,
+    durationSeconds:0,
+    estimatedMinutes:0,
+
+    googleRoute:null,
+    routePoints:[],
+    optimizedRoute:null
+
+  }
+);
 
   render();
 
@@ -1301,10 +1318,26 @@ async function handleEditShared(btn){
 
   for(const t of group){
 
-    await updateTrip(
-      t._id,
-      { status:"Scheduled" }
-    );
+   await updateTrip(
+  t._id,
+  {
+
+    status:"Scheduled",
+
+    priceAmount:0,
+    finalPrice:0,
+
+    miles:0,
+    distanceMeters:0,
+    durationSeconds:0,
+    estimatedMinutes:0,
+
+    googleRoute:null,
+    routePoints:[],
+    optimizedRoute:null
+
+  }
+);
 
   }
 
@@ -1617,37 +1650,8 @@ async function handleConfirmTrip(btn){
   btn.disabled = true;
   btn.textContent = "Routing...";
 
-const routePoints = [];
-
-if(trip.pickup){
-
-  routePoints.push(
-    normalizeUniqueAddress(trip.pickup)
-  );
-
-}
-
-(trip.stops || []).forEach(stop=>{
-
-  if(stop){
-
-    routePoints.push(
-      normalizeUniqueAddress(stop)
-    );
-
-  }
-
-});
-
-if(trip.dropoff){
-
-  routePoints.push(
-    normalizeUniqueAddress(trip.dropoff)
-  );
-
-}  
-
-const routeData = await calculateRouteMiles(routePoints);
+  const routePoints = buildIndividualRoutePoints(trip);
+  const routeData = await calculateRouteMiles(routePoints);
 
   btn.textContent = "Pricing...";
 
