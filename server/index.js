@@ -2643,72 +2643,14 @@ company.cancelledTrips =
 company.noShowTrips =
   noShowTrips;
 
-/* 🔥 الفاتورة = فقط الرحلات بعد آخر دفعة */
+/* =========================
+   INVOICE AMOUNT
+========================= */
 
-let invoiceAmount = 0;
-
-if(company.lastPaymentDate){
-
-  invoiceAmount = Number(
-
-    trips
-      .filter(t => {
-
-        if(!t.createdAt){
-          return false;
-        }
-
-        return (
-          new Date(t.createdAt) >
-          new Date(company.lastPaymentDate)
-        );
-
-      })
-
-      .reduce((sum,t)=>{
-
-        const status =
-          String(t.status || "")
-            .toLowerCase();
-
-        if(status.includes("complete")){
-
-          return sum + Number(
-            t.finalPrice ||
-            t.priceAmount ||
-            0
-          );
-
-        }
-
-        if(status.includes("cancel")){
-
-          return sum + Number(
-            t.cancelFee || 0
-          );
-
-        }
-
-        if(status.includes("no")){
-
-          return sum + Number(
-            t.noShowFee || 0
-          );
-
-        }
-
-        return sum;
-
-      },0)
-
+const invoiceAmount =
+  Number(
+    revenue.toFixed(2)
   );
-
-}else{
-
-  invoiceAmount =
-    Number(revenue.toFixed(2));
-
-}
 
 await User.findByIdAndUpdate(
   company._id,
