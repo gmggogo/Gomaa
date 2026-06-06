@@ -6397,6 +6397,66 @@ setInterval(async () => {
 
   }
 
+/* =========================
+   AUTO CLOSE OLD TRIPS
+========================= */
+
+const oldTrips = await Trip.find({
+
+status:{
+  $nin:[
+    "Completed",
+    "Cancelled",
+    "No Show",
+    "Not Completed"
+  ]
+}
+
+});
+
+for(const trip of oldTrips){
+
+  try{
+
+    const tripDateTime =
+      parseTripDateTime(
+        trip.tripDate,
+        trip.tripTime
+      );
+
+    if(!tripDateTime){
+      continue;
+    }
+
+    const diffHours =
+      (now - tripDateTime) /
+      (1000 * 60 * 60);
+
+    if(diffHours >= 03){
+
+      await Trip.findByIdAndUpdate(
+        trip._id,
+        {
+          status:"Not Completed",
+          priceAmount:0,
+          finalPrice:0,
+          miles:0,
+          distanceMeters:0,
+          durationSeconds:0,
+          estimatedMinutes:0
+        }
+      );
+
+    }
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
+
 }, 60000);
  
 /* =========================
