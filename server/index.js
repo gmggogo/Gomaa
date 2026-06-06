@@ -6432,8 +6432,7 @@ for(const trip of oldTrips){
       (now - tripDateTime) /
       (1000 * 60 * 60);
 
-    if(diffHours >= 03){
-
+if(diffHours >= 0.01){
       await Trip.findByIdAndUpdate(
         trip._id,
         {
