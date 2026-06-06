@@ -6430,24 +6430,11 @@ for(const trip of oldTrips){
       continue;
     }
 
-    const diffHours =
+ const diffHours =
   (now - tripDateTime) /
   (1000 * 60 * 60);
 
-console.log(
-  "AUTO CHECK",
-  trip.tripNumber,
-  trip.tripDate,
-  trip.tripTime,
-  diffHours
-);
-
-if(diffHours >= 0.01){
-
-  console.log(
-    "AUTO CLOSE",
-    trip.tripNumber
-  );
+if(diffHours >= 10){
 
   await Trip.findByIdAndUpdate(
     trip._id,
