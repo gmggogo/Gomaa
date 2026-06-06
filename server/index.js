@@ -3231,93 +3231,121 @@ app.get("/api/company/check-payment", async (req,res)=>{
     }
 
     const now =
-      new Date();
+  new Date();
 
-    let nextBillingDate =
-      new Date(now);
+let nextBillingDate =
+  new Date(now);
 
-    if(company.billingCycle === "WEEKLY"){
+if(company.billingCycle === "WEEKLY"){
 
-      nextBillingDate.setDate(
-        nextBillingDate.getDate() + 7
-      );
+  nextBillingDate.setDate(
+    nextBillingDate.getDate() + 7
+  );
 
-    }else{
+}else{
 
-      nextBillingDate.setMonth(
-        nextBillingDate.getMonth() + 1
-      );
+  nextBillingDate.setMonth(
+    nextBillingDate.getMonth() + 1
+  );
 
+}
+
+/* =========================
+   RESET BILLING
+========================= */
+
+company.billingStatus =
+  "ACTIVE";
+
+company.billingLocked =
+  false;
+
+company.invoiceAmount =
+  0;
+
+company.revenue =
+  0;
+
+company.totalTrips =
+  0;
+
+company.individualTrips =
+  0;
+
+company.sharedTrips =
+  0;
+
+company.sharedPassengers =
+  0;
+
+company.completedTrips =
+  0;
+
+company.cancelledTrips =
+  0;
+
+company.noShowTrips =
+  0;
+
+company.lastPaymentDate =
+  now;
+
+/* =========================
+   NEW BILLING CYCLE
+========================= */
+
+company.billingStartDate =
+  new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    0,
+    0,
+    0
+  );
+
+company.billingEndDate =
+  new Date(
+    nextBillingDate.getFullYear(),
+    nextBillingDate.getMonth(),
+    nextBillingDate.getDate(),
+    23,
+    59,
+    59
+  );
+
+company.nextBillingDate =
+  nextBillingDate;
+
+console.log(
+  "UPDATING COMPANY..."
+);
+
+await company.save();
+
+console.log(
+  "COMPANY SAVED"
+);
+
+/* PREVENT DUPLICATE VERIFY */
+
+await stripe.checkout.sessions.update(
+  sessionId,
+  {
+    metadata:{
+      ...session.metadata,
+      verified:"true"
     }
+  }
+);
 
-    /* =========================
-       UPDATE BILLING
-    ========================= */
+console.log(
+  "PAYMENT UPDATED"
+);
 
-    company.billingStatus =
-      "ACTIVE";
-
-    company.billingLocked =
-      false;
-
-    company.invoiceAmount =
-      0;
-
-    company.lastPaymentDate =
-      now;
-
-    company.billingStartDate =
-      new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0
-      );
-
-    company.billingEndDate =
-      new Date(
-        nextBillingDate.getFullYear(),
-        nextBillingDate.getMonth(),
-        nextBillingDate.getDate(),
-        23,
-        59,
-        59
-      );
-
-    company.nextBillingDate =
-      nextBillingDate;
-
-    console.log(
-      "UPDATING COMPANY..."
-    );
-
-    await company.save();
-
-    console.log(
-      "COMPANY SAVED"
-    );
-
-    /* 🔥 منع تكرار الدفع */
-
-    await stripe.checkout.sessions.update(
-      sessionId,
-      {
-        metadata:{
-          ...session.metadata,
-          verified:"true"
-        }
-      }
-    );
-
-    console.log(
-      "PAYMENT UPDATED"
-    );
-
-    res.json({
-      paid:true
-    });
+return res.json({
+  paid:true
+});
 
   }catch(err){
 
