@@ -42,31 +42,47 @@ async function load(){
 
 async function loadServices(){
 
-  const token =
-    localStorage.getItem("token") || "";
+  try{
 
-  const res =
-    await fetch("/api/services?company=true",{
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    });
+    const token =
+      localStorage.getItem("token") || "";
 
-  if(!res.ok){
-    throw new Error("Failed loading services");
+    const res =
+      await fetch("/api/services?company=true",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
+
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
+
+    const data =
+      await res.json();
+
+    const services =
+      Array.isArray(data)
+      ? data.filter(s =>
+          s &&
+          s.companyEnabled !== false &&
+          s.enabled !== false
+        )
+      : [];
+
+    if(services.length){
+      SERVICES = services;
+    }
+
+  }catch(err){
+
+    console.log(err);
+
+    if(!Array.isArray(SERVICES)){
+      SERVICES = [];
+    }
+
   }
-
-  const data =
-    await res.json();
-
-  SERVICES =
-    Array.isArray(data)
-    ? data.filter(s =>
-        s &&
-        s.companyEnabled !== false &&
-        s.enabled !== false
-      )
-    : [];
 
 }
 
@@ -1315,6 +1331,7 @@ function startAutoRefresh(){
       const oldTab =
         currentTab;
 
+      await loadServices();
       await loadTrips();
 
       currentTab =
