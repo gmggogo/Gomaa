@@ -514,19 +514,48 @@ function buildTabs(){
     </button>
   `;
 
-  SERVICES.forEach(s=>{
+  let tabs = [];
 
-    const code =
-      getServiceCode(s);
+  if(Array.isArray(SERVICES) && SERVICES.length){
 
-    const title =
-      getServiceTitle(s);
+    tabs = SERVICES.map(s => ({
+      code:getServiceCode(s),
+      title:getServiceTitle(s)
+    }));
+
+  }else{
+
+    const found = {};
+
+    allTrips.forEach(t=>{
+
+      const code =
+        getTripServiceCode(t);
+
+      if(!code) return;
+
+      if(!found[code]){
+
+        found[code] = {
+          code,
+          title:code
+        };
+
+      }
+
+    });
+
+    tabs = Object.values(found);
+
+  }
+
+  tabs.forEach(tab=>{
 
     html += `
       <button
-        class="tab ${currentTab === code ? "active" : ""}"
-        onclick="switchTab('${safeText(code)}',this)">
-        ${safeText(title)}
+        class="tab ${currentTab === tab.code ? "active" : ""}"
+        onclick="switchTab('${safeText(tab.code)}',this)">
+        ${safeText(tab.title)}
       </button>
     `;
 
