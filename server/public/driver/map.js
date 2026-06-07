@@ -870,6 +870,7 @@ async function loadSystemDesign(){
 function getGoogleMapsKey(){
 
   return (
+    systemDesign.googleKey ||
     systemDesign.googleMapsKey ||
     systemDesign.googleMapKey ||
     systemDesign.googleMapsApiKey ||
