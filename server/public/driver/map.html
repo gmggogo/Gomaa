@@ -1,405 +1,584 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Sunbeam Driver Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta charset="UTF-8">
+<title>Sunbeam Driver Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<style>
+:root{
+  --bg:#020617;
+  --panel:#020617;
+  --panel2:#0f172a;
+  --card:#111827;
+  --text:#ffffff;
+  --muted:#cbd5e1;
+  --yellow:#facc15;
+  --blue:#2563eb;
+  --green:#16a34a;
+  --green2:#059669;
+  --red:#dc2626;
+  --orange:#f59e0b;
+  --gray:#475569;
+  --border:rgba(255,255,255,.10);
+  --shadow:0 12px 28px rgba(0,0,0,.35);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
 
-  <style>
-    :root{
-      --bg:#0f172a;
-      --panel:#020617;
-      --panel-2:#111827;
-      --text:#ffffff;
-      --muted:#cbd5e1;
-      --yellow:#facc15;
-      --blue:#2563eb;
-      --green:#22c55e;
-      --green-2:#059669;
-      --red:#dc2626;
-      --orange:#f59e0b;
-      --gray:#475569;
-      --border:rgba(255,255,255,.08);
-      --shadow:0 10px 24px rgba(0,0,0,.28);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --radius:14px;
-    }
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
 
-    *{
-      box-sizing:border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+html,
+body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,Helvetica,sans-serif;
+}
 
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      height:100%;
-      overflow:hidden;
-      background:var(--bg);
-      color:var(--text);
-      font-family:Arial, Helvetica, sans-serif;
-    }
+/* HEADER */
 
-    body{
-      position:relative;
-    }
+#header{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:58px;
+  background:linear-gradient(135deg,#020617,#0f172a);
+  z-index:1200;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 14px;
+  border-bottom:1px solid var(--border);
+  box-shadow:0 4px 14px rgba(0,0,0,.28);
+}
 
-    #header{
-      position:fixed;
-      top:0;
-      left:0;
-      right:0;
-      height:56px;
-      background:var(--panel);
-      z-index:1200;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:0 14px;
-      border-bottom:1px solid var(--border);
-      box-shadow:0 2px 10px rgba(0,0,0,.18);
-    }
+#driverName{
+  font-size:16px;
+  font-weight:900;
+  color:var(--yellow);
+  max-width:48%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
-    #driverName{
-      font-size:16px;
-      font-weight:700;
-      color:var(--yellow);
-      max-width:46%;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
+#datetime{
+  font-size:12px;
+  color:var(--muted);
+  text-align:right;
+  line-height:1.35;
+  font-weight:800;
+}
 
-    #datetime{
-      font-size:12px;
-      color:var(--muted);
-      text-align:right;
-      line-height:1.25;
-    }
+/* STATUS */
 
-    #navText{
-      position:fixed;
-      top:64px;
-      left:12px;
-      right:12px;
-      min-height:48px;
-      background:var(--panel);
-      border-radius:14px;
-      box-shadow:var(--shadow);
-      z-index:1190;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:12px 14px;
-      font-size:15px;
-      font-weight:700;
-      border:1px solid var(--border);
-    }
+#navText{
+  position:fixed;
+  top:66px;
+  left:12px;
+  right:12px;
+  min-height:50px;
+  background:rgba(2,6,23,.94);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  z-index:1190;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:12px 14px;
+  font-size:15px;
+  font-weight:900;
+  border:1px solid var(--border);
+  backdrop-filter:blur(8px);
+}
 
-    #etaBox{
-      position:fixed;
-      top:120px;
-      left:50%;
-      transform:translateX(-50%);
-      min-width:160px;
-      max-width:88%;
-      background:var(--panel-2);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:999px;
-      box-shadow:var(--shadow);
-      z-index:1190;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      padding:9px 14px;
-      font-size:14px;
-      font-weight:700;
-      color:#fff;
-    }
+/* MINI INFO */
 
-    #map{
-      position:fixed;
-      top:158px;
-      left:0;
-      right:0;
-      bottom:325px;
-      z-index:1;
-    }
+#tripInfo{
+  position:fixed;
+  top:124px;
+  left:12px;
+  right:12px;
+  min-height:48px;
+  background:rgba(15,23,42,.92);
+  border:1px solid var(--border);
+  border-radius:16px;
+  z-index:1190;
+  box-shadow:var(--shadow);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding:9px 12px;
+  backdrop-filter:blur(8px);
+}
 
-    #controls{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:82px;
-      background:var(--panel);
-      z-index:1250;
-      padding:10px 12px 12px;
-      border-top:1px solid var(--border);
-      box-shadow:0 -6px 18px rgba(0,0,0,.22);
-      max-height:243px;
-      overflow:auto;
-    }
+.info-box{
+  min-width:0;
+}
 
-    .btn{
-      width:100%;
-      border:none;
-      border-radius:14px;
-      padding:14px 14px;
-      font-size:15px;
-      font-weight:700;
-      color:#fff;
-      cursor:pointer;
-      margin:0;
-      transition:transform .12s ease, opacity .12s ease, box-shadow .12s ease;
-      box-shadow:0 8px 18px rgba(0,0,0,.18);
-    }
+.info-label{
+  font-size:10px;
+  color:#94a3b8;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
 
-    .btn:active{
-      transform:scale(.985);
-    }
+.info-value{
+  margin-top:3px;
+  font-size:13px;
+  color:#fff;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
-    .btn + .btn,
-    .btn + #waitTimer,
-    .btn + #noShowBox,
-    #waitTimer + .btn,
-    #waitTimer + #noShowBox,
-    #noShowBox + .btn{
-      margin-top:8px;
-    }
+/* MAP */
 
-    #btnGoogle{
-      display:none;
-      background:#0f172a;
-      border:1px solid var(--gray);
-    }
+#map{
+  position:fixed;
+  top:182px;
+  left:0;
+  right:0;
+  bottom:330px;
+  z-index:1;
+  background:#0f172a;
+}
 
-    #btnGoPickup{
-      display:none;
-      background:var(--blue);
-    }
+/* FLOAT GPS */
 
-    #btnGoDropoff{
-      display:none;
-      background:#1d4ed8;
-    }
+#gpsBadge{
+  position:fixed;
+  top:190px;
+  right:12px;
+  z-index:1195;
+  background:rgba(2,6,23,.92);
+  color:#fff;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:900;
+  box-shadow:var(--shadow);
+  display:none;
+}
 
-    #btnStart{
-      display:none;
-      background:#16a34a;
-    }
+#recenterBtn{
+  position:fixed;
+  right:12px;
+  bottom:344px;
+  z-index:1195;
+  width:46px;
+  height:46px;
+  border:none;
+  border-radius:50%;
+  background:#fff;
+  color:#111827;
+  font-size:22px;
+  font-weight:900;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+}
 
-    #btnComplete{
-      display:none;
-      background:var(--green-2);
-    }
+/* CONTROLS */
 
-    #btnComplete.enabled{
-      box-shadow:0 0 0 2px rgba(255,255,255,.14) inset, 0 8px 18px rgba(0,0,0,.18);
-    }
+#controls{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:82px;
+  background:linear-gradient(180deg,#020617,#030712);
+  z-index:1250;
+  padding:12px 12px 14px;
+  border-top:1px solid var(--border);
+  box-shadow:0 -8px 24px rgba(0,0,0,.34);
+  max-height:248px;
+  overflow:auto;
+}
 
-    #btnNoShow{
-      display:none;
-      background:var(--red);
-    }
+.btn{
+  width:100%;
+  border:none;
+  border-radius:16px;
+  padding:15px 14px;
+  font-size:15px;
+  font-weight:900;
+  color:#fff;
+  cursor:pointer;
+  margin:0;
+  transition:transform .12s ease,opacity .12s ease,box-shadow .12s ease;
+  box-shadow:0 8px 18px rgba(0,0,0,.25);
+}
 
-    #btnCallClient{
-      display:none;
-      background:var(--orange);
-    }
+.btn:active{
+  transform:scale(.985);
+}
 
-    #waitTimer{
-      display:none;
-      width:100%;
-      text-align:center;
-      color:var(--yellow);
-      font-size:24px;
-      font-weight:800;
-      padding:8px 0 4px;
-      letter-spacing:1px;
-    }
+.btn + .btn,
+.btn + #waitTimer,
+.btn + #noShowBox,
+#waitTimer + .btn,
+#waitTimer + #noShowBox{
+  margin-top:8px;
+}
 
-    #noShowBox{
-      display:none;
-      flex-direction:column;
-      gap:8px;
-      background:#111827;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:14px;
-      padding:10px;
-    }
+#btnGoogle{
+  display:none;
+  background:linear-gradient(135deg,#111827,#020617);
+  border:1px solid #475569;
+}
 
-    #noShowHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
+#btnGoPickup{
+  display:none;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+}
 
-    #noShowTitle{
-      font-size:14px;
-      font-weight:700;
-      color:#fff;
-    }
+#btnGoDropoff{
+  display:none;
+  background:linear-gradient(135deg,#1d4ed8,#1e40af);
+}
 
-    #btnCloseNoShow{
-      width:38px;
-      min-width:38px;
-      height:38px;
-      border:none;
-      border-radius:10px;
-      background:#334155;
-      color:#fff;
-      font-size:18px;
-      font-weight:700;
-      cursor:pointer;
-    }
+#btnStart{
+  display:none;
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+}
 
-    #noShowNotes{
-      width:100%;
-      min-height:86px;
-      resize:none;
-      border:none;
-      outline:none;
-      border-radius:12px;
-      padding:12px;
-      font-size:14px;
-      background:#fff;
-      color:#111827;
-      font-family:Arial, Helvetica, sans-serif;
-    }
+#btnComplete{
+  display:none;
+  background:linear-gradient(135deg,#10b981,#059669);
+  opacity:.65;
+}
 
-    #btnCompleteNoShow{
-      background:#b91c1c;
-    }
+#btnComplete.enabled{
+  opacity:1;
+  box-shadow:0 0 0 2px rgba(255,255,255,.18) inset,0 8px 18px rgba(0,0,0,.25);
+}
 
-    .bottom-nav{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      height:82px;
-      padding-bottom:var(--safe-bottom);
-      background:#000;
-      border-top:1px solid var(--border);
-      z-index:1300;
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-around;
-      padding-top:8px;
-    }
+#btnNoShow{
+  display:none;
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+}
 
-    .nav-btn{
-      width:20%;
-      background:none;
-      border:none;
-      color:#9ca3af;
-      padding:0;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:flex-start;
-      gap:4px;
-      font-size:11px;
-      font-weight:700;
-      cursor:pointer;
-    }
+#btnCallClient{
+  display:none;
+  background:linear-gradient(135deg,#f59e0b,#ea580c);
+}
 
-    .nav-btn .icon{
-      font-size:24px;
-      line-height:1;
-    }
+/* TIMER */
 
-    .nav-btn.active{
-      color:var(--yellow);
-    }
+#waitTimer{
+  display:none;
+  width:100%;
+  text-align:center;
+  color:var(--yellow);
+  font-size:28px;
+  font-weight:900;
+  padding:8px 0 4px;
+  letter-spacing:1px;
+}
 
-    .leaflet-routing-container,
-    .leaflet-control-attribution{
-      display:none !important;
-    }
+/* NO SHOW */
 
-    @media (max-width:420px){
-      #driverName{font-size:15px;}
-      #navText{font-size:14px;}
-      #etaBox{font-size:13px;}
-      .btn{font-size:14px;padding:13px 12px;}
-      #map{bottom:345px;}
-    }
-  </style>
+#noShowBox{
+  display:none;
+  flex-direction:column;
+  gap:8px;
+  background:#111827;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:10px;
+  margin-top:8px;
+}
+
+#noShowHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+#noShowTitle{
+  font-size:14px;
+  font-weight:900;
+  color:#fff;
+}
+
+#btnCloseNoShow{
+  width:40px;
+  min-width:40px;
+  height:40px;
+  border:none;
+  border-radius:12px;
+  background:#334155;
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+#noShowNotes{
+  width:100%;
+  min-height:86px;
+  resize:none;
+  border:none;
+  outline:none;
+  border-radius:14px;
+  padding:12px;
+  font-size:14px;
+  background:#fff;
+  color:#111827;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+#btnCompleteNoShow{
+  background:linear-gradient(135deg,#dc2626,#991b1b);
+}
+
+/* BOTTOM NAV */
+
+.bottom-nav{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  height:82px;
+  padding-bottom:var(--safe-bottom);
+  background:#000;
+  border-top:1px solid var(--border);
+  z-index:1300;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-around;
+  padding-top:8px;
+}
+
+.nav-btn{
+  width:20%;
+  background:none;
+  border:none;
+  color:#9ca3af;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  gap:4px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.nav-btn .icon{
+  font-size:24px;
+  line-height:1;
+}
+
+.nav-btn.active{
+  color:var(--yellow);
+}
+
+/* GOOGLE CONTROLS CLEAN */
+
+.gm-style-cc,
+.gmnoprint.gm-style-cc{
+  display:none !important;
+}
+
+@media(max-width:420px){
+
+  #driverName{
+    font-size:15px;
+  }
+
+  #datetime{
+    font-size:11px;
+  }
+
+  #navText{
+    font-size:14px;
+  }
+
+  #tripInfo{
+    grid-template-columns:1fr;
+    gap:6px;
+  }
+
+  #map{
+    top:224px;
+    bottom:350px;
+  }
+
+  #recenterBtn{
+    bottom:364px;
+  }
+
+  #controls{
+    max-height:268px;
+  }
+
+  .btn{
+    font-size:14px;
+    padding:14px 12px;
+  }
+
+  #waitTimer{
+    font-size:25px;
+  }
+
+}
+
+@media(max-height:720px){
+
+  #tripInfo{
+    display:none;
+  }
+
+  #map{
+    top:124px;
+    bottom:315px;
+  }
+
+  #recenterBtn{
+    bottom:330px;
+  }
+
+  #controls{
+    max-height:233px;
+  }
+
+}
+</style>
 </head>
+
 <body>
 
-  <div id="header">
-    <div id="driverName">Driver</div>
-    <div id="datetime"></div>
+<div id="header">
+  <div id="driverName">Driver</div>
+  <div id="datetime">--</div>
+</div>
+
+<div id="navText">
+  Loading trip...
+</div>
+
+<div id="tripInfo">
+  <div class="info-box">
+    <div class="info-label">Pickup</div>
+    <div class="info-value" id="pickupText">--</div>
   </div>
 
-  <div id="navText">Waiting for GPS...</div>
+  <div class="info-box">
+    <div class="info-label">Dropoff</div>
+    <div class="info-value" id="dropoffText">--</div>
+  </div>
+</div>
 
-  <div id="etaBox">
-    <span id="etaTime">-- min</span>
-    <span>•</span>
-    <span id="etaDistance">-- mi</span>
+<div id="gpsBadge">
+  GPS Active
+</div>
+
+<div id="map"></div>
+
+<button id="recenterBtn" type="button">◎</button>
+
+<div id="controls">
+
+  <button id="btnGoPickup" class="btn" type="button">
+    GO TO PICKUP
+  </button>
+
+  <button id="btnGoDropoff" class="btn" type="button">
+    GO TO DROPOFF
+  </button>
+
+  <button id="btnGoogle" class="btn" type="button">
+    OPEN GOOGLE MAPS
+  </button>
+
+  <button id="btnStart" class="btn" type="button">
+    START RIDE
+  </button>
+
+  <button id="btnCallClient" class="btn" type="button">
+    CALL CLIENT
+  </button>
+
+  <button id="btnNoShow" class="btn" type="button">
+    NO SHOW
+  </button>
+
+  <button id="btnComplete" class="btn" type="button">
+    COMPLETE
+  </button>
+
+  <div id="waitTimer">
+    15:00
   </div>
 
-  <div id="map"></div>
+  <div id="noShowBox">
 
-  <div id="controls">
-    <button id="btnGoPickup" class="btn">GO TO PICKUP</button>
-    <button id="btnGoDropoff" class="btn">GO TO DROPOFF</button>
-    <button id="btnGoogle" class="btn">Open in Google Maps</button>
-    <button id="btnStart" class="btn">START RIDE</button>
-    <button id="btnCallClient" class="btn">CALL CLIENT</button>
-    <button id="btnNoShow" class="btn">NO SHOW</button>
-    <button id="btnComplete" class="btn">COMPLETE</button>
-
-    <div id="waitTimer">15:00</div>
-
-    <div id="noShowBox">
-      <div id="noShowHeader">
-        <div id="noShowTitle">Enter no show reason</div>
-        <button id="btnCloseNoShow" type="button">✕</button>
+    <div id="noShowHeader">
+      <div id="noShowTitle">
+        Enter no show reason
       </div>
-      <textarea id="noShowNotes" placeholder="Reason for no show"></textarea>
-      <button id="btnCompleteNoShow" class="btn">Complete No Show</button>
+
+      <button id="btnCloseNoShow" type="button">
+        ✕
+      </button>
     </div>
+
+    <textarea
+      id="noShowNotes"
+      placeholder="Reason for no show"></textarea>
+
+    <button id="btnCompleteNoShow" class="btn" type="button">
+      Complete No Show
+    </button>
+
   </div>
 
-  <div class="bottom-nav">
-    <button class="nav-btn" id="navHome" type="button">
-      <span class="icon">🏠</span>
-      <span>Home</span>
-    </button>
+</div>
 
-    <button class="nav-btn" id="navTrips" type="button">
-      <span class="icon">🚗</span>
-      <span>Trips</span>
-    </button>
+<div class="bottom-nav">
 
-    <button class="nav-btn active" id="navMap" type="button">
-      <span class="icon">🗺️</span>
-      <span>Map</span>
-    </button>
+  <button class="nav-btn" id="navHome" type="button">
+    <span class="icon">🏠</span>
+    <span>Home</span>
+  </button>
 
-    <button class="nav-btn" id="navChat" type="button">
-      <span class="icon">💬</span>
-      <span>Chat</span>
-    </button>
+  <button class="nav-btn" id="navTrips" type="button">
+    <span class="icon">🚗</span>
+    <span>Trips</span>
+  </button>
 
-    <button class="nav-btn" id="navLogout" type="button">
-      <span class="icon">🚪</span>
-      <span>Logout</span>
-    </button>
-  </div>
+  <button class="nav-btn active" id="navMap" type="button">
+    <span class="icon">🗺️</span>
+    <span>Map</span>
+  </button>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-  <script src="/driver/map.js"></script>
+  <button class="nav-btn" id="navChat" type="button">
+    <span class="icon">💬</span>
+    <span>Chat</span>
+  </button>
+
+  <button class="nav-btn" id="navLogout" type="button">
+    <span class="icon">🚪</span>
+    <span>Logout</span>
+  </button>
+
+</div>
+
+<script src="/driver/map.js"></script>
+
 </body>
 </html>
