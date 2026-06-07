@@ -1,22 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
-
 <title>Company Dashboard</title>
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="layout.css">
 
 <style>
-
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 :root{
   --blue:#145cff;
@@ -54,94 +45,8 @@ body{
   width:100%;
   max-width:1800px;
   margin:auto;
-  padding:88px 34px 40px;
+  padding:34px 34px 40px;
 }
-
-/* ================= HERO ================= */
-
-.hero{
-  margin:-88px -34px 34px;
-  padding:34px;
-  background:linear-gradient(135deg,#03142f,#145cff);
-  color:#fff;
-  box-shadow:0 14px 34px rgba(20,92,255,.25);
-}
-
-.hero-inner{
-  max-width:1800px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:1fr auto 1fr;
-  gap:24px;
-  align-items:center;
-}
-
-.hero-brand{
-  display:flex;
-  align-items:center;
-  gap:16px;
-}
-
-.hero-brand img{
-  width:74px;
-  height:74px;
-  object-fit:contain;
-  border-radius:18px;
-  background:#fff;
-  padding:8px;
-}
-
-.brand-name{
-  font-size:26px;
-  font-weight:900;
-  color:#facc15;
-  line-height:1.1;
-}
-
-.brand-sub{
-  margin-top:6px;
-  font-size:13px;
-  font-weight:800;
-  color:#dbeafe;
-}
-
-.facility-box{
-  text-align:center;
-}
-
-.facility-label{
-  font-size:12px;
-  font-weight:900;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  color:#bfdbfe;
-}
-
-.facility-name{
-  margin-top:8px;
-  font-size:30px;
-  font-weight:900;
-  color:#fff;
-}
-
-.time-box{
-  text-align:right;
-}
-
-.date-text{
-  font-size:18px;
-  font-weight:900;
-  color:#fff;
-}
-
-.time-text{
-  margin-top:8px;
-  font-size:15px;
-  font-weight:800;
-  color:#dbeafe;
-}
-
-/* ================= SECTION ================= */
 
 .section-title{
   display:flex;
@@ -168,8 +73,6 @@ body{
   font-size:13px;
   font-weight:800;
 }
-
-/* ================= CARDS ================= */
 
 .cards{
   display:grid;
@@ -199,25 +102,11 @@ body{
   background:var(--blue);
 }
 
-.card.green::before{
-  background:var(--green);
-}
-
-.card.red::before{
-  background:var(--red);
-}
-
-.card.orange::before{
-  background:var(--orange);
-}
-
-.card.yellow::before{
-  background:var(--yellow);
-}
-
-.card.purple::before{
-  background:var(--purple);
-}
+.card.green::before{background:var(--green);}
+.card.red::before{background:var(--red);}
+.card.orange::before{background:var(--orange);}
+.card.yellow::before{background:var(--yellow);}
+.card.purple::before{background:var(--purple);}
 
 .card-title{
   color:var(--muted);
@@ -233,15 +122,6 @@ body{
   font-weight:900;
   line-height:1;
 }
-
-.card-note{
-  margin-top:10px;
-  font-size:12px;
-  color:var(--muted);
-  font-weight:800;
-}
-
-/* ================= SERVICE CARDS ================= */
 
 .service-grid{
   display:grid;
@@ -314,8 +194,6 @@ body{
   font-weight:900;
 }
 
-/* ================= BILLING ================= */
-
 .billing-grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -350,27 +228,21 @@ body{
   border-color:#fde68a;
 }
 
-.billing-card.yellow::before{
-  background:var(--yellow);
-}
+.billing-card.yellow::before{background:var(--yellow);}
 
 .billing-card.orange{
   background:linear-gradient(135deg,#fff7ed,#ffffff);
   border-color:#fed7aa;
 }
 
-.billing-card.orange::before{
-  background:var(--orange);
-}
+.billing-card.orange::before{background:var(--orange);}
 
 .billing-card.red{
   background:linear-gradient(135deg,#fff1f2,#ffffff);
   border-color:#fecaca;
 }
 
-.billing-card.red::before{
-  background:var(--red);
-}
+.billing-card.red::before{background:var(--red);}
 
 .billing-title{
   color:#166534;
@@ -399,17 +271,9 @@ body{
   color:#16a34a;
 }
 
-.billing-yellow-text{
-  color:#ca8a04;
-}
-
-.billing-orange-text{
-  color:#ea580c;
-}
-
-.billing-red-text{
-  color:#dc2626;
-}
+.billing-yellow-text{color:#ca8a04;}
+.billing-orange-text{color:#ea580c;}
+.billing-red-text{color:#dc2626;}
 
 .payment-legend{
   display:flex;
@@ -443,130 +307,18 @@ body{
 .dot.orange{background:var(--orange);}
 .dot.red{background:var(--red);}
 
-/* ================= RECENT ================= */
-
-.table-box{
-  background:#fff;
-  border-radius:24px;
-  padding:22px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
-  border:1px solid #edf2f7;
-  overflow:hidden;
-}
-
-.table-wrap{
-  width:100%;
-  overflow-x:auto;
-  border-radius:16px;
-  border:1px solid var(--border);
-}
-
-table{
-  width:100%;
-  min-width:900px;
-  border-collapse:collapse;
-}
-
-th{
-  background:#dbe4f0;
-  color:#0f172a;
-  font-size:11px;
-  font-weight:900;
-  text-align:center;
-  padding:13px 10px;
-  white-space:nowrap;
-}
-
-td{
-  padding:12px 10px;
-  font-size:11px;
-  text-align:center;
-  border-bottom:1px solid #eef2f7;
-  font-weight:800;
-  color:#111827;
-  white-space:nowrap;
-}
-
-tr:nth-child(even) td{
-  background:#fafcff;
-}
-
-.money{
-  color:var(--green);
-  font-weight:900;
-}
-
-.status-pill{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:96px;
-  height:28px;
-  padding:0 10px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:900;
-}
-
-.status-completed{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.status-cancelled{
-  background:#fee2e2;
-  color:#991b1b;
-}
-
-.status-noshow{
-  background:#fef3c7;
-  color:#92400e;
-}
-
-.status-other{
-  background:#dbeafe;
-  color:#1d4ed8;
-}
-
 .empty{
   padding:24px;
   text-align:center;
   color:var(--muted);
   font-weight:900;
+  background:#fff;
+  border-radius:18px;
 }
 
-/* ================= MOBILE ================= */
-
 @media(max-width:900px){
-
   .container{
-    padding:84px 16px 36px;
-  }
-
-  .hero{
-    margin:-84px -16px 26px;
-    padding:26px 16px;
-  }
-
-  .hero-inner{
-    grid-template-columns:1fr;
-    text-align:center;
-  }
-
-  .hero-brand{
-    justify-content:center;
-  }
-
-  .time-box{
-    text-align:center;
-  }
-
-  .brand-name{
-    font-size:23px;
-  }
-
-  .facility-name{
-    font-size:25px;
+    padding:24px 16px 36px;
   }
 
   .cards{
@@ -598,11 +350,9 @@ tr:nth-child(even) td{
   .section-title{
     font-size:24px;
   }
-
 }
 
 @media(max-width:520px){
-
   .cards{
     grid-template-columns:1fr 1fr;
   }
@@ -614,13 +364,9 @@ tr:nth-child(even) td{
   .billing-value{
     font-size:30px;
   }
-
 }
 
-/* ================= PRINT ================= */
-
 @media print{
-
   #layoutHeader{
     display:none !important;
   }
@@ -634,19 +380,14 @@ tr:nth-child(even) td{
     max-width:100% !important;
   }
 
-  .hero,
   .card,
   .service-card,
-  .billing-card,
-  .table-box{
+  .billing-card{
     box-shadow:none !important;
     break-inside:avoid;
   }
-
 }
-
 </style>
-
 </head>
 
 <body>
@@ -655,72 +396,7 @@ tr:nth-child(even) td{
 
 <div class="container">
 
-  <!-- HERO -->
-
-  <div class="hero">
-
-    <div class="hero-inner">
-
-      <div class="hero-brand">
-
-        <img
-          id="brandLogo"
-          src="/assets/logo.png"
-          alt="Logo">
-
-        <div>
-          <div
-            class="brand-name"
-            id="brandName">
-            Company Dashboard
-          </div>
-
-          <div class="brand-sub">
-            Transportation Management Portal
-          </div>
-        </div>
-
-      </div>
-
-      <div class="facility-box">
-
-        <div class="facility-label">
-          Facility Account
-        </div>
-
-        <div
-          class="facility-name"
-          id="facilityName">
-          Facility
-        </div>
-
-      </div>
-
-      <div class="time-box">
-
-        <div
-          class="date-text"
-          id="todayDate">
-          --
-        </div>
-
-        <div
-          class="time-text"
-          id="todayTime">
-          --
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- TODAY -->
-
-  <div class="section-title">
-    Today's Activity
-  </div>
+  <div class="section-title">Today's Activity</div>
 
   <div class="cards">
 
@@ -756,11 +432,7 @@ tr:nth-child(even) td{
 
   </div>
 
-  <!-- MONTHLY -->
-
-  <div class="section-title">
-    Monthly Overview
-  </div>
+  <div class="section-title">Monthly Overview</div>
 
   <div class="cards">
 
@@ -790,54 +462,40 @@ tr:nth-child(even) td{
     </div>
 
     <div class="card red">
-      <div class="card-title">Cancelled / No Show</div>
-      <div class="card-value" id="monthlyBadTrips">0</div>
+      <div class="card-title">Cancelled Trips</div>
+      <div class="card-value" id="monthlyCancelled">0</div>
+    </div>
+
+    <div class="card orange">
+      <div class="card-title">No Show Trips</div>
+      <div class="card-value" id="monthlyNoShow">0</div>
     </div>
 
   </div>
 
-  <!-- SERVICE PERFORMANCE -->
-
-  <div class="section-title">
-    Service Performance
-  </div>
+  <div class="section-title">Service Performance</div>
 
   <div class="section-sub">
     Services are loaded dynamically from Service Management.
   </div>
 
-  <div
-    class="service-grid"
-    id="serviceCards">
-  </div>
+  <div class="service-grid" id="serviceCards"></div>
 
-  <!-- BILLING -->
-
-  <div class="section-title">
-    Billing Overview
-  </div>
+  <div class="section-title">Billing Overview</div>
 
   <div class="billing-grid">
 
     <div class="billing-card" id="invoiceCard">
 
-      <div class="billing-title">
-        Current Invoice
-      </div>
+      <div class="billing-title">Current Invoice</div>
 
-      <div class="billing-icon">
-        💲
-      </div>
+      <div class="billing-icon">💲</div>
 
-      <div
-        class="billing-value"
-        id="invoiceAmount">
+      <div class="billing-value" id="invoiceAmount">
         $0.00
       </div>
 
-      <div
-        class="billing-sub"
-        id="billingStatus">
+      <div class="billing-sub" id="billingStatus">
         ACTIVE
       </div>
 
@@ -845,23 +503,15 @@ tr:nth-child(even) td{
 
     <div class="billing-card" id="billingPeriodCard">
 
-      <div class="billing-title">
-        Billing Period
-      </div>
+      <div class="billing-title">Billing Period</div>
 
-      <div class="billing-icon">
-        🗓️
-      </div>
+      <div class="billing-icon">🗓️</div>
 
-      <div
-        class="billing-value"
-        id="billingPeriod">
+      <div class="billing-value" id="billingPeriod">
         --
       </div>
 
-      <div
-        class="billing-sub"
-        id="lastPayment">
+      <div class="billing-sub" id="lastPayment">
         Last Payment: --
       </div>
 
@@ -869,23 +519,15 @@ tr:nth-child(even) td{
 
     <div class="billing-card" id="paymentCard">
 
-      <div class="billing-title">
-        Payment Due Date
-      </div>
+      <div class="billing-title">Payment Due Date</div>
 
-      <div class="billing-icon">
-        ✅
-      </div>
+      <div class="billing-icon">✅</div>
 
-      <div
-        class="billing-value"
-        id="paymentDue">
+      <div class="billing-value" id="paymentDue">
         --
       </div>
 
-      <div
-        class="billing-sub"
-        id="paymentStatus">
+      <div class="billing-sub" id="paymentStatus">
         --
       </div>
 
@@ -917,44 +559,11 @@ tr:nth-child(even) td{
 
   </div>
 
-  <!-- RECENT -->
-
-  <div class="section-title">
-    Recent Activity
-  </div>
-
-  <div class="table-box">
-
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Trip #</th>
-            <th>Service</th>
-            <th>Status</th>
-            <th>Revenue</th>
-            <th>Miles</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-
-        <tbody id="recentTable"></tbody>
-
-      </table>
-
-    </div>
-
-  </div>
-
 </div>
 
 <script src="layout.js"></script>
 
 <script>
-
 let allTrips = [];
 let services = [];
 let billing = {};
@@ -983,8 +592,7 @@ function cleanStatus(v){
 
 function statusKey(v){
 
-  const s =
-    cleanStatus(v);
+  const s = cleanStatus(v);
 
   if(s.includes("complete")){
     return "completed";
@@ -994,7 +602,7 @@ function statusKey(v){
     return "cancelled";
   }
 
-  if(s.includes("no")){
+  if(s.includes("noshow") || s.includes("no")){
     return "noshow";
   }
 
@@ -1012,6 +620,20 @@ function isCancelled(v){
 
 function isNoShow(v){
   return statusKey(v) === "noshow";
+}
+
+function localDateKey(d = new Date()){
+
+  const y = d.getFullYear();
+
+  const m = String(d.getMonth() + 1)
+    .padStart(2,"0");
+
+  const day = String(d.getDate())
+    .padStart(2,"0");
+
+  return `${y}-${m}-${day}`;
+
 }
 
 function isSharedTrip(t){
@@ -1037,8 +659,7 @@ function formatDate(value){
     return "--";
   }
 
-  const d =
-    new Date(value);
+  const d = new Date(value);
 
   if(isNaN(d.getTime())){
     return "--";
@@ -1049,31 +670,6 @@ function formatDate(value){
     {
       month:"short",
       day:"numeric"
-    }
-  );
-
-}
-
-function formatFullDate(value){
-
-  if(!value){
-    return "--";
-  }
-
-  const d =
-    new Date(value);
-
-  if(isNaN(d.getTime())){
-    return "--";
-  }
-
-  return d.toLocaleDateString(
-    "en-US",
-    {
-      weekday:"short",
-      month:"long",
-      day:"numeric",
-      year:"numeric"
     }
   );
 
@@ -1124,7 +720,9 @@ function getTripServiceCode(t){
 
   return String(
     parts[parts.length - 1] || ""
-  ).trim().toUpperCase();
+  )
+    .trim()
+    .toUpperCase();
 
 }
 
@@ -1177,6 +775,41 @@ function getServiceTitle(service){
 
 }
 
+function getPassengerRevenue(p,t){
+
+  if(isCompleted(p.status)){
+    return num(
+      p.finalPrice ||
+      p.priceAmount ||
+      p.price ||
+      0
+    );
+  }
+
+  if(isCancelled(p.status)){
+    return num(
+      p.cancelFee ||
+      p.finalPrice ||
+      p.priceAmount ||
+      t.cancelFee ||
+      0
+    );
+  }
+
+  if(isNoShow(p.status)){
+    return num(
+      p.noShowFee ||
+      p.finalPrice ||
+      p.priceAmount ||
+      t.noShowFee ||
+      0
+    );
+  }
+
+  return 0;
+
+}
+
 function getTripRevenue(t){
 
   if(isSharedTrip(t)){
@@ -1187,38 +820,7 @@ function getTripRevenue(t){
         : [];
 
     return passengers.reduce((sum,p)=>{
-
-      if(isCompleted(p.status)){
-        return sum + num(
-          p.finalPrice ||
-          p.priceAmount ||
-          p.price ||
-          0
-        );
-      }
-
-      if(isCancelled(p.status)){
-        return sum + num(
-          p.cancelFee ||
-          p.finalPrice ||
-          p.priceAmount ||
-          t.cancelFee ||
-          0
-        );
-      }
-
-      if(isNoShow(p.status)){
-        return sum + num(
-          p.noShowFee ||
-          p.finalPrice ||
-          p.priceAmount ||
-          t.noShowFee ||
-          0
-        );
-      }
-
-      return sum;
-
+      return sum + getPassengerRevenue(p,t);
     },0);
 
   }
@@ -1280,53 +882,6 @@ function getTripMiles(t){
 
 }
 
-function getTripStatusForDisplay(t){
-
-  if(isSharedTrip(t)){
-
-    const passengers =
-      Array.isArray(t.passengers)
-        ? t.passengers
-        : [];
-
-    if(passengers.some(p => isCompleted(p.status))){
-      return "Completed";
-    }
-
-    if(passengers.some(p => isCancelled(p.status))){
-      return "Cancelled";
-    }
-
-    if(passengers.some(p => isNoShow(p.status))){
-      return "No Show";
-    }
-
-  }
-
-  const s =
-    statusKey(t.status);
-
-  if(s === "completed") return "Completed";
-  if(s === "cancelled") return "Cancelled";
-  if(s === "noshow") return "No Show";
-
-  return t.status || "Scheduled";
-
-}
-
-function statusClass(label){
-
-  const s =
-    statusKey(label);
-
-  if(s === "completed") return "status-completed";
-  if(s === "cancelled") return "status-cancelled";
-  if(s === "noshow") return "status-noshow";
-
-  return "status-other";
-
-}
-
 /* ================= LOAD ================= */
 
 async function loadSystemDesign(){
@@ -1351,17 +906,6 @@ async function loadSystemDesign(){
       "Company Dashboard"
     ) + " – Company Dashboard";
 
-  document.getElementById("brandName").innerText =
-    systemDesign.companyName ||
-    "Company Dashboard";
-
-  document.getElementById("brandLogo").src =
-    systemDesign.mainLogo ||
-    "/assets/logo.png";
-
-  document.getElementById("facilityName").innerText =
-    facilityName;
-
 }
 
 async function loadServices(){
@@ -1369,9 +913,7 @@ async function loadServices(){
   try{
 
     const res =
-      await fetch(
-        "/api/services?company=true"
-      );
+      await fetch("/api/services?company=true");
 
     const data =
       await res.json();
@@ -1380,7 +922,8 @@ async function loadServices(){
       Array.isArray(data)
         ? data.filter(s =>
             s &&
-            s.companyEnabled !== false
+            s.companyEnabled !== false &&
+            s.enabled !== false
           )
         : [];
 
@@ -1394,18 +937,26 @@ async function loadServices(){
 
 async function loadTrips(){
 
-  const res =
-    await fetch(
-      `/api/trips/summary?company=${encodeURIComponent(facilityName)}`
-    );
+  try{
 
-  const data =
-    await res.json();
+    const res =
+      await fetch(
+        `/api/trips/summary?company=${encodeURIComponent(facilityName)}`
+      );
 
-  allTrips =
-    Array.isArray(data)
-      ? data
-      : [];
+    const data =
+      await res.json();
+
+    allTrips =
+      Array.isArray(data)
+        ? data
+        : [];
+
+  }catch(err){
+
+    allTrips = [];
+
+  }
 
 }
 
@@ -1442,36 +993,6 @@ async function load(){
 
 }
 
-/* ================= CLOCK ================= */
-
-function updateClock(){
-
-  const now =
-    new Date();
-
-  document.getElementById("todayDate").innerText =
-    now.toLocaleDateString(
-      "en-US",
-      {
-        weekday:"short",
-        month:"long",
-        day:"numeric",
-        year:"numeric"
-      }
-    );
-
-  document.getElementById("todayTime").innerText =
-    now.toLocaleTimeString(
-      "en-US",
-      {
-        hour:"numeric",
-        minute:"2-digit",
-        second:"2-digit"
-      }
-    );
-
-}
-
 /* ================= RENDER ================= */
 
 function render(){
@@ -1480,7 +1001,7 @@ function render(){
     new Date();
 
   const todayKey =
-    now.toISOString().split("T")[0];
+    localDateKey(now);
 
   const month =
     now.getMonth();
@@ -1500,7 +1021,8 @@ function render(){
   let monthlyMiles = 0;
   let monthlySharedPassengers = 0;
   let monthlyCompleted = 0;
-  let monthlyBadTrips = 0;
+  let monthlyCancelled = 0;
+  let monthlyNoShow = 0;
 
   allTrips.forEach(t=>{
 
@@ -1518,7 +1040,7 @@ function render(){
       getTripMiles(t);
 
     const tripDateKey =
-      t.tripDate;
+      String(t.tripDate || "").trim();
 
     const shared =
       isSharedTrip(t);
@@ -1531,9 +1053,7 @@ function render(){
     if(tripDateKey === todayKey){
 
       todayTotal++;
-
       todayRevenue += revenue;
-
       todayMiles += miles;
 
       if(shared){
@@ -1578,17 +1098,13 @@ function render(){
     ){
 
       monthlyTrips++;
-
       monthlyRevenue += revenue;
-
       monthlyMiles += miles;
 
       if(shared){
+
         monthlySharedPassengers +=
           passengers.length;
-      }
-
-      if(shared){
 
         passengers.forEach(p=>{
 
@@ -1596,11 +1112,12 @@ function render(){
             monthlyCompleted++;
           }
 
-          if(
-            isCancelled(p.status) ||
-            isNoShow(p.status)
-          ){
-            monthlyBadTrips++;
+          if(isCancelled(p.status)){
+            monthlyCancelled++;
+          }
+
+          if(isNoShow(p.status)){
+            monthlyNoShow++;
           }
 
         });
@@ -1611,11 +1128,12 @@ function render(){
           monthlyCompleted++;
         }
 
-        if(
-          isCancelled(t.status) ||
-          isNoShow(t.status)
-        ){
-          monthlyBadTrips++;
+        if(isCancelled(t.status)){
+          monthlyCancelled++;
+        }
+
+        if(isNoShow(t.status)){
+          monthlyNoShow++;
         }
 
       }
@@ -1657,16 +1175,18 @@ function render(){
   document.getElementById("monthlyCompleted").innerText =
     monthlyCompleted;
 
-  document.getElementById("monthlyBadTrips").innerText =
-    monthlyBadTrips;
+  document.getElementById("monthlyCancelled").innerText =
+    monthlyCancelled;
+
+  document.getElementById("monthlyNoShow").innerText =
+    monthlyNoShow;
 
   renderServices();
   renderBilling();
-  renderRecent();
 
 }
 
-/* ================= SERVICE PERFORMANCE ================= */
+/* ================= SERVICES ================= */
 
 function renderServices(){
 
@@ -1727,56 +1247,40 @@ function renderServices(){
         <div class="service-card">
 
           <div class="service-top">
-            <div>
-              <div class="service-name">
-                ${title}
-              </div>
+
+            <div class="service-name">
+              ${title}
             </div>
 
             <div class="service-icon">
               ${service.icon || "🚘"}
             </div>
+
           </div>
 
           <div class="service-lines">
 
             <div class="service-line">
-              <span class="service-label">
-                Trips
-              </span>
-              <span class="service-value">
-                ${trips}
-              </span>
+              <span class="service-label">Trips</span>
+              <span class="service-value">${trips}</span>
             </div>
 
             <div class="service-line">
-              <span class="service-label">
-                Revenue
-              </span>
-              <span class="service-value">
-                ${money(revenue)}
-              </span>
+              <span class="service-label">Revenue</span>
+              <span class="service-value">${money(revenue)}</span>
             </div>
 
             <div class="service-line">
-              <span class="service-label">
-                Miles
-              </span>
-              <span class="service-value">
-                ${miles.toFixed(1)}
-              </span>
+              <span class="service-label">Miles</span>
+              <span class="service-value">${miles.toFixed(1)}</span>
             </div>
 
             ${
               code === "SH" || passengers > 0
               ? `
                 <div class="service-line">
-                  <span class="service-label">
-                    Passengers
-                  </span>
-                  <span class="service-value">
-                    ${passengers}
-                  </span>
+                  <span class="service-label">Passengers</span>
+                  <span class="service-value">${passengers}</span>
                 </div>
               `
               : ""
@@ -1878,10 +1382,7 @@ function renderBilling(){
   }else if(diff >= 3){
 
     card.classList.add("yellow");
-
-    text.classList.add(
-      "billing-yellow-text"
-    );
+    text.classList.add("billing-yellow-text");
 
     text.innerText =
       diff + " Days Left";
@@ -1889,10 +1390,7 @@ function renderBilling(){
   }else if(diff >= 1){
 
     card.classList.add("orange");
-
-    text.classList.add(
-      "billing-orange-text"
-    );
+    text.classList.add("billing-orange-text");
 
     text.innerText =
       diff + " Days Left";
@@ -1900,10 +1398,7 @@ function renderBilling(){
   }else{
 
     card.classList.add("red");
-
-    text.classList.add(
-      "billing-red-text"
-    );
+    text.classList.add("billing-red-text");
 
     text.innerText =
       "Past Due";
@@ -1912,99 +1407,11 @@ function renderBilling(){
 
 }
 
-/* ================= RECENT ================= */
-
-function renderRecent(){
-
-  const tbody =
-    document.getElementById("recentTable");
-
-  const recent =
-    [...allTrips]
-      .sort((a,b)=>{
-        const da =
-          new Date(
-            (a.tripDate || "") +
-            "T" +
-            (a.tripTime || "00:00")
-          );
-
-        const db =
-          new Date(
-            (b.tripDate || "") +
-            "T" +
-            (b.tripTime || "00:00")
-          );
-
-        return db - da;
-      })
-      .slice(0,10);
-
-  if(!recent.length){
-
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7">
-          <div class="empty">
-            No recent trips
-          </div>
-        </td>
-      </tr>
-    `;
-
-    return;
-
-  }
-
-  tbody.innerHTML =
-    recent.map((t,i)=>{
-
-      const label =
-        getTripStatusForDisplay(t);
-
-      return `
-        <tr>
-          <td>${i + 1}</td>
-
-          <td>${t.tripNumber || "-"}</td>
-
-          <td>${getTripServiceCode(t) || "-"}</td>
-
-          <td>
-            <span class="status-pill ${statusClass(label)}">
-              ${label}
-            </span>
-          </td>
-
-          <td class="money">
-            ${money(getTripRevenue(t))}
-          </td>
-
-          <td>
-            ${getTripMiles(t).toFixed(1)}
-          </td>
-
-          <td>
-            ${t.tripDate || "-"}
-          </td>
-        </tr>
-      `;
-
-    }).join("");
-
-}
-
 /* ================= AUTO ================= */
-
-setInterval(updateClock,1000);
 
 setInterval(load,30000);
 
-/* ================= INIT ================= */
-
-updateClock();
 load();
-
 </script>
 
 </body>
