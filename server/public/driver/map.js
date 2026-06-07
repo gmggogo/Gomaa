@@ -1,6 +1,7 @@
 /* =====================================================
-   DRIVER MAP - GOOGLE DISPLAY ONLY / NO ROUTING REQUESTS
-   WHITE LABEL - SAAS READY
+   DRIVER MAP - GOOGLE DISPLAY ONLY
+   NO ROUTING / NO GEOCODING / NO DIRECTIONS
+   SAAS READY
 ===================================================== */
 
 console.log("Driver map loaded");
@@ -31,6 +32,9 @@ const DRIVER_NAME =
 
 /* ================= DOM ================= */
 
+const headerEl =
+  document.getElementById("header");
+
 const driverNameEl =
   document.getElementById("driverName");
 
@@ -45,6 +49,12 @@ const pickupTextEl =
 
 const dropoffTextEl =
   document.getElementById("dropoffText");
+
+const tripInfoEl =
+  document.getElementById("tripInfo");
+
+const mapEl =
+  document.getElementById("map");
 
 const gpsBadge =
   document.getElementById("gpsBadge");
@@ -103,8 +113,30 @@ const navChat =
 const navLogout =
   document.getElementById("navLogout");
 
+/* ================= REMOVE TOP DRIVER BAR ================= */
+
+if(headerEl){
+  headerEl.style.display = "none";
+}
+
 if(driverNameEl){
-  driverNameEl.innerText = DRIVER_NAME;
+  driverNameEl.innerText = "";
+}
+
+if(datetimeEl){
+  datetimeEl.innerText = "";
+}
+
+if(navTextEl){
+  navTextEl.style.top = "12px";
+}
+
+if(tripInfoEl){
+  tripInfoEl.style.top = "74px";
+}
+
+if(mapEl){
+  mapEl.style.top = "132px";
 }
 
 /* ================= TRIP ================= */
@@ -118,6 +150,7 @@ const TRIP_ID =
 let tripDoc = null;
 let systemDesign = {};
 let appConfig = {};
+
 let clientPhone = "";
 let tripDateTime = null;
 
@@ -139,15 +172,16 @@ let driverMarker = null;
 let pickupMarker = null;
 let dropoffMarker = null;
 let routeLine = null;
+
 let firstFix = true;
+let userMovedMap = false;
 
 let driverLat = null;
 let driverLng = null;
 
 let watchId = null;
-let userMovedMap = false;
 
-/* ================= TRIP STATE ================= */
+/* ================= FLOW STATE ================= */
 
 let arrived = false;
 let started = false;
@@ -156,8 +190,7 @@ let noShowDone = false;
 let calledClient = false;
 let waitingForTripTime = false;
 
-let routeMode = "pickup"; 
-// pickup | waiting | dropoff_live | completed
+let routeMode = "pickup";
 
 /* ================= TIMER ================= */
 
@@ -165,7 +198,6 @@ const WAIT_DURATION_SECONDS = 900;
 
 let waitInterval = null;
 let tripTimeWatcher = null;
-
 let timerStartTime = null;
 
 /* ================= LOCATION PUSH ================= */
@@ -191,39 +223,7 @@ async function syncServerClock(){
   try{
 
     const res =
-      await fetch("/api/time",{
-        cache:"no-store"
-      });
-
-    if(res.ok){
-
-      const data =
-        await res.json();
-
-      const value =
-        data.serverTime ||
-        data.now ||
-        data.timestamp ||
-        data.time;
-
-      const parsed =
-        typeof value === "number"
-          ? value
-          : new Date(value).getTime();
-
-      if(Number.isFinite(parsed)){
-        serverOffset = parsed - Date.now();
-        return;
-      }
-
-    }
-
-  }catch(err){}
-
-  try{
-
-    const res =
-      await fetch("/api/system-design",{
+      await fetch("/api/config",{
         cache:"no-store"
       });
 
@@ -245,7 +245,7 @@ async function syncServerClock(){
 
 }
 
-/* ================= UI HELPERS ================= */
+/* ================= HELPERS ================= */
 
 function setNavText(text){
   if(navTextEl){
@@ -265,7 +265,7 @@ function hideEl(el){
   }
 }
 
-function hideAllMainButtons(){
+function hideAllButtons(){
   hideEl(btnGoPickup);
   hideEl(btnGoDropoff);
   hideEl(btnGoogle);
@@ -277,13 +277,14 @@ function hideAllMainButtons(){
 
 function resetNoShowBox(){
   hideEl(noShowBox);
+
   if(noShowNotes){
     noShowNotes.value = "";
   }
 }
 
 function resetUI(){
-  hideAllMainButtons();
+  hideAllButtons();
   hideEl(waitTimerEl);
   resetNoShowBox();
 
@@ -300,121 +301,7 @@ function finishUI(){
   drawStraightLine();
 }
 
-function updateClock(){
-
-  if(!datetimeEl){
-    return;
-  }
-
-  datetimeEl.innerText =
-    new Date(serverNow()).toLocaleString(
-      "en-US",
-      {
-        timeZone:appTimezone
-      }
-    );
-
-}
-
-setInterval(updateClock,1000);
-
-/* ================= LOCAL STATE ================= */
-
-function getStateKey(){
-  return `driver_trip_state_${TRIP_ID || "no_trip"}`;
-}
-
-function saveLocalState(){
-
-  if(!TRIP_ID){
-    return;
-  }
-
-  const data = {
-    tripId:TRIP_ID,
-    arrived,
-    started,
-    completed,
-    noShowDone,
-    calledClient,
-    waitingForTripTime,
-    routeMode,
-    timerStartTime
-  };
-
-  localStorage.setItem(
-    getStateKey(),
-    JSON.stringify(data)
-  );
-
-  localStorage.setItem(
-    "activeDriverTripId",
-    TRIP_ID
-  );
-
-}
-
-function restoreLocalState(){
-
-  try{
-
-    const raw =
-      localStorage.getItem(getStateKey());
-
-    if(!raw){
-      return;
-    }
-
-    const data =
-      JSON.parse(raw);
-
-    if(data.tripId !== TRIP_ID){
-      return;
-    }
-
-    arrived =
-      Boolean(data.arrived);
-
-    started =
-      Boolean(data.started);
-
-    completed =
-      Boolean(data.completed);
-
-    noShowDone =
-      Boolean(data.noShowDone);
-
-    calledClient =
-      Boolean(data.calledClient);
-
-    waitingForTripTime =
-      Boolean(data.waitingForTripTime);
-
-    routeMode =
-      data.routeMode || routeMode;
-
-    timerStartTime =
-      Number(data.timerStartTime) || timerStartTime;
-
-  }catch(err){}
-
-}
-
-function clearLocalState(){
-
-  localStorage.removeItem(getStateKey());
-
-  if(
-    localStorage.getItem("activeDriverTripId") === TRIP_ID
-  ){
-    localStorage.removeItem("activeDriverTripId");
-  }
-
-}
-
-/* ================= TIME LOGIC ================= */
-
-function parseServerTimeValue(v){
+function parseTimeValue(v){
 
   if(!v){
     return null;
@@ -433,24 +320,18 @@ function parseServerTimeValue(v){
 
 function buildTripDateTime(trip){
 
-  if(!trip){
+  if(!trip || !trip.tripDate || !trip.tripTime){
     return null;
   }
 
-  if(trip.tripDate && trip.tripTime){
+  const d =
+    new Date(`${trip.tripDate}T${trip.tripTime}`);
 
-    const d =
-      new Date(
-        `${trip.tripDate}T${trip.tripTime}`
-      );
-
-    if(!Number.isNaN(d.getTime())){
-      return d;
-    }
-
+  if(Number.isNaN(d.getTime())){
+    return null;
   }
 
-  return null;
+  return d;
 
 }
 
@@ -505,6 +386,83 @@ function hasTimerExpired(){
   return getTimerRemainingSeconds() <= 0;
 }
 
+/* ================= LOCAL STATE ================= */
+
+function getStateKey(){
+  return `driver_trip_state_${TRIP_ID || "no_trip"}`;
+}
+
+function saveLocalState(){
+
+  if(!TRIP_ID){
+    return;
+  }
+
+  localStorage.setItem(
+    getStateKey(),
+    JSON.stringify({
+      tripId:TRIP_ID,
+      arrived,
+      started,
+      completed,
+      noShowDone,
+      calledClient,
+      waitingForTripTime,
+      routeMode,
+      timerStartTime
+    })
+  );
+
+  localStorage.setItem(
+    "activeDriverTripId",
+    TRIP_ID
+  );
+
+}
+
+function restoreLocalState(){
+
+  try{
+
+    const raw =
+      localStorage.getItem(getStateKey());
+
+    if(!raw){
+      return;
+    }
+
+    const data =
+      JSON.parse(raw);
+
+    if(data.tripId !== TRIP_ID){
+      return;
+    }
+
+    arrived = Boolean(data.arrived);
+    started = Boolean(data.started);
+    completed = Boolean(data.completed);
+    noShowDone = Boolean(data.noShowDone);
+    calledClient = Boolean(data.calledClient);
+    waitingForTripTime = Boolean(data.waitingForTripTime);
+    routeMode = data.routeMode || routeMode;
+    timerStartTime = Number(data.timerStartTime) || timerStartTime;
+
+  }catch(err){}
+
+}
+
+function clearLocalState(){
+
+  localStorage.removeItem(getStateKey());
+
+  if(localStorage.getItem("activeDriverTripId") === TRIP_ID){
+    localStorage.removeItem("activeDriverTripId");
+  }
+
+}
+
+/* ================= TIMER ================= */
+
 function clearTimerWatcher(){
 
   if(tripTimeWatcher){
@@ -549,11 +507,9 @@ function startTimer(){
   }
 
   if(!timerStartTime){
-
     timerStartTime =
-      parseServerTimeValue(tripDoc?.arrivedAt) ||
+      parseTimeValue(tripDoc?.arrivedAt) ||
       serverNow();
-
   }
 
   showEl(waitTimerEl);
@@ -570,8 +526,7 @@ function startTimer(){
 
     if(remaining <= 0){
 
-      waitTimerEl.innerText =
-        "TIME UP";
+      waitTimerEl.innerText = "TIME UP";
 
       if(waitInterval){
         clearInterval(waitInterval);
@@ -592,9 +547,7 @@ function startTimer(){
   };
 
   tick();
-
-  waitInterval =
-    setInterval(tick,1000);
+  waitInterval = setInterval(tick,1000);
 
 }
 
@@ -608,21 +561,14 @@ function watchTripTimeThenStartTimer(){
   tripTimeWatcher =
     setInterval(()=>{
 
-      if(
-        completed ||
-        noShowDone ||
-        started
-      ){
+      if(completed || noShowDone || started){
         clearTimerWatcher();
         waitingForTripTime = false;
         saveLocalState();
         return;
       }
 
-      if(
-        arrived &&
-        isTripTimeStarted()
-      ){
+      if(arrived && isTripTimeStarted()){
         clearTimerWatcher();
         waitingForTripTime = false;
         setNavText("Waiting for passenger");
@@ -676,7 +622,7 @@ function shouldSendLocation(lat,lng){
   const now =
     serverNow();
 
-  if(!lastSentAtValid()){
+  if(!lastSentLocationAt){
     return true;
   }
 
@@ -707,21 +653,130 @@ function shouldSendLocation(lat,lng){
 
 }
 
-function lastSentAtValid(){
-  return Number.isFinite(lastSentLocationAt) &&
-    lastSentLocationAt > 0;
+/* ================= API ================= */
+
+async function loadAppConfig(){
+
+  try{
+
+    const res =
+      await fetch("/api/config",{
+        cache:"no-store"
+      });
+
+    if(res.ok){
+      appConfig = await res.json();
+
+      window.GOOGLE_MAPS_KEY =
+        appConfig.googleKey ||
+        appConfig.googleMapsKey ||
+        "";
+    }
+
+  }catch(err){
+    console.log("config load error",err);
+  }
+
 }
 
-/* ================= API ================= */
+async function loadSystemDesign(){
+
+  try{
+
+    const res =
+      await fetch("/api/system-design",{
+        cache:"no-store"
+      });
+
+    if(res.ok){
+      systemDesign = await res.json();
+    }
+
+  }catch(err){
+    systemDesign = {};
+  }
+
+  appTimezone =
+    systemDesign.timezone ||
+    systemDesign.appTimezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    "America/Phoenix";
+
+  document.title =
+    (
+      systemDesign.companyName ||
+      "Driver"
+    ) + " - Driver Map";
+
+}
+
+function getGoogleMapsKey(){
+
+  return (
+    appConfig.googleKey ||
+    appConfig.googleMapsKey ||
+    systemDesign.googleKey ||
+    systemDesign.googleMapsKey ||
+    systemDesign.googleMapKey ||
+    systemDesign.googleMapsApiKey ||
+    systemDesign.mapsApiKey ||
+    window.GOOGLE_MAPS_KEY ||
+    ""
+  );
+
+}
+
+function loadGoogleMapsScript(){
+
+  return new Promise((resolve,reject)=>{
+
+    if(window.google && google.maps && google.maps.Map){
+      resolve();
+      return;
+    }
+
+    const key =
+      getGoogleMapsKey();
+
+    if(!key){
+      reject(new Error("Google Maps API key missing"));
+      return;
+    }
+
+    let old =
+      document.getElementById("google-maps-script");
+
+    if(old){
+      old.remove();
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.id = "google-maps-script";
+    script.async = true;
+    script.defer = true;
+
+    script.src =
+      "https://maps.googleapis.com/maps/api/js?key=" +
+      encodeURIComponent(key) +
+      "&v=weekly";
+
+    script.onload = resolve;
+    script.onerror = reject;
+
+    document.head.appendChild(script);
+
+  });
+
+}
 
 async function fetchTrip(){
 
   if(!TRIP_ID){
-
     alert("No trip found");
     window.location.href = "/driver/trips.html";
     return null;
-
   }
 
   try{
@@ -775,20 +830,16 @@ async function updateTripStatus(status,extra={}){
       });
 
     if(res.ok){
-
       try{
         tripDoc = await res.json();
       }catch(e){}
-
     }
 
     return tripDoc;
 
   }catch(err){
-
     console.log("updateTripStatus error:",err);
     return null;
-
   }
 
 }
@@ -803,9 +854,7 @@ async function sendLocation(lat,lng){
     return;
   }
 
-  lastSentLocationAt =
-    serverNow();
-
+  lastSentLocationAt = serverNow();
   lastSentLat = lat;
   lastSentLng = lng;
 
@@ -833,155 +882,9 @@ async function sendLocation(lat,lng){
 
 }
 
-/* ================= SYSTEM DESIGN / GOOGLE ================= */
+/* ================= GOOGLE MAP ================= */
 
-async function loadSystemDesign(){
-
-  try{
-
-    const res =
-      await fetch("/api/system-design",{
-        cache:"no-store"
-      });
-
-    systemDesign =
-      await res.json();
-
-  }catch(err){
-
-    systemDesign = {};
-
-  }
-
-  appTimezone =
-    systemDesign.timezone ||
-    systemDesign.appTimezone ||
-    Intl.DateTimeFormat().resolvedOptions().timeZone ||
-    "America/Phoenix";
-
-  document.title =
-    (
-      systemDesign.companyName ||
-      "Driver"
-    ) + " - Driver Map";
-
-}
-
-async function loadAppConfig(){
-
-  try{
-
-    const res =
-      await fetch("/api/config",{
-        cache:"no-store"
-      });
-
-    if(res.ok){
-
-      appConfig =
-        await res.json();
-
-      window.GOOGLE_MAPS_KEY =
-        appConfig.googleKey ||
-        appConfig.googleMapsKey ||
-        "";
-
-    }
-
-  }catch(err){
-
-    console.log(
-      "config load error",
-      err
-    );
-
-  }
-
-}
-
-function getGoogleMapsKey(){
-
-  return (
-
-    appConfig.googleKey ||
-
-    appConfig.googleMapsKey ||
-
-    systemDesign.googleKey ||
-
-    systemDesign.googleMapsKey ||
-
-    systemDesign.googleMapKey ||
-
-    systemDesign.googleMapsApiKey ||
-
-    systemDesign.mapsApiKey ||
-
-    window.GOOGLE_MAPS_KEY ||
-
-    ""
-
-  );
-
-}
-
-function loadGoogleMapsScript(){
-
-  return new Promise((resolve,reject)=>{
-
-    if(
-      window.google &&
-      google.maps &&
-      google.maps.Map
-    ){
-      resolve();
-      return;
-    }
-
-    const key =
-      getGoogleMapsKey();
-
-    if(!key){
-      reject(
-        new Error("Google Maps API key missing")
-      );
-      return;
-    }
-
-    const old =
-      document.getElementById("google-maps-script");
-
-    if(old){
-      old.addEventListener("load",resolve);
-      old.addEventListener("error",reject);
-      return;
-    }
-
-    const script =
-      document.createElement("script");
-
-    script.id =
-      "google-maps-script";
-
-    script.src =
-      "https://maps.googleapis.com/maps/api/js?key=" +
-      encodeURIComponent(key);
-
-    script.async = true;
-    script.defer = true;
-
-    script.onload = resolve;
-    script.onerror = reject;
-
-    document.head.appendChild(script);
-
-  });
-
-}
-
-/* ================= GOOGLE MAP DISPLAY ONLY ================= */
-
-function createMarkerIcon(color,label){
+function createMarkerIcon(color){
 
   return {
     path:google.maps.SymbolPath.CIRCLE,
@@ -989,13 +892,16 @@ function createMarkerIcon(color,label){
     fillOpacity:1,
     strokeColor:"#ffffff",
     strokeWeight:3,
-    scale:10,
-    labelOrigin:new google.maps.Point(0,0)
+    scale:10
   };
 
 }
 
 function initMap(){
+
+  if(!mapEl){
+    throw new Error("Map div missing");
+  }
 
   const center =
     hasPickup
@@ -1009,19 +915,16 @@ function initMap(){
         };
 
   map =
-    new google.maps.Map(
-      document.getElementById("map"),
-      {
-        center,
-        zoom:14,
-        mapTypeId:"roadmap",
-        streetViewControl:false,
-        fullscreenControl:false,
-        mapTypeControl:false,
-        clickableIcons:false,
-        gestureHandling:"greedy"
-      }
-    );
+    new google.maps.Map(mapEl,{
+      center,
+      zoom:15,
+      mapTypeId:"roadmap",
+      streetViewControl:false,
+      fullscreenControl:false,
+      mapTypeControl:false,
+      clickableIcons:false,
+      gestureHandling:"greedy"
+    });
 
   map.addListener("dragstart",()=>{
     userMovedMap = true;
@@ -1048,7 +951,7 @@ function initMap(){
           color:"#ffffff",
           fontWeight:"900"
         },
-        icon:createMarkerIcon("#2563eb","P")
+        icon:createMarkerIcon("#2563eb")
       });
 
   }
@@ -1068,19 +971,15 @@ function initMap(){
           color:"#ffffff",
           fontWeight:"900"
         },
-        icon:createMarkerIcon("#16a34a","D")
+        icon:createMarkerIcon("#16a34a")
       });
 
   }
 
-  if(recenterBtn){
-
-    recenterBtn.onclick = ()=>{
-      userMovedMap = false;
-      fitMapToActivePoints();
-    };
-
-  }
+  setTimeout(()=>{
+    google.maps.event.trigger(map,"resize");
+    fitMapToActivePoints();
+  },600);
 
   resetUI();
   restoreViewFromState();
@@ -1091,10 +990,7 @@ function initMap(){
 
 function updateDriverMarker(lat,lng){
 
-  const pos = {
-    lat,
-    lng
-  };
+  const pos = {lat,lng};
 
   if(!driverMarker){
 
@@ -1108,34 +1004,18 @@ function updateDriverMarker(lat,lng){
           color:"#ffffff",
           fontWeight:"900"
         },
-        icon:createMarkerIcon("#f59e0b","")
+        icon:createMarkerIcon("#f59e0b")
       });
 
   }else{
-
     driverMarker.setPosition(pos);
-
   }
 
 }
 
 function getCurrentTarget(){
 
-  if(routeMode === "dropoff_live" && hasDropoff){
-    return {
-      lat:dropLat,
-      lng:dropLng
-    };
-  }
-
-  if(started && hasDropoff){
-    return {
-      lat:dropLat,
-      lng:dropLng
-    };
-  }
-
-  if(arrived && hasDropoff){
+  if((routeMode === "dropoff_live" || started || arrived) && hasDropoff){
     return {
       lat:dropLat,
       lng:dropLng
@@ -1189,9 +1069,7 @@ function drawStraightLine(){
       ],
       geodesic:true,
       strokeColor:
-        routeMode === "dropoff_live" ||
-        started ||
-        arrived
+        (routeMode === "dropoff_live" || started || arrived)
           ? "#16a34a"
           : "#2563eb",
       strokeOpacity:.95,
@@ -1213,13 +1091,12 @@ function fitMapToActivePoints(){
   let count = 0;
 
   function add(lat,lng){
-    if(
-      Number.isFinite(lat) &&
-      Number.isFinite(lng)
-    ){
+
+    if(Number.isFinite(lat) && Number.isFinite(lng)){
       bounds.extend({lat,lng});
       count++;
     }
+
   }
 
   add(driverLat,driverLng);
@@ -1251,21 +1128,16 @@ function fitMapToActivePoints(){
 
 }
 
-/* ================= GOOGLE NAVIGATION ================= */
+/* ================= GOOGLE NAV ================= */
 
 function openGoogleMaps(){
 
   let destination = "";
 
-  if(routeMode === "dropoff_live" && hasDropoff){
-    destination =
-      `${dropLat},${dropLng}`;
-  }else if(started && hasDropoff){
-    destination =
-      `${dropLat},${dropLng}`;
+  if((routeMode === "dropoff_live" || started) && hasDropoff){
+    destination = `${dropLat},${dropLng}`;
   }else if(hasPickup){
-    destination =
-      `${pickupLat},${pickupLng}`;
+    destination = `${pickupLat},${pickupLng}`;
   }else{
     alert("Destination not found");
     return;
@@ -1273,12 +1145,8 @@ function openGoogleMaps(){
 
   let origin = "";
 
-  if(
-    Number.isFinite(driverLat) &&
-    Number.isFinite(driverLng)
-  ){
-    origin =
-      `&origin=${driverLat},${driverLng}`;
+  if(Number.isFinite(driverLat) && Number.isFinite(driverLng)){
+    origin = `&origin=${driverLat},${driverLng}`;
   }
 
   const url =
@@ -1288,7 +1156,7 @@ function openGoogleMaps(){
 
 }
 
-/* ================= VIEW STATES ================= */
+/* ================= VIEW ================= */
 
 function showPickupState(){
 
@@ -1307,26 +1175,16 @@ function showWaitingState(){
   showEl(btnGoogle);
 
   if(timerStartTime && !hasTimerExpired()){
-
     showEl(waitTimerEl);
     setNavText("Waiting for passenger");
-
   }else if(waitingForTripTime){
-
     setNavText("Waiting until trip time");
-
   }else if(calledClient){
-
     setNavText("Client contacted. Choose action");
-
   }else if(hasTimerExpired()){
-
     showCallClientState();
-
   }else{
-
     setNavText("Waiting for passenger");
-
   }
 
 }
@@ -1353,7 +1211,6 @@ function showNoShowState(){
   hideEl(btnCallClient);
   hideEl(waitTimerEl);
   showEl(noShowBox,"flex");
-
   setNavText("Enter no show reason");
 
 }
@@ -1365,23 +1222,12 @@ function showDropoffState(canComplete){
   showEl(btnGoogle);
 
   if(canComplete){
-
     showEl(btnComplete);
-
-    if(btnComplete){
-      btnComplete.classList.add("enabled");
-    }
-
+    btnComplete.classList.add("enabled");
     setNavText("Press COMPLETE");
-
   }else{
-
-    if(btnComplete){
-      btnComplete.classList.remove("enabled");
-    }
-
+    btnComplete.classList.remove("enabled");
     setNavText("Go to dropoff");
-
   }
 
 }
@@ -1425,11 +1271,7 @@ function restoreViewFromState(){
 
 async function autoArriveFlow(){
 
-  if(
-    arrived ||
-    completed ||
-    noShowDone
-  ){
+  if(arrived || completed || noShowDone){
     return;
   }
 
@@ -1437,18 +1279,15 @@ async function autoArriveFlow(){
   routeMode = "waiting";
 
   const arrivedAt =
-    parseServerTimeValue(tripDoc?.arrivedAt) ||
+    parseTimeValue(tripDoc?.arrivedAt) ||
     serverNow();
 
   timerStartTime = arrivedAt;
 
-  await updateTripStatus(
-    "Arrived",
-    {
-      arrivedAt,
-      routeMode:"waiting"
-    }
-  );
+  await updateTripStatus("Arrived",{
+    arrivedAt,
+    routeMode:"waiting"
+  });
 
   saveLocalState();
   drawStraightLine();
@@ -1507,16 +1346,10 @@ if(btnStart){
     resetNoShowBox();
     stopTimer(true);
 
-    const startedAt =
-      serverNow();
-
-    await updateTripStatus(
-      "InProgress",
-      {
-        startedAt,
-        routeMode:"dropoff_live"
-      }
-    );
+    await updateTripStatus("InProgress",{
+      startedAt:serverNow(),
+      routeMode:"dropoff_live"
+    });
 
     saveLocalState();
     drawStraightLine();
@@ -1538,8 +1371,7 @@ if(btnCallClient){
     calledClient = true;
     saveLocalState();
 
-    window.location.href =
-      `tel:${clientPhone}`;
+    window.location.href = `tel:${clientPhone}`;
 
     hideEl(btnCallClient);
     showEl(btnStart);
@@ -1553,28 +1385,17 @@ if(btnCallClient){
 }
 
 if(btnNoShow){
-
   btnNoShow.onclick = ()=>{
-
-    if(completed || noShowDone){
-      return;
-    }
-
+    if(completed || noShowDone) return;
     showNoShowState();
-
   };
-
 }
 
 if(btnCloseNoShow){
-
   btnCloseNoShow.onclick = ()=>{
-
     hideEl(noShowBox);
     restoreViewFromState();
-
   };
-
 }
 
 if(btnCompleteNoShow){
@@ -1590,26 +1411,19 @@ if(btnCompleteNoShow){
     }
 
     noShowDone = true;
-    completed = false;
     routeMode = "completed";
 
-    await updateTripStatus(
-      "NoShow",
-      {
-        noShowReason:reason,
-        noShowAt:serverNow(),
-        routeMode:"completed"
-      }
-    );
+    await updateTripStatus("No Show",{
+      noShowReason:reason,
+      noShowAt:serverNow(),
+      routeMode:"completed"
+    });
 
     finishUI();
     clearLocalState();
 
-    setNavText("No show completed");
     alert("No Show Completed");
-
-    window.location.href =
-      "/driver/trips.html";
+    window.location.href = "/driver/trips.html";
 
   };
 
@@ -1623,9 +1437,7 @@ if(btnComplete){
       return;
     }
 
-    if(
-      !btnComplete.classList.contains("enabled")
-    ){
+    if(!btnComplete.classList.contains("enabled")){
       alert("You must be near the dropoff location first");
       return;
     }
@@ -1633,45 +1445,35 @@ if(btnComplete){
     completed = true;
     routeMode = "completed";
 
-    await updateTripStatus(
-      "Completed",
-      {
-        completedAt:serverNow(),
-        routeMode:"completed"
-      }
-    );
+    await updateTripStatus("Completed",{
+      completedAt:serverNow(),
+      routeMode:"completed"
+    });
 
     finishUI();
     clearLocalState();
 
-    setNavText("Trip completed");
     alert("Trip Completed");
-
-    window.location.href =
-      "/driver/trips.html";
+    window.location.href = "/driver/trips.html";
 
   };
 
 }
 
 if(recenterBtn){
-
   recenterBtn.onclick = ()=>{
     userMovedMap = false;
     fitMapToActivePoints();
   };
-
 }
 
-/* ================= GPS WATCH ================= */
+/* ================= GPS ================= */
 
 function startGpsWatch(){
 
   if(!navigator.geolocation){
-
     alert("GPS not supported");
     return;
-
   }
 
   if(watchId !== null){
@@ -1701,22 +1503,11 @@ function startGpsWatch(){
         drawStraightLine();
 
         if(firstFix){
-
           firstFix = false;
           userMovedMap = false;
           fitMapToActivePoints();
-
         }else if(!userMovedMap){
-
-          const target =
-            getCurrentTarget();
-
-          if(target){
-            fitMapToActivePoints();
-          }else{
-            map.panTo({lat,lng});
-          }
-
+          fitMapToActivePoints();
         }
 
         await sendLocation(lat,lng);
@@ -1758,10 +1549,7 @@ function startGpsWatch(){
 
           routeMode = "waiting";
 
-          if(
-            noShowBox &&
-            noShowBox.style.display === "flex"
-          ){
+          if(noShowBox && noShowBox.style.display === "flex"){
             return;
           }
 
@@ -1810,7 +1598,7 @@ function startGpsWatch(){
 
 }
 
-/* ================= RESTORE FROM TRIP ================= */
+/* ================= RESTORE STATUS ================= */
 
 function normalizeStatus(status){
 
@@ -1827,35 +1615,24 @@ function applyTripStatusState(trip){
     normalizeStatus(trip.status);
 
   const arrivedAt =
-    parseServerTimeValue(trip.arrivedAt);
+    parseTimeValue(trip.arrivedAt);
 
   const startedAt =
-    parseServerTimeValue(trip.startedAt);
+    parseTimeValue(trip.startedAt);
 
-  if(
-    s.includes("complete") &&
-    !s.includes("no")
-  ){
+  if(s.includes("complete") && !s.includes("no")){
     completed = true;
     routeMode = "completed";
     return;
   }
 
-  if(
-    s.includes("noshow") ||
-    s.includes("no-show") ||
-    s.includes("no")
-  ){
+  if(s.includes("noshow") || s.includes("noshow") || s.includes("no")){
     noShowDone = true;
     routeMode = "completed";
     return;
   }
 
-  if(
-    s.includes("progress") ||
-    s.includes("inprogress") ||
-    startedAt
-  ){
+  if(s.includes("progress") || s.includes("inprogress") || startedAt){
     arrived = true;
     started = true;
     routeMode = "dropoff_live";
@@ -1863,10 +1640,7 @@ function applyTripStatusState(trip){
     return;
   }
 
-  if(
-    s.includes("arrived") ||
-    arrivedAt
-  ){
+  if(s.includes("arrived") || arrivedAt){
     arrived = true;
     started = false;
     routeMode = "waiting";
@@ -1897,7 +1671,7 @@ function fillTripInfo(){
 
 }
 
-/* ================= PAGE INIT ================= */
+/* ================= INIT ================= */
 
 async function initPage(){
 
@@ -1905,22 +1679,12 @@ async function initPage(){
 
     setNavText("Loading trip...");
 
-   await syncServerClock();
+    await syncServerClock();
+    await loadSystemDesign();
+    await loadAppConfig();
+    await syncServerClock();
 
-await loadSystemDesign();
-
-await loadAppConfig();
-
-await syncServerClock();
-
-updateClock();
-
-console.log(
-  "GOOGLE KEY =",
-  getGoogleMapsKey()
-);
-
-await loadGoogleMapsScript();
+    await loadGoogleMapsScript();
 
     tripDoc =
       await fetchTrip();
@@ -1993,68 +1757,57 @@ await loadGoogleMapsScript();
 
 }
 
-/* ================= BACKGROUND / RETURN ================= */
+/* ================= BACKGROUND ================= */
 
-document.addEventListener(
-  "visibilitychange",
-  async ()=>{
+document.addEventListener("visibilitychange",async ()=>{
 
-    if(document.hidden){
-      saveLocalState();
-      return;
-    }
-
-    await syncServerClock();
-
-    const fresh =
-      await fetchTrip();
-
-    if(fresh){
-      tripDoc = fresh;
-      applyTripStatusState(tripDoc);
-      saveLocalState();
-      restoreViewFromState();
-      drawStraightLine();
-    }
-
-  }
-);
-
-window.addEventListener(
-  "pageshow",
-  async ()=>{
-
-    await syncServerClock();
-
-    if(tripDoc){
-      applyTripStatusState(tripDoc);
-      restoreViewFromState();
-      drawStraightLine();
-    }
-
-  }
-);
-
-window.addEventListener(
-  "beforeunload",
-  ()=>{
+  if(document.hidden){
     saveLocalState();
+    return;
   }
-);
 
-/* ================= BOTTOM NAV ================= */
+  await syncServerClock();
+
+  const fresh =
+    await fetchTrip();
+
+  if(fresh){
+    tripDoc = fresh;
+    applyTripStatusState(tripDoc);
+    saveLocalState();
+    restoreViewFromState();
+    drawStraightLine();
+  }
+
+});
+
+window.addEventListener("pageshow",async ()=>{
+
+  await syncServerClock();
+
+  if(tripDoc){
+    applyTripStatusState(tripDoc);
+    restoreViewFromState();
+    drawStraightLine();
+  }
+
+});
+
+window.addEventListener("beforeunload",()=>{
+  saveLocalState();
+});
+
+/* ================= NAV ================= */
 
 if(navHome){
   navHome.onclick = ()=>{
-    window.location.href =
-      "/driver/dashboard.html";
+    window.location.href = "/driver/dashboard.html";
   };
 }
 
 if(navTrips){
   navTrips.onclick = ()=>{
-    window.location.href =
-      "/driver/trips.html";
+    window.location.href = "/driver/trips.html";
   };
 }
 
@@ -2081,8 +1834,7 @@ if(navLogout){
     saveLocalState();
     localStorage.removeItem("loggedDriver");
     localStorage.removeItem("user");
-    window.location.href =
-      "/driver/login.html";
+    window.location.href = "/driver/login.html";
   };
 }
 
