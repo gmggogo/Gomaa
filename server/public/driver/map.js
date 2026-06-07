@@ -1132,6 +1132,16 @@ function fitMapToActivePoints(){
 
 function openGoogleMaps(){
 
+  console.log({
+    pickupLat,
+    pickupLng,
+    dropLat,
+    dropLng,
+    hasPickup,
+    hasDropoff,
+    routeMode
+  });
+
   let destination = "";
 
   if((routeMode === "dropoff_live" || started) && hasDropoff){
