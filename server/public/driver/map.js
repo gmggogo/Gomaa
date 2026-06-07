@@ -117,7 +117,7 @@ const TRIP_ID =
 
 let tripDoc = null;
 let systemDesign = {};
-
+let appConfig = {};
 let clientPhone = "";
 let tripDateTime = null;
 
@@ -867,16 +867,60 @@ async function loadSystemDesign(){
 
 }
 
+async function loadAppConfig(){
+
+  try{
+
+    const res =
+      await fetch("/api/config",{
+        cache:"no-store"
+      });
+
+    if(res.ok){
+
+      appConfig =
+        await res.json();
+
+      window.GOOGLE_MAPS_KEY =
+        appConfig.googleKey ||
+        appConfig.googleMapsKey ||
+        "";
+
+    }
+
+  }catch(err){
+
+    console.log(
+      "config load error",
+      err
+    );
+
+  }
+
+}
+
 function getGoogleMapsKey(){
 
   return (
+
+    appConfig.googleKey ||
+
+    appConfig.googleMapsKey ||
+
     systemDesign.googleKey ||
+
     systemDesign.googleMapsKey ||
+
     systemDesign.googleMapKey ||
+
     systemDesign.googleMapsApiKey ||
+
     systemDesign.mapsApiKey ||
+
     window.GOOGLE_MAPS_KEY ||
+
     ""
+
   );
 
 }
@@ -1861,13 +1905,22 @@ async function initPage(){
 
     setNavText("Loading trip...");
 
-    await syncServerClock();
-    await loadSystemDesign();
-    await syncServerClock();
+   await syncServerClock();
 
-    updateClock();
+await loadSystemDesign();
 
-    await loadGoogleMapsScript();
+await loadAppConfig();
+
+await syncServerClock();
+
+updateClock();
+
+console.log(
+  "GOOGLE KEY =",
+  getGoogleMapsKey()
+);
+
+await loadGoogleMapsScript();
 
     tripDoc =
       await fetchTrip();
