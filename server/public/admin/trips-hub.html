@@ -9,187 +9,96 @@
 <link rel="stylesheet" href="/admin/trips-hub.css">
 
 <style>
-*{box-sizing:border-box;}
 
-:root{
-  --blue:#2563eb;
-  --blueDark:#1d4ed8;
-  --green:#16a34a;
-  --red:#dc2626;
-  --orange:#f59e0b;
-  --purple:#7c3aed;
-  --text:#0f172a;
-  --muted:#64748b;
-  --bg:#f4f8fb;
-  --card:#ffffff;
-  --border:#dbe3ee;
-}
+/* ===== PAGE ===== */
 
 body{
   margin:0;
-  background:var(--bg);
+  background:#f8fafc;
   font-family:Arial,sans-serif;
-  color:var(--text);
 }
 
 .page-content{
-  padding:22px;
+  padding:20px;
   width:100%;
+  box-sizing:border-box;
 }
 
-/* HEADER TITLE */
-
-.page-head{
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:18px 20px;
-  margin-bottom:18px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  flex-wrap:wrap;
-}
-
-.page-title{
-  font-size:26px;
-  font-weight:900;
-}
-
-.page-sub{
-  margin-top:5px;
-  color:var(--muted);
-  font-size:13px;
-  font-weight:700;
-}
-
-.role-badge{
-  background:#e0edff;
-  color:#1d4ed8;
-  padding:9px 14px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:900;
-}
-
-/* TOOLBAR */
+/* ===== TOOLBAR ===== */
 
 .toolbar{
   display:flex;
   gap:10px;
   align-items:center;
   flex-wrap:wrap;
-  margin-bottom:14px;
+  margin-bottom:15px;
 }
 
 .add-btn{
-  background:var(--blue);
+  background:#2563eb;
   color:#fff;
   border:none;
-  padding:11px 18px;
-  border-radius:10px;
+  padding:8px 16px;
+  border-radius:8px;
   cursor:pointer;
   font-size:14px;
-  font-weight:900;
-  box-shadow:0 6px 16px rgba(37,99,235,.18);
+  font-weight:600;
 }
 
 .add-btn:hover{
-  background:var(--blueDark);
+  background:#1d4ed8;
 }
 
 .search-input{
   flex:1;
-  min-width:240px;
-  padding:12px 14px;
-  border-radius:10px;
+  min-width:220px;
+  padding:10px 12px;
+  border-radius:8px;
   border:1px solid #cbd5e1;
   font-size:14px;
   outline:none;
-  font-weight:700;
-  background:#fff;
 }
 
 .search-input:focus{
-  border-color:var(--blue);
+  border-color:#2563eb;
   box-shadow:0 0 0 3px rgba(37,99,235,.12);
 }
 
-/* TABS */
-
-.hub-tabs{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-  margin-bottom:18px;
-}
-
-.hub-tab{
-  border:none;
-  border-radius:16px;
-  padding:16px;
-  cursor:pointer;
-  background:#e2e8f0;
-  color:#0f172a;
-  font-weight:900;
-  font-size:15px;
-  box-shadow:0 6px 16px rgba(15,23,42,.05);
-}
-
-.hub-tab.active{
-  background:linear-gradient(135deg,#2563eb,#1d4ed8);
-  color:#fff;
-}
-
-.tab-title{
-  display:block;
-  font-size:16px;
-}
-
-.tab-count{
-  display:block;
-  margin-top:6px;
-  font-size:12px;
-  opacity:.85;
-}
-
-/* CONTAINER */
+/* ===== CONTAINER ===== */
 
 #hubContainer{
   width:100%;
   overflow-x:auto;
 }
 
-/* GROUP TITLE */
+/* ===== GROUP TITLE ===== */
 
 .group-title{
   font-size:18px;
-  font-weight:900;
+  font-weight:700;
   margin:20px 0 10px;
   color:#0f172a;
 }
 
-/* TABLE */
+/* ===== TABLE ===== */
 
 .hub-table{
   width:100%;
   border-collapse:collapse;
   table-layout:auto;
   background:#fff;
-  border-radius:14px;
+  border-radius:12px;
   overflow:hidden;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
-  margin-bottom:22px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  margin-bottom:20px;
 }
 
 .hub-table th,
 .hub-table td{
-  border:1px solid var(--border);
+  border:1px solid #dbe2ea;
   padding:8px;
   text-align:center;
-  font-size:12px;
+  font-size:13px;
   vertical-align:middle;
 }
 
@@ -197,14 +106,12 @@ body{
   background:#0f172a;
   color:#fff;
   white-space:nowrap;
-  font-weight:900;
 }
 
 .hub-table td{
   position:relative;
   overflow:visible;
   background-clip:padding-box;
-  font-weight:700;
 }
 
 .hub-table input,
@@ -212,12 +119,11 @@ body{
 .hub-table select{
   width:100%;
   box-sizing:border-box;
-  padding:7px 8px;
+  padding:6px 8px;
   border:1px solid #cbd5e1;
-  border-radius:7px;
-  font-size:12px;
+  border-radius:6px;
+  font-size:13px;
   font-family:inherit;
-  font-weight:700;
 }
 
 .hub-table textarea{
@@ -233,12 +139,14 @@ body{
   opacity:1;
 }
 
-/* AUTOCOMPLETE */
+/* ===== INPUT WRAP ===== */
 
 .input-wrap{
   position:relative;
   width:100%;
 }
+
+/* ===== AUTOCOMPLETE ===== */
 
 .suggestions{
   position:absolute;
@@ -265,6 +173,10 @@ body{
   background:#fff;
 }
 
+.option:last-child{
+  border-bottom:none;
+}
+
 .option:hover{
   background:#eff6ff;
 }
@@ -275,7 +187,7 @@ body{
   cursor:default;
 }
 
-/* ACTIONS */
+/* ===== ACTIONS ===== */
 
 .hub-actions{
   display:flex;
@@ -287,53 +199,42 @@ body{
 
 .hub-btn{
   border:none;
-  padding:7px 11px;
-  border-radius:7px;
+  padding:6px 10px;
+  border-radius:6px;
   cursor:pointer;
   font-size:12px;
-  font-weight:900;
+  font-weight:700;
 }
 
-.edit{background:#3b82f6;color:#fff;}
-.save{background:#16a34a;color:#fff;}
-.delete{background:#dc2626;color:#fff;}
+.edit{
+  background:#3b82f6;
+  color:#fff;
+}
+
+.save{
+  background:#16a34a;
+  color:#fff;
+}
+
+.delete{
+  background:#dc2626;
+  color:#fff;
+}
+
+/* ===== EMPTY ===== */
 
 .no-data{
   background:#fff;
-  padding:18px;
-  border-radius:14px;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
-  color:#475569;
-  font-weight:900;
-}
-
-/* SHARED CARDS READY */
-
-.shared-card{
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:18px;
   padding:16px;
-  margin-bottom:16px;
-  box-shadow:0 8px 22px rgba(15,23,42,.07);
+  border-radius:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  color:#475569;
 }
 
-.shared-title{
-  font-size:17px;
-  font-weight:900;
-  margin-bottom:10px;
-}
+/* ===== MOBILE ===== */
 
-.shared-meta{
-  color:var(--muted);
-  font-size:13px;
-  font-weight:800;
-  margin-bottom:12px;
-}
+@media (max-width:768px){
 
-/* MOBILE */
-
-@media(max-width:768px){
   .page-content{
     padding:12px;
   }
@@ -348,40 +249,24 @@ body{
     width:100%;
   }
 
-  .hub-tabs{
-    grid-template-columns:1fr;
-  }
-
   .hub-table{
-    min-width:1300px;
+    min-width:1200px;
   }
 
-  .page-title{
-    font-size:22px;
-  }
 }
+
 </style>
 </head>
 
 <body>
 
+<!-- HEADER -->
 <div id="adminHeader"></div>
 
+<!-- PAGE CONTENT -->
 <div class="page-content">
 
-  <div class="page-head">
-    <div>
-      <div class="page-title">Trips Hub</div>
-      <div class="page-sub">
-        Manage individual, reserved, company, and shared trips.
-      </div>
-    </div>
-
-    <div class="role-badge" id="roleBadge">
-      --
-    </div>
-  </div>
-
+  <!-- TOOLBAR -->
   <div class="toolbar">
     <button id="addManualTripBtn" class="add-btn" type="button">
       + Add Reserved Trip
@@ -394,22 +279,12 @@ body{
       placeholder="Search trip #, name, phone, company">
   </div>
 
-  <div class="hub-tabs">
-    <button id="individualTab" class="hub-tab active" type="button">
-      <span class="tab-title">Individual Trips</span>
-      <span class="tab-count" id="individualCount">0 trips</span>
-    </button>
-
-    <button id="sharedTab" class="hub-tab" type="button">
-      <span class="tab-title">Shared Trips</span>
-      <span class="tab-count" id="sharedCount">0 groups</span>
-    </button>
-  </div>
-
+  <!-- TABLE CONTAINER -->
   <div id="hubContainer"></div>
 
 </div>
 
+<!-- JS -->
 <script src="/admin/header.js"></script>
 <script src="/admin/trips-hub.js"></script>
 
