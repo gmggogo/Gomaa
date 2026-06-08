@@ -589,10 +589,9 @@ async function loadServices() {
    services = Array.isArray(data)
   ? data.filter(s => s && s.enabled !== false && s.companyEnabled !== false)
   : [];
-  catch(err) {
-  console.error("LOAD SERVICES ERROR:", err);
-  services = [];
-}
+  } catch {
+    services = [];
+  }
 }
 
 async function loadHubTrips() {
