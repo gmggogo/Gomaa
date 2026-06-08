@@ -605,6 +605,23 @@ async function loadServices() {
 
 }
 
+async function loadHubTrips() {
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+
+    hubTrips = Array.isArray(data)
+      ? data.sort((a,b) => getBookedDateObj(b) - getBookedDateObj(a))
+      : [];
+
+    applyFilters();
+  } catch {
+    hubTrips = [];
+    displayItems = [];
+    render();
+  }
+}
+
 /* ===============================
    FILTERS
 ================================ */
