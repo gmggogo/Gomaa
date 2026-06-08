@@ -114,7 +114,6 @@ if (!container) console.error("Missing #hubContainer");
     bar.innerHTML = `
       <button id="editSelectedBtn" class="hub-action-btn edit" disabled>Edit Selected</button>
       <button id="deleteSelectedBtn" class="hub-action-btn delete" disabled>Delete Selected</button>
-      <button id="optimizeSharedBtn" class="hub-action-btn optimize" disabled>Optimize Shared Route</button>
       <button id="saveEditBtn" class="hub-action-btn save" style="display:none;">Save Changes</button>
       <button id="cancelEditBtn" class="hub-action-btn cancel" style="display:none;">Cancel Edit</button>
     `;
@@ -778,67 +777,6 @@ function getGroupStatus(group) {
   return group[0]?.status || "Scheduled";
 }
 
-function sameAddress(list,key) {
-  const arr = list.map(p => normalizeText(p[key]).toLowerCase()).filter(Boolean);
-  return arr.length > 0 && arr.every(v => v === arr[0]);
-}
-
-async function optimizePassengersRoute(passengers) {
-  let list = await applyPassengerCoords(passengers);
-
-  const samePickup = sameAddress(list,"pickup");
-  const sameDropoff = sameAddress(list,"dropoff");
-
-  if (samePickup) {
-    const base = {
-      lat:list[0].pickupLat,
-      lng:list[0].pickupLng
-    };
-
-    list.sort((a,b) => {
-      const da = distanceMiles(base,{ lat:a.dropoffLat, lng:a.dropoffLng });
-      const db = distanceMiles(base,{ lat:b.dropoffLat, lng:b.dropoffLng });
-      return da - db;
-    });
-  }
-
-  else if (sameDropoff) {
-    const base = {
-      lat:list[0].dropoffLat,
-      lng:list[0].dropoffLng
-    };
-
-    list.sort((a,b) => {
-      const da = distanceMiles({ lat:a.pickupLat, lng:a.pickupLng }, base);
-      const db = distanceMiles({ lat:b.pickupLat, lng:b.pickupLng }, base);
-      return db - da;
-    });
-  }
-
-  else {
-    list.sort((a,b) => {
-      const da = distanceMiles(
-        { lat:a.pickupLat, lng:a.pickupLng },
-        { lat:a.dropoffLat, lng:a.dropoffLng }
-      );
-
-      const db = distanceMiles(
-        { lat:b.pickupLat, lng:b.pickupLng },
-        { lat:b.dropoffLat, lng:b.dropoffLng }
-      );
-
-      return da - db;
-    });
-  }
-
-  return list.map((p,i) => ({
-    ...p,
-    passengerIndex:i,
-    routeOrder:i + 1,
-    pickupOrder:i + 1,
-    dropoffOrder:i + 1
-  }));
-}
 
 /* ===============================
    API
@@ -1062,7 +1000,6 @@ function updateSelectionButtons() {
   const deleteBtn = document.getElementById("deleteSelectedBtn");
   const saveBtn = document.getElementById("saveEditBtn");
   const cancelBtn = document.getElementById("cancelEditBtn");
-  const optimizeBtn = document.getElementById("optimizeSharedBtn");
 
   const isEditing = Boolean(editingKey);
   const selected = getSelectedItem();
@@ -1077,11 +1014,7 @@ function updateSelectionButtons() {
     deleteBtn.style.display = isEditing ? "none" : "inline-block";
   }
 
-  if (optimizeBtn) {
-    optimizeBtn.disabled = !(selected && selected.kind === "shared") || isEditing;
-    optimizeBtn.style.display = isEditing ? "none" : "inline-block";
-  }
-
+ 
   if (saveBtn) saveBtn.style.display = isEditing ? "inline-block" : "none";
   if (cancelBtn) cancelBtn.style.display = isEditing ? "inline-block" : "none";
 }
@@ -1233,8 +1166,7 @@ async function saveShared(groupId) {
     payload[field] = input.value;
   });
 
-  passengers = await optimizePassengersRoute(passengers);
-
+passengers = await applyPassengerCoords(passengers);
   payload.passengers = passengers;
   payload.totalPassengers = passengers.length;
   payload.isShared = true;
@@ -1267,44 +1199,6 @@ async function saveShared(groupId) {
 
   } catch {
     alert("Could not save shared group.");
-  }
-}
-
-async function optimizeSelectedSharedRoute() {
-  const item = getSelectedItem();
-
-  if (!item || item.kind !== "shared") {
-    alert("Please select one shared trip.");
-    return;
-  }
-
-  if (!confirm("Optimize selected shared route?")) return;
-
-  try {
-    const passengers = await optimizePassengersRoute(getRealPassengersFromGroup(item.group));
-
-    const payload = {
-      passengers,
-      totalPassengers:passengers.length,
-      isShared:true,
-      tripType:"SHARED"
-    };
-
-    for (const t of item.group) {
-      const res = await fetch(`${API_URL}/${t._id}`, {
-        method:"PUT",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error();
-    }
-
-    selectedItems.clear();
-    await loadHubTrips();
-
-  } catch {
-    alert("Could not optimize shared route.");
   }
 }
 
@@ -1498,14 +1392,12 @@ document.getElementById("editSelectedBtn")?.addEventListener("click", editSelect
 document.getElementById("deleteSelectedBtn")?.addEventListener("click", deleteSelected);
 document.getElementById("saveEditBtn")?.addEventListener("click", saveCurrentEdit);
 document.getElementById("cancelEditBtn")?.addEventListener("click", cancelEdit);
-document.getElementById("optimizeSharedBtn")?.addEventListener("click", optimizeSelectedSharedRoute);
 
 Object.assign(window, {
   toggleSelection,
   saveTrip,
   saveShared,
-  cancelEdit,
-  optimizeSelectedSharedRoute
+  cancelEdit
 });
 
 /* ===============================
