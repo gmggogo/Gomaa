@@ -998,7 +998,6 @@ function enableCompanyEdit(id){
 
   const fields = [
 
-    `company-suffix-${id}`,
     `company-shared-${id}`,
     `company-mode-${id}`,
     `company-base-${id}`,
