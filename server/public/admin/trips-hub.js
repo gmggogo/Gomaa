@@ -1,12 +1,11 @@
 /* ==========================================================================
-   TRIPS HUB V2 - CLEAN INBOX
+   TRIPS HUB V3 - CLEAN ADMIN INBOX
    Admin / SuperAdmin / Dispatcher
    ========================================================================== */
 
 const API_URL = "/api/trips";
-const SERVICES_URL = "/api/services";
-
 const role = localStorage.getItem("role") || "";
+const token = localStorage.getItem("token") || "";
 
 if (!["superadmin", "admin", "dispatcher"].includes(role)) {
   window.location.href = "/admin/login.html";
@@ -52,19 +51,22 @@ if (!container) console.error("Missing #hubContainer");
     };
   }
 
-  if (!document.getElementById("hubActionBar")) {
-    const bar = document.createElement("div");
-    bar.id = "hubActionBar";
-    bar.className = "hub-action-bar";
-    bar.innerHTML = `
-      <button id="editSelectedBtn" class="hub-action-btn edit" disabled>Edit Selected</button>
-      <button id="deleteSelectedBtn" class="hub-action-btn delete" disabled>Delete Selected</button>
-    `;
-    page.insertBefore(bar, container);
-  }
+  document.getElementById("dateFilters")?.remove();
 
-  const oldDateFilters = document.getElementById("dateFilters");
-  if (oldDateFilters) oldDateFilters.remove();
+  if (!document.getElementById("hubStats")) {
+    const stats = document.createElement("div");
+    stats.id = "hubStats";
+    stats.className = "hub-stats";
+    stats.innerHTML = `
+      <div class="stat-card total"><div id="statTotal" class="stat-number">0</div><div class="stat-label">Total Trips</div></div>
+      <div class="stat-card new"><div id="statNew" class="stat-number">0</div><div class="stat-label">New Trips</div></div>
+      <div class="stat-card today"><div id="statToday" class="stat-number">0</div><div class="stat-label">Trips Today</div></div>
+      <div class="stat-card company"><div id="statCompany" class="stat-number">0</div><div class="stat-label">Company</div></div>
+      <div class="stat-card gq"><div id="statGq" class="stat-number">0</div><div class="stat-label">Get Quote</div></div>
+      <div class="stat-card shared"><div id="statShared" class="stat-number">0</div><div class="stat-label">Shared</div></div>
+    `;
+    page.insertBefore(stats, container);
+  }
 
   if (!document.getElementById("serviceTabs")) {
     const tabs = document.createElement("div");
@@ -72,14 +74,64 @@ if (!container) console.error("Missing #hubContainer");
     tabs.className = "service-tabs";
     page.insertBefore(tabs, container);
   }
+
+  if (!document.getElementById("hubActionBar")) {
+    const bar = document.createElement("div");
+    bar.id = "hubActionBar";
+    bar.className = "hub-action-bar";
+    bar.innerHTML = `
+      <button id="editSelectedBtn" class="hub-action-btn edit" disabled>Edit Selected</button>
+      <button id="deleteSelectedBtn" class="hub-action-btn delete" disabled>Delete Selected</button>
+      <button id="saveEditBtn" class="hub-action-btn save" style="display:none;">Save Changes</button>
+      <button id="cancelEditBtn" class="hub-action-btn cancel" style="display:none;">Cancel Edit</button>
+    `;
+    page.insertBefore(bar, container);
+  }
 })();
 
 (function injectStyle() {
-  if (document.getElementById("trips-hub-v2-style")) return;
+  if (document.getElementById("trips-hub-v3-style")) return;
 
   const style = document.createElement("style");
-  style.id = "trips-hub-v2-style";
+  style.id = "trips-hub-v3-style";
   style.innerHTML = `
+    .hub-stats{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+      gap:10px;
+      margin:0 0 14px;
+    }
+
+    .stat-card{
+      background:#fff;
+      border:1px solid #dbe3ee;
+      border-radius:14px;
+      padding:12px;
+      text-align:center;
+      box-shadow:0 6px 16px rgba(15,23,42,.07);
+    }
+
+    .stat-card.total{border-left:6px solid #2563eb;}
+    .stat-card.new{border-left:6px solid #16a34a;}
+    .stat-card.today{border-left:6px solid #0ea5e9;}
+    .stat-card.company{border-left:6px solid #1d4ed8;}
+    .stat-card.gq{border-left:6px solid #22c55e;}
+    .stat-card.shared{border-left:6px solid #7c3aed;}
+
+    .stat-number{
+      font-size:25px;
+      line-height:1;
+      font-weight:900;
+      color:#0f172a;
+    }
+
+    .stat-label{
+      margin-top:5px;
+      font-size:13px;
+      font-weight:900;
+      color:#64748b;
+    }
+
     .hub-action-bar{
       display:flex;
       gap:8px;
@@ -90,25 +142,27 @@ if (!container) console.error("Missing #hubContainer");
 
     .hub-action-btn{
       border:none;
-      border-radius:9px;
-      padding:8px 13px;
-      font-size:12px;
+      border-radius:10px;
+      padding:10px 15px;
+      font-size:13px;
       font-weight:900;
       cursor:pointer;
       color:#fff;
     }
 
     .hub-action-btn:disabled{
-      opacity:.4;
+      opacity:.45;
       cursor:not-allowed;
     }
 
     .hub-action-btn.edit{background:#2563eb;}
     .hub-action-btn.delete{background:#dc2626;}
+    .hub-action-btn.save{background:#16a34a;}
+    .hub-action-btn.cancel{background:#64748b;}
 
     .service-tabs{
       display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
+      grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
       gap:8px;
       margin:0 0 14px;
     }
@@ -117,41 +171,54 @@ if (!container) console.error("Missing #hubContainer");
       border:1px solid #dbe3ee;
       background:#fff;
       color:#0f172a;
-      border-radius:12px;
-      padding:8px 6px;
+      border-radius:13px;
+      padding:9px 7px;
       cursor:pointer;
       font-weight:900;
       box-shadow:0 5px 14px rgba(15,23,42,.06);
       text-align:center;
-      min-height:68px;
+      min-height:78px;
     }
 
-   .service-tab.active{
-  background:#2563eb;
-  color:#fff;
-}
+    .service-tab.active{
+      background:#2563eb;
+      color:#fff;
+    }
 
     .service-title{
-      font-size:11px;
+      font-size:13px;
       line-height:1.15;
-      margin-bottom:4px;
+      margin-bottom:5px;
     }
 
     .service-total{
-      font-size:17px;
-      line-height:1.1;
+      font-size:23px;
+      line-height:1.05;
+      font-weight:900;
     }
 
     .service-source{
-      font-size:9px;
-      line-height:1.15;
-      opacity:.85;
+      margin-top:4px;
+      font-size:10px;
+      line-height:1.25;
+      opacity:.9;
+    }
+
+    .booked-title{
+      margin:18px 0 8px;
+      padding:10px 13px;
+      background:#e0edff;
+      color:#1e3a8a;
+      border-left:6px solid #2563eb;
+      border-radius:12px;
+      font-size:15px;
+      font-weight:900;
     }
 
     .table-wrap{
       width:100%;
       overflow-x:auto;
-      margin-bottom:22px;
+      margin-bottom:20px;
       border-radius:14px;
       background:#fff;
       box-shadow:0 8px 22px rgba(15,23,42,.08);
@@ -161,38 +228,39 @@ if (!container) console.error("Missing #hubContainer");
       width:100%;
       border-collapse:collapse;
       background:#fff;
-      min-width:1250px;
+      min-width:1450px;
     }
 
     .hub-table th,
-.hub-table td{
-  border:1px solid #dbe3ee;
-  padding:7px;
-  text-align:center;
-  font-size:13px;
-  vertical-align:middle;
-  line-height:1.4;
-}
+    .hub-table td{
+      border:1px solid #dbe3ee;
+      padding:7px;
+      text-align:center;
+      font-size:13px;
+      vertical-align:middle;
+      line-height:1.35;
+    }
 
-.hub-table th{
-  background:#2563eb;
-  color:#fff;
-  font-weight:900;
-  white-space:nowrap;
-  font-size:13px;
-}
+    .hub-table th{
+      background:#2563eb;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+      font-size:13px;
+    }
 
     .wide-address{
-      min-width:210px;
-      max-width:310px;
+      min-width:220px;
+      max-width:330px;
       text-align:left!important;
       white-space:pre-line;
       word-break:break-word;
+      font-size:12px!important;
     }
 
     .wide-client{
-      min-width:160px;
-      max-width:240px;
+      min-width:165px;
+      max-width:245px;
       text-align:left!important;
       white-space:pre-line;
       word-break:break-word;
@@ -200,70 +268,50 @@ if (!container) console.error("Missing #hubContainer");
 
     .trip-number-badge{
       font-weight:900;
-      color:#2563eb;
+      color:#1d4ed8;
       white-space:nowrap;
     }
 
     .service-pill{
       display:inline-flex;
-      padding:3px 7px;
+      padding:4px 8px;
       border-radius:999px;
-      background:#e0edff;
+      background:#dbeafe;
       color:#1d4ed8;
-      font-size:10px;
+      font-size:12px;
       font-weight:900;
       white-space:nowrap;
     }
 
-    .source-pill{
+    .status-pill{
       display:inline-flex;
-      padding:3px 7px;
+      padding:4px 8px;
       border-radius:999px;
+      font-size:12px;
+      font-weight:900;
       background:#f1f5f9;
       color:#0f172a;
-      font-size:10px;
-      font-weight:900;
       white-space:nowrap;
     }
 
     .edit-input{
       width:100%;
-      min-width:85px;
-      padding:5px;
+      min-width:95px;
+      padding:6px;
       border:1px solid #cbd5e1;
-      border-radius:6px;
-      font-size:10.5px;
+      border-radius:7px;
+      font-size:12px;
       font-weight:700;
       box-sizing:border-box;
     }
 
-    .actions-wrap{
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      gap:4px;
-      flex-wrap:wrap;
-    }
-
-    .btn{
-      border:none;
-      padding:5px 8px;
-      border-radius:6px;
-      font-size:10px;
-      font-weight:900;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-
-    .save{background:#16a34a;color:#fff;}
-    .cancel{background:#64748b;color:#fff;}
-
-    .scheduled-row{background:#fff;}
-    .confirmed-row{background:#dcfce7;}
-    .cancelled-row{background:#fecaca;}
-    .completed-row{background:#e0f2fe;}
-    .past-row{background:#f3f4f6;}
-    .new-trip-row td{background:#dcfce7!important;}
+    .company-row td{background:#dbeafe;}
+    .gq-row td{background:#dcfce7;}
+    .reserved-row td{background:#fef3c7;}
+    .shared-row td{background:#ede9fe;}
+    .cancelled-row td{background:#fecaca!important;}
+    .completed-row td{background:#e5e7eb!important;}
+    .new-trip-row td{box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);}
 
     .no-data{
       background:#fff;
@@ -275,12 +323,14 @@ if (!container) console.error("Missing #hubContainer");
     }
 
     @media(max-width:768px){
-      .hub-table{min-width:1150px;}
-.hub-table th,
-.hub-table td{
-  font-size:11px;
-  padding:6px;
-}      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(92px,1fr));}
+      .hub-table{min-width:1300px;}
+      .hub-table th,
+      .hub-table td{
+        font-size:11px;
+        padding:6px;
+      }
+      .wide-address{font-size:10.5px!important;}
+      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));}
     }
   `;
   document.head.appendChild(style);
@@ -309,39 +359,61 @@ function getTripNumber(t) {
   return String(t?.tripNumber || t?.bookingNumber || t?.id || "-");
 }
 
-function getCreatedDate(t) {
+function getBookedDateObj(t) {
   return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || Date.now());
 }
 
+function formatDateObj(d) {
+  if (!d || isNaN(d)) return "-";
+  return d.toLocaleDateString();
+}
+
+function formatTimeObj(d) {
+  if (!d || isNaN(d)) return "-";
+  return d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+}
+
+function getBookedDate(t) {
+  return formatDateObj(getBookedDateObj(t));
+}
+
+function getBookedTime(t) {
+  return formatTimeObj(getBookedDateObj(t));
+}
+
+function getBookedGroupKey(t) {
+  const d = getBookedDateObj(t);
+  if (!d || isNaN(d)) return "Unknown";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
 function getAZNow() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" }));
+  return new Date(new Date().toLocaleString("en-US", { timeZone:"America/Phoenix" }));
 }
 
 function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
 function isNewTrip(t) {
-  const d = getCreatedDate(t);
+  const d = getBookedDateObj(t);
   return !isNaN(d) && Date.now() - d.getTime() <= 2 * 60 * 60 * 1000;
 }
 
-function parseTripDateTime(date, time) {
+function isBookedToday(t) {
+  return getBookedGroupKey(t) === dateKey(getAZNow());
+}
+
+function parseTripDateTime(date,time) {
   if (!date || !time) return null;
   const dt = new Date(`${date}T${time}:00`);
   return isNaN(dt) ? null : dt;
 }
 
-function shouldRemoveTrip(t) {
-  const dt = parseTripDateTime(t.tripDate, t.tripTime);
-  return dt ? (getAZNow() - dt) / 3600000 >= 24 : false;
-}
-
-function validateFutureTrip(date, time) {
+function validateFutureTrip(date,time) {
   if (!date || !time) return { ok:false, message:"Missing trip date or time" };
-  const dt = parseTripDateTime(date, time);
+  const dt = parseTripDateTime(date,time);
   if (!dt) return { ok:false, message:"Invalid trip date/time" };
-  if (dt <= getAZNow()) return { ok:false, message:"Cannot save trip in the past" };
   return { ok:true };
 }
 
@@ -382,7 +454,7 @@ function getServiceCodeFromService(service) {
   if (key === "STANDARD") return "ST";
   if (key === "WHEELCHAIR") return "WH";
   if (key === "SHARED") return "SH";
-  if (["LIMOUSINE", "LIMO"].includes(key)) return "LM";
+  if (["LIMOUSINE","LIMO"].includes(key)) return "LM";
   if (key === "TAXI") return "TX";
   if (key === "XL") return "XL";
 
@@ -401,9 +473,9 @@ function getServiceCodeFromTrip(t) {
 
   if (direct) {
     if (direct === "STANDARD") return "ST";
-    if (["WHEELCHAIR", "WC"].includes(direct)) return "WH";
+    if (["WHEELCHAIR","WC"].includes(direct)) return "WH";
     if (direct === "SHARED") return "SH";
-    if (["LIMOUSINE", "LIMO"].includes(direct)) return "LM";
+    if (["LIMOUSINE","LIMO"].includes(direct)) return "LM";
     if (direct === "TAXI") return "TX";
     if (direct === "XL") return "XL";
     return direct;
@@ -425,9 +497,7 @@ function getServiceTitleByCode(code) {
   const c = normalizeText(code).toUpperCase();
   const service = services.find(s => getServiceCodeFromService(s) === c);
 
-  if (service) {
-    return service.title || service.name || service.serviceName || service.serviceKey || c;
-  }
+  if (service) return service.title || service.name || service.serviceName || service.serviceKey || c;
 
   if (c === "ALL") return "ALL";
   if (c === "ST") return "Standard";
@@ -464,7 +534,7 @@ function getRealPassengersFromGroup(group) {
     return first.passengers;
   }
 
-  return group.map((t, i) => ({
+  return group.map((t,i) => ({
     passengerId:"P" + (i + 1),
     name:t.name || t.clientName || "",
     phone:t.phone || t.clientPhone || "",
@@ -486,7 +556,7 @@ function getSharedGroups(list = hubTrips) {
   });
 
   return Object.values(map).map(group =>
-    group.sort((a, b) => Number(a.passengerIndex || 0) - Number(b.passengerIndex || 0))
+    group.sort((a,b) => Number(a.passengerIndex || 0) - Number(b.passengerIndex || 0))
   );
 }
 
@@ -495,6 +565,7 @@ function getGroupStatus(group) {
 
   if (passengers.length) {
     if (passengers.every(p => cleanStatus(p.status).includes("cancel"))) return "Cancelled";
+    if (passengers.every(p => cleanStatus(p.status).includes("complete"))) return "Completed";
     if (passengers.every(p => cleanStatus(p.status).includes("confirm"))) return "Confirmed";
     if (passengers.some(p => cleanStatus(p.status).includes("confirm"))) return "Partially Confirmed";
   }
@@ -506,44 +577,21 @@ function getGroupStatus(group) {
    API
 ================================ */
 async function loadServices() {
-
   try {
+    const res = await fetch("/api/services?company=true", {
+      headers:{ Authorization:"Bearer " + (localStorage.getItem("token") || "") }
+    });
 
-    const token =
-      localStorage.getItem("token") || "";
+    if (!res.ok) throw new Error();
 
-    const res =
-      await fetch(
-        "/api/services?company=true",
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          }
-        }
-      );
+    const data = await res.json();
 
-    if(!res.ok){
-      throw new Error();
-    }
-
-    const data =
-      await res.json();
-
-    services =
-      Array.isArray(data)
-      ? data.filter(s =>
-          s &&
-          s.enabled !== false &&
-          s.companyEnabled !== false
-        )
+    services = Array.isArray(data)
+      ? data.filter(s => s && s.enabled !== false && s.companyEnabled !== false)
       : [];
-
   } catch {
-
     services = [];
-
   }
-
 }
 
 async function loadHubTrips() {
@@ -551,9 +599,9 @@ async function loadHubTrips() {
     const res = await fetch(API_URL);
     const data = await res.json();
 
-    hubTrips = (Array.isArray(data) ? data : [])
-      .filter(t => !shouldRemoveTrip(t))
-      .sort((a, b) => getCreatedDate(b) - getCreatedDate(a));
+    hubTrips = Array.isArray(data)
+      ? data.sort((a,b) => getBookedDateObj(b) - getBookedDateObj(a))
+      : [];
 
     applyFilters();
   } catch {
@@ -577,13 +625,13 @@ function buildDisplayItems(trips) {
 
       usedShared.add(key);
 
-      const group =
-        getSharedGroups(trips).find(g => getSharedKey(g[0]) === key) || [t];
+      const group = getSharedGroups(trips).find(g => getSharedKey(g[0]) === key) || [t];
 
       items.push({
         kind:"shared",
         key,
-        date:getCreatedDate(group[0]),
+        bookedKey:getBookedGroupKey(group[0]),
+        date:getBookedDateObj(group[0]),
         group
       });
 
@@ -593,43 +641,35 @@ function buildDisplayItems(trips) {
     items.push({
       kind:"trip",
       key:String(t._id),
-      date:getCreatedDate(t),
+      bookedKey:getBookedGroupKey(t),
+      date:getBookedDateObj(t),
       trip:t
     });
   });
 
-  return items.sort((a, b) => b.date - a.date);
+  return items.sort((a,b) => b.date - a.date);
 }
 
 function searchableText(item) {
-  if (item.kind === "trip") {
-    const t = item.trip;
-    return [
-      getTripNumber(t),
-      t.company,
-      t.entryName,
-      t.entryPhone,
-      t.clientName,
-      t.clientPhone,
-      t.pickup,
-      t.dropoff,
-      t.tripDate,
-      t.tripTime,
-      t.status
-    ].join(" ").toLowerCase();
-  }
-
-  const first = item.group[0] || {};
-  const passengers = getRealPassengersFromGroup(item.group);
+  const first = item.kind === "trip" ? item.trip : item.group[0];
+  const passengers = item.kind === "shared" ? getRealPassengersFromGroup(item.group) : [];
 
   return [
     getTripNumber(first),
     first.company,
     first.entryName,
     first.entryPhone,
+    first.clientName,
+    first.clientPhone,
+    first.pickup,
+    first.dropoff,
     first.tripDate,
     first.tripTime,
-    getGroupStatus(item.group),
+    first.status,
+    getBookedDate(first),
+    getBookedTime(first),
+    first.bookedAt,
+    first.createdAt,
     JSON.stringify(passengers)
   ].join(" ").toLowerCase();
 }
@@ -644,26 +684,29 @@ function applyFilters() {
   displayItems = buildDisplayItems(trips);
 
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
   if (q) {
     displayItems = displayItems.filter(item => searchableText(item).includes(q));
   }
 
+  renderStats();
   renderServiceTabs();
   updateSelectionButtons();
   render();
 }
 
 /* ===============================
-   SERVICE SUMMARY TABS
+   STATS / TABS
 ================================ */
 function countItemsByService(code) {
   const baseItems = buildDisplayItems(hubTrips);
+
   const selected = code === "ALL"
     ? baseItems
     : baseItems.filter(item => {
-        const t = item.kind === "trip" ? item.trip : item.group[0];
-        return getServiceCodeFromTrip(t) === code;
-      });
+      const t = item.kind === "trip" ? item.trip : item.group[0];
+      return getServiceCodeFromTrip(t) === code;
+    });
 
   return {
     total:selected.length,
@@ -672,11 +715,27 @@ function countItemsByService(code) {
   };
 }
 
+function renderStats() {
+  const items = buildDisplayItems(hubTrips);
+
+  const setText = (id,val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val;
+  };
+
+  setText("statTotal", items.length);
+  setText("statNew", items.filter(item => isNewTrip(item.kind === "trip" ? item.trip : item.group[0])).length);
+  setText("statToday", items.filter(item => isBookedToday(item.kind === "trip" ? item.trip : item.group[0])).length);
+  setText("statCompany", items.filter(item => getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "CO").length);
+  setText("statGq", items.filter(item => getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "GQ").length);
+  setText("statShared", items.filter(item => item.kind === "shared").length);
+}
+
 function renderServiceTabs() {
   const wrap = document.getElementById("serviceTabs");
   if (!wrap) return;
 
-  const map = new Map([["ALL", "ALL"]]);
+  const map = new Map([["ALL","ALL"]]);
 
   services.forEach(s => {
     const code = getServiceCodeFromService(s);
@@ -688,14 +747,14 @@ function renderServiceTabs() {
     if (!map.has(code)) map.set(code, getServiceTitleByCode(code));
   });
 
-  wrap.innerHTML = Array.from(map.entries()).map(([code, title]) => {
+  wrap.innerHTML = Array.from(map.entries()).map(([code,title]) => {
     const c = countItemsByService(code);
 
     return `
       <button class="service-tab ${activeService === code ? "active" : ""}" data-service="${safe(code)}" type="button">
         <div class="service-title">${safe(title)}</div>
         <div class="service-total">${c.total}</div>
-        <div class="service-source">GQ ${c.gq} | CO ${c.co}</div>
+        <div class="service-source">CO ${c.co}<br>GQ ${c.gq}</div>
       </button>
     `;
   }).join("");
@@ -714,11 +773,8 @@ function renderServiceTabs() {
    SELECTION
 ================================ */
 function toggleSelection(key) {
-  if (selectedItems.has(key)) {
-    selectedItems.delete(key);
-  } else {
-    selectedItems.add(key);
-  }
+  if (selectedItems.has(key)) selectedItems.delete(key);
+  else selectedItems.add(key);
 
   updateSelectionButtons();
 }
@@ -726,9 +782,23 @@ function toggleSelection(key) {
 function updateSelectionButtons() {
   const editBtn = document.getElementById("editSelectedBtn");
   const deleteBtn = document.getElementById("deleteSelectedBtn");
+  const saveBtn = document.getElementById("saveEditBtn");
+  const cancelBtn = document.getElementById("cancelEditBtn");
 
-  if (editBtn) editBtn.disabled = selectedItems.size !== 1;
-  if (deleteBtn) deleteBtn.disabled = selectedItems.size < 1;
+  const isEditing = Boolean(editingKey);
+
+  if (editBtn) {
+    editBtn.disabled = selectedItems.size !== 1 || isEditing;
+    editBtn.style.display = isEditing ? "none" : "inline-block";
+  }
+
+  if (deleteBtn) {
+    deleteBtn.disabled = selectedItems.size < 1 || isEditing;
+    deleteBtn.style.display = isEditing ? "none" : "inline-block";
+  }
+
+  if (saveBtn) saveBtn.style.display = isEditing ? "inline-block" : "none";
+  if (cancelBtn) cancelBtn.style.display = isEditing ? "inline-block" : "none";
 }
 
 function getSelectedItem() {
@@ -748,10 +818,11 @@ async function editSelected() {
   const item = getSelectedItem();
   if (!item) return;
 
-  if (!confirm("Edit selected trip?")) return;
+  if (!confirm("You are about to edit this trip. Continue?")) return;
 
   editingKey = item.key;
   render();
+  updateSelectionButtons();
 }
 
 async function deleteSelected() {
@@ -760,9 +831,7 @@ async function deleteSelected() {
     return;
   }
 
-  if (!confirm("WARNING\n\nYou are about to permanently delete the selected reservation(s).\n\nThis action cannot be undone.")) {
-    return;
-  }
+  if (!confirm("WARNING\n\nYou are about to permanently delete the selected reservation(s).\n\nThis action cannot be undone.")) return;
 
   try {
     for (const key of selectedItems) {
@@ -786,6 +855,17 @@ async function deleteSelected() {
   }
 }
 
+async function saveCurrentEdit() {
+  const item = displayItems.find(x => x.key === editingKey);
+  if (!item) return;
+
+  if (item.kind === "trip") {
+    await saveTrip(item.trip._id);
+  } else {
+    await saveShared(item.key);
+  }
+}
+
 async function saveTrip(id) {
   const row = document.querySelector(`tr[data-id="${CSS.escape(String(id))}"]`);
   const oldTrip = hubTrips.find(t => String(t._id) === String(id));
@@ -797,10 +877,7 @@ async function saveTrip(id) {
     if (input.dataset.field) payload[input.dataset.field] = input.value;
   });
 
-  const valid = validateFutureTrip(
-    payload.tripDate || oldTrip.tripDate,
-    payload.tripTime || oldTrip.tripTime
-  );
+  const valid = validateFutureTrip(payload.tripDate || oldTrip.tripDate, payload.tripTime || oldTrip.tripTime);
 
   if (!valid.ok) {
     alert(valid.message);
@@ -839,7 +916,7 @@ async function saveShared(groupId) {
     if (!field) return;
 
     if (field.startsWith("p_")) {
-      const [, idx, key] = field.split("_");
+      const [,idx,key] = field.split("_");
       const i = Number(idx);
 
       if (!passengers[i]) return;
@@ -868,10 +945,7 @@ async function saveShared(groupId) {
   payload.isShared = true;
   payload.tripType = "SHARED";
 
-  const valid = validateFutureTrip(
-    payload.tripDate || first.tripDate,
-    payload.tripTime || first.tripTime
-  );
+  const valid = validateFutureTrip(payload.tripDate || first.tripDate, payload.tripTime || first.tripTime);
 
   if (!valid.ok) {
     alert(valid.message);
@@ -900,23 +974,42 @@ async function saveShared(groupId) {
 function cancelEdit() {
   editingKey = null;
   render();
+  updateSelectionButtons();
 }
 
 /* ===============================
    RENDER
 ================================ */
-function rowClass(t) {
-  const s = cleanStatus(t.status);
+function rowClass(item) {
+  const t = item.kind === "trip" ? item.trip : item.group[0];
+  const s = cleanStatus(item.kind === "trip" ? t.status : getGroupStatus(item.group));
 
-  if (isNewTrip(t)) return "new-trip-row";
   if (s.includes("cancel")) return "cancelled-row";
   if (s.includes("complete")) return "completed-row";
-  if (s.includes("confirm")) return "confirmed-row";
 
-  const dt = parseTripDateTime(t.tripDate, t.tripTime);
-  if (dt && dt < getAZNow()) return "past-row";
+  let cls = "";
 
-  return "scheduled-row";
+  if (item.kind === "shared") cls = "shared-row";
+  else if (String(t.type || "").toLowerCase().includes("reserved")) cls = "reserved-row";
+  else if (getSourceCode(t) === "CO") cls = "company-row";
+  else cls = "gq-row";
+
+  if (isNewTrip(t)) cls += " new-trip-row";
+
+  return cls;
+}
+
+function groupDisplayItemsByBookedDate() {
+  const groups = {};
+
+  displayItems.forEach(item => {
+    const key = item.bookedKey || "Unknown";
+
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  });
+
+  return groups;
 }
 
 function render() {
@@ -926,96 +1019,87 @@ function render() {
 
   if (!displayItems.length) {
     container.innerHTML = `<p class="no-data">No trips found</p>`;
+    updateSelectionButtons();
     return;
   }
 
-  const wrap = document.createElement("div");
-  wrap.className = "table-wrap";
+  const groups = groupDisplayItemsByBookedDate();
 
-  const table = document.createElement("table");
-  table.className = "hub-table";
+  Object.keys(groups).sort((a,b) => new Date(b) - new Date(a)).forEach(dayKey => {
+    const title = document.createElement("div");
+    title.className = "booked-title";
+    title.textContent = "Booked: " + dayKey;
+    container.appendChild(title);
 
-  table.innerHTML = `
-    <tr>
-      <th>Select</th>
-      <th>#</th>
-      <th>Trip #</th>
-      <th>Service</th>
-      <th>Source</th>
-      <th>Type</th>
-      <th>Company</th>
-      <th>Entry</th>
-      <th>Phone</th>
-      <th>Client / Passengers</th>
-      <th>Pickup</th>
-      <th>Stops</th>
-      <th>Dropoff</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  `;
+    const wrap = document.createElement("div");
+    wrap.className = "table-wrap";
 
-  displayItems.forEach((item, index) => {
-    table.appendChild(
-      item.kind === "shared"
-        ? renderSharedRow(item, index + 1)
-        : renderTripRow(item, index + 1)
-    );
+    const table = document.createElement("table");
+    table.className = "hub-table";
+
+    table.innerHTML = `
+      <tr>
+        <th>Select</th>
+        <th>Trip #</th>
+        <th>Service</th>
+        <th>Company</th>
+        <th>Entry</th>
+        <th>Entry Phone</th>
+        <th>Client / Passengers</th>
+        <th>Phone</th>
+        <th>Pickup</th>
+        <th>Dropoff</th>
+        <th>Trip Date</th>
+        <th>Trip Time</th>
+        <th>Booked Date</th>
+        <th>Booked Time</th>
+        <th>Status</th>
+      </tr>
+    `;
+
+    groups[dayKey].forEach(item => {
+      table.appendChild(item.kind === "shared" ? renderSharedRow(item) : renderTripRow(item));
+    });
+
+    wrap.appendChild(table);
+    container.appendChild(wrap);
   });
-
-  wrap.appendChild(table);
-  container.appendChild(wrap);
 
   updateSelectionButtons();
 }
 
-function renderTripRow(item, index) {
+function renderTripRow(item) {
   const t = item.trip;
   const editing = editingKey === item.key;
+
   const tr = document.createElement("tr");
-
   tr.dataset.id = String(t._id);
-  tr.className = rowClass(t);
-
-  const stops = Array.isArray(t.stops) ? t.stops : [];
+  tr.className = rowClass(item);
 
   tr.innerHTML = `
     <td>
       <input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')">
     </td>
-    <td>${index}</td>
     <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByCode(getServiceCodeFromTrip(t)))}</span></td>
-    <td><span class="source-pill">${safe(getSourceCode(t))}</span></td>
-    <td>${safe(t.type || "Trip")}</td>
     <td>${editing ? createEditInput(t.company || "", "company") : safe(t.company || "")}</td>
     <td>${editing ? createEditInput(t.entryName || "", "entryName") : safe(t.entryName || "")}</td>
     <td>${editing ? createEditInput(t.entryPhone || "", "entryPhone") : safe(t.entryPhone || t.clientPhone || "")}</td>
     <td class="wide-client">${editing ? createEditInput(t.clientName || "", "clientName") : safe(t.clientName || "")}</td>
+    <td>${editing ? createEditInput(t.clientPhone || "", "clientPhone") : safe(t.clientPhone || "")}</td>
     <td class="wide-address">${editing ? createEditInput(t.pickup || "", "pickup") : safe(t.pickup || "")}</td>
-    <td class="wide-address">${stops.length ? stops.map(safe).join("<br>") : "--"}</td>
     <td class="wide-address">${editing ? createEditInput(t.dropoff || "", "dropoff") : safe(t.dropoff || "")}</td>
     <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : safe(t.tripDate || "")}</td>
     <td>${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : safe(t.tripTime || "")}</td>
-    <td><strong>${safe(t.status || "Scheduled")}</strong></td>
-    <td>
-      <div class="actions-wrap">
-        ${
-          editing
-            ? `<button class="btn save" onclick="saveTrip('${t._id}')">Save</button>
-               <button class="btn cancel" onclick="cancelEdit()">Cancel</button>`
-            : `--`
-        }
-      </div>
-    </td>
+    <td>${safe(getBookedDate(t))}</td>
+    <td>${safe(getBookedTime(t))}</td>
+    <td><span class="status-pill">${safe(t.status || "Scheduled")}</span></td>
   `;
 
   return tr;
 }
 
-function renderSharedRow(item, index) {
+function renderSharedRow(item) {
   const group = item.group;
   const first = group[0] || {};
   const passengers = getRealPassengersFromGroup(group);
@@ -1023,53 +1107,42 @@ function renderSharedRow(item, index) {
 
   const tr = document.createElement("tr");
   tr.dataset.groupId = item.key;
-  tr.className = rowClass(first);
+  tr.className = rowClass(item);
 
   const passengerNames = editing
-    ? passengers.map((p, i) => createEditInput(p.name || p.clientName || "", `p_${i}_name`)).join("")
-    : passengers.map((p, i) => `${i + 1}. ${safe(p.name || p.clientName || "")}`).join("\n");
+    ? passengers.map((p,i) => createEditInput(p.name || p.clientName || "", `p_${i}_name`)).join("")
+    : passengers.map((p,i) => `${i + 1}. ${safe(p.name || p.clientName || "")}`).join("\n");
 
   const passengerPhones = editing
-    ? passengers.map((p, i) => createEditInput(p.phone || p.clientPhone || "", `p_${i}_phone`)).join("")
-    : passengers.map((p, i) => `${i + 1}. ${safe(p.phone || p.clientPhone || "")}`).join("\n");
+    ? passengers.map((p,i) => createEditInput(p.phone || p.clientPhone || "", `p_${i}_phone`)).join("")
+    : passengers.map((p,i) => `${i + 1}. ${safe(p.phone || p.clientPhone || "")}`).join("\n");
 
   const pickups = editing
-    ? passengers.map((p, i) => createEditInput(p.pickup || "", `p_${i}_pickup`)).join("")
-    : passengers.map((p, i) => `${i + 1}. ${safe(p.pickup || "")}`).join("\n");
+    ? passengers.map((p,i) => createEditInput(p.pickup || "", `p_${i}_pickup`)).join("")
+    : passengers.map((p,i) => `${i + 1}. ${safe(p.pickup || "")}`).join("\n");
 
   const dropoffs = editing
-    ? passengers.map((p, i) => createEditInput(p.dropoff || "", `p_${i}_dropoff`)).join("")
-    : passengers.map((p, i) => `${i + 1}. ${safe(p.dropoff || "")}`).join("\n");
+    ? passengers.map((p,i) => createEditInput(p.dropoff || "", `p_${i}_dropoff`)).join("")
+    : passengers.map((p,i) => `${i + 1}. ${safe(p.dropoff || "")}`).join("\n");
 
   tr.innerHTML = `
     <td>
       <input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')">
     </td>
-    <td>${index}</td>
     <td><span class="trip-number-badge">${safe(getTripNumber(first))}</span></td>
     <td><span class="service-pill">Shared</span></td>
-    <td><span class="source-pill">${safe(getSourceCode(first))}</span></td>
-    <td>Shared (${passengers.length})</td>
     <td>${editing ? createEditInput(first.company || "", "company") : safe(first.company || "")}</td>
     <td>${editing ? createEditInput(first.entryName || "", "entryName") : safe(first.entryName || "")}</td>
-    <td class="wide-client">${passengerPhones}</td>
+    <td>${editing ? createEditInput(first.entryPhone || "", "entryPhone") : safe(first.entryPhone || "")}</td>
     <td class="wide-client">${passengerNames}</td>
+    <td class="wide-client">${passengerPhones}</td>
     <td class="wide-address">${pickups}</td>
-    <td>--</td>
     <td class="wide-address">${dropoffs}</td>
     <td>${editing ? createEditInput(first.tripDate || "", "tripDate", "date") : safe(first.tripDate || "")}</td>
     <td>${editing ? createEditInput(first.tripTime || "", "tripTime", "time") : safe(first.tripTime || "")}</td>
-    <td><strong>${safe(getGroupStatus(group))}</strong></td>
-    <td>
-      <div class="actions-wrap">
-        ${
-          editing
-            ? `<button class="btn save" onclick="saveShared('${item.key}')">Save</button>
-               <button class="btn cancel" onclick="cancelEdit()">Cancel</button>`
-            : `--`
-        }
-      </div>
-    </td>
+    <td>${safe(getBookedDate(first))}</td>
+    <td>${safe(getBookedTime(first))}</td>
+    <td><span class="status-pill">${safe(getGroupStatus(group))}</span></td>
   `;
 
   return tr;
@@ -1082,6 +1155,8 @@ searchInput?.addEventListener("input", applyFilters);
 
 document.getElementById("editSelectedBtn")?.addEventListener("click", editSelected);
 document.getElementById("deleteSelectedBtn")?.addEventListener("click", deleteSelected);
+document.getElementById("saveEditBtn")?.addEventListener("click", saveCurrentEdit);
+document.getElementById("cancelEditBtn")?.addEventListener("click", cancelEdit);
 
 Object.assign(window, {
   toggleSelection,
