@@ -846,9 +846,9 @@ async function optimizePassengersRoute(passengers) {
 
 async function loadServices() {
   try {
-    const res = await fetch(SERVICES_URL, {
-      headers: token ? { Authorization:"Bearer " + token } : {}
-    });
+   const res = await fetch("/api/services/admin", {
+  headers: token ? { Authorization:"Bearer " + token } : {}
+});
 
     if (!res.ok) throw new Error();
 
