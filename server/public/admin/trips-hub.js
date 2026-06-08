@@ -512,17 +512,21 @@ function extractServices(data) {
   return [];
 }
 
-function serviceEnabled(s) {
-  if (!s) return false;
-  const status = String(s.status || s.serviceStatus || "").toLowerCase();
+function serviceEnabled(s){
 
-  if (s.enabled === false) return false;
-  if (s.active === false) return false;
-  if (s.disabled === true) return false;
-  if (s.isDisabled === true) return false;
-  if (status === "disabled" || status === "inactive" || status === "off") return false;
+  if(!s) return false;
 
-  return true;
+  const publicEnabled =
+    s.enabled === true;
+
+  const companyEnabled =
+    s.companyEnabled === true;
+
+  return (
+    publicEnabled ||
+    companyEnabled
+  );
+
 }
 
 function normalizeKnownCode(code) {
