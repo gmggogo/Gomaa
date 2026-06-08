@@ -126,10 +126,10 @@ if (!container) console.error("Missing #hubContainer");
       min-height:68px;
     }
 
-    .service-tab.active{
-      background:#0f172a;
-      color:#fff;
-    }
+   .service-tab.active{
+  background:#2563eb;
+  color:#fff;
+}
 
     .service-title{
       font-size:11px;
@@ -165,22 +165,22 @@ if (!container) console.error("Missing #hubContainer");
     }
 
     .hub-table th,
-    .hub-table td{
-      border:1px solid #dbe3ee;
-      padding:5px;
-      text-align:center;
-      font-size:10.5px;
-      vertical-align:middle;
-      line-height:1.25;
-    }
+.hub-table td{
+  border:1px solid #dbe3ee;
+  padding:7px;
+  text-align:center;
+  font-size:13px;
+  vertical-align:middle;
+  line-height:1.4;
+}
 
-    .hub-table th{
-      background:#0f172a;
-      color:#fff;
-      font-weight:900;
-      white-space:nowrap;
-      font-size:10px;
-    }
+.hub-table th{
+  background:#2563eb;
+  color:#fff;
+  font-weight:900;
+  white-space:nowrap;
+  font-size:13px;
+}
 
     .wide-address{
       min-width:210px;
@@ -276,8 +276,11 @@ if (!container) console.error("Missing #hubContainer");
 
     @media(max-width:768px){
       .hub-table{min-width:1150px;}
-      .hub-table th,.hub-table td{font-size:9.5px;padding:4px;}
-      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(92px,1fr));}
+.hub-table th,
+.hub-table td{
+  font-size:11px;
+  padding:6px;
+}      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(92px,1fr));}
     }
   `;
   document.head.appendChild(style);
@@ -503,13 +506,44 @@ function getGroupStatus(group) {
    API
 ================================ */
 async function loadServices() {
+
   try {
-    const res = await fetch(SERVICES_URL);
-    const data = await res.json();
-    services = Array.isArray(data) ? data.filter(s => s && s.enabled !== false) : [];
+
+    const token =
+      localStorage.getItem("token") || "";
+
+    const res =
+      await fetch(
+        "/api/services?company=true",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+    if(!res.ok){
+      throw new Error();
+    }
+
+    const data =
+      await res.json();
+
+    services =
+      Array.isArray(data)
+      ? data.filter(s =>
+          s &&
+          s.enabled !== false &&
+          s.companyEnabled !== false
+        )
+      : [];
+
   } catch {
+
     services = [];
+
   }
+
 }
 
 async function loadHubTrips() {
