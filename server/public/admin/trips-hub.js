@@ -586,9 +586,9 @@ async function loadServices() {
 
     const data = await res.json();
 
-    services = Array.isArray(data)
-      ? data.filter(s => s && s.enabled !== false && s.companyEnabled !== false)
-      : [];
+   services = Array.isArray(data)
+  ? data.filter(s => s && s.enabled !== false && s.companyEnabled !== false)
+  : [];
   } catch {
     services = [];
   }
