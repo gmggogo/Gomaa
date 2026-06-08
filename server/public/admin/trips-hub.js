@@ -742,11 +742,6 @@ function renderServiceTabs() {
     map.set(code, s.title || s.name || s.serviceName || code);
   });
 
-  hubTrips.forEach(t => {
-    const code = getServiceCodeFromTrip(t);
-    if (!map.has(code)) map.set(code, getServiceTitleByCode(code));
-  });
-
   wrap.innerHTML = Array.from(map.entries()).map(([code,title]) => {
     const c = countItemsByService(code);
 
