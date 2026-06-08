@@ -577,38 +577,32 @@ function getGroupStatus(group) {
    API
 ================================ */
 async function loadServices() {
-  try {
-    const res = await fetch("/api/services?company=true", {
-      headers:{ Authorization:"Bearer " + (localStorage.getItem("token") || "") }
-    });
 
-    if (!res.ok) throw new Error();
+  try {
+
+    const res = await fetch("/api/services");
+
+    if (!res.ok) {
+      throw new Error("Failed to load services");
+    }
 
     const data = await res.json();
 
-   services = Array.isArray(data)
-  ? data.filter(s => s && s.enabled !== false && s.companyEnabled !== false)
-  : [];
-  } catch {
-    services = [];
-  }
-}
-
-async function loadHubTrips() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-
-    hubTrips = Array.isArray(data)
-      ? data.sort((a,b) => getBookedDateObj(b) - getBookedDateObj(a))
+    services = Array.isArray(data)
+      ? data.filter(service =>
+          service &&
+          service.enabled !== false
+        )
       : [];
 
-    applyFilters();
-  } catch {
-    hubTrips = [];
-    displayItems = [];
-    render();
+  } catch (err) {
+
+    console.error("LOAD SERVICES ERROR:", err);
+
+    services = [];
+
   }
+
 }
 
 /* ===============================
