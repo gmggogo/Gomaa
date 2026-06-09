@@ -55,9 +55,28 @@ function compactStatus(v){
   return cleanStatus(v).replace(/\s+/g,"");
 }
 
-function isCompletedStatus(status){
-  const s = cleanStatus(status);
-  return s === "completed" || s === "complete" || s.includes("completed");
+function countStatus(stats,status,trip){
+
+  if(isCancelledStatus(status)){
+    stats.cancelled++;
+    return;
+  }
+
+  if(isNoShowStatus(status)){
+    stats.noshow++;
+    return;
+  }
+
+  if(isNotCompletedStatus(status,trip)){
+    stats.notCompleted++;
+    return;
+  }
+
+  if(isCompletedStatus(status)){
+    stats.completed++;
+    return;
+  }
+
 }
 
 function isCancelledStatus(status){
