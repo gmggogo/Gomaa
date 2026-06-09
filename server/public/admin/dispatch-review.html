@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dispatch Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+*{box-sizing:border-box;}
+
+:root{
+  --blue:#2563eb;
+  --blueDark:#1d4ed8;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#f59e0b;
+  --purple:#7c3aed;
+  --text:#0f172a;
+  --muted:#64748b;
+  --bg:#f4f8fb;
+  --card:#ffffff;
+  --border:#dbe3ee;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:Arial,sans-serif;
+  color:var(--text);
+}
+
+.page-content{
+  padding:22px;
+  width:100%;
+}
+
+.page-head{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px 20px;
+  margin-bottom:18px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.page-title{
+  font-size:26px;
+  font-weight:900;
+}
+
+.page-sub{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.role-badge{
+  background:#e0edff;
+  color:#1d4ed8;
+  padding:9px 14px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:900;
+}
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.search-input,
+.filter-select{
+  padding:12px 14px;
+  border-radius:10px;
+  border:1px solid #cbd5e1;
+  font-size:14px;
+  outline:none;
+  font-weight:800;
+  background:#fff;
+}
+
+.search-input{
+  flex:1;
+  min-width:260px;
+}
+
+.search-input:focus,
+.filter-select:focus{
+  border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+.stats-grid,
+.services-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.stat{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:15px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+}
+
+.stat-title{
+  font-size:13px;
+  font-weight:900;
+  color:var(--muted);
+  margin-bottom:8px;
+}
+
+.stat-value{
+  font-size:27px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.stat-lines{
+  font-size:13px;
+  font-weight:800;
+  line-height:1.9;
+}
+
+.big{
+  font-size:17px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.service-tabs{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:16px 0;
+}
+
+.tab{
+  border:none;
+  border-radius:999px;
+  padding:11px 18px;
+  cursor:pointer;
+  background:#e2e8f0;
+  color:#0f172a;
+  font-weight:900;
+  font-size:13px;
+}
+
+.tab.active{
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  color:#fff;
+}
+
+.day-title{
+  font-size:18px;
+  font-weight:900;
+  margin:20px 0 10px;
+}
+
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  margin-bottom:22px;
+}
+
+.review-table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  min-width:1250px;
+}
+
+.review-table th,
+.review-table td{
+  border:1px solid var(--border);
+  padding:8px;
+  text-align:center;
+  font-size:12px;
+  vertical-align:middle;
+  font-weight:800;
+}
+
+.review-table th{
+  background:#0f172a;
+  color:#fff;
+  white-space:nowrap;
+  font-weight:900;
+}
+
+.status{
+  display:inline-block;
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.status.completed{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.status.cancelled{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.status.noshow{
+  background:#ffedd5;
+  color:#9a3412;
+}
+
+.status.notcompleted{
+  background:#ede9fe;
+  color:#5b21b6;
+}
+
+.source{
+  display:inline-block;
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+}
+
+.source.company{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+
+.source.quote{
+  background:#f1f5f9;
+  color:#334155;
+}
+
+.empty-state{
+  background:#fff;
+  padding:22px;
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  color:#475569;
+  font-weight:900;
+  text-align:center;
+}
+
+.trip-divider-line td{
+  height:3px;
+  padding:0;
+  background:#cbd5e1;
+}
+
+.trip-divider td{
+  height:12px;
+  padding:0;
+  background:#f8fafc;
+}
+
+.shared-separator td{
+  border-bottom:2px dashed #cbd5e1;
+}
+
+@media(max-width:768px){
+  .page-content{
+    padding:12px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .toolbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .search-input,
+  .filter-select{
+    width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="page-content">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">Dispatch Review</div>
+      <div class="page-sub">
+        Completed • Cancelled • No Show • Not Completed Trips
+      </div>
+    </div>
+
+    <div class="role-badge">
+      Admin / Dispatcher
+    </div>
+  </div>
+
+  <div id="totalsStats" class="stats-grid"></div>
+
+  <div class="toolbar">
+    <input
+      id="searchInput"
+      class="search-input"
+      type="text"
+      placeholder="Search trip #, company, passenger, phone">
+
+    <select id="yearFilter" class="filter-select"></select>
+    <select id="monthFilter" class="filter-select"></select>
+  </div>
+
+  <div id="serviceTabs" class="service-tabs"></div>
+
+  <div id="servicesStats" class="services-grid"></div>
+
+  <div id="reviewContent"></div>
+
+</div>
+
+<script src="/admin/header.js"></script>
+
+<script>
+let allTrips = [];
+let SERVICES = [];
+let currentTab = "ALL";
+let autoRefreshTimer = null;
+
+const CLOSED_HOURS = 10;
+
+const role =
+  localStorage.getItem("role") || "";
+
+if(
+  !["superadmin","admin","dispatcher"]
+    .includes(role)
+){
+  window.location.href = "/admin/login.html";
+}
+
+/* =========================
+LOAD
+========================= */
+
+async function load(){
+
+  try{
+
+    await loadServices();
+    await loadTrips();
+
+    buildFilters();
+    buildTabs();
+    render();
+
+  }catch(err){
+
+    console.log(err);
+
+    const wrap =
+      document.getElementById("reviewContent");
+
+    if(wrap){
+      wrap.innerHTML = `
+        <div class="empty-state">
+          Failed To Load Dispatch Review
+        </div>
+      `;
+    }
+
+  }
+
+}
+
+async function loadServices(){
+
+  try{
+
+    const token =
+      localStorage.getItem("token") || "";
+
+    const res =
+      await fetch("/api/services",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
+
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
+
+    const data =
+      await res.json();
+
+    SERVICES =
+      Array.isArray(data)
+      ? data.filter(s =>
+          s &&
+          s.enabled !== false
+        )
+      : [];
+
+  }catch(err){
+
+    console.log(err);
+    SERVICES = [];
+
+  }
+
+}
+
+async function loadTrips(){
+
+  const token =
+    localStorage.getItem("token") || "";
+
+  const res =
+    await fetch("/api/trips",{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
+
+  if(!res.ok){
+    throw new Error("Failed loading trips");
+  }
+
+  const data =
+    await res.json();
+
+  allTrips =
+    Array.isArray(data)
+    ? data
+    : [];
+
+}
+
+/* =========================
+HELPERS
+========================= */
+
+function safeText(v){
+  return String(v ?? "")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
+
+function normalizeStatus(status){
+  return String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]/g," ");
+}
+
+function isCompleted(status){
+  const s = normalizeStatus(status);
+  return s === "completed" || s === "complete";
+}
+
+function isCancelled(status){
+  const s = normalizeStatus(status);
+  return s.includes("cancel");
+}
+
+function isNoShow(status){
+  const s = normalizeStatus(status);
+  return s.includes("no show") || s.includes("noshow");
+}
+
+function isScheduled(status){
+  return normalizeStatus(status) === "scheduled";
+}
+
+function isConfirmed(status){
+  return normalizeStatus(status) === "confirmed";
+}
+
+function getTripDateTime(t){
+
+  if(!t || !t.tripDate){
+    return null;
+  }
+
+  const date =
+    String(t.tripDate || "").trim();
+
+  let time =
+    String(t.tripTime || "00:00").trim();
+
+  if(!time){
+    time = "00:00";
+  }
+
+  let d =
+    new Date(`${date}T${time}`);
+
+  if(isNaN(d.getTime())){
+    d = new Date(`${date} ${time}`);
+  }
+
+  if(isNaN(d.getTime())){
+    return null;
+  }
+
+  return d;
+
+}
+
+function isNotCompletedStatus(status,trip){
+
+  const s =
+    normalizeStatus(status);
+
+  if(
+    s === "not completed" ||
+    s === "notcomplete" ||
+    s === "not completed trip"
+  ){
+    return true;
+  }
+
+  if(
+    isCompleted(status) ||
+    isCancelled(status) ||
+    isNoShow(status)
+  ){
+    return false;
+  }
+
+  if(
+    !isScheduled(status) &&
+    !isConfirmed(status)
+  ){
+    return false;
+  }
+
+  const dt =
+    getTripDateTime(trip);
+
+  if(!dt){
+    return false;
+  }
+
+  return (
+    Date.now() - dt.getTime()
+  ) >= CLOSED_HOURS * 60 * 60 * 1000;
+
+}
+
+function displayStatus(status,trip){
+
+  if(isNotCompletedStatus(status,trip)){
+    return "Not Completed";
+  }
+
+  if(isCompleted(status)){
+    return "Completed";
+  }
+
+  if(isCancelled(status)){
+    return "Cancelled";
+  }
+
+  if(isNoShow(status)){
+    return "No Show";
+  }
+
+  return status || "-";
+
+}
+
+function isClosedStatus(status,trip){
+  return (
+    isCompleted(status) ||
+    isCancelled(status) ||
+    isNoShow(status) ||
+    isNotCompletedStatus(status,trip)
+  );
+}
+
+function getTripSuffix(trip){
+
+  const parts =
+    String(trip?.tripNumber || "")
+      .split("-");
+
+  return String(parts[parts.length - 1] || "")
+    .trim()
+    .toUpperCase();
+
+}
+
+function getServiceKey(service){
+
+  return String(
+    service.serviceKey ||
+    service.key ||
+    service.code ||
+    service.title ||
+    ""
+  ).trim().toUpperCase();
+
+}
+
+function getServiceTitle(service){
+
+  return (
+    service.title ||
+    service.name ||
+    service.serviceName ||
+    getServiceKey(service) ||
+    "Service"
+  );
+
+}
+
+function getServiceCode(service){
+
+  const key =
+    getServiceKey(service);
+
+  if(key === "STANDARD") return "ST";
+  if(key === "WHEELCHAIR") return "WH";
+  if(key === "SHARED") return "SH";
+  if(key === "LIMO" || key === "LIMOUSINE") return "LM";
+  if(key === "TAXI") return "TX";
+  if(key === "XL") return "XL";
+
+  return String(
+    service.suffix ||
+    service.code ||
+    key
+  ).trim().toUpperCase();
+
+}
+
+function getTripServiceCode(trip){
+
+  const direct =
+    String(
+      trip.serviceCode ||
+      trip.serviceSuffix ||
+      trip.serviceKey ||
+      trip.service ||
+      ""
+    ).trim().toUpperCase();
+
+  if(direct){
+    if(direct === "STANDARD") return "ST";
+    if(direct === "WHEELCHAIR") return "WH";
+    if(direct === "SHARED") return "SH";
+    if(direct === "LIMO" || direct === "LIMOUSINE") return "LM";
+    if(direct === "TAXI") return "TX";
+    if(direct === "XL") return "XL";
+    return direct;
+  }
+
+  return getTripSuffix(trip);
+
+}
+
+function isSharedTrip(trip){
+
+  return (
+    trip?.isShared === true ||
+    getTripSuffix(trip) === "SH" ||
+    getTripServiceCode(trip) === "SH" ||
+    Array.isArray(trip?.passengers)
+  );
+
+}
+
+function isCompanyTrip(t){
+  return !!String(t?.company || "").trim();
+}
+
+function getSource(t){
+  return isCompanyTrip(t)
+    ? "Company"
+    : "Get Quote";
+}
+
+function sourceHTML(t){
+
+  const src =
+    getSource(t);
+
+  return `
+    <span class="source ${src === "Company" ? "company" : "quote"}">
+      ${src}
+    </span>
+  `;
+
+}
+
+function statusHTML(status,trip){
+
+  const label =
+    displayStatus(status,trip);
+
+  let cls = "";
+
+  if(label === "Completed"){
+    cls = "completed";
+  }
+
+  else if(label === "Cancelled"){
+    cls = "cancelled";
+  }
+
+  else if(label === "No Show"){
+    cls = "noshow";
+  }
+
+  else if(label === "Not Completed"){
+    cls = "notcompleted";
+  }
+
+  return `
+    <span class="status ${cls}">
+      ${safeText(label)}
+    </span>
+  `;
+
+}
+
+function getPassengerName(p){
+  return (
+    p.clientName ||
+    p.passengerName ||
+    p.name ||
+    "-"
+  );
+}
+
+function getPassengerPhone(p){
+  return (
+    p.clientPhone ||
+    p.passengerPhone ||
+    p.phone ||
+    "-"
+  );
+}
+
+function getPickup(t,p){
+  return (
+    p?.pickup ||
+    t?.pickup ||
+    "-"
+  );
+}
+
+function getDropoff(t,p){
+  return (
+    p?.dropoff ||
+    t?.dropoff ||
+    "-"
+  );
+}
+
+function isTripClosed(t){
+
+  if(!t){
+    return false;
+  }
+
+  if(isSharedTrip(t)){
+
+    const passengers =
+      Array.isArray(t.passengers)
+      ? t.passengers
+      : [];
+
+    return passengers.some(p =>
+      isClosedStatus(p.status || t.status,t)
+    );
+
+  }
+
+  return isClosedStatus(t.status,t);
+
+}
+
+/* =========================
+FILTERS
+========================= */
+
+function buildFilters(){
+
+  const year =
+    document.getElementById("yearFilter");
+
+  const month =
+    document.getElementById("monthFilter");
+
+  if(!year || !month){
+    return;
+  }
+
+  const oldYear =
+    year.value || "";
+
+  const oldMonth =
+    month.value || "";
+
+  const years =
+    new Set();
+
+  allTrips.forEach(t=>{
+
+    if(t.tripDate){
+
+      const y =
+        String(t.tripDate)
+          .split("-")[0];
+
+      if(y){
+        years.add(y);
+      }
+
+    }
+
+  });
+
+  year.innerHTML = `
+    <option value="">All Years</option>
+  `;
+
+  [...years]
+    .sort((a,b)=>Number(b)-Number(a))
+    .forEach(y=>{
+
+      year.innerHTML += `
+        <option value="${safeText(y)}">
+          ${safeText(y)}
+        </option>
+      `;
+
+    });
+
+  month.innerHTML = `
+    <option value="">All Months</option>
+    <option value="01">January</option>
+    <option value="02">February</option>
+    <option value="03">March</option>
+    <option value="04">April</option>
+    <option value="05">May</option>
+    <option value="06">June</option>
+    <option value="07">July</option>
+    <option value="08">August</option>
+    <option value="09">September</option>
+    <option value="10">October</option>
+    <option value="11">November</option>
+    <option value="12">December</option>
+  `;
+
+  year.value = oldYear;
+  month.value = oldMonth;
+
+}
+
+/* =========================
+TABS
+========================= */
+
+function buildTabs(){
+
+  const wrap =
+    document.getElementById("serviceTabs");
+
+  if(!wrap){
+    return;
+  }
+
+  let html = `
+    <button
+      class="tab ${currentTab === "ALL" ? "active" : ""}"
+      onclick="switchTab('ALL',this)">
+      All
+    </button>
+  `;
+
+  let tabs = [];
+
+  if(Array.isArray(SERVICES) && SERVICES.length){
+
+    tabs = SERVICES.map(s => ({
+      code:getServiceCode(s),
+      title:getServiceTitle(s)
+    }));
+
+  }else{
+
+    const found = {};
+
+    allTrips.forEach(t=>{
+
+      const code =
+        getTripServiceCode(t);
+
+      if(!code) return;
+
+      if(!found[code]){
+        found[code] = {
+          code,
+          title:code
+        };
+      }
+
+    });
+
+    tabs = Object.values(found);
+
+  }
+
+  tabs.forEach(tab=>{
+
+    html += `
+      <button
+        class="tab ${currentTab === tab.code ? "active" : ""}"
+        onclick="switchTab('${safeText(tab.code)}',this)">
+        ${safeText(tab.title)}
+      </button>
+    `;
+
+  });
+
+  wrap.innerHTML = html;
+
+}
+
+function switchTab(tab,btn){
+
+  currentTab =
+    String(tab || "ALL").toUpperCase();
+
+  document
+    .querySelectorAll(".tab")
+    .forEach(t =>
+      t.classList.remove("active")
+    );
+
+  if(btn){
+    btn.classList.add("active");
+  }
+
+  render();
+
+}
+
+/* =========================
+DATA FILTER
+========================= */
+
+function getFilteredTrips(){
+
+  const q =
+    document
+      .getElementById("searchInput")
+      ?.value
+      ?.toLowerCase()
+      ?.trim() || "";
+
+  const year =
+    document
+      .getElementById("yearFilter")
+      ?.value || "";
+
+  const month =
+    document
+      .getElementById("monthFilter")
+      ?.value || "";
+
+  let data =
+    allTrips.filter(t=>{
+
+      if(!isTripClosed(t)){
+        return false;
+      }
+
+      let txt = `
+        ${t.tripNumber || ""}
+        ${t.company || ""}
+        ${t.entryName || ""}
+        ${t.entryPhone || ""}
+        ${t.clientName || ""}
+        ${t.clientPhone || ""}
+        ${t.pickup || ""}
+        ${t.dropoff || ""}
+      `;
+
+      if(Array.isArray(t.passengers)){
+
+        t.passengers.forEach(p=>{
+
+          txt += `
+            ${p.clientName || ""}
+            ${p.clientPhone || ""}
+            ${p.passengerName || ""}
+            ${p.passengerPhone || ""}
+            ${p.pickup || ""}
+            ${p.dropoff || ""}
+          `;
+
+        });
+
+      }
+
+      txt =
+        txt.toLowerCase();
+
+      if(q && !txt.includes(q)){
+        return false;
+      }
+
+      if(t.tripDate){
+
+        const parts =
+          String(t.tripDate).split("-");
+
+        if(year && parts[0] !== year){
+          return false;
+        }
+
+        if(month && parts[1] !== month){
+          return false;
+        }
+
+      }
+
+      if(currentTab !== "ALL"){
+
+        if(getTripServiceCode(t) !== currentTab){
+          return false;
+        }
+
+      }
+
+      return true;
+
+    });
+
+  return data;
+
+}
+
+/* =========================
+STATS
+========================= */
+
+function countClosedUnit(stats,status,trip){
+
+  if(isCompleted(status)){
+    stats.completed++;
+  }
+
+  else if(isCancelled(status)){
+    stats.cancelled++;
+  }
+
+  else if(isNoShow(status)){
+    stats.noshow++;
+  }
+
+  else if(isNotCompletedStatus(status,trip)){
+    stats.notCompleted++;
+  }
+
+}
+
+function buildServiceStats(data){
+
+  const baseServices =
+    Array.isArray(SERVICES) && SERVICES.length
+    ? SERVICES.map(s=>({
+        code:getServiceCode(s),
+        title:getServiceTitle(s)
+      }))
+    : Object.values(
+        data.reduce((acc,t)=>{
+          const code =
+            getTripServiceCode(t);
+
+          if(code && !acc[code]){
+            acc[code] = {
+              code,
+              title:code
+            };
+          }
+
+          return acc;
+        },{})
+      );
+
+  return baseServices.map(service=>{
+
+    const s = {
+      title:service.title,
+      code:service.code,
+      totalTrips:0,
+      getQuoteTrips:0,
+      companyTrips:0,
+      completed:0,
+      cancelled:0,
+      noshow:0,
+      notCompleted:0
+    };
+
+    const serviceTrips =
+      data.filter(t =>
+        getTripServiceCode(t) === service.code
+      );
+
+    serviceTrips.forEach(t=>{
+
+      s.totalTrips++;
+
+      if(isCompanyTrip(t)){
+        s.companyTrips++;
+      }else{
+        s.getQuoteTrips++;
+      }
+
+      if(isSharedTrip(t)){
+
+        const passengers =
+          Array.isArray(t.passengers)
+          ? t.passengers
+          : [];
+
+        passengers.forEach(p=>{
+          countClosedUnit(s,p.status || t.status,t);
+        });
+
+      }else{
+
+        countClosedUnit(s,t.status,t);
+
+      }
+
+    });
+
+    return s;
+
+  });
+
+}
+
+function updateStats(filteredData){
+
+  const stats = {
+    totalTrips:0,
+    todayTrips:0,
+    monthTrips:0,
+    completed:0,
+    cancelled:0,
+    noshow:0,
+    notCompleted:0
+  };
+
+  const now =
+    new Date();
+
+  const todayStr =
+    now.toISOString().slice(0,10);
+
+  const monthStr =
+    now.toISOString().slice(0,7);
+
+  filteredData.forEach(t=>{
+
+    stats.totalTrips++;
+
+    if(String(t.tripDate || "") === todayStr){
+      stats.todayTrips++;
+    }
+
+    if(String(t.tripDate || "").slice(0,7) === monthStr){
+      stats.monthTrips++;
+    }
+
+    if(isSharedTrip(t)){
+
+      const passengers =
+        Array.isArray(t.passengers)
+        ? t.passengers
+        : [];
+
+      passengers.forEach(p=>{
+        countClosedUnit(stats,p.status || t.status,t);
+      });
+
+    }else{
+
+      countClosedUnit(stats,t.status,t);
+
+    }
+
+  });
+
+  const totalsWrap =
+    document.getElementById("totalsStats");
+
+  if(totalsWrap){
+
+    totalsWrap.innerHTML = `
+
+      <div class="stat">
+        <div class="stat-title">Today Trips</div>
+        <div class="stat-value">${stats.todayTrips}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Month Trips</div>
+        <div class="stat-value">${stats.monthTrips}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Completed</div>
+        <div class="stat-value">${stats.completed}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Cancelled</div>
+        <div class="stat-value">${stats.cancelled}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">No Show</div>
+        <div class="stat-value">${stats.noshow}</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-title">Not Completed</div>
+        <div class="stat-value">${stats.notCompleted}</div>
+      </div>
+
+    `;
+
+  }
+
+  const servicesWrap =
+    document.getElementById("servicesStats");
+
+  if(servicesWrap){
+
+    const services =
+      buildServiceStats(filteredData);
+
+    servicesWrap.innerHTML =
+      services.map(s=>`
+
+        <div class="stat">
+
+          <div class="stat-title">
+            ${safeText(s.title)}
+          </div>
+
+          <div class="stat-lines">
+            Total Trips:
+            <span class="big">${s.totalTrips}</span><br>
+
+            Get Quote:
+            <span class="big">${s.getQuoteTrips}</span><br>
+
+            Company:
+            <span class="big">${s.companyTrips}</span><br>
+
+            Completed:
+            <span class="big">${s.completed}</span><br>
+
+            Cancelled:
+            <span class="big">${s.cancelled}</span><br>
+
+            No Show:
+            <span class="big">${s.noshow}</span><br>
+
+            Not Completed:
+            <span class="big">${s.notCompleted}</span>
+          </div>
+
+        </div>
+
+      `).join("");
+
+  }
+
+}
+
+/* =========================
+GROUP
+========================= */
+
+function groupByDay(data){
+
+  const groups = {};
+
+  data.forEach(t=>{
+
+    const d =
+      t.tripDate || "Unknown";
+
+    if(!groups[d]){
+      groups[d] = [];
+    }
+
+    groups[d].push(t);
+
+  });
+
+  return groups;
+
+}
+
+/* =========================
+RENDER
+========================= */
+
+function render(){
+
+  const wrap =
+    document.getElementById("reviewContent");
+
+  if(!wrap){
+    return;
+  }
+
+  const data =
+    getFilteredTrips();
+
+  updateStats(data);
+
+  wrap.innerHTML = "";
+
+  const groups =
+    groupByDay(data);
+
+  const sortedDays =
+    Object.keys(groups)
+      .sort((a,b)=>
+        new Date(b) - new Date(a)
+      );
+
+  if(!sortedDays.length){
+
+    wrap.innerHTML = `
+      <div class="empty-state">
+        No Review Trips Found
+      </div>
+    `;
+
+    return;
+
+  }
+
+  sortedDays.forEach(day=>{
+
+    wrap.innerHTML += `
+
+      <div class="day-title">
+        ${safeText(day)}
+      </div>
+
+      <div class="table-wrap">
+
+        <table class="review-table">
+
+          <thead>
+            <tr>
+              <th>Trip #</th>
+              <th>Source</th>
+              <th>Service</th>
+              <th>Company</th>
+              <th>Entry</th>
+              <th>Entry Phone</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Dropoff</th>
+              <th>Trip Date</th>
+              <th>Trip Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="tbody-${safeText(day)}"></tbody>
+
+        </table>
+
+      </div>
+
+    `;
+
+    const tbody =
+      document.getElementById(`tbody-${day}`);
+
+    groups[day].forEach(t=>{
+
+      if(!isSharedTrip(t)){
+
+        tbody.innerHTML += `
+
+          <tr>
+            <td>${safeText(t.tripNumber || "-")}</td>
+            <td>${sourceHTML(t)}</td>
+            <td>${safeText(getTripServiceCode(t) || "-")}</td>
+            <td>${safeText(t.company || "-")}</td>
+            <td>${safeText(t.entryName || "-")}</td>
+            <td>${safeText(t.entryPhone || "-")}</td>
+            <td>${safeText(t.clientName || "-")}</td>
+            <td>${safeText(t.clientPhone || "-")}</td>
+            <td>${safeText(t.pickup || "-")}</td>
+            <td>${safeText(t.dropoff || "-")}</td>
+            <td>${safeText(t.tripDate || "-")}</td>
+            <td>${safeText(t.tripTime || "-")}</td>
+            <td>${statusHTML(t.status,t)}</td>
+          </tr>
+
+          <tr class="trip-divider-line">
+            <td colspan="13"></td>
+          </tr>
+
+          <tr class="trip-divider">
+            <td colspan="13"></td>
+          </tr>
+
+        `;
+
+      }else{
+
+        const passengers =
+          Array.isArray(t.passengers)
+          ? t.passengers
+          : [];
+
+        const closedPassengers =
+          passengers.filter(p =>
+            isClosedStatus(p.status || t.status,t)
+          );
+
+        closedPassengers.forEach((p,index)=>{
+
+          tbody.innerHTML += `
+
+            <tr class="${
+              index !== closedPassengers.length - 1
+              ? "shared-separator"
+              : ""
+            }">
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.tripNumber || "-")
+                  : ""
+                }
+              </td>
+
+              <td>
+                ${
+                  index === 0
+                  ? sourceHTML(t)
+                  : ""
+                }
+              </td>
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(getTripServiceCode(t) || "-")
+                  : ""
+                }
+              </td>
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.company || "-")
+                  : ""
+                }
+              </td>
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.entryName || "-")
+                  : ""
+                }
+              </td>
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.entryPhone || "-")
+                  : ""
+                }
+              </td>
+
+              <td>${safeText(getPassengerName(p))}</td>
+              <td>${safeText(getPassengerPhone(p))}</td>
+              <td>${safeText(getPickup(t,p))}</td>
+              <td>${safeText(getDropoff(t,p))}</td>
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.tripDate || "-")
+                  : ""
+                }
+              </td>
+
+              <td>
+                ${
+                  index === 0
+                  ? safeText(t.tripTime || "-")
+                  : ""
+                }
+              </td>
+
+              <td>${statusHTML(p.status || t.status,t)}</td>
+
+            </tr>
+
+          `;
+
+        });
+
+        tbody.innerHTML += `
+
+          <tr class="trip-divider-line">
+            <td colspan="13"></td>
+          </tr>
+
+          <tr class="trip-divider">
+            <td colspan="13"></td>
+          </tr>
+
+        `;
+
+      }
+
+    });
+
+  });
+
+}
+
+/* =========================
+EVENTS
+========================= */
+
+document.addEventListener("input",e=>{
+
+  if(e.target.id === "searchInput"){
+    render();
+  }
+
+});
+
+document.addEventListener("change",e=>{
+
+  if(
+    e.target.id === "yearFilter" ||
+    e.target.id === "monthFilter"
+  ){
+    render();
+  }
+
+});
+
+/* =========================
+AUTO REFRESH
+========================= */
+
+function startAutoRefresh(){
+
+  if(autoRefreshTimer){
+    clearInterval(autoRefreshTimer);
+  }
+
+  autoRefreshTimer =
+    setInterval(async ()=>{
+
+      const oldTab =
+        currentTab;
+
+      await loadServices();
+      await loadTrips();
+
+      currentTab =
+        oldTab;
+
+      buildFilters();
+      buildTabs();
+      render();
+
+    },30000);
+
+}
+
+/* =========================
+INIT
+========================= */
+
+load().then(()=>{
+  startAutoRefresh();
+});
+</script>
+
+</body>
+</html>
