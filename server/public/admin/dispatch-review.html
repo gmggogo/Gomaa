@@ -623,17 +623,6 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
-function getDisplayCompany(t){
-
-  return (
-    t?.company ||
-    t?.companyName ||
-    t?.facilityName ||
-    t?.accountName ||
-    t?.entryCompany ||
-    "-"
-  );
-}
 function cleanStatus(v){
   return String(v || "")
     .replace(/[_-]/g," ")
@@ -1596,7 +1585,7 @@ function renderTripRow(item){
 </td>
 
 <td class="company-name">
-  ${safe(getDisplayCompany(t))}
+  ${safe(t.company || "-")}
 </td>
 
 <td>${safe(t.entryName || "-")}</td>
@@ -1663,8 +1652,8 @@ function renderSharedRows(tbody,item){
 <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
       <td>${index === 0 ? sourceHTML(first) : ""}</td>
       <td>${index === 0 ? `<span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>` : ""}</td>
-      <td class="company-name">
-  ${index === 0 ? safe(getDisplayCompany(first)) : ""}
+<td class="company-name">
+  ${index === 0 ? safe(first.company || "-") : ""}
 </td>
       <td>${index === 0 ? safe(first.entryName || "-") : ""}</td>
       <td>${index === 0 ? safe(first.entryPhone || "-") : ""}</td>
