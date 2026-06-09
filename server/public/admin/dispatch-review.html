@@ -1506,9 +1506,11 @@ function render(){
 <th>Phone</th>
 <th>Email</th>
 <th>Pickup</th>
+<th>Stops</th>
 <th>Dropoff</th>
 <th>Trip Date</th>
 <th>Trip Time</th>
+<th>Notes</th>
 <th>Booked Date</th>
 <th>Booked Time</th>
 <th>Status</th>
@@ -1575,12 +1577,17 @@ function renderTripRow(item){
     <td class="wide-client">${safe(t.clientName || t.name || "-")}</td>
     <td>${safe(t.clientPhone || t.phone || "-")}</td>
     <td>${safe(getEmail(t,null))}</td>
-    <td class="wide-address">${safe(t.pickup || "-")}</td>
-    <td class="wide-address">${safe(t.dropoff || "-")}</td>
-    <td>${safe(t.tripDate || "-")}</td>
-    <td>${safe(t.tripTime || "-")}</td>
-    <td>${safe(getBookedDate(t))}</td>
-    <td>${safe(getBookedTime(t))}</td>
+   <td class="wide-address">${safe(t.pickup || "-")}</td>
+<td class="wide-address">${safe(t.dropoff || "-")}</td>
+<td>${safe(t.stops?.length || 0)}</td>
+
+<td>${safe(t.tripDate || "-")}</td>
+<td>${safe(t.tripTime || "-")}</td>
+
+<td>${safe(getBookedDate(t))}</td>
+<td>${safe(getBookedTime(t))}</td>
+
+<td>${safe(t.notes || "-")}</td>
     <td class="status-td ${statusClass(t.status,t)}">
   ${displayStatus(t.status,t)}
 </td>
