@@ -417,6 +417,22 @@ body{
   background:#e5e7eb !important;
 }
 
+/* DATE HEADER */
+
+.date-row td{
+  background:#eff6ff;
+  color:#1e40af;
+  font-size:14px;
+  font-weight:900;
+  text-align:left;
+  padding:12px;
+  border-top:3px solid #2563eb;
+}
+
+.shared-separator td{
+  border-bottom:2px dashed #cbd5e1;
+}
+
 .shared-separator td{
   border-bottom:2px dashed #cbd5e1;
 }
@@ -1474,52 +1490,66 @@ function render(){
 
   const groups = groupByTripDate(displayItems);
 
-  Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(day=>{
-    reviewContent.innerHTML += `
-      <div class="day-title">Trip Date: ${safe(day)}</div>
-      <div class="table-wrap">
-        <table class="review-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Trip #</th>
-              <th>Source</th>
-              <th>Service</th>
-              <th>Company</th>
-              <th>Entry</th>
-              <th>Entry Phone</th>
-              <th>Passenger</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Pickup</th>
-              <th>Dropoff</th>
-              <th>Trip Date</th>
-              <th>Trip Time</th>
-              <th>Booked Date</th>
-              <th>Booked Time</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-${safe(day)}"></tbody>
-        </table>
-      </div>
+  reviewContent.innerHTML = `
+<div class="table-wrap">
+<table class="review-table">
+<thead>
+<tr>
+<th>#</th>
+<th>Trip #</th>
+<th>Source</th>
+<th>Service</th>
+<th>Company</th>
+<th>Entry</th>
+<th>Entry Phone</th>
+<th>Passenger</th>
+<th>Phone</th>
+<th>Email</th>
+<th>Pickup</th>
+<th>Dropoff</th>
+<th>Trip Date</th>
+<th>Trip Time</th>
+<th>Booked Date</th>
+<th>Booked Time</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="mainReviewBody"></tbody>
+</table>
+</div>
+`;
+
+const tbody = document.getElementById("mainReviewBody");
+
+Object.keys(groups)
+.sort((a,b)=>new Date(b)-new Date(a))
+.forEach(day=>{
+
+  tbody.innerHTML += `
+    <tr class="date-row">
+      <td colspan="17">
+        Trip Date: ${safe(day)}
+      </td>
+    </tr>
+  `;
+
+  groups[day].forEach(item=>{
+
+    if(item.kind === "trip"){
+      tbody.appendChild(renderTripRow(item));
+    }else{
+      renderSharedRows(tbody,item);
+    }
+
+    tbody.innerHTML += `
+      <tr class="trip-divider-line">
+        <td colspan="17"></td>
+      </tr>
     `;
-
-    const tbody = document.getElementById(`tbody-${day}`);
-
-    groups[day].forEach(item=>{
-      if(item.kind === "trip"){
-        tbody.appendChild(renderTripRow(item));
-      }else{
-        renderSharedRows(tbody,item);
-      }
-
-      tbody.innerHTML += `
-        <tr class="trip-divider-line"><td colspan="18"></td></tr>
-        <tr class="trip-divider"><td colspan="18"></td></tr>
-      `;
-    });
   });
+
+});
+
 }
 
 function renderTripRow(item){
