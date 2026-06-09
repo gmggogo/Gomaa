@@ -252,17 +252,18 @@ body{
 .review-table th,
 .review-table td{
   border:1px solid var(--border);
-  padding:7px;
+  padding:8px;
   text-align:center;
-  font-size:12px;
+  font-size:13px;
   vertical-align:middle;
-  line-height:1.35;
-  font-weight:800;
+  line-height:1.4;
+  font-weight:600;
 }
 
 .review-table th{
   background:#2563eb;
   color:#fff;
+  font-size:13px;
   font-weight:900;
   white-space:nowrap;
 }
@@ -394,6 +395,44 @@ body{
   color:#475569;
   font-weight:900;
   text-align:center;
+}
+
+/* =================================
+   TABLE COLORS
+================================= */
+
+.company-name{
+  color:#1d4ed8;
+  font-size:13px;
+  font-weight:700;
+}
+
+.row-company td{
+  background:#eaf4ff !important;
+}
+
+.row-getquote td{
+  background:#ffeaf4 !important;
+}
+
+.completed-row td{
+  background:#dcfce7 !important;
+}
+
+.cancelled-row td{
+  background:#fee2e2 !important;
+}
+
+.noshow-row td{
+  background:#fef3c7 !important;
+}
+
+.notcompleted-row td{
+  background:#f1f5f9 !important;
+}
+
+.shared-row td{
+  box-shadow:inset 0 0 0 9999px rgba(124,58,237,.03);
 }
 
 @media(max-width:768px){
@@ -1299,18 +1338,38 @@ function renderServiceCards(){
 ================================ */
 
 function rowClass(status,trip,itemKind){
+
   const cls = statusClass(status,trip);
   let out = "";
 
-  if(itemKind === "shared") out += "shared-row ";
-  if(cls === "completed") out += "completed-row";
-  if(cls === "cancelled") out += "cancelled-row";
-  if(cls === "noshow") out += "noshow-row";
-  if(cls === "notcompleted") out += "notcompleted-row";
+  if(itemKind === "shared"){
+    out += "shared-row ";
+  }
+
+  if(getSourceCode(trip) === "CO"){
+    out += "row-company ";
+  }else{
+    out += "row-getquote ";
+  }
+
+  if(cls === "completed"){
+    out += "completed-row ";
+  }
+
+  if(cls === "cancelled"){
+    out += "cancelled-row ";
+  }
+
+  if(cls === "noshow"){
+    out += "noshow-row ";
+  }
+
+  if(cls === "notcompleted"){
+    out += "notcompleted-row ";
+  }
 
   return out.trim();
 }
-
 function groupByTripDate(items){
   const groups = {};
 
@@ -1407,7 +1466,7 @@ function renderTripRow(item){
 </td>  
     <td>${sourceHTML(t)}</td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
-    <td>${safe(t.company || "-")}</td>
+    <td class="company-name">${safe(t.company || "-")}</td>
     <td>${safe(t.entryName || "-")}</td>
     <td>${safe(t.entryPhone || "-")}</td>
     <td class="wide-client">${safe(t.clientName || t.name || "-")}</td>
@@ -1443,7 +1502,9 @@ function renderSharedRows(tbody,item){
 <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
       <td>${index === 0 ? sourceHTML(first) : ""}</td>
       <td>${index === 0 ? `<span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>` : ""}</td>
-      <td>${index === 0 ? safe(first.company || "-") : ""}</td>
+      <td class="company-name">
+  ${index === 0 ? safe(first.company || "-") : ""}
+</td>
       <td>${index === 0 ? safe(first.entryName || "-") : ""}</td>
       <td>${index === 0 ? safe(first.entryPhone || "-") : ""}</td>
       <td class="wide-client">${safe(getPassengerName(p,first))}</td>
