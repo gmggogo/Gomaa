@@ -625,21 +625,14 @@ function normalizeText(v){
 
 function getDisplayCompany(t){
 
-  const name =
+  return (
+    t?.company ||
     t?.companyName ||
     t?.facilityName ||
     t?.accountName ||
     t?.entryCompany ||
-    t?.company ||
-    "-";
-if(
-    String(name)
-      .toLowerCase()
-      .includes("sunbeam transportation")
-  ){
-    return t?.entryName || "-";
-  }
- return name;
+    "-"
+  );
 }
 function cleanStatus(v){
   return String(v || "")
