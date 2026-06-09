@@ -1561,34 +1561,68 @@ function renderTripRow(item){
 
   const tripId = safe(t._id || t.id || "");
 
-  tr.innerHTML = `
+ tr.innerHTML = `
 <td>${tripCounter++}</td>
 
 <td>
   <span class="trip-number-badge">
     ${safe(getTripNumber(t))}
   </span>
-</td>  
-    <td>${sourceHTML(t)}</td>
-    <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
-    <td class="company-name">${safe(t.company || "-")}</td>
-    <td>${safe(t.entryName || "-")}</td>
-    <td>${safe(t.entryPhone || "-")}</td>
-    <td class="wide-client">${safe(t.clientName || t.name || "-")}</td>
-    <td>${safe(t.clientPhone || t.phone || "-")}</td>
-    <td>${safe(getEmail(t,null))}</td>
-   <td class="wide-address">${safe(t.pickup || "-")}</td>
-<td class="wide-address">${safe(t.dropoff || "-")}</td>
-<td>${safe(t.stops?.length || 0)}</td>
+</td>
+
+<td>${sourceHTML(t)}</td>
+
+<td>
+  <span class="service-pill">
+    ${safe(getServiceTitleByTrip(t))}
+  </span>
+</td>
+
+<td class="company-name">
+  ${safe(t.company || "-")}
+</td>
+
+<td>${safe(t.entryName || "-")}</td>
+
+<td>${safe(t.entryPhone || "-")}</td>
+
+<td class="wide-client">
+  ${safe(t.clientName || t.name || "-")}
+</td>
+
+<td>${safe(t.clientPhone || t.phone || "-")}</td>
+
+<td>${safe(getEmail(t,null))}</td>
+
+<td class="wide-address">
+  ${safe(t.pickup || "-")}
+</td>
+
+<td>
+  ${safe(t.stops?.length || 0)}
+</td>
+
+<td class="wide-address">
+  ${safe(t.dropoff || "-")}
+</td>
 
 <td>${safe(t.tripDate || "-")}</td>
+
 <td>${safe(t.tripTime || "-")}</td>
 
-<td>${safe(getBookedDate(t))}</td>
-<td>${safe(getBookedTime(t))}</td>
+<td>
+  ${safe(t.notes || "-")}
+</td>
 
-<td>${safe(t.notes || "-")}</td>
-    <td class="status-td ${statusClass(t.status,t)}">
+<td>
+  ${safe(getBookedDate(t))}
+</td>
+
+<td>
+  ${safe(getBookedTime(t))}
+</td>
+
+<td class="status-td ${statusClass(t.status,t)}">
   ${displayStatus(t.status,t)}
 </td>
     <td>
