@@ -1456,13 +1456,7 @@ function renderSharedRows(tbody,item){
       <td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
       <td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
       <td>${statusHTML(p.status || first.status,first)}</td>
-      <td>
-        ${index === 0 ? `
-          <button class="btn-action btn-view" onclick="viewTripDetail('${tripId}')">View</button>
-          <button class="btn-action btn-edit" onclick="editTripDetail('${tripId}')">Edit</button>
-        ` : ""}
-      </td>
-    `;
+         `;
 
     tbody.appendChild(tr);
   });
