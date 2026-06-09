@@ -623,6 +623,24 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
+function getDisplayCompany(t){
+
+  const name =
+    t?.companyName ||
+    t?.facilityName ||
+    t?.accountName ||
+    t?.entryCompany ||
+    t?.company ||
+    "-";
+if(
+    String(name)
+      .toLowerCase()
+      .includes("sunbeam transportation")
+  ){
+    return t?.entryName || "-";
+  }
+ return name;
+}
 function cleanStatus(v){
   return String(v || "")
     .replace(/[_-]/g," ")
@@ -1585,7 +1603,7 @@ function renderTripRow(item){
 </td>
 
 <td class="company-name">
-  ${safe(t.company || "-")}
+  ${safe(getDisplayCompany(t))}
 </td>
 
 <td>${safe(t.entryName || "-")}</td>
@@ -1653,7 +1671,7 @@ function renderSharedRows(tbody,item){
       <td>${index === 0 ? sourceHTML(first) : ""}</td>
       <td>${index === 0 ? `<span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>` : ""}</td>
       <td class="company-name">
-  ${index === 0 ? safe(first.company || "-") : ""}
+  ${index === 0 ? safe(getDisplayCompany(first)) : ""}
 </td>
       <td>${index === 0 ? safe(first.entryName || "-") : ""}</td>
       <td>${index === 0 ? safe(first.entryPhone || "-") : ""}</td>
