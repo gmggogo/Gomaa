@@ -1323,12 +1323,15 @@ function groupByTripDate(items){
   return groups;
 }
 
+let tripCounter = 1;
+
 function render(){
+
+  tripCounter = 1;
+
   renderStats();
   renderServiceTabs();
-  renderServiceCards();
-
-  if(!reviewContent) return;
+  renderServiceCards();  if(!reviewContent) return;
 
   reviewContent.innerHTML = "";
 
@@ -1346,6 +1349,7 @@ function render(){
         <table class="review-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>Trip #</th>
               <th>Source</th>
               <th>Service</th>
@@ -1362,7 +1366,6 @@ function render(){
               <th>Booked Date</th>
               <th>Booked Time</th>
               <th>Status</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="tbody-${safe(day)}"></tbody>
@@ -1380,8 +1383,8 @@ function render(){
       }
 
       tbody.innerHTML += `
-        <tr class="trip-divider-line"><td colspan="17"></td></tr>
-        <tr class="trip-divider"><td colspan="17"></td></tr>
+        <tr class="trip-divider-line"><td colspan="18"></td></tr>
+        <tr class="trip-divider"><td colspan="18"></td></tr>
       `;
     });
   });
@@ -1395,7 +1398,13 @@ function renderTripRow(item){
   const tripId = safe(t._id || t.id || "");
 
   tr.innerHTML = `
-    <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
+<td>${tripCounter++}</td>
+
+<td>
+  <span class="trip-number-badge">
+    ${safe(getTripNumber(t))}
+  </span>
+</td>  
     <td>${sourceHTML(t)}</td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
     <td>${safe(t.company || "-")}</td>
@@ -1412,9 +1421,7 @@ function renderTripRow(item){
     <td>${safe(getBookedTime(t))}</td>
     <td>${statusHTML(t.status,t)}</td>
     <td>
-      <button class="btn-action btn-view" onclick="viewTripDetail('${tripId}')">View</button>
-      <button class="btn-action btn-edit" onclick="editTripDetail('${tripId}')">Edit</button>
-    </td>
+
   `;
 
   return tr;
@@ -1430,8 +1437,10 @@ function renderSharedRows(tbody,item){
     tr.className = rowClass(p.status || first.status,first,"shared") + (index !== passengers.length - 1 ? " shared-separator" : "");
     const tripId = safe(first._id || first.id || "");
 
-    tr.innerHTML = `
-      <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
+   tr.innerHTML = `
+<td>${index === 0 ? tripCounter++ : ""}</td>
+
+<td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
       <td>${index === 0 ? sourceHTML(first) : ""}</td>
       <td>${index === 0 ? `<span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>` : ""}</td>
       <td>${index === 0 ? safe(first.company || "-") : ""}</td>
