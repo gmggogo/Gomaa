@@ -1625,8 +1625,6 @@ function renderTripRow(item){
 <td class="status-td ${statusClass(t.status,t)}">
   ${displayStatus(t.status,t)}
 </td>
-    <td>
-
   `;
 
   return tr;
@@ -1657,12 +1655,22 @@ function renderSharedRows(tbody,item){
       <td>${safe(getPassengerPhone(p,first))}</td>
       <td>${safe(getEmail(first,p))}</td>
       <td class="wide-address">${safe(getPickup(first,p))}</td>
-      <td class="wide-address">${safe(getDropoff(first,p))}</td>
-      <td>${index === 0 ? safe(first.tripDate || "-") : ""}</td>
-      <td>${index === 0 ? safe(first.tripTime || "-") : ""}</td>
-      <td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
-      <td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
-      <td class="status-td ${statusClass(p.status || first.status,first)}">
+
+<td>${index === 0 ? safe(first.stops?.length || 0) : ""}</td>
+
+<td class="wide-address">${safe(getDropoff(first,p))}</td>
+
+<td>${index === 0 ? safe(first.tripDate || "-") : ""}</td>
+
+<td>${index === 0 ? safe(first.tripTime || "-") : ""}</td>
+
+<td>${index === 0 ? safe(first.notes || "-") : ""}</td>
+
+<td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
+
+<td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
+
+<td class="status-td ${statusClass(p.status || first.status,first)}">
   ${displayStatus(p.status || first.status,first)}
 </td>
          `;
