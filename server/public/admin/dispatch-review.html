@@ -294,24 +294,44 @@ body{
   color:#1d4ed8;
   white-space:nowrap;
 }
+/* =========================
+   PILLS SIZE (UNIFIED)
+========================= */
 
 .service-pill,
 .source-pill,
 .status-pill{
   display:inline-block;
-  min-width:85px;
+  width:90px;
+  min-width:90px;
+  max-width:90px;
+
+  padding:6px 0;
+
   text-align:center;
-  padding:6px 10px;
-  border-radius:8px;
+  white-space:nowrap;
+
   font-size:11px;
   font-weight:700;
-  white-space:nowrap;
+  line-height:1.2;
+
+  border-radius:8px;
+  box-sizing:border-box;
 }
+
+/* =========================
+   SERVICE
+========================= */
 
 .service-pill{
   background:#dbeafe;
   color:#1d4ed8;
+  border:1px solid #bfdbfe;
 }
+
+/* =========================
+   COMPANY
+========================= */
 
 .source-pill.company{
   background:#dbeafe;
@@ -319,33 +339,53 @@ body{
   border:1px solid #93c5fd;
 }
 
+/* =========================
+   GET QUOTE
+========================= */
+
 .source-pill.gq{
   background:#fce7f3;
-  color:#be185d;
+  color:#9d174d;
   border:1px solid #f9a8d4;
 }
 
+/* =========================
+   RESERVED
+========================= */
+
+.source-pill.reserved{
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fcd34d;
+}
+
+/* =========================
+   STATUS
+========================= */
+
 .status-pill.completed{
-  background:#e5e7eb;
-  color:#374151;
+  background:#bbf7d0;
+  color:#14532d;
+  border:1px solid #86efac;
 }
 
 .status-pill.cancelled{
-  background:#fee2e2;
-  color:#991b1b;
+  background:#fecaca;
+  color:#7f1d1d;
+  border:1px solid #fca5a5;
 }
 
 .status-pill.noshow{
-  background:#ffedd5;
-  color:#9a3412;
+  background:#fde68a;
+  color:#78350f;
+  border:1px solid #fcd34d;
 }
 
 .status-pill.notcompleted{
-  background:#ede9fe;
-  color:#5b21b6;
+  background:#e5e7eb;
+  color:#374151;
+  border:1px solid #cbd5e1;
 }
-
-
 .shared-row td{box-shadow:inset 0 0 0 9999px rgba(124,58,237,.05);}
 
 .shared-row td{
