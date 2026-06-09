@@ -1714,8 +1714,8 @@ monthFilter?.addEventListener("change",applyFilters);
 ================================ */
 
 async function refreshEverything(){
-  await loadTrips();
   await loadServices();
+  await loadTrips();
 }
 (async function init(){
   await refreshEverything();
