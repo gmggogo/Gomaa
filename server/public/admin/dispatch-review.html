@@ -246,7 +246,7 @@ body{
   width:100%;
   border-collapse:collapse;
   background:#fff;
-  min-width:1700px;
+  min-width:1800px;
 }
 
 .review-table th,
@@ -265,6 +265,10 @@ body{
   color:#fff;
   font-weight:900;
   white-space:nowrap;
+}
+
+.review-table tbody tr:hover td {
+  background-color: rgba(37, 99, 235, 0.04) !important;
 }
 
 .wide-address{
@@ -358,6 +362,30 @@ body{
   background:#f8fafc;
 }
 
+.btn-action {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  margin: 2px;
+  transition: all 0.2s;
+}
+
+.btn-action.btn-view:hover {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+
+.btn-action.btn-edit:hover {
+  background: var(--orange);
+  color: #fff;
+  border-color: var(--orange);
+}
+
 .empty-state{
   background:#fff;
   padding:22px;
@@ -396,6 +424,13 @@ body{
 
   <div class="toolbar">
     <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, company, passenger, phone, email, address">
+    <select id="statusFilter" class="filter-select">
+      <option value="">All Statuses</option>
+      <option value="Completed">Completed</option>
+      <option value="Cancelled">Cancelled</option>
+      <option value="No Show">No Show</option>
+      <option value="Not Completed">Not Completed</option>
+    </select>
     <select id="yearFilter" class="filter-select"></select>
     <select id="monthFilter" class="filter-select"></select>
   </div>
@@ -433,6 +468,7 @@ let refreshTimer = null;
 const CLOSED_HOURS = 10;
 
 const searchInput = document.getElementById("searchInput");
+const statusFilter = document.getElementById("statusFilter");
 const yearFilter = document.getElementById("yearFilter");
 const monthFilter = document.getElementById("monthFilter");
 const reviewContent = document.getElementById("reviewContent");
@@ -1032,9 +1068,19 @@ function applyFilters(){
   }
 
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
-
   if(q){
     items = items.filter(item => searchableText(item).includes(q));
+  }
+
+  const st = statusFilter ? statusFilter.value : "";
+  if(st){
+    items = items.filter(item => {
+      if(item.kind === "trip") {
+        return displayStatus(item.trip.status, item.trip) === st;
+      } else {
+        return getGroupStatus(item.group) === st;
+      }
+    });
   }
 
   const y = yearFilter?.value || "";
@@ -1049,7 +1095,6 @@ function applyFilters(){
   }
 
   displayItems = items;
-
   render();
 }
 
@@ -1184,9 +1229,7 @@ function countItemsByService(code){
     });
 
   const stats = createStats();
-
   selected.forEach(item=>countItem(stats,item));
-
   return stats;
 }
 
@@ -1319,6 +1362,7 @@ function render(){
               <th>Booked Date</th>
               <th>Booked Time</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="tbody-${safe(day)}"></tbody>
@@ -1336,8 +1380,8 @@ function render(){
       }
 
       tbody.innerHTML += `
-        <tr class="trip-divider-line"><td colspan="16"></td></tr>
-        <tr class="trip-divider"><td colspan="16"></td></tr>
+        <tr class="trip-divider-line"><td colspan="17"></td></tr>
+        <tr class="trip-divider"><td colspan="17"></td></tr>
       `;
     });
   });
@@ -1347,6 +1391,8 @@ function renderTripRow(item){
   const t = item.trip;
   const tr = document.createElement("tr");
   tr.className = rowClass(t.status,t,"trip");
+
+  const tripId = safe(t._id || t.id || "");
 
   tr.innerHTML = `
     <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
@@ -1365,6 +1411,10 @@ function renderTripRow(item){
     <td>${safe(getBookedDate(t))}</td>
     <td>${safe(getBookedTime(t))}</td>
     <td>${statusHTML(t.status,t)}</td>
+    <td>
+      <button class="btn-action btn-view" onclick="viewTripDetail('${tripId}')">View</button>
+      <button class="btn-action btn-edit" onclick="editTripDetail('${tripId}')">Edit</button>
+    </td>
   `;
 
   return tr;
@@ -1378,6 +1428,7 @@ function renderSharedRows(tbody,item){
   passengers.forEach((p,index)=>{
     const tr = document.createElement("tr");
     tr.className = rowClass(p.status || first.status,first,"shared") + (index !== passengers.length - 1 ? " shared-separator" : "");
+    const tripId = safe(first._id || first.id || "");
 
     tr.innerHTML = `
       <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
@@ -1396,6 +1447,12 @@ function renderSharedRows(tbody,item){
       <td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
       <td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
       <td>${statusHTML(p.status || first.status,first)}</td>
+      <td>
+        ${index === 0 ? `
+          <button class="btn-action btn-view" onclick="viewTripDetail('${tripId}')">View</button>
+          <button class="btn-action btn-edit" onclick="editTripDetail('${tripId}')">Edit</button>
+        ` : ""}
+      </td>
     `;
 
     tbody.appendChild(tr);
@@ -1403,10 +1460,26 @@ function renderSharedRows(tbody,item){
 }
 
 /* ===============================
+   ACTION FUNCTIONS
+================================ */
+function viewTripDetail(id) {
+  console.log("Viewing trip with ID:", id);
+  // يمكنك توجيه المستخدم لصفحة التفاصيل، مثال:
+  // window.location.href = `/admin/trip-details.html?id=${id}`;
+}
+
+function editTripDetail(id) {
+  console.log("Editing trip with ID:", id);
+  // يمكنك توجيه المستخدم لصفحة التعديل، مثال:
+  // window.location.href = `/admin/trip-edit.html?id=${id}`;
+}
+
+/* ===============================
    EVENTS
 ================================ */
 
 searchInput?.addEventListener("input",applyFilters);
+statusFilter?.addEventListener("change",applyFilters);
 yearFilter?.addEventListener("change",applyFilters);
 monthFilter?.addEventListener("change",applyFilters);
 
