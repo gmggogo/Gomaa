@@ -732,27 +732,30 @@ function buildDisplayItems(trips){
 
     }
 
-    if(isSharedTrip(t)){
-      ...    if(isSharedTrip(t)){
-      const key = getSharedKey(t);
-      if(usedShared.has(key)) return;
+   if(isSharedTrip(t)){
+  const key = getSharedKey(t);
 
-      usedShared.add(key);
+  if(usedShared.has(key)) return;
 
-      const group = getSharedGroups(trips).find(g=>getSharedKey(g[0]) === key) || [t];
+  usedShared.add(key);
 
-      if(!isSharedVisibleInHub(group)) return;
+  const group =
+    getSharedGroups(trips).find(
+      g => getSharedKey(g[0]) === key
+    ) || [t];
 
-      items.push({
-        kind:"shared",
-        key,
-        bookedKey:getBookedGroupKey(group[0]),
-        date:getBookedDateObj(group[0]),
-        group
-      });
+  if(!isSharedVisibleInHub(group)) return;
 
-      return;
-    }
+  items.push({
+    kind:"shared",
+    key,
+    bookedKey:getBookedGroupKey(group[0]),
+    date:getBookedDateObj(group[0]),
+    group
+  });
+
+  return;
+}
 
     if(!isTripVisibleInHub(t)) return;
 
