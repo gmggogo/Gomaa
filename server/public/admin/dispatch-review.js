@@ -265,11 +265,11 @@ function normalizeKnownCode(code){
 function getServiceCodeFromService(s){
 
   const code = normalizeText(
-    s?.serviceKey ||
-    s?.key ||
-    s?.code ||
     s?.companySuffix ||
     s?.suffix ||
+    s?.code ||
+    s?.serviceKey ||
+    s?.key ||
     ""
   ).toUpperCase();
 
@@ -302,18 +302,6 @@ function getServiceCodeFromTrip(t){
   if(direct){
     return normalizeKnownCode(direct);
   }
-
-  const num = normalizeText(t?.tripNumber).toUpperCase();
-
-  if(num.includes("-SH")) return "SH";
-  if(num.includes("-XL")) return "XL";
-  if(num.includes("-WH")) return "WH";
-  if(num.includes("-TX")) return "TX";
-  if(num.includes("-LM")) return "LM";
-  if(num.includes("-ST")) return "ST";
-
-  return "ST";
-}
 
   const num = normalizeText(t?.tripNumber).toUpperCase();
 
