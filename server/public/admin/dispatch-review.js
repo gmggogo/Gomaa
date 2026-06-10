@@ -454,12 +454,31 @@ async function loadTrips(){
 
     const data = await res.json();
 
-    allTrips = Array.isArray(data)
-      ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a))
-      : [];
+ allTrips = Array.isArray(data)
+  ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a))
+  : [];
 
-    buildFilters();
-    applyFilters();
+allTrips = allTrips.map(t => {
+
+  if (!t.company || t.company === "Sunbeam Transportation") {
+
+    const companyName =
+      t.companyName ||
+      t.facilityName ||
+      t.organizationName ||
+      t.customerCompany ||
+      "";
+
+    if (companyName) {
+      t.company = companyName;
+    }
+  }
+
+  return t;
+});
+
+buildFilters();
+applyFilters();
 
   }catch(err){
     console.log(err);
