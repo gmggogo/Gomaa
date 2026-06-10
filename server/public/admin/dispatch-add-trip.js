@@ -109,9 +109,7 @@ function getServiceSuffix(service){
 function serviceVisible(service){
   return (
     service?.enabled === true ||
-    service?.companyEnabled === true ||
-    service?.companyShared === true ||
-    service?.shared === true
+    service?.companyEnabled === true
   );
 }
 
