@@ -716,7 +716,24 @@ function buildDisplayItems(trips){
   const usedShared = new Set();
 
   trips.forEach(t=>{
+
+    const service = services.find(
+      s => getServiceCodeFromService(s) === getServiceCodeFromTrip(t)
+    );
+
+    if(service){
+
+      const companyOn = service.companyEnabled === true;
+      const gqOn = service.enabled === true;
+
+      if(!companyOn && !gqOn){
+        return;
+      }
+
+    }
+
     if(isSharedTrip(t)){
+      ...    if(isSharedTrip(t)){
       const key = getSharedKey(t);
       if(usedShared.has(key)) return;
 
