@@ -124,41 +124,9 @@ function getSystemNow(){
   );
 }
 
-function checkDynamicWarning(dateValue,timeValue){
-  if(!dateValue || !timeValue) return true;
-
-  const service = getCurrentServiceConfig();
-
-  const warningOn =
-    service.companyDisableCancel !== true &&
-    service.disableCancel !== true;
-
-  if(!warningOn) return true;
-
-  const warningMinutes = Number(
-    service.companyWarningMinutes ??
-    service.warningMinutes ??
-    120
-  );
-
-  if(warningMinutes <= 0) return true;
-
-  const tripDateTime = new Date(`${dateValue}T${timeValue}:00`);
-  const diff = (tripDateTime - getSystemNow()) / 60000;
-
-  if(diff > 0 && diff <= warningMinutes){
-    return confirm(
-`WARNING
-
-This reservation is within ${warningMinutes} minutes.
-
-Continue anyway?`
-    );
-  }
-
+function checkDynamicWarning(){
   return true;
 }
-
 /* ================= ENTRY ================= */
 
 function loadEntryInfo(){
@@ -402,15 +370,15 @@ function buildTabsFromServices(){
       });
     }
 
-    if(serviceSharedOn(service)){
-      tabs.push({
-        mode:"SHARED",
-        label:title + " Shared",
-        service,
-        serviceKey:key,
-        suffix
-      });
-    }
+ if(serviceSharedOn(service)){
+  tabs.push({
+    mode:"SHARED",
+    label:title,
+    service,
+    serviceKey:key,
+    suffix
+  });
+}
   });
 
   return tabs;
