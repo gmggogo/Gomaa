@@ -818,9 +818,17 @@ trips = trips.filter(t =>
 /* ===============================
    STATS / TABS
 ================================ */
-
 function countItemsByService(code){
-  const baseItems = buildDisplayItems(hubTrips);
+
+  const activeCodes =
+    services.map(s => getServiceCodeFromService(s));
+
+  const activeTrips =
+    hubTrips.filter(t =>
+      activeCodes.includes(getServiceCodeFromTrip(t))
+    );
+
+  const baseItems = buildDisplayItems(activeTrips);
 
   const selected = code === "ALL"
     ? baseItems
@@ -837,7 +845,16 @@ function countItemsByService(code){
 }
 
 function renderStats(){
-  const items = buildDisplayItems(hubTrips);
+
+  const activeCodes =
+    services.map(s => getServiceCodeFromService(s));
+
+  const activeTrips =
+    hubTrips.filter(t =>
+      activeCodes.includes(getServiceCodeFromTrip(t))
+    );
+
+  const items = buildDisplayItems(activeTrips);
 
   const setText = (id,val)=>{
     const el = document.getElementById(id);
