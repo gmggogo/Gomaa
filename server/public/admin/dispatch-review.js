@@ -264,13 +264,18 @@ function normalizeKnownCode(code){
 
 function getServiceCodeFromService(s){
 
-  const code = normalizeText(
-    s?.companySuffix ||
-    s?.suffix ||
-    s?.code ||
+  return normalizeKnownCode(
     s?.serviceKey ||
     s?.key ||
+    s?.code ||
+    s?.companySuffix ||
+    s?.suffix ||
+    s?.title ||
+    s?.name ||
     ""
+  );
+
+}
   ).toUpperCase();
 
   return normalizeKnownCode(code);
@@ -287,30 +292,27 @@ function getServiceTitle(s){
   );
 }
 
-function getServiceCodeFromTrip(t){
+function getServiceCodeFromTrip(t) {
 
   const direct = normalizeText(
     t?.serviceKey ||
     t?.serviceCode ||
     t?.serviceType ||
     t?.serviceSuffix ||
-    t?.pricingSnapshot?.serviceKey ||
-    t?.priceSnapshot?.serviceKey ||
+    t?.service ||
     ""
   ).toUpperCase();
 
-  if(direct){
-    return normalizeKnownCode(direct);
-  }
+  if (direct) return normalizeKnownCode(direct);
 
   const num = normalizeText(t?.tripNumber).toUpperCase();
 
-  if(num.includes("-SH") || isSharedTrip(t)) return "SH";
-  if(num.includes("-XL")) return "XL";
-  if(num.includes("-WH")) return "WH";
-  if(num.includes("-TX")) return "TX";
-  if(num.includes("-LM")) return "LM";
-  if(num.includes("-ST")) return "ST";
+  if (num.includes("-SH")) return "SH";
+  if (num.includes("-XL")) return "XL";
+  if (num.includes("-WH")) return "WH";
+  if (num.includes("-TX")) return "TX";
+  if (num.includes("-LM")) return "LM";
+  if (num.includes("-ST")) return "ST";
 
   return "ST";
 }
@@ -807,30 +809,19 @@ function countItemsByService(code){
   return stats;
 }
 
-function renderServiceCards(){
-
-  const wrap = document.getElementById("serviceCards");
+function renderServiceTabs(){
+  const wrap = document.getElementById("serviceTabs");
   if(!wrap) return;
 
-  const base = services.length
-    ? services.map(s=>({
+  const tabs = [
+    {code:"ALL",title:"ALL"},
+    ...services.map(s=>({
       code:getServiceCodeFromService(s),
       title:getServiceTitle(s)
     }))
-    : [];
+  ];
 
-  console.log(
-    services.map(s => ({
-      title: s.title,
-      key: s.serviceKey,
-      suffix: s.suffix,
-      companySuffix: s.companySuffix,
-      code: getServiceCodeFromService(s)
-    }))
-  );
-
-  wrap.innerHTML = ...
-}
+  wrap.innerHTML = tabs.map(tab=>{
     const c = countItemsByService(tab.code);
 
     return `
