@@ -55,28 +55,9 @@ function compactStatus(v){
   return cleanStatus(v).replace(/\s+/g,"");
 }
 
-function countStatus(stats,status,trip){
-
-  if(isCancelledStatus(status)){
-    stats.cancelled++;
-    return;
-  }
-
-  if(isNoShowStatus(status)){
-    stats.noshow++;
-    return;
-  }
-
-  if(isNotCompletedStatus(status,trip)){
-    stats.notCompleted++;
-    return;
-  }
-
-  if(isCompletedStatus(status)){
-    stats.completed++;
-    return;
-  }
-
+function isCompletedStatus(status){
+  const s = cleanStatus(status);
+  return s === "completed" || s === "complete";
 }
 
 function isCancelledStatus(status){
@@ -89,13 +70,11 @@ function isNoShowStatus(status){
 }
 
 function isScheduledStatus(status){
-  const s = cleanStatus(status);
-  return s === "scheduled";
+  return cleanStatus(status) === "scheduled";
 }
 
 function isConfirmedStatus(status){
-  const s = cleanStatus(status);
-  return s === "confirmed";
+  return cleanStatus(status) === "confirmed";
 }
 
 function getAZNow(){
@@ -129,26 +108,15 @@ function isNotCompletedStatus(status,trip){
   const s = cleanStatus(status);
   const c = compactStatus(status);
 
-  if(
-    s === "not completed" ||
-    c === "notcompleted" ||
-    s.includes("not complete")
-  ){
+  if(s === "not completed" || c === "notcompleted" || s.includes("not complete")){
     return true;
   }
 
-  if(
-    isCompletedStatus(status) ||
-    isCancelledStatus(status) ||
-    isNoShowStatus(status)
-  ){
+  if(isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status)){
     return false;
   }
 
-  if(
-    !isScheduledStatus(status) &&
-    !isConfirmedStatus(status)
-  ){
+  if(!isScheduledStatus(status) && !isConfirmedStatus(status)){
     return false;
   }
 
@@ -184,12 +152,6 @@ function statusClass(status,trip){
   return "";
 }
 
-function statusHTML(status,trip){
-  const label = displayStatus(status,trip);
-  const cls = statusClass(status,trip);
-  return `<span class="status-pill ${cls}">${safe(label)}</span>`;
-}
-
 function getTripNumber(t){
   return String(t?.tripNumber || t?.bookingNumber || t?.id || "-");
 }
@@ -223,10 +185,6 @@ function getTripDateKey(t){
   return t?.tripDate || "Unknown";
 }
 
-function getTripMonthKey(t){
-  return String(t?.tripDate || "").slice(0,7);
-}
-
 /* ===============================
    SERVICES
 ================================ */
@@ -242,43 +200,33 @@ function extractServices(data){
 
 function serviceEnabled(s){
   if(!s) return false;
-
-  const publicEnabled = s.enabled === true;
-  const companyEnabled = s.companyEnabled === true;
-
-  return publicEnabled || companyEnabled;
+  return s.enabled === true || s.companyEnabled === true;
 }
 
 function normalizeKnownCode(code){
   const c = normalizeText(code).toUpperCase();
 
-  if(c === "STANDARD") return "ST";
-  if(c === "WHEELCHAIR") return "WH";
-  if(c === "SHARED") return "SH";
-  if(c === "LIMOUSINE" || c === "LIMO") return "LM";
-  if(c === "TAXI") return "TX";
+  if(c === "STANDARD" || c === "ST") return "ST";
+  if(c === "WHEELCHAIR" || c === "WH") return "WH";
+  if(c === "SHARED" || c === "SH") return "SH";
+  if(c === "LIMOUSINE" || c === "LIMO" || c === "LIMOUSINE SERVICE" || c === "LM") return "LM";
+  if(c === "TAXI" || c === "TX") return "TX";
   if(c === "XL") return "XL";
 
   return c;
 }
 
 function getServiceCodeFromService(s){
-
   return normalizeKnownCode(
     s?.serviceKey ||
     s?.key ||
     s?.code ||
-    s?.companySuffix ||
     s?.suffix ||
+    s?.companySuffix ||
     s?.title ||
     s?.name ||
     ""
   );
-
-}
-  ).toUpperCase();
-
-  return normalizeKnownCode(code);
 }
 
 function getServiceTitle(s){
@@ -292,27 +240,30 @@ function getServiceTitle(s){
   );
 }
 
-function getServiceCodeFromTrip(t) {
-
+function getServiceCodeFromTrip(t){
   const direct = normalizeText(
     t?.serviceKey ||
     t?.serviceCode ||
     t?.serviceType ||
     t?.serviceSuffix ||
     t?.service ||
+    t?.pricingSnapshot?.serviceKey ||
+    t?.pricingSnapshot?.serviceCode ||
+    t?.priceSnapshot?.serviceKey ||
+    t?.priceSnapshot?.serviceCode ||
     ""
   ).toUpperCase();
 
-  if (direct) return normalizeKnownCode(direct);
+  if(direct) return normalizeKnownCode(direct);
 
   const num = normalizeText(t?.tripNumber).toUpperCase();
 
-  if (num.includes("-SH")) return "SH";
-  if (num.includes("-XL")) return "XL";
-  if (num.includes("-WH")) return "WH";
-  if (num.includes("-TX")) return "TX";
-  if (num.includes("-LM")) return "LM";
-  if (num.includes("-ST")) return "ST";
+  if(num.includes("-SH") || isSharedTrip(t)) return "SH";
+  if(num.includes("-XL")) return "XL";
+  if(num.includes("-WH")) return "WH";
+  if(num.includes("-TX")) return "TX";
+  if(num.includes("-LM")) return "LM";
+  if(num.includes("-ST")) return "ST";
 
   return "ST";
 }
@@ -329,7 +280,7 @@ function tripMatchesService(t,code){
 }
 
 /* ===============================
-   SOURCE / EMAIL / PASSENGER
+   SOURCE / PASSENGER
 ================================ */
 
 function getSourceCode(t){
@@ -352,10 +303,6 @@ function sourceHTML(t){
   return `<span class="source-pill ${code === "CO" ? "company" : "gq"}">${code === "CO" ? "Company" : "Get Quote"}</span>`;
 }
 
-function isCompanyTrip(t){
-  return getSourceCode(t) === "CO";
-}
-
 function getEmail(t,p){
   return (
     p?.clientEmail ||
@@ -370,25 +317,11 @@ function getEmail(t,p){
 }
 
 function getPassengerName(p,t){
-  return (
-    p?.clientName ||
-    p?.passengerName ||
-    p?.name ||
-    t?.clientName ||
-    t?.name ||
-    "-"
-  );
+  return p?.clientName || p?.passengerName || p?.name || t?.clientName || t?.name || "-";
 }
 
 function getPassengerPhone(p,t){
-  return (
-    p?.clientPhone ||
-    p?.passengerPhone ||
-    p?.phone ||
-    t?.clientPhone ||
-    t?.phone ||
-    "-"
-  );
+  return p?.clientPhone || p?.passengerPhone || p?.phone || t?.clientPhone || t?.phone || "-";
 }
 
 function getPickup(t,p){
@@ -397,10 +330,6 @@ function getPickup(t,p){
 
 function getDropoff(t,p){
   return p?.dropoff || t?.dropoff || "-";
-}
-
-function getNotes(t){
-  return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
 }
 
 /* ===============================
@@ -458,9 +387,7 @@ function getSharedGroups(list = allTrips){
 
 function hasClosedPassenger(group){
   const first = group[0] || {};
-  const passengers = getRealPassengersFromGroup(group);
-
-  return passengers.some(p =>
+  return getRealPassengersFromGroup(group).some(p =>
     isClosedStatus(p.status || first.status,first)
   );
 }
@@ -474,11 +401,7 @@ function getClosedPassengers(group){
 
 function getGroupStatus(group){
   const first = group[0] || {};
-  const passengers = getRealPassengersFromGroup(group);
-
-  const closed = passengers.filter(p =>
-    isClosedStatus(p.status || first.status,first)
-  );
+  const closed = getClosedPassengers(group);
 
   if(closed.length === 1){
     return displayStatus(closed[0].status || first.status,first);
@@ -508,14 +431,9 @@ async function loadServices(){
     if(!res.ok) throw new Error("Failed services");
 
     const data = await res.json();
-    const list = extractServices(data);
+    services = extractServices(data).filter(serviceEnabled);
 
-    services = list.filter(serviceEnabled);
-
-    if(
-      activeService !== "ALL" &&
-      !services.some(s => getServiceCodeFromService(s) === activeService)
-    ){
+    if(activeService !== "ALL" && !services.some(s => getServiceCodeFromService(s) === activeService)){
       activeService = "ALL";
     }
 
@@ -552,7 +470,7 @@ async function loadTrips(){
 }
 
 /* ===============================
-   DISPLAY ITEMS
+   FILTERS
 ================================ */
 
 function isClosedTrip(t){
@@ -650,12 +568,11 @@ function applyFilters(){
 
   const st = statusFilter ? statusFilter.value : "";
   if(st){
-    items = items.filter(item => {
-      if(item.kind === "trip") {
-        return displayStatus(item.trip.status, item.trip) === st;
-      } else {
-        return getGroupStatus(item.group) === st;
+    items = items.filter(item=>{
+      if(item.kind === "trip"){
+        return displayStatus(item.trip.status,item.trip) === st;
       }
+      return getGroupStatus(item.group) === st;
     });
   }
 
@@ -674,10 +591,6 @@ function applyFilters(){
   render();
 }
 
-/* ===============================
-   FILTERS
-================================ */
-
 function buildFilters(){
   if(!yearFilter || !monthFilter) return;
 
@@ -694,7 +607,6 @@ function buildFilters(){
   });
 
   yearFilter.innerHTML = `<option value="">All Years</option>`;
-
   [...years].sort((a,b)=>Number(b)-Number(a)).forEach(y=>{
     yearFilter.innerHTML += `<option value="${safe(y)}">${safe(y)}</option>`;
   });
@@ -739,10 +651,24 @@ function createStats(){
 }
 
 function countStatus(stats,status,trip){
-  if(isCompletedStatus(status)) stats.completed++;
-  else if(isCancelledStatus(status)) stats.cancelled++;
-  else if(isNoShowStatus(status)) stats.noshow++;
-  else if(isNotCompletedStatus(status,trip)) stats.notCompleted++;
+  if(isCancelledStatus(status)){
+    stats.cancelled++;
+    return;
+  }
+
+  if(isNoShowStatus(status)){
+    stats.noshow++;
+    return;
+  }
+
+  if(isNotCompletedStatus(status,trip)){
+    stats.notCompleted++;
+    return;
+  }
+
+  if(isCompletedStatus(status)){
+    stats.completed++;
+  }
 }
 
 function countItem(stats,item){
@@ -761,20 +687,32 @@ function countItem(stats,item){
 
   if(item.kind === "shared"){
     stats.shared++;
-
     getClosedPassengers(item.group).forEach(p=>{
       countStatus(stats,p.status || first.status,first);
     });
-
     return;
   }
 
   countStatus(stats,first.status,first);
 }
 
+function countItemsByService(code){
+  const baseItems = buildDisplayItems(allTrips);
+
+  const selected = code === "ALL"
+    ? baseItems
+    : baseItems.filter(item=>{
+      const t = item.kind === "trip" ? item.trip : item.group[0];
+      return tripMatchesService(t,code);
+    });
+
+  const stats = createStats();
+  selected.forEach(item=>countItem(stats,item));
+  return stats;
+}
+
 function renderStats(){
   const stats = createStats();
-
   displayItems.forEach(item=>countItem(stats,item));
 
   const wrap = document.getElementById("reviewStats");
@@ -794,70 +732,25 @@ function renderStats(){
   `;
 }
 
-function countItemsByService(code){
-  const baseItems = buildDisplayItems(allTrips);
-
-  const selected = code === "ALL"
-    ? baseItems
-    : baseItems.filter(item=>{
-      const t = item.kind === "trip" ? item.trip : item.group[0];
-      return tripMatchesService(t,code);
-    });
-
-  const stats = createStats();
-  selected.forEach(item=>countItem(stats,item));
-  return stats;
-}
-
-function renderServiceTabs(){
-  const wrap = document.getElementById("serviceTabs");
+function renderServiceCards(){
+  const wrap = document.getElementById("serviceCards");
   if(!wrap) return;
 
-  const tabs = [
-    {code:"ALL",title:"ALL"},
+  const cards = [
+    { code:"ALL", title:"ALL" },
     ...services.map(s=>({
       code:getServiceCodeFromService(s),
       title:getServiceTitle(s)
     }))
   ];
 
-  wrap.innerHTML = tabs.map(tab=>{
-    const c = countItemsByService(tab.code);
+  wrap.innerHTML = cards.map(card=>{
+    const c = countItemsByService(card.code);
+    const active = activeService === card.code ? "active-card" : "";
 
     return `
-      <button class="service-tab ${activeService === tab.code ? "active" : ""}" data-service="${safe(tab.code)}" type="button">
-        <div class="service-title">${safe(tab.title)}</div>
-        <div class="service-total">${c.total}</div>
-        <div class="service-source">CO ${c.company}<br>GQ ${c.gq}<br>SH ${c.shared}</div>
-      </button>
-    `;
-  }).join("");
-
-  wrap.querySelectorAll(".service-tab").forEach(btn=>{
-    btn.onclick = ()=>{
-      activeService = btn.dataset.service || "ALL";
-      applyFilters();
-    };
-  });
-}
-
-function renderServiceCards(){
-  const wrap = document.getElementById("serviceCards");
-  if(!wrap) return;
-
-  const base = services.length
-    ? services.map(s=>({
-      code:getServiceCodeFromService(s),
-      title:getServiceTitle(s)
-    }))
-    : [];
-
-  wrap.innerHTML = base.map(service=>{
-    const c = countItemsByService(service.code);
-
-    return `
-      <div class="service-card">
-        <div class="service-card-title">${safe(service.title)}</div>
+      <div class="service-card ${active}" data-service="${safe(card.code)}">
+        <div class="service-card-title">${safe(card.title)}</div>
         <div class="service-line"><span>Total Closed</span><span>${c.total}</span></div>
         <div class="service-line"><span>Get Quote</span><span>${c.gq}</span></div>
         <div class="service-line"><span>Company</span><span>${c.company}</span></div>
@@ -868,66 +761,53 @@ function renderServiceCards(){
       </div>
     `;
   }).join("");
+
+  wrap.querySelectorAll(".service-card").forEach(card=>{
+    card.onclick = ()=>{
+      activeService = card.dataset.service || "ALL";
+      applyFilters();
+    };
+  });
 }
 
 /* ===============================
-   RENDER
+   RENDER TABLE
 ================================ */
 
 function rowClass(status,trip,itemKind){
-
   const cls = statusClass(status,trip);
   let out = "";
 
-  if(itemKind === "shared"){
-    out += "shared-row ";
-  }
+  if(itemKind === "shared") out += "shared-row ";
+  out += getSourceCode(trip) === "CO" ? "row-company " : "row-getquote ";
 
-  if(getSourceCode(trip) === "CO"){
-    out += "row-company ";
-  }else{
-    out += "row-getquote ";
-  }
-
-  if(cls === "completed"){
-    out += "completed-row ";
-  }
-
-  if(cls === "cancelled"){
-    out += "cancelled-row ";
-  }
-
-  if(cls === "noshow"){
-    out += "noshow-row ";
-  }
-
-  if(cls === "notcompleted"){
-    out += "notcompleted-row ";
-  }
+  if(cls === "completed") out += "completed-row ";
+  if(cls === "cancelled") out += "cancelled-row ";
+  if(cls === "noshow") out += "noshow-row ";
+  if(cls === "notcompleted") out += "notcompleted-row ";
 
   return out.trim();
 }
+
 function groupByTripDate(items){
   const groups = {};
-
   items.forEach(item=>{
     const key = item.tripDate || "Unknown";
     if(!groups[key]) groups[key] = [];
     groups[key].push(item);
   });
-
   return groups;
 }
 
 let tripCounter = 1;
 
 function render(){
-
   tripCounter = 1;
 
   renderStats();
-  renderServiceTabs();
-  renderServiceCards();  if(!reviewContent) return;
+  renderServiceCards();
+
+  if(!reviewContent) return;
 
   reviewContent.innerHTML = "";
 
@@ -939,140 +819,87 @@ function render(){
   const groups = groupByTripDate(displayItems);
 
   reviewContent.innerHTML = `
-<div class="table-wrap">
-<table class="review-table">
-<thead>
-<tr>
-<th>#</th>
-<th>Trip #</th>
-<th>Source</th>
-<th>Service</th>
-<th>Company</th>
-<th>Entry</th>
-<th>Entry Phone</th>
-<th>Passenger</th>
-<th>Phone</th>
-<th>Email</th>
-<th>Pickup</th>
-<th>Stops</th>
-<th>Dropoff</th>
-<th>Trip Date</th>
-<th>Trip Time</th>
-<th>Notes</th>
-<th>Booked Date</th>
-<th>Booked Time</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="mainReviewBody"></tbody>
-</table>
-</div>
-`;
-
-const tbody = document.getElementById("mainReviewBody");
-
-Object.keys(groups)
-.sort((a,b)=>new Date(b)-new Date(a))
-.forEach(day=>{
-
-  tbody.innerHTML += `
-    <tr class="date-row">
-      <td colspan="19">
-        Trip Date: ${safe(day)}
-      </td>
-    </tr>
+    <div class="table-wrap">
+      <table class="review-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Trip #</th>
+            <th>Source</th>
+            <th>Service</th>
+            <th>Company</th>
+            <th>Entry</th>
+            <th>Entry Phone</th>
+            <th>Passenger</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Pickup</th>
+            <th>Stops</th>
+            <th>Dropoff</th>
+            <th>Trip Date</th>
+            <th>Trip Time</th>
+            <th>Notes</th>
+            <th>Booked Date</th>
+            <th>Booked Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="mainReviewBody"></tbody>
+      </table>
+    </div>
   `;
 
-  groups[day].forEach(item=>{
+  const tbody = document.getElementById("mainReviewBody");
 
-    if(item.kind === "trip"){
-      tbody.appendChild(renderTripRow(item));
-    }else{
-      renderSharedRows(tbody,item);
-    }
-
+  Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(day=>{
     tbody.innerHTML += `
-      <tr class="trip-divider-line">
-        <td colspan="19"></td>
+      <tr class="date-row">
+        <td colspan="19">Trip Date: ${safe(day)}</td>
       </tr>
     `;
+
+    groups[day].forEach(item=>{
+      if(item.kind === "trip"){
+        tbody.appendChild(renderTripRow(item));
+      }else{
+        renderSharedRows(tbody,item);
+      }
+
+      tbody.innerHTML += `
+        <tr class="trip-divider-line">
+          <td colspan="19"></td>
+        </tr>
+      `;
+    });
   });
-
-});
-
 }
 
 function renderTripRow(item){
   const t = item.trip;
   const tr = document.createElement("tr");
+
   tr.className = rowClass(t.status,t,"trip");
 
-  const tripId = safe(t._id || t.id || "");
-
- tr.innerHTML = `
-<td>${tripCounter++}</td>
-
-<td>
-  <span class="trip-number-badge">
-    ${safe(getTripNumber(t))}
-  </span>
-</td>
-
-<td>${sourceHTML(t)}</td>
-
-<td>
-  <span class="service-pill">
-    ${safe(getServiceTitleByTrip(t))}
-  </span>
-</td>
-
-<td class="company-name">
-  ${safe(t.company || "-")}
-</td>
-
-<td>${safe(t.entryName || "-")}</td>
-
-<td>${safe(t.entryPhone || "-")}</td>
-
-<td class="wide-client">
-  ${safe(t.clientName || t.name || "-")}
-</td>
-
-<td>${safe(t.clientPhone || t.phone || "-")}</td>
-
-<td>${safe(getEmail(t,null))}</td>
-
-<td class="wide-address">
-  ${safe(t.pickup || "-")}
-</td>
-
-<td>
-  ${safe(t.stops?.length || 0)}
-</td>
-
-<td class="wide-address">
-  ${safe(t.dropoff || "-")}
-</td>
-
-<td>${safe(t.tripDate || "-")}</td>
-
-<td>${safe(t.tripTime || "-")}</td>
-
-<td>
-  ${safe(t.notes || "-")}
-</td>
-
-<td>
-  ${safe(getBookedDate(t))}
-</td>
-
-<td>
-  ${safe(getBookedTime(t))}
-</td>
-
-<td class="status-td ${statusClass(t.status,t)}">
-  ${displayStatus(t.status,t)}
-</td>
+  tr.innerHTML = `
+    <td>${tripCounter++}</td>
+    <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
+    <td>${sourceHTML(t)}</td>
+    <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
+    <td class="company-name">${safe(t.company || "-")}</td>
+    <td>${safe(t.entryName || "-")}</td>
+    <td>${safe(t.entryPhone || "-")}</td>
+    <td class="wide-client">${safe(t.clientName || t.name || "-")}</td>
+    <td>${safe(t.clientPhone || t.phone || "-")}</td>
+    <td>${safe(getEmail(t,null))}</td>
+    <td class="wide-address">${safe(t.pickup || "-")}</td>
+    <td>${safe(t.stops?.length || 0)}</td>
+    <td class="wide-address">${safe(t.dropoff || "-")}</td>
+    <td>${safe(t.tripDate || "-")}</td>
+    <td>${safe(t.tripTime || "-")}</td>
+    <td>${safe(t.notes || "-")}</td>
+    <td>${safe(getBookedDate(t))}</td>
+    <td>${safe(getBookedTime(t))}</td>
+    <td class="status-td ${statusClass(t.status,t)}">${safe(displayStatus(t.status,t))}</td>
   `;
 
   return tr;
@@ -1086,56 +913,31 @@ function renderSharedRows(tbody,item){
   passengers.forEach((p,index)=>{
     const tr = document.createElement("tr");
     tr.className = rowClass(p.status || first.status,first,"shared") + (index !== passengers.length - 1 ? " shared-separator" : "");
-    const tripId = safe(first._id || first.id || "");
 
-   tr.innerHTML = `
-<td>${index === 0 ? tripCounter++ : ""}</td>
-
-<td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
+    tr.innerHTML = `
+      <td>${index === 0 ? tripCounter++ : ""}</td>
+      <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
       <td>${index === 0 ? sourceHTML(first) : ""}</td>
       <td>${index === 0 ? `<span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>` : ""}</td>
-<td class="company-name">
-  ${index === 0 ? safe(first.company || "-") : ""}
-</td>
+      <td class="company-name">${index === 0 ? safe(first.company || "-") : ""}</td>
       <td>${index === 0 ? safe(first.entryName || "-") : ""}</td>
       <td>${index === 0 ? safe(first.entryPhone || "-") : ""}</td>
       <td class="wide-client">${safe(getPassengerName(p,first))}</td>
       <td>${safe(getPassengerPhone(p,first))}</td>
       <td>${safe(getEmail(first,p))}</td>
       <td class="wide-address">${safe(getPickup(first,p))}</td>
-
-<td>${index === 0 ? safe(first.stops?.length || 0) : ""}</td>
-
-<td class="wide-address">${safe(getDropoff(first,p))}</td>
-
-<td>${index === 0 ? safe(first.tripDate || "-") : ""}</td>
-
-<td>${index === 0 ? safe(first.tripTime || "-") : ""}</td>
-
-<td>${index === 0 ? safe(first.notes || "-") : ""}</td>
-
-<td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
-
-<td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
-
-<td class="status-td ${statusClass(p.status || first.status,first)}">
-  ${displayStatus(p.status || first.status,first)}
-</td>
-         `;
+      <td>${index === 0 ? safe(first.stops?.length || 0) : ""}</td>
+      <td class="wide-address">${safe(getDropoff(first,p))}</td>
+      <td>${index === 0 ? safe(first.tripDate || "-") : ""}</td>
+      <td>${index === 0 ? safe(first.tripTime || "-") : ""}</td>
+      <td>${index === 0 ? safe(first.notes || "-") : ""}</td>
+      <td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
+      <td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
+      <td class="status-td ${statusClass(p.status || first.status,first)}">${safe(displayStatus(p.status || first.status,first))}</td>
+    `;
 
     tbody.appendChild(tr);
   });
-}
-
-/* ===============================
-   ACTION FUNCTIONS
-================================ */
-function viewTripDetail(id) {
-  console.log("Viewing trip with ID:", id);
-}
-
-function editTripDetail(id) {
-  console.log("Editing trip with ID:", id);
 }
 
 /* ===============================
@@ -1155,10 +957,10 @@ async function refreshEverything(){
   await loadServices();
   await loadTrips();
 }
+
 (async function init(){
   await refreshEverything();
 
   if(refreshTimer) clearInterval(refreshTimer);
-
   refreshTimer = setInterval(refreshEverything,30000);
 })();
