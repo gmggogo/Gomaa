@@ -1,6 +1,6 @@
 /* =====================================================
-FILE: add-reservation.js
-ADMIN RESERVATION ADD TRIP - RV
+FILE: dispatch-add-trip.js
+DISPATCH ADD TRIP - CLEAN BUILD
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", async function(){
@@ -17,11 +17,9 @@ if(!token || !["superadmin","admin","dispatcher"].includes(role)){
 }
 
 let SERVICES = [];
-let TABS = [];
-let activeTab = null;
+let activeService = null;
+let pendingTrips = JSON.parse(localStorage.getItem("dispatchReviewTrips") || "[]");
 let SYSTEM_TIMEZONE = "America/Phoenix";
-
-/* ================= ELEMENTS ================= */
 
 const companyTabs = document.getElementById("companyTabs");
 
@@ -56,8 +54,6 @@ const passengersContainer = document.getElementById("passengersContainer");
 const submitSharedBtn = document.getElementById("submitShared");
 const saveSharedDraftBtn = document.getElementById("saveSharedDraftBtn");
 
-/* ================= HELPERS ================= */
-
 function normalizeText(v){
   return String(v ?? "").trim();
 }
@@ -66,46 +62,69 @@ function showAlert(msg){
   alert(msg);
 }
 
-function getServiceKey(service){
-  return String(
+function normalizeCode(v){
+  const c = normalizeText(v).toUpperCase();
+
+  if(c === "STANDARD" || c === "ST") return "ST";
+  if(c === "WHEELCHAIR" || c === "WH") return "WH";
+  if(c === "SHARED" || c === "SH") return "SH";
+  if(c === "LIMOUSINE" || c === "LIMO" || c === "LM") return "LM";
+  if(c === "TAXI" || c === "TX") return "TX";
+  if(c === "XL") return "XL";
+
+  return c;
+}
+
+function getServiceCode(service){
+  return normalizeCode(
     service?.serviceKey ||
     service?.key ||
     service?.code ||
+    service?.suffix ||
+    service?.companySuffix ||
     service?.title ||
-    "STANDARD"
-  ).toUpperCase();
+    service?.name ||
+    ""
+  );
 }
 
 function getServiceTitle(service){
-  return (
-    service?.title ||
-    service?.name ||
-    service?.serviceName ||
-    getServiceKey(service)
-  );
+  const code = getServiceCode(service);
+
+  if(code === "ST") return "Standard";
+  if(code === "XL") return "XL";
+  if(code === "TX") return "Taxi";
+  if(code === "LM") return "Limousine";
+  if(code === "WH") return "Wheelchair";
+  if(code === "SH") return "Shared";
+
+  return service?.title || service?.name || service?.serviceName || code || "Service";
 }
 
 function getServiceSuffix(service){
+  const code = getServiceCode(service);
+  return service?.companySuffix || service?.suffix || service?.serviceSuffix || code || "ST";
+}
+
+function serviceVisible(service){
   return (
-    service?.companySuffix ||
-    service?.suffix ||
-    service?.serviceSuffix ||
-    service?.code ||
-    service?.serviceKey ||
-    "ST"
+    service?.enabled === true ||
+    service?.companyEnabled === true ||
+    service?.companyShared === true ||
+    service?.shared === true
   );
 }
 
-function serviceIndividualOn(service){
-  return service.enabled === true || service.companyEnabled === true;
-}
+function isSharedService(service){
+  const code = getServiceCode(service);
+  const title = getServiceTitle(service).toLowerCase();
 
-function serviceSharedOn(service){
-  return service.companyShared === true || service.shared === true;
-}
-
-function getCurrentServiceConfig(){
-  return activeTab?.service || {};
+  return (
+    code === "SH" ||
+    title === "shared" ||
+    String(service?.serviceType || "").toUpperCase() === "SHARED" ||
+    String(service?.type || "").toUpperCase() === "SHARED"
+  );
 }
 
 async function loadSystemTimezone(){
@@ -124,13 +143,116 @@ function getSystemNow(){
   );
 }
 
-function checkDynamicWarning(){
-  return true;
+function buildTopHeader(){
+  if(document.getElementById("dispatchAddHeader")) return;
+
+  const container = document.querySelector(".container");
+  if(!container) return;
+
+  const header = document.createElement("div");
+  header.id = "dispatchAddHeader";
+  header.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <button id="backToHubBtn" type="button" style="background:#64748b;color:#fff;flex:1;">
+        ← Back To Trips Hub
+      </button>
+      <button id="showAddBtn" type="button" style="background:#f97316;color:#fff;flex:1;">
+        Dispatch Add Trip
+      </button>
+      <button id="showReviewBtn" type="button" style="background:#16a34a;color:#fff;flex:1;">
+        Dispatch Review
+      </button>
+    </div>
+  `;
+
+  container.insertBefore(header,container.firstChild);
+
+  document.getElementById("backToHubBtn").onclick = ()=>{
+    window.location.href = "/admin/trips-hub.html";
+  };
+
+  document.getElementById("showAddBtn").onclick = showAddPage;
+  document.getElementById("showReviewBtn").onclick = showReviewPage;
 }
-/* ================= ENTRY ================= */
+
+function buildReviewPage(){
+  if(document.getElementById("dispatchReviewPage")) return;
+
+  const container = document.querySelector(".container");
+  if(!container) return;
+
+  const review = document.createElement("div");
+  review.id = "dispatchReviewPage";
+  review.style.display = "none";
+  review.innerHTML = `
+    <section>
+      <h3>Dispatch Review</h3>
+      <div id="dispatchReviewList"></div>
+      <div class="actions">
+        <button id="backToAddFromReview" type="button" class="btn-orange">Back To Add Trip</button>
+      </div>
+    </section>
+  `;
+
+  container.appendChild(review);
+
+  document.getElementById("backToAddFromReview").onclick = showAddPage;
+}
+
+function showAddPage(){
+  document.getElementById("dispatchReviewPage").style.display = "none";
+  if(companyTabs) companyTabs.style.display = "flex";
+
+  if(activeService && isSharedService(activeService)){
+    individualSection.style.display = "none";
+    sharedSection.style.display = "block";
+  }else{
+    individualSection.style.display = "block";
+    sharedSection.style.display = "none";
+  }
+}
+
+function showReviewPage(){
+  if(companyTabs) companyTabs.style.display = "none";
+  individualSection.style.display = "none";
+  sharedSection.style.display = "none";
+
+  const page = document.getElementById("dispatchReviewPage");
+  page.style.display = "block";
+
+  renderPendingReview();
+}
+
+function renderPendingReview(){
+  const box = document.getElementById("dispatchReviewList");
+  if(!box) return;
+
+  if(!pendingTrips.length){
+    box.innerHTML = `<div style="font-weight:900;color:#64748b;">No trips in review yet.</div>`;
+    return;
+  }
+
+  box.innerHTML = pendingTrips.map((t,i)=>{
+    const isShared = t.isShared === true;
+    return `
+      <div style="background:#f8fafc;border:1px solid #dbe3ee;border-radius:12px;padding:12px;margin-bottom:10px;">
+        <b>${i + 1}. ${isShared ? "Shared" : "Individual"} - ${t.serviceTitle || t.serviceType}</b><br>
+        Date: ${t.tripDate || "-"} | Time: ${t.tripTime || "-"}<br>
+        ${isShared ? `Passengers: ${t.passengers?.length || 0}` : `Client: ${t.clientName || "-"}`}<br>
+        <button type="button" onclick="deletePendingTrip(${i})" style="margin-top:8px;background:#ef4444;color:#fff;">Delete</button>
+      </div>
+    `;
+  }).join("");
+}
+
+window.deletePendingTrip = function(index){
+  pendingTrips.splice(index,1);
+  localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
+  renderPendingReview();
+};
 
 function loadEntryInfo(){
-  const saved = JSON.parse(localStorage.getItem("reservationEntryInfo") || "{}");
+  const saved = JSON.parse(localStorage.getItem("dispatchEntryInfo") || "{}");
 
   entryName.value = saved.entryName || "";
   entryPhone.value = saved.entryPhone || "";
@@ -139,7 +261,7 @@ function loadEntryInfo(){
 }
 
 function saveEntryInfo(){
-  localStorage.setItem("reservationEntryInfo",JSON.stringify({
+  localStorage.setItem("dispatchEntryInfo",JSON.stringify({
     entryName:entryName.value,
     entryPhone:entryPhone.value
   }));
@@ -185,8 +307,6 @@ editEntryBtn?.addEventListener("click",toggleEntryEdit);
 editSharedEntryBtn?.addEventListener("click",toggleEntryEdit);
 saveEntryBtn?.addEventListener("click",saveEntryInfo);
 
-/* ================= VALIDATION ================= */
-
 function validateIndividualTrip(){
   if(!normalizeText(entryName.value)) return showAlert("Entry Name Required"), false;
   if(!normalizeText(entryPhone.value)) return showAlert("Entry Phone Required"), false;
@@ -225,97 +345,6 @@ function validateSharedTrip(){
   return true;
 }
 
-/* ================= DRAFTS ================= */
-
-function loadDraft(){
-  const draft = JSON.parse(localStorage.getItem("reservationTripDraft") || "{}");
-
-  clientName.value = draft.clientName || "";
-  clientPhone.value = draft.clientPhone || "";
-  pickupInput.value = draft.pickup || "";
-  dropoffInput.value = draft.dropoff || "";
-  tripDate.value = draft.tripDate || "";
-  tripTime.value = draft.tripTime || "";
-  notes.value = draft.notes || "";
-
-  if(Array.isArray(draft.stops)){
-    draft.stops.forEach(s=>createStopInput(s));
-  }
-}
-
-function saveDraft(){
-  const stops = [...document.querySelectorAll(".stop-input")]
-    .map(i=>normalizeText(i.value))
-    .filter(Boolean);
-
-  localStorage.setItem("reservationTripDraft",JSON.stringify({
-    clientName:clientName.value,
-    clientPhone:clientPhone.value,
-    pickup:pickupInput.value,
-    dropoff:dropoffInput.value,
-    tripDate:tripDate.value,
-    tripTime:tripTime.value,
-    notes:notes.value,
-    stops
-  }));
-
-  showAlert("Draft Saved ✔");
-}
-
-function loadSharedDraft(){
-  const draft = JSON.parse(localStorage.getItem("reservationSharedDraft") || "{}");
-
-  passengerCount.value = draft.passengerCount || "";
-  sharedDate.value = draft.sharedDate || "";
-  sharedTime.value = draft.sharedTime || "";
-  sharedNotes.value = draft.sharedNotes || "";
-
-  if(Number(draft.passengerCount) >= 2){
-    renderSharedPassengers(Number(draft.passengerCount));
-
-    setTimeout(()=>{
-      const cards = document.querySelectorAll(".passenger-card");
-      (draft.passengers || []).forEach((p,index)=>{
-        const card = cards[index];
-        if(!card) return;
-
-        card.querySelector(".sharedClientName").value = p.clientName || "";
-        card.querySelector(".sharedClientPhone").value = p.clientPhone || "";
-        card.querySelector(".sharedPickup").value = p.pickup || "";
-        card.querySelector(".sharedDropoff").value = p.dropoff || "";
-      });
-    },50);
-  }
-}
-
-function saveSharedDraft(){
-  const passengers = [];
-
-  document.querySelectorAll(".passenger-card").forEach(card=>{
-    passengers.push({
-      clientName:card.querySelector(".sharedClientName").value,
-      clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:card.querySelector(".sharedPickup").value,
-      dropoff:card.querySelector(".sharedDropoff").value
-    });
-  });
-
-  localStorage.setItem("reservationSharedDraft",JSON.stringify({
-    passengerCount:passengerCount.value,
-    passengers,
-    sharedDate:sharedDate.value,
-    sharedTime:sharedTime.value,
-    sharedNotes:sharedNotes.value
-  }));
-
-  showAlert("Shared Draft Saved ✔");
-}
-
-saveDraftBtn?.addEventListener("click",saveDraft);
-saveSharedDraftBtn?.addEventListener("click",saveSharedDraft);
-
-/* ================= SERVICES / TABS ================= */
-
 async function loadAdminServices(){
   try{
     const res = await fetch(SERVICES_URL,{
@@ -334,83 +363,56 @@ async function loadAdminServices(){
           ? data.data
           : [];
 
-    SERVICES = raw;
-    buildDynamicTabs();
+    const unique = new Map();
+
+    raw.filter(serviceVisible).forEach(service=>{
+      const code = getServiceCode(service);
+      if(code && !unique.has(code)){
+        unique.set(code,service);
+      }
+    });
+
+    SERVICES = [...unique.values()];
+    buildServiceTabs();
 
   }catch(err){
     console.log(err);
+
     SERVICES = [{
-      serviceKey:"STANDARD",
+      serviceKey:"ST",
       title:"Standard",
       suffix:"ST",
-      enabled:true,
-      companyShared:false,
-      warningMinutes:120
+      enabled:true
     }];
 
-    buildDynamicTabs();
+    buildServiceTabs();
   }
 }
 
-function buildTabsFromServices(){
-  const tabs = [];
-
-  SERVICES.forEach(service=>{
-    const key = getServiceKey(service);
-    const title = getServiceTitle(service);
-    const suffix = getServiceSuffix(service);
-
-    if(serviceIndividualOn(service)){
-      tabs.push({
-        mode:"INDIVIDUAL",
-        label:title,
-        service,
-        serviceKey:key,
-        suffix
-      });
-    }
-
- if(serviceSharedOn(service)){
-  tabs.push({
-    mode:"SHARED",
-    label:title,
-    service,
-    serviceKey:key,
-    suffix
-  });
-}
-  });
-
-  return tabs;
-}
-
-function buildDynamicTabs(){
+function buildServiceTabs(){
   if(!companyTabs) return;
 
-  TABS = buildTabsFromServices();
   companyTabs.innerHTML = "";
 
-  if(!TABS.length){
-    companyTabs.innerHTML = `<div style="padding:12px;font-weight:900;color:#dc2626;">No active reservation services</div>`;
-    individualSection.style.display = "none";
-    sharedSection.style.display = "none";
+  if(!SERVICES.length){
+    companyTabs.innerHTML = `<div style="padding:12px;font-weight:900;color:#dc2626;">No active services</div>`;
     return;
   }
 
-  TABS.forEach((tab,index)=>{
+  SERVICES.forEach((service,index)=>{
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.innerText = tab.label;
+    btn.innerText = getServiceTitle(service);
     btn.className = index === 0 ? "btn-blue" : "btn-gray";
-    btn.onclick = ()=>setActiveTab(tab,index);
+    btn.onclick = ()=>setActiveService(service,index);
     companyTabs.appendChild(btn);
   });
 
-  setActiveTab(TABS[0],0);
+  setActiveService(SERVICES[0],0);
 }
 
-function setActiveTab(tab,index){
-  activeTab = tab;
+function setActiveService(service,index){
+  activeService = service;
 
   companyTabs.querySelectorAll("button").forEach(btn=>{
     btn.classList.remove("btn-blue");
@@ -423,7 +425,7 @@ function setActiveTab(tab,index){
     btn.classList.add("btn-blue");
   }
 
-  if(tab.mode === "SHARED"){
+  if(isSharedService(service)){
     individualSection.style.display = "none";
     sharedSection.style.display = "block";
   }else{
@@ -431,8 +433,6 @@ function setActiveTab(tab,index){
     sharedSection.style.display = "none";
   }
 }
-
-/* ================= STOPS ================= */
 
 function createStopInput(value=""){
   const currentStops = stopsBox.querySelectorAll(".stop-input").length;
@@ -455,8 +455,6 @@ function createStopInput(value=""){
 }
 
 addStopBtn?.addEventListener("click",()=>createStopInput());
-
-/* ================= SHARED PASSENGERS ================= */
 
 function renderSharedPassengers(count){
   passengersContainer.innerHTML = "";
@@ -494,88 +492,78 @@ passengerCount?.addEventListener("change",function(){
   renderSharedPassengers(Number(this.value));
 });
 
-/* ================= SUBMIT INDIVIDUAL ================= */
+function clearIndividualForm(){
+  clientName.value = "";
+  clientPhone.value = "";
+  pickupInput.value = "";
+  dropoffInput.value = "";
+  tripDate.value = "";
+  tripTime.value = "";
+  notes.value = "";
+  stopsBox.innerHTML = "";
+}
 
-submitTripBtn?.addEventListener("click",async function(){
-  if(!activeTab) return showAlert("Select Service");
+function clearSharedForm(){
+  passengerCount.value = "";
+  sharedDate.value = "";
+  sharedTime.value = "";
+  sharedNotes.value = "";
+  passengersContainer.innerHTML = "";
+}
+
+submitTripBtn?.addEventListener("click",function(){
+  if(!activeService) return showAlert("Select Service");
   if(!validateIndividualTrip()) return;
 
-  if(!checkDynamicWarning(tripDate.value,tripTime.value)) return;
+  const stops = [...document.querySelectorAll(".stop-input")]
+    .map(i=>normalizeText(i.value))
+    .filter(Boolean);
 
-  submitTripBtn.disabled = true;
-  submitTripBtn.innerText = "Submitting...";
+  const serviceCode = getServiceCode(activeService);
+  const suffix = getServiceSuffix(activeService);
 
-  try{
-    const stops = [...document.querySelectorAll(".stop-input")]
-      .map(i=>normalizeText(i.value))
-      .filter(Boolean);
+  const trip = {
+    type:"reserved",
+    reservation:true,
+    source:"RV",
+    bookingSource:"RV",
+    reviewOnly:true,
 
-    const trip = {
-      type:"reserved",
-      reservation:true,
-      source:"RV",
-      bookingSource:"RV",
+    tripType:"INDIVIDUAL",
+    isShared:false,
 
-      tripType:"INDIVIDUAL",
-      isShared:false,
+    serviceKey:serviceCode,
+    serviceType:serviceCode,
+    serviceSuffix:suffix,
+    serviceTitle:getServiceTitle(activeService),
 
-      serviceKey:activeTab.serviceKey,
-      serviceType:activeTab.serviceKey,
-      serviceSuffix:activeTab.suffix,
+    entryName:entryName.value,
+    entryPhone:entryPhone.value,
 
-      entryName:entryName.value,
-      entryPhone:entryPhone.value,
+    clientName:clientName.value,
+    clientPhone:clientPhone.value,
 
-      clientName:clientName.value,
-      clientPhone:clientPhone.value,
+    pickup:pickupInput.value,
+    dropoff:dropoffInput.value,
+    stops,
 
-      pickup:pickupInput.value,
-      dropoff:dropoffInput.value,
-      stops,
+    tripDate:tripDate.value,
+    tripTime:tripTime.value,
+    notes:notes.value,
 
-      tripDate:tripDate.value,
-      tripTime:tripTime.value,
-      notes:notes.value,
+    status:"Review"
+  };
 
-      status:"Scheduled"
-    };
+  pendingTrips.push(trip);
+  localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
 
-    const res = await fetch(API_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify(trip)
-    });
-
-    if(!res.ok){
-      const err = await res.json();
-      throw new Error(err.message || "Server Error");
-    }
-
-    localStorage.removeItem("reservationTripDraft");
-
-    showAlert("Reservation Submitted Successfully ✔");
-
-    window.location.href = "/admin/trips-hub.html";
-
-  }catch(err){
-    console.log(err);
-    showAlert(err.message || "Server Error");
-  }finally{
-    submitTripBtn.disabled = false;
-    submitTripBtn.innerText = "Submit Trip";
-  }
+  clearIndividualForm();
+  showReviewPage();
 });
 
-/* ================= SUBMIT SHARED ================= */
-
-submitSharedBtn?.addEventListener("click",async function(){
-  if(!activeTab) return showAlert("Select Service");
+submitSharedBtn?.addEventListener("click",function(){
+  if(!activeService) return showAlert("Select Service");
   if(!validateSharedTrip()) return;
-
-  if(!checkDynamicWarning(sharedDate.value,sharedTime.value)) return;
 
   const passengers = [];
 
@@ -586,81 +574,61 @@ submitSharedBtn?.addEventListener("click",async function(){
       clientPhone:card.querySelector(".sharedClientPhone").value,
       pickup:card.querySelector(".sharedPickup").value,
       dropoff:card.querySelector(".sharedDropoff").value,
-      status:"Scheduled"
+      status:"Review"
     });
   });
 
-  if(passengers.length < 2){
-    showAlert("Minimum 2 passengers");
-    return;
-  }
+  const serviceCode = getServiceCode(activeService);
+  const suffix = getServiceSuffix(activeService);
 
-  submitSharedBtn.disabled = true;
-  submitSharedBtn.innerText = "Submitting...";
+  const sharedTrip = {
+    type:"reserved",
+    reservation:true,
+    source:"RV",
+    bookingSource:"RV",
+    reviewOnly:true,
 
-  try{
-    const sharedTrip = {
-      type:"reserved",
-      reservation:true,
-      source:"RV",
-      bookingSource:"RV",
+    isShared:true,
+    tripType:"SHARED",
 
-      isShared:true,
-      tripType:"SHARED",
+    serviceKey:serviceCode,
+    serviceType:serviceCode,
+    serviceSuffix:suffix,
+    serviceTitle:getServiceTitle(activeService),
 
-      serviceKey:activeTab.serviceKey,
-      serviceType:activeTab.serviceKey,
-      serviceSuffix:activeTab.suffix,
+    passengers,
+    passengersCount:passengers.length,
+    totalPassengers:passengers.length,
 
-      passengers,
-      passengersCount:passengers.length,
-      totalPassengers:passengers.length,
+    entryName:sharedEntryName.value,
+    entryPhone:sharedEntryPhone.value,
 
-      entryName:sharedEntryName.value,
-      entryPhone:sharedEntryPhone.value,
+    tripDate:sharedDate.value,
+    tripTime:sharedTime.value,
+    notes:sharedNotes.value,
 
-      tripDate:sharedDate.value,
-      tripTime:sharedTime.value,
-      notes:sharedNotes.value,
+    status:"Review"
+  };
 
-      status:"Scheduled"
-    };
+  pendingTrips.push(sharedTrip);
+  localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
 
-    const res = await fetch(API_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify(sharedTrip)
-    });
-
-    if(!res.ok){
-      const err = await res.json();
-      throw new Error(err.message || "Server Error");
-    }
-
-    localStorage.removeItem("reservationSharedDraft");
-
-    showAlert("Shared Reservation Submitted ✔");
-
-    window.location.href = "/admin/trips-hub.html";
-
-  }catch(err){
-    console.log(err);
-    showAlert(err.message || "Server Error");
-  }finally{
-    submitSharedBtn.disabled = false;
-    submitSharedBtn.innerText = "Submit Shared";
-  }
+  clearSharedForm();
+  showReviewPage();
 });
 
-/* ================= INIT ================= */
+saveDraftBtn?.addEventListener("click",()=>{
+  showAlert("Draft will be handled in Dispatch Review build.");
+});
+
+saveSharedDraftBtn?.addEventListener("click",()=>{
+  showAlert("Shared draft will be handled in Dispatch Review build.");
+});
+
+buildTopHeader();
+buildReviewPage();
 
 loadEntryInfo();
-loadDraft();
-loadSharedDraft();
-
 await loadSystemTimezone();
 await loadAdminServices();
 
