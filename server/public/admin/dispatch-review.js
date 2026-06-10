@@ -485,10 +485,22 @@ function isClosedTrip(t){
 }
 
 function buildDisplayItems(trips){
-  const items = [];
+  const activeCodes =
+  services.map(s =>
+    getServiceCodeFromService(s)
+  );
+
+const items = [];
   const usedShared = new Set();
 
   trips.forEach(t=>{
+
+const tripCode =
+  getServiceCodeFromTrip(t);
+
+if(!activeCodes.includes(tripCode)){
+  return;
+}
     if(!isClosedTrip(t)) return;
 
     if(isSharedTrip(t)){
