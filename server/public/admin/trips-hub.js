@@ -592,24 +592,6 @@ function tripMatchesService(t, code) {
   if (code === "ALL") return true;
   return getServiceCodeFromTrip(t) === code;
 }
-function tripAllowedByService(t){
-
-  const code = getServiceCodeFromTrip(t);
-
-  const service = services.find(
-    s => getServiceCodeFromService(s) === code
-  );
-
-  if(!service) return false;
-
-  const source = getSourceCode(t);
-
-  if(source === "CO"){
-    return service.companyEnabled === true;
-  }
-
-  return service.enabled === true;
-}
 
 /* ===============================
    GEO / DISTANCE
@@ -849,10 +831,6 @@ function buildDisplayItems(trips) {
   const usedShared = new Set();
 
   trips.forEach(t => {
-
-  if(!tripAllowedByService(t)){
-    return;
-  }
     if (isSharedTrip(t)) {
       const key = getSharedKey(t);
       if (usedShared.has(key)) return;
