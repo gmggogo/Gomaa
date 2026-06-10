@@ -73,13 +73,13 @@ if(!container) console.error("Missing #hubContainer");
       addBtn.className = "top-add-trip-btn";
       addBtn.onclick = e=>{
         e.preventDefault();
-        window.location.href = "/admin/add-trip.html";
+        window.location.href = "/admin/add-reservation.html";
       };
       wrap.appendChild(addBtn);
     }else{
       wrap.innerHTML = `
         <button class="top-add-trip-btn" type="button"
-          onclick="window.location.href='/admin/add-trip.html'">
+          onclick="window.location.href='/admin/add-reservation.html'">
           + Add Trip
         </button>
       `;
