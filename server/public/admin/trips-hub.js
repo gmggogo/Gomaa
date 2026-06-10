@@ -1141,7 +1141,7 @@ function render(){
     return;
   }
 
- const groups = groupDisplayItemsByBookedDate();
+const groups = groupDisplayItemsByBookedDate();
 
 const wrap = document.createElement("div");
 wrap.className = "table-wrap";
@@ -1150,39 +1150,61 @@ const table = document.createElement("table");
 table.className = "hub-table";
 
 table.innerHTML = `
-      <tr>
-        <th>#</th>
-        <th>Select</th>
-        <th>Trip #</th>
-        <th>Service</th>
-        <th>Company</th>
-        <th>Entry</th>
-        <th>Entry Phone</th>
-        <th>Client / Passengers</th>
-        <th>Phone</th>
-        <th>Email</th>
-        <th>Pickup</th>
-        <th>Stops</th>
-        <th>Dropoff</th>
-        <th>Notes</th>
-        <th>Trip Date</th>
-        <th>Trip Time</th>
-        <th>Booked Date</th>
-        <th>Booked Time</th>
-        <th>Status</th>
-      </tr>
-    `;
+<tr>
+  <th>#</th>
+  <th>Select</th>
+  <th>Trip #</th>
+  <th>Service</th>
+  <th>Company</th>
+  <th>Entry</th>
+  <th>Entry Phone</th>
+  <th>Client / Passengers</th>
+  <th>Phone</th>
+  <th>Email</th>
+  <th>Pickup</th>
+  <th>Stops</th>
+  <th>Dropoff</th>
+  <th>Notes</th>
+  <th>Trip Date</th>
+  <th>Trip Time</th>
+  <th>Booked Date</th>
+  <th>Booked Time</th>
+  <th>Status</th>
+</tr>
+`;
 
-    groups[dayKey].forEach((item,index)=>{
-      table.appendChild(
-        item.kind === "shared"
-          ? renderSharedRow(item,index + 1)
-          : renderTripRow(item,index + 1)
-      );
-    });
+Object.keys(groups)
+.sort((a,b)=>new Date(b)-new Date(a))
+.forEach(dayKey=>{
 
-    wrap.appendChild(table);
-    container.appendChild(wrap);
+  const dateRow = document.createElement("tr");
+
+  dateRow.innerHTML = `
+    <td colspan="19"
+        style="
+        background:#dbeafe;
+        color:#1e3a8a;
+        font-weight:900;
+        text-align:left;
+        padding:12px;">
+      Booked: ${dayKey}
+    </td>
+  `;
+
+  table.appendChild(dateRow);
+
+  groups[dayKey].forEach((item,index)=>{
+    table.appendChild(
+      item.kind === "shared"
+        ? renderSharedRow(item,index + 1)
+        : renderTripRow(item,index + 1)
+    );
+  });
+
+});
+
+wrap.appendChild(table);
+container.appendChild(wrap);
   });
 
   updateSelectionButtons();
