@@ -716,46 +716,26 @@ function buildDisplayItems(trips){
   const usedShared = new Set();
 
   trips.forEach(t=>{
+    if(isSharedTrip(t)){
+      const key = getSharedKey(t);
+      if(usedShared.has(key)) return;
 
-    const service = services.find(
-      s => getServiceCodeFromService(s) === getServiceCodeFromTrip(t)
-    );
+      usedShared.add(key);
 
-    if(service){
+      const group = getSharedGroups(trips).find(g=>getSharedKey(g[0]) === key) || [t];
 
-      const companyOn = service.companyEnabled === true;
-      const gqOn = service.enabled === true;
+      if(!isSharedVisibleInHub(group)) return;
 
-      if(!companyOn && !gqOn){
-        return;
-      }
+      items.push({
+        kind:"shared",
+        key,
+        bookedKey:getBookedGroupKey(group[0]),
+        date:getBookedDateObj(group[0]),
+        group
+      });
 
+      return;
     }
-
-   if(isSharedTrip(t)){
-  const key = getSharedKey(t);
-
-  if(usedShared.has(key)) return;
-
-  usedShared.add(key);
-
-  const group =
-    getSharedGroups(trips).find(
-      g => getSharedKey(g[0]) === key
-    ) || [t];
-
-  if(!isSharedVisibleInHub(group)) return;
-
-  items.push({
-    kind:"shared",
-    key,
-    bookedKey:getBookedGroupKey(group[0]),
-    date:getBookedDateObj(group[0]),
-    group
-  });
-
-  return;
-}
 
     if(!isTripVisibleInHub(t)) return;
 
@@ -798,17 +778,35 @@ function searchableText(item){
 }
 
 function applyFilters(){
+
   let trips = hubTrips;
 
+  const activeCodes =
+  services.map(s => getServiceCodeFromService(s));
+
+trips = trips.filter(t =>
+  activeCodes.includes(
+    getServiceCodeFromTrip(t)
+  )
+);
+
   if(activeService !== "ALL"){
-    trips = trips.filter(t=>tripMatchesService(t,activeService));
+    trips = trips.filter(t =>
+      tripMatchesService(t,activeService)
+    );
   }
 
   displayItems = buildDisplayItems(trips);
 
-  const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+  const q =
+    searchInput
+      ? searchInput.value.toLowerCase().trim()
+      : "";
+
   if(q){
-    displayItems = displayItems.filter(item=>searchableText(item).includes(q));
+    displayItems = displayItems.filter(item =>
+      searchableText(item).includes(q)
+    );
   }
 
   renderStats();
