@@ -612,7 +612,16 @@ function normalizeKnownCode(code){
 }
 
 function getServiceCodeFromService(s){
-  return normalizeKnownCode(s?.companySuffix || s?.suffix || s?.serviceKey || s?.key || s?.code || s?.title || s?.name || "");
+
+  const code =
+    s?.companySuffix ||
+    s?.suffix ||
+    s?.serviceKey ||
+    s?.key ||
+    s?.code ||
+    "";
+
+  return normalizeKnownCode(code);
 }
 
 function getServiceTitle(s){
