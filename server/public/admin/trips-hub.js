@@ -1141,21 +1141,15 @@ function render(){
     return;
   }
 
-  const groups = groupDisplayItemsByBookedDate();
+ const groups = groupDisplayItemsByBookedDate();
 
-  Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(dayKey=>{
-    const title = document.createElement("div");
-    title.className = "booked-title";
-    title.textContent = "Booked: " + dayKey;
-    container.appendChild(title);
+const wrap = document.createElement("div");
+wrap.className = "table-wrap";
 
-    const wrap = document.createElement("div");
-    wrap.className = "table-wrap";
+const table = document.createElement("table");
+table.className = "hub-table";
 
-    const table = document.createElement("table");
-    table.className = "hub-table";
-
-    table.innerHTML = `
+table.innerHTML = `
       <tr>
         <th>#</th>
         <th>Select</th>
