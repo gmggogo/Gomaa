@@ -175,8 +175,22 @@ if(!container) console.error("Missing #hubContainer");
       border-left:6px solid #2563eb;border-radius:12px;font-size:15px;font-weight:900;
     }
 
-    .table-wrap{width:100%;overflow-x:auto;margin-bottom:20px;border-radius:14px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.08);}
-    .hub-table{width:100%;border-collapse:collapse;background:#fff;min-width:1950px;}
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  margin-bottom:20px;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+}
+
+.hub-table{
+  min-width:2200px;
+  width:max-content;
+  border-collapse:collapse;
+  background:#fff;
+}min-width:1950px;}
     .hub-table th,.hub-table td{border:1px solid #dbe3ee;padding:7px;text-align:center;font-size:13px;vertical-align:middle;line-height:1.35;}
     .hub-table th{background:#2563eb;color:#fff;font-weight:900;white-space:nowrap;font-size:13px;}
 
