@@ -1269,9 +1269,10 @@ function render() {
     table.className = "hub-table";
 
     table.innerHTML = `
-      <tr>
-        <th>Select</th>
-        <th>Trip #</th>
+  <tr>
+    <th>#</th>
+    <th>Select</th>
+    <th>Trip #</th>
         <th>Service</th>
         <th>Company</th>
         <th>Entry</th>
@@ -1290,9 +1291,13 @@ function render() {
       </tr>
     `;
 
-    groups[dayKey].forEach(item => {
-      table.appendChild(item.kind === "shared" ? renderSharedRow(item) : renderTripRow(item));
-    });
+   groups[dayKey].forEach((item,index) => {
+  table.appendChild(
+    item.kind === "shared"
+      ? renderSharedRow(item,index + 1)
+      : renderTripRow(item,index + 1)
+  );
+});
 
     wrap.appendChild(table);
     container.appendChild(wrap);
@@ -1301,7 +1306,7 @@ function render() {
   updateSelectionButtons();
 }
 
-function renderTripRow(item) {
+function renderTripRow(item,rowNumber) {
   const t = item.trip;
   const editing = editingKey === item.key;
   const stopsText = stopsPlain(getStops(t));
@@ -1310,9 +1315,13 @@ function renderTripRow(item) {
   tr.dataset.id = String(t._id);
   tr.className = rowClass(item);
 
-  tr.innerHTML = `
-    <td><input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')"></td>
-    <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
+tr.innerHTML = `
+  <td>${rowNumber}</td>
+  <td>
+    <input type="checkbox"
+      ${selectedItems.has(item.key) ? "checked" : ""}
+      onchange="toggleSelection('${item.key}')">
+  </td>    <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
     <td>${editing ? createEditInput(t.company || "", "company") : safe(t.company || "")}</td>
     <td>${editing ? createEditInput(t.entryName || "", "entryName") : safe(t.entryName || "")}</td>
@@ -1333,7 +1342,7 @@ function renderTripRow(item) {
   return tr;
 }
 
-function renderSharedRow(item) {
+function renderSharedRow(item,rowNumber) {
   const group = item.group;
   const first = group[0] || {};
   const passengers = getRealPassengersFromGroup(group);
@@ -1359,9 +1368,14 @@ function renderSharedRow(item) {
     ? passengers.map((p,i) => createEditArea(p.dropoff || "", `p_${i}_dropoff`)).join("")
     : passengers.map((p,i) => `${i + 1}. ${safe(p.dropoff || "")}`).join("\n");
 
-  tr.innerHTML = `
-    <td><input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')"></td>
-    <td><span class="trip-number-badge">${safe(getTripNumber(first))}</span></td>
+ tr.innerHTML = `
+  <td>${rowNumber}</td>
+  <td>
+    <input type="checkbox"
+      ${selectedItems.has(item.key) ? "checked" : ""}
+      onchange="toggleSelection('${item.key}')">
+  </td>
+  <td><span class="trip-number-badge">${safe(getTripNumber(first))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(first))}</span></td>
     <td>${editing ? createEditInput(first.company || "", "company") : safe(first.company || "")}</td>
     <td>${editing ? createEditInput(first.entryName || "", "entryName") : safe(first.entryName || "")}</td>
