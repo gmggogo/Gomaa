@@ -263,16 +263,17 @@ function normalizeKnownCode(code){
 }
 
 function getServiceCodeFromService(s){
-  return normalizeKnownCode(
-    s?.companySuffix ||
-    s?.suffix ||
+
+  const code = normalizeText(
     s?.serviceKey ||
     s?.key ||
     s?.code ||
-    s?.title ||
-    s?.name ||
+    s?.companySuffix ||
+    s?.suffix ||
     ""
-  );
+  ).toUpperCase();
+
+  return normalizeKnownCode(code);
 }
 
 function getServiceTitle(s){
@@ -287,20 +288,32 @@ function getServiceTitle(s){
 }
 
 function getServiceCodeFromTrip(t){
+
   const direct = normalizeText(
     t?.serviceKey ||
     t?.serviceCode ||
     t?.serviceType ||
     t?.serviceSuffix ||
-    t?.service ||
     t?.pricingSnapshot?.serviceKey ||
-    t?.pricingSnapshot?.serviceCode ||
     t?.priceSnapshot?.serviceKey ||
-    t?.priceSnapshot?.serviceCode ||
     ""
   ).toUpperCase();
 
-  if(direct) return normalizeKnownCode(direct);
+  if(direct){
+    return normalizeKnownCode(direct);
+  }
+
+  const num = normalizeText(t?.tripNumber).toUpperCase();
+
+  if(num.includes("-SH")) return "SH";
+  if(num.includes("-XL")) return "XL";
+  if(num.includes("-WH")) return "WH";
+  if(num.includes("-TX")) return "TX";
+  if(num.includes("-LM")) return "LM";
+  if(num.includes("-ST")) return "ST";
+
+  return "ST";
+}
 
   const num = normalizeText(t?.tripNumber).toUpperCase();
 
