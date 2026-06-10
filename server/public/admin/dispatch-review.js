@@ -807,19 +807,30 @@ function countItemsByService(code){
   return stats;
 }
 
-function renderServiceTabs(){
-  const wrap = document.getElementById("serviceTabs");
+function renderServiceCards(){
+
+  const wrap = document.getElementById("serviceCards");
   if(!wrap) return;
 
-  const tabs = [
-    {code:"ALL",title:"ALL"},
-    ...services.map(s=>({
+  const base = services.length
+    ? services.map(s=>({
       code:getServiceCodeFromService(s),
       title:getServiceTitle(s)
     }))
-  ];
+    : [];
 
-  wrap.innerHTML = tabs.map(tab=>{
+  console.log(
+    services.map(s => ({
+      title: s.title,
+      key: s.serviceKey,
+      suffix: s.suffix,
+      companySuffix: s.companySuffix,
+      code: getServiceCodeFromService(s)
+    }))
+  );
+
+  wrap.innerHTML = ...
+}
     const c = countItemsByService(tab.code);
 
     return `
