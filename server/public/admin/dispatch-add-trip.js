@@ -141,6 +141,38 @@ function getSystemNow(){
   );
 }
 
+function buildTopHeader(){
+  if(document.getElementById("dispatchAddHeader")) return;
+
+  const container = document.querySelector(".container");
+  if(!container) return;
+
+  const header = document.createElement("div");
+  header.id = "dispatchAddHeader";
+  header.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <button id="backToHubBtn" type="button" style="background:#64748b;color:#fff;flex:1;">
+        ← Back To Trips Hub
+      </button>
+      <button id="showAddBtn" type="button" style="background:#f97316;color:#fff;flex:1;">
+        Dispatch Add Trip
+      </button>
+      <button id="showReviewBtn" type="button" style="background:#16a34a;color:#fff;flex:1;">
+        Dispatch Review
+      </button>
+    </div>
+  `;
+
+  container.insertBefore(header,container.firstChild);
+
+  document.getElementById("backToHubBtn").onclick = ()=>{
+    window.location.href = "/admin/trips-hub.html";
+  };
+
+  document.getElementById("showAddBtn").onclick = showAddPage;
+  document.getElementById("showReviewBtn").onclick = showReviewPage;
+}
+
 function buildReviewPage(){
   if(document.getElementById("dispatchReviewPage")) return;
 
@@ -590,15 +622,8 @@ saveDraftBtn?.addEventListener("click",()=>{
 saveSharedDraftBtn?.addEventListener("click",()=>{
   showAlert("Shared draft will be handled in Dispatch Review build.");
 });
-document.getElementById("backToHubBtn").onclick = ()=>{
-  window.location.href = "/admin/trips-hub.html";
-};
 
-document.getElementById("showAddBtn").onclick = showAddPage;
-
-document.getElementById("showReviewBtn").onclick = showReviewPage;
-
-
+buildTopHeader();
 buildReviewPage();
 
 loadEntryInfo();
