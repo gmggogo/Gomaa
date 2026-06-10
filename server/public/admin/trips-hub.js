@@ -98,8 +98,7 @@ if(!container) console.error("Missing #hubContainer");
       <div class="stat-card today"><div id="statToday" class="stat-number">0</div><div class="stat-label">Trips Today</div></div>
       <div class="stat-card company"><div id="statCompany" class="stat-number">0</div><div class="stat-label">Company</div></div>
       <div class="stat-card gq"><div id="statGq" class="stat-number">0</div><div class="stat-label">Get Quote</div></div>
-      <div class="stat-card shared"><div id="statShared" class="stat-number">0</div><div class="stat-label">Shared</div></div>
-    `;
+         `;
     page.insertBefore(stats,container);
   }
 
@@ -832,7 +831,6 @@ function renderStats(){
   setText("statToday",items.filter(item=>isBookedToday(item.kind === "trip" ? item.trip : item.group[0])).length);
   setText("statCompany",items.filter(item=>getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "CO").length);
   setText("statGq",items.filter(item=>getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "GQ").length);
-  setText("statShared",items.filter(item=>item.kind === "shared").length);
 }
 
 function renderServiceTabs(){
