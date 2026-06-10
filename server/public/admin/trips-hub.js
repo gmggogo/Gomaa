@@ -1205,7 +1205,6 @@ Object.keys(groups)
 
 wrap.appendChild(table);
 container.appendChild(wrap);
-  });
 
   updateSelectionButtons();
 }
