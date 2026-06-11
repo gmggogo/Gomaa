@@ -656,7 +656,9 @@ const res = await fetch(API_URL,{
   },
 body:JSON.stringify({
   ...trip,
-  status:"Booked"
+  status:"Review",
+  reservationStatus:"Review",
+  reviewOnly:true
 })
 });
 
@@ -697,7 +699,9 @@ submitSharedBtn?.addEventListener("click", async function(){
   },
 body:JSON.stringify({
   ...trip,
-  status:"Booked"
+  status:"Review",
+  reservationStatus:"Review",
+  reviewOnly:true
 })
 });
 
