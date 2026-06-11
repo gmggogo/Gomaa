@@ -654,6 +654,14 @@ submitTripBtn?.addEventListener("click", async function(){
     status:"Review"
   };
 
+const res = await fetch(API_URL,{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json",
+    Authorization:"Bearer " + token
+  },
+  body:JSON.stringify(trip)
+});
 
 const data = await res.json();
 
