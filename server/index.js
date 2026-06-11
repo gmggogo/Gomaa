@@ -677,6 +677,11 @@ passengers: {
 
       status: { type: String, default: "Scheduled" },
 
+reservationStatus: { type: String, default: "" },
+reviewOnly: { type: Boolean, default: false },
+source: { type: String, default: "" },
+bookingSource: { type: String, default: "" },
+
       priceAmount: { type: Number, default: 0 },
 
       finalPrice: { type: Number, default: 0 },
@@ -1393,30 +1398,27 @@ else if(cleanKey === "SHARED"){
      RESERVED
   ========================= */
 
-  if (type === "reserved") {
+ if (type === "reserved") {
 
-    const lastTrip = await Trip.findOne({
-      tripNumber: { $regex: /^RV-\d+$/ }
-    }).sort({ createdAt: -1, _id: -1 });
+  const lastTrip = await Trip.findOne({
+    tripNumber: { $regex: /^RV-\d+(-[A-Z]+)?$/ }
+  }).sort({ createdAt: -1, _id: -1 });
 
-    let next = 1001;
+  let next = 1001;
 
-    if (lastTrip?.tripNumber) {
-      const num = parseInt(
-        lastTrip.tripNumber.replace("RV-", ""),
-        10
-      );
-      if (!isNaN(num)) next = num + 1;
-    }
-
-    let tripNumber = "RV-" + next;
-
-    if (suffix) {
-      tripNumber = `${tripNumber}-${suffix}`;
-    }
-
-    return tripNumber;
+  if (lastTrip?.tripNumber) {
+    const match = lastTrip.tripNumber.match(/^RV-(\d+)/);
+    if (match) next = Number(match[1]) + 1;
   }
+
+  let tripNumber = "RV-" + next;
+
+  if (suffix) {
+    tripNumber = `${tripNumber}-${suffix}`;
+  }
+
+  return tripNumber;
+}
 
 /* =========================
    INDIVIDUAL
@@ -3879,8 +3881,20 @@ serviceCode: vehicleTypeFromQuote,
 
       status: normalizeText(req.body.status) || "Booked",
 
-      bookedAt: req.body.bookedAt || new Date(),
-      createdAt: new Date()
+reservationStatus:
+  normalizeText(req.body.reservationStatus),
+
+reviewOnly:
+  req.body.reviewOnly === true,
+
+source:
+  normalizeText(req.body.source),
+
+bookingSource:
+  normalizeText(req.body.bookingSource),
+
+bookedAt: req.body.bookedAt || new Date(),
+createdAt: new Date()
 
     });
 
