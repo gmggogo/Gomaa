@@ -554,9 +554,12 @@ submitTripBtn?.addEventListener("click",function(){
 
   pendingTrips.push(trip);
   localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
-
+renderPendingReview();
   clearIndividualForm();
-  showReviewPage();
+
+localStorage.removeItem("dispatchTripDraft");
+
+showAlert("Trip Added To Dispatch Review ✔");
 });
 
 submitSharedBtn?.addEventListener("click",function(){
@@ -598,8 +601,9 @@ submitSharedBtn?.addEventListener("click",function(){
     passengersCount:passengers.length,
     totalPassengers:passengers.length,
 
-    entryName:sharedEntryName.value,
-    entryPhone:sharedEntryPhone.value,
+serviceKey:getServiceCode(activeService),
+entryName:sharedEntryName.value,
+entryPhone:sharedEntryPhone.value,
 
     tripDate:sharedDate.value,
     tripTime:sharedTime.value,
@@ -612,21 +616,139 @@ submitSharedBtn?.addEventListener("click",function(){
   localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
 
   clearSharedForm();
-  showReviewPage();
+
+localStorage.removeItem("dispatchSharedDraft");
+
+showAlert("Shared Trip Added To Dispatch Review ✔");
 });
 
 saveDraftBtn?.addEventListener("click",()=>{
-  showAlert("Draft will be handled in Dispatch Review build.");
+
+  const draft = {
+    serviceKey:getServiceCode(activeService),
+clientName:clientName.value,
+    clientPhone:clientPhone.value,
+    pickup:pickupInput.value,
+    dropoff:dropoffInput.value,
+    tripDate:tripDate.value,
+    tripTime:tripTime.value,
+    notes:notes.value,
+    stops:[...document.querySelectorAll(".stop-input")]
+      .map(i=>i.value)
+  };
+
+  localStorage.setItem(
+    "dispatchTripDraft",
+    JSON.stringify(draft)
+  );
+
+  showAlert("Draft Saved ✔");
 });
 
 saveSharedDraftBtn?.addEventListener("click",()=>{
-  showAlert("Shared draft will be handled in Dispatch Review build.");
+
+  const passengers = [];
+
+  document.querySelectorAll(".passenger-card").forEach(card=>{
+
+    passengers.push({
+      clientName:
+        card.querySelector(".sharedClientName")?.value || "",
+
+      clientPhone:
+        card.querySelector(".sharedClientPhone")?.value || "",
+
+      pickup:
+        card.querySelector(".sharedPickup")?.value || "",
+
+      dropoff:
+        card.querySelector(".sharedDropoff")?.value || ""
+    });
+
+  });
+
+  localStorage.setItem(
+    "dispatchSharedDraft",
+    JSON.stringify({
+      passengerCount: passengerCount.value,
+      sharedDate: sharedDate.value,
+      sharedTime: sharedTime.value,
+      sharedNotes: sharedNotes.value,
+      passengers
+    })
+  );
+
+  showAlert("Shared Draft Saved ✔");
+
 });
 
 buildTopHeader();
 buildReviewPage();
 
 loadEntryInfo();
+const draft =
+JSON.parse(
+  localStorage.getItem("dispatchTripDraft") || "{}"
+);
+
+clientName.value = draft.clientName || "";
+clientPhone.value = draft.clientPhone || "";
+pickupInput.value = draft.pickup || "";
+dropoffInput.value = draft.dropoff || "";
+tripDate.value = draft.tripDate || "";
+tripTime.value = draft.tripTime || "";
+notes.value = draft.notes || "";
+
+(draft.stops || []).forEach(stop=>{
+  createStopInput(stop);
+});
+const sharedDraft =
+JSON.parse(
+  localStorage.getItem("dispatchSharedDraft") || "{}"
+);
+if(sharedDraft.entryName) sharedEntryName.value = sharedDraft.entryName;
+if(sharedDraft.entryPhone) sharedEntryPhone.value = sharedDraft.entryPhone;
+passengerCount.value =
+  sharedDraft.passengerCount || "";
+
+sharedDate.value =
+  sharedDraft.sharedDate || "";
+
+sharedTime.value =
+  sharedDraft.sharedTime || "";
+
+sharedNotes.value =
+  sharedDraft.sharedNotes || "";
+
+if(sharedDraft.passengerCount){
+
+  renderSharedPassengers(
+    Number(sharedDraft.passengerCount)
+  );
+
+  const cards =
+    document.querySelectorAll(".passenger-card");
+
+  (sharedDraft.passengers || [])
+    .forEach((p,index)=>{
+
+      const card = cards[index];
+      if(!card) return;
+
+      card.querySelector(".sharedClientName").value =
+        p.clientName || "";
+
+      card.querySelector(".sharedClientPhone").value =
+        p.clientPhone || "";
+
+      card.querySelector(".sharedPickup").value =
+        p.pickup || "";
+
+      card.querySelector(".sharedDropoff").value =
+        p.dropoff || "";
+    });
+
+}
 await loadSystemTimezone();
 await loadAdminServices();
 
