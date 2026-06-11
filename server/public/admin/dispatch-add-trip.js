@@ -641,23 +641,40 @@ function buildSharedReviewTrip(){
 
 /* ================= ADD TO REVIEW ================= */
 
-submitTripBtn?.addEventListener("click",function(){
+submitTripBtn?.addEventListener("click", async function(){
   if(!activeService) return showAlert("Select Service");
   if(isSharedService(activeService)) return showAlert("Use Shared Form");
   if(!validateIndividualTrip()) return;
 
   const trip = buildIndividualReviewTrip();
 
-  if(editIndex !== null){
-    pendingTrips[editIndex] = {
-      ...trip,
-      localId: pendingTrips[editIndex]?.localId || trip.localId
-    };
-  }else{
-    pendingTrips.push(trip);
-  }
+const res = await fetch(API_URL,{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json",
+    Authorization:"Bearer " + token
+  },
+  body:JSON.stringify({
+    ...trip,
+    status:"Review",
+    reservationStatus:"Review"
+  })
+});
 
-  saveReview();
+const data = await res.json().catch(()=>({}));
+
+if(!res.ok){
+  throw new Error(data.message || "Create trip failed");
+}
+
+const createdTrip = data.trip || data.data || data;
+
+pendingTrips.push({
+  ...createdTrip,
+  localId: createdTrip._id || createdTrip.id || makeLocalId()
+});
+
+saveReview();
   updateReviewCounter();
   renderPendingReview();
 
@@ -667,22 +684,39 @@ submitTripBtn?.addEventListener("click",function(){
   showAlert("Trip Added To Dispatch Review ✔");
 });
 
-submitSharedBtn?.addEventListener("click",function(){
+submitSharedBtn?.addEventListener("click", async function(){
   if(!activeService) return showAlert("Select Service");
   if(!validateSharedTrip()) return;
 
   const trip = buildSharedReviewTrip();
 
-  if(editIndex !== null){
-    pendingTrips[editIndex] = {
-      ...trip,
-      localId: pendingTrips[editIndex]?.localId || trip.localId
-    };
-  }else{
-    pendingTrips.push(trip);
-  }
+ const res = await fetch(API_URL,{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json",
+    Authorization:"Bearer " + token
+  },
+  body:JSON.stringify({
+    ...trip,
+    status:"Review",
+    reservationStatus:"Review"
+  })
+});
 
-  saveReview();
+const data = await res.json().catch(()=>({}));
+
+if(!res.ok){
+  throw new Error(data.message || "Create shared trip failed");
+}
+
+const createdTrip = data.trip || data.data || data;
+
+pendingTrips.push({
+  ...createdTrip,
+  localId: createdTrip._id || createdTrip.id || makeLocalId()
+});
+
+saveReview();
   updateReviewCounter();
   renderPendingReview();
 
@@ -821,81 +855,45 @@ window.createTripFromReview = async function(index){
   const trip = pendingTrips[index];
   if(!trip) return;
 
-  if(!confirm("Confirm and create RV trip?")) return;
+  const tripId = trip._id || trip.id;
+
+  if(!tripId){
+    return showAlert("Trip ID missing. This trip was not created in database.");
+  }
+
+  if(!confirm("Confirm this RV trip?")) return;
 
   try{
-    const payload = {
-      ...trip,
-
-      reviewOnly:false,
-
-      type:"reserved",
-      reservation:true,
-      source:"RV",
-      bookingSource:"RV",
-
-      status: trip.isShared ? "Scheduled" : "Booked",
-
-      dispatchSelected:false,
-      disabled:false
-    };
-
-    delete payload.localId;
-    delete payload.serviceTitle;
-    delete payload.serviceSuffix;
-    delete payload.passengerCount;
-    delete payload.passengersCount;
-
-    if(payload.isShared){
-      payload.serviceKey = "SHARED";
-      payload.serviceType = "SHARED";
-      payload.serviceCode = "SHARED";
-      payload.tripType = "SHARED";
-      payload.status = "Scheduled";
-
-      payload.passengers = (payload.passengers || []).map((p,i)=>({
-        passengerId:p.passengerId || "P" + (i + 1),
-        clientName:p.clientName || p.name || "",
-        clientPhone:p.clientPhone || p.phone || "",
-        pickup:p.pickup || "",
-        dropoff:p.dropoff || "",
-        status:"Scheduled",
-        priceAmount:Number(p.priceAmount || 0),
-        finalPrice:Number(p.finalPrice || 0),
-        cancelFee:Number(p.cancelFee || 0),
-        noShowFee:Number(p.noShowFee || 0)
-      }));
-
-      payload.totalPassengers = payload.passengers.length;
-    }else{
-      payload.isShared = false;
-      payload.tripType = "INDIVIDUAL";
-    }
-
-    const res = await fetch(API_URL,{
-      method:"POST",
+    const res = await fetch(`${API_URL}/${tripId}`,{
+      method:"PUT",
       headers:{
         "Content-Type":"application/json",
         Authorization:"Bearer " + token
       },
-      body:JSON.stringify(payload)
+      body:JSON.stringify({
+        status:"Confirmed",
+        reservationStatus:"RV",
+        dispatchSelected:false,
+        driverAssigned:false,
+        disabled:false
+      })
     });
 
     const data = await res.json().catch(()=>({}));
 
     if(!res.ok){
-      throw new Error(data.message || "Create trip failed");
+      throw new Error(data.message || "Confirm trip failed");
     }
 
     pendingTrips.splice(index,1);
     saveReview();
     renderPendingReview();
 
-    showAlert("RV Trip Created ✔");
+    showAlert("Trip Confirmed And Sent To Trips Hub ✔");
 
   }catch(err){
     console.error(err);
-    showAlert(err.message || "Create trip failed");
+    showAlert(err.message || "Confirm failed");
   }
 };
 
