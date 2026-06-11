@@ -1,6 +1,7 @@
 /* ==========================================================================
-   TRIPS HUB V6 - FACILITY / GET QUOTE / RESERVED
-   Admin / SuperAdmin / Dispatcher
+   TRIPS HUB V6
+   Facility / Get Quote / Reserved
+   Year Month Day Filters
    ========================================================================== */
 
 const API_URL = "/api/trips";
@@ -19,6 +20,10 @@ let displayItems = [];
 let activeService = "ALL";
 let editingKey = null;
 let refreshTimer = null;
+
+let filterYear = "";
+let filterMonth = "";
+let filterDay = "";
 
 const selectedItems = new Set();
 const markedNotCompleted = new Set();
@@ -43,7 +48,12 @@ if(!container) console.error("Missing #hubContainer");
   document.querySelectorAll("h1,h2,.page-title,.page-subtitle,.page-description")
     .forEach(el=>{
       const txt = String(el.textContent || "").toLowerCase();
-      if(txt.includes("trips hub") || txt.includes("clean admin") || txt.includes("dispatch") || txt.includes("reservation inbox")){
+      if(
+        txt.includes("trips hub") ||
+        txt.includes("clean admin") ||
+        txt.includes("dispatch") ||
+        txt.includes("reservation inbox")
+      ){
         el.remove();
       }
     });
@@ -67,7 +77,7 @@ if(!container) console.error("Missing #hubContainer");
     }else{
       wrap.innerHTML = `
         <button class="top-add-trip-btn" type="button"
-        onclick="window.location.href='/admin/dispatch-add-trip.html'">
+          onclick="window.location.href='/admin/dispatch-add-trip.html'">
           + Add Trip
         </button>
       `;
@@ -88,6 +98,19 @@ if(!container) console.error("Missing #hubContainer");
     tabs.id = "serviceTabs";
     tabs.className = "service-tabs";
     page.insertBefore(tabs,container);
+  }
+
+  if(!document.getElementById("hubDateFilters")){
+    const filters = document.createElement("div");
+    filters.id = "hubDateFilters";
+    filters.className = "hub-date-filters";
+    filters.innerHTML = `
+      <select id="yearFilter" class="hub-filter"><option value="">Year</option></select>
+      <select id="monthFilter" class="hub-filter"><option value="">Month</option></select>
+      <select id="dayFilter" class="hub-filter"><option value="">Day</option></select>
+      <button id="clearDateFilters" class="clear-filter-btn" type="button">Clear</button>
+    `;
+    page.insertBefore(filters,container);
   }
 
   if(!document.getElementById("hubActionBar")){
@@ -119,34 +142,60 @@ if(!container) console.error("Missing #hubContainer");
       font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px rgba(37,99,235,.24);
     }
 
-    .hub-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0 0 14px;}
+    .hub-stats{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+      gap:10px;margin:0 0 14px;
+    }
     .stat-card{
       background:#fff;border:1px solid #dbe3ee;border-radius:15px;padding:13px 10px;
       text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.07);
     }
     .stat-card.total{border-left:6px solid #2563eb;}
+    .stat-card.new{border-left:6px solid #16a34a;}
+    .stat-card.today{border-left:6px solid #0ea5e9;}
     .stat-card.facility{border-left:6px solid #1d4ed8;}
     .stat-card.gq{border-left:6px solid #22c55e;}
     .stat-card.reserved{border-left:6px solid #f59e0b;}
 
-    .stat-title{font-size:13px;font-weight:900;color:#64748b;letter-spacing:.3px;}
-    .stat-number{font-size:28px;line-height:1.1;font-weight:900;color:#0f172a;margin-top:4px;}
+    .stat-title{font-size:12px;font-weight:900;color:#64748b;letter-spacing:.3px;}
+    .stat-number{font-size:27px;line-height:1.1;font-weight:900;color:#0f172a;margin-top:4px;}
+
     .mini-head,.mini-values{
-      display:grid;grid-template-columns:repeat(3,1fr);align-items:center;text-align:center;
+      display:grid;grid-template-columns:repeat(3,1fr);
+      align-items:center;text-align:center;
     }
     .mini-head{margin-top:9px;font-size:10px;font-weight:900;color:#64748b;}
     .mini-values{margin-top:3px;font-size:14px;font-weight:900;color:#0f172a;}
 
-    .service-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:0 0 14px;}
+    .service-tabs{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+      gap:8px;margin:0 0 14px;
+    }
     .service-tab{
-      border:1px solid #dbe3ee;background:#fff;color:#0f172a;border-radius:14px;padding:10px 8px;
-      cursor:pointer;font-weight:900;box-shadow:0 5px 14px rgba(15,23,42,.06);
+      border:1px solid #dbe3ee;background:#fff;color:#0f172a;border-radius:14px;
+      padding:10px 8px;cursor:pointer;font-weight:900;
+      box-shadow:0 5px 14px rgba(15,23,42,.06);
       text-align:center;min-height:92px;
     }
     .service-tab.active{background:#2563eb;color:#fff;border-color:#2563eb;}
     .service-title{font-size:13px;line-height:1.15;margin-bottom:5px;}
     .service-total{font-size:25px;line-height:1.05;font-weight:900;}
-    .service-tab.active .mini-head,.service-tab.active .mini-values{color:#fff;}
+    .service-tab.active .mini-head,
+    .service-tab.active .mini-values{color:#fff;}
+
+    .hub-date-filters{
+      display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;
+      background:#fff;border:1px solid #dbe3ee;border-radius:14px;padding:10px;
+      box-shadow:0 5px 14px rgba(15,23,42,.06);
+    }
+    .hub-filter{
+      min-width:130px;padding:10px 12px;border:1px solid #cbd5e1;
+      border-radius:10px;font-weight:900;color:#0f172a;background:#fff;
+    }
+    .clear-filter-btn{
+      border:none;border-radius:10px;padding:10px 16px;background:#64748b;
+      color:#fff;font-weight:900;cursor:pointer;
+    }
 
     .hub-action-bar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center;}
     .hub-action-btn{border:none;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:900;cursor:pointer;color:#fff;}
@@ -161,7 +210,10 @@ if(!container) console.error("Missing #hubContainer");
       border-radius:14px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.08);
     }
     .hub-table{min-width:2200px;width:max-content;border-collapse:collapse;background:#fff;}
-    .hub-table th,.hub-table td{border:1px solid #dbe3ee;padding:7px;text-align:center;font-size:13px;vertical-align:middle;line-height:1.35;}
+    .hub-table th,.hub-table td{
+      border:1px solid #dbe3ee;padding:7px;text-align:center;font-size:13px;
+      vertical-align:middle;line-height:1.35;
+    }
     .hub-table th{background:#2563eb;color:#fff;font-weight:900;white-space:nowrap;font-size:13px;}
 
     .wide-address{min-width:240px;max-width:360px;text-align:left!important;white-space:pre-line;word-break:break-word;font-size:12px!important;}
@@ -184,7 +236,6 @@ if(!container) console.error("Missing #hubContainer");
     .edit-textarea{min-height:58px;resize:vertical;}
 
     .facility-row td{background:#dbeafe;}
-    .company-row td{background:#dbeafe;}
     .gq-row td{background:#dcfce7;}
     .reserved-row td{background:#fef3c7;}
     .shared-row td{background:#ede9fe;}
@@ -197,7 +248,8 @@ if(!container) console.error("Missing #hubContainer");
       .hub-table th,.hub-table td{font-size:11px;padding:6px;}
       .wide-address{font-size:10.5px!important;}
       .service-tabs{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));}
-      .hub-stats{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));}
+      .hub-stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
+      .hub-filter{flex:1;min-width:100px;}
     }
   `;
   document.head.appendChild(style);
@@ -275,6 +327,12 @@ function getTripNumber(t){ return String(t?.tripNumber || t?.bookingNumber || t?
 
 function getBookedDateObj(t){ return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || Date.now()); }
 
+function getFilterDateObj(t){
+  const dt = parseTripDateTime(t);
+  if(dt && !isNaN(dt)) return dt;
+  return getBookedDateObj(t);
+}
+
 function getBookedGroupKey(t){
   const d = getBookedDateObj(t);
   if(!d || isNaN(d)) return "Unknown";
@@ -282,7 +340,11 @@ function getBookedGroupKey(t){
 }
 
 function formatDateObj(d){ return (!d || isNaN(d)) ? "-" : d.toLocaleDateString(); }
-function formatTimeObj(d){ return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
+
+function formatTimeObj(d){
+  return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+}
+
 function getBookedDate(t){ return formatDateObj(getBookedDateObj(t)); }
 function getBookedTime(t){ return formatTimeObj(getBookedDateObj(t)); }
 
@@ -299,8 +361,9 @@ function isNewTrip(t){
   return !isNaN(d) && Date.now() - d.getTime() <= 2 * 60 * 60 * 1000;
 }
 
-function isBookedToday(t){
-  return getBookedGroupKey(t) === dateKey(getAZNow());
+function isTripToday(t){
+  const d = getFilterDateObj(t);
+  return d && !isNaN(d) && dateKey(d) === dateKey(getAZNow());
 }
 
 function validateTripDateTime(date,time){
@@ -353,10 +416,15 @@ function parseStopsText(text){
 
 function getSourceCode(t){
   const raw = [
-    t?.source,t?.from,t?.bookingSource,t?.createdBy,t?.type,t?.tripType,
+    t?.source,
+    t?.from,
+    t?.bookingSource,
+    t?.createdBy,
+    t?.type,
+    t?.tripType,
     t?.isReserved ? "reserved" : "",
     t?.reserved ? "reserved" : "",
-    t?.company ? "company" : ""
+    t?.company ? "facility" : ""
   ].join(" ").toLowerCase();
 
   if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv")) return "RV";
@@ -403,16 +471,21 @@ function getServiceTitle(s){
 }
 
 function getServiceCodeFromTrip(t){
-  const direct = normalizeText(t?.serviceKey || t?.serviceCode || t?.serviceType || t?.serviceSuffix || t?.service || "").toUpperCase();
+  const direct = normalizeText(
+    t?.serviceKey || t?.serviceCode || t?.serviceType || t?.serviceSuffix || t?.service || ""
+  ).toUpperCase();
+
   if(direct) return normalizeKnownCode(direct);
 
   const num = normalizeText(t?.tripNumber).toUpperCase();
+
   if(num.includes("-SH") || isSharedTrip(t)) return "SH";
   if(num.includes("-XL")) return "XL";
   if(num.includes("-WH")) return "WH";
   if(num.includes("-TX")) return "TX";
   if(num.includes("-LM")) return "LM";
   if(num.includes("-ST")) return "ST";
+
   return "ST";
 }
 
@@ -443,7 +516,10 @@ function getSharedKey(t){
 
 function getRealPassengersFromGroup(group){
   const first = group[0] || {};
-  if(Array.isArray(first.passengers) && first.passengers.length) return first.passengers;
+
+  if(Array.isArray(first.passengers) && first.passengers.length){
+    return first.passengers;
+  }
 
   return group.map((t,i)=>({
     passengerId:"P" + (i+1),
@@ -461,11 +537,13 @@ function getRealPassengersFromGroup(group){
 
 function getSharedGroups(list=hubTrips){
   const map = {};
+
   list.filter(isSharedTrip).forEach(t=>{
     const key = getSharedKey(t);
     if(!map[key]) map[key] = [];
     map[key].push(t);
   });
+
   return Object.values(map).map(group=>
     group.sort((a,b)=>Number(a.passengerIndex || 0)-Number(b.passengerIndex || 0))
   );
@@ -497,7 +575,7 @@ function isSharedVisibleInHub(group){
   return passengers.some(p=>isActiveStatus(p.status || first.status));
 }
 
-/* ================= AUTO NOT COMPLETED ================= */
+/* ================= AUTO ================= */
 
 async function autoMarkNotCompleted(list){
   const overdue = list.filter(t=>{
@@ -518,7 +596,9 @@ async function autoMarkNotCompleted(list){
         },
         body:JSON.stringify({status:"Not Completed"})
       });
+
       t.status = "Not Completed";
+
     }catch(err){
       console.log("Auto Not Completed Failed",err);
     }
@@ -572,6 +652,7 @@ async function loadHubTrips(){
       : [];
 
     await autoMarkNotCompleted(hubTrips);
+    buildDateFilters();
     applyFilters();
 
   }catch(err){
@@ -624,25 +705,62 @@ function buildDisplayItems(trips){
   return items.sort((a,b)=>b.date-a.date);
 }
 
+function getItemTrip(item){
+  return item.kind === "trip" ? item.trip : item.group[0];
+}
+
 function getActiveServiceTrips(){
   const activeCodes = services.map(s=>getServiceCodeFromService(s));
   return hubTrips.filter(t=>activeCodes.includes(getServiceCodeFromTrip(t)));
 }
 
+function tripPassesDateFilter(t){
+  const d = getFilterDateObj(t);
+  if(!d || isNaN(d)) return false;
+
+  const y = String(d.getFullYear());
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+
+  if(filterYear && y !== filterYear) return false;
+  if(filterMonth && m !== filterMonth) return false;
+  if(filterDay && day !== filterDay) return false;
+
+  return true;
+}
+
+function getBaseTripsForFilters(){
+  return getActiveServiceTrips().filter(tripPassesDateFilter);
+}
+
 function searchableText(item){
-  const first = item.kind === "trip" ? item.trip : item.group[0];
+  const first = getItemTrip(item);
   const passengers = item.kind === "shared" ? getRealPassengersFromGroup(item.group) : [];
 
   return [
-    getTripNumber(first),getServiceTitleByTrip(first),first.company,first.entryName,first.entryPhone,
-    getEmail(first),first.clientName,first.clientPhone,first.pickup,first.dropoff,
-    stopsPlain(getStops(first)),getNotes(first),first.tripDate,first.tripTime,first.status,
-    getBookedDate(first),getBookedTime(first),JSON.stringify(passengers)
+    getTripNumber(first),
+    getServiceTitleByTrip(first),
+    first.company,
+    first.entryName,
+    first.entryPhone,
+    getEmail(first),
+    first.clientName,
+    first.clientPhone,
+    first.pickup,
+    first.dropoff,
+    stopsPlain(getStops(first)),
+    getNotes(first),
+    first.tripDate,
+    first.tripTime,
+    first.status,
+    getBookedDate(first),
+    getBookedTime(first),
+    JSON.stringify(passengers)
   ].join(" ").toLowerCase();
 }
 
 function applyFilters(){
-  let trips = getActiveServiceTrips();
+  let trips = getBaseTripsForFilters();
 
   if(activeService !== "ALL"){
     trips = trips.filter(t=>tripMatchesService(t,activeService));
@@ -651,7 +769,10 @@ function applyFilters(){
   displayItems = buildDisplayItems(trips);
 
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
-  if(q) displayItems = displayItems.filter(item=>searchableText(item).includes(q));
+
+  if(q){
+    displayItems = displayItems.filter(item=>searchableText(item).includes(q));
+  }
 
   renderStats();
   renderServiceTabs();
@@ -659,11 +780,40 @@ function applyFilters(){
   render();
 }
 
-/* ================= STATS ================= */
+function buildDateFilters(){
+  const yearEl = document.getElementById("yearFilter");
+  const monthEl = document.getElementById("monthFilter");
+  const dayEl = document.getElementById("dayFilter");
 
-function getItemTrip(item){
-  return item.kind === "trip" ? item.trip : item.group[0];
+  if(!yearEl || !monthEl || !dayEl) return;
+
+  const years = new Set();
+  const months = new Set();
+  const days = new Set();
+
+  getActiveServiceTrips().forEach(t=>{
+    const d = getFilterDateObj(t);
+    if(!d || isNaN(d)) return;
+
+    years.add(String(d.getFullYear()));
+    months.add(String(d.getMonth()+1).padStart(2,"0"));
+    days.add(String(d.getDate()).padStart(2,"0"));
+  });
+
+  yearEl.innerHTML = `<option value="">Year</option>` + [...years].sort((a,b)=>b-a).map(y=>
+    `<option value="${y}" ${filterYear===y ? "selected" : ""}>${y}</option>`
+  ).join("");
+
+  monthEl.innerHTML = `<option value="">Month</option>` + [...months].sort().map(m=>
+    `<option value="${m}" ${filterMonth===m ? "selected" : ""}>${m}</option>`
+  ).join("");
+
+  dayEl.innerHTML = `<option value="">Day</option>` + [...days].sort().map(d=>
+    `<option value="${d}" ${filterDay===d ? "selected" : ""}>${d}</option>`
+  ).join("");
 }
+
+/* ================= STATS ================= */
 
 function countItems(items){
   const out = {total:items.length, fa:0, gq:0, rv:0};
@@ -678,23 +828,13 @@ function countItems(items){
   return out;
 }
 
-function countItemsByService(code){
-  const baseItems = buildDisplayItems(getActiveServiceTrips());
-
-  const selected = code === "ALL"
-    ? baseItems
-    : baseItems.filter(item=>tripMatchesService(getItemTrip(item),code));
-
-  return countItems(selected);
-}
-
-function statCard(cls,title,total,fa,gq,rv){
+function statCard(cls,title,c){
   return `
     <div class="stat-card ${cls}">
       <div class="stat-title">${title}</div>
-      <div class="stat-number">${total}</div>
+      <div class="stat-number">${c.total}</div>
       <div class="mini-head"><span>FA</span><span>GQ</span><span>RV</span></div>
-      <div class="mini-values"><span>${fa}</span><span>${gq}</span><span>${rv}</span></div>
+      <div class="mini-values"><span>${c.fa}</span><span>${c.gq}</span><span>${c.rv}</span></div>
     </div>
   `;
 }
@@ -703,23 +843,33 @@ function renderStats(){
   const wrap = document.getElementById("hubStats");
   if(!wrap) return;
 
-  const items = buildDisplayItems(getActiveServiceTrips());
-  const total = countItems(items);
+  const allItems = buildDisplayItems(getBaseTripsForFilters());
 
-  const facilityItems = items.filter(item=>getSourceCode(getItemTrip(item)) === "FA");
-  const gqItems = items.filter(item=>getSourceCode(getItemTrip(item)) === "GQ");
-  const rvItems = items.filter(item=>getSourceCode(getItemTrip(item)) === "RV");
-
-  const fa = countItems(facilityItems);
-  const gq = countItems(gqItems);
-  const rv = countItems(rvItems);
+  const total = countItems(allItems);
+  const newTrips = countItems(allItems.filter(item=>isNewTrip(getItemTrip(item))));
+  const todayTrips = countItems(allItems.filter(item=>isTripToday(getItemTrip(item))));
+  const facility = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "FA"));
+  const gq = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "GQ"));
+  const rv = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "RV"));
 
   wrap.innerHTML = `
-    ${statCard("total","TOTAL",total.total,total.fa,total.gq,total.rv)}
-    ${statCard("facility","FACILITY",fa.total,fa.fa,fa.gq,fa.rv)}
-    ${statCard("gq","GET QUOTE",gq.total,gq.fa,gq.gq,gq.rv)}
-    ${statCard("reserved","RESERVED",rv.total,rv.fa,rv.gq,rv.rv)}
+    ${statCard("total","TOTAL",total)}
+    ${statCard("new","NEW TRIPS",newTrips)}
+    ${statCard("today","TRIPS TODAY",todayTrips)}
+    ${statCard("facility","FACILITY",facility)}
+    ${statCard("gq","GET QUOTE",gq)}
+    ${statCard("reserved","RESERVED",rv)}
   `;
+}
+
+function countItemsByService(code){
+  const baseItems = buildDisplayItems(getBaseTripsForFilters());
+
+  const selected = code === "ALL"
+    ? baseItems
+    : baseItems.filter(item=>tripMatchesService(getItemTrip(item),code));
+
+  return countItems(selected);
 }
 
 function renderServiceTabs(){
@@ -1014,11 +1164,13 @@ function rowClass(item){
 
 function groupDisplayItemsByBookedDate(){
   const groups = {};
+
   displayItems.forEach(item=>{
     const key = item.bookedKey || "Unknown";
     if(!groups[key]) groups[key] = [];
     groups[key].push(item);
   });
+
   return groups;
 }
 
@@ -1087,6 +1239,7 @@ function render(){
 
   wrap.appendChild(table);
   container.appendChild(wrap);
+
   updateSelectionButtons();
 }
 
@@ -1189,6 +1342,35 @@ document.getElementById("editSelectedBtn")?.addEventListener("click",editSelecte
 document.getElementById("deleteSelectedBtn")?.addEventListener("click",deleteSelected);
 document.getElementById("saveEditBtn")?.addEventListener("click",saveCurrentEdit);
 document.getElementById("cancelEditBtn")?.addEventListener("click",cancelEdit);
+
+document.getElementById("yearFilter")?.addEventListener("change",e=>{
+  filterYear = e.target.value;
+  selectedItems.clear();
+  editingKey = null;
+  applyFilters();
+});
+
+document.getElementById("monthFilter")?.addEventListener("change",e=>{
+  filterMonth = e.target.value;
+  selectedItems.clear();
+  editingKey = null;
+  applyFilters();
+});
+
+document.getElementById("dayFilter")?.addEventListener("change",e=>{
+  filterDay = e.target.value;
+  selectedItems.clear();
+  editingKey = null;
+  applyFilters();
+});
+
+document.getElementById("clearDateFilters")?.addEventListener("click",()=>{
+  filterYear = "";
+  filterMonth = "";
+  filterDay = "";
+  buildDateFilters();
+  applyFilters();
+});
 
 Object.assign(window,{
   toggleSelection,
