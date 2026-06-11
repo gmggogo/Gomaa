@@ -178,11 +178,14 @@ function tripServiceCode(t){
 }
 
 function getService(t){
-  if(t.isShared) return SERVICES.find(isSharedService) || null;
+
+  if(t.isShared){
+    return SERVICES.find(isSharedService) || SERVICES[0] || null;
+  }
 
   const c = tripServiceCode(t);
 
-  return SERVICES.find(s=>{
+  let service = SERVICES.find(s=>{
     const arr = [
       s.serviceKey,
       s.companySuffix,
@@ -190,11 +193,24 @@ function getService(t){
       s.serviceCode,
       s.code,
       s.title,
-      s.name
+      s.name,
+      s.type,
+      s.serviceType
     ].map(code);
 
     return arr.includes(c);
-  }) || null;
+  });
+
+  if(service) return service;
+
+  service = SERVICES.find(s=>{
+    const title = code(s.title || s.name || "");
+    return title && c && (title.includes(c) || c.includes(title));
+  });
+
+  if(service) return service;
+
+  return SERVICES.find(s=>!isSharedService(s)) || SERVICES[0] || null;
 }
 
 function serviceName(t){
