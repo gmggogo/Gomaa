@@ -654,11 +654,10 @@ const res = await fetch(API_URL,{
     "Content-Type":"application/json",
     Authorization:"Bearer " + token
   },
-  body:JSON.stringify({
-    ...trip,
-    status:"Review",
-    reservationStatus:"Review"
-  })
+body:JSON.stringify({
+  ...trip,
+  status:"Booked"
+})
 });
 
 const data = await res.json().catch(()=>({}));
@@ -696,11 +695,10 @@ submitSharedBtn?.addEventListener("click", async function(){
     "Content-Type":"application/json",
     Authorization:"Bearer " + token
   },
-  body:JSON.stringify({
-    ...trip,
-    status:"Review",
-    reservationStatus:"Review"
-  })
+body:JSON.stringify({
+  ...trip,
+  status:"Booked"
+})
 });
 
 const data = await res.json().catch(()=>({}));
