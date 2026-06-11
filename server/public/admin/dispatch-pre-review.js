@@ -1,6 +1,6 @@
 /* =========================================
 DISPATCH PRE REVIEW - CLEAN BUILD
-ADD TRIP -> REVIEW -> CREATE RV -> TRIPS HUB
+REVIEW ONLY -> CONFIRM CALCULATES -> CREATE RV
 ========================================= */
 
 (function(){
@@ -23,12 +23,13 @@ let SYSTEM_COUNTRY = "";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 let googleLoadPromise = null;
 let calcMap = new Map();
+let editingId = null;
 
 function $(id){ return document.getElementById(id); }
 
-const addPage = () => $("dispatchAddPage");
-const reviewPage = () => $("dispatchReviewPage");
-const box = () => $("dispatchTripsContainer");
+const addPage = ()=>$("dispatchAddPage");
+const reviewPage = ()=>$("dispatchReviewPage");
+const box = ()=>$("dispatchTripsContainer");
 
 function clean(v){ return String(v ?? "").trim(); }
 
@@ -69,7 +70,7 @@ function normalizeAddress(v){
   return a;
 }
 
-/* ================= LOAD ================= */
+/* LOAD */
 
 async function loadSystemDesign(){
   try{
@@ -95,8 +96,7 @@ async function loadServices(){
 
 function loadPending(){
   try{
-    const raw = localStorage.getItem(REVIEW_KEY);
-    pendingTrips = raw ? JSON.parse(raw) : [];
+    pendingTrips = JSON.parse(localStorage.getItem(REVIEW_KEY) || "[]");
     if(!Array.isArray(pendingTrips)) pendingTrips = [];
   }catch(e){
     pendingTrips = [];
@@ -126,6 +126,7 @@ function normalizeTrip(t,i){
       serviceKey:t.serviceKey || t.serviceType || "SHARED",
       tripDate:t.tripDate || t.sharedDate || "",
       tripTime:t.tripTime || t.sharedTime || "",
+      notes:t.notes || t.sharedNotes || "",
       status:"Review",
       passengers:(t.passengers || []).map((p,idx)=>({
         passengerId:p.passengerId || "P" + (idx + 1),
@@ -144,12 +145,13 @@ function normalizeTrip(t,i){
     isShared:false,
     tripType:"INDIVIDUAL",
     serviceKey:t.serviceKey || t.serviceType || "",
+    notes:t.notes || "",
     status:"Review",
     stops:Array.isArray(t.stops) ? t.stops : []
   };
 }
 
-/* ================= SERVICE ================= */
+/* SERVICES */
 
 function code(v){ return clean(v).toUpperCase(); }
 
@@ -166,21 +168,10 @@ function isSharedService(s){
   );
 }
 
-function tripServiceCode(t){
-  return code(
-    t.serviceKey ||
-    t.serviceCode ||
-    t.serviceType ||
-    t.serviceSuffix ||
-    t.service ||
-    ""
-  );
-}
-
 function getService(t){
   if(t.isShared) return SERVICES.find(isSharedService) || null;
 
-  const c = tripServiceCode(t);
+  const c = code(t.serviceKey || t.serviceCode || t.serviceType || t.serviceSuffix || t.service || "");
 
   return SERVICES.find(s=>{
     const arr = [
@@ -207,7 +198,7 @@ function warningMinutes(t){
   return Number(s?.companyWarningMinutes || s?.warningMinutes || 120);
 }
 
-/* ================= TIME POLICY ================= */
+/* TIME */
 
 function minutesLeft(t){
   const dt = parseDT(t.tripDate,t.tripTime);
@@ -217,7 +208,6 @@ function minutesLeft(t){
 
 function rowClass(t){
   const m = minutesLeft(t);
-
   if(m <= 0) return "past-row";
   if(m <= 30) return "red-dark";
   if(m <= 60) return "red-mid";
@@ -228,6 +218,14 @@ function rowClass(t){
 function actionButtons(t){
   const m = minutesLeft(t);
   const w = warningMinutes(t);
+  const editing = editingId === t.localId;
+
+  if(editing){
+    return `
+      <button class="btn confirm" data-action="save-edit" type="button">Save</button>
+      <button class="btn cancel" data-action="cancel-edit" type="button">Cancel Edit</button>
+    `;
+  }
 
   if(m <= 0){
     return `<strong style="color:#64748b;">Past</strong>`;
@@ -247,11 +245,10 @@ function actionButtons(t){
   `;
 }
 
-/* ================= GOOGLE ================= */
+/* GOOGLE + PRICE */
 
 async function ensureGoogle(){
   if(window.google && google.maps && google.maps.DirectionsService) return;
-
   if(googleLoadPromise) return googleLoadPromise;
 
   googleLoadPromise = new Promise(async(resolve,reject)=>{
@@ -360,8 +357,6 @@ function routePoints(t){
   return arr;
 }
 
-/* ================= PRICE ================= */
-
 async function serverPrice({serviceKey,miles,stops,minutes,passengerCount}){
   const res = await fetch("/api/company-core/calculate",{
     method:"POST",
@@ -390,17 +385,13 @@ async function serverPrice({serviceKey,miles,stops,minutes,passengerCount}){
 }
 
 async function calculateTrip(t){
-  if(calcMap.has(t.localId)) return calcMap.get(t.localId);
-
   const s = getService(t);
   if(!s) throw new Error("Service not found");
 
-  const points = routePoints(t);
-  const route = await routeMiles(points);
+  const route = await routeMiles(routePoints(t));
 
   const passengerCount = t.isShared ? Math.max(1,(t.passengers || []).length) : 1;
   const stops = t.isShared ? Math.max(0,passengerCount - 1) : (t.stops || []).filter(Boolean).length;
-
   const serviceKey = t.isShared ? "SHARED" : (s.serviceKey || t.serviceKey || t.serviceType || "STANDARD");
 
   const total = await serverPrice({
@@ -411,7 +402,7 @@ async function calculateTrip(t){
     passengerCount
   });
 
-  const calc = {
+  return {
     service:s,
     serviceKey,
     route,
@@ -420,12 +411,9 @@ async function calculateTrip(t){
     stops,
     passengerCount
   };
-
-  calcMap.set(t.localId,calc);
-  return calc;
 }
 
-/* ================= RENDER ================= */
+/* RENDER */
 
 function showAddPage(){
   if(addPage()) addPage().style.display = "block";
@@ -434,16 +422,14 @@ function showAddPage(){
 
 async function showReviewPage(){
   loadPending();
-
   if(addPage()) addPage().style.display = "none";
   if(reviewPage()) reviewPage().style.display = "block";
-
   await render();
 }
 
 function loading(){
   if(box()){
-    box().innerHTML = `<div class="empty-review">Calculating trips...</div>`;
+    box().innerHTML = `<div class="empty-review">Loading Dispatch Review...</div>`;
   }
 }
 
@@ -459,15 +445,9 @@ async function render(){
 
   let rows = "";
 
-  for(let i=0;i<pendingTrips.length;i++){
-    try{
-      const t = pendingTrips[i];
-      const calc = await calculateTrip(t);
-      rows += buildRow(t,calc,i);
-    }catch(e){
-      rows += buildErrorRow(pendingTrips[i],e,i);
-    }
-  }
+  pendingTrips.forEach((t,i)=>{
+    rows += buildRow(t,i);
+  });
 
   box().innerHTML = `
     <div class="table-wrap">
@@ -485,6 +465,7 @@ async function render(){
           <th>Dropoff</th>
           <th>Date</th>
           <th>Time</th>
+          <th>Notes</th>
           <th>Miles</th>
           <th>Minutes</th>
           <th>Price</th>
@@ -497,23 +478,70 @@ async function render(){
   `;
 }
 
-function buildRow(t,calc,i){
+function editInput(cls,val,type="text"){
+  return `<input class="${cls}" type="${type}" value="${esc(val || "")}">`;
+}
+
+function editArea(cls,val){
+  return `<textarea class="${cls}" style="min-width:180px;min-height:60px;">${esc(val || "")}</textarea>`;
+}
+
+function stopsCount(t){
+  return t.isShared
+    ? Math.max(0,(t.passengers || []).length - 1)
+    : (t.stops || []).filter(Boolean).length;
+}
+
+function buildRow(t,i){
+  const editing = editingId === t.localId;
+
   let names = "";
   let phones = "";
   let pickups = "";
   let dropoffs = "";
 
   if(t.isShared){
-    names = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.clientName || p.name || "")}`).join("\n");
-    phones = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.clientPhone || p.phone || "")}`).join("\n");
-    pickups = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.pickup || "")}`).join("\n");
-    dropoffs = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.dropoff || "")}`).join("\n");
+    names = (t.passengers || []).map((p,x)=>
+      editing
+        ? `${x+1}. ${editInput("edit-p-name",p.clientName || p.name || "")}`
+        : `${x+1}. ${esc(p.clientName || p.name || "")}`
+    ).join("\n");
+
+    phones = (t.passengers || []).map((p,x)=>
+      editing
+        ? `${x+1}. ${editInput("edit-p-phone",p.clientPhone || p.phone || "")}`
+        : `${x+1}. ${esc(p.clientPhone || p.phone || "")}`
+    ).join("\n");
+
+    pickups = (t.passengers || []).map((p,x)=>
+      editing
+        ? `${x+1}. ${editArea("edit-p-pickup",p.pickup || "")}`
+        : `${x+1}. ${esc(p.pickup || "")}`
+    ).join("\n");
+
+    dropoffs = (t.passengers || []).map((p,x)=>
+      editing
+        ? `${x+1}. ${editArea("edit-p-dropoff",p.dropoff || "")}`
+        : `${x+1}. ${esc(p.dropoff || "")}`
+    ).join("\n");
   }else{
-    names = esc(t.clientName || "");
-    phones = esc(t.clientPhone || "");
-    pickups = esc(t.pickup || "");
-    dropoffs = esc(t.dropoff || "");
+    names = editing ? editInput("edit-client",t.clientName || "") : esc(t.clientName || "");
+    phones = editing ? editInput("edit-phone",t.clientPhone || "") : esc(t.clientPhone || "");
+    pickups = editing ? editArea("edit-pickup",t.pickup || "") : esc(t.pickup || "");
+    dropoffs = editing ? editArea("edit-dropoff",t.dropoff || "") : esc(t.dropoff || "");
   }
+
+  const dateCell = editing
+    ? editInput("edit-date",t.tripDate || "","date")
+    : esc(t.tripDate || "");
+
+  const timeCell = editing
+    ? editInput("edit-time",t.tripTime || "","time")
+    : esc(t.tripTime || "");
+
+  const notesCell = editing
+    ? editArea("edit-notes",t.notes || "")
+    : esc(t.notes || "-");
 
   return `
     <tr class="${rowClass(t)}" data-local-id="${esc(t.localId)}">
@@ -525,66 +553,46 @@ function buildRow(t,calc,i){
       <td><div class="multi-line">${names}</div></td>
       <td><div class="multi-line">${phones}</div></td>
       <td><div class="multi-line">${pickups}</div></td>
-      <td><strong>${calc.stops}</strong></td>
+      <td><strong>${stopsCount(t)}</strong></td>
       <td><div class="multi-line">${dropoffs}</div></td>
-      <td>${esc(t.tripDate || "")}</td>
-      <td>${esc(t.tripTime || "")}</td>
-      <td><strong>${Number(calc.route.miles || 0).toFixed(2)} mi</strong></td>
-      <td><strong>${calc.route.estimatedMinutes || 0}</strong></td>
-      <td><span class="price-badge">$${money(calc.total)}</span></td>
+      <td>${dateCell}</td>
+      <td>${timeCell}</td>
+      <td><div class="multi-line">${notesCell}</div></td>
+      <td><strong>0.00 mi</strong></td>
+      <td><strong>0</strong></td>
+      <td><span class="price-badge">$0.00</span></td>
       <td><strong>Review</strong></td>
       <td><div class="actions-wrap">${actionButtons(t)}</div></td>
     </tr>
   `;
 }
 
-function buildErrorRow(t,e,i){
-  return `
-    <tr class="cancelled-row" data-local-id="${esc(t.localId)}">
-      <td>${i+1}</td>
-      <td>${t.isShared ? "SHARED" : "TRIP"}</td>
-      <td colspan="13"><strong>${esc(e.message || "Calculation Error")}</strong></td>
-      <td>Error</td>
-      <td>
-        <button class="btn delete" data-action="delete" type="button">Delete</button>
-      </td>
-    </tr>
-  `;
-}
-
-/* ================= CREATE RV ================= */
+/* CREATE RV */
 
 function createPayload(t,calc){
   const payload = {
     ...t,
-
     type:"reserved",
     reservation:true,
     source:"RV",
     bookingSource:"RV",
-
     status:"RV",
     reservationStatus:"RV",
     dispatchSelected:false,
     driverAssigned:false,
-
     priceAmount:calc.total,
     finalPrice:calc.total,
-
     miles:calc.route.miles,
     distanceMeters:calc.route.distanceMeters,
     durationSeconds:calc.route.durationSeconds,
     estimatedMinutes:calc.route.estimatedMinutes,
-
     routePoints:calc.route.routePoints,
     googleRoute:calc.route.googleRoute,
     optimizedRoute:calc.route.googleRoute,
-
     serviceId:calc.service?._id || "",
     serviceName:calc.service?.name || calc.service?.title || "",
     serviceCode:calc.service?.serviceKey || calc.service?.companySuffix || calc.service?.suffix || "",
     serviceKey:calc.serviceKey,
-
     createdFrom:"DISPATCH_REVIEW"
   };
 
@@ -598,7 +606,6 @@ function createPayload(t,calc){
     payload.passengersCount = calc.passengerCount;
     payload.pricePerPassenger = calc.pricePerPassenger;
     payload.sharedStopsCount = calc.stops;
-
     payload.passengers = (t.passengers || []).map(p=>({
       ...p,
       status:"RV",
@@ -641,13 +648,17 @@ async function confirmOne(id){
 
   if(!confirm("Confirm and create RV reservation?")) return;
 
-  const calc = await calculateTrip(t);
-  const payload = createPayload(t,calc);
+  try{
+    const calc = await calculateTrip(t);
+    const payload = createPayload(t,calc);
+    await postTrip(payload);
 
-  await postTrip(payload);
+    removeLocal(id);
+    await render();
 
-  removeLocal(id);
-  await render();
+  }catch(e){
+    alert(e.message || "Confirm failed");
+  }
 }
 
 async function confirmAll(){
@@ -684,7 +695,7 @@ async function confirmAll(){
   }
 }
 
-/* ================= EDIT / DELETE / CANCEL ================= */
+/* ACTIONS */
 
 function deleteOne(id){
   if(!confirm("Delete this trip from review?")) return;
@@ -699,40 +710,51 @@ function cancelOne(id){
 }
 
 function editOne(id){
-  const t = pendingTrips.find(x=>x.localId === id);
-  if(!t) return;
-
-  if(t.isShared){
-    localStorage.setItem("dispatchSharedDraft",JSON.stringify({
-      passengerCount:(t.passengers || []).length,
-      sharedDate:t.tripDate,
-      sharedTime:t.tripTime,
-      sharedNotes:t.notes || "",
-      passengers:(t.passengers || []).map(p=>({
-        clientName:p.clientName || p.name || "",
-        clientPhone:p.clientPhone || p.phone || "",
-        pickup:p.pickup || "",
-        dropoff:p.dropoff || ""
-      }))
-    }));
-  }else{
-    localStorage.setItem("dispatchTripDraft",JSON.stringify({
-      clientName:t.clientName || "",
-      clientPhone:t.clientPhone || "",
-      pickup:t.pickup || "",
-      dropoff:t.dropoff || "",
-      tripDate:t.tripDate || "",
-      tripTime:t.tripTime || "",
-      notes:t.notes || "",
-      stops:t.stops || []
-    }));
-  }
-
-  removeLocal(id);
-  showAddPage();
+  editingId = id;
+  render();
 }
 
-/* ================= EVENTS ================= */
+function cancelEdit(){
+  editingId = null;
+  render();
+}
+
+function saveEdit(id){
+  const t = pendingTrips.find(x=>x.localId === id);
+  const row = document.querySelector(`tr[data-local-id="${CSS.escape(id)}"]`);
+
+  if(!t || !row) return;
+
+  if(t.isShared){
+    const names = [...row.querySelectorAll(".edit-p-name")];
+    const phones = [...row.querySelectorAll(".edit-p-phone")];
+    const pickups = [...row.querySelectorAll(".edit-p-pickup")];
+    const dropoffs = [...row.querySelectorAll(".edit-p-dropoff")];
+
+    (t.passengers || []).forEach((p,i)=>{
+      p.clientName = names[i]?.value || "";
+      p.clientPhone = phones[i]?.value || "";
+      p.pickup = pickups[i]?.value || "";
+      p.dropoff = dropoffs[i]?.value || "";
+    });
+  }else{
+    t.clientName = row.querySelector(".edit-client")?.value || "";
+    t.clientPhone = row.querySelector(".edit-phone")?.value || "";
+    t.pickup = row.querySelector(".edit-pickup")?.value || "";
+    t.dropoff = row.querySelector(".edit-dropoff")?.value || "";
+  }
+
+  t.tripDate = row.querySelector(".edit-date")?.value || "";
+  t.tripTime = row.querySelector(".edit-time")?.value || "";
+  t.notes = row.querySelector(".edit-notes")?.value || "";
+
+  editingId = null;
+  calcMap.delete(id);
+  savePending();
+  render();
+}
+
+/* EVENTS */
 
 document.addEventListener("click",async e=>{
   const btn = e.target.closest("button");
@@ -763,12 +785,14 @@ document.addEventListener("click",async e=>{
   if(!id) return;
 
   if(btn.dataset.action === "edit") editOne(id);
+  if(btn.dataset.action === "save-edit") saveEdit(id);
+  if(btn.dataset.action === "cancel-edit") cancelEdit();
   if(btn.dataset.action === "delete") deleteOne(id);
   if(btn.dataset.action === "cancel") cancelOne(id);
   if(btn.dataset.action === "confirm") await confirmOne(id);
 });
 
-/* ================= EXPORT ================= */
+/* EXPORT */
 
 window.DispatchReview = {
   showAddPage,
@@ -783,7 +807,7 @@ window.DispatchReview = {
 window.showAddPage = showAddPage;
 window.showReviewPage = showReviewPage;
 
-/* ================= INIT ================= */
+/* INIT */
 
 document.addEventListener("DOMContentLoaded",async()=>{
   await loadSystemDesign();
