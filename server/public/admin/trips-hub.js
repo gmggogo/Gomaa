@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TRIPS HUB V5 - ACTIVE INBOX ONLY
+   TRIPS HUB V6 - FACILITY / GET QUOTE / RESERVED
    Admin / SuperAdmin / Dispatcher
    ========================================================================== */
 
@@ -13,10 +13,6 @@ if(!["superadmin","admin","dispatcher"].includes(role)){
   window.location.href = "/admin/login.html";
 }
 
-/* ===============================
-   STATE
-================================ */
-
 let hubTrips = [];
 let services = [];
 let displayItems = [];
@@ -26,7 +22,6 @@ let refreshTimer = null;
 
 const selectedItems = new Set();
 const markedNotCompleted = new Set();
-
 const OVERDUE_HOURS = 12;
 
 const container = document.getElementById("hubContainer");
@@ -39,9 +34,7 @@ document.getElementById("dateFilters")?.remove();
 
 if(!container) console.error("Missing #hubContainer");
 
-/* ===============================
-   UI
-================================ */
+/* ================= UI ================= */
 
 (function buildUI(){
   const page = document.querySelector(".page-content");
@@ -50,12 +43,7 @@ if(!container) console.error("Missing #hubContainer");
   document.querySelectorAll("h1,h2,.page-title,.page-subtitle,.page-description")
     .forEach(el=>{
       const txt = String(el.textContent || "").toLowerCase();
-      if(
-        txt.includes("trips hub") ||
-        txt.includes("clean admin") ||
-        txt.includes("dispatch") ||
-        txt.includes("reservation inbox")
-      ){
+      if(txt.includes("trips hub") || txt.includes("clean admin") || txt.includes("dispatch") || txt.includes("reservation inbox")){
         el.remove();
       }
     });
@@ -73,12 +61,14 @@ if(!container) console.error("Missing #hubContainer");
       addBtn.className = "top-add-trip-btn";
       addBtn.onclick = e=>{
         e.preventDefault();
-window.location.href = "/admin/dispatch-add-trip.html";      };
+        window.location.href = "/admin/dispatch-add-trip.html";
+      };
       wrap.appendChild(addBtn);
     }else{
       wrap.innerHTML = `
         <button class="top-add-trip-btn" type="button"
-onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Trip
+        onclick="window.location.href='/admin/dispatch-add-trip.html'">
+          + Add Trip
         </button>
       `;
     }
@@ -90,13 +80,6 @@ onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Tr
     const stats = document.createElement("div");
     stats.id = "hubStats";
     stats.className = "hub-stats";
-    stats.innerHTML = `
-      <div class="stat-card total"><div id="statTotal" class="stat-number">0</div><div class="stat-label">Active Trips</div></div>
-      <div class="stat-card new"><div id="statNew" class="stat-number">0</div><div class="stat-label">New Trips</div></div>
-      <div class="stat-card today"><div id="statToday" class="stat-number">0</div><div class="stat-label">Trips Today</div></div>
-      <div class="stat-card company"><div id="statCompany" class="stat-number">0</div><div class="stat-label">Company</div></div>
-      <div class="stat-card gq"><div id="statGq" class="stat-number">0</div><div class="stat-label">Get Quote</div></div>
-         `;
     page.insertBefore(stats,container);
   }
 
@@ -121,15 +104,14 @@ onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Tr
   }
 })();
 
-/* ===============================
-   STYLE
-================================ */
+/* ================= STYLE ================= */
 
 (function injectStyle(){
-  if(document.getElementById("trips-hub-v5-style")) return;
+  document.getElementById("trips-hub-v5-style")?.remove();
+  document.getElementById("trips-hub-v6-style")?.remove();
 
   const style = document.createElement("style");
-  style.id = "trips-hub-v5-style";
+  style.id = "trips-hub-v6-style";
   style.innerHTML = `
     .top-add-trip-wrap{display:flex;justify-content:flex-start;margin:0 0 14px;}
     .top-add-trip-btn{
@@ -137,27 +119,34 @@ onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Tr
       font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px rgba(37,99,235,.24);
     }
 
-    .hub-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:0 0 14px;}
-    .stat-card{background:#fff;border:1px solid #dbe3ee;border-radius:14px;padding:12px;text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.07);}
-    .stat-card.total{border-left:6px solid #2563eb;}
-    .stat-card.new{border-left:6px solid #16a34a;}
-    .stat-card.today{border-left:6px solid #0ea5e9;}
-    .stat-card.company{border-left:6px solid #1d4ed8;}
-    .stat-card.gq{border-left:6px solid #22c55e;}
-    .stat-card.shared{border-left:6px solid #7c3aed;}
-    .stat-number{font-size:25px;line-height:1;font-weight:900;color:#0f172a;}
-    .stat-label{margin-top:5px;font-size:13px;font-weight:900;color:#64748b;}
-
-    .service-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:0 0 14px;}
-    .service-tab{
-      border:1px solid #dbe3ee;background:#fff;color:#0f172a;border-radius:13px;padding:9px 7px;
-      cursor:pointer;font-weight:900;box-shadow:0 5px 14px rgba(15,23,42,.06);
-      text-align:center;min-height:78px;
+    .hub-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0 0 14px;}
+    .stat-card{
+      background:#fff;border:1px solid #dbe3ee;border-radius:15px;padding:13px 10px;
+      text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.07);
     }
-    .service-tab.active{background:#2563eb;color:#fff;}
+    .stat-card.total{border-left:6px solid #2563eb;}
+    .stat-card.facility{border-left:6px solid #1d4ed8;}
+    .stat-card.gq{border-left:6px solid #22c55e;}
+    .stat-card.reserved{border-left:6px solid #f59e0b;}
+
+    .stat-title{font-size:13px;font-weight:900;color:#64748b;letter-spacing:.3px;}
+    .stat-number{font-size:28px;line-height:1.1;font-weight:900;color:#0f172a;margin-top:4px;}
+    .mini-head,.mini-values{
+      display:grid;grid-template-columns:repeat(3,1fr);align-items:center;text-align:center;
+    }
+    .mini-head{margin-top:9px;font-size:10px;font-weight:900;color:#64748b;}
+    .mini-values{margin-top:3px;font-size:14px;font-weight:900;color:#0f172a;}
+
+    .service-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:0 0 14px;}
+    .service-tab{
+      border:1px solid #dbe3ee;background:#fff;color:#0f172a;border-radius:14px;padding:10px 8px;
+      cursor:pointer;font-weight:900;box-shadow:0 5px 14px rgba(15,23,42,.06);
+      text-align:center;min-height:92px;
+    }
+    .service-tab.active{background:#2563eb;color:#fff;border-color:#2563eb;}
     .service-title{font-size:13px;line-height:1.15;margin-bottom:5px;}
-    .service-total{font-size:23px;line-height:1.05;font-weight:900;}
-    .service-source{margin-top:4px;font-size:10px;line-height:1.25;opacity:.9;}
+    .service-total{font-size:25px;line-height:1.05;font-weight:900;}
+    .service-tab.active .mini-head,.service-tab.active .mini-values{color:#fff;}
 
     .hub-action-bar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center;}
     .hub-action-btn{border:none;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:900;cursor:pointer;color:#fff;}
@@ -167,27 +156,11 @@ onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Tr
     .hub-action-btn.save{background:#16a34a;}
     .hub-action-btn.cancel{background:#64748b;}
 
-    .booked-title{
-      margin:18px 0 8px;padding:10px 13px;background:#e0edff;color:#1e3a8a;
-      border-left:6px solid #2563eb;border-radius:12px;font-size:15px;font-weight:900;
+    .table-wrap{
+      width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:20px;
+      border-radius:14px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.08);
     }
-
-.table-wrap{
-  width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  margin-bottom:20px;
-  border-radius:14px;
-  background:#fff;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
-}
-
-.hub-table{
-  min-width:2200px;
-  width:max-content;
-  border-collapse:collapse;
-  background:#fff;
-}min-width:1950px;}
+    .hub-table{min-width:2200px;width:max-content;border-collapse:collapse;background:#fff;}
     .hub-table th,.hub-table td{border:1px solid #dbe3ee;padding:7px;text-align:center;font-size:13px;vertical-align:middle;line-height:1.35;}
     .hub-table th{background:#2563eb;color:#fff;font-weight:900;white-space:nowrap;font-size:13px;}
 
@@ -210,6 +183,7 @@ onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Tr
     }
     .edit-textarea{min-height:58px;resize:vertical;}
 
+    .facility-row td{background:#dbeafe;}
     .company-row td{background:#dbeafe;}
     .gq-row td{background:#dcfce7;}
     .reserved-row td{background:#fef3c7;}
@@ -222,15 +196,14 @@ onclick="window.location.href='/admin/dispatch-add-trip.html'"          + Add Tr
       .hub-table{min-width:1750px;}
       .hub-table th,.hub-table td{font-size:11px;padding:6px;}
       .wide-address{font-size:10.5px!important;}
-      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));}
+      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));}
+      .hub-stats{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));}
     }
   `;
   document.head.appendChild(style);
 })();
 
-/* ===============================
-   HELPERS
-================================ */
+/* ================= HELPERS ================= */
 
 function safe(v){
   return String(v ?? "")
@@ -240,21 +213,13 @@ function safe(v){
     .replace(/"/g,"&quot;");
 }
 
-function normalizeText(v){
-  return String(v ?? "").trim();
-}
+function normalizeText(v){ return String(v ?? "").trim(); }
 
 function cleanStatus(v){
-  return String(v || "")
-    .replace(/[_-]/g," ")
-    .replace(/\s+/g," ")
-    .toLowerCase()
-    .trim();
+  return String(v || "").replace(/[_-]/g," ").replace(/\s+/g," ").toLowerCase().trim();
 }
 
-function statusKey(v){
-  return cleanStatus(v).replace(/\s+/g,"");
-}
+function statusKey(v){ return cleanStatus(v).replace(/\s+/g,""); }
 
 function isActiveStatus(status){
   const s = statusKey(status);
@@ -263,16 +228,7 @@ function isActiveStatus(status){
 
 function isClosedStatus(status){
   const s = statusKey(status);
-  return (
-    s === "completed" ||
-    s === "complete" ||
-    s === "dropoff" ||
-    s === "droppedoff" ||
-    s === "cancelled" ||
-    s === "canceled" ||
-    s === "noshow" ||
-    s === "notcompleted"
-  );
+  return ["completed","complete","dropoff","droppedoff","cancelled","canceled","noshow","notcompleted"].includes(s);
 }
 
 function getStatusLabel(status){
@@ -293,24 +249,18 @@ function getStatusClass(status){
 
 function parseTripDateTime(t){
   if(!t?.tripDate) return null;
-
   const date = String(t.tripDate || "").trim();
-  let time = String(t.tripTime || "00:00").trim();
-  if(!time) time = "00:00";
-
+  let time = String(t.tripTime || "00:00").trim() || "00:00";
   let d = new Date(`${date}T${time}:00`);
   if(isNaN(d)) d = new Date(`${date} ${time}`);
   if(isNaN(d)) return null;
-
   return d;
 }
 
 function isOverdueNotCompleted(t){
   if(!isActiveStatus(t?.status)) return false;
-
   const dt = parseTripDateTime(t);
   if(!dt) return false;
-
   return Date.now() - dt.getTime() >= OVERDUE_HOURS * 60 * 60 * 1000;
 }
 
@@ -321,13 +271,9 @@ function isTripVisibleInHub(t){
   return isActiveStatus(t.status);
 }
 
-function getTripNumber(t){
-  return String(t?.tripNumber || t?.bookingNumber || t?.id || "-");
-}
+function getTripNumber(t){ return String(t?.tripNumber || t?.bookingNumber || t?.id || "-"); }
 
-function getBookedDateObj(t){
-  return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || Date.now());
-}
+function getBookedDateObj(t){ return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || Date.now()); }
 
 function getBookedGroupKey(t){
   const d = getBookedDateObj(t);
@@ -335,23 +281,10 @@ function getBookedGroupKey(t){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-function formatDateObj(d){
-  if(!d || isNaN(d)) return "-";
-  return d.toLocaleDateString();
-}
-
-function formatTimeObj(d){
-  if(!d || isNaN(d)) return "-";
-  return d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-}
-
-function getBookedDate(t){
-  return formatDateObj(getBookedDateObj(t));
-}
-
-function getBookedTime(t){
-  return formatTimeObj(getBookedDateObj(t));
-}
+function formatDateObj(d){ return (!d || isNaN(d)) ? "-" : d.toLocaleDateString(); }
+function formatTimeObj(d){ return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
+function getBookedDate(t){ return formatDateObj(getBookedDateObj(t)); }
+function getBookedTime(t){ return formatTimeObj(getBookedDateObj(t)); }
 
 function getAZNow(){
   return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
@@ -385,21 +318,11 @@ function createEditArea(value,field){
   return `<textarea class="edit-textarea" data-field="${field}">${safe(value)}</textarea>`;
 }
 
-function getNotes(t){
-  return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
-}
+function getNotes(t){ return t?.notes ?? t?.tripNotes ?? t?.note ?? ""; }
 
 function getEmail(t,p=null){
-  return (
-    p?.clientEmail ||
-    p?.passengerEmail ||
-    p?.email ||
-    t?.clientEmail ||
-    t?.passengerEmail ||
-    t?.entryEmail ||
-    t?.email ||
-    ""
-  );
+  return p?.clientEmail || p?.passengerEmail || p?.email ||
+    t?.clientEmail || t?.passengerEmail || t?.entryEmail || t?.email || "";
 }
 
 function getStops(t){
@@ -425,30 +348,24 @@ function stopsPlain(stops){
 }
 
 function parseStopsText(text){
-  return String(text || "")
-    .split("\n")
-    .map(x=>x.trim())
-    .filter(Boolean)
-    .map(address=>({address}));
+  return String(text || "").split("\n").map(x=>x.trim()).filter(Boolean).map(address=>({address}));
 }
 
 function getSourceCode(t){
   const raw = [
-    t?.source,
-    t?.from,
-    t?.bookingSource,
-    t?.createdBy,
+    t?.source,t?.from,t?.bookingSource,t?.createdBy,t?.type,t?.tripType,
+    t?.isReserved ? "reserved" : "",
+    t?.reserved ? "reserved" : "",
     t?.company ? "company" : ""
   ].join(" ").toLowerCase();
 
+  if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv")) return "RV";
   if(raw.includes("quote") || raw.includes("gq") || raw.includes("website") || raw.includes("public")) return "GQ";
-  if(raw.includes("company") || raw.includes("portal") || t?.company) return "CO";
+  if(raw.includes("company") || raw.includes("portal") || raw.includes("facility") || t?.company) return "FA";
   return "GQ";
 }
 
-/* ===============================
-   SERVICES
-================================ */
+/* ================= SERVICES ================= */
 
 function extractServices(data){
   if(Array.isArray(data)) return data;
@@ -466,27 +383,18 @@ function serviceEnabled(s){
 
 function normalizeKnownCode(code){
   const c = normalizeText(code).toUpperCase();
-
   if(c === "STANDARD" || c === "ST") return "ST";
   if(c === "WHEELCHAIR" || c === "WH") return "WH";
   if(c === "SHARED" || c === "SH") return "SH";
   if(c === "LIMOUSINE" || c === "LIMO" || c === "LIMOUSINE SERVICE" || c === "LM") return "LM";
   if(c === "TAXI" || c === "TX") return "TX";
   if(c === "XL") return "XL";
-
   return c;
 }
 
 function getServiceCodeFromService(s){
   return normalizeKnownCode(
-    s?.serviceKey ||
-    s?.key ||
-    s?.code ||
-    s?.suffix ||
-    s?.companySuffix ||
-    s?.title ||
-    s?.name ||
-    ""
+    s?.serviceKey || s?.key || s?.code || s?.suffix || s?.companySuffix || s?.title || s?.name || ""
   );
 }
 
@@ -495,26 +403,16 @@ function getServiceTitle(s){
 }
 
 function getServiceCodeFromTrip(t){
-  const direct = normalizeText(
-    t?.serviceKey ||
-    t?.serviceCode ||
-    t?.serviceType ||
-    t?.serviceSuffix ||
-    t?.service ||
-    ""
-  ).toUpperCase();
-
+  const direct = normalizeText(t?.serviceKey || t?.serviceCode || t?.serviceType || t?.serviceSuffix || t?.service || "").toUpperCase();
   if(direct) return normalizeKnownCode(direct);
 
   const num = normalizeText(t?.tripNumber).toUpperCase();
-
   if(num.includes("-SH") || isSharedTrip(t)) return "SH";
   if(num.includes("-XL")) return "XL";
   if(num.includes("-WH")) return "WH";
   if(num.includes("-TX")) return "TX";
   if(num.includes("-LM")) return "LM";
   if(num.includes("-ST")) return "ST";
-
   return "ST";
 }
 
@@ -529,18 +427,14 @@ function tripMatchesService(t,code){
   return getServiceCodeFromTrip(t) === code;
 }
 
-/* ===============================
-   SHARED
-================================ */
+/* ================= SHARED ================= */
 
 function isSharedTrip(t){
-  return (
-    t?.isShared === true ||
+  return t?.isShared === true ||
     String(t?.tripType || "").toUpperCase() === "SHARED" ||
     String(t?.type || "").toLowerCase() === "shared" ||
     normalizeText(t?.tripNumber).toUpperCase().includes("-SH") ||
-    (Array.isArray(t?.passengers) && t.passengers.length > 0)
-  );
+    (Array.isArray(t?.passengers) && t.passengers.length > 0);
 }
 
 function getSharedKey(t){
@@ -549,10 +443,7 @@ function getSharedKey(t){
 
 function getRealPassengersFromGroup(group){
   const first = group[0] || {};
-
-  if(Array.isArray(first.passengers) && first.passengers.length){
-    return first.passengers;
-  }
+  if(Array.isArray(first.passengers) && first.passengers.length) return first.passengers;
 
   return group.map((t,i)=>({
     passengerId:"P" + (i+1),
@@ -570,13 +461,11 @@ function getRealPassengersFromGroup(group){
 
 function getSharedGroups(list=hubTrips){
   const map = {};
-
   list.filter(isSharedTrip).forEach(t=>{
     const key = getSharedKey(t);
     if(!map[key]) map[key] = [];
     map[key].push(t);
   });
-
   return Object.values(map).map(group=>
     group.sort((a,b)=>Number(a.passengerIndex || 0)-Number(b.passengerIndex || 0))
   );
@@ -608,9 +497,7 @@ function isSharedVisibleInHub(group){
   return passengers.some(p=>isActiveStatus(p.status || first.status));
 }
 
-/* ===============================
-   AUTO NOT COMPLETED
-================================ */
+/* ================= AUTO NOT COMPLETED ================= */
 
 async function autoMarkNotCompleted(list){
   const overdue = list.filter(t=>{
@@ -629,22 +516,16 @@ async function autoMarkNotCompleted(list){
           "Content-Type":"application/json",
           ...(token ? {Authorization:"Bearer " + token} : {})
         },
-        body:JSON.stringify({
-          status:"Not Completed"
-        })
+        body:JSON.stringify({status:"Not Completed"})
       });
-
       t.status = "Not Completed";
-
     }catch(err){
       console.log("Auto Not Completed Failed",err);
     }
   }
 }
 
-/* ===============================
-   API
-================================ */
+/* ================= API ================= */
 
 async function loadServices(){
   try{
@@ -656,14 +537,11 @@ async function loadServices(){
 
     const data = await res.json();
     const list = extractServices(data).filter(serviceEnabled);
-
     const unique = new Map();
 
     list.forEach(s=>{
       const code = getServiceCodeFromService(s);
-      if(code && !unique.has(code)){
-        unique.set(code,s);
-      }
+      if(code && !unique.has(code)) unique.set(code,s);
     });
 
     services = [...unique.values()];
@@ -694,7 +572,6 @@ async function loadHubTrips(){
       : [];
 
     await autoMarkNotCompleted(hubTrips);
-
     applyFilters();
 
   }catch(err){
@@ -705,9 +582,7 @@ async function loadHubTrips(){
   }
 }
 
-/* ===============================
-   FILTERS
-================================ */
+/* ================= FILTERS ================= */
 
 function buildDisplayItems(trips){
   const items = [];
@@ -749,63 +624,34 @@ function buildDisplayItems(trips){
   return items.sort((a,b)=>b.date-a.date);
 }
 
+function getActiveServiceTrips(){
+  const activeCodes = services.map(s=>getServiceCodeFromService(s));
+  return hubTrips.filter(t=>activeCodes.includes(getServiceCodeFromTrip(t)));
+}
+
 function searchableText(item){
   const first = item.kind === "trip" ? item.trip : item.group[0];
   const passengers = item.kind === "shared" ? getRealPassengersFromGroup(item.group) : [];
 
   return [
-    getTripNumber(first),
-    getServiceTitleByTrip(first),
-    first.company,
-    first.entryName,
-    first.entryPhone,
-    getEmail(first),
-    first.clientName,
-    first.clientPhone,
-    first.pickup,
-    first.dropoff,
-    stopsPlain(getStops(first)),
-    getNotes(first),
-    first.tripDate,
-    first.tripTime,
-    first.status,
-    getBookedDate(first),
-    getBookedTime(first),
-    JSON.stringify(passengers)
+    getTripNumber(first),getServiceTitleByTrip(first),first.company,first.entryName,first.entryPhone,
+    getEmail(first),first.clientName,first.clientPhone,first.pickup,first.dropoff,
+    stopsPlain(getStops(first)),getNotes(first),first.tripDate,first.tripTime,first.status,
+    getBookedDate(first),getBookedTime(first),JSON.stringify(passengers)
   ].join(" ").toLowerCase();
 }
 
 function applyFilters(){
-
-  let trips = hubTrips;
-
-  const activeCodes =
-  services.map(s => getServiceCodeFromService(s));
-
-trips = trips.filter(t =>
-  activeCodes.includes(
-    getServiceCodeFromTrip(t)
-  )
-);
+  let trips = getActiveServiceTrips();
 
   if(activeService !== "ALL"){
-    trips = trips.filter(t =>
-      tripMatchesService(t,activeService)
-    );
+    trips = trips.filter(t=>tripMatchesService(t,activeService));
   }
 
   displayItems = buildDisplayItems(trips);
 
-  const q =
-    searchInput
-      ? searchInput.value.toLowerCase().trim()
-      : "";
-
-  if(q){
-    displayItems = displayItems.filter(item =>
-      searchableText(item).includes(q)
-    );
-  }
+  const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+  if(q) displayItems = displayItems.filter(item=>searchableText(item).includes(q));
 
   renderStats();
   renderServiceTabs();
@@ -813,57 +659,67 @@ trips = trips.filter(t =>
   render();
 }
 
-/* ===============================
-   STATS / TABS
-================================ */
+/* ================= STATS ================= */
+
+function getItemTrip(item){
+  return item.kind === "trip" ? item.trip : item.group[0];
+}
+
+function countItems(items){
+  const out = {total:items.length, fa:0, gq:0, rv:0};
+
+  items.forEach(item=>{
+    const code = getSourceCode(getItemTrip(item));
+    if(code === "FA") out.fa++;
+    else if(code === "RV") out.rv++;
+    else out.gq++;
+  });
+
+  return out;
+}
+
 function countItemsByService(code){
-
-  const activeCodes =
-    services.map(s => getServiceCodeFromService(s));
-
-  const activeTrips =
-    hubTrips.filter(t =>
-      activeCodes.includes(getServiceCodeFromTrip(t))
-    );
-
-  const baseItems = buildDisplayItems(activeTrips);
+  const baseItems = buildDisplayItems(getActiveServiceTrips());
 
   const selected = code === "ALL"
     ? baseItems
-    : baseItems.filter(item=>{
-      const t = item.kind === "trip" ? item.trip : item.group[0];
-      return tripMatchesService(t,code);
-    });
+    : baseItems.filter(item=>tripMatchesService(getItemTrip(item),code));
 
-  return {
-    total:selected.length,
-    gq:selected.filter(item=>getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "GQ").length,
-    co:selected.filter(item=>getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "CO").length
-  };
+  return countItems(selected);
+}
+
+function statCard(cls,title,total,fa,gq,rv){
+  return `
+    <div class="stat-card ${cls}">
+      <div class="stat-title">${title}</div>
+      <div class="stat-number">${total}</div>
+      <div class="mini-head"><span>FA</span><span>GQ</span><span>RV</span></div>
+      <div class="mini-values"><span>${fa}</span><span>${gq}</span><span>${rv}</span></div>
+    </div>
+  `;
 }
 
 function renderStats(){
+  const wrap = document.getElementById("hubStats");
+  if(!wrap) return;
 
-  const activeCodes =
-    services.map(s => getServiceCodeFromService(s));
+  const items = buildDisplayItems(getActiveServiceTrips());
+  const total = countItems(items);
 
-  const activeTrips =
-    hubTrips.filter(t =>
-      activeCodes.includes(getServiceCodeFromTrip(t))
-    );
+  const facilityItems = items.filter(item=>getSourceCode(getItemTrip(item)) === "FA");
+  const gqItems = items.filter(item=>getSourceCode(getItemTrip(item)) === "GQ");
+  const rvItems = items.filter(item=>getSourceCode(getItemTrip(item)) === "RV");
 
-  const items = buildDisplayItems(activeTrips);
+  const fa = countItems(facilityItems);
+  const gq = countItems(gqItems);
+  const rv = countItems(rvItems);
 
-  const setText = (id,val)=>{
-    const el = document.getElementById(id);
-    if(el) el.innerText = val;
-  };
-
-  setText("statTotal",items.length);
-  setText("statNew",items.filter(item=>isNewTrip(item.kind === "trip" ? item.trip : item.group[0])).length);
-  setText("statToday",items.filter(item=>isBookedToday(item.kind === "trip" ? item.trip : item.group[0])).length);
-  setText("statCompany",items.filter(item=>getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "CO").length);
-  setText("statGq",items.filter(item=>getSourceCode(item.kind === "trip" ? item.trip : item.group[0]) === "GQ").length);
+  wrap.innerHTML = `
+    ${statCard("total","TOTAL",total.total,total.fa,total.gq,total.rv)}
+    ${statCard("facility","FACILITY",fa.total,fa.fa,fa.gq,fa.rv)}
+    ${statCard("gq","GET QUOTE",gq.total,gq.fa,gq.gq,gq.rv)}
+    ${statCard("reserved","RESERVED",rv.total,rv.fa,rv.gq,rv.rv)}
+  `;
 }
 
 function renderServiceTabs(){
@@ -885,7 +741,8 @@ function renderServiceTabs(){
       <button class="service-tab ${activeService === tab.code ? "active" : ""}" data-service="${safe(tab.code)}" type="button">
         <div class="service-title">${safe(tab.title)}</div>
         <div class="service-total">${c.total}</div>
-        <div class="service-source">CO ${c.co}<br>GQ ${c.gq}</div>
+        <div class="mini-head"><span>FA</span><span>GQ</span><span>RV</span></div>
+        <div class="mini-values"><span>${c.fa}</span><span>${c.gq}</span><span>${c.rv}</span></div>
       </button>
     `;
   }).join("");
@@ -900,14 +757,11 @@ function renderServiceTabs(){
   });
 }
 
-/* ===============================
-   SELECTION
-================================ */
+/* ================= SELECTION ================= */
 
 function toggleSelection(key){
   if(selectedItems.has(key)) selectedItems.delete(key);
   else selectedItems.add(key);
-
   updateSelectionButtons();
 }
 
@@ -938,9 +792,7 @@ function updateSelectionButtons(){
   if(cancelBtn) cancelBtn.style.display = isEditing ? "inline-block" : "none";
 }
 
-/* ===============================
-   MUTATIONS
-================================ */
+/* ================= MUTATIONS ================= */
 
 async function editSelected(){
   if(selectedItems.size !== 1){
@@ -1144,18 +996,15 @@ function cancelEdit(){
   updateSelectionButtons();
 }
 
-/* ===============================
-   RENDER
-================================ */
+/* ================= RENDER ================= */
 
 function rowClass(item){
-  const t = item.kind === "trip" ? item.trip : item.group[0];
-
+  const t = getItemTrip(item);
   let cls = "";
 
   if(item.kind === "shared") cls = "shared-row";
-  else if(String(t.type || "").toLowerCase().includes("reserved")) cls = "reserved-row";
-  else if(getSourceCode(t) === "CO") cls = "company-row";
+  else if(getSourceCode(t) === "RV") cls = "reserved-row";
+  else if(getSourceCode(t) === "FA") cls = "facility-row";
   else cls = "gq-row";
 
   if(isNewTrip(t)) cls += " new-trip-row";
@@ -1165,13 +1014,11 @@ function rowClass(item){
 
 function groupDisplayItemsByBookedDate(){
   const groups = {};
-
   displayItems.forEach(item=>{
     const key = item.bookedKey || "Unknown";
     if(!groups[key]) groups[key] = [];
     groups[key].push(item);
   });
-
   return groups;
 }
 
@@ -1186,71 +1033,60 @@ function render(){
     return;
   }
 
-const groups = groupDisplayItemsByBookedDate();
+  const groups = groupDisplayItemsByBookedDate();
 
-const wrap = document.createElement("div");
-wrap.className = "table-wrap";
+  const wrap = document.createElement("div");
+  wrap.className = "table-wrap";
 
-const table = document.createElement("table");
-table.className = "hub-table";
+  const table = document.createElement("table");
+  table.className = "hub-table";
 
-table.innerHTML = `
-<tr>
-  <th>#</th>
-  <th>Select</th>
-  <th>Trip #</th>
-  <th>Service</th>
-  <th>Company</th>
-  <th>Entry</th>
-  <th>Entry Phone</th>
-  <th>Client / Passengers</th>
-  <th>Phone</th>
-  <th>Email</th>
-  <th>Pickup</th>
-  <th>Stops</th>
-  <th>Dropoff</th>
-  <th>Notes</th>
-  <th>Trip Date</th>
-  <th>Trip Time</th>
-  <th>Booked Date</th>
-  <th>Booked Time</th>
-  <th>Status</th>
-</tr>
-`;
-
-Object.keys(groups)
-.sort((a,b)=>new Date(b)-new Date(a))
-.forEach(dayKey=>{
-
-  const dateRow = document.createElement("tr");
-
-  dateRow.innerHTML = `
-    <td colspan="19"
-        style="
-        background:#dbeafe;
-        color:#1e3a8a;
-        font-weight:900;
-        text-align:left;
-        padding:12px;">
-      Booked: ${dayKey}
-    </td>
+  table.innerHTML = `
+    <tr>
+      <th>#</th>
+      <th>Select</th>
+      <th>Trip #</th>
+      <th>Service</th>
+      <th>Facility</th>
+      <th>Entry</th>
+      <th>Entry Phone</th>
+      <th>Client / Passengers</th>
+      <th>Phone</th>
+      <th>Email</th>
+      <th>Pickup</th>
+      <th>Stops</th>
+      <th>Dropoff</th>
+      <th>Notes</th>
+      <th>Trip Date</th>
+      <th>Trip Time</th>
+      <th>Booked Date</th>
+      <th>Booked Time</th>
+      <th>Status</th>
+    </tr>
   `;
 
-  table.appendChild(dateRow);
+  Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(dayKey=>{
+    const dateRow = document.createElement("tr");
 
-  groups[dayKey].forEach((item,index)=>{
-    table.appendChild(
-      item.kind === "shared"
-        ? renderSharedRow(item,index + 1)
-        : renderTripRow(item,index + 1)
-    );
+    dateRow.innerHTML = `
+      <td colspan="19" style="background:#dbeafe;color:#1e3a8a;font-weight:900;text-align:left;padding:12px;">
+        Booked: ${dayKey}
+      </td>
+    `;
+
+    table.appendChild(dateRow);
+
+    groups[dayKey].forEach((item,index)=>{
+      table.appendChild(
+        item.kind === "shared"
+          ? renderSharedRow(item,index + 1)
+          : renderTripRow(item,index + 1)
+      );
+    });
   });
 
-});
-
-wrap.appendChild(table);
-container.appendChild(wrap);
-
+  wrap.appendChild(table);
+  container.appendChild(wrap);
   updateSelectionButtons();
 }
 
@@ -1265,9 +1101,7 @@ function renderTripRow(item,rowNumber){
 
   tr.innerHTML = `
     <td>${rowNumber}</td>
-    <td>
-      <input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')">
-    </td>
+    <td><input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')"></td>
     <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
     <td>${editing ? createEditInput(t.company || "", "company") : safe(t.company || "")}</td>
@@ -1324,9 +1158,7 @@ function renderSharedRow(item,rowNumber){
 
   tr.innerHTML = `
     <td>${rowNumber}</td>
-    <td>
-      <input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')">
-    </td>
+    <td><input type="checkbox" ${selectedItems.has(item.key) ? "checked" : ""} onchange="toggleSelection('${item.key}')"></td>
     <td><span class="trip-number-badge">${safe(getTripNumber(first))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(first))}</span></td>
     <td>${editing ? createEditInput(first.company || "", "company") : safe(first.company || "")}</td>
@@ -1349,9 +1181,7 @@ function renderSharedRow(item,rowNumber){
   return tr;
 }
 
-/* ===============================
-   EVENTS
-================================ */
+/* ================= EVENTS ================= */
 
 searchInput?.addEventListener("input",applyFilters);
 
@@ -1367,13 +1197,10 @@ Object.assign(window,{
   cancelEdit
 });
 
-/* ===============================
-   INIT
-================================ */
+/* ================= INIT ================= */
 
 async function refreshEverything(){
   if(editingKey) return;
-
   await loadServices();
   await loadHubTrips();
 }
