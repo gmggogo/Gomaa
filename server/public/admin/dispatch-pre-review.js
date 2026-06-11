@@ -25,12 +25,12 @@ let googleLoadPromise = null;
 let calcMap = new Map();
 
 function $(id){ return document.getElementById(id); }
+function clean(v){ return String(v ?? "").trim(); }
+function money(v){ return Number(v || 0).toFixed(2); }
 
 const addPage = () => $("dispatchAddPage");
 const reviewPage = () => $("dispatchReviewPage");
 const box = () => $("dispatchTripsContainer");
-
-function clean(v){ return String(v ?? "").trim(); }
 
 function esc(v){
   return String(v ?? "")
@@ -39,8 +39,6 @@ function esc(v){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;");
 }
-
-function money(v){ return Number(v || 0).toFixed(2); }
 
 function now(){
   return new Date(new Date().toLocaleString("en-US",{timeZone:SYSTEM_TIMEZONE}));
@@ -78,7 +76,7 @@ async function loadSystemDesign(){
     SYSTEM_REGION = data?.region || "";
     SYSTEM_COUNTRY = data?.country || "";
     SYSTEM_TIMEZONE = data?.timezone || "America/Phoenix";
-  }catch(e){ console.log(e); }
+  }catch(e){}
 }
 
 async function loadServices(){
@@ -122,12 +120,17 @@ function normalizeTrip(t,i){
       ...t,
       localId:t.localId || `SH-${Date.now()}-${i}`,
       isShared:true,
+      type:"reserved",
+      reservation:true,
+      source:"RV",
+      bookingSource:"RV",
       tripType:"SHARED",
       serviceKey:t.serviceKey || t.serviceType || "SHARED",
       tripDate:t.tripDate || t.sharedDate || "",
       tripTime:t.tripTime || t.sharedTime || "",
       status:"Review",
       passengers:(t.passengers || []).map((p,idx)=>({
+        ...p,
         passengerId:p.passengerId || "P" + (idx + 1),
         clientName:p.clientName || p.name || "",
         clientPhone:p.clientPhone || p.phone || "",
@@ -142,8 +145,12 @@ function normalizeTrip(t,i){
     ...t,
     localId:t.localId || `IN-${Date.now()}-${i}`,
     isShared:false,
+    type:"reserved",
+    reservation:true,
+    source:"RV",
+    bookingSource:"RV",
     tripType:"INDIVIDUAL",
-    serviceKey:t.serviceKey || t.serviceType || "",
+    serviceKey:t.serviceKey || t.serviceType || t.serviceCode || t.serviceSuffix || "ST",
     status:"Review",
     stops:Array.isArray(t.stops) ? t.stops : []
   };
@@ -167,50 +174,24 @@ function isSharedService(s){
 }
 
 function tripServiceCode(t){
-  return code(
-    t.serviceKey ||
-    t.serviceCode ||
-    t.serviceType ||
-    t.serviceSuffix ||
-    t.service ||
-    ""
-  );
+  return code(t.serviceKey || t.serviceCode || t.serviceType || t.serviceSuffix || t.service || "");
 }
 
 function getService(t){
-
   if(t.isShared){
     return SERVICES.find(isSharedService) || SERVICES[0] || null;
   }
 
   const c = tripServiceCode(t);
 
-  let service = SERVICES.find(s=>{
+  return SERVICES.find(s=>{
     const arr = [
-      s.serviceKey,
-      s.companySuffix,
-      s.suffix,
-      s.serviceCode,
-      s.code,
-      s.title,
-      s.name,
-      s.type,
-      s.serviceType
+      s.serviceKey,s.companySuffix,s.suffix,s.serviceCode,
+      s.code,s.title,s.name,s.type,s.serviceType
     ].map(code);
 
     return arr.includes(c);
-  });
-
-  if(service) return service;
-
-  service = SERVICES.find(s=>{
-    const title = code(s.title || s.name || "");
-    return title && c && (title.includes(c) || c.includes(title));
-  });
-
-  if(service) return service;
-
-  return SERVICES.find(s=>!isSharedService(s)) || SERVICES[0] || null;
+  }) || SERVICES.find(s=>!isSharedService(s)) || SERVICES[0] || null;
 }
 
 function serviceName(t){
@@ -223,7 +204,7 @@ function warningMinutes(t){
   return Number(s?.companyWarningMinutes || s?.warningMinutes || 120);
 }
 
-/* ================= TIME POLICY ================= */
+/* ================= TIME ================= */
 
 function minutesLeft(t){
   const dt = parseDT(t.tripDate,t.tripTime);
@@ -233,7 +214,6 @@ function minutesLeft(t){
 
 function rowClass(t){
   const m = minutesLeft(t);
-
   if(m <= 0) return "past-row";
   if(m <= 30) return "red-dark";
   if(m <= 60) return "red-mid";
@@ -290,6 +270,24 @@ async function ensureGoogle(){
   });
 
   return googleLoadPromise;
+}
+
+async function getLatLng(address){
+  await ensureGoogle();
+
+  return new Promise((resolve,reject)=>{
+    const geocoder = new google.maps.Geocoder();
+
+    geocoder.geocode({address:normalizeAddress(address)},(results,status)=>{
+      if(status !== "OK" || !results?.length){
+        reject(new Error("Geocode failed"));
+        return;
+      }
+
+      const loc = results[0].geometry.location;
+      resolve({lat:loc.lat(),lng:loc.lng()});
+    });
+  });
 }
 
 async function routeMiles(points){
@@ -416,8 +414,7 @@ async function calculateTrip(t){
 
   const passengerCount = t.isShared ? Math.max(1,(t.passengers || []).length) : 1;
   const stops = t.isShared ? Math.max(0,passengerCount - 1) : (t.stops || []).filter(Boolean).length;
-
-  const serviceKey = t.isShared ? "SHARED" : (s.serviceKey || t.serviceKey || t.serviceType || "STANDARD");
+  const serviceKey = t.isShared ? "SHARED" : (s.serviceKey || t.serviceKey || "STANDARD");
 
   const total = await serverPrice({
     serviceKey,
@@ -458,9 +455,7 @@ async function showReviewPage(){
 }
 
 function loading(){
-  if(box()){
-    box().innerHTML = `<div class="empty-review">Calculating trips...</div>`;
-  }
+  if(box()) box().innerHTML = `<div class="empty-review">Calculating trips...</div>`;
 }
 
 async function render(){
@@ -489,23 +484,10 @@ async function render(){
     <div class="table-wrap">
       <table class="review-table">
         <tr>
-          <th>#</th>
-          <th>Type</th>
-          <th>Service</th>
-          <th>Entry</th>
-          <th>Entry Phone</th>
-          <th>Client / Passengers</th>
-          <th>Phone</th>
-          <th>Pickup</th>
-          <th>Stops</th>
-          <th>Dropoff</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Miles</th>
-          <th>Minutes</th>
-          <th>Price</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th>#</th><th>Type</th><th>Service</th><th>Entry</th><th>Entry Phone</th>
+          <th>Client / Passengers</th><th>Phone</th><th>Pickup</th><th>Stops</th>
+          <th>Dropoff</th><th>Date</th><th>Time</th><th>Miles</th><th>Minutes</th>
+          <th>Price</th><th>Status</th><th>Actions</th>
         </tr>
         ${rows}
       </table>
@@ -561,9 +543,7 @@ function buildErrorRow(t,e,i){
       <td>${t.isShared ? "SHARED" : "TRIP"}</td>
       <td colspan="13"><strong>${esc(e.message || "Calculation Error")}</strong></td>
       <td>Error</td>
-      <td>
-        <button class="btn delete" data-action="delete" type="button">Delete</button>
-      </td>
+      <td><button class="btn delete" data-action="delete" type="button">Delete</button></td>
     </tr>
   `;
 }
@@ -571,13 +551,16 @@ function buildErrorRow(t,e,i){
 /* ================= CREATE RV ================= */
 
 function createPayload(t,calc){
-
   const payload = {
     ...t,
 
+    type:"reserved",
+    reservation:true,
+    source:"RV",
+    bookingSource:"RV",
+
     status:"RV",
     reservationStatus:"RV",
-
     dispatchSelected:false,
     driverAssigned:false,
 
@@ -595,12 +578,7 @@ function createPayload(t,calc){
 
     serviceId:calc.service?._id || "",
     serviceName:calc.service?.name || calc.service?.title || "",
-    serviceCode:
-      calc.service?.serviceKey ||
-      calc.service?.companySuffix ||
-      calc.service?.suffix ||
-      "",
-
+    serviceCode:calc.service?.serviceKey || calc.service?.companySuffix || calc.service?.suffix || "",
     serviceKey:calc.serviceKey,
 
     createdFrom:"DISPATCH_REVIEW"
@@ -610,30 +588,55 @@ function createPayload(t,calc){
   delete payload.reviewOnly;
 
   if(t.isShared){
-
     payload.isShared = true;
     payload.tripType = "SHARED";
-
     payload.totalPassengers = calc.passengerCount;
     payload.passengersCount = calc.passengerCount;
-
     payload.pricePerPassenger = calc.pricePerPassenger;
     payload.sharedStopsCount = calc.stops;
 
-    payload.passengers = (t.passengers || []).map(p => ({
+    payload.passengers = (t.passengers || []).map(p=>({
       ...p,
       status:"RV",
       priceAmount:calc.pricePerPassenger,
       finalPrice:calc.pricePerPassenger
     }));
+  }else{
+    payload.isShared = false;
+    payload.tripType = "INDIVIDUAL";
+  }
 
+  return payload;
+}
+
+async function attachCoords(payload){
+  if(payload.isShared){
+    payload.passengers = await Promise.all((payload.passengers || []).map(async p=>{
+      const pu = await getLatLng(p.pickup);
+      const dr = await getLatLng(p.dropoff);
+
+      return {
+        ...p,
+        pickupLat:pu.lat,
+        pickupLng:pu.lng,
+        dropoffLat:dr.lat,
+        dropoffLng:dr.lng
+      };
+    }));
+  }else{
+    const pu = await getLatLng(payload.pickup);
+    const dr = await getLatLng(payload.dropoff);
+
+    payload.pickupLat = pu.lat;
+    payload.pickupLng = pu.lng;
+    payload.dropoffLat = dr.lat;
+    payload.dropoffLng = dr.lng;
   }
 
   return payload;
 }
 
 async function postTrip(payload){
-
   const res = await fetch(API_URL,{
     method:"POST",
     headers:{
@@ -646,115 +649,42 @@ async function postTrip(payload){
   const data = await res.json().catch(()=>({}));
 
   if(!res.ok || data.success === false){
-
-    console.log("SERVER ERROR =>",data);
-
-    throw new Error(
-      data.message ||
-      data.error ||
-      JSON.stringify(data)
-    );
+    throw new Error(data.message || data.error || "Error creating trip");
   }
 
   return data;
 }
 
 function removeLocal(id){
-
-  pendingTrips =
-    pendingTrips.filter(t => t.localId !== id);
-
+  pendingTrips = pendingTrips.filter(t=>t.localId !== id);
   calcMap.delete(id);
-
   savePending();
 }
 
-async function getLatLng(address){
-
-  await ensureGoogle();
-
-  return new Promise((resolve,reject)=>{
-
-    const geocoder = new google.maps.Geocoder();
-
-    geocoder.geocode(
-      { address: normalizeAddress(address) },
-      (results,status)=>{
-
-        if(status !== "OK" || !results || !results.length){
-          reject(new Error("Geocode failed"));
-          return;
-        }
-
-        const loc = results[0].geometry.location;
-
-        resolve({
-          lat: loc.lat(),
-          lng: loc.lng()
-        });
-
-      }
-    );
-
-  });
-
-}
-
 async function confirmOne(id){
-
   try{
-
-    const t =
-      pendingTrips.find(x => x.localId === id);
-
+    const t = pendingTrips.find(x=>x.localId === id);
     if(!t) return;
 
-    if(!confirm("Confirm and create RV reservation?"))
-      return;
+    if(!confirm("Confirm and create RV reservation?")) return;
 
-    const calc =
-  await calculateTrip(t);
+    const calc = await calculateTrip(t);
+    let payload = createPayload(t,calc);
+    payload = await attachCoords(payload);
 
-const pickupGeo =
-  await getLatLng(t.pickup);
-
-const dropoffGeo =
-  await getLatLng(t.dropoff);
-
-const payload =
-  createPayload(t,calc);
-
-payload.pickupLat = pickupGeo.lat;
-payload.pickupLng = pickupGeo.lng;
-
-payload.dropoffLat = dropoffGeo.lat;
-payload.dropoffLng = dropoffGeo.lng;
-
-const result =
-  await postTrip(payload);
-
-    console.log("RESULT =>",result);
+    await postTrip(payload);
 
     removeLocal(id);
-
     await render();
 
     alert("RV Created Successfully");
 
   }catch(err){
-
-    console.error(err);
-
-    alert(
-      err.message ||
-      "Create RV Failed"
-    );
-
+    alert(err.message || "Create RV Failed");
   }
 }
 
 async function confirmAll(){
-
   if(!pendingTrips.length){
     alert("No trips to submit.");
     return;
@@ -763,54 +693,18 @@ async function confirmAll(){
   if(!confirm("Submit all reviewed trips to Trips Hub as RV?")) return;
 
   const btn = $("submitAllToHubBtn");
-
   if(btn){
     btn.disabled = true;
     btn.textContent = "Submitting...";
   }
 
   try{
-
     for(const t of [...pendingTrips]){
-
       const calc = await calculateTrip(t);
-
-      const payload = createPayload(t,calc);
-
-      if(t.isShared){
-
-        payload.passengers = await Promise.all(
-          (payload.passengers || []).map(async p=>{
-
-            const pickupGeo = await getLatLng(p.pickup);
-            const dropoffGeo = await getLatLng(p.dropoff);
-
-            return {
-              ...p,
-              pickupLat:pickupGeo.lat,
-              pickupLng:pickupGeo.lng,
-              dropoffLat:dropoffGeo.lat,
-              dropoffLng:dropoffGeo.lng
-            };
-
-          })
-        );
-
-      }else{
-
-        const pickupGeo = await getLatLng(t.pickup);
-        const dropoffGeo = await getLatLng(t.dropoff);
-
-        payload.pickupLat = pickupGeo.lat;
-        payload.pickupLng = pickupGeo.lng;
-
-        payload.dropoffLat = dropoffGeo.lat;
-        payload.dropoffLng = dropoffGeo.lng;
-
-      }
+      let payload = createPayload(t,calc);
+      payload = await attachCoords(payload);
 
       await postTrip(payload);
-
       removeLocal(t.localId);
     }
 
@@ -818,17 +712,14 @@ async function confirmAll(){
     window.location.href = "/admin/trips-hub.html";
 
   }catch(e){
-
     alert(e.message || "Submit failed");
-
     if(btn){
       btn.disabled = false;
       btn.textContent = "Submit All To Trips Hub";
     }
-
   }
-
 }
+
 /* ================= EDIT / DELETE / CANCEL ================= */
 
 function deleteOne(id){
@@ -846,6 +737,8 @@ function cancelOne(id){
 function editOne(id){
   const t = pendingTrips.find(x=>x.localId === id);
   if(!t) return;
+
+  localStorage.setItem("dispatchEditTripId",id);
 
   if(t.isShared){
     localStorage.setItem("dispatchSharedDraft",JSON.stringify({
@@ -873,11 +766,11 @@ function editOne(id){
     }));
   }
 
-window.currentEditTrip = t;
-window.currentEditTripId = id;
+  showAddPage();
 
-showAddPage();
-
+  setTimeout(()=>{
+    window.location.reload();
+  },100);
 }
 
 /* ================= EVENTS ================= */
