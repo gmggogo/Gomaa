@@ -172,7 +172,11 @@ async function loadTrips(){
     }
 
     trips = (Array.isArray(data) ? data : [])
-      .filter(isReviewTrip)
+      trips = (Array.isArray(data) ? data : [])
+  .sort((a,b)=>
+    new Date(b.createdAt || 0) -
+    new Date(a.createdAt || 0)
+  );
       .sort((a,b)=>new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
     render();
