@@ -669,6 +669,37 @@ function removeLocal(id){
   savePending();
 }
 
+async function getLatLng(address){
+
+  await ensureGoogle();
+
+  return new Promise((resolve,reject)=>{
+
+    const geocoder = new google.maps.Geocoder();
+
+    geocoder.geocode(
+      { address: normalizeAddress(address) },
+      (results,status)=>{
+
+        if(status !== "OK" || !results || !results.length){
+          reject(new Error("Geocode failed"));
+          return;
+        }
+
+        const loc = results[0].geometry.location;
+
+        resolve({
+          lat: loc.lat(),
+          lng: loc.lng()
+        });
+
+      }
+    );
+
+  });
+
+}
+
 async function confirmOne(id){
 
   try{
@@ -682,15 +713,25 @@ async function confirmOne(id){
       return;
 
     const calc =
-      await calculateTrip(t);
+  await calculateTrip(t);
 
-    const payload =
-      createPayload(t,calc);
+const pickupGeo =
+  await getLatLng(t.pickup);
 
-    console.log("PAYLOAD =>",payload);
+const dropoffGeo =
+  await getLatLng(t.dropoff);
 
-    const result =
-      await postTrip(payload);
+const payload =
+  createPayload(t,calc);
+
+payload.pickupLat = pickupGeo.lat;
+payload.pickupLng = pickupGeo.lng;
+
+payload.dropoffLat = dropoffGeo.lat;
+payload.dropoffLng = dropoffGeo.lng;
+
+const result =
+  await postTrip(payload);
 
     console.log("RESULT =>",result);
 
