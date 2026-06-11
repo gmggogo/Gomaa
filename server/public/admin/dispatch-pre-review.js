@@ -754,6 +754,7 @@ const result =
 }
 
 async function confirmAll(){
+
   if(!pendingTrips.length){
     alert("No trips to submit.");
     return;
@@ -762,29 +763,54 @@ async function confirmAll(){
   if(!confirm("Submit all reviewed trips to Trips Hub as RV?")) return;
 
   const btn = $("submitAllToHubBtn");
+
   if(btn){
     btn.disabled = true;
     btn.textContent = "Submitting...";
   }
 
   try{
+
     for(const t of [...pendingTrips]){
 
       const calc = await calculateTrip(t);
 
       const payload = createPayload(t,calc);
 
-      if(!t.isShared){
+      if(t.isShared){
+
+        payload.passengers = await Promise.all(
+          (payload.passengers || []).map(async p=>{
+
+            const pickupGeo = await getLatLng(p.pickup);
+            const dropoffGeo = await getLatLng(p.dropoff);
+
+            return {
+              ...p,
+              pickupLat:pickupGeo.lat,
+              pickupLng:pickupGeo.lng,
+              dropoffLat:dropoffGeo.lat,
+              dropoffLng:dropoffGeo.lng
+            };
+
+          })
+        );
+
+      }else{
+
         const pickupGeo = await getLatLng(t.pickup);
         const dropoffGeo = await getLatLng(t.dropoff);
 
         payload.pickupLat = pickupGeo.lat;
         payload.pickupLng = pickupGeo.lng;
+
         payload.dropoffLat = dropoffGeo.lat;
         payload.dropoffLng = dropoffGeo.lng;
+
       }
 
       await postTrip(payload);
+
       removeLocal(t.localId);
     }
 
@@ -792,15 +818,17 @@ async function confirmAll(){
     window.location.href = "/admin/trips-hub.html";
 
   }catch(e){
+
     alert(e.message || "Submit failed");
 
     if(btn){
       btn.disabled = false;
       btn.textContent = "Submit All To Trips Hub";
     }
-  }
-}
 
+  }
+
+}
 /* ================= EDIT / DELETE / CANCEL ================= */
 
 function deleteOne(id){
