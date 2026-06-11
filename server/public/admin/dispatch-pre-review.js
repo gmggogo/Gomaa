@@ -555,16 +555,13 @@ function buildErrorRow(t,e,i){
 /* ================= CREATE RV ================= */
 
 function createPayload(t,calc){
+
   const payload = {
     ...t,
 
-    type:"reserved",
-    reservation:true,
-    source:"RV",
-    bookingSource:"RV",
-
     status:"RV",
     reservationStatus:"RV",
+
     dispatchSelected:false,
     driverAssigned:false,
 
@@ -582,7 +579,12 @@ function createPayload(t,calc){
 
     serviceId:calc.service?._id || "",
     serviceName:calc.service?.name || calc.service?.title || "",
-    serviceCode:calc.service?.serviceKey || calc.service?.companySuffix || calc.service?.suffix || "",
+    serviceCode:
+      calc.service?.serviceKey ||
+      calc.service?.companySuffix ||
+      calc.service?.suffix ||
+      "",
+
     serviceKey:calc.serviceKey,
 
     createdFrom:"DISPATCH_REVIEW"
@@ -592,25 +594,30 @@ function createPayload(t,calc){
   delete payload.reviewOnly;
 
   if(t.isShared){
+
     payload.isShared = true;
     payload.tripType = "SHARED";
+
     payload.totalPassengers = calc.passengerCount;
     payload.passengersCount = calc.passengerCount;
+
     payload.pricePerPassenger = calc.pricePerPassenger;
     payload.sharedStopsCount = calc.stops;
 
-    payload.passengers = (t.passengers || []).map(p=>({
+    payload.passengers = (t.passengers || []).map(p => ({
       ...p,
       status:"RV",
       priceAmount:calc.pricePerPassenger,
       finalPrice:calc.pricePerPassenger
     }));
+
   }
 
   return payload;
 }
 
 async function postTrip(payload){
+
   const res = await fetch(API_URL,{
     method:"POST",
     headers:{
@@ -623,34 +630,53 @@ async function postTrip(payload){
   const data = await res.json().catch(()=>({}));
 
   if(!res.ok || data.success === false){
-    throw new Error(data.message || "Create RV failed");
+
+    console.log("SERVER ERROR =>",data);
+
+    throw new Error(
+      data.message ||
+      data.error ||
+      JSON.stringify(data)
+    );
   }
 
   return data;
 }
 
 function removeLocal(id){
-  pendingTrips = pendingTrips.filter(t=>t.localId !== id);
+
+  pendingTrips =
+    pendingTrips.filter(t => t.localId !== id);
+
   calcMap.delete(id);
+
   savePending();
 }
+
 async function confirmOne(id){
 
   try{
 
-    const t = pendingTrips.find(x=>x.localId === id);
+    const t =
+      pendingTrips.find(x => x.localId === id);
+
     if(!t) return;
 
-    if(!confirm("Confirm and create RV reservation?")) return;
+    if(!confirm("Confirm and create RV reservation?"))
+      return;
 
-    const calc = await calculateTrip(t);
-    const payload = createPayload(t,calc);
+    const calc =
+      await calculateTrip(t);
 
-    console.log(payload);
+    const payload =
+      createPayload(t,calc);
 
-    const result = await postTrip(payload);
+    console.log("PAYLOAD =>",payload);
 
-    console.log(result);
+    const result =
+      await postTrip(payload);
+
+    console.log("RESULT =>",result);
 
     removeLocal(id);
 
@@ -662,12 +688,13 @@ async function confirmOne(id){
 
     console.error(err);
 
-    alert(err.message || "Create RV Failed");
+    alert(
+      err.message ||
+      "Create RV Failed"
+    );
 
   }
-
 }
-
 async function confirmAll(){
   if(!pendingTrips.length){
     alert("No trips to submit.");
