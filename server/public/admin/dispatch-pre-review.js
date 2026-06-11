@@ -1,6 +1,6 @@
 /* =========================================
-DISPATCH PRE REVIEW - CLEAN BUILD
-ADD TRIP -> REVIEW -> CREATE RV -> TRIPS HUB
+DISPATCH REVIEW - FINAL CLEAN BUILD
+ADD TRIP -> REVIEW ZERO -> CONFIRM CALC -> RV -> TRIPS HUB
 ========================================= */
 
 (function(){
@@ -22,7 +22,6 @@ let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 let googleLoadPromise = null;
-let calcMap = new Map();
 
 function $(id){ return document.getElementById(id); }
 function clean(v){ return String(v ?? "").trim(); }
@@ -38,33 +37,6 @@ function esc(v){
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;");
-}
-
-function now(){
-  return new Date(new Date().toLocaleString("en-US",{timeZone:SYSTEM_TIMEZONE}));
-}
-
-function parseDT(date,time){
-  if(!date || !time) return null;
-  const d = new Date(`${date}T${time}:00`);
-  return isNaN(d) ? null : d;
-}
-
-function normalizeAddress(v){
-  let a = clean(v);
-  if(!a) return "";
-
-  const low = a.toLowerCase();
-
-  if(SYSTEM_REGION && !low.includes(SYSTEM_REGION.toLowerCase())){
-    a += ", " + SYSTEM_REGION;
-  }
-
-  if(SYSTEM_COUNTRY && !low.includes(SYSTEM_COUNTRY.toLowerCase())){
-    a += ", " + SYSTEM_COUNTRY;
-  }
-
-  return a;
 }
 
 /* ================= LOAD ================= */
@@ -199,51 +171,30 @@ function serviceName(t){
   return s?.title || s?.name || t.serviceTitle || t.serviceType || t.serviceKey || "-";
 }
 
-function warningMinutes(t){
+function serviceKeyForCalc(t){
+  if(t.isShared) return "SHARED";
   const s = getService(t);
-  return Number(s?.companyWarningMinutes || s?.warningMinutes || 120);
-}
-
-/* ================= TIME ================= */
-
-function minutesLeft(t){
-  const dt = parseDT(t.tripDate,t.tripTime);
-  if(!dt) return -999999;
-  return Math.floor((dt.getTime() - now().getTime()) / 60000);
-}
-
-function rowClass(t){
-  const m = minutesLeft(t);
-  if(m <= 0) return "past-row";
-  if(m <= 30) return "red-dark";
-  if(m <= 60) return "red-mid";
-  if(m <= warningMinutes(t)) return "red-light";
-  return "yellow";
-}
-
-function actionButtons(t){
-  const m = minutesLeft(t);
-  const w = warningMinutes(t);
-
-  if(m <= 0){
-    return `<strong style="color:#64748b;">Past</strong>`;
-  }
-
-  if(m <= w){
-    return `
-      <button class="btn cancel" data-action="cancel" type="button">Cancel</button>
-      <button class="btn confirm" data-action="confirm" type="button">Confirm</button>
-    `;
-  }
-
-  return `
-    <button class="btn edit" data-action="edit" type="button">Edit</button>
-    <button class="btn delete" data-action="delete" type="button">Delete</button>
-    <button class="btn confirm" data-action="confirm" type="button">Confirm</button>
-  `;
+  return s?.serviceKey || t.serviceKey || t.serviceType || "STANDARD";
 }
 
 /* ================= GOOGLE ================= */
+
+function normalizeAddress(v){
+  let a = clean(v);
+  if(!a) return "";
+
+  const low = a.toLowerCase();
+
+  if(SYSTEM_REGION && !low.includes(SYSTEM_REGION.toLowerCase())){
+    a += ", " + SYSTEM_REGION;
+  }
+
+  if(SYSTEM_COUNTRY && !low.includes(SYSTEM_COUNTRY.toLowerCase())){
+    a += ", " + SYSTEM_COUNTRY;
+  }
+
+  return a;
+}
 
 async function ensureGoogle(){
   if(window.google && google.maps && google.maps.DirectionsService) return;
@@ -280,7 +231,7 @@ async function getLatLng(address){
 
     geocoder.geocode({address:normalizeAddress(address)},(results,status)=>{
       if(status !== "OK" || !results?.length){
-        reject(new Error("Geocode failed"));
+        reject(new Error("Geocode failed: " + address));
         return;
       }
 
@@ -288,6 +239,21 @@ async function getLatLng(address){
       resolve({lat:loc.lat(),lng:loc.lng()});
     });
   });
+}
+
+function routePoints(t){
+  if(t.isShared){
+    const arr = [];
+    (t.passengers || []).forEach(p=>{ if(p.pickup) arr.push(p.pickup); });
+    (t.passengers || []).forEach(p=>{ if(p.dropoff) arr.push(p.dropoff); });
+    return arr;
+  }
+
+  const arr = [];
+  if(t.pickup) arr.push(t.pickup);
+  (t.stops || []).forEach(s=>{ if(clean(s)) arr.push(s); });
+  if(t.dropoff) arr.push(t.dropoff);
+  return arr;
 }
 
 async function routeMiles(points){
@@ -359,22 +325,7 @@ async function routeMiles(points){
   });
 }
 
-function routePoints(t){
-  if(t.isShared){
-    const arr = [];
-    (t.passengers || []).forEach(p=>{ if(p.pickup) arr.push(p.pickup); });
-    (t.passengers || []).forEach(p=>{ if(p.dropoff) arr.push(p.dropoff); });
-    return arr;
-  }
-
-  const arr = [];
-  if(t.pickup) arr.push(t.pickup);
-  (t.stops || []).forEach(s=>{ if(clean(s)) arr.push(s); });
-  if(t.dropoff) arr.push(t.dropoff);
-  return arr;
-}
-
-/* ================= PRICE ================= */
+/* ================= PRICE ONLY ON CONFIRM ================= */
 
 async function serverPrice({serviceKey,miles,stops,minutes,passengerCount}){
   const res = await fetch("/api/company-core/calculate",{
@@ -403,18 +354,13 @@ async function serverPrice({serviceKey,miles,stops,minutes,passengerCount}){
   return Number(data.total || data.price || data.finalPrice || 0);
 }
 
-async function calculateTrip(t){
-  if(calcMap.has(t.localId)) return calcMap.get(t.localId);
-
-  const s = getService(t);
-  if(!s) throw new Error("Service not found");
-
+async function calculateOnConfirm(t){
   const points = routePoints(t);
   const route = await routeMiles(points);
 
   const passengerCount = t.isShared ? Math.max(1,(t.passengers || []).length) : 1;
   const stops = t.isShared ? Math.max(0,passengerCount - 1) : (t.stops || []).filter(Boolean).length;
-  const serviceKey = t.isShared ? "SHARED" : (s.serviceKey || t.serviceKey || "STANDARD");
+  const serviceKey = serviceKeyForCalc(t);
 
   const total = await serverPrice({
     serviceKey,
@@ -424,8 +370,8 @@ async function calculateTrip(t){
     passengerCount
   });
 
-  const calc = {
-    service:s,
+  return {
+    service:getService(t),
     serviceKey,
     route,
     total,
@@ -433,12 +379,9 @@ async function calculateTrip(t){
     stops,
     passengerCount
   };
-
-  calcMap.set(t.localId,calc);
-  return calc;
 }
 
-/* ================= RENDER ================= */
+/* ================= RENDER ZERO REVIEW ================= */
 
 function showAddPage(){
   if(addPage()) addPage().style.display = "block";
@@ -451,17 +394,11 @@ async function showReviewPage(){
   if(addPage()) addPage().style.display = "none";
   if(reviewPage()) reviewPage().style.display = "block";
 
-  await render();
+  render();
 }
 
-function loading(){
-  if(box()) box().innerHTML = `<div class="empty-review">Calculating trips...</div>`;
-}
-
-async function render(){
+function render(){
   if(!box()) return;
-
-  loading();
 
   if(!pendingTrips.length){
     box().innerHTML = `<div class="empty-review">No trips in Dispatch Review.</div>`;
@@ -470,24 +407,31 @@ async function render(){
 
   let rows = "";
 
-  for(let i=0;i<pendingTrips.length;i++){
-    try{
-      const t = pendingTrips[i];
-      const calc = await calculateTrip(t);
-      rows += buildRow(t,calc,i);
-    }catch(e){
-      rows += buildErrorRow(pendingTrips[i],e,i);
-    }
-  }
+  pendingTrips.forEach((t,i)=>{
+    rows += buildRow(t,i);
+  });
 
   box().innerHTML = `
     <div class="table-wrap">
       <table class="review-table">
         <tr>
-          <th>#</th><th>Type</th><th>Service</th><th>Entry</th><th>Entry Phone</th>
-          <th>Client / Passengers</th><th>Phone</th><th>Pickup</th><th>Stops</th>
-          <th>Dropoff</th><th>Date</th><th>Time</th><th>Miles</th><th>Minutes</th>
-          <th>Price</th><th>Status</th><th>Actions</th>
+          <th>#</th>
+          <th>Type</th>
+          <th>Service</th>
+          <th>Entry</th>
+          <th>Entry Phone</th>
+          <th>Client / Passengers</th>
+          <th>Phone</th>
+          <th>Pickup</th>
+          <th>Stops</th>
+          <th>Dropoff</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Miles</th>
+          <th>Minutes</th>
+          <th>Price</th>
+          <th>Status</th>
+          <th>Actions</th>
         </tr>
         ${rows}
       </table>
@@ -495,26 +439,29 @@ async function render(){
   `;
 }
 
-function buildRow(t,calc,i){
+function buildRow(t,i){
   let names = "";
   let phones = "";
   let pickups = "";
   let dropoffs = "";
+  let stopsCount = 0;
 
   if(t.isShared){
     names = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.clientName || p.name || "")}`).join("\n");
     phones = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.clientPhone || p.phone || "")}`).join("\n");
     pickups = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.pickup || "")}`).join("\n");
     dropoffs = (t.passengers || []).map((p,x)=>`${x+1}. ${esc(p.dropoff || "")}`).join("\n");
+    stopsCount = Math.max(0,(t.passengers || []).length - 1);
   }else{
     names = esc(t.clientName || "");
     phones = esc(t.clientPhone || "");
     pickups = esc(t.pickup || "");
     dropoffs = esc(t.dropoff || "");
+    stopsCount = (t.stops || []).filter(Boolean).length;
   }
 
   return `
-    <tr class="${rowClass(t)}" data-local-id="${esc(t.localId)}">
+    <tr data-local-id="${esc(t.localId)}">
       <td>${i+1}</td>
       <td><strong>${t.isShared ? "SHARED" : "TRIP"}</strong></td>
       <td>${esc(serviceName(t))}</td>
@@ -523,32 +470,26 @@ function buildRow(t,calc,i){
       <td><div class="multi-line">${names}</div></td>
       <td><div class="multi-line">${phones}</div></td>
       <td><div class="multi-line">${pickups}</div></td>
-      <td><strong>${calc.stops}</strong></td>
+      <td><strong>${stopsCount}</strong></td>
       <td><div class="multi-line">${dropoffs}</div></td>
       <td>${esc(t.tripDate || "")}</td>
       <td>${esc(t.tripTime || "")}</td>
-      <td><strong>${Number(calc.route.miles || 0).toFixed(2)} mi</strong></td>
-      <td><strong>${calc.route.estimatedMinutes || 0}</strong></td>
-      <td><span class="price-badge">$${money(calc.total)}</span></td>
+      <td><strong>0.00 mi</strong></td>
+      <td><strong>0</strong></td>
+      <td><span class="price-badge">$0.00</span></td>
       <td><strong>Review</strong></td>
-      <td><div class="actions-wrap">${actionButtons(t)}</div></td>
+      <td>
+        <div class="actions-wrap">
+          <button class="btn edit" data-action="edit" type="button">Edit</button>
+          <button class="btn delete" data-action="delete" type="button">Delete</button>
+          <button class="btn confirm" data-action="confirm" type="button">Confirm</button>
+        </div>
+      </td>
     </tr>
   `;
 }
 
-function buildErrorRow(t,e,i){
-  return `
-    <tr class="cancelled-row" data-local-id="${esc(t.localId)}">
-      <td>${i+1}</td>
-      <td>${t.isShared ? "SHARED" : "TRIP"}</td>
-      <td colspan="13"><strong>${esc(e.message || "Calculation Error")}</strong></td>
-      <td>Error</td>
-      <td><button class="btn delete" data-action="delete" type="button">Delete</button></td>
-    </tr>
-  `;
-}
-
-/* ================= CREATE RV ================= */
+/* ================= CREATE RV ONLY ON CONFIRM ================= */
 
 function createPayload(t,calc){
   const payload = {
@@ -559,8 +500,8 @@ function createPayload(t,calc){
     source:"RV",
     bookingSource:"RV",
 
-    status:"RV",
-    reservationStatus:"RV",
+    status:"Confirmed",
+    reservationStatus:"Confirmed",
     dispatchSelected:false,
     driverAssigned:false,
 
@@ -597,7 +538,7 @@ function createPayload(t,calc){
 
     payload.passengers = (t.passengers || []).map(p=>({
       ...p,
-      status:"RV",
+      status:"Confirmed",
       priceAmount:calc.pricePerPassenger,
       finalPrice:calc.pricePerPassenger
     }));
@@ -623,6 +564,22 @@ async function attachCoords(payload){
         dropoffLng:dr.lng
       };
     }));
+
+    payload.pickup = payload.passengers?.[0]?.pickup || "";
+    payload.dropoff = payload.passengers?.[payload.passengers.length - 1]?.dropoff || "";
+
+    if(payload.pickup){
+      const pu = await getLatLng(payload.pickup);
+      payload.pickupLat = pu.lat;
+      payload.pickupLng = pu.lng;
+    }
+
+    if(payload.dropoff){
+      const dr = await getLatLng(payload.dropoff);
+      payload.dropoffLat = dr.lat;
+      payload.dropoffLng = dr.lng;
+    }
+
   }else{
     const pu = await getLatLng(payload.pickup);
     const dr = await getLatLng(payload.dropoff);
@@ -657,29 +614,42 @@ async function postTrip(payload){
 
 function removeLocal(id){
   pendingTrips = pendingTrips.filter(t=>t.localId !== id);
-  calcMap.delete(id);
   savePending();
 }
 
+/* ================= ACTIONS ================= */
+
 async function confirmOne(id){
+  const btn = document.querySelector(`tr[data-local-id="${CSS.escape(id)}"] .btn.confirm`);
+
   try{
     const t = pendingTrips.find(x=>x.localId === id);
     if(!t) return;
 
     if(!confirm("Confirm and create RV reservation?")) return;
 
-    const calc = await calculateTrip(t);
+    if(btn){
+      btn.disabled = true;
+      btn.textContent = "Confirming...";
+    }
+
+    const calc = await calculateOnConfirm(t);
     let payload = createPayload(t,calc);
     payload = await attachCoords(payload);
 
     await postTrip(payload);
 
     removeLocal(id);
-    await render();
+    render();
 
     alert("RV Created Successfully");
 
   }catch(err){
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = "Confirm";
+    }
+
     alert(err.message || "Create RV Failed");
   }
 }
@@ -693,6 +663,7 @@ async function confirmAll(){
   if(!confirm("Submit all reviewed trips to Trips Hub as RV?")) return;
 
   const btn = $("submitAllToHubBtn");
+
   if(btn){
     btn.disabled = true;
     btn.textContent = "Submitting...";
@@ -700,7 +671,7 @@ async function confirmAll(){
 
   try{
     for(const t of [...pendingTrips]){
-      const calc = await calculateTrip(t);
+      const calc = await calculateOnConfirm(t);
       let payload = createPayload(t,calc);
       payload = await attachCoords(payload);
 
@@ -713,6 +684,7 @@ async function confirmAll(){
 
   }catch(e){
     alert(e.message || "Submit failed");
+
     if(btn){
       btn.disabled = false;
       btn.textContent = "Submit All To Trips Hub";
@@ -720,16 +692,8 @@ async function confirmAll(){
   }
 }
 
-/* ================= EDIT / DELETE / CANCEL ================= */
-
 function deleteOne(id){
   if(!confirm("Delete this trip from review?")) return;
-  removeLocal(id);
-  render();
-}
-
-function cancelOne(id){
-  if(!confirm("Cancel this reviewed reservation?")) return;
   removeLocal(id);
   render();
 }
@@ -738,14 +702,14 @@ function editOne(id){
   const t = pendingTrips.find(x=>x.localId === id);
   if(!t) return;
 
-  localStorage.setItem("dispatchEditTripId",id);
-
   if(t.isShared){
     localStorage.setItem("dispatchSharedDraft",JSON.stringify({
       passengerCount:(t.passengers || []).length,
-      sharedDate:t.tripDate,
-      sharedTime:t.tripTime,
+      sharedDate:t.tripDate || "",
+      sharedTime:t.tripTime || "",
       sharedNotes:t.notes || "",
+      entryName:t.entryName || "",
+      entryPhone:t.entryPhone || "",
       passengers:(t.passengers || []).map(p=>({
         clientName:p.clientName || p.name || "",
         clientPhone:p.clientPhone || p.phone || "",
@@ -755,6 +719,7 @@ function editOne(id){
     }));
   }else{
     localStorage.setItem("dispatchTripDraft",JSON.stringify({
+      serviceKey:t.serviceKey || "",
       clientName:t.clientName || "",
       clientPhone:t.clientPhone || "",
       pickup:t.pickup || "",
@@ -766,6 +731,7 @@ function editOne(id){
     }));
   }
 
+  removeLocal(id);
   showAddPage();
 
   setTimeout(()=>{
@@ -805,7 +771,6 @@ document.addEventListener("click",async e=>{
 
   if(btn.dataset.action === "edit") editOne(id);
   if(btn.dataset.action === "delete") deleteOne(id);
-  if(btn.dataset.action === "cancel") cancelOne(id);
   if(btn.dataset.action === "confirm") await confirmOne(id);
 });
 
