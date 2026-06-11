@@ -751,6 +751,8 @@ window.currentEditTripId = id;
 
 showAddPage();
 
+}
+
 /* ================= EVENTS ================= */
 
 document.addEventListener("click",async e=>{
