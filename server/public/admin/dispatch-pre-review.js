@@ -634,20 +634,38 @@ function removeLocal(id){
   calcMap.delete(id);
   savePending();
 }
-
 async function confirmOne(id){
-  const t = pendingTrips.find(x=>x.localId === id);
-  if(!t) return;
 
-  if(!confirm("Confirm and create RV reservation?")) return;
+  try{
 
-  const calc = await calculateTrip(t);
-  const payload = createPayload(t,calc);
+    const t = pendingTrips.find(x=>x.localId === id);
+    if(!t) return;
 
-  await postTrip(payload);
+    if(!confirm("Confirm and create RV reservation?")) return;
 
-  removeLocal(id);
-  await render();
+    const calc = await calculateTrip(t);
+    const payload = createPayload(t,calc);
+
+    console.log(payload);
+
+    const result = await postTrip(payload);
+
+    console.log(result);
+
+    removeLocal(id);
+
+    await render();
+
+    alert("RV Created Successfully");
+
+  }catch(err){
+
+    console.error(err);
+
+    alert(err.message || "Create RV Failed");
+
+  }
+
 }
 
 async function confirmAll(){
@@ -728,9 +746,10 @@ function editOne(id){
     }));
   }
 
-  removeLocal(id);
-  showAddPage();
-}
+window.currentEditTrip = t;
+window.currentEditTripId = id;
+
+showAddPage();
 
 /* ================= EVENTS ================= */
 
