@@ -209,17 +209,99 @@ function showAddPage(){
     sharedSection.style.display = "none";
   }
 }
-
 function showReviewPage(){
   if(companyTabs) companyTabs.style.display = "none";
+
   individualSection.style.display = "none";
   sharedSection.style.display = "none";
 
-  const page = document.getElementById("dispatchReviewPage");
+  const page =
+    document.getElementById("dispatchReviewPage");
+
   page.style.display = "block";
 
   renderPendingReview();
 }
+async function createTripFromReview(index){
+  const trip = pendingTrips[index];
+  if(!trip) return;
+
+  if(!confirm("Confirm and create RV trip?")) return;
+
+  try{
+    const payload = {
+      ...trip,
+      reviewOnly:false,
+      status:"RV",
+      reservationStatus:"RV",
+      dispatchSelected:false,
+      driverAssigned:false
+    };
+
+    delete payload.localId;
+
+    const res = await fetch(API_URL,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok || data.success === false){
+      throw new Error(data.message || "Error creating trip");
+    }
+
+    pendingTrips.splice(index,1);
+    localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
+
+    showAlert("RV Trip Created ✔");
+    renderPendingReview();
+
+  }catch(err){
+    console.error(err);
+    alert(err.message || "Create trip failed");
+  }
+}
+
+function editPendingTrip(index){
+  const trip = pendingTrips[index];
+  if(!trip) return;
+
+  if(trip.isShared){
+    localStorage.setItem("dispatchSharedDraft",JSON.stringify({
+      passengerCount:trip.passengers?.length || 2,
+      sharedDate:trip.tripDate || "",
+      sharedTime:trip.tripTime || "",
+      sharedNotes:trip.notes || "",
+      entryName:trip.entryName || "",
+      entryPhone:trip.entryPhone || "",
+      passengers:trip.passengers || []
+    }));
+  }else{
+    localStorage.setItem("dispatchTripDraft",JSON.stringify({
+      serviceKey:trip.serviceKey || "",
+      clientName:trip.clientName || "",
+      clientPhone:trip.clientPhone || "",
+      pickup:trip.pickup || "",
+      dropoff:trip.dropoff || "",
+      tripDate:trip.tripDate || "",
+      tripTime:trip.tripTime || "",
+      notes:trip.notes || "",
+      stops:trip.stops || []
+    }));
+  }
+
+  pendingTrips.splice(index,1);
+  localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
+
+  showAddPage();
+  location.reload();
+}
+
 
 function renderPendingReview(){
   const box = document.getElementById("dispatchReviewList");
@@ -237,9 +319,27 @@ function renderPendingReview(){
         <b>${i + 1}. ${isShared ? "Shared" : "Individual"} - ${t.serviceTitle || t.serviceType}</b><br>
         Date: ${t.tripDate || "-"} | Time: ${t.tripTime || "-"}<br>
         ${isShared ? `Passengers: ${t.passengers?.length || 0}` : `Client: ${t.clientName || "-"}`}<br>
-        <button type="button" onclick="deletePendingTrip(${i})" style="margin-top:8px;background:#ef4444;color:#fff;">Delete</button>
-      </div>
-    `;
+     <button type="button"
+onclick="editPendingTrip(${i})"
+style="margin-top:8px;background:#2563eb;color:#fff;">
+Edit
+</button>
+
+<button type="button"
+onclick="createTripFromReview(${i})"
+style="margin-top:8px;background:#16a34a;color:#fff;">
+Confirm
+</button>
+
+<button type="button"
+onclick="deletePendingTrip(${i})"
+style="margin-top:8px;background:#ef4444;color:#fff;">
+Delete
+</button>
+
+</div>
+`;   
+
   }).join("");
 }
 
@@ -249,6 +349,8 @@ window.deletePendingTrip = function(index){
   renderPendingReview();
 };
 
+window.createTripFromReview = createTripFromReview;
+window.editPendingTrip = editPendingTrip;
 function loadEntryInfo(){
   const saved = JSON.parse(localStorage.getItem("dispatchEntryInfo") || "{}");
 
