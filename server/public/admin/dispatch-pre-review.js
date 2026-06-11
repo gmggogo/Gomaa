@@ -752,6 +752,7 @@ const result =
 
   }
 }
+
 async function confirmAll(){
   if(!pendingTrips.length){
     alert("No trips to submit.");
@@ -768,8 +769,21 @@ async function confirmAll(){
 
   try{
     for(const t of [...pendingTrips]){
+
       const calc = await calculateTrip(t);
+
       const payload = createPayload(t,calc);
+
+      if(!t.isShared){
+        const pickupGeo = await getLatLng(t.pickup);
+        const dropoffGeo = await getLatLng(t.dropoff);
+
+        payload.pickupLat = pickupGeo.lat;
+        payload.pickupLng = pickupGeo.lng;
+        payload.dropoffLat = dropoffGeo.lat;
+        payload.dropoffLng = dropoffGeo.lng;
+      }
+
       await postTrip(payload);
       removeLocal(t.localId);
     }
@@ -779,6 +793,7 @@ async function confirmAll(){
 
   }catch(e){
     alert(e.message || "Submit failed");
+
     if(btn){
       btn.disabled = false;
       btn.textContent = "Submit All To Trips Hub";
