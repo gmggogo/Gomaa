@@ -611,7 +611,7 @@ function clearSharedForm(){
   passengersContainer.innerHTML = "";
 }
 
-submitTripBtn?.addEventListener("click",function(){
+submitTripBtn?.addEventListener("click", async function(){
   if(!activeService) return showAlert("Select Service");
   if(!validateIndividualTrip()) return;
 
@@ -654,8 +654,37 @@ submitTripBtn?.addEventListener("click",function(){
     status:"Review"
   };
 
-  pendingTrips.push(trip);
-  localStorage.setItem("dispatchReviewTrips",JSON.stringify(pendingTrips));
+const res = await fetch("/api/trips",{
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json",
+    Authorization:"Bearer " + token
+  },
+  body:JSON.stringify({
+    ...trip,
+    status:"Review",
+    reservationStatus:"Review"
+  })
+});
+
+const data = await res.json();
+
+if(!res.ok){
+  throw new Error(data.message || "Create failed");
+}
+
+const createdTrip =
+  data.trip ||
+  data.data ||
+  data;
+
+pendingTrips.push(createdTrip);
+
+localStorage.setItem(
+  "dispatchReviewTrips",
+  JSON.stringify(pendingTrips)
+);
+
 renderPendingReview();
   clearIndividualForm();
 
