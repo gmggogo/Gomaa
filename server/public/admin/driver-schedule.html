@@ -10,27 +10,17 @@
 
 <style>
 
-/* ================= GLOBAL ================= */
+/* ================= BASE ================= */
 body{
   margin:0;
   font-family:Arial;
-  background:#f3f4f6;
+  background:#f4f6fb;
 }
 
-/* ================= HEADER ================= */
-#adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:999;
-}
-
-/* ================= PAGE ================= */
 .page-body{
-  max-width:1600px;
+  max-width:1400px;
   margin:auto;
-  padding:180px 20px;
+  padding:160px 20px;
 }
 
 .page-title{
@@ -40,7 +30,7 @@ body{
   padding:12px;
   font-weight:700;
   border-radius:10px;
-  margin-bottom:20px;
+  margin-bottom:15px;
 }
 
 /* ================= TABLE ================= */
@@ -54,70 +44,57 @@ table{
   box-shadow:0 10px 25px rgba(0,0,0,0.08);
 }
 
-/* HEADER */
 th{
-  background:#111827;
+  background:#111;
   color:#fff;
-  padding:12px;
-  font-size:13px;
-}
-
-/* CELLS */
-td{
   padding:10px;
-  text-align:center;
-  border-bottom:1px solid #eee;
   font-size:13px;
 }
 
-/* ================= DRIVER NAME ================= */
-td:nth-child(2){
+td{
+  border-bottom:1px solid #eee;
+  padding:8px;
+  text-align:center;
+}
+
+/* ================= DRIVER ================= */
+.driver-name{
   background:#e8f0ff;
   font-weight:700;
   color:#1e3a8a;
 }
 
-/* ================= INPUT ================= */
-input{
-  width:100%;
-  padding:6px;
-  border-radius:6px;
-  border:1px solid #ddd;
-}
-
-/* ================= DAYS ================= */
+/* ================= WEEK ================= */
 .week{
   display:flex;
-  justify-content:center;
   gap:4px;
+  justify-content:center;
 }
 
 .day{
-  width:38px;
-  height:34px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  width:36px;
+  height:30px;
   font-size:10px;
   border-radius:6px;
   border:1px solid #ccc;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   cursor:pointer;
-  user-select:none;
 }
 
 .day.active{
   background:#16a34a;
   color:#fff;
-  border-color:#16a34a;
 }
 
-/* ================= SERVICE BADGE ================= */
+/* ================= SERVICE ================= */
 .service-badge{
-  padding:4px 10px;
+  padding:5px 10px;
   border-radius:20px;
+  background:#e5e7eb;
   font-size:11px;
   display:inline-block;
-  background:#e5e7eb;
 }
 
 .service-badge.active{
@@ -143,6 +120,14 @@ input{
   color:#fff;
 }
 
+/* ================= INPUT ================= */
+input,select{
+  width:100%;
+  padding:4px;
+  border-radius:5px;
+  border:1px solid #ccc;
+}
+
 /* ================= BUTTONS ================= */
 .btn{
   padding:5px 10px;
@@ -150,7 +135,6 @@ input{
   border-radius:6px;
   font-size:11px;
   cursor:pointer;
-  margin:2px;
 }
 
 .edit{background:#2563eb;color:#fff;}
@@ -164,112 +148,36 @@ input{
 
 <body>
 
-<div id="adminHeader"></div>
-
 <div class="page-body">
 
-<div class="page-title">Driver Schedule Management</div>
+  <div class="page-title">
+    Driver Schedule Management
+  </div>
 
-<table>
+  <table>
 
-<thead>
-<tr>
-<th>#</th>
-<th>Driver Name</th>
-<th>Car #</th>
-<th>Phone</th>
-<th>Address</th>
-<th>Weekly</th>
-<th>Service</th>
-<th>Status</th>
-<th>Action</th>
-</tr>
-</thead>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Driver</th>
+        <th>Car</th>
+        <th>Phone</th>
+        <th>Address</th>
+        <th>Week</th>
+        <th>Service</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
 
-<tbody id="tbody"></tbody>
+    <tbody id="tbody"></tbody>
 
-</table>
+  </table>
 
 </div>
 
 <script src="/admin/header.js"></script>
 <script src="/admin/driver-schedule.js"></script>
-
-<script>
-
-/* ================= SIMPLE HELPERS ================= */
-const DAYS = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-
-/* ================= RENDER PATCH (IMPORTANT PART) ================= */
-
-function renderRow(d, s, id, i){
-
-return `
-<tr>
-
-<td>${i+1}</td>
-
-<td>${d.name || "-"}</td>
-
-<td>
-<input value="${s.vehicleNumber||""}"
-${!s.edit?"disabled":""}
-oninput="schedule['${id}'].vehicleNumber=this.value">
-</td>
-
-<td>
-<input value="${s.phone||""}"
-${!s.edit?"disabled":""}
-oninput="schedule['${id}'].phone=this.value">
-</td>
-
-<td>
-<input value="${s.address||""}"
-${!s.edit?"disabled":""}
-oninput="schedule['${id}'].address=this.value">
-</td>
-
-<td>
-<div class="week">
-${DAYS.map(x=>`
-<div class="day ${s.weekly?.[x.toLowerCase()]?'active':''}"
-onclick="toggleDay('${id}','${x.toLowerCase()}',this)">
-${x}
-</div>
-`).join("")}
-</div>
-</td>
-
-<td>
-<span class="service-badge active">
-${s.service || "ALL"}
-</span>
-</td>
-
-<td>
-<span class="status ${s.enabled?'on':'off'}">
-${s.enabled?'ACTIVE':'OFF'}
-</span>
-</td>
-
-<td>
-${
-s.edit
-? `<button class="btn save" onclick="saveDriver('${id}')">Save</button>`
-: `<button class="btn edit" onclick="editDriver('${id}')">Edit</button>`
-}
-
-<button class="btn ${s.enabled?'disable':'enable'}"
-onclick="toggleDriver('${id}')">
-${s.enabled?'Disable':'Enable'}
-</button>
-</td>
-
-</tr>
-`;
-}
-
-</script>
 
 </body>
 </html>

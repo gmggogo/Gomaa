@@ -1,3 +1,5 @@
+/* ================= DRIVER SCHEDULE - PRO CLEAN ================= */
+
 const API_DRIVERS = "/api/drivers";
 const API_SCHEDULE = "/api/driver-schedule";
 const API_SERVICES = "/api/services/admin";
@@ -8,133 +10,7 @@ let services = [];
 
 const tbody = document.getElementById("tbody");
 
-/* ================= STYLE ================= */
-(function(){
-  const style = document.createElement("style");
-
-  style.innerHTML = `
-
-body{
-  font-family:Arial;
-  background:#f5f6fa;
-}
-
-/* ===== TABLE ===== */
-table{
-  width:100%;
-  min-width:1400px;
-  border-collapse:collapse;
-  background:#fff;
-  box-shadow:0 5px 20px rgba(0,0,0,0.08);
-  border-radius:12px;
-  overflow:hidden;
-}
-
-th{
-  background:#111827;
-  color:#fff;
-  padding:12px;
-  font-size:13px;
-}
-
-td{
-  padding:10px;
-  border-bottom:1px solid #eee;
-  text-align:center;
-  vertical-align:middle;
-  font-size:13px;
-}
-
-/* ===== INPUT ===== */
-input{
-  width:100%;
-  padding:6px;
-  border-radius:6px;
-  border:1px solid #ddd;
-}
-
-/* ===== DAYS INLINE ===== */
-.days-row{
-  display:flex;
-  gap:4px;
-  justify-content:center;
-  flex-wrap:nowrap;
-}
-
-.day{
-  min-width:38px;
-  padding:6px;
-  border-radius:6px;
-  border:1px solid #ccc;
-  font-size:10px;
-  cursor:pointer;
-  user-select:none;
-}
-
-.day.active{
-  background:#16a34a;
-  color:#fff;
-  border-color:#16a34a;
-}
-
-/* ===== SERVICE VIEW ===== */
-.service-view{
-  padding:6px 10px;
-  background:#f3f4f6;
-  border-radius:6px;
-  display:inline-block;
-}
-
-/* ===== SELECT ===== */
-select{
-  width:100%;
-  padding:6px;
-  border-radius:6px;
-  border:1px solid #ddd;
-}
-
-/* ===== STATUS ===== */
-.status{
-  padding:5px 10px;
-  border-radius:20px;
-  font-size:11px;
-  font-weight:700;
-}
-
-.status.on{
-  background:#16a34a;
-  color:#fff;
-}
-
-.status.off{
-  background:#dc2626;
-  color:#fff;
-}
-
-/* ===== BUTTONS ===== */
-.btn{
-  padding:6px 10px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  font-size:11px;
-  margin:2px;
-}
-
-.edit{background:#2563eb;color:#fff;}
-.save{background:#16a34a;color:#fff;}
-.disable{background:#dc2626;color:#fff;}
-.enable{background:#f59e0b;color:#fff;}
-
-`;
-
-  document.head.appendChild(style);
-})();
-
-/* ================= DAYS ================= */
-const DAYS = ["sun","mon","tue","wed","thu","fri","sat"];
-
-/* ================= LOAD ================= */
+/* ================= LOAD DATA ================= */
 
 async function loadDrivers(){
   const res = await fetch(API_DRIVERS);
@@ -159,6 +35,7 @@ async function loadSchedule(){
 }
 
 /* ================= SAVE ================= */
+
 async function save(){
   await fetch(API_SCHEDULE,{
     method:"POST",
@@ -168,6 +45,7 @@ async function save(){
 }
 
 /* ================= INIT DRIVER ================= */
+
 function initDriver(id){
   if(!schedule[id]){
     schedule[id] = {
@@ -176,66 +54,58 @@ function initDriver(id){
       vehicleNumber:"",
       enabled:true,
       edit:false,
-
       weekly:{
         sun:false,mon:false,tue:false,
         wed:false,thu:false,fri:false,sat:false
       },
-
       service:"ALL"
     };
   }
 }
 
-/* ================= DAYS ================= */
-function toggleDay(id,day,el){
-  const s = schedule[id];
-  if(!s.edit || !s.enabled) return;
+/* ================= ACTIONS ================= */
 
-  s.weekly[day] = !s.weekly[day];
-  el.classList.toggle("active");
-}
-
-/* ================= SERVICE ================= */
-function setService(id,value){
-  schedule[id].service = value;
-}
-
-/* ================= EDIT ================= */
 function editDriver(id){
   schedule[id].edit = true;
   render();
 }
 
-function saveDriver(id){
+async function saveDriver(id){
   schedule[id].edit = false;
-  save();
+  await save();
   render();
 }
 
-/* ================= ENABLE ================= */
 function toggleDriver(id){
   schedule[id].enabled = !schedule[id].enabled;
   save();
   render();
 }
 
+function toggleDay(id,day){
+  const s = schedule[id];
+  if(!s.edit || !s.enabled) return;
+
+  s.weekly[day] = !s.weekly[day];
+  render();
+}
+
+function updateService(id,value){
+  schedule[id].service = value;
+}
+
 /* ================= STATUS ================= */
+
 function isActive(id){
   const s = schedule[id];
-  if(!s || !s.enabled) return false;
+  if(!s?.enabled) return false;
 
-  const today = DAYS[new Date().getDay()];
+  const today = ["sun","mon","tue","wed","thu","fri","sat"][new Date().getDay()];
   return !!s.weekly?.[today];
 }
 
-/* ================= GET SERVICE NAME ================= */
-function getServiceName(key){
-  const s = services.find(x=>x.serviceKey === key);
-  return s ? s.title : "N/A";
-}
-
 /* ================= RENDER ================= */
+
 function render(){
 
   tbody.innerHTML = "";
@@ -243,7 +113,6 @@ function render(){
   drivers.forEach((d,i)=>{
 
     const id = d._id || d.id;
-
     initDriver(id);
 
     const s = schedule[id];
@@ -253,61 +122,58 @@ function render(){
     tr.innerHTML = `
       <td>${i+1}</td>
 
-      <td><b>${d.name || d.fullName || "-"}</b></td>
+      <td class="driver-name">${d.name || "-"}</td>
 
       <td>
         <input value="${s.vehicleNumber}"
-        ${!s.edit ? "disabled":""}
+        ${!s.edit?"disabled":""}
         oninput="schedule['${id}'].vehicleNumber=this.value">
       </td>
 
       <td>
         <input value="${s.phone}"
-        ${!s.edit ? "disabled":""}
+        ${!s.edit?"disabled":""}
         oninput="schedule['${id}'].phone=this.value">
       </td>
 
       <td>
         <input value="${s.address}"
-        ${!s.edit ? "disabled":""}
+        ${!s.edit?"disabled":""}
         oninput="schedule['${id}'].address=this.value">
       </td>
 
       <td>
-        <div class="days-row">
-          ${DAYS.map(x=>`
-            <span class="day ${s.weekly[x]?'active':''}"
-            onclick="toggleDay('${id}','${x}',this)">
-              ${x.toUpperCase()}
-            </span>
+        <div class="week">
+          ${["sun","mon","tue","wed","thu","fri","sat"].map(day=>`
+            <div class="day ${s.weekly[day]?'active':''}"
+            onclick="toggleDay('${id}','${day}')">
+              ${day.toUpperCase()}
+            </div>
           `).join("")}
         </div>
       </td>
 
       <td>
+        <span class="service-badge active">
+          ${getServiceName(s.service)}
+        </span>
         ${
-          s.edit
-          ? `
-            <select onchange="setService('${id}',this.value)">
-              ${services.map(sv=>`
-                <option value="${sv.serviceKey}"
-                ${s.service === sv.serviceKey ? "selected":""}>
-                  ${sv.title}
-                </option>
-              `).join("")}
-            </select>
-          `
-          : `
-            <span class="service-view">
-              ${getServiceName(s.service)}
-            </span>
-          `
+          s.edit ? `
+          <select onchange="updateService('${id}',this.value)">
+            ${services.map(sv=>`
+              <option value="${sv.serviceKey}"
+              ${sv.serviceKey===s.service?'selected':''}>
+                ${sv.title}
+              </option>
+            `).join("")}
+          </select>
+          ` : ""
         }
       </td>
 
       <td>
         <span class="status ${isActive(id)?'on':'off'}">
-          ${isActive(id)?"ACTIVE":"OFF"}
+          ${isActive(id)?'ACTIVE':'OFF'}
         </span>
       </td>
 
@@ -331,7 +197,15 @@ function render(){
 
 }
 
+/* ================= SERVICE NAME ================= */
+
+function getServiceName(key){
+  const found = services.find(s=>s.serviceKey===key);
+  return found ? found.title : "ALL";
+}
+
 /* ================= INIT ================= */
+
 async function init(){
   await loadDrivers();
   await loadServices();
@@ -341,10 +215,10 @@ async function init(){
 
 init();
 
-/* ================= GLOBAL ================= */
+/* expose */
+window.schedule = schedule;
 window.toggleDay = toggleDay;
-window.setService = setService;
-window.toggleDriver = toggleDriver;
+window.updateService = updateService;
 window.editDriver = editDriver;
 window.saveDriver = saveDriver;
-window.schedule = schedule;
+window.toggleDriver = toggleDriver;
