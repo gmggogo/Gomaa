@@ -37,7 +37,7 @@ body{
   font-size:22px;
   font-weight:700;
   margin-bottom:20px;
-  background:linear-gradient(to right,#1e3a8a,#2563eb);
+  background:linear-gradient(90deg,#1e3a8a,#2563eb);
   color:#fff;
   padding:12px;
   border-radius:10px;
@@ -65,35 +65,48 @@ table{
 }
 
 th{
-  background:#0f172a;
+  background:#111827;
   color:#fff;
-  padding:10px;
+  padding:12px;
   font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
 }
+
+/* ================= DRIVER NAME COLUMN (FIXED) ================= */
+
+th:nth-child(2){
+  background:#1d4ed8;
+  color:#ffffff;
+}
+
+td:nth-child(2){
+  background:#dbeafe;
+  color:#1e3a8a;
+  font-weight:700;
+}
+
+/* ================= CAR COLUMN (FIXED) ================= */
+
+th:nth-child(3){
+  background:#f59e0b;
+  color:#111827;
+}
+
+td:nth-child(3){
+  background:#fef3c7;
+  color:#78350f;
+  font-weight:700;
+}
+
+/* ================= GENERAL ================= */
 
 td{
   border:1px solid #e5e7eb;
-  padding:6px;
+  padding:8px;
   text-align:center;
   font-size:13px;
-  transition:0.2s;
 }
-
-/* ================= COLUMN HIGHLIGHT ================= */
-
-th:nth-child(2), td:nth-child(2){
-  background:#eff6ff;
-  color:#1e3a8a;
-  font-weight:600;
-}
-
-th:nth-child(3), td:nth-child(3){
-  background:#fef3c7;
-  color:#92400e;
-  font-weight:600;
-}
-
-/* ================= HOVER ================= */
 
 tr:hover td{
   background:#f9fafb;
@@ -102,10 +115,12 @@ tr:hover td{
 /* ================= INPUT ================= */
 
 input{
-  height:26px;
+  width:100%;
+  height:28px;
   border:1px solid #cbd5e1;
-  border-radius:4px;
-  padding:3px 6px;
+  border-radius:5px;
+  padding:4px 6px;
+  font-size:12px;
 }
 
 input:disabled{
@@ -117,11 +132,12 @@ input:disabled{
 .week-box{
   display:flex;
   gap:4px;
+  justify-content:center;
 }
 
 .day-square{
-  width:60px;
-  height:44px;
+  width:50px;
+  height:40px;
   border-radius:6px;
   border:1px solid #d1d5db;
   display:flex;
@@ -131,7 +147,6 @@ input:disabled{
   font-size:10px;
   cursor:pointer;
   background:#f3f4f6;
-  user-select:none;
 }
 
 .day-square.active{
@@ -140,6 +155,14 @@ input:disabled{
 }
 
 /* ================= SERVICES ================= */
+
+select{
+  padding:5px;
+  border-radius:6px;
+  border:1px solid #cbd5e1;
+  font-size:12px;
+  width:100%;
+}
 
 .service-tag{
   display:inline-block;
@@ -159,30 +182,30 @@ input:disabled{
 
 .status-active{
   color:#16a34a;
-  font-weight:700;
+  font-weight:800;
 }
 
 .status-off{
   color:#dc2626;
-  font-weight:700;
+  font-weight:800;
 }
 
-/* ================= BUTTONS ================= */
+/* ================= ACTION ================= */
 
 .action-btn{
   border:none;
   border-radius:6px;
-  padding:5px 10px;
+  padding:6px 10px;
   font-size:11px;
   cursor:pointer;
-  margin-left:4px;
-  font-weight:600;
+  margin:2px;
+  font-weight:700;
 }
 
 .edit{background:#2563eb;color:#fff;}
 .save{background:#16a34a;color:#fff;}
 .disable{background:#dc2626;color:#fff;}
-.enable{background:#16a34a;color:#fff;}
+.enable{background:#f59e0b;color:#fff;}
 
 </style>
 
