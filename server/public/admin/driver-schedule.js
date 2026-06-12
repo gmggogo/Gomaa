@@ -1,13 +1,3 @@
-const API_DRIVERS = "/api/drivers";
-const API_SCHEDULE = "/api/driver-schedule";
-const API_SERVICES = "/api/services/admin";
-
-let drivers = [];
-let schedule = {};
-let services = [];
-
-const tbody = document.getElementById("tbody");
-
 /* ================= STYLE ================= */
 (function(){
   const style = document.createElement("style");
@@ -19,6 +9,7 @@ body{
   background:#f5f6fa;
 }
 
+/* ===== TABLE ===== */
 table{
   width:100%;
   border-collapse:collapse;
@@ -36,33 +27,36 @@ th{
 }
 
 td{
-  border-bottom:1px solid #eee;
   padding:10px;
+  border-bottom:1px solid #eee;
   text-align:center;
-  font-size:13px;
+  vertical-align:middle;
 }
 
+/* ===== DRIVER ===== */
 td:nth-child(2){
   background:#e0f2fe;
   font-weight:600;
 }
 
+/* ===== INPUT ===== */
 input{
   width:100%;
   padding:6px;
-  border:1px solid #ddd;
   border-radius:6px;
+  border:1px solid #ddd;
 }
 
-/* DAYS */
+/* ===== DAYS ROW ===== */
 .day{
   display:inline-block;
-  padding:5px 7px;
-  margin:2px;
+  min-width:40px;
+  padding:6px;
   border-radius:6px;
   border:1px solid #ccc;
+  font-size:10px;
   cursor:pointer;
-  font-size:11px;
+  margin:2px;
 }
 
 .day.active{
@@ -71,17 +65,27 @@ input{
   border-color:#16a34a;
 }
 
-/* SERVICES */
-.service-box{
-  min-width:130px;
-  padding:4px;
+/* ===== SERVICE CHIPS ===== */
+.service-chip{
+  display:inline-block;
+  padding:5px 8px;
+  margin:2px;
+  font-size:11px;
   border-radius:6px;
-  border:1px solid #ddd;
+  border:1px solid #ccc;
+  cursor:pointer;
+  user-select:none;
 }
 
-/* STATUS */
+.service-chip.active{
+  background:#16a34a;
+  color:#fff;
+  border-color:#16a34a;
+}
+
+/* ===== STATUS ===== */
 .status{
-  padding:4px 10px;
+  padding:5px 10px;
   border-radius:20px;
   font-size:11px;
   font-weight:700;
@@ -97,7 +101,7 @@ input{
   color:#fff;
 }
 
-/* BUTTONS */
+/* ===== BUTTONS ===== */
 .btn{
   padding:6px 10px;
   border:none;
@@ -117,11 +121,22 @@ input{
   document.head.appendChild(style);
 })();
 
+/* ================= API ================= */
+const API_DRIVERS = "/api/drivers";
+const API_SCHEDULE = "/api/driver-schedule";
+const API_SERVICES = "/api/services/admin";
+
+/* ================= STATE ================= */
+let drivers = [];
+let schedule = {};
+let services = [];
+
+const tbody = document.getElementById("tbody");
+
 /* ================= DAYS ================= */
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"];
 
 /* ================= LOAD ================= */
-
 async function loadDrivers(){
   const res = await fetch(API_DRIVERS);
   const data = await res.json();
@@ -145,7 +160,6 @@ async function loadSchedule(){
 }
 
 /* ================= SAVE ================= */
-
 async function save(){
   await fetch(API_SCHEDULE,{
     method:"POST",
@@ -154,8 +168,7 @@ async function save(){
   });
 }
 
-/* ================= INIT DRIVER ================= */
-
+/* ================= INIT ================= */
 function initDriver(id){
   if(!schedule[id]){
     schedule[id] = {
@@ -163,18 +176,17 @@ function initDriver(id){
       address:"",
       vehicleNumber:"",
       enabled:true,
+      edit:false,
       weekly:{
         sun:false,mon:false,tue:false,
         wed:false,thu:false,fri:false,sat:false
       },
-      services:["ALL"],
-      edit:false
+      services:["ALL"]
     };
   }
 }
 
 /* ================= TOGGLE DAY ================= */
-
 function toggleDay(id,day,el){
   const s = schedule[id];
   if(!s.edit || !s.enabled) return;
@@ -184,19 +196,25 @@ function toggleDay(id,day,el){
 }
 
 /* ================= SERVICES ================= */
+function toggleService(id,key){
+  const s = schedule[id];
 
-function updateServices(id,select){
-  schedule[id].services =
-    Array.from(select.selectedOptions).map(x=>x.value);
+  if(key === "ALL"){
+    s.services = ["ALL"];
+  } else {
+    s.services = [key];
+  }
+
+  render();
 }
 
-/* ================= EDIT / SAVE ================= */
-
+/* ================= EDIT ================= */
 function editDriver(id){
   schedule[id].edit = true;
   render();
 }
 
+/* ================= SAVE ================= */
 function saveDriver(id){
   schedule[id].edit = false;
   save();
@@ -204,7 +222,6 @@ function saveDriver(id){
 }
 
 /* ================= ENABLE ================= */
-
 function toggleDriver(id){
   schedule[id].enabled = !schedule[id].enabled;
   save();
@@ -212,7 +229,6 @@ function toggleDriver(id){
 }
 
 /* ================= STATUS ================= */
-
 function isActive(id){
   const s = schedule[id];
   if(!s || !s.enabled) return false;
@@ -222,7 +238,6 @@ function isActive(id){
 }
 
 /* ================= RENDER ================= */
-
 function render(){
 
   tbody.innerHTML = "";
@@ -240,7 +255,7 @@ function render(){
     tr.innerHTML = `
       <td>${i+1}</td>
 
-      <td><b>${d.name || d.fullName || "-"}</b></td>
+      <td>${d.name || d.fullName || "-"}</td>
 
       <td>
         <input value="${s.vehicleNumber}"
@@ -270,16 +285,14 @@ function render(){
       </td>
 
       <td>
-        <select multiple class="service-box"
-        ${!s.edit ? "disabled":""}
-        onchange="updateServices('${id}',this)">
+        <div>
           ${services.map(sv=>`
-            <option value="${sv.serviceKey}"
-            ${(s.services||[]).includes(sv.serviceKey)?"selected":""}>
+            <span class="service-chip ${(s.services||[]).includes(sv.serviceKey)?'active':''}"
+            onclick="toggleService('${id}','${sv.serviceKey}')">
               ${sv.title}
-            </option>
+            </span>
           `).join("")}
-        </select>
+        </div>
       </td>
 
       <td>
@@ -309,7 +322,6 @@ function render(){
 }
 
 /* ================= INIT ================= */
-
 async function init(){
   await loadDrivers();
   await loadServices();
@@ -321,7 +333,7 @@ init();
 
 /* ================= GLOBAL ================= */
 window.toggleDay = toggleDay;
-window.updateServices = updateServices;
+window.toggleService = toggleService;
 window.toggleDriver = toggleDriver;
 window.editDriver = editDriver;
 window.saveDriver = saveDriver;
