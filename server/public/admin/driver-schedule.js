@@ -107,12 +107,67 @@ function updateService(id,value){
 
 /* ================= STATUS ================= */
 
-function isActive(id){
-  const s = schedule[id];
-  if(!s?.enabled) return false;
+let SYSTEM_TIMEZONE = "America/Phoenix";
 
-  const days = ["sun","mon","tue","wed","thu","fri","sat"];
-  return !!s.weekly?.[days[new Date().getDay()]];
+async function loadSystem(){
+
+  try{
+
+    const res =
+      await fetch("/api/system-design");
+
+    const data =
+      await res.json();
+
+    SYSTEM_TIMEZONE =
+      data.timezone ||
+      "America/Phoenix";
+
+  }catch(err){
+
+    SYSTEM_TIMEZONE =
+      "America/Phoenix";
+
+  }
+
+}
+
+function getTodayKey(){
+
+  const day =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        weekday:"short",
+        timeZone:SYSTEM_TIMEZONE
+      }
+    )
+    .format(new Date())
+    .toLowerCase();
+
+  if(day.startsWith("sun")) return "sun";
+  if(day.startsWith("mon")) return "mon";
+  if(day.startsWith("tue")) return "tue";
+  if(day.startsWith("wed")) return "wed";
+  if(day.startsWith("thu")) return "thu";
+  if(day.startsWith("fri")) return "fri";
+
+  return "sat";
+
+}
+
+function isActive(id){
+
+  const s = schedule[id];
+
+  if(!s || !s.enabled)
+    return false;
+
+  const today =
+    getTodayKey();
+
+  return !!s.weekly?.[today];
+
 }
 
 /* ================= SERVICE NAME ================= */
@@ -219,10 +274,17 @@ function render(){
 /* ================= INIT ================= */
 
 async function init(){
+
+  await loadSystem();
+
   await loadDrivers();
+
   await loadServices();
+
   await loadSchedule();
+
   render();
+
 }
 
 init();
