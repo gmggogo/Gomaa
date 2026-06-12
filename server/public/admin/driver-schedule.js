@@ -66,20 +66,29 @@ async function save(){
 /* ================= INIT DRIVER ================= */
 
 function initDriver(id){
+
   if(!schedule[id]){
-    schedule[id] = {
-      phone:"",
-      address:"",
-      vehicleNumber:"",
-      enabled:true,
-      edit:false,
-      weekly:{
-        sun:false,mon:false,tue:false,
-        wed:false,thu:false,fri:false,sat:false
-      },
-      service:"ALL"
-    };
+    schedule[id] = {};
   }
+
+  schedule[id].phone ??= "";
+  schedule[id].address ??= "";
+  schedule[id].vehicleNumber ??= "";
+  schedule[id].enabled ??= true;
+  schedule[id].edit ??= false;
+
+  schedule[id].weekly ??= {
+    sun:false,
+    mon:false,
+    tue:false,
+    wed:false,
+    thu:false,
+    fri:false,
+    sat:false
+  };
+
+  schedule[id].services ??= ["ALL"];
+
 }
 
 /* ================= ACTIONS ================= */
@@ -90,9 +99,21 @@ function editDriver(id){
 }
 
 async function saveDriver(id){
-  schedule[id].edit = false;
+
+  const s = schedule[id];
+
+  s.edit = false;
+
+  if(!Array.isArray(s.services)){
+    s.services = ["ALL"];
+  }
+
   await save();
+
+  await loadSchedule();
+
   render();
+
 }
 
 function toggleDriver(id){
@@ -110,7 +131,9 @@ function toggleDay(id,day){
 }
 
 function updateService(id,value){
-  schedule[id].service = value;
+
+  schedule[id].services = [value];
+
 }
 
 /* ================= STATUS ================= */
@@ -180,9 +203,22 @@ function isActive(id){
 
 /* ================= SERVICE NAME ================= */
 
-function getServiceName(key){
-  const found = services.find(s=>s.serviceKey===key);
-  return found ? found.title : "ALL";
+function getServiceName(driverServices){
+
+  const key =
+    Array.isArray(driverServices)
+      ? driverServices[0]
+      : "ALL";
+
+  const found =
+    services.find(
+      s => s.serviceKey === key
+    );
+
+  return found
+    ? found.title
+    : "ALL";
+
 }
 
 /* ================= RENDER ================= */
@@ -236,7 +272,7 @@ function render(){
 
         <td>
           <span class="service-badge active">
-            ${getServiceName(s.service)}
+            ${getServiceName(s.services)}
           </span>
 
           ${
@@ -244,7 +280,9 @@ function render(){
               <select onchange="updateService('${id}',this.value)">
                 ${services.map(sv=>`
                   <option value="${sv.serviceKey}"
-                  ${sv.serviceKey===s.service?'selected':''}>
+                  ${(s.services||[]).includes(sv.serviceKey)
+  ? 'selected'
+  : ''}>
                     ${sv.title}
                   </option>
                 `).join("")}
