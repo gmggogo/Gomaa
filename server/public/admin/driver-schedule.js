@@ -1,8 +1,19 @@
-/* ================= DRIVER SCHEDULE - PRO CLEAN ================= */
+/* ================= SECURITY (FIXED) ================= */
+
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role");
+
+if(!token || !["superadmin","admin","dispatcher"].includes(role)){
+  window.location.href = "/admin/login.html";
+}
+
+/* ================= API ================= */
 
 const API_DRIVERS = "/api/drivers";
 const API_SCHEDULE = "/api/driver-schedule";
 const API_SERVICES = "/api/services/admin";
+
+/* ================= STATE ================= */
 
 let drivers = [];
 let schedule = {};
@@ -10,7 +21,7 @@ let services = [];
 
 const tbody = document.getElementById("tbody");
 
-/* ================= LOAD DATA ================= */
+/* ================= LOAD ================= */
 
 async function loadDrivers(){
   const res = await fetch(API_DRIVERS);
@@ -100,8 +111,15 @@ function isActive(id){
   const s = schedule[id];
   if(!s?.enabled) return false;
 
-  const today = ["sun","mon","tue","wed","thu","fri","sat"][new Date().getDay()];
-  return !!s.weekly?.[today];
+  const days = ["sun","mon","tue","wed","thu","fri","sat"];
+  return !!s.weekly?.[days[new Date().getDay()]];
+}
+
+/* ================= SERVICE NAME ================= */
+
+function getServiceName(key){
+  const found = services.find(s=>s.serviceKey===key);
+  return found ? found.title : "ALL";
 }
 
 /* ================= RENDER ================= */
@@ -117,91 +135,85 @@ function render(){
 
     const s = schedule[id];
 
-    const tr = document.createElement("tr");
+    tbody.innerHTML += `
+      <tr>
 
-    tr.innerHTML = `
-      <td>${i+1}</td>
+        <td>${i+1}</td>
 
-      <td class="driver-name">${d.name || "-"}</td>
+        <td class="driver-name">${d.name || "-"}</td>
 
-      <td>
-        <input value="${s.vehicleNumber}"
-        ${!s.edit?"disabled":""}
-        oninput="schedule['${id}'].vehicleNumber=this.value">
-      </td>
+        <td>
+          <input value="${s.vehicleNumber}"
+          ${!s.edit?"disabled":""}
+          oninput="schedule['${id}'].vehicleNumber=this.value">
+        </td>
 
-      <td>
-        <input value="${s.phone}"
-        ${!s.edit?"disabled":""}
-        oninput="schedule['${id}'].phone=this.value">
-      </td>
+        <td>
+          <input value="${s.phone}"
+          ${!s.edit?"disabled":""}
+          oninput="schedule['${id}'].phone=this.value">
+        </td>
 
-      <td>
-        <input value="${s.address}"
-        ${!s.edit?"disabled":""}
-        oninput="schedule['${id}'].address=this.value">
-      </td>
+        <td>
+          <input value="${s.address}"
+          ${!s.edit?"disabled":""}
+          oninput="schedule['${id}'].address=this.value">
+        </td>
 
-      <td>
-        <div class="week">
-          ${["sun","mon","tue","wed","thu","fri","sat"].map(day=>`
-            <div class="day ${s.weekly[day]?'active':''}"
-            onclick="toggleDay('${id}','${day}')">
-              ${day.toUpperCase()}
-            </div>
-          `).join("")}
-        </div>
-      </td>
-
-      <td>
-        <span class="service-badge active">
-          ${getServiceName(s.service)}
-        </span>
-        ${
-          s.edit ? `
-          <select onchange="updateService('${id}',this.value)">
-            ${services.map(sv=>`
-              <option value="${sv.serviceKey}"
-              ${sv.serviceKey===s.service?'selected':''}>
-                ${sv.title}
-              </option>
+        <td>
+          <div class="week">
+            ${["sun","mon","tue","wed","thu","fri","sat"].map(day=>`
+              <div class="day ${s.weekly[day]?'active':''}"
+              onclick="toggleDay('${id}','${day}')">
+                ${day.toUpperCase()}
+              </div>
             `).join("")}
-          </select>
-          ` : ""
-        }
-      </td>
+          </div>
+        </td>
 
-      <td>
-        <span class="status ${isActive(id)?'on':'off'}">
-          ${isActive(id)?'ACTIVE':'OFF'}
-        </span>
-      </td>
+        <td>
+          <span class="service-badge active">
+            ${getServiceName(s.service)}
+          </span>
 
-      <td>
-        ${
-          s.edit
-          ? `<button class="btn save" onclick="saveDriver('${id}')">Save</button>`
-          : `<button class="btn edit" onclick="editDriver('${id}')">Edit</button>`
-        }
+          ${
+            s.edit ? `
+              <select onchange="updateService('${id}',this.value)">
+                ${services.map(sv=>`
+                  <option value="${sv.serviceKey}"
+                  ${sv.serviceKey===s.service?'selected':''}>
+                    ${sv.title}
+                  </option>
+                `).join("")}
+              </select>
+            ` : ""
+          }
+        </td>
 
-        <button class="btn ${s.enabled?'disable':'enable'}"
-        onclick="toggleDriver('${id}')">
-          ${s.enabled?'Disable':'Enable'}
-        </button>
-      </td>
+        <td>
+          <span class="status ${isActive(id)?'on':'off'}">
+            ${isActive(id)?'ACTIVE':'OFF'}
+          </span>
+        </td>
+
+        <td>
+          ${
+            s.edit
+            ? `<button class="btn save" onclick="saveDriver('${id}')">Save</button>`
+            : `<button class="btn edit" onclick="editDriver('${id}')">Edit</button>`
+          }
+
+          <button class="btn ${s.enabled?'disable':'enable'}"
+          onclick="toggleDriver('${id}')">
+            ${s.enabled?'Disable':'Enable'}
+          </button>
+        </td>
+
+      </tr>
     `;
-
-    tbody.appendChild(tr);
 
   });
 
-}
-
-/* ================= SERVICE NAME ================= */
-
-function getServiceName(key){
-  const found = services.find(s=>s.serviceKey===key);
-  return found ? found.title : "ALL";
 }
 
 /* ================= INIT ================= */
@@ -216,9 +228,9 @@ async function init(){
 init();
 
 /* expose */
-window.schedule = schedule;
 window.toggleDay = toggleDay;
 window.updateService = updateService;
 window.editDriver = editDriver;
 window.saveDriver = saveDriver;
 window.toggleDriver = toggleDriver;
+window.schedule = schedule;
