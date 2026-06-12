@@ -41,8 +41,16 @@ async function loadServices(){
 }
 
 async function loadSchedule(){
+
   const res = await fetch(API_SCHEDULE);
-  schedule = res.ok ? await res.json() : {};
+
+  schedule =
+    res.ok
+      ? await res.json()
+      : {};
+
+  window.schedule = schedule;
+
 }
 
 /* ================= SAVE ================= */
