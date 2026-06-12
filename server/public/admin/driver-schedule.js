@@ -1,3 +1,13 @@
+const API_DRIVERS = "/api/drivers";
+const API_SCHEDULE = "/api/driver-schedule";
+const API_SERVICES = "/api/services/admin";
+
+let drivers = [];
+let schedule = {};
+let services = [];
+
+const tbody = document.getElementById("tbody");
+
 /* ================= STYLE ================= */
 (function(){
   const style = document.createElement("style");
@@ -12,17 +22,18 @@ body{
 /* ===== TABLE ===== */
 table{
   width:100%;
+  min-width:1400px;
   border-collapse:collapse;
   background:#fff;
-  box-shadow:0 5px 15px rgba(0,0,0,0.05);
-  border-radius:10px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.08);
+  border-radius:12px;
   overflow:hidden;
 }
 
 th{
   background:#111827;
   color:#fff;
-  padding:10px;
+  padding:12px;
   font-size:13px;
 }
 
@@ -31,12 +42,7 @@ td{
   border-bottom:1px solid #eee;
   text-align:center;
   vertical-align:middle;
-}
-
-/* ===== DRIVER ===== */
-td:nth-child(2){
-  background:#e0f2fe;
-  font-weight:600;
+  font-size:13px;
 }
 
 /* ===== INPUT ===== */
@@ -47,16 +53,22 @@ input{
   border:1px solid #ddd;
 }
 
-/* ===== DAYS ROW ===== */
+/* ===== DAYS INLINE ===== */
+.days-row{
+  display:flex;
+  gap:4px;
+  justify-content:center;
+  flex-wrap:nowrap;
+}
+
 .day{
-  display:inline-block;
-  min-width:40px;
+  min-width:38px;
   padding:6px;
   border-radius:6px;
   border:1px solid #ccc;
   font-size:10px;
   cursor:pointer;
-  margin:2px;
+  user-select:none;
 }
 
 .day.active{
@@ -65,22 +77,20 @@ input{
   border-color:#16a34a;
 }
 
-/* ===== SERVICE CHIPS ===== */
-.service-chip{
-  display:inline-block;
-  padding:5px 8px;
-  margin:2px;
-  font-size:11px;
+/* ===== SERVICE VIEW ===== */
+.service-view{
+  padding:6px 10px;
+  background:#f3f4f6;
   border-radius:6px;
-  border:1px solid #ccc;
-  cursor:pointer;
-  user-select:none;
+  display:inline-block;
 }
 
-.service-chip.active{
-  background:#16a34a;
-  color:#fff;
-  border-color:#16a34a;
+/* ===== SELECT ===== */
+select{
+  width:100%;
+  padding:6px;
+  border-radius:6px;
+  border:1px solid #ddd;
 }
 
 /* ===== STATUS ===== */
@@ -121,22 +131,11 @@ input{
   document.head.appendChild(style);
 })();
 
-/* ================= API ================= */
-const API_DRIVERS = "/api/drivers";
-const API_SCHEDULE = "/api/driver-schedule";
-const API_SERVICES = "/api/services/admin";
-
-/* ================= STATE ================= */
-let drivers = [];
-let schedule = {};
-let services = [];
-
-const tbody = document.getElementById("tbody");
-
 /* ================= DAYS ================= */
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"];
 
 /* ================= LOAD ================= */
+
 async function loadDrivers(){
   const res = await fetch(API_DRIVERS);
   const data = await res.json();
@@ -168,7 +167,7 @@ async function save(){
   });
 }
 
-/* ================= INIT ================= */
+/* ================= INIT DRIVER ================= */
 function initDriver(id){
   if(!schedule[id]){
     schedule[id] = {
@@ -177,16 +176,18 @@ function initDriver(id){
       vehicleNumber:"",
       enabled:true,
       edit:false,
+
       weekly:{
         sun:false,mon:false,tue:false,
         wed:false,thu:false,fri:false,sat:false
       },
-      services:["ALL"]
+
+      service:"ALL"
     };
   }
 }
 
-/* ================= TOGGLE DAY ================= */
+/* ================= DAYS ================= */
 function toggleDay(id,day,el){
   const s = schedule[id];
   if(!s.edit || !s.enabled) return;
@@ -195,17 +196,9 @@ function toggleDay(id,day,el){
   el.classList.toggle("active");
 }
 
-/* ================= SERVICES ================= */
-function toggleService(id,key){
-  const s = schedule[id];
-
-  if(key === "ALL"){
-    s.services = ["ALL"];
-  } else {
-    s.services = [key];
-  }
-
-  render();
+/* ================= SERVICE ================= */
+function setService(id,value){
+  schedule[id].service = value;
 }
 
 /* ================= EDIT ================= */
@@ -214,7 +207,6 @@ function editDriver(id){
   render();
 }
 
-/* ================= SAVE ================= */
 function saveDriver(id){
   schedule[id].edit = false;
   save();
@@ -237,6 +229,12 @@ function isActive(id){
   return !!s.weekly?.[today];
 }
 
+/* ================= GET SERVICE NAME ================= */
+function getServiceName(key){
+  const s = services.find(x=>x.serviceKey === key);
+  return s ? s.title : "N/A";
+}
+
 /* ================= RENDER ================= */
 function render(){
 
@@ -255,7 +253,7 @@ function render(){
     tr.innerHTML = `
       <td>${i+1}</td>
 
-      <td>${d.name || d.fullName || "-"}</td>
+      <td><b>${d.name || d.fullName || "-"}</b></td>
 
       <td>
         <input value="${s.vehicleNumber}"
@@ -276,23 +274,35 @@ function render(){
       </td>
 
       <td>
-        ${DAYS.map(x=>`
-          <span class="day ${s.weekly[x]?'active':''}"
-          onclick="toggleDay('${id}','${x}',this)">
-            ${x.toUpperCase()}
-          </span>
-        `).join("")}
-      </td>
-
-      <td>
-        <div>
-          ${services.map(sv=>`
-            <span class="service-chip ${(s.services||[]).includes(sv.serviceKey)?'active':''}"
-            onclick="toggleService('${id}','${sv.serviceKey}')">
-              ${sv.title}
+        <div class="days-row">
+          ${DAYS.map(x=>`
+            <span class="day ${s.weekly[x]?'active':''}"
+            onclick="toggleDay('${id}','${x}',this)">
+              ${x.toUpperCase()}
             </span>
           `).join("")}
         </div>
+      </td>
+
+      <td>
+        ${
+          s.edit
+          ? `
+            <select onchange="setService('${id}',this.value)">
+              ${services.map(sv=>`
+                <option value="${sv.serviceKey}"
+                ${s.service === sv.serviceKey ? "selected":""}>
+                  ${sv.title}
+                </option>
+              `).join("")}
+            </select>
+          `
+          : `
+            <span class="service-view">
+              ${getServiceName(s.service)}
+            </span>
+          `
+        }
       </td>
 
       <td>
@@ -333,7 +343,7 @@ init();
 
 /* ================= GLOBAL ================= */
 window.toggleDay = toggleDay;
-window.toggleService = toggleService;
+window.setService = setService;
 window.toggleDriver = toggleDriver;
 window.editDriver = editDriver;
 window.saveDriver = saveDriver;
