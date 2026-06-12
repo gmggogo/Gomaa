@@ -74,10 +74,6 @@ app.use(express.static(
   path.join(__dirname, "public")
 ));
 
-app.use(
-  "/api/driver-schedule",
-  driverScheduleRoutes
-);
 /* =========================
    STRIPE WEBHOOK
 ========================= */
@@ -270,6 +266,11 @@ app.use(express.urlencoded({
   extended:true,
   limit:"50mb"
 }));
+
+app.use(
+  "/api/driver-schedule",
+  driverScheduleRoutes
+);
 
 app.use(
   "/api/company-core",
