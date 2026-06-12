@@ -35,9 +35,12 @@ const SystemDesign =
 require("./models/SystemDesign");
 const serviceRoutes =
 require("./routes/serviceRoutes");
+
+const driverScheduleRoutes =
+require("./routes/driverScheduleRoutes");
+
 const Service =
-require("./models/Service");
-const {
+require("./models/Service");const {
   sendTripStatusEmail
 } = require(
   "./utils/tripEmailEngine"
@@ -66,7 +69,15 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 ========================= */
 
 app.use(cors());
-app.use(express.static(path.join(__dirname, "public")));
+
+app.use(express.static(
+  path.join(__dirname, "public")
+));
+
+app.use(
+  "/api/driver-schedule",
+  driverScheduleRoutes
+);
 /* =========================
    STRIPE WEBHOOK
 ========================= */
@@ -773,31 +784,6 @@ tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 })
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
-
-/* =========================
-   DRIVER SCHEDULE MODEL
-========================= */
-const driverScheduleSchema = new mongoose.Schema({
-  driverId: { type: String, required: true, unique: true },
-
-  phone: { type: String, default: "" },
-  address: { type: String, default: "" },
-
-  /* IMPORTANT: REAL COORDINATES */
-  lat: { type: Number, default: null },
-  lng: { type: Number, default: null },
-
-  vehicleNumber: { type: String, default: "" },
-
-  enabled: { type: Boolean, default: true },
-
-  days: {
-    type: Object,
-    default: {}
-  }
-}, { timestamps: true, minimize: false });
-
-const DriverSchedule = mongoose.model("DriverSchedule", driverScheduleSchema);
 
 /* =========================
    LIVE DRIVER TRACKING
@@ -1763,69 +1749,6 @@ async function persistAssignedTrips(trips) {
     }
   }
 }
-
-/* =========================
-   DRIVER SCHEDULE API
-========================= */
-app.get("/api/driver-schedule", async (req, res) => {
-  try {
-    const rows = await DriverSchedule.find().lean();
-    const result = {};
-
-    for (const r of rows) {
-      const id = String(r.driverId || "").trim();
-      if (!id) continue;
-
-      result[id] = {
-        phone: normalizeText(r.phone),
-        address: normalizeText(r.address),
-        lat: normalizeNumber(r.lat),
-        lng: normalizeNumber(r.lng),
-        vehicleNumber: normalizeText(r.vehicleNumber),
-        enabled: r.enabled === true,
-        days: r.days || {}
-      };
-    }
-
-    res.json(result);
-  } catch (err) {
-    console.log("Schedule ERROR:", err);
-    res.status(500).json({ message: "Schedule load error" });
-  }
-});
-
-app.post("/api/driver-schedule", async (req, res) => {
-  try {
-    const data = req.body || {};
-
-    for (const id in data) {
-      const safeId = String(id || "").trim();
-      if (!safeId) continue;
-
-      const s = data[id] || {};
-
-      await DriverSchedule.findOneAndUpdate(
-        { driverId: safeId },
-        {
-          driverId: safeId,
-          phone: normalizeText(s.phone),
-          address: normalizeText(s.address),
-          lat: normalizeNumber(s.lat),
-          lng: normalizeNumber(s.lng),
-          vehicleNumber: normalizeText(s.vehicleNumber),
-          enabled: typeof s.enabled === "boolean" ? s.enabled : true,
-          days: s.days || {}
-        },
-        { upsert: true, new: true }
-      );
-    }
-
-    res.json({ status: "saved" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Schedule save error" });
-  }
-});
 
 /* =========================
    CREATE ADMIN
