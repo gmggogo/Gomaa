@@ -79,7 +79,7 @@ td{
   transition:0.2s;
 }
 
-/* ================= COLUMN COLORS ================= */
+/* ================= COLUMN HIGHLIGHT ================= */
 
 th:nth-child(2), td:nth-child(2){
   background:#eff6ff;
@@ -131,6 +131,7 @@ input:disabled{
   font-size:10px;
   cursor:pointer;
   background:#f3f4f6;
+  user-select:none;
 }
 
 .day-square.active{
@@ -140,31 +141,30 @@ input:disabled{
 
 /* ================= SERVICES ================= */
 
-.service-select{
-  width:100%;
-  padding:5px;
-  border:1px solid #cbd5e1;
-  border-radius:6px;
-  font-size:12px;
-}
-
-.service-tags{
-  display:flex;
-  flex-wrap:wrap;
-  gap:4px;
-  justify-content:center;
-}
-
-.tag{
-  background:#e2e8f0;
+.service-tag{
+  display:inline-block;
   padding:3px 6px;
   border-radius:6px;
   font-size:11px;
+  margin:2px;
+  background:#e5e7eb;
 }
 
-.tag.all{
+.service-tag.all{
   background:#16a34a;
   color:#fff;
+}
+
+/* ================= STATUS ================= */
+
+.status-active{
+  color:#16a34a;
+  font-weight:700;
+}
+
+.status-off{
+  color:#dc2626;
+  font-weight:700;
 }
 
 /* ================= BUTTONS ================= */
