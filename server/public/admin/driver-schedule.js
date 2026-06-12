@@ -1,55 +1,121 @@
-/* ================= DRIVER SCHEDULE - FINAL CLEAN ================= */
-
-/* ================= STYLE ================= */
-(function () {
-  const style = document.createElement("style");
-  style.innerHTML = `
-  .day{
-    display:inline-block;
-    padding:5px 8px;
-    margin:2px;
-    border:1px solid #ccc;
-    border-radius:4px;
-    cursor:pointer;
-    font-size:12px;
-  }
-
-  .day.active{
-    background:#16a34a;
-    color:#fff;
-  }
-
-  .btn{
-    padding:5px 10px;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-    margin:2px;
-  }
-
-  .edit{background:#2563eb;color:#fff;}
-  .save{background:#16a34a;color:#fff;}
-  .disable{background:#dc2626;color:#fff;}
-  .enable{background:#16a34a;color:#fff;}
-
-  .service-box{
-    min-width:150px;
-  }
-  `;
-  document.head.appendChild(style);
-})();
-
-/* ================= API ================= */
 const API_DRIVERS = "/api/drivers";
 const API_SCHEDULE = "/api/driver-schedule";
 const API_SERVICES = "/api/services/admin";
 
-/* ================= STATE ================= */
 let drivers = [];
 let schedule = {};
 let services = [];
 
 const tbody = document.getElementById("tbody");
+
+/* ================= STYLE ================= */
+(function(){
+  const style = document.createElement("style");
+
+  style.innerHTML = `
+
+body{
+  font-family:Arial;
+  background:#f5f6fa;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  box-shadow:0 5px 15px rgba(0,0,0,0.05);
+  border-radius:10px;
+  overflow:hidden;
+}
+
+th{
+  background:#111827;
+  color:#fff;
+  padding:10px;
+  font-size:13px;
+}
+
+td{
+  border-bottom:1px solid #eee;
+  padding:10px;
+  text-align:center;
+  font-size:13px;
+}
+
+td:nth-child(2){
+  background:#e0f2fe;
+  font-weight:600;
+}
+
+input{
+  width:100%;
+  padding:6px;
+  border:1px solid #ddd;
+  border-radius:6px;
+}
+
+/* DAYS */
+.day{
+  display:inline-block;
+  padding:5px 7px;
+  margin:2px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  cursor:pointer;
+  font-size:11px;
+}
+
+.day.active{
+  background:#16a34a;
+  color:#fff;
+  border-color:#16a34a;
+}
+
+/* SERVICES */
+.service-box{
+  min-width:130px;
+  padding:4px;
+  border-radius:6px;
+  border:1px solid #ddd;
+}
+
+/* STATUS */
+.status{
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+}
+
+.status.on{
+  background:#16a34a;
+  color:#fff;
+}
+
+.status.off{
+  background:#dc2626;
+  color:#fff;
+}
+
+/* BUTTONS */
+.btn{
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:11px;
+  margin:2px;
+}
+
+.edit{background:#2563eb;color:#fff;}
+.save{background:#16a34a;color:#fff;}
+.disable{background:#dc2626;color:#fff;}
+.enable{background:#f59e0b;color:#fff;}
+
+`;
+
+  document.head.appendChild(style);
+})();
 
 /* ================= DAYS ================= */
 const DAYS = ["sun","mon","tue","wed","thu","fri","sat"];
@@ -62,8 +128,6 @@ async function loadDrivers(){
   drivers = Array.isArray(data) ? data : data.drivers || [];
 }
 
-/* ================= SERVICES (IMPORTANT RULE) ================= */
-
 async function loadServices(){
   const res = await fetch(API_SERVICES);
   const data = await res.json();
@@ -74,8 +138,6 @@ async function loadServices(){
 
   services.unshift({ serviceKey:"ALL", title:"ALL" });
 }
-
-/* ================= SCHEDULE ================= */
 
 async function loadSchedule(){
   const res = await fetch(API_SCHEDULE);
@@ -114,10 +176,10 @@ function initDriver(id){
 /* ================= TOGGLE DAY ================= */
 
 function toggleDay(id,day,el){
-  const d = schedule[id];
-  if(!d.edit || !d.enabled) return;
+  const s = schedule[id];
+  if(!s.edit || !s.enabled) return;
 
-  d.weekly[day] = !d.weekly[day];
+  s.weekly[day] = !s.weekly[day];
   el.classList.toggle("active");
 }
 
@@ -128,25 +190,23 @@ function updateServices(id,select){
     Array.from(select.selectedOptions).map(x=>x.value);
 }
 
-/* ================= ENABLE / DISABLE ================= */
-
-function toggleDriver(id){
-  schedule[id].enabled = !schedule[id].enabled;
-  render();
-  save();
-}
-
-/* ================= EDIT ================= */
+/* ================= EDIT / SAVE ================= */
 
 function editDriver(id){
   schedule[id].edit = true;
   render();
 }
 
-/* ================= SAVE ================= */
-
 function saveDriver(id){
   schedule[id].edit = false;
+  save();
+  render();
+}
+
+/* ================= ENABLE ================= */
+
+function toggleDriver(id){
+  schedule[id].enabled = !schedule[id].enabled;
   save();
   render();
 }
@@ -180,7 +240,7 @@ function render(){
     tr.innerHTML = `
       <td>${i+1}</td>
 
-      <td>${d.name || d.fullName || "-"}</td>
+      <td><b>${d.name || d.fullName || "-"}</b></td>
 
       <td>
         <input value="${s.vehicleNumber}"
@@ -201,11 +261,11 @@ function render(){
       </td>
 
       <td>
-        ${DAYS.map(dy=>`
-          <div class="day ${s.weekly[dy]?'active':''}"
-          onclick="toggleDay('${id}','${dy}',this)">
-            ${dy.toUpperCase()}
-          </div>
+        ${DAYS.map(x=>`
+          <span class="day ${s.weekly[x]?'active':''}"
+          onclick="toggleDay('${id}','${x}',this)">
+            ${x.toUpperCase()}
+          </span>
         `).join("")}
       </td>
 
@@ -222,8 +282,10 @@ function render(){
         </select>
       </td>
 
-      <td style="color:${isActive(id)?'green':'red'}">
-        ${isActive(id)?"ACTIVE":"OFF"}
+      <td>
+        <span class="status ${isActive(id)?'on':'off'}">
+          ${isActive(id)?"ACTIVE":"OFF"}
+        </span>
       </td>
 
       <td>
