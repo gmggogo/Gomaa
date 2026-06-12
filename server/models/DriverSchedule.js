@@ -39,21 +39,21 @@ const driverScheduleSchema = new mongoose.Schema({
   },
 
   /* =========================
-     WEEKLY SCHEDULE
-  ========================= */
+   DRIVER DAYS
+========================= */
 
-  weekly:{
-    type:Object,
-    default:{
-      sun:false,
-      mon:false,
-      tue:false,
-      wed:false,
-      thu:false,
-      fri:false,
-      sat:false
-    }
-  },
+days:{
+  type:Object,
+  default:{
+    sun:false,
+    mon:false,
+    tue:false,
+    wed:false,
+    thu:false,
+    fri:false,
+    sat:false
+  }
+},
 
   /* =========================
      DRIVER SERVICES

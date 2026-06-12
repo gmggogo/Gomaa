@@ -5,10 +5,10 @@ const DriverSchedule =
 require("../models/DriverSchedule");
 
 /* =========================
-   DEFAULT WEEKLY
+   DEFAULT DAYS
 ========================= */
 
-function defaultWeekly(){
+function defaultDays(){
 
   return {
     sun:false,
@@ -39,27 +39,31 @@ router.get("/", async (req,res)=>{
 
       result[item.driverId] = {
 
-        phone:item.phone || "",
+        phone:
+          item.phone || "",
 
-        address:item.address || "",
+        address:
+          item.address || "",
 
-        lat:item.lat ?? null,
+        lat:
+          item.lat ?? null,
 
-        lng:item.lng ?? null,
+        lng:
+          item.lng ?? null,
 
         vehicleNumber:
           item.vehicleNumber || "",
 
         enabled:
-          item.enabled === true,
+          item.enabled !== false,
 
-        weekly:
-          item.weekly || defaultWeekly(),
+        days:
+          item.days || defaultDays(),
 
         services:
           Array.isArray(item.services)
-          ? item.services
-          : ["ALL"]
+            ? item.services
+            : ["ALL"]
 
       };
 
@@ -121,16 +125,15 @@ router.post("/", async (req,res)=>{
               data.vehicleNumber || "",
 
             enabled:
-              data.enabled === true,
+              data.enabled !== false,
 
-            weekly:
-              data.weekly ||
-              defaultWeekly(),
+            days:
+              data.days || defaultDays(),
 
             services:
               Array.isArray(data.services)
-              ? data.services
-              : ["ALL"]
+                ? data.services
+                : ["ALL"]
 
           }
         },

@@ -23,7 +23,7 @@ let SYSTEM_TIMEZONE = "America/Phoenix";
 
 const tbody = document.getElementById("tbody");
 
-const WEEKLY_DEFAULT = {
+const DAYS_DEFAULT = {
   sun:false,
   mon:false,
   tue:false,
@@ -58,10 +58,10 @@ function normalizeRow(row){
     enabled: row.enabled !== false,
     edit: row.edit === true,
 
-    weekly:{
-      ...WEEKLY_DEFAULT,
-      ...(row.weekly || {})
-    },
+days:{
+  ...DAYS_DEFAULT,
+  ...(row.days || {})
+},
 
     services:
       Array.isArray(row.services) && row.services.length
@@ -217,10 +217,10 @@ async function save(){
       lng:row.lng,
       vehicleNumber:row.vehicleNumber,
       enabled:row.enabled === true,
-      weekly:{
-        ...WEEKLY_DEFAULT,
-        ...(row.weekly || {})
-      },
+    days:{
+  ...DAYS_DEFAULT,
+  ...(row.days || {})
+},
       services:
         Array.isArray(row.services) && row.services.length
         ? row.services
@@ -307,8 +307,7 @@ function toggleDay(id,day){
 
   if(!s.edit || !s.enabled) return;
 
-  s.weekly[day] = !s.weekly[day];
-
+s.days[day] = !s.days[day];
   render();
 
 }
@@ -334,8 +333,7 @@ function isActive(id){
 
   const today = getTodayKey();
 
-  return !!s.weekly?.[today];
-
+return !!s.days?.[today];
 }
 
 /* ================= RENDER ================= */
@@ -390,8 +388,8 @@ function render(){
           <div class="week">
             ${DAYS.map(day=>`
               <div
-                class="day ${s.weekly[day] ? "active" : ""}"
-                onclick="toggleDay('${id}','${day}')">
+class="day ${s.days[day] ? "active" : ""}"               
+ onclick="toggleDay('${id}','${day}')">
                 ${day.toUpperCase()}
               </div>
             `).join("")}
