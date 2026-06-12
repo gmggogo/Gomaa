@@ -10,14 +10,14 @@
 
 <style>
 
-/* ================= BASE ================= */
-
+/* ================= GLOBAL ================= */
 body{
   margin:0;
   font-family:Arial;
   background:#f3f4f6;
 }
 
+/* ================= HEADER ================= */
 #adminHeader{
   position:fixed;
   top:0;
@@ -26,10 +26,11 @@ body{
   z-index:999;
 }
 
+/* ================= PAGE ================= */
 .page-body{
-  max-width:1400px;
+  max-width:1600px;
   margin:auto;
-  padding:220px 20px;
+  padding:180px 20px;
 }
 
 .page-title{
@@ -39,120 +40,117 @@ body{
   padding:12px;
   font-weight:700;
   border-radius:10px;
+  margin-bottom:20px;
 }
 
 /* ================= TABLE ================= */
-
 table{
   width:100%;
-  border-collapse:collapse;
-  min-width:1100px;
+  border-collapse:separate;
+  border-spacing:0;
   background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
 }
 
-/* 🔥 HEADER FULL BLACK */
+/* HEADER */
 th{
-  background:#000;
+  background:#111827;
   color:#fff;
-  padding:10px;
+  padding:12px;
   font-size:13px;
 }
 
-/* ================= DRIVER COLUMN ================= */
+/* CELLS */
+td{
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+  font-size:13px;
+}
 
-td.driver{
-  background:#dbeafe;
+/* ================= DRIVER NAME ================= */
+td:nth-child(2){
+  background:#e8f0ff;
   font-weight:700;
   color:#1e3a8a;
 }
 
-/* ================= CAR COLUMN ================= */
-
-td.car{
-  background:#fef3c7;
-  font-weight:700;
-  color:#78350f;
+/* ================= INPUT ================= */
+input{
+  width:100%;
+  padding:6px;
+  border-radius:6px;
+  border:1px solid #ddd;
 }
 
-/* ================= CELLS ================= */
-
-td{
-  border:1px solid #e5e7eb;
-  padding:8px;
-  text-align:center;
-}
-
-/* ================= STATUS ================= */
-
-.status-active{
-  color:#16a34a;
-  font-weight:700;
-}
-
-.status-off{
-  color:#dc2626;
-  font-weight:700;
-}
-
-/* ================= WEEK ================= */
-
+/* ================= DAYS ================= */
 .week{
   display:flex;
-  gap:4px;
   justify-content:center;
+  gap:4px;
 }
 
 .day{
-  width:45px;
-  height:38px;
+  width:38px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
   border-radius:6px;
   border:1px solid #ccc;
-  font-size:10px;
-  display:flex;
-  justify-content:center;
-  align-items:center;
   cursor:pointer;
-  background:#f3f4f6;
+  user-select:none;
 }
 
 .day.active{
   background:#16a34a;
   color:#fff;
+  border-color:#16a34a;
 }
 
-/* ================= SERVICES ================= */
-
-.service-tag{
-  display:inline-block;
-  padding:3px 6px;
-  border-radius:6px;
+/* ================= SERVICE BADGE ================= */
+.service-badge{
+  padding:4px 10px;
+  border-radius:20px;
   font-size:11px;
-  margin:2px;
+  display:inline-block;
   background:#e5e7eb;
 }
 
-.service-tag.all{
+.service-badge.active{
   background:#16a34a;
   color:#fff;
 }
 
-/* ================= INPUT ================= */
+/* ================= STATUS ================= */
+.status{
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+}
 
-input{
-  width:100%;
-  padding:4px;
-  border-radius:5px;
-  border:1px solid #ccc;
+.status.on{
+  background:#16a34a;
+  color:#fff;
+}
+
+.status.off{
+  background:#dc2626;
+  color:#fff;
 }
 
 /* ================= BUTTONS ================= */
-
 .btn{
   padding:5px 10px;
   border:none;
   border-radius:6px;
   font-size:11px;
   cursor:pointer;
+  margin:2px;
 }
 
 .edit{background:#2563eb;color:#fff;}
@@ -182,7 +180,7 @@ input{
 <th>Phone</th>
 <th>Address</th>
 <th>Weekly</th>
-<th>Services</th>
+<th>Service</th>
 <th>Status</th>
 <th>Action</th>
 </tr>
@@ -196,6 +194,82 @@ input{
 
 <script src="/admin/header.js"></script>
 <script src="/admin/driver-schedule.js"></script>
+
+<script>
+
+/* ================= SIMPLE HELPERS ================= */
+const DAYS = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+/* ================= RENDER PATCH (IMPORTANT PART) ================= */
+
+function renderRow(d, s, id, i){
+
+return `
+<tr>
+
+<td>${i+1}</td>
+
+<td>${d.name || "-"}</td>
+
+<td>
+<input value="${s.vehicleNumber||""}"
+${!s.edit?"disabled":""}
+oninput="schedule['${id}'].vehicleNumber=this.value">
+</td>
+
+<td>
+<input value="${s.phone||""}"
+${!s.edit?"disabled":""}
+oninput="schedule['${id}'].phone=this.value">
+</td>
+
+<td>
+<input value="${s.address||""}"
+${!s.edit?"disabled":""}
+oninput="schedule['${id}'].address=this.value">
+</td>
+
+<td>
+<div class="week">
+${DAYS.map(x=>`
+<div class="day ${s.weekly?.[x.toLowerCase()]?'active':''}"
+onclick="toggleDay('${id}','${x.toLowerCase()}',this)">
+${x}
+</div>
+`).join("")}
+</div>
+</td>
+
+<td>
+<span class="service-badge active">
+${s.service || "ALL"}
+</span>
+</td>
+
+<td>
+<span class="status ${s.enabled?'on':'off'}">
+${s.enabled?'ACTIVE':'OFF'}
+</span>
+</td>
+
+<td>
+${
+s.edit
+? `<button class="btn save" onclick="saveDriver('${id}')">Save</button>`
+: `<button class="btn edit" onclick="editDriver('${id}')">Edit</button>`
+}
+
+<button class="btn ${s.enabled?'disable':'enable'}"
+onclick="toggleDriver('${id}')">
+${s.enabled?'Disable':'Enable'}
+</button>
+</td>
+
+</tr>
+`;
+}
+
+</script>
 
 </body>
 </html>
