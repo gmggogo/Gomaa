@@ -934,22 +934,11 @@ function renderAll(){
 }
 
 function renderTrips(){
+
   container.innerHTML = "";
 
-  displayItems = currentItems();
-
-  const today = displayItems.filter(item=>isTodayTrip(item.trip)).sort(sortByTime);
-  const tomorrow = displayItems.filter(item=>isTomorrowTrip(item.trip)).sort(sortByTime);
-
-  drawGroup("Today – " + todayKey(),today);
-  drawGroup("Tomorrow – " + tomorrowKey(),tomorrow);
-}
-
-function drawGroup(title,list){
-  const header = document.createElement("div");
-  header.className = "group-title";
-  header.innerText = title;
-  container.appendChild(header);
+  displayItems = currentItems()
+    .sort(sortByTime);
 
   const wrapper = document.createElement("div");
   wrapper.className = "table-scroll";
@@ -981,18 +970,36 @@ function drawGroup(title,list){
     </tr>
   `;
 
-  if(!list.length){
+  if(!displayItems.length){
+
     const row = document.createElement("tr");
-    row.innerHTML = `<td colspan="19" style="text-align:center;padding:20px;font-weight:900;">No Trips</td>`;
+
+    row.innerHTML = `
+      <td colspan="19"
+          style="text-align:center;padding:20px;font-weight:900;">
+          No Trips
+      </td>
+    `;
+
     table.appendChild(row);
+
   }else{
-    list.forEach((item,i)=>{
-      table.appendChild(item.kind === "shared" ? renderSharedRow(item,i+1) : renderTripRow(item,i+1));
+
+    displayItems.forEach((item,index)=>{
+
+      table.appendChild(
+        item.kind === "shared"
+          ? renderSharedRow(item,index + 1)
+          : renderTripRow(item,index + 1)
+      );
+
     });
+
   }
 
   wrapper.appendChild(table);
   container.appendChild(wrapper);
+
 }
 
 function inputCell(value,cls,field,type="text"){
