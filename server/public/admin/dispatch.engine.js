@@ -45,7 +45,8 @@ const ACTIVE_STATUSES = [
   "paid",
   "rv",
   "reserved",
-  "review"
+  "review",
+  "dispatched"
 ];
 
 /* ================= HELPERS ================= */

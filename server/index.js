@@ -39,6 +39,9 @@ require("./routes/serviceRoutes");
 const driverScheduleRoutes =
 require("./routes/driverScheduleRoutes");
 
+const dispatchRoutes =
+require("./routes/dispatchRoutes");
+
 const Service =
 require("./models/Service");const {
   sendTripStatusEmail
@@ -270,6 +273,11 @@ app.use(express.urlencoded({
 app.use(
   "/api/driver-schedule",
   driverScheduleRoutes
+);
+
+app.use(
+  "/api/dispatch",
+  dispatchRoutes
 );
 
 app.use(
@@ -4643,215 +4651,6 @@ app.delete("/api/trips/:id", async (req, res) => {
   }
 });
 
-/* =========================
-   DISPATCH API
-========================= */
-app.get("/api/dispatch", async (req, res) => {
-  try {
-    const rawTrips = await Trip.find({
-      dispatchSelected: true,
-      disabled: false
-    })
-      .sort({ tripDate: 1, tripTime: 1, createdAt: 1 })
-      .lean();
-
-    const rawDrivers = await User.find({
-      role: "driver",
-      active: true
-    })
-      .sort({ name: 1 })
-      .lean();
-
-    const scheduleRows = await DriverSchedule.find().lean();
-    const schedule = {};
-
-    for (const r of scheduleRows) {
-      const id = String(r.driverId || "").trim();
-      if (!id) continue;
-
-      schedule[id] = {
-        phone: normalizeText(r.phone),
-        address: normalizeText(r.address),
-        lat: normalizeNumber(r.lat),
-        lng: normalizeNumber(r.lng),
-        vehicleNumber: normalizeText(r.vehicleNumber),
-        enabled: r.enabled === true,
-        days: r.days || {}
-      };
-    }
-
-    const filteredDrivers = rawDrivers.filter(driver => {
-      const driverId = String(driver._id || "").trim();
-      const s = schedule[driverId];
-
-      if (!s) return true;
-      return s.enabled === true;
-    });
-
-    const liveDriversArr = getFreshLiveDriversArray();
-
-    const drivers = filteredDrivers.map(driver => {
-      const driverId = String(driver._id || "").trim();
-      const s = schedule[driverId] || {};
-      const live = liveDriversArr.find(
-        ld => String(ld.driverId || "").trim() === driverId
-      );
-
-      return {
-        ...driver,
-        _id: driverId,
-        address: buildDriverAddress(driver, s),
-        lat: normalizeNumber(s.lat),
-        lng: normalizeNumber(s.lng),
-        vehicleNumber: buildDriverVehicle(driver, s),
-        phone: buildDriverPhone(driver, s),
-
-        liveLat: live?.lat ?? null,
-        liveLng: live?.lng ?? null,
-        liveTime: live?.time ?? null,
-        liveName: live?.name ?? ""
-      };
-    });
-
-    const assignedTrips = await autoAssignTrips({
-      trips: rawTrips,
-      drivers,
-      schedule
-    });
-
-    await persistAssignedTrips(assignedTrips);
-
-    res.json({
-      trips: assignedTrips,
-      drivers,
-      schedule,
-      liveDrivers: liveDriversArr
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Dispatch load error" });
-  }
-});
-
-app.patch("/api/dispatch/send", async (req, res) => {
-  try {
-    const ids = req.body.ids || [];
-
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "No trips selected" });
-    }
-
-    const trips = await Trip.find({ _id: { $in: ids } });
-
-    if (!trips.length) {
-      return res.status(404).json({ message: "Trips not found" });
-    }
-
-    for (const t of trips) {
-      if (!normalizeText(t.driverId)) {
-        return res.status(400).json({
-          message: `Trip ${t.tripNumber || t._id} has no driver assigned`
-        });
-      }
-    }
-
-    const result = await Trip.updateMany(
-      { _id: { $in: ids } },
-      { status: "Dispatched" }
-    );
-
-    res.json({ status: "ok", updated: result.modifiedCount });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Dispatch update error" });
-  }
-});
-
-app.patch("/api/dispatch/:id/note", async (req, res) => {
-  try {
-    const note = normalizeText(req.body.note);
-
-    const trip = await Trip.findByIdAndUpdate(
-      req.params.id,
-      {
-        notes: note,
-        dispatchNote: note
-      },
-      { new: true }
-    );
-
-    res.json(trip);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Note save error" });
-  }
-});
-
-app.patch("/api/dispatch/:id/driver", async (req, res) => {
-  try {
-    const { driverId } = req.body || {};
-    const safeDriverId = String(driverId || "").trim();
-
-    if (!safeDriverId) {
-      return res.status(400).json({ message: "Driver ID required" });
-    }
-
-    const driver = await User.findById(safeDriverId);
-
-    if (!driver) {
-      return res.status(404).json({ message: "Driver not found" });
-    }
-
-    if (driver.role !== "driver") {
-      return res.status(400).json({ message: "User is not a driver" });
-    }
-
-    if (!driver.active) {
-      return res.status(400).json({ message: "Driver is disabled" });
-    }
-
-    const driverSchedule = await DriverSchedule.findOne({
-      driverId: String(driver._id).trim()
-    }).lean();
-
-    if (driverSchedule && driverSchedule.enabled !== true) {
-      return res.status(400).json({ message: "Driver disabled in schedule" });
-    }
-
-    const safeSchedule = driverSchedule
-      ? await ensureDriverScheduleCoords(String(driver._id), {
-          phone: normalizeText(driverSchedule.phone),
-          address: normalizeText(driverSchedule.address),
-          lat: normalizeNumber(driverSchedule.lat),
-          lng: normalizeNumber(driverSchedule.lng),
-          vehicleNumber: normalizeText(driverSchedule.vehicleNumber),
-          enabled: driverSchedule.enabled === true,
-          days: driverSchedule.days || {}
-        })
-      : null;
-
-    const trip = await Trip.findByIdAndUpdate(
-      req.params.id,
-      {
-        driverId: String(driver._id).trim(),
-        driverName: normalizeText(driver.name),
-        vehicle: buildDriverVehicle(driver, safeSchedule),
-        driverAddress: buildDriverAddress(driver, safeSchedule),
-        status: "Driver Assigned"
-      },
-      { new: true }
-    );
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    res.json(trip);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Driver assign error" });
-  }
-});
 
 /* =========================
    DRIVER API

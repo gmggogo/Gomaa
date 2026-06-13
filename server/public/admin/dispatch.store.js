@@ -77,10 +77,12 @@ const Store = {
 
   },
 
-  async saveDriver(tripId,driverId){
+ async saveDriver(tripId,driverId){
+
+  try{
 
     const res = await fetch(
-      `/api/dispatch/${tripId}/driver`,
+      `/api/dispatch-assignment/${tripId}/assign`,
       {
         method:"PATCH",
         headers:{
@@ -92,9 +94,38 @@ const Store = {
       }
     );
 
-    return await res.json();
+    const data =
+      await res.json();
 
-  },
+    if(!res.ok){
+
+      return {
+        success:false,
+        message:
+          data.message ||
+          "Driver assignment failed"
+      };
+
+    }
+
+    return data;
+
+  }catch(err){
+
+    console.log(
+      "SAVE DRIVER ERROR:",
+      err
+    );
+
+    return {
+      success:false,
+      message:
+        "Driver assignment failed"
+    };
+
+  }
+
+},
 
   async sendTrips(ids){
 
