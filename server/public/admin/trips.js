@@ -1,6 +1,5 @@
 /* ===============================
-   ADMIN TRIPS V3 CLEAN
-   Same Trips Hub Shared Layout
+   ADMIN TRIPS V4 CLEAN FINAL
 ================================ */
 
 const API = "/api/trips";
@@ -25,280 +24,6 @@ let SYSTEM_TIMEZONE = "America/Phoenix";
 
 const selectedMap = new WeakMap();
 
-/* ===============================
-   STYLE FIX
-================================ */
-
-(function injectTripsStyle(){
-
-  document.getElementById("admin-trips-clean-style")?.remove();
-
-  const s = document.createElement("style");
-  s.id = "admin-trips-clean-style";
-
-  s.innerHTML = `
-
-/* ===============================
-   SERVICE CARDS
-================================ */
-
-.service-strip{
-  display:grid!important;
-  grid-template-columns:repeat(auto-fit,minmax(135px,1fr))!important;
-  gap:8px!important;
-  overflow:visible!important;
-  padding-bottom:0!important;
-  margin-bottom:14px;
-}
-
-.service-card{
-  border:1px solid #dbe3ee!important;
-  background:#fff!important;
-  color:#0f172a!important;
-  border-radius:14px!important;
-  padding:10px 8px!important;
-  cursor:pointer;
-  font-weight:900;
-  box-shadow:0 5px 14px rgba(15,23,42,.06);
-  text-align:center;
-  min-height:92px!important;
-  min-width:0!important;
-}
-
-.service-card.active{
-  background:#2563eb!important;
-  color:#fff!important;
-  border-color:#2563eb!important;
-  outline:none!important;
-}
-
-.service-name{
-  font-size:13px!important;
-  line-height:1.15;
-  margin-bottom:5px;
-}
-
-.service-total{
-  font-size:25px!important;
-  line-height:1.05;
-  font-weight:900;
-}
-
-.service-mini{
-  display:grid!important;
-  grid-template-columns:repeat(3,1fr);
-  margin-top:7px;
-  font-size:11px!important;
-  font-weight:900;
-  color:#64748b;
-}
-
-.service-card.active .service-mini{
-  color:#fff!important;
-}
-
-/* ===============================
-   TABLE
-================================ */
-
-.table-scroll{
-  width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  border-radius:14px;
-  background:#fff;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
-  margin-bottom:22px;
-}
-
-.trip-table{
-  min-width:2200px!important;
-  width:max-content!important;
-  border-collapse:collapse;
-  background:#fff;
-  font-size:13px;
-}
-
-.trip-table th{
-  background:#2563eb!important;
-  color:#fff;
-  padding:8px;
-  text-align:center;
-  white-space:nowrap;
-  font-weight:900;
-  border:1px solid #dbe3ee;
-}
-
-.trip-table td{
-  padding:7px;
-  border:1px solid #dbe3ee;
-  text-align:center;
-  vertical-align:middle;
-  line-height:1.35;
-}
-
-/* ===============================
-   WIDE COLUMNS
-================================ */
-
-.wide-client{
-  min-width:170px;
-  max-width:250px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-}
-
-.wide-phone{
-  min-width:170px;
-  max-width:250px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-}
-
-.wide-email{
-  min-width:180px;
-  max-width:280px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-  font-size:12px!important;
-}
-
-.wide-address{
-  min-width:260px;
-  max-width:380px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-  font-size:12px!important;
-}
-
-.wide-notes{
-  min-width:220px;
-  max-width:320px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-}
-
-/* ===============================
-   INPUTS
-================================ */
-
-.edit-field,
-.edit-area{
-  width:100%;
-  min-width:95px;
-  padding:6px;
-  border:1px solid #cbd5e1;
-  border-radius:7px;
-  font-size:12px;
-  font-weight:700;
-  box-sizing:border-box;
-  font-family:inherit;
-}
-
-.edit-area{
-  min-height:62px;
-  resize:vertical;
-  white-space:pre-line;
-}
-
-.edit-field:disabled,
-.edit-area:disabled{
-  border:none;
-  background:transparent;
-  color:#0f172a;
-  opacity:1;
-  resize:none;
-}
-
-/* ===============================
-   BADGES
-================================ */
-
-.service-pill{
-  display:inline-flex;
-  padding:4px 8px;
-  border-radius:999px;
-  background:#dbeafe;
-  color:#1d4ed8;
-  font-size:12px;
-  font-weight:900;
-}
-
-.status-pill{
-  display:inline-flex;
-  padding:5px 9px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:900;
-  background:#f1f5f9;
-  color:#0f172a;
-  border:1px solid #cbd5e1;
-}
-
-.trip-number-badge{
-  font-weight:900;
-  color:#1d4ed8;
-}
-
-/* ===============================
-   ROW COLORS
-================================ */
-
-.row-facility td{background:#dbeafe;}
-.row-gq td{background:#dcfce7;}
-.row-rv td{background:#fef3c7;}
-.row-shared td{background:#ede9fe;}
-
-/* ===============================
-   ACTIONS
-================================ */
-
-.actions{
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  align-items:center;
-  flex-wrap:wrap;
-}
-
-.btn{
-  border:none;
-  padding:6px 10px;
-  border-radius:7px;
-  cursor:pointer;
-  font-size:12px;
-  font-weight:900;
-}
-
-.btn-edit{
-  background:#2563eb;
-  color:white;
-}
-
-.btn-delete{
-  background:#dc2626;
-  color:white;
-}
-
-.dispatch-check:checked{
-  accent-color:#16a34a;
-}
-
-`;
-
-  document.head.appendChild(s);
-
-})();
-
-/* ===============================
-   HELPERS
-================================ */
-
 function safe(v){
   return String(v ?? "")
     .replace(/&/g,"&amp;")
@@ -316,6 +41,91 @@ function authHeaders(json=false){
     ...(token ? {Authorization:"Bearer " + token} : {})
   };
 }
+
+/* ================= STYLE ================= */
+
+(function injectTripsStyle(){
+  document.getElementById("admin-trips-clean-style")?.remove();
+
+  const s = document.createElement("style");
+  s.id = "admin-trips-clean-style";
+  s.innerHTML = `
+    .service-strip{
+      display:grid!important;
+      grid-template-columns:repeat(auto-fit,minmax(135px,1fr))!important;
+      gap:8px!important;
+      overflow:visible!important;
+      margin-bottom:14px;
+    }
+    .service-card{
+      border:1px solid #dbe3ee!important;background:#fff!important;color:#0f172a!important;
+      border-radius:14px!important;padding:10px 8px!important;cursor:pointer;font-weight:900;
+      box-shadow:0 5px 14px rgba(15,23,42,.06);text-align:center;min-height:92px!important;
+      min-width:0!important;
+    }
+    .service-card.active{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;outline:none!important;}
+    .service-name{font-size:13px!important;line-height:1.15;margin-bottom:5px;}
+    .service-total{font-size:25px!important;line-height:1.05;font-weight:900;}
+    .service-mini{
+      display:grid!important;grid-template-columns:repeat(3,1fr);margin-top:7px;
+      font-size:11px!important;font-weight:900;color:#64748b;
+    }
+    .service-card.active .service-mini{color:#fff!important;}
+
+    .table-scroll{
+      width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px;
+      background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.08);margin-bottom:22px;
+    }
+    .trip-table{
+      min-width:2200px!important;width:max-content!important;border-collapse:collapse;
+      background:#fff;font-size:13px;
+    }
+    .trip-table th{
+      background:#2563eb!important;color:#fff;padding:8px;text-align:center;white-space:nowrap;
+      font-weight:900;border:1px solid #dbe3ee;
+    }
+    .trip-table td{
+      padding:7px;border:1px solid #dbe3ee;text-align:center;vertical-align:middle;line-height:1.35;
+    }
+
+    .wide-client{min-width:170px;max-width:250px;text-align:left!important;white-space:pre-line;word-break:break-word;}
+    .wide-phone{min-width:170px;max-width:250px;text-align:left!important;white-space:pre-line;word-break:break-word;}
+    .wide-email{min-width:180px;max-width:280px;text-align:left!important;white-space:pre-line;word-break:break-word;font-size:12px!important;}
+    .wide-address{min-width:260px;max-width:380px;text-align:left!important;white-space:pre-line;word-break:break-word;font-size:12px!important;}
+    .wide-notes{min-width:220px;max-width:320px;text-align:left!important;white-space:pre-line;word-break:break-word;}
+
+    .edit-field,.edit-area{
+      width:100%;min-width:95px;padding:6px;border:1px solid #cbd5e1;border-radius:7px;
+      font-size:12px;font-weight:700;box-sizing:border-box;font-family:inherit;
+    }
+    .edit-area{min-height:62px;resize:vertical;white-space:pre-line;}
+    .edit-field:disabled,.edit-area:disabled{border:none;background:transparent;color:#0f172a;opacity:1;resize:none;}
+
+    .service-pill{
+      display:inline-flex;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;
+      font-size:12px;font-weight:900;white-space:nowrap;
+    }
+    .status-pill{
+      display:inline-flex;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:900;
+      background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;white-space:nowrap;
+    }
+    .trip-number-badge{font-weight:900;color:#1d4ed8;white-space:nowrap;}
+
+    .row-facility td{background:#dbeafe;}
+    .row-gq td{background:#dcfce7;}
+    .row-rv td{background:#fef3c7;}
+    .row-shared td{background:#ede9fe;}
+
+    .actions{display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;}
+    .btn{border:none;padding:6px 10px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:900;}
+    .btn-edit{background:#2563eb;color:white;}
+    .btn-delete{background:#dc2626;color:white;}
+    .dispatch-check:checked{accent-color:#16a34a;}
+  `;
+  document.head.appendChild(s);
+})();
+
+/* ================= SERVICES ================= */
 
 function serviceCodeFromValue(v){
   const x = upper(v).replace(/\s+/g,"");
@@ -379,10 +189,7 @@ function getServiceTitleByTrip(t){
 
 function getEnabledServiceCodes(){
   return new Set(
-    services
-      .filter(isServiceVisible)
-      .map(getServiceCodeFromService)
-      .filter(Boolean)
+    services.filter(isServiceVisible).map(getServiceCodeFromService).filter(Boolean)
   );
 }
 
@@ -391,6 +198,8 @@ function isTripAllowedByService(t){
   if(!enabled.size) return true;
   return enabled.has(getTripServiceCode(t));
 }
+
+/* ================= TYPE / SOURCE ================= */
 
 function getTripKind(t){
   const raw = [
@@ -402,6 +211,8 @@ function getTripKind(t){
     t.tripType,
     t.reservationStatus,
     t.tripNumber,
+    t.isReserved ? "reserved" : "",
+    t.reserved ? "reserved" : "",
     t.company ? "facility" : ""
   ].join(" ").toLowerCase();
 
@@ -418,6 +229,8 @@ function rowClass(item){
   if(k === "FA") return "row-facility";
   return "row-gq";
 }
+
+/* ================= DATA HELPERS ================= */
 
 function getTripNumber(t){
   return clean(t.tripNumber || t.bookingNumber || t.id || t._id || "-");
@@ -448,37 +261,36 @@ function stopsPlain(t){
   return getStops(t).map(stopText).filter(Boolean).join("\n");
 }
 
-function stopsDisplay(t){
-  const arr = getStops(t).map(stopText).filter(Boolean);
-  if(!arr.length) return "--";
-  return arr.map((x,i)=>`${i+1}. ${safe(x)}`).join("\n");
-}
-
 function parseStopsText(v){
   return clean(v).split("\n").map(x=>x.trim()).filter(Boolean);
 }
 
-/* ===============================
-   TIMEZONE
-================================ */
+/* ================= SYSTEM TIME ENGINE ================= */
 
 async function loadSystemTimezone(){
   try{
     const res = await fetch("/api/system-design",{headers:authHeaders()});
-    if(!res.ok) return;
+    if(!res.ok) throw new Error();
 
     const data = await res.json();
+
     SYSTEM_TIMEZONE =
       data.timezone ||
       data.systemTimezone ||
       data?.settings?.timezone ||
+      data?.systemDesign?.timezone ||
       "America/Phoenix";
+
   }catch(err){
     SYSTEM_TIMEZONE = "America/Phoenix";
   }
 }
 
-function getSystemDateParts(offsetDays=0){
+function normalizeTripDate(v){
+  return String(v || "").split("T")[0].trim();
+}
+
+function systemDateKey(offsetDays=0){
   const now = new Date();
 
   const parts = new Intl.DateTimeFormat("en-CA",{
@@ -498,15 +310,23 @@ function getSystemDateParts(offsetDays=0){
   return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
 }
 
-function todayKey(){ return getSystemDateParts(0); }
-function tomorrowKey(){ return getSystemDateParts(1); }
+function todayKey(){ return systemDateKey(0); }
+function tomorrowKey(){ return systemDateKey(1); }
 
-function isTodayTrip(t){ return clean(t.tripDate) === todayKey(); }
-function isTomorrowTrip(t){ return clean(t.tripDate) === tomorrowKey(); }
+function isTodayTrip(t){
+  return normalizeTripDate(t.tripDate) === todayKey();
+}
 
-/* ===============================
-   SHARED GROUP ENGINE
-================================ */
+function isTomorrowTrip(t){
+  return normalizeTripDate(t.tripDate) === tomorrowKey();
+}
+
+function tripDateTimeKey(item){
+  const t = item.trip || {};
+  return `${normalizeTripDate(t.tripDate)}T${clean(t.tripTime || "00:00") || "00:00"}`;
+}
+
+/* ================= SHARED GROUP ================= */
 
 function getSharedKey(t){
   return clean(t.groupId) || clean(t.tripNumber) || String(t._id || t.id || "");
@@ -535,8 +355,10 @@ function getRealPassengersFromGroup(group){
 
 function getGroupStatus(group){
   const passengers = getRealPassengersFromGroup(group);
-  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("confirm"))) return "Confirmed";
+
   if(passengers.some(p=>String(p.status || "").toLowerCase().includes("paid"))) return "Paid";
+  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("confirm"))) return "Confirmed";
+
   return group[0]?.status || "Scheduled";
 }
 
@@ -555,6 +377,7 @@ function buildDisplayItems(list){
     if(isSharedTrip(t)){
       const key = getSharedKey(t);
       if(usedShared.has(key)) return;
+
       usedShared.add(key);
 
       const group = (sharedMap[key] || [t]).sort((a,b)=>
@@ -581,46 +404,25 @@ function buildDisplayItems(list){
   return items;
 }
 
-/* ===============================
-   FILTERS
-================================ */
-function isDispatchTrip(t){
+/* ================= FILTERS ================= */
 
+function isDispatchTrip(t){
   const s = String(t.status || "")
     .toLowerCase()
     .replace(/[_-]/g," ")
     .trim();
 
-  return (
-    s === "confirmed" ||
-    s === "paid"
-  );
+  return s.includes("confirm") || s.includes("paid");
 }
 
 function baseTrips(){
-
   return trips.filter(t=>{
-
-    if(t.disabled === true)
-      return false;
-
-    if(!isTripAllowedByService(t))
-      return false;
-
-    if(!isDispatchTrip(t))
-      return false;
-
-    if(
-      !isTodayTrip(t) &&
-      !isTomorrowTrip(t)
-    ){
-      return false;
-    }
-
+    if(t.disabled === true) return false;
+    if(!isTripAllowedByService(t)) return false;
+    if(!isDispatchTrip(t)) return false;
+    if(!isTodayTrip(t) && !isTomorrowTrip(t)) return false;
     return true;
-
   });
-
 }
 
 function currentItems(){
@@ -633,9 +435,7 @@ function currentItems(){
   return items;
 }
 
-/* ===============================
-   STATS
-================================ */
+/* ================= STATS ================= */
 
 function countKinds(items){
   const out = {total:0,fa:0,gq:0,rv:0};
@@ -652,11 +452,9 @@ function countKinds(items){
 }
 
 function renderStats(){
+  const allItems = currentItems();
 
-  const allItems =
-    currentItems();
   const total = allItems.length;
-  const today = allItems.filter(item=>isTodayTrip(item.trip)).length;
   const tomorrow = allItems.filter(item=>isTomorrowTrip(item.trip)).length;
   const fa = allItems.filter(item=>getTripKind(item.trip)==="FA").length;
   const gq = allItems.filter(item=>getTripKind(item.trip)==="GQ").length;
@@ -664,7 +462,6 @@ function renderStats(){
 
   const data = [
     ["TOTAL TRIPS", total],
-    ["TODAY TRIPS", today],
     ["TOMORROW TRIPS", tomorrow],
     ["FACILITY", fa],
     ["GET QUOTE", gq],
@@ -680,8 +477,7 @@ function renderStats(){
 }
 
 function renderServiceCards(){
-const allItems =
-  currentItems();
+  const allItems = buildDisplayItems(baseTrips());
   const visible = services.filter(isServiceVisible);
   const cards = [];
 
@@ -689,7 +485,10 @@ const allItems =
 
   visible.forEach(s=>{
     const code = getServiceCodeFromService(s);
+    if(!code) return;
+
     const serviceItems = allItems.filter(item=>getTripServiceCode(item.trip) === code);
+
     cards.push({
       code,
       title:getServiceTitle(s),
@@ -698,21 +497,20 @@ const allItems =
   });
 
   const used = new Set();
-  const unique = cards.filter(c=>{
+
+  serviceCards.innerHTML = cards.filter(c=>{
     if(used.has(c.code)) return false;
     used.add(c.code);
     return true;
-  });
-
-  serviceCards.innerHTML = unique.map(c=>`
+  }).map(c=>`
     <div class="service-card ${activeService===c.code ? "active" : ""}"
       onclick="setActiveService('${safe(c.code)}')">
       <div class="service-name">${safe(c.title)}</div>
       <div class="service-total">${c.total}</div>
       <div class="service-mini">
-        <span>FA ${c.fa}</span>
-        <span>GQ ${c.gq}</span>
-        <span>RV ${c.rv}</span>
+        <span>FA<br>${c.fa}</span>
+        <span>GQ<br>${c.gq}</span>
+        <span>RV<br>${c.rv}</span>
       </div>
     </div>
   `).join("");
@@ -723,9 +521,7 @@ function setActiveService(code){
   renderAll();
 }
 
-/* ===============================
-   SELECTION
-================================ */
+/* ================= SELECTION ================= */
 
 function itemSelected(item){
   if(item.kind === "trip") return item.trip.dispatchSelected === true;
@@ -794,9 +590,7 @@ async function sendDispatchItem(key,val){
   updateSelectionButtons();
 }
 
-/* ===============================
-   AUTOCOMPLETE
-================================ */
+/* ================= AUTOCOMPLETE ================= */
 
 async function searchAddress(q){
   const query = clean(q);
@@ -806,7 +600,6 @@ async function searchAddress(q){
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=us`
     );
-
     if(!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -891,9 +684,7 @@ function attachAutocomplete(input){
   });
 }
 
-/* ===============================
-   LOAD
-================================ */
+/* ================= LOAD ================= */
 
 async function loadServices(){
   try{
@@ -917,12 +708,10 @@ async function loadTrips(){
   renderAll();
 }
 
-/* ===============================
-   RENDER
-================================ */
+/* ================= RENDER ================= */
 
-function sortByTime(a,b){
-  return clean(a.trip.tripTime).localeCompare(clean(b.trip.tripTime)) ||
+function sortByDateTime(a,b){
+  return tripDateTimeKey(a).localeCompare(tripDateTimeKey(b)) ||
          getTripNumber(a.trip).localeCompare(getTripNumber(b.trip));
 }
 
@@ -934,11 +723,9 @@ function renderAll(){
 }
 
 function renderTrips(){
-
   container.innerHTML = "";
 
-  displayItems = currentItems()
-    .sort(sortByTime);
+  displayItems = currentItems().sort(sortByDateTime);
 
   const wrapper = document.createElement("div");
   wrapper.className = "table-scroll";
@@ -971,35 +758,21 @@ function renderTrips(){
   `;
 
   if(!displayItems.length){
-
     const row = document.createElement("tr");
-
-    row.innerHTML = `
-      <td colspan="19"
-          style="text-align:center;padding:20px;font-weight:900;">
-          No Trips
-      </td>
-    `;
-
+    row.innerHTML = `<td colspan="19" style="text-align:center;padding:20px;font-weight:900;">No Trips</td>`;
     table.appendChild(row);
-
   }else{
-
     displayItems.forEach((item,index)=>{
-
       table.appendChild(
         item.kind === "shared"
           ? renderSharedRow(item,index + 1)
           : renderTripRow(item,index + 1)
       );
-
     });
-
   }
 
   wrapper.appendChild(table);
   container.appendChild(wrapper);
-
 }
 
 function inputCell(value,cls,field,type="text"){
@@ -1019,11 +792,7 @@ function renderTripRow(item,num){
   tr.dataset.tripId = t._id;
 
   tr.innerHTML = `
-    <td>
-      <input class="dispatch-check" type="checkbox"
-        ${itemSelected(item) ? "checked" : ""}
-        onchange="sendDispatchItem('${safe(item.key)}',this.checked)">
-    </td>
+    <td><input class="dispatch-check" type="checkbox" ${itemSelected(item) ? "checked" : ""} onchange="sendDispatchItem('${safe(item.key)}',this.checked)"></td>
     <td>${num}</td>
     <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
@@ -1037,7 +806,7 @@ function renderTripRow(item,num){
     <td class="wide-address">${areaCell(t.pickup || "","pickup","pickup")}</td>
     <td class="wide-address">${areaCell(stopsPlain(t),"stopsText","stopsText")}</td>
     <td class="wide-address">${areaCell(t.dropoff || "","dropoff","dropoff")}</td>
-    <td>${inputCell(t.tripDate || "","tripDate","tripDate","date")}</td>
+    <td>${inputCell(normalizeTripDate(t.tripDate),"tripDate","tripDate","date")}</td>
     <td>${inputCell(t.tripTime || "","tripTime","tripTime","time")}</td>
     <td class="wide-notes">${areaCell(getNotes(t),"notes","notes")}</td>
     <td><span class="status-pill">${safe(t.status || "Scheduled")}</span></td>
@@ -1065,11 +834,7 @@ function renderSharedRow(item,num){
   tr.dataset.key = item.key;
 
   tr.innerHTML = `
-    <td>
-      <input class="dispatch-check" type="checkbox"
-        ${itemSelected(item) ? "checked" : ""}
-        onchange="sendDispatchItem('${safe(item.key)}',this.checked)">
-    </td>
+    <td><input class="dispatch-check" type="checkbox" ${itemSelected(item) ? "checked" : ""} onchange="sendDispatchItem('${safe(item.key)}',this.checked)"></td>
     <td>${num}</td>
     <td><span class="trip-number-badge">${safe(getTripNumber(first))}</span></td>
     <td><span class="service-pill">${safe(getServiceTitleByTrip(first))}</span></td>
@@ -1083,7 +848,7 @@ function renderSharedRow(item,num){
     <td class="wide-address">${areaCell(pickups,"sharedPickups","sharedPickups")}</td>
     <td class="wide-address">Route optimized per passenger</td>
     <td class="wide-address">${areaCell(dropoffs,"sharedDropoffs","sharedDropoffs")}</td>
-    <td>${inputCell(first.tripDate || "","tripDate","tripDate","date")}</td>
+    <td>${inputCell(normalizeTripDate(first.tripDate),"tripDate","tripDate","date")}</td>
     <td>${inputCell(first.tripTime || "","tripTime","tripTime","time")}</td>
     <td class="wide-notes">${areaCell(getNotes(first),"notes","notes")}</td>
     <td><span class="status-pill">${safe(getGroupStatus(item.group))}</span></td>
@@ -1096,13 +861,10 @@ function renderSharedRow(item,num){
   return tr;
 }
 
-/* ===============================
-   EDIT / SAVE
-================================ */
+/* ================= EDIT / SAVE ================= */
 
 function parseNumberedLines(v){
-  return clean(v).split("\n")
-    .map(x=>x.replace(/^\s*\d+\.\s*/,"").trim());
+  return clean(v).split("\n").map(x=>x.replace(/^\s*\d+\.\s*/,"").trim());
 }
 
 function parseTripDateTime(dateStr,timeStr){
@@ -1134,7 +896,6 @@ async function editItem(key,btn){
 
   if(btn.innerText === "Edit"){
     enableRow(row,true);
-
     row.querySelectorAll(".pickup,.dropoff").forEach(attachAutocomplete);
     btn.innerText = "Save";
     return;
@@ -1204,7 +965,6 @@ async function saveSharedItem(item,row){
   const dropoffs = parseNumberedLines(row.querySelector(".sharedDropoffs")?.value || "");
 
   const count = Math.max(oldPassengers.length,names.length,phones.length,pickups.length,dropoffs.length);
-
   const passengers = [];
 
   for(let i=0;i<count;i++){
@@ -1251,9 +1011,7 @@ async function saveSharedItem(item,row){
   await loadTrips();
 }
 
-/* ===============================
-   DELETE
-================================ */
+/* ================= DELETE ================= */
 
 async function deleteItem(key){
   const item = displayItems.find(x=>x.key === key);
@@ -1273,9 +1031,7 @@ async function deleteItem(key){
   await loadTrips();
 }
 
-/* ===============================
-   GLOBALS
-================================ */
+/* ================= GLOBALS ================= */
 
 Object.assign(window,{
   setActiveService,
@@ -1287,9 +1043,7 @@ Object.assign(window,{
   deleteItem
 });
 
-/* ===============================
-   START
-================================ */
+/* ================= START ================= */
 
 (async function start(){
   await loadSystemTimezone();
