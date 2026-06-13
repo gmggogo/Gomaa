@@ -1,1233 +1,1010 @@
+/* =====================================================
+   DISPATCH ENGINE V2
+   Trips Selected -> Auto / Manual Assign -> Send
+===================================================== */
+
+/* ================= SECURITY ================= */
+
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["superadmin","admin","dispatcher"].includes(role)){
+  window.location.href = "/admin/login.html";
+}
+
 /* ================= STATE ================= */
 
-let trips = []
-let drivers = []
-let schedule = {}
+let trips = [];
+let drivers = [];
+let services = [];
+let schedule = {};
+let timezone = "America/Phoenix";
 
-let map = null
-let markers = []
-let routeLayer = null
+let selectedIds = new Set();
+let editMode = false;
+let activeTab = "dispatch";
+let refreshTimer = null;
 
-let geoCache = {}
-let editMode = false
-let allSelected = false
-let selectedDriverId = null
-let selectedTripIndexPerDriver = {}
-let tabsBound = false
-let refreshTimer = null
+const CLOSED_STATUSES = [
+  "completed",
+  "complete",
+  "cancelled",
+  "canceled",
+  "no show",
+  "noshow",
+  "not completed",
+  "notcompleted"
+];
 
-/* ================= INIT ================= */
-
-async function init(){
-  try{
-    const data = await Store.load()
-
-    const driversRaw = data.drivers || data.data?.drivers || []
-    const tripsRaw = data.trips || data.data?.trips || []
-    const scheduleRaw = data.schedule || data.data?.schedule || {}
-
-    schedule = scheduleRaw || {}
-
-    drivers = (driversRaw || [])
-      .map(d => {
-        const id = String(d._id || d.id || "")
-        const sch = schedule[id] || {}
-
-        return {
-          ...d,
-          _id: id,
-          address:
-            sch.address ||
-            d.address ||
-            d.homeAddress ||
-            d.currentAddress ||
-            d.locationAddress ||
-            d.city ||
-            "",
-          vehicleNumber:
-            sch.vehicleNumber ||
-            sch.carNumber ||
-            d.vehicleNumber ||
-            d.carNumber ||
-            "",
-          phone:
-            sch.phone ||
-            d.phone ||
-            "",
-          lat:
-            sch.lat != null && sch.lat !== ""
-              ? Number(sch.lat)
-              : (d.lat != null && d.lat !== "" ? Number(d.lat) : null),
-          lng:
-            sch.lng != null && sch.lng !== ""
-              ? Number(sch.lng)
-              : (d.lng != null && d.lng !== "" ? Number(d.lng) : null)
-        }
-      })
-      .filter(d => {
-        const sch = schedule[String(d._id)] || null
-        if(!sch) return true
-        return sch.enabled === true
-      })
-
-    /* ✅ dispatch يسحب بس الرحلات المعمول لها select في Trips */
-    trips = (tripsRaw || [])
-      .filter(t =>
-        t.dispatchSelected === true &&
-        t.disabled !== true &&
-        String(t.status || "").toLowerCase() !== "cancelled"
-      )
-      .map(t => ({
-        ...t,
-        _id: String(t._id || ""),
-        selected: false, // select داخل dispatch للإرسال فقط
-        driverId: t.driverId ? String(t.driverId) : "",
-        driverName: t.driverName || "",
-        vehicle: t.vehicle || "",
-        driverAddress: t.driverAddress || "",
-        manual: !!t.driverId || t.manual === true,
-        autoAssigned: false
-      }))
-
-    /* ✅ منع التكرار */
-    const seen = new Set()
-    trips = trips.filter(t => {
-      if(!t._id) return false
-      if(seen.has(t._id)) return false
-      seen.add(t._id)
-      return true
-    })
-
-    loadGeoCache()
-    await prepareGeo()
-
-    /* ✅ التوزيع التلقائي السريع */
-    autoAssign()
-
-    sortTrips()
-    renderTrips()
-    initMap()
-    renderDrivers()
-    bindTabs()
-
-    if(refreshTimer) clearInterval(refreshTimer)
-    refreshTimer = setInterval(() => {
-      renderTrips()
-      renderDrivers()
-    }, 10000)
-
-    console.log("drivers:", drivers)
-    console.log("trips:", trips)
-    console.log("schedule:", schedule)
-  }catch(err){
-    console.log("INIT ERROR:", err)
-    showToast("Init error")
-  }
-}
-
-/* ================= CACHE ================= */
-
-function loadGeoCache(){
-  try{
-    const saved = localStorage.getItem("dispatch_geo_cache")
-    if(saved){
-      geoCache = JSON.parse(saved) || {}
-    }
-  }catch(e){
-    geoCache = {}
-  }
-}
-
-function saveGeoCache(){
-  try{
-    localStorage.setItem("dispatch_geo_cache", JSON.stringify(geoCache))
-  }catch(e){}
-}
+const ACTIVE_STATUSES = [
+  "scheduled",
+  "confirmed",
+  "paid",
+  "dispatched"
+];
 
 /* ================= HELPERS ================= */
 
-function showToast(msg){
-  const toast = document.getElementById("toast")
-  if(!toast) return
-  toast.textContent = msg
-  toast.classList.add("show")
-  clearTimeout(showToast._timer)
-  showToast._timer = setTimeout(() => toast.classList.remove("show"), 1800)
+function clean(v){
+  return String(v ?? "").trim();
 }
 
-function escapeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
+function lower(v){
+  return clean(v).toLowerCase();
 }
 
-function normalizeText(s){
-  return String(s || "").trim().toLowerCase()
+function safe(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
+}
+
+function statusKey(v){
+  return lower(v).replace(/[_-]/g," ").replace(/\s+/g," ").trim();
+}
+
+function isClosedTrip(t){
+  const s = statusKey(t.status);
+  return CLOSED_STATUSES.includes(s);
+}
+
+function isActiveTrip(t){
+  const s = statusKey(t.status || "scheduled");
+  return ACTIVE_STATUSES.includes(s) && !isClosedTrip(t);
+}
+
+function getSystemDate(offset=0){
+  const parts = new Intl.DateTimeFormat("en-CA",{
+    timeZone:timezone,
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit"
+  }).formatToParts(new Date());
+
+  const y = Number(parts.find(p=>p.type==="year")?.value);
+  const m = Number(parts.find(p=>p.type==="month")?.value);
+  const d = Number(parts.find(p=>p.type==="day")?.value);
+
+  const base = new Date(y,m-1,d);
+  base.setDate(base.getDate()+offset);
+
+  return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
+}
+
+function todayKey(){ return getSystemDate(0); }
+function tomorrowKey(){ return getSystemDate(1); }
+
+function isToday(t){
+  return clean(t.tripDate) === todayKey();
+}
+
+function isTomorrow(t){
+  return clean(t.tripDate) === tomorrowKey();
+}
+
+function parseTripDateTime(t){
+  const d = clean(t.tripDate);
+  let time = clean(t.tripTime || "00:00");
+  if(!d) return null;
+  if(!time) time = "00:00";
+
+  let dt = new Date(`${d}T${time}:00`);
+  if(isNaN(dt.getTime())) dt = new Date(`${d} ${time}`);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function getTripTimeValue(t){
+  const dt = parseTripDateTime(t);
+  return dt ? dt.getTime() : 0;
+}
+
+function normalizeService(v){
+  const x = clean(v).toUpperCase().replace(/\s+/g,"");
+  if(["STANDARD","ST","X"].includes(x)) return "ST";
+  if(["WHEELCHAIR","WH","WC"].includes(x)) return "WH";
+  if(["SHARED","SH"].includes(x)) return "SH";
+  if(["LIMO","LIMOUSINE","LM"].includes(x)) return "LM";
+  if(["TAXI","TX"].includes(x)) return "TX";
+  if(["XL"].includes(x)) return "XL";
+  return x || "ST";
+}
+
+function isSharedTrip(t){
+  return (
+    t.isShared === true ||
+    normalizeService(t.serviceKey) === "SH" ||
+    normalizeService(t.serviceCode) === "SH" ||
+    normalizeService(t.serviceType) === "SH" ||
+    normalizeService(t.tripType) === "SH" ||
+    lower(t.type) === "shared" ||
+    clean(t.groupId) !== "" ||
+    clean(t.tripNumber).toUpperCase().includes("-SH") ||
+    (Array.isArray(t.passengers) && t.passengers.length > 0)
+  );
+}
+
+function getTripServiceCode(t){
+  if(isSharedTrip(t)) return "SH";
+
+  return normalizeService(
+    t.serviceKey ||
+    t.serviceCode ||
+    t.serviceType ||
+    t.serviceSuffix ||
+    t.vehicleTypeFromQuote ||
+    t.vehicle ||
+    ""
+  );
+}
+
+function getServiceTitle(code){
+  code = normalizeService(code);
+  const s = services.find(x=>normalizeService(
+    x.serviceKey || x.code || x.suffix || x.companySuffix || x.title || x.name
+  ) === code);
+
+  return s?.title || s?.name || s?.serviceName || code;
+}
+
+function getTripKind(t){
+  if(isSharedTrip(t)) return "SH";
+
+  const raw = [
+    t.type,
+    t.source,
+    t.bookingSource,
+    t.createdBy,
+    t.from,
+    t.tripType,
+    t.reservationStatus,
+    t.tripNumber,
+    t.company ? "facility" : ""
+  ].join(" ").toLowerCase();
+
+  if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv")) return "RV";
+  if(raw.includes("company") || raw.includes("facility") || raw.includes("portal") || t.company) return "FA";
+  return "GQ";
+}
+
+function rowClass(t){
+  if(isSharedTrip(t)) return "row-shared";
+  const k = getTripKind(t);
+  if(k === "FA") return "row-facility";
+  if(k === "RV") return "row-rv";
+  return "row-gq";
+}
+
+function getTripNumber(t){
+  return clean(t.tripNumber || t.bookingNumber || t._id || "-");
+}
+
+function getEmail(t,p=null){
+  return p?.clientEmail || p?.passengerEmail || p?.email ||
+    t.clientEmail || t.passengerEmail || t.entryEmail || t.email || "";
+}
+
+function getNotes(t){
+  return t.notes ?? t.tripNotes ?? t.note ?? "";
 }
 
 function getStops(t){
-  if(Array.isArray(t.stops)) return t.stops.filter(Boolean)
-  if(Array.isArray(t.stopAddresses)) return t.stopAddresses.filter(Boolean)
-  if(Array.isArray(t.extraStops)) return t.extraStops.filter(Boolean)
-  if(typeof t.stop === "string" && t.stop.trim()) return [t.stop.trim()]
-  return []
+  if(Array.isArray(t.stops)) return t.stops;
+  if(Array.isArray(t.stopAddresses)) return t.stopAddresses;
+  if(Array.isArray(t.extraStops)) return t.extraStops;
+  return [];
 }
 
-function getDriverCar(id){
-  const d = drivers.find(x => String(x._id) === String(id))
-  if(d && d.vehicleNumber) return d.vehicleNumber
-
-  const s = schedule[String(id)]
-  if(!s) return ""
-
-  return s.carNumber || s.vehicleNumber || s.car || ""
+function stopText(s){
+  if(!s) return "";
+  if(typeof s === "string") return s;
+  return s.address || s.location || s.name || "";
 }
 
-function getTripDateTimeValue(t){
-  const dateStr = String(t.tripDate || "").trim()
-  const timeStr = String(t.tripTime || "").trim()
-
-  if(!dateStr) return 0
-
-  const direct = new Date(`${dateStr} ${timeStr}`)
-  if(!isNaN(direct.getTime())) return direct.getTime()
-
-  const directIso = new Date(`${dateStr}T${timeStr}`)
-  if(!isNaN(directIso.getTime())) return directIso.getTime()
-
-  const dateOnly = new Date(dateStr)
-  if(!isNaN(dateOnly.getTime())) return dateOnly.getTime()
-
-  return 0
+function stopsText(t){
+  const arr = getStops(t).map(stopText).filter(Boolean);
+  return arr.length ? arr.map((x,i)=>`${i+1}. ${x}`).join("\n") : "-";
 }
 
-function sortTrips(){
-  trips.sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+function getPassengers(t){
+  if(Array.isArray(t.passengers) && t.passengers.length) return t.passengers;
+
+  return [{
+    name:t.clientName || t.name || "",
+    clientName:t.clientName || t.name || "",
+    phone:t.clientPhone || t.phone || "",
+    clientPhone:t.clientPhone || t.phone || "",
+    email:t.clientEmail || t.email || "",
+    clientEmail:t.clientEmail || t.email || "",
+    pickup:t.pickup || "",
+    dropoff:t.dropoff || "",
+    status:t.status || "Scheduled"
+  }];
 }
 
-function normalizeDateKey(dateStr){
-  if(!dateStr) return ""
-  const d = new Date(dateStr)
-  if(isNaN(d.getTime())) return ""
-  return d.toLocaleDateString("en-CA")
+function sharedCell(t,field){
+  const passengers = getPassengers(t);
+
+  return passengers.map((p,i)=>{
+    if(field === "name") return `${i+1}. ${p.name || p.clientName || ""}`;
+    if(field === "phone") return `${i+1}. ${p.phone || p.clientPhone || ""}`;
+    if(field === "email") return `${i+1}. ${getEmail(t,p) || ""}`;
+    if(field === "pickup") return `${i+1}. ${p.pickup || ""}`;
+    if(field === "dropoff") return `${i+1}. ${p.dropoff || ""}`;
+    return "";
+  }).join("\n");
 }
 
-function syncSelectButtonText(){
-  const visibleTrips = getVisibleTrips()
-  const selectedCount = visibleTrips.filter(t => t.selected).length
-  const btn = document.getElementById("selectBtn")
-  if(!btn) return
+function getTripPickup(t){
+  if(isSharedTrip(t)) return getPassengers(t)[0]?.pickup || t.pickup || "";
+  return t.pickup || "";
+}
 
-  if(visibleTrips.length && selectedCount === visibleTrips.length){
-    allSelected = true
-    btn.innerText = "Remove All"
-  }else{
-    allSelected = false
-    btn.innerText = "Select All"
+function getTripDropoff(t){
+  if(isSharedTrip(t)){
+    const p = getPassengers(t);
+    return p[p.length-1]?.dropoff || t.dropoff || "";
   }
+  return t.dropoff || "";
 }
 
-function getCurrentArizonaNow(){
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" })
-  ).getTime()
+/* ================= DRIVER HELPERS ================= */
+
+function getSchedule(id){
+  return schedule[String(id)] || {};
 }
 
-function groupTripsByDate(list){
-  const mapByDate = {}
-
-  for(const t of list){
-    const key = normalizeDateKey(t.tripDate) || "no-date"
-    if(!mapByDate[key]) mapByDate[key] = []
-    mapByDate[key].push(t)
-  }
-
-  return mapByDate
+function getDriverName(id){
+  const d = drivers.find(x=>String(x._id) === String(id));
+  return d?.name || d?.fullName || "";
 }
 
-/* ================= TIME / CURRENT ================= */
-
-function getTripStatus(t){
-  const ts = getTripDateTimeValue(t)
-  if(!ts) return ""
-
-  const diffMin = Math.round((getCurrentArizonaNow() - ts) / 60000)
-
-  if(diffMin >= 120) return "hide"        // بعد ساعتين تختفي
-  if(diffMin >= 0) return "expired"       // من أول ما المعاد يعدي تبقى أحمر
-  if(diffMin >= -30) return "trip-urgent" // قبلها بنص ساعة برتقاني
-  if(diffMin >= -90) return "trip-soon"   // قبلها بـ 90 دقيقة أصفر
-
-  return ""
-}
-
-function getVisibleTrips(){
-  return trips.filter(t => getTripStatus(t) !== "hide")
-}
-
-function getCurrentTrips(){
-  return trips.filter(t => {
-    if(!String(t.driverId || "").trim()) return false
-    const status = getTripStatus(t)
-    return status !== "hide" && status !== "expired"
-  })
-}
-
-/* ================= DRIVER ACTIVE CHECK ================= */
-
-function isDriverActiveOnDate(driverId, tripDate){
-  const s = schedule[String(driverId)]
-
-  if(!s) return true
-  if(s.enabled !== true) return false
-  if(!tripDate) return true
-
-  const days = s.days || {}
-  const dateObj = new Date(tripDate)
-
-  const key1 = normalizeDateKey(tripDate)
-  const key2 = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : ""
-  const key3 = !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString("en-US") : ""
-  const key4 = !isNaN(dateObj.getTime())
-    ? dateObj.toLocaleDateString("en-US", { weekday: "short" })
-    : ""
-  const key5 = !isNaN(dateObj.getTime())
-    ? dateObj.toLocaleDateString("en-US", { weekday: "long" })
-    : ""
-
-  if(!Object.keys(days).length) return true
-
-  return !!(days[key1] || days[key2] || days[key3] || days[key4] || days[key5])
-}
-
-function getValidDriversForTrip(trip){
-  let valid = drivers.filter(d => isDriverActiveOnDate(d._id, trip.tripDate))
-
-  if(!valid.length){
-    valid = drivers.filter(d => {
-      const s = schedule[String(d._id)]
-      return s ? s.enabled === true : true
-    })
-  }
-
-  if(!valid.length){
-    valid = drivers
-  }
-
-  return valid
-}
-
-function getActiveDriversForPanel(){
-  const current = getCurrentTrips()
-  const usedIds = new Set(
-    current
-      .map(t => String(t.driverId || "").trim())
-      .filter(Boolean)
-  )
-
-  return drivers.filter(d => usedIds.has(String(d._id)))
-}
-
-/* ================= DRIVER TRIPS / STATUS ================= */
-
-function getCurrentDriverTrips(driverId){
-  return getCurrentTrips()
-    .filter(t => String(t.driverId || "") === String(driverId))
-    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
-}
-
-function getDriverTripsAll(driverId){
-  return trips
-    .filter(t => String(t.driverId || "") === String(driverId))
-    .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
-}
-
-function getDriverTripsCount(driverId){
-  return getCurrentDriverTrips(driverId).length
-}
-
-function getSelectedTripForDriver(driverId){
-  const driverTrips = getCurrentDriverTrips(driverId)
-  if(!driverTrips.length) return null
-
-  let idx = Number(selectedTripIndexPerDriver[String(driverId)] || 0)
-  if(Number.isNaN(idx) || idx < 0) idx = 0
-  if(idx >= driverTrips.length) idx = 0
-
-  selectedTripIndexPerDriver[String(driverId)] = idx
-  return driverTrips[idx]
-}
-
-function getDriverStatus(driverId){
-  return getDriverTripsCount(driverId) > 0 ? "Busy" : "Available"
-}
-
-/* ================= CONFLICT ================= */
-
-function hasTimeConflict(driverId, trip){
-  const sameDayTrips = trips.filter(t =>
-    String(t.driverId || "") === String(driverId) &&
-    String(t._id || "") !== String(trip._id || "") &&
-    String(t.tripDate || "") === String(trip.tripDate || "")
-  )
-
-  const tripTs = getTripDateTimeValue(trip)
-  if(!tripTs) return false
-
-  for(const t of sameDayTrips){
-    const tTs = getTripDateTimeValue(t)
-    if(!tTs) continue
-
-    const diff = Math.abs(tTs - tripTs) / 60000
-    if(diff < 30){
-      return true
-    }
-  }
-
-  return false
-}
-
-/* ================= DRIVER START ================= */
-
-function getDriverDayHomeAddress(driver){
-  const sch = schedule[String(driver._id)] || {}
+function getDriverVehicle(id){
+  const s = getSchedule(id);
+  const d = drivers.find(x=>String(x._id) === String(id));
 
   return (
-    sch.address ||
-    driver.liveAddress ||
-    driver.currentAddress ||
-    driver.locationAddress ||
-    driver.address ||
+    s.vehicleNumber ||
+    s.carNumber ||
+    d?.vehicleNumber ||
+    d?.carNumber ||
     ""
-  )
+  );
 }
 
-function getDriverHomePoint(driver){
-  const sch = schedule[String(driver._id)] || {}
-
-  const lat =
-    sch.lat != null && sch.lat !== ""
-      ? Number(sch.lat)
-      : (driver.lat != null && driver.lat !== "" ? Number(driver.lat) : null)
-
-  const lng =
-    sch.lng != null && sch.lng !== ""
-      ? Number(sch.lng)
-      : (driver.lng != null && driver.lng !== "" ? Number(driver.lng) : null)
-
-  if(Number.isFinite(lat) && Number.isFinite(lng)){
-    return { lat, lng }
-  }
-
-  return null
+function getDriverServices(id){
+  const s = getSchedule(id);
+  const arr = Array.isArray(s.services) && s.services.length ? s.services : ["ALL"];
+  return arr.map(x=>normalizeService(x));
 }
 
-/* ================= GEO ================= */
+function serviceMatchesDriver(driverId,trip){
+  const driverServices = getDriverServices(driverId);
+  const code = getTripServiceCode(trip);
+  return driverServices.includes("ALL") || driverServices.includes(code);
+}
 
-async function geocode(addr){
-  if(!addr) return null
+function dayKeyFromDate(dateStr){
+  const d = new Date(`${dateStr}T00:00:00`);
+  if(isNaN(d.getTime())) return "";
+  return ["sun","mon","tue","wed","thu","fri","sat"][d.getDay()];
+}
 
-  const key = normalizeText(addr)
-  if(!key) return null
+function isDriverActiveForTrip(driverId,trip){
+  const s = getSchedule(driverId);
 
-  if(geoCache[key]) return geoCache[key]
+  if(s.enabled !== true) return false;
+
+  const day = dayKeyFromDate(trip.tripDate);
+  if(!day) return true;
+
+  const days = s.days || s.weekly || {};
+  if(!Object.keys(days).length) return true;
+
+  return days[day] === true;
+}
+
+function getActiveDriversForTrip(trip){
+  return drivers.filter(d=>{
+    const id = String(d._id || d.id || "");
+    if(!id) return false;
+    return isDriverActiveForTrip(id,trip) && serviceMatchesDriver(id,trip);
+  });
+}
+
+function getDriverHomeAddress(driverId){
+  const s = getSchedule(driverId);
+  const d = drivers.find(x=>String(x._id) === String(driverId));
+
+  return (
+    s.address ||
+    d?.address ||
+    d?.homeAddress ||
+    d?.currentAddress ||
+    d?.locationAddress ||
+    ""
+  );
+}
+
+function getDriverStartAddress(driverId,dayTrips){
+  const assigned = dayTrips
+    .filter(t=>String(t.driverId || "") === String(driverId))
+    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
+
+  if(!assigned.length) return getDriverHomeAddress(driverId);
+
+  return getTripDropoff(assigned[assigned.length-1]);
+}
+
+function driverTripCount(driverId){
+  return trips.filter(t=>String(t.driverId || "") === String(driverId)).length;
+}
+
+function driverTripCountByDate(driverId,date){
+  return trips.filter(t=>
+    String(t.driverId || "") === String(driverId) &&
+    clean(t.tripDate) === clean(date)
+  ).length;
+}
+
+/* ================= GOOGLE DISTANCE ================= */
+
+async function googleDistanceMiles(origin,destination){
+  origin = clean(origin);
+  destination = clean(destination);
+
+  if(!origin || !destination) return 999999;
 
   try{
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`,
-      {
-        headers: {
-          "Accept": "application/json"
-        }
-      }
-    )
+    if(window.google && google.maps && google.maps.DistanceMatrixService){
+      return await new Promise(resolve=>{
+        const service = new google.maps.DistanceMatrixService();
 
-    const data = await res.json()
+        service.getDistanceMatrix({
+          origins:[origin],
+          destinations:[destination],
+          travelMode:google.maps.TravelMode.DRIVING,
+          unitSystem:google.maps.UnitSystem.IMPERIAL
+        },(response,status)=>{
+          if(status !== "OK"){
+            resolve(999999);
+            return;
+          }
 
-    if(!Array.isArray(data) || !data.length) return null
+          const el = response?.rows?.[0]?.elements?.[0];
+          if(!el || el.status !== "OK"){
+            resolve(999999);
+            return;
+          }
 
-    const point = {
-      lat: parseFloat(data[0].lat),
-      lng: parseFloat(data[0].lon)
+          resolve(Number((el.distance.value * 0.000621371).toFixed(2)));
+        });
+      });
     }
-
-    geoCache[key] = point
-    saveGeoCache()
-    return point
-  }catch(e){
-    console.log("GEOCODE ERROR:", e)
-    return null
+  }catch(err){
+    console.log("Google distance failed",err);
   }
+
+  return fallbackDistance(origin,destination);
 }
 
-async function prepareGeo(){
-  for(const d of drivers){
-    const directPoint = getDriverHomePoint(d)
+function fallbackDistance(a,b){
+  a = lower(a);
+  b = lower(b);
 
-    if(directPoint){
-      d._geoHome = directPoint
-    }else{
-      const homeAddress = getDriverDayHomeAddress(d)
-      if(homeAddress && !d._geoHome){
-        d._geoHome = await geocode(homeAddress)
-      }
-    }
+  const cities = ["chandler","mesa","tempe","gilbert","phoenix","scottsdale","queen creek","glendale","peoria"];
+
+  for(const c of cities){
+    if(a.includes(c) && b.includes(c)) return 3;
   }
 
-  for(const t of trips){
-    if(t.pickupLat != null && t.pickupLng != null){
-      t._geoPickup = {
-        lat: Number(t.pickupLat),
-        lng: Number(t.pickupLng)
-      }
-    }else if(t.pickup && !t._geoPickup){
-      t._geoPickup = await geocode(t.pickup)
-    }
-
-    if(t.dropoffLat != null && t.dropoffLng != null){
-      t._geoDropoff = {
-        lat: Number(t.dropoffLat),
-        lng: Number(t.dropoffLng)
-      }
-    }else if(t.dropoff && !t._geoDropoff){
-      t._geoDropoff = await geocode(t.dropoff)
-    }
-
-    const stops = getStops(t)
-    if(stops.length && !t._geoStops){
-      t._geoStops = []
-      for(const s of stops){
-        const g = await geocode(s)
-        if(g) t._geoStops.push(g)
-      }
-    }
-  }
+  return 25;
 }
 
-/* ================= DISTANCE ================= */
+/* ================= LOAD GOOGLE ================= */
 
-function fastDistance(a, b){
-  if(!a || !b) return 999999
+async function loadGoogle(){
+  if(window.google && google.maps && google.maps.DistanceMatrixService) return;
 
-  const dx = a.lat - b.lat
-  const dy = a.lng - b.lng
-  return (dx * dx) + (dy * dy) // أسرع من sqrt
-}
-
-function getFallbackLocalScore(startAddress, pickupAddress){
-  const start = normalizeText(startAddress)
-  const pickup = normalizeText(pickupAddress)
-
-  let distanceScore = 999999
-
-  const cities = [
-    "queen creek",
-    "chandler",
-    "tempe",
-    "mesa",
-    "gilbert",
-    "phoenix",
-    "scottsdale"
-  ]
-
-  for(const city of cities){
-    if(start.includes(city) && pickup.includes(city)){
-      distanceScore = 1
-      break
-    }
-  }
-
-  if(start && pickup){
-    if(start.includes(pickup) || pickup.includes(start)){
-      distanceScore = 0
-    }
-  }
-
-  if(distanceScore === 999999){
-    let common = 0
-    const startWords = start.split(/\s+/).filter(Boolean)
-    const pickupWords = pickup.split(/\s+/).filter(Boolean)
-
-    for(const w of startWords){
-      if(w.length > 2 && pickupWords.includes(w)) common++
-    }
-
-    if(common > 0){
-      distanceScore = Math.max(2, 15 - common * 3)
-    }
-  }
-
-  if(distanceScore === 999999){
-    distanceScore = 100
-  }
-
-  return distanceScore
-}
-
-/* ================= SAVE ASSIGNMENT ================= */
-
-async function saveDriverAssignment(trip, driverId){
   try{
-    const res = await fetch(`/api/dispatch/${trip._id}/driver`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ driverId })
+    const res = await fetch("/api/config");
+    const data = await res.json();
+
+    if(!data.googleKey) return;
+
+    if(document.querySelector("script[data-dispatch-google='true']")){
+      return;
+    }
+
+    await new Promise((resolve,reject)=>{
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+      script.async = true;
+      script.defer = true;
+      script.dataset.dispatchGoogle = "true";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+
+  }catch(err){
+    console.log("Google load failed",err);
+  }
+}
+
+/* ================= DATA BUILD ================= */
+
+function normalizeDriver(d){
+  const id = String(d._id || d.id || "");
+  return {
+    ...d,
+    _id:id
+  };
+}
+
+function normalizeTrip(t){
+  return {
+    ...t,
+    _id:String(t._id || t.id || ""),
+    selected:selectedIds.has(String(t._id || t.id || "")),
+    driverId:t.driverId ? String(t.driverId) : "",
+    driverName:t.driverName || "",
+    vehicle:t.vehicle || "",
+    manual:t.manualAssigned === true || t.manual === true
+  };
+}
+
+function filterTrips(rawTrips){
+  const seen = new Set();
+
+  return rawTrips
+    .filter(t=>{
+      const id = String(t._id || t.id || "");
+      if(!id || seen.has(id)) return false;
+      seen.add(id);
+
+      if(t.dispatchSelected !== true) return false;
+      if(t.disabled === true) return false;
+      if(!isActiveTrip(t)) return false;
+      if(!isToday(t) && !isTomorrow(t)) return false;
+
+      return true;
     })
-
-    const updated = await res.json().catch(() => ({}))
-
-    if(!res.ok){
-      console.log("Driver save failed:", updated)
-      return false
-    }
-
-    const d = drivers.find(x => String(x._id) === String(driverId))
-
-    trip.driverId = updated.driverId ? String(updated.driverId) : String(driverId)
-    trip.driverName = updated.driverName || d?.name || ""
-    trip.vehicle = updated.vehicle || (d ? getDriverCar(d._id) : "")
-    trip.driverAddress = updated.driverAddress || (d ? getDriverDayHomeAddress(d) : "")
-    return true
-  }catch(e){
-    console.log("saveDriverAssignment ERROR:", e)
-    return false
-  }
+    .map(normalizeTrip)
+    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
 }
 
-/* ================= AUTO ASSIGN FAST ================= */
+async function loadAll(){
+  const data = await Store.load();
 
-function autoAssign(){
-  if(!drivers.length || !trips.length) return
+  timezone = data.timezone || "America/Phoenix";
+  services = Array.isArray(data.services) ? data.services : [];
+  schedule = data.schedule || {};
 
-  sortTrips()
+  drivers = (Array.isArray(data.drivers) ? data.drivers : [])
+    .map(normalizeDriver)
+    .filter(d=>{
+      const s = getSchedule(d._id);
+      return s.enabled === true;
+    });
 
-  const tripsByDate = groupTripsByDate(trips)
+  trips = filterTrips(Array.isArray(data.trips) ? data.trips : []);
 
-  for(const dateKey of Object.keys(tripsByDate).sort()){
-    const dayTrips = tripsByDate[dateKey]
-      .slice()
-      .sort((a,b)=> getTripDateTimeValue(a) - getTripDateTimeValue(b))
+  await loadGoogle();
+}
 
-    /* reset فقط للرحلات غير اليدوية في اليوم ده */
-    for(const t of dayTrips){
-      if(!t.manual){
-        t.driverId = ""
-        t.driverName = ""
-        t.vehicle = ""
-        t.driverAddress = ""
-        t.autoAssigned = false
-      }
-    }
+/* ================= ASSIGNMENT ================= */
 
-    const usedDrivers = new Set()
+async function autoAssign(){
+  const dayGroups = {
+    [todayKey()]: trips.filter(isToday).sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b)),
+    [tomorrowKey()]: trips.filter(isTomorrow).sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b))
+  };
 
-    /* اليدوي يتحجز */
-    for(const t of dayTrips){
-      if(t.manual && t.driverId){
-        usedDrivers.add(String(t.driverId))
-      }
-    }
+  for(const date of Object.keys(dayGroups)){
+    const dayTrips = dayGroups[date];
 
     for(const trip of dayTrips){
-      if(trip.driverId) continue
+      if(trip.manual === true && trip.driverId) continue;
 
-      const pickupPoint = trip._geoPickup
-      const validDrivers = getValidDriversForTrip(trip)
-      if(!validDrivers.length) continue
+      trip.driverId = "";
+      trip.driverName = "";
+      trip.vehicle = "";
 
-      let bestDriver = null
-      let bestScore = Infinity
+      const validDrivers = getActiveDriversForTrip(trip);
+      if(!validDrivers.length) continue;
+
+      let bestDriver = null;
+      let bestScore = Infinity;
+      let bestMiles = 999999;
 
       for(const driver of validDrivers){
-        const id = String(driver._id)
+        const id = String(driver._id);
+        const startAddress = getDriverStartAddress(id,dayTrips);
+        const pickup = getTripPickup(trip);
 
-        /* كل سواق ياخد رحلة واحدة فقط */
-        if(usedDrivers.has(id)) continue
+        const miles = await googleDistanceMiles(startAddress,pickup);
+        const count = driverTripCountByDate(id,date);
 
-        let score = 999999
-
-        if(driver._geoHome && pickupPoint){
-          score = fastDistance(driver._geoHome, pickupPoint)
-        }else{
-          score = getFallbackLocalScore(
-            getDriverDayHomeAddress(driver),
-            trip.pickup
-          )
-        }
-
-        /* منع تعارض الوقت */
-        if(hasTimeConflict(id, trip)){
-          score += 50000
-        }
+        const score = miles + (count * 8);
 
         if(score < bestScore){
-          bestScore = score
-          bestDriver = driver
+          bestScore = score;
+          bestMiles = miles;
+          bestDriver = driver;
         }
       }
 
       if(bestDriver){
-        const id = String(bestDriver._id)
+        const id = String(bestDriver._id);
 
-        trip.driverId = id
-        trip.driverName = bestDriver.name || ""
-        trip.vehicle = getDriverCar(id)
-        trip.driverAddress = getDriverDayHomeAddress(bestDriver)
-        trip.autoAssigned = true
-        trip.manual = false
-
-        usedDrivers.add(id)
-
-        if(selectedTripIndexPerDriver[id] == null){
-          selectedTripIndexPerDriver[id] = 0
-        }
+        trip.driverId = id;
+        trip.driverName = bestDriver.name || bestDriver.fullName || "";
+        trip.vehicle = getDriverVehicle(id);
+        trip.autoAssigned = true;
+        trip.distanceMiles = bestMiles;
       }
     }
   }
+
+  renderAll();
+  toast("Auto assignment completed");
 }
 
-/* ================= RENDER TRIPS ================= */
+async function saveAssignment(trip,driverId,manual=true){
+  driverId = clean(driverId);
 
-function renderTrips(){
-  const body = document.getElementById("tbody")
-  if(!body) return
-
-  body.innerHTML = ""
-
-  trips.forEach((t, i) => {
-    const status = getTripStatus(t)
-    if(status === "hide") return
-
-    const validDrivers = getValidDriversForTrip(t)
-    const stops = getStops(t)
-    const sentClass = String(t.status || "") === "Dispatched" ? "sent-row" : ""
-
-    body.innerHTML += `
-      <tr class="trip-row ${status} ${sentClass}">
-        <td>
-          <button class="btn ${t.selected ? "green" : "blue"} select-btn" onclick="toggleTrip(${i})">
-            ${t.selected ? "✔" : "Select"}
-          </button>
-        </td>
-
-        <td>${escapeHtml(t.tripNumber || i + 1)}</td>
-        <td>${escapeHtml(t.clientName || "")}</td>
-        <td>${escapeHtml(t.pickup || "")}</td>
-
-        <td class="stop-list">
-          ${stops.length ? stops.map(s => escapeHtml(s)).join("<br>") : "-"}
-        </td>
-
-        <td>${escapeHtml(t.dropoff || "")}</td>
-        <td>${escapeHtml(t.tripDate || "")}</td>
-        <td>${escapeHtml(t.tripTime || "")}</td>
-
-        <td>
-          <select ${(editMode && t.selected) ? "" : "disabled"} onchange="assignDriver(${i},this.value)">
-            <option value="">--</option>
-            ${validDrivers.map(d => `
-              <option value="${escapeHtml(d._id)}" ${String(t.driverId || "") === String(d._id || "") ? "selected" : ""}>
-                ${escapeHtml(d.name || "")}
-              </option>
-            `).join("")}
-          </select>
-        </td>
-
-        <td id="car-${i}">${escapeHtml(t.vehicle || getDriverCar(t.driverId) || "")}</td>
-        <td class="notes-cell">${escapeHtml(t.notes || "")}</td>
-
-        <td>
-          <button class="btn green send-btn" onclick="sendOne(${i})" ${t.selected ? "" : "disabled"}>
-            Send
-          </button>
-        </td>
-      </tr>
-    `
-  })
-
-  syncSelectButtonText()
-}
-
-/* ================= MAP ================= */
-
-function initMap(){
-  const mapEl = document.getElementById("map")
-  if(!mapEl) return
-  if(map) return
-
-  map = L.map("map").setView([33.4484, -112.0740], 10)
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors"
-  }).addTo(map)
-
-  setTimeout(() => {
-    try{ map.invalidateSize() }catch(e){}
-  }, 300)
-}
-
-function clearMap(){
-  markers.forEach(m => {
-    try{ map.removeLayer(m) }catch(e){}
-  })
-  markers = []
-
-  if(routeLayer){
-    try{ map.removeLayer(routeLayer) }catch(e){}
-    routeLayer = null
-  }
-}
-
-/* ================= ROUTE (OSRM) ================= */
-
-async function getRoute(points){
-  const validPoints = (points || []).filter(p =>
-    p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))
-  )
-
-  if(validPoints.length < 2) return null
-
-  try{
-    const coords = validPoints.map(p => `${p.lng},${p.lat}`).join(";")
-
-    const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
-    )
-
-    const data = await res.json()
-
-    if(!data.routes || !data.routes.length) return null
-
-    const r = data.routes[0]
-
-    return {
-      coords: r.geometry.coordinates.map(c => [c[1], c[0]]),
-      distance: (r.distance / 1609.34).toFixed(1),
-      duration: Math.round(r.duration / 60)
+  if(driverId){
+    if(!isDriverActiveForTrip(driverId,trip)){
+      toast("Driver is not active for this day");
+      renderAll();
+      return;
     }
-  }catch(e){
-    console.log("ROUTE ERROR:", e)
-    return null
+
+    if(!serviceMatchesDriver(driverId,trip)){
+      toast("Driver service does not match trip");
+      renderAll();
+      return;
+    }
   }
+
+  trip.driverId = driverId;
+  trip.driverName = driverId ? getDriverName(driverId) : "";
+  trip.vehicle = driverId ? getDriverVehicle(driverId) : "";
+  trip.manual = manual === true;
+  trip.manualAssigned = manual === true;
+
+  if(driverId){
+    const res = await Store.saveDriver(trip._id,driverId);
+    if(res && res.success === false){
+      toast(res.message || "Driver save failed");
+      return;
+    }
+  }
+
+  renderAll();
+  toast("Driver updated");
 }
 
-/* ================= DRIVER CLICK / TRIP SELECT ================= */
+/* ================= SEND ================= */
 
-function changeDriverTrip(driverId, index){
-  selectedTripIndexPerDriver[String(driverId)] = Number(index) || 0
-  selectedDriverId = String(driverId)
-  renderDrivers()
-  focusDriver(driverId)
+async function sendTrips(ids){
+  ids = ids.filter(Boolean);
+
+  if(!ids.length){
+    toast("No trips to send");
+    return;
+  }
+
+  const selectedTrips = trips.filter(t=>ids.includes(t._id));
+
+  for(const t of selectedTrips){
+    if(!clean(t.driverId)){
+      toast(`Trip ${getTripNumber(t)} has no driver`);
+      return;
+    }
+  }
+
+  const res = await Store.sendTrips(ids);
+
+  if(res && res.success === false){
+    toast(res.message || "Send failed");
+    return;
+  }
+
+  selectedTrips.forEach(t=>{
+    t.status = "Dispatched";
+    t.selected = false;
+    selectedIds.delete(t._id);
+  });
+
+  renderAll();
+  toast(`${ids.length} trip(s) sent`);
 }
 
-async function focusDriver(id){
-  if(!map) return
-
-  const trip = getSelectedTripForDriver(id)
-
-  if(!trip){
-    showToast("No current trip assigned to this driver")
-    return
-  }
-
-  selectedDriverId = String(id)
-  clearMap()
-
-  const stops = getStops(trip)
-  const points = []
-
-  let pickup = trip._geoPickup
-  if(!pickup && trip.pickup){
-    pickup = await geocode(trip.pickup)
-    trip._geoPickup = pickup
-  }
-  if(pickup) points.push({ ...pickup, label: "Pickup" })
-
-  for(const s of stops){
-    const g = trip._geoStops?.find(gs => gs && gs._src === s) || await geocode(s)
-    if(g) points.push({ ...g, label: "Stop" })
-  }
-
-  let dropoff = trip._geoDropoff
-  if(!dropoff && trip.dropoff){
-    dropoff = await geocode(trip.dropoff)
-    trip._geoDropoff = dropoff
-  }
-  if(dropoff) points.push({ ...dropoff, label: "Dropoff" })
-
-  if(points.length < 2){
-    showToast("Route not available")
-    return
-  }
-
-  const route = await getRoute(points)
-  if(!route){
-    showToast("Route not available")
-    return
-  }
-
-  points.forEach((p, idx) => {
-    if(!p || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng))) return
-
-    const marker = L.marker([p.lat, p.lng]).bindPopup(
-      idx === 0 ? "Pickup" : (idx === points.length - 1 ? "Dropoff" : `Stop ${idx}`)
-    )
-    marker.addTo(map)
-    markers.push(marker)
-  })
-
-  routeLayer = L.polyline(route.coords, {
-    color: "#2563eb",
-    weight: 5
-  }).addTo(map)
-
-  map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] })
-
-  showToast(`Distance ${route.distance} mi • ETA ${route.duration} min`)
-  renderDrivers()
+function sendSelected(){
+  const ids = trips.filter(t=>selectedIds.has(t._id)).map(t=>t._id);
+  sendTrips(ids);
 }
 
-/* ================= DRIVERS PANEL ================= */
-
-function renderDrivers(){
-  const panel = document.getElementById("driversPanel")
-  if(!panel) return
-
-  panel.innerHTML = `<div class="panel-header">Drivers Dispatch Panel</div>`
-
-  const activeDrivers = getActiveDriversForPanel()
-
-  activeDrivers.forEach((d, i) => {
-    const car = getDriverCar(d._id)
-    const tripsCount = getDriverTripsCount(d._id)
-    const status = getDriverStatus(d._id)
-    const statusClass = status === "Busy" ? "badge-busy" : "badge-available"
-    const tripList = getCurrentDriverTrips(d._id)
-
-    let selectedIdx = Number(selectedTripIndexPerDriver[String(d._id)] || 0)
-    if(Number.isNaN(selectedIdx) || selectedIdx < 0) selectedIdx = 0
-    if(selectedIdx >= tripList.length) selectedIdx = 0
-    selectedTripIndexPerDriver[String(d._id)] = selectedIdx
-
-    const selectedTrip = tripList[selectedIdx] || null
-
-    panel.innerHTML += `
-      <div class="driver ${selectedDriverId === d._id ? "active" : ""}" data-id="${escapeHtml(d._id)}">
-        <div class="driver-bar">
-          <div class="driver-name">${i + 1} - ${escapeHtml(d.name || "")}</div>
-
-          <div class="driver-right">
-            <div class="driver-info">
-              <span>🚗 ${escapeHtml(car || "-")}</span>
-              <span>📦 ${escapeHtml(selectedTrip ? (selectedTrip.tripNumber || "-") : "-")}</span>
-            </div>
-
-            <div class="driver-meta">
-              <span class="badge ${statusClass}">${escapeHtml(status)}</span>
-              <span class="badge badge-count">${tripsCount} Trip${tripsCount === 1 ? "" : "s"}</span>
-              <span class="badge badge-trip">ETA Map</span>
-            </div>
-
-            <div class="driver-trip-picker" style="margin-top:6px;">
-              <select onchange="changeDriverTrip('${escapeHtml(d._id)}', this.value)" onclick="event.stopPropagation()">
-                ${tripList.map((t, idx) => `
-                  <option value="${idx}" ${idx === selectedIdx ? "selected" : ""}>
-                    Trip ${idx + 1}${t.tripNumber ? ` - ${escapeHtml(t.tripNumber)}` : ""}
-                  </option>
-                `).join("")}
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-    `
-  })
-
-  document.querySelectorAll(".driver").forEach(el => {
-    el.addEventListener("click", async () => {
-      selectedDriverId = el.dataset.id
-
-      document.querySelectorAll(".driver").forEach(d => {
-        d.classList.remove("active")
-      })
-
-      el.classList.add("active")
-      await focusDriver(el.dataset.id)
-    })
-  })
+function sendAll(){
+  const ids = trips.filter(t=>clean(t.driverId)).map(t=>t._id);
+  sendTrips(ids);
 }
 
-/* ================= ACTIONS ================= */
-
-function toggleTrip(i){
-  if(!trips[i]) return
-  trips[i].selected = !trips[i].selected
-  renderTrips()
+function sendOne(id){
+  sendTrips([String(id)]);
 }
 
-function toggleSelect(){
-  allSelected = !allSelected
-  getVisibleTrips().forEach(t => {
-    t.selected = allSelected
-  })
-  renderTrips()
-  showToast(allSelected ? "All trips selected" : "Selection cleared")
+/* ================= SELECTION ================= */
+
+function toggleSelectAll(){
+  const allVisible = trips;
+  const allAreSelected = allVisible.length && allVisible.every(t=>selectedIds.has(t._id));
+
+  if(allAreSelected){
+    allVisible.forEach(t=>selectedIds.delete(t._id));
+  }else{
+    allVisible.forEach(t=>selectedIds.add(t._id));
+  }
+
+  renderAll();
+}
+
+function toggleTrip(id){
+  id = String(id);
+  if(selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  renderAll();
 }
 
 function toggleEdit(){
-  editMode = !editMode
-  const btn = document.getElementById("editBtn")
+  editMode = !editMode;
+  renderAll();
+  toast(editMode ? "Edit mode enabled" : "Edit mode disabled");
+}
+
+/* ================= RENDER ================= */
+
+function setText(id,val){
+  const el = document.getElementById(id);
+  if(el) el.textContent = val;
+}
+
+function renderStats(){
+  const total = trips.length;
+  const assigned = trips.filter(t=>clean(t.driverId)).length;
+  const unassigned = total - assigned;
+  const today = trips.filter(isToday).length;
+  const tomorrow = trips.filter(isTomorrow).length;
+
+  setText("statTotalTrips",total);
+  setText("statAssignedTrips",assigned);
+  setText("statUnassignedTrips",unassigned);
+  setText("statActiveDrivers",drivers.length);
+  setText("statTodayTrips",today);
+  setText("statTomorrowTrips",tomorrow);
+
+  setText("driversTabActive",drivers.length);
+  setText("driversTabAssigned",assigned);
+  setText("driversTabUnassigned",unassigned);
+
+  const btn = document.getElementById("selectBtn");
   if(btn){
-    btn.innerText = editMode ? "Save" : "Edit Selected"
-  }
-  renderTrips()
-  showToast(editMode ? "Edit mode enabled" : "Changes saved")
-}
-
-async function assignDriver(i, id){
-  if(!trips[i]) return
-
-  const trip = trips[i]
-
-  if(id){
-    if(!isDriverActiveOnDate(id, trip.tripDate)){
-      showToast("Driver not active on this date")
-      renderTrips()
-      return
-    }
-
-    if(hasTimeConflict(id, trip)){
-      showToast("Warning: driver has time conflict")
-    }
+    const allSelected = trips.length && trips.every(t=>selectedIds.has(t._id));
+    btn.textContent = allSelected ? "Remove All" : "Select All";
   }
 
-  try{
-    if(id){
-      const ok = await saveDriverAssignment(trip, id)
-      if(!ok){
-        showToast("Driver save failed")
-        renderTrips()
-        return
-      }
-
-      trip.manual = true
-      trip.autoAssigned = false
-    }else{
-      trip.driverId = ""
-      trip.driverName = ""
-      trip.vehicle = ""
-      trip.driverAddress = ""
-      trip.manual = false
-      trip.autoAssigned = false
-    }
-
-    if(id && selectedTripIndexPerDriver[String(id)] == null){
-      selectedTripIndexPerDriver[String(id)] = 0
-    }
-
-    renderTrips()
-    renderDrivers()
-    showToast("Driver updated")
-  }catch(e){
-    console.log(e)
-    showToast("Error saving driver")
+  const editBtn = document.getElementById("editBtn");
+  if(editBtn){
+    editBtn.textContent = editMode ? "Save Edit" : "Edit Selected";
   }
 }
 
-async function sendSelected(){
-  const selected = trips.filter(t => t.selected === true)
+function renderDriverMiniCards(){
+  const wrap = document.getElementById("driverMiniCards");
+  if(!wrap) return;
 
-  if(!selected.length){
-    showToast("Select trips first")
-    return
+  if(!drivers.length){
+    wrap.innerHTML = "";
+    return;
   }
 
-  for(const trip of selected){
-    if(!String(trip.driverId || "").trim()){
-      showToast(`Trip ${trip.tripNumber || ""} has no driver assigned`)
-      return
-    }
+  wrap.innerHTML = drivers.map(d=>{
+    const id = String(d._id);
+    const count = driverTripCount(id);
+    const service = getDriverServices(id).join(", ");
+    const vehicle = getDriverVehicle(id) || "-";
 
-    if(trip.autoAssigned === true){
-      const ok = await saveDriverAssignment(trip, trip.driverId)
-      if(!ok){
-        showToast(`Driver save failed for trip ${trip.tripNumber || ""}`)
-        return
-      }
-      trip.autoAssigned = false
-    }
-  }
-
-  const idsToSend = selected
-    .filter(t => t.selected && t.driverId)
-    .map(t => t._id)
-
-  if(!idsToSend.length){
-    showToast("No valid trips to send")
-    return
-  }
-
-  try{
-    const res = await fetch("/api/dispatch/send", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: idsToSend })
-    })
-
-    const data = await res.json().catch(() => ({}))
-
-    if(!res.ok){
-      showToast(data?.message || "Send failed")
-      return
-    }
-
-    selected.forEach(t => {
-      t.selected = false
-      t.status = "Dispatched"
-    })
-
-    renderTrips()
-    renderDrivers()
-    showToast(`${selected.length} trip(s) sent`)
-  }catch(e){
-    console.log("SEND SELECTED ERROR:", e)
-    showToast("Send failed")
-  }
+    return `
+      <div class="driver-mini-card">
+        <div class="driver-mini-name">${safe(d.name || d.fullName || "-")}</div>
+        <div class="driver-mini-line">Vehicle: ${safe(vehicle)}</div>
+        <div class="driver-mini-line">Service: ${safe(service)}</div>
+        <div class="driver-mini-line">Trips: ${count}</div>
+      </div>
+    `;
+  }).join("");
 }
 
-async function sendOne(i){
-  if(!trips[i]) return
+function driverOptions(t){
+  const valid = getActiveDriversForTrip(t);
 
-  const trip = trips[i]
-
-  if(!trip.selected){
-    showToast("Select trip first")
-    return
-  }
-
-  if(!String(trip.driverId || "").trim()){
-    showToast(`Trip ${trip.tripNumber || ""} has no driver assigned`)
-    return
-  }
-
-  if(trip.autoAssigned === true){
-    const ok = await saveDriverAssignment(trip, trip.driverId)
-    if(!ok){
-      showToast("Driver save failed")
-      return
-    }
-    trip.autoAssigned = false
-  }
-
-  try{
-    const res = await fetch("/api/dispatch/send", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [trip._id] })
-    })
-
-    const data = await res.json().catch(() => ({}))
-
-    if(!res.ok){
-      showToast(data?.message || "Send failed")
-      return
-    }
-
-    trip.status = "Dispatched"
-    trip.selected = false
-
-    renderTrips()
-    renderDrivers()
-    showToast(`Trip ${trip.tripNumber || i + 1} sent`)
-  }catch(e){
-    console.log("SEND ONE ERROR:", e)
-    showToast("Send failed")
-  }
+  return `
+    <select class="driver-select"
+      ${editMode ? "" : "disabled"}
+      onchange="assignDriver('${safe(t._id)}',this.value)">
+      <option value="">--</option>
+      ${valid.map(d=>{
+        const id = String(d._id);
+        return `
+          <option value="${safe(id)}" ${String(t.driverId)===id ? "selected" : ""}>
+            ${safe(d.name || d.fullName || "")} - ${safe(getDriverVehicle(id))}
+          </option>
+        `;
+      }).join("")}
+    </select>
+  `;
 }
 
-function redistribute(){
-  const selected = trips.filter(t => t.selected === true)
+function renderTripRow(t,index){
+  const shared = isSharedTrip(t);
 
-  if(!selected.length){
-    showToast("Select trips first")
-    return
+  const passengerName = shared
+    ? sharedCell(t,"name")
+    : (t.clientName || t.name || "");
+
+  const phone = shared
+    ? sharedCell(t,"phone")
+    : (t.clientPhone || t.phone || "");
+
+  const email = shared
+    ? sharedCell(t,"email")
+    : getEmail(t);
+
+  const pickup = shared
+    ? sharedCell(t,"pickup")
+    : (t.pickup || "");
+
+  const dropoff = shared
+    ? sharedCell(t,"dropoff")
+    : (t.dropoff || "");
+
+  const cls = [
+    rowClass(t),
+    clean(t.driverId) ? "" : "row-unassigned",
+    statusKey(t.status)==="dispatched" ? "row-dispatched" : ""
+  ].join(" ");
+
+  return `
+    <tr class="${cls}">
+      <td>
+        <input type="checkbox"
+          ${selectedIds.has(t._id) ? "checked" : ""}
+          onchange="toggleTrip('${safe(t._id)}')">
+      </td>
+
+      <td>${index}</td>
+
+      <td>
+        <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
+      </td>
+
+      <td>
+        <span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>
+      </td>
+
+      <td>${safe(shared ? "Shared" : (t.type || getTripKind(t)))}</td>
+
+      <td>${safe(t.company || "")}</td>
+
+      <td>${safe(t.entryName || "")}</td>
+
+      <td>${safe(t.entryPhone || "")}</td>
+
+      <td class="wide-client">${safe(passengerName)}</td>
+
+      <td class="wide-phone">${safe(phone)}</td>
+
+      <td class="wide-email">${safe(email)}</td>
+
+      <td class="wide-address">${safe(pickup)}</td>
+
+      <td class="wide-address">${safe(shared ? "Route optimized per passenger" : stopsText(t))}</td>
+
+      <td class="wide-address">${safe(dropoff)}</td>
+
+      <td>${safe(t.tripDate || "")}</td>
+
+      <td>${safe(t.tripTime || "")}</td>
+
+      <td>${driverOptions(t)}</td>
+
+      <td>
+        <span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span>
+      </td>
+
+      <td class="wide-notes">${safe(getNotes(t) || "")}</td>
+
+      <td>
+        <span class="status-pill">${safe(t.status || "Scheduled")}</span>
+      </td>
+
+      <td>
+        <button class="btn green" onclick="sendOne('${safe(t._id)}')">
+          Send
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+function renderTable(bodyId,list){
+  const body = document.getElementById(bodyId);
+  if(!body) return;
+
+  if(!list.length){
+    body.innerHTML = `
+      <tr>
+        <td colspan="21" class="empty-row">No Trips</td>
+      </tr>
+    `;
+    return;
   }
 
-  selected.forEach(t => {
-    t.driverId = ""
-    t.driverName = ""
-    t.vehicle = ""
-    t.driverAddress = ""
-    t.manual = false
-    t.autoAssigned = false
-  })
+  body.innerHTML = list
+    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b))
+    .map((t,i)=>renderTripRow(t,i+1))
+    .join("");
+}
 
-  autoAssign()
-  sortTrips()
-  renderTrips()
-  renderDrivers()
-  showToast("Trips redistributed")
+function renderDriversTab(){
+  const wrap = document.getElementById("driversContainer");
+  if(!wrap) return;
+
+  if(!drivers.length){
+    wrap.innerHTML = `<div class="driver-card">No active drivers</div>`;
+    return;
+  }
+
+  wrap.innerHTML = drivers.map(d=>{
+    const id = String(d._id);
+    const driverTrips = trips
+      .filter(t=>String(t.driverId || "") === id)
+      .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
+
+    return `
+      <div class="driver-card">
+        <div class="driver-card-name">${safe(d.name || d.fullName || "-")}</div>
+        <div class="driver-card-line">Vehicle: ${safe(getDriverVehicle(id) || "-")}</div>
+        <div class="driver-card-line">Phone: ${safe(getSchedule(id).phone || d.phone || "-")}</div>
+        <div class="driver-card-line">Services: ${safe(getDriverServices(id).join(", "))}</div>
+        <div class="driver-card-line">Trips: ${driverTrips.length}</div>
+
+        <div class="driver-card-trips">
+          ${
+            driverTrips.length
+            ? driverTrips.map((t,i)=>`${i+1}. ${getTripNumber(t)} - ${t.tripTime || ""} - ${getTripServiceCode(t)}`).join("\n")
+            : "No trips assigned"
+          }
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderAll(){
+  trips = trips.filter(t=>!isClosedTrip(t) && isActiveTrip(t));
+
+  renderStats();
+  renderDriverMiniCards();
+
+  renderTable("todayDispatchBody",trips.filter(isToday));
+  renderTable("tomorrowDispatchBody",trips.filter(isTomorrow));
+
+  renderDriversTab();
 }
 
 /* ================= TABS ================= */
 
 function bindTabs(){
-  if(tabsBound) return
-  tabsBound = true
+  const tabDispatch = document.getElementById("tabDispatch");
+  const tabDrivers = document.getElementById("tabDrivers");
+  const dispatchPage = document.getElementById("dispatchPage");
+  const driversPage = document.getElementById("driversPage");
 
-  const tabTrips = document.getElementById("tabTrips")
-  const tabDrivers = document.getElementById("tabDrivers")
-  const tripsPage = document.getElementById("tripsPage")
-  const driversPage = document.getElementById("driversPage")
+  if(!tabDispatch || !tabDrivers || !dispatchPage || !driversPage) return;
 
-  if(!tabTrips || !tabDrivers || !tripsPage || !driversPage) return
+  tabDispatch.onclick = ()=>{
+    activeTab = "dispatch";
+    tabDispatch.classList.add("active");
+    tabDrivers.classList.remove("active");
+    dispatchPage.classList.add("active");
+    driversPage.classList.remove("active");
+  };
 
-  tabTrips.onclick = () => {
-    tripsPage.classList.add("active")
-    driversPage.classList.remove("active")
-    tabTrips.classList.add("active")
-    tabDrivers.classList.remove("active")
-  }
+  tabDrivers.onclick = ()=>{
+    activeTab = "drivers";
+    tabDrivers.classList.add("active");
+    tabDispatch.classList.remove("active");
+    driversPage.classList.add("active");
+    dispatchPage.classList.remove("active");
+  };
+}
 
-  tabDrivers.onclick = () => {
-    tripsPage.classList.remove("active")
-    driversPage.classList.add("active")
-    tabTrips.classList.remove("active")
-    tabDrivers.classList.add("active")
+/* ================= EVENTS ================= */
 
-    setTimeout(() => {
-      try{
-        if(map) map.invalidateSize()
-      }catch(e){}
-    }, 300)
-  }
+function bindActions(){
+  document.getElementById("selectBtn")?.addEventListener("click",toggleSelectAll);
+  document.getElementById("editBtn")?.addEventListener("click",toggleEdit);
+  document.getElementById("autoAssignBtn")?.addEventListener("click",autoAssign);
+  document.getElementById("sendSelectedBtn")?.addEventListener("click",sendSelected);
+  document.getElementById("sendAllBtn")?.addEventListener("click",sendAll);
+}
+
+function toast(msg){
+  const el = document.getElementById("toast");
+  if(!el) return;
+
+  el.textContent = msg;
+  el.classList.add("show");
+
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>el.classList.remove("show"),1800);
 }
 
 /* ================= GLOBAL ================= */
 
-window.toggleTrip = toggleTrip
-window.toggleSelect = toggleSelect
-window.toggleEdit = toggleEdit
-window.assignDriver = assignDriver
-window.sendSelected = sendSelected
-window.sendOne = sendOne
-window.redistribute = redistribute
-window.focusDriver = focusDriver
-window.changeDriverTrip = changeDriverTrip
+window.toggleTrip = toggleTrip;
+window.assignDriver = function(id,driverId){
+  const trip = trips.find(t=>String(t._id) === String(id));
+  if(trip) saveAssignment(trip,driverId,true);
+};
+window.sendOne = sendOne;
+window.autoAssign = autoAssign;
+window.sendSelected = sendSelected;
+window.sendAll = sendAll;
 
-window.Engine = {
-  toggleSelect,
-  toggleEdit,
-  sendSelected,
-  redistributeSelected: redistribute,
-  redistribute,
-  focusDriver
+/* ================= INIT ================= */
+
+async function refresh(){
+  const keepSelected = new Set(selectedIds);
+  await loadAll();
+  selectedIds = new Set([...keepSelected].filter(id=>trips.some(t=>t._id===id)));
+  renderAll();
 }
 
-/* ================= START ================= */
+document.addEventListener("DOMContentLoaded",async()=>{
+  bindTabs();
+  bindActions();
 
-document.addEventListener("DOMContentLoaded", init)
+  await refresh();
+
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(async()=>{
+    if(editMode) return;
+    await refresh();
+  },30000);
+});
