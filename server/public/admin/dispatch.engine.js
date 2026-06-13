@@ -1,6 +1,8 @@
 /* =====================================================
-   DISPATCH ENGINE V2
-   Trips Selected -> Auto / Manual Assign -> Send
+   DISPATCH ENGINE V3
+   Admin Timezone Connected To System Design
+   Active Drivers Today Only
+   Auto Assign + Manual Assign + Send
 ===================================================== */
 
 /* ================= SECURITY ================= */
@@ -16,6 +18,7 @@ if(!token || !["superadmin","admin","dispatcher"].includes(role)){
 
 let trips = [];
 let drivers = [];
+let allDrivers = [];
 let services = [];
 let schedule = {};
 let timezone = "America/Phoenix";
@@ -40,7 +43,9 @@ const ACTIVE_STATUSES = [
   "scheduled",
   "confirmed",
   "paid",
-  "dispatched"
+  "rv",
+  "reserved",
+  "review"
 ];
 
 /* ================= HELPERS ================= */
@@ -67,14 +72,14 @@ function statusKey(v){
 }
 
 function isClosedTrip(t){
-  const s = statusKey(t.status);
-  return CLOSED_STATUSES.includes(s);
+  return CLOSED_STATUSES.includes(statusKey(t.status));
 }
 
 function isActiveTrip(t){
-  const s = statusKey(t.status || "scheduled");
-  return ACTIVE_STATUSES.includes(s) && !isClosedTrip(t);
+  return ACTIVE_STATUSES.includes(statusKey(t.status || "scheduled")) && !isClosedTrip(t);
 }
+
+/* ================= SYSTEM TIME ================= */
 
 function getSystemDate(offset=0){
   const parts = new Intl.DateTimeFormat("en-CA",{
@@ -89,13 +94,35 @@ function getSystemDate(offset=0){
   const d = Number(parts.find(p=>p.type==="day")?.value);
 
   const base = new Date(y,m-1,d);
-  base.setDate(base.getDate()+offset);
+  base.setDate(base.getDate() + offset);
 
   return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
 }
 
-function todayKey(){ return getSystemDate(0); }
-function tomorrowKey(){ return getSystemDate(1); }
+function todayKey(){
+  return getSystemDate(0);
+}
+
+function tomorrowKey(){
+  return getSystemDate(1);
+}
+
+function getSystemDayKeyByDate(dateStr){
+  const date = clean(dateStr) || todayKey();
+
+  const day = new Intl.DateTimeFormat("en-US",{
+    weekday:"short",
+    timeZone:timezone
+  }).format(new Date(`${date}T12:00:00`)).toLowerCase();
+
+  if(day.startsWith("sun")) return "sun";
+  if(day.startsWith("mon")) return "mon";
+  if(day.startsWith("tue")) return "tue";
+  if(day.startsWith("wed")) return "wed";
+  if(day.startsWith("thu")) return "thu";
+  if(day.startsWith("fri")) return "fri";
+  return "sat";
+}
 
 function isToday(t){
   return clean(t.tripDate) === todayKey();
@@ -107,12 +134,11 @@ function isTomorrow(t){
 
 function parseTripDateTime(t){
   const d = clean(t.tripDate);
-  let time = clean(t.tripTime || "00:00");
-  if(!d) return null;
-  if(!time) time = "00:00";
+  const tm = clean(t.tripTime || "00:00");
 
-  let dt = new Date(`${d}T${time}:00`);
-  if(isNaN(dt.getTime())) dt = new Date(`${d} ${time}`);
+  if(!d) return null;
+
+  const dt = new Date(`${d}T${tm}:00`);
   return isNaN(dt.getTime()) ? null : dt;
 }
 
@@ -121,14 +147,19 @@ function getTripTimeValue(t){
   return dt ? dt.getTime() : 0;
 }
 
+/* ================= SERVICE ================= */
+
 function normalizeService(v){
   const x = clean(v).toUpperCase().replace(/\s+/g,"");
+
   if(["STANDARD","ST","X"].includes(x)) return "ST";
   if(["WHEELCHAIR","WH","WC"].includes(x)) return "WH";
   if(["SHARED","SH"].includes(x)) return "SH";
   if(["LIMO","LIMOUSINE","LM"].includes(x)) return "LM";
   if(["TAXI","TX"].includes(x)) return "TX";
   if(["XL"].includes(x)) return "XL";
+  if(["ALL"].includes(x)) return "ALL";
+
   return x || "ST";
 }
 
@@ -162,12 +193,22 @@ function getTripServiceCode(t){
 
 function getServiceTitle(code){
   code = normalizeService(code);
-  const s = services.find(x=>normalizeService(
-    x.serviceKey || x.code || x.suffix || x.companySuffix || x.title || x.name
-  ) === code);
+
+  const s = services.find(x=>{
+    return normalizeService(
+      x.serviceKey ||
+      x.code ||
+      x.suffix ||
+      x.companySuffix ||
+      x.title ||
+      x.name
+    ) === code;
+  });
 
   return s?.title || s?.name || s?.serviceName || code;
 }
+
+/* ================= TRIP HELPERS ================= */
 
 function getTripKind(t){
   if(isSharedTrip(t)) return "SH";
@@ -257,33 +298,54 @@ function sharedCell(t,field){
   }).join("\n");
 }
 
-function getTripPickup(t){
-  if(isSharedTrip(t)) return getPassengers(t)[0]?.pickup || t.pickup || "";
-  return t.pickup || "";
-}
-
-function getTripDropoff(t){
-  if(isSharedTrip(t)){
-    const p = getPassengers(t);
-    return p[p.length-1]?.dropoff || t.dropoff || "";
-  }
-  return t.dropoff || "";
-}
-
 /* ================= DRIVER HELPERS ================= */
+
+function normalizeDriver(d){
+  return {
+    ...d,
+    _id:String(d._id || d.id || "")
+  };
+}
+
+function normalizeScheduleRow(row){
+  row = row || {};
+
+  return {
+    phone:row.phone || "",
+    address:row.address || "",
+    lat:row.lat ?? null,
+    lng:row.lng ?? null,
+    vehicleNumber:row.vehicleNumber || row.vehicle || row.carNumber || "",
+    enabled:row.enabled !== false,
+    days:{
+      sun:false,
+      mon:false,
+      tue:false,
+      wed:false,
+      thu:false,
+      fri:false,
+      sat:false,
+      ...(row.days || row.weekly || {})
+    },
+    services:
+      Array.isArray(row.services) && row.services.length
+      ? row.services.map(normalizeService)
+      : ["ALL"]
+  };
+}
 
 function getSchedule(id){
   return schedule[String(id)] || {};
 }
 
 function getDriverName(id){
-  const d = drivers.find(x=>String(x._id) === String(id));
+  const d = allDrivers.find(x=>String(x._id) === String(id));
   return d?.name || d?.fullName || "";
 }
 
 function getDriverVehicle(id){
   const s = getSchedule(id);
-  const d = drivers.find(x=>String(x._id) === String(id));
+  const d = allDrivers.find(x=>String(x._id) === String(id));
 
   return (
     s.vehicleNumber ||
@@ -295,71 +357,44 @@ function getDriverVehicle(id){
 }
 
 function getDriverServices(id){
-  const s = getSchedule(id);
-  const arr = Array.isArray(s.services) && s.services.length ? s.services : ["ALL"];
-  return arr.map(x=>normalizeService(x));
+  const s = normalizeScheduleRow(getSchedule(id));
+  return s.services.length ? s.services : ["ALL"];
+}
+
+function isDriverActiveForDate(driverId,dateStr){
+  const s = normalizeScheduleRow(getSchedule(driverId));
+
+  if(s.enabled !== true) return false;
+
+  const day = getSystemDayKeyByDate(dateStr);
+
+  return s.days?.[day] === true;
+}
+
+function getTodayActiveDrivers(){
+  return allDrivers.filter(d=>{
+    const id = String(d._id || "");
+    return id && isDriverActiveForDate(id,todayKey());
+  });
 }
 
 function serviceMatchesDriver(driverId,trip){
   const driverServices = getDriverServices(driverId);
   const code = getTripServiceCode(trip);
+
   return driverServices.includes("ALL") || driverServices.includes(code);
 }
 
-function dayKeyFromDate(dateStr){
-  const d = new Date(`${dateStr}T00:00:00`);
-  if(isNaN(d.getTime())) return "";
-  return ["sun","mon","tue","wed","thu","fri","sat"][d.getDay()];
-}
-
-function isDriverActiveForTrip(driverId,trip){
-  const s = getSchedule(driverId);
-
-  if(s.enabled !== true) return false;
-
-  const day = dayKeyFromDate(trip.tripDate);
-  if(!day) return true;
-
-  const days = s.days || s.weekly || {};
-  if(!Object.keys(days).length) return true;
-
-  return days[day] === true;
-}
-
 function getActiveDriversForTrip(trip){
-  return drivers.filter(d=>{
-    const id = String(d._id || d.id || "");
+  return allDrivers.filter(d=>{
+    const id = String(d._id || "");
     if(!id) return false;
-    return isDriverActiveForTrip(id,trip) && serviceMatchesDriver(id,trip);
+
+    return (
+      isDriverActiveForDate(id,trip.tripDate) &&
+      serviceMatchesDriver(id,trip)
+    );
   });
-}
-
-function getDriverHomeAddress(driverId){
-  const s = getSchedule(driverId);
-  const d = drivers.find(x=>String(x._id) === String(driverId));
-
-  return (
-    s.address ||
-    d?.address ||
-    d?.homeAddress ||
-    d?.currentAddress ||
-    d?.locationAddress ||
-    ""
-  );
-}
-
-function getDriverStartAddress(driverId,dayTrips){
-  const assigned = dayTrips
-    .filter(t=>String(t.driverId || "") === String(driverId))
-    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
-
-  if(!assigned.length) return getDriverHomeAddress(driverId);
-
-  return getTripDropoff(assigned[assigned.length-1]);
-}
-
-function driverTripCount(driverId){
-  return trips.filter(t=>String(t.driverId || "") === String(driverId)).length;
 }
 
 function driverTripCountByDate(driverId,date){
@@ -369,106 +404,19 @@ function driverTripCountByDate(driverId,date){
   ).length;
 }
 
-/* ================= GOOGLE DISTANCE ================= */
-
-async function googleDistanceMiles(origin,destination){
-  origin = clean(origin);
-  destination = clean(destination);
-
-  if(!origin || !destination) return 999999;
-
-  try{
-    if(window.google && google.maps && google.maps.DistanceMatrixService){
-      return await new Promise(resolve=>{
-        const service = new google.maps.DistanceMatrixService();
-
-        service.getDistanceMatrix({
-          origins:[origin],
-          destinations:[destination],
-          travelMode:google.maps.TravelMode.DRIVING,
-          unitSystem:google.maps.UnitSystem.IMPERIAL
-        },(response,status)=>{
-          if(status !== "OK"){
-            resolve(999999);
-            return;
-          }
-
-          const el = response?.rows?.[0]?.elements?.[0];
-          if(!el || el.status !== "OK"){
-            resolve(999999);
-            return;
-          }
-
-          resolve(Number((el.distance.value * 0.000621371).toFixed(2)));
-        });
-      });
-    }
-  }catch(err){
-    console.log("Google distance failed",err);
-  }
-
-  return fallbackDistance(origin,destination);
+function driverTripCount(driverId){
+  return trips.filter(t=>String(t.driverId || "") === String(driverId)).length;
 }
 
-function fallbackDistance(a,b){
-  a = lower(a);
-  b = lower(b);
-
-  const cities = ["chandler","mesa","tempe","gilbert","phoenix","scottsdale","queen creek","glendale","peoria"];
-
-  for(const c of cities){
-    if(a.includes(c) && b.includes(c)) return 3;
-  }
-
-  return 25;
-}
-
-/* ================= LOAD GOOGLE ================= */
-
-async function loadGoogle(){
-  if(window.google && google.maps && google.maps.DistanceMatrixService) return;
-
-  try{
-    const res = await fetch("/api/config");
-    const data = await res.json();
-
-    if(!data.googleKey) return;
-
-    if(document.querySelector("script[data-dispatch-google='true']")){
-      return;
-    }
-
-    await new Promise((resolve,reject)=>{
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
-      script.async = true;
-      script.defer = true;
-      script.dataset.dispatchGoogle = "true";
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-
-  }catch(err){
-    console.log("Google load failed",err);
-  }
-}
-
-/* ================= DATA BUILD ================= */
-
-function normalizeDriver(d){
-  const id = String(d._id || d.id || "");
-  return {
-    ...d,
-    _id:id
-  };
-}
+/* ================= DATA ================= */
 
 function normalizeTrip(t){
+  const id = String(t._id || t.id || "");
+
   return {
     ...t,
-    _id:String(t._id || t.id || ""),
-    selected:selectedIds.has(String(t._id || t.id || "")),
+    _id:id,
+    selected:selectedIds.has(id),
     driverId:t.driverId ? String(t.driverId) : "",
     driverName:t.driverName || "",
     vehicle:t.vehicle || "",
@@ -501,84 +449,93 @@ async function loadAll(){
 
   timezone = data.timezone || "America/Phoenix";
   services = Array.isArray(data.services) ? data.services : [];
-  schedule = data.schedule || {};
 
-  drivers = (Array.isArray(data.drivers) ? data.drivers : [])
+  schedule = {};
+  Object.keys(data.schedule || {}).forEach(id=>{
+    schedule[String(id)] = normalizeScheduleRow(data.schedule[id]);
+  });
+
+  allDrivers = (Array.isArray(data.drivers) ? data.drivers : [])
     .map(normalizeDriver)
-    .filter(d=>{
-      const s = getSchedule(d._id);
-      return s.enabled === true;
-    });
+    .filter(d=>d._id);
+
+  drivers = getTodayActiveDrivers();
 
   trips = filterTrips(Array.isArray(data.trips) ? data.trips : []);
-
-  await loadGoogle();
 }
 
 /* ================= ASSIGNMENT ================= */
 
 async function autoAssign(){
-  const dayGroups = {
-    [todayKey()]: trips.filter(isToday).sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b)),
-    [tomorrowKey()]: trips.filter(isTomorrow).sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b))
-  };
+  const sortedTrips = trips
+    .filter(t=>!t.driverId)
+    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
 
-  for(const date of Object.keys(dayGroups)){
-    const dayTrips = dayGroups[date];
+  if(!sortedTrips.length){
+    toast("No unassigned trips");
+    return;
+  }
 
-    for(const trip of dayTrips){
-      if(trip.manual === true && trip.driverId) continue;
+  let assigned = 0;
 
+  for(const trip of sortedTrips){
+    const availableDrivers = getActiveDriversForTrip(trip);
+
+    if(!availableDrivers.length){
+      console.log("No driver for trip:",getTripNumber(trip),getTripServiceCode(trip),trip.tripDate);
+      continue;
+    }
+
+    availableDrivers.sort((a,b)=>{
+      const ac = driverTripCountByDate(a._id,trip.tripDate);
+      const bc = driverTripCountByDate(b._id,trip.tripDate);
+
+      if(ac !== bc) return ac - bc;
+
+      return clean(a.name || a.fullName).localeCompare(clean(b.name || b.fullName));
+    });
+
+    const driver = availableDrivers[0];
+    const id = String(driver._id);
+
+    trip.driverId = id;
+    trip.driverName = driver.name || driver.fullName || "";
+    trip.vehicle = getDriverVehicle(id);
+    trip.manual = false;
+    trip.manualAssigned = false;
+    trip.autoAssigned = true;
+
+    try{
+      const res = await Store.saveDriver(trip._id,id);
+
+      if(res && res.success === false){
+        console.log("Save driver failed:",res);
+        trip.driverId = "";
+        trip.driverName = "";
+        trip.vehicle = "";
+        continue;
+      }
+
+      assigned++;
+
+    }catch(err){
+      console.log("Save driver error:",err);
       trip.driverId = "";
       trip.driverName = "";
       trip.vehicle = "";
-
-      const validDrivers = getActiveDriversForTrip(trip);
-      if(!validDrivers.length) continue;
-
-      let bestDriver = null;
-      let bestScore = Infinity;
-      let bestMiles = 999999;
-
-      for(const driver of validDrivers){
-        const id = String(driver._id);
-        const startAddress = getDriverStartAddress(id,dayTrips);
-        const pickup = getTripPickup(trip);
-
-        const miles = await googleDistanceMiles(startAddress,pickup);
-        const count = driverTripCountByDate(id,date);
-
-        const score = miles + (count * 8);
-
-        if(score < bestScore){
-          bestScore = score;
-          bestMiles = miles;
-          bestDriver = driver;
-        }
-      }
-
-      if(bestDriver){
-        const id = String(bestDriver._id);
-
-        trip.driverId = id;
-        trip.driverName = bestDriver.name || bestDriver.fullName || "";
-        trip.vehicle = getDriverVehicle(id);
-        trip.autoAssigned = true;
-        trip.distanceMiles = bestMiles;
-      }
     }
   }
 
   renderAll();
-  toast("Auto assignment completed");
+  toast(`${assigned} trip(s) assigned`);
 }
 
 async function saveAssignment(trip,driverId,manual=true){
   driverId = clean(driverId);
 
   if(driverId){
-    if(!isDriverActiveForTrip(driverId,trip)){
-      toast("Driver is not active for this day");
+    if(!isDriverActiveForDate(driverId,trip.tripDate)){
+      toast("Driver is not active for this trip date");
       renderAll();
       return;
     }
@@ -590,22 +547,38 @@ async function saveAssignment(trip,driverId,manual=true){
     }
   }
 
+  const oldDriver = trip.driverId;
+  const oldName = trip.driverName;
+  const oldVehicle = trip.vehicle;
+
   trip.driverId = driverId;
   trip.driverName = driverId ? getDriverName(driverId) : "";
   trip.vehicle = driverId ? getDriverVehicle(driverId) : "";
   trip.manual = manual === true;
   trip.manualAssigned = manual === true;
 
-  if(driverId){
+  try{
     const res = await Store.saveDriver(trip._id,driverId);
+
     if(res && res.success === false){
+      trip.driverId = oldDriver;
+      trip.driverName = oldName;
+      trip.vehicle = oldVehicle;
       toast(res.message || "Driver save failed");
+      renderAll();
       return;
     }
+
+    toast("Driver updated");
+
+  }catch(err){
+    trip.driverId = oldDriver;
+    trip.driverName = oldName;
+    trip.vehicle = oldVehicle;
+    toast("Driver save failed");
   }
 
   renderAll();
-  toast("Driver updated");
 }
 
 /* ================= SEND ================= */
@@ -627,21 +600,30 @@ async function sendTrips(ids){
     }
   }
 
-  const res = await Store.sendTrips(ids);
+  try{
+    const res = await Store.sendTrips(ids);
 
-  if(res && res.success === false){
-    toast(res.message || "Send failed");
-    return;
+    if(res && res.success === false){
+      toast(res.message || "Send failed");
+      return;
+    }
+
+    selectedTrips.forEach(t=>{
+      t.status = "Dispatched";
+      t.dispatchSelected = false;
+      t.selected = false;
+      selectedIds.delete(t._id);
+    });
+
+    trips = trips.filter(t=>!ids.includes(t._id));
+
+    renderAll();
+    toast(`${ids.length} trip(s) sent`);
+
+  }catch(err){
+    console.log(err);
+    toast("Send failed");
   }
-
-  selectedTrips.forEach(t=>{
-    t.status = "Dispatched";
-    t.selected = false;
-    selectedIds.delete(t._id);
-  });
-
-  renderAll();
-  toast(`${ids.length} trip(s) sent`);
 }
 
 function sendSelected(){
@@ -661,13 +643,12 @@ function sendOne(id){
 /* ================= SELECTION ================= */
 
 function toggleSelectAll(){
-  const allVisible = trips;
-  const allAreSelected = allVisible.length && allVisible.every(t=>selectedIds.has(t._id));
+  const allAreSelected = trips.length && trips.every(t=>selectedIds.has(t._id));
 
   if(allAreSelected){
-    allVisible.forEach(t=>selectedIds.delete(t._id));
+    trips.forEach(t=>selectedIds.delete(t._id));
   }else{
-    allVisible.forEach(t=>selectedIds.add(t._id));
+    trips.forEach(t=>selectedIds.add(t._id));
   }
 
   renderAll();
@@ -675,8 +656,10 @@ function toggleSelectAll(){
 
 function toggleTrip(id){
   id = String(id);
+
   if(selectedIds.has(id)) selectedIds.delete(id);
   else selectedIds.add(id);
+
   renderAll();
 }
 
@@ -723,32 +706,6 @@ function renderStats(){
   }
 }
 
-function renderDriverMiniCards(){
-  const wrap = document.getElementById("driverMiniCards");
-  if(!wrap) return;
-
-  if(!drivers.length){
-    wrap.innerHTML = "";
-    return;
-  }
-
-  wrap.innerHTML = drivers.map(d=>{
-    const id = String(d._id);
-    const count = driverTripCount(id);
-    const service = getDriverServices(id).join(", ");
-    const vehicle = getDriverVehicle(id) || "-";
-
-    return `
-      <div class="driver-mini-card">
-        <div class="driver-mini-name">${safe(d.name || d.fullName || "-")}</div>
-        <div class="driver-mini-line">Vehicle: ${safe(vehicle)}</div>
-        <div class="driver-mini-line">Service: ${safe(service)}</div>
-        <div class="driver-mini-line">Trips: ${count}</div>
-      </div>
-    `;
-  }).join("");
-}
-
 function driverOptions(t){
   const valid = getActiveDriversForTrip(t);
 
@@ -761,7 +718,7 @@ function driverOptions(t){
         const id = String(d._id);
         return `
           <option value="${safe(id)}" ${String(t.driverId)===id ? "selected" : ""}>
-            ${safe(d.name || d.fullName || "")} - ${safe(getDriverVehicle(id))}
+            ${safe(d.name || d.fullName || "")} - ${safe(getDriverVehicle(id) || "-")}
           </option>
         `;
       }).join("")}
@@ -772,30 +729,15 @@ function driverOptions(t){
 function renderTripRow(t,index){
   const shared = isSharedTrip(t);
 
-  const passengerName = shared
-    ? sharedCell(t,"name")
-    : (t.clientName || t.name || "");
-
-  const phone = shared
-    ? sharedCell(t,"phone")
-    : (t.clientPhone || t.phone || "");
-
-  const email = shared
-    ? sharedCell(t,"email")
-    : getEmail(t);
-
-  const pickup = shared
-    ? sharedCell(t,"pickup")
-    : (t.pickup || "");
-
-  const dropoff = shared
-    ? sharedCell(t,"dropoff")
-    : (t.dropoff || "");
+  const passengerName = shared ? sharedCell(t,"name") : (t.clientName || t.name || "");
+  const phone = shared ? sharedCell(t,"phone") : (t.clientPhone || t.phone || "");
+  const email = shared ? sharedCell(t,"email") : getEmail(t);
+  const pickup = shared ? sharedCell(t,"pickup") : (t.pickup || "");
+  const dropoff = shared ? sharedCell(t,"dropoff") : (t.dropoff || "");
 
   const cls = [
     rowClass(t),
-    clean(t.driverId) ? "" : "row-unassigned",
-    statusKey(t.status)==="dispatched" ? "row-dispatched" : ""
+    clean(t.driverId) ? "" : "row-unassigned"
   ].join(" ");
 
   return `
@@ -808,17 +750,13 @@ function renderTripRow(t,index){
 
       <td>${index}</td>
 
-      <td>
-        <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
-      </td>
+      <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
 
-      <td>
-        <span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>
-      </td>
+      <td><span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span></td>
 
-      <td>${safe(shared ? "Shared" : (t.type || getTripKind(t)))}</td>
+      <td>${safe(shared ? "Shared" : getTripKind(t))}</td>
 
-      <td>${safe(t.company || "")}</td>
+      <td>${safe(t.company || t.companyName || t.facilityName || "")}</td>
 
       <td>${safe(t.entryName || "")}</td>
 
@@ -842,15 +780,11 @@ function renderTripRow(t,index){
 
       <td>${driverOptions(t)}</td>
 
-      <td>
-        <span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span>
-      </td>
+      <td><span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span></td>
 
       <td class="wide-notes">${safe(getNotes(t) || "")}</td>
 
-      <td>
-        <span class="status-pill">${safe(t.status || "Scheduled")}</span>
-      </td>
+      <td><span class="status-pill">${safe(t.status || "Scheduled")}</span></td>
 
       <td>
         <button class="btn green" onclick="sendOne('${safe(t._id)}')">
@@ -885,12 +819,13 @@ function renderDriversTab(){
   if(!wrap) return;
 
   if(!drivers.length){
-    wrap.innerHTML = `<div class="driver-card">No active drivers</div>`;
+    wrap.innerHTML = `<div class="driver-card">No active drivers today</div>`;
     return;
   }
 
   wrap.innerHTML = drivers.map(d=>{
     const id = String(d._id);
+
     const driverTrips = trips
       .filter(t=>String(t.driverId || "") === id)
       .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
@@ -906,7 +841,9 @@ function renderDriversTab(){
         <div class="driver-card-trips">
           ${
             driverTrips.length
-            ? driverTrips.map((t,i)=>`${i+1}. ${getTripNumber(t)} - ${t.tripTime || ""} - ${getTripServiceCode(t)}`).join("\n")
+            ? driverTrips.map((t,i)=>
+                `${i+1}. ${getTripNumber(t)} - ${t.tripTime || ""} - ${getTripServiceCode(t)}`
+              ).join("\n")
             : "No trips assigned"
           }
         </div>
@@ -919,7 +856,6 @@ function renderAll(){
   trips = trips.filter(t=>!isClosedTrip(t) && isActiveTrip(t));
 
   renderStats();
-  renderDriverMiniCards();
 
   renderTable("todayDispatchBody",trips.filter(isToday));
   renderTable("tomorrowDispatchBody",trips.filter(isTomorrow));
@@ -951,6 +887,7 @@ function bindTabs(){
     tabDispatch.classList.remove("active");
     driversPage.classList.add("active");
     dispatchPage.classList.remove("active");
+    renderDriversTab();
   };
 }
 
@@ -966,7 +903,10 @@ function bindActions(){
 
 function toast(msg){
   const el = document.getElementById("toast");
-  if(!el) return;
+  if(!el){
+    console.log(msg);
+    return;
+  }
 
   el.textContent = msg;
   el.classList.add("show");
@@ -978,10 +918,12 @@ function toast(msg){
 /* ================= GLOBAL ================= */
 
 window.toggleTrip = toggleTrip;
+
 window.assignDriver = function(id,driverId){
   const trip = trips.find(t=>String(t._id) === String(id));
   if(trip) saveAssignment(trip,driverId,true);
 };
+
 window.sendOne = sendOne;
 window.autoAssign = autoAssign;
 window.sendSelected = sendSelected;
@@ -991,8 +933,13 @@ window.sendAll = sendAll;
 
 async function refresh(){
   const keepSelected = new Set(selectedIds);
+
   await loadAll();
-  selectedIds = new Set([...keepSelected].filter(id=>trips.some(t=>t._id===id)));
+
+  selectedIds = new Set(
+    [...keepSelected].filter(id=>trips.some(t=>t._id === id))
+  );
+
   renderAll();
 }
 
@@ -1003,6 +950,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
   await refresh();
 
   if(refreshTimer) clearInterval(refreshTimer);
+
   refreshTimer = setInterval(async()=>{
     if(editMode) return;
     await refresh();
