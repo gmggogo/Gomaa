@@ -152,7 +152,6 @@ if(!container) console.error("Missing #hubContainer");
     }
     .stat-card.total{border-left:6px solid #2563eb;}
     .stat-card.new{border-left:6px solid #16a34a;}
-    .stat-card.today{border-left:6px solid #0ea5e9;}
     .stat-card.facility{border-left:6px solid #1d4ed8;}
     .stat-card.gq{border-left:6px solid #22c55e;}
     .stat-card.reserved{border-left:6px solid #f59e0b;}
@@ -729,8 +728,42 @@ function tripPassesDateFilter(t){
   return true;
 }
 
+function getSystemTodayKey(){
+
+  const now = getAZNow();
+
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+}
+
+function getSystemTomorrowKey(){
+
+  const now = getAZNow();
+
+  now.setDate(now.getDate()+1);
+
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+}
+
+function isTodayOrTomorrowTrip(t){
+
+  const tripDate = String(t.tripDate || "").trim();
+
+  return (
+    tripDate === getSystemTodayKey() ||
+    tripDate === getSystemTomorrowKey()
+  );
+
+}
 function getBaseTripsForFilters(){
-  return getActiveServiceTrips().filter(tripPassesDateFilter);
+
+  return getActiveServiceTrips()
+
+    .filter(t => !isTodayOrTomorrowTrip(t))
+
+    .filter(tripPassesDateFilter);
+
 }
 
 function searchableText(item){
@@ -847,7 +880,6 @@ function renderStats(){
 
   const total = countItems(allItems);
   const newTrips = countItems(allItems.filter(item=>isNewTrip(getItemTrip(item))));
-  const todayTrips = countItems(allItems.filter(item=>isTripToday(getItemTrip(item))));
   const facility = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "FA"));
   const gq = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "GQ"));
   const rv = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "RV"));
@@ -855,7 +887,6 @@ function renderStats(){
   wrap.innerHTML = `
     ${statCard("total","TOTAL",total)}
     ${statCard("new","NEW TRIPS",newTrips)}
-    ${statCard("today","TRIPS TODAY",todayTrips)}
     ${statCard("facility","FACILITY",facility)}
     ${statCard("gq","GET QUOTE",gq)}
     ${statCard("reserved","RESERVED",rv)}
