@@ -584,14 +584,43 @@ function buildDisplayItems(list){
 /* ===============================
    FILTERS
 ================================ */
+function isDispatchTrip(t){
+
+  const s = String(t.status || "")
+    .toLowerCase()
+    .replace(/[_-]/g," ")
+    .trim();
+
+  return (
+    s === "confirmed" ||
+    s === "paid"
+  );
+}
 
 function baseTrips(){
+
   return trips.filter(t=>{
-    if(t.disabled === true) return false;
-    if(!isTripAllowedByService(t)) return false;
-    if(!isTodayTrip(t) && !isTomorrowTrip(t)) return false;
+
+    if(t.disabled === true)
+      return false;
+
+    if(!isTripAllowedByService(t))
+      return false;
+
+    if(!isDispatchTrip(t))
+      return false;
+
+    if(
+      !isTodayTrip(t) &&
+      !isTomorrowTrip(t)
+    ){
+      return false;
+    }
+
     return true;
+
   });
+
 }
 
 function currentItems(){
@@ -623,8 +652,9 @@ function countKinds(items){
 }
 
 function renderStats(){
-  const allItems = buildDisplayItems(baseTrips());
 
+  const allItems =
+    currentItems();
   const total = allItems.length;
   const today = allItems.filter(item=>isTodayTrip(item.trip)).length;
   const tomorrow = allItems.filter(item=>isTomorrowTrip(item.trip)).length;
@@ -650,7 +680,8 @@ function renderStats(){
 }
 
 function renderServiceCards(){
-  const allItems = buildDisplayItems(baseTrips());
+const allItems =
+  currentItems();
   const visible = services.filter(isServiceVisible);
   const cards = [];
 
