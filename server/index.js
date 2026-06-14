@@ -1807,6 +1807,12 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+console.log("LOGIN USER =", {
+  username: user.username,
+  role: user.role,
+  active: user.active
+});
+
     if (!user.active) {
       return res.status(403).json({ message: "User disabled" });
     }
