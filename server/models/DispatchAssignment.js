@@ -1,21 +1,18 @@
 const mongoose = require("mongoose");
 
-const DispatchAssignmentSchema =
-new mongoose.Schema({
+const DispatchAssignmentSchema = new mongoose.Schema({
 
   tripId:{
     type:mongoose.Schema.Types.ObjectId,
     ref:"Trip",
     required:true,
-    unique:true,
-    index:true
+    unique:true
   },
 
   driverId:{
     type:mongoose.Schema.Types.ObjectId,
     ref:"User",
-    default:null,
-    index:true
+    default:null
   },
 
   driverName:{
@@ -33,16 +30,6 @@ new mongoose.Schema({
     default:""
   },
 
-  driverPhone:{
-    type:String,
-    default:""
-  },
-
-  services:{
-    type:[String],
-    default:[]
-  },
-
   dispatchStatus:{
     type:String,
     enum:[
@@ -51,93 +38,18 @@ new mongoose.Schema({
       "SENT",
       "ACCEPTED",
       "ON_TRIP",
-      "COMPLETED",
-      "CANCELLED"
+      "COMPLETED"
     ],
-    default:"UNASSIGNED",
-    index:true
-  },
-
-  assignedBy:{
-    type:String,
-    default:"SYSTEM"
-  },
-
-  assignmentType:{
-    type:String,
-    enum:[
-      "AUTO",
-      "MANUAL"
-    ],
-    default:"AUTO"
-  },
-
-  smartScore:{
-    type:Number,
-    default:0
-  },
-
-  smartReason:{
-    type:String,
-    default:""
-  },
-
-  smartDistance:{
-    type:Number,
-    default:0
+    default:"UNASSIGNED"
   },
 
   note:{
     type:String,
     default:""
-  },
-
-  assignedAt:{
-    type:Date,
-    default:null
-  },
-
-  sentAt:{
-    type:Date,
-    default:null
-  },
-
-  acceptedAt:{
-    type:Date,
-    default:null
-  },
-
-  startedAt:{
-    type:Date,
-    default:null
-  },
-
-  completedAt:{
-    type:Date,
-    default:null
   }
 
 },{
   timestamps:true
-});
-
-/* =========================
-   INDEXES
-========================= */
-
-DispatchAssignmentSchema.index({
-  tripId:1
-},{
-  unique:true
-});
-
-DispatchAssignmentSchema.index({
-  driverId:1,
-  dispatchStatus:1
-});
-
-DispatchAssignmentSchema.index({
-  dispatchStatus:1
 });
 
 module.exports =
