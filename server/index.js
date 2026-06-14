@@ -1810,12 +1810,12 @@ app.post("/api/auth/login", async (req, res) => {
 console.log("LOGIN USER =", {
   username: user.username,
   role: user.role,
-  active: user.active
+  enabled: user.enabled
 });
 
-    if (!user.active) {
-      return res.status(403).json({ message: "User disabled" });
-    }
+   if (user.enabled === false) {
+  return res.status(403).json({ message: "User disabled" });
+}
 
     const match = await bcrypt.compare(password, user.password);
 
@@ -2096,7 +2096,7 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
 
     }
 
-    user.active = !user.active;
+    user.enabled = !user.enabled;
 
     await user.save();
 
