@@ -358,8 +358,20 @@ function getDriverVehicle(id){
 }
 
 function getDriverServices(id){
-  const s = normalizeScheduleRow(getSchedule(id));
-  return s.services.length ? s.services : ["ALL"];
+
+  const s = normalizeScheduleRow(
+    getSchedule(id)
+  );
+
+  console.log(
+    "DRIVER",
+    id,
+    s.services
+  );
+
+  return s.services.length
+    ? s.services
+    : ["ALL"];
 }
 
 function isDriverActiveForDate(driverId,dateStr){
