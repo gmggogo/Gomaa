@@ -272,6 +272,8 @@ app.use(
   "/api/driver-schedule",
   driverScheduleRoutes
 );
+const dispatchRoutes =
+require("./routes/dispatchRoutes");
 
 app.use(
   "/api/dispatch",
@@ -796,8 +798,6 @@ tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 })
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
 const Trip = mongoose.model("Trip", tripSchema);
-const dispatchRoutes =
-require("./routes/dispatchRoutes");
 /* =========================
    LIVE DRIVER TRACKING
 ========================= */
