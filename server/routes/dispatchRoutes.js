@@ -34,7 +34,7 @@ router.get("/", async (req,res)=>{
       .find({})
       .lean();
 
-  const drivers =
+ const drivers =
   await User.find({
     role:"driver",
     enabled:true
@@ -42,10 +42,24 @@ router.get("/", async (req,res)=>{
   .sort({ name:1 })
   .lean();
 
-    const scheduleRows =
-      await DriverSchedule
-      .find({})
-      .lean();
+console.log(
+  "DRIVERS FOUND:",
+  drivers.map(d=>({
+    id:d._id,
+    name:d.name,
+    enabled:d.enabled
+  }))
+);
+
+const scheduleRows =
+  await DriverSchedule
+  .find({})
+  .lean();
+
+console.log(
+  "SCHEDULE ROWS:",
+  scheduleRows
+);
 
     const schedule = {};
 
