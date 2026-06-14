@@ -141,7 +141,8 @@ DispatchAssignmentSchema.index({
 });
 
 module.exports =
-mongoose.model(
-  "DispatchAssignment",
-  DispatchAssignmentSchema
-);
+  mongoose.models.DispatchAssignment ||
+  mongoose.model(
+    "DispatchAssignment",
+    DispatchAssignmentSchema
+  );

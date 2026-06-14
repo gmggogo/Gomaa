@@ -3,7 +3,10 @@ const router = express.Router();
 
 const mongoose = require("mongoose");
 
-const Trip = global.Trip;
+const Trip =
+  mongoose.models.Trip ||
+  mongoose.connection.models.Trip;
+
 const User = require("../models/User");
 const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
