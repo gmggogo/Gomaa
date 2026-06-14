@@ -803,7 +803,9 @@ tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
-const Trip = mongoose.model("Trip", tripSchema);
+const Trip =
+  mongoose.models.Trip ||
+  mongoose.model("Trip", tripSchema);
 /* =========================
    LIVE DRIVER TRACKING
 ========================= */
