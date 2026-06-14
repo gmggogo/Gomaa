@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Dispatch Engine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/header.css">
+
+<style>
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f1f5f9;
+  color:#0f172a;
+}
+
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
+}
+
+.page-body{
+  padding:130px 22px 35px;
+}
+
+.page-head{
+  background:#fff;
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:18px;
+  box-shadow:0 8px 22px rgba(0,0,0,.08);
+}
+
+.page-head h1{
+  margin:0;
+  font-size:28px;
+  color:#0f172a;
+}
+
+.page-head p{
+  margin:7px 0 0;
+  color:#64748b;
+  font-weight:600;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:18px;
+}
+
+.card{
+  background:#fff;
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 8px 22px rgba(0,0,0,.08);
+}
+
+.card h2{
+  margin:0 0 15px;
+  font-size:20px;
+  color:#111827;
+  border-bottom:1px solid #e5e7eb;
+  padding-bottom:10px;
+}
+
+.row{
+  display:grid;
+  grid-template-columns:1fr 170px;
+  gap:12px;
+  align-items:center;
+  padding:11px 0;
+  border-bottom:1px solid #f1f5f9;
+}
+
+.row:last-child{
+  border-bottom:none;
+}
+
+.label{
+  font-weight:800;
+  color:#1e293b;
+}
+
+.hint{
+  font-size:12px;
+  color:#64748b;
+  margin-top:3px;
+}
+
+input,
+select{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  font-size:14px;
+  outline:none;
+}
+
+input:focus,
+select:focus{
+  border-color:#2563eb;
+}
+
+input:disabled,
+select:disabled{
+  background:#f8fafc;
+  color:#475569;
+  cursor:not-allowed;
+  opacity:.9;
+}
+
+.percent-wrap,
+.unit-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.unit{
+  font-weight:900;
+  color:#475569;
+  min-width:34px;
+}
+
+.toggle{
+  width:120px;
+  height:38px;
+  border-radius:999px;
+  border:none;
+  cursor:pointer;
+  font-weight:900;
+  color:#fff;
+  background:#dc2626;
+}
+
+.toggle.active{
+  background:#16a34a;
+}
+
+.toggle:disabled,
+.toggle.locked{
+  cursor:not-allowed;
+  opacity:.75;
+}
+
+.weight-total{
+  margin-top:14px;
+  padding:13px;
+  border-radius:14px;
+  background:#f8fafc;
+  font-size:18px;
+  font-weight:900;
+  text-align:center;
+}
+
+.weight-total.good{
+  color:#16a34a;
+  border:1px solid #bbf7d0;
+}
+
+.weight-total.bad{
+  color:#dc2626;
+  border:1px solid #fecaca;
+}
+
+.preview{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+
+.preview-box{
+  background:#f8fafc;
+  border-radius:14px;
+  padding:13px;
+  border:1px solid #e2e8f0;
+}
+
+.preview-box span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+
+.preview-box b{
+  display:block;
+  margin-top:5px;
+  font-size:17px;
+  color:#0f172a;
+}
+
+.actions{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:12px;
+  margin-top:20px;
+}
+
+#dirtyLabel{
+  margin-right:auto;
+  color:#f59e0b;
+  font-weight:900;
+  display:none;
+}
+
+.btn{
+  border:none;
+  border-radius:12px;
+  padding:13px 20px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn.dark{
+  background:#0f172a;
+  color:#fff;
+}
+
+.btn.blue{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn.gray{
+  background:#64748b;
+  color:#fff;
+}
+
+.btn:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+.toast{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  background:#0f172a;
+  color:#fff;
+  padding:14px 18px;
+  border-radius:14px;
+  font-weight:900;
+  opacity:0;
+  pointer-events:none;
+  transition:.25s;
+  z-index:3000;
+}
+
+.toast.show{
+  opacity:1;
+}
+
+@media(max-width:900px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .row{
+    grid-template-columns:1fr;
+  }
+
+  .preview{
+    grid-template-columns:1fr;
+  }
+
+  .page-body{
+    padding-top:150px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="page-body">
+
+  <div class="page-head">
+    <h1>Smart Dispatch Engine</h1>
+    <p>Settings only. The real smart assignment runs inside Dispatch.</p>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>General</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Enable Smart Dispatch</div>
+          <div class="hint">Turn the smart engine on or off</div>
+        </div>
+        <button class="toggle" id="enabledBtn" data-field="enabled">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Dispatch Strategy</div>
+          <div class="hint">How the engine should choose drivers</div>
+        </div>
+        <select id="strategy">
+          <option value="DISTANCE">Distance First</option>
+          <option value="TIME">Time First</option>
+          <option value="BALANCED">Balanced Dispatch</option>
+          <option value="SMART">Smart Score</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Driver Rules</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Require Active Driver</div>
+          <div class="hint">Driver must be enabled</div>
+        </div>
+        <button class="toggle" id="requireActiveDriverBtn" data-field="requireActiveDriver">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Require Schedule Match</div>
+          <div class="hint">Driver must be working on trip day</div>
+        </div>
+        <button class="toggle" id="requireScheduleMatchBtn" data-field="requireScheduleMatch">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Require Service Match</div>
+          <div class="hint">Driver service must match trip service or ALL</div>
+        </div>
+        <button class="toggle" id="requireServiceMatchBtn" data-field="requireServiceMatch">DISABLED</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Distance Rules</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Maximum Pickup Distance</div>
+          <div class="hint">Maximum driver distance to pickup</div>
+        </div>
+        <div class="unit-wrap">
+          <input id="maxPickupDistanceMiles" type="number" min="0">
+          <span class="unit">Miles</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Maximum Deadhead Distance</div>
+          <div class="hint">Maximum distance from last dropoff to new pickup</div>
+        </div>
+        <div class="unit-wrap">
+          <input id="maxDeadheadMiles" type="number" min="0">
+          <span class="unit">Miles</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Use Google Distance</div>
+          <div class="hint">Use real travel distance for top drivers only</div>
+        </div>
+        <button class="toggle" id="useGoogleDistanceBtn" data-field="useGoogleDistance">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Top Drivers To Check</div>
+          <div class="hint">How many closest drivers get real distance check</div>
+        </div>
+        <input id="topDriversToCheck" type="number" min="1">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Time Rules</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Minimum Buffer Between Trips</div>
+          <div class="hint">Minimum safe gap between two trips</div>
+        </div>
+        <div class="unit-wrap">
+          <input id="minBufferMinutes" type="number" min="0">
+          <span class="unit">Min</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Maximum Trips Per Driver</div>
+          <div class="hint">Daily trip limit per driver</div>
+        </div>
+        <input id="maxTripsPerDriver" type="number" min="0">
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Enable Time Conflict Detection</div>
+          <div class="hint">Prevent impossible trip timing</div>
+        </div>
+        <button class="toggle" id="enableTimeConflictBtn" data-field="enableTimeConflict">DISABLED</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fair Distribution</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Enable Fair Distribution</div>
+          <div class="hint">Balance trips between drivers</div>
+        </div>
+        <button class="toggle" id="enableFairDistributionBtn" data-field="enableFairDistribution">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Maximum Driver Load</div>
+          <div class="hint">Driver load percentage before engine avoids more trips</div>
+        </div>
+        <div class="percent-wrap">
+          <input id="maxDriverLoadPercent" type="number" min="0" max="100">
+          <span class="unit">%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Auto Assignment</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Auto Assign New Trips</div>
+          <div class="hint">Assign automatically when trips enter dispatch</div>
+        </div>
+        <button class="toggle" id="autoAssignNewTripsBtn" data-field="autoAssignNewTrips">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Auto Reassign Unassigned Trips</div>
+          <div class="hint">Try again for trips without drivers</div>
+        </div>
+        <button class="toggle" id="autoReassignUnassignedBtn" data-field="autoReassignUnassigned">DISABLED</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Auto Assign Shared Trips</div>
+          <div class="hint">Allow smart engine for shared trips</div>
+        </div>
+        <button class="toggle" id="autoAssignSharedTripsBtn" data-field="autoAssignSharedTrips">DISABLED</button>
+      </div>
+    </div>
+
+    <div class="card" id="weightCard">
+      <h2>Smart Score Weights</h2>
+
+      <div class="row">
+        <div>
+          <div class="label">Distance Weight</div>
+          <div class="hint">Priority for closest driver</div>
+        </div>
+        <div class="percent-wrap">
+          <input id="distanceWeight" type="number" min="0" max="100">
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Travel Time Weight</div>
+          <div class="hint">Priority for shortest ETA</div>
+        </div>
+        <div class="percent-wrap">
+          <input id="travelTimeWeight" type="number" min="0" max="100">
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Load Balance Weight</div>
+          <div class="hint">Priority for fair distribution</div>
+        </div>
+        <div class="percent-wrap">
+          <input id="loadWeight" type="number" min="0" max="100">
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Conflict Weight</div>
+          <div class="hint">Priority for avoiding time conflict</div>
+        </div>
+        <div class="percent-wrap">
+          <input id="conflictWeight" type="number" min="0" max="100">
+          <span class="unit">%</span>
+        </div>
+      </div>
+
+      <div id="weightTotal" class="weight-total">Total Weight: 100%</div>
+    </div>
+
+    <div class="card">
+      <h2>Engine Preview</h2>
+
+      <div class="preview">
+        <div class="preview-box">
+          <span>Status</span>
+          <b id="previewStatus">-</b>
+        </div>
+
+        <div class="preview-box">
+          <span>Strategy</span>
+          <b id="previewStrategy">-</b>
+        </div>
+
+        <div class="preview-box">
+          <span>Google Distance</span>
+          <b id="previewGoogle">-</b>
+        </div>
+
+        <div class="preview-box">
+          <span>Top Drivers</span>
+          <b id="previewTopDrivers">-</b>
+        </div>
+
+        <div class="preview-box">
+          <span>Weights</span>
+          <b id="previewWeights">-</b>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="actions">
+
+    <span id="dirtyLabel">
+      Unsaved Changes
+    </span>
+
+    <button id="editBtn" class="btn dark">
+      Edit Settings
+    </button>
+
+    <button id="cancelBtn" class="btn gray" style="display:none;">
+      Cancel
+    </button>
+
+    <button id="resetBtn" class="btn gray">
+      Reset Defaults
+    </button>
+
+    <button id="saveBtn" class="btn blue" style="display:none;">
+      Save Settings
+    </button>
+
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+fetch("/admin/header.html")
+.then(r=>r.text())
+.then(html=>{
+  document.getElementById("adminHeader").innerHTML = html;
+
+  const s = document.createElement("script");
+  s.src = "/admin/header.js?v=" + Date.now();
+  document.body.appendChild(s);
+});
+</script>
+
+<script src="/admin/smart-dispatch-engine.js?v=1"></script>
+
+</body>
+</html>
