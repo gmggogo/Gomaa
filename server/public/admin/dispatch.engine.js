@@ -1,8 +1,7 @@
 /* =====================================================
-   DISPATCH ENGINE V3
-   Admin Timezone Connected To System Design
-   Active Drivers Today Only
-   Auto Assign + Manual Assign + Send
+   DISPATCH ENGINE V4 - SMART CLEAN BUILD
+   Dispatch = تشغيل الانجن + إرسال الرحلات
+   Smart Dispatch Page = إعدادات فقط
 ===================================================== */
 
 /* ================= SECURITY ================= */
@@ -17,39 +16,63 @@ if(!token || !["superadmin","admin","dispatcher"].includes(role)){
 /* ================= STATE ================= */
 
 let trips = [];
-let drivers = [];
 let allDrivers = [];
+let drivers = [];
 let services = [];
 let schedule = {};
 let timezone = "America/Phoenix";
+let SMART = {};
 
 let selectedIds = new Set();
 let editMode = false;
 let activeTab = "dispatch";
 let refreshTimer = null;
 
+/* ================= DEFAULT SMART SETTINGS ================= */
+
+const SMART_DEFAULTS = {
+  enabled:true,
+  strategy:"SMART",
+
+  requireActiveDriver:true,
+  requireScheduleMatch:true,
+  requireServiceMatch:true,
+
+  maxPickupDistanceMiles:50,
+  maxDeadheadMiles:25,
+  useGoogleDistance:false,
+  topDriversToCheck:3,
+
+  minBufferMinutes:30,
+  maxTripsPerDriver:20,
+  enableTimeConflict:true,
+
+  enableFairDistribution:true,
+  maxDriverLoadPercent:80,
+
+  autoAssignNewTrips:false,
+  autoReassignUnassigned:true,
+  autoAssignSharedTrips:true,
+
+  distanceWeight:40,
+  travelTimeWeight:30,
+  loadWeight:20,
+  conflictWeight:10
+};
+
 const CLOSED_STATUSES = [
-  "completed",
-  "complete",
-  "cancelled",
-  "canceled",
-  "no show",
-  "noshow",
-  "not completed",
-  "notcompleted"
+  "completed","complete",
+  "cancelled","canceled",
+  "no show","noshow",
+  "not completed","notcompleted"
 ];
 
 const ACTIVE_STATUSES = [
-  "scheduled",
-  "confirmed",
-  "paid",
-  "rv",
-  "reserved",
-  "review",
-  "dispatched"
+  "scheduled","confirmed","paid",
+  "rv","reserved","review","dispatched"
 ];
 
-/* ================= HELPERS ================= */
+/* ================= BASIC HELPERS ================= */
 
 function clean(v){
   return String(v ?? "").trim();
@@ -68,8 +91,16 @@ function safe(v){
     .replace(/'/g,"&#39;");
 }
 
+function num(v,def=0){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+}
+
 function statusKey(v){
-  return lower(v).replace(/[_-]/g," ").replace(/\s+/g," ").trim();
+  return lower(v)
+    .replace(/[_-]/g," ")
+    .replace(/\s+/g," ")
+    .trim();
 }
 
 function isClosedTrip(t){
@@ -80,7 +111,7 @@ function isActiveTrip(t){
   return ACTIVE_STATUSES.includes(statusKey(t.status || "scheduled")) && !isClosedTrip(t);
 }
 
-/* ================= SYSTEM TIME ================= */
+/* ================= SYSTEM DATE ================= */
 
 function getSystemDate(offset=0){
   const parts = new Intl.DateTimeFormat("en-CA",{
@@ -136,7 +167,6 @@ function isTomorrow(t){
 function parseTripDateTime(t){
   const d = clean(t.tripDate);
   const tm = clean(t.tripTime || "00:00");
-
   if(!d) return null;
 
   const dt = new Date(`${d}T${tm}:00`);
@@ -148,7 +178,7 @@ function getTripTimeValue(t){
   return dt ? dt.getTime() : 0;
 }
 
-/* ================= SERVICE ================= */
+/* ================= SERVICES ================= */
 
 function normalizeService(v){
   const x = clean(v).toUpperCase().replace(/\s+/g,"");
@@ -299,6 +329,76 @@ function sharedCell(t,field){
   }).join("\n");
 }
 
+/* ================= LOCATION HELPERS ================= */
+
+function extractLat(obj){
+  return num(
+    obj?.lat ??
+    obj?.latitude ??
+    obj?.pickupLat ??
+    obj?.pickupLatitude ??
+    obj?.pickup?.lat ??
+    obj?.pickup?.latitude,
+    null
+  );
+}
+
+function extractLng(obj){
+  return num(
+    obj?.lng ??
+    obj?.lon ??
+    obj?.longitude ??
+    obj?.pickupLng ??
+    obj?.pickupLon ??
+    obj?.pickupLongitude ??
+    obj?.pickup?.lng ??
+    obj?.pickup?.lon ??
+    obj?.pickup?.longitude,
+    null
+  );
+}
+
+function getTripPickupLatLng(t){
+  return {
+    lat:extractLat(t),
+    lng:extractLng(t)
+  };
+}
+
+function getDriverLatLng(driverId){
+  const s = getSchedule(driverId);
+  return {
+    lat:num(s.lat,null),
+    lng:num(s.lng,null)
+  };
+}
+
+function haversineMiles(a,b){
+  if(
+    a.lat === null || a.lng === null ||
+    b.lat === null || b.lng === null
+  ){
+    return null;
+  }
+
+  const R = 3958.8;
+  const toRad = d => d * Math.PI / 180;
+
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+
+  const h =
+    Math.sin(dLat/2) ** 2 +
+    Math.cos(lat1) *
+    Math.cos(lat2) *
+    Math.sin(dLng/2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+}
+
 /* ================= DRIVER HELPERS ================= */
 
 function normalizeDriver(d){
@@ -330,8 +430,8 @@ function normalizeScheduleRow(row){
     },
     services:
       Array.isArray(row.services) && row.services.length
-      ? row.services.map(normalizeService)
-      : ["ALL"]
+        ? row.services.map(normalizeService)
+        : ["ALL"]
   };
 }
 
@@ -365,37 +465,25 @@ function getDriverServices(id){
 function isDriverActiveForDate(driverId,dateStr){
   const s = normalizeScheduleRow(getSchedule(driverId));
 
-  if(s.enabled !== true) return false;
+  if(SMART.requireActiveDriver !== false){
+    if(s.enabled !== true) return false;
+  }
+
+  if(SMART.requireScheduleMatch === false){
+    return true;
+  }
 
   const day = getSystemDayKeyByDate(dateStr);
-
   return s.days?.[day] === true;
 }
 
-function getTodayActiveDrivers(){
-  return allDrivers.filter(d=>{
-    const id = String(d._id || "");
-    return id && isDriverActiveForDate(id,todayKey());
-  });
-}
-
 function serviceMatchesDriver(driverId,trip){
+  if(SMART.requireServiceMatch === false) return true;
+
   const driverServices = getDriverServices(driverId);
   const code = getTripServiceCode(trip);
 
   return driverServices.includes("ALL") || driverServices.includes(code);
-}
-
-function getActiveDriversForTrip(trip){
-  return allDrivers.filter(d=>{
-    const id = String(d._id || "");
-    if(!id) return false;
-
-    return (
-      isDriverActiveForDate(id,trip.tripDate) &&
-      serviceMatchesDriver(id,trip)
-    );
-  });
 }
 
 function driverTripCountByDate(driverId,date){
@@ -407,6 +495,176 @@ function driverTripCountByDate(driverId,date){
 
 function driverTripCount(driverId){
   return trips.filter(t=>String(t.driverId || "") === String(driverId)).length;
+}
+
+function getTodayActiveDrivers(){
+  return allDrivers.filter(d=>{
+    const id = String(d._id || "");
+    return id && isDriverActiveForDate(id,todayKey());
+  });
+}
+
+/* ================= SMART ENGINE ================= */
+
+async function loadSmartEngine(){
+  try{
+    const res = await fetch("/api/smart-dispatch-engine");
+    if(!res.ok) throw new Error("Smart engine load failed");
+
+    const data = await res.json();
+
+    SMART = {
+      ...SMART_DEFAULTS,
+      ...(data || {})
+    };
+
+  }catch(err){
+    console.log("SMART ENGINE LOAD ERROR:",err);
+    SMART = {...SMART_DEFAULTS};
+  }
+}
+
+function hasTimeConflict(driverId,trip){
+  if(SMART.enableTimeConflict === false) return false;
+
+  const target = parseTripDateTime(trip);
+  if(!target) return false;
+
+  const buffer = num(SMART.minBufferMinutes,30) * 60 * 1000;
+
+  return trips.some(t=>{
+    if(String(t.driverId || "") !== String(driverId)) return false;
+    if(String(t._id) === String(trip._id)) return false;
+    if(clean(t.tripDate) !== clean(trip.tripDate)) return false;
+
+    const other = parseTripDateTime(t);
+    if(!other) return false;
+
+    return Math.abs(target.getTime() - other.getTime()) < buffer;
+  });
+}
+
+function getEligibleDrivers(trip){
+  return allDrivers
+    .map(d=>normalizeDriver(d))
+    .filter(d=>{
+      const id = String(d._id || "");
+      if(!id) return false;
+
+      if(isSharedTrip(trip) && SMART.autoAssignSharedTrips === false){
+        return false;
+      }
+
+      if(!isDriverActiveForDate(id,trip.tripDate)){
+        return false;
+      }
+
+      if(!serviceMatchesDriver(id,trip)){
+        return false;
+      }
+
+      if(
+        num(SMART.maxTripsPerDriver,20) > 0 &&
+        driverTripCountByDate(id,trip.tripDate) >= num(SMART.maxTripsPerDriver,20)
+      ){
+        return false;
+      }
+
+      if(hasTimeConflict(id,trip)){
+        return false;
+      }
+
+      return true;
+    });
+}
+
+function scoreDriver(driver,trip){
+  const id = String(driver._id);
+
+  const tripsToday = driverTripCountByDate(id,trip.tripDate);
+  const maxTrips = Math.max(num(SMART.maxTripsPerDriver,20),1);
+
+  const loadScore =
+    Math.max(0,100 - ((tripsToday / maxTrips) * 100));
+
+  const driverPoint = getDriverLatLng(id);
+  const pickupPoint = getTripPickupLatLng(trip);
+
+  const distanceMiles = haversineMiles(driverPoint,pickupPoint);
+
+  const maxPickup = Math.max(num(SMART.maxPickupDistanceMiles,50),1);
+
+  let distanceScore = 50;
+
+  if(distanceMiles !== null){
+    distanceScore =
+      Math.max(0,100 - ((distanceMiles / maxPickup) * 100));
+  }
+
+  const travelTimeScore = distanceMiles !== null
+    ? Math.max(0,100 - (((distanceMiles * 2) / 60) * 100))
+    : 50;
+
+  const conflictScore = hasTimeConflict(id,trip) ? 0 : 100;
+
+  let score = 0;
+  let reason = "";
+
+  if(SMART.strategy === "DISTANCE"){
+    score = distanceScore;
+    reason = "Distance First";
+  }else if(SMART.strategy === "TIME"){
+    score = travelTimeScore;
+    reason = "Time First";
+  }else if(SMART.strategy === "BALANCED"){
+    score = loadScore;
+    reason = "Balanced Dispatch";
+  }else{
+    const dw = num(SMART.distanceWeight,40);
+    const tw = num(SMART.travelTimeWeight,30);
+    const lw = num(SMART.loadWeight,20);
+    const cw = num(SMART.conflictWeight,10);
+
+    score =
+      (distanceScore * dw / 100) +
+      (travelTimeScore * tw / 100) +
+      (loadScore * lw / 100) +
+      (conflictScore * cw / 100);
+
+    reason = "Smart Score";
+  }
+
+  return {
+    driver,
+    driverId:id,
+    driverName:driver.name || driver.fullName || "",
+    vehicle:getDriverVehicle(id),
+    score:Math.round(score),
+    distanceMiles:distanceMiles === null ? null : Number(distanceMiles.toFixed(2)),
+    tripsToday,
+    reason
+  };
+}
+
+function rankDriversForTrip(trip){
+  const eligible = getEligibleDrivers(trip);
+
+  return eligible
+    .map(d=>scoreDriver(d,trip))
+    .sort((a,b)=>{
+      if(b.score !== a.score) return b.score - a.score;
+
+      if(a.distanceMiles !== null && b.distanceMiles !== null){
+        return a.distanceMiles - b.distanceMiles;
+      }
+
+      return clean(a.driverName).localeCompare(clean(b.driverName));
+    });
+}
+
+function pickBestDriver(trip){
+  const ranked = rankDriversForTrip(trip);
+  return ranked[0] || null;
 }
 
 /* ================= DATA ================= */
@@ -421,6 +679,9 @@ function normalizeTrip(t){
     driverId:t.driverId ? String(t.driverId) : "",
     driverName:t.driverName || "",
     vehicle:t.vehicle || "",
+    smartScore:t.smartScore || "",
+    smartReason:t.smartReason || "",
+    smartDistance:t.smartDistance || "",
     manual:t.manualAssigned === true || t.manual === true
   };
 }
@@ -468,8 +729,13 @@ async function loadAll(){
 /* ================= ASSIGNMENT ================= */
 
 async function autoAssign(){
+  if(SMART.enabled === false){
+    toast("Smart Dispatch is disabled");
+    return;
+  }
+
   const sortedTrips = trips
-    .filter(t=>!t.driverId)
+    .filter(t=>!clean(t.driverId))
     .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
 
   if(!sortedTrips.length){
@@ -480,37 +746,27 @@ async function autoAssign(){
   let assigned = 0;
 
   for(const trip of sortedTrips){
-    const availableDrivers = getActiveDriversForTrip(trip);
+    const best = pickBestDriver(trip);
 
-    if(!availableDrivers.length){
-      console.log("No driver for trip:",getTripNumber(trip),getTripServiceCode(trip),trip.tripDate);
+    if(!best){
+      console.log("NO SMART DRIVER:",getTripNumber(trip),trip.tripDate,getTripServiceCode(trip));
       continue;
     }
 
-    availableDrivers.sort((a,b)=>{
-      const ac = driverTripCountByDate(a._id,trip.tripDate);
-      const bc = driverTripCountByDate(b._id,trip.tripDate);
-
-      if(ac !== bc) return ac - bc;
-
-      return clean(a.name || a.fullName).localeCompare(clean(b.name || b.fullName));
-    });
-
-    const driver = availableDrivers[0];
-    const id = String(driver._id);
-
-    trip.driverId = id;
-    trip.driverName = driver.name || driver.fullName || "";
-    trip.vehicle = getDriverVehicle(id);
+    trip.driverId = best.driverId;
+    trip.driverName = best.driverName;
+    trip.vehicle = best.vehicle;
     trip.manual = false;
     trip.manualAssigned = false;
     trip.autoAssigned = true;
+    trip.smartScore = best.score;
+    trip.smartReason = best.reason;
+    trip.smartDistance = best.distanceMiles;
 
     try{
-      const res = await Store.saveDriver(trip._id,id);
+      const res = await Store.saveDriver(trip._id,best.driverId);
 
       if(res && res.success === false){
-        console.log("Save driver failed:",res);
         trip.driverId = "";
         trip.driverName = "";
         trip.vehicle = "";
@@ -520,7 +776,7 @@ async function autoAssign(){
       assigned++;
 
     }catch(err){
-      console.log("Save driver error:",err);
+      console.log("SMART SAVE DRIVER ERROR:",err);
       trip.driverId = "";
       trip.driverName = "";
       trip.vehicle = "";
@@ -528,7 +784,7 @@ async function autoAssign(){
   }
 
   renderAll();
-  toast(`${assigned} trip(s) assigned`);
+  toast(`${assigned} trip(s) smart assigned`);
 }
 
 async function saveAssignment(trip,driverId,manual=true){
@@ -543,6 +799,12 @@ async function saveAssignment(trip,driverId,manual=true){
 
     if(!serviceMatchesDriver(driverId,trip)){
       toast("Driver service does not match trip");
+      renderAll();
+      return;
+    }
+
+    if(hasTimeConflict(driverId,trip)){
+      toast("Driver has time conflict");
       renderAll();
       return;
     }
@@ -708,18 +970,18 @@ function renderStats(){
 }
 
 function driverOptions(t){
-  const valid = getActiveDriversForTrip(t);
+  const valid = rankDriversForTrip(t);
 
   return `
     <select class="driver-select"
       ${editMode ? "" : "disabled"}
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
-      ${valid.map(d=>{
-        const id = String(d._id);
+      ${valid.map(x=>{
+        const id = String(x.driverId);
         return `
           <option value="${safe(id)}" ${String(t.driverId)===id ? "selected" : ""}>
-            ${safe(d.name || d.fullName || "")} - ${safe(getDriverVehicle(id) || "-")}
+            ${safe(x.driverName || "")} - ${safe(x.vehicle || "-")} | Score ${safe(x.score)}
           </option>
         `;
       }).join("")}
@@ -783,6 +1045,12 @@ function renderTripRow(t,index){
 
       <td><span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span></td>
 
+      <td>
+        <span class="status-pill">
+          ${safe(t.smartScore ? `Score ${t.smartScore}` : "-")}
+        </span>
+      </td>
+
       <td class="wide-notes">${safe(getNotes(t) || "")}</td>
 
       <td><span class="status-pill">${safe(t.status || "Scheduled")}</span></td>
@@ -803,7 +1071,7 @@ function renderTable(bodyId,list){
   if(!list.length){
     body.innerHTML = `
       <tr>
-        <td colspan="21" class="empty-row">No Trips</td>
+        <td colspan="22" class="empty-row">No Trips</td>
       </tr>
     `;
     return;
@@ -842,10 +1110,10 @@ function renderDriversTab(){
         <div class="driver-card-trips">
           ${
             driverTrips.length
-            ? driverTrips.map((t,i)=>
-                `${i+1}. ${getTripNumber(t)} - ${t.tripTime || ""} - ${getTripServiceCode(t)}`
-              ).join("\n")
-            : "No trips assigned"
+              ? driverTrips.map((t,i)=>
+                  `${i+1}. ${getTripNumber(t)} - ${t.tripTime || ""} - ${getTripServiceCode(t)}`
+                ).join("\n")
+              : "No trips assigned"
           }
         </div>
       </div>
@@ -935,6 +1203,7 @@ window.sendAll = sendAll;
 async function refresh(){
   const keepSelected = new Set(selectedIds);
 
+  await loadSmartEngine();
   await loadAll();
 
   selectedIds = new Set(
