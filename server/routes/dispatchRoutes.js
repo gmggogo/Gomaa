@@ -2,14 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const mongoose = require("mongoose");
-
-const Trip =
-  mongoose.models.Trip ||
-  require("../models/Trip");
-console.log(
-  "TRIP MODEL EXISTS:",
-  !!Trip
-);
+const Trip = mongoose.models.Trip;
 const User = require("../models/User");
 const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
