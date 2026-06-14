@@ -35,8 +35,8 @@ const SMART_DEFAULTS = {
   strategy:"SMART",
 
   requireActiveDriver:true,
-  requireScheduleMatch:true,
-  requireServiceMatch:true,
+  requireScheduleMatch:false,
+requireServiceMatch:false,
 
   maxPickupDistanceMiles:50,
   maxDeadheadMiles:25,
