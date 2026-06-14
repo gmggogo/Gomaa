@@ -35,10 +35,11 @@ const SystemDesign =
 require("./models/SystemDesign");
 const serviceRoutes =
 require("./routes/serviceRoutes");
-
 const driverScheduleRoutes =
 require("./routes/driverScheduleRoutes");
 
+const smartDispatchEngineRoutes =
+require("./routes/smartDispatchEngineRoutes");
 
 const Service =
 require("./models/Service");const {
@@ -293,6 +294,11 @@ app.use(
 app.use(
   "/api/company-services",
   companyServerRoutes
+);
+
+app.use(
+  "/api/smart-dispatch-engine",
+  smartDispatchEngineRoutes
 );
 app.use(
   "/api/system-design",
