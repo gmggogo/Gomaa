@@ -5,8 +5,6 @@ const mongoose = require("mongoose");
 
 const Trip = mongoose.models.Trip;
 
-console.log("AVAILABLE MODELS:", Object.keys(mongoose.models));
-console.log("TRIP MODEL:", Trip);
 const User = require("../models/User");
 const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
@@ -36,13 +34,13 @@ router.get("/", async (req,res)=>{
       .find({})
       .lean();
 
-    const drivers =
-      await User.find({
-        role:"driver",
-        active:true
-      })
-      .sort({ name:1 })
-      .lean();
+  const drivers =
+  await User.find({
+    role:"driver",
+    enabled:true
+  })
+  .sort({ name:1 })
+  .lean();
 
     const scheduleRows =
       await DriverSchedule
