@@ -442,16 +442,16 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .date-separator td{
-      background:#bfdbfe!important;
-      color:#1e3a8a!important;
-      font-weight:900!important;
-      text-align:center!important;
-      padding:4px 6px!important;
-      font-size:11px!important;
-      line-height:1.1!important;
-      border-top:2px solid #60a5fa!important;
-      border-bottom:2px solid #60a5fa!important;
-    }
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  font-weight:900!important;
+  text-align:center!important;
+  padding:4px 6px!important;
+  font-size:11px!important;
+  line-height:1.1!important;
+  border-top:2px solid #60a5fa!important;
+  border-bottom:2px solid #60a5fa!important;
+}
 
     .cell-box{
       display:grid;
