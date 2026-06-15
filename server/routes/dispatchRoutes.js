@@ -3,12 +3,12 @@ const router = express.Router();
 
 const mongoose = require("mongoose");
 
-const Trip =
-  mongoose.models.Trip ||
-  global.Trip;
+console.log("MODELS =", Object.keys(mongoose.models));
 
-console.log("Trip =", Trip);
-console.log("mongoose.models =", Object.keys(mongoose.models));
+const Trip =
+  mongoose.models.Trip;
+
+console.log("TRIP MODEL =", Trip);
 const User = require("../models/User");
 const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
