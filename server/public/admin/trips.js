@@ -1,6 +1,7 @@
 /* ===============================
-   ADMIN TRIPS V3 CLEAN
-   Same Trips Hub Shared Layout
+   ADMIN TRIPS V4 CLEAN UI
+   Same Trips Hub Professional Layout
+   Select / Unselect Buttons
 ================================ */
 
 const API = "/api/trips";
@@ -39,29 +40,81 @@ const selectedMap = new WeakMap();
   s.innerHTML = `
 
 /* ===============================
+   TOP / CARDS
+================================ */
+
+.admin-trips-top{
+  position:sticky;
+  top:0;
+  z-index:800;
+  background:#f1f5f9;
+  padding:0 0 8px;
+  border-bottom:1px solid #cbd5e1;
+}
+
+.stats-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important;
+  gap:8px!important;
+  margin:0 0 10px!important;
+}
+
+.stat-card{
+  background:#fff!important;
+  border:1px solid #dbe3ee!important;
+  border-left:6px solid #2563eb!important;
+  border-radius:14px!important;
+  padding:10px 8px!important;
+  text-align:center!important;
+  box-shadow:0 5px 14px rgba(15,23,42,.07)!important;
+}
+
+.stat-card:nth-child(2){border-left-color:#16a34a!important;}
+.stat-card:nth-child(3){border-left-color:#1d4ed8!important;}
+.stat-card:nth-child(4){border-left-color:#22c55e!important;}
+.stat-card:nth-child(5){border-left-color:#f59e0b!important;}
+.stat-card:nth-child(6){border-left-color:#7c3aed!important;}
+
+.stat-label{
+  font-size:11px!important;
+  font-weight:900!important;
+  color:#64748b!important;
+  letter-spacing:.3px!important;
+  text-transform:uppercase!important;
+}
+
+.stat-value{
+  font-size:24px!important;
+  line-height:1.1!important;
+  font-weight:900!important;
+  color:#0f172a!important;
+  margin-top:3px!important;
+}
+
+/* ===============================
    SERVICE CARDS
 ================================ */
 
 .service-strip{
   display:grid!important;
-  grid-template-columns:repeat(auto-fit,minmax(135px,1fr))!important;
-  gap:8px!important;
+  grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;
+  gap:7px!important;
   overflow:visible!important;
   padding-bottom:0!important;
-  margin-bottom:14px;
+  margin-bottom:10px!important;
 }
 
 .service-card{
-  border:1px solid #dbe3ee!important;
   background:#fff!important;
+  border:1px solid #dbe3ee!important;
   color:#0f172a!important;
-  border-radius:14px!important;
-  padding:10px 8px!important;
-  cursor:pointer;
-  font-weight:900;
-  box-shadow:0 5px 14px rgba(15,23,42,.06);
-  text-align:center;
-  min-height:92px!important;
+  border-radius:13px!important;
+  padding:8px 7px!important;
+  cursor:pointer!important;
+  font-weight:900!important;
+  box-shadow:0 4px 12px rgba(15,23,42,.06)!important;
+  text-align:center!important;
+  min-height:78px!important;
   min-width:0!important;
 }
 
@@ -73,24 +126,27 @@ const selectedMap = new WeakMap();
 }
 
 .service-name{
-  font-size:13px!important;
-  line-height:1.15;
-  margin-bottom:5px;
+  font-size:12px!important;
+  line-height:1.1!important;
+  margin-bottom:4px!important;
+  font-weight:900!important;
 }
 
 .service-total{
-  font-size:25px!important;
-  line-height:1.05;
-  font-weight:900;
+  font-size:22px!important;
+  line-height:1.05!important;
+  font-weight:900!important;
+  margin:4px 0!important;
 }
 
 .service-mini{
   display:grid!important;
-  grid-template-columns:repeat(3,1fr);
-  margin-top:7px;
-  font-size:11px!important;
-  font-weight:900;
-  color:#64748b;
+  grid-template-columns:repeat(3,1fr)!important;
+  gap:4px!important;
+  margin-top:6px!important;
+  font-size:9px!important;
+  font-weight:900!important;
+  color:#64748b!important;
 }
 
 .service-card.active .service-mini{
@@ -98,90 +154,135 @@ const selectedMap = new WeakMap();
 }
 
 /* ===============================
+   SELECTION BAR
+================================ */
+
+.selection-bar{
+  display:flex!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  margin:0!important;
+}
+
+.select-btn{
+  border:none!important;
+  border-radius:9px!important;
+  padding:8px 13px!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  cursor:pointer!important;
+  color:#fff!important;
+  background:#0f172a!important;
+  box-shadow:0 4px 10px rgba(15,23,42,.12)!important;
+}
+
+.select-btn:hover{
+  background:#2563eb!important;
+}
+
+.select-btn.active{
+  background:#16a34a!important;
+}
+
+/* ===============================
    TABLE
 ================================ */
 
 .table-scroll{
-  width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  border-radius:14px;
-  background:#fff;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
-  margin-bottom:22px;
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  -webkit-overflow-scrolling:touch!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:0 8px 22px rgba(15,23,42,.08)!important;
+  margin-bottom:22px!important;
 }
 
 .trip-table{
-  min-width:2200px!important;
-  width:max-content!important;
-  border-collapse:collapse;
-  background:#fff;
-  font-size:13px;
+  width:100%!important;
+  min-width:1780px!important;
+  table-layout:fixed!important;
+  border-collapse:collapse!important;
+  background:#fff!important;
+  border-top:6px solid #000!important;
+  font-size:11px!important;
+}
+
+.trip-table th,
+.trip-table td{
+  border:1px solid #dbe3ee!important;
+  padding:5px!important;
+  text-align:center!important;
+  vertical-align:middle!important;
+  line-height:1.25!important;
+  box-sizing:border-box!important;
+  position:relative!important;
+  overflow:visible!important;
 }
 
 .trip-table th{
-  background:#2563eb!important;
-  color:#fff;
-  padding:8px;
-  text-align:center;
-  white-space:nowrap;
-  font-weight:900;
-  border:1px solid #dbe3ee;
+  background:#1f2937!important;
+  color:#fff!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
+  font-size:11px!important;
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
 }
 
 .trip-table td{
-  padding:7px;
-  border:1px solid #dbe3ee;
-  text-align:center;
-  vertical-align:middle;
-  line-height:1.35;
+  font-size:11px!important;
+}
+
+.trip-table tbody tr td{
+  border-bottom:3px solid #000!important;
 }
 
 /* ===============================
-   WIDE COLUMNS
+   COLUMN SIZES
 ================================ */
 
-.wide-client{
-  min-width:170px;
-  max-width:250px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-}
+.col-dispatch{width:60px;}
+.col-num{width:30px;}
+.col-trip{width:78px;}
+.col-service{width:82px;}
+.col-type{width:70px;}
+.col-facility{width:100px;}
+.col-entry{width:95px;}
+.col-entry-phone{width:105px;}
+.col-client{width:170px;}
+.col-phone{width:115px;}
+.col-email{width:160px;}
+.col-pickup{width:230px;}
+.col-stops{width:130px;}
+.col-dropoff{width:230px;}
+.col-date{width:82px;}
+.col-time{width:58px;}
+.col-notes{width:190px;}
+.col-status{width:76px;}
+.col-actions{width:105px;}
 
-.wide-phone{
-  min-width:170px;
-  max-width:250px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-}
-
-.wide-email{
-  min-width:180px;
-  max-width:280px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-  font-size:12px!important;
-}
-
-.wide-address{
-  min-width:260px;
-  max-width:380px;
-  text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
-  font-size:12px!important;
-}
-
+.wide-client,
+.wide-phone,
+.wide-email,
+.wide-address,
+.wide-stops,
 .wide-notes{
-  min-width:220px;
-  max-width:320px;
   text-align:left!important;
-  white-space:pre-line;
-  word-break:break-word;
+  white-space:normal!important;
+  word-break:break-word!important;
 }
+
+.wide-client{width:170px!important;}
+.wide-phone{width:115px!important;}
+.wide-email{width:160px!important;font-size:10.5px!important;}
+.wide-address{width:230px!important;font-size:10.5px!important;}
+.wide-stops{width:130px!important;font-size:10.5px!important;}
+.wide-notes{width:190px!important;}
 
 /* ===============================
    INPUTS
@@ -189,30 +290,31 @@ const selectedMap = new WeakMap();
 
 .edit-field,
 .edit-area{
-  width:100%;
-  min-width:95px;
-  padding:6px;
-  border:1px solid #cbd5e1;
-  border-radius:7px;
-  font-size:12px;
-  font-weight:700;
-  box-sizing:border-box;
-  font-family:inherit;
+  width:100%!important;
+  min-width:70px!important;
+  padding:5px!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:6px!important;
+  font-size:10.5px!important;
+  font-weight:700!important;
+  box-sizing:border-box!important;
+  font-family:inherit!important;
+  background:#fff!important;
 }
 
 .edit-area{
-  min-height:62px;
-  resize:vertical;
-  white-space:pre-line;
+  min-height:45px!important;
+  resize:vertical!important;
+  white-space:pre-line!important;
 }
 
 .edit-field:disabled,
 .edit-area:disabled{
-  border:none;
-  background:transparent;
-  color:#0f172a;
-  opacity:1;
-  resize:none;
+  border:1px solid transparent!important;
+  background:transparent!important;
+  color:#0f172a!important;
+  opacity:1!important;
+  resize:none!important;
 }
 
 /* ===============================
@@ -220,73 +322,221 @@ const selectedMap = new WeakMap();
 ================================ */
 
 .service-pill{
-  display:inline-flex;
-  padding:4px 8px;
-  border-radius:999px;
-  background:#dbeafe;
-  color:#1d4ed8;
-  font-size:12px;
-  font-weight:900;
+  display:inline-flex!important;
+  padding:4px 6px!important;
+  border-radius:999px!important;
+  background:#dbeafe!important;
+  color:#1d4ed8!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
 }
 
 .status-pill{
-  display:inline-flex;
-  padding:5px 9px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:900;
-  background:#f1f5f9;
-  color:#0f172a;
-  border:1px solid #cbd5e1;
+  display:inline-flex!important;
+  padding:4px 6px!important;
+  border-radius:999px!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+  border:1px solid #cbd5e1!important;
+  white-space:nowrap!important;
 }
 
 .trip-number-badge{
-  font-weight:900;
-  color:#1d4ed8;
+  font-weight:900!important;
+  color:#1d4ed8!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10px!important;
+}
+
+/* ===============================
+   GROUP TITLE
+================================ */
+
+.group-title{
+  margin:12px 0 0!important;
+  padding:5px 8px!important;
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  border-top:2px solid #60a5fa!important;
+  border-bottom:2px solid #60a5fa!important;
+  border-radius:8px 8px 0 0!important;
+  font-size:13px!important;
+  font-weight:900!important;
+  text-align:center!important;
+  letter-spacing:.3px!important;
 }
 
 /* ===============================
    ROW COLORS
 ================================ */
 
-.row-facility td{background:#dbeafe;}
-.row-gq td{background:#dcfce7;}
-.row-rv td{background:#fef3c7;}
-.row-shared td{background:#ede9fe;}
+.row-facility td{background:#dbeafe!important;}
+.row-gq td{background:#dcfce7!important;}
+.row-rv td{background:#fef3c7!important;}
+.row-shared td{background:#ede9fe!important;}
 
 /* ===============================
    ACTIONS
 ================================ */
 
 .actions{
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  align-items:center;
-  flex-wrap:wrap;
+  display:flex!important;
+  gap:6px!important;
+  justify-content:center!important;
+  align-items:center!important;
+  flex-wrap:wrap!important;
 }
 
 .btn{
-  border:none;
-  padding:6px 10px;
-  border-radius:7px;
-  cursor:pointer;
-  font-size:12px;
-  font-weight:900;
+  border:none!important;
+  padding:5px 9px!important;
+  border-radius:7px!important;
+  cursor:pointer!important;
+  font-size:11px!important;
+  font-weight:900!important;
 }
 
 .btn-edit{
-  background:#2563eb;
-  color:white;
+  background:#2563eb!important;
+  color:#fff!important;
 }
 
 .btn-delete{
-  background:#dc2626;
-  color:white;
+  background:#dc2626!important;
+  color:#fff!important;
 }
 
 .dispatch-check:checked{
-  accent-color:#16a34a;
+  accent-color:#16a34a!important;
+}
+
+/* ===============================
+   AUTOCOMPLETE
+================================ */
+
+.input-wrap{
+  position:relative!important;
+  width:100%!important;
+}
+
+.suggestions{
+  position:absolute!important;
+  top:100%!important;
+  left:0!important;
+  right:0!important;
+  background:#fff!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:10px!important;
+  z-index:99999!important;
+  max-height:220px!important;
+  overflow:auto!important;
+  box-shadow:0 12px 24px rgba(0,0,0,.15)!important;
+  margin-top:4px!important;
+  text-align:left!important;
+}
+
+.option{
+  padding:10px 12px!important;
+  cursor:pointer!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+  border-bottom:1px solid #eef2f7!important;
+  background:#fff!important;
+  color:#111827!important;
+}
+
+.option:last-child{
+  border-bottom:none!important;
+}
+
+.option:hover{
+  background:#eff6ff!important;
+}
+
+.option.disabled{
+  background:#f8fafc!important;
+  color:#64748b!important;
+  cursor:default!important;
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+
+@media(max-width:1200px){
+  .trip-table{
+    min-width:1780px!important;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(auto-fit,minmax(125px,1fr))!important;
+  }
+
+  .service-strip{
+    grid-template-columns:repeat(auto-fit,minmax(105px,1fr))!important;
+  }
+
+  .service-card{
+    min-height:72px!important;
+    padding:7px 6px!important;
+  }
+
+  .stat-value{
+    font-size:21px!important;
+  }
+}
+
+@media(max-width:768px){
+  .trip-table{
+    min-width:1780px!important;
+  }
+
+  .trip-table th,
+  .trip-table td{
+    font-size:10px!important;
+    padding:4px!important;
+  }
+
+  .trip-table th{
+    font-size:10px!important;
+  }
+
+  .edit-field,
+  .edit-area{
+    font-size:9.5px!important;
+    padding:4px!important;
+  }
+
+  .stat-card{
+    padding:8px 6px!important;
+    border-radius:12px!important;
+  }
+
+  .stat-label{
+    font-size:10px!important;
+  }
+
+  .stat-value{
+    font-size:20px!important;
+  }
+
+  .service-strip{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+
+  .service-card{
+    min-height:66px!important;
+  }
+
+  .select-btn{
+    font-size:11px!important;
+    padding:7px 10px!important;
+  }
 }
 
 `;
@@ -448,12 +698,6 @@ function stopsPlain(t){
   return getStops(t).map(stopText).filter(Boolean).join("\n");
 }
 
-function stopsDisplay(t){
-  const arr = getStops(t).map(stopText).filter(Boolean);
-  if(!arr.length) return "--";
-  return arr.map((x,i)=>`${i+1}. ${safe(x)}`).join("\n");
-}
-
 function parseStopsText(v){
   return clean(v).split("\n").map(x=>x.trim()).filter(Boolean);
 }
@@ -584,6 +828,7 @@ function buildDisplayItems(list){
 /* ===============================
    FILTERS
 ================================ */
+
 function isDispatchTrip(t){
 
   const s = String(t.status || "")
@@ -653,8 +898,8 @@ function countKinds(items){
 
 function renderStats(){
 
-  const allItems =
-    currentItems();
+  const allItems = currentItems();
+
   const total = allItems.length;
   const today = allItems.filter(item=>isTodayTrip(item.trip)).length;
   const tomorrow = allItems.filter(item=>isTomorrowTrip(item.trip)).length;
@@ -680,8 +925,8 @@ function renderStats(){
 }
 
 function renderServiceCards(){
-const allItems =
-  currentItems();
+
+  const allItems = currentItems();
   const visible = services.filter(isServiceVisible);
   const cards = [];
 
@@ -690,6 +935,7 @@ const allItems =
   visible.forEach(s=>{
     const code = getServiceCodeFromService(s);
     const serviceItems = allItems.filter(item=>getTripServiceCode(item.trip) === code);
+
     cards.push({
       code,
       title:getServiceTitle(s),
@@ -698,6 +944,7 @@ const allItems =
   });
 
   const used = new Set();
+
   const unique = cards.filter(c=>{
     if(used.has(c.code)) return false;
     used.add(c.code);
@@ -745,9 +992,23 @@ function updateSelectionButtons(){
   const bToday = document.getElementById("selectTodayBtn");
   const bTomorrow = document.getElementById("selectTomorrowBtn");
 
-  if(bAll) bAll.innerText = allSelected(all) ? "REMOVE ALL" : "SELECT ALL";
-  if(bToday) bToday.innerText = allSelected(today) ? "REMOVE TODAY" : "SELECT TODAY";
-  if(bTomorrow) bTomorrow.innerText = allSelected(tomorrow) ? "REMOVE TOMORROW" : "SELECT TOMORROW";
+  if(bAll){
+    const selected = allSelected(all);
+    bAll.innerText = selected ? "Unselect All" : "Select All";
+    bAll.classList.toggle("active",selected);
+  }
+
+  if(bToday){
+    const selected = allSelected(today);
+    bToday.innerText = selected ? "Unselect Today" : "Select Today";
+    bToday.classList.toggle("active",selected);
+  }
+
+  if(bTomorrow){
+    const selected = allSelected(tomorrow);
+    bTomorrow.innerText = selected ? "Unselect Tomorrow" : "Select Tomorrow";
+    bTomorrow.classList.toggle("active",selected);
+  }
 }
 
 async function setItemSelected(item,val){
@@ -810,6 +1071,7 @@ async function searchAddress(q){
     if(!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
+
   }catch(err){
     return [];
   }
@@ -861,6 +1123,7 @@ function attachAutocomplete(input){
     clearTimeout(timer);
 
     const q = clean(input.value);
+
     if(q.length < 3){
       box.innerHTML = "";
       return;
@@ -958,36 +1221,41 @@ function drawGroup(title,list){
   table.className = "trip-table";
 
   table.innerHTML = `
-    <tr>
-      <th>Dispatch</th>
-      <th>#</th>
-      <th>Trip #</th>
-      <th>Service</th>
-      <th>Type</th>
-      <th>Facility</th>
-      <th>Entry</th>
-      <th>Entry Phone</th>
-      <th>Client / Passengers</th>
-      <th>Phone</th>
-      <th>Email</th>
-      <th>Pickup</th>
-      <th>Stops</th>
-      <th>Dropoff</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Notes</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
+    <thead>
+      <tr>
+        <th class="col-dispatch">Dispatch</th>
+        <th class="col-num">#</th>
+        <th class="col-trip">Trip #</th>
+        <th class="col-service">Service</th>
+        <th class="col-type">Type</th>
+        <th class="col-facility">Facility</th>
+        <th class="col-entry">Entry</th>
+        <th class="col-entry-phone">Entry Phone</th>
+        <th class="col-client">Client / Passengers</th>
+        <th class="col-phone">Phone</th>
+        <th class="col-email">Email</th>
+        <th class="col-pickup">Pickup</th>
+        <th class="col-stops">Stops</th>
+        <th class="col-dropoff">Dropoff</th>
+        <th class="col-date">Date</th>
+        <th class="col-time">Time</th>
+        <th class="col-notes">Notes</th>
+        <th class="col-status">Status</th>
+        <th class="col-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
   `;
+
+  const tbody = table.querySelector("tbody");
 
   if(!list.length){
     const row = document.createElement("tr");
     row.innerHTML = `<td colspan="19" style="text-align:center;padding:20px;font-weight:900;">No Trips</td>`;
-    table.appendChild(row);
+    tbody.appendChild(row);
   }else{
     list.forEach((item,i)=>{
-      table.appendChild(item.kind === "shared" ? renderSharedRow(item,i+1) : renderTripRow(item,i+1));
+      tbody.appendChild(item.kind === "shared" ? renderSharedRow(item,i+1) : renderTripRow(item,i+1));
     });
   }
 
@@ -1012,29 +1280,46 @@ function renderTripRow(item,num){
   tr.dataset.tripId = t._id;
 
   tr.innerHTML = `
-    <td>
+    <td class="col-dispatch">
       <input class="dispatch-check" type="checkbox"
         ${itemSelected(item) ? "checked" : ""}
         onchange="sendDispatchItem('${safe(item.key)}',this.checked)">
     </td>
-    <td>${num}</td>
-    <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
-    <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
-    <td>${safe(t.type || getTripKind(t))}</td>
-    <td>${inputCell(t.company || "","company","company")}</td>
-    <td>${inputCell(t.entryName || "","entryName","entryName")}</td>
-    <td>${inputCell(t.entryPhone || "","entryPhone","entryPhone")}</td>
-    <td class="wide-client">${inputCell(t.clientName || t.name || "","clientName","clientName")}</td>
-    <td class="wide-phone">${inputCell(t.clientPhone || t.phone || "","clientPhone","clientPhone")}</td>
-    <td class="wide-email">${inputCell(getEmail(t),"clientEmail","clientEmail","email")}</td>
-    <td class="wide-address">${areaCell(t.pickup || "","pickup","pickup")}</td>
-    <td class="wide-address">${areaCell(stopsPlain(t),"stopsText","stopsText")}</td>
-    <td class="wide-address">${areaCell(t.dropoff || "","dropoff","dropoff")}</td>
-    <td>${inputCell(t.tripDate || "","tripDate","tripDate","date")}</td>
-    <td>${inputCell(t.tripTime || "","tripTime","tripTime","time")}</td>
-    <td class="wide-notes">${areaCell(getNotes(t),"notes","notes")}</td>
-    <td><span class="status-pill">${safe(t.status || "Scheduled")}</span></td>
-    <td class="actions">
+
+    <td class="col-num">${num}</td>
+
+    <td class="col-trip">
+      <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
+    </td>
+
+    <td class="col-service">
+      <span class="service-pill">${safe(getServiceTitleByTrip(t))}</span>
+    </td>
+
+    <td class="col-type">${safe(t.type || getTripKind(t))}</td>
+
+    <td class="col-facility">${inputCell(t.company || "","company","company")}</td>
+    <td class="col-entry">${inputCell(t.entryName || "","entryName","entryName")}</td>
+    <td class="col-entry-phone">${inputCell(t.entryPhone || "","entryPhone","entryPhone")}</td>
+
+    <td class="wide-client col-client">${inputCell(t.clientName || t.name || "","clientName","clientName")}</td>
+    <td class="wide-phone col-phone">${inputCell(t.clientPhone || t.phone || "","clientPhone","clientPhone")}</td>
+    <td class="wide-email col-email">${inputCell(getEmail(t),"clientEmail","clientEmail","email")}</td>
+
+    <td class="wide-address col-pickup">${areaCell(t.pickup || "","pickup","pickup")}</td>
+    <td class="wide-stops col-stops">${areaCell(stopsPlain(t),"stopsText","stopsText")}</td>
+    <td class="wide-address col-dropoff">${areaCell(t.dropoff || "","dropoff","dropoff")}</td>
+
+    <td class="col-date">${inputCell(t.tripDate || "","tripDate","tripDate","date")}</td>
+    <td class="col-time">${inputCell(t.tripTime || "","tripTime","tripTime","time")}</td>
+
+    <td class="wide-notes col-notes">${areaCell(getNotes(t),"notes","notes")}</td>
+
+    <td class="col-status">
+      <span class="status-pill">${safe(t.status || "Scheduled")}</span>
+    </td>
+
+    <td class="actions col-actions">
       <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">Edit</button>
       <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
     </td>
@@ -1058,29 +1343,46 @@ function renderSharedRow(item,num){
   tr.dataset.key = item.key;
 
   tr.innerHTML = `
-    <td>
+    <td class="col-dispatch">
       <input class="dispatch-check" type="checkbox"
         ${itemSelected(item) ? "checked" : ""}
         onchange="sendDispatchItem('${safe(item.key)}',this.checked)">
     </td>
-    <td>${num}</td>
-    <td><span class="trip-number-badge">${safe(getTripNumber(first))}</span></td>
-    <td><span class="service-pill">${safe(getServiceTitleByTrip(first))}</span></td>
-    <td>Shared</td>
-    <td>${inputCell(first.company || "","company","company")}</td>
-    <td>${inputCell(first.entryName || "","entryName","entryName")}</td>
-    <td>${inputCell(first.entryPhone || "","entryPhone","entryPhone")}</td>
-    <td class="wide-client">${areaCell(names,"sharedNames","sharedNames")}</td>
-    <td class="wide-phone">${areaCell(phones,"sharedPhones","sharedPhones")}</td>
-    <td class="wide-email">${areaCell(emails,"sharedEmails","sharedEmails")}</td>
-    <td class="wide-address">${areaCell(pickups,"sharedPickups","sharedPickups")}</td>
-    <td class="wide-address">Route optimized per passenger</td>
-    <td class="wide-address">${areaCell(dropoffs,"sharedDropoffs","sharedDropoffs")}</td>
-    <td>${inputCell(first.tripDate || "","tripDate","tripDate","date")}</td>
-    <td>${inputCell(first.tripTime || "","tripTime","tripTime","time")}</td>
-    <td class="wide-notes">${areaCell(getNotes(first),"notes","notes")}</td>
-    <td><span class="status-pill">${safe(getGroupStatus(item.group))}</span></td>
-    <td class="actions">
+
+    <td class="col-num">${num}</td>
+
+    <td class="col-trip">
+      <span class="trip-number-badge">${safe(getTripNumber(first))}</span>
+    </td>
+
+    <td class="col-service">
+      <span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>
+    </td>
+
+    <td class="col-type">Shared</td>
+
+    <td class="col-facility">${inputCell(first.company || "","company","company")}</td>
+    <td class="col-entry">${inputCell(first.entryName || "","entryName","entryName")}</td>
+    <td class="col-entry-phone">${inputCell(first.entryPhone || "","entryPhone","entryPhone")}</td>
+
+    <td class="wide-client col-client">${areaCell(names,"sharedNames","sharedNames")}</td>
+    <td class="wide-phone col-phone">${areaCell(phones,"sharedPhones","sharedPhones")}</td>
+    <td class="wide-email col-email">${areaCell(emails,"sharedEmails","sharedEmails")}</td>
+
+    <td class="wide-address col-pickup">${areaCell(pickups,"sharedPickups","sharedPickups")}</td>
+    <td class="wide-stops col-stops">Route optimized per passenger</td>
+    <td class="wide-address col-dropoff">${areaCell(dropoffs,"sharedDropoffs","sharedDropoffs")}</td>
+
+    <td class="col-date">${inputCell(first.tripDate || "","tripDate","tripDate","date")}</td>
+    <td class="col-time">${inputCell(first.tripTime || "","tripTime","tripTime","time")}</td>
+
+    <td class="wide-notes col-notes">${areaCell(getNotes(first),"notes","notes")}</td>
+
+    <td class="col-status">
+      <span class="status-pill">${safe(getGroupStatus(item.group))}</span>
+    </td>
+
+    <td class="actions col-actions">
       <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">Edit</button>
       <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
     </td>
@@ -1123,12 +1425,14 @@ function enableRow(row,val){
 async function editItem(key,btn){
   const item = displayItems.find(x=>x.key === key);
   const row = btn.closest("tr");
+
   if(!item || !row) return;
 
   if(btn.innerText === "Edit"){
     enableRow(row,true);
 
     row.querySelectorAll(".pickup,.dropoff").forEach(attachAutocomplete);
+
     btn.innerText = "Save";
     return;
   }
@@ -1196,7 +1500,14 @@ async function saveSharedItem(item,row){
   const pickups = parseNumberedLines(row.querySelector(".sharedPickups")?.value || "");
   const dropoffs = parseNumberedLines(row.querySelector(".sharedDropoffs")?.value || "");
 
-  const count = Math.max(oldPassengers.length,names.length,phones.length,pickups.length,dropoffs.length);
+  const count = Math.max(
+    oldPassengers.length,
+    names.length,
+    phones.length,
+    emails.length,
+    pickups.length,
+    dropoffs.length
+  );
 
   const passengers = [];
 
