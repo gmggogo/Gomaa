@@ -427,7 +427,15 @@ body{
 
   <div id="reviewStats" class="review-stats"></div>
 
-  <div class="toolbar">
+<div class="toolbar">
+
+    <select id="sourceFilter" class="filter-select">
+      <option value="ALL">All Bookings</option>
+      <option value="GQ">Get Quote</option>
+      <option value="CO">Facility</option>
+      <option value="RV">Reserved</option>
+    </select>
+
     <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, company, passenger, phone, email, address">
     <select id="statusFilter" class="filter-select">
       <option value="">All Statuses</option>
@@ -462,10 +470,12 @@ let allTrips = [];
 let services = [];
 let displayItems = [];
 let activeService = "ALL"; // كارت الفلترة النشط افتراضياً عند فتح الصفحة
+let activeSource = "ALL";
 let refreshTimer = null;
 
 const CLOSED_HOURS = 10;
 
+const sourceFilter = document.getElementById("sourceFilter");
 const searchInput = document.getElementById("searchInput");
 const statusFilter = document.getElementById("statusFilter");
 const yearFilter = document.getElementById("yearFilter");
@@ -686,7 +696,16 @@ function getSourceCode(t){
 }
 function sourceHTML(t){
   const code = getSourceCode(t);
-  return `<span class="source-pill ${code === "CO" ? "company" : "gq"}">${code === "CO" ? "Company" : "Get Quote"}</span>`;
+
+  if(code === "RV"){
+    return `<span class="source-pill reserved">Reserved</span>`;
+  }
+
+  if(code === "CO"){
+    return `<span class="source-pill company">Facility</span>`;
+  }
+
+  return `<span class="source-pill gq">Get Quote</span>`;
 }
 
 function getEmail(t,p){ return p?.clientEmail || p?.passengerEmail || p?.email || t?.clientEmail || "-"; }
@@ -813,6 +832,12 @@ function applyFilters(){
     });
   }
 
+if(activeSource !== "ALL"){
+  items = items.filter(item=>{
+    const t = item.kind === "trip" ? item.trip : item.group[0];
+    return getSourceCode(t) === activeSource;
+  });
+}
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
   if(q){ items = items.filter(item => searchableText(item).includes(q)); }
 
@@ -1097,6 +1122,12 @@ function renderSharedRows(tbody,item){
    EVENTS HANDLERS
 ================================ */
 searchInput?.addEventListener("input",applyFilters);
+
+sourceFilter?.addEventListener("change",()=>{
+  activeSource = sourceFilter.value || "ALL";
+  applyFilters();
+});
+
 statusFilter?.addEventListener("change",applyFilters);
 yearFilter?.addEventListener("change",applyFilters);
 monthFilter?.addEventListener("change",applyFilters);
