@@ -204,7 +204,7 @@ const selectedMap = new WeakMap();
 
 .trip-table{
   width:100%!important;
-  min-width:1680px!important;
+  min-width:1730px!important;
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff!important;
@@ -288,10 +288,10 @@ const selectedMap = new WeakMap();
 }
 
 .wide-notes{
-  width:190px;
+  width:240px!important;
   text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
+  white-space:normal!important;
+  word-break:break-word!important;
 }
 
 .company-cell{
