@@ -4,230 +4,211 @@
 <meta charset="UTF-8">
 <title>Dispatch Review</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
 *{box-sizing:border-box;}
 
-body{
-  margin:0;
-  background:#f1f5f9;
-  font-family:Segoe UI,Arial,sans-serif;
-  color:#0f172a;
+:root{
+  --blue:#2563eb;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#f59e0b;
+  --purple:#7c3aed;
+  --text:#0f172a;
+  --muted:#64748b;
+  --bg:#f4f8fb;
+  --card:#fff;
+  --border:#dbe3ee;
 }
 
-#adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:1000;
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:Arial,sans-serif;
+  color:var(--text);
 }
 
 .page-content{
-  padding-top:300px;
-  padding-left:20px;
-  padding-right:20px;
-  padding-bottom:30px;
+  padding:22px;
   width:100%;
 }
 
 .page-head{
   background:#fff;
-  border:1px solid #dbe3ee;
-  border-radius:16px;
-  padding:14px 16px;
-  margin-bottom:10px;
-  box-shadow:0 6px 16px rgba(15,23,42,.07);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px 20px;
+  margin-bottom:16px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
   display:flex;
   justify-content:space-between;
-  gap:12px;
+  gap:14px;
   flex-wrap:wrap;
   align-items:center;
 }
 
 .page-title{
-  font-size:24px;
+  font-size:27px;
   font-weight:900;
 }
 
 .page-sub{
-  margin-top:4px;
-  color:#64748b;
-  font-size:12px;
+  margin-top:5px;
+  color:var(--muted);
+  font-size:13px;
   font-weight:800;
 }
 
 .role-badge{
-  background:#dbeafe;
+  background:#e0edff;
   color:#1d4ed8;
-  padding:8px 12px;
+  padding:9px 14px;
   border-radius:999px;
-  font-size:12px;
+  font-size:13px;
   font-weight:900;
-}
-
-.review-sticky-top{
-  position:sticky;
-  top:0;
-  z-index:800;
-  background:#f1f5f9;
-  padding:0 0 8px;
-  border-bottom:1px solid #cbd5e1;
 }
 
 .review-stats{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
-  gap:8px;
-  margin:0 0 10px;
+  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:10px;
+  margin-bottom:14px;
 }
 
 .stat-card{
   background:#fff;
-  border:1px solid #dbe3ee;
-  border-left:6px solid #2563eb;
+  border:1px solid var(--border);
   border-radius:14px;
-  padding:10px 8px;
+  padding:13px;
   text-align:center;
-  box-shadow:0 5px 14px rgba(15,23,42,.07);
+  box-shadow:0 6px 16px rgba(15,23,42,.07);
 }
 
-.stat-card:nth-child(2){border-left-color:#0ea5e9;}
-.stat-card:nth-child(3){border-left-color:#0891b2;}
-.stat-card:nth-child(4){border-left-color:#16a34a;}
-.stat-card:nth-child(5){border-left-color:#dc2626;}
-.stat-card:nth-child(6){border-left-color:#f59e0b;}
-.stat-card:nth-child(7){border-left-color:#7c3aed;}
-.stat-card:nth-child(8){border-left-color:#1d4ed8;}
-.stat-card:nth-child(9){border-left-color:#22c55e;}
-.stat-card:nth-child(10){border-left-color:#7c3aed;}
+.stat-card.total{border-left:6px solid var(--blue);}
+.stat-card.today{border-left:6px solid #0ea5e9;}
+.stat-card.month{border-left:6px solid #0891b2;}
+.stat-card.completed{border-left:6px solid var(--green);}
+.stat-card.cancelled{border-left:6px solid var(--red);}
+.stat-card.noshow{border-left:6px solid var(--orange);}
+.stat-card.notcompleted{border-left:6px solid var(--purple);}
+.stat-card.company{border-left:6px solid #1d4ed8;}
+.stat-card.gq{border-left:6px solid #22c55e;}
+.stat-card.shared{border-left:6px solid #7c3aed;}
 
 .stat-number{
-  font-size:23px;
-  line-height:1.1;
+  font-size:25px;
+  line-height:1;
   font-weight:900;
   color:#0f172a;
 }
 
 .stat-label{
-  margin-top:4px;
-  font-size:10.5px;
+  margin-top:6px;
+  font-size:12px;
   font-weight:900;
   color:#64748b;
-  text-transform:uppercase;
-  letter-spacing:.25px;
 }
 
 .toolbar{
   display:flex;
-  gap:7px;
+  gap:10px;
   flex-wrap:wrap;
   align-items:center;
-  margin:0 0 10px;
-  background:#fff;
-  border:1px solid #dbe3ee;
-  border-radius:13px;
-  padding:8px;
-  box-shadow:0 4px 12px rgba(15,23,42,.06);
+  margin-bottom:14px;
 }
 
 .search-input,
 .filter-select{
-  padding:8px 10px;
-  border-radius:9px;
+  padding:12px 14px;
+  border-radius:11px;
   border:1px solid #cbd5e1;
   background:#fff;
-  font-size:12px;
-  font-weight:900;
+  font-size:14px;
+  font-weight:800;
   outline:none;
 }
 
 .search-input{
   flex:1;
-  min-width:250px;
+  min-width:260px;
 }
 
 .search-input:focus,
 .filter-select:focus{
-  border-color:#2563eb;
+  border-color:var(--blue);
   box-shadow:0 0 0 3px rgba(37,99,235,.12);
 }
 
 .service-cards{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-  gap:7px;
-  margin:0 0 10px;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px;
+  margin-bottom:16px;
 }
 
+/* ===================================================
+   تعديلات الـ CSS لجعل الكروت تفاعلية وقابلة للضغط
+   =================================================== */
 .service-card{
   background:#fff;
-  border:1px solid #dbe3ee;
-  color:#0f172a;
-  border-radius:13px;
-  padding:8px 7px;
-  cursor:pointer;
-  font-weight:900;
-  box-shadow:0 4px 12px rgba(15,23,42,.06);
-  text-align:center;
-  min-height:78px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  padding:14px;
+  box-shadow:0 7px 18px rgba(15,23,42,.07);
+  cursor:pointer; /* تحويل المؤشر ليد عند التمرير */
+  transition:all 0.2s ease-in-out;
 }
 
-.service-card.active-card{
-  background:#2563eb;
-  color:#fff;
-  border-color:#2563eb;
+.service-card:hover{
+  transform:translateY(-3px); /* تأثير ارتفاع خفيف عند الماوس */
+  box-shadow:0 12px 24px rgba(15,23,42,.12);
+  border-color:var(--blue);
+}
+
+/* كلاس الكارت النشط أو المحدد حالياً بالفلتر */
+.service-card.active-card {
+  border: 2px solid var(--blue) !important;
+  background: #f0f7ff !important; /* خلفية زرقاء خفيفة جداً للتمييز */
 }
 
 .service-card-title{
+  font-size:14px;
+  font-weight:900;
+  color:#0f172a;
+  margin-bottom:8px;
+}
+
+.service-line{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  border-top:1px dashed #e2e8f0;
+  padding:6px 0;
   font-size:12px;
-  line-height:1.1;
-  margin-bottom:4px;
   font-weight:900;
+  color:#475569;
 }
 
-.service-total{
-  font-size:22px;
-  line-height:1.05;
+.service-line span:last-child{
+  color:#0f172a;
+  font-size:14px;
+}
+
+.day-title{
+  margin:18px 0 8px;
+  padding:10px 13px;
+  background:#e0edff;
+  color:#1e3a8a;
+  border-left:6px solid #2563eb;
+  border-radius:12px;
+  font-size:15px;
   font-weight:900;
-  margin:4px 0;
-}
-
-.service-mini{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:3px;
-  margin-top:6px;
-  font-size:8.5px;
-  font-weight:900;
-  color:#64748b;
-}
-
-.service-card.active-card .service-mini{
-  color:#fff;
-}
-
-.date-row td{
-  background:#bfdbfe!important;
-  color:#1e3a8a!important;
-  font-weight:900!important;
-  text-align:center!important;
-  padding:5px 6px!important;
-  font-size:13px!important;
-  line-height:1.15!important;
-  border-top:2px solid #60a5fa!important;
-  border-bottom:2px solid #60a5fa!important;
-  letter-spacing:.3px;
 }
 
 .table-wrap{
   width:100%;
-  max-width:100%;
   overflow-x:auto;
-  overflow-y:visible;
-  -webkit-overflow-scrolling:touch;
   margin-bottom:20px;
   border-radius:14px;
   background:#fff;
@@ -236,311 +217,196 @@ body{
 
 .review-table{
   width:100%;
-  min-width:1560px;
-  table-layout:fixed;
   border-collapse:collapse;
   background:#fff;
-  border-top:6px solid #000;
+  min-width:1800px;
 }
 
 .review-table th,
 .review-table td{
-  border:1px solid #dbe3ee;
-  padding:5px;
+  border:1px solid var(--border);
+  padding:8px;
   text-align:center;
-  font-size:11px;
+  font-size:13px;
   vertical-align:middle;
-  line-height:1.25;
-  box-sizing:border-box;
+  line-height:1.4;
+  font-weight:600;
 }
 
 .review-table th{
-  background:#1f2937;
+  background:#2563eb;
   color:#fff;
+  font-size:13px;
   font-weight:900;
   white-space:nowrap;
-  font-size:11px;
 }
 
-.col-num{width:30px;}
-.col-trip{width:76px;}
-.col-company{width:100px;}
-.col-date{width:82px;}
-.col-time{width:58px;}
-.col-status{width:86px;}
-.col-eye{width:32px;}
-
-.wide-client{
-  width:180px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-}
-
-.wide-phone{
-  width:115px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
+.review-table tbody tr:hover td {
+  background-color: rgba(37, 99, 235, 0.04) !important;
 }
 
 .wide-address{
-  width:230px;
+  min-width:240px;
+  max-width:360px;
   text-align:left!important;
-  white-space:normal;
+  white-space:pre-line;
   word-break:break-word;
-  font-size:10.5px!important;
+  font-size:12px!important;
 }
 
-.wide-stops{
-  width:120px;
+.wide-client{
+  min-width:160px;
+  max-width:240px;
   text-align:left!important;
-  white-space:normal;
+  white-space:pre-line;
   word-break:break-word;
-  font-size:10.5px!important;
-}
-
-.wide-notes{
-  width:240px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-}
-
-.company-cell{
-  width:100px;
-  font-weight:800;
-  word-break:break-word;
-  text-align:left!important;
-}
-
-.trip-divider td{
-  border-bottom:3px solid #000!important;
-}
-
-.cell-box{
-  display:grid;
-  border:1px solid #111;
-  background:#fff;
-  width:100%;
-  box-sizing:border-box;
-  border-radius:4px;
-  overflow:hidden;
-}
-
-.cell-item{
-  padding:4px 5px;
-  min-height:22px;
-  font-weight:700;
-  white-space:normal;
-  word-break:break-word;
-  box-sizing:border-box;
-  background:#fff;
-  font-size:10.5px;
-}
-
-.cell-item + .cell-item{
-  border-top:1px solid #111;
 }
 
 .trip-number-badge{
   font-weight:900;
   color:#1d4ed8;
-  white-space:normal;
-  word-break:break-word;
-  font-size:10px;
+  white-space:nowrap;
 }
 
+/* =========================
+   PILLS SIZE (UNIFIED)
+========================= */
+.service-pill,
+.source-pill,
 .status-pill{
-  display:inline-flex;
-  padding:4px 6px;
-  border-radius:999px;
-  font-size:10px;
-  font-weight:900;
-  background:#f1f5f9;
-  color:#0f172a;
-  border:1px solid #cbd5e1;
+  display:inline-block;
+  width:90px;
+  min-width:90px;
+  max-width:90px;
+  padding:6px 0;
+  text-align:center;
   white-space:nowrap;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.2;
+  border-radius:8px;
+  box-sizing:border-box;
+}
+
+.service-pill{
+  background:#dbeafe;
+  color:#1d4ed8;
+  border:1px solid #bfdbfe;
+}
+
+.source-pill.company{
+  background:#dbeafe;
+  color:#1e3a8a;
+  border:1px solid #93c5fd;
+  font-size:10px;
+  font-weight:600;
+  height:24px;
+  line-height:24px;
+  padding:0;
+}
+
+.source-pill.gq{
+  background:#fce7f3;
+  color:#9d174d;
+  border:1px solid #f9a8d4;
+}
+
+.source-pill.reserved{
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fcd34d;
 }
 
 .status-pill.completed{
   background:#bbf7d0;
   color:#14532d;
-  border-color:#86efac;
+  border:1px solid #86efac;
 }
 
 .status-pill.cancelled{
   background:#fecaca;
   color:#7f1d1d;
-  border-color:#fca5a5;
+  border:1px solid #fca5a5;
 }
 
 .status-pill.noshow{
   background:#fde68a;
   color:#78350f;
-  border-color:#fcd34d;
+  border:1px solid #fcd34d;
 }
 
 .status-pill.notcompleted{
   background:#e5e7eb;
   color:#374151;
-  border-color:#cbd5e1;
+  border:1px solid #cbd5e1;
 }
 
-.row-facility td{background:#dbeafe;}
-.row-gq td{background:#dcfce7;}
-.row-rv td{background:#fef3c7;}
-.row-shared td{background:#ede9fe;}
-
-.completed-row td{box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);}
-.cancelled-row td{box-shadow:inset 0 0 0 9999px rgba(220,38,38,.07);}
-.noshow-row td{box-shadow:inset 0 0 0 9999px rgba(245,158,11,.08);}
-.notcompleted-row td{box-shadow:inset 0 0 0 9999px rgba(100,116,139,.08);}
-
-.eye-btn{
-  border:none!important;
-  background:transparent!important;
-  color:#2563eb!important;
-  width:30px;
-  height:24px;
-  cursor:pointer;
-  font-size:18px;
+.status-td{
+  text-align:center;
+  font-size:13px;
   font-weight:900;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  line-height:1;
-  padding:0;
+  color:#111827;
 }
 
-.eye-btn:hover{
-  color:#1d4ed8!important;
-  background:#dbeafe!important;
-  border-radius:6px;
-}
+.status-td.completed{ background:#bbf7d0 !important; }
+.status-td.cancelled{ background:#fecaca !important; }
+.status-td.noshow{ background:#fde68a !important; }
+.status-td.notcompleted{ background:#e5e7eb !important; }
 
-.view-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(15,23,42,.55);
-  z-index:99999;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:15px;
-}
-
-.view-box{
-  background:#fff;
-  width:min(540px,96vw);
-  border-radius:15px;
-  overflow:hidden;
-  box-shadow:0 20px 60px rgba(0,0,0,.28);
-}
-
-.view-head{
-  background:#2563eb;
-  color:#fff;
-  padding:12px 15px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+.date-row td{
+  background:#eff6ff;
+  color:#1e40af;
+  font-size:14px;
   font-weight:900;
+  text-align:left;
+  padding:12px;
+  border-top:3px solid #2563eb;
 }
 
-.view-close{
-  border:none;
-  background:#fff;
-  color:#0f172a;
-  width:30px;
-  height:30px;
-  border-radius:50%;
-  font-size:18px;
-  font-weight:900;
-  cursor:pointer;
+.shared-separator td{ border-bottom:2px dashed #cbd5e1; }
+.trip-divider-line td{ height:3px; padding:0; background:#cbd5e1; }
+.trip-divider td{ height:10px; padding:0; background:#f8fafc; }
+
+.btn-action {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  margin: 2px;
+  transition: all 0.2s;
 }
 
-.view-body{
-  padding:14px;
-  display:grid;
-  gap:8px;
-}
-
-.view-line{
-  display:grid;
-  grid-template-columns:150px 1fr;
-  border:1px solid #e2e8f0;
-  border-radius:9px;
-  overflow:hidden;
-}
-
-.view-label{
-  background:#f1f5f9;
-  padding:9px;
-  font-weight:900;
-  color:#334155;
-}
-
-.view-value{
-  padding:9px;
-  font-weight:800;
-  color:#0f172a;
-  word-break:break-word;
-  white-space:pre-line;
-}
+.btn-action.btn-view:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-action.btn-edit:hover { background: var(--orange); color: #fff; border-color: var(--orange); }
 
 .empty-state{
   background:#fff;
-  padding:18px;
+  padding:22px;
   border-radius:14px;
-  box-shadow:0 6px 16px rgba(15,23,42,.08);
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
   color:#475569;
   font-weight:900;
   text-align:center;
 }
 
+.company-name{ color:#1d4ed8; font-size:13px; font-weight:700; }
+.row-company td{ background:#eaf4ff !important; }
+.row-getquote td{ background:#ffeaf4 !important; }
+.completed-row td{ background:#dcfce7 !important; }
+.cancelled-row td{ background:#fee2e2 !important; }
+.noshow-row td{ background:#fef3c7 !important; }
+.notcompleted-row td{ background:#f1f5f9 !important; }
+.shared-row td{ box-shadow:inset 0 0 0 9999px rgba(124,58,237,.03); }
+
 @media(max-width:768px){
-  .page-content{
-    padding-top:360px;
-    padding-left:10px;
-    padding-right:10px;
-  }
-
-  .page-title{font-size:21px;}
-
-  .review-table{
-    min-width:1560px;
-  }
-
-  .review-table th,
-  .review-table td{
-    font-size:10px;
-    padding:4px;
-  }
-
-  .cell-item{
-    font-size:9.5px;
-    padding:3px 4px;
-  }
-
-  .review-stats{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:6px;
-  }
-
-  .service-cards{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-
-  .search-input,
-  .filter-select{
-    width:100%;
-    min-width:0;
-  }
-
-  .view-line{
-    grid-template-columns:1fr;
-  }
+  .page-content{padding:12px;}
+  .page-title{font-size:22px;}
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .search-input,.filter-select{width:100%;}
+  .review-table{min-width:1550px;}
 }
 </style>
 </head>
@@ -556,28 +422,25 @@ body{
       <div class="page-title">Dispatch Review</div>
       <div class="page-sub">Completed • Cancelled • No Show • Not Completed Trips</div>
     </div>
-    <div id="roleBadge" class="role-badge">Admin / Dispatcher</div>
+    <div class="role-badge">Admin / Dispatcher</div>
   </div>
 
-  <div class="review-sticky-top">
-    <div id="reviewStats" class="review-stats"></div>
+  <div id="reviewStats" class="review-stats"></div>
 
-    <div class="toolbar">
-      <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, company, passenger, phone, address">
-      <select id="statusFilter" class="filter-select">
-        <option value="">All Statuses</option>
-        <option value="Completed">Completed</option>
-        <option value="Cancelled">Cancelled</option>
-        <option value="No Show">No Show</option>
-        <option value="Not Completed">Not Completed</option>
-      </select>
-      <select id="yearFilter" class="filter-select"></select>
-      <select id="monthFilter" class="filter-select"></select>
-    </div>
-
-    <div id="serviceCards" class="service-cards"></div>
+  <div class="toolbar">
+    <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, company, passenger, phone, email, address">
+    <select id="statusFilter" class="filter-select">
+      <option value="">All Statuses</option>
+      <option value="Completed">Completed</option>
+      <option value="Cancelled">Cancelled</option>
+      <option value="No Show">No Show</option>
+      <option value="Not Completed">Not Completed</option>
+    </select>
+    <select id="yearFilter" class="filter-select"></select>
+    <select id="monthFilter" class="filter-select"></select>
   </div>
 
+  <div id="serviceCards" class="service-cards"></div>
   <div id="reviewContent"></div>
 
 </div>
@@ -585,11 +448,6 @@ body{
 <script src="/admin/header.js"></script>
 
 <script>
-/* ===============================
-   DISPATCH REVIEW V5
-   Same Trips Hub UI Policy
-================================ */
-
 const API_URL = "/api/trips";
 const SERVICES_URL = "/api/services/admin";
 
@@ -603,7 +461,7 @@ if(!["superadmin","admin","dispatcher"].includes(role)){
 let allTrips = [];
 let services = [];
 let displayItems = [];
-let activeService = "ALL";
+let activeService = "ALL"; // كارت الفلترة النشط افتراضياً عند فتح الصفحة
 let refreshTimer = null;
 
 const CLOSED_HOURS = 10;
@@ -614,13 +472,9 @@ const yearFilter = document.getElementById("yearFilter");
 const monthFilter = document.getElementById("monthFilter");
 const reviewContent = document.getElementById("reviewContent");
 
-const roleBadge = document.getElementById("roleBadge");
-if(roleBadge) roleBadge.innerText = role.toUpperCase();
-
 /* ===============================
    HELPERS
 ================================ */
-
 function safe(v){
   return String(v ?? "")
     .replace(/&/g,"&amp;")
@@ -628,8 +482,6 @@ function safe(v){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;");
 }
-
-function clean(v){ return String(v ?? "").trim(); }
 
 function normalizeText(v){ return String(v ?? "").trim(); }
 
@@ -641,31 +493,18 @@ function cleanStatus(v){
     .trim();
 }
 
-function compactStatus(v){
-  return cleanStatus(v).replace(/\s+/g,"");
-}
-
+function compactStatus(v){ return cleanStatus(v).replace(/\s+/g,""); }
 function isCompletedStatus(status){
   const s = cleanStatus(status);
   return s === "completed" || s === "complete" || s.includes("completed");
 }
-
-function isCancelledStatus(status){
-  return cleanStatus(status).includes("cancel");
-}
-
+function isCancelledStatus(status){ return cleanStatus(status).includes("cancel"); }
 function isNoShowStatus(status){
   const s = cleanStatus(status);
   return s.includes("no show") || s.includes("noshow");
 }
-
-function isScheduledStatus(status){
-  return cleanStatus(status) === "scheduled";
-}
-
-function isConfirmedStatus(status){
-  return cleanStatus(status) === "confirmed";
-}
+function isScheduledStatus(status){ return cleanStatus(status) === "scheduled"; }
+function isConfirmedStatus(status){ return cleanStatus(status) === "confirmed"; }
 
 function getAZNow(){
   return new Date(new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"}));
@@ -681,45 +520,37 @@ function monthKey(d){
 
 function parseTripDateTime(t){
   if(!t || !t.tripDate) return null;
-
   const date = String(t.tripDate || "").trim();
   let time = String(t.tripTime || "00:00").trim();
-
   if(!time) time = "00:00";
-
-  let d = new Date(`${date}T${time}:00`);
+  let d = new Date(`${date}T${time}`);
   if(isNaN(d)) d = new Date(`${date} ${time}`);
   if(isNaN(d)) return null;
-
   return d;
 }
 
 function isNotCompletedStatus(status,trip){
   const s = cleanStatus(status);
   const c = compactStatus(status);
-
-  if(s === "not completed" || c === "notcompleted" || s.includes("not complete"))
-    return true;
-
-  if(isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status))
-    return false;
-
-  if(!isScheduledStatus(status) && !isConfirmedStatus(status))
-    return false;
-
+  if(s === "not completed" || c === "notcompleted" || s.includes("not complete")){ return true; }
+  if(isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status)){ return false; }
+  if(!isScheduledStatus(status) && !isConfirmedStatus(status)){ return false; }
   const dt = parseTripDateTime(trip);
   if(!dt) return false;
-
   return Date.now() - dt.getTime() >= CLOSED_HOURS * 60 * 60 * 1000;
 }
 
+function isClosedTrip(t){
+  if(!t) return false;
+  if(isSharedTrip(t)){
+    const group = getSharedGroups(allTrips).find(g => getSharedKey(g[0]) === getSharedKey(t)) || [t];
+    return hasClosedPassenger(group);
+  }
+  return isClosedStatus(t.status,t);
+}
+
 function isClosedStatus(status,trip){
-  return (
-    isCompletedStatus(status) ||
-    isCancelledStatus(status) ||
-    isNoShowStatus(status) ||
-    isNotCompletedStatus(status,trip)
-  );
+  return (isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status) || isNotCompletedStatus(status,trip));
 }
 
 function displayStatus(status,trip){
@@ -745,64 +576,17 @@ function statusHTML(status,trip){
   return `<span class="status-pill ${cls}">${safe(label)}</span>`;
 }
 
-function getTripNumber(t){
-  return String(t?.tripNumber || t?.bookingNumber || t?.id || "-");
-}
-
-function getBookedDateObj(t){
-  return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || t?.tripDate || Date.now());
-}
-
-function formatDateObj(d){
-  return (!d || isNaN(d)) ? "-" : d.toLocaleDateString();
-}
-
-function formatTimeObj(d){
-  return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-}
-
+function getTripNumber(t){ return String(t?.tripNumber || t?.bookingNumber || t?.id || "-"); }
+function getBookedDateObj(t){ return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || t?.tripDate || Date.now()); }
+function formatDateObj(d){ return (!d || isNaN(d)) ? "-" : d.toLocaleDateString(); }
+function formatTimeObj(d){ return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
 function getBookedDate(t){ return formatDateObj(getBookedDateObj(t)); }
 function getBookedTime(t){ return formatTimeObj(getBookedDateObj(t)); }
 function getTripDateKey(t){ return t?.tripDate || "Unknown"; }
 
-function cellBox(items){
-  const arr = Array.isArray(items) ? items : [items];
-
-  return `
-    <div class="cell-box">
-      ${arr.map(v=>`
-        <div class="cell-item">${v || "--"}</div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function stopText(stop){
-  if(!stop) return "";
-  if(typeof stop === "string") return stop;
-  return stop.address || stop.location || stop.name || "";
-}
-
-function getStops(t){
-  if(Array.isArray(t?.stops)) return t.stops;
-  if(Array.isArray(t?.stopAddresses)) return t.stopAddresses;
-  return [];
-}
-
-function stopsDisplay(t){
-  const arr = getStops(t).map(stopText).filter(Boolean);
-  if(!arr.length) return "--";
-  return arr.map((x,i)=>`${i+1}. ${safe(x)}`).join("\n");
-}
-
-function getNotes(t){
-  return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
-}
-
 /* ===============================
-   SERVICES
+   SERVICES DATA PREPARATION
 ================================ */
-
 function extractServices(data){
   if(Array.isArray(data)) return data;
   if(Array.isArray(data?.services)) return data.services;
@@ -812,241 +596,143 @@ function extractServices(data){
 }
 
 function serviceEnabled(s){
-  return s && (s.enabled === true || s.companyEnabled === true);
+  if(!s) return false;
+  return s.enabled === true || s.companyEnabled === true;
 }
 
 function normalizeKnownCode(code){
   const c = normalizeText(code).toUpperCase();
-
   if(c === "STANDARD") return "ST";
   if(c === "WHEELCHAIR") return "WH";
   if(c === "SHARED") return "SH";
   if(c === "LIMOUSINE" || c === "LIMO") return "LM";
   if(c === "TAXI") return "TX";
   if(c === "XL") return "XL";
-
   return c;
 }
 
 function getServiceCodeFromService(s){
-  return normalizeKnownCode(
+
+  const code =
     s?.companySuffix ||
     s?.suffix ||
     s?.serviceKey ||
     s?.key ||
     s?.code ||
-    s?.name ||
-    s?.title ||
-    ""
-  );
+    "";
+
+  return normalizeKnownCode(code);
 }
 
 function getServiceTitle(s){
-  return s?.title || s?.name || s?.serviceName || getServiceCodeFromService(s) || "Service";
-}
-
-function isSharedTrip(t){
-  return (
-    t?.isShared === true ||
-    String(t?.tripType || "").toUpperCase() === "SHARED" ||
-    String(t?.type || "").toUpperCase() === "SHARED" ||
-    normalizeText(t?.tripNumber).toUpperCase().includes("-SH") ||
-    Array.isArray(t?.passengers) && t.passengers.length > 0 ||
-    normalizeText(t?.groupId) !== ""
-  );
+  return s?.title || s?.name || s?.serviceName || "Service";
 }
 
 function getServiceCodeFromTrip(t){
-  const direct = normalizeText(
-    t?.serviceKey ||
-    t?.serviceCode ||
-    t?.serviceType ||
-    t?.service ||
-    ""
-  ).toUpperCase();
-
+  const direct = normalizeText(t?.serviceKey || t?.serviceCode || t?.serviceType || t?.service || "").toUpperCase();
   if(direct) return normalizeKnownCode(direct);
-
   const num = normalizeText(t?.tripNumber).toUpperCase();
-
   if(num.includes("-SH") || isSharedTrip(t)) return "SH";
   if(num.includes("-XL")) return "XL";
   if(num.includes("-WH")) return "WH";
   if(num.includes("-TX")) return "TX";
   if(num.includes("-LM")) return "LM";
-  if(num.includes("-ST")) return "ST";
-
   return "ST";
 }
 
 function getServiceTitleByTrip(t){
   const code = getServiceCodeFromTrip(t);
-  const service = services.find(s=>getServiceCodeFromService(s) === code);
+  const service = services.find(s => getServiceCodeFromService(s) === code);
   return service ? getServiceTitle(service) : code;
 }
 
-/* ===============================
-   SOURCE
-================================ */
+function tripMatchesService(t,code){
+  if(code === "ALL") return true;
+  return getServiceCodeFromTrip(t) === code;
+}
 
+/* ===============================
+   SOURCE / EMAIL / PASSENGER
+================================ */
 function getSourceCode(t){
-  const raw = [
-    t?.source,
-    t?.from,
-    t?.bookingSource,
-    t?.createdBy,
-    t?.type,
-    t?.tripType,
-    t?.reservationStatus,
-    t?.tripNumber,
-    t?.isReserved ? "reserved" : "",
-    t?.reserved ? "reserved" : "",
-    t?.company ? "facility" : ""
-  ].join(" ").toLowerCase();
-
-  if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv")) return "RV";
-  if(raw.includes("quote") || raw.includes("gq") || raw.includes("website") || raw.includes("public")) return "GQ";
-  if(raw.includes("company") || raw.includes("portal") || raw.includes("facility") || t?.company) return "FA";
-
-  return "GQ";
+  const raw = [t?.source, t?.from, t?.bookingSource, t?.company ? "company" : ""].join(" ").toLowerCase();
+  if(raw.includes("quote") || raw.includes("gq") || raw.includes("website")) return "GQ";
+  return t?.company ? "CO" : "GQ";
 }
 
-function sourceLabel(t){
+function sourceHTML(t){
   const code = getSourceCode(t);
-  if(code === "FA") return "Facility";
-  if(code === "RV") return "Reserved";
-  return "Get Quote";
+  return `<span class="source-pill ${code === "CO" ? "company" : "gq"}">${code === "CO" ? "Company" : "Get Quote"}</span>`;
 }
+
+function getEmail(t,p){ return p?.clientEmail || p?.passengerEmail || p?.email || t?.clientEmail || "-"; }
+function getPassengerName(p,t){ return p?.clientName || p?.passengerName || t?.clientName || "-"; }
+function getPassengerPhone(p,t){ return p?.clientPhone || p?.passengerPhone || t?.clientPhone || "-"; }
+function getPickup(t,p){ return p?.pickup || t?.pickup || "-"; }
+function getDropoff(t,p){ return p?.dropoff || t?.dropoff || "-"; }
 
 /* ===============================
-   PASSENGERS / SHARED
+   SHARED TRIPS MANAGEMENT
 ================================ */
-
-function getEmail(t,p=null){
-  return p?.clientEmail || p?.passengerEmail || p?.email ||
-    t?.clientEmail || t?.passengerEmail || t?.entryEmail || t?.email || "";
+function isSharedTrip(t){
+  return (t?.isShared === true || String(t?.tripType || "").toUpperCase() === "SHARED" || normalizeText(t?.tripNumber).toUpperCase().includes("-SH"));
 }
 
-function getPassengerName(p,t){
-  return p?.clientName || p?.passengerName || p?.name || t?.clientName || t?.name || "";
-}
-
-function getPassengerPhone(p,t){
-  return p?.clientPhone || p?.passengerPhone || p?.phone || t?.clientPhone || t?.phone || "";
-}
-
-function getPickup(t,p){
-  return p?.pickup || t?.pickup || "";
-}
-
-function getDropoff(t,p){
-  return p?.dropoff || t?.dropoff || "";
-}
-
-function getSharedKey(t){
-  return normalizeText(t?.groupId) || normalizeText(t?.tripNumber) || String(t?._id || t?.id || "");
-}
+function getSharedKey(t){ return normalizeText(t?.groupId) || normalizeText(t?.tripNumber) || String(t?._id || t?.id); }
 
 function getRealPassengersFromGroup(group){
   const first = group[0] || {};
-
-  if(Array.isArray(first.passengers) && first.passengers.length){
-    return first.passengers;
-  }
-
+  if(Array.isArray(first.passengers) && first.passengers.length){ return first.passengers; }
   return group.map((t,i)=>({
-    passengerId:"P" + (i+1),
     name:t.name || t.clientName || "",
-    clientName:t.clientName || t.name || "",
     phone:t.phone || t.clientPhone || "",
-    clientPhone:t.clientPhone || t.phone || "",
-    email:t.email || t.clientEmail || "",
-    clientEmail:t.clientEmail || t.email || "",
+    status:t.status || "Scheduled",
     pickup:t.pickup || "",
-    dropoff:t.dropoff || "",
-    status:t.status || "Scheduled"
+    dropoff:t.dropoff || ""
   }));
 }
 
-function getSharedGroups(list=allTrips){
+function getSharedGroups(list = allTrips){
   const map = {};
-
   list.filter(isSharedTrip).forEach(t=>{
     const key = getSharedKey(t);
     if(!map[key]) map[key] = [];
     map[key].push(t);
   });
-
-  return Object.values(map).map(group=>
-    group.sort((a,b)=>Number(a.passengerIndex || 0)-Number(b.passengerIndex || 0))
-  );
+  return Object.values(map);
 }
 
 function hasClosedPassenger(group){
   const first = group[0] || {};
-  return getRealPassengersFromGroup(group).some(p=>isClosedStatus(p.status || first.status,first));
+  return getRealPassengersFromGroup(group).some(p => isClosedStatus(p.status || first.status,first));
 }
 
 function getClosedPassengers(group){
   const first = group[0] || {};
-  return getRealPassengersFromGroup(group).filter(p=>isClosedStatus(p.status || first.status,first));
+  return getRealPassengersFromGroup(group).filter(p => isClosedStatus(p.status || first.status,first));
 }
 
 function getGroupStatus(group){
   const first = group[0] || {};
   const closed = getClosedPassengers(group);
-
-  if(closed.length === 1)
-    return displayStatus(closed[0].status || first.status,first);
-
+  if(closed.length === 1) return displayStatus(closed[0].status || first.status,first);
   if(closed.length > 1){
-    if(closed.every(p=>isCompletedStatus(p.status || first.status))) return "Completed";
-    if(closed.every(p=>isCancelledStatus(p.status || first.status))) return "Cancelled";
-    if(closed.every(p=>isNoShowStatus(p.status || first.status))) return "No Show";
-    if(closed.every(p=>isNotCompletedStatus(p.status || first.status,first))) return "Not Completed";
+    if(closed.every(p => isCompletedStatus(p.status || first.status))) return "Completed";
+    if(closed.every(p => isCancelledStatus(p.status || first.status))) return "Cancelled";
     return "Mixed Closed";
   }
-
   return first.status || "Scheduled";
 }
 
-function isClosedTrip(t){
-  if(!t) return false;
-
-  if(isSharedTrip(t)){
-    const group =
-      getSharedGroups(allTrips).find(g=>getSharedKey(g[0]) === getSharedKey(t)) ||
-      [t];
-
-    return hasClosedPassenger(group);
-  }
-
-  return isClosedStatus(t.status,t);
-}
-
 /* ===============================
-   API
+   API LOAD FUNCTIONS
 ================================ */
-
 async function loadServices(){
   try{
-    const res = await fetch(SERVICES_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
-    });
-
+    const res = await fetch(SERVICES_URL,{ headers: token ? { Authorization:"Bearer " + token } : {} });
     if(!res.ok) throw new Error("Failed services");
-
     const data = await res.json();
-    const list = extractServices(data).filter(serviceEnabled);
-    const unique = new Map();
-
-    list.forEach(s=>{
-      const code = getServiceCodeFromService(s);
-      if(code && !unique.has(code)) unique.set(code,s);
-    });
-
-    services = [...unique.values()];
-
+    services = extractServices(data).filter(serviceEnabled);
   }catch(err){
     services = [];
   }
@@ -1054,21 +740,12 @@ async function loadServices(){
 
 async function loadTrips(){
   try{
-    const res = await fetch(API_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
-    });
-
+    const res = await fetch(API_URL,{ headers: token ? { Authorization:"Bearer " + token } : {} });
     if(!res.ok) throw new Error("Failed trips");
-
     const data = await res.json();
-
-    allTrips = Array.isArray(data)
-      ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a))
-      : [];
-
+    allTrips = Array.isArray(data) ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a)) : [];
     buildFilters();
     applyFilters();
-
   }catch(err){
     allTrips = [];
     displayItems = [];
@@ -1077,111 +754,56 @@ async function loadTrips(){
 }
 
 /* ===============================
-   DISPLAY / FILTERS
+   DISPLAY ITEMS AND FILTERING
 ================================ */
-
-function buildDisplayItems(list){
+function buildDisplayItems(trips){
   const items = [];
   const usedShared = new Set();
-
-  list.forEach(t=>{
+  trips.forEach(t=>{
     if(!isClosedTrip(t)) return;
-
     if(isSharedTrip(t)){
       const key = getSharedKey(t);
       if(usedShared.has(key)) return;
-
       usedShared.add(key);
-
-      const group =
-        getSharedGroups(list).find(g=>getSharedKey(g[0]) === key) ||
-        [t];
-
-      if(!hasClosedPassenger(group)) return;
-
-      items.push({
-        kind:"shared",
-        key,
-        date:parseTripDateTime(group[0]) || getBookedDateObj(group[0]),
-        tripDate:getTripDateKey(group[0]),
-        group
-      });
-
+      const group = getSharedGroups(trips).find(g => getSharedKey(g[0]) === key) || [t];
+      items.push({ kind:"shared", key, date:parseTripDateTime(group[0]) || getBookedDateObj(group[0]), tripDate:getTripDateKey(group[0]), group });
       return;
     }
-
-    items.push({
-      kind:"trip",
-      key:String(t._id || t.id),
-      date:parseTripDateTime(t) || getBookedDateObj(t),
-      tripDate:getTripDateKey(t),
-      trip:t
-    });
+    items.push({ kind:"trip", key:String(t._id || t.id), date:parseTripDateTime(t) || getBookedDateObj(t), tripDate:getTripDateKey(t), trip:t });
   });
-
   return items.sort((a,b)=>b.date-a.date);
 }
 
-function getItemTrip(item){
-  return item.kind === "trip" ? item.trip : item.group[0];
-}
-
 function searchableText(item){
-  const first = getItemTrip(item);
-  const passengers = item.kind === "shared" ? getRealPassengersFromGroup(item.group) : [];
-
-  return [
-    getTripNumber(first),
-    getServiceTitleByTrip(first),
-    sourceLabel(first),
-    first.company,
-    first.entryName,
-    first.entryPhone,
-    getEmail(first),
-    first.clientName,
-    first.clientPhone,
-    first.phone,
-    first.pickup,
-    first.dropoff,
-    getNotes(first),
-    first.tripDate,
-    first.tripTime,
-    JSON.stringify(passengers)
-  ].join(" ").toLowerCase();
+  const first = item.kind === "trip" ? item.trip : item.group[0];
+  return [getTripNumber(first), first.company, first.clientName, first.clientPhone, first.pickup, first.dropoff].join(" ").toLowerCase();
 }
 
 function applyFilters(){
   let items = buildDisplayItems(allTrips);
 
   if(activeService !== "ALL"){
-    items = items.filter(item=>getServiceCodeFromTrip(getItemTrip(item)) === activeService);
+    items = items.filter(item=>{
+      const t = item.kind === "trip" ? item.trip : item.group[0];
+      return getServiceCodeFromTrip(t) === activeService;
+    });
   }
 
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
-  if(q){
-    items = items.filter(item=>searchableText(item).includes(q));
-  }
+  if(q){ items = items.filter(item => searchableText(item).includes(q)); }
 
   const st = statusFilter ? statusFilter.value : "";
   if(st){
-    items = items.filter(item=>{
-      if(item.kind === "trip")
-        return displayStatus(item.trip.status,item.trip) === st;
-
+    items = items.filter(item => {
+      if(item.kind === "trip") return displayStatus(item.trip.status, item.trip) === st;
       return getGroupStatus(item.group) === st;
     });
   }
 
   const y = yearFilter?.value || "";
   const m = monthFilter?.value || "";
-
-  if(y){
-    items = items.filter(item=>String(item.tripDate || "").split("-")[0] === y);
-  }
-
-  if(m){
-    items = items.filter(item=>String(item.tripDate || "").split("-")[1] === m);
-  }
+  if(y){ items = items.filter(item => String(item.tripDate || "").split("-")[0] === y); }
+  if(m){ items = items.filter(item => String(item.tripDate || "").split("-")[1] === m); }
 
   displayItems = items;
   render();
@@ -1189,54 +811,19 @@ function applyFilters(){
 
 function buildFilters(){
   if(!yearFilter || !monthFilter) return;
-
   const oldYear = yearFilter.value || "";
-  const oldMonth = monthFilter.value || "";
-
   const years = new Set();
-  const months = new Set();
-
-  allTrips.forEach(t=>{
-    if(!t.tripDate) return;
-
-    const parts = String(t.tripDate).split("-");
-    if(parts[0]) years.add(parts[0]);
-    if(parts[1]) months.add(parts[1]);
-  });
-
-  yearFilter.innerHTML =
-    `<option value="">All Years</option>` +
-    [...years].sort((a,b)=>b-a).map(y=>
-      `<option value="${safe(y)}">${safe(y)}</option>`
-    ).join("");
-
-  monthFilter.innerHTML =
-    `<option value="">All Months</option>` +
-    [...months].sort().map(m=>
-      `<option value="${safe(m)}">${safe(m)}</option>`
-    ).join("");
-
+  allTrips.forEach(t=>{ if(t.tripDate){ const y = String(t.tripDate).split("-")[0]; if(y) years.add(y); } });
+  yearFilter.innerHTML = `<option value="">All Years</option>`;
+  [...years].sort((a,b)=>b-a).forEach(y=>{ yearFilter.innerHTML += `<option value="${safe(y)}">${safe(y)}</option>`; });
   yearFilter.value = oldYear;
-  monthFilter.value = oldMonth;
 }
 
 /* ===============================
-   STATS
+   STATS & COUNT MANAGEMENT
 ================================ */
-
 function createStats(){
-  return {
-    total:0,
-    today:0,
-    month:0,
-    completed:0,
-    cancelled:0,
-    noshow:0,
-    notCompleted:0,
-    facility:0,
-    gq:0,
-    shared:0
-  };
+  return { total:0, today:0, month:0, completed:0, cancelled:0, noshow:0, notCompleted:0, company:0, gq:0, shared:0 };
 }
 
 function countStatus(stats,status,trip){
@@ -1247,213 +834,126 @@ function countStatus(stats,status,trip){
 }
 
 function countItem(stats,item){
-  const first = getItemTrip(item);
+  const first = item.kind === "trip" ? item.trip : item.group[0];
   const azNow = getAZNow();
-
+  const today = dateKey(azNow);
+  const month = monthKey(azNow);
   stats.total++;
-
-  if(first.tripDate === dateKey(azNow)) stats.today++;
-  if(String(first.tripDate || "").slice(0,7) === monthKey(azNow)) stats.month++;
-
-  if(getSourceCode(first) === "FA") stats.facility++;
-  else stats.gq++;
-
+  if(first.tripDate === today) stats.today++;
+  if(String(first.tripDate || "").slice(0,7) === month) stats.month++;
+  if(getSourceCode(first) === "CO") stats.company++; else stats.gq++;
   if(item.kind === "shared"){
     stats.shared++;
-    getClosedPassengers(item.group).forEach(p=>{
-      countStatus(stats,p.status || first.status,first);
-    });
+    getClosedPassengers(item.group).forEach(p=>{ countStatus(stats,p.status || first.status,first); });
     return;
   }
-
   countStatus(stats,first.status,first);
 }
 
 function renderStats(){
   const stats = createStats();
-
   buildDisplayItems(allTrips).forEach(item=>countItem(stats,item));
 
   const wrap = document.getElementById("reviewStats");
   if(!wrap) return;
-
-  const data = [
-    ["Total Closed",stats.total],
-    ["Today",stats.today],
-    ["This Month",stats.month],
-    ["Completed",stats.completed],
-    ["Cancelled",stats.cancelled],
-    ["No Show",stats.noshow],
-    ["Not Completed",stats.notCompleted],
-    ["Facility",stats.facility],
-    ["Get Quote",stats.gq],
-    ["Shared Groups",stats.shared]
-  ];
-
-  wrap.innerHTML = data.map(x=>`
-    <div class="stat-card">
-      <div class="stat-number">${x[1]}</div>
-      <div class="stat-label">${safe(x[0])}</div>
-    </div>
-  `).join("");
+  wrap.innerHTML = `
+    <div class="stat-card total"><div class="stat-number">${stats.total}</div><div class="stat-label">Total Closed</div></div>
+    <div class="stat-card today"><div class="stat-number">${stats.today}</div><div class="stat-label">Today</div></div>
+    <div class="stat-card month"><div class="stat-number">${stats.month}</div><div class="stat-label">This Month</div></div>
+    <div class="stat-card completed"><div class="stat-number">${stats.completed}</div><div class="stat-label">Completed</div></div>
+    <div class="stat-card cancelled"><div class="stat-number">${stats.cancelled}</div><div class="stat-label">Cancelled</div></div>
+    <div class="stat-card noshow"><div class="stat-number">${stats.noshow}</div><div class="stat-label">No Show</div></div>
+    <div class="stat-card notcompleted"><div class="stat-number">${stats.notCompleted}</div><div class="stat-label">Not Completed</div></div>
+    <div class="stat-card company"><div class="stat-number">${stats.company}</div><div class="stat-label">Company</div></div>
+    <div class="stat-card gq"><div class="stat-number">${stats.gq}</div><div class="stat-label">Get Quote</div></div>
+    <div class="stat-card shared"><div class="stat-number">${stats.shared}</div><div class="stat-label">Shared Groups</div></div>
+  `;
 }
 
 function countItemsByService(code){
   const baseItems = buildDisplayItems(allTrips);
-
-  const selected = code === "ALL"
-    ? baseItems
-    : baseItems.filter(item=>getServiceCodeFromTrip(getItemTrip(item)) === code);
-
+  const selected = code === "ALL" ? baseItems : baseItems.filter(item=>{
+    const t = item.kind === "trip" ? item.trip : item.group[0];
+    return getServiceCodeFromTrip(t) === code;
+  });
   const stats = createStats();
   selected.forEach(item=>countItem(stats,item));
   return stats;
 }
 
+/* =========================================================================
+   بناء وعرض الكروت التفصيلية ديناميكياً مع دمج كارت ALL في البداية وربط الأحداث
+   ========================================================================= */
 function renderServiceCards(){
   const wrap = document.getElementById("serviceCards");
   if(!wrap) return;
 
-  const cards = [
-    {code:"ALL",title:"ALL"},
-    ...services.map(s=>({
-      code:getServiceCodeFromService(s),
-      title:getServiceTitle(s)
-    }))
+  // إعداد مصفوفة الكروت بدءاً بكارت ALL الجديد يليه باقي الخدمات النشطة
+  const cardsData = [
+    { code: "ALL", title: "ALL" },
+    ...services.map(s => ({ code: getServiceCodeFromService(s), title: getServiceTitle(s) }))
   ];
 
-  const used = new Set();
-
-  const unique = cards.filter(c=>{
-    if(used.has(c.code)) return false;
-    used.add(c.code);
-    return true;
-  });
-
-  wrap.innerHTML = unique.map(card=>{
+  wrap.innerHTML = cardsData.map(card => {
     const c = countItemsByService(card.code);
-    const active = activeService === card.code ? "active-card" : "";
+    const isActive = activeService === card.code ? "active-card" : "";
 
     return `
-      <div class="service-card ${active}" data-service="${safe(card.code)}">
-        <div class="service-card-title">${safe(card.title)}</div>
-        <div class="service-total">${c.total}</div>
-        <div class="service-mini">
-          <span>CP ${c.completed}</span>
-          <span>CN ${c.cancelled}</span>
-          <span>NS ${c.noshow}</span>
-          <span>NC ${c.notCompleted}</span>
-        </div>
+      <div class="service-card ${isActive}" data-service="${safe(card.code)}">
+        <div class="service-card-title" ${card.code === 'ALL' ? 'style="color:var(--blue);font-size:16px;font-weight:900;"' : ''}>${safe(card.title)}</div>
+        <div class="service-line"><span>Total Closed</span><span>${c.total}</span></div>
+        <div class="service-line"><span>Get Quote</span><span>${c.gq}</span></div>
+        <div class="service-line"><span>Company</span><span>${c.company}</span></div>
+        <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
+        <div class="service-line"><span>Cancelled</span><span style="${c.cancelled > 0 ? 'color:var(--red); font-weight:bold;' : ''}">${c.cancelled}</span></div>
+        <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
+        <div class="service-line"><span>Not Completed</span><span>${c.notCompleted}</span></div>
       </div>
     `;
   }).join("");
 
-  wrap.querySelectorAll(".service-card").forEach(card=>{
-    card.onclick = ()=>{
-      activeService = card.dataset.service || "ALL";
-      applyFilters();
+  // ربط حدث الضغط Click على الكروت مباشرة بعد حقنها في الصفحة لعمل الفلترة الفورية
+  wrap.querySelectorAll(".service-card").forEach(cardElement => {
+    cardElement.onclick = () => {
+      activeService = cardElement.dataset.service || "ALL";
+      applyFilters(); // تطبيق الفلاتر وتحديث الجدول بناءً على الخدمة المحددة
     };
   });
 }
 
 /* ===============================
-   VIEW
+   TABLE RENDERING FUNCTIONS
 ================================ */
-
-function viewLine(label,value){
-  return `
-    <div class="view-line">
-      <div class="view-label">${safe(label)}</div>
-      <div class="view-value">${safe(value || "--")}</div>
-    </div>
-  `;
-}
-
-function openReviewView(key){
-  const item = displayItems.find(x=>x.key === key);
-  if(!item) return;
-
-  const t = getItemTrip(item);
-
-  closeReviewView();
-
-  const overlay = document.createElement("div");
-  overlay.id = "reviewViewOverlay";
-  overlay.className = "view-overlay";
-
-  overlay.innerHTML = `
-    <div class="view-box">
-      <div class="view-head">
-        <div>Review Details</div>
-        <button class="view-close" type="button" onclick="closeReviewView()">×</button>
-      </div>
-
-      <div class="view-body">
-        ${viewLine("Source",sourceLabel(t))}
-        ${viewLine("Service",getServiceTitleByTrip(t))}
-        ${viewLine("Entry Name",t.entryName || "")}
-        ${viewLine("Entry Phone",t.entryPhone || "")}
-        ${viewLine("Client Email",getEmail(t))}
-        ${viewLine("Booked Date",getBookedDate(t))}
-        ${viewLine("Booked Time",getBookedTime(t))}
-      </div>
-    </div>
-  `;
-
-  overlay.addEventListener("click",e=>{
-    if(e.target === overlay) closeReviewView();
-  });
-
-  document.body.appendChild(overlay);
-}
-
-function closeReviewView(){
-  document.getElementById("reviewViewOverlay")?.remove();
-}
-
-/* ===============================
-   RENDER
-================================ */
-
-function rowClass(item){
-  const first = getItemTrip(item);
-  const status = item.kind === "trip" ? first.status : getGroupStatus(item.group);
-
-  let cls = "";
-
-  if(item.kind === "shared") cls += "row-shared ";
-  else if(getSourceCode(first) === "RV") cls += "row-rv ";
-  else if(getSourceCode(first) === "FA") cls += "row-facility ";
-  else cls += "row-gq ";
-
-  const sc = statusClass(status,first);
-
-  if(sc === "completed") cls += "completed-row ";
-  if(sc === "cancelled") cls += "cancelled-row ";
-  if(sc === "noshow") cls += "noshow-row ";
-  if(sc === "notcompleted") cls += "notcompleted-row ";
-
-  return cls + "trip-divider";
+function rowClass(status,trip,itemKind){
+  const cls = statusClass(status,trip);
+  let out = "";
+  if(itemKind === "shared") out += "shared-row ";
+  if(getSourceCode(trip) === "CO") out += "row-company "; else out += "row-getquote ";
+  if(cls === "completed") out += "completed-row ";
+  if(cls === "cancelled") out += "cancelled-row ";
+  if(cls === "noshow") out += "noshow-row ";
+  if(cls === "notcompleted") out += "notcompleted-row ";
+  return out.trim();
 }
 
 function groupByTripDate(items){
   const groups = {};
-
   items.forEach(item=>{
     const key = item.tripDate || "Unknown";
     if(!groups[key]) groups[key] = [];
     groups[key].push(item);
   });
-
   return groups;
 }
 
+let tripCounter = 1;
+
 function render(){
+  tripCounter = 1;
   renderStats();
-  renderServiceCards();
-
+  renderServiceCards(); 
+  
   if(!reviewContent) return;
-
   reviewContent.innerHTML = "";
 
   if(!displayItems.length){
@@ -1462,195 +962,104 @@ function render(){
   }
 
   const groups = groupByTripDate(displayItems);
-
-  const wrap = document.createElement("div");
-  wrap.className = "table-wrap";
-
-  const table = document.createElement("table");
-  table.className = "review-table";
-
-  table.innerHTML = `
+  reviewContent.innerHTML = `
+    <div class="table-wrap">
+    <table class="review-table">
     <thead>
-      <tr>
-        <th class="col-num">#</th>
-        <th class="col-trip">Trip #</th>
-        <th class="col-company">Company</th>
-        <th class="wide-client">Client / Passengers</th>
-        <th class="wide-phone">Phone</th>
-        <th class="wide-address">Pickup</th>
-        <th class="wide-stops">Stops</th>
-        <th class="wide-address">Dropoff</th>
-        <th class="wide-notes">Notes</th>
-        <th class="col-date">Trip Date</th>
-        <th class="col-time">Trip Time</th>
-        <th class="col-status">Status</th>
-        <th class="col-eye">👁️</th>
-      </tr>
+    <tr>
+    <th>#</th><th>Trip #</th><th>Source</th><th>Service</th><th>Company</th><th>Entry</th><th>Entry Phone</th>
+    <th>Passenger</th><th>Phone</th><th>Email</th><th>Pickup</th><th>Stops</th><th>Dropoff</th>
+    <th>Trip Date</th><th>Trip Time</th><th>Notes</th><th>Booked Date</th><th>Booked Time</th><th>Status</th>
+    </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="mainReviewBody"></tbody>
+    </table>
+    </div>
   `;
 
-  const tbody = table.querySelector("tbody");
-  let counter = 1;
-
+  const tbody = document.getElementById("mainReviewBody");
   Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(day=>{
-    const dateRow = document.createElement("tr");
-    dateRow.className = "date-row";
-    dateRow.innerHTML = `<td colspan="13">Trip Date: ${safe(day)}</td>`;
-    tbody.appendChild(dateRow);
-
+    tbody.innerHTML += `<tr class="date-row"><td colspan="19">Trip Date: ${safe(day)}</td></tr>`;
     groups[day].forEach(item=>{
-      const row = item.kind === "shared"
-        ? renderSharedRow(item,counter++)
-        : renderTripRow(item,counter++);
-
-      tbody.appendChild(row);
+      if(item.kind === "trip"){ tbody.appendChild(renderTripRow(item)); } 
+      else { renderSharedRows(tbody,item); }
+      tbody.innerHTML += `<tr class="trip-divider-line"><td colspan="19"></td></tr>`;
     });
   });
-
-  wrap.appendChild(table);
-  reviewContent.appendChild(wrap);
 }
 
-function renderTripRow(item,num){
+function renderTripRow(item){
   const t = item.trip;
-
   const tr = document.createElement("tr");
-  tr.className = rowClass(item);
-
+  tr.className = rowClass(t.status,t,"trip");
   tr.innerHTML = `
-    <td class="col-num">${num}</td>
-
-    <td class="col-trip">
-      <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
-    </td>
-
-    <td class="company-cell">
-      ${cellBox(safe(t.company || "--"))}
-    </td>
-
-    <td class="wide-client">
-      ${cellBox(safe(t.clientName || t.name || "--"))}
-    </td>
-
-    <td class="wide-phone">
-      ${cellBox(safe(t.clientPhone || t.phone || "--"))}
-    </td>
-
-    <td class="wide-address">
-      ${cellBox(safe(t.pickup || "--"))}
-    </td>
-
-    <td class="wide-stops">
-      ${cellBox(stopsDisplay(t))}
-    </td>
-
-    <td class="wide-address">
-      ${cellBox(safe(t.dropoff || "--"))}
-    </td>
-
-    <td class="wide-notes">
-      ${cellBox(safe(getNotes(t) || "--"))}
-    </td>
-
-    <td class="col-date">${safe(t.tripDate || "-")}</td>
-    <td class="col-time">${safe(t.tripTime || "-")}</td>
-
-    <td class="col-status">
-      ${statusHTML(t.status,t)}
-    </td>
-
-    <td class="col-eye">
-      <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
-    </td>
+    <td>${tripCounter++}</td>
+    <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
+    <td>${sourceHTML(t)}</td>
+    <td><span class="service-pill">${safe(getServiceTitleByTrip(t))}</span></td>
+    <td class="company-name">${safe(t.company || "-")}</td>
+    <td>${safe(t.entryName || "-")}</td>
+    <td>${safe(t.entryPhone || "-")}</td>
+    <td class="wide-client">${safe(t.clientName || t.name || "-")}</td>
+    <td>${safe(t.clientPhone || t.phone || "-")}</td>
+    <td>${safe(getEmail(t,null))}</td>
+    <td class="wide-address">${safe(t.pickup || "-")}</td>
+    <td>${safe(t.stops?.length || 0)}</td>
+    <td class="wide-address">${safe(t.dropoff || "-")}</td>
+    <td>${safe(t.tripDate || "-")}</td>
+    <td>${safe(t.tripTime || "-")}</td>
+    <td>${safe(t.notes || "-")}</td>
+    <td>${safe(getBookedDate(t))}</td>
+    <td>${safe(getBookedTime(t))}</td>
+    <td class="status-td ${statusClass(t.status,t)}">${displayStatus(t.status,t)}</td>
   `;
-
   return tr;
 }
 
-function renderSharedRow(item,num){
+function renderSharedRows(tbody,item){
   const group = item.group;
   const first = group[0] || {};
   const passengers = getClosedPassengers(group);
-  const groupStatus = getGroupStatus(group);
 
-  const names = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getPassengerName(p,first) || "--")}`
-  ));
-
-  const phones = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getPassengerPhone(p,first) || "--")}`
-  ));
-
-  const pickups = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getPickup(first,p) || "--")}`
-  ));
-
-  const dropoffs = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getDropoff(first,p) || "--")}`
-  ));
-
-  const tr = document.createElement("tr");
-  tr.className = rowClass(item);
-
-  tr.innerHTML = `
-    <td class="col-num">${num}</td>
-
-    <td class="col-trip">
-      <span class="trip-number-badge">${safe(getTripNumber(first))}</span>
-    </td>
-
-    <td class="company-cell">
-      ${cellBox(safe(first.company || "--"))}
-    </td>
-
-    <td class="wide-client">${names}</td>
-    <td class="wide-phone">${phones}</td>
-    <td class="wide-address">${pickups}</td>
-
-    <td class="wide-stops">
-      ${cellBox("Route optimized per passenger")}
-    </td>
-
-    <td class="wide-address">${dropoffs}</td>
-
-    <td class="wide-notes">
-      ${cellBox(safe(getNotes(first) || "--"))}
-    </td>
-
-    <td class="col-date">${safe(first.tripDate || "-")}</td>
-    <td class="col-time">${safe(first.tripTime || "-")}</td>
-
-    <td class="col-status">
-      ${statusHTML(groupStatus,first)}
-    </td>
-
-    <td class="col-eye">
-      <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
-    </td>
-  `;
-
-  return tr;
+  passengers.forEach((p,index)=>{
+    const tr = document.createElement("tr");
+    tr.className = rowClass(p.status || first.status,first,"shared") + (index !== passengers.length - 1 ? " shared-separator" : "");
+    tr.innerHTML = `
+      <td>${index === 0 ? tripCounter++ : ""}</td>
+      <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
+      <td>${index === 0 ? sourceHTML(first) : ""}</td>
+      <td>${index === 0 ? `<span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>` : ""}</td>
+      <td class="company-name">${index === 0 ? safe(first.company || "-") : ""}</td>
+      <td>${index === 0 ? safe(first.entryName || "-") : ""}</td>
+      <td>${index === 0 ? safe(first.entryPhone || "-") : ""}</td>
+      <td class="wide-client">${safe(getPassengerName(p,first))}</td>
+      <td>${safe(getPassengerPhone(p,first))}</td>
+      <td>${safe(getEmail(first,p))}</td>
+      <td class="wide-address">${safe(getPickup(first,p))}</td>
+      <td>${index === 0 ? safe(first.stops?.length || 0) : ""}</td>
+      <td class="wide-address">${safe(getDropoff(first,p))}</td>
+      <td>${index === 0 ? safe(first.tripDate || "-") : ""}</td>
+      <td>${index === 0 ? safe(first.tripTime || "-") : ""}</td>
+      <td>${index === 0 ? safe(first.notes || "-") : ""}</td>
+      <td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
+      <td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
+      <td class="status-td ${statusClass(p.status || first.status,first)}">${displayStatus(p.status || first.status,first)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 /* ===============================
-   EVENTS
+   EVENTS HANDLERS
 ================================ */
-
 searchInput?.addEventListener("input",applyFilters);
 statusFilter?.addEventListener("change",applyFilters);
 yearFilter?.addEventListener("change",applyFilters);
 monthFilter?.addEventListener("change",applyFilters);
 
-Object.assign(window,{
-  openReviewView,
-  closeReviewView
-});
-
 /* ===============================
-   INIT
+   INITIALIZATION
 ================================ */
-
 async function refreshEverything(){
   await loadServices();
   await loadTrips();
@@ -1658,11 +1067,13 @@ async function refreshEverything(){
 
 (async function init(){
   await refreshEverything();
-
   if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(refreshEverything,30000);
+  refreshTimer = setInterval(refreshEverything,30000); // تحديث دوري تلقائي كل 30 ثانية
 })();
-</script>
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch-review.js"></script>
+</body>
+</html>
 
 </body>
 </html>
