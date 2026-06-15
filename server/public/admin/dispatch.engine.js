@@ -68,10 +68,15 @@ const CLOSED_STATUSES = [
 ];
 
 const ACTIVE_STATUSES = [
-  "scheduled","confirmed","paid",
-  "rv","reserved","review","dispatched"
+  "scheduled",
+  "confirmed",
+  "paid",
+  "rv",
+  "reserved",
+  "review",
+  "assigned",
+  "dispatched"
 ];
-
 /* ================= BASIC HELPERS ================= */
 
 function clean(v){
@@ -108,7 +113,18 @@ function isClosedTrip(t){
 }
 
 function isActiveTrip(t){
-  return ACTIVE_STATUSES.includes(statusKey(t.status || "scheduled")) && !isClosedTrip(t);
+
+  const status =
+    statusKey(
+      t.dispatchStatus ||
+      t.status ||
+      "scheduled"
+    );
+
+  return (
+    ACTIVE_STATUSES.includes(status) &&
+    !isClosedTrip(t)
+  );
 }
 
 /* ================= SYSTEM DATE ================= */
