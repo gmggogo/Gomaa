@@ -4,10 +4,11 @@
 
 const Store = {
 
- API_DISPATCH : "/api/dispatch",
+API_TRIPS    : "/api/trips",
+API_DRIVERS  : "/api/drivers",
+API_SCHEDULE : "/api/driver-schedule",
 API_SERVICES : "/api/services/admin",
 API_SYSTEM   : "/api/system-design",
-
 
   async getJSON(url){
 
