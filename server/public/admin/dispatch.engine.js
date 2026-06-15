@@ -703,23 +703,29 @@ function normalizeTrip(t){
 }
 
 function filterTrips(rawTrips){
+
   const seen = new Set();
 
   return rawTrips
     .filter(t=>{
+
       const id = String(t._id || t.id || "");
-      if(!id || seen.has(id)) return false;
+
+      if(!id || seen.has(id))
+        return false;
+
       seen.add(id);
 
-      if(t.dispatchSelected !== true) return false;
-      if(t.disabled === true) return false;
-      if(!isActiveTrip(t)) return false;
-      if(!isToday(t) && !isTomorrow(t)) return false;
+      if(t.disabled === true)
+        return false;
 
       return true;
+
     })
     .map(normalizeTrip)
-    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
+    .sort((a,b)=>
+      getTripTimeValue(a)-getTripTimeValue(b)
+    );
 }
 
 async function loadAll(){
