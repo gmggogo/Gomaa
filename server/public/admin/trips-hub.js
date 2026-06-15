@@ -148,10 +148,7 @@ if(!container) console.error("Missing #hubContainer");
   const style = document.createElement("style");
   style.id = "trips-hub-v7-style";
   style.innerHTML = `
-    :root{
-      --hub-sticky-height:0px;
-    }
-
+   
     .top-add-trip-wrap{
       display:flex;
       justify-content:flex-start;
@@ -375,16 +372,16 @@ if(!container) console.error("Missing #hubContainer");
       box-sizing:border-box;
     }
 
-    .hub-table th{
-      position:sticky;
-      top:var(--hub-sticky-height);
-      z-index:70;
-      background:#2563eb;
-      color:#fff;
-      font-weight:900;
-      white-space:nowrap;
-      font-size:11px;
-    }
+.hub-table th{
+  background:#1f2937;
+  color:#fff;
+  font-weight:900;
+  white-space:nowrap;
+  font-size:11px;
+  position:static;
+  top:auto;
+  z-index:auto;
+}
 
     .col-num{width:38px;}
     .col-select{width:46px;}
@@ -442,17 +439,17 @@ if(!container) console.error("Missing #hubContainer");
       border-bottom:3px solid #000!important;
     }
 
-    .date-separator td{
-      background:#f8fafc!important;
-      color:#1e3a8a!important;
-      font-weight:900!important;
-      text-align:center!important;
-      padding:3px 6px!important;
-      font-size:10.5px!important;
-      line-height:1!important;
-      border-top:2px solid #cbd5e1!important;
-      border-bottom:2px solid #cbd5e1!important;
-    }
+   .date-separator td{
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  font-weight:900!important;
+  text-align:center!important;
+  padding:4px 6px!important;
+  font-size:11px!important;
+  line-height:1.1!important;
+  border-top:2px solid #60a5fa!important;
+  border-bottom:2px solid #60a5fa!important;
+}
 
     .cell-box{
       display:grid;
@@ -1993,11 +1990,7 @@ function renderSharedRow(item,rowNumber){
 /* ================= STICKY OFFSET ================= */
 
 function updateStickyOffsets(){
-  requestAnimationFrame(()=>{
-    const sticky = document.getElementById("hubStickyTop");
-    const h = sticky ? sticky.offsetHeight : 0;
-    document.documentElement.style.setProperty("--hub-sticky-height", h + "px");
-  });
+  return;
 }
 
 window.addEventListener("resize",updateStickyOffsets);
