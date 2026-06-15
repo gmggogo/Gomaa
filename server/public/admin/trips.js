@@ -1,5 +1,5 @@
 /* ===============================
-   ADMIN TRIPS V4 CLEAN
+   ADMIN TRIPS V5 CLEAN
    Same Trips Hub Shared Layout
    Eye View + Nested Cells
    Select / Unselect Buttons
@@ -24,6 +24,7 @@ let services = [];
 let displayItems = [];
 let activeService = "ALL";
 let SYSTEM_TIMEZONE = "America/Phoenix";
+let editingKey = null;
 
 const selectedMap = new WeakMap();
 
@@ -204,7 +205,7 @@ const selectedMap = new WeakMap();
 
 .trip-table{
   width:100%!important;
-  min-width:1730px!important;
+  min-width:1820px!important;
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff!important;
@@ -244,60 +245,120 @@ const selectedMap = new WeakMap();
 }
 
 /* ===============================
-   COLUMN SIZES - SAME HUB LOGIC
+   COLUMN SIZES
 ================================ */
 
-.col-dispatch{width:62px;}
-.col-num{width:30px;}
-.col-trip{width:76px;}
-.col-company{width:100px;}
-.col-date{width:82px;}
-.col-time{width:58px;}
-.col-status{width:76px;}
-.col-eye{width:32px;}
-.col-actions{width:110px;}
+.col-dispatch{
+  width:62px!important;
+  min-width:62px!important;
+  max-width:62px!important;
+}
+
+.col-num{
+  width:30px!important;
+  min-width:30px!important;
+  max-width:30px!important;
+}
+
+.col-trip{
+  width:76px!important;
+  min-width:76px!important;
+  max-width:76px!important;
+}
+
+.col-company{
+  width:100px!important;
+  min-width:100px!important;
+  max-width:100px!important;
+}
+
+.col-date{
+  width:82px!important;
+  min-width:82px!important;
+  max-width:82px!important;
+}
+
+.col-time{
+  width:58px!important;
+  min-width:58px!important;
+  max-width:58px!important;
+}
+
+.col-status{
+  width:76px!important;
+  min-width:76px!important;
+  max-width:76px!important;
+}
+
+.col-eye{
+  width:34px!important;
+  min-width:34px!important;
+  max-width:34px!important;
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
+
+.col-actions{
+  width:130px!important;
+  min-width:130px!important;
+  max-width:130px!important;
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
 
 .wide-client{
-  width:180px;
+  width:180px!important;
+  min-width:180px!important;
+  max-width:180px!important;
   text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
+  white-space:normal!important;
+  word-break:break-word!important;
 }
 
 .wide-phone{
-  width:115px;
+  width:115px!important;
+  min-width:115px!important;
+  max-width:115px!important;
   text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
+  white-space:normal!important;
+  word-break:break-word!important;
 }
 
 .wide-address{
-  width:230px;
+  width:230px!important;
+  min-width:230px!important;
+  max-width:230px!important;
   text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
+  white-space:normal!important;
+  word-break:break-word!important;
   font-size:10.5px!important;
 }
 
 .wide-stops{
-  width:120px;
+  width:120px!important;
+  min-width:120px!important;
+  max-width:120px!important;
   text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
+  white-space:normal!important;
+  word-break:break-word!important;
   font-size:10.5px!important;
 }
 
 .wide-notes{
-  width:240px!important;
+  width:260px!important;
+  min-width:260px!important;
+  max-width:260px!important;
   text-align:left!important;
   white-space:normal!important;
   word-break:break-word!important;
 }
 
 .company-cell{
-  width:100px;
-  font-weight:800;
-  word-break:break-word;
+  width:100px!important;
+  min-width:100px!important;
+  max-width:100px!important;
+  font-weight:800!important;
+  word-break:break-word!important;
   text-align:left!important;
 }
 
@@ -529,19 +590,24 @@ const selectedMap = new WeakMap();
 
 .actions{
   display:flex!important;
+  flex-direction:row!important;
   gap:6px!important;
   justify-content:center!important;
   align-items:center!important;
-  flex-wrap:wrap!important;
+  flex-wrap:nowrap!important;
+  width:100%!important;
+  margin:0!important;
 }
 
 .btn{
   border:none!important;
-  padding:5px 9px!important;
+  width:56px!important;
+  padding:5px 0!important;
   border-radius:7px!important;
   cursor:pointer!important;
   font-size:11px!important;
   font-weight:900!important;
+  text-align:center!important;
 }
 
 .btn-edit{
@@ -613,7 +679,7 @@ const selectedMap = new WeakMap();
 
 @media(max-width:768px){
   .trip-table{
-    min-width:1680px!important;
+    min-width:1820px!important;
   }
 
   .trip-table th,
@@ -661,6 +727,12 @@ function safe(v){
 
 function clean(v){ return String(v ?? "").trim(); }
 function upper(v){ return clean(v).toUpperCase(); }
+
+function cssEscape(v){
+  if(window.CSS && typeof CSS.escape === "function")
+    return CSS.escape(String(v));
+  return String(v).replace(/"/g,'\\"');
+}
 
 function authHeaders(json=false){
   return {
@@ -842,11 +914,19 @@ function stopsDisplay(t){
 }
 
 function parseStopsText(v){
-  return clean(v).split("\n").map(x=>x.trim()).filter(Boolean).map(address=>({address}));
+  return clean(v)
+    .split("\n")
+    .map(x=>x.trim())
+    .filter(Boolean)
+    .map(address=>({address}));
 }
 
 function statusKey(v){
-  return String(v || "").replace(/[_-]/g," ").replace(/\s+/g,"").toLowerCase().trim();
+  return String(v || "")
+    .replace(/[_-]/g," ")
+    .replace(/\s+/g,"")
+    .toLowerCase()
+    .trim();
 }
 
 function getStatusClass(status){
@@ -854,6 +934,15 @@ function getStatusClass(status){
   if(s === "confirmed") return "confirmed";
   if(s === "paid") return "paid";
   return "";
+}
+
+function isDispatchStatus(v){
+  const s = String(v || "")
+    .toLowerCase()
+    .replace(/[_-]/g," ")
+    .trim();
+
+  return s === "confirmed" || s === "paid";
 }
 
 /* ===============================
@@ -933,8 +1022,13 @@ function getRealPassengersFromGroup(group){
 
 function getGroupStatus(group){
   const passengers = getRealPassengersFromGroup(group);
-  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("confirm"))) return "Confirmed";
-  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("paid"))) return "Paid";
+
+  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("confirm")))
+    return "Confirmed";
+
+  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("paid")))
+    return "Paid";
+
   return group[0]?.status || "Scheduled";
 }
 
@@ -952,7 +1046,10 @@ function buildDisplayItems(list){
   list.forEach(t=>{
     if(isSharedTrip(t)){
       const key = getSharedKey(t);
-      if(usedShared.has(key)) return;
+
+      if(usedShared.has(key))
+        return;
+
       usedShared.add(key);
 
       const group = (sharedMap[key] || [t]).sort((a,b)=>
@@ -984,32 +1081,60 @@ function buildDisplayItems(list){
 ================================ */
 
 function isDispatchTrip(t){
-  const s = String(t.status || "")
-    .toLowerCase()
-    .replace(/[_-]/g," ")
-    .trim();
 
-  return (
-    s === "confirmed" ||
-    s === "paid"
-  );
+  if(isDispatchStatus(t.status))
+    return true;
+
+  if(isSharedTrip(t) && Array.isArray(t.passengers)){
+    return t.passengers.some(p=>isDispatchStatus(p.status || t.status));
+  }
+
+  return false;
 }
 
 function baseTrips(){
-  return trips.filter(t=>{
-    if(t.disabled === true) return false;
-    if(!isTripAllowedByService(t)) return false;
-    if(!isDispatchTrip(t)) return false;
 
-    if(
-      !isTodayTrip(t) &&
-      !isTomorrowTrip(t)
-    ){
-      return false;
+  const sharedKeysToKeep = new Set();
+
+  trips.forEach(t=>{
+
+    if(!isSharedTrip(t))
+      return;
+
+    if(t.disabled === true)
+      return;
+
+    if(!isTripAllowedByService(t))
+      return;
+
+    if(!isTodayTrip(t) && !isTomorrowTrip(t))
+      return;
+
+    if(isDispatchTrip(t)){
+      sharedKeysToKeep.add(getSharedKey(t));
     }
 
-    return true;
   });
+
+  return trips.filter(t=>{
+
+    if(t.disabled === true)
+      return false;
+
+    if(!isTripAllowedByService(t))
+      return false;
+
+    if(!isTodayTrip(t) && !isTomorrowTrip(t))
+      return false;
+
+    if(isSharedTrip(t)){
+      return sharedKeysToKeep.has(getSharedKey(t));
+    }
+
+    return isDispatchTrip(t);
+
+  });
+
 }
 
 function currentItems(){
@@ -1109,6 +1234,7 @@ function renderServiceCards(){
 
 function setActiveService(code){
   activeService = code || "ALL";
+  editingKey = null;
   renderAll();
 }
 
@@ -1457,7 +1583,7 @@ function drawGroup(title,list){
 
 function renderTripRow(item,num){
   const t = item.trip;
-  const editing = item.editing === true;
+  const editing = editingKey === item.key;
 
   const tr = document.createElement("tr");
   tr.className = rowClass(item);
@@ -1521,9 +1647,11 @@ function renderTripRow(item,num){
       <button class="eye-btn" type="button" title="View" onclick="openTripView('${safe(item.key)}')">👁️</button>
     </td>
 
-    <td class="actions col-actions">
-      <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
-      <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
+    <td class="col-actions">
+      <div class="actions">
+        <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
+        <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
+      </div>
     </td>
   `;
 
@@ -1533,7 +1661,7 @@ function renderTripRow(item,num){
 function renderSharedRow(item,num){
   const first = item.trip;
   const passengers = getRealPassengersFromGroup(item.group);
-  const editing = item.editing === true;
+  const editing = editingKey === item.key;
   const groupStatus = getGroupStatus(item.group);
 
   const names = editing
@@ -1603,9 +1731,11 @@ function renderSharedRow(item,num){
       <button class="eye-btn" type="button" title="View" onclick="openTripView('${safe(item.key)}')">👁️</button>
     </td>
 
-    <td class="actions col-actions">
-      <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
-      <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
+    <td class="col-actions">
+      <div class="actions">
+        <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
+        <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
+      </div>
     </td>
   `;
 
@@ -1638,13 +1768,13 @@ async function editItem(key,btn){
 
   if(!item || !row) return;
 
-  if(item.editing !== true){
-    item.editing = true;
+  if(editingKey !== key){
+    editingKey = key;
     renderTrips();
 
     setTimeout(()=>{
-      const freshRow = document.querySelector(`tr[data-key="${CSS.escape(key)}"]`);
-      freshRow?.querySelectorAll("[data-field='pickup'],[data-field='dropoff']").forEach(attachAutocomplete);
+      const freshRow = document.querySelector(`tr[data-key="${cssEscape(key)}"]`);
+      freshRow?.querySelectorAll(`[data-field="pickup"],[data-field="dropoff"]`).forEach(attachAutocomplete);
     },50);
 
     return;
@@ -1697,12 +1827,14 @@ async function saveSingleItem(item,row){
     body:JSON.stringify(payload)
   });
 
+  editingKey = null;
   await loadTrips();
 }
 
 async function saveSharedItem(item,row){
   const first = item.trip;
   const oldPassengers = getRealPassengersFromGroup(item.group);
+
   const passengers = oldPassengers.map((p,i)=>({
     ...p,
     name: row.querySelector(`[data-field="p_${i}_name"]`)?.value || "",
@@ -1738,6 +1870,7 @@ async function saveSharedItem(item,row){
     })
   ));
 
+  editingKey = null;
   await loadTrips();
 }
 
@@ -1760,6 +1893,7 @@ async function deleteItem(key){
     })
   ));
 
+  editingKey = null;
   await loadTrips();
 }
 
