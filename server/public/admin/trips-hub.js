@@ -212,12 +212,12 @@ if(!container) console.error("Missing #hubContainer");
       border-radius:14px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.08);
     }
 
-    .hub-table{
-      min-width:1650px;
-      width:max-content;
-      border-collapse:collapse;
-      background:#fff;
-    }
+.hub-table{
+  min-width:2200px;
+  width:max-content;
+  border-collapse:collapse;
+  background:#fff;
+}
 
     .hub-table th,.hub-table td{
       border:1px solid #dbe3ee;
@@ -236,12 +236,12 @@ if(!container) console.error("Missing #hubContainer");
       font-size:13px;
     }
 
-    .col-num{width:42px;min-width:42px;max-width:42px;}
-    .col-select{width:52px;min-width:52px;max-width:52px;}
-    .col-trip{width:95px;min-width:95px;max-width:105px;}
-    .col-company{width:130px;min-width:130px;max-width:170px;}
-    .col-time{width:75px;min-width:75px;max-width:80px;}
-    .col-eye{width:48px;min-width:48px;max-width:48px;}
+   .col-num{width:45px;min-width:45px;max-width:45px;}
+.col-select{width:55px;min-width:55px;max-width:55px;}
+.col-trip{width:115px;min-width:115px;max-width:125px;}
+.col-company{width:150px;min-width:150px;max-width:190px;}
+.col-time{width:80px;min-width:80px;max-width:85px;}
+.col-eye{width:50px;min-width:50px;max-width:50px;}
 
     .trip-divider td{
       border-bottom:3px solid #000!important;
@@ -260,8 +260,8 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .wide-address{
-      min-width:230px;
-      max-width:340px;
+  min-width:280px;
+  max-width:420px;
       text-align:left!important;
       white-space:pre-line;
       word-break:break-word;
@@ -269,24 +269,24 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .wide-client{
-      min-width:160px;
-      max-width:240px;
+  min-width:210px;
+  max-width:310px;
       text-align:left!important;
       white-space:pre-line;
       word-break:break-word;
     }
 
-    .wide-phone{
-      min-width:125px;
-      max-width:170px;
+   .wide-phone{
+  min-width:150px;
+  max-width:210px;
       text-align:left!important;
       white-space:pre-line;
       word-break:break-word;
     }
 
-    .wide-notes{
-      min-width:170px;
-      max-width:250px;
+.wide-notes{
+  min-width:220px;
+  max-width:320px;
       text-align:left!important;
       white-space:pre-line;
       word-break:break-word;
@@ -461,7 +461,7 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     @media(max-width:768px){
-      .hub-table{min-width:1180px;}
+      .hub-table{min-width:1900px;}
       .hub-table th,.hub-table td{font-size:11px;padding:6px;}
       .wide-address{font-size:10.5px!important;min-width:180px;max-width:260px;}
       .wide-client{min-width:135px;max-width:190px;}
