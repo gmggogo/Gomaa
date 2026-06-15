@@ -37,43 +37,6 @@ body{
   width:100%;
 }
 
-/* HEADER TITLE */
-
-.page-head{
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:18px 20px;
-  margin-bottom:18px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  flex-wrap:wrap;
-}
-
-.page-title{
-  font-size:26px;
-  font-weight:900;
-}
-
-.page-sub{
-  margin-top:5px;
-  color:var(--muted);
-  font-size:13px;
-  font-weight:700;
-}
-
-.role-badge{
-  background:#e0edff;
-  color:#1d4ed8;
-  padding:9px 14px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:900;
-}
-
 /* TOOLBAR */
 
 .toolbar{
@@ -117,79 +80,28 @@ body{
   box-shadow:0 0 0 3px rgba(37,99,235,.12);
 }
 
-/* TABS */
-
-.hub-tabs{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-  margin-bottom:18px;
-}
-
-.hub-tab{
-  border:none;
-  border-radius:16px;
-  padding:16px;
-  cursor:pointer;
-  background:#e2e8f0;
-  color:#0f172a;
-  font-weight:900;
-  font-size:15px;
-  box-shadow:0 6px 16px rgba(15,23,42,.05);
-}
-
-.hub-tab.active{
-  background:linear-gradient(135deg,#2563eb,#1d4ed8);
-  color:#fff;
-}
-
-.tab-title{
-  display:block;
-  font-size:16px;
-}
-
-.tab-count{
-  display:block;
-  margin-top:6px;
-  font-size:12px;
-  opacity:.85;
-}
-
 /* CONTAINER */
 
 #hubContainer{
   width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-}
-
-.hub-table{
-  min-width:2200px;
-  width:max-content;
-  border-collapse:collapse;
-}
-
-/* GROUP TITLE */
-
-.group-title{
-  font-size:18px;
-  font-weight:900;
-  margin:20px 0 10px;
-  color:#0f172a;
 }
 
 /* TABLE */
 
-.hub-table{
-  min-width:2200px;
-  width:max-content;
-  table-layout:auto;
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:16px;
   background:#fff;
-  border-radius:14px;
-  overflow:hidden;
   box-shadow:0 8px 22px rgba(15,23,42,.08);
-  margin-bottom:22px;
+}
+
+.hub-table{
+  width:100%;
+  min-width:1450px;
   border-collapse:collapse;
+  background:#fff;
 }
 
 .hub-table th,
@@ -199,6 +111,7 @@ body{
   text-align:center;
   font-size:12px;
   vertical-align:middle;
+  font-weight:700;
 }
 
 .hub-table th{
@@ -206,105 +119,180 @@ body{
   color:#fff;
   white-space:nowrap;
   font-weight:900;
+  position:sticky;
+  top:0;
+  z-index:2;
 }
 
-.hub-table td{
-  position:relative;
-  overflow:visible;
-  background-clip:padding-box;
-  font-weight:700;
+.date-row td{
+  background:#1e293b!important;
+  color:#fff!important;
+  text-align:left!important;
+  font-size:14px!important;
+  font-weight:900!important;
+  padding:11px 14px!important;
 }
 
-.hub-table input,
-.hub-table textarea,
-.hub-table select{
-  width:100%;
-  box-sizing:border-box;
-  padding:7px 8px;
-  border:1px solid #cbd5e1;
-  border-radius:7px;
+/* ROW COLORS */
+
+.facility-row td{background:#dbeafe;}
+.gq-row td{background:#dcfce7;}
+.reserved-row td{background:#fef3c7;}
+.shared-row td{background:#ede9fe;}
+.new-trip-row td{box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);}
+
+/* WIDTHS */
+
+.w-trip{min-width:110px;}
+.w-facility{min-width:130px;}
+.w-client{min-width:160px;text-align:left!important;}
+.w-phone{min-width:110px;}
+.w-address{min-width:220px;max-width:320px;text-align:left!important;white-space:pre-line;word-break:break-word;}
+.w-stops{min-width:180px;max-width:260px;text-align:left!important;white-space:pre-line;word-break:break-word;}
+.w-notes{min-width:170px;max-width:260px;text-align:left!important;white-space:pre-line;word-break:break-word;}
+.w-date{min-width:105px;}
+.w-time{min-width:90px;}
+.w-status{min-width:105px;}
+.w-view{min-width:70px;}
+
+/* PILLS */
+
+.trip-number-badge{
+  font-weight:900;
+  color:#1d4ed8;
+  white-space:nowrap;
+}
+
+.status-pill{
+  display:inline-flex;
+  padding:5px 9px;
+  border-radius:999px;
   font-size:12px;
-  font-family:inherit;
-  font-weight:700;
+  font-weight:900;
+  background:#f1f5f9;
+  color:#0f172a;
+  white-space:nowrap;
 }
 
-.hub-table textarea{
-  min-height:48px;
-  resize:vertical;
-}
-
-.hub-table input:disabled,
-.hub-table textarea:disabled,
-.hub-table select:disabled{
-  background:#f8fafc;
-  color:#111827;
-  opacity:1;
-}
-
-/* AUTOCOMPLETE */
-
-.input-wrap{
-  position:relative;
-  width:100%;
-}
-
-.suggestions{
-  position:absolute;
-  top:100%;
-  left:0;
-  right:0;
-  background:#fff;
+.status-pill.scheduled{
+  background:#f1f5f9;
+  color:#334155;
   border:1px solid #cbd5e1;
-  border-radius:10px;
-  z-index:99999;
-  max-height:220px;
-  overflow:auto;
-  box-shadow:0 15px 30px rgba(0,0,0,.15);
-  margin-top:4px;
-  text-align:left;
 }
 
-.option{
-  padding:10px 12px;
-  cursor:pointer;
-  font-size:13px;
-  border-bottom:1px solid #eef2f7;
-  color:#111827;
-  background:#fff;
+.status-pill.confirmed{
+  background:#bbf7d0;
+  color:#14532d;
+  border:1px solid #86efac;
 }
 
-.option:hover{
-  background:#eff6ff;
+.status-pill.paid{
+  background:#dbeafe;
+  color:#1d4ed8;
+  border:1px solid #93c5fd;
 }
 
-.option.disabled{
-  background:#f8fafc;
-  color:#64748b;
-  cursor:default;
-}
+/* VIEW */
 
-/* ACTIONS */
-
-.hub-actions{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:center;
-}
-
-.hub-btn{
+.view-btn{
   border:none;
-  padding:7px 11px;
-  border-radius:7px;
+  background:#0f172a;
+  color:#fff;
+  width:34px;
+  height:34px;
+  border-radius:8px;
   cursor:pointer;
-  font-size:12px;
+  font-size:16px;
   font-weight:900;
 }
 
-.edit{background:#3b82f6;color:#fff;}
-.save{background:#16a34a;color:#fff;}
-.delete{background:#dc2626;color:#fff;}
+.view-btn:hover{
+  background:#2563eb;
+}
+
+.details-row td{
+  background:#f8fafc!important;
+  padding:0!important;
+}
+
+.details-box{
+  padding:14px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+
+.details-item{
+  background:#fff;
+  border:1px solid #dbe3ee;
+  border-radius:10px;
+  padding:10px;
+  text-align:left;
+}
+
+.details-label{
+  font-size:11px;
+  color:#64748b;
+  font-weight:900;
+  margin-bottom:4px;
+}
+
+.details-value{
+  font-size:13px;
+  font-weight:800;
+  color:#0f172a;
+  white-space:pre-line;
+  word-break:break-word;
+}
+
+/* SHARED INNER CELLS */
+
+.shared-grid{
+  display:flex;
+  flex-direction:column;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  overflow:hidden;
+  background:#fff;
+}
+
+.shared-cell{
+  min-height:34px;
+  padding:7px;
+  border-bottom:1px solid #cbd5e1;
+  background:#fff;
+  text-align:left;
+  font-size:12px;
+  font-weight:800;
+  white-space:pre-line;
+  word-break:break-word;
+}
+
+.shared-cell:last-child{
+  border-bottom:none;
+}
+
+/* EDIT */
+
+.edit-input,
+.edit-textarea{
+  width:100%;
+  min-width:95px;
+  padding:7px;
+  border:1px solid #cbd5e1;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+  box-sizing:border-box;
+  font-family:inherit;
+}
+
+.edit-textarea{
+  min-height:58px;
+  resize:vertical;
+}
+
+/* NO DATA */
 
 .no-data{
   background:#fff;
@@ -313,30 +301,6 @@ body{
   box-shadow:0 8px 22px rgba(15,23,42,.08);
   color:#475569;
   font-weight:900;
-}
-
-/* SHARED CARDS READY */
-
-.shared-card{
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:16px;
-  margin-bottom:16px;
-  box-shadow:0 8px 22px rgba(15,23,42,.07);
-}
-
-.shared-title{
-  font-size:17px;
-  font-weight:900;
-  margin-bottom:10px;
-}
-
-.shared-meta{
-  color:var(--muted);
-  font-size:13px;
-  font-weight:800;
-  margin-bottom:12px;
 }
 
 /* MOBILE */
@@ -356,16 +320,30 @@ body{
     width:100%;
   }
 
-  .hub-tabs{
-    grid-template-columns:1fr;
+  .hub-table{
+    min-width:1200px;
   }
 
-.hub-table{
-  min-width:2200px;
-}
+  .hub-table th,
+  .hub-table td{
+    font-size:11px;
+    padding:6px;
+  }
 
-  .page-title{
-    font-size:22px;
+  .w-address{
+    min-width:180px;
+  }
+
+  .w-stops{
+    min-width:150px;
+  }
+
+  .w-notes{
+    min-width:150px;
+  }
+
+  .details-box{
+    grid-template-columns:1fr;
   }
 }
 </style>
@@ -377,10 +355,9 @@ body{
 
 <div class="page-content">
 
- 
   <div class="toolbar">
     <button id="addManualTripBtn" class="add-btn" type="button">
-      + Add Reserved Trip
+      + Add Trip
     </button>
 
     <input
