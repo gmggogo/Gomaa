@@ -2,6 +2,7 @@
    DISPATCH REVIEW V2 - FACILITY READY
    Admin / SuperAdmin / Dispatcher
    Table UI Updated Only
+   Reserved Filter + Reserved Card
    ========================================================================== */
 
 const API_URL = "/api/trips";
@@ -60,6 +61,7 @@ const reviewContent = document.getElementById("reviewContent");
       <option value="ALL">All Bookings</option>
       <option value="GQ">Individual</option>
       <option value="FACILITY">Facilities</option>
+      <option value="RV">Reserved</option>
     `;
 
     toolbar.insertBefore(source, toolbar.firstChild);
@@ -85,13 +87,27 @@ const reviewContent = document.getElementById("reviewContent");
     style.innerHTML = `
 
       .stat-card.facility{border-left:6px solid #1d4ed8;}
+      .stat-card.reserved{border-left:6px solid #f59e0b;}
+
       .facility-name{color:#1d4ed8;font-size:13px;font-weight:700;}
       .row-facility td{background:#eaf4ff!important;}
+      .row-reserved td{background:#fef3c7!important;}
 
       .source-pill.facility{
         background:#dbeafe;
         color:#1e3a8a;
         border:1px solid #93c5fd;
+        font-size:10px;
+        font-weight:600;
+        height:24px;
+        line-height:24px;
+        padding:0;
+      }
+
+      .source-pill.reserved{
+        background:#fef3c7;
+        color:#92400e;
+        border:1px solid #fcd34d;
         font-size:10px;
         font-weight:600;
         height:24px;
@@ -766,8 +782,27 @@ function getSourceCode(t){
     t?.source,
     t?.from,
     t?.bookingSource,
-    t?.createdBy
+    t?.createdBy,
+    t?.type,
+    t?.tripType,
+    t?.reservationStatus,
+    t?.reservationType,
+    t?.sourceType,
+    t?.tripNumber,
+    t?.isReserved ? "reserved" : "",
+    t?.reserved ? "reserved" : "",
+    t?.reservationId ? "reserved" : ""
   ].join(" ").toLowerCase();
+
+  if(
+    raw.includes("reserved") ||
+    raw.includes("reservation") ||
+    raw.includes("-rv") ||
+    raw.includes(" rv") ||
+    raw === "rv"
+  ){
+    return "RV";
+  }
 
   if(
     raw.includes("quote") ||
@@ -797,6 +832,10 @@ function sourceHTML(t){
 
   const code = getSourceCode(t);
 
+  if(code === "RV"){
+    return `<span class="source-pill reserved">Reserved</span>`;
+  }
+
   if(code === "FACILITY"){
     return `<span class="source-pill facility">Facility</span>`;
   }
@@ -806,7 +845,10 @@ function sourceHTML(t){
 
 function sourceLabel(t){
   const code = getSourceCode(t);
+
+  if(code === "RV") return "Reserved";
   if(code === "FACILITY") return "Facility";
+
   return "Individual / Get Quote";
 }
 
@@ -1192,7 +1234,7 @@ function buildDisplayItems(trips){
 
     const tripCode = getServiceCodeFromTrip(t);
 
-    if(!activeCodes.includes(tripCode)){
+    if(activeCodes.length && !activeCodes.includes(tripCode)){
       return;
     }
 
@@ -1251,6 +1293,7 @@ function searchableText(item){
     getTripNumber(first),
     getServiceTitleByTrip(first),
     getSourceCode(first),
+    sourceLabel(first),
     getFacilityName(first),
     first.entryName,
     first.entryPhone,
@@ -1292,6 +1335,13 @@ function filterItems(items,options = {}){
         return getFacilityName(t) === activeFacility;
       });
     }
+  }
+
+  if(activeSource === "RV"){
+    out = out.filter(item=>{
+      const t = item.kind === "trip" ? item.trip : item.group[0];
+      return getSourceCode(t) === "RV";
+    });
   }
 
   if(options.service !== false && activeService !== "ALL"){
@@ -1410,6 +1460,7 @@ function createStats(){
     notCompleted:0,
     facility:0,
     gq:0,
+    reserved:0,
     shared:0
   };
 }
@@ -1452,7 +1503,11 @@ function countItem(stats,item){
   if(first.tripDate === today) stats.today++;
   if(String(first.tripDate || "").slice(0,7) === month) stats.month++;
 
-  if(getSourceCode(first) === "FACILITY"){
+  const src = getSourceCode(first);
+
+  if(src === "RV"){
+    stats.reserved++;
+  }else if(src === "FACILITY"){
     stats.facility++;
   }else{
     stats.gq++;
@@ -1513,7 +1568,7 @@ function renderStats(){
     <div class="stat-card notcompleted"><div class="stat-number">${stats.notCompleted}</div><div class="stat-label">Not Completed</div></div>
     <div class="stat-card facility"><div class="stat-number">${stats.facility}</div><div class="stat-label">Facilities</div></div>
     <div class="stat-card gq"><div class="stat-number">${stats.gq}</div><div class="stat-label">Individual</div></div>
-    <div class="stat-card shared"><div class="stat-number">${stats.shared}</div><div class="stat-label">Shared Groups</div></div>
+    <div class="stat-card reserved"><div class="stat-number">${stats.reserved}</div><div class="stat-label">Reserved</div></div>
   `;
 }
 
@@ -1548,6 +1603,7 @@ function renderServiceCards(){
         <div class="service-line"><span>Total Closed</span><span>${c.total}</span></div>
         <div class="service-line"><span>Individual</span><span>${c.gq}</span></div>
         <div class="service-line"><span>Facilities</span><span>${c.facility}</span></div>
+        <div class="service-line"><span>Reserved</span><span>${c.reserved}</span></div>
         <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
         <div class="service-line"><span>Cancelled</span><span>${c.cancelled}</span></div>
         <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
@@ -1628,15 +1684,19 @@ function closeReviewView(){
 function rowClass(status,trip,itemKind){
 
   const cls = statusClass(status,trip);
+  const src = getSourceCode(trip);
 
   let out = "";
 
   if(itemKind === "shared") out += "shared-row ";
 
-  out +=
-    getSourceCode(trip) === "FACILITY"
-      ? "row-facility "
-      : "row-getquote ";
+  if(src === "RV"){
+    out += "row-reserved ";
+  }else if(src === "FACILITY"){
+    out += "row-facility ";
+  }else{
+    out += "row-getquote ";
+  }
 
   if(cls === "completed") out += "completed-row ";
   if(cls === "cancelled") out += "cancelled-row ";
