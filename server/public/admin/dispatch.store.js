@@ -4,11 +4,11 @@
 
 const Store = {
 
-API_TRIPS    : "/api/trips",
-API_DRIVERS  : "/api/drivers",
-API_SCHEDULE : "/api/driver-schedule",
-API_SERVICES : "/api/services/admin",
-API_SYSTEM   : "/api/system-design",
+  API_TRIPS    : "/api/trips",
+  API_DRIVERS  : "/api/drivers",
+  API_SCHEDULE : "/api/driver-schedule",
+  API_SERVICES : "/api/services/admin",
+  API_SYSTEM   : "/api/system-design",
 
   async getJSON(url){
 
@@ -31,101 +31,133 @@ API_SYSTEM   : "/api/system-design",
 
   },
 
-async load(){
+  async load(){
 
-  const [
-    dispatchData,
-    servicesData,
-    systemData
-  ] = await Promise.all([
+    const [
+      tripsData,
+      driversData,
+      scheduleData,
+      servicesData,
+      systemData
+    ] = await Promise.all([
 
-    this.getJSON(this.API_DISPATCH),
-    this.getJSON(this.API_SERVICES),
-    this.getJSON(this.API_SYSTEM)
+      this.getJSON(this.API_TRIPS),
+      this.getJSON(this.API_DRIVERS),
+      this.getJSON(this.API_SCHEDULE),
+      this.getJSON(this.API_SERVICES),
+      this.getJSON(this.API_SYSTEM)
 
-  ]);
+    ]);
 
- return {
+    return {
 
-    trips: dispatchData?.trips || [],
-    drivers: dispatchData?.drivers || [],
-    schedule: dispatchData?.schedule || {},
-    services: Array.isArray(servicesData)
-      ? servicesData
-      : [],
-    timezone:
-      systemData?.timezone ||
-      "America/Phoenix"
+      trips:
+        Array.isArray(tripsData)
+          ? tripsData
+          : tripsData?.trips || [],
 
-  };
+      drivers:
+        Array.isArray(driversData)
+          ? driversData
+          : driversData?.drivers || [],
 
-},
+      schedule:
+        scheduleData || {},
 
-async saveDriver(tripId,driverId){
+      services:
+        Array.isArray(servicesData)
+          ? servicesData
+          : [],
 
-  try{
+      timezone:
+        systemData?.timezone ||
+        "America/Phoenix"
 
-    const res = await fetch(
-      `/api/dispatch/${tripId}/driver`,
-      {
-        method:"PATCH",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          driverId
-        })
+    };
+
+  },
+
+  async saveDriver(tripId,driverId){
+
+    try{
+
+      const res = await fetch(
+        `/api/dispatch/${tripId}/driver`,
+        {
+          method:"PATCH",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({
+            driverId
+          })
+        }
+      );
+
+      const data =
+        await res.json();
+
+      if(!res.ok){
+
+        return {
+          success:false,
+          message:
+            data.message ||
+            "Driver assignment failed"
+        };
+
       }
-    );
 
-    const data =
-      await res.json();
+      return data;
 
-    if(!res.ok){
+    }catch(err){
+
+      console.log(
+        "SAVE DRIVER ERROR:",
+        err
+      );
 
       return {
         success:false,
         message:
-          data.message ||
           "Driver assignment failed"
       };
 
     }
 
-    return data;
+  },
 
-  }catch(err){
-
-    console.log(
-      "SAVE DRIVER ERROR:",
-      err
-    );
-
-    return {
-      success:false,
-      message:
-        "Driver assignment failed"
-    };
-
-}
-
-},
   async sendTrips(ids){
 
-    const res = await fetch(
-      "/api/dispatch/send",
-      {
-        method:"PATCH",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          ids
-        })
-      }
-    );
+    try{
 
-    return await res.json();
+      const res = await fetch(
+        "/api/dispatch/send",
+        {
+          method:"PATCH",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({
+            ids
+          })
+        }
+      );
+
+      return await res.json();
+
+    }catch(err){
+
+      console.log(
+        "SEND TRIPS ERROR:",
+        err
+      );
+
+      return {
+        success:false
+      };
+
+    }
 
   }
 
