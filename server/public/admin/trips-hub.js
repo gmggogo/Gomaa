@@ -561,23 +561,26 @@ if(!container) console.error("Missing #hubContainer");
       box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);
     }
 
-   .eye-btn{
-  border:none;
-  background:#0f172a;
-  color:#fff;
-  width:28px;
-  height:28px;
-  border-radius:7px;
+.eye-btn{
+  border:none!important;
+  background:transparent!important;
+  color:#2563eb!important;
+  width:30px;
+  height:24px;
   cursor:pointer;
-  font-size:13px;
+  font-size:18px;
   font-weight:900;
   display:inline-flex;
   align-items:center;
   justify-content:center;
+  line-height:1;
+  padding:0;
 }
 
 .eye-btn:hover{
-  background:#2563eb;
+  color:#1d4ed8!important;
+  background:#dbeafe!important;
+  border-radius:6px;
 }
 
     .hub-view-overlay{
@@ -1822,28 +1825,9 @@ function render(){
   const table = document.createElement("table");
   table.className = "hub-table";
 
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th class="col-num">#</th>
-        <th class="col-select">Select</th>
-        <th class="col-trip">Trip #</th>
-        <th class="col-company">Company</th>
-        <th class="wide-client">Client / Passengers</th>
-        <th class="wide-phone">Phone</th>
-        <th class="wide-address">Pickup</th>
-        <th class="wide-stops">Stops</th>
-        <th class="wide-address">Dropoff</th>
-        <th class="wide-notes">Notes</th>
-        <th class="col-date">Trip Date</th>
-        <th class="col-time">Trip Time</th>
-      
-        <th class="col-time">Status</th>
-        <th class="col-eye">👁</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  `;
+ table.innerHTML = `
+  <tbody></tbody>
+`;
 
   const tbody = table.querySelector("tbody");
 
