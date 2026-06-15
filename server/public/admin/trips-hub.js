@@ -148,7 +148,7 @@ if(!container) console.error("Missing #hubContainer");
   const style = document.createElement("style");
   style.id = "trips-hub-v7-style";
   style.innerHTML = `
-   
+
     .top-add-trip-wrap{
       display:flex;
       justify-content:flex-start;
@@ -235,21 +235,6 @@ if(!container) console.error("Missing #hubContainer");
       font-weight:900;
       color:#0f172a;
     }
-
-.mini-header-row th{
-  background:#1f2937!important;
-  color:#fff!important;
-  font-weight:900!important;
-  font-size:10px!important;
-  padding:4px 5px!important;
-  border:1px solid #111827!important;
-  text-align:center!important;
-  white-space:nowrap!important;
-  position:static!important;
-  top:auto!important;
-  z-index:auto!important;
-  line-height:1.1!important;
-}
 
     .service-tabs{
       display:grid;
@@ -369,13 +354,13 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .hub-table{
-  width:100%;
-  min-width:1500px;
-  table-layout:fixed;
-  border-collapse:collapse;
-  background:#fff;
-  border-top:6px solid #000;
-}
+      width:100%;
+      min-width:1560px;
+      table-layout:fixed;
+      border-collapse:collapse;
+      background:#fff;
+      border-top:6px solid #000;
+    }
 
     .hub-table th,
     .hub-table td{
@@ -388,41 +373,42 @@ if(!container) console.error("Missing #hubContainer");
       box-sizing:border-box;
     }
 
-.hub-table th{
-  background:#1f2937;
-  color:#fff;
-  font-weight:900;
-  white-space:nowrap;
-  font-size:11px;
-  position:static;
-  top:auto;
-  z-index:auto;
-}
+    .hub-table th{
+      background:#1f2937;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+      font-size:11px;
+      position:static;
+      top:auto;
+      z-index:auto;
+    }
 
-    .col-num{width:38px;}
-    .col-select{width:46px;}
-    .col-trip{width:92px;}
-    .col-company{width:110px;}
-    .col-date{width:86px;}
-    .col-time{width:68px;}
-    .col-eye{width:42px;}
+    .col-num{width:30px;}
+    .col-select{width:36px;}
+    .col-trip{width:76px;}
+    .col-company{width:100px;}
+    .col-date{width:82px;}
+    .col-time{width:58px;}
+    .col-status{width:76px;}
+    .col-eye{width:32px;}
 
     .wide-client{
-      width:155px;
+      width:180px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
     }
 
     .wide-phone{
-      width:125px;
+      width:115px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
     }
 
     .wide-address{
-      width:190px;
+      width:230px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
@@ -430,7 +416,7 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .wide-stops{
-      width:160px;
+      width:120px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
@@ -438,14 +424,14 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .wide-notes{
-      width:130px;
+      width:190px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
     }
 
     .company-cell{
-      width:110px;
+      width:100px;
       font-weight:800;
       word-break:break-word;
       text-align:left!important;
@@ -455,17 +441,17 @@ if(!container) console.error("Missing #hubContainer");
       border-bottom:3px solid #000!important;
     }
 
-   .date-separator td{
-  background:#bfdbfe!important;
-  color:#1e3a8a!important;
-  font-weight:900!important;
-  text-align:center!important;
-  padding:4px 6px!important;
-  font-size:11px!important;
-  line-height:1.1!important;
-  border-top:2px solid #60a5fa!important;
-  border-bottom:2px solid #60a5fa!important;
-}
+    .date-separator td{
+      background:#bfdbfe!important;
+      color:#1e3a8a!important;
+      font-weight:900!important;
+      text-align:center!important;
+      padding:4px 6px!important;
+      font-size:11px!important;
+      line-height:1.1!important;
+      border-top:2px solid #60a5fa!important;
+      border-bottom:2px solid #60a5fa!important;
+    }
 
     .cell-box{
       display:grid;
@@ -503,7 +489,7 @@ if(!container) console.error("Missing #hubContainer");
       color:#1d4ed8;
       white-space:normal;
       word-break:break-word;
-      font-size:10.5px;
+      font-size:10px;
     }
 
     .status-pill{
@@ -562,27 +548,27 @@ if(!container) console.error("Missing #hubContainer");
       box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);
     }
 
-.eye-btn{
-  border:none!important;
-  background:transparent!important;
-  color:#2563eb!important;
-  width:30px;
-  height:24px;
-  cursor:pointer;
-  font-size:18px;
-  font-weight:900;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  line-height:1;
-  padding:0;
-}
+    .eye-btn{
+      border:none!important;
+      background:transparent!important;
+      color:#2563eb!important;
+      width:30px;
+      height:24px;
+      cursor:pointer;
+      font-size:18px;
+      font-weight:900;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      line-height:1;
+      padding:0;
+    }
 
-.eye-btn:hover{
-  color:#1d4ed8!important;
-  background:#dbeafe!important;
-  border-radius:6px;
-}
+    .eye-btn:hover{
+      color:#1d4ed8!important;
+      background:#dbeafe!important;
+      border-radius:6px;
+    }
 
     .hub-view-overlay{
       position:fixed;
@@ -665,7 +651,7 @@ if(!container) console.error("Missing #hubContainer");
 
     @media(max-width:1200px){
       .hub-table{
-        min-width:1450px;
+        min-width:1560px;
       }
 
       .hub-stats{
@@ -692,7 +678,7 @@ if(!container) console.error("Missing #hubContainer");
       }
 
       .hub-table{
-        min-width:1350px;
+        min-width:1560px;
       }
 
       .hub-table th,
@@ -1781,30 +1767,6 @@ function groupDisplayItemsByBookedDate(){
 
   return groups;
 }
-function renderMiniHeaderRow(){
-  const tr = document.createElement("tr");
-  tr.className = "mini-header-row";
-
-  tr.innerHTML = `
-    <th class="col-num">#</th>
-    <th class="col-select">Select</th>
-    <th class="col-trip">Trip #</th>
-    <th class="col-company">Company</th>
-    <th class="wide-client">Client / Passengers</th>
-    <th class="wide-phone">Phone</th>
-    <th class="wide-address">Pickup</th>
-    <th class="wide-stops">Stops</th>
-    <th class="wide-address">Dropoff</th>
-    <th class="wide-notes">Notes</th>
-    <th class="col-date">Trip Date</th>
-    <th class="col-time">Trip Time</th>
-   
-    <th class="col-time">Status</th>
-    <th class="col-eye">👁️</th>
-  `;
-
-  return tr;
-}
 
 function render(){
   if(!container) return;
@@ -1826,9 +1788,27 @@ function render(){
   const table = document.createElement("table");
   table.className = "hub-table";
 
- table.innerHTML = `
-  <tbody></tbody>
-`;
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-select">Select</th>
+        <th class="col-trip">Trip #</th>
+        <th class="col-company">Company</th>
+        <th class="wide-client">Client / Passengers</th>
+        <th class="wide-phone">Phone</th>
+        <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
+        <th class="wide-address">Dropoff</th>
+        <th class="wide-notes">Notes</th>
+        <th class="col-date">Trip Date</th>
+        <th class="col-time">Trip Time</th>
+        <th class="col-status">Status</th>
+        <th class="col-eye">👁️</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
 
   const tbody = table.querySelector("tbody");
 
@@ -1842,10 +1822,9 @@ function render(){
       </td>
     `;
 
-tbody.appendChild(dateRow);
-tbody.appendChild(renderMiniHeaderRow());
+    tbody.appendChild(dateRow);
 
-groups[dayKey].forEach((item,index)=>{
+    groups[dayKey].forEach((item,index)=>{
       tbody.appendChild(
         item.kind === "shared"
           ? renderSharedRow(item,index + 1)
@@ -1917,7 +1896,7 @@ function renderTripRow(item,rowNumber){
       ${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : safe(t.tripTime || "")}
     </td>
 
-    <td class="col-time">
+    <td class="col-status">
       <span class="status-pill ${getStatusClass(t.status)}">${safe(getStatusLabel(t.status))}</span>
     </td>
 
@@ -1993,7 +1972,7 @@ function renderSharedRow(item,rowNumber){
       ${editing ? createEditInput(first.tripTime || "", "tripTime", "time") : safe(first.tripTime || "")}
     </td>
 
-    <td class="col-time">
+    <td class="col-status">
       <span class="status-pill ${getStatusClass(groupStatus)}">${safe(getStatusLabel(groupStatus))}</span>
     </td>
 
