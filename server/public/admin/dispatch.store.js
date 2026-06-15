@@ -4,11 +4,10 @@
 
 const Store = {
 
-  API_TRIPS    : "/api/trips",
-  API_DRIVERS  : "/api/drivers",
-  API_SCHEDULE : "/api/driver-schedule",
-  API_SERVICES : "/api/services/admin",
-  API_SYSTEM   : "/api/system-design",
+ API_DISPATCH : "/api/dispatch",
+API_SERVICES : "/api/services/admin",
+API_SYSTEM   : "/api/system-design",
+
 
   async getJSON(url){
 
@@ -31,51 +30,35 @@ const Store = {
 
   },
 
-  async load(){
+async load(){
 
-    const [
-      tripsData,
-      driversData,
-      scheduleData,
-      servicesData,
-      systemData
-    ] = await Promise.all([
+  const [
+    dispatchData,
+    servicesData,
+    systemData
+  ] = await Promise.all([
 
-      this.getJSON(this.API_TRIPS),
-      this.getJSON(this.API_DRIVERS),
-      this.getJSON(this.API_SCHEDULE),
-      this.getJSON(this.API_SERVICES),
-      this.getJSON(this.API_SYSTEM)
+    this.getJSON(this.API_DISPATCH),
+    this.getJSON(this.API_SERVICES),
+    this.getJSON(this.API_SYSTEM)
 
-    ]);
+  ]);
 
-    return {
+ return {
 
-      trips:
-        Array.isArray(tripsData)
-          ? tripsData
-          : tripsData?.trips || [],
+    trips: dispatchData?.trips || [],
+    drivers: dispatchData?.drivers || [],
+    schedule: dispatchData?.schedule || {},
+    services: Array.isArray(servicesData)
+      ? servicesData
+      : [],
+    timezone:
+      systemData?.timezone ||
+      "America/Phoenix"
 
-      drivers:
-        Array.isArray(driversData)
-          ? driversData
-          : driversData?.drivers || [],
+  };
 
-      schedule:
-        scheduleData || {},
-
-      services:
-        Array.isArray(servicesData)
-          ? servicesData
-          : [],
-
-      timezone:
-        systemData?.timezone ||
-        "America/Phoenix"
-
-    };
-
-  },
+},
 
 async saveDriver(tripId,driverId){
 
