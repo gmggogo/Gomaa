@@ -1,6 +1,7 @@
 /* ===============================
-   ADMIN TRIPS V4 CLEAN UI
-   Same Trips Hub Professional Layout
+   ADMIN TRIPS V4 CLEAN
+   Same Trips Hub Shared Layout
+   Eye View + Nested Cells
    Select / Unselect Buttons
 ================================ */
 
@@ -39,10 +40,6 @@ const selectedMap = new WeakMap();
 
   s.innerHTML = `
 
-/* ===============================
-   TOP / CARDS
-================================ */
-
 .admin-trips-top{
   position:sticky;
   top:0;
@@ -51,6 +48,10 @@ const selectedMap = new WeakMap();
   padding:0 0 8px;
   border-bottom:1px solid #cbd5e1;
 }
+
+/* ===============================
+   STATS
+================================ */
 
 .stats-grid{
   display:grid!important;
@@ -203,7 +204,7 @@ const selectedMap = new WeakMap();
 
 .trip-table{
   width:100%!important;
-  min-width:1780px!important;
+  min-width:1680px!important;
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff!important;
@@ -243,46 +244,115 @@ const selectedMap = new WeakMap();
 }
 
 /* ===============================
-   COLUMN SIZES
+   COLUMN SIZES - SAME HUB LOGIC
 ================================ */
 
-.col-dispatch{width:60px;}
+.col-dispatch{width:62px;}
 .col-num{width:30px;}
-.col-trip{width:78px;}
-.col-service{width:82px;}
-.col-type{width:70px;}
-.col-facility{width:100px;}
-.col-entry{width:95px;}
-.col-entry-phone{width:105px;}
-.col-client{width:170px;}
-.col-phone{width:115px;}
-.col-email{width:160px;}
-.col-pickup{width:230px;}
-.col-stops{width:130px;}
-.col-dropoff{width:230px;}
+.col-trip{width:76px;}
+.col-company{width:100px;}
 .col-date{width:82px;}
 .col-time{width:58px;}
-.col-notes{width:190px;}
 .col-status{width:76px;}
-.col-actions{width:105px;}
+.col-eye{width:32px;}
+.col-actions{width:110px;}
 
-.wide-client,
-.wide-phone,
-.wide-email,
-.wide-address,
-.wide-stops,
-.wide-notes{
+.wide-client{
+  width:180px;
   text-align:left!important;
-  white-space:normal!important;
-  word-break:break-word!important;
+  white-space:normal;
+  word-break:break-word;
 }
 
-.wide-client{width:170px!important;}
-.wide-phone{width:115px!important;}
-.wide-email{width:160px!important;font-size:10.5px!important;}
-.wide-address{width:230px!important;font-size:10.5px!important;}
-.wide-stops{width:130px!important;font-size:10.5px!important;}
-.wide-notes{width:190px!important;}
+.wide-phone{
+  width:115px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.wide-address{
+  width:230px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10.5px!important;
+}
+
+.wide-stops{
+  width:120px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10.5px!important;
+}
+
+.wide-notes{
+  width:190px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.company-cell{
+  width:100px;
+  font-weight:800;
+  word-break:break-word;
+  text-align:left!important;
+}
+
+/* ===============================
+   GROUP TITLE
+================================ */
+
+.group-title{
+  margin:12px 0 0!important;
+  padding:5px 8px!important;
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  border-top:2px solid #60a5fa!important;
+  border-bottom:2px solid #60a5fa!important;
+  border-radius:8px 8px 0 0!important;
+  font-size:13px!important;
+  font-weight:900!important;
+  text-align:center!important;
+  letter-spacing:.3px!important;
+}
+
+/* ===============================
+   CELL BOX SAME TRIPS HUB
+================================ */
+
+.cell-box{
+  display:grid!important;
+  border:1px solid #111!important;
+  background:#fff!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  border-radius:4px!important;
+  overflow:hidden!important;
+}
+
+.cell-item{
+  padding:4px 5px!important;
+  min-height:22px!important;
+  font-weight:700!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  box-sizing:border-box!important;
+  background:#fff!important;
+  font-size:10.5px!important;
+}
+
+.cell-item + .cell-item{
+  border-top:1px solid #111!important;
+}
+
+.cell-item .edit-field,
+.cell-item .edit-area{
+  margin:0!important;
+  min-width:70px!important;
+}
 
 /* ===============================
    INPUTS
@@ -308,28 +378,16 @@ const selectedMap = new WeakMap();
   white-space:pre-line!important;
 }
 
-.edit-field:disabled,
-.edit-area:disabled{
-  border:1px solid transparent!important;
-  background:transparent!important;
-  color:#0f172a!important;
-  opacity:1!important;
-  resize:none!important;
-}
-
 /* ===============================
    BADGES
 ================================ */
 
-.service-pill{
-  display:inline-flex!important;
-  padding:4px 6px!important;
-  border-radius:999px!important;
-  background:#dbeafe!important;
-  color:#1d4ed8!important;
-  font-size:10px!important;
+.trip-number-badge{
   font-weight:900!important;
-  white-space:nowrap!important;
+  color:#1d4ed8!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10px!important;
 }
 
 .status-pill{
@@ -344,30 +402,16 @@ const selectedMap = new WeakMap();
   white-space:nowrap!important;
 }
 
-.trip-number-badge{
-  font-weight:900!important;
-  color:#1d4ed8!important;
-  white-space:normal!important;
-  word-break:break-word!important;
-  font-size:10px!important;
+.status-pill.confirmed{
+  background:#bbf7d0!important;
+  color:#14532d!important;
+  border:1px solid #86efac!important;
 }
 
-/* ===============================
-   GROUP TITLE
-================================ */
-
-.group-title{
-  margin:12px 0 0!important;
-  padding:5px 8px!important;
-  background:#bfdbfe!important;
-  color:#1e3a8a!important;
-  border-top:2px solid #60a5fa!important;
-  border-bottom:2px solid #60a5fa!important;
-  border-radius:8px 8px 0 0!important;
-  font-size:13px!important;
-  font-weight:900!important;
-  text-align:center!important;
-  letter-spacing:.3px!important;
+.status-pill.paid{
+  background:#dbeafe!important;
+  color:#1d4ed8!important;
+  border:1px solid #93c5fd!important;
 }
 
 /* ===============================
@@ -378,6 +422,106 @@ const selectedMap = new WeakMap();
 .row-gq td{background:#dcfce7!important;}
 .row-rv td{background:#fef3c7!important;}
 .row-shared td{background:#ede9fe!important;}
+
+/* ===============================
+   EYE BUTTON
+================================ */
+
+.eye-btn{
+  border:none!important;
+  background:transparent!important;
+  color:#2563eb!important;
+  width:30px!important;
+  height:24px!important;
+  cursor:pointer!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1!important;
+  padding:0!important;
+}
+
+.eye-btn:hover{
+  color:#1d4ed8!important;
+  background:#dbeafe!important;
+  border-radius:6px!important;
+}
+
+/* ===============================
+   VIEW MODAL
+================================ */
+
+.hub-view-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+}
+
+.hub-view-box{
+  background:#fff;
+  width:min(520px,96vw);
+  border-radius:15px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.28);
+}
+
+.hub-view-head{
+  background:#2563eb;
+  color:#fff;
+  padding:12px 15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:900;
+}
+
+.hub-view-close{
+  border:none;
+  background:#fff;
+  color:#0f172a;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.hub-view-body{
+  padding:14px;
+  display:grid;
+  gap:8px;
+}
+
+.view-line{
+  display:grid;
+  grid-template-columns:150px 1fr;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  overflow:hidden;
+}
+
+.view-label{
+  background:#f1f5f9;
+  padding:9px;
+  font-weight:900;
+  color:#334155;
+}
+
+.view-value{
+  padding:9px;
+  font-weight:800;
+  color:#0f172a;
+  word-break:break-word;
+  white-space:pre-line;
+}
 
 /* ===============================
    ACTIONS
@@ -467,32 +611,9 @@ const selectedMap = new WeakMap();
    RESPONSIVE
 ================================ */
 
-@media(max-width:1200px){
-  .trip-table{
-    min-width:1780px!important;
-  }
-
-  .stats-grid{
-    grid-template-columns:repeat(auto-fit,minmax(125px,1fr))!important;
-  }
-
-  .service-strip{
-    grid-template-columns:repeat(auto-fit,minmax(105px,1fr))!important;
-  }
-
-  .service-card{
-    min-height:72px!important;
-    padding:7px 6px!important;
-  }
-
-  .stat-value{
-    font-size:21px!important;
-  }
-}
-
 @media(max-width:768px){
   .trip-table{
-    min-width:1780px!important;
+    min-width:1680px!important;
   }
 
   .trip-table th,
@@ -501,41 +622,22 @@ const selectedMap = new WeakMap();
     padding:4px!important;
   }
 
-  .trip-table th{
-    font-size:10px!important;
-  }
-
-  .edit-field,
-  .edit-area{
+  .cell-item{
     font-size:9.5px!important;
-    padding:4px!important;
+    padding:3px 4px!important;
   }
 
-  .stat-card{
-    padding:8px 6px!important;
-    border-radius:12px!important;
-  }
-
-  .stat-label{
-    font-size:10px!important;
-  }
-
-  .stat-value{
-    font-size:20px!important;
+  .wide-address,
+  .wide-stops{
+    font-size:9.5px!important;
   }
 
   .service-strip{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    gap:6px!important;
   }
 
-  .service-card{
-    min-height:66px!important;
-  }
-
-  .select-btn{
-    font-size:11px!important;
-    padding:7px 10px!important;
+  .view-line{
+    grid-template-columns:1fr;
   }
 }
 
@@ -565,6 +667,26 @@ function authHeaders(json=false){
     ...(json ? {"Content-Type":"application/json"} : {}),
     ...(token ? {Authorization:"Bearer " + token} : {})
   };
+}
+
+function cellBox(items){
+  const arr = Array.isArray(items) ? items : [items];
+
+  return `
+    <div class="cell-box">
+      ${arr.map(v=>`
+        <div class="cell-item">${v || "--"}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function inputCell(value,field,type="text"){
+  return `<input class="edit-field" data-field="${field}" type="${type}" value="${safe(value)}">`;
+}
+
+function areaCell(value,field){
+  return `<textarea class="edit-area" data-field="${field}">${safe(value)}</textarea>`;
 }
 
 function serviceCodeFromValue(v){
@@ -682,6 +804,21 @@ function getNotes(t){
   return t.notes ?? t.tripNotes ?? t.note ?? "";
 }
 
+function getBookedDateObj(t){
+  return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || Date.now());
+}
+
+function formatDateObj(d){
+  return (!d || isNaN(d)) ? "-" : d.toLocaleDateString();
+}
+
+function formatTimeObj(d){
+  return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+}
+
+function getBookedDate(t){ return formatDateObj(getBookedDateObj(t)); }
+function getBookedTime(t){ return formatTimeObj(getBookedDateObj(t)); }
+
 function stopText(s){
   if(!s) return "";
   if(typeof s === "string") return s;
@@ -698,8 +835,25 @@ function stopsPlain(t){
   return getStops(t).map(stopText).filter(Boolean).join("\n");
 }
 
+function stopsDisplay(t){
+  const arr = getStops(t).map(stopText).filter(Boolean);
+  if(!arr.length) return "--";
+  return arr.map((x,i)=>`${i+1}. ${safe(x)}`).join("\n");
+}
+
 function parseStopsText(v){
-  return clean(v).split("\n").map(x=>x.trim()).filter(Boolean);
+  return clean(v).split("\n").map(x=>x.trim()).filter(Boolean).map(address=>({address}));
+}
+
+function statusKey(v){
+  return String(v || "").replace(/[_-]/g," ").replace(/\s+/g,"").toLowerCase().trim();
+}
+
+function getStatusClass(status){
+  const s = statusKey(status);
+  if(s === "confirmed") return "confirmed";
+  if(s === "paid") return "paid";
+  return "";
 }
 
 /* ===============================
@@ -830,7 +984,6 @@ function buildDisplayItems(list){
 ================================ */
 
 function isDispatchTrip(t){
-
   const s = String(t.status || "")
     .toLowerCase()
     .replace(/[_-]/g," ")
@@ -843,17 +996,10 @@ function isDispatchTrip(t){
 }
 
 function baseTrips(){
-
   return trips.filter(t=>{
-
-    if(t.disabled === true)
-      return false;
-
-    if(!isTripAllowedByService(t))
-      return false;
-
-    if(!isDispatchTrip(t))
-      return false;
+    if(t.disabled === true) return false;
+    if(!isTripAllowedByService(t)) return false;
+    if(!isDispatchTrip(t)) return false;
 
     if(
       !isTodayTrip(t) &&
@@ -863,9 +1009,7 @@ function baseTrips(){
     }
 
     return true;
-
   });
-
 }
 
 function currentItems(){
@@ -897,7 +1041,6 @@ function countKinds(items){
 }
 
 function renderStats(){
-
   const allItems = currentItems();
 
   const total = allItems.length;
@@ -925,7 +1068,6 @@ function renderStats(){
 }
 
 function renderServiceCards(){
-
   const allItems = currentItems();
   const visible = services.filter(isServiceVisible);
   const cards = [];
@@ -1053,6 +1195,60 @@ async function sendDispatchItem(key,val){
   else item.group.forEach(t=>t.dispatchSelected = val);
 
   updateSelectionButtons();
+}
+
+/* ===============================
+   VIEW MODAL
+================================ */
+
+function viewLine(label,value){
+  return `
+    <div class="view-line">
+      <div class="view-label">${safe(label)}</div>
+      <div class="view-value">${safe(value || "--")}</div>
+    </div>
+  `;
+}
+
+function openTripView(key){
+  const item = displayItems.find(x=>x.key === key);
+  if(!item) return;
+
+  const t = item.kind === "shared" ? item.group[0] : item.trip;
+
+  closeTripView();
+
+  const overlay = document.createElement("div");
+  overlay.id = "hubViewOverlay";
+  overlay.className = "hub-view-overlay";
+
+  overlay.innerHTML = `
+    <div class="hub-view-box">
+      <div class="hub-view-head">
+        <div>Reservation Details</div>
+        <button class="hub-view-close" type="button" onclick="closeTripView()">×</button>
+      </div>
+
+      <div class="hub-view-body">
+        ${viewLine("Service",getServiceTitleByTrip(t))}
+        ${viewLine("Entry Name",t.entryName || "")}
+        ${viewLine("Entry Phone",t.entryPhone || "")}
+        ${viewLine("Client Email",getEmail(t))}
+        ${viewLine("Booked Date",getBookedDate(t))}
+        ${viewLine("Booked Time",getBookedTime(t))}
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click",e=>{
+    if(e.target === overlay) closeTripView();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function closeTripView(){
+  document.getElementById("hubViewOverlay")?.remove();
 }
 
 /* ===============================
@@ -1226,21 +1422,17 @@ function drawGroup(title,list){
         <th class="col-dispatch">Dispatch</th>
         <th class="col-num">#</th>
         <th class="col-trip">Trip #</th>
-        <th class="col-service">Service</th>
-        <th class="col-type">Type</th>
-        <th class="col-facility">Facility</th>
-        <th class="col-entry">Entry</th>
-        <th class="col-entry-phone">Entry Phone</th>
-        <th class="col-client">Client / Passengers</th>
-        <th class="col-phone">Phone</th>
-        <th class="col-email">Email</th>
-        <th class="col-pickup">Pickup</th>
-        <th class="col-stops">Stops</th>
-        <th class="col-dropoff">Dropoff</th>
-        <th class="col-date">Date</th>
-        <th class="col-time">Time</th>
-        <th class="col-notes">Notes</th>
+        <th class="col-company">Company</th>
+        <th class="wide-client">Client / Passengers</th>
+        <th class="wide-phone">Phone</th>
+        <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
+        <th class="wide-address">Dropoff</th>
+        <th class="wide-notes">Notes</th>
+        <th class="col-date">Trip Date</th>
+        <th class="col-time">Trip Time</th>
         <th class="col-status">Status</th>
+        <th class="col-eye">👁️</th>
         <th class="col-actions">Actions</th>
       </tr>
     </thead>
@@ -1251,7 +1443,7 @@ function drawGroup(title,list){
 
   if(!list.length){
     const row = document.createElement("tr");
-    row.innerHTML = `<td colspan="19" style="text-align:center;padding:20px;font-weight:900;">No Trips</td>`;
+    row.innerHTML = `<td colspan="15" style="text-align:center;padding:20px;font-weight:900;">No Trips</td>`;
     tbody.appendChild(row);
   }else{
     list.forEach((item,i)=>{
@@ -1263,16 +1455,9 @@ function drawGroup(title,list){
   container.appendChild(wrapper);
 }
 
-function inputCell(value,cls,field,type="text"){
-  return `<input class="edit-field ${cls}" data-field="${field}" disabled type="${type}" value="${safe(value)}">`;
-}
-
-function areaCell(value,cls,field){
-  return `<textarea class="edit-area ${cls}" data-field="${field}" disabled>${safe(value)}</textarea>`;
-}
-
 function renderTripRow(item,num){
   const t = item.trip;
+  const editing = item.editing === true;
 
   const tr = document.createElement("tr");
   tr.className = rowClass(item);
@@ -1292,35 +1477,52 @@ function renderTripRow(item,num){
       <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
     </td>
 
-    <td class="col-service">
-      <span class="service-pill">${safe(getServiceTitleByTrip(t))}</span>
+    <td class="company-cell">
+      ${editing ? cellBox(inputCell(t.company || "","company")) : cellBox(safe(t.company || "--"))}
     </td>
 
-    <td class="col-type">${safe(t.type || getTripKind(t))}</td>
+    <td class="wide-client">
+      ${editing ? cellBox(inputCell(t.clientName || t.name || "","clientName")) : cellBox(safe(t.clientName || t.name || "--"))}
+    </td>
 
-    <td class="col-facility">${inputCell(t.company || "","company","company")}</td>
-    <td class="col-entry">${inputCell(t.entryName || "","entryName","entryName")}</td>
-    <td class="col-entry-phone">${inputCell(t.entryPhone || "","entryPhone","entryPhone")}</td>
+    <td class="wide-phone">
+      ${editing ? cellBox(inputCell(t.clientPhone || t.phone || "","clientPhone")) : cellBox(safe(t.clientPhone || t.phone || "--"))}
+    </td>
 
-    <td class="wide-client col-client">${inputCell(t.clientName || t.name || "","clientName","clientName")}</td>
-    <td class="wide-phone col-phone">${inputCell(t.clientPhone || t.phone || "","clientPhone","clientPhone")}</td>
-    <td class="wide-email col-email">${inputCell(getEmail(t),"clientEmail","clientEmail","email")}</td>
+    <td class="wide-address">
+      ${editing ? cellBox(areaCell(t.pickup || "","pickup")) : cellBox(safe(t.pickup || "--"))}
+    </td>
 
-    <td class="wide-address col-pickup">${areaCell(t.pickup || "","pickup","pickup")}</td>
-    <td class="wide-stops col-stops">${areaCell(stopsPlain(t),"stopsText","stopsText")}</td>
-    <td class="wide-address col-dropoff">${areaCell(t.dropoff || "","dropoff","dropoff")}</td>
+    <td class="wide-stops">
+      ${editing ? cellBox(areaCell(stopsPlain(t),"stopsText")) : cellBox(stopsDisplay(t))}
+    </td>
 
-    <td class="col-date">${inputCell(t.tripDate || "","tripDate","tripDate","date")}</td>
-    <td class="col-time">${inputCell(t.tripTime || "","tripTime","tripTime","time")}</td>
+    <td class="wide-address">
+      ${editing ? cellBox(areaCell(t.dropoff || "","dropoff")) : cellBox(safe(t.dropoff || "--"))}
+    </td>
 
-    <td class="wide-notes col-notes">${areaCell(getNotes(t),"notes","notes")}</td>
+    <td class="wide-notes">
+      ${editing ? cellBox(areaCell(getNotes(t),"notes")) : cellBox(safe(getNotes(t) || "--"))}
+    </td>
+
+    <td class="col-date">
+      ${editing ? inputCell(t.tripDate || "","tripDate","date") : safe(t.tripDate || "")}
+    </td>
+
+    <td class="col-time">
+      ${editing ? inputCell(t.tripTime || "","tripTime","time") : safe(t.tripTime || "")}
+    </td>
 
     <td class="col-status">
-      <span class="status-pill">${safe(t.status || "Scheduled")}</span>
+      <span class="status-pill ${getStatusClass(t.status)}">${safe(t.status || "Scheduled")}</span>
+    </td>
+
+    <td class="col-eye">
+      <button class="eye-btn" type="button" title="View" onclick="openTripView('${safe(item.key)}')">👁️</button>
     </td>
 
     <td class="actions col-actions">
-      <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">Edit</button>
+      <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
       <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
     </td>
   `;
@@ -1331,12 +1533,24 @@ function renderTripRow(item,num){
 function renderSharedRow(item,num){
   const first = item.trip;
   const passengers = getRealPassengersFromGroup(item.group);
+  const editing = item.editing === true;
+  const groupStatus = getGroupStatus(item.group);
 
-  const names = passengers.map((p,i)=>`${i+1}. ${p.name || p.clientName || ""}`).join("\n");
-  const phones = passengers.map((p,i)=>`${i+1}. ${p.phone || p.clientPhone || ""}`).join("\n");
-  const emails = passengers.map((p,i)=>`${i+1}. ${getEmail(first,p) || ""}`).join("\n");
-  const pickups = passengers.map((p,i)=>`${i+1}. ${p.pickup || ""}`).join("\n");
-  const dropoffs = passengers.map((p,i)=>`${i+1}. ${p.dropoff || ""}`).join("\n");
+  const names = editing
+    ? cellBox(passengers.map((p,i)=>inputCell(p.name || p.clientName || "",`p_${i}_name`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.name || p.clientName || "--")}`));
+
+  const phones = editing
+    ? cellBox(passengers.map((p,i)=>inputCell(p.phone || p.clientPhone || "",`p_${i}_phone`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.phone || p.clientPhone || "--")}`));
+
+  const pickups = editing
+    ? cellBox(passengers.map((p,i)=>areaCell(p.pickup || "",`p_${i}_pickup`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.pickup || "--")}`));
+
+  const dropoffs = editing
+    ? cellBox(passengers.map((p,i)=>areaCell(p.dropoff || "",`p_${i}_dropoff`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.dropoff || "--")}`));
 
   const tr = document.createElement("tr");
   tr.className = rowClass(item);
@@ -1355,35 +1569,42 @@ function renderSharedRow(item,num){
       <span class="trip-number-badge">${safe(getTripNumber(first))}</span>
     </td>
 
-    <td class="col-service">
-      <span class="service-pill">${safe(getServiceTitleByTrip(first))}</span>
+    <td class="company-cell">
+      ${editing ? cellBox(inputCell(first.company || "","company")) : cellBox(safe(first.company || "--"))}
     </td>
 
-    <td class="col-type">Shared</td>
+    <td class="wide-client">${names}</td>
+    <td class="wide-phone">${phones}</td>
+    <td class="wide-address">${pickups}</td>
 
-    <td class="col-facility">${inputCell(first.company || "","company","company")}</td>
-    <td class="col-entry">${inputCell(first.entryName || "","entryName","entryName")}</td>
-    <td class="col-entry-phone">${inputCell(first.entryPhone || "","entryPhone","entryPhone")}</td>
+    <td class="wide-stops">
+      ${cellBox("Route optimized per passenger")}
+    </td>
 
-    <td class="wide-client col-client">${areaCell(names,"sharedNames","sharedNames")}</td>
-    <td class="wide-phone col-phone">${areaCell(phones,"sharedPhones","sharedPhones")}</td>
-    <td class="wide-email col-email">${areaCell(emails,"sharedEmails","sharedEmails")}</td>
+    <td class="wide-address">${dropoffs}</td>
 
-    <td class="wide-address col-pickup">${areaCell(pickups,"sharedPickups","sharedPickups")}</td>
-    <td class="wide-stops col-stops">Route optimized per passenger</td>
-    <td class="wide-address col-dropoff">${areaCell(dropoffs,"sharedDropoffs","sharedDropoffs")}</td>
+    <td class="wide-notes">
+      ${editing ? cellBox(areaCell(getNotes(first),"notes")) : cellBox(safe(getNotes(first) || "--"))}
+    </td>
 
-    <td class="col-date">${inputCell(first.tripDate || "","tripDate","tripDate","date")}</td>
-    <td class="col-time">${inputCell(first.tripTime || "","tripTime","tripTime","time")}</td>
+    <td class="col-date">
+      ${editing ? inputCell(first.tripDate || "","tripDate","date") : safe(first.tripDate || "")}
+    </td>
 
-    <td class="wide-notes col-notes">${areaCell(getNotes(first),"notes","notes")}</td>
+    <td class="col-time">
+      ${editing ? inputCell(first.tripTime || "","tripTime","time") : safe(first.tripTime || "")}
+    </td>
 
     <td class="col-status">
-      <span class="status-pill">${safe(getGroupStatus(item.group))}</span>
+      <span class="status-pill ${getStatusClass(groupStatus)}">${safe(groupStatus)}</span>
+    </td>
+
+    <td class="col-eye">
+      <button class="eye-btn" type="button" title="View" onclick="openTripView('${safe(item.key)}')">👁️</button>
     </td>
 
     <td class="actions col-actions">
-      <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">Edit</button>
+      <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
       <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
     </td>
   `;
@@ -1394,11 +1615,6 @@ function renderSharedRow(item,num){
 /* ===============================
    EDIT / SAVE
 ================================ */
-
-function parseNumberedLines(v){
-  return clean(v).split("\n")
-    .map(x=>x.replace(/^\s*\d+\.\s*/,"").trim());
-}
 
 function parseTripDateTime(dateStr,timeStr){
   if(!dateStr || !timeStr) return null;
@@ -1416,24 +1632,21 @@ function isFutureTrip(dateStr,timeStr){
   return dt > getSystemNow();
 }
 
-function enableRow(row,val){
-  row.querySelectorAll(".edit-field,.edit-area").forEach(f=>{
-    f.disabled = !val;
-  });
-}
-
 async function editItem(key,btn){
   const item = displayItems.find(x=>x.key === key);
   const row = btn.closest("tr");
 
   if(!item || !row) return;
 
-  if(btn.innerText === "Edit"){
-    enableRow(row,true);
+  if(item.editing !== true){
+    item.editing = true;
+    renderTrips();
 
-    row.querySelectorAll(".pickup,.dropoff").forEach(attachAutocomplete);
+    setTimeout(()=>{
+      const freshRow = document.querySelector(`tr[data-key="${CSS.escape(key)}"]`);
+      freshRow?.querySelectorAll("[data-field='pickup'],[data-field='dropoff']").forEach(attachAutocomplete);
+    },50);
 
-    btn.innerText = "Save";
     return;
   }
 
@@ -1445,18 +1658,15 @@ async function saveSingleItem(item,row){
   const t = item.trip;
 
   const payload = {
-    company: row.querySelector(".company")?.value || "",
-    entryName: row.querySelector(".entryName")?.value || "",
-    entryPhone: row.querySelector(".entryPhone")?.value || "",
-    clientName: row.querySelector(".clientName")?.value || "",
-    clientPhone: row.querySelector(".clientPhone")?.value || "",
-    clientEmail: row.querySelector(".clientEmail")?.value || "",
-    pickup: row.querySelector(".pickup")?.value || "",
-    dropoff: row.querySelector(".dropoff")?.value || "",
-    tripDate: row.querySelector(".tripDate")?.value || "",
-    tripTime: row.querySelector(".tripTime")?.value || "",
-    notes: row.querySelector(".notes")?.value || "",
-    stops: parseStopsText(row.querySelector(".stopsText")?.value || "")
+    company: row.querySelector(`[data-field="company"]`)?.value || "",
+    clientName: row.querySelector(`[data-field="clientName"]`)?.value || "",
+    clientPhone: row.querySelector(`[data-field="clientPhone"]`)?.value || "",
+    pickup: row.querySelector(`[data-field="pickup"]`)?.value || "",
+    dropoff: row.querySelector(`[data-field="dropoff"]`)?.value || "",
+    tripDate: row.querySelector(`[data-field="tripDate"]`)?.value || "",
+    tripTime: row.querySelector(`[data-field="tripTime"]`)?.value || "",
+    notes: row.querySelector(`[data-field="notes"]`)?.value || "",
+    stops: parseStopsText(row.querySelector(`[data-field="stopsText"]`)?.value || "")
   };
 
   if(!isFutureTrip(payload.tripDate,payload.tripTime)){
@@ -1464,8 +1674,8 @@ async function saveSingleItem(item,row){
     return;
   }
 
-  const pickupInput = row.querySelector(".pickup");
-  const dropoffInput = row.querySelector(".dropoff");
+  const pickupInput = row.querySelector(`[data-field="pickup"]`);
+  const dropoffInput = row.querySelector(`[data-field="dropoff"]`);
   const pickupSelected = selectedMap.get(pickupInput);
   const dropoffSelected = selectedMap.get(dropoffInput);
 
@@ -1493,46 +1703,22 @@ async function saveSingleItem(item,row){
 async function saveSharedItem(item,row){
   const first = item.trip;
   const oldPassengers = getRealPassengersFromGroup(item.group);
-
-  const names = parseNumberedLines(row.querySelector(".sharedNames")?.value || "");
-  const phones = parseNumberedLines(row.querySelector(".sharedPhones")?.value || "");
-  const emails = parseNumberedLines(row.querySelector(".sharedEmails")?.value || "");
-  const pickups = parseNumberedLines(row.querySelector(".sharedPickups")?.value || "");
-  const dropoffs = parseNumberedLines(row.querySelector(".sharedDropoffs")?.value || "");
-
-  const count = Math.max(
-    oldPassengers.length,
-    names.length,
-    phones.length,
-    emails.length,
-    pickups.length,
-    dropoffs.length
-  );
-
-  const passengers = [];
-
-  for(let i=0;i<count;i++){
-    passengers.push({
-      ...oldPassengers[i],
-      name:names[i] || "",
-      clientName:names[i] || "",
-      phone:phones[i] || "",
-      clientPhone:phones[i] || "",
-      email:emails[i] || "",
-      clientEmail:emails[i] || "",
-      pickup:pickups[i] || "",
-      dropoff:dropoffs[i] || "",
-      status:oldPassengers[i]?.status || first.status || "Scheduled"
-    });
-  }
+  const passengers = oldPassengers.map((p,i)=>({
+    ...p,
+    name: row.querySelector(`[data-field="p_${i}_name"]`)?.value || "",
+    clientName: row.querySelector(`[data-field="p_${i}_name"]`)?.value || "",
+    phone: row.querySelector(`[data-field="p_${i}_phone"]`)?.value || "",
+    clientPhone: row.querySelector(`[data-field="p_${i}_phone"]`)?.value || "",
+    pickup: row.querySelector(`[data-field="p_${i}_pickup"]`)?.value || "",
+    dropoff: row.querySelector(`[data-field="p_${i}_dropoff"]`)?.value || "",
+    status:p.status || first.status || "Scheduled"
+  }));
 
   const payload = {
-    company: row.querySelector(".company")?.value || "",
-    entryName: row.querySelector(".entryName")?.value || "",
-    entryPhone: row.querySelector(".entryPhone")?.value || "",
-    tripDate: row.querySelector(".tripDate")?.value || "",
-    tripTime: row.querySelector(".tripTime")?.value || "",
-    notes: row.querySelector(".notes")?.value || "",
+    company: row.querySelector(`[data-field="company"]`)?.value || "",
+    tripDate: row.querySelector(`[data-field="tripDate"]`)?.value || "",
+    tripTime: row.querySelector(`[data-field="tripTime"]`)?.value || "",
+    notes: row.querySelector(`[data-field="notes"]`)?.value || "",
     isShared:true,
     tripType:"SHARED",
     passengers,
@@ -1588,7 +1774,9 @@ Object.assign(window,{
   toggleSelectTomorrow,
   sendDispatchItem,
   editItem,
-  deleteItem
+  deleteItem,
+  openTripView,
+  closeTripView
 });
 
 /* ===============================
