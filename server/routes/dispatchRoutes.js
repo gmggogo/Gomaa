@@ -6,9 +6,8 @@ const mongoose = require("mongoose");
 console.log("MODELS =", Object.keys(mongoose.models));
 
 const Trip =
-  mongoose.models.Trip;
-
-console.log("TRIP MODEL =", Trip);
+  mongoose.models.Trip ||
+  global.Trip;
 const User = require("../models/User");
 const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
