@@ -173,24 +173,13 @@ function getSystemDayKeyByDate(dateStr){
 }
 
 function isToday(t){
-
-  const date =
-    clean(t.tripDate)
-      .substring(0,10);
-
-  return date === todayKey();
-
+  return clean(t.tripDate) === todayKey();
 }
 
 function isTomorrow(t){
-
-  const date =
-    clean(t.tripDate)
-      .substring(0,10);
-
-  return date === tomorrowKey();
-
+  return clean(t.tripDate) === tomorrowKey();
 }
+
 function parseTripDateTime(t){
   const d = clean(t.tripDate);
   const tm = clean(t.tripTime || "00:00");
@@ -714,23 +703,32 @@ function normalizeTrip(t){
 }
 
 function filterTrips(rawTrips){
+
   const seen = new Set();
 
   return rawTrips
     .filter(t=>{
+
       const id = String(t._id || t.id || "");
-      if(!id || seen.has(id)) return false;
+
+      if(!id || seen.has(id))
+        return false;
+
       seen.add(id);
 
-      if(t.dispatchSelected !== true) return false;
-      if(t.disabled === true) return false;
-      if(!isActiveTrip(t)) return false;
-// if(!isToday(t) && !isTomorrow(t))
-//   return false;
+      if(t.disabled === true)
+        return false;
+
+      if(isClosedTrip(t))
+        return false;
+
       return true;
+
     })
+
     .map(normalizeTrip)
     .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
+
 }
 
 async function loadAll(){
@@ -1149,7 +1147,6 @@ function renderDriversTab(){
 }
 
 function renderAll(){
-  trips = trips.filter(t=>!isClosedTrip(t) && isActiveTrip(t));
 
   renderStats();
 
@@ -1157,6 +1154,7 @@ function renderAll(){
   renderTable("tomorrowDispatchBody",trips.filter(isTomorrow));
 
   renderDriversTab();
+
 }
 
 /* ================= TABS ================= */
