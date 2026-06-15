@@ -1,6 +1,7 @@
 /* ==========================================================================
-   DISPATCH REVIEW V3
-   Facility / Individual / Shared
+   DISPATCH REVIEW V4
+   Facility / Individual / Reserved / Shared
+   Dynamic Service Cards + Facility Filter
    Same Trips Hub UI Policy
    Eye View / Nested Cells / Professional Table
    ========================================================================== */
@@ -56,6 +57,7 @@ document.getElementById("roleBadge") &&
   if(!toolbar) return;
 
   if(!document.getElementById("sourceFilter")){
+
     const source = document.createElement("select");
     source.id = "sourceFilter";
     source.className = "filter-select";
@@ -63,16 +65,20 @@ document.getElementById("roleBadge") &&
       <option value="ALL">All Bookings</option>
       <option value="GQ">Individual</option>
       <option value="FACILITY">Facilities</option>
+      <option value="RV">Reserved</option>
     `;
+
     toolbar.insertBefore(source,toolbar.firstChild);
   }
 
   if(!document.getElementById("facilityFilter")){
+
     const facility = document.createElement("select");
     facility.id = "facilityFilter";
     facility.className = "filter-select";
     facility.style.display = "none";
     facility.innerHTML = `<option value="ALL">All Facilities</option>`;
+
     toolbar.insertBefore(facility,toolbar.children[1] || null);
   }
 
@@ -87,10 +93,12 @@ const facilityFilter = document.getElementById("facilityFilter");
 
 (function injectReviewStyle(){
 
+  document.getElementById("dispatch-review-v4-style")?.remove();
   document.getElementById("dispatch-review-v3-style")?.remove();
+  document.getElementById("dispatch-review-v2-style")?.remove();
 
   const style = document.createElement("style");
-  style.id = "dispatch-review-v3-style";
+  style.id = "dispatch-review-v4-style";
 
   style.innerHTML = `
 
@@ -129,6 +137,7 @@ const facilityFilter = document.getElementById("facilityFilter");
 .stat-card.notcompleted{border-left-color:#7c3aed!important;}
 .stat-card.facility{border-left-color:#1d4ed8!important;}
 .stat-card.gq{border-left-color:#22c55e!important;}
+.stat-card.rv{border-left-color:#f59e0b!important;}
 .stat-card.shared{border-left-color:#7c3aed!important;}
 
 .stat-number{
@@ -176,10 +185,20 @@ const facilityFilter = document.getElementById("facilityFilter");
   min-width:250px!important;
 }
 
+.search-input:focus,
+.filter-select:focus{
+  border-color:#2563eb!important;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;
+}
+
+/* ===============================
+   SERVICE CARDS - DYNAMIC
+================================ */
+
 .service-cards{
   display:grid!important;
-  grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;
-  gap:7px!important;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important;
+  gap:8px!important;
   margin:0 0 10px!important;
 }
 
@@ -188,12 +207,19 @@ const facilityFilter = document.getElementById("facilityFilter");
   border:1px solid #dbe3ee!important;
   color:#0f172a!important;
   border-radius:13px!important;
-  padding:8px 7px!important;
+  padding:9px 8px!important;
   cursor:pointer!important;
   font-weight:900!important;
   box-shadow:0 4px 12px rgba(15,23,42,.06)!important;
-  text-align:center!important;
-  min-height:78px!important;
+  text-align:left!important;
+  min-height:118px!important;
+  transition:.15s ease!important;
+}
+
+.service-card:hover{
+  transform:translateY(-2px)!important;
+  border-color:#2563eb!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.10)!important;
 }
 
 .service-card.active-card{
@@ -205,30 +231,47 @@ const facilityFilter = document.getElementById("facilityFilter");
 .service-card-title{
   font-size:12px!important;
   line-height:1.1!important;
-  margin-bottom:4px!important;
+  margin-bottom:6px!important;
   font-weight:900!important;
+  text-align:center!important;
 }
 
 .service-total{
   font-size:22px!important;
   line-height:1.05!important;
   font-weight:900!important;
-  margin:4px 0!important;
+  margin:4px 0 7px!important;
+  text-align:center!important;
 }
 
-.service-mini{
-  display:grid!important;
-  grid-template-columns:repeat(4,1fr)!important;
-  gap:3px!important;
-  margin-top:6px!important;
-  font-size:8.5px!important;
+.service-line{
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:6px!important;
+  border-top:1px dashed #e2e8f0!important;
+  padding:4px 0!important;
+  font-size:10px!important;
   font-weight:900!important;
   color:#64748b!important;
 }
 
-.service-card.active-card .service-mini{
+.service-line span:last-child{
+  color:#0f172a!important;
+  font-size:11px!important;
+}
+
+.service-card.active-card .service-line{
+  border-top-color:rgba(255,255,255,.35)!important;
   color:#fff!important;
 }
+
+.service-card.active-card .service-line span:last-child{
+  color:#fff!important;
+}
+
+/* ===============================
+   TABLE
+================================ */
 
 .table-wrap{
   width:100%!important;
@@ -339,6 +382,10 @@ const facilityFilter = document.getElementById("facilityFilter");
   border-bottom:3px solid #000!important;
 }
 
+/* ===============================
+   CELL BOX
+================================ */
+
 .cell-box{
   display:grid!important;
   border:1px solid #111!important;
@@ -371,6 +418,10 @@ const facilityFilter = document.getElementById("facilityFilter");
   word-break:break-word!important;
   font-size:10px!important;
 }
+
+/* ===============================
+   STATUS / ROW COLORS
+================================ */
 
 .status-pill{
   display:inline-flex!important;
@@ -418,6 +469,10 @@ const facilityFilter = document.getElementById("facilityFilter");
 .noshow-row td{box-shadow:inset 0 0 0 9999px rgba(245,158,11,.08)!important;}
 .notcompleted-row td{box-shadow:inset 0 0 0 9999px rgba(100,116,139,.08)!important;}
 
+/* ===============================
+   EYE
+================================ */
+
 .eye-btn{
   border:none!important;
   background:transparent!important;
@@ -439,6 +494,10 @@ const facilityFilter = document.getElementById("facilityFilter");
   background:#dbeafe!important;
   border-radius:6px!important;
 }
+
+/* ===============================
+   VIEW MODAL
+================================ */
 
 .view-overlay{
   position:fixed!important;
@@ -659,6 +718,10 @@ function getFacilityName(t){
   );
 }
 
+function getCompanyDisplay(t){
+  return getFacilityName(t) || "--";
+}
+
 function getNotes(t){
   return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
 }
@@ -870,15 +933,22 @@ function getSourceCode(t){
     t?.reservationStatus,
     t?.tripNumber,
     t?.isReserved ? "reserved" : "",
-    t?.reserved ? "reserved" : "",
-    getFacilityName(t) ? "facility" : ""
+    t?.reserved ? "reserved" : ""
   ].join(" ").toLowerCase();
 
-  if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv")) return "RV";
-  if(raw.includes("company") || raw.includes("facility") || raw.includes("portal")) return "FACILITY";
-  if(raw.includes("quote") || raw.includes("gq") || raw.includes("website") || raw.includes("public")) return "GQ";
+  if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv"))
+    return "RV";
 
-  return getFacilityName(t) ? "FACILITY" : "GQ";
+  if(raw.includes("company") || raw.includes("facility") || raw.includes("portal"))
+    return "FACILITY";
+
+  if(getFacilityName(t))
+    return "FACILITY";
+
+  if(raw.includes("quote") || raw.includes("gq") || raw.includes("website") || raw.includes("public"))
+    return "GQ";
+
+  return "GQ";
 }
 
 function sourceLabel(t){
@@ -1056,14 +1126,13 @@ async function loadFacilities(){
 }
 
 function buildFacilityFallbackFromTrips(){
-  if(facilities.length) return;
+  const names = allTrips
+    .filter(t=>getSourceCode(t) === "FACILITY")
+    .map(getFacilityName)
+    .filter(Boolean);
 
-  facilities = [...new Set(
-    allTrips
-      .filter(t=>getSourceCode(t) === "FACILITY")
-      .map(getFacilityName)
-      .filter(Boolean)
-  )].sort((a,b)=>a.localeCompare(b));
+  facilities = [...new Set([...facilities,...names])]
+    .sort((a,b)=>a.localeCompare(b));
 }
 
 function renderFacilityFilter(){
@@ -1102,7 +1171,15 @@ async function loadServices(){
 
     const data = await res.json();
 
-    services = extractServices(data).filter(serviceEnabled);
+    const list = extractServices(data).filter(serviceEnabled);
+    const unique = new Map();
+
+    list.forEach(s=>{
+      const code = getServiceCodeFromService(s);
+      if(code && !unique.has(code)) unique.set(code,s);
+    });
+
+    services = [...unique.values()];
 
     if(activeService !== "ALL" && !services.some(s=>getServiceCodeFromService(s) === activeService)){
       activeService = "ALL";
@@ -1223,9 +1300,16 @@ function searchableText(item){
 
   return [
     getTripNumber(first),
-    getServiceTitleByTrip(first),
+    sourceLabel(first),
     getSourceCode(first),
+    getServiceTitleByTrip(first),
+    getServiceCodeFromTrip(first),
     getFacilityName(first),
+    first.company,
+    first.companyName,
+    first.facilityName,
+    first.organizationName,
+    first.customerCompany,
     first.entryName,
     first.entryPhone,
     first.entryEmail,
@@ -1256,6 +1340,10 @@ function filterItems(items,options={}){
     if(activeFacility !== "ALL"){
       out = out.filter(item=>getFacilityName(getItemTrip(item)) === activeFacility);
     }
+  }
+
+  if(activeSource === "RV"){
+    out = out.filter(item=>getSourceCode(getItemTrip(item)) === "RV");
   }
 
   if(options.service !== false && activeService !== "ALL"){
@@ -1346,6 +1434,7 @@ function createStats(){
     notCompleted:0,
     facility:0,
     gq:0,
+    rv:0,
     shared:0
   };
 }
@@ -1366,7 +1455,10 @@ function countItem(stats,item){
   if(first.tripDate === dateKey(azNow)) stats.today++;
   if(String(first.tripDate || "").slice(0,7) === monthKey(azNow)) stats.month++;
 
-  if(getSourceCode(first) === "FACILITY") stats.facility++;
+  const source = getSourceCode(first);
+
+  if(source === "FACILITY") stats.facility++;
+  else if(source === "RV") stats.rv++;
   else stats.gq++;
 
   if(item.kind === "shared"){
@@ -1398,6 +1490,7 @@ function renderStats(){
     <div class="stat-card notcompleted"><div class="stat-number">${stats.notCompleted}</div><div class="stat-label">Not Completed</div></div>
     <div class="stat-card facility"><div class="stat-number">${stats.facility}</div><div class="stat-label">Facilities</div></div>
     <div class="stat-card gq"><div class="stat-number">${stats.gq}</div><div class="stat-label">Individual</div></div>
+    <div class="stat-card rv"><div class="stat-number">${stats.rv}</div><div class="stat-label">Reserved</div></div>
     <div class="stat-card shared"><div class="stat-number">${stats.shared}</div><div class="stat-label">Shared Groups</div></div>
   `;
 }
@@ -1447,12 +1540,13 @@ function renderServiceCards(){
       <div class="service-card ${active}" data-service="${safe(card.code)}">
         <div class="service-card-title">${safe(card.title)}</div>
         <div class="service-total">${c.total}</div>
-        <div class="service-mini">
-          <span>CP ${c.completed}</span>
-          <span>CN ${c.cancelled}</span>
-          <span>NS ${c.noshow}</span>
-          <span>NC ${c.notCompleted}</span>
-        </div>
+        <div class="service-line"><span>Individual</span><span>${c.gq}</span></div>
+        <div class="service-line"><span>Facilities</span><span>${c.facility}</span></div>
+        <div class="service-line"><span>Reserved</span><span>${c.rv}</span></div>
+        <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
+        <div class="service-line"><span>Cancelled</span><span>${c.cancelled}</span></div>
+        <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
+        <div class="service-line"><span>Not Completed</span><span>${c.notCompleted}</span></div>
       </div>
     `;
   }).join("");
@@ -1636,7 +1730,7 @@ function renderTripRow(item,num){
     </td>
 
     <td class="company-cell">
-      ${cellBox(safe(getFacilityName(t) || "--"))}
+      ${cellBox(safe(getCompanyDisplay(t)))}
     </td>
 
     <td class="wide-client">
@@ -1711,7 +1805,7 @@ function renderSharedRow(item,num){
     </td>
 
     <td class="company-cell">
-      ${cellBox(safe(getFacilityName(first) || "--"))}
+      ${cellBox(safe(getCompanyDisplay(first)))}
     </td>
 
     <td class="wide-client">${names}</td>
