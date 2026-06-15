@@ -147,25 +147,29 @@ body{
   margin-bottom:16px;
 }
 
+/* ===================================================
+   تعديلات الـ CSS لجعل الكروت تفاعلية وقابلة للضغط
+   =================================================== */
 .service-card{
   background:#fff;
   border:1px solid var(--border);
   border-radius:15px;
   padding:14px;
   box-shadow:0 7px 18px rgba(15,23,42,.07);
-  cursor:pointer;
+  cursor:pointer; /* تحويل المؤشر ليد عند التمرير */
   transition:all 0.2s ease-in-out;
 }
 
 .service-card:hover{
-  transform:translateY(-3px);
+  transform:translateY(-3px); /* تأثير ارتفاع خفيف عند الماوس */
   box-shadow:0 12px 24px rgba(15,23,42,.12);
   border-color:var(--blue);
 }
 
+/* كلاس الكارت النشط أو المحدد حالياً بالفلتر */
 .service-card.active-card {
   border: 2px solid var(--blue) !important;
-  background: #f0f7ff !important;
+  background: #f0f7ff !important; /* خلفية زرقاء خفيفة جداً للتمييز */
 }
 
 .service-card-title{
@@ -264,6 +268,9 @@ body{
   white-space:nowrap;
 }
 
+/* =========================
+   PILLS SIZE (UNIFIED)
+========================= */
 .service-pill,
 .source-pill,
 .status-pill{
@@ -308,11 +315,6 @@ body{
   background:#fef3c7;
   color:#92400e;
   border:1px solid #fcd34d;
-  font-size:10px;
-  font-weight:600;
-  height:24px;
-  line-height:24px;
-  padding:0;
 }
 
 .status-pill.completed{
@@ -426,16 +428,7 @@ body{
   <div id="reviewStats" class="review-stats"></div>
 
   <div class="toolbar">
-
-    <select id="sourceFilter" class="filter-select">
-      <option value="ALL">All Bookings</option>
-      <option value="GQ">Get Quote</option>
-      <option value="CO">Facility</option>
-      <option value="RV">Reserved</option>
-    </select>
-
     <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, company, passenger, phone, email, address">
-
     <select id="statusFilter" class="filter-select">
       <option value="">All Statuses</option>
       <option value="Completed">Completed</option>
@@ -443,7 +436,6 @@ body{
       <option value="No Show">No Show</option>
       <option value="Not Completed">Not Completed</option>
     </select>
-
     <select id="yearFilter" class="filter-select"></select>
     <select id="monthFilter" class="filter-select"></select>
   </div>
@@ -469,13 +461,11 @@ if(!["superadmin","admin","dispatcher"].includes(role)){
 let allTrips = [];
 let services = [];
 let displayItems = [];
-let activeService = "ALL";
-let activeSource = "ALL";
+let activeService = "ALL"; // كارت الفلترة النشط افتراضياً عند فتح الصفحة
 let refreshTimer = null;
 
 const CLOSED_HOURS = 10;
 
-const sourceFilter = document.getElementById("sourceFilter");
 const searchInput = document.getElementById("searchInput");
 const statusFilter = document.getElementById("statusFilter");
 const yearFilter = document.getElementById("yearFilter");
@@ -504,19 +494,15 @@ function cleanStatus(v){
 }
 
 function compactStatus(v){ return cleanStatus(v).replace(/\s+/g,""); }
-
 function isCompletedStatus(status){
   const s = cleanStatus(status);
   return s === "completed" || s === "complete" || s.includes("completed");
 }
-
 function isCancelledStatus(status){ return cleanStatus(status).includes("cancel"); }
-
 function isNoShowStatus(status){
   const s = cleanStatus(status);
   return s.includes("no show") || s.includes("noshow");
 }
-
 function isScheduledStatus(status){ return cleanStatus(status) === "scheduled"; }
 function isConfirmedStatus(status){ return cleanStatus(status) === "confirmed"; }
 
@@ -546,43 +532,25 @@ function parseTripDateTime(t){
 function isNotCompletedStatus(status,trip){
   const s = cleanStatus(status);
   const c = compactStatus(status);
-
-  if(s === "not completed" || c === "notcompleted" || s.includes("not complete")){
-    return true;
-  }
-
-  if(isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status)){
-    return false;
-  }
-
-  if(!isScheduledStatus(status) && !isConfirmedStatus(status)){
-    return false;
-  }
-
+  if(s === "not completed" || c === "notcompleted" || s.includes("not complete")){ return true; }
+  if(isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status)){ return false; }
+  if(!isScheduledStatus(status) && !isConfirmedStatus(status)){ return false; }
   const dt = parseTripDateTime(trip);
   if(!dt) return false;
-
   return Date.now() - dt.getTime() >= CLOSED_HOURS * 60 * 60 * 1000;
 }
 
 function isClosedTrip(t){
   if(!t) return false;
-
   if(isSharedTrip(t)){
     const group = getSharedGroups(allTrips).find(g => getSharedKey(g[0]) === getSharedKey(t)) || [t];
     return hasClosedPassenger(group);
   }
-
   return isClosedStatus(t.status,t);
 }
 
 function isClosedStatus(status,trip){
-  return (
-    isCompletedStatus(status) ||
-    isCancelledStatus(status) ||
-    isNoShowStatus(status) ||
-    isNotCompletedStatus(status,trip)
-  );
+  return (isCompletedStatus(status) || isCancelledStatus(status) || isNoShowStatus(status) || isNotCompletedStatus(status,trip));
 }
 
 function displayStatus(status,trip){
@@ -644,6 +612,7 @@ function normalizeKnownCode(code){
 }
 
 function getServiceCodeFromService(s){
+
   const code =
     s?.companySuffix ||
     s?.suffix ||
@@ -662,15 +631,12 @@ function getServiceTitle(s){
 function getServiceCodeFromTrip(t){
   const direct = normalizeText(t?.serviceKey || t?.serviceCode || t?.serviceType || t?.service || "").toUpperCase();
   if(direct) return normalizeKnownCode(direct);
-
   const num = normalizeText(t?.tripNumber).toUpperCase();
-
   if(num.includes("-SH") || isSharedTrip(t)) return "SH";
   if(num.includes("-XL")) return "XL";
   if(num.includes("-WH")) return "WH";
   if(num.includes("-TX")) return "TX";
   if(num.includes("-LM")) return "LM";
-
   return "ST";
 }
 
@@ -718,19 +684,9 @@ function getSourceCode(t){
 
   return t?.company ? "CO" : "GQ";
 }
-
 function sourceHTML(t){
   const code = getSourceCode(t);
-
-  if(code === "RV"){
-    return `<span class="source-pill reserved">Reserved</span>`;
-  }
-
-  if(code === "CO"){
-    return `<span class="source-pill company">Facility</span>`;
-  }
-
-  return `<span class="source-pill gq">Get Quote</span>`;
+  return `<span class="source-pill ${code === "CO" ? "company" : "gq"}">${code === "CO" ? "Company" : "Get Quote"}</span>`;
 }
 
 function getEmail(t,p){ return p?.clientEmail || p?.passengerEmail || p?.email || t?.clientEmail || "-"; }
@@ -743,24 +699,14 @@ function getDropoff(t,p){ return p?.dropoff || t?.dropoff || "-"; }
    SHARED TRIPS MANAGEMENT
 ================================ */
 function isSharedTrip(t){
-  return (
-    t?.isShared === true ||
-    String(t?.tripType || "").toUpperCase() === "SHARED" ||
-    normalizeText(t?.tripNumber).toUpperCase().includes("-SH")
-  );
+  return (t?.isShared === true || String(t?.tripType || "").toUpperCase() === "SHARED" || normalizeText(t?.tripNumber).toUpperCase().includes("-SH"));
 }
 
-function getSharedKey(t){
-  return normalizeText(t?.groupId) || normalizeText(t?.tripNumber) || String(t?._id || t?.id);
-}
+function getSharedKey(t){ return normalizeText(t?.groupId) || normalizeText(t?.tripNumber) || String(t?._id || t?.id); }
 
 function getRealPassengersFromGroup(group){
   const first = group[0] || {};
-
-  if(Array.isArray(first.passengers) && first.passengers.length){
-    return first.passengers;
-  }
-
+  if(Array.isArray(first.passengers) && first.passengers.length){ return first.passengers; }
   return group.map((t,i)=>({
     name:t.name || t.clientName || "",
     phone:t.phone || t.clientPhone || "",
@@ -772,13 +718,11 @@ function getRealPassengersFromGroup(group){
 
 function getSharedGroups(list = allTrips){
   const map = {};
-
   list.filter(isSharedTrip).forEach(t=>{
     const key = getSharedKey(t);
     if(!map[key]) map[key] = [];
     map[key].push(t);
   });
-
   return Object.values(map);
 }
 
@@ -795,15 +739,12 @@ function getClosedPassengers(group){
 function getGroupStatus(group){
   const first = group[0] || {};
   const closed = getClosedPassengers(group);
-
   if(closed.length === 1) return displayStatus(closed[0].status || first.status,first);
-
   if(closed.length > 1){
     if(closed.every(p => isCompletedStatus(p.status || first.status))) return "Completed";
     if(closed.every(p => isCancelledStatus(p.status || first.status))) return "Cancelled";
     return "Mixed Closed";
   }
-
   return first.status || "Scheduled";
 }
 
@@ -842,53 +783,24 @@ async function loadTrips(){
 function buildDisplayItems(trips){
   const items = [];
   const usedShared = new Set();
-
   trips.forEach(t=>{
     if(!isClosedTrip(t)) return;
-
     if(isSharedTrip(t)){
       const key = getSharedKey(t);
       if(usedShared.has(key)) return;
-
       usedShared.add(key);
-
       const group = getSharedGroups(trips).find(g => getSharedKey(g[0]) === key) || [t];
-
-      items.push({
-        kind:"shared",
-        key,
-        date:parseTripDateTime(group[0]) || getBookedDateObj(group[0]),
-        tripDate:getTripDateKey(group[0]),
-        group
-      });
-
+      items.push({ kind:"shared", key, date:parseTripDateTime(group[0]) || getBookedDateObj(group[0]), tripDate:getTripDateKey(group[0]), group });
       return;
     }
-
-    items.push({
-      kind:"trip",
-      key:String(t._id || t.id),
-      date:parseTripDateTime(t) || getBookedDateObj(t),
-      tripDate:getTripDateKey(t),
-      trip:t
-    });
+    items.push({ kind:"trip", key:String(t._id || t.id), date:parseTripDateTime(t) || getBookedDateObj(t), tripDate:getTripDateKey(t), trip:t });
   });
-
   return items.sort((a,b)=>b.date-a.date);
 }
 
 function searchableText(item){
   const first = item.kind === "trip" ? item.trip : item.group[0];
-
-  return [
-    getTripNumber(first),
-    first.company,
-    first.clientName,
-    first.clientPhone,
-    first.pickup,
-    first.dropoff,
-    getSourceCode(first)
-  ].join(" ").toLowerCase();
+  return [getTripNumber(first), first.company, first.clientName, first.clientPhone, first.pickup, first.dropoff].join(" ").toLowerCase();
 }
 
 function applyFilters(){
@@ -901,17 +813,8 @@ function applyFilters(){
     });
   }
 
-  if(activeSource !== "ALL"){
-    items = items.filter(item=>{
-      const t = item.kind === "trip" ? item.trip : item.group[0];
-      return getSourceCode(t) === activeSource;
-    });
-  }
-
   const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
-  if(q){
-    items = items.filter(item => searchableText(item).includes(q));
-  }
+  if(q){ items = items.filter(item => searchableText(item).includes(q)); }
 
   const st = statusFilter ? statusFilter.value : "";
   if(st){
@@ -932,46 +835,12 @@ function applyFilters(){
 
 function buildFilters(){
   if(!yearFilter || !monthFilter) return;
-
   const oldYear = yearFilter.value || "";
-  const oldMonth = monthFilter.value || "";
-
   const years = new Set();
-
-  allTrips.forEach(t=>{
-    if(t.tripDate){
-      const y = String(t.tripDate).split("-")[0];
-      if(y) years.add(y);
-    }
-  });
-
+  allTrips.forEach(t=>{ if(t.tripDate){ const y = String(t.tripDate).split("-")[0]; if(y) years.add(y); } });
   yearFilter.innerHTML = `<option value="">All Years</option>`;
-
-  [...years]
-    .sort((a,b)=>b-a)
-    .forEach(y=>{
-      yearFilter.innerHTML += `<option value="${safe(y)}">${safe(y)}</option>`;
-    });
-
+  [...years].sort((a,b)=>b-a).forEach(y=>{ yearFilter.innerHTML += `<option value="${safe(y)}">${safe(y)}</option>`; });
   yearFilter.value = oldYear;
-
-  monthFilter.innerHTML = `
-    <option value="">All Months</option>
-    <option value="01">January</option>
-    <option value="02">February</option>
-    <option value="03">March</option>
-    <option value="04">April</option>
-    <option value="05">May</option>
-    <option value="06">June</option>
-    <option value="07">July</option>
-    <option value="08">August</option>
-    <option value="09">September</option>
-    <option value="10">October</option>
-    <option value="11">November</option>
-    <option value="12">December</option>
-  `;
-
-  monthFilter.value = oldMonth;
 }
 
 /* ===============================
@@ -1005,41 +874,32 @@ function countItem(stats,item){
   const azNow = getAZNow();
   const today = dateKey(azNow);
   const month = monthKey(azNow);
-
   stats.total++;
-
   if(first.tripDate === today) stats.today++;
   if(String(first.tripDate || "").slice(0,7) === month) stats.month++;
-
   const src = getSourceCode(first);
 
-  if(src === "RV"){
-    stats.reserved++;
-  }else if(src === "CO"){
-    stats.company++;
-  }else{
-    stats.gq++;
-  }
-
+if(src === "RV"){
+  stats.reserved++;
+}else if(src === "CO" || src === "FACILITY"){
+  stats.company++;
+}else{
+  stats.gq++;
+}
   if(item.kind === "shared"){
     stats.shared++;
-    getClosedPassengers(item.group).forEach(p=>{
-      countStatus(stats,p.status || first.status,first);
-    });
+    getClosedPassengers(item.group).forEach(p=>{ countStatus(stats,p.status || first.status,first); });
     return;
   }
-
   countStatus(stats,first.status,first);
 }
 
 function renderStats(){
   const stats = createStats();
-
   buildDisplayItems(allTrips).forEach(item=>countItem(stats,item));
 
   const wrap = document.getElementById("reviewStats");
   if(!wrap) return;
-
   wrap.innerHTML = `
     <div class="stat-card total"><div class="stat-number">${stats.total}</div><div class="stat-label">Total Closed</div></div>
     <div class="stat-card today"><div class="stat-number">${stats.today}</div><div class="stat-label">Today</div></div>
@@ -1048,7 +908,7 @@ function renderStats(){
     <div class="stat-card cancelled"><div class="stat-number">${stats.cancelled}</div><div class="stat-label">Cancelled</div></div>
     <div class="stat-card noshow"><div class="stat-number">${stats.noshow}</div><div class="stat-label">No Show</div></div>
     <div class="stat-card notcompleted"><div class="stat-number">${stats.notCompleted}</div><div class="stat-label">Not Completed</div></div>
-    <div class="stat-card company"><div class="stat-number">${stats.company}</div><div class="stat-label">Facility</div></div>
+    <div class="stat-card company"><div class="stat-number">${stats.company}</div><div class="stat-label">Company</div></div>
     <div class="stat-card gq"><div class="stat-number">${stats.gq}</div><div class="stat-label">Get Quote</div></div>
     <div class="stat-card reserved"><div class="stat-number">${stats.reserved}</div><div class="stat-label">Reserved</div></div>
   `;
@@ -1056,25 +916,23 @@ function renderStats(){
 
 function countItemsByService(code){
   const baseItems = buildDisplayItems(allTrips);
-
-  const selected = code === "ALL"
-    ? baseItems
-    : baseItems.filter(item=>{
-        const t = item.kind === "trip" ? item.trip : item.group[0];
-        return getServiceCodeFromTrip(t) === code;
-      });
-
+  const selected = code === "ALL" ? baseItems : baseItems.filter(item=>{
+    const t = item.kind === "trip" ? item.trip : item.group[0];
+    return getServiceCodeFromTrip(t) === code;
+  });
   const stats = createStats();
-
   selected.forEach(item=>countItem(stats,item));
-
   return stats;
 }
 
+/* =========================================================================
+   بناء وعرض الكروت التفصيلية ديناميكياً مع دمج كارت ALL في البداية وربط الأحداث
+   ========================================================================= */
 function renderServiceCards(){
   const wrap = document.getElementById("serviceCards");
   if(!wrap) return;
 
+  // إعداد مصفوفة الكروت بدءاً بكارت ALL الجديد يليه باقي الخدمات النشطة
   const cardsData = [
     { code: "ALL", title: "ALL" },
     ...services.map(s => ({ code: getServiceCodeFromService(s), title: getServiceTitle(s) }))
@@ -1089,8 +947,7 @@ function renderServiceCards(){
         <div class="service-card-title" ${card.code === 'ALL' ? 'style="color:var(--blue);font-size:16px;font-weight:900;"' : ''}>${safe(card.title)}</div>
         <div class="service-line"><span>Total Closed</span><span>${c.total}</span></div>
         <div class="service-line"><span>Get Quote</span><span>${c.gq}</span></div>
-        <div class="service-line"><span>Facility</span><span>${c.company}</span></div>
-        <div class="service-line"><span>Reserved</span><span>${c.reserved}</span></div>
+        <div class="service-line"><span>Company</span><span>${c.company}</span></div>
         <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
         <div class="service-line"><span>Cancelled</span><span style="${c.cancelled > 0 ? 'color:var(--red); font-weight:bold;' : ''}">${c.cancelled}</span></div>
         <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
@@ -1099,10 +956,11 @@ function renderServiceCards(){
     `;
   }).join("");
 
+  // ربط حدث الضغط Click على الكروت مباشرة بعد حقنها في الصفحة لعمل الفلترة الفورية
   wrap.querySelectorAll(".service-card").forEach(cardElement => {
     cardElement.onclick = () => {
       activeService = cardElement.dataset.service || "ALL";
-      applyFilters();
+      applyFilters(); // تطبيق الفلاتر وتحديث الجدول بناءً على الخدمة المحددة
     };
   });
 }
@@ -1113,20 +971,12 @@ function renderServiceCards(){
 function rowClass(status,trip,itemKind){
   const cls = statusClass(status,trip);
   let out = "";
-
   if(itemKind === "shared") out += "shared-row ";
-
-  if(getSourceCode(trip) === "CO"){
-    out += "row-company ";
-  }else{
-    out += "row-getquote ";
-  }
-
+  if(getSourceCode(trip) === "CO") out += "row-company "; else out += "row-getquote ";
   if(cls === "completed") out += "completed-row ";
   if(cls === "cancelled") out += "cancelled-row ";
   if(cls === "noshow") out += "noshow-row ";
   if(cls === "notcompleted") out += "notcompleted-row ";
-
   return out.trim();
 }
 
@@ -1156,7 +1006,6 @@ function render(){
   }
 
   const groups = groupByTripDate(displayItems);
-
   reviewContent.innerHTML = `
     <div class="table-wrap">
     <table class="review-table">
@@ -1173,17 +1022,11 @@ function render(){
   `;
 
   const tbody = document.getElementById("mainReviewBody");
-
   Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(day=>{
     tbody.innerHTML += `<tr class="date-row"><td colspan="19">Trip Date: ${safe(day)}</td></tr>`;
-
     groups[day].forEach(item=>{
-      if(item.kind === "trip"){
-        tbody.appendChild(renderTripRow(item));
-      }else{
-        renderSharedRows(tbody,item);
-      }
-
+      if(item.kind === "trip"){ tbody.appendChild(renderTripRow(item)); } 
+      else { renderSharedRows(tbody,item); }
       tbody.innerHTML += `<tr class="trip-divider-line"><td colspan="19"></td></tr>`;
     });
   });
@@ -1193,7 +1036,6 @@ function renderTripRow(item){
   const t = item.trip;
   const tr = document.createElement("tr");
   tr.className = rowClass(t.status,t,"trip");
-
   tr.innerHTML = `
     <td>${tripCounter++}</td>
     <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
@@ -1213,9 +1055,8 @@ function renderTripRow(item){
     <td>${safe(t.notes || "-")}</td>
     <td>${safe(getBookedDate(t))}</td>
     <td>${safe(getBookedTime(t))}</td>
-    <td class="status-td ${statusClass(t.status,t)}">${safe(displayStatus(t.status,t))}</td>
+    <td class="status-td ${statusClass(t.status,t)}">${displayStatus(t.status,t)}</td>
   `;
-
   return tr;
 }
 
@@ -1227,7 +1068,6 @@ function renderSharedRows(tbody,item){
   passengers.forEach((p,index)=>{
     const tr = document.createElement("tr");
     tr.className = rowClass(p.status || first.status,first,"shared") + (index !== passengers.length - 1 ? " shared-separator" : "");
-
     tr.innerHTML = `
       <td>${index === 0 ? tripCounter++ : ""}</td>
       <td>${index === 0 ? `<span class="trip-number-badge">${safe(getTripNumber(first))}</span>` : ""}</td>
@@ -1247,9 +1087,8 @@ function renderSharedRows(tbody,item){
       <td>${index === 0 ? safe(first.notes || "-") : ""}</td>
       <td>${index === 0 ? safe(getBookedDate(first)) : ""}</td>
       <td>${index === 0 ? safe(getBookedTime(first)) : ""}</td>
-      <td class="status-td ${statusClass(p.status || first.status,first)}">${safe(displayStatus(p.status || first.status,first))}</td>
+      <td class="status-td ${statusClass(p.status || first.status,first)}">${displayStatus(p.status || first.status,first)}</td>
     `;
-
     tbody.appendChild(tr);
   });
 }
@@ -1257,11 +1096,6 @@ function renderSharedRows(tbody,item){
 /* ===============================
    EVENTS HANDLERS
 ================================ */
-sourceFilter?.addEventListener("change",()=>{
-  activeSource = sourceFilter.value || "ALL";
-  applyFilters();
-});
-
 searchInput?.addEventListener("input",applyFilters);
 statusFilter?.addEventListener("change",applyFilters);
 yearFilter?.addEventListener("change",applyFilters);
@@ -1278,9 +1112,12 @@ async function refreshEverything(){
 (async function init(){
   await refreshEverything();
   if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(refreshEverything,30000);
+  refreshTimer = setInterval(refreshEverything,30000); // تحديث دوري تلقائي كل 30 ثانية
 })();
-</script>
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch-review.js"></script>
+</body>
+</html>
 
 </body>
 </html>
