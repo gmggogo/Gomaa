@@ -236,6 +236,21 @@ if(!container) console.error("Missing #hubContainer");
       color:#0f172a;
     }
 
+.mini-header-row th{
+  background:#1f2937!important;
+  color:#fff!important;
+  font-weight:900!important;
+  font-size:10px!important;
+  padding:4px 5px!important;
+  border:1px solid #111827!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
+  line-height:1.1!important;
+}
+
     .service-tabs{
       display:grid;
       grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
@@ -546,24 +561,24 @@ if(!container) console.error("Missing #hubContainer");
       box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);
     }
 
-    .eye-btn{
-      border:none;
-      background:#0f172a;
-      color:#fff;
-      width:26px;
-      height:26px;
-      border-radius:7px;
-      cursor:pointer;
-      font-size:13px;
-      font-weight:900;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-    }
+   .eye-btn{
+  border:none;
+  background:#0f172a;
+  color:#fff;
+  width:28px;
+  height:28px;
+  border-radius:7px;
+  cursor:pointer;
+  font-size:13px;
+  font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
 
-    .eye-btn:hover{
-      background:#2563eb;
-    }
+.eye-btn:hover{
+  background:#2563eb;
+}
 
     .hub-view-overlay{
       position:fixed;
@@ -1762,6 +1777,30 @@ function groupDisplayItemsByBookedDate(){
 
   return groups;
 }
+function renderMiniHeaderRow(){
+  const tr = document.createElement("tr");
+  tr.className = "mini-header-row";
+
+  tr.innerHTML = `
+    <th class="col-num">#</th>
+    <th class="col-select">Select</th>
+    <th class="col-trip">Trip #</th>
+    <th class="col-company">Company</th>
+    <th class="wide-client">Client / Passengers</th>
+    <th class="wide-phone">Phone</th>
+    <th class="wide-address">Pickup</th>
+    <th class="wide-stops">Stops</th>
+    <th class="wide-address">Dropoff</th>
+    <th class="wide-notes">Notes</th>
+    <th class="col-date">Trip Date</th>
+    <th class="col-time">Trip Time</th>
+   
+    <th class="col-time">Status</th>
+    <th class="col-eye">👁️</th>
+  `;
+
+  return tr;
+}
 
 function render(){
   if(!container) return;
@@ -1798,8 +1837,7 @@ function render(){
         <th class="wide-notes">Notes</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
-        <th class="col-date">Booked Date</th>
-        <th class="col-time">Booked Time</th>
+      
         <th class="col-time">Status</th>
         <th class="col-eye">👁</th>
       </tr>
@@ -1814,14 +1852,15 @@ function render(){
     dateRow.className = "date-separator";
 
     dateRow.innerHTML = `
-      <td colspan="16">
+      <td colspan="14">
         Booked: ${safe(dayKey)}
       </td>
     `;
 
-    tbody.appendChild(dateRow);
+tbody.appendChild(dateRow);
+tbody.appendChild(renderMiniHeaderRow());
 
-    groups[dayKey].forEach((item,index)=>{
+groups[dayKey].forEach((item,index)=>{
       tbody.appendChild(
         item.kind === "shared"
           ? renderSharedRow(item,index + 1)
@@ -1893,15 +1932,12 @@ function renderTripRow(item,rowNumber){
       ${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : safe(t.tripTime || "")}
     </td>
 
-    <td class="col-date">${safe(getBookedDate(t))}</td>
-    <td class="col-time">${safe(getBookedTime(t))}</td>
-
     <td class="col-time">
       <span class="status-pill ${getStatusClass(t.status)}">${safe(getStatusLabel(t.status))}</span>
     </td>
 
     <td class="col-eye">
-      <button class="eye-btn" type="button" onclick="openTripView('${item.key}')">👁</button>
+      <button class="eye-btn" type="button" title="View" onclick="openTripView('${item.key}')">👁️</button>
     </td>
   `;
 
@@ -1972,15 +2008,12 @@ function renderSharedRow(item,rowNumber){
       ${editing ? createEditInput(first.tripTime || "", "tripTime", "time") : safe(first.tripTime || "")}
     </td>
 
-    <td class="col-date">${safe(getBookedDate(first))}</td>
-    <td class="col-time">${safe(getBookedTime(first))}</td>
-
     <td class="col-time">
       <span class="status-pill ${getStatusClass(groupStatus)}">${safe(getStatusLabel(groupStatus))}</span>
     </td>
 
     <td class="col-eye">
-      <button class="eye-btn" type="button" onclick="openTripView('${item.key}')">👁</button>
+      <button class="eye-btn" type="button" title="View" onclick="openTripView('${item.key}')">👁️</button>
     </td>
   `;
 
