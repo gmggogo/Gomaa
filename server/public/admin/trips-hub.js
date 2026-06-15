@@ -369,12 +369,13 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .hub-table{
-      width:100%;
-      min-width:1500px;
-      table-layout:fixed;
-      border-collapse:collapse;
-      background:#fff;
-    }
+  width:100%;
+  min-width:1500px;
+  table-layout:fixed;
+  border-collapse:collapse;
+  background:#fff;
+  border-top:6px solid #000;
+}
 
     .hub-table th,
     .hub-table td{
