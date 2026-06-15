@@ -3,7 +3,7 @@
    Facility / Get Quote / Reserved
    Year Month Day Filters
    Modified UI Only:
-   Company Visible / Eye View / Nested Cells / Smaller Columns
+   Sticky Top / Responsive Table / Company Visible / Eye View / Nested Cells
    ========================================================================== */
 
 const API_URL = "/api/trips";
@@ -88,18 +88,27 @@ if(!container) console.error("Missing #hubContainer");
     page.insertBefore(wrap,page.firstChild);
   }
 
+  let sticky = document.getElementById("hubStickyTop");
+
+  if(!sticky){
+    sticky = document.createElement("div");
+    sticky.id = "hubStickyTop";
+    sticky.className = "hub-sticky-top";
+    page.insertBefore(sticky,container);
+  }
+
   if(!document.getElementById("hubStats")){
     const stats = document.createElement("div");
     stats.id = "hubStats";
     stats.className = "hub-stats";
-    page.insertBefore(stats,container);
+    sticky.appendChild(stats);
   }
 
   if(!document.getElementById("serviceTabs")){
     const tabs = document.createElement("div");
     tabs.id = "serviceTabs";
     tabs.className = "service-tabs";
-    page.insertBefore(tabs,container);
+    sticky.appendChild(tabs);
   }
 
   if(!document.getElementById("hubDateFilters")){
@@ -112,7 +121,7 @@ if(!container) console.error("Missing #hubContainer");
       <select id="dayFilter" class="hub-filter"><option value="">Day</option></select>
       <button id="clearDateFilters" class="clear-filter-btn" type="button">Clear</button>
     `;
-    page.insertBefore(filters,container);
+    sticky.appendChild(filters);
   }
 
   if(!document.getElementById("hubActionBar")){
@@ -125,7 +134,7 @@ if(!container) console.error("Missing #hubContainer");
       <button id="saveEditBtn" class="hub-action-btn save" style="display:none;">Save Changes</button>
       <button id="cancelEditBtn" class="hub-action-btn cancel" style="display:none;">Cancel Edit</button>
     `;
-    page.insertBefore(bar,container);
+    sticky.appendChild(bar);
   }
 })();
 
@@ -139,109 +148,295 @@ if(!container) console.error("Missing #hubContainer");
   const style = document.createElement("style");
   style.id = "trips-hub-v7-style";
   style.innerHTML = `
-    .top-add-trip-wrap{display:flex;justify-content:flex-start;margin:0 0 14px;}
+    :root{
+      --hub-sticky-height:0px;
+    }
+
+    .top-add-trip-wrap{
+      display:flex;
+      justify-content:flex-start;
+      margin:0 0 10px;
+      background:#f1f5f9;
+      z-index:900;
+    }
+
     .top-add-trip-btn{
-      border:none;border-radius:13px;padding:13px 22px;background:#2563eb;color:#fff;
-      font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 8px 20px rgba(37,99,235,.24);
+      border:none;
+      border-radius:13px;
+      padding:12px 20px;
+      background:#2563eb;
+      color:#fff;
+      font-size:15px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow:0 8px 20px rgba(37,99,235,.24);
+    }
+
+    .hub-sticky-top{
+      position:sticky;
+      top:0;
+      z-index:800;
+      background:#f1f5f9;
+      padding:0 0 8px;
+      border-bottom:1px solid #cbd5e1;
     }
 
     .hub-stats{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-      gap:10px;margin:0 0 14px;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+      gap:8px;
+      margin:0 0 10px;
     }
+
     .stat-card{
-      background:#fff;border:1px solid #dbe3ee;border-radius:15px;padding:13px 10px;
-      text-align:center;box-shadow:0 6px 16px rgba(15,23,42,.07);
+      background:#fff;
+      border:1px solid #dbe3ee;
+      border-radius:14px;
+      padding:10px 8px;
+      text-align:center;
+      box-shadow:0 5px 14px rgba(15,23,42,.07);
     }
+
     .stat-card.total{border-left:6px solid #2563eb;}
     .stat-card.new{border-left:6px solid #16a34a;}
     .stat-card.facility{border-left:6px solid #1d4ed8;}
     .stat-card.gq{border-left:6px solid #22c55e;}
     .stat-card.reserved{border-left:6px solid #f59e0b;}
 
-    .stat-title{font-size:12px;font-weight:900;color:#64748b;letter-spacing:.3px;}
-    .stat-number{font-size:27px;line-height:1.1;font-weight:900;color:#0f172a;margin-top:4px;}
+    .stat-title{
+      font-size:11px;
+      font-weight:900;
+      color:#64748b;
+      letter-spacing:.3px;
+    }
+
+    .stat-number{
+      font-size:24px;
+      line-height:1.1;
+      font-weight:900;
+      color:#0f172a;
+      margin-top:3px;
+    }
 
     .mini-head,.mini-values{
-      display:grid;grid-template-columns:repeat(3,1fr);
-      align-items:center;text-align:center;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      align-items:center;
+      text-align:center;
     }
-    .mini-head{margin-top:9px;font-size:10px;font-weight:900;color:#64748b;}
-    .mini-values{margin-top:3px;font-size:14px;font-weight:900;color:#0f172a;}
+
+    .mini-head{
+      margin-top:7px;
+      font-size:9px;
+      font-weight:900;
+      color:#64748b;
+    }
+
+    .mini-values{
+      margin-top:2px;
+      font-size:12px;
+      font-weight:900;
+      color:#0f172a;
+    }
 
     .service-tabs{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
-      gap:8px;margin:0 0 14px;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+      gap:7px;
+      margin:0 0 10px;
     }
+
     .service-tab{
-      border:1px solid #dbe3ee;background:#fff;color:#0f172a;border-radius:14px;
-      padding:10px 8px;cursor:pointer;font-weight:900;
-      box-shadow:0 5px 14px rgba(15,23,42,.06);
-      text-align:center;min-height:92px;
+      border:1px solid #dbe3ee;
+      background:#fff;
+      color:#0f172a;
+      border-radius:13px;
+      padding:8px 7px;
+      cursor:pointer;
+      font-weight:900;
+      box-shadow:0 4px 12px rgba(15,23,42,.06);
+      text-align:center;
+      min-height:78px;
     }
-    .service-tab.active{background:#2563eb;color:#fff;border-color:#2563eb;}
-    .service-title{font-size:13px;line-height:1.15;margin-bottom:5px;}
-    .service-total{font-size:25px;line-height:1.05;font-weight:900;}
+
+    .service-tab.active{
+      background:#2563eb;
+      color:#fff;
+      border-color:#2563eb;
+    }
+
+    .service-title{
+      font-size:12px;
+      line-height:1.1;
+      margin-bottom:4px;
+    }
+
+    .service-total{
+      font-size:22px;
+      line-height:1.05;
+      font-weight:900;
+    }
+
     .service-tab.active .mini-head,
-    .service-tab.active .mini-values{color:#fff;}
+    .service-tab.active .mini-values{
+      color:#fff;
+    }
 
     .hub-date-filters{
-      display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;
-      background:#fff;border:1px solid #dbe3ee;border-radius:14px;padding:10px;
-      box-shadow:0 5px 14px rgba(15,23,42,.06);
-    }
-    .hub-filter{
-      min-width:130px;padding:10px 12px;border:1px solid #cbd5e1;
-      border-radius:10px;font-weight:900;color:#0f172a;background:#fff;
-    }
-    .clear-filter-btn{
-      border:none;border-radius:10px;padding:10px 16px;background:#64748b;
-      color:#fff;font-weight:900;cursor:pointer;
+      display:flex;
+      gap:7px;
+      flex-wrap:wrap;
+      margin:0 0 8px;
+      background:#fff;
+      border:1px solid #dbe3ee;
+      border-radius:13px;
+      padding:8px;
+      box-shadow:0 4px 12px rgba(15,23,42,.06);
     }
 
-    .hub-action-bar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center;}
-    .hub-action-btn{border:none;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:900;cursor:pointer;color:#fff;}
-    .hub-action-btn:disabled{opacity:.45;cursor:not-allowed;}
+    .hub-filter{
+      min-width:110px;
+      padding:8px 10px;
+      border:1px solid #cbd5e1;
+      border-radius:9px;
+      font-size:12px;
+      font-weight:900;
+      color:#0f172a;
+      background:#fff;
+    }
+
+    .clear-filter-btn{
+      border:none;
+      border-radius:9px;
+      padding:8px 14px;
+      background:#64748b;
+      color:#fff;
+      font-size:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .hub-action-bar{
+      display:flex;
+      gap:7px;
+      flex-wrap:wrap;
+      margin:0;
+      align-items:center;
+    }
+
+    .hub-action-btn{
+      border:none;
+      border-radius:9px;
+      padding:8px 13px;
+      font-size:12px;
+      font-weight:900;
+      cursor:pointer;
+      color:#fff;
+    }
+
+    .hub-action-btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+
     .hub-action-btn.edit{background:#2563eb;}
     .hub-action-btn.delete{background:#dc2626;}
     .hub-action-btn.save{background:#16a34a;}
     .hub-action-btn.cancel{background:#64748b;}
 
     .table-wrap{
-      width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:20px;
-      border-radius:14px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.08);
+      width:100%;
+      max-width:100%;
+      overflow-x:auto;
+      overflow-y:visible;
+      -webkit-overflow-scrolling:touch;
+      margin-bottom:20px;
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 8px 22px rgba(15,23,42,.08);
     }
 
-.hub-table{
-  min-width:2200px;
-  width:max-content;
-  border-collapse:collapse;
-  background:#fff;
-}
+    .hub-table{
+      width:100%;
+      min-width:1500px;
+      table-layout:fixed;
+      border-collapse:collapse;
+      background:#fff;
+    }
 
-    .hub-table th,.hub-table td{
+    .hub-table th,
+    .hub-table td{
       border:1px solid #dbe3ee;
-      padding:7px;
+      padding:5px;
       text-align:center;
-      font-size:13px;
+      font-size:11px;
       vertical-align:middle;
-      line-height:1.35;
+      line-height:1.25;
+      box-sizing:border-box;
     }
 
     .hub-table th{
+      position:sticky;
+      top:var(--hub-sticky-height);
+      z-index:70;
       background:#2563eb;
       color:#fff;
       font-weight:900;
       white-space:nowrap;
-      font-size:13px;
+      font-size:11px;
     }
 
-   .col-num{width:45px;min-width:45px;max-width:45px;}
-.col-select{width:55px;min-width:55px;max-width:55px;}
-.col-trip{width:115px;min-width:115px;max-width:125px;}
-.col-company{width:150px;min-width:150px;max-width:190px;}
-.col-time{width:80px;min-width:80px;max-width:85px;}
-.col-eye{width:50px;min-width:50px;max-width:50px;}
+    .col-num{width:38px;}
+    .col-select{width:46px;}
+    .col-trip{width:92px;}
+    .col-company{width:110px;}
+    .col-date{width:86px;}
+    .col-time{width:68px;}
+    .col-eye{width:42px;}
+
+    .wide-client{
+      width:155px;
+      text-align:left!important;
+      white-space:normal;
+      word-break:break-word;
+    }
+
+    .wide-phone{
+      width:125px;
+      text-align:left!important;
+      white-space:normal;
+      word-break:break-word;
+    }
+
+    .wide-address{
+      width:190px;
+      text-align:left!important;
+      white-space:normal;
+      word-break:break-word;
+      font-size:10.5px!important;
+    }
+
+    .wide-stops{
+      width:160px;
+      text-align:left!important;
+      white-space:normal;
+      word-break:break-word;
+      font-size:10.5px!important;
+    }
+
+    .wide-notes{
+      width:130px;
+      text-align:left!important;
+      white-space:normal;
+      word-break:break-word;
+    }
+
+    .company-cell{
+      width:110px;
+      font-weight:800;
+      word-break:break-word;
+      text-align:left!important;
+    }
 
     .trip-divider td{
       border-bottom:3px solid #000!important;
@@ -252,87 +447,12 @@ if(!container) console.error("Missing #hubContainer");
       color:#1e3a8a!important;
       font-weight:900!important;
       text-align:center!important;
-      padding:4px 8px!important;
-      font-size:11px!important;
-      line-height:1.1!important;
+      padding:3px 6px!important;
+      font-size:10.5px!important;
+      line-height:1!important;
       border-top:2px solid #cbd5e1!important;
       border-bottom:2px solid #cbd5e1!important;
     }
-
-    .wide-address{
-  min-width:280px;
-  max-width:420px;
-      text-align:left!important;
-      white-space:pre-line;
-      word-break:break-word;
-      font-size:12px!important;
-    }
-
-    .wide-client{
-  min-width:210px;
-  max-width:310px;
-      text-align:left!important;
-      white-space:pre-line;
-      word-break:break-word;
-    }
-
-   .wide-phone{
-  min-width:150px;
-  max-width:210px;
-      text-align:left!important;
-      white-space:pre-line;
-      word-break:break-word;
-    }
-
-.wide-notes{
-  min-width:220px;
-  max-width:320px;
-      text-align:left!important;
-      white-space:pre-line;
-      word-break:break-word;
-    }
-
-    .company-cell{
-      min-width:120px;
-      max-width:170px;
-      font-weight:800;
-      word-break:break-word;
-      text-align:left!important;
-    }
-
-    .trip-number-badge{
-      font-weight:900;
-      color:#1d4ed8;
-      white-space:nowrap;
-      font-size:12px;
-    }
-
-    .status-pill{
-      display:inline-flex;
-      padding:5px 9px;
-      border-radius:999px;
-      font-size:12px;
-      font-weight:900;
-      background:#f1f5f9;
-      color:#0f172a;
-      white-space:nowrap;
-    }
-
-    .status-pill.scheduled{background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;}
-    .status-pill.confirmed{background:#bbf7d0;color:#14532d;border:1px solid #86efac;}
-    .status-pill.paid{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;}
-
-    .edit-input,.edit-textarea{
-      width:100%;min-width:80px;padding:6px;border:1px solid #cbd5e1;border-radius:7px;
-      font-size:12px;font-weight:700;box-sizing:border-box;font-family:inherit;
-    }
-    .edit-textarea{min-height:52px;resize:vertical;}
-
-    .facility-row td{background:#dbeafe;}
-    .gq-row td{background:#dcfce7;}
-    .reserved-row td{background:#fef3c7;}
-    .shared-row td{background:#ede9fe;}
-    .new-trip-row td{box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);}
 
     .cell-box{
       display:grid;
@@ -345,13 +465,14 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .cell-item{
-      padding:5px 7px;
-      min-height:25px;
+      padding:4px 5px;
+      min-height:22px;
       font-weight:700;
       white-space:normal;
       word-break:break-word;
       box-sizing:border-box;
       background:#fff;
+      font-size:10.5px;
     }
 
     .cell-item + .cell-item{
@@ -364,22 +485,88 @@ if(!container) console.error("Missing #hubContainer");
       min-width:70px;
     }
 
+    .trip-number-badge{
+      font-weight:900;
+      color:#1d4ed8;
+      white-space:normal;
+      word-break:break-word;
+      font-size:10.5px;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      padding:4px 6px;
+      border-radius:999px;
+      font-size:10px;
+      font-weight:900;
+      background:#f1f5f9;
+      color:#0f172a;
+      white-space:nowrap;
+    }
+
+    .status-pill.scheduled{
+      background:#f1f5f9;
+      color:#334155;
+      border:1px solid #cbd5e1;
+    }
+
+    .status-pill.confirmed{
+      background:#bbf7d0;
+      color:#14532d;
+      border:1px solid #86efac;
+    }
+
+    .status-pill.paid{
+      background:#dbeafe;
+      color:#1d4ed8;
+      border:1px solid #93c5fd;
+    }
+
+    .edit-input,
+    .edit-textarea{
+      width:100%;
+      min-width:70px;
+      padding:5px;
+      border:1px solid #cbd5e1;
+      border-radius:6px;
+      font-size:10.5px;
+      font-weight:700;
+      box-sizing:border-box;
+      font-family:inherit;
+    }
+
+    .edit-textarea{
+      min-height:45px;
+      resize:vertical;
+    }
+
+    .facility-row td{background:#dbeafe;}
+    .gq-row td{background:#dcfce7;}
+    .reserved-row td{background:#fef3c7;}
+    .shared-row td{background:#ede9fe;}
+
+    .new-trip-row td{
+      box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);
+    }
+
     .eye-btn{
       border:none;
       background:#0f172a;
       color:#fff;
-      width:30px;
-      height:30px;
-      border-radius:8px;
+      width:26px;
+      height:26px;
+      border-radius:7px;
       cursor:pointer;
-      font-size:15px;
+      font-size:13px;
       font-weight:900;
       display:inline-flex;
       align-items:center;
       justify-content:center;
     }
 
-    .eye-btn:hover{background:#2563eb;}
+    .eye-btn:hover{
+      background:#2563eb;
+    }
 
     .hub-view-overlay{
       position:fixed;
@@ -460,17 +647,113 @@ if(!container) console.error("Missing #hubContainer");
       font-weight:900;
     }
 
+    @media(max-width:1200px){
+      .hub-table{
+        min-width:1450px;
+      }
+
+      .hub-stats{
+        grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+      }
+
+      .service-tabs{
+        grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
+      }
+
+      .service-tab{
+        min-height:72px;
+        padding:7px 6px;
+      }
+
+      .stat-number{
+        font-size:21px;
+      }
+    }
+
     @media(max-width:768px){
-      .hub-table{min-width:1900px;}
-      .hub-table th,.hub-table td{font-size:11px;padding:6px;}
-      .wide-address{font-size:10.5px!important;min-width:180px;max-width:260px;}
-      .wide-client{min-width:135px;max-width:190px;}
-      .wide-phone{min-width:105px;max-width:140px;}
-      .wide-notes{min-width:140px;max-width:200px;}
-      .service-tabs{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));}
-      .hub-stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
-      .hub-filter{flex:1;min-width:100px;}
-      .view-line{grid-template-columns:1fr;}
+      .hub-sticky-top{
+        top:0;
+      }
+
+      .hub-table{
+        min-width:1350px;
+      }
+
+      .hub-table th,
+      .hub-table td{
+        font-size:10px;
+        padding:4px;
+      }
+
+      .hub-table th{
+        font-size:10px;
+      }
+
+      .cell-item{
+        font-size:9.5px;
+        padding:3px 4px;
+      }
+
+      .wide-address,
+      .wide-stops{
+        font-size:9.5px!important;
+      }
+
+      .top-add-trip-btn{
+        padding:10px 16px;
+        font-size:13px;
+      }
+
+      .hub-stats{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:6px;
+      }
+
+      .stat-card{
+        padding:8px 6px;
+        border-radius:12px;
+      }
+
+      .stat-title{
+        font-size:10px;
+      }
+
+      .stat-number{
+        font-size:20px;
+      }
+
+      .mini-head{
+        font-size:8px;
+      }
+
+      .mini-values{
+        font-size:11px;
+      }
+
+      .service-tabs{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:6px;
+      }
+
+      .service-tab{
+        min-height:66px;
+      }
+
+      .hub-filter{
+        flex:1;
+        min-width:90px;
+        font-size:11px;
+        padding:7px 8px;
+      }
+
+      .hub-action-btn{
+        font-size:11px;
+        padding:7px 10px;
+      }
+
+      .view-line{
+        grid-template-columns:1fr;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -1035,6 +1318,8 @@ function applyFilters(){
   render();
 }
 
+/* ================= DATE FILTERS ================= */
+
 function buildDateFilters(){
   const yearEl = document.getElementById("yearFilter");
   const monthEl = document.getElementById("monthFilter");
@@ -1158,6 +1443,8 @@ function renderServiceTabs(){
       applyFilters();
     };
   });
+
+  updateStickyOffsets();
 }
 
 /* ================= SELECTION ================= */
@@ -1487,6 +1774,7 @@ function render(){
   if(!displayItems.length){
     container.innerHTML = `<p class="no-data">No active trips found</p>`;
     updateSelectionButtons();
+    updateStickyOffsets();
     return;
   }
 
@@ -1499,25 +1787,30 @@ function render(){
   table.className = "hub-table";
 
   table.innerHTML = `
-    <tr>
-      <th class="col-num">#</th>
-      <th class="col-select">Select</th>
-      <th class="col-trip">Trip #</th>
-      <th class="col-company">Company</th>
-      <th>Client / Passengers</th>
-      <th>Phone</th>
-      <th>Pickup</th>
-      <th>Stops</th>
-      <th>Dropoff</th>
-      <th>Notes</th>
-      <th>Trip Date</th>
-      <th class="col-time">Trip Time</th>
-      <th>Booked Date</th>
-      <th>Booked Time</th>
-      <th>Status</th>
-      <th class="col-eye">👁</th>
-    </tr>
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-select">Select</th>
+        <th class="col-trip">Trip #</th>
+        <th class="col-company">Company</th>
+        <th class="wide-client">Client / Passengers</th>
+        <th class="wide-phone">Phone</th>
+        <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
+        <th class="wide-address">Dropoff</th>
+        <th class="wide-notes">Notes</th>
+        <th class="col-date">Trip Date</th>
+        <th class="col-time">Trip Time</th>
+        <th class="col-date">Booked Date</th>
+        <th class="col-time">Booked Time</th>
+        <th class="col-time">Status</th>
+        <th class="col-eye">👁</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
   `;
+
+  const tbody = table.querySelector("tbody");
 
   Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a)).forEach(dayKey=>{
     const dateRow = document.createElement("tr");
@@ -1529,10 +1822,10 @@ function render(){
       </td>
     `;
 
-    table.appendChild(dateRow);
+    tbody.appendChild(dateRow);
 
     groups[dayKey].forEach((item,index)=>{
-      table.appendChild(
+      tbody.appendChild(
         item.kind === "shared"
           ? renderSharedRow(item,index + 1)
           : renderTripRow(item,index + 1)
@@ -1544,6 +1837,7 @@ function render(){
   container.appendChild(wrap);
 
   updateSelectionButtons();
+  updateStickyOffsets();
 }
 
 function renderTripRow(item,rowNumber){
@@ -1582,7 +1876,7 @@ function renderTripRow(item,rowNumber){
       ${editing ? cellBox(createEditArea(t.pickup || "", "pickup")) : cellBox(safe(t.pickup || "--"))}
     </td>
 
-    <td class="wide-address">
+    <td class="wide-stops">
       ${editing ? cellBox(createEditArea(stopsText, "stopsText")) : cellBox(stopsDisplay(getStops(t)))}
     </td>
 
@@ -1594,7 +1888,7 @@ function renderTripRow(item,rowNumber){
       ${editing ? cellBox(createEditArea(getNotes(t), "notes")) : cellBox(safe(getNotes(t) || "--"))}
     </td>
 
-    <td>
+    <td class="col-date">
       ${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : safe(t.tripDate || "")}
     </td>
 
@@ -1602,10 +1896,10 @@ function renderTripRow(item,rowNumber){
       ${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : safe(t.tripTime || "")}
     </td>
 
-    <td>${safe(getBookedDate(t))}</td>
-    <td>${safe(getBookedTime(t))}</td>
+    <td class="col-date">${safe(getBookedDate(t))}</td>
+    <td class="col-time">${safe(getBookedTime(t))}</td>
 
-    <td>
+    <td class="col-time">
       <span class="status-pill ${getStatusClass(t.status)}">${safe(getStatusLabel(t.status))}</span>
     </td>
 
@@ -1663,7 +1957,7 @@ function renderSharedRow(item,rowNumber){
     <td class="wide-phone">${phones}</td>
     <td class="wide-address">${pickups}</td>
 
-    <td class="wide-address">
+    <td class="wide-stops">
       ${cellBox("Route optimized per passenger")}
     </td>
 
@@ -1673,7 +1967,7 @@ function renderSharedRow(item,rowNumber){
       ${editing ? cellBox(createEditArea(getNotes(first), "notes")) : cellBox(safe(getNotes(first) || "--"))}
     </td>
 
-    <td>
+    <td class="col-date">
       ${editing ? createEditInput(first.tripDate || "", "tripDate", "date") : safe(first.tripDate || "")}
     </td>
 
@@ -1681,10 +1975,10 @@ function renderSharedRow(item,rowNumber){
       ${editing ? createEditInput(first.tripTime || "", "tripTime", "time") : safe(first.tripTime || "")}
     </td>
 
-    <td>${safe(getBookedDate(first))}</td>
-    <td>${safe(getBookedTime(first))}</td>
+    <td class="col-date">${safe(getBookedDate(first))}</td>
+    <td class="col-time">${safe(getBookedTime(first))}</td>
 
-    <td>
+    <td class="col-time">
       <span class="status-pill ${getStatusClass(groupStatus)}">${safe(getStatusLabel(groupStatus))}</span>
     </td>
 
@@ -1695,6 +1989,19 @@ function renderSharedRow(item,rowNumber){
 
   return tr;
 }
+
+/* ================= STICKY OFFSET ================= */
+
+function updateStickyOffsets(){
+  requestAnimationFrame(()=>{
+    const sticky = document.getElementById("hubStickyTop");
+    const h = sticky ? sticky.offsetHeight : 0;
+    document.documentElement.style.setProperty("--hub-sticky-height", h + "px");
+  });
+}
+
+window.addEventListener("resize",updateStickyOffsets);
+window.addEventListener("orientationchange",updateStickyOffsets);
 
 /* ================= EVENTS ================= */
 
@@ -1749,6 +2056,7 @@ async function refreshEverything(){
   if(editingKey) return;
   await loadServices();
   await loadHubTrips();
+  updateStickyOffsets();
 }
 
 (async function initHub(){
