@@ -351,12 +351,13 @@ if(!container){
 })();
 
 /* ================= STATE ================= */
-
 let activeTab = "TRIPS";
 let trips = [];
 let COMPANY_SERVICES = [];
-let SYSTEM_REGION = "";
-let SYSTEM_COUNTRY = "";
+
+const autoApplyingAddStops = new Set();
+
+let SYSTEM_REGION = "";let SYSTEM_COUNTRY = "";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 let googleLoadPromise = null;
 
