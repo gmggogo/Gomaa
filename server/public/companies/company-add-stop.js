@@ -1235,35 +1235,52 @@ function ensureSubmitBox(){
   let box =
     document.getElementById("submitAddStopBox");
 
-  if(box) return box;
+  if(!box){
 
-  box =
-    document.createElement("div");
+    box =
+      document.createElement("div");
 
-  box.id =
-    "submitAddStopBox";
+    box.id =
+      "submitAddStopBox";
 
-  box.className =
-    "submit-box";
+    box.className =
+      "submit-box";
 
-  box.innerHTML = `
-    <button
-      type="button"
-      id="submitAddStopRequestBtn"
-      class="submit-main-btn"
-    >
-      Submit Add Stop Request
-    </button>
-  `;
+    box.innerHTML = `
+      <button
+        type="button"
+        id="submitAddStopRequestBtn"
+        class="submit-main-btn"
+      >
+        Submit Add Stop Request
+      </button>
+    `;
 
-  const root =
-    getEditorRoot();
+    const root =
+      getEditorRoot();
 
-  root.insertAdjacentElement("afterend",box);
+    root.insertAdjacentElement("afterend",box);
+  }
+
+  const btn =
+    document.getElementById("submitAddStopRequestBtn");
+
+  if(btn && !btn.dataset.bound){
+
+    btn.dataset.bound = "true";
+
+    btn.addEventListener("click",function(e){
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      finalSubmitAddStop();
+
+    });
+  }
 
   return box;
 }
-
 function getSubmitButtonText(){
 
   const parts = [];
