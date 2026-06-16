@@ -1358,12 +1358,12 @@ async function saveSectionService(section,id){
     }
 
     if(section === "facility"){
-      url = `/api/company-services/${id}`;
+      url = `/api/services/${id}`;
       payload = buildFacilityPayload(id);
     }
 
     if(section === "reserved"){
-      url = `/api/reserved-services/${id}`;
+      url = `/api/services/${id}`;
       payload = buildReservedPayload(id);
     }
 
@@ -1419,38 +1419,29 @@ async function toggleSectionService(section,id){
 
     if(!service) return;
 
-    let url = "";
     let payload = {};
 
     if(section === "getquote"){
-      url = `/api/services/${id}`;
       payload = {
         enabled:!service.enabled
       };
     }
 
     if(section === "facility"){
-      url = `/api/company-services/${id}`;
       payload = {
         companyEnabled:!service.companyEnabled
       };
     }
 
     if(section === "reserved"){
-      url = `/api/reserved-services/${id}`;
       payload = {
         reservedEnabled:!service.reservedEnabled
       };
     }
 
-    if(!url){
-      alert("Invalid section");
-      return;
-    }
-
     const res =
       await fetch(
-        url,
+        `/api/services/${id}`,
         {
           method:"PUT",
           headers:{
