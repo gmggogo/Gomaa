@@ -30,7 +30,7 @@ body{
 }
 
 .page-shell{
-  max-width:1050px;
+  max-width:850px;
   margin:0 auto;
 }
 
@@ -148,7 +148,7 @@ textarea{
 }
 
 textarea{
-  min-height:90px;
+  min-height:78px;
   resize:vertical;
 }
 
@@ -166,37 +166,87 @@ textarea[readonly]{
   cursor:not-allowed;
 }
 
-/* ================= STOPS ================= */
+/* ================= ROUTE ================= */
 
-.stops-wrap{
+.route-box{
   padding:18px;
-  display:grid;
-  gap:12px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
 }
 
-.stop-row{
-  display:grid;
-  grid-template-columns:46px 1fr;
-  gap:10px;
-  align-items:center;
+.route-block{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
 }
 
-.stop-index{
-  width:46px;
-  height:46px;
-  border-radius:14px;
-  background:#dbeafe;
-  color:#1d4ed8;
+.add-stop-line{
   display:flex;
   align-items:center;
-  justify-content:center;
-  font-weight:900;
-  font-size:15px;
-  border:1px solid #bfdbfe;
+  justify-content:flex-start;
+  gap:10px;
 }
 
-.stop-input{
-  height:46px;
+.add-stop-btn{
+  background:#ea580c;
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:12px 18px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(234,88,12,.22);
+}
+
+.add-stop-btn:hover{
+  background:#c2410c;
+}
+
+.add-stop-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.stop-item{
+  border:1px solid #e2e8f0;
+  border-radius:15px;
+  background:#f8fafc;
+  padding:12px;
+}
+
+.stop-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.stop-label{
+  font-size:12px;
+  font-weight:900;
+  color:#1d4ed8;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+}
+
+.remove-stop-btn{
+  width:34px;
+  height:34px;
+  border:none;
+  border-radius:10px;
+  background:#fee2e2;
+  color:#991b1b;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+  line-height:1;
+}
+
+.remove-stop-btn:hover{
+  background:#fecaca;
 }
 
 .stop-note{
@@ -205,49 +255,6 @@ textarea[readonly]{
   font-size:13px;
   color:#64748b;
   font-weight:700;
-}
-
-/* ================= SUMMARY ================= */
-
-.summary-grid{
-  padding:18px;
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-}
-
-.summary-box{
-  border:1px solid #e2e8f0;
-  border-radius:14px;
-  padding:14px;
-  background:#f8fafc;
-}
-
-.summary-label{
-  font-size:11px;
-  font-weight:900;
-  color:#64748b;
-  text-transform:uppercase;
-  letter-spacing:.4px;
-}
-
-.summary-value{
-  margin-top:6px;
-  font-size:18px;
-  font-weight:900;
-  color:#0f172a;
-}
-
-.summary-value.blue{
-  color:#2563eb;
-}
-
-.summary-value.green{
-  color:#15803d;
-}
-
-.summary-value.orange{
-  color:#c2410c;
 }
 
 /* ================= ACTIONS ================= */
@@ -293,15 +300,6 @@ textarea[readonly]{
   background:#15803d;
 }
 
-.btn-secondary{
-  background:#0f172a;
-  color:#fff;
-}
-
-.btn-secondary:hover{
-  background:#1e293b;
-}
-
 .btn-light{
   background:#e2e8f0;
   color:#0f172a;
@@ -309,15 +307,6 @@ textarea[readonly]{
 
 .btn-light:hover{
   background:#cbd5e1;
-}
-
-.btn-danger{
-  background:#dc2626;
-  color:#fff;
-}
-
-.btn-danger:hover{
-  background:#b91c1c;
 }
 
 .btn:disabled{
@@ -409,11 +398,6 @@ textarea[readonly]{
     padding:14px;
   }
 
-  .summary-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    padding:14px;
-  }
-
   .actions-bar{
     flex-direction:column;
     align-items:stretch;
@@ -426,15 +410,6 @@ textarea[readonly]{
 
   .btn{
     flex:1;
-  }
-
-  .stop-row{
-    grid-template-columns:40px 1fr;
-  }
-
-  .stop-index{
-    width:40px;
-    height:44px;
   }
 }
 </style>
@@ -466,7 +441,6 @@ textarea[readonly]{
 
     <form id="addStopForm" style="display:none;">
 
-      <!-- TRIP DETAILS -->
       <div class="card">
 
         <div class="card-title">
@@ -486,98 +460,45 @@ textarea[readonly]{
             <input id="clientName" type="text" readonly>
           </div>
 
-          <div class="form-group full">
-            <label for="pickupAddress">Pickup</label>
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          <h2>Trip Route</h2>
+          <span>Stops will be reviewed before price update</span>
+        </div>
+
+        <div class="route-box">
+
+          <div class="route-block">
+            <label for="pickupAddress">Pickup Address</label>
             <textarea id="pickupAddress" readonly></textarea>
           </div>
 
-          <div class="form-group full">
-            <label for="dropoffAddress">Dropoff</label>
+          <div id="stopsContainer"></div>
+
+          <div class="add-stop-line">
+            <button type="button" class="add-stop-btn" id="addStopBtn">
+              + Add Stop
+            </button>
+          </div>
+
+          <div class="route-block">
+            <label for="dropoffAddress">Dropoff Address</label>
             <textarea id="dropoffAddress" readonly></textarea>
           </div>
 
         </div>
 
-      </div>
-
-      <!-- STOPS -->
-      <div class="card">
-
-        <div class="card-title">
-          <h2>Additional Stops</h2>
-          <span>Maximum 5 stops</span>
-        </div>
-
-        <div class="stops-wrap">
-
-          <div class="stop-row">
-            <div class="stop-index">1</div>
-            <input class="stop-input" id="stop1" data-stop-index="0" type="text" placeholder="Enter stop 1 address">
-          </div>
-
-          <div class="stop-row">
-            <div class="stop-index">2</div>
-            <input class="stop-input" id="stop2" data-stop-index="1" type="text" placeholder="Enter stop 2 address - optional">
-          </div>
-
-          <div class="stop-row">
-            <div class="stop-index">3</div>
-            <input class="stop-input" id="stop3" data-stop-index="2" type="text" placeholder="Enter stop 3 address - optional">
-          </div>
-
-          <div class="stop-row">
-            <div class="stop-index">4</div>
-            <input class="stop-input" id="stop4" data-stop-index="3" type="text" placeholder="Enter stop 4 address - optional">
-          </div>
-
-          <div class="stop-row">
-            <div class="stop-index">5</div>
-            <input class="stop-input" id="stop5" data-stop-index="4" type="text" placeholder="Enter stop 5 address - optional">
-          </div>
-
-        </div>
-
         <p class="stop-note">
-          The final mileage will be calculated only when you press Confirm Add Stop.
+          Mileage will be calculated after confirmation. Price will be calculated on the Review page.
         </p>
 
       </div>
 
-      <!-- CALCULATION SUMMARY -->
-      <div class="card">
-
-        <div class="card-title">
-          <h2>Calculation Preview</h2>
-          <span>Calculated after confirmation</span>
-        </div>
-
-        <div class="summary-grid">
-
-          <div class="summary-box">
-            <div class="summary-label">Trip Status</div>
-            <div class="summary-value blue" id="tripStatusValue">--</div>
-          </div>
-
-          <div class="summary-box">
-            <div class="summary-label">Calculation Mode</div>
-            <div class="summary-value" id="calculationModeValue">--</div>
-          </div>
-
-          <div class="summary-box">
-            <div class="summary-label">Extra Miles</div>
-            <div class="summary-value orange" id="extraMilesValue">--</div>
-          </div>
-
-          <div class="summary-box">
-            <div class="summary-label">New Price</div>
-            <div class="summary-value green" id="newPriceValue">--</div>
-          </div>
-
-        </div>
-
-      </div>
-
-      <!-- ACTIONS -->
       <div class="card">
         <div class="actions-bar">
 
@@ -588,10 +509,6 @@ textarea[readonly]{
           </div>
 
           <div class="right-actions">
-            <button type="button" class="btn btn-secondary" id="clearStopsBtn">
-              Clear Stops
-            </button>
-
             <button type="submit" class="btn btn-primary" id="confirmAddStopBtn">
               Confirm Add Stop
             </button>

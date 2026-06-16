@@ -1,8 +1,10 @@
 /* =========================================
 FILE: company-add-stop.js
 COMPANY ADD STOP
-Confirm calculates miles at click time only
-Driver location used once as route start if trip already started
+Dynamic stops UI
+Calculate miles only
+Send request to Review page
+No price calculation here
 ========================================= */
 
 (function(){
@@ -48,6 +50,7 @@ let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 let googleLoadPromise = null;
+let stopCounter = 0;
 
 /* ================= DOM ================= */
 
@@ -62,16 +65,11 @@ const clientNameInput = document.getElementById("clientName");
 const pickupAddressInput = document.getElementById("pickupAddress");
 const dropoffAddressInput = document.getElementById("dropoffAddress");
 
-const tripStatusValue = document.getElementById("tripStatusValue");
-const calculationModeValue = document.getElementById("calculationModeValue");
-const extraMilesValue = document.getElementById("extraMilesValue");
-const newPriceValue = document.getElementById("newPriceValue");
+const stopsContainer = document.getElementById("stopsContainer");
+const addStopBtn = document.getElementById("addStopBtn");
 
 const backBtn = document.getElementById("backBtn");
-const clearStopsBtn = document.getElementById("clearStopsBtn");
 const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
-
-const stopInputs = Array.from(document.querySelectorAll(".stop-input"));
 
 /* ================= BASIC HELPERS ================= */
 
@@ -116,28 +114,12 @@ function setButtonLoading(isLoading,text){
       : "Confirm Add Stop";
   }
 
-  if(clearStopsBtn) clearStopsBtn.disabled = isLoading;
+  if(addStopBtn) addStopBtn.disabled = isLoading || getStopInputs().length >= MAX_STOPS;
   if(backBtn) backBtn.disabled = isLoading;
-}
-
-function formatMiles(value){
-  return `${Number(value || 0).toFixed(2)} mi`;
-}
-
-function formatMoney(value){
-  return `$${Number(value || 0).toFixed(2)}`;
 }
 
 function getNowISO(){
   return new Date().toISOString();
-}
-
-function getAZNow(){
-  return new Date(
-    new Date().toLocaleString("en-US",{
-      timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
-    })
-  );
 }
 
 function goBackToReview(){
@@ -295,12 +277,6 @@ function getExistingStops(trip){
   return trip.stops
     .map(s => normalizeAddress(s))
     .filter(Boolean);
-}
-
-function getCurrentPrice(trip){
-  const p1 = Number(trip.priceAmount || 0);
-  const p2 = Number(trip.finalPrice || 0);
-  return p1 > 0 ? p1 : p2;
 }
 
 function hasActiveStopRequest(trip){
@@ -549,11 +525,6 @@ async function fetchDriverLocationFromServer(tripId){
 }
 
 async function getFreshDriverLocation(trip){
-  /*
-    لو الرحلة بدأت، ناخد لوكيشن السواق لحظة الضغط على Confirm فقط.
-    أول Stop بس يبدأ من Driver Location.
-    باقي الاستوبات تتحسب ورا بعض عادي.
-  */
   const fromTrip = getDriverLocationFromTrip(trip);
 
   if(fromTrip){
@@ -563,11 +534,83 @@ async function getFreshDriverLocation(trip){
   return await fetchDriverLocationFromServer(tripId);
 }
 
-/* ================= STOP INPUTS ================= */
+/* ================= DYNAMIC STOPS UI ================= */
+
+function getStopInputs(){
+  return Array.from(document.querySelectorAll(".dynamic-stop-input"));
+}
+
+function renumberStops(){
+  const items = Array.from(document.querySelectorAll(".stop-item"));
+
+  items.forEach((item,index)=>{
+    const label = item.querySelector(".stop-label");
+    const input = item.querySelector(".dynamic-stop-input");
+
+    if(label) label.textContent = `Stop ${index + 1}`;
+    if(input) input.placeholder = `Enter stop ${index + 1} address`;
+    if(input) input.dataset.stopIndex = String(index);
+  });
+
+  if(addStopBtn){
+    addStopBtn.style.display = items.length >= MAX_STOPS ? "none" : "inline-flex";
+    addStopBtn.disabled = items.length >= MAX_STOPS;
+  }
+}
+
+function createStopRow(value){
+  const currentCount = getStopInputs().length;
+
+  if(currentCount >= MAX_STOPS){
+    return;
+  }
+
+  stopCounter += 1;
+
+  const item = document.createElement("div");
+  item.className = "stop-item";
+  item.dataset.stopUid = String(stopCounter);
+
+  item.innerHTML = `
+    <div class="stop-head">
+      <div class="stop-label">Stop ${currentCount + 1}</div>
+      <button type="button" class="remove-stop-btn" title="Remove stop">×</button>
+    </div>
+    <input
+      class="dynamic-stop-input"
+      type="text"
+      data-stop-index="${currentCount}"
+      placeholder="Enter stop ${currentCount + 1} address"
+      value=""
+    >
+  `;
+
+  const input = item.querySelector(".dynamic-stop-input");
+  const removeBtn = item.querySelector(".remove-stop-btn");
+
+  if(input && value){
+    input.value = value;
+  }
+
+  if(removeBtn){
+    removeBtn.addEventListener("click",()=>{
+      item.remove();
+      renumberStops();
+      hideAlert();
+    });
+  }
+
+  stopsContainer.appendChild(item);
+  renumberStops();
+
+  setTimeout(()=>{
+    if(input) input.focus();
+  },30);
+}
 
 function getRequestedStops(){
   const stops =
-    stopInputs
+    getStopInputs()
       .map(input => normalizeAddress(input.value))
       .filter(Boolean);
 
@@ -586,18 +629,12 @@ function getRequestedStops(){
   return unique.slice(0,MAX_STOPS);
 }
 
-function clearStops(){
-  stopInputs.forEach(input=>{
-    input.value = "";
+function lockStops(){
+  if(addStopBtn) addStopBtn.disabled = true;
+  getStopInputs().forEach(input=>input.disabled = true);
+  document.querySelectorAll(".remove-stop-btn").forEach(btn=>{
+    btn.disabled = true;
   });
-
-  resetSummary();
-  hideAlert();
-}
-
-function resetSummary(){
-  if(extraMilesValue) extraMilesValue.textContent = "--";
-  if(newPriceValue) newPriceValue.textContent = "--";
 }
 
 /* ================= ROUTE BUILD ================= */
@@ -627,12 +664,6 @@ function buildOriginalRemainingRouteInProgress(driverLocation,trip){
 }
 
 function buildNewRemainingRouteInProgress(driverLocation,trip,addedStops){
-  /*
-    أثناء الرحلة:
-    Driver Location يؤخذ مرة واحدة فقط كبداية.
-    أول Stop يبدأ من مكان السواق الحالي.
-    بعدها Stop 2 -> Stop 3 -> ... -> Dropoff
-  */
   return [
     driverLocation,
     ...addedStops,
@@ -720,15 +751,17 @@ async function calculateAddStopNow(trip,addedStops){
     driverLocationAtConfirm,
     originalRoutePoints,
     newRoutePoints,
+
     originalRemainingMiles:originalRoute.miles,
     newRemainingMiles:newRoute.miles,
     extraMiles,
+
     originalRouteData:originalRoute,
     newRouteData:newRoute
   };
 }
 
-/* ================= SERVER CONFIRM ================= */
+/* ================= SERVER SEND ================= */
 
 async function notifyServerAddStop(payload){
 
@@ -744,7 +777,7 @@ async function notifyServerAddStop(payload){
   const data = await res.json().catch(()=>({}));
 
   if(!res.ok || data.success === false){
-    throw new Error(data.message || "Failed to confirm added stops");
+    throw new Error(data.message || "Failed to send added stop request");
   }
 
   return data;
@@ -757,14 +790,6 @@ function fillPage(trip){
   if(clientNameInput) clientNameInput.value = getClientName(trip) || "";
   if(pickupAddressInput) pickupAddressInput.value = getPickup(trip) || "";
   if(dropoffAddressInput) dropoffAddressInput.value = getDropoff(trip) || "";
-
-  if(tripStatusValue) tripStatusValue.textContent = trip.status || "--";
-
-  if(calculationModeValue){
-    calculationModeValue.textContent = tripIsInProgress(trip)
-      ? "Live Driver Location"
-      : "Before Trip Start";
-  }
 
   if(pageStatusBadge){
     pageStatusBadge.textContent = hasActiveStopRequest(trip)
@@ -779,8 +804,10 @@ function fillPage(trip){
     );
 
     if(confirmAddStopBtn) confirmAddStopBtn.disabled = true;
-    stopInputs.forEach(input=>input.disabled = true);
+    lockStops();
   }
+
+  renumberStops();
 }
 
 /* ================= CONFIRM ================= */
@@ -789,7 +816,6 @@ async function handleConfirmSubmit(e){
   e.preventDefault();
 
   hideAlert();
-  resetSummary();
 
   try{
     setButtonLoading(true,"Checking trip...");
@@ -824,30 +850,23 @@ async function handleConfirmSubmit(e){
         addedStops
       );
 
-    if(extraMilesValue){
-      extraMilesValue.textContent =
-        formatMiles(calc.extraMiles);
-    }
-
-    if(calculationModeValue){
-      calculationModeValue.textContent =
-        calc.mode === "IN_PROGRESS"
-          ? "Live Driver Location"
-          : "Before Trip Start";
-    }
-
-    setButtonLoading(true,"Sending request...");
+    setButtonLoading(true,"Sending to review...");
 
     const oldStops = getExistingStops(freshTrip);
-    const oldPrice = getCurrentPrice(freshTrip);
 
     const payload = {
       tripId:String(freshTrip._id || tripId),
 
       source:"company-add-stop",
       requestType:"ADD_STOP",
-      status:"PENDING_DRIVER_UPDATE",
+
+      /*
+        الصفحة دي لا تحسب فلوس.
+        السعر يتحسب في Review page.
+      */
+      status:"PENDING_REVIEW",
       active:true,
+      calculatePriceOnReview:true,
 
       companyName,
       tripNumber:freshTrip.tripNumber || "",
@@ -865,12 +884,11 @@ async function handleConfirmSubmit(e){
         calc.driverLocationAtConfirm,
 
       beforeStopChange:{
+        pickup:getPickup(freshTrip),
+        dropoff:getDropoff(freshTrip),
         stops:oldStops,
         routePoints:Array.isArray(freshTrip.routePoints) ? freshTrip.routePoints : [],
-        miles:Number(freshTrip.miles || 0),
-        priceAmount:Number(freshTrip.priceAmount || 0),
-        finalPrice:Number(freshTrip.finalPrice || 0),
-        currentPrice:oldPrice
+        miles:Number(freshTrip.miles || 0)
       },
 
       originalRoutePoints:
@@ -895,50 +913,37 @@ async function handleConfirmSubmit(e){
         calc.newRouteData
     };
 
-    const serverData =
-      await notifyServerAddStop(payload);
-
-    if(newPriceValue){
-      const serverPrice =
-        serverData?.extraPrice ??
-        serverData?.newPrice ??
-        serverData?.finalPrice ??
-        null;
-
-      newPriceValue.textContent =
-        serverPrice === null
-          ? "Pending"
-          : formatMoney(serverPrice);
-    }
+    await notifyServerAddStop(payload);
 
     showAlert(
       "success",
-      "Stop request confirmed. The trip will be updated and sent to the driver."
+      "Stop request sent to Review. Price will be calculated there."
     );
 
     setTimeout(()=>{
       goBackToReview();
-    },900);
+    },700);
 
   }catch(err){
     console.error(err);
     showAlert("error",err.message || "Failed to add stop");
   }finally{
     setButtonLoading(false);
+    renumberStops();
   }
 }
 
 /* ================= EVENTS ================= */
 
-if(backBtn){
-  backBtn.addEventListener("click",()=>{
-    goBackToReview();
+if(addStopBtn){
+  addStopBtn.addEventListener("click",()=>{
+    createStopRow("");
   });
 }
 
-if(clearStopsBtn){
-  clearStopsBtn.addEventListener("click",()=>{
-    clearStops();
+if(backBtn){
+  backBtn.addEventListener("click",()=>{
+    goBackToReview();
   });
 }
 
