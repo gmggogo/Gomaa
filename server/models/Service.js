@@ -26,12 +26,14 @@ const serviceSchema = new mongoose.Schema({
     type:Boolean,
     default:true
   },
-showPricingCard:{
-  type:Boolean,
-  default:true
-},
+
+  showPricingCard:{
+    type:Boolean,
+    default:true
+  },
+
   /* =========================
-     INDIVIDUAL PRICING
+     INDIVIDUAL / GET QUOTE PRICING
   ========================= */
 
   pricingMode:{
@@ -80,7 +82,7 @@ showPricingCard:{
   },
 
   /* =========================
-     INDIVIDUAL WARNING POLICY
+     INDIVIDUAL / GET QUOTE WARNING POLICY
   ========================= */
 
   warningEnabled:{
@@ -97,13 +99,34 @@ showPricingCard:{
     type:Number,
     default:15
   },
-disableCancel:{
-  type:Boolean,
-  default:false
-},
+
+  disableCancel:{
+    type:Boolean,
+    default:false
+  },
 
   /* =========================
-     COMPANY SETTINGS
+     ADD STOP - GET QUOTE
+     Used by customer email link
+  ========================= */
+
+  getQuoteAddStopEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  getQuoteAddStopCustomTimeEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  getQuoteAddStopCutoffMinutes:{
+    type:Number,
+    default:0
+  },
+
+  /* =========================
+     FACILITY SETTINGS
   ========================= */
 
   companyEnabled:{
@@ -122,7 +145,7 @@ disableCancel:{
   },
 
   /* =========================
-     COMPANY PRICING
+     FACILITY PRICING
   ========================= */
 
   companyPricingMode:{
@@ -171,7 +194,7 @@ disableCancel:{
   },
 
   /* =========================
-     COMPANY WARNING POLICY
+     FACILITY WARNING POLICY
   ========================= */
 
   companyWarningEnabled:{
@@ -184,15 +207,147 @@ disableCancel:{
     default:120
   },
 
-companyCancelFee:{
-  type:Number,
-  default:15
-},
+  companyCancelFee:{
+    type:Number,
+    default:15
+  },
 
-companyDisableCancel:{
-  type:Boolean,
-  default:false
-},
+  companyDisableCancel:{
+    type:Boolean,
+    default:false
+  },
+
+  /* =========================
+     ADD STOP - FACILITY
+     Used by Company Review
+  ========================= */
+
+  companyAddStopEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  companyAddStopCustomTimeEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  companyAddStopCutoffMinutes:{
+    type:Number,
+    default:0
+  },
+
+  /* =========================
+     RESERVED SETTINGS
+  ========================= */
+
+  reservedEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  reservedShared:{
+    type:Boolean,
+    default:false
+  },
+
+  reservedSuffix:{
+    type:String,
+    default:"RV"
+  },
+
+  /* =========================
+     RESERVED PRICING
+  ========================= */
+
+  reservedPricingMode:{
+    type:String,
+    default:"MILE"
+  },
+
+  reservedBaseFare:{
+    type:Number,
+    default:0
+  },
+
+  reservedIncludedMiles:{
+    type:Number,
+    default:0
+  },
+
+  reservedPerMile:{
+    type:Number,
+    default:0
+  },
+
+  reservedHourlyRate:{
+    type:Number,
+    default:0
+  },
+
+  reservedHourlyBillingMode:{
+    type:String,
+    default:"FULL"
+  },
+
+  reservedStopFee:{
+    type:Number,
+    default:0
+  },
+
+  reservedNoShowFee:{
+    type:Number,
+    default:0
+  },
+
+  reservedSharedPrice:{
+    type:Number,
+    default:0
+  },
+
+  /* =========================
+     RESERVED WARNING POLICY
+  ========================= */
+
+  reservedWarningEnabled:{
+    type:Boolean,
+    default:true
+  },
+
+  reservedWarningMinutes:{
+    type:Number,
+    default:120
+  },
+
+  reservedCancelFee:{
+    type:Number,
+    default:15
+  },
+
+  reservedDisableCancel:{
+    type:Boolean,
+    default:false
+  },
+
+  /* =========================
+     ADD STOP - RESERVED
+     Used by Admin Add Trip / RV
+  ========================= */
+
+  reservedAddStopEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  reservedAddStopCustomTimeEnabled:{
+    type:Boolean,
+    default:false
+  },
+
+  reservedAddStopCutoffMinutes:{
+    type:Number,
+    default:0
+  }
 
 },{
   timestamps:true
