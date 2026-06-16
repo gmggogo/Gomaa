@@ -5,7 +5,6 @@ Final Route Editor
 Add Stops + Edit Existing Stops + Edit Dropoff
 Local Confirm per row
 Final Submit sends request to server
-NO LEGACY SECTION BETWEEN SUBMIT AND BACK
 ========================================= */
 
 (function(){
@@ -56,6 +55,28 @@ let SYSTEM_TIMEZONE = "America/Phoenix";
 let googleLoadPromise = null;
 let uid = 0;
 
+/*
+  newStopDrafts:
+  {
+    id,
+    insertAfterIndex,
+    value
+  }
+
+  confirmedNewStops:
+  {
+    id,
+    address,
+    insertAfterIndex,
+    rowIndex
+  }
+
+  insertAfterIndex:
+  0 = after pickup
+  1 = after existing stop 1
+  2 = after existing stop 2
+*/
+
 let newStopDrafts = [];
 let confirmedNewStops = [];
 
@@ -97,31 +118,8 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
   style.id = "company-add-stop-dynamic-style";
 
   style.innerHTML = `
-    .old-add-stop-hidden,
-    .legacy-between-submit-back-hidden{
+    .old-add-stop-hidden{
       display:none!important;
-      margin:0!important;
-      padding:0!important;
-      height:0!important;
-      min-height:0!important;
-      max-height:0!important;
-      overflow:hidden!important;
-      border:0!important;
-      box-shadow:none!important;
-    }
-
-    #routeEditorRoot:empty,
-    .card:empty,
-    .form-card:empty,
-    .section:empty,
-    .form-section:empty{
-      display:none!important;
-      margin:0!important;
-      padding:0!important;
-      height:0!important;
-      min-height:0!important;
-      overflow:hidden!important;
-      border:0!important;
     }
 
     .route-editor{
@@ -1193,163 +1191,7 @@ async function getFreshDriverLocation(trip){
   return await fetchDriverLocationFromServer(tripId);
 }
 
-/* ================= UI ROOT / LEGACY CLEAN ================= */
-
-function hideClosestSafeBlock(el){
-
-  if(!el || !form) return;
-
-  const block =
-    el.closest(".form-group") ||
-    el.closest(".input-group") ||
-    el.closest(".field-group") ||
-    el.closest(".form-field") ||
-    el.closest(".field") ||
-    el.closest(".row") ||
-    el.closest(".card") ||
-    el.closest(".form-card") ||
-    el.closest(".section") ||
-    el.closest(".form-section") ||
-    el.parentElement;
-
-  if(block && block !== form && !block.contains(stopsContainer)){
-    block.classList.add("legacy-between-submit-back-hidden");
-  }else{
-    el.classList.add("legacy-between-submit-back-hidden");
-  }
-}
-
-function hideLegacyTextNotes(){
-
-  const all =
-    Array.from(
-      document.querySelectorAll("div,p,small,span,label")
-    );
-
-  all.forEach(el=>{
-
-    const text =
-      clean(el.textContent).toLowerCase();
-
-    const isMileageNote =
-      text.includes("mileage will be calculated") ||
-      text.includes("price will be calculated on the review page") ||
-      text.includes("price will be calculated");
-
-    if(!isMileageNote) return;
-
-    const block =
-      el.closest(".form-group") ||
-      el.closest(".input-group") ||
-      el.closest(".field-group") ||
-      el.closest(".form-field") ||
-      el.closest(".field") ||
-      el.closest(".row") ||
-      el.closest(".card") ||
-      el.closest(".form-card") ||
-      el.closest(".section") ||
-      el.closest(".form-section") ||
-      el;
-
-    if(block && block !== form && !block.contains(stopsContainer)){
-      block.classList.add("legacy-between-submit-back-hidden");
-    }else{
-      el.classList.add("legacy-between-submit-back-hidden");
-    }
-  });
-}
-
-function removeEditorOutsideStopsContainer(){
-
-  const roots =
-    Array.from(document.querySelectorAll("#routeEditorRoot"));
-
-  roots.forEach(root=>{
-
-    if(!stopsContainer){
-      root.remove();
-      return;
-    }
-
-    if(!stopsContainer.contains(root)){
-      root.remove();
-    }
-  });
-}
-
-function cleanEmptySectionBetweenSubmitAndBack(){
-
-  const submit =
-    document.getElementById("submitAddStopRequestBtn") ||
-    document.getElementById("confirmAddStopBtn") ||
-    document.querySelector("button[type='submit']");
-
-  const back =
-    document.getElementById("backBtn");
-
-  if(!submit || !back) return;
-
-  const submitBox =
-    submit.closest("#submitAddStopBox") ||
-    submit.closest(".submit-box") ||
-    submit.closest(".card") ||
-    submit.closest(".form-card") ||
-    submit.closest(".section") ||
-    submit.closest(".form-section") ||
-    submit.closest("div");
-
-  const backBox =
-    back.closest(".card") ||
-    back.closest(".form-card") ||
-    back.closest(".section") ||
-    back.closest(".form-section") ||
-    back.closest("div");
-
-  if(!submitBox || !backBox) return;
-
-  let node =
-    submitBox.nextElementSibling;
-
-  while(node && node !== backBox){
-
-    const text =
-      clean(node.textContent);
-
-    const hasActiveControls =
-      !!node.querySelector(
-        "button:not(.old-add-stop-hidden), input:not(.old-add-stop-hidden), textarea:not(.old-add-stop-hidden), select:not(.old-add-stop-hidden)"
-      );
-
-    const isRouteEditor =
-      node.id === "routeEditorRoot" ||
-      !!node.querySelector("#routeEditorRoot");
-
-    const isMileageText =
-      text.toLowerCase().includes("mileage will be calculated") ||
-      text.toLowerCase().includes("price will be calculated");
-
-    const isDropoffOldArea =
-      !!node.querySelector("#dropoffAddress");
-
-    const isEmpty =
-      !text && !hasActiveControls;
-
-    if(isRouteEditor || isMileageText || isDropoffOldArea || isEmpty){
-      const next =
-        node.nextElementSibling;
-
-      node.classList.add("legacy-between-submit-back-hidden");
-
-      node =
-        next;
-
-      continue;
-    }
-
-    node =
-      node.nextElementSibling;
-  }
-}
+/* ================= UI ROOT ================= */
 
 function hideOldControls(){
 
@@ -1360,38 +1202,12 @@ function hideOldControls(){
   if(confirmAddStopBtn){
     confirmAddStopBtn.classList.add("old-add-stop-hidden");
   }
-
-  /*
-    ده هو الجزء اللي كان ظاهر تحت Submit:
-    DROPFOFF ADDRESS القديم + جملة Mileage.
-    الدروب أوف الجديد موجود جوه Route Editor وبيتعدل من هناك.
-  */
-
-  if(dropoffAddressInput){
-    hideClosestSafeBlock(dropoffAddressInput);
-  }
-
-  hideLegacyTextNotes();
-
-  removeEditorOutsideStopsContainer();
-}
-
-function cleanupLegacyBottomArea(){
-
-  hideOldControls();
-  hideLegacyTextNotes();
-  removeEditorOutsideStopsContainer();
-  cleanEmptySectionBetweenSubmitAndBack();
 }
 
 function getEditorRoot(){
 
-  removeEditorOutsideStopsContainer();
-
   let root =
-    stopsContainer
-      ? stopsContainer.querySelector("#routeEditorRoot")
-      : null;
+    document.getElementById("routeEditorRoot");
 
   if(root) return root;
 
@@ -1404,19 +1220,12 @@ function getEditorRoot(){
   root.className =
     "route-editor";
 
-  /*
-    مهم جدًا:
-    ممنوع نضيف الـ editor في آخر الفورم.
-    ده كان سبب ظهور جزء تحت Submit.
-  */
-
-  if(!stopsContainer){
-    console.warn("stopsContainer not found - route editor skipped");
-    return root;
+  if(stopsContainer){
+    stopsContainer.innerHTML = "";
+    stopsContainer.appendChild(root);
+  }else if(form){
+    form.appendChild(root);
   }
-
-  stopsContainer.innerHTML = "";
-  stopsContainer.appendChild(root);
 
   return root;
 }
@@ -1450,9 +1259,7 @@ function ensureSubmitBox(){
   const root =
     getEditorRoot();
 
-  if(root && root.parentElement){
-    root.insertAdjacentElement("afterend",box);
-  }
+  root.insertAdjacentElement("afterend",box);
 
   return box;
 }
@@ -1815,6 +1622,10 @@ function renderRouteEditor(trip){
       isLast
     });
 
+    /*
+      Add Stop يظهر بعد Pickup وبعد كل Existing Stop فقط.
+      مفيش Add Stop بعد Dropoff.
+    */
     if(!isLast){
 
       let label = "";
@@ -1851,8 +1662,6 @@ function renderRouteEditor(trip){
 
   ensureSubmitBox();
   updateSubmitButtonState();
-
-  cleanupLegacyBottomArea();
 }
 
 function rerender(){
@@ -2506,7 +2315,6 @@ async function finalSubmitAddStop(){
 
     setGlobalLoading(false);
     updateSubmitButtonState();
-    cleanupLegacyBottomArea();
   }
 }
 
@@ -2547,7 +2355,6 @@ function fillPage(trip){
   }
 
   updateSubmitButtonState();
-  cleanupLegacyBottomArea();
 }
 
 /* ================= EVENTS ================= */
@@ -2694,8 +2501,6 @@ async function init(){
     fillPage(currentTrip);
 
     showForm();
-
-    cleanupLegacyBottomArea();
 
   }catch(err){
 
