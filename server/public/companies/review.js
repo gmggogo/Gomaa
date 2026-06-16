@@ -3,6 +3,7 @@ FILE: review.js
 COMPANY REVIEW - ONE FILE
 SERVER PRICING ONLY
 FINAL ROUTE LOCKED FOR SHARED
+TABLE ONE PIECE + VIEW EYE
 ========================================= */
 
 window.ReviewApp = { container:null };
@@ -35,8 +36,25 @@ if(!container){
   const style = document.createElement("style");
   style.id = "company-review-style";
   style.innerHTML = `
-  .review-tabs{display:flex;gap:10px;margin:0 0 20px;background:#e2e8f0;padding:6px;border-radius:14px;}
-  .review-tabs button{flex:1;padding:13px;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;}
+  .review-tabs{
+    display:flex;
+    gap:10px;
+    margin:0 0 20px;
+    background:#e2e8f0;
+    padding:6px;
+    border-radius:14px;
+  }
+
+  .review-tabs button{
+    flex:1;
+    padding:13px;
+    border:none;
+    border-radius:11px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+  }
+
   .tab-active{background:#2563eb;color:#fff;}
   .tab-inactive{background:#64748b;color:#fff;}
 
@@ -53,39 +71,63 @@ if(!container){
     width:100%;
     border-collapse:collapse;
     background:#fff;
-    min-width:1450px;
+    min-width:1580px;
+    table-layout:fixed;
     border-top:6px solid #000;
   }
 
   .review-table th,
   .review-table td{
     border:1px solid #dbe2ea;
-    padding:6px;
+    padding:5px;
     text-align:center;
-    font-size:12px;
+    font-size:11px;
     vertical-align:middle;
     line-height:1.25;
+    box-sizing:border-box;
   }
 
   .review-table th{
     background:#0f172a;
     color:#fff;
-    font-weight:800;
+    font-weight:900;
     white-space:nowrap;
   }
 
-  .date-title{
-    font-size:18px;
-    font-weight:700;
-    margin:20px 0 10px;
-    color:#0f172a;
+  .date-row td{
+    background:#bfdbfe!important;
+    color:#1e3a8a!important;
+    font-weight:900!important;
+    text-align:center!important;
+    padding:7px 8px!important;
+    font-size:13px!important;
+    line-height:1.15!important;
+    border-top:3px solid #000!important;
+    border-bottom:2px solid #60a5fa!important;
+    letter-spacing:.3px!important;
   }
+
+  .col-num{width:34px;}
+  .col-trip{width:95px;}
+  .col-client{width:150px;}
+  .col-phone{width:95px;}
+  .col-pickup{width:205px;}
+  .col-stops{width:175px;}
+  .col-drop{width:205px;}
+  .col-notes{width:230px;}
+  .col-date{width:88px;}
+  .col-time{width:64px;}
+  .col-status{width:90px;}
+  .col-price{width:82px;}
+  .col-miles{width:76px;}
+  .col-actions{width:185px;}
+  .col-eye{width:42px;}
 
   .btn{
     border:none;
     padding:6px 10px;
     border-radius:6px;
-    font-size:12px;
+    font-size:11px;
     font-weight:800;
     cursor:pointer;
     margin:2px;
@@ -102,19 +144,19 @@ if(!container){
     display:flex;
     justify-content:center;
     align-items:center;
-    gap:6px;
+    gap:4px;
     flex-wrap:wrap;
-    min-width:150px;
+    min-width:170px;
   }
 
   .edit-input{
     width:100%;
-    min-width:120px;
+    min-width:90px;
     box-sizing:border-box;
     padding:6px;
     border:1px solid #cbd5e1;
     border-radius:6px;
-    font-size:12px;
+    font-size:11px;
     background:#fff;
     color:#111827;
   }
@@ -144,7 +186,7 @@ if(!container){
     word-break:break-word;
     box-sizing:border-box;
     background:#fff;
-    font-size:11px;
+    font-size:10.5px;
     line-height:1.35;
     text-align:left;
   }
@@ -156,7 +198,9 @@ if(!container){
   .trip-number-badge{
     font-weight:900;
     color:#2563eb;
-    white-space:nowrap;
+    white-space:normal;
+    word-break:break-word;
+    font-size:10px;
   }
 
   .price-badge{
@@ -179,8 +223,100 @@ if(!container){
     background:#fef3c7;
     color:#92400e;
     border:1px solid #fcd34d;
-    font-size:10px;
+    font-size:9px;
     font-weight:900;
+  }
+
+  .eye-btn{
+    border:none;
+    background:transparent;
+    color:#2563eb;
+    width:30px;
+    height:24px;
+    cursor:pointer;
+    font-size:18px;
+    font-weight:900;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:1;
+    padding:0;
+  }
+
+  .eye-btn:hover{
+    color:#1d4ed8;
+    background:#dbeafe;
+    border-radius:6px;
+  }
+
+  .view-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.55);
+    z-index:99999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:15px;
+  }
+
+  .view-box{
+    background:#fff;
+    width:min(570px,96vw);
+    border-radius:15px;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.28);
+  }
+
+  .view-head{
+    background:#2563eb;
+    color:#fff;
+    padding:12px 15px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-weight:900;
+  }
+
+  .view-close{
+    border:none;
+    background:#fff;
+    color:#0f172a;
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    font-size:18px;
+    font-weight:900;
+    cursor:pointer;
+  }
+
+  .view-body{
+    padding:14px;
+    display:grid;
+    gap:8px;
+  }
+
+  .view-line{
+    display:grid;
+    grid-template-columns:150px 1fr;
+    border:1px solid #e2e8f0;
+    border-radius:9px;
+    overflow:hidden;
+  }
+
+  .view-label{
+    background:#f1f5f9;
+    padding:9px;
+    font-weight:900;
+    color:#334155;
+  }
+
+  .view-value{
+    padding:9px;
+    font-weight:800;
+    color:#0f172a;
+    word-break:break-word;
+    white-space:pre-line;
   }
 
   .scheduled-row{background:#fff;color:#111827;}
@@ -203,11 +339,12 @@ if(!container){
   }
 
   @media(max-width:768px){
-    .review-table{min-width:1350px;}
-    .review-table th,.review-table td{font-size:10px;padding:5px;}
+    .review-table{min-width:1500px;}
+    .review-table th,.review-table td{font-size:10px;padding:4px;}
     .btn{font-size:10px;padding:5px 7px;}
-    .edit-input{font-size:11px;min-width:110px;}
-    .cell-item{font-size:10px;padding:3px 4px;}
+    .edit-input{font-size:10px;min-width:85px;}
+    .cell-item{font-size:9.5px;padding:3px 4px;}
+    .view-line{grid-template-columns:1fr;}
   }`;
 
   document.head.appendChild(style);
@@ -402,15 +539,27 @@ function getSharedKey(t){
   );
 }
 
-function groupByDate(list){
+function getTableDateKey(t){
+  return normalizeText(t.tripDate) || (
+    t.createdAt
+      ? new Date(t.createdAt).toLocaleDateString()
+      : "Unknown"
+  );
+}
+
+function groupItemsByTripDate(items){
   const groups = {};
 
-  list.forEach(t=>{
-    const d = t.createdAt ? new Date(t.createdAt) : new Date();
-    const key = d.toLocaleDateString();
+  items.forEach(item=>{
+    const t =
+      item.kind === "trip"
+        ? item.trip
+        : item.group[0];
+
+    const key = getTableDateKey(t);
 
     if(!groups[key]) groups[key] = [];
-    groups[key].push(t);
+    groups[key].push(item);
   });
 
   return groups;
@@ -545,6 +694,11 @@ function getServiceByTrip(trip){
       (code === "WC" && key === "WHEELCHAIR")
     );
   }) || null;
+}
+
+function getServiceTitleForTrip(trip){
+  const service = getServiceByTrip(trip);
+  return service?.name || service?.title || trip?.serviceType || trip?.serviceName || "--";
 }
 
 function isSharedTrip(t){
@@ -837,13 +991,6 @@ function buildIndividualRoutePoints(trip){
   return points;
 }
 
-/*
-  أقل Google Requests:
-  - لو نقطة واحدة: مفيش request
-  - لو أكتر من نقطة: request واحد يطلع ترتيب waypoints
-  - بنستخدم Google للترتيب فقط
-  - الحساب النهائي للمسافة بيتم بعد كده على finalRoutePoints
-*/
 async function optimizeStopsFromOrigin(origin,stops){
 
   await ensureGoogleLoaded();
@@ -1009,7 +1156,7 @@ async function buildFinalSharedRoute(group){
       }
 
       const pickupIndex =
-        indexOfAddress(finalRoutePoints,pickup);
+        indexOfAddress(finalRoutePoints,p.pickup);
 
       const dropoffIndex =
         indexOfAddress(finalRoutePoints,p.dropoff);
@@ -1160,10 +1307,16 @@ function isHiddenStatus(status){
 }
 
 function getTripsTabData(){
-  return trips.filter(t=>{
-    if(isSharedTrip(t)) return false;
-    return !isHiddenStatus(t.status);
-  });
+  return trips
+    .filter(t=>{
+      if(isSharedTrip(t)) return false;
+      return !isHiddenStatus(t.status);
+    })
+    .sort((a,b)=>{
+      const da = new Date(a.tripDate || a.createdAt || 0);
+      const db = new Date(b.tripDate || b.createdAt || 0);
+      return db - da;
+    });
 }
 
 function getSharedGroups(){
@@ -1184,7 +1337,96 @@ function getSharedGroups(){
       Number(a.passengerIndex || 0) -
       Number(b.passengerIndex || 0)
     );
+  }).sort((a,b)=>{
+    const da = new Date(a[0]?.tripDate || a[0]?.createdAt || 0);
+    const db = new Date(b[0]?.tripDate || b[0]?.createdAt || 0);
+    return db - da;
   });
+}
+
+/* ================= VIEW MODAL ================= */
+
+function viewLine(label,value){
+  return `
+    <div class="view-line">
+      <div class="view-label">${escapeHtml(label)}</div>
+      <div class="view-value">${escapeHtml(value || "--")}</div>
+    </div>
+  `;
+}
+
+function getBookedDate(t){
+  const d =
+    t?.bookedAt ||
+    t?.createdAt ||
+    t?.updatedAt ||
+    "";
+
+  if(!d) return "--";
+
+  const date = new Date(d);
+  if(isNaN(date)) return String(d);
+
+  return date.toLocaleDateString() + " " + date.toLocaleTimeString([],{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function openReviewView(kind,key){
+
+  let trip = null;
+  let group = null;
+
+  if(kind === "trip"){
+    trip = trips.find(t => String(t._id) === String(key));
+  }
+
+  if(kind === "shared"){
+    group = getSharedGroups().find(g => getSharedKey(g[0]) === key);
+    trip = group?.[0] || null;
+  }
+
+  if(!trip) return;
+
+  const service = getServiceByTrip(trip);
+
+  closeReviewView();
+
+  const overlay = document.createElement("div");
+  overlay.id = "reviewViewOverlay";
+  overlay.className = "view-overlay";
+
+  overlay.innerHTML = `
+    <div class="view-box">
+      <div class="view-head">
+        <div>Trip Details</div>
+        <button class="view-close" type="button" onclick="closeReviewView()">×</button>
+      </div>
+
+      <div class="view-body">
+        ${viewLine("Trip Number",trip.tripNumber || "")}
+        ${viewLine("Service",service?.name || service?.title || trip.serviceType || trip.serviceName || "")}
+        ${viewLine("Entry Name",trip.entryName || "")}
+        ${viewLine("Entry Phone",trip.entryPhone || "")}
+        ${viewLine("Company",trip.company || companyName || "")}
+        ${viewLine("Trip Date",trip.tripDate || "")}
+        ${viewLine("Trip Time",trip.tripTime || "")}
+        ${viewLine("Booked / Created",getBookedDate(trip))}
+        ${viewLine("Route Locked",trip.routeLocked === true ? "Yes" : "No")}
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click",e=>{
+    if(e.target === overlay) closeReviewView();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function closeReviewView(){
+  document.getElementById("reviewViewOverlay")?.remove();
 }
 
 /* ================= RENDER ================= */
@@ -1381,245 +1623,277 @@ function renderSharedButtons(group,editing){
   return "";
 }
 
-function renderTripsTable(list){
-  const groups = groupByDate(list);
-  const dates = Object.keys(groups).sort((a,b)=>new Date(b)-new Date(a));
+function renderTripRow(t,index){
+  const tr = document.createElement("tr");
+  tr.dataset.id = t._id;
 
-  dates.forEach(date=>{
-    const title = document.createElement("div");
-    title.className = "date-title";
-    title.innerText = date;
-    container.appendChild(title);
+  const editing = t.__editing === true;
+  const stops = Array.isArray(t.stops) ? t.stops : [];
 
-    const tableWrap = document.createElement("div");
-    tableWrap.className = "table-wrap";
+  applyRowColor(tr,t);
 
-    const table = document.createElement("table");
-    table.className = "review-table";
+  tr.innerHTML = `
+    <td class="col-num">${index}</td>
 
-    table.innerHTML = `
+    <td class="col-trip">
+      <span class="trip-number-badge">${escapeHtml(t.tripNumber || "")}</span>
+      ${
+        t.routeLocked === true
+        ? `<div class="route-locked-badge">Route Locked</div>`
+        : ""
+      }
+    </td>
+
+    <td class="col-client">
+      ${editing ? createEditInput(t.clientName || "", "clientName") : cellBox(escapeHtml(t.clientName || "--"))}
+    </td>
+
+    <td class="col-phone">
+      ${editing ? createEditInput(t.clientPhone || "", "clientPhone") : cellBox(escapeHtml(t.clientPhone || "--"))}
+    </td>
+
+    <td class="col-pickup">
+      ${editing ? createEditInput(t.pickup || "", "pickup") : cellBox(escapeHtml(t.pickup || "--"))}
+    </td>
+
+    <td class="col-stops">
+      ${
+        editing
+        ? stops.map((s,si)=>`<input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">`).join("")
+        : cellBox(stops.length ? stops.map(s=>escapeHtml(s)) : "--")
+      }
+    </td>
+
+    <td class="col-drop">
+      ${editing ? createEditInput(t.dropoff || "", "dropoff") : cellBox(escapeHtml(t.dropoff || "--"))}
+    </td>
+
+    <td class="col-notes">
+      ${editing ? createEditInput(t.notes || "", "notes") : cellBox(escapeHtml(t.notes || "--"))}
+    </td>
+
+    <td class="col-date">${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
+
+    <td class="col-time">${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
+
+    <td class="col-status"><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
+
+    <td class="col-price"><span class="price-badge">$${formatMoney(getTripPrice(t))}</span></td>
+
+    <td class="col-miles"><span class="miles-strong">${t.miles ? Number(t.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
+
+    <td class="col-actions">${renderTripButtons(t,editing)}</td>
+
+    <td class="col-eye">
+      <button class="eye-btn" type="button" title="View" data-action="view-trip">👁️</button>
+    </td>
+  `;
+
+  return tr;
+}
+
+function renderSharedRow(group,index){
+  const first = group[0];
+  const tr = document.createElement("tr");
+  tr.dataset.groupId = getSharedKey(first);
+
+  const editing = first.__editing === true;
+  const passengers = getRealPassengersFromGroup(group);
+
+  applyRowColor(tr,first);
+
+  let clients = "";
+  let phones = "";
+  let pickups = "";
+  let drops = "";
+
+  if(editing){
+    clients = passengers.map((p,idx)=>
+      createSharedEditInput(p.name || p.clientName || "", `passenger_${idx}_name`)
+    ).join("");
+
+    phones = passengers.map((p,idx)=>
+      createSharedEditInput(p.phone || p.clientPhone || "", `passenger_${idx}_phone`)
+    ).join("");
+
+    pickups = passengers.map((p,idx)=>
+      createSharedEditInput(p.pickup || "", `passenger_${idx}_pickup`)
+    ).join("");
+
+    drops = passengers.map((p,idx)=>
+      createSharedEditInput(p.dropoff || "", `passenger_${idx}_dropoff`)
+    ).join("");
+  }else{
+    clients = cellBox(passengers.map((p,idx)=>
+      `${idx+1}. ${escapeHtml(p.name || p.clientName || "--")}`
+    ));
+
+    phones = cellBox(passengers.map((p,idx)=>
+      `${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "--")}`
+    ));
+
+    pickups = cellBox(passengers.map((p,idx)=>
+      `${idx+1}. ${escapeHtml(p.pickup || "--")}`
+    ));
+
+    drops = cellBox(passengers.map((p,idx)=>
+      `${idx+1}. ${escapeHtml(p.dropoff || "--")}`
+    ));
+  }
+
+  tr.innerHTML = `
+    <td class="col-num">${index}</td>
+
+    <td class="col-trip">
+      <span class="trip-number-badge">${escapeHtml(first.tripNumber || "")}</span>
+      ${
+        first.routeLocked === true
+        ? `<div class="route-locked-badge">Route Locked</div>`
+        : ""
+      }
+    </td>
+
+    <td class="col-client">
+      ${editing ? `<div class="multi-line">${clients}</div>` : clients}
+    </td>
+
+    <td class="col-phone">
+      ${editing ? `<div class="multi-line">${phones}</div>` : phones}
+    </td>
+
+    <td class="col-pickup">
+      ${editing ? `<div class="multi-line">${pickups}</div>` : pickups}
+    </td>
+
+    <td class="col-stops">
+      <strong>${Math.max(0,passengers.filter(passengerIsActive).length - 1)}</strong>
+    </td>
+
+    <td class="col-drop">
+      ${editing ? `<div class="multi-line">${drops}</div>` : drops}
+    </td>
+
+    <td class="col-notes">
+      ${editing ? createSharedEditInput(first.notes || "", "notes") : cellBox(escapeHtml(first.notes || "--"))}
+    </td>
+
+    <td class="col-date">${editing ? createSharedEditInput(first.tripDate || "", "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
+
+    <td class="col-time">${editing ? createSharedEditInput(first.tripTime || "", "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
+
+    <td class="col-status"><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
+
+    <td class="col-price"><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
+
+    <td class="col-miles"><span class="miles-strong">${first.miles ? Number(first.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
+
+    <td class="col-actions">${renderSharedButtons(group,editing)}</td>
+
+    <td class="col-eye">
+      <button class="eye-btn" type="button" title="View" data-action="view-shared">👁️</button>
+    </td>
+  `;
+
+  return tr;
+}
+
+function renderUnifiedTable(items,kind){
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "review-table";
+
+  table.innerHTML = `
+    <thead>
       <tr>
-        <th>#</th><th>Trip#</th><th>Service</th><th>Entry</th><th>Entry Phone</th>
-        <th>Client</th><th>Phone</th><th>Pickup</th><th>Stops</th><th>Drop</th>
-        <th>Notes</th><th>Date</th><th>Time</th><th>Status</th><th>Price</th><th>Miles</th><th>Actions</th>
+        <th class="col-num">#</th>
+        <th class="col-trip">Trip#</th>
+        <th class="col-client">${kind === "shared" ? "Clients" : "Client"}</th>
+        <th class="col-phone">${kind === "shared" ? "Phones" : "Phone"}</th>
+        <th class="col-pickup">${kind === "shared" ? "Pickups" : "Pickup"}</th>
+        <th class="col-stops">Stops</th>
+        <th class="col-drop">${kind === "shared" ? "Drops" : "Drop"}</th>
+        <th class="col-notes">Notes</th>
+        <th class="col-date">Date</th>
+        <th class="col-time">Time</th>
+        <th class="col-status">Status</th>
+        <th class="col-price">Price</th>
+        <th class="col-miles">Miles</th>
+        <th class="col-actions">Actions</th>
+        <th class="col-eye">👁️</th>
       </tr>
-    `;
+    </thead>
+    <tbody></tbody>
+  `;
 
-    groups[date].forEach((t,i)=>{
-      const tr = document.createElement("tr");
-      tr.dataset.id = t._id;
+  const tbody = table.querySelector("tbody");
+  const grouped = groupItemsByTripDate(items);
 
-      const editing = t.__editing === true;
-      const service = getServiceByTrip(t);
-      const stops = Array.isArray(t.stops) ? t.stops : [];
+  let counter = 1;
 
-      applyRowColor(tr,t);
+  Object.keys(grouped)
+    .sort((a,b)=>{
+      if(a === "Unknown") return 1;
+      if(b === "Unknown") return -1;
+      return new Date(b) - new Date(a);
+    })
+    .forEach(date=>{
+      const dateRow = document.createElement("tr");
+      dateRow.className = "date-row";
+      dateRow.innerHTML = `<td colspan="15">Trip Date: ${escapeHtml(date)}</td>`;
+      tbody.appendChild(dateRow);
 
-      tr.innerHTML = `
-        <td>${i+1}</td>
-
-        <td>
-          <span class="trip-number-badge">${escapeHtml(t.tripNumber || "")}</span>
-          ${
-            t.routeLocked === true
-            ? `<div class="route-locked-badge">Route Locked</div>`
-            : ""
-          }
-        </td>
-
-        <td>${cellBox(escapeHtml(service?.name || service?.title || t.serviceType || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.entryName || "", "entryName") : cellBox(escapeHtml(t.entryName || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.entryPhone || "", "entryPhone") : cellBox(escapeHtml(t.entryPhone || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.clientName || "", "clientName") : cellBox(escapeHtml(t.clientName || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.clientPhone || "", "clientPhone") : cellBox(escapeHtml(t.clientPhone || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.pickup || "", "pickup") : cellBox(escapeHtml(t.pickup || "--"))}</td>
-
-        <td>${
-          editing
-          ? stops.map((s,si)=>`<input class="edit-input" data-stop-index="${si}" value="${escapeHtml(s)}">`).join("")
-          : cellBox(stops.length ? stops.map(s=>escapeHtml(s)) : "--")
-        }</td>
-
-        <td>${editing ? createEditInput(t.dropoff || "", "dropoff") : cellBox(escapeHtml(t.dropoff || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.notes || "", "notes") : cellBox(escapeHtml(t.notes || "--"))}</td>
-
-        <td>${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "")}</td>
-
-        <td>${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
-
-        <td><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
-
-        <td><span class="price-badge">$${formatMoney(getTripPrice(t))}</span></td>
-
-        <td><span class="miles-strong">${t.miles ? Number(t.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
-
-        <td>${renderTripButtons(t,editing)}</td>
-      `;
-
-      table.appendChild(tr);
+      grouped[date].forEach(item=>{
+        if(item.kind === "trip"){
+          tbody.appendChild(renderTripRow(item.trip,counter++));
+        }else{
+          tbody.appendChild(renderSharedRow(item.group,counter++));
+        }
+      });
     });
 
-    tableWrap.appendChild(table);
-    container.appendChild(tableWrap);
-  });
+  tableWrap.appendChild(table);
+  container.appendChild(tableWrap);
+}
 
-  if(!dates.length){
+function renderTripsTable(list){
+
+  const items = list.map(t=>({
+    kind:"trip",
+    trip:t
+  }));
+
+  if(!items.length){
     const empty = document.createElement("div");
     empty.style.padding = "20px";
     empty.style.fontWeight = "700";
     empty.innerText = "No trips found.";
     container.appendChild(empty);
+    return;
   }
+
+  renderUnifiedTable(items,"trip");
 }
 
 function renderSharedTable(groups){
-  const dateGroups = {};
 
-  groups.forEach(group=>{
-    const first = group[0];
-    const d = first?.createdAt ? new Date(first.createdAt) : new Date();
-    const key = d.toLocaleDateString();
+  const items = groups.map(group=>({
+    kind:"shared",
+    group
+  }));
 
-    if(!dateGroups[key]) dateGroups[key] = [];
-    dateGroups[key].push(group);
-  });
-
-  const dates = Object.keys(dateGroups).sort((a,b)=>new Date(b)-new Date(a));
-
-  dates.forEach(date=>{
-    const title = document.createElement("div");
-    title.className = "date-title";
-    title.innerText = date;
-    container.appendChild(title);
-
-    const tableWrap = document.createElement("div");
-    tableWrap.className = "table-wrap";
-
-    const table = document.createElement("table");
-    table.className = "review-table";
-
-    table.innerHTML = `
-      <tr>
-        <th>#</th><th>Trip#</th><th>Service</th><th>Entry</th><th>Entry Phone</th>
-        <th>Clients</th><th>Phones</th><th>Pickups</th><th>Stops</th><th>Drops</th>
-        <th>Notes</th><th>Date</th><th>Time</th><th>Status</th><th>Price</th><th>Miles</th><th>Actions</th>
-      </tr>
-    `;
-
-    dateGroups[date].forEach((group,i)=>{
-      const first = group[0];
-      const tr = document.createElement("tr");
-      tr.dataset.groupId = getSharedKey(first);
-
-      const editing = first.__editing === true;
-      const service = getServiceByTrip(first);
-      const passengers = getRealPassengersFromGroup(group);
-
-      applyRowColor(tr,first);
-
-      let clients = "";
-      let phones = "";
-      let pickups = "";
-      let drops = "";
-
-      if(editing){
-        clients = passengers.map((p,idx)=>
-          createSharedEditInput(p.name || p.clientName || "", `passenger_${idx}_name`)
-        ).join("");
-
-        phones = passengers.map((p,idx)=>
-          createSharedEditInput(p.phone || p.clientPhone || "", `passenger_${idx}_phone`)
-        ).join("");
-
-        pickups = passengers.map((p,idx)=>
-          createSharedEditInput(p.pickup || "", `passenger_${idx}_pickup`)
-        ).join("");
-
-        drops = passengers.map((p,idx)=>
-          createSharedEditInput(p.dropoff || "", `passenger_${idx}_dropoff`)
-        ).join("");
-
-      }else{
-        clients = cellBox(passengers.map((p,idx)=>
-          `${idx+1}. ${escapeHtml(p.name || p.clientName || "--")}`
-        ));
-
-        phones = cellBox(passengers.map((p,idx)=>
-          `${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "--")}`
-        ));
-
-        pickups = cellBox(passengers.map((p,idx)=>
-          `${idx+1}. ${escapeHtml(p.pickup || "--")}`
-        ));
-
-        drops = cellBox(passengers.map((p,idx)=>
-          `${idx+1}. ${escapeHtml(p.dropoff || "--")}`
-        ));
-      }
-
-      tr.innerHTML = `
-        <td>${i+1}</td>
-
-        <td>
-          <span class="trip-number-badge">${escapeHtml(first.tripNumber || "")}</span>
-          ${
-            first.routeLocked === true
-            ? `<div class="route-locked-badge">Route Locked</div>`
-            : ""
-          }
-        </td>
-
-        <td>${cellBox(escapeHtml(service?.name || service?.title || "Shared"))}</td>
-
-        <td>${editing ? createSharedEditInput(first.entryName || "", "entryName") : cellBox(escapeHtml(first.entryName || "--"))}</td>
-
-        <td>${editing ? createSharedEditInput(first.entryPhone || "", "entryPhone") : cellBox(escapeHtml(first.entryPhone || "--"))}</td>
-
-        <td>${editing ? `<div class="multi-line">${clients}</div>` : clients}</td>
-
-        <td>${editing ? `<div class="multi-line">${phones}</div>` : phones}</td>
-
-        <td>${editing ? `<div class="multi-line">${pickups}</div>` : pickups}</td>
-
-        <td><strong>${Math.max(0,passengers.filter(passengerIsActive).length - 1)}</strong></td>
-
-        <td>${editing ? `<div class="multi-line">${drops}</div>` : drops}</td>
-
-        <td>${editing ? createSharedEditInput(first.notes || "", "notes") : cellBox(escapeHtml(first.notes || "--"))}</td>
-
-        <td>${editing ? createSharedEditInput(first.tripDate || "", "tripDate", "date") : escapeHtml(first.tripDate || "")}</td>
-
-        <td>${editing ? createSharedEditInput(first.tripTime || "", "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
-
-        <td><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
-
-        <td><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
-
-        <td><span class="miles-strong">${first.miles ? Number(first.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
-
-        <td>${renderSharedButtons(group,editing)}</td>
-      `;
-
-      table.appendChild(tr);
-    });
-
-    tableWrap.appendChild(table);
-    container.appendChild(tableWrap);
-  });
-
-  if(!dates.length){
+  if(!items.length){
     const empty = document.createElement("div");
     empty.style.padding = "20px";
     empty.style.fontWeight = "700";
     empty.innerText = "No shared trips found.";
     container.appendChild(empty);
+    return;
   }
+
+  renderUnifiedTable(items,"shared");
 }
 
 function render(){
@@ -1646,7 +1920,7 @@ async function handleEditTrip(btn){
 
   const tr = btn.closest("tr");
   const id = tr.dataset.id;
-  const trip = trips.find(t => t._id === id);
+  const trip = trips.find(t => String(t._id) === String(id));
 
   if(!trip) return;
 
@@ -1802,7 +2076,7 @@ async function handleDeleteShared(btn){
 async function handleSaveTrip(btn){
   const tr = btn.closest("tr");
   const id = tr.dataset.id;
-  const trip = trips.find(t => t._id === id);
+  const trip = trips.find(t => String(t._id) === String(id));
 
   if(!trip) return;
 
@@ -2015,7 +2289,7 @@ async function handleSaveShared(btn){
 async function handleConfirmTrip(btn){
   const tr = btn.closest("tr");
   const id = tr.dataset.id;
-  const trip = trips.find(t => t._id === id);
+  const trip = trips.find(t => String(t._id) === String(id));
 
   if(!trip) return;
 
@@ -2109,14 +2383,6 @@ async function handleConfirmShared(btn){
   btn.disabled = true;
   btn.textContent = "Routing...";
 
-  /*
-    Confirm Shared النهائي:
-    1. يرتب الركاب والروت
-    2. يحسب المسافة على الروت النهائي
-    3. يحسب السعر
-    4. يحفظ الرحلة جاهزة للـ Trips Hub
-  */
-
   const finalRoute =
     await buildFinalSharedRoute(group);
 
@@ -2137,12 +2403,6 @@ async function handleConfirmShared(btn){
     await calculateRouteMiles(routePoints);
 
   btn.textContent = "Pricing...";
-
-  const serviceKey =
-    service.serviceKey ||
-    service.companySuffix ||
-    service.suffix ||
-    "SHARED";
 
   const total =
     await calculateServerPrice({
@@ -2290,10 +2550,6 @@ async function handleCancelShared(btn){
 }
 
 async function handleAddStop(btn){
-  /*
-    جاهز للربط بعدين.
-    الزر موجود في الفردي فقط.
-  */
   return;
 }
 
@@ -2319,6 +2575,17 @@ container.addEventListener("click", async e=>{
     if(action === "cancel-trip") await handleCancelTrip(btn);
     if(action === "cancel-shared") await handleCancelShared(btn);
     if(action === "add-stop") await handleAddStop(btn);
+
+    if(action === "view-trip"){
+      const tr = btn.closest("tr");
+      openReviewView("trip",tr?.dataset?.id || "");
+    }
+
+    if(action === "view-shared"){
+      const tr = btn.closest("tr");
+      openReviewView("shared",tr?.dataset?.groupId || "");
+    }
+
   }catch(err){
     console.error(err);
     alert(err.message || "Server Error");
@@ -2327,6 +2594,11 @@ container.addEventListener("click", async e=>{
 });
 
 /* ================= EXPORT ================= */
+
+Object.assign(window,{
+  openReviewView,
+  closeReviewView
+});
 
 window.ReviewApp = {
   token,
