@@ -667,23 +667,55 @@ function isSharedService(service){
 function getServiceByTrip(trip){
   if(!trip) return null;
 
-  const code = getServiceCodeFromTrip(trip);
-  const tripType = normalizeText(trip.tripType || trip.type || "").toUpperCase();
+  const tripServiceId =
+    normalizeText(trip.serviceId || "");
 
+  if(tripServiceId){
+    const byId =
+      COMPANY_SERVICES.find(s =>
+        String(s._id) === String(tripServiceId)
+      );
+
+    if(byId) return byId;
+  }
+
+  const code =
+    getServiceCodeFromTrip(trip);
+
+  const tripType =
+    normalizeText(
+      trip.tripType ||
+      trip.type ||
+      ""
+    ).toUpperCase();
+
+  /*
+    Shared الحقيقي فقط
+    ممنوع passengers لوحدها تعتبر الرحلة Shared
+  */
   if(
     trip.isShared === true ||
     tripType === "SHARED" ||
     String(trip.tripNumber || "").toUpperCase().includes("-SH") ||
-    (Array.isArray(trip.passengers) && trip.passengers.length > 0)
+    code === "SH" ||
+    code === "SHARED"
   ){
     return COMPANY_SERVICES.find(s=>isSharedService(s)) || null;
   }
 
   return COMPANY_SERVICES.find(s=>{
-    const key = normalizeText(s.serviceKey).toUpperCase();
-    const suffix = normalizeText(s.companySuffix || s.suffix).toUpperCase();
-    const serviceCode = normalizeText(s.serviceCode || s.code).toUpperCase();
-    const title = normalizeText(s.title || s.name).toUpperCase();
+
+    const key =
+      normalizeText(s.serviceKey).toUpperCase();
+
+    const suffix =
+      normalizeText(s.companySuffix || s.suffix).toUpperCase();
+
+    const serviceCode =
+      normalizeText(s.serviceCode || s.code).toUpperCase();
+
+    const title =
+      normalizeText(s.title || s.name).toUpperCase();
 
     return (
       key === code ||
@@ -693,8 +725,10 @@ function getServiceByTrip(trip){
       (code === "WH" && key === "WHEELCHAIR") ||
       (code === "WC" && key === "WHEELCHAIR")
     );
+
   }) || null;
 }
+
 
 function getServiceTitleForTrip(trip){
   const service = getServiceByTrip(trip);
@@ -702,13 +736,35 @@ function getServiceTitleForTrip(trip){
 }
 
 function isSharedTrip(t){
-  if(t.isShared === true) return true;
-  if(String(t.tripType || "").toUpperCase() === "SHARED") return true;
-  if(String(t.tripNumber || "").toUpperCase().includes("-SH")) return true;
-  if(Array.isArray(t.passengers) && t.passengers.length > 0) return true;
 
-  const service = getServiceByTrip(t);
-  return isSharedService(service);
+  if(!t) return false;
+
+  const tripType =
+    String(t.tripType || t.type || "").toUpperCase();
+
+  const tripNumber =
+    String(t.tripNumber || "").toUpperCase();
+
+  const serviceCode =
+    getServiceCodeFromTrip(t);
+
+  const service =
+    getServiceByTrip(t);
+
+  /*
+    مهم:
+    passengers array لوحدها مش معناها Shared
+    لأن الرحلة الفردي ممكن تتحفظ بجواها passenger واحد
+  */
+
+  return (
+    t.isShared === true ||
+    tripType === "SHARED" ||
+    tripNumber.includes("-SH") ||
+    serviceCode === "SH" ||
+    serviceCode === "SHARED" ||
+    isSharedService(service)
+  );
 }
 
 function sharedEnabled(){
@@ -735,23 +791,43 @@ function hasActiveAddStopRequest(trip){
 
 function serviceAllowsAddStop(trip){
 
-  /*
-    Shared ممنوع نهائيًا حتى لو السيرفس فيها On بالغلط
-  */
   if(isSharedTrip(trip)){
     return false;
   }
 
-  const service = getServiceByTrip(trip);
+  const service =
+    getServiceByTrip(trip);
 
   if(!service){
     return false;
   }
 
-  /*
-    ده الحقل اللي هنضيفه بعد كده في Service Management
-  */
-  return service.companyAddStopEnabled === true;
+  if(service.companyAddStopEnabled !== true){
+    return false;
+  }
+
+  const customTime =
+    service.companyAddStopCustomTimeEnabled === true;
+
+  if(!customTime){
+    return true;
+  }
+
+  const mins =
+    minutesToTrip(trip);
+
+  if(mins === null){
+    return true;
+  }
+
+  const cutoff =
+    Number(service.companyAddStopCutoffMinutes || 0);
+
+  if(cutoff <= 0){
+    return mins >= 0;
+  }
+
+  return mins >= cutoff;
 }
 
 function renderAddStopButton(trip){
@@ -760,11 +836,6 @@ function renderAddStopButton(trip){
     return "";
   }
 
-  /*
-    لو فيه Add Stop فعال، الزر يتحول Cancel Stop
-    حتى لو Service Management اتقفلت بعد كده
-    عشان العميل يقدر يكنسل الطلب الموجود
-  */
   if(hasActiveAddStopRequest(trip)){
     return `
       <button class="btn cancel" data-action="cancel-stop">
@@ -773,9 +844,6 @@ function renderAddStopButton(trip){
     `;
   }
 
-  /*
-    لو مفيش طلب فعال، Add Stop يظهر بس لو الخدمة On
-  */
   if(!serviceAllowsAddStop(trip)){
     return "";
   }
@@ -786,7 +854,6 @@ function renderAddStopButton(trip){
     </button>
   `;
 }
-
 function getWarningMinutes(service){
   return Number(service?.companyWarningMinutes ?? service?.warningMinutes ?? 120);
 }
