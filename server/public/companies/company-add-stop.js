@@ -1197,10 +1197,33 @@ function hideOldControls(){
 
   if(addStopBtn){
     addStopBtn.classList.add("old-add-stop-hidden");
+    addStopBtn.style.display = "none";
   }
 
   if(confirmAddStopBtn){
     confirmAddStopBtn.classList.add("old-add-stop-hidden");
+    confirmAddStopBtn.style.display = "none";
+  }
+
+  /*
+    نخفي أي خانات Add Stop قديمة موجودة في HTML
+    عشان الصفحة الجديدة تعتمد على Route Editor فقط
+  */
+  document
+    .querySelectorAll(
+      ".stop-item, .dynamic-stop-input, .dynamic-stop-position, .insert-select, .stop-position-note"
+    )
+    .forEach(el=>{
+      el.classList.add("old-add-stop-hidden");
+      el.style.display = "none";
+    });
+
+  /*
+    لو في خانة قديمة تحت التايملاين جوه stopsContainer
+    امسحها قبل ما نبني Route Editor
+  */
+  if(stopsContainer){
+    stopsContainer.innerHTML = "";
   }
 }
 
