@@ -2576,19 +2576,44 @@ async function handleConfirmTrip(btn){
     trip.serviceType ||
     "STANDARD";
 
-  const stopsCount =
-    Array.isArray(trip.stops)
+  const oldStopsCount =
+  Array.isArray(activeReq.existingStopsBefore)
+    ? activeReq.existingStopsBefore.length
+    : Array.isArray(trip.stops)
       ? trip.stops.length
       : 0;
 
-  const total =
-    await calculateServerPrice({
-      serviceKey,
-      miles:routeData.miles,
-      stops:stopsCount,
-      minutes:routeData.estimatedMinutes,
-      passengerCount:1
-    });
+const finalStopsCount =
+  Array.isArray(finalStops)
+    ? finalStops.length
+    : 0;
+
+const addedStopsCountFromRequest =
+  Array.isArray(activeReq.addedStopsDetailed) &&
+  activeReq.addedStopsDetailed.length
+    ? activeReq.addedStopsDetailed.length
+    : Array.isArray(activeReq.addedStops)
+      ? activeReq.addedStops.length
+      : 0;
+
+const addedStopsCount =
+  Math.max(
+    addedStopsCountFromRequest,
+    finalStopsCount - oldStopsCount,
+    0
+  );
+
+const billableStopsCount =
+  addedStopsCount;
+
+const total =
+  await calculateServerPrice({
+    serviceKey,
+    miles:routeData.miles,
+    stops:billableStopsCount,
+    minutes:routeData.estimatedMinutes,
+    passengerCount:1
+  });
 
   await updateTrip(id,{
     status:"Confirmed",
@@ -2840,44 +2865,51 @@ async function handleAddStop(btn){
 }
 
 async function handleCancelStop(btn){
+
   const tr = btn.closest("tr");
   const id = tr?.dataset?.id;
 
   if(!id) return;
 
-  const trip = trips.find(t => String(t._id) === String(id));
+  const trip =
+    trips.find(t => String(t._id) === String(id));
 
   if(!trip){
     alert("Trip not found");
     return;
   }
 
-  if(!hasActiveAddStopRequest(trip)){
+  const activeReq =
+    getActiveAddStopRequest(trip);
+
+  if(!activeReq){
     alert("There is no active stop request to cancel");
     await reloadTrips();
     return;
   }
 
-  const ok = confirm("Cancel added stop request?");
+  const ok =
+    confirm("Cancel added stop request?");
 
   if(!ok) return;
 
   btn.disabled = true;
   btn.textContent = "Cancelling...";
 
-  const res = await fetch(
-    `/api/company/add-stop/${encodeURIComponent(id)}/cancel`,
-    {
-      method:"POST",
-      headers:{
-        Authorization:"Bearer " + token
+  const res =
+    await fetch(
+      `/api/company/add-stop/${encodeURIComponent(id)}/cancel`,
+      {
+        method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        }
       }
-    }
-  );
+    );
 
   const data =
     await res.json()
-    .catch(()=>({}));
+      .catch(()=>({}));
 
   if(!res.ok || data.success === false){
     throw new Error(
@@ -2885,6 +2917,122 @@ async function handleCancelStop(btn){
       "Cancel stop failed"
     );
   }
+
+  const freshTrips =
+    await fetchTrips();
+
+  const freshTrip =
+    freshTrips.find(t => String(t._id) === String(id)) || trip;
+
+  const service =
+    getServiceByTrip(freshTrip);
+
+  if(!service){
+    await reloadTrips();
+    return;
+  }
+
+  const pickup =
+    activeReq.pickup ||
+    freshTrip.pickup ||
+    "";
+
+  const stops =
+    Array.isArray(activeReq.existingStopsBefore)
+      ? activeReq.existingStopsBefore
+          .map(s => normalizeAddress(s))
+          .filter(Boolean)
+      : Array.isArray(freshTrip.stops)
+        ? freshTrip.stops
+            .map(s => normalizeAddress(s))
+            .filter(Boolean)
+        : [];
+
+  const dropoff =
+    activeReq.dropoffBefore ||
+    freshTrip.dropoff ||
+    "";
+
+  const routePoints =
+    [
+      pickup,
+      ...stops,
+      dropoff
+    ].filter(Boolean);
+
+  if(routePoints.length < 2){
+    await reloadTrips();
+    return;
+  }
+
+  btn.textContent = "Routing...";
+
+  const routeData =
+    await calculateRouteMiles(routePoints);
+
+  btn.textContent = "Pricing...";
+
+  const serviceKey =
+    service.serviceKey ||
+    freshTrip.serviceKey ||
+    freshTrip.serviceType ||
+    "STANDARD";
+
+  const stopsCount =
+    Array.isArray(stops)
+      ? stops.length
+      : 0;
+
+  const total =
+    await calculateServerPrice({
+      serviceKey,
+      miles:routeData.miles,
+      stops:stopsCount,
+      minutes:routeData.estimatedMinutes,
+      passengerCount:1
+    });
+
+  await updateTrip(id,{
+
+    pickup:pickup,
+    stops:stops,
+    dropoff:dropoff,
+
+    priceAmount:total,
+    finalPrice:total,
+
+    miles:routeData.miles,
+    distanceMeters:routeData.distanceMeters,
+    durationSeconds:routeData.durationSeconds,
+    estimatedMinutes:routeData.estimatedMinutes,
+
+    googleRoute:routeData.googleRoute,
+    routePoints:routePoints,
+    optimizedRoute:routeData.googleRoute,
+
+    routeLocked:true,
+    routeFinalized:true,
+    routeSource:"company-add-stop-cancel-auto-review",
+    routeUpdatedAt:new Date().toISOString(),
+
+    addStopRequest:{
+      ...activeReq,
+      active:false,
+      status:"CANCELLED_BY_COMPANY",
+      cancelledAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString(),
+
+      cancelledAutomatically:true,
+      restoredPickup:pickup,
+      restoredStops:stops,
+      restoredDropoff:dropoff,
+      restoredMiles:routeData.miles,
+      restoredPrice:total
+    },
+
+    routeChangePending:false,
+    routeChangeStatus:"CANCELLED"
+  });
 
   await reloadTrips();
 }
@@ -2983,10 +3131,180 @@ window.ReviewApp = {
 };
 
 /* ================= LOAD ================= */
+async function autoApplyAddStopRequests(){
 
+  const candidates =
+    trips.filter(t=>{
+      const req = getActiveAddStopRequest(t);
+
+      return (
+        req &&
+        !isSharedTrip(t) &&
+        !autoApplyingAddStops.has(String(t._id))
+      );
+    });
+
+  if(!candidates.length){
+    return;
+  }
+
+  for(const trip of candidates){
+
+    const id =
+      String(trip._id);
+
+    try{
+
+      autoApplyingAddStops.add(id);
+
+      const service =
+        getServiceByTrip(trip);
+
+      if(!service){
+        console.log("AUTO ADD STOP: service not found", trip.tripNumber);
+        continue;
+      }
+
+      const activeReq =
+        getActiveAddStopRequest(trip);
+
+      if(!activeReq){
+        continue;
+      }
+
+      const finalPickup =
+        getConfirmPickup(trip);
+
+      const finalStops =
+        getConfirmStops(trip);
+
+      const finalDropoff =
+        getConfirmDropoff(trip);
+
+      const routePoints =
+        buildIndividualRoutePoints(trip);
+
+      if(routePoints.length < 2){
+        console.log("AUTO ADD STOP: route points missing", trip.tripNumber);
+        continue;
+      }
+
+      const routeData =
+        await calculateRouteMiles(routePoints);
+
+      const serviceKey =
+        service.serviceKey ||
+        trip.serviceKey ||
+        trip.serviceType ||
+        "STANDARD";
+
+      const oldStopsCount =
+        Array.isArray(activeReq.existingStopsBefore)
+          ? activeReq.existingStopsBefore.length
+          : Array.isArray(trip.stops)
+            ? trip.stops.length
+            : 0;
+
+      const finalStopsCount =
+        Array.isArray(finalStops)
+          ? finalStops.length
+          : 0;
+
+      const addedStopsCountFromRequest =
+        Array.isArray(activeReq.addedStopsDetailed) &&
+        activeReq.addedStopsDetailed.length
+          ? activeReq.addedStopsDetailed.length
+          : Array.isArray(activeReq.addedStops)
+            ? activeReq.addedStops.length
+            : 0;
+
+      const addedStopsCount =
+        Math.max(
+          addedStopsCountFromRequest,
+          finalStopsCount - oldStopsCount,
+          0
+        );
+
+      const billableStopsCount =
+        addedStopsCount;
+
+      const total =
+        await calculateServerPrice({
+          serviceKey,
+          miles:routeData.miles,
+          stops:billableStopsCount,
+          minutes:routeData.estimatedMinutes,
+          passengerCount:1
+        });
+
+      await updateTrip(id,{
+
+        pickup:finalPickup,
+        stops:finalStops,
+        dropoff:finalDropoff,
+
+        priceAmount:total,
+        finalPrice:total,
+
+        miles:routeData.miles,
+        distanceMeters:routeData.distanceMeters,
+        durationSeconds:routeData.durationSeconds,
+        estimatedMinutes:routeData.estimatedMinutes,
+
+        googleRoute:routeData.googleRoute,
+        routePoints:routePoints,
+        optimizedRoute:routeData.googleRoute,
+
+        routeLocked:true,
+        routeFinalized:true,
+        routeSource:"company-add-stop-auto-review",
+        routeUpdatedAt:new Date().toISOString(),
+
+        addStopRequest:{
+          ...activeReq,
+          active:false,
+          status:"COMPLETED",
+          completedAt:new Date().toISOString(),
+          updatedAt:new Date().toISOString(),
+
+          addedStopsCount:addedStopsCount,
+          billableStopsCount:billableStopsCount,
+
+          appliedAutomatically:true,
+          appliedPickup:finalPickup,
+          appliedStops:finalStops,
+          appliedDropoff:finalDropoff,
+          appliedMiles:routeData.miles,
+          appliedPrice:total
+        },
+
+        routeChangePending:false,
+        routeChangeStatus:"COMPLETED"
+      });
+
+      console.log("AUTO ADD STOP APPLIED:", trip.tripNumber, "$" + total);
+
+    }catch(err){
+
+      console.error("AUTO ADD STOP ERROR:", trip.tripNumber, err);
+
+    }finally{
+
+      autoApplyingAddStops.delete(id);
+
+    }
+
+  }
+
+}
 async function refreshData(){
+
   await loadSystemRegion();
   await loadServices();
+
+  trips = await fetchTrips();
+
+  await autoApplyAddStopRequests();
 
   trips = await fetchTrips();
 
