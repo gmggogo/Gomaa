@@ -781,6 +781,24 @@ billingPaid: {
   ========================= */
 
   reminderSent: { type: Boolean, default: false },
+/* =========================
+     ROUTE CHANGE / ADD STOP REQUEST
+  ========================= */
+
+  addStopRequest: {
+    type: Object,
+    default: null
+  },
+
+  routeChangePending: {
+    type: Boolean,
+    default: false
+  },
+
+  routeChangeStatus: {
+    type: String,
+    default: ""
+  },
 
   bookedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
@@ -799,15 +817,40 @@ tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 const Trip =
   mongoose.models.Trip ||
   mongoose.model("Trip", tripSchema);
-  global.Trip = Trip;
-  const dispatchRoutes =
+
+global.Trip = Trip;
+
+/* =========================
+   COMPANY ADD STOP ROUTES
+   لازم بعد Trip model
+========================= */
+
+const companyAddStopRoutes =
+  require("./routes/companyAddStopRoutes");
+
+app.use(
+  "/api/company",
+  companyAddStopRoutes
+);
+app.get("/api/company-add-stop-test", (req,res)=>{
+  return res.json({
+    success:true,
+    message:"index.js updated and running"
+  });
+});
+
+console.log("✅ companyAddStopRoutes mounted on /api/company");
+/* =========================
+   DISPATCH ROUTES
+========================= */
+
+const dispatchRoutes =
   require("./routes/dispatchRoutes");
 
 app.use(
   "/api/dispatch",
   dispatchRoutes
 );
-
 
 /* =========================
    LIVE DRIVER TRACKING
