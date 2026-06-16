@@ -718,6 +718,75 @@ function sharedEnabled(){
   return hasSharedTrips || hasSharedService;
 }
 
+function hasActiveAddStopRequest(trip){
+  const req = trip?.addStopRequest || {};
+  const status = String(req.status || "").toUpperCase();
+
+  return (
+    req.active === true &&
+    ![
+      "CANCELLED",
+      "CANCELLED_BY_COMPANY",
+      "CANCELLED_BY_CUSTOMER",
+      "COMPLETED"
+    ].includes(status)
+  );
+}
+
+function serviceAllowsAddStop(trip){
+
+  /*
+    Shared ممنوع نهائيًا حتى لو السيرفس فيها On بالغلط
+  */
+  if(isSharedTrip(trip)){
+    return false;
+  }
+
+  const service = getServiceByTrip(trip);
+
+  if(!service){
+    return false;
+  }
+
+  /*
+    ده الحقل اللي هنضيفه بعد كده في Service Management
+  */
+  return service.companyAddStopEnabled === true;
+}
+
+function renderAddStopButton(trip){
+
+  if(isSharedTrip(trip)){
+    return "";
+  }
+
+  /*
+    لو فيه Add Stop فعال، الزر يتحول Cancel Stop
+    حتى لو Service Management اتقفلت بعد كده
+    عشان العميل يقدر يكنسل الطلب الموجود
+  */
+  if(hasActiveAddStopRequest(trip)){
+    return `
+      <button class="btn cancel" data-action="cancel-stop">
+        Cancel Stop
+      </button>
+    `;
+  }
+
+  /*
+    لو مفيش طلب فعال، Add Stop يظهر بس لو الخدمة On
+  */
+  if(!serviceAllowsAddStop(trip)){
+    return "";
+  }
+
+  return `
+    <button class="btn add-stop" data-action="add-stop">
+      Add Stop
+    </button>
+  `;
+}
+
 function getWarningMinutes(service){
   return Number(service?.companyWarningMinutes ?? service?.warningMinutes ?? 120);
 }
@@ -1511,18 +1580,12 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  /*
-    Add Stop لازم يفضل ظاهر للفردي طول الوقت
-    حتى لو Confirmed / Cancel window / أثناء الرحلة
-  */
-  const addStopBtn = `
-    <button class="btn add-stop" data-action="add-stop">Add Stop</button>
-  `;
+  const stopBtn = renderAddStopButton(t);
 
   if(status.includes("cancel")){
     return `
       <div class="actions-wrap">
-        ${addStopBtn}
+        ${stopBtn}
       </div>
     `;
   }
@@ -1533,7 +1596,7 @@ function renderTripButtons(t,editing){
         <button class="btn edit" data-action="edit-trip">Edit</button>
         <button class="btn delete" data-action="delete-trip">Delete</button>
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
-        ${addStopBtn}
+        ${stopBtn}
       </div>
     `;
   }
@@ -1543,7 +1606,7 @@ function renderTripButtons(t,editing){
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
         <button class="btn delete" data-action="delete-trip">Delete</button>
-        ${addStopBtn}
+        ${stopBtn}
       </div>
     `;
   }
@@ -1552,17 +1615,18 @@ function renderTripButtons(t,editing){
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-trip">Cancel</button>
-        ${addStopBtn}
+        ${stopBtn}
       </div>
     `;
   }
 
   return `
     <div class="actions-wrap">
-      ${addStopBtn}
+      ${stopBtn}
     </div>
   `;
 }
+
 function getGroupStatus(group){
   if(group.every(t=>cleanStatus(t.status).includes("cancel"))) return "Cancelled";
   if(group.every(t=>cleanStatus(t.status).includes("confirm"))) return "Confirmed";
@@ -2568,7 +2632,80 @@ async function handleCancelShared(btn){
 }
 
 async function handleAddStop(btn){
-  return;
+  const tr = btn.closest("tr");
+  const id = tr?.dataset?.id;
+
+  if(!id) return;
+
+  const trip = trips.find(t => String(t._id) === String(id));
+
+  if(!trip){
+    alert("Trip not found");
+    return;
+  }
+
+  if(isSharedTrip(trip)){
+    alert("Add Stop is not available for shared trips");
+    return;
+  }
+
+  if(!serviceAllowsAddStop(trip)){
+    alert("Add Stop is not enabled for this service");
+    return;
+  }
+
+  window.location.href =
+    `/companies/company-add-stop.html?tripId=${encodeURIComponent(id)}`;
+}
+
+async function handleCancelStop(btn){
+  const tr = btn.closest("tr");
+  const id = tr?.dataset?.id;
+
+  if(!id) return;
+
+  const trip = trips.find(t => String(t._id) === String(id));
+
+  if(!trip){
+    alert("Trip not found");
+    return;
+  }
+
+  if(!hasActiveAddStopRequest(trip)){
+    alert("There is no active stop request to cancel");
+    await reloadTrips();
+    return;
+  }
+
+  const ok = confirm("Cancel added stop request?");
+
+  if(!ok) return;
+
+  btn.disabled = true;
+  btn.textContent = "Cancelling...";
+
+  const res = await fetch(
+    `/api/company/add-stop/${encodeURIComponent(id)}/cancel`,
+    {
+      method:"POST",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  const data =
+    await res.json()
+    .catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(
+      data.message ||
+      "Cancel stop failed"
+    );
+  }
+
+  await reloadTrips();
 }
 
 /* ================= EVENTS ================= */
@@ -2593,6 +2730,7 @@ container.addEventListener("click", async e=>{
     if(action === "cancel-trip") await handleCancelTrip(btn);
     if(action === "cancel-shared") await handleCancelShared(btn);
     if(action === "add-stop") await handleAddStop(btn);
+if(action === "cancel-stop") await handleCancelStop(btn);
 
     if(action === "view-trip"){
       const tr = btn.closest("tr");
