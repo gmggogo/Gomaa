@@ -21,6 +21,16 @@ const Trip =
 if(!Trip){
   throw new Error("Trip model not loaded. Mount companyAddStopRoutes after Trip model in index.js");
 }
+/* =========================
+   ROUTE TEST
+========================= */
+
+router.get("/add-stop/ping", (req,res)=>{
+  return res.json({
+    success:true,
+    message:"companyAddStopRoutes connected"
+  });
+});
 
 /* =========================
    HELPERS
