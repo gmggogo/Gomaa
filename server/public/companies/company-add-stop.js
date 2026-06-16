@@ -3,7 +3,7 @@ FILE: company-add-stop.js
 COMPANY ADD STOP
 Final Route Editor
 Add Stops + Edit Existing Stops + Edit Dropoff
-Local Confirm per row
+Remove old HTML route fields under submit
 Final Submit sends request to server
 ========================================= */
 
@@ -55,28 +55,6 @@ let SYSTEM_TIMEZONE = "America/Phoenix";
 let googleLoadPromise = null;
 let uid = 0;
 
-/*
-  newStopDrafts:
-  {
-    id,
-    insertAfterIndex,
-    value
-  }
-
-  confirmedNewStops:
-  {
-    id,
-    address,
-    insertAfterIndex,
-    rowIndex
-  }
-
-  insertAfterIndex:
-  0 = after pickup
-  1 = after existing stop 1
-  2 = after existing stop 2
-*/
-
 let newStopDrafts = [];
 let confirmedNewStops = [];
 
@@ -118,8 +96,17 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
   style.id = "company-add-stop-dynamic-style";
 
   style.innerHTML = `
-    .old-add-stop-hidden{
+    .old-add-stop-hidden,
+    .legacy-route-hidden{
       display:none!important;
+      visibility:hidden!important;
+      height:0!important;
+      min-height:0!important;
+      max-height:0!important;
+      padding:0!important;
+      margin:0!important;
+      border:0!important;
+      overflow:hidden!important;
     }
 
     .route-editor{
@@ -620,6 +607,204 @@ function nextId(){
   return String(uid);
 }
 
+/* ================= REMOVE OLD HTML FIELDS ================= */
+
+function hideElementHard(el){
+  if(!el) return;
+
+  el.classList.add("legacy-route-hidden");
+  el.style.display = "none";
+  el.style.visibility = "hidden";
+  el.style.height = "0";
+  el.style.minHeight = "0";
+  el.style.maxHeight = "0";
+  el.style.padding = "0";
+  el.style.margin = "0";
+  el.style.border = "0";
+  el.style.overflow = "hidden";
+}
+
+function findFieldWrapper(input){
+  if(!input) return null;
+
+  let el = input;
+
+  for(let i = 0; i < 6 && el && el.parentElement; i++){
+    const parent = el.parentElement;
+    const txt = clean(parent.innerText || parent.textContent || "").toLowerCase();
+
+    if(
+      parent.classList.contains("form-group") ||
+      parent.classList.contains("input-group") ||
+      parent.classList.contains("field") ||
+      parent.classList.contains("route-field") ||
+      parent.classList.contains("card") ||
+      txt.includes("dropoff address") ||
+      txt.includes("mileage will be calculated")
+    ){
+      return parent;
+    }
+
+    el = parent;
+  }
+
+  return input.parentElement || input;
+}
+
+function removeLegacyHtmlUnderSubmit(){
+
+  /*
+    امسح البلوك القديم اللي ظاهر تحت Submit:
+    DROPOFF ADDRESS + textarea + mileage note
+  */
+
+  if(dropoffAddressInput){
+    hideElementHard(findFieldWrapper(dropoffAddressInput));
+  }
+
+  /*
+    لو فيه Pickup/Destination route fields قديمة من نفس Trip Route
+    سيب البيانات فوق لو موجودة، لكن أي حاجة تحت الـ route editor من HTML القديم تتشال
+  */
+  document.querySelectorAll("label").forEach(label=>{
+    const txt = clean(label.textContent).toLowerCase();
+
+    if(txt.includes("dropoff address")){
+      hideElementHard(findFieldWrapper(label));
+    }
+  });
+
+  document.querySelectorAll("textarea,input,div,p,small").forEach(el=>{
+    const txt = clean(el.innerText || el.textContent || "").toLowerCase();
+
+    if(
+      txt.includes("mileage will be calculated") ||
+      txt.includes("price will be calculated on the review page")
+    ){
+      hideElementHard(el);
+    }
+  });
+
+  /*
+    أي sibling بعد submit box وقبل زر Back لو مش Back يتم إخفاؤه
+  */
+  const submitBox = document.getElementById("submitAddStopBox");
+
+  if(submitBox && submitBox.parentElement){
+    let node = submitBox.nextElementSibling;
+
+    while(node){
+      const txt = clean(node.innerText || node.textContent || "").toLowerCase();
+      const hasBack =
+        txt === "← back" ||
+        txt.includes("back") ||
+        node.querySelector?.("#backBtn") ||
+        node.contains?.(backBtn);
+
+      if(hasBack){
+        break;
+      }
+
+      const isOurEditor =
+        node.id === "routeEditorRoot" ||
+        node.id === "submitAddStopBox";
+
+      if(!isOurEditor){
+        hideElementHard(node);
+      }
+
+      node = node.nextElementSibling;
+    }
+  }
+}
+
+function hideOldControls(){
+
+  if(addStopBtn){
+    addStopBtn.classList.add("old-add-stop-hidden");
+    addStopBtn.style.display = "none";
+  }
+
+  if(confirmAddStopBtn){
+    confirmAddStopBtn.classList.add("old-add-stop-hidden");
+    confirmAddStopBtn.style.display = "none";
+  }
+
+  document
+    .querySelectorAll(
+      ".stop-item, .dynamic-stop-input, .dynamic-stop-position, .insert-select, .stop-position-note"
+    )
+    .forEach(el=>{
+      hideElementHard(el);
+    });
+
+  if(stopsContainer){
+    stopsContainer.innerHTML = "";
+  }
+
+  removeLegacyHtmlUnderSubmit();
+}
+
+/* ================= SUBMIT STATE ================= */
+
+function totalConfirmedNewStops(){
+  return confirmedNewStops.length;
+}
+
+function hasExistingEdits(){
+  return Object.keys(confirmedExistingEdits).length > 0;
+}
+
+function hasDropoffEdit(){
+  return !!confirmedDropoff && confirmedDropoff !== getDropoff(currentTrip || {});
+}
+
+function hasAnyChange(){
+  return (
+    totalConfirmedNewStops() > 0 ||
+    hasExistingEdits() ||
+    hasDropoffEdit()
+  );
+}
+
+function getSubmitButtonText(){
+
+  const parts = [];
+
+  if(totalConfirmedNewStops()){
+    parts.push(`${totalConfirmedNewStops()} Added Stop${totalConfirmedNewStops() === 1 ? "" : "s"}`);
+  }
+
+  if(hasExistingEdits()){
+    parts.push("Edited Stops");
+  }
+
+  if(hasDropoffEdit()){
+    parts.push("Edited Dropoff");
+  }
+
+  if(!parts.length){
+    return "Submit Add Stop Request";
+  }
+
+  return `Submit Add Stop Request (${parts.join(" + ")})`;
+}
+
+function updateSubmitButtonState(){
+
+  const btn =
+    document.getElementById("submitAddStopRequestBtn");
+
+  if(!btn) return;
+
+  btn.textContent =
+    getSubmitButtonText();
+
+  btn.disabled =
+    hasActiveStopRequest(currentTrip) ||
+    !hasAnyChange();
+}
+
 function setGlobalLoading(isLoading,text){
 
   document
@@ -643,26 +828,6 @@ function setGlobalLoading(isLoading,text){
   if(backBtn){
     backBtn.disabled = isLoading;
   }
-}
-
-function totalConfirmedNewStops(){
-  return confirmedNewStops.length;
-}
-
-function hasExistingEdits(){
-  return Object.keys(confirmedExistingEdits).length > 0;
-}
-
-function hasDropoffEdit(){
-  return !!confirmedDropoff && confirmedDropoff !== getDropoff(currentTrip || {});
-}
-
-function hasAnyChange(){
-  return (
-    totalConfirmedNewStops() > 0 ||
-    hasExistingEdits() ||
-    hasDropoffEdit()
-  );
 }
 
 /* ================= SYSTEM ================= */
@@ -1193,40 +1358,6 @@ async function getFreshDriverLocation(trip){
 
 /* ================= UI ROOT ================= */
 
-function hideOldControls(){
-
-  if(addStopBtn){
-    addStopBtn.classList.add("old-add-stop-hidden");
-    addStopBtn.style.display = "none";
-  }
-
-  if(confirmAddStopBtn){
-    confirmAddStopBtn.classList.add("old-add-stop-hidden");
-    confirmAddStopBtn.style.display = "none";
-  }
-
-  /*
-    نخفي أي خانات Add Stop قديمة موجودة في HTML
-    عشان الصفحة الجديدة تعتمد على Route Editor فقط
-  */
-  document
-    .querySelectorAll(
-      ".stop-item, .dynamic-stop-input, .dynamic-stop-position, .insert-select, .stop-position-note"
-    )
-    .forEach(el=>{
-      el.classList.add("old-add-stop-hidden");
-      el.style.display = "none";
-    });
-
-  /*
-    لو في خانة قديمة تحت التايملاين جوه stopsContainer
-    امسحها قبل ما نبني Route Editor
-  */
-  if(stopsContainer){
-    stopsContainer.innerHTML = "";
-  }
-}
-
 function getEditorRoot(){
 
   let root =
@@ -1284,45 +1415,9 @@ function ensureSubmitBox(){
 
   root.insertAdjacentElement("afterend",box);
 
+  setTimeout(removeLegacyHtmlUnderSubmit,0);
+
   return box;
-}
-
-function getSubmitButtonText(){
-
-  const parts = [];
-
-  if(totalConfirmedNewStops()){
-    parts.push(`${totalConfirmedNewStops()} Added Stop${totalConfirmedNewStops() === 1 ? "" : "s"}`);
-  }
-
-  if(hasExistingEdits()){
-    parts.push("Edited Stops");
-  }
-
-  if(hasDropoffEdit()){
-    parts.push("Edited Dropoff");
-  }
-
-  if(!parts.length){
-    return "Submit Add Stop Request";
-  }
-
-  return `Submit Add Stop Request (${parts.join(" + ")})`;
-}
-
-function updateSubmitButtonState(){
-
-  const btn =
-    document.getElementById("submitAddStopRequestBtn");
-
-  if(!btn) return;
-
-  btn.textContent =
-    getSubmitButtonText();
-
-  btn.disabled =
-    hasActiveStopRequest(currentTrip) ||
-    !hasAnyChange();
 }
 
 /* ================= UI RENDER HELPERS ================= */
@@ -1645,10 +1740,6 @@ function renderRouteEditor(trip){
       isLast
     });
 
-    /*
-      Add Stop يظهر بعد Pickup وبعد كل Existing Stop فقط.
-      مفيش Add Stop بعد Dropoff.
-    */
     if(!isLast){
 
       let label = "";
@@ -1685,6 +1776,7 @@ function renderRouteEditor(trip){
 
   ensureSubmitBox();
   updateSubmitButtonState();
+  removeLegacyHtmlUnderSubmit();
 }
 
 function rerender(){
@@ -2338,6 +2430,7 @@ async function finalSubmitAddStop(){
 
     setGlobalLoading(false);
     updateSubmitButtonState();
+    removeLegacyHtmlUnderSubmit();
   }
 }
 
@@ -2378,6 +2471,7 @@ function fillPage(trip){
   }
 
   updateSubmitButtonState();
+  removeLegacyHtmlUnderSubmit();
 }
 
 /* ================= EVENTS ================= */
@@ -2524,6 +2618,10 @@ async function init(){
     fillPage(currentTrip);
 
     showForm();
+
+    setTimeout(removeLegacyHtmlUnderSubmit,50);
+    setTimeout(removeLegacyHtmlUnderSubmit,300);
+    setTimeout(removeLegacyHtmlUnderSubmit,900);
 
   }catch(err){
 
