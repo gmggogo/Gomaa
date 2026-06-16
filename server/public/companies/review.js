@@ -1511,7 +1511,21 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  if(status.includes("cancel")) return "";
+  /*
+    Add Stop لازم يفضل ظاهر للفردي طول الوقت
+    حتى لو Confirmed / Cancel window / أثناء الرحلة
+  */
+  const addStopBtn = `
+    <button class="btn add-stop" data-action="add-stop">Add Stop</button>
+  `;
+
+  if(status.includes("cancel")){
+    return `
+      <div class="actions-wrap">
+        ${addStopBtn}
+      </div>
+    `;
+  }
 
   if(mins > warningMinutes || mins === null){
     return `
@@ -1519,7 +1533,7 @@ function renderTripButtons(t,editing){
         <button class="btn edit" data-action="edit-trip">Edit</button>
         <button class="btn delete" data-action="delete-trip">Delete</button>
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
-        <button class="btn add-stop" data-action="add-stop">Add Stop</button>
+        ${addStopBtn}
       </div>
     `;
   }
@@ -1529,7 +1543,7 @@ function renderTripButtons(t,editing){
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
         <button class="btn delete" data-action="delete-trip">Delete</button>
-        <button class="btn add-stop" data-action="add-stop">Add Stop</button>
+        ${addStopBtn}
       </div>
     `;
   }
@@ -1538,13 +1552,17 @@ function renderTripButtons(t,editing){
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-trip">Cancel</button>
+        ${addStopBtn}
       </div>
     `;
   }
 
-  return "";
+  return `
+    <div class="actions-wrap">
+      ${addStopBtn}
+    </div>
+  `;
 }
-
 function getGroupStatus(group){
   if(group.every(t=>cleanStatus(t.status).includes("cancel"))) return "Cancelled";
   if(group.every(t=>cleanStatus(t.status).includes("confirm"))) return "Confirmed";
