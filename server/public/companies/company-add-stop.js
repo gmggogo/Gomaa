@@ -1,10 +1,10 @@
 /* =========================================
 FILE: company-add-stop.js
 COMPANY ADD STOP
-Route Timeline UI
-Add Stop Here after Pickup / after every Existing Stop
-Calculate miles only
-Send clean payload to server
+Final Route Editor
+Add Stops + Edit Existing Stops + Edit Dropoff
+Local Confirm per row
+Final Submit sends request to server
 ========================================= */
 
 (function(){
@@ -47,11 +47,46 @@ const DRIVER_LOCATION_ENDPOINTS = id => [
 /* ================= STATE ================= */
 
 let currentTrip = null;
+
 let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
 let SYSTEM_TIMEZONE = "America/Phoenix";
+
 let googleLoadPromise = null;
-let stopCounter = 0;
+let uid = 0;
+
+/*
+  newStopDrafts:
+  {
+    id,
+    insertAfterIndex,
+    value
+  }
+
+  confirmedNewStops:
+  {
+    id,
+    address,
+    insertAfterIndex,
+    rowIndex
+  }
+
+  insertAfterIndex:
+  0 = after pickup
+  1 = after existing stop 1
+  2 = after existing stop 2
+*/
+
+let newStopDrafts = [];
+let confirmedNewStops = [];
+
+let editingExistingIndex = null;
+let existingEditDrafts = {};
+let confirmedExistingEdits = {};
+
+let editingDropoff = false;
+let dropoffDraft = "";
+let confirmedDropoff = null;
 
 /* ================= DOM ================= */
 
@@ -74,7 +109,7 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
 
 /* ================= STYLE ================= */
 
-(function injectAddStopStyle(){
+(function injectStyle(){
 
   const old = document.getElementById("company-add-stop-dynamic-style");
   if(old) old.remove();
@@ -87,16 +122,16 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       display:none!important;
     }
 
-    .route-timeline{
+    .route-editor{
       margin:20px 0;
-      background:#f8fafc;
+      background:#fff;
       border:1px solid #dbeafe;
       border-radius:18px;
       overflow:hidden;
       box-shadow:0 12px 28px rgba(15,23,42,.10);
     }
 
-    .route-timeline-head{
+    .route-editor-head{
       background:linear-gradient(135deg,#0f172a,#1d4ed8);
       color:#fff;
       padding:16px;
@@ -108,12 +143,11 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       font-weight:900;
     }
 
-    .route-timeline-head .title{
+    .route-editor-title{
       font-size:18px;
-      letter-spacing:.2px;
     }
 
-    .route-timeline-head .badge{
+    .route-editor-badge{
       background:#fff;
       color:#1d4ed8;
       padding:6px 12px;
@@ -122,7 +156,7 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       font-weight:900;
     }
 
-    .route-timeline-body{
+    .route-editor-body{
       padding:16px;
       display:grid;
       gap:0;
@@ -150,7 +184,7 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       display:flex;
       align-items:center;
       justify-content:center;
-      font-size:18px;
+      font-size:14px;
       font-weight:900;
       box-shadow:0 8px 18px rgba(15,23,42,.18);
       z-index:2;
@@ -174,11 +208,11 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       background:#cbd5e1;
       margin:4px 0;
       border-radius:999px;
-      min-height:18px;
+      min-height:20px;
     }
 
     .route-card{
-      background:#ffffff;
+      background:#fff;
       border:1px solid #e2e8f0;
       border-radius:14px;
       margin-bottom:10px;
@@ -199,7 +233,14 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       font-size:13px;
     }
 
-    .route-card-head span{
+    .route-card-head-left{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .route-card-head span.route-type{
       padding:4px 8px;
       border-radius:999px;
       font-size:11px;
@@ -207,16 +248,25 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       font-weight:900;
     }
 
-    .route-card-head .pickup{
+    .route-card-head span.pickup{
       background:#16a34a;
     }
 
-    .route-card-head .stop{
+    .route-card-head span.stop{
       background:#7c3aed;
     }
 
-    .route-card-head .dropoff{
+    .route-card-head span.dropoff{
       background:#dc2626;
+    }
+
+    .route-card-head span.edited{
+      background:#f59e0b;
+      color:#111827;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
     }
 
     .route-address{
@@ -226,7 +276,61 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       line-height:1.45;
       color:#111827;
       word-break:break-word;
+    }
+
+    .route-action-btn{
+      border:none;
+      background:#0f172a;
+      color:#fff;
+      padding:8px 11px;
+      border-radius:10px;
+      font-size:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .route-action-btn.edit{
+      background:#2563eb;
+    }
+
+    .route-action-btn.cancel{
+      background:#64748b;
+    }
+
+    .route-action-btn.confirm{
+      background:#16a34a;
+    }
+
+    .edit-box{
+      padding:12px;
+      display:grid;
+      gap:10px;
+      background:#f8fafc;
+    }
+
+    .edit-input-row{
+      display:grid;
+      grid-template-columns:1fr auto auto;
+      gap:8px;
+      align-items:center;
+    }
+
+    .edit-input{
+      width:100%;
+      padding:12px;
+      border:1px solid #cbd5e1;
+      border-radius:12px;
+      font-size:13px;
+      font-weight:800;
+      outline:none;
       background:#fff;
+      color:#111827;
+      box-sizing:border-box;
+    }
+
+    .edit-input:focus{
+      border:2px solid #2563eb;
+      box-shadow:0 0 0 3px rgba(37,99,235,.12);
     }
 
     .insert-zone{
@@ -268,12 +372,6 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       align-items:center;
       justify-content:center;
       gap:8px;
-      transition:.18s ease;
-    }
-
-    .add-here-btn:hover{
-      background:#dbeafe;
-      transform:translateY(-1px);
     }
 
     .add-here-btn span{
@@ -286,79 +384,58 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       align-items:center;
       justify-content:center;
       font-size:18px;
-      line-height:1;
       font-weight:900;
     }
 
-    .slot-panel{
+    .slot-area{
       margin-top:10px;
-      border:2px solid #2563eb;
-      border-radius:16px;
-      background:#f8fafc;
-      overflow:hidden;
-      box-shadow:0 12px 26px rgba(37,99,235,.18);
-    }
-
-    .slot-panel-head{
-      background:#2563eb;
-      color:#fff;
-      padding:12px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      font-weight:900;
-    }
-
-    .slot-panel-head button{
-      border:none;
-      background:#fff;
-      color:#dc2626;
-      width:30px;
-      height:30px;
-      border-radius:50%;
-      font-size:18px;
-      font-weight:900;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-
-    .slot-panel-body{
-      padding:12px;
       display:grid;
-      gap:10px;
+      gap:8px;
     }
 
-    .slot-stop-row{
+    .draft-stop-row{
       display:grid;
-      grid-template-columns:1fr 38px;
+      grid-template-columns:1fr auto auto;
       gap:8px;
       align-items:center;
+      background:#f8fafc;
+      border:1px solid #bfdbfe;
+      border-radius:14px;
+      padding:8px;
     }
 
-    .slot-stop-input{
+    .draft-stop-input{
       width:100%;
       padding:12px;
       border:1px solid #cbd5e1;
       border-radius:12px;
       font-size:13px;
       font-weight:800;
-      box-sizing:border-box;
       outline:none;
       background:#fff;
       color:#111827;
+      box-sizing:border-box;
     }
 
-    .slot-stop-input:focus{
+    .draft-stop-input:focus{
       border:2px solid #2563eb;
       box-shadow:0 0 0 3px rgba(37,99,235,.12);
     }
 
-    .remove-slot-stop{
-      width:38px;
-      height:38px;
+    .draft-confirm-btn{
+      border:none;
+      background:#16a34a;
+      color:#fff;
+      padding:12px 14px;
+      border-radius:12px;
+      font-weight:900;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .draft-remove-btn{
+      width:40px;
+      height:40px;
       border:none;
       border-radius:12px;
       background:#fee2e2;
@@ -368,39 +445,35 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       cursor:pointer;
     }
 
-    .slot-actions{
-      display:flex;
+    .confirmed-stop-chip{
+      display:grid;
+      grid-template-columns:1fr 40px;
       gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      border-top:1px solid #e2e8f0;
-      padding-top:10px;
+      align-items:center;
+      background:#ecfdf5;
+      border:1px solid #bbf7d0;
+      border-radius:14px;
+      padding:9px;
     }
 
-    .slot-add-more{
+    .confirmed-stop-text{
+      font-size:12px;
+      font-weight:900;
+      color:#14532d;
+      line-height:1.35;
+      word-break:break-word;
+    }
+
+    .confirmed-stop-remove{
+      width:40px;
+      height:40px;
       border:none;
-      background:#0f172a;
-      color:#fff;
-      padding:11px 14px;
       border-radius:12px;
+      background:#fee2e2;
+      color:#dc2626;
+      font-size:20px;
       font-weight:900;
       cursor:pointer;
-    }
-
-    .slot-confirm{
-      border:none;
-      background:#16a34a;
-      color:#fff;
-      padding:11px 16px;
-      border-radius:12px;
-      font-weight:900;
-      cursor:pointer;
-    }
-
-    .slot-add-more:disabled,
-    .slot-confirm:disabled{
-      opacity:.6;
-      cursor:not-allowed;
     }
 
     .slot-note{
@@ -408,6 +481,41 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       font-size:11px;
       font-weight:800;
       line-height:1.4;
+      margin-top:6px;
+    }
+
+    .submit-box{
+      margin:18px 0 6px;
+      background:#fff;
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:14px;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+      box-shadow:0 6px 16px rgba(15,23,42,.06);
+    }
+
+    .submit-main-btn{
+      border:none;
+      background:#16a34a;
+      color:#fff;
+      padding:13px 18px;
+      border-radius:14px;
+      font-weight:900;
+      cursor:pointer;
+      min-width:240px;
+    }
+
+    .submit-main-btn:disabled,
+    .route-action-btn:disabled,
+    .add-here-btn:disabled,
+    .draft-confirm-btn:disabled,
+    .draft-remove-btn:disabled,
+    .confirmed-stop-remove:disabled{
+      opacity:.55;
+      cursor:not-allowed;
     }
 
     @media(max-width:700px){
@@ -420,7 +528,7 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       .route-dot{
         width:30px;
         height:30px;
-        font-size:14px;
+        font-size:12px;
       }
 
       .route-card-head{
@@ -428,12 +536,19 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
         flex-direction:column;
       }
 
-      .slot-actions{
-        flex-direction:column;
+      .edit-input-row,
+      .draft-stop-row{
+        grid-template-columns:1fr;
       }
 
-      .slot-add-more,
-      .slot-confirm{
+      .draft-confirm-btn,
+      .route-action-btn,
+      .submit-main-btn{
+        width:100%;
+      }
+
+      .draft-remove-btn,
+      .confirmed-stop-remove{
         width:100%;
       }
     }
@@ -500,17 +615,29 @@ function goBackToReview(){
   window.location.href = REVIEW_URL;
 }
 
+function nextId(){
+  uid += 1;
+  return String(uid);
+}
+
 function setGlobalLoading(isLoading,text){
-  document.querySelectorAll(".slot-confirm,.slot-add-more,.add-here-btn,.slot-close,.remove-slot-stop")
+
+  document
+    .querySelectorAll(
+      ".submit-main-btn,.route-action-btn,.add-here-btn,.draft-confirm-btn,.draft-remove-btn,.confirmed-stop-remove"
+    )
     .forEach(btn=>{
       btn.disabled = isLoading;
     });
 
-  if(confirmAddStopBtn){
-    confirmAddStopBtn.disabled = isLoading;
-    confirmAddStopBtn.textContent = isLoading
+  const submitBtn =
+    document.getElementById("submitAddStopRequestBtn");
+
+  if(submitBtn){
+    submitBtn.disabled = isLoading;
+    submitBtn.textContent = isLoading
       ? (text || "Processing...")
-      : "Confirm Add Stop";
+      : getSubmitButtonText();
   }
 
   if(backBtn){
@@ -518,12 +645,37 @@ function setGlobalLoading(isLoading,text){
   }
 }
 
+function totalConfirmedNewStops(){
+  return confirmedNewStops.length;
+}
+
+function hasExistingEdits(){
+  return Object.keys(confirmedExistingEdits).length > 0;
+}
+
+function hasDropoffEdit(){
+  return !!confirmedDropoff && confirmedDropoff !== getDropoff(currentTrip || {});
+}
+
+function hasAnyChange(){
+  return (
+    totalConfirmedNewStops() > 0 ||
+    hasExistingEdits() ||
+    hasDropoffEdit()
+  );
+}
+
 /* ================= SYSTEM ================= */
 
 async function loadSystemDesign(){
+
   try{
-    const res = await fetch("/api/system-design");
-    const data = await res.json().catch(()=>({}));
+
+    const res =
+      await fetch("/api/system-design");
+
+    const data =
+      await res.json().catch(()=>({}));
 
     SYSTEM_REGION = data?.region || "";
     SYSTEM_COUNTRY = data?.country || "";
@@ -535,11 +687,15 @@ async function loadSystemDesign(){
 }
 
 function normalizeAddress(address){
+
   let v = clean(address);
+
   if(!v) return "";
 
   v = v.replace(/\s+/g," ").trim();
-  const lower = v.toLowerCase();
+
+  const lower =
+    v.toLowerCase();
 
   if(SYSTEM_REGION && !lower.includes(SYSTEM_REGION.toLowerCase())){
     v += ", " + SYSTEM_REGION;
@@ -561,39 +717,53 @@ async function fetchTripById(){
   }
 
   try{
-    const direct = await fetch(API_TRIP_BY_ID(tripId),{
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    });
+
+    const direct =
+      await fetch(
+        API_TRIP_BY_ID(tripId),
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
 
     if(direct.ok){
-      const data = await direct.json().catch(()=>null);
+
+      const data =
+        await direct.json().catch(()=>null);
 
       if(data && data._id) return data;
       if(data && data.trip && data.trip._id) return data.trip;
     }
+
   }catch(err){
     console.log("DIRECT TRIP LOAD ERROR:",err);
   }
 
-  const res = await fetch(API_COMPANY_TRIPS,{
-    headers:{
-      Authorization:"Bearer " + token
-    }
-  });
+  const res =
+    await fetch(
+      API_COMPANY_TRIPS,
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }
+    );
 
   if(!res.ok){
     throw new Error("Failed to load trip");
   }
 
-  const list = await res.json().catch(()=>[]);
+  const list =
+    await res.json().catch(()=>[]);
 
   if(!Array.isArray(list)){
     throw new Error("Invalid trips response");
   }
 
-  const trip = list.find(t => String(t._id) === String(tripId));
+  const trip =
+    list.find(t => String(t._id) === String(tripId));
 
   if(!trip){
     throw new Error("Trip not found");
@@ -613,17 +783,21 @@ function isSharedTrip(trip){
 
   if(!trip) return false;
 
-  const tripType = upper(trip.tripType || trip.type);
-  const tripNumber = upper(trip.tripNumber);
+  const tripType =
+    upper(trip.tripType || trip.type);
 
-  const serviceKey = upper(
-    trip.serviceKey ||
-    trip.serviceCode ||
-    trip.serviceType ||
-    trip.serviceSuffix ||
-    trip.vehicle ||
-    ""
-  );
+  const tripNumber =
+    upper(trip.tripNumber);
+
+  const serviceKey =
+    upper(
+      trip.serviceKey ||
+      trip.serviceCode ||
+      trip.serviceType ||
+      trip.serviceSuffix ||
+      trip.vehicle ||
+      ""
+    );
 
   return (
     trip.isShared === true ||
@@ -635,7 +809,9 @@ function isSharedTrip(trip){
 }
 
 function tripIsClosed(trip){
-  const s = cleanStatus(trip?.status);
+
+  const s =
+    cleanStatus(trip?.status);
 
   return (
     s.includes("complete") ||
@@ -646,7 +822,9 @@ function tripIsClosed(trip){
 }
 
 function tripIsInProgress(trip){
-  const s = cleanStatus(trip?.status);
+
+  const s =
+    cleanStatus(trip?.status);
 
   return [
     "ontrip",
@@ -685,7 +863,12 @@ function getDropoff(trip){
   );
 }
 
+function getFinalDropoff(){
+  return confirmedDropoff || getDropoff(currentTrip || {});
+}
+
 function getExistingStops(trip){
+
   if(!Array.isArray(trip.stops)){
     return [];
   }
@@ -695,9 +878,23 @@ function getExistingStops(trip){
     .filter(Boolean);
 }
 
+function getEditedExistingStops(trip){
+
+  const original =
+    getExistingStops(trip);
+
+  return original.map((stop,index)=>{
+    return confirmedExistingEdits[index] || stop;
+  });
+}
+
 function hasActiveStopRequest(trip){
-  const req = trip?.addStopRequest || {};
-  const status = upper(req.status || "");
+
+  const req =
+    trip?.addStopRequest || {};
+
+  const status =
+    upper(req.status || "");
 
   return (
     req.active === true &&
@@ -719,46 +916,55 @@ async function ensureGoogleLoaded(){
     return;
   }
 
-  if(googleLoadPromise) return googleLoadPromise;
+  if(googleLoadPromise){
+    return googleLoadPromise;
+  }
 
-  googleLoadPromise = new Promise(async (resolve,reject)=>{
-    try{
-      const res = await fetch("/api/config");
-      const data = await res.json().catch(()=>({}));
+  googleLoadPromise =
+    new Promise(async (resolve,reject)=>{
 
-      if(!data.googleKey){
-        reject(new Error("Google key missing"));
-        return;
-      }
+      try{
 
-      const existing =
-        document.querySelector("script[data-google-maps='true']");
+        const res =
+          await fetch("/api/config");
 
-      if(existing){
-        if(window.google && google.maps && google.maps.DirectionsService){
-          resolve();
+        const data =
+          await res.json().catch(()=>({}));
+
+        if(!data.googleKey){
+          reject(new Error("Google key missing"));
           return;
         }
 
-        existing.addEventListener("load",()=>resolve());
-        existing.addEventListener("error",()=>reject(new Error("Google failed")));
-        return;
+        const existing =
+          document.querySelector("script[data-google-maps='true']");
+
+        if(existing){
+
+          if(window.google && google.maps && google.maps.DirectionsService){
+            resolve();
+            return;
+          }
+
+          existing.addEventListener("load",()=>resolve());
+          existing.addEventListener("error",()=>reject(new Error("Google failed")));
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+        script.async = true;
+        script.defer = true;
+        script.setAttribute("data-google-maps","true");
+        script.onload = ()=>resolve();
+        script.onerror = ()=>reject(new Error("Google failed"));
+
+        document.head.appendChild(script);
+
+      }catch(err){
+        reject(err);
       }
-
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
-      script.async = true;
-      script.defer = true;
-      script.setAttribute("data-google-maps","true");
-      script.onload = ()=>resolve();
-      script.onerror = ()=>reject(new Error("Google failed"));
-
-      document.head.appendChild(script);
-
-    }catch(err){
-      reject(err);
-    }
-  });
+    });
 
   return googleLoadPromise;
 }
@@ -773,6 +979,7 @@ function isLatLngPoint(p){
 }
 
 function normalizeRoutePoint(p){
+
   if(isLatLngPoint(p)){
     return {
       lat:Number(p.lat),
@@ -792,9 +999,10 @@ async function calculateRouteMiles(points){
 
   await ensureGoogleLoaded();
 
-  const cleanPoints = Array.isArray(points)
-    ? points.map(normalizeRoutePoint).filter(pointIsValid)
-    : [];
+  const cleanPoints =
+    Array.isArray(points)
+      ? points.map(normalizeRoutePoint).filter(pointIsValid)
+      : [];
 
   if(cleanPoints.length < 2){
     return {
@@ -806,17 +1014,25 @@ async function calculateRouteMiles(points){
     };
   }
 
-  const origin = cleanPoints[0];
-  const destination = cleanPoints[cleanPoints.length - 1];
-  const middle = cleanPoints.slice(1,-1);
+  const origin =
+    cleanPoints[0];
 
-  const waypoints = middle.map(point=>({
-    location:point,
-    stopover:true
-  }));
+  const destination =
+    cleanPoints[cleanPoints.length - 1];
+
+  const middle =
+    cleanPoints.slice(1,-1);
+
+  const waypoints =
+    middle.map(point=>({
+      location:point,
+      stopover:true
+    }));
 
   return new Promise((resolve,reject)=>{
-    const service = new google.maps.DirectionsService();
+
+    const service =
+      new google.maps.DirectionsService();
 
     service.route(
       {
@@ -834,7 +1050,8 @@ async function calculateRouteMiles(points){
           return;
         }
 
-        const route = response.routes[0];
+        const route =
+          response.routes[0];
 
         let meters = 0;
         let seconds = 0;
@@ -914,7 +1131,9 @@ function extractLatLngFromObject(obj){
   ];
 
   for(const item of containers){
-    const found = extractLatLngFromObject(item);
+    const found =
+      extractLatLngFromObject(item);
+
     if(found) return found;
   }
 
@@ -927,20 +1146,30 @@ function getDriverLocationFromTrip(trip){
 
 async function fetchDriverLocationFromServer(id){
 
-  const endpoints = DRIVER_LOCATION_ENDPOINTS(id);
+  const endpoints =
+    DRIVER_LOCATION_ENDPOINTS(id);
 
   for(const url of endpoints){
+
     try{
-      const res = await fetch(url,{
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      });
+
+      const res =
+        await fetch(
+          url,
+          {
+            headers:{
+              Authorization:"Bearer " + token
+            }
+          }
+        );
 
       if(!res.ok) continue;
 
-      const data = await res.json().catch(()=>null);
-      const loc = extractLatLngFromObject(data);
+      const data =
+        await res.json().catch(()=>null);
+
+      const loc =
+        extractLatLngFromObject(data);
 
       if(loc) return loc;
 
@@ -954,16 +1183,18 @@ async function fetchDriverLocationFromServer(id){
 
 async function getFreshDriverLocation(trip){
 
-  const fromTrip = getDriverLocationFromTrip(trip);
+  const fromTrip =
+    getDriverLocationFromTrip(trip);
 
   if(fromTrip) return fromTrip;
 
   return await fetchDriverLocationFromServer(tripId);
 }
 
-/* ================= TIMELINE UI ================= */
+/* ================= UI ROOT ================= */
 
 function hideOldControls(){
+
   if(addStopBtn){
     addStopBtn.classList.add("old-add-stop-hidden");
   }
@@ -973,14 +1204,21 @@ function hideOldControls(){
   }
 }
 
-function getTimelineRoot(){
-  let root = document.getElementById("routeTimelineRoot");
+function getEditorRoot(){
+
+  let root =
+    document.getElementById("routeEditorRoot");
 
   if(root) return root;
 
-  root = document.createElement("div");
-  root.id = "routeTimelineRoot";
-  root.className = "route-timeline";
+  root =
+    document.createElement("div");
+
+  root.id =
+    "routeEditorRoot";
+
+  root.className =
+    "route-editor";
 
   if(stopsContainer){
     stopsContainer.innerHTML = "";
@@ -992,7 +1230,81 @@ function getTimelineRoot(){
   return root;
 }
 
-function routePointHtml({type,label,value,index,isLast}){
+function ensureSubmitBox(){
+
+  let box =
+    document.getElementById("submitAddStopBox");
+
+  if(box) return box;
+
+  box =
+    document.createElement("div");
+
+  box.id =
+    "submitAddStopBox";
+
+  box.className =
+    "submit-box";
+
+  box.innerHTML = `
+    <button
+      type="button"
+      id="submitAddStopRequestBtn"
+      class="submit-main-btn"
+    >
+      Submit Add Stop Request
+    </button>
+  `;
+
+  const root =
+    getEditorRoot();
+
+  root.insertAdjacentElement("afterend",box);
+
+  return box;
+}
+
+function getSubmitButtonText(){
+
+  const parts = [];
+
+  if(totalConfirmedNewStops()){
+    parts.push(`${totalConfirmedNewStops()} Added Stop${totalConfirmedNewStops() === 1 ? "" : "s"}`);
+  }
+
+  if(hasExistingEdits()){
+    parts.push("Edited Stops");
+  }
+
+  if(hasDropoffEdit()){
+    parts.push("Edited Dropoff");
+  }
+
+  if(!parts.length){
+    return "Submit Add Stop Request";
+  }
+
+  return `Submit Add Stop Request (${parts.join(" + ")})`;
+}
+
+function updateSubmitButtonState(){
+
+  const btn =
+    document.getElementById("submitAddStopRequestBtn");
+
+  if(!btn) return;
+
+  btn.textContent =
+    getSubmitButtonText();
+
+  btn.disabled =
+    hasActiveStopRequest(currentTrip) ||
+    !hasAnyChange();
+}
+
+/* ================= UI RENDER HELPERS ================= */
+
+function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=false}){
 
   const icon =
     type === "pickup"
@@ -1001,28 +1313,218 @@ function routePointHtml({type,label,value,index,isLast}){
         ? "D"
         : String(index);
 
+  const editButton =
+    editable
+      ? `
+        <button
+          type="button"
+          class="route-action-btn edit"
+          data-action="${type === "dropoff" ? "edit-dropoff" : "edit-existing"}"
+          data-index="${index - 1}"
+        >
+          Edit
+        </button>
+      `
+      : "";
+
   return `
     <div class="route-node">
       <div class="route-dot-wrap">
-        <div class="route-dot ${type}">${icon}</div>
+        <div class="route-dot ${type}">${esc(icon)}</div>
         ${isLast ? "" : `<div class="route-line"></div>`}
       </div>
 
       <div class="route-card">
         <div class="route-card-head">
-          <div>${esc(label)}</div>
-          <span class="${type}">${type.toUpperCase()}</span>
+          <div class="route-card-head-left">
+            <div>${esc(label)}</div>
+            <span class="route-type ${type}">${esc(type.toUpperCase())}</span>
+            ${edited ? `<span class="edited">EDITED</span>` : ""}
+          </div>
+
+          ${editButton}
         </div>
 
         <div class="route-address">
           ${esc(value || "--")}
         </div>
+
+        ${renderInlineEditBox(type,index,value)}
       </div>
     </div>
   `;
 }
 
-function insertZoneHtml(slotIndex,label){
+function renderInlineEditBox(type,index,value){
+
+  if(type === "stop"){
+
+    const stopIndex =
+      index - 1;
+
+    if(Number(editingExistingIndex) !== Number(stopIndex)){
+      return "";
+    }
+
+    const draft =
+      existingEditDrafts[stopIndex] ?? value ?? "";
+
+    return `
+      <div class="edit-box">
+        <div class="edit-input-row">
+          <input
+            type="text"
+            class="edit-input existing-edit-input"
+            data-index="${stopIndex}"
+            value="${esc(draft)}"
+            placeholder="Edit existing stop address"
+          >
+
+          <button
+            type="button"
+            class="route-action-btn confirm"
+            data-action="confirm-existing-edit"
+            data-index="${stopIndex}"
+          >
+            Confirm
+          </button>
+
+          <button
+            type="button"
+            class="route-action-btn cancel"
+            data-action="cancel-existing-edit"
+            data-index="${stopIndex}"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  if(type === "dropoff" && editingDropoff){
+
+    const draft =
+      dropoffDraft || value || "";
+
+    return `
+      <div class="edit-box">
+        <div class="edit-input-row">
+          <input
+            type="text"
+            class="edit-input dropoff-edit-input"
+            value="${esc(draft)}"
+            placeholder="Edit dropoff address"
+          >
+
+          <button
+            type="button"
+            class="route-action-btn confirm"
+            data-action="confirm-dropoff-edit"
+          >
+            Confirm
+          </button>
+
+          <button
+            type="button"
+            class="route-action-btn cancel"
+            data-action="cancel-dropoff-edit"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  return "";
+}
+
+function getDraftsForSlot(slotIndex){
+  return newStopDrafts
+    .filter(s => Number(s.insertAfterIndex) === Number(slotIndex));
+}
+
+function getConfirmedNewStopsForSlot(slotIndex){
+  return confirmedNewStops
+    .filter(s => Number(s.insertAfterIndex) === Number(slotIndex))
+    .sort((a,b)=>Number(a.rowIndex || 0) - Number(b.rowIndex || 0));
+}
+
+function renderDraftRows(slotIndex){
+
+  const drafts =
+    getDraftsForSlot(slotIndex);
+
+  if(!drafts.length){
+    return "";
+  }
+
+  return drafts.map(draft=>`
+    <div class="draft-stop-row" data-draft-id="${esc(draft.id)}">
+      <input
+        type="text"
+        class="draft-stop-input"
+        data-id="${esc(draft.id)}"
+        value="${esc(draft.value || "")}"
+        placeholder="Enter new stop address"
+      >
+
+      <button
+        type="button"
+        class="draft-confirm-btn"
+        data-action="confirm-new-stop"
+        data-id="${esc(draft.id)}"
+      >
+        Confirm
+      </button>
+
+      <button
+        type="button"
+        class="draft-remove-btn"
+        data-action="remove-draft-stop"
+        data-id="${esc(draft.id)}"
+        title="Remove"
+      >
+        ×
+      </button>
+    </div>
+  `).join("");
+}
+
+function renderConfirmedNewStops(slotIndex){
+
+  const list =
+    getConfirmedNewStopsForSlot(slotIndex);
+
+  if(!list.length){
+    return "";
+  }
+
+  return list.map(stop=>`
+    <div class="confirmed-stop-chip" data-stop-id="${esc(stop.id)}">
+      <div class="confirmed-stop-text">
+        ${esc(stop.address)}
+      </div>
+
+      <button
+        type="button"
+        class="confirmed-stop-remove"
+        data-action="remove-confirmed-new-stop"
+        data-id="${esc(stop.id)}"
+        title="Remove"
+      >
+        ×
+      </button>
+    </div>
+  `).join("");
+}
+
+function renderInsertZone(slotIndex,label){
+
+  const cannotAdd =
+    totalConfirmedNewStops() + newStopDrafts.length >= MAX_STOPS;
+
   return `
     <div class="insert-zone" data-slot="${slotIndex}">
       <div class="insert-line-wrap">
@@ -1030,17 +1532,22 @@ function insertZoneHtml(slotIndex,label){
       </div>
 
       <div class="insert-content">
+
         <button
           type="button"
           class="add-here-btn"
-          data-action="open-slot"
+          data-action="add-draft-stop"
           data-slot="${slotIndex}"
+          ${cannotAdd ? "disabled" : ""}
         >
           <span>+</span>
           Add Stop Here
         </button>
 
-        <div class="slot-panel-holder" data-slot-holder="${slotIndex}"></div>
+        <div class="slot-area">
+          ${renderDraftRows(slotIndex)}
+          ${renderConfirmedNewStops(slotIndex)}
+        </div>
 
         <div class="slot-note">
           ${esc(label)}
@@ -1050,13 +1557,27 @@ function insertZoneHtml(slotIndex,label){
   `;
 }
 
-function renderRouteTimeline(trip){
+/* ================= MAIN RENDER ================= */
 
-  const root = getTimelineRoot();
+function renderRouteEditor(trip){
 
-  const pickup = getPickup(trip);
-  const dropoff = getDropoff(trip);
-  const existingStops = getExistingStops(trip);
+  const root =
+    getEditorRoot();
+
+  const pickup =
+    getPickup(trip);
+
+  const dropoffOriginal =
+    getDropoff(trip);
+
+  const finalDropoff =
+    getFinalDropoff();
+
+  const existingOriginal =
+    getExistingStops(trip);
+
+  const existingEdited =
+    getEditedExistingStops(trip);
 
   const points = [];
 
@@ -1064,23 +1585,29 @@ function renderRouteTimeline(trip){
     type:"pickup",
     label:"Pickup",
     value:pickup,
-    index:0
+    index:0,
+    editable:false,
+    edited:false
   });
 
-  existingStops.forEach((stop,index)=>{
+  existingEdited.forEach((stop,index)=>{
     points.push({
       type:"stop",
       label:`Existing Stop ${index + 1}`,
       value:stop,
-      index:index + 1
+      index:index + 1,
+      editable:true,
+      edited:stop !== existingOriginal[index]
     });
   });
 
   points.push({
     type:"dropoff",
     label:"Dropoff",
-    value:dropoff,
-    index:existingStops.length + 1
+    value:finalDropoff,
+    index:existingEdited.length + 1,
+    editable:true,
+    edited:finalDropoff !== dropoffOriginal
   });
 
   let body = "";
@@ -1090,13 +1617,13 @@ function renderRouteTimeline(trip){
     const isLast =
       index === points.length - 1;
 
-    body += routePointHtml({
+    body += renderRoutePoint({
       ...point,
       isLast
     });
 
     /*
-      Add Stop zone بعد Pickup وبعد كل Existing Stop فقط.
+      Add Stop يظهر بعد Pickup وبعد كل Existing Stop فقط.
       مفيش Add Stop بعد Dropoff.
     */
     if(!isLast){
@@ -1104,229 +1631,313 @@ function renderRouteTimeline(trip){
       let label = "";
 
       if(index === 0){
-        label = existingStops.length
-          ? "New stops added here will be placed after Pickup and before Existing Stop 1."
-          : "New stops added here will be placed before Dropoff.";
+        label = existingEdited.length
+          ? "Stops added here will be placed after Pickup and before Existing Stop 1."
+          : "Stops added here will be placed before Dropoff.";
       }else{
-        label = index === existingStops.length
-          ? `New stops added here will be placed after Existing Stop ${index} and before Dropoff.`
-          : `New stops added here will be placed after Existing Stop ${index} and before Existing Stop ${index + 1}.`;
+        label = index === existingEdited.length
+          ? `Stops added here will be placed after Existing Stop ${index} and before Dropoff.`
+          : `Stops added here will be placed after Existing Stop ${index} and before Existing Stop ${index + 1}.`;
       }
 
-      body += insertZoneHtml(index,label);
+      body += renderInsertZone(index,label);
     }
   });
 
   root.innerHTML = `
-    <div class="route-timeline-head">
-      <div class="title">Current Route</div>
-      <div class="badge">${existingStops.length} Existing Stop${existingStops.length === 1 ? "" : "s"}</div>
+    <div class="route-editor-head">
+      <div class="route-editor-title">
+        Current Route Editor
+      </div>
+
+      <div class="route-editor-badge">
+        ${existingOriginal.length} Existing Stop${existingOriginal.length === 1 ? "" : "s"}
+      </div>
     </div>
 
-    <div class="route-timeline-body">
+    <div class="route-editor-body">
       ${body}
     </div>
   `;
+
+  ensureSubmitBox();
+  updateSubmitButtonState();
 }
 
-function closeAllPanels(){
-  document.querySelectorAll(".slot-panel-holder").forEach(holder=>{
-    holder.innerHTML = "";
+function rerender(){
+  renderRouteEditor(currentTrip || {});
+}
+
+/* ================= ADD NEW STOP ACTIONS ================= */
+
+function addDraftStop(slotIndex){
+
+  hideAlert();
+
+  const total =
+    totalConfirmedNewStops() + newStopDrafts.length;
+
+  if(total >= MAX_STOPS){
+    showAlert("error",`Maximum ${MAX_STOPS} added stops allowed`);
+    return;
+  }
+
+  const id =
+    nextId();
+
+  newStopDrafts.push({
+    id,
+    insertAfterIndex:Number(slotIndex || 0),
+    value:""
   });
-}
 
-function openSlotPanel(slotIndex){
-
-  closeAllPanels();
-
-  const holder =
-    document.querySelector(`[data-slot-holder="${slotIndex}"]`);
-
-  if(!holder) return;
-
-  holder.innerHTML = `
-    <div class="slot-panel" data-slot-panel="${slotIndex}">
-      <div class="slot-panel-head">
-        <div>Add Stop Here</div>
-        <button type="button" class="slot-close" data-action="close-slot">×</button>
-      </div>
-
-      <div class="slot-panel-body">
-        <div class="slot-stops-list"></div>
-
-        <div class="slot-actions">
-          <button type="button" class="slot-add-more" data-action="slot-add-more">
-            + Another Stop
-          </button>
-
-          <button type="button" class="slot-confirm" data-action="slot-confirm">
-            Confirm Here
-          </button>
-        </div>
-
-        <div class="slot-note">
-          You can add up to ${MAX_STOPS} stops in this location. Use X to remove any stop before confirm.
-        </div>
-      </div>
-    </div>
-  `;
-
-  addSlotStopRow(holder.querySelector(".slot-stops-list"));
-
-  const input =
-    holder.querySelector(".slot-stop-input");
+  rerender();
 
   setTimeout(()=>{
+    const input =
+      document.querySelector(`.draft-stop-input[data-id="${id}"]`);
+
     if(input) input.focus();
   },30);
 }
 
-function getPanelFromElement(el){
-  return el.closest(".slot-panel");
-}
+function updateDraftValue(id,value){
 
-function getPanelSlot(panel){
-  return Number(panel?.dataset?.slotPanel || 0);
-}
+  const item =
+    newStopDrafts.find(s => String(s.id) === String(id));
 
-function getPanelStopRows(panel){
-  return Array.from(
-    panel.querySelectorAll(".slot-stop-row")
-  );
-}
-
-function addSlotStopRow(list,value=""){
-
-  if(!list) return;
-
-  const panel =
-    list.closest(".slot-panel");
-
-  const count =
-    getPanelStopRows(panel).length;
-
-  if(count >= MAX_STOPS){
-    return;
+  if(item){
+    item.value = value;
   }
-
-  stopCounter += 1;
-
-  const row = document.createElement("div");
-  row.className = "slot-stop-row";
-  row.dataset.stopUid = String(stopCounter);
-
-  row.innerHTML = `
-    <input
-      class="slot-stop-input"
-      type="text"
-      placeholder="Enter new stop address"
-      value="${esc(value)}"
-    >
-
-    <button
-      type="button"
-      class="remove-slot-stop"
-      data-action="remove-slot-stop"
-      title="Remove this stop"
-    >
-      ×
-    </button>
-  `;
-
-  list.appendChild(row);
-
-  updatePanelButtons(panel);
 }
 
-function updatePanelButtons(panel){
+function removeDraftStop(id){
 
-  if(!panel) return;
+  newStopDrafts =
+    newStopDrafts.filter(s => String(s.id) !== String(id));
 
-  const rows =
-    getPanelStopRows(panel);
-
-  const addMore =
-    panel.querySelector(".slot-add-more");
-
-  if(addMore){
-    addMore.disabled =
-      rows.length >= MAX_STOPS;
-  }
-
-  rows.forEach((row,index)=>{
-    const input = row.querySelector(".slot-stop-input");
-    if(input){
-      input.placeholder = `Enter new stop ${index + 1} address`;
-    }
-  });
-}
-
-function removeSlotStop(btn){
-
-  const panel =
-    getPanelFromElement(btn);
-
-  const row =
-    btn.closest(".slot-stop-row");
-
-  if(row){
-    row.remove();
-  }
-
-  const rows =
-    getPanelStopRows(panel);
-
-  if(rows.length === 0){
-    panel.remove();
-    return;
-  }
-
-  updatePanelButtons(panel);
   hideAlert();
+  rerender();
 }
 
-function readPanelStops(panel){
+function confirmNewStop(id){
 
-  const rows =
-    getPanelStopRows(panel);
+  hideAlert();
 
-  const out = [];
-  const seen = new Set();
+  const draft =
+    newStopDrafts.find(s => String(s.id) === String(id));
 
-  rows.forEach((row,index)=>{
+  if(!draft) return;
 
-    const input =
-      row.querySelector(".slot-stop-input");
+  const input =
+    document.querySelector(`.draft-stop-input[data-id="${id}"]`);
 
-    const address =
-      normalizeAddress(input?.value || "");
+  const raw =
+    input ? input.value : draft.value;
 
-    if(!address) return;
+  const address =
+    normalizeAddress(raw);
 
-    const key =
-      address.toLowerCase().replace(/\s+/g," ").trim();
+  if(!address){
+    showAlert("error","Please enter stop address first");
+    if(input) input.focus();
+    return;
+  }
 
-    if(seen.has(key)) return;
+  const duplicate =
+    confirmedNewStops.some(s =>
+      clean(s.address).toLowerCase() === address.toLowerCase()
+    );
 
-    seen.add(key);
+  if(duplicate){
+    showAlert("error","This stop is already confirmed");
+    if(input) input.focus();
+    return;
+  }
 
-    out.push({
-      address,
-      rowIndex:index
-    });
+  const slotIndex =
+    Number(draft.insertAfterIndex || 0);
+
+  const rowIndex =
+    confirmedNewStops
+      .filter(s => Number(s.insertAfterIndex) === slotIndex)
+      .length;
+
+  confirmedNewStops.push({
+    id:nextId(),
+    address,
+    insertAfterIndex:slotIndex,
+    rowIndex
   });
 
-  return out.slice(0,MAX_STOPS);
+  newStopDrafts =
+    newStopDrafts.filter(s => String(s.id) !== String(id));
+
+  rerender();
+}
+
+function removeConfirmedNewStop(id){
+
+  const removed =
+    confirmedNewStops.find(s => String(s.id) === String(id));
+
+  const slotIndex =
+    removed ? Number(removed.insertAfterIndex || 0) : null;
+
+  confirmedNewStops =
+    confirmedNewStops.filter(s => String(s.id) !== String(id));
+
+  if(slotIndex !== null){
+    const slotStops =
+      confirmedNewStops
+        .filter(s => Number(s.insertAfterIndex) === slotIndex)
+        .sort((a,b)=>Number(a.rowIndex || 0) - Number(b.rowIndex || 0));
+
+    slotStops.forEach((s,index)=>{
+      s.rowIndex = index;
+    });
+  }
+
+  hideAlert();
+  rerender();
+}
+
+/* ================= EXISTING STOP EDIT ================= */
+
+function startExistingEdit(index){
+
+  hideAlert();
+
+  editingExistingIndex =
+    Number(index);
+
+  const stops =
+    getEditedExistingStops(currentTrip || {});
+
+  existingEditDrafts[index] =
+    confirmedExistingEdits[index] ||
+    stops[index] ||
+    "";
+
+  rerender();
+
+  setTimeout(()=>{
+    const input =
+      document.querySelector(`.existing-edit-input[data-index="${index}"]`);
+
+    if(input) input.focus();
+  },30);
+}
+
+function confirmExistingEdit(index){
+
+  hideAlert();
+
+  const input =
+    document.querySelector(`.existing-edit-input[data-index="${index}"]`);
+
+  const value =
+    normalizeAddress(input?.value || "");
+
+  if(!value){
+    showAlert("error","Existing stop address cannot be empty");
+    if(input) input.focus();
+    return;
+  }
+
+  const original =
+    getExistingStops(currentTrip || {})[index] || "";
+
+  if(value === original){
+    delete confirmedExistingEdits[index];
+  }else{
+    confirmedExistingEdits[index] = value;
+  }
+
+  delete existingEditDrafts[index];
+  editingExistingIndex = null;
+
+  rerender();
+}
+
+function cancelExistingEdit(index){
+
+  delete existingEditDrafts[index];
+  editingExistingIndex = null;
+
+  hideAlert();
+  rerender();
+}
+
+/* ================= DROPOFF EDIT ================= */
+
+function startDropoffEdit(){
+
+  hideAlert();
+
+  editingDropoff = true;
+  dropoffDraft = getFinalDropoff();
+
+  rerender();
+
+  setTimeout(()=>{
+    const input =
+      document.querySelector(".dropoff-edit-input");
+
+    if(input) input.focus();
+  },30);
+}
+
+function confirmDropoffEdit(){
+
+  hideAlert();
+
+  const input =
+    document.querySelector(".dropoff-edit-input");
+
+  const value =
+    normalizeAddress(input?.value || "");
+
+  if(!value){
+    showAlert("error","Dropoff address cannot be empty");
+    if(input) input.focus();
+    return;
+  }
+
+  const original =
+    getDropoff(currentTrip || {});
+
+  confirmedDropoff =
+    value === original ? null : value;
+
+  dropoffDraft = "";
+  editingDropoff = false;
+
+  rerender();
+}
+
+function cancelDropoffEdit(){
+
+  dropoffDraft = "";
+  editingDropoff = false;
+
+  hideAlert();
+  rerender();
 }
 
 /* ================= ROUTE BUILD ================= */
 
-function buildFinalStops(existingStops,addedStopObjects){
+function buildFinalStops(originalExistingStops,addedStopObjects){
 
   const oldStops =
-    Array.isArray(existingStops)
-      ? existingStops.filter(Boolean)
+    Array.isArray(originalExistingStops)
+      ? originalExistingStops.filter(Boolean)
       : [];
+
+  const editedStops =
+    oldStops.map((stop,index)=>{
+      return confirmedExistingEdits[index] || stop;
+    });
 
   const added =
     Array.isArray(addedStopObjects)
@@ -1335,19 +1946,10 @@ function buildFinalStops(existingStops,addedStopObjects){
 
   const finalStops = [];
 
-  /*
-    insertAfterIndex:
-    0 = بعد Pickup / قبل أول Stop
-    1 = بعد Stop 1
-    2 = بعد Stop 2
-    ...
-    oldStops.length = بعد آخر Stop / قبل Dropoff
-  */
-
-  for(let anchorIndex = 0; anchorIndex <= oldStops.length; anchorIndex++){
+  for(let anchorIndex = 0; anchorIndex <= editedStops.length; anchorIndex++){
 
     if(anchorIndex > 0){
-      finalStops.push(oldStops[anchorIndex - 1]);
+      finalStops.push(editedStops[anchorIndex - 1]);
     }
 
     added
@@ -1362,6 +1964,7 @@ function buildFinalStops(existingStops,addedStopObjects){
 }
 
 function buildOriginalRouteBeforeStart(trip){
+
   return [
     getPickup(trip),
     ...getExistingStops(trip),
@@ -1369,15 +1972,17 @@ function buildOriginalRouteBeforeStart(trip){
   ].filter(Boolean);
 }
 
-function buildNewRouteBeforeStart(trip,finalStops){
+function buildNewRouteBeforeStart(trip,finalStops,dropoffAfter){
+
   return [
     getPickup(trip),
     ...finalStops,
-    getDropoff(trip)
+    dropoffAfter
   ].filter(Boolean);
 }
 
 function buildOriginalRemainingRouteInProgress(driverLocation,trip){
+
   return [
     driverLocation,
     ...getExistingStops(trip),
@@ -1385,44 +1990,48 @@ function buildOriginalRemainingRouteInProgress(driverLocation,trip){
   ].filter(Boolean);
 }
 
-function buildNewRemainingRouteInProgress(driverLocation,trip,finalStops){
+function buildNewRemainingRouteInProgress(driverLocation,finalStops,dropoffAfter){
+
   return [
     driverLocation,
     ...finalStops,
-    getDropoff(trip)
+    dropoffAfter
   ].filter(Boolean);
 }
 
 /* ================= CALCULATION ================= */
 
-async function calculateAddStopNow(trip,addedStopObjects){
+async function calculateFinalRouteChange(trip,addedStopObjects){
 
-  if(!addedStopObjects.length){
-    throw new Error("Please add at least one stop");
-  }
+  const pickup =
+    getPickup(trip);
 
-  const pickup = getPickup(trip);
-  const dropoff = getDropoff(trip);
+  const dropoffBefore =
+    getDropoff(trip);
+
+  const dropoffAfter =
+    getFinalDropoff();
 
   if(!pickup){
     throw new Error("Pickup address missing");
   }
 
-  if(!dropoff){
+  if(!dropoffBefore){
     throw new Error("Dropoff address missing");
   }
 
-  const existingStops =
+  if(!dropoffAfter){
+    throw new Error("Final dropoff address missing");
+  }
+
+  const existingStopsBefore =
     getExistingStops(trip);
 
   const finalStops =
     buildFinalStops(
-      existingStops,
+      existingStopsBefore,
       addedStopObjects
     );
-
-  const addedStops =
-    addedStopObjects.map(s => s.address);
 
   const inProgress =
     tripIsInProgress(trip);
@@ -1453,13 +2062,11 @@ async function calculateAddStopNow(trip,addedStopObjects){
     newRoutePoints =
       buildNewRemainingRouteInProgress(
         driverLocationAtConfirm,
-        trip,
-        finalStops
+        finalStops,
+        dropoffAfter
       );
 
   }else{
-
-    mode = "BEFORE_START";
 
     originalRoutePoints =
       buildOriginalRouteBeforeStart(trip);
@@ -1467,7 +2074,8 @@ async function calculateAddStopNow(trip,addedStopObjects){
     newRoutePoints =
       buildNewRouteBeforeStart(
         trip,
-        finalStops
+        finalStops,
+        dropoffAfter
       );
   }
 
@@ -1478,30 +2086,50 @@ async function calculateAddStopNow(trip,addedStopObjects){
     await calculateRouteMiles(newRoutePoints);
 
   const extraMiles =
-    Math.max(
-      0,
-      Number(
-        (
-          Number(newRoute.miles || 0) -
-          Number(originalRoute.miles || 0)
-        ).toFixed(2)
-      )
+    Number(
+      (
+        Number(newRoute.miles || 0) -
+        Number(originalRoute.miles || 0)
+      ).toFixed(2)
     );
+
+  const addedStops =
+    addedStopObjects.map(s => s.address);
+
+  const editedExistingStops =
+    Object.keys(confirmedExistingEdits).map(key=>{
+      const index = Number(key);
+      return {
+        index,
+        oldAddress:existingStopsBefore[index] || "",
+        newAddress:confirmedExistingEdits[key]
+      };
+    });
 
   return {
     mode,
     driverLocationAtConfirm,
 
-    existingStops,
+    pickup,
+
+    dropoffBefore,
+    dropoffAfter,
+
+    existingStopsBefore,
+    editedExistingStops,
+
     addedStops,
     addedStopsDetailed:addedStopObjects,
+
     finalStops,
+    finalRoutePoints:newRoutePoints,
 
     originalRoutePoints,
     newRoutePoints,
 
     originalRemainingMiles:originalRoute.miles,
     newRemainingMiles:newRoute.miles,
+
     extraMiles,
 
     originalRouteData:originalRoute,
@@ -1539,57 +2167,21 @@ async function notifyServerAddStop(payload){
   return data;
 }
 
-/* ================= PAGE FILL ================= */
+/* ================= FINAL SUBMIT ================= */
 
-function fillPage(trip){
-
-  if(tripNumberInput){
-    tripNumberInput.value = trip.tripNumber || "";
-  }
-
-  if(clientNameInput){
-    clientNameInput.value = getClientName(trip) || "";
-  }
-
-  if(pickupAddressInput){
-    pickupAddressInput.value = getPickup(trip) || "";
-  }
-
-  if(dropoffAddressInput){
-    dropoffAddressInput.value = getDropoff(trip) || "";
-  }
-
-  renderRouteTimeline(trip);
-
-  if(pageStatusBadge){
-    pageStatusBadge.textContent =
-      hasActiveStopRequest(trip)
-        ? "Stop Request Active"
-        : "Company Request";
-  }
-
-  if(hasActiveStopRequest(trip)){
-    showAlert(
-      "info",
-      "This trip already has an active added stop request. Cancel it from the Review page before adding another one."
-    );
-
-    document.querySelectorAll(".add-here-btn").forEach(btn=>{
-      btn.disabled = true;
-    });
-  }
-}
-
-/* ================= CONFIRM PER SLOT ================= */
-
-async function confirmSlot(panel){
+async function finalSubmitAddStop(){
 
   hideAlert();
 
   try{
 
-    const slotIndex =
-      getPanelSlot(panel);
+    if(newStopDrafts.length){
+      throw new Error("You have unconfirmed stop fields. Confirm or remove them first.");
+    }
+
+    if(!hasAnyChange()){
+      throw new Error("No changes to submit");
+    }
 
     setGlobalLoading(true,"Checking trip...");
 
@@ -1611,34 +2203,28 @@ async function confirmSlot(panel){
       throw new Error("This trip already has an active stop request");
     }
 
-    const panelStops =
-      readPanelStops(panel);
-
-    if(!panelStops.length){
-      throw new Error("Please add at least one stop");
-    }
-
     const addedStopObjects =
-      panelStops.map(stop=>({
-        ...stop,
-        insertAfterIndex:slotIndex
+      confirmedNewStops.map((s,index)=>({
+        address:s.address,
+        insertAfterIndex:Number(s.insertAfterIndex || 0),
+        rowIndex:Number(s.rowIndex ?? index)
       }));
 
     setGlobalLoading(true,"Calculating miles...");
 
     const calc =
-      await calculateAddStopNow(
+      await calculateFinalRouteChange(
         freshTrip,
         addedStopObjects
       );
 
-    setGlobalLoading(true,"Sending to review...");
+    setGlobalLoading(true,"Sending request...");
 
     const payload = {
       tripId:String(freshTrip._id || tripId),
 
       source:"company-add-stop",
-      requestType:"ADD_STOP",
+      requestType:"ROUTE_CHANGE",
 
       status:"PENDING_REVIEW",
       active:true,
@@ -1654,14 +2240,19 @@ async function confirmSlot(panel){
       mode:calc.mode,
       maxStops:MAX_STOPS,
 
-      insertAfterIndex:slotIndex,
+      pickup:calc.pickup,
+
+      dropoffBefore:calc.dropoffBefore,
+      dropoffAfter:calc.dropoffAfter,
+
+      existingStopsBefore:calc.existingStopsBefore,
+      editedExistingStops:calc.editedExistingStops,
 
       addedStops:calc.addedStops,
       addedStopsDetailed:calc.addedStopsDetailed,
 
-      existingStops:calc.existingStops,
       finalStops:calc.finalStops,
-      finalRoutePoints:calc.newRoutePoints,
+      finalRoutePoints:calc.finalRoutePoints,
 
       driverLocationAtConfirm:
         calc.driverLocationAtConfirm,
@@ -1669,7 +2260,7 @@ async function confirmSlot(panel){
       beforeStopChange:{
         pickup:getPickup(freshTrip),
         dropoff:getDropoff(freshTrip),
-        stops:calc.existingStops,
+        stops:calc.existingStopsBefore,
         routePoints:Array.isArray(freshTrip.routePoints)
           ? freshTrip.routePoints
           : [],
@@ -1704,7 +2295,7 @@ async function confirmSlot(panel){
 
     showAlert(
       "success",
-      "Stop request sent to Review. Price will be calculated there."
+      "Route change request sent to Review. Price will be calculated there."
     );
 
     setTimeout(()=>{
@@ -1717,13 +2308,53 @@ async function confirmSlot(panel){
 
     showAlert(
       "error",
-      err.message || "Failed to add stop"
+      err.message || "Failed to submit route change"
     );
 
   }finally{
 
     setGlobalLoading(false);
+    updateSubmitButtonState();
   }
+}
+
+/* ================= PAGE FILL ================= */
+
+function fillPage(trip){
+
+  if(tripNumberInput){
+    tripNumberInput.value = trip.tripNumber || "";
+  }
+
+  if(clientNameInput){
+    clientNameInput.value = getClientName(trip) || "";
+  }
+
+  if(pickupAddressInput){
+    pickupAddressInput.value = getPickup(trip) || "";
+  }
+
+  if(dropoffAddressInput){
+    dropoffAddressInput.value = getDropoff(trip) || "";
+  }
+
+  renderRouteEditor(trip);
+
+  if(pageStatusBadge){
+    pageStatusBadge.textContent =
+      hasActiveStopRequest(trip)
+        ? "Stop Request Active"
+        : "Route Change Request";
+  }
+
+  if(hasActiveStopRequest(trip)){
+    showAlert(
+      "info",
+      "This trip already has an active route change request. Cancel it from the Review page before adding another one."
+    );
+  }
+
+  updateSubmitButtonState();
 }
 
 /* ================= EVENTS ================= */
@@ -1737,10 +2368,42 @@ if(backBtn){
 if(form){
   form.addEventListener("submit",e=>{
     e.preventDefault();
+    finalSubmitAddStop();
   });
 }
 
-document.addEventListener("click",async e=>{
+document.addEventListener("input",e=>{
+
+  const draftInput =
+    e.target.closest(".draft-stop-input");
+
+  if(draftInput){
+    updateDraftValue(
+      draftInput.dataset.id || "",
+      draftInput.value || ""
+    );
+    return;
+  }
+
+  const existingInput =
+    e.target.closest(".existing-edit-input");
+
+  if(existingInput){
+    existingEditDrafts[existingInput.dataset.index] =
+      existingInput.value || "";
+    return;
+  }
+
+  const dropoffInput =
+    e.target.closest(".dropoff-edit-input");
+
+  if(dropoffInput){
+    dropoffDraft = dropoffInput.value || "";
+    return;
+  }
+});
+
+document.addEventListener("click",e=>{
 
   const btn =
     e.target.closest("button");
@@ -1752,59 +2415,63 @@ document.addEventListener("click",async e=>{
 
   if(!action) return;
 
-  if(action === "open-slot"){
-    const slot =
-      Number(btn.dataset.slot || 0);
-
-    openSlotPanel(slot);
-    hideAlert();
+  if(action === "add-draft-stop"){
+    addDraftStop(Number(btn.dataset.slot || 0));
     return;
   }
 
-  if(action === "close-slot"){
-    const panel =
-      getPanelFromElement(btn);
-
-    if(panel) panel.remove();
-
-    hideAlert();
+  if(action === "remove-draft-stop"){
+    removeDraftStop(btn.dataset.id || "");
     return;
   }
 
-  if(action === "slot-add-more"){
-    const panel =
-      getPanelFromElement(btn);
-
-    const list =
-      panel?.querySelector(".slot-stops-list");
-
-    addSlotStopRow(list);
-
-    const inputs =
-      panel.querySelectorAll(".slot-stop-input");
-
-    const last =
-      inputs[inputs.length - 1];
-
-    if(last) last.focus();
-
+  if(action === "confirm-new-stop"){
+    confirmNewStop(btn.dataset.id || "");
     return;
   }
 
-  if(action === "remove-slot-stop"){
-    removeSlotStop(btn);
+  if(action === "remove-confirmed-new-stop"){
+    removeConfirmedNewStop(btn.dataset.id || "");
     return;
   }
 
-  if(action === "slot-confirm"){
-    const panel =
-      getPanelFromElement(btn);
-
-    if(panel){
-      await confirmSlot(panel);
-    }
-
+  if(action === "edit-existing"){
+    startExistingEdit(Number(btn.dataset.index || 0));
     return;
+  }
+
+  if(action === "confirm-existing-edit"){
+    confirmExistingEdit(Number(btn.dataset.index || 0));
+    return;
+  }
+
+  if(action === "cancel-existing-edit"){
+    cancelExistingEdit(Number(btn.dataset.index || 0));
+    return;
+  }
+
+  if(action === "edit-dropoff"){
+    startDropoffEdit();
+    return;
+  }
+
+  if(action === "confirm-dropoff-edit"){
+    confirmDropoffEdit();
+    return;
+  }
+
+  if(action === "cancel-dropoff-edit"){
+    cancelDropoffEdit();
+    return;
+  }
+});
+
+document.addEventListener("click",e=>{
+  const submitBtn =
+    e.target.closest("#submitAddStopRequestBtn");
+
+  if(submitBtn){
+    finalSubmitAddStop();
   }
 });
 
