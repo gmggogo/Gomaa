@@ -774,22 +774,6 @@ function sharedEnabled(){
 
   return hasSharedTrips || hasSharedService;
 }
-
-function hasActiveAddStopRequest(trip){
-  const req = trip?.addStopRequest || {};
-  const status = String(req.status || "").toUpperCase();
-
-  return (
-    req.active === true &&
-    ![
-      "CANCELLED",
-      "CANCELLED_BY_COMPANY",
-      "CANCELLED_BY_CUSTOMER",
-      "COMPLETED"
-    ].includes(status)
-  );
-}
-
 function getActiveAddStopRequest(trip){
 
   const req =
@@ -808,11 +792,27 @@ function getActiveAddStopRequest(trip){
       "CANCELLED",
       "CANCELLED_BY_COMPANY",
       "CANCELLED_BY_CUSTOMER",
+      "COMPLETED",
       "REJECTED"
     ].includes(status)
   ){
     return req;
   }
+
+  return null;
+}
+
+function getAppliedAddStopRequest(trip){
+
+  const req =
+    trip?.addStopRequest || null;
+
+  if(!req){
+    return null;
+  }
+
+  const status =
+    String(req.status || "").toUpperCase();
 
   if(
     req.appliedAutomatically === true &&
@@ -823,10 +823,24 @@ function getActiveAddStopRequest(trip){
 
   return null;
 }
+
+function getVisibleAddStopRequest(trip){
+
+  return (
+    getActiveAddStopRequest(trip) ||
+    getAppliedAddStopRequest(trip)
+  );
+}
+
+function hasActiveAddStopRequest(trip){
+
+  return !!getVisibleAddStopRequest(trip);
+
+}
 function getConfirmPickup(trip){
 
   const req =
-    getActiveAddStopRequest(trip);
+    getVisibleAddStopRequest(trip);
 
   return (
     req?.pickup ||
@@ -2584,45 +2598,22 @@ async function handleConfirmTrip(btn){
     trip.serviceType ||
     "STANDARD";
 
-  const oldStopsCount =
-  Array.isArray(activeReq.existingStopsBefore)
-    ? activeReq.existingStopsBefore.length
-    : Array.isArray(trip.stops)
-      ? trip.stops.length
+  const finalStops =
+    getConfirmStops(trip);
+
+  const billableStopsCount =
+    Array.isArray(finalStops)
+      ? finalStops.length
       : 0;
 
-const finalStopsCount =
-  Array.isArray(finalStops)
-    ? finalStops.length
-    : 0;
-
-const addedStopsCountFromRequest =
-  Array.isArray(activeReq.addedStopsDetailed) &&
-  activeReq.addedStopsDetailed.length
-    ? activeReq.addedStopsDetailed.length
-    : Array.isArray(activeReq.addedStops)
-      ? activeReq.addedStops.length
-      : 0;
-
-const addedStopsCount =
-  Math.max(
-    addedStopsCountFromRequest,
-    finalStopsCount - oldStopsCount,
-    0
-  );
-
-const billableStopsCount =
-  addedStopsCount;
-
-const total =
-  await calculateServerPrice({
-    serviceKey,
-    miles:routeData.miles,
-    stops:billableStopsCount,
-    minutes:routeData.estimatedMinutes,
-    passengerCount:1
-  });
-
+  const total =
+    await calculateServerPrice({
+      serviceKey,
+      miles:routeData.miles,
+      stops:billableStopsCount,
+      minutes:routeData.estimatedMinutes,
+      passengerCount:1
+    });
   await updateTrip(id,{
     status:"Confirmed",
     dispatchSelected:true,
@@ -2887,8 +2878,8 @@ async function handleCancelStop(btn){
     return;
   }
 
-  const activeReq =
-    getActiveAddStopRequest(trip);
+const activeReq =
+  getVisibleAddStopRequest(trip);
 
   if(!activeReq){
     alert("There is no active stop request to cancel");
