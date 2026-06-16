@@ -795,7 +795,9 @@ function getActiveAddStopRequest(trip){
   const req =
     trip?.addStopRequest || null;
 
-  if(!req) return null;
+  if(!req){
+    return null;
+  }
 
   const status =
     String(req.status || "").toUpperCase();
@@ -806,16 +808,21 @@ function getActiveAddStopRequest(trip){
       "CANCELLED",
       "CANCELLED_BY_COMPANY",
       "CANCELLED_BY_CUSTOMER",
-      "COMPLETED",
       "REJECTED"
     ].includes(status)
   ){
     return req;
   }
 
+  if(
+    req.appliedAutomatically === true &&
+    status === "COMPLETED"
+  ){
+    return req;
+  }
+
   return null;
 }
-
 function getConfirmPickup(trip){
 
   const req =
