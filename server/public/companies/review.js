@@ -3197,35 +3197,24 @@ async function autoApplyAddStopRequests(){
         trip.serviceType ||
         "STANDARD";
 
-      const oldStopsCount =
-        Array.isArray(activeReq.existingStopsBefore)
-          ? activeReq.existingStopsBefore.length
-          : Array.isArray(trip.stops)
-            ? trip.stops.length
-            : 0;
+    const finalStopsCount =
+  Array.isArray(finalStops)
+    ? finalStops.length
+    : 0;
 
-      const finalStopsCount =
-        Array.isArray(finalStops)
-          ? finalStops.length
-          : 0;
+const addedStopsCountFromRequest =
+  Array.isArray(activeReq.addedStopsDetailed) &&
+  activeReq.addedStopsDetailed.length
+    ? activeReq.addedStopsDetailed.length
+    : Array.isArray(activeReq.addedStops)
+      ? activeReq.addedStops.length
+      : 0;
 
-      const addedStopsCountFromRequest =
-        Array.isArray(activeReq.addedStopsDetailed) &&
-        activeReq.addedStopsDetailed.length
-          ? activeReq.addedStopsDetailed.length
-          : Array.isArray(activeReq.addedStops)
-            ? activeReq.addedStops.length
-            : 0;
+const addedStopsCount =
+  addedStopsCountFromRequest;
 
-      const addedStopsCount =
-        Math.max(
-          addedStopsCountFromRequest,
-          finalStopsCount - oldStopsCount,
-          0
-        );
-
-      const billableStopsCount =
-        addedStopsCount;
+const billableStopsCount =
+  finalStopsCount;
 
       const total =
         await calculateServerPrice({
