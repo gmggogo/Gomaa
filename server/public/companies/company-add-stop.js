@@ -1,8 +1,8 @@
 /* =========================================
 FILE: company-add-stop.js
 COMPANY ADD STOP
-Current Route + Existing Stops
-Insert New Stop Position
+Route Timeline UI
+Add Stop Here after Pickup / after every Existing Stop
 Calculate miles only
 Send clean payload to server
 ========================================= */
@@ -76,124 +76,365 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
 
 (function injectAddStopStyle(){
 
-  if(document.getElementById("company-add-stop-dynamic-style")){
-    return;
-  }
+  const old = document.getElementById("company-add-stop-dynamic-style");
+  if(old) old.remove();
 
   const style = document.createElement("style");
   style.id = "company-add-stop-dynamic-style";
 
   style.innerHTML = `
-    .current-route-box{
-      margin:18px 0;
-      background:#fff;
-      border:2px solid #dbeafe;
-      border-radius:14px;
-      overflow:hidden;
-      box-shadow:0 8px 20px rgba(15,23,42,.08);
+    .old-add-stop-hidden{
+      display:none!important;
     }
 
-    .current-route-head{
-      background:#1d4ed8;
+    .route-timeline{
+      margin:20px 0;
+      background:#f8fafc;
+      border:1px solid #dbeafe;
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:0 12px 28px rgba(15,23,42,.10);
+    }
+
+    .route-timeline-head{
+      background:linear-gradient(135deg,#0f172a,#1d4ed8);
       color:#fff;
-      padding:12px 14px;
-      font-weight:900;
-      font-size:15px;
+      padding:16px;
       display:flex;
       justify-content:space-between;
       align-items:center;
       gap:10px;
       flex-wrap:wrap;
+      font-weight:900;
     }
 
-    .current-route-head span{
+    .route-timeline-head .title{
+      font-size:18px;
+      letter-spacing:.2px;
+    }
+
+    .route-timeline-head .badge{
       background:#fff;
       color:#1d4ed8;
-      padding:4px 9px;
+      padding:6px 12px;
       border-radius:999px;
-      font-size:11px;
-      font-weight:900;
-    }
-
-    .current-route-list{
-      padding:12px;
-      display:grid;
-      gap:8px;
-    }
-
-    .route-point{
-      display:grid;
-      grid-template-columns:115px 1fr;
-      gap:8px;
-      align-items:stretch;
-      border:1px solid #e2e8f0;
-      border-radius:10px;
-      overflow:hidden;
-      background:#f8fafc;
-    }
-
-    .route-point-label{
-      background:#0f172a;
-      color:#fff;
-      padding:10px;
-      font-weight:900;
       font-size:12px;
+      font-weight:900;
+    }
+
+    .route-timeline-body{
+      padding:16px;
+      display:grid;
+      gap:0;
+      background:#fff;
+    }
+
+    .route-node{
+      display:grid;
+      grid-template-columns:52px 1fr;
+      gap:12px;
+      align-items:stretch;
+    }
+
+    .route-dot-wrap{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    .route-dot{
+      width:38px;
+      height:38px;
+      border-radius:50%;
+      color:#fff;
       display:flex;
       align-items:center;
       justify-content:center;
-      text-align:center;
+      font-size:18px;
+      font-weight:900;
+      box-shadow:0 8px 18px rgba(15,23,42,.18);
+      z-index:2;
     }
 
-    .route-point-value{
-      padding:10px;
-      color:#111827;
+    .route-dot.pickup{
+      background:#16a34a;
+    }
+
+    .route-dot.stop{
+      background:#7c3aed;
+    }
+
+    .route-dot.dropoff{
+      background:#dc2626;
+    }
+
+    .route-line{
+      width:4px;
+      flex:1;
+      background:#cbd5e1;
+      margin:4px 0;
+      border-radius:999px;
+      min-height:18px;
+    }
+
+    .route-card{
+      background:#ffffff;
+      border:1px solid #e2e8f0;
+      border-radius:14px;
+      margin-bottom:10px;
+      overflow:hidden;
+      box-shadow:0 6px 16px rgba(15,23,42,.06);
+    }
+
+    .route-card-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      background:#f1f5f9;
+      border-bottom:1px solid #e2e8f0;
+      font-weight:900;
+      color:#0f172a;
+      font-size:13px;
+    }
+
+    .route-card-head span{
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:11px;
+      color:#fff;
+      font-weight:900;
+    }
+
+    .route-card-head .pickup{
+      background:#16a34a;
+    }
+
+    .route-card-head .stop{
+      background:#7c3aed;
+    }
+
+    .route-card-head .dropoff{
+      background:#dc2626;
+    }
+
+    .route-address{
+      padding:12px;
+      font-size:13px;
       font-weight:800;
-      font-size:12px;
-      line-height:1.35;
+      line-height:1.45;
+      color:#111827;
       word-break:break-word;
       background:#fff;
     }
 
-    .route-point.pickup .route-point-label{
-      background:#16a34a;
+    .insert-zone{
+      display:grid;
+      grid-template-columns:52px 1fr;
+      gap:12px;
+      align-items:stretch;
     }
 
-    .route-point.stop .route-point-label{
-      background:#7c3aed;
+    .insert-line-wrap{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
     }
 
-    .route-point.dropoff .route-point-label{
-      background:#dc2626;
+    .insert-line{
+      width:4px;
+      flex:1;
+      background:#cbd5e1;
+      border-radius:999px;
+      min-height:28px;
     }
 
-    .insert-select{
+    .insert-content{
+      padding:2px 0 14px;
+    }
+
+    .add-here-btn{
       width:100%;
-      margin-top:8px;
-      padding:10px;
-      border:2px solid #2563eb;
-      border-radius:10px;
+      border:2px dashed #2563eb;
       background:#eff6ff;
-      color:#0f172a;
+      color:#1d4ed8;
+      padding:12px;
+      border-radius:14px;
+      font-size:13px;
       font-weight:900;
-      outline:none;
-      box-sizing:border-box;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      transition:.18s ease;
     }
 
-    .stop-position-note{
-      margin-top:6px;
+    .add-here-btn:hover{
+      background:#dbeafe;
+      transform:translateY(-1px);
+    }
+
+    .add-here-btn span{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      background:#2563eb;
+      color:#fff;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+      line-height:1;
+      font-weight:900;
+    }
+
+    .slot-panel{
+      margin-top:10px;
+      border:2px solid #2563eb;
+      border-radius:16px;
+      background:#f8fafc;
+      overflow:hidden;
+      box-shadow:0 12px 26px rgba(37,99,235,.18);
+    }
+
+    .slot-panel-head{
+      background:#2563eb;
+      color:#fff;
+      padding:12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      font-weight:900;
+    }
+
+    .slot-panel-head button{
+      border:none;
+      background:#fff;
+      color:#dc2626;
+      width:30px;
+      height:30px;
+      border-radius:50%;
+      font-size:18px;
+      font-weight:900;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .slot-panel-body{
+      padding:12px;
+      display:grid;
+      gap:10px;
+    }
+
+    .slot-stop-row{
+      display:grid;
+      grid-template-columns:1fr 38px;
+      gap:8px;
+      align-items:center;
+    }
+
+    .slot-stop-input{
+      width:100%;
+      padding:12px;
+      border:1px solid #cbd5e1;
+      border-radius:12px;
+      font-size:13px;
+      font-weight:800;
+      box-sizing:border-box;
+      outline:none;
+      background:#fff;
+      color:#111827;
+    }
+
+    .slot-stop-input:focus{
+      border:2px solid #2563eb;
+      box-shadow:0 0 0 3px rgba(37,99,235,.12);
+    }
+
+    .remove-slot-stop{
+      width:38px;
+      height:38px;
+      border:none;
+      border-radius:12px;
+      background:#fee2e2;
+      color:#dc2626;
+      font-size:20px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .slot-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      border-top:1px solid #e2e8f0;
+      padding-top:10px;
+    }
+
+    .slot-add-more{
+      border:none;
+      background:#0f172a;
+      color:#fff;
+      padding:11px 14px;
+      border-radius:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .slot-confirm{
+      border:none;
+      background:#16a34a;
+      color:#fff;
+      padding:11px 16px;
+      border-radius:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .slot-add-more:disabled,
+    .slot-confirm:disabled{
+      opacity:.6;
+      cursor:not-allowed;
+    }
+
+    .slot-note{
+      color:#475569;
       font-size:11px;
       font-weight:800;
-      color:#475569;
-      line-height:1.35;
+      line-height:1.4;
     }
 
     @media(max-width:700px){
-      .route-point{
-        grid-template-columns:1fr;
+      .route-node,
+      .insert-zone{
+        grid-template-columns:38px 1fr;
+        gap:8px;
       }
 
-      .route-point-label{
-        justify-content:flex-start;
+      .route-dot{
+        width:30px;
+        height:30px;
+        font-size:14px;
+      }
+
+      .route-card-head{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .slot-actions{
+        flex-direction:column;
+      }
+
+      .slot-add-more,
+      .slot-confirm{
+        width:100%;
       }
     }
   `;
@@ -221,16 +462,22 @@ function cleanStatus(v){
     .trim();
 }
 
+function esc(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
 function showAlert(type,message){
   if(!alertBox) return;
-
   alertBox.className = `alert ${type} show`;
   alertBox.textContent = message || "";
 }
 
 function hideAlert(){
   if(!alertBox) return;
-
   alertBox.className = "alert";
   alertBox.textContent = "";
 }
@@ -245,26 +492,6 @@ function showForm(){
   if(form) form.style.display = "block";
 }
 
-function setButtonLoading(isLoading,text){
-
-  if(confirmAddStopBtn){
-    confirmAddStopBtn.disabled = isLoading;
-    confirmAddStopBtn.textContent = isLoading
-      ? (text || "Processing...")
-      : "Confirm Add Stop";
-  }
-
-  if(addStopBtn){
-    addStopBtn.disabled =
-      isLoading ||
-      getStopRows().length >= MAX_STOPS;
-  }
-
-  if(backBtn){
-    backBtn.disabled = isLoading;
-  }
-}
-
 function getNowISO(){
   return new Date().toISOString();
 }
@@ -273,17 +500,30 @@ function goBackToReview(){
   window.location.href = REVIEW_URL;
 }
 
+function setGlobalLoading(isLoading,text){
+  document.querySelectorAll(".slot-confirm,.slot-add-more,.add-here-btn,.slot-close,.remove-slot-stop")
+    .forEach(btn=>{
+      btn.disabled = isLoading;
+    });
+
+  if(confirmAddStopBtn){
+    confirmAddStopBtn.disabled = isLoading;
+    confirmAddStopBtn.textContent = isLoading
+      ? (text || "Processing...")
+      : "Confirm Add Stop";
+  }
+
+  if(backBtn){
+    backBtn.disabled = isLoading;
+  }
+}
+
 /* ================= SYSTEM ================= */
 
 async function loadSystemDesign(){
-
   try{
-
-    const res =
-      await fetch("/api/system-design");
-
-    const data =
-      await res.json().catch(()=>({}));
+    const res = await fetch("/api/system-design");
+    const data = await res.json().catch(()=>({}));
 
     SYSTEM_REGION = data?.region || "";
     SYSTEM_COUNTRY = data?.country || "";
@@ -295,13 +535,10 @@ async function loadSystemDesign(){
 }
 
 function normalizeAddress(address){
-
   let v = clean(address);
-
   if(!v) return "";
 
   v = v.replace(/\s+/g," ").trim();
-
   const lower = v.toLowerCase();
 
   if(SYSTEM_REGION && !lower.includes(SYSTEM_REGION.toLowerCase())){
@@ -324,53 +561,39 @@ async function fetchTripById(){
   }
 
   try{
-
-    const direct =
-      await fetch(
-        API_TRIP_BY_ID(tripId),
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          }
-        }
-      );
+    const direct = await fetch(API_TRIP_BY_ID(tripId),{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
 
     if(direct.ok){
-
-      const data =
-        await direct.json().catch(()=>null);
+      const data = await direct.json().catch(()=>null);
 
       if(data && data._id) return data;
       if(data && data.trip && data.trip._id) return data.trip;
     }
-
   }catch(err){
     console.log("DIRECT TRIP LOAD ERROR:",err);
   }
 
-  const res =
-    await fetch(
-      API_COMPANY_TRIPS,
-      {
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
-    );
+  const res = await fetch(API_COMPANY_TRIPS,{
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  });
 
   if(!res.ok){
     throw new Error("Failed to load trip");
   }
 
-  const list =
-    await res.json().catch(()=>[]);
+  const list = await res.json().catch(()=>[]);
 
   if(!Array.isArray(list)){
     throw new Error("Invalid trips response");
   }
 
-  const trip =
-    list.find(t => String(t._id) === String(tripId));
+  const trip = list.find(t => String(t._id) === String(tripId));
 
   if(!trip){
     throw new Error("Trip not found");
@@ -390,27 +613,17 @@ function isSharedTrip(trip){
 
   if(!trip) return false;
 
-  const tripType =
-    upper(trip.tripType || trip.type);
+  const tripType = upper(trip.tripType || trip.type);
+  const tripNumber = upper(trip.tripNumber);
 
-  const tripNumber =
-    upper(trip.tripNumber);
-
-  const serviceKey =
-    upper(
-      trip.serviceKey ||
-      trip.serviceCode ||
-      trip.serviceType ||
-      trip.serviceSuffix ||
-      trip.vehicle ||
-      ""
-    );
-
-  /*
-    مهم:
-    passengers array لوحدها مش معناها Shared
-    لأن الرحلة الفردي ممكن تتحفظ بجواها passenger واحد
-  */
+  const serviceKey = upper(
+    trip.serviceKey ||
+    trip.serviceCode ||
+    trip.serviceType ||
+    trip.serviceSuffix ||
+    trip.vehicle ||
+    ""
+  );
 
   return (
     trip.isShared === true ||
@@ -422,9 +635,7 @@ function isSharedTrip(trip){
 }
 
 function tripIsClosed(trip){
-
-  const s =
-    cleanStatus(trip?.status);
+  const s = cleanStatus(trip?.status);
 
   return (
     s.includes("complete") ||
@@ -435,9 +646,7 @@ function tripIsClosed(trip){
 }
 
 function tripIsInProgress(trip){
-
-  const s =
-    cleanStatus(trip?.status);
+  const s = cleanStatus(trip?.status);
 
   return [
     "ontrip",
@@ -477,7 +686,6 @@ function getDropoff(trip){
 }
 
 function getExistingStops(trip){
-
   if(!Array.isArray(trip.stops)){
     return [];
   }
@@ -488,12 +696,8 @@ function getExistingStops(trip){
 }
 
 function hasActiveStopRequest(trip){
-
-  const req =
-    trip?.addStopRequest || {};
-
-  const status =
-    String(req.status || "").toUpperCase();
+  const req = trip?.addStopRequest || {};
+  const status = upper(req.status || "");
 
   return (
     req.active === true &&
@@ -515,55 +719,46 @@ async function ensureGoogleLoaded(){
     return;
   }
 
-  if(googleLoadPromise){
-    return googleLoadPromise;
-  }
+  if(googleLoadPromise) return googleLoadPromise;
 
-  googleLoadPromise =
-    new Promise(async (resolve,reject)=>{
+  googleLoadPromise = new Promise(async (resolve,reject)=>{
+    try{
+      const res = await fetch("/api/config");
+      const data = await res.json().catch(()=>({}));
 
-      try{
-
-        const res =
-          await fetch("/api/config");
-
-        const data =
-          await res.json().catch(()=>({}));
-
-        if(!data.googleKey){
-          reject(new Error("Google key missing"));
-          return;
-        }
-
-        const existing =
-          document.querySelector("script[data-google-maps='true']");
-
-        if(existing){
-
-          if(window.google && google.maps && google.maps.DirectionsService){
-            resolve();
-            return;
-          }
-
-          existing.addEventListener("load",()=>resolve());
-          existing.addEventListener("error",()=>reject(new Error("Google failed")));
-          return;
-        }
-
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
-        script.async = true;
-        script.defer = true;
-        script.setAttribute("data-google-maps","true");
-        script.onload = ()=>resolve();
-        script.onerror = ()=>reject(new Error("Google failed"));
-
-        document.head.appendChild(script);
-
-      }catch(err){
-        reject(err);
+      if(!data.googleKey){
+        reject(new Error("Google key missing"));
+        return;
       }
-    });
+
+      const existing =
+        document.querySelector("script[data-google-maps='true']");
+
+      if(existing){
+        if(window.google && google.maps && google.maps.DirectionsService){
+          resolve();
+          return;
+        }
+
+        existing.addEventListener("load",()=>resolve());
+        existing.addEventListener("error",()=>reject(new Error("Google failed")));
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.googleKey}`;
+      script.async = true;
+      script.defer = true;
+      script.setAttribute("data-google-maps","true");
+      script.onload = ()=>resolve();
+      script.onerror = ()=>reject(new Error("Google failed"));
+
+      document.head.appendChild(script);
+
+    }catch(err){
+      reject(err);
+    }
+  });
 
   return googleLoadPromise;
 }
@@ -578,7 +773,6 @@ function isLatLngPoint(p){
 }
 
 function normalizeRoutePoint(p){
-
   if(isLatLngPoint(p)){
     return {
       lat:Number(p.lat),
@@ -590,11 +784,7 @@ function normalizeRoutePoint(p){
 }
 
 function pointIsValid(p){
-
-  if(isLatLngPoint(p)){
-    return true;
-  }
-
+  if(isLatLngPoint(p)) return true;
   return !!clean(p);
 }
 
@@ -602,10 +792,9 @@ async function calculateRouteMiles(points){
 
   await ensureGoogleLoaded();
 
-  const cleanPoints =
-    Array.isArray(points)
-      ? points.map(normalizeRoutePoint).filter(pointIsValid)
-      : [];
+  const cleanPoints = Array.isArray(points)
+    ? points.map(normalizeRoutePoint).filter(pointIsValid)
+    : [];
 
   if(cleanPoints.length < 2){
     return {
@@ -617,25 +806,17 @@ async function calculateRouteMiles(points){
     };
   }
 
-  const origin =
-    cleanPoints[0];
+  const origin = cleanPoints[0];
+  const destination = cleanPoints[cleanPoints.length - 1];
+  const middle = cleanPoints.slice(1,-1);
 
-  const destination =
-    cleanPoints[cleanPoints.length - 1];
-
-  const middle =
-    cleanPoints.slice(1,-1);
-
-  const waypoints =
-    middle.map(point=>({
-      location:point,
-      stopover:true
-    }));
+  const waypoints = middle.map(point=>({
+    location:point,
+    stopover:true
+  }));
 
   return new Promise((resolve,reject)=>{
-
-    const service =
-      new google.maps.DirectionsService();
+    const service = new google.maps.DirectionsService();
 
     service.route(
       {
@@ -653,8 +834,7 @@ async function calculateRouteMiles(points){
           return;
         }
 
-        const route =
-          response.routes[0];
+        const route = response.routes[0];
 
         let meters = 0;
         let seconds = 0;
@@ -734,9 +914,7 @@ function extractLatLngFromObject(obj){
   ];
 
   for(const item of containers){
-    const found =
-      extractLatLngFromObject(item);
-
+    const found = extractLatLngFromObject(item);
     if(found) return found;
   }
 
@@ -747,32 +925,22 @@ function getDriverLocationFromTrip(trip){
   return extractLatLngFromObject(trip);
 }
 
-async function fetchDriverLocationFromServer(tripId){
+async function fetchDriverLocationFromServer(id){
 
-  const endpoints =
-    DRIVER_LOCATION_ENDPOINTS(tripId);
+  const endpoints = DRIVER_LOCATION_ENDPOINTS(id);
 
   for(const url of endpoints){
-
     try{
-
-      const res =
-        await fetch(
-          url,
-          {
-            headers:{
-              Authorization:"Bearer " + token
-            }
-          }
-        );
+      const res = await fetch(url,{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
 
       if(!res.ok) continue;
 
-      const data =
-        await res.json().catch(()=>null);
-
-      const loc =
-        extractLatLngFromObject(data);
+      const data = await res.json().catch(()=>null);
+      const loc = extractLatLngFromObject(data);
 
       if(loc) return loc;
 
@@ -786,328 +954,349 @@ async function fetchDriverLocationFromServer(tripId){
 
 async function getFreshDriverLocation(trip){
 
-  const fromTrip =
-    getDriverLocationFromTrip(trip);
+  const fromTrip = getDriverLocationFromTrip(trip);
 
-  if(fromTrip){
-    return fromTrip;
-  }
+  if(fromTrip) return fromTrip;
 
   return await fetchDriverLocationFromServer(tripId);
 }
 
-/* ================= CURRENT ROUTE UI ================= */
+/* ================= TIMELINE UI ================= */
 
-function ensureCurrentRouteBox(){
-
-  let box =
-    document.getElementById("currentRouteBox");
-
-  if(box){
-    return box;
+function hideOldControls(){
+  if(addStopBtn){
+    addStopBtn.classList.add("old-add-stop-hidden");
   }
 
-  box =
-    document.createElement("div");
-
-  box.id =
-    "currentRouteBox";
-
-  box.className =
-    "current-route-box";
-
-  if(stopsContainer && stopsContainer.parentNode){
-    stopsContainer.parentNode.insertBefore(
-      box,
-      stopsContainer
-    );
-  }else if(form){
-    form.insertBefore(box,form.firstChild);
+  if(confirmAddStopBtn){
+    confirmAddStopBtn.classList.add("old-add-stop-hidden");
   }
-
-  return box;
 }
 
-function renderCurrentRoute(trip){
+function getTimelineRoot(){
+  let root = document.getElementById("routeTimelineRoot");
 
-  const box =
-    ensureCurrentRouteBox();
+  if(root) return root;
 
-  const pickup =
-    getPickup(trip);
+  root = document.createElement("div");
+  root.id = "routeTimelineRoot";
+  root.className = "route-timeline";
 
-  const dropoff =
-    getDropoff(trip);
+  if(stopsContainer){
+    stopsContainer.innerHTML = "";
+    stopsContainer.appendChild(root);
+  }else if(form){
+    form.appendChild(root);
+  }
 
-  const existingStops =
-    getExistingStops(trip);
+  return root;
+}
 
-  const rows = [];
+function routePointHtml({type,label,value,index,isLast}){
 
-  rows.push({
+  const icon =
+    type === "pickup"
+      ? "P"
+      : type === "dropoff"
+        ? "D"
+        : String(index);
+
+  return `
+    <div class="route-node">
+      <div class="route-dot-wrap">
+        <div class="route-dot ${type}">${icon}</div>
+        ${isLast ? "" : `<div class="route-line"></div>`}
+      </div>
+
+      <div class="route-card">
+        <div class="route-card-head">
+          <div>${esc(label)}</div>
+          <span class="${type}">${type.toUpperCase()}</span>
+        </div>
+
+        <div class="route-address">
+          ${esc(value || "--")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function insertZoneHtml(slotIndex,label){
+  return `
+    <div class="insert-zone" data-slot="${slotIndex}">
+      <div class="insert-line-wrap">
+        <div class="insert-line"></div>
+      </div>
+
+      <div class="insert-content">
+        <button
+          type="button"
+          class="add-here-btn"
+          data-action="open-slot"
+          data-slot="${slotIndex}"
+        >
+          <span>+</span>
+          Add Stop Here
+        </button>
+
+        <div class="slot-panel-holder" data-slot-holder="${slotIndex}"></div>
+
+        <div class="slot-note">
+          ${esc(label)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRouteTimeline(trip){
+
+  const root = getTimelineRoot();
+
+  const pickup = getPickup(trip);
+  const dropoff = getDropoff(trip);
+  const existingStops = getExistingStops(trip);
+
+  const points = [];
+
+  points.push({
     type:"pickup",
     label:"Pickup",
-    value:pickup || "--"
+    value:pickup,
+    index:0
   });
 
   existingStops.forEach((stop,index)=>{
-    rows.push({
+    points.push({
       type:"stop",
       label:`Existing Stop ${index + 1}`,
-      value:stop
+      value:stop,
+      index:index + 1
     });
   });
 
-  rows.push({
+  points.push({
     type:"dropoff",
     label:"Dropoff",
-    value:dropoff || "--"
+    value:dropoff,
+    index:existingStops.length + 1
   });
 
-  box.innerHTML = `
-    <div class="current-route-head">
-      <div>Current Route</div>
-      <span>${existingStops.length} Existing Stop${existingStops.length === 1 ? "" : "s"}</span>
+  let body = "";
+
+  points.forEach((point,index)=>{
+
+    const isLast =
+      index === points.length - 1;
+
+    body += routePointHtml({
+      ...point,
+      isLast
+    });
+
+    /*
+      Add Stop zone بعد Pickup وبعد كل Existing Stop فقط.
+      مفيش Add Stop بعد Dropoff.
+    */
+    if(!isLast){
+
+      let label = "";
+
+      if(index === 0){
+        label = existingStops.length
+          ? "New stops added here will be placed after Pickup and before Existing Stop 1."
+          : "New stops added here will be placed before Dropoff.";
+      }else{
+        label = index === existingStops.length
+          ? `New stops added here will be placed after Existing Stop ${index} and before Dropoff.`
+          : `New stops added here will be placed after Existing Stop ${index} and before Existing Stop ${index + 1}.`;
+      }
+
+      body += insertZoneHtml(index,label);
+    }
+  });
+
+  root.innerHTML = `
+    <div class="route-timeline-head">
+      <div class="title">Current Route</div>
+      <div class="badge">${existingStops.length} Existing Stop${existingStops.length === 1 ? "" : "s"}</div>
     </div>
 
-    <div class="current-route-list">
-      ${
-        rows.map(row=>`
-          <div class="route-point ${row.type}">
-            <div class="route-point-label">
-              ${row.label}
-            </div>
-            <div class="route-point-value">
-              ${row.value}
-            </div>
-          </div>
-        `).join("")
-      }
+    <div class="route-timeline-body">
+      ${body}
     </div>
   `;
 }
 
-function buildInsertOptions(trip,selectedValue){
-
-  const existingStops =
-    getExistingStops(trip);
-
-  const options = [];
-
-  if(existingStops.length === 0){
-
-    options.push({
-      value:0,
-      label:"Before Dropoff"
-    });
-
-  }else{
-
-    options.push({
-      value:0,
-      label:"After Pickup"
-    });
-
-    existingStops.forEach((stop,index)=>{
-
-      const value =
-        index + 1;
-
-      const label =
-        value === existingStops.length
-          ? `After Stop ${value} / Before Dropoff`
-          : `After Stop ${value}`;
-
-      options.push({
-        value,
-        label
-      });
-    });
-  }
-
-  return options.map(opt=>`
-    <option
-      value="${opt.value}"
-      ${
-        Number(selectedValue) === Number(opt.value)
-          ? "selected"
-          : ""
-      }
-    >
-      ${opt.label}
-    </option>
-  `).join("");
-}
-
-/* ================= DYNAMIC STOPS UI ================= */
-
-function getStopRows(){
-  return Array.from(
-    document.querySelectorAll(".stop-item")
-  );
-}
-
-function getStopInputs(){
-  return Array.from(
-    document.querySelectorAll(".dynamic-stop-input")
-  );
-}
-
-function getStopSelects(){
-  return Array.from(
-    document.querySelectorAll(".dynamic-stop-position")
-  );
-}
-
-function renumberStops(){
-
-  const items =
-    getStopRows();
-
-  items.forEach((item,index)=>{
-
-    const label =
-      item.querySelector(".stop-label");
-
-    const input =
-      item.querySelector(".dynamic-stop-input");
-
-    const select =
-      item.querySelector(".dynamic-stop-position");
-
-    if(label){
-      label.textContent =
-        `New Stop ${index + 1}`;
-    }
-
-    if(input){
-      input.placeholder =
-        `Enter new stop ${index + 1} address`;
-
-      input.dataset.stopIndex =
-        String(index);
-    }
-
-    if(select){
-      select.dataset.stopIndex =
-        String(index);
-    }
-  });
-
-  if(addStopBtn){
-    addStopBtn.style.display =
-      items.length >= MAX_STOPS
-        ? "none"
-        : "inline-flex";
-
-    addStopBtn.disabled =
-      items.length >= MAX_STOPS;
-  }
-}
-
-function refreshPositionSelects(){
-
-  getStopSelects().forEach(select=>{
-
-    const current =
-      select.value || "0";
-
-    select.innerHTML =
-      buildInsertOptions(
-        currentTrip || {},
-        current
-      );
+function closeAllPanels(){
+  document.querySelectorAll(".slot-panel-holder").forEach(holder=>{
+    holder.innerHTML = "";
   });
 }
 
-function createStopRow(value,positionValue=0){
+function openSlotPanel(slotIndex){
 
-  const currentCount =
-    getStopRows().length;
+  closeAllPanels();
 
-  if(currentCount >= MAX_STOPS){
-    return;
-  }
+  const holder =
+    document.querySelector(`[data-slot-holder="${slotIndex}"]`);
 
-  stopCounter += 1;
+  if(!holder) return;
 
-  const item =
-    document.createElement("div");
+  holder.innerHTML = `
+    <div class="slot-panel" data-slot-panel="${slotIndex}">
+      <div class="slot-panel-head">
+        <div>Add Stop Here</div>
+        <button type="button" class="slot-close" data-action="close-slot">×</button>
+      </div>
 
-  item.className =
-    "stop-item";
+      <div class="slot-panel-body">
+        <div class="slot-stops-list"></div>
 
-  item.dataset.stopUid =
-    String(stopCounter);
+        <div class="slot-actions">
+          <button type="button" class="slot-add-more" data-action="slot-add-more">
+            + Another Stop
+          </button>
 
-  item.innerHTML = `
-    <div class="stop-head">
-      <div class="stop-label">New Stop ${currentCount + 1}</div>
-      <button type="button" class="remove-stop-btn" title="Remove stop">×</button>
-    </div>
+          <button type="button" class="slot-confirm" data-action="slot-confirm">
+            Confirm Here
+          </button>
+        </div>
 
-    <input
-      class="dynamic-stop-input"
-      type="text"
-      data-stop-index="${currentCount}"
-      placeholder="Enter new stop ${currentCount + 1} address"
-      value=""
-    >
-
-    <select
-      class="dynamic-stop-position insert-select"
-      data-stop-index="${currentCount}"
-    >
-      ${buildInsertOptions(currentTrip || {},positionValue)}
-    </select>
-
-    <div class="stop-position-note">
-      Choose where this new stop should be inserted in the current route.
+        <div class="slot-note">
+          You can add up to ${MAX_STOPS} stops in this location. Use X to remove any stop before confirm.
+        </div>
+      </div>
     </div>
   `;
+
+  addSlotStopRow(holder.querySelector(".slot-stops-list"));
 
   const input =
-    item.querySelector(".dynamic-stop-input");
-
-  const removeBtn =
-    item.querySelector(".remove-stop-btn");
-
-  if(input && value){
-    input.value = value;
-  }
-
-  if(removeBtn){
-    removeBtn.addEventListener("click",()=>{
-      item.remove();
-      renumberStops();
-      hideAlert();
-    });
-  }
-
-  stopsContainer.appendChild(item);
-
-  renumberStops();
+    holder.querySelector(".slot-stop-input");
 
   setTimeout(()=>{
     if(input) input.focus();
   },30);
 }
 
-function getRequestedStopObjects(){
+function getPanelFromElement(el){
+  return el.closest(".slot-panel");
+}
+
+function getPanelSlot(panel){
+  return Number(panel?.dataset?.slotPanel || 0);
+}
+
+function getPanelStopRows(panel){
+  return Array.from(
+    panel.querySelectorAll(".slot-stop-row")
+  );
+}
+
+function addSlotStopRow(list,value=""){
+
+  if(!list) return;
+
+  const panel =
+    list.closest(".slot-panel");
+
+  const count =
+    getPanelStopRows(panel).length;
+
+  if(count >= MAX_STOPS){
+    return;
+  }
+
+  stopCounter += 1;
+
+  const row = document.createElement("div");
+  row.className = "slot-stop-row";
+  row.dataset.stopUid = String(stopCounter);
+
+  row.innerHTML = `
+    <input
+      class="slot-stop-input"
+      type="text"
+      placeholder="Enter new stop address"
+      value="${esc(value)}"
+    >
+
+    <button
+      type="button"
+      class="remove-slot-stop"
+      data-action="remove-slot-stop"
+      title="Remove this stop"
+    >
+      ×
+    </button>
+  `;
+
+  list.appendChild(row);
+
+  updatePanelButtons(panel);
+}
+
+function updatePanelButtons(panel){
+
+  if(!panel) return;
 
   const rows =
-    getStopRows();
+    getPanelStopRows(panel);
 
-  const output = [];
+  const addMore =
+    panel.querySelector(".slot-add-more");
+
+  if(addMore){
+    addMore.disabled =
+      rows.length >= MAX_STOPS;
+  }
+
+  rows.forEach((row,index)=>{
+    const input = row.querySelector(".slot-stop-input");
+    if(input){
+      input.placeholder = `Enter new stop ${index + 1} address`;
+    }
+  });
+}
+
+function removeSlotStop(btn){
+
+  const panel =
+    getPanelFromElement(btn);
+
+  const row =
+    btn.closest(".slot-stop-row");
+
+  if(row){
+    row.remove();
+  }
+
+  const rows =
+    getPanelStopRows(panel);
+
+  if(rows.length === 0){
+    panel.remove();
+    return;
+  }
+
+  updatePanelButtons(panel);
+  hideAlert();
+}
+
+function readPanelStops(panel){
+
+  const rows =
+    getPanelStopRows(panel);
+
+  const out = [];
   const seen = new Set();
 
   rows.forEach((row,index)=>{
 
     const input =
-      row.querySelector(".dynamic-stop-input");
-
-    const select =
-      row.querySelector(".dynamic-stop-position");
+      row.querySelector(".slot-stop-input");
 
     const address =
       normalizeAddress(input?.value || "");
@@ -1121,33 +1310,13 @@ function getRequestedStopObjects(){
 
     seen.add(key);
 
-    output.push({
+    out.push({
       address,
-      insertAfterIndex:Number(select?.value || 0),
       rowIndex:index
     });
   });
 
-  return output.slice(0,MAX_STOPS);
-}
-
-function lockStops(){
-
-  if(addStopBtn){
-    addStopBtn.disabled = true;
-  }
-
-  getStopInputs().forEach(input=>{
-    input.disabled = true;
-  });
-
-  getStopSelects().forEach(select=>{
-    select.disabled = true;
-  });
-
-  document.querySelectorAll(".remove-stop-btn").forEach(btn=>{
-    btn.disabled = true;
-  });
+  return out.slice(0,MAX_STOPS);
 }
 
 /* ================= ROUTE BUILD ================= */
@@ -1168,11 +1337,11 @@ function buildFinalStops(existingStops,addedStopObjects){
 
   /*
     insertAfterIndex:
-    0 = بعد Pickup / قبل أول Stop قديم
-    1 = بعد Existing Stop 1
-    2 = بعد Existing Stop 2
+    0 = بعد Pickup / قبل أول Stop
+    1 = بعد Stop 1
+    2 = بعد Stop 2
     ...
-    oldStops.length = قبل Dropoff
+    oldStops.length = بعد آخر Stop / قبل Dropoff
   */
 
   for(let anchorIndex = 0; anchorIndex <= oldStops.length; anchorIndex++){
@@ -1193,7 +1362,6 @@ function buildFinalStops(existingStops,addedStopObjects){
 }
 
 function buildOriginalRouteBeforeStart(trip){
-
   return [
     getPickup(trip),
     ...getExistingStops(trip),
@@ -1202,7 +1370,6 @@ function buildOriginalRouteBeforeStart(trip){
 }
 
 function buildNewRouteBeforeStart(trip,finalStops){
-
   return [
     getPickup(trip),
     ...finalStops,
@@ -1211,7 +1378,6 @@ function buildNewRouteBeforeStart(trip,finalStops){
 }
 
 function buildOriginalRemainingRouteInProgress(driverLocation,trip){
-
   return [
     driverLocation,
     ...getExistingStops(trip),
@@ -1220,7 +1386,6 @@ function buildOriginalRemainingRouteInProgress(driverLocation,trip){
 }
 
 function buildNewRemainingRouteInProgress(driverLocation,trip,finalStops){
-
   return [
     driverLocation,
     ...finalStops,
@@ -1236,11 +1401,8 @@ async function calculateAddStopNow(trip,addedStopObjects){
     throw new Error("Please add at least one stop");
   }
 
-  const pickup =
-    getPickup(trip);
-
-  const dropoff =
-    getDropoff(trip);
+  const pickup = getPickup(trip);
+  const dropoff = getDropoff(trip);
 
   if(!pickup){
     throw new Error("Pickup address missing");
@@ -1397,8 +1559,7 @@ function fillPage(trip){
     dropoffAddressInput.value = getDropoff(trip) || "";
   }
 
-  renderCurrentRoute(trip);
-  refreshPositionSelects();
+  renderRouteTimeline(trip);
 
   if(pageStatusBadge){
     pageStatusBadge.textContent =
@@ -1408,33 +1569,29 @@ function fillPage(trip){
   }
 
   if(hasActiveStopRequest(trip)){
-
     showAlert(
       "info",
       "This trip already has an active added stop request. Cancel it from the Review page before adding another one."
     );
 
-    if(confirmAddStopBtn){
-      confirmAddStopBtn.disabled = true;
-    }
-
-    lockStops();
+    document.querySelectorAll(".add-here-btn").forEach(btn=>{
+      btn.disabled = true;
+    });
   }
-
-  renumberStops();
 }
 
-/* ================= CONFIRM ================= */
+/* ================= CONFIRM PER SLOT ================= */
 
-async function handleConfirmSubmit(e){
-
-  e.preventDefault();
+async function confirmSlot(panel){
 
   hideAlert();
 
   try{
 
-    setButtonLoading(true,"Checking trip...");
+    const slotIndex =
+      getPanelSlot(panel);
+
+    setGlobalLoading(true,"Checking trip...");
 
     const freshTrip =
       await reloadFreshTrip();
@@ -1454,17 +1611,20 @@ async function handleConfirmSubmit(e){
       throw new Error("This trip already has an active stop request");
     }
 
-    renderCurrentRoute(freshTrip);
-    refreshPositionSelects();
+    const panelStops =
+      readPanelStops(panel);
 
-    const addedStopObjects =
-      getRequestedStopObjects();
-
-    if(!addedStopObjects.length){
+    if(!panelStops.length){
       throw new Error("Please add at least one stop");
     }
 
-    setButtonLoading(true,"Calculating miles...");
+    const addedStopObjects =
+      panelStops.map(stop=>({
+        ...stop,
+        insertAfterIndex:slotIndex
+      }));
+
+    setGlobalLoading(true,"Calculating miles...");
 
     const calc =
       await calculateAddStopNow(
@@ -1472,7 +1632,7 @@ async function handleConfirmSubmit(e){
         addedStopObjects
       );
 
-    setButtonLoading(true,"Sending to review...");
+    setGlobalLoading(true,"Sending to review...");
 
     const payload = {
       tripId:String(freshTrip._id || tripId),
@@ -1492,19 +1652,11 @@ async function handleConfirmSubmit(e){
       confirmedAt:getNowISO(),
 
       mode:calc.mode,
-
       maxStops:MAX_STOPS,
 
-      /*
-        Backward compatible:
-        addedStops = addresses only
-      */
-      addedStops:calc.addedStops,
+      insertAfterIndex:slotIndex,
 
-      /*
-        New correct data:
-        addedStopsDetailed tells server where every new stop was inserted
-      */
+      addedStops:calc.addedStops,
       addedStopsDetailed:calc.addedStopsDetailed,
 
       existingStops:calc.existingStops,
@@ -1570,18 +1722,11 @@ async function handleConfirmSubmit(e){
 
   }finally{
 
-    setButtonLoading(false);
-    renumberStops();
+    setGlobalLoading(false);
   }
 }
 
 /* ================= EVENTS ================= */
-
-if(addStopBtn){
-  addStopBtn.addEventListener("click",()=>{
-    createStopRow("");
-  });
-}
 
 if(backBtn){
   backBtn.addEventListener("click",()=>{
@@ -1590,8 +1735,78 @@ if(backBtn){
 }
 
 if(form){
-  form.addEventListener("submit",handleConfirmSubmit);
+  form.addEventListener("submit",e=>{
+    e.preventDefault();
+  });
 }
+
+document.addEventListener("click",async e=>{
+
+  const btn =
+    e.target.closest("button");
+
+  if(!btn) return;
+
+  const action =
+    btn.dataset.action;
+
+  if(!action) return;
+
+  if(action === "open-slot"){
+    const slot =
+      Number(btn.dataset.slot || 0);
+
+    openSlotPanel(slot);
+    hideAlert();
+    return;
+  }
+
+  if(action === "close-slot"){
+    const panel =
+      getPanelFromElement(btn);
+
+    if(panel) panel.remove();
+
+    hideAlert();
+    return;
+  }
+
+  if(action === "slot-add-more"){
+    const panel =
+      getPanelFromElement(btn);
+
+    const list =
+      panel?.querySelector(".slot-stops-list");
+
+    addSlotStopRow(list);
+
+    const inputs =
+      panel.querySelectorAll(".slot-stop-input");
+
+    const last =
+      inputs[inputs.length - 1];
+
+    if(last) last.focus();
+
+    return;
+  }
+
+  if(action === "remove-slot-stop"){
+    removeSlotStop(btn);
+    return;
+  }
+
+  if(action === "slot-confirm"){
+    const panel =
+      getPanelFromElement(btn);
+
+    if(panel){
+      await confirmSlot(panel);
+    }
+
+    return;
+  }
+});
 
 /* ================= INIT ================= */
 
@@ -1601,6 +1816,7 @@ async function init(){
 
     showLoading();
     hideAlert();
+    hideOldControls();
 
     await loadSystemDesign();
 
@@ -1631,7 +1847,7 @@ async function init(){
     if(loadingBox){
       loadingBox.innerHTML = `
         <div style="font-weight:900;color:#991b1b;">
-          ${err.message || "Failed to load page"}
+          ${esc(err.message || "Failed to load page")}
         </div>
       `;
     }
