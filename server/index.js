@@ -780,28 +780,29 @@ billingPaid: {
      🔔 REMINDER
   ========================= */
 
-  reminderSent: { type: Boolean, default: false },
+ reminderSent: { type: Boolean, default: false },
+
 /* =========================
-     ROUTE CHANGE / ADD STOP REQUEST
-  ========================= */
+   ROUTE CHANGE / ADD STOP REQUEST
+========================= */
 
-  addStopRequest: {
-    type: Object,
-    default: null
-  },
+addStopRequest: {
+  type: Object,
+  default: null
+},
 
-  routeChangePending: {
-    type: Boolean,
-    default: false
-  },
+routeChangePending: {
+  type: Boolean,
+  default: false
+},
 
-  routeChangeStatus: {
-    type: String,
-    default: ""
-  },
+routeChangeStatus: {
+  type: String,
+  default: ""
+},
 
-  bookedAt: { type: Date, default: Date.now },
-  createdAt: { type: Date, default: Date.now }
+bookedAt: { type: Date, default: Date.now },
+createdAt: { type: Date, default: Date.now }
 
 }, { minimize: false });
 
@@ -832,12 +833,6 @@ app.use(
   "/api/company",
   companyAddStopRoutes
 );
-app.get("/api/company-add-stop-test", (req,res)=>{
-  return res.json({
-    success:true,
-    message:"index.js updated and running"
-  });
-});
 
 console.log("✅ companyAddStopRoutes mounted on /api/company");
 /* =========================
@@ -4545,10 +4540,27 @@ optimizedRoute:
       driverAddress: req.body.driverAddress ?? existing.driverAddress,
       dispatchNote: req.body.dispatchNote ?? existing.dispatchNote,
 
+      // ADD STOP / ROUTE CHANGE
+      addStopRequest:
+        req.body.addStopRequest !== undefined
+          ? req.body.addStopRequest
+          : existing.addStopRequest,
+
+      routeChangePending:
+        req.body.routeChangePending !== undefined
+          ? req.body.routeChangePending
+          : existing.routeChangePending,
+
+      routeChangeStatus:
+        req.body.routeChangeStatus !== undefined
+          ? req.body.routeChangeStatus
+          : existing.routeChangeStatus,
+
       // STATUS
-status: req.body.status ?? existing.status,
-bookedAt: req.body.bookedAt ?? existing.bookedAt
+      status: req.body.status ?? existing.status,
+      bookedAt: req.body.bookedAt ?? existing.bookedAt
 };
+
 if(updateData.status === "Confirmed"){
 
   updateData.dispatchSelected = true;

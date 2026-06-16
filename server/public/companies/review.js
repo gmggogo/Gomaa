@@ -789,6 +789,96 @@ function hasActiveAddStopRequest(trip){
   );
 }
 
+function getActiveAddStopRequest(trip){
+
+  const req =
+    trip?.addStopRequest || null;
+
+  if(!req) return null;
+
+  const status =
+    String(req.status || "").toUpperCase();
+
+  if(
+    req.active === true &&
+    ![
+      "CANCELLED",
+      "CANCELLED_BY_COMPANY",
+      "CANCELLED_BY_CUSTOMER",
+      "COMPLETED",
+      "REJECTED"
+    ].includes(status)
+  ){
+    return req;
+  }
+
+  return null;
+}
+
+function getConfirmPickup(trip){
+
+  const req =
+    getActiveAddStopRequest(trip);
+
+  return (
+    req?.pickup ||
+    trip?.pickup ||
+    ""
+  );
+}
+
+function getConfirmStops(trip){
+
+  const req =
+    getActiveAddStopRequest(trip);
+
+  if(
+    req &&
+    Array.isArray(req.finalStops)
+  ){
+    return req.finalStops
+      .map(s => normalizeAddress(s))
+      .filter(Boolean);
+  }
+
+  return Array.isArray(trip?.stops)
+    ? trip.stops
+        .map(s => normalizeAddress(s))
+        .filter(Boolean)
+    : [];
+}
+
+function getConfirmDropoff(trip){
+
+  const req =
+    getActiveAddStopRequest(trip);
+
+  return (
+    req?.dropoffAfter ||
+    trip?.dropoff ||
+    ""
+  );
+}
+
+function getStopRequestBadge(trip){
+
+  const req =
+    getActiveAddStopRequest(trip);
+
+  if(!req) return "";
+
+  const added =
+    Array.isArray(req.addedStops)
+      ? req.addedStops.length
+      : 0;
+
+  return `
+    <div class="route-locked-badge">
+      Stop Request Pending${added ? " • " + added + " Stop" + (added === 1 ? "" : "s") : ""}
+    </div>
+  `;
+}
+
 function serviceAllowsAddStop(trip){
 
   if(isSharedTrip(trip)){
@@ -1112,21 +1202,34 @@ async function calculateRouteMiles(points){
 /* ================= ROUTE POINTS ================= */
 
 function buildIndividualRoutePoints(trip){
+
   const points = [];
 
-  if(trip.pickup) points.push(trip.pickup);
+  const pickup =
+    getConfirmPickup(trip);
 
-  if(Array.isArray(trip.stops)){
-    trip.stops.forEach(s=>{
-      if(normalizeText(s)) points.push(s);
-    });
+  const stops =
+    getConfirmStops(trip);
+
+  const dropoff =
+    getConfirmDropoff(trip);
+
+  if(pickup){
+    points.push(pickup);
   }
 
-  if(trip.dropoff) points.push(trip.dropoff);
+  stops.forEach(s=>{
+    if(normalizeText(s)){
+      points.push(s);
+    }
+  });
+
+  if(dropoff){
+    points.push(dropoff);
+  }
 
   return points;
 }
-
 async function optimizeStopsFromOrigin(origin,stops){
 
   await ensureGoogleLoaded();
@@ -1777,8 +1880,17 @@ function renderTripRow(t,index){
   tr.dataset.id = t._id;
 
   const editing = t.__editing === true;
-  const stops = Array.isArray(t.stops) ? t.stops : [];
+const stops =
+  getConfirmStops(t);
 
+const reviewPickup =
+  getConfirmPickup(t);
+
+const reviewDropoff =
+  getConfirmDropoff(t);
+
+const stopRequestBadge =
+  getStopRequestBadge(t);
   applyRowColor(tr,t);
 
   tr.innerHTML = `
@@ -1791,6 +1903,8 @@ function renderTripRow(t,index){
         ? `<div class="route-locked-badge">Route Locked</div>`
         : ""
       }
+
+${stopRequestBadge}
     </td>
 
     <td class="col-client">
@@ -1802,7 +1916,7 @@ function renderTripRow(t,index){
     </td>
 
     <td class="col-pickup">
-      ${editing ? createEditInput(t.pickup || "", "pickup") : cellBox(escapeHtml(t.pickup || "--"))}
+      ${editing ? createEditInput(reviewPickup || "", "pickup") : cellBox(escapeHtml(reviewPickup || "--"))}
     </td>
 
     <td class="col-stops">
@@ -1814,7 +1928,7 @@ function renderTripRow(t,index){
     </td>
 
     <td class="col-drop">
-      ${editing ? createEditInput(t.dropoff || "", "dropoff") : cellBox(escapeHtml(t.dropoff || "--"))}
+      ${editing ? createEditInput(reviewDropoff || "", "dropoff") : cellBox(escapeHtml(reviewDropoff || "--"))}
     </td>
 
     <td class="col-notes">
