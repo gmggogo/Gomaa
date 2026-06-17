@@ -206,7 +206,7 @@ let lastSentLocationAt = 0;
 let lastSentLat = null;
 let lastSentLng = null;
 
-const LOCATION_PUSH_MS = 60000;
+const LOCATION_PUSH_MS = 20000;
 const LOCATION_PUSH_MILES = 0.25;
 
 /* ================= SERVER TIME ================= */
@@ -619,12 +619,12 @@ function isNearDropoff(distance){
 
 function shouldSendLocation(lat,lng){
 
-  const now =
-    serverNow();
-
+  // 🔥 أول مرة تبعت فورًا
   if(!lastSentLocationAt){
     return true;
   }
+
+  const now = serverNow();
 
   if(now - lastSentLocationAt >= LOCATION_PUSH_MS){
     return true;
@@ -650,9 +650,7 @@ function shouldSendLocation(lat,lng){
   }
 
   return false;
-
 }
-
 /* ================= API ================= */
 
 async function loadAppConfig(){
