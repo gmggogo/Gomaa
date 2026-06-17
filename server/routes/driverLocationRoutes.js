@@ -1,38 +1,32 @@
 const express = require("express");
 const router = express.Router();
 
-/* =========================
-   GLOBAL LIVE DRIVERS (SAFE INIT)
-========================= */
-
-global.liveDrivers = global.liveDrivers || new Map();
+const LiveDriver = require("../models/LiveDriver");
 
 /* =========================
    RECEIVE DRIVER LOCATION
-   POST /api/driver-location
+   POST /api/driver/location
 ========================= */
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
 
   try {
 
     const {
       driverId,
-      lat,
-      lng,
       name,
       phone,
-      vehicleNumber
+      vehicleNumber,
+      lat,
+      lng,
+      tripId,
+      routeMode
     } = req.body;
-
-    /* =========================
-       VALIDATION
-    ========================= */
 
     if (!driverId || lat === undefined || lng === undefined) {
       return res.status(400).json({
         success: false,
-        message: "Missing data"
+        message: "Missing driverId / lat / lng"
       });
     }
 
@@ -46,39 +40,39 @@ router.post("/", (req, res) => {
       });
     }
 
-    /* =========================
-       UPDATE LIVE DRIVER
-    ========================= */
-
     const id = String(driverId);
 
-    global.liveDrivers.set(id, {
-      driverId: id,
-      name: name || "",
-      phone: phone || "",
-      vehicleNumber: vehicleNumber || "",
-      lat: numLat,
-      lng: numLng,
-      time: Date.now(),
-      online: true
-    });
-
-    /* =========================
-       RESPONSE
-    ========================= */
+    const driver = await LiveDriver.findOneAndUpdate(
+      { driverId: id },
+      {
+        $set: {
+          driverId: id,
+          name: name || "",
+          phone: phone || "",
+          vehicleNumber: vehicleNumber || "",
+          tripId: tripId || "",
+          routeMode: routeMode || "",
+          lat: numLat,
+          lng: numLng,
+          online: true,
+          lastSeen: new Date()
+        }
+      },
+      {
+        new: true,
+        upsert: true
+      }
+    );
 
     return res.json({
       success: true,
-      driver: {
-        driverId: id,
-        lat: numLat,
-        lng: numLng
-      }
+      message: "Driver location saved",
+      driver
     });
 
   } catch (err) {
 
-    console.log("DRIVER LOCATION ERROR:", err);
+    console.log("DRIVER LOCATION SAVE ERROR:", err);
 
     return res.status(500).json({
       success: false,
@@ -91,53 +85,48 @@ router.post("/", (req, res) => {
 
 /* =========================
    GET LIVE DRIVERS
-   GET /api/driver-location/live
+   GET /api/driver/location/live
 ========================= */
 
-router.get("/live", (req, res) => {
+router.get("/live", async (req, res) => {
 
   try {
 
-    const now = Date.now();
-    const MAX_AGE = 1000 * 60 * 5; // 5 minutes
+    const ONLINE_LIMIT_MS = 1000 * 60 * 5;
 
-    const drivers = [];
+    const since =
+      new Date(Date.now() - ONLINE_LIMIT_MS);
 
-    global.liveDrivers.forEach((val, key) => {
-
-      if (!val || !val.time) return;
-
-      if (now - val.time > MAX_AGE) {
-        global.liveDrivers.delete(key);
-        return;
-      }
-
-      drivers.push({
-        driverId: val.driverId || String(key),
-        name: val.name || "",
-        phone: val.phone || "",
-        vehicleNumber: val.vehicleNumber || "",
-        lat: Number(val.lat),
-        lng: Number(val.lng),
-        time: val.time,
-        online: true
-      });
-
-    });
+    const drivers =
+      await LiveDriver.find({
+        lastSeen: { $gte: since }
+      })
+      .sort({ lastSeen: -1 })
+      .lean();
 
     return res.json({
       success: true,
       count: drivers.length,
-      drivers
+      drivers: drivers.map(d => ({
+        driverId: d.driverId,
+        name: d.name || "",
+        phone: d.phone || "",
+        vehicleNumber: d.vehicleNumber || "",
+        tripId: d.tripId || "",
+        routeMode: d.routeMode || "",
+        lat: Number(d.lat),
+        lng: Number(d.lng),
+        lastSeen: d.lastSeen,
+        online: true
+      }))
     });
 
   } catch (err) {
 
-    console.log("LIVE DRIVERS ERROR:", err);
+    console.log("LIVE DRIVERS LOAD ERROR:", err);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to load live drivers",
       count: 0,
       drivers: []
     });
@@ -148,20 +137,23 @@ router.get("/live", (req, res) => {
 
 /* =========================
    GET ONE DRIVER
-   GET /api/driver-location/:driverId
+   GET /api/driver/location/:driverId
 ========================= */
 
-router.get("/:driverId", (req, res) => {
+router.get("/:driverId", async (req, res) => {
 
   try {
 
-    const driverId = String(req.params.driverId || "");
-    const driver = global.liveDrivers.get(driverId);
+    const driverId =
+      String(req.params.driverId || "");
+
+    const driver =
+      await LiveDriver.findOne({ driverId }).lean();
 
     if (!driver) {
       return res.status(404).json({
         success: false,
-        message: "Driver not online"
+        message: "Driver not found"
       });
     }
 
@@ -184,32 +176,35 @@ router.get("/:driverId", (req, res) => {
 });
 
 /* =========================
-   CLEAN OLD DRIVERS (AUTO)
+   SET DRIVER OFFLINE
+   DELETE /api/driver/location/:driverId
 ========================= */
 
-if (!global.liveDriversCleanerStarted) {
+router.delete("/:driverId", async (req, res) => {
 
-  global.liveDriversCleanerStarted = true;
+  try {
 
-  setInterval(() => {
+    const driverId =
+      String(req.params.driverId || "");
 
-    const now = Date.now();
-    const MAX_AGE = 1000 * 60 * 5; // 5 minutes
+    await LiveDriver.deleteOne({ driverId });
 
-    global.liveDrivers.forEach((val, key) => {
-
-      if (!val || !val.time || now - val.time > MAX_AGE) {
-        global.liveDrivers.delete(key);
-      }
-
+    return res.json({
+      success: true,
+      message: "Driver removed from live map"
     });
 
-  }, 60000);
+  } catch (err) {
 
-}
+    console.log("DELETE LIVE DRIVER ERROR:", err);
 
-/* =========================
-   EXPORT
-========================= */
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+
+  }
+
+});
 
 module.exports = router;

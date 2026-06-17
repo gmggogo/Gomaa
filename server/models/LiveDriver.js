@@ -2,17 +2,68 @@ const mongoose = require("mongoose");
 
 const liveDriverSchema = new mongoose.Schema({
 
-  tripId: String,
+  driverId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
 
-  lat: Number,
-  lng: Number,
+  name: {
+    type: String,
+    default: ""
+  },
 
-  updatedAt: {
+  phone: {
+    type: String,
+    default: ""
+  },
+
+  vehicleNumber: {
+    type: String,
+    default: ""
+  },
+
+  tripId: {
+    type: String,
+    default: ""
+  },
+
+  routeMode: {
+    type: String,
+    default: ""
+  },
+
+  lat: {
+    type: Number,
+    required: true
+  },
+
+  lng: {
+    type: Number,
+    required: true
+  },
+
+  online: {
+    type: Boolean,
+    default: true
+  },
+
+  lastSeen: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    index: true
   }
 
+}, {
+  timestamps: true
 });
+
+/* ينضف اللوكيشن القديم بعد ساعة من Mongo */
+liveDriverSchema.index(
+  { lastSeen: 1 },
+  { expireAfterSeconds: 3600 }
+);
 
 module.exports =
   mongoose.models.LiveDriver ||

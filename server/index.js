@@ -282,6 +282,7 @@ app.use(
   "/api/driver-location",
   driverLocationRoutes
 );
+
 app.use(
   "/api/driver-schedule",
   driverScheduleRoutes
