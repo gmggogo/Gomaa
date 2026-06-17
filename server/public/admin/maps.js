@@ -60,19 +60,10 @@ function drawPath(id){
 }
 
 /* ===============================
-   LOAD DRIVERS (SMART)
+   LOAD DRIVERS (FINAL FIXED)
 =============================== */
 
-let lastFetchTime = 0;
-
 async function loadLiveDrivers(){
-
-  const now = Date.now();
-
-  // 🔥 حماية من spam
-  if(now - lastFetchTime < 25000) return;
-
-  lastFetchTime = now;
 
   try{
 
@@ -130,9 +121,13 @@ async function loadLiveDrivers(){
 
     });
 
+    /* ===============================
+       FIRST ZOOM
+    =============================== */
+
     if(bounds.length && firstLoad){
       map.fitBounds(bounds,{padding:[50,50]});
-      firstLoad=false;
+      firstLoad = false;
     }
 
   }catch(err){
