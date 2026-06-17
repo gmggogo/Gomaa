@@ -1,17 +1,12 @@
 // ===============================
-// ADMIN LIVE MAP - FINAL PRO
-// Colored Drivers + Labels + Sidebar
+// ADMIN LIVE MAP - CARS + NAMES + SIDEBAR
 // ===============================
 
 const LIVE_DRIVERS_API = "/api/admin/live-drivers";
-const REFRESH_MS = 30000;
 
-const COLORS = [
-  "#ef4444", "#3b82f6", "#22c55e", "#f97316", "#8b5cf6",
-  "#14b8a6", "#eab308", "#ec4899", "#06b6d4", "#84cc16",
-  "#f43f5e", "#6366f1", "#10b981", "#f59e0b", "#a855f7",
-  "#0ea5e9", "#65a30d", "#dc2626", "#7c3aed", "#0891b2"
-];
+/* ===============================
+   MAP
+=============================== */
 
 const map = L.map("map", {
   zoomControl: true,
@@ -22,155 +17,164 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
+/* ===============================
+   STATE
+=============================== */
+
 const driverMarkers = new Map();
 const driverPaths = new Map();
 const driverPolylines = new Map();
-const driverColors = new Map();
+const driverRawData = new Map();
 
 let firstLoad = true;
 
 /* ===============================
-   SIDEBAR AUTO BUILD
+   UI INIT
 =============================== */
 
-function buildSidebar(){
+function injectMapStyles(){
 
-  if(document.getElementById("driversSidebar")){
+  if(document.getElementById("driversMapExtraStyles"))
     return;
-  }
-
-  const sidebar = document.createElement("div");
-
-  sidebar.id = "driversSidebar";
-
-  sidebar.innerHTML = `
-    <div class="drivers-side-title">
-      ONLINE DRIVERS
-      <span id="driversCount">0</span>
-    </div>
-    <div id="driversList" class="drivers-list"></div>
-  `;
-
-  document.body.appendChild(sidebar);
 
   const style = document.createElement("style");
-
+  style.id = "driversMapExtraStyles";
   style.innerHTML = `
-    #driversSidebar{
+    .drivers-sidebar{
       position:fixed;
-      top:90px;
+      top:130px;
       right:14px;
-      width:260px;
-      max-height:calc(100vh - 120px);
-      background:#0f172a;
-      color:white;
-      z-index:9999;
+      width:290px;
+      max-height:calc(100vh - 150px);
+      overflow:auto;
+      background:rgba(15,23,42,.96);
+      border:1px solid #334155;
       border-radius:14px;
+      z-index:9999;
       box-shadow:0 12px 30px rgba(0,0,0,.35);
-      overflow:hidden;
-      font-family:Segoe UI,Arial,sans-serif;
+      padding:12px;
+      color:#fff;
     }
 
-    .drivers-side-title{
-      padding:14px;
-      background:#111827;
-      font-size:14px;
-      font-weight:900;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
+    .drivers-sidebar h3{
+      margin:0 0 10px;
+      font-size:16px;
       color:#facc15;
-      border-bottom:1px solid rgba(255,255,255,.08);
     }
 
-    #driversCount{
-      background:#2563eb;
-      color:white;
-      padding:3px 9px;
-      border-radius:999px;
+    .drivers-count{
       font-size:12px;
+      color:#cbd5e1;
+      margin-bottom:10px;
+      display:block;
     }
 
-    .drivers-list{
-      max-height:calc(100vh - 175px);
-      overflow-y:auto;
+    .driver-list{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
     }
 
-    .driver-row{
+    .driver-card{
+      background:#0f172a;
+      border:1px solid #1e293b;
+      border-radius:12px;
+      padding:10px;
+      cursor:pointer;
+      transition:.2s;
+    }
+
+    .driver-card:hover{
+      background:#172554;
+      border-color:#3b82f6;
+    }
+
+    .driver-card.active{
+      border-color:#facc15;
+      box-shadow:0 0 0 1px #facc15 inset;
+    }
+
+    .driver-line1{
       display:flex;
       align-items:center;
-      gap:10px;
-      padding:12px 13px;
-      cursor:pointer;
-      border-bottom:1px solid rgba(255,255,255,.06);
-      transition:.15s;
-    }
-
-    .driver-row:hover{
-      background:#1e293b;
+      gap:8px;
+      font-weight:700;
+      font-size:14px;
+      margin-bottom:4px;
     }
 
     .driver-dot{
-      width:14px;
-      height:14px;
+      width:12px;
+      height:12px;
       border-radius:50%;
-      flex:0 0 auto;
-      border:2px solid white;
+      flex:none;
+      border:2px solid #fff;
     }
 
-    .driver-info{
-      flex:1;
-      min-width:0;
-    }
-
-    .driver-name{
-      font-size:14px;
-      font-weight:900;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .driver-sub{
+    .driver-line2,
+    .driver-line3{
       font-size:12px;
       color:#cbd5e1;
-      margin-top:2px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      margin-left:20px;
+      word-break:break-word;
     }
 
-    .driver-time{
+    .leaflet-driver-wrap{
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      transform:translateY(-8px);
+    }
+
+    .leaflet-driver-name{
+      background:rgba(15,23,42,.92);
+      color:#fff;
       font-size:11px;
-      color:#94a3b8;
-      margin-top:2px;
-    }
-
-    .driver-label{
-      background:white;
-      color:#111827;
-      border:2px solid currentColor;
+      font-weight:700;
+      padding:3px 7px;
       border-radius:999px;
-      padding:3px 8px;
-      font-size:12px;
-      font-weight:900;
-      box-shadow:0 4px 12px rgba(0,0,0,.25);
+      margin-bottom:4px;
       white-space:nowrap;
+      box-shadow:0 3px 10px rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.15);
     }
 
-    .driver-marker-dot{
-      width:20px;
-      height:20px;
-      border-radius:50%;
-      border:3px solid white;
-      box-shadow:0 3px 10px rgba(0,0,0,.35);
+    .leaflet-driver-car{
+      width:34px;
+      height:34px;
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:20px;
+      font-weight:bold;
+      border:2px solid #fff;
+      box-shadow:0 6px 15px rgba(0,0,0,.25);
     }
 
-    @media(max-width:800px){
-      #driversSidebar{
+    .empty-drivers{
+      font-size:13px;
+      color:#cbd5e1;
+      padding:8px 4px;
+    }
+
+    @media(max-width:900px){
+      .drivers-sidebar{
         width:220px;
-        top:80px;
+        top:120px;
         right:8px;
+        max-height:calc(100vh - 140px);
+      }
+    }
+
+    @media(max-width:700px){
+      .drivers-sidebar{
+        width:180px;
+      }
+      .leaflet-driver-name{
+        font-size:10px;
       }
     }
   `;
@@ -179,69 +183,26 @@ function buildSidebar(){
 
 }
 
-buildSidebar();
+function ensureSidebar(){
+
+  if(document.getElementById("driversSidebar"))
+    return;
+
+  const box = document.createElement("div");
+  box.id = "driversSidebar";
+  box.className = "drivers-sidebar";
+  box.innerHTML = `
+    <h3>Live Drivers</h3>
+    <span class="drivers-count" id="driversCount">0 drivers online</span>
+    <div class="driver-list" id="driversList"></div>
+  `;
+  document.body.appendChild(box);
+
+}
 
 /* ===============================
    HELPERS
 =============================== */
-
-function esc(v){
-  return String(v ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-}
-
-function getDriverName(driver, id){
-  return (
-    driver.name ||
-    driver.driverName ||
-    driver.username ||
-    driver.vehicleNumber ||
-    `Driver ${id}`
-  );
-}
-
-function getDriverColor(id){
-
-  const key = String(id || "");
-
-  if(driverColors.has(key)){
-    return driverColors.get(key);
-  }
-
-  let hash = 0;
-
-  for(let i = 0; i < key.length; i++){
-    hash = key.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  const color = COLORS[Math.abs(hash) % COLORS.length];
-
-  driverColors.set(key, color);
-
-  return color;
-
-}
-
-function formatTime(v){
-
-  if(!v) return "";
-
-  const d = new Date(v);
-
-  if(Number.isNaN(d.getTime())){
-    return "";
-  }
-
-  return d.toLocaleTimeString("en-US", {
-    hour:"numeric",
-    minute:"2-digit"
-  });
-
-}
 
 function getDistance(a, b){
 
@@ -260,34 +221,96 @@ function getDistance(a, b){
 
 }
 
-/* ===============================
-   ICONS
-=============================== */
+function escapeHtml(value){
+  return String(value || "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
 
-function createDriverIcon(driver, id){
+function colorFromId(id){
 
-  const color = getDriverColor(id);
-  const name = esc(getDriverName(driver, id));
+  const colors = [
+    "#ef4444",
+    "#3b82f6",
+    "#22c55e",
+    "#f59e0b",
+    "#a855f7",
+    "#06b6d4",
+    "#e11d48",
+    "#14b8a6",
+    "#f97316",
+    "#8b5cf6",
+    "#84cc16",
+    "#0ea5e9"
+  ];
+
+  let hash = 0;
+  const str = String(id || "");
+
+  for(let i = 0; i < str.length; i++){
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+
+  return colors[Math.abs(hash) % colors.length];
+
+}
+
+function getDriverName(driver, id){
+  return (
+    driver.name ||
+    driver.driverName ||
+    driver.username ||
+    driver.phone ||
+    id
+  );
+}
+
+function getVehicleText(driver){
+  return (
+    driver.vehicleNumber ||
+    driver.vehicle ||
+    driver.carNumber ||
+    ""
+  );
+}
+
+function buildDriverIcon(driver, id){
+
+  const color = colorFromId(id);
+  const name = escapeHtml(getDriverName(driver, id));
 
   return L.divIcon({
-    className:"",
+    className: "",
     html: `
-      <div style="
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        transform:translateY(-18px);
-      ">
-        <div class="driver-label" style="border-color:${color}; color:${color};">
-          ${name}
+      <div class="leaflet-driver-wrap">
+        <div class="leaflet-driver-name">${name}</div>
+        <div class="leaflet-driver-car" style="background:${color}">
+          🚗
         </div>
-        <div class="driver-marker-dot" style="background:${color};"></div>
       </div>
     `,
-    iconSize:[120,50],
-    iconAnchor:[60,42],
-    popupAnchor:[0,-45]
+    iconSize: [90, 54],
+    iconAnchor: [45, 44],
+    popupAnchor: [0, -35]
   });
+
+}
+
+function highlightDriverCard(id){
+
+  document
+    .querySelectorAll(".driver-card")
+    .forEach(el => el.classList.remove("active"));
+
+  const target =
+    document.querySelector(`.driver-card[data-id="${CSS.escape(String(id))}"]`);
+
+  if(target){
+    target.classList.add("active");
+  }
 
 }
 
@@ -302,19 +325,18 @@ function drawPath(id){
   if(!path || path.length < 2) return;
 
   const latlngs = path.map(p => [p.lat, p.lng]);
-  const color = getDriverColor(id);
+  const color = colorFromId(id);
 
   if(driverPolylines.has(id)){
 
     driverPolylines.get(id).setLatLngs(latlngs);
-    driverPolylines.get(id).setStyle({ color });
 
   }else{
 
     const poly = L.polyline(latlngs, {
       color,
       weight: 4,
-      opacity: .85
+      opacity: 0.85
     }).addTo(map);
 
     driverPolylines.set(id, poly);
@@ -329,89 +351,119 @@ function drawPath(id){
 
 function renderSidebar(drivers){
 
-  const list = document.getElementById("driversList");
-  const count = document.getElementById("driversCount");
+  const listEl = document.getElementById("driversList");
+  const countEl = document.getElementById("driversCount");
 
-  if(!list || !count) return;
+  if(!listEl || !countEl) return;
 
-  count.textContent = drivers.length;
+  countEl.innerText = `${drivers.length} driver${drivers.length === 1 ? "" : "s"} online`;
 
   if(!drivers.length){
-
-    list.innerHTML = `
-      <div style="padding:15px;color:#94a3b8;font-weight:700;">
-        No online drivers
-      </div>
-    `;
-
+    listEl.innerHTML = `<div class="empty-drivers">No live drivers found</div>`;
     return;
-
   }
 
-  list.innerHTML = drivers.map(driver => {
+  listEl.innerHTML = drivers.map((driver, index) => {
 
     const id = String(
       driver.driverId ||
-      driver.tripId ||
       driver._id ||
       driver.id ||
-      ""
+      ("driver_" + index)
     );
 
-    const color = getDriverColor(id);
-    const name = esc(getDriverName(driver, id));
-    const vehicle = esc(driver.vehicleNumber || driver.vehicle || "");
-    const routeMode = esc(driver.routeMode || "");
-    const updatedAt = formatTime(driver.updatedAt || driver.lastSeen);
+    const color = colorFromId(id);
+    const name = escapeHtml(getDriverName(driver, id));
+    const vehicle = escapeHtml(getVehicleText(driver) || "No vehicle");
+    const phone = escapeHtml(driver.phone || "");
+    const tripId = escapeHtml(driver.tripId || "");
 
     return `
-      <div class="driver-row" data-driver-id="${esc(id)}">
-        <div class="driver-dot" style="background:${color};"></div>
-        <div class="driver-info">
-          <div class="driver-name">${name}</div>
-          <div class="driver-sub">
-            ${vehicle ? "Vehicle: " + vehicle : "Online"}
-            ${routeMode ? " • " + routeMode : ""}
-          </div>
-          <div class="driver-time">
-            ${updatedAt ? "Last update: " + updatedAt : ""}
-          </div>
+      <div class="driver-card" data-id="${escapeHtml(id)}">
+        <div class="driver-line1">
+          <span class="driver-dot" style="background:${color}"></span>
+          <span>${name}</span>
+        </div>
+        <div class="driver-line2">Vehicle: ${vehicle}</div>
+        <div class="driver-line3">
+          ${phone ? `Phone: ${phone}` : ""}
+          ${tripId ? `<br>Trip: ${tripId}` : ""}
         </div>
       </div>
     `;
 
   }).join("");
 
-  list.querySelectorAll(".driver-row").forEach(row => {
+  listEl.querySelectorAll(".driver-card").forEach(card => {
+    card.addEventListener("click", () => {
 
-    row.addEventListener("click", () => {
+      const id = card.getAttribute("data-id");
+      const marker = driverMarkers.get(id);
+      const driver = driverRawData.get(id);
 
-      const id = row.getAttribute("data-driver-id");
-      focusDriver(id);
+      highlightDriverCard(id);
 
+      if(marker){
+        map.setView(marker.getLatLng(), 16, {
+          animate: true
+        });
+
+        marker.openPopup();
+      }
+
+      const searchInput = document.getElementById("searchDriver");
+      if(searchInput){
+        searchInput.value = getDriverName(driver || {}, id);
+      }
     });
-
   });
 
 }
 
 /* ===============================
-   FOCUS DRIVER
+   SEARCH
 =============================== */
 
-function focusDriver(id){
+function bindSearch(){
 
-  const marker = driverMarkers.get(String(id));
+  const input = document.getElementById("searchDriver");
+  if(!input || input.dataset.bound === "1") return;
 
-  if(!marker) return;
+  input.dataset.bound = "1";
 
-  const latlng = marker.getLatLng();
+  input.addEventListener("input", () => {
 
-  map.setView(latlng, 17, {
-    animate:true
+    const q = String(input.value || "").trim().toLowerCase();
+
+    document.querySelectorAll(".driver-card").forEach(card => {
+      const text = card.innerText.toLowerCase();
+      card.style.display = !q || text.includes(q) ? "block" : "none";
+    });
+
+    if(!q) return;
+
+    for(const [id, driver] of driverRawData.entries()){
+
+      const name = getDriverName(driver, id).toLowerCase();
+      const phone = String(driver.phone || "").toLowerCase();
+      const vehicle = String(getVehicleText(driver) || "").toLowerCase();
+
+      if(
+        name.includes(q) ||
+        phone.includes(q) ||
+        vehicle.includes(q)
+      ){
+        const marker = driverMarkers.get(id);
+        if(marker){
+          map.setView(marker.getLatLng(), 16, { animate:true });
+          highlightDriverCard(id);
+        }
+        break;
+      }
+
+    }
+
   });
-
-  marker.openPopup();
 
 }
 
@@ -424,7 +476,7 @@ async function loadLiveDrivers(){
   try{
 
     const res = await fetch(LIVE_DRIVERS_API, {
-      cache:"no-store"
+      cache: "no-store"
     });
 
     if(!res.ok){
@@ -435,17 +487,16 @@ async function loadLiveDrivers(){
 
     const drivers = Array.isArray(data)
       ? data
-      : (data.drivers || []);
+      : (Array.isArray(data.drivers) ? data.drivers : []);
 
-    const validDrivers = [];
     const bounds = [];
     const onlineIds = new Set();
+    const cleanedDrivers = [];
 
     drivers.forEach((driver, index) => {
 
       const id = String(
         driver.driverId ||
-        driver.tripId ||
         driver._id ||
         driver.id ||
         ("driver_" + index)
@@ -458,12 +509,18 @@ async function loadLiveDrivers(){
         return;
       }
 
-      validDrivers.push(driver);
       onlineIds.add(id);
       bounds.push([lat, lng]);
 
-      const color = getDriverColor(id);
-      const name = getDriverName(driver, id);
+      const driverData = {
+        ...driver,
+        driverId: id,
+        lat,
+        lng
+      };
+
+      driverRawData.set(id, driverData);
+      cleanedDrivers.push(driverData);
 
       /* ===============================
          PATH TRACKING
@@ -492,29 +549,36 @@ async function loadLiveDrivers(){
          MARKER
       =============================== */
 
-      const popupHTML = `
-        <b style="color:${color};">${esc(name)}</b><br>
-        Driver ID: ${esc(id)}<br>
-        ${driver.phone ? "Phone: " + esc(driver.phone) + "<br>" : ""}
-        ${driver.vehicleNumber ? "Vehicle: " + esc(driver.vehicleNumber) + "<br>" : ""}
-        ${driver.routeMode ? "Mode: " + esc(driver.routeMode) + "<br>" : ""}
-        ${driver.updatedAt ? "Updated: " + esc(formatTime(driver.updatedAt)) : ""}
+      const popupHtml = `
+        <div style="min-width:180px">
+          <b style="font-size:14px">${escapeHtml(getDriverName(driverData, id))}</b><br>
+          Driver ID: ${escapeHtml(id)}<br>
+          ${getVehicleText(driverData) ? `Vehicle: ${escapeHtml(getVehicleText(driverData))}<br>` : ""}
+          ${driverData.phone ? `Phone: ${escapeHtml(driverData.phone)}<br>` : ""}
+          ${driverData.tripId ? `Trip: ${escapeHtml(driverData.tripId)}<br>` : ""}
+          Lat: ${lat}<br>
+          Lng: ${lng}
+        </div>
       `;
 
       if(driverMarkers.has(id)){
 
         const marker = driverMarkers.get(id);
         marker.setLatLng([lat, lng]);
-        marker.setIcon(createDriverIcon(driver, id));
-        marker.setPopupContent(popupHTML);
+        marker.setIcon(buildDriverIcon(driverData, id));
+        marker.setPopupContent(popupHtml);
 
       }else{
 
         const marker = L.marker([lat, lng], {
-          icon:createDriverIcon(driver, id)
+          icon: buildDriverIcon(driverData, id)
         }).addTo(map);
 
-        marker.bindPopup(popupHTML);
+        marker.bindPopup(popupHtml);
+
+        marker.on("click", () => {
+          highlightDriverCard(id);
+        });
 
         driverMarkers.set(id, marker);
 
@@ -522,10 +586,8 @@ async function loadLiveDrivers(){
 
     });
 
-    renderSidebar(validDrivers);
-
     /* ===============================
-       REMOVE OFFLINE MARKERS
+       REMOVE OFFLINE
     =============================== */
 
     driverMarkers.forEach((marker, id) => {
@@ -541,10 +603,22 @@ async function loadLiveDrivers(){
         }
 
         driverPaths.delete(id);
+        driverRawData.delete(id);
 
       }
 
     });
+
+    /* ===============================
+       SIDEBAR
+    =============================== */
+
+    cleanedDrivers.sort((a, b) => {
+      return getDriverName(a, a.driverId)
+        .localeCompare(getDriverName(b, b.driverId));
+    });
+
+    renderSidebar(cleanedDrivers);
 
     /* ===============================
        FIRST ZOOM
@@ -553,7 +627,7 @@ async function loadLiveDrivers(){
     if(bounds.length && firstLoad){
 
       map.fitBounds(bounds, {
-        padding: [70, 320]
+        padding: [60, 60]
       });
 
       firstLoad = false;
@@ -564,13 +638,21 @@ async function loadLiveDrivers(){
 
     console.log("MAP ERROR", err);
 
+    const listEl = document.getElementById("driversList");
+    if(listEl){
+      listEl.innerHTML = `<div class="empty-drivers">Failed to load live drivers</div>`;
+    }
+
   }
 
 }
 
 /* ===============================
-   REFRESH
+   START
 =============================== */
 
+injectMapStyles();
+ensureSidebar();
+bindSearch();
 loadLiveDrivers();
-setInterval(loadLiveDrivers, REFRESH_MS);
+setInterval(loadLiveDrivers, 30000);
