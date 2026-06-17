@@ -11,7 +11,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
-const LIVE_DRIVERS_API = "/api/driver/location/live";
+const LIVE_DRIVERS_API = "/api/admin/live-drivers";
 
 const driverMarkers = new Map();
 const driverPaths = new Map();
