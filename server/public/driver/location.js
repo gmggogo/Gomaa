@@ -1,5 +1,11 @@
 (function(){
 
+  if(window.__SUNBEAM_DRIVER_LOCATION_TRACKER__){
+    return;
+  }
+
+  window.__SUNBEAM_DRIVER_LOCATION_TRACKER__ = true;
+
   console.log("driver/location.js loaded");
 
   /* ===============================
@@ -7,17 +13,16 @@
   =============================== */
 
   function safeParse(v){
-
     try{
       return JSON.parse(v);
     }catch(err){
       return null;
     }
-
   }
 
   const driver =
     safeParse(localStorage.getItem("loggedDriver")) ||
+    safeParse(localStorage.getItem("loggedUser")) ||
     safeParse(localStorage.getItem("loggedUser")) ||
     safeParse(localStorage.getItem("user")) ||
     null;
@@ -28,10 +33,13 @@
   }
 
   const role =
-    String(driver.role || localStorage.getItem("role") || "")
-    .toLowerCase();
+    String(
+      driver.role ||
+      localStorage.getItem("role") ||
+      "driver"
+    ).toLowerCase();
 
-  if(role && role !== "driver"){
+  if(role !== "driver"){
     console.log("NOT DRIVER SESSION");
     return;
   }
@@ -124,7 +132,7 @@
         Math.abs(lat - lastLat) +
         Math.abs(lng - lastLng);
 
-      if(moved > MOVE_FILTER){
+      if(moved >= MOVE_FILTER){
         return true;
       }
 
@@ -148,9 +156,6 @@
       return;
     }
 
-    const tripId =
-      getActiveTripId();
-
     try{
 
       const res =
@@ -164,7 +169,7 @@
             name: DRIVER_NAME,
             phone: DRIVER_PHONE,
             vehicleNumber: VEHICLE_NUMBER,
-            tripId,
+            tripId: getActiveTripId(),
             routeMode: localStorage.getItem("driverRouteMode") || "",
             lat,
             lng
@@ -181,17 +186,13 @@
       });
 
       if(res.ok){
-
         lastSentTime = Date.now();
         lastLat = lat;
         lastLng = lng;
-
       }
 
     }catch(err){
-
       console.log("LOCATION SEND ERROR:", err);
-
     }
 
   }
@@ -208,8 +209,7 @@
     }
 
     if(watchId !== null){
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
+      return;
     }
 
     watchId =
@@ -228,9 +228,7 @@
         },
 
         err => {
-
           console.log("GPS ERROR:", err);
-
         },
 
         {
@@ -259,6 +257,7 @@
 
     if(watchId !== null){
       navigator.geolocation.clearWatch(watchId);
+      watchId = null;
     }
 
   });
