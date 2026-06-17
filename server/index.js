@@ -270,25 +270,14 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
-app.get("/api/ping-live", (req,res)=>{
-  res.json({
-    success:true,
-    message:"index live route working"
-  });
-});
-
-const driverLocationRoutes =
-require("./routes/driverLocationRoutes");
+const liveDriverRoutes =
+require("./routes/liveDriverRoutes");
 
 app.use(
-  "/api/driver/location",
-  driverLocationRoutes
+  "/api",
+  liveDriverRoutes
 );
-
 app.use(
-  "/api/driver-location",
-  driverLocationRoutes
-);app.use(
   "/api/driver-schedule",
   driverScheduleRoutes
 );
@@ -866,35 +855,6 @@ app.use(
   "/api/dispatch",
   dispatchRoutes
 );
-
-/* =========================
-   LIVE DRIVER TRACKING
-========================= */
-
-const LiveDriver = require("./models/LiveDriver");
-
-app.get("/api/admin/live-drivers", async (req,res)=>{
-
-  try{
-
-    const drivers = await LiveDriver.find({});
-
-    const list = drivers.map(d => ({
-      tripId: d.tripId,
-      lat: d.lat,
-      lng: d.lng
-    }));
-
-    res.json(list);
-
-  }catch(err){
-
-    console.log(err);
-    res.json([]);
-
-  }
-
-});
 
 
 /* =========================
@@ -5141,55 +5101,6 @@ await finalizeIndividualTrip(
 
   }
 
-});
-
-/* =========================
-   LIVE DRIVER TRACKING
-========================= */
-app.post("/api/driver/location", (req, res) => {
-  try {
-    const { driverId, name, lat, lng } = req.body || {};
-
-    if (!name || lat === undefined || lng === undefined) {
-      return res.status(400).json({ message: "missing location data" });
-    }
-
-    const latNum = Number(lat);
-    const lngNum = Number(lng);
-
-    if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
-      return res.status(400).json({ message: "invalid coordinates" });
-    }
-
-    const key = String(driverId || name || "").trim();
-
-    if (!key) {
-      return res.status(400).json({ message: "missing driver key" });
-    }
-
-    liveDrivers.set(key, {
-      driverId: String(driverId || "").trim(),
-      name: normalizeText(name),
-      lat: latNum,
-      lng: lngNum,
-      time: Date.now()
-    });
-
-    res.json({ status: "ok" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "location save error" });
-  }
-});
-
-app.get("/api/admin/live-drivers", (req, res) => {
-  try {
-    const drivers = getFreshLiveDriversArray();
-    res.json(drivers);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "live drivers load error" });
-  }
 });
 
 
