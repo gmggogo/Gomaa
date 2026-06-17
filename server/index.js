@@ -42,7 +42,7 @@ const smartDispatchEngineRoutes =
 require("./routes/smartDispatchEngineRoutes");
 
 const driverLocationRoutes =
-require("./routes/driverLocation");
+require("./routes/driverLocationRoutes");
 
 app.use(
   "/api/driver/location",
