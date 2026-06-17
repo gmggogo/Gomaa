@@ -2053,21 +2053,17 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
       throw new Error("Driver current location is missing");
     }
 
-    /* 🔥 الجزء الصح */
-    originalRoutePoints = [
-      getPickup(trip),
-      driverLocationAtConfirm,
-      ...getExistingStops(trip),
-      getDropoff(trip)
-    ];
+   originalRoutePoints = [
+  driverLocationAtConfirm,
+  ...getExistingStops(trip),
+  getDropoff(trip)
+];
 
-    newRoutePoints = [
-      getPickup(trip),
-      driverLocationAtConfirm,
-      ...finalStops,
-      dropoffAfter
-    ];
-
+newRoutePoints = [
+  driverLocationAtConfirm,
+  ...finalStops,
+  dropoffAfter
+];
   }else{
 
     originalRoutePoints =
