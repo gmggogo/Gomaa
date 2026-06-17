@@ -1,8 +1,6 @@
 const express = require("express");
 const router = express.Router();
 
-const routeMap = require("../utils/routeMapEngine");
-
 /* =========================
    GLOBAL LIVE DRIVERS (SAFE INIT)
 ========================= */
@@ -13,48 +11,38 @@ global.liveDrivers = global.liveDrivers || new Map();
    RECEIVE DRIVER LOCATION
 ========================= */
 
-router.post("/", (req,res)=>{
+router.post("/", (req, res) => {
 
-  try{
+  try {
 
-    const { tripId, lat, lng } = req.body;
+    const { driverId, lat, lng } = req.body;
 
     /* =========================
        VALIDATION
     ========================= */
 
-    if(!tripId || lat === undefined || lng === undefined){
+    if (!driverId || lat === undefined || lng === undefined) {
       return res.status(400).json({
-        success:false,
-        message:"Missing data"
+        success: false,
+        message: "Missing data"
       });
     }
 
     const numLat = Number(lat);
     const numLng = Number(lng);
 
-    if(!Number.isFinite(numLat) || !Number.isFinite(numLng)){
+    if (!Number.isFinite(numLat) || !Number.isFinite(numLng)) {
       return res.status(400).json({
-        success:false,
-        message:"Invalid coordinates"
+        success: false,
+        message: "Invalid coordinates"
       });
     }
 
     /* =========================
-       UPDATE ROUTE ENGINE
+       UPDATE LIVE MAP ONLY
     ========================= */
 
-    try{
-      routeMap.updateLocation(tripId, numLat, numLng);
-    }catch(e){
-      console.log("Route engine error:", e);
-    }
-
-    /* =========================
-       UPDATE LIVE MAP (🔥 IMPORTANT)
-    ========================= */
-
-    global.liveDrivers.set(tripId,{
+    global.liveDrivers.set(driverId, {
       lat: numLat,
       lng: numLng,
       time: Date.now()
@@ -65,16 +53,16 @@ router.post("/", (req,res)=>{
     ========================= */
 
     return res.json({
-      success:true
+      success: true
     });
 
-  }catch(err){
+  } catch (err) {
 
-    console.log("DRIVER LOCATION ERROR:",err);
+    console.log("DRIVER LOCATION ERROR:", err);
 
     return res.status(500).json({
-      success:false,
-      message:"Server error"
+      success: false,
+      message: "Server error"
     });
 
   }
@@ -82,22 +70,26 @@ router.post("/", (req,res)=>{
 });
 
 /* =========================
-   OPTIONAL: CLEAN OLD DRIVERS (AUTO)
+   CLEAN OLD DRIVERS (AUTO)
 ========================= */
 
-setInterval(()=>{
+setInterval(() => {
 
   const now = Date.now();
   const MAX_AGE = 1000 * 60 * 5; // 5 minutes
 
-  global.liveDrivers.forEach((val,key)=>{
+  global.liveDrivers.forEach((val, key) => {
 
-    if(now - val.time > MAX_AGE){
+    if (now - val.time > MAX_AGE) {
       global.liveDrivers.delete(key);
     }
 
   });
 
-},60000);
+}, 60000);
+
+/* =========================
+   EXPORT
+========================= */
 
 module.exports = router;
