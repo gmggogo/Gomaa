@@ -1,5 +1,5 @@
 // ===============================
-// ADMIN LIVE MAP (FINAL VERSION)
+// ADMIN LIVE MAP (OPTIMIZED FINAL)
 // ===============================
 
 const map = L.map("map", {
@@ -11,115 +11,68 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
-const searchInput = document.getElementById("searchDriver");
-
-// ===============================
-// STATE
-// ===============================
-
 const driverMarkers = new Map();
-const driverPaths = new Map();          // 🔥 tracking path
-const driverPolylines = new Map();      // 🔥 drawn lines
-
-const carColors = [
-  "#2563eb","#dc2626","#16a34a",
-  "#f59e0b","#7c3aed","#0ea5e9"
-];
+const driverPaths = new Map();
+const driverPolylines = new Map();
 
 let firstLoad = true;
 
-// ===============================
-// ICON
-// ===============================
-
-function createCarIcon(color){
-  return L.divIcon({
-    html:`
-      <div style="
-        background:${color};
-        width:32px;height:32px;
-        border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:16px;
-        border:2px solid white;
-        box-shadow:0 0 6px rgba(0,0,0,0.5);
-      ">🚗</div>
-    `,
-    className:"",
-    iconSize:[32,32],
-    iconAnchor:[16,16]
-  });
-}
-
-// ===============================
-// DISTANCE (Haversine)
-// ===============================
+/* ===============================
+   DISTANCE
+=============================== */
 
 function getDistance(a,b){
-
   const R = 6371;
 
   const dLat = (b.lat - a.lat) * Math.PI/180;
   const dLng = (b.lng - a.lng) * Math.PI/180;
 
-  const lat1 = a.lat * Math.PI/180;
-  const lat2 = b.lat * Math.PI/180;
-
   const x =
-    Math.sin(dLat/2)*Math.sin(dLat/2) +
-    Math.sin(dLng/2)*Math.sin(dLng/2) *
-    Math.cos(lat1)*Math.cos(lat2);
+    Math.sin(dLat/2)**2 +
+    Math.cos(a.lat*Math.PI/180) *
+    Math.cos(b.lat*Math.PI/180) *
+    Math.sin(dLng/2)**2;
 
-  const y = 2 * Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
-
-  return R * y; // km
+  return R * 2 * Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 
-// ===============================
-// DRAW PATH
-// ===============================
+/* ===============================
+   DRAW PATH
+=============================== */
 
-function drawDriverPath(name){
+function drawPath(id){
 
-  const path = driverPaths.get(name);
+  const path = driverPaths.get(id);
   if(!path || path.length < 2) return;
 
   const latlngs = path.map(p => [p.lat,p.lng]);
 
-  if(driverPolylines.has(name)){
-    driverPolylines.get(name).setLatLngs(latlngs);
+  if(driverPolylines.has(id)){
+    driverPolylines.get(id).setLatLngs(latlngs);
   }else{
-    const polyline = L.polyline(latlngs,{
+    const poly = L.polyline(latlngs,{
       color:"#16a34a",
       weight:4
     }).addTo(map);
 
-    driverPolylines.set(name,polyline);
+    driverPolylines.set(id,poly);
   }
 }
 
-// ===============================
-// CALCULATE DRIVEN MILES
-// ===============================
+/* ===============================
+   LOAD DRIVERS (SMART)
+=============================== */
 
-function calculateDrivenMiles(path){
-
-  if(!path || path.length < 2) return 0;
-
-  let total = 0;
-
-  for(let i=1;i<path.length;i++){
-    total += getDistance(path[i-1],path[i]);
-  }
-
-  return total * 0.621371; // miles
-}
-
-// ===============================
-// LOAD DRIVERS
-// ===============================
+let lastFetchTime = 0;
 
 async function loadLiveDrivers(){
+
+  const now = Date.now();
+
+  // 🔥 حماية من spam
+  if(now - lastFetchTime < 25000) return;
+
+  lastFetchTime = now;
 
   try{
 
@@ -127,128 +80,69 @@ async function loadLiveDrivers(){
     const drivers = await res.json();
 
     const bounds = [];
-    const currentNames = drivers.map(d => d.name);
 
-    // REMOVE OLD DRIVERS
-    driverMarkers.forEach((obj,name)=>{
-      if(!currentNames.includes(name)){
-        map.removeLayer(obj.marker);
-        map.removeLayer(obj.label);
-
-        if(driverPolylines.has(name)){
-          map.removeLayer(driverPolylines.get(name));
-          driverPolylines.delete(name);
-        }
-
-        driverMarkers.delete(name);
-        driverPaths.delete(name);
-      }
-    });
-
-    // UPDATE DRIVERS
     drivers.forEach((driver,index)=>{
 
       if(!driver.lat || !driver.lng) return;
 
+      const id = driver.tripId || ("d"+index);
       const lat = driver.lat;
       const lng = driver.lng;
-      const name = driver.name;
 
       bounds.push([lat,lng]);
 
-      // ===============================
-      // TRACK PATH
-      // ===============================
+      /* ===============================
+         PATH TRACKING
+      =============================== */
 
-      if(!driverPaths.has(name)){
-        driverPaths.set(name,[]);
+      if(!driverPaths.has(id)){
+        driverPaths.set(id,[]);
       }
 
-      const path = driverPaths.get(name);
+      const path = driverPaths.get(id);
       const last = path[path.length - 1];
 
-      if(!last || getDistance(last,{lat,lng}) > 0.03){
+      if(!last || getDistance(last,{lat,lng}) > 0.01){
 
         path.push({lat,lng});
 
-        if(path.length > 300){
+        if(path.length > 200){
           path.shift();
         }
 
-        drawDriverPath(name);
+        drawPath(id);
       }
 
-      // ===============================
-      // MARKER
-      // ===============================
+      /* ===============================
+         MARKER
+      =============================== */
 
-      if(driverMarkers.has(name)){
+      if(driverMarkers.has(id)){
 
-        const obj = driverMarkers.get(name);
-
-        obj.marker.setLatLng([lat,lng]);
-        obj.label.setLatLng([lat,lng]);
+        driverMarkers.get(id).setLatLng([lat,lng]);
 
       }else{
 
-        const color = carColors[index % carColors.length];
+        const marker = L.marker([lat,lng]).addTo(map);
+        driverMarkers.set(id,marker);
 
-        const marker = L.marker([lat,lng],{
-          icon:createCarIcon(color)
-        }).addTo(map);
-
-        const label = L.marker([lat,lng],{
-          icon:L.divIcon({
-            html:`<div class="driver-label">${name}</div>`,
-            className:"",
-            iconAnchor:[0,-20]
-          })
-        }).addTo(map);
-
-        driverMarkers.set(name,{marker,label});
       }
 
     });
 
-    if(bounds.length>0 && firstLoad){
+    if(bounds.length && firstLoad){
       map.fitBounds(bounds,{padding:[50,50]});
       firstLoad=false;
     }
 
   }catch(err){
-    console.error("LIVE MAP ERROR",err);
+    console.log("MAP ERROR",err);
   }
 }
 
-// ===============================
-// SEARCH
-// ===============================
+/* ===============================
+   REFRESH (LOW REQUESTS)
+=============================== */
 
-if(searchInput){
-
-  searchInput.addEventListener("input",()=>{
-
-    const value = searchInput.value.toLowerCase();
-
-    driverMarkers.forEach((obj,name)=>{
-
-      const visible = name.toLowerCase().includes(value);
-
-      const markerEl = obj.marker.getElement();
-      const labelEl = obj.label.getElement();
-
-      if(markerEl) markerEl.style.display = visible ? "block" : "none";
-      if(labelEl) labelEl.style.display = visible ? "block" : "none";
-
-    });
-
-  });
-
-}
-
-// ===============================
-// REFRESH (🔥 optimized)
-// ===============================
-
-setInterval(loadLiveDrivers,10000);
+setInterval(loadLiveDrivers,30000);
 loadLiveDrivers();

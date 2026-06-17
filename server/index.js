@@ -41,6 +41,9 @@ require("./routes/driverScheduleRoutes");
 const smartDispatchEngineRoutes =
 require("./routes/smartDispatchEngineRoutes");
 
+const driverLocationRoutes =
+require("./routes/driverLocationRoutes");
+
 const Service =
 require("./models/Service");const {
   sendTripStatusEmail
@@ -301,6 +304,11 @@ app.use(
 app.use(
   "/api/services",
   serviceRoutes
+);
+
+app.use(
+  "/api/driver/location",
+  driverLocationRoutes
 );
 
 /* =========================
@@ -850,7 +858,7 @@ app.use(
 /* =========================
    LIVE DRIVER TRACKING
 ========================= */
-const liveDrivers = new Map();
+global.liveDrivers = new Map();
 
 /* =========================
    GEO CACHE
