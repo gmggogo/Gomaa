@@ -4,11 +4,19 @@
 
 <div class="top-bar">
 
+  <!-- MOBILE MENU BUTTON -->
+
+  <button
+    type="button"
+    class="mobile-menu-btn"
+    id="mobileMenuBtn"
+    aria-label="Open Menu">
+    ☰
+  </button>
+
   <!-- LEFT -->
 
   <div class="top-left">
-
-    <!-- 🔥 Dynamic Logo -->
 
     <img
       class="logo app-logo main-logo"
@@ -19,8 +27,6 @@
   <!-- CENTER -->
 
   <div class="top-center">
-
-    <!-- 🔥 Dynamic Company -->
 
     <div
       class="company"
@@ -44,8 +50,6 @@
 
   <div class="top-right">
 
-    <!-- 🔥 Dynamic Time -->
-
     <span id="azTime"></span>
 
     <button
@@ -60,11 +64,13 @@
 
 </div>
 
-<!-- ================= NAV ================= -->
+<!-- ================= DESKTOP NAV ================= -->
 
 <div class="admin-nav-wrapper">
 
-<nav class="admin-nav">
+<nav
+  class="admin-nav"
+  id="adminDesktopNav">
 
 <a href="dashboard.html" class="nav-btn">
 Dashboard
@@ -115,29 +121,22 @@ Refunds
 </a>
 
 <a href="admin-billing.html" class="nav-btn">
-Admin-billing
+Admin Billing
 </a>
 
 <a href="system-design.html" class="nav-btn">
 System Design
 </a>
 
-<a
-href="service-management.html"
-class="nav-btn">
-
+<a href="service-management.html" class="nav-btn">
 Service Management
-
 </a>
 
 <a href="smart-dispatch-engine.html" class="nav-btn">
-  Smart Dispatch
-
+Smart Dispatch
 </a>
 
 </nav>
-
-<!-- 🔥 GH -->
 
 <div class="gh-powered">
 
@@ -147,90 +146,60 @@ Powered by GH Mobility
 
 </div>
 
+<!-- ================= MOBILE SIDE MENU ================= -->
+
+<div
+  class="mobile-menu-overlay"
+  id="mobileMenuOverlay">
+</div>
+
+<aside
+  class="mobile-side-menu"
+  id="mobileSideMenu">
+
+  <div class="mobile-side-head">
+
+    <img
+      class="mobile-side-logo app-logo"
+      alt="Company Logo">
+
+    <div class="mobile-side-title">
+
+      <div id="mobileCompanyName">
+        Company
+      </div>
+
+      <small>
+        Admin Panel
+      </small>
+
+    </div>
+
+    <button
+      type="button"
+      class="mobile-close-btn"
+      id="mobileCloseBtn">
+      ×
+    </button>
+
+  </div>
+
+  <nav
+    class="mobile-side-nav"
+    id="mobileSideNav">
+  </nav>
+
+  <button
+    type="button"
+    class="mobile-logout-btn"
+    onclick="logout()">
+    🚪 Logout
+  </button>
+
+  <div class="mobile-powered">
+    GH Mobility
+  </div>
+
+</aside>
+
 </header>
-
-<style>
-
-.admin-nav-wrapper{
-
-background:#111827;
-
-}
-
-.top-center{
-
-display:flex;
-
-flex-direction:column;
-
-align-items:center;
-
-justify-content:center;
-
-}
-
-.company{
-
-font-size:22px;
-
-font-weight:900;
-
-color:#facc15;
-
-margin-bottom:4px;
-
-text-align:center;
-
-}
-
-.logout-btn{
-
-background:#dc2626;
-
-color:#fff;
-
-border:none;
-
-padding:10px 16px;
-
-border-radius:10px;
-
-font-weight:700;
-
-cursor:pointer;
-
-transition:.2s;
-
-}
-
-.logout-btn:hover{
-
-background:#b91c1c;
-
-}
-
-.gh-powered{
-
-width:100%;
-
-display:flex;
-
-justify-content:flex-start;
-
-align-items:center;
-
-font-size:10px;
-
-color:#cbd5e1;
-
-opacity:.75;
-
-padding:4px 14px 6px;
-
-letter-spacing:.5px;
-
-border-top:1px solid rgba(255,255,255,.05);
-
-}
-
-</style>
