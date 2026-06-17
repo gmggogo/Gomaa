@@ -9,13 +9,21 @@ global.liveDrivers = global.liveDrivers || new Map();
 
 /* =========================
    RECEIVE DRIVER LOCATION
+   POST /api/driver-location
 ========================= */
 
 router.post("/", (req, res) => {
 
   try {
 
-    const { driverId, lat, lng } = req.body;
+    const {
+      driverId,
+      lat,
+      lng,
+      name,
+      phone,
+      vehicleNumber
+    } = req.body;
 
     /* =========================
        VALIDATION
@@ -39,13 +47,20 @@ router.post("/", (req, res) => {
     }
 
     /* =========================
-       UPDATE LIVE MAP ONLY
+       UPDATE LIVE DRIVER
     ========================= */
 
-    global.liveDrivers.set(driverId, {
+    const id = String(driverId);
+
+    global.liveDrivers.set(id, {
+      driverId: id,
+      name: name || "",
+      phone: phone || "",
+      vehicleNumber: vehicleNumber || "",
       lat: numLat,
       lng: numLng,
-      time: Date.now()
+      time: Date.now(),
+      online: true
     });
 
     /* =========================
@@ -53,7 +68,12 @@ router.post("/", (req, res) => {
     ========================= */
 
     return res.json({
-      success: true
+      success: true,
+      driver: {
+        driverId: id,
+        lat: numLat,
+        lng: numLng
+      }
     });
 
   } catch (err) {
@@ -70,23 +90,123 @@ router.post("/", (req, res) => {
 });
 
 /* =========================
+   GET LIVE DRIVERS
+   GET /api/driver-location/live
+========================= */
+
+router.get("/live", (req, res) => {
+
+  try {
+
+    const now = Date.now();
+    const MAX_AGE = 1000 * 60 * 5; // 5 minutes
+
+    const drivers = [];
+
+    global.liveDrivers.forEach((val, key) => {
+
+      if (!val || !val.time) return;
+
+      if (now - val.time > MAX_AGE) {
+        global.liveDrivers.delete(key);
+        return;
+      }
+
+      drivers.push({
+        driverId: val.driverId || String(key),
+        name: val.name || "",
+        phone: val.phone || "",
+        vehicleNumber: val.vehicleNumber || "",
+        lat: Number(val.lat),
+        lng: Number(val.lng),
+        time: val.time,
+        online: true
+      });
+
+    });
+
+    return res.json({
+      success: true,
+      count: drivers.length,
+      drivers
+    });
+
+  } catch (err) {
+
+    console.log("LIVE DRIVERS ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load live drivers",
+      count: 0,
+      drivers: []
+    });
+
+  }
+
+});
+
+/* =========================
+   GET ONE DRIVER
+   GET /api/driver-location/:driverId
+========================= */
+
+router.get("/:driverId", (req, res) => {
+
+  try {
+
+    const driverId = String(req.params.driverId || "");
+    const driver = global.liveDrivers.get(driverId);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not online"
+      });
+    }
+
+    return res.json({
+      success: true,
+      driver
+    });
+
+  } catch (err) {
+
+    console.log("ONE DRIVER LOCATION ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+
+  }
+
+});
+
+/* =========================
    CLEAN OLD DRIVERS (AUTO)
 ========================= */
 
-setInterval(() => {
+if (!global.liveDriversCleanerStarted) {
 
-  const now = Date.now();
-  const MAX_AGE = 1000 * 60 * 5; // 5 minutes
+  global.liveDriversCleanerStarted = true;
 
-  global.liveDrivers.forEach((val, key) => {
+  setInterval(() => {
 
-    if (now - val.time > MAX_AGE) {
-      global.liveDrivers.delete(key);
-    }
+    const now = Date.now();
+    const MAX_AGE = 1000 * 60 * 5; // 5 minutes
 
-  });
+    global.liveDrivers.forEach((val, key) => {
 
-}, 60000);
+      if (!val || !val.time || now - val.time > MAX_AGE) {
+        global.liveDrivers.delete(key);
+      }
+
+    });
+
+  }, 60000);
+
+}
 
 /* =========================
    EXPORT

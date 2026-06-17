@@ -41,13 +41,6 @@ require("./routes/driverScheduleRoutes");
 const smartDispatchEngineRoutes =
 require("./routes/smartDispatchEngineRoutes");
 
-const driverLocationRoutes =
-require("./routes/driverLocationRoutes");
-
-app.use(
-  "/api/driver/location",
-  driverLocationRoutes
-);
 
 const Service =
 require("./models/Service");const {
@@ -277,6 +270,18 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
+const driverLocationRoutes =
+require("./routes/driverLocationRoutes");
+
+app.use(
+  "/api/driver/location",
+  driverLocationRoutes
+);
+
+app.use(
+  "/api/driver-location",
+  driverLocationRoutes
+);
 app.use(
   "/api/driver-schedule",
   driverScheduleRoutes
