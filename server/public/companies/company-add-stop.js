@@ -39,9 +39,7 @@ const API_ADD_STOP_CONFIRM = id =>
   `/api/company/add-stop/${encodeURIComponent(id)}/confirm`;
 
 const DRIVER_LOCATION_ENDPOINTS = id => [
-  `/api/track-driver/trip/${encodeURIComponent(id)}`,
-  `/api/driver-location/trip/${encodeURIComponent(id)}`,
-  `/api/dispatch/track-driver/${encodeURIComponent(id)}`
+  "/api/admin/live-drivers"
 ];
 
 /* ================= STATE ================= */
@@ -1150,39 +1148,70 @@ function getDriverLocationFromTrip(trip){
 
 async function fetchDriverLocationFromServer(id){
 
-  const endpoints =
-    DRIVER_LOCATION_ENDPOINTS(id);
+  try{
 
-  for(const url of endpoints){
+    const res =
+      await fetch("/api/admin/live-drivers",{
+        cache:"no-store"
+      });
 
-    try{
+    if(!res.ok){
+      return null;
+    }
 
-      const res =
-        await fetch(
-          url,
-          {
-            headers:{
-              Authorization:"Bearer " + token
-            }
-          }
+    const list =
+      await res.json().catch(()=>[]);
+
+    if(!Array.isArray(list)){
+      return null;
+    }
+
+    const trip =
+      currentTrip || {};
+
+    const tripObjectId =
+      String(trip._id || id || tripId || "");
+
+    const tripDriverId =
+      String(
+        trip.driverId ||
+        trip.driver ||
+        trip.assignedDriverId ||
+        ""
+      );
+
+    const found =
+      list.find(d=>{
+
+        const liveTripId =
+          String(d.tripId || "");
+
+        const liveDriverId =
+          String(d.driverId || "");
+
+        return (
+          liveTripId === tripObjectId ||
+          liveTripId === String(tripId || "") ||
+          (
+            tripDriverId &&
+            liveDriverId === tripDriverId
+          )
         );
 
-      if(!res.ok) continue;
+      });
 
-      const data =
-        await res.json().catch(()=>null);
-
-      const loc =
-        extractLatLngFromObject(data);
-
-      if(loc) return loc;
-
-    }catch(err){
-      console.log("DRIVER LOCATION ERROR:",url,err);
+    if(!found){
+      return null;
     }
-  }
 
-  return null;
+    return extractLatLngFromObject(found);
+
+  }catch(err){
+
+    console.log("LIVE DRIVER LOCATION ERROR:",err);
+    return null;
+
+  }
 }
 
 async function getFreshDriverLocation(trip){
@@ -1285,6 +1314,7 @@ function ensureSubmitBox(){
 
   return box;
 }
+
 function getSubmitButtonText(){
 
   const parts = [];
@@ -1643,10 +1673,6 @@ function renderRouteEditor(trip){
       isLast
     });
 
-    /*
-      Add Stop يظهر بعد Pickup وبعد كل Existing Stop فقط.
-      مفيش Add Stop بعد Dropoff.
-    */
     if(!isLast){
 
       let label = "";
@@ -2002,25 +2028,8 @@ function buildNewRouteBeforeStart(trip,finalStops,dropoffAfter){
   ].filter(Boolean);
 }
 
-function buildOriginalRemainingRouteInProgress(driverLocation,trip){
-
-  return [
-    driverLocation,
-    ...getExistingStops(trip),
-    getDropoff(trip)
-  ].filter(Boolean);
-}
-
-function buildNewRemainingRouteInProgress(driverLocation,finalStops,dropoffAfter){
-
-  return [
-    driverLocation,
-    ...finalStops,
-    dropoffAfter
-  ].filter(Boolean);
-}
-
 /* ================= CALCULATION ================= */
+
 async function calculateFinalRouteChange(trip,addedStopObjects){
 
   const pickup = getPickup(trip);
@@ -2028,6 +2037,9 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
   const dropoffAfter = getFinalDropoff();
 
   const existingStopsBefore = getExistingStops(trip);
+
+  const editedExistingStops =
+    getEditedExistingStops(trip);
 
   const finalStops = buildFinalStops(
     existingStopsBefore,
@@ -2053,17 +2065,20 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
       throw new Error("Driver current location is missing");
     }
 
-   originalRoutePoints = [
-  driverLocationAtConfirm,
-  ...getExistingStops(trip),
-  getDropoff(trip)
-];
+    originalRoutePoints = [
+      pickup,
+      driverLocationAtConfirm,
+      ...existingStopsBefore,
+      dropoffBefore
+    ].filter(Boolean);
 
-newRoutePoints = [
-  driverLocationAtConfirm,
-  ...finalStops,
-  dropoffAfter
-];
+    newRoutePoints = [
+      pickup,
+      driverLocationAtConfirm,
+      ...finalStops,
+      dropoffAfter
+    ].filter(Boolean);
+
   }else{
 
     originalRoutePoints =
@@ -2100,10 +2115,16 @@ newRoutePoints = [
     dropoffAfter,
 
     existingStopsBefore,
+    editedExistingStops,
+
+    addedStops: addedStopObjects.map(s => s.address),
+    addedStopsDetailed: addedStopObjects,
+
     finalStops,
 
     originalRoutePoints,
     newRoutePoints,
+    finalRoutePoints: newRoutePoints,
 
     originalRemainingMiles:originalRoute.miles,
     newRemainingMiles:newRoute.miles,
@@ -2114,6 +2135,7 @@ newRoutePoints = [
     newRouteData:newRoute
   };
 }
+
 /* ================= SERVER SEND ================= */
 
 async function notifyServerAddStop(payload){
@@ -2440,15 +2462,6 @@ document.addEventListener("click",e=>{
   if(action === "cancel-dropoff-edit"){
     cancelDropoffEdit();
     return;
-  }
-});
-
-document.addEventListener("click",e=>{
-  const submitBtn =
-    e.target.closest("#submitAddStopRequestBtn");
-
-  if(submitBtn){
-    finalSubmitAddStop();
   }
 });
 
