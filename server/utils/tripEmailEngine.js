@@ -1,7 +1,5 @@
 const nodemailer = require("nodemailer");
-
-const SystemDesign =
-require("../models/SystemDesign");
+const SystemDesign = require("../models/SystemDesign");
 
 /* =========================
    CREATE TRANSPORTER
@@ -9,32 +7,44 @@ require("../models/SystemDesign");
 function createEmailTransporter(settings){
 
   return nodemailer.createTransport({
-
-    host:
-      settings?.smtpHost ||
-      "smtp.zoho.com",
-
-    port:
-      Number(
-        settings?.smtpPort || 465
-      ),
-
+    host: settings?.smtpHost || "smtp.zoho.com",
+    port: Number(settings?.smtpPort || 465),
     secure:true,
-
     auth:{
-
-      user:
-        settings?.smtpUser ||
-        process.env.EMAIL_USER,
-
-      pass:
-        settings?.smtpPass ||
-        process.env.EMAIL_PASS
-
+      user: settings?.smtpUser || process.env.EMAIL_USER,
+      pass: settings?.smtpPass || process.env.EMAIL_PASS
     }
-
   });
 
+}
+
+/* =========================
+   TIME FORMAT
+========================= */
+function formatTripDateTime(trip, timezone){
+
+  const d = String(trip.tripDate || "").trim();
+  const t = String(trip.tripTime || "").trim();
+
+  if(!d || !t){
+    return { date:d, time:t };
+  }
+
+  const dateObj = new Date(`${d} ${t}`);
+
+  return {
+    date: dateObj.toLocaleDateString("en-US",{
+      timeZone: timezone || "America/Phoenix",
+      year:"numeric",
+      month:"long",
+      day:"numeric"
+    }),
+    time: dateObj.toLocaleTimeString("en-US",{
+      timeZone: timezone || "America/Phoenix",
+      hour:"numeric",
+      minute:"2-digit"
+    })
+  };
 }
 
 /* =========================
@@ -44,17 +54,12 @@ function isCompanyTrip(trip){
 
   const type =
     String(trip?.type || "")
-      .toLowerCase()
-      .trim();
+      .toLowerCase();
 
   return (
-
     !!trip?.company ||
-
     type.includes("company") ||
-
     type.includes("facility")
-
   );
 
 }
@@ -64,49 +69,35 @@ function isCompanyTrip(trip){
 ========================= */
 function buildCancelLink(trip){
 
-  if(!trip?.cancelToken){
-    return "";
-  }
+  if(!trip?.cancelToken) return "";
 
-  return `
-    https://sunbeam-933q.onrender.com/booking/cancel.html?token=${trip.cancelToken}
-  `;
+  return `https://sunbeam-933q.onrender.com/booking/cancel.html?token=${trip.cancelToken}`;
+}
 
+/* =========================
+   ADD STOP LINK  🔥🔥🔥
+========================= */
+function buildAddStopLink(trip){
+
+  if(!trip?.publicActionToken) return "";
+
+  return `https://sunbeam-933q.onrender.com/booking/add-stop.html?tripId=${trip._id}&token=${trip.publicActionToken}`;
 }
 
 /* =========================
    SEND EMAIL
 ========================= */
-async function sendTripStatusEmail(
-  trip,
-  type
-){
+async function sendTripStatusEmail(trip, type){
 
   try{
 
-    if(!trip){
+    if(!trip) return;
+
+    if(!trip.clientEmail || isCompanyTrip(trip)){
       return;
     }
 
-    /* =========================
-       NO EMAIL
-    ========================= */
-
-    if(
-      !trip.clientEmail ||
-      isCompanyTrip(trip)
-    ){
-      return;
-    }
-
-    /* =========================
-       DUPLICATE PROTECTION
-    ========================= */
-
-    if(
-      type === "CONFIRMED" &&
-      trip.confirmationEmailSent === true
-    ){
+    if(type === "CONFIRMED" && trip.confirmationEmailSent){
       return;
     }
 
@@ -116,23 +107,19 @@ async function sendTripStatusEmail(
     const transporter =
       createEmailTransporter(settings);
 
-    const companyName =
+    const timezone =
+      settings?.timezone || "America/Phoenix";
 
-      settings?.companyName ||
-
-      "Sunbeam Transportation";
-
-    const companyEmail =
-
-      settings?.smtpUser ||
-
-      process.env.EMAIL_USER;
+    const formatted =
+      formatTripDateTime(trip, timezone);
 
     const cancelLink =
       buildCancelLink(trip);
 
-    let subject = "";
+    const addStopLink =
+      buildAddStopLink(trip);
 
+    let subject = "";
     let statusBlock = "";
 
 /* =========================
@@ -141,47 +128,46 @@ async function sendTripStatusEmail(
 
 if(type === "CONFIRMED"){
 
-  subject =
-    "Trip Confirmation";
+  subject = "Trip Confirmation";
 
   statusBlock = `
 
-    <p>
-      Your booking has been confirmed.
-    </p>
+    <p>Your booking has been confirmed.</p>
 
-    <p>
-      <b>Total Paid:</b>
-      $${Number(
-        trip.priceAmount || 0
-      ).toFixed(2)}
-    </p>
+    <p><b>Total Paid:</b> $${Number(trip.priceAmount || 0).toFixed(2)}</p>
 
-    ${
-      cancelLink
-      ? `
-      <hr/>
+    <hr/>
 
-      <a
-        href="${cancelLink}"
-        style="
-          display:inline-block;
-          padding:12px 18px;
-          background:#dc2626;
-          color:#fff;
-          text-decoration:none;
-          border-radius:8px;
-          font-weight:bold;
-        "
-      >
-        Cancel Trip
-      </a>
-      `
-      : ""
-    }
+    ${addStopLink ? `
+    <a href="${addStopLink}" style="
+      display:inline-block;
+      padding:12px 18px;
+      background:#2563eb;
+      color:#fff;
+      text-decoration:none;
+      border-radius:8px;
+      font-weight:bold;
+      margin-right:10px;
+    ">
+      Add Stop
+    </a>
+    ` : ""}
+
+    ${cancelLink ? `
+    <a href="${cancelLink}" style="
+      display:inline-block;
+      padding:12px 18px;
+      background:#dc2626;
+      color:#fff;
+      text-decoration:none;
+      border-radius:8px;
+      font-weight:bold;
+    ">
+      Cancel Trip
+    </a>
+    ` : ""}
 
   `;
-
 }
 
 /* =========================
@@ -190,199 +176,41 @@ if(type === "CONFIRMED"){
 
 else if(type === "REMINDER"){
 
-  subject =
-    "Trip Reminder";
+  subject = "Trip Reminder";
 
   statusBlock = `
-
-    <p>
-      Your trip is in less than 2 hours.
-    </p>
-
-    ${
-      cancelLink
-      ? `
-      <hr/>
-
-      <a
-        href="${cancelLink}"
-        style="
-          display:inline-block;
-          padding:12px 18px;
-          background:#dc2626;
-          color:#fff;
-          text-decoration:none;
-          border-radius:8px;
-          font-weight:bold;
-        "
-      >
-        Cancel Trip
-      </a>
-      `
-      : ""
-    }
-
+    <p>Your trip is in less than 2 hours.</p>
   `;
-
-}
-
-/* =========================
-   CANCELLED
-========================= */
-
-else if(type === "CANCELLED"){
-
-  subject =
-    "Trip Cancelled";
-
-  statusBlock = `
-
-    <p>
-      Your trip has been cancelled.
-    </p>
-
-    <p>
-      <b>Refund:</b>
-      $${Number(
-        trip.refundAmount || 0
-      ).toFixed(2)}
-    </p>
-
-    <p>
-      <b>Cancel Fee:</b>
-      $${Number(
-        trip.cancelFee || 0
-      ).toFixed(2)}
-    </p>
-
-    <p>
-      <b>Refund Status:</b>
-      ${trip.refundStatus || "none"}
-    </p>
-
-  `;
-
-}
-
-/* =========================
-   NO SHOW
-========================= */
-
-else if(type === "NOSHOW"){
-
-  subject =
-    "No Show Charge";
-
-  statusBlock = `
-
-    <p>
-      Trip marked as No Show.
-    </p>
-
-    <p>
-      <b>No Show Fee:</b>
-      $${Number(
-        trip.noShowFee || 0
-      ).toFixed(2)}
-    </p>
-
-  `;
-
-}
-
-/* =========================
-   COMPLETED
-========================= */
-
-else if(type === "COMPLETED"){
-
-  subject =
-    "Trip Completed";
-
-  statusBlock = `
-
-    <p>
-      Thank you for riding with us.
-    </p>
-
-    <p>
-      <b>Total:</b>
-      $${Number(
-        trip.finalPrice || 0
-      ).toFixed(2)}
-    </p>
-
-  `;
-
 }
 
 else{
-
   return;
-
 }
 
 /* =========================
-   SEND EMAIL
+   SEND
 ========================= */
 
 await transporter.sendMail({
 
-  from:
-  `"${companyName}" <${companyEmail}>`,
-
-  to:
-  trip.clientEmail,
-
+  from:`"${settings?.companyName || "Sunbeam"}" <${settings?.smtpUser || process.env.EMAIL_USER}>`,
+  to:trip.clientEmail,
   subject,
 
   html:`
 
-  <div
-    style="
-      font-family:Arial;
-      max-width:650px;
-      margin:auto;
-      padding:20px;
-      border:1px solid #e5e7eb;
-      border-radius:12px;
-    "
-  >
+  <div style="font-family:Arial;max-width:650px;margin:auto;padding:20px;border:1px solid #e5e7eb;border-radius:12px;">
 
-    <h2
-      style="
-        color:#0f172a;
-      "
-    >
-      ${subject}
-    </h2>
+    <h2>${subject}</h2>
 
     <hr/>
 
-    <p>
-      <b>Trip #:</b>
-      ${trip.tripNumber || ""}
-    </p>
+    <p><b>Trip #:</b> ${trip.tripNumber || ""}</p>
+    <p><b>Pickup:</b> ${trip.pickup || ""}</p>
+    <p><b>Dropoff:</b> ${trip.dropoff || ""}</p>
 
-    <p>
-      <b>Pickup:</b>
-      ${trip.pickup || ""}
-    </p>
-
-    <p>
-      <b>Dropoff:</b>
-      ${trip.dropoff || ""}
-    </p>
-
-    <p>
-      <b>Date:</b>
-      ${trip.tripDate || ""}
-    </p>
-
-    <p>
-      <b>Time:</b>
-      ${trip.tripTime || ""}
-    </p>
+    <p><b>Date:</b> ${formatted.date}</p>
+    <p><b>Time:</b> ${formatted.time}</p>
 
     <hr/>
 
@@ -394,59 +222,12 @@ await transporter.sendMail({
 
 });
 
-    /* =========================
-       SAVE CONFIRM FLAG
-    ========================= */
-
-    if(type === "CONFIRMED"){
-
-      const Trip =
-        require("../index").Trip ||
-        require("../models/Trip");
-
-      try{
-
-        await Trip.findByIdAndUpdate(
-          trip._id,
-          {
-            confirmationEmailSent:true
-          }
-        );
-
-      }catch(saveErr){
-
-        console.log(
-          "CONFIRM FLAG ERROR:",
-          saveErr
-        );
-
-      }
-
-    }
-
-    console.log(
-      "EMAIL SENT:",
-      type,
-      trip.tripNumber
-    );
-
   }catch(err){
-
-    console.log(
-      "EMAIL ENGINE ERROR:",
-      err
-    );
-
+    console.log("EMAIL ERROR:",err);
   }
 
 }
 
-/* =========================
-   EXPORT
-========================= */
-
 module.exports = {
-
   sendTripStatusEmail
-
 };
