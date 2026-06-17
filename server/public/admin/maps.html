@@ -5,127 +5,194 @@
 <title>Admin Live Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet"
- href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/header.css">
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<link rel="stylesheet" href="/admin/maps.css">
 
 <style>
-html,body{
+html,
+body{
   margin:0;
+  width:100%;
   height:100%;
   background:#020617;
-  font-family:Arial;
-  color:#fff;
+  font-family:Arial, sans-serif;
+  overflow:hidden;
 }
 
-/* ================= HEADER ================= */
-.header{
+/* =========================
+   ADMIN HEADER HOLDER
+========================= */
+
+#adminHeader{
   position:fixed;
   top:0;
   left:0;
-  right:0;
-  height:80px;
-  background:linear-gradient(90deg,#0b1f3a,#123a7a);
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  padding:0 20px;
-  border-bottom:2px solid #facc15;
-  z-index:9999;
+  width:100%;
+  z-index:10000;
 }
 
-.header-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+/* =========================
+   MAP PAGE
+========================= */
 
-.title-box{
-  text-align:center;
-  flex:1;
-}
-
-.title-box h2{
-  margin:0;
-  font-size:18px;
-  color:#facc15;
-}
-
-.title-box span{
-  font-size:13px;
-  color:#fff;
-}
-
-.right-box{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.search{
-  padding:6px 10px;
-  border-radius:8px;
-  border:none;
-}
-
-.back{
-  background:#facc15;
-  border:none;
-  padding:6px 14px;
-  border-radius:8px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-/* ================= MAP ================= */
-#map{
+.map-page{
   position:absolute;
   top:80px;
   left:0;
   right:0;
   bottom:0;
+  background:#020617;
+}
+
+#map{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:1;
+}
+
+/* =========================
+   SMALL TITLE OVER MAP
+========================= */
+
+.map-title-box{
+  position:fixed;
+  top:92px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:9998;
+  background:rgba(15,23,42,.92);
+  color:white;
+  padding:8px 18px;
+  border-radius:999px;
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+  text-align:center;
+  pointer-events:none;
+}
+
+.map-title-box h2{
+  margin:0;
+  font-size:14px;
+  color:#facc15;
+  font-weight:900;
+}
+
+.map-title-box span{
+  display:block;
+  font-size:11px;
+  color:#cbd5e1;
+  margin-top:2px;
+  font-weight:700;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:800px){
+
+  .map-page{
+    top:75px;
+  }
+
+  .map-title-box{
+    top:84px;
+    padding:6px 12px;
+  }
+
+  .map-title-box h2{
+    font-size:12px;
+  }
+
+  .map-title-box span{
+    font-size:10px;
+  }
+
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">
+<!-- ADMIN MAIN HEADER -->
+<div id="adminHeader"></div>
 
-  <div class="header-top">
-    <button class="back" onclick="goBack()">Back</button>
-
-    <div class="title-box">
-      <h2>Sunbeam Transportation</h2>
-      <span>DRIVERS MAP</span>
-    </div>
-
-    <div class="right-box">
-      <span id="liveTime"></span>
-      <input id="searchDriver" class="search" placeholder="Search driver">
-    </div>
-  </div>
-
+<!-- MAP TITLE -->
+<div class="map-title-box">
+  <h2>Sunbeam Transportation</h2>
+  <span>LIVE DRIVERS MAP</span>
 </div>
 
-<div id="map"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="maps.js"></script>
+<!-- MAP -->
+<div class="map-page">
+  <div id="map"></div>
+</div>
 
 <script>
-function goBack(){
-  window.location.href = "dashboard.html";
+/* =========================
+   SECURITY
+========================= */
+
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["superadmin","admin","dispatcher"].includes(role)){
+  window.location.href = "/admin/login.html";
 }
 
-function updateTime(){
-  const now = new Date();
-  document.getElementById("liveTime").innerText =
-    now.toLocaleDateString() + " | " +
-    now.toLocaleTimeString();
+/* =========================
+   LOAD ADMIN HEADER
+========================= */
+
+async function loadAdminHeader(){
+
+  try{
+
+    const holder =
+      document.getElementById("adminHeader");
+
+    if(!holder){
+      return;
+    }
+
+    const res =
+      await fetch("/admin/header.html", {
+        cache:"no-store"
+      });
+
+    if(res.ok){
+      holder.innerHTML = await res.text();
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.src = "/admin/header.js";
+    script.defer = true;
+
+    document.body.appendChild(script);
+
+  }catch(err){
+
+    console.log("HEADER LOAD ERROR:", err);
+
+  }
+
 }
-setInterval(updateTime,1000);
-updateTime();
+
+loadAdminHeader();
 </script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/admin/maps.js"></script>
 
 </body>
 </html>
