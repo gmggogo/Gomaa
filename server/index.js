@@ -270,6 +270,13 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
+app.get("/api/ping-live", (req,res)=>{
+  res.json({
+    success:true,
+    message:"index live route working"
+  });
+});
+
 const driverLocationRoutes =
 require("./routes/driverLocationRoutes");
 
@@ -281,9 +288,7 @@ app.use(
 app.use(
   "/api/driver-location",
   driverLocationRoutes
-);
-
-app.use(
+);app.use(
   "/api/driver-schedule",
   driverScheduleRoutes
 );
