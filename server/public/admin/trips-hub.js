@@ -672,92 +672,265 @@ if(!container) console.error("Missing #hubContainer");
       }
     }
 
-    @media(max-width:768px){
-      .hub-sticky-top{
-        top:0;
-      }
+   @media(max-width:768px){
 
-      .hub-table{
-        min-width:1560px;
-      }
+  .page-content{
+    padding:8px 6px 20px!important;
+  }
 
-      .hub-table th,
-      .hub-table td{
-        font-size:10px;
-        padding:4px;
-      }
+  .toolbar{
+    gap:6px!important;
+    margin-bottom:6px!important;
+  }
 
-      .hub-table th{
-        font-size:10px;
-      }
+  #addManualTripBtn{
+    width:auto!important;
+    padding:8px 12px!important;
+    font-size:12px!important;
+    border-radius:10px!important;
+  }
 
-      .cell-item{
-        font-size:9.5px;
-        padding:3px 4px;
-      }
+  #searchInput{
+    width:100%!important;
+    min-width:0!important;
+    padding:8px 10px!important;
+    font-size:12px!important;
+    border-radius:10px!important;
+  }
 
-      .wide-address,
-      .wide-stops{
-        font-size:9.5px!important;
-      }
+  .hub-sticky-top{
+    position:relative!important;
+    top:auto!important;
+    padding:0 0 6px!important;
+    margin-bottom:6px!important;
+    border-bottom:1px solid #cbd5e1!important;
+  }
 
-      .top-add-trip-btn{
-        padding:10px 16px;
-        font-size:13px;
-      }
+  /* الكروت العليا تبقى صغيرة وسكرول أفقي */
+  .hub-stats{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    gap:6px!important;
+    margin:0 0 6px!important;
+    padding-bottom:2px!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
 
-      .hub-stats{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:6px;
-      }
+  .stat-card{
+    flex:0 0 112px!important;
+    min-height:58px!important;
+    height:58px!important;
+    padding:4px 5px!important;
+    border-radius:10px!important;
+    border-left-width:4px!important;
+    box-shadow:0 3px 8px rgba(15,23,42,.05)!important;
+  }
 
-      .stat-card{
-        padding:8px 6px;
-        border-radius:12px;
-      }
+  .stat-title{
+    font-size:8px!important;
+    line-height:1!important;
+    margin:0!important;
+  }
 
-      .stat-title{
-        font-size:10px;
-      }
+  .stat-number{
+    font-size:17px!important;
+    line-height:1!important;
+    margin:3px 0!important;
+  }
 
-      .stat-number{
-        font-size:20px;
-      }
+  .mini-head{
+    margin-top:2px!important;
+    font-size:6.8px!important;
+    line-height:1!important;
+  }
 
-      .mini-head{
-        font-size:8px;
-      }
+  .mini-values{
+    margin-top:1px!important;
+    font-size:8px!important;
+    line-height:1!important;
+  }
 
-      .mini-values{
-        font-size:11px;
-      }
+  /* كروت الخدمات تبقى صغيرة وسكرول أفقي */
+  .service-tabs{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    gap:6px!important;
+    margin:0 0 6px!important;
+    padding-bottom:2px!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
 
-      .service-tabs{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:6px;
-      }
+  .service-tab{
+    flex:0 0 104px!important;
+    min-height:58px!important;
+    height:58px!important;
+    padding:4px 5px!important;
+    border-radius:10px!important;
+    box-shadow:0 3px 8px rgba(15,23,42,.05)!important;
+  }
 
-      .service-tab{
-        min-height:66px;
-      }
+  .service-title{
+    font-size:9px!important;
+    line-height:1!important;
+    margin-bottom:2px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
 
-      .hub-filter{
-        flex:1;
-        min-width:90px;
-        font-size:11px;
-        padding:7px 8px;
-      }
+  .service-total{
+    font-size:17px!important;
+    line-height:1!important;
+    margin:3px 0!important;
+  }
 
-      .hub-action-btn{
-        font-size:11px;
-        padding:7px 10px;
-      }
+  /* الفلاتر في سطر صغير */
+  .hub-date-filters{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:5px!important;
+    margin:0 0 6px!important;
+    padding:6px!important;
+    border-radius:10px!important;
+    overflow-x:auto!important;
+  }
 
-      .view-line{
-        grid-template-columns:1fr;
-      }
-    }
+  .hub-filter{
+    flex:0 0 86px!important;
+    min-width:86px!important;
+    padding:6px 7px!important;
+    font-size:10px!important;
+    border-radius:8px!important;
+  }
+
+  .clear-filter-btn{
+    flex:0 0 auto!important;
+    padding:6px 10px!important;
+    font-size:10px!important;
+    border-radius:8px!important;
+  }
+
+  .hub-action-bar{
+    gap:5px!important;
+    margin:0 0 6px!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+  }
+
+  .hub-action-btn{
+    flex:0 0 auto!important;
+    padding:6px 9px!important;
+    font-size:10px!important;
+    border-radius:8px!important;
+  }
+
+  /* الجدول يظهر مباشرة بعد الفلاتر */
+  #hubContainer{
+    margin-top:0!important;
+    padding-top:0!important;
+  }
+
+  .table-wrap{
+    margin-top:4px!important;
+    border-radius:9px!important;
+    box-shadow:0 4px 10px rgba(15,23,42,.06)!important;
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  .hub-table{
+    min-width:1280px!important;
+    border-top:4px solid #000!important;
+  }
+
+  .hub-table th,
+  .hub-table td{
+    font-size:8.5px!important;
+    padding:3px!important;
+    line-height:1.15!important;
+  }
+
+  .hub-table th{
+    font-size:8px!important;
+  }
+
+  .date-separator td{
+    font-size:9px!important;
+    padding:4px 6px!important;
+  }
+
+  .col-num{width:26px!important;}
+  .col-select{width:30px!important;}
+  .col-trip{width:62px!important;}
+  .col-company{width:78px!important;}
+  .col-date{width:65px!important;}
+  .col-time{width:48px!important;}
+  .col-status{width:62px!important;}
+  .col-eye{width:30px!important;}
+
+  .wide-client{width:125px!important;}
+  .wide-phone{width:82px!important;}
+  .wide-address{
+    width:165px!important;
+    font-size:8px!important;
+  }
+  .wide-stops{
+    width:95px!important;
+    font-size:8px!important;
+  }
+  .wide-notes{width:120px!important;}
+
+  .company-cell{
+    width:78px!important;
+    font-size:8px!important;
+  }
+
+  .cell-item{
+    font-size:7.8px!important;
+    padding:2px 3px!important;
+    min-height:15px!important;
+  }
+
+  .trip-number-badge{
+    font-size:8px!important;
+  }
+
+  .status-pill{
+    font-size:7.5px!important;
+    padding:3px 4px!important;
+  }
+
+  .eye-btn{
+    width:24px!important;
+    height:22px!important;
+    font-size:13px!important;
+  }
+
+  .edit-input,
+  .edit-textarea{
+    font-size:8px!important;
+    padding:3px!important;
+    min-width:50px!important;
+  }
+
+  .edit-textarea{
+    min-height:30px!important;
+  }
+
+  .no-data{
+    margin-top:4px!important;
+    padding:10px!important;
+    font-size:11px!important;
+    border-radius:10px!important;
+  }
+}
+
   `;
+
   document.head.appendChild(style);
 })();
 
