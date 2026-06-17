@@ -358,35 +358,39 @@ const confirmAddStopBtn = document.getElementById("confirmAddStopBtn");
       padding:2px 0 14px;
     }
 
-    .add-here-btn{
-      width:100%;
-      border:2px dashed #2563eb;
-      background:#eff6ff;
-      color:#1d4ed8;
-      padding:12px;
-      border-radius:14px;
-      font-size:13px;
-      font-weight:900;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-    }
+   .add-here-btn{
+  width:100%;
+  border:none;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  color:#fff;
+  padding:14px;
+  border-radius:16px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  box-shadow:0 10px 25px rgba(37,99,235,.35);
+  transition:.2s;
+}
 
-    .add-here-btn span{
-      width:24px;
-      height:24px;
-      border-radius:50%;
-      background:#2563eb;
-      color:#fff;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      font-size:18px;
-      font-weight:900;
-    }
+.add-here-btn:hover{
+  transform:scale(1.05);
+}
 
+.add-here-btn span{
+  background:#fff;
+  color:#1d4ed8;
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+}
     .slot-area{
       margin-top:10px;
       display:grid;
@@ -2017,41 +2021,20 @@ function buildNewRemainingRouteInProgress(driverLocation,finalStops,dropoffAfter
 }
 
 /* ================= CALCULATION ================= */
-
 async function calculateFinalRouteChange(trip,addedStopObjects){
 
-  const pickup =
-    getPickup(trip);
+  const pickup = getPickup(trip);
+  const dropoffBefore = getDropoff(trip);
+  const dropoffAfter = getFinalDropoff();
 
-  const dropoffBefore =
-    getDropoff(trip);
+  const existingStopsBefore = getExistingStops(trip);
 
-  const dropoffAfter =
-    getFinalDropoff();
+  const finalStops = buildFinalStops(
+    existingStopsBefore,
+    addedStopObjects
+  );
 
-  if(!pickup){
-    throw new Error("Pickup address missing");
-  }
-
-  if(!dropoffBefore){
-    throw new Error("Dropoff address missing");
-  }
-
-  if(!dropoffAfter){
-    throw new Error("Final dropoff address missing");
-  }
-
-  const existingStopsBefore =
-    getExistingStops(trip);
-
-  const finalStops =
-    buildFinalStops(
-      existingStopsBefore,
-      addedStopObjects
-    );
-
-  const inProgress =
-    tripIsInProgress(trip);
+  const inProgress = tripIsInProgress(trip);
 
   let mode = "BEFORE_START";
   let driverLocationAtConfirm = null;
@@ -2070,18 +2053,20 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
       throw new Error("Driver current location is missing");
     }
 
-    originalRoutePoints =
-      buildOriginalRemainingRouteInProgress(
-        driverLocationAtConfirm,
-        trip
-      );
+    /* 🔥 الجزء الصح */
+    originalRoutePoints = [
+      getPickup(trip),
+      driverLocationAtConfirm,
+      ...getExistingStops(trip),
+      getDropoff(trip)
+    ];
 
-    newRoutePoints =
-      buildNewRemainingRouteInProgress(
-        driverLocationAtConfirm,
-        finalStops,
-        dropoffAfter
-      );
+    newRoutePoints = [
+      getPickup(trip),
+      driverLocationAtConfirm,
+      ...finalStops,
+      dropoffAfter
+    ];
 
   }else{
 
@@ -2110,36 +2095,16 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
       ).toFixed(2)
     );
 
-  const addedStops =
-    addedStopObjects.map(s => s.address);
-
-  const editedExistingStops =
-    Object.keys(confirmedExistingEdits).map(key=>{
-      const index = Number(key);
-      return {
-        index,
-        oldAddress:existingStopsBefore[index] || "",
-        newAddress:confirmedExistingEdits[key]
-      };
-    });
-
   return {
     mode,
     driverLocationAtConfirm,
 
     pickup,
-
     dropoffBefore,
     dropoffAfter,
 
     existingStopsBefore,
-    editedExistingStops,
-
-    addedStops,
-    addedStopsDetailed:addedStopObjects,
-
     finalStops,
-    finalRoutePoints:newRoutePoints,
 
     originalRoutePoints,
     newRoutePoints,
@@ -2153,7 +2118,6 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
     newRouteData:newRoute
   };
 }
-
 /* ================= SERVER SEND ================= */
 
 async function notifyServerAddStop(payload){
