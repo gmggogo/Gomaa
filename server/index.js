@@ -858,7 +858,25 @@ app.use(
 /* =========================
    LIVE DRIVER TRACKING
 ========================= */
+
 global.liveDrivers = new Map();
+
+/* =========================
+   LIVE DRIVERS API
+========================= */
+
+app.get("/api/admin/live-drivers",(req,res)=>{
+
+  const list = Array.from(global.liveDrivers.entries())
+    .map(([tripId,data])=>({
+      tripId,
+      lat: data.lat,
+      lng: data.lng
+    }));
+
+  res.json(list);
+
+});
 
 /* =========================
    GEO CACHE
