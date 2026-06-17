@@ -3,9 +3,11 @@ const router = express.Router();
 
 const routeMap = require("../utils/routeMapEngine");
 
-/* 🔥 نربطه بالـ liveDrivers اللي عندك في index */
-const liveDrivers = global.liveDrivers || new Map();
-global.liveDrivers = liveDrivers;
+/* =========================
+   GLOBAL LIVE DRIVERS (SAFE INIT)
+========================= */
+
+global.liveDrivers = global.liveDrivers || new Map();
 
 /* =========================
    RECEIVE DRIVER LOCATION
@@ -39,16 +41,20 @@ router.post("/", (req,res)=>{
     }
 
     /* =========================
-       UPDATE ENGINE
+       UPDATE ROUTE ENGINE
     ========================= */
 
-    routeMap.updateLocation(tripId, numLat, numLng);
+    try{
+      routeMap.updateLocation(tripId, numLat, numLng);
+    }catch(e){
+      console.log("Route engine error:", e);
+    }
 
     /* =========================
-       UPDATE LIVE MAP (🔥 مهم)
+       UPDATE LIVE MAP (🔥 IMPORTANT)
     ========================= */
 
-    liveDrivers.set(tripId,{
+    global.liveDrivers.set(tripId,{
       lat: numLat,
       lng: numLng,
       time: Date.now()
@@ -74,5 +80,24 @@ router.post("/", (req,res)=>{
   }
 
 });
+
+/* =========================
+   OPTIONAL: CLEAN OLD DRIVERS (AUTO)
+========================= */
+
+setInterval(()=>{
+
+  const now = Date.now();
+  const MAX_AGE = 1000 * 60 * 5; // 5 minutes
+
+  global.liveDrivers.forEach((val,key)=>{
+
+    if(now - val.time > MAX_AGE){
+      global.liveDrivers.delete(key);
+    }
+
+  });
+
+},60000);
 
 module.exports = router;

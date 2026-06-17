@@ -42,7 +42,12 @@ const smartDispatchEngineRoutes =
 require("./routes/smartDispatchEngineRoutes");
 
 const driverLocationRoutes =
-require("./routes/driverLocationRoutes");
+require("./routes/driverLocation");
+
+app.use(
+  "/api/driver/location",
+  driverLocationRoutes
+);
 
 const Service =
 require("./models/Service");const {
@@ -306,10 +311,6 @@ app.use(
   serviceRoutes
 );
 
-app.use(
-  "/api/driver/location",
-  driverLocationRoutes
-);
 
 /* =========================
    PAYMENT SUCCESS
@@ -859,24 +860,31 @@ app.use(
    LIVE DRIVER TRACKING
 ========================= */
 
-global.liveDrivers = new Map();
+const LiveDriver = require("./models/LiveDriver");
 
-/* =========================
-   LIVE DRIVERS API
-========================= */
+app.get("/api/admin/live-drivers", async (req,res)=>{
 
-app.get("/api/admin/live-drivers",(req,res)=>{
+  try{
 
-  const list = Array.from(global.liveDrivers.entries())
-    .map(([tripId,data])=>({
-      tripId,
-      lat: data.lat,
-      lng: data.lng
+    const drivers = await LiveDriver.find({});
+
+    const list = drivers.map(d => ({
+      tripId: d.tripId,
+      lat: d.lat,
+      lng: d.lng
     }));
 
-  res.json(list);
+    res.json(list);
+
+  }catch(err){
+
+    console.log(err);
+    res.json([]);
+
+  }
 
 });
+
 
 /* =========================
    GEO CACHE
@@ -929,12 +937,15 @@ function parseStopCoords(stopCoords) {
 }
 
 function getFreshLiveDriversArray() {
+
   const now = Date.now();
   const maxAge = 1000 * 60 * 5;
 
-  return Array.from(liveDrivers.values()).filter(driver => {
-    return now - driver.time <= maxAge;
-  });
+  return Array.from(global.liveDrivers.values())
+    .filter(driver => {
+      return now - driver.time <= maxAge;
+    });
+
 }
 
 function toRad(v) {
