@@ -42,12 +42,14 @@ const selectedMap = new WeakMap();
   s.innerHTML = `
 
 .admin-trips-top{
-  position:relative!important;
-  z-index:800;
+  position:sticky!important;
+  top:calc(var(--header-height, 80px));
+  z-index:900;
   background:#f1f5f9;
   padding:0 0 8px;
   border-bottom:1px solid #cbd5e1;
 }
+
 /* ===============================
    STATS
 ================================ */
@@ -1971,6 +1973,8 @@ function fixHeaderSpacing(){
   if(!header || !body) return;
 
   const h = header.offsetHeight;
+
+  document.documentElement.style.setProperty("--header-height", h + "px");
 
   body.style.paddingTop = h + "px";
 }
