@@ -733,7 +733,8 @@ const selectedMap = new WeakMap();
     min-width:1400px!important;
   }
 
-}
+  /* ================= EXTRA ================= */
+
   .cell-item{
     font-size:9.5px!important;
     padding:3px 4px!important;
@@ -744,15 +745,11 @@ const selectedMap = new WeakMap();
     font-size:9.5px!important;
   }
 
-  .service-strip{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-  }
-
   .view-line{
     grid-template-columns:1fr;
   }
-}
 
+}
 `;
 
   document.head.appendChild(s);
