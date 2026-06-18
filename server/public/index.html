@@ -618,31 +618,32 @@ footer{
      بدون left / right / justify من الأدمن
   ========================= */
 
-  #aboutText,
-  #quoteText,
-  #extra1TextView,
-  #extra2TextView{
-    width:100% !important;
-    max-width:100% !important;
+ #aboutText,
+#quoteText,
+#extra1TextView,
+#extra2TextView{
+  width:100% !important;
+  max-width:100% !important;
 
-    text-align:start !important;
-    text-align-last:auto !important;
+  text-align:justify !important;
+  text-align-last:left !important;
+  text-justify:inter-word !important;
 
-    direction:inherit !important;
-    unicode-bidi:plaintext !important;
+  direction:ltr !important;
+  unicode-bidi:plaintext !important;
 
-    font-size:16px !important;
-    line-height:1.75 !important;
+  font-size:16px !important;
+  line-height:1.75 !important;
 
-    word-spacing:normal !important;
-    letter-spacing:0 !important;
-    word-break:normal !important;
-    overflow-wrap:break-word !important;
-    hyphens:auto !important;
+  word-spacing:normal !important;
+  letter-spacing:0 !important;
+  word-break:normal !important;
+  overflow-wrap:normal !important;
+  hyphens:none !important;
 
-    margin:0 !important;
-    padding:0 !important;
-  }
+  margin:0 !important;
+  padding:0 !important;
+}
 
   /* =========================
      SERVICES / CARDS
@@ -974,19 +975,6 @@ function applyWordText(id,value,align){
 
  let finalAlign =
 normalizeWordAlign(align);
-
-if(
-  window.innerWidth <= 768 &&
-  [
-    "aboutText",
-    "quoteText",
-    "extra1TextView",
-    "extra2TextView"
-  ].includes(id) &&
-  finalAlign.startsWith("justify")
-){
-  finalAlign = "left";
-}
 
   const dir =
   detectDirection(text);
