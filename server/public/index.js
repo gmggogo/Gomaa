@@ -19,10 +19,7 @@ window.Branding = {
 
       const res =
       await fetch(
-        "/api/system-design",
-        {
-          cache:"no-store"
-        }
+        "/api/system-design"
       );
 
       if(!res.ok){
@@ -36,11 +33,6 @@ window.Branding = {
       this.data =
       await res.json();
 
-      localStorage.setItem(
-        "ghSystemDesign",
-        JSON.stringify(this.data || {})
-      );
-
     }catch(err){
 
       console.log(
@@ -52,7 +44,9 @@ window.Branding = {
 
         this.data =
         JSON.parse(
-          localStorage.getItem("ghSystemDesign") || "{}"
+          localStorage.getItem(
+            "ghSystemDesign"
+          ) || "{}"
         );
 
       }catch(e){
@@ -88,59 +82,13 @@ window.Branding = {
   },
 
   /* =========================
-     HELPERS
-  ========================= */
-
-  clean(value){
-
-    return String(value ?? "").trim();
-
-  },
-
-  safeNumber(value, fallback){
-
-    const n =
-    Number(value);
-
-    if(!Number.isFinite(n)){
-      return fallback;
-    }
-
-    return n;
-
-  },
-
-  setVar(name, value){
-
-    document
-    .documentElement
-    .style
-    .setProperty(name, value);
-
-  },
-
-  safeAlign(value){
-
-    const align =
-    this.clean(value)
-    .toLowerCase();
-
-    return (
-      ["left","center","right"].includes(align)
-      ? align
-      : "center"
-    );
-
-  },
-
-  /* =========================
      GETTERS
   ========================= */
 
   getCompanyName(){
 
     return (
-      this.clean(this.data?.companyName) ||
+      this.data?.companyName ||
       "Sunbeam Transportation"
     );
 
@@ -149,7 +97,7 @@ window.Branding = {
   getTimezone(){
 
     return (
-      this.clean(this.data?.timezone) ||
+      this.data?.timezone ||
       "America/Phoenix"
     );
 
@@ -158,7 +106,7 @@ window.Branding = {
   getMainLogo(){
 
     return (
-      this.clean(this.data?.mainLogo) ||
+      this.data?.mainLogo ||
       "/assets/logo.png"
     );
 
@@ -167,7 +115,7 @@ window.Branding = {
   getDriverLogo(){
 
     return (
-      this.clean(this.data?.driverLogo) ||
+      this.data?.driverLogo ||
       "/assets/logo.png"
     );
 
@@ -176,7 +124,7 @@ window.Branding = {
   getHeroImage(){
 
     return (
-      this.clean(this.data?.heroImage) ||
+      this.data?.heroImage ||
       "/assets/hero.jpeg"
     );
 
@@ -184,16 +132,67 @@ window.Branding = {
 
   getServices(){
 
-    if(!Array.isArray(this.data?.services)){
-      return [];
-    }
+    const services =
+    this.data?.services;
 
-    return this.data.services;
+    return Array.isArray(services)
+    ? services
+    : [];
 
   },
 
   /* =========================
-     APPLY GLOBAL BRANDING
+     SAFE HELPERS
+  ========================= */
+
+  text(value, fallback = ""){
+
+    return String(
+      value === undefined ||
+      value === null
+      ? fallback
+      : value
+    );
+
+  },
+
+  cleanAlign(value, fallback = "center"){
+
+    const align =
+    String(value || "")
+    .toLowerCase()
+    .trim();
+
+    return [
+      "left",
+      "center",
+      "right"
+    ].includes(align)
+    ? align
+    : fallback;
+
+  },
+
+  setTextAlign(el, align){
+
+    if(!el) return;
+
+    const clean =
+    this.cleanAlign(
+      align,
+      "center"
+    );
+
+    el.style.setProperty(
+      "text-align",
+      clean,
+      "important"
+    );
+
+  },
+
+  /* =========================
+     APPLY GLOBAL
   ========================= */
 
   applyGlobalBranding(){
@@ -205,7 +204,7 @@ window.Branding = {
     .querySelectorAll(".company-name")
     .forEach(el=>{
 
-      el.textContent =
+      el.innerText =
       this.getCompanyName();
 
     });
@@ -217,9 +216,6 @@ window.Branding = {
       el.src =
       this.getMainLogo();
 
-      el.alt =
-      this.getCompanyName();
-
     });
 
     document
@@ -228,9 +224,6 @@ window.Branding = {
 
       el.src =
       this.getDriverLogo();
-
-      el.alt =
-      this.getCompanyName();
 
     });
 
@@ -241,9 +234,6 @@ window.Branding = {
       el.src =
       this.getHeroImage();
 
-      el.alt =
-      this.getCompanyName();
-
     });
 
     this.applyThemeEngine();
@@ -251,8 +241,7 @@ window.Branding = {
   },
 
   /* =========================
-     THEME ENGINE
-     Uses OLD CORRECT FIELD NAMES
+     APPLY THEME ENGINE
   ========================= */
 
   applyThemeEngine(){
@@ -263,150 +252,123 @@ window.Branding = {
     const isMobile =
     window.innerWidth <= 768;
 
-    const pageBg =
-    this.clean(d.homepageBg) ||
-    this.clean(d.pageBg) ||
-    "#f3f4f6";
-
-    const boxBg =
-    this.clean(d.extraBoxBg) ||
-    "#ffffff";
-
-    const boxBorder =
-    this.clean(d.extraBoxBorder) ||
-    "#dbeafe";
-
-    const boxBorderSize =
-    this.safeNumber(
-      d.extraBoxBorderSize,
-      2
+    const extraAlign =
+    this.cleanAlign(
+      d.extraBoxAlign,
+      "center"
     );
-
-    const boxRadius =
-    this.safeNumber(
-      d.extraBoxRadius,
-      isMobile ? 18 : 28
-    );
-
-    const boxPadding =
-    this.safeNumber(
-      d.extraBoxPadding,
-      isMobile ? 18 : 44
-    );
-
-    const boxShadow =
-    d.extraBoxShadow === false
-    ? "none"
-    : "0 10px 30px rgba(0,0,0,.08)";
-
-    const titleColor =
-    this.clean(d.extraBoxTitleColor) ||
-    "#1e3a6d";
-
-    const titleSize =
-    this.safeNumber(
-      d.extraBoxTitleSize,
-      42
-    );
-
-    const titleMobileSize =
-    this.safeNumber(
-      d.extraBoxTitleMobileSize,
-      28
-    );
-
-    const textColor =
-    this.clean(d.extraBoxTextColor) ||
-    "#6b7280";
-
-    const textSize =
-    this.safeNumber(
-      d.extraBoxTextSize,
-      22
-    );
-
-    const textMobileSize =
-    this.safeNumber(
-      d.extraBoxTextMobileSize,
-      16
-    );
-
-    this.setVar("--page-bg", pageBg);
-
-    this.setVar("--box-bg", boxBg);
-    this.setVar("--box-border", boxBorder);
-    this.setVar("--box-border-size", `${boxBorderSize}px`);
-    this.setVar("--box-radius", `${boxRadius}px`);
-    this.setVar("--box-padding", `${boxPadding}px`);
-    this.setVar("--box-shadow", boxShadow);
-
-    this.setVar("--box-title-color", titleColor);
-    this.setVar("--box-title-size", `${titleSize}px`);
-    this.setVar("--box-title-mobile-size", `${titleMobileSize}px`);
-
-    this.setVar("--box-text-color", textColor);
-    this.setVar("--box-text-size", `${textSize}px`);
-    this.setVar("--box-text-mobile-size", `${textMobileSize}px`);
-
-    document.body.style.background =
-    pageBg;
 
     document
-    .querySelectorAll(".edit-box h2, .edit-box h3, .edit-box p")
-    .forEach(el=>{
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
 
-      el.style.wordBreak = "normal";
-      el.style.overflowWrap = "normal";
-      el.style.hyphens = "none";
-      el.style.unicodeBidi = "plaintext";
+      box.style.setProperty(
+        "background",
+        d.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `${d.extraBoxBorderSize || 2}px solid ${
+          d.extraBoxBorder || "#dbeafe"
+        }`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${d.extraBoxRadius || 28}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        isMobile
+        ? `${d.extraBoxMobilePadding || 18}px`
+        : `${d.extraBoxPadding || 44}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "text-align",
+        extraAlign,
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        d.extraBoxShadow === false
+        ? "none"
+        : "0 10px 30px rgba(0,0,0,.08)",
+        "important"
+      );
 
     });
 
-  },
+    document
+    .querySelectorAll(
+      ".extra-box h2, .extra-box h3"
+    )
+    .forEach(title=>{
 
-  /* =========================
-     SERVICE ACTIVE CHECK
-  ========================= */
-
-  isServiceActive(service){
-
-    if(!service) return false;
-
-    if(service.active === false){
-      return false;
-    }
-
-    return true;
-
-  },
-
-  /* =========================
-     SERVICE TEXT PICKER
-  ========================= */
-
-  pickServiceText(service, lang, field){
-
-    if(!service) return "";
-
-    if(lang === "es"){
-
-      return (
-        this.clean(service[field + "_es"]) ||
-        this.clean(service[field + "Es"]) ||
-        this.clean(service[field]) ||
-        this.clean(service[field + "_en"]) ||
-        this.clean(service[field + "En"]) ||
-        ""
+      title.style.setProperty(
+        "width",
+        "100%",
+        "important"
       );
 
-    }
+      title.style.setProperty(
+        "color",
+        d.extraBoxTitleColor || "#1e3a6d",
+        "important"
+      );
 
-    return (
-      this.clean(service[field + "_en"]) ||
-      this.clean(service[field + "En"]) ||
-      this.clean(service[field]) ||
-      ""
-    );
+      title.style.setProperty(
+        "font-size",
+        isMobile
+        ? `${d.extraBoxTitleMobileSize || 22}px`
+        : `${d.extraBoxTitleSize || 42}px`,
+        "important"
+      );
+
+      this.setTextAlign(
+        title,
+        extraAlign
+      );
+
+    });
+
+    document
+    .querySelectorAll(".extra-box p")
+    .forEach(text=>{
+
+      text.style.setProperty(
+        "width",
+        "100%",
+        "important"
+      );
+
+      text.style.setProperty(
+        "color",
+        d.extraBoxTextColor || "#6b7280",
+        "important"
+      );
+
+      text.style.setProperty(
+        "font-size",
+        isMobile
+        ? `${d.extraBoxTextMobileSize || 15}px`
+        : `${d.extraBoxTextSize || 22}px`,
+        "important"
+      );
+
+      this.setTextAlign(
+        text,
+        extraAlign
+      );
+
+    });
 
   },
 
@@ -420,119 +382,174 @@ window.Branding = {
   ){
 
     const container =
-    document.getElementById(containerId);
+    document.getElementById(
+      containerId
+    );
 
     if(!container) return;
 
     const services =
-    this.getServices()
-    .filter(service=>this.isServiceActive(service));
+    this.getServices();
 
     container.innerHTML = "";
 
-    const fragment =
-    document.createDocumentFragment();
+    const d =
+    this.data || {};
 
-    services.forEach(service=>{
+    const cardAlign =
+    this.cleanAlign(
+      d.cardTextAlign ||
+      d.cardAlign ||
+      "center",
+      "center"
+    );
+
+    const activeServices =
+    services.filter(service=>{
+
+      return service &&
+      service.active !== false;
+
+    });
+
+    activeServices.forEach(service=>{
 
       const title =
-      this.pickServiceText(
-        service,
-        lang,
-        "title"
-      );
+      lang === "es"
+      ? (
+          service.title_es ||
+          service.titleEs ||
+          service.title ||
+          service.title_en ||
+          ""
+        )
+      : (
+          service.title_en ||
+          service.title ||
+          ""
+        );
 
       const desc =
-      this.pickServiceText(
-        service,
-        lang,
-        "description"
-      );
-
-      const image =
-      this.clean(service.image) ||
-      "/assets/logo.png";
+      lang === "es"
+      ? (
+          service.description_es ||
+          service.descriptionEs ||
+          service.description ||
+          service.description_en ||
+          ""
+        )
+      : (
+          service.description_en ||
+          service.description ||
+          ""
+        );
 
       const link =
-      this.clean(service.link) ||
+      service.link ||
       "getquote/index.html";
+
+      const image =
+      service.image ||
+      "/assets/logo.png";
+
+      const serviceAlign =
+      this.cleanAlign(
+        service.align ||
+        service.textAlign ||
+        cardAlign,
+        cardAlign
+      );
 
       const card =
       document.createElement("div");
 
-      card.className = "card";
+      card.className =
+      "card";
 
       const img =
       document.createElement("img");
 
-      img.className = "card-image";
-      img.src = image;
-      img.alt = title || this.getCompanyName();
-      img.loading = "lazy";
-      img.decoding = "async";
+      img.className =
+      "card-image";
 
-      img.onerror = function(){
+      img.src =
+      image;
 
-        if(this.dataset.fallbackDone === "true"){
-
-          this.style.display = "none";
-
-          const parentCard =
-          this.closest(".card");
-
-          if(parentCard){
-            parentCard.classList.add("no-image");
-          }
-
-          return;
-
-        }
-
-        this.dataset.fallbackDone = "true";
-        this.src = "/assets/logo.png";
-
-      };
+      img.alt =
+      title || "Service";
 
       const body =
       document.createElement("div");
 
-      body.className = "card-body";
+      body.className =
+      "card-body";
+
+      body.style.setProperty(
+        "text-align",
+        serviceAlign,
+        "important"
+      );
 
       const h3 =
       document.createElement("h3");
 
-      h3.textContent =
-      title || "Transportation Service";
+      h3.innerText =
+      this.text(title);
+
+      h3.style.setProperty(
+        "text-align",
+        serviceAlign,
+        "important"
+      );
+
+      h3.style.setProperty(
+        "width",
+        "100%",
+        "important"
+      );
 
       const p =
       document.createElement("p");
 
-      p.textContent =
-      desc || "";
+      p.innerText =
+      this.text(desc);
 
-      const a =
+      p.style.setProperty(
+        "text-align",
+        serviceAlign,
+        "important"
+      );
+
+      p.style.setProperty(
+        "width",
+        "100%",
+        "important"
+      );
+
+      const btn =
       document.createElement("a");
 
-      a.className = "card-btn";
-      a.href = link;
+      btn.href =
+      link;
 
-      a.textContent =
+      btn.className =
+      "card-btn";
+
+      btn.innerText =
       lang === "es"
       ? "Obtener precio"
       : "Get Quote";
 
       body.appendChild(h3);
       body.appendChild(p);
-      body.appendChild(a);
+      body.appendChild(btn);
 
       card.appendChild(img);
       card.appendChild(body);
 
-      fragment.appendChild(card);
+      container.appendChild(card);
 
     });
-
-    container.appendChild(fragment);
 
   }
 

@@ -10,8 +10,13 @@
 name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<link rel="icon" href="assets/app-icon.png">
-<link rel="apple-touch-icon" href="assets/app-icon.png">
+<link
+rel="icon"
+href="assets/app-icon.png">
+
+<link
+rel="apple-touch-icon"
+href="assets/app-icon.png">
 
 <style>
 
@@ -19,59 +24,66 @@ content="width=device-width, initial-scale=1.0">
    GLOBAL
 ========================= */
 
-:root{
-    --page-bg:#f3f4f6;
-
-    --box-bg:#ffffff;
-    --box-border:#dbeafe;
-    --box-border-size:2px;
-    --box-radius:28px;
-    --box-padding:44px;
-    --box-shadow:0 10px 30px rgba(0,0,0,.08);
-
-    --box-title-color:#1e3a6d;
-    --box-title-size:42px;
-    --box-title-mobile-size:28px;
-
-    --box-text-color:#6b7280;
-    --box-text-size:22px;
-    --box-text-mobile-size:16px;
-}
-
 *{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
 }
 
 html,
 body{
-    width:100%;
-    max-width:100%;
-    overflow-x:hidden;
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden !important;
 }
 
 html{
-    -webkit-text-size-adjust:100%;
+  scroll-behavior:smooth;
 }
 
 body{
-    font-family:'Segoe UI', Arial, sans-serif;
-    background:var(--page-bg);
-    color:#0f172a;
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#f3f4f6;
+  color:#0f172a;
 }
 
-h1,
-h2,
-h3,
-p,
-a,
-button,
-strong,
-span{
-    word-break:normal;
-    overflow-wrap:break-word;
-    hyphens:none;
+/* =========================
+   SAFE TEXT SYSTEM
+========================= */
+
+h1,h2,h3,p,span,strong,a,button{
+  max-width:100%;
+}
+
+.text-safe,
+.about h2,
+.about p,
+.quote-header h2,
+.quote-header p,
+.card h3,
+.card p,
+.extra-box h3,
+.extra-box p,
+.contact-section strong,
+.contact-section span,
+footer{
+  display:block;
+  width:100%;
+  max-width:100%;
+  overflow-wrap:break-word;
+  word-break:break-word;
+}
+
+.align-left{
+  text-align:left !important;
+}
+
+.align-center{
+  text-align:center !important;
+}
+
+.align-right{
+  text-align:right !important;
 }
 
 /* =========================
@@ -79,69 +91,69 @@ span{
 ========================= */
 
 .top-bar{
-    width:100%;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    padding:18px 24px;
-    background:#f8fafc;
-    flex-wrap:wrap;
-    position:sticky;
-    top:0;
-    z-index:999;
-    box-shadow:0 2px 10px rgba(0,0,0,.05);
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  padding:18px 24px;
+  background:#f8fafc;
+  flex-wrap:wrap;
+  position:sticky;
+  top:0;
+  z-index:999;
+  box-shadow:0 2px 10px rgba(0,0,0,.05);
 }
 
-.top-links,
-.lang-right{
-    display:flex;
-    gap:12px;
-    flex-wrap:wrap;
-}
-
-.top-links a,
-.lang-btn{
-    min-height:48px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-decoration:none;
-    border-radius:16px;
-    font-size:16px;
-    font-weight:800;
-    transition:background .2s ease, transform .2s ease;
+.top-links{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
 }
 
 .top-links a{
-    padding:14px 24px;
-    color:#fff;
-}
-
-.top-links a:hover,
-.lang-btn:hover{
-    transform:translateY(-2px);
+  text-decoration:none;
+  padding:14px 24px;
+  border-radius:16px;
+  font-size:16px;
+  font-weight:700;
+  color:#fff;
+  transition:background .2s ease, color .2s ease;
 }
 
 .facility-login{
-    background:#2563eb;
+  background:#2563eb;
 }
 
 .staff-login{
-    background:#0f172a;
+  background:#0f172a;
+}
+
+/* =========================
+   LANGUAGE
+========================= */
+
+.lang-right{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
 }
 
 .lang-btn{
-    border:none;
-    cursor:pointer;
-    padding:14px 22px;
-    background:#dbe1ea;
-    color:#2563eb;
+  border:none;
+  cursor:pointer;
+  padding:14px 22px;
+  border-radius:16px;
+  font-size:16px;
+  font-weight:700;
+  background:#dbe1ea;
+  color:#2563eb;
+  transition:background .2s ease, color .2s ease;
 }
 
 .active-lang{
-    background:#16a34a !important;
-    color:#fff !important;
+  background:#16a34a !important;
+  color:#fff !important;
 }
 
 /* =========================
@@ -149,147 +161,140 @@ span{
 ========================= */
 
 .hero{
-    width:100%;
-    background:#111827;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    overflow:hidden;
-    padding:20px;
+  width:100%;
+  background:#111827;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+  padding:20px;
 }
 
 .hero-inner{
-    position:relative;
-    width:100%;
-    max-width:1500px;
+  position:relative;
+  width:100%;
+  max-width:1500px;
 }
 
 .hero-image{
-    width:100%;
-    height:auto;
-    display:block;
-    border-radius:28px;
-    object-fit:contain;
-    background:#111827;
-}
-
-.powered-box{
-    position:absolute;
-    left:26px;
-    bottom:26px;
-    background:rgba(0,0,0,.75);
-    color:#fff;
-    padding:14px 24px;
-    border-radius:40px;
-    font-size:15px;
-    font-weight:800;
+  width:100%;
+  height:auto;
+  display:block;
+  border-radius:28px;
+  object-fit:contain;
 }
 
 /* =========================
-   EDITABLE FULL WIDTH BOXES
-   About / Quote / Extra
+   POWERED
 ========================= */
 
-.edit-section{
-    width:100%;
-    padding:38px 20px 0;
-}
-
-.edit-box{
-    width:100%;
-    max-width:100%;
-    background:var(--box-bg);
-    border:var(--box-border-size) solid var(--box-border);
-    border-radius:var(--box-radius);
-    padding:var(--box-padding);
-    box-shadow:var(--box-shadow);
-}
-
-.edit-content{
-    width:100%;
-    max-width:900px;
-}
-
-/* النص شمال */
-.edit-box.text-left .edit-content{
-    margin-left:0;
-    margin-right:auto;
-    text-align:left;
-}
-
-/* النص في النص */
-.edit-box.text-center .edit-content{
-    margin-left:auto;
-    margin-right:auto;
-    text-align:center;
-}
-
-/* النص يمين */
-.edit-box.text-right .edit-content{
-    margin-left:auto;
-    margin-right:0;
-    text-align:right;
-}
-
-.edit-box h2,
-.edit-box h3{
-    font-size:var(--box-title-size);
-    color:var(--box-title-color);
-    margin:0 0 18px;
-    font-weight:900;
-    line-height:1.22;
-    text-align:inherit;
-}
-
-.edit-box p{
-    font-size:var(--box-text-size);
-    color:var(--box-text-color);
-    line-height:1.85;
-    margin:0;
-    text-align:inherit;
-    white-space:pre-line;
-    word-break:normal !important;
-    overflow-wrap:normal !important;
-    hyphens:none !important;
+.powered-box{
+  position:absolute;
+  left:26px;
+  bottom:26px;
+  background:rgba(0,0,0,.75);
+  color:#fff;
+  padding:14px 24px;
+  border-radius:40px;
+  font-size:15px;
+  font-weight:700;
+  backdrop-filter:blur(8px);
 }
 
 /* =========================
-   SERVICES CARDS
+   ABOUT
+========================= */
+
+.about{
+  width:100%;
+  text-align:center;
+  padding:90px 20px 40px;
+}
+
+.about h2{
+  font-size:60px;
+  color:#1e3a6d;
+  margin:0 auto 20px;
+  font-weight:900;
+  line-height:1.15;
+}
+
+.about p{
+  font-size:25px;
+  color:#6b7280;
+  max-width:1100px;
+  margin:auto;
+  line-height:1.9;
+}
+
+/* =========================
+   QUOTE
+========================= */
+
+.quote-header{
+  width:100%;
+  text-align:center;
+  padding:40px 20px 24px;
+}
+
+.quote-header h2{
+  font-size:70px;
+  color:#1e3a6d;
+  margin:0 auto 18px;
+  line-height:1.1;
+  font-weight:900;
+}
+
+.quote-header p{
+  font-size:24px;
+  color:#6b7280;
+  max-width:1000px;
+  margin:auto;
+  line-height:1.8;
+}
+
+/* =========================
+   SERVICES
 ========================= */
 
 .services{
-    width:100%;
-    margin:0 auto;
-    padding:50px 20px 120px;
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    align-items:stretch;
-    gap:32px 28px;
+  width:100%;
+  max-width:1500px;
+  margin:auto;
+  padding:60px 60px 140px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,340px));
+  justify-content:center;
+  gap:28px;
+  align-items:stretch;
 }
 
 .services.layout-1{
-    max-width:340px;
+  grid-template-columns:minmax(0,340px);
 }
 
 .services.layout-2{
-    max-width:708px;
-}
-
-.services.layout-3{
-    max-width:1076px;
+  grid-template-columns:repeat(2,minmax(0,340px));
 }
 
 .services.layout-4{
-    max-width:708px;
+  grid-template-columns:repeat(2,minmax(0,340px));
 }
 
 .services.layout-5{
-    max-width:1076px;
+  grid-template-columns:repeat(6,minmax(0,170px));
 }
 
-.services.layout-6{
-    max-width:1076px;
+.services.layout-5 .card{
+  grid-column:span 2;
+}
+
+.services.layout-5 .card:nth-child(4){
+  grid-column:2 / span 2;
+}
+
+.services.layout-5 .card:nth-child(5){
+  grid-column:4 / span 2;
 }
 
 /* =========================
@@ -297,116 +302,134 @@ span{
 ========================= */
 
 .card{
-    width:340px;
-    max-width:340px;
-    background:#fff;
-    border-radius:26px;
-    overflow:hidden;
-    box-shadow:0 10px 28px rgba(0,0,0,.10);
-    transition:transform .2s ease, box-shadow .2s ease;
-    display:flex;
-    flex-direction:column;
+  width:100%;
+  max-width:340px;
+  background:#fff;
+  border-radius:26px;
+  overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.10);
+  transition:box-shadow .2s ease;
+  contain:layout paint;
 }
 
 .card:hover{
-    transform:translateY(-6px);
-    box-shadow:0 16px 38px rgba(37,99,235,.16);
+  box-shadow:0 16px 40px rgba(37,99,235,.18);
 }
 
 .card-image{
-    width:100%;
-    height:240px;
-    object-fit:contain;
-    object-position:center;
-    background:#eef2f7;
-    padding:8px;
-    display:block;
-}
-
-.card.no-image .card-image{
-    display:none;
-}
-
-.card.no-image .card-body{
-    padding-top:34px;
+  width:100%;
+  height:240px;
+  object-fit:contain;
+  object-position:center;
+  background:#eef2f7;
+  padding:8px;
+  display:block;
 }
 
 .card-body{
-    padding:24px;
-    text-align:center;
-    display:flex;
-    flex-direction:column;
-    flex:1;
+  width:100%;
+  padding:24px;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
 }
 
 .card h3{
-    font-size:30px;
-    margin-bottom:12px;
-    color:#2563eb;
-    font-weight:900;
-    line-height:1.25;
+  font-size:30px;
+  margin-bottom:12px;
+  color:#111827;
+  font-weight:800;
+  line-height:1.25;
 }
 
 .card p{
-    font-size:17px;
-    color:#475569;
-    line-height:1.85;
-    flex:1;
-    word-break:normal !important;
-    overflow-wrap:break-word;
-    hyphens:none !important;
+  font-size:17px;
+  color:#6b7280;
+  line-height:1.9;
+  min-height:120px;
 }
 
 .card-btn{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    width:100%;
-    min-height:58px;
-    margin-top:20px;
-    background:#2563eb;
-    color:#fff !important;
-    text-decoration:none;
-    border-radius:16px;
-    font-size:20px;
-    font-weight:900;
-    transition:background .2s ease;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height:58px;
+  margin-top:20px;
+  background:#2563eb;
+  color:#fff !important;
+  text-decoration:none;
+  border-radius:16px;
+  font-size:20px;
+  font-weight:800;
+  transition:background .2s ease;
 }
 
 .card-btn:hover{
-    background:#1d4ed8;
+  background:#1d4ed8;
 }
 
 /* =========================
-   EXTRA SECTIONS
+   EXTRA
 ========================= */
 
 .extra-sections{
-    width:100%;
-    padding:0 20px 120px;
-    display:flex;
-    flex-direction:column;
-    gap:28px;
+  width:100%;
+  max-width:1400px;
+  margin:auto;
+  padding:40px 60px 140px;
+  display:flex;
+  flex-direction:column;
+  gap:28px;
+}
+
+.extra-box{
+  width:100%;
+  background:#fff;
+  border-radius:28px;
+  padding:44px;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+  transition:box-shadow .2s ease;
+  contain:layout paint;
+}
+
+.extra-box:hover{
+  box-shadow:0 16px 40px rgba(37,99,235,.14);
+}
+
+.extra-box h3{
+  font-size:42px;
+  color:#1e3a6d;
+  margin-bottom:22px;
+  font-weight:900;
+  line-height:1.2;
+}
+
+.extra-box p{
+  font-size:22px;
+  color:#6b7280;
+  line-height:2;
 }
 
 /* =========================
-   CONTACT - LEAVE SAME
+   CONTACT
 ========================= */
 
 .contact-section{
-    text-align:center;
-    padding:80px 20px;
-    background:#fff;
-    font-size:24px;
-    line-height:2.2;
-    color:#111827;
+  width:100%;
+  text-align:center;
+  padding:80px 20px;
+  background:#fff;
+  font-size:24px;
+  line-height:2.2;
+  color:#111827;
 }
 
 .contact-section strong{
-    font-size:42px;
-    color:#111827;
-    display:block;
-    margin-bottom:10px;
+  font-size:42px;
+  color:#111827;
+  margin-bottom:10px;
 }
 
 /* =========================
@@ -414,12 +437,13 @@ span{
 ========================= */
 
 footer{
-    background:#111827;
-    color:#fff;
-    text-align:center;
-    padding:30px;
-    font-size:20px;
-    font-weight:800;
+  width:100%;
+  background:#111827;
+  color:#fff;
+  text-align:center;
+  padding:30px;
+  font-size:20px;
+  font-weight:700;
 }
 
 /* =========================
@@ -427,27 +451,43 @@ footer{
 ========================= */
 
 #google_translate_element{
-    position:absolute;
-    opacity:0;
-    pointer-events:none;
-    width:0;
-    height:0;
-    overflow:hidden;
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
 }
 
 .goog-logo-link,
 .goog-te-gadget span,
 .goog-te-banner-frame,
 iframe.goog-te-banner-frame{
-    display:none !important;
+  display:none !important;
 }
 
 .goog-te-gadget{
-    font-size:0 !important;
+  font-size:0 !important;
 }
 
 body{
-    top:0 !important;
+  top:0 !important;
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media(max-width:1100px){
+
+  .services,
+  .services.layout-5{
+    grid-template-columns:repeat(2,minmax(0,340px));
+  }
+
+  .services.layout-5 .card,
+  .services.layout-5 .card:nth-child(4),
+  .services.layout-5 .card:nth-child(5){
+    grid-column:auto;
+  }
+
 }
 
 /* =========================
@@ -456,185 +496,204 @@ body{
 
 @media(max-width:768px){
 
-    html,
-    body{
-        width:100%;
-        max-width:100%;
-        overflow-x:hidden;
-    }
+  html,
+  body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden !important;
+  }
 
-    *{
-        max-width:100%;
-        -webkit-tap-highlight-color:transparent;
-    }
+  .top-bar{
+    width:100%;
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+    padding:14px;
+    position:relative;
+  }
 
-    .top-bar{
-        position:relative;
-        flex-direction:column;
-        align-items:stretch;
-        gap:12px;
-        padding:14px;
-        box-shadow:0 2px 8px rgba(0,0,0,.05);
-    }
+  .top-links,
+  .lang-right{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
 
-    .top-links,
-    .lang-right{
-        width:100%;
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:10px;
-    }
+  .top-links a,
+  .lang-btn{
+    width:100%;
+    text-align:center;
+    font-size:13px;
+    padding:12px 8px;
+    border-radius:12px;
+  }
 
-    .top-links a,
-    .lang-btn{
-        width:100%;
-        font-size:13px;
-        padding:12px 8px;
-        border-radius:12px;
-        min-height:46px;
-    }
+  .hero{
+    width:100%;
+    padding:0;
+    overflow:hidden;
+  }
 
-    .top-links a:hover,
-    .lang-btn:hover{
-        transform:none;
-    }
+  .hero-inner{
+    width:100%;
+    max-width:100%;
+  }
 
-    .hero{
-        padding:0;
-    }
+  .hero-image{
+    width:100%;
+    height:auto;
+    display:block;
+    border-radius:0;
+    object-fit:cover;
+  }
 
-    .hero-image{
-        border-radius:0;
-        object-fit:cover;
-    }
+  .powered-box{
+    left:12px;
+    bottom:12px;
+    font-size:11px;
+    padding:8px 14px;
+    border-radius:20px;
+    backdrop-filter:none !important;
+  }
 
-    .powered-box{
-        left:12px;
-        bottom:12px;
-        font-size:11px;
-        padding:8px 14px;
-        border-radius:20px;
-    }
+  .about{
+    width:100%;
+    padding:55px 16px 20px;
+  }
 
-    .edit-section{
-        padding:28px 14px 0;
-    }
+  .about h2{
+    font-size:34px !important;
+    line-height:1.25;
+    margin-bottom:16px;
+  }
 
-    .edit-box{
-        width:100%;
-        padding:18px !important;
-        border-radius:18px !important;
-        box-shadow:0 4px 12px rgba(0,0,0,.06) !important;
-    }
+  .about p{
+    width:100%;
+    font-size:17px !important;
+    line-height:1.9;
+  }
 
-    .edit-content{
-        max-width:100%;
-    }
+  .quote-header{
+    width:100%;
+    padding:30px 16px 14px;
+  }
 
-    .edit-box h2,
-    .edit-box h3{
-        font-size:var(--box-title-mobile-size) !important;
-        line-height:1.3;
-        margin-bottom:12px;
-    }
+  .quote-header h2{
+    font-size:40px !important;
+    line-height:1.15;
+    margin-bottom:14px;
+  }
 
-    .edit-box p{
-        font-size:var(--box-text-mobile-size) !important;
-        line-height:1.75;
-    }
+  .quote-header p{
+    width:100%;
+    font-size:17px !important;
+    line-height:1.8;
+  }
 
-    .services,
-    .services.layout-1,
-    .services.layout-2,
-    .services.layout-3,
-    .services.layout-4,
-    .services.layout-5,
-    .services.layout-6{
-        width:100%;
-        max-width:100%;
-        padding:20px 14px 60px;
-        display:flex;
-        flex-direction:column;
-        flex-wrap:nowrap;
-        justify-content:center;
-        align-items:center;
-        gap:20px;
-    }
+  .services,
+  .services.layout-1,
+  .services.layout-2,
+  .services.layout-4,
+  .services.layout-5{
+    width:100%;
+    max-width:100%;
+    padding:20px 14px 60px;
+    grid-template-columns:1fr !important;
+    justify-content:center;
+    gap:20px;
+  }
 
-    .services .card{
-        width:100% !important;
-        max-width:100% !important;
-    }
+  .services.layout-5 .card,
+  .services.layout-5 .card:nth-child(4),
+  .services.layout-5 .card:nth-child(5){
+    grid-column:auto !important;
+  }
 
-    .card{
-        border-radius:20px;
-        box-shadow:0 4px 12px rgba(0,0,0,.07);
-        transition:none;
-    }
+  .card{
+    width:100%;
+    max-width:100%;
+    border-radius:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+  }
 
-    .card:hover{
-        transform:none;
-        box-shadow:0 4px 12px rgba(0,0,0,.07);
-    }
+  .card-image{
+    width:100%;
+    height:220px;
+    object-fit:contain;
+  }
 
-    .card-image{
-        height:220px;
-    }
+  .card-body{
+    padding:18px;
+  }
 
-    .card-body{
-        padding:18px;
-    }
+  .card h3{
+    font-size:24px !important;
+    line-height:1.3;
+    margin-bottom:10px;
+  }
 
-    .card h3{
-        font-size:24px !important;
-    }
+  .card p{
+    font-size:15px !important;
+    line-height:1.8;
+    min-height:auto;
+  }
 
-    .card p{
-        font-size:15px !important;
-        line-height:1.75;
-    }
+  .card-btn{
+    min-height:50px;
+    font-size:16px;
+    margin-top:16px;
+  }
 
-    .card-btn{
-        min-height:50px;
-        font-size:16px;
-        margin-top:16px;
-        border-radius:14px;
-    }
+  .extra-sections{
+    width:100%;
+    padding:0 14px 50px;
+    gap:14px;
+  }
 
-    .extra-sections{
-        padding:0 14px 50px;
-        gap:14px;
-    }
+  .extra-box{
+    width:100%;
+    padding:18px !important;
+    border-radius:18px !important;
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+  }
 
-    .contact-section{
-        padding:36px 14px;
-        font-size:15px !important;
-        line-height:1.8;
-    }
+  .extra-box h3{
+    font-size:22px !important;
+    line-height:1.3;
+    margin-bottom:10px;
+  }
 
-    .contact-section strong{
-        font-size:24px !important;
-        line-height:1.3;
-    }
+  .extra-box p{
+    font-size:15px !important;
+    line-height:1.75;
+  }
 
-    footer{
-        padding:18px 12px;
-        font-size:14px;
-        line-height:1.7;
-    }
+  .contact-section{
+    width:100%;
+    padding:36px 14px;
+    font-size:15px !important;
+    line-height:1.8;
+  }
 
-}
+  .contact-section strong{
+    font-size:24px !important;
+    line-height:1.3;
+    display:block;
+    margin-bottom:12px;
+  }
 
-@media(max-width:390px){
+  footer{
+    width:100%;
+    padding:18px 12px;
+    font-size:14px;
+    line-height:1.7;
+  }
 
-    .edit-box h2,
-    .edit-box h3{
-        font-size:26px !important;
-    }
-
-    .card-image{
-        height:200px;
-    }
+  .card:hover,
+  .extra-box:hover{
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+  }
 
 }
 
@@ -646,104 +705,80 @@ body{
 
 <div class="top-bar">
 
-    <div class="top-links">
+  <div class="top-links">
 
-        <a
-        href="companies/company-login.html"
-        class="facility-login">
-            Facility Login
-        </a>
+    <a
+    href="companies/company-login.html"
+    class="facility-login">
+      Facility Login
+    </a>
 
-        <a
-        href="login.html"
-        class="staff-login">
-            Staff Login
-        </a>
+    <a
+    href="login.html"
+    class="staff-login">
+      Staff Login
+    </a>
 
-    </div>
+  </div>
 
-    <div class="lang-right">
+  <div class="lang-right">
 
-        <button
-        id="lang-en"
-        class="lang-btn active-lang"
-        type="button"
-        onclick="setLang('en')">
-            English
-        </button>
+    <button
+    id="lang-en"
+    class="lang-btn active-lang"
+    onclick="setLang('en')">
+      English
+    </button>
 
-        <button
-        id="lang-es"
-        class="lang-btn"
-        type="button"
-        onclick="setLang('es')">
-            Spanish
-        </button>
+    <button
+    id="lang-es"
+    class="lang-btn"
+    onclick="setLang('es')">
+      Spanish
+    </button>
 
-    </div>
+  </div>
 
 </div>
 
 <section class="hero">
 
-    <div class="hero-inner">
+  <div class="hero-inner">
 
-        <img
-        class="hero-image"
-        src="/assets/hero.jpeg"
-        alt="Sunbeam Transportation"
-        decoding="async"
-        fetchpriority="high">
+    <img
+    class="hero-image"
+    src="/assets/hero.jpeg"
+    alt="Hero">
 
-        <div class="powered-box">
-            Powered by GH Mobility
-        </div>
-
+    <div class="powered-box">
+      Powered by GH Mobility
     </div>
+
+  </div>
 
 </section>
 
-<section class="edit-section">
+<section class="about">
 
-    <div class="edit-box text-center" id="aboutBox">
+  <h2 id="aboutTitle">
+    Professional Transportation Across Arizona
+  </h2>
 
-        <div class="edit-content">
-
-            <h2 id="aboutTitle">
-                About Us
-            </h2>
-
-            <p id="aboutText">Sunbeam Transportation is committed to providing safe, reliable, and professional transportation services across Arizona.
-
-We focus on comfort, punctuality, and respectful service for every passenger.
-
-Our drivers are professional, our vehicles are clean, and our goal is to make every ride simple, smooth, and dependable.
-
-From local appointments to daily transportation needs, Sunbeam Transportation is here to help you get where you need to go with confidence.</p>
-
-        </div>
-
-    </div>
+  <p id="aboutText">
+    Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
+  </p>
 
 </section>
 
-<section class="edit-section">
+<section class="quote-header">
 
-    <div class="edit-box text-center" id="quoteBox">
+  <h2 id="quoteTitle">
+    Book Your Ride Today
+  </h2>
 
-        <div class="edit-content">
-
-            <h2 id="quoteTitle">
-                Get Quote & Book Your Ride
-            </h2>
-
-            <p id="quoteText">
-                Select your service below
-            </p>
-
-        </div>
-
-    </div>
+  <p id="quoteText">
+    Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
+  </p>
 
 </section>
 
@@ -756,66 +791,56 @@ id="servicesContainer">
 class="extra-sections"
 id="extraSections">
 
-    <div
-    class="edit-box text-center"
-    id="extraBox1">
+  <div
+  class="extra-box"
+  id="extraBox1">
 
-        <div class="edit-content">
+    <h3 id="extra1TitleView">
+      Why Choose Sunbeam?
+    </h3>
 
-            <h3 id="extra1TitleView">
-                Why Choose Sunbeam?
-            </h3>
+    <p id="extra1TextView">
+      Professional Drivers
+    </p>
 
-            <p id="extra1TextView">
-                Professional Drivers
-            </p>
+  </div>
 
-        </div>
+  <div
+  class="extra-box"
+  id="extraBox2">
 
-    </div>
+    <h3 id="extra2TitleView">
+      Serving All Arizona
+    </h3>
 
-    <div
-    class="edit-box text-center"
-    id="extraBox2">
+    <p id="extra2TextView">
+      Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
+    </p>
 
-        <div class="edit-content">
-
-            <h3 id="extra2TitleView">
-                Serving All Arizona
-            </h3>
-
-            <p id="extra2TextView">
-                Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
-            </p>
-
-        </div>
-
-    </div>
+  </div>
 
 </section>
 
 <div class="contact-section">
 
-    <strong id="contactTitleView">
-        Customer Support
-    </strong>
+  <strong id="contactTitleView">
+    Customer Support
+  </strong>
 
-    📞
-    <span id="contactPhoneView">
-        619-509-7197
-    </span>
+  📞
+  <span id="contactPhoneView">
+    619-509-7197
+  </span>
 
-    <br>
-
-    📧
-    <span id="contactEmailView">
-        admin@sunbeamtransportationllc.com
-    </span>
+  📧
+  <span id="contactEmailView">
+    admin@sunbeamtransportationllc.com
+  </span>
 
 </div>
 
 <footer id="footerView">
-    ©️ Sunbeam Transportation
+  ©️ Sunbeam Transportation
 </footer>
 
 <div id="google_translate_element"></div>
@@ -824,416 +849,606 @@ id="extraSections">
 
 function googleTranslateElementInit(){
 
-    new google.translate.TranslateElement(
-        {
-            pageLanguage:"en",
-            includedLanguages:"en,es",
-            autoDisplay:false
-        },
-        "google_translate_element"
-    );
+  new google.translate.TranslateElement(
+    {
+      pageLanguage:"en",
+      includedLanguages:"en,es",
+      autoDisplay:false
+    },
+    "google_translate_element"
+  );
 
 }
 
 </script>
 
-<script
-src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-async>
-</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
 <script src="/core/branding.js"></script>
 
 <script>
 
 let currentLang = "en";
+let resizeTimer = null;
 
-function cleanText(value){
+function safeText(value, fallback = ""){
 
-    return String(value ?? "").trim();
-
-}
-
-function setPlainText(id, value, fallback = ""){
-
-    const el =
-    document.getElementById(id);
-
-    if(!el) return;
-
-    const text =
-    cleanText(value) || fallback;
-
-    el.textContent = text;
+  return String(
+    value === undefined || value === null
+    ? fallback
+    : value
+  );
 
 }
 
-function setTextWithBreaks(id, value, fallback = ""){
+function setText(id, value){
 
-    const el =
-    document.getElementById(id);
+  const el =
+  document.getElementById(id);
 
-    if(!el) return;
+  if(!el) return;
 
-    const text =
-    cleanText(value) || fallback;
-
-    el.textContent = "";
-
-    const parts =
-    text.split(/\n+/);
-
-    parts.forEach((part, index)=>{
-
-        if(index > 0){
-
-            el.appendChild(
-                document.createElement("br")
-            );
-
-            el.appendChild(
-                document.createElement("br")
-            );
-
-        }
-
-        el.appendChild(
-            document.createTextNode(part)
-        );
-
-    });
+  el.innerText =
+  safeText(value);
 
 }
 
-function pickLang(data, base){
+function setHtml(id, value){
 
-    if(currentLang === "es"){
+  const el =
+  document.getElementById(id);
 
-        return (
-            data[base + "Es"] ||
-            data[base + "_es"] ||
-            data[base] ||
-            ""
-        );
+  if(!el) return;
 
-    }
-
-    return (
-        data[base] ||
-        data[base + "En"] ||
-        data[base + "_en"] ||
-        ""
-    );
+  el.innerHTML =
+  safeText(value);
 
 }
 
-function safeAlign(value){
+function applyAlign(el, align){
 
-    const align =
-    String(value || "center")
-    .toLowerCase();
+  if(!el) return;
 
-    return (
-        ["left","center","right"].includes(align)
-        ? align
-        : "center"
-    );
+  el.classList.remove(
+    "align-left",
+    "align-center",
+    "align-right"
+  );
 
-}
+  const cleanAlign =
+  ["left","center","right"].includes(align)
+  ? align
+  : "center";
 
-function applyBoxAlign(boxId, align){
-
-    const box =
-    document.getElementById(boxId);
-
-    if(!box) return;
-
-    const safe =
-    safeAlign(align);
-
-    box.classList.remove(
-        "text-left",
-        "text-center",
-        "text-right"
-    );
-
-    box.classList.add(
-        "text-" + safe
-    );
+  el.classList.add(
+    "align-" + cleanAlign
+  );
 
 }
 
 function updateLangButtons(){
 
-    document
-    .querySelectorAll(".lang-btn")
-    .forEach(btn=>{
+  document
+  .querySelectorAll(".lang-btn")
+  .forEach(btn=>{
 
-        btn.classList.remove("active-lang");
-
-    });
-
-    const active =
-    document.getElementById(
-        "lang-" + currentLang
+    btn.classList.remove(
+      "active-lang"
     );
 
-    if(active){
-        active.classList.add("active-lang");
-    }
+  });
+
+  const active =
+  document.getElementById(
+    "lang-" + currentLang
+  );
+
+  if(active){
+
+    active.classList.add(
+      "active-lang"
+    );
+
+  }
 
 }
 
 function triggerGoogleTranslate(lang){
 
-    const select =
-    document.querySelector(".goog-te-combo");
+  const select =
+  document.querySelector(
+    ".goog-te-combo"
+  );
 
-    if(!select) return;
+  if(!select) return;
 
-    select.value = lang;
+  select.value = lang;
 
-    select.dispatchEvent(
-        new Event("change")
+  select.dispatchEvent(
+    new Event("change")
+  );
+
+}
+
+function applyHomepageTextTheme(data){
+
+  const aboutTitle =
+  document.getElementById("aboutTitle");
+
+  const aboutText =
+  document.getElementById("aboutText");
+
+  const quoteTitle =
+  document.getElementById("quoteTitle");
+
+  const quoteText =
+  document.getElementById("quoteText");
+
+  applyAlign(
+    aboutTitle,
+    data.aboutTitleAlign ||
+    data.aboutAlign ||
+    "center"
+  );
+
+  applyAlign(
+    aboutText,
+    data.aboutTextAlign ||
+    data.aboutAlign ||
+    "center"
+  );
+
+  applyAlign(
+    quoteTitle,
+    data.quoteTitleAlign ||
+    data.quoteAlign ||
+    "center"
+  );
+
+  applyAlign(
+    quoteText,
+    data.quoteTextAlign ||
+    data.quoteAlign ||
+    "center"
+  );
+
+  if(aboutTitle){
+
+    aboutTitle.style.color =
+    data.aboutTitleColor || "#1e3a6d";
+
+    aboutTitle.style.fontSize =
+    window.innerWidth <= 768
+    ? `${data.aboutTitleMobileSize || 34}px`
+    : `${data.aboutTitleSize || 60}px`;
+
+  }
+
+  if(aboutText){
+
+    aboutText.style.color =
+    data.aboutTextColor || "#6b7280";
+
+    aboutText.style.fontSize =
+    window.innerWidth <= 768
+    ? `${data.aboutTextMobileSize || 17}px`
+    : `${data.aboutTextSize || 25}px`;
+
+  }
+
+  if(quoteTitle){
+
+    quoteTitle.style.color =
+    data.quoteTitleColor || "#1e3a6d";
+
+    quoteTitle.style.fontSize =
+    window.innerWidth <= 768
+    ? `${data.quoteTitleMobileSize || 40}px`
+    : `${data.quoteTitleSize || 70}px`;
+
+  }
+
+  if(quoteText){
+
+    quoteText.style.color =
+    data.quoteTextColor || "#6b7280";
+
+    quoteText.style.fontSize =
+    window.innerWidth <= 768
+    ? `${data.quoteTextMobileSize || 17}px`
+    : `${data.quoteTextSize || 24}px`;
+
+  }
+
+}
+
+function applyExtraBoxesTheme(data){
+
+  const align =
+  data.extraBoxAlign || "center";
+
+  document
+  .querySelectorAll(".extra-box")
+  .forEach(box=>{
+
+    box.style.setProperty(
+      "background",
+      data.extraBoxBg || "#ffffff",
+      "important"
     );
+
+    box.style.setProperty(
+      "border",
+      `${data.extraBoxBorderSize || 2}px solid ${
+        data.extraBoxBorder || "#dbeafe"
+      }`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "border-radius",
+      `${data.extraBoxRadius || 28}px`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "padding",
+      window.innerWidth <= 768
+      ? `${data.extraBoxMobilePadding || 18}px`
+      : `${data.extraBoxPadding || 44}px`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "text-align",
+      align,
+      "important"
+    );
+
+    box.style.setProperty(
+      "box-shadow",
+      data.extraBoxShadow === false
+      ? "none"
+      : "0 10px 30px rgba(0,0,0,.08)",
+      "important"
+    );
+
+  });
+
+  document
+  .querySelectorAll(".extra-box h3")
+  .forEach(title=>{
+
+    title.style.setProperty(
+      "color",
+      data.extraBoxTitleColor || "#1e3a6d",
+      "important"
+    );
+
+    title.style.setProperty(
+      "font-size",
+      window.innerWidth <= 768
+      ? `${data.extraBoxTitleMobileSize || 22}px`
+      : `${data.extraBoxTitleSize || 42}px`,
+      "important"
+    );
+
+    applyAlign(title, align);
+
+  });
+
+  document
+  .querySelectorAll(".extra-box p")
+  .forEach(text=>{
+
+    text.style.setProperty(
+      "color",
+      data.extraBoxTextColor || "#6b7280",
+      "important"
+    );
+
+    text.style.setProperty(
+      "font-size",
+      window.innerWidth <= 768
+      ? `${data.extraBoxTextMobileSize || 15}px`
+      : `${data.extraBoxTextSize || 22}px`,
+      "important"
+    );
+
+    applyAlign(text, align);
+
+  });
 
 }
 
 function updateServicesLayout(){
 
-    const services =
-    document.getElementById("servicesContainer");
+  const services =
+  document.getElementById(
+    "servicesContainer"
+  );
 
-    if(!services) return;
+  if(!services) return;
 
-    const count =
-    services.querySelectorAll(".card").length;
+  const count =
+  services.querySelectorAll(".card").length;
 
-    services.classList.remove(
-        "layout-1",
-        "layout-2",
-        "layout-3",
-        "layout-4",
-        "layout-5",
-        "layout-6"
-    );
+  services.classList.remove(
+    "layout-1",
+    "layout-2",
+    "layout-4",
+    "layout-5"
+  );
 
-    if(count === 1){
-        services.classList.add("layout-1");
-    }
-    else if(count === 2){
-        services.classList.add("layout-2");
-    }
-    else if(count === 3){
-        services.classList.add("layout-3");
-    }
-    else if(count === 4){
-        services.classList.add("layout-4");
-    }
-    else if(count === 5){
-        services.classList.add("layout-5");
-    }
-    else if(count >= 6){
-        services.classList.add("layout-6");
-    }
+  if(count === 1){
+
+    services.classList.add("layout-1");
+
+  }else if(count === 2){
+
+    services.classList.add("layout-2");
+
+  }else if(count === 4){
+
+    services.classList.add("layout-4");
+
+  }else if(count === 5){
+
+    services.classList.add("layout-5");
+
+  }
 
 }
 
 function renderPage(){
 
-    const data =
-    Branding.data || {};
+  const data =
+  Branding.data || {};
 
-    const boxAlign =
-    data.extraBoxAlign ||
-    data.boxAlign ||
-    "center";
+  document.title =
+  data.companyName ||
+  "Sunbeam Transportation";
 
-    applyBoxAlign(
-        "aboutBox",
-        data.aboutAlign || boxAlign
-    );
+  setText(
+    "aboutTitle",
+    currentLang === "es"
+    ? (
+        data.aboutTitleEs ||
+        data.aboutTitle ||
+        "Transporte profesional en Arizona"
+      )
+    : (
+        data.aboutTitle ||
+        "Professional Transportation Across Arizona"
+      )
+  );
 
-    applyBoxAlign(
-        "quoteBox",
-        data.quoteAlign || boxAlign
-    );
+  setText(
+    "aboutText",
+    currentLang === "es"
+    ? (
+        data.aboutTextEs ||
+        data.aboutText ||
+        "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona."
+      )
+    : (
+        data.aboutText ||
+        "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona."
+      )
+  );
 
-    applyBoxAlign(
-        "extraBox1",
-        data.extraBoxAlign || boxAlign
-    );
+  setText(
+    "quoteTitle",
+    currentLang === "es"
+    ? (
+        data.quoteTitleEs ||
+        data.quoteTitle ||
+        "Reserve su viaje hoy"
+      )
+    : (
+        data.quoteTitle ||
+        "Book Your Ride Today"
+      )
+  );
 
-    applyBoxAlign(
-        "extraBox2",
-        data.extraBoxAlign || boxAlign
-    );
+  setText(
+    "quoteText",
+    currentLang === "es"
+    ? (
+        data.quoteTextEs ||
+        data.quoteText ||
+        "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
+      )
+    : (
+        data.quoteText ||
+        "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
+      )
+  );
 
-    document.title =
-    data.companyName ||
-    "Sunbeam Transportation";
+  const extraBox1 =
+  document.getElementById("extraBox1");
 
-    setPlainText(
-        "aboutTitle",
-        pickLang(data, "aboutTitle"),
-        currentLang === "es"
-        ? "Sobre nosotros"
-        : "About Us"
-    );
+  const extraBox2 =
+  document.getElementById("extraBox2");
 
-    setTextWithBreaks(
-        "aboutText",
-        pickLang(data, "aboutText"),
-        currentLang === "es"
-        ? `Sunbeam Transportation se compromete a ofrecer servicios de transporte seguros, confiables y profesionales en Arizona.
+  if(extraBox1){
 
-Nos enfocamos en la comodidad, puntualidad y respeto para cada pasajero.
+    extraBox1.style.display =
+    data.extra1Active === false
+    ? "none"
+    : "block";
 
-Nuestros conductores son profesionales, nuestros vehículos están limpios y nuestro objetivo es hacer cada viaje simple, cómodo y confiable.
+  }
 
-Desde citas locales hasta necesidades diarias de transporte, Sunbeam Transportation está aquí para ayudarle a llegar con confianza.`
-        : `Sunbeam Transportation is committed to providing safe, reliable, and professional transportation services across Arizona.
+  if(extraBox2){
 
-We focus on comfort, punctuality, and respectful service for every passenger.
+    extraBox2.style.display =
+    data.extra2Active === false
+    ? "none"
+    : "block";
 
-Our drivers are professional, our vehicles are clean, and our goal is to make every ride simple, smooth, and dependable.
+  }
 
-From local appointments to daily transportation needs, Sunbeam Transportation is here to help you get where you need to go with confidence.`
-    );
+  setText(
+    "extra1TitleView",
+    currentLang === "es"
+    ? (
+        data.extra1TitleEs ||
+        data.extra1Title ||
+        "¿Por qué elegir Sunbeam?"
+      )
+    : (
+        data.extra1Title ||
+        "Why Choose Sunbeam?"
+      )
+  );
 
-    setPlainText(
-        "quoteTitle",
-        pickLang(data, "quoteTitle"),
-        currentLang === "es"
-        ? "Obtenga precio y reserve su viaje"
-        : "Get Quote & Book Your Ride"
-    );
+  setHtml(
+    "extra1TextView",
+    currentLang === "es"
+    ? (
+        data.extra1TextEs ||
+        data.extra1Text ||
+        "Professional Drivers"
+      )
+    : (
+        data.extra1Text ||
+        "Professional Drivers"
+      )
+  );
 
-    setPlainText(
-        "quoteText",
-        pickLang(data, "quoteText"),
-        currentLang === "es"
-        ? "Seleccione su servicio abajo"
-        : "Select your service below"
-    );
+  setText(
+    "extra2TitleView",
+    currentLang === "es"
+    ? (
+        data.extra2TitleEs ||
+        data.extra2Title ||
+        "Servicio en Arizona"
+      )
+    : (
+        data.extra2Title ||
+        "Serving All Arizona"
+      )
+  );
 
-    const extraBox1 =
-    document.getElementById("extraBox1");
+  setHtml(
+    "extra2TextView",
+    currentLang === "es"
+    ? (
+        data.extra2TextEs ||
+        data.extra2Text ||
+        "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas."
+      )
+    : (
+        data.extra2Text ||
+        "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas."
+      )
+  );
 
-    if(extraBox1){
+  setText(
+    "contactTitleView",
+    currentLang === "es"
+    ? (
+        data.contactTitleEs ||
+        data.contactTitle ||
+        "Atención al cliente"
+      )
+    : (
+        data.contactTitle ||
+        "Customer Support"
+      )
+  );
 
-        extraBox1.style.display =
-        data.extra1Active === false
-        ? "none"
-        : "block";
+  setText(
+    "contactPhoneView",
+    data.contactPhone ||
+    "619-509-7197"
+  );
 
-    }
+  setText(
+    "contactEmailView",
+    data.contactEmail ||
+    "admin@sunbeamtransportationllc.com"
+  );
 
-    const extraBox2 =
-    document.getElementById("extraBox2");
-
-    if(extraBox2){
-
-        extraBox2.style.display =
-        data.extra2Active === false
-        ? "none"
-        : "block";
-
-    }
-
-    setPlainText(
-        "extra1TitleView",
-        pickLang(data, "extra1Title"),
-        currentLang === "es"
-        ? "¿Por qué elegir Sunbeam?"
-        : "Why Choose Sunbeam?"
-    );
-
-    setTextWithBreaks(
-        "extra1TextView",
-        pickLang(data, "extra1Text"),
-        currentLang === "es"
-        ? "Conductores profesionales"
-        : "Professional Drivers"
-    );
-
-    setPlainText(
-        "extra2TitleView",
-        pickLang(data, "extra2Title"),
-        currentLang === "es"
-        ? "Servicio en Arizona"
-        : "Serving All Arizona"
-    );
-
-    setTextWithBreaks(
-        "extra2TextView",
-        pickLang(data, "extra2Text"),
-        currentLang === "es"
-        ? "Phoenix, Chandler, Mesa, Tempe, Scottsdale y áreas cercanas."
-        : "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas."
-    );
-
-    setPlainText(
-        "contactTitleView",
-        pickLang(data, "contactTitle"),
-        currentLang === "es"
-        ? "Atención al cliente"
-        : "Customer Support"
-    );
-
-    setPlainText(
-        "contactPhoneView",
-        data.contactPhone,
-        "619-509-7197"
-    );
-
-    setPlainText(
-        "contactEmailView",
-        data.contactEmail,
-        "admin@sunbeamtransportationllc.com"
-    );
-
-    setPlainText(
-        "footerView",
-        pickLang(data, "footerText"),
+  setText(
+    "footerView",
+    currentLang === "es"
+    ? (
+        data.footerTextEs ||
+        data.footerText ||
         "©️ Sunbeam Transportation"
-    );
+      )
+    : (
+        data.footerText ||
+        "©️ Sunbeam Transportation"
+      )
+  );
 
-    Branding.renderHomepageCards(
-        "servicesContainer",
-        currentLang
-    );
+  Branding.renderHomepageCards(
+    "servicesContainer",
+    currentLang
+  );
 
-    Branding.applyThemeEngine();
+  applyHomepageTextTheme(data);
 
-    updateServicesLayout();
+  applyExtraBoxesTheme(data);
 
-    updateLangButtons();
+  updateServicesLayout();
+
+  updateLangButtons();
 
 }
 
 window.setLang = function(lang){
 
-    currentLang =
-    lang === "es"
-    ? "es"
-    : "en";
+  currentLang =
+  lang === "es"
+  ? "es"
+  : "en";
 
-    renderPage();
+  renderPage();
 
-    triggerGoogleTranslate(currentLang);
+  triggerGoogleTranslate(
+    currentLang
+  );
 
 };
 
 window.addEventListener(
-    "DOMContentLoaded",
-    async ()=>{
+  "DOMContentLoaded",
+  async ()=>{
 
-        await Branding.load();
+    await Branding.load();
 
-        renderPage();
+    renderPage();
 
-    }
+  }
+);
+
+window.addEventListener(
+  "resize",
+  ()=>{
+
+    clearTimeout(resizeTimer);
+
+    resizeTimer =
+    setTimeout(()=>{
+
+      applyHomepageTextTheme(
+        Branding.data || {}
+      );
+
+      applyExtraBoxesTheme(
+        Branding.data || {}
+      );
+
+      updateServicesLayout();
+
+    },120);
+
+  },
+  { passive:true }
 );
 
 </script>
