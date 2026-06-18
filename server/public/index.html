@@ -560,66 +560,60 @@ footer{
 
 .about{
   width:auto !important;
-  margin:10px 6px 0 !important;
-  padding:22px 10px !important;
-  border-radius:20px !important;
+  margin:8px 4px 0 !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
 }
+
 .quote-header{
   width:auto !important;
-  margin:12px 6px 0 !important;
-  padding:22px 10px !important;
-  border-radius:20px !important;
+  margin:10px 4px 0 !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
 }
 
-  .extra-sections{
-    width:100%;
-    padding:0 12px 50px;
-    gap:16px;
-  }
+.extra-sections{
+  width:100% !important;
+  padding:0 4px 45px !important;
+  gap:14px !important;
+}
 
-  .extra-box{
-    width:100%;
-    padding:28px 20px !important;
-    border-radius:22px !important;
-    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
-  }
-
+.extra-box{
+  width:100% !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
+}
   /* =========================
      MOBILE TITLES
-     العناوين فقط في النص
   ========================= */
 
-  #aboutTitle,
-  #quoteTitle,
-  #extra1TitleView,
-  #extra2TitleView,
-  .about h2,
-  .quote-header h2,
-  .extra-box h3{
-    text-align:center !important;
-    text-align-last:center !important;
+#aboutTitle,
+#quoteTitle,
+#extra1TitleView,
+#extra2TitleView,
+.about h2,
+.quote-header h2,
+.extra-box h3{
+  text-align:center !important;
+  text-align-last:center !important;
 
-    direction:inherit !important;
-    unicode-bidi:plaintext !important;
+  font-size:30px !important;
+  line-height:1.15 !important;
 
-    font-size:32px !important;
-    line-height:1.2 !important;
+  word-spacing:normal !important;
+  letter-spacing:0 !important;
 
-    word-spacing:normal !important;
-    letter-spacing:0 !important;
-
-    margin-bottom:18px !important;
-  }
+  margin-bottom:16px !important;
+}
 
   /* =========================
      MOBILE AUTO TEXT
-     الموبايل ينسق النص بنفسه
-     بدون left / right / justify من الأدمن
   ========================= */
 #aboutText,
 #quoteText,
 #extra1TextView,
 #extra2TextView{
+  display:block !important;
   width:100% !important;
   max-width:100% !important;
 
@@ -628,13 +622,13 @@ footer{
   text-justify:inter-word !important;
 
   direction:ltr !important;
-  unicode-bidi:plaintext !important;
+  unicode-bidi:normal !important;
 
-  font-size:13.8px !important;
-  line-height:1.65 !important;
+  font-size:13.5px !important;
+  line-height:1.62 !important;
 
-  word-spacing:-1.4px !important;
-  letter-spacing:-0.25px !important;
+  word-spacing:-2px !important;
+  letter-spacing:-0.35px !important;
 
   word-break:normal !important;
   overflow-wrap:normal !important;
@@ -643,10 +637,8 @@ footer{
   margin:0 !important;
   padding:0 !important;
 }
-
 /* =========================
      SERVICES / CARDS
-     نفس الكروت بس موبايل
   ========================= */
 
   .services,
@@ -972,8 +964,22 @@ function applyWordText(id,value,align){
   const text =
   cleanWordText(value);
 
- let finalAlign =
-normalizeWordAlign(align);
+  let finalAlign =
+  normalizeWordAlign(align);
+
+  const mobileTextIds = [
+    "aboutText",
+    "quoteText",
+    "extra1TextView",
+    "extra2TextView"
+  ];
+
+  if(
+    window.innerWidth <= 768 &&
+    mobileTextIds.includes(id)
+  ){
+    finalAlign = "justify";
+  }
 
   const dir =
   detectDirection(text);
@@ -999,7 +1005,6 @@ normalizeWordAlign(align);
   el.innerText = text;
 
 }
-
 function setText(id,value){
 
   const el =
