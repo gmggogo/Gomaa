@@ -20,18 +20,23 @@ content="width=device-width, initial-scale=1.0">
 ========================= */
 
 :root{
+    --page-bg:#f3f4f6;
+
     --extra-bg:#ffffff;
     --extra-border:#dbeafe;
     --extra-border-size:2px;
     --extra-radius:28px;
     --extra-padding:44px;
     --extra-align:center;
+
     --extra-title-color:#1e3a6d;
     --extra-title-size:42px;
     --extra-title-mobile-size:28px;
+
     --extra-text-color:#6b7280;
     --extra-text-size:22px;
     --extra-text-mobile-size:16px;
+
     --extra-shadow:0 10px 30px rgba(0,0,0,.08);
 }
 
@@ -55,16 +60,22 @@ html{
 
 body{
     font-family:'Segoe UI', Arial, sans-serif;
-    background:#f3f4f6;
+    background:var(--page-bg);
     color:#0f172a;
     text-rendering:optimizeLegibility;
 }
 
-/* يمنع تكسير الحروف الغلط */
-h1,h2,h3,p,a,button,strong,span{
-    overflow-wrap:break-word;
+h1,
+h2,
+h3,
+p,
+a,
+button,
+strong,
+span{
     word-break:normal;
-    hyphens:auto;
+    overflow-wrap:break-word;
+    hyphens:none;
 }
 
 /* =========================
@@ -183,24 +194,41 @@ h1,h2,h3,p,a,button,strong,span{
 ========================= */
 
 .about{
-    text-align:center;
-    padding:90px 20px 40px;
+    width:100%;
+    max-width:1200px;
+    margin:60px auto 30px;
+    padding:40px 34px;
+    background:#ffffff;
+    border-radius:28px;
+    box-shadow:0 8px 24px rgba(0,0,0,.06);
+
+    display:grid;
+    grid-template-columns:300px 1fr;
+    gap:34px;
+    align-items:start;
 }
 
 .about h2{
-    font-size:60px;
-    color:#1e3a6d;
-    margin-bottom:20px;
+    font-size:36px;
+    color:#2563eb;
+    margin:0;
     font-weight:900;
-    line-height:1.12;
+    line-height:1.25;
+    text-align:left;
 }
 
 .about p{
-    font-size:25px;
-    color:#6b7280;
-    max-width:1100px;
-    margin:auto;
+    font-size:18px;
+    color:#475569;
     line-height:1.9;
+    max-width:820px;
+    margin:0;
+    text-align:left;
+    word-break:normal !important;
+    overflow-wrap:normal !important;
+    hyphens:none !important;
+    white-space:pre-line;
+    text-wrap:pretty;
 }
 
 /* =========================
@@ -209,52 +237,135 @@ h1,h2,h3,p,a,button,strong,span{
 
 .quote-header{
     text-align:center;
-    padding:40px 20px 24px;
+    padding:42px 20px 28px;
 }
 
 .quote-header h2{
-    font-size:70px;
-    color:#1e3a6d;
-    margin-bottom:18px;
-    line-height:1.1;
+    font-size:46px;
+    color:#2563eb;
+    margin-bottom:14px;
+    line-height:1.15;
     font-weight:900;
 }
 
 .quote-header p{
-    font-size:24px;
-    color:#6b7280;
+    font-size:18px;
+    color:#64748b;
     max-width:1000px;
     margin:auto;
     line-height:1.8;
 }
 
 /* =========================
-   SERVICES
+   SERVICES SMART CENTER LAYOUT
 ========================= */
 
 .services{
     width:100%;
-    max-width:1500px;
-    margin:auto;
-    padding:60px 60px 140px;
+    max-width:1240px;
+    margin:0 auto;
+    padding:50px 20px 120px;
+
     display:grid;
-    grid-template-columns:repeat(3, minmax(280px, 340px));
+    grid-template-columns:repeat(6, 170px);
+    gap:32px 28px;
     justify-content:center;
-    gap:28px;
     align-items:stretch;
 }
 
-.services.layout-1{
-    grid-template-columns:minmax(280px, 340px);
+/* كل كارت 340px = عمودين */
+.services .card{
+    grid-column:span 2;
 }
 
-.services.layout-2,
-.services.layout-4{
-    grid-template-columns:repeat(2, minmax(280px, 340px));
+/* 1 = كارت واحد في النص */
+.services.layout-1 .card:nth-child(1){
+    grid-column:3 / span 2;
 }
+
+/* 2 = اتنين جنب بعض في النص */
+.services.layout-2 .card:nth-child(1){
+    grid-column:2 / span 2;
+}
+
+.services.layout-2 .card:nth-child(2){
+    grid-column:4 / span 2;
+}
+
+/* 3 = تلاتة جنب بعض */
+.services.layout-3 .card:nth-child(1){
+    grid-column:1 / span 2;
+}
+
+.services.layout-3 .card:nth-child(2){
+    grid-column:3 / span 2;
+}
+
+.services.layout-3 .card:nth-child(3){
+    grid-column:5 / span 2;
+}
+
+/* 4 = اتنين فوق واتنين تحت */
+.services.layout-4 .card:nth-child(1){
+    grid-column:2 / span 2;
+}
+
+.services.layout-4 .card:nth-child(2){
+    grid-column:4 / span 2;
+}
+
+.services.layout-4 .card:nth-child(3){
+    grid-column:2 / span 2;
+}
+
+.services.layout-4 .card:nth-child(4){
+    grid-column:4 / span 2;
+}
+
+/* 5 = تلاتة فوق واتنين تحت في النص */
+.services.layout-5 .card:nth-child(1){
+    grid-column:1 / span 2;
+}
+
+.services.layout-5 .card:nth-child(2){
+    grid-column:3 / span 2;
+}
+
+.services.layout-5 .card:nth-child(3){
+    grid-column:5 / span 2;
+}
+
+.services.layout-5 .card:nth-child(4){
+    grid-column:2 / span 2;
+}
+
+.services.layout-5 .card:nth-child(5){
+    grid-column:4 / span 2;
+}
+
+/* 6 = تلاتة فوق وتلاتة تحت */
+.services.layout-6 .card:nth-child(1),
+.services.layout-6 .card:nth-child(4){
+    grid-column:1 / span 2;
+}
+
+.services.layout-6 .card:nth-child(2),
+.services.layout-6 .card:nth-child(5){
+    grid-column:3 / span 2;
+}
+
+.services.layout-6 .card:nth-child(3),
+.services.layout-6 .card:nth-child(6){
+    grid-column:5 / span 2;
+}
+
+/* =========================
+   CARD
+========================= */
 
 .card{
-    width:100%;
+    width:340px;
+    max-width:340px;
     background:#fff;
     border-radius:26px;
     overflow:hidden;
@@ -290,16 +401,19 @@ h1,h2,h3,p,a,button,strong,span{
 .card h3{
     font-size:30px;
     margin-bottom:12px;
-    color:#111827;
+    color:#2563eb;
     font-weight:900;
     line-height:1.25;
 }
 
 .card p{
     font-size:17px;
-    color:#6b7280;
+    color:#475569;
     line-height:1.85;
     flex:1;
+    word-break:normal !important;
+    overflow-wrap:break-word;
+    hyphens:none !important;
     unicode-bidi:plaintext;
 }
 
@@ -324,7 +438,7 @@ h1,h2,h3,p,a,button,strong,span{
 }
 
 /* =========================
-   EXTRA
+   EXTRA BOXES
 ========================= */
 
 .extra-sections{
@@ -369,6 +483,7 @@ h1,h2,h3,p,a,button,strong,span{
     line-height:1.9;
     text-align:inherit;
     unicode-bidi:plaintext;
+    white-space:pre-line;
 }
 
 /* =========================
@@ -436,25 +551,69 @@ body{
    TABLET
 ========================= */
 
-@media(max-width:1024px){
+@media(max-width:1100px){
 
     .services{
-        grid-template-columns:repeat(2, minmax(280px, 340px));
-        padding:50px 24px 100px;
+        max-width:760px;
+        grid-template-columns:repeat(4, 170px);
     }
 
-    .services.layout-1{
-        grid-template-columns:minmax(280px, 340px);
+    .services .card{
+        grid-column:span 2;
     }
 
-    .extra-sections{
-        padding:30px 24px 100px;
+    .services.layout-1 .card:nth-child(1){
+        grid-column:2 / span 2;
+    }
+
+    .services.layout-2 .card:nth-child(1){
+        grid-column:1 / span 2;
+    }
+
+    .services.layout-2 .card:nth-child(2){
+        grid-column:3 / span 2;
+    }
+
+    .services.layout-3 .card:nth-child(1){
+        grid-column:1 / span 2;
+    }
+
+    .services.layout-3 .card:nth-child(2){
+        grid-column:3 / span 2;
+    }
+
+    .services.layout-3 .card:nth-child(3){
+        grid-column:2 / span 2;
+    }
+
+    .services.layout-4 .card:nth-child(1),
+    .services.layout-4 .card:nth-child(3){
+        grid-column:1 / span 2;
+    }
+
+    .services.layout-4 .card:nth-child(2),
+    .services.layout-4 .card:nth-child(4){
+        grid-column:3 / span 2;
+    }
+
+    .services.layout-5 .card:nth-child(1),
+    .services.layout-5 .card:nth-child(3){
+        grid-column:1 / span 2;
+    }
+
+    .services.layout-5 .card:nth-child(2),
+    .services.layout-5 .card:nth-child(4){
+        grid-column:3 / span 2;
+    }
+
+    .services.layout-5 .card:nth-child(5){
+        grid-column:2 / span 2;
     }
 
 }
 
 /* =========================
-   MOBILE FINAL FIX
+   MOBILE
 ========================= */
 
 @media(max-width:768px){
@@ -464,10 +623,6 @@ body{
         width:100%;
         max-width:100%;
         overflow-x:hidden;
-    }
-
-    body{
-        background:#f3f4f6;
     }
 
     *{
@@ -535,20 +690,30 @@ body{
     }
 
     .about{
-        width:100%;
-        padding:55px 16px 20px;
+        width:calc(100% - 28px);
+        margin:34px auto 20px;
+        padding:22px 18px;
+        border-radius:20px;
+        display:block;
+        box-shadow:0 4px 12px rgba(0,0,0,.06);
     }
 
     .about h2{
-        font-size:34px !important;
-        line-height:1.25;
-        margin-bottom:16px;
+        font-size:28px !important;
+        text-align:center;
+        margin-bottom:14px;
     }
 
     .about p{
-        width:100%;
-        font-size:17px !important;
-        line-height:1.8;
+        font-size:16px !important;
+        line-height:1.75;
+        text-align:center;
+        max-width:100%;
+        word-break:normal !important;
+        overflow-wrap:normal !important;
+        hyphens:none !important;
+        white-space:pre-line;
+        text-wrap:pretty;
     }
 
     .quote-header{
@@ -557,22 +722,24 @@ body{
     }
 
     .quote-header h2{
-        font-size:40px !important;
+        font-size:34px !important;
         line-height:1.15;
         margin-bottom:14px;
     }
 
     .quote-header p{
         width:100%;
-        font-size:17px !important;
+        font-size:16px !important;
         line-height:1.75;
     }
 
     .services,
     .services.layout-1,
     .services.layout-2,
+    .services.layout-3,
     .services.layout-4,
-    .services.layout-5{
+    .services.layout-5,
+    .services.layout-6{
         width:100%;
         max-width:100%;
         padding:20px 14px 60px;
@@ -582,8 +749,19 @@ body{
         gap:20px;
     }
 
-    .card{
+    .services .card,
+    .services.layout-1 .card,
+    .services.layout-2 .card,
+    .services.layout-3 .card,
+    .services.layout-4 .card,
+    .services.layout-5 .card,
+    .services.layout-6 .card{
+        grid-column:auto !important;
         width:100% !important;
+        max-width:100% !important;
+    }
+
+    .card{
         border-radius:20px;
         box-shadow:0 4px 12px rgba(0,0,0,.07);
         transition:none;
@@ -684,11 +862,11 @@ body{
 @media(max-width:390px){
 
     .about h2{
-        font-size:30px !important;
+        font-size:26px !important;
     }
 
     .quote-header h2{
-        font-size:34px !important;
+        font-size:30px !important;
     }
 
     .card-image{
@@ -765,23 +943,27 @@ body{
 <section class="about">
 
     <h2 id="aboutTitle">
-        Professional Transportation Across Arizona
+        About Us
     </h2>
 
-    <p id="aboutText">
-        Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
-    </p>
+    <p id="aboutText">Sunbeam Transportation is committed to providing safe, reliable, and professional transportation services across Arizona.
+
+We focus on comfort, punctuality, and respectful service for every passenger.
+
+Our drivers are professional, our vehicles are clean, and our goal is to make every ride simple, smooth, and dependable.
+
+From local appointments to daily transportation needs, Sunbeam Transportation is here to help you get where you need to go with confidence.</p>
 
 </section>
 
 <section class="quote-header">
 
     <h2 id="quoteTitle">
-        Book Your Ride Today
+        Get Quote & Book Your Ride
     </h2>
 
     <p id="quoteText">
-        Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
+        Select your service below
     </p>
 
 </section>
@@ -917,9 +1099,15 @@ function setTextWithBreaks(id, value, fallback = ""){
     parts.forEach((part, index)=>{
 
         if(index > 0){
+
             el.appendChild(
                 document.createElement("br")
             );
+
+            el.appendChild(
+                document.createElement("br")
+            );
+
         }
 
         el.appendChild(
@@ -1001,8 +1189,10 @@ function updateServicesLayout(){
     services.classList.remove(
         "layout-1",
         "layout-2",
+        "layout-3",
         "layout-4",
-        "layout-5"
+        "layout-5",
+        "layout-6"
     );
 
     if(count === 1){
@@ -1011,11 +1201,17 @@ function updateServicesLayout(){
     else if(count === 2){
         services.classList.add("layout-2");
     }
+    else if(count === 3){
+        services.classList.add("layout-3");
+    }
     else if(count === 4){
         services.classList.add("layout-4");
     }
     else if(count === 5){
         services.classList.add("layout-5");
+    }
+    else if(count === 6){
+        services.classList.add("layout-6");
     }
 
 }
@@ -1033,52 +1229,68 @@ function renderPage(){
         "aboutTitle",
         pickLang(data, "aboutTitle"),
         currentLang === "es"
-        ? "Transporte profesional en Arizona"
-        : "Professional Transportation Across Arizona"
+        ? "Sobre nosotros"
+        : "About Us"
     );
 
     setTextWithBreaks(
         "aboutText",
         pickLang(data, "aboutText"),
         currentLang === "es"
-        ? "Sunbeam Transportation ofrece servicios de transporte seguros, confiables y profesionales en Arizona."
-        : "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona."
+        ? `Sunbeam Transportation se compromete a ofrecer servicios de transporte seguros, confiables y profesionales en Arizona.
+
+Nos enfocamos en la comodidad, puntualidad y respeto para cada pasajero.
+
+Nuestros conductores son profesionales, nuestros vehículos están limpios y nuestro objetivo es hacer cada viaje simple, cómodo y confiable.
+
+Desde citas locales hasta necesidades diarias de transporte, Sunbeam Transportation está aquí para ayudarle a llegar con confianza.`
+        : `Sunbeam Transportation is committed to providing safe, reliable, and professional transportation services across Arizona.
+
+We focus on comfort, punctuality, and respectful service for every passenger.
+
+Our drivers are professional, our vehicles are clean, and our goal is to make every ride simple, smooth, and dependable.
+
+From local appointments to daily transportation needs, Sunbeam Transportation is here to help you get where you need to go with confidence.`
     );
 
     setPlainText(
         "quoteTitle",
         pickLang(data, "quoteTitle"),
         currentLang === "es"
-        ? "Reserve su viaje hoy"
-        : "Book Your Ride Today"
+        ? "Obtenga precio y reserve su viaje"
+        : "Get Quote & Book Your Ride"
     );
 
-    setTextWithBreaks(
+    setPlainText(
         "quoteText",
         pickLang(data, "quoteText"),
         currentLang === "es"
-        ? "Reservas rápidas, conductores profesionales, vehículos limpios y transporte confiable en Arizona."
-        : "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
+        ? "Seleccione su servicio abajo"
+        : "Select your service below"
     );
 
     const extraBox1 =
     document.getElementById("extraBox1");
 
     if(extraBox1){
+
         extraBox1.style.display =
         data.extra1Active === false
         ? "none"
         : "block";
+
     }
 
     const extraBox2 =
     document.getElementById("extraBox2");
 
     if(extraBox2){
+
         extraBox2.style.display =
         data.extra2Active === false
         ? "none"
         : "block";
+
     }
 
     setPlainText(

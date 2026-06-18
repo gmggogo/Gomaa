@@ -26,11 +26,20 @@ window.Branding = {
       );
 
       if(!res.ok){
-        throw new Error("Failed To Load System Design");
+
+        throw new Error(
+          "Failed To Load System Design"
+        );
+
       }
 
       this.data =
       await res.json();
+
+      localStorage.setItem(
+        "ghSystemDesign",
+        JSON.stringify(this.data || {})
+      );
 
     }catch(err){
 
@@ -107,17 +116,6 @@ window.Branding = {
     .documentElement
     .style
     .setProperty(name, value);
-
-  },
-
-  escapeHTML(value){
-
-    return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
   },
 
@@ -250,6 +248,11 @@ window.Branding = {
     const isMobile =
     window.innerWidth <= 768;
 
+    const pageBg =
+    this.clean(d.homepageBg) ||
+    this.clean(d.pageBg) ||
+    "#f3f4f6";
+
     const bg =
     this.clean(d.extraBoxBg) ||
     "#ffffff";
@@ -277,10 +280,11 @@ window.Branding = {
     );
 
     const alignRaw =
-    this.clean(d.extraBoxAlign).toLowerCase();
+    this.clean(d.extraBoxAlign)
+    .toLowerCase();
 
     const align =
-    ["left","center","right","justify"].includes(alignRaw)
+    ["left","center","right"].includes(alignRaw)
     ? alignRaw
     : "center";
 
@@ -321,6 +325,8 @@ window.Branding = {
     ? "none"
     : "0 10px 30px rgba(0,0,0,.08)";
 
+    this.setVar("--page-bg", pageBg);
+
     this.setVar("--extra-bg", bg);
     this.setVar("--extra-border", border);
     this.setVar("--extra-border-size", `${borderSize}px`);
@@ -334,6 +340,9 @@ window.Branding = {
     this.setVar("--extra-text-size", `${textSize}px`);
     this.setVar("--extra-text-mobile-size", `${textMobileSize}px`);
     this.setVar("--extra-shadow", shadow);
+
+    document.body.style.background =
+    pageBg;
 
     document
     .querySelectorAll(".extra-box")
@@ -349,7 +358,9 @@ window.Branding = {
     });
 
     document
-    .querySelectorAll(".extra-box h2, .extra-box h3, .extra-box p")
+    .querySelectorAll(
+      ".extra-box h2, .extra-box h3, .extra-box p"
+    )
     .forEach(el=>{
 
       el.style.textAlign = "inherit";
@@ -357,6 +368,7 @@ window.Branding = {
       el.style.unicodeBidi = "plaintext";
       el.style.wordBreak = "normal";
       el.style.overflowWrap = "break-word";
+      el.style.hyphens = "none";
 
     });
 
@@ -370,7 +382,9 @@ window.Branding = {
 
     if(!service) return false;
 
-    if(service.active === false) return false;
+    if(service.active === false){
+      return false;
+    }
 
     return true;
 
