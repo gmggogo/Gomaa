@@ -672,137 +672,112 @@ if(!container) console.error("Missing #hubContainer");
       }
     }
 
-    @media(max-width:768px){
-      .hub-sticky-top{
-        top:0;
-      }
+   @media(max-width:768px){
 
-      .hub-table{
-        min-width:1560px;
-      }
+  /* ===== STICKY ===== */
+  .hub-sticky-top{
+    top:0;
+  }
 
-/* ===== FIX MOBILE CARDS ===== */
+  /* ===== TABLE ===== */
+  .hub-table{
+    min-width:1400px;
+  }
 
-.stats-grid{
-  display:grid !important;
-  grid-template-columns:repeat(3,1fr) !important;
-  gap:6px !important;
+  .hub-table th,
+  .hub-table td{
+    font-size:10px;
+    padding:4px;
+  }
+
+  .hub-table th{
+    font-size:10px;
+  }
+
+  .cell-item{
+    font-size:9.5px;
+    padding:3px 4px;
+  }
+
+  .wide-address,
+  .wide-stops{
+    font-size:9.5px!important;
+  }
+
+  /* ===== CARDS (تصغير فقط بدون تكسير) ===== */
+
+  .hub-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .stat-card{
+    padding:6px 5px;
+    border-radius:10px;
+  }
+
+  .stat-title{
+    font-size:9px;
+  }
+
+  .stat-number{
+    font-size:18px;
+  }
+
+  .mini-head{
+    font-size:7px;
+  }
+
+  .mini-values{
+    font-size:10px;
+  }
+
+  /* ===== SERVICE ===== */
+
+  .service-tabs{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .service-tab{
+    min-height:60px;
+    padding:6px 5px;
+  }
+
+  .service-title{
+    font-size:10px;
+  }
+
+  .service-total{
+    font-size:16px;
+  }
+
+  /* ===== BUTTONS ===== */
+
+  .top-add-trip-btn{
+    padding:10px 16px;
+    font-size:13px;
+  }
+
+  .hub-filter{
+    flex:1;
+    min-width:90px;
+    font-size:11px;
+    padding:7px 8px;
+  }
+
+  .hub-action-btn{
+    font-size:11px;
+    padding:7px 10px;
+  }
+
+  /* ===== VIEW ===== */
+
+  .view-line{
+    grid-template-columns:1fr;
+  }
+
 }
-
-.stat-card{
-  padding:6px 4px !important;
-  border-radius:10px !important;
-}
-
-.stat-label{
-  font-size:9px !important;
-}
-
-.stat-value{
-  font-size:16px !important;
-}
-
-/* ===== SERVICE ===== */
-
-.service-strip{
-  display:grid !important;
-  grid-template-columns:repeat(3,1fr) !important;
-  gap:6px !important;
-}
-
-.service-card{
-  padding:6px 4px !important;
-  min-height:60px !important;
-  border-radius:10px !important;
-}
-
-.service-name{
-  font-size:10px !important;
-}
-
-.service-total{
-  font-size:16px !important;
-}
-
-.service-mini{
-  font-size:8px !important;
-}
-      .hub-table th,
-      .hub-table td{
-        font-size:10px;
-        padding:4px;
-      }
-
-      .hub-table th{
-        font-size:10px;
-      }
-
-      .cell-item{
-        font-size:9.5px;
-        padding:3px 4px;
-      }
-
-      .wide-address,
-      .wide-stops{
-        font-size:9.5px!important;
-      }
-
-      .top-add-trip-btn{
-        padding:10px 16px;
-        font-size:13px;
-      }
-
-      .hub-stats{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:6px;
-      }
-
-      .stat-card{
-        padding:8px 6px;
-        border-radius:12px;
-      }
-
-      .stat-title{
-        font-size:10px;
-      }
-
-      .stat-number{
-        font-size:20px;
-      }
-
-      .mini-head{
-        font-size:8px;
-      }
-
-      .mini-values{
-        font-size:11px;
-      }
-
-      .service-tabs{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-        gap:6px;
-      }
-
-      .service-tab{
-        min-height:66px;
-      }
-
-      .hub-filter{
-        flex:1;
-        min-width:90px;
-        font-size:11px;
-        padding:7px 8px;
-      }
-
-      .hub-action-btn{
-        font-size:11px;
-        padding:7px 10px;
-      }
-
-      .view-line{
-        grid-template-columns:1fr;
-      }
-    }
   `;
   document.head.appendChild(style);
 })();
