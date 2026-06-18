@@ -2,17 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Trips Hub</title>
+<title>Trips</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
-/* =====================================================
-   TRIPS HUB / TRIPS PAGE UI
-   Desktop unchanged
-   Mobile compact cards + table visible faster
-===================================================== */
+
+/* ================= GLOBAL ================= */
 
 body{
   margin:0;
@@ -29,16 +26,16 @@ body{
   z-index:1000;
 }
 
-/* PAGE */
+/* ================= PAGE ================= */
 
 .page-body{
-  padding-top:300px;
+  padding-top:140px; /* ✔ اترفعت لفوق */
   padding-left:20px;
   padding-right:20px;
   padding-bottom:30px;
 }
 
-/* TOP AREA */
+/* ================= TOP ================= */
 
 .admin-trips-top{
   position:sticky;
@@ -53,7 +50,7 @@ body{
   border-bottom:1px solid #cbd5e1;
 }
 
-/* STATS */
+/* ================= STATS (DESKTOP) ================= */
 
 .stats-grid{
   display:grid;
@@ -71,36 +68,23 @@ body{
   box-shadow:0 5px 14px rgba(15,23,42,.07);
 }
 
-.stat-card:nth-child(2){border-left-color:#16a34a;}
-.stat-card:nth-child(3){border-left-color:#1d4ed8;}
-.stat-card:nth-child(4){border-left-color:#22c55e;}
-.stat-card:nth-child(5){border-left-color:#f59e0b;}
-.stat-card:nth-child(6){border-left-color:#7c3aed;}
-
 .stat-label{
   font-size:11px;
   font-weight:900;
   color:#64748b;
-  letter-spacing:.3px;
-  text-transform:uppercase;
 }
 
 .stat-value{
   font-size:24px;
-  line-height:1.1;
   font-weight:900;
-  color:#0f172a;
-  margin-top:3px;
 }
 
-/* SERVICE CARDS */
+/* ================= SERVICES (DESKTOP) ================= */
 
 .service-strip{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
   gap:7px;
-  overflow:visible;
-  padding-bottom:0;
 }
 
 .service-card{
@@ -108,797 +92,86 @@ body{
   border:1px solid #dbe3ee;
   border-radius:13px;
   padding:8px 7px;
-  cursor:pointer;
   text-align:center;
   min-height:78px;
-  box-shadow:0 4px 12px rgba(15,23,42,.06);
-  transition:.15s ease;
 }
 
-.service-card:hover{
-  transform:translateY(-1px);
-  box-shadow:0 7px 16px rgba(15,23,42,.10);
-}
-
-.service-card.active{
-  outline:none;
-  background:#2563eb;
-  border-color:#2563eb;
-  color:#fff;
-}
-
-.service-name{
-  font-size:12px;
-  line-height:1.1;
-  font-weight:900;
-  margin-bottom:4px;
-}
-
-.service-total{
-  font-size:22px;
-  line-height:1.05;
-  font-weight:900;
-  margin:4px 0;
-}
-
-.service-mini{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:4px;
-  font-size:9px;
-  font-weight:900;
-  color:#64748b;
-}
-
-.service-card.active .service-mini{
-  color:#fff;
-}
-
-/* SELECTION BAR */
-
-.selection-bar{
-  display:flex;
-  gap:7px;
-  flex-wrap:wrap;
-  align-items:center;
-  margin:0;
-}
-
-.select-btn{
-  border:none;
-  border-radius:9px;
-  padding:8px 13px;
-  font-size:12px;
-  font-weight:900;
-  cursor:pointer;
-  color:#fff;
-  background:#0f172a;
-  box-shadow:0 4px 10px rgba(15,23,42,.12);
-}
-
-.select-btn:hover{
-  background:#2563eb;
-}
-
-.select-btn.active{
-  background:#16a34a;
-}
-
-.select-btn.danger{
-  background:#dc2626;
-}
-
-/* TABLE AREA */
+/* ================= TABLE ================= */
 
 .table-scroll{
-  width:100%;
-  max-width:100%;
   overflow-x:auto;
-  overflow-y:visible;
-  -webkit-overflow-scrolling:touch;
-  margin-bottom:20px;
-  border-radius:14px;
   background:#fff;
+  border-radius:14px;
   box-shadow:0 8px 22px rgba(15,23,42,.08);
 }
 
 .trip-table{
   width:100%;
   min-width:1560px;
-  table-layout:fixed;
   border-collapse:collapse;
-  background:#fff;
-  border-top:6px solid #000;
-  font-size:11px;
 }
 
 .trip-table th,
 .trip-table td{
   border:1px solid #dbe3ee;
   padding:5px;
-  text-align:center;
-  vertical-align:middle;
-  line-height:1.25;
-  box-sizing:border-box;
-  position:relative;
-  overflow:visible;
-}
-
-.trip-table th{
-  background:#1f2937;
-  color:#fff;
-  font-weight:900;
-  white-space:nowrap;
-  font-size:11px;
-  position:static;
-  top:auto;
-  z-index:auto;
-}
-
-.trip-table td{
   font-size:11px;
 }
 
-/* SMALL COLUMNS */
-
-.col-num,
-.num-col{
-  width:30px;
-}
-
-.col-select,
-.select-col{
-  width:36px;
-}
-
-.col-trip,
-.trip-col{
-  width:76px;
-}
-
-.col-company,
-.company-col{
-  width:100px;
-}
-
-.col-date,
-.date-col{
-  width:82px;
-}
-
-.col-time,
-.time-col{
-  width:58px;
-}
-
-.col-status,
-.status-col{
-  width:76px;
-}
-
-.col-actions,
-.actions-col{
-  width:105px;
-}
-
-/* WIDE COLUMNS */
-
-.col-client,
-.client-col,
-.wide-client{
-  width:180px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-}
-
-.col-phone,
-.phone-col,
-.wide-phone{
-  width:115px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-}
-
-.col-address,
-.address-col,
-.pickup-col,
-.dropoff-col,
-.wide-address{
-  width:230px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-  font-size:10.5px!important;
-}
-
-.col-stops,
-.stops-col,
-.wide-stops{
-  width:120px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-  font-size:10.5px!important;
-}
-
-.col-notes,
-.notes-col,
-.wide-notes{
-  width:190px;
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-}
-
-/* INPUTS */
-
-.trip-table input,
-.trip-table textarea,
-.trip-table select{
-  width:100%;
-  min-width:70px;
-  border:1px solid #cbd5e1;
-  padding:5px;
-  font-size:10.5px;
-  font-weight:700;
-  box-sizing:border-box;
-  border-radius:6px;
-  font-family:inherit;
-  background:#fff;
-}
-
-.trip-table textarea{
-  min-height:45px;
-  resize:vertical;
-}
-
-.trip-table input:disabled,
-.trip-table textarea:disabled,
-.trip-table select:disabled{
-  background:#f8fafc;
-  color:#111827;
-  opacity:1;
-}
-
-/* DATE GROUP TITLE */
-
-.group-title{
-  margin:12px 0 0;
-  padding:5px 8px;
-  background:#bfdbfe;
-  color:#1e3a8a;
-  border-top:2px solid #60a5fa;
-  border-bottom:2px solid #60a5fa;
-  border-radius:8px 8px 0 0;
-  font-size:13px;
-  font-weight:900;
-  text-align:center;
-  letter-spacing:.3px;
-}
-
-/* ROW COLORS */
-
-.row-company td,
-.row-company{
-  background:#dbeafe!important;
-}
-
-.row-individual td,
-.row-individual{
-  background:#e8f4ff!important;
-}
-
-.row-reserved td,
-.row-reserved{
-  background:#fef3c7!important;
-}
-
-.row-quote td,
-.row-quote{
-  background:#dcfce7!important;
-}
-
-.row-shared td,
-.row-shared{
-  background:#ede9fe!important;
-}
-
-.trip-table tbody tr td{
-  border-bottom:3px solid #000;
-}
-
-/* CELL BOXES */
-
-.cell-box{
-  display:grid;
-  border:1px solid #111;
-  background:#fff;
-  width:100%;
-  box-sizing:border-box;
-  border-radius:4px;
-  overflow:hidden;
-}
-
-.cell-item{
-  padding:4px 5px;
-  min-height:22px;
-  font-weight:700;
-  white-space:normal;
-  word-break:break-word;
-  box-sizing:border-box;
-  background:#fff;
-  font-size:10.5px;
-}
-
-.cell-item + .cell-item{
-  border-top:1px solid #111;
-}
-
-/* ACTIONS */
-
-.actions{
-  display:flex;
-  gap:6px;
-  justify-content:center;
-  align-items:center;
-  flex-wrap:wrap;
-}
-
-.btn{
-  border:none;
-  padding:5px 9px;
-  border-radius:7px;
-  cursor:pointer;
-  font-size:11px;
-  font-weight:900;
-}
-
-.btn-edit{
-  background:#2563eb;
-  color:#fff;
-}
-
-.btn-delete{
-  background:#dc2626;
-  color:#fff;
-}
-
-.btn-disable{
-  background:#f59e0b;
-  color:#fff;
-}
-
-.dispatch-check:checked{
-  accent-color:#16a34a;
-}
-
-/* STOPS */
-
-.add-stop{
-  background:#facc15;
-  border:none;
-  padding:4px 7px;
-  cursor:pointer;
-  border-radius:6px;
-  font-size:11px;
-  font-weight:900;
-  margin-top:4px;
-}
-
-.stop-row{
-  display:flex;
-  align-items:center;
-  gap:5px;
-  margin-bottom:3px;
-}
-
-.stop-remove{
-  cursor:pointer;
-  color:#dc2626;
-  font-weight:900;
-}
-
-/* AUTOCOMPLETE */
-
-.input-wrap{
-  position:relative;
-  width:100%;
-}
-
-.suggestions{
-  position:absolute;
-  top:100%;
-  left:0;
-  right:0;
-  background:#fff;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-  z-index:99999;
-  max-height:220px;
-  overflow:auto;
-  box-shadow:0 12px 24px rgba(0,0,0,.15);
-  margin-top:4px;
-  text-align:left;
-}
-
-.option{
-  padding:10px 12px;
-  cursor:pointer;
-  font-size:13px;
-  line-height:1.35;
-  border-bottom:1px solid #eef2f7;
-  background:#fff;
-  color:#111827;
-}
-
-.option:last-child{
-  border-bottom:none;
-}
-
-.option:hover{
-  background:#eff6ff;
-}
-
-.option.disabled{
-  background:#f8fafc;
-  color:#64748b;
-  cursor:default;
-}
-
-/* EMPTY */
-
-.no-data{
-  background:#fff;
-  padding:18px;
-  border-radius:14px;
-  box-shadow:0 6px 16px rgba(15,23,42,.08);
-  color:#475569;
-  font-weight:900;
-}
-
-/* RESPONSIVE TABLET */
-
-@media(max-width:1200px){
-  .page-body{
-    padding-left:15px;
-    padding-right:15px;
-  }
-
-  .trip-table{
-    min-width:1560px;
-  }
-
-  .stats-grid{
-    grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
-  }
-
-  .service-strip{
-    grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
-  }
-
-  .service-card{
-    min-height:72px;
-    padding:7px 6px;
-  }
-
-  .stat-value{
-    font-size:21px;
-  }
-}
-
-/* =====================================================
-   MOBILE COMPACT MODE
-===================================================== */
+/* ================= MOBILE FIX ================= */
 
 @media(max-width:768px){
 
-  body{
-    background:#eef3f8;
-  }
-
-  .page-body{
-    padding-top:90px!important;
-    padding-left:8px;
-    padding-right:8px;
-    padding-bottom:20px;
-  }
-
-  .admin-trips-top{
-    position:relative;
-    top:auto;
-    z-index:10;
-    gap:6px;
-    margin-bottom:8px;
-    padding:0 0 6px;
-    border-bottom:1px solid #dbe3ee;
-  }
-
-  /* stats very compact */
-
-  .stats-grid{
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:5px;
-  }
-
-  .stat-card{
-    min-height:48px;
-    border-left-width:4px;
-    border-radius:10px;
-    padding:5px 4px;
-    box-shadow:0 3px 8px rgba(15,23,42,.05);
-  }
-
-  .stat-label{
-    font-size:8.5px;
-    line-height:1;
-    letter-spacing:.15px;
-  }
-
-  .stat-value{
-    font-size:16px;
-    line-height:1;
-    margin-top:3px;
-  }
-
-  /* service cards become small horizontal chips */
-
-  .service-strip{
-    display:flex;
-    flex-wrap:nowrap;
-    gap:5px;
-    overflow-x:auto;
-    overflow-y:hidden;
-    -webkit-overflow-scrolling:touch;
-    padding:1px 0 4px;
-    scrollbar-width:thin;
-  }
-
-  .service-card{
-    flex:0 0 88px;
-    min-height:54px;
-    border-radius:10px;
-    padding:5px 4px;
-    box-shadow:0 3px 8px rgba(15,23,42,.05);
-  }
-
-  .service-card:hover{
-    transform:none;
-  }
-
-  .service-name{
-    font-size:9.5px;
-    line-height:1;
-    margin-bottom:2px;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-
-  .service-total{
-    font-size:16px;
-    line-height:1;
-    margin:2px 0;
-  }
-
-  .service-mini{
-    gap:2px;
-    font-size:7.5px;
-    line-height:1.1;
-  }
-
-  /* selection buttons compact */
-
-  .selection-bar{
-    gap:5px;
-    flex-wrap:nowrap;
-    overflow-x:auto;
-    padding-bottom:2px;
-  }
-
-  .select-btn{
-    flex:0 0 auto;
-    font-size:10px;
-    padding:6px 8px;
-    border-radius:8px;
-  }
-
-  /* table comes faster */
-
-  #tripsContainer{
-    margin-top:4px;
-  }
-
-  .group-title{
-    font-size:11px;
-    padding:4px 6px;
-    margin:8px 0 0;
-    border-radius:7px 7px 0 0;
-  }
-
-  .table-scroll{
-    border-radius:10px;
-    margin-top:0;
-    margin-bottom:14px;
-    box-shadow:0 5px 14px rgba(15,23,42,.07);
-  }
-
-  .trip-table{
-    min-width:1360px;
-    font-size:9.5px;
-    border-top:4px solid #000;
-  }
-
-  .trip-table th,
-  .trip-table td{
-    font-size:9.5px;
-    padding:3px;
-    line-height:1.2;
-  }
-
-  .trip-table th{
-    font-size:9px;
-  }
-
-  .trip-table input,
-  .trip-table textarea,
-  .trip-table select{
-    padding:4px;
-    font-size:9px;
-    min-width:60px;
-    border-radius:5px;
-  }
-
-  .trip-table textarea{
-    min-height:36px;
-  }
-
-  .cell-item{
-    font-size:8.5px;
-    padding:3px;
-    min-height:18px;
-  }
-
-  .btn{
-    font-size:9px;
-    padding:4px 6px;
-    border-radius:6px;
-  }
-
-  .actions{
-    gap:3px;
-  }
-
-  .add-stop{
-    font-size:9px;
-    padding:3px 5px;
-  }
-
-  /* mobile column tightening */
-
-  .col-num,
-  .num-col{
-    width:28px;
-  }
-
-  .col-select,
-  .select-col{
-    width:32px;
-  }
-
-  .col-trip,
-  .trip-col{
-    width:68px;
-  }
-
-  .col-company,
-  .company-col{
-    width:82px;
-  }
-
-  .col-date,
-  .date-col{
-    width:72px;
-  }
-
-  .col-time,
-  .time-col{
-    width:52px;
-  }
-
-  .col-status,
-  .status-col{
-    width:68px;
-  }
-
-  .col-actions,
-  .actions-col{
-    width:88px;
-  }
-
-  .col-client,
-  .client-col,
-  .wide-client{
-    width:145px;
-  }
-
-  .col-phone,
-  .phone-col,
-  .wide-phone{
-    width:95px;
-  }
-
-  .col-address,
-  .address-col,
-  .pickup-col,
-  .dropoff-col,
-  .wide-address{
-    width:190px;
-    font-size:8.8px!important;
-  }
-
-  .col-stops,
-  .stops-col,
-  .wide-stops{
-    width:100px;
-    font-size:8.8px!important;
-  }
-
-  .col-notes,
-  .notes-col,
-  .wide-notes{
-    width:145px;
-  }
-
-  .no-data{
-    padding:12px;
-    font-size:12px;
-    border-radius:10px;
-  }
+.page-body{
+  padding-top:120px;
+  padding-left:10px;
+  padding-right:10px;
 }
 
-/* EXTRA SMALL MOBILE */
+/* 🔥 STATS = scroll بدل grid */
 
-@media(max-width:430px){
-
-  .stats-grid{
-    grid-template-columns:repeat(3,minmax(0,1fr));
-  }
-
-  .stat-card{
-    min-height:44px;
-  }
-
-  .stat-label{
-    font-size:7.8px;
-  }
-
-  .stat-value{
-    font-size:15px;
-  }
-
-  .service-card{
-    flex-basis:82px;
-    min-height:50px;
-  }
-
-  .service-name{
-    font-size:8.8px;
-  }
-
-  .service-total{
-    font-size:15px;
-  }
-
-  .service-mini{
-    font-size:7px;
-  }
-
-  .trip-table{
-    min-width:1320px;
-  }
+.stats-grid{
+  display:flex;
+  overflow-x:auto;
+  gap:6px;
 }
+
+.stat-card{
+  flex:0 0 90px;
+  min-height:50px;
+  padding:6px 5px;
+}
+
+.stat-label{
+  font-size:9px;
+}
+
+.stat-value{
+  font-size:15px;
+}
+
+/* 🔥 SERVICES */
+
+.service-strip{
+  display:flex;
+  overflow-x:auto;
+  gap:6px;
+}
+
+.service-card{
+  flex:0 0 85px;
+  min-height:60px;
+  padding:6px 5px;
+}
+
+/* 🔥 TABLE */
+
+.trip-table{
+  min-width:1400px;
+}
+
+}
+
 </style>
 </head>
 
@@ -915,9 +188,9 @@ body{
     <div id="serviceCards" class="service-strip"></div>
 
     <div class="selection-bar">
-      <button id="selectAllBtn" class="select-btn" type="button" onclick="toggleSelectAll()">Select All</button>
-      <button id="selectTodayBtn" class="select-btn" type="button" onclick="toggleSelectToday()">Select Today</button>
-      <button id="selectTomorrowBtn" class="select-btn" type="button" onclick="toggleSelectTomorrow()">Select Tomorrow</button>
+      <button id="selectAllBtn" onclick="toggleSelectAll()">Select All</button>
+      <button id="selectTodayBtn" onclick="toggleSelectToday()">Select Today</button>
+      <button id="selectTomorrowBtn" onclick="toggleSelectTomorrow()">Select Tomorrow</button>
     </div>
 
   </div>
