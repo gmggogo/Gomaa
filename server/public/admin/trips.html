@@ -8,8 +8,10 @@
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
-
-/* ================= GLOBAL ================= */
+/* =====================================================
+   TRIPS PAGE UI
+   Same Professional Layout As Trips Hub
+===================================================== */
 
 body{
   margin:0;
@@ -26,16 +28,16 @@ body{
   z-index:1000;
 }
 
-/* ================= PAGE ================= */
+/* PAGE */
 
 .page-body{
-  padding-top:140px; /* ✔ اترفعت لفوق */
+  padding-top:300px;
   padding-left:20px;
   padding-right:20px;
   padding-bottom:30px;
 }
 
-/* ================= TOP ================= */
+/* TOP STICKY AREA */
 
 .admin-trips-top{
   position:sticky;
@@ -50,7 +52,7 @@ body{
   border-bottom:1px solid #cbd5e1;
 }
 
-/* ================= STATS (DESKTOP) ================= */
+/* STATS */
 
 .stats-grid{
   display:grid;
@@ -68,23 +70,36 @@ body{
   box-shadow:0 5px 14px rgba(15,23,42,.07);
 }
 
+.stat-card:nth-child(2){border-left-color:#16a34a;}
+.stat-card:nth-child(3){border-left-color:#1d4ed8;}
+.stat-card:nth-child(4){border-left-color:#22c55e;}
+.stat-card:nth-child(5){border-left-color:#f59e0b;}
+.stat-card:nth-child(6){border-left-color:#7c3aed;}
+
 .stat-label{
   font-size:11px;
   font-weight:900;
   color:#64748b;
+  letter-spacing:.3px;
+  text-transform:uppercase;
 }
 
 .stat-value{
   font-size:24px;
+  line-height:1.1;
   font-weight:900;
+  color:#0f172a;
+  margin-top:3px;
 }
 
-/* ================= SERVICES (DESKTOP) ================= */
+/* SERVICE CARDS */
 
 .service-strip{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
   gap:7px;
+  overflow:visible;
+  padding-bottom:0;
 }
 
 .service-card{
@@ -92,86 +107,559 @@ body{
   border:1px solid #dbe3ee;
   border-radius:13px;
   padding:8px 7px;
+  cursor:pointer;
   text-align:center;
   min-height:78px;
+  box-shadow:0 4px 12px rgba(15,23,42,.06);
+  transition:.15s ease;
 }
 
-/* ================= TABLE ================= */
+.service-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 7px 16px rgba(15,23,42,.10);
+}
+
+.service-card.active{
+  outline:none;
+  background:#2563eb;
+  border-color:#2563eb;
+  color:#fff;
+}
+
+.service-name{
+  font-size:12px;
+  line-height:1.1;
+  font-weight:900;
+  margin-bottom:4px;
+}
+
+.service-total{
+  font-size:22px;
+  line-height:1.05;
+  font-weight:900;
+  margin:4px 0;
+}
+
+.service-mini{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:4px;
+  font-size:9px;
+  font-weight:900;
+  color:#64748b;
+}
+
+.service-card.active .service-mini{
+  color:#fff;
+}
+
+/* SELECTION BAR */
+
+.selection-bar{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin:0;
+}
+
+.select-btn{
+  border:none;
+  border-radius:9px;
+  padding:8px 13px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  color:#fff;
+  background:#0f172a;
+  box-shadow:0 4px 10px rgba(15,23,42,.12);
+}
+
+.select-btn:hover{
+  background:#2563eb;
+}
+
+.select-btn.active{
+  background:#16a34a;
+}
+
+.select-btn.danger{
+  background:#dc2626;
+}
+
+/* TABLE AREA */
 
 .table-scroll{
+  width:100%;
+  max-width:100%;
   overflow-x:auto;
-  background:#fff;
+  overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
+  margin-bottom:20px;
   border-radius:14px;
+  background:#fff;
   box-shadow:0 8px 22px rgba(15,23,42,.08);
 }
 
 .trip-table{
   width:100%;
   min-width:1560px;
+  table-layout:fixed;
   border-collapse:collapse;
+  background:#fff;
+  border-top:6px solid #000;
+  font-size:11px;
 }
 
 .trip-table th,
 .trip-table td{
   border:1px solid #dbe3ee;
   padding:5px;
+  text-align:center;
+  vertical-align:middle;
+  line-height:1.25;
+  box-sizing:border-box;
+  position:relative;
+  overflow:visible;
+}
+
+.trip-table th{
+  background:#1f2937;
+  color:#fff;
+  font-weight:900;
+  white-space:nowrap;
+  font-size:11px;
+  position:static;
+  top:auto;
+  z-index:auto;
+}
+
+.trip-table td{
   font-size:11px;
 }
 
-/* ================= MOBILE FIX ================= */
+/* SMALL COLUMNS */
+
+.col-num,
+.num-col{
+  width:30px;
+}
+
+.col-select,
+.select-col{
+  width:36px;
+}
+
+.col-trip,
+.trip-col{
+  width:76px;
+}
+
+.col-company,
+.company-col{
+  width:100px;
+}
+
+.col-date,
+.date-col{
+  width:82px;
+}
+
+.col-time,
+.time-col{
+  width:58px;
+}
+
+.col-status,
+.status-col{
+  width:76px;
+}
+
+.col-actions,
+.actions-col{
+  width:105px;
+}
+
+/* WIDE COLUMNS */
+
+.col-client,
+.client-col,
+.wide-client{
+  width:180px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.col-phone,
+.phone-col,
+.wide-phone{
+  width:115px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.col-address,
+.address-col,
+.pickup-col,
+.dropoff-col,
+.wide-address{
+  width:230px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10.5px!important;
+}
+
+.col-stops,
+.stops-col,
+.wide-stops{
+  width:120px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10.5px!important;
+}
+
+.col-notes,
+.notes-col,
+.wide-notes{
+  width:190px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+/* INPUTS */
+
+.trip-table input,
+.trip-table textarea,
+.trip-table select{
+  width:100%;
+  min-width:70px;
+  border:1px solid #cbd5e1;
+  padding:5px;
+  font-size:10.5px;
+  font-weight:700;
+  box-sizing:border-box;
+  border-radius:6px;
+  font-family:inherit;
+  background:#fff;
+}
+
+.trip-table textarea{
+  min-height:45px;
+  resize:vertical;
+}
+
+.trip-table input:disabled,
+.trip-table textarea:disabled,
+.trip-table select:disabled{
+  background:#f8fafc;
+  color:#111827;
+  opacity:1;
+}
+
+/* DATE GROUP TITLE */
+
+.group-title{
+  margin:12px 0 0;
+  padding:5px 8px;
+  background:#bfdbfe;
+  color:#1e3a8a;
+  border-top:2px solid #60a5fa;
+  border-bottom:2px solid #60a5fa;
+  border-radius:8px 8px 0 0;
+  font-size:13px;
+  font-weight:900;
+  text-align:center;
+  letter-spacing:.3px;
+}
+
+/* ROW COLORS */
+
+.row-company td,
+.row-company{
+  background:#dbeafe!important;
+}
+
+.row-individual td,
+.row-individual{
+  background:#e8f4ff!important;
+}
+
+.row-reserved td,
+.row-reserved{
+  background:#fef3c7!important;
+}
+
+.row-quote td,
+.row-quote{
+  background:#dcfce7!important;
+}
+
+.row-shared td,
+.row-shared{
+  background:#ede9fe!important;
+}
+
+.trip-table tbody tr td{
+  border-bottom:3px solid #000;
+}
+
+/* CELL BOXES - FOR STOPS / NOTES / ADDRESSES IF JS USES THEM */
+
+.cell-box{
+  display:grid;
+  border:1px solid #111;
+  background:#fff;
+  width:100%;
+  box-sizing:border-box;
+  border-radius:4px;
+  overflow:hidden;
+}
+
+.cell-item{
+  padding:4px 5px;
+  min-height:22px;
+  font-weight:700;
+  white-space:normal;
+  word-break:break-word;
+  box-sizing:border-box;
+  background:#fff;
+  font-size:10.5px;
+}
+
+.cell-item + .cell-item{
+  border-top:1px solid #111;
+}
+
+/* ACTIONS */
+
+.actions{
+  display:flex;
+  gap:6px;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.btn{
+  border:none;
+  padding:5px 9px;
+  border-radius:7px;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:900;
+}
+
+.btn-edit{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn-delete{
+  background:#dc2626;
+  color:#fff;
+}
+
+.btn-disable{
+  background:#f59e0b;
+  color:#fff;
+}
+
+.dispatch-check:checked{
+  accent-color:#16a34a;
+}
+
+/* STOPS */
+
+.add-stop{
+  background:#facc15;
+  border:none;
+  padding:4px 7px;
+  cursor:pointer;
+  border-radius:6px;
+  font-size:11px;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.stop-row{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-bottom:3px;
+}
+
+.stop-remove{
+  cursor:pointer;
+  color:#dc2626;
+  font-weight:900;
+}
+
+/* AUTOCOMPLETE */
+
+.input-wrap{
+  position:relative;
+  width:100%;
+}
+
+.suggestions{
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  background:#fff;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  z-index:99999;
+  max-height:220px;
+  overflow:auto;
+  box-shadow:0 12px 24px rgba(0,0,0,.15);
+  margin-top:4px;
+  text-align:left;
+}
+
+.option{
+  padding:10px 12px;
+  cursor:pointer;
+  font-size:13px;
+  line-height:1.35;
+  border-bottom:1px solid #eef2f7;
+  background:#fff;
+  color:#111827;
+}
+
+.option:last-child{
+  border-bottom:none;
+}
+
+.option:hover{
+  background:#eff6ff;
+}
+
+.option.disabled{
+  background:#f8fafc;
+  color:#64748b;
+  cursor:default;
+}
+
+/* EMPTY */
+
+.no-data{
+  background:#fff;
+  padding:18px;
+  border-radius:14px;
+  box-shadow:0 6px 16px rgba(15,23,42,.08);
+  color:#475569;
+  font-weight:900;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:1200px){
+  .page-body{
+    padding-left:15px;
+    padding-right:15px;
+  }
+
+  .trip-table{
+    min-width:1560px;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+  }
+
+  .service-strip{
+    grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
+  }
+
+  .service-card{
+    min-height:72px;
+    padding:7px 6px;
+  }
+
+  .stat-value{
+    font-size:21px;
+  }
+}
 
 @media(max-width:768px){
+  .page-body{
+    padding-top:360px;
+    padding-left:10px;
+    padding-right:10px;
+  }
 
-.page-body{
-  padding-top:120px;
-  padding-left:10px;
-  padding-right:10px;
+  .admin-trips-top{
+    top:0;
+  }
+
+  .trip-table{
+    min-width:1560px;
+  }
+
+  .trip-table th,
+  .trip-table td{
+    font-size:10px;
+    padding:4px;
+  }
+
+  .trip-table th{
+    font-size:10px;
+  }
+
+  .cell-item{
+    font-size:9.5px;
+    padding:3px 4px;
+  }
+
+  .col-address,
+  .address-col,
+  .pickup-col,
+  .dropoff-col,
+  .wide-address,
+  .col-stops,
+  .stops-col,
+  .wide-stops{
+    font-size:9.5px!important;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .stat-card{
+    padding:8px 6px;
+    border-radius:12px;
+  }
+
+  .stat-label{
+    font-size:10px;
+  }
+
+  .stat-value{
+    font-size:20px;
+  }
+
+  .service-strip{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .service-card{
+    min-height:66px;
+  }
+
+  .select-btn{
+    font-size:11px;
+    padding:7px 10px;
+  }
 }
-
-/* 🔥 STATS = scroll بدل grid */
-
-.stats-grid{
-  display:flex;
-  overflow-x:auto;
-  gap:6px;
-}
-
-.stat-card{
-  flex:0 0 90px;
-  min-height:50px;
-  padding:6px 5px;
-}
-
-.stat-label{
-  font-size:9px;
-}
-
-.stat-value{
-  font-size:15px;
-}
-
-/* 🔥 SERVICES */
-
-.service-strip{
-  display:flex;
-  overflow-x:auto;
-  gap:6px;
-}
-
-.service-card{
-  flex:0 0 85px;
-  min-height:60px;
-  padding:6px 5px;
-}
-
-/* 🔥 TABLE */
-
-.trip-table{
-  min-width:1400px;
-}
-
-}
-
 </style>
 </head>
 
@@ -188,9 +676,9 @@ body{
     <div id="serviceCards" class="service-strip"></div>
 
     <div class="selection-bar">
-      <button id="selectAllBtn" onclick="toggleSelectAll()">Select All</button>
-      <button id="selectTodayBtn" onclick="toggleSelectToday()">Select Today</button>
-      <button id="selectTomorrowBtn" onclick="toggleSelectTomorrow()">Select Tomorrow</button>
+      <button id="selectAllBtn" class="select-btn" type="button" onclick="toggleSelectAll()">Select All</button>
+      <button id="selectTodayBtn" class="select-btn" type="button" onclick="toggleSelectToday()">Select Today</button>
+      <button id="selectTomorrowBtn" class="select-btn" type="button" onclick="toggleSelectTomorrow()">Select Tomorrow</button>
     </div>
 
   </div>
