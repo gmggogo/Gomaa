@@ -22,31 +22,20 @@ content="width=device-width, initial-scale=1.0">
 :root{
     --page-bg:#f3f4f6;
 
-    --main-box-bg:#ffffff;
-    --main-box-border:#e5e7eb;
-    --main-box-border-size:1px;
-    --main-box-radius:28px;
-    --main-box-padding:42px;
-    --main-box-shadow:0 8px 24px rgba(0,0,0,.06);
+    --box-bg:#ffffff;
+    --box-border:#dbeafe;
+    --box-border-size:2px;
+    --box-radius:28px;
+    --box-padding:44px;
+    --box-shadow:0 10px 30px rgba(0,0,0,.08);
 
-    --box-align:center;
+    --box-title-color:#1e3a6d;
+    --box-title-size:42px;
+    --box-title-mobile-size:28px;
 
-    --title-color:#2563eb;
-    --text-color:#475569;
-
-    --extra-bg:#ffffff;
-    --extra-border:#dbeafe;
-    --extra-border-size:2px;
-    --extra-radius:28px;
-    --extra-padding:44px;
-    --extra-align:center;
-    --extra-title-color:#1e3a6d;
-    --extra-title-size:42px;
-    --extra-title-mobile-size:28px;
-    --extra-text-color:#6b7280;
-    --extra-text-size:22px;
-    --extra-text-mobile-size:16px;
-    --extra-shadow:0 10px 30px rgba(0,0,0,.08);
+    --box-text-color:#6b7280;
+    --box-text-size:22px;
+    --box-text-mobile-size:16px;
 }
 
 *{
@@ -63,7 +52,6 @@ body{
 }
 
 html{
-    scroll-behavior:smooth;
     -webkit-text-size-adjust:100%;
 }
 
@@ -71,7 +59,6 @@ body{
     font-family:'Segoe UI', Arial, sans-serif;
     background:var(--page-bg);
     color:#0f172a;
-    text-rendering:optimizeLegibility;
 }
 
 h1,
@@ -199,94 +186,75 @@ span{
 }
 
 /* =========================
-   FULL WIDTH TEXT BOX SYSTEM
+   EDITABLE FULL WIDTH BOXES
+   About / Quote / Extra
 ========================= */
 
-.text-section{
+.edit-section{
     width:100%;
-    padding:42px 20px 20px;
+    padding:38px 20px 0;
 }
 
-.full-text-box{
+.edit-box{
     width:100%;
-    max-width:1200px;
-    margin:0 auto;
-    background:var(--main-box-bg);
-    border:var(--main-box-border-size) solid var(--main-box-border);
-    border-radius:var(--main-box-radius);
-    padding:var(--main-box-padding);
-    box-shadow:var(--main-box-shadow);
+    max-width:100%;
+    background:var(--box-bg);
+    border:var(--box-border-size) solid var(--box-border);
+    border-radius:var(--box-radius);
+    padding:var(--box-padding);
+    box-shadow:var(--box-shadow);
 }
 
-.full-text-content{
+.edit-content{
     width:100%;
-    max-width:850px;
+    max-width:900px;
 }
 
-.full-text-box.text-left .full-text-content{
+/* النص شمال */
+.edit-box.text-left .edit-content{
     margin-left:0;
     margin-right:auto;
     text-align:left;
 }
 
-.full-text-box.text-center .full-text-content{
+/* النص في النص */
+.edit-box.text-center .edit-content{
     margin-left:auto;
     margin-right:auto;
     text-align:center;
 }
 
-.full-text-box.text-right .full-text-content{
+/* النص يمين */
+.edit-box.text-right .edit-content{
     margin-left:auto;
     margin-right:0;
     text-align:right;
 }
 
-.full-text-box h2{
-    font-size:38px;
-    color:var(--title-color);
+.edit-box h2,
+.edit-box h3{
+    font-size:var(--box-title-size);
+    color:var(--box-title-color);
     margin:0 0 18px;
     font-weight:900;
-    line-height:1.25;
+    line-height:1.22;
     text-align:inherit;
 }
 
-.full-text-box p{
-    font-size:18px;
-    color:var(--text-color);
-    line-height:1.9;
+.edit-box p{
+    font-size:var(--box-text-size);
+    color:var(--box-text-color);
+    line-height:1.85;
     margin:0;
     text-align:inherit;
     white-space:pre-line;
     word-break:normal !important;
     overflow-wrap:normal !important;
     hyphens:none !important;
-    text-wrap:pretty;
 }
 
 /* =========================
-   QUOTE HEADER
-========================= */
-
-.quote-section{
-    padding-top:30px;
-}
-
-.quote-section .full-text-box{
-    padding:34px 42px;
-}
-
-.quote-section h2{
-    font-size:42px;
-    margin-bottom:10px;
-}
-
-.quote-section p{
-    font-size:17px;
-    line-height:1.7;
-}
-
-/* =========================
-   SERVICES FLEX LAYOUT
+   SERVICES CARDS
 ========================= */
 
 .services{
@@ -387,7 +355,6 @@ span{
     word-break:normal !important;
     overflow-wrap:break-word;
     hyphens:none !important;
-    unicode-bidi:plaintext;
 }
 
 .card-btn{
@@ -411,74 +378,19 @@ span{
 }
 
 /* =========================
-   EXTRA BOXES SAME SYSTEM
+   EXTRA SECTIONS
 ========================= */
 
 .extra-sections{
     width:100%;
-    max-width:1200px;
-    margin:auto;
-    padding:20px 20px 120px;
+    padding:0 20px 120px;
     display:flex;
     flex-direction:column;
     gap:28px;
 }
 
-.extra-box{
-    width:100%;
-    background:var(--extra-bg);
-    border:var(--extra-border-size) solid var(--extra-border);
-    border-radius:var(--extra-radius);
-    padding:var(--extra-padding);
-    box-shadow:var(--extra-shadow);
-}
-
-.extra-content{
-    width:100%;
-    max-width:850px;
-}
-
-.extra-box.text-left .extra-content{
-    margin-left:0;
-    margin-right:auto;
-    text-align:left;
-}
-
-.extra-box.text-center .extra-content{
-    margin-left:auto;
-    margin-right:auto;
-    text-align:center;
-}
-
-.extra-box.text-right .extra-content{
-    margin-left:auto;
-    margin-right:0;
-    text-align:right;
-}
-
-.extra-box h3{
-    font-size:var(--extra-title-size);
-    color:var(--extra-title-color);
-    margin-bottom:22px;
-    font-weight:900;
-    line-height:1.2;
-    text-align:inherit;
-}
-
-.extra-box p{
-    font-size:var(--extra-text-size);
-    color:var(--extra-text-color);
-    line-height:1.9;
-    text-align:inherit;
-    white-space:pre-line;
-    word-break:normal !important;
-    overflow-wrap:normal !important;
-    hyphens:none !important;
-    text-wrap:pretty;
-}
-
 /* =========================
-   CONTACT - LEAVE AS IS
+   CONTACT - LEAVE SAME
 ========================= */
 
 .contact-section{
@@ -558,7 +470,6 @@ body{
 
     .top-bar{
         position:relative;
-        width:100%;
         flex-direction:column;
         align-items:stretch;
         gap:12px;
@@ -577,7 +488,6 @@ body{
     .top-links a,
     .lang-btn{
         width:100%;
-        text-align:center;
         font-size:13px;
         padding:12px 8px;
         border-radius:12px;
@@ -590,19 +500,10 @@ body{
     }
 
     .hero{
-        width:100%;
         padding:0;
     }
 
-    .hero-inner{
-        width:100%;
-        max-width:100%;
-    }
-
     .hero-image{
-        width:100%;
-        height:auto;
-        display:block;
         border-radius:0;
         object-fit:cover;
     }
@@ -615,46 +516,31 @@ body{
         border-radius:20px;
     }
 
-    .text-section{
-        padding:34px 14px 16px;
+    .edit-section{
+        padding:28px 14px 0;
     }
 
-    .full-text-box{
+    .edit-box{
+        width:100%;
+        padding:18px !important;
+        border-radius:18px !important;
+        box-shadow:0 4px 12px rgba(0,0,0,.06) !important;
+    }
+
+    .edit-content{
         max-width:100%;
-        padding:22px 18px;
-        border-radius:20px;
-        box-shadow:0 4px 12px rgba(0,0,0,.06);
     }
 
-    .full-text-content{
-        max-width:100%;
-    }
-
-    .full-text-box h2{
-        font-size:28px !important;
+    .edit-box h2,
+    .edit-box h3{
+        font-size:var(--box-title-mobile-size) !important;
         line-height:1.3;
-        margin-bottom:14px;
+        margin-bottom:12px;
     }
 
-    .full-text-box p{
-        font-size:16px !important;
+    .edit-box p{
+        font-size:var(--box-text-mobile-size) !important;
         line-height:1.75;
-    }
-
-    .quote-section{
-        padding-top:18px;
-    }
-
-    .quote-section .full-text-box{
-        padding:22px 18px;
-    }
-
-    .quote-section h2{
-        font-size:30px !important;
-    }
-
-    .quote-section p{
-        font-size:15px !important;
     }
 
     .services,
@@ -692,9 +578,7 @@ body{
     }
 
     .card-image{
-        width:100%;
         height:220px;
-        object-fit:contain;
     }
 
     .card-body{
@@ -703,14 +587,11 @@ body{
 
     .card h3{
         font-size:24px !important;
-        line-height:1.3;
-        margin-bottom:10px;
     }
 
     .card p{
         font-size:15px !important;
         line-height:1.75;
-        min-height:auto;
     }
 
     .card-btn{
@@ -721,51 +602,22 @@ body{
     }
 
     .extra-sections{
-        width:100%;
-        max-width:100%;
         padding:0 14px 50px;
         gap:14px;
     }
 
-    .extra-box{
-        width:100%;
-        padding:18px !important;
-        border-radius:18px !important;
-        box-shadow:0 4px 12px rgba(0,0,0,.06) !important;
-    }
-
-    .extra-content{
-        max-width:100%;
-    }
-
-    .extra-box h3{
-        font-size:var(--extra-title-mobile-size) !important;
-        line-height:1.3;
-        margin-bottom:10px;
-    }
-
-    .extra-box p{
-        font-size:var(--extra-text-mobile-size) !important;
-        line-height:1.75;
-    }
-
     .contact-section{
-        width:100%;
         padding:36px 14px;
         font-size:15px !important;
         line-height:1.8;
-        box-shadow:none;
     }
 
     .contact-section strong{
         font-size:24px !important;
         line-height:1.3;
-        display:block;
-        margin-bottom:12px;
     }
 
     footer{
-        width:100%;
         padding:18px 12px;
         font-size:14px;
         line-height:1.7;
@@ -775,12 +627,9 @@ body{
 
 @media(max-width:390px){
 
-    .full-text-box h2{
+    .edit-box h2,
+    .edit-box h3{
         font-size:26px !important;
-    }
-
-    .quote-section h2{
-        font-size:28px !important;
     }
 
     .card-image{
@@ -854,11 +703,11 @@ body{
 
 </section>
 
-<section class="text-section about-section">
+<section class="edit-section">
 
-    <div class="full-text-box text-center" id="aboutTextBox">
+    <div class="edit-box text-center" id="aboutBox">
 
-        <div class="full-text-content">
+        <div class="edit-content">
 
             <h2 id="aboutTitle">
                 About Us
@@ -878,11 +727,11 @@ From local appointments to daily transportation needs, Sunbeam Transportation is
 
 </section>
 
-<section class="text-section quote-section">
+<section class="edit-section">
 
-    <div class="full-text-box text-center" id="quoteTextBox">
+    <div class="edit-box text-center" id="quoteBox">
 
-        <div class="full-text-content">
+        <div class="edit-content">
 
             <h2 id="quoteTitle">
                 Get Quote & Book Your Ride
@@ -908,10 +757,10 @@ class="extra-sections"
 id="extraSections">
 
     <div
-    class="extra-box text-center"
+    class="edit-box text-center"
     id="extraBox1">
 
-        <div class="extra-content">
+        <div class="edit-content">
 
             <h3 id="extra1TitleView">
                 Why Choose Sunbeam?
@@ -926,10 +775,10 @@ id="extraSections">
     </div>
 
     <div
-    class="extra-box text-center"
+    class="edit-box text-center"
     id="extraBox2">
 
-        <div class="extra-content">
+        <div class="edit-content">
 
             <h3 id="extra2TitleView">
                 Serving All Arizona
@@ -1092,7 +941,7 @@ function safeAlign(value){
 
 }
 
-function applyTextBoxAlign(boxId, align){
+function applyBoxAlign(boxId, align){
 
     const box =
     document.getElementById(boxId);
@@ -1195,23 +1044,34 @@ function renderPage(){
     const data =
     Branding.data || {};
 
+    const boxAlign =
+    data.extraBoxAlign ||
+    data.boxAlign ||
+    "center";
+
+    applyBoxAlign(
+        "aboutBox",
+        data.aboutAlign || boxAlign
+    );
+
+    applyBoxAlign(
+        "quoteBox",
+        data.quoteAlign || boxAlign
+    );
+
+    applyBoxAlign(
+        "extraBox1",
+        data.extraBoxAlign || boxAlign
+    );
+
+    applyBoxAlign(
+        "extraBox2",
+        data.extraBoxAlign || boxAlign
+    );
+
     document.title =
     data.companyName ||
     "Sunbeam Transportation";
-
-    applyTextBoxAlign(
-        "aboutTextBox",
-        data.aboutAlign ||
-        data.boxAlign ||
-        "center"
-    );
-
-    applyTextBoxAlign(
-        "quoteTextBox",
-        data.quoteAlign ||
-        data.boxAlign ||
-        "center"
-    );
 
     setPlainText(
         "aboutTitle",
