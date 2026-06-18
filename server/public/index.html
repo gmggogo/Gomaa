@@ -1470,9 +1470,11 @@ function renderPage(){
 
   applyExtraBoxesTheme(data);
 
-  updateServicesLayout();
+updateServicesLayout();
 
   updateLangButtons();
+
+  forceMobileHomeLayout();
 
 }
 
@@ -1522,7 +1524,290 @@ window.addEventListener(
   },
   { passive:true }
 );
+function forceMobileHomeLayout(){
 
+  if(window.innerWidth > 768) return;
+
+  const sections = [
+    document.querySelector(".about"),
+    document.querySelector(".quote-header")
+  ];
+
+  sections.forEach(section=>{
+
+    if(!section) return;
+
+    section.style.setProperty(
+      "width",
+      "auto",
+      "important"
+    );
+
+    section.style.setProperty(
+      "max-width",
+      "none",
+      "important"
+    );
+
+    section.style.setProperty(
+      "margin",
+      "12px 10px 0",
+      "important"
+    );
+
+    section.style.setProperty(
+      "padding",
+      "22px 18px",
+      "important"
+    );
+
+    section.style.setProperty(
+      "border-radius",
+      "20px",
+      "important"
+    );
+
+  });
+
+  const extraSections =
+  document.getElementById("extraSections");
+
+  if(extraSections){
+
+    extraSections.style.setProperty(
+      "width",
+      "100%",
+      "important"
+    );
+
+    extraSections.style.setProperty(
+      "padding",
+      "0 10px 45px",
+      "important"
+    );
+
+    extraSections.style.setProperty(
+      "gap",
+      "14px",
+      "important"
+    );
+
+  }
+
+  const extraBoxes = [
+    document.getElementById("extraBox1"),
+    document.getElementById("extraBox2")
+  ];
+
+  extraBoxes.forEach(box=>{
+
+    if(!box) return;
+
+    box.style.setProperty(
+      "width",
+      "100%",
+      "important"
+    );
+
+    box.style.setProperty(
+      "padding",
+      "22px 18px",
+      "important"
+    );
+
+    box.style.setProperty(
+      "border-radius",
+      "20px",
+      "important"
+    );
+
+  });
+
+  const titles = [
+    "aboutTitle",
+    "quoteTitle",
+    "extra1TitleView",
+    "extra2TitleView"
+  ];
+
+  titles.forEach(id=>{
+
+    const el =
+    document.getElementById(id);
+
+    if(!el) return;
+
+    el.classList.remove(
+      "gh-align-left",
+      "gh-align-right",
+      "gh-align-justify",
+      "gh-align-justify-left",
+      "gh-align-justify-center",
+      "gh-align-justify-right"
+    );
+
+    el.classList.add(
+      "gh-align-center"
+    );
+
+    el.style.setProperty(
+      "font-size",
+      "24px",
+      "important"
+    );
+
+    el.style.setProperty(
+      "line-height",
+      "1.18",
+      "important"
+    );
+
+    el.style.setProperty(
+      "font-weight",
+      "900",
+      "important"
+    );
+
+    el.style.setProperty(
+      "text-align",
+      "center",
+      "important"
+    );
+
+    el.style.setProperty(
+      "text-align-last",
+      "center",
+      "important"
+    );
+
+    el.style.setProperty(
+      "margin",
+      "0 0 14px 0",
+      "important"
+    );
+
+    el.style.setProperty(
+      "padding",
+      "0",
+      "important"
+    );
+
+  });
+
+  const texts = [
+    "aboutText",
+    "quoteText",
+    "extra1TextView",
+    "extra2TextView"
+  ];
+
+  texts.forEach(id=>{
+
+    const el =
+    document.getElementById(id);
+
+    if(!el) return;
+
+    el.classList.remove(
+      "gh-align-center",
+      "gh-align-right",
+      "gh-align-justify",
+      "gh-align-justify-left",
+      "gh-align-justify-center",
+      "gh-align-justify-right"
+    );
+
+    el.classList.add(
+      "gh-align-left"
+    );
+
+    el.style.setProperty(
+      "font-size",
+      "14px",
+      "important"
+    );
+
+    el.style.setProperty(
+      "line-height",
+      "1.58",
+      "important"
+    );
+
+    el.style.setProperty(
+      "font-weight",
+      "400",
+      "important"
+    );
+
+    el.style.setProperty(
+      "text-align",
+      "left",
+      "important"
+    );
+
+    el.style.setProperty(
+      "text-align-last",
+      "auto",
+      "important"
+    );
+
+    el.style.setProperty(
+      "direction",
+      "ltr",
+      "important"
+    );
+
+    el.style.setProperty(
+      "unicode-bidi",
+      "normal",
+      "important"
+    );
+
+    el.style.setProperty(
+      "word-spacing",
+      "normal",
+      "important"
+    );
+
+    el.style.setProperty(
+      "letter-spacing",
+      "0",
+      "important"
+    );
+
+    el.style.setProperty(
+      "word-break",
+      "normal",
+      "important"
+    );
+
+    el.style.setProperty(
+      "overflow-wrap",
+      "break-word",
+      "important"
+    );
+
+    el.style.setProperty(
+      "hyphens",
+      "none",
+      "important"
+    );
+
+    el.style.setProperty(
+      "margin",
+      "0",
+      "important"
+    );
+
+    el.style.setProperty(
+      "padding",
+      "0",
+      "important"
+    );
+
+  });
+
+}
 /* =========================
    SERVICES LAYOUT
 ========================= */
