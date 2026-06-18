@@ -613,31 +613,28 @@ footer{
 #quoteText,
 #extra1TextView,
 #extra2TextView{
-  display:block !important;
   width:100% !important;
   max-width:100% !important;
 
-  text-align:justify !important;
-  text-align-last:left !important;
-  text-justify:inter-word !important;
+  text-align:left !important;
+  text-align-last:auto !important;
 
   direction:ltr !important;
   unicode-bidi:normal !important;
 
-  font-size:13.5px !important;
-  line-height:1.62 !important;
+  font-size:15px !important;
+  line-height:1.65 !important;
+  font-weight:400 !important;
 
-  word-spacing:-2px !important;
-  letter-spacing:-0.35px !important;
-
+  word-spacing:normal !important;
+  letter-spacing:0 !important;
   word-break:normal !important;
-  overflow-wrap:normal !important;
+  overflow-wrap:break-word !important;
   hyphens:none !important;
 
   margin:0 !important;
   padding:0 !important;
-}
-/* =========================
+}/* =========================
      SERVICES / CARDS
   ========================= */
 
@@ -966,20 +963,6 @@ function applyWordText(id,value,align){
 
   let finalAlign =
   normalizeWordAlign(align);
-
-  const mobileTextIds = [
-    "aboutText",
-    "quoteText",
-    "extra1TextView",
-    "extra2TextView"
-  ];
-
-  if(
-    window.innerWidth <= 768 &&
-    mobileTextIds.includes(id)
-  ){
-    finalAlign = "justify";
-  }
 
   const dir =
   detectDirection(text);
