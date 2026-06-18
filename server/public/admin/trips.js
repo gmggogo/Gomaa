@@ -678,16 +678,62 @@ const selectedMap = new WeakMap();
 ================================ */
 
 @media(max-width:768px){
+
+  /* ================= MOBILE FIX ================= */
+
+  .stats-grid{
+    display:flex!important;
+    overflow-x:auto!important;
+    gap:6px!important;
+  }
+
+  .stat-card{
+    flex:0 0 85px!important;
+    min-height:45px!important;
+    padding:5px 4px!important;
+  }
+
+  .stat-value{
+    font-size:13px!important;
+  }
+
+  .stat-label{
+    font-size:8px!important;
+  }
+
+  /* ================= SERVICE ================= */
+
+  .service-strip{
+    display:flex!important;
+    overflow-x:auto!important;
+    gap:6px!important;
+  }
+
+  .service-card{
+    flex:0 0 80px!important;
+    min-height:55px!important;
+    padding:5px 4px!important;
+  }
+
+  .service-name{
+    font-size:9px!important;
+  }
+
+  .service-total{
+    font-size:14px!important;
+  }
+
+  .service-mini{
+    font-size:7px!important;
+  }
+
+  /* ================= TABLE ================= */
+
   .trip-table{
-    min-width:1820px!important;
+    min-width:1400px!important;
   }
 
-  .trip-table th,
-  .trip-table td{
-    font-size:10px!important;
-    padding:4px!important;
-  }
-
+}
   .cell-item{
     font-size:9.5px!important;
     padding:3px 4px!important;
