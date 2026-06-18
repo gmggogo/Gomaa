@@ -588,18 +588,23 @@ body{
 }
 
 @media(max-width:768px){
+
+  /* 🔥 FIX HEADER OVERLAP */
   .page-body{
-    padding-top:360px;
+    padding-top:140px !important;
     padding-left:10px;
     padding-right:10px;
   }
 
   .admin-trips-top{
-    top:0;
+    position:relative !important;
+    top:auto !important;
   }
 
+  /* ================= TABLE ================= */
+
   .trip-table{
-    min-width:1560px;
+    min-width:1200px !important;
   }
 
   .trip-table th,
@@ -608,58 +613,66 @@ body{
     padding:4px;
   }
 
-  .trip-table th{
-    font-size:10px;
-  }
-
   .cell-item{
-    font-size:9.5px;
-    padding:3px 4px;
+    font-size:9px;
+    padding:3px;
   }
 
-  .col-address,
-  .address-col,
-  .pickup-col,
-  .dropoff-col,
-  .wide-address,
-  .col-stops,
-  .stops-col,
-  .wide-stops{
-    font-size:9.5px!important;
-  }
+  /* ================= STATS ================= */
 
   .stats-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
+    display:grid !important;
+    grid-template-columns:repeat(2,1fr) !important;
     gap:6px;
   }
 
   .stat-card{
-    padding:8px 6px;
-    border-radius:12px;
+    padding:6px 5px;
+    border-radius:10px;
   }
 
   .stat-label{
-    font-size:10px;
+    font-size:9px;
   }
 
   .stat-value{
-    font-size:20px;
+    font-size:16px;
   }
 
+  /* ================= SERVICES ================= */
+
   .service-strip{
-    grid-template-columns:repeat(2,minmax(0,1fr));
+    display:grid !important;
+    grid-template-columns:repeat(2,1fr) !important;
     gap:6px;
   }
 
   .service-card{
-    min-height:66px;
+    min-height:60px;
+    padding:6px 5px;
+    border-radius:10px;
   }
 
+  .service-name{
+    font-size:10px;
+  }
+
+  .service-total{
+    font-size:15px;
+  }
+
+  .service-mini{
+    font-size:8px;
+  }
+
+  /* ================= BUTTONS ================= */
+
   .select-btn{
-    font-size:11px;
-    padding:7px 10px;
+    font-size:10px;
+    padding:6px 8px;
   }
 }
+
 </style>
 </head>
 
