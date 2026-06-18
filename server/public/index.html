@@ -478,6 +478,7 @@ footer{
 
 /* =========================
    MOBILE FIX
+   Mobile Auto Text Mode
 ========================= */
 
 @media(max-width:768px){
@@ -492,6 +493,10 @@ footer{
   *{
     max-width:100%;
   }
+
+  /* =========================
+     TOP BAR
+  ========================= */
 
   .top-bar{
     width:100%;
@@ -517,6 +522,10 @@ footer{
     padding:12px 8px;
     border-radius:12px;
   }
+
+  /* =========================
+     HERO
+  ========================= */
 
   .hero{
     width:100%;
@@ -545,45 +554,100 @@ footer{
     border-radius:20px;
   }
 
+  /* =========================
+     TEXT BOXES
+  ========================= */
+
   .about{
     width:auto;
-    margin:22px 14px 0;
-    padding:34px 22px;
+    margin:18px 12px 0;
+    padding:28px 20px;
     border-radius:22px;
-  }
-
-  .about h2{
-    font-size:34px !important;
-    line-height:1.25;
-    margin-bottom:18px;
-  }
-
-  .about p,
-  #aboutText{
-    width:100%;
-    font-size:17px !important;
-    line-height:1.9;
   }
 
   .quote-header{
     width:auto;
-    margin:18px 14px 0;
-    padding:34px 22px;
+    margin:16px 12px 0;
+    padding:28px 20px;
     border-radius:22px;
   }
 
-  .quote-header h2{
-    font-size:40px !important;
-    line-height:1.15;
-    margin-bottom:16px;
+  .extra-sections{
+    width:100%;
+    padding:0 12px 50px;
+    gap:16px;
   }
 
-  .quote-header p,
-  #quoteText{
+  .extra-box{
     width:100%;
-    font-size:17px !important;
-    line-height:1.8;
+    padding:28px 20px !important;
+    border-radius:22px !important;
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
   }
+
+  /* =========================
+     MOBILE TITLES
+     العناوين فقط في النص
+  ========================= */
+
+  #aboutTitle,
+  #quoteTitle,
+  #extra1TitleView,
+  #extra2TitleView,
+  .about h2,
+  .quote-header h2,
+  .extra-box h3{
+    text-align:center !important;
+    text-align-last:center !important;
+
+    direction:inherit !important;
+    unicode-bidi:plaintext !important;
+
+    font-size:32px !important;
+    line-height:1.2 !important;
+
+    word-spacing:normal !important;
+    letter-spacing:0 !important;
+
+    margin-bottom:18px !important;
+  }
+
+  /* =========================
+     MOBILE AUTO TEXT
+     الموبايل ينسق النص بنفسه
+     بدون left / right / justify من الأدمن
+  ========================= */
+
+  #aboutText,
+  #quoteText,
+  #extra1TextView,
+  #extra2TextView{
+    width:100% !important;
+    max-width:100% !important;
+
+    text-align:start !important;
+    text-align-last:auto !important;
+
+    direction:inherit !important;
+    unicode-bidi:plaintext !important;
+
+    font-size:16px !important;
+    line-height:1.75 !important;
+
+    word-spacing:normal !important;
+    letter-spacing:0 !important;
+    word-break:normal !important;
+    overflow-wrap:break-word !important;
+    hyphens:auto !important;
+
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  /* =========================
+     SERVICES / CARDS
+     نفس الكروت بس موبايل
+  ========================= */
 
   .services,
   .services.layout-1,
@@ -640,30 +704,9 @@ footer{
     margin-top:16px;
   }
 
-  .extra-sections{
-    width:100%;
-    padding:0 14px 50px;
-    gap:16px;
-  }
-
-  .extra-box{
-    width:100%;
-    padding:34px 22px !important;
-    border-radius:22px !important;
-    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
-  }
-
-  .extra-box h3{
-    font-size:28px !important;
-    line-height:1.3;
-    margin-bottom:14px;
-  }
-
-  .extra-box p,
-  .extra-box .gh-word-text{
-    font-size:16px !important;
-    line-height:1.85;
-  }
+  /* =========================
+     CONTACT
+  ========================= */
 
   .contact-section{
     width:100%;
@@ -687,7 +730,6 @@ footer{
   }
 
 }
-
 </style>
 
 </head>
