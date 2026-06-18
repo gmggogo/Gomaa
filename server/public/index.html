@@ -930,8 +930,21 @@ function applyWordText(id,value,align){
   const text =
   cleanWordText(value);
 
-  const finalAlign =
-  normalizeWordAlign(align);
+ let finalAlign =
+normalizeWordAlign(align);
+
+if(
+  window.innerWidth <= 768 &&
+  [
+    "aboutText",
+    "quoteText",
+    "extra1TextView",
+    "extra2TextView"
+  ].includes(id) &&
+  finalAlign.startsWith("justify")
+){
+  finalAlign = "left";
+}
 
   const dir =
   detectDirection(text);
