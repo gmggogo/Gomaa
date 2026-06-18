@@ -22,21 +22,30 @@ content="width=device-width, initial-scale=1.0">
 :root{
     --page-bg:#f3f4f6;
 
+    --main-box-bg:#ffffff;
+    --main-box-border:#e5e7eb;
+    --main-box-border-size:1px;
+    --main-box-radius:28px;
+    --main-box-padding:42px;
+    --main-box-shadow:0 8px 24px rgba(0,0,0,.06);
+
+    --box-align:center;
+
+    --title-color:#2563eb;
+    --text-color:#475569;
+
     --extra-bg:#ffffff;
     --extra-border:#dbeafe;
     --extra-border-size:2px;
     --extra-radius:28px;
     --extra-padding:44px;
     --extra-align:center;
-
     --extra-title-color:#1e3a6d;
     --extra-title-size:42px;
     --extra-title-mobile-size:28px;
-
     --extra-text-color:#6b7280;
     --extra-text-size:22px;
     --extra-text-mobile-size:16px;
-
     --extra-shadow:0 10px 30px rgba(0,0,0,.08);
 }
 
@@ -190,173 +199,129 @@ span{
 }
 
 /* =========================
-   ABOUT
+   FULL WIDTH TEXT BOX SYSTEM
 ========================= */
 
-.about{
+.text-section{
+    width:100%;
+    padding:42px 20px 20px;
+}
+
+.full-text-box{
     width:100%;
     max-width:1200px;
-    margin:60px auto 30px;
-    padding:40px 34px;
-    background:#ffffff;
-    border-radius:28px;
-    box-shadow:0 8px 24px rgba(0,0,0,.06);
-
-    display:grid;
-    grid-template-columns:300px 1fr;
-    gap:34px;
-    align-items:start;
+    margin:0 auto;
+    background:var(--main-box-bg);
+    border:var(--main-box-border-size) solid var(--main-box-border);
+    border-radius:var(--main-box-radius);
+    padding:var(--main-box-padding);
+    box-shadow:var(--main-box-shadow);
 }
 
-.about h2{
-    font-size:36px;
-    color:#2563eb;
-    margin:0;
+.full-text-content{
+    width:100%;
+    max-width:850px;
+}
+
+.full-text-box.text-left .full-text-content{
+    margin-left:0;
+    margin-right:auto;
+    text-align:left;
+}
+
+.full-text-box.text-center .full-text-content{
+    margin-left:auto;
+    margin-right:auto;
+    text-align:center;
+}
+
+.full-text-box.text-right .full-text-content{
+    margin-left:auto;
+    margin-right:0;
+    text-align:right;
+}
+
+.full-text-box h2{
+    font-size:38px;
+    color:var(--title-color);
+    margin:0 0 18px;
     font-weight:900;
     line-height:1.25;
-    text-align:left;
+    text-align:inherit;
 }
 
-.about p{
+.full-text-box p{
     font-size:18px;
-    color:#475569;
+    color:var(--text-color);
     line-height:1.9;
-    max-width:820px;
     margin:0;
-    text-align:left;
+    text-align:inherit;
+    white-space:pre-line;
     word-break:normal !important;
     overflow-wrap:normal !important;
     hyphens:none !important;
-    white-space:pre-line;
     text-wrap:pretty;
 }
 
 /* =========================
-   QUOTE
+   QUOTE HEADER
 ========================= */
 
-.quote-header{
-    text-align:center;
-    padding:42px 20px 28px;
+.quote-section{
+    padding-top:30px;
 }
 
-.quote-header h2{
-    font-size:46px;
-    color:#2563eb;
-    margin-bottom:14px;
-    line-height:1.15;
-    font-weight:900;
+.quote-section .full-text-box{
+    padding:34px 42px;
 }
 
-.quote-header p{
-    font-size:18px;
-    color:#64748b;
-    max-width:1000px;
-    margin:auto;
-    line-height:1.8;
+.quote-section h2{
+    font-size:42px;
+    margin-bottom:10px;
+}
+
+.quote-section p{
+    font-size:17px;
+    line-height:1.7;
 }
 
 /* =========================
-   SERVICES SMART CENTER LAYOUT
+   SERVICES FLEX LAYOUT
 ========================= */
 
 .services{
     width:100%;
-    max-width:1240px;
     margin:0 auto;
     padding:50px 20px 120px;
-
-    display:grid;
-    grid-template-columns:repeat(6, 170px);
-    gap:32px 28px;
+    display:flex;
+    flex-wrap:wrap;
     justify-content:center;
     align-items:stretch;
+    gap:32px 28px;
 }
 
-/* كل كارت 340px = عمودين */
-.services .card{
-    grid-column:span 2;
+.services.layout-1{
+    max-width:340px;
 }
 
-/* 1 = كارت واحد في النص */
-.services.layout-1 .card:nth-child(1){
-    grid-column:3 / span 2;
+.services.layout-2{
+    max-width:708px;
 }
 
-/* 2 = اتنين جنب بعض في النص */
-.services.layout-2 .card:nth-child(1){
-    grid-column:2 / span 2;
+.services.layout-3{
+    max-width:1076px;
 }
 
-.services.layout-2 .card:nth-child(2){
-    grid-column:4 / span 2;
+.services.layout-4{
+    max-width:708px;
 }
 
-/* 3 = تلاتة جنب بعض */
-.services.layout-3 .card:nth-child(1){
-    grid-column:1 / span 2;
+.services.layout-5{
+    max-width:1076px;
 }
 
-.services.layout-3 .card:nth-child(2){
-    grid-column:3 / span 2;
-}
-
-.services.layout-3 .card:nth-child(3){
-    grid-column:5 / span 2;
-}
-
-/* 4 = اتنين فوق واتنين تحت */
-.services.layout-4 .card:nth-child(1){
-    grid-column:2 / span 2;
-}
-
-.services.layout-4 .card:nth-child(2){
-    grid-column:4 / span 2;
-}
-
-.services.layout-4 .card:nth-child(3){
-    grid-column:2 / span 2;
-}
-
-.services.layout-4 .card:nth-child(4){
-    grid-column:4 / span 2;
-}
-
-/* 5 = تلاتة فوق واتنين تحت في النص */
-.services.layout-5 .card:nth-child(1){
-    grid-column:1 / span 2;
-}
-
-.services.layout-5 .card:nth-child(2){
-    grid-column:3 / span 2;
-}
-
-.services.layout-5 .card:nth-child(3){
-    grid-column:5 / span 2;
-}
-
-.services.layout-5 .card:nth-child(4){
-    grid-column:2 / span 2;
-}
-
-.services.layout-5 .card:nth-child(5){
-    grid-column:4 / span 2;
-}
-
-/* 6 = تلاتة فوق وتلاتة تحت */
-.services.layout-6 .card:nth-child(1),
-.services.layout-6 .card:nth-child(4){
-    grid-column:1 / span 2;
-}
-
-.services.layout-6 .card:nth-child(2),
-.services.layout-6 .card:nth-child(5){
-    grid-column:3 / span 2;
-}
-
-.services.layout-6 .card:nth-child(3),
-.services.layout-6 .card:nth-child(6){
-    grid-column:5 / span 2;
+.services.layout-6{
+    max-width:1076px;
 }
 
 /* =========================
@@ -388,6 +353,14 @@ span{
     background:#eef2f7;
     padding:8px;
     display:block;
+}
+
+.card.no-image .card-image{
+    display:none;
+}
+
+.card.no-image .card-body{
+    padding-top:34px;
 }
 
 .card-body{
@@ -438,14 +411,14 @@ span{
 }
 
 /* =========================
-   EXTRA BOXES
+   EXTRA BOXES SAME SYSTEM
 ========================= */
 
 .extra-sections{
     width:100%;
-    max-width:1400px;
+    max-width:1200px;
     margin:auto;
-    padding:40px 60px 140px;
+    padding:20px 20px 120px;
     display:flex;
     flex-direction:column;
     gap:28px;
@@ -458,13 +431,29 @@ span{
     border-radius:var(--extra-radius);
     padding:var(--extra-padding);
     box-shadow:var(--extra-shadow);
-    text-align:var(--extra-align);
-    transition:transform .2s ease, box-shadow .2s ease;
 }
 
-.extra-box:hover{
-    transform:translateY(-4px);
-    box-shadow:0 16px 38px rgba(37,99,235,.12);
+.extra-content{
+    width:100%;
+    max-width:850px;
+}
+
+.extra-box.text-left .extra-content{
+    margin-left:0;
+    margin-right:auto;
+    text-align:left;
+}
+
+.extra-box.text-center .extra-content{
+    margin-left:auto;
+    margin-right:auto;
+    text-align:center;
+}
+
+.extra-box.text-right .extra-content{
+    margin-left:auto;
+    margin-right:0;
+    text-align:right;
 }
 
 .extra-box h3{
@@ -474,7 +463,6 @@ span{
     font-weight:900;
     line-height:1.2;
     text-align:inherit;
-    unicode-bidi:plaintext;
 }
 
 .extra-box p{
@@ -482,12 +470,15 @@ span{
     color:var(--extra-text-color);
     line-height:1.9;
     text-align:inherit;
-    unicode-bidi:plaintext;
     white-space:pre-line;
+    word-break:normal !important;
+    overflow-wrap:normal !important;
+    hyphens:none !important;
+    text-wrap:pretty;
 }
 
 /* =========================
-   CONTACT
+   CONTACT - LEAVE AS IS
 ========================= */
 
 .contact-section{
@@ -545,71 +536,6 @@ iframe.goog-te-banner-frame{
 
 body{
     top:0 !important;
-}
-
-/* =========================
-   TABLET
-========================= */
-
-@media(max-width:1100px){
-
-    .services{
-        max-width:760px;
-        grid-template-columns:repeat(4, 170px);
-    }
-
-    .services .card{
-        grid-column:span 2;
-    }
-
-    .services.layout-1 .card:nth-child(1){
-        grid-column:2 / span 2;
-    }
-
-    .services.layout-2 .card:nth-child(1){
-        grid-column:1 / span 2;
-    }
-
-    .services.layout-2 .card:nth-child(2){
-        grid-column:3 / span 2;
-    }
-
-    .services.layout-3 .card:nth-child(1){
-        grid-column:1 / span 2;
-    }
-
-    .services.layout-3 .card:nth-child(2){
-        grid-column:3 / span 2;
-    }
-
-    .services.layout-3 .card:nth-child(3){
-        grid-column:2 / span 2;
-    }
-
-    .services.layout-4 .card:nth-child(1),
-    .services.layout-4 .card:nth-child(3){
-        grid-column:1 / span 2;
-    }
-
-    .services.layout-4 .card:nth-child(2),
-    .services.layout-4 .card:nth-child(4){
-        grid-column:3 / span 2;
-    }
-
-    .services.layout-5 .card:nth-child(1),
-    .services.layout-5 .card:nth-child(3){
-        grid-column:1 / span 2;
-    }
-
-    .services.layout-5 .card:nth-child(2),
-    .services.layout-5 .card:nth-child(4){
-        grid-column:3 / span 2;
-    }
-
-    .services.layout-5 .card:nth-child(5){
-        grid-column:2 / span 2;
-    }
-
 }
 
 /* =========================
@@ -689,48 +615,46 @@ body{
         border-radius:20px;
     }
 
-    .about{
-        width:calc(100% - 28px);
-        margin:34px auto 20px;
+    .text-section{
+        padding:34px 14px 16px;
+    }
+
+    .full-text-box{
+        max-width:100%;
         padding:22px 18px;
         border-radius:20px;
-        display:block;
         box-shadow:0 4px 12px rgba(0,0,0,.06);
     }
 
-    .about h2{
-        font-size:28px !important;
-        text-align:center;
-        margin-bottom:14px;
-    }
-
-    .about p{
-        font-size:16px !important;
-        line-height:1.75;
-        text-align:center;
+    .full-text-content{
         max-width:100%;
-        word-break:normal !important;
-        overflow-wrap:normal !important;
-        hyphens:none !important;
-        white-space:pre-line;
-        text-wrap:pretty;
     }
 
-    .quote-header{
-        width:100%;
-        padding:30px 16px 14px;
-    }
-
-    .quote-header h2{
-        font-size:34px !important;
-        line-height:1.15;
+    .full-text-box h2{
+        font-size:28px !important;
+        line-height:1.3;
         margin-bottom:14px;
     }
 
-    .quote-header p{
-        width:100%;
+    .full-text-box p{
         font-size:16px !important;
         line-height:1.75;
+    }
+
+    .quote-section{
+        padding-top:18px;
+    }
+
+    .quote-section .full-text-box{
+        padding:22px 18px;
+    }
+
+    .quote-section h2{
+        font-size:30px !important;
+    }
+
+    .quote-section p{
+        font-size:15px !important;
     }
 
     .services,
@@ -743,20 +667,15 @@ body{
         width:100%;
         max-width:100%;
         padding:20px 14px 60px;
-        display:grid;
-        grid-template-columns:1fr !important;
+        display:flex;
+        flex-direction:column;
+        flex-wrap:nowrap;
         justify-content:center;
+        align-items:center;
         gap:20px;
     }
 
-    .services .card,
-    .services.layout-1 .card,
-    .services.layout-2 .card,
-    .services.layout-3 .card,
-    .services.layout-4 .card,
-    .services.layout-5 .card,
-    .services.layout-6 .card{
-        grid-column:auto !important;
+    .services .card{
         width:100% !important;
         max-width:100% !important;
     }
@@ -803,6 +722,7 @@ body{
 
     .extra-sections{
         width:100%;
+        max-width:100%;
         padding:0 14px 50px;
         gap:14px;
     }
@@ -812,12 +732,10 @@ body{
         padding:18px !important;
         border-radius:18px !important;
         box-shadow:0 4px 12px rgba(0,0,0,.06) !important;
-        transition:none;
     }
 
-    .extra-box:hover{
-        transform:none;
-        box-shadow:0 4px 12px rgba(0,0,0,.06) !important;
+    .extra-content{
+        max-width:100%;
     }
 
     .extra-box h3{
@@ -855,18 +773,14 @@ body{
 
 }
 
-/* =========================
-   SMALL MOBILE
-========================= */
-
 @media(max-width:390px){
 
-    .about h2{
+    .full-text-box h2{
         font-size:26px !important;
     }
 
-    .quote-header h2{
-        font-size:30px !important;
+    .quote-section h2{
+        font-size:28px !important;
     }
 
     .card-image{
@@ -940,13 +854,17 @@ body{
 
 </section>
 
-<section class="about">
+<section class="text-section about-section">
 
-    <h2 id="aboutTitle">
-        About Us
-    </h2>
+    <div class="full-text-box text-center" id="aboutTextBox">
 
-    <p id="aboutText">Sunbeam Transportation is committed to providing safe, reliable, and professional transportation services across Arizona.
+        <div class="full-text-content">
+
+            <h2 id="aboutTitle">
+                About Us
+            </h2>
+
+            <p id="aboutText">Sunbeam Transportation is committed to providing safe, reliable, and professional transportation services across Arizona.
 
 We focus on comfort, punctuality, and respectful service for every passenger.
 
@@ -954,17 +872,29 @@ Our drivers are professional, our vehicles are clean, and our goal is to make ev
 
 From local appointments to daily transportation needs, Sunbeam Transportation is here to help you get where you need to go with confidence.</p>
 
+        </div>
+
+    </div>
+
 </section>
 
-<section class="quote-header">
+<section class="text-section quote-section">
 
-    <h2 id="quoteTitle">
-        Get Quote & Book Your Ride
-    </h2>
+    <div class="full-text-box text-center" id="quoteTextBox">
 
-    <p id="quoteText">
-        Select your service below
-    </p>
+        <div class="full-text-content">
+
+            <h2 id="quoteTitle">
+                Get Quote & Book Your Ride
+            </h2>
+
+            <p id="quoteText">
+                Select your service below
+            </p>
+
+        </div>
+
+    </div>
 
 </section>
 
@@ -978,30 +908,38 @@ class="extra-sections"
 id="extraSections">
 
     <div
-    class="extra-box"
+    class="extra-box text-center"
     id="extraBox1">
 
-        <h3 id="extra1TitleView">
-            Why Choose Sunbeam?
-        </h3>
+        <div class="extra-content">
 
-        <p id="extra1TextView">
-            Professional Drivers
-        </p>
+            <h3 id="extra1TitleView">
+                Why Choose Sunbeam?
+            </h3>
+
+            <p id="extra1TextView">
+                Professional Drivers
+            </p>
+
+        </div>
 
     </div>
 
     <div
-    class="extra-box"
+    class="extra-box text-center"
     id="extraBox2">
 
-        <h3 id="extra2TitleView">
-            Serving All Arizona
-        </h3>
+        <div class="extra-content">
 
-        <p id="extra2TextView">
-            Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
-        </p>
+            <h3 id="extra2TitleView">
+                Serving All Arizona
+            </h3>
+
+            <p id="extra2TextView">
+                Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
+            </p>
+
+        </div>
 
     </div>
 
@@ -1140,6 +1078,42 @@ function pickLang(data, base){
 
 }
 
+function safeAlign(value){
+
+    const align =
+    String(value || "center")
+    .toLowerCase();
+
+    return (
+        ["left","center","right"].includes(align)
+        ? align
+        : "center"
+    );
+
+}
+
+function applyTextBoxAlign(boxId, align){
+
+    const box =
+    document.getElementById(boxId);
+
+    if(!box) return;
+
+    const safe =
+    safeAlign(align);
+
+    box.classList.remove(
+        "text-left",
+        "text-center",
+        "text-right"
+    );
+
+    box.classList.add(
+        "text-" + safe
+    );
+
+}
+
 function updateLangButtons(){
 
     document
@@ -1210,7 +1184,7 @@ function updateServicesLayout(){
     else if(count === 5){
         services.classList.add("layout-5");
     }
-    else if(count === 6){
+    else if(count >= 6){
         services.classList.add("layout-6");
     }
 
@@ -1224,6 +1198,20 @@ function renderPage(){
     document.title =
     data.companyName ||
     "Sunbeam Transportation";
+
+    applyTextBoxAlign(
+        "aboutTextBox",
+        data.aboutAlign ||
+        data.boxAlign ||
+        "center"
+    );
+
+    applyTextBoxAlign(
+        "quoteTextBox",
+        data.quoteAlign ||
+        data.boxAlign ||
+        "center"
+    );
 
     setPlainText(
         "aboutTitle",

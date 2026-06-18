@@ -119,6 +119,20 @@ window.Branding = {
 
   },
 
+  safeAlign(value){
+
+    const align =
+    this.clean(value)
+    .toLowerCase();
+
+    return (
+      ["left","center","right"].includes(align)
+      ? align
+      : "center"
+    );
+
+  },
+
   /* =========================
      GETTERS
   ========================= */
@@ -253,122 +267,177 @@ window.Branding = {
     this.clean(d.pageBg) ||
     "#f3f4f6";
 
-    const bg =
+    const mainBoxBg =
+    this.clean(d.mainBoxBg) ||
+    this.clean(d.homeBoxBg) ||
+    "#ffffff";
+
+    const mainBoxBorder =
+    this.clean(d.mainBoxBorder) ||
+    "#e5e7eb";
+
+    const mainBoxBorderSize =
+    this.safeNumber(
+      d.mainBoxBorderSize,
+      1
+    );
+
+    const mainBoxRadius =
+    this.safeNumber(
+      d.mainBoxRadius,
+      isMobile ? 20 : 28
+    );
+
+    const mainBoxPadding =
+    this.safeNumber(
+      d.mainBoxPadding,
+      isMobile ? 22 : 42
+    );
+
+    const mainBoxShadow =
+    d.mainBoxShadow === false
+    ? "none"
+    : "0 8px 24px rgba(0,0,0,.06)";
+
+    const titleColor =
+    this.clean(d.homeTitleColor) ||
+    "#2563eb";
+
+    const textColor =
+    this.clean(d.homeTextColor) ||
+    "#475569";
+
+    this.setVar("--page-bg", pageBg);
+    this.setVar("--main-box-bg", mainBoxBg);
+    this.setVar("--main-box-border", mainBoxBorder);
+    this.setVar("--main-box-border-size", `${mainBoxBorderSize}px`);
+    this.setVar("--main-box-radius", `${mainBoxRadius}px`);
+    this.setVar("--main-box-padding", `${mainBoxPadding}px`);
+    this.setVar("--main-box-shadow", mainBoxShadow);
+    this.setVar("--title-color", titleColor);
+    this.setVar("--text-color", textColor);
+
+    document.body.style.background =
+    pageBg;
+
+    /* =========================
+       EXTRA BOX THEME
+    ========================= */
+
+    const extraBg =
     this.clean(d.extraBoxBg) ||
     "#ffffff";
 
-    const border =
+    const extraBorder =
     this.clean(d.extraBoxBorder) ||
     "#dbeafe";
 
-    const borderSize =
+    const extraBorderSize =
     this.safeNumber(
       d.extraBoxBorderSize,
       2
     );
 
-    const radius =
+    const extraRadius =
     this.safeNumber(
       d.extraBoxRadius,
       isMobile ? 18 : 28
     );
 
-    const padding =
+    const extraPadding =
     this.safeNumber(
       d.extraBoxPadding,
       isMobile ? 18 : 44
     );
 
-    const alignRaw =
-    this.clean(d.extraBoxAlign)
-    .toLowerCase();
+    const extraAlign =
+    this.safeAlign(
+      d.extraBoxAlign ||
+      d.boxAlign ||
+      "center"
+    );
 
-    const align =
-    ["left","center","right"].includes(alignRaw)
-    ? alignRaw
-    : "center";
-
-    const titleColor =
+    const extraTitleColor =
     this.clean(d.extraBoxTitleColor) ||
     "#1e3a6d";
 
-    const titleSize =
+    const extraTitleSize =
     this.safeNumber(
       d.extraBoxTitleSize,
       42
     );
 
-    const titleMobileSize =
+    const extraTitleMobileSize =
     this.safeNumber(
       d.extraBoxTitleMobileSize,
       28
     );
 
-    const textColor =
+    const extraTextColor =
     this.clean(d.extraBoxTextColor) ||
     "#6b7280";
 
-    const textSize =
+    const extraTextSize =
     this.safeNumber(
       d.extraBoxTextSize,
       22
     );
 
-    const textMobileSize =
+    const extraTextMobileSize =
     this.safeNumber(
       d.extraBoxTextMobileSize,
       16
     );
 
-    const shadow =
+    const extraShadow =
     d.extraBoxShadow === false
     ? "none"
     : "0 10px 30px rgba(0,0,0,.08)";
 
-    this.setVar("--page-bg", pageBg);
-
-    this.setVar("--extra-bg", bg);
-    this.setVar("--extra-border", border);
-    this.setVar("--extra-border-size", `${borderSize}px`);
-    this.setVar("--extra-radius", `${radius}px`);
-    this.setVar("--extra-padding", `${padding}px`);
-    this.setVar("--extra-align", align);
-    this.setVar("--extra-title-color", titleColor);
-    this.setVar("--extra-title-size", `${titleSize}px`);
-    this.setVar("--extra-title-mobile-size", `${titleMobileSize}px`);
-    this.setVar("--extra-text-color", textColor);
-    this.setVar("--extra-text-size", `${textSize}px`);
-    this.setVar("--extra-text-mobile-size", `${textMobileSize}px`);
-    this.setVar("--extra-shadow", shadow);
-
-    document.body.style.background =
-    pageBg;
+    this.setVar("--extra-bg", extraBg);
+    this.setVar("--extra-border", extraBorder);
+    this.setVar("--extra-border-size", `${extraBorderSize}px`);
+    this.setVar("--extra-radius", `${extraRadius}px`);
+    this.setVar("--extra-padding", `${extraPadding}px`);
+    this.setVar("--extra-align", extraAlign);
+    this.setVar("--extra-title-color", extraTitleColor);
+    this.setVar("--extra-title-size", `${extraTitleSize}px`);
+    this.setVar("--extra-title-mobile-size", `${extraTitleMobileSize}px`);
+    this.setVar("--extra-text-color", extraTextColor);
+    this.setVar("--extra-text-size", `${extraTextSize}px`);
+    this.setVar("--extra-text-mobile-size", `${extraTextMobileSize}px`);
+    this.setVar("--extra-shadow", extraShadow);
 
     document
     .querySelectorAll(".extra-box")
     .forEach(box=>{
 
-      box.style.textAlign = align;
+      box.classList.remove(
+        "text-left",
+        "text-center",
+        "text-right"
+      );
 
-      box.style.direction =
-      align === "right"
-      ? "rtl"
-      : "ltr";
+      box.classList.add(
+        "text-" + extraAlign
+      );
 
     });
 
+    /* =========================
+       TEXT SAFETY
+    ========================= */
+
     document
     .querySelectorAll(
-      ".extra-box h2, .extra-box h3, .extra-box p"
+      ".full-text-box h2, .full-text-box p, .extra-box h3, .extra-box p"
     )
     .forEach(el=>{
 
-      el.style.textAlign = "inherit";
-      el.style.direction = "inherit";
-      el.style.unicodeBidi = "plaintext";
       el.style.wordBreak = "normal";
-      el.style.overflowWrap = "break-word";
+      el.style.overflowWrap = "normal";
       el.style.hyphens = "none";
+      el.style.unicodeBidi = "plaintext";
 
     });
 
@@ -480,6 +549,28 @@ window.Branding = {
       img.alt = title || this.getCompanyName();
       img.loading = "lazy";
       img.decoding = "async";
+
+      img.onerror = function(){
+
+        if(this.dataset.fallbackDone === "true"){
+
+          this.style.display = "none";
+
+          const parentCard =
+          this.closest(".card");
+
+          if(parentCard){
+            parentCard.classList.add("no-image");
+          }
+
+          return;
+
+        }
+
+        this.dataset.fallbackDone = "true";
+        this.src = "/assets/logo.png";
+
+      };
 
       const body =
       document.createElement("div");
