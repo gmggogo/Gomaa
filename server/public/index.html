@@ -1,27 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
-
 <title>Sunbeam Transportation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0">
-
-<link
-rel="icon"
-href="assets/app-icon.png">
-
-<link
-rel="apple-touch-icon"
-href="assets/app-icon.png">
+<link rel="icon" href="/assets/app-icon.png">
+<link rel="apple-touch-icon" href="/assets/app-icon.png">
 
 <style>
-
 /* =========================
-   GLOBAL
+   RESET
 ========================= */
 
 *{
@@ -34,121 +23,63 @@ html,
 body{
   width:100%;
   max-width:100%;
-  overflow-x:hidden !important;
-}
-
-html{
-  scroll-behavior:smooth;
+  overflow-x:hidden;
 }
 
 body{
-  font-family:'Segoe UI',Arial,sans-serif;
-  background:#f3f4f6;
+  font-family:Segoe UI,Arial,sans-serif;
+  background:#f3f6fb;
   color:#0f172a;
 }
 
 /* =========================
-   SAFE TEXT SYSTEM
-========================= */
-
-h1,h2,h3,p,span,strong,a,button{
-  max-width:100%;
-}
-
-.text-safe,
-.about h2,
-.about p,
-.quote-header h2,
-.quote-header p,
-.card h3,
-.card p,
-.extra-box h3,
-.extra-box p,
-.contact-section strong,
-.contact-section span,
-footer{
-  display:block;
-  width:100%;
-  max-width:100%;
-  overflow-wrap:break-word;
-  word-break:break-word;
-}
-
-.align-left{
-  text-align:left !important;
-}
-
-.align-center{
-  text-align:center !important;
-}
-
-.align-right{
-  text-align:right !important;
-}
-
-/* =========================
-   TOP BAR
+   TOP BAR - NO STICKY
 ========================= */
 
 .top-bar{
   width:100%;
+  background:#ffffff;
+  padding:14px 22px;
   display:flex;
-  justify-content:space-between;
   align-items:center;
-  gap:20px;
-  padding:18px 24px;
-  background:#f8fafc;
-  flex-wrap:wrap;
-  position:sticky;
-  top:0;
-  z-index:999;
-  box-shadow:0 2px 10px rgba(0,0,0,.05);
+  justify-content:space-between;
+  gap:14px;
+  border-bottom:1px solid #e5e7eb;
 }
 
-.top-links{
+.top-links,
+.lang-right{
   display:flex;
-  gap:12px;
+  align-items:center;
+  gap:10px;
   flex-wrap:wrap;
 }
 
-.top-links a{
+.top-links a,
+.lang-btn{
+  border:0;
+  cursor:pointer;
   text-decoration:none;
-  padding:14px 24px;
-  border-radius:16px;
-  font-size:16px;
-  font-weight:700;
-  color:#fff;
-  transition:background .2s ease, color .2s ease;
+  padding:12px 18px;
+  border-radius:12px;
+  font-size:14px;
+  font-weight:800;
+  line-height:1;
 }
 
 .facility-login{
   background:#2563eb;
+  color:#fff;
 }
 
 .staff-login{
   background:#0f172a;
-}
-
-/* =========================
-   LANGUAGE
-========================= */
-
-.lang-right{
-  display:flex;
-  gap:12px;
-  flex-wrap:wrap;
+  color:#fff;
 }
 
 .lang-btn{
-  border:none;
-  cursor:pointer;
-  padding:14px 22px;
-  border-radius:16px;
-  font-size:16px;
-  font-weight:700;
-  background:#dbe1ea;
-  color:#2563eb;
-  transition:background .2s ease, color .2s ease;
+  background:#e2e8f0;
+  color:#1d4ed8;
 }
 
 .active-lang{
@@ -163,42 +94,46 @@ footer{
 .hero{
   width:100%;
   background:#111827;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  overflow:hidden;
-  padding:20px;
 }
 
 .hero-inner{
-  position:relative;
   width:100%;
   max-width:1500px;
+  margin:0 auto;
+  position:relative;
+  background:#111827;
 }
 
 .hero-image{
   width:100%;
-  height:auto;
+  height:440px;
   display:block;
-  border-radius:28px;
-  object-fit:contain;
+  object-fit:cover;
+  object-position:center;
+  background:#111827;
 }
-
-/* =========================
-   POWERED
-========================= */
 
 .powered-box{
   position:absolute;
-  left:26px;
-  bottom:26px;
-  background:rgba(0,0,0,.75);
+  left:20px;
+  bottom:20px;
+  background:rgba(0,0,0,.70);
   color:#fff;
-  padding:14px 24px;
-  border-radius:40px;
-  font-size:15px;
-  font-weight:700;
-  backdrop-filter:blur(8px);
+  padding:10px 18px;
+  border-radius:30px;
+  font-size:13px;
+  font-weight:800;
+}
+
+/* =========================
+   MAIN WIDTH
+========================= */
+
+.page-wrap{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
+  padding:28px 20px 70px;
 }
 
 /* =========================
@@ -207,24 +142,31 @@ footer{
 
 .about{
   width:100%;
-  text-align:center;
-  padding:90px 20px 40px;
+  background:#ffffff;
+  border-radius:22px;
+  padding:36px;
+  display:grid;
+  grid-template-columns:280px 1fr;
+  gap:32px;
+  border:1px solid #e5e7eb;
 }
 
 .about h2{
-  font-size:60px;
-  color:#1e3a6d;
-  margin:0 auto 20px;
+  width:100%;
+  color:#1d4ed8;
+  font-size:34px;
+  line-height:1.2;
   font-weight:900;
-  line-height:1.15;
+  text-align:left;
 }
 
 .about p{
-  font-size:25px;
-  color:#6b7280;
-  max-width:1100px;
-  margin:auto;
+  width:100%;
+  color:#475569;
+  font-size:18px;
   line-height:1.9;
+  text-align:left;
+  overflow-wrap:break-word;
 }
 
 /* =========================
@@ -233,24 +175,32 @@ footer{
 
 .quote-header{
   width:100%;
+  margin-top:22px;
+  background:#eef6ff;
+  border-radius:22px;
+  padding:34px;
   text-align:center;
-  padding:40px 20px 24px;
+  border:1px solid #dbeafe;
 }
 
 .quote-header h2{
-  font-size:70px;
-  color:#1e3a6d;
-  margin:0 auto 18px;
-  line-height:1.1;
+  width:100%;
+  color:#1d4ed8;
+  font-size:38px;
+  line-height:1.2;
   font-weight:900;
+  margin-bottom:10px;
+  text-align:center;
 }
 
 .quote-header p{
-  font-size:24px;
-  color:#6b7280;
+  width:100%;
   max-width:1000px;
-  margin:auto;
+  margin:0 auto;
+  color:#475569;
+  font-size:17px;
   line-height:1.8;
+  text-align:center;
 }
 
 /* =========================
@@ -259,30 +209,26 @@ footer{
 
 .services{
   width:100%;
-  max-width:1500px;
-  margin:auto;
-  padding:60px 60px 140px;
+  margin-top:28px;
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,340px));
-  justify-content:center;
-  gap:28px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:24px;
   align-items:stretch;
 }
 
 .services.layout-1{
-  grid-template-columns:minmax(0,340px);
+  grid-template-columns:minmax(0,420px);
+  justify-content:center;
 }
 
-.services.layout-2{
-  grid-template-columns:repeat(2,minmax(0,340px));
-}
-
+.services.layout-2,
 .services.layout-4{
-  grid-template-columns:repeat(2,minmax(0,340px));
+  grid-template-columns:repeat(2,minmax(0,420px));
+  justify-content:center;
 }
 
 .services.layout-5{
-  grid-template-columns:repeat(6,minmax(0,170px));
+  grid-template-columns:repeat(6,minmax(0,1fr));
 }
 
 .services.layout-5 .card{
@@ -298,76 +244,69 @@ footer{
 }
 
 /* =========================
-   CARD
+   CARD - LIGHT
 ========================= */
 
 .card{
   width:100%;
-  max-width:340px;
-  background:#fff;
-  border-radius:26px;
+  min-width:0;
+  background:#ffffff;
+  border-radius:22px;
   overflow:hidden;
-  box-shadow:0 10px 30px rgba(0,0,0,.10);
-  transition:box-shadow .2s ease;
-  contain:layout paint;
-}
-
-.card:hover{
-  box-shadow:0 16px 40px rgba(37,99,235,.18);
+  border:1px solid #e5e7eb;
+  content-visibility:auto;
+  contain-intrinsic-size:420px;
 }
 
 .card-image{
   width:100%;
-  height:240px;
-  object-fit:contain;
-  object-position:center;
-  background:#eef2f7;
-  padding:8px;
+  height:220px;
   display:block;
+  object-fit:cover;
+  object-position:center;
+  background:#e5e7eb;
 }
 
 .card-body{
   width:100%;
-  padding:24px;
+  padding:22px;
   text-align:center;
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
 }
 
 .card h3{
-  font-size:30px;
-  margin-bottom:12px;
-  color:#111827;
-  font-weight:800;
+  width:100%;
+  color:#0f172a;
+  font-size:25px;
   line-height:1.25;
+  font-weight:900;
+  margin-bottom:10px;
+  text-align:center;
+  overflow-wrap:break-word;
 }
 
 .card p{
-  font-size:17px;
-  color:#6b7280;
-  line-height:1.9;
-  min-height:120px;
+  width:100%;
+  color:#64748b;
+  font-size:16px;
+  line-height:1.8;
+  min-height:80px;
+  text-align:center;
+  overflow-wrap:break-word;
 }
 
 .card-btn{
+  width:100%;
+  min-height:52px;
+  margin-top:18px;
   display:flex;
   align-items:center;
   justify-content:center;
-  width:100%;
-  min-height:58px;
-  margin-top:20px;
   background:#2563eb;
   color:#fff !important;
   text-decoration:none;
-  border-radius:16px;
-  font-size:20px;
-  font-weight:800;
-  transition:background .2s ease;
-}
-
-.card-btn:hover{
-  background:#1d4ed8;
+  border-radius:14px;
+  font-size:17px;
+  font-weight:900;
 }
 
 /* =========================
@@ -376,40 +315,38 @@ footer{
 
 .extra-sections{
   width:100%;
-  max-width:1400px;
-  margin:auto;
-  padding:40px 60px 140px;
+  margin-top:28px;
   display:flex;
   flex-direction:column;
-  gap:28px;
+  gap:20px;
 }
 
 .extra-box{
   width:100%;
-  background:#fff;
-  border-radius:28px;
-  padding:44px;
-  box-shadow:0 10px 30px rgba(0,0,0,.08);
-  transition:box-shadow .2s ease;
-  contain:layout paint;
-}
-
-.extra-box:hover{
-  box-shadow:0 16px 40px rgba(37,99,235,.14);
+  background:#ffffff;
+  border-radius:22px;
+  padding:36px;
+  border:1px solid #e5e7eb;
+  content-visibility:auto;
+  contain-intrinsic-size:260px;
 }
 
 .extra-box h3{
-  font-size:42px;
-  color:#1e3a6d;
-  margin-bottom:22px;
+  width:100%;
+  color:#1d4ed8;
+  font-size:32px;
+  line-height:1.25;
   font-weight:900;
-  line-height:1.2;
+  margin-bottom:12px;
+  overflow-wrap:break-word;
 }
 
 .extra-box p{
-  font-size:22px;
-  color:#6b7280;
-  line-height:2;
+  width:100%;
+  color:#475569;
+  font-size:18px;
+  line-height:1.9;
+  overflow-wrap:break-word;
 }
 
 /* =========================
@@ -418,18 +355,22 @@ footer{
 
 .contact-section{
   width:100%;
+  background:#ffffff;
+  padding:54px 20px;
   text-align:center;
-  padding:80px 20px;
-  background:#fff;
-  font-size:24px;
-  line-height:2.2;
-  color:#111827;
+  color:#0f172a;
+  font-size:21px;
+  line-height:2;
+  border-top:1px solid #e5e7eb;
 }
 
 .contact-section strong{
-  font-size:42px;
-  color:#111827;
-  margin-bottom:10px;
+  display:block;
+  width:100%;
+  font-size:34px;
+  line-height:1.3;
+  font-weight:900;
+  margin-bottom:12px;
 }
 
 /* =========================
@@ -441,75 +382,37 @@ footer{
   background:#111827;
   color:#fff;
   text-align:center;
-  padding:30px;
-  font-size:20px;
-  font-weight:700;
+  padding:24px 16px;
+  font-size:18px;
+  font-weight:800;
 }
 
 /* =========================
-   GOOGLE TRANSLATE HIDE
+   ALIGN CLASSES
 ========================= */
 
-#google_translate_element{
-  position:absolute;
-  opacity:0;
-  pointer-events:none;
+.align-left{
+  text-align:left !important;
 }
 
-.goog-logo-link,
-.goog-te-gadget span,
-.goog-te-banner-frame,
-iframe.goog-te-banner-frame{
-  display:none !important;
+.align-center{
+  text-align:center !important;
 }
 
-.goog-te-gadget{
-  font-size:0 !important;
-}
-
-body{
-  top:0 !important;
-}
-
-/* =========================
-   TABLET
-========================= */
-
-@media(max-width:1100px){
-
-  .services,
-  .services.layout-5{
-    grid-template-columns:repeat(2,minmax(0,340px));
-  }
-
-  .services.layout-5 .card,
-  .services.layout-5 .card:nth-child(4),
-  .services.layout-5 .card:nth-child(5){
-    grid-column:auto;
-  }
-
+.align-right{
+  text-align:right !important;
 }
 
 /* =========================
    MOBILE
 ========================= */
 
-@media(max-width:768px){
-
-  html,
-  body{
-    width:100%;
-    max-width:100%;
-    overflow-x:hidden !important;
-  }
+@media(max-width:900px){
 
   .top-bar{
-    width:100%;
     flex-direction:column;
     align-items:stretch;
-    gap:12px;
     padding:14px;
-    position:relative;
   }
 
   .top-links,
@@ -524,28 +427,12 @@ body{
   .lang-btn{
     width:100%;
     text-align:center;
-    font-size:13px;
     padding:12px 8px;
-    border-radius:12px;
-  }
-
-  .hero{
-    width:100%;
-    padding:0;
-    overflow:hidden;
-  }
-
-  .hero-inner{
-    width:100%;
-    max-width:100%;
+    font-size:13px;
   }
 
   .hero-image{
-    width:100%;
-    height:auto;
-    display:block;
-    border-radius:0;
-    object-fit:cover;
+    height:260px;
   }
 
   .powered-box{
@@ -553,42 +440,42 @@ body{
     bottom:12px;
     font-size:11px;
     padding:8px 14px;
-    border-radius:20px;
-    backdrop-filter:none !important;
+  }
+
+  .page-wrap{
+    padding:18px 14px 44px;
   }
 
   .about{
-    width:100%;
-    padding:55px 16px 20px;
+    padding:22px;
+    grid-template-columns:1fr;
+    gap:12px;
+    border-radius:18px;
   }
 
   .about h2{
-    font-size:34px !important;
-    line-height:1.25;
-    margin-bottom:16px;
+    font-size:26px !important;
+    text-align:center !important;
   }
 
   .about p{
-    width:100%;
-    font-size:17px !important;
-    line-height:1.9;
+    font-size:15px !important;
+    line-height:1.8;
+    text-align:center !important;
   }
 
   .quote-header{
-    width:100%;
-    padding:30px 16px 14px;
+    margin-top:16px;
+    padding:24px 18px;
+    border-radius:18px;
   }
 
   .quote-header h2{
-    font-size:40px !important;
-    line-height:1.15;
-    margin-bottom:14px;
+    font-size:28px !important;
   }
 
   .quote-header p{
-    width:100%;
-    font-size:17px !important;
-    line-height:1.8;
+    font-size:15px !important;
   }
 
   .services,
@@ -596,12 +483,9 @@ body{
   .services.layout-2,
   .services.layout-4,
   .services.layout-5{
-    width:100%;
-    max-width:100%;
-    padding:20px 14px 60px;
     grid-template-columns:1fr !important;
-    justify-content:center;
-    gap:20px;
+    gap:18px;
+    margin-top:20px;
   }
 
   .services.layout-5 .card,
@@ -611,16 +495,12 @@ body{
   }
 
   .card{
-    width:100%;
-    max-width:100%;
-    border-radius:20px;
-    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+    border-radius:18px;
+    content-visibility:visible;
   }
 
   .card-image{
-    width:100%;
-    height:220px;
-    object-fit:contain;
+    height:210px;
   }
 
   .card-body{
@@ -628,77 +508,47 @@ body{
   }
 
   .card h3{
-    font-size:24px !important;
-    line-height:1.3;
-    margin-bottom:10px;
+    font-size:23px !important;
   }
 
   .card p{
     font-size:15px !important;
-    line-height:1.8;
     min-height:auto;
   }
 
-  .card-btn{
-    min-height:50px;
-    font-size:16px;
-    margin-top:16px;
-  }
-
-  .extra-sections{
-    width:100%;
-    padding:0 14px 50px;
-    gap:14px;
-  }
-
   .extra-box{
-    width:100%;
-    padding:18px !important;
+    padding:22px !important;
     border-radius:18px !important;
-    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+    content-visibility:visible;
   }
 
   .extra-box h3{
-    font-size:22px !important;
-    line-height:1.3;
-    margin-bottom:10px;
+    font-size:24px !important;
+    text-align:center !important;
   }
 
   .extra-box p{
     font-size:15px !important;
-    line-height:1.75;
+    line-height:1.8;
+    text-align:center !important;
   }
 
   .contact-section{
-    width:100%;
-    padding:36px 14px;
+    padding:38px 14px;
     font-size:15px !important;
-    line-height:1.8;
   }
 
   .contact-section strong{
-    font-size:24px !important;
-    line-height:1.3;
-    display:block;
-    margin-bottom:12px;
+    font-size:26px !important;
   }
 
   footer{
-    width:100%;
-    padding:18px 12px;
     font-size:14px;
-    line-height:1.7;
-  }
-
-  .card:hover,
-  .extra-box:hover{
-    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+    line-height:1.6;
   }
 
 }
-
 </style>
-
 </head>
 
 <body>
@@ -707,15 +557,11 @@ body{
 
   <div class="top-links">
 
-    <a
-    href="companies/company-login.html"
-    class="facility-login">
+    <a href="companies/company-login.html" class="facility-login">
       Facility Login
     </a>
 
-    <a
-    href="login.html"
-    class="staff-login">
+    <a href="login.html" class="staff-login">
       Staff Login
     </a>
 
@@ -723,17 +569,11 @@ body{
 
   <div class="lang-right">
 
-    <button
-    id="lang-en"
-    class="lang-btn active-lang"
-    onclick="setLang('en')">
+    <button id="lang-en" class="lang-btn active-lang" onclick="setLang('en')">
       English
     </button>
 
-    <button
-    id="lang-es"
-    class="lang-btn"
-    onclick="setLang('es')">
+    <button id="lang-es" class="lang-btn" onclick="setLang('es')">
       Spanish
     </button>
 
@@ -748,7 +588,10 @@ body{
     <img
     class="hero-image"
     src="/assets/hero.jpeg"
-    alt="Hero">
+    alt="Hero"
+    decoding="async"
+    fetchpriority="high"
+    onerror="this.onerror=null;this.src='/assets/logo.png';">
 
     <div class="powered-box">
       Powered by GH Mobility
@@ -758,68 +601,63 @@ body{
 
 </section>
 
-<section class="about">
+<main class="page-wrap">
 
-  <h2 id="aboutTitle">
-    Professional Transportation Across Arizona
-  </h2>
+  <section class="about">
 
-  <p id="aboutText">
-    Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
-  </p>
+    <h2 id="aboutTitle">
+      Professional Transportation Across Arizona
+    </h2>
 
-</section>
-
-<section class="quote-header">
-
-  <h2 id="quoteTitle">
-    Book Your Ride Today
-  </h2>
-
-  <p id="quoteText">
-    Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
-  </p>
-
-</section>
-
-<section
-class="services"
-id="servicesContainer">
-</section>
-
-<section
-class="extra-sections"
-id="extraSections">
-
-  <div
-  class="extra-box"
-  id="extraBox1">
-
-    <h3 id="extra1TitleView">
-      Why Choose Sunbeam?
-    </h3>
-
-    <p id="extra1TextView">
-      Professional Drivers
+    <p id="aboutText">
+      Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.
     </p>
 
-  </div>
+  </section>
 
-  <div
-  class="extra-box"
-  id="extraBox2">
+  <section class="quote-header">
 
-    <h3 id="extra2TitleView">
-      Serving All Arizona
-    </h3>
+    <h2 id="quoteTitle">
+      Book Your Ride Today
+    </h2>
 
-    <p id="extra2TextView">
-      Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
+    <p id="quoteText">
+      Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
     </p>
 
-  </div>
+  </section>
 
-</section>
+  <section class="services" id="servicesContainer"></section>
+
+  <section class="extra-sections" id="extraSections">
+
+    <div class="extra-box" id="extraBox1">
+
+      <h3 id="extra1TitleView">
+        Why Choose Sunbeam?
+      </h3>
+
+      <p id="extra1TextView">
+        Professional Drivers
+      </p>
+
+    </div>
+
+    <div class="extra-box" id="extraBox2">
+
+      <h3 id="extra2TitleView">
+        Serving All Arizona
+      </h3>
+
+      <p id="extra2TextView">
+        Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
+      </p>
+
+    </div>
+
+  </section>
+
+</main>
 
 <div class="contact-section">
 
@@ -832,6 +670,8 @@ id="extraSections">
     619-509-7197
   </span>
 
+  <br>
+
   📧
   <span id="contactEmailView">
     admin@sunbeamtransportationllc.com
@@ -843,556 +683,215 @@ id="extraSections">
   ©️ Sunbeam Transportation
 </footer>
 
-<div id="google_translate_element"></div>
+<script src="/core/branding.js?v=10"></script>
 
 <script>
-
-function googleTranslateElementInit(){
-
-  new google.translate.TranslateElement(
-    {
-      pageLanguage:"en",
-      includedLanguages:"en,es",
-      autoDisplay:false
-    },
-    "google_translate_element"
-  );
-
-}
-
-</script>
-
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-<script src="/core/branding.js"></script>
-
-<script>
-
 let currentLang = "en";
-let resizeTimer = null;
 
-function safeText(value, fallback = ""){
-
-  return String(
-    value === undefined || value === null
-    ? fallback
-    : value
-  );
-
+function safeText(v,fallback=""){
+  return String(v === undefined || v === null ? fallback : v);
 }
 
-function setText(id, value){
-
-  const el =
-  document.getElementById(id);
-
+function setText(id,value){
+  const el = document.getElementById(id);
   if(!el) return;
-
-  el.innerText =
-  safeText(value);
-
+  el.innerText = safeText(value);
 }
 
-function setHtml(id, value){
-
-  const el =
-  document.getElementById(id);
-
+function setHtml(id,value){
+  const el = document.getElementById(id);
   if(!el) return;
-
-  el.innerHTML =
-  safeText(value);
-
+  el.innerHTML = safeText(value);
 }
 
-function applyAlign(el, align){
+function cleanAlign(v,fallback="center"){
+  v = String(v || "").toLowerCase().trim();
+  return ["left","center","right"].includes(v) ? v : fallback;
+}
 
+function setAlign(el,align){
   if(!el) return;
-
-  el.classList.remove(
-    "align-left",
-    "align-center",
-    "align-right"
-  );
-
-  const cleanAlign =
-  ["left","center","right"].includes(align)
-  ? align
-  : "center";
-
-  el.classList.add(
-    "align-" + cleanAlign
-  );
-
+  el.classList.remove("align-left","align-center","align-right");
+  el.classList.add("align-" + cleanAlign(align));
 }
 
 function updateLangButtons(){
 
-  document
-  .querySelectorAll(".lang-btn")
-  .forEach(btn=>{
-
-    btn.classList.remove(
-      "active-lang"
-    );
-
+  document.querySelectorAll(".lang-btn").forEach(btn=>{
+    btn.classList.remove("active-lang");
   });
 
-  const active =
-  document.getElementById(
-    "lang-" + currentLang
-  );
+  const active = document.getElementById("lang-" + currentLang);
 
   if(active){
-
-    active.classList.add(
-      "active-lang"
-    );
-
+    active.classList.add("active-lang");
   }
-
-}
-
-function triggerGoogleTranslate(lang){
-
-  const select =
-  document.querySelector(
-    ".goog-te-combo"
-  );
-
-  if(!select) return;
-
-  select.value = lang;
-
-  select.dispatchEvent(
-    new Event("change")
-  );
-
-}
-
-function applyHomepageTextTheme(data){
-
-  const aboutTitle =
-  document.getElementById("aboutTitle");
-
-  const aboutText =
-  document.getElementById("aboutText");
-
-  const quoteTitle =
-  document.getElementById("quoteTitle");
-
-  const quoteText =
-  document.getElementById("quoteText");
-
-  applyAlign(
-    aboutTitle,
-    data.aboutTitleAlign ||
-    data.aboutAlign ||
-    "center"
-  );
-
-  applyAlign(
-    aboutText,
-    data.aboutTextAlign ||
-    data.aboutAlign ||
-    "center"
-  );
-
-  applyAlign(
-    quoteTitle,
-    data.quoteTitleAlign ||
-    data.quoteAlign ||
-    "center"
-  );
-
-  applyAlign(
-    quoteText,
-    data.quoteTextAlign ||
-    data.quoteAlign ||
-    "center"
-  );
-
-  if(aboutTitle){
-
-    aboutTitle.style.color =
-    data.aboutTitleColor || "#1e3a6d";
-
-    aboutTitle.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.aboutTitleMobileSize || 34}px`
-    : `${data.aboutTitleSize || 60}px`;
-
-  }
-
-  if(aboutText){
-
-    aboutText.style.color =
-    data.aboutTextColor || "#6b7280";
-
-    aboutText.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.aboutTextMobileSize || 17}px`
-    : `${data.aboutTextSize || 25}px`;
-
-  }
-
-  if(quoteTitle){
-
-    quoteTitle.style.color =
-    data.quoteTitleColor || "#1e3a6d";
-
-    quoteTitle.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.quoteTitleMobileSize || 40}px`
-    : `${data.quoteTitleSize || 70}px`;
-
-  }
-
-  if(quoteText){
-
-    quoteText.style.color =
-    data.quoteTextColor || "#6b7280";
-
-    quoteText.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.quoteTextMobileSize || 17}px`
-    : `${data.quoteTextSize || 24}px`;
-
-  }
-
-}
-
-function applyExtraBoxesTheme(data){
-
-  const align =
-  data.extraBoxAlign || "center";
-
-  document
-  .querySelectorAll(".extra-box")
-  .forEach(box=>{
-
-    box.style.setProperty(
-      "background",
-      data.extraBoxBg || "#ffffff",
-      "important"
-    );
-
-    box.style.setProperty(
-      "border",
-      `${data.extraBoxBorderSize || 2}px solid ${
-        data.extraBoxBorder || "#dbeafe"
-      }`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "border-radius",
-      `${data.extraBoxRadius || 28}px`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "padding",
-      window.innerWidth <= 768
-      ? `${data.extraBoxMobilePadding || 18}px`
-      : `${data.extraBoxPadding || 44}px`,
-      "important"
-    );
-
-    box.style.setProperty(
-      "text-align",
-      align,
-      "important"
-    );
-
-    box.style.setProperty(
-      "box-shadow",
-      data.extraBoxShadow === false
-      ? "none"
-      : "0 10px 30px rgba(0,0,0,.08)",
-      "important"
-    );
-
-  });
-
-  document
-  .querySelectorAll(".extra-box h3")
-  .forEach(title=>{
-
-    title.style.setProperty(
-      "color",
-      data.extraBoxTitleColor || "#1e3a6d",
-      "important"
-    );
-
-    title.style.setProperty(
-      "font-size",
-      window.innerWidth <= 768
-      ? `${data.extraBoxTitleMobileSize || 22}px`
-      : `${data.extraBoxTitleSize || 42}px`,
-      "important"
-    );
-
-    applyAlign(title, align);
-
-  });
-
-  document
-  .querySelectorAll(".extra-box p")
-  .forEach(text=>{
-
-    text.style.setProperty(
-      "color",
-      data.extraBoxTextColor || "#6b7280",
-      "important"
-    );
-
-    text.style.setProperty(
-      "font-size",
-      window.innerWidth <= 768
-      ? `${data.extraBoxTextMobileSize || 15}px`
-      : `${data.extraBoxTextSize || 22}px`,
-      "important"
-    );
-
-    applyAlign(text, align);
-
-  });
 
 }
 
 function updateServicesLayout(){
 
-  const services =
-  document.getElementById(
-    "servicesContainer"
-  );
+  const box = document.getElementById("servicesContainer");
+  if(!box) return;
 
-  if(!services) return;
+  const count = box.querySelectorAll(".card").length;
 
-  const count =
-  services.querySelectorAll(".card").length;
+  box.classList.remove("layout-1","layout-2","layout-4","layout-5");
 
-  services.classList.remove(
-    "layout-1",
-    "layout-2",
-    "layout-4",
-    "layout-5"
-  );
+  if(count === 1) box.classList.add("layout-1");
+  if(count === 2) box.classList.add("layout-2");
+  if(count === 4) box.classList.add("layout-4");
+  if(count === 5) box.classList.add("layout-5");
 
-  if(count === 1){
+}
 
-    services.classList.add("layout-1");
+function applyPageTheme(data){
 
-  }else if(count === 2){
+  const aboutTitle = document.getElementById("aboutTitle");
+  const aboutText = document.getElementById("aboutText");
+  const quoteTitle = document.getElementById("quoteTitle");
+  const quoteText = document.getElementById("quoteText");
 
-    services.classList.add("layout-2");
+  setAlign(aboutTitle,data.aboutTitleAlign || data.aboutAlign || "left");
+  setAlign(aboutText,data.aboutTextAlign || data.aboutAlign || "left");
 
-  }else if(count === 4){
+  setAlign(quoteTitle,data.quoteTitleAlign || data.quoteAlign || "center");
+  setAlign(quoteText,data.quoteTextAlign || data.quoteAlign || "center");
 
-    services.classList.add("layout-4");
-
-  }else if(count === 5){
-
-    services.classList.add("layout-5");
-
+  if(aboutTitle){
+    aboutTitle.style.color = data.aboutTitleColor || "#1d4ed8";
   }
+
+  if(aboutText){
+    aboutText.style.color = data.aboutTextColor || "#475569";
+  }
+
+  if(quoteTitle){
+    quoteTitle.style.color = data.quoteTitleColor || "#1d4ed8";
+  }
+
+  if(quoteText){
+    quoteText.style.color = data.quoteTextColor || "#475569";
+  }
+
+  const extraAlign = cleanAlign(data.extraBoxAlign || "left","left");
+
+  document.querySelectorAll(".extra-box").forEach(box=>{
+
+    box.style.background = data.extraBoxBg || "#ffffff";
+    box.style.border = `${data.extraBoxBorderSize || 1}px solid ${data.extraBoxBorder || "#e5e7eb"}`;
+    box.style.borderRadius = `${data.extraBoxRadius || 22}px`;
+
+  });
+
+  document.querySelectorAll(".extra-box h3").forEach(title=>{
+    title.style.color = data.extraBoxTitleColor || "#1d4ed8";
+    title.style.fontSize = `${data.extraBoxTitleSize || 32}px`;
+    setAlign(title,extraAlign);
+  });
+
+  document.querySelectorAll(".extra-box p").forEach(text=>{
+    text.style.color = data.extraBoxTextColor || "#475569";
+    text.style.fontSize = `${data.extraBoxTextSize || 18}px`;
+    setAlign(text,extraAlign);
+  });
 
 }
 
 function renderPage(){
 
-  const data =
-  Branding.data || {};
+  const data = Branding.data || {};
 
-  document.title =
-  data.companyName ||
-  "Sunbeam Transportation";
+  document.title = data.companyName || "Sunbeam Transportation";
 
   setText(
     "aboutTitle",
     currentLang === "es"
-    ? (
-        data.aboutTitleEs ||
-        data.aboutTitle ||
-        "Transporte profesional en Arizona"
-      )
-    : (
-        data.aboutTitle ||
-        "Professional Transportation Across Arizona"
-      )
+    ? (data.aboutTitleEs || data.aboutTitle || "About Us")
+    : (data.aboutTitle || "About Us")
   );
 
   setText(
     "aboutText",
     currentLang === "es"
-    ? (
-        data.aboutTextEs ||
-        data.aboutText ||
-        "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona."
-      )
-    : (
-        data.aboutText ||
-        "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona."
-      )
+    ? (data.aboutTextEs || data.aboutText || "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.")
+    : (data.aboutText || "Sunbeam Transportation provides safe, reliable, and professional transportation services across Arizona.")
   );
 
   setText(
     "quoteTitle",
     currentLang === "es"
-    ? (
-        data.quoteTitleEs ||
-        data.quoteTitle ||
-        "Reserve su viaje hoy"
-      )
-    : (
-        data.quoteTitle ||
-        "Book Your Ride Today"
-      )
+    ? (data.quoteTitleEs || data.quoteTitle || "Book Your Ride Today")
+    : (data.quoteTitle || "Book Your Ride Today")
   );
 
   setText(
     "quoteText",
     currentLang === "es"
-    ? (
-        data.quoteTextEs ||
-        data.quoteText ||
-        "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
-      )
-    : (
-        data.quoteText ||
-        "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
-      )
+    ? (data.quoteTextEs || data.quoteText || "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.")
+    : (data.quoteText || "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.")
   );
 
-  const extraBox1 =
-  document.getElementById("extraBox1");
-
-  const extraBox2 =
-  document.getElementById("extraBox2");
+  const extraBox1 = document.getElementById("extraBox1");
+  const extraBox2 = document.getElementById("extraBox2");
 
   if(extraBox1){
-
-    extraBox1.style.display =
-    data.extra1Active === false
-    ? "none"
-    : "block";
-
+    extraBox1.style.display = data.extra1Active === false ? "none" : "block";
   }
 
   if(extraBox2){
-
-    extraBox2.style.display =
-    data.extra2Active === false
-    ? "none"
-    : "block";
-
+    extraBox2.style.display = data.extra2Active === false ? "none" : "block";
   }
 
   setText(
     "extra1TitleView",
     currentLang === "es"
-    ? (
-        data.extra1TitleEs ||
-        data.extra1Title ||
-        "¿Por qué elegir Sunbeam?"
-      )
-    : (
-        data.extra1Title ||
-        "Why Choose Sunbeam?"
-      )
+    ? (data.extra1TitleEs || data.extra1Title || "Why Choose Sunbeam?")
+    : (data.extra1Title || "Why Choose Sunbeam?")
   );
 
   setHtml(
     "extra1TextView",
     currentLang === "es"
-    ? (
-        data.extra1TextEs ||
-        data.extra1Text ||
-        "Professional Drivers"
-      )
-    : (
-        data.extra1Text ||
-        "Professional Drivers"
-      )
+    ? (data.extra1TextEs || data.extra1Text || "Professional Drivers")
+    : (data.extra1Text || "Professional Drivers")
   );
 
   setText(
     "extra2TitleView",
     currentLang === "es"
-    ? (
-        data.extra2TitleEs ||
-        data.extra2Title ||
-        "Servicio en Arizona"
-      )
-    : (
-        data.extra2Title ||
-        "Serving All Arizona"
-      )
+    ? (data.extra2TitleEs || data.extra2Title || "Serving All Arizona")
+    : (data.extra2Title || "Serving All Arizona")
   );
 
   setHtml(
     "extra2TextView",
     currentLang === "es"
-    ? (
-        data.extra2TextEs ||
-        data.extra2Text ||
-        "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas."
-      )
-    : (
-        data.extra2Text ||
-        "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas."
-      )
+    ? (data.extra2TextEs || data.extra2Text || "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.")
+    : (data.extra2Text || "Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.")
   );
 
   setText(
     "contactTitleView",
     currentLang === "es"
-    ? (
-        data.contactTitleEs ||
-        data.contactTitle ||
-        "Atención al cliente"
-      )
-    : (
-        data.contactTitle ||
-        "Customer Support"
-      )
+    ? (data.contactTitleEs || data.contactTitle || "Customer Support")
+    : (data.contactTitle || "Customer Support")
   );
 
-  setText(
-    "contactPhoneView",
-    data.contactPhone ||
-    "619-509-7197"
-  );
+  setText("contactPhoneView",data.contactPhone || "619-509-7197");
 
-  setText(
-    "contactEmailView",
-    data.contactEmail ||
-    "admin@sunbeamtransportationllc.com"
-  );
+  setText("contactEmailView",data.contactEmail || "admin@sunbeamtransportationllc.com");
 
   setText(
     "footerView",
     currentLang === "es"
-    ? (
-        data.footerTextEs ||
-        data.footerText ||
-        "©️ Sunbeam Transportation"
-      )
-    : (
-        data.footerText ||
-        "©️ Sunbeam Transportation"
-      )
+    ? (data.footerTextEs || data.footerText || "©️ Sunbeam Transportation")
+    : (data.footerText || "©️ Sunbeam Transportation")
   );
 
-  Branding.renderHomepageCards(
-    "servicesContainer",
-    currentLang
-  );
+  Branding.renderHomepageCards("servicesContainer",currentLang);
 
-  applyHomepageTextTheme(data);
-
-  applyExtraBoxesTheme(data);
+  applyPageTheme(data);
 
   updateServicesLayout();
 
@@ -1402,55 +901,19 @@ function renderPage(){
 
 window.setLang = function(lang){
 
-  currentLang =
-  lang === "es"
-  ? "es"
-  : "en";
+  currentLang = lang === "es" ? "es" : "en";
 
   renderPage();
 
-  triggerGoogleTranslate(
-    currentLang
-  );
-
 };
 
-window.addEventListener(
-  "DOMContentLoaded",
-  async ()=>{
+window.addEventListener("DOMContentLoaded",async ()=>{
 
-    await Branding.load();
+  await Branding.load();
 
-    renderPage();
+  renderPage();
 
-  }
-);
-
-window.addEventListener(
-  "resize",
-  ()=>{
-
-    clearTimeout(resizeTimer);
-
-    resizeTimer =
-    setTimeout(()=>{
-
-      applyHomepageTextTheme(
-        Branding.data || {}
-      );
-
-      applyExtraBoxesTheme(
-        Branding.data || {}
-      );
-
-      updateServicesLayout();
-
-    },120);
-
-  },
-  { passive:true }
-);
-
+});
 </script>
 
 </body>

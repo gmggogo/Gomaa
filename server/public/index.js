@@ -1,52 +1,34 @@
 // =========================
 // FILE: public/core/branding.js
-// CENTRAL BRANDING ENGINE
+// CENTRAL BRANDING ENGINE - LIGHT VERSION
 // =========================
 
 console.log("BRANDING ENGINE LOADED");
 
 window.Branding = {
 
-  data: {},
-
-  /* =========================
-     LOAD
-  ========================= */
+  data:{},
 
   async load(){
 
     try{
 
-      const res =
-      await fetch(
-        "/api/system-design"
-      );
+      const res = await fetch("/api/system-design",{ cache:"no-store" });
 
       if(!res.ok){
-
-        throw new Error(
-          "Failed To Load System Design"
-        );
-
+        throw new Error("Failed To Load Branding");
       }
 
-      this.data =
-      await res.json();
+      this.data = await res.json();
 
     }catch(err){
 
-      console.log(
-        "Branding Load Error",
-        err
-      );
+      console.log("Branding Load Error",err);
 
       try{
 
-        this.data =
-        JSON.parse(
-          localStorage.getItem(
-            "ghSystemDesign"
-          ) || "{}"
+        this.data = JSON.parse(
+          localStorage.getItem("ghSystemDesign") || "{}"
         );
 
       }catch(e){
@@ -63,14 +45,9 @@ window.Branding = {
 
   },
 
-  /* =========================
-     SAVE LOCAL
-  ========================= */
-
   save(data){
 
-    this.data =
-    data || {};
+    this.data = data || {};
 
     localStorage.setItem(
       "ghSystemDesign",
@@ -81,338 +58,120 @@ window.Branding = {
 
   },
 
-  /* =========================
-     GETTERS
-  ========================= */
-
   getCompanyName(){
 
-    return (
-      this.data?.companyName ||
-      "Sunbeam Transportation"
-    );
-
-  },
-
-  getTimezone(){
-
-    return (
-      this.data?.timezone ||
-      "America/Phoenix"
-    );
+    return this.data.companyName || "Sunbeam Transportation";
 
   },
 
   getMainLogo(){
 
-    return (
-      this.data?.mainLogo ||
-      "/assets/logo.png"
-    );
+    return this.data.mainLogo || "/assets/logo.png";
 
   },
 
   getDriverLogo(){
 
-    return (
-      this.data?.driverLogo ||
-      "/assets/logo.png"
-    );
+    return this.data.driverLogo || "/assets/logo.png";
 
   },
 
   getHeroImage(){
 
-    return (
-      this.data?.heroImage ||
-      "/assets/hero.jpeg"
-    );
+    return this.data.heroImage || "/assets/hero.jpeg";
+
+  },
+
+  getTimezone(){
+
+    return this.data.timezone || "America/Phoenix";
 
   },
 
   getServices(){
 
-    const services =
-    this.data?.services;
-
-    return Array.isArray(services)
-    ? services
+    return Array.isArray(this.data.services)
+    ? this.data.services
     : [];
 
   },
 
-  /* =========================
-     SAFE HELPERS
-  ========================= */
-
-  text(value, fallback = ""){
+  cleanText(value){
 
     return String(
-      value === undefined ||
-      value === null
-      ? fallback
+      value === undefined || value === null
+      ? ""
       : value
     );
 
   },
 
-  cleanAlign(value, fallback = "center"){
+  cleanAlign(value,fallback="center"){
 
-    const align =
-    String(value || "")
-    .toLowerCase()
-    .trim();
+    const v = String(value || "").toLowerCase().trim();
 
-    return [
-      "left",
-      "center",
-      "right"
-    ].includes(align)
-    ? align
+    return ["left","center","right"].includes(v)
+    ? v
     : fallback;
 
   },
 
-  setTextAlign(el, align){
-
-    if(!el) return;
-
-    const clean =
-    this.cleanAlign(
-      align,
-      "center"
-    );
-
-    el.style.setProperty(
-      "text-align",
-      clean,
-      "important"
-    );
-
-  },
-
-  /* =========================
-     APPLY GLOBAL
-  ========================= */
-
   applyGlobalBranding(){
 
-    document.title =
-    this.getCompanyName();
+    document.title = this.getCompanyName();
 
-    document
-    .querySelectorAll(".company-name")
-    .forEach(el=>{
-
-      el.innerText =
-      this.getCompanyName();
-
+    document.querySelectorAll(".company-name").forEach(el=>{
+      el.innerText = this.getCompanyName();
     });
 
-    document
-    .querySelectorAll(".main-logo")
-    .forEach(el=>{
-
-      el.src =
-      this.getMainLogo();
-
+    document.querySelectorAll(".main-logo").forEach(el=>{
+      el.src = this.getMainLogo();
+      el.onerror = function(){
+        this.onerror = null;
+        this.src = "/assets/logo.png";
+      };
     });
 
-    document
-    .querySelectorAll(".driver-logo")
-    .forEach(el=>{
-
-      el.src =
-      this.getDriverLogo();
-
+    document.querySelectorAll(".driver-logo").forEach(el=>{
+      el.src = this.getDriverLogo();
+      el.onerror = function(){
+        this.onerror = null;
+        this.src = "/assets/logo.png";
+      };
     });
 
-    document
-    .querySelectorAll(".hero-image")
-    .forEach(el=>{
-
-      el.src =
-      this.getHeroImage();
-
-    });
-
-    this.applyThemeEngine();
-
-  },
-
-  /* =========================
-     APPLY THEME ENGINE
-  ========================= */
-
-  applyThemeEngine(){
-
-    const d =
-    this.data || {};
-
-    const isMobile =
-    window.innerWidth <= 768;
-
-    const extraAlign =
-    this.cleanAlign(
-      d.extraBoxAlign,
-      "center"
-    );
-
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
-
-      box.style.setProperty(
-        "background",
-        d.extraBoxBg || "#ffffff",
-        "important"
-      );
-
-      box.style.setProperty(
-        "border",
-        `${d.extraBoxBorderSize || 2}px solid ${
-          d.extraBoxBorder || "#dbeafe"
-        }`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "border-radius",
-        `${d.extraBoxRadius || 28}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "padding",
-        isMobile
-        ? `${d.extraBoxMobilePadding || 18}px`
-        : `${d.extraBoxPadding || 44}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "text-align",
-        extraAlign,
-        "important"
-      );
-
-      box.style.setProperty(
-        "box-shadow",
-        d.extraBoxShadow === false
-        ? "none"
-        : "0 10px 30px rgba(0,0,0,.08)",
-        "important"
-      );
-
-    });
-
-    document
-    .querySelectorAll(
-      ".extra-box h2, .extra-box h3"
-    )
-    .forEach(title=>{
-
-      title.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      title.style.setProperty(
-        "color",
-        d.extraBoxTitleColor || "#1e3a6d",
-        "important"
-      );
-
-      title.style.setProperty(
-        "font-size",
-        isMobile
-        ? `${d.extraBoxTitleMobileSize || 22}px`
-        : `${d.extraBoxTitleSize || 42}px`,
-        "important"
-      );
-
-      this.setTextAlign(
-        title,
-        extraAlign
-      );
-
-    });
-
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
-
-      text.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      text.style.setProperty(
-        "color",
-        d.extraBoxTextColor || "#6b7280",
-        "important"
-      );
-
-      text.style.setProperty(
-        "font-size",
-        isMobile
-        ? `${d.extraBoxTextMobileSize || 15}px`
-        : `${d.extraBoxTextSize || 22}px`,
-        "important"
-      );
-
-      this.setTextAlign(
-        text,
-        extraAlign
-      );
-
+    document.querySelectorAll(".hero-image").forEach(el=>{
+      el.src = this.getHeroImage();
+      el.onerror = function(){
+        this.onerror = null;
+        this.src = "/assets/logo.png";
+      };
     });
 
   },
 
-  /* =========================
-     RENDER HOMEPAGE CARDS
-  ========================= */
+  renderHomepageCards(containerId,lang="en"){
 
-  renderHomepageCards(
-    containerId,
-    lang = "en"
-  ){
-
-    const container =
-    document.getElementById(
-      containerId
-    );
+    const container = document.getElementById(containerId);
 
     if(!container) return;
 
-    const services =
-    this.getServices();
+    const services = this.getServices();
 
     container.innerHTML = "";
 
-    const d =
-    this.data || {};
+    const fragment = document.createDocumentFragment();
 
-    const cardAlign =
-    this.cleanAlign(
-      d.cardTextAlign ||
-      d.cardAlign ||
+    const globalAlign = this.cleanAlign(
+      this.data.cardTextAlign ||
+      this.data.cardAlign ||
       "center",
       "center"
     );
 
-    const activeServices =
-    services.filter(service=>{
+    services.forEach(service=>{
 
-      return service &&
-      service.active !== false;
-
-    });
-
-    activeServices.forEach(service=>{
+      if(!service || service.active === false) return;
 
       const title =
       lang === "es"
@@ -444,101 +203,47 @@ window.Branding = {
           ""
         );
 
-      const link =
-      service.link ||
-      "getquote/index.html";
+      const image = service.image || "/assets/logo.png";
 
-      const image =
-      service.image ||
-      "/assets/logo.png";
+      const link = service.link || "getquote/index.html";
 
-      const serviceAlign =
-      this.cleanAlign(
-        service.align ||
+      const align = this.cleanAlign(
         service.textAlign ||
-        cardAlign,
-        cardAlign
+        service.align ||
+        globalAlign,
+        globalAlign
       );
 
-      const card =
-      document.createElement("div");
+      const card = document.createElement("div");
+      card.className = "card";
 
-      card.className =
-      "card";
+      const img = document.createElement("img");
+      img.className = "card-image";
+      img.src = image;
+      img.alt = this.cleanText(title);
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.onerror = function(){
+        this.onerror = null;
+        this.src = "/assets/logo.png";
+      };
 
-      const img =
-      document.createElement("img");
+      const body = document.createElement("div");
+      body.className = "card-body";
+      body.style.textAlign = align;
 
-      img.className =
-      "card-image";
+      const h3 = document.createElement("h3");
+      h3.innerText = this.cleanText(title);
+      h3.style.textAlign = align;
 
-      img.src =
-      image;
+      const p = document.createElement("p");
+      p.innerText = this.cleanText(desc);
+      p.style.textAlign = align;
 
-      img.alt =
-      title || "Service";
-
-      const body =
-      document.createElement("div");
-
-      body.className =
-      "card-body";
-
-      body.style.setProperty(
-        "text-align",
-        serviceAlign,
-        "important"
-      );
-
-      const h3 =
-      document.createElement("h3");
-
-      h3.innerText =
-      this.text(title);
-
-      h3.style.setProperty(
-        "text-align",
-        serviceAlign,
-        "important"
-      );
-
-      h3.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      const p =
-      document.createElement("p");
-
-      p.innerText =
-      this.text(desc);
-
-      p.style.setProperty(
-        "text-align",
-        serviceAlign,
-        "important"
-      );
-
-      p.style.setProperty(
-        "width",
-        "100%",
-        "important"
-      );
-
-      const btn =
-      document.createElement("a");
-
-      btn.href =
-      link;
-
-      btn.className =
-      "card-btn";
-
-      btn.innerText =
-      lang === "es"
-      ? "Obtener precio"
-      : "Get Quote";
+      const btn = document.createElement("a");
+      btn.className = "card-btn";
+      btn.href = link;
+      btn.innerText = lang === "es" ? "Obtener precio" : "Get Quote";
 
       body.appendChild(h3);
       body.appendChild(p);
@@ -547,9 +252,11 @@ window.Branding = {
       card.appendChild(img);
       card.appendChild(body);
 
-      container.appendChild(card);
+      fragment.appendChild(card);
 
     });
+
+    container.appendChild(fragment);
 
   }
 
