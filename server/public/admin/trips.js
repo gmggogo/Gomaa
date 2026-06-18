@@ -1965,3 +1965,17 @@ Object.assign(window,{
   await loadServices();
   await loadTrips();
 })();
+
+function fixHeaderSpacing(){
+  const header = document.getElementById("adminHeader");
+  const body = document.querySelector(".page-body");
+
+  if(!header || !body) return;
+
+  const h = header.offsetHeight;
+
+  body.style.paddingTop = (h + 10) + "px";
+}
+
+window.addEventListener("load", fixHeaderSpacing);
+window.addEventListener("resize", fixHeaderSpacing);
