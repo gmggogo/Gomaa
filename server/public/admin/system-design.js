@@ -81,7 +81,8 @@ mainLogo:"/assets/logo.png",
 
   aboutTextSize:"18",
 
-  aboutTextAlign:"center",
+  aboutTextAlign:"justify-center",
+
 
   /* =========================
   QUOTE
@@ -111,7 +112,8 @@ mainLogo:"/assets/logo.png",
 
   quoteTextSize:"18",
 
-  quoteTextAlign:"center",
+  quoteTextAlign:"justify-center",
+
 
   /* =========================
   EXTRA BOXES
@@ -147,7 +149,7 @@ mainLogo:"/assets/logo.png",
 
   extraBoxPadding:"40",
 
-  extraBoxAlign:"center",
+  extraBoxAlign:"justify-center",
 
   extraBoxTitleSize:"32",
 
@@ -179,7 +181,13 @@ contactBg:"#ffffff",
 contactBorder:"#dbeafe",
 
 contactRadius:"28",
+contactAlign:"center",
 
+contactJustify:"justify-center",
+
+cardTextAlign:"center",
+
+cardTextJustify:"justify-center",
 /* =========================
 SERVICES
 ========================= */
@@ -360,12 +368,86 @@ function setImage(id,value){
 }
 
 /* =========================
+WORD ALIGN HELPERS
+========================= */
+
+const WORD_ALIGN_OPTIONS = [
+  { value:"left", label:"Left" },
+  { value:"center", label:"Center" },
+  { value:"right", label:"Right" },
+  { value:"justify", label:"Justify" },
+  { value:"justify-left", label:"Justify Left" },
+  { value:"justify-center", label:"Justify Center" },
+  { value:"justify-right", label:"Justify Right" }
+];
+
+function normalizeWordAlign(value, fallback = "center"){
+
+  const clean =
+  String(value || "")
+  .toLowerCase()
+  .trim();
+
+  const allowed =
+  WORD_ALIGN_OPTIONS.map(item=>item.value);
+
+  return allowed.includes(clean)
+  ? clean
+  : fallback;
+
+}
+
+function setupAlignSelect(id, value, fallback = "center"){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  const finalValue =
+  normalizeWordAlign(value, fallback);
+
+  el.innerHTML = "";
+
+  WORD_ALIGN_OPTIONS.forEach(item=>{
+
+    const option =
+    document.createElement("option");
+
+    option.value =
+    item.value;
+
+    option.innerText =
+    item.label;
+
+    if(item.value === finalValue){
+      option.selected = true;
+    }
+
+    el.appendChild(option);
+
+  });
+
+}
+
+function getAlignValue(id, fallback = "center"){
+
+  return normalizeWordAlign(
+    document.getElementById(id)?.value,
+    fallback
+  );
+
+}
+
+/* =========================
 LOAD VALUES
 ========================= */
 
 function loadFormValues(){
 
-  /* BASIC */
+  /* =========================
+     BASIC
+  ========================= */
 
   setValue(
     "companyNameInput",
@@ -376,54 +458,60 @@ function loadFormValues(){
     "timezoneInput",
     systemDesign.timezone
   );
-setValue(
-  "regionInput",
-  systemDesign.region
-);
 
-setValue(
-  "countryInput",
-  systemDesign.country
-);
-setValue(
-  "invoiceEmailInput",
-  systemDesign.invoiceEmail
-);
-setValue(
-  "smtpHostInput",
-  systemDesign.smtpHost
-);
+  setValue(
+    "regionInput",
+    systemDesign.region
+  );
 
-setValue(
-  "smtpPortInput",
-  systemDesign.smtpPort
-);
+  setValue(
+    "countryInput",
+    systemDesign.country
+  );
 
-setValue(
-  "smtpUserInput",
-  systemDesign.smtpUser
-);
+  setValue(
+    "invoiceEmailInput",
+    systemDesign.invoiceEmail
+  );
 
-setValue(
-  "smtpPassInput",
-  systemDesign.smtpPass
-);
+  setValue(
+    "smtpHostInput",
+    systemDesign.smtpHost
+  );
 
-setValue(
-  "bookingEmailSubjectInput",
-  systemDesign.bookingEmailSubject
-);
+  setValue(
+    "smtpPortInput",
+    systemDesign.smtpPort
+  );
 
-setValue(
-  "bookingEmailMessageInput",
-  systemDesign.bookingEmailMessage
-);
+  setValue(
+    "smtpUserInput",
+    systemDesign.smtpUser
+  );
 
-setValue(
-  "cancelPolicyTextInput",
-  systemDesign.cancelPolicyText
-);
-  /* IMAGES */
+  setValue(
+    "smtpPassInput",
+    systemDesign.smtpPass
+  );
+
+  setValue(
+    "bookingEmailSubjectInput",
+    systemDesign.bookingEmailSubject
+  );
+
+  setValue(
+    "bookingEmailMessageInput",
+    systemDesign.bookingEmailMessage
+  );
+
+  setValue(
+    "cancelPolicyTextInput",
+    systemDesign.cancelPolicyText
+  );
+
+  /* =========================
+     IMAGES
+  ========================= */
 
   setImage(
     "mainLogoPreview",
@@ -440,7 +528,9 @@ setValue(
     systemDesign.heroImage
   );
 
-  /* BODY */
+  /* =========================
+     BODY
+  ========================= */
 
   setValue(
     "bodyBgInput",
@@ -452,7 +542,9 @@ setValue(
     systemDesign.bodyTextColor
   );
 
-  /* ABOUT */
+  /* =========================
+     ABOUT
+  ========================= */
 
   setValue(
     "aboutBgInput",
@@ -489,9 +581,10 @@ setValue(
     systemDesign.aboutTitleSize
   );
 
-  setValue(
+  setupAlignSelect(
     "aboutTitleAlignInput",
-    systemDesign.aboutTitleAlign
+    systemDesign.aboutTitleAlign,
+    "center"
   );
 
   setValue(
@@ -509,12 +602,15 @@ setValue(
     systemDesign.aboutTextSize
   );
 
-  setValue(
+  setupAlignSelect(
     "aboutTextAlignInput",
-    systemDesign.aboutTextAlign
+    systemDesign.aboutTextAlign,
+    "justify-center"
   );
 
-  /* QUOTE */
+  /* =========================
+     QUOTE
+  ========================= */
 
   setValue(
     "quoteBgInput",
@@ -551,9 +647,10 @@ setValue(
     systemDesign.quoteTitleSize
   );
 
-  setValue(
+  setupAlignSelect(
     "quoteTitleAlignInput",
-    systemDesign.quoteTitleAlign
+    systemDesign.quoteTitleAlign,
+    "center"
   );
 
   setValue(
@@ -571,12 +668,15 @@ setValue(
     systemDesign.quoteTextSize
   );
 
-  setValue(
+  setupAlignSelect(
     "quoteTextAlignInput",
-    systemDesign.quoteTextAlign
+    systemDesign.quoteTextAlign,
+    "justify-center"
   );
 
-  /* EXTRA BOXES */
+  /* =========================
+     EXTRA BOXES CONTENT
+  ========================= */
 
   setValue(
     "extra1Title",
@@ -608,7 +708,9 @@ setValue(
     systemDesign.extra2Active
   );
 
-  /* EXTRA BOX DESIGN */
+  /* =========================
+     EXTRA BOX DESIGN
+  ========================= */
 
   setValue(
     "extraBoxBgInput",
@@ -640,9 +742,10 @@ setValue(
     systemDesign.extraBoxPadding
   );
 
-  setValue(
+  setupAlignSelect(
     "extraBoxAlignInput",
-    systemDesign.extraBoxAlign
+    systemDesign.extraBoxAlign,
+    "justify-center"
   );
 
   setValue(
@@ -665,7 +768,9 @@ setValue(
     systemDesign.extraBoxShadow
   );
 
-  /* CONTACT */
+  /* =========================
+     CONTACT
+  ========================= */
 
   setValue(
     "contactTitleInput",
@@ -682,45 +787,47 @@ setValue(
     systemDesign.contactEmail
   );
 
-setValue(
-  "footerTextInput",
-  systemDesign.footerText
-);
+  setValue(
+    "footerTextInput",
+    systemDesign.footerText
+  );
 
-setValue(
-  "contactTitleColorInput",
-  systemDesign.contactTitleColor
-);
+  setValue(
+    "contactTitleColorInput",
+    systemDesign.contactTitleColor
+  );
 
-setValue(
-  "contactTitleSizeInput",
-  systemDesign.contactTitleSize
-);
+  setValue(
+    "contactTitleSizeInput",
+    systemDesign.contactTitleSize
+  );
 
-setValue(
-  "contactBgInput",
-  systemDesign.contactBg
-);
+  setValue(
+    "contactBgInput",
+    systemDesign.contactBg
+  );
 
-setValue(
-  "contactBorderInput",
-  systemDesign.contactBorder
-);
+  setValue(
+    "contactBorderInput",
+    systemDesign.contactBorder
+  );
 
-setValue(
-  "contactRadiusInput",
-  systemDesign.contactRadius
-);
+  setValue(
+    "contactRadiusInput",
+    systemDesign.contactRadius
+  );
 
-setValue(
-  "contactAlignInput",
-  systemDesign.contactAlign
-);
+  setupAlignSelect(
+    "contactAlignInput",
+    systemDesign.contactAlign,
+    "center"
+  );
 
-setValue(
-  "contactJustifyInput",
-  systemDesign.contactJustify
-);
+  setupAlignSelect(
+    "contactJustifyInput",
+    systemDesign.contactJustify,
+    "justify-center"
+  );
 
 }
 
@@ -1023,7 +1130,9 @@ SAVE ALL
 window.saveAllSystemDesign =
 async function(){
 
-  /* BASIC */
+  /* =========================
+     BASIC
+  ========================= */
 
   systemDesign.companyName =
   document.getElementById(
@@ -1035,56 +1144,59 @@ async function(){
     "timezoneInput"
   )?.value || "";
 
-systemDesign.region =
-document.getElementById(
-  "regionInput"
-)?.value || "";
+  systemDesign.region =
+  document.getElementById(
+    "regionInput"
+  )?.value || "";
 
-systemDesign.country =
-document.getElementById(
-  "countryInput"
-)?.value || "";
-systemDesign.invoiceEmail =
-document.getElementById(
-  "invoiceEmailInput"
-)?.value || "";
+  systemDesign.country =
+  document.getElementById(
+    "countryInput"
+  )?.value || "";
 
-systemDesign.smtpHost =
-document.getElementById(
-  "smtpHostInput"
-)?.value || "";
+  systemDesign.invoiceEmail =
+  document.getElementById(
+    "invoiceEmailInput"
+  )?.value || "";
 
-systemDesign.smtpPort =
-document.getElementById(
-  "smtpPortInput"
-)?.value || "";
+  systemDesign.smtpHost =
+  document.getElementById(
+    "smtpHostInput"
+  )?.value || "";
 
-systemDesign.smtpUser =
-document.getElementById(
-  "smtpUserInput"
-)?.value || "";
+  systemDesign.smtpPort =
+  document.getElementById(
+    "smtpPortInput"
+  )?.value || "";
 
-systemDesign.smtpPass =
-document.getElementById(
-  "smtpPassInput"
-)?.value || "";
+  systemDesign.smtpUser =
+  document.getElementById(
+    "smtpUserInput"
+  )?.value || "";
 
-systemDesign.bookingEmailSubject =
-document.getElementById(
-  "bookingEmailSubjectInput"
-)?.value || "";
+  systemDesign.smtpPass =
+  document.getElementById(
+    "smtpPassInput"
+  )?.value || "";
 
-systemDesign.bookingEmailMessage =
-document.getElementById(
-  "bookingEmailMessageInput"
-)?.value || "";
+  systemDesign.bookingEmailSubject =
+  document.getElementById(
+    "bookingEmailSubjectInput"
+  )?.value || "";
 
-systemDesign.cancelPolicyText =
-document.getElementById(
-  "cancelPolicyTextInput"
-)?.value || "";
+  systemDesign.bookingEmailMessage =
+  document.getElementById(
+    "bookingEmailMessageInput"
+  )?.value || "";
 
-  /* BODY */
+  systemDesign.cancelPolicyText =
+  document.getElementById(
+    "cancelPolicyTextInput"
+  )?.value || "";
+
+  /* =========================
+     BODY
+  ========================= */
 
   systemDesign.bodyBg =
   document.getElementById(
@@ -1096,7 +1208,9 @@ document.getElementById(
     "bodyTextColorInput"
   )?.value || "";
 
-  /* ABOUT */
+  /* =========================
+     ABOUT
+  ========================= */
 
   systemDesign.aboutBg =
   document.getElementById(
@@ -1134,9 +1248,10 @@ document.getElementById(
   )?.value || "";
 
   systemDesign.aboutTitleAlign =
-  document.getElementById(
-    "aboutTitleAlignInput"
-  )?.value || "";
+  getAlignValue(
+    "aboutTitleAlignInput",
+    "center"
+  );
 
   systemDesign.aboutText =
   document.getElementById(
@@ -1154,11 +1269,14 @@ document.getElementById(
   )?.value || "";
 
   systemDesign.aboutTextAlign =
-  document.getElementById(
-    "aboutTextAlignInput"
-  )?.value || "";
+  getAlignValue(
+    "aboutTextAlignInput",
+    "justify-center"
+  );
 
-  /* QUOTE */
+  /* =========================
+     QUOTE
+  ========================= */
 
   systemDesign.quoteBg =
   document.getElementById(
@@ -1196,9 +1314,10 @@ document.getElementById(
   )?.value || "";
 
   systemDesign.quoteTitleAlign =
-  document.getElementById(
-    "quoteTitleAlignInput"
-  )?.value || "";
+  getAlignValue(
+    "quoteTitleAlignInput",
+    "center"
+  );
 
   systemDesign.quoteText =
   document.getElementById(
@@ -1216,11 +1335,14 @@ document.getElementById(
   )?.value || "";
 
   systemDesign.quoteTextAlign =
-  document.getElementById(
-    "quoteTextAlignInput"
-  )?.value || "";
+  getAlignValue(
+    "quoteTextAlignInput",
+    "justify-center"
+  );
 
-  /* EXTRA BOXES */
+  /* =========================
+     EXTRA BOXES CONTENT
+  ========================= */
 
   systemDesign.extra1Title =
   document.getElementById(
@@ -1252,7 +1374,9 @@ document.getElementById(
     "extra2Active"
   )?.checked || false;
 
-  /* EXTRA BOX DESIGN */
+  /* =========================
+     EXTRA BOX DESIGN
+  ========================= */
 
   systemDesign.extraBoxBg =
   document.getElementById(
@@ -1285,9 +1409,10 @@ document.getElementById(
   )?.value || "";
 
   systemDesign.extraBoxAlign =
-  document.getElementById(
-    "extraBoxAlignInput"
-  )?.value || "center";
+  getAlignValue(
+    "extraBoxAlignInput",
+    "justify-center"
+  );
 
   systemDesign.extraBoxTitleSize =
   document.getElementById(
@@ -1309,7 +1434,9 @@ document.getElementById(
     "extraBoxShadowInput"
   )?.checked || false;
 
-  /* CONTACT */
+  /* =========================
+     CONTACT
+  ========================= */
 
   systemDesign.contactTitle =
   document.getElementById(
@@ -1326,49 +1453,51 @@ document.getElementById(
     "contactEmailInput"
   )?.value || "";
 
-systemDesign.footerText =
-document.getElementById(
-  "footerTextInput"
-)?.value || "";
+  systemDesign.footerText =
+  document.getElementById(
+    "footerTextInput"
+  )?.value || "";
 
-systemDesign.contactTitleColor =
-document.getElementById(
-  "contactTitleColorInput"
-)?.value || "";
+  systemDesign.contactTitleColor =
+  document.getElementById(
+    "contactTitleColorInput"
+  )?.value || "";
 
-systemDesign.contactTitleSize =
-document.getElementById(
-  "contactTitleSizeInput"
-)?.value || "";
+  systemDesign.contactTitleSize =
+  document.getElementById(
+    "contactTitleSizeInput"
+  )?.value || "";
 
-systemDesign.contactBg =
-document.getElementById(
-  "contactBgInput"
-)?.value || "";
+  systemDesign.contactBg =
+  document.getElementById(
+    "contactBgInput"
+  )?.value || "";
 
-systemDesign.contactBorder =
-document.getElementById(
-  "contactBorderInput"
-)?.value || "";
+  systemDesign.contactBorder =
+  document.getElementById(
+    "contactBorderInput"
+  )?.value || "";
 
-systemDesign.contactRadius =
-document.getElementById(
-  "contactRadiusInput"
-)?.value || "";
+  systemDesign.contactRadius =
+  document.getElementById(
+    "contactRadiusInput"
+  )?.value || "";
 
-systemDesign.contactAlign =
-document.getElementById(
-  "contactAlignInput"
-)?.value || "center";
+  systemDesign.contactAlign =
+  getAlignValue(
+    "contactAlignInput",
+    "center"
+  );
 
-systemDesign.contactJustify =
-document.getElementById(
-  "contactJustifyInput"
-)?.value || "center";
+  systemDesign.contactJustify =
+  getAlignValue(
+    "contactJustifyInput",
+    "justify-center"
+  );
 
-await saveSystemDesign();
+  await saveSystemDesign();
 
-alert("Saved");
+  alert("Saved");
 
 };
 
