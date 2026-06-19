@@ -1418,9 +1418,9 @@ function rowSourceClass(t){
 
 function rowOverdueClass(item){
   if(item.kind === "trip"){
-    return isTripOverdueNotConfirmed(item.trip) ? "pending-overdue" : "";
+    return isTripNotConfirmed(item.trip) ? "pending-overdue" : "";
   }
-  return isSharedOverdueNotConfirmed(item.group[0]) ? "pending-overdue" : "";
+  return isSharedNotConfirmed(item.group[0]) ? "pending-overdue" : "";
 }
 
 function rowConfirmedClass(item){
