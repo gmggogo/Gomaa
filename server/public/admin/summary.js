@@ -1,9 +1,10 @@
 /* ==========================================================================
-   ADMIN SUMMARY V3
+   ADMIN SUMMARY V4
    Admin / SuperAdmin / Dispatcher
    Facility / Get Quote / Reserved
    Closed Trips Financial Summary
    Print + CSV + Excel Export
+   Show ONLY trips finalized after Dispatch Review / Final Confirmation
    ========================================================================== */
 
 const API_URL = "/api/admin-summary";
@@ -194,6 +195,87 @@ function stopsDisplay(t){
 
 function getNotes(t){
   return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
+}
+
+/* ===============================
+   DISPATCH REVIEW / FINAL CONFIRMATION GATE
+================================ */
+
+function hasDispatchReviewFinalMarker(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  if(
+    trip.dispatchReviewConfirmed === true ||
+    trip.dispatchReviewConfirmedAt ||
+    trip.dispatchReviewFinalized === true ||
+    trip.dispatchReviewFinalizedAt ||
+    trip.dispatchFinalConfirmed === true ||
+    trip.dispatchFinalConfirmedAt ||
+    trip.finalStatusConfirmed === true ||
+    trip.finalStatusConfirmedAt ||
+    trip.sharedFinalConfirmed === true ||
+    trip.sharedFinalConfirmedAt ||
+    trip.adminSummaryReady === true ||
+    trip.summaryReady === true ||
+    trip.billingReady === true
+  ){
+    return true;
+  }
+
+  const passengers =
+    Array.isArray(trip.passengers)
+      ? trip.passengers
+      : [];
+
+  return passengers.some(p =>
+    p.dispatchReviewConfirmed === true ||
+    p.dispatchReviewConfirmedAt ||
+    p.dispatchFinalConfirmed === true ||
+    p.dispatchFinalConfirmedAt ||
+    p.finalStatusConfirmed === true ||
+    p.finalStatusConfirmedAt ||
+    p.finalStatusConfirmedBy ||
+    p.adminSummaryReady === true ||
+    p.summaryReady === true ||
+    p.billingReady === true
+  );
+}
+
+function groupHasDispatchReviewFinalMarker(group){
+
+  const arr =
+    Array.isArray(group)
+      ? group
+      : [];
+
+  if(arr.some(t => hasDispatchReviewFinalMarker(t))){
+    return true;
+  }
+
+  const first = arr[0] || {};
+  const passengers = getRealPassengersFromGroup(arr);
+
+  return passengers.some(p =>
+    p.dispatchReviewConfirmed === true ||
+    p.dispatchReviewConfirmedAt ||
+    p.dispatchFinalConfirmed === true ||
+    p.dispatchFinalConfirmedAt ||
+    p.finalStatusConfirmed === true ||
+    p.finalStatusConfirmedAt ||
+    p.finalStatusConfirmedBy ||
+    p.adminSummaryReady === true ||
+    p.summaryReady === true ||
+    p.billingReady === true ||
+    first.dispatchReviewConfirmed === true ||
+    first.dispatchReviewConfirmedAt ||
+    first.dispatchFinalConfirmed === true ||
+    first.dispatchFinalConfirmedAt ||
+    first.finalStatusConfirmed === true ||
+    first.finalStatusConfirmedAt
+  );
 }
 
 /* ===============================
@@ -857,14 +939,6 @@ function getItemMiles(item){
   return getTripMiles(item.trip);
 }
 
-function getItemPassengersCount(item){
-  if(item.kind === "shared"){
-    return getClosedPassengers(item.group).length;
-  }
-
-  return 1;
-}
-
 function passengerStatusLine(p,t,index){
   return `${index + 1}. ${displayStatus(p.status || t.status,t)}`;
 }
@@ -1166,7 +1240,15 @@ function isClosedTrip(t){
         .find(g => getSharedKey(g[0]) === getSharedKey(t)) ||
       [t];
 
+    if(!groupHasDispatchReviewFinalMarker(group)){
+      return false;
+    }
+
     return hasClosedPassenger(group);
+  }
+
+  if(!hasDispatchReviewFinalMarker(t)){
+    return false;
   }
 
   return isClosedStatus(t.status,t);
@@ -1201,6 +1283,10 @@ function buildDisplayItems(trips){
         getSharedGroups(trips)
           .find(g => getSharedKey(g[0]) === key) ||
         [t];
+
+      if(!groupHasDispatchReviewFinalMarker(group)){
+        return;
+      }
 
       if(!hasClosedPassenger(group)) return;
 
@@ -1559,6 +1645,39 @@ function renderStats(){
   `;
 }
 
+/* ===============================
+   SERVICE CARDS RESPONSIVE LAYOUT
+================================ */
+
+function updateServiceCardsLayout(){
+
+  const wrap = document.getElementById("serviceCards");
+  if(!wrap) return;
+
+  const count = wrap.querySelectorAll(".service-card").length || 1;
+
+  const desktopCols =
+    count >= 6
+      ? 6
+      : count;
+
+  const tabletCols =
+    count >= 4
+      ? 4
+      : count >= 2
+        ? count
+        : 1;
+
+  const mobileCols =
+    count >= 2
+      ? 2
+      : 1;
+
+  wrap.style.setProperty("--service-cols", desktopCols);
+  wrap.style.setProperty("--service-cols-tablet", tabletCols);
+  wrap.style.setProperty("--service-cols-mobile", mobileCols);
+}
+
 function renderServiceCards(){
 
   const wrap = document.getElementById("serviceCards");
@@ -1602,6 +1721,8 @@ function renderServiceCards(){
       applyFilters();
     };
   });
+
+  updateServiceCardsLayout();
 }
 
 /* ===============================
