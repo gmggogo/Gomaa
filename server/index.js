@@ -891,14 +891,23 @@ const Trip =
 
 global.Trip = Trip;
 
-const dispatchFinalConfirmationRoutes =
-  require("./routes/dispatchFinalConfirmationRoutes");
+/* =========================
+   ADMIN SUMMARY ROUTES
+   لازم بعد Trip model
+========================= */
+
+const adminSummaryRoutes =
+  require("./routes/adminSummaryRoutes");
 
 app.use(
-  "/api/dispatch-final-confirmation",
-  dispatchFinalConfirmationRoutes
+  "/api/admin-summary",
+  adminSummaryRoutes
 );
 
+console.log("✅ adminSummaryRoutes mounted on /api/admin-summary");
+
+const dispatchFinalConfirmationRoutes =
+  require("./routes/dispatchFinalConfirmationRoutes");
 /* =========================
    COMPANY ADD STOP ROUTES
    لازم بعد Trip model
