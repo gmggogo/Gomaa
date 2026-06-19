@@ -290,6 +290,8 @@ function statusCellHTML(status, isConfirmed){
 
 /* ===============================
    ENTERED PAGE / CONFIRM ENGINE
+   Closed trips enter Final Confirmation
+   Confirmed trips leave to Dispatch Review
 ================================ */
 
 function getEnteredAt(t){
@@ -305,7 +307,11 @@ function getEnteredAt(t){
 }
 
 function isTripConfirmed(t){
-  return t?.finalStatusConfirmed === true;
+  return (
+    t?.finalStatusConfirmed === true ||
+    !!t?.finalStatusConfirmedAt ||
+    !!t?.dispatchFinalConfirmedAt
+  );
 }
 
 function getTripConfirmedAt(t){
@@ -317,7 +323,13 @@ function getTripConfirmedAt(t){
 }
 
 function isSharedConfirmed(t){
-  return t?.sharedFinalConfirmed === true || t?.finalStatusConfirmed === true;
+  return (
+    t?.sharedFinalConfirmed === true ||
+    !!t?.sharedFinalConfirmedAt ||
+    t?.finalStatusConfirmed === true ||
+    !!t?.finalStatusConfirmedAt ||
+    !!t?.dispatchFinalConfirmedAt
+  );
 }
 
 function getSharedConfirmedAt(t){
@@ -327,16 +339,6 @@ function getSharedConfirmedAt(t){
     t?.dispatchFinalConfirmedAt ||
     null
   );
-}
-
-function isTripExpiredAfterConfirm(t){
-  if(!isTripConfirmed(t)) return false;
-  return isOlderThanHours(getTripConfirmedAt(t), CONFIRM_HOURS);
-}
-
-function isSharedExpiredAfterConfirm(t){
-  if(!isSharedConfirmed(t)) return false;
-  return isOlderThanHours(getSharedConfirmedAt(t), CONFIRM_HOURS);
 }
 
 function isTripNotConfirmed(t){
@@ -565,26 +567,13 @@ function groupPassengersReadyForPage(group){
   const first = group[0] || {};
   const passengers = getRealPassengersFromGroup(group);
 
+  /*
+    أي راكب حالته مقفولة يدخل Final Confirmation
+    سواء الحالة جاية من المصدر أو من السواق أو من الأدمن
+  */
   return passengers.filter(p=>{
     const st = p.status || first.status;
-
-    if(!isAllowedFinalStatus(st)) return false;
-
-    if(isCancelledStatus(st) || isNotCompletedStatus(st)){
-      return true;
-    }
-
-    if(isCompletedStatus(st) || isNoShowStatus(st)){
-      return (
-        passengerDriverReportedFinal(p,first) ||
-        first.sharedFinalConfirmed === true ||
-        first.finalStatusConfirmed === true ||
-        !!first.finalPageEnteredAt ||
-        !!first.dispatchFinalPageEnteredAt
-      );
-    }
-
-    return false;
+    return isAllowedFinalStatus(st);
   });
 }
 
@@ -593,25 +582,16 @@ function groupPassengersReadyForPage(group){
 ================================ */
 
 function singleTripReadyForPage(t){
-  if(!t || isSharedTrip(t)) return false;
 
-  const st = t.status;
-  if(!isAllowedFinalStatus(st)) return false;
-
-  if(isCancelledStatus(st) || isNotCompletedStatus(st)){
-    return true;
+  if(!t || isSharedTrip(t)){
+    return false;
   }
 
-  if(isCompletedStatus(st) || isNoShowStatus(st)){
-    return (
-      tripDriverReportedFinal(t) ||
-      t.finalStatusConfirmed === true ||
-      !!t.finalPageEnteredAt ||
-      !!t.dispatchFinalPageEnteredAt
-    );
-  }
-
-  return false;
+  /*
+    أي رحلة مقفولة تدخل Final Confirmation:
+    Completed / Cancelled / No Show / Not Completed
+  */
+  return isAllowedFinalStatus(t.status);
 }
 
 function sharedTripReadyForPage(group){
@@ -619,20 +599,34 @@ function sharedTripReadyForPage(group){
 }
 
 function singleTripShouldShow(t){
-  if(!singleTripReadyForPage(t)) return false;
 
+  if(!singleTripReadyForPage(t)){
+    return false;
+  }
+
+  /*
+    بعد Confirm النهائي تختفي من Final Confirmation
+    وتظهر في Dispatch Review
+  */
   if(isTripConfirmed(t)){
-    return !isTripExpiredAfterConfirm(t);
+    return false;
   }
 
   return true;
 }
 
 function sharedTripShouldShow(first,group){
-  if(!sharedTripReadyForPage(group)) return false;
 
+  if(!sharedTripReadyForPage(group)){
+    return false;
+  }
+
+  /*
+    بعد Confirm النهائي تختفي من Final Confirmation
+    وتظهر في Dispatch Review
+  */
   if(isSharedConfirmed(first)){
-    return !isSharedExpiredAfterConfirm(first);
+    return false;
   }
 
   return true;
