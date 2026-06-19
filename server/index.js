@@ -41,8 +41,7 @@ require("./routes/driverScheduleRoutes");
 const smartDispatchEngineRoutes =
 require("./routes/smartDispatchEngineRoutes");
 
-const dispatchFinalConfirmationRoutes =
-require("./routes/dispatchFinalConfirmationRoutes");
+
 
 const Service =
 require("./models/Service");const {
@@ -852,6 +851,14 @@ const Trip =
 
 global.Trip = Trip;
 
+const dispatchFinalConfirmationRoutes =
+  require("./routes/dispatchFinalConfirmationRoutes");
+
+app.use(
+  "/api/dispatch-final-confirmation",
+  dispatchFinalConfirmationRoutes
+);
+
 /* =========================
    COMPANY ADD STOP ROUTES
    لازم بعد Trip model
@@ -878,10 +885,6 @@ app.use(
   dispatchRoutes
 );
 
-app.use(
-  "/api/dispatch-final-confirmation",
-  dispatchFinalConfirmationRoutes
-);
 
 /* =========================
    GEO CACHE
