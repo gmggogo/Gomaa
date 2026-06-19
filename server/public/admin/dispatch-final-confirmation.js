@@ -605,11 +605,18 @@ function singleTripShouldShow(t){
   }
 
   /*
-    بعد Confirm النهائي تختفي من Final Confirmation
-    وتظهر في Dispatch Review
+    قبل Confirm:
+    تظهر في Final Confirmation
+
+    بعد Confirm:
+    تفضل في Final Confirmation لمدة 12 ساعة
+    من وقت الضغط على Confirm
   */
   if(isTripConfirmed(t)){
-    return false;
+    return !isOlderThanHours(
+      getTripConfirmedAt(t),
+      CONFIRM_HOURS
+    );
   }
 
   return true;
@@ -622,11 +629,15 @@ function sharedTripShouldShow(first,group){
   }
 
   /*
-    بعد Confirm النهائي تختفي من Final Confirmation
-    وتظهر في Dispatch Review
+    الشير نفس القاعدة:
+    بعد Confirm يفضل في Final لمدة 12 ساعة
+    من وقت الضغط على Confirm
   */
   if(isSharedConfirmed(first)){
-    return false;
+    return !isOlderThanHours(
+      getSharedConfirmedAt(first),
+      CONFIRM_HOURS
+    );
   }
 
   return true;
@@ -660,11 +671,16 @@ async function loadTrips(){
     if(!res.ok) throw new Error("Failed trips");
 
     const data = await res.json();
-    const trips = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.trips)
+   const trips =
+  Array.isArray(data)
+    ? data
+    : Array.isArray(data?.trips)
       ? data.trips
-      : [];
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.items)
+          ? data.items
+          : [];
 
     allTrips = trips.sort((a,b)=>getBookedDateObj(b) - getBookedDateObj(a));
 
@@ -1253,6 +1269,7 @@ async function saveSingleEdit(key){
   if(!t) return;
 
   const newStatus = t.__draftStatus || t.status || "Completed";
+  const wasConfirmed = isTripConfirmed(t);
 
   try{
     const tripId = getTripId(t);
@@ -1265,18 +1282,44 @@ async function saveSingleEdit(key){
 
     const savedTrip = res?.trip || {};
 
-    t.status = savedTrip.status || statusValueToLabel(getStatusOptionValue(newStatus));
-    t.finalStatusConfirmed = savedTrip.finalStatusConfirmed === true;
-    t.finalStatusConfirmedAt = savedTrip.finalStatusConfirmedAt || null;
-    t.dispatchFinalConfirmedAt = savedTrip.dispatchFinalConfirmedAt || null;
+    t.status =
+      savedTrip.status ||
+      statusValueToLabel(getStatusOptionValue(newStatus));
 
-    if(savedTrip.finalPageEnteredAt) t.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
-    if(savedTrip.dispatchFinalPageEnteredAt) t.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    /*
+      لو الرحلة كانت Confirmed ولسه داخل الـ 12 ساعة:
+      ما نمسحش علامات الـ Confirm
+      عشان تفضل ظاهرة في Review
+    */
+    t.finalStatusConfirmed =
+      savedTrip.finalStatusConfirmed === true ||
+      wasConfirmed ||
+      !!savedTrip.finalStatusConfirmedAt ||
+      !!savedTrip.dispatchFinalConfirmedAt;
+
+    t.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      t.finalStatusConfirmedAt ||
+      null;
+
+    t.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      t.dispatchFinalConfirmedAt ||
+      null;
+
+    if(savedTrip.finalPageEnteredAt){
+      t.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
+    }
+
+    if(savedTrip.dispatchFinalPageEnteredAt){
+      t.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    }
 
     editingSingles.delete(key);
     delete t.__draftStatus;
 
     applyFilters();
+
   }catch(err){
     console.log(err);
     alert("Failed to edit trip.");
@@ -1340,10 +1383,13 @@ async function saveSharedEdit(key){
   const root = findLiveSharedRootByKey(key);
   if(!root) return;
 
+  const wasConfirmed = isSharedConfirmed(root);
+
   const passengers = Array.isArray(root.passengers)
     ? root.passengers.map((p,idx)=>{
         const draft = root.__draftPassengers?.[idx];
         const nextStatus = draft || p.status || "Completed";
+
         return {
           ...p,
           status: statusValueToLabel(getStatusOptionValue(nextStatus))
@@ -1362,20 +1408,56 @@ async function saveSharedEdit(key){
 
     const savedTrip = res?.trip || {};
 
-    root.passengers = savedTrip.passengers || passengers;
-    root.sharedFinalConfirmed = savedTrip.sharedFinalConfirmed === true;
-    root.sharedFinalConfirmedAt = savedTrip.sharedFinalConfirmedAt || null;
-    root.finalStatusConfirmed = savedTrip.finalStatusConfirmed === true;
-    root.finalStatusConfirmedAt = savedTrip.finalStatusConfirmedAt || null;
-    root.dispatchFinalConfirmedAt = savedTrip.dispatchFinalConfirmedAt || null;
+    root.passengers =
+      savedTrip.passengers ||
+      passengers;
 
-    if(savedTrip.finalPageEnteredAt) root.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
-    if(savedTrip.dispatchFinalPageEnteredAt) root.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    /*
+      لو الشير كان Confirmed ولسه داخل الـ 12 ساعة:
+      ما نمسحش علامات الـ Confirm
+      عشان التعديل يظهر في Review
+    */
+    root.sharedFinalConfirmed =
+      savedTrip.sharedFinalConfirmed === true ||
+      wasConfirmed ||
+      !!savedTrip.sharedFinalConfirmedAt ||
+      !!savedTrip.dispatchFinalConfirmedAt ||
+      !!savedTrip.finalStatusConfirmedAt;
+
+    root.sharedFinalConfirmedAt =
+      savedTrip.sharedFinalConfirmedAt ||
+      root.sharedFinalConfirmedAt ||
+      null;
+
+    root.finalStatusConfirmed =
+      savedTrip.finalStatusConfirmed === true ||
+      wasConfirmed ||
+      !!savedTrip.finalStatusConfirmedAt ||
+      !!savedTrip.dispatchFinalConfirmedAt;
+
+    root.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      root.finalStatusConfirmedAt ||
+      null;
+
+    root.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      root.dispatchFinalConfirmedAt ||
+      null;
+
+    if(savedTrip.finalPageEnteredAt){
+      root.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
+    }
+
+    if(savedTrip.dispatchFinalPageEnteredAt){
+      root.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    }
 
     editingShared.delete(key);
     delete root.__draftPassengers;
 
     applyFilters();
+
   }catch(err){
     console.log(err);
     alert("Failed to edit shared trip.");

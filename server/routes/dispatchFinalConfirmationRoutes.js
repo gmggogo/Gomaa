@@ -5,6 +5,12 @@ const mongoose = require("mongoose");
 const Trip = global.Trip || mongoose.models.Trip;
 
 /* =========================
+   CONFIG
+========================= */
+
+const HOLD_HOURS = 12;
+
+/* =========================
    HELPERS
 ========================= */
 
@@ -48,28 +54,23 @@ function normalizeFinalStatus(v){
   return "";
 }
 
-function isCompletedStatus(v){
-  return normalizeFinalStatus(v) === "Completed";
-}
-
-function isCancelledStatus(v){
-  return normalizeFinalStatus(v) === "Cancelled";
-}
-
-function isNoShowStatus(v){
-  return normalizeFinalStatus(v) === "No Show";
-}
-
-function isNotCompletedStatus(v){
-  return normalizeFinalStatus(v) === "Not Completed";
-}
-
 function isFinalStatus(v){
   return !!normalizeFinalStatus(v);
 }
 
 function nowDate(){
   return new Date();
+}
+
+function hoursDiff(dateValue){
+  const d = new Date(dateValue);
+  if(isNaN(d)) return 0;
+  return (Date.now() - d.getTime()) / (1000 * 60 * 60);
+}
+
+function olderThanHours(dateValue,hours){
+  if(!dateValue) return false;
+  return hoursDiff(dateValue) >= hours;
 }
 
 function isSharedTrip(trip){
@@ -84,24 +85,40 @@ function isSharedTrip(trip){
 
 /* =========================
    FINAL CONFIRM MARKER
-   مهم:
-   Dispatch Review يدخل الرحلة بس بعد العلامة دي
 ========================= */
 
 function getTripFinalConfirmed(trip){
-
   return (
+    trip?.finalStatusConfirmed === true ||
     !!trip?.dispatchFinalConfirmedAt ||
     !!trip?.finalStatusConfirmedAt
   );
 }
 
-function getSharedFinalConfirmed(trip){
-
+function getTripFinalConfirmedAt(trip){
   return (
+    trip?.dispatchFinalConfirmedAt ||
+    trip?.finalStatusConfirmedAt ||
+    null
+  );
+}
+
+function getSharedFinalConfirmed(trip){
+  return (
+    trip?.sharedFinalConfirmed === true ||
+    trip?.finalStatusConfirmed === true ||
     !!trip?.dispatchFinalConfirmedAt ||
     !!trip?.sharedFinalConfirmedAt ||
     !!trip?.finalStatusConfirmedAt
+  );
+}
+
+function getSharedFinalConfirmedAt(trip){
+  return (
+    trip?.dispatchFinalConfirmedAt ||
+    trip?.sharedFinalConfirmedAt ||
+    trip?.finalStatusConfirmedAt ||
+    null
   );
 }
 
@@ -145,7 +162,7 @@ function ensurePageEntryStamp(trip){
 
 /* =========================
    CLEAR CONFIRM STATE
-   أي تعديل Status يرجع الرحلة Not Confirmed
+   يستخدم فقط لو الرحلة لسه مش Confirmed
 ========================= */
 
 function clearSingleConfirmState(trip){
@@ -169,8 +186,6 @@ function clearSharedConfirmState(trip){
 
 /* =========================
    PAGE READY ENGINE
-   أي Closed Status يدخل Final Confirmation
-   سواء من المصدر أو من السواق أو من الأدمن
 ========================= */
 
 function singleTripReadyForPage(trip){
@@ -205,8 +220,9 @@ function sharedTripReadyForPage(trip){
 
 /* =========================
    SHOULD APPEAR
-   Final Confirmation يعرض فقط:
-   Closed + مش Confirmed
+   القاعدة:
+   - قبل Confirm يظهر في Final
+   - بعد Confirm يفضل 12 ساعة من وقت Confirm
 ========================= */
 
 function singleTripShouldAppear(trip){
@@ -216,7 +232,10 @@ function singleTripShouldAppear(trip){
   }
 
   if(getTripFinalConfirmed(trip)){
-    return false;
+    return !olderThanHours(
+      getTripFinalConfirmedAt(trip),
+      HOLD_HOURS
+    );
   }
 
   return true;
@@ -229,7 +248,10 @@ function sharedTripShouldAppear(trip){
   }
 
   if(getSharedFinalConfirmed(trip)){
-    return false;
+    return !olderThanHours(
+      getSharedFinalConfirmedAt(trip),
+      HOLD_HOURS
+    );
   }
 
   return true;
@@ -252,11 +274,8 @@ function sanitizeTripForFinalPage(trip){
       __pageType:"shared",
       __readyPassengers:getReadySharedPassengers(obj),
       __finalConfirmed:getSharedFinalConfirmed(obj),
-      __finalConfirmedAt:
-        obj.dispatchFinalConfirmedAt ||
-        obj.sharedFinalConfirmedAt ||
-        obj.finalStatusConfirmedAt ||
-        null
+      __finalConfirmedAt:getSharedFinalConfirmedAt(obj),
+      __holdHours:HOLD_HOURS
     };
   }
 
@@ -264,21 +283,25 @@ function sanitizeTripForFinalPage(trip){
     ...obj,
     __pageType:"single",
     __finalConfirmed:getTripFinalConfirmed(obj),
-    __finalConfirmedAt:
-      obj.dispatchFinalConfirmedAt ||
-      obj.finalStatusConfirmedAt ||
-      null
+    __finalConfirmedAt:getTripFinalConfirmedAt(obj),
+    __holdHours:HOLD_HOURS
   };
 }
 
 /* =========================
    GET PAGE DATA
-   يسحب الرحلات المقفولة اللي لسه مستنية Final Confirm
 ========================= */
 
 router.get("/", async (req,res)=>{
 
   try{
+
+    if(!Trip){
+      return res.status(500).json({
+        success:false,
+        message:"Trip model not loaded"
+      });
+    }
 
     const trips = await Trip.find({})
       .sort({
@@ -316,6 +339,7 @@ router.get("/", async (req,res)=>{
 
     return res.json({
       success:true,
+      holdHours:HOLD_HOURS,
       count:result.length,
       trips:result
     });
@@ -335,7 +359,8 @@ router.get("/", async (req,res)=>{
 
 /* =========================
    UPDATE SINGLE STATUS
-   Edit فقط، مش Final Confirm
+   Edit فقط
+   لو كانت Confirmed لا نمسح علامات Confirm
 ========================= */
 
 router.patch("/:id/status", async (req,res)=>{
@@ -375,11 +400,19 @@ router.patch("/:id/status", async (req,res)=>{
       });
     }
 
+    const wasConfirmed = getTripFinalConfirmed(trip);
+
     trip.status = status;
 
     ensurePageEntryStamp(trip);
 
-    clearSingleConfirmState(trip);
+    /*
+      لو قبل Confirm: يفضل Not Confirmed
+      لو بعد Confirm خلال 12 ساعة: يفضل Confirmed عشان Review يتحدث
+    */
+    if(!wasConfirmed){
+      clearSingleConfirmState(trip);
+    }
 
     await trip.save();
 
@@ -404,7 +437,6 @@ router.patch("/:id/status", async (req,res)=>{
 
 /* =========================
    CONFIRM SINGLE TRIP
-   ده الوحيد اللي يدخلها Dispatch Review
 ========================= */
 
 router.patch("/:id/confirm", async (req,res)=>{
@@ -484,7 +516,8 @@ router.patch("/:id/confirm", async (req,res)=>{
 
 /* =========================
    UPDATE SHARED PASSENGERS
-   Edit فقط، مش Final Confirm
+   Edit فقط
+   لو كانت Confirmed لا نمسح علامات Confirm
 ========================= */
 
 router.patch("/:id/shared-status", async (req,res)=>{
@@ -528,6 +561,8 @@ router.patch("/:id/shared-status", async (req,res)=>{
       });
     }
 
+    const wasConfirmed = getSharedFinalConfirmed(trip);
+
     const currentPassengers =
       Array.isArray(trip.passengers)
         ? trip.passengers
@@ -552,7 +587,13 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
     ensurePageEntryStamp(trip);
 
-    clearSharedConfirmState(trip);
+    /*
+      لو قبل Confirm: يفضل Not Confirmed
+      لو بعد Confirm خلال 12 ساعة: يفضل Confirmed عشان Review يتحدث
+    */
+    if(!wasConfirmed){
+      clearSharedConfirmState(trip);
+    }
 
     await trip.save();
 
@@ -577,7 +618,6 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
 /* =========================
    CONFIRM SHARED TRIP
-   ده الوحيد اللي يدخل الشير Dispatch Review
 ========================= */
 
 router.patch("/:id/shared-confirm", async (req,res)=>{
