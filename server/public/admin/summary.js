@@ -1477,7 +1477,7 @@ function renderStats(){
 
   const wrap = document.getElementById("summaryStats");
   if(!wrap) return;
-
+wrap.classList.toggle("no-shared", !hasSharedService());
   const sharedCards =
     hasSharedService()
       ? `
