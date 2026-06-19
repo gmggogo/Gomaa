@@ -890,7 +890,31 @@ const Trip =
   mongoose.model("Trip", tripSchema);
 
 global.Trip = Trip;
+global.User = User;
 
+/* ==============================
+   DISPATCH FINAL CONFIRMATION ROUTES
+============================== */
+
+const dispatchFinalConfirmationRoutes =
+  require("./routes/dispatchFinalConfirmationRoutes");
+
+app.use(
+  "/api/dispatch-final-confirmation",
+  dispatchFinalConfirmationRoutes
+);
+
+/* ==============================
+   DISPATCH REVIEW ROUTES
+============================== */
+
+const dispatchReviewRoutes =
+  require("./routes/dispatchReviewRoutes");
+
+app.use(
+  "/api/dispatch-review",
+  dispatchReviewRoutes
+);
 /* =========================
    ADMIN SUMMARY ROUTES
    لازم بعد Trip model
@@ -932,18 +956,6 @@ const dispatchRoutes =
 app.use(
   "/api/dispatch",
   dispatchRoutes
-);
-
-/* ==============================
-   DISPATCH REVIEW ROUTES
-============================== */
-
-const dispatchReviewRoutes =
-  require("./routes/dispatchReviewRoutes");
-
-app.use(
-  "/api/dispatch-review",
-  dispatchReviewRoutes
 );
 
 /* =========================
