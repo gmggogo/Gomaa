@@ -339,14 +339,12 @@ function isSharedExpiredAfterConfirm(t){
   return isOlderThanHours(getSharedConfirmedAt(t), CONFIRM_HOURS);
 }
 
-function isTripOverdueNotConfirmed(t){
-  if(isTripConfirmed(t)) return false;
-  return isOlderThanHours(getEnteredAt(t), CONFIRM_HOURS);
+function isTripNotConfirmed(t){
+  return !isTripConfirmed(t);
 }
 
-function isSharedOverdueNotConfirmed(t){
-  if(isSharedConfirmed(t)) return false;
-  return isOlderThanHours(getEnteredAt(t), CONFIRM_HOURS);
+function isSharedNotConfirmed(t){
+  return !isSharedConfirmed(t);
 }
 
 /* ===============================
@@ -774,7 +772,7 @@ function itemMatchesStatusFilter(item){
     const t = item.trip;
 
     if(activeStatus === "notconfirmed"){
-      return isTripOverdueNotConfirmed(t);
+      return isTripNotConfirmed(t);
     }
 
     return statusClass(t.status) === activeStatus;
@@ -784,7 +782,7 @@ function itemMatchesStatusFilter(item){
   const readyPassengers = groupPassengersReadyForPage(item.group);
 
   if(activeStatus === "notconfirmed"){
-    return isSharedOverdueNotConfirmed(first);
+    return isSharedNotConfirmed(first);
   }
 
   return readyPassengers.some(p => statusClass(p.status || first.status) === activeStatus);
@@ -888,7 +886,7 @@ function countTripInto(counts,t){
   counts.source.ALL++;
   counts.source[getSourceCode(t)] = (counts.source[getSourceCode(t)] || 0) + 1;
 
-  if(isTripOverdueNotConfirmed(t)){
+  if(isTripNotConfirmed(t)){
     counts.status.notconfirmed++;
   }
 
@@ -902,7 +900,7 @@ function countSharedInto(counts,first,group){
   counts.source.ALL++;
   counts.source[getSourceCode(first)] = (counts.source[getSourceCode(first)] || 0) + 1;
 
-  if(isSharedOverdueNotConfirmed(first)){
+  if(isSharedNotConfirmed(first)){
     counts.status.notconfirmed++;
   }
 
@@ -984,14 +982,13 @@ function renderStatusCards(){
   if(!statusCardsWrap) return;
 
   const counts = getCounts();
-  const overdue = counts.status.notconfirmed > 0;
 
   const cards = [
     {code:"completed", label:"Completed", cls:"completed"},
     {code:"cancelled", label:"Cancelled", cls:"cancelled"},
     {code:"noshow", label:"No Show", cls:"noshow"},
     {code:"notcompleted", label:"Not Completed", cls:"notcompleted"},
-    {code:"notconfirmed", label:"Not Confirmed", cls:"notconfirmed", alert: overdue}
+    {code:"notconfirmed", label:"Not Confirmed", cls:"notconfirmed", alert: counts.status.notconfirmed > 0}
   ];
 
   statusCardsWrap.innerHTML = cards.map(card=>{
@@ -1001,7 +998,7 @@ function renderStatusCards(){
       <div class="stat-card clickable ${card.cls} ${active} ${alert}" data-status="${safe(card.code)}">
         <div class="card-number">${counts.status[card.code] || 0}</div>
         <div class="card-label">${safe(card.label)}</div>
-        <div class="card-sub">${card.code === "notconfirmed" ? "Trips over 12h without confirm" : "Click to filter"}</div>
+        <div class="card-sub">${card.code === "notconfirmed" ? "Trips still waiting confirmation" : "Click to filter"}</div>
       </div>
     `;
   }).join("");
