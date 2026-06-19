@@ -1,8 +1,9 @@
 /* ==========================================================================
-   ADMIN SUMMARY V2
+   ADMIN SUMMARY V3
    Admin / SuperAdmin / Dispatcher
    Facility / Get Quote / Reserved
    Closed Trips Financial Summary
+   Print + CSV + Excel Export
    ========================================================================== */
 
 const API_URL = "/api/admin-summary";
@@ -46,7 +47,10 @@ const yearFilter = document.getElementById("yearFilter");
 const monthFilter = document.getElementById("monthFilter");
 const dayFilter = document.getElementById("dayFilter");
 const summaryContent = document.getElementById("summaryContent");
+
 const printBtn = document.getElementById("printBtn");
+const csvBtn = document.getElementById("csvBtn");
+const excelBtn = document.getElementById("excelBtn");
 
 /* ===============================
    BASIC HELPERS
@@ -1477,7 +1481,9 @@ function renderStats(){
 
   const wrap = document.getElementById("summaryStats");
   if(!wrap) return;
-wrap.classList.toggle("no-shared", !hasSharedService());
+
+  wrap.classList.toggle("no-shared", !hasSharedService());
+
   const sharedCards =
     hasSharedService()
       ? `
@@ -2050,6 +2056,251 @@ function renderSharedRow(item){
 }
 
 /* ===============================
+   EXPORT ENGINE
+================================ */
+
+function getExportRows(){
+
+  const rows = [];
+
+  displayItems.forEach(item=>{
+
+    const first =
+      item.kind === "trip"
+        ? item.trip
+        : item.group[0];
+
+    if(item.kind === "trip"){
+
+      const t = item.trip;
+
+      rows.push({
+        tripNumber:getTripNumber(t),
+        source:sourceLabel(t),
+        facility:getFacilityOnly(t) === "--" ? "" : getFacilityOnly(t),
+        service:getServiceTitleByTrip(t),
+        passenger:t.clientName || t.name || "",
+        phone:t.clientPhone || t.phone || "",
+        pickup:t.pickup || "",
+        stops:stopsDisplay(t) === "--" ? "" : stopsDisplay(t),
+        dropoff:t.dropoff || "",
+        tripDate:t.tripDate || "",
+        tripTime:t.tripTime || "",
+        tripStatus:displayStatus(t.status,t),
+        miles:getTripMiles(t).toFixed(1),
+        passengerStatus:displayStatus(t.status,t),
+        fees:money(getPassengerFee(t,t)),
+        total:money(getTripMoney(t)),
+        count:1,
+        notes:getNotes(t)
+      });
+
+      return;
+    }
+
+    const passengers = getClosedPassengers(item.group);
+
+    passengers.forEach((p,index)=>{
+
+      rows.push({
+        tripNumber:index === 0 ? getTripNumber(first) : "",
+        source:index === 0 ? sourceLabel(first) : "",
+        facility:index === 0
+          ? (getFacilityOnly(first) === "--" ? "" : getFacilityOnly(first))
+          : "",
+        service:index === 0 ? getServiceTitleByTrip(first) : "",
+        passenger:getPassengerName(p,first),
+        phone:getPassengerPhone(p,first),
+        pickup:getPickup(first,p),
+        stops:index === 0
+          ? (stopsDisplay(first) === "--" ? "" : stopsDisplay(first))
+          : "",
+        dropoff:getDropoff(first,p),
+        tripDate:index === 0 ? first.tripDate || "" : "",
+        tripTime:index === 0 ? first.tripTime || "" : "",
+        tripStatus:index === 0 ? getGroupStatus(item.group) : "",
+        miles:index === 0 ? getSharedMiles(item.group).toFixed(1) : "",
+        passengerStatus:displayStatus(p.status || first.status,first),
+        fees:money(getPassengerFee(p,first)),
+        total:index === 0 ? money(getSharedMoney(item.group)) : "",
+        count:index === 0 ? passengers.length : "",
+        notes:index === 0 ? getNotes(first) : ""
+      });
+
+    });
+
+  });
+
+  return rows;
+}
+
+function downloadFile(filename,content,type){
+
+  const blob =
+    new Blob([content],{
+      type
+    });
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const a =
+    document.createElement("a");
+
+  a.href = url;
+  a.download = filename;
+
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV(){
+
+  const rows = getExportRows();
+
+  const headers = [
+    "Trip Number",
+    "Source",
+    "Facility",
+    "Service",
+    "Passenger",
+    "Phone",
+    "Pickup",
+    "Stops",
+    "Dropoff",
+    "Trip Date",
+    "Trip Time",
+    "Trip Status",
+    "Miles",
+    "Passenger Status",
+    "Fees",
+    "Total",
+    "Count",
+    "Notes"
+  ];
+
+  const keys = [
+    "tripNumber",
+    "source",
+    "facility",
+    "service",
+    "passenger",
+    "phone",
+    "pickup",
+    "stops",
+    "dropoff",
+    "tripDate",
+    "tripTime",
+    "tripStatus",
+    "miles",
+    "passengerStatus",
+    "fees",
+    "total",
+    "count",
+    "notes"
+  ];
+
+  const csv = [
+    headers.join(","),
+    ...rows.map(row =>
+      keys.map(k=>{
+        const value =
+          String(row[k] ?? "")
+            .replace(/"/g,'""');
+
+        return `"${value}"`;
+      }).join(",")
+    )
+  ].join("\n");
+
+  downloadFile(
+    "admin-summary.csv",
+    csv,
+    "text/csv;charset=utf-8;"
+  );
+}
+
+function exportExcel(){
+
+  const rows = getExportRows();
+
+  const headers = [
+    "Trip Number",
+    "Source",
+    "Facility",
+    "Service",
+    "Passenger",
+    "Phone",
+    "Pickup",
+    "Stops",
+    "Dropoff",
+    "Trip Date",
+    "Trip Time",
+    "Trip Status",
+    "Miles",
+    "Passenger Status",
+    "Fees",
+    "Total",
+    "Count",
+    "Notes"
+  ];
+
+  const keys = [
+    "tripNumber",
+    "source",
+    "facility",
+    "service",
+    "passenger",
+    "phone",
+    "pickup",
+    "stops",
+    "dropoff",
+    "tripDate",
+    "tripTime",
+    "tripStatus",
+    "miles",
+    "passengerStatus",
+    "fees",
+    "total",
+    "count",
+    "notes"
+  ];
+
+  const html = `
+    <html>
+      <head>
+        <meta charset="UTF-8">
+      </head>
+      <body>
+        <table border="1">
+          <thead>
+            <tr>
+              ${headers.map(h=>`<th>${safe(h)}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(row=>`
+              <tr>
+                ${keys.map(k=>`<td>${safe(row[k] ?? "")}</td>`).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+  downloadFile(
+    "admin-summary.xls",
+    html,
+    "application/vnd.ms-excel"
+  );
+}
+
+/* ===============================
    EVENTS
 ================================ */
 
@@ -2081,9 +2332,14 @@ printBtn?.addEventListener("click",()=>{
   window.print();
 });
 
+csvBtn?.addEventListener("click",exportCSV);
+excelBtn?.addEventListener("click",exportExcel);
+
 Object.assign(window,{
   openSummaryView,
-  closeSummaryView
+  closeSummaryView,
+  exportCSV,
+  exportExcel
 });
 
 /* ===============================
