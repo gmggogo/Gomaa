@@ -15,9 +15,8 @@
   --blue-soft:#eff6ff;
   --green:#16a34a;
   --red:#dc2626;
-  --orange:#f59e0b;
-  --gray:#64748b;
-  --purple:#7c3aed;
+  --yellow:#facc15;
+  --gray:#94a3b8;
   --text:#0f172a;
   --muted:#64748b;
   --bg:#f4f8fb;
@@ -73,7 +72,7 @@ body{
 }
 
 /* =========================
-   CARD ROWS
+   TOP CARDS
 ========================= */
 
 .cards-row{
@@ -106,19 +105,19 @@ body{
 
 .filter-card.active,
 .stat-card.active{
-  border:2px solid var(--blue) !important;
-  background:#f0f7ff !important;
+  border:2px solid var(--blue)!important;
+  background:#f0f7ff!important;
 }
 
+.filter-card.all{border-left:6px solid #2563eb;}
 .filter-card.facility{border-left:6px solid #1d4ed8;}
 .filter-card.gq{border-left:6px solid #22c55e;}
 .filter-card.rv{border-left:6px solid #f59e0b;}
-.filter-card.all{border-left:6px solid #2563eb;}
 
 .stat-card.completed{border-left:6px solid var(--green);}
 .stat-card.cancelled{border-left:6px solid var(--red);}
-.stat-card.noshow{border-left:6px solid #facc15;}
-.stat-card.notcompleted{border-left:6px solid #94a3b8;}
+.stat-card.noshow{border-left:6px solid var(--yellow);}
+.stat-card.notcompleted{border-left:6px solid var(--gray);}
 .stat-card.notconfirmed{border-left:6px solid #ef4444;}
 
 .stat-card.clickable{
@@ -206,7 +205,7 @@ body{
 
 .review-table{
   width:100%;
-  min-width:1650px;
+  min-width:1600px;
   border-collapse:collapse;
   background:#fff;
 }
@@ -239,7 +238,7 @@ body{
 .col-date{width:90px;}
 .col-time{width:70px;}
 .col-status{width:140px;}
-.col-actions{width:195px;}
+.col-actions{width:210px;}
 .col-eye{width:42px;}
 
 .wide-client{
@@ -304,46 +303,8 @@ body{
 }
 
 /* =========================
-   STATUS COLORS
+   ROW COLORS
 ========================= */
-
-.status-pill{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:92px;
-  padding:6px 10px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:900;
-  border:1px solid #cbd5e1;
-  background:#f8fafc;
-  color:#0f172a;
-}
-
-.status-pill.completed{
-  background:#bbf7d0;
-  color:#14532d;
-  border-color:#86efac;
-}
-
-.status-pill.cancelled{
-  background:#fecaca;
-  color:#7f1d1d;
-  border-color:#fca5a5;
-}
-
-.status-pill.noshow{
-  background:#fde68a;
-  color:#78350f;
-  border-color:#fcd34d;
-}
-
-.status-pill.notcompleted{
-  background:#e5e7eb;
-  color:#374151;
-  border-color:#cbd5e1;
-}
 
 .confirmed-row td{
   background:var(--blue-soft)!important;
@@ -374,8 +335,50 @@ body{
 }
 
 /* =========================
-   ACTIONS
+   STATUS
 ========================= */
+
+.status-box{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:8px 10px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:900;
+  border:1px solid #cbd5e1;
+}
+
+.status-box.completed{
+  background:#bbf7d0;
+  color:#14532d;
+  border-color:#86efac;
+}
+
+.status-box.cancelled{
+  background:#fecaca;
+  color:#7f1d1d;
+  border-color:#fca5a5;
+}
+
+.status-box.noshow{
+  background:#fde68a;
+  color:#78350f;
+  border-color:#fcd34d;
+}
+
+.status-box.notcompleted{
+  background:#e5e7eb;
+  color:#374151;
+  border-color:#cbd5e1;
+}
+
+.status-box.confirmed-blue{
+  background:#dbeafe;
+  color:#1d4ed8;
+  border-color:#93c5fd;
+}
 
 .status-select{
   width:130px;
@@ -386,6 +389,10 @@ body{
   font-weight:800;
   background:#fff;
 }
+
+/* =========================
+   ACTIONS
+========================= */
 
 .actions-wrap{
   display:flex;
@@ -533,13 +540,59 @@ body{
   text-align:center;
 }
 
+/* =========================
+   MOBILE
+========================= */
+
 @media(max-width:768px){
-  .page-content{padding:12px;}
-  .page-title{font-size:22px;}
-  .toolbar{flex-direction:column;align-items:stretch;}
-  .search-input,.filter-select{width:100%;}
-  .review-table{min-width:1480px;}
-  .view-line{grid-template-columns:1fr;}
+  .page-content{
+    padding:12px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .cards-row{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .filter-card,
+  .stat-card{
+    padding:10px;
+    border-radius:12px;
+  }
+
+  .card-number{
+    font-size:20px;
+  }
+
+  .card-label{
+    font-size:11px;
+  }
+
+  .card-sub{
+    font-size:10px;
+  }
+
+  .toolbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .search-input,
+  .filter-select{
+    width:100%;
+  }
+
+  .review-table{
+    min-width:1600px;
+  }
+
+  .view-line{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 </head>
@@ -561,10 +614,17 @@ body{
   <div id="statusCards" class="cards-row"></div>
 
   <div class="toolbar">
-    <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, facility, passenger, pickup, dropoff">
+    <input
+      id="searchInput"
+      class="search-input"
+      type="text"
+      placeholder="Search trip #, facility, passenger, pickup, dropoff"
+    >
+
     <select id="yearFilter" class="filter-select">
       <option value="">All Years</option>
     </select>
+
     <select id="monthFilter" class="filter-select">
       <option value="">All Months</option>
       <option value="01">January</option>
@@ -583,6 +643,7 @@ body{
   </div>
 
   <div id="finalContent"></div>
+
 </div>
 
 <script src="/admin/header.js"></script>

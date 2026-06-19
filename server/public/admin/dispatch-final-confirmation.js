@@ -1,15 +1,20 @@
 /* ==========================================================================
    DISPATCH FINAL CONFIRMATION
    Admin / SuperAdmin / Dispatcher
-   Shared: one confirm per trip, per-passenger editable status
-   Confirmed items stay 12h then leave this page
+   Final page before Dispatch Review
    ========================================================================== */
 
-const API_URL = "/api/trips";
+const API_URL = "/api/dispatch-final-confirmation";
 const SERVICES_URL = "/api/services/admin";
 
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
+const adminName =
+  localStorage.getItem("name") ||
+  localStorage.getItem("fullName") ||
+  localStorage.getItem("username") ||
+  role ||
+  "dispatcher";
 
 if(!["superadmin","admin","dispatcher"].includes(role)){
   window.location.href = "/admin/login.html";
@@ -23,12 +28,16 @@ let allTrips = [];
 let services = [];
 let displayItems = [];
 
-let activeSource = "ALL";      // ALL / FACILITY / GQ / RV
-let activeStatus = "ALL";      // ALL / completed / cancelled / noshow / notcompleted / notconfirmed
+let activeSource = "ALL";     // ALL / FACILITY / GQ / RV
+let activeStatus = "ALL";     // ALL / completed / cancelled / noshow / notcompleted / notconfirmed
 let refreshTimer = null;
 let tripCounter = 1;
 
 const CONFIRM_HOURS = 12;
+
+/* edit mode */
+const editingSingles = new Set();
+const editingShared = new Set();
 
 /* ===============================
    ELEMENTS
@@ -46,12 +55,14 @@ const finalContent = document.getElementById("finalContent");
 ================================ */
 
 function authHeaders(){
-  return token ? {
-    "Content-Type":"application/json",
-    Authorization:"Bearer " + token
-  } : {
-    "Content-Type":"application/json"
-  };
+  return token
+    ? {
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      }
+    : {
+        "Content-Type":"application/json"
+      };
 }
 
 function safe(v){
@@ -78,20 +89,6 @@ function compactStatus(v){
   return cleanStatus(v).replace(/\s+/g,"");
 }
 
-function getAZNow(){
-  return new Date(
-    new Date().toLocaleString("en-US",{timeZone:"America/Phoenix"})
-  );
-}
-
-function dateKey(d){
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-
-function monthKey(d){
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
-}
-
 function getTripNumber(t){
   return String(t?.tripNumber || t?.bookingNumber || t?.id || t?._id || "-");
 }
@@ -101,7 +98,6 @@ function parseTripDateTime(t){
 
   const date = String(t.tripDate || "").trim();
   let time = String(t.tripTime || "00:00").trim();
-
   if(!time) time = "00:00";
 
   let d = new Date(`${date}T${time}`);
@@ -242,12 +238,6 @@ function statusClass(status){
   return "";
 }
 
-function statusHTML(status){
-  const label = displayStatus(status);
-  const cls = statusClass(status);
-  return `<span class="status-pill ${cls}">${safe(label)}</span>`;
-}
-
 function isAllowedFinalStatus(status){
   return (
     isCompletedStatus(status) ||
@@ -280,9 +270,29 @@ function statusValueToLabel(v){
   return "Not Completed";
 }
 
+function statusCellHTML(status, isConfirmed){
+  const label = displayStatus(status);
+  const cls = statusClass(status);
+  const confirmedClass = isConfirmed ? "confirmed-blue" : cls;
+
+  return `<div class="status-box ${confirmedClass}">${safe(label)}</div>`;
+}
+
 /* ===============================
-   CONFIRM ENGINE
+   ENTERED PAGE / CONFIRM ENGINE
 ================================ */
+
+function getEnteredAt(t){
+  return (
+    t?.finalPageEnteredAt ||
+    t?.dispatchFinalPageEnteredAt ||
+    t?.enteredFinalConfirmationAt ||
+    t?.updatedAt ||
+    t?.createdAt ||
+    t?.bookedAt ||
+    null
+  );
+}
 
 function isTripConfirmed(t){
   return t?.finalStatusConfirmed === true;
@@ -294,20 +304,6 @@ function getTripConfirmedAt(t){
     t?.dispatchFinalConfirmedAt ||
     null
   );
-}
-
-function isTripExpiredAfterConfirm(t){
-  if(!isTripConfirmed(t)) return false;
-  return isOlderThanHours(getTripConfirmedAt(t),CONFIRM_HOURS);
-}
-
-function isTripOverdueNotConfirmed(t){
-  if(isTripConfirmed(t)) return false;
-
-  const dt = parseTripDateTime(t);
-  if(!dt) return false;
-
-  return getHoursDiff(dt) >= CONFIRM_HOURS;
 }
 
 function isSharedConfirmed(t){
@@ -323,16 +319,24 @@ function getSharedConfirmedAt(t){
   );
 }
 
+function isTripExpiredAfterConfirm(t){
+  if(!isTripConfirmed(t)) return false;
+  return isOlderThanHours(getTripConfirmedAt(t), CONFIRM_HOURS);
+}
+
 function isSharedExpiredAfterConfirm(t){
   if(!isSharedConfirmed(t)) return false;
-  return isOlderThanHours(getSharedConfirmedAt(t),CONFIRM_HOURS);
+  return isOlderThanHours(getSharedConfirmedAt(t), CONFIRM_HOURS);
+}
+
+function isTripOverdueNotConfirmed(t){
+  if(isTripConfirmed(t)) return false;
+  return isOlderThanHours(getEnteredAt(t), CONFIRM_HOURS);
 }
 
 function isSharedOverdueNotConfirmed(t){
   if(isSharedConfirmed(t)) return false;
-  const dt = parseTripDateTime(t);
-  if(!dt) return false;
-  return getHoursDiff(dt) >= CONFIRM_HOURS;
+  return isOlderThanHours(getEnteredAt(t), CONFIRM_HOURS);
 }
 
 /* ===============================
@@ -568,20 +572,6 @@ function groupPassengersReadyForPage(group){
   });
 }
 
-function getGroupStatus(group){
-  const first = group[0] || {};
-  const ready = groupPassengersReadyForPage(group);
-
-  if(!ready.length) return first.status || "Scheduled";
-
-  if(ready.every(p => isCompletedStatus(p.status || first.status))) return "Completed";
-  if(ready.every(p => isCancelledStatus(p.status || first.status))) return "Cancelled";
-  if(ready.every(p => isNoShowStatus(p.status || first.status))) return "No Show";
-  if(ready.every(p => isNotCompletedStatus(p.status || first.status))) return "Not Completed";
-
-  return "Mixed";
-}
-
 /* ===============================
    PAGE INCLUSION ENGINE
 ================================ */
@@ -590,7 +580,6 @@ function singleTripReadyForPage(t){
   if(!t || isSharedTrip(t)) return false;
 
   const st = t.status;
-
   if(!isAllowedFinalStatus(st)) return false;
 
   if(isCancelledStatus(st) || isNotCompletedStatus(st)){
@@ -635,7 +624,7 @@ function sharedTripShouldShow(first,group){
 async function loadServices(){
   try{
     const res = await fetch(SERVICES_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
+      headers: token ? { Authorization:"Bearer " + token } : {}
     });
 
     if(!res.ok) throw new Error("Failed services");
@@ -650,16 +639,19 @@ async function loadServices(){
 async function loadTrips(){
   try{
     const res = await fetch(API_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
+      headers: token ? { Authorization:"Bearer " + token } : {}
     });
 
     if(!res.ok) throw new Error("Failed trips");
 
     const data = await res.json();
-
-    allTrips = Array.isArray(data)
-      ? data.sort((a,b)=>getBookedDateObj(b) - getBookedDateObj(a))
+    const trips = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.trips)
+      ? data.trips
       : [];
+
+    allTrips = trips.sort((a,b)=>getBookedDateObj(b) - getBookedDateObj(a));
 
     allTrips = allTrips.map(t=>{
       if(!t.company || t.company === "Sunbeam Transportation"){
@@ -674,13 +666,14 @@ async function loadTrips(){
           t.company = facilityName;
         }
       }
-
       return t;
     });
 
     buildDateFilters();
     applyFilters();
+
   }catch(err){
+    console.log(err);
     allTrips = [];
     displayItems = [];
     render();
@@ -696,6 +689,7 @@ function buildDisplayItems(trips){
   const usedShared = new Set();
 
   trips.forEach(t=>{
+
     if(isSharedTrip(t)){
       const key = getSharedKey(t);
       if(usedShared.has(key)) return;
@@ -703,8 +697,7 @@ function buildDisplayItems(trips){
       usedShared.add(key);
 
       const group =
-        getSharedGroups(trips)
-          .find(g => getSharedKey(g[0]) === key) ||
+        getSharedGroups(trips).find(g => getSharedKey(g[0]) === key) ||
         [t];
 
       if(!sharedTripShouldShow(group[0],group)) return;
@@ -712,8 +705,8 @@ function buildDisplayItems(trips){
       items.push({
         kind:"shared",
         key,
-        date:parseTripDateTime(group[0]) || getBookedDateObj(group[0]),
-        tripDate:getTripDateKey(group[0]),
+        date: parseTripDateTime(group[0]) || getBookedDateObj(group[0]),
+        tripDate: getTripDateKey(group[0]),
         group
       });
 
@@ -725,8 +718,8 @@ function buildDisplayItems(trips){
     items.push({
       kind:"trip",
       key:String(t._id || t.id || getTripNumber(t)),
-      date:parseTripDateTime(t) || getBookedDateObj(t),
-      tripDate:getTripDateKey(t),
+      date: parseTripDateTime(t) || getBookedDateObj(t),
+      tripDate: getTripDateKey(t),
       trip:t
     });
   });
@@ -762,8 +755,7 @@ function itemMatchesStatusFilter(item){
       return isTripOverdueNotConfirmed(t);
     }
 
-    const cls = statusClass(t.status);
-    return cls === activeStatus;
+    return statusClass(t.status) === activeStatus;
   }
 
   const first = item.group[0];
@@ -854,13 +846,13 @@ function buildDateFilters(){
 
 function createCounts(){
   return {
-    source: {
+    source:{
       ALL:0,
       FACILITY:0,
       GQ:0,
       RV:0
     },
-    status: {
+    status:{
       completed:0,
       cancelled:0,
       noshow:0,
@@ -932,7 +924,7 @@ function getCounts(){
 }
 
 /* ===============================
-   RENDER TOP CARDS
+   TOP CARDS
 ================================ */
 
 function renderSourceCards(){
@@ -941,10 +933,10 @@ function renderSourceCards(){
   const counts = getCounts();
 
   const cards = [
+    {code:"ALL", label:"All", cls:"all"},
     {code:"FACILITY", label:"Facility", cls:"facility"},
     {code:"GQ", label:"Get Quote", cls:"gq"},
-    {code:"RV", label:"Reserved", cls:"rv"},
-    {code:"ALL", label:"All", cls:"all"}
+    {code:"RV", label:"Reserved", cls:"rv"}
   ];
 
   sourceCardsWrap.innerHTML = cards.map(card=>{
@@ -1066,6 +1058,7 @@ function openFinalView(key){
         ${viewLine("Notes", getNotes(t) || "")}
         ${viewLine("Booked Date", getBookedDate(t))}
         ${viewLine("Booked Time", getBookedTime(t))}
+        ${viewLine("Entered Page", getEnteredAt(t) ? new Date(getEnteredAt(t)).toLocaleString() : "")}
         ${viewLine("Confirmed", item.kind === "trip" ? (isTripConfirmed(t) ? "Yes" : "No") : (isSharedConfirmed(t) ? "Yes" : "No"))}
         ${sharedPassengerBlock}
       </div>
@@ -1084,22 +1077,80 @@ function closeFinalView(){
 }
 
 /* ===============================
-   SAVE / PATCH
+   API PATCH HELPERS
 ================================ */
 
-async function patchTrip(tripId,body){
-  const res = await fetch(`${API_URL}/${encodeURIComponent(tripId)}`,{
-    method:"PATCH",
-    headers: authHeaders(),
-    body: JSON.stringify(body)
-  });
+async function patchSingleStatus(tripId,body){
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/status`,
+    {
+      method:"PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(body)
+    }
+  );
 
   if(!res.ok){
-    throw new Error("Patch failed");
+    throw new Error("Single status patch failed");
   }
 
   return await res.json().catch(()=>null);
 }
+
+async function patchSingleConfirm(tripId,body){
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/confirm`,
+    {
+      method:"PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+    throw new Error("Single confirm failed");
+  }
+
+  return await res.json().catch(()=>null);
+}
+
+async function patchSharedStatus(tripId,body){
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/shared-status`,
+    {
+      method:"PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+    throw new Error("Shared status patch failed");
+  }
+
+  return await res.json().catch(()=>null);
+}
+
+async function patchSharedConfirm(tripId,body){
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/shared-confirm`,
+    {
+      method:"PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+    throw new Error("Shared confirm failed");
+  }
+
+  return await res.json().catch(()=>null);
+}
+
+/* ===============================
+   FINDERS
+================================ */
 
 function getTripId(t){
   return t?._id || t?.id;
@@ -1117,70 +1168,93 @@ function findLiveSharedRootByKey(key){
    ACTIONS
 ================================ */
 
+function beginEditSingle(key){
+  editingSingles.add(key);
+  render();
+}
+
+function beginEditShared(key){
+  editingShared.add(key);
+  render();
+}
+
+function cancelEditSingle(key){
+  editingSingles.delete(key);
+  const t = findLiveTripByKey(key);
+  if(t?.__draftStatus){
+    delete t.__draftStatus;
+  }
+  render();
+}
+
+function cancelEditShared(key){
+  editingShared.delete(key);
+  const root = findLiveSharedRootByKey(key);
+  if(root?.__draftPassengers){
+    delete root.__draftPassengers;
+  }
+  render();
+}
+
 async function confirmSingleTrip(key){
   const t = findLiveTripByKey(key);
   if(!t) return;
 
   const newStatus = t.__draftStatus || t.status || "Completed";
 
-  const payload = {
-    status: statusValueToLabel(getStatusOptionValue(newStatus)),
-    finalStatusConfirmed: true,
-    finalStatusConfirmedAt: new Date().toISOString(),
-    dispatchFinalConfirmedAt: new Date().toISOString()
-  };
-
   try{
     const tripId = getTripId(t);
+    if(!tripId) throw new Error("Missing trip id");
 
-    if(tripId){
-      await patchTrip(tripId,payload);
-    }
+    const res = await patchSingleConfirm(tripId,{
+      status: statusValueToLabel(getStatusOptionValue(newStatus)),
+      confirmedBy: adminName
+    });
 
-    t.status = payload.status;
+    t.status = statusValueToLabel(getStatusOptionValue(newStatus));
     t.finalStatusConfirmed = true;
-    t.finalStatusConfirmedAt = payload.finalStatusConfirmedAt;
-    t.dispatchFinalConfirmedAt = payload.dispatchFinalConfirmedAt;
+    t.finalStatusConfirmedAt = res?.trip?.finalStatusConfirmedAt || new Date().toISOString();
+    t.dispatchFinalConfirmedAt = t.finalStatusConfirmedAt;
+
+    editingSingles.delete(key);
+    delete t.__draftStatus;
 
     applyFilters();
   }catch(err){
+    console.log(err);
     alert("Failed to confirm trip.");
   }
 }
 
-async function editSingleTrip(key){
+async function saveSingleEdit(key){
   const t = findLiveTripByKey(key);
   if(!t) return;
 
   const newStatus = t.__draftStatus || t.status || "Completed";
 
-  const payload = {
-    status: statusValueToLabel(getStatusOptionValue(newStatus))
-  };
-
-  if(isTripConfirmed(t)){
-    payload.finalStatusConfirmed = true;
-    payload.finalStatusConfirmedAt = new Date().toISOString();
-    payload.dispatchFinalConfirmedAt = payload.finalStatusConfirmedAt;
-  }
-
   try{
     const tripId = getTripId(t);
+    if(!tripId) throw new Error("Missing trip id");
 
-    if(tripId){
-      await patchTrip(tripId,payload);
-    }
+    const res = await patchSingleStatus(tripId,{
+      status: statusValueToLabel(getStatusOptionValue(newStatus)),
+      confirmedBy: adminName
+    });
 
-    t.status = payload.status;
+    t.status = statusValueToLabel(getStatusOptionValue(newStatus));
 
-    if(payload.finalStatusConfirmedAt){
+    if(res?.trip?.finalStatusConfirmed === true){
       t.finalStatusConfirmed = true;
-      t.finalStatusConfirmedAt = payload.finalStatusConfirmedAt;
-      t.dispatchFinalConfirmedAt = payload.dispatchFinalConfirmedAt;
+      t.finalStatusConfirmedAt = res?.trip?.finalStatusConfirmedAt || t.finalStatusConfirmedAt;
+      t.dispatchFinalConfirmedAt = t.finalStatusConfirmedAt;
     }
+
+    editingSingles.delete(key);
+    delete t.__draftStatus;
 
     applyFilters();
   }catch(err){
+    console.log(err);
     alert("Failed to edit trip.");
   }
 }
@@ -1200,38 +1274,36 @@ async function confirmSharedTrip(key){
       })
     : [];
 
-  const now = new Date().toISOString();
-
-  const payload = {
-    passengers,
-    sharedFinalConfirmed: true,
-    sharedFinalConfirmedAt: now,
-    finalStatusConfirmed: true,
-    finalStatusConfirmedAt: now,
-    dispatchFinalConfirmedAt: now
-  };
-
   try{
     const tripId = getTripId(root);
+    if(!tripId) throw new Error("Missing trip id");
 
-    if(tripId){
-      await patchTrip(tripId,payload);
-    }
+    const res = await patchSharedConfirm(tripId,{
+      passengers,
+      confirmedBy: adminName
+    });
 
     root.passengers = passengers;
     root.sharedFinalConfirmed = true;
-    root.sharedFinalConfirmedAt = now;
+    root.sharedFinalConfirmedAt =
+      res?.trip?.sharedFinalConfirmedAt ||
+      res?.trip?.finalStatusConfirmedAt ||
+      new Date().toISOString();
     root.finalStatusConfirmed = true;
-    root.finalStatusConfirmedAt = now;
-    root.dispatchFinalConfirmedAt = now;
+    root.finalStatusConfirmedAt = root.sharedFinalConfirmedAt;
+    root.dispatchFinalConfirmedAt = root.sharedFinalConfirmedAt;
+
+    editingShared.delete(key);
+    delete root.__draftPassengers;
 
     applyFilters();
   }catch(err){
+    console.log(err);
     alert("Failed to confirm shared trip.");
   }
 }
 
-async function editSharedTrip(key){
+async function saveSharedEdit(key){
   const root = findLiveSharedRootByKey(key);
   if(!root) return;
 
@@ -1246,38 +1318,34 @@ async function editSharedTrip(key){
       })
     : [];
 
-  const payload = {
-    passengers
-  };
-
-  if(isSharedConfirmed(root)){
-    const now = new Date().toISOString();
-    payload.sharedFinalConfirmed = true;
-    payload.sharedFinalConfirmedAt = now;
-    payload.finalStatusConfirmed = true;
-    payload.finalStatusConfirmedAt = now;
-    payload.dispatchFinalConfirmedAt = now;
-  }
-
   try{
     const tripId = getTripId(root);
+    if(!tripId) throw new Error("Missing trip id");
 
-    if(tripId){
-      await patchTrip(tripId,payload);
-    }
+    const res = await patchSharedStatus(tripId,{
+      passengers,
+      confirmedBy: adminName
+    });
 
     root.passengers = passengers;
 
-    if(payload.sharedFinalConfirmedAt){
+    if(res?.trip?.sharedFinalConfirmed === true || res?.trip?.finalStatusConfirmed === true){
       root.sharedFinalConfirmed = true;
-      root.sharedFinalConfirmedAt = payload.sharedFinalConfirmedAt;
+      root.sharedFinalConfirmedAt =
+        res?.trip?.sharedFinalConfirmedAt ||
+        res?.trip?.finalStatusConfirmedAt ||
+        root.sharedFinalConfirmedAt;
       root.finalStatusConfirmed = true;
-      root.finalStatusConfirmedAt = payload.finalStatusConfirmedAt;
-      root.dispatchFinalConfirmedAt = payload.dispatchFinalConfirmedAt;
+      root.finalStatusConfirmedAt = root.sharedFinalConfirmedAt;
+      root.dispatchFinalConfirmedAt = root.sharedFinalConfirmedAt;
     }
+
+    editingShared.delete(key);
+    delete root.__draftPassengers;
 
     applyFilters();
   }catch(err){
+    console.log(err);
     alert("Failed to edit shared trip.");
   }
 }
@@ -1314,7 +1382,6 @@ function rowOverdueClass(item){
   if(item.kind === "trip"){
     return isTripOverdueNotConfirmed(item.trip) ? "pending-overdue" : "";
   }
-
   return isSharedOverdueNotConfirmed(item.group[0]) ? "pending-overdue" : "";
 }
 
@@ -1322,7 +1389,6 @@ function rowConfirmedClass(item){
   if(item.kind === "trip"){
     return isTripConfirmed(item.trip) ? "confirmed-row" : "";
   }
-
   return isSharedConfirmed(item.group[0]) ? "confirmed-row confirmed-shared-head" : "";
 }
 
@@ -1338,7 +1404,7 @@ function groupByTripDate(items){
   return groups;
 }
 
-function singleStatusSelectHTML(item){
+function singleStatusEditHTML(item){
   const t = item.trip;
   const current = getStatusOptionValue(t.__draftStatus || t.status);
 
@@ -1352,7 +1418,7 @@ function singleStatusSelectHTML(item){
   `;
 }
 
-function sharedPassengerStatusSelectHTML(groupKey,p,trip){
+function sharedPassengerStatusEditHTML(groupKey,p,trip){
   const idx = Number(p.__idx || 0);
   const root = findLiveSharedRootByKey(groupKey);
   const draft = root?.__draftPassengers?.[idx];
@@ -1440,8 +1506,10 @@ function render(){
 
 function renderTripRow(item){
   const t = item.trip;
-  const tr = document.createElement("tr");
+  const isEditing = editingSingles.has(item.key);
+  const confirmed = isTripConfirmed(t);
 
+  const tr = document.createElement("tr");
   tr.className = [
     rowSourceClass(t),
     rowConfirmedClass(item),
@@ -1470,16 +1538,26 @@ function renderTripRow(item){
     <td class="col-time">${safe(t.tripTime || "-")}</td>
 
     <td class="col-status">
-      ${statusHTML(t.__draftStatus || t.status)}
-      <div style="margin-top:7px;">
-        ${singleStatusSelectHTML(item)}
-      </div>
+      ${
+        isEditing
+        ? singleStatusEditHTML(item)
+        : statusCellHTML(t.__draftStatus || t.status, confirmed)
+      }
     </td>
 
     <td class="col-actions">
       <div class="actions-wrap">
-        <button class="btn-action btn-edit" type="button" onclick="editSingleTrip('${safe(item.key)}')">Edit</button>
-        <button class="btn-action btn-confirm" type="button" onclick="confirmSingleTrip('${safe(item.key)}')">Confirm</button>
+        ${
+          isEditing
+          ? `
+            <button class="btn-action btn-edit" type="button" onclick="saveSingleEdit('${safe(item.key)}')">Save</button>
+            <button class="btn-action" type="button" onclick="cancelEditSingle('${safe(item.key)}')">Cancel</button>
+          `
+          : `
+            <button class="btn-action btn-edit" type="button" onclick="beginEditSingle('${safe(item.key)}')">Edit</button>
+            <button class="btn-action btn-confirm" type="button" onclick="confirmSingleTrip('${safe(item.key)}')">Confirm</button>
+          `
+        }
       </div>
     </td>
 
@@ -1495,6 +1573,8 @@ function renderSharedRows(tbody,item){
   const group = item.group;
   const first = group[0] || {};
   const passengers = groupPassengersReadyForPage(group);
+  const isEditing = editingShared.has(item.key);
+  const confirmed = isSharedConfirmed(first);
 
   passengers.forEach((p,index)=>{
     const tr = document.createElement("tr");
@@ -1533,10 +1613,11 @@ function renderSharedRows(tbody,item){
       <td class="col-time">${showMain ? safe(first.tripTime || "-") : ""}</td>
 
       <td class="col-status">
-        ${statusHTML(p.status || first.status)}
-        <div style="margin-top:7px;">
-          ${sharedPassengerStatusSelectHTML(item.key,p,first)}
-        </div>
+        ${
+          isEditing
+          ? sharedPassengerStatusEditHTML(item.key,p,first)
+          : statusCellHTML(p.status || first.status, confirmed)
+        }
       </td>
 
       <td class="col-actions">
@@ -1544,8 +1625,17 @@ function renderSharedRows(tbody,item){
           showMain
           ? `
             <div class="actions-wrap">
-              <button class="btn-action btn-edit" type="button" onclick="editSharedTrip('${safe(item.key)}')">Edit</button>
-              <button class="btn-action btn-confirm" type="button" onclick="confirmSharedTrip('${safe(item.key)}')">Confirm</button>
+              ${
+                isEditing
+                ? `
+                  <button class="btn-action btn-edit" type="button" onclick="saveSharedEdit('${safe(item.key)}')">Save</button>
+                  <button class="btn-action" type="button" onclick="cancelEditShared('${safe(item.key)}')">Cancel</button>
+                `
+                : `
+                  <button class="btn-action btn-edit" type="button" onclick="beginEditShared('${safe(item.key)}')">Edit</button>
+                  <button class="btn-action btn-confirm" type="button" onclick="confirmSharedTrip('${safe(item.key)}')">Confirm</button>
+                `
+              }
             </div>
           `
           : ""
@@ -1572,10 +1662,14 @@ monthFilter?.addEventListener("change",applyFilters);
 Object.assign(window,{
   openFinalView,
   closeFinalView,
+  beginEditSingle,
+  beginEditShared,
+  cancelEditSingle,
+  cancelEditShared,
   confirmSingleTrip,
-  editSingleTrip,
   confirmSharedTrip,
-  editSharedTrip,
+  saveSingleEdit,
+  saveSharedEdit,
   handleSingleStatusChange,
   handleSharedPassengerStatusChange
 });
