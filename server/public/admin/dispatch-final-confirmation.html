@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dispatch Final Confirmation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+*{box-sizing:border-box;}
+
+:root{
+  --blue:#2563eb;
+  --blue-light:#dbeafe;
+  --blue-soft:#eff6ff;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#f59e0b;
+  --gray:#64748b;
+  --purple:#7c3aed;
+  --text:#0f172a;
+  --muted:#64748b;
+  --bg:#f4f8fb;
+  --card:#ffffff;
+  --border:#dbe3ee;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:Arial,sans-serif;
+  color:var(--text);
+}
+
+.page-content{
+  padding:22px;
+  width:100%;
+}
+
+.page-head{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px 20px;
+  margin-bottom:16px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.page-title{
+  font-size:27px;
+  font-weight:900;
+}
+
+.page-sub{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.role-badge{
+  background:#e0edff;
+  color:#1d4ed8;
+  padding:9px 14px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:900;
+}
+
+/* =========================
+   CARD ROWS
+========================= */
+
+.cards-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.filter-card,
+.stat-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 6px 16px rgba(15,23,42,.07);
+  transition:.18s ease;
+}
+
+.filter-card{
+  cursor:pointer;
+  user-select:none;
+}
+
+.filter-card:hover,
+.stat-card.clickable:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 24px rgba(15,23,42,.11);
+}
+
+.filter-card.active,
+.stat-card.active{
+  border:2px solid var(--blue) !important;
+  background:#f0f7ff !important;
+}
+
+.filter-card.facility{border-left:6px solid #1d4ed8;}
+.filter-card.gq{border-left:6px solid #22c55e;}
+.filter-card.rv{border-left:6px solid #f59e0b;}
+.filter-card.all{border-left:6px solid #2563eb;}
+
+.stat-card.completed{border-left:6px solid var(--green);}
+.stat-card.cancelled{border-left:6px solid var(--red);}
+.stat-card.noshow{border-left:6px solid #facc15;}
+.stat-card.notcompleted{border-left:6px solid #94a3b8;}
+.stat-card.notconfirmed{border-left:6px solid #ef4444;}
+
+.stat-card.clickable{
+  cursor:pointer;
+  user-select:none;
+}
+
+.stat-card.alert{
+  animation:pulseWarn 1.4s infinite;
+}
+
+@keyframes pulseWarn{
+  0%{box-shadow:0 0 0 0 rgba(239,68,68,.35);}
+  70%{box-shadow:0 0 0 10px rgba(239,68,68,0);}
+  100%{box-shadow:0 0 0 0 rgba(239,68,68,0);}
+}
+
+.card-number{
+  font-size:26px;
+  line-height:1;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.card-label{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:900;
+  color:#64748b;
+}
+
+.card-sub{
+  margin-top:5px;
+  font-size:11px;
+  font-weight:800;
+  color:#94a3b8;
+}
+
+/* =========================
+   TOOLBAR
+========================= */
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-bottom:14px;
+}
+
+.search-input,
+.filter-select{
+  padding:12px 14px;
+  border-radius:11px;
+  border:1px solid #cbd5e1;
+  background:#fff;
+  font-size:14px;
+  font-weight:800;
+  outline:none;
+}
+
+.search-input{
+  flex:1;
+  min-width:260px;
+}
+
+.search-input:focus,
+.filter-select:focus{
+  border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  margin-bottom:20px;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+}
+
+.review-table{
+  width:100%;
+  min-width:1650px;
+  border-collapse:collapse;
+  background:#fff;
+}
+
+.review-table th,
+.review-table td{
+  border:1px solid var(--border);
+  padding:8px;
+  text-align:center;
+  font-size:12px;
+  vertical-align:middle;
+  line-height:1.35;
+}
+
+.review-table th{
+  background:#1f2937;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.review-table tbody tr:hover td{
+  background-color:rgba(37,99,235,.04);
+}
+
+.col-num{width:42px;}
+.col-trip{width:90px;}
+.col-company{width:115px;}
+.col-date{width:90px;}
+.col-time{width:70px;}
+.col-status{width:140px;}
+.col-actions{width:195px;}
+.col-eye{width:42px;}
+
+.wide-client{
+  min-width:180px;
+  max-width:260px;
+  text-align:left!important;
+  white-space:pre-line;
+  word-break:break-word;
+}
+
+.wide-address{
+  min-width:260px;
+  max-width:360px;
+  text-align:left!important;
+  white-space:pre-line;
+  word-break:break-word;
+  font-size:11px!important;
+}
+
+.wide-stops{
+  min-width:120px;
+  max-width:180px;
+  text-align:left!important;
+  white-space:pre-line;
+  word-break:break-word;
+  font-size:11px!important;
+}
+
+.trip-number-badge{
+  font-weight:900;
+  color:#1d4ed8;
+  white-space:nowrap;
+  font-size:11px;
+}
+
+.company-name{
+  color:#1d4ed8;
+  font-size:12px;
+  font-weight:800;
+  text-align:left!important;
+}
+
+.date-row td{
+  background:#e0edff!important;
+  color:#1e3a8a!important;
+  font-size:14px!important;
+  font-weight:900!important;
+  text-align:left!important;
+  padding:12px!important;
+  border-top:3px solid #2563eb!important;
+}
+
+.trip-divider-line td{
+  height:3px;
+  padding:0!important;
+  background:#dbe4ef!important;
+  border:none!important;
+}
+
+.shared-separator td{
+  border-bottom:2px dashed #cbd5e1!important;
+}
+
+/* =========================
+   STATUS COLORS
+========================= */
+
+.status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:92px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid #cbd5e1;
+  background:#f8fafc;
+  color:#0f172a;
+}
+
+.status-pill.completed{
+  background:#bbf7d0;
+  color:#14532d;
+  border-color:#86efac;
+}
+
+.status-pill.cancelled{
+  background:#fecaca;
+  color:#7f1d1d;
+  border-color:#fca5a5;
+}
+
+.status-pill.noshow{
+  background:#fde68a;
+  color:#78350f;
+  border-color:#fcd34d;
+}
+
+.status-pill.notcompleted{
+  background:#e5e7eb;
+  color:#374151;
+  border-color:#cbd5e1;
+}
+
+.confirmed-row td{
+  background:var(--blue-soft)!important;
+}
+
+.confirmed-shared-head td{
+  background:#eaf2ff!important;
+}
+
+.pending-overdue td{
+  box-shadow:inset 0 0 0 9999px rgba(239,68,68,.05)!important;
+}
+
+.row-facility td{
+  box-shadow:inset 0 0 0 9999px rgba(29,78,216,.03);
+}
+
+.row-gq td{
+  box-shadow:inset 0 0 0 9999px rgba(34,197,94,.03);
+}
+
+.row-rv td{
+  box-shadow:inset 0 0 0 9999px rgba(245,158,11,.04);
+}
+
+.shared-row td{
+  box-shadow:inset 0 0 0 9999px rgba(124,58,237,.03);
+}
+
+/* =========================
+   ACTIONS
+========================= */
+
+.status-select{
+  width:130px;
+  padding:8px 10px;
+  border-radius:9px;
+  border:1px solid #cbd5e1;
+  font-size:12px;
+  font-weight:800;
+  background:#fff;
+}
+
+.actions-wrap{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.btn-action{
+  padding:7px 10px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:#fff;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:900;
+  transition:.18s ease;
+}
+
+.btn-confirm{
+  border-color:#93c5fd;
+  color:#1d4ed8;
+}
+
+.btn-confirm:hover{
+  background:#2563eb;
+  color:#fff;
+  border-color:#2563eb;
+}
+
+.btn-edit{
+  border-color:#fcd34d;
+  color:#92400e;
+}
+
+.btn-edit:hover{
+  background:#f59e0b;
+  color:#fff;
+  border-color:#f59e0b;
+}
+
+.eye-btn{
+  border:none;
+  background:transparent;
+  color:#2563eb;
+  width:30px;
+  height:24px;
+  cursor:pointer;
+  font-size:18px;
+  font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+  padding:0;
+}
+
+.eye-btn:hover{
+  color:#1d4ed8;
+  background:#dbeafe;
+  border-radius:6px;
+}
+
+/* =========================
+   MODAL
+========================= */
+
+.view-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+}
+
+.view-box{
+  background:#fff;
+  width:min(640px,96vw);
+  border-radius:15px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.28);
+}
+
+.view-head{
+  background:#2563eb;
+  color:#fff;
+  padding:12px 15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:900;
+}
+
+.view-close{
+  border:none;
+  background:#fff;
+  color:#0f172a;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.view-body{
+  padding:14px;
+  display:grid;
+  gap:8px;
+}
+
+.view-line{
+  display:grid;
+  grid-template-columns:160px 1fr;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  overflow:hidden;
+}
+
+.view-label{
+  background:#f1f5f9;
+  padding:9px;
+  font-weight:900;
+  color:#334155;
+}
+
+.view-value{
+  padding:9px;
+  font-weight:800;
+  color:#0f172a;
+  word-break:break-word;
+  white-space:pre-line;
+}
+
+.empty-state{
+  background:#fff;
+  padding:22px;
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  color:#475569;
+  font-weight:900;
+  text-align:center;
+}
+
+@media(max-width:768px){
+  .page-content{padding:12px;}
+  .page-title{font-size:22px;}
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .search-input,.filter-select{width:100%;}
+  .review-table{min-width:1480px;}
+  .view-line{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="page-content">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">Dispatch Final Confirmation</div>
+      <div class="page-sub">Final review before Dispatch Review • Confirmed trips stay 12 hours then move out</div>
+    </div>
+    <div class="role-badge">Admin / Dispatcher</div>
+  </div>
+
+  <div id="sourceCards" class="cards-row"></div>
+  <div id="statusCards" class="cards-row"></div>
+
+  <div class="toolbar">
+    <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, facility, passenger, pickup, dropoff">
+    <select id="yearFilter" class="filter-select">
+      <option value="">All Years</option>
+    </select>
+    <select id="monthFilter" class="filter-select">
+      <option value="">All Months</option>
+      <option value="01">January</option>
+      <option value="02">February</option>
+      <option value="03">March</option>
+      <option value="04">April</option>
+      <option value="05">May</option>
+      <option value="06">June</option>
+      <option value="07">July</option>
+      <option value="08">August</option>
+      <option value="09">September</option>
+      <option value="10">October</option>
+      <option value="11">November</option>
+      <option value="12">December</option>
+    </select>
+  </div>
+
+  <div id="finalContent"></div>
+</div>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch-final-confirmation.js"></script>
+</body>
+</html>

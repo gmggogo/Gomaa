@@ -41,6 +41,8 @@ require("./routes/driverScheduleRoutes");
 const smartDispatchEngineRoutes =
 require("./routes/smartDispatchEngineRoutes");
 
+const dispatchFinalConfirmationRoutes =
+require("./routes/dispatchFinalConfirmationRoutes");
 
 const Service =
 require("./models/Service");const {
@@ -710,6 +712,26 @@ passengers: {
 
       status: { type: String, default: "Scheduled" },
 
+driverReportedFinalStatus: {
+  type: Boolean,
+  default: false
+},
+
+finalStatusConfirmed: {
+  type: Boolean,
+  default: false
+},
+
+finalStatusConfirmedAt: {
+  type: Date,
+  default: null
+},
+
+finalStatusConfirmedBy: {
+  type: String,
+  default: ""
+},
+
 reservationStatus: { type: String, default: "" },
 reviewOnly: { type: Boolean, default: false },
 source: { type: String, default: "" },
@@ -856,6 +878,10 @@ app.use(
   dispatchRoutes
 );
 
+app.use(
+  "/api/dispatch-final-confirmation",
+  dispatchFinalConfirmationRoutes
+);
 
 /* =========================
    GEO CACHE
