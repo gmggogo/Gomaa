@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
-const Trip = mongoose.models.Trip;
+const Trip = global.Trip || mongoose.models.Trip;
 
 /* =========================
    CONFIG
@@ -28,7 +28,11 @@ function normalizeFinalStatus(v){
   if(s === "completed" || s === "complete") return "Completed";
   if(s.includes("cancel")) return "Cancelled";
   if(s.includes("no show") || s.includes("noshow")) return "No Show";
-  if(s === "not completed" || s === "notcompleted" || s.includes("not complete")) return "Not Completed";
+  if(
+    s === "not completed" ||
+    s === "notcompleted" ||
+    s.includes("not complete")
+  ) return "Not Completed";
 
   return "";
 }
@@ -61,8 +65,8 @@ function isImmediateStatus(v){
   return isCancelledStatus(v) || isNotCompletedStatus(v);
 }
 
-function nowIso(){
-  return new Date().toISOString();
+function nowDate(){
+  return new Date();
 }
 
 function hoursDiff(dateValue){
@@ -133,6 +137,33 @@ function getSharedFinalConfirmedAt(trip){
   );
 }
 
+function getEnteredAt(trip){
+  return (
+    trip?.finalPageEnteredAt ||
+    trip?.dispatchFinalPageEnteredAt ||
+    trip?.enteredFinalConfirmationAt ||
+    null
+  );
+}
+
+function ensurePageEntryStamp(trip){
+  const stamp = getEnteredAt(trip);
+
+  if(stamp) return false;
+
+  const now = nowDate();
+
+  if(!trip.finalPageEnteredAt){
+    trip.finalPageEnteredAt = now;
+  }
+
+  if(!trip.dispatchFinalPageEnteredAt){
+    trip.dispatchFinalPageEnteredAt = trip.finalPageEnteredAt || now;
+  }
+
+  return true;
+}
+
 function singleTripReadyForPage(trip){
   const status = trip?.status;
 
@@ -141,7 +172,11 @@ function singleTripReadyForPage(trip){
   if(isImmediateStatus(status)) return true;
 
   if(isDriverBasedStatus(status)){
-    return tripDriverReportedFinal(trip);
+    return (
+      tripDriverReportedFinal(trip) ||
+      getTripFinalConfirmed(trip) ||
+      !!getEnteredAt(trip)
+    );
   }
 
   return false;
@@ -150,7 +185,7 @@ function singleTripReadyForPage(trip){
 function getReadySharedPassengers(trip){
   const passengers = Array.isArray(trip?.passengers) ? trip.passengers : [];
 
-  return passengers.filter(p => {
+  return passengers.filter((p)=>{
     const status = p?.status || trip?.status;
 
     if(!isFinalStatus(status)) return false;
@@ -158,7 +193,11 @@ function getReadySharedPassengers(trip){
     if(isImmediateStatus(status)) return true;
 
     if(isDriverBasedStatus(status)){
-      return passengerDriverReportedFinal(p,trip);
+      return (
+        passengerDriverReportedFinal(p,trip) ||
+        getSharedFinalConfirmed(trip) ||
+        !!getEnteredAt(trip)
+      );
     }
 
     return false;
@@ -191,30 +230,12 @@ function sharedTripShouldAppear(trip){
 
 function tripOverdueNotConfirmed(trip){
   if(getTripFinalConfirmed(trip)) return false;
-
-  const tripDate = String(trip?.tripDate || "").trim();
-  const tripTime = String(trip?.tripTime || "00:00").trim() || "00:00";
-
-  if(!tripDate) return false;
-
-  const dt = new Date(`${tripDate}T${tripTime}`);
-  if(isNaN(dt)) return false;
-
-  return olderThanHours(dt, HOLD_HOURS);
+  return olderThanHours(getEnteredAt(trip), HOLD_HOURS);
 }
 
 function sharedOverdueNotConfirmed(trip){
   if(getSharedFinalConfirmed(trip)) return false;
-
-  const tripDate = String(trip?.tripDate || "").trim();
-  const tripTime = String(trip?.tripTime || "00:00").trim() || "00:00";
-
-  if(!tripDate) return false;
-
-  const dt = new Date(`${tripDate}T${tripTime}`);
-  if(isNaN(dt)) return false;
-
-  return olderThanHours(dt, HOLD_HOURS);
+  return olderThanHours(getEnteredAt(trip), HOLD_HOURS);
 }
 
 function sanitizeTripForFinalPage(trip){
@@ -248,17 +269,33 @@ router.get("/", async (req,res)=>{
 
   try{
 
-    const trips = await Trip.find({}).sort({ tripDate:-1, tripTime:-1, createdAt:-1 });
+    const trips = await Trip.find({})
+      .sort({ tripDate:-1, tripTime:-1, createdAt:-1 });
 
-    const result = trips.filter(trip => {
+    const result = [];
+    const saveOps = [];
 
-      if(isSharedTrip(trip)){
-        return sharedTripShouldAppear(trip);
+    for(const trip of trips){
+
+      const shouldAppear =
+        isSharedTrip(trip)
+          ? sharedTripShouldAppear(trip)
+          : singleTripShouldAppear(trip);
+
+      if(!shouldAppear) continue;
+
+      const stamped = ensurePageEntryStamp(trip);
+
+      if(stamped){
+        saveOps.push(trip.save());
       }
 
-      return singleTripShouldAppear(trip);
+      result.push(sanitizeTripForFinalPage(trip));
+    }
 
-    }).map(sanitizeTripForFinalPage);
+    if(saveOps.length){
+      await Promise.all(saveOps);
+    }
 
     return res.json({
       success:true,
@@ -322,12 +359,7 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     trip.status = status;
-
-    if(getTripFinalConfirmed(trip)){
-      trip.finalStatusConfirmed = true;
-      trip.finalStatusConfirmedAt = nowIso();
-      trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
-    }
+    ensurePageEntryStamp(trip);
 
     await trip.save();
 
@@ -396,9 +428,19 @@ router.patch("/:id/confirm", async (req,res)=>{
       });
     }
 
-    trip.finalStatusConfirmed = true;
-    trip.finalStatusConfirmedAt = nowIso();
-    trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
+    ensurePageEntryStamp(trip);
+
+    if(!trip.finalStatusConfirmed){
+      trip.finalStatusConfirmed = true;
+    }
+
+    if(!trip.finalStatusConfirmedAt){
+      trip.finalStatusConfirmedAt = nowDate();
+    }
+
+    if(!trip.dispatchFinalConfirmedAt){
+      trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
+    }
 
     if(confirmedBy){
       trip.finalStatusConfirmedBy = confirmedBy;
@@ -470,8 +512,7 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
     const currentPassengers = Array.isArray(trip.passengers) ? trip.passengers : [];
 
-    passengersInput.forEach((inputPassenger,idx) => {
-
+    passengersInput.forEach((inputPassenger,idx)=>{
       if(!currentPassengers[idx]) return;
 
       const nextStatus = normalizeFinalStatus(inputPassenger?.status);
@@ -479,18 +520,10 @@ router.patch("/:id/shared-status", async (req,res)=>{
       if(nextStatus){
         currentPassengers[idx].status = nextStatus;
       }
-
     });
 
     trip.passengers = currentPassengers;
-
-    if(getSharedFinalConfirmed(trip)){
-      trip.sharedFinalConfirmed = true;
-      trip.sharedFinalConfirmedAt = nowIso();
-      trip.finalStatusConfirmed = true;
-      trip.finalStatusConfirmedAt = trip.sharedFinalConfirmedAt;
-      trip.dispatchFinalConfirmedAt = trip.sharedFinalConfirmedAt;
-    }
+    ensurePageEntryStamp(trip);
 
     await trip.save();
 
@@ -553,8 +586,7 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
     const currentPassengers = Array.isArray(trip.passengers) ? trip.passengers : [];
 
     if(passengersInput){
-      passengersInput.forEach((inputPassenger,idx) => {
-
+      passengersInput.forEach((inputPassenger,idx)=>{
         if(!currentPassengers[idx]) return;
 
         const nextStatus = normalizeFinalStatus(inputPassenger?.status);
@@ -562,7 +594,6 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
         if(nextStatus){
           currentPassengers[idx].status = nextStatus;
         }
-
       });
     }
 
@@ -577,11 +608,27 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
       });
     }
 
-    trip.sharedFinalConfirmed = true;
-    trip.sharedFinalConfirmedAt = nowIso();
-    trip.finalStatusConfirmed = true;
-    trip.finalStatusConfirmedAt = trip.sharedFinalConfirmedAt;
-    trip.dispatchFinalConfirmedAt = trip.sharedFinalConfirmedAt;
+    ensurePageEntryStamp(trip);
+
+    if(!trip.sharedFinalConfirmed){
+      trip.sharedFinalConfirmed = true;
+    }
+
+    if(!trip.sharedFinalConfirmedAt){
+      trip.sharedFinalConfirmedAt = nowDate();
+    }
+
+    if(!trip.finalStatusConfirmed){
+      trip.finalStatusConfirmed = true;
+    }
+
+    if(!trip.finalStatusConfirmedAt){
+      trip.finalStatusConfirmedAt = trip.sharedFinalConfirmedAt;
+    }
+
+    if(!trip.dispatchFinalConfirmedAt){
+      trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
+    }
 
     if(confirmedBy){
       trip.finalStatusConfirmedBy = confirmedBy;

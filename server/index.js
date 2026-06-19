@@ -831,6 +831,46 @@ routeChangeStatus: {
   default: ""
 },
 
+finalPageEnteredAt: {
+  type: Date,
+  default: null
+},
+
+dispatchFinalPageEnteredAt: {
+  type: Date,
+  default: null
+},
+
+finalStatusConfirmed: {
+  type: Boolean,
+  default: false
+},
+
+finalStatusConfirmedAt: {
+  type: Date,
+  default: null
+},
+
+dispatchFinalConfirmedAt: {
+  type: Date,
+  default: null
+},
+
+sharedFinalConfirmed: {
+  type: Boolean,
+  default: false
+},
+
+sharedFinalConfirmedAt: {
+  type: Date,
+  default: null
+},
+
+finalStatusConfirmedBy: {
+  type: String,
+  default: ""
+},
+
 bookedAt: { type: Date, default: Date.now },
 createdAt: { type: Date, default: Date.now }
 
