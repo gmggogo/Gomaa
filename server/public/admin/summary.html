@@ -13,6 +13,13 @@
   box-sizing:border-box;
 }
 
+html,
+body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
+
 body{
   margin:0;
   font-family:Segoe UI,Arial,sans-serif;
@@ -64,11 +71,11 @@ body{
 
 .toolbar input,
 .toolbar select{
-  height:42px;
+  height:40px;
   border:1px solid #cbd5e1;
   border-radius:10px;
-  padding:0 12px;
-  font-size:13px;
+  padding:0 10px;
+  font-size:12px;
   font-weight:800;
   background:#fff;
   color:#0f172a;
@@ -76,12 +83,12 @@ body{
 }
 
 .toolbar input{
-  min-width:260px;
+  min-width:240px;
   flex:1;
 }
 
 .toolbar select{
-  min-width:135px;
+  min-width:120px;
 }
 
 .toolbar input:focus,
@@ -90,24 +97,48 @@ body{
   box-shadow:0 0 0 3px rgba(37,99,235,.12);
 }
 
+.print-btn{
+  height:40px;
+  border:none;
+  border-radius:10px;
+  padding:0 16px;
+  background:#0f172a;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 6px 16px rgba(15,23,42,.18);
+}
+
+.print-btn:hover{
+  background:#1d4ed8;
+}
+
 /* =========================
    TOTAL STATS
 ========================= */
 
 .stats-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
-  gap:10px;
+  grid-template-columns:repeat(7,1fr);
+  gap:9px;
   margin-bottom:14px;
 }
 
 .stat-card{
   background:#fff;
-  border-radius:14px;
-  padding:12px;
+  border-radius:12px;
+  padding:10px;
   box-shadow:0 8px 22px rgba(15,23,42,.08);
-  border-left:6px solid #334155;
-  min-height:82px;
+  border-left:5px solid #334155;
+  min-height:72px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.stat-card.big-card{
+  grid-column:span 2;
 }
 
 .stat-card.total{border-left-color:#0f172a;}
@@ -123,18 +154,20 @@ body{
 .stat-card.shared{border-left-color:#7c3aed;}
 
 .stat-number{
-  font-size:22px;
+  font-size:20px;
   font-weight:900;
   color:#0f172a;
   line-height:1.1;
+  white-space:nowrap;
 }
 
 .stat-label{
-  margin-top:6px;
-  font-size:11px;
+  margin-top:5px;
+  font-size:9.5px;
   color:#64748b;
   font-weight:900;
   text-transform:uppercase;
+  line-height:1.15;
 }
 
 /* =========================
@@ -143,16 +176,16 @@ body{
 
 .service-cards{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;
+  grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:9px;
   margin-bottom:14px;
 }
 
 .service-card{
   background:#fff;
   border:2px solid transparent;
-  border-radius:14px;
-  padding:12px;
+  border-radius:12px;
+  padding:10px;
   cursor:pointer;
   box-shadow:0 8px 22px rgba(15,23,42,.08);
   transition:.15s;
@@ -169,17 +202,17 @@ body{
 }
 
 .service-card-title{
-  font-size:15px;
+  font-size:13px;
   font-weight:900;
-  margin-bottom:8px;
+  margin-bottom:7px;
   color:#0f172a;
 }
 
 .service-line{
   display:flex;
   justify-content:space-between;
-  gap:10px;
-  font-size:12px;
+  gap:8px;
+  font-size:10.5px;
   font-weight:800;
   color:#334155;
   padding:3px 0;
@@ -213,7 +246,7 @@ body{
 
 .summary-table{
   width:100%;
-  min-width:1680px;
+  min-width:1760px;
   table-layout:fixed;
   border-collapse:collapse;
   background:#fff;
@@ -225,7 +258,7 @@ body{
   border:1px solid #dbe3ee;
   padding:5px;
   text-align:center;
-  font-size:11px;
+  font-size:10.5px;
   vertical-align:middle;
   line-height:1.25;
   box-sizing:border-box;
@@ -236,45 +269,58 @@ body{
   color:#fff;
   font-weight:900;
   white-space:nowrap;
-  font-size:11px;
+  font-size:10.5px;
 }
 
-.col-num{width:34px;}
-.col-trip{width:82px;}
-.col-source{width:82px;}
-.col-service{width:90px;}
-.col-date{width:82px;}
-.col-time{width:62px;}
-.col-status{width:125px;}
-.col-miles{width:70px;}
-.col-money{width:90px;}
-.col-passengers{width:74px;}
-.col-eye{width:38px;}
+.col-num{width:32px;}
+.col-trip{width:72px;}
+.col-source{width:72px;}
+.col-service{width:78px;}
+.col-date{width:72px;}
+.col-time{width:58px;}
+.col-status{width:112px;}
+.col-miles{width:62px;}
+.col-money{width:78px;}
+.col-passengers{width:58px;}
+.col-eye{width:34px;}
 
 .wide-company{
-  width:150px;
+  width:112px;
   text-align:left!important;
   white-space:normal;
   word-break:break-word;
 }
 
 .wide-passenger{
-  width:190px;
+  width:145px;
   text-align:left!important;
   white-space:normal;
   word-break:break-word;
 }
 
 .wide-address{
-  width:250px;
+  width:230px;
   text-align:left!important;
   white-space:normal;
   word-break:break-word;
-  font-size:10.5px;
+  font-size:10px;
 }
 
-.wide-money-break{
-  width:150px;
+.wide-stops{
+  width:145px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10px;
+}
+
+.wide-passenger-status{
+  width:125px;
+  text-align:left!important;
+}
+
+.wide-fees{
+  width:95px;
   text-align:left!important;
 }
 
@@ -341,13 +387,13 @@ body{
 
 .cell-item{
   padding:4px 5px;
-  min-height:22px;
+  min-height:21px;
   font-weight:800;
   white-space:normal;
   word-break:break-word;
   box-sizing:border-box;
   background:#fff;
-  font-size:10.5px;
+  font-size:10px;
 }
 
 .cell-item + .cell-item{
@@ -363,7 +409,7 @@ body{
   color:#1d4ed8;
   white-space:normal;
   word-break:break-word;
-  font-size:10px;
+  font-size:9.5px;
 }
 
 .source-pill,
@@ -371,9 +417,9 @@ body{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:4px 7px;
+  padding:4px 6px;
   border-radius:999px;
-  font-size:10px;
+  font-size:9.5px;
   font-weight:900;
   border:1px solid #cbd5e1;
   white-space:nowrap;
@@ -435,10 +481,10 @@ body{
   border:none;
   background:transparent;
   color:#2563eb;
-  width:30px;
-  height:26px;
+  width:28px;
+  height:24px;
   cursor:pointer;
-  font-size:18px;
+  font-size:17px;
   font-weight:900;
   display:inline-flex;
   align-items:center;
@@ -536,43 +582,242 @@ body{
   box-shadow:0 8px 22px rgba(15,23,42,.08);
 }
 
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:1200px){
+  .stats-grid{
+    grid-template-columns:repeat(4,1fr);
+  }
+
+  .stat-card.big-card{
+    grid-column:span 1;
+  }
+}
+
 @media(max-width:768px){
   .page-body{
-    padding:230px 10px 25px;
+    padding:225px 8px 22px;
   }
 
   .page-title{
-    font-size:23px;
+    font-size:21px;
+    margin-bottom:4px;
+  }
+
+  .page-subtitle{
+    font-size:11px;
+    margin-bottom:10px;
   }
 
   .toolbar{
     display:grid;
-    grid-template-columns:1fr;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    padding:8px;
+    border-radius:10px;
+  }
+
+  .toolbar input{
+    grid-column:1 / -1;
   }
 
   .toolbar input,
-  .toolbar select{
+  .toolbar select,
+  .print-btn{
     width:100%;
     min-width:0;
+    height:34px;
+    font-size:10.5px;
+    border-radius:8px;
+    padding:0 7px;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+  }
+
+  .stat-card{
+    min-height:54px;
+    border-radius:9px;
+    padding:7px;
+    border-left-width:4px;
+  }
+
+  .stat-number{
+    font-size:14px;
+  }
+
+  .stat-label{
+    font-size:7.5px;
+    margin-top:3px;
+  }
+
+  .service-cards{
+    grid-template-columns:repeat(2,1fr);
+    gap:6px;
+  }
+
+  .service-card{
+    padding:7px;
+    border-radius:9px;
+  }
+
+  .service-card-title{
+    font-size:11px;
+    margin-bottom:4px;
+  }
+
+  .service-line{
+    font-size:8.5px;
+    padding:2px 0;
   }
 
   .summary-table{
-    min-width:1680px;
+    min-width:1760px;
   }
 
   .summary-table th,
   .summary-table td{
-    font-size:10px;
+    font-size:9px;
     padding:4px;
   }
 
   .cell-item{
-    font-size:9.5px;
+    font-size:8.8px;
     padding:3px 4px;
+  }
+
+  .source-pill,
+  .status-pill{
+    font-size:8.5px;
+    padding:3px 5px;
   }
 
   .view-line{
     grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:420px){
+  .stats-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .service-cards{
+    grid-template-columns:1fr;
+  }
+}
+
+/* =========================
+   PRINT
+========================= */
+
+@media print{
+
+  body{
+    background:#fff!important;
+    color:#000!important;
+  }
+
+  #adminHeader,
+  .toolbar,
+  .service-cards,
+  .page-subtitle,
+  .eye-btn,
+  .col-eye,
+  th.col-eye,
+  td.col-eye{
+    display:none!important;
+  }
+
+  .page-body{
+    padding:10px!important;
+  }
+
+  .page-title{
+    font-size:22px!important;
+    margin-bottom:10px!important;
+  }
+
+  .stats-grid{
+    display:grid!important;
+    grid-template-columns:repeat(4,1fr)!important;
+    gap:6px!important;
+    margin-bottom:10px!important;
+  }
+
+  .stat-card{
+    box-shadow:none!important;
+    border:1px solid #000!important;
+    border-left:5px solid #000!important;
+    border-radius:6px!important;
+    min-height:auto!important;
+    padding:7px!important;
+  }
+
+  .stat-number{
+    font-size:15px!important;
+    color:#000!important;
+  }
+
+  .stat-label{
+    font-size:8px!important;
+    color:#000!important;
+  }
+
+  .table-wrap{
+    box-shadow:none!important;
+    border-radius:0!important;
+    overflow:visible!important;
+  }
+
+  .summary-table{
+    min-width:0!important;
+    width:100%!important;
+    table-layout:fixed!important;
+    border-top:3px solid #000!important;
+  }
+
+  .summary-table th,
+  .summary-table td{
+    font-size:6.5px!important;
+    padding:2px!important;
+    color:#000!important;
+    border:1px solid #000!important;
+  }
+
+  .summary-table th{
+    background:#ddd!important;
+    color:#000!important;
+  }
+
+  .cell-box{
+    border:1px solid #000!important;
+    border-radius:0!important;
+  }
+
+  .cell-item{
+    font-size:6.5px!important;
+    padding:2px!important;
+    color:#000!important;
+  }
+
+  .date-row td{
+    background:#ddd!important;
+    color:#000!important;
+    border:1px solid #000!important;
+  }
+
+  .source-pill,
+  .status-pill{
+    border:1px solid #000!important;
+    background:#fff!important;
+    color:#000!important;
+    font-size:6.5px!important;
+    padding:2px!important;
   }
 }
 </style>
@@ -634,6 +879,10 @@ body{
     <select id="dayFilter">
       <option value="">All Days</option>
     </select>
+
+    <button id="printBtn" class="print-btn" type="button">
+      Print
+    </button>
 
   </div>
 

@@ -1,11 +1,11 @@
 /* ==========================================================================
-   ADMIN SUMMARY V1
+   ADMIN SUMMARY V2
    Admin / SuperAdmin / Dispatcher
-   Professional Financial Summary
-   Dispatch Review UI + Company Summary Money/Miles Engine
+   Facility / Get Quote / Reserved
+   Closed Trips Financial Summary
    ========================================================================== */
 
-const API_URL = "/api/trips";
+const API_URL = "/api/admin-summary";
 const SERVICES_URL = "/api/services/admin";
 const USERS_URL = "/api/users";
 
@@ -46,6 +46,7 @@ const yearFilter = document.getElementById("yearFilter");
 const monthFilter = document.getElementById("monthFilter");
 const dayFilter = document.getElementById("dayFilter");
 const summaryContent = document.getElementById("summaryContent");
+const printBtn = document.getElementById("printBtn");
 
 /* ===============================
    BASIC HELPERS
@@ -269,7 +270,10 @@ function displayStatus(status,trip){
 
 function statusClass(status,trip){
 
-  const label = displayStatus(status,trip);
+  const label =
+    status === "Mixed Closed"
+      ? "Mixed Closed"
+      : displayStatus(status,trip);
 
   if(label === "Completed") return "completed";
   if(label === "Cancelled") return "cancelled";
@@ -281,8 +285,14 @@ function statusClass(status,trip){
 }
 
 function statusHTML(status,trip){
+
+  if(status === "Mixed Closed"){
+    return `<span class="status-pill mixed">Mixed Closed</span>`;
+  }
+
   const label = displayStatus(status,trip);
   const cls = statusClass(status,trip);
+
   return `<span class="status-pill ${cls}">${safe(label)}</span>`;
 }
 
@@ -329,6 +339,10 @@ function getServiceCodeFromService(s){
     s?.name ||
     ""
   );
+}
+
+function hasSharedService(){
+  return services.some(s => getServiceCodeFromService(s) === "SH");
 }
 
 function getServiceTitle(s){
@@ -452,6 +466,14 @@ function getSourceCode(t){
   }
 
   return "GQ";
+}
+
+function getFacilityOnly(t){
+  if(getSourceCode(t) !== "FACILITY"){
+    return "--";
+  }
+
+  return getFacilityName(t) || "--";
 }
 
 function sourceLabel(t){
@@ -605,21 +627,32 @@ function getGroupStatus(group){
   const first = group[0] || {};
   const closed = getClosedPassengers(group);
 
-  if(closed.length === 1){
-    return displayStatus(closed[0].status || first.status,first);
+  if(!closed.length){
+    return first.status || "Scheduled";
   }
 
-  if(closed.length > 1){
+  const statuses =
+    closed.map(p =>
+      displayStatus(p.status || first.status,first)
+    );
 
-    if(closed.every(p => isCompletedStatus(p.status || first.status))) return "Completed";
-    if(closed.every(p => isCancelledStatus(p.status || first.status))) return "Cancelled";
-    if(closed.every(p => isNoShowStatus(p.status || first.status))) return "No Show";
-    if(closed.every(p => isNotCompletedStatus(p.status || first.status,first))) return "Not Completed";
-
-    return "Mixed Closed";
+  if(statuses.includes("Completed")){
+    return "Completed";
   }
 
-  return first.status || "Scheduled";
+  if(statuses.every(s => s === "Cancelled")){
+    return "Cancelled";
+  }
+
+  if(statuses.every(s => s === "No Show")){
+    return "No Show";
+  }
+
+  if(statuses.every(s => s === "Not Completed")){
+    return "Not Completed";
+  }
+
+  return "Mixed Closed";
 }
 
 /* ===============================
@@ -682,18 +715,16 @@ function getPassengerBasePrice(p,t){
     p?.price ??
     p?.pricingSnapshot?.finalPrice ??
     p?.pricingSnapshot?.priceAmount ??
-    getTripBasePrice(t) ??
     0
   );
 }
 
-function getPassengerMoney(p,t){
+function getPassengerFee(p,t){
 
-  const status = p?.status || t?.status;
-
-  if(isNotCompletedStatus(status,t)){
-    return 0;
-  }
+  const status =
+    p?.status ||
+    t?.status ||
+    "";
 
   if(isCancelledStatus(status)){
     return num(
@@ -713,6 +744,21 @@ function getPassengerMoney(p,t){
     );
   }
 
+  return 0;
+}
+
+function getPassengerMoney(p,t){
+
+  const status = p?.status || t?.status;
+
+  if(isNotCompletedStatus(status,t)){
+    return 0;
+  }
+
+  if(isCancelledStatus(status) || isNoShowStatus(status)){
+    return getPassengerFee(p,t);
+  }
+
   if(isCompletedStatus(status)){
     return getPassengerBasePrice(p,t);
   }
@@ -727,21 +773,11 @@ function getTripMoney(t){
   }
 
   if(isCancelledStatus(t?.status)){
-    return num(
-      t?.cancelFee ??
-      t?.companyCancelFee ??
-      feeFromService(t,"cancel") ??
-      0
-    );
+    return feeFromService(t,"cancel");
   }
 
   if(isNoShowStatus(t?.status)){
-    return num(
-      t?.noShowFee ??
-      t?.companyNoShowFee ??
-      feeFromService(t,"noshow") ??
-      0
-    );
+    return feeFromService(t,"noshow");
   }
 
   if(isCompletedStatus(t?.status)){
@@ -823,6 +859,14 @@ function getItemPassengersCount(item){
   }
 
   return 1;
+}
+
+function passengerStatusLine(p,t,index){
+  return `${index + 1}. ${displayStatus(p.status || t.status,t)}`;
+}
+
+function passengerFeeLine(p,t,index){
+  return `${index + 1}. ${money(getPassengerFee(p,t))}`;
 }
 
 /* ===============================
@@ -984,10 +1028,19 @@ async function loadTrips(){
 
     const data = await res.json();
 
-    allTrips =
+    const list =
       Array.isArray(data)
-        ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a))
-        : [];
+        ? data
+        : Array.isArray(data?.trips)
+          ? data.trips
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+
+    allTrips =
+      list.sort((a,b)=>
+        getBookedDateObj(b) - getBookedDateObj(a)
+      );
 
     allTrips = allTrips.map(t=>{
 
@@ -1196,6 +1249,7 @@ function searchableText(item){
     first.email,
     first.pickup,
     first.dropoff,
+    stopsDisplay(first),
     first.tripDate,
     first.tripTime,
     first.status,
@@ -1331,7 +1385,10 @@ function createStats(){
 
 function countStatus(stats,status,trip){
 
-  const label = displayStatus(status,trip);
+  const label =
+    status === "Mixed Closed"
+      ? "Mixed Closed"
+      : displayStatus(status,trip);
 
   if(label === "Completed") stats.completed++;
   else if(label === "Cancelled") stats.cancelled++;
@@ -1382,13 +1439,7 @@ function countItem(stats,item){
 
     const gStatus = getGroupStatus(item.group);
 
-    if(gStatus === "Mixed Closed"){
-      stats.mixed++;
-    }else{
-      getClosedPassengers(item.group).forEach(p=>{
-        countStatus(stats,p.status || first.status,first);
-      });
-    }
+    countStatus(stats,gStatus,first);
 
     return;
   }
@@ -1427,20 +1478,78 @@ function renderStats(){
   const wrap = document.getElementById("summaryStats");
   if(!wrap) return;
 
+  const sharedCards =
+    hasSharedService()
+      ? `
+        <div class="stat-card shared">
+          <div class="stat-number">${stats.shared}</div>
+          <div class="stat-label">Shared Trips</div>
+        </div>
+
+        <div class="stat-card shared">
+          <div class="stat-number">${stats.sharedPassengers}</div>
+          <div class="stat-label">Shared Passengers</div>
+        </div>
+
+        <div class="stat-card total">
+          <div class="stat-number">${stats.individual}</div>
+          <div class="stat-label">Individual Trips</div>
+        </div>
+      `
+      : "";
+
   wrap.innerHTML = `
-    <div class="stat-card total"><div class="stat-number">${stats.total}</div><div class="stat-label">Total Closed</div></div>
-    <div class="stat-card completed"><div class="stat-number">${stats.completed}</div><div class="stat-label">Completed</div></div>
-    <div class="stat-card cancelled"><div class="stat-number">${stats.cancelled}</div><div class="stat-label">Cancelled</div></div>
-    <div class="stat-card noshow"><div class="stat-number">${stats.noshow}</div><div class="stat-label">No Show</div></div>
-    <div class="stat-card notcompleted"><div class="stat-number">${stats.notCompleted}</div><div class="stat-label">Not Completed</div></div>
-    <div class="stat-card money"><div class="stat-number">${money(stats.revenue)}</div><div class="stat-label">Total Revenue</div></div>
-    <div class="stat-card miles"><div class="stat-number">${stats.miles.toFixed(1)}</div><div class="stat-label">Total Miles</div></div>
-    <div class="stat-card facility"><div class="stat-number">${money(stats.facilityRevenue)}</div><div class="stat-label">Facility Revenue</div></div>
-    <div class="stat-card gq"><div class="stat-number">${money(stats.gqRevenue)}</div><div class="stat-label">Get Quote Revenue</div></div>
-    <div class="stat-card reserved"><div class="stat-number">${money(stats.reservedRevenue)}</div><div class="stat-label">Reserved Revenue</div></div>
-    <div class="stat-card shared"><div class="stat-number">${stats.shared}</div><div class="stat-label">Shared Trips</div></div>
-    <div class="stat-card shared"><div class="stat-number">${stats.sharedPassengers}</div><div class="stat-label">Shared Passengers</div></div>
-    <div class="stat-card total"><div class="stat-number">${stats.individual}</div><div class="stat-label">Individual Trips</div></div>
+    <div class="stat-card total">
+      <div class="stat-number">${stats.total}</div>
+      <div class="stat-label">Total Closed</div>
+    </div>
+
+    <div class="stat-card completed">
+      <div class="stat-number">${stats.completed}</div>
+      <div class="stat-label">Completed</div>
+    </div>
+
+    <div class="stat-card cancelled">
+      <div class="stat-number">${stats.cancelled}</div>
+      <div class="stat-label">Cancelled</div>
+    </div>
+
+    <div class="stat-card noshow">
+      <div class="stat-number">${stats.noshow}</div>
+      <div class="stat-label">No Show</div>
+    </div>
+
+    <div class="stat-card notcompleted">
+      <div class="stat-number">${stats.notCompleted}</div>
+      <div class="stat-label">Not Completed</div>
+    </div>
+
+    <div class="stat-card money big-card">
+      <div class="stat-number">${money(stats.revenue)}</div>
+      <div class="stat-label">Total Revenue</div>
+    </div>
+
+    <div class="stat-card miles">
+      <div class="stat-number">${stats.miles.toFixed(1)}</div>
+      <div class="stat-label">Total Miles</div>
+    </div>
+
+    <div class="stat-card facility big-card">
+      <div class="stat-number">${money(stats.facilityRevenue)}</div>
+      <div class="stat-label">Facility Revenue</div>
+    </div>
+
+    <div class="stat-card gq big-card">
+      <div class="stat-number">${money(stats.gqRevenue)}</div>
+      <div class="stat-label">Get Quote Revenue</div>
+    </div>
+
+    <div class="stat-card reserved big-card">
+      <div class="stat-number">${money(stats.reservedRevenue)}</div>
+      <div class="stat-label">Reserved Revenue</div>
+    </div>
+
+    ${sharedCards}
   `;
 }
 
@@ -1513,7 +1622,8 @@ function passengerBreakdownText(item){
       `Phone: ${t.clientPhone || t.phone || "-"}`,
       `Email: ${t.clientEmail || t.email || "-"}`,
       `Status: ${displayStatus(t.status,t)}`,
-      `Money: ${money(getTripMoney(t))}`
+      `Fees: ${money(getPassengerFee(t,t))}`,
+      `Total: ${money(getTripMoney(t))}`
     ].join("\n");
   }
 
@@ -1527,7 +1637,8 @@ function passengerBreakdownText(item){
     `Pickup: ${getPickup(first,p)}`,
     `Dropoff: ${getDropoff(first,p)}`,
     `Status: ${displayStatus(p.status || first.status,first)}`,
-    `Money: ${money(getPassengerMoney(p,first))}`
+    `Fees: ${money(getPassengerFee(p,first))}`,
+    `Total: ${money(getPassengerMoney(p,first))}`
   ].join("\n")).join("\n\n");
 }
 
@@ -1538,9 +1649,10 @@ function moneyBreakdownText(item){
     const t = item.trip;
 
     return [
-      `Status: ${displayStatus(t.status,t)}`,
-      `Miles: ${getTripMiles(t).toFixed(1)}`,
-      `Money: ${money(getTripMoney(t))}`
+      `Trip Status: ${displayStatus(t.status,t)}`,
+      `Miles Driven: ${getTripMiles(t).toFixed(1)}`,
+      `Fees: ${money(getPassengerFee(t,t))}`,
+      `Total: ${money(getTripMoney(t))}`
     ].join("\n");
   }
 
@@ -1548,7 +1660,7 @@ function moneyBreakdownText(item){
   const passengers = getClosedPassengers(item.group);
 
   const lines = passengers.map((p,i)=>{
-    return `${i+1}. ${getPassengerName(p,first)} | ${displayStatus(p.status || first.status,first)} | ${money(getPassengerMoney(p,first))}`;
+    return `${i+1}. ${getPassengerName(p,first)} | ${displayStatus(p.status || first.status,first)} | Fees ${money(getPassengerFee(p,first))} | Total ${money(getPassengerMoney(p,first))}`;
   });
 
   lines.push("");
@@ -1582,7 +1694,7 @@ function openSummaryView(key){
         ${viewLine("Trip Number",getTripNumber(t))}
         ${viewLine("Source",sourceLabel(t))}
         ${viewLine("Service",getServiceTitleByTrip(t))}
-        ${viewLine("Facility",getFacilityName(t))}
+        ${viewLine("Facility",getFacilityOnly(t))}
         ${viewLine("Entry Name",t.entryName || "")}
         ${viewLine("Entry Phone",t.entryPhone || "")}
         ${viewLine("Client Phone",t.clientPhone || t.phone || "")}
@@ -1702,16 +1814,18 @@ function render(){
         <th class="col-num">#</th>
         <th class="col-trip">Trip #</th>
         <th class="col-source">Source</th>
-        <th class="wide-company">Facility / Client</th>
+        <th class="wide-company">Facility</th>
         <th class="col-service">Service</th>
         <th class="wide-passenger">Passenger</th>
         <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
         <th class="wide-address">Dropoff</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Time</th>
-        <th class="col-status">Status</th>
+        <th class="col-status">Trip Status</th>
         <th class="col-miles">Miles</th>
-        <th class="wide-money-break">Passenger Money</th>
+        <th class="wide-passenger-status">Passenger Status</th>
+        <th class="wide-fees">Fees</th>
         <th class="col-money">Total</th>
         <th class="col-passengers">Count</th>
         <th class="col-eye">👁️</th>
@@ -1728,7 +1842,7 @@ function render(){
 
       const dateRow = document.createElement("tr");
       dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="16">Trip Date: ${safe(day)}</td>`;
+      dateRow.innerHTML = `<td colspan="18">Trip Date: ${safe(day)}</td>`;
       tbody.appendChild(dateRow);
 
       groups[day].forEach(item=>{
@@ -1758,13 +1872,9 @@ function renderTripRow(item){
     t.name ||
     "--";
 
-  const facilityClient =
-    getFacilityName(t) ||
-    client ||
-    "--";
-
   const moneyValue = getTripMoney(t);
   const milesValue = getTripMiles(t);
+  const feeValue = getPassengerFee(t,t);
 
   tr.innerHTML = `
     <td class="col-num">${rowCounter++}</td>
@@ -1778,7 +1888,7 @@ function renderTripRow(item){
     </td>
 
     <td class="wide-company">
-      ${cellBox(facilityClient)}
+      ${cellBox(getFacilityOnly(t))}
     </td>
 
     <td class="col-service">
@@ -1791,6 +1901,10 @@ function renderTripRow(item){
 
     <td class="wide-address">
       ${cellBox(t.pickup || "--")}
+    </td>
+
+    <td class="wide-stops">
+      ${cellBox(stopsDisplay(t))}
     </td>
 
     <td class="wide-address">
@@ -1808,8 +1922,12 @@ function renderTripRow(item){
       ${milesValue.toFixed(1)}
     </td>
 
-    <td class="wide-money-break">
-      ${cellBox(`${displayStatus(t.status,t)} | ${money(moneyValue)}`)}
+    <td class="wide-passenger-status">
+      ${cellBox(displayStatus(t.status,t))}
+    </td>
+
+    <td class="wide-fees">
+      ${cellBox(money(feeValue))}
     </td>
 
     <td class="col-money">
@@ -1847,16 +1965,16 @@ function renderSharedRow(item){
     `${i+1}. ${getDropoff(first,p)}`
   );
 
-  const passengerMoney = passengers.map((p,i)=>
-    `${i+1}. ${displayStatus(p.status || first.status,first)} | ${money(getPassengerMoney(p,first))}`
+  const passengerStatuses = passengers.map((p,i)=>
+    passengerStatusLine(p,first,i)
+  );
+
+  const passengerFees = passengers.map((p,i)=>
+    passengerFeeLine(p,first,i)
   );
 
   const sharedMoney = getSharedMoney(group);
   const sharedMiles = getSharedMiles(group);
-
-  const facilityClient =
-    getFacilityName(first) ||
-    "Shared Trip";
 
   const tr = document.createElement("tr");
   tr.className = rowClass(item);
@@ -1873,7 +1991,7 @@ function renderSharedRow(item){
     </td>
 
     <td class="wide-company">
-      ${cellBox(facilityClient)}
+      ${cellBox(getFacilityOnly(first))}
     </td>
 
     <td class="col-service">
@@ -1888,6 +2006,10 @@ function renderSharedRow(item){
       ${cellBox(pickups)}
     </td>
 
+    <td class="wide-stops">
+      ${cellBox(stopsDisplay(first))}
+    </td>
+
     <td class="wide-address">
       ${cellBox(dropoffs)}
     </td>
@@ -1896,18 +2018,19 @@ function renderSharedRow(item){
     <td class="col-time">${safe(first.tripTime || "-")}</td>
 
     <td class="col-status">
-      ${groupStatus === "Mixed Closed"
-        ? `<span class="status-pill mixed">Mixed Closed</span>`
-        : statusHTML(groupStatus,first)
-      }
+      ${statusHTML(groupStatus,first)}
     </td>
 
     <td class="col-miles">
       ${sharedMiles.toFixed(1)}
     </td>
 
-    <td class="wide-money-break">
-      ${cellBox(passengerMoney)}
+    <td class="wide-passenger-status">
+      ${cellBox(passengerStatuses)}
+    </td>
+
+    <td class="wide-fees">
+      ${cellBox(passengerFees)}
     </td>
 
     <td class="col-money">
@@ -1953,6 +2076,10 @@ statusFilter?.addEventListener("change",applyFilters);
 yearFilter?.addEventListener("change",applyFilters);
 monthFilter?.addEventListener("change",applyFilters);
 dayFilter?.addEventListener("change",applyFilters);
+
+printBtn?.addEventListener("click",()=>{
+  window.print();
+});
 
 Object.assign(window,{
   openSummaryView,
