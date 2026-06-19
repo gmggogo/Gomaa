@@ -2319,8 +2319,8 @@ function render(){
         <th class="wide-notes">Notes</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
-        <th class="col-status">Trip Status</th>
         <th class="wide-passenger-status">Passenger Status</th>
+        <th class="col-status">Trip Status</th>
         <th class="col-eye">👁️</th>
       </tr>
     </thead>
@@ -2397,14 +2397,13 @@ function renderTripRow(item){
 
     <td class="col-date">${safe(t.tripDate || "-")}</td>
     <td class="col-time">${safe(t.tripTime || "-")}</td>
-
+   <td class="wide-passenger-status">
+      ${cellBox(displayStatus(t.status,t))}
+    </td>
     <td class="col-status">
       ${statusHTML(t.status,t)}
     </td>
 
-    <td class="wide-passenger-status">
-      ${cellBox(displayStatus(t.status,t))}
-    </td>
 
     <td class="col-eye">
       <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
@@ -2473,13 +2472,14 @@ function renderSharedRow(item){
     <td class="col-date">${safe(first.tripDate || "-")}</td>
     <td class="col-time">${safe(first.tripTime || "-")}</td>
 
+  <td class="wide-passenger-status">
+      ${cellBox(passengerStatuses)}
+    </td>
     <td class="col-status">
       ${statusHTML(groupStatus,first)}
     </td>
 
-    <td class="wide-passenger-status">
-      ${cellBox(passengerStatuses)}
-    </td>
+  
 
     <td class="col-eye">
       <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
