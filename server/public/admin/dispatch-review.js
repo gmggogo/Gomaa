@@ -1,7 +1,10 @@
 /* ==========================================================================
-   DISPATCH REVIEW V3
+   DISPATCH REVIEW V4
    Admin / SuperAdmin / Dispatcher
-   Show ONLY Final Confirmed Trips
+   Final Confirmed Trips Only
+   Passenger Status Column
+   Shared Group Status Logic
+   Dynamic Service Cards Same Row
    Print + CSV + Excel Export
    Mobile Horizontal Cards
    ========================================================================== */
@@ -114,10 +117,10 @@ const reviewContent = document.getElementById("reviewContent");
 
   }
 
-  if(!document.getElementById("dispatch-review-v3-style")){
+  if(!document.getElementById("dispatch-review-v4-style")){
 
     const style = document.createElement("style");
-    style.id = "dispatch-review-v3-style";
+    style.id = "dispatch-review-v4-style";
     style.innerHTML = `
 
       /* ===============================
@@ -192,23 +195,23 @@ const reviewContent = document.getElementById("reviewContent");
         margin-top:4px!important;
       }
 
-      .stat-card.facility{border-left:6px solid #1d4ed8;}
-      .stat-card.reserved{border-left:6px solid #f59e0b;}
+      .stat-card.facility{border-left:6px solid #1d4ed8!important;}
+      .stat-card.reserved{border-left:6px solid #f59e0b!important;}
+      .stat-card.shared{border-left:6px solid #7c3aed!important;}
 
       /* ===============================
-         SERVICE CARDS DESKTOP DYNAMIC
+         SERVICE CARDS SAME ROW DESKTOP
       =============================== */
 
       .service-cards{
         --service-cols:1;
-        --service-cols-tablet:2;
-        --service-cols-mobile:1;
 
         display:grid!important;
         grid-template-columns:repeat(var(--service-cols), minmax(0,1fr))!important;
         gap:9px!important;
         width:100%!important;
         margin-bottom:14px!important;
+        align-items:stretch!important;
       }
 
       .service-card{
@@ -226,12 +229,6 @@ const reviewContent = document.getElementById("reviewContent");
       .service-line{
         font-size:9.5px!important;
         padding:2px 0!important;
-      }
-
-      @media(max-width:1100px){
-        .service-cards{
-          grid-template-columns:repeat(var(--service-cols-tablet), minmax(0,1fr))!important;
-        }
       }
 
       /* ===============================
@@ -385,7 +382,7 @@ const reviewContent = document.getElementById("reviewContent");
 
       .review-table{
         width:100%!important;
-        min-width:1560px!important;
+        min-width:1680px!important;
         table-layout:fixed!important;
         border-collapse:collapse!important;
         background:#fff!important;
@@ -416,25 +413,25 @@ const reviewContent = document.getElementById("reviewContent");
       .col-company{width:105px!important;}
       .col-date{width:82px!important;}
       .col-time{width:58px!important;}
-      .col-status{width:88px!important;}
+      .col-status{width:92px!important;}
       .col-eye{width:34px!important;}
 
       .wide-client{
-        width:180px!important;
+        width:170px!important;
         text-align:left!important;
         white-space:normal!important;
         word-break:break-word!important;
       }
 
       .wide-phone{
-        width:115px!important;
+        width:110px!important;
         text-align:left!important;
         white-space:normal!important;
         word-break:break-word!important;
       }
 
       .wide-address{
-        width:230px!important;
+        width:220px!important;
         text-align:left!important;
         white-space:normal!important;
         word-break:break-word!important;
@@ -450,7 +447,14 @@ const reviewContent = document.getElementById("reviewContent");
       }
 
       .wide-notes{
-        width:240px!important;
+        width:210px!important;
+        text-align:left!important;
+        white-space:normal!important;
+        word-break:break-word!important;
+      }
+
+      .wide-passenger-status{
+        width:140px!important;
         text-align:left!important;
         white-space:normal!important;
         word-break:break-word!important;
@@ -669,7 +673,7 @@ const reviewContent = document.getElementById("reviewContent");
 
       @media(max-width:768px){
         .review-table{
-          min-width:1560px!important;
+          min-width:1680px!important;
         }
 
         .review-table th,
@@ -769,8 +773,8 @@ const reviewContent = document.getElementById("reviewContent");
 
         .review-table th,
         .review-table td{
-          font-size:6px!important;
-          padding:1.5px!important;
+          font-size:5.8px!important;
+          padding:1.2px!important;
           color:#000!important;
           border:1px solid #000!important;
         }
@@ -786,8 +790,8 @@ const reviewContent = document.getElementById("reviewContent");
         }
 
         .cell-item{
-          font-size:6px!important;
-          padding:1.5px!important;
+          font-size:5.8px!important;
+          padding:1.2px!important;
           color:#000!important;
         }
 
@@ -802,12 +806,16 @@ const reviewContent = document.getElementById("reviewContent");
           border:1px solid #000!important;
           background:#fff!important;
           color:#000!important;
-          font-size:5.8px!important;
+          font-size:5.5px!important;
           padding:1px!important;
         }
 
         /* Hide long columns on print:
            Pickup / Stops / Dropoff / Notes / Eye
+           Table columns:
+           1 #, 2 Trip, 3 Company, 4 Client, 5 Phone,
+           6 Pickup, 7 Stops, 8 Dropoff, 9 Notes,
+           10 Date, 11 Time, 12 Status, 13 Passenger Status, 14 Eye
         */
         .review-table th:nth-child(6),
         .review-table td:nth-child(6),
@@ -817,8 +825,8 @@ const reviewContent = document.getElementById("reviewContent");
         .review-table td:nth-child(8),
         .review-table th:nth-child(9),
         .review-table td:nth-child(9),
-        .review-table th:nth-child(13),
-        .review-table td:nth-child(13){
+        .review-table th:nth-child(14),
+        .review-table td:nth-child(14){
           display:none!important;
         }
       }
@@ -849,11 +857,6 @@ function safe(v){
 
 function normalizeText(v){
   return String(v ?? "").trim();
-}
-
-function num(v){
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }
 
 function cleanStatus(v){
@@ -989,8 +992,6 @@ function stopsDisplay(t){
 
 /* ===============================
    FINAL CONFIRMATION GATE
-   Dispatch Review shows ONLY trips
-   confirmed in Dispatch Final Confirmation
 ================================ */
 
 function hasFinalConfirmation(trip){
@@ -1433,18 +1434,31 @@ function getSharedGroups(list = allTrips){
   );
 }
 
-function hasClosedPassenger(group){
-  const first = group[0] || {};
-  return getRealPassengersFromGroup(group).some(p =>
-    isClosedStatus(p.status || first.status,first)
-  );
-}
-
 function getClosedPassengers(group){
   const first = group[0] || {};
   return getRealPassengersFromGroup(group).filter(p =>
     isClosedStatus(p.status || first.status,first)
   );
+}
+
+function hasClosedPassenger(group){
+  return getClosedPassengers(group).length > 0;
+}
+
+function getPassengerStatusLabel(p,trip){
+  return displayStatus(p?.status || trip?.status,trip);
+}
+
+function getPassengerStatusLines(group){
+
+  const first = group[0] || {};
+  const passengers = getClosedPassengers(group);
+
+  return passengers.map((p,i)=>{
+    const name = getPassengerName(p,first);
+    const st = getPassengerStatusLabel(p,first);
+    return `${i+1}. ${name}: ${st}`;
+  });
 }
 
 function getGroupStatus(group){
@@ -1460,6 +1474,15 @@ function getGroupStatus(group){
     closed.map(p =>
       displayStatus(p.status || first.status,first)
     );
+
+  /*
+    Shared final rule:
+    - Any Completed => Completed
+    - All Cancelled => Cancelled
+    - All No Show => No Show
+    - All Not Completed => Not Completed
+    - Any mixed non-completed => Mixed Closed
+  */
 
   if(statuses.includes("Completed")){
     return "Completed";
@@ -2064,26 +2087,12 @@ function updateServiceCardsLayout(){
 
   const count = wrap.querySelectorAll(".service-card").length || 1;
 
-  const desktopCols =
-    count >= 6
-      ? 6
-      : count;
-
-  const tabletCols =
-    count >= 4
-      ? 4
-      : count >= 2
-        ? count
-        : 1;
-
-  const mobileCols =
-    count >= 2
-      ? 2
-      : 1;
-
-  wrap.style.setProperty("--service-cols", desktopCols);
-  wrap.style.setProperty("--service-cols-tablet", tabletCols);
-  wrap.style.setProperty("--service-cols-mobile", mobileCols);
+  /*
+    Desktop:
+    كل الكروت في نفس الصف.
+    لو زودت أو مسحت خدمة، العدد يتغير لوحده.
+  */
+  wrap.style.setProperty("--service-cols", count);
 }
 
 function renderServiceCards(){
@@ -2117,6 +2126,7 @@ function renderServiceCards(){
         <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
         <div class="service-line"><span>Cancelled</span><span>${c.cancelled}</span></div>
         <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
+        <div class="service-line"><span>Mixed</span><span>${c.mixed}</span></div>
         <div class="service-line"><span>Not Completed</span><span>${c.notCompleted}</span></div>
       </div>
     `;
@@ -2206,7 +2216,8 @@ function openReviewView(key){
         ${viewLine("Booked Time",getBookedTime(t))}
         ${viewLine("Trip Date",t.tripDate || "")}
         ${viewLine("Trip Time",t.tripTime || "")}
-        ${viewLine("Status",item.kind === "shared" ? getGroupStatus(item.group) : displayStatus(t.status,t))}
+        ${viewLine("Trip Status",item.kind === "shared" ? getGroupStatus(item.group) : displayStatus(t.status,t))}
+        ${viewLine("Passenger Status",item.kind === "shared" ? getPassengerStatusLines(item.group).join("\n") : displayStatus(t.status,t))}
         ${viewLine("Passengers",passengerDetailsText(item))}
         ${viewLine("Stops",stopsDisplay(t))}
         ${viewLine("Notes",getNotes(t))}
@@ -2308,7 +2319,8 @@ function render(){
         <th class="wide-notes">Notes</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
-        <th class="col-status">Status</th>
+        <th class="col-status">Trip Status</th>
+        <th class="wide-passenger-status">Passenger Status</th>
         <th class="col-eye">👁️</th>
       </tr>
     </thead>
@@ -2323,7 +2335,7 @@ function render(){
 
       const dateRow = document.createElement("tr");
       dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="13">Trip Date: ${safe(day)}</td>`;
+      dateRow.innerHTML = `<td colspan="14">Trip Date: ${safe(day)}</td>`;
       tbody.appendChild(dateRow);
 
       groups[day].forEach(item=>{
@@ -2390,6 +2402,10 @@ function renderTripRow(item){
       ${statusHTML(t.status,t)}
     </td>
 
+    <td class="wide-passenger-status">
+      ${cellBox(displayStatus(t.status,t))}
+    </td>
+
     <td class="col-eye">
       <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
     </td>
@@ -2419,6 +2435,10 @@ function renderSharedRow(item){
 
   const dropoffs = passengers.map((p,i)=>
     `${i+1}. ${getDropoff(first,p) || "--"}`
+  );
+
+  const passengerStatuses = passengers.map((p,i)=>
+    `${i+1}. ${displayStatus(p.status || first.status,first)}`
   );
 
   const tr = document.createElement("tr");
@@ -2455,6 +2475,10 @@ function renderSharedRow(item){
 
     <td class="col-status">
       ${statusHTML(groupStatus,first)}
+    </td>
+
+    <td class="wide-passenger-status">
+      ${cellBox(passengerStatuses)}
     </td>
 
     <td class="col-eye">
@@ -2497,7 +2521,8 @@ function getExportRows(){
         notes:getNotes(t),
         tripDate:t.tripDate || "",
         tripTime:t.tripTime || "",
-        status:displayStatus(t.status,t),
+        tripStatus:displayStatus(t.status,t),
+        passengerStatus:displayStatus(t.status,t),
         bookedDate:getBookedDate(t),
         bookedTime:getBookedTime(t)
       });
@@ -2522,7 +2547,8 @@ function getExportRows(){
         notes:index === 0 ? getNotes(first) : "",
         tripDate:index === 0 ? first.tripDate || "" : "",
         tripTime:index === 0 ? first.tripTime || "" : "",
-        status:displayStatus(p.status || first.status,first),
+        tripStatus:index === 0 ? getGroupStatus(item.group) : "",
+        passengerStatus:displayStatus(p.status || first.status,first),
         bookedDate:index === 0 ? getBookedDate(first) : "",
         bookedTime:index === 0 ? getBookedTime(first) : ""
       });
@@ -2574,7 +2600,8 @@ function exportCSV(){
     "Notes",
     "Trip Date",
     "Trip Time",
-    "Status",
+    "Trip Status",
+    "Passenger Status",
     "Booked Date",
     "Booked Time"
   ];
@@ -2592,7 +2619,8 @@ function exportCSV(){
     "notes",
     "tripDate",
     "tripTime",
-    "status",
+    "tripStatus",
+    "passengerStatus",
     "bookedDate",
     "bookedTime"
   ];
@@ -2634,7 +2662,8 @@ function exportExcel(){
     "Notes",
     "Trip Date",
     "Trip Time",
-    "Status",
+    "Trip Status",
+    "Passenger Status",
     "Booked Date",
     "Booked Time"
   ];
@@ -2652,7 +2681,8 @@ function exportExcel(){
     "notes",
     "tripDate",
     "tripTime",
-    "status",
+    "tripStatus",
+    "passengerStatus",
     "bookedDate",
     "bookedTime"
   ];
