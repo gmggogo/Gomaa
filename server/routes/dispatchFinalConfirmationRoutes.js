@@ -5,12 +5,6 @@ const mongoose = require("mongoose");
 const Trip = global.Trip || mongoose.models.Trip;
 
 /* =========================
-   CONFIG
-========================= */
-
-const HOLD_HOURS = 12;
-
-/* =========================
    HELPERS
 ========================= */
 
@@ -22,17 +16,34 @@ function clean(v){
     .toLowerCase();
 }
 
-function normalizeFinalStatus(v){
-  const s = clean(v);
+function compact(v){
+  return clean(v).replace(/\s+/g,"");
+}
 
-  if(s === "completed" || s === "complete") return "Completed";
-  if(s.includes("cancel")) return "Cancelled";
-  if(s.includes("no show") || s.includes("noshow")) return "No Show";
+function normalizeFinalStatus(v){
+
+  const s = clean(v);
+  const c = compact(v);
+
+  if(s === "completed" || s === "complete"){
+    return "Completed";
+  }
+
+  if(s.includes("cancel")){
+    return "Cancelled";
+  }
+
+  if(s.includes("no show") || c.includes("noshow")){
+    return "No Show";
+  }
+
   if(
     s === "not completed" ||
-    s === "notcompleted" ||
+    c === "notcompleted" ||
     s.includes("not complete")
-  ) return "Not Completed";
+  ){
+    return "Not Completed";
+  }
 
   return "";
 }
@@ -57,27 +68,8 @@ function isFinalStatus(v){
   return !!normalizeFinalStatus(v);
 }
 
-function isDriverBasedStatus(v){
-  return isCompletedStatus(v) || isNoShowStatus(v);
-}
-
-function isImmediateStatus(v){
-  return isCancelledStatus(v) || isNotCompletedStatus(v);
-}
-
 function nowDate(){
   return new Date();
-}
-
-function hoursDiff(dateValue){
-  const d = new Date(dateValue);
-  if(isNaN(d)) return 0;
-  return (Date.now() - d.getTime()) / (1000 * 60 * 60);
-}
-
-function olderThanHours(dateValue,hours){
-  if(!dateValue) return false;
-  return hoursDiff(dateValue) >= hours;
 }
 
 function isSharedTrip(trip){
@@ -90,52 +82,32 @@ function isSharedTrip(trip){
   );
 }
 
-function tripDriverReportedFinal(trip){
-  return (
-    trip?.driverReportedFinalStatus === true ||
-    trip?.finalStatusFromDriver === true ||
-    trip?.driverFinalStatusReported === true ||
-    trip?.reportedByDriver === true
-  );
-}
-
-function passengerDriverReportedFinal(passenger,trip){
-  return (
-    passenger?.driverReportedFinalStatus === true ||
-    passenger?.finalStatusFromDriver === true ||
-    passenger?.driverFinalStatusReported === true ||
-    passenger?.reportedByDriver === true ||
-    tripDriverReportedFinal(trip)
-  );
-}
+/* =========================
+   FINAL CONFIRM MARKER
+   مهم:
+   Dispatch Review يدخل الرحلة بس بعد العلامة دي
+========================= */
 
 function getTripFinalConfirmed(trip){
-  return trip?.finalStatusConfirmed === true;
-}
 
-function getTripFinalConfirmedAt(trip){
   return (
-    trip?.finalStatusConfirmedAt ||
-    trip?.dispatchFinalConfirmedAt ||
-    null
+    !!trip?.dispatchFinalConfirmedAt ||
+    !!trip?.finalStatusConfirmedAt
   );
 }
 
 function getSharedFinalConfirmed(trip){
+
   return (
-    trip?.sharedFinalConfirmed === true ||
-    trip?.finalStatusConfirmed === true
+    !!trip?.dispatchFinalConfirmedAt ||
+    !!trip?.sharedFinalConfirmedAt ||
+    !!trip?.finalStatusConfirmedAt
   );
 }
 
-function getSharedFinalConfirmedAt(trip){
-  return (
-    trip?.sharedFinalConfirmedAt ||
-    trip?.finalStatusConfirmedAt ||
-    trip?.dispatchFinalConfirmedAt ||
-    null
-  );
-}
+/* =========================
+   PAGE ENTRY STAMP
+========================= */
 
 function getEnteredAt(trip){
   return (
@@ -147,9 +119,12 @@ function getEnteredAt(trip){
 }
 
 function ensurePageEntryStamp(trip){
+
   const stamp = getEnteredAt(trip);
 
-  if(stamp) return false;
+  if(stamp){
+    return false;
+  }
 
   const now = nowDate();
 
@@ -161,60 +136,66 @@ function ensurePageEntryStamp(trip){
     trip.dispatchFinalPageEnteredAt = trip.finalPageEnteredAt || now;
   }
 
+  if(!trip.enteredFinalConfirmationAt){
+    trip.enteredFinalConfirmationAt = trip.finalPageEnteredAt || now;
+  }
+
   return true;
 }
 
+/* =========================
+   CLEAR CONFIRM STATE
+   أي تعديل Status يرجع الرحلة Not Confirmed
+========================= */
+
 function clearSingleConfirmState(trip){
+
   trip.finalStatusConfirmed = false;
   trip.finalStatusConfirmedAt = null;
   trip.dispatchFinalConfirmedAt = null;
+  trip.finalStatusConfirmedBy = null;
 }
 
 function clearSharedConfirmState(trip){
+
   trip.sharedFinalConfirmed = false;
   trip.sharedFinalConfirmedAt = null;
+
   trip.finalStatusConfirmed = false;
   trip.finalStatusConfirmedAt = null;
   trip.dispatchFinalConfirmedAt = null;
+  trip.finalStatusConfirmedBy = null;
 }
 
+/* =========================
+   PAGE READY ENGINE
+   أي Closed Status يدخل Final Confirmation
+   سواء من المصدر أو من السواق أو من الأدمن
+========================= */
+
 function singleTripReadyForPage(trip){
-  const status = trip?.status;
 
-  if(!isFinalStatus(status)) return false;
-
-  if(isImmediateStatus(status)) return true;
-
-  if(isDriverBasedStatus(status)){
-    return (
-      tripDriverReportedFinal(trip) ||
-      getTripFinalConfirmed(trip) ||
-      !!getEnteredAt(trip)
-    );
+  if(!trip){
+    return false;
   }
 
-  return false;
+  if(isSharedTrip(trip)){
+    return false;
+  }
+
+  return isFinalStatus(trip.status);
 }
 
 function getReadySharedPassengers(trip){
-  const passengers = Array.isArray(trip?.passengers) ? trip.passengers : [];
+
+  const passengers =
+    Array.isArray(trip?.passengers)
+      ? trip.passengers
+      : [];
 
   return passengers.filter((p)=>{
     const status = p?.status || trip?.status;
-
-    if(!isFinalStatus(status)) return false;
-
-    if(isImmediateStatus(status)) return true;
-
-    if(isDriverBasedStatus(status)){
-      return (
-        passengerDriverReportedFinal(p,trip) ||
-        getSharedFinalConfirmed(trip) ||
-        !!getEnteredAt(trip)
-      );
-    }
-
-    return false;
+    return isFinalStatus(status);
   });
 }
 
@@ -222,61 +203,77 @@ function sharedTripReadyForPage(trip){
   return getReadySharedPassengers(trip).length > 0;
 }
 
+/* =========================
+   SHOULD APPEAR
+   Final Confirmation يعرض فقط:
+   Closed + مش Confirmed
+========================= */
+
 function singleTripShouldAppear(trip){
-  if(!singleTripReadyForPage(trip)) return false;
+
+  if(!singleTripReadyForPage(trip)){
+    return false;
+  }
 
   if(getTripFinalConfirmed(trip)){
-    return !olderThanHours(getTripFinalConfirmedAt(trip), HOLD_HOURS);
+    return false;
   }
 
   return true;
 }
 
 function sharedTripShouldAppear(trip){
-  if(!sharedTripReadyForPage(trip)) return false;
+
+  if(!sharedTripReadyForPage(trip)){
+    return false;
+  }
 
   if(getSharedFinalConfirmed(trip)){
-    return !olderThanHours(getSharedFinalConfirmedAt(trip), HOLD_HOURS);
+    return false;
   }
 
   return true;
 }
 
-function tripOverdueNotConfirmed(trip){
-  if(getTripFinalConfirmed(trip)) return false;
-  return olderThanHours(getEnteredAt(trip), HOLD_HOURS);
-}
-
-function sharedOverdueNotConfirmed(trip){
-  if(getSharedFinalConfirmed(trip)) return false;
-  return olderThanHours(getEnteredAt(trip), HOLD_HOURS);
-}
+/* =========================
+   SANITIZE
+========================= */
 
 function sanitizeTripForFinalPage(trip){
-  const obj = trip.toObject ? trip.toObject() : trip;
+
+  const obj =
+    trip.toObject
+      ? trip.toObject()
+      : trip;
 
   if(isSharedTrip(obj)){
     return {
       ...obj,
-      __pageType: "shared",
-      __readyPassengers: getReadySharedPassengers(obj),
-      __finalConfirmed: getSharedFinalConfirmed(obj),
-      __finalConfirmedAt: getSharedFinalConfirmedAt(obj),
-      __notConfirmedOverdue: sharedOverdueNotConfirmed(obj)
+      __pageType:"shared",
+      __readyPassengers:getReadySharedPassengers(obj),
+      __finalConfirmed:getSharedFinalConfirmed(obj),
+      __finalConfirmedAt:
+        obj.dispatchFinalConfirmedAt ||
+        obj.sharedFinalConfirmedAt ||
+        obj.finalStatusConfirmedAt ||
+        null
     };
   }
 
   return {
     ...obj,
-    __pageType: "single",
-    __finalConfirmed: getTripFinalConfirmed(obj),
-    __finalConfirmedAt: getTripFinalConfirmedAt(obj),
-    __notConfirmedOverdue: tripOverdueNotConfirmed(obj)
+    __pageType:"single",
+    __finalConfirmed:getTripFinalConfirmed(obj),
+    __finalConfirmedAt:
+      obj.dispatchFinalConfirmedAt ||
+      obj.finalStatusConfirmedAt ||
+      null
   };
 }
 
 /* =========================
    GET PAGE DATA
+   يسحب الرحلات المقفولة اللي لسه مستنية Final Confirm
 ========================= */
 
 router.get("/", async (req,res)=>{
@@ -284,7 +281,11 @@ router.get("/", async (req,res)=>{
   try{
 
     const trips = await Trip.find({})
-      .sort({ tripDate:-1, tripTime:-1, createdAt:-1 });
+      .sort({
+        tripDate:-1,
+        tripTime:-1,
+        createdAt:-1
+      });
 
     const result = [];
     const saveOps = [];
@@ -296,7 +297,9 @@ router.get("/", async (req,res)=>{
           ? sharedTripShouldAppear(trip)
           : singleTripShouldAppear(trip);
 
-      if(!shouldAppear) continue;
+      if(!shouldAppear){
+        continue;
+      }
 
       const stamped = ensurePageEntryStamp(trip);
 
@@ -313,7 +316,6 @@ router.get("/", async (req,res)=>{
 
     return res.json({
       success:true,
-      holdHours:HOLD_HOURS,
       count:result.length,
       trips:result
     });
@@ -333,6 +335,7 @@ router.get("/", async (req,res)=>{
 
 /* =========================
    UPDATE SINGLE STATUS
+   Edit فقط، مش Final Confirm
 ========================= */
 
 router.patch("/:id/status", async (req,res)=>{
@@ -373,9 +376,9 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     trip.status = status;
+
     ensurePageEntryStamp(trip);
 
-    /* Edit = يرجع Not Confirmed */
     clearSingleConfirmState(trip);
 
     await trip.save();
@@ -401,6 +404,7 @@ router.patch("/:id/status", async (req,res)=>{
 
 /* =========================
    CONFIRM SINGLE TRIP
+   ده الوحيد اللي يدخلها Dispatch Review
 ========================= */
 
 router.patch("/:id/confirm", async (req,res)=>{
@@ -447,9 +451,11 @@ router.patch("/:id/confirm", async (req,res)=>{
 
     ensurePageEntryStamp(trip);
 
+    const now = nowDate();
+
     trip.finalStatusConfirmed = true;
-    trip.finalStatusConfirmedAt = nowDate();
-    trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
+    trip.finalStatusConfirmedAt = now;
+    trip.dispatchFinalConfirmedAt = now;
 
     if(confirmedBy){
       trip.finalStatusConfirmedBy = confirmedBy;
@@ -478,6 +484,7 @@ router.patch("/:id/confirm", async (req,res)=>{
 
 /* =========================
    UPDATE SHARED PASSENGERS
+   Edit فقط، مش Final Confirm
 ========================= */
 
 router.patch("/:id/shared-status", async (req,res)=>{
@@ -485,9 +492,11 @@ router.patch("/:id/shared-status", async (req,res)=>{
   try{
 
     const { id } = req.params;
-    const passengersInput = Array.isArray(req.body?.passengers)
-      ? req.body.passengers
-      : null;
+
+    const passengersInput =
+      Array.isArray(req.body?.passengers)
+        ? req.body.passengers
+        : null;
 
     if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
@@ -519,22 +528,30 @@ router.patch("/:id/shared-status", async (req,res)=>{
       });
     }
 
-    const currentPassengers = Array.isArray(trip.passengers) ? trip.passengers : [];
+    const currentPassengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+        : [];
 
     passengersInput.forEach((inputPassenger,idx)=>{
-      if(!currentPassengers[idx]) return;
 
-      const nextStatus = normalizeFinalStatus(inputPassenger?.status);
+      if(!currentPassengers[idx]){
+        return;
+      }
+
+      const nextStatus =
+        normalizeFinalStatus(inputPassenger?.status);
 
       if(nextStatus){
         currentPassengers[idx].status = nextStatus;
       }
+
     });
 
     trip.passengers = currentPassengers;
+
     ensurePageEntryStamp(trip);
 
-    /* Edit = يرجع Not Confirmed */
     clearSharedConfirmState(trip);
 
     await trip.save();
@@ -560,6 +577,7 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
 /* =========================
    CONFIRM SHARED TRIP
+   ده الوحيد اللي يدخل الشير Dispatch Review
 ========================= */
 
 router.patch("/:id/shared-confirm", async (req,res)=>{
@@ -567,10 +585,14 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
   try{
 
     const { id } = req.params;
-    const passengersInput = Array.isArray(req.body?.passengers)
-      ? req.body.passengers
-      : null;
-    const confirmedBy = String(req.body?.confirmedBy || "").trim();
+
+    const passengersInput =
+      Array.isArray(req.body?.passengers)
+        ? req.body.passengers
+        : null;
+
+    const confirmedBy =
+      String(req.body?.confirmedBy || "").trim();
 
     if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
@@ -595,17 +617,25 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
       });
     }
 
-    const currentPassengers = Array.isArray(trip.passengers) ? trip.passengers : [];
+    const currentPassengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+        : [];
 
     if(passengersInput){
       passengersInput.forEach((inputPassenger,idx)=>{
-        if(!currentPassengers[idx]) return;
 
-        const nextStatus = normalizeFinalStatus(inputPassenger?.status);
+        if(!currentPassengers[idx]){
+          return;
+        }
+
+        const nextStatus =
+          normalizeFinalStatus(inputPassenger?.status);
 
         if(nextStatus){
           currentPassengers[idx].status = nextStatus;
         }
+
       });
     }
 
@@ -622,11 +652,14 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
 
     ensurePageEntryStamp(trip);
 
+    const now = nowDate();
+
     trip.sharedFinalConfirmed = true;
-    trip.sharedFinalConfirmedAt = nowDate();
+    trip.sharedFinalConfirmedAt = now;
+
     trip.finalStatusConfirmed = true;
-    trip.finalStatusConfirmedAt = trip.sharedFinalConfirmedAt;
-    trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
+    trip.finalStatusConfirmedAt = now;
+    trip.dispatchFinalConfirmedAt = now;
 
     if(confirmedBy){
       trip.finalStatusConfirmedBy = confirmedBy;

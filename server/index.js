@@ -922,9 +922,9 @@ app.use(
 );
 
 console.log("✅ companyAddStopRoutes mounted on /api/company");
-/* =========================
+/* ==============================
    DISPATCH ROUTES
-========================= */
+============================== */
 
 const dispatchRoutes =
   require("./routes/dispatchRoutes");
@@ -934,6 +934,17 @@ app.use(
   dispatchRoutes
 );
 
+/* ==============================
+   DISPATCH REVIEW ROUTES
+============================== */
+
+const dispatchReviewRoutes =
+  require("./routes/dispatchReviewRoutes");
+
+app.use(
+  "/api/dispatch-review",
+  dispatchReviewRoutes
+);
 
 /* =========================
    GEO CACHE

@@ -9,7 +9,7 @@
    Mobile Horizontal Cards
    ========================================================================== */
 
-const API_URL = "/api/trips";
+const API_URL = "/api/dispatch-review";
 const SERVICES_URL = "/api/services/admin";
 const USERS_URL = "/api/users";
 
