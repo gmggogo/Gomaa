@@ -164,6 +164,20 @@ function ensurePageEntryStamp(trip){
   return true;
 }
 
+function clearSingleConfirmState(trip){
+  trip.finalStatusConfirmed = false;
+  trip.finalStatusConfirmedAt = null;
+  trip.dispatchFinalConfirmedAt = null;
+}
+
+function clearSharedConfirmState(trip){
+  trip.sharedFinalConfirmed = false;
+  trip.sharedFinalConfirmedAt = null;
+  trip.finalStatusConfirmed = false;
+  trip.finalStatusConfirmedAt = null;
+  trip.dispatchFinalConfirmedAt = null;
+}
+
 function singleTripReadyForPage(trip){
   const status = trip?.status;
 
@@ -361,6 +375,9 @@ router.patch("/:id/status", async (req,res)=>{
     trip.status = status;
     ensurePageEntryStamp(trip);
 
+    /* Edit = يرجع Not Confirmed */
+    clearSingleConfirmState(trip);
+
     await trip.save();
 
     return res.json({
@@ -430,17 +447,9 @@ router.patch("/:id/confirm", async (req,res)=>{
 
     ensurePageEntryStamp(trip);
 
-    if(!trip.finalStatusConfirmed){
-      trip.finalStatusConfirmed = true;
-    }
-
-    if(!trip.finalStatusConfirmedAt){
-      trip.finalStatusConfirmedAt = nowDate();
-    }
-
-    if(!trip.dispatchFinalConfirmedAt){
-      trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
-    }
+    trip.finalStatusConfirmed = true;
+    trip.finalStatusConfirmedAt = nowDate();
+    trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
 
     if(confirmedBy){
       trip.finalStatusConfirmedBy = confirmedBy;
@@ -524,6 +533,9 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
     trip.passengers = currentPassengers;
     ensurePageEntryStamp(trip);
+
+    /* Edit = يرجع Not Confirmed */
+    clearSharedConfirmState(trip);
 
     await trip.save();
 
@@ -610,25 +622,11 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
 
     ensurePageEntryStamp(trip);
 
-    if(!trip.sharedFinalConfirmed){
-      trip.sharedFinalConfirmed = true;
-    }
-
-    if(!trip.sharedFinalConfirmedAt){
-      trip.sharedFinalConfirmedAt = nowDate();
-    }
-
-    if(!trip.finalStatusConfirmed){
-      trip.finalStatusConfirmed = true;
-    }
-
-    if(!trip.finalStatusConfirmedAt){
-      trip.finalStatusConfirmedAt = trip.sharedFinalConfirmedAt;
-    }
-
-    if(!trip.dispatchFinalConfirmedAt){
-      trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
-    }
+    trip.sharedFinalConfirmed = true;
+    trip.sharedFinalConfirmedAt = nowDate();
+    trip.finalStatusConfirmed = true;
+    trip.finalStatusConfirmedAt = trip.sharedFinalConfirmedAt;
+    trip.dispatchFinalConfirmedAt = trip.finalStatusConfirmedAt;
 
     if(confirmedBy){
       trip.finalStatusConfirmedBy = confirmedBy;
