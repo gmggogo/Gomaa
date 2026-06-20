@@ -2,6 +2,7 @@
 FILE: add-trip.js
 FINAL COMPLETE VERSION
 Facility Override First
+Service Code Fixed From Company Suffix
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -78,7 +79,6 @@ async function checkBillingLock(){
   }catch(err){
 
     console.log(err);
-
     return true;
   }
 }
@@ -186,6 +186,20 @@ function showAlert(msg){
   alert(msg);
 }
 
+function bool(v){
+  return (
+    v === true ||
+    String(v).toLowerCase() === "true" ||
+    String(v).toLowerCase() === "yes" ||
+    String(v).toLowerCase() === "1"
+  );
+}
+
+function num(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function normalizeServiceCode(v){
 
   const c =
@@ -202,6 +216,7 @@ function normalizeServiceCode(v){
   if(
     c === "WHEELCHAIR" ||
     c === "WHEEL CHAIR" ||
+    c === "WC" ||
     c === "WH"
   ){
     return "WH";
@@ -215,47 +230,103 @@ function normalizeServiceCode(v){
   return c;
 }
 
+function isValidServiceCode(code){
+
+  return [
+    "ST",
+    "WH",
+    "XL",
+    "LM",
+    "TX",
+    "SH"
+  ].includes(
+    normalizeServiceCode(code)
+  );
+}
+
 function resolveServiceCode(service){
 
   if(!service) return "";
 
-  const candidates = [
+  /*
+    IMPORTANT:
+    Company service code must come from suffix/code fields first.
+    Do NOT read title/name first because it can make all services ST.
+  */
+
+  const directFields = [
+
     service.companySuffix,
-    service.suffix,
     service.serviceSuffix,
-    service.serviceName,
-    service.title,
-    service.name,
-    service.serviceKey,
+    service.suffix,
+
+    service.reservedSuffix,
+    service.getQuoteSuffix,
+
+    service.companyServiceSuffix,
+    service.facilitySuffix,
+    service.facilityServiceSuffix,
+
+    service.companyServiceCode,
     service.serviceCode,
+    service.code,
+
+    service.companyServiceKey,
+    service.serviceKey,
     service.serviceType,
-    service.code
-  ]
-  .map(normalizeServiceCode)
-  .filter(Boolean);
 
-  const nonStandard =
-    candidates.find(c => c && c !== "ST");
+    service.vehicle
+  ];
 
-  if(nonStandard){
-    return nonStandard;
+  for(const field of directFields){
+
+    const code =
+      normalizeServiceCode(field);
+
+    if(isValidServiceCode(code)){
+      return code;
+    }
   }
 
-  return candidates[0] || "";
+  /*
+    Last fallback only: infer from name.
+  */
+
+  const name =
+    normalizeServiceCode(
+      service.serviceName ||
+      service.title ||
+      service.name ||
+      ""
+    );
+
+  if(name.includes("WHEEL")) return "WH";
+  if(name.includes("CHAIR")) return "WH";
+  if(name.includes("SHARED")) return "SH";
+  if(name.includes("LIMO")) return "LM";
+  if(name.includes("TAXI")) return "TX";
+  if(name.includes("XL")) return "XL";
+  if(name.includes("STANDARD")) return "ST";
+
+  return "";
 }
 
-function bool(v){
+function serviceDisplayName(service,code){
+
   return (
-    v === true ||
-    String(v).toLowerCase() === "true" ||
-    String(v).toLowerCase() === "yes" ||
-    String(v).toLowerCase() === "1"
+    service?.serviceName ||
+    service?.title ||
+    service?.name ||
+    (
+      code === "ST" ? "Standard" :
+      code === "WH" ? "Wheelchair" :
+      code === "XL" ? "XL" :
+      code === "LM" ? "Limo" :
+      code === "TX" ? "Taxi" :
+      code === "SH" ? "Shared" :
+      code || "Service"
+    )
   );
-}
-
-function num(v){
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
 }
 
 async function loadSystemTimezone(){
@@ -296,28 +367,10 @@ function getCurrentServiceConfig(){
 
   return COMPANY_SERVICES.find(s => {
 
-    const key =
-      normalizeServiceCode(s.serviceKey);
-
-    const suffix =
-      normalizeServiceCode(
-        s.companySuffix ||
-        s.suffix ||
-        s.serviceSuffix
-      );
-
     const serviceCode =
-      normalizeServiceCode(
-        s.serviceCode ||
-        s.code ||
-        s.serviceType
-      );
+      resolveServiceCode(s);
 
-    return (
-      key === code ||
-      suffix === code ||
-      serviceCode === code
-    );
+    return serviceCode === code;
 
   }) || {};
 }
@@ -326,6 +379,9 @@ function isSharedService(service){
 
   if(!service) return false;
 
+  const code =
+    resolveServiceCode(service);
+
   const key =
     normalizeServiceCode(service.serviceKey);
 
@@ -333,7 +389,9 @@ function isSharedService(service){
     normalizeServiceCode(
       service.companySuffix ||
       service.suffix ||
-      service.serviceSuffix
+      service.serviceSuffix ||
+      service.reservedSuffix ||
+      service.getQuoteSuffix
     );
 
   const title =
@@ -346,41 +404,38 @@ function isSharedService(service){
   const pricing =
     normalizeServiceCode(
       service.companyPricingMode ||
+      service.reservedPricingMode ||
       service.pricingMode
     );
 
   return (
     service.companyShared === true ||
+    service.reservedShared === true ||
     service.shared === true ||
+    code === "SH" ||
     key === "SH" ||
     suffix === "SH" ||
     title === "SH" ||
     title === "SHARED" ||
+    pricing === "SH" ||
     pricing === "SHARED"
   );
 }
 
 function mapFacilityOverrideService(s){
 
-  const serviceKey =
+  const code =
     resolveServiceCode(s);
 
-  const serviceName =
-    s.serviceName ||
-    s.title ||
-    s.name ||
-    serviceKey;
-
-  const serviceSuffix =
-    normalizeServiceCode(
-      s.serviceSuffix ||
-      s.companySuffix ||
-      s.suffix ||
-      serviceKey
-    ) || serviceKey;
+  if(!code){
+    console.warn("FACILITY OVERRIDE SERVICE CODE MISSING:", s);
+  }
 
   const finalCode =
-    serviceKey || serviceSuffix;
+    code || "ST";
+
+  const serviceName =
+    serviceDisplayName(s, finalCode);
 
   const shared =
     bool(s.shared) ||
@@ -392,7 +447,7 @@ function mapFacilityOverrideService(s){
     ...s,
 
     _id:
-      s._id || finalCode,
+      finalCode,
 
     title:
       serviceName,
@@ -416,13 +471,13 @@ function mapFacilityOverrideService(s){
       finalCode,
 
     companySuffix:
-      serviceSuffix || finalCode,
+      finalCode,
 
     suffix:
-      serviceSuffix || finalCode,
+      finalCode,
 
     serviceSuffix:
-      serviceSuffix || finalCode,
+      finalCode,
 
     companyShared:
       shared,
@@ -482,25 +537,29 @@ function mapFacilityOverrideService(s){
 
 function mapServiceManagementService(s){
 
-  const serviceKey =
+  const code =
     resolveServiceCode(s);
 
-  const serviceName =
-    s.title ||
-    s.name ||
-    s.serviceName ||
-    serviceKey;
-
-  const serviceSuffix =
-    normalizeServiceCode(
-      s.companySuffix ||
-      s.suffix ||
-      s.serviceSuffix ||
-      serviceKey
-    ) || serviceKey;
+  if(!code){
+    console.warn("SERVICE MANAGEMENT CODE MISSING:", s);
+  }
 
   const finalCode =
-    serviceKey || serviceSuffix;
+    code || "ST";
+
+  const serviceName =
+    serviceDisplayName(s, finalCode);
+
+  const shared =
+    bool(s.companyShared) ||
+    bool(s.reservedShared) ||
+    bool(s.shared) ||
+    finalCode === "SH" ||
+    normalizeServiceCode(
+      s.companyPricingMode ||
+      s.reservedPricingMode ||
+      s.pricingMode
+    ) === "SHARED";
 
   return {
 
@@ -528,13 +587,19 @@ function mapServiceManagementService(s){
       finalCode,
 
     companySuffix:
-      serviceSuffix || finalCode,
+      finalCode,
 
     suffix:
-      serviceSuffix || finalCode,
+      finalCode,
 
     serviceSuffix:
-      serviceSuffix || finalCode,
+      finalCode,
+
+    companyShared:
+      shared,
+
+    shared:
+      shared,
 
     __pricingSource:
       "SERVICE_MANAGEMENT"
@@ -546,29 +611,19 @@ function selectedServicePayload(){
   const service =
     getCurrentServiceConfig();
 
- const serviceKey =
-  resolveServiceCode(service) ||
-  normalizeServiceCode(activeService);
+  const serviceKey =
+    resolveServiceCode(service) ||
+    normalizeServiceCode(activeSuffix) ||
+    normalizeServiceCode(activeService);
 
-if(!serviceKey){
-  showAlert("Service code missing");
-  throw new Error("Service code missing");
-}
-
-  const serviceSuffix =
-    normalizeServiceCode(
-      service.companySuffix ||
-      service.suffix ||
-      service.serviceSuffix ||
-      activeSuffix ||
-      serviceKey
-    );
+  if(!serviceKey){
+    console.log("BAD SELECTED SERVICE:", service);
+    showAlert("Service code missing");
+    throw new Error("Service code missing");
+  }
 
   const serviceName =
-    service.serviceName ||
-    service.name ||
-    service.title ||
-    serviceKey;
+    serviceDisplayName(service, serviceKey);
 
   const fromOverride =
     service.__pricingSource === "FACILITY_OVERRIDE";
@@ -579,7 +634,7 @@ if(!serviceKey){
     serviceKey,
     serviceCode:serviceKey,
     serviceType:serviceKey,
-    serviceSuffix,
+    serviceSuffix:serviceKey,
 
     serviceName,
 
@@ -989,6 +1044,30 @@ if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
 
 /* ================= SERVICES ================= */
 
+function defaultStandardService(){
+
+  return {
+    serviceKey:"ST",
+    serviceCode:"ST",
+    serviceType:"ST",
+    serviceSuffix:"ST",
+    companySuffix:"ST",
+    suffix:"ST",
+
+    title:"Standard",
+    name:"Standard",
+    serviceName:"Standard",
+
+    companyShared:false,
+    shared:false,
+
+    companyWarningMinutes:120,
+    companyDisableCancel:false,
+
+    __pricingSource:"DEFAULT"
+  };
+}
+
 async function loadCompanyServices(){
   try{
 
@@ -1001,7 +1080,7 @@ async function loadCompanyServices(){
       companyId || "";
 
     /* =========================
-       1) FACILITY PRICING BOOTSTRAP
+       1) FACILITY PRICING OVERRIDE
     ========================= */
 
     const bootRes =
@@ -1062,10 +1141,6 @@ async function loadCompanyServices(){
         }) || null;
     }
 
-    /* =========================
-       2) ACTIVE FACILITY OVERRIDE
-    ========================= */
-
     if(
       override &&
       override.active === true &&
@@ -1088,46 +1163,19 @@ async function loadCompanyServices(){
       return;
     }
 
-    /* =========================
-       3) FACILITY PRICING DEFAULT SERVICES
-       نفس خدمات صفحة Facility Pricing
-    ========================= */
-
-    if(
-      bootData.success === true &&
-      Array.isArray(bootData.services) &&
-      bootData.services.length
-    ){
-
-      COMPANY_SERVICES =
-        bootData.services
-          .map(mapFacilityOverrideService)
-          .filter(s=>s.serviceKey);
-
-      COMPANY_SERVICES =
-        COMPANY_SERVICES.map(s=>({
-          ...s,
-          __pricingSource:
-            "FACILITY_PRICING_DEFAULT"
-        }));
-
-      console.log(
-        "ADD TRIP SERVICES FROM FACILITY PRICING DEFAULT:",
-        COMPANY_SERVICES
-      );
-
-      buildDynamicTabs();
-
-      return;
-    }
+    /*
+      IMPORTANT:
+      Do NOT use bootData.services here.
+      Those are default pricing services and can make all company individual services become ST.
+    */
 
     /* =========================
-       4) LAST FALLBACK SERVICE MANAGEMENT
+       2) SERVICE MANAGEMENT COMPANY SERVICES
     ========================= */
 
     const res =
       await fetch(
-        "/api/company-services?company=true",
+        "/api/services?company=true",
         {
           headers:{
             Authorization:"Bearer " + token
@@ -1153,23 +1201,7 @@ async function loadCompanyServices(){
     );
 
     if(!COMPANY_SERVICES.length){
-
-      COMPANY_SERVICES = [{
-        serviceKey:"ST",
-        serviceCode:"ST",
-        serviceType:"ST",
-        title:"Standard",
-        name:"Standard",
-        serviceName:"Standard",
-        companySuffix:"ST",
-        suffix:"ST",
-        serviceSuffix:"ST",
-        companyShared:false,
-        shared:false,
-        companyWarningMinutes:120,
-        companyDisableCancel:false,
-        __pricingSource:"DEFAULT"
-      }];
+      COMPANY_SERVICES = [defaultStandardService()];
     }
 
     buildDynamicTabs();
@@ -1178,44 +1210,24 @@ async function loadCompanyServices(){
 
     console.log("LOAD COMPANY SERVICES ERROR:", err);
 
-    COMPANY_SERVICES = [{
-      serviceKey:"ST",
-      serviceCode:"ST",
-      serviceType:"ST",
-      title:"Standard",
-      name:"Standard",
-      serviceName:"Standard",
-      companySuffix:"ST",
-      suffix:"ST",
-      serviceSuffix:"ST",
-      companyShared:false,
-      shared:false,
-      companyWarningMinutes:120,
-      companyDisableCancel:false,
-      __pricingSource:"DEFAULT"
-    }];
+    COMPANY_SERVICES = [defaultStandardService()];
 
     buildDynamicTabs();
   }
 }
 
-
 function setActiveService(service,index){
 
-activeService =
-  resolveServiceCode(service);
+  activeService =
+    resolveServiceCode(service);
 
-if(!activeService){
-  showAlert("Service code missing");
-  return;
-}
+  if(!activeService){
+    showAlert("Service code missing");
+    return;
+  }
+
   activeSuffix =
-    normalizeServiceCode(
-      service.companySuffix ||
-      service.suffix ||
-      service.serviceSuffix ||
-      activeService
-    );
+    activeService;
 
   companyTabs.querySelectorAll("button").forEach(b=>{
     b.classList.remove("btn-blue");
@@ -1243,7 +1255,8 @@ if(!activeService){
     activeSuffix,
     pricingSource:service.__pricingSource,
     warning:service.companyWarningMinutes,
-    addStop:service.companyAddStopEnabled
+    addStop:service.companyAddStopEnabled,
+    rawService:service
   });
 }
 
@@ -1404,17 +1417,17 @@ submitTripBtn.onclick = async function(){
         .map(i=>normalizeText(i.value))
         .filter(Boolean);
 
-const selected =
-  selectedServicePayload();
+    const selected =
+      selectedServicePayload();
 
-console.log("===== DEBUG SELECTED SERVICE BEFORE CREATE =====");
-console.log("activeService:", activeService);
-console.log("activeSuffix:", activeSuffix);
-console.log("selected:", selected);
-console.log("selected service object:", selected.service);
-console.log("===============================================");
+    console.log("===== DEBUG SELECTED SERVICE BEFORE CREATE =====");
+    console.log("activeService:", activeService);
+    console.log("activeSuffix:", activeSuffix);
+    console.log("selected:", selected);
+    console.log("selected service object:", selected.service);
+    console.log("===============================================");
 
-const trip = {
+    const trip = {
       company:companyName,
       companyName:companyName,
       facilityName:companyName,
