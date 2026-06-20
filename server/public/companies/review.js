@@ -2606,7 +2606,7 @@ async function handleConfirmTrip(btn){
       ? finalStops.length
       : 0;
 
-  const total =
+const total =
   await calculateServerPrice({
     serviceKey,
 
@@ -2614,12 +2614,18 @@ async function handleConfirmTrip(btn){
       trip.company ||
       trip.facilityName ||
       trip.companyName ||
+      localStorage.getItem("name") ||
       "",
 
     facilityId:
       trip.facilityId ||
       trip.companyId ||
       trip.userId ||
+      localStorage.getItem("localId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("_id") ||
+      localStorage.getItem("id") ||
       "",
 
     miles:

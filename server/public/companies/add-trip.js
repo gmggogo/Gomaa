@@ -6,7 +6,16 @@ FINAL COMPLETE VERSION
 document.addEventListener("DOMContentLoaded", function(){
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role");
-const companyName = localStorage.getItem("name") || "";
+const companyName =
+  localStorage.getItem("name") || "";
+
+const companyId =
+  localStorage.getItem("companyId") ||
+  localStorage.getItem("userId") ||
+  localStorage.getItem("localId") ||
+  localStorage.getItem("_id") ||
+  localStorage.getItem("id") ||
+  "";
 if(!token || role !== "company"){
   window.location.replace("company-login.html");
   return;
@@ -610,12 +619,22 @@ const stops = [...document.querySelectorAll(".stop-input")]
   .filter(Boolean);
 const trip = {
   company:companyName,
+  companyName:companyName,
+  facilityName:companyName,
+
+  companyId:companyId,
+  facilityId:companyId,
+  userId:companyId,
+
   type:"company",
+  source:"company",
+
   tripType:"INDIVIDUAL",
   isShared:false,
+
+  serviceKey:activeService,
   serviceType:activeService,
-  serviceSuffix:activeSuffix,
-  entryName:entryName.value,
+  serviceSuffix:activeSuffix,  entryName:entryName.value,
   entryPhone:entryPhone.value,
   clientName:clientName.value,
   clientPhone:clientPhone.value,
@@ -698,12 +717,23 @@ submitSharedBtn.disabled = true;
 submitSharedBtn.innerText = "Submitting...";
 try{
 const sharedTrip = {
-  company: companyName,
-  type: "company",
-  isShared: true,
-  tripType: "SHARED",
-  serviceType: activeService,
-  serviceSuffix: activeSuffix,
+  company:companyName,
+  companyName:companyName,
+  facilityName:companyName,
+
+  companyId:companyId,
+  facilityId:companyId,
+  userId:companyId,
+
+  type:"company",
+  source:"company",
+
+  isShared:true,
+  tripType:"SHARED",
+
+  serviceKey:activeService,
+  serviceType:activeService,
+  serviceSuffix:activeSuffix,
 
   passengers,
   passengersCount: passengers.length,
