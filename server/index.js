@@ -61,6 +61,9 @@ const BillingHistory =
 require("./models/BillingHistory"
 );
 
+const FacilityPricingOverride =
+require("./models/FacilityPricingOverride");
+
 /* =========================
    ENV
 ========================= */
@@ -581,7 +584,19 @@ const User =
     "User",
     userSchema
   );
+global.User = User;
 
+/* =========================
+   FACILITY PRICING OVERRIDE
+========================= */
+
+const facilityPricingOverrideRoutes =
+  require("./routes/facilityPricingOverrideRoutes");
+
+app.use(
+  "/api/facility-pricing-override",
+  facilityPricingOverrideRoutes
+);
 /* =========================
    TRIP MODEL (FINAL PRO VERSION + SHARED SUPPORT)
 ========================= */
