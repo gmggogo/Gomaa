@@ -190,16 +190,58 @@ function normalizeServiceCode(v){
 
   const c =
     normalizeText(v)
-      .toUpperCase();
+      .toUpperCase()
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  if(c === "STANDARD") return "ST";
-  if(c === "WHEELCHAIR") return "WH";
-  if(c === "SHARED") return "SH";
-  if(c === "LIMO" || c === "LIMOUSINE") return "LM";
-  if(c === "TAXI") return "TX";
+  if(!c) return "";
+
+  if(c === "STANDARD" || c === "ST") return "ST";
+
+  if(
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c === "WH"
+  ){
+    return "WH";
+  }
+
+  if(c === "SHARED" || c === "SH") return "SH";
+  if(c === "LIMO" || c === "LIMOUSINE" || c === "LM") return "LM";
+  if(c === "TAXI" || c === "TX") return "TX";
   if(c === "XL") return "XL";
 
   return c;
+}
+
+function resolveServiceCode(service){
+
+  if(!service) return "";
+
+  const candidates = [
+    service.companySuffix,
+    service.suffix,
+    service.serviceSuffix,
+    service.serviceName,
+    service.title,
+    service.name,
+    service.serviceKey,
+    service.serviceCode,
+    service.serviceType,
+    service.code
+  ]
+  .map(normalizeServiceCode)
+  .filter(Boolean);
+
+  const nonStandard =
+    candidates.find(c => c && c !== "ST");
+
+  if(nonStandard){
+    return nonStandard;
+  }
+
+  return candidates[0] || "";
 }
 
 function bool(v){
@@ -321,7 +363,7 @@ function isSharedService(service){
 function mapFacilityOverrideService(s){
 
   const serviceKey =
-    normalizeServiceCode(s.serviceKey);
+    resolveServiceCode(s);
 
   const serviceName =
     s.serviceName ||
@@ -335,11 +377,14 @@ function mapFacilityOverrideService(s){
       s.companySuffix ||
       s.suffix ||
       serviceKey
-    );
+    ) || serviceKey;
+
+  const finalCode =
+    serviceKey || serviceSuffix;
 
   const shared =
     bool(s.shared) ||
-    serviceKey === "SH" ||
+    finalCode === "SH" ||
     normalizeServiceCode(s.pricingMode) === "SHARED";
 
   return {
@@ -347,7 +392,7 @@ function mapFacilityOverrideService(s){
     ...s,
 
     _id:
-      s._id || serviceKey,
+      s._id || finalCode,
 
     title:
       serviceName,
@@ -359,25 +404,25 @@ function mapFacilityOverrideService(s){
       serviceName,
 
     serviceKey:
-      serviceKey,
+      finalCode,
 
     serviceCode:
-      serviceKey,
+      finalCode,
 
     serviceType:
-      serviceKey,
+      finalCode,
 
     code:
-      serviceKey,
+      finalCode,
 
     companySuffix:
-      serviceSuffix,
+      serviceSuffix || finalCode,
 
     suffix:
-      serviceSuffix,
+      serviceSuffix || finalCode,
 
     serviceSuffix:
-      serviceSuffix,
+      serviceSuffix || finalCode,
 
     companyShared:
       shared,
@@ -438,14 +483,7 @@ function mapFacilityOverrideService(s){
 function mapServiceManagementService(s){
 
   const serviceKey =
-    normalizeServiceCode(
-      s.serviceKey ||
-      s.serviceCode ||
-      s.companySuffix ||
-      s.suffix ||
-      s.title ||
-      s.name
-    );
+    resolveServiceCode(s);
 
   const serviceName =
     s.title ||
@@ -459,7 +497,10 @@ function mapServiceManagementService(s){
       s.suffix ||
       s.serviceSuffix ||
       serviceKey
-    );
+    ) || serviceKey;
+
+  const finalCode =
+    serviceKey || serviceSuffix;
 
   return {
 
@@ -475,25 +516,25 @@ function mapServiceManagementService(s){
       serviceName,
 
     serviceKey:
-      serviceKey,
+      finalCode,
 
     serviceCode:
-      serviceKey,
+      finalCode,
 
     serviceType:
-      serviceKey,
+      finalCode,
 
     code:
-      serviceKey,
+      finalCode,
 
     companySuffix:
-      serviceSuffix,
+      serviceSuffix || finalCode,
 
     suffix:
-      serviceSuffix,
+      serviceSuffix || finalCode,
 
     serviceSuffix:
-      serviceSuffix,
+      serviceSuffix || finalCode,
 
     __pricingSource:
       "SERVICE_MANAGEMENT"
@@ -505,11 +546,14 @@ function selectedServicePayload(){
   const service =
     getCurrentServiceConfig();
 
-  const serviceKey =
-    normalizeServiceCode(
-      service.serviceKey ||
-      activeService
-    );
+ const serviceKey =
+  resolveServiceCode(service) ||
+  normalizeServiceCode(activeService);
+
+if(!serviceKey){
+  showAlert("Service code missing");
+  throw new Error("Service code missing");
+}
 
   const serviceSuffix =
     normalizeServiceCode(
@@ -1158,14 +1202,13 @@ async function loadCompanyServices(){
 
 function setActiveService(service,index){
 
-  activeService =
-    normalizeServiceCode(
-      service.serviceKey ||
-      service.serviceCode ||
-      service.serviceType ||
-      "ST"
-    );
+activeService =
+  resolveServiceCode(service);
 
+if(!activeService){
+  showAlert("Service code missing");
+  return;
+}
   activeSuffix =
     normalizeServiceCode(
       service.companySuffix ||
