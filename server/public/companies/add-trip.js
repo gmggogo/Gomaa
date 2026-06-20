@@ -961,7 +961,7 @@ async function loadCompanyServices(){
     ========================= */
 
     const bootRes =
-      await fetch("/api/facility-pricing/bootstrap",{
+      await fetch("/api/facility-pricing-override/bootstrap",{
         headers:{
           Authorization:"Bearer " + token
         }
