@@ -152,7 +152,8 @@ function inputField({
   value,
   type="number",
   min=null,
-  step=null
+  step=null,
+  locked=false
 }){
 
   const id =
@@ -169,7 +170,9 @@ function inputField({
         ${min !== null ? `min="${min}"` : ""}
         ${step !== null ? `step="${step}"` : ""}
         disabled
+        ${locked ? `data-locked="true"` : ""}
         ${editAttr(section,service._id)}
+        class="${locked ? "locked-service-field" : ""}"
       >
     </div>
   `;
@@ -562,14 +565,15 @@ function getQuoteFields(service){
 function facilityFields(service){
 
   return `
-    ${inputField({
-      section:"facility",
-      service,
-      name:"suffix",
-      label:"Service Suffix",
-      value:service.companySuffix || service.suffix || "ST",
-      type:"text"
-    })}
+  ${inputField({
+  section:"facility",
+  service,
+  name:"suffix",
+  label:"Service Suffix",
+  value:service.companySuffix || service.suffix || "ST",
+  type:"text",
+  locked:true
+})}
 
     ${
       selectField({
