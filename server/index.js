@@ -3592,28 +3592,32 @@ const isShared = req.body.isShared === true;
 
 const rawVehicle =
   String(
-    req.body.serviceType ||
+    req.body.serviceSuffix ||
+    req.body.serviceCode ||
     req.body.serviceKey ||
+    req.body.serviceType ||
     req.body.vehicleTypeFromQuote ||
     req.body.vehicleType ||
     ""
   )
   .trim()
   .toUpperCase();
-  
-
-const allowedVehicles = [
-  "STANDARD",
-  "XL",
-  "WHEELCHAIR",
-  "TAXI",
-  "LIMO"
-];
 
 const vehicleTypeFromQuote =
-  allowedVehicles.includes(rawVehicle)
-    ? rawVehicle
-    : "STANDARD";
+  rawVehicle === "WH" ? "WHEELCHAIR" :
+  rawVehicle === "WC" ? "WHEELCHAIR" :
+  rawVehicle === "ST" ? "STANDARD" :
+  rawVehicle === "TX" ? "TAXI" :
+  rawVehicle === "LM" ? "LIMO" :
+  rawVehicle === "SH" ? "SHARED" :
+  rawVehicle === "XL" ? "XL" :
+  rawVehicle === "WHEELCHAIR" ? "WHEELCHAIR" :
+  rawVehicle === "STANDARD" ? "STANDARD" :
+  rawVehicle === "TAXI" ? "TAXI" :
+  rawVehicle === "LIMO" ? "LIMO" :
+  rawVehicle === "SHARED" ? "SHARED" :
+  "STANDARD";
+
 /* =========================
    TRIP NUMBER
 ========================= */
