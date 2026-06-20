@@ -985,8 +985,66 @@ async function calculateServerPrice({
   miles,
   stops,
   minutes,
-  passengerCount
+  passengerCount,
+
+  company,
+  companyName,
+  facility,
+  facilityName,
+
+  facilityId,
+  companyId,
+  userId,
+
+  isCompany
 }) {
+
+  const resolvedFacilityName =
+    normalizeText(
+      facilityName ||
+      companyName ||
+      facility ||
+      company ||
+      localStorage.getItem("facilityName") ||
+      localStorage.getItem("companyName") ||
+      localStorage.getItem("name") ||
+      ""
+    );
+
+  const resolvedFacilityId =
+    normalizeText(
+      facilityId ||
+      companyId ||
+      userId ||
+      localStorage.getItem("facilityId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("_id") ||
+      localStorage.getItem("id") ||
+      ""
+    );
+
+  const body = {
+    serviceKey,
+    miles:Number(miles || 0),
+    stops:Number(stops || 0),
+    minutes:Number(minutes || 0),
+    passengersCount:Number(passengerCount || 1),
+    passengerCount:Number(passengerCount || 1),
+
+    isCompany:isCompany !== false,
+
+    facilityId:resolvedFacilityId,
+    companyId:resolvedFacilityId,
+    userId:resolvedFacilityId,
+
+    facilityName:resolvedFacilityName,
+    companyName:resolvedFacilityName,
+    company:resolvedFacilityName,
+    facility:resolvedFacilityName
+  };
+
+  console.log("PRICE REQUEST BODY:", body);
 
   const res = await fetch(
     "/api/company-core/calculate",
@@ -998,19 +1056,14 @@ async function calculateServerPrice({
         Authorization:"Bearer " + token
       },
 
-      body:JSON.stringify({
-        serviceKey,
-        miles:Number(miles || 0),
-        stops:Number(stops || 0),
-        minutes:Number(minutes || 0),
-        passengersCount:Number(passengerCount || 1),
-        isCompany:true
-      })
+      body:JSON.stringify(body)
     }
   );
 
   const data =
     await res.json().catch(() => ({}));
+
+  console.log("PRICE RESPONSE:", data);
 
   if(!res.ok || data.success === false){
     throw new Error(
@@ -2721,14 +2774,34 @@ async function handleConfirmShared(btn){
 
   btn.textContent = "Pricing...";
 
-  const total =
-    await calculateServerPrice({
-      serviceKey:"SHARED",
-      miles:routeData.miles,
-      stops:Math.max(0,activeCount - 1),
-      minutes:routeData.estimatedMinutes,
-      passengerCount:activeCount
-    });
+const total =
+  await calculateServerPrice({
+    serviceKey:"SH",
+    miles:routeData.miles,
+    stops:Math.max(0,activeCount - 1),
+    minutes:routeData.estimatedMinutes,
+    passengerCount:activeCount,
+
+    company:
+      first.company ||
+      first.facilityName ||
+      first.companyName ||
+      localStorage.getItem("name") ||
+      "",
+
+    facilityId:
+      first.facilityId ||
+      first.companyId ||
+      first.userId ||
+      localStorage.getItem("facilityId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("_id") ||
+      localStorage.getItem("id") ||
+      "",
+
+    isCompany:true
+  });
 
   const pricePerPassenger =
     Number((Number(total || 0) / activeCount).toFixed(2));
