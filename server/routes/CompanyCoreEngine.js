@@ -39,7 +39,9 @@ function upper(v){
 function bool(v){
   return (
     v === true ||
-    String(v).toLowerCase() === "true"
+    String(v).toLowerCase() === "true" ||
+    String(v).toLowerCase() === "yes" ||
+    String(v).toLowerCase() === "1"
   );
 }
 
@@ -117,6 +119,60 @@ function buildServiceSearchFilter(idOrKey){
   };
 }
 
+function getOverrideServiceCode(s){
+
+  return normalizeCode(
+    s?.serviceKey ||
+    s?.serviceCode ||
+    s?.serviceType ||
+    s?.serviceSuffix ||
+    s?.suffix ||
+    s?.companySuffix ||
+    s?.reservedSuffix ||
+    s?.key ||
+    s?.code ||
+    s?.title ||
+    s?.name ||
+    s?.serviceName ||
+    ""
+  );
+}
+
+function isOverrideServiceEnabled(s){
+
+  /*
+    في صفحة Facility Pricing اللي بعتهالي،
+    الخدمة نفسها مفيهاش active مستقل.
+    عشان كده لو الخدمة موجودة داخل override active
+    يبقى نعتبرها شغالة.
+
+    لو بعدين ضفت enabled/active جوه كل خدمة،
+    الشرط ده هيحترمه.
+  */
+
+  if(!s){
+    return false;
+  }
+
+  if(s.active !== undefined){
+    return bool(s.active);
+  }
+
+  if(s.enabled !== undefined){
+    return bool(s.enabled);
+  }
+
+  if(s.companyEnabled !== undefined){
+    return bool(s.companyEnabled);
+  }
+
+  return true;
+}
+
+/* =========================
+   RESOLVE FACILITY ID
+========================= */
+
 async function resolveFacilityId({
   facilityId,
   company
@@ -172,6 +228,7 @@ async function resolveFacilityId({
 
 /* =========================
    NORMALIZE SERVICE PRICING
+   FROM SERVICE MANAGEMENT
 ========================= */
 
 function pricingFromServiceManagement(service){
@@ -189,6 +246,7 @@ function pricingFromServiceManagement(service){
     serviceKey:
       normalizeCode(
         service.serviceKey ||
+        service.serviceCode ||
         service.companySuffix ||
         service.suffix ||
         service.title ||
@@ -279,54 +337,112 @@ function pricingFromServiceManagement(service){
   };
 }
 
+/* =========================
+   NORMALIZE SERVICE PRICING
+   FROM FACILITY OVERRIDE
+========================= */
+
 function pricingFromFacilityOverride(service){
 
   return {
     source:"FACILITY_OVERRIDE",
 
     serviceKey:
-      normalizeCode(service.serviceKey),
+      getOverrideServiceCode(service),
 
     pricingMode:
-      upper(service.pricingMode || "MILE"),
+      upper(
+        service.pricingMode ||
+        service.companyPricingMode ||
+        "MILE"
+      ),
 
     baseFare:
-      n(service.baseFare),
+      n(
+        service.baseFare ??
+        service.companyBaseFare ??
+        0
+      ),
 
     includedMiles:
-      n(service.includedMiles),
+      n(
+        service.includedMiles ??
+        service.companyIncludedMiles ??
+        0
+      ),
 
     perMile:
-      n(service.perMile),
+      n(
+        service.perMile ??
+        service.companyPerMile ??
+        0
+      ),
 
     stopFee:
-      n(service.stopFee),
+      n(
+        service.stopFee ??
+        service.companyStopFee ??
+        0
+      ),
 
     noShowFee:
-      n(service.noShowFee),
+      n(
+        service.noShowFee ??
+        service.companyNoShowFee ??
+        0
+      ),
 
     sharedPrice:
-      n(service.sharedPrice),
+      n(
+        service.sharedPrice ??
+        service.companySharedPrice ??
+        0
+      ),
 
     hourlyRate:
-      n(service.hourlyRate),
+      n(
+        service.hourlyRate ??
+        service.companyHourlyRate ??
+        0
+      ),
 
     hourlyBillingMode:
-      upper(service.hourlyBillingMode || "FULL"),
+      upper(
+        service.hourlyBillingMode ||
+        service.companyHourlyBillingMode ||
+        "FULL"
+      ),
 
     disableCancel:
-      bool(service.disableCancel),
+      bool(
+        service.disableCancel ??
+        service.companyDisableCancel ??
+        false
+      ),
 
     cancelFee:
-      n(service.cancelFee),
+      n(
+        service.cancelFee ??
+        service.companyCancelFee ??
+        0
+      ),
 
     warningMinutes:
-      n(service.warningMinutes),
+      n(
+        service.warningMinutes ??
+        service.companyWarningMinutes ??
+        0
+      ),
 
     rawService:
       service
   };
 }
+
+/* =========================
+   FIND ACTIVE FACILITY OVERRIDE
+========================= */
+
 async function findActiveFacilityOverride({
   facilityId,
   company
@@ -360,7 +476,6 @@ async function findActiveFacilityOverride({
     or.push({
       facilityName:rx
     });
-
   }
 
   if(or.length === 0){
@@ -372,10 +487,17 @@ async function findActiveFacilityOverride({
       active:true,
       $or:or
     })
+    .sort({
+      updatedAt:-1,
+      createdAt:-1
+    })
     .lean();
 }
+
 /* =========================
    RESOLVE PRICING SOURCE
+   FACILITY FIRST
+   SERVICE MANAGEMENT FALLBACK
 ========================= */
 
 async function resolvePricingService({
@@ -386,6 +508,76 @@ async function resolvePricingService({
 
   const key =
     normalizeCode(serviceKey);
+
+  const resolvedFacilityId =
+    await resolveFacilityId({
+      facilityId,
+      company
+    });
+
+  /*
+    المسار الصح:
+    1) Facility Pricing Override الأول
+    2) لو active:true وموجودة الخدمة جوه services
+       يحسب من الصفحة الجديدة
+    3) لو مفيش override أو active:false
+       يرجع Service Management
+  */
+
+  const override =
+    await findActiveFacilityOverride({
+      facilityId:
+        resolvedFacilityId || facilityId,
+      company
+    });
+
+  if(override){
+
+    const overrideServices =
+      Array.isArray(override.services)
+        ? override.services
+        : [];
+
+    const overrideService =
+      overrideServices.find(s =>
+        getOverrideServiceCode(s) === key
+      );
+
+    if(overrideService && isOverrideServiceEnabled(overrideService)){
+
+      return {
+        success:true,
+
+        pricing:
+          pricingFromFacilityOverride(overrideService),
+
+        facilityOverrideActive:true,
+
+        facilityId:
+          String(
+            override.facilityId ||
+            resolvedFacilityId ||
+            facilityId ||
+            ""
+          ),
+
+        facilityName:
+          override.facilityName || "",
+
+        pricingSource:
+          "FACILITY_OVERRIDE",
+
+        pricingReason:
+          "ACTIVE_FACILITY_OVERRIDE_USED"
+      };
+    }
+
+    /*
+      لو Facility active بس الخدمة مش موجودة جوه الصفحة،
+      هنرجع Service Management كـ fallback.
+      عشان لو الصفحة مش متسجلة فيها كل الخدمات ما يوقفش الحساب.
+    */
+  }
 
   const service =
     await Service.findOne(
@@ -399,54 +591,6 @@ async function resolvePricingService({
     };
   }
 
- const resolvedFacilityId =
-    await resolveFacilityId({
-      facilityId,
-      company
-    });
-
-  const override =
-    await findActiveFacilityOverride({
-      facilityId:
-        resolvedFacilityId || facilityId,
-      company
-    });
-
-  if(override){
-
-    const overrideService =
-      Array.isArray(override.services)
-        ? override.services.find(s =>
-            normalizeCode(s.serviceKey) === key
-          )
-        : null;
-
-    if(!overrideService){
-      return {
-        success:false,
-        message:
-          "Facility Override Active But Service Pricing Not Found: " +
-          clean(serviceKey)
-      };
-    }
-
-    return {
-      success:true,
-      pricing:
-        pricingFromFacilityOverride(overrideService),
-      facilityOverrideActive:true,
-      facilityId:
-        String(
-          override.facilityId ||
-          resolvedFacilityId ||
-          facilityId ||
-          ""
-        ),
-      facilityName:
-        override.facilityName || ""
-    };
-  }
-
   if(service.companyEnabled === false){
     return {
       success:false,
@@ -456,11 +600,24 @@ async function resolvePricingService({
 
   return {
     success:true,
+
     pricing:
       pricingFromServiceManagement(service),
+
     facilityOverrideActive:false,
-    facilityId:resolvedFacilityId,
-    facilityName:""
+
+    facilityId:
+      resolvedFacilityId || "",
+
+    facilityName:"",
+
+    pricingSource:
+      "SERVICE_MANAGEMENT",
+
+    pricingReason:
+      override
+        ? "FACILITY_OVERRIDE_ACTIVE_BUT_SERVICE_NOT_FOUND_FALLBACK"
+        : "NO_ACTIVE_FACILITY_OVERRIDE_FALLBACK"
   };
 }
 
@@ -699,6 +856,9 @@ router.post("/calculate", async (req,res)=>{
 
       pricingSource:
         service.source,
+
+      pricingReason:
+        resolved.pricingReason || "",
 
       facilityOverrideActive:
         resolved.facilityOverrideActive === true,
