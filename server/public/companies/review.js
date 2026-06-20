@@ -647,7 +647,7 @@ async function loadServices(){
     if(facilityId){
 
       const overrideRes = await fetch(
-        "/api/facility-pricing/" + encodeURIComponent(facilityId),
+        "/api/facility-pricing-override/" + encodeURIComponent(facilityId),
         {
           headers:{
             Authorization:"Bearer " + token
@@ -672,7 +672,7 @@ async function loadServices(){
 
     if(!override && facilityName){
 
-      const bootRes = await fetch("/api/facility-pricing/bootstrap",{
+      const bootRes = await fetch("/api/facility-pricing-override/bootstrap",{
         headers:{
           Authorization:"Bearer " + token
         }
