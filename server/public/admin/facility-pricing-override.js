@@ -548,10 +548,17 @@ function renderMain(){
     </div>
   `;
 
-  document.getElementById("activeToggle")?.addEventListener("change",e=>{
-    draftActive = e.target.checked === true;
-    renderMain();
-  });
+document.getElementById("activeToggle")?.addEventListener("change",async e=>{
+
+  draftActive = e.target.checked === true;
+
+  syncLocalOverrideStatus();
+
+  render();
+
+  await saveOverride(true);
+});
+
 }
 
 /* ===============================
@@ -787,6 +794,35 @@ function render(){
   renderMain();
 }
 
+function syncLocalOverrideStatus(){
+
+  const facility = getSelectedFacility();
+
+  if(!facility) return;
+
+  let override =
+    overrides.find(o =>
+      String(o.facilityId) === String(facility._id)
+    );
+
+  if(!override){
+
+    override = {
+      facilityId:String(facility._id),
+      facilityName:facility.name,
+      active:draftActive,
+      services:[]
+    };
+
+    overrides.push(override);
+
+  }
+
+  override.active = draftActive;
+  override.facilityName = facility.name;
+}
+
+
 /* ===============================
    UPDATE / SAVE
 ================================ */
@@ -902,7 +938,7 @@ function prepareServicesForSave(){
   });
 }
 
-async function saveOverride(){
+async function saveOverride(silent=false){
 
   const facility = getSelectedFacility();
 
@@ -945,15 +981,26 @@ async function saveOverride(){
       overrides.push(saved);
     }
 
-    alert("Facility pricing override saved.");
+    if(!silent){
+  alert("Facility pricing override saved.");
+}
 
-    buildDraftForFacility(facility);
-    render();
+   buildDraftForFacility(facility);
+render();
 
-  }catch(err){
+return true;
+
+}catch(err){
 
     console.log(err);
-    alert(err.message || "Failed to save facility pricing override.");
+
+    if(!silent){
+      alert(err.message || "Failed to save facility pricing override.");
+    }else{
+      console.log(err.message || "Failed to save facility pricing override.");
+    }
+
+    return false;
 
   }
 }
