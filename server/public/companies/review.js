@@ -13,7 +13,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 const companyName = localStorage.getItem("name") || "";
-
+const ADD_STOP_ACTIVE_FROM =
+  new Date("2026-06-20T05:58:00");
 if(!token || role !== "company"){
   window.location.replace("company-login.html");
   return;
@@ -384,6 +385,33 @@ function escapeHtml(value){
 
 function formatMoney(value){
   return Number(value || 0).toFixed(2);
+}
+function tripAllowsAddStop(trip, service){
+
+  if(!trip || !service){
+    return false;
+  }
+
+  if(trip.isShared === true){
+    return false;
+  }
+
+  if(service.companyAddStopEnabled !== true){
+    return false;
+  }
+
+  const created =
+    new Date(
+      trip.createdAt ||
+      trip.bookedAt ||
+      0
+    );
+
+  if(created < ADD_STOP_ACTIVE_FROM){
+    return false;
+  }
+
+  return true;
 }
 
 function getTripPrice(t){
@@ -1143,7 +1171,7 @@ function serviceAllowsAddStop(trip){
     return false;
   }
 
-  if(service.companyAddStopEnabled !== true){
+  if(!tripAllowsAddStop(trip, service)){
     return false;
   }
 
