@@ -7,10 +7,12 @@ const FacilityPricingOverride =
 
 const User =
   global.User ||
-  mongoose.models.User;
+  mongoose.models.User ||
+  require("../models/User");
 
 const Service =
-  mongoose.models.Service;
+  mongoose.models.Service ||
+  require("../models/Service");
 
 /* =========================
    HELPERS
@@ -27,13 +29,19 @@ function upper(v){
 function bool(v){
   return (
     v === true ||
-    String(v).toLowerCase() === "true"
+    String(v).toLowerCase() === "true" ||
+    String(v).toLowerCase() === "yes" ||
+    String(v).toLowerCase() === "1"
   );
 }
 
 function num(v){
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function escapeRegex(v){
+  return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
 }
 
 function normalizeCode(v){
@@ -54,8 +62,11 @@ function getServiceCode(s){
     s?.serviceKey ||
     s?.key ||
     s?.code ||
+    s?.serviceCode ||
+    s?.serviceType ||
     s?.companySuffix ||
     s?.suffix ||
+    s?.serviceSuffix ||
     s?.title ||
     s?.name ||
     ""
@@ -73,12 +84,6 @@ function getServiceName(s){
 }
 
 function serviceEnabled(s){
-
-  /*
-    الصفحة دي Facility Pricing Override
-    فالأهم companyEnabled.
-    لكن لو الشركة القديمة عندها enabled بس، برضه نعرضها.
-  */
 
   return (
     s?.companyEnabled === true ||
@@ -147,7 +152,6 @@ function isSharedService(s){
 
 /* =========================
    DEFAULT PRICING FROM SERVICE MANAGEMENT
-   FACILITY SECTION ONLY
 ========================= */
 
 function serviceDefaultPricing(s){
@@ -262,6 +266,7 @@ function serviceDefaultPricing(s){
         ? false
         : bool(
             s?.companyAddStopEnabled ??
+            s?.addStopEnabled ??
             false
           ),
 
@@ -270,6 +275,7 @@ function serviceDefaultPricing(s){
         ? false
         : bool(
             s?.companyAddStopCustomTimeEnabled ??
+            s?.addStopCustomTimeEnabled ??
             false
           ),
 
@@ -278,6 +284,7 @@ function serviceDefaultPricing(s){
         ? 0
         : num(
             s?.companyAddStopCutoffMinutes ??
+            s?.addStopCutoffMinutes ??
             0
           )
   };
@@ -365,6 +372,67 @@ function normalizeServiceInput(s){
         ? 0
         : num(s?.addStopCutoffMinutes)
   };
+}
+
+/* =========================
+   FIND FACILITY OVERRIDE
+========================= */
+
+async function findOverrideByIdOrName({
+  facilityId,
+  facilityName,
+  activeOnly = false
+}){
+
+  const or = [];
+
+  const cleanFacilityId =
+    clean(facilityId);
+
+  const cleanFacilityName =
+    clean(facilityName);
+
+  if(
+    cleanFacilityId &&
+    mongoose.Types.ObjectId.isValid(cleanFacilityId)
+  ){
+    or.push({
+      facilityId:cleanFacilityId
+    });
+  }
+
+  if(cleanFacilityName){
+
+    const rx =
+      new RegExp(
+        "^" + escapeRegex(cleanFacilityName) + "$",
+        "i"
+      );
+
+    or.push({
+      facilityName:rx
+    });
+  }
+
+  if(or.length === 0){
+    return null;
+  }
+
+  const filter = {
+    $or:or
+  };
+
+  if(activeOnly){
+    filter.active = true;
+  }
+
+  return await FacilityPricingOverride
+    .findOne(filter)
+    .sort({
+      updatedAt:-1,
+      createdAt:-1
+    })
+    .lean();
 }
 
 /* =========================
@@ -456,6 +524,80 @@ router.get("/bootstrap", async (req,res)=>{
 });
 
 /* =========================
+   RESOLVE ACTIVE FACILITY OVERRIDE
+   IMPORTANT: BEFORE /:facilityId
+========================= */
+
+router.get("/resolve", async (req,res)=>{
+
+  try{
+
+    const facilityId =
+      clean(
+        req.query.facilityId ||
+        req.query.companyId ||
+        req.query.userId ||
+        ""
+      );
+
+    const facilityName =
+      clean(
+        req.query.facilityName ||
+        req.query.companyName ||
+        req.query.company ||
+        req.query.facility ||
+        req.query.name ||
+        ""
+      );
+
+    const override =
+      await findOverrideByIdOrName({
+        facilityId,
+        facilityName,
+        activeOnly:true
+      });
+
+    if(!override){
+      return res.json({
+        success:false,
+        message:"No active facility pricing override found",
+        override:null,
+        debug:{
+          facilityId,
+          facilityName
+        }
+      });
+    }
+
+    return res.json({
+      success:true,
+      override,
+      debug:{
+        facilityId,
+        facilityName,
+        matchedFacilityId:String(override.facilityId || ""),
+        matchedFacilityName:override.facilityName || ""
+      }
+    });
+
+  }catch(err){
+
+    console.log(
+      "FACILITY PRICING RESOLVE ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success:false,
+      message:"Failed to resolve facility pricing override",
+      override:null
+    });
+
+  }
+
+});
+
+/* =========================
    GET ONE FACILITY OVERRIDE
 ========================= */
 
@@ -529,8 +671,7 @@ router.patch("/:facilityId", async (req,res)=>{
       clean(req.body?.facilityName);
 
     const active =
-      req.body?.active === true ||
-      String(req.body?.active).toLowerCase() === "true";
+      bool(req.body?.active);
 
     const servicesInput =
       Array.isArray(req.body?.services)
@@ -543,11 +684,6 @@ router.patch("/:facilityId", async (req,res)=>{
         message:"Facility name is required"
       });
     }
-
-    /*
-      لو Active لازم نحفظ كل أسعار الخدمات الظاهرة.
-      مفيش خدمة ناقصة ترجع Service Management.
-    */
 
     if(active && !servicesInput.length){
       return res.status(400).json({
