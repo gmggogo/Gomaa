@@ -399,45 +399,52 @@ async function resolvePricingService({
     };
   }
 
-  const resolvedFacilityId =
+ const resolvedFacilityId =
     await resolveFacilityId({
       facilityId,
       company
     });
 
-const override =
-  await findActiveFacilityOverride({
-    facilityId:resolvedFacilityId || facilityId,
-    company
-  });
+  const override =
+    await findActiveFacilityOverride({
+      facilityId:
+        resolvedFacilityId || facilityId,
+      company
+    });
 
-if(override){
+  if(override){
 
-      const overrideService =
-        Array.isArray(override.services)
-          ? override.services.find(s =>
-              normalizeCode(s.serviceKey) === key
-            )
-          : null;
+    const overrideService =
+      Array.isArray(override.services)
+        ? override.services.find(s =>
+            normalizeCode(s.serviceKey) === key
+          )
+        : null;
 
-      if(!overrideService){
-        return {
-          success:false,
-          message:
-            "Facility Override Active But Service Pricing Not Found: " +
-            clean(serviceKey)
-        };
-      }
-
+    if(!overrideService){
       return {
-        success:true,
-        pricing:
-          pricingFromFacilityOverride(overrideService),
-        facilityOverrideActive:true,
-        facilityId:resolvedFacilityId,
-        facilityName:override.facilityName || ""
+        success:false,
+        message:
+          "Facility Override Active But Service Pricing Not Found: " +
+          clean(serviceKey)
       };
     }
+
+    return {
+      success:true,
+      pricing:
+        pricingFromFacilityOverride(overrideService),
+      facilityOverrideActive:true,
+      facilityId:
+        String(
+          override.facilityId ||
+          resolvedFacilityId ||
+          facilityId ||
+          ""
+        ),
+      facilityName:
+        override.facilityName || ""
+    };
   }
 
   if(service.companyEnabled === false){
