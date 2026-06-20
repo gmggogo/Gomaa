@@ -616,20 +616,7 @@ function getRealPassengersFromGroup(group){
 async function loadServices(){
   try{
 
-    const serviceRes = await fetch("/api/services?company=true",{
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    });
-
-    let serviceManagementServices = [];
-
-    if(serviceRes.ok){
-      const data = await serviceRes.json();
-      serviceManagementServices = Array.isArray(data) ? data : [];
-    }
-
-    COMPANY_SERVICES = serviceManagementServices;
+    COMPANY_SERVICES = [];
 
     const facilityId =
       localStorage.getItem("facilityId") ||
@@ -646,9 +633,19 @@ async function loadServices(){
       companyName ||
       "";
 
+    console.log("LOAD SERVICES FACILITY CHECK:", {
+      facilityId,
+      facilityName
+    });
+
     let override = null;
 
+    /* =========================
+       1) TRY FACILITY OVERRIDE BY ID
+    ========================= */
+
     if(facilityId){
+
       const overrideRes = await fetch(
         "/api/facility-pricing/" + encodeURIComponent(facilityId),
         {
@@ -658,25 +655,35 @@ async function loadServices(){
         }
       );
 
-      if(overrideRes.ok){
-        const overrideData =
-          await overrideRes.json().catch(()=>({}));
+      const overrideData =
+        await overrideRes.json().catch(()=>({}));
 
+      console.log("FACILITY OVERRIDE BY ID RESPONSE:", overrideData);
+
+      if(overrideRes.ok){
         override =
           overrideData?.override || null;
       }
     }
 
+    /* =========================
+       2) TRY FACILITY OVERRIDE BY NAME
+    ========================= */
+
     if(!override && facilityName){
+
       const bootRes = await fetch("/api/facility-pricing/bootstrap",{
         headers:{
           Authorization:"Bearer " + token
         }
       });
 
+      const bootData =
+        await bootRes.json().catch(()=>({}));
+
+      console.log("FACILITY BOOTSTRAP RESPONSE:", bootData);
+
       if(bootRes.ok){
-        const bootData =
-          await bootRes.json().catch(()=>({}));
 
         const nameLower =
           String(facilityName).trim().toLowerCase();
@@ -689,6 +696,10 @@ async function loadServices(){
             : null;
       }
     }
+
+    /* =========================
+       3) USE ACTIVE FACILITY OVERRIDE
+    ========================= */
 
     if(
       override &&
@@ -810,17 +821,49 @@ async function loadServices(){
       return;
     }
 
+    /* =========================
+       4) FALLBACK ONLY
+    ========================= */
+
+    console.warn(
+      "NO ACTIVE FACILITY OVERRIDE FOUND. FALLING BACK TO SERVICE MANAGEMENT.",
+      override
+    );
+
+    const serviceRes = await fetch("/api/services?company=true",{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
+
+    if(!serviceRes.ok){
+      COMPANY_SERVICES = [];
+      return;
+    }
+
+    const data =
+      await serviceRes.json().catch(()=>[]);
+
+    COMPANY_SERVICES =
+      Array.isArray(data)
+        ? data.map(s=>({
+            ...s,
+            __pricingSource:"SERVICE_MANAGEMENT"
+          }))
+        : [];
+
     console.log(
       "COMPANY SERVICES FROM SERVICE MANAGEMENT:",
       COMPANY_SERVICES
     );
 
   }catch(err){
-    console.log(err);
+
+    console.log("LOAD SERVICES ERROR:", err);
+
     COMPANY_SERVICES = [];
   }
 }
-
 function getServiceCodeFromTrip(trip){
   const direct = normalizeText(
     trip.serviceKey ||
