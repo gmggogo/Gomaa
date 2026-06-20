@@ -327,7 +327,53 @@ function pricingFromFacilityOverride(service){
       service
   };
 }
+async function findActiveFacilityOverride({
+  facilityId,
+  company
+}){
 
+  const or = [];
+
+  const cleanFacilityId =
+    clean(facilityId);
+
+  const companyName =
+    clean(company);
+
+  if(
+    cleanFacilityId &&
+    mongoose.Types.ObjectId.isValid(cleanFacilityId)
+  ){
+    or.push({
+      facilityId:cleanFacilityId
+    });
+  }
+
+  if(companyName){
+
+    const rx =
+      new RegExp(
+        "^" + escapeRegex(companyName) + "$",
+        "i"
+      );
+
+    or.push({
+      facilityName:rx
+    });
+
+  }
+
+  if(or.length === 0){
+    return null;
+  }
+
+  return await FacilityPricingOverride
+    .findOne({
+      active:true,
+      $or:or
+    })
+    .lean();
+}
 /* =========================
    RESOLVE PRICING SOURCE
 ========================= */
@@ -359,17 +405,13 @@ async function resolvePricingService({
       company
     });
 
-  if(resolvedFacilityId){
+const override =
+  await findActiveFacilityOverride({
+    facilityId:resolvedFacilityId || facilityId,
+    company
+  });
 
-    const override =
-      await FacilityPricingOverride
-        .findOne({
-          facilityId:resolvedFacilityId,
-          active:true
-        })
-        .lean();
-
-    if(override){
+if(override){
 
       const overrideService =
         Array.isArray(override.services)
