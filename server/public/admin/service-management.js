@@ -1035,7 +1035,6 @@ async function loadServices(){
 /* =========================
    ENABLE EDIT
 ========================= */
-
 function enableSectionEdit(section,id){
 
   const fields =
@@ -1044,6 +1043,26 @@ function enableSectionEdit(section,id){
     );
 
   fields.forEach(el=>{
+
+    const facilitySuffixId =
+      fieldId("facility",id,"suffix");
+
+    if(
+      section === "facility" &&
+      el.id === facilitySuffixId
+    ){
+
+      el.disabled = true;
+      el.readOnly = true;
+
+      el.style.background = "#e5e7eb";
+      el.style.border = "1px solid #cbd5e1";
+      el.style.color = "#475569";
+      el.style.cursor = "not-allowed";
+      el.style.fontWeight = "800";
+
+      return;
+    }
 
     el.disabled = false;
 
