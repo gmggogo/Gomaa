@@ -2607,13 +2607,37 @@ async function handleConfirmTrip(btn){
       : 0;
 
   const total =
-    await calculateServerPrice({
-      serviceKey,
-      miles:routeData.miles,
-      stops:billableStopsCount,
-      minutes:routeData.estimatedMinutes,
-      passengerCount:1
-    });
+  await calculateServerPrice({
+    serviceKey,
+
+    company:
+      trip.company ||
+      trip.facilityName ||
+      trip.companyName ||
+      "",
+
+    facilityId:
+      trip.facilityId ||
+      trip.companyId ||
+      trip.userId ||
+      "",
+
+    miles:
+      routeData.miles,
+
+    stops:
+      billableStopsCount,
+
+    minutes:
+      routeData.estimatedMinutes,
+
+    passengerCount:
+      1,
+
+    isCompany:
+      true
+  });
+
   await updateTrip(id,{
     status:"Confirmed",
     dispatchSelected:true,

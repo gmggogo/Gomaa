@@ -3,7 +3,11 @@ const mongoose = require("mongoose");
 
 const router = express.Router();
 
-const Service = require("../models/Service");
+const Service =
+  require("../models/Service");
+
+const FacilityPricingOverride =
+  require("../models/FacilityPricingOverride");
 
 /* =========================
    NUMBER
@@ -18,7 +22,335 @@ function n(value, fallback = 0){
   }
 
   return fallback;
+}
 
+/* =========================
+   HELPERS
+========================= */
+
+function clean(v){
+  return String(v ?? "").trim();
+}
+
+function upper(v){
+  return clean(v).toUpperCase();
+}
+
+function bool(v){
+  return (
+    v === true ||
+    String(v).toLowerCase() === "true"
+  );
+}
+
+function normalizeCode(v){
+
+  const c = upper(v);
+
+  if(c === "STANDARD") return "ST";
+  if(c === "WHEELCHAIR") return "WH";
+  if(c === "SHARED") return "SH";
+  if(c === "LIMO" || c === "LIMOUSINE") return "LM";
+  if(c === "TAXI") return "TX";
+  if(c === "XL") return "XL";
+
+  return c;
+}
+
+function escapeRegex(v){
+  return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
+
+function getUserModel(){
+  return global.User || mongoose.models.User || null;
+}
+
+async function resolveFacilityId({
+  facilityId,
+  company
+}){
+
+  if(
+    facilityId &&
+    mongoose.Types.ObjectId.isValid(String(facilityId))
+  ){
+    return String(facilityId);
+  }
+
+  const companyName =
+    clean(company);
+
+  if(!companyName){
+    return "";
+  }
+
+  const User =
+    getUserModel();
+
+  if(!User){
+    return "";
+  }
+
+  const rx =
+    new RegExp(
+      "^" + escapeRegex(companyName) + "$",
+      "i"
+    );
+
+  const user =
+    await User.findOne({
+      role:{
+        $in:["company","facility"]
+      },
+      $or:[
+        { name:rx },
+        { username:rx },
+        { email:rx },
+        { company:rx },
+        { companyName:rx },
+        { facilityName:rx },
+        { organizationName:rx }
+      ]
+    }).lean();
+
+  return user?._id
+    ? String(user._id)
+    : "";
+}
+
+/* =========================
+   NORMALIZE SERVICE PRICING
+========================= */
+
+function pricingFromServiceManagement(service){
+
+  const pricingMode =
+    upper(
+      service.companyPricingMode ||
+      service.pricingMode ||
+      "MILE"
+    );
+
+  return {
+    source:"SERVICE_MANAGEMENT",
+
+    serviceKey:
+      normalizeCode(service.serviceKey),
+
+    pricingMode,
+
+    baseFare:
+      n(
+        service.companyBaseFare ??
+        service.baseFare ??
+        0
+      ),
+
+    includedMiles:
+      n(
+        service.companyIncludedMiles ??
+        service.includedMiles ??
+        0
+      ),
+
+    perMile:
+      n(
+        service.companyPerMile ??
+        service.perMile ??
+        0
+      ),
+
+    stopFee:
+      n(
+        service.companyStopFee ??
+        service.stopFee ??
+        0
+      ),
+
+    noShowFee:
+      n(
+        service.companyNoShowFee ??
+        service.noShowFee ??
+        0
+      ),
+
+    sharedPrice:
+      n(
+        service.companySharedPrice ??
+        service.sharedPrice ??
+        0
+      ),
+
+    hourlyRate:
+      n(
+        service.companyHourlyRate ??
+        service.hourlyRate ??
+        0
+      ),
+
+    hourlyBillingMode:
+      upper(
+        service.companyHourlyBillingMode ||
+        service.hourlyBillingMode ||
+        "FULL"
+      ),
+
+    disableCancel:
+      bool(
+        service.companyDisableCancel ??
+        service.disableCancel ??
+        false
+      ),
+
+    cancelFee:
+      n(
+        service.companyCancelFee ??
+        service.cancelFee ??
+        0
+      ),
+
+    warningMinutes:
+      n(
+        service.companyWarningMinutes ??
+        service.warningMinutes ??
+        0
+      ),
+
+    rawService:service
+  };
+}
+
+function pricingFromFacilityOverride(service){
+
+  return {
+    source:"FACILITY_OVERRIDE",
+
+    serviceKey:
+      normalizeCode(service.serviceKey),
+
+    pricingMode:
+      upper(service.pricingMode || "MILE"),
+
+    baseFare:
+      n(service.baseFare),
+
+    includedMiles:
+      n(service.includedMiles),
+
+    perMile:
+      n(service.perMile),
+
+    stopFee:
+      n(service.stopFee),
+
+    noShowFee:
+      n(service.noShowFee),
+
+    sharedPrice:
+      n(service.sharedPrice),
+
+    hourlyRate:
+      n(service.hourlyRate),
+
+    hourlyBillingMode:
+      upper(service.hourlyBillingMode || "FULL"),
+
+    disableCancel:
+      bool(service.disableCancel),
+
+    cancelFee:
+      n(service.cancelFee),
+
+    warningMinutes:
+      n(service.warningMinutes),
+
+    rawService:service
+  };
+}
+
+/* =========================
+   RESOLVE PRICING SOURCE
+========================= */
+
+async function resolvePricingService({
+  serviceKey,
+  facilityId,
+  company
+}){
+
+  const key =
+    normalizeCode(serviceKey);
+
+  const service =
+    await Service.findOne({
+      serviceKey:key
+    }).lean();
+
+  if(!service){
+    return {
+      success:false,
+      message:"Service Not Found"
+    };
+  }
+
+  const resolvedFacilityId =
+    await resolveFacilityId({
+      facilityId,
+      company
+    });
+
+  if(resolvedFacilityId){
+
+    const override =
+      await FacilityPricingOverride
+        .findOne({
+          facilityId:resolvedFacilityId,
+          active:true
+        })
+        .lean();
+
+    if(override){
+
+      const overrideService =
+        Array.isArray(override.services)
+          ? override.services.find(s =>
+              normalizeCode(s.serviceKey) === key
+            )
+          : null;
+
+      if(!overrideService){
+        return {
+          success:false,
+          message:"Facility Override Active But Service Pricing Not Found"
+        };
+      }
+
+      return {
+        success:true,
+        pricing:
+          pricingFromFacilityOverride(overrideService),
+        facilityOverrideActive:true,
+        facilityId:resolvedFacilityId,
+        facilityName:override.facilityName || ""
+      };
+    }
+  }
+
+  if(service.companyEnabled === false){
+    return {
+      success:false,
+      message:"Company Service Disabled"
+    };
+  }
+
+  return {
+    success:true,
+    pricing:
+      pricingFromServiceManagement(service),
+    facilityOverrideActive:false,
+    facilityId:resolvedFacilityId,
+    facilityName:""
+  };
 }
 
 /* =========================
@@ -31,7 +363,7 @@ router.get("/", async (req,res)=>{
 
     const services =
       await Service.find({})
-      .sort({ createdAt:1 });
+        .sort({ createdAt:1 });
 
     return res.json(services);
 
@@ -43,9 +375,7 @@ router.get("/", async (req,res)=>{
       success:false,
       message:"Failed To Load Services"
     });
-
   }
-
 });
 
 /* =========================
@@ -60,9 +390,26 @@ router.post("/calculate", async (req,res)=>{
       serviceKey,
       miles,
       stops,
-      minutes,
-      passengersCount
+      minutes
     } = req.body || {};
+
+    const passengersCount =
+      req.body?.passengersCount ??
+      req.body?.passengerCount ??
+      1;
+
+    const company =
+      req.body?.company ||
+      req.body?.companyName ||
+      req.body?.facility ||
+      req.body?.facilityName ||
+      "";
+
+    const facilityId =
+      req.body?.facilityId ||
+      req.body?.companyId ||
+      req.body?.userId ||
+      "";
 
     if(!serviceKey){
 
@@ -70,61 +417,46 @@ router.post("/calculate", async (req,res)=>{
         success:false,
         message:"Missing Service Key"
       });
+    }
 
+    const resolved =
+      await resolvePricingService({
+        serviceKey,
+        facilityId,
+        company
+      });
+
+    if(!resolved.success){
+
+      return res.json({
+        success:false,
+        message:resolved.message || "Pricing Service Not Found"
+      });
     }
 
     const service =
-      await Service.findOne({
-        serviceKey:
-          String(serviceKey)
-          .trim()
-          .toUpperCase()
-      });
-
-    if(!service){
-
-      return res.json({
-        success:false,
-        message:"Service Not Found"
-      });
-
-    }
-
-    if(service.companyEnabled === false){
-
-      return res.json({
-        success:false,
-        message:"Company Service Disabled"
-      });
-
-    }
+      resolved.pricing;
 
     const pricingMode =
-      String(
-        service.companyPricingMode ||
-        service.pricingMode ||
-        ""
-      )
-      .trim()
-      .toUpperCase();
+      upper(service.pricingMode || "MILE");
 
     const baseFare =
-      n(service.companyBaseFare);
+      n(service.baseFare);
 
     const includedMiles =
-      n(service.companyIncludedMiles);
+      n(service.includedMiles);
 
     const perMile =
-      n(service.companyPerMile);
+      n(service.perMile);
 
     const stopFee =
-      n(service.companyStopFee);
+      n(service.stopFee);
 
     const sharedPrice =
-      n(service.companySharedPrice);
+      n(service.sharedPrice);
 
     const hourlyRate =
-      n(service.companyHourlyRate);
+      n(service.hourlyRate);
 
     let total = 0;
 
@@ -136,39 +468,36 @@ router.post("/calculate", async (req,res)=>{
 
       let hours = 1;
 
-   const hourlyBillingMode =
-  String(
-    service.companyHourlyBillingMode ||
-    service.hourlyBillingMode ||
-    ""
-  ).toUpperCase();
+      const hourlyBillingMode =
+        upper(
+          service.hourlyBillingMode ||
+          "FULL"
+        );
 
-if(hourlyBillingMode === "QUARTER"){
+      if(hourlyBillingMode === "QUARTER"){
 
-  hours =
-    Math.max(
-      1,
-      Math.ceil(
-        n(minutes) / 15
-      ) / 4
-    );
+        hours =
+          Math.max(
+            1,
+            Math.ceil(
+              n(minutes) / 15
+            ) / 4
+          );
 
-}else{
+      }else{
 
-  hours =
-    Math.max(
-      1,
-      Math.ceil(
-        n(minutes) / 60
-      )
-    );
-
-}
+        hours =
+          Math.max(
+            1,
+            Math.ceil(
+              n(minutes) / 60
+            )
+          );
+      }
 
       total =
         hours *
         hourlyRate;
-
     }
 
     /* =========================
@@ -221,9 +550,7 @@ if(hourlyBillingMode === "QUARTER"){
           baseTotal +
           milesTotal +
           stopsTotal;
-
       }
-
     }
 
     /* =========================
@@ -243,7 +570,6 @@ if(hourlyBillingMode === "QUARTER"){
         baseFare +
         (extraMiles * perMile) +
         (n(stops) * stopFee);
-
     }
 
     return res.json({
@@ -256,34 +582,46 @@ if(hourlyBillingMode === "QUARTER"){
         total.toFixed(2)
       ),
 
+      pricingSource:
+        service.source,
+
+      facilityOverrideActive:
+        resolved.facilityOverrideActive === true,
+
+      facilityId:
+        resolved.facilityId || "",
+
+      facilityName:
+        resolved.facilityName || "",
+
       usedPricing:{
         baseFare,
         includedMiles,
         perMile,
         stopFee,
         sharedPrice,
-        hourlyRate
+        hourlyRate,
+        hourlyBillingMode:
+          service.hourlyBillingMode,
+        cancelFee:
+          service.cancelFee,
+        warningMinutes:
+          service.warningMinutes,
+        disableCancel:
+          service.disableCancel
       },
 
       companyDisableCancel:
-        Boolean(
-          service.companyDisableCancel
-        ),
+        Boolean(service.disableCancel),
 
       companyCancelFee:
-        n(
-          service.companyCancelFee,
-          0
-        ),
+        n(service.cancelFee,0),
 
       companyWarningMinutes:
-        n(
-          service.companyWarningMinutes,
-          0
-        ),
+        n(service.warningMinutes,0),
 
-      service
-
+      service:
+        service.rawService || service
     });
 
   }catch(err){
@@ -297,9 +635,7 @@ if(hourlyBillingMode === "QUARTER"){
       success:false,
       message:"Pricing Failed"
     });
-
   }
-
 });
 
 /* =========================
@@ -319,7 +655,7 @@ router.put("/:idOrKey", async (req,res)=>{
 
     if(
       mongoose.Types.ObjectId
-      .isValid(idOrKey)
+        .isValid(idOrKey)
     ){
 
       filter = {
@@ -332,7 +668,6 @@ router.put("/:idOrKey", async (req,res)=>{
         serviceKey:
           idOrKey.toUpperCase()
       };
-
     }
 
     const updated =
@@ -348,7 +683,6 @@ router.put("/:idOrKey", async (req,res)=>{
         success:false,
         message:"Service Not Found"
       });
-
     }
 
     return res.json({
@@ -364,9 +698,7 @@ router.put("/:idOrKey", async (req,res)=>{
       success:false,
       message:"Update Failed"
     });
-
   }
-
 });
 
 module.exports = router;
