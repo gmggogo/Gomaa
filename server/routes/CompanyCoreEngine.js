@@ -65,6 +65,58 @@ function getUserModel(){
   return global.User || mongoose.models.User || null;
 }
 
+function buildServiceSearchFilter(idOrKey){
+
+  const raw =
+    clean(idOrKey);
+
+  if(
+    mongoose.Types.ObjectId.isValid(raw)
+  ){
+    return {
+      _id:raw
+    };
+  }
+
+  const key =
+    normalizeCode(raw);
+
+  const rawUpper =
+    upper(raw);
+
+  const rx =
+    new RegExp(
+      "^" + escapeRegex(raw) + "$",
+      "i"
+    );
+
+  return {
+    $or:[
+      { serviceKey:key },
+      { serviceKey:rawUpper },
+
+      { serviceCode:key },
+      { serviceCode:rawUpper },
+
+      { serviceType:key },
+      { serviceType:rawUpper },
+
+      { suffix:key },
+      { suffix:rawUpper },
+
+      { companySuffix:key },
+      { companySuffix:rawUpper },
+
+      { reservedSuffix:key },
+      { reservedSuffix:rawUpper },
+
+      { title:rx },
+      { name:rx },
+      { serviceName:rx }
+    ]
+  };
+}
+
 async function resolveFacilityId({
   facilityId,
   company
@@ -135,7 +187,13 @@ function pricingFromServiceManagement(service){
     source:"SERVICE_MANAGEMENT",
 
     serviceKey:
-      normalizeCode(service.serviceKey),
+      normalizeCode(
+        service.serviceKey ||
+        service.companySuffix ||
+        service.suffix ||
+        service.title ||
+        service.name
+      ),
 
     pricingMode,
 
@@ -216,7 +274,8 @@ function pricingFromServiceManagement(service){
         0
       ),
 
-    rawService:service
+    rawService:
+      service
   };
 }
 
@@ -264,7 +323,8 @@ function pricingFromFacilityOverride(service){
     warningMinutes:
       n(service.warningMinutes),
 
-    rawService:service
+    rawService:
+      service
   };
 }
 
@@ -282,14 +342,14 @@ async function resolvePricingService({
     normalizeCode(serviceKey);
 
   const service =
-    await Service.findOne({
-      serviceKey:key
-    }).lean();
+    await Service.findOne(
+      buildServiceSearchFilter(serviceKey)
+    ).lean();
 
   if(!service){
     return {
       success:false,
-      message:"Service Not Found"
+      message:"Service Not Found: " + clean(serviceKey)
     };
   }
 
@@ -321,7 +381,9 @@ async function resolvePricingService({
       if(!overrideService){
         return {
           success:false,
-          message:"Facility Override Active But Service Pricing Not Found"
+          message:
+            "Facility Override Active But Service Pricing Not Found: " +
+            clean(serviceKey)
         };
       }
 
@@ -363,7 +425,9 @@ router.get("/", async (req,res)=>{
 
     const services =
       await Service.find({})
-        .sort({ createdAt:1 });
+        .sort({
+          createdAt:1
+        });
 
     return res.json(services);
 
@@ -430,7 +494,9 @@ router.post("/calculate", async (req,res)=>{
 
       return res.json({
         success:false,
-        message:resolved.message || "Pricing Service Not Found"
+        message:
+          resolved.message ||
+          "Pricing Service Not Found"
       });
     }
 
@@ -601,12 +667,16 @@ router.post("/calculate", async (req,res)=>{
         stopFee,
         sharedPrice,
         hourlyRate,
+
         hourlyBillingMode:
           service.hourlyBillingMode,
+
         cancelFee:
           service.cancelFee,
+
         warningMinutes:
           service.warningMinutes,
+
         disableCancel:
           service.disableCancel
       },
@@ -647,34 +717,17 @@ router.put("/:idOrKey", async (req,res)=>{
   try{
 
     const idOrKey =
-      String(
-        req.params.idOrKey || ""
-      ).trim();
-
-    let filter = {};
-
-    if(
-      mongoose.Types.ObjectId
-        .isValid(idOrKey)
-    ){
-
-      filter = {
-        _id:idOrKey
-      };
-
-    }else{
-
-      filter = {
-        serviceKey:
-          idOrKey.toUpperCase()
-      };
-    }
+      clean(req.params.idOrKey);
 
     const updated =
       await Service.findOneAndUpdate(
-        filter,
-        { $set:req.body },
-        { new:true }
+        buildServiceSearchFilter(idOrKey),
+        {
+          $set:req.body
+        },
+        {
+          new:true
+        }
       );
 
     if(!updated){
