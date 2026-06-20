@@ -443,17 +443,17 @@ function renderFacilityList(){
               ${safe(f.name)}
             </div>
 
-            <div class="facility-badge ${active ? "active" : "disabled"}">
-              ${active ? "ACTIVE" : "SERVICE MANAGEMENT"}
-            </div>
+           <div class="facility-badge ${active ? "active" : "disabled"}">
+  ${active ? "ACTIVE" : "DISABLED"}
+</div>
           </div>
 
           <div class="facility-status ${active ? "on" : "off"}">
-            ${
-              active
-                ? "Using Facility Pricing Override"
-                : "Using Service Management"
-            }
+         ${
+  active
+    ? "Facility Override Active"
+    : "Facility Override Disabled"
+}
           </div>
 
         </div>
