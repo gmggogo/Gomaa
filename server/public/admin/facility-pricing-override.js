@@ -2,6 +2,7 @@
    FACILITY PRICING OVERRIDE
    Service Management Default / Facility Custom Override
    Facility Section Same As Service Management
+   Edit Per Service Card
    ========================================================================== */
 
 const API_URL = "/api/facility-pricing-override";
@@ -30,6 +31,12 @@ let overrides = [];
 let selectedFacilityId = "";
 let draftActive = false;
 let draftServices = [];
+
+/*
+  كل الكروت مقفولة.
+  لما تدوس EDIT على كارت، بنحط serviceKey هنا.
+*/
+let editingServiceKey = "";
 
 /* ===============================
    ELEMENTS
@@ -76,6 +83,7 @@ function upper(v){
 }
 
 function normalizeCode(v){
+
   const c = upper(v);
 
   if(c === "STANDARD") return "ST";
@@ -86,6 +94,30 @@ function normalizeCode(v){
   if(c === "XL") return "XL";
 
   return c;
+}
+
+function normalizeSuffix(v,serviceKey){
+
+  const key =
+    normalizeCode(serviceKey);
+
+  const suffix =
+    normalizeCode(v);
+
+  if(!suffix){
+    return key;
+  }
+
+  /*
+    إصلاح بيانات قديمة:
+    لو كارت مش Standard والـ suffix متخزن ST بالغلط،
+    نرجعه لكود الخدمة الحقيقي.
+  */
+  if(key && key !== "ST" && suffix === "ST"){
+    return key;
+  }
+
+  return suffix;
 }
 
 function num(v){
@@ -99,12 +131,6 @@ function bool(v){
 
 function money(v){
   return num(v).toFixed(2);
-}
-
-function optionSelected(a,b){
-  return String(a || "").toUpperCase() === String(b || "").toUpperCase()
-    ? "selected"
-    : "";
 }
 
 function getOverride(facilityId){
@@ -173,10 +199,12 @@ function serviceDefaultCopy(s){
       serviceKey,
 
     serviceSuffix:
-      s.serviceSuffix ||
-      s.companySuffix ||
-      s.suffix ||
-      serviceKey,
+      normalizeSuffix(
+        s.serviceSuffix ||
+        s.companySuffix ||
+        s.suffix,
+        serviceKey
+      ),
 
     shared:
       s.shared === true ||
@@ -184,106 +212,106 @@ function serviceDefaultCopy(s){
 
     pricingMode:
       upper(
-        s.pricingMode ||
         s.companyPricingMode ||
+        s.pricingMode ||
         "MILE"
       ),
 
     baseFare:
       num(
-        s.baseFare ??
         s.companyBaseFare ??
+        s.baseFare ??
         0
       ),
 
     includedMiles:
       num(
-        s.includedMiles ??
         s.companyIncludedMiles ??
+        s.includedMiles ??
         0
       ),
 
     perMile:
       num(
-        s.perMile ??
         s.companyPerMile ??
+        s.perMile ??
         0
       ),
 
     hourlyRate:
       num(
-        s.hourlyRate ??
         s.companyHourlyRate ??
+        s.hourlyRate ??
         0
       ),
 
     hourlyBillingMode:
       upper(
-        s.hourlyBillingMode ||
         s.companyHourlyBillingMode ||
+        s.hourlyBillingMode ||
         "FULL"
       ),
 
     stopFee:
       num(
-        s.stopFee ??
         s.companyStopFee ??
+        s.stopFee ??
         0
       ),
 
     noShowFee:
       num(
-        s.noShowFee ??
         s.companyNoShowFee ??
+        s.noShowFee ??
         0
       ),
 
     sharedPrice:
       num(
-        s.sharedPrice ??
         s.companySharedPrice ??
+        s.sharedPrice ??
         0
       ),
 
     disableCancel:
       bool(
-        s.disableCancel ??
         s.companyDisableCancel ??
+        s.disableCancel ??
         false
       ),
 
     warningMinutes:
       num(
-        s.warningMinutes ??
         s.companyWarningMinutes ??
+        s.warningMinutes ??
         0
       ),
 
     cancelFee:
       num(
-        s.cancelFee ??
         s.companyCancelFee ??
+        s.cancelFee ??
         0
       ),
 
     addStopEnabled:
       bool(
-        s.addStopEnabled ??
         s.companyAddStopEnabled ??
+        s.addStopEnabled ??
         false
       ),
 
     addStopCustomTimeEnabled:
       bool(
-        s.addStopCustomTimeEnabled ??
         s.companyAddStopCustomTimeEnabled ??
+        s.addStopCustomTimeEnabled ??
         false
       ),
 
     addStopCutoffMinutes:
       num(
-        s.addStopCutoffMinutes ??
         s.companyAddStopCutoffMinutes ??
+        s.addStopCutoffMinutes ??
         0
       )
   };
@@ -319,39 +347,74 @@ function getVisibleServicesForFacility(facility){
 
 function buildDraftForFacility(facility){
 
-  const override = getOverride(facility._id);
-  const visibleServices = getVisibleServicesForFacility(facility);
+  const override =
+    getOverride(facility._id);
 
-  draftActive = override?.active === true;
+  const visibleServices =
+    getVisibleServicesForFacility(facility);
 
-  draftServices = visibleServices.map(s=>{
+  draftActive =
+    override?.active === true;
 
-    const base = serviceDefaultCopy(s);
-    const code = normalizeCode(base.serviceKey);
+  editingServiceKey = "";
 
-    const saved =
-      Array.isArray(override?.services)
-        ? override.services.find(x =>
-            normalizeCode(x.serviceKey) === code
-          )
-        : null;
+  draftServices =
+    visibleServices.map(s=>{
 
-    return saved
-      ? {
+      const base =
+        serviceDefaultCopy(s);
+
+      const code =
+        normalizeCode(base.serviceKey);
+
+      const saved =
+        Array.isArray(override?.services)
+          ? override.services.find(x =>
+              normalizeCode(x.serviceKey) === code
+            )
+          : null;
+
+      if(saved){
+
+        return {
           ...base,
           ...saved,
+
           serviceKey:code,
-          serviceName:saved.serviceName || base.serviceName,
-          serviceSuffix:saved.serviceSuffix || base.serviceSuffix,
-          pricingMode:upper(saved.pricingMode || base.pricingMode),
-          hourlyBillingMode:upper(saved.hourlyBillingMode || base.hourlyBillingMode),
-          shared:bool(saved.shared),
-          disableCancel:bool(saved.disableCancel),
-          addStopEnabled:bool(saved.addStopEnabled),
-          addStopCustomTimeEnabled:bool(saved.addStopCustomTimeEnabled)
-        }
-      : base;
-  });
+
+          serviceName:
+            saved.serviceName ||
+            base.serviceName,
+
+          serviceSuffix:
+            normalizeSuffix(
+              saved.serviceSuffix ||
+              base.serviceSuffix,
+              code
+            ),
+
+          pricingMode:
+            upper(saved.pricingMode || base.pricingMode),
+
+          hourlyBillingMode:
+            upper(saved.hourlyBillingMode || base.hourlyBillingMode),
+
+          shared:
+            bool(saved.shared),
+
+          disableCancel:
+            bool(saved.disableCancel),
+
+          addStopEnabled:
+            bool(saved.addStopEnabled),
+
+          addStopCustomTimeEnabled:
+            bool(saved.addStopCustomTimeEnabled)
+        };
+      }
+
+      return base;
+    });
 }
 
 /* ===============================
@@ -360,15 +423,23 @@ function buildDraftForFacility(facility){
 
 async function loadAll(){
 
-  const res = await fetch(`${API_URL}/bootstrap`,{
-    headers: token ? {Authorization:"Bearer " + token} : {}
-  });
+  const res =
+    await fetch(
+      `${API_URL}/bootstrap`,
+      {
+        headers:
+          token
+            ? {Authorization:"Bearer " + token}
+            : {}
+      }
+    );
 
   if(!res.ok){
     throw new Error("Failed to load facility pricing");
   }
 
-  const data = await res.json();
+  const data =
+    await res.json();
 
   facilities =
     Array.isArray(data.facilities)
@@ -389,7 +460,8 @@ async function loadAll(){
     selectedFacilityId = facilities[0]._id;
   }
 
-  const selected = getSelectedFacility();
+  const selected =
+    getSelectedFacility();
 
   if(selected){
     buildDraftForFacility(selected);
@@ -427,8 +499,11 @@ function renderFacilityList(){
   facilityList.innerHTML =
     filtered.map(f=>{
 
-      const override = getOverride(f._id);
-      const active = override?.active === true;
+      const override =
+        getOverride(f._id);
+
+      const active =
+        override?.active === true;
 
       const cls =
         String(f._id) === String(selectedFacilityId)
@@ -439,21 +514,23 @@ function renderFacilityList(){
         <div class="facility-item ${cls}" data-id="${safe(f._id)}">
 
           <div class="facility-row">
+
             <div class="facility-name">
               ${safe(f.name)}
             </div>
 
-           <div class="facility-badge ${active ? "active" : "disabled"}">
-  ${active ? "ACTIVE" : "DISABLED"}
-</div>
+            <div class="facility-badge ${active ? "active" : "disabled"}">
+              ${active ? "ACTIVE" : "DISABLED"}
+            </div>
+
           </div>
 
           <div class="facility-status ${active ? "on" : "off"}">
-         ${
-  active
-    ? "Facility Override Active"
-    : "Facility Override Disabled"
-}
+            ${
+              active
+                ? "Facility Override Active"
+                : "Facility Override Disabled"
+            }
           </div>
 
         </div>
@@ -463,9 +540,14 @@ function renderFacilityList(){
   facilityList
     .querySelectorAll(".facility-item")
     .forEach(el=>{
+
       el.onclick = ()=>{
-        selectedFacilityId = el.dataset.id || "";
-        const selected = getSelectedFacility();
+
+        selectedFacilityId =
+          el.dataset.id || "";
+
+        const selected =
+          getSelectedFacility();
 
         if(selected){
           buildDraftForFacility(selected);
@@ -482,7 +564,8 @@ function renderFacilityList(){
 
 function renderMain(){
 
-  const facility = getSelectedFacility();
+  const facility =
+    getSelectedFacility();
 
   if(!mainContent) return;
 
@@ -492,16 +575,20 @@ function renderMain(){
     return;
   }
 
-  const modeClass = draftActive ? "on" : "off";
+  const modeClass =
+    draftActive ? "on" : "off";
 
-  const modeText = draftActive
-    ? "Override Active"
-    : "Using Service Management";
+  const modeText =
+    draftActive
+      ? "Override Active"
+      : "Override Disabled";
 
   mainContent.innerHTML = `
     <div class="selected-box">
+
       <div>
         <div class="selected-name">${safe(facility.name)}</div>
+
         <div class="page-sub">
           ${safe(facility.email || facility.username || "")}
         </div>
@@ -510,11 +597,14 @@ function renderMain(){
       <div class="mode-badge ${modeClass}">
         ${modeText}
       </div>
+
     </div>
 
     <div class="toggle-row">
+
       <div>
         <div class="toggle-title">Facility Pricing Override</div>
+
         <div class="toggle-sub">
           OFF = use Service Management. ON = use this facility pricing only.
         </div>
@@ -524,6 +614,7 @@ function renderMain(){
         <input id="activeToggle" type="checkbox" ${draftActive ? "checked" : ""}>
         <span class="slider"></span>
       </label>
+
     </div>
 
     <div class="notice">
@@ -543,36 +634,64 @@ function renderMain(){
     </div>
 
     <div class="actions">
-      <button class="btn btn-refresh" type="button" onclick="reloadPage()">Refresh</button>
-      <button class="btn btn-save" type="button" onclick="saveOverride()">Save</button>
+      <button class="btn btn-refresh" type="button" onclick="reloadPage()">
+        Refresh
+      </button>
     </div>
   `;
 
-document.getElementById("activeToggle")?.addEventListener("change",async e=>{
+  document
+    .getElementById("activeToggle")
+    ?.addEventListener("change",async e=>{
 
-  draftActive = e.target.checked === true;
+      const oldActive =
+        draftActive;
 
-  syncLocalOverrideStatus();
+      const newActive =
+        e.target.checked === true;
 
-  render();
+      draftActive =
+        newActive;
 
-  await saveOverride(true);
-});
+      editingServiceKey = "";
 
+      syncLocalOverrideStatus();
+
+      render();
+
+      const ok =
+        await saveOverride(true,false);
+
+      if(!ok){
+
+        draftActive =
+          oldActive;
+
+        syncLocalOverrideStatus();
+
+        render();
+
+        alert("Active / Disabled was not saved. Check server route or model.");
+      }
+
+    });
 }
 
 /* ===============================
    FIELD HTML
 ================================ */
 
-function textInput(idx,name,label,value,disabled){
+function textInput(idx,name,label,value,disabled,locked=false){
+
   return `
     <div class="field">
       <label>${safe(label)}</label>
+
       <input
-        ${disabled}
+        ${disabled || locked ? "disabled" : ""}
         type="text"
         value="${safe(value)}"
+        ${locked ? `class="locked-input"` : ""}
         oninput="updateServiceField(${idx}, '${name}', this.value)"
       >
     </div>
@@ -580,11 +699,13 @@ function textInput(idx,name,label,value,disabled){
 }
 
 function numberInput(idx,name,label,value,disabled){
+
   return `
     <div class="field">
       <label>${safe(label)}</label>
+
       <input
-        ${disabled}
+        ${disabled ? "disabled" : ""}
         type="number"
         step="0.01"
         value="${money(value)}"
@@ -595,11 +716,13 @@ function numberInput(idx,name,label,value,disabled){
 }
 
 function intInput(idx,name,label,value,disabled){
+
   return `
     <div class="field">
       <label>${safe(label)}</label>
+
       <input
-        ${disabled}
+        ${disabled ? "disabled" : ""}
         type="number"
         step="1"
         min="0"
@@ -611,11 +734,13 @@ function intInput(idx,name,label,value,disabled){
 }
 
 function selectInput(idx,name,label,value,options,disabled){
+
   return `
     <div class="field">
       <label>${safe(label)}</label>
+
       <select
-        ${disabled}
+        ${disabled ? "disabled" : ""}
         onchange="updateServiceField(${idx}, '${name}', this.value)"
       >
         ${
@@ -659,11 +784,13 @@ function onOffInput(idx,name,label,value,disabled){
 }
 
 function reverseOnOffInput(idx,name,label,value,disabled){
+
   /*
     disableCancel:
     false = ENABLED
     true = DISABLED
   */
+
   return selectInput(
     idx,
     name,
@@ -683,83 +810,134 @@ function reverseOnOffInput(idx,name,label,value,disabled){
 
 function serviceCardHTML(s,idx){
 
-  const cardDisabled = !draftActive ? "disabled" : "";
-  const dis = !draftActive ? "disabled" : "";
+  const key =
+    normalizeCode(s.serviceKey);
 
-  const shared = isSharedService(s);
+  const activeEditing =
+    draftActive &&
+    editingServiceKey === key;
+
+  const cardLocked =
+    !activeEditing;
+
+  const cardClass =
+    !draftActive
+      ? "disabled"
+      : cardLocked
+        ? "locked"
+        : "editing";
+
+  const shared =
+    isSharedService(s);
 
   return `
-    <div class="service-card ${cardDisabled}">
+    <div class="service-card ${cardClass}">
 
       <div class="service-head">
+
         <div>
-          <div class="service-title">${safe(s.serviceName || s.serviceKey)}</div>
+          <div class="service-title">
+            ${safe(s.serviceName || s.serviceKey)}
+          </div>
+
           <div class="service-sub">
-            Facility Pricing • ${draftActive ? "Custom Price" : "Service Management"}
+            ${
+              !draftActive
+                ? "Facility Pricing • Override Disabled"
+                : activeEditing
+                  ? "Facility Pricing • Editing"
+                  : "Facility Pricing • Locked"
+            }
           </div>
         </div>
 
-        <div class="service-code">${safe(s.serviceKey)}</div>
+        <div class="service-code">
+          ${safe(key)}
+        </div>
+
       </div>
 
       <div class="form-grid">
 
-        ${textInput(idx,"serviceSuffix","Service Suffix",s.serviceSuffix || s.serviceKey,dis)}
+        ${
+          textInput(
+            idx,
+            "serviceSuffix",
+            "Service Suffix",
+            normalizeSuffix(s.serviceSuffix || key,key),
+            true,
+            true
+          )
+        }
 
-        ${yesNoInput(idx,"shared","Shared Service",s.shared === true,dis)}
+        ${
+          yesNoInput(
+            idx,
+            "shared",
+            "Shared Service",
+            s.shared === true,
+            cardLocked || !draftActive
+          )
+        }
 
-        ${selectInput(
-          idx,
-          "pricingMode",
-          "Pricing Mode",
-          upper(s.pricingMode || "MILE"),
-          [
-            {value:"MILE",label:"Per Mile"},
-            {value:"HOURLY",label:"Hourly"},
-            {value:"SHARED",label:"Shared"}
-          ],
-          dis
-        )}
+        ${
+          selectInput(
+            idx,
+            "pricingMode",
+            "Pricing Mode",
+            upper(s.pricingMode || "MILE"),
+            [
+              {value:"MILE",label:"Per Mile"},
+              {value:"HOURLY",label:"Hourly"},
+              {value:"SHARED",label:"Shared"}
+            ],
+            cardLocked || !draftActive
+          )
+        }
 
-        ${numberInput(idx,"baseFare","Base Fare",s.baseFare,dis)}
+        ${numberInput(idx,"baseFare","Base Fare",s.baseFare,cardLocked || !draftActive)}
 
-        ${numberInput(idx,"includedMiles","Included Miles",s.includedMiles,dis)}
+        ${numberInput(idx,"includedMiles","Included Miles",s.includedMiles,cardLocked || !draftActive)}
 
-        ${numberInput(idx,"perMile","Per Mile",s.perMile,dis)}
+        ${numberInput(idx,"perMile","Per Mile",s.perMile,cardLocked || !draftActive)}
 
-        ${numberInput(idx,"hourlyRate","Hourly Rate",s.hourlyRate,dis)}
+        ${numberInput(idx,"hourlyRate","Hourly Rate",s.hourlyRate,cardLocked || !draftActive)}
 
-        ${selectInput(
-          idx,
-          "hourlyBillingMode",
-          "Hourly Billing",
-          upper(s.hourlyBillingMode || "FULL"),
-          [
-            {value:"FULL",label:"Full Hour"},
-            {value:"QUARTER",label:"Quarter Hour"}
-          ],
-          dis
-        )}
+        ${
+          selectInput(
+            idx,
+            "hourlyBillingMode",
+            "Hourly Billing",
+            upper(s.hourlyBillingMode || "FULL"),
+            [
+              {value:"FULL",label:"Full Hour"},
+              {value:"QUARTER",label:"Quarter Hour"}
+            ],
+            cardLocked || !draftActive
+          )
+        }
 
-        ${numberInput(idx,"stopFee","Stop Fee",s.stopFee,dis)}
+        ${numberInput(idx,"stopFee","Stop Fee",s.stopFee,cardLocked || !draftActive)}
 
-        ${numberInput(idx,"noShowFee","No Show Fee",s.noShowFee,dis)}
+        ${numberInput(idx,"noShowFee","No Show Fee",s.noShowFee,cardLocked || !draftActive)}
 
-        ${numberInput(idx,"sharedPrice","Shared Price",s.sharedPrice,dis)}
+        ${numberInput(idx,"sharedPrice","Shared Price",s.sharedPrice,cardLocked || !draftActive)}
 
         <div class="policy-title">Facility Warning Policy</div>
 
-        ${reverseOnOffInput(
-          idx,
-          "disableCancel",
-          "Warning & Cancel Fee Status",
-          s.disableCancel,
-          dis
-        )}
+        ${
+          reverseOnOffInput(
+            idx,
+            "disableCancel",
+            "Warning & Cancel Fee Status",
+            s.disableCancel,
+            cardLocked || !draftActive
+          )
+        }
 
-        ${intInput(idx,"warningMinutes","Warning Minutes",s.warningMinutes,dis)}
+        ${intInput(idx,"warningMinutes","Warning Minutes",s.warningMinutes,cardLocked || !draftActive)}
 
-        ${numberInput(idx,"cancelFee","Cancel Fee",s.cancelFee,dis)}
+        ${numberInput(idx,"cancelFee","Cancel Fee",s.cancelFee,cardLocked || !draftActive)}
 
         <div class="add-stop-title">
           <div>Add Stop Policy</div>
@@ -774,13 +952,40 @@ function serviceCardHTML(s,idx){
               </div>
             `
             : `
-              ${onOffInput(idx,"addStopEnabled","Add Stop",s.addStopEnabled,dis)}
-              ${onOffInput(idx,"addStopCustomTimeEnabled","Custom Time",s.addStopCustomTimeEnabled,dis)}
-              ${intInput(idx,"addStopCutoffMinutes","Cutoff Minutes",s.addStopCutoffMinutes,dis)}
+              ${onOffInput(idx,"addStopEnabled","Add Stop",s.addStopEnabled,cardLocked || !draftActive)}
+
+              ${onOffInput(idx,"addStopCustomTimeEnabled","Custom Time",s.addStopCustomTimeEnabled,cardLocked || !draftActive)}
+
+              ${intInput(idx,"addStopCutoffMinutes","Cutoff Minutes",s.addStopCutoffMinutes,cardLocked || !draftActive)}
             `
         }
 
       </div>
+
+      <div class="card-actions">
+
+        ${
+          !draftActive
+            ? `
+              <button class="card-btn card-locked" type="button" disabled>
+                LOCKED
+              </button>
+            `
+            : activeEditing
+              ? `
+                <button class="card-btn card-save" type="button" onclick="saveServiceCard(${idx})">
+                  SAVE
+                </button>
+              `
+              : `
+                <button class="card-btn card-edit" type="button" onclick="editServiceCard(${idx})">
+                  EDIT
+                </button>
+              `
+        }
+
+      </div>
+
     </div>
   `;
 }
@@ -796,7 +1001,8 @@ function render(){
 
 function syncLocalOverrideStatus(){
 
-  const facility = getSelectedFacility();
+  const facility =
+    getSelectedFacility();
 
   if(!facility) return;
 
@@ -815,13 +1021,69 @@ function syncLocalOverrideStatus(){
     };
 
     overrides.push(override);
-
   }
 
-  override.active = draftActive;
-  override.facilityName = facility.name;
+  override.active =
+    draftActive;
+
+  override.facilityName =
+    facility.name;
 }
 
+/* ===============================
+   EDIT CARD
+================================ */
+
+function editServiceCard(idx){
+
+  if(!draftActive){
+    alert("Turn Override Active first.");
+    return;
+  }
+
+  const service =
+    draftServices[idx];
+
+  if(!service) return;
+
+  editingServiceKey =
+    normalizeCode(service.serviceKey);
+
+  renderMain();
+}
+
+async function saveServiceCard(idx){
+
+  if(!draftActive){
+    return;
+  }
+
+  const service =
+    draftServices[idx];
+
+  if(!service) return;
+
+  const ok =
+    await saveOverride(true,false);
+
+  if(!ok){
+    alert("Service was not saved.");
+    return;
+  }
+
+  editingServiceKey = "";
+
+  const facility =
+    getSelectedFacility();
+
+  if(facility){
+    buildDraftForFacility(facility);
+  }
+
+  render();
+
+  alert("Service saved.");
+}
 
 /* ===============================
    UPDATE / SAVE
@@ -829,7 +1091,28 @@ function syncLocalOverrideStatus(){
 
 function updateServiceField(idx,field,value){
 
-  if(!draftServices[idx]) return;
+  const service =
+    draftServices[idx];
+
+  if(!service) return;
+
+  const key =
+    normalizeCode(service.serviceKey);
+
+  /*
+    حماية زيادة:
+    مفيش تحديث إلا للكارت المفتوح Edit.
+  */
+  if(editingServiceKey !== key){
+    return;
+  }
+
+  /*
+    Service Suffix مقفول دائمًا.
+  */
+  if(field === "serviceSuffix"){
+    return;
+  }
 
   if([
     "baseFare",
@@ -843,7 +1126,7 @@ function updateServiceField(idx,field,value){
     "warningMinutes",
     "addStopCutoffMinutes"
   ].includes(field)){
-    draftServices[idx][field] = num(value);
+    service[field] = num(value);
     return;
   }
 
@@ -853,12 +1136,14 @@ function updateServiceField(idx,field,value){
     "addStopEnabled",
     "addStopCustomTimeEnabled"
   ].includes(field)){
-    draftServices[idx][field] = bool(value);
+
+    service[field] =
+      bool(value);
 
     if(field === "shared" && bool(value)){
-      draftServices[idx].addStopEnabled = false;
-      draftServices[idx].addStopCustomTimeEnabled = false;
-      draftServices[idx].addStopCutoffMinutes = 0;
+      service.addStopEnabled = false;
+      service.addStopCustomTimeEnabled = false;
+      service.addStopCutoffMinutes = 0;
     }
 
     renderMain();
@@ -866,16 +1151,16 @@ function updateServiceField(idx,field,value){
   }
 
   if(field === "pricingMode"){
-    draftServices[idx][field] = upper(value);
+    service[field] = upper(value);
     return;
   }
 
   if(field === "hourlyBillingMode"){
-    draftServices[idx][field] = upper(value);
+    service[field] = upper(value);
     return;
   }
 
-  draftServices[idx][field] = value;
+  service[field] = value;
 }
 
 function validateBeforeSave(){
@@ -904,71 +1189,120 @@ function prepareServicesForSave(){
 
   return draftServices.map(s=>{
 
+    const serviceKey =
+      normalizeCode(s.serviceKey);
+
     const shared =
-      isSharedService(s) || s.shared === true;
+      isSharedService(s) ||
+      s.shared === true;
 
     return {
-      serviceKey:normalizeCode(s.serviceKey),
-      serviceName:clean(s.serviceName),
-      serviceSuffix:clean(s.serviceSuffix || s.serviceKey),
+      serviceKey,
 
-      shared:shared,
+      serviceName:
+        clean(s.serviceName),
 
-      pricingMode:upper(s.pricingMode || "MILE"),
+      serviceSuffix:
+        normalizeSuffix(
+          s.serviceSuffix || serviceKey,
+          serviceKey
+        ),
 
-      baseFare:num(s.baseFare),
-      includedMiles:num(s.includedMiles),
-      perMile:num(s.perMile),
+      shared,
 
-      hourlyRate:num(s.hourlyRate),
-      hourlyBillingMode:upper(s.hourlyBillingMode || "FULL"),
+      pricingMode:
+        upper(s.pricingMode || "MILE"),
 
-      stopFee:num(s.stopFee),
-      noShowFee:num(s.noShowFee),
-      sharedPrice:num(s.sharedPrice),
+      baseFare:
+        num(s.baseFare),
 
-      disableCancel:bool(s.disableCancel),
-      warningMinutes:num(s.warningMinutes),
-      cancelFee:num(s.cancelFee),
+      includedMiles:
+        num(s.includedMiles),
 
-      addStopEnabled:shared ? false : bool(s.addStopEnabled),
-      addStopCustomTimeEnabled:shared ? false : bool(s.addStopCustomTimeEnabled),
-      addStopCutoffMinutes:shared ? 0 : num(s.addStopCutoffMinutes)
+      perMile:
+        num(s.perMile),
+
+      hourlyRate:
+        num(s.hourlyRate),
+
+      hourlyBillingMode:
+        upper(s.hourlyBillingMode || "FULL"),
+
+      stopFee:
+        num(s.stopFee),
+
+      noShowFee:
+        num(s.noShowFee),
+
+      sharedPrice:
+        num(s.sharedPrice),
+
+      disableCancel:
+        bool(s.disableCancel),
+
+      warningMinutes:
+        num(s.warningMinutes),
+
+      cancelFee:
+        num(s.cancelFee),
+
+      addStopEnabled:
+        shared
+          ? false
+          : bool(s.addStopEnabled),
+
+      addStopCustomTimeEnabled:
+        shared
+          ? false
+          : bool(s.addStopCustomTimeEnabled),
+
+      addStopCutoffMinutes:
+        shared
+          ? 0
+          : num(s.addStopCutoffMinutes)
     };
   });
 }
 
-async function saveOverride(silent=false){
+async function saveOverride(silent=false,rerender=true){
 
-  const facility = getSelectedFacility();
+  const facility =
+    getSelectedFacility();
 
-  if(!facility) return;
+  if(!facility){
+    return false;
+  }
 
-  if(!validateBeforeSave()) return;
+  if(!validateBeforeSave()){
+    return false;
+  }
 
   try{
 
-    const res = await fetch(
-      `${API_URL}/${encodeURIComponent(facility._id)}`,
-      {
-        method:"PATCH",
-        headers:authHeaders(),
-        body:JSON.stringify({
-          facilityName:facility.name,
-          active:draftActive,
-          services:prepareServicesForSave(),
-          updatedBy:adminName
-        })
-      }
-    );
+    const res =
+      await fetch(
+        `${API_URL}/${encodeURIComponent(facility._id)}`,
+        {
+          method:"PATCH",
+          headers:authHeaders(),
+          body:JSON.stringify({
+            facilityName:facility.name,
+            active:draftActive,
+            services:prepareServicesForSave(),
+            updatedBy:adminName
+          })
+        }
+      );
 
-    const data = await res.json().catch(()=>null);
+    const data =
+      await res.json().catch(()=>null);
 
     if(!res.ok || !data?.success){
       throw new Error(data?.message || "Save failed");
     }
 
-    const saved = data.override;
+    const saved =
+      data.override;
 
     const idx =
       overrides.findIndex(o =>
@@ -982,15 +1316,24 @@ async function saveOverride(silent=false){
     }
 
     if(!silent){
-  alert("Facility pricing override saved.");
-}
+      alert("Facility pricing override saved.");
+    }
 
-   buildDraftForFacility(facility);
-render();
+    if(rerender){
 
-return true;
+      const selected =
+        getSelectedFacility();
 
-}catch(err){
+      if(selected){
+        buildDraftForFacility(selected);
+      }
+
+      render();
+    }
+
+    return true;
+
+  }catch(err){
 
     console.log(err);
 
@@ -1001,11 +1344,12 @@ return true;
     }
 
     return false;
-
   }
 }
 
 function reloadPage(){
+  editingServiceKey = "";
+
   loadAll().catch(err=>{
     console.log(err);
     alert("Failed to reload.");
@@ -1021,7 +1365,9 @@ facilitySearch?.addEventListener("input",renderFacilityList);
 Object.assign(window,{
   updateServiceField,
   saveOverride,
-  reloadPage
+  reloadPage,
+  editServiceCard,
+  saveServiceCard
 });
 
 /* ===============================
@@ -1030,6 +1376,7 @@ Object.assign(window,{
 
 loadAll().catch(err=>{
   console.log(err);
+
   if(mainContent){
     mainContent.innerHTML =
       `<div class="empty">Failed to load Facility Pricing Override.</div>`;

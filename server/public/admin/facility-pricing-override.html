@@ -225,9 +225,9 @@ body{
 }
 
 .mode-badge.off{
-  background:#e5e7eb;
-  color:#374151;
-  border:1px solid #cbd5e1;
+  background:#fee2e2;
+  color:#7f1d1d;
+  border:1px solid #fecaca;
 }
 
 /* ===============================
@@ -338,6 +338,15 @@ body{
   opacity:.72;
 }
 
+.service-card.locked{
+  border-color:#cbd5e1;
+}
+
+.service-card.editing{
+  border:2px solid #2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
 .service-head{
   padding:12px;
   background:#f8fafc;
@@ -346,6 +355,10 @@ body{
   justify-content:space-between;
   align-items:flex-start;
   gap:10px;
+}
+
+.service-card.editing .service-head{
+  background:#eff6ff;
 }
 
 .service-title{
@@ -424,6 +437,12 @@ body{
   cursor:not-allowed;
 }
 
+.locked-input{
+  background:#e5e7eb !important;
+  color:#475569 !important;
+  cursor:not-allowed !important;
+}
+
 /* ===============================
    POLICY BLOCKS
 ================================ */
@@ -464,7 +483,55 @@ body{
 }
 
 /* ===============================
-   ACTIONS
+   CARD ACTIONS
+================================ */
+
+.card-actions{
+  padding:12px;
+  border-top:1px solid #e2e8f0;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:8px;
+  background:#f8fafc;
+}
+
+.card-btn{
+  border:none;
+  border-radius:10px;
+  padding:10px 14px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.card-edit{
+  background:#1d4ed8;
+  color:#fff;
+}
+
+.card-edit:hover{
+  background:#1e40af;
+}
+
+.card-save{
+  background:#16a34a;
+  color:#fff;
+}
+
+.card-save:hover{
+  background:#15803d;
+}
+
+.card-locked{
+  background:#e5e7eb;
+  color:#64748b;
+  cursor:not-allowed;
+}
+
+/* ===============================
+   PAGE ACTIONS
 ================================ */
 
 .actions{
@@ -572,6 +639,14 @@ body{
   }
 
   .btn{
+    width:100%;
+  }
+
+  .card-actions{
+    justify-content:stretch;
+  }
+
+  .card-btn{
     width:100%;
   }
 
