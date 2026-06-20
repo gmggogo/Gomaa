@@ -1404,10 +1404,17 @@ submitTripBtn.onclick = async function(){
         .map(i=>normalizeText(i.value))
         .filter(Boolean);
 
-    const selected =
-      selectedServicePayload();
+const selected =
+  selectedServicePayload();
 
-    const trip = {
+console.log("===== DEBUG SELECTED SERVICE BEFORE CREATE =====");
+console.log("activeService:", activeService);
+console.log("activeSuffix:", activeSuffix);
+console.log("selected:", selected);
+console.log("selected service object:", selected.service);
+console.log("===============================================");
+
+const trip = {
       company:companyName,
       companyName:companyName,
       facilityName:companyName,
