@@ -945,6 +945,215 @@ if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
 
 /* ================= SERVICES ================= */
 
+async function loadCompanyServices(){
+  try{
+
+    COMPANY_SERVICES = [];
+
+    const facilityName =
+      companyName || "";
+
+    const facilityId =
+      companyId || "";
+
+    /* =========================
+       1) FACILITY PRICING BOOTSTRAP
+    ========================= */
+
+    const bootRes =
+      await fetch("/api/facility-pricing/bootstrap",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
+
+    const bootData =
+      await bootRes.json().catch(()=>({}));
+
+    console.log(
+      "ADD TRIP FACILITY BOOTSTRAP RESULT:",
+      bootData
+    );
+
+    let override = null;
+
+    if(
+      bootRes.ok &&
+      bootData.success === true &&
+      Array.isArray(bootData.overrides)
+    ){
+
+      const fid =
+        String(facilityId || "").trim();
+
+      const fname =
+        String(facilityName || "")
+          .trim()
+          .toLowerCase();
+
+      override =
+        bootData.overrides.find(o=>{
+
+          const oid =
+            String(o.facilityId || "").trim();
+
+          const oname =
+            String(o.facilityName || "")
+              .trim()
+              .toLowerCase();
+
+          return (
+            (
+              fid &&
+              oid &&
+              oid === fid
+            ) ||
+            (
+              fname &&
+              oname &&
+              oname === fname
+            )
+          );
+
+        }) || null;
+    }
+
+    /* =========================
+       2) ACTIVE FACILITY OVERRIDE
+    ========================= */
+
+    if(
+      override &&
+      override.active === true &&
+      Array.isArray(override.services) &&
+      override.services.length
+    ){
+
+      COMPANY_SERVICES =
+        override.services
+          .map(mapFacilityOverrideService)
+          .filter(s=>s.serviceKey);
+
+      console.log(
+        "ADD TRIP SERVICES FROM ACTIVE FACILITY OVERRIDE:",
+        COMPANY_SERVICES
+      );
+
+      buildDynamicTabs();
+
+      return;
+    }
+
+    /* =========================
+       3) FACILITY PRICING DEFAULT SERVICES
+       نفس خدمات صفحة Facility Pricing
+    ========================= */
+
+    if(
+      bootData.success === true &&
+      Array.isArray(bootData.services) &&
+      bootData.services.length
+    ){
+
+      COMPANY_SERVICES =
+        bootData.services
+          .map(mapFacilityOverrideService)
+          .filter(s=>s.serviceKey);
+
+      COMPANY_SERVICES =
+        COMPANY_SERVICES.map(s=>({
+          ...s,
+          __pricingSource:
+            "FACILITY_PRICING_DEFAULT"
+        }));
+
+      console.log(
+        "ADD TRIP SERVICES FROM FACILITY PRICING DEFAULT:",
+        COMPANY_SERVICES
+      );
+
+      buildDynamicTabs();
+
+      return;
+    }
+
+    /* =========================
+       4) LAST FALLBACK SERVICE MANAGEMENT
+    ========================= */
+
+    const res =
+      await fetch(
+        "/api/company-services?company=true",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
+
+    const data =
+      await res.json().catch(()=>[]);
+
+    COMPANY_SERVICES =
+      Array.isArray(data)
+        ? data.map(mapServiceManagementService)
+        : [];
+
+    console.log(
+      "ADD TRIP SERVICES FROM SERVICE MANAGEMENT:",
+      COMPANY_SERVICES
+    );
+
+    if(!COMPANY_SERVICES.length){
+
+      COMPANY_SERVICES = [{
+        serviceKey:"ST",
+        serviceCode:"ST",
+        serviceType:"ST",
+        title:"Standard",
+        name:"Standard",
+        serviceName:"Standard",
+        companySuffix:"ST",
+        suffix:"ST",
+        serviceSuffix:"ST",
+        companyShared:false,
+        shared:false,
+        companyWarningMinutes:120,
+        companyDisableCancel:false,
+        __pricingSource:"DEFAULT"
+      }];
+    }
+
+    buildDynamicTabs();
+
+  }catch(err){
+
+    console.log("LOAD COMPANY SERVICES ERROR:", err);
+
+    COMPANY_SERVICES = [{
+      serviceKey:"ST",
+      serviceCode:"ST",
+      serviceType:"ST",
+      title:"Standard",
+      name:"Standard",
+      serviceName:"Standard",
+      companySuffix:"ST",
+      suffix:"ST",
+      serviceSuffix:"ST",
+      companyShared:false,
+      shared:false,
+      companyWarningMinutes:120,
+      companyDisableCancel:false,
+      __pricingSource:"DEFAULT"
+    }];
+
+    buildDynamicTabs();
+  }
+}
 
 
 function setActiveService(service,index){
