@@ -67,6 +67,10 @@ function getUserModel(){
   return global.User || mongoose.models.User || null;
 }
 
+/* =========================
+   SERVICE SEARCH
+========================= */
+
 function buildServiceSearchFilter(idOrKey){
 
   const raw =
@@ -139,16 +143,6 @@ function getOverrideServiceCode(s){
 }
 
 function isOverrideServiceEnabled(s){
-
-  /*
-    في صفحة Facility Pricing اللي بعتهالي،
-    الخدمة نفسها مفيهاش active مستقل.
-    عشان كده لو الخدمة موجودة داخل override active
-    يبقى نعتبرها شغالة.
-
-    لو بعدين ضفت enabled/active جوه كل خدمة،
-    الشرط ده هيحترمه.
-  */
 
   if(!s){
     return false;
@@ -227,8 +221,7 @@ async function resolveFacilityId({
 }
 
 /* =========================
-   NORMALIZE SERVICE PRICING
-   FROM SERVICE MANAGEMENT
+   PRICING FROM SERVICE MANAGEMENT
 ========================= */
 
 function pricingFromServiceManagement(service){
@@ -332,14 +325,34 @@ function pricingFromServiceManagement(service){
         0
       ),
 
+    addStopEnabled:
+      bool(
+        service.companyAddStopEnabled ??
+        service.addStopEnabled ??
+        false
+      ),
+
+    addStopCustomTimeEnabled:
+      bool(
+        service.companyAddStopCustomTimeEnabled ??
+        service.addStopCustomTimeEnabled ??
+        false
+      ),
+
+    addStopCutoffMinutes:
+      n(
+        service.companyAddStopCutoffMinutes ??
+        service.addStopCutoffMinutes ??
+        0
+      ),
+
     rawService:
       service
   };
 }
 
 /* =========================
-   NORMALIZE SERVICE PRICING
-   FROM FACILITY OVERRIDE
+   PRICING FROM FACILITY OVERRIDE
 ========================= */
 
 function pricingFromFacilityOverride(service){
@@ -434,6 +447,27 @@ function pricingFromFacilityOverride(service){
         0
       ),
 
+    addStopEnabled:
+      bool(
+        service.addStopEnabled ??
+        service.companyAddStopEnabled ??
+        false
+      ),
+
+    addStopCustomTimeEnabled:
+      bool(
+        service.addStopCustomTimeEnabled ??
+        service.companyAddStopCustomTimeEnabled ??
+        false
+      ),
+
+    addStopCutoffMinutes:
+      n(
+        service.addStopCutoffMinutes ??
+        service.companyAddStopCutoffMinutes ??
+        0
+      ),
+
     rawService:
       service
   };
@@ -516,12 +550,9 @@ async function resolvePricingService({
     });
 
   /*
-    المسار الصح:
     1) Facility Pricing Override الأول
-    2) لو active:true وموجودة الخدمة جوه services
-       يحسب من الصفحة الجديدة
-    3) لو مفيش override أو active:false
-       يرجع Service Management
+    2) لو active:true وموجودة الخدمة جوه services يحسب من الصفحة الجديدة
+    3) لو مفيش override أو الخدمة مش موجودة يرجع Service Management
   */
 
   const override =
@@ -543,8 +574,10 @@ async function resolvePricingService({
         getOverrideServiceCode(s) === key
       );
 
-    if(overrideService && isOverrideServiceEnabled(overrideService)){
-
+    if(
+      overrideService &&
+      isOverrideServiceEnabled(overrideService)
+    ){
       return {
         success:true,
 
@@ -571,12 +604,6 @@ async function resolvePricingService({
           "ACTIVE_FACILITY_OVERRIDE_USED"
       };
     }
-
-    /*
-      لو Facility active بس الخدمة مش موجودة جوه الصفحة،
-      هنرجع Service Management كـ fallback.
-      عشان لو الصفحة مش متسجلة فيها كل الخدمات ما يوقفش الحساب.
-    */
   }
 
   const service =
@@ -587,7 +614,8 @@ async function resolvePricingService({
   if(!service){
     return {
       success:false,
-      message:"Service Not Found: " + clean(serviceKey)
+      message:
+        "Service Not Found: " + clean(serviceKey)
     };
   }
 
@@ -826,7 +854,7 @@ router.post("/calculate", async (req,res)=>{
     }
 
     /* =========================
-       INDIVIDUAL
+       INDIVIDUAL / MILE
     ========================= */
 
     else{
@@ -880,6 +908,9 @@ router.post("/calculate", async (req,res)=>{
         hourlyBillingMode:
           service.hourlyBillingMode,
 
+        noShowFee:
+          service.noShowFee,
+
         cancelFee:
           service.cancelFee,
 
@@ -887,7 +918,16 @@ router.post("/calculate", async (req,res)=>{
           service.warningMinutes,
 
         disableCancel:
-          service.disableCancel
+          service.disableCancel,
+
+        addStopEnabled:
+          service.addStopEnabled,
+
+        addStopCustomTimeEnabled:
+          service.addStopCustomTimeEnabled,
+
+        addStopCutoffMinutes:
+          service.addStopCutoffMinutes
       },
 
       companyDisableCancel:
@@ -898,6 +938,15 @@ router.post("/calculate", async (req,res)=>{
 
       companyWarningMinutes:
         n(service.warningMinutes,0),
+
+      companyAddStopEnabled:
+        Boolean(service.addStopEnabled),
+
+      companyAddStopCustomTimeEnabled:
+        Boolean(service.addStopCustomTimeEnabled),
+
+      companyAddStopCutoffMinutes:
+        n(service.addStopCutoffMinutes,0),
 
       service:
         service.rawService || service

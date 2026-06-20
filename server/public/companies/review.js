@@ -615,19 +615,205 @@ function getRealPassengersFromGroup(group){
 
 async function loadServices(){
   try{
-    const res = await fetch("/api/services?company=true",{
+
+    const serviceRes = await fetch("/api/services?company=true",{
       headers:{
         Authorization:"Bearer " + token
       }
     });
 
-    if(!res.ok){
-      COMPANY_SERVICES = [];
+    let serviceManagementServices = [];
+
+    if(serviceRes.ok){
+      const data = await serviceRes.json();
+      serviceManagementServices = Array.isArray(data) ? data : [];
+    }
+
+    COMPANY_SERVICES = serviceManagementServices;
+
+    const facilityId =
+      localStorage.getItem("facilityId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("_id") ||
+      localStorage.getItem("id") ||
+      "";
+
+    const facilityName =
+      localStorage.getItem("facilityName") ||
+      localStorage.getItem("companyName") ||
+      localStorage.getItem("name") ||
+      companyName ||
+      "";
+
+    let override = null;
+
+    if(facilityId){
+      const overrideRes = await fetch(
+        "/api/facility-pricing/" + encodeURIComponent(facilityId),
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+      if(overrideRes.ok){
+        const overrideData =
+          await overrideRes.json().catch(()=>({}));
+
+        override =
+          overrideData?.override || null;
+      }
+    }
+
+    if(!override && facilityName){
+      const bootRes = await fetch("/api/facility-pricing/bootstrap",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
+
+      if(bootRes.ok){
+        const bootData =
+          await bootRes.json().catch(()=>({}));
+
+        const nameLower =
+          String(facilityName).trim().toLowerCase();
+
+        override =
+          Array.isArray(bootData.overrides)
+            ? bootData.overrides.find(o =>
+                String(o.facilityName || "").trim().toLowerCase() === nameLower
+              )
+            : null;
+      }
+    }
+
+    if(
+      override &&
+      override.active === true &&
+      Array.isArray(override.services) &&
+      override.services.length
+    ){
+
+      COMPANY_SERVICES =
+        override.services.map(s=>{
+
+          const serviceKey =
+            String(s.serviceKey || "").trim().toUpperCase();
+
+          const serviceName =
+            s.serviceName ||
+            s.title ||
+            s.name ||
+            serviceKey;
+
+          const serviceSuffix =
+            s.serviceSuffix ||
+            s.companySuffix ||
+            s.suffix ||
+            serviceKey;
+
+          return {
+
+            ...s,
+
+            _id:
+              s._id || serviceKey,
+
+            title:
+              serviceName,
+
+            name:
+              serviceName,
+
+            serviceName:
+              serviceName,
+
+            serviceKey:
+              serviceKey,
+
+            serviceCode:
+              serviceKey,
+
+            code:
+              serviceKey,
+
+            companySuffix:
+              serviceSuffix,
+
+            suffix:
+              serviceSuffix,
+
+            companyShared:
+              s.shared === true,
+
+            shared:
+              s.shared === true,
+
+            companyPricingMode:
+              s.pricingMode,
+
+            companyBaseFare:
+              Number(s.baseFare || 0),
+
+            companyIncludedMiles:
+              Number(s.includedMiles || 0),
+
+            companyPerMile:
+              Number(s.perMile || 0),
+
+            companyHourlyRate:
+              Number(s.hourlyRate || 0),
+
+            companyHourlyBillingMode:
+              s.hourlyBillingMode || "FULL",
+
+            companyStopFee:
+              Number(s.stopFee || 0),
+
+            companyNoShowFee:
+              Number(s.noShowFee || 0),
+
+            companySharedPrice:
+              Number(s.sharedPrice || 0),
+
+            companyDisableCancel:
+              s.disableCancel === true,
+
+            companyWarningMinutes:
+              Number(s.warningMinutes || 0),
+
+            companyCancelFee:
+              Number(s.cancelFee || 0),
+
+            companyAddStopEnabled:
+              s.addStopEnabled === true,
+
+            companyAddStopCustomTimeEnabled:
+              s.addStopCustomTimeEnabled === true,
+
+            companyAddStopCutoffMinutes:
+              Number(s.addStopCutoffMinutes || 0),
+
+            __pricingSource:
+              "FACILITY_OVERRIDE"
+          };
+        });
+
+      console.log(
+        "COMPANY SERVICES FROM FACILITY OVERRIDE:",
+        COMPANY_SERVICES
+      );
+
       return;
     }
 
-    const data = await res.json();
-    COMPANY_SERVICES = Array.isArray(data) ? data : [];
+    console.log(
+      "COMPANY SERVICES FROM SERVICE MANAGEMENT:",
+      COMPANY_SERVICES
+    );
 
   }catch(err){
     console.log(err);
