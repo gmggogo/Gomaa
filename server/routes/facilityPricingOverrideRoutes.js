@@ -20,8 +20,24 @@ function clean(v){
   return String(v ?? "").trim();
 }
 
+function upper(v){
+  return clean(v).toUpperCase();
+}
+
+function bool(v){
+  return (
+    v === true ||
+    String(v).toLowerCase() === "true"
+  );
+}
+
+function num(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function normalizeCode(v){
-  const c = clean(v).toUpperCase();
+  const c = upper(v);
 
   if(c === "STANDARD") return "ST";
   if(c === "WHEELCHAIR") return "WH";
@@ -38,8 +54,8 @@ function getServiceCode(s){
     s?.serviceKey ||
     s?.key ||
     s?.code ||
-    s?.suffix ||
     s?.companySuffix ||
+    s?.suffix ||
     s?.title ||
     s?.name ||
     ""
@@ -57,7 +73,17 @@ function getServiceName(s){
 }
 
 function serviceEnabled(s){
-  return s?.enabled === true || s?.companyEnabled === true;
+
+  /*
+    الصفحة دي Facility Pricing Override
+    فالأهم companyEnabled.
+    لكن لو الشركة القديمة عندها enabled بس، برضه نعرضها.
+  */
+
+  return (
+    s?.companyEnabled === true ||
+    s?.enabled === true
+  );
 }
 
 function getFacilityName(u){
@@ -74,7 +100,10 @@ function getFacilityName(u){
 }
 
 function isFacilityUser(u){
-  const r = clean(u?.role || u?.type || "").toLowerCase();
+
+  const r =
+    clean(u?.role || u?.type || "")
+      .toLowerCase();
 
   return (
     r === "company" ||
@@ -84,48 +113,257 @@ function isFacilityUser(u){
   );
 }
 
-function num(v){
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+function isSharedService(s){
+
+  const key =
+    getServiceCode(s);
+
+  const title =
+    upper(s?.title || s?.name || s?.serviceName);
+
+  const pricing =
+    upper(
+      s?.companyPricingMode ||
+      s?.pricingMode
+    );
+
+  const suffix =
+    upper(
+      s?.companySuffix ||
+      s?.suffix ||
+      s?.serviceSuffix
+    );
+
+  return (
+    s?.companyShared === true ||
+    s?.shared === true ||
+    key === "SH" ||
+    key === "SHARED" ||
+    title === "SHARED" ||
+    suffix === "SH" ||
+    pricing === "SHARED"
+  );
 }
 
-function normalizeServiceInput(s){
+/* =========================
+   DEFAULT PRICING FROM SERVICE MANAGEMENT
+   FACILITY SECTION ONLY
+========================= */
+
+function serviceDefaultPricing(s){
+
+  const serviceKey =
+    getServiceCode(s);
+
+  const shared =
+    isSharedService(s);
+
   return {
-    serviceKey: normalizeCode(s.serviceKey),
-    serviceName: clean(s.serviceName),
-    pricingMode: clean(s.pricingMode || "MILE").toUpperCase(),
+    serviceKey,
 
-    baseFare: num(s.baseFare),
-    includedMiles: num(s.includedMiles),
-    perMile: num(s.perMile),
-    stopFee: num(s.stopFee),
-    noShowFee: num(s.noShowFee),
-    cancelFee: num(s.cancelFee),
+    serviceName:
+      getServiceName(s),
 
-    hourlyRate: num(s.hourlyRate),
-    hourlyBillingMode: clean(s.hourlyBillingMode || "FULL").toUpperCase(),
+    serviceSuffix:
+      clean(
+        s?.companySuffix ||
+        s?.suffix ||
+        serviceKey
+      ),
 
-    sharedPrice: num(s.sharedPrice)
+    shared,
+
+    pricingMode:
+      upper(
+        s?.companyPricingMode ||
+        s?.pricingMode ||
+        "MILE"
+      ),
+
+    baseFare:
+      num(
+        s?.companyBaseFare ??
+        s?.baseFare ??
+        0
+      ),
+
+    includedMiles:
+      num(
+        s?.companyIncludedMiles ??
+        s?.includedMiles ??
+        0
+      ),
+
+    perMile:
+      num(
+        s?.companyPerMile ??
+        s?.perMile ??
+        0
+      ),
+
+    hourlyRate:
+      num(
+        s?.companyHourlyRate ??
+        s?.hourlyRate ??
+        0
+      ),
+
+    hourlyBillingMode:
+      upper(
+        s?.companyHourlyBillingMode ||
+        s?.hourlyBillingMode ||
+        "FULL"
+      ),
+
+    stopFee:
+      num(
+        s?.companyStopFee ??
+        s?.stopFee ??
+        0
+      ),
+
+    noShowFee:
+      num(
+        s?.companyNoShowFee ??
+        s?.noShowFee ??
+        0
+      ),
+
+    sharedPrice:
+      num(
+        s?.companySharedPrice ??
+        s?.sharedPrice ??
+        0
+      ),
+
+    disableCancel:
+      bool(
+        s?.companyDisableCancel ??
+        s?.disableCancel ??
+        false
+      ),
+
+    warningMinutes:
+      num(
+        s?.companyWarningMinutes ??
+        s?.warningMinutes ??
+        0
+      ),
+
+    cancelFee:
+      num(
+        s?.companyCancelFee ??
+        s?.cancelFee ??
+        0
+      ),
+
+    addStopEnabled:
+      shared
+        ? false
+        : bool(
+            s?.companyAddStopEnabled ??
+            false
+          ),
+
+    addStopCustomTimeEnabled:
+      shared
+        ? false
+        : bool(
+            s?.companyAddStopCustomTimeEnabled ??
+            false
+          ),
+
+    addStopCutoffMinutes:
+      shared
+        ? 0
+        : num(
+            s?.companyAddStopCutoffMinutes ??
+            0
+          )
   };
 }
 
-function serviceDefaultPricing(s){
+/* =========================
+   NORMALIZE INPUT FROM FRONTEND
+========================= */
+
+function normalizeServiceInput(s){
+
+  const serviceKey =
+    normalizeCode(s?.serviceKey);
+
+  const pricingMode =
+    upper(s?.pricingMode || "MILE");
+
+  const shared =
+    bool(s?.shared) ||
+    pricingMode === "SHARED" ||
+    serviceKey === "SH";
+
   return {
-    serviceKey: getServiceCode(s),
-    serviceName: getServiceName(s),
-    pricingMode: clean(s.pricingMode || "MILE").toUpperCase(),
+    serviceKey,
 
-    baseFare: num(s.baseFare),
-    includedMiles: num(s.includedMiles),
-    perMile: num(s.perMile),
-    stopFee: num(s.stopFee),
-    noShowFee: num(s.noShowFee),
-    cancelFee: num(s.cancelFee),
+    serviceName:
+      clean(s?.serviceName),
 
-    hourlyRate: num(s.hourlyRate),
-    hourlyBillingMode: clean(s.hourlyBillingMode || "FULL").toUpperCase(),
+    serviceSuffix:
+      clean(
+        s?.serviceSuffix ||
+        s?.suffix ||
+        serviceKey
+      ),
 
-    sharedPrice: num(s.sharedPrice || s.baseFare)
+    shared,
+
+    pricingMode,
+
+    baseFare:
+      num(s?.baseFare),
+
+    includedMiles:
+      num(s?.includedMiles),
+
+    perMile:
+      num(s?.perMile),
+
+    hourlyRate:
+      num(s?.hourlyRate),
+
+    hourlyBillingMode:
+      upper(s?.hourlyBillingMode || "FULL"),
+
+    stopFee:
+      num(s?.stopFee),
+
+    noShowFee:
+      num(s?.noShowFee),
+
+    sharedPrice:
+      num(s?.sharedPrice),
+
+    disableCancel:
+      bool(s?.disableCancel),
+
+    warningMinutes:
+      num(s?.warningMinutes),
+
+    cancelFee:
+      num(s?.cancelFee),
+
+    addStopEnabled:
+      shared
+        ? false
+        : bool(s?.addStopEnabled),
+
+    addStopCustomTimeEnabled:
+      shared
+        ? false
+        : bool(s?.addStopCustomTimeEnabled),
+
+    addStopCutoffMinutes:
+      shared
+        ? 0
+        : num(s?.addStopCutoffMinutes)
   };
 }
 
@@ -163,22 +401,36 @@ router.get("/bootstrap", async (req,res)=>{
         .filter(isFacilityUser)
         .map(u=>({
           _id:String(u._id),
-          name:getFacilityName(u),
-          email:u.email || "",
-          username:u.username || "",
-          allowedServices:Array.isArray(u.allowedServices)
-            ? u.allowedServices.map(normalizeCode)
-            : []
+
+          name:
+            getFacilityName(u),
+
+          email:
+            u.email || "",
+
+          username:
+            u.username || "",
+
+          allowedServices:
+            Array.isArray(u.allowedServices)
+              ? u.allowedServices
+                  .map(normalizeCode)
+                  .filter(Boolean)
+              : []
         }))
         .filter(f=>f.name)
-        .sort((a,b)=>a.name.localeCompare(b.name));
+        .sort((a,b)=>
+          a.name.localeCompare(b.name)
+        );
 
     const activeServices =
       services
         .filter(serviceEnabled)
         .map(serviceDefaultPricing)
         .filter(s=>s.serviceKey)
-        .sort((a,b)=>a.serviceKey.localeCompare(b.serviceKey));
+        .sort((a,b)=>
+          a.serviceKey.localeCompare(b.serviceKey)
+        );
 
     return res.json({
       success:true,
@@ -189,7 +441,10 @@ router.get("/bootstrap", async (req,res)=>{
 
   }catch(err){
 
-    console.log("FACILITY PRICING BOOTSTRAP ERROR:",err);
+    console.log(
+      "FACILITY PRICING BOOTSTRAP ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
@@ -210,7 +465,11 @@ router.get("/:facilityId", async (req,res)=>{
 
     const { facilityId } = req.params;
 
-    if(!mongoose.Types.ObjectId.isValid(String(facilityId))){
+    if(
+      !mongoose.Types.ObjectId.isValid(
+        String(facilityId)
+      )
+    ){
       return res.status(400).json({
         success:false,
         message:"Invalid facility id"
@@ -218,9 +477,11 @@ router.get("/:facilityId", async (req,res)=>{
     }
 
     const override =
-      await FacilityPricingOverride.findOne({
-        facilityId
-      }).lean();
+      await FacilityPricingOverride
+        .findOne({
+          facilityId
+        })
+        .lean();
 
     return res.json({
       success:true,
@@ -229,7 +490,10 @@ router.get("/:facilityId", async (req,res)=>{
 
   }catch(err){
 
-    console.log("FACILITY PRICING GET ERROR:",err);
+    console.log(
+      "FACILITY PRICING GET ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
@@ -250,15 +514,23 @@ router.patch("/:facilityId", async (req,res)=>{
 
     const { facilityId } = req.params;
 
-    if(!mongoose.Types.ObjectId.isValid(String(facilityId))){
+    if(
+      !mongoose.Types.ObjectId.isValid(
+        String(facilityId)
+      )
+    ){
       return res.status(400).json({
         success:false,
         message:"Invalid facility id"
       });
     }
 
-    const facilityName = clean(req.body?.facilityName);
-    const active = req.body?.active === true;
+    const facilityName =
+      clean(req.body?.facilityName);
+
+    const active =
+      req.body?.active === true ||
+      String(req.body?.active).toLowerCase() === "true";
 
     const servicesInput =
       Array.isArray(req.body?.services)
@@ -273,9 +545,10 @@ router.patch("/:facilityId", async (req,res)=>{
     }
 
     /*
-      لو Active لازم الخدمات تتحفظ كلها.
-      مفيش رجوع Service Management للخدمات الناقصة.
+      لو Active لازم نحفظ كل أسعار الخدمات الظاهرة.
+      مفيش خدمة ناقصة ترجع Service Management.
     */
+
     if(active && !servicesInput.length){
       return res.status(400).json({
         success:false,
@@ -296,7 +569,9 @@ router.patch("/:facilityId", async (req,res)=>{
 
     const override =
       await FacilityPricingOverride.findOneAndUpdate(
-        { facilityId },
+        {
+          facilityId
+        },
         {
           facilityId,
           facilityName,
@@ -321,7 +596,10 @@ router.patch("/:facilityId", async (req,res)=>{
 
   }catch(err){
 
-    console.log("FACILITY PRICING SAVE ERROR:",err);
+    console.log(
+      "FACILITY PRICING SAVE ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,

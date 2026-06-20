@@ -1,6 +1,7 @@
 /* ==========================================================================
    FACILITY PRICING OVERRIDE
    Service Management Default / Facility Custom Override
+   Facility Section Same As Service Management
    ========================================================================== */
 
 const API_URL = "/api/facility-pricing-override";
@@ -70,8 +71,12 @@ function clean(v){
   return String(v ?? "").trim();
 }
 
+function upper(v){
+  return clean(v).toUpperCase();
+}
+
 function normalizeCode(v){
-  const c = clean(v).toUpperCase();
+  const c = upper(v);
 
   if(c === "STANDARD") return "ST";
   if(c === "WHEELCHAIR") return "WH";
@@ -88,8 +93,18 @@ function num(v){
   return Number.isFinite(n) ? n : 0;
 }
 
+function bool(v){
+  return v === true || String(v).toLowerCase() === "true";
+}
+
 function money(v){
   return num(v).toFixed(2);
+}
+
+function optionSelected(a,b){
+  return String(a || "").toUpperCase() === String(b || "").toUpperCase()
+    ? "selected"
+    : "";
 }
 
 function getOverride(facilityId){
@@ -104,33 +119,181 @@ function getSelectedFacility(){
   );
 }
 
+function isSharedService(service){
+
+  if(!service) return false;
+
+  const key =
+    normalizeCode(service.serviceKey);
+
+  const title =
+    upper(service.serviceName || service.title || service.name);
+
+  const pricing =
+    upper(service.pricingMode);
+
+  const suffix =
+    upper(service.serviceSuffix || service.companySuffix || service.suffix);
+
+  return (
+    service.shared === true ||
+    service.companyShared === true ||
+    key === "SHARED" ||
+    key === "SH" ||
+    title === "SHARED" ||
+    suffix === "SH" ||
+    pricing === "SHARED"
+  );
+}
+
+/* ===============================
+   SERVICE DEFAULT FROM FACILITY SECTION
+================================ */
+
 function serviceDefaultCopy(s){
+
+  const serviceKey =
+    normalizeCode(
+      s.serviceKey ||
+      s.key ||
+      s.code ||
+      s.companySuffix ||
+      s.suffix ||
+      s.title ||
+      s.name
+    );
+
   return {
-    serviceKey: normalizeCode(s.serviceKey),
-    serviceName: s.serviceName || s.name || s.title || s.serviceKey,
-    pricingMode: s.pricingMode || "MILE",
+    serviceKey,
 
-    baseFare: num(s.baseFare),
-    includedMiles: num(s.includedMiles),
-    perMile: num(s.perMile),
-    stopFee: num(s.stopFee),
-    noShowFee: num(s.noShowFee),
-    cancelFee: num(s.cancelFee),
+    serviceName:
+      s.serviceName ||
+      s.title ||
+      s.name ||
+      serviceKey,
 
-    hourlyRate: num(s.hourlyRate),
-    hourlyBillingMode: s.hourlyBillingMode || "FULL",
+    serviceSuffix:
+      s.serviceSuffix ||
+      s.companySuffix ||
+      s.suffix ||
+      serviceKey,
 
-    sharedPrice: num(s.sharedPrice || s.baseFare)
+    shared:
+      s.shared === true ||
+      s.companyShared === true,
+
+    pricingMode:
+      upper(
+        s.pricingMode ||
+        s.companyPricingMode ||
+        "MILE"
+      ),
+
+    baseFare:
+      num(
+        s.baseFare ??
+        s.companyBaseFare ??
+        0
+      ),
+
+    includedMiles:
+      num(
+        s.includedMiles ??
+        s.companyIncludedMiles ??
+        0
+      ),
+
+    perMile:
+      num(
+        s.perMile ??
+        s.companyPerMile ??
+        0
+      ),
+
+    hourlyRate:
+      num(
+        s.hourlyRate ??
+        s.companyHourlyRate ??
+        0
+      ),
+
+    hourlyBillingMode:
+      upper(
+        s.hourlyBillingMode ||
+        s.companyHourlyBillingMode ||
+        "FULL"
+      ),
+
+    stopFee:
+      num(
+        s.stopFee ??
+        s.companyStopFee ??
+        0
+      ),
+
+    noShowFee:
+      num(
+        s.noShowFee ??
+        s.companyNoShowFee ??
+        0
+      ),
+
+    sharedPrice:
+      num(
+        s.sharedPrice ??
+        s.companySharedPrice ??
+        0
+      ),
+
+    disableCancel:
+      bool(
+        s.disableCancel ??
+        s.companyDisableCancel ??
+        false
+      ),
+
+    warningMinutes:
+      num(
+        s.warningMinutes ??
+        s.companyWarningMinutes ??
+        0
+      ),
+
+    cancelFee:
+      num(
+        s.cancelFee ??
+        s.companyCancelFee ??
+        0
+      ),
+
+    addStopEnabled:
+      bool(
+        s.addStopEnabled ??
+        s.companyAddStopEnabled ??
+        false
+      ),
+
+    addStopCustomTimeEnabled:
+      bool(
+        s.addStopCustomTimeEnabled ??
+        s.companyAddStopCustomTimeEnabled ??
+        false
+      ),
+
+    addStopCutoffMinutes:
+      num(
+        s.addStopCutoffMinutes ??
+        s.companyAddStopCutoffMinutes ??
+        0
+      )
   };
 }
 
-function getVisibleServicesForFacility(facility){
+/* ===============================
+   VISIBLE SERVICES
+================================ */
 
-  /*
-    دلوقتي:
-    لو facility.allowedServices موجودة، نعرضها فقط.
-    لو فاضية، نعرض كل خدمات Service Management.
-  */
+function getVisibleServicesForFacility(facility){
 
   const allowed =
     Array.isArray(facility?.allowedServices)
@@ -142,7 +305,15 @@ function getVisibleServicesForFacility(facility){
   }
 
   return services.filter(s =>
-    allowed.includes(normalizeCode(s.serviceKey))
+    allowed.includes(
+      normalizeCode(
+        s.serviceKey ||
+        s.key ||
+        s.code ||
+        s.companySuffix ||
+        s.suffix
+      )
+    )
   );
 }
 
@@ -155,7 +326,8 @@ function buildDraftForFacility(facility){
 
   draftServices = visibleServices.map(s=>{
 
-    const code = normalizeCode(s.serviceKey);
+    const base = serviceDefaultCopy(s);
+    const code = normalizeCode(base.serviceKey);
 
     const saved =
       Array.isArray(override?.services)
@@ -166,11 +338,19 @@ function buildDraftForFacility(facility){
 
     return saved
       ? {
-          ...serviceDefaultCopy(s),
+          ...base,
           ...saved,
-          serviceKey:code
+          serviceKey:code,
+          serviceName:saved.serviceName || base.serviceName,
+          serviceSuffix:saved.serviceSuffix || base.serviceSuffix,
+          pricingMode:upper(saved.pricingMode || base.pricingMode),
+          hourlyBillingMode:upper(saved.hourlyBillingMode || base.hourlyBillingMode),
+          shared:bool(saved.shared),
+          disableCancel:bool(saved.disableCancel),
+          addStopEnabled:bool(saved.addStopEnabled),
+          addStopCustomTimeEnabled:bool(saved.addStopCustomTimeEnabled)
         }
-      : serviceDefaultCopy(s);
+      : base;
   });
 }
 
@@ -233,7 +413,7 @@ function renderFacilityList(){
 
   const filtered =
     facilities.filter(f =>
-      f.name.toLowerCase().includes(q) ||
+      String(f.name || "").toLowerCase().includes(q) ||
       String(f.email || "").toLowerCase().includes(q) ||
       String(f.username || "").toLowerCase().includes(q)
     );
@@ -249,16 +429,33 @@ function renderFacilityList(){
 
       const override = getOverride(f._id);
       const active = override?.active === true;
-      const cls = String(f._id) === String(selectedFacilityId)
-        ? "active"
-        : "";
+
+      const cls =
+        String(f._id) === String(selectedFacilityId)
+          ? "active"
+          : "";
 
       return `
         <div class="facility-item ${cls}" data-id="${safe(f._id)}">
-          <div class="facility-name">${safe(f.name)}</div>
-          <div class="facility-status ${active ? "on" : "off"}">
-            ${active ? "Override Active" : "Using Service Management"}
+
+          <div class="facility-row">
+            <div class="facility-name">
+              ${safe(f.name)}
+            </div>
+
+            <div class="facility-badge ${active ? "active" : "disabled"}">
+              ${active ? "ACTIVE" : "SERVICE MANAGEMENT"}
+            </div>
           </div>
+
+          <div class="facility-status ${active ? "on" : "off"}">
+            ${
+              active
+                ? "Using Facility Pricing Override"
+                : "Using Service Management"
+            }
+          </div>
+
         </div>
       `;
     }).join("");
@@ -269,9 +466,11 @@ function renderFacilityList(){
       el.onclick = ()=>{
         selectedFacilityId = el.dataset.id || "";
         const selected = getSelectedFacility();
+
         if(selected){
           buildDraftForFacility(selected);
         }
+
         render();
       };
     });
@@ -294,6 +493,7 @@ function renderMain(){
   }
 
   const modeClass = draftActive ? "on" : "off";
+
   const modeText = draftActive
     ? "Override Active"
     : "Using Service Management";
@@ -316,7 +516,7 @@ function renderMain(){
       <div>
         <div class="toggle-title">Facility Pricing Override</div>
         <div class="toggle-sub">
-          OFF uses Service Management. ON uses this facility pricing only.
+          OFF = use Service Management. ON = use this facility pricing only.
         </div>
       </div>
 
@@ -327,9 +527,10 @@ function renderMain(){
     </div>
 
     <div class="notice">
-      ${draftActive
-        ? "Override is ON. All enabled services below will be used instead of Service Management."
-        : "Override is OFF. This facility will use Service Management prices."
+      ${
+        draftActive
+          ? "Override is ON. This facility is outside Service Management pricing."
+          : "Override is OFF. This facility uses Service Management prices."
       }
     </div>
 
@@ -353,89 +554,233 @@ function renderMain(){
   });
 }
 
+/* ===============================
+   FIELD HTML
+================================ */
+
+function textInput(idx,name,label,value,disabled){
+  return `
+    <div class="field">
+      <label>${safe(label)}</label>
+      <input
+        ${disabled}
+        type="text"
+        value="${safe(value)}"
+        oninput="updateServiceField(${idx}, '${name}', this.value)"
+      >
+    </div>
+  `;
+}
+
+function numberInput(idx,name,label,value,disabled){
+  return `
+    <div class="field">
+      <label>${safe(label)}</label>
+      <input
+        ${disabled}
+        type="number"
+        step="0.01"
+        value="${money(value)}"
+        oninput="updateServiceField(${idx}, '${name}', this.value)"
+      >
+    </div>
+  `;
+}
+
+function intInput(idx,name,label,value,disabled){
+  return `
+    <div class="field">
+      <label>${safe(label)}</label>
+      <input
+        ${disabled}
+        type="number"
+        step="1"
+        min="0"
+        value="${num(value)}"
+        oninput="updateServiceField(${idx}, '${name}', this.value)"
+      >
+    </div>
+  `;
+}
+
+function selectInput(idx,name,label,value,options,disabled){
+  return `
+    <div class="field">
+      <label>${safe(label)}</label>
+      <select
+        ${disabled}
+        onchange="updateServiceField(${idx}, '${name}', this.value)"
+      >
+        ${
+          options.map(opt=>`
+            <option value="${safe(opt.value)}" ${String(opt.value) === String(value) ? "selected" : ""}>
+              ${safe(opt.label)}
+            </option>
+          `).join("")
+        }
+      </select>
+    </div>
+  `;
+}
+
+function yesNoInput(idx,name,label,value,disabled){
+  return selectInput(
+    idx,
+    name,
+    label,
+    String(bool(value)),
+    [
+      {value:"false",label:"No"},
+      {value:"true",label:"Yes"}
+    ],
+    disabled
+  );
+}
+
+function onOffInput(idx,name,label,value,disabled){
+  return selectInput(
+    idx,
+    name,
+    label,
+    String(bool(value)),
+    [
+      {value:"true",label:"ENABLED"},
+      {value:"false",label:"DISABLED"}
+    ],
+    disabled
+  );
+}
+
+function reverseOnOffInput(idx,name,label,value,disabled){
+  /*
+    disableCancel:
+    false = ENABLED
+    true = DISABLED
+  */
+  return selectInput(
+    idx,
+    name,
+    label,
+    String(bool(value)),
+    [
+      {value:"false",label:"ENABLED"},
+      {value:"true",label:"DISABLED"}
+    ],
+    disabled
+  );
+}
+
+/* ===============================
+   CARD HTML
+================================ */
+
 function serviceCardHTML(s,idx){
 
-  const disabled = !draftActive ? "disabled" : "";
+  const cardDisabled = !draftActive ? "disabled" : "";
   const dis = !draftActive ? "disabled" : "";
 
+  const shared = isSharedService(s);
+
   return `
-    <div class="service-card ${disabled}">
+    <div class="service-card ${cardDisabled}">
+
       <div class="service-head">
-        <div class="service-title">${safe(s.serviceName || s.serviceKey)}</div>
+        <div>
+          <div class="service-title">${safe(s.serviceName || s.serviceKey)}</div>
+          <div class="service-sub">
+            Facility Pricing • ${draftActive ? "Custom Price" : "Service Management"}
+          </div>
+        </div>
+
         <div class="service-code">${safe(s.serviceKey)}</div>
       </div>
 
       <div class="form-grid">
 
-        <div class="field">
-          <label>Pricing Mode</label>
-          <select ${dis} onchange="updateServiceField(${idx}, 'pricingMode', this.value)">
-            <option value="MILE" ${s.pricingMode === "MILE" ? "selected" : ""}>MILE</option>
-            <option value="HOURLY" ${s.pricingMode === "HOURLY" ? "selected" : ""}>HOURLY</option>
-            <option value="SHARED" ${s.pricingMode === "SHARED" ? "selected" : ""}>SHARED</option>
-          </select>
+        ${textInput(idx,"serviceSuffix","Service Suffix",s.serviceSuffix || s.serviceKey,dis)}
+
+        ${yesNoInput(idx,"shared","Shared Service",s.shared === true,dis)}
+
+        ${selectInput(
+          idx,
+          "pricingMode",
+          "Pricing Mode",
+          upper(s.pricingMode || "MILE"),
+          [
+            {value:"MILE",label:"Per Mile"},
+            {value:"HOURLY",label:"Hourly"},
+            {value:"SHARED",label:"Shared"}
+          ],
+          dis
+        )}
+
+        ${numberInput(idx,"baseFare","Base Fare",s.baseFare,dis)}
+
+        ${numberInput(idx,"includedMiles","Included Miles",s.includedMiles,dis)}
+
+        ${numberInput(idx,"perMile","Per Mile",s.perMile,dis)}
+
+        ${numberInput(idx,"hourlyRate","Hourly Rate",s.hourlyRate,dis)}
+
+        ${selectInput(
+          idx,
+          "hourlyBillingMode",
+          "Hourly Billing",
+          upper(s.hourlyBillingMode || "FULL"),
+          [
+            {value:"FULL",label:"Full Hour"},
+            {value:"QUARTER",label:"Quarter Hour"}
+          ],
+          dis
+        )}
+
+        ${numberInput(idx,"stopFee","Stop Fee",s.stopFee,dis)}
+
+        ${numberInput(idx,"noShowFee","No Show Fee",s.noShowFee,dis)}
+
+        ${numberInput(idx,"sharedPrice","Shared Price",s.sharedPrice,dis)}
+
+        <div class="policy-title">Facility Warning Policy</div>
+
+        ${reverseOnOffInput(
+          idx,
+          "disableCancel",
+          "Warning & Cancel Fee Status",
+          s.disableCancel,
+          dis
+        )}
+
+        ${intInput(idx,"warningMinutes","Warning Minutes",s.warningMinutes,dis)}
+
+        ${numberInput(idx,"cancelFee","Cancel Fee",s.cancelFee,dis)}
+
+        <div class="add-stop-title">
+          <div>Add Stop Policy</div>
+          <span>${shared ? "Locked For Shared" : "Enabled / Disabled + Custom Cutoff"}</span>
         </div>
 
-        <div class="field">
-          <label>Base Fare</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.baseFare)}"
-            oninput="updateServiceField(${idx}, 'baseFare', this.value)">
-        </div>
-
-        <div class="field">
-          <label>Included Miles</label>
-          <input ${dis} type="number" step="0.01" value="${num(s.includedMiles)}"
-            oninput="updateServiceField(${idx}, 'includedMiles', this.value)">
-        </div>
-
-        <div class="field">
-          <label>Per Mile</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.perMile)}"
-            oninput="updateServiceField(${idx}, 'perMile', this.value)">
-        </div>
-
-        <div class="field">
-          <label>Stop Fee</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.stopFee)}"
-            oninput="updateServiceField(${idx}, 'stopFee', this.value)">
-        </div>
-
-        <div class="field">
-          <label>No Show Fee</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.noShowFee)}"
-            oninput="updateServiceField(${idx}, 'noShowFee', this.value)">
-        </div>
-
-        <div class="field">
-          <label>Cancel Fee</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.cancelFee)}"
-            oninput="updateServiceField(${idx}, 'cancelFee', this.value)">
-        </div>
-
-        <div class="field">
-          <label>Hourly Rate</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.hourlyRate)}"
-            oninput="updateServiceField(${idx}, 'hourlyRate', this.value)">
-        </div>
-
-        <div class="field">
-          <label>Hourly Mode</label>
-          <select ${dis} onchange="updateServiceField(${idx}, 'hourlyBillingMode', this.value)">
-            <option value="FULL" ${s.hourlyBillingMode === "FULL" ? "selected" : ""}>FULL</option>
-            <option value="QUARTER" ${s.hourlyBillingMode === "QUARTER" ? "selected" : ""}>QUARTER</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Shared Price</label>
-          <input ${dis} type="number" step="0.01" value="${money(s.sharedPrice)}"
-            oninput="updateServiceField(${idx}, 'sharedPrice', this.value)">
-        </div>
+        ${
+          shared
+            ? `
+              <div class="shared-lock">
+                Add Stop is disabled for Shared service permanently.
+              </div>
+            `
+            : `
+              ${onOffInput(idx,"addStopEnabled","Add Stop",s.addStopEnabled,dis)}
+              ${onOffInput(idx,"addStopCustomTimeEnabled","Custom Time",s.addStopCustomTimeEnabled,dis)}
+              ${intInput(idx,"addStopCutoffMinutes","Cutoff Minutes",s.addStopCutoffMinutes,dis)}
+            `
+        }
 
       </div>
     </div>
   `;
 }
+
+/* ===============================
+   RENDER
+================================ */
 
 function render(){
   renderFacilityList();
@@ -458,9 +803,39 @@ function updateServiceField(idx,field,value){
     "noShowFee",
     "cancelFee",
     "hourlyRate",
-    "sharedPrice"
+    "sharedPrice",
+    "warningMinutes",
+    "addStopCutoffMinutes"
   ].includes(field)){
     draftServices[idx][field] = num(value);
+    return;
+  }
+
+  if([
+    "shared",
+    "disableCancel",
+    "addStopEnabled",
+    "addStopCustomTimeEnabled"
+  ].includes(field)){
+    draftServices[idx][field] = bool(value);
+
+    if(field === "shared" && bool(value)){
+      draftServices[idx].addStopEnabled = false;
+      draftServices[idx].addStopCustomTimeEnabled = false;
+      draftServices[idx].addStopCutoffMinutes = 0;
+    }
+
+    renderMain();
+    return;
+  }
+
+  if(field === "pricingMode"){
+    draftServices[idx][field] = upper(value);
+    return;
+  }
+
+  if(field === "hourlyBillingMode"){
+    draftServices[idx][field] = upper(value);
     return;
   }
 
@@ -489,6 +864,44 @@ function validateBeforeSave(){
   return true;
 }
 
+function prepareServicesForSave(){
+
+  return draftServices.map(s=>{
+
+    const shared =
+      isSharedService(s) || s.shared === true;
+
+    return {
+      serviceKey:normalizeCode(s.serviceKey),
+      serviceName:clean(s.serviceName),
+      serviceSuffix:clean(s.serviceSuffix || s.serviceKey),
+
+      shared:shared,
+
+      pricingMode:upper(s.pricingMode || "MILE"),
+
+      baseFare:num(s.baseFare),
+      includedMiles:num(s.includedMiles),
+      perMile:num(s.perMile),
+
+      hourlyRate:num(s.hourlyRate),
+      hourlyBillingMode:upper(s.hourlyBillingMode || "FULL"),
+
+      stopFee:num(s.stopFee),
+      noShowFee:num(s.noShowFee),
+      sharedPrice:num(s.sharedPrice),
+
+      disableCancel:bool(s.disableCancel),
+      warningMinutes:num(s.warningMinutes),
+      cancelFee:num(s.cancelFee),
+
+      addStopEnabled:shared ? false : bool(s.addStopEnabled),
+      addStopCustomTimeEnabled:shared ? false : bool(s.addStopCustomTimeEnabled),
+      addStopCutoffMinutes:shared ? 0 : num(s.addStopCutoffMinutes)
+    };
+  });
+}
+
 async function saveOverride(){
 
   const facility = getSelectedFacility();
@@ -507,7 +920,7 @@ async function saveOverride(){
         body:JSON.stringify({
           facilityName:facility.name,
           active:draftActive,
-          services:draftServices,
+          services:prepareServicesForSave(),
           updatedBy:adminName
         })
       }
@@ -543,7 +956,6 @@ async function saveOverride(){
     alert(err.message || "Failed to save facility pricing override.");
 
   }
-
 }
 
 function reloadPage(){

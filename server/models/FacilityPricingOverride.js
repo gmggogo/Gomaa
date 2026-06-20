@@ -1,5 +1,10 @@
 const mongoose = require("mongoose");
 
+/* =====================================================
+   FACILITY PRICING OVERRIDE MODEL
+   Same pricing fields as Facility section in Service Management
+===================================================== */
+
 const servicePricingSchema = new mongoose.Schema(
   {
     serviceKey: {
@@ -12,6 +17,16 @@ const servicePricingSchema = new mongoose.Schema(
     serviceName: {
       type: String,
       default: ""
+    },
+
+    serviceSuffix: {
+      type: String,
+      default: ""
+    },
+
+    shared: {
+      type: Boolean,
+      default: false
     },
 
     pricingMode: {
@@ -35,6 +50,17 @@ const servicePricingSchema = new mongoose.Schema(
       default: 0
     },
 
+    hourlyRate: {
+      type: Number,
+      default: 0
+    },
+
+    hourlyBillingMode: {
+      type: String,
+      enum: ["FULL", "QUARTER"],
+      default: "FULL"
+    },
+
     stopFee: {
       type: Number,
       default: 0
@@ -45,22 +71,37 @@ const servicePricingSchema = new mongoose.Schema(
       default: 0
     },
 
+    sharedPrice: {
+      type: Number,
+      default: 0
+    },
+
+    disableCancel: {
+      type: Boolean,
+      default: false
+    },
+
+    warningMinutes: {
+      type: Number,
+      default: 0
+    },
+
     cancelFee: {
       type: Number,
       default: 0
     },
 
-    hourlyRate: {
-      type: Number,
-      default: 0
+    addStopEnabled: {
+      type: Boolean,
+      default: false
     },
 
-    hourlyBillingMode: {
-      type: String,
-      default: "FULL"
+    addStopCustomTimeEnabled: {
+      type: Boolean,
+      default: false
     },
 
-    sharedPrice: {
+    addStopCutoffMinutes: {
       type: Number,
       default: 0
     }
