@@ -38,6 +38,7 @@ let googleLoadPromise = null;
 /* ================= DOM ================= */
 
 const addTripPage =
+  document.getElementById("dispatchAddPage") ||
   document.getElementById("addTripPage") ||
   document.getElementById("addTripSection") ||
   null;
@@ -1634,6 +1635,10 @@ function showAddPage(){
     dispatchReviewPage.style.display = "none";
   }
 
+  if(companyTabs){
+    companyTabs.style.display = "flex";
+  }
+
   if(activeService && isSharedService(activeService)){
 
     if(individualSection) individualSection.style.display = "none";
@@ -1644,6 +1649,11 @@ function showAddPage(){
     if(individualSection) individualSection.style.display = "block";
     if(sharedSection) sharedSection.style.display = "none";
   }
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
 }
 
 function showReviewPage(){
@@ -1656,7 +1666,16 @@ function showReviewPage(){
     dispatchReviewPage.style.display = "block";
   }
 
+  if(companyTabs){
+    companyTabs.style.display = "none";
+  }
+
   renderReviewTable();
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
 }
 
 function updateReviewCounter(){
