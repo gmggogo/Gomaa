@@ -1,10 +1,11 @@
 /* =====================================================
 FILE: public/admin/dispatch-add-trip.js
 DISPATCH ADD TRIP - RESERVED RV DB FIRST
-Add Trip -> POST /api/trips -> Trip Number
-Review Table -> Same cell-box style as company review
+Add Trip -> POST /api/trips -> Trip Number immediately
+Review Table -> Same company review style with cells inside cells
 Edit -> Inline in same row
 Confirm -> PUT same trip
+Warning -> Reserved warning policy
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", async function(){
@@ -31,52 +32,393 @@ let reviewTrips = [];
 let SYSTEM_TIMEZONE = "America/Phoenix";
 let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
+
 let googleLoadPromise = null;
 
 /* ================= DOM ================= */
 
-const addTripPage = document.getElementById("addTripPage");
-const dispatchReviewPage = document.getElementById("dispatchReviewPage");
-const dispatchReviewList = document.getElementById("dispatchReviewList");
+const addTripPage =
+  document.getElementById("addTripPage") ||
+  document.getElementById("addTripSection") ||
+  null;
 
-const backToHubBtn = document.getElementById("backToHubBtn");
-const showAddBtn = document.getElementById("showAddBtn");
-const showReviewBtn = document.getElementById("showReviewBtn");
-const backToAddFromReview = document.getElementById("backToAddFromReview");
+const dispatchReviewPage =
+  document.getElementById("dispatchReviewPage") ||
+  null;
 
-const companyTabs = document.getElementById("companyTabs");
+const dispatchReviewList =
+  document.getElementById("dispatchReviewList") ||
+  null;
 
-const individualSection = document.getElementById("individualSection");
-const sharedSection = document.getElementById("sharedSection");
+const backToHubBtn =
+  document.getElementById("backToHubBtn");
 
-const entryName = document.getElementById("entryName");
-const entryPhone = document.getElementById("entryPhone");
-const editEntryBtn = document.getElementById("editEntryBtn");
-const saveEntryBtn = document.getElementById("saveEntryBtn");
+const showAddBtn =
+  document.getElementById("showAddBtn");
 
-const clientName = document.getElementById("clientName");
-const clientPhone = document.getElementById("clientPhone");
-const pickupInput = document.getElementById("pickup");
-const dropoffInput = document.getElementById("dropoff");
-const tripDate = document.getElementById("tripDate");
-const tripTime = document.getElementById("tripTime");
-const notes = document.getElementById("notes");
-const stopsBox = document.getElementById("stops");
-const addStopBtn = document.getElementById("addStopBtn");
-const submitTripBtn = document.getElementById("submitTrip");
-const saveDraftBtn = document.getElementById("saveDraftBtn");
+const showReviewBtn =
+  document.getElementById("showReviewBtn");
 
-const sharedEntryName = document.getElementById("sharedEntryName");
-const sharedEntryPhone = document.getElementById("sharedEntryPhone");
-const editSharedEntryBtn = document.getElementById("editSharedEntryBtn");
-const saveSharedEntryBtn = document.getElementById("saveSharedEntryBtn");
-const passengerCount = document.getElementById("passengerCount");
-const sharedDate = document.getElementById("sharedDate");
-const sharedTime = document.getElementById("sharedTime");
-const sharedNotes = document.getElementById("sharedNotes");
-const passengersContainer = document.getElementById("passengersContainer");
-const submitSharedBtn = document.getElementById("submitShared");
-const saveSharedDraftBtn = document.getElementById("saveSharedDraftBtn");
+const backToAddFromReview =
+  document.getElementById("backToAddFromReview");
+
+const companyTabs =
+  document.getElementById("companyTabs");
+
+const individualSection =
+  document.getElementById("individualSection");
+
+const sharedSection =
+  document.getElementById("sharedSection");
+
+const entryName =
+  document.getElementById("entryName");
+
+const entryPhone =
+  document.getElementById("entryPhone");
+
+const editEntryBtn =
+  document.getElementById("editEntryBtn");
+
+const saveEntryBtn =
+  document.getElementById("saveEntryBtn");
+
+const clientName =
+  document.getElementById("clientName");
+
+const clientPhone =
+  document.getElementById("clientPhone");
+
+const pickupInput =
+  document.getElementById("pickup");
+
+const dropoffInput =
+  document.getElementById("dropoff");
+
+const tripDate =
+  document.getElementById("tripDate");
+
+const tripTime =
+  document.getElementById("tripTime");
+
+const notes =
+  document.getElementById("notes");
+
+const stopsBox =
+  document.getElementById("stops");
+
+const addStopBtn =
+  document.getElementById("addStopBtn");
+
+const submitTripBtn =
+  document.getElementById("submitTrip");
+
+const saveDraftBtn =
+  document.getElementById("saveDraftBtn");
+
+const sharedEntryName =
+  document.getElementById("sharedEntryName");
+
+const sharedEntryPhone =
+  document.getElementById("sharedEntryPhone");
+
+const editSharedEntryBtn =
+  document.getElementById("editSharedEntryBtn");
+
+const saveSharedEntryBtn =
+  document.getElementById("saveSharedEntryBtn");
+
+const passengerCount =
+  document.getElementById("passengerCount");
+
+const sharedDate =
+  document.getElementById("sharedDate");
+
+const sharedTime =
+  document.getElementById("sharedTime");
+
+const sharedNotes =
+  document.getElementById("sharedNotes");
+
+const passengersContainer =
+  document.getElementById("passengersContainer");
+
+const submitSharedBtn =
+  document.getElementById("submitShared");
+
+const saveSharedDraftBtn =
+  document.getElementById("saveSharedDraftBtn");
+
+/* ================= FORCED UI FIXES ================= */
+
+// شيل زرار Add Stop من صفحة Add Trip نهائيًا
+if(addStopBtn){
+  addStopBtn.remove();
+}
+
+// شيل زرار Back To Add Trip اللي تحت جدول الريفيو
+if(backToAddFromReview){
+  backToAddFromReview.remove();
+}
+
+/* ================= STYLE INJECTION ================= */
+
+(function injectDispatchReviewStyle(){
+
+  const old =
+    document.getElementById("dispatch-add-trip-review-style");
+
+  if(old){
+    old.remove();
+  }
+
+  const style =
+    document.createElement("style");
+
+  style.id =
+    "dispatch-add-trip-review-style";
+
+  style.innerHTML = `
+
+    .dispatch-review-note{
+      background:#eff6ff;
+      border:1px solid #bfdbfe;
+      color:#1e3a8a;
+      padding:7px 10px;
+      border-radius:10px;
+      font-weight:900;
+      margin:0 0 10px;
+      font-size:11px;
+      line-height:1.25;
+      text-align:center;
+    }
+
+    .top-note{
+      width:100%;
+    }
+
+    .dispatch-review-shell{
+      background:#fff;
+      border:1px solid #dbe3ee;
+      border-radius:14px;
+      padding:10px;
+      box-shadow:0 8px 22px rgba(15,23,42,.08);
+    }
+
+    .table-wrap{
+      width:calc(100vw - 20px);
+      overflow-x:auto;
+      border-radius:14px;
+      box-shadow:0 6px 18px rgba(0,0,0,.08);
+      background:#fff;
+      margin-top:10px;
+    }
+
+    .review-table{
+      width:100%;
+      min-width:2250px;
+      border-collapse:collapse;
+      background:#fff;
+      table-layout:fixed;
+      border-top:6px solid #000;
+    }
+
+    .review-table th,
+    .review-table td{
+      border:1px solid #dbe2ea;
+      padding:5px;
+      text-align:center;
+      vertical-align:middle;
+      font-size:11px;
+      line-height:1.25;
+      box-sizing:border-box;
+    }
+
+    .review-table th{
+      background:#0f172a;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+      position:sticky;
+      top:0;
+      z-index:5;
+    }
+
+    .date-row td{
+      background:#bfdbfe!important;
+      color:#1e3a8a!important;
+      font-weight:900!important;
+      text-align:center!important;
+      padding:7px 8px!important;
+      font-size:13px!important;
+      border-top:3px solid #000!important;
+      border-bottom:2px solid #60a5fa!important;
+      letter-spacing:.3px!important;
+    }
+
+    .col-num{width:36px;}
+    .col-trip{width:105px;}
+    .col-type{width:75px;}
+    .col-service{width:95px;}
+    .col-entry{width:125px;}
+    .col-entry-phone{width:110px;}
+    .col-client{width:180px;}
+    .col-phone{width:120px;}
+    .col-pickup{width:245px;}
+    .col-stops{width:205px;}
+    .col-drop{width:245px;}
+    .col-date{width:95px;}
+    .col-time{width:75px;}
+    .col-notes{width:190px;}
+    .col-miles{width:82px;}
+    .col-mins{width:82px;}
+    .col-price{width:92px;}
+    .col-status{width:100px;}
+    .col-actions{width:225px;}
+
+    .cell-box{
+      display:grid;
+      border:1px solid #111;
+      background:#fff;
+      width:100%;
+      box-sizing:border-box;
+      border-radius:4px;
+      overflow:hidden;
+    }
+
+    .cell-item{
+      padding:4px 5px;
+      min-height:23px;
+      font-weight:800;
+      white-space:normal;
+      word-break:break-word;
+      box-sizing:border-box;
+      background:#fff;
+      color:#111827;
+      font-size:10.5px;
+      line-height:1.35;
+      text-align:left;
+    }
+
+    .cell-item + .cell-item{
+      border-top:1px solid #111;
+    }
+
+    .trip-number-badge{
+      color:#2563eb;
+      font-size:12px;
+      font-weight:900;
+      white-space:normal;
+      word-break:break-word;
+    }
+
+    .price-badge{
+      color:#16a34a;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .miles-strong{
+      color:#2563eb;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .route-locked-badge{
+      display:inline-block;
+      margin-top:4px;
+      padding:3px 6px;
+      border-radius:999px;
+      background:#fef3c7;
+      color:#92400e;
+      border:1px solid #fcd34d;
+      font-size:9px;
+      font-weight:900;
+    }
+
+    .actions-wrap{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:4px;
+      flex-wrap:wrap;
+      min-width:185px;
+    }
+
+    .btn{
+      border:none;
+      padding:6px 9px;
+      border-radius:6px;
+      font-size:10px;
+      font-weight:900;
+      cursor:pointer;
+      margin:2px;
+      white-space:nowrap;
+    }
+
+    .btn.edit{background:#2563eb;color:#fff;}
+    .btn.delete{background:#111827;color:#fff;}
+    .btn.confirm{background:#16a34a;color:#fff;}
+    .btn.cancel{background:#dc2626;color:#fff;}
+    .btn.add-stop{background:#7c3aed;color:#fff;}
+
+    .scheduled-row{background:#fff;color:#111827;}
+    .review-row{background:#f8fafc;color:#111827;}
+    .confirmed-row{background:#dcfce7;color:#111827;}
+    .cancelled-row{background:#fecaca;color:#111827;}
+    .yellow{background:#fef9c3;color:#111827;}
+    .red-light{background:#fecaca;color:#111827;}
+    .red-mid{background:#fca5a5;color:#111827;}
+    .red-dark{background:#7f1d1d;color:#fff;}
+    .past-row{background:#374151;color:#f3f4f6;}
+
+    .edit-input{
+      width:100%;
+      min-width:105px;
+      padding:7px;
+      border:1px solid #94a3b8;
+      border-radius:6px;
+      font-size:12px;
+      background:#fff;
+      color:#111827;
+      outline:none;
+      margin-bottom:4px;
+    }
+
+    .table-wrap::-webkit-scrollbar{
+      height:10px;
+    }
+
+    .table-wrap::-webkit-scrollbar-thumb{
+      background:#94a3b8;
+      border-radius:10px;
+    }
+
+    @media(max-width:768px){
+      .review-table{min-width:1850px;}
+
+      .review-table th,
+      .review-table td{
+        padding:5px;
+        font-size:10px;
+      }
+
+      .cell-item{
+        font-size:9.5px;
+      }
+
+      .btn{
+        font-size:9px;
+        padding:5px 7px;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+
+})();
 
 /* ================= HELPERS ================= */
 
@@ -99,12 +441,26 @@ function escapeHtml(value){
     .replace(/>/g,"&gt;");
 }
 
-function formatMoney(v){
-  return Number(v || 0).toFixed(2);
+function bool(v){
+  return (
+    v === true ||
+    String(v).toLowerCase() === "true" ||
+    String(v).toLowerCase() === "yes" ||
+    String(v).toLowerCase() === "1"
+  );
+}
+
+function num(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function showAlert(msg){
   alert(msg);
+}
+
+function formatMoney(v){
+  return Number(v || 0).toFixed(2);
 }
 
 function normalizeCode(v){
@@ -112,33 +468,59 @@ function normalizeCode(v){
   const c =
     normalizeText(v)
       .toUpperCase()
-      .replace(/\s+/g,"");
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  if(c === "STANDARD" || c === "ST") return "STANDARD";
-  if(c === "WHEELCHAIR" || c === "WH" || c === "WC") return "WHEELCHAIR";
-  if(c === "SHARED" || c === "SH") return "SHARED";
-  if(c === "LIMOUSINE" || c === "LIMO" || c === "LM") return "LIMO";
-  if(c === "TAXI" || c === "TX") return "TAXI";
+  if(!c) return "";
+
+  if(c === "STANDARD" || c === "ST") return "ST";
+
+  if(
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c === "WC" ||
+    c === "WH"
+  ){
+    return "WH";
+  }
+
+  if(c === "SHARED" || c === "SH") return "SH";
+  if(c === "LIMO" || c === "LIMOUSINE" || c === "LM") return "LM";
+  if(c === "TAXI" || c === "TX") return "TX";
   if(c === "XL") return "XL";
 
-  return c || "STANDARD";
+  return c;
+}
+
+function isValidServiceCode(code){
+  return ["ST","WH","XL","LM","TX","SH"].includes(normalizeCode(code));
 }
 
 function normalizeAddress(address){
 
-  let v = normalizeText(address);
+  let v =
+    normalizeText(address);
 
   if(!v) return "";
 
-  v = v.replace(/\s+/g," ").trim();
+  v =
+    v.replace(/\s+/g," ").trim();
 
-  const lower = v.toLowerCase();
+  const lower =
+    v.toLowerCase();
 
-  if(SYSTEM_REGION && !lower.includes(SYSTEM_REGION.toLowerCase())){
+  if(
+    SYSTEM_REGION &&
+    !lower.includes(SYSTEM_REGION.toLowerCase())
+  ){
     v += ", " + SYSTEM_REGION;
   }
 
-  if(SYSTEM_COUNTRY && !lower.includes(SYSTEM_COUNTRY.toLowerCase())){
+  if(
+    SYSTEM_COUNTRY &&
+    !lower.includes(SYSTEM_COUNTRY.toLowerCase())
+  ){
     v += ", " + SYSTEM_COUNTRY;
   }
 
@@ -147,17 +529,20 @@ function normalizeAddress(address){
 
 function cellBox(items){
 
-  const arr = Array.isArray(items)
-    ? items
-    : [items];
+  const arr =
+    Array.isArray(items)
+      ? items
+      : [items];
 
   return `
     <div class="cell-box">
-      ${arr.map(v=>`
-        <div class="cell-item">
-          ${v || "--"}
-        </div>
-      `).join("")}
+      ${
+        arr.map(v=>`
+          <div class="cell-item">
+            ${v || "--"}
+          </div>
+        `).join("")
+      }
     </div>
   `;
 }
@@ -184,235 +569,318 @@ function createSharedEditInput(value,field,type="text"){
   `;
 }
 
-/* ================= SYSTEM TIME ================= */
+/* ================= SYSTEM ================= */
 
 async function loadSystemInfo(){
 
   try{
 
-    const res = await fetch("/api/system-design");
-    const data = await res.json();
+    const res =
+      await fetch("/api/system-design");
 
-    SYSTEM_TIMEZONE = data?.timezone || "America/Phoenix";
-    SYSTEM_REGION = data?.region || "";
-    SYSTEM_COUNTRY = data?.country || "";
+    const data =
+      await res.json();
+
+    SYSTEM_TIMEZONE =
+      data?.timezone ||
+      "America/Phoenix";
+
+    SYSTEM_REGION =
+      data?.region ||
+      "";
+
+    SYSTEM_COUNTRY =
+      data?.country ||
+      "";
 
   }catch(err){
 
     console.log(err);
-    SYSTEM_TIMEZONE = "America/Phoenix";
+
+    SYSTEM_TIMEZONE =
+      "America/Phoenix";
   }
 }
 
 function getSystemNow(){
 
   return new Date(
-    new Date().toLocaleString("en-US",{
-      timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
-    })
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+          SYSTEM_TIMEZONE ||
+          "America/Phoenix"
+      }
+    )
   );
 }
 
-function parseTripDateTime(tripDateValue,tripTimeValue){
+function parseTripDateTime(dateValue,timeValue){
 
-  const d = normalizeText(tripDateValue);
-  let t = normalizeText(tripTimeValue);
+  const d =
+    normalizeText(dateValue);
+
+  const t =
+    normalizeText(timeValue);
 
   if(!d || !t) return null;
 
-  const parts = d.split("-");
-  if(parts.length < 3) return null;
+  const dt =
+    new Date(`${d}T${t}:00`);
 
-  if(/^\d{1,2}:\d{2}$/.test(t)){
-
-    const [hh,mm] = t.split(":");
-
-    const dt = new Date(
-      Number(parts[0]),
-      Number(parts[1]) - 1,
-      Number(parts[2]),
-      Number(hh),
-      Number(mm),
-      0
-    );
-
-    return Number.isNaN(dt.getTime()) ? null : dt;
-  }
-
-  const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-  if(ampm){
-
-    let h = Number(ampm[1]);
-    const m = Number(ampm[2]);
-    const ap = ampm[3].toUpperCase();
-
-    if(ap === "PM" && h < 12) h += 12;
-    if(ap === "AM" && h === 12) h = 0;
-
-    const dt = new Date(
-      Number(parts[0]),
-      Number(parts[1]) - 1,
-      Number(parts[2]),
-      h,
-      m,
-      0
-    );
-
-    return Number.isNaN(dt.getTime()) ? null : dt;
-  }
-
-  return null;
+  return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
-function minutesToTrip(t){
+function minutesToTrip(trip){
 
-  const dt = parseTripDateTime(t.tripDate,t.tripTime);
+  const dt =
+    parseTripDateTime(
+      trip.tripDate,
+      trip.tripTime
+    );
 
   if(!dt) return null;
 
-  return (dt.getTime() - getSystemNow().getTime()) / 60000;
+  return (dt - getSystemNow()) / 60000;
 }
 
-/* ================= SERVICES ================= */
+/* ================= SERVICE MAPPING ================= */
 
-function getServiceCode(service){
+function resolveServiceCode(service){
 
-  return normalizeCode(
-    service?.serviceKey ||
-    service?.key ||
-    service?.code ||
-    service?.serviceCode ||
-    service?.suffix ||
-    service?.companySuffix ||
-    service?.title ||
-    service?.name ||
-    ""
-  );
+  if(!service) return "";
+
+  const fields = [
+    service.reservedSuffix,
+    service.serviceSuffix,
+    service.suffix,
+    service.companySuffix,
+    service.getQuoteSuffix,
+    service.reservedServiceSuffix,
+
+    service.reservedServiceCode,
+    service.serviceCode,
+    service.code,
+
+    service.reservedServiceKey,
+    service.serviceKey,
+    service.serviceType,
+    service.vehicle
+  ];
+
+  for(const field of fields){
+
+    const code =
+      normalizeCode(field);
+
+    if(isValidServiceCode(code)){
+      return code;
+    }
+  }
+
+  const name =
+    normalizeCode(
+      service.serviceName ||
+      service.title ||
+      service.name ||
+      ""
+    );
+
+  if(name.includes("WHEEL")) return "WH";
+  if(name.includes("CHAIR")) return "WH";
+  if(name.includes("SHARED")) return "SH";
+  if(name.includes("LIMO")) return "LM";
+  if(name.includes("TAXI")) return "TX";
+  if(name.includes("XL")) return "XL";
+  if(name.includes("STANDARD")) return "ST";
+
+  return "";
 }
 
-function getServiceTitle(service){
-
-  const code = getServiceCode(service);
-
-  if(code === "STANDARD") return "Standard";
-  if(code === "XL") return "XL";
-  if(code === "TAXI") return "Taxi";
-  if(code === "LIMO") return "Limousine";
-  if(code === "WHEELCHAIR") return "Wheelchair";
-  if(code === "SHARED") return "Shared";
+function serviceDisplayName(service,code){
 
   return (
+    service?.serviceName ||
     service?.title ||
     service?.name ||
-    service?.serviceName ||
-    code
+    (
+      code === "ST" ? "Standard" :
+      code === "WH" ? "Wheelchair" :
+      code === "XL" ? "XL" :
+      code === "LM" ? "Limousine" :
+      code === "TX" ? "Taxi" :
+      code === "SH" ? "Shared" :
+      code || "Service"
+    )
   );
 }
 
-function getServiceSuffix(service){
+function mapReservedService(s){
 
-  const code = getServiceCode(service);
+  const code =
+    resolveServiceCode(s) || "ST";
 
-  if(code === "STANDARD") return "ST";
-  if(code === "WHEELCHAIR") return "WH";
-  if(code === "SHARED") return "SH";
-  if(code === "LIMO") return "LM";
-  if(code === "TAXI") return "TX";
-  if(code === "XL") return "XL";
+  const serviceName =
+    serviceDisplayName(s,code);
 
-  return "ST";
+  const shared =
+    bool(s.reservedShared) ||
+    bool(s.shared) ||
+    code === "SH" ||
+    normalizeCode(s.reservedPricingMode || s.pricingMode) === "SHARED";
+
+  return {
+    ...s,
+
+    _id:
+      s._id || code,
+
+    title:
+      serviceName,
+
+    name:
+      serviceName,
+
+    serviceName:
+      serviceName,
+
+    serviceKey:
+      code,
+
+    serviceCode:
+      code,
+
+    serviceType:
+      code,
+
+    code:
+      code,
+
+    reservedSuffix:
+      code,
+
+    serviceSuffix:
+      code,
+
+    suffix:
+      code,
+
+    reservedShared:
+      shared,
+
+    shared:
+      shared
+  };
 }
 
 function serviceVisible(service){
-  return service?.reservedEnabled === true;
+  return bool(service?.reservedEnabled);
 }
 
 function isSharedService(service){
 
   if(!service) return false;
 
-  const code = getServiceCode(service);
-  const title = normalizeText(service.title || service.name || service.serviceName || "").toUpperCase();
-  const mode = normalizeText(service.reservedPricingMode || "").toUpperCase();
-  const suffix = normalizeText(service.reservedSuffix || service.suffix || service.companySuffix || "").toUpperCase();
+  const code =
+    resolveServiceCode(service);
+
+  const title =
+    normalizeCode(
+      service.title ||
+      service.name ||
+      service.serviceName
+    );
+
+  const mode =
+    normalizeCode(
+      service.reservedPricingMode ||
+      service.pricingMode
+    );
 
   return (
-    code === "SHARED" ||
+    bool(service.reservedShared) ||
+    bool(service.shared) ||
     code === "SH" ||
+    title === "SH" ||
     title === "SHARED" ||
     mode === "SHARED" ||
-    suffix === "SH" ||
-    service.reservedShared === true
+    mode === "SH"
   );
 }
 
-function getServiceCodeFromTrip(trip){
+function getCurrentReservedServiceConfig(){
 
-  const direct = normalizeText(
-    trip.serviceKey ||
-    trip.serviceCode ||
-    trip.serviceType ||
-    trip.serviceSuffix ||
-    trip.vehicle ||
-    ""
-  ).toUpperCase();
+  const code =
+    resolveServiceCode(activeService);
 
-  if(direct) return normalizeCode(direct);
-
-  const parts = String(trip.tripNumber || "").split("-");
-  return normalizeCode(parts[parts.length - 1] || "");
+  return SERVICES.find(s => resolveServiceCode(s) === code) || activeService || {};
 }
 
 function getServiceByTrip(trip){
 
   if(!trip) return null;
 
-  const tripServiceId = normalizeText(trip.serviceId || "");
-
-  if(tripServiceId){
-
-    const byId = SERVICES.find(s=>String(s._id) === String(tripServiceId));
-
-    if(byId) return byId;
-  }
-
-  const code = getServiceCodeFromTrip(trip);
+  const direct =
+    normalizeCode(
+      trip.serviceKey ||
+      trip.serviceCode ||
+      trip.serviceType ||
+      trip.serviceSuffix ||
+      ""
+    );
 
   if(
     trip.isShared === true ||
     trip.tripType === "SHARED" ||
-    code === "SHARED" ||
-    code === "SH"
+    direct === "SH"
   ){
     return SERVICES.find(s=>isSharedService(s)) || null;
   }
 
   return SERVICES.find(s=>{
-    const serviceCode = getServiceCode(s);
-    const suffix = normalizeText(s.reservedSuffix || s.suffix || s.companySuffix || "").toUpperCase();
-    return (
-      serviceCode === code ||
-      normalizeCode(suffix) === code
-    );
+    return resolveServiceCode(s) === direct;
   }) || null;
 }
 
 function getReservedPricing(service){
 
   return {
-    pricingMode:normalizeText(service?.reservedPricingMode || "MILE").toUpperCase(),
-    baseFare:Number(service?.reservedBaseFare || 0),
-    includedMiles:Number(service?.reservedIncludedMiles || 0),
-    perMile:Number(service?.reservedPerMile || 0),
-    hourlyRate:Number(service?.reservedHourlyRate || 0),
-    hourlyBillingMode:normalizeText(service?.reservedHourlyBillingMode || "FULL").toUpperCase(),
-    stopFee:Number(service?.reservedStopFee || 0),
-    noShowFee:Number(service?.reservedNoShowFee || 0),
-    cancelFee:Number(service?.reservedCancelFee || 0),
-    sharedPrice:Number(service?.reservedSharedPrice || 0),
-    warningMinutes:Number(service?.reservedWarningMinutes ?? 120),
-    disableCancel:service?.reservedDisableCancel === true
+    pricingMode:
+      normalizeText(service?.reservedPricingMode || "MILE").toUpperCase(),
+
+    baseFare:
+      num(service?.reservedBaseFare),
+
+    includedMiles:
+      num(service?.reservedIncludedMiles),
+
+    perMile:
+      num(service?.reservedPerMile),
+
+    hourlyRate:
+      num(service?.reservedHourlyRate),
+
+    hourlyBillingMode:
+      normalizeText(service?.reservedHourlyBillingMode || "FULL").toUpperCase(),
+
+    stopFee:
+      num(service?.reservedStopFee),
+
+    noShowFee:
+      num(service?.reservedNoShowFee),
+
+    cancelFee:
+      num(service?.reservedCancelFee),
+
+    sharedPrice:
+      num(service?.reservedSharedPrice),
+
+    warningMinutes:
+      Number(service?.reservedWarningMinutes ?? 120),
+
+    disableCancel:
+      bool(service?.reservedDisableCancel)
   };
 }
 
@@ -424,13 +892,119 @@ function getWarningMinutes(service){
   return Number(getReservedPricing(service).warningMinutes || 120);
 }
 
+/* ================= WARNING ================= */
+
+function checkReservedDynamicWarning(dateValue,timeValue){
+
+  if(!dateValue || !timeValue){
+    return true;
+  }
+
+  const service =
+    getCurrentReservedServiceConfig();
+
+  const pricing =
+    getReservedPricing(service);
+
+  const warningOn =
+    pricing.disableCancel !== true;
+
+  if(!warningOn){
+    return true;
+  }
+
+  const warningMinutes =
+    Number(pricing.warningMinutes || 120);
+
+  if(warningMinutes <= 0){
+    return true;
+  }
+
+  const tripDateTime =
+    parseTripDateTime(dateValue,timeValue);
+
+  if(!tripDateTime){
+    return true;
+  }
+
+  const now =
+    getSystemNow();
+
+  const diff =
+    (tripDateTime - now) / 60000;
+
+  if(diff > 0 && diff <= warningMinutes){
+
+    return confirm(
+`WARNING
+
+This trip is within ${warningMinutes} minutes.
+
+Continue anyway?`
+    );
+  }
+
+  return true;
+}
+
+function checkTripWarningByTrip(trip){
+
+  if(!trip){
+    return true;
+  }
+
+  const service =
+    getServiceByTrip(trip);
+
+  if(!service){
+    return true;
+  }
+
+  const pricing =
+    getReservedPricing(service);
+
+  if(pricing.disableCancel === true){
+    return true;
+  }
+
+  const warningMinutes =
+    Number(pricing.warningMinutes || 120);
+
+  const mins =
+    minutesToTrip(trip);
+
+  if(
+    mins !== null &&
+    mins > 0 &&
+    mins <= warningMinutes
+  ){
+    return confirm(
+`WARNING
+
+This trip is within ${warningMinutes} minutes.
+
+Continue anyway?`
+    );
+  }
+
+  return true;
+}
+
+/* ================= PRICE ================= */
+
 function calculateReservedPrice({service,miles,minutes,stops,passengerCount}){
 
-  const p = getReservedPricing(service);
+  const p =
+    getReservedPricing(service);
 
-  const mode = p.pricingMode;
-  const stopCount = Number(stops || 0);
-  const count = Math.max(1,Number(passengerCount || 1));
+  const mode =
+    p.pricingMode;
+
+  const stopCount =
+    Number(stops || 0);
+
+  const count =
+    Math.max(1,Number(passengerCount || 1));
 
   let total = 0;
 
@@ -445,7 +1019,9 @@ function calculateReservedPrice({service,miles,minutes,stops,passengerCount}){
 
   }else if(mode === "HOURLY"){
 
-    const mins = Math.max(0,Number(minutes || 0));
+    const mins =
+      Math.max(0,Number(minutes || 0));
+
     let billableHours = 0;
 
     if(p.hourlyBillingMode === "QUARTER"){
@@ -458,53 +1034,76 @@ function calculateReservedPrice({service,miles,minutes,stops,passengerCount}){
 
   }else{
 
-    const extraMiles = Math.max(0,Number(miles || 0) - p.includedMiles);
-    total = p.baseFare + (extraMiles * p.perMile) + (stopCount * p.stopFee);
+    const extraMiles =
+      Math.max(0,Number(miles || 0) - p.includedMiles);
+
+    total =
+      p.baseFare +
+      (extraMiles * p.perMile) +
+      (stopCount * p.stopFee);
   }
 
   return Number(Number(total || 0).toFixed(2));
 }
 
-async function loadAdminServices(){
+/* ================= LOAD SERVICES ================= */
+
+async function loadReservedServices(){
 
   try{
 
-    const res = await fetch(SERVICES_URL,{
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    });
+    const res =
+      await fetch(SERVICES_URL,{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
 
-    if(!res.ok) throw new Error("Failed loading services");
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
 
-    const data = await res.json();
+    const data =
+      await res.json().catch(()=>[]);
 
-    const raw = Array.isArray(data)
-      ? data
-      : Array.isArray(data.services)
-        ? data.services
-        : Array.isArray(data.data)
-          ? data.data
-          : [];
+    const raw =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data.services)
+          ? data.services
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
 
-    const unique = new Map();
+    const unique =
+      new Map();
 
-    raw.filter(serviceVisible).forEach(service=>{
-      const code = getServiceCode(service);
-      if(code && !unique.has(code)){
-        unique.set(code,service);
-      }
-    });
+    raw
+      .map(mapReservedService)
+      .filter(serviceVisible)
+      .forEach(service=>{
 
-    SERVICES = [...unique.values()];
+        const code =
+          resolveServiceCode(service);
+
+        if(code && !unique.has(code)){
+          unique.set(code,service);
+        }
+      });
+
+    SERVICES =
+      [...unique.values()];
 
     buildServiceTabs();
 
   }catch(err){
 
     console.error(err);
+
     SERVICES = [];
+
     buildServiceTabs();
+
     showAlert("Failed loading Reserved services");
   }
 }
@@ -531,12 +1130,25 @@ function buildServiceTabs(){
 
   SERVICES.forEach((service,index)=>{
 
-    const btn = document.createElement("button");
+    const btn =
+      document.createElement("button");
 
-    btn.type = "button";
-    btn.innerText = getServiceTitle(service);
-    btn.className = index === 0 ? "btn-blue" : "btn-gray";
-    btn.onclick = ()=>setActiveService(service,index);
+    btn.type =
+      "button";
+
+    btn.innerText =
+      serviceDisplayName(
+        service,
+        resolveServiceCode(service)
+      );
+
+    btn.className =
+      index === 0
+        ? "btn-blue"
+        : "btn-gray";
+
+    btn.onclick =
+      ()=>setActiveService(service,index);
 
     companyTabs.appendChild(btn);
   });
@@ -546,14 +1158,19 @@ function buildServiceTabs(){
 
 function setActiveService(service,index){
 
-  activeService = service;
+  activeService =
+    service;
 
-  companyTabs?.querySelectorAll("button").forEach(btn=>{
-    btn.classList.remove("btn-blue");
-    btn.classList.add("btn-gray");
-  });
+  companyTabs
+    ?.querySelectorAll("button")
+    .forEach(btn=>{
+      btn.classList.remove("btn-blue");
+      btn.classList.add("btn-gray");
+    });
 
-  const btn = companyTabs?.querySelectorAll("button")[index];
+  const btn =
+    companyTabs
+      ?.querySelectorAll("button")[index];
 
   if(btn){
     btn.classList.remove("btn-gray");
@@ -572,7 +1189,7 @@ function setActiveService(service,index){
   }
 }
 
-/* ================= GOOGLE ROUTING ================= */
+/* ================= GOOGLE ROUTE ================= */
 
 async function ensureGoogleLoaded(){
 
@@ -580,49 +1197,66 @@ async function ensureGoogleLoaded(){
     return;
   }
 
-  if(googleLoadPromise) return googleLoadPromise;
+  if(googleLoadPromise){
+    return googleLoadPromise;
+  }
 
-  googleLoadPromise = new Promise(async (resolve,reject)=>{
+  googleLoadPromise =
+    new Promise(async (resolve,reject)=>{
 
-    try{
+      try{
 
-      const res = await fetch("/api/config");
-      const data = await res.json();
+        const res =
+          await fetch("/api/config");
 
-      if(!data.googleKey){
-        reject(new Error("Google key missing"));
-        return;
-      }
+        const data =
+          await res.json();
 
-      const existing = document.querySelector("script[data-google-maps='true']");
-
-      if(existing){
-
-        if(window.google && google.maps && google.maps.DirectionsService){
-          resolve();
+        if(!data.googleKey){
+          reject(new Error("Google key missing"));
           return;
         }
 
-        existing.addEventListener("load",()=>resolve());
-        existing.addEventListener("error",()=>reject(new Error("Google failed")));
-        return;
+        const existing =
+          document.querySelector("script[data-google-maps='true']");
+
+        if(existing){
+
+          if(window.google && google.maps && google.maps.DirectionsService){
+            resolve();
+            return;
+          }
+
+          existing.addEventListener("load",()=>resolve());
+          existing.addEventListener("error",()=>reject(new Error("Google failed")));
+          return;
+        }
+
+        const script =
+          document.createElement("script");
+
+        script.src =
+          "https://maps.googleapis.com/maps/api/js?key=" +
+          encodeURIComponent(data.googleKey);
+
+        script.async = true;
+        script.defer = true;
+
+        script.setAttribute("data-google-maps","true");
+
+        script.onload =
+          ()=>resolve();
+
+        script.onerror =
+          ()=>reject(new Error("Google failed"));
+
+        document.head.appendChild(script);
+
+      }catch(err){
+
+        reject(err);
       }
-
-      const script = document.createElement("script");
-
-      script.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(data.googleKey);
-      script.async = true;
-      script.defer = true;
-      script.setAttribute("data-google-maps","true");
-      script.onload = ()=>resolve();
-      script.onerror = ()=>reject(new Error("Google failed"));
-
-      document.head.appendChild(script);
-
-    }catch(err){
-      reject(err);
-    }
-  });
+    });
 
   return googleLoadPromise;
 }
@@ -634,10 +1268,15 @@ function uniqueAddressList(list){
 
   list.forEach(address=>{
 
-    const v = normalizeAddress(address);
+    const v =
+      normalizeAddress(address);
+
     if(!v) return;
 
-    const key = v.toLowerCase().replace(/\s+/g," ").trim();
+    const key =
+      v.toLowerCase()
+       .replace(/\s+/g," ")
+       .trim();
 
     if(seen.has(key)) return;
 
@@ -652,11 +1291,13 @@ async function calculateRouteMiles(points){
 
   await ensureGoogleLoaded();
 
-  const cleanPoints = Array.isArray(points)
-    ? points.map(p=>normalizeAddress(p)).filter(Boolean)
-    : [];
+  const cleanPoints =
+    Array.isArray(points)
+      ? points.map(p=>normalizeAddress(p)).filter(Boolean)
+      : [];
 
   if(cleanPoints.length < 2){
+
     return {
       miles:0,
       distanceMeters:0,
@@ -666,17 +1307,24 @@ async function calculateRouteMiles(points){
     };
   }
 
-  const origin = cleanPoints[0];
-  const destination = cleanPoints[cleanPoints.length - 1];
+  const origin =
+    cleanPoints[0];
 
-  const waypoints = cleanPoints.slice(1,-1).map(address=>({
-    location:address,
-    stopover:true
-  }));
+  const destination =
+    cleanPoints[cleanPoints.length - 1];
+
+  const waypoints =
+    cleanPoints
+      .slice(1,-1)
+      .map(address=>({
+        location:address,
+        stopover:true
+      }));
 
   return new Promise((resolve,reject)=>{
 
-    const service = new google.maps.DirectionsService();
+    const service =
+      new google.maps.DirectionsService();
 
     service.route(
       {
@@ -694,7 +1342,8 @@ async function calculateRouteMiles(points){
           return;
         }
 
-        const route = response.routes[0];
+        const route =
+          response.routes[0];
 
         let meters = 0;
         let seconds = 0;
@@ -732,8 +1381,11 @@ async function optimizeStopsFromOrigin(origin,stops){
 
   await ensureGoogleLoaded();
 
-  const cleanOrigin = normalizeAddress(origin);
-  const cleanStops = uniqueAddressList(stops);
+  const cleanOrigin =
+    normalizeAddress(origin);
+
+  const cleanStops =
+    uniqueAddressList(stops);
 
   if(!cleanOrigin) return cleanStops;
   if(!cleanStops.length) return [cleanOrigin];
@@ -741,7 +1393,8 @@ async function optimizeStopsFromOrigin(origin,stops){
 
   return new Promise(resolve=>{
 
-    const service = new google.maps.DirectionsService();
+    const service =
+      new google.maps.DirectionsService();
 
     service.route(
       {
@@ -762,8 +1415,11 @@ async function optimizeStopsFromOrigin(origin,stops){
           return;
         }
 
-        const order = response.routes[0].waypoint_order || [];
-        const orderedStops = order.map(i=>cleanStops[i]).filter(Boolean);
+        const order =
+          response.routes[0].waypoint_order || [];
+
+        const orderedStops =
+          order.map(i=>cleanStops[i]).filter(Boolean);
 
         resolve([cleanOrigin,...orderedStops]);
       }
@@ -773,7 +1429,8 @@ async function optimizeStopsFromOrigin(origin,stops){
 
 function passengerIsActive(p){
 
-  const s = cleanStatus(p.status);
+  const s =
+    cleanStatus(p.status);
 
   return (
     !s.includes("no") &&
@@ -788,27 +1445,34 @@ function addressKey(v){
 }
 
 function indexOfAddress(route,address){
-  const key = addressKey(address);
+
+  const key =
+    addressKey(address);
+
   return route.findIndex(p=>addressKey(p) === key);
 }
 
 async function buildFinalSharedRoute(trip){
 
-  const sourcePassengers = Array.isArray(trip.passengers)
-    ? trip.passengers
-    : [];
+  const sourcePassengers =
+    Array.isArray(trip.passengers)
+      ? trip.passengers
+      : [];
 
-  const passengers = sourcePassengers.map((p,index)=>({
-    ...p,
-    __originalIndex:index,
-    __active:passengerIsActive(p),
-    pickup:normalizeText(p.pickup),
-    dropoff:normalizeText(p.dropoff)
-  }));
+  const passengers =
+    sourcePassengers.map((p,index)=>({
+      ...p,
+      __originalIndex:index,
+      __active:passengerIsActive(p),
+      pickup:normalizeText(p.pickup),
+      dropoff:normalizeText(p.dropoff)
+    }));
 
-  const activePassengers = passengers.filter(p=>p.__active);
+  const activePassengers =
+    passengers.filter(p=>p.__active);
 
   if(!activePassengers.length){
+
     return {
       routePoints:[],
       passengers,
@@ -817,86 +1481,116 @@ async function buildFinalSharedRoute(trip){
     };
   }
 
-  const pickupAddresses = uniqueAddressList(activePassengers.map(p=>p.pickup));
-  const dropoffAddresses = uniqueAddressList(activePassengers.map(p=>p.dropoff));
+  const pickupAddresses =
+    uniqueAddressList(
+      activePassengers.map(p=>p.pickup)
+    );
+
+  const dropoffAddresses =
+    uniqueAddressList(
+      activePassengers.map(p=>p.dropoff)
+    );
 
   let pickupRoute = [];
 
   if(pickupAddresses.length === 1){
-    pickupRoute = [pickupAddresses[0]];
+
+    pickupRoute =
+      [pickupAddresses[0]];
+
   }else{
-    pickupRoute = await optimizeStopsFromOrigin(
-      pickupAddresses[0],
-      pickupAddresses.slice(1)
-    );
+
+    pickupRoute =
+      await optimizeStopsFromOrigin(
+        pickupAddresses[0],
+        pickupAddresses.slice(1)
+      );
   }
 
-  const lastPickup = pickupRoute[pickupRoute.length - 1];
+  const lastPickup =
+    pickupRoute[pickupRoute.length - 1];
 
   let dropoffRouteWithOrigin = [];
 
   if(dropoffAddresses.length === 1){
-    dropoffRouteWithOrigin = [lastPickup,dropoffAddresses[0]];
+
+    dropoffRouteWithOrigin =
+      [lastPickup,dropoffAddresses[0]];
+
   }else{
-    dropoffRouteWithOrigin = await optimizeStopsFromOrigin(
-      lastPickup,
-      dropoffAddresses
-    );
+
+    dropoffRouteWithOrigin =
+      await optimizeStopsFromOrigin(
+        lastPickup,
+        dropoffAddresses
+      );
   }
 
-  const dropoffRoute = dropoffRouteWithOrigin.slice(1);
+  const dropoffRoute =
+    dropoffRouteWithOrigin.slice(1);
 
-  const finalRoutePoints = uniqueAddressList([
-    ...pickupRoute,
-    ...dropoffRoute
-  ]);
+  const finalRoutePoints =
+    uniqueAddressList([
+      ...pickupRoute,
+      ...dropoffRoute
+    ]);
 
-  const orderedPassengers = passengers.map(p=>{
+  const orderedPassengers =
+    passengers
+      .map(p=>{
 
-    if(!p.__active){
-      return {
-        ...p,
-        pickupOrder:9999,
-        dropoffOrder:9999,
-        routeOrder:9999
-      };
-    }
+        if(!p.__active){
 
-    const pickupIndex = indexOfAddress(finalRoutePoints,p.pickup);
-    const dropoffIndex = indexOfAddress(finalRoutePoints,p.dropoff);
+          return {
+            ...p,
+            pickupOrder:9999,
+            dropoffOrder:9999,
+            routeOrder:9999
+          };
+        }
 
-    return {
-      ...p,
-      pickupOrder:pickupIndex < 0 ? 9999 : pickupIndex + 1,
-      dropoffOrder:dropoffIndex < 0 ? 9999 : dropoffIndex + 1
-    };
+        const pickupIndex =
+          indexOfAddress(finalRoutePoints,p.pickup);
 
-  }).sort((a,b)=>{
+        const dropoffIndex =
+          indexOfAddress(finalRoutePoints,p.dropoff);
 
-    if(a.__active !== b.__active) return a.__active ? -1 : 1;
+        return {
+          ...p,
+          pickupOrder:pickupIndex < 0 ? 9999 : pickupIndex + 1,
+          dropoffOrder:dropoffIndex < 0 ? 9999 : dropoffIndex + 1
+        };
 
-    if(Number(a.pickupOrder) !== Number(b.pickupOrder)){
-      return Number(a.pickupOrder) - Number(b.pickupOrder);
-    }
+      })
+      .sort((a,b)=>{
 
-    if(Number(a.dropoffOrder) !== Number(b.dropoffOrder)){
-      return Number(a.dropoffOrder) - Number(b.dropoffOrder);
-    }
+        if(a.__active !== b.__active){
+          return a.__active ? -1 : 1;
+        }
 
-    return Number(a.__originalIndex) - Number(b.__originalIndex);
+        if(Number(a.pickupOrder) !== Number(b.pickupOrder)){
+          return Number(a.pickupOrder) - Number(b.pickupOrder);
+        }
 
-  }).map((p,index)=>{
+        if(Number(a.dropoffOrder) !== Number(b.dropoffOrder)){
+          return Number(a.dropoffOrder) - Number(b.dropoffOrder);
+        }
 
-    const cleaned = {...p};
+        return Number(a.__originalIndex) - Number(b.__originalIndex);
+      })
+      .map((p,index)=>{
 
-    delete cleaned.__originalIndex;
-    delete cleaned.__active;
+        const cleaned =
+          {...p};
 
-    return {
-      ...cleaned,
-      routeOrder:index + 1
-    };
-  });
+        delete cleaned.__originalIndex;
+        delete cleaned.__active;
+
+        return {
+          ...cleaned,
+          routeOrder:index + 1
+        };
+      });
 
   return {
     routePoints:finalRoutePoints,
@@ -908,30 +1602,45 @@ async function buildFinalSharedRoute(trip){
 
 function buildIndividualRoutePoints(trip){
 
-  const pickup = trip.pickup || "";
-  const stops = Array.isArray(trip.stops) ? trip.stops : [];
-  const dropoff = trip.dropoff || "";
+  const pickup =
+    trip.pickup || "";
+
+  const stops =
+    Array.isArray(trip.stops)
+      ? trip.stops
+      : [];
+
+  const dropoff =
+    trip.dropoff || "";
 
   return [
     pickup,
     ...stops,
     dropoff
-  ].map(v=>normalizeAddress(v)).filter(Boolean);
+  ]
+  .map(v=>normalizeAddress(v))
+  .filter(Boolean);
 }
 
 /* ================= PAGE SWITCH ================= */
 
 function showAddPage(){
 
-  if(addTripPage) addTripPage.style.display = "block";
-  if(dispatchReviewPage) dispatchReviewPage.style.display = "none";
+  if(addTripPage){
+    addTripPage.style.display = "block";
+  }
 
-  if(companyTabs) companyTabs.style.display = "flex";
+  if(dispatchReviewPage){
+    dispatchReviewPage.style.display = "none";
+  }
 
   if(activeService && isSharedService(activeService)){
+
     if(individualSection) individualSection.style.display = "none";
     if(sharedSection) sharedSection.style.display = "block";
+
   }else{
+
     if(individualSection) individualSection.style.display = "block";
     if(sharedSection) sharedSection.style.display = "none";
   }
@@ -939,8 +1648,13 @@ function showAddPage(){
 
 function showReviewPage(){
 
-  if(addTripPage) addTripPage.style.display = "none";
-  if(dispatchReviewPage) dispatchReviewPage.style.display = "block";
+  if(addTripPage){
+    addTripPage.style.display = "none";
+  }
+
+  if(dispatchReviewPage){
+    dispatchReviewPage.style.display = "block";
+  }
 
   renderReviewTable();
 }
@@ -948,7 +1662,8 @@ function showReviewPage(){
 function updateReviewCounter(){
 
   if(showReviewBtn){
-    showReviewBtn.innerText = `Dispatch Review (${reviewTrips.length})`;
+    showReviewBtn.innerText =
+      `Dispatch Review (${reviewTrips.length})`;
   }
 }
 
@@ -958,16 +1673,21 @@ backToHubBtn?.addEventListener("click",()=>{
 
 showAddBtn?.addEventListener("click",showAddPage);
 showReviewBtn?.addEventListener("click",showReviewPage);
-backToAddFromReview?.addEventListener("click",showAddPage);
 
 /* ================= ENTRY ================= */
 
 function loadEntryInfo(){
 
-  const saved = JSON.parse(localStorage.getItem("dispatchEntryInfo") || "{}");
+  const saved =
+    JSON.parse(
+      localStorage.getItem("dispatchEntryInfo") ||
+      localStorage.getItem("entryInfo") ||
+      "{}"
+    );
 
   if(entryName) entryName.value = saved.entryName || "";
   if(entryPhone) entryPhone.value = saved.entryPhone || "";
+
   if(sharedEntryName) sharedEntryName.value = saved.entryName || "";
   if(sharedEntryPhone) sharedEntryPhone.value = saved.entryPhone || "";
 }
@@ -979,17 +1699,25 @@ function saveEntryInfo(){
       entryName?.value ||
       sharedEntryName?.value ||
       "",
-
     entryPhone:
       entryPhone?.value ||
       sharedEntryPhone?.value ||
       ""
   };
 
-  localStorage.setItem("dispatchEntryInfo",JSON.stringify(data));
+  localStorage.setItem(
+    "dispatchEntryInfo",
+    JSON.stringify(data)
+  );
+
+  localStorage.setItem(
+    "entryInfo",
+    JSON.stringify(data)
+  );
 
   if(entryName) entryName.value = data.entryName;
   if(entryPhone) entryPhone.value = data.entryPhone;
+
   if(sharedEntryName) sharedEntryName.value = data.entryName;
   if(sharedEntryPhone) sharedEntryPhone.value = data.entryPhone;
 
@@ -1006,6 +1734,7 @@ function toggleEntryEdit(){
 
     entryName?.removeAttribute("readonly");
     entryPhone?.removeAttribute("readonly");
+
     sharedEntryName?.removeAttribute("readonly");
     sharedEntryPhone?.removeAttribute("readonly");
 
@@ -1013,6 +1742,7 @@ function toggleEntryEdit(){
     if(editSharedEntryBtn) editSharedEntryBtn.innerText = "Save";
 
     entryName?.focus();
+
     return;
   }
 
@@ -1022,6 +1752,7 @@ function toggleEntryEdit(){
 
   entryName?.setAttribute("readonly",true);
   entryPhone?.setAttribute("readonly",true);
+
   sharedEntryName?.setAttribute("readonly",true);
   sharedEntryPhone?.setAttribute("readonly",true);
 
@@ -1034,108 +1765,126 @@ editSharedEntryBtn?.addEventListener("click",toggleEntryEdit);
 saveEntryBtn?.addEventListener("click",saveEntryInfo);
 saveSharedEntryBtn?.addEventListener("click",saveEntryInfo);
 
-/* ================= FORM VALIDATION ================= */
+/* ================= VALIDATION ================= */
 
 function validateIndividualTrip(){
 
-  if(!normalizeText(entryName?.value)) return showAlert("Entry Name Required"), false;
-  if(!normalizeText(entryPhone?.value)) return showAlert("Entry Phone Required"), false;
-  if(!normalizeText(clientName?.value)) return showAlert("Client Name Required"), false;
-  if(!normalizeText(clientPhone?.value)) return showAlert("Client Phone Required"), false;
-  if(!normalizeText(pickupInput?.value)) return showAlert("Pickup Required"), false;
-  if(!normalizeText(dropoffInput?.value)) return showAlert("Dropoff Required"), false;
-  if(!tripDate?.value) return showAlert("Trip Date Required"), false;
-  if(!tripTime?.value) return showAlert("Trip Time Required"), false;
+  if(!normalizeText(entryName?.value)){
+    showAlert("Entry Name Required");
+    return false;
+  }
 
-  const dt = parseTripDateTime(tripDate.value,tripTime.value);
+  if(!normalizeText(entryPhone?.value)){
+    showAlert("Entry Phone Required");
+    return false;
+  }
 
-  if(!dt) return showAlert("Invalid Trip Date/Time"), false;
-  if(dt <= getSystemNow()) return showAlert("Trip Date/Time Already Passed"), false;
+  if(!normalizeText(clientName?.value)){
+    showAlert("Client Name Required");
+    return false;
+  }
+
+  if(!normalizeText(clientPhone?.value)){
+    showAlert("Client Phone Required");
+    return false;
+  }
+
+  if(!normalizeText(pickupInput?.value)){
+    showAlert("Pickup Required");
+    return false;
+  }
+
+  if(!normalizeText(dropoffInput?.value)){
+    showAlert("Dropoff Required");
+    return false;
+  }
+
+  if(!tripDate?.value){
+    showAlert("Trip Date Required");
+    return false;
+  }
+
+  if(!tripTime?.value){
+    showAlert("Trip Time Required");
+    return false;
+  }
+
+  const dt =
+    parseTripDateTime(tripDate.value,tripTime.value);
+
+  if(!dt || dt <= getSystemNow()){
+    showAlert("Trip Date/Time Already Passed");
+    return false;
+  }
 
   return true;
 }
 
 function validateSharedTrip(){
 
-  if(!normalizeText(sharedEntryName?.value)) return showAlert("Entry Name Required"), false;
-  if(!normalizeText(sharedEntryPhone?.value)) return showAlert("Entry Phone Required"), false;
-  if(!sharedDate?.value) return showAlert("Trip Date Required"), false;
-  if(!sharedTime?.value) return showAlert("Trip Time Required"), false;
+  if(!normalizeText(sharedEntryName?.value)){
+    showAlert("Entry Name Required");
+    return false;
+  }
 
-  const dt = parseTripDateTime(sharedDate.value,sharedTime.value);
+  if(!normalizeText(sharedEntryPhone?.value)){
+    showAlert("Entry Phone Required");
+    return false;
+  }
 
-  if(!dt) return showAlert("Invalid Trip Date/Time"), false;
-  if(dt <= getSystemNow()) return showAlert("Trip Date/Time Already Passed"), false;
+  if(!sharedDate?.value){
+    showAlert("Trip Date Required");
+    return false;
+  }
 
-  const cards = document.querySelectorAll(".passenger-card");
+  if(!sharedTime?.value){
+    showAlert("Trip Time Required");
+    return false;
+  }
 
-  if(cards.length < 2) return showAlert("Minimum 2 Passengers"), false;
+  const dt =
+    parseTripDateTime(sharedDate.value,sharedTime.value);
+
+  if(!dt || dt <= getSystemNow()){
+    showAlert("Trip Date/Time Already Passed");
+    return false;
+  }
+
+  const cards =
+    document.querySelectorAll(".passenger-card");
+
+  if(cards.length < 2){
+    showAlert("Minimum 2 Passengers");
+    return false;
+  }
 
   for(const card of cards){
 
     if(!normalizeText(card.querySelector(".sharedClientName")?.value)){
-      return showAlert("Passenger Name Required"), false;
+      showAlert("Passenger Name Required");
+      return false;
     }
 
     if(!normalizeText(card.querySelector(".sharedClientPhone")?.value)){
-      return showAlert("Passenger Phone Required"), false;
+      showAlert("Passenger Phone Required");
+      return false;
     }
 
     if(!normalizeText(card.querySelector(".sharedPickup")?.value)){
-      return showAlert("Passenger Pickup Required"), false;
+      showAlert("Passenger Pickup Required");
+      return false;
     }
 
     if(!normalizeText(card.querySelector(".sharedDropoff")?.value)){
-      return showAlert("Passenger Dropoff Required"), false;
+      showAlert("Passenger Dropoff Required");
+      return false;
     }
   }
 
   return true;
 }
 
-/* ================= FORM UI ================= */
-
-function createStopInput(value=""){
-
-  const count = stopsBox?.querySelectorAll(".stop-input").length || 0;
-
-  if(count >= 5){
-    showAlert("Maximum 5 stops allowed.");
-    return;
-  }
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "stop-row";
-
-  wrapper.innerHTML = `
-    <input
-      type="text"
-      class="stop-input"
-      placeholder="Stop address"
-      value="${escapeHtml(value)}"
-    >
-    <button type="button" class="remove-stop-btn">✕</button>
-  `;
-
-  wrapper.querySelector(".remove-stop-btn").onclick = ()=>wrapper.remove();
-
-  stopsBox?.appendChild(wrapper);
-}
-
-addStopBtn?.addEventListener("click",()=>{
-
-  if(!activeService) return showAlert("Select Service");
-
-  if(isSharedService(activeService)){
-    return showAlert("Add Stop is disabled for Shared service.");
-  }
-
-  if(activeService.reservedAddStopEnabled !== true){
-    return showAlert("Add Stop is disabled for this Reserved service.");
-  }
-
-  createStopInput();
-});
+/* ================= SHARED UI ================= */
 
 function renderSharedPassengers(count){
 
@@ -1145,10 +1894,13 @@ function renderSharedPassengers(count){
 
   if(count < 2) return;
 
-  for(let i=1; i<=count; i++){
+  for(let i = 1; i <= count; i++){
 
-    const card = document.createElement("div");
-    card.className = "passenger-card";
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "passenger-card";
 
     card.innerHTML = `
       <div class="passenger-header">
@@ -1157,23 +1909,16 @@ function renderSharedPassengers(count){
 
       <div class="form-grid">
         <div class="field-wrap">
-          <label>Client Name</label>
-          <input class="sharedClientName" placeholder="Client name">
+          <input class="sharedClientName" placeholder="Client Name">
         </div>
-
         <div class="field-wrap">
-          <label>Client Phone</label>
-          <input class="sharedClientPhone" placeholder="Client phone">
+          <input class="sharedClientPhone" placeholder="Client Phone">
         </div>
-
         <div class="field-wrap">
-          <label>Pickup Address</label>
-          <input class="sharedPickup" placeholder="Pickup address">
+          <input class="sharedPickup" placeholder="Pickup Address">
         </div>
-
         <div class="field-wrap">
-          <label>Dropoff Address</label>
-          <input class="sharedDropoff" placeholder="Dropoff address">
+          <input class="sharedDropoff" placeholder="Dropoff Address">
         </div>
       </div>
     `;
@@ -1186,6 +1931,8 @@ passengerCount?.addEventListener("change",function(){
   renderSharedPassengers(Number(this.value));
 });
 
+/* ================= CLEAR FORM ================= */
+
 function clearIndividualForm(){
 
   if(clientName) clientName.value = "";
@@ -1195,9 +1942,12 @@ function clearIndividualForm(){
   if(tripDate) tripDate.value = "";
   if(tripTime) tripTime.value = "";
   if(notes) notes.value = "";
+
   if(stopsBox) stopsBox.innerHTML = "";
 
-  if(submitTripBtn) submitTripBtn.innerText = "Add To Review";
+  if(submitTripBtn){
+    submitTripBtn.innerText = "Add To Review";
+  }
 }
 
 function clearSharedForm(){
@@ -1208,18 +1958,20 @@ function clearSharedForm(){
   if(sharedNotes) sharedNotes.value = "";
   if(passengersContainer) passengersContainer.innerHTML = "";
 
-  if(submitSharedBtn) submitSharedBtn.innerText = "Add Shared To Review";
+  if(submitSharedBtn){
+    submitSharedBtn.innerText = "Add Shared To Review";
+  }
 }
 
 /* ================= PAYLOADS ================= */
 
 function buildIndividualPayload(){
 
-  const stops = [...document.querySelectorAll(".stop-input")]
-    .map(i=>normalizeAddress(i.value))
-    .filter(Boolean);
+  const service =
+    getCurrentReservedServiceConfig();
 
-  const serviceCode = getServiceCode(activeService);
+  const serviceCode =
+    resolveServiceCode(service);
 
   return {
     type:"reserved",
@@ -1239,8 +1991,10 @@ function buildIndividualPayload(){
     serviceKey:serviceCode,
     serviceType:serviceCode,
     serviceCode:serviceCode,
-    serviceSuffix:getServiceSuffix(activeService),
-    serviceTitle:getServiceTitle(activeService),
+    serviceSuffix:serviceCode,
+    serviceName:serviceDisplayName(service,serviceCode),
+    serviceTitle:serviceDisplayName(service,serviceCode),
+    serviceId:String(service?._id || ""),
 
     vehicleTypeFromQuote:serviceCode,
     vehicleType:serviceCode,
@@ -1253,7 +2007,7 @@ function buildIndividualPayload(){
 
     pickup:normalizeAddress(pickupInput.value),
     dropoff:normalizeAddress(dropoffInput.value),
-    stops,
+    stops:[],
 
     tripDate:tripDate.value,
     tripTime:tripTime.value,
@@ -1275,12 +2029,21 @@ function buildIndividualPayload(){
 
 function buildSharedPayload(){
 
+  const service =
+    getCurrentReservedServiceConfig();
+
+  const serviceCode =
+    resolveServiceCode(service) || "SH";
+
   const passengers = [];
 
   document.querySelectorAll(".passenger-card").forEach((card,index)=>{
 
-    const name = normalizeText(card.querySelector(".sharedClientName")?.value);
-    const phone = normalizeText(card.querySelector(".sharedClientPhone")?.value);
+    const name =
+      normalizeText(card.querySelector(".sharedClientName")?.value);
+
+    const phone =
+      normalizeText(card.querySelector(".sharedClientPhone")?.value);
 
     passengers.push({
       passengerId:"P" + (index + 1),
@@ -1316,14 +2079,16 @@ function buildSharedPayload(){
     tripType:"SHARED",
     isShared:true,
 
-    serviceKey:"SHARED",
-    serviceType:"SHARED",
-    serviceCode:"SHARED",
+    serviceKey:serviceCode,
+    serviceType:serviceCode,
+    serviceCode:serviceCode,
     serviceSuffix:"SH",
-    serviceTitle:"Shared",
+    serviceName:serviceDisplayName(service,serviceCode),
+    serviceTitle:serviceDisplayName(service,serviceCode),
+    serviceId:String(service?._id || ""),
 
-    vehicleTypeFromQuote:"SHARED",
-    vehicleType:"SHARED",
+    vehicleTypeFromQuote:serviceCode,
+    vehicleType:serviceCode,
 
     entryName:normalizeText(sharedEntryName.value),
     entryPhone:normalizeText(sharedEntryPhone.value),
@@ -1365,16 +2130,18 @@ function extractTripResponse(data){
 
 async function createTrip(payload){
 
-  const res = await fetch(API_URL,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:"Bearer " + token
-    },
-    body:JSON.stringify(payload)
-  });
+  const res =
+    await fetch(API_URL,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
 
-  const data = await res.json().catch(()=>({}));
+  const data =
+    await res.json().catch(()=>({}));
 
   if(!res.ok || data.success === false){
     throw new Error(data.message || "Create trip failed");
@@ -1385,16 +2152,18 @@ async function createTrip(payload){
 
 async function updateTrip(id,payload){
 
-  const res = await fetch(`${API_URL}/${encodeURIComponent(id)}`,{
-    method:"PUT",
-    headers:{
-      "Content-Type":"application/json",
-      Authorization:"Bearer " + token
-    },
-    body:JSON.stringify(payload)
-  });
+  const res =
+    await fetch(`${API_URL}/${encodeURIComponent(id)}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
 
-  const data = await res.json().catch(()=>({}));
+  const data =
+    await res.json().catch(()=>({}));
 
   if(!res.ok || data.success === false){
     throw new Error(data.message || "Update trip failed");
@@ -1405,14 +2174,16 @@ async function updateTrip(id,payload){
 
 async function deleteTrip(id){
 
-  const res = await fetch(`${API_URL}/${encodeURIComponent(id)}`,{
-    method:"DELETE",
-    headers:{
-      Authorization:"Bearer " + token
-    }
-  });
+  const res =
+    await fetch(`${API_URL}/${encodeURIComponent(id)}`,{
+      method:"DELETE",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
 
-  const data = await res.json().catch(()=>({}));
+  const data =
+    await res.json().catch(()=>({}));
 
   if(!res.ok || data.success === false){
     throw new Error(data.message || "Delete trip failed");
@@ -1421,53 +2192,72 @@ async function deleteTrip(id){
 
 async function fetchReviewTrips(){
 
-  const res = await fetch(API_URL,{
-    headers:{
-      Authorization:"Bearer " + token
-    }
-  });
-
-  const data = await res.json().catch(()=>[]);
-
-  const list = Array.isArray(data)
-    ? data
-    : Array.isArray(data.trips)
-      ? data.trips
-      : Array.isArray(data.data)
-        ? data.data
-        : [];
-
-  reviewTrips = list
-    .filter(t=>{
-
-      const type = normalizeText(t.type).toLowerCase();
-      const source = normalizeText(t.source).toUpperCase();
-      const booking = normalizeText(t.bookingSource).toUpperCase();
-      const tripNumber = normalizeText(t.tripNumber).toUpperCase();
-      const createdFrom = normalizeText(t.createdFrom);
-
-      const isReserved =
-        type === "reserved" ||
-        source === "RV" ||
-        booking === "RV" ||
-        tripNumber.startsWith("RV-") ||
-        createdFrom === "dispatch-add-trip";
-
-      const status = cleanStatus(t.status);
-
-      const hidden =
-        status.includes("complete") ||
-        status.includes("cancel") ||
-        status.includes("noshow") ||
-        status === "no";
-
-      return isReserved && !hidden;
-    })
-    .sort((a,b)=>{
-      const da = new Date(`${a.tripDate || ""}T${a.tripTime || "00:00"}:00`);
-      const db = new Date(`${b.tripDate || ""}T${b.tripTime || "00:00"}:00`);
-      return db - da;
+  const res =
+    await fetch(API_URL,{
+      headers:{
+        Authorization:"Bearer " + token
+      }
     });
+
+  const data =
+    await res.json().catch(()=>[]);
+
+  const list =
+    Array.isArray(data)
+      ? data
+      : Array.isArray(data.trips)
+        ? data.trips
+        : Array.isArray(data.data)
+          ? data.data
+          : [];
+
+  reviewTrips =
+    list
+      .filter(t=>{
+
+        const type =
+          normalizeText(t.type).toLowerCase();
+
+        const source =
+          normalizeText(t.source).toUpperCase();
+
+        const booking =
+          normalizeText(t.bookingSource).toUpperCase();
+
+        const tripNumber =
+          normalizeText(t.tripNumber).toUpperCase();
+
+        const createdFrom =
+          normalizeText(t.createdFrom);
+
+        const isReserved =
+          type === "reserved" ||
+          source === "RV" ||
+          booking === "RV" ||
+          tripNumber.startsWith("RV-") ||
+          createdFrom === "dispatch-add-trip";
+
+        const status =
+          cleanStatus(t.status);
+
+        const hidden =
+          status.includes("complete") ||
+          status.includes("cancel") ||
+          status.includes("noshow") ||
+          status === "no";
+
+        return isReserved && !hidden;
+      })
+      .sort((a,b)=>{
+
+        const da =
+          new Date(`${a.tripDate || ""}T${a.tripTime || "00:00"}:00`);
+
+        const db =
+          new Date(`${b.tripDate || ""}T${b.tripTime || "00:00"}:00`);
+
+        return db - da;
+      });
 
   updateReviewCounter();
 }
@@ -1476,60 +2266,95 @@ async function fetchReviewTrips(){
 
 submitTripBtn?.addEventListener("click",async ()=>{
 
-  if(!activeService) return showAlert("Select Service");
-  if(isSharedService(activeService)) return showAlert("Use Shared Form");
-  if(!validateIndividualTrip()) return;
+  if(!validateIndividualTrip()){
+    return;
+  }
+
+  if(!checkReservedDynamicWarning(tripDate.value,tripTime.value)){
+    return;
+  }
+
+  submitTripBtn.disabled = true;
+  submitTripBtn.innerText = "Submitting...";
 
   try{
 
     await createTrip(buildIndividualPayload());
 
     clearIndividualForm();
+
     localStorage.removeItem("dispatchTripDraft");
 
     await refreshReview();
+
     showReviewPage();
 
     showAlert("Trip Added To Dispatch Review ✔");
 
   }catch(err){
+
     console.error(err);
+
     showAlert(err.message || "Add trip failed");
+
+  }finally{
+
+    submitTripBtn.disabled = false;
+    submitTripBtn.innerText = "Add To Review";
   }
 });
 
 submitSharedBtn?.addEventListener("click",async ()=>{
 
-  if(!activeService) return showAlert("Select Service");
-  if(!validateSharedTrip()) return;
+  if(!validateSharedTrip()){
+    return;
+  }
+
+  if(!checkReservedDynamicWarning(sharedDate.value,sharedTime.value)){
+    return;
+  }
+
+  submitSharedBtn.disabled = true;
+  submitSharedBtn.innerText = "Submitting...";
 
   try{
 
     await createTrip(buildSharedPayload());
 
     clearSharedForm();
+
     localStorage.removeItem("dispatchSharedDraft");
 
     await refreshReview();
+
     showReviewPage();
 
     showAlert("Shared Trip Added To Dispatch Review ✔");
 
   }catch(err){
+
     console.error(err);
+
     showAlert(err.message || "Add shared trip failed");
+
+  }finally{
+
+    submitSharedBtn.disabled = false;
+    submitSharedBtn.innerText = "Add Shared To Review";
   }
 });
 
-/* ================= REVIEW BUTTON POLICY ================= */
+/* ================= BUTTON POLICY ================= */
 
 function hasActiveAddStopRequest(trip){
 
-  const req = trip?.addStopRequest || null;
+  const req =
+    trip?.addStopRequest || null;
 
   if(!req) return false;
 
-  const status = normalizeText(req.status).toUpperCase();
+  const status =
+    normalizeText(req.status).toUpperCase();
 
   return (
     req.active === true &&
@@ -1548,23 +2373,27 @@ function reservedAllowsAddStop(trip){
     return false;
   }
 
-  const service = getServiceByTrip(trip);
+  const service =
+    getServiceByTrip(trip);
 
   if(!service) return false;
 
-  if(service.reservedAddStopEnabled !== true){
+  if(bool(service.reservedAddStopEnabled) !== true){
     return false;
   }
 
-  const custom = service.reservedAddStopCustomTimeEnabled === true;
+  const custom =
+    bool(service.reservedAddStopCustomTimeEnabled);
 
   if(!custom) return true;
 
-  const mins = minutesToTrip(trip);
+  const mins =
+    minutesToTrip(trip);
 
   if(mins === null) return true;
 
-  const cutoff = Number(service.reservedAddStopCutoffMinutes || 0);
+  const cutoff =
+    Number(service.reservedAddStopCutoffMinutes || 0);
 
   if(cutoff <= 0){
     return mins >= 0;
@@ -1592,13 +2421,25 @@ function renderAddStopButton(t){
 
 function renderTripButtons(t){
 
-  const service = getServiceByTrip(t);
-  const mins = minutesToTrip(t);
-  const warningMinutes = warningEnabled(service) ? getWarningMinutes(service) : 0;
-  const status = cleanStatus(t.status);
-  const stopBtn = renderAddStopButton(t);
+  const service =
+    getServiceByTrip(t);
+
+  const mins =
+    minutesToTrip(t);
+
+  const warningMinutes =
+    warningEnabled(service)
+      ? getWarningMinutes(service)
+      : 0;
+
+  const status =
+    cleanStatus(t.status);
+
+  const stopBtn =
+    renderAddStopButton(t);
 
   if(t.__editing === true){
+
     return `
       <div class="actions-wrap">
         <button class="btn confirm" data-action="save-edit">Save</button>
@@ -1612,6 +2453,7 @@ function renderTripButtons(t){
   }
 
   if(mins > warningMinutes || mins === null){
+
     return `
       <div class="actions-wrap">
         <button class="btn edit" data-action="edit-trip">Edit</button>
@@ -1625,6 +2467,7 @@ function renderTripButtons(t){
   }
 
   if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
+
     return `
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
@@ -1635,6 +2478,7 @@ function renderTripButtons(t){
   }
 
   if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
+
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-trip">Cancel</button>
@@ -1650,8 +2494,11 @@ function renderTripButtons(t){
 
 function applyRowColor(tr,t){
 
-  const mins = minutesToTrip(t);
-  const status = cleanStatus(t.status);
+  const mins =
+    minutesToTrip(t);
+
+  const status =
+    cleanStatus(t.status);
 
   if(status.includes("cancel")){
     tr.classList.add("cancelled-row");
@@ -1689,8 +2536,11 @@ function getPassengers(t){
 
 function renderTripRow(t,index){
 
-  const tr = document.createElement("tr");
-  tr.dataset.id = t._id || t.id || "";
+  const tr =
+    document.createElement("tr");
+
+  tr.dataset.id =
+    t._id || t.id || "";
 
   applyRowColor(tr,t);
 
@@ -1704,43 +2554,52 @@ function renderTripRow(t,index){
   const passengers =
     getPassengers(t);
 
-  const clients = isShared
-    ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientName || p.name || "--"}`))
-    : escapeHtml(t.clientName || "--");
+  const clients =
+    isShared
+      ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientName || p.name || "--"}`))
+      : escapeHtml(t.clientName || "--");
 
-  const phones = isShared
-    ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientPhone || p.phone || "--"}`))
-    : escapeHtml(t.clientPhone || "--");
+  const phones =
+    isShared
+      ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientPhone || p.phone || "--"}`))
+      : escapeHtml(t.clientPhone || "--");
 
-  const pickups = isShared
-    ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.pickup || "--"}`))
-    : escapeHtml(t.pickup || "--");
+  const pickups =
+    isShared
+      ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.pickup || "--"}`))
+      : escapeHtml(t.pickup || "--");
 
-  const drops = isShared
-    ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.dropoff || "--"}`))
-    : escapeHtml(t.dropoff || "--");
+  const drops =
+    isShared
+      ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.dropoff || "--"}`))
+      : escapeHtml(t.dropoff || "--");
 
-  const stopsDisplay = isShared
-    ? Math.max(0,passengers.filter(passengerIsActive).length - 1)
-    : Array.isArray(t.stops) && t.stops.length
-      ? t.stops.map(s=>escapeHtml(s))
-      : "--";
+  const stopsDisplay =
+    isShared
+      ? Math.max(0,passengers.filter(passengerIsActive).length - 1)
+      : Array.isArray(t.stops) && t.stops.length
+        ? t.stops.map(s=>escapeHtml(s))
+        : "--";
 
-  const sharedClientEdit = passengers.map((p,i)=>`
-    ${createSharedEditInput(p.clientName || p.name || "",`passenger_${i}_name`)}
-  `).join("");
+  const sharedClientEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.clientName || p.name || "",`passenger_${i}_name`)}
+    `).join("");
 
-  const sharedPhoneEdit = passengers.map((p,i)=>`
-    ${createSharedEditInput(p.clientPhone || p.phone || "",`passenger_${i}_phone`)}
-  `).join("");
+  const sharedPhoneEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.clientPhone || p.phone || "",`passenger_${i}_phone`)}
+    `).join("");
 
-  const sharedPickupEdit = passengers.map((p,i)=>`
-    ${createSharedEditInput(p.pickup || "",`passenger_${i}_pickup`)}
-  `).join("");
+  const sharedPickupEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.pickup || "",`passenger_${i}_pickup`)}
+    `).join("");
 
-  const sharedDropEdit = passengers.map((p,i)=>`
-    ${createSharedEditInput(p.dropoff || "",`passenger_${i}_dropoff`)}
-  `).join("");
+  const sharedDropEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.dropoff || "",`passenger_${i}_dropoff`)}
+    `).join("");
 
   tr.innerHTML = `
     <td class="col-num">${index}</td>
@@ -1749,19 +2608,19 @@ function renderTripRow(t,index){
       <span class="trip-number-badge">${escapeHtml(t.tripNumber || "--")}</span>
       ${
         t.routeLocked === true
-        ? `<div class="route-locked-badge">Route Locked</div>`
-        : ""
+          ? `<div class="route-locked-badge">Route Locked</div>`
+          : ""
       }
       ${
         hasActiveAddStopRequest(t)
-        ? `<div class="route-locked-badge">Stop Pending</div>`
-        : ""
+          ? `<div class="route-locked-badge">Stop Pending</div>`
+          : ""
       }
     </td>
 
     <td class="col-type">${escapeHtml(isShared ? "SHARED" : "TRIP")}</td>
 
-    <td class="col-service">${escapeHtml(t.serviceTitle || t.serviceType || t.serviceKey || "--")}</td>
+    <td class="col-service">${escapeHtml(t.serviceTitle || t.serviceName || t.serviceType || t.serviceKey || "--")}</td>
 
     <td class="col-entry">
       ${editing ? createEditInput(t.entryName || "", "entryName") : cellBox(escapeHtml(t.entryName || "--"))}
@@ -1882,8 +2741,15 @@ function groupByDate(items){
   const groups = {};
 
   items.forEach(t=>{
-    const key = normalizeText(t.tripDate) || "Unknown";
-    if(!groups[key]) groups[key] = [];
+
+    const key =
+      normalizeText(t.tripDate) ||
+      "Unknown";
+
+    if(!groups[key]){
+      groups[key] = [];
+    }
+
     groups[key].push(t);
   });
 
@@ -1892,16 +2758,20 @@ function groupByDate(items){
 
 function renderReviewTable(){
 
-  if(!dispatchReviewList) return;
+  if(!dispatchReviewList){
+    return;
+  }
 
   updateReviewCounter();
 
   if(!reviewTrips.length){
+
     dispatchReviewList.innerHTML = `
       <div style="font-weight:900;color:#64748b;">
         No RV trips in review.
       </div>
     `;
+
     return;
   }
 
@@ -1937,8 +2807,11 @@ function renderReviewTable(){
     </div>
   `;
 
-  const tbody = document.getElementById("dispatchReviewTbody");
-  const grouped = groupByDate(reviewTrips);
+  const tbody =
+    document.getElementById("dispatchReviewTbody");
+
+  const grouped =
+    groupByDate(reviewTrips);
 
   let counter = 1;
 
@@ -1950,9 +2823,15 @@ function renderReviewTable(){
     })
     .forEach(date=>{
 
-      const dateRow = document.createElement("tr");
-      dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="19">Trip Date: ${escapeHtml(date)}</td>`;
+      const dateRow =
+        document.createElement("tr");
+
+      dateRow.className =
+        "date-row";
+
+      dateRow.innerHTML =
+        `<td colspan="19">Trip Date: ${escapeHtml(date)}</td>`;
+
       tbody.appendChild(dateRow);
 
       grouped[date].forEach(t=>{
@@ -1965,30 +2844,23 @@ function renderReviewTable(){
 
 async function handleEditTrip(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
 
-  const trip = reviewTrips.find(t=>String(t._id || t.id) === String(id));
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
   if(!trip) return;
 
-  const service = getServiceByTrip(trip);
-  const mins = minutesToTrip(trip);
-
-  if(
-    warningEnabled(service) &&
-    mins !== null &&
-    mins <= getWarningMinutes(service) &&
-    mins > 0
-  ){
-    const ok = confirm(
-      `This trip is within ${getWarningMinutes(service)} minutes.\n\nContinue editing?`
-    );
-
-    if(!ok) return;
+  if(!checkTripWarningByTrip(trip)){
+    return;
   }
 
   trip.__editing = true;
+
   renderReviewTable();
 }
 
@@ -1998,30 +2870,49 @@ async function handleCancelEdit(){
 
 async function handleSaveEdit(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
 
-  const trip = reviewTrips.find(t=>String(t._id || t.id) === String(id));
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
   if(!trip) return;
+
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
 
   const isShared =
     trip.isShared === true ||
     trip.tripType === "SHARED";
 
   const payload = {};
-  const stops = Array.isArray(trip.stops) ? [...trip.stops] : [];
-  const passengers = Array.isArray(trip.passengers)
-    ? trip.passengers.map(p=>({...p}))
-    : [];
+  const stops =
+    Array.isArray(trip.stops)
+      ? [...trip.stops]
+      : [];
+
+  const passengers =
+    Array.isArray(trip.passengers)
+      ? trip.passengers.map(p=>({...p}))
+      : [];
 
   tr.querySelectorAll(".edit-input").forEach(input=>{
 
-    const field = input.dataset.field;
-    const stopIndex = input.dataset.stopIndex;
+    const field =
+      input.dataset.field;
+
+    const stopIndex =
+      input.dataset.stopIndex;
 
     if(stopIndex !== undefined){
-      stops[Number(stopIndex)] = normalizeAddress(input.value);
+
+      stops[Number(stopIndex)] =
+        normalizeAddress(input.value);
+
       return;
     }
 
@@ -2029,9 +2920,14 @@ async function handleSaveEdit(btn){
 
     if(field.startsWith("passenger_")){
 
-      const parts = field.split("_");
-      const index = Number(parts[1]);
-      const key = parts[2];
+      const parts =
+        field.split("_");
+
+      const index =
+        Number(parts[1]);
+
+      const key =
+        parts[2];
 
       if(!passengers[index]) return;
 
@@ -2063,10 +2959,14 @@ async function handleSaveEdit(btn){
     }
   });
 
-  const nextDate = payload.tripDate ?? trip.tripDate;
-  const nextTime = payload.tripTime ?? trip.tripTime;
+  const nextDate =
+    payload.tripDate ?? trip.tripDate;
 
-  const dt = parseTripDateTime(nextDate,nextTime);
+  const nextTime =
+    payload.tripTime ?? trip.tripTime;
+
+  const dt =
+    parseTripDateTime(nextDate,nextTime);
 
   if(!dt){
     showAlert("Invalid date/time");
@@ -2112,7 +3012,8 @@ async function handleSaveEdit(btn){
 
   }else{
 
-    payload.stops = stops.filter(Boolean);
+    payload.stops =
+      stops.filter(Boolean);
   }
 
   payload.status = "Review";
@@ -2147,14 +3048,20 @@ async function handleSaveEdit(btn){
 
 async function handleDeleteTrip(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
 
   if(!id) return;
 
-  if(!confirm("Delete this trip?")) return;
+  if(!confirm("Delete this trip?")){
+    return;
+  }
 
   await deleteTrip(id);
+
   await refreshReview();
 
   showAlert("Trip Deleted ✔");
@@ -2162,10 +3069,14 @@ async function handleDeleteTrip(btn){
 
 async function handleAddStop(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
 
-  const trip = reviewTrips.find(t=>String(t._id || t.id) === String(id));
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
   if(!trip) return;
 
@@ -2174,19 +3085,32 @@ async function handleAddStop(btn){
     return;
   }
 
-  const stop = prompt("Enter stop address:");
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
 
-  if(!normalizeText(stop)) return;
+  const stop =
+    prompt("Enter stop address:");
 
-  const stops = Array.isArray(trip.stops) ? [...trip.stops] : [];
+  if(!normalizeText(stop)){
+    return;
+  }
+
+  const stops =
+    Array.isArray(trip.stops)
+      ? [...trip.stops]
+      : [];
 
   if(stops.length >= 5){
     showAlert("Maximum 5 stops allowed.");
     return;
   }
 
-  const newStop = normalizeAddress(stop);
-  const finalStops = [...stops,newStop];
+  const newStop =
+    normalizeAddress(stop);
+
+  const finalStops =
+    [...stops,newStop];
 
   await updateTrip(id,{
     stops:finalStops,
@@ -2233,25 +3157,33 @@ async function handleAddStop(btn){
 
 async function handleCancelStop(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
 
-  const trip = reviewTrips.find(t=>String(t._id || t.id) === String(id));
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
   if(!trip) return;
 
-  const req = trip.addStopRequest || null;
+  const req =
+    trip.addStopRequest || null;
 
   if(!req || req.active !== true){
     showAlert("No active stop request.");
     return;
   }
 
-  if(!confirm("Cancel added stop request?")) return;
+  if(!confirm("Cancel added stop request?")){
+    return;
+  }
 
-  const restoredStops = Array.isArray(req.existingStopsBefore)
-    ? req.existingStopsBefore
-    : [];
+  const restoredStops =
+    Array.isArray(req.existingStopsBefore)
+      ? req.existingStopsBefore
+      : [];
 
   await updateTrip(id,{
     stops:restoredStops,
@@ -2290,20 +3222,30 @@ async function handleCancelStop(btn){
 
 async function handleConfirmTrip(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
 
-  const trip = reviewTrips.find(t=>String(t._id || t.id) === String(id));
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
   if(!trip) return;
 
-  const service = getServiceByTrip(trip);
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
+
+  const service =
+    getServiceByTrip(trip);
 
   if(!service){
     throw new Error("Reserved service not found");
   }
 
-  const oldText = btn.textContent;
+  const oldText =
+    btn.textContent;
 
   try{
 
@@ -2320,15 +3262,23 @@ async function handleConfirmTrip(btn){
 
     if(isShared){
 
-      const finalRoute = await buildFinalSharedRoute(trip);
+      const finalRoute =
+        await buildFinalSharedRoute(trip);
 
-      routePoints = finalRoute.routePoints;
-      passengers = finalRoute.passengers;
-      activeCount = finalRoute.activeCount || 1;
+      routePoints =
+        finalRoute.routePoints;
+
+      passengers =
+        finalRoute.passengers;
+
+      activeCount =
+        finalRoute.activeCount || 1;
 
     }else{
 
-      routePoints = buildIndividualRoutePoints(trip);
+      routePoints =
+        buildIndividualRoutePoints(trip);
+
       passengers = [];
       activeCount = 1;
     }
@@ -2337,25 +3287,29 @@ async function handleConfirmTrip(btn){
       throw new Error("Route is missing pickup/dropoff");
     }
 
-    const routeData = await calculateRouteMiles(routePoints);
+    const routeData =
+      await calculateRouteMiles(routePoints);
 
     btn.textContent = "Pricing...";
 
-    const pricing = getReservedPricing(service);
+    const pricing =
+      getReservedPricing(service);
 
-    const stopsCount = isShared
-      ? Math.max(0,activeCount - 1)
-      : Array.isArray(trip.stops)
-        ? trip.stops.length
-        : 0;
+    const stopsCount =
+      isShared
+        ? Math.max(0,activeCount - 1)
+        : Array.isArray(trip.stops)
+          ? trip.stops.length
+          : 0;
 
-    const total = calculateReservedPrice({
-      service,
-      miles:routeData.miles,
-      minutes:routeData.estimatedMinutes,
-      stops:stopsCount,
-      passengerCount:isShared ? activeCount : 1
-    });
+    const total =
+      calculateReservedPrice({
+        service,
+        miles:routeData.miles,
+        minutes:routeData.estimatedMinutes,
+        stops:stopsCount,
+        passengerCount:isShared ? activeCount : 1
+      });
 
     let pricePerPassenger = 0;
 
@@ -2369,29 +3323,34 @@ async function handleConfirmTrip(btn){
           ).toFixed(2)
         );
 
-      passengers = passengers.map(p=>{
+      passengers =
+        passengers.map(p=>{
 
-        const s = cleanStatus(p.status);
+          const s =
+            cleanStatus(p.status);
 
-        if(s.includes("no") || s.includes("cancel")){
-          return p;
-        }
+          if(s.includes("no") || s.includes("cancel")){
+            return p;
+          }
 
-        return {
-          ...p,
-          status:"Confirmed",
-          priceAmount:pricePerPassenger,
-          finalPrice:pricePerPassenger,
-          cancelFee:Number(pricing.cancelFee || 0),
-          noShowFee:Number(pricing.noShowFee || 0)
-        };
-      });
+          return {
+            ...p,
+            status:"Confirmed",
+            priceAmount:pricePerPassenger,
+            finalPrice:pricePerPassenger,
+            cancelFee:Number(pricing.cancelFee || 0),
+            noShowFee:Number(pricing.noShowFee || 0)
+          };
+        });
     }
 
-    const serviceCode = isShared ? "SHARED" : getServiceCode(service);
-    const serviceSuffix = isShared ? "SH" : getServiceSuffix(service);
+    const serviceCode =
+      isShared
+        ? "SH"
+        : resolveServiceCode(service);
 
-    btn.textContent = "Saving...";
+    btn.textContent =
+      "Saving...";
 
     await updateTrip(id,{
       status:"Confirmed",
@@ -2412,8 +3371,10 @@ async function handleConfirmTrip(btn){
       serviceKey:serviceCode,
       serviceType:serviceCode,
       serviceCode:serviceCode,
-      serviceSuffix:serviceSuffix,
-      serviceTitle:isShared ? "Shared" : getServiceTitle(service),
+      serviceSuffix:serviceCode,
+      serviceName:serviceDisplayName(service,serviceCode),
+      serviceTitle:serviceDisplayName(service,serviceCode),
+      serviceId:String(service?._id || ""),
 
       vehicleTypeFromQuote:serviceCode,
       vehicleType:serviceCode,
@@ -2487,6 +3448,7 @@ async function handleConfirmTrip(btn){
   }catch(err){
 
     console.error(err);
+
     showAlert(err.message || "Confirm failed");
 
     btn.disabled = false;
@@ -2496,36 +3458,54 @@ async function handleConfirmTrip(btn){
 
 async function handleCancelTrip(btn){
 
-  const tr = btn.closest("tr");
-  const id = tr.dataset.id;
+  const tr =
+    btn.closest("tr");
 
-  const trip = reviewTrips.find(t=>String(t._id || t.id) === String(id));
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
   if(!trip) return;
 
-  if(!confirm("Cancel this RV trip?")) return;
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
 
-  const service = getServiceByTrip(trip);
+  if(!confirm("Cancel this RV trip?")){
+    return;
+  }
+
+  const service =
+    getServiceByTrip(trip);
 
   if(!service){
     showAlert("Reserved service not found");
     return;
   }
 
-  const pricing = getReservedPricing(service);
-  const cancelFee = warningEnabled(service) ? Number(pricing.cancelFee || 0) : 0;
+  const pricing =
+    getReservedPricing(service);
+
+  const cancelFee =
+    warningEnabled(service)
+      ? Number(pricing.cancelFee || 0)
+      : 0;
 
   const isShared =
     trip.isShared === true ||
     trip.tripType === "SHARED";
 
-  const passengers = Array.isArray(trip.passengers)
-    ? trip.passengers
-    : [];
+  const passengers =
+    Array.isArray(trip.passengers)
+      ? trip.passengers
+      : [];
 
-  const count = isShared
-    ? Math.max(1,passengers.length)
-    : 1;
+  const count =
+    isShared
+      ? Math.max(1,passengers.length)
+      : 1;
 
   await updateTrip(id,{
     status:"Cancelled",
@@ -2562,10 +3542,14 @@ async function handleCancelTrip(btn){
 
 document.addEventListener("click",async e=>{
 
-  const btn = e.target.closest("button");
+  const btn =
+    e.target.closest("button");
+
   if(!btn) return;
 
-  const action = btn.dataset.action;
+  const action =
+    btn.dataset.action;
+
   if(!action) return;
 
   try{
@@ -2582,7 +3566,9 @@ document.addEventListener("click",async e=>{
   }catch(err){
 
     console.error(err);
+
     showAlert(err.message || "Server Error");
+
     await refreshReview();
   }
 });
@@ -2591,19 +3577,18 @@ document.addEventListener("click",async e=>{
 
 saveDraftBtn?.addEventListener("click",()=>{
 
-  const draft = {
-    serviceKey:activeService ? getServiceCode(activeService) : "",
-    clientName:clientName?.value || "",
-    clientPhone:clientPhone?.value || "",
-    pickup:pickupInput?.value || "",
-    dropoff:dropoffInput?.value || "",
-    tripDate:tripDate?.value || "",
-    tripTime:tripTime?.value || "",
-    notes:notes?.value || "",
-    stops:[...document.querySelectorAll(".stop-input")].map(i=>i.value)
-  };
-
-  localStorage.setItem("dispatchTripDraft",JSON.stringify(draft));
+  localStorage.setItem(
+    "dispatchTripDraft",
+    JSON.stringify({
+      clientName:clientName?.value || "",
+      clientPhone:clientPhone?.value || "",
+      pickup:pickupInput?.value || "",
+      dropoff:dropoffInput?.value || "",
+      tripDate:tripDate?.value || "",
+      tripTime:tripTime?.value || "",
+      notes:notes?.value || ""
+    })
+  );
 
   showAlert("Draft Saved ✔");
 });
@@ -2612,31 +3597,39 @@ saveSharedDraftBtn?.addEventListener("click",()=>{
 
   const passengers = [];
 
-  document.querySelectorAll(".passenger-card").forEach(card=>{
-    passengers.push({
-      clientName:card.querySelector(".sharedClientName")?.value || "",
-      clientPhone:card.querySelector(".sharedClientPhone")?.value || "",
-      pickup:card.querySelector(".sharedPickup")?.value || "",
-      dropoff:card.querySelector(".sharedDropoff")?.value || ""
-    });
-  });
+  document
+    .querySelectorAll(".passenger-card")
+    .forEach(card=>{
 
-  localStorage.setItem("dispatchSharedDraft",JSON.stringify({
-    passengerCount:passengerCount?.value || "",
-    sharedDate:sharedDate?.value || "",
-    sharedTime:sharedTime?.value || "",
-    sharedNotes:sharedNotes?.value || "",
-    entryName:sharedEntryName?.value || "",
-    entryPhone:sharedEntryPhone?.value || "",
-    passengers
-  }));
+      passengers.push({
+        clientName:card.querySelector(".sharedClientName")?.value || "",
+        clientPhone:card.querySelector(".sharedClientPhone")?.value || "",
+        pickup:card.querySelector(".sharedPickup")?.value || "",
+        dropoff:card.querySelector(".sharedDropoff")?.value || ""
+      });
+    });
+
+  localStorage.setItem(
+    "dispatchSharedDraft",
+    JSON.stringify({
+      passengerCount:passengerCount?.value || "",
+      sharedDate:sharedDate?.value || "",
+      sharedTime:sharedTime?.value || "",
+      sharedNotes:sharedNotes?.value || "",
+      passengers
+    })
+  );
 
   showAlert("Shared Draft Saved ✔");
 });
 
 function loadDrafts(){
 
-  const draft = JSON.parse(localStorage.getItem("dispatchTripDraft") || "{}");
+  const draft =
+    JSON.parse(
+      localStorage.getItem("dispatchTripDraft") ||
+      "{}"
+    );
 
   if(clientName) clientName.value = draft.clientName || "";
   if(clientPhone) clientPhone.value = draft.clientPhone || "";
@@ -2646,12 +3639,12 @@ function loadDrafts(){
   if(tripTime) tripTime.value = draft.tripTime || "";
   if(notes) notes.value = draft.notes || "";
 
-  (draft.stops || []).forEach(stop=>createStopInput(stop));
+  const sharedDraft =
+    JSON.parse(
+      localStorage.getItem("dispatchSharedDraft") ||
+      "{}"
+    );
 
-  const sharedDraft = JSON.parse(localStorage.getItem("dispatchSharedDraft") || "{}");
-
-  if(sharedDraft.entryName && sharedEntryName) sharedEntryName.value = sharedDraft.entryName;
-  if(sharedDraft.entryPhone && sharedEntryPhone) sharedEntryPhone.value = sharedDraft.entryPhone;
   if(passengerCount) passengerCount.value = sharedDraft.passengerCount || "";
   if(sharedDate) sharedDate.value = sharedDraft.sharedDate || "";
   if(sharedTime) sharedTime.value = sharedDraft.sharedTime || "";
@@ -2661,11 +3654,14 @@ function loadDrafts(){
 
     renderSharedPassengers(Number(sharedDraft.passengerCount));
 
-    const cards = document.querySelectorAll(".passenger-card");
+    const cards =
+      document.querySelectorAll(".passenger-card");
 
     (sharedDraft.passengers || []).forEach((p,index)=>{
 
-      const card = cards[index];
+      const card =
+        cards[index];
+
       if(!card) return;
 
       card.querySelector(".sharedClientName").value = p.clientName || "";
@@ -2689,7 +3685,7 @@ loadEntryInfo();
 loadDrafts();
 
 await loadSystemInfo();
-await loadAdminServices();
+await loadReservedServices();
 await refreshReview();
 
 showAddPage();
