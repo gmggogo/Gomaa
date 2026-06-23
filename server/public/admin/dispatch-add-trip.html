@@ -31,16 +31,49 @@ body{
   padding:24px 14px;
 }
 
-/* TOP NAV */
-.dispatch-nav{
-  display:flex;
+/* ================= TOP NAV ================= */
+
+.dispatch-top-actions{
+  display:flex !important;
   gap:10px;
-  margin-bottom:18px;
+  margin-bottom:12px;
   background:#e2e8f0;
   padding:6px;
   border-radius:14px;
   flex-wrap:wrap;
 }
+
+.dispatch-top-actions button{
+  flex:1;
+  min-width:160px;
+  padding:12px 22px;
+  border:none;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:800;
+  cursor:pointer;
+  transition:.2s;
+  color:#fff;
+}
+
+.dispatch-top-actions button:hover{
+  transform:translateY(-1px);
+}
+
+.dispatch-review-note{
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e3a8a;
+  padding:7px 10px;
+  border-radius:10px;
+  font-weight:900;
+  margin:0 0 12px;
+  font-size:11px;
+  line-height:1.25;
+  text-align:center;
+}
+
+/* ================= BUTTONS ================= */
 
 .dispatch-nav button,
 .tabs button,
@@ -54,7 +87,9 @@ button{
   transition:.2s;
 }
 
-button:hover{transform:translateY(-1px);}
+button:hover{
+  transform:translateY(-1px);
+}
 
 .btn-blue{background:#2563eb;color:#fff;}
 .btn-gray{background:#64748b;color:#fff;}
@@ -63,9 +98,10 @@ button:hover{transform:translateY(-1px);}
 .btn-orange{background:#f97316;color:#fff;}
 .btn-red{background:#ef4444;color:#fff;}
 
-/* SERVICE TABS */
+/* ================= SERVICE TABS ================= */
+
 .tabs{
-  display:flex;
+  display:flex !important;
   gap:10px;
   margin-bottom:20px;
   background:#e2e8f0;
@@ -79,7 +115,8 @@ button:hover{transform:translateY(-1px);}
   min-width:120px;
 }
 
-/* SECTIONS */
+/* ================= SECTIONS ================= */
+
 section{
   background:#fff;
   padding:18px;
@@ -95,7 +132,8 @@ section h3{
   color:#0f172a;
 }
 
-/* FORMS */
+/* ================= FORMS ================= */
+
 .form-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -135,14 +173,21 @@ textarea{
   flex-wrap:wrap;
 }
 
-/* STOPS */
+/* ================= STOPS ================= */
+
+#stops{
+  display:none;
+}
+
 .stop-row{
   display:flex;
   gap:8px;
   margin-top:10px;
 }
 
-.stop-row input{flex:1;}
+.stop-row input{
+  flex:1;
+}
 
 .remove-stop-btn{
   background:#ef4444;
@@ -152,7 +197,8 @@ textarea{
   width:auto;
 }
 
-/* PASSENGERS */
+/* ================= PASSENGERS ================= */
+
 .passenger-card{
   background:#f9fafb;
   border:1px solid #e5e7eb;
@@ -168,8 +214,11 @@ textarea{
   margin-bottom:10px;
 }
 
-/* REVIEW */
-#dispatchReviewPage{display:none;}
+/* ================= REVIEW ================= */
+
+#dispatchReviewPage{
+  display:none;
+}
 
 .review-head{
   display:flex;
@@ -196,9 +245,11 @@ textarea{
 
 .review-table{
   width:100%;
-  min-width:2100px;
+  min-width:2250px;
   border-collapse:collapse;
   background:#fff;
+  table-layout:fixed;
+  border-top:6px solid #000;
 }
 
 .review-table th,
@@ -207,7 +258,7 @@ textarea{
   padding:7px;
   font-size:11px;
   text-align:center;
-  vertical-align:top;
+  vertical-align:middle;
 }
 
 .review-table th{
@@ -215,14 +266,50 @@ textarea{
   color:#fff;
   font-weight:900;
   white-space:nowrap;
+  position:sticky;
+  top:0;
+  z-index:5;
 }
 
-.multi-line{
-  white-space:pre-line;
-  text-align:left;
-  min-width:150px;
-  max-width:240px;
+/* ================= CELL BOX SAME REVIEW STYLE ================= */
+
+.cell-box{
+  display:grid;
+  border:1px solid #111;
+  background:#fff;
+  width:100%;
+  box-sizing:border-box;
+  border-radius:4px;
+  overflow:hidden;
+}
+
+.cell-item{
+  padding:4px 5px;
+  min-height:23px;
+  font-weight:800;
+  white-space:normal;
   word-break:break-word;
+  box-sizing:border-box;
+  background:#fff;
+  color:#111827;
+  font-size:10.5px;
+  line-height:1.35;
+  text-align:left;
+}
+
+.cell-item + .cell-item{
+  border-top:1px solid #111;
+}
+
+.date-row td{
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  font-weight:900!important;
+  text-align:center!important;
+  padding:8px!important;
+  font-size:13px!important;
+  border-top:3px solid #000!important;
+  border-bottom:2px solid #60a5fa!important;
 }
 
 .trip-number-badge{
@@ -237,6 +324,25 @@ textarea{
   font-size:13px;
   font-weight:900;
   white-space:nowrap;
+}
+
+.miles-strong{
+  color:#2563eb;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.route-locked-badge{
+  display:inline-block;
+  margin-top:4px;
+  padding:3px 6px;
+  border-radius:999px;
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fcd34d;
+  font-size:9px;
+  font-weight:900;
 }
 
 .actions-wrap{
@@ -261,8 +367,10 @@ textarea{
 .btn.delete{background:#dc2626;color:#fff;}
 .btn.cancel{background:#ef4444;color:#fff;}
 .btn.confirm{background:#16a34a;color:#fff;}
+.btn.add-stop{background:#7c3aed;color:#fff;}
 
 .scheduled-row{background:#fff;}
+.review-row{background:#f8fafc;}
 .confirmed-row{background:#dcfce7;}
 .cancelled-row{background:#fecaca;}
 .yellow{background:#fef9c3;}
@@ -281,13 +389,65 @@ textarea{
   text-align:center;
 }
 
+.edit-input{
+  width:100%;
+  min-width:105px;
+  padding:7px;
+  border:1px solid #94a3b8;
+  border-radius:6px;
+  font-size:12px;
+  background:#fff;
+  color:#111827;
+  outline:none;
+  margin-bottom:4px;
+}
+
+/* ================= COLUMN WIDTHS ================= */
+
+.col-num{width:36px;}
+.col-trip{width:105px;}
+.col-type{width:75px;}
+.col-service{width:95px;}
+.col-entry{width:125px;}
+.col-entry-phone{width:110px;}
+.col-client{width:180px;}
+.col-phone{width:120px;}
+.col-pickup{width:245px;}
+.col-stops{width:205px;}
+.col-drop{width:245px;}
+.col-date{width:95px;}
+.col-time{width:75px;}
+.col-notes{width:190px;}
+.col-miles{width:82px;}
+.col-mins{width:82px;}
+.col-price{width:92px;}
+.col-status{width:100px;}
+.col-actions{width:225px;}
+
 @media(max-width:768px){
-  .container{padding:16px 6px;}
-  .form-grid{grid-template-columns:1fr;}
-  .actions{flex-direction:column;}
-  button{width:100%;}
-  .stop-row{flex-direction:column;}
-  .review-table{min-width:1500px;}
+  .container{
+    padding:16px 6px;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+
+  .actions{
+    flex-direction:column;
+  }
+
+  button{
+    width:100%;
+  }
+
+  .stop-row{
+    flex-direction:column;
+  }
+
+  .review-table{
+    min-width:1850px;
+  }
 }
 </style>
 </head>
@@ -298,6 +458,24 @@ textarea{
 
 <div class="container">
 
+  <!-- ================= TOP NAV ================= -->
+  <div class="dispatch-top-actions">
+    <button id="backToHubBtn" type="button" style="background:#64748b;">
+      ← Back To Trips Hub
+    </button>
+
+    <button id="showAddBtn" type="button" style="background:#f97316;">
+      Dispatch Add Trip
+    </button>
+
+    <button id="showReviewBtn" type="button" style="background:#16a34a;">
+      Dispatch Review (0)
+    </button>
+  </div>
+
+  <div class="dispatch-review-note top-note">
+    Reserved RV trips • Add Trip creates Trip Number immediately • Review table follows company review style
+  </div>
 
   <!-- ================= ADD PAGE ================= -->
   <div id="dispatchAddPage">
@@ -340,10 +518,6 @@ textarea{
 
         <div id="stops" style="margin-top:12px;"></div>
 
-        <div style="margin-top:10px;">
-          <button class="btn-orange" id="addStopBtn" type="button">+ Add Stop</button>
-        </div>
-
         <div class="form-grid" style="margin-top:12px;">
           <input id="dropoff" placeholder="Dropoff Address">
           <input id="tripTime" type="time">
@@ -354,7 +528,7 @@ textarea{
 
       <div class="actions">
         <button class="btn-gray" id="saveDraftBtn" type="button">Save Draft</button>
-        <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+        <button class="btn-green" id="submitTrip" type="button">Add To Review</button>
       </div>
 
     </div>
@@ -372,6 +546,7 @@ textarea{
 
         <div class="actions">
           <button class="btn-blue" id="editSharedEntryBtn" type="button">Edit</button>
+          <button class="btn-light" id="saveSharedEntryBtn" type="button">Save Entry Info</button>
         </div>
       </section>
 
@@ -403,7 +578,7 @@ textarea{
 
       <div class="actions">
         <button class="btn-gray" id="saveSharedDraftBtn" type="button">Save Draft</button>
-        <button class="btn-green" id="submitShared" type="button">Submit Shared</button>
+        <button class="btn-green" id="submitShared" type="button">Add Shared To Review</button>
       </div>
 
     </div>
@@ -416,14 +591,9 @@ textarea{
     <section>
       <div class="review-head">
         <div class="review-title">Dispatch Review</div>
-
-        <div class="actions">
-          <button id="reviewBackToAddBtn" class="btn-orange" type="button">Back To Add Trip</button>
-          <button id="submitAllToHubBtn" class="btn-green" type="button">Submit All To Trips Hub</button>
-        </div>
       </div>
 
-      <div id="dispatchTripsContainer"></div>
+      <div id="dispatchReviewList"></div>
     </section>
 
   </div>
@@ -431,7 +601,6 @@ textarea{
 </div>
 
 <script src="dispatch-add-trip.js"></script>
-<script src="dispatch-pre-review.js"></script>
 
 </body>
 </html>
