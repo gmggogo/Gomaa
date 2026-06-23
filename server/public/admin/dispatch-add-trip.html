@@ -2,163 +2,267 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dispatch Add Trip</title>
+
+<title>Dispatch Add Trip – Reserved RV</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-*{box-sizing:border-box;}
+<link rel="stylesheet" href="/admin/style.css">
 
+<style>
+*{
+  box-sizing:border-box;
+}
+
+html,
 body{
+  width:100%;
+  max-width:100%;
   margin:0;
-  font-family:'Segoe UI',Arial,sans-serif;
-  background:#f4f8fb;
-  color:#111827;
+  padding:0;
   overflow-x:hidden;
 }
 
-#layoutHeader{
-  position:sticky;
-  top:0;
-  z-index:1000;
-  background:#fff;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#f4f8fb;
+  color:#111827;
 }
+
+/* ================= HEADER ================= */
+
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
+}
+
+/* ================= PAGE ================= */
 
 .container{
   width:100%;
-  max-width:1700px;
-  margin:auto;
-  padding:24px 14px;
+  max-width:100%;
+  margin:0 auto;
+  padding:115px 6px 24px;
 }
 
-/* TOP NAV */
-.dispatch-nav{
+.page-title{
+  margin:0 0 14px;
+  font-size:24px;
+  font-weight:900;
+  color:#0f172a;
+  text-align:center;
+}
+
+.page-subtitle{
+  margin:0 0 18px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+  text-align:center;
+}
+
+/* ================= TOP ACTIONS ================= */
+
+.dispatch-top-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.dispatch-top-actions button{
+  flex:1;
+  border:none;
+  border-radius:8px;
+  padding:12px;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+  min-width:160px;
+}
+
+/* ================= SERVICE TABS ================= */
+
+.tabs,
+#companyTabs{
   display:flex;
   gap:10px;
   margin-bottom:18px;
   background:#e2e8f0;
   padding:6px;
   border-radius:14px;
-  flex-wrap:wrap;
+  overflow-x:auto;
 }
 
-.dispatch-nav button,
 .tabs button,
-button{
-  padding:12px 22px;
+#companyTabs button{
+  flex:1;
+  min-width:120px;
+  padding:12px;
   border:none;
   border-radius:10px;
-  font-size:14px;
-  font-weight:800;
+  font-size:13px;
+  font-weight:900;
   cursor:pointer;
   transition:.2s;
 }
 
-button:hover{transform:translateY(-1px);}
-
-.btn-blue{background:#2563eb;color:#fff;}
-.btn-gray{background:#64748b;color:#fff;}
-.btn-green{background:#22c55e;color:#000;}
-.btn-light{background:#0ea5e9;color:#fff;}
-.btn-orange{background:#f97316;color:#fff;}
-.btn-red{background:#ef4444;color:#fff;}
-
-/* SERVICE TABS */
-.tabs{
-  display:flex;
-  gap:10px;
-  margin-bottom:20px;
-  background:#e2e8f0;
-  padding:6px;
-  border-radius:14px;
-  flex-wrap:wrap;
+.btn-blue{
+  background:#2563eb !important;
+  color:#fff !important;
 }
 
-.tabs button{
-  flex:1;
-  min-width:120px;
+.btn-gray{
+  background:#64748b !important;
+  color:#fff !important;
 }
 
-/* SECTIONS */
-section{
+.btn-orange{
+  background:#f97316 !important;
+  color:#fff !important;
+}
+
+.btn-green{
+  background:#16a34a !important;
+  color:#fff !important;
+}
+
+/* ================= FORM SECTIONS ================= */
+
+.form-section{
   background:#fff;
+  border:1px solid #dbe3ee;
+  border-radius:18px;
   padding:18px;
-  border-radius:16px;
   margin-bottom:18px;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
 }
 
-section h3{
+.section-title{
   margin:0 0 14px;
-  font-size:16px;
+  font-size:18px;
   font-weight:900;
   color:#0f172a;
+  border-bottom:2px solid #e2e8f0;
+  padding-bottom:10px;
 }
 
-/* FORMS */
 .form-grid{
   display:grid;
-  grid-template-columns:repeat(2,1fr);
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:14px;
 }
 
-input,
-textarea,
-select{
+.field-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.field-wrap.full{
+  grid-column:1 / -1;
+}
+
+.field-wrap label{
+  font-size:12px;
+  font-weight:900;
+  color:#334155;
+}
+
+.field-wrap input,
+.field-wrap textarea,
+.field-wrap select{
   width:100%;
   padding:12px;
-  font-size:13px;
   border:1px solid #cbd5e1;
   border-radius:10px;
+  font-size:14px;
+  font-weight:700;
+  outline:none;
   background:#fff;
   color:#111827;
 }
 
-input:focus,
-textarea:focus,
-select:focus{
-  outline:none;
+.field-wrap input:focus,
+.field-wrap textarea:focus,
+.field-wrap select:focus{
   border-color:#2563eb;
   box-shadow:0 0 0 2px rgba(37,99,235,.15);
 }
 
+.field-wrap input[readonly]{
+  background:#f1f5f9;
+  color:#475569;
+}
+
 textarea{
-  min-height:90px;
-  margin-top:12px;
+  min-height:85px;
   resize:vertical;
 }
 
-.actions{
-  display:flex;
-  gap:12px;
-  margin-top:12px;
-  flex-wrap:wrap;
+/* ================= ENTRY ROW ================= */
+
+.entry-row{
+  display:grid;
+  grid-template-columns:1fr 1fr auto auto;
+  gap:10px;
+  align-items:end;
+  margin-bottom:14px;
 }
 
-/* STOPS */
-.stop-row{
+.entry-row .field-wrap{
+  margin:0;
+}
+
+/* ================= STOPS ================= */
+
+#stops{
   display:flex;
+  flex-direction:column;
   gap:8px;
-  margin-top:10px;
+  margin-top:8px;
 }
 
-.stop-row input{flex:1;}
+.stop-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+}
+
+.stop-row input{
+  padding:11px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:700;
+}
 
 .remove-stop-btn{
-  background:#ef4444;
+  background:#dc2626;
   color:#fff;
-  border-radius:8px;
-  padding:10px 14px;
-  width:auto;
+  border:none;
+  border-radius:10px;
+  padding:0 12px;
+  font-weight:900;
+  cursor:pointer;
 }
 
-/* PASSENGERS */
+/* ================= PASSENGER CARDS ================= */
+
+#passengersContainer{
+  display:grid;
+  gap:14px;
+  margin-top:14px;
+}
+
 .passenger-card{
-  background:#f9fafb;
-  border:1px solid #e5e7eb;
-  border-radius:14px;
+  background:#f8fafc;
+  border:1px solid #cbd5e1;
+  border-radius:16px;
   padding:14px;
-  margin-bottom:14px;
 }
 
 .passenger-header{
@@ -166,32 +270,66 @@ textarea{
   justify-content:space-between;
   align-items:center;
   margin-bottom:10px;
+  border-bottom:1px dashed #cbd5e1;
+  padding-bottom:8px;
 }
 
-/* REVIEW */
-#dispatchReviewPage{display:none;}
+.passenger-header h4{
+  margin:0;
+  color:#2563eb;
+  font-weight:900;
+}
 
-.review-head{
+/* ================= ACTION BUTTONS ================= */
+
+.actions{
   display:flex;
-  justify-content:space-between;
   gap:10px;
   flex-wrap:wrap;
-  align-items:center;
-  margin-bottom:14px;
+  margin-top:16px;
 }
 
-.review-title{
-  font-size:22px;
+.actions button,
+.action-btn{
+  border:none;
+  border-radius:10px;
+  padding:12px 18px;
+  font-size:14px;
   font-weight:900;
-  color:#0f172a;
+  cursor:pointer;
 }
+
+.primary-btn{
+  background:#16a34a;
+  color:#fff;
+}
+
+.secondary-btn{
+  background:#64748b;
+  color:#fff;
+}
+
+.warning-btn{
+  background:#f97316;
+  color:#fff;
+}
+
+.add-stop-btn{
+  background:#7c3aed;
+  color:#fff;
+}
+
+/* =====================================================
+   REVIEW TABLE STYLE SAME AS COMPANY REVIEW
+===================================================== */
 
 .table-wrap{
-  width:100%;
+  width:calc(100vw - 12px);
   overflow-x:auto;
   border-radius:14px;
   box-shadow:0 6px 18px rgba(0,0,0,.08);
   background:#fff;
+  margin-top:12px;
 }
 
 .review-table{
@@ -199,51 +337,131 @@ textarea{
   min-width:2100px;
   border-collapse:collapse;
   background:#fff;
+  table-layout:fixed;
+  border-top:6px solid #000;
 }
 
 .review-table th,
 .review-table td{
   border:1px solid #e2e8f0;
-  padding:7px;
+  padding:6px;
   font-size:11px;
   text-align:center;
-  vertical-align:top;
+  vertical-align:middle;
+  line-height:1.25;
+  box-sizing:border-box;
 }
 
 .review-table th{
   background:#0f172a;
   color:#fff;
+  font-size:11px;
   font-weight:900;
   white-space:nowrap;
+  position:sticky;
+  top:0;
+  z-index:5;
 }
 
-.multi-line{
-  white-space:pre-line;
-  text-align:left;
-  min-width:150px;
-  max-width:240px;
+.date-row td{
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  font-weight:900!important;
+  text-align:center!important;
+  padding:8px!important;
+  font-size:13px!important;
+  border-top:3px solid #000!important;
+  border-bottom:2px solid #60a5fa!important;
+}
+
+.col-num{width:36px;}
+.col-trip{width:105px;}
+.col-type{width:75px;}
+.col-service{width:95px;}
+.col-entry{width:120px;}
+.col-entry-phone{width:105px;}
+.col-client{width:175px;}
+.col-phone{width:115px;}
+.col-pickup{width:230px;}
+.col-stops{width:190px;}
+.col-drop{width:230px;}
+.col-date{width:95px;}
+.col-time{width:70px;}
+.col-notes{width:180px;}
+.col-miles{width:80px;}
+.col-mins{width:80px;}
+.col-price{width:90px;}
+.col-status{width:95px;}
+.col-actions{width:210px;}
+
+.cell-box{
+  display:grid;
+  border:1px solid #111;
+  background:#fff;
+  width:100%;
+  box-sizing:border-box;
+  border-radius:4px;
+  overflow:hidden;
+}
+
+.cell-item{
+  padding:4px 5px;
+  min-height:23px;
+  font-weight:800;
+  white-space:normal;
   word-break:break-word;
+  box-sizing:border-box;
+  background:#fff;
+  color:#111827;
+  font-size:10.5px;
+  line-height:1.35;
+  text-align:left;
+}
+
+.cell-item + .cell-item{
+  border-top:1px solid #111;
 }
 
 .trip-number-badge{
   color:#2563eb;
-  font-size:13px;
+  font-size:12px;
+  font-weight:900;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.price-badge{
+  color:#16a34a;
+  font-size:12px;
   font-weight:900;
   white-space:nowrap;
 }
 
-.price-badge{
-  color:#15803d;
-  font-size:13px;
+.miles-strong{
+  color:#2563eb;
+  font-size:12px;
   font-weight:900;
   white-space:nowrap;
+}
+
+.route-locked-badge{
+  display:inline-block;
+  margin-top:4px;
+  padding:3px 6px;
+  border-radius:999px;
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fcd34d;
+  font-size:9px;
+  font-weight:900;
 }
 
 .actions-wrap{
   display:flex;
-  gap:5px;
-  flex-wrap:wrap;
   justify-content:center;
+  align-items:center;
+  gap:4px;
+  flex-wrap:wrap;
   min-width:180px;
 }
 
@@ -254,184 +472,284 @@ textarea{
   font-size:10px;
   font-weight:900;
   cursor:pointer;
+  margin:2px;
   white-space:nowrap;
 }
 
 .btn.edit{background:#2563eb;color:#fff;}
-.btn.delete{background:#dc2626;color:#fff;}
-.btn.cancel{background:#ef4444;color:#fff;}
+.btn.delete{background:#111827;color:#fff;}
 .btn.confirm{background:#16a34a;color:#fff;}
+.btn.cancel{background:#dc2626;color:#fff;}
+.btn.add-stop{background:#7c3aed;color:#fff;}
 
-.scheduled-row{background:#fff;}
-.confirmed-row{background:#dcfce7;}
-.cancelled-row{background:#fecaca;}
-.yellow{background:#fef9c3;}
-.red-light{background:#fecaca;}
-.red-mid{background:#fca5a5;}
+.scheduled-row{background:#fff;color:#111827;}
+.review-row{background:#f8fafc;color:#111827;}
+.confirmed-row{background:#dcfce7;color:#111827;}
+.cancelled-row{background:#fecaca;color:#111827;}
+.yellow{background:#fef9c3;color:#111827;}
+.red-light{background:#fecaca;color:#111827;}
+.red-mid{background:#fca5a5;color:#111827;}
 .red-dark{background:#7f1d1d;color:#fff;}
 .past-row{background:#374151;color:#f3f4f6;}
 
-.empty-review{
+.edit-input{
+  width:100%;
+  min-width:120px;
+  padding:7px;
+  border:1px solid #94a3b8;
+  border-radius:6px;
+  font-size:12px;
   background:#fff;
-  padding:22px;
-  border-radius:14px;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
-  color:#64748b;
-  font-weight:900;
-  text-align:center;
+  color:#111827;
+  outline:none;
+  margin-bottom:4px;
 }
 
+.dispatch-review-note{
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e3a8a;
+  padding:10px;
+  border-radius:12px;
+  font-weight:900;
+  margin-bottom:10px;
+}
+
+.table-wrap::-webkit-scrollbar{
+  height:10px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb{
+  background:#94a3b8;
+  border-radius:10px;
+}
+
+/* ================= MOBILE ================= */
+
 @media(max-width:768px){
-  .container{padding:16px 6px;}
-  .form-grid{grid-template-columns:1fr;}
-  .actions{flex-direction:column;}
-  button{width:100%;}
-  .stop-row{flex-direction:column;}
-  .review-table{min-width:1500px;}
+
+  .container{
+    padding:100px 6px 18px;
+  }
+
+  .page-title{
+    font-size:20px;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+
+  .entry-row{
+    grid-template-columns:1fr;
+  }
+
+  .actions button,
+  .action-btn{
+    width:100%;
+  }
+
+  .review-table{
+    min-width:1800px;
+  }
+
+  .review-table th,
+  .review-table td{
+    padding:5px;
+    font-size:10px;
+  }
+
+  .cell-item{
+    font-size:9.5px;
+  }
+
+  .btn{
+    font-size:9px;
+    padding:5px 7px;
+  }
+
 }
 </style>
+
 </head>
 
 <body>
 
-<div id="layoutHeader"></div>
+<div id="adminHeader"></div>
 
 <div class="container">
 
+  <h1 class="page-title">Dispatch Add Trip</h1>
+  <p class="page-subtitle">
+    Reserved Trips • Add Trip creates RV Trip Number immediately • Review uses same table style as company review
+  </p>
 
-  <!-- ================= ADD PAGE ================= -->
-  <div id="dispatchAddPage">
+  <!-- SERVICE TABS -->
+  <div id="companyTabs" class="tabs"></div>
 
-    <div class="tabs" id="companyTabs"></div>
+  <!-- ================= INDIVIDUAL RESERVED TRIP ================= -->
+  <section id="individualSection" class="form-section">
 
-    <!-- INDIVIDUAL -->
-    <div id="individualSection">
+    <h2 class="section-title">Reserved Trip</h2>
 
-      <section>
-        <h3>Entry Information</h3>
+    <!-- ENTRY INFO -->
+    <div class="entry-row">
 
-        <div class="form-grid">
-          <input id="entryName" placeholder="Data Entry Name" readonly>
-          <input id="entryPhone" placeholder="Phone Number" readonly>
-        </div>
+      <div class="field-wrap">
+        <label>Entry Name</label>
+        <input id="entryName" type="text" placeholder="Entry name" readonly>
+      </div>
 
-        <div class="actions">
-          <button class="btn-blue" id="editEntryBtn" type="button">Edit</button>
-          <button class="btn-light" id="saveEntryBtn" type="button">Save Entry Info</button>
-        </div>
-      </section>
+      <div class="field-wrap">
+        <label>Entry Phone</label>
+        <input id="entryPhone" type="text" placeholder="Entry phone" readonly>
+      </div>
 
-      <section>
-        <h3>Client Information</h3>
+      <button id="editEntryBtn" type="button" class="action-btn secondary-btn">
+        Edit
+      </button>
 
-        <div class="form-grid">
-          <input id="clientName" placeholder="Client Name">
-          <input id="clientPhone" placeholder="Client Phone">
-        </div>
-      </section>
+      <button id="saveEntryBtn" type="button" class="action-btn primary-btn">
+        Save
+      </button>
 
-      <section>
-        <h3>Trip Details</h3>
+    </div>
 
-        <div class="form-grid">
-          <input id="pickup" placeholder="Pickup Address">
-          <input id="tripDate" type="date">
-        </div>
+    <div class="form-grid">
 
-        <div id="stops" style="margin-top:12px;"></div>
+      <div class="field-wrap">
+        <label>Client Name</label>
+        <input id="clientName" type="text" placeholder="Client name">
+      </div>
 
-        <div style="margin-top:10px;">
-          <button class="btn-orange" id="addStopBtn" type="button">+ Add Stop</button>
-        </div>
+      <div class="field-wrap">
+        <label>Client Phone</label>
+        <input id="clientPhone" type="text" placeholder="Client phone">
+      </div>
 
-        <div class="form-grid" style="margin-top:12px;">
-          <input id="dropoff" placeholder="Dropoff Address">
-          <input id="tripTime" type="time">
-        </div>
+      <div class="field-wrap full">
+        <label>Pickup Address</label>
+        <input id="pickup" type="text" placeholder="Pickup address">
+      </div>
 
-        <textarea id="notes" placeholder="Notes"></textarea>
-      </section>
+      <div class="field-wrap full">
+        <label>Dropoff Address</label>
+        <input id="dropoff" type="text" placeholder="Dropoff address">
+      </div>
 
-      <div class="actions">
-        <button class="btn-gray" id="saveDraftBtn" type="button">Save Draft</button>
-        <button class="btn-green" id="submitTrip" type="button">Submit Trip</button>
+      <div class="field-wrap">
+        <label>Trip Date</label>
+        <input id="tripDate" type="date">
+      </div>
+
+      <div class="field-wrap">
+        <label>Trip Time</label>
+        <input id="tripTime" type="time">
+      </div>
+
+      <div class="field-wrap full">
+        <label>Notes</label>
+        <textarea id="notes" placeholder="Trip notes"></textarea>
       </div>
 
     </div>
 
-    <!-- SHARED -->
-    <div id="sharedSection" style="display:none;">
+    <div class="actions">
+      <button id="addStopBtn" type="button" class="action-btn add-stop-btn">
+        Add Stop
+      </button>
 
-      <section>
-        <h3>Entry Information</h3>
+      <button id="saveDraftBtn" type="button" class="action-btn secondary-btn">
+        Save Draft
+      </button>
 
-        <div class="form-grid">
-          <input id="sharedEntryName" placeholder="Data Entry Name" readonly>
-          <input id="sharedEntryPhone" placeholder="Phone Number" readonly>
-        </div>
+      <button id="submitTrip" type="button" class="action-btn primary-btn">
+        Add To Review
+      </button>
+    </div>
 
-        <div class="actions">
-          <button class="btn-blue" id="editSharedEntryBtn" type="button">Edit</button>
-        </div>
-      </section>
+    <div id="stops"></div>
 
-      <section>
-        <h3>Shared Setup</h3>
+  </section>
 
-        <div class="form-grid">
-          <select id="passengerCount">
-            <option value="">Select Passengers</option>
-            <option value="2">2 Passengers</option>
-            <option value="3">3 Passengers</option>
-            <option value="4">4 Passengers</option>
-          </select>
+  <!-- ================= SHARED RESERVED TRIP ================= -->
+  <section id="sharedSection" class="form-section" style="display:none;">
 
-          <input id="sharedDate" type="date">
-          <input id="sharedTime" type="time">
-        </div>
-      </section>
+    <h2 class="section-title">Reserved Shared Trip</h2>
 
-      <section>
-        <h3>Passengers</h3>
-        <div id="passengersContainer"></div>
-      </section>
+    <!-- SHARED ENTRY INFO -->
+    <div class="entry-row">
 
-      <section>
-        <h3>Notes</h3>
-        <textarea id="sharedNotes" placeholder="Notes"></textarea>
-      </section>
+      <div class="field-wrap">
+        <label>Entry Name</label>
+        <input id="sharedEntryName" type="text" placeholder="Entry name" readonly>
+      </div>
 
-      <div class="actions">
-        <button class="btn-gray" id="saveSharedDraftBtn" type="button">Save Draft</button>
-        <button class="btn-green" id="submitShared" type="button">Submit Shared</button>
+      <div class="field-wrap">
+        <label>Entry Phone</label>
+        <input id="sharedEntryPhone" type="text" placeholder="Entry phone" readonly>
+      </div>
+
+      <button id="editSharedEntryBtn" type="button" class="action-btn secondary-btn">
+        Edit
+      </button>
+
+      <button type="button" class="action-btn primary-btn" onclick="document.getElementById('saveEntryBtn')?.click()">
+        Save
+      </button>
+
+    </div>
+
+    <div class="form-grid">
+
+      <div class="field-wrap">
+        <label>Passenger Count</label>
+        <select id="passengerCount">
+          <option value="">Select</option>
+          <option value="2">2 Passengers</option>
+          <option value="3">3 Passengers</option>
+          <option value="4">4 Passengers</option>
+        </select>
+      </div>
+
+      <div class="field-wrap">
+        <label>Trip Date</label>
+        <input id="sharedDate" type="date">
+      </div>
+
+      <div class="field-wrap">
+        <label>Trip Time</label>
+        <input id="sharedTime" type="time">
+      </div>
+
+      <div class="field-wrap full">
+        <label>Shared Notes</label>
+        <textarea id="sharedNotes" placeholder="Shared trip notes"></textarea>
       </div>
 
     </div>
 
-  </div>
+    <div id="passengersContainer"></div>
 
-  <!-- ================= REVIEW PAGE ================= -->
-  <div id="dispatchReviewPage">
+    <div class="actions">
+      <button id="saveSharedDraftBtn" type="button" class="action-btn secondary-btn">
+        Save Shared Draft
+      </button>
 
-    <section>
-      <div class="review-head">
-        <div class="review-title">Dispatch Review</div>
+      <button id="submitShared" type="button" class="action-btn primary-btn">
+        Add Shared To Review
+      </button>
+    </div>
 
-        <div class="actions">
-          <button id="reviewBackToAddBtn" class="btn-orange" type="button">Back To Add Trip</button>
-          <button id="submitAllToHubBtn" class="btn-green" type="button">Submit All To Trips Hub</button>
-        </div>
-      </div>
+  </section>
 
-      <div id="dispatchTripsContainer"></div>
-    </section>
-
-  </div>
+  <!-- DISPATCH REVIEW PAGE WILL BE CREATED BY JS -->
+  <!-- id="dispatchReviewPage" and id="dispatchReviewList" are injected from dispatch-add-trip.js -->
 
 </div>
 
-<script src="dispatch-add-trip.js"></script>
-<script src="dispatch-pre-review.js"></script>
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch-add-trip.js"></script>
 
 </body>
 </html>
