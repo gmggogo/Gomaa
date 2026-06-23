@@ -1,11 +1,16 @@
 /* =====================================================
 FILE: public/admin/dispatch-add-trip.js
 DISPATCH ADD TRIP - RESERVED RV DB FIRST
-Add Trip -> POST /api/trips -> Trip Number immediately
-Review Table -> Same company review style with cells inside cells
-Edit -> Inline in same row
-Confirm -> PUT same trip
-Warning -> Reserved warning policy
+Works with current dispatch-add-trip.html
+
+IMPORTANT:
+- No CSS injection that breaks table width
+- Add Trip page keeps existing HTML style
+- Review table renders inside #dispatchReviewList only
+- Add To Review -> POST /api/trips -> Trip Number immediately
+- Confirm -> PUT same trip
+- Edit -> inline inside same row
+- Warning -> Reserved warning policy
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", async function(){
@@ -38,18 +43,13 @@ let googleLoadPromise = null;
 /* ================= DOM ================= */
 
 const addTripPage =
-  document.getElementById("dispatchAddPage") ||
-  document.getElementById("addTripPage") ||
-  document.getElementById("addTripSection") ||
-  null;
+  document.getElementById("dispatchAddPage");
 
 const dispatchReviewPage =
-  document.getElementById("dispatchReviewPage") ||
-  null;
+  document.getElementById("dispatchReviewPage");
 
 const dispatchReviewList =
-  document.getElementById("dispatchReviewList") ||
-  null;
+  document.getElementById("dispatchReviewList");
 
 const backToHubBtn =
   document.getElementById("backToHubBtn");
@@ -59,9 +59,6 @@ const showAddBtn =
 
 const showReviewBtn =
   document.getElementById("showReviewBtn");
-
-const backToAddFromReview =
-  document.getElementById("backToAddFromReview");
 
 const companyTabs =
   document.getElementById("companyTabs");
@@ -150,276 +147,15 @@ const submitSharedBtn =
 const saveSharedDraftBtn =
   document.getElementById("saveSharedDraftBtn");
 
-/* ================= FORCED UI FIXES ================= */
+/* ================= UI FIXES ================= */
 
-// شيل زرار Add Stop من صفحة Add Trip نهائيًا
+// Remove Add Stop button from Add Trip page only
 if(addStopBtn){
   addStopBtn.remove();
 }
 
-// شيل زرار Back To Add Trip اللي تحت جدول الريفيو
-if(backToAddFromReview){
-  backToAddFromReview.remove();
-}
-
-/* ================= STYLE INJECTION ================= */
-
-(function injectDispatchReviewStyle(){
-
-  const old =
-    document.getElementById("dispatch-add-trip-review-style");
-
-  if(old){
-    old.remove();
-  }
-
-  const style =
-    document.createElement("style");
-
-  style.id =
-    "dispatch-add-trip-review-style";
-
-  style.innerHTML = `
-
-    .dispatch-review-note{
-      background:#eff6ff;
-      border:1px solid #bfdbfe;
-      color:#1e3a8a;
-      padding:7px 10px;
-      border-radius:10px;
-      font-weight:900;
-      margin:0 0 10px;
-      font-size:11px;
-      line-height:1.25;
-      text-align:center;
-    }
-
-    .top-note{
-      width:100%;
-    }
-
-    .dispatch-review-shell{
-      background:#fff;
-      border:1px solid #dbe3ee;
-      border-radius:14px;
-      padding:10px;
-      box-shadow:0 8px 22px rgba(15,23,42,.08);
-    }
-
-    .table-wrap{
-      width:calc(100vw - 20px);
-      overflow-x:auto;
-      border-radius:14px;
-      box-shadow:0 6px 18px rgba(0,0,0,.08);
-      background:#fff;
-      margin-top:10px;
-    }
-
-    .review-table{
-      width:100%;
-      min-width:2250px;
-      border-collapse:collapse;
-      background:#fff;
-      table-layout:fixed;
-      border-top:6px solid #000;
-    }
-
-    .review-table th,
-    .review-table td{
-      border:1px solid #dbe2ea;
-      padding:5px;
-      text-align:center;
-      vertical-align:middle;
-      font-size:11px;
-      line-height:1.25;
-      box-sizing:border-box;
-    }
-
-    .review-table th{
-      background:#0f172a;
-      color:#fff;
-      font-weight:900;
-      white-space:nowrap;
-      position:sticky;
-      top:0;
-      z-index:5;
-    }
-
-    .date-row td{
-      background:#bfdbfe!important;
-      color:#1e3a8a!important;
-      font-weight:900!important;
-      text-align:center!important;
-      padding:7px 8px!important;
-      font-size:13px!important;
-      border-top:3px solid #000!important;
-      border-bottom:2px solid #60a5fa!important;
-      letter-spacing:.3px!important;
-    }
-
-    .col-num{width:36px;}
-    .col-trip{width:105px;}
-    .col-type{width:75px;}
-    .col-service{width:95px;}
-    .col-entry{width:125px;}
-    .col-entry-phone{width:110px;}
-    .col-client{width:180px;}
-    .col-phone{width:120px;}
-    .col-pickup{width:245px;}
-    .col-stops{width:205px;}
-    .col-drop{width:245px;}
-    .col-date{width:95px;}
-    .col-time{width:75px;}
-    .col-notes{width:190px;}
-    .col-miles{width:82px;}
-    .col-mins{width:82px;}
-    .col-price{width:92px;}
-    .col-status{width:100px;}
-    .col-actions{width:225px;}
-
-    .cell-box{
-      display:grid;
-      border:1px solid #111;
-      background:#fff;
-      width:100%;
-      box-sizing:border-box;
-      border-radius:4px;
-      overflow:hidden;
-    }
-
-    .cell-item{
-      padding:4px 5px;
-      min-height:23px;
-      font-weight:800;
-      white-space:normal;
-      word-break:break-word;
-      box-sizing:border-box;
-      background:#fff;
-      color:#111827;
-      font-size:10.5px;
-      line-height:1.35;
-      text-align:left;
-    }
-
-    .cell-item + .cell-item{
-      border-top:1px solid #111;
-    }
-
-    .trip-number-badge{
-      color:#2563eb;
-      font-size:12px;
-      font-weight:900;
-      white-space:normal;
-      word-break:break-word;
-    }
-
-    .price-badge{
-      color:#16a34a;
-      font-size:12px;
-      font-weight:900;
-      white-space:nowrap;
-    }
-
-    .miles-strong{
-      color:#2563eb;
-      font-size:12px;
-      font-weight:900;
-      white-space:nowrap;
-    }
-
-    .route-locked-badge{
-      display:inline-block;
-      margin-top:4px;
-      padding:3px 6px;
-      border-radius:999px;
-      background:#fef3c7;
-      color:#92400e;
-      border:1px solid #fcd34d;
-      font-size:9px;
-      font-weight:900;
-    }
-
-    .actions-wrap{
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      gap:4px;
-      flex-wrap:wrap;
-      min-width:185px;
-    }
-
-    .btn{
-      border:none;
-      padding:6px 9px;
-      border-radius:6px;
-      font-size:10px;
-      font-weight:900;
-      cursor:pointer;
-      margin:2px;
-      white-space:nowrap;
-    }
-
-    .btn.edit{background:#2563eb;color:#fff;}
-    .btn.delete{background:#111827;color:#fff;}
-    .btn.confirm{background:#16a34a;color:#fff;}
-    .btn.cancel{background:#dc2626;color:#fff;}
-    .btn.add-stop{background:#7c3aed;color:#fff;}
-
-    .scheduled-row{background:#fff;color:#111827;}
-    .review-row{background:#f8fafc;color:#111827;}
-    .confirmed-row{background:#dcfce7;color:#111827;}
-    .cancelled-row{background:#fecaca;color:#111827;}
-    .yellow{background:#fef9c3;color:#111827;}
-    .red-light{background:#fecaca;color:#111827;}
-    .red-mid{background:#fca5a5;color:#111827;}
-    .red-dark{background:#7f1d1d;color:#fff;}
-    .past-row{background:#374151;color:#f3f4f6;}
-
-    .edit-input{
-      width:100%;
-      min-width:105px;
-      padding:7px;
-      border:1px solid #94a3b8;
-      border-radius:6px;
-      font-size:12px;
-      background:#fff;
-      color:#111827;
-      outline:none;
-      margin-bottom:4px;
-    }
-
-    .table-wrap::-webkit-scrollbar{
-      height:10px;
-    }
-
-    .table-wrap::-webkit-scrollbar-thumb{
-      background:#94a3b8;
-      border-radius:10px;
-    }
-
-    @media(max-width:768px){
-      .review-table{min-width:1850px;}
-
-      .review-table th,
-      .review-table td{
-        padding:5px;
-        font-size:10px;
-      }
-
-      .cell-item{
-        font-size:9.5px;
-      }
-
-      .btn{
-        font-size:9px;
-        padding:5px 7px;
-      }
-    }
-  `;
-
-  document.head.appendChild(style);
-
-})();
+// Make sure old local review storage does not affect this DB-first page
+localStorage.removeItem("dispatchReviewTrips");
 
 /* ================= HELPERS ================= */
 
@@ -500,28 +236,19 @@ function isValidServiceCode(code){
 
 function normalizeAddress(address){
 
-  let v =
-    normalizeText(address);
+  let v = normalizeText(address);
 
   if(!v) return "";
 
-  v =
-    v.replace(/\s+/g," ").trim();
+  v = v.replace(/\s+/g," ").trim();
 
-  const lower =
-    v.toLowerCase();
+  const lower = v.toLowerCase();
 
-  if(
-    SYSTEM_REGION &&
-    !lower.includes(SYSTEM_REGION.toLowerCase())
-  ){
+  if(SYSTEM_REGION && !lower.includes(SYSTEM_REGION.toLowerCase())){
     v += ", " + SYSTEM_REGION;
   }
 
-  if(
-    SYSTEM_COUNTRY &&
-    !lower.includes(SYSTEM_COUNTRY.toLowerCase())
-  ){
+  if(SYSTEM_COUNTRY && !lower.includes(SYSTEM_COUNTRY.toLowerCase())){
     v += ", " + SYSTEM_COUNTRY;
   }
 
@@ -576,11 +303,8 @@ async function loadSystemInfo(){
 
   try{
 
-    const res =
-      await fetch("/api/system-design");
-
-    const data =
-      await res.json();
+    const res = await fetch("/api/system-design");
+    const data = await res.json();
 
     SYSTEM_TIMEZONE =
       data?.timezone ||
@@ -609,9 +333,7 @@ function getSystemNow(){
     new Date().toLocaleString(
       "en-US",
       {
-        timeZone:
-          SYSTEM_TIMEZONE ||
-          "America/Phoenix"
+        timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
       }
     )
   );
@@ -619,16 +341,12 @@ function getSystemNow(){
 
 function parseTripDateTime(dateValue,timeValue){
 
-  const d =
-    normalizeText(dateValue);
-
-  const t =
-    normalizeText(timeValue);
+  const d = normalizeText(dateValue);
+  const t = normalizeText(timeValue);
 
   if(!d || !t) return null;
 
-  const dt =
-    new Date(`${d}T${t}:00`);
+  const dt = new Date(`${d}T${t}:00`);
 
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
@@ -907,10 +625,7 @@ function checkReservedDynamicWarning(dateValue,timeValue){
   const pricing =
     getReservedPricing(service);
 
-  const warningOn =
-    pricing.disableCancel !== true;
-
-  if(!warningOn){
+  if(pricing.disableCancel === true){
     return true;
   }
 
@@ -928,11 +643,8 @@ function checkReservedDynamicWarning(dateValue,timeValue){
     return true;
   }
 
-  const now =
-    getSystemNow();
-
   const diff =
-    (tripDateTime - now) / 60000;
+    (tripDateTime - getSystemNow()) / 60000;
 
   if(diff > 0 && diff <= warningMinutes){
 
@@ -950,16 +662,12 @@ Continue anyway?`
 
 function checkTripWarningByTrip(trip){
 
-  if(!trip){
-    return true;
-  }
+  if(!trip) return true;
 
   const service =
     getServiceByTrip(trip);
 
-  if(!service){
-    return true;
-  }
+  if(!service) return true;
 
   const pricing =
     getReservedPricing(service);
@@ -1031,7 +739,9 @@ function calculateReservedPrice({service,miles,minutes,stops,passengerCount}){
       billableHours = Math.ceil(mins / 60);
     }
 
-    total = (billableHours * p.hourlyRate) + (stopCount * p.stopFee);
+    total =
+      (billableHours * p.hourlyRate) +
+      (stopCount * p.stopFee);
 
   }else{
 
@@ -1254,7 +964,6 @@ async function ensureGoogleLoaded(){
         document.head.appendChild(script);
 
       }catch(err){
-
         reject(err);
       }
     });
@@ -1561,7 +1270,6 @@ async function buildFinalSharedRoute(trip){
           pickupOrder:pickupIndex < 0 ? 9999 : pickupIndex + 1,
           dropoffOrder:dropoffIndex < 0 ? 9999 : dropoffIndex + 1
         };
-
       })
       .sort((a,b)=>{
 
@@ -1664,10 +1372,6 @@ function showReviewPage(){
 
   if(dispatchReviewPage){
     dispatchReviewPage.style.display = "block";
-  }
-
-  if(companyTabs){
-    companyTabs.style.display = "none";
   }
 
   renderReviewTable();
@@ -2265,7 +1969,19 @@ async function fetchReviewTrips(){
           status.includes("noshow") ||
           status === "no";
 
-        return isReserved && !hidden;
+        const dt =
+          parseTripDateTime(t.tripDate,t.tripTime);
+
+        const isOldUnconfirmed =
+          dt &&
+          dt <= getSystemNow() &&
+          (
+            status.includes("review") ||
+            status === "scheduled" ||
+            status === ""
+          );
+
+        return isReserved && !hidden && !isOldUnconfirmed;
       })
       .sort((a,b)=>{
 
@@ -2786,7 +2502,7 @@ function renderReviewTable(){
   if(!reviewTrips.length){
 
     dispatchReviewList.innerHTML = `
-      <div style="font-weight:900;color:#64748b;">
+      <div class="empty-review">
         No RV trips in review.
       </div>
     `;
