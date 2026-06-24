@@ -115,9 +115,9 @@ button:hover{
   min-width:120px;
 }
 
-/* ================= SECTIONS ================= */
+/* ================= SECTIONS - ADD TRIP ONLY ================= */
 
-section{
+#dispatchAddWrapper section{
   background:#fff;
   padding:18px;
   border-radius:16px;
@@ -125,7 +125,7 @@ section{
   box-shadow:0 6px 16px rgba(0,0,0,.08);
 }
 
-section h3{
+#dispatchAddWrapper section h3{
   margin:0 0 14px;
   font-size:16px;
   font-weight:900;
@@ -214,37 +214,69 @@ textarea{
   margin-bottom:10px;
 }
 
-/* ================= REVIEW ================= */
+/* =====================================================
+   REVIEW FULL PAGE - OUTSIDE ANY FRAME
+===================================================== */
 
 #dispatchReviewPage{
   display:none;
 }
 
-.review-head{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-  margin-bottom:14px;
+.review-full-page{
+  width:100vw;
+  max-width:100vw;
+  margin:0;
+  padding:12px 8px 20px;
+  background:#f4f8fb;
+  overflow-x:hidden;
+}
+
+.review-full-page .dispatch-top-actions{
+  width:100%;
+  max-width:100%;
+  margin:0 0 8px 0;
+  border-radius:10px;
+}
+
+.review-full-page .dispatch-review-note{
+  width:100%;
+  max-width:100%;
+  margin:0 0 8px 0;
+  border-radius:8px;
 }
 
 .review-title{
   font-size:22px;
   font-weight:900;
   color:#0f172a;
+  margin:8px 0 10px;
+  padding-left:4px;
 }
+
+#dispatchReviewList{
+  width:100%;
+  max-width:100%;
+  margin:0;
+  padding:0;
+  overflow:hidden;
+}
+
+/* ================= REVIEW TABLE ================= */
 
 .table-wrap{
   width:100%;
+  max-width:100%;
   overflow-x:auto;
-  border-radius:14px;
-  box-shadow:0 6px 18px rgba(0,0,0,.08);
-  background:#fff;
+  overflow-y:hidden;
+  border-radius:0;
+  box-shadow:none;
+  background:transparent;
+  margin:0;
+  padding:0;
 }
 
 .review-table{
-  width:100%;
+  width:2250px;
   min-width:2250px;
   border-collapse:collapse;
   background:#fff;
@@ -382,8 +414,8 @@ textarea{
 .empty-review{
   background:#fff;
   padding:22px;
-  border-radius:14px;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  border-radius:0;
+  box-shadow:none;
   color:#64748b;
   font-weight:900;
   text-align:center;
@@ -445,8 +477,23 @@ textarea{
     flex-direction:column;
   }
 
+  .review-full-page{
+    padding:8px 4px 16px;
+  }
+
   .review-table{
+    width:1850px;
     min-width:1850px;
+  }
+
+  .review-table th,
+  .review-table td{
+    padding:5px;
+    font-size:10px;
+  }
+
+  .cell-item{
+    font-size:9.5px;
   }
 }
 </style>
@@ -456,7 +503,10 @@ textarea{
 
 <div id="layoutHeader"></div>
 
-<div class="container">
+<!-- =====================================================
+     ADD TRIP PAGE - INSIDE CONTAINER ONLY
+===================================================== -->
+<div id="dispatchAddWrapper" class="container">
 
   <!-- ================= TOP NAV ================= -->
   <div class="dispatch-top-actions">
@@ -585,21 +635,38 @@ textarea{
 
   </div>
 
-  <!-- ================= REVIEW PAGE ================= -->
-  <div id="dispatchReviewPage">
+</div>
 
-    <section>
-      <div class="review-head">
-        <div class="review-title">Dispatch Review</div>
-      </div>
+<!-- =====================================================
+     REVIEW PAGE - FULL WIDTH / OUTSIDE ANY CONTAINER
+===================================================== -->
+<div id="dispatchReviewPage" class="review-full-page">
 
-      <div id="dispatchReviewList"></div>
-    </section>
+  <div class="dispatch-top-actions review-top-actions">
+    <button id="reviewBackToHubBtn" type="button" style="background:#64748b;">
+      ← Back To Trips Hub
+    </button>
 
+    <button id="reviewShowAddBtn" type="button" style="background:#f97316;">
+      Dispatch Add Trip
+    </button>
+
+    <button id="reviewShowReviewBtn" type="button" style="background:#16a34a;">
+      Dispatch Review (0)
+    </button>
   </div>
+
+  <div class="dispatch-review-note top-note">
+    Reserved RV trips • Dispatch Review
+  </div>
+
+  <div class="review-title">Dispatch Review</div>
+
+  <div id="dispatchReviewList"></div>
 
 </div>
 
 <script src="/admin/dispatch-add-trip.js"></script>
+
 </body>
 </html>
