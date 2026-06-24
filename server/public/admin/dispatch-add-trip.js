@@ -1590,8 +1590,8 @@ async function buildFinalSharedRoute(trip){
       ...p,
       __originalIndex:index,
       __active:passengerIsActive(p),
-      pickup:normalizeText(p.pickup),
-      dropoff:normalizeText(p.dropoff)
+      pickup:normalizeAddress(p.pickup),
+      dropoff:normalizeAddress(p.dropoff)
     }));
 
   const activePassengers =
@@ -1617,49 +1617,114 @@ async function buildFinalSharedRoute(trip){
       activePassengers.map(p=>p.dropoff)
     );
 
-  let pickupRoute = [];
+  let finalRoutePoints = [];
 
-  if(pickupAddresses.length === 1){
+  /* =====================================================
+     CASE 1:
+     Pickup موحد
+     Dropoff مختلف
+     Route = Pickup واحد + ترتيب dropoffs
+  ===================================================== */
 
-    pickupRoute =
-      [pickupAddresses[0]];
+  if(
+    pickupAddresses.length === 1 &&
+    dropoffAddresses.length > 1
+  ){
 
-  }else{
+    const pickup =
+      pickupAddresses[0];
 
-    pickupRoute =
+    const dropoffRouteWithOrigin =
       await optimizeStopsFromOrigin(
-        pickupAddresses[0],
-        pickupAddresses.slice(1)
+        pickup,
+        dropoffAddresses
       );
+
+    finalRoutePoints =
+      uniqueAddressList([
+        pickup,
+        ...dropoffRouteWithOrigin.slice(1)
+      ]);
+
   }
 
-  const lastPickup =
-    pickupRoute[pickupRoute.length - 1];
+  /* =====================================================
+     CASE 2:
+     Pickup مختلف
+     Dropoff موحد
+     Route = ترتيب pickups + Dropoff واحد
+  ===================================================== */
 
-  let dropoffRouteWithOrigin = [];
+  else if(
+    pickupAddresses.length > 1 &&
+    dropoffAddresses.length === 1
+  ){
 
-  if(dropoffAddresses.length === 1){
+    const pickupRoute =
+      await optimizeBestRoute(
+        pickupAddresses
+      );
 
-    dropoffRouteWithOrigin =
-      [lastPickup,dropoffAddresses[0]];
+    finalRoutePoints =
+      uniqueAddressList([
+        ...pickupRoute,
+        dropoffAddresses[0]
+      ]);
 
-  }else{
+  }
 
-    dropoffRouteWithOrigin =
+  /* =====================================================
+     CASE 3:
+     Pickup مختلف
+     Dropoff مختلف
+     Route = كل pickups الأول
+             ثم كل dropoffs
+     ممنوع dropoff قبل pickup
+  ===================================================== */
+
+  else if(
+    pickupAddresses.length > 1 &&
+    dropoffAddresses.length > 1
+  ){
+
+    const pickupRoute =
+      await optimizeBestRoute(
+        pickupAddresses
+      );
+
+    const lastPickup =
+      pickupRoute[pickupRoute.length - 1];
+
+    const dropoffRouteWithOrigin =
       await optimizeStopsFromOrigin(
         lastPickup,
         dropoffAddresses
       );
+
+    finalRoutePoints =
+      uniqueAddressList([
+        ...pickupRoute,
+        ...dropoffRouteWithOrigin.slice(1)
+      ]);
+
   }
 
-  const dropoffRoute =
-    dropoffRouteWithOrigin.slice(1);
+  /* =====================================================
+     CASE 4:
+     Pickup موحد
+     Dropoff موحد
+     Route = Pickup واحد + Dropoff واحد
+  ===================================================== */
 
-  const finalRoutePoints =
-    uniqueAddressList([
-      ...pickupRoute,
-      ...dropoffRoute
-    ]);
+  else{
+
+    finalRoutePoints =
+      uniqueAddressList([
+        pickupAddresses[0],
+        dropoffAddresses[0]
+      ]);
+
+  }
 
   const orderedPassengers =
     passengers
@@ -1676,15 +1741,28 @@ async function buildFinalSharedRoute(trip){
         }
 
         const pickupIndex =
-          indexOfAddress(finalRoutePoints,p.pickup);
+          indexOfAddress(
+            finalRoutePoints,
+            p.pickup
+          );
 
         const dropoffIndex =
-          indexOfAddress(finalRoutePoints,p.dropoff);
+          indexOfAddress(
+            finalRoutePoints,
+            p.dropoff
+          );
 
         return {
           ...p,
-          pickupOrder:pickupIndex < 0 ? 9999 : pickupIndex + 1,
-          dropoffOrder:dropoffIndex < 0 ? 9999 : dropoffIndex + 1
+          pickupOrder:
+            pickupIndex < 0
+              ? 9999
+              : pickupIndex + 1,
+
+          dropoffOrder:
+            dropoffIndex < 0
+              ? 9999
+              : dropoffIndex + 1
         };
       })
       .sort((a,b)=>{
@@ -1720,7 +1798,8 @@ async function buildFinalSharedRoute(trip){
   return {
     routePoints:finalRoutePoints,
     passengers:orderedPassengers,
-    activePassengers:orderedPassengers.filter(passengerIsActive),
+    activePassengers:
+      orderedPassengers.filter(passengerIsActive),
     activeCount:activePassengers.length
   };
 }
