@@ -1507,6 +1507,62 @@ async function calculateRouteMiles(points){
   });
 }
 
+async function orderNearestFromOrigin(origin,points){
+
+  const cleanOrigin =
+    normalizeAddress(origin);
+
+  let remaining =
+    uniqueAddressList(points);
+
+  if(!cleanOrigin){
+    return remaining;
+  }
+
+  const ordered = [];
+  let current = cleanOrigin;
+
+  while(remaining.length){
+
+    let bestIndex = 0;
+    let bestMiles = Number.MAX_SAFE_INTEGER;
+
+    for(let i = 0; i < remaining.length; i++){
+
+      try{
+
+        const data =
+          await calculateRouteMiles([
+            current,
+            remaining[i]
+          ]);
+
+        const miles =
+          Number(data.miles || 0);
+
+        if(miles < bestMiles){
+          bestMiles = miles;
+          bestIndex = i;
+        }
+
+      }catch(err){
+        console.log("orderNearestFromOrigin error:",err);
+      }
+
+    }
+
+    const next =
+      remaining.splice(bestIndex,1)[0];
+
+    ordered.push(next);
+    current = next;
+  }
+
+  return [
+    cleanOrigin,
+    ...ordered
+  ];
+}
 async function optimizeStopsFromOrigin(origin,stops){
 
   await ensureGoogleLoaded();
@@ -1827,8 +1883,8 @@ async function buildFinalSharedRoute(trip){
     const pickup =
       pickupAddresses[0];
 
-   const dropoffRouteWithOrigin =
-  await optimizeOpenRouteFromOrigin(
+ const dropoffRouteWithOrigin =
+  await orderNearestFromOrigin(
     pickup,
     dropoffAddresses
   );
@@ -1885,7 +1941,7 @@ const lastPickup =
   pickupRoute[pickupRoute.length - 1];
 
 const dropoffRouteWithOrigin =
-  await optimizeOpenRouteFromOrigin(
+  await orderNearestFromOrigin(
     lastPickup,
     dropoffAddresses
   );
