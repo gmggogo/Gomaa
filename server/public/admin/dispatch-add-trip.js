@@ -3480,12 +3480,12 @@ async function handleConfirmTrip(btn){
     const pricing =
       getReservedPricing(service);
 
-    const stopsCount =
-      isShared
-        ? Math.max(0,routePoints.length - 2)
-        : Array.isArray(trip.stops)
-          ? trip.stops.length
-          : 0;
+   const stopsCount =
+  isShared
+    ? Math.max(0,activeCount - 1)
+    : Array.isArray(trip.stops)
+      ? trip.stops.length
+      : 0;
 
     let total = 0;
     let pricePerPassenger = 0;
