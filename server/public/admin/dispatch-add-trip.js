@@ -957,15 +957,101 @@ function calculateSharedPricing({service,routeData,passengers,activeCount,stopsC
   const count =
     Math.max(1,Number(activeCount || 1));
 
+  const routeMiles =
+    Number(routeData?.miles || 0);
+
+  /*
+    Shared Price > 0
+    سعر ثابت لكل راكب
+    بدون miles
+    بدون stops
+  */
+  if(Number(p.sharedPrice || 0) > 0){
+
+    const fixed =
+      Number(p.sharedPrice || 0);
+
+    const total =
+      Number((fixed * count).toFixed(2));
+
+    const pricedPassengers =
+      passengers.map(passenger=>{
+
+        const status =
+          cleanStatus(passenger.status);
+
+        if(
+          status.includes("no") ||
+          status.includes("cancel") ||
+          !passengerIsActive(passenger)
+        ){
+          return {
+            ...passenger,
+            passengerMiles:0,
+            passengerMinutes:0,
+            passengerDistanceMeters:0,
+            passengerDurationSeconds:0,
+            priceAmount:0,
+            finalPrice:0
+          };
+        }
+
+        return {
+          ...passenger,
+          passengerMiles:0,
+          passengerMinutes:0,
+          passengerDistanceMeters:0,
+          passengerDurationSeconds:0,
+          priceAmount:fixed,
+          finalPrice:fixed
+        };
+      });
+
+    return {
+      total,
+      pricePerPassenger:Number((total / count).toFixed(2)),
+      stopTotal:0,
+      stopShare:0,
+      passengers:pricedPassengers
+    };
+  }
+
+  /*
+    Shared Price = 0
+    الحساب العادي:
+    base × passengers
+    + route miles مرة واحدة
+    + stop × passengers-1
+  */
+
+  const extraMiles =
+    Math.max(
+      0,
+      routeMiles - Number(p.includedMiles || 0)
+    );
+
+  const mileageTotal =
+    Number(
+      (extraMiles * Number(p.perMile || 0)).toFixed(2)
+    );
+
+  const baseTotal =
+    Number(
+      (Number(p.baseFare || 0) * count).toFixed(2)
+    );
+
   const stopTotal =
-    Number(stopsCount || 0) * Number(p.stopFee || 0);
+    Number(
+      (Number(stopsCount || 0) * Number(p.stopFee || 0)).toFixed(2)
+    );
 
-  const stopShare =
-    count > 0
-      ? Number((stopTotal / count).toFixed(2))
-      : 0;
+  const total =
+    Number(
+      (baseTotal + mileageTotal + stopTotal).toFixed(2)
+    );
 
-  let total = 0;
+  const pricePerPassenger =
+    Number((total / count).toFixed(2));
 
   const pricedPassengers =
     passengers.map(passenger=>{
@@ -973,7 +1059,11 @@ function calculateSharedPricing({service,routeData,passengers,activeCount,stopsC
       const status =
         cleanStatus(passenger.status);
 
-      if(status.includes("no") || status.includes("cancel") || !passengerIsActive(passenger)){
+      if(
+        status.includes("no") ||
+        status.includes("cancel") ||
+        !passengerIsActive(passenger)
+      ){
         return {
           ...passenger,
           passengerMiles:0,
@@ -985,61 +1075,22 @@ function calculateSharedPricing({service,routeData,passengers,activeCount,stopsC
         };
       }
 
-      if(p.sharedPrice > 0){
-
-        const fixed =
-          Number(p.sharedPrice || 0);
-
-        total += fixed;
-
-        return {
-          ...passenger,
-          passengerMiles:0,
-          passengerMinutes:0,
-          passengerDistanceMeters:0,
-          passengerDurationSeconds:0,
-          priceAmount:fixed,
-          finalPrice:fixed
-        };
-      }
-
-      const span =
-        calculatePassengerSpan(
-          routeData,
-          passenger.pickupOrder,
-          passenger.dropoffOrder
-        );
-
-      const extraMiles =
-        Math.max(
-          0,
-          Number(span.passengerMiles || 0) - Number(p.includedMiles || 0)
-        );
-
-      const passengerTotal =
-        Number(
-          (
-            Number(p.baseFare || 0) +
-            (extraMiles * Number(p.perMile || 0)) +
-            stopShare
-          ).toFixed(2)
-        );
-
-      total += passengerTotal;
-
       return {
         ...passenger,
-        ...span,
-        priceAmount:passengerTotal,
-        finalPrice:passengerTotal
+        passengerMiles:routeMiles,
+        passengerMinutes:Number(routeData?.estimatedMinutes || 0),
+        passengerDistanceMeters:Number(routeData?.distanceMeters || 0),
+        passengerDurationSeconds:Number(routeData?.durationSeconds || 0),
+        priceAmount:pricePerPassenger,
+        finalPrice:pricePerPassenger
       };
     });
 
   return {
-    total:Number(Number(total || 0).toFixed(2)),
-    pricePerPassenger:Number((Number(total || 0) / count).toFixed(2)),
-    stopTotal:Number(stopTotal.toFixed(2)),
-    stopShare,
+    total,
+    pricePerPassenger,
+    stopTotal,
+    stopShare:Number((stopTotal / count).toFixed(2)),
     passengers:pricedPassengers
   };
 }
