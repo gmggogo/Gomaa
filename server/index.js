@@ -1568,7 +1568,7 @@ else if(cleanKey === "SHARED"){
      RESERVED
   ========================= */
 
- if (type === "reserved") {
+if (type === "reserved") {
 
   const lastTrip = await Trip.findOne({
     tripNumber: { $regex: /^RV-\d+(-[A-Z]+)?$/ }
@@ -1581,10 +1581,10 @@ else if(cleanKey === "SHARED"){
     if (match) next = Number(match[1]) + 1;
   }
 
-  let tripNumber = "RV-" + next;
+  let tripNumber = `RV-${next}`;
 
-  if (suffix) {
-    tripNumber = `${tripNumber}-${suffix}`;
+  if(suffix){
+    tripNumber += `-${suffix}`;
   }
 
   return tripNumber;
@@ -1658,13 +1658,17 @@ if (type === "individual") {
 
   let tripNumber = monthCode + "-" + next;
 
-  if (type === "shared" || type === "SHARED") {
+if (type === "shared" || type === "SHARED") {
+
+  if(!tripNumber.endsWith("-SH")){
     tripNumber += "-SH";
   }
 
-  if (suffix) {
-    tripNumber = `${tripNumber}-${suffix}`;
-  }
+}else if(suffix){
+
+  tripNumber = `${tripNumber}-${suffix}`;
+
+}
 
   return tripNumber;
 }
@@ -3639,7 +3643,7 @@ if(type === "company"){
 
   tripNumber =
     await generateTripNumber(
-      isShared ? "shared" : type,
+      type,
       vehicleTypeFromQuote
     );
 
@@ -3917,10 +3921,11 @@ if (isShared) {
         throw err;
       }
 
-      tripNumber =
-        await generateCompanyTripNumber(
-          "SHARED"
-        );
+  tripNumber =
+  await generateTripNumber(
+    type,
+    "SHARED"
+  );
 
     }
 
