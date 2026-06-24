@@ -1024,11 +1024,14 @@ function calculateSharedPricing({service,routeData,passengers,activeCount,stopsC
     + stop × passengers-1
   */
 
-  const extraMiles =
-    Math.max(
-      0,
-      routeMiles - Number(p.includedMiles || 0)
-    );
+const includedMilesTotal =
+  Number(p.includedMiles || 0) * count;
+
+const extraMiles =
+  Math.max(
+    0,
+    routeMiles - includedMilesTotal
+  );
 
   const mileageTotal =
     Number(
