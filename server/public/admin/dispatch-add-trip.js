@@ -1557,6 +1557,199 @@ async function optimizeStopsFromOrigin(origin,stops){
   });
 }
 
+async function optimizeOpenRouteFromOrigin(origin,stops){
+
+  await ensureGoogleLoaded();
+
+  const cleanOrigin =
+    normalizeAddress(origin);
+
+  const cleanStops =
+    uniqueAddressList(stops);
+
+  if(!cleanOrigin) return cleanStops;
+
+  if(cleanStops.length <= 1){
+    return [cleanOrigin,...cleanStops];
+  }
+
+  let bestRoute =
+    [cleanOrigin,...cleanStops];
+
+  let bestMiles =
+    Number.MAX_SAFE_INTEGER;
+
+  for(const destination of cleanStops){
+
+    const waypoints =
+      cleanStops
+        .filter(s=>addressKey(s) !== addressKey(destination))
+        .map(address=>({
+          location:address,
+          stopover:true
+        }));
+
+    try{
+
+      const candidate =
+        await new Promise(resolve=>{
+
+          const service =
+            new google.maps.DirectionsService();
+
+          service.route(
+            {
+              origin:cleanOrigin,
+              destination,
+              waypoints,
+              optimizeWaypoints:true,
+              travelMode:google.maps.TravelMode.DRIVING,
+              unitSystem:google.maps.UnitSystem.IMPERIAL
+            },
+            function(response,status){
+
+              if(status !== "OK" || !response?.routes?.[0]){
+                resolve(null);
+                return;
+              }
+
+              const route =
+                response.routes[0];
+
+              const orderedWaypoints =
+                (route.waypoint_order || [])
+                  .map(i=>waypoints[i]?.location)
+                  .filter(Boolean);
+
+              resolve([
+                cleanOrigin,
+                ...orderedWaypoints,
+                destination
+              ]);
+            }
+          );
+        });
+
+      if(!candidate){
+        continue;
+      }
+
+      const data =
+        await calculateRouteMiles(candidate);
+
+      if(
+        Number(data.miles || 0) > 0 &&
+        Number(data.miles || 0) < bestMiles
+      ){
+        bestMiles = Number(data.miles || 0);
+        bestRoute = candidate;
+      }
+
+    }catch(err){
+      console.log("optimizeOpenRouteFromOrigin error:",err);
+    }
+  }
+
+  return uniqueAddressList(bestRoute);
+}
+
+
+async function optimizeOpenRouteToDestination(points,destination){
+
+  await ensureGoogleLoaded();
+
+  const cleanPoints =
+    uniqueAddressList(points);
+
+  const cleanDestination =
+    normalizeAddress(destination);
+
+  if(!cleanDestination) return cleanPoints;
+
+  if(cleanPoints.length <= 1){
+    return [...cleanPoints,cleanDestination];
+  }
+
+  let bestRoute =
+    [...cleanPoints,cleanDestination];
+
+  let bestMiles =
+    Number.MAX_SAFE_INTEGER;
+
+  for(const origin of cleanPoints){
+
+    const waypoints =
+      cleanPoints
+        .filter(s=>addressKey(s) !== addressKey(origin))
+        .map(address=>({
+          location:address,
+          stopover:true
+        }));
+
+    try{
+
+      const candidate =
+        await new Promise(resolve=>{
+
+          const service =
+            new google.maps.DirectionsService();
+
+          service.route(
+            {
+              origin,
+              destination:cleanDestination,
+              waypoints,
+              optimizeWaypoints:true,
+              travelMode:google.maps.TravelMode.DRIVING,
+              unitSystem:google.maps.UnitSystem.IMPERIAL
+            },
+            function(response,status){
+
+              if(status !== "OK" || !response?.routes?.[0]){
+                resolve(null);
+                return;
+              }
+
+              const route =
+                response.routes[0];
+
+              const orderedWaypoints =
+                (route.waypoint_order || [])
+                  .map(i=>waypoints[i]?.location)
+                  .filter(Boolean);
+
+              resolve([
+                origin,
+                ...orderedWaypoints,
+                cleanDestination
+              ]);
+            }
+          );
+        });
+
+      if(!candidate){
+        continue;
+      }
+
+      const data =
+        await calculateRouteMiles(candidate);
+
+      if(
+        Number(data.miles || 0) > 0 &&
+        Number(data.miles || 0) < bestMiles
+      ){
+        bestMiles = Number(data.miles || 0);
+        bestRoute = candidate;
+      }
+
+    }catch(err){
+      console.log("optimizeOpenRouteToDestination error:",err);
+    }
+  }
+
+  return uniqueAddressList(bestRoute);
+}
+
 function passengerIsActive(p){
 
   const s =
@@ -1634,11 +1827,11 @@ async function buildFinalSharedRoute(trip){
     const pickup =
       pickupAddresses[0];
 
-    const dropoffRouteWithOrigin =
-      await optimizeStopsFromOrigin(
-        pickup,
-        dropoffAddresses
-      );
+   const dropoffRouteWithOrigin =
+  await optimizeOpenRouteFromOrigin(
+    pickup,
+    dropoffAddresses
+  );
 
     finalRoutePoints =
       uniqueAddressList([
@@ -1660,16 +1853,11 @@ async function buildFinalSharedRoute(trip){
     dropoffAddresses.length === 1
   ){
 
-    const pickupRoute =
-      await optimizeBestRoute(
-        pickupAddresses
-      );
-
-    finalRoutePoints =
-      uniqueAddressList([
-        ...pickupRoute,
-        dropoffAddresses[0]
-      ]);
+   finalRoutePoints =
+  await optimizeOpenRouteToDestination(
+    pickupAddresses,
+    dropoffAddresses[0]
+  );
 
   }
 
@@ -1687,25 +1875,26 @@ async function buildFinalSharedRoute(trip){
     dropoffAddresses.length > 1
   ){
 
-    const pickupRoute =
-      await optimizeBestRoute(
-        pickupAddresses
-      );
+  const pickupRoute =
+  await optimizeOpenRouteToDestination(
+    pickupAddresses,
+    pickupAddresses[pickupAddresses.length - 1]
+  );
 
-    const lastPickup =
-      pickupRoute[pickupRoute.length - 1];
+const lastPickup =
+  pickupRoute[pickupRoute.length - 1];
 
-    const dropoffRouteWithOrigin =
-      await optimizeStopsFromOrigin(
-        lastPickup,
-        dropoffAddresses
-      );
+const dropoffRouteWithOrigin =
+  await optimizeOpenRouteFromOrigin(
+    lastPickup,
+    dropoffAddresses
+  );
 
-    finalRoutePoints =
-      uniqueAddressList([
-        ...pickupRoute,
-        ...dropoffRouteWithOrigin.slice(1)
-      ]);
+finalRoutePoints =
+  uniqueAddressList([
+    ...pickupRoute,
+    ...dropoffRouteWithOrigin.slice(1)
+  ]);
 
   }
 
