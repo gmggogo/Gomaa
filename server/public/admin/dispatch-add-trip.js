@@ -1826,245 +1826,214 @@ function indexOfAddress(route,address){
 
   return route.findIndex(p=>addressKey(p) === key);
 }
-async function getRouteMilesSafe(points){
+/* =====================================================
+   SHARED ROUTE ENGINE
+   No Driver Location Logic
+
+   فكرة الترتيب:
+   1. نجيب أقرب Pickup مع أقرب Dropoff = Anchor Pair
+   2. Pickups تترتب من الأبعد للأقرب ناحية Anchor Pickup
+   3. Dropoffs تترتب من Anchor Dropoff للأبعد
+   4. ممنوع Dropoff قبل كل Pickups
+===================================================== */
+
+const sharedRouteMilesCache =
+  new Map();
+
+function routePairKey(a,b){
+
+  return [
+    addressKey(a),
+    addressKey(b)
+  ].join("||");
+}
+
+async function getRouteMilesSafe(from,to){
+
+  const start =
+    normalizeAddress(from);
+
+  const end =
+    normalizeAddress(to);
+
+  if(!start || !end){
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const key =
+    routePairKey(start,end);
+
+  if(sharedRouteMilesCache.has(key)){
+    return sharedRouteMilesCache.get(key);
+  }
 
   try{
 
     const data =
-      await calculateRouteMiles(points);
+      await calculateRouteMiles([
+        start,
+        end
+      ]);
 
-    return Number(data.miles || 0);
+    const miles =
+      Number(data.miles || 0);
+
+    const finalMiles =
+      Number.isFinite(miles)
+        ? miles
+        : Number.MAX_SAFE_INTEGER;
+
+    sharedRouteMilesCache.set(key,finalMiles);
+
+    return finalMiles;
 
   }catch(err){
 
     console.log("getRouteMilesSafe error:",err);
+
+    sharedRouteMilesCache.set(key,Number.MAX_SAFE_INTEGER);
+
     return Number.MAX_SAFE_INTEGER;
   }
 }
 
-async function findNearestPoint(origin,points){
-
-  const cleanOrigin =
-    normalizeAddress(origin);
-
-  const cleanPoints =
-    uniqueAddressList(points);
-
-  if(!cleanOrigin || !cleanPoints.length){
-    return "";
-  }
-
-  let bestPoint =
-    cleanPoints[0];
-
-  let bestMiles =
-    Number.MAX_SAFE_INTEGER;
-
-  for(const point of cleanPoints){
-
-    const miles =
-      await getRouteMilesSafe([
-        cleanOrigin,
-        point
-      ]);
-
-    if(miles < bestMiles){
-      bestMiles = miles;
-      bestPoint = point;
-    }
-  }
-
-  return bestPoint;
-}
-
-async function findFarthestPoint(origin,points){
-
-  const cleanOrigin =
-    normalizeAddress(origin);
-
-  const cleanPoints =
-    uniqueAddressList(points);
-
-  if(!cleanOrigin || !cleanPoints.length){
-    return "";
-  }
-
-  let farthestPoint =
-    cleanPoints[0];
-
-  let farthestMiles =
-    -1;
-
-  for(const point of cleanPoints){
-
-    const miles =
-      await getRouteMilesSafe([
-        cleanOrigin,
-        point
-      ]);
-
-    if(
-      miles !== Number.MAX_SAFE_INTEGER &&
-      miles > farthestMiles
-    ){
-      farthestMiles = miles;
-      farthestPoint = point;
-    }
-  }
-
-  return farthestPoint;
-}
-
-async function buildPickupRoute(pickupAddresses){
+async function findClosestPickupDropoffPair(pickupAddresses,dropoffAddresses){
 
   const pickups =
     uniqueAddressList(pickupAddresses);
 
-  if(pickups.length <= 1){
+  const dropoffs =
+    uniqueAddressList(dropoffAddresses);
+
+  let bestPickup =
+    pickups[0] || "";
+
+  let bestDropoff =
+    dropoffs[0] || "";
+
+  let bestMiles =
+    Number.MAX_SAFE_INTEGER;
+
+  for(const pickup of pickups){
+
+    for(const dropoff of dropoffs){
+
+      const miles =
+        await getRouteMilesSafe(
+          pickup,
+          dropoff
+        );
+
+      if(miles < bestMiles){
+
+        bestMiles =
+          miles;
+
+        bestPickup =
+          pickup;
+
+        bestDropoff =
+          dropoff;
+      }
+    }
+  }
+
+  return {
+    anchorPickup:bestPickup,
+    anchorDropoff:bestDropoff,
+    anchorMiles:bestMiles
+  };
+}
+
+async function sortPickupsFarToNear(anchorPickup,pickupAddresses){
+
+  const anchor =
+    normalizeAddress(anchorPickup);
+
+  const pickups =
+    uniqueAddressList(pickupAddresses);
+
+  if(!anchor){
     return pickups;
   }
 
-  /*
-    نرتب البيك أب الأول.
-    مفيش driver start هنا، فهنبدأ من أول pickup موجود
-    وبعده نختار أقرب pickup.
-  */
+  const others =
+    pickups.filter(p=>{
+      return addressKey(p) !== addressKey(anchor);
+    });
 
-  const origin =
-    pickups[0];
+  const scored = [];
 
-  const rest =
-    pickups.slice(1);
+  for(const pickup of others){
 
-  const route =
-    await orderNearestFromOrigin(
-      origin,
-      rest
-    );
+    const miles =
+      await getRouteMilesSafe(
+        anchor,
+        pickup
+      );
 
-  return uniqueAddressList(route);
+    scored.push({
+      address:pickup,
+      miles
+    });
+  }
+
+  scored.sort((a,b)=>{
+    return Number(b.miles || 0) - Number(a.miles || 0);
+  });
+
+  return uniqueAddressList([
+    ...scored.map(x=>x.address),
+    anchor
+  ]);
 }
 
-async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
+async function sortDropoffsNearToFar(anchorDropoff,dropoffAddresses){
 
-  const cleanOrigin =
-    normalizeAddress(origin);
+  const anchor =
+    normalizeAddress(anchorDropoff);
 
   const dropoffs =
     uniqueAddressList(dropoffAddresses);
 
-  if(!cleanOrigin){
+  if(!anchor){
     return dropoffs;
   }
 
-  if(dropoffs.length <= 1){
-    return [
-      cleanOrigin,
-      ...dropoffs
-    ];
-  }
-
-  const firstDropoff =
-    await findNearestPoint(
-      cleanOrigin,
-      dropoffs
-    );
-
-  const remainingAfterFirst =
+  const others =
     dropoffs.filter(d=>{
-      return addressKey(d) !== addressKey(firstDropoff);
+      return addressKey(d) !== addressKey(anchor);
     });
 
-  if(!remainingAfterFirst.length){
+  const scored = [];
 
-    return uniqueAddressList([
-      cleanOrigin,
-      firstDropoff
-    ]);
-  }
+  for(const dropoff of others){
 
-  const finalDropoff =
-    await findFarthestPoint(
-      firstDropoff,
-      remainingAfterFirst
-    );
+    const miles =
+      await getRouteMilesSafe(
+        anchor,
+        dropoff
+      );
 
-  const middleDropoffs =
-    remainingAfterFirst.filter(d=>{
-      return addressKey(d) !== addressKey(finalDropoff);
+    scored.push({
+      address:dropoff,
+      miles
     });
-
-  if(!middleDropoffs.length){
-
-    return uniqueAddressList([
-      cleanOrigin,
-      firstDropoff,
-      finalDropoff
-    ]);
   }
 
-  try{
-
-    await ensureGoogleLoaded();
-
-    const service =
-      new google.maps.DirectionsService();
-
-    const optimizedMiddle =
-      await new Promise(resolve=>{
-
-        service.route(
-          {
-            origin:firstDropoff,
-            destination:finalDropoff,
-            waypoints:middleDropoffs.map(address=>({
-              location:address,
-              stopover:true
-            })),
-            optimizeWaypoints:true,
-            travelMode:google.maps.TravelMode.DRIVING,
-            unitSystem:google.maps.UnitSystem.IMPERIAL
-          },
-          function(response,status){
-
-            if(status !== "OK" || !response?.routes?.[0]){
-              resolve(null);
-              return;
-            }
-
-            const orderedMiddle =
-              (response.routes[0].waypoint_order || [])
-                .map(i=>middleDropoffs[i])
-                .filter(Boolean);
-
-            resolve(orderedMiddle);
-          }
-        );
-      });
-
-    if(optimizedMiddle){
-      return uniqueAddressList([
-        cleanOrigin,
-        firstDropoff,
-        ...optimizedMiddle,
-        finalDropoff
-      ]);
-    }
-
-  }catch(err){
-
-    console.log("buildDirectionalDropoffRoute error:",err);
-  }
+  scored.sort((a,b)=>{
+    return Number(a.miles || 0) - Number(b.miles || 0);
+  });
 
   return uniqueAddressList([
-    cleanOrigin,
-    firstDropoff,
-    ...middleDropoffs,
-    finalDropoff
+    anchor,
+    ...scored.map(x=>x.address)
   ]);
 }
 
 async function buildFinalSharedRoute(trip){
+
+  sharedRouteMilesCache.clear();
 
   const sourcePassengers =
     Array.isArray(trip.passengers)
@@ -2128,45 +2097,59 @@ async function buildFinalSharedRoute(trip){
   /* =====================================================
      CASE 2:
      Pickup موحد + Dropoff مختلف
-     Pickup واحد
-     ثم Dropoffs حسب الاتجاه
+
+     Anchor Pickup = pickup الواحد
+     Anchor Dropoff = أقرب dropoff له
+     Dropoffs = من الأقرب للأبعد
   ===================================================== */
 
   else if(pickupUnified && !dropoffUnified){
 
-    const pickup =
-      pickupAddresses[0];
+    const pair =
+      await findClosestPickupDropoffPair(
+        pickupAddresses,
+        dropoffAddresses
+      );
 
-    const dropoffRoute =
-      await buildDirectionalDropoffRoute(
-        pickup,
+    const orderedDropoffs =
+      await sortDropoffsNearToFar(
+        pair.anchorDropoff,
         dropoffAddresses
       );
 
     finalRoutePoints =
       uniqueAddressList([
-        pickup,
-        ...dropoffRoute.slice(1)
+        pickupAddresses[0],
+        ...orderedDropoffs
       ]);
   }
 
   /* =====================================================
      CASE 3:
      Pickup مختلف + Dropoff موحد
-     Pickups الأول
-     ثم Dropoff واحد
+
+     Anchor Dropoff = dropoff الواحد
+     Anchor Pickup = أقرب pickup له
+     Pickups = من الأبعد للأقرب ناحية Anchor Pickup
   ===================================================== */
 
   else if(!pickupUnified && dropoffUnified){
 
-    const pickupRoute =
-      await buildPickupRoute(
+    const pair =
+      await findClosestPickupDropoffPair(
+        pickupAddresses,
+        dropoffAddresses
+      );
+
+    const orderedPickups =
+      await sortPickupsFarToNear(
+        pair.anchorPickup,
         pickupAddresses
       );
 
     finalRoutePoints =
       uniqueAddressList([
-        ...pickupRoute,
+        ...orderedPickups,
         dropoffAddresses[0]
       ]);
   }
@@ -2174,30 +2157,36 @@ async function buildFinalSharedRoute(trip){
   /* =====================================================
      CASE 4:
      Pickup مختلف + Dropoff مختلف
-     Pickups الأول
-     ثم Dropoffs بالاتجاه
+
+     1. نحدد أقرب Pickup-Dropoff pair
+     2. Pickups من الأبعد للأقرب ناحية anchor pickup
+     3. Dropoffs من anchor dropoff للأبعد
   ===================================================== */
 
   else{
 
-    const pickupRoute =
-      await buildPickupRoute(
+    const pair =
+      await findClosestPickupDropoffPair(
+        pickupAddresses,
+        dropoffAddresses
+      );
+
+    const orderedPickups =
+      await sortPickupsFarToNear(
+        pair.anchorPickup,
         pickupAddresses
       );
 
-    const lastPickup =
-      pickupRoute[pickupRoute.length - 1];
-
-    const dropoffRoute =
-      await buildDirectionalDropoffRoute(
-        lastPickup,
+    const orderedDropoffs =
+      await sortDropoffsNearToFar(
+        pair.anchorDropoff,
         dropoffAddresses
       );
 
     finalRoutePoints =
       uniqueAddressList([
-        ...pickupRoute,
-        ...dropoffRoute.slice(1)
+        ...orderedPickups,
+        ...orderedDropoffs
       ]);
   }
 
