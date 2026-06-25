@@ -1830,79 +1830,161 @@ function indexOfAddress(route,address){
    SHARED ROUTE ENGINE
 ========================= */
 
-const sharedRouteMilesCache = new Map();
+const sharedGeocodeCache = new Map();
 
-function routePairKey(a,b){
+function sharedCacheKey(value){
 
-  return [
-    addressKey(a),
-    addressKey(b)
-  ].join("||");
+  return addressKey(value);
 }
 
-async function getRouteMilesSafe(from,to){
+async function geocodeAddress(address){
 
-  const start = normalizeAddress(from);
-  const end = normalizeAddress(to);
+  await ensureGoogleLoaded();
 
-  if(!start || !end){
+  const cleanAddress = normalizeAddress(address);
+
+  if(!cleanAddress){
+    return null;
+  }
+
+  const key = sharedCacheKey(cleanAddress);
+
+  if(sharedGeocodeCache.has(key)){
+    return sharedGeocodeCache.get(key);
+  }
+
+  const result =
+    await new Promise(resolve=>{
+
+      const geocoder =
+        new google.maps.Geocoder();
+
+      geocoder.geocode(
+        {
+          address:cleanAddress
+        },
+        function(results,status){
+
+          if(status !== "OK" || !results?.[0]?.geometry?.location){
+            resolve(null);
+            return;
+          }
+
+          const location =
+            results[0].geometry.location;
+
+          resolve({
+            address:cleanAddress,
+            lat:Number(location.lat()),
+            lng:Number(location.lng())
+          });
+        }
+      );
+    });
+
+  sharedGeocodeCache.set(key,result);
+
+  return result;
+}
+
+function degreesToRadians(value){
+
+  return Number(value || 0) * Math.PI / 180;
+}
+
+function distanceMilesBetweenPoints(a,b){
+
+  if(!a || !b){
     return Number.MAX_SAFE_INTEGER;
   }
 
-  const key = routePairKey(start,end);
+  const earthRadiusMiles = 3958.8;
 
-  if(sharedRouteMilesCache.has(key)){
-    return sharedRouteMilesCache.get(key);
-  }
+  const lat1 = degreesToRadians(a.lat);
+  const lat2 = degreesToRadians(b.lat);
 
-  try{
+  const dLat = degreesToRadians(Number(b.lat) - Number(a.lat));
+  const dLng = degreesToRadians(Number(b.lng) - Number(a.lng));
 
-    const data = await calculateRouteMiles([
-      start,
-      end
-    ]);
+  const x =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) *
+    Math.cos(lat2) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
 
-    const miles = Number(data?.miles || 0);
-
-    const finalMiles =
-      Number.isFinite(miles) && miles > 0
-        ? miles
-        : Number.MAX_SAFE_INTEGER;
-
-    sharedRouteMilesCache.set(key,finalMiles);
-
-    return finalMiles;
-
-  }catch(err){
-
-    console.log("getRouteMilesSafe error:",err);
-
-    sharedRouteMilesCache.set(
-      key,
-      Number.MAX_SAFE_INTEGER
+  const c =
+    2 * Math.atan2(
+      Math.sqrt(x),
+      Math.sqrt(1 - x)
     );
 
-    return Number.MAX_SAFE_INTEGER;
-  }
+  return earthRadiusMiles * c;
 }
 
-async function findClosestPickupDropoffPair(pickupAddresses,dropoffAddresses){
+function buildMidpoint(a,b){
 
-  const pickups = uniqueAddressList(pickupAddresses);
-  const dropoffs = uniqueAddressList(dropoffAddresses);
+  if(!a || !b){
+    return null;
+  }
 
-  let bestPickup = pickups[0] || "";
-  let bestDropoff = dropoffs[0] || "";
-  let bestMiles = Number.MAX_SAFE_INTEGER;
+  return {
+    lat:(Number(a.lat) + Number(b.lat)) / 2,
+    lng:(Number(a.lng) + Number(b.lng)) / 2
+  };
+}
+
+async function geocodeUniqueAddresses(addresses){
+
+  const cleanAddresses =
+    uniqueAddressList(addresses);
+
+  const list = [];
+
+  for(const address of cleanAddresses){
+
+    const geo =
+      await geocodeAddress(address);
+
+    if(geo){
+      list.push(geo);
+    }else{
+      list.push({
+        address,
+        lat:null,
+        lng:null,
+        failed:true
+      });
+    }
+  }
+
+  return list;
+}
+
+function findClosestPickupDropoffGeoPair(pickups,dropoffs){
+
+  let bestPickup =
+    pickups[0] || null;
+
+  let bestDropoff =
+    dropoffs[0] || null;
+
+  let bestMiles =
+    Number.MAX_SAFE_INTEGER;
 
   for(const pickup of pickups){
 
     for(const dropoff of dropoffs){
 
-      const miles = await getRouteMilesSafe(
-        pickup,
-        dropoff
-      );
+      if(pickup?.failed || dropoff?.failed){
+        continue;
+      }
+
+      const miles =
+        distanceMilesBetweenPoints(
+          pickup,
+          dropoff
+        );
 
       if(miles < bestMiles){
 
@@ -1914,191 +1996,211 @@ async function findClosestPickupDropoffPair(pickupAddresses,dropoffAddresses){
   }
 
   return {
-    anchorPickup:bestPickup,
-    anchorDropoff:bestDropoff,
-    anchorMiles:bestMiles
+    pickup:bestPickup,
+    dropoff:bestDropoff,
+    miles:bestMiles
   };
 }
 
-async function sortPickupsFarToNearFromPickup(anchorPickup,pickupAddresses){
+function sortPickupsByMidpoint(pickups,midpoint){
 
-  const anchor = normalizeAddress(anchorPickup);
-  const pickups = uniqueAddressList(pickupAddresses);
+  const scored =
+    pickups.map((item,index)=>{
 
-  if(!anchor){
-    return pickups;
-  }
+      const miles =
+        item?.failed || !midpoint
+          ? Number.MAX_SAFE_INTEGER - index
+          : distanceMilesBetweenPoints(
+              item,
+              midpoint
+            );
 
-  const others =
-    pickups.filter(p=>{
-      return addressKey(p) !== addressKey(anchor);
+      return {
+        ...item,
+        sortMiles:miles,
+        originalIndex:index
+      };
     });
-
-  const scored = [];
-
-  for(const pickup of others){
-
-    const miles = await getRouteMilesSafe(
-      anchor,
-      pickup
-    );
-
-    scored.push({
-      address:pickup,
-      miles
-    });
-  }
 
   scored.sort((a,b)=>{
 
     const diff =
-      Number(b.miles || 0) - Number(a.miles || 0);
+      Number(b.sortMiles || 0) - Number(a.sortMiles || 0);
 
     if(diff !== 0){
       return diff;
     }
 
-    return String(a.address).localeCompare(String(b.address));
+    return Number(a.originalIndex) - Number(b.originalIndex);
   });
+
+  return scored.map(x=>x.address);
+}
+
+function sortDropoffsByMidpoint(dropoffs,midpoint){
+
+  const scored =
+    dropoffs.map((item,index)=>{
+
+      const miles =
+        item?.failed || !midpoint
+          ? Number.MAX_SAFE_INTEGER
+          : distanceMilesBetweenPoints(
+              item,
+              midpoint
+            );
+
+      return {
+        ...item,
+        sortMiles:miles,
+        originalIndex:index
+      };
+    });
+
+  scored.sort((a,b)=>{
+
+    const diff =
+      Number(a.sortMiles || 0) - Number(b.sortMiles || 0);
+
+    if(diff !== 0){
+      return diff;
+    }
+
+    return Number(a.originalIndex) - Number(b.originalIndex);
+  });
+
+  return scored.map(x=>x.address);
+}
+
+function applyPassengerRouteOrders(passengers,routePoints){
+
+  return passengers
+    .map(p=>{
+
+      if(!p.__active){
+
+        return {
+          ...p,
+          pickupOrder:9999,
+          dropoffOrder:9999,
+          routeOrder:9999
+        };
+      }
+
+      const pickupIndex =
+        indexOfAddress(
+          routePoints,
+          p.pickup
+        );
+
+      const dropoffIndex =
+        indexOfAddress(
+          routePoints,
+          p.dropoff
+        );
+
+      return {
+        ...p,
+
+        pickupOrder:
+          pickupIndex < 0
+            ? 9999
+            : pickupIndex + 1,
+
+        dropoffOrder:
+          dropoffIndex < 0
+            ? 9999
+            : dropoffIndex + 1
+      };
+    })
+    .sort((a,b)=>{
+
+      if(a.__active !== b.__active){
+        return a.__active ? -1 : 1;
+      }
+
+      if(Number(a.pickupOrder) !== Number(b.pickupOrder)){
+        return Number(a.pickupOrder) - Number(b.pickupOrder);
+      }
+
+      if(Number(a.dropoffOrder) !== Number(b.dropoffOrder)){
+        return Number(a.dropoffOrder) - Number(b.dropoffOrder);
+      }
+
+      return Number(a.__originalIndex) - Number(b.__originalIndex);
+    })
+    .map((p,index)=>{
+
+      const cleaned =
+        {...p};
+
+      delete cleaned.__originalIndex;
+      delete cleaned.__active;
+
+      return {
+        ...cleaned,
+        routeOrder:index + 1
+      };
+    });
+}
+
+async function buildUnlockedSharedRoute(activePassengers){
+
+  const pickupAddresses =
+    uniqueAddressList(
+      activePassengers.map(p=>p.pickup)
+    );
+
+  const dropoffAddresses =
+    uniqueAddressList(
+      activePassengers.map(p=>p.dropoff)
+    );
+
+  if(!pickupAddresses.length || !dropoffAddresses.length){
+    return [];
+  }
+
+  const pickupGeos =
+    await geocodeUniqueAddresses(
+      pickupAddresses
+    );
+
+  const dropoffGeos =
+    await geocodeUniqueAddresses(
+      dropoffAddresses
+    );
+
+  const pair =
+    findClosestPickupDropoffGeoPair(
+      pickupGeos,
+      dropoffGeos
+    );
+
+  const midpoint =
+    buildMidpoint(
+      pair.pickup,
+      pair.dropoff
+    );
+
+  const orderedPickups =
+    sortPickupsByMidpoint(
+      pickupGeos,
+      midpoint
+    );
+
+  const orderedDropoffs =
+    sortDropoffsByMidpoint(
+      dropoffGeos,
+      midpoint
+    );
 
   return uniqueAddressList([
-    ...scored.map(x=>x.address),
-    anchor
+    ...orderedPickups,
+    ...orderedDropoffs
   ]);
-}
-
-async function sortDropoffsNearToFarFromDropoff(anchorDropoff,dropoffAddresses){
-
-  const anchor = normalizeAddress(anchorDropoff);
-  const dropoffs = uniqueAddressList(dropoffAddresses);
-
-  if(!anchor){
-    return dropoffs;
-  }
-
-  const others =
-    dropoffs.filter(d=>{
-      return addressKey(d) !== addressKey(anchor);
-    });
-
-  const scored = [];
-
-  for(const dropoff of others){
-
-    const miles = await getRouteMilesSafe(
-      anchor,
-      dropoff
-    );
-
-    scored.push({
-      address:dropoff,
-      miles
-    });
-  }
-
-  scored.sort((a,b)=>{
-
-    const diff =
-      Number(a.miles || 0) - Number(b.miles || 0);
-
-    if(diff !== 0){
-      return diff;
-    }
-
-    return String(a.address).localeCompare(String(b.address));
-  });
-
-  return uniqueAddressList([
-    anchor,
-    ...scored.map(x=>x.address)
-  ]);
-}
-
-async function sortDropoffsNearToFarFromPickup(pickup,dropoffAddresses){
-
-  const origin = normalizeAddress(pickup);
-  const dropoffs = uniqueAddressList(dropoffAddresses);
-
-  if(!origin){
-    return dropoffs;
-  }
-
-  const scored = [];
-
-  for(const dropoff of dropoffs){
-
-    const miles = await getRouteMilesSafe(
-      origin,
-      dropoff
-    );
-
-    scored.push({
-      address:dropoff,
-      miles
-    });
-  }
-
-  scored.sort((a,b)=>{
-
-    const diff =
-      Number(a.miles || 0) - Number(b.miles || 0);
-
-    if(diff !== 0){
-      return diff;
-    }
-
-    return String(a.address).localeCompare(String(b.address));
-  });
-
-  return uniqueAddressList(
-    scored.map(x=>x.address)
-  );
-}
-
-async function sortPickupsFarToNearFromDropoff(dropoff,pickupAddresses){
-
-  const destination = normalizeAddress(dropoff);
-  const pickups = uniqueAddressList(pickupAddresses);
-
-  if(!destination){
-    return pickups;
-  }
-
-  const scored = [];
-
-  for(const pickup of pickups){
-
-    const miles = await getRouteMilesSafe(
-      pickup,
-      destination
-    );
-
-    scored.push({
-      address:pickup,
-      miles
-    });
-  }
-
-  scored.sort((a,b)=>{
-
-    const diff =
-      Number(b.miles || 0) - Number(a.miles || 0);
-
-    if(diff !== 0){
-      return diff;
-    }
-
-    return String(a.address).localeCompare(String(b.address));
-  });
-
-  return uniqueAddressList(
-    scored.map(x=>x.address)
-  );
 }
 
 async function buildFinalSharedRoute(trip){
-
-  sharedRouteMilesCache.clear();
 
   const sourcePassengers =
     Array.isArray(trip.passengers)
@@ -2132,158 +2234,45 @@ async function buildFinalSharedRoute(trip){
     };
   }
 
-  const pickupAddresses =
-    uniqueAddressList(
-      activePassengers.map(p=>p.pickup)
-    );
-
-  const dropoffAddresses =
-    uniqueAddressList(
-      activePassengers.map(p=>p.dropoff)
-    );
-
-  const pickupUnified =
-    pickupAddresses.length === 1;
-
-  const dropoffUnified =
-    dropoffAddresses.length === 1;
-
   let finalRoutePoints = [];
 
-  if(pickupUnified && dropoffUnified){
+  const savedRoutePoints =
+    Array.isArray(trip.routePoints)
+      ? uniqueAddressList(trip.routePoints)
+      : [];
+
+  if(
+    trip.routeLocked === true &&
+    savedRoutePoints.length >= 2
+  ){
 
     finalRoutePoints =
-      uniqueAddressList([
-        pickupAddresses[0],
-        dropoffAddresses[0]
-      ]);
+      savedRoutePoints;
+
+  }else{
+
+    sharedGeocodeCache.clear();
+
+    finalRoutePoints =
+      await buildUnlockedSharedRoute(
+        activePassengers
+      );
   }
 
-  else if(pickupUnified && !dropoffUnified){
-
-    const orderedDropoffs =
-      await sortDropoffsNearToFarFromPickup(
-        pickupAddresses[0],
-        dropoffAddresses
-      );
+  if(finalRoutePoints.length < 2){
 
     finalRoutePoints =
       uniqueAddressList([
-        pickupAddresses[0],
-        ...orderedDropoffs
-      ]);
-  }
-
-  else if(!pickupUnified && dropoffUnified){
-
-    const orderedPickups =
-      await sortPickupsFarToNearFromDropoff(
-        dropoffAddresses[0],
-        pickupAddresses
-      );
-
-    finalRoutePoints =
-      uniqueAddressList([
-        ...orderedPickups,
-        dropoffAddresses[0]
-      ]);
-  }
-
-  else{
-
-    const pair =
-      await findClosestPickupDropoffPair(
-        pickupAddresses,
-        dropoffAddresses
-      );
-
-    const orderedPickups =
-      await sortPickupsFarToNearFromPickup(
-        pair.anchorPickup,
-        pickupAddresses
-      );
-
-    const orderedDropoffs =
-      await sortDropoffsNearToFarFromDropoff(
-        pair.anchorDropoff,
-        dropoffAddresses
-      );
-
-    finalRoutePoints =
-      uniqueAddressList([
-        ...orderedPickups,
-        ...orderedDropoffs
+        ...activePassengers.map(p=>p.pickup),
+        ...activePassengers.map(p=>p.dropoff)
       ]);
   }
 
   const orderedPassengers =
-    passengers
-      .map(p=>{
-
-        if(!p.__active){
-
-          return {
-            ...p,
-            pickupOrder:9999,
-            dropoffOrder:9999,
-            routeOrder:9999
-          };
-        }
-
-        const pickupIndex =
-          indexOfAddress(
-            finalRoutePoints,
-            p.pickup
-          );
-
-        const dropoffIndex =
-          indexOfAddress(
-            finalRoutePoints,
-            p.dropoff
-          );
-
-        return {
-          ...p,
-
-          pickupOrder:
-            pickupIndex < 0
-              ? 9999
-              : pickupIndex + 1,
-
-          dropoffOrder:
-            dropoffIndex < 0
-              ? 9999
-              : dropoffIndex + 1
-        };
-      })
-      .sort((a,b)=>{
-
-        if(a.__active !== b.__active){
-          return a.__active ? -1 : 1;
-        }
-
-        if(Number(a.pickupOrder) !== Number(b.pickupOrder)){
-          return Number(a.pickupOrder) - Number(b.pickupOrder);
-        }
-
-        if(Number(a.dropoffOrder) !== Number(b.dropoffOrder)){
-          return Number(a.dropoffOrder) - Number(b.dropoffOrder);
-        }
-
-        return Number(a.__originalIndex) - Number(b.__originalIndex);
-      })
-      .map((p,index)=>{
-
-        const cleaned = {...p};
-
-        delete cleaned.__originalIndex;
-        delete cleaned.__active;
-
-        return {
-          ...cleaned,
-          routeOrder:index + 1
-        };
-      });
+    applyPassengerRouteOrders(
+      passengers,
+      finalRoutePoints
+    );
 
   return {
     routePoints:finalRoutePoints,
@@ -2293,6 +2282,7 @@ async function buildFinalSharedRoute(trip){
     activeCount:activePassengers.length
   };
 }
+
 function buildIndividualRoutePoints(trip){
 
   const pickup =
