@@ -3355,27 +3355,63 @@ function renderTripRow(t,index){
       ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientPhone || p.phone || "--"}`))
       : escapeHtml(t.clientPhone || "--");
 
-  const pickups =
-    isShared
-      ? passengers.map((p,i)=>{
-          const order =
-            p.pickupOrder && p.pickupOrder !== 9999
-              ? `P${p.pickupOrder}`
-              : `${i + 1}`;
-          return escapeHtml(`${order}. ${p.pickup || "--"}`);
+  const sharedPickupRoute =
+  isShared && Array.isArray(t.routePoints) && t.routePoints.length
+    ? t.routePoints
+        .filter(point=>{
+          return passengers.some(p=>{
+            return addressKey(p.pickup) === addressKey(point);
+          });
         })
-      : escapeHtml(t.pickup || "--");
+    : [];
 
-  const drops =
-    isShared
-      ? passengers.map((p,i)=>{
-          const order =
-            p.dropoffOrder && p.dropoffOrder !== 9999
-              ? `D${p.dropoffOrder}`
-              : `${i + 1}`;
-          return escapeHtml(`${order}. ${p.dropoff || "--"}`);
+const pickups =
+  isShared
+    ? (
+        sharedPickupRoute.length
+          ? sharedPickupRoute.map((address,i)=>{
+              return escapeHtml(`${i + 1}. ${address || "--"}`);
+            })
+          : passengers
+              .map((p,i)=>{
+                const order =
+                  p.pickupOrder && p.pickupOrder !== 9999
+                    ? `P${p.pickupOrder}`
+                    : `${i + 1}`;
+
+                return escapeHtml(`${order}. ${p.pickup || "--"}`);
+              })
+      )
+    : escapeHtml(t.pickup || "--");
+
+ const sharedDropRoute =
+  isShared && Array.isArray(t.routePoints) && t.routePoints.length
+    ? t.routePoints
+        .filter(point=>{
+          return passengers.some(p=>{
+            return addressKey(p.dropoff) === addressKey(point);
+          });
         })
-      : escapeHtml(t.dropoff || "--");
+    : [];
+
+const drops =
+  isShared
+    ? (
+        sharedDropRoute.length
+          ? sharedDropRoute.map((address,i)=>{
+              return escapeHtml(`${i + 1}. ${address || "--"}`);
+            })
+          : passengers
+              .map((p,i)=>{
+                const order =
+                  p.dropoffOrder && p.dropoffOrder !== 9999
+                    ? `D${p.dropoffOrder}`
+                    : `${i + 1}`;
+
+                return escapeHtml(`${order}. ${p.dropoff || "--"}`);
+              })
+      )
+    : escapeHtml(t.dropoff || "--");
 
   const stopsDisplay =
     isShared
