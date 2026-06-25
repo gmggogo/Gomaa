@@ -1965,8 +1965,8 @@ async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
   }
 
   /*
-    أول Dropoff = الأقرب من آخر pickup.
-    ده يفتح اتجاه النزول.
+    أول Dropoff لازم يكون الأقرب من آخر pickup
+    وممنوع Google يغير مكانه.
   */
 
   const firstDropoff =
@@ -1987,6 +1987,99 @@ async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
       firstDropoff
     ]);
   }
+
+  /*
+    آخر Dropoff = الأبعد من أول dropoff
+    عشان العربية تكمل في نفس الاتجاه.
+  */
+
+  const finalDropoff =
+    await findFarthestPoint(
+      firstDropoff,
+      remainingAfterFirst
+    );
+
+  const middleDropoffs =
+    remainingAfterFirst.filter(d=>{
+      return addressKey(d) !== addressKey(finalDropoff);
+    });
+
+  if(!middleDropoffs.length){
+
+    return uniqueAddressList([
+      cleanOrigin,
+      firstDropoff,
+      finalDropoff
+    ]);
+  }
+
+  /*
+    هنا المهم:
+    Google يرتب اللي في النص فقط.
+    firstDropoff ثابت.
+    finalDropoff ثابت.
+  */
+
+  try{
+
+    await ensureGoogleLoaded();
+
+    const service =
+      new google.maps.DirectionsService();
+
+    const optimizedMiddle =
+      await new Promise(resolve=>{
+
+        service.route(
+          {
+            origin:firstDropoff,
+            destination:finalDropoff,
+            waypoints:middleDropoffs.map(address=>({
+              location:address,
+              stopover:true
+            })),
+            optimizeWaypoints:true,
+            travelMode:google.maps.TravelMode.DRIVING,
+            unitSystem:google.maps.UnitSystem.IMPERIAL
+          },
+          function(response,status){
+
+            if(status !== "OK" || !response?.routes?.[0]){
+              resolve(null);
+              return;
+            }
+
+            const orderedMiddle =
+              (response.routes[0].waypoint_order || [])
+                .map(i=>middleDropoffs[i])
+                .filter(Boolean);
+
+            resolve(orderedMiddle);
+          }
+        );
+      });
+
+    if(optimizedMiddle){
+      return uniqueAddressList([
+        cleanOrigin,
+        firstDropoff,
+        ...optimizedMiddle,
+        finalDropoff
+      ]);
+    }
+
+  }catch(err){
+
+    console.log("buildDirectionalDropoffRoute error:",err);
+  }
+
+  return uniqueAddressList([
+    cleanOrigin,
+    firstDropoff,
+    ...middleDropoffs,
+    finalDropoff
+  ]);
+}
 
   /*
     آخر Dropoff = الأبعد من أول dropoff.
