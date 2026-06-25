@@ -1826,6 +1826,264 @@ function indexOfAddress(route,address){
 
   return route.findIndex(p=>addressKey(p) === key);
 }
+async function getRouteMilesSafe(points){
+
+  try{
+
+    const data =
+      await calculateRouteMiles(points);
+
+    return Number(data.miles || 0);
+
+  }catch(err){
+
+    console.log("getRouteMilesSafe error:",err);
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
+
+async function findNearestPoint(origin,points){
+
+  const cleanOrigin =
+    normalizeAddress(origin);
+
+  const cleanPoints =
+    uniqueAddressList(points);
+
+  if(!cleanOrigin || !cleanPoints.length){
+    return "";
+  }
+
+  let bestPoint =
+    cleanPoints[0];
+
+  let bestMiles =
+    Number.MAX_SAFE_INTEGER;
+
+  for(const point of cleanPoints){
+
+    const miles =
+      await getRouteMilesSafe([
+        cleanOrigin,
+        point
+      ]);
+
+    if(miles < bestMiles){
+      bestMiles = miles;
+      bestPoint = point;
+    }
+  }
+
+  return bestPoint;
+}
+
+async function findFarthestPoint(origin,points){
+
+  const cleanOrigin =
+    normalizeAddress(origin);
+
+  const cleanPoints =
+    uniqueAddressList(points);
+
+  if(!cleanOrigin || !cleanPoints.length){
+    return "";
+  }
+
+  let farthestPoint =
+    cleanPoints[0];
+
+  let farthestMiles =
+    -1;
+
+  for(const point of cleanPoints){
+
+    const miles =
+      await getRouteMilesSafe([
+        cleanOrigin,
+        point
+      ]);
+
+    if(
+      miles !== Number.MAX_SAFE_INTEGER &&
+      miles > farthestMiles
+    ){
+      farthestMiles = miles;
+      farthestPoint = point;
+    }
+  }
+
+  return farthestPoint;
+}
+
+async function buildPickupRoute(pickupAddresses){
+
+  const pickups =
+    uniqueAddressList(pickupAddresses);
+
+  if(pickups.length <= 1){
+    return pickups;
+  }
+
+  /*
+    نرتب البيك أب الأول.
+    مفيش driver start هنا، فهنبدأ من أول pickup موجود
+    وبعده نختار أقرب pickup.
+  */
+
+  const origin =
+    pickups[0];
+
+  const rest =
+    pickups.slice(1);
+
+  const route =
+    await orderNearestFromOrigin(
+      origin,
+      rest
+    );
+
+  return uniqueAddressList(route);
+}
+
+async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
+
+  const cleanOrigin =
+    normalizeAddress(origin);
+
+  const dropoffs =
+    uniqueAddressList(dropoffAddresses);
+
+  if(!cleanOrigin){
+    return dropoffs;
+  }
+
+  if(dropoffs.length <= 1){
+    return [
+      cleanOrigin,
+      ...dropoffs
+    ];
+  }
+
+  /*
+    أول Dropoff = الأقرب من آخر pickup.
+    ده يفتح اتجاه النزول.
+  */
+
+  const firstDropoff =
+    await findNearestPoint(
+      cleanOrigin,
+      dropoffs
+    );
+
+  const remainingAfterFirst =
+    dropoffs.filter(d=>{
+      return addressKey(d) !== addressKey(firstDropoff);
+    });
+
+  if(!remainingAfterFirst.length){
+
+    return uniqueAddressList([
+      cleanOrigin,
+      firstDropoff
+    ]);
+  }
+
+  /*
+    آخر Dropoff = الأبعد من أول dropoff.
+    ده يخلي العربية تكمل في اتجاه واحد بدل ما تلف وترجع.
+  */
+
+  const finalDropoff =
+    await findFarthestPoint(
+      firstDropoff,
+      remainingAfterFirst
+    );
+
+  const middleDropoffs =
+    remainingAfterFirst.filter(d=>{
+      return addressKey(d) !== addressKey(finalDropoff);
+    });
+
+  if(!middleDropoffs.length){
+
+    return uniqueAddressList([
+      cleanOrigin,
+      firstDropoff,
+      finalDropoff
+    ]);
+  }
+
+  /*
+    نخلي Google يرتب النقط اللي في النص فقط.
+    origin ثابت = آخر pickup
+    destination ثابت = أبعد dropoff
+  */
+
+  try{
+
+    await ensureGoogleLoaded();
+
+    const service =
+      new google.maps.DirectionsService();
+
+    const optimizedRoute =
+      await new Promise(resolve=>{
+
+        const waypointLocations =
+          [
+            firstDropoff,
+            ...middleDropoffs
+          ];
+
+        service.route(
+          {
+            origin:cleanOrigin,
+            destination:finalDropoff,
+            waypoints:waypointLocations.map(address=>({
+              location:address,
+              stopover:true
+            })),
+            optimizeWaypoints:true,
+            travelMode:google.maps.TravelMode.DRIVING,
+            unitSystem:google.maps.UnitSystem.IMPERIAL
+          },
+          function(response,status){
+
+            if(status !== "OK" || !response?.routes?.[0]){
+              resolve(null);
+              return;
+            }
+
+            const ordered =
+              (response.routes[0].waypoint_order || [])
+                .map(i=>waypointLocations[i])
+                .filter(Boolean);
+
+            resolve([
+              cleanOrigin,
+              ...ordered,
+              finalDropoff
+            ]);
+          }
+        );
+      });
+
+    if(optimizedRoute && optimizedRoute.length){
+      return uniqueAddressList(optimizedRoute);
+    }
+
+  }catch(err){
+
+    console.log("buildDirectionalDropoffRoute error:",err);
+  }
+
+  return uniqueAddressList([
+    cleanOrigin,
+    firstDropoff,
+    ...middleDropoffs,
+    finalDropoff
+  ]);
+}
 
 async function buildFinalSharedRoute(trip){
 
@@ -1866,109 +2124,102 @@ async function buildFinalSharedRoute(trip){
       activePassengers.map(p=>p.dropoff)
     );
 
+  const pickupUnified =
+    pickupAddresses.length === 1;
+
+  const dropoffUnified =
+    dropoffAddresses.length === 1;
+
   let finalRoutePoints = [];
 
   /* =====================================================
      CASE 1:
-     Pickup موحد
-     Dropoff مختلف
-     Route = Pickup واحد + ترتيب dropoffs
+     Pickup موحد + Dropoff موحد
   ===================================================== */
 
-  if(
-    pickupAddresses.length === 1 &&
-    dropoffAddresses.length > 1
-  ){
-
-    const pickup =
-      pickupAddresses[0];
-
- const dropoffRouteWithOrigin =
-  await orderNearestFromOrigin(
-    pickup,
-    dropoffAddresses
-  );
-
-    finalRoutePoints =
-      uniqueAddressList([
-        pickup,
-        ...dropoffRouteWithOrigin.slice(1)
-      ]);
-
-  }
-
-  /* =====================================================
-     CASE 2:
-     Pickup مختلف
-     Dropoff موحد
-     Route = ترتيب pickups + Dropoff واحد
-  ===================================================== */
-
-  else if(
-    pickupAddresses.length > 1 &&
-    dropoffAddresses.length === 1
-  ){
-
-   finalRoutePoints =
-  await optimizeOpenRouteToDestination(
-    pickupAddresses,
-    dropoffAddresses[0]
-  );
-
-  }
-
-  /* =====================================================
-     CASE 3:
-     Pickup مختلف
-     Dropoff مختلف
-     Route = كل pickups الأول
-             ثم كل dropoffs
-     ممنوع dropoff قبل pickup
-  ===================================================== */
-
-  else if(
-    pickupAddresses.length > 1 &&
-    dropoffAddresses.length > 1
-  ){
-
-  const pickupRoute =
-  await optimizeOpenRouteToDestination(
-    pickupAddresses,
-    pickupAddresses[pickupAddresses.length - 1]
-  );
-
-const lastPickup =
-  pickupRoute[pickupRoute.length - 1];
-
-const dropoffRouteWithOrigin =
-  await orderNearestFromOrigin(
-    lastPickup,
-    dropoffAddresses
-  );
-
-finalRoutePoints =
-  uniqueAddressList([
-    ...pickupRoute,
-    ...dropoffRouteWithOrigin.slice(1)
-  ]);
-
-  }
-
-  /* =====================================================
-     CASE 4:
-     Pickup موحد
-     Dropoff موحد
-     Route = Pickup واحد + Dropoff واحد
-  ===================================================== */
-
-  else{
+  if(pickupUnified && dropoffUnified){
 
     finalRoutePoints =
       uniqueAddressList([
         pickupAddresses[0],
         dropoffAddresses[0]
       ]);
+  }
 
+  /* =====================================================
+     CASE 2:
+     Pickup موحد + Dropoff مختلف
+     Pickup واحد
+     ثم Dropoffs حسب الاتجاه
+  ===================================================== */
+
+  else if(pickupUnified && !dropoffUnified){
+
+    const pickup =
+      pickupAddresses[0];
+
+    const dropoffRoute =
+      await buildDirectionalDropoffRoute(
+        pickup,
+        dropoffAddresses
+      );
+
+    finalRoutePoints =
+      uniqueAddressList([
+        pickup,
+        ...dropoffRoute.slice(1)
+      ]);
+  }
+
+  /* =====================================================
+     CASE 3:
+     Pickup مختلف + Dropoff موحد
+     Pickups الأول
+     ثم Dropoff واحد
+  ===================================================== */
+
+  else if(!pickupUnified && dropoffUnified){
+
+    const pickupRoute =
+      await buildPickupRoute(
+        pickupAddresses
+      );
+
+    finalRoutePoints =
+      uniqueAddressList([
+        ...pickupRoute,
+        dropoffAddresses[0]
+      ]);
+  }
+
+  /* =====================================================
+     CASE 4:
+     Pickup مختلف + Dropoff مختلف
+     Pickups الأول
+     ثم Dropoffs بالاتجاه
+  ===================================================== */
+
+  else{
+
+    const pickupRoute =
+      await buildPickupRoute(
+        pickupAddresses
+      );
+
+    const lastPickup =
+      pickupRoute[pickupRoute.length - 1];
+
+    const dropoffRoute =
+      await buildDirectionalDropoffRoute(
+        lastPickup,
+        dropoffAddresses
+      );
+
+    finalRoutePoints =
+      uniqueAddressList([
+        ...pickupRoute,
+        ...dropoffRoute.slice(1)
+      ]);
   }
 
   const orderedPassengers =
@@ -1999,6 +2250,7 @@ finalRoutePoints =
 
         return {
           ...p,
+
           pickupOrder:
             pickupIndex < 0
               ? 9999
