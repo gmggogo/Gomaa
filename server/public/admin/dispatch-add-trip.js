@@ -1964,11 +1964,6 @@ async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
     ];
   }
 
-  /*
-    أول Dropoff لازم يكون الأقرب من آخر pickup
-    وممنوع Google يغير مكانه.
-  */
-
   const firstDropoff =
     await findNearestPoint(
       cleanOrigin,
@@ -1987,11 +1982,6 @@ async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
       firstDropoff
     ]);
   }
-
-  /*
-    آخر Dropoff = الأبعد من أول dropoff
-    عشان العربية تكمل في نفس الاتجاه.
-  */
 
   const finalDropoff =
     await findFarthestPoint(
@@ -2012,13 +2002,6 @@ async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
       finalDropoff
     ]);
   }
-
-  /*
-    هنا المهم:
-    Google يرتب اللي في النص فقط.
-    firstDropoff ثابت.
-    finalDropoff ثابت.
-  */
 
   try{
 
@@ -2066,103 +2049,6 @@ async function buildDirectionalDropoffRoute(origin,dropoffAddresses){
         ...optimizedMiddle,
         finalDropoff
       ]);
-    }
-
-  }catch(err){
-
-    console.log("buildDirectionalDropoffRoute error:",err);
-  }
-
-  return uniqueAddressList([
-    cleanOrigin,
-    firstDropoff,
-    ...middleDropoffs,
-    finalDropoff
-  ]);
-}
-
-  /*
-    آخر Dropoff = الأبعد من أول dropoff.
-    ده يخلي العربية تكمل في اتجاه واحد بدل ما تلف وترجع.
-  */
-
-  const finalDropoff =
-    await findFarthestPoint(
-      firstDropoff,
-      remainingAfterFirst
-    );
-
-  const middleDropoffs =
-    remainingAfterFirst.filter(d=>{
-      return addressKey(d) !== addressKey(finalDropoff);
-    });
-
-  if(!middleDropoffs.length){
-
-    return uniqueAddressList([
-      cleanOrigin,
-      firstDropoff,
-      finalDropoff
-    ]);
-  }
-
-  /*
-    نخلي Google يرتب النقط اللي في النص فقط.
-    origin ثابت = آخر pickup
-    destination ثابت = أبعد dropoff
-  */
-
-  try{
-
-    await ensureGoogleLoaded();
-
-    const service =
-      new google.maps.DirectionsService();
-
-    const optimizedRoute =
-      await new Promise(resolve=>{
-
-        const waypointLocations =
-          [
-            firstDropoff,
-            ...middleDropoffs
-          ];
-
-        service.route(
-          {
-            origin:cleanOrigin,
-            destination:finalDropoff,
-            waypoints:waypointLocations.map(address=>({
-              location:address,
-              stopover:true
-            })),
-            optimizeWaypoints:true,
-            travelMode:google.maps.TravelMode.DRIVING,
-            unitSystem:google.maps.UnitSystem.IMPERIAL
-          },
-          function(response,status){
-
-            if(status !== "OK" || !response?.routes?.[0]){
-              resolve(null);
-              return;
-            }
-
-            const ordered =
-              (response.routes[0].waypoint_order || [])
-                .map(i=>waypointLocations[i])
-                .filter(Boolean);
-
-            resolve([
-              cleanOrigin,
-              ...ordered,
-              finalDropoff
-            ]);
-          }
-        );
-      });
-
-    if(optimizedRoute && optimizedRoute.length){
-      return uniqueAddressList(optimizedRoute);
     }
 
   }catch(err){
@@ -3395,15 +3281,15 @@ function getPassengers(t){
       ? t.passengers
       : [];
 
+  const isShared =
+    t.isShared === true ||
+    t.tripType === "SHARED";
+
+  if(!isShared){
+    return arr;
+  }
+
   return [...arr].sort((a,b)=>{
-
-    const ar =
-      Number(a.routeOrder || 9999);
-
-    const br =
-      Number(b.routeOrder || 9999);
-
-    if(ar !== br) return ar - br;
 
     const ap =
       Number(a.pickupOrder || 9999);
@@ -3411,7 +3297,9 @@ function getPassengers(t){
     const bp =
       Number(b.pickupOrder || 9999);
 
-    if(ap !== bp) return ap - bp;
+    if(ap !== bp){
+      return ap - bp;
+    }
 
     const ad =
       Number(a.dropoffOrder || 9999);
@@ -3419,7 +3307,21 @@ function getPassengers(t){
     const bd =
       Number(b.dropoffOrder || 9999);
 
-    return ad - bd;
+    if(ad !== bd){
+      return ad - bd;
+    }
+
+    const ar =
+      Number(a.routeOrder || 9999);
+
+    const br =
+      Number(b.routeOrder || 9999);
+
+    if(ar !== br){
+      return ar - br;
+    }
+
+    return 0;
   });
 }
 
