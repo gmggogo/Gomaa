@@ -1831,23 +1831,44 @@ function indexOfAddress(route,address){
 ========================= */
 
 const sharedGeocodeCache = new Map();
+const SHARED_ROUTE_DEBUG = false;
+
+function sharedRouteLog(label,value){
+
+  if(!SHARED_ROUTE_DEBUG){
+    return;
+  }
+
+  console.log(label,value);
+}
 
 function sharedCacheKey(value){
-
   return addressKey(value);
+}
+
+function isValidGeoPoint(point){
+
+  return (
+    point &&
+    point.failed !== true &&
+    Number.isFinite(Number(point.lat)) &&
+    Number.isFinite(Number(point.lng))
+  );
 }
 
 async function geocodeAddress(address){
 
   await ensureGoogleLoaded();
 
-  const cleanAddress = normalizeAddress(address);
+  const cleanAddress =
+    normalizeAddress(address);
 
   if(!cleanAddress){
     return null;
   }
 
-  const key = sharedCacheKey(cleanAddress);
+  const key =
+    sharedCacheKey(cleanAddress);
 
   if(sharedGeocodeCache.has(key)){
     return sharedGeocodeCache.get(key);
@@ -1882,19 +1903,21 @@ async function geocodeAddress(address){
       );
     });
 
-  sharedGeocodeCache.set(key,result);
+  sharedGeocodeCache.set(
+    key,
+    result
+  );
 
   return result;
 }
 
 function degreesToRadians(value){
-
   return Number(value || 0) * Math.PI / 180;
 }
 
 function distanceMilesBetweenPoints(a,b){
 
-  if(!a || !b){
+  if(!isValidGeoPoint(a) || !isValidGeoPoint(b)){
     return Number.MAX_SAFE_INTEGER;
   }
 
@@ -1924,7 +1947,7 @@ function distanceMilesBetweenPoints(a,b){
 
 function buildMidpoint(a,b){
 
-  if(!a || !b){
+  if(!isValidGeoPoint(a) || !isValidGeoPoint(b)){
     return null;
   }
 
@@ -1941,19 +1964,29 @@ async function geocodeUniqueAddresses(addresses){
 
   const list = [];
 
-  for(const address of cleanAddresses){
+  for(let index = 0; index < cleanAddresses.length; index++){
+
+    const address =
+      cleanAddresses[index];
 
     const geo =
       await geocodeAddress(address);
 
     if(geo){
-      list.push(geo);
+
+      list.push({
+        ...geo,
+        originalIndex:index
+      });
+
     }else{
+
       list.push({
         address,
         lat:null,
         lng:null,
-        failed:true
+        failed:true,
+        originalIndex:index
       });
     }
   }
@@ -1963,22 +1996,24 @@ async function geocodeUniqueAddresses(addresses){
 
 function findClosestPickupDropoffGeoPair(pickups,dropoffs){
 
+  const validPickups =
+    pickups.filter(isValidGeoPoint);
+
+  const validDropoffs =
+    dropoffs.filter(isValidGeoPoint);
+
   let bestPickup =
-    pickups[0] || null;
+    validPickups[0] || pickups[0] || null;
 
   let bestDropoff =
-    dropoffs[0] || null;
+    validDropoffs[0] || dropoffs[0] || null;
 
   let bestMiles =
     Number.MAX_SAFE_INTEGER;
 
-  for(const pickup of pickups){
+  for(const pickup of validPickups){
 
-    for(const dropoff of dropoffs){
-
-      if(pickup?.failed || dropoff?.failed){
-        continue;
-      }
+    for(const dropoff of validDropoffs){
 
       const miles =
         distanceMilesBetweenPoints(
@@ -2007,28 +2042,36 @@ function sortPickupsByMidpoint(pickups,midpoint){
   const scored =
     pickups.map((item,index)=>{
 
+      const valid =
+        isValidGeoPoint(item) && midpoint;
+
       const miles =
-        item?.failed || !midpoint
-          ? Number.MAX_SAFE_INTEGER - index
-          : distanceMilesBetweenPoints(
-              item,
-              midpoint
-            );
+        valid
+          ? distanceMilesBetweenPoints(item,midpoint)
+          : null;
 
       return {
         ...item,
         sortMiles:miles,
-        originalIndex:index
+        valid,
+        originalIndex:Number(item.originalIndex ?? index)
       };
     });
 
   scored.sort((a,b)=>{
 
-    const diff =
-      Number(b.sortMiles || 0) - Number(a.sortMiles || 0);
+    if(a.valid !== b.valid){
+      return a.valid ? -1 : 1;
+    }
 
-    if(diff !== 0){
-      return diff;
+    if(a.valid && b.valid){
+
+      const diff =
+        Number(b.sortMiles || 0) - Number(a.sortMiles || 0);
+
+      if(diff !== 0){
+        return diff;
+      }
     }
 
     return Number(a.originalIndex) - Number(b.originalIndex);
@@ -2042,28 +2085,36 @@ function sortDropoffsByMidpoint(dropoffs,midpoint){
   const scored =
     dropoffs.map((item,index)=>{
 
+      const valid =
+        isValidGeoPoint(item) && midpoint;
+
       const miles =
-        item?.failed || !midpoint
-          ? Number.MAX_SAFE_INTEGER
-          : distanceMilesBetweenPoints(
-              item,
-              midpoint
-            );
+        valid
+          ? distanceMilesBetweenPoints(item,midpoint)
+          : null;
 
       return {
         ...item,
         sortMiles:miles,
-        originalIndex:index
+        valid,
+        originalIndex:Number(item.originalIndex ?? index)
       };
     });
 
   scored.sort((a,b)=>{
 
-    const diff =
-      Number(a.sortMiles || 0) - Number(b.sortMiles || 0);
+    if(a.valid !== b.valid){
+      return a.valid ? -1 : 1;
+    }
 
-    if(diff !== 0){
-      return diff;
+    if(a.valid && b.valid){
+
+      const diff =
+        Number(a.sortMiles || 0) - Number(b.sortMiles || 0);
+
+      if(diff !== 0){
+        return diff;
+      }
     }
 
     return Number(a.originalIndex) - Number(b.originalIndex);
@@ -2194,10 +2245,22 @@ async function buildUnlockedSharedRoute(activePassengers){
       midpoint
     );
 
-  return uniqueAddressList([
-    ...orderedPickups,
-    ...orderedDropoffs
-  ]);
+  const finalRoute =
+    uniqueAddressList([
+      ...orderedPickups,
+      ...orderedDropoffs
+    ]);
+
+  sharedRouteLog("Shared route anchor",{
+    pickup:pair.pickup,
+    dropoff:pair.dropoff,
+    midpoint,
+    orderedPickups,
+    orderedDropoffs,
+    finalRoute
+  });
+
+  return finalRoute;
 }
 
 async function buildFinalSharedRoute(trip){
@@ -2241,10 +2304,7 @@ async function buildFinalSharedRoute(trip){
       ? uniqueAddressList(trip.routePoints)
       : [];
 
-  if(
-    trip.routeLocked === true &&
-    savedRoutePoints.length >= 2
-  ){
+  if(savedRoutePoints.length >= 2){
 
     finalRoutePoints =
       savedRoutePoints;
@@ -4111,8 +4171,16 @@ async function handleConfirmTrip(btn){
 
     if(isShared){
 
+      const savedRoutePoints =
+        Array.isArray(trip.routePoints)
+          ? uniqueAddressList(trip.routePoints)
+          : [];
+
       const finalRoute =
-        await buildFinalSharedRoute(trip);
+        await buildFinalSharedRoute({
+          ...trip,
+          routePoints:savedRoutePoints
+        });
 
       routePoints =
         finalRoute.routePoints;
