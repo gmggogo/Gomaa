@@ -1828,13 +1828,29 @@ function indexOfAddress(route,address){
 }
 /* =====================================================
    SHARED ROUTE ENGINE
-   No Driver Location Logic
+   Smart Shared Route - No Driver Location
 
-   فكرة الترتيب:
-   1. نجيب أقرب Pickup مع أقرب Dropoff = Anchor Pair
-   2. Pickups تترتب من الأبعد للأقرب ناحية Anchor Pickup
-   3. Dropoffs تترتب من Anchor Dropoff للأبعد
-   4. ممنوع Dropoff قبل كل Pickups
+   القواعد النهائية:
+
+   CASE 1:
+   Pickup موحد + Dropoff موحد
+   Route = Pickup → Dropoff
+
+   CASE 2:
+   Pickup موحد + Dropoffs مختلفة
+   Route = Pickup → أقرب Dropoff من Pickup → الأبعد
+
+   CASE 3:
+   Pickups مختلفة + Dropoff موحد
+   Route = أبعد Pickup عن Dropoff → الأقرب → Dropoff
+
+   CASE 4:
+   Pickups مختلفة + Dropoffs مختلفة
+   1. نجيب أقرب Pickup-Dropoff pair
+   2. Pickups من الأبعد للأقرب ناحية anchor pickup
+   3. Dropoffs من anchor dropoff للأبعد
+
+   ممنوع Dropoff قبل كل Pickups
 ===================================================== */
 
 const sharedRouteMilesCache =
@@ -1876,26 +1892,42 @@ async function getRouteMilesSafe(from,to){
       ]);
 
     const miles =
-      Number(data.miles || 0);
+      Number(data?.miles || 0);
 
     const finalMiles =
-      Number.isFinite(miles)
+      Number.isFinite(miles) && miles > 0
         ? miles
         : Number.MAX_SAFE_INTEGER;
 
-    sharedRouteMilesCache.set(key,finalMiles);
+    sharedRouteMilesCache.set(
+      key,
+      finalMiles
+    );
 
     return finalMiles;
 
   }catch(err){
 
-    console.log("getRouteMilesSafe error:",err);
+    console.log(
+      "getRouteMilesSafe error:",
+      err
+    );
 
-    sharedRouteMilesCache.set(key,Number.MAX_SAFE_INTEGER);
+    sharedRouteMilesCache.set(
+      key,
+      Number.MAX_SAFE_INTEGER
+    );
 
     return Number.MAX_SAFE_INTEGER;
   }
 }
+
+/* =====================================================
+   CLOSEST PICKUP-DROPOFF PAIR
+
+   يستخدم فقط في حالة:
+   Pickup مختلف + Dropoff مختلف
+===================================================== */
 
 async function findClosestPickupDropoffPair(pickupAddresses,dropoffAddresses){
 
@@ -1945,6 +1977,16 @@ async function findClosestPickupDropoffPair(pickupAddresses,dropoffAddresses){
   };
 }
 
+/* =====================================================
+   SORT PICKUPS FAR TO NEAR FROM ANCHOR PICKUP
+
+   مثال:
+   anchor pickup = C
+
+   B أبعد من A
+   Route pickups = B → A → C
+===================================================== */
+
 async function sortPickupsFarToNear(anchorPickup,pickupAddresses){
 
   const anchor =
@@ -1979,7 +2021,15 @@ async function sortPickupsFarToNear(anchorPickup,pickupAddresses){
   }
 
   scored.sort((a,b)=>{
-    return Number(b.miles || 0) - Number(a.miles || 0);
+
+    const diff =
+      Number(b.miles || 0) - Number(a.miles || 0);
+
+    if(diff !== 0){
+      return diff;
+    }
+
+    return String(a.address).localeCompare(String(b.address));
   });
 
   return uniqueAddressList([
@@ -1987,6 +2037,17 @@ async function sortPickupsFarToNear(anchorPickup,pickupAddresses){
     anchor
   ]);
 }
+
+/* =====================================================
+   SORT DROPOFFS FROM ANCHOR DROPOFF NEAR TO FAR
+
+   يستخدم في حالة:
+   Pickup مختلف + Dropoff مختلف
+
+   مثال:
+   anchor dropoff = 1
+   Route dropoffs = 1 → 2 → 3
+===================================================== */
 
 async function sortDropoffsNearToFar(anchorDropoff,dropoffAddresses){
 
@@ -2022,7 +2083,15 @@ async function sortDropoffsNearToFar(anchorDropoff,dropoffAddresses){
   }
 
   scored.sort((a,b)=>{
-    return Number(a.miles || 0) - Number(b.miles || 0);
+
+    const diff =
+      Number(a.miles || 0) - Number(b.miles || 0);
+
+    if(diff !== 0){
+      return diff;
+    }
+
+    return String(a.address).localeCompare(String(b.address));
   });
 
   return uniqueAddressList([
@@ -2030,6 +2099,121 @@ async function sortDropoffsNearToFar(anchorDropoff,dropoffAddresses){
     ...scored.map(x=>x.address)
   ]);
 }
+
+/* =====================================================
+   CASE 2 HELPER:
+   PICKUP واحد + DROPOFFS مختلفة
+
+   الصح:
+   Pickup → أقرب Dropoff من نفس Pickup → الأبعد
+
+   مهم:
+   هنا ممنوع نستخدم closest pair
+===================================================== */
+
+async function sortDropoffsFromPickupNearToFar(pickup,dropoffAddresses){
+
+  const origin =
+    normalizeAddress(pickup);
+
+  const dropoffs =
+    uniqueAddressList(dropoffAddresses);
+
+  if(!origin){
+    return dropoffs;
+  }
+
+  const scored = [];
+
+  for(const dropoff of dropoffs){
+
+    const miles =
+      await getRouteMilesSafe(
+        origin,
+        dropoff
+      );
+
+    scored.push({
+      address:dropoff,
+      miles
+    });
+  }
+
+  scored.sort((a,b)=>{
+
+    const diff =
+      Number(a.miles || 0) - Number(b.miles || 0);
+
+    if(diff !== 0){
+      return diff;
+    }
+
+    return String(a.address).localeCompare(String(b.address));
+  });
+
+  return uniqueAddressList(
+    scored.map(x=>x.address)
+  );
+}
+
+/* =====================================================
+   CASE 3 HELPER:
+   PICKUPS مختلفة + DROPOFF واحد
+
+   الصح:
+   أبعد Pickup عن Dropoff
+   → الأقرب
+   → Dropoff
+===================================================== */
+
+async function sortPickupsToDropoffFarToNear(dropoff,pickupAddresses){
+
+  const destination =
+    normalizeAddress(dropoff);
+
+  const pickups =
+    uniqueAddressList(pickupAddresses);
+
+  if(!destination){
+    return pickups;
+  }
+
+  const scored = [];
+
+  for(const pickup of pickups){
+
+    const miles =
+      await getRouteMilesSafe(
+        pickup,
+        destination
+      );
+
+    scored.push({
+      address:pickup,
+      miles
+    });
+  }
+
+  scored.sort((a,b)=>{
+
+    const diff =
+      Number(b.miles || 0) - Number(a.miles || 0);
+
+    if(diff !== 0){
+      return diff;
+    }
+
+    return String(a.address).localeCompare(String(b.address));
+  });
+
+  return uniqueAddressList(
+    scored.map(x=>x.address)
+  );
+}
+
+/* =====================================================
+   FINAL SHARED ROUTE BUILDER
+===================================================== */
 
 async function buildFinalSharedRoute(trip){
 
@@ -2042,11 +2226,19 @@ async function buildFinalSharedRoute(trip){
 
   const passengers =
     sourcePassengers.map((p,index)=>({
+
       ...p,
+
       __originalIndex:index,
-      __active:passengerIsActive(p),
-      pickup:normalizeAddress(p.pickup),
-      dropoff:normalizeAddress(p.dropoff)
+
+      __active:
+        passengerIsActive(p),
+
+      pickup:
+        normalizeAddress(p.pickup),
+
+      dropoff:
+        normalizeAddress(p.dropoff)
     }));
 
   const activePassengers =
@@ -2096,71 +2288,72 @@ async function buildFinalSharedRoute(trip){
 
   /* =====================================================
      CASE 2:
-     Pickup موحد + Dropoff مختلف
+     Pickup موحد + Dropoffs مختلفة
 
-     Anchor Pickup = pickup الواحد
-     Anchor Dropoff = أقرب dropoff له
-     Dropoffs = من الأقرب للأبعد
+     مثال:
+     Pickup = 200 Knox Chandler
+
+     الصح:
+     200 Knox Chandler
+     → 1970 E Ray Chandler
+     → 200 E Knox Tempe
+     → 4501 E Thomas Phoenix
+     → Cave Creek Phoenix
   ===================================================== */
 
   else if(pickupUnified && !dropoffUnified){
 
-    const pair =
-      await findClosestPickupDropoffPair(
-        pickupAddresses,
-        dropoffAddresses
-      );
+    const pickup =
+      pickupAddresses[0];
 
     const orderedDropoffs =
-      await sortDropoffsNearToFar(
-        pair.anchorDropoff,
+      await sortDropoffsFromPickupNearToFar(
+        pickup,
         dropoffAddresses
       );
 
     finalRoutePoints =
       uniqueAddressList([
-        pickupAddresses[0],
+        pickup,
         ...orderedDropoffs
       ]);
   }
 
   /* =====================================================
      CASE 3:
-     Pickup مختلف + Dropoff موحد
+     Pickups مختلفة + Dropoff موحد
 
-     Anchor Dropoff = dropoff الواحد
-     Anchor Pickup = أقرب pickup له
-     Pickups = من الأبعد للأقرب ناحية Anchor Pickup
+     الصح:
+     أبعد pickup عن dropoff
+     → الأقرب
+     → dropoff
   ===================================================== */
 
   else if(!pickupUnified && dropoffUnified){
 
-    const pair =
-      await findClosestPickupDropoffPair(
-        pickupAddresses,
-        dropoffAddresses
-      );
+    const dropoff =
+      dropoffAddresses[0];
 
     const orderedPickups =
-      await sortPickupsFarToNear(
-        pair.anchorPickup,
+      await sortPickupsToDropoffFarToNear(
+        dropoff,
         pickupAddresses
       );
 
     finalRoutePoints =
       uniqueAddressList([
         ...orderedPickups,
-        dropoffAddresses[0]
+        dropoff
       ]);
   }
 
   /* =====================================================
      CASE 4:
-     Pickup مختلف + Dropoff مختلف
+     Pickups مختلفة + Dropoffs مختلفة
 
-     1. نحدد أقرب Pickup-Dropoff pair
-     2. Pickups من الأبعد للأقرب ناحية anchor pickup
-     3. Dropoffs من anchor dropoff للأبعد
+     1. نجيب أقرب Pickup-Dropoff pair
+     2. Pickups من الأبعد للأقرب ناحية anchorPickup
+     3. Dropoffs من anchorDropoff للأبعد
   ===================================================== */
 
   else{
@@ -2189,6 +2382,10 @@ async function buildFinalSharedRoute(trip){
         ...orderedDropoffs
       ]);
   }
+
+  /* =====================================================
+     UPDATE PASSENGER ORDERS
+  ===================================================== */
 
   const orderedPassengers =
     passengers
