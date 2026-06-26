@@ -51,6 +51,8 @@ require("./models/Service");const {
 );
 
 const {
+  prepareConfirmRoute,
+  lockConfirmedTrip,
   finalizeIndividualTrip,
   finalizeSharedPassenger
 } = require(
@@ -627,10 +629,70 @@ const tripSchema = new mongoose.Schema({
 
   distanceMeters: { type: Number, default: 0 },
 
-  googleRoute: {
-    type: Object,
-    default: {}
-  },
+ googleRoute: {
+  type: Object,
+  default: {}
+},
+
+optimizedRoute: {
+  type: Object,
+  default: {}
+},
+
+routePoints: {
+  type: [String],
+  default: []
+},
+
+routeLocked: {
+  type: Boolean,
+  default: false
+},
+
+routeFinalized: {
+  type: Boolean,
+  default: false
+},
+
+routeSource: {
+  type: String,
+  default: ""
+},
+
+routeUpdatedAt: {
+  type: Date,
+  default: null
+},
+
+confirmedAt: {
+  type: Date,
+  default: null
+},
+
+pricePerPassenger: {
+  type: Number,
+  default: 0
+},
+
+sharedStopsCount: {
+  type: Number,
+  default: 0
+},
+
+sharedStopTotal: {
+  type: Number,
+  default: 0
+},
+
+sharedStopShare: {
+  type: Number,
+  default: 0
+},
+
+sharedRouteMeta: {
+  type: Object,
+  default: {}
+},
 
 finalPrice: {
   type: Number,
@@ -755,9 +817,44 @@ bookingSource: { type: String, default: "" },
 
       finalPrice: { type: Number, default: 0 },
 
-      cancelFee: { type: Number, default: 0 },
+cancelFee: { type: Number, default: 0 },
 
-      noShowFee: { type: Number, default: 0 }
+noShowFee: { type: Number, default: 0 },
+
+pickupOrder: {
+  type: Number,
+  default: 0
+},
+
+dropoffOrder: {
+  type: Number,
+  default: 0
+},
+
+routeOrder: {
+  type: Number,
+  default: 0
+},
+
+passengerMiles: {
+  type: Number,
+  default: 0
+},
+
+passengerMinutes: {
+  type: Number,
+  default: 0
+},
+
+passengerDistanceMeters: {
+  type: Number,
+  default: 0
+},
+
+passengerDurationSeconds: {
+  type: Number,
+  default: 0
+}
     }
   ],
   default: []
@@ -906,6 +1003,24 @@ const Trip =
 
 global.Trip = Trip;
 global.User = User;
+
+/* ==============================
+   DISPATCH RESERVED CONFIRM ROUTES
+   Server-side route ordering + pricing lock
+============================== */
+
+const dispatchReservedConfirmRoutes =
+  require("./routes/dispatchReservedConfirmRoutes");
+
+app.use(
+  "/api/dispatch-reserved-confirm",
+  dispatchReservedConfirmRoutes
+);
+
+console.log(
+  "✅ dispatchReservedConfirmRoutes mounted on /api/dispatch-reserved-confirm"
+);
+
 
 /* ==============================
    DISPATCH FINAL CONFIRMATION ROUTES
