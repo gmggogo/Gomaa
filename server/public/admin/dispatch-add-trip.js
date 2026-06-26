@@ -3111,6 +3111,33 @@ async function deleteTrip(id){
   }
 }
 
+
+async function confirmTripOnServer(id){
+
+  const res =
+    await fetch(
+      `/api/dispatch-reserved-confirm/${encodeURIComponent(id)}`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        }
+      }
+    );
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(
+      data.message || "Confirm failed"
+    );
+  }
+
+  return extractTripResponse(data);
+}
+
 async function fetchReviewTrips(){
 
   const res =
@@ -4362,12 +4389,20 @@ async function handleConfirmTrip(btn){
     btn.closest("tr");
 
   const id =
-    tr.dataset.id;
+    tr?.dataset?.id;
+
+  if(!id){
+    showAlert("Trip id missing");
+    return;
+  }
 
   const trip =
     reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
-  if(!trip) return;
+  if(!trip){
+    showAlert("Trip not found");
+    return;
+  }
 
   const existingStatus =
     cleanStatus(trip.status);
@@ -4376,19 +4411,16 @@ async function handleConfirmTrip(btn){
     trip.routeLocked === true ||
     String(trip.routeLocked).toLowerCase() === "true";
 
-  const existingRoutePoints =
-    Array.isArray(trip.routePoints)
-      ? uniqueAddressList(trip.routePoints)
-      : [];
+  const existingRouteFinalized =
+    trip.routeFinalized === true ||
+    String(trip.routeFinalized).toLowerCase() === "true";
 
   if(
-    existingStatus.includes("confirm") &&
-    existingRouteLocked &&
-    existingRoutePoints.length >= 2
+    existingStatus.includes("confirm") ||
+    existingRouteLocked ||
+    existingRouteFinalized
   ){
-
     showAlert("This trip is already confirmed. Edit the trip first to rebuild the route.");
-
     return;
   }
 
@@ -4396,11 +4428,8 @@ async function handleConfirmTrip(btn){
     return;
   }
 
-  const service =
-    getServiceByTrip(trip);
-
-  if(!service){
-    throw new Error("Reserved service not found");
+  if(!confirm("Confirm this trip and lock the route?")){
+    return;
   }
 
   const oldText =
@@ -4409,217 +4438,9 @@ async function handleConfirmTrip(btn){
   try{
 
     btn.disabled = true;
-    btn.textContent = "Routing...";
+    btn.textContent = "Confirming...";
 
-    const isShared =
-      trip.isShared === true ||
-      trip.tripType === "SHARED";
-
-    let routePoints = [];
-    let passengers = [];
-    let activeCount = 1;
-
-    if(isShared){
-
-      const finalRoute =
-        await buildFinalSharedRoute(trip);
-
-      routePoints =
-        finalRoute.routePoints;
-
-      passengers =
-        finalRoute.passengers;
-
-      activeCount =
-        finalRoute.activeCount || 1;
-
-    }else{
-
-      routePoints =
-        buildIndividualRoutePoints(trip);
-
-      passengers = [];
-      activeCount = 1;
-    }
-
-    if(routePoints.length < 2){
-      throw new Error("Route is missing pickup/dropoff");
-    }
-
-    const routeData =
-      await calculateRouteMiles(routePoints);
-
-    btn.textContent = "Pricing...";
-
-    const pricing =
-      getReservedPricing(service);
-
-   const stopsCount =
-  isShared
-    ? Math.max(0,activeCount - 1)
-    : Array.isArray(trip.stops)
-      ? trip.stops.length
-      : 0;
-
-    let total = 0;
-    let pricePerPassenger = 0;
-    let sharedStopTotal = 0;
-    let sharedStopShare = 0;
-
-    if(isShared){
-
-      const sharedPricing =
-        calculateSharedPricing({
-          service,
-          routeData,
-          passengers,
-          activeCount,
-          stopsCount
-        });
-
-      total =
-        sharedPricing.total;
-
-      pricePerPassenger =
-        sharedPricing.pricePerPassenger;
-
-      sharedStopTotal =
-        sharedPricing.stopTotal;
-
-      sharedStopShare =
-        sharedPricing.stopShare;
-
-      passengers =
-        sharedPricing.passengers.map(p=>{
-
-          const s =
-            cleanStatus(p.status);
-
-          if(s.includes("no") || s.includes("cancel")){
-            return p;
-          }
-
-          return {
-            ...p,
-            status:"Confirmed",
-            cancelFee:Number(pricing.cancelFee || 0),
-            noShowFee:Number(pricing.noShowFee || 0)
-          };
-        });
-
-    }else{
-
-      total =
-        calculateReservedPrice({
-          service,
-          miles:routeData.miles,
-          minutes:routeData.estimatedMinutes,
-          stops:stopsCount
-        });
-    }
-
-    const serviceCode =
-      isShared
-        ? "SH"
-        : resolveServiceCode(service);
-
-    btn.textContent =
-      "Saving...";
-
-    await updateTrip(id,{
-      status:"Confirmed",
-      reservationStatus:"RV",
-      reviewOnly:false,
-
-      type:"reserved",
-      reservation:true,
-      source:"RV",
-      bookingSource:"RV",
-
-      dispatchSelected:true,
-      disabled:false,
-
-      isShared,
-      tripType:isShared ? "SHARED" : "INDIVIDUAL",
-
-      serviceKey:serviceCode,
-      serviceType:serviceCode,
-      serviceCode:serviceCode,
-      serviceSuffix:serviceCode,
-      tripNumberSuffix:serviceCode,
-      serviceName:serviceDisplayName(service,serviceCode),
-      serviceTitle:serviceDisplayName(service,serviceCode),
-      serviceId:String(service?._id || ""),
-
-      vehicleTypeFromQuote:serviceCode,
-      vehicleType:serviceCode,
-
-      passengers,
-      totalPassengers:isShared ? passengers.length : 1,
-      passengerCount:isShared ? passengers.length : 1,
-      passengersCount:isShared ? passengers.length : 1,
-
-      pickup:isShared
-        ? routePoints[0] || trip.pickup || ""
-        : trip.pickup,
-
-      dropoff:isShared
-        ? routePoints[routePoints.length - 1] || trip.dropoff || ""
-        : trip.dropoff,
-
-      stops:isShared
-        ? []
-        : Array.isArray(trip.stops)
-          ? trip.stops
-          : [],
-
-      priceAmount:Number(total || 0),
-      finalPrice:Number(total || 0),
-      pricePerPassenger:Number(pricePerPassenger || 0),
-
-      miles:Number(routeData.miles || 0),
-      distanceMeters:Number(routeData.distanceMeters || 0),
-      durationSeconds:Number(routeData.durationSeconds || 0),
-      estimatedMinutes:Number(routeData.estimatedMinutes || 0),
-
-      googleRoute:routeData.googleRoute || {},
-      routePoints,
-      optimizedRoute:routeData.googleRoute || {},
-
-      sharedStopsCount:isShared ? stopsCount : 0,
-      sharedStopTotal:isShared ? sharedStopTotal : 0,
-      sharedStopShare:isShared ? sharedStopShare : 0,
-
-      cancelFee:Number(pricing.cancelFee || 0),
-      noShowFee:Number(pricing.noShowFee || 0),
-
-      reservedPricingMode:pricing.pricingMode,
-
-      reservedPriceSnapshot:{
-        pricingMode:pricing.pricingMode,
-        baseFare:pricing.baseFare,
-        includedMiles:pricing.includedMiles,
-        perMile:pricing.perMile,
-        hourlyRate:pricing.hourlyRate,
-        hourlyBillingMode:pricing.hourlyBillingMode,
-        stopFee:pricing.stopFee,
-        noShowFee:pricing.noShowFee,
-        cancelFee:pricing.cancelFee,
-        sharedPrice:pricing.sharedPrice,
-        warningMinutes:pricing.warningMinutes,
-        disableCancel:pricing.disableCancel,
-        sharedStopsCount:isShared ? stopsCount : 0,
-        sharedStopTotal:isShared ? sharedStopTotal : 0,
-        sharedStopShare:isShared ? sharedStopShare : 0
-      },
-
-      routeLocked:true,
-      routeFinalized:true,
-      routeSource:"dispatch-add-trip",
-      routeUpdatedAt:new Date().toISOString(),
-
-      createdFrom:"dispatch-add-trip"
-    });
+    await confirmTripOnServer(id);
 
     await refreshReview();
 
@@ -4627,14 +4448,19 @@ async function handleConfirmTrip(btn){
 
   }catch(err){
 
-    console.error(err);
+    console.error("CONFIRM TRIP ERROR:",err);
 
-    showAlert(err.message || "Confirm failed");
+    showAlert(
+      err.message || "Confirm failed"
+    );
+
+  }finally{
 
     btn.disabled = false;
     btn.textContent = oldText || "Confirm";
   }
 }
+
 
 async function handleCancelTrip(btn){
 
