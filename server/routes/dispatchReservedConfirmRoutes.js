@@ -25,21 +25,16 @@
    - Dropoffs never happen before all pickups.
    - Google final route calculates miles/minutes/polyline only.
    - Google must not reorder final route.
+   - If passenger.pickup/dropoff are missing, server falls back to trip pickup/dropoff lists.
 ===================================================== */
 
 const express = require("express");
 const router = express.Router();
-
 const https = require("https");
 
-const tripFinalizer =
-  require("../utils/trip-finalizer");
-
-const routeMapEngine =
-  require("../utils/routeMapEngine");
-
-const Service =
-  require("../models/Service");
+const tripFinalizer = require("../utils/trip-finalizer");
+const routeMapEngine = require("../utils/routeMapEngine");
+const Service = require("../models/Service");
 
 /* =========================
    BASIC HELPERS
@@ -136,8 +131,7 @@ function uniqueAddressList(list){
       continue;
     }
 
-    const key =
-      addressKey(address);
+    const key = addressKey(address);
 
     if(seen.has(key)){
       continue;
@@ -166,8 +160,7 @@ function compactRoutePoints(list){
       continue;
     }
 
-    const key =
-      addressKey(address);
+    const key = addressKey(address);
 
     if(key === lastKey){
       continue;
@@ -178,6 +171,109 @@ function compactRoutePoints(list){
   }
 
   return out;
+}
+
+function isBadAddress(value){
+
+  const v =
+    normalizeAddress(value).toLowerCase();
+
+  return (
+    !v ||
+    v === "undefined" ||
+    v === "null" ||
+    v === "nan" ||
+    v === "-"
+  );
+}
+
+function normalizePossibleAddress(value){
+  return isBadAddress(value)
+    ? ""
+    : normalizeAddress(value);
+}
+
+function splitAddressList(value){
+
+  if(Array.isArray(value)){
+    return value
+      .map(normalizePossibleAddress)
+      .filter(Boolean);
+  }
+
+  const text = normalizeAddress(value);
+
+  if(!text){
+    return [];
+  }
+
+  return text
+    .split(/\n|;|\|/g)
+    .map(item=>{
+      return item
+        .replace(/^\s*\d+\s*[\.\-\)]\s*/,"")
+        .trim();
+    })
+    .map(normalizePossibleAddress)
+    .filter(Boolean);
+}
+
+function getSharedPickupAddress(trip,passenger,index){
+
+  const fromPassenger =
+    normalizePossibleAddress(passenger?.pickup) ||
+    normalizePossibleAddress(passenger?.pickupAddress) ||
+    normalizePossibleAddress(passenger?.pickupLocation) ||
+    normalizePossibleAddress(passenger?.from);
+
+  if(fromPassenger){
+    return fromPassenger;
+  }
+
+  const lists = [
+    splitAddressList(trip?.pickup),
+    splitAddressList(trip?.pickupAddress),
+    splitAddressList(trip?.sharedPickups),
+    splitAddressList(trip?.pickupList),
+    splitAddressList(trip?.pickupAddresses)
+  ];
+
+  for(const list of lists){
+    if(list[index]){
+      return list[index];
+    }
+  }
+
+  return "";
+}
+
+function getSharedDropoffAddress(trip,passenger,index){
+
+  const fromPassenger =
+    normalizePossibleAddress(passenger?.dropoff) ||
+    normalizePossibleAddress(passenger?.dropoffAddress) ||
+    normalizePossibleAddress(passenger?.dropoffLocation) ||
+    normalizePossibleAddress(passenger?.to);
+
+  if(fromPassenger){
+    return fromPassenger;
+  }
+
+  const lists = [
+    splitAddressList(trip?.dropoff),
+    splitAddressList(trip?.dropoffAddress),
+    splitAddressList(trip?.sharedDropoffs),
+    splitAddressList(trip?.dropoffList),
+    splitAddressList(trip?.dropoffAddresses)
+  ];
+
+  for(const list of lists){
+    if(list[index]){
+      return list[index];
+    }
+  }
+
+  return "";
 }
 
 function getTripModel(){
@@ -213,21 +309,17 @@ function isSharedTrip(trip){
 
 function passengerIsActive(passenger){
 
-  const status =
-    cleanStatus(passenger?.status);
+  const status = cleanStatus(passenger?.status);
 
   return (
     !status.includes("cancel") &&
     !status.includes("noshow") &&
-    !status.includes("no-show") &&
-    normalizeAddress(passenger?.pickup) &&
-    normalizeAddress(passenger?.dropoff)
+    !status.includes("no-show")
   );
 }
 
 /* =========================
    ROUTE SIGNATURE
-   This controls when Google is called again.
 ========================= */
 
 function buildIndividualRouteSignature(trip){
@@ -246,12 +338,21 @@ function buildSharedRouteSignature(trip){
 
   const passengers =
     safeArray(trip?.passengers)
-      .map((p,index)=>({
-        id:String(p.passengerId || p._id || index),
-        pickup:addressKey(p.pickup),
-        dropoff:addressKey(p.dropoff),
-        active:passengerIsActive(p) ? "1" : "0"
-      }))
+      .map((p,index)=>{
+
+        const pickup =
+          getSharedPickupAddress(trip,p,index);
+
+        const dropoff =
+          getSharedDropoffAddress(trip,p,index);
+
+        return {
+          id:String(p.passengerId || p._id || index),
+          pickup:addressKey(pickup),
+          dropoff:addressKey(dropoff),
+          active:passengerIsActive(p) ? "1" : "0"
+        };
+      })
       .filter(p=>p.pickup || p.dropoff)
       .sort((a,b)=>{
         return String(a.id).localeCompare(String(b.id));
@@ -291,8 +392,7 @@ function savedRoutePlan(trip){
 
 function savedRoutePoints(trip){
 
-  const plan =
-    savedRoutePlan(trip);
+  const plan = savedRoutePlan(trip);
 
   if(plan.length >= 2){
     return compactRoutePoints(
@@ -305,8 +405,7 @@ function savedRoutePoints(trip){
 
 function hasUsableSavedRoute(trip,currentSignature){
 
-  const points =
-    savedRoutePoints(trip);
+  const points = savedRoutePoints(trip);
 
   if(points.length < 2){
     return false;
@@ -323,17 +422,12 @@ function hasUsableSavedRoute(trip,currentSignature){
     return false;
   }
 
-  const savedSignature =
-    getSavedRouteSignature(trip);
+  const savedSignature = getSavedRouteSignature(trip);
 
   if(savedSignature){
     return savedSignature === currentSignature;
   }
 
-  /*
-    Old confirmed trips may not have a signature yet.
-    If they are locked and no route-change flag exists, reuse once and save signature.
-  */
   return (
     trip?.routeLocked === true ||
     trip?.routeFinalized === true ||
@@ -379,9 +473,7 @@ async function calculateRoute(routePoints){
     return await routeMapEngine.calculateRoute(routePoints);
   }
 
-  throw new Error(
-    "routeMapEngine calculate function not found"
-  );
+  throw new Error("routeMapEngine calculate function not found");
 }
 
 function getGoogleMapsApiKey(){
@@ -423,16 +515,12 @@ function httpsGetJson(url){
 
 async function geocodeAddress(address){
 
-  const cleanAddress =
-    normalizeAddress(address);
+  const cleanAddress = normalizePossibleAddress(address);
 
   if(!cleanAddress){
     return null;
   }
 
-  /*
-    First try routeMapEngine if it already has geocode.
-  */
   const fn =
     routeMapEngine?.geocodeAddress ||
     routeMapEngine?.geocode ||
@@ -444,8 +532,7 @@ async function geocodeAddress(address){
 
     try{
 
-      const result =
-        await fn(cleanAddress);
+      const result = await fn(cleanAddress);
 
       const lat =
         result?.lat ??
@@ -476,12 +563,7 @@ async function geocodeAddress(address){
     }
   }
 
-  /*
-    Fallback: direct Google Geocoding API.
-    This fixes new/edit/old shared passengers that have address but no lat/lng.
-  */
-  const apiKey =
-    getGoogleMapsApiKey();
+  const apiKey = getGoogleMapsApiKey();
 
   if(!apiKey){
     console.log("Missing Google Maps API key for geocode");
@@ -494,8 +576,7 @@ async function geocodeAddress(address){
     "&key=" +
     encodeURIComponent(apiKey);
 
-  const json =
-    await httpsGetJson(url);
+  const json = await httpsGetJson(url);
 
   if(
     json?.status !== "OK" ||
@@ -512,8 +593,7 @@ async function geocodeAddress(address){
     return null;
   }
 
-  const location =
-    json.results[0]?.geometry?.location;
+  const location = json.results[0]?.geometry?.location;
 
   if(
     Number.isFinite(Number(location?.lat)) &&
@@ -550,15 +630,13 @@ function resolveServiceCodeFromTrip(trip){
 
 async function getReservedServiceForTrip(trip){
 
-  const code =
-    resolveServiceCodeFromTrip(trip);
+  const code = resolveServiceCodeFromTrip(trip);
 
   if(!code){
     throw new Error("Reserved service code missing");
   }
 
-  const services =
-    await Service.find({}).lean();
+  const services = await Service.find({}).lean();
 
   const found =
     services.find(service=>{
@@ -571,21 +649,16 @@ async function getReservedServiceForTrip(trip){
         service.getQuoteSuffix,
         service.reservedServiceSuffix,
         service.tripNumberSuffix,
-
         service.reservedServiceCode,
         service.serviceCode,
         service.code,
-
         service.reservedServiceKey,
         service.serviceKey,
         service.serviceType,
         service.vehicle
       ];
 
-      return fields.some(field=>{
-        return normalizeCode(field) === code;
-      });
-
+      return fields.some(field=>normalizeCode(field) === code);
     });
 
   if(!found){
@@ -598,67 +671,36 @@ async function getReservedServiceForTrip(trip){
 function getReservedPricing(service){
 
   return {
-    pricingMode:
-      clean(service?.reservedPricingMode || "MILE").toUpperCase(),
-
-    baseFare:
-      n(service?.reservedBaseFare),
-
-    includedMiles:
-      n(service?.reservedIncludedMiles),
-
-    perMile:
-      n(service?.reservedPerMile),
-
-    hourlyRate:
-      n(service?.reservedHourlyRate),
-
-    hourlyBillingMode:
-      clean(service?.reservedHourlyBillingMode || "FULL").toUpperCase(),
-
-    stopFee:
-      n(service?.reservedStopFee),
-
-    noShowFee:
-      n(service?.reservedNoShowFee),
-
-    cancelFee:
-      n(service?.reservedCancelFee),
-
-    sharedPrice:
-      n(service?.reservedSharedPrice),
-
-    warningMinutes:
-      Number(service?.reservedWarningMinutes ?? 120),
-
-    disableCancel:
-      bool(service?.reservedDisableCancel)
+    pricingMode:clean(service?.reservedPricingMode || "MILE").toUpperCase(),
+    baseFare:n(service?.reservedBaseFare),
+    includedMiles:n(service?.reservedIncludedMiles),
+    perMile:n(service?.reservedPerMile),
+    hourlyRate:n(service?.reservedHourlyRate),
+    hourlyBillingMode:clean(service?.reservedHourlyBillingMode || "FULL").toUpperCase(),
+    stopFee:n(service?.reservedStopFee),
+    noShowFee:n(service?.reservedNoShowFee),
+    cancelFee:n(service?.reservedCancelFee),
+    sharedPrice:n(service?.reservedSharedPrice),
+    warningMinutes:Number(service?.reservedWarningMinutes ?? 120),
+    disableCancel:bool(service?.reservedDisableCancel)
   };
 }
 
 function calculateReservedPrice({pricing,miles,minutes,stops}){
 
-  const mode =
-    clean(pricing.pricingMode || "MILE").toUpperCase();
-
-  const stopCount =
-    n(stops);
-
+  const mode = clean(pricing.pricingMode || "MILE").toUpperCase();
+  const stopCount = n(stops);
   let total = 0;
 
   if(mode === "HOURLY"){
 
-    const mins =
-      Math.max(0,n(minutes));
-
+    const mins = Math.max(0,n(minutes));
     let billableHours = 0;
 
     if(pricing.hourlyBillingMode === "QUARTER"){
-      billableHours =
-        Math.ceil(mins / 15) * 0.25;
+      billableHours = Math.ceil(mins / 15) * 0.25;
     }else{
-      billableHours =
-        Math.ceil(mins / 60);
+      billableHours = Math.ceil(mins / 60);
     }
 
     total =
@@ -668,10 +710,7 @@ function calculateReservedPrice({pricing,miles,minutes,stops}){
   }else{
 
     const extraMiles =
-      Math.max(
-        0,
-        n(miles) - n(pricing.includedMiles)
-      );
+      Math.max(0,n(miles) - n(pricing.includedMiles));
 
     total =
       n(pricing.baseFare) +
@@ -690,19 +729,13 @@ function calculateSharedPricing({
   stopsCount
 }){
 
-  const count =
-    Math.max(1,n(activeCount));
-
-  const routeMiles =
-    n(routeData?.miles);
+  const count = Math.max(1,n(activeCount));
+  const routeMiles = n(routeData?.miles);
 
   if(n(pricing.sharedPrice) > 0){
 
-    const fixed =
-      n(pricing.sharedPrice);
-
-    const total =
-      Number((fixed * count).toFixed(2));
+    const fixed = n(pricing.sharedPrice);
+    const total = Number((fixed * count).toFixed(2));
 
     const pricedPassengers =
       passengers.map(passenger=>{
@@ -739,37 +772,13 @@ function calculateSharedPricing({
     };
   }
 
-  const includedMilesTotal =
-    n(pricing.includedMiles) * count;
-
-  const extraMiles =
-    Math.max(
-      0,
-      routeMiles - includedMilesTotal
-    );
-
-  const baseTotal =
-    Number(
-      (n(pricing.baseFare) * count).toFixed(2)
-    );
-
-  const mileageTotal =
-    Number(
-      (extraMiles * n(pricing.perMile)).toFixed(2)
-    );
-
-  const stopTotal =
-    Number(
-      (n(stopsCount) * n(pricing.stopFee)).toFixed(2)
-    );
-
-  const total =
-    Number(
-      (baseTotal + mileageTotal + stopTotal).toFixed(2)
-    );
-
-  const pricePerPassenger =
-    Number((total / count).toFixed(2));
+  const includedMilesTotal = n(pricing.includedMiles) * count;
+  const extraMiles = Math.max(0,routeMiles - includedMilesTotal);
+  const baseTotal = Number((n(pricing.baseFare) * count).toFixed(2));
+  const mileageTotal = Number((extraMiles * n(pricing.perMile)).toFixed(2));
+  const stopTotal = Number((n(stopsCount) * n(pricing.stopFee)).toFixed(2));
+  const total = Number((baseTotal + mileageTotal + stopTotal).toFixed(2));
+  const pricePerPassenger = Number((total / count).toFixed(2));
 
   const pricedPassengers =
     passengers.map(passenger=>{
@@ -812,8 +821,7 @@ function calculateSharedPricing({
 
 function extractRoutePointCoordinates(routePoints, routeData){
 
-  const map =
-    new Map();
+  const map = new Map();
 
   const legs =
     Array.isArray(routeData?.googleRoute?.legs)
@@ -828,25 +836,19 @@ function extractRoutePointCoordinates(routePoints, routeData){
 
   for(const leg of legs){
 
-    const startAddress =
-      normalizeAddress(leg.startAddress || leg.start_address);
-
-    const endAddress =
-      normalizeAddress(leg.endAddress || leg.end_address);
+    const startAddress = normalizeAddress(leg.startAddress || leg.start_address);
+    const endAddress = normalizeAddress(leg.endAddress || leg.end_address);
 
     if(
       startAddress &&
       Number.isFinite(Number(leg.startLat)) &&
       Number.isFinite(Number(leg.startLng))
     ){
-      map.set(
-        addressKey(startAddress),
-        {
-          address:startAddress,
-          lat:Number(leg.startLat),
-          lng:Number(leg.startLng)
-        }
-      );
+      map.set(addressKey(startAddress),{
+        address:startAddress,
+        lat:Number(leg.startLat),
+        lng:Number(leg.startLng)
+      });
     }
 
     if(
@@ -854,21 +856,17 @@ function extractRoutePointCoordinates(routePoints, routeData){
       Number.isFinite(Number(leg.endLat)) &&
       Number.isFinite(Number(leg.endLng))
     ){
-      map.set(
-        addressKey(endAddress),
-        {
-          address:endAddress,
-          lat:Number(leg.endLat),
-          lng:Number(leg.endLng)
-        }
-      );
+      map.set(addressKey(endAddress),{
+        address:endAddress,
+        lat:Number(leg.endLat),
+        lng:Number(leg.endLng)
+      });
     }
   }
 
   for(const point of routePoints){
 
-    const key =
-      addressKey(point);
+    const key = addressKey(point);
 
     if(!map.has(key)){
       map.set(key,{
@@ -884,8 +882,7 @@ function extractRoutePointCoordinates(routePoints, routeData){
 
 function routePlanOrder(routePlan,type,address){
 
-  const key =
-    addressKey(address);
+  const key = addressKey(address);
 
   const index =
     safeArray(routePlan)
@@ -909,99 +906,48 @@ function applySharedPassengerOrdersAndCoords({
 }){
 
   const coordMap =
-    extractRoutePointCoordinates(
-      routePoints,
-      routeData
-    );
+    extractRoutePointCoordinates(routePoints,routeData);
 
   return safeArray(passengers)
     .map((passenger,index)=>{
 
-      const active =
-        passengerIsActive(passenger);
+      const active = passengerIsActive(passenger);
 
-      const pickupOrder =
-        routePlanOrder(
-          routePlan,
-          "pickup",
-          passenger.pickup
-        );
+      const pickupOrder = routePlanOrder(routePlan,"pickup",passenger.pickup);
+      const dropoffOrder = routePlanOrder(routePlan,"dropoff",passenger.dropoff);
 
-      const dropoffOrder =
-        routePlanOrder(
-          routePlan,
-          "dropoff",
-          passenger.dropoff
-        );
+      const pickupKey = addressKey(passenger.pickup);
+      const dropoffKey = addressKey(passenger.dropoff);
 
-      const pickupKey =
-        addressKey(passenger.pickup);
-
-      const dropoffKey =
-        addressKey(passenger.dropoff);
-
-      const pickupCoord =
-        coordMap.get(pickupKey) || null;
-
-      const dropoffCoord =
-        coordMap.get(dropoffKey) || null;
+      const pickupCoord = coordMap.get(pickupKey) || null;
+      const dropoffCoord = coordMap.get(dropoffKey) || null;
 
       return {
         ...passenger,
-
-        pickup:
-          normalizeAddress(passenger.pickup),
-
+        pickup:normalizePossibleAddress(passenger.pickup),
         pickupLat:
           Number.isFinite(Number(pickupCoord?.lat))
             ? Number(pickupCoord.lat)
             : passenger.pickupLat ?? null,
-
         pickupLng:
           Number.isFinite(Number(pickupCoord?.lng))
             ? Number(pickupCoord.lng)
             : passenger.pickupLng ?? null,
-
-        dropoff:
-          normalizeAddress(passenger.dropoff),
-
+        dropoff:normalizePossibleAddress(passenger.dropoff),
         dropoffLat:
           Number.isFinite(Number(dropoffCoord?.lat))
             ? Number(dropoffCoord.lat)
             : passenger.dropoffLat ?? null,
-
         dropoffLng:
           Number.isFinite(Number(dropoffCoord?.lng))
             ? Number(dropoffCoord.lng)
             : passenger.dropoffLng ?? null,
-
-        pickupOrder:
-          active
-            ? pickupOrder
-            : 9999,
-
-        dropoffOrder:
-          active
-            ? dropoffOrder
-            : 9999,
-
-        routeOrder:
-          index + 1,
-
-        status:
-          active
-            ? "Confirmed"
-            : passenger.status || "Scheduled",
-
-        cancelFee:
-          active
-            ? n(pricing.cancelFee)
-            : n(passenger.cancelFee),
-
-        noShowFee:
-          active
-            ? n(pricing.noShowFee)
-            : n(passenger.noShowFee)
+        pickupOrder:active ? pickupOrder : 9999,
+        dropoffOrder:active ? dropoffOrder : 9999,
+        routeOrder:index + 1,
+        status:active ? "Confirmed" : passenger.status || "Scheduled",
+        cancelFee:active ? n(pricing.cancelFee) : n(passenger.cancelFee),
+        noShowFee:active ? n(pricing.noShowFee) : n(passenger.noShowFee)
       };
     })
     .sort((a,b)=>{
@@ -1060,10 +1006,8 @@ function distanceMilesByCoords(a,b){
   }
 
   const R = 3958.8;
-
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
-
   const dLat = toRad(Number(b.lat) - Number(a.lat));
   const dLng = toRad(Number(b.lng) - Number(a.lng));
 
@@ -1089,7 +1033,7 @@ function makePickupPoint(passenger,index){
 
   return {
     type:"pickup",
-    address:normalizeAddress(passenger.pickup),
+    address:normalizePossibleAddress(passenger.pickup),
     lat:Number(passenger.pickupLat),
     lng:Number(passenger.pickupLng),
     passengerId:normalizePassengerId(passenger,index),
@@ -1103,7 +1047,7 @@ function makeDropoffPoint(passenger,index){
 
   return {
     type:"dropoff",
-    address:normalizeAddress(passenger.dropoff),
+    address:normalizePossibleAddress(passenger.dropoff),
     lat:Number(passenger.dropoffLat),
     lng:Number(passenger.dropoffLng),
     passengerId:normalizePassengerId(passenger,index),
@@ -1120,7 +1064,7 @@ function uniqueTypedRoutePoints(points){
 
   for(const point of safeArray(points)){
 
-    if(!normalizeAddress(point?.address)){
+    if(!normalizePossibleAddress(point?.address)){
       continue;
     }
 
@@ -1135,8 +1079,7 @@ function uniqueTypedRoutePoints(points){
 
     if(seen.has(key)){
 
-      const existing =
-        seen.get(key);
+      const existing = seen.get(key);
 
       existing.passengerIndexes =
         Array.from(new Set([
@@ -1145,7 +1088,6 @@ function uniqueTypedRoutePoints(points){
         ]));
 
       existing.group = true;
-
       continue;
     }
 
@@ -1164,9 +1106,7 @@ function uniqueTypedRoutePoints(points){
 
 async function ensurePassengerPointCoordinates(passenger){
 
-  const out = {
-    ...passenger
-  };
+  const out = { ...passenger };
 
   if(!hasValidLatLng(out.pickupLat,out.pickupLng)){
 
@@ -1175,8 +1115,7 @@ async function ensurePassengerPointCoordinates(passenger){
     console.log("Pickup address:", out.pickup);
     console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
 
-    const coords =
-      await geocodeAddress(out.pickup);
+    const coords = await geocodeAddress(out.pickup);
 
     console.log("Pickup geocode result:", coords);
     console.log("======== GEOCODE PICKUP END ========");
@@ -1194,8 +1133,7 @@ async function ensurePassengerPointCoordinates(passenger){
     console.log("Dropoff address:", out.dropoff);
     console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
 
-    const coords =
-      await geocodeAddress(out.dropoff);
+    const coords = await geocodeAddress(out.dropoff);
 
     console.log("Dropoff geocode result:", coords);
     console.log("======== GEOCODE DROPOFF END ========");
@@ -1216,13 +1154,33 @@ async function ensurePassengerPointCoordinates(passenger){
 async function collectSharedPoints(trip){
 
   const sourcePassengers =
-    safeArray(trip.passengers);
+    safeArray(trip.passengers)
+      .map((passenger,index)=>{
+
+        const pickup =
+          getSharedPickupAddress(trip,passenger,index);
+
+        const dropoff =
+          getSharedDropoffAddress(trip,passenger,index);
+
+        return {
+          ...passenger,
+          pickup,
+          dropoff
+        };
+      });
 
   const activePassengersRaw =
-    sourcePassengers.filter(passengerIsActive);
+    sourcePassengers.filter(passenger=>{
+      return (
+        passengerIsActive(passenger) &&
+        normalizePossibleAddress(passenger.pickup) &&
+        normalizePossibleAddress(passenger.dropoff)
+      );
+    });
 
   if(activePassengersRaw.length < 2){
-    throw new Error("Shared trip requires at least 2 active passengers");
+    throw new Error("Shared trip requires at least 2 active passengers with pickup/dropoff addresses");
   }
 
   const activePassengers = [];
@@ -1235,11 +1193,11 @@ async function collectSharedPoints(trip){
       passenger.passengerId ||
       "";
 
-    if(!normalizeAddress(passenger.pickup)){
+    if(!normalizePossibleAddress(passenger.pickup)){
       throw new Error("Missing pickup for passenger: " + name);
     }
 
-    if(!normalizeAddress(passenger.dropoff)){
+    if(!normalizePossibleAddress(passenger.dropoff)){
       throw new Error("Missing dropoff for passenger: " + name);
     }
 
@@ -1248,24 +1206,24 @@ async function collectSharedPoints(trip){
 
     if(!hasValidLatLng(withCoords.pickupLat,withCoords.pickupLng)){
       throw new Error(
-  "Missing pickup coordinates for passenger: " +
-  name +
-  " | address: " +
-  withCoords.pickup +
-  " | Google key exists: " +
-  (getGoogleMapsApiKey() ? "YES" : "NO")
-);
+        "Missing pickup coordinates for passenger: " +
+        name +
+        " | address: " +
+        withCoords.pickup +
+        " | Google key exists: " +
+        (getGoogleMapsApiKey() ? "YES" : "NO")
+      );
     }
 
     if(!hasValidLatLng(withCoords.dropoffLat,withCoords.dropoffLng)){
       throw new Error(
-  "Missing dropoff coordinates for passenger: " +
-  name +
-  " | address: " +
-  withCoords.dropoff +
-  " | Google key exists: " +
-  (getGoogleMapsApiKey() ? "YES" : "NO")
-);
+        "Missing dropoff coordinates for passenger: " +
+        name +
+        " | address: " +
+        withCoords.dropoff +
+        " | Google key exists: " +
+        (getGoogleMapsApiKey() ? "YES" : "NO")
+      );
     }
 
     activePassengers.push(withCoords);
@@ -1323,28 +1281,21 @@ async function collectSharedPoints(trip){
 
 function allSamePointAddress(points){
 
-  const list =
-    safeArray(points);
+  const list = safeArray(points);
 
   if(list.length <= 1){
     return true;
   }
 
-  const first =
-    addressKey(list[0].address);
+  const first = addressKey(list[0].address);
 
-  return list.every(point=>{
-    return addressKey(point.address) === first;
-  });
+  return list.every(point=>addressKey(point.address) === first);
 }
 
 function detectSharedCase(pickupPoints,dropoffPoints){
 
-  const pickupUnified =
-    allSamePointAddress(pickupPoints);
-
-  const dropoffUnified =
-    allSamePointAddress(dropoffPoints);
+  const pickupUnified = allSamePointAddress(pickupPoints);
+  const dropoffUnified = allSamePointAddress(dropoffPoints);
 
   if(pickupUnified && dropoffUnified){
     return "SAME_PICKUP_SAME_DROPOFF";
@@ -1363,7 +1314,6 @@ function detectSharedCase(pickupPoints,dropoffPoints){
 
 /* =========================
    3) BUILD CENTER POINT
-   نقطة الثبات بين أقرب Pickup وأقرب Dropoff
 ========================= */
 
 function buildSharedCenterPoint(pickupPoints,dropoffPoints){
@@ -1376,14 +1326,9 @@ function buildSharedCenterPoint(pickupPoints,dropoffPoints){
 
     for(const dropoff of dropoffPoints){
 
-      const miles =
-        distanceMilesByCoords(
-          pickup,
-          dropoff
-        );
+      const miles = distanceMilesByCoords(pickup,dropoff);
 
       if(miles < anchorMiles){
-
         anchorMiles = miles;
         anchorPickup = pickup;
         anchorDropoff = dropoff;
@@ -1412,7 +1357,6 @@ function buildSharedCenterPoint(pickupPoints,dropoffPoints){
 
 /* =========================
    4) ORDER PICKUPS
-   الأبعد عن النقطة ثم الأقرب
 ========================= */
 
 function orderPickupsFromCenter(pickupPoints,centerResult,routeCase){
@@ -1425,17 +1369,12 @@ function orderPickupsFromCenter(pickupPoints,centerResult,routeCase){
     return [pickupPoints[0]];
   }
 
-  const center =
-    centerResult.centerPoint;
+  const center = centerResult.centerPoint;
 
   return [...pickupPoints]
     .map((point,index)=>({
       ...point,
-      distanceFromCenter:
-        distanceMilesByCoords(
-          point,
-          center
-        ),
+      distanceFromCenter:distanceMilesByCoords(point,center),
       originalIndex:index
     }))
     .sort((a,b)=>{
@@ -1458,7 +1397,6 @@ function orderPickupsFromCenter(pickupPoints,centerResult,routeCase){
 
 /* =========================
    5) ORDER DROPOFFS
-   الأقرب للنقطة ثم الأبعد
 ========================= */
 
 function orderDropoffsFromCenter(dropoffPoints,centerResult,routeCase){
@@ -1471,17 +1409,12 @@ function orderDropoffsFromCenter(dropoffPoints,centerResult,routeCase){
     return [dropoffPoints[0]];
   }
 
-  const center =
-    centerResult.centerPoint;
+  const center = centerResult.centerPoint;
 
   return [...dropoffPoints]
     .map((point,index)=>({
       ...point,
-      distanceFromCenter:
-        distanceMilesByCoords(
-          point,
-          center
-        ),
+      distanceFromCenter:distanceMilesByCoords(point,center),
       originalIndex:index
     }))
     .sort((a,b)=>{
@@ -1504,8 +1437,6 @@ function orderDropoffsFromCenter(dropoffPoints,centerResult,routeCase){
 
 /* =========================
    6) FINAL ROUTE PLAN
-   كل Pickups الأول
-   ثم كل Dropoffs
 ========================= */
 
 function makeFinalRoutePlanPoint(point,type,order){
@@ -1517,23 +1448,16 @@ function makeFinalRoutePlanPoint(point,type,order){
 
   return {
     type,
-    address:normalizeAddress(point.address),
+    address:normalizePossibleAddress(point.address),
     lat:Number(point.lat),
     lng:Number(point.lng),
-
     order,
-
     passengerId:point.passengerId || "",
     passengerIndex:point.passengerIndex,
     passengerIndexes,
-
     passengerName:point.passengerName || "",
     phone:point.phone || "",
-
-    group:
-      point.group === true ||
-      passengerIndexes.length > 1,
-
+    group:point.group === true || passengerIndexes.length > 1,
     distanceFromCenter:
       Number.isFinite(Number(point.distanceFromCenter))
         ? Number(Number(point.distanceFromCenter).toFixed(3))
@@ -1546,7 +1470,6 @@ function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
   const routePlan = [];
 
   for(const pickup of orderedPickups){
-
     routePlan.push(
       makeFinalRoutePlanPoint(
         pickup,
@@ -1557,7 +1480,6 @@ function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
   }
 
   for(const dropoff of orderedDropoffs){
-
     routePlan.push(
       makeFinalRoutePlanPoint(
         dropoff,
@@ -1576,13 +1498,11 @@ function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
 
 /* =========================
    MAIN SHARED ROUTE PREP
-   دوال متتالية
 ========================= */
 
 async function buildSmartSharedRoute(trip){
 
-  const points =
-    await collectSharedPoints(trip);
+  const points = await collectSharedPoints(trip);
 
   const routeCase =
     detectSharedCase(
@@ -1621,23 +1541,14 @@ async function buildSmartSharedRoute(trip){
 
   return {
     isShared:true,
-
     routePoints:finalRoutePoints,
-
     routePlan,
     sharedRoutePlan:routePlan,
-
     passengers:points.sourcePassengers,
-
     activeCount:points.activePassengers.length,
-
-    sharedStopsCount:
-      Math.max(0,routePlan.length - 2),
-
+    sharedStopsCount:Math.max(0,routePlan.length - 2),
     routeCase,
-
     requestsBeforeFinal:0,
-
     routeMeta:{
       mode:routeCase,
       policy:"PIPELINE_CENTER_POINT_FAR_PICKUPS_NEAR_DROPOFFS",
@@ -1661,17 +1572,10 @@ async function buildSmartSharedRoute(trip){
 
 function buildPreparedFromSavedTrip(trip,currentSignature){
 
-  const shared =
-    isSharedTrip(trip);
-
-  const routePlan =
-    savedRoutePlan(trip);
-
-  const routePoints =
-    savedRoutePoints(trip);
-
-  const passengers =
-    safeArray(trip.passengers);
+  const shared = isSharedTrip(trip);
+  const routePlan = savedRoutePlan(trip);
+  const routePoints = savedRoutePoints(trip);
+  const passengers = safeArray(trip.passengers);
 
   return {
     isShared:shared,
@@ -1709,11 +1613,8 @@ router.post("/:tripId", async (req,res)=>{
 
   try{
 
-    const Trip =
-      getTripModel();
-
-    const tripId =
-      req.params.tripId;
+    const Trip = getTripModel();
+    const tripId = req.params.tripId;
 
     if(!tripId){
       return res.status(400).json({
@@ -1722,8 +1623,7 @@ router.post("/:tripId", async (req,res)=>{
       });
     }
 
-    const trip =
-      await Trip.findById(tripId);
+    const trip = await Trip.findById(tripId);
 
     if(!trip){
       return res.status(404).json({
@@ -1732,61 +1632,32 @@ router.post("/:tripId", async (req,res)=>{
       });
     }
 
-    const shared =
-      isSharedTrip(trip);
-
-    const currentSignature =
-      buildCurrentRouteSignature(trip);
-
-    const service =
-      await getReservedServiceForTrip(trip);
-
-    const pricing =
-      getReservedPricing(service);
+    const shared = isSharedTrip(trip);
+    const currentSignature = buildCurrentRouteSignature(trip);
+    const service = await getReservedServiceForTrip(trip);
+    const pricing = getReservedPricing(service);
 
     let prepared = null;
     let routeData = null;
     let googleRequestsUsed = 0;
     let routeReused = false;
 
-    /*
-      IMPORTANT:
-      Do NOT block confirm because routeLocked is true.
-      routeLocked only means saved route exists.
-      If signature is the same, reuse it with 0 Google requests.
-    */
-
     if(hasUsableSavedRoute(trip,currentSignature)){
 
-      prepared =
-        buildPreparedFromSavedTrip(
-          trip,
-          currentSignature
-        );
-
-      routeData =
-        buildRouteDataFromSavedTrip(trip);
-
+      prepared = buildPreparedFromSavedTrip(trip,currentSignature);
+      routeData = buildRouteDataFromSavedTrip(trip);
       googleRequestsUsed = 0;
       routeReused = true;
 
     }else if(shared){
 
-      prepared =
-        await buildSmartSharedRoute(trip);
-
-      routeData =
-        await calculateRoute(
-          prepared.routePoints
-        );
-
-      googleRequestsUsed =
-        n(prepared.requestsBeforeFinal) + 1;
+      prepared = await buildSmartSharedRoute(trip);
+      routeData = await calculateRoute(prepared.routePoints);
+      googleRequestsUsed = n(prepared.requestsBeforeFinal) + 1;
 
     }else{
 
-      const routePoints =
-        buildIndividualRoutePoints(trip);
+      const routePoints = buildIndividualRoutePoints(trip);
 
       if(routePoints.length < 2){
         return res.status(400).json({
@@ -1808,14 +1679,11 @@ router.post("/:tripId", async (req,res)=>{
         }
       };
 
-      routeData =
-        await calculateRoute(routePoints);
-
+      routeData = await calculateRoute(routePoints);
       googleRequestsUsed = 1;
     }
 
-    const routeMiles =
-      n(routeData?.miles);
+    const routeMiles = n(routeData?.miles);
 
     if(routeMiles <= 0){
       return res.status(400).json({
@@ -1828,8 +1696,7 @@ router.post("/:tripId", async (req,res)=>{
     let pricePerPassenger = 0;
     let sharedStopTotal = 0;
     let sharedStopShare = 0;
-    let finalPassengers =
-      safeArray(prepared.passengers);
+    let finalPassengers = safeArray(prepared.passengers);
 
     const serviceCode =
       shared
@@ -1859,26 +1726,16 @@ router.post("/:tripId", async (req,res)=>{
           stopsCount:prepared.sharedStopsCount
         });
 
-      total =
-        sharedPricing.total;
-
-      pricePerPassenger =
-        sharedPricing.pricePerPassenger;
-
-      sharedStopTotal =
-        sharedPricing.stopTotal;
-
-      sharedStopShare =
-        sharedPricing.stopShare;
-
-      finalPassengers =
-        sharedPricing.passengers;
+      total = sharedPricing.total;
+      pricePerPassenger = sharedPricing.pricePerPassenger;
+      sharedStopTotal = sharedPricing.stopTotal;
+      sharedStopShare = sharedPricing.stopShare;
+      finalPassengers = sharedPricing.passengers;
 
     }else{
 
       const stopsCount =
-        safeArray(trip.stops)
-          .filter(Boolean).length;
+        safeArray(trip.stops).filter(Boolean).length;
 
       total =
         calculateReservedPrice({
@@ -1919,57 +1776,30 @@ router.post("/:tripId", async (req,res)=>{
     const updatedTrip =
       await tripFinalizer.lockConfirmedTrip(trip,{
         ...prepared,
-
-        routePlan:
-          safeArray(prepared.routePlan),
-
+        routePlan:safeArray(prepared.routePlan),
         sharedRoutePlan:
           shared
             ? safeArray(prepared.sharedRoutePlan || prepared.routePlan)
             : [],
-
-        passengers:
-          shared
-            ? finalPassengers
-            : [],
-
+        passengers:shared ? finalPassengers : [],
         routeData,
-
         priceAmount:Number(total || 0),
         finalPrice:Number(total || 0),
         pricePerPassenger:Number(pricePerPassenger || 0),
-
-        sharedStopTotal:
-          shared ? sharedStopTotal : 0,
-
-        sharedStopShare:
-          shared ? sharedStopShare : 0,
-
-        cancelFee:
-          n(pricing.cancelFee),
-
-        noShowFee:
-          n(pricing.noShowFee),
-
+        sharedStopTotal:shared ? sharedStopTotal : 0,
+        sharedStopShare:shared ? sharedStopShare : 0,
+        cancelFee:n(pricing.cancelFee),
+        noShowFee:n(pricing.noShowFee),
         pricingSnapshot,
-
-        reservedPricingMode:
-          pricing.pricingMode,
-
+        reservedPricingMode:pricing.pricingMode,
         reservationStatus:"RV",
-
-        routeCase:
-          prepared.routeCase,
-
+        routeCase:prepared.routeCase,
         routeMeta,
-
         calculationSource:
           routeReused
             ? "SAVED_ROUTE_REUSED"
             : "GOOGLE_DIRECTIONS_FINAL_ONLY",
-
         googleRequestsUsed,
-
         routeSource:
           routeReused
             ? "server-confirm-reused-saved-route"
@@ -2003,62 +1833,34 @@ router.post("/:tripId", async (req,res)=>{
       service.name ||
       serviceCode;
 
-    updatedTrip.serviceId =
-      String(service._id || "");
-
-    updatedTrip.createdFrom =
-      updatedTrip.createdFrom ||
-      "dispatch-add-trip";
+    updatedTrip.serviceId = String(service._id || "");
+    updatedTrip.createdFrom = updatedTrip.createdFrom || "dispatch-add-trip";
 
     /* =========================
        FORCE SAVE FINAL ROUTE PLAN
-       In case trip-finalizer does not persist these fields
     ========================= */
 
-    updatedTrip.routePoints =
-      safeArray(prepared.routePoints);
-
-    updatedTrip.routePlan =
-      safeArray(prepared.routePlan);
-
-    updatedTrip.routeSignature =
-      currentSignature;
-
+    updatedTrip.routePoints = safeArray(prepared.routePoints);
+    updatedTrip.routePlan = safeArray(prepared.routePlan);
+    updatedTrip.routeSignature = currentSignature;
     updatedTrip.routeLocked = true;
     updatedTrip.routeFinalized = true;
     updatedTrip.routeChangePending = false;
     updatedTrip.routeChangeStatus = "";
-
-    updatedTrip.routeMeta =
-      routeMeta;
-
-    updatedTrip.googleRequestsUsed =
-      googleRequestsUsed;
+    updatedTrip.routeMeta = routeMeta;
+    updatedTrip.googleRequestsUsed = googleRequestsUsed;
 
     if(shared){
 
       updatedTrip.sharedRoutePlan =
-        safeArray(
-          prepared.sharedRoutePlan ||
-          prepared.routePlan
-        );
+        safeArray(prepared.sharedRoutePlan || prepared.routePlan);
 
-      updatedTrip.sharedRouteSignature =
-        currentSignature;
-
-      updatedTrip.sharedRouteCase =
-        prepared.routeCase;
-
-      updatedTrip.sharedGoogleRequestsUsed =
-        googleRequestsUsed;
-
+      updatedTrip.sharedRouteSignature = currentSignature;
+      updatedTrip.sharedRouteCase = prepared.routeCase;
+      updatedTrip.sharedGoogleRequestsUsed = googleRequestsUsed;
       updatedTrip.sharedRouteLocked = true;
-
-      updatedTrip.sharedStopsCount =
-        prepared.sharedStopsCount;
-
-      updatedTrip.sharedRouteMeta =
-        routeMeta;
+      updatedTrip.sharedStopsCount = prepared.sharedStopsCount;
+      updatedTrip.sharedRouteMeta = routeMeta;
     }
 
     await updatedTrip.save();
