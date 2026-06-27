@@ -30,6 +30,8 @@
 const express = require("express");
 const router = express.Router();
 
+const https = require("https");
+
 const tripFinalizer =
   require("../utils/trip-finalizer");
 
@@ -382,6 +384,43 @@ async function calculateRoute(routePoints){
   );
 }
 
+function getGoogleMapsApiKey(){
+
+  return (
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.MAPS_API_KEY ||
+    process.env.GOOGLE_MAPS_KEY ||
+    process.env.GOOGLE_KEY ||
+    ""
+  );
+}
+
+function httpsGetJson(url){
+
+  return new Promise((resolve,reject)=>{
+
+    https.get(url,response=>{
+
+      let data = "";
+
+      response.on("data",chunk=>{
+        data += chunk;
+      });
+
+      response.on("end",()=>{
+
+        try{
+          resolve(JSON.parse(data));
+        }catch(err){
+          reject(err);
+        }
+      });
+
+    }).on("error",reject);
+  });
+}
+
 async function geocodeAddress(address){
 
   const cleanAddress =
@@ -391,6 +430,9 @@ async function geocodeAddress(address){
     return null;
   }
 
+  /*
+    First try routeMapEngine if it already has geocode.
+  */
   const fn =
     routeMapEngine?.geocodeAddress ||
     routeMapEngine?.geocode ||
@@ -398,34 +440,88 @@ async function geocodeAddress(address){
     routeMapEngine?.getLatLng ||
     null;
 
-  if(typeof fn !== "function"){
+  if(typeof fn === "function"){
+
+    try{
+
+      const result =
+        await fn(cleanAddress);
+
+      const lat =
+        result?.lat ??
+        result?.latitude ??
+        result?.location?.lat ??
+        result?.geometry?.location?.lat;
+
+      const lng =
+        result?.lng ??
+        result?.lon ??
+        result?.longitude ??
+        result?.location?.lng ??
+        result?.location?.lon ??
+        result?.geometry?.location?.lng;
+
+      if(
+        Number.isFinite(Number(lat)) &&
+        Number.isFinite(Number(lng))
+      ){
+        return {
+          lat:Number(lat),
+          lng:Number(lng)
+        };
+      }
+
+    }catch(err){
+      console.log("routeMapEngine geocode failed:", err.message);
+    }
+  }
+
+  /*
+    Fallback: direct Google Geocoding API.
+    This fixes new/edit/old shared passengers that have address but no lat/lng.
+  */
+  const apiKey =
+    getGoogleMapsApiKey();
+
+  if(!apiKey){
+    console.log("Missing Google Maps API key for geocode");
     return null;
   }
 
-  const result =
-    await fn(cleanAddress);
+  const url =
+    "https://maps.googleapis.com/maps/api/geocode/json?address=" +
+    encodeURIComponent(cleanAddress) +
+    "&key=" +
+    encodeURIComponent(apiKey);
 
-  const lat =
-    result?.lat ??
-    result?.latitude ??
-    result?.location?.lat ??
-    result?.geometry?.location?.lat;
-
-  const lng =
-    result?.lng ??
-    result?.lon ??
-    result?.longitude ??
-    result?.location?.lng ??
-    result?.location?.lon ??
-    result?.geometry?.location?.lng;
+  const json =
+    await httpsGetJson(url);
 
   if(
-    Number.isFinite(Number(lat)) &&
-    Number.isFinite(Number(lng))
+    json?.status !== "OK" ||
+    !Array.isArray(json.results) ||
+    !json.results.length
+  ){
+    console.log(
+      "Google geocode failed:",
+      cleanAddress,
+      json?.status,
+      json?.error_message || ""
+    );
+
+    return null;
+  }
+
+  const location =
+    json.results[0]?.geometry?.location;
+
+  if(
+    Number.isFinite(Number(location?.lat)) &&
+    Number.isFinite(Number(location?.lng))
   ){
     return {
-      lat:Number(lat),
-      lng:Number(lng)
+      lat:Number(location.lat),
+      lng:Number(location.lng)
     };
   }
 
@@ -1159,8 +1255,32 @@ async function collectSharedPoints(trip){
     throw new Error("Shared route is missing pickup/dropoff points");
   }
 
+  const sourcePassengersWithCoords =
+    sourcePassengers.map(passenger=>{
+
+      const found =
+        activePassengers.find(active=>{
+          return (
+            addressKey(active.pickup) === addressKey(passenger.pickup) &&
+            addressKey(active.dropoff) === addressKey(passenger.dropoff)
+          );
+        });
+
+      if(!found){
+        return passenger;
+      }
+
+      return {
+        ...passenger,
+        pickupLat:found.pickupLat,
+        pickupLng:found.pickupLng,
+        dropoffLat:found.dropoffLat,
+        dropoffLng:found.dropoffLng
+      };
+    });
+
   return {
-    sourcePassengers,
+    sourcePassengers:sourcePassengersWithCoords,
     activePassengers,
     pickupPoints,
     dropoffPoints
