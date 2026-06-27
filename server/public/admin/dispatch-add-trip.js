@@ -2240,70 +2240,87 @@ function renderTripRow(t,index){
       ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientPhone || p.phone || "--"}`))
       : escapeHtml(t.clientPhone || "--");
 
+  const sharedPlan =
+    isShared && Array.isArray(t.sharedRoutePlan) && t.sharedRoutePlan.length
+      ? [...t.sharedRoutePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+      : isShared && Array.isArray(t.routePlan) && t.routePlan.length
+        ? [...t.routePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+        : [];
+
   const sharedPickupRoute =
-  isShared && Array.isArray(t.routePoints) && t.routePoints.length
-    ? t.routePoints
-        .filter(point=>{
-          return passengers.some(p=>{
-            return addressKey(p.pickup) === addressKey(point);
-          });
-        })
-    : [];
-
-const pickups =
-  isShared
-    ? (
-        sharedPickupRoute.length
-          ? sharedPickupRoute.map((address,i)=>{
-              return escapeHtml(`${i + 1}. ${address || "--"}`);
+    sharedPlan.length
+      ? sharedPlan
+          .filter(point=>String(point.type || "").toLowerCase() === "pickup")
+          .map(point=>point.address)
+      : isShared && Array.isArray(t.routePoints) && t.routePoints.length
+        ? t.routePoints
+            .filter(point=>{
+              return passengers.some(p=>{
+                return addressKey(p.pickup) === addressKey(point);
+              });
             })
-          : passengers
-              .map((p,i)=>{
-                const order =
-                  p.pickupOrder && p.pickupOrder !== 9999
-                    ? `P${p.pickupOrder}`
-                    : `${i + 1}`;
+        : [];
 
-                return escapeHtml(`${order}. ${p.pickup || "--"}`);
+  const pickups =
+    isShared
+      ? (
+          sharedPickupRoute.length
+            ? sharedPickupRoute.map((address,i)=>{
+                return escapeHtml(`${i + 1}. ${address || "--"}`);
               })
-      )
-    : escapeHtml(t.pickup || "--");
+            : passengers
+                .map((p,i)=>{
+                  const order =
+                    p.pickupOrder && p.pickupOrder !== 9999
+                      ? `P${p.pickupOrder}`
+                      : `${i + 1}`;
 
- const sharedDropRoute =
-  isShared && Array.isArray(t.routePoints) && t.routePoints.length
-    ? t.routePoints
-        .filter(point=>{
-          return passengers.some(p=>{
-            return addressKey(p.dropoff) === addressKey(point);
-          });
-        })
-    : [];
+                  return escapeHtml(`${order}. ${p.pickup || "--"}`);
+                })
+        )
+      : escapeHtml(t.pickup || "--");
 
-const drops =
-  isShared
-    ? (
-        sharedDropRoute.length
-          ? sharedDropRoute.map((address,i)=>{
-              return escapeHtml(`${i + 1}. ${address || "--"}`);
+  const sharedDropRoute =
+    sharedPlan.length
+      ? sharedPlan
+          .filter(point=>String(point.type || "").toLowerCase() === "dropoff")
+          .map(point=>point.address)
+      : isShared && Array.isArray(t.routePoints) && t.routePoints.length
+        ? t.routePoints
+            .filter(point=>{
+              return passengers.some(p=>{
+                return addressKey(p.dropoff) === addressKey(point);
+              });
             })
-          : passengers
-              .map((p,i)=>{
-                const order =
-                  p.dropoffOrder && p.dropoffOrder !== 9999
-                    ? `D${p.dropoffOrder}`
-                    : `${i + 1}`;
+        : [];
 
-                return escapeHtml(`${order}. ${p.dropoff || "--"}`);
+  const drops =
+    isShared
+      ? (
+          sharedDropRoute.length
+            ? sharedDropRoute.map((address,i)=>{
+                return escapeHtml(`${i + 1}. ${address || "--"}`);
               })
-      )
-    : escapeHtml(t.dropoff || "--");
+            : passengers
+                .map((p,i)=>{
+                  const order =
+                    p.dropoffOrder && p.dropoffOrder !== 9999
+                      ? `D${p.dropoffOrder}`
+                      : `${i + 1}`;
+
+                  return escapeHtml(`${order}. ${p.dropoff || "--"}`);
+                })
+        )
+      : escapeHtml(t.dropoff || "--");
 
   const stopsDisplay =
     isShared
       ? (
-          Array.isArray(t.routePoints) && t.routePoints.length > 2
-            ? t.routePoints.slice(1,-1).map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
-            : Math.max(0,passengers.filter(passengerIsActive).length - 1)
+          sharedPlan.length > 2
+            ? sharedPlan.slice(1,-1).map((p,i)=>escapeHtml(`${i + 1}. ${p.address}`))
+            : Array.isArray(t.routePoints) && t.routePoints.length > 2
+              ? t.routePoints.slice(1,-1).map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
+              : Math.max(0,passengers.filter(passengerIsActive).length - 1)
         )
       : Array.isArray(t.stops) && t.stops.length
         ? t.stops.map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
@@ -2336,7 +2353,7 @@ const drops =
       <span class="trip-number-badge">${escapeHtml(t.tripNumber || "--")}</span>
       ${
         t.routeLocked === true
-          ? `<div class="route-locked-badge">Route Locked</div>`
+          ? `<div class="route-locked-badge">Route Saved</div>`
           : ""
       }
       ${
@@ -2620,6 +2637,63 @@ async function handleCancelEdit(){
   await refreshReview();
 }
 
+function normRouteAddress(v){
+  return normalizeAddress(v || "")
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function routeStatusKey(v){
+  return cleanStatus(v || "scheduled");
+}
+
+function buildIndividualRouteSignature(trip,next = {},nextStops = null){
+
+  return JSON.stringify({
+    pickup:normRouteAddress(next.pickup ?? trip.pickup),
+
+    stops:Array.isArray(nextStops)
+      ? nextStops.map(normRouteAddress).filter(Boolean)
+      : Array.isArray(trip.stops)
+        ? trip.stops.map(normRouteAddress).filter(Boolean)
+        : [],
+
+    dropoff:normRouteAddress(next.dropoff ?? trip.dropoff)
+  });
+}
+
+function buildSharedRouteSignature(passengers){
+
+  return JSON.stringify(
+    (Array.isArray(passengers) ? passengers : [])
+      .map((p,index)=>({
+        id:String(p.passengerId || p._id || index),
+        pickup:normRouteAddress(p.pickup),
+        dropoff:normRouteAddress(p.dropoff),
+        status:routeStatusKey(p.status || "scheduled")
+      }))
+  );
+}
+
+function findOriginalPassenger(originalPassengers,passenger,index){
+
+  const id =
+    String(passenger?.passengerId || passenger?._id || "");
+
+  if(id){
+    const found =
+      (Array.isArray(originalPassengers) ? originalPassengers : [])
+        .find(p=>String(p.passengerId || p._id || "") === id);
+
+    if(found) return found;
+  }
+
+  return Array.isArray(originalPassengers)
+    ? originalPassengers[index]
+    : null;
+}
+
 async function handleSaveEdit(btn){
 
   const tr =
@@ -2642,9 +2716,15 @@ async function handleSaveEdit(btn){
     trip.tripType === "SHARED";
 
   const payload = {};
+
   const stops =
     Array.isArray(trip.stops)
       ? [...trip.stops]
+      : [];
+
+  const originalSharedPassengers =
+    Array.isArray(trip.passengers)
+      ? [...trip.passengers]
       : [];
 
   const passengers =
@@ -2756,51 +2836,77 @@ async function handleSaveEdit(btn){
     }
 
     payload.passengers =
-      passengers.map((p,index)=>({
-        ...p,
+      passengers.map((p,index)=>{
 
-        passengerId:
-          p.passengerId || "P" + (index + 1),
+        const original =
+          findOriginalPassenger(
+            originalSharedPassengers,
+            p,
+            index
+          ) || {};
 
-        name:
-          normalizeText(p.name || p.clientName),
+        const nextPickup =
+          normalizeAddress(p.pickup);
 
-        phone:
-          normalizeText(p.phone || p.clientPhone),
+        const nextDropoff =
+          normalizeAddress(p.dropoff);
 
-        clientName:
-          normalizeText(p.clientName || p.name),
+        const pickupChanged =
+          normRouteAddress(nextPickup) !==
+          normRouteAddress(original.pickup);
 
-        clientPhone:
-          normalizeText(p.clientPhone || p.phone),
+        const dropoffChanged =
+          normRouteAddress(nextDropoff) !==
+          normRouteAddress(original.dropoff);
 
-        pickup:
-          normalizeAddress(p.pickup),
+        return {
+          ...p,
 
-        pickupLat:null,
-        pickupLng:null,
+          passengerId:
+            p.passengerId || "P" + (index + 1),
 
-        dropoff:
-          normalizeAddress(p.dropoff),
+          name:
+            normalizeText(p.name || p.clientName),
 
-        dropoffLat:null,
-        dropoffLng:null,
+          phone:
+            normalizeText(p.phone || p.clientPhone),
 
-        status:
-          p.status || "Scheduled",
+          clientName:
+            normalizeText(p.clientName || p.name),
 
-        pickupOrder:0,
-        dropoffOrder:0,
-        routeOrder:index + 1,
+          clientPhone:
+            normalizeText(p.clientPhone || p.phone),
 
-        passengerMiles:0,
-        passengerMinutes:0,
-        passengerDistanceMeters:0,
-        passengerDurationSeconds:0,
+          pickup:
+            nextPickup,
 
-        priceAmount:0,
-        finalPrice:0
-      }));
+          pickupLat:
+            pickupChanged
+              ? null
+              : p.pickupLat ?? original.pickupLat ?? null,
+
+          pickupLng:
+            pickupChanged
+              ? null
+              : p.pickupLng ?? original.pickupLng ?? null,
+
+          dropoff:
+            nextDropoff,
+
+          dropoffLat:
+            dropoffChanged
+              ? null
+              : p.dropoffLat ?? original.dropoffLat ?? null,
+
+          dropoffLng:
+            dropoffChanged
+              ? null
+              : p.dropoffLng ?? original.dropoffLng ?? null,
+
+          status:
+            p.status || "Scheduled"
+        };
+      });
 
     payload.pickup = payload.passengers[0]?.pickup || "";
     payload.dropoff = payload.passengers[payload.passengers.length - 1]?.dropoff || "";
@@ -2814,34 +2920,88 @@ async function handleSaveEdit(btn){
       stops.filter(Boolean);
   }
 
+  let routeChanged = false;
+
+  if(isShared){
+
+    const oldSignature =
+      buildSharedRouteSignature(trip.passengers || []);
+
+    const newSignature =
+      buildSharedRouteSignature(payload.passengers || passengers);
+
+    routeChanged =
+      oldSignature !== newSignature;
+
+  }else{
+
+    const oldSignature =
+      buildIndividualRouteSignature(trip);
+
+    const newSignature =
+      buildIndividualRouteSignature(trip,payload,stops);
+
+    routeChanged =
+      oldSignature !== newSignature;
+  }
+
   payload.status = "Review";
   payload.reservationStatus = "Review";
   payload.reviewOnly = true;
   payload.dispatchSelected = false;
 
-  payload.priceAmount = 0;
-  payload.finalPrice = 0;
-  payload.pricePerPassenger = 0;
+  if(routeChanged){
 
-  payload.miles = 0;
-  payload.distanceMeters = 0;
-  payload.durationSeconds = 0;
-  payload.estimatedMinutes = 0;
+    payload.priceAmount = 0;
+    payload.finalPrice = 0;
+    payload.pricePerPassenger = 0;
 
-  payload.googleRoute = null;
-  payload.routePoints = [];
-  payload.optimizedRoute = null;
+    payload.miles = 0;
+    payload.distanceMeters = 0;
+    payload.durationSeconds = 0;
+    payload.estimatedMinutes = 0;
 
-  payload.routeLocked = false;
-  payload.routeFinalized = false;
-  payload.routeSource = "";
-  payload.routeUpdatedAt = null;
+    payload.googleRoute = null;
+    payload.routePoints = [];
+    payload.routePlan = [];
+    payload.sharedRoutePlan = [];
+    payload.optimizedRoute = null;
+
+    payload.routeLocked = false;
+    payload.routeFinalized = false;
+    payload.routeSource = "route-edited";
+    payload.routeUpdatedAt = null;
+
+    payload.sharedRouteLocked = false;
+    payload.sharedRouteLockedAt = null;
+    payload.sharedRouteMeta = null;
+    payload.sharedRoutePolyline = "";
+    payload.sharedRouteMiles = 0;
+    payload.sharedRouteMinutes = 0;
+    payload.sharedRouteSignature = "";
+    payload.sharedGoogleRequestsUsed = 0;
+
+  }else{
+
+    payload.routeSource =
+      trip.routeSource || "route-unchanged";
+
+    /*
+      Route did not change.
+      Keep saved route, miles, minutes, price and polyline.
+      Server confirm should reuse the saved route with 0 Google requests.
+    */
+  }
 
   await updateTrip(id,payload);
 
   await refreshReview();
 
-  showAlert("Trip Updated ✔");
+  showAlert(
+    routeChanged
+      ? "Trip Updated - Route will be recalculated on Confirm ✔"
+      : "Trip Updated - Route kept unchanged ✔"
+  );
 }
 
 async function handleDeleteTrip(btn){
@@ -3065,31 +3225,11 @@ async function handleConfirmTrip(btn){
     return;
   }
 
-  const existingStatus =
-    cleanStatus(trip.status);
-
-  const existingRouteLocked =
-    trip.routeLocked === true ||
-    String(trip.routeLocked).toLowerCase() === "true";
-
-  const existingRouteFinalized =
-    trip.routeFinalized === true ||
-    String(trip.routeFinalized).toLowerCase() === "true";
-
-  if(
-    existingStatus.includes("confirm") ||
-    existingRouteLocked ||
-    existingRouteFinalized
-  ){
-    showAlert("This trip is already confirmed. Edit the trip first to rebuild the route.");
-    return;
-  }
-
   if(!checkTripWarningByTrip(trip)){
     return;
   }
 
-  if(!confirm("Confirm this trip and lock the route?")){
+  if(!confirm("Confirm this trip?")){
     return;
   }
 

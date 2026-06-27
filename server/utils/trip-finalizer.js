@@ -10,6 +10,7 @@
 // - This file does NOT call Google.
 // - This file does NOT calculate route.
 // - This file only saves/locks finalized route data.
+// - Shared route ordering must already be calculated before lockConfirmedTrip.
 // =========================================
 
 /* =========================================
@@ -53,6 +54,7 @@ function normalizeCode(v){
   if(c === "LIMO") return "LM";
   if(c === "LIMOUSINE") return "LM";
   if(c === "TAXI") return "TX";
+  if(c === "XL") return "XL";
 
   return c;
 }
@@ -93,6 +95,19 @@ function isPassengerActive(passenger){
   );
 }
 
+function getRoutePointAddress(item){
+
+  if(typeof item === "string"){
+    return normalizeAddress(item);
+  }
+
+  if(item && typeof item === "object"){
+    return normalizeAddress(item.address || item.formattedAddress || "");
+  }
+
+  return "";
+}
+
 function uniqueAddressList(list){
 
   const out = [];
@@ -101,7 +116,7 @@ function uniqueAddressList(list){
   for(const item of Array.isArray(list) ? list : []){
 
     const address =
-      normalizeAddress(item);
+      getRoutePointAddress(item);
 
     if(!address){
       continue;
@@ -121,6 +136,141 @@ function uniqueAddressList(list){
   return out;
 }
 
+function safeArray(v){
+  return Array.isArray(v) ? v : [];
+}
+
+/* =========================================
+   ROUTE PLAN HELPERS
+========================================= */
+
+function normalizeRoutePlanPoint(point,index){
+
+  if(!point || typeof point !== "object"){
+    return null;
+  }
+
+  const type =
+    clean(point.type || "")
+      .toLowerCase();
+
+  const address =
+    normalizeAddress(point.address);
+
+  if(!address){
+    return null;
+  }
+
+  const order =
+    Number.isFinite(Number(point.order))
+      ? Number(point.order)
+      : index + 1;
+
+  const passengerIndexes =
+    Array.isArray(point.passengerIndexes)
+      ? point.passengerIndexes
+      : point.passengerIndex !== undefined
+        ? [point.passengerIndex]
+        : [];
+
+  return {
+    type:
+      type === "dropoff"
+        ? "dropoff"
+        : "pickup",
+
+    address,
+
+    lat:
+      Number.isFinite(Number(point.lat))
+        ? Number(point.lat)
+        : undefined,
+
+    lng:
+      Number.isFinite(Number(point.lng))
+        ? Number(point.lng)
+        : undefined,
+
+    passengerIndex:
+      Number.isFinite(Number(point.passengerIndex))
+        ? Number(point.passengerIndex)
+        : undefined,
+
+    passengerIndexes,
+
+    passengerId:
+      point.passengerId || "",
+
+    passengerName:
+      point.passengerName || point.name || "",
+
+    phone:
+      point.phone || "",
+
+    group:
+      point.group === true ||
+      passengerIndexes.length > 1,
+
+    order,
+
+    pickupOrder:
+      point.pickupOrder !== undefined
+        ? n(point.pickupOrder)
+        : undefined,
+
+    dropoffOrder:
+      point.dropoffOrder !== undefined
+        ? n(point.dropoffOrder)
+        : undefined,
+
+    distanceFromAnchor:
+      point.distanceFromAnchor !== undefined
+        ? n(point.distanceFromAnchor)
+        : undefined
+  };
+}
+
+function normalizeRoutePlan(routePlan){
+
+  return safeArray(routePlan)
+    .map(normalizeRoutePlanPoint)
+    .filter(Boolean)
+    .sort((a,b)=>{
+      return n(a.order) - n(b.order);
+    })
+    .map((point,index)=>{
+      return {
+        ...point,
+        order:index + 1
+      };
+    });
+}
+
+function routePointsFromRoutePlan(routePlan){
+
+  return uniqueAddressList(
+    safeArray(routePlan)
+      .sort((a,b)=>n(a.order) - n(b.order))
+      .map(p=>p.address)
+  );
+}
+
+function getFirstAddressFromRoutePlan(routePlan){
+
+  const list =
+    normalizeRoutePlan(routePlan);
+
+  return list[0]?.address || "";
+}
+
+function getLastAddressFromRoutePlan(routePlan){
+
+  const list =
+    normalizeRoutePlan(routePlan);
+
+  return list[list.length - 1]?.address || "";
+}
+
 /* =========================================
    ROUTE PREP HELPERS
    No Google here.
@@ -130,7 +280,7 @@ function buildIndividualRoutePoints(trip){
 
   return uniqueAddressList([
     trip?.pickup,
-    ...(Array.isArray(trip?.stops) ? trip.stops : []),
+    ...safeArray(trip?.stops),
     trip?.dropoff
   ]);
 }
@@ -144,15 +294,67 @@ function prepareConfirmRoute(trip){
   const shared =
     isSharedTrip(trip);
 
+  /*
+     If route is already locked, return saved route.
+     This prevents accidental recalculation in caller files.
+  */
+  const existingRoutePlan =
+    normalizeRoutePlan(
+      trip.sharedRoutePlan ||
+      trip.routePlan ||
+      []
+    );
+
+  const existingRoutePoints =
+    existingRoutePlan.length
+      ? routePointsFromRoutePlan(existingRoutePlan)
+      : uniqueAddressList(trip.routePoints || []);
+
+  if(
+    shared &&
+    (
+      trip.sharedRouteLocked === true ||
+      trip.routeLocked === true
+    ) &&
+    existingRoutePoints.length >= 2
+  ){
+
+    return {
+      isShared:true,
+      alreadyLocked:true,
+
+      routePoints:existingRoutePoints,
+      routePlan:existingRoutePlan,
+
+      passengers:safeArray(trip.passengers),
+
+      activeCount:
+        n(trip.activePassengersCount) ||
+        safeArray(trip.passengers).filter(isPassengerActive).length ||
+        1,
+
+      sharedStopsCount:
+        n(trip.sharedStopsCount) ||
+        Math.max(0,existingRoutePoints.length - 2),
+
+      routeMeta:
+        trip.sharedRouteMeta || {
+          mode:"ALREADY_LOCKED"
+        }
+    };
+  }
+
   if(shared){
 
     const passengers =
-      Array.isArray(trip.passengers)
-        ? trip.passengers
-        : [];
+      safeArray(trip.passengers);
 
     const activePassengers =
       passengers.filter(isPassengerActive);
+
+    if(!activePassengers.length){
+      throw new Error("Shared route requires active passengers.");
+    }
 
     const pickupPoints =
       uniqueAddressList(
@@ -176,12 +378,23 @@ function prepareConfirmRoute(trip){
 
     return {
       isShared:true,
+      alreadyLocked:false,
+
       routePoints,
+
+      /*
+         routePlan is empty here because this file does not calculate shared order.
+         The confirm route must call sharedRouteEngine before lockConfirmedTrip.
+      */
+      routePlan:[],
+
       passengers,
       activeCount:
         activePassengers.length || 1,
+
       sharedStopsCount:
         Math.max(0,routePoints.length - 2),
+
       routeMeta:{
         mode:"PREP_ONLY_NO_GOOGLE"
       }
@@ -197,10 +410,16 @@ function prepareConfirmRoute(trip){
 
   return {
     isShared:false,
+    alreadyLocked:
+      trip.routeLocked === true,
+
     routePoints,
+    routePlan:[],
+
     passengers:[],
     activeCount:1,
     sharedStopsCount:0,
+
     routeMeta:{
       mode:"INDIVIDUAL_PREP_ONLY"
     }
@@ -225,8 +444,22 @@ async function lockConfirmedTrip(trip,data = {}){
     data.isShared === true ||
     isSharedTrip(trip);
 
-  const routePoints =
-    uniqueAddressList(data.routePoints);
+  const routePlan =
+    normalizeRoutePlan(
+      data.routePlan ||
+      data.sharedRoutePlan ||
+      []
+    );
+
+  let routePoints =
+    routePlan.length
+      ? routePointsFromRoutePlan(routePlan)
+      : uniqueAddressList(data.routePoints);
+
+  if(!routePoints.length){
+    routePoints =
+      uniqueAddressList(trip.routePoints || []);
+  }
 
   if(routePoints.length < 2){
     throw new Error("Cannot confirm trip without route points");
@@ -236,11 +469,9 @@ async function lockConfirmedTrip(trip,data = {}){
     data.routeData || {};
 
   const passengers =
-    Array.isArray(data.passengers)
-      ? data.passengers
-      : Array.isArray(trip.passengers)
-        ? trip.passengers
-        : [];
+    safeArray(data.passengers).length
+      ? safeArray(data.passengers)
+      : safeArray(trip.passengers);
 
   const priceAmount =
     n(data.priceAmount ?? data.finalPrice);
@@ -256,8 +487,53 @@ async function lockConfirmedTrip(trip,data = {}){
 
   const sharedStopsCount =
     shared
-      ? Math.max(0,n(data.sharedStopsCount))
+      ? Math.max(
+          0,
+          n(
+            data.sharedStopsCount !== undefined
+              ? data.sharedStopsCount
+              : routePoints.length - 2
+          )
+        )
       : 0;
+
+  const miles =
+    n(
+      routeData.miles ??
+      routeData.distanceMiles ??
+      data.miles ??
+      data.sharedRouteMiles
+    );
+
+  const distanceMeters =
+    n(
+      routeData.distanceMeters ??
+      routeData.meters ??
+      data.distanceMeters
+    );
+
+  const durationSeconds =
+    n(
+      routeData.durationSeconds ??
+      routeData.seconds ??
+      data.durationSeconds
+    );
+
+  const estimatedMinutes =
+    n(
+      routeData.estimatedMinutes ??
+      routeData.minutes ??
+      data.estimatedMinutes ??
+      data.sharedRouteMinutes
+    );
+
+  const polyline =
+    routeData.polyline ||
+    routeData.overviewPolyline ||
+    routeData.overview_polyline ||
+    data.polyline ||
+    data.sharedRoutePolyline ||
+    "";
 
   /* =========================
      MAIN CONFIRM FIELDS
@@ -293,23 +569,35 @@ async function lockConfirmedTrip(trip,data = {}){
   trip.routePoints =
     routePoints;
 
+  trip.routePlan =
+    routePlan;
+
   trip.googleRoute =
-    routeData.googleRoute || {};
+    routeData.googleRoute ||
+    routeData.route ||
+    routeData ||
+    {};
 
   trip.optimizedRoute =
-    routeData.googleRoute || {};
+    routeData.googleRoute ||
+    routeData.route ||
+    routeData ||
+    {};
 
   trip.miles =
-    n(routeData.miles);
+    miles;
 
   trip.distanceMeters =
-    n(routeData.distanceMeters);
+    distanceMeters;
 
   trip.durationSeconds =
-    n(routeData.durationSeconds);
+    durationSeconds;
 
   trip.estimatedMinutes =
-    n(routeData.estimatedMinutes);
+    estimatedMinutes;
+
+  trip.routePolyline =
+    polyline;
 
   trip.routeLocked =
     true;
@@ -395,16 +683,75 @@ async function lockConfirmedTrip(trip,data = {}){
       n(data.sharedStopShare);
 
     trip.sharedRouteMeta =
-      data.routeMeta || null;
+      data.routeMeta ||
+      data.sharedRouteMeta ||
+      {
+        mode:
+          data.routeCase ||
+          data.mode ||
+          "SHARED_ROUTE_LOCKED",
+
+        routeCase:
+          data.routeCase ||
+          data.mode ||
+          "",
+
+        calculationSource:
+          data.calculationSource ||
+          "",
+
+        googleRequestsUsed:
+          n(data.googleRequestsUsed)
+      };
+
+    trip.sharedRoutePlan =
+      routePlan;
+
+    trip.sharedRouteLocked =
+      true;
+
+    trip.sharedRouteLockedAt =
+      new Date();
+
+    trip.sharedRouteMiles =
+      miles;
+
+    trip.sharedRouteMinutes =
+      estimatedMinutes;
+
+    trip.sharedRoutePolyline =
+      polyline;
+
+    trip.sharedRouteCase =
+      data.routeCase ||
+      data.mode ||
+      trip.sharedRouteMeta?.routeCase ||
+      "";
+
+    trip.sharedRouteSource =
+      data.calculationSource ||
+      data.routeSource ||
+      "";
+
+    trip.sharedGoogleRequestsUsed =
+      n(data.googleRequestsUsed);
 
     trip.pickup =
-      routePoints[0] || trip.pickup || "";
+      getFirstAddressFromRoutePlan(routePlan) ||
+      routePoints[0] ||
+      trip.pickup ||
+      "";
 
     trip.dropoff =
+      getLastAddressFromRoutePlan(routePlan) ||
       routePoints[routePoints.length - 1] ||
       trip.dropoff ||
       "";
 
+    /*
+       For shared trips, stops stay empty.
+       The real route is routePoints + sharedRoutePlan.
+    */
     trip.stops =
       [];
 
@@ -417,9 +764,7 @@ async function lockConfirmedTrip(trip,data = {}){
   }else{
 
     trip.passengers =
-      Array.isArray(trip.passengers)
-        ? trip.passengers
-        : [];
+      safeArray(trip.passengers);
 
     trip.totalPassengers =
       trip.totalPassengers || 1;
@@ -430,10 +775,25 @@ async function lockConfirmedTrip(trip,data = {}){
     trip.passengersCount =
       trip.passengersCount || 1;
 
+    trip.activePassengersCount =
+      1;
+
+    trip.sharedStopsCount =
+      0;
+
+    trip.sharedRouteLocked =
+      false;
+
+    trip.sharedRoutePlan =
+      [];
+
+    trip.sharedRouteMeta =
+      null;
+
     trip.stops =
-      Array.isArray(trip.stops)
-        ? trip.stops.map(normalizeAddress).filter(Boolean)
-        : [];
+      safeArray(trip.stops)
+        .map(normalizeAddress)
+        .filter(Boolean);
   }
 
   /* =========================
@@ -448,6 +808,61 @@ async function lockConfirmedTrip(trip,data = {}){
   if(data.createdFrom){
     trip.createdFrom =
       data.createdFrom;
+  }
+
+  await trip.save();
+
+  return trip;
+}
+
+/* =========================================
+   UNLOCK ROUTE AFTER EDIT
+   Use this when pickup/dropoff/passengers/stops changed.
+========================================= */
+
+async function unlockTripRouteAfterEdit(trip){
+
+  if(!trip){
+    throw new Error("Trip Missing");
+  }
+
+  trip.routeLocked =
+    false;
+
+  trip.routeFinalized =
+    false;
+
+  trip.routeUpdatedAt =
+    new Date();
+
+  trip.routeSource =
+    "route-edit-unlocked";
+
+  if(isSharedTrip(trip)){
+
+    trip.sharedRouteLocked =
+      false;
+
+    trip.sharedRouteLockedAt =
+      null;
+
+    trip.sharedRoutePlan =
+      [];
+
+    trip.sharedRouteMeta =
+      null;
+
+    trip.sharedRoutePolyline =
+      "";
+
+    trip.sharedRouteMiles =
+      0;
+
+    trip.sharedRouteMinutes =
+      0;
+
+    trip.sharedGoogleRequestsUsed =
+      0;
   }
 
   await trip.save();
@@ -576,9 +991,7 @@ async function finalizeSharedPassenger(
   }
 
   const passengers =
-    Array.isArray(trip.passengers)
-      ? trip.passengers
-      : [];
+    safeArray(trip.passengers);
 
   const passenger =
     passengers.find(p=>{
@@ -681,23 +1094,16 @@ async function finalizeSharedPassenger(
 
 function calculateGroupTotal(trip){
 
-  return (
-    Array.isArray(trip?.passengers)
-      ? trip.passengers
-      : []
-  ).reduce((sum,p)=>{
-
-    return sum + n(p.finalPrice);
-
-  },0);
+  return safeArray(trip?.passengers)
+    .reduce((sum,p)=>{
+      return sum + n(p.finalPrice);
+    },0);
 }
 
 function updateSharedGroupStatus(trip){
 
   const passengers =
-    Array.isArray(trip?.passengers)
-      ? trip.passengers
-      : [];
+    safeArray(trip?.passengers);
 
   if(!passengers.length){
     trip.groupStatus =
@@ -748,6 +1154,7 @@ module.exports = {
 
   prepareConfirmRoute,
   lockConfirmedTrip,
+  unlockTripRouteAfterEdit,
 
   finalizeIndividualTrip,
   finalizeSharedPassenger,
@@ -757,5 +1164,9 @@ module.exports = {
 
   isSharedTrip,
   isPassengerActive,
-  buildIndividualRoutePoints
+  buildIndividualRoutePoints,
+
+  uniqueAddressList,
+  normalizeRoutePlan,
+  routePointsFromRoutePlan
 };
