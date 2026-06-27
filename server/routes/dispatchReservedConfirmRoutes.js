@@ -1170,8 +1170,16 @@ async function ensurePassengerPointCoordinates(passenger){
 
   if(!hasValidLatLng(out.pickupLat,out.pickupLng)){
 
+    console.log("======== GEOCODE PICKUP START ========");
+    console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
+    console.log("Pickup address:", out.pickup);
+    console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
+
     const coords =
       await geocodeAddress(out.pickup);
+
+    console.log("Pickup geocode result:", coords);
+    console.log("======== GEOCODE PICKUP END ========");
 
     if(coords){
       out.pickupLat = coords.lat;
@@ -1181,8 +1189,16 @@ async function ensurePassengerPointCoordinates(passenger){
 
   if(!hasValidLatLng(out.dropoffLat,out.dropoffLng)){
 
+    console.log("======== GEOCODE DROPOFF START ========");
+    console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
+    console.log("Dropoff address:", out.dropoff);
+    console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
+
     const coords =
       await geocodeAddress(out.dropoff);
+
+    console.log("Dropoff geocode result:", coords);
+    console.log("======== GEOCODE DROPOFF END ========");
 
     if(coords){
       out.dropoffLat = coords.lat;
@@ -1231,11 +1247,25 @@ async function collectSharedPoints(trip){
       await ensurePassengerPointCoordinates(passenger);
 
     if(!hasValidLatLng(withCoords.pickupLat,withCoords.pickupLng)){
-      throw new Error("Missing pickup coordinates for passenger: " + name);
+      throw new Error(
+  "Missing pickup coordinates for passenger: " +
+  name +
+  " | address: " +
+  withCoords.pickup +
+  " | Google key exists: " +
+  (getGoogleMapsApiKey() ? "YES" : "NO")
+);
     }
 
     if(!hasValidLatLng(withCoords.dropoffLat,withCoords.dropoffLng)){
-      throw new Error("Missing dropoff coordinates for passenger: " + name);
+      throw new Error(
+  "Missing dropoff coordinates for passenger: " +
+  name +
+  " | address: " +
+  withCoords.dropoff +
+  " | Google key exists: " +
+  (getGoogleMapsApiKey() ? "YES" : "NO")
+);
     }
 
     activePassengers.push(withCoords);
