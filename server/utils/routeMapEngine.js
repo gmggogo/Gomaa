@@ -1,6 +1,17 @@
+"use strict";
+
 /* =========================================
-ROUTE MAP ENGINE
-Real Tracking + Server Google Route Calculation
+   FILE: server/utils/routeMapEngine.js
+   ROUTE MAP ENGINE
+
+   1) Real driver tracking
+   2) Server Google Directions final route calculation
+   3) Server Google waypoint optimization for shared trips
+
+   RULE:
+   - Add/Edit/Review = 0 Google requests
+   - Individual Confirm = 1 request
+   - Shared Confirm = 3 requests
 ========================================= */
 
 const tripsMemory = new Map();
@@ -10,11 +21,75 @@ const tripsMemory = new Map();
 const MIN_DISTANCE = 0.002; // ~10 meters
 const MAX_POINTS = 2000;
 
-/* ================= HELPERS ================= */
+/* ================= BASIC HELPERS ================= */
 
 function toRad(v){
   return (v * Math.PI) / 180;
 }
+
+function n(value){
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function normalizeAddress(value){
+  return clean(value)
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function uniqueAddressList(list){
+
+  const out = [];
+  const seen = new Set();
+
+  for(const item of Array.isArray(list) ? list : []){
+
+    const address =
+      normalizeAddress(item);
+
+    if(!address){
+      continue;
+    }
+
+    const key =
+      address.toLowerCase();
+
+    if(seen.has(key)){
+      continue;
+    }
+
+    seen.add(key);
+    out.push(address);
+  }
+
+  return out;
+}
+
+function getFetch(){
+
+  if(typeof fetch === "function"){
+    return fetch;
+  }
+
+  return require("node-fetch");
+}
+
+function getGoogleKey(){
+
+  return (
+    process.env.GOOGLE_KEY ||
+    process.env.GOOGLE_MAPS_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
+    ""
+  );
+}
+
+/* ================= DISTANCE HELPER ================= */
 
 function distanceMiles(a,b){
 
@@ -49,7 +124,6 @@ function getTrip(tripId){
       miles:0,
       last:null
     });
-
   }
 
   return tripsMemory.get(tripId);
@@ -147,23 +221,71 @@ function resetTrip(tripId){
 }
 
 /* =====================================================
+   GOOGLE DIRECTIONS REQUEST
+===================================================== */
+
+async function googleDirectionsRequest(params){
+
+  const fetchFn =
+    getFetch();
+
+  const googleKey =
+    getGoogleKey();
+
+  if(!googleKey){
+    throw new Error("Google key missing on server");
+  }
+
+  params.set("mode","driving");
+  params.set("units","imperial");
+  params.set("key",googleKey);
+
+  const url =
+    "https://maps.googleapis.com/maps/api/directions/json?" +
+    params.toString();
+
+  const res =
+    await fetchFn(url);
+
+  const data =
+    await res.json();
+
+  if(
+    !res.ok ||
+    data.status !== "OK" ||
+    !Array.isArray(data.routes) ||
+    !data.routes[0]
+  ){
+
+    const msg =
+      data.error_message ||
+      data.status ||
+      res.status ||
+      "UNKNOWN";
+
+    throw new Error(
+      "Google route failed: " + msg
+    );
+  }
+
+  return data;
+}
+
+/* =====================================================
    SERVER ROUTE CALCULATION
-   Used by dispatchReservedConfirmRoutes
-   Calculates miles/minutes using Google Directions API
+   Used on Confirm only
+
+   Individual:
+   - request 1
+
+   Shared:
+   - final request 3
 ===================================================== */
 
 async function calculateRouteMiles(routePoints){
 
-  const fetchFn =
-    global.fetch ||
-    require("node-fetch");
-
   const cleanPoints =
-    Array.isArray(routePoints)
-      ? routePoints
-          .map(v => String(v || "").trim())
-          .filter(Boolean)
-      : [];
+    uniqueAddressList(routePoints);
 
   if(cleanPoints.length < 2){
 
@@ -172,18 +294,12 @@ async function calculateRouteMiles(routePoints){
       distanceMeters:0,
       durationSeconds:0,
       estimatedMinutes:0,
-      googleRoute:{}
+      googleRoute:{
+        summary:"",
+        waypointOrder:[],
+        legs:[]
+      }
     };
-
-  }
-
-  const googleKey =
-    process.env.GOOGLE_KEY ||
-    process.env.GOOGLE_MAPS_KEY ||
-    "";
-
-  if(!googleKey){
-    throw new Error("Google key missing on server");
   }
 
   const origin =
@@ -200,9 +316,6 @@ async function calculateRouteMiles(routePoints){
 
   params.set("origin",origin);
   params.set("destination",destination);
-  params.set("mode","driving");
-  params.set("units","imperial");
-  params.set("key",googleKey);
 
   if(middle.length){
 
@@ -210,32 +323,10 @@ async function calculateRouteMiles(routePoints){
       "waypoints",
       middle.join("|")
     );
-
   }
-
-  const url =
-    "https://maps.googleapis.com/maps/api/directions/json?" +
-    params.toString();
-
-  const res =
-    await fetchFn(url);
 
   const data =
-    await res.json();
-
-  if(
-    !res.ok ||
-    data.status !== "OK" ||
-    !data.routes ||
-    !data.routes[0]
-  ){
-
-    throw new Error(
-      "Google route failed: " +
-      (data.status || res.status)
-    );
-
-  }
+    await googleDirectionsRequest(params);
 
   const route =
     data.routes[0];
@@ -251,11 +342,10 @@ async function calculateRouteMiles(routePoints){
   legs.forEach(leg=>{
 
     meters +=
-      Number(leg.distance?.value || 0);
+      n(leg.distance?.value);
 
     seconds +=
-      Number(leg.duration?.value || 0);
-
+      n(leg.duration?.value);
   });
 
   return {
@@ -278,6 +368,18 @@ async function calculateRouteMiles(routePoints){
       waypointOrder:
         route.waypoint_order || [],
 
+      overviewPolyline:
+        route.overview_polyline?.points || "",
+
+      bounds:
+        route.bounds || null,
+
+      copyrights:
+        route.copyrights || "",
+
+      warnings:
+        route.warnings || [],
+
       legs:
         legs.map((leg,index)=>({
 
@@ -289,19 +391,213 @@ async function calculateRouteMiles(routePoints){
           endAddress:
             leg.end_address || "",
 
+          startLat:
+            Number(
+              leg.start_location?.lat ?? null
+            ),
+
+          startLng:
+            Number(
+              leg.start_location?.lng ?? null
+            ),
+
+          endLat:
+            Number(
+              leg.end_location?.lat ?? null
+            ),
+
+          endLng:
+            Number(
+              leg.end_location?.lng ?? null
+            ),
+
           distanceText:
             leg.distance?.text || "",
 
           distanceMeters:
-            Number(leg.distance?.value || 0),
+            n(leg.distance?.value),
 
           durationText:
             leg.duration?.text || "",
 
           durationSeconds:
-            Number(leg.duration?.value || 0)
+            n(leg.duration?.value)
 
         }))
+    }
+  };
+}
+
+/* =====================================================
+   OPTIMIZE ADDRESS ORDER
+   Used by Shared Confirm only
+
+   Shared Confirm uses:
+   Request 1: optimize pickups
+   Request 2: optimize dropoffs
+
+   NOTE:
+   Google Directions optimizeWaypoints needs origin/destination.
+   For 3+ addresses we use a loop style request:
+   origin = anchor
+   destination = anchor
+   waypoints = optimize:true|other addresses
+
+   Output returns only ordered passenger addresses.
+===================================================== */
+
+async function optimizeAddressOrder(addresses, options = {}){
+
+  const cleanAddresses =
+    uniqueAddressList(addresses);
+
+  const type =
+    clean(options.type || "ROUTE").toUpperCase();
+
+  const startAfter =
+    normalizeAddress(options.startAfter || "");
+
+  if(cleanAddresses.length === 0){
+
+    return {
+      orderedAddresses:[],
+      routePoints:[],
+      meta:{
+        type,
+        optimized:false,
+        requestUsed:false,
+        reason:"NO_ADDRESSES"
+      }
+    };
+  }
+
+  if(cleanAddresses.length === 1){
+
+    return {
+      orderedAddresses:cleanAddresses,
+      routePoints:cleanAddresses,
+      meta:{
+        type,
+        optimized:false,
+        requestUsed:false,
+        reason:"ONE_ADDRESS"
+      }
+    };
+  }
+
+  /*
+    Two addresses:
+    We still call Google Directions to keep the shared rule clean.
+    It does not need waypoint optimization, but it confirms routing.
+  */
+
+  if(cleanAddresses.length === 2){
+
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "origin",
+      startAfter || cleanAddresses[0]
+    );
+
+    params.set(
+      "destination",
+      cleanAddresses[1]
+    );
+
+    if(startAfter){
+      params.set(
+        "waypoints",
+        cleanAddresses[0]
+      );
+    }
+
+    const data =
+      await googleDirectionsRequest(params);
+
+    return {
+      orderedAddresses:cleanAddresses,
+      routePoints:cleanAddresses,
+      meta:{
+        type,
+        optimized:false,
+        requestUsed:true,
+        reason:"TWO_ADDRESSES",
+        googleStatus:data.status || "OK",
+        waypointOrder:
+          data.routes?.[0]?.waypoint_order || []
+      }
+    };
+  }
+
+  /*
+    3+ addresses:
+    Optimize waypoints.
+
+    If startAfter exists, we use it as the route anchor.
+    This is useful for dropoffs because they should start after
+    the last ordered pickup.
+
+    If startAfter does not exist, we use first address as anchor.
+  */
+
+  const anchor =
+    startAfter || cleanAddresses[0];
+
+  const waypointAddresses =
+    startAfter
+      ? cleanAddresses
+      : cleanAddresses.slice(1);
+
+  const params =
+    new URLSearchParams();
+
+  params.set("origin",anchor);
+  params.set("destination",anchor);
+
+  params.set(
+    "waypoints",
+    "optimize:true|" + waypointAddresses.join("|")
+  );
+
+  const data =
+    await googleDirectionsRequest(params);
+
+  const route =
+    data.routes[0];
+
+  const waypointOrder =
+    Array.isArray(route.waypoint_order)
+      ? route.waypoint_order
+      : [];
+
+  const orderedWaypoints =
+    waypointOrder
+      .map(i=>waypointAddresses[i])
+      .filter(Boolean);
+
+  const orderedAddresses =
+    startAfter
+      ? orderedWaypoints
+      : uniqueAddressList([
+          cleanAddresses[0],
+          ...orderedWaypoints
+        ]);
+
+  return {
+    orderedAddresses,
+    routePoints:orderedAddresses,
+    meta:{
+      type,
+      optimized:true,
+      requestUsed:true,
+      anchor,
+      startAfter:startAfter || "",
+      waypointOrder,
+      originalAddresses:cleanAddresses,
+      waypointAddresses,
+      googleStatus:data.status || "OK"
     }
   };
 }
@@ -315,5 +611,8 @@ module.exports = {
   getPath,
   resetTrip,
 
-  calculateRouteMiles
+  calculateRouteMiles,
+  calculateRoute:calculateRouteMiles,
+
+  optimizeAddressOrder
 };

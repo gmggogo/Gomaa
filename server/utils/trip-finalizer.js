@@ -1,19 +1,24 @@
+"use strict";
+
 // =========================================
 // FILE: server/utils/trip-finalizer.js
 // SINGLE SOURCE OF TRUTH
 // CONFIRM / COMPLETE / NOSHOW / CANCEL
 // INDIVIDUAL + SHARED
+//
+// IMPORTANT:
+// - This file does NOT call Google.
+// - This file does NOT calculate route.
+// - This file only saves/locks finalized route data.
 // =========================================
 
-const sharedRouteEngine =
-  require("./sharedRouteEngine");
-
 /* =========================================
-BASIC HELPERS
+   BASIC HELPERS
 ========================================= */
 
 function n(v){
-  return Number(v || 0);
+  const num = Number(v);
+  return Number.isFinite(num) ? num : 0;
 }
 
 function clean(v){
@@ -32,6 +37,26 @@ function normalizeAddress(v){
     .trim();
 }
 
+function normalizeCode(v){
+
+  const c =
+    clean(v)
+      .toUpperCase()
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(c === "STANDARD") return "ST";
+  if(c === "WHEELCHAIR") return "WH";
+  if(c === "WHEEL CHAIR") return "WH";
+  if(c === "SHARED") return "SH";
+  if(c === "LIMO") return "LM";
+  if(c === "LIMOUSINE") return "LM";
+  if(c === "TAXI") return "TX";
+
+  return c;
+}
+
 function isSharedTrip(trip){
 
   if(!trip){
@@ -39,13 +64,13 @@ function isSharedTrip(trip){
   }
 
   const serviceKey =
-    clean(
+    normalizeCode(
       trip.serviceKey ||
       trip.serviceCode ||
       trip.serviceType ||
       trip.tripNumberSuffix ||
       ""
-    ).toUpperCase();
+    );
 
   return (
     trip.isShared === true ||
@@ -68,25 +93,49 @@ function isPassengerActive(passenger){
   );
 }
 
-function buildIndividualRoutePoints(trip){
+function uniqueAddressList(list){
 
-  return [
-    trip.pickup,
-    ...(Array.isArray(trip.stops) ? trip.stops : []),
-    trip.dropoff
-  ]
-  .map(normalizeAddress)
-  .filter(Boolean);
+  const out = [];
+  const seen = new Set();
+
+  for(const item of Array.isArray(list) ? list : []){
+
+    const address =
+      normalizeAddress(item);
+
+    if(!address){
+      continue;
+    }
+
+    const key =
+      address.toLowerCase();
+
+    if(seen.has(key)){
+      continue;
+    }
+
+    seen.add(key);
+    out.push(address);
+  }
+
+  return out;
 }
 
 /* =========================================
-CONFIRM ROUTE PREP
-This does not calculate price.
-This does not call Google Directions.
-It only prepares route order.
+   ROUTE PREP HELPERS
+   No Google here.
 ========================================= */
 
-function prepareConfirmRoute(trip, options = {}){
+function buildIndividualRoutePoints(trip){
+
+  return uniqueAddressList([
+    trip?.pickup,
+    ...(Array.isArray(trip?.stops) ? trip.stops : []),
+    trip?.dropoff
+  ]);
+}
+
+function prepareConfirmRoute(trip){
 
   if(!trip){
     throw new Error("Trip Missing");
@@ -102,55 +151,39 @@ function prepareConfirmRoute(trip, options = {}){
         ? trip.passengers
         : [];
 
-    const sharedRoute =
-      sharedRouteEngine
-        .buildSharedRouteFromSavedCoordinates(
-          passengers,
-          {
-            debug:options.debug === true
-          }
-        );
+    const activePassengers =
+      passengers.filter(isPassengerActive);
 
-    if(
-      !Array.isArray(sharedRoute.routePoints) ||
-      sharedRoute.routePoints.length < 2
-    ){
+    const pickupPoints =
+      uniqueAddressList(
+        activePassengers.map(p=>p.pickup)
+      );
+
+    const dropoffPoints =
+      uniqueAddressList(
+        activePassengers.map(p=>p.dropoff)
+      );
+
+    const routePoints =
+      uniqueAddressList([
+        ...pickupPoints,
+        ...dropoffPoints
+      ]);
+
+    if(routePoints.length < 2){
       throw new Error("Shared route is missing pickup/dropoff");
     }
 
     return {
       isShared:true,
-
-      routePoints:
-        sharedRoute.routePoints,
-
-      passengers:
-        sharedRoute.passengers,
-
+      routePoints,
+      passengers,
       activeCount:
-        sharedRoute.activeCount || passengers.filter(isPassengerActive).length || 1,
-
+        activePassengers.length || 1,
       sharedStopsCount:
-        sharedRoute.sharedStopsCount || 0,
-
+        Math.max(0,routePoints.length - 2),
       routeMeta:{
-        anchorPickup:
-          sharedRoute.anchorPickup || null,
-
-        anchorDropoff:
-          sharedRoute.anchorDropoff || null,
-
-        anchorMiles:
-          n(sharedRoute.anchorMiles),
-
-        virtualCenter:
-          sharedRoute.virtualCenter || null,
-
-        orderedPickups:
-          sharedRoute.orderedPickups || [],
-
-        orderedDropoffs:
-          sharedRoute.orderedDropoffs || []
+        mode:"PREP_ONLY_NO_GOOGLE"
       }
     };
   }
@@ -168,35 +201,32 @@ function prepareConfirmRoute(trip, options = {}){
     passengers:[],
     activeCount:1,
     sharedStopsCount:0,
-    routeMeta:null
+    routeMeta:{
+      mode:"INDIVIDUAL_PREP_ONLY"
+    }
   };
 }
 
 /* =========================================
-LOCK CONFIRMED TRIP
-Call this after:
-1. prepareConfirmRoute()
-2. routeMapEngine calculates miles/minutes
-3. pricing engine calculates final price
+   LOCK CONFIRMED TRIP
+   Call this after:
+   1. route prepared
+   2. Google route calculated
+   3. price calculated
 ========================================= */
 
-async function lockConfirmedTrip(
-  trip,
-  data = {}
-){
+async function lockConfirmedTrip(trip,data = {}){
 
   if(!trip){
     throw new Error("Trip Missing");
   }
 
-  const isShared =
+  const shared =
     data.isShared === true ||
     isSharedTrip(trip);
 
   const routePoints =
-    Array.isArray(data.routePoints)
-      ? data.routePoints.map(normalizeAddress).filter(Boolean)
-      : [];
+    uniqueAddressList(data.routePoints);
 
   if(routePoints.length < 2){
     throw new Error("Cannot confirm trip without route points");
@@ -219,18 +249,27 @@ async function lockConfirmedTrip(
     n(data.pricePerPassenger);
 
   const activeCount =
-    Math.max(1,n(data.activeCount || 1));
+    Math.max(
+      1,
+      n(data.activeCount || 1)
+    );
 
   const sharedStopsCount =
-    isShared
+    shared
       ? Math.max(0,n(data.sharedStopsCount))
       : 0;
+
+  /* =========================
+     MAIN CONFIRM FIELDS
+  ========================= */
 
   trip.status =
     "Confirmed";
 
   trip.reservationStatus =
-    data.reservationStatus || trip.reservationStatus || "RV";
+    data.reservationStatus ||
+    trip.reservationStatus ||
+    "RV";
 
   trip.reviewOnly =
     false;
@@ -242,10 +281,14 @@ async function lockConfirmedTrip(
     false;
 
   trip.isShared =
-    isShared;
+    shared;
 
   trip.tripType =
-    isShared ? "SHARED" : "INDIVIDUAL";
+    shared ? "SHARED" : "INDIVIDUAL";
+
+  /* =========================
+     ROUTE FIELDS
+  ========================= */
 
   trip.routePoints =
     routePoints;
@@ -268,6 +311,30 @@ async function lockConfirmedTrip(
   trip.estimatedMinutes =
     n(routeData.estimatedMinutes);
 
+  trip.routeLocked =
+    true;
+
+  trip.routeFinalized =
+    true;
+
+  trip.routeSource =
+    data.routeSource ||
+    (
+      shared
+        ? "server-smart-shared-confirm"
+        : "server-individual-confirm"
+    );
+
+  trip.routeUpdatedAt =
+    new Date();
+
+  trip.confirmedAt =
+    new Date();
+
+  /* =========================
+     PRICE FIELDS
+  ========================= */
+
   trip.priceAmount =
     priceAmount;
 
@@ -277,22 +344,31 @@ async function lockConfirmedTrip(
   trip.pricePerPassenger =
     pricePerPassenger;
 
-  trip.routeLocked =
-    true;
+  if(data.pricingSnapshot){
+    trip.reservedPriceSnapshot =
+      data.pricingSnapshot;
+  }
 
-  trip.routeFinalized =
-    true;
+  if(data.reservedPricingMode){
+    trip.reservedPricingMode =
+      data.reservedPricingMode;
+  }
 
-  trip.routeSource =
-    data.routeSource || "server-shared-route-engine";
+  if(data.cancelFee !== undefined){
+    trip.cancelFee =
+      n(data.cancelFee);
+  }
 
-  trip.routeUpdatedAt =
-    new Date();
+  if(data.noShowFee !== undefined){
+    trip.noShowFee =
+      n(data.noShowFee);
+  }
 
-  trip.confirmedAt =
-    new Date();
+  /* =========================
+     SHARED FIELDS
+  ========================= */
 
-  if(isShared){
+  if(shared){
 
     trip.passengers =
       passengers;
@@ -305,6 +381,9 @@ async function lockConfirmedTrip(
 
     trip.passengersCount =
       passengers.length;
+
+    trip.activePassengersCount =
+      activeCount;
 
     trip.sharedStopsCount =
       sharedStopsCount;
@@ -322,37 +401,53 @@ async function lockConfirmedTrip(
       routePoints[0] || trip.pickup || "";
 
     trip.dropoff =
-      routePoints[routePoints.length - 1] || trip.dropoff || "";
+      routePoints[routePoints.length - 1] ||
+      trip.dropoff ||
+      "";
 
     trip.stops =
       [];
 
+    trip.groupStatus =
+      "Confirmed";
+
+    trip.groupTotal =
+      priceAmount;
+
   }else{
+
+    trip.passengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+        : [];
+
+    trip.totalPassengers =
+      trip.totalPassengers || 1;
+
+    trip.passengerCount =
+      trip.passengerCount || 1;
+
+    trip.passengersCount =
+      trip.passengersCount || 1;
 
     trip.stops =
       Array.isArray(trip.stops)
-        ? trip.stops
+        ? trip.stops.map(normalizeAddress).filter(Boolean)
         : [];
   }
 
-  if(data.cancelFee !== undefined){
-    trip.cancelFee =
-      n(data.cancelFee);
+  /* =========================
+     RESERVED SOURCE FIELDS
+  ========================= */
+
+  if(data.reservationStatus){
+    trip.reservationStatus =
+      data.reservationStatus;
   }
 
-  if(data.noShowFee !== undefined){
-    trip.noShowFee =
-      n(data.noShowFee);
-  }
-
-  if(data.pricingSnapshot){
-    trip.reservedPriceSnapshot =
-      data.pricingSnapshot;
-  }
-
-  if(data.reservedPricingMode){
-    trip.reservedPricingMode =
-      data.reservedPricingMode;
+  if(data.createdFrom){
+    trip.createdFrom =
+      data.createdFrom;
   }
 
   await trip.save();
@@ -361,8 +456,8 @@ async function lockConfirmedTrip(
 }
 
 /* =========================================
-INDIVIDUAL FINALIZATION
-COMPLETE / NOSHOW / CANCEL
+   INDIVIDUAL FINALIZATION
+   COMPLETE / NOSHOW / CANCEL
 ========================================= */
 
 async function finalizeIndividualTrip(
@@ -465,8 +560,8 @@ async function finalizeIndividualTrip(
 }
 
 /* =========================================
-SHARED PASSENGER FINALIZATION
-COMPLETE / NOSHOW / CANCEL
+   SHARED PASSENGER FINALIZATION
+   COMPLETE / NOSHOW / CANCEL
 ========================================= */
 
 async function finalizeSharedPassenger(
@@ -477,22 +572,24 @@ async function finalizeSharedPassenger(
 ){
 
   if(!trip){
-    throw new Error(
-      "Trip Missing"
-    );
+    throw new Error("Trip Missing");
   }
 
+  const passengers =
+    Array.isArray(trip.passengers)
+      ? trip.passengers
+      : [];
+
   const passenger =
-    (trip.passengers || [])
-      .find(p =>
-        String(p.passengerId) ===
+    passengers.find(p=>{
+      return (
+        String(p.passengerId || p._id || "") ===
         String(passengerId)
       );
+    });
 
   if(!passenger){
-    throw new Error(
-      "Passenger Missing"
-    );
+    throw new Error("Passenger Missing");
   }
 
   const finalPrice =
@@ -565,43 +662,73 @@ async function finalizeSharedPassenger(
 
     default:
 
-      throw new Error(
-        "Unknown Action"
-      );
+      throw new Error("Unknown Action");
   }
 
   trip.groupTotal =
     calculateGroupTotal(trip);
 
-  const totalPassengers =
-    trip.passengers.length;
+  updateSharedGroupStatus(trip);
+
+  await trip.save();
+
+  return trip;
+}
+
+/* =========================================
+   SHARED HELPERS
+========================================= */
+
+function calculateGroupTotal(trip){
+
+  return (
+    Array.isArray(trip?.passengers)
+      ? trip.passengers
+      : []
+  ).reduce((sum,p)=>{
+
+    return sum + n(p.finalPrice);
+
+  },0);
+}
+
+function updateSharedGroupStatus(trip){
+
+  const passengers =
+    Array.isArray(trip?.passengers)
+      ? trip.passengers
+      : [];
+
+  if(!passengers.length){
+    trip.groupStatus =
+      trip.status || "Unknown";
+
+    return;
+  }
+
+  const total =
+    passengers.length;
 
   const completedCount =
-    trip.passengers.filter(
-      p => p.status === "Completed"
-    ).length;
+    passengers.filter(p=>p.status === "Completed").length;
 
   const cancelledCount =
-    trip.passengers.filter(
-      p => p.status === "Cancelled"
-    ).length;
+    passengers.filter(p=>p.status === "Cancelled").length;
 
   const noShowCount =
-    trip.passengers.filter(
-      p => p.status === "No Show"
-    ).length;
+    passengers.filter(p=>p.status === "No Show").length;
 
-  if(completedCount === totalPassengers){
+  if(completedCount === total){
 
     trip.groupStatus =
       "Completed";
 
-  }else if(cancelledCount === totalPassengers){
+  }else if(cancelledCount === total){
 
     trip.groupStatus =
       "Cancelled";
 
-  }else if(noShowCount === totalPassengers){
+  }else if(noShowCount === total){
 
     trip.groupStatus =
       "No Show";
@@ -611,32 +738,10 @@ async function finalizeSharedPassenger(
     trip.groupStatus =
       "Mixed";
   }
-
-  await trip.save();
-
-  return trip;
 }
 
 /* =========================================
-HELPERS
-========================================= */
-
-function calculateGroupTotal(trip){
-
-  return (
-    trip.passengers || []
-  ).reduce((sum,p)=>{
-
-    return (
-      sum +
-      n(p.finalPrice)
-    );
-
-  },0);
-}
-
-/* =========================================
-EXPORTS
+   EXPORTS
 ========================================= */
 
 module.exports = {
@@ -648,7 +753,9 @@ module.exports = {
   finalizeSharedPassenger,
 
   calculateGroupTotal,
+  updateSharedGroupStatus,
 
   isSharedTrip,
+  isPassengerActive,
   buildIndividualRoutePoints
 };
