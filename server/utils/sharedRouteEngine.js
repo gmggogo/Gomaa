@@ -1,19 +1,30 @@
 "use strict";
 
 /* ==========================================================================
+   FILE: server/utils/sharedRouteEngine.js
    SHARED ROUTE ENGINE
    Server-side shared route ordering engine
 
-   FINAL RULE:
-   - Use saved coordinates to build cheap candidates.
-   - Use Google Directions for final real road ordering when a directions function
-     is provided.
+   STRICT RULE:
+   - Every active shared passenger MUST have:
+       pickup, pickupLat, pickupLng
+       dropoff, dropoffLat, dropoffLng
+   - This file does NOT geocode.
+   - Geocode must happen before this engine is called.
+   - If any active passenger has missing coordinates, this engine stops with
+     a clear error message.
+
+   ROUTE POLICY:
+   - Pickups are always before dropoffs.
+   - A virtual center is built from the closest pickup/dropoff pair.
+   - Pickups are ordered farthest-to-nearest toward anchor pickup.
+   - Dropoffs are ordered nearest-to-farthest from anchor dropoff.
+   - If caller passes a Directions function, Google Directions can refine order.
    - Requests:
        1) Same pickup + same dropoff       = 1 request
        2) Same pickup + different dropoffs = 1 request
        3) Different pickups + same dropoff = 1 request
        4) Different pickups + dropoffs     = 3 requests max
-   - No Google request is repeated after the caller saves/locks the route.
    ========================================================================== */
 
 /* =========================
@@ -29,7 +40,7 @@ function normalizeAddress(value){
 }
 
 function addressKey(value){
-  return normalizeAddress(value).toLowerCase();
+  return normalizeAddress(value).toLowerCase().replace(/\s+/g," ").trim();
 }
 
 function num(value){
@@ -42,10 +53,16 @@ function toRadians(value){
 }
 
 function round(value,digits = 2){
-  const n = Number(value);
-  if(!Number.isFinite(n)) return 0;
 
-  const m = Math.pow(10,digits);
+  const n = Number(value);
+
+  if(!Number.isFinite(n)){
+    return 0;
+  }
+
+  const m =
+    Math.pow(10,digits);
+
   return Math.round(n * m) / m;
 }
 
@@ -64,7 +81,8 @@ function statusKey(value){
 
 function isActivePassenger(passenger){
 
-  const status = statusKey(passenger?.status);
+  const status =
+    statusKey(passenger?.status);
 
   return (
     !status.includes("cancel") &&
@@ -79,6 +97,14 @@ function sameAddress(a,b){
   return addressKey(a) === addressKey(b);
 }
 
+function isValidRoutePoint(point){
+  return (
+    point &&
+    normalizeAddress(point.address) &&
+    hasValidCoordinates(point.lat,point.lng)
+  );
+}
+
 function allSameAddress(points){
 
   const list =
@@ -86,7 +112,9 @@ function allSameAddress(points){
       ? points.filter(isValidRoutePoint)
       : [];
 
-  if(list.length <= 1) return true;
+  if(list.length <= 1){
+    return true;
+  }
 
   const first =
     addressKey(list[0].address);
@@ -108,7 +136,8 @@ function passengerStableIndex(passenger,index){
     passenger?.order ??
     index;
 
-  const n = Number(v);
+  const n =
+    Number(v);
 
   return Number.isFinite(n) ? n : index;
 }
@@ -118,6 +147,7 @@ function passengerName(passenger,index){
     passenger?.clientName ||
     passenger?.name ||
     passenger?.passengerName ||
+    passenger?.passengerId ||
     `Passenger ${index + 1}`
   );
 }
@@ -161,15 +191,6 @@ function makeDropoffPoint(passenger,index){
   };
 }
 
-function isValidRoutePoint(point){
-
-  return (
-    point &&
-    normalizeAddress(point.address) &&
-    hasValidCoordinates(point.lat,point.lng)
-  );
-}
-
 function pointToGoogleLocation(point){
 
   if(!isValidRoutePoint(point)){
@@ -189,7 +210,7 @@ function pointLabel(point){
 
 /*
    Unique inside the same point type only.
-   This is important because pickup and dropoff can have same address.
+   This is important because pickup and dropoff can have the same address.
 */
 function uniqueRoutePoints(points){
 
@@ -208,18 +229,24 @@ function uniqueRoutePoints(points){
     ].join("|");
 
     if(seen.has(key)){
-      const existing = out.find(p=>{
-        return [
-          clean(p.type).toLowerCase(),
-          addressKey(p.address)
-        ].join("|") === key;
-      });
+
+      const existing =
+        out.find(p=>{
+          return [
+            clean(p.type).toLowerCase(),
+            addressKey(p.address)
+          ].join("|") === key;
+        });
 
       if(existing){
-        existing.passengerIndexes = Array.from(new Set([
-          ...(existing.passengerIndexes || [existing.passengerIndex]),
-          point.passengerIndex
-        ]));
+
+        existing.passengerIndexes =
+          Array.from(
+            new Set([
+              ...(existing.passengerIndexes || [existing.passengerIndex]),
+              point.passengerIndex
+            ])
+          );
 
         existing.group = true;
       }
@@ -240,8 +267,7 @@ function uniqueRoutePoints(points){
 }
 
 /* =========================
-   DISTANCE - SAVED COORDINATES ONLY
-   Used for candidate building, not final truth.
+   DISTANCE - SAVED COORDINATES
 ========================= */
 
 function distanceMilesBetweenRoutePoints(a,b){
@@ -297,11 +323,11 @@ function sumRouteStraightMiles(points){
 function buildRequiredVirtualCenter(pickupPoints,dropoffPoints){
 
   if(!Array.isArray(pickupPoints) || !pickupPoints.length){
-    throw new Error("Shared route requires at least one pickup point.");
+    throw new Error("Shared route requires at least one pickup point with coordinates.");
   }
 
   if(!Array.isArray(dropoffPoints) || !dropoffPoints.length){
-    throw new Error("Shared route requires at least one dropoff point.");
+    throw new Error("Shared route requires at least one dropoff point with coordinates.");
   }
 
   let anchorPickup = null;
@@ -723,7 +749,9 @@ function getDirectionsFunction(options){
 
 function extractWaypointOrder(response){
 
-  if(!response) return [];
+  if(!response){
+    return [];
+  }
 
   if(Array.isArray(response.waypointOrder)){
     return response.waypointOrder.map(Number).filter(Number.isFinite);
@@ -769,7 +797,9 @@ function extractLegs(response){
 
 function extractPolyline(response){
 
-  if(!response) return "";
+  if(!response){
+    return "";
+  }
 
   if(typeof response.polyline === "string"){
     return response.polyline;
@@ -819,7 +849,8 @@ function extractMiles(response){
     return round(Number(meters) / 1609.344,2);
   }
 
-  const legs = extractLegs(response);
+  const legs =
+    extractLegs(response);
 
   let totalMeters = 0;
 
@@ -862,7 +893,8 @@ function extractMinutes(response){
     return Math.round(Number(seconds) / 60);
   }
 
-  const legs = extractLegs(response);
+  const legs =
+    extractLegs(response);
 
   let totalSeconds = 0;
 
@@ -887,7 +919,8 @@ function extractMinutes(response){
 
 async function callDirections(options,args,counter){
 
-  const fn = getDirectionsFunction(options);
+  const fn =
+    getDirectionsFunction(options);
 
   if(!fn){
     return null;
@@ -993,7 +1026,8 @@ function buildCandidateWithoutGoogle(pickupPoints,dropoffPoints){
 
   else if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
 
-    const pickup = pickupPoints[0];
+    const pickup =
+      pickupPoints[0];
 
     orderedPickups = [pickup];
 
@@ -1024,7 +1058,8 @@ function buildCandidateWithoutGoogle(pickupPoints,dropoffPoints){
 
   else if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
 
-    const dropoff = dropoffPoints[0];
+    const dropoff =
+      dropoffPoints[0];
 
     orderedPickups =
       [...pickupPoints]
@@ -1089,7 +1124,8 @@ function buildCandidateWithoutGoogle(pickupPoints,dropoffPoints){
 
 async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options = {}){
 
-  const counter = {count:0};
+  const counter =
+    {count:0};
 
   const fallback =
     buildCandidateWithoutGoogle(
@@ -1455,11 +1491,21 @@ function validatePassengersForSharedRoute(passengers){
     }
 
     if(!hasValidCoordinates(passenger.pickupLat,passenger.pickupLng)){
-      throw new Error("Missing pickup coordinates for passenger: " + name);
+      throw new Error(
+        "Missing pickup coordinates for passenger: " +
+        name +
+        " | address: " +
+        normalizeAddress(passenger.pickup)
+      );
     }
 
     if(!hasValidCoordinates(passenger.dropoffLat,passenger.dropoffLng)){
-      throw new Error("Missing dropoff coordinates for passenger: " + name);
+      throw new Error(
+        "Missing dropoff coordinates for passenger: " +
+        name +
+        " | address: " +
+        normalizeAddress(passenger.dropoff)
+      );
     }
   }
 
@@ -1472,6 +1518,10 @@ function validatePassengersForSharedRoute(passengers){
     uniqueRoutePoints(
       activePassengers.map(makeDropoffPoint)
     );
+
+  if(!pickupPoints.length || !dropoffPoints.length){
+    throw new Error("Shared route points could not be built. Missing coordinates.");
+  }
 
   return {
     sourcePassengers,
