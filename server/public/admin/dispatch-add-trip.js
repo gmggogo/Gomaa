@@ -2248,18 +2248,14 @@ function renderTripRow(t,index){
         : [];
 
   const sharedPickupRoute =
-    sharedPlan.length
+    isShared && sharedPlan.length
       ? sharedPlan
-          .filter(point=>String(point.type || "").toLowerCase() === "pickup")
+          .filter(point=>{
+            return String(point.type || "").toLowerCase() === "pickup";
+          })
           .map(point=>point.address)
-      : isShared && Array.isArray(t.routePoints) && t.routePoints.length
-        ? t.routePoints
-            .filter(point=>{
-              return passengers.some(p=>{
-                return addressKey(p.pickup) === addressKey(point);
-              });
-            })
-        : [];
+          .filter(Boolean)
+      : [];
 
   const pickups =
     isShared
@@ -2268,31 +2264,26 @@ function renderTripRow(t,index){
             ? sharedPickupRoute.map((address,i)=>{
                 return escapeHtml(`${i + 1}. ${address || "--"}`);
               })
-            : passengers
-                .map((p,i)=>{
-                  const order =
-                    p.pickupOrder && p.pickupOrder !== 9999
-                      ? `P${p.pickupOrder}`
-                      : `${i + 1}`;
+            : passengers.map((p,i)=>{
+                const order =
+                  p.pickupOrder && p.pickupOrder !== 9999
+                    ? `P${p.pickupOrder}`
+                    : `${i + 1}`;
 
-                  return escapeHtml(`${order}. ${p.pickup || "--"}`);
-                })
+                return escapeHtml(`${order}. ${p.pickup || "--"}`);
+              })
         )
       : escapeHtml(t.pickup || "--");
 
   const sharedDropRoute =
-    sharedPlan.length
+    isShared && sharedPlan.length
       ? sharedPlan
-          .filter(point=>String(point.type || "").toLowerCase() === "dropoff")
+          .filter(point=>{
+            return String(point.type || "").toLowerCase() === "dropoff";
+          })
           .map(point=>point.address)
-      : isShared && Array.isArray(t.routePoints) && t.routePoints.length
-        ? t.routePoints
-            .filter(point=>{
-              return passengers.some(p=>{
-                return addressKey(p.dropoff) === addressKey(point);
-              });
-            })
-        : [];
+          .filter(Boolean)
+      : [];
 
   const drops =
     isShared
@@ -2301,26 +2292,30 @@ function renderTripRow(t,index){
             ? sharedDropRoute.map((address,i)=>{
                 return escapeHtml(`${i + 1}. ${address || "--"}`);
               })
-            : passengers
-                .map((p,i)=>{
-                  const order =
-                    p.dropoffOrder && p.dropoffOrder !== 9999
-                      ? `D${p.dropoffOrder}`
-                      : `${i + 1}`;
+            : passengers.map((p,i)=>{
+                const order =
+                  p.dropoffOrder && p.dropoffOrder !== 9999
+                    ? `D${p.dropoffOrder}`
+                    : `${i + 1}`;
 
-                  return escapeHtml(`${order}. ${p.dropoff || "--"}`);
-                })
+                return escapeHtml(`${order}. ${p.dropoff || "--"}`);
+              })
         )
       : escapeHtml(t.dropoff || "--");
 
+  /*
+    IMPORTANT:
+    Shared trips do NOT display route addresses inside Stops.
+    Pickup column shows pickup order.
+    Dropoff column shows dropoff order.
+    Stops column only shows a count.
+  */
   const stopsDisplay =
     isShared
-      ? (
-          sharedPlan.length > 2
-            ? sharedPlan.slice(1,-1).map((p,i)=>escapeHtml(`${i + 1}. ${p.address}`))
-            : Array.isArray(t.routePoints) && t.routePoints.length > 2
-              ? t.routePoints.slice(1,-1).map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
-              : Math.max(0,passengers.filter(passengerIsActive).length - 1)
+      ? String(
+          Number(t.sharedStopsCount || t.sharedStopTotal || 0) > 0
+            ? Number(t.sharedStopsCount || t.sharedStopTotal || 0)
+            : Math.max(0,passengers.filter(passengerIsActive).length - 1)
         )
       : Array.isArray(t.stops) && t.stops.length
         ? t.stops.map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
@@ -2637,61 +2632,51 @@ async function handleCancelEdit(){
   await refreshReview();
 }
 
-function normRouteAddress(v){
+
+function normRouteAddressOnly(v){
   return normalizeAddress(v || "")
     .toLowerCase()
     .replace(/\s+/g," ")
     .trim();
 }
 
-function routeStatusKey(v){
-  return cleanStatus(v || "scheduled");
+function normalizeStopsForSignature(stops){
+  return (Array.isArray(stops) ? stops : [])
+    .map(normRouteAddressOnly)
+    .filter(Boolean);
 }
 
-function buildIndividualRouteSignature(trip,next = {},nextStops = null){
+function buildIndividualRouteSignatureForEdit(trip,nextPayload = {}, nextStops = null){
 
   return JSON.stringify({
-    pickup:normRouteAddress(next.pickup ?? trip.pickup),
-
+    pickup:normRouteAddressOnly(nextPayload.pickup ?? trip.pickup),
     stops:Array.isArray(nextStops)
-      ? nextStops.map(normRouteAddress).filter(Boolean)
-      : Array.isArray(trip.stops)
-        ? trip.stops.map(normRouteAddress).filter(Boolean)
-        : [],
-
-    dropoff:normRouteAddress(next.dropoff ?? trip.dropoff)
+      ? normalizeStopsForSignature(nextStops)
+      : normalizeStopsForSignature(trip.stops),
+    dropoff:normRouteAddressOnly(nextPayload.dropoff ?? trip.dropoff)
   });
 }
 
-function buildSharedRouteSignature(passengers){
+function buildSharedRouteSignatureForEdit(passengers){
 
   return JSON.stringify(
     (Array.isArray(passengers) ? passengers : [])
       .map((p,index)=>({
         id:String(p.passengerId || p._id || index),
-        pickup:normRouteAddress(p.pickup),
-        dropoff:normRouteAddress(p.dropoff),
-        status:routeStatusKey(p.status || "scheduled")
+        pickup:normRouteAddressOnly(p.pickup),
+        dropoff:normRouteAddressOnly(p.dropoff),
+        status:cleanStatus(p.status || "Scheduled")
       }))
   );
 }
 
-function findOriginalPassenger(originalPassengers,passenger,index){
+function coordinatesValue(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
-  const id =
-    String(passenger?.passengerId || passenger?._id || "");
-
-  if(id){
-    const found =
-      (Array.isArray(originalPassengers) ? originalPassengers : [])
-        .find(p=>String(p.passengerId || p._id || "") === id);
-
-    if(found) return found;
-  }
-
-  return Array.isArray(originalPassengers)
-    ? originalPassengers[index]
-    : null;
+function routeAddressChanged(oldAddress,newAddress){
+  return normRouteAddressOnly(oldAddress) !== normRouteAddressOnly(newAddress);
 }
 
 async function handleSaveEdit(btn){
@@ -2716,21 +2701,18 @@ async function handleSaveEdit(btn){
     trip.tripType === "SHARED";
 
   const payload = {};
-
   const stops =
     Array.isArray(trip.stops)
       ? [...trip.stops]
       : [];
 
-  const originalSharedPassengers =
-    Array.isArray(trip.passengers)
-      ? [...trip.passengers]
-      : [];
-
-  const passengers =
+  const originalPassengers =
     Array.isArray(trip.passengers)
       ? getPassengers(trip).map(p=>({...p}))
       : [];
+
+  const passengers =
+    originalPassengers.map(p=>({...p}));
 
   tr.querySelectorAll(".edit-input").forEach(input=>{
 
@@ -2838,32 +2820,20 @@ async function handleSaveEdit(btn){
     payload.passengers =
       passengers.map((p,index)=>{
 
-        const original =
-          findOriginalPassenger(
-            originalSharedPassengers,
-            p,
-            index
-          ) || {};
-
-        const nextPickup =
-          normalizeAddress(p.pickup);
-
-        const nextDropoff =
-          normalizeAddress(p.dropoff);
+        const oldPassenger =
+          originalPassengers[index] || {};
 
         const pickupChanged =
-          normRouteAddress(nextPickup) !==
-          normRouteAddress(original.pickup);
+          routeAddressChanged(oldPassenger.pickup,p.pickup);
 
         const dropoffChanged =
-          normRouteAddress(nextDropoff) !==
-          normRouteAddress(original.dropoff);
+          routeAddressChanged(oldPassenger.dropoff,p.dropoff);
 
         return {
           ...p,
 
           passengerId:
-            p.passengerId || "P" + (index + 1),
+            p.passengerId || oldPassenger.passengerId || "P" + (index + 1),
 
           name:
             normalizeText(p.name || p.clientName),
@@ -2878,33 +2848,60 @@ async function handleSaveEdit(btn){
             normalizeText(p.clientPhone || p.phone),
 
           pickup:
-            nextPickup,
+            normalizeAddress(p.pickup),
 
           pickupLat:
             pickupChanged
               ? null
-              : p.pickupLat ?? original.pickupLat ?? null,
+              : coordinatesValue(p.pickupLat ?? oldPassenger.pickupLat),
 
           pickupLng:
             pickupChanged
               ? null
-              : p.pickupLng ?? original.pickupLng ?? null,
+              : coordinatesValue(p.pickupLng ?? oldPassenger.pickupLng),
 
           dropoff:
-            nextDropoff,
+            normalizeAddress(p.dropoff),
 
           dropoffLat:
             dropoffChanged
               ? null
-              : p.dropoffLat ?? original.dropoffLat ?? null,
+              : coordinatesValue(p.dropoffLat ?? oldPassenger.dropoffLat),
 
           dropoffLng:
             dropoffChanged
               ? null
-              : p.dropoffLng ?? original.dropoffLng ?? null,
+              : coordinatesValue(p.dropoffLng ?? oldPassenger.dropoffLng),
 
           status:
-            p.status || "Scheduled"
+            p.status || oldPassenger.status || "Scheduled",
+
+          pickupOrder:
+            p.pickupOrder ?? oldPassenger.pickupOrder ?? 0,
+
+          dropoffOrder:
+            p.dropoffOrder ?? oldPassenger.dropoffOrder ?? 0,
+
+          routeOrder:
+            p.routeOrder ?? oldPassenger.routeOrder ?? index + 1,
+
+          passengerMiles:
+            p.passengerMiles ?? oldPassenger.passengerMiles ?? 0,
+
+          passengerMinutes:
+            p.passengerMinutes ?? oldPassenger.passengerMinutes ?? 0,
+
+          passengerDistanceMeters:
+            p.passengerDistanceMeters ?? oldPassenger.passengerDistanceMeters ?? 0,
+
+          passengerDurationSeconds:
+            p.passengerDurationSeconds ?? oldPassenger.passengerDurationSeconds ?? 0,
+
+          priceAmount:
+            p.priceAmount ?? oldPassenger.priceAmount ?? 0,
+
+          finalPrice:
+            p.finalPrice ?? oldPassenger.finalPrice ?? 0
         };
       });
 
@@ -2925,10 +2922,10 @@ async function handleSaveEdit(btn){
   if(isShared){
 
     const oldSignature =
-      buildSharedRouteSignature(trip.passengers || []);
+      buildSharedRouteSignatureForEdit(originalPassengers);
 
     const newSignature =
-      buildSharedRouteSignature(payload.passengers || passengers);
+      buildSharedRouteSignatureForEdit(payload.passengers || passengers);
 
     routeChanged =
       oldSignature !== newSignature;
@@ -2936,21 +2933,21 @@ async function handleSaveEdit(btn){
   }else{
 
     const oldSignature =
-      buildIndividualRouteSignature(trip);
+      buildIndividualRouteSignatureForEdit(trip);
 
     const newSignature =
-      buildIndividualRouteSignature(trip,payload,stops);
+      buildIndividualRouteSignatureForEdit(trip,payload,stops);
 
     routeChanged =
       oldSignature !== newSignature;
   }
 
-  payload.status = "Review";
-  payload.reservationStatus = "Review";
-  payload.reviewOnly = true;
-  payload.dispatchSelected = false;
-
   if(routeChanged){
+
+    payload.status = "Review";
+    payload.reservationStatus = "Review";
+    payload.reviewOnly = true;
+    payload.dispatchSelected = false;
 
     payload.priceAmount = 0;
     payload.finalPrice = 0;
@@ -2981,27 +2978,76 @@ async function handleSaveEdit(btn){
     payload.sharedRouteSignature = "";
     payload.sharedGoogleRequestsUsed = 0;
 
+    payload.routeChangePending = true;
+    payload.routeChangeStatus = "ROUTE_CHANGED";
+
+    if(isShared && Array.isArray(payload.passengers)){
+      payload.passengers =
+        payload.passengers.map((p,index)=>({
+          ...p,
+          pickupOrder:0,
+          dropoffOrder:0,
+          routeOrder:index + 1,
+          passengerMiles:0,
+          passengerMinutes:0,
+          passengerDistanceMeters:0,
+          passengerDurationSeconds:0,
+          priceAmount:0,
+          finalPrice:0
+        }));
+    }
+
   }else{
 
-    payload.routeSource =
-      trip.routeSource || "route-unchanged";
-
     /*
-      Route did not change.
-      Keep saved route, miles, minutes, price and polyline.
-      Server confirm should reuse the saved route with 0 Google requests.
+      Name / phone / notes / date / time changed only.
+      Keep route locked/saved and keep miles, minutes, price, polyline.
+      Do NOT trigger route rebuild.
     */
+
+    payload.status = trip.status || "Confirmed";
+    payload.reservationStatus = trip.reservationStatus || "RV";
+    payload.reviewOnly = trip.reviewOnly === true ? true : false;
+    payload.dispatchSelected = trip.dispatchSelected === false ? false : true;
+
+    delete payload.priceAmount;
+    delete payload.finalPrice;
+    delete payload.pricePerPassenger;
+
+    delete payload.miles;
+    delete payload.distanceMeters;
+    delete payload.durationSeconds;
+    delete payload.estimatedMinutes;
+
+    delete payload.googleRoute;
+    delete payload.routePoints;
+    delete payload.routePlan;
+    delete payload.sharedRoutePlan;
+    delete payload.optimizedRoute;
+
+    delete payload.routeLocked;
+    delete payload.routeFinalized;
+    delete payload.routeSource;
+    delete payload.routeUpdatedAt;
+
+    delete payload.sharedRouteLocked;
+    delete payload.sharedRouteLockedAt;
+    delete payload.sharedRouteMeta;
+    delete payload.sharedRoutePolyline;
+    delete payload.sharedRouteMiles;
+    delete payload.sharedRouteMinutes;
+    delete payload.sharedRouteSignature;
+    delete payload.sharedGoogleRequestsUsed;
+
+    delete payload.routeChangePending;
+    delete payload.routeChangeStatus;
   }
 
   await updateTrip(id,payload);
 
   await refreshReview();
 
-  showAlert(
-    routeChanged
-      ? "Trip Updated - Route will be recalculated on Confirm ✔"
-      : "Trip Updated - Route kept unchanged ✔"
-  );
+  showAlert("Trip Updated ✔");
 }
 
 async function handleDeleteTrip(btn){
