@@ -19,9 +19,9 @@
    - A virtual center is built from the closest pickup/dropoff pair.
    - Pickups are ordered farthest-to-nearest toward anchor pickup.
    - Dropoffs are ordered from the LAST pickup using nearest-neighbor chain.
-   - If caller passes a Directions function, Google Directions can refine pickup order.
-   - In Case 4, Google must NOT optimize dropoffs.
-   - Dropoffs must be nearest-neighbor chain from last pickup.
+   - Google is allowed to optimize pickups only where needed.
+   - Google must NOT optimize dropoffs.
+   - Google final request calculates miles/minutes/polyline with fixed order.
    - Requests:
        1) Same pickup + same dropoff       = 1 request
        2) Same pickup + different dropoffs = 1 request
@@ -1266,41 +1266,35 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     const groupPickup =
       pickupPoints[0];
 
-    const farthestDropoff =
-      farthestPointFrom(
+    orderedPickups = [groupPickup];
+
+    /*
+       Dropoffs are NOT optimized by Google.
+       They must go:
+       pickup -> nearest dropoff -> nearest from previous -> ...
+    */
+    orderedDropoffs =
+      orderDropoffsFromLastPickup(
         dropoffPoints,
         groupPickup
-      ) || dropoffPoints[dropoffPoints.length - 1];
+      );
 
-    const waypoints =
-      dropoffPoints.filter(point=>{
-        return addressKey(point.address) !== addressKey(farthestDropoff.address);
-      });
+    const finalPoints = [
+      ...orderedPickups,
+      ...orderedDropoffs
+    ];
 
     finalResponse =
       await callDirections(
         options,
         {
-          origin:groupPickup,
-          destination:farthestDropoff,
-          waypoints,
-          optimizeWaypoints:true
+          origin:finalPoints[0],
+          destination:finalPoints[finalPoints.length - 1],
+          waypoints:finalPoints.slice(1,-1),
+          optimizeWaypoints:false
         },
         counter
       );
-
-    const waypointOrder =
-      extractWaypointOrder(finalResponse);
-
-    orderedPickups = [groupPickup];
-
-    orderedDropoffs = [
-      ...applyWaypointOrder(
-        waypoints,
-        waypointOrder
-      ),
-      farthestDropoff
-    ];
   }
 
   /* =========================
