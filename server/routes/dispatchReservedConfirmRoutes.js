@@ -709,14 +709,7 @@ async function calculateRoute(routePoints){
 }
 
 function getGoogleMapsApiKey(){
-
-  return (
-    process.env.GOOGLE_SERVER_KEY ||
-    process.env.GOOGLE_SERVER_API_KEY ||
-    process.env.GOOGLE_MAPS_SERVER_KEY ||
-    process.env.SERVER_GOOGLE_MAPS_KEY ||
-    ""
-  );
+  return process.env.GOOGLE_SERVER_KEY || "";
 }
 
 function httpsGetJson(url){
