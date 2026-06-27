@@ -435,9 +435,237 @@ function hasUsableSavedRoute(trip,currentSignature){
   );
 }
 
-function buildRouteDataFromSavedTrip(trip){
+function firstPositiveNumber(...values){
+
+  for(const value of values){
+    const num = n(value);
+    if(num > 0){
+      return num;
+    }
+  }
+
+  return 0;
+}
+
+function parseDistanceToMiles(value){
+
+  if(Number.isFinite(Number(value))){
+    return Number(value);
+  }
+
+  const text =
+    clean(value).toLowerCase();
+
+  if(!text){
+    return 0;
+  }
+
+  const match =
+    text.match(/([0-9]+(?:\.[0-9]+)?)/);
+
+  if(!match){
+    return 0;
+  }
+
+  const num =
+    Number(match[1]);
+
+  if(!Number.isFinite(num)){
+    return 0;
+  }
+
+  if(text.includes(" km") || text.includes("kilometer")){
+    return num * 0.621371;
+  }
+
+  if(text.includes(" ft") || text.includes("feet")){
+    return num / 5280;
+  }
+
+  if(text.includes(" m") && !text.includes("mi")){
+    return num * 0.000621371;
+  }
+
+  return num;
+}
+
+function parseDurationToMinutes(value){
+
+  if(Number.isFinite(Number(value))){
+    return Number(value);
+  }
+
+  const text =
+    clean(value).toLowerCase();
+
+  if(!text){
+    return 0;
+  }
+
+  let total = 0;
+
+  const hourMatch =
+    text.match(/([0-9]+(?:\.[0-9]+)?)\s*(hour|hours|hr|hrs)/);
+
+  const minMatch =
+    text.match(/([0-9]+(?:\.[0-9]+)?)\s*(minute|minutes|min|mins)/);
+
+  if(hourMatch){
+    total += Number(hourMatch[1]) * 60;
+  }
+
+  if(minMatch){
+    total += Number(minMatch[1]);
+  }
+
+  if(total > 0){
+    return total;
+  }
+
+  const any =
+    text.match(/([0-9]+(?:\.[0-9]+)?)/);
+
+  return any ? Number(any[1]) : 0;
+}
+
+function flattenGoogleLegs(raw){
+
+  const directLegs =
+    Array.isArray(raw?.legs)
+      ? raw.legs
+      : [];
+
+  if(directLegs.length){
+    return directLegs;
+  }
+
+  const googleRoute =
+    raw?.googleRoute ||
+    raw?.route ||
+    raw?.data ||
+    raw ||
+    {};
+
+  if(Array.isArray(googleRoute?.legs)){
+    return googleRoute.legs;
+  }
+
+  if(Array.isArray(googleRoute?.routes?.[0]?.legs)){
+    return googleRoute.routes[0].legs;
+  }
+
+  if(Array.isArray(raw?.routes?.[0]?.legs)){
+    return raw.routes[0].legs;
+  }
+
+  return [];
+}
+
+function normalizeRouteData(raw, routePoints = []){
+
+  const legs =
+    flattenGoogleLegs(raw);
+
+  let legDistanceMeters = 0;
+  let legDurationSeconds = 0;
+
+  for(const leg of legs){
+
+    const distanceValue =
+      leg?.distance?.value ??
+      leg?.distanceMeters ??
+      leg?.distance_meters ??
+      leg?.distanceValue ??
+      0;
+
+    const durationValue =
+      leg?.duration?.value ??
+      leg?.durationSeconds ??
+      leg?.duration_seconds ??
+      leg?.durationValue ??
+      0;
+
+    legDistanceMeters += n(distanceValue);
+    legDurationSeconds += n(durationValue);
+  }
+
+  const distanceMeters =
+    firstPositiveNumber(
+      raw?.distanceMeters,
+      raw?.totalDistanceMeters,
+      raw?.distance_meters,
+      raw?.distance?.value,
+      raw?.googleRoute?.distanceMeters,
+      raw?.googleRoute?.distance?.value,
+      legDistanceMeters
+    );
+
+  const durationSeconds =
+    firstPositiveNumber(
+      raw?.durationSeconds,
+      raw?.totalDurationSeconds,
+      raw?.duration_seconds,
+      raw?.duration?.value,
+      raw?.googleRoute?.durationSeconds,
+      raw?.googleRoute?.duration?.value,
+      legDurationSeconds
+    );
+
+  const miles =
+    firstPositiveNumber(
+      raw?.miles,
+      raw?.totalMiles,
+      raw?.distanceMiles,
+      raw?.routeMiles,
+      raw?.googleRoute?.miles,
+      parseDistanceToMiles(raw?.distanceText),
+      parseDistanceToMiles(raw?.totalDistance),
+      parseDistanceToMiles(raw?.distance),
+      parseDistanceToMiles(raw?.googleRoute?.distanceText),
+      distanceMeters > 0 ? distanceMeters * 0.000621371 : 0
+    );
+
+  const estimatedMinutes =
+    firstPositiveNumber(
+      raw?.estimatedMinutes,
+      raw?.minutes,
+      raw?.totalMinutes,
+      raw?.durationMinutes,
+      raw?.googleRoute?.estimatedMinutes,
+      parseDurationToMinutes(raw?.durationText),
+      parseDurationToMinutes(raw?.totalDuration),
+      parseDurationToMinutes(raw?.duration),
+      durationSeconds > 0 ? durationSeconds / 60 : 0
+    );
 
   return {
+    ...(raw || {}),
+    miles:Number(Number(miles).toFixed(2)),
+    distanceMeters:Number(distanceMeters || 0),
+    durationSeconds:Number(durationSeconds || 0),
+    estimatedMinutes:Number(Math.round(estimatedMinutes || 0)),
+    polyline:
+      raw?.polyline ||
+      raw?.routePolyline ||
+      raw?.overviewPolyline ||
+      raw?.googleRoute?.overview_polyline?.points ||
+      raw?.routes?.[0]?.overview_polyline?.points ||
+      "",
+    googleRoute:
+      raw?.googleRoute ||
+      raw?.route ||
+      raw ||
+      {},
+    routePoints:
+      safeArray(raw?.routePoints).length
+        ? safeArray(raw.routePoints)
+        : safeArray(routePoints)
+  };
+}
+
+function buildRouteDataFromSavedTrip(trip){
+
+  return normalizeRouteData({
     miles:n(trip?.miles || trip?.sharedRouteMiles),
     distanceMeters:n(trip?.distanceMeters),
     durationSeconds:n(trip?.durationSeconds),
@@ -450,7 +678,7 @@ function buildRouteDataFromSavedTrip(trip){
       trip?.googleRoute ||
       trip?.optimizedRoute ||
       {}
-  };
+  }, trip?.routePoints || []);
 }
 
 /* =========================
@@ -459,18 +687,22 @@ function buildRouteDataFromSavedTrip(trip){
 
 async function calculateRoute(routePoints){
 
+  let raw = null;
+
   if(
     routeMapEngine &&
     typeof routeMapEngine.calculateRouteMiles === "function"
   ){
-    return await routeMapEngine.calculateRouteMiles(routePoints);
+    raw = await routeMapEngine.calculateRouteMiles(routePoints);
+    return normalizeRouteData(raw, routePoints);
   }
 
   if(
     routeMapEngine &&
     typeof routeMapEngine.calculateRoute === "function"
   ){
-    return await routeMapEngine.calculateRoute(routePoints);
+    raw = await routeMapEngine.calculateRoute(routePoints);
+    return normalizeRouteData(raw, routePoints);
   }
 
   throw new Error("routeMapEngine calculate function not found");
@@ -1683,14 +1915,29 @@ router.post("/:tripId", async (req,res)=>{
       googleRequestsUsed = 1;
     }
 
-    const routeMiles = n(routeData?.miles);
+    const routeMiles =
+      firstPositiveNumber(
+        routeData?.miles,
+        routeData?.distanceMeters > 0
+          ? routeData.distanceMeters * 0.000621371
+          : 0
+      );
 
     if(routeMiles <= 0){
+
+      console.log("ROUTE DATA MISSING MILES:", {
+        routePoints:prepared?.routePoints,
+        routeData
+      });
+
       return res.status(400).json({
         success:false,
         message:"Route miles missing"
       });
     }
+
+    routeData.miles =
+      Number(Number(routeMiles).toFixed(2));
 
     let total = 0;
     let pricePerPassenger = 0;
