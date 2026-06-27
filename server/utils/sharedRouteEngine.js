@@ -19,14 +19,12 @@
    - A virtual center is built from the closest pickup/dropoff pair.
    - Pickups are ordered farthest-to-nearest toward anchor pickup.
    - Dropoffs are ordered from the LAST pickup using nearest-neighbor chain.
-   - Google is allowed to optimize pickups only where needed.
-   - Google must NOT optimize dropoffs.
-   - Google final request calculates miles/minutes/polyline with fixed order.
+   - If caller passes a Directions function, Google Directions can refine order.
    - Requests:
        1) Same pickup + same dropoff       = 1 request
        2) Same pickup + different dropoffs = 1 request
        3) Different pickups + same dropoff = 1 request
-       4) Different pickups + dropoffs     = 2 requests max
+       4) Different pickups + dropoffs     = 3 requests max
    ========================================================================== */
 
 /* =========================
@@ -1266,35 +1264,41 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     const groupPickup =
       pickupPoints[0];
 
-    orderedPickups = [groupPickup];
-
-    /*
-       Dropoffs are NOT optimized by Google.
-       They must go:
-       pickup -> nearest dropoff -> nearest from previous -> ...
-    */
-    orderedDropoffs =
-      orderDropoffsFromLastPickup(
+    const farthestDropoff =
+      farthestPointFrom(
         dropoffPoints,
         groupPickup
-      );
+      ) || dropoffPoints[dropoffPoints.length - 1];
 
-    const finalPoints = [
-      ...orderedPickups,
-      ...orderedDropoffs
-    ];
+    const waypoints =
+      dropoffPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(farthestDropoff.address);
+      });
 
     finalResponse =
       await callDirections(
         options,
         {
-          origin:finalPoints[0],
-          destination:finalPoints[finalPoints.length - 1],
-          waypoints:finalPoints.slice(1,-1),
-          optimizeWaypoints:false
+          origin:groupPickup,
+          destination:farthestDropoff,
+          waypoints,
+          optimizeWaypoints:true
         },
         counter
       );
+
+    const waypointOrder =
+      extractWaypointOrder(finalResponse);
+
+    orderedPickups = [groupPickup];
+
+    orderedDropoffs = [
+      ...applyWaypointOrder(
+        waypoints,
+        waypointOrder
+      ),
+      farthestDropoff
+    ];
   }
 
   /* =========================
@@ -1349,18 +1353,17 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
   /* =========================
      CASE 4
      Different pickups + different dropoffs
-     2 requests max
+     3 requests max
 
      Request 1:
        Optimize pickups only:
        farthest pickup -> anchor pickup
 
-     Dropoffs:
-       NO Google optimization.
-       Use nearest-neighbor chain:
-       LAST pickup -> nearest dropoff -> nearest dropoff from previous.
-
      Request 2:
+       Optimize dropoffs only:
+       LAST pickup -> farthest dropoff from LAST pickup
+
+     Request 3:
        Final route with fixed order:
        all pickups first, then all dropoffs
   ========================= */
@@ -1406,25 +1409,36 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     const lastPickup =
       orderedPickups[orderedPickups.length - 1];
 
-    /*
-       IMPORTANT:
-       Do NOT let Google optimize dropoffs in case 4.
-
-       Dropoff order must be:
-       Last pickup
-       -> nearest dropoff
-       -> nearest dropoff from that dropoff
-       -> nearest dropoff from that dropoff
-       -> ...
-
-       Google is used only in the final request to calculate miles/minutes
-       using this fixed order.
-    */
-    orderedDropoffs =
-      orderDropoffsFromLastPickup(
+    const dropoffEnd =
+      farthestPointFrom(
         dropoffPoints,
         lastPickup
+      ) || dropoffPoints[dropoffPoints.length - 1];
+
+    const dropoffWaypoints =
+      dropoffPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(dropoffEnd.address);
+      });
+
+    const dropoffResponse =
+      await callDirections(
+        options,
+        {
+          origin:lastPickup,
+          destination:dropoffEnd,
+          waypoints:dropoffWaypoints,
+          optimizeWaypoints:true
+        },
+        counter
       );
+
+    orderedDropoffs = [
+      ...applyWaypointOrder(
+        dropoffWaypoints,
+        extractWaypointOrder(dropoffResponse)
+      ),
+      dropoffEnd
+    ];
 
     const finalPoints = [
       ...orderedPickups,
