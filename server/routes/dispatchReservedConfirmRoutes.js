@@ -7,11 +7,16 @@
 
    RULES:
    - Add/Edit/Review = no map requests
-   - Individual Confirm = 1 Google Directions request
-   - Shared Confirm = 3 Google Directions requests
-     1. Optimize pickups
-     2. Optimize dropoffs
-     3. Final route miles/minutes/legs
+   - Confirm button is allowed even if route is already saved
+   - If route signature did NOT change = reuse saved route = 0 Google requests
+   - If pickup/dropoff/stops changed = rebuild route
+   - Name/phone/notes/date/time changes do NOT rebuild route
+   - Shared route:
+       SAME pickup + SAME dropoff       -> final route only
+       SAME pickup + DIFFERENT dropoffs -> optimize dropoffs, then final route
+       DIFFERENT pickups + SAME dropoff -> optimize pickups, then final route
+       DIFFERENT pickups + DIFFERENT dropoffs -> optimize pickups, optimize dropoffs, final route
+   - Never allow dropoff phase before pickup phase
 ===================================================== */
 
 const express = require("express");
@@ -101,6 +106,10 @@ function normalizeCode(value){
   return c;
 }
 
+function safeArray(value){
+  return Array.isArray(value) ? value : [];
+}
+
 function uniqueAddressList(list){
 
   const out = [];
@@ -109,7 +118,9 @@ function uniqueAddressList(list){
   for(const item of Array.isArray(list) ? list : []){
 
     const address =
-      normalizeAddress(item);
+      typeof item === "string"
+        ? normalizeAddress(item)
+        : normalizeAddress(item?.address || item?.formattedAddress || "");
 
     if(!address){
       continue;
@@ -129,14 +140,33 @@ function uniqueAddressList(list){
   return out;
 }
 
-function indexOfAddress(routePoints,address){
+function compactRoutePoints(list){
 
-  const key =
-    addressKey(address);
+  const out = [];
+  let lastKey = "";
 
-  return routePoints.findIndex(point=>{
-    return addressKey(point) === key;
-  });
+  for(const item of Array.isArray(list) ? list : []){
+
+    const address =
+      typeof item === "string"
+        ? normalizeAddress(item)
+        : normalizeAddress(item?.address || "");
+
+    if(!address){
+      continue;
+    }
+
+    const key = addressKey(address);
+
+    if(key === lastKey){
+      continue;
+    }
+
+    out.push(address);
+    lastKey = key;
+  }
+
+  return out;
 }
 
 function getTripModel(){
@@ -184,6 +214,152 @@ function passengerIsActive(passenger){
   );
 }
 
+function sameAddress(a,b){
+  return addressKey(a) === addressKey(b);
+}
+
+function allSameAddress(list){
+
+  const arr =
+    uniqueAddressList(list);
+
+  return arr.length <= 1;
+}
+
+/* =========================
+   ROUTE SIGNATURE
+   This controls when Google is called again.
+========================= */
+
+function buildIndividualRouteSignature(trip){
+
+  return JSON.stringify({
+    type:"INDIVIDUAL",
+    pickup:addressKey(trip?.pickup),
+    stops:safeArray(trip?.stops)
+      .map(addressKey)
+      .filter(Boolean),
+    dropoff:addressKey(trip?.dropoff)
+  });
+}
+
+function buildSharedRouteSignature(trip){
+
+  const passengers =
+    safeArray(trip?.passengers)
+      .map((p,index)=>({
+        id:String(p.passengerId || p._id || index),
+        pickup:addressKey(p.pickup),
+        dropoff:addressKey(p.dropoff),
+        active:passengerIsActive(p) ? "1" : "0"
+      }))
+      .filter(p=>p.pickup || p.dropoff)
+      .sort((a,b)=>{
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+  return JSON.stringify({
+    type:"SHARED",
+    passengers
+  });
+}
+
+function buildCurrentRouteSignature(trip){
+  return isSharedTrip(trip)
+    ? buildSharedRouteSignature(trip)
+    : buildIndividualRouteSignature(trip);
+}
+
+function getSavedRouteSignature(trip){
+  return clean(
+    trip?.routeSignature ||
+    trip?.sharedRouteSignature ||
+    ""
+  );
+}
+
+function savedRoutePlan(trip){
+
+  const plan =
+    safeArray(trip?.sharedRoutePlan).length
+      ? safeArray(trip.sharedRoutePlan)
+      : safeArray(trip?.routePlan);
+
+  return plan
+    .filter(p=>normalizeAddress(p?.address))
+    .sort((a,b)=>n(a.order) - n(b.order));
+}
+
+function savedRoutePoints(trip){
+
+  const plan =
+    savedRoutePlan(trip);
+
+  if(plan.length >= 2){
+    return compactRoutePoints(
+      plan.map(p=>p.address)
+    );
+  }
+
+  return compactRoutePoints(trip?.routePoints || []);
+}
+
+function hasUsableSavedRoute(trip,currentSignature){
+
+  const points =
+    savedRoutePoints(trip);
+
+  if(points.length < 2){
+    return false;
+  }
+
+  if(n(trip?.miles) <= 0 && n(trip?.sharedRouteMiles) <= 0){
+    return false;
+  }
+
+  if(
+    trip?.routeChangePending === true ||
+    clean(trip?.routeChangeStatus).toUpperCase() === "ROUTE_CHANGED"
+  ){
+    return false;
+  }
+
+  const savedSignature =
+    getSavedRouteSignature(trip);
+
+  if(savedSignature){
+    return savedSignature === currentSignature;
+  }
+
+  /*
+    Old confirmed trips may not have a signature yet.
+    If they are locked and no route-change flag exists, reuse once and save signature.
+  */
+  return (
+    trip?.routeLocked === true ||
+    trip?.routeFinalized === true ||
+    trip?.sharedRouteLocked === true
+  );
+}
+
+function buildRouteDataFromSavedTrip(trip){
+
+  return {
+    miles:n(trip?.miles || trip?.sharedRouteMiles),
+    distanceMeters:n(trip?.distanceMeters),
+    durationSeconds:n(trip?.durationSeconds),
+    estimatedMinutes:n(trip?.estimatedMinutes || trip?.sharedRouteMinutes),
+    polyline:
+      trip?.routePolyline ||
+      trip?.sharedRoutePolyline ||
+      "",
+    googleRoute:
+      trip?.googleRoute ||
+      trip?.optimizedRoute ||
+      {}
+  };
+}
+
 /* =========================
    ROUTE MAP ENGINE WRAPPERS
 ========================= */
@@ -223,6 +399,17 @@ async function optimizeAddressOrder(routePoints, options = {}){
   return await routeMapEngine.optimizeAddressOrder(
     routePoints,
     options
+  );
+}
+
+function extractOrderedAddresses(result,fallback){
+
+  return uniqueAddressList(
+    result?.orderedAddresses ||
+    result?.routePoints ||
+    result?.optimizedRoutePoints ||
+    fallback ||
+    []
   );
 }
 
@@ -516,7 +703,9 @@ function extractRoutePointCoordinates(routePoints, routeData){
   const legs =
     Array.isArray(routeData?.googleRoute?.legs)
       ? routeData.googleRoute.legs
-      : [];
+      : Array.isArray(routeData?.legs)
+        ? routeData.legs
+        : [];
 
   if(!legs.length){
     return map;
@@ -525,10 +714,10 @@ function extractRoutePointCoordinates(routePoints, routeData){
   for(const leg of legs){
 
     const startAddress =
-      normalizeAddress(leg.startAddress);
+      normalizeAddress(leg.startAddress || leg.start_address);
 
     const endAddress =
-      normalizeAddress(leg.endAddress);
+      normalizeAddress(leg.endAddress || leg.end_address);
 
     if(
       startAddress &&
@@ -561,11 +750,6 @@ function extractRoutePointCoordinates(routePoints, routeData){
     }
   }
 
-  /*
-    If Google returned formatted addresses that do not exactly match
-    the original input, preserve original route order without failing.
-  */
-
   for(const point of routePoints){
 
     const key =
@@ -583,9 +767,28 @@ function extractRoutePointCoordinates(routePoints, routeData){
   return map;
 }
 
+function routePlanOrder(routePlan,type,address){
+
+  const key =
+    addressKey(address);
+
+  const index =
+    safeArray(routePlan)
+      .sort((a,b)=>n(a.order) - n(b.order))
+      .findIndex(point=>{
+        return (
+          clean(point.type).toLowerCase() === type &&
+          addressKey(point.address) === key
+        );
+      });
+
+  return index < 0 ? 9999 : index + 1;
+}
+
 function applySharedPassengerOrdersAndCoords({
   passengers,
   routePoints,
+  routePlan,
   routeData,
   pricing
 }){
@@ -596,21 +799,23 @@ function applySharedPassengerOrdersAndCoords({
       routeData
     );
 
-  return passengers
+  return safeArray(passengers)
     .map((passenger,index)=>{
 
       const active =
         passengerIsActive(passenger);
 
-      const pickupIndex =
-        indexOfAddress(
-          routePoints,
+      const pickupOrder =
+        routePlanOrder(
+          routePlan,
+          "pickup",
           passenger.pickup
         );
 
-      const dropoffIndex =
-        indexOfAddress(
-          routePoints,
+      const dropoffOrder =
+        routePlanOrder(
+          routePlan,
+          "dropoff",
           passenger.dropoff
         );
 
@@ -656,13 +861,13 @@ function applySharedPassengerOrdersAndCoords({
             : passenger.dropoffLng ?? null,
 
         pickupOrder:
-          active && pickupIndex >= 0
-            ? pickupIndex + 1
+          active
+            ? pickupOrder
             : 9999,
 
         dropoffOrder:
-          active && dropoffIndex >= 0
-            ? dropoffIndex + 1
+          active
+            ? dropoffOrder
             : 9999,
 
         routeOrder:
@@ -708,33 +913,129 @@ function applySharedPassengerOrdersAndCoords({
 
 function buildIndividualRoutePoints(trip){
 
-  return uniqueAddressList([
+  return compactRoutePoints([
     trip.pickup,
-    ...(Array.isArray(trip.stops) ? trip.stops : []),
+    ...safeArray(trip.stops),
     trip.dropoff
   ]);
+}
+
+/* =========================
+   SHARED ROUTE PLAN HELPERS
+========================= */
+
+function getActiveSharedPassengers(trip){
+
+  const passengers =
+    safeArray(trip.passengers);
+
+  return passengers.filter(passengerIsActive);
+}
+
+function passengerIndexesForAddress(passengers,type,address){
+
+  const key =
+    addressKey(address);
+
+  const indexes = [];
+
+  safeArray(passengers).forEach((p,index)=>{
+
+    const target =
+      type === "pickup"
+        ? p.pickup
+        : p.dropoff;
+
+    if(addressKey(target) === key){
+      indexes.push(
+        p.passengerId ||
+        p._id ||
+        index
+      );
+    }
+  });
+
+  return indexes;
+}
+
+function makeRoutePlanPoint({address,type,order,passengers}){
+
+  const indexes =
+    passengerIndexesForAddress(
+      passengers,
+      type,
+      address
+    );
+
+  return {
+    type,
+    address:normalizeAddress(address),
+    order,
+    passengerIndexes:indexes,
+    group:indexes.length > 1
+  };
+}
+
+function buildSharedRoutePlan({orderedPickups,orderedDropoffs,activePassengers}){
+
+  const routePlan = [];
+
+  for(const address of orderedPickups){
+    routePlan.push(
+      makeRoutePlanPoint({
+        address,
+        type:"pickup",
+        order:routePlan.length + 1,
+        passengers:activePassengers
+      })
+    );
+  }
+
+  for(const address of orderedDropoffs){
+    routePlan.push(
+      makeRoutePlanPoint({
+        address,
+        type:"dropoff",
+        order:routePlan.length + 1,
+        passengers:activePassengers
+      })
+    );
+  }
+
+  return routePlan;
+}
+
+function getSharedCase(pickupPoints,dropoffPoints){
+
+  const pickupUnified =
+    allSameAddress(pickupPoints);
+
+  const dropoffUnified =
+    allSameAddress(dropoffPoints);
+
+  if(pickupUnified && dropoffUnified){
+    return "SAME_PICKUP_SAME_DROPOFF";
+  }
+
+  if(pickupUnified && !dropoffUnified){
+    return "SAME_PICKUP_DIFFERENT_DROPOFF";
+  }
+
+  if(!pickupUnified && dropoffUnified){
+    return "DIFFERENT_PICKUP_SAME_DROPOFF";
+  }
+
+  return "DIFFERENT_PICKUP_DIFFERENT_DROPOFF";
 }
 
 /* =========================
    SHARED ROUTE PREP
 ========================= */
 
-function getActiveSharedPassengers(trip){
-
-  const passengers =
-    Array.isArray(trip.passengers)
-      ? trip.passengers
-      : [];
-
-  return passengers.filter(passengerIsActive);
-}
-
 async function buildSmartSharedRoute(trip){
 
   const sourcePassengers =
-    Array.isArray(trip.passengers)
-      ? trip.passengers
-      : [];
+    safeArray(trip.passengers);
 
   const activePassengers =
     getActiveSharedPassengers(trip);
@@ -757,53 +1058,141 @@ async function buildSmartSharedRoute(trip){
     throw new Error("Shared route is missing pickup/dropoff addresses");
   }
 
-  /*
-    Request 1:
-    Optimize pickups only.
-    The routeMapEngine must use Google Directions optimizeWaypoints.
-  */
-
-  const pickupOrderResult =
-    await optimizeAddressOrder(
+  const routeCase =
+    getSharedCase(
       pickupPoints,
-      {
-        type:"PICKUPS"
-      }
-    );
-
-  const orderedPickups =
-    uniqueAddressList(
-      pickupOrderResult.orderedAddresses ||
-      pickupOrderResult.routePoints ||
-      pickupPoints
-    );
-
-  /*
-    Request 2:
-    Optimize dropoffs only.
-  */
-
-  const dropoffOrderResult =
-    await optimizeAddressOrder(
-      dropoffPoints,
-      {
-        type:"DROPOFFS",
-        startAfter:orderedPickups[orderedPickups.length - 1] || ""
-      }
-    );
-
-  const orderedDropoffs =
-    uniqueAddressList(
-      dropoffOrderResult.orderedAddresses ||
-      dropoffOrderResult.routePoints ||
       dropoffPoints
     );
 
+  let orderedPickups = [];
+  let orderedDropoffs = [];
+  let requestsBeforeFinal = 0;
+
+  let pickupOptimization = null;
+  let dropoffOptimization = null;
+
+  /* =========================
+     CASE 1
+     Same pickup + same dropoff
+     No optimize request, final route only.
+  ========================= */
+
+  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
+
+    orderedPickups = [pickupPoints[0]];
+    orderedDropoffs = [dropoffPoints[0]];
+  }
+
+  /* =========================
+     CASE 2
+     Same pickup + different dropoffs
+     Optimize dropoffs only.
+  ========================= */
+
+  else if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
+
+    orderedPickups = [pickupPoints[0]];
+
+    dropoffOptimization =
+      await optimizeAddressOrder(
+        dropoffPoints,
+        {
+          type:"DROPOFFS",
+          startAfter:pickupPoints[0]
+        }
+      );
+
+    requestsBeforeFinal += 1;
+
+    orderedDropoffs =
+      extractOrderedAddresses(
+        dropoffOptimization,
+        dropoffPoints
+      );
+  }
+
+  /* =========================
+     CASE 3
+     Different pickups + same dropoff
+     Optimize pickups only.
+  ========================= */
+
+  else if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
+
+    pickupOptimization =
+      await optimizeAddressOrder(
+        pickupPoints,
+        {
+          type:"PICKUPS",
+          endAt:dropoffPoints[0]
+        }
+      );
+
+    requestsBeforeFinal += 1;
+
+    orderedPickups =
+      extractOrderedAddresses(
+        pickupOptimization,
+        pickupPoints
+      );
+
+    orderedDropoffs = [dropoffPoints[0]];
+  }
+
+  /* =========================
+     CASE 4
+     Different pickups + different dropoffs
+     Optimize pickups, then dropoffs.
+     Dropoffs never enter pickup optimization.
+  ========================= */
+
+  else {
+
+    pickupOptimization =
+      await optimizeAddressOrder(
+        pickupPoints,
+        {
+          type:"PICKUPS"
+        }
+      );
+
+    requestsBeforeFinal += 1;
+
+    orderedPickups =
+      extractOrderedAddresses(
+        pickupOptimization,
+        pickupPoints
+      );
+
+    dropoffOptimization =
+      await optimizeAddressOrder(
+        dropoffPoints,
+        {
+          type:"DROPOFFS",
+          startAfter:orderedPickups[orderedPickups.length - 1] || ""
+        }
+      );
+
+    requestsBeforeFinal += 1;
+
+    orderedDropoffs =
+      extractOrderedAddresses(
+        dropoffOptimization,
+        dropoffPoints
+      );
+  }
+
+  const routePlan =
+    buildSharedRoutePlan({
+      orderedPickups,
+      orderedDropoffs,
+      activePassengers
+    });
+
   const finalRoutePoints =
-    uniqueAddressList([
-      ...orderedPickups,
-      ...orderedDropoffs
-    ]);
+    compactRoutePoints(
+      routePlan.map(point=>point.address)
+    );
 
   if(finalRoutePoints.length < 2){
     throw new Error("Final shared route is missing route points");
@@ -812,15 +1201,62 @@ async function buildSmartSharedRoute(trip){
   return {
     isShared:true,
     routePoints:finalRoutePoints,
+    routePlan,
+    sharedRoutePlan:routePlan,
     passengers:sourcePassengers,
     activeCount:activePassengers.length,
-    sharedStopsCount:Math.max(0,finalRoutePoints.length - 2),
+    sharedStopsCount:Math.max(0,routePlan.length - 2),
+    routeCase,
+    requestsBeforeFinal,
     routeMeta:{
-      mode:"SMART_SHARED_3_REQUESTS",
+      mode:routeCase,
+      routeCase,
       orderedPickups,
       orderedDropoffs,
-      pickupOptimization:pickupOrderResult.meta || null,
-      dropoffOptimization:dropoffOrderResult.meta || null
+      pickupOptimization:pickupOptimization?.meta || null,
+      dropoffOptimization:dropoffOptimization?.meta || null
+    }
+  };
+}
+
+function buildPreparedFromSavedTrip(trip,currentSignature){
+
+  const shared =
+    isSharedTrip(trip);
+
+  const routePlan =
+    savedRoutePlan(trip);
+
+  const routePoints =
+    savedRoutePoints(trip);
+
+  const passengers =
+    safeArray(trip.passengers);
+
+  return {
+    isShared:shared,
+    alreadySaved:true,
+    routePoints,
+    routePlan,
+    sharedRoutePlan:shared ? routePlan : [],
+    passengers,
+    activeCount:
+      shared
+        ? Math.max(1,passengers.filter(passengerIsActive).length)
+        : 1,
+    sharedStopsCount:
+      shared
+        ? Math.max(0,(routePlan.length || routePoints.length) - 2)
+        : 0,
+    routeCase:
+      shared
+        ? trip.sharedRouteCase || trip.routeCase || "SAVED_SHARED_ROUTE"
+        : "SAVED_INDIVIDUAL_ROUTE",
+    routeMeta:{
+      mode:"SAVED_ROUTE_REUSED",
+      reused:true,
+      signature:currentSignature,
+      savedSignature:getSavedRouteSignature(trip)
     }
   };
 }
@@ -856,18 +1292,11 @@ router.post("/:tripId", async (req,res)=>{
       });
     }
 
-    if(
-      trip.routeLocked === true &&
-      trip.routeFinalized === true
-    ){
-      return res.status(400).json({
-        success:false,
-        message:"Trip already confirmed and route locked"
-      });
-    }
-
     const shared =
       isSharedTrip(trip);
+
+    const currentSignature =
+      buildCurrentRouteSignature(trip);
 
     const service =
       await getReservedServiceForTrip(trip);
@@ -876,11 +1305,43 @@ router.post("/:tripId", async (req,res)=>{
       getReservedPricing(service);
 
     let prepared = null;
+    let routeData = null;
+    let googleRequestsUsed = 0;
+    let routeReused = false;
 
-    if(shared){
+    /*
+      IMPORTANT:
+      Do NOT block confirm because routeLocked is true.
+      routeLocked only means saved route exists.
+      If signature is the same, reuse it with 0 Google requests.
+    */
+
+    if(hasUsableSavedRoute(trip,currentSignature)){
+
+      prepared =
+        buildPreparedFromSavedTrip(
+          trip,
+          currentSignature
+        );
+
+      routeData =
+        buildRouteDataFromSavedTrip(trip);
+
+      googleRequestsUsed = 0;
+      routeReused = true;
+
+    }else if(shared){
 
       prepared =
         await buildSmartSharedRoute(trip);
+
+      routeData =
+        await calculateRoute(
+          prepared.routePoints
+        );
+
+      googleRequestsUsed =
+        n(prepared.requestsBeforeFinal) + 1;
 
     }else{
 
@@ -897,26 +1358,21 @@ router.post("/:tripId", async (req,res)=>{
       prepared = {
         isShared:false,
         routePoints,
+        routePlan:[],
         passengers:[],
         activeCount:1,
         sharedStopsCount:0,
+        routeCase:"INDIVIDUAL_1_REQUEST",
         routeMeta:{
           mode:"INDIVIDUAL_1_REQUEST"
         }
       };
+
+      routeData =
+        await calculateRoute(routePoints);
+
+      googleRequestsUsed = 1;
     }
-
-    /*
-      Final route request:
-      Individual = request 1
-      Shared = request 3
-      This returns miles/minutes/legs and is used for pricing + route lock.
-    */
-
-    const routeData =
-      await calculateRoute(
-        prepared.routePoints
-      );
 
     const routeMiles =
       n(routeData?.miles);
@@ -933,9 +1389,7 @@ router.post("/:tripId", async (req,res)=>{
     let sharedStopTotal = 0;
     let sharedStopShare = 0;
     let finalPassengers =
-      Array.isArray(prepared.passengers)
-        ? prepared.passengers
-        : [];
+      safeArray(prepared.passengers);
 
     const serviceCode =
       shared
@@ -948,6 +1402,10 @@ router.post("/:tripId", async (req,res)=>{
         applySharedPassengerOrdersAndCoords({
           passengers:prepared.passengers,
           routePoints:prepared.routePoints,
+          routePlan:
+            safeArray(prepared.sharedRoutePlan).length
+              ? prepared.sharedRoutePlan
+              : prepared.routePlan,
           routeData,
           pricing
         });
@@ -979,9 +1437,8 @@ router.post("/:tripId", async (req,res)=>{
     }else{
 
       const stopsCount =
-        Array.isArray(trip.stops)
-          ? trip.stops.filter(Boolean).length
-          : 0;
+        safeArray(trip.stops)
+          .filter(Boolean).length;
 
       total =
         calculateReservedPrice({
@@ -1012,9 +1469,24 @@ router.post("/:tripId", async (req,res)=>{
       sharedStopShare:shared ? sharedStopShare : 0
     };
 
+    const routeMeta = {
+      ...(prepared.routeMeta || {}),
+      routeReused,
+      googleRequestsUsed,
+      routeSignature:currentSignature
+    };
+
     const updatedTrip =
       await tripFinalizer.lockConfirmedTrip(trip,{
         ...prepared,
+
+        routePlan:
+          safeArray(prepared.routePlan),
+
+        sharedRoutePlan:
+          shared
+            ? safeArray(prepared.sharedRoutePlan || prepared.routePlan)
+            : [],
 
         passengers:
           shared
@@ -1046,10 +1518,24 @@ router.post("/:tripId", async (req,res)=>{
 
         reservationStatus:"RV",
 
+        routeCase:
+          prepared.routeCase,
+
+        routeMeta,
+
+        calculationSource:
+          routeReused
+            ? "SAVED_ROUTE_REUSED"
+            : "GOOGLE_DIRECTIONS_REAL_ROUTE",
+
+        googleRequestsUsed,
+
         routeSource:
-          shared
-            ? "server-smart-shared-3-requests"
-            : "server-individual-1-request"
+          routeReused
+            ? "server-confirm-reused-saved-route"
+            : shared
+              ? "server-smart-shared-route"
+              : "server-individual-route"
       });
 
     updatedTrip.type = "reserved";
@@ -1084,13 +1570,29 @@ router.post("/:tripId", async (req,res)=>{
       updatedTrip.createdFrom ||
       "dispatch-add-trip";
 
+    updatedTrip.routeSignature =
+      currentSignature;
+
+    updatedTrip.routeChangePending = false;
+    updatedTrip.routeChangeStatus = "";
+
+    if(shared){
+      updatedTrip.sharedRouteSignature = currentSignature;
+      updatedTrip.sharedRouteCase = prepared.routeCase;
+      updatedTrip.sharedGoogleRequestsUsed = googleRequestsUsed;
+    }
+
     await updatedTrip.save();
 
     return res.json({
       success:true,
       trip:updatedTrip,
-      requestsUsed:shared ? 3 : 1,
-      routeMode:shared ? "SMART_SHARED_3_REQUESTS" : "INDIVIDUAL_1_REQUEST"
+      requestsUsed:googleRequestsUsed,
+      routeReused,
+      routeMode:
+        routeReused
+          ? "SAVED_ROUTE_REUSED"
+          : prepared.routeCase || prepared.routeMeta?.mode || "ROUTE_CALCULATED"
     });
 
   }catch(err){
