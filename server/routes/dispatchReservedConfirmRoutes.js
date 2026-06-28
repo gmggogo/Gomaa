@@ -5,27 +5,19 @@
    RESERVED CONFIRM ROUTE
    Server-only confirm logic
 
-   RULES:
-   - Add/Edit/Review = no map requests
-   - Confirm button is allowed even if route is already saved
-   - If route signature did NOT change = reuse saved route = 0 Google requests
-   - If pickup/dropoff/stops changed = rebuild route
-   - Name/phone/notes/date/time changes do NOT rebuild route
-
-   SHARED ROUTE PIPELINE:
-   1) collectSharedPoints
-   2) detectSharedCase
-   3) buildSharedCenterPoint
-   4) orderPickupsFromCenter
-   5) orderDropoffsFromCenter
-   6) buildFinalSharedRoutePlan
-   7) Final calculateRoute only. No optimize after ordering.
-
-   IMPORTANT:
-   - Dropoffs never happen before all pickups.
+   SAFE VERSION:
+   - Keeps old working behavior.
+   - Individual trips still calculate route by address strings.
+   - Shared trips can geocode missing passenger coordinates during Confirm.
+   - Shared geocoded lat/lng are saved back inside trip.passengers.
+   - If AddressCache model exists, geocoded addresses are also saved/reused.
+   - Counts requests:
+       geocodeRequestsUsed
+       directionsRequestsUsed
+       googleRequestsUsed = geocode + directions
+   - If route signature did NOT change = reuse saved route = 0 Google requests.
    - Google final route calculates miles/minutes/polyline only.
    - Google must not reorder final route.
-   - If passenger.pickup/dropoff are missing, server falls back to trip pickup/dropoff lists.
 ===================================================== */
 
 const express = require("express");
@@ -35,6 +27,18 @@ const https = require("https");
 const tripFinalizer = require("../utils/trip-finalizer");
 const routeMapEngine = require("../utils/routeMapEngine");
 const Service = require("../models/Service");
+
+/* =========================
+   OPTIONAL ADDRESS CACHE
+========================= */
+
+let AddressCache = null;
+
+try{
+  AddressCache = require("../models/AddressCache");
+}catch(err){
+  AddressCache = null;
+}
 
 /* =========================
    BASIC HELPERS
@@ -113,6 +117,13 @@ function normalizeCode(value){
 
 function safeArray(value){
   return Array.isArray(value) ? value : [];
+}
+
+function hasValidLatLng(lat,lng){
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
 }
 
 function uniqueAddressList(list){
@@ -319,6 +330,30 @@ function passengerIsActive(passenger){
 }
 
 /* =========================
+   REQUEST COUNTERS
+========================= */
+
+function createRequestStats(){
+  return {
+    geocodeRequestsUsed:0,
+    geocodeCacheHits:0,
+    directionsRequestsUsed:0,
+    googleRequestsUsed:0
+  };
+}
+
+function finalizeRequestStats(stats){
+  stats.geocodeRequestsUsed = n(stats.geocodeRequestsUsed);
+  stats.geocodeCacheHits = n(stats.geocodeCacheHits);
+  stats.directionsRequestsUsed = n(stats.directionsRequestsUsed);
+  stats.googleRequestsUsed =
+    n(stats.geocodeRequestsUsed) +
+    n(stats.directionsRequestsUsed);
+
+  return stats;
+}
+
+/* =========================
    ROUTE SIGNATURE
 ========================= */
 
@@ -434,6 +469,10 @@ function hasUsableSavedRoute(trip,currentSignature){
     trip?.sharedRouteLocked === true
   );
 }
+
+/* =========================
+   ROUTE DATA NORMALIZATION
+========================= */
 
 function firstPositiveNumber(...values){
 
@@ -744,12 +783,145 @@ function httpsGetJson(url){
   });
 }
 
-async function geocodeAddress(address){
+/* =========================
+   ADDRESS CACHE HELPERS
+========================= */
+
+async function lookupAddressCache(address,stats = null){
+
+  if(!AddressCache){
+    return null;
+  }
+
+  const fullAddress =
+    normalizePossibleAddress(address);
+
+  if(!fullAddress){
+    return null;
+  }
+
+  const key =
+    addressKey(fullAddress);
+
+  try{
+
+    const found =
+      await AddressCache.findOne({
+        $or:[
+          {addressKey:key},
+          {key},
+          {normalizedAddress:key},
+          {fullAddress:new RegExp("^" + fullAddress.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "$","i")},
+          {address:new RegExp("^" + fullAddress.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "$","i")}
+        ]
+      });
+
+    if(found && hasValidLatLng(found.lat,found.lng)){
+
+      if(stats){
+        stats.geocodeCacheHits += 1;
+      }
+
+      found.usedCount = n(found.usedCount) + 1;
+      found.lastUsedAt = new Date();
+
+      await found.save().catch(()=>null);
+
+      return {
+        lat:Number(found.lat),
+        lng:Number(found.lng),
+        source:"address-cache"
+      };
+    }
+
+  }catch(err){
+    console.log("AddressCache lookup failed:", err.message);
+  }
+
+  return null;
+}
+
+async function saveAddressCache(address,coords,source = "confirm-geocode"){
+
+  if(!AddressCache){
+    return null;
+  }
+
+  const fullAddress =
+    normalizePossibleAddress(address);
+
+  if(!fullAddress || !hasValidLatLng(coords?.lat,coords?.lng)){
+    return null;
+  }
+
+  const key =
+    addressKey(fullAddress);
+
+  try{
+
+    const update = {
+      addressKey:key,
+      key,
+      normalizedAddress:key,
+      fullAddress,
+      address:fullAddress,
+      lat:Number(coords.lat),
+      lng:Number(coords.lng),
+      source,
+      updatedAt:new Date(),
+      lastUsedAt:new Date(),
+      $inc:{
+        usedCount:1
+      }
+    };
+
+    const saved =
+      await AddressCache.findOneAndUpdate(
+        {
+          $or:[
+            {addressKey:key},
+            {key},
+            {normalizedAddress:key}
+          ]
+        },
+        {
+          $set:update,
+          $setOnInsert:{
+            createdAt:new Date()
+          }
+        },
+        {
+          new:true,
+          upsert:true,
+          setDefaultsOnInsert:true
+        }
+      );
+
+    return saved;
+
+  }catch(err){
+    console.log("AddressCache save failed:", err.message);
+    return null;
+  }
+}
+
+/* =========================
+   GEOCODING
+========================= */
+
+async function geocodeAddress(address,stats = null){
 
   const cleanAddress = normalizePossibleAddress(address);
 
   if(!cleanAddress){
     return null;
+  }
+
+  const cached =
+    await lookupAddressCache(cleanAddress,stats);
+
+  if(cached){
+    return cached;
   }
 
   const fn =
@@ -762,6 +934,10 @@ async function geocodeAddress(address){
   if(typeof fn === "function"){
 
     try{
+
+      if(stats){
+        stats.geocodeRequestsUsed += 1;
+      }
 
       const result = await fn(cleanAddress);
 
@@ -783,10 +959,15 @@ async function geocodeAddress(address){
         Number.isFinite(Number(lat)) &&
         Number.isFinite(Number(lng))
       ){
-        return {
+        const coords = {
           lat:Number(lat),
-          lng:Number(lng)
+          lng:Number(lng),
+          source:"routeMapEngine-geocode"
         };
+
+        await saveAddressCache(cleanAddress,coords,coords.source);
+
+        return coords;
       }
 
     }catch(err){
@@ -799,6 +980,10 @@ async function geocodeAddress(address){
   if(!apiKey){
     console.log("Missing Google Maps API key for geocode");
     return null;
+  }
+
+  if(stats){
+    stats.geocodeRequestsUsed += 1;
   }
 
   const url =
@@ -830,10 +1015,15 @@ async function geocodeAddress(address){
     Number.isFinite(Number(location?.lat)) &&
     Number.isFinite(Number(location?.lng))
   ){
-    return {
+    const coords = {
       lat:Number(location.lat),
-      lng:Number(location.lng)
+      lng:Number(location.lng),
+      source:"google-geocode"
     };
+
+    await saveAddressCache(cleanAddress,coords,coords.source);
+
+    return coords;
   }
 
   return null;
@@ -1220,13 +1410,6 @@ function toRad(value){
   return Number(value || 0) * Math.PI / 180;
 }
 
-function hasValidLatLng(lat,lng){
-  return (
-    Number.isFinite(Number(lat)) &&
-    Number.isFinite(Number(lng))
-  );
-}
-
 function distanceMilesByCoords(a,b){
 
   if(
@@ -1335,7 +1518,7 @@ function uniqueTypedRoutePoints(points){
   return out;
 }
 
-async function ensurePassengerPointCoordinates(passenger){
+async function ensurePassengerPointCoordinates(passenger,stats){
 
   const out = { ...passenger };
 
@@ -1346,7 +1529,7 @@ async function ensurePassengerPointCoordinates(passenger){
     console.log("Pickup address:", out.pickup);
     console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
 
-    const coords = await geocodeAddress(out.pickup);
+    const coords = await geocodeAddress(out.pickup,stats);
 
     console.log("Pickup geocode result:", coords);
     console.log("======== GEOCODE PICKUP END ========");
@@ -1355,6 +1538,15 @@ async function ensurePassengerPointCoordinates(passenger){
       out.pickupLat = coords.lat;
       out.pickupLng = coords.lng;
     }
+  }else{
+    await saveAddressCache(
+      out.pickup,
+      {
+        lat:out.pickupLat,
+        lng:out.pickupLng
+      },
+      "existing-passenger-pickup"
+    );
   }
 
   if(!hasValidLatLng(out.dropoffLat,out.dropoffLng)){
@@ -1364,7 +1556,7 @@ async function ensurePassengerPointCoordinates(passenger){
     console.log("Dropoff address:", out.dropoff);
     console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
 
-    const coords = await geocodeAddress(out.dropoff);
+    const coords = await geocodeAddress(out.dropoff,stats);
 
     console.log("Dropoff geocode result:", coords);
     console.log("======== GEOCODE DROPOFF END ========");
@@ -1373,6 +1565,15 @@ async function ensurePassengerPointCoordinates(passenger){
       out.dropoffLat = coords.lat;
       out.dropoffLng = coords.lng;
     }
+  }else{
+    await saveAddressCache(
+      out.dropoff,
+      {
+        lat:out.dropoffLat,
+        lng:out.dropoffLng
+      },
+      "existing-passenger-dropoff"
+    );
   }
 
   return out;
@@ -1382,7 +1583,7 @@ async function ensurePassengerPointCoordinates(passenger){
    1) COLLECT POINTS
 ========================= */
 
-async function collectSharedPoints(trip){
+async function collectSharedPoints(trip,stats){
 
   const sourcePassengers =
     safeArray(trip.passengers)
@@ -1433,7 +1634,7 @@ async function collectSharedPoints(trip){
     }
 
     const withCoords =
-      await ensurePassengerPointCoordinates(passenger);
+      await ensurePassengerPointCoordinates(passenger,stats);
 
     if(!hasValidLatLng(withCoords.pickupLat,withCoords.pickupLng)){
       throw new Error(
@@ -1731,9 +1932,138 @@ function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
    MAIN SHARED ROUTE PREP
 ========================= */
 
-async function buildSmartSharedRoute(trip){
+async function buildSmartSharedRoute(trip,stats){
 
-  const points = await collectSharedPoints(trip);
+  /*
+    STEP 1:
+    collectSharedPoints is still important because it:
+    - reads pickup/dropoff from passengers or fallback trip lists
+    - geocodes missing passenger pickup/dropoff
+    - saves/reuses AddressCache if model exists
+    - returns passengers with pickupLat/pickupLng/dropoffLat/dropoffLng
+  */
+
+  const points =
+    await collectSharedPoints(trip,stats);
+
+  /*
+    STEP 2:
+    Use the NEW routeMapEngine shared planner if installed.
+
+    This fixes:
+    DIFFERENT_PICKUP_DIFFERENT_DROPOFF
+
+    Rule:
+    - all pickups first
+    - no dropoff before all pickups
+    - stable nearest-neighbor
+    - same result every confirm if route signature is unchanged
+  */
+
+  if(
+    routeMapEngine &&
+    typeof routeMapEngine.buildSharedRoutePlanFromPassengers === "function"
+  ){
+
+    const smart =
+      routeMapEngine.buildSharedRoutePlanFromPassengers(
+        points.sourcePassengers
+      );
+
+    const smartRoutePlan =
+      safeArray(smart.routePlan);
+
+    const smartSharedRoutePlan =
+      safeArray(smart.sharedRoutePlan).length
+        ? safeArray(smart.sharedRoutePlan)
+        : smartRoutePlan;
+
+    const smartRoutePoints =
+      safeArray(smart.routePoints).length
+        ? safeArray(smart.routePoints)
+        : smartRoutePlan;
+
+    const finalRoutePoints =
+      smartRoutePoints.map(point=>{
+
+        if(typeof point === "string"){
+          return point;
+        }
+
+        /*
+          routeMapEngine.calculateRouteMiles can accept objects with:
+          { address, lat, lng }
+          This lets Directions use coordinates when available.
+        */
+
+        return {
+          type:point.type || "point",
+          address:normalizePossibleAddress(point.address),
+          lat:point.lat,
+          lng:point.lng,
+          order:point.order,
+          passengerId:point.passengerId || "",
+          passengerIndexes:point.passengerIndexes || [],
+          group:point.group === true
+        };
+      });
+
+    const finalRouteAddresses =
+      finalRoutePoints
+        .map(point=>{
+          return typeof point === "string"
+            ? normalizePossibleAddress(point)
+            : normalizePossibleAddress(point.address);
+        })
+        .filter(Boolean);
+
+    return {
+      isShared:true,
+
+      routePoints:
+        finalRoutePoints.length
+          ? finalRoutePoints
+          : finalRouteAddresses,
+
+      routePlan:
+        smartRoutePlan,
+
+      sharedRoutePlan:
+        smartSharedRoutePlan,
+
+      passengers:
+        points.sourcePassengers,
+
+      activeCount:
+        n(smart.activeCount) || points.activePassengers.length,
+
+      sharedStopsCount:
+        n(smart.sharedStopsCount),
+
+      routeCase:
+        smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
+
+      requestsBeforeFinal:
+        n(stats?.geocodeRequestsUsed),
+
+      routeMeta:{
+        ...(smart.meta || {}),
+        mode:smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
+        policy:"ROUTE_MAP_ENGINE_ALL_PICKUPS_FIRST_THEN_DROPOFFS",
+        engine:"routeMapEngine.buildSharedRoutePlanFromPassengers",
+        routeAddresses:finalRouteAddresses,
+        geocodeRequestsUsed:n(stats?.geocodeRequestsUsed),
+        geocodeCacheHits:n(stats?.geocodeCacheHits)
+      }
+    };
+  }
+
+  /*
+    FALLBACK:
+    Keep old center logic only if the new engine function is missing.
+    This prevents server crash, but if you see this in routeMeta,
+    then routeMapEngine.js is not updated correctly.
+  */
 
   const routeCase =
     detectSharedCase(
@@ -1779,24 +2109,19 @@ async function buildSmartSharedRoute(trip){
     activeCount:points.activePassengers.length,
     sharedStopsCount:Math.max(0,routePlan.length - 2),
     routeCase,
-    requestsBeforeFinal:0,
+    requestsBeforeFinal:n(stats?.geocodeRequestsUsed),
     routeMeta:{
       mode:routeCase,
-      policy:"PIPELINE_CENTER_POINT_FAR_PICKUPS_NEAR_DROPOFFS",
-      pipeline:[
-        "collectSharedPoints",
-        "detectSharedCase",
-        "buildSharedCenterPoint",
-        "orderPickupsFromCenter",
-        "orderDropoffsFromCenter",
-        "buildFinalSharedRoutePlan"
-      ],
+      policy:"FALLBACK_CENTER_POINT_OLD_ENGINE",
+      engine:"old-center-fallback",
       centerPoint:centerResult.centerPoint,
       anchorPickup:centerResult.anchorPickup,
       anchorDropoff:centerResult.anchorDropoff,
       anchorMiles:Number(Number(centerResult.anchorMiles).toFixed(3)),
       orderedPickups:orderedPickups.map(p=>p.address),
-      orderedDropoffs:orderedDropoffs.map(p=>p.address)
+      orderedDropoffs:orderedDropoffs.map(p=>p.address),
+      geocodeRequestsUsed:n(stats?.geocodeRequestsUsed),
+      geocodeCacheHits:n(stats?.geocodeCacheHits)
     }
   };
 }
@@ -1868,23 +2193,26 @@ router.post("/:tripId", async (req,res)=>{
     const service = await getReservedServiceForTrip(trip);
     const pricing = getReservedPricing(service);
 
+    const requestStats =
+      createRequestStats();
+
     let prepared = null;
     let routeData = null;
-    let googleRequestsUsed = 0;
     let routeReused = false;
 
     if(hasUsableSavedRoute(trip,currentSignature)){
 
       prepared = buildPreparedFromSavedTrip(trip,currentSignature);
       routeData = buildRouteDataFromSavedTrip(trip);
-      googleRequestsUsed = 0;
       routeReused = true;
 
     }else if(shared){
 
-      prepared = await buildSmartSharedRoute(trip);
+      prepared = await buildSmartSharedRoute(trip,requestStats);
+
       routeData = await calculateRoute(prepared.routePoints);
-      googleRequestsUsed = n(prepared.requestsBeforeFinal) + 1;
+
+      requestStats.directionsRequestsUsed += 1;
 
     }else{
 
@@ -1911,8 +2239,16 @@ router.post("/:tripId", async (req,res)=>{
       };
 
       routeData = await calculateRoute(routePoints);
-      googleRequestsUsed = 1;
+
+      requestStats.directionsRequestsUsed += 1;
     }
+
+    finalizeRequestStats(requestStats);
+
+    const googleRequestsUsed =
+      routeReused
+        ? 0
+        : requestStats.googleRequestsUsed;
 
     const routeMiles =
       firstPositiveNumber(
@@ -2015,6 +2351,12 @@ router.post("/:tripId", async (req,res)=>{
     const routeMeta = {
       ...(prepared.routeMeta || {}),
       routeReused,
+      geocodeRequestsUsed:
+        routeReused ? 0 : requestStats.geocodeRequestsUsed,
+      geocodeCacheHits:
+        routeReused ? 0 : requestStats.geocodeCacheHits,
+      directionsRequestsUsed:
+        routeReused ? 0 : requestStats.directionsRequestsUsed,
       googleRequestsUsed,
       routeSignature:currentSignature
     };
@@ -2050,7 +2392,7 @@ router.post("/:tripId", async (req,res)=>{
           routeReused
             ? "server-confirm-reused-saved-route"
             : shared
-              ? "server-shared-pipeline-center-route"
+              ? "server-shared-routeMapEngine-smart-route"
               : "server-individual-route"
       });
 
@@ -2095,6 +2437,12 @@ router.post("/:tripId", async (req,res)=>{
     updatedTrip.routeChangeStatus = "";
     updatedTrip.routeMeta = routeMeta;
     updatedTrip.googleRequestsUsed = googleRequestsUsed;
+    updatedTrip.geocodeRequestsUsed =
+      routeReused ? 0 : requestStats.geocodeRequestsUsed;
+    updatedTrip.geocodeCacheHits =
+      routeReused ? 0 : requestStats.geocodeCacheHits;
+    updatedTrip.directionsRequestsUsed =
+      routeReused ? 0 : requestStats.directionsRequestsUsed;
 
     if(shared){
 
@@ -2104,6 +2452,12 @@ router.post("/:tripId", async (req,res)=>{
       updatedTrip.sharedRouteSignature = currentSignature;
       updatedTrip.sharedRouteCase = prepared.routeCase;
       updatedTrip.sharedGoogleRequestsUsed = googleRequestsUsed;
+      updatedTrip.sharedGeocodeRequestsUsed =
+        routeReused ? 0 : requestStats.geocodeRequestsUsed;
+      updatedTrip.sharedGeocodeCacheHits =
+        routeReused ? 0 : requestStats.geocodeCacheHits;
+      updatedTrip.sharedDirectionsRequestsUsed =
+        routeReused ? 0 : requestStats.directionsRequestsUsed;
       updatedTrip.sharedRouteLocked = true;
       updatedTrip.sharedStopsCount = prepared.sharedStopsCount;
       updatedTrip.sharedRouteMeta = routeMeta;
@@ -2115,6 +2469,13 @@ router.post("/:tripId", async (req,res)=>{
       success:true,
       trip:updatedTrip,
       requestsUsed:googleRequestsUsed,
+      googleRequestsUsed,
+      geocodeRequestsUsed:
+        routeReused ? 0 : requestStats.geocodeRequestsUsed,
+      geocodeCacheHits:
+        routeReused ? 0 : requestStats.geocodeCacheHits,
+      directionsRequestsUsed:
+        routeReused ? 0 : requestStats.directionsRequestsUsed,
       routeReused,
       routeMode:
         routeReused

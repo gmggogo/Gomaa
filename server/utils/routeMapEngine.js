@@ -6,12 +6,19 @@
 
    1) Real driver tracking
    2) Server Google Directions final route calculation
-   3) Server Google waypoint optimization for shared trips
+   3) Shared route ordering helper by saved lat/lng
 
-   RULE:
-   - Add/Edit/Review = 0 Google requests
-   - Individual Confirm = 1 request
-   - Shared Confirm = 3 requests
+   SAFE RULE:
+   - This file does NOT geocode.
+   - This file does NOT force Google waypoint optimization.
+   - Final Directions request calculates miles/minutes/polyline only.
+   - For shared trips:
+       All pickups first.
+       Dropoffs never happen before all pickups.
+       SAME pickup / SAME dropoff handled.
+       SAME pickup / DIFFERENT dropoff handled.
+       DIFFERENT pickup / SAME dropoff handled.
+       DIFFERENT pickup / DIFFERENT dropoff handled with stable nearest-neighbor.
 ========================================= */
 
 const tripsMemory = new Map();
@@ -24,7 +31,7 @@ const MAX_POINTS = 2000;
 /* ================= BASIC HELPERS ================= */
 
 function toRad(v){
-  return (v * Math.PI) / 180;
+  return (Number(v) * Math.PI) / 180;
 }
 
 function n(value){
@@ -42,32 +49,33 @@ function normalizeAddress(value){
     .trim();
 }
 
-function uniqueAddressList(list){
+function addressKey(value){
+  return normalizeAddress(value)
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
 
-  const out = [];
-  const seen = new Set();
+function compactStatus(value){
+  return clean(value)
+    .replace(/[_-]/g," ")
+    .replace(/\s+/g,"")
+    .toLowerCase();
+}
 
-  for(const item of Array.isArray(list) ? list : []){
+function safeArray(value){
+  return Array.isArray(value) ? value : [];
+}
 
-    const address =
-      normalizeAddress(item);
+function hasValidLatLng(lat,lng){
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
+}
 
-    if(!address){
-      continue;
-    }
-
-    const key =
-      address.toLowerCase();
-
-    if(seen.has(key)){
-      continue;
-    }
-
-    seen.add(key);
-    out.push(address);
-  }
-
-  return out;
+function stableText(value){
+  return normalizeAddress(value).toLowerCase();
 }
 
 function getFetch(){
@@ -94,10 +102,17 @@ function getGoogleKey(){
 
 function distanceMiles(a,b){
 
+  if(
+    !hasValidLatLng(a?.lat,a?.lng) ||
+    !hasValidLatLng(b?.lat,b?.lng)
+  ){
+    return Number.MAX_SAFE_INTEGER;
+  }
+
   const R = 3958.8;
 
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
+  const dLat = toRad(Number(b.lat) - Number(a.lat));
+  const dLng = toRad(Number(b.lng) - Number(a.lng));
 
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
@@ -116,6 +131,140 @@ function distanceMiles(a,b){
   return R * c;
 }
 
+/* ================= ROUTE POINT NORMALIZATION ================= */
+
+function normalizeRoutePoint(item,index = 0){
+
+  if(typeof item === "string"){
+
+    const address =
+      normalizeAddress(item);
+
+    if(!address){
+      return null;
+    }
+
+    return {
+      type:"point",
+      address,
+      lat:null,
+      lng:null,
+      order:index + 1,
+      googleValue:address,
+      key:"addr|" + addressKey(address)
+    };
+  }
+
+  if(!item || typeof item !== "object"){
+    return null;
+  }
+
+  const address =
+    normalizeAddress(
+      item.address ||
+      item.formattedAddress ||
+      item.fullAddress ||
+      item.label ||
+      ""
+    );
+
+  const lat =
+    hasValidLatLng(item.lat,item.lng)
+      ? Number(item.lat)
+      : hasValidLatLng(item.latitude,item.longitude)
+        ? Number(item.latitude)
+        : null;
+
+  const lng =
+    hasValidLatLng(item.lat,item.lng)
+      ? Number(item.lng)
+      : hasValidLatLng(item.latitude,item.longitude)
+        ? Number(item.longitude)
+        : null;
+
+  if(!address && !hasValidLatLng(lat,lng)){
+    return null;
+  }
+
+  const googleValue =
+    hasValidLatLng(lat,lng)
+      ? `${lat},${lng}`
+      : address;
+
+  const key =
+    hasValidLatLng(lat,lng)
+      ? `ll|${lat.toFixed(6)},${lng.toFixed(6)}`
+      : "addr|" + addressKey(address);
+
+  return {
+    ...item,
+    type:item.type || "point",
+    address:address || googleValue,
+    lat,
+    lng,
+    order:n(item.order) || index + 1,
+    googleValue,
+    key
+  };
+}
+
+function uniqueRouteLocations(list){
+
+  const out = [];
+  const seen = new Set();
+
+  safeArray(list).forEach((item,index)=>{
+
+    const point =
+      normalizeRoutePoint(item,index);
+
+    if(!point){
+      return;
+    }
+
+    if(seen.has(point.key)){
+      return;
+    }
+
+    seen.add(point.key);
+    out.push(point);
+  });
+
+  return out;
+}
+
+function uniqueAddressList(list){
+
+  const out = [];
+  const seen = new Set();
+
+  for(const item of safeArray(list)){
+
+    const address =
+      typeof item === "string"
+        ? normalizeAddress(item)
+        : normalizeAddress(item?.address || item?.formattedAddress || "");
+
+    if(!address){
+      continue;
+    }
+
+    const key =
+      addressKey(address);
+
+    if(seen.has(key)){
+      continue;
+    }
+
+    seen.add(key);
+    out.push(address);
+  }
+
+  return out;
+}
+
+/* ================= LIVE TRACKING CORE ================= */
+
 function getTrip(tripId){
 
   if(!tripsMemory.has(tripId)){
@@ -129,8 +278,6 @@ function getTrip(tripId){
 
   return tripsMemory.get(tripId);
 }
-
-/* ================= LIVE TRACKING CORE ================= */
 
 function updateLocation(tripId,lat,lng){
 
@@ -276,17 +423,16 @@ async function googleDirectionsRequest(params){
    SERVER ROUTE CALCULATION
    Used on Confirm only
 
-   Individual:
-   - request 1
-
-   Shared:
-   - final request 3
+   IMPORTANT:
+   - No optimize:true here.
+   - Route order is already decided before this function.
+   - Google only calculates miles/minutes/polyline.
 ===================================================== */
 
 async function calculateRouteMiles(routePoints){
 
   const cleanPoints =
-    uniqueAddressList(routePoints);
+    uniqueRouteLocations(routePoints);
 
   if(cleanPoints.length < 2){
 
@@ -295,6 +441,7 @@ async function calculateRouteMiles(routePoints){
       distanceMeters:0,
       durationSeconds:0,
       estimatedMinutes:0,
+      routePoints:cleanPoints.map(p=>p.address),
       googleRoute:{
         summary:"",
         waypointOrder:[],
@@ -315,14 +462,14 @@ async function calculateRouteMiles(routePoints){
   const params =
     new URLSearchParams();
 
-  params.set("origin",origin);
-  params.set("destination",destination);
+  params.set("origin",origin.googleValue);
+  params.set("destination",destination.googleValue);
 
   if(middle.length){
 
     params.set(
       "waypoints",
-      middle.join("|")
+      middle.map(p=>p.googleValue).join("|")
     );
   }
 
@@ -361,6 +508,9 @@ async function calculateRouteMiles(routePoints){
 
     estimatedMinutes:
       Math.ceil(seconds / 60),
+
+    routePoints:
+      cleanPoints.map(p=>p.address),
 
     googleRoute:{
       summary:
@@ -430,21 +580,567 @@ async function calculateRouteMiles(routePoints){
 }
 
 /* =====================================================
-   OPTIMIZE ADDRESS ORDER
-   Used by Shared Confirm only
+   SHARED ROUTE ORDERING BY COORDINATES
+===================================================== */
 
-   Shared Confirm uses:
-   Request 1: optimize pickups
-   Request 2: optimize dropoffs
+function isPassengerActive(passenger){
+
+  const status =
+    compactStatus(passenger?.status);
+
+  return (
+    !status.includes("cancel") &&
+    !status.includes("noshow") &&
+    !status.includes("no show")
+  );
+}
+
+function passengerId(passenger,index){
+  return String(
+    passenger?.passengerId ||
+    passenger?._id ||
+    passenger?.id ||
+    index
+  );
+}
+
+function pickupAddressOf(passenger){
+  return normalizeAddress(
+    passenger?.pickup ||
+    passenger?.pickupAddress ||
+    passenger?.pickupLocation ||
+    passenger?.from ||
+    ""
+  );
+}
+
+function dropoffAddressOf(passenger){
+  return normalizeAddress(
+    passenger?.dropoff ||
+    passenger?.dropoffAddress ||
+    passenger?.dropoffLocation ||
+    passenger?.to ||
+    ""
+  );
+}
+
+function makeSharedPoint(passenger,index,type){
+
+  const pickup =
+    pickupAddressOf(passenger);
+
+  const dropoff =
+    dropoffAddressOf(passenger);
+
+  const isPickup =
+    type === "pickup";
+
+  const lat =
+    isPickup
+      ? passenger?.pickupLat ?? passenger?.pickupLatitude
+      : passenger?.dropoffLat ?? passenger?.dropoffLatitude;
+
+  const lng =
+    isPickup
+      ? passenger?.pickupLng ?? passenger?.pickupLongitude
+      : passenger?.dropoffLng ?? passenger?.dropoffLongitude;
+
+  const address =
+    isPickup
+      ? pickup
+      : dropoff;
+
+  return {
+    type,
+    address,
+    lat:Number(lat),
+    lng:Number(lng),
+    passengerId:passengerId(passenger,index),
+    passengerIndex:index,
+    passengerName:
+      passenger?.clientName ||
+      passenger?.name ||
+      "",
+    phone:
+      passenger?.clientPhone ||
+      passenger?.phone ||
+      ""
+  };
+}
+
+function uniqueSharedPoints(points){
+
+  const out = [];
+  const seen = new Map();
+
+  for(const point of safeArray(points)){
+
+    const address =
+      normalizeAddress(point?.address);
+
+    if(!address){
+      continue;
+    }
+
+    if(!hasValidLatLng(point?.lat,point?.lng)){
+      throw new Error(
+        "Missing coordinates for shared " +
+        point.type +
+        ": " +
+        address
+      );
+    }
+
+    const key =
+      point.type + "|" + addressKey(address);
+
+    if(seen.has(key)){
+
+      const existing =
+        seen.get(key);
+
+      existing.passengerIndexes =
+        Array.from(
+          new Set([
+            ...(existing.passengerIndexes || []),
+            point.passengerId
+          ])
+        );
+
+      existing.group = true;
+      continue;
+    }
+
+    const cleanPoint = {
+      ...point,
+      address,
+      lat:Number(point.lat),
+      lng:Number(point.lng),
+      passengerIndexes:[point.passengerId],
+      group:false
+    };
+
+    seen.set(key,cleanPoint);
+    out.push(cleanPoint);
+  }
+
+  return out;
+}
+
+function allSameAddress(points){
+
+  const list =
+    safeArray(points);
+
+  if(list.length <= 1){
+    return true;
+  }
+
+  const first =
+    addressKey(list[0]?.address);
+
+  return list.every(point=>{
+    return addressKey(point?.address) === first;
+  });
+}
+
+function detectSharedRouteCase(pickups,dropoffs){
+
+  const samePickup =
+    allSameAddress(pickups);
+
+  const sameDropoff =
+    allSameAddress(dropoffs);
+
+  if(samePickup && sameDropoff){
+    return "SAME_PICKUP_SAME_DROPOFF";
+  }
+
+  if(samePickup && !sameDropoff){
+    return "SAME_PICKUP_DIFFERENT_DROPOFF";
+  }
+
+  if(!samePickup && sameDropoff){
+    return "DIFFERENT_PICKUP_SAME_DROPOFF";
+  }
+
+  return "DIFFERENT_PICKUP_DIFFERENT_DROPOFF";
+}
+
+function stableSortPoints(points){
+
+  return [...safeArray(points)]
+    .sort((a,b)=>{
+      const addressDiff =
+        stableText(a.address).localeCompare(
+          stableText(b.address)
+        );
+
+      if(addressDiff !== 0){
+        return addressDiff;
+      }
+
+      return String(a.passengerId || "").localeCompare(
+        String(b.passengerId || "")
+      );
+    });
+}
+
+function nearestPointFrom(current,candidates){
+
+  let best = null;
+  let bestMiles = Number.MAX_SAFE_INTEGER;
+
+  const sorted =
+    stableSortPoints(candidates);
+
+  for(const point of sorted){
+
+    const miles =
+      distanceMiles(current,point);
+
+    if(miles < bestMiles - 0.000001){
+      best = point;
+      bestMiles = miles;
+      continue;
+    }
+
+    if(Math.abs(miles - bestMiles) <= 0.000001 && best){
+
+      const textA =
+        stableText(point.address);
+
+      const textB =
+        stableText(best.address);
+
+      if(textA < textB){
+        best = point;
+        bestMiles = miles;
+      }
+    }
+  }
+
+  return best;
+}
+
+function nearestNeighborOrder(startPoint,points){
+
+  const remaining =
+    stableSortPoints(points);
+
+  const ordered = [];
+  let current = startPoint;
+
+  while(remaining.length){
+
+    const next =
+      nearestPointFrom(current,remaining);
+
+    if(!next){
+      break;
+    }
+
+    ordered.push(next);
+
+    const index =
+      remaining.findIndex(point=>{
+        return (
+          point.type === next.type &&
+          addressKey(point.address) === addressKey(next.address)
+        );
+      });
+
+    if(index >= 0){
+      remaining.splice(index,1);
+    }else{
+      break;
+    }
+
+    current = next;
+  }
+
+  return ordered;
+}
+
+function totalAirMiles(points){
+
+  const list =
+    safeArray(points);
+
+  let total = 0;
+
+  for(let i = 1; i < list.length; i++){
+    total += distanceMiles(list[i - 1],list[i]);
+  }
+
+  return total;
+}
+
+function routeTieKey(points){
+  return safeArray(points)
+    .map(point=>`${point.type}:${stableText(point.address)}`)
+    .join(">");
+}
+
+function chooseBestRoute(candidates){
+
+  let best = null;
+  let bestMiles = Number.MAX_SAFE_INTEGER;
+  let bestTie = "";
+
+  for(const route of safeArray(candidates)){
+
+    const miles =
+      totalAirMiles(route);
+
+    const tie =
+      routeTieKey(route);
+
+    if(miles < bestMiles - 0.000001){
+      best = route;
+      bestMiles = miles;
+      bestTie = tie;
+      continue;
+    }
+
+    if(Math.abs(miles - bestMiles) <= 0.000001){
+
+      if(!best || tie < bestTie){
+        best = route;
+        bestMiles = miles;
+        bestTie = tie;
+      }
+    }
+  }
+
+  return {
+    route:best || [],
+    miles:bestMiles === Number.MAX_SAFE_INTEGER ? 0 : bestMiles
+  };
+}
+
+function orderPickupsThenDropoffs(pickups,dropoffs,routeCase){
+
+  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
+
+    return {
+      orderedPickups:[pickups[0]],
+      orderedDropoffs:[dropoffs[0]],
+      strategy:"SAME_PICKUP_SAME_DROPOFF"
+    };
+  }
+
+  if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
+
+    const startPickup =
+      pickups[0];
+
+    return {
+      orderedPickups:[startPickup],
+      orderedDropoffs:nearestNeighborOrder(startPickup,dropoffs),
+      strategy:"SAME_PICKUP_THEN_NEAREST_DROPOFFS"
+    };
+  }
+
+  if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
+
+    const commonDropoff =
+      dropoffs[0];
+
+    const candidates =
+      stableSortPoints(pickups).map(startPickup=>{
+
+        const otherPickups =
+          pickups.filter(point=>{
+            return addressKey(point.address) !== addressKey(startPickup.address);
+          });
+
+        const orderedPickups = [
+          startPickup,
+          ...nearestNeighborOrder(startPickup,otherPickups)
+        ];
+
+        return [
+          ...orderedPickups,
+          commonDropoff
+        ];
+      });
+
+    const best =
+      chooseBestRoute(candidates);
+
+    return {
+      orderedPickups:best.route.filter(point=>point.type === "pickup"),
+      orderedDropoffs:[commonDropoff],
+      strategy:"BEST_PICKUP_CHAIN_TO_COMMON_DROPOFF",
+      estimatedAirMiles:Number(best.miles.toFixed(3))
+    };
+  }
+
+  /*
+    DIFFERENT_PICKUP_DIFFERENT_DROPOFF
+
+    Important:
+    - All pickups first.
+    - No dropoff before all pickups.
+    - Try every pickup as possible start.
+    - After start, nearest-neighbor through remaining pickups.
+    - After last pickup, nearest-neighbor through dropoffs.
+    - Pick lowest total air-mile route.
+    - Ties are stable by address, so route does not randomly change.
+  */
+
+  const candidates =
+    stableSortPoints(pickups).map(startPickup=>{
+
+      const otherPickups =
+        pickups.filter(point=>{
+          return addressKey(point.address) !== addressKey(startPickup.address);
+        });
+
+      const orderedPickups = [
+        startPickup,
+        ...nearestNeighborOrder(startPickup,otherPickups)
+      ];
+
+      const lastPickup =
+        orderedPickups[orderedPickups.length - 1];
+
+      const orderedDropoffs =
+        nearestNeighborOrder(lastPickup,dropoffs);
+
+      return [
+        ...orderedPickups,
+        ...orderedDropoffs
+      ];
+    });
+
+  const best =
+    chooseBestRoute(candidates);
+
+  return {
+    orderedPickups:best.route.filter(point=>point.type === "pickup"),
+    orderedDropoffs:best.route.filter(point=>point.type === "dropoff"),
+    strategy:"BEST_ALL_PICKUPS_THEN_NEAREST_DROPOFFS",
+    estimatedAirMiles:Number(best.miles.toFixed(3))
+  };
+}
+
+function makeRoutePlanPoint(point,order){
+
+  const passengerIndexes =
+    Array.isArray(point.passengerIndexes) && point.passengerIndexes.length
+      ? point.passengerIndexes
+      : [point.passengerId];
+
+  return {
+    type:point.type,
+    address:normalizeAddress(point.address),
+    lat:Number(point.lat),
+    lng:Number(point.lng),
+    order,
+    passengerId:point.passengerId || "",
+    passengerIndex:point.passengerIndex,
+    passengerIndexes,
+    passengerName:point.passengerName || "",
+    phone:point.phone || "",
+    group:point.group === true || passengerIndexes.length > 1
+  };
+}
+
+function buildSharedRoutePlanFromPassengers(passengers){
+
+  const activePassengers =
+    safeArray(passengers)
+      .filter(isPassengerActive)
+      .filter(passenger=>{
+        return (
+          pickupAddressOf(passenger) &&
+          dropoffAddressOf(passenger)
+        );
+      });
+
+  if(activePassengers.length < 2){
+    throw new Error("Shared route requires at least 2 active passengers");
+  }
+
+  const pickups =
+    uniqueSharedPoints(
+      activePassengers.map((passenger,index)=>{
+        return makeSharedPoint(passenger,index,"pickup");
+      })
+    );
+
+  const dropoffs =
+    uniqueSharedPoints(
+      activePassengers.map((passenger,index)=>{
+        return makeSharedPoint(passenger,index,"dropoff");
+      })
+    );
+
+  if(!pickups.length || !dropoffs.length){
+    throw new Error("Shared route missing pickup/dropoff points");
+  }
+
+  const routeCase =
+    detectSharedRouteCase(pickups,dropoffs);
+
+  const ordered =
+    orderPickupsThenDropoffs(
+      pickups,
+      dropoffs,
+      routeCase
+    );
+
+  const orderedPoints = [
+    ...ordered.orderedPickups,
+    ...ordered.orderedDropoffs
+  ];
+
+  const routePlan =
+    orderedPoints.map((point,index)=>{
+      return makeRoutePlanPoint(point,index + 1);
+    });
+
+  const routePoints =
+    routePlan.map(point=>({
+      type:point.type,
+      address:point.address,
+      lat:point.lat,
+      lng:point.lng,
+      order:point.order,
+      passengerId:point.passengerId,
+      passengerIndexes:point.passengerIndexes,
+      group:point.group
+    }));
+
+  return {
+    isShared:true,
+    routeCase,
+    routePlan,
+    sharedRoutePlan:routePlan,
+    routePoints,
+    addresses:routePlan.map(point=>point.address),
+    activeCount:activePassengers.length,
+    sharedStopsCount:Math.max(0,routePlan.length - 2),
+    meta:{
+      strategy:ordered.strategy,
+      estimatedAirMiles:ordered.estimatedAirMiles || Number(totalAirMiles(routePlan).toFixed(3)),
+      orderedPickups:ordered.orderedPickups.map(point=>point.address),
+      orderedDropoffs:ordered.orderedDropoffs.map(point=>point.address),
+      rule:"ALL_PICKUPS_FIRST_THEN_DROPOFFS_STABLE_NEAREST_NEIGHBOR"
+    }
+  };
+}
+
+/* =====================================================
+   OPTIMIZE ADDRESS ORDER
+   Backward compatible old helper.
 
    NOTE:
-   Google Directions optimizeWaypoints needs origin/destination.
-   For 3+ addresses we use a loop style request:
-   origin = anchor
-   destination = anchor
-   waypoints = optimize:true|other addresses
-
-   Output returns only ordered passenger addresses.
+   This is kept for old code paths.
+   New shared route should use buildSharedRoutePlanFromPassengers
+   when passenger lat/lng exists.
 ===================================================== */
 
 async function optimizeAddressOrder(addresses, options = {}){
@@ -487,9 +1183,58 @@ async function optimizeAddressOrder(addresses, options = {}){
   }
 
   /*
-    Two addresses:
-    We still call Google Directions to keep the shared rule clean.
-    It does not need waypoint optimization, but it confirms routing.
+    SAFE LOCAL MODE:
+    If options.points contains coordinates, use local nearest-neighbor
+    and avoid Google optimization.
+  */
+
+  const optionPoints =
+    safeArray(options.points)
+      .map(normalizeRoutePoint)
+      .filter(Boolean)
+      .filter(point=>hasValidLatLng(point.lat,point.lng));
+
+  if(optionPoints.length === cleanAddresses.length){
+
+    const startPoint =
+      startAfter
+        ? normalizeRoutePoint({
+            address:startAfter,
+            lat:options.startAfterLat,
+            lng:options.startAfterLng
+          })
+        : optionPoints[0];
+
+    const pointsToOrder =
+      startAfter
+        ? optionPoints
+        : optionPoints.slice(1);
+
+    const ordered =
+      startAfter
+        ? nearestNeighborOrder(startPoint,pointsToOrder)
+        : [
+            optionPoints[0],
+            ...nearestNeighborOrder(optionPoints[0],pointsToOrder)
+          ];
+
+    return {
+      orderedAddresses:ordered.map(point=>point.address),
+      routePoints:ordered.map(point=>point.address),
+      meta:{
+        type,
+        optimized:false,
+        requestUsed:false,
+        reason:"LOCAL_COORDINATE_NEAREST_NEIGHBOR",
+        startAfter:startAfter || "",
+        orderedPoints:ordered.map(point=>point.address)
+      }
+    };
+  }
+
+  /*
+    OLD GOOGLE MODE:
+    Kept only so old code does not break.
   */
 
   if(cleanAddresses.length === 2){
@@ -531,17 +1276,6 @@ async function optimizeAddressOrder(addresses, options = {}){
       }
     };
   }
-
-  /*
-    3+ addresses:
-    Optimize waypoints.
-
-    If startAfter exists, we use it as the route anchor.
-    This is useful for dropoffs because they should start after
-    the last ordered pickup.
-
-    If startAfter does not exist, we use first address as anchor.
-  */
 
   const anchor =
     startAfter || cleanAddresses[0];
@@ -615,5 +1349,9 @@ module.exports = {
   calculateRouteMiles,
   calculateRoute:calculateRouteMiles,
 
-  optimizeAddressOrder
+  optimizeAddressOrder,
+
+  buildSharedRoutePlanFromPassengers,
+  detectSharedRouteCase,
+  distanceMiles
 };
