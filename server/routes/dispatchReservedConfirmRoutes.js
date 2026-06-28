@@ -1950,14 +1950,10 @@ async function buildSmartSharedRoute(trip,stats){
     STEP 2:
     Use the NEW routeMapEngine shared planner if installed.
 
-    This fixes:
-    DIFFERENT_PICKUP_DIFFERENT_DROPOFF
-
-    Rule:
-    - all pickups first
-    - no dropoff before all pickups
-    - stable nearest-neighbor
-    - same result every confirm if route signature is unchanged
+    IMPORTANT FIX:
+    - Trip schema routePoints is [String] in your database.
+    - So we save routePoints as address strings only.
+    - Full objects with lat/lng stay in routePlan/sharedRoutePlan.
   */
 
   if(
@@ -1978,53 +1974,30 @@ async function buildSmartSharedRoute(trip,stats){
         ? safeArray(smart.sharedRoutePlan)
         : smartRoutePlan;
 
-    const smartRoutePoints =
-      safeArray(smart.routePoints).length
-        ? safeArray(smart.routePoints)
-        : smartRoutePlan;
-
-    const finalRoutePoints =
-      smartRoutePoints.map(point=>{
-
-        if(typeof point === "string"){
-          return point;
-        }
-
-        /*
-          routeMapEngine.calculateRouteMiles can accept objects with:
-          { address, lat, lng }
-          This lets Directions use coordinates when available.
-        */
-
-        return {
-          type:point.type || "point",
-          address:normalizePossibleAddress(point.address),
-          lat:point.lat,
-          lng:point.lng,
-          order:point.order,
-          passengerId:point.passengerId || "",
-          passengerIndexes:point.passengerIndexes || [],
-          group:point.group === true
-        };
-      });
-
     const finalRouteAddresses =
-      finalRoutePoints
-        .map(point=>{
-          return typeof point === "string"
-            ? normalizePossibleAddress(point)
-            : normalizePossibleAddress(point.address);
-        })
+      (
+        safeArray(smart.addresses).length
+          ? safeArray(smart.addresses)
+          : smartRoutePlan.map(point=>point.address)
+      )
+        .map(normalizePossibleAddress)
         .filter(Boolean);
 
     return {
       isShared:true,
 
+      /*
+        Mongoose Trip.routePoints عندك [String]
+        ممنوع نحط objects هنا عشان ما يطلعش:
+        Cast to [string] failed
+      */
       routePoints:
-        finalRoutePoints.length
-          ? finalRoutePoints
-          : finalRouteAddresses,
+        finalRouteAddresses,
 
+      /*
+        هنا نحفظ التفاصيل كاملة:
+        type/address/lat/lng/order/passengerIndexes
+      */
       routePlan:
         smartRoutePlan,
 
@@ -2061,8 +2034,6 @@ async function buildSmartSharedRoute(trip,stats){
   /*
     FALLBACK:
     Keep old center logic only if the new engine function is missing.
-    This prevents server crash, but if you see this in routeMeta,
-    then routeMapEngine.js is not updated correctly.
   */
 
   const routeCase =
@@ -2428,7 +2399,14 @@ router.post("/:tripId", async (req,res)=>{
        FORCE SAVE FINAL ROUTE PLAN
     ========================= */
 
-    updatedTrip.routePoints = safeArray(prepared.routePoints);
+    updatedTrip.routePoints =
+      safeArray(prepared.routePoints)
+        .map(point=>{
+          return typeof point === "string"
+            ? normalizePossibleAddress(point)
+            : normalizePossibleAddress(point?.address);
+        })
+        .filter(Boolean);
     updatedTrip.routePlan = safeArray(prepared.routePlan);
     updatedTrip.routeSignature = currentSignature;
     updatedTrip.routeLocked = true;
