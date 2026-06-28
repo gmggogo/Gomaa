@@ -16,15 +16,17 @@
 
    ROUTE POLICY:
    - Pickups are always before dropoffs.
-   - Ordering is local only using saved lat/lng air-distance.
-   - This engine never geocodes.
-   - This engine never asks Google to optimize waypoint order.
-   - Google Directions, when provided, is used once only to verify/calculate
-     final miles/minutes/polyline with optimizeWaypoints:false.
+   - A virtual center is built from the closest pickup/dropoff pair.
+   - Pickups are ordered farthest-to-nearest toward anchor pickup.
+   - Dropoffs are ordered from the LAST pickup using nearest-neighbor chain.
+   - If caller passes a Directions function, Google Directions can refine pickup order.
+   - In Case 4, Google must NOT optimize dropoffs.
+   - Dropoffs must be nearest-neighbor chain from last pickup.
    - Requests:
-       Any shared route = 1 Directions request max
-       If no directions function = 0 Google requests
-       If route is already locked/unchanged, caller should skip engine = 0 requests
+       1) Same pickup + same dropoff       = 1 request
+       2) Same pickup + different dropoffs = 1 request
+       3) Different pickups + same dropoff = 1 request
+       4) Different pickups + dropoffs     = 2 requests max
    ========================================================================== */
 
 /* =========================
@@ -1192,15 +1194,8 @@ function buildCandidateWithoutGoogle(pickupPoints,dropoffPoints){
 
 async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options = {}){
 
-  /*
-     FINAL PLAN:
-     - Ordering is already done locally by buildCandidateWithoutGoogle()
-       using saved lat/lng and air-distance.
-     - Google must NOT optimize pickups.
-     - Google must NOT optimize dropoffs.
-     - Google is called once only to calculate real miles/minutes/polyline
-       for the fixed routePlan.
-  */
+  const counter =
+    {count:0};
 
   const fallback =
     buildCandidateWithoutGoogle(
@@ -1224,35 +1219,252 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     };
   }
 
-  const counter =
-    {count:0};
+  const routeCase =
+    fallback.routeCase;
 
-  const finalPoints =
-    Array.isArray(fallback.routePlan)
-      ? fallback.routePlan
-      : [];
+  let orderedPickups =
+    fallback.orderedPickups;
 
-  if(finalPoints.length < 2){
-    throw new Error("Shared route final routePlan is invalid.");
+  let orderedDropoffs =
+    fallback.orderedDropoffs;
+
+  let finalResponse = null;
+
+  /* =========================
+     CASE 1
+     Same pickup + same dropoff
+     1 request
+  ========================= */
+
+  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
+
+    finalResponse =
+      await callDirections(
+        options,
+        {
+          origin:pickupPoints[0],
+          destination:dropoffPoints[0],
+          waypoints:[],
+          optimizeWaypoints:false
+        },
+        counter
+      );
+
+    orderedPickups = [pickupPoints[0]];
+    orderedDropoffs = [dropoffPoints[0]];
   }
 
-  const finalResponse =
-    await callDirections(
-      options,
-      {
-        origin:finalPoints[0],
-        destination:finalPoints[finalPoints.length - 1],
-        waypoints:finalPoints.slice(1,-1),
-        optimizeWaypoints:false
-      },
-      counter
+  /* =========================
+     CASE 2
+     Same pickup + different dropoffs
+     1 request
+     Origin is pickup. Optimize dropoffs only.
+  ========================= */
+
+  else if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
+
+    const groupPickup =
+      pickupPoints[0];
+
+    const farthestDropoff =
+      farthestPointFrom(
+        dropoffPoints,
+        groupPickup
+      ) || dropoffPoints[dropoffPoints.length - 1];
+
+    const waypoints =
+      dropoffPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(farthestDropoff.address);
+      });
+
+    finalResponse =
+      await callDirections(
+        options,
+        {
+          origin:groupPickup,
+          destination:farthestDropoff,
+          waypoints,
+          optimizeWaypoints:true
+        },
+        counter
+      );
+
+    const waypointOrder =
+      extractWaypointOrder(finalResponse);
+
+    orderedPickups = [groupPickup];
+
+    orderedDropoffs = [
+      ...applyWaypointOrder(
+        waypoints,
+        waypointOrder
+      ),
+      farthestDropoff
+    ];
+  }
+
+  /* =========================
+     CASE 3
+     Different pickups + same dropoff
+     1 request
+     Optimize pickups only.
+  ========================= */
+
+  else if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
+
+    const groupDropoff =
+      dropoffPoints[0];
+
+    const startPickup =
+      farthestPointFrom(
+        pickupPoints,
+        groupDropoff
+      ) || pickupPoints[0];
+
+    const waypoints =
+      pickupPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(startPickup.address);
+      });
+
+    finalResponse =
+      await callDirections(
+        options,
+        {
+          origin:startPickup,
+          destination:groupDropoff,
+          waypoints,
+          optimizeWaypoints:true
+        },
+        counter
+      );
+
+    const waypointOrder =
+      extractWaypointOrder(finalResponse);
+
+    orderedPickups = [
+      startPickup,
+      ...applyWaypointOrder(
+        waypoints,
+        waypointOrder
+      )
+    ];
+
+    orderedDropoffs = [groupDropoff];
+  }
+
+  /* =========================
+     CASE 4
+     Different pickups + different dropoffs
+     2 requests max
+
+     Request 1:
+       Optimize pickups only:
+       farthest pickup -> anchor pickup
+
+     Dropoffs:
+       NO Google optimization.
+       Use nearest-neighbor chain:
+       LAST pickup -> nearest dropoff -> nearest dropoff from previous.
+
+     Request 2:
+       Final route with fixed order:
+       all pickups first, then all dropoffs
+  ========================= */
+
+  else {
+
+    const anchorPickup =
+      fallback.centerResult.anchorPickup;
+
+    const pickupStart =
+      farthestPointFrom(
+        pickupPoints,
+        anchorPickup
+      ) || orderedPickups[0];
+
+    const pickupWaypoints =
+      pickupPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(pickupStart.address) &&
+               addressKey(point.address) !== addressKey(anchorPickup.address);
+      });
+
+    const pickupResponse =
+      await callDirections(
+        options,
+        {
+          origin:pickupStart,
+          destination:anchorPickup,
+          waypoints:pickupWaypoints,
+          optimizeWaypoints:true
+        },
+        counter
+      );
+
+    orderedPickups = [
+      pickupStart,
+      ...applyWaypointOrder(
+        pickupWaypoints,
+        extractWaypointOrder(pickupResponse)
+      ),
+      anchorPickup
+    ];
+
+    const lastPickup =
+      orderedPickups[orderedPickups.length - 1];
+
+    /*
+       IMPORTANT:
+       Do NOT let Google optimize dropoffs in case 4.
+
+       Dropoff order must be:
+       Last pickup
+       -> nearest dropoff
+       -> nearest dropoff from that dropoff
+       -> nearest dropoff from that dropoff
+       -> ...
+
+       Google is used only in the final request to calculate miles/minutes
+       using this fixed order.
+    */
+    orderedDropoffs =
+      orderDropoffsFromLastPickup(
+        dropoffPoints,
+        lastPickup
+      );
+
+    const finalPoints = [
+      ...orderedPickups,
+      ...orderedDropoffs
+    ];
+
+    finalResponse =
+      await callDirections(
+        options,
+        {
+          origin:finalPoints[0],
+          destination:finalPoints[finalPoints.length - 1],
+          waypoints:finalPoints.slice(1,-1),
+          optimizeWaypoints:false
+        },
+        counter
+      );
+  }
+
+  const routePlan =
+    buildRoutePlan(
+      orderedPickups,
+      orderedDropoffs
     );
 
   return {
-    ...fallback,
+    routeCase,
+    centerResult:fallback.centerResult,
+    orderedPickups,
+    orderedDropoffs,
+    routePlan,
 
     googleRequestsUsed:counter.count,
-    calculationSource:"LOCAL_AIR_ORDER_PLUS_ONE_DIRECTIONS",
+    calculationSource:"GOOGLE_DIRECTIONS_REAL_ROUTE",
 
     miles:extractMiles(finalResponse),
     minutes:extractMinutes(finalResponse),
