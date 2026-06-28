@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", async function(){
 
 const API_URL = "/api/trips";
 const SERVICES_URL = "/api/services/admin";
+const ADDRESS_CACHE_URL = "/api/address-cache";
 
 const token = localStorage.getItem("token") || "";
 const role  = localStorage.getItem("role") || "";
@@ -262,6 +263,399 @@ function normalizeAddress(address){
 function addressKey(v){
   return normalizeAddress(v).toLowerCase().replace(/\s+/g," ").trim();
 }
+
+/* ================= ADDRESS LAT/LNG CACHE =================
+   This file does NOT geocode.
+   It only reuses coordinates already saved from:
+   - input dataset lat/lng
+   - browser local cache
+   - server AddressCache API if available
+========================================================= */
+
+const ADDRESS_CACHE_LOCAL_KEY =
+  "dispatchAddressLatLngCacheV1";
+
+function coordValue(v){
+  const x = Number(v);
+  return Number.isFinite(x) ? x : null;
+}
+
+function hasLatLng(lat,lng){
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
+}
+
+function readAddressCacheLocal(){
+
+  try{
+
+    const raw =
+      localStorage.getItem(ADDRESS_CACHE_LOCAL_KEY) || "{}";
+
+    const parsed =
+      JSON.parse(raw);
+
+    return parsed && typeof parsed === "object"
+      ? parsed
+      : {};
+
+  }catch(err){
+    return {};
+  }
+}
+
+function writeAddressCacheLocal(cache){
+
+  try{
+    localStorage.setItem(
+      ADDRESS_CACHE_LOCAL_KEY,
+      JSON.stringify(cache || {})
+    );
+  }catch(err){
+    console.log("Address cache local save failed:",err);
+  }
+}
+
+function saveAddressCoordsLocal(address,lat,lng,source = "local"){
+
+  const fullAddress =
+    normalizeAddress(address);
+
+  if(!fullAddress || !hasLatLng(lat,lng)){
+    return null;
+  }
+
+  const cache =
+    readAddressCacheLocal();
+
+  const key =
+    addressKey(fullAddress);
+
+  const existing =
+    cache[key] || {};
+
+  const record = {
+    ...existing,
+    addressKey:key,
+    fullAddress,
+    address:fullAddress,
+    lat:Number(lat),
+    lng:Number(lng),
+    source,
+    usedCount:Number(existing.usedCount || 0) + 1,
+    lastUsedAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString(),
+    createdAt:existing.createdAt || new Date().toISOString()
+  };
+
+  cache[key] = record;
+
+  writeAddressCacheLocal(cache);
+
+  return record;
+}
+
+function lookupAddressCoordsLocal(address){
+
+  const key =
+    addressKey(address);
+
+  if(!key){
+    return null;
+  }
+
+  const cache =
+    readAddressCacheLocal();
+
+  const record =
+    cache[key] || null;
+
+  if(record && hasLatLng(record.lat,record.lng)){
+    return {
+      address:record.fullAddress || record.address || normalizeAddress(address),
+      lat:Number(record.lat),
+      lng:Number(record.lng),
+      source:"local-cache"
+    };
+  }
+
+  return null;
+}
+
+function getInputStoredCoords(input){
+
+  if(!input){
+    return null;
+  }
+
+  const lat =
+    coordValue(
+      input.dataset.lat ||
+      input.dataset.latitude ||
+      input.getAttribute("data-lat") ||
+      input.getAttribute("data-latitude")
+    );
+
+  const lng =
+    coordValue(
+      input.dataset.lng ||
+      input.dataset.lon ||
+      input.dataset.longitude ||
+      input.getAttribute("data-lng") ||
+      input.getAttribute("data-lon") ||
+      input.getAttribute("data-longitude")
+    );
+
+  if(hasLatLng(lat,lng)){
+    return {
+      lat,
+      lng,
+      source:"input-dataset"
+    };
+  }
+
+  return null;
+}
+
+function setInputStoredCoords(input,lat,lng){
+
+  if(!input || !hasLatLng(lat,lng)){
+    return;
+  }
+
+  input.dataset.lat = String(Number(lat));
+  input.dataset.lng = String(Number(lng));
+}
+
+async function saveAddressCoordsRemote(address,lat,lng,source = "dispatch-add-trip"){
+
+  if(!normalizeAddress(address) || !hasLatLng(lat,lng)){
+    return null;
+  }
+
+  saveAddressCoordsLocal(address,lat,lng,source);
+
+  try{
+
+    const res =
+      await fetch(ADDRESS_CACHE_URL,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        },
+        body:JSON.stringify({
+          fullAddress:normalizeAddress(address),
+          address:normalizeAddress(address),
+          lat:Number(lat),
+          lng:Number(lng),
+          source
+        })
+      });
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    if(res.ok && data && data.success !== false){
+      return data.address || data.data || data;
+    }
+
+  }catch(err){
+    /*
+      AddressCache API may not be installed yet.
+      Local cache still works.
+    */
+  }
+
+  return null;
+}
+
+async function lookupAddressCoordsRemote(address){
+
+  const fullAddress =
+    normalizeAddress(address);
+
+  if(!fullAddress){
+    return null;
+  }
+
+  try{
+
+    const res =
+      await fetch(
+        `${ADDRESS_CACHE_URL}/lookup?address=${encodeURIComponent(fullAddress)}`,
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    if(!res.ok || data.success === false){
+      return null;
+    }
+
+    const found =
+      data.address ||
+      data.data ||
+      data.result ||
+      data;
+
+    if(found && hasLatLng(found.lat,found.lng)){
+
+      saveAddressCoordsLocal(
+        found.fullAddress || found.address || fullAddress,
+        found.lat,
+        found.lng,
+        "server-cache"
+      );
+
+      return {
+        address:found.fullAddress || found.address || fullAddress,
+        lat:Number(found.lat),
+        lng:Number(found.lng),
+        source:"server-cache"
+      };
+    }
+
+  }catch(err){
+    return null;
+  }
+
+  return null;
+}
+
+async function resolveAddressCoords(address,input = null){
+
+  const fullAddress =
+    normalizeAddress(address || input?.value || "");
+
+  if(!fullAddress){
+    return null;
+  }
+
+  const inputCoords =
+    getInputStoredCoords(input);
+
+  if(inputCoords){
+
+    saveAddressCoordsLocal(
+      fullAddress,
+      inputCoords.lat,
+      inputCoords.lng,
+      inputCoords.source
+    );
+
+    saveAddressCoordsRemote(
+      fullAddress,
+      inputCoords.lat,
+      inputCoords.lng,
+      inputCoords.source
+    );
+
+    return {
+      address:fullAddress,
+      lat:inputCoords.lat,
+      lng:inputCoords.lng,
+      source:inputCoords.source
+    };
+  }
+
+  const local =
+    lookupAddressCoordsLocal(fullAddress);
+
+  if(local){
+
+    setInputStoredCoords(
+      input,
+      local.lat,
+      local.lng
+    );
+
+    return local;
+  }
+
+  const remote =
+    await lookupAddressCoordsRemote(fullAddress);
+
+  if(remote){
+
+    setInputStoredCoords(
+      input,
+      remote.lat,
+      remote.lng
+    );
+
+    return remote;
+  }
+
+  return null;
+}
+
+function rememberTripAddressCache(trip){
+
+  if(!trip){
+    return;
+  }
+
+  safeArray(trip.routePlan)
+    .concat(safeArray(trip.sharedRoutePlan))
+    .forEach(point=>{
+
+      const address =
+        normalizeAddress(point?.address);
+
+      if(address && hasLatLng(point?.lat,point?.lng)){
+        saveAddressCoordsLocal(
+          address,
+          point.lat,
+          point.lng,
+          "saved-route-plan"
+        );
+      }
+    });
+
+  safeArray(trip.passengers).forEach(p=>{
+
+    if(normalizeAddress(p.pickup) && hasLatLng(p.pickupLat,p.pickupLng)){
+      saveAddressCoordsLocal(
+        p.pickup,
+        p.pickupLat,
+        p.pickupLng,
+        "saved-passenger-pickup"
+      );
+    }
+
+    if(normalizeAddress(p.dropoff) && hasLatLng(p.dropoffLat,p.dropoffLng)){
+      saveAddressCoordsLocal(
+        p.dropoff,
+        p.dropoffLat,
+        p.dropoffLng,
+        "saved-passenger-dropoff"
+      );
+    }
+  });
+}
+
+async function requireAddressCoords(label,address,input = null){
+
+  const coords =
+    await resolveAddressCoords(address,input);
+
+  if(!coords || !hasLatLng(coords.lat,coords.lng)){
+    throw new Error(
+      `${label} missing lat/lng. Select the address from saved/autocomplete first: ${normalizeAddress(address)}`
+    );
+  }
+
+  return coords;
+}
+
 
 function cellBox(items){
 
@@ -1558,7 +1952,7 @@ function buildIndividualPayload(){
 }
 
 
-function buildSharedPayload(){
+async function buildSharedPayload(){
 
   const service =
     getCurrentReservedServiceConfig();
@@ -1567,14 +1961,45 @@ function buildSharedPayload(){
     "SH";
 
   const passengers = [];
+  const cards =
+    [...document.querySelectorAll(".passenger-card")];
 
-  document.querySelectorAll(".passenger-card").forEach((card,index)=>{
+  for(let index = 0; index < cards.length; index++){
+
+    const card =
+      cards[index];
 
     const name =
       normalizeText(card.querySelector(".sharedClientName")?.value);
 
     const phone =
       normalizeText(card.querySelector(".sharedClientPhone")?.value);
+
+    const pickupInputEl =
+      card.querySelector(".sharedPickup");
+
+    const dropoffInputEl =
+      card.querySelector(".sharedDropoff");
+
+    const pickup =
+      normalizeAddress(pickupInputEl?.value);
+
+    const dropoff =
+      normalizeAddress(dropoffInputEl?.value);
+
+    const pickupCoords =
+      await requireAddressCoords(
+        "Passenger P" + (index + 1) + " pickup",
+        pickup,
+        pickupInputEl
+      );
+
+    const dropoffCoords =
+      await requireAddressCoords(
+        "Passenger P" + (index + 1) + " dropoff",
+        dropoff,
+        dropoffInputEl
+      );
 
     passengers.push({
       passengerId:"P" + (index + 1),
@@ -1584,13 +2009,13 @@ function buildSharedPayload(){
       clientName:name,
       clientPhone:phone,
 
-      pickup:normalizeAddress(card.querySelector(".sharedPickup")?.value),
-      pickupLat:null,
-      pickupLng:null,
+      pickup,
+      pickupLat:coordValue(pickupCoords.lat),
+      pickupLng:coordValue(pickupCoords.lng),
 
-      dropoff:normalizeAddress(card.querySelector(".sharedDropoff")?.value),
-      dropoffLat:null,
-      dropoffLng:null,
+      dropoff,
+      dropoffLat:coordValue(dropoffCoords.lat),
+      dropoffLng:coordValue(dropoffCoords.lng),
 
       status:"Scheduled",
       priceAmount:0,
@@ -1603,7 +2028,7 @@ function buildSharedPayload(){
       passengerMiles:0,
       passengerMinutes:0
     });
-  });
+  }
 
   return {
     type:"reserved",
@@ -1843,6 +2268,8 @@ async function fetchReviewTrips(){
         return db - da;
       });
 
+  reviewTrips.forEach(rememberTripAddressCache);
+
   updateReviewCounter();
 }
 
@@ -1904,7 +2331,7 @@ submitSharedBtn?.addEventListener("click",async ()=>{
   try{
 
     const payload =
-      buildSharedPayload();
+      await buildSharedPayload();
 
     submitSharedBtn.innerText =
       "Saving...";
@@ -3250,6 +3677,104 @@ async function handleCancelStop(btn){
   showAlert("Stop Cancelled ✔");
 }
 
+async function ensureSharedTripCoordsBeforeConfirm(trip){
+
+  const isShared =
+    trip?.isShared === true ||
+    trip?.tripType === "SHARED";
+
+  if(!isShared){
+    return null;
+  }
+
+  const passengers =
+    safeArray(trip.passengers);
+
+  let changed = false;
+
+  const fixedPassengers = [];
+
+  for(let index = 0; index < passengers.length; index++){
+
+    const p =
+      passengers[index];
+
+    const out =
+      {...p};
+
+    if(
+      passengerIsActive(out) &&
+      !hasLatLng(out.pickupLat,out.pickupLng)
+    ){
+
+      const coords =
+        await resolveAddressCoords(out.pickup,null);
+
+      if(!coords){
+        throw new Error(
+          "Missing pickup coordinates for passenger: " +
+          (out.passengerId || out.clientName || out.name || ("P" + (index + 1))) +
+          " | address: " +
+          normalizeAddress(out.pickup) +
+          " | Address not found in cache."
+        );
+      }
+
+      out.pickupLat = coords.lat;
+      out.pickupLng = coords.lng;
+      changed = true;
+    }
+
+    if(
+      passengerIsActive(out) &&
+      !hasLatLng(out.dropoffLat,out.dropoffLng)
+    ){
+
+      const coords =
+        await resolveAddressCoords(out.dropoff,null);
+
+      if(!coords){
+        throw new Error(
+          "Missing dropoff coordinates for passenger: " +
+          (out.passengerId || out.clientName || out.name || ("P" + (index + 1))) +
+          " | address: " +
+          normalizeAddress(out.dropoff) +
+          " | Address not found in cache."
+        );
+      }
+
+      out.dropoffLat = coords.lat;
+      out.dropoffLng = coords.lng;
+      changed = true;
+    }
+
+    fixedPassengers.push(out);
+  }
+
+  if(!changed){
+    return null;
+  }
+
+  return {
+    passengers:fixedPassengers,
+    routeLocked:false,
+    routeFinalized:false,
+    sharedRouteLocked:false,
+    routeChangePending:true,
+    routeChangeStatus:"ROUTE_CHANGED",
+    routePoints:[],
+    routePlan:[],
+    sharedRoutePlan:[],
+    googleRoute:null,
+    optimizedRoute:null,
+    miles:0,
+    estimatedMinutes:0,
+    priceAmount:0,
+    finalPrice:0,
+    pricePerPassenger:0
+  };
+}
+
 async function handleConfirmTrip(btn){
 
   const tr =
@@ -3286,6 +3811,13 @@ async function handleConfirmTrip(btn){
 
     btn.disabled = true;
     btn.textContent = "Confirming...";
+
+    const coordPatch =
+      await ensureSharedTripCoordsBeforeConfirm(trip);
+
+    if(coordPatch){
+      await updateTrip(id,coordPatch);
+    }
 
     await confirmTripOnServer(id);
 
@@ -3455,11 +3987,27 @@ saveSharedDraftBtn?.addEventListener("click",()=>{
     .querySelectorAll(".passenger-card")
     .forEach(card=>{
 
+      const pickupEl =
+        card.querySelector(".sharedPickup");
+
+      const dropoffEl =
+        card.querySelector(".sharedDropoff");
+
+      const pickupCoords =
+        getInputStoredCoords(pickupEl);
+
+      const dropoffCoords =
+        getInputStoredCoords(dropoffEl);
+
       passengers.push({
         clientName:card.querySelector(".sharedClientName")?.value || "",
         clientPhone:card.querySelector(".sharedClientPhone")?.value || "",
-        pickup:card.querySelector(".sharedPickup")?.value || "",
-        dropoff:card.querySelector(".sharedDropoff")?.value || ""
+        pickup:pickupEl?.value || "",
+        pickupLat:pickupCoords?.lat ?? null,
+        pickupLng:pickupCoords?.lng ?? null,
+        dropoff:dropoffEl?.value || "",
+        dropoffLat:dropoffCoords?.lat ?? null,
+        dropoffLng:dropoffCoords?.lng ?? null
       });
     });
 
@@ -3527,8 +4075,24 @@ function loadDrafts(){
 
       card.querySelector(".sharedClientName").value = p.clientName || "";
       card.querySelector(".sharedClientPhone").value = p.clientPhone || "";
-      card.querySelector(".sharedPickup").value = p.pickup || "";
-      card.querySelector(".sharedDropoff").value = p.dropoff || "";
+      const pickupEl =
+        card.querySelector(".sharedPickup");
+
+      const dropoffEl =
+        card.querySelector(".sharedDropoff");
+
+      pickupEl.value = p.pickup || "";
+      dropoffEl.value = p.dropoff || "";
+
+      if(hasLatLng(p.pickupLat,p.pickupLng)){
+        setInputStoredCoords(pickupEl,p.pickupLat,p.pickupLng);
+        saveAddressCoordsLocal(p.pickup,p.pickupLat,p.pickupLng,"draft-pickup");
+      }
+
+      if(hasLatLng(p.dropoffLat,p.dropoffLng)){
+        setInputStoredCoords(dropoffEl,p.dropoffLat,p.dropoffLng);
+        saveAddressCoordsLocal(p.dropoff,p.dropoffLat,p.dropoffLng,"draft-dropoff");
+      }
     });
   }
 }
