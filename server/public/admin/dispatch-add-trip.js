@@ -2035,7 +2035,7 @@ function renderTripButtons(t){
     renderAddStopButton(t);
 
   const viewBtn =
-    `<button class="btn view" data-action="view-trip" title="View Details">👁</button>`;
+    `<button type="button" class="btn view" data-action="view-trip" title="View Details">👁</button>`;
 
   const insideWarning =
     mins !== null &&
@@ -2370,16 +2370,6 @@ function renderTripRow(t,index){
 
     <td class="col-type">${escapeHtml(isShared ? "SHARED" : "TRIP")}</td>
 
-    <td class="col-service">${escapeHtml(t.serviceTitle || t.serviceName || t.serviceType || t.serviceKey || "--")}</td>
-
-    <td class="col-entry">
-      ${editing ? createEditInput(t.entryName || "", "entryName") : cellBox(escapeHtml(t.entryName || "--"))}
-    </td>
-
-    <td class="col-entry-phone">
-      ${editing ? createEditInput(t.entryPhone || "", "entryPhone") : cellBox(escapeHtml(t.entryPhone || "--"))}
-    </td>
-
     <td class="col-client">
       ${
         editing
@@ -2536,9 +2526,6 @@ function renderReviewTable(){
             <th class="col-num">#</th>
             <th class="col-trip">Trip#</th>
             <th class="col-type">Type</th>
-            <th class="col-service">Service</th>
-            <th class="col-entry">Entry</th>
-            <th class="col-entry-phone">Entry Phone</th>
             <th class="col-client">Client / Passengers</th>
             <th class="col-phone">Phone</th>
             <th class="col-pickup">Pickup</th>
@@ -2583,7 +2570,7 @@ function renderReviewTable(){
         "date-row";
 
       dateRow.innerHTML =
-        `<td colspan="19">${escapeHtml(labelCreatedDate(date))}</td>`;
+        `<td colspan="16">${escapeHtml(labelCreatedDate(date))}</td>`;
 
       tbody.appendChild(dateRow);
 
@@ -2595,17 +2582,38 @@ function renderReviewTable(){
 
 /* ================= EYE DETAILS MODAL ================= */
 /*
-  Eye details intentionally does NOT show:
+  Hidden details inside eye only:
   - Service
   - Entry Name
   - Entry Phone
+  - Booked Date
+  - Booked Time
+
+  Important:
+  This section only controls display.
+  It does NOT change Add/Edit/Confirm/Cancel/Delete/Add Stop logic.
 */
 
 function detailValue(value){
+
+  if(Array.isArray(value)){
+
+    const arr =
+      value
+        .map(v=>normalizeText(v))
+        .filter(Boolean);
+
+    if(!arr.length){
+      return "--";
+    }
+
+    return arr
+      .map(v=>escapeHtml(v))
+      .join("<br>");
+  }
+
   const v =
-    Array.isArray(value)
-      ? value.filter(Boolean).join("<br>")
-      : value;
+    normalizeText(value);
 
   return escapeHtml(v || "--");
 }
@@ -2620,21 +2628,92 @@ function modalRow(label,value){
   `;
 }
 
-function modalList(items,prefix){
+function getBookedDateObject(trip){
 
-  const arr =
-    Array.isArray(items)
-      ? items
-      : [];
+  const raw =
+    trip?.bookedAt ||
+    trip?.createdAt ||
+    trip?.tripCreatedAt ||
+    trip?._createdAt ||
+    trip?.routeUpdatedAt ||
+    trip?.updatedAt ||
+    "";
 
-  if(!arr.length){
+  const d =
+    raw
+      ? new Date(raw)
+      : null;
+
+  if(d && !Number.isNaN(d.getTime())){
+    return d;
+  }
+
+  return null;
+}
+
+function formatBookedDate(date){
+
+  if(!date){
     return "--";
   }
 
-  return arr
-    .map((item,index)=>{
-      return `${prefix || index + 1}. ${item || "--"}`;
-    });
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  const y =
+    local.getFullYear();
+
+  const m =
+    String(local.getMonth() + 1).padStart(2,"0");
+
+  const d =
+    String(local.getDate()).padStart(2,"0");
+
+  return `${y}-${m}-${d}`;
+}
+
+function formatBookedTime(date){
+
+  if(!date){
+    return "--";
+  }
+
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  let h =
+    local.getHours();
+
+  const m =
+    String(local.getMinutes()).padStart(2,"0");
+
+  const ap =
+    h >= 12
+      ? "PM"
+      : "AM";
+
+  h =
+    h % 12;
+
+  if(h === 0){
+    h = 12;
+  }
+
+  return `${h}:${m} ${ap}`;
 }
 
 function getSharedPlanForModal(t,type){
@@ -2673,6 +2752,16 @@ function buildTripDetailsHtml(t){
     isShared
       ? getSharedPlanForModal(t,"dropoff")
       : [];
+
+  const service =
+    t.serviceTitle ||
+    t.serviceName ||
+    t.serviceType ||
+    t.serviceKey ||
+    "--";
+
+  const bookedDate =
+    getBookedDateObject(t);
 
   const clients =
     isShared
@@ -2716,6 +2805,13 @@ function buildTripDetailsHtml(t){
   return `
     ${modalRow("Trip #",t.tripNumber || "--")}
     ${modalRow("Type",isShared ? "SHARED" : "TRIP")}
+
+    ${modalRow("Service",service)}
+    ${modalRow("Entry Name",t.entryName || "--")}
+    ${modalRow("Entry Phone",t.entryPhone || "--")}
+    ${modalRow("Booked Date",formatBookedDate(bookedDate))}
+    ${modalRow("Booked Time",formatBookedTime(bookedDate))}
+
     ${modalRow("Client / Passengers",clients)}
     ${modalRow("Phone",phones)}
     ${modalRow("Pickup",pickups)}
