@@ -2015,6 +2015,373 @@ function renderAddStopButton(t){
   return `<button class="btn add-stop" data-action="add-stop">Add Stop</button>`;
 }
 
+
+/* ================= HIDDEN DETAILS / EYE ================= */
+
+function renderViewButton(){
+  return `
+    <button
+      class="btn view"
+      data-action="view-trip"
+      title="View Details"
+      type="button"
+    >
+      👁
+    </button>
+  `;
+}
+
+function getBookedDateObject(trip){
+
+  const raw =
+    trip?.bookedAt ||
+    trip?.createdAt ||
+    trip?.tripCreatedAt ||
+    trip?._createdAt ||
+    trip?.routeUpdatedAt ||
+    trip?.updatedAt ||
+    "";
+
+  const d =
+    raw
+      ? new Date(raw)
+      : null;
+
+  if(d && !Number.isNaN(d.getTime())){
+    return d;
+  }
+
+  return null;
+}
+
+function formatLocalDatePart(date){
+
+  if(!date){
+    return "--";
+  }
+
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  const y =
+    local.getFullYear();
+
+  const m =
+    String(local.getMonth() + 1).padStart(2,"0");
+
+  const d =
+    String(local.getDate()).padStart(2,"0");
+
+  return `${y}-${m}-${d}`;
+}
+
+function formatLocalTimePart(date){
+
+  if(!date){
+    return "--";
+  }
+
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  const h =
+    String(local.getHours()).padStart(2,"0");
+
+  const m =
+    String(local.getMinutes()).padStart(2,"0");
+
+  return `${h}:${m}`;
+}
+
+function detailsValue(value){
+
+  if(Array.isArray(value)){
+    return value.length
+      ? value.join("<br>")
+      : "--";
+  }
+
+  const text =
+    normalizeText(value);
+
+  return text || "--";
+}
+
+function detailsRow(label,value){
+
+  return `
+    <div
+      style="
+        display:grid;
+        grid-template-columns:150px 1fr;
+        gap:10px;
+        padding:6px 0;
+        border-bottom:1px solid #e5e7eb;
+        align-items:start;
+      "
+    >
+      <strong>${escapeHtml(label)}</strong>
+      <div>${detailsValue(value)}</div>
+    </div>
+  `;
+}
+
+function ensureTripDetailsModal(){
+
+  let modal =
+    document.getElementById("tripDetailsModal");
+
+  if(modal){
+    return modal;
+  }
+
+  modal =
+    document.createElement("div");
+
+  modal.id =
+    "tripDetailsModal";
+
+  modal.style.display =
+    "none";
+
+  modal.style.position =
+    "fixed";
+
+  modal.style.inset =
+    "0";
+
+  modal.style.zIndex =
+    "99999";
+
+  modal.style.background =
+    "rgba(15,23,42,0.45)";
+
+  modal.innerHTML = `
+    <div
+      style="
+        width:min(760px,92vw);
+        max-height:82vh;
+        overflow:auto;
+        margin:7vh auto;
+        background:#fff;
+        border-radius:14px;
+        box-shadow:0 20px 50px rgba(0,0,0,.35);
+        border:1px solid #cbd5e1;
+      "
+    >
+      <div
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          padding:12px 14px;
+          background:#0f172a;
+          color:#fff;
+          font-weight:900;
+          border-radius:14px 14px 0 0;
+        "
+      >
+        <span>Trip Details</span>
+        <button
+          type="button"
+          class="btn-light"
+          data-action="close-trip-details"
+          style="
+            padding:6px 10px;
+            border-radius:8px;
+            border:none;
+            cursor:pointer;
+            font-weight:900;
+          "
+        >
+          Close
+        </button>
+      </div>
+
+      <div
+        id="tripDetailsModalBody"
+        style="
+          padding:14px;
+          color:#0f172a;
+          font-size:13px;
+          line-height:1.35;
+        "
+      ></div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.addEventListener("click",e=>{
+
+    if(e.target === modal){
+      closeTripDetailsModal();
+    }
+  });
+
+  return modal;
+}
+
+function closeTripDetailsModal(){
+
+  const modal =
+    document.getElementById("tripDetailsModal");
+
+  if(modal){
+    modal.style.display = "none";
+  }
+}
+
+function openTripDetailsModal(trip){
+
+  if(!trip){
+    return;
+  }
+
+  const modal =
+    ensureTripDetailsModal();
+
+  const body =
+    document.getElementById("tripDetailsModalBody");
+
+  if(!body){
+    return;
+  }
+
+  const isShared =
+    trip.isShared === true ||
+    trip.tripType === "SHARED";
+
+  const passengers =
+    getPassengers(trip);
+
+  const service =
+    trip.serviceTitle ||
+    trip.serviceName ||
+    trip.serviceType ||
+    trip.serviceKey ||
+    "--";
+
+  const clients =
+    isShared
+      ? passengers.map((p,i)=>{
+          return escapeHtml(`${i + 1}. ${p.clientName || p.name || "--"}`);
+        })
+      : escapeHtml(trip.clientName || "--");
+
+  const phones =
+    isShared
+      ? passengers.map((p,i)=>{
+          return escapeHtml(`${i + 1}. ${p.clientPhone || p.phone || "--"}`);
+        })
+      : escapeHtml(trip.clientPhone || "--");
+
+  const sharedPlan =
+    isShared && Array.isArray(trip.sharedRoutePlan) && trip.sharedRoutePlan.length
+      ? [...trip.sharedRoutePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+      : isShared && Array.isArray(trip.routePlan) && trip.routePlan.length
+        ? [...trip.routePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+        : [];
+
+  const pickups =
+    isShared && sharedPlan.length
+      ? sharedPlan
+          .filter(point=>String(point.type || "").toLowerCase() === "pickup")
+          .map((point,i)=>escapeHtml(`${i + 1}. ${point.address || "--"}`))
+      : isShared
+        ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.pickup || "--"}`))
+        : escapeHtml(trip.pickup || "--");
+
+  const dropoffs =
+    isShared && sharedPlan.length
+      ? sharedPlan
+          .filter(point=>String(point.type || "").toLowerCase() === "dropoff")
+          .map((point,i)=>escapeHtml(`${i + 1}. ${point.address || "--"}`))
+      : isShared
+        ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.dropoff || "--"}`))
+        : escapeHtml(trip.dropoff || "--");
+
+  const stops =
+    isShared
+      ? String(
+          Number(trip.sharedStopsCount || trip.sharedStopTotal || 0) > 0
+            ? Number(trip.sharedStopsCount || trip.sharedStopTotal || 0)
+            : Math.max(0,passengers.filter(passengerIsActive).length - 1)
+        )
+      : Array.isArray(trip.stops) && trip.stops.length
+        ? trip.stops.map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
+        : "--";
+
+  const bookedDateObject =
+    getBookedDateObject(trip);
+
+  body.innerHTML = `
+    ${detailsRow("Trip #",escapeHtml(trip.tripNumber || "--"))}
+    ${detailsRow("Type",escapeHtml(isShared ? "SHARED" : "TRIP"))}
+
+    ${detailsRow("Service",escapeHtml(service))}
+    ${detailsRow("Entry Name",escapeHtml(trip.entryName || "--"))}
+    ${detailsRow("Entry Phone",escapeHtml(trip.entryPhone || "--"))}
+
+    ${detailsRow("Booked Date",escapeHtml(formatLocalDatePart(bookedDateObject)))}
+    ${detailsRow("Booked Time",escapeHtml(formatLocalTimePart(bookedDateObject)))}
+
+    ${detailsRow("Client / Passengers",clients)}
+    ${detailsRow("Phone",phones)}
+    ${detailsRow("Pickup",pickups)}
+    ${detailsRow("Stops",stops)}
+    ${detailsRow("Dropoff",dropoffs)}
+    ${detailsRow("Trip Date",escapeHtml(trip.tripDate || "--"))}
+    ${detailsRow("Time",escapeHtml(trip.tripTime || "--"))}
+    ${detailsRow("Notes",escapeHtml(trip.notes || "--"))}
+    ${detailsRow("Miles",`${Number(trip.miles || 0).toFixed(2)} mi`)}
+    ${detailsRow("Minutes",String(Number(trip.estimatedMinutes || 0)))}
+    ${detailsRow("Price",`$${formatMoney(trip.priceAmount || trip.finalPrice || 0)}`)}
+    ${detailsRow("Status",escapeHtml(trip.status || "Review"))}
+  `;
+
+  modal.style.display =
+    "block";
+}
+
+function handleViewTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr?.dataset?.id;
+
+  if(!id){
+    return;
+  }
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip){
+    showAlert("Trip not found");
+    return;
+  }
+
+  openTripDetailsModal(trip);
+}
+
+
 function renderTripButtons(t){
 
   const service =
@@ -2035,7 +2402,7 @@ function renderTripButtons(t){
     renderAddStopButton(t);
 
   const viewBtn =
-    `<button class="btn view" data-action="view-trip" title="View Details">👁</button>`;
+    renderViewButton();
 
   const insideWarning =
     mins !== null &&
@@ -2056,7 +2423,6 @@ function renderTripButtons(t){
 
     return `
       <div class="actions-wrap">
-        ${viewBtn}
         <button class="btn confirm" data-action="save-edit">Save</button>
         <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
       </div>
@@ -2079,7 +2445,7 @@ function renderTripButtons(t){
 
       return `
         <div class="actions-wrap">
-        ${viewBtn}
+          ${viewBtn}
           <button class="btn cancel" data-action="cancel-trip">Cancel</button>
           ${stopBtn}
         </div>
@@ -2102,7 +2468,7 @@ function renderTripButtons(t){
 
       return `
         <div class="actions-wrap">
-        ${viewBtn}
+          ${viewBtn}
           <button class="btn edit" data-action="edit-trip">Edit</button>
           <button class="btn delete" data-action="delete-trip">Delete</button>
           ${stopBtn}
@@ -2123,11 +2489,12 @@ function renderTripButtons(t){
 
   return `
     <div class="actions-wrap">
-        ${viewBtn}
+      ${viewBtn}
       ${stopBtn}
     </div>
   `;
 }
+
 
 /* ================= TABLE ================= */
 
@@ -2369,17 +2736,6 @@ function renderTripRow(t,index){
     </td>
 
     <td class="col-type">${escapeHtml(isShared ? "SHARED" : "TRIP")}</td>
-
-    <td class="col-service">${escapeHtml(t.serviceTitle || t.serviceName || t.serviceType || t.serviceKey || "--")}</td>
-
-    <td class="col-entry">
-      ${editing ? createEditInput(t.entryName || "", "entryName") : cellBox(escapeHtml(t.entryName || "--"))}
-    </td>
-
-    <td class="col-entry-phone">
-      ${editing ? createEditInput(t.entryPhone || "", "entryPhone") : cellBox(escapeHtml(t.entryPhone || "--"))}
-    </td>
-
     <td class="col-client">
       ${
         editing
@@ -2536,9 +2892,6 @@ function renderReviewTable(){
             <th class="col-num">#</th>
             <th class="col-trip">Trip#</th>
             <th class="col-type">Type</th>
-            <th class="col-service">Service</th>
-            <th class="col-entry">Entry</th>
-            <th class="col-entry-phone">Entry Phone</th>
             <th class="col-client">Client / Passengers</th>
             <th class="col-phone">Phone</th>
             <th class="col-pickup">Pickup</th>
@@ -2583,7 +2936,7 @@ function renderReviewTable(){
         "date-row";
 
       dateRow.innerHTML =
-        `<td colspan="19">${escapeHtml(labelCreatedDate(date))}</td>`;
+        `<td colspan="16">${escapeHtml(labelCreatedDate(date))}</td>`;
 
       tbody.appendChild(dateRow);
 
@@ -2592,220 +2945,6 @@ function renderReviewTable(){
       });
     });
 }
-
-/* ================= EYE DETAILS MODAL ================= */
-/*
-  Eye details intentionally does NOT show:
-  - Service
-  - Entry Name
-  - Entry Phone
-*/
-
-function detailValue(value){
-  const v =
-    Array.isArray(value)
-      ? value.filter(Boolean).join("<br>")
-      : value;
-
-  return escapeHtml(v || "--");
-}
-
-function modalRow(label,value){
-
-  return `
-    <div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
-      <strong>${escapeHtml(label)}</strong>
-      <div>${detailValue(value)}</div>
-    </div>
-  `;
-}
-
-function modalList(items,prefix){
-
-  const arr =
-    Array.isArray(items)
-      ? items
-      : [];
-
-  if(!arr.length){
-    return "--";
-  }
-
-  return arr
-    .map((item,index)=>{
-      return `${prefix || index + 1}. ${item || "--"}`;
-    });
-}
-
-function getSharedPlanForModal(t,type){
-
-  const plan =
-    Array.isArray(t.sharedRoutePlan) && t.sharedRoutePlan.length
-      ? t.sharedRoutePlan
-      : Array.isArray(t.routePlan) && t.routePlan.length
-        ? t.routePlan
-        : [];
-
-  return [...plan]
-    .sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
-    .filter(point=>{
-      return String(point.type || "").toLowerCase() === type;
-    })
-    .map(point=>point.address)
-    .filter(Boolean);
-}
-
-function buildTripDetailsHtml(t){
-
-  const isShared =
-    t.isShared === true ||
-    t.tripType === "SHARED";
-
-  const passengers =
-    getPassengers(t);
-
-  const sharedPickups =
-    isShared
-      ? getSharedPlanForModal(t,"pickup")
-      : [];
-
-  const sharedDropoffs =
-    isShared
-      ? getSharedPlanForModal(t,"dropoff")
-      : [];
-
-  const clients =
-    isShared
-      ? passengers.map((p,i)=>`${i + 1}. ${p.clientName || p.name || "--"}`)
-      : t.clientName || "--";
-
-  const phones =
-    isShared
-      ? passengers.map((p,i)=>`${i + 1}. ${p.clientPhone || p.phone || "--"}`)
-      : t.clientPhone || "--";
-
-  const pickups =
-    isShared
-      ? (
-          sharedPickups.length
-            ? sharedPickups.map((address,i)=>`${i + 1}. ${address}`)
-            : passengers.map((p,i)=>`${i + 1}. ${p.pickup || "--"}`)
-        )
-      : t.pickup || "--";
-
-  const drops =
-    isShared
-      ? (
-          sharedDropoffs.length
-            ? sharedDropoffs.map((address,i)=>`${i + 1}. ${address}`)
-            : passengers.map((p,i)=>`${i + 1}. ${p.dropoff || "--"}`)
-        )
-      : t.dropoff || "--";
-
-  const stops =
-    isShared
-      ? String(
-          Number(t.sharedStopsCount || 0) > 0
-            ? Number(t.sharedStopsCount || 0)
-            : Math.max(0,passengers.filter(passengerIsActive).length - 1)
-        )
-      : Array.isArray(t.stops) && t.stops.length
-        ? t.stops.map((s,i)=>`${i + 1}. ${s}`)
-        : "--";
-
-  return `
-    ${modalRow("Trip #",t.tripNumber || "--")}
-    ${modalRow("Type",isShared ? "SHARED" : "TRIP")}
-    ${modalRow("Client / Passengers",clients)}
-    ${modalRow("Phone",phones)}
-    ${modalRow("Pickup",pickups)}
-    ${modalRow("Stops",stops)}
-    ${modalRow("Dropoff",drops)}
-    ${modalRow("Trip Date",t.tripDate || "--")}
-    ${modalRow("Time",t.tripTime || "--")}
-    ${modalRow("Notes",t.notes || "--")}
-    ${modalRow("Miles",`${Number(t.miles || 0).toFixed(2)} mi`)}
-    ${modalRow("Minutes",String(Number(t.estimatedMinutes || 0)))}
-    ${modalRow("Price",`$${formatMoney(t.priceAmount || t.finalPrice || 0)}`)}
-    ${modalRow("Status",t.status || "Review")}
-  `;
-}
-
-function showTripEyeModal(trip){
-
-  if(!trip){
-    showAlert("Trip not found");
-    return;
-  }
-
-  document
-    .querySelectorAll("#dispatchTripEyeModal")
-    .forEach(el=>el.remove());
-
-  const dialog =
-    document.createElement("dialog");
-
-  dialog.id =
-    "dispatchTripEyeModal";
-
-  dialog.style.width =
-    "min(760px,94vw)";
-
-  dialog.style.maxHeight =
-    "86vh";
-
-  dialog.style.overflow =
-    "auto";
-
-  dialog.style.border =
-    "0";
-
-  dialog.style.borderRadius =
-    "16px";
-
-  dialog.style.padding =
-    "0";
-
-  dialog.innerHTML = `
-    <div style="padding:18px;background:#0f172a;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px;">
-      <strong>Trip Details</strong>
-      <button
-        type="button"
-        data-action="close-eye-modal"
-        style="border:0;border-radius:10px;padding:8px 12px;font-weight:900;cursor:pointer;"
-      >
-        Close
-      </button>
-    </div>
-
-    <div style="padding:18px;background:#fff;color:#0f172a;">
-      ${buildTripDetailsHtml(trip)}
-    </div>
-  `;
-
-  document.body.appendChild(dialog);
-
-  if(typeof dialog.showModal === "function"){
-    dialog.showModal();
-  }else{
-    dialog.setAttribute("open","open");
-  }
-}
-
-async function handleViewTrip(btn){
-
-  const tr =
-    btn.closest("tr");
-
-  const id =
-    tr?.dataset?.id;
-
-  const trip =
-    reviewTrips.find(t=>String(t._id || t.id) === String(id));
-
-  showTripEyeModal(trip);
-}
-
 
 /* ================= ACTIONS ================= */
 
@@ -3629,21 +3768,10 @@ document.addEventListener("click",async e=>{
 
   if(!action) return;
 
-  if(action === "close-eye-modal"){
-    const dialog =
-      btn.closest("#dispatchTripEyeModal");
-
-    if(dialog && typeof dialog.close === "function"){
-      dialog.close();
-    }
-
-    dialog?.remove();
-    return;
-  }
-
   try{
 
-    if(action === "view-trip") await handleViewTrip(btn);
+    if(action === "view-trip") handleViewTrip(btn);
+    if(action === "close-trip-details") closeTripDetailsModal();
     if(action === "edit-trip") await handleEditTrip(btn);
     if(action === "save-edit") await handleSaveEdit(btn);
     if(action === "cancel-edit") await handleCancelEdit(btn);
