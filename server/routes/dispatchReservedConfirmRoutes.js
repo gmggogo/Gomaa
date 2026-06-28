@@ -5,35 +5,23 @@
    RESERVED CONFIRM ROUTE
    Server-only confirm logic
 
-   RULES:
-   - Add/Edit/Review = no map requests
-   - Confirm button is allowed even if route is already saved
+   FINAL ROUTE PLAN:
+   - Add/Edit/Review = 0 map requests
+   - Confirm is allowed even if route is already saved
    - If route signature did NOT change = reuse saved route = 0 Google requests
-   - If pickup/dropoff/stops changed = rebuild route
-   - Name/phone/notes/date/time changes do NOT rebuild route
-
-   SHARED ROUTE PIPELINE:
-   1) collectSharedPoints
-   2) detectSharedCase
-   3) buildSharedCenterPoint
-   4) orderPickupsFromCenter
-   5) orderDropoffsFromCenter
-   6) buildFinalSharedRoutePlan
-   7) Final calculateRoute only. No optimize after ordering.
-
-   IMPORTANT:
-   - Dropoffs never happen before all pickups.
-   - Google final route calculates miles/minutes/polyline only.
-   - Google must not reorder final route.
-   - If passenger.pickup/dropoff are missing, server falls back to trip pickup/dropoff lists.
+   - If route changed = rebuild local route order
+   - Shared ordering uses saved passenger lat/lng only
+   - NO geocode in this file
+   - NO Google optimize in this file
+   - Final route calculation = 1 Directions request max
 ===================================================== */
 
 const express = require("express");
 const router = express.Router();
-const https = require("https");
 
 const tripFinalizer = require("../utils/trip-finalizer");
 const routeMapEngine = require("../utils/routeMapEngine");
+const sharedRouteEngine = require("../utils/sharedRouteEngine");
 const Service = require("../models/Service");
 
 /* =========================
@@ -115,6 +103,31 @@ function safeArray(value){
   return Array.isArray(value) ? value : [];
 }
 
+function hasValidLatLng(lat,lng){
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
+}
+
+function getRoutePointAddress(item){
+
+  if(typeof item === "string"){
+    return normalizeAddress(item);
+  }
+
+  if(item && typeof item === "object"){
+    return normalizeAddress(
+      item.address ||
+      item.formattedAddress ||
+      item.fullAddress ||
+      ""
+    );
+  }
+
+  return "";
+}
+
 function uniqueAddressList(list){
 
   const out = [];
@@ -123,9 +136,7 @@ function uniqueAddressList(list){
   for(const item of Array.isArray(list) ? list : []){
 
     const address =
-      typeof item === "string"
-        ? normalizeAddress(item)
-        : normalizeAddress(item?.address || item?.formattedAddress || "");
+      getRoutePointAddress(item);
 
     if(!address){
       continue;
@@ -152,9 +163,7 @@ function compactRoutePoints(list){
   for(const item of Array.isArray(list) ? list : []){
 
     const address =
-      typeof item === "string"
-        ? normalizeAddress(item)
-        : normalizeAddress(item?.address || "");
+      getRoutePointAddress(item);
 
     if(!address){
       continue;
@@ -218,6 +227,52 @@ function splitAddressList(value){
     .filter(Boolean);
 }
 
+function getTripModel(){
+
+  if(!global.Trip){
+    throw new Error("Trip model not loaded");
+  }
+
+  return global.Trip;
+}
+
+function isSharedTrip(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  const code =
+    normalizeCode(
+      trip.serviceKey ||
+      trip.serviceCode ||
+      trip.serviceType ||
+      trip.tripNumberSuffix ||
+      ""
+    );
+
+  return (
+    trip.isShared === true ||
+    trip.tripType === "SHARED" ||
+    code === "SH"
+  );
+}
+
+function passengerIsActive(passenger){
+
+  const status = cleanStatus(passenger?.status);
+
+  return (
+    !status.includes("cancel") &&
+    !status.includes("noshow") &&
+    !status.includes("no-show")
+  );
+}
+
+/* =========================
+   SHARED ADDRESS HELPERS
+========================= */
+
 function getSharedPickupAddress(trip,passenger,index){
 
   const fromPassenger =
@@ -274,48 +329,6 @@ function getSharedDropoffAddress(trip,passenger,index){
   }
 
   return "";
-}
-
-function getTripModel(){
-
-  if(!global.Trip){
-    throw new Error("Trip model not loaded");
-  }
-
-  return global.Trip;
-}
-
-function isSharedTrip(trip){
-
-  if(!trip){
-    return false;
-  }
-
-  const code =
-    normalizeCode(
-      trip.serviceKey ||
-      trip.serviceCode ||
-      trip.serviceType ||
-      trip.tripNumberSuffix ||
-      ""
-    );
-
-  return (
-    trip.isShared === true ||
-    trip.tripType === "SHARED" ||
-    code === "SH"
-  );
-}
-
-function passengerIsActive(passenger){
-
-  const status = cleanStatus(passenger?.status);
-
-  return (
-    !status.includes("cancel") &&
-    !status.includes("noshow") &&
-    !status.includes("no-show")
-  );
 }
 
 /* =========================
@@ -434,6 +447,10 @@ function hasUsableSavedRoute(trip,currentSignature){
     trip?.sharedRouteLocked === true
   );
 }
+
+/* =========================
+   ROUTE DATA NORMALIZATION
+========================= */
 
 function firstPositiveNumber(...values){
 
@@ -648,6 +665,7 @@ function normalizeRouteData(raw, routePoints = []){
       raw?.polyline ||
       raw?.routePolyline ||
       raw?.overviewPolyline ||
+      raw?.googleRoute?.overviewPolyline ||
       raw?.googleRoute?.overview_polyline?.points ||
       raw?.routes?.[0]?.overview_polyline?.points ||
       "",
@@ -682,7 +700,7 @@ function buildRouteDataFromSavedTrip(trip){
 }
 
 /* =========================
-   ROUTE MAP ENGINE WRAPPERS
+   ROUTE MAP ENGINE WRAPPER
 ========================= */
 
 async function calculateRoute(routePoints){
@@ -706,130 +724,6 @@ async function calculateRoute(routePoints){
   }
 
   throw new Error("routeMapEngine calculate function not found");
-}
-
-function getGoogleMapsApiKey(){
-  return process.env.GOOGLE_SERVER_KEY || "";
-}
-
-function httpsGetJson(url){
-
-  return new Promise((resolve,reject)=>{
-
-    https.get(url,response=>{
-
-      let data = "";
-
-      response.on("data",chunk=>{
-        data += chunk;
-      });
-
-      response.on("end",()=>{
-
-        try{
-          resolve(JSON.parse(data));
-        }catch(err){
-          reject(err);
-        }
-      });
-
-    }).on("error",reject);
-  });
-}
-
-async function geocodeAddress(address){
-
-  const cleanAddress = normalizePossibleAddress(address);
-
-  if(!cleanAddress){
-    return null;
-  }
-
-  const fn =
-    routeMapEngine?.geocodeAddress ||
-    routeMapEngine?.geocode ||
-    routeMapEngine?.getCoordinates ||
-    routeMapEngine?.getLatLng ||
-    null;
-
-  if(typeof fn === "function"){
-
-    try{
-
-      const result = await fn(cleanAddress);
-
-      const lat =
-        result?.lat ??
-        result?.latitude ??
-        result?.location?.lat ??
-        result?.geometry?.location?.lat;
-
-      const lng =
-        result?.lng ??
-        result?.lon ??
-        result?.longitude ??
-        result?.location?.lng ??
-        result?.location?.lon ??
-        result?.geometry?.location?.lng;
-
-      if(
-        Number.isFinite(Number(lat)) &&
-        Number.isFinite(Number(lng))
-      ){
-        return {
-          lat:Number(lat),
-          lng:Number(lng)
-        };
-      }
-
-    }catch(err){
-      console.log("routeMapEngine geocode failed:", err.message);
-    }
-  }
-
-  const apiKey = getGoogleMapsApiKey();
-
-  if(!apiKey){
-    console.log("Missing Google Maps API key for geocode");
-    return null;
-  }
-
-  const url =
-    "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-    encodeURIComponent(cleanAddress) +
-    "&key=" +
-    encodeURIComponent(apiKey);
-
-  const json = await httpsGetJson(url);
-
-  if(
-    json?.status !== "OK" ||
-    !Array.isArray(json.results) ||
-    !json.results.length
-  ){
-    console.log(
-      "Google geocode failed:",
-      cleanAddress,
-      json?.status,
-      json?.error_message || ""
-    );
-
-    return null;
-  }
-
-  const location = json.results[0]?.geometry?.location;
-
-  if(
-    Number.isFinite(Number(location?.lat)) &&
-    Number.isFinite(Number(location?.lng))
-  ){
-    return {
-      lat:Number(location.lat),
-      lng:Number(location.lng)
-    };
-  }
-
-  return null;
 }
 
 /* =========================
@@ -1047,16 +941,29 @@ function extractRoutePointCoordinates(routePoints, routeData){
 
   const map = new Map();
 
+  for(const point of safeArray(routePoints)){
+
+    const address = getRoutePointAddress(point);
+
+    if(!address){
+      continue;
+    }
+
+    if(hasValidLatLng(point?.lat,point?.lng)){
+      map.set(addressKey(address),{
+        address,
+        lat:Number(point.lat),
+        lng:Number(point.lng)
+      });
+    }
+  }
+
   const legs =
     Array.isArray(routeData?.googleRoute?.legs)
       ? routeData.googleRoute.legs
       : Array.isArray(routeData?.legs)
         ? routeData.legs
         : [];
-
-  if(!legs.length){
-    return map;
-  }
 
   for(const leg of legs){
 
@@ -1088,19 +995,6 @@ function extractRoutePointCoordinates(routePoints, routeData){
     }
   }
 
-  for(const point of routePoints){
-
-    const key = addressKey(point);
-
-    if(!map.has(key)){
-      map.set(key,{
-        address:normalizeAddress(point),
-        lat:null,
-        lng:null
-      });
-    }
-  }
-
   return map;
 }
 
@@ -1123,14 +1017,13 @@ function routePlanOrder(routePlan,type,address){
 
 function applySharedPassengerOrdersAndCoords({
   passengers,
-  routePoints,
   routePlan,
   routeData,
   pricing
 }){
 
   const coordMap =
-    extractRoutePointCoordinates(routePoints,routeData);
+    extractRoutePointCoordinates(routePlan,routeData);
 
   return safeArray(passengers)
     .map((passenger,index)=>{
@@ -1206,44 +1099,8 @@ function buildIndividualRoutePoints(trip){
 }
 
 /* =========================
-   SHARED ROUTE PIPELINE HELPERS
+   SHARED ROUTE PREP
 ========================= */
-
-function toRad(value){
-  return Number(value || 0) * Math.PI / 180;
-}
-
-function hasValidLatLng(lat,lng){
-  return (
-    Number.isFinite(Number(lat)) &&
-    Number.isFinite(Number(lng))
-  );
-}
-
-function distanceMilesByCoords(a,b){
-
-  if(
-    !hasValidLatLng(a?.lat,a?.lng) ||
-    !hasValidLatLng(b?.lat,b?.lng)
-  ){
-    return Number.MAX_SAFE_INTEGER;
-  }
-
-  const R = 3958.8;
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const dLat = toRad(Number(b.lat) - Number(a.lat));
-  const dLng = toRad(Number(b.lng) - Number(a.lng));
-
-  const h =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) *
-    Math.cos(lat2) *
-    Math.sin(dLng / 2) *
-    Math.sin(dLng / 2);
-
-  return R * 2 * Math.atan2(Math.sqrt(h),Math.sqrt(1 - h));
-}
 
 function normalizePassengerId(passenger,index){
   return String(
@@ -1253,129 +1110,7 @@ function normalizePassengerId(passenger,index){
   );
 }
 
-function makePickupPoint(passenger,index){
-
-  return {
-    type:"pickup",
-    address:normalizePossibleAddress(passenger.pickup),
-    lat:Number(passenger.pickupLat),
-    lng:Number(passenger.pickupLng),
-    passengerId:normalizePassengerId(passenger,index),
-    passengerIndex:index,
-    passengerName:passenger.clientName || passenger.name || "",
-    phone:passenger.clientPhone || passenger.phone || ""
-  };
-}
-
-function makeDropoffPoint(passenger,index){
-
-  return {
-    type:"dropoff",
-    address:normalizePossibleAddress(passenger.dropoff),
-    lat:Number(passenger.dropoffLat),
-    lng:Number(passenger.dropoffLng),
-    passengerId:normalizePassengerId(passenger,index),
-    passengerIndex:index,
-    passengerName:passenger.clientName || passenger.name || "",
-    phone:passenger.clientPhone || passenger.phone || ""
-  };
-}
-
-function uniqueTypedRoutePoints(points){
-
-  const out = [];
-  const seen = new Map();
-
-  for(const point of safeArray(points)){
-
-    if(!normalizePossibleAddress(point?.address)){
-      continue;
-    }
-
-    if(!hasValidLatLng(point.lat,point.lng)){
-      throw new Error(
-        `Missing coordinates for shared ${point.type}: ${point.address}`
-      );
-    }
-
-    const key =
-      `${clean(point.type).toLowerCase()}|${addressKey(point.address)}`;
-
-    if(seen.has(key)){
-
-      const existing = seen.get(key);
-
-      existing.passengerIndexes =
-        Array.from(new Set([
-          ...(existing.passengerIndexes || []),
-          point.passengerId
-        ]));
-
-      existing.group = true;
-      continue;
-    }
-
-    const cleanPoint = {
-      ...point,
-      passengerIndexes:[point.passengerId],
-      group:false
-    };
-
-    seen.set(key,cleanPoint);
-    out.push(cleanPoint);
-  }
-
-  return out;
-}
-
-async function ensurePassengerPointCoordinates(passenger){
-
-  const out = { ...passenger };
-
-  if(!hasValidLatLng(out.pickupLat,out.pickupLng)){
-
-    console.log("======== GEOCODE PICKUP START ========");
-    console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
-    console.log("Pickup address:", out.pickup);
-    console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
-
-    const coords = await geocodeAddress(out.pickup);
-
-    console.log("Pickup geocode result:", coords);
-    console.log("======== GEOCODE PICKUP END ========");
-
-    if(coords){
-      out.pickupLat = coords.lat;
-      out.pickupLng = coords.lng;
-    }
-  }
-
-  if(!hasValidLatLng(out.dropoffLat,out.dropoffLng)){
-
-    console.log("======== GEOCODE DROPOFF START ========");
-    console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
-    console.log("Dropoff address:", out.dropoff);
-    console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
-
-    const coords = await geocodeAddress(out.dropoff);
-
-    console.log("Dropoff geocode result:", coords);
-    console.log("======== GEOCODE DROPOFF END ========");
-
-    if(coords){
-      out.dropoffLat = coords.lat;
-      out.dropoffLng = coords.lng;
-    }
-  }
-
-  return out;
-}
-
-/* =========================
-   1) COLLECT POINTS
-========================= */
-
-async function collectSharedPoints(trip){
+function buildSharedPassengerPayload(trip){
 
   const sourcePassengers =
     safeArray(trip.passengers)
@@ -1389,12 +1124,13 @@ async function collectSharedPoints(trip){
 
         return {
           ...passenger,
+          passengerId:normalizePassengerId(passenger,index),
           pickup,
           dropoff
         };
       });
 
-  const activePassengersRaw =
+  const activePassengers =
     sourcePassengers.filter(passenger=>{
       return (
         passengerIsActive(passenger) &&
@@ -1403,13 +1139,11 @@ async function collectSharedPoints(trip){
       );
     });
 
-  if(activePassengersRaw.length < 2){
+  if(activePassengers.length < 2){
     throw new Error("Shared trip requires at least 2 active passengers with pickup/dropoff addresses");
   }
 
-  const activePassengers = [];
-
-  for(const passenger of activePassengersRaw){
+  for(const passenger of activePassengers){
 
     const name =
       passenger.clientName ||
@@ -1425,340 +1159,56 @@ async function collectSharedPoints(trip){
       throw new Error("Missing dropoff for passenger: " + name);
     }
 
-    const withCoords =
-      await ensurePassengerPointCoordinates(passenger);
-
-    if(!hasValidLatLng(withCoords.pickupLat,withCoords.pickupLng)){
+    /*
+       FINAL PLAN:
+       No geocode during Confirm.
+       lat/lng must come from address entry or AddressCache before confirm.
+    */
+    if(!hasValidLatLng(passenger.pickupLat,passenger.pickupLng)){
       throw new Error(
         "Missing pickup coordinates for passenger: " +
         name +
         " | address: " +
-        withCoords.pickup +
-        " | Google key exists: " +
-        (getGoogleMapsApiKey() ? "YES" : "NO")
+        passenger.pickup +
+        " | Confirm does not geocode. Save lat/lng before confirm."
       );
     }
 
-    if(!hasValidLatLng(withCoords.dropoffLat,withCoords.dropoffLng)){
+    if(!hasValidLatLng(passenger.dropoffLat,passenger.dropoffLng)){
       throw new Error(
         "Missing dropoff coordinates for passenger: " +
         name +
         " | address: " +
-        withCoords.dropoff +
-        " | Google key exists: " +
-        (getGoogleMapsApiKey() ? "YES" : "NO")
+        passenger.dropoff +
+        " | Confirm does not geocode. Save lat/lng before confirm."
       );
     }
-
-    activePassengers.push(withCoords);
   }
 
-  const pickupPoints =
-    uniqueTypedRoutePoints(
-      activePassengers.map(makePickupPoint)
-    );
+  return sourcePassengers.map(passenger=>{
 
-  const dropoffPoints =
-    uniqueTypedRoutePoints(
-      activePassengers.map(makeDropoffPoint)
-    );
+    const found =
+      activePassengers.find(active=>{
+        return String(active.passengerId) === String(passenger.passengerId);
+      });
 
-  if(!pickupPoints.length || !dropoffPoints.length){
-    throw new Error("Shared route is missing pickup/dropoff points");
-  }
-
-  const sourcePassengersWithCoords =
-    sourcePassengers.map(passenger=>{
-
-      const found =
-        activePassengers.find(active=>{
-          return (
-            addressKey(active.pickup) === addressKey(passenger.pickup) &&
-            addressKey(active.dropoff) === addressKey(passenger.dropoff)
-          );
-        });
-
-      if(!found){
-        return passenger;
-      }
-
-      return {
-        ...passenger,
-        pickupLat:found.pickupLat,
-        pickupLng:found.pickupLng,
-        dropoffLat:found.dropoffLat,
-        dropoffLng:found.dropoffLng
-      };
-    });
-
-  return {
-    sourcePassengers:sourcePassengersWithCoords,
-    activePassengers,
-    pickupPoints,
-    dropoffPoints
-  };
+    return found || passenger;
+  });
 }
 
-/* =========================
-   2) DETECT CASE
-========================= */
+function buildSmartSharedRoute(trip){
 
-function allSamePointAddress(points){
+  const passengers =
+    buildSharedPassengerPayload(trip);
 
-  const list = safeArray(points);
-
-  if(list.length <= 1){
-    return true;
-  }
-
-  const first = addressKey(list[0].address);
-
-  return list.every(point=>addressKey(point.address) === first);
-}
-
-function detectSharedCase(pickupPoints,dropoffPoints){
-
-  const pickupUnified = allSamePointAddress(pickupPoints);
-  const dropoffUnified = allSamePointAddress(dropoffPoints);
-
-  if(pickupUnified && dropoffUnified){
-    return "SAME_PICKUP_SAME_DROPOFF";
-  }
-
-  if(pickupUnified && !dropoffUnified){
-    return "SAME_PICKUP_DIFFERENT_DROPOFF";
-  }
-
-  if(!pickupUnified && dropoffUnified){
-    return "DIFFERENT_PICKUP_SAME_DROPOFF";
-  }
-
-  return "DIFFERENT_PICKUP_DIFFERENT_DROPOFF";
-}
-
-/* =========================
-   3) BUILD CENTER POINT
-========================= */
-
-function buildSharedCenterPoint(pickupPoints,dropoffPoints){
-
-  let anchorPickup = null;
-  let anchorDropoff = null;
-  let anchorMiles = Number.MAX_SAFE_INTEGER;
-
-  for(const pickup of pickupPoints){
-
-    for(const dropoff of dropoffPoints){
-
-      const miles = distanceMilesByCoords(pickup,dropoff);
-
-      if(miles < anchorMiles){
-        anchorMiles = miles;
-        anchorPickup = pickup;
-        anchorDropoff = dropoff;
-      }
-    }
-  }
-
-  if(!anchorPickup || !anchorDropoff){
-    throw new Error("Could not find shared route center point");
-  }
-
-  const centerPoint = {
-    type:"center",
-    address:"__SHARED_CENTER_POINT__",
-    lat:(Number(anchorPickup.lat) + Number(anchorDropoff.lat)) / 2,
-    lng:(Number(anchorPickup.lng) + Number(anchorDropoff.lng)) / 2
-  };
-
-  return {
-    centerPoint,
-    anchorPickup,
-    anchorDropoff,
-    anchorMiles
-  };
-}
-
-/* =========================
-   4) ORDER PICKUPS
-========================= */
-
-function orderPickupsFromCenter(pickupPoints,centerResult,routeCase){
-
-  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
-    return [pickupPoints[0]];
-  }
-
-  if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
-    return [pickupPoints[0]];
-  }
-
-  const center = centerResult.centerPoint;
-
-  return [...pickupPoints]
-    .map((point,index)=>({
-      ...point,
-      distanceFromCenter:distanceMilesByCoords(point,center),
-      originalIndex:index
-    }))
-    .sort((a,b)=>{
-
-      const diff =
-        Number(b.distanceFromCenter) -
-        Number(a.distanceFromCenter);
-
-      if(Math.abs(diff) > 0.000001){
-        return diff;
-      }
-
-      return Number(a.originalIndex) - Number(b.originalIndex);
-    })
-    .map((point,index)=>({
-      ...point,
-      pickupOrder:index + 1
-    }));
-}
-
-/* =========================
-   5) ORDER DROPOFFS
-========================= */
-
-function orderDropoffsFromCenter(dropoffPoints,centerResult,routeCase){
-
-  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
-    return [dropoffPoints[0]];
-  }
-
-  if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
-    return [dropoffPoints[0]];
-  }
-
-  const center = centerResult.centerPoint;
-
-  return [...dropoffPoints]
-    .map((point,index)=>({
-      ...point,
-      distanceFromCenter:distanceMilesByCoords(point,center),
-      originalIndex:index
-    }))
-    .sort((a,b)=>{
-
-      const diff =
-        Number(a.distanceFromCenter) -
-        Number(b.distanceFromCenter);
-
-      if(Math.abs(diff) > 0.000001){
-        return diff;
-      }
-
-      return Number(a.originalIndex) - Number(b.originalIndex);
-    })
-    .map((point,index)=>({
-      ...point,
-      dropoffOrder:index + 1
-    }));
-}
-
-/* =========================
-   6) FINAL ROUTE PLAN
-========================= */
-
-function makeFinalRoutePlanPoint(point,type,order){
-
-  const passengerIndexes =
-    Array.isArray(point.passengerIndexes) && point.passengerIndexes.length
-      ? point.passengerIndexes
-      : [point.passengerId];
-
-  return {
-    type,
-    address:normalizePossibleAddress(point.address),
-    lat:Number(point.lat),
-    lng:Number(point.lng),
-    order,
-    passengerId:point.passengerId || "",
-    passengerIndex:point.passengerIndex,
-    passengerIndexes,
-    passengerName:point.passengerName || "",
-    phone:point.phone || "",
-    group:point.group === true || passengerIndexes.length > 1,
-    distanceFromCenter:
-      Number.isFinite(Number(point.distanceFromCenter))
-        ? Number(Number(point.distanceFromCenter).toFixed(3))
-        : 0
-  };
-}
-
-function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
-
-  const routePlan = [];
-
-  for(const pickup of orderedPickups){
-    routePlan.push(
-      makeFinalRoutePlanPoint(
-        pickup,
-        "pickup",
-        routePlan.length + 1
-      )
-    );
-  }
-
-  for(const dropoff of orderedDropoffs){
-    routePlan.push(
-      makeFinalRoutePlanPoint(
-        dropoff,
-        "dropoff",
-        routePlan.length + 1
-      )
-    );
-  }
-
-  if(routePlan.length < 2){
-    throw new Error("Final shared route plan is invalid");
-  }
-
-  return routePlan;
-}
-
-/* =========================
-   MAIN SHARED ROUTE PREP
-========================= */
-
-async function buildSmartSharedRoute(trip){
-
-  const points = await collectSharedPoints(trip);
-
-  const routeCase =
-    detectSharedCase(
-      points.pickupPoints,
-      points.dropoffPoints
-    );
-
-  const centerResult =
-    buildSharedCenterPoint(
-      points.pickupPoints,
-      points.dropoffPoints
-    );
-
-  const orderedPickups =
-    orderPickupsFromCenter(
-      points.pickupPoints,
-      centerResult,
-      routeCase
-    );
-
-  const orderedDropoffs =
-    orderDropoffsFromCenter(
-      points.dropoffPoints,
-      centerResult,
-      routeCase
+  const result =
+    sharedRouteEngine.buildSharedRouteFromSavedCoordinates(
+      passengers,
+      {debug:false}
     );
 
   const routePlan =
-    buildFinalSharedRoutePlan(
-      orderedPickups,
-      orderedDropoffs
-    );
+    safeArray(result.routePlan);
 
   const finalRoutePoints =
     routePlan.map(point=>point.address);
@@ -1768,28 +1218,18 @@ async function buildSmartSharedRoute(trip){
     routePoints:finalRoutePoints,
     routePlan,
     sharedRoutePlan:routePlan,
-    passengers:points.sourcePassengers,
-    activeCount:points.activePassengers.length,
+    passengers:result.passengers || passengers,
+    activeCount:result.activeCount || passengers.filter(passengerIsActive).length,
     sharedStopsCount:Math.max(0,routePlan.length - 2),
-    routeCase,
+    routeCase:result.routeCase || result.mode || "SHARED_LOCAL_AIR_ORDER",
     requestsBeforeFinal:0,
     routeMeta:{
-      mode:routeCase,
-      policy:"PIPELINE_CENTER_POINT_FAR_PICKUPS_NEAR_DROPOFFS",
-      pipeline:[
-        "collectSharedPoints",
-        "detectSharedCase",
-        "buildSharedCenterPoint",
-        "orderPickupsFromCenter",
-        "orderDropoffsFromCenter",
-        "buildFinalSharedRoutePlan"
-      ],
-      centerPoint:centerResult.centerPoint,
-      anchorPickup:centerResult.anchorPickup,
-      anchorDropoff:centerResult.anchorDropoff,
-      anchorMiles:Number(Number(centerResult.anchorMiles).toFixed(3)),
-      orderedPickups:orderedPickups.map(p=>p.address),
-      orderedDropoffs:orderedDropoffs.map(p=>p.address)
+      mode:result.routeCase || result.mode || "SHARED_LOCAL_AIR_ORDER",
+      policy:"LOCAL_AIR_DISTANCE_ORDER_ONE_FINAL_DIRECTIONS",
+      calculationSource:result.calculationSource || "SAVED_COORDINATES_CANDIDATE_ONLY",
+      googleRequestsUsed:0,
+      orderedPickups:safeArray(result.orderedPickups).map(p=>p.address),
+      orderedDropoffs:safeArray(result.orderedDropoffs).map(p=>p.address)
     }
   };
 }
@@ -1875,9 +1315,14 @@ router.post("/:tripId", async (req,res)=>{
 
     }else if(shared){
 
-      prepared = await buildSmartSharedRoute(trip);
-      routeData = await calculateRoute(prepared.routePoints);
-      googleRequestsUsed = n(prepared.requestsBeforeFinal) + 1;
+      prepared = buildSmartSharedRoute(trip);
+
+      /*
+         One final Directions request only.
+         Send routePlan objects so routeMapEngine can use lat/lng directly.
+      */
+      routeData = await calculateRoute(prepared.routePlan);
+      googleRequestsUsed = 1;
 
     }else{
 
@@ -1919,6 +1364,7 @@ router.post("/:tripId", async (req,res)=>{
 
       console.log("ROUTE DATA MISSING MILES:", {
         routePoints:prepared?.routePoints,
+        routePlan:prepared?.routePlan,
         routeData
       });
 
@@ -1947,7 +1393,6 @@ router.post("/:tripId", async (req,res)=>{
       finalPassengers =
         applySharedPassengerOrdersAndCoords({
           passengers:prepared.passengers,
-          routePoints:prepared.routePoints,
           routePlan:
             safeArray(prepared.sharedRoutePlan).length
               ? prepared.sharedRoutePlan
@@ -2037,13 +1482,13 @@ router.post("/:tripId", async (req,res)=>{
         calculationSource:
           routeReused
             ? "SAVED_ROUTE_REUSED"
-            : "GOOGLE_DIRECTIONS_FINAL_ONLY",
+            : "LOCAL_AIR_ORDER_ONE_FINAL_DIRECTIONS",
         googleRequestsUsed,
         routeSource:
           routeReused
             ? "server-confirm-reused-saved-route"
             : shared
-              ? "server-shared-pipeline-center-route"
+              ? "server-shared-local-air-route"
               : "server-individual-route"
       });
 
