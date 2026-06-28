@@ -2,16 +2,47 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
-const Trip =
-  global.Trip ||
-  mongoose.models.Trip;
+/* =====================================================
+   FILE: server/routes/dispatchReviewRoutes.js
+   DISPATCH REVIEW ROUTE
+   Final confirmed trips only
+
+   POLICY:
+   - Dispatch Review shows ONLY trips confirmed from Dispatch Final Confirmation.
+   - Unconfirmed trips must NOT appear here.
+   - Review status edits must NOT remove final confirmation markers.
+   - Shared trips are edited per passenger.
+   - Shared group status:
+       Any Completed => Completed
+       All Cancelled => Cancelled
+       All No Show => No Show
+       All Not Completed => Not Completed
+       Mixed closed statuses => Mixed Closed
+===================================================== */
 
 /* =========================
-   HELPERS
+   TRIP MODEL
+========================= */
+
+function getTripModel(){
+
+  const Trip =
+    global.Trip ||
+    mongoose.models.Trip;
+
+  if(!Trip){
+    throw new Error("Trip model not loaded");
+  }
+
+  return Trip;
+}
+
+/* =========================
+   BASIC HELPERS
 ========================= */
 
 function clean(v){
-  return String(v || "")
+  return String(v ?? "")
     .replace(/[_-]/g," ")
     .replace(/\s+/g," ")
     .trim()
@@ -22,12 +53,38 @@ function compact(v){
   return clean(v).replace(/\s+/g,"");
 }
 
+function bool(v){
+  return (
+    v === true ||
+    String(v).toLowerCase() === "true" ||
+    String(v).toLowerCase() === "yes" ||
+    String(v).toLowerCase() === "1"
+  );
+}
+
+function safeArray(v){
+  return Array.isArray(v) ? v : [];
+}
+
+function nowIso(){
+  return new Date().toISOString();
+}
+
 function normalizeFinalStatus(v){
 
   const s = clean(v);
   const c = compact(v);
 
-  if(s === "completed" || s === "complete"){
+  if(!s){
+    return "";
+  }
+
+  if(
+    s === "completed" ||
+    s === "complete" ||
+    c === "completed" ||
+    c === "complete"
+  ){
     return "Completed";
   }
 
@@ -35,7 +92,11 @@ function normalizeFinalStatus(v){
     return "Cancelled";
   }
 
-  if(s.includes("no show") || c.includes("noshow")){
+  if(
+    s.includes("no show") ||
+    c.includes("noshow") ||
+    c === "no"
+  ){
     return "No Show";
   }
 
@@ -47,7 +108,10 @@ function normalizeFinalStatus(v){
     return "Not Completed";
   }
 
-  if(s === "mixed closed" || c === "mixedclosed"){
+  if(
+    s === "mixed closed" ||
+    c === "mixedclosed"
+  ){
     return "Mixed Closed";
   }
 
@@ -58,20 +122,51 @@ function isFinalStatus(v){
   return !!normalizeFinalStatus(v);
 }
 
+function statusRank(v){
+
+  const s =
+    normalizeFinalStatus(v);
+
+  if(s === "Completed") return 1;
+  if(s === "Cancelled") return 2;
+  if(s === "No Show") return 3;
+  if(s === "Not Completed") return 4;
+  if(s === "Mixed Closed") return 5;
+
+  return 99;
+}
+
+/* =========================
+   TRIP TYPE
+========================= */
+
 function isSharedTrip(trip){
   return (
     trip?.isShared === true ||
     String(trip?.tripType || "").toUpperCase() === "SHARED" ||
     String(trip?.type || "").toLowerCase() === "shared" ||
+    String(trip?.serviceKey || "").toUpperCase() === "SH" ||
+    String(trip?.serviceCode || "").toUpperCase() === "SH" ||
+    String(trip?.serviceType || "").toUpperCase() === "SH" ||
+    String(trip?.tripNumberSuffix || "").toUpperCase() === "SH" ||
     String(trip?.tripNumber || "").toUpperCase().includes("-SH") ||
-    (Array.isArray(trip?.passengers) && trip.passengers.length > 0)
+    safeArray(trip?.passengers).length > 0
   );
 }
 
 /* =========================
    FINAL CONFIRM CHECK
-   Review يدخل بس اللي اتعمله Confirm
 ========================= */
+
+function hasPassengerFinalConfirmation(passenger){
+
+  return (
+    bool(passenger?.finalStatusConfirmed) ||
+    !!passenger?.finalStatusConfirmedAt ||
+    !!passenger?.dispatchFinalConfirmedAt ||
+    bool(passenger?.dispatchFinalConfirmed)
+  );
+}
 
 function hasFinalConfirmation(trip){
 
@@ -80,25 +175,19 @@ function hasFinalConfirmation(trip){
   }
 
   if(
-    trip.finalStatusConfirmed === true ||
+    bool(trip.finalStatusConfirmed) ||
     !!trip.finalStatusConfirmedAt ||
     !!trip.dispatchFinalConfirmedAt ||
-    trip.sharedFinalConfirmed === true ||
-    !!trip.sharedFinalConfirmedAt
+    bool(trip.dispatchFinalConfirmed) ||
+    bool(trip.sharedFinalConfirmed) ||
+    !!trip.sharedFinalConfirmedAt ||
+    bool(trip.finalConfirmed) ||
+    !!trip.finalConfirmedAt
   ){
     return true;
   }
 
-  const passengers =
-    Array.isArray(trip.passengers)
-      ? trip.passengers
-      : [];
-
-  return passengers.some(p =>
-    p.finalStatusConfirmed === true ||
-    !!p.finalStatusConfirmedAt ||
-    !!p.dispatchFinalConfirmedAt
-  );
+  return safeArray(trip.passengers).some(hasPassengerFinalConfirmation);
 }
 
 /* =========================
@@ -108,17 +197,16 @@ function hasFinalConfirmation(trip){
 function sharedHasFinalPassenger(trip){
 
   const passengers =
-    Array.isArray(trip?.passengers)
-      ? trip.passengers
-      : [];
+    safeArray(trip?.passengers);
 
   if(passengers.length){
-    return passengers.some(p =>
-      isFinalStatus(p.status || trip.status)
-    );
+
+    return passengers.some(passenger=>{
+      return isFinalStatus(passenger?.status || trip?.status);
+    });
   }
 
-  return isFinalStatus(trip.status);
+  return isFinalStatus(trip?.status);
 }
 
 function shouldAppearInReview(trip){
@@ -128,9 +216,8 @@ function shouldAppearInReview(trip){
   }
 
   /*
-    أهم شرط:
-    أي رحلة ما اتعملهاش Confirm
-    ممنوع تدخل Dispatch Review
+     Most important rule:
+     unconfirmed trips must not enter Dispatch Review.
   */
   if(!hasFinalConfirmation(trip)){
     return false;
@@ -145,21 +232,16 @@ function shouldAppearInReview(trip){
 
 /* =========================
    SHARED GROUP STATUS
-   Any Completed => Completed
-   All Cancelled => Cancelled
-   All No Show => No Show
-   All Not Completed => Not Completed
-   Mixed Cancelled/No Show/Not Completed => Mixed Closed
 ========================= */
 
-function computeSharedGroupStatus(passengers, fallbackStatus){
+function computeSharedGroupStatus(passengers,fallbackStatus){
 
   const statuses =
-    Array.isArray(passengers)
-      ? passengers
-          .map(p => normalizeFinalStatus(p.status || fallbackStatus))
-          .filter(Boolean)
-      : [];
+    safeArray(passengers)
+      .map(passenger=>{
+        return normalizeFinalStatus(passenger?.status || fallbackStatus);
+      })
+      .filter(Boolean);
 
   if(!statuses.length){
     return normalizeFinalStatus(fallbackStatus) || "Mixed Closed";
@@ -169,45 +251,115 @@ function computeSharedGroupStatus(passengers, fallbackStatus){
     return "Completed";
   }
 
-  const allCancelled =
-    statuses.every(s => s === "Cancelled");
-
-  if(allCancelled){
+  if(statuses.every(s=>s === "Cancelled")){
     return "Cancelled";
   }
 
-  const allNoShow =
-    statuses.every(s => s === "No Show");
-
-  if(allNoShow){
+  if(statuses.every(s=>s === "No Show")){
     return "No Show";
   }
 
-  const allNotCompleted =
-    statuses.every(s => s === "Not Completed");
-
-  if(allNotCompleted){
+  if(statuses.every(s=>s === "Not Completed")){
     return "Not Completed";
   }
 
   return "Mixed Closed";
 }
 
+function applySharedGroupStatus(trip){
+
+  trip.status =
+    computeSharedGroupStatus(
+      trip.passengers,
+      trip.status
+    );
+
+  trip.dispatchReviewStatus =
+    trip.status;
+
+  return trip.status;
+}
+
+/* =========================
+   PASSENGER MATCHING
+========================= */
+
+function passengerIdentity(passenger,index){
+
+  return String(
+    passenger?.passengerId ||
+    passenger?._id ||
+    passenger?.id ||
+    passenger?.clientName ||
+    passenger?.name ||
+    index
+  );
+}
+
+function findPassengerIndex(currentPassengers,inputPassenger,inputIndex){
+
+  const inputId =
+    String(
+      inputPassenger?.passengerId ||
+      inputPassenger?._id ||
+      inputPassenger?.id ||
+      ""
+    );
+
+  if(inputId){
+
+    const found =
+      currentPassengers.findIndex((passenger,index)=>{
+        return passengerIdentity(passenger,index) === inputId;
+      });
+
+    if(found >= 0){
+      return found;
+    }
+  }
+
+  if(currentPassengers[inputIndex]){
+    return inputIndex;
+  }
+
+  return -1;
+}
+
+/* =========================
+   RESPONSE NORMALIZATION
+========================= */
+
+function decorateTripForReview(trip){
+
+  const out =
+    typeof trip?.toObject === "function"
+      ? trip.toObject()
+      : {...trip};
+
+  out.reviewFinalStatus =
+    isSharedTrip(out)
+      ? computeSharedGroupStatus(out.passengers,out.status)
+      : normalizeFinalStatus(out.status);
+
+  out.isShared =
+    isSharedTrip(out);
+
+  out.reviewConfirmed =
+    hasFinalConfirmation(out);
+
+  return out;
+}
+
 /* =========================
    GET DISPATCH REVIEW
-   Confirmed final trips only
 ========================= */
 
 router.get("/", async (req,res)=>{
 
   try{
 
-    if(!Trip){
-      return res.status(500).json({
-        success:false,
-        message:"Trip model not loaded"
-      });
-    }
+    const Trip =
+      getTripModel();
 
     const trips =
       await Trip.find({})
@@ -219,7 +371,31 @@ router.get("/", async (req,res)=>{
         .lean();
 
     const reviewTrips =
-      trips.filter(shouldAppearInReview);
+      trips
+        .filter(shouldAppearInReview)
+        .map(decorateTripForReview)
+        .sort((a,b)=>{
+
+          const dateCompare =
+            String(b.tripDate || "").localeCompare(
+              String(a.tripDate || "")
+            );
+
+          if(dateCompare !== 0){
+            return dateCompare;
+          }
+
+          const timeCompare =
+            String(b.tripTime || "").localeCompare(
+              String(a.tripTime || "")
+            );
+
+          if(timeCompare !== 0){
+            return timeCompare;
+          }
+
+          return statusRank(a.reviewFinalStatus) - statusRank(b.reviewFinalStatus);
+        });
 
     return res.json({
       success:true,
@@ -233,24 +409,27 @@ router.get("/", async (req,res)=>{
 
     return res.status(500).json({
       success:false,
-      message:"Failed to load dispatch review trips"
+      message:err.message || "Failed to load dispatch review trips"
     });
-
   }
-
 });
 
 /* =========================
    UPDATE SINGLE STATUS FROM REVIEW
-   يفضل Confirmed وما يخرجش من Review
 ========================= */
 
 router.patch("/:id/status", async (req,res)=>{
 
   try{
 
-    const { id } = req.params;
-    const status = normalizeFinalStatus(req.body?.status);
+    const Trip =
+      getTripModel();
+
+    const { id } =
+      req.params;
+
+    const status =
+      normalizeFinalStatus(req.body?.status);
 
     if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
@@ -276,9 +455,6 @@ router.patch("/:id/status", async (req,res)=>{
       });
     }
 
-    /*
-      Review ما يعدلش رحلة مش Confirmed
-    */
     if(!hasFinalConfirmation(trip)){
       return res.status(400).json({
         success:false,
@@ -294,11 +470,14 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     trip.status = status;
+    trip.dispatchReviewStatus = status;
+    trip.dispatchReviewUpdatedAt = nowIso();
 
     /*
-      مهم:
-      ما نمسحش confirmation markers هنا
-      عشان تفضل في Dispatch Review
+       Keep these markers untouched:
+       finalStatusConfirmed
+       finalStatusConfirmedAt
+       dispatchFinalConfirmedAt
     */
 
     await trip.save();
@@ -306,7 +485,7 @@ router.patch("/:id/status", async (req,res)=>{
     return res.json({
       success:true,
       message:"Dispatch review trip updated",
-      trip
+      trip:decorateTripForReview(trip)
     });
 
   }catch(err){
@@ -315,23 +494,24 @@ router.patch("/:id/status", async (req,res)=>{
 
     return res.status(500).json({
       success:false,
-      message:"Failed to update review trip"
+      message:err.message || "Failed to update review trip"
     });
-
   }
-
 });
 
 /* =========================
    UPDATE SHARED STATUS FROM REVIEW
-   يفضل Confirmed وما يخرجش من Review
 ========================= */
 
 router.patch("/:id/shared-status", async (req,res)=>{
 
   try{
 
-    const { id } = req.params;
+    const Trip =
+      getTripModel();
+
+    const { id } =
+      req.params;
 
     const passengersInput =
       Array.isArray(req.body?.passengers)
@@ -362,9 +542,6 @@ router.patch("/:id/shared-status", async (req,res)=>{
       });
     }
 
-    /*
-      Review ما يعدلش رحلة مش Confirmed
-    */
     if(!hasFinalConfirmation(trip)){
       return res.status(400).json({
         success:false,
@@ -380,49 +557,51 @@ router.patch("/:id/shared-status", async (req,res)=>{
     }
 
     const currentPassengers =
-      Array.isArray(trip.passengers)
-        ? trip.passengers
-        : [];
+      safeArray(trip.passengers);
 
-    passengersInput.forEach((inputPassenger,idx)=>{
+    passengersInput.forEach((inputPassenger,inputIndex)=>{
 
-      if(!currentPassengers[idx]){
+      const targetIndex =
+        findPassengerIndex(
+          currentPassengers,
+          inputPassenger,
+          inputIndex
+        );
+
+      if(targetIndex < 0 || !currentPassengers[targetIndex]){
         return;
       }
 
       const nextStatus =
         normalizeFinalStatus(inputPassenger?.status);
 
-      if(nextStatus){
-        currentPassengers[idx].status = nextStatus;
+      if(!nextStatus){
+        return;
       }
 
+      currentPassengers[targetIndex].status = nextStatus;
+      currentPassengers[targetIndex].dispatchReviewStatus = nextStatus;
+      currentPassengers[targetIndex].dispatchReviewUpdatedAt = nowIso();
+
+      /*
+         Keep passenger final confirmation markers untouched.
+      */
     });
 
-    trip.passengers = currentPassengers;
+    trip.passengers =
+      currentPassengers;
 
-    trip.status =
-      computeSharedGroupStatus(
-        currentPassengers,
-        trip.status
-      );
+    applySharedGroupStatus(trip);
 
-    /*
-      مهم:
-      ما نمسحش:
-      finalStatusConfirmedAt
-      dispatchFinalConfirmedAt
-      sharedFinalConfirmedAt
-
-      عشان الرحلة تفضل في Review
-    */
+    trip.dispatchReviewUpdatedAt =
+      nowIso();
 
     await trip.save();
 
     return res.json({
       success:true,
       message:"Dispatch review shared trip updated",
-      trip
+      trip:decorateTripForReview(trip)
     });
 
   }catch(err){
@@ -431,11 +610,9 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
     return res.status(500).json({
       success:false,
-      message:"Failed to update review shared trip"
+      message:err.message || "Failed to update review shared trip"
     });
-
   }
-
 });
 
 module.exports = router;

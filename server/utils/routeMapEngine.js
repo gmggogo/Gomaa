@@ -8,13 +8,17 @@
    2) Server Google Directions final route calculation
    3) NO Google waypoint optimization
 
+/*
    FINAL RULE:
-   - Add/Edit/Review = 0 Google requests
+   - Add/Edit may call /api/address-cache/resolve for NEW addresses only
+   - AddressCache /resolve handles geocode once and saves lat/lng
+   - This file does NOT geocode
+   - Review does NOT geocode
    - Individual Confirm = 1 Directions request
    - Shared Confirm = 1 Directions request max
    - Shared ordering is done in sharedRouteEngine.js using saved lat/lng
-   - This file does NOT geocode
    - This file does NOT optimize route order
+*/
 ========================================= */
 
 const tripsMemory = new Map();

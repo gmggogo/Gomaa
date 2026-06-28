@@ -6,10 +6,13 @@
    Server-only confirm logic
 
    FINAL ROUTE PLAN:
-   - Add/Edit/Review = 0 map requests
+   - Add/Edit may call /api/address-cache/resolve for NEW addresses only
+   - AddressCache /resolve geocodes once and saves lat/lng
+   - Review does NOT geocode
    - Confirm is allowed even if route is already saved
    - If route signature did NOT change = reuse saved route = 0 Google requests
-   - If route changed = rebuild local route order
+   - If route changed = rebuild route
+   - Individual route uses saved pickup/dropoff/stop lat/lng only
    - Shared ordering uses saved passenger lat/lng only
    - NO geocode in this file
    - NO Google optimize in this file
@@ -176,6 +179,33 @@ function compactRoutePoints(list){
     }
 
     out.push(address);
+    lastKey = key;
+  }
+
+  return out;
+}
+
+function compactRouteLocationObjects(list){
+
+  const out = [];
+  let lastKey = "";
+
+  for(const item of Array.isArray(list) ? list : []){
+
+    const address =
+      getRoutePointAddress(item);
+
+    if(!address){
+      continue;
+    }
+
+    const key = addressKey(address);
+
+    if(key === lastKey){
+      continue;
+    }
+
+    out.push(item);
     lastKey = key;
   }
 
@@ -408,12 +438,10 @@ function savedRoutePoints(trip){
   const plan = savedRoutePlan(trip);
 
   if(plan.length >= 2){
-    return compactRoutePoints(
-      plan.map(p=>p.address)
-    );
+    return compactRouteLocationObjects(plan);
   }
 
-  return compactRoutePoints(trip?.routePoints || []);
+  return compactRouteLocationObjects(trip?.routePoints || []);
 }
 
 function hasUsableSavedRoute(trip,currentSignature){
@@ -1089,13 +1117,100 @@ function applySharedPassengerOrdersAndCoords({
    INDIVIDUAL ROUTE PREP
 ========================= */
 
+function findStopCoordinate(trip,stop){
+
+  const coords =
+    safeArray(trip?.stopCoordinates);
+
+  const found =
+    coords.find(item=>{
+      return addressKey(item?.address) === addressKey(stop);
+    });
+
+  if(found && hasValidLatLng(found.lat,found.lng)){
+    return {
+      lat:Number(found.lat),
+      lng:Number(found.lng)
+    };
+  }
+
+  return null;
+}
+
 function buildIndividualRoutePoints(trip){
 
-  return compactRoutePoints([
-    trip.pickup,
-    ...safeArray(trip.stops),
-    trip.dropoff
-  ]);
+  const pickup =
+    normalizePossibleAddress(trip?.pickup);
+
+  const dropoff =
+    normalizePossibleAddress(trip?.dropoff);
+
+  if(!pickup || !dropoff){
+    throw new Error("Route is missing pickup/dropoff");
+  }
+
+  if(!hasValidLatLng(trip?.pickupLat,trip?.pickupLng)){
+    throw new Error(
+      "Missing pickup coordinates | address: " +
+      pickup +
+      " | Confirm does not geocode. Save lat/lng before confirm."
+    );
+  }
+
+  if(!hasValidLatLng(trip?.dropoffLat,trip?.dropoffLng)){
+    throw new Error(
+      "Missing dropoff coordinates | address: " +
+      dropoff +
+      " | Confirm does not geocode. Save lat/lng before confirm."
+    );
+  }
+
+  const points = [];
+
+  points.push({
+    type:"pickup",
+    address:pickup,
+    lat:Number(trip.pickupLat),
+    lng:Number(trip.pickupLng),
+    order:1
+  });
+
+  const stops =
+    safeArray(trip?.stops)
+      .map(normalizePossibleAddress)
+      .filter(Boolean);
+
+  stops.forEach((stop)=>{
+
+    const coord =
+      findStopCoordinate(trip,stop);
+
+    if(!coord){
+      throw new Error(
+        "Missing stop coordinates | stop: " +
+        stop +
+        " | Confirm does not geocode. Save lat/lng before confirm."
+      );
+    }
+
+    points.push({
+      type:"stop",
+      address:stop,
+      lat:Number(coord.lat),
+      lng:Number(coord.lng),
+      order:points.length + 1
+    });
+  });
+
+  points.push({
+    type:"dropoff",
+    address:dropoff,
+    lat:Number(trip.dropoffLat),
+    lng:Number(trip.dropoffLng),
+    order:points.length + 1
+  });
+
+  return compactRouteLocationObjects(points);
 }
 
 /* =========================
@@ -1159,11 +1274,6 @@ function buildSharedPassengerPayload(trip){
       throw new Error("Missing dropoff for passenger: " + name);
     }
 
-    /*
-       FINAL PLAN:
-       No geocode during Confirm.
-       lat/lng must come from address entry or AddressCache before confirm.
-    */
     if(!hasValidLatLng(passenger.pickupLat,passenger.pickupLng)){
       throw new Error(
         "Missing pickup coordinates for passenger: " +
@@ -1211,7 +1321,7 @@ function buildSmartSharedRoute(trip){
     safeArray(result.routePlan);
 
   const finalRoutePoints =
-    routePlan.map(point=>point.address);
+    routePlan;
 
   return {
     isShared:true,
@@ -1317,34 +1427,25 @@ router.post("/:tripId", async (req,res)=>{
 
       prepared = buildSmartSharedRoute(trip);
 
-      /*
-         One final Directions request only.
-         Send routePlan objects so routeMapEngine can use lat/lng directly.
-      */
       routeData = await calculateRoute(prepared.routePlan);
       googleRequestsUsed = 1;
 
     }else{
 
-      const routePoints = buildIndividualRoutePoints(trip);
-
-      if(routePoints.length < 2){
-        return res.status(400).json({
-          success:false,
-          message:"Route is missing pickup/dropoff"
-        });
-      }
+      const routePoints =
+        buildIndividualRoutePoints(trip);
 
       prepared = {
         isShared:false,
         routePoints,
-        routePlan:[],
+        routePlan:routePoints,
         passengers:[],
         activeCount:1,
         sharedStopsCount:0,
         routeCase:"INDIVIDUAL_1_REQUEST",
         routeMeta:{
-          mode:"INDIVIDUAL_1_REQUEST"
+          mode:"INDIVIDUAL_1_REQUEST",
+          policy:"SAVED_COORDINATES_ONE_FINAL_DIRECTIONS"
         }
       };
 
@@ -1519,10 +1620,6 @@ router.post("/:tripId", async (req,res)=>{
 
     updatedTrip.serviceId = String(service._id || "");
     updatedTrip.createdFrom = updatedTrip.createdFrom || "dispatch-add-trip";
-
-    /* =========================
-       FORCE SAVE FINAL ROUTE PLAN
-    ========================= */
 
     updatedTrip.routePoints = safeArray(prepared.routePoints);
     updatedTrip.routePlan = safeArray(prepared.routePlan);
