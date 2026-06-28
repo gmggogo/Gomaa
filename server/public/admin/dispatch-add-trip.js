@@ -344,8 +344,326 @@ function ensureAddStopButton(){
     document.getElementById("addStopBtn");
 }
 
+function ensureDispatchReviewTableStyle(){
+
+  if(document.getElementById("dispatchReviewTableStylePatch")){
+    return;
+  }
+
+  const style =
+    document.createElement("style");
+
+  style.id =
+    "dispatchReviewTableStylePatch";
+
+  style.textContent = `
+    #dispatchReviewPage{
+      width:100%;
+      max-width:none;
+    }
+
+    #dispatchReviewList{
+      width:100%;
+      max-width:none;
+    }
+
+    .table-wrap{
+      width:100%;
+      max-width:100%;
+      overflow-x:auto;
+      overflow-y:visible;
+      background:#ffffff;
+      border:1px solid #cbd5e1;
+      border-radius:12px;
+      padding:0;
+      box-shadow:0 8px 22px rgba(15,23,42,.10);
+    }
+
+    .review-table{
+      width:100%;
+      min-width:1500px;
+      border-collapse:collapse;
+      table-layout:fixed;
+      background:#ffffff;
+      font-size:12px;
+    }
+
+    .review-table th{
+      position:sticky;
+      top:0;
+      z-index:5;
+      background:#1f2937;
+      color:#ffffff;
+      padding:10px 8px;
+      border:1px solid #374151;
+      font-weight:900;
+      text-align:center;
+      white-space:nowrap;
+    }
+
+    .review-table td{
+      padding:7px 7px;
+      border:1px solid rgba(148,163,184,.65);
+      vertical-align:middle;
+      text-align:center;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+    }
+
+    .review-table .date-row td{
+      position:sticky;
+      left:0;
+      z-index:4;
+      background:#bfdbfe !important;
+      color:#0f172a;
+      padding:10px 14px;
+      font-size:14px;
+      font-weight:950;
+      text-align:left;
+      border-top:3px solid #2563eb;
+      border-bottom:2px solid #2563eb;
+    }
+
+    .review-table tr:not(.date-row){
+      border-bottom:2px solid rgba(15,23,42,.18);
+    }
+
+    .review-table .col-num{width:44px;}
+    .review-table .col-trip{width:110px;}
+    .review-table .col-type{width:82px;}
+    .review-table .col-client{width:165px;}
+    .review-table .col-phone{width:145px;}
+    .review-table .col-pickup{width:245px;}
+    .review-table .col-stops{width:95px;}
+    .review-table .col-drop{width:245px;}
+    .review-table .col-date{width:110px;}
+    .review-table .col-time{width:90px;}
+    .review-table .col-notes{width:130px;}
+    .review-table .col-miles{width:95px;}
+    .review-table .col-mins{width:85px;}
+    .review-table .col-price{width:105px;}
+    .review-table .col-status{width:105px;}
+    .review-table .col-actions{width:170px;}
+
+    .cell-box{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      width:100%;
+    }
+
+    .cell-item{
+      width:100%;
+      min-height:24px;
+      padding:5px 7px;
+      background:rgba(255,255,255,.72);
+      border:1px solid rgba(100,116,139,.55);
+      border-radius:5px;
+      color:#0f172a;
+      font-weight:700;
+      line-height:1.25;
+      text-align:left;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    .trip-number-badge,
+    .price-badge,
+    .miles-strong{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
+      padding:4px 8px;
+      border-radius:999px;
+      font-weight:950;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+
+    .trip-number-badge{
+      background:#dbeafe;
+      color:#1d4ed8;
+      border:1px solid #93c5fd;
+    }
+
+    .price-badge{
+      background:#dcfce7;
+      color:#166534;
+      border:1px solid #86efac;
+    }
+
+    .miles-strong{
+      color:#1d4ed8;
+      background:#eff6ff;
+      border:1px solid #bfdbfe;
+    }
+
+    .route-locked-badge{
+      display:inline-block;
+      margin-top:5px;
+      padding:3px 7px;
+      border-radius:999px;
+      background:#fef3c7;
+      color:#92400e;
+      font-size:10px;
+      font-weight:950;
+      white-space:normal;
+    }
+
+    .actions-wrap{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      width:100%;
+    }
+
+    .actions-wrap .btn{
+      min-width:42px;
+      border:0;
+      border-radius:7px;
+      padding:6px 8px;
+      font-size:11px;
+      font-weight:950;
+      line-height:1;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .btn.view{
+      background:#e5e7eb;
+      color:#111827;
+    }
+
+    .btn.edit{
+      background:#2563eb;
+      color:#ffffff;
+    }
+
+    .btn.delete{
+      background:#ef4444;
+      color:#ffffff;
+    }
+
+    .btn.confirm{
+      background:#16a34a;
+      color:#ffffff;
+    }
+
+    .btn.cancel{
+      background:#dc2626;
+      color:#ffffff;
+    }
+
+    .btn.add-stop{
+      background:#7c3aed;
+      color:#ffffff;
+    }
+
+    .edit-input{
+      width:100%;
+      min-height:26px;
+      padding:5px 7px;
+      border:1px solid #94a3b8;
+      border-radius:6px;
+      background:#ffffff;
+      color:#0f172a;
+      font-weight:700;
+      outline:none;
+    }
+
+    .edit-input:focus{
+      border-color:#2563eb;
+      box-shadow:0 0 0 2px rgba(37,99,235,.18);
+    }
+
+    #dispatchTripEyeModal::backdrop{
+      background:rgba(15,23,42,.55);
+    }
+
+    .eye-details-body{
+      padding:18px;
+      background:#ffffff;
+      color:#0f172a;
+    }
+
+    .eye-detail-row{
+      display:grid;
+      grid-template-columns:150px 1fr;
+      gap:10px;
+      padding:9px 0;
+      border-bottom:1px solid #e5e7eb;
+      align-items:center;
+    }
+
+    .eye-detail-row strong{
+      color:#1e40af;
+      font-weight:950;
+    }
+
+    .eye-detail-row div{
+      font-weight:800;
+      color:#0f172a;
+      overflow-wrap:anywhere;
+    }
+
+    @media(max-width:900px){
+      .table-wrap{
+        border-radius:8px;
+      }
+
+      .review-table{
+        min-width:1350px;
+        font-size:11px;
+      }
+
+      .review-table th,
+      .review-table td{
+        padding:6px 5px;
+      }
+
+      .review-table .col-pickup,
+      .review-table .col-drop{
+        width:210px;
+      }
+
+      .review-table .col-client{
+        width:145px;
+      }
+
+      .review-table .col-phone{
+        width:130px;
+      }
+
+      .review-table .col-actions{
+        width:155px;
+      }
+
+      .cell-item{
+        font-size:10.5px;
+        padding:4px 5px;
+      }
+
+      .actions-wrap .btn{
+        padding:5px 6px;
+        font-size:10px;
+      }
+
+      .eye-detail-row{
+        grid-template-columns:118px 1fr;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+
 hideDuplicateReviewTop();
 ensureAddStopButton();
+ensureDispatchReviewTableStyle();
 
 /* ================= SYSTEM ================= */
 
@@ -2621,7 +2939,7 @@ function detailValue(value){
 function modalRow(label,value){
 
   return `
-    <div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
+    <div class="eye-detail-row">
       <strong>${escapeHtml(label)}</strong>
       <div>${detailValue(value)}</div>
     </div>
@@ -2740,19 +3058,6 @@ function buildTripDetailsHtml(t){
     t.isShared === true ||
     t.tripType === "SHARED";
 
-  const passengers =
-    getPassengers(t);
-
-  const sharedPickups =
-    isShared
-      ? getSharedPlanForModal(t,"pickup")
-      : [];
-
-  const sharedDropoffs =
-    isShared
-      ? getSharedPlanForModal(t,"dropoff")
-      : [];
-
   const service =
     t.serviceTitle ||
     t.serviceName ||
@@ -2763,67 +3068,20 @@ function buildTripDetailsHtml(t){
   const bookedDate =
     getBookedDateObject(t);
 
-  const clients =
-    isShared
-      ? passengers.map((p,i)=>`${i + 1}. ${p.clientName || p.name || "--"}`)
-      : t.clientName || "--";
-
-  const phones =
-    isShared
-      ? passengers.map((p,i)=>`${i + 1}. ${p.clientPhone || p.phone || "--"}`)
-      : t.clientPhone || "--";
-
-  const pickups =
-    isShared
-      ? (
-          sharedPickups.length
-            ? sharedPickups.map((address,i)=>`${i + 1}. ${address}`)
-            : passengers.map((p,i)=>`${i + 1}. ${p.pickup || "--"}`)
-        )
-      : t.pickup || "--";
-
-  const drops =
-    isShared
-      ? (
-          sharedDropoffs.length
-            ? sharedDropoffs.map((address,i)=>`${i + 1}. ${address}`)
-            : passengers.map((p,i)=>`${i + 1}. ${p.dropoff || "--"}`)
-        )
-      : t.dropoff || "--";
-
-  const stops =
-    isShared
-      ? String(
-          Number(t.sharedStopsCount || 0) > 0
-            ? Number(t.sharedStopsCount || 0)
-            : Math.max(0,passengers.filter(passengerIsActive).length - 1)
-        )
-      : Array.isArray(t.stops) && t.stops.length
-        ? t.stops.map((s,i)=>`${i + 1}. ${s}`)
-        : "--";
+  /*
+    Eye / hidden details menu shows ONLY the highlighted fields:
+    Trip #, Type, Service, Entry Name, Entry Phone, Booked Date, Booked Time.
+    Nothing else is displayed here.
+  */
 
   return `
     ${modalRow("Trip #",t.tripNumber || "--")}
     ${modalRow("Type",isShared ? "SHARED" : "TRIP")}
-
     ${modalRow("Service",service)}
     ${modalRow("Entry Name",t.entryName || "--")}
     ${modalRow("Entry Phone",t.entryPhone || "--")}
     ${modalRow("Booked Date",formatBookedDate(bookedDate))}
     ${modalRow("Booked Time",formatBookedTime(bookedDate))}
-
-    ${modalRow("Client / Passengers",clients)}
-    ${modalRow("Phone",phones)}
-    ${modalRow("Pickup",pickups)}
-    ${modalRow("Stops",stops)}
-    ${modalRow("Dropoff",drops)}
-    ${modalRow("Trip Date",t.tripDate || "--")}
-    ${modalRow("Time",t.tripTime || "--")}
-    ${modalRow("Notes",t.notes || "--")}
-    ${modalRow("Miles",`${Number(t.miles || 0).toFixed(2)} mi`)}
-    ${modalRow("Minutes",String(Number(t.estimatedMinutes || 0)))}
-    ${modalRow("Price",`$${formatMoney(t.priceAmount || t.finalPrice || 0)}`)}
-    ${modalRow("Status",t.status || "Review")}
   `;
 }
 
@@ -2874,7 +3132,7 @@ function showTripEyeModal(trip){
       </button>
     </div>
 
-    <div style="padding:18px;background:#fff;color:#0f172a;">
+    <div class="eye-details-body">
       ${buildTripDetailsHtml(trip)}
     </div>
   `;
