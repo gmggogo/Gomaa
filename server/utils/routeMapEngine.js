@@ -11,17 +11,15 @@
    SAFE RULE:
    - This file does NOT geocode.
    - This file uses saved lat/lng when available.
-   - Final Directions request calculates miles/minutes/polyline.
-   - For SAME pickup + DIFFERENT dropoff:
-       Google Directions uses optimize:true INSIDE the final request.
-       This is still ONE Google Directions request.
-       It fixes road/freeway order like I-10 / 101 / 202.
+   - Final Directions request calculates miles/minutes/polyline only.
+   - Google Directions must NOT optimize shared routes.
+   - Shared route ordering is based on LOWEST MILES, not lowest time.
    - For shared trips:
        All pickups first.
        Dropoffs never happen before all pickups.
        SAME pickup / SAME dropoff handled.
-       SAME pickup / DIFFERENT dropoff handled.
-       DIFFERENT pickup / SAME dropoff handled.
+       SAME pickup / DIFFERENT dropoff handled by local lowest miles.
+       DIFFERENT pickup / SAME dropoff handled by stable nearest-neighbor.
        DIFFERENT pickup / DIFFERENT dropoff handled with stable nearest-neighbor.
 ========================================= */
 
@@ -424,115 +422,13 @@ async function googleDirectionsRequest(params){
 }
 
 /* =====================================================
-   ROUTE CASE HELPERS FOR FINAL GOOGLE REQUEST
+   GOOGLE FINAL CALCULATION PARAMS
+
+   IMPORTANT:
+   - No optimize:true.
+   - Google calculates the route as provided.
+   - Engine decides order locally by lowest miles.
 ===================================================== */
-
-function isPickupPoint(point){
-  return clean(point?.type).toLowerCase() === "pickup";
-}
-
-function isDropoffPoint(point){
-  return clean(point?.type).toLowerCase() === "dropoff";
-}
-
-function allSameAddress(points){
-
-  const list =
-    safeArray(points);
-
-  if(list.length <= 1){
-    return true;
-  }
-
-  const first =
-    addressKey(list[0]?.address);
-
-  return list.every(point=>{
-    return addressKey(point?.address) === first;
-  });
-}
-
-function isSamePickupDifferentDropoffsRoute(cleanPoints){
-
-  const points =
-    safeArray(cleanPoints);
-
-  if(points.length < 3){
-    return false;
-  }
-
-  const pickups =
-    points.filter(isPickupPoint);
-
-  const dropoffs =
-    points.filter(isDropoffPoint);
-
-  if(pickups.length !== 1){
-    return false;
-  }
-
-  if(dropoffs.length < 2){
-    return false;
-  }
-
-  return !allSameAddress(dropoffs);
-}
-
-function stableSortPoints(points){
-
-  return [...safeArray(points)]
-    .sort((a,b)=>{
-      const addressDiff =
-        stableText(a.address).localeCompare(
-          stableText(b.address)
-        );
-
-      if(addressDiff !== 0){
-        return addressDiff;
-      }
-
-      return String(a.passengerId || "").localeCompare(
-        String(b.passengerId || "")
-      );
-    });
-}
-
-function farthestPointFrom(current,points){
-
-  let best = null;
-  let bestMiles = -1;
-
-  const sorted =
-    stableSortPoints(points);
-
-  for(const point of sorted){
-
-    const miles =
-      distanceMiles(current,point);
-
-    if(miles > bestMiles + 0.000001){
-      best = point;
-      bestMiles = miles;
-      continue;
-    }
-
-    if(Math.abs(miles - bestMiles) <= 0.000001 && best){
-
-      const textA =
-        stableText(point.address);
-
-      const textB =
-        stableText(best.address);
-
-      if(textA > textB){
-        best = point;
-        bestMiles = miles;
-      }
-    }
-  }
-
-  return best;
-}
 
 function buildNormalDirectionsParams(cleanPoints){
 
@@ -563,106 +459,9 @@ function buildNormalDirectionsParams(cleanPoints){
     params,
     finalCleanPoints:cleanPoints,
     optimized:false,
-    optimizeReason:"NORMAL_ORDER_NO_OPTIMIZE",
+    optimizeReason:"NO_GOOGLE_OPTIMIZE_LOWEST_MILES_ORDER_LOCKED",
     waypointSourcePoints:middle,
     finalDestination:destination
-  };
-}
-
-function buildSamePickupDropoffOptimizeParams(cleanPoints){
-
-  const pickup =
-    cleanPoints.find(isPickupPoint) || cleanPoints[0];
-
-  const dropoffs =
-    cleanPoints.filter(isDropoffPoint);
-
-  const finalDropoff =
-    farthestPointFrom(pickup,dropoffs) ||
-    dropoffs[dropoffs.length - 1];
-
-  const middleDropoffs =
-    stableSortPoints(
-      dropoffs.filter(point=>{
-        return addressKey(point.address) !== addressKey(finalDropoff.address);
-      })
-    );
-
-  if(!middleDropoffs.length){
-
-    const params =
-      new URLSearchParams();
-
-    params.set("origin",pickup.googleValue);
-    params.set("destination",finalDropoff.googleValue);
-
-    return {
-      params,
-      finalCleanPoints:[pickup,finalDropoff],
-      optimized:false,
-      optimizeReason:"ONLY_ONE_DROPOFF_AFTER_UNIQUE",
-      waypointSourcePoints:[],
-      finalDestination:finalDropoff
-    };
-  }
-
-  const params =
-    new URLSearchParams();
-
-  params.set("origin",pickup.googleValue);
-  params.set("destination",finalDropoff.googleValue);
-
-  params.set(
-    "waypoints",
-    "optimize:true|" +
-    middleDropoffs.map(p=>p.googleValue).join("|")
-  );
-
-  return {
-    params,
-    finalCleanPoints:[pickup,...middleDropoffs,finalDropoff],
-    optimized:true,
-    optimizeReason:"SAME_PICKUP_DIFFERENT_DROPOFF_GOOGLE_OPTIMIZE",
-    waypointSourcePoints:middleDropoffs,
-    finalDestination:finalDropoff
-  };
-}
-
-function orderedPointsFromGoogleResult(requestPlan,route){
-
-  const waypointOrder =
-    Array.isArray(route?.waypoint_order)
-      ? route.waypoint_order
-      : [];
-
-  if(!requestPlan.optimized){
-
-    return {
-      orderedPoints:requestPlan.finalCleanPoints,
-      waypointOrder
-    };
-  }
-
-  const origin =
-    requestPlan.finalCleanPoints[0];
-
-  const optimizedMiddle =
-    waypointOrder
-      .map(index=>requestPlan.waypointSourcePoints[index])
-      .filter(Boolean);
-
-  const destination =
-    requestPlan.finalDestination;
-
-  const orderedPoints = [
-    origin,
-    ...optimizedMiddle,
-    destination
-  ];
-
-  return {
-    orderedPoints,
-    waypointOrder
   };
 }
 
@@ -671,10 +470,9 @@ function orderedPointsFromGoogleResult(requestPlan,route){
    Used on Confirm only
 
    IMPORTANT:
-   - Normal routes: Google calculates current order.
-   - Same pickup + different dropoffs:
-       Google optimizes the dropoffs inside this same final request.
-       This prevents extra requests and fixes road/freeway order.
+   - Google does NOT reorder.
+   - Google only calculates miles/minutes/polyline.
+   - This protects pricing because price is based on miles.
 ===================================================== */
 
 async function calculateRouteMiles(routePoints){
@@ -701,13 +499,8 @@ async function calculateRouteMiles(routePoints){
     };
   }
 
-  const shouldOptimizeSamePickup =
-    isSamePickupDifferentDropoffsRoute(cleanPoints);
-
   const requestPlan =
-    shouldOptimizeSamePickup
-      ? buildSamePickupDropoffOptimizeParams(cleanPoints)
-      : buildNormalDirectionsParams(cleanPoints);
+    buildNormalDirectionsParams(cleanPoints);
 
   const data =
     await googleDirectionsRequest(requestPlan.params);
@@ -719,12 +512,6 @@ async function calculateRouteMiles(routePoints){
     Array.isArray(route.legs)
       ? route.legs
       : [];
-
-  const ordered =
-    orderedPointsFromGoogleResult(
-      requestPlan,
-      route
-    );
 
   let meters = 0;
   let seconds = 0;
@@ -752,10 +539,10 @@ async function calculateRouteMiles(routePoints){
       Math.ceil(seconds / 60),
 
     routePoints:
-      ordered.orderedPoints.map(p=>p.address),
+      cleanPoints.map(p=>p.address),
 
     optimizedRoutePoints:
-      ordered.orderedPoints.map((point,index)=>({
+      cleanPoints.map((point,index)=>({
         type:point.type,
         address:point.address,
         lat:point.lat,
@@ -771,10 +558,9 @@ async function calculateRouteMiles(routePoints){
         route.summary || "",
 
       waypointOrder:
-        ordered.waypointOrder,
+        route.waypoint_order || [],
 
-      optimized:
-        requestPlan.optimized === true,
+      optimized:false,
 
       optimizeReason:
         requestPlan.optimizeReason,
@@ -987,6 +773,23 @@ function uniqueSharedPoints(points){
   return out;
 }
 
+function allSameAddress(points){
+
+  const list =
+    safeArray(points);
+
+  if(list.length <= 1){
+    return true;
+  }
+
+  const first =
+    addressKey(list[0]?.address);
+
+  return list.every(point=>{
+    return addressKey(point?.address) === first;
+  });
+}
+
 function detectSharedRouteCase(pickups,dropoffs){
 
   const samePickup =
@@ -1008,6 +811,25 @@ function detectSharedRouteCase(pickups,dropoffs){
   }
 
   return "DIFFERENT_PICKUP_DIFFERENT_DROPOFF";
+}
+
+function stableSortPoints(points){
+
+  return [...safeArray(points)]
+    .sort((a,b)=>{
+      const addressDiff =
+        stableText(a.address).localeCompare(
+          stableText(b.address)
+        );
+
+      if(addressDiff !== 0){
+        return addressDiff;
+      }
+
+      return String(a.passengerId || "").localeCompare(
+        String(b.passengerId || "")
+      );
+    });
 }
 
 function nearestPointFrom(current,candidates){
@@ -1160,16 +982,16 @@ function orderPickupsThenDropoffs(pickups,dropoffs,routeCase){
       pickups[0];
 
     /*
-      Important:
-      This is only a preliminary stable order.
-      The final real road order is fixed inside calculateRouteMiles()
-      using ONE Google Directions request with optimize:true.
+      IMPORTANT:
+      Shared ordering is by lowest miles, not lowest time.
+      Do NOT use Google optimize:true.
+      Google optimize may choose faster but longer routes.
     */
 
     return {
       orderedPickups:[startPickup],
       orderedDropoffs:nearestNeighborOrder(startPickup,dropoffs),
-      strategy:"PRELIMINARY_SAME_PICKUP_THEN_GOOGLE_FINAL_OPTIMIZE"
+      strategy:"SAME_PICKUP_DROPOFFS_BY_LOWEST_MILES_LOCAL"
     };
   }
 
@@ -1361,11 +1183,10 @@ function buildSharedRoutePlanFromPassengers(passengers){
         Number(totalAirMiles(routePlan).toFixed(3)),
       orderedPickups:ordered.orderedPickups.map(point=>point.address),
       orderedDropoffs:ordered.orderedDropoffs.map(point=>point.address),
-      googleFinalOptimize:
-        routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF",
+      googleFinalOptimize:false,
       rule:
         routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"
-          ? "PRELIMINARY_ORDER_FINAL_GOOGLE_ROAD_OPTIMIZE_ON_CALCULATE"
+          ? "SAME_PICKUP_DROPOFFS_BY_LOWEST_MILES_LOCAL_THEN_GOOGLE_CALCULATE"
           : "ALL_PICKUPS_FIRST_THEN_DROPOFFS_STABLE_NEAREST_NEIGHBOR"
     }
   };
@@ -1376,9 +1197,9 @@ function buildSharedRoutePlanFromPassengers(passengers){
    Backward compatible old helper.
 
    NOTE:
-   This is kept for old code paths.
-   New shared route should use buildSharedRoutePlanFromPassengers
-   when passenger lat/lng exists.
+   Kept for old code paths.
+   This function can still use Google optimize for non-shared old flows.
+   Shared passenger routing should use buildSharedRoutePlanFromPassengers().
 ===================================================== */
 
 async function optimizeAddressOrder(addresses, options = {}){
@@ -1419,12 +1240,6 @@ async function optimizeAddressOrder(addresses, options = {}){
       }
     };
   }
-
-  /*
-    SAFE LOCAL MODE:
-    If options.points contains coordinates, use local nearest-neighbor
-    and avoid Google optimization.
-  */
 
   const optionPoints =
     safeArray(options.points)
@@ -1469,11 +1284,6 @@ async function optimizeAddressOrder(addresses, options = {}){
       }
     };
   }
-
-  /*
-    OLD GOOGLE MODE:
-    Kept only so old code does not break.
-  */
 
   if(cleanAddresses.length === 2){
 
