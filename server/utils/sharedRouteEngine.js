@@ -16,17 +16,19 @@
 
    ROUTE POLICY:
    - Pickups are always before dropoffs.
-   - A virtual center is built from the closest pickup/dropoff pair.
-   - Pickups are ordered farthest-to-nearest toward anchor pickup.
-   - Dropoffs are ordered from the LAST pickup using nearest-neighbor chain.
-   - If caller passes a Directions function, Google Directions can refine pickup order.
-   - In Case 4, Google must NOT optimize dropoffs.
-   - Dropoffs must be nearest-neighbor chain from last pickup.
-   - Requests:
-       1) Same pickup + same dropoff       = 1 request
-       2) Same pickup + different dropoffs = 1 request
-       3) Different pickups + same dropoff = 1 request
-       4) Different pickups + dropoffs     = 2 requests max
+   - Dropoffs never happen before all pickups.
+   - When Google Directions function is provided:
+       ordering is based on REAL GOOGLE ROAD MILES.
+       Google optimizeWaypoints is NOT used for ordering.
+       Google is called point-to-point to compare miles.
+       Final route is calculated with fixed order and optimizeWaypoints:false.
+   - When no Google Directions function is provided:
+       fallback uses saved lat/lng straight-line distance only.
+       This fallback is not road-mile accurate.
+
+   IMPORTANT:
+   - Shared ordering is by LOWEST MILES, not lowest time.
+   - Do NOT use Google optimizeWaypoints for shared ordering.
    ========================================================================== */
 
 /* =========================
@@ -270,6 +272,7 @@ function uniqueRoutePoints(points){
 
 /* =========================
    DISTANCE - SAVED COORDINATES
+   Fallback only, not real road miles.
 ========================= */
 
 function distanceMilesBetweenRoutePoints(a,b){
@@ -375,9 +378,6 @@ function buildRequiredVirtualCenter(pickupPoints,dropoffPoints){
   };
 }
 
-/*
-   Compatibility helper for old imports.
-*/
 function useVirtualCenterAsAnchor(centerResult){
 
   if(!centerResult || !isValidRoutePoint(centerResult.center)){
@@ -388,7 +388,8 @@ function useVirtualCenterAsAnchor(centerResult){
 }
 
 /* =========================
-   CHEAP ORDERING
+   FALLBACK ORDERING BY COORDINATES
+   Used only when no Google Directions function is passed.
 ========================= */
 
 function orderPickupsFromCenter(pickupPoints,anchorPickup){
@@ -421,10 +422,6 @@ function orderPickupsFromCenter(pickupPoints,anchorPickup){
     }))
     .sort((a,b)=>{
 
-      /*
-         Farthest pickup first.
-         Anchor pickup naturally becomes last.
-      */
       const diff =
         Number(b.distanceFromAnchor || 0) -
         Number(a.distanceFromAnchor || 0);
@@ -443,10 +440,6 @@ function orderPickupsFromCenter(pickupPoints,anchorPickup){
     }));
 }
 
-/*
-   Old helper kept for compatibility.
-   New route policy uses orderDropoffsFromLastPickup().
-*/
 function orderDropoffsFromCenter(dropoffPoints,anchorDropoff){
 
   if(!isValidRoutePoint(anchorDropoff)){
@@ -495,15 +488,6 @@ function orderDropoffsFromCenter(dropoffPoints,anchorDropoff){
     }));
 }
 
-/*
-   NEW DROP-OFF POLICY:
-   - Start from the LAST ordered pickup.
-   - Pick the nearest dropoff.
-   - Then from that dropoff pick the next nearest dropoff.
-   - Continue until all dropoffs are ordered.
-
-   This is more practical for the driver than ordering dropoffs from center.
-*/
 function orderDropoffsFromLastPickup(dropoffPoints,lastPickup){
 
   if(!isValidRoutePoint(lastPickup)){
@@ -665,6 +649,16 @@ function makeRoutePlanPoint(point,type,order){
     distanceFromAnchor:
       Number.isFinite(Number(point.distanceFromAnchor))
         ? round(point.distanceFromAnchor,3)
+        : undefined,
+
+    distanceFromPrevious:
+      Number.isFinite(Number(point.distanceFromPrevious))
+        ? round(point.distanceFromPrevious,3)
+        : undefined,
+
+    googleMilesFromPrevious:
+      Number.isFinite(Number(point.googleMilesFromPrevious))
+        ? round(point.googleMilesFromPrevious,2)
         : undefined
   };
 }
@@ -802,18 +796,6 @@ function applyPassengerRouteOrders(passengers,routePlan){
 /* =========================
    GOOGLE DIRECTIONS WRAPPER
 ========================= */
-
-/*
-   The caller route should pass one of these:
-
-   options.directions = async ({ origin, destination, waypoints, optimizeWaypoints }) => result
-
-   OR
-
-   options.getGoogleDirections = async ({ origin, destination, waypoints, optimizeWaypoints }) => result
-
-   This engine does not import Google directly to avoid extra files and to keep it reusable.
-*/
 
 function getDirectionsFunction(options){
 
@@ -1025,34 +1007,404 @@ async function callDirections(options,args,counter){
   return response;
 }
 
-function applyWaypointOrder(waypoints,order){
+/* =========================
+   REAL ROAD MILES HELPERS
+
+   These helpers use Google Directions point-to-point.
+   They never use optimizeWaypoints.
+========================= */
+
+function pointCacheKey(point){
+  return [
+    clean(point?.type).toLowerCase(),
+    addressKey(point?.address),
+    Number(point?.lat).toFixed(6),
+    Number(point?.lng).toFixed(6)
+  ].join("|");
+}
+
+function pairCacheKey(a,b){
+  return pointCacheKey(a) + ">>" + pointCacheKey(b);
+}
+
+async function getRoadMilesBetween(options,counter,cache,fromPoint,toPoint){
+
+  if(!isValidRoutePoint(fromPoint) || !isValidRoutePoint(toPoint)){
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  if(
+    addressKey(fromPoint.address) === addressKey(toPoint.address) &&
+    Number(fromPoint.lat).toFixed(6) === Number(toPoint.lat).toFixed(6) &&
+    Number(fromPoint.lng).toFixed(6) === Number(toPoint.lng).toFixed(6)
+  ){
+    return 0;
+  }
+
+  const key =
+    pairCacheKey(fromPoint,toPoint);
+
+  if(cache.has(key)){
+    return cache.get(key);
+  }
+
+  const response =
+    await callDirections(
+      options,
+      {
+        origin:fromPoint,
+        destination:toPoint,
+        waypoints:[],
+        optimizeWaypoints:false
+      },
+      counter
+    );
+
+  const miles =
+    extractMiles(response);
+
+  const safeMiles =
+    Number.isFinite(Number(miles)) && Number(miles) > 0
+      ? Number(miles)
+      : Number.MAX_SAFE_INTEGER;
+
+  cache.set(key,safeMiles);
+
+  return safeMiles;
+}
+
+async function nearestRoadPointFrom(options,counter,cache,currentPoint,candidates){
+
+  let best = null;
+  let bestMiles = Number.MAX_SAFE_INTEGER;
 
   const list =
-    Array.isArray(waypoints)
-      ? [...waypoints]
+    Array.isArray(candidates)
+      ? [...candidates]
       : [];
 
-  if(!Array.isArray(order) || !order.length){
-    return list;
+  for(const point of list){
+
+    const miles =
+      await getRoadMilesBetween(
+        options,
+        counter,
+        cache,
+        currentPoint,
+        point
+      );
+
+    if(miles < bestMiles - 0.000001){
+
+      best = point;
+      bestMiles = miles;
+      continue;
+    }
+
+    if(Math.abs(miles - bestMiles) <= 0.000001 && best){
+
+      const a =
+        addressKey(point.address);
+
+      const b =
+        addressKey(best.address);
+
+      if(a < b){
+        best = point;
+        bestMiles = miles;
+      }
+    }
   }
+
+  return {
+    point:best,
+    miles:bestMiles
+  };
+}
+
+async function farthestRoadPointFrom(options,counter,cache,points,target){
+
+  let best = null;
+  let bestMiles = -1;
+
+  const list =
+    Array.isArray(points)
+      ? [...points]
+      : [];
+
+  for(const point of list){
+
+    const miles =
+      await getRoadMilesBetween(
+        options,
+        counter,
+        cache,
+        point,
+        target
+      );
+
+    if(miles > bestMiles + 0.000001){
+
+      best = point;
+      bestMiles = miles;
+      continue;
+    }
+
+    if(Math.abs(miles - bestMiles) <= 0.000001 && best){
+
+      const a =
+        addressKey(point.address);
+
+      const b =
+        addressKey(best.address);
+
+      if(a > b){
+        best = point;
+        bestMiles = miles;
+      }
+    }
+  }
+
+  return {
+    point:best,
+    miles:bestMiles
+  };
+}
+
+async function nearestRoadChain(options,counter,cache,startPoint,points){
+
+  const remaining =
+    (Array.isArray(points) ? points : [])
+      .map((point,index)=>({
+        ...point,
+        originalIndex:
+          Number.isFinite(Number(point.originalIndex))
+            ? Number(point.originalIndex)
+            : index
+      }));
 
   const ordered = [];
+  let currentPoint = startPoint;
 
-  for(const idx of order){
+  while(remaining.length){
 
-    if(list[idx]){
-      ordered.push(list[idx]);
+    const best =
+      await nearestRoadPointFrom(
+        options,
+        counter,
+        cache,
+        currentPoint,
+        remaining
+      );
+
+    if(!best.point){
+      break;
     }
+
+    const index =
+      remaining.findIndex(point=>{
+        return (
+          addressKey(point.address) === addressKey(best.point.address) &&
+          clean(point.type).toLowerCase() === clean(best.point.type).toLowerCase()
+        );
+      });
+
+    const next =
+      index >= 0
+        ? remaining.splice(index,1)[0]
+        : best.point;
+
+    ordered.push({
+      ...next,
+      distanceFromAnchor:round(best.miles,3),
+      distanceFromPrevious:round(best.miles,3),
+      googleMilesFromPrevious:round(best.miles,2)
+    });
+
+    currentPoint = next;
   }
 
-  for(let i = 0; i < list.length; i++){
+  return ordered.map((point,index)=>({
+    ...point,
+    roadOrder:index + 1
+  }));
+}
 
-    if(!order.includes(i)){
-      ordered.push(list[i]);
-    }
+async function scoreRoadRoute(options,counter,cache,points){
+
+  const list =
+    Array.isArray(points)
+      ? points.filter(isValidRoutePoint)
+      : [];
+
+  let total = 0;
+
+  for(let i = 0; i < list.length - 1; i++){
+
+    const miles =
+      await getRoadMilesBetween(
+        options,
+        counter,
+        cache,
+        list[i],
+        list[i + 1]
+      );
+
+    total +=
+      Number.isFinite(Number(miles))
+        ? Number(miles)
+        : 0;
   }
 
-  return ordered;
+  return round(total,3);
+}
+
+function routeTieKey(points){
+  return (Array.isArray(points) ? points : [])
+    .map(point=>{
+      return [
+        clean(point.type).toLowerCase(),
+        addressKey(point.address)
+      ].join(":");
+    })
+    .join(">");
+}
+
+async function buildBestPickupChainToDropoff(options,counter,cache,pickupPoints,commonDropoff){
+
+  const candidates = [];
+
+  for(const startPickup of pickupPoints){
+
+    const others =
+      pickupPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(startPickup.address);
+      });
+
+    const pickupChain =
+      await nearestRoadChain(
+        options,
+        counter,
+        cache,
+        startPickup,
+        others
+      );
+
+    const orderedPickups = [
+      startPickup,
+      ...pickupChain
+    ];
+
+    const fullRoute = [
+      ...orderedPickups,
+      commonDropoff
+    ];
+
+    const score =
+      await scoreRoadRoute(
+        options,
+        counter,
+        cache,
+        fullRoute
+      );
+
+    candidates.push({
+      orderedPickups,
+      score,
+      tie:routeTieKey(fullRoute)
+    });
+  }
+
+  candidates.sort((a,b)=>{
+
+    const diff =
+      Number(a.score) - Number(b.score);
+
+    if(Math.abs(diff) > 0.000001){
+      return diff;
+    }
+
+    return String(a.tie).localeCompare(String(b.tie));
+  });
+
+  return candidates[0]?.orderedPickups || pickupPoints;
+}
+
+async function buildBestAllDifferentRoute(options,counter,cache,pickupPoints,dropoffPoints){
+
+  const candidates = [];
+
+  for(const startPickup of pickupPoints){
+
+    const otherPickups =
+      pickupPoints.filter(point=>{
+        return addressKey(point.address) !== addressKey(startPickup.address);
+      });
+
+    const pickupChain =
+      await nearestRoadChain(
+        options,
+        counter,
+        cache,
+        startPickup,
+        otherPickups
+      );
+
+    const orderedPickups = [
+      startPickup,
+      ...pickupChain
+    ];
+
+    const lastPickup =
+      orderedPickups[orderedPickups.length - 1];
+
+    const orderedDropoffs =
+      await nearestRoadChain(
+        options,
+        counter,
+        cache,
+        lastPickup,
+        dropoffPoints
+      );
+
+    const fullRoute = [
+      ...orderedPickups,
+      ...orderedDropoffs
+    ];
+
+    const score =
+      await scoreRoadRoute(
+        options,
+        counter,
+        cache,
+        fullRoute
+      );
+
+    candidates.push({
+      orderedPickups,
+      orderedDropoffs,
+      score,
+      tie:routeTieKey(fullRoute)
+    });
+  }
+
+  candidates.sort((a,b)=>{
+
+    const diff =
+      Number(a.score) - Number(b.score);
+
+    if(Math.abs(diff) > 0.000001){
+      return diff;
+    }
+
+    return String(a.tie).localeCompare(String(b.tie));
+  });
+
+  return {
+    orderedPickups:candidates[0]?.orderedPickups || pickupPoints,
+    orderedDropoffs:candidates[0]?.orderedDropoffs || dropoffPoints,
+    score:candidates[0]?.score || 0
+  };
 }
 
 /* =========================
@@ -1197,6 +1549,9 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
   const counter =
     {count:0};
 
+  const roadCache =
+    new Map();
+
   const fallback =
     buildCandidateWithoutGoogle(
       pickupPoints,
@@ -1211,7 +1566,7 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     return {
       ...fallback,
       googleRequestsUsed:0,
-      calculationSource:"SAVED_COORDINATES_CANDIDATE_ONLY",
+      calculationSource:"SAVED_COORDINATES_STRAIGHT_LINE_FALLBACK_NOT_ROAD_MILES",
       miles:sumRouteStraightMiles(fallback.routePlan),
       minutes:0,
       polyline:"",
@@ -1233,22 +1588,10 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
   /* =========================
      CASE 1
      Same pickup + same dropoff
-     1 request
+     Final fixed route only.
   ========================= */
 
   if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
-
-    finalResponse =
-      await callDirections(
-        options,
-        {
-          origin:pickupPoints[0],
-          destination:dropoffPoints[0],
-          waypoints:[],
-          optimizeWaypoints:false
-        },
-        counter
-      );
 
     orderedPickups = [pickupPoints[0]];
     orderedDropoffs = [dropoffPoints[0]];
@@ -1257,8 +1600,11 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
   /* =========================
      CASE 2
      Same pickup + different dropoffs
-     1 request
-     Origin is pickup. Optimize dropoffs only.
+
+     Order dropoffs by real Google road miles chain:
+     pickup -> nearest road-mile dropoff
+            -> nearest road-mile dropoff from previous
+            -> ...
   ========================= */
 
   else if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
@@ -1266,48 +1612,24 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     const groupPickup =
       pickupPoints[0];
 
-    const farthestDropoff =
-      farthestPointFrom(
-        dropoffPoints,
-        groupPickup
-      ) || dropoffPoints[dropoffPoints.length - 1];
-
-    const waypoints =
-      dropoffPoints.filter(point=>{
-        return addressKey(point.address) !== addressKey(farthestDropoff.address);
-      });
-
-    finalResponse =
-      await callDirections(
-        options,
-        {
-          origin:groupPickup,
-          destination:farthestDropoff,
-          waypoints,
-          optimizeWaypoints:true
-        },
-        counter
-      );
-
-    const waypointOrder =
-      extractWaypointOrder(finalResponse);
-
     orderedPickups = [groupPickup];
 
-    orderedDropoffs = [
-      ...applyWaypointOrder(
-        waypoints,
-        waypointOrder
-      ),
-      farthestDropoff
-    ];
+    orderedDropoffs =
+      await nearestRoadChain(
+        options,
+        counter,
+        roadCache,
+        groupPickup,
+        dropoffPoints
+      );
   }
 
   /* =========================
      CASE 3
      Different pickups + same dropoff
-     1 request
-     Optimize pickups only.
+
+     Pick the best pickup chain by real Google road miles.
+     All pickups first, common dropoff last.
   ========================= */
 
   else if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
@@ -1315,39 +1637,14 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     const groupDropoff =
       dropoffPoints[0];
 
-    const startPickup =
-      farthestPointFrom(
+    orderedPickups =
+      await buildBestPickupChainToDropoff(
+        options,
+        counter,
+        roadCache,
         pickupPoints,
         groupDropoff
-      ) || pickupPoints[0];
-
-    const waypoints =
-      pickupPoints.filter(point=>{
-        return addressKey(point.address) !== addressKey(startPickup.address);
-      });
-
-    finalResponse =
-      await callDirections(
-        options,
-        {
-          origin:startPickup,
-          destination:groupDropoff,
-          waypoints,
-          optimizeWaypoints:true
-        },
-        counter
       );
-
-    const waypointOrder =
-      extractWaypointOrder(finalResponse);
-
-    orderedPickups = [
-      startPickup,
-      ...applyWaypointOrder(
-        waypoints,
-        waypointOrder
-      )
-    ];
 
     orderedDropoffs = [groupDropoff];
   }
@@ -1355,100 +1652,55 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
   /* =========================
      CASE 4
      Different pickups + different dropoffs
-     2 requests max
 
-     Request 1:
-       Optimize pickups only:
-       farthest pickup -> anchor pickup
-
-     Dropoffs:
-       NO Google optimization.
-       Use nearest-neighbor chain:
-       LAST pickup -> nearest dropoff -> nearest dropoff from previous.
-
-     Request 2:
-       Final route with fixed order:
-       all pickups first, then all dropoffs
+     All pickups first.
+     Try every pickup as possible start.
+     For each start:
+       - nearest road-mile chain through pickups
+       - nearest road-mile chain through dropoffs from last pickup
+     Pick the lowest total road-mile candidate.
   ========================= */
 
   else {
 
-    const anchorPickup =
-      fallback.centerResult.anchorPickup;
-
-    const pickupStart =
-      farthestPointFrom(
+    const best =
+      await buildBestAllDifferentRoute(
+        options,
+        counter,
+        roadCache,
         pickupPoints,
-        anchorPickup
-      ) || orderedPickups[0];
-
-    const pickupWaypoints =
-      pickupPoints.filter(point=>{
-        return addressKey(point.address) !== addressKey(pickupStart.address) &&
-               addressKey(point.address) !== addressKey(anchorPickup.address);
-      });
-
-    const pickupResponse =
-      await callDirections(
-        options,
-        {
-          origin:pickupStart,
-          destination:anchorPickup,
-          waypoints:pickupWaypoints,
-          optimizeWaypoints:true
-        },
-        counter
+        dropoffPoints
       );
 
-    orderedPickups = [
-      pickupStart,
-      ...applyWaypointOrder(
-        pickupWaypoints,
-        extractWaypointOrder(pickupResponse)
-      ),
-      anchorPickup
-    ];
+    orderedPickups =
+      best.orderedPickups;
 
-    const lastPickup =
-      orderedPickups[orderedPickups.length - 1];
-
-    /*
-       IMPORTANT:
-       Do NOT let Google optimize dropoffs in case 4.
-
-       Dropoff order must be:
-       Last pickup
-       -> nearest dropoff
-       -> nearest dropoff from that dropoff
-       -> nearest dropoff from that dropoff
-       -> ...
-
-       Google is used only in the final request to calculate miles/minutes
-       using this fixed order.
-    */
     orderedDropoffs =
-      orderDropoffsFromLastPickup(
-        dropoffPoints,
-        lastPickup
-      );
-
-    const finalPoints = [
-      ...orderedPickups,
-      ...orderedDropoffs
-    ];
-
-    finalResponse =
-      await callDirections(
-        options,
-        {
-          origin:finalPoints[0],
-          destination:finalPoints[finalPoints.length - 1],
-          waypoints:finalPoints.slice(1,-1),
-          optimizeWaypoints:false
-        },
-        counter
-      );
+      best.orderedDropoffs;
   }
+
+  const finalPoints = [
+    ...orderedPickups,
+    ...orderedDropoffs
+  ];
+
+  /*
+     Final Google Directions request:
+     fixed order only.
+     No optimizeWaypoints.
+     This response is the source for final miles/minutes/polyline/price.
+  */
+  finalResponse =
+    await callDirections(
+      options,
+      {
+        origin:finalPoints[0],
+        destination:finalPoints[finalPoints.length - 1],
+        waypoints:finalPoints.slice(1,-1),
+        optimizeWaypoints:false
+      },
+      counter
+    );
 
   const routePlan =
     buildRoutePlan(
@@ -1464,7 +1716,7 @@ async function buildRouteWithGoogleDirections(pickupPoints,dropoffPoints,options
     routePlan,
 
     googleRequestsUsed:counter.count,
-    calculationSource:"GOOGLE_DIRECTIONS_REAL_ROUTE",
+    calculationSource:"GOOGLE_DIRECTIONS_ROAD_MILES_ORDERING_FIXED_FINAL_ROUTE",
 
     miles:extractMiles(finalResponse),
     minutes:extractMinutes(finalResponse),
@@ -1659,7 +1911,7 @@ function buildSharedRouteFromSavedCoordinates(passengers,options = {}){
     polyline:"",
 
     googleRequestsUsed:0,
-    calculationSource:"SAVED_COORDINATES_CANDIDATE_ONLY"
+    calculationSource:"SAVED_COORDINATES_STRAIGHT_LINE_FALLBACK_NOT_ROAD_MILES"
   };
 
   if(options.debug === true){
@@ -1667,7 +1919,8 @@ function buildSharedRouteFromSavedCoordinates(passengers,options = {}){
       pickupPoints,
       dropoffPoints,
       routePoints:finalRoutePoints,
-      routePlan
+      routePlan,
+      warning:"This sync engine uses straight-line distance only. Use buildSharedRouteWithDirections for real road-mile ordering."
     };
   }
 
@@ -1750,7 +2003,8 @@ async function buildSharedRouteWithDirections(passengers,options = {}){
       routePoints:finalRoutePoints,
       routePlan,
       googleRequestsUsed:real.googleRequestsUsed,
-      calculationSource:real.calculationSource
+      calculationSource:real.calculationSource,
+      rule:"ORDER_BY_GOOGLE_ROAD_MILES_FINAL_ROUTE_FIXED_NO_OPTIMIZE"
     };
   }
 
