@@ -11,6 +11,13 @@
    - Shared trips can geocode missing passenger coordinates during Confirm.
    - Shared geocoded lat/lng are saved back inside trip.passengers.
    - If AddressCache model exists, geocoded addresses are also saved/reused.
+   - Each lat/lng is bound to its address using GeoKey:
+       pickupGeoKey / dropoffGeoKey
+       pickupGeoAddress / dropoffGeoAddress
+   - On Edit:
+       if only one address changed, only that address gets new geocode.
+       unchanged addresses reuse saved lat/lng.
+   - Prevents old lat/lng from being saved under a new address.
    - Counts requests:
        geocodeRequestsUsed
        directionsRequestsUsed
@@ -64,6 +71,10 @@ function addressKey(value){
     .toLowerCase()
     .replace(/\s+/g," ")
     .trim();
+}
+
+function geoKey(value){
+  return addressKey(value);
 }
 
 function cleanStatus(value){
@@ -327,6 +338,77 @@ function passengerIsActive(passenger){
     !status.includes("noshow") &&
     !status.includes("no-show")
   );
+}
+
+/* =========================
+   GEO BINDING HELPERS
+
+   These prevent this bad case:
+   dropoff text changed, but old dropoffLat/dropoffLng remained.
+   Then old coordinates get saved under the new address.
+========================= */
+
+function geoMatchesCurrentAddress(passenger,type){
+
+  const address =
+    type === "pickup"
+      ? normalizePossibleAddress(passenger.pickup)
+      : normalizePossibleAddress(passenger.dropoff);
+
+  const savedGeoKey =
+    type === "pickup"
+      ? clean(passenger.pickupGeoKey || passenger.pickupAddressKey || "")
+      : clean(passenger.dropoffGeoKey || passenger.dropoffAddressKey || "");
+
+  const savedGeoAddress =
+    type === "pickup"
+      ? normalizePossibleAddress(passenger.pickupGeoAddress || "")
+      : normalizePossibleAddress(passenger.dropoffGeoAddress || "");
+
+  const currentKey =
+    geoKey(address);
+
+  if(!address || !currentKey){
+    return false;
+  }
+
+  if(savedGeoKey){
+    return savedGeoKey === currentKey;
+  }
+
+  if(savedGeoAddress){
+    return geoKey(savedGeoAddress) === currentKey;
+  }
+
+  /*
+    Old trips may have lat/lng but no geo binding.
+    We cannot trust those coordinates after edit.
+    This prevents poisoning AddressCache.
+  */
+  return false;
+}
+
+function needsFreshGeocode(passenger,type){
+
+  if(type === "pickup"){
+
+    if(!hasValidLatLng(passenger.pickupLat,passenger.pickupLng)){
+      return true;
+    }
+
+    return !geoMatchesCurrentAddress(passenger,"pickup");
+  }
+
+  if(type === "dropoff"){
+
+    if(!hasValidLatLng(passenger.dropoffLat,passenger.dropoffLng)){
+      return true;
+    }
+
+    return !geoMatchesCurrentAddress(passenger,"dropoff");
+  }
+
+  return true;
 }
 
 /* =========================
@@ -830,7 +912,9 @@ async function lookupAddressCache(address,stats = null){
       return {
         lat:Number(found.lat),
         lng:Number(found.lng),
-        source:"address-cache"
+        source:"address-cache",
+        geoAddress:fullAddress,
+        geoKey:key
       };
     }
 
@@ -859,7 +943,7 @@ async function saveAddressCache(address,coords,source = "confirm-geocode"){
 
   try{
 
-    const update = {
+    const setData = {
       addressKey:key,
       key,
       normalizedAddress:key,
@@ -869,10 +953,7 @@ async function saveAddressCache(address,coords,source = "confirm-geocode"){
       lng:Number(coords.lng),
       source,
       updatedAt:new Date(),
-      lastUsedAt:new Date(),
-      $inc:{
-        usedCount:1
-      }
+      lastUsedAt:new Date()
     };
 
     const saved =
@@ -885,7 +966,10 @@ async function saveAddressCache(address,coords,source = "confirm-geocode"){
           ]
         },
         {
-          $set:update,
+          $set:setData,
+          $inc:{
+            usedCount:1
+          },
           $setOnInsert:{
             createdAt:new Date()
           }
@@ -962,7 +1046,9 @@ async function geocodeAddress(address,stats = null){
         const coords = {
           lat:Number(lat),
           lng:Number(lng),
-          source:"routeMapEngine-geocode"
+          source:"routeMapEngine-geocode",
+          geoAddress:cleanAddress,
+          geoKey:geoKey(cleanAddress)
         };
 
         await saveAddressCache(cleanAddress,coords,coords.source);
@@ -1018,7 +1104,9 @@ async function geocodeAddress(address,stats = null){
     const coords = {
       lat:Number(location.lat),
       lng:Number(location.lng),
-      source:"google-geocode"
+      source:"google-geocode",
+      geoAddress:cleanAddress,
+      geoKey:geoKey(cleanAddress)
     };
 
     await saveAddressCache(cleanAddress,coords,coords.source);
@@ -1343,9 +1431,16 @@ function applySharedPassengerOrdersAndCoords({
       const pickupCoord = coordMap.get(pickupKey) || null;
       const dropoffCoord = coordMap.get(dropoffKey) || null;
 
+      const pickupAddress =
+        normalizePossibleAddress(passenger.pickup);
+
+      const dropoffAddress =
+        normalizePossibleAddress(passenger.dropoff);
+
       return {
         ...passenger,
-        pickup:normalizePossibleAddress(passenger.pickup),
+
+        pickup:pickupAddress,
         pickupLat:
           Number.isFinite(Number(pickupCoord?.lat))
             ? Number(pickupCoord.lat)
@@ -1354,7 +1449,14 @@ function applySharedPassengerOrdersAndCoords({
           Number.isFinite(Number(pickupCoord?.lng))
             ? Number(pickupCoord.lng)
             : passenger.pickupLng ?? null,
-        dropoff:normalizePossibleAddress(passenger.dropoff),
+        pickupGeoAddress:
+          passenger.pickupGeoAddress || pickupAddress,
+        pickupGeoKey:
+          passenger.pickupGeoKey || geoKey(pickupAddress),
+        pickupGeoSource:
+          passenger.pickupGeoSource || "",
+
+        dropoff:dropoffAddress,
         dropoffLat:
           Number.isFinite(Number(dropoffCoord?.lat))
             ? Number(dropoffCoord.lat)
@@ -1363,6 +1465,13 @@ function applySharedPassengerOrdersAndCoords({
           Number.isFinite(Number(dropoffCoord?.lng))
             ? Number(dropoffCoord.lng)
             : passenger.dropoffLng ?? null,
+        dropoffGeoAddress:
+          passenger.dropoffGeoAddress || dropoffAddress,
+        dropoffGeoKey:
+          passenger.dropoffGeoKey || geoKey(dropoffAddress),
+        dropoffGeoSource:
+          passenger.dropoffGeoSource || "",
+
         pickupOrder:active ? pickupOrder : 9999,
         dropoffOrder:active ? dropoffOrder : 9999,
         routeOrder:index + 1,
@@ -1518,18 +1627,56 @@ function uniqueTypedRoutePoints(points){
   return out;
 }
 
+/* =========================
+   COORDINATE ENSURE
+
+   IMPORTANT:
+   - Only geocode the changed/missing/untrusted address.
+   - Do not geocode unchanged addresses.
+   - Do not save old lat/lng under new address.
+========================= */
+
 async function ensurePassengerPointCoordinates(passenger,stats){
 
   const out = { ...passenger };
 
-  if(!hasValidLatLng(out.pickupLat,out.pickupLng)){
+  const pickupAddress =
+    normalizePossibleAddress(out.pickup);
+
+  const dropoffAddress =
+    normalizePossibleAddress(out.dropoff);
+
+  if(!pickupAddress){
+    throw new Error("Missing pickup address");
+  }
+
+  if(!dropoffAddress){
+    throw new Error("Missing dropoff address");
+  }
+
+  /* =========================
+     PICKUP
+  ========================= */
+
+  if(needsFreshGeocode(out,"pickup")){
 
     console.log("======== GEOCODE PICKUP START ========");
     console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
-    console.log("Pickup address:", out.pickup);
+    console.log("Pickup address:", pickupAddress);
+    console.log("Old pickupLat:", out.pickupLat);
+    console.log("Old pickupLng:", out.pickupLng);
+    console.log("Old pickupGeoKey:", out.pickupGeoKey || "");
+    console.log("Current pickupGeoKey:", geoKey(pickupAddress));
+    console.log(
+      "Reason:",
+      hasValidLatLng(out.pickupLat,out.pickupLng)
+        ? "ADDRESS_CHANGED_OR_UNTRUSTED_GEO"
+        : "MISSING_COORDS"
+    );
     console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
 
-    const coords = await geocodeAddress(out.pickup,stats);
+    const coords =
+      await geocodeAddress(pickupAddress,stats);
 
     console.log("Pickup geocode result:", coords);
     console.log("======== GEOCODE PICKUP END ========");
@@ -1537,26 +1684,50 @@ async function ensurePassengerPointCoordinates(passenger,stats){
     if(coords){
       out.pickupLat = coords.lat;
       out.pickupLng = coords.lng;
+      out.pickupGeoAddress = pickupAddress;
+      out.pickupGeoKey = geoKey(pickupAddress);
+      out.pickupGeoSource = coords.source || "geocode";
     }
+
   }else{
+
     await saveAddressCache(
-      out.pickup,
+      pickupAddress,
       {
         lat:out.pickupLat,
         lng:out.pickupLng
       },
-      "existing-passenger-pickup"
+      "trusted-existing-passenger-pickup"
     );
+
+    out.pickupGeoAddress = pickupAddress;
+    out.pickupGeoKey = geoKey(pickupAddress);
+    out.pickupGeoSource = out.pickupGeoSource || "existing-trusted";
   }
 
-  if(!hasValidLatLng(out.dropoffLat,out.dropoffLng)){
+  /* =========================
+     DROPOFF
+  ========================= */
+
+  if(needsFreshGeocode(out,"dropoff")){
 
     console.log("======== GEOCODE DROPOFF START ========");
     console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
-    console.log("Dropoff address:", out.dropoff);
+    console.log("Dropoff address:", dropoffAddress);
+    console.log("Old dropoffLat:", out.dropoffLat);
+    console.log("Old dropoffLng:", out.dropoffLng);
+    console.log("Old dropoffGeoKey:", out.dropoffGeoKey || "");
+    console.log("Current dropoffGeoKey:", geoKey(dropoffAddress));
+    console.log(
+      "Reason:",
+      hasValidLatLng(out.dropoffLat,out.dropoffLng)
+        ? "ADDRESS_CHANGED_OR_UNTRUSTED_GEO"
+        : "MISSING_COORDS"
+    );
     console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
 
-    const coords = await geocodeAddress(out.dropoff,stats);
+    const coords =
+      await geocodeAddress(dropoffAddress,stats);
 
     console.log("Dropoff geocode result:", coords);
     console.log("======== GEOCODE DROPOFF END ========");
@@ -1564,16 +1735,25 @@ async function ensurePassengerPointCoordinates(passenger,stats){
     if(coords){
       out.dropoffLat = coords.lat;
       out.dropoffLng = coords.lng;
+      out.dropoffGeoAddress = dropoffAddress;
+      out.dropoffGeoKey = geoKey(dropoffAddress);
+      out.dropoffGeoSource = coords.source || "geocode";
     }
+
   }else{
+
     await saveAddressCache(
-      out.dropoff,
+      dropoffAddress,
       {
         lat:out.dropoffLat,
         lng:out.dropoffLng
       },
-      "existing-passenger-dropoff"
+      "trusted-existing-passenger-dropoff"
     );
+
+    out.dropoffGeoAddress = dropoffAddress;
+    out.dropoffGeoKey = geoKey(dropoffAddress);
+    out.dropoffGeoSource = out.dropoffGeoSource || "existing-trusted";
   }
 
   return out;
@@ -1692,10 +1872,20 @@ async function collectSharedPoints(trip,stats){
 
       return {
         ...passenger,
+
+        pickup:found.pickup,
         pickupLat:found.pickupLat,
         pickupLng:found.pickupLng,
+        pickupGeoAddress:found.pickupGeoAddress || found.pickup,
+        pickupGeoKey:found.pickupGeoKey || geoKey(found.pickup),
+        pickupGeoSource:found.pickupGeoSource || "",
+
+        dropoff:found.dropoff,
         dropoffLat:found.dropoffLat,
-        dropoffLng:found.dropoffLng
+        dropoffLng:found.dropoffLng,
+        dropoffGeoAddress:found.dropoffGeoAddress || found.dropoff,
+        dropoffGeoKey:found.dropoffGeoKey || geoKey(found.dropoff),
+        dropoffGeoSource:found.dropoffGeoSource || ""
       };
     });
 
@@ -1934,27 +2124,8 @@ function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
 
 async function buildSmartSharedRoute(trip,stats){
 
-  /*
-    STEP 1:
-    collectSharedPoints is still important because it:
-    - reads pickup/dropoff from passengers or fallback trip lists
-    - geocodes missing passenger pickup/dropoff
-    - saves/reuses AddressCache if model exists
-    - returns passengers with pickupLat/pickupLng/dropoffLat/dropoffLng
-  */
-
   const points =
     await collectSharedPoints(trip,stats);
-
-  /*
-    STEP 2:
-    Use the NEW routeMapEngine shared planner if installed.
-
-    IMPORTANT FIX:
-    - Trip schema routePoints is [String] in your database.
-    - So we save routePoints as address strings only.
-    - Full objects with lat/lng stay in routePlan/sharedRoutePlan.
-  */
 
   if(
     routeMapEngine &&
@@ -1985,40 +2156,14 @@ async function buildSmartSharedRoute(trip,stats){
 
     return {
       isShared:true,
-
-      /*
-        Mongoose Trip.routePoints عندك [String]
-        ممنوع نحط objects هنا عشان ما يطلعش:
-        Cast to [string] failed
-      */
-      routePoints:
-        finalRouteAddresses,
-
-      /*
-        هنا نحفظ التفاصيل كاملة:
-        type/address/lat/lng/order/passengerIndexes
-      */
-      routePlan:
-        smartRoutePlan,
-
-      sharedRoutePlan:
-        smartSharedRoutePlan,
-
-      passengers:
-        points.sourcePassengers,
-
-      activeCount:
-        n(smart.activeCount) || points.activePassengers.length,
-
-      sharedStopsCount:
-        n(smart.sharedStopsCount),
-
-      routeCase:
-        smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
-
-      requestsBeforeFinal:
-        n(stats?.geocodeRequestsUsed),
-
+      routePoints:finalRouteAddresses,
+      routePlan:smartRoutePlan,
+      sharedRoutePlan:smartSharedRoutePlan,
+      passengers:points.sourcePassengers,
+      activeCount:n(smart.activeCount) || points.activePassengers.length,
+      sharedStopsCount:n(smart.sharedStopsCount),
+      routeCase:smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
+      requestsBeforeFinal:n(stats?.geocodeRequestsUsed),
       routeMeta:{
         ...(smart.meta || {}),
         mode:smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
@@ -2030,11 +2175,6 @@ async function buildSmartSharedRoute(trip,stats){
       }
     };
   }
-
-  /*
-    FALLBACK:
-    Keep old center logic only if the new engine function is missing.
-  */
 
   const routeCase =
     detectSharedCase(
@@ -2407,6 +2547,7 @@ router.post("/:tripId", async (req,res)=>{
             : normalizePossibleAddress(point?.address);
         })
         .filter(Boolean);
+
     updatedTrip.routePlan = safeArray(prepared.routePlan);
     updatedTrip.routeSignature = currentSignature;
     updatedTrip.routeLocked = true;
