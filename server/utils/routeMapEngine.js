@@ -10,8 +10,12 @@
 
    SAFE RULE:
    - This file does NOT geocode.
-   - This file does NOT force Google waypoint optimization.
-   - Final Directions request calculates miles/minutes/polyline only.
+   - This file uses saved lat/lng when available.
+   - Final Directions request calculates miles/minutes/polyline.
+   - For SAME pickup + DIFFERENT dropoff:
+       Google Directions uses optimize:true INSIDE the final request.
+       This is still ONE Google Directions request.
+       It fixes road/freeway order like I-10 / 101 / 202.
    - For shared trips:
        All pickups first.
        Dropoffs never happen before all pickups.
@@ -420,35 +424,117 @@ async function googleDirectionsRequest(params){
 }
 
 /* =====================================================
-   SERVER ROUTE CALCULATION
-   Used on Confirm only
-
-   IMPORTANT:
-   - No optimize:true here.
-   - Route order is already decided before this function.
-   - Google only calculates miles/minutes/polyline.
+   ROUTE CASE HELPERS FOR FINAL GOOGLE REQUEST
 ===================================================== */
 
-async function calculateRouteMiles(routePoints){
+function isPickupPoint(point){
+  return clean(point?.type).toLowerCase() === "pickup";
+}
 
-  const cleanPoints =
-    uniqueRouteLocations(routePoints);
+function isDropoffPoint(point){
+  return clean(point?.type).toLowerCase() === "dropoff";
+}
 
-  if(cleanPoints.length < 2){
+function allSameAddress(points){
 
-    return {
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-      routePoints:cleanPoints.map(p=>p.address),
-      googleRoute:{
-        summary:"",
-        waypointOrder:[],
-        legs:[]
-      }
-    };
+  const list =
+    safeArray(points);
+
+  if(list.length <= 1){
+    return true;
   }
+
+  const first =
+    addressKey(list[0]?.address);
+
+  return list.every(point=>{
+    return addressKey(point?.address) === first;
+  });
+}
+
+function isSamePickupDifferentDropoffsRoute(cleanPoints){
+
+  const points =
+    safeArray(cleanPoints);
+
+  if(points.length < 3){
+    return false;
+  }
+
+  const pickups =
+    points.filter(isPickupPoint);
+
+  const dropoffs =
+    points.filter(isDropoffPoint);
+
+  if(pickups.length !== 1){
+    return false;
+  }
+
+  if(dropoffs.length < 2){
+    return false;
+  }
+
+  return !allSameAddress(dropoffs);
+}
+
+function stableSortPoints(points){
+
+  return [...safeArray(points)]
+    .sort((a,b)=>{
+      const addressDiff =
+        stableText(a.address).localeCompare(
+          stableText(b.address)
+        );
+
+      if(addressDiff !== 0){
+        return addressDiff;
+      }
+
+      return String(a.passengerId || "").localeCompare(
+        String(b.passengerId || "")
+      );
+    });
+}
+
+function farthestPointFrom(current,points){
+
+  let best = null;
+  let bestMiles = -1;
+
+  const sorted =
+    stableSortPoints(points);
+
+  for(const point of sorted){
+
+    const miles =
+      distanceMiles(current,point);
+
+    if(miles > bestMiles + 0.000001){
+      best = point;
+      bestMiles = miles;
+      continue;
+    }
+
+    if(Math.abs(miles - bestMiles) <= 0.000001 && best){
+
+      const textA =
+        stableText(point.address);
+
+      const textB =
+        stableText(best.address);
+
+      if(textA > textB){
+        best = point;
+        bestMiles = miles;
+      }
+    }
+  }
+
+  return best;
+}
+
+function buildNormalDirectionsParams(cleanPoints){
 
   const origin =
     cleanPoints[0];
@@ -473,8 +559,158 @@ async function calculateRouteMiles(routePoints){
     );
   }
 
+  return {
+    params,
+    finalCleanPoints:cleanPoints,
+    optimized:false,
+    optimizeReason:"NORMAL_ORDER_NO_OPTIMIZE",
+    waypointSourcePoints:middle,
+    finalDestination:destination
+  };
+}
+
+function buildSamePickupDropoffOptimizeParams(cleanPoints){
+
+  const pickup =
+    cleanPoints.find(isPickupPoint) || cleanPoints[0];
+
+  const dropoffs =
+    cleanPoints.filter(isDropoffPoint);
+
+  const finalDropoff =
+    farthestPointFrom(pickup,dropoffs) ||
+    dropoffs[dropoffs.length - 1];
+
+  const middleDropoffs =
+    stableSortPoints(
+      dropoffs.filter(point=>{
+        return addressKey(point.address) !== addressKey(finalDropoff.address);
+      })
+    );
+
+  if(!middleDropoffs.length){
+
+    const params =
+      new URLSearchParams();
+
+    params.set("origin",pickup.googleValue);
+    params.set("destination",finalDropoff.googleValue);
+
+    return {
+      params,
+      finalCleanPoints:[pickup,finalDropoff],
+      optimized:false,
+      optimizeReason:"ONLY_ONE_DROPOFF_AFTER_UNIQUE",
+      waypointSourcePoints:[],
+      finalDestination:finalDropoff
+    };
+  }
+
+  const params =
+    new URLSearchParams();
+
+  params.set("origin",pickup.googleValue);
+  params.set("destination",finalDropoff.googleValue);
+
+  params.set(
+    "waypoints",
+    "optimize:true|" +
+    middleDropoffs.map(p=>p.googleValue).join("|")
+  );
+
+  return {
+    params,
+    finalCleanPoints:[pickup,...middleDropoffs,finalDropoff],
+    optimized:true,
+    optimizeReason:"SAME_PICKUP_DIFFERENT_DROPOFF_GOOGLE_OPTIMIZE",
+    waypointSourcePoints:middleDropoffs,
+    finalDestination:finalDropoff
+  };
+}
+
+function orderedPointsFromGoogleResult(requestPlan,route){
+
+  const waypointOrder =
+    Array.isArray(route?.waypoint_order)
+      ? route.waypoint_order
+      : [];
+
+  if(!requestPlan.optimized){
+
+    return {
+      orderedPoints:requestPlan.finalCleanPoints,
+      waypointOrder
+    };
+  }
+
+  const origin =
+    requestPlan.finalCleanPoints[0];
+
+  const optimizedMiddle =
+    waypointOrder
+      .map(index=>requestPlan.waypointSourcePoints[index])
+      .filter(Boolean);
+
+  const destination =
+    requestPlan.finalDestination;
+
+  const orderedPoints = [
+    origin,
+    ...optimizedMiddle,
+    destination
+  ];
+
+  return {
+    orderedPoints,
+    waypointOrder
+  };
+}
+
+/* =====================================================
+   SERVER ROUTE CALCULATION
+   Used on Confirm only
+
+   IMPORTANT:
+   - Normal routes: Google calculates current order.
+   - Same pickup + different dropoffs:
+       Google optimizes the dropoffs inside this same final request.
+       This prevents extra requests and fixes road/freeway order.
+===================================================== */
+
+async function calculateRouteMiles(routePoints){
+
+  const cleanPoints =
+    uniqueRouteLocations(routePoints);
+
+  if(cleanPoints.length < 2){
+
+    return {
+      miles:0,
+      distanceMeters:0,
+      durationSeconds:0,
+      estimatedMinutes:0,
+      routePoints:cleanPoints.map(p=>p.address),
+      optimizedRoutePoints:cleanPoints.map(p=>p.address),
+      googleRoute:{
+        summary:"",
+        waypointOrder:[],
+        legs:[],
+        optimized:false,
+        optimizeReason:"NOT_ENOUGH_POINTS"
+      }
+    };
+  }
+
+  const shouldOptimizeSamePickup =
+    isSamePickupDifferentDropoffsRoute(cleanPoints);
+
+  const requestPlan =
+    shouldOptimizeSamePickup
+      ? buildSamePickupDropoffOptimizeParams(cleanPoints)
+      : buildNormalDirectionsParams(cleanPoints);
+
   const data =
-    await googleDirectionsRequest(params);
+    await googleDirectionsRequest(requestPlan.params);
 
   const route =
     data.routes[0];
@@ -483,6 +719,12 @@ async function calculateRouteMiles(routePoints){
     Array.isArray(route.legs)
       ? route.legs
       : [];
+
+  const ordered =
+    orderedPointsFromGoogleResult(
+      requestPlan,
+      route
+    );
 
   let meters = 0;
   let seconds = 0;
@@ -510,14 +752,32 @@ async function calculateRouteMiles(routePoints){
       Math.ceil(seconds / 60),
 
     routePoints:
-      cleanPoints.map(p=>p.address),
+      ordered.orderedPoints.map(p=>p.address),
+
+    optimizedRoutePoints:
+      ordered.orderedPoints.map((point,index)=>({
+        type:point.type,
+        address:point.address,
+        lat:point.lat,
+        lng:point.lng,
+        order:index + 1,
+        passengerId:point.passengerId || "",
+        passengerIndexes:point.passengerIndexes || [],
+        group:point.group === true
+      })),
 
     googleRoute:{
       summary:
         route.summary || "",
 
       waypointOrder:
-        route.waypoint_order || [],
+        ordered.waypointOrder,
+
+      optimized:
+        requestPlan.optimized === true,
+
+      optimizeReason:
+        requestPlan.optimizeReason,
 
       overviewPolyline:
         route.overview_polyline?.points || "",
@@ -727,23 +987,6 @@ function uniqueSharedPoints(points){
   return out;
 }
 
-function allSameAddress(points){
-
-  const list =
-    safeArray(points);
-
-  if(list.length <= 1){
-    return true;
-  }
-
-  const first =
-    addressKey(list[0]?.address);
-
-  return list.every(point=>{
-    return addressKey(point?.address) === first;
-  });
-}
-
 function detectSharedRouteCase(pickups,dropoffs){
 
   const samePickup =
@@ -765,25 +1008,6 @@ function detectSharedRouteCase(pickups,dropoffs){
   }
 
   return "DIFFERENT_PICKUP_DIFFERENT_DROPOFF";
-}
-
-function stableSortPoints(points){
-
-  return [...safeArray(points)]
-    .sort((a,b)=>{
-      const addressDiff =
-        stableText(a.address).localeCompare(
-          stableText(b.address)
-        );
-
-      if(addressDiff !== 0){
-        return addressDiff;
-      }
-
-      return String(a.passengerId || "").localeCompare(
-        String(b.passengerId || "")
-      );
-    });
 }
 
 function nearestPointFrom(current,candidates){
@@ -935,10 +1159,17 @@ function orderPickupsThenDropoffs(pickups,dropoffs,routeCase){
     const startPickup =
       pickups[0];
 
+    /*
+      Important:
+      This is only a preliminary stable order.
+      The final real road order is fixed inside calculateRouteMiles()
+      using ONE Google Directions request with optimize:true.
+    */
+
     return {
       orderedPickups:[startPickup],
       orderedDropoffs:nearestNeighborOrder(startPickup,dropoffs),
-      strategy:"SAME_PICKUP_THEN_NEAREST_DROPOFFS"
+      strategy:"PRELIMINARY_SAME_PICKUP_THEN_GOOGLE_FINAL_OPTIMIZE"
     };
   }
 
@@ -1125,10 +1356,17 @@ function buildSharedRoutePlanFromPassengers(passengers){
     sharedStopsCount:Math.max(0,routePlan.length - 2),
     meta:{
       strategy:ordered.strategy,
-      estimatedAirMiles:ordered.estimatedAirMiles || Number(totalAirMiles(routePlan).toFixed(3)),
+      estimatedAirMiles:
+        ordered.estimatedAirMiles ||
+        Number(totalAirMiles(routePlan).toFixed(3)),
       orderedPickups:ordered.orderedPickups.map(point=>point.address),
       orderedDropoffs:ordered.orderedDropoffs.map(point=>point.address),
-      rule:"ALL_PICKUPS_FIRST_THEN_DROPOFFS_STABLE_NEAREST_NEIGHBOR"
+      googleFinalOptimize:
+        routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF",
+      rule:
+        routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"
+          ? "PRELIMINARY_ORDER_FINAL_GOOGLE_ROAD_OPTIMIZE_ON_CALCULATE"
+          : "ALL_PICKUPS_FIRST_THEN_DROPOFFS_STABLE_NEAREST_NEIGHBOR"
     }
   };
 }
