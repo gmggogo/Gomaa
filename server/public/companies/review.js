@@ -1423,6 +1423,37 @@ async function ensureGoogleLoaded(){
   return googleLoadPromise;
 }
 
+async function getDrivingMetersBetween(origin,destination){
+  await ensureGoogleLoaded();
+
+  return new Promise((resolve)=>{
+    const service = new google.maps.DirectionsService();
+
+    service.route(
+      {
+        origin,
+        destination,
+        travelMode:google.maps.TravelMode.DRIVING,
+        unitSystem:google.maps.UnitSystem.IMPERIAL
+      },
+      function(response,status){
+        if(status !== "OK" || !response?.routes?.[0]){
+          resolve(Number.MAX_SAFE_INTEGER);
+          return;
+        }
+
+        let meters = 0;
+
+        response.routes[0].legs.forEach(leg=>{
+          meters += leg.distance ? leg.distance.value : 0;
+        });
+
+        resolve(meters);
+      }
+    );
+  });
+}
+
 async function calculateRouteMiles(points){
   await ensureGoogleLoaded();
 
@@ -1531,6 +1562,230 @@ function buildIndividualRoutePoints(trip){
 
   return points;
 }
+async function optimizeStopsFromOrigin(origin,stops){
+
+  await ensureGoogleLoaded();
+
+  const cleanOrigin = normalizeUniqueAddress(origin);
+  const cleanStops = uniqueAddressList(stops);
+
+  if(!cleanOrigin) return cleanStops;
+  if(!cleanStops.length) return [cleanOrigin];
+  if(cleanStops.length === 1) return [cleanOrigin, cleanStops[0]];
+
+  return new Promise((resolve)=>{
+
+    const service = new google.maps.DirectionsService();
+
+    service.route(
+      {
+        origin:cleanOrigin,
+        destination:cleanOrigin,
+        waypoints:cleanStops.map(address=>({
+          location:address,
+          stopover:true
+        })),
+        optimizeWaypoints:true,
+        travelMode:google.maps.TravelMode.DRIVING,
+        unitSystem:google.maps.UnitSystem.IMPERIAL
+      },
+      function(response,status){
+
+        if(status !== "OK" || !response?.routes?.[0]){
+          resolve([cleanOrigin,...cleanStops]);
+          return;
+        }
+
+        const order =
+          response.routes[0].waypoint_order || [];
+
+        const orderedStops =
+          order.map(i => cleanStops[i]).filter(Boolean);
+
+        resolve([cleanOrigin,...orderedStops]);
+      }
+    );
+  });
+}
+
+function passengerIsActive(p){
+  const s = cleanStatus(p.status);
+
+  return (
+    !s.includes("no") &&
+    !s.includes("cancel") &&
+    normalizeText(p.pickup) &&
+    normalizeText(p.dropoff)
+  );
+}
+
+function passengerPickup(p){
+  return normalizeUniqueAddress(p.pickup);
+}
+
+function passengerDropoff(p){
+  return normalizeUniqueAddress(p.dropoff);
+}
+
+function indexOfAddress(route,address){
+  const key = addressKey(address);
+
+  return route.findIndex(p =>
+    addressKey(p) === key
+  );
+}
+
+async function buildFinalSharedRoute(group){
+
+  const passengers =
+    getRealPassengersFromGroup(group)
+      .map((p,index)=>({
+        ...p,
+        __originalIndex:index,
+        __active:passengerIsActive(p),
+        pickup:normalizeText(p.pickup),
+        dropoff:normalizeText(p.dropoff)
+      }));
+
+  const activePassengers =
+    passengers.filter(p=>p.__active);
+
+  if(!activePassengers.length){
+    return {
+      routePoints:[],
+      passengers,
+      activePassengers:[],
+      activeCount:0
+    };
+  }
+
+  const pickupAddresses =
+    uniqueAddressList(
+      activePassengers.map(passengerPickup)
+    );
+
+  const dropoffAddresses =
+    uniqueAddressList(
+      activePassengers.map(passengerDropoff)
+    );
+
+  let pickupRoute = [];
+
+  if(pickupAddresses.length === 1){
+    pickupRoute = [pickupAddresses[0]];
+  }else{
+    const originPickup =
+      pickupAddresses[0];
+
+    const otherPickups =
+      pickupAddresses.slice(1);
+
+    pickupRoute =
+      await optimizeStopsFromOrigin(
+        originPickup,
+        otherPickups
+      );
+  }
+
+  const lastPickup =
+    pickupRoute[pickupRoute.length - 1];
+
+  let dropoffRouteWithOrigin = [];
+
+  if(dropoffAddresses.length === 1){
+    dropoffRouteWithOrigin = [
+      lastPickup,
+      dropoffAddresses[0]
+    ];
+  }else{
+    dropoffRouteWithOrigin =
+      await optimizeStopsFromOrigin(
+        lastPickup,
+        dropoffAddresses
+      );
+  }
+
+  const dropoffRoute =
+    dropoffRouteWithOrigin.slice(1);
+
+  const finalRoutePoints =
+    uniqueAddressList([
+      ...pickupRoute,
+      ...dropoffRoute
+    ]);
+
+  const routeWithOrders =
+    passengers.map(p=>{
+
+      if(!p.__active){
+        return {
+          ...p,
+          routeOrder:9999,
+          pickupOrder:9999,
+          dropoffOrder:9999
+        };
+      }
+
+      const pickupIndex =
+        indexOfAddress(finalRoutePoints,p.pickup);
+
+      const dropoffIndex =
+        indexOfAddress(finalRoutePoints,p.dropoff);
+
+      const pickupOrder =
+        pickupIndex < 0 ? 9999 : pickupIndex + 1;
+
+      const dropoffOrder =
+        dropoffIndex < 0 ? 9999 : dropoffIndex + 1;
+
+      return {
+        ...p,
+        routeOrder:pickupOrder,
+        pickupOrder,
+        dropoffOrder
+      };
+    });
+
+  const sortedPassengers =
+    routeWithOrders.sort((a,b)=>{
+      if(a.__active !== b.__active){
+        return a.__active ? -1 : 1;
+      }
+
+      if(Number(a.pickupOrder) !== Number(b.pickupOrder)){
+        return Number(a.pickupOrder) - Number(b.pickupOrder);
+      }
+
+      if(Number(a.dropoffOrder) !== Number(b.dropoffOrder)){
+        return Number(a.dropoffOrder) - Number(b.dropoffOrder);
+      }
+
+      return Number(a.__originalIndex) - Number(b.__originalIndex);
+    }).map((p,index)=>{
+
+      const cleaned = {...p};
+
+      delete cleaned.__originalIndex;
+      delete cleaned.__active;
+
+      return {
+        ...cleaned,
+        routeOrder:index + 1
+      };
+    });
+
+  return {
+    routePoints:finalRoutePoints,
+    passengers:sortedPassengers,
+    activePassengers:sortedPassengers.filter(passengerIsActive),
+    activeCount:activePassengers.length
+  };
+}
+
+async function buildSharedRoutePoints(group){
+  const finalRoute = await buildFinalSharedRoute(group);
+  return finalRoute.routePoints;
+}
 
 /* ================= SERVER ================= */
 
@@ -1607,52 +1862,6 @@ async function deleteTrip(id){
     const err = await res.json().catch(()=>({}));
     throw new Error(err.message || "Delete failed");
   }
-}
-
-function extractTripResponse(data){
-  return data?.trip || data?.data || data?.updatedTrip || data;
-}
-
-async function confirmTripOnServer(id){
-
-  const endpoints = [
-    "/api/company-reserved-confirm/" + encodeURIComponent(id),
-    "/api/company-review-confirm/" + encodeURIComponent(id),
-    "/api/dispatch-reserved-confirm/" + encodeURIComponent(id)
-  ];
-
-  let lastError = null;
-
-  for(const url of endpoints){
-    try{
-      const res = await fetch(url,{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          Authorization:"Bearer " + token
-        }
-      });
-
-      const data = await res.json().catch(()=>({}));
-
-      if(res.ok && data.success !== false){
-        return extractTripResponse(data);
-      }
-
-      lastError = new Error(data.message || ("Confirm failed: " + url));
-
-      if(res.status !== 404){
-        throw lastError;
-      }
-    }catch(err){
-      lastError = err;
-      if(!String(err?.message || "").includes("404")){
-        throw err;
-      }
-    }
-  }
-
-  throw lastError || new Error("Confirm route not found on server");
 }
 
 /* ================= FILTERS ================= */
@@ -1863,7 +2072,6 @@ function renderTripButtons(t,editing){
   const mins = minutesToTrip(t);
   const warningMinutes = warningEnabled(service) ? getWarningMinutes(service) : 0;
   const status = cleanStatus(t.status);
-  const confirmed = status.includes("confirm");
 
   if(editing){
     return `
@@ -1884,21 +2092,18 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  const outsideWarning = mins > warningMinutes || mins === null;
-  const insideWarning = mins <= warningMinutes && mins > 0;
-
-  if(outsideWarning){
+  if(mins > warningMinutes || mins === null){
     return `
       <div class="actions-wrap">
         <button class="btn edit" data-action="edit-trip">Edit</button>
         <button class="btn delete" data-action="delete-trip">Delete</button>
-        ${confirmed ? "" : `<button class="btn confirm" data-action="confirm-trip">Confirm</button>`}
+        <button class="btn confirm" data-action="confirm-trip">Confirm</button>
         ${stopBtn}
       </div>
     `;
   }
 
-  if(insideWarning && !confirmed){
+  if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
@@ -1908,7 +2113,7 @@ function renderTripButtons(t,editing){
     `;
   }
 
-  if(insideWarning && confirmed){
+  if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-trip">Cancel</button>
@@ -1961,8 +2166,6 @@ function renderSharedButtons(group,editing){
       getGroupStatus(group)
     );
 
-  const confirmed = status.includes("confirm");
-
   if(editing){
     return `
       <div class="actions-wrap">
@@ -1974,20 +2177,17 @@ function renderSharedButtons(group,editing){
 
   if(status.includes("cancel")) return "";
 
-  const outsideWarning = mins > warningMinutes || mins === null;
-  const insideWarning = mins <= warningMinutes && mins > 0;
-
-  if(outsideWarning){
+  if(mins > warningMinutes || mins === null){
     return `
       <div class="actions-wrap">
         <button class="btn edit" data-action="edit-shared">Edit</button>
         <button class="btn delete" data-action="delete-shared">Delete</button>
-        ${confirmed ? "" : `<button class="btn confirm" data-action="confirm-shared">Confirm</button>`}
+        <button class="btn confirm" data-action="confirm-shared">Confirm</button>
       </div>
     `;
   }
 
-  if(insideWarning && !confirmed){
+  if(mins <= warningMinutes && mins > 0 && !status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn confirm" data-action="confirm-shared">Confirm</button>
@@ -1996,7 +2196,7 @@ function renderSharedButtons(group,editing){
     `;
   }
 
-  if(insideWarning && confirmed){
+  if(mins <= warningMinutes && mins > 0 && status.includes("confirm")){
     return `
       <div class="actions-wrap">
         <button class="btn cancel" data-action="cancel-shared">Cancel</button>
@@ -2335,12 +2535,33 @@ async function handleEditTrip(btn){
     if(!ok) return;
   }
 
-  /*
-    Same policy as Dispatch Review:
-    Edit mode is local only. Do NOT clear route/miles/price here.
-    Route is cleared only on Save if pickup/stops/dropoff changed.
-  */
   trip.__editing = true;
+  trip.status = "Scheduled";
+
+  await updateTrip(
+    id,
+    {
+      status:"Scheduled",
+
+      priceAmount:0,
+      finalPrice:0,
+
+      miles:0,
+      distanceMeters:0,
+      durationSeconds:0,
+      estimatedMinutes:0,
+
+      googleRoute:null,
+      routePoints:[],
+      optimizedRoute:null,
+
+      routeLocked:false,
+      routeFinalized:false,
+      routeSource:"",
+      routeUpdatedAt:null
+    }
+  );
+
   render();
 }
 
@@ -2357,6 +2578,7 @@ async function handleEditShared(btn){
   if(!group) return;
 
   const first = group[0];
+
   const service = getServiceByTrip(first);
   const mins = minutesToTrip(first);
 
@@ -2375,155 +2597,41 @@ async function handleEditShared(btn){
 
   group.forEach(t=>{
     t.__editing = true;
+    t.status = "Scheduled";
   });
+
+  for(const t of group){
+    await updateTrip(
+      t._id,
+      {
+        status:"Scheduled",
+
+        priceAmount:0,
+        finalPrice:0,
+        pricePerPassenger:0,
+
+        miles:0,
+        distanceMeters:0,
+        durationSeconds:0,
+        estimatedMinutes:0,
+
+        googleRoute:null,
+        routePoints:[],
+        optimizedRoute:null,
+
+        routeLocked:false,
+        routeFinalized:false,
+        routeSource:"",
+        routeUpdatedAt:null
+      }
+    );
+  }
 
   render();
 }
 
 async function handleCancelEdit(){
   await reloadTrips();
-}
-
-function normRouteAddressOnly(v){
-  return normalizeAddress(v || "")
-    .toLowerCase()
-    .replace(/\s+/g," ")
-    .trim();
-}
-
-function normalizeStopsForSignature(stops){
-  return (Array.isArray(stops) ? stops : [])
-    .map(normRouteAddressOnly)
-    .filter(Boolean);
-}
-
-function buildIndividualRouteSignatureForEdit(trip,nextPayload = {}, nextStops = null){
-
-  return JSON.stringify({
-    pickup:normRouteAddressOnly(nextPayload.pickup ?? trip.pickup),
-    stops:Array.isArray(nextStops)
-      ? normalizeStopsForSignature(nextStops)
-      : normalizeStopsForSignature(trip.stops),
-    dropoff:normRouteAddressOnly(nextPayload.dropoff ?? trip.dropoff)
-  });
-}
-
-function buildSharedRouteSignatureForEdit(passengers){
-
-  return JSON.stringify(
-    (Array.isArray(passengers) ? passengers : [])
-      .map((p,index)=>({
-        id:String(p.passengerId || p._id || index),
-        pickup:normRouteAddressOnly(p.pickup),
-        dropoff:normRouteAddressOnly(p.dropoff),
-        status:cleanStatus(p.status || "Scheduled")
-      }))
-  );
-}
-
-function coordinatesValue(v){
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function routeAddressChanged(oldAddress,newAddress){
-  return normRouteAddressOnly(oldAddress) !== normRouteAddressOnly(newAddress);
-}
-
-function clearRoutePayload(payload,isShared){
-
-  payload.status = "Review";
-  payload.reservationStatus = "Review";
-  payload.reviewOnly = true;
-  payload.dispatchSelected = false;
-
-  payload.priceAmount = 0;
-  payload.finalPrice = 0;
-  payload.pricePerPassenger = 0;
-
-  payload.miles = 0;
-  payload.distanceMeters = 0;
-  payload.durationSeconds = 0;
-  payload.estimatedMinutes = 0;
-
-  payload.googleRoute = null;
-  payload.routePoints = [];
-  payload.routePlan = [];
-  payload.sharedRoutePlan = [];
-  payload.optimizedRoute = null;
-
-  payload.routeLocked = false;
-  payload.routeFinalized = false;
-  payload.routeSource = "route-edited";
-  payload.routeUpdatedAt = null;
-
-  payload.sharedRouteLocked = false;
-  payload.sharedRouteLockedAt = null;
-  payload.sharedRouteMeta = null;
-  payload.sharedRoutePolyline = "";
-  payload.sharedRouteMiles = 0;
-  payload.sharedRouteMinutes = 0;
-  payload.sharedRouteSignature = "";
-  payload.sharedGoogleRequestsUsed = 0;
-
-  payload.routeChangePending = true;
-  payload.routeChangeStatus = "ROUTE_CHANGED";
-
-  if(isShared && Array.isArray(payload.passengers)){
-    payload.passengers =
-      payload.passengers.map((p,index)=>({
-        ...p,
-        pickupOrder:0,
-        dropoffOrder:0,
-        routeOrder:index + 1,
-        passengerMiles:0,
-        passengerMinutes:0,
-        passengerDistanceMeters:0,
-        passengerDurationSeconds:0,
-        priceAmount:0,
-        finalPrice:0
-      }));
-  }
-}
-
-function keepExistingRoutePayload(payload,trip){
-
-  payload.status = trip.status || "Confirmed";
-  payload.reservationStatus = trip.reservationStatus || "Review";
-  payload.reviewOnly = trip.reviewOnly === true ? true : false;
-  payload.dispatchSelected = trip.dispatchSelected === false ? false : true;
-
-  delete payload.priceAmount;
-  delete payload.finalPrice;
-  delete payload.pricePerPassenger;
-
-  delete payload.miles;
-  delete payload.distanceMeters;
-  delete payload.durationSeconds;
-  delete payload.estimatedMinutes;
-
-  delete payload.googleRoute;
-  delete payload.routePoints;
-  delete payload.routePlan;
-  delete payload.sharedRoutePlan;
-  delete payload.optimizedRoute;
-
-  delete payload.routeLocked;
-  delete payload.routeFinalized;
-  delete payload.routeSource;
-  delete payload.routeUpdatedAt;
-
-  delete payload.sharedRouteLocked;
-  delete payload.sharedRouteLockedAt;
-  delete payload.sharedRouteMeta;
-  delete payload.sharedRoutePolyline;
-  delete payload.sharedRouteMiles;
-  delete payload.sharedRouteMinutes;
-  delete payload.sharedRouteSignature;
-  delete payload.sharedGoogleRequestsUsed;
-
-  delete payload.routeChangePending;
-  delete payload.routeChangeStatus;
 }
 
 async function handleDeleteTrip(btn){
@@ -2602,11 +2710,14 @@ async function handleSaveTrip(btn){
     payload.tripTime ?? trip.tripTime
   );
 
-  const service = getServiceByTrip(trip);
-  const mins = minutesToTrip({
-    tripDate:payload.tripDate ?? trip.tripDate,
-    tripTime:payload.tripTime ?? trip.tripTime
-  });
+  const service =
+    getServiceByTrip(trip);
+
+  const mins =
+    minutesToTrip({
+      tripDate:payload.tripDate ?? trip.tripDate,
+      tripTime:payload.tripTime ?? trip.tripTime
+    });
 
   if(
     warningEnabled(service) &&
@@ -2621,33 +2732,25 @@ async function handleSaveTrip(btn){
     if(!ok) return;
   }
 
-  payload.stops = stops.filter(Boolean);
+  payload.stops = stops;
+  payload.status = "Scheduled";
 
-  const routeChanged =
-    buildIndividualRouteSignatureForEdit(trip) !==
-    buildIndividualRouteSignatureForEdit(trip,payload,stops);
+  payload.priceAmount = 0;
+  payload.finalPrice = 0;
 
-  if(routeAddressChanged(trip.pickup,payload.pickup ?? trip.pickup)){
-    payload.pickupLat = null;
-    payload.pickupLng = null;
-    payload.pickupGeoAddress = "";
-    payload.pickupGeoKey = "";
-    payload.pickupGeoSource = "";
-  }
+  payload.miles = 0;
+  payload.distanceMeters = 0;
+  payload.durationSeconds = 0;
+  payload.estimatedMinutes = 0;
 
-  if(routeAddressChanged(trip.dropoff,payload.dropoff ?? trip.dropoff)){
-    payload.dropoffLat = null;
-    payload.dropoffLng = null;
-    payload.dropoffGeoAddress = "";
-    payload.dropoffGeoKey = "";
-    payload.dropoffGeoSource = "";
-  }
+  payload.googleRoute = null;
+  payload.routePoints = [];
+  payload.optimizedRoute = null;
 
-  if(routeChanged){
-    clearRoutePayload(payload,false);
-  }else{
-    keepExistingRoutePayload(payload,trip);
-  }
+  payload.routeLocked = false;
+  payload.routeFinalized = false;
+  payload.routeSource = "";
+  payload.routeUpdatedAt = null;
 
   await updateTrip(id,payload);
   await reloadTrips();
@@ -2664,13 +2767,8 @@ async function handleSaveShared(btn){
 
   if(!group) return;
 
-  const first = group[0] || {};
-
-  const originalPassengers =
-    getRealPassengersFromGroup(group).map(p=>({...p}));
-
   const passengers =
-    originalPassengers.map(p=>({...p}));
+    getRealPassengersFromGroup(group).map(p=>({...p}));
 
   const payload = {};
 
@@ -2730,15 +2828,18 @@ async function handleSaveShared(btn){
   }
 
   validateFutureTripDateTime(
-    payload.tripDate ?? first.tripDate,
-    payload.tripTime ?? first.tripTime
+    payload.tripDate ?? group[0].tripDate,
+    payload.tripTime ?? group[0].tripTime
   );
 
-  const service = getServiceByTrip(first);
-  const mins = minutesToTrip({
-    tripDate:payload.tripDate ?? first.tripDate,
-    tripTime:payload.tripTime ?? first.tripTime
-  });
+  const service =
+    getServiceByTrip(group[0]);
+
+  const mins =
+    minutesToTrip({
+      tripDate:payload.tripDate ?? group[0].tripDate,
+      tripTime:payload.tripTime ?? group[0].tripTime
+    });
 
   if(
     warningEnabled(service) &&
@@ -2752,133 +2853,26 @@ async function handleSaveShared(btn){
     if(!ok) return;
   }
 
-  payload.passengers =
-    passengers.map((p,index)=>{
-      const oldPassenger = originalPassengers[index] || {};
-      const pickupChanged = routeAddressChanged(oldPassenger.pickup,p.pickup);
-      const dropoffChanged = routeAddressChanged(oldPassenger.dropoff,p.dropoff);
+  payload.passengers = passengers;
+  payload.status = "Scheduled";
 
-      return {
-        ...p,
+  payload.priceAmount = 0;
+  payload.finalPrice = 0;
+  payload.pricePerPassenger = 0;
 
-        passengerId:
-          p.passengerId || oldPassenger.passengerId || "P" + (index + 1),
+  payload.miles = 0;
+  payload.distanceMeters = 0;
+  payload.durationSeconds = 0;
+  payload.estimatedMinutes = 0;
 
-        name:
-          normalizeText(p.name || p.clientName),
+  payload.googleRoute = null;
+  payload.routePoints = [];
+  payload.optimizedRoute = null;
 
-        phone:
-          normalizeText(p.phone || p.clientPhone),
-
-        clientName:
-          normalizeText(p.clientName || p.name),
-
-        clientPhone:
-          normalizeText(p.clientPhone || p.phone),
-
-        pickup:
-          normalizeAddress(p.pickup),
-
-        pickupLat:
-          pickupChanged
-            ? null
-            : coordinatesValue(p.pickupLat ?? oldPassenger.pickupLat),
-
-        pickupLng:
-          pickupChanged
-            ? null
-            : coordinatesValue(p.pickupLng ?? oldPassenger.pickupLng),
-
-        pickupGeoAddress:
-          pickupChanged
-            ? ""
-            : (p.pickupGeoAddress ?? oldPassenger.pickupGeoAddress ?? ""),
-
-        pickupGeoKey:
-          pickupChanged
-            ? ""
-            : (p.pickupGeoKey ?? oldPassenger.pickupGeoKey ?? ""),
-
-        pickupGeoSource:
-          pickupChanged
-            ? ""
-            : (p.pickupGeoSource ?? oldPassenger.pickupGeoSource ?? ""),
-
-        dropoff:
-          normalizeAddress(p.dropoff),
-
-        dropoffLat:
-          dropoffChanged
-            ? null
-            : coordinatesValue(p.dropoffLat ?? oldPassenger.dropoffLat),
-
-        dropoffLng:
-          dropoffChanged
-            ? null
-            : coordinatesValue(p.dropoffLng ?? oldPassenger.dropoffLng),
-
-        dropoffGeoAddress:
-          dropoffChanged
-            ? ""
-            : (p.dropoffGeoAddress ?? oldPassenger.dropoffGeoAddress ?? ""),
-
-        dropoffGeoKey:
-          dropoffChanged
-            ? ""
-            : (p.dropoffGeoKey ?? oldPassenger.dropoffGeoKey ?? ""),
-
-        dropoffGeoSource:
-          dropoffChanged
-            ? ""
-            : (p.dropoffGeoSource ?? oldPassenger.dropoffGeoSource ?? ""),
-
-        status:
-          p.status || oldPassenger.status || "Scheduled",
-
-        pickupOrder:
-          p.pickupOrder ?? oldPassenger.pickupOrder ?? 0,
-
-        dropoffOrder:
-          p.dropoffOrder ?? oldPassenger.dropoffOrder ?? 0,
-
-        routeOrder:
-          p.routeOrder ?? oldPassenger.routeOrder ?? index + 1,
-
-        passengerMiles:
-          p.passengerMiles ?? oldPassenger.passengerMiles ?? 0,
-
-        passengerMinutes:
-          p.passengerMinutes ?? oldPassenger.passengerMinutes ?? 0,
-
-        passengerDistanceMeters:
-          p.passengerDistanceMeters ?? oldPassenger.passengerDistanceMeters ?? 0,
-
-        passengerDurationSeconds:
-          p.passengerDurationSeconds ?? oldPassenger.passengerDurationSeconds ?? 0,
-
-        priceAmount:
-          p.priceAmount ?? oldPassenger.priceAmount ?? 0,
-
-        finalPrice:
-          p.finalPrice ?? oldPassenger.finalPrice ?? 0
-      };
-    });
-
-  payload.pickup = payload.passengers[0]?.pickup || "";
-  payload.dropoff = payload.passengers[payload.passengers.length - 1]?.dropoff || "";
-  payload.totalPassengers = payload.passengers.length;
-  payload.passengerCount = payload.passengers.length;
-  payload.passengersCount = payload.passengers.length;
-
-  const routeChanged =
-    buildSharedRouteSignatureForEdit(originalPassengers) !==
-    buildSharedRouteSignatureForEdit(payload.passengers);
-
-  if(routeChanged){
-    clearRoutePayload(payload,true);
-  }else{
-    keepExistingRoutePayload(payload,first);
-  }
+  payload.routeLocked = false;
+  payload.routeFinalized = false;
+  payload.routeSource = "";
+  payload.routeUpdatedAt = null;
 
   for(const t of group){
     await updateTrip(t._id,payload);
@@ -2901,9 +2895,91 @@ async function handleConfirmTrip(btn){
   }
 
   btn.disabled = true;
-  btn.textContent = "Confirming...";
+  btn.textContent = "Routing...";
 
-  await confirmTripOnServer(id);
+  const routePoints = buildIndividualRoutePoints(trip);
+  const routeData = await calculateRouteMiles(routePoints);
+
+  btn.textContent = "Pricing...";
+
+  const serviceKey =
+    service.serviceKey ||
+    trip.serviceKey ||
+    trip.serviceType ||
+    "STANDARD";
+
+  const finalStops =
+    getConfirmStops(trip);
+
+  const billableStopsCount =
+    Array.isArray(finalStops)
+      ? finalStops.length
+      : 0;
+
+const total =
+  await calculateServerPrice({
+    serviceKey,
+
+    company:
+      trip.company ||
+      trip.facilityName ||
+      trip.companyName ||
+      localStorage.getItem("name") ||
+      "",
+
+    facilityId:
+      trip.facilityId ||
+      trip.companyId ||
+      trip.userId ||
+      localStorage.getItem("localId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("_id") ||
+      localStorage.getItem("id") ||
+      "",
+
+    miles:
+      routeData.miles,
+
+    stops:
+      billableStopsCount,
+
+    minutes:
+      routeData.estimatedMinutes,
+
+    passengerCount:
+      1,
+
+    isCompany:
+      true
+  });
+
+  await updateTrip(id,{
+    status:"Confirmed",
+    dispatchSelected:true,
+
+    priceAmount:total,
+    finalPrice:total,
+
+    miles:routeData.miles,
+    distanceMeters:routeData.distanceMeters,
+    durationSeconds:routeData.durationSeconds,
+    estimatedMinutes:routeData.estimatedMinutes,
+
+    googleRoute:routeData.googleRoute,
+    routePoints:routePoints,
+    optimizedRoute:routeData.googleRoute,
+
+    routeLocked:true,
+    routeFinalized:true,
+    routeSource:"company-review",
+    routeUpdatedAt:new Date().toISOString(),
+
+    serviceName:service?.name || service?.title || "",
+    serviceCode:service?.serviceKey || service?.companySuffix || service?.code || service?.serviceCode || "",
+    serviceId:service?._id || ""
+  });
+
   await reloadTrips();
 }
 
@@ -2920,16 +2996,130 @@ async function handleConfirmShared(btn){
 
   const first = group[0];
 
-  const service = getServiceByTrip(first);
+  const service =
+    getServiceByTrip(first) ||
+    COMPANY_SERVICES.find(
+      s =>
+        String(s.serviceKey || "").toUpperCase() === "SHARED"
+    );
 
   if(!service){
     throw new Error("Shared service not found");
   }
 
   btn.disabled = true;
-  btn.textContent = "Confirming...";
+  btn.textContent = "Routing...";
 
-  await confirmTripOnServer(first._id);
+  const finalRoute =
+    await buildFinalSharedRoute(group);
+
+  const routePoints =
+    finalRoute.routePoints;
+
+  const passengers =
+    finalRoute.passengers;
+
+  const activeCount =
+    finalRoute.activeCount || 1;
+
+  if(!routePoints.length || routePoints.length < 2){
+    throw new Error("Shared route cannot be calculated");
+  }
+
+  const routeData =
+    await calculateRouteMiles(routePoints);
+
+  btn.textContent = "Pricing...";
+
+const total =
+  await calculateServerPrice({
+    serviceKey:"SH",
+    miles:routeData.miles,
+    stops:Math.max(0,activeCount - 1),
+    minutes:routeData.estimatedMinutes,
+    passengerCount:activeCount,
+
+    company:
+      first.company ||
+      first.facilityName ||
+      first.companyName ||
+      localStorage.getItem("name") ||
+      "",
+
+    facilityId:
+      first.facilityId ||
+      first.companyId ||
+      first.userId ||
+      localStorage.getItem("facilityId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("userId") ||
+      localStorage.getItem("_id") ||
+      localStorage.getItem("id") ||
+      "",
+
+    isCompany:true
+  });
+
+  const pricePerPassenger =
+    Number((Number(total || 0) / activeCount).toFixed(2));
+
+  const updatedPassengers =
+    passengers.map(p=>{
+
+      const s =
+        cleanStatus(p.status);
+
+      if(s.includes("no") || s.includes("cancel")){
+        return p;
+      }
+
+      return {
+        ...p,
+        status:"Confirmed",
+        priceAmount:pricePerPassenger,
+        finalPrice:pricePerPassenger
+      };
+    });
+
+  const payload = {
+    status:"Confirmed",
+    dispatchSelected:true,
+
+    isShared:true,
+    tripType:"SHARED",
+
+    serviceName:service?.name || service?.title || "Shared",
+    serviceCode:service?.serviceKey || service?.companySuffix || service?.code || service?.serviceCode || "SH",
+    serviceId:service?._id || "",
+
+    passengers:updatedPassengers,
+    totalPassengers:passengers.length,
+
+    priceAmount:Number(total || 0),
+    finalPrice:Number(total || 0),
+    pricePerPassenger:pricePerPassenger,
+
+    sharedStopsCount:Math.max(0,activeCount - 1),
+
+    miles:routeData.miles,
+    distanceMeters:routeData.distanceMeters,
+    durationSeconds:routeData.durationSeconds,
+    estimatedMinutes:routeData.estimatedMinutes,
+
+    googleRoute:routeData.googleRoute,
+    routePoints:routePoints,
+    optimizedRoute:routeData.googleRoute,
+
+    routeLocked:true,
+    routeFinalized:true,
+    routeSource:"company-review",
+    routeUpdatedAt:new Date().toISOString()
+  };
+
+  for(const t of group){
+    await updateTrip(t._id,payload);
+  }
+
   await reloadTrips();
 }
 
@@ -3286,6 +3476,9 @@ window.ReviewApp = {
 
   calculateRouteMiles,
   buildIndividualRoutePoints,
+  buildSharedRoutePoints,
+  buildFinalSharedRoute,
+  optimizeStopsFromOrigin,
 
   fetchTrips,
   updateTrip,
