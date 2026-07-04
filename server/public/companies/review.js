@@ -1659,229 +1659,66 @@ function buildIndividualRoutePoints(trip){
 
   return points;
 }
-async function optimizeStopsFromOrigin(origin,stops){
+function getServerSharedRoutePlan(group){
+  const first = group?.[0] || {};
 
-  await ensureGoogleLoaded();
-
-  const cleanOrigin = normalizeUniqueAddress(origin);
-  const cleanStops = uniqueAddressList(stops);
-
-  if(!cleanOrigin) return cleanStops;
-  if(!cleanStops.length) return [cleanOrigin];
-  if(cleanStops.length === 1) return [cleanOrigin, cleanStops[0]];
-
-  return new Promise((resolve)=>{
-
-    const service = new google.maps.DirectionsService();
-
-    service.route(
-      {
-        origin:cleanOrigin,
-        destination:cleanOrigin,
-        waypoints:cleanStops.map(address=>({
-          location:address,
-          stopover:true
-        })),
-        optimizeWaypoints:true,
-        travelMode:google.maps.TravelMode.DRIVING,
-        unitSystem:google.maps.UnitSystem.IMPERIAL
-      },
-      function(response,status){
-
-        if(status !== "OK" || !response?.routes?.[0]){
-          resolve([cleanOrigin,...cleanStops]);
-          return;
-        }
-
-        const order =
-          response.routes[0].waypoint_order || [];
-
-        const orderedStops =
-          order.map(i => cleanStops[i]).filter(Boolean);
-
-        resolve([cleanOrigin,...orderedStops]);
-      }
+  if(Array.isArray(first.sharedRoutePlan) && first.sharedRoutePlan.length){
+    return [...first.sharedRoutePlan].sort((a,b)=>
+      Number(a.order || 0) - Number(b.order || 0)
     );
-  });
+  }
+
+  if(Array.isArray(first.routePlan) && first.routePlan.length){
+    return [...first.routePlan].sort((a,b)=>
+      Number(a.order || 0) - Number(b.order || 0)
+    );
+  }
+
+  return [];
 }
 
-function passengerIsActive(p){
-  const s = cleanStatus(p.status);
+/*
+  IMPORTANT:
+  Company Review must NOT build shared route locally.
+  Shared order / route must come from server only,
+  exactly like Dispatch Add Trip confirm flow.
+*/
+async function optimizeStopsFromOrigin(origin,stops){
+  const orderedStops =
+    uniqueAddressList(
+      Array.isArray(stops) ? stops : []
+    );
 
-  return (
-    !s.includes("no") &&
-    !s.includes("cancel") &&
-    normalizeText(p.pickup) &&
-    normalizeText(p.dropoff)
-  );
-}
-
-function passengerPickup(p){
-  return normalizeUniqueAddress(p.pickup);
-}
-
-function passengerDropoff(p){
-  return normalizeUniqueAddress(p.dropoff);
-}
-
-function indexOfAddress(route,address){
-  const key = addressKey(address);
-
-  return route.findIndex(p =>
-    addressKey(p) === key
-  );
+  return [
+    normalizeUniqueAddress(origin)
+  ].filter(Boolean).concat(orderedStops);
 }
 
 async function buildFinalSharedRoute(group){
 
   const passengers =
-    getRealPassengersFromGroup(group)
-      .map((p,index)=>({
-        ...p,
-        __originalIndex:index,
-        __active:passengerIsActive(p),
-        pickup:normalizeText(p.pickup),
-        dropoff:normalizeText(p.dropoff)
-      }));
+    getServerSharedPassengers(group);
+
+  const routePlan =
+    getServerSharedRoutePlan(group);
+
+  const routePoints =
+    getServerSharedRoutePoints(group);
 
   const activePassengers =
-    passengers.filter(p=>p.__active);
-
-  if(!activePassengers.length){
-    return {
-      routePoints:[],
-      passengers,
-      activePassengers:[],
-      activeCount:0
-    };
-  }
-
-  const pickupAddresses =
-    uniqueAddressList(
-      activePassengers.map(passengerPickup)
-    );
-
-  const dropoffAddresses =
-    uniqueAddressList(
-      activePassengers.map(passengerDropoff)
-    );
-
-  let pickupRoute = [];
-
-  if(pickupAddresses.length === 1){
-    pickupRoute = [pickupAddresses[0]];
-  }else{
-    const originPickup =
-      pickupAddresses[0];
-
-    const otherPickups =
-      pickupAddresses.slice(1);
-
-    pickupRoute =
-      await optimizeStopsFromOrigin(
-        originPickup,
-        otherPickups
-      );
-  }
-
-  const lastPickup =
-    pickupRoute[pickupRoute.length - 1];
-
-  let dropoffRouteWithOrigin = [];
-
-  if(dropoffAddresses.length === 1){
-    dropoffRouteWithOrigin = [
-      lastPickup,
-      dropoffAddresses[0]
-    ];
-  }else{
-    dropoffRouteWithOrigin =
-      await optimizeStopsFromOrigin(
-        lastPickup,
-        dropoffAddresses
-      );
-  }
-
-  const dropoffRoute =
-    dropoffRouteWithOrigin.slice(1);
-
-  const finalRoutePoints =
-    uniqueAddressList([
-      ...pickupRoute,
-      ...dropoffRoute
-    ]);
-
-  const routeWithOrders =
-    passengers.map(p=>{
-
-      if(!p.__active){
-        return {
-          ...p,
-          routeOrder:9999,
-          pickupOrder:9999,
-          dropoffOrder:9999
-        };
-      }
-
-      const pickupIndex =
-        indexOfAddress(finalRoutePoints,p.pickup);
-
-      const dropoffIndex =
-        indexOfAddress(finalRoutePoints,p.dropoff);
-
-      const pickupOrder =
-        pickupIndex < 0 ? 9999 : pickupIndex + 1;
-
-      const dropoffOrder =
-        dropoffIndex < 0 ? 9999 : dropoffIndex + 1;
-
-      return {
-        ...p,
-        routeOrder:pickupOrder,
-        pickupOrder,
-        dropoffOrder
-      };
-    });
-
-  const sortedPassengers =
-    routeWithOrders.sort((a,b)=>{
-      if(a.__active !== b.__active){
-        return a.__active ? -1 : 1;
-      }
-
-      if(Number(a.pickupOrder) !== Number(b.pickupOrder)){
-        return Number(a.pickupOrder) - Number(b.pickupOrder);
-      }
-
-      if(Number(a.dropoffOrder) !== Number(b.dropoffOrder)){
-        return Number(a.dropoffOrder) - Number(b.dropoffOrder);
-      }
-
-      return Number(a.__originalIndex) - Number(b.__originalIndex);
-    }).map((p,index)=>{
-
-      const cleaned = {...p};
-
-      delete cleaned.__originalIndex;
-      delete cleaned.__active;
-
-      return {
-        ...cleaned,
-        routeOrder:index + 1
-      };
-    });
+    passengers.filter(passengerIsActive);
 
   return {
-    routePoints:finalRoutePoints,
-    passengers:sortedPassengers,
-    activePassengers:sortedPassengers.filter(passengerIsActive),
+    routePoints,
+    routePlan,
+    passengers,
+    activePassengers,
     activeCount:activePassengers.length
   };
 }
 
 async function buildSharedRoutePoints(group){
-  const finalRoute = await buildFinalSharedRoute(group);
-  return finalRoute.routePoints;
+  return getServerSharedRoutePoints(group);
 }
 
 /* ================= SERVER ================= */
@@ -2416,6 +2253,25 @@ function renderSharedRow(group,index){
       createSharedEditInput(p.dropoff || "", `passenger_${idx}_dropoff`)
     ).join("");
   }else{
+    const sharedPlan =
+      getServerSharedRoutePlan(group);
+
+    const sharedPickupRoute =
+      sharedPlan
+        .filter(point=>{
+          return String(point.type || "").toLowerCase() === "pickup";
+        })
+        .map(point=>point.address)
+        .filter(Boolean);
+
+    const sharedDropRoute =
+      sharedPlan
+        .filter(point=>{
+          return String(point.type || "").toLowerCase() === "dropoff";
+        })
+        .map(point=>point.address)
+        .filter(Boolean);
+
     clients = cellBox(passengers.map((p,idx)=>
       `${idx+1}. ${escapeHtml(p.name || p.clientName || "--")}`
     ));
@@ -2424,13 +2280,25 @@ function renderSharedRow(group,index){
       `${idx+1}. ${escapeHtml(p.phone || p.clientPhone || "--")}`
     ));
 
-    pickups = cellBox(passengers.map((p,idx)=>
-      `${idx+1}. ${escapeHtml(p.pickup || "--")}`
-    ));
+    pickups = cellBox(
+      sharedPickupRoute.length
+        ? sharedPickupRoute.map((address,idx)=>
+            `${idx+1}. ${escapeHtml(address || "--")}`
+          )
+        : passengers.map((p,idx)=>
+            `${idx+1}. ${escapeHtml(p.pickup || "--")}`
+          )
+    );
 
-    drops = cellBox(passengers.map((p,idx)=>
-      `${idx+1}. ${escapeHtml(p.dropoff || "--")}`
-    ));
+    drops = cellBox(
+      sharedDropRoute.length
+        ? sharedDropRoute.map((address,idx)=>
+            `${idx+1}. ${escapeHtml(address || "--")}`
+          )
+        : passengers.map((p,idx)=>
+            `${idx+1}. ${escapeHtml(p.dropoff || "--")}`
+          )
+    );
   }
 
   tr.innerHTML = `
@@ -2458,7 +2326,7 @@ function renderSharedRow(group,index){
     </td>
 
     <td class="col-stops">
-      <strong>${Math.max(0,passengers.filter(passengerIsActive).length - 1)}</strong>
+      <strong>${Number(first.sharedStopsCount || Math.max(0,passengers.filter(passengerIsActive).length - 1))}</strong>
     </td>
 
     <td class="col-drop">
@@ -2865,7 +2733,7 @@ async function handleSaveShared(btn){
   if(!group) return;
 
   const passengers =
-    getRealPassengersFromGroup(group).map(p=>({...p}));
+    getServerSharedPassengers(group).map(p=>({...p}));
 
   const payload = {};
 
