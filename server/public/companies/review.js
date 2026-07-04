@@ -368,6 +368,17 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
+function passengerIsActive(p){
+  const s = cleanStatus(p?.status);
+
+  return (
+    !s.includes("no") &&
+    !s.includes("cancel") &&
+    normalizeText(p?.pickup) &&
+    normalizeText(p?.dropoff)
+  );
+}
+
 function cleanStatus(v){
   return String(v || "")
     .replace(/\s+/g,"")
