@@ -2501,6 +2501,52 @@ function render(){
   }
 }
 
+
+function normRouteAddressOnly(v){
+  return normalizeAddress(v || "")
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function normalizeStopsForSignature(stops){
+  return (Array.isArray(stops) ? stops : [])
+    .map(normRouteAddressOnly)
+    .filter(Boolean);
+}
+
+function buildIndividualRouteSignatureForEdit(trip,nextPayload = {},nextStops = null){
+  return JSON.stringify({
+    pickup:normRouteAddressOnly(nextPayload.pickup ?? trip.pickup),
+    stops:Array.isArray(nextStops)
+      ? normalizeStopsForSignature(nextStops)
+      : normalizeStopsForSignature(trip.stops),
+    dropoff:normRouteAddressOnly(nextPayload.dropoff ?? trip.dropoff)
+  });
+}
+
+function buildSharedRouteSignatureForEdit(passengers){
+  return JSON.stringify(
+    (Array.isArray(passengers) ? passengers : [])
+      .map((p,index)=>({
+        id:String(p.passengerId || p._id || index),
+        pickup:normRouteAddressOnly(p.pickup),
+        dropoff:normRouteAddressOnly(p.dropoff),
+        status:cleanStatus(p.status || "Scheduled")
+      }))
+  );
+}
+
+function coordinatesValue(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function routeAddressChanged(oldAddress,newAddress){
+  return normRouteAddressOnly(oldAddress) !== normRouteAddressOnly(newAddress);
+}
+
+
 /* ================= ACTIONS ================= */
 
 async function reloadTrips(){
@@ -2535,46 +2581,6 @@ Continue editing?`
   }
 
   trip.__editing = true;
-  trip.status = "Scheduled";
-
-  trip.priceAmount = 0;
-  trip.finalPrice = 0;
-  trip.miles = 0;
-  trip.distanceMeters = 0;
-  trip.durationSeconds = 0;
-  trip.estimatedMinutes = 0;
-  trip.googleRoute = null;
-  trip.routePoints = [];
-  trip.optimizedRoute = null;
-  trip.routeLocked = false;
-  trip.routeFinalized = false;
-  trip.routeSource = "";
-  trip.routeUpdatedAt = null;
-
-  await updateTrip(
-    id,
-    {
-      status:"Scheduled",
-
-      priceAmount:0,
-      finalPrice:0,
-
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-
-      googleRoute:null,
-      routePoints:[],
-      optimizedRoute:null,
-
-      routeLocked:false,
-      routeFinalized:false,
-      routeSource:"",
-      routeUpdatedAt:null
-    }
-  );
-
   render();
 }
 
@@ -2612,49 +2618,7 @@ Continue editing?`
 
   group.forEach(t=>{
     t.__editing = true;
-    t.status = "Scheduled";
-    t.priceAmount = 0;
-    t.finalPrice = 0;
-    t.pricePerPassenger = 0;
-    t.miles = 0;
-    t.distanceMeters = 0;
-    t.durationSeconds = 0;
-    t.estimatedMinutes = 0;
-    t.googleRoute = null;
-    t.routePoints = [];
-    t.optimizedRoute = null;
-    t.routeLocked = false;
-    t.routeFinalized = false;
-    t.routeSource = "";
-    t.routeUpdatedAt = null;
   });
-
-  for(const t of group){
-    await updateTrip(
-      t._id,
-      {
-        status:"Scheduled",
-
-        priceAmount:0,
-        finalPrice:0,
-        pricePerPassenger:0,
-
-        miles:0,
-        distanceMeters:0,
-        durationSeconds:0,
-        estimatedMinutes:0,
-
-        googleRoute:null,
-        routePoints:[],
-        optimizedRoute:null,
-
-        routeLocked:false,
-        routeFinalized:false,
-        routeSource:"",
-        routeUpdatedAt:null
-      }
-    );
-  }
 
   render();
 }
@@ -2739,14 +2703,11 @@ async function handleSaveTrip(btn){
     payload.tripTime ?? trip.tripTime
   );
 
-  const service =
-    getServiceByTrip(trip);
-
-  const mins =
-    minutesToTrip({
-      tripDate:payload.tripDate ?? trip.tripDate,
-      tripTime:payload.tripTime ?? trip.tripTime
-    });
+  const service = getServiceByTrip(trip);
+  const mins = minutesToTrip({
+    tripDate:payload.tripDate ?? trip.tripDate,
+    tripTime:payload.tripTime ?? trip.tripTime
+  });
 
   if(
     warningEnabled(service) &&
@@ -2755,31 +2716,82 @@ async function handleSaveTrip(btn){
     mins <= getWarningMinutes(service)
   ){
     const ok = confirm(
-      `Warning: Trip is inside ${getWarningMinutes(service)} minute window.\n\nContinue saving?`
+      `Warning: Trip is inside ${getWarningMinutes(service)} minute window.
+
+Continue saving?`
     );
 
     if(!ok) return;
   }
 
-  payload.stops = stops;
-  payload.status = "Scheduled";
+  payload.stops = stops.filter(Boolean);
 
-  payload.priceAmount = 0;
-  payload.finalPrice = 0;
+  const oldSignature =
+    buildIndividualRouteSignatureForEdit(trip);
 
-  payload.miles = 0;
-  payload.distanceMeters = 0;
-  payload.durationSeconds = 0;
-  payload.estimatedMinutes = 0;
+  const newSignature =
+    buildIndividualRouteSignatureForEdit(trip,payload,stops);
 
-  payload.googleRoute = null;
-  payload.routePoints = [];
-  payload.optimizedRoute = null;
+  const routeChanged =
+    oldSignature !== newSignature;
 
-  payload.routeLocked = false;
-  payload.routeFinalized = false;
-  payload.routeSource = "";
-  payload.routeUpdatedAt = null;
+  if(routeChanged){
+
+    payload.status = "Scheduled";
+    payload.dispatchSelected = false;
+
+    payload.priceAmount = 0;
+    payload.finalPrice = 0;
+
+    payload.miles = 0;
+    payload.distanceMeters = 0;
+    payload.durationSeconds = 0;
+    payload.estimatedMinutes = 0;
+
+    payload.googleRoute = null;
+    payload.routePoints = [];
+    payload.routePlan = [];
+    payload.sharedRoutePlan = [];
+    payload.optimizedRoute = null;
+
+    payload.routeLocked = false;
+    payload.routeFinalized = false;
+    payload.routeSource = "route-edited";
+    payload.routeUpdatedAt = null;
+
+    payload.routeChangePending = true;
+    payload.routeChangeStatus = "ROUTE_CHANGED";
+
+  }else{
+
+    payload.status = trip.status || "Confirmed";
+    payload.dispatchSelected =
+      trip.dispatchSelected === false
+        ? false
+        : true;
+
+    delete payload.priceAmount;
+    delete payload.finalPrice;
+
+    delete payload.miles;
+    delete payload.distanceMeters;
+    delete payload.durationSeconds;
+    delete payload.estimatedMinutes;
+
+    delete payload.googleRoute;
+    delete payload.routePoints;
+    delete payload.routePlan;
+    delete payload.sharedRoutePlan;
+    delete payload.optimizedRoute;
+
+    delete payload.routeLocked;
+    delete payload.routeFinalized;
+    delete payload.routeSource;
+    delete payload.routeUpdatedAt;
+
+    delete payload.routeChangePending;
+    delete payload.routeChangeStatus;
+  }
 
   await updateTrip(id,payload);
   await reloadTrips();
@@ -2796,8 +2808,11 @@ async function handleSaveShared(btn){
 
   if(!group) return;
 
-  const passengers =
+  const originalPassengers =
     getServerSharedPassengers(group).map(p=>({...p}));
+
+  const passengers =
+    originalPassengers.map(p=>({...p}));
 
   const payload = {};
 
@@ -2838,7 +2853,6 @@ async function handleSaveShared(btn){
   });
 
   for(const p of passengers){
-
     if(!String(p.clientName || p.name || "").trim()){
       throw new Error("Passenger name required");
     }
@@ -2861,14 +2875,11 @@ async function handleSaveShared(btn){
     payload.tripTime ?? group[0].tripTime
   );
 
-  const service =
-    getServiceByTrip(group[0]);
-
-  const mins =
-    minutesToTrip({
-      tripDate:payload.tripDate ?? group[0].tripDate,
-      tripTime:payload.tripTime ?? group[0].tripTime
-    });
+  const service = getServiceByTrip(group[0]);
+  const mins = minutesToTrip({
+    tripDate:payload.tripDate ?? group[0].tripDate,
+    tripTime:payload.tripTime ?? group[0].tripTime
+  });
 
   if(
     warningEnabled(service) &&
@@ -2876,32 +2887,210 @@ async function handleSaveShared(btn){
     mins <= getWarningMinutes(service)
   ){
     const ok = confirm(
-      `Warning: Shared trip is inside ${getWarningMinutes(service)} minute window.\n\nContinue saving?`
+      `Warning: Shared trip is inside ${getWarningMinutes(service)} minute window.
+
+Continue saving?`
     );
 
     if(!ok) return;
   }
 
-  payload.passengers = passengers;
-  payload.status = "Scheduled";
+  payload.passengers =
+    passengers.map((p,index)=>{
 
-  payload.priceAmount = 0;
-  payload.finalPrice = 0;
-  payload.pricePerPassenger = 0;
+      const oldPassenger =
+        originalPassengers[index] || {};
 
-  payload.miles = 0;
-  payload.distanceMeters = 0;
-  payload.durationSeconds = 0;
-  payload.estimatedMinutes = 0;
+      const pickupChanged =
+        routeAddressChanged(oldPassenger.pickup,p.pickup);
 
-  payload.googleRoute = null;
-  payload.routePoints = [];
-  payload.optimizedRoute = null;
+      const dropoffChanged =
+        routeAddressChanged(oldPassenger.dropoff,p.dropoff);
 
-  payload.routeLocked = false;
-  payload.routeFinalized = false;
-  payload.routeSource = "";
-  payload.routeUpdatedAt = null;
+      return {
+        ...p,
+
+        passengerId:
+          p.passengerId || oldPassenger.passengerId || "P" + (index + 1),
+
+        name:
+          normalizeText(p.name || p.clientName),
+
+        phone:
+          normalizeText(p.phone || p.clientPhone),
+
+        clientName:
+          normalizeText(p.clientName || p.name),
+
+        clientPhone:
+          normalizeText(p.clientPhone || p.phone),
+
+        pickup:
+          normalizeAddress(p.pickup),
+
+        pickupLat:
+          pickupChanged
+            ? null
+            : coordinatesValue(p.pickupLat ?? oldPassenger.pickupLat),
+
+        pickupLng:
+          pickupChanged
+            ? null
+            : coordinatesValue(p.pickupLng ?? oldPassenger.pickupLng),
+
+        dropoff:
+          normalizeAddress(p.dropoff),
+
+        dropoffLat:
+          dropoffChanged
+            ? null
+            : coordinatesValue(p.dropoffLat ?? oldPassenger.dropoffLat),
+
+        dropoffLng:
+          dropoffChanged
+            ? null
+            : coordinatesValue(p.dropoffLng ?? oldPassenger.dropoffLng),
+
+        status:
+          p.status || oldPassenger.status || "Scheduled",
+
+        pickupOrder:
+          p.pickupOrder ?? oldPassenger.pickupOrder ?? 0,
+
+        dropoffOrder:
+          p.dropoffOrder ?? oldPassenger.dropoffOrder ?? 0,
+
+        routeOrder:
+          p.routeOrder ?? oldPassenger.routeOrder ?? index + 1,
+
+        passengerMiles:
+          p.passengerMiles ?? oldPassenger.passengerMiles ?? 0,
+
+        passengerMinutes:
+          p.passengerMinutes ?? oldPassenger.passengerMinutes ?? 0,
+
+        passengerDistanceMeters:
+          p.passengerDistanceMeters ?? oldPassenger.passengerDistanceMeters ?? 0,
+
+        passengerDurationSeconds:
+          p.passengerDurationSeconds ?? oldPassenger.passengerDurationSeconds ?? 0,
+
+        priceAmount:
+          p.priceAmount ?? oldPassenger.priceAmount ?? 0,
+
+        finalPrice:
+          p.finalPrice ?? oldPassenger.finalPrice ?? 0
+      };
+    });
+
+  payload.pickup =
+    payload.passengers[0]?.pickup || "";
+  payload.dropoff =
+    payload.passengers[payload.passengers.length - 1]?.dropoff || "";
+  payload.totalPassengers = payload.passengers.length;
+  payload.passengerCount = payload.passengers.length;
+  payload.passengersCount = payload.passengers.length;
+
+  const oldSignature =
+    buildSharedRouteSignatureForEdit(originalPassengers);
+
+  const newSignature =
+    buildSharedRouteSignatureForEdit(payload.passengers || passengers);
+
+  const routeChanged =
+    oldSignature !== newSignature;
+
+  if(routeChanged){
+
+    payload.status = "Scheduled";
+    payload.dispatchSelected = false;
+
+    payload.priceAmount = 0;
+    payload.finalPrice = 0;
+    payload.pricePerPassenger = 0;
+
+    payload.miles = 0;
+    payload.distanceMeters = 0;
+    payload.durationSeconds = 0;
+    payload.estimatedMinutes = 0;
+
+    payload.googleRoute = null;
+    payload.routePoints = [];
+    payload.routePlan = [];
+    payload.sharedRoutePlan = [];
+    payload.optimizedRoute = null;
+
+    payload.routeLocked = false;
+    payload.routeFinalized = false;
+    payload.routeSource = "route-edited";
+    payload.routeUpdatedAt = null;
+
+    payload.sharedRouteLocked = false;
+    payload.sharedRouteLockedAt = null;
+    payload.sharedRouteMeta = null;
+    payload.sharedRoutePolyline = "";
+    payload.sharedRouteMiles = 0;
+    payload.sharedRouteMinutes = 0;
+    payload.sharedRouteSignature = "";
+    payload.sharedGoogleRequestsUsed = 0;
+
+    payload.routeChangePending = true;
+    payload.routeChangeStatus = "ROUTE_CHANGED";
+
+    payload.passengers =
+      payload.passengers.map((p,index)=>({
+        ...p,
+        pickupOrder:0,
+        dropoffOrder:0,
+        routeOrder:index + 1,
+        passengerMiles:0,
+        passengerMinutes:0,
+        passengerDistanceMeters:0,
+        passengerDurationSeconds:0,
+        priceAmount:0,
+        finalPrice:0
+      }));
+
+  }else{
+
+    payload.status = group[0].status || "Confirmed";
+    payload.dispatchSelected =
+      group[0].dispatchSelected === false
+        ? false
+        : true;
+
+    delete payload.priceAmount;
+    delete payload.finalPrice;
+    delete payload.pricePerPassenger;
+
+    delete payload.miles;
+    delete payload.distanceMeters;
+    delete payload.durationSeconds;
+    delete payload.estimatedMinutes;
+
+    delete payload.googleRoute;
+    delete payload.routePoints;
+    delete payload.routePlan;
+    delete payload.sharedRoutePlan;
+    delete payload.optimizedRoute;
+
+    delete payload.routeLocked;
+    delete payload.routeFinalized;
+    delete payload.routeSource;
+    delete payload.routeUpdatedAt;
+
+    delete payload.sharedRouteLocked;
+    delete payload.sharedRouteLockedAt;
+    delete payload.sharedRouteMeta;
+    delete payload.sharedRoutePolyline;
+    delete payload.sharedRouteMiles;
+    delete payload.sharedRouteMinutes;
+    delete payload.sharedRouteSignature;
+    delete payload.sharedGoogleRequestsUsed;
+
+    delete payload.routeChangePending;
+    delete payload.routeChangeStatus;
+  }
 
   for(const t of group){
     await updateTrip(t._id,payload);
