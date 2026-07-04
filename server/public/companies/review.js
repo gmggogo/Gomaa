@@ -2526,7 +2526,9 @@ async function handleEditTrip(btn){
     mins > 0
   ){
     const ok = confirm(
-      `This trip is within ${getWarningMinutes(service)} minutes.\n\nContinue editing?`
+      `This trip is within ${getWarningMinutes(service)} minutes.
+
+Continue editing?`
     );
 
     if(!ok) return;
@@ -2534,6 +2536,20 @@ async function handleEditTrip(btn){
 
   trip.__editing = true;
   trip.status = "Scheduled";
+
+  trip.priceAmount = 0;
+  trip.finalPrice = 0;
+  trip.miles = 0;
+  trip.distanceMeters = 0;
+  trip.durationSeconds = 0;
+  trip.estimatedMinutes = 0;
+  trip.googleRoute = null;
+  trip.routePoints = [];
+  trip.optimizedRoute = null;
+  trip.routeLocked = false;
+  trip.routeFinalized = false;
+  trip.routeSource = "";
+  trip.routeUpdatedAt = null;
 
   await updateTrip(
     id,
@@ -2586,7 +2602,9 @@ async function handleEditShared(btn){
     mins > 0
   ){
     const ok = confirm(
-      `This shared trip is within ${getWarningMinutes(service)} minutes.\n\nContinue editing?`
+      `This shared trip is within ${getWarningMinutes(service)} minutes.
+
+Continue editing?`
     );
 
     if(!ok) return;
@@ -2595,6 +2613,20 @@ async function handleEditShared(btn){
   group.forEach(t=>{
     t.__editing = true;
     t.status = "Scheduled";
+    t.priceAmount = 0;
+    t.finalPrice = 0;
+    t.pricePerPassenger = 0;
+    t.miles = 0;
+    t.distanceMeters = 0;
+    t.durationSeconds = 0;
+    t.estimatedMinutes = 0;
+    t.googleRoute = null;
+    t.routePoints = [];
+    t.optimizedRoute = null;
+    t.routeLocked = false;
+    t.routeFinalized = false;
+    t.routeSource = "";
+    t.routeUpdatedAt = null;
   });
 
   for(const t of group){
@@ -2885,10 +2917,98 @@ async function handleConfirmTrip(btn){
 
   if(!trip) return;
 
-  btn.disabled = true;
-  btn.textContent = "Confirming...";
+  const service = getServiceByTrip(trip);
 
-  await confirmTripOnServer(id);
+  if(!service){
+    throw new Error("Service not found for this trip");
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Routing...";
+
+  const routePoints = buildIndividualRoutePoints(trip);
+  const routeData = await calculateRouteMiles(routePoints);
+
+  btn.textContent = "Pricing...";
+
+  const serviceKey =
+    service.serviceKey ||
+    trip.serviceKey ||
+    trip.serviceType ||
+    "STANDARD";
+
+  const finalStops =
+    getConfirmStops(trip);
+
+  const billableStopsCount =
+    Array.isArray(finalStops)
+      ? finalStops.length
+      : 0;
+
+  const total =
+    await calculateServerPrice({
+      serviceKey,
+
+      company:
+        trip.company ||
+        trip.facilityName ||
+        trip.companyName ||
+        localStorage.getItem("name") ||
+        "",
+
+      facilityId:
+        trip.facilityId ||
+        trip.companyId ||
+        trip.userId ||
+        localStorage.getItem("localId") ||
+        localStorage.getItem("companyId") ||
+        localStorage.getItem("userId") ||
+        localStorage.getItem("_id") ||
+        localStorage.getItem("id") ||
+        "",
+
+      miles:
+        routeData.miles,
+
+      stops:
+        billableStopsCount,
+
+      minutes:
+        routeData.estimatedMinutes,
+
+      passengerCount:
+        1,
+
+      isCompany:
+        true
+    });
+
+  await updateTrip(id,{
+    status:"Confirmed",
+    dispatchSelected:true,
+
+    priceAmount:total,
+    finalPrice:total,
+
+    miles:routeData.miles,
+    distanceMeters:routeData.distanceMeters,
+    durationSeconds:routeData.durationSeconds,
+    estimatedMinutes:routeData.estimatedMinutes,
+
+    googleRoute:routeData.googleRoute,
+    routePoints:routePoints,
+    optimizedRoute:routeData.googleRoute,
+
+    routeLocked:true,
+    routeFinalized:true,
+    routeSource:"company-review",
+    routeUpdatedAt:new Date().toISOString(),
+
+    serviceName:service?.name || service?.title || "",
+    serviceCode:service?.serviceKey || service?.companySuffix || service?.code || service?.serviceCode || "",
+    serviceId:service?._id || ""
+  });
+
   await reloadTrips();
 }
 
