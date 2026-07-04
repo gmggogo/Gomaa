@@ -639,6 +639,103 @@ function getRealPassengersFromGroup(group){
   }));
 }
 
+function sortServerSharedPassengers(passengers){
+  return [...(Array.isArray(passengers) ? passengers : [])]
+    .sort((a,b)=>{
+
+      const aRoute = Number(a.routeOrder || 9999);
+      const bRoute = Number(b.routeOrder || 9999);
+
+      if(aRoute !== bRoute){
+        return aRoute - bRoute;
+      }
+
+      const aPickup = Number(a.pickupOrder || 9999);
+      const bPickup = Number(b.pickupOrder || 9999);
+
+      if(aPickup !== bPickup){
+        return aPickup - bPickup;
+      }
+
+      const aDrop = Number(a.dropoffOrder || 9999);
+      const bDrop = Number(b.dropoffOrder || 9999);
+
+      if(aDrop !== bDrop){
+        return aDrop - bDrop;
+      }
+
+      return String(a.passengerId || "").localeCompare(String(b.passengerId || ""));
+    });
+}
+
+function getServerSharedPassengers(group){
+  const first = group[0] || {};
+
+  if(Array.isArray(first.passengers) && first.passengers.length){
+    return sortServerSharedPassengers(first.passengers);
+  }
+
+  return getRealPassengersFromGroup(group);
+}
+
+function compactServerRoutePointsFromPlan(routePlan){
+  const plan =
+    Array.isArray(routePlan)
+      ? [...routePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+      : [];
+
+  const out = [];
+  let lastKey = "";
+
+  plan.forEach(point=>{
+    const address = normalizeAddress(point?.address || "");
+
+    if(!address){
+      return;
+    }
+
+    const key = addressKey(address);
+
+    if(key === lastKey){
+      return;
+    }
+
+    out.push(address);
+    lastKey = key;
+  });
+
+  return out;
+}
+
+function getServerSharedRoutePoints(group){
+  const first = group[0] || {};
+
+  const direct =
+    Array.isArray(first.routePoints)
+      ? first.routePoints.map(v=>typeof v === "string" ? normalizeAddress(v) : normalizeAddress(v?.address || "")).filter(Boolean)
+      : [];
+
+  if(direct.length >= 2){
+    return direct;
+  }
+
+  const sharedPlan =
+    Array.isArray(first.sharedRoutePlan) && first.sharedRoutePlan.length
+      ? first.sharedRoutePlan
+      : Array.isArray(first.routePlan) && first.routePlan.length
+        ? first.routePlan
+        : [];
+
+  const fromPlan =
+    compactServerRoutePointsFromPlan(sharedPlan);
+
+  if(fromPlan.length >= 2){
+    return fromPlan;
+  }
+
+  return [];
+}
+
 /* ================= SERVICES ================= */
 
 async function loadServices(){
@@ -2293,7 +2390,7 @@ function renderSharedRow(group,index){
   tr.dataset.groupId = getSharedKey(first);
 
   const editing = first.__editing === true;
-  const passengers = getRealPassengersFromGroup(group);
+  const passengers = getServerSharedPassengers(group);
 
   applyRowColor(tr,first);
 
@@ -3000,6 +3097,7 @@ async function handleConfirmShared(btn){
     getServiceByTrip(first) ||
     COMPANY_SERVICES.find(
       s =>
+        String(s.serviceKey || "").toUpperCase() === "SH" ||
         String(s.serviceKey || "").toUpperCase() === "SHARED"
     );
 
@@ -3010,20 +3108,17 @@ async function handleConfirmShared(btn){
   btn.disabled = true;
   btn.textContent = "Routing...";
 
-  const finalRoute =
-    await buildFinalSharedRoute(group);
-
   const routePoints =
-    finalRoute.routePoints;
+    getServerSharedRoutePoints(group);
 
   const passengers =
-    finalRoute.passengers;
+    getServerSharedPassengers(group);
 
   const activeCount =
-    finalRoute.activeCount || 1;
+    passengers.filter(passengerIsActive).length || 1;
 
   if(!routePoints.length || routePoints.length < 2){
-    throw new Error("Shared route cannot be calculated");
+    throw new Error("Shared route missing from server");
   }
 
   const routeData =
@@ -3031,34 +3126,35 @@ async function handleConfirmShared(btn){
 
   btn.textContent = "Pricing...";
 
-const total =
-  await calculateServerPrice({
-    serviceKey:"SH",
-    miles:routeData.miles,
-    stops:Math.max(0,activeCount - 1),
-    minutes:routeData.estimatedMinutes,
-    passengerCount:activeCount,
+  const total =
+    await calculateServerPrice({
+      serviceKey:"SH",
+      miles:routeData.miles,
+      stops:
+        Number(first.sharedStopsCount || Math.max(0,routePoints.length - 2)),
+      minutes:routeData.estimatedMinutes,
+      passengerCount:activeCount,
 
-    company:
-      first.company ||
-      first.facilityName ||
-      first.companyName ||
-      localStorage.getItem("name") ||
-      "",
+      company:
+        first.company ||
+        first.facilityName ||
+        first.companyName ||
+        localStorage.getItem("name") ||
+        "",
 
-    facilityId:
-      first.facilityId ||
-      first.companyId ||
-      first.userId ||
-      localStorage.getItem("facilityId") ||
-      localStorage.getItem("companyId") ||
-      localStorage.getItem("userId") ||
-      localStorage.getItem("_id") ||
-      localStorage.getItem("id") ||
-      "",
+      facilityId:
+        first.facilityId ||
+        first.companyId ||
+        first.userId ||
+        localStorage.getItem("facilityId") ||
+        localStorage.getItem("companyId") ||
+        localStorage.getItem("userId") ||
+        localStorage.getItem("_id") ||
+        localStorage.getItem("id") ||
+        "",
 
-    isCompany:true
-  });
+      isCompany:true
+    });
 
   const pricePerPassenger =
     Number((Number(total || 0) / activeCount).toFixed(2));
@@ -3081,6 +3177,13 @@ const total =
       };
     });
 
+  const sharedRoutePlan =
+    Array.isArray(first.sharedRoutePlan) && first.sharedRoutePlan.length
+      ? first.sharedRoutePlan
+      : Array.isArray(first.routePlan)
+        ? first.routePlan
+        : [];
+
   const payload = {
     status:"Confirmed",
     dispatchSelected:true,
@@ -3099,7 +3202,8 @@ const total =
     finalPrice:Number(total || 0),
     pricePerPassenger:pricePerPassenger,
 
-    sharedStopsCount:Math.max(0,activeCount - 1),
+    sharedStopsCount:
+      Number(first.sharedStopsCount || Math.max(0,routePoints.length - 2)),
 
     miles:routeData.miles,
     distanceMeters:routeData.distanceMeters,
@@ -3108,11 +3212,13 @@ const total =
 
     googleRoute:routeData.googleRoute,
     routePoints:routePoints,
+    routePlan:sharedRoutePlan,
+    sharedRoutePlan:sharedRoutePlan,
     optimizedRoute:routeData.googleRoute,
 
     routeLocked:true,
     routeFinalized:true,
-    routeSource:"company-review",
+    routeSource:"company-review-server-shared",
     routeUpdatedAt:new Date().toISOString()
   };
 
