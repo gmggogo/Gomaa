@@ -1795,6 +1795,27 @@ async function updateTrip(id,payload){
   return await res.json().catch(()=>null);
 }
 
+async function confirmTripOnServer(id){
+  const res = await fetch(
+    "/api/dispatch-reserved-confirm/" + encodeURIComponent(id),
+    {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(data.message || "Confirm failed");
+  }
+
+  return data.trip || data.data || data;
+}
+
 async function deleteTrip(id){
   const res = await fetch("/api/trips/" + id,{
     method:"DELETE",
@@ -2864,98 +2885,10 @@ async function handleConfirmTrip(btn){
 
   if(!trip) return;
 
-  const service = getServiceByTrip(trip);
-
-  if(!service){
-    throw new Error("Service not found for this trip");
-  }
-
   btn.disabled = true;
-  btn.textContent = "Routing...";
+  btn.textContent = "Confirming...";
 
-  const routePoints = buildIndividualRoutePoints(trip);
-  const routeData = await calculateRouteMiles(routePoints);
-
-  btn.textContent = "Pricing...";
-
-  const serviceKey =
-    service.serviceKey ||
-    trip.serviceKey ||
-    trip.serviceType ||
-    "STANDARD";
-
-  const finalStops =
-    getConfirmStops(trip);
-
-  const billableStopsCount =
-    Array.isArray(finalStops)
-      ? finalStops.length
-      : 0;
-
-const total =
-  await calculateServerPrice({
-    serviceKey,
-
-    company:
-      trip.company ||
-      trip.facilityName ||
-      trip.companyName ||
-      localStorage.getItem("name") ||
-      "",
-
-    facilityId:
-      trip.facilityId ||
-      trip.companyId ||
-      trip.userId ||
-      localStorage.getItem("localId") ||
-      localStorage.getItem("companyId") ||
-      localStorage.getItem("userId") ||
-      localStorage.getItem("_id") ||
-      localStorage.getItem("id") ||
-      "",
-
-    miles:
-      routeData.miles,
-
-    stops:
-      billableStopsCount,
-
-    minutes:
-      routeData.estimatedMinutes,
-
-    passengerCount:
-      1,
-
-    isCompany:
-      true
-  });
-
-  await updateTrip(id,{
-    status:"Confirmed",
-    dispatchSelected:true,
-
-    priceAmount:total,
-    finalPrice:total,
-
-    miles:routeData.miles,
-    distanceMeters:routeData.distanceMeters,
-    durationSeconds:routeData.durationSeconds,
-    estimatedMinutes:routeData.estimatedMinutes,
-
-    googleRoute:routeData.googleRoute,
-    routePoints:routePoints,
-    optimizedRoute:routeData.googleRoute,
-
-    routeLocked:true,
-    routeFinalized:true,
-    routeSource:"company-review",
-    routeUpdatedAt:new Date().toISOString(),
-
-    serviceName:service?.name || service?.title || "",
-    serviceCode:service?.serviceKey || service?.companySuffix || service?.code || service?.serviceCode || "",
-    serviceId:service?._id || ""
-  });
-
+  await confirmTripOnServer(id);
   await reloadTrips();
 }
 
@@ -2970,139 +2903,11 @@ async function handleConfirmShared(btn){
 
   if(!group) return;
 
-  const first = group[0];
-
-  const service =
-    getServiceByTrip(first) ||
-    COMPANY_SERVICES.find(
-      s =>
-        String(s.serviceKey || "").toUpperCase() === "SH" ||
-        String(s.serviceKey || "").toUpperCase() === "SHARED"
-    );
-
-  if(!service){
-    throw new Error("Shared service not found");
-  }
-
   btn.disabled = true;
-  btn.textContent = "Routing...";
-
-  const routePoints =
-    getServerSharedRoutePoints(group);
-
-  const passengers =
-    getServerSharedPassengers(group);
-
-  const activeCount =
-    passengers.filter(passengerIsActive).length || 1;
-
-  if(!routePoints.length || routePoints.length < 2){
-    throw new Error("Shared route missing from server");
-  }
-
-  const routeData =
-    await calculateRouteMiles(routePoints);
-
-  btn.textContent = "Pricing...";
-
-  const total =
-    await calculateServerPrice({
-      serviceKey:"SH",
-      miles:routeData.miles,
-      stops:
-        Number(first.sharedStopsCount || Math.max(0,routePoints.length - 2)),
-      minutes:routeData.estimatedMinutes,
-      passengerCount:activeCount,
-
-      company:
-        first.company ||
-        first.facilityName ||
-        first.companyName ||
-        localStorage.getItem("name") ||
-        "",
-
-      facilityId:
-        first.facilityId ||
-        first.companyId ||
-        first.userId ||
-        localStorage.getItem("facilityId") ||
-        localStorage.getItem("companyId") ||
-        localStorage.getItem("userId") ||
-        localStorage.getItem("_id") ||
-        localStorage.getItem("id") ||
-        "",
-
-      isCompany:true
-    });
-
-  const pricePerPassenger =
-    Number((Number(total || 0) / activeCount).toFixed(2));
-
-  const updatedPassengers =
-    passengers.map(p=>{
-
-      const s =
-        cleanStatus(p.status);
-
-      if(s.includes("no") || s.includes("cancel")){
-        return p;
-      }
-
-      return {
-        ...p,
-        status:"Confirmed",
-        priceAmount:pricePerPassenger,
-        finalPrice:pricePerPassenger
-      };
-    });
-
-  const sharedRoutePlan =
-    Array.isArray(first.sharedRoutePlan) && first.sharedRoutePlan.length
-      ? first.sharedRoutePlan
-      : Array.isArray(first.routePlan)
-        ? first.routePlan
-        : [];
-
-  const payload = {
-    status:"Confirmed",
-    dispatchSelected:true,
-
-    isShared:true,
-    tripType:"SHARED",
-
-    serviceName:service?.name || service?.title || "Shared",
-    serviceCode:service?.serviceKey || service?.companySuffix || service?.code || service?.serviceCode || "SH",
-    serviceId:service?._id || "",
-
-    passengers:updatedPassengers,
-    totalPassengers:passengers.length,
-
-    priceAmount:Number(total || 0),
-    finalPrice:Number(total || 0),
-    pricePerPassenger:pricePerPassenger,
-
-    sharedStopsCount:
-      Number(first.sharedStopsCount || Math.max(0,routePoints.length - 2)),
-
-    miles:routeData.miles,
-    distanceMeters:routeData.distanceMeters,
-    durationSeconds:routeData.durationSeconds,
-    estimatedMinutes:routeData.estimatedMinutes,
-
-    googleRoute:routeData.googleRoute,
-    routePoints:routePoints,
-    routePlan:sharedRoutePlan,
-    sharedRoutePlan:sharedRoutePlan,
-    optimizedRoute:routeData.googleRoute,
-
-    routeLocked:true,
-    routeFinalized:true,
-    routeSource:"company-review-server-shared",
-    routeUpdatedAt:new Date().toISOString()
-  };
+  btn.textContent = "Confirming...";
 
   for(const t of group){
-    await updateTrip(t._id,payload);
+    await confirmTripOnServer(t._id);
   }
 
   await reloadTrips();
@@ -3468,6 +3273,7 @@ window.ReviewApp = {
   fetchTrips,
   updateTrip,
   deleteTrip,
+  confirmTripOnServer,
 
   getTripsTabData,
   getSharedGroups,
