@@ -2726,6 +2726,38 @@ Continue saving?`
 
   payload.stops = stops.filter(Boolean);
 
+  const nextPickup =
+    payload.pickup ?? trip.pickup ?? "";
+
+  const nextDropoff =
+    payload.dropoff ?? trip.dropoff ?? "";
+
+  const pickupChanged =
+    routeAddressChanged(trip.pickup,nextPickup);
+
+  const dropoffChanged =
+    routeAddressChanged(trip.dropoff,nextDropoff);
+
+  payload.pickupLat =
+    pickupChanged
+      ? null
+      : coordinatesValue(trip.pickupLat);
+
+  payload.pickupLng =
+    pickupChanged
+      ? null
+      : coordinatesValue(trip.pickupLng);
+
+  payload.dropoffLat =
+    dropoffChanged
+      ? null
+      : coordinatesValue(trip.dropoffLat);
+
+  payload.dropoffLng =
+    dropoffChanged
+      ? null
+      : coordinatesValue(trip.dropoffLng);
+
   const oldSignature =
     buildIndividualRouteSignatureForEdit(trip);
 
@@ -3188,6 +3220,11 @@ async function handleConfirmTrip(btn){
     routePoints:routePoints,
     optimizedRoute:routeData.googleRoute,
 
+    pickupLat:coordinatesValue(trip.pickupLat),
+    pickupLng:coordinatesValue(trip.pickupLng),
+    dropoffLat:coordinatesValue(trip.dropoffLat),
+    dropoffLng:coordinatesValue(trip.dropoffLng),
+
     routeLocked:true,
     routeFinalized:true,
     routeSource:"company-review",
@@ -3304,16 +3341,32 @@ async function handleConfirmShared(btn){
         cleanStatus(p.status);
 
       if(s.includes("no") || s.includes("cancel")){
-        return p;
+        return {
+          ...p,
+          pickupLat:coordinatesValue(p.pickupLat),
+          pickupLng:coordinatesValue(p.pickupLng),
+          dropoffLat:coordinatesValue(p.dropoffLat),
+          dropoffLng:coordinatesValue(p.dropoffLng)
+        };
       }
 
       return {
         ...p,
         status:"Confirmed",
         priceAmount:pricePerPassenger,
-        finalPrice:pricePerPassenger
+        finalPrice:pricePerPassenger,
+        pickupLat:coordinatesValue(p.pickupLat),
+        pickupLng:coordinatesValue(p.pickupLng),
+        dropoffLat:coordinatesValue(p.dropoffLat),
+        dropoffLng:coordinatesValue(p.dropoffLng)
       };
     });
+
+  const firstPassenger =
+    updatedPassengers[0] || {};
+
+  const lastPassenger =
+    updatedPassengers[updatedPassengers.length - 1] || {};
 
   const payload = {
     status:"Confirmed",
@@ -3343,6 +3396,14 @@ async function handleConfirmShared(btn){
     totalPassengers:passengers.length,
     passengerCount:passengers.length,
     passengersCount:passengers.length,
+
+    pickup:firstPassenger.pickup || first.pickup || "",
+    dropoff:lastPassenger.dropoff || first.dropoff || "",
+
+    pickupLat:coordinatesValue(firstPassenger.pickupLat),
+    pickupLng:coordinatesValue(firstPassenger.pickupLng),
+    dropoffLat:coordinatesValue(lastPassenger.dropoffLat),
+    dropoffLng:coordinatesValue(lastPassenger.dropoffLng),
 
     priceAmount:Number(total || 0),
     finalPrice:Number(total || 0),
@@ -3611,6 +3672,26 @@ const activeReq =
     stops:stops,
     dropoff:dropoff,
 
+    pickupLat:
+      routeAddressChanged(freshTrip.pickup,pickup)
+        ? null
+        : coordinatesValue(freshTrip.pickupLat),
+
+    pickupLng:
+      routeAddressChanged(freshTrip.pickup,pickup)
+        ? null
+        : coordinatesValue(freshTrip.pickupLng),
+
+    dropoffLat:
+      routeAddressChanged(freshTrip.dropoff,dropoff)
+        ? null
+        : coordinatesValue(freshTrip.dropoffLat),
+
+    dropoffLng:
+      routeAddressChanged(freshTrip.dropoff,dropoff)
+        ? null
+        : coordinatesValue(freshTrip.dropoffLng),
+
     priceAmount:total,
     finalPrice:total,
 
@@ -3845,6 +3926,26 @@ const billableStopsCount =
         pickup:finalPickup,
         stops:finalStops,
         dropoff:finalDropoff,
+
+        pickupLat:
+          routeAddressChanged(trip.pickup,finalPickup)
+            ? null
+            : coordinatesValue(trip.pickupLat),
+
+        pickupLng:
+          routeAddressChanged(trip.pickup,finalPickup)
+            ? null
+            : coordinatesValue(trip.pickupLng),
+
+        dropoffLat:
+          routeAddressChanged(trip.dropoff,finalDropoff)
+            ? null
+            : coordinatesValue(trip.dropoffLat),
+
+        dropoffLng:
+          routeAddressChanged(trip.dropoff,finalDropoff)
+            ? null
+            : coordinatesValue(trip.dropoffLng),
 
         priceAmount:total,
         finalPrice:total,
