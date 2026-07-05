@@ -689,6 +689,39 @@ function getServerSharedPassengers(group){
   return getRealPassengersFromGroup(group);
 }
 
+function buildSharedRoutePointsFromPassengers(passengers){
+  const list = Array.isArray(passengers) ? passengers : [];
+  const active = list.filter(passengerIsActive);
+
+  const pickups = [...active]
+    .sort((a,b)=>{
+      const ao = Number(a.pickupOrder ?? 9999);
+      const bo = Number(b.pickupOrder ?? 9999);
+      if(ao !== bo) return ao - bo;
+      const ar = Number(a.routeOrder ?? 9999);
+      const br = Number(b.routeOrder ?? 9999);
+      if(ar !== br) return ar - br;
+      return String(a.passengerId || "").localeCompare(String(b.passengerId || ""));
+    })
+    .map(p=>normalizeAddress(p.pickup))
+    .filter(Boolean);
+
+  const dropoffs = [...active]
+    .sort((a,b)=>{
+      const ao = Number(a.dropoffOrder ?? 9999);
+      const bo = Number(b.dropoffOrder ?? 9999);
+      if(ao !== bo) return ao - bo;
+      const ar = Number(a.routeOrder ?? 9999);
+      const br = Number(b.routeOrder ?? 9999);
+      if(ar !== br) return ar - br;
+      return String(a.passengerId || "").localeCompare(String(b.passengerId || ""));
+    })
+    .map(p=>normalizeAddress(p.dropoff))
+    .filter(Boolean);
+
+  return uniqueAddressList([...pickups, ...dropoffs]);
+}
+
 function compactServerRoutePointsFromPlan(routePlan){
   const plan =
     Array.isArray(routePlan)
@@ -727,7 +760,7 @@ function getServerSharedRoutePoints(group){
       : [];
 
   if(direct.length >= 2){
-    return direct;
+    return uniqueAddressList(direct);
   }
 
   const sharedPlan =
@@ -741,7 +774,17 @@ function getServerSharedRoutePoints(group){
     compactServerRoutePointsFromPlan(sharedPlan);
 
   if(fromPlan.length >= 2){
-    return fromPlan;
+    return uniqueAddressList(fromPlan);
+  }
+
+  const passengers =
+    getServerSharedPassengers(group);
+
+  const fromPassengers =
+    buildSharedRoutePointsFromPassengers(passengers);
+
+  if(fromPassengers.length >= 2){
+    return fromPassengers;
   }
 
   return [];
