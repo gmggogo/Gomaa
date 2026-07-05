@@ -14,9 +14,6 @@ const crypto = require("crypto");
 const companyServerRoutes =
 require("./routes/companyServerRoutes");
 
-const addressCacheRoutes =
-require("./routes/addressCacheRoutes");
-
 const CompanyCoreEngine =
 require("./routes/CompanyCoreEngine");
 
@@ -318,11 +315,6 @@ app.use(
 app.use(
   "/api/services",
   serviceRoutes
-);
-
-app.use(
-  "/api/address-cache",
-  addressCacheRoutes
 );
 
 
@@ -727,30 +719,9 @@ serviceKey: { type: String, default: "" },
 serviceCode: { type: String, default: "" },
 
  // 📍 LOCATIONS
-pickup: {
-  type: mongoose.Schema.Types.Mixed,
-  default: {}
-},
-
-dropoff: {
-  type: mongoose.Schema.Types.Mixed,
-  default: {}
-},
-
-stops: {
-  type: [mongoose.Schema.Types.Mixed],
-  default: []
-},
-
-pickupAddress: {
-  type: String,
-  default: ""
-},
-
-dropoffAddress: {
-  type: String,
-  default: ""
-},
+pickup: { type: String, default: "" },
+dropoff: { type: String, default: "" },
+stops: { type: [String], default: [] },
 
   // 📍 COORDINATES
   pickupLat: { type: Number, default: null },
@@ -807,26 +778,8 @@ passengers: {
       clientName: { type: String, default: "" },
       clientPhone: { type: String, default: "" },
 
-pickup: {
-  type: mongoose.Schema.Types.Mixed,
-  default: {}
-},
-
-dropoff: {
-  type: mongoose.Schema.Types.Mixed,
-  default: {}
-},
-
-pickupAddress: {
-  type: String,
-  default: ""
-},
-
-dropoffAddress: {
-  type: String,
-  default: ""
-},
-
+pickup: { type: String, default: "" },
+dropoff: { type: String, default: "" },
       pickupLat: { type: Number, default: null },
       pickupLng: { type: Number, default: null },
       dropoffLat: { type: Number, default: null },
