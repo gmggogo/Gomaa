@@ -3212,11 +3212,166 @@ async function handleConfirmShared(btn){
 
   if(!group) return;
 
+  const first = group[0];
+
+  const service =
+    getServiceByTrip(first) ||
+    COMPANY_SERVICES.find(s =>
+      isSharedService(s)
+    );
+
+  if(!service){
+    throw new Error("Shared service not found");
+  }
+
   btn.disabled = true;
-  btn.textContent = "Confirming...";
+  btn.textContent = "Routing...";
+
+  const routePoints =
+    getServerSharedRoutePoints(group);
+
+  const passengers =
+    getServerSharedPassengers(group);
+
+  const activePassengers =
+    passengers.filter(passengerIsActive);
+
+  const activeCount =
+    activePassengers.length || 1;
+
+  if(!routePoints.length || routePoints.length < 2){
+    throw new Error("Shared route missing from server");
+  }
+
+  const routeData =
+    await calculateRouteMiles(routePoints);
+
+  btn.textContent = "Pricing...";
+
+  const sharedPlan =
+    getServerSharedRoutePlan(group);
+
+  const sharedStopsCount =
+    Number(
+      first.sharedStopsCount ||
+      Math.max(0,activeCount - 1)
+    );
+
+  const serviceKey =
+    service.serviceKey ||
+    service.serviceCode ||
+    service.code ||
+    service.companySuffix ||
+    service.suffix ||
+    "SH";
+
+  const total =
+    await calculateServerPrice({
+      serviceKey,
+      miles:routeData.miles,
+      stops:sharedStopsCount,
+      minutes:routeData.estimatedMinutes,
+      passengerCount:activeCount,
+
+      company:
+        first.company ||
+        first.facilityName ||
+        first.companyName ||
+        localStorage.getItem("name") ||
+        "",
+
+      facilityId:
+        first.facilityId ||
+        first.companyId ||
+        first.userId ||
+        localStorage.getItem("facilityId") ||
+        localStorage.getItem("companyId") ||
+        localStorage.getItem("userId") ||
+        localStorage.getItem("_id") ||
+        localStorage.getItem("id") ||
+        "",
+
+      isCompany:true
+    });
+
+  const pricePerPassenger =
+    Number((Number(total || 0) / activeCount).toFixed(2));
+
+  const updatedPassengers =
+    passengers.map(p=>{
+
+      const s =
+        cleanStatus(p.status);
+
+      if(s.includes("no") || s.includes("cancel")){
+        return p;
+      }
+
+      return {
+        ...p,
+        status:"Confirmed",
+        priceAmount:pricePerPassenger,
+        finalPrice:pricePerPassenger
+      };
+    });
+
+  const payload = {
+    status:"Confirmed",
+    dispatchSelected:true,
+
+    isShared:true,
+    tripType:"SHARED",
+
+    serviceName:
+      service?.name ||
+      service?.title ||
+      service?.serviceName ||
+      "Shared",
+
+    serviceCode:
+      service?.serviceKey ||
+      service?.serviceCode ||
+      service?.code ||
+      service?.companySuffix ||
+      service?.suffix ||
+      "SH",
+
+    serviceId:
+      service?._id || "",
+
+    passengers:updatedPassengers,
+    totalPassengers:passengers.length,
+    passengerCount:passengers.length,
+    passengersCount:passengers.length,
+
+    priceAmount:Number(total || 0),
+    finalPrice:Number(total || 0),
+    pricePerPassenger:pricePerPassenger,
+
+    sharedStopsCount:sharedStopsCount,
+
+    miles:routeData.miles,
+    distanceMeters:routeData.distanceMeters,
+    durationSeconds:routeData.durationSeconds,
+    estimatedMinutes:routeData.estimatedMinutes,
+
+    googleRoute:routeData.googleRoute,
+    routePoints:routePoints,
+    routePlan:sharedPlan,
+    sharedRoutePlan:sharedPlan,
+    optimizedRoute:routeData.googleRoute,
+
+    routeLocked:true,
+    routeFinalized:true,
+    routeSource:"company-review-shared",
+    routeUpdatedAt:new Date().toISOString(),
+
+    routeChangePending:false,
+    routeChangeStatus:"CONFIRMED"
+  };
 
   for(const t of group){
-    await confirmTripOnServer(t._id);
+    await updateTrip(t._id,payload);
   }
 
   await reloadTrips();
