@@ -3,7 +3,6 @@ FILE: add-trip.js
 FINAL COMPLETE VERSION
 Facility Override First
 Service Code Fixed From Company Suffix
-Address Cache Resolve Only - NO Google Autocomplete
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -37,21 +36,6 @@ let activeService = "ST";
 let activeSuffix  = "ST";
 
 let SYSTEM_TIMEZONE = "America/Phoenix";
-
-/*
-  IMPORTANT REQUEST POLICY
-  ------------------------
-  This file does NOT use Google Places Autocomplete.
-  User can type address manually.
-
-  On submit only:
-  - The file calls backend /api/address-cache/resolve for every address.
-  - Backend should first check Address Cache.
-  - Backend should call Google Geocode only if the address is new/missing lat/lng.
-  - The resolved lat/lng is saved inside the trip payload.
-
-  Frontend Google requests here: ZERO.
-*/
 
 /* ================= BILLING ================= */
 
@@ -216,304 +200,6 @@ function num(v){
   return Number.isFinite(n) ? n : 0;
 }
 
-function cleanNumberOrNull(v){
-
-  if(v === "" || v === null || v === undefined){
-    return null;
-  }
-
-  const n =
-    Number(v);
-
-  return Number.isFinite(n)
-    ? n
-    : null;
-}
-
-function hasValidLatLng(point){
-
-  if(!point) return false;
-
-  const lat =
-    cleanNumberOrNull(
-      point.lat ??
-      point.latitude
-    );
-
-  const lng =
-    cleanNumberOrNull(
-      point.lng ??
-      point.longitude
-    );
-
-  return (
-    lat !== null &&
-    lng !== null
-  );
-}
-
-function normalizeAddressKey(address){
-
-  return normalizeText(address)
-    .toLowerCase()
-    .replace(/[.,#]/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-}
-
-function normalizeAddressPoint(point){
-
-  if(!point){
-    return {
-      address:"",
-      fullAddress:"",
-      addressKey:"",
-      lat:null,
-      lng:null,
-      latitude:null,
-      longitude:null,
-      placeId:"",
-      city:"",
-      state:"",
-      zip:""
-    };
-  }
-
-  const address =
-    normalizeText(
-      point.address ||
-      point.fullAddress ||
-      point.formattedAddress ||
-      point.formatted_address ||
-      point.name ||
-      ""
-    );
-
-  const lat =
-    cleanNumberOrNull(
-      point.lat ??
-      point.latitude
-    );
-
-  const lng =
-    cleanNumberOrNull(
-      point.lng ??
-      point.longitude
-    );
-
-  return {
-    address,
-    fullAddress:
-      normalizeText(point.fullAddress) ||
-      address,
-
-    addressKey:
-      normalizeText(point.addressKey) ||
-      normalizeAddressKey(address),
-
-    lat,
-    lng,
-
-    latitude:
-      lat,
-    longitude:
-      lng,
-
-    placeId:
-      normalizeText(
-        point.placeId ||
-        point.place_id ||
-        ""
-      ),
-
-    city:
-      normalizeText(point.city),
-
-    state:
-      normalizeText(point.state),
-
-    zip:
-      normalizeText(
-        point.zip ||
-        point.postalCode ||
-        point.postal_code ||
-        ""
-      )
-  };
-}
-
-function getAddressText(value){
-
-  if(typeof value === "string"){
-    return normalizeText(value);
-  }
-
-  return normalizeText(
-    value?.address ||
-    value?.fullAddress ||
-    value?.formattedAddress ||
-    value?.formatted_address ||
-    ""
-  );
-}
-
-function extractAddressFromResolved(data,originalAddress){
-
-  const raw =
-    data?.addressPoint ||
-    data?.point ||
-    data?.result ||
-    data?.address ||
-    data ||
-    {};
-
-  const address =
-    normalizeText(
-      raw.address ||
-      raw.fullAddress ||
-      raw.formattedAddress ||
-      raw.formatted_address ||
-      data?.fullAddress ||
-      data?.formattedAddress ||
-      data?.formatted_address ||
-      data?.address ||
-      originalAddress
-    );
-
-  const lat =
-    cleanNumberOrNull(
-      raw.lat ??
-      raw.latitude ??
-      data?.lat ??
-      data?.latitude
-    );
-
-  const lng =
-    cleanNumberOrNull(
-      raw.lng ??
-      raw.longitude ??
-      data?.lng ??
-      data?.longitude
-    );
-
-  return normalizeAddressPoint({
-    address,
-    fullAddress:
-      raw.fullAddress ||
-      data?.fullAddress ||
-      address,
-    addressKey:
-      raw.addressKey ||
-      data?.addressKey ||
-      normalizeAddressKey(address),
-    lat,
-    lng,
-    placeId:
-      raw.placeId ||
-      raw.place_id ||
-      data?.placeId ||
-      data?.place_id ||
-      "",
-    city:
-      raw.city ||
-      data?.city ||
-      "",
-    state:
-      raw.state ||
-      data?.state ||
-      "",
-    zip:
-      raw.zip ||
-      raw.postalCode ||
-      raw.postal_code ||
-      data?.zip ||
-      data?.postalCode ||
-      data?.postal_code ||
-      ""
-  });
-}
-
-async function resolveAddressForSave(address,label){
-
-  const clean =
-    getAddressText(address);
-
-  if(!clean){
-    throw new Error((label || "Address") + " required");
-  }
-
-  /*
-    One backend request only.
-    Backend must check DB cache before any Google Geocode call.
-  */
-
-  const res =
-    await fetch("/api/address-cache/resolve",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify({
-        address:clean,
-        addressKey:normalizeAddressKey(clean),
-        company:companyName,
-        companyName:companyName,
-        facilityName:companyName,
-        companyId:companyId,
-        facilityId:companyId,
-        source:"company-add-trip"
-      })
-    });
-
-  const data =
-    await res.json().catch(()=>({}));
-
-  if(!res.ok){
-    throw new Error(
-      data.message ||
-      data.error ||
-      ("Could not resolve " + (label || "address") + ": " + clean)
-    );
-  }
-
-  const point =
-    extractAddressFromResolved(data,clean);
-
-  if(!hasValidLatLng(point)){
-    throw new Error(
-      "Missing lat/lng for " + (label || "address") + ": " + clean
-    );
-  }
-
-  return point;
-}
-
-async function resolveAddressListForSave(items,labelPrefix){
-
-  const results = [];
-
-  for(let i = 0; i < items.length; i++){
-
-    const raw =
-      getAddressText(items[i]);
-
-    if(!raw){
-      continue;
-    }
-
-    const resolved =
-      await resolveAddressForSave(
-        raw,
-        `${labelPrefix || "Address"} ${i + 1}`
-      );
-
-    results.push(resolved);
-  }
-
-  return results;
-}
-
 function normalizeServiceCode(v){
 
   const c =
@@ -536,7 +222,7 @@ function normalizeServiceCode(v){
     return "WH";
   }
 
-  if(c === "SHARED" || c === "SHARE" || c === "SH") return "SH";
+  if(c === "SHARED" || c === "SH") return "SH";
   if(c === "LIMO" || c === "LIMOUSINE" || c === "LM") return "LM";
   if(c === "TAXI" || c === "TX") return "TX";
   if(c === "XL") return "XL";
@@ -1237,10 +923,10 @@ function loadDraft(){
     draft.clientPhone || "";
 
   pickupInput.value =
-    getAddressText(draft.pickup) || "";
+    draft.pickup || "";
 
   dropoffInput.value =
-    getAddressText(draft.dropoff) || "";
+    draft.dropoff || "";
 
   tripDate.value =
     draft.tripDate || "";
@@ -1316,10 +1002,10 @@ function loadSharedDraft(){
           p.clientPhone || "";
 
         card.querySelector(".sharedPickup").value =
-          getAddressText(p.pickup) || "";
+          p.pickup || "";
 
         card.querySelector(".sharedDropoff").value =
-          getAddressText(p.dropoff) || "";
+          p.dropoff || "";
       });
 
     },50);
@@ -1635,7 +1321,7 @@ function createStopInput(value=""){
       type="text"
       class="stop-input"
       placeholder="Stop address"
-      value=""
+      value="${value}"
     >
     <button
       type="button"
@@ -1644,12 +1330,6 @@ function createStopInput(value=""){
       ✕
     </button>
   `;
-
-  const input =
-    wrapper.querySelector(".stop-input");
-
-  input.value =
-    getAddressText(value);
 
   wrapper.querySelector(".remove-stop-btn").onclick = ()=>{
     wrapper.remove();
@@ -1728,34 +1408,14 @@ submitTripBtn.onclick = async function(){
   }
 
   submitTripBtn.disabled = true;
-  submitTripBtn.innerText = "Resolving addresses...";
+  submitTripBtn.innerText = "Submitting...";
 
   try{
 
-    const stopTexts =
+    const stops =
       [...document.querySelectorAll(".stop-input")]
         .map(i=>normalizeText(i.value))
         .filter(Boolean);
-
-    const pickup =
-      await resolveAddressForSave(
-        pickupInput.value,
-        "Pickup"
-      );
-
-    const dropoff =
-      await resolveAddressForSave(
-        dropoffInput.value,
-        "Dropoff"
-      );
-
-    const stops =
-      await resolveAddressListForSave(
-        stopTexts,
-        "Stop"
-      );
-
-    submitTripBtn.innerText = "Submitting...";
 
     const selected =
       selectedServicePayload();
@@ -1765,9 +1425,6 @@ submitTripBtn.onclick = async function(){
     console.log("activeSuffix:", activeSuffix);
     console.log("selected:", selected);
     console.log("selected service object:", selected.service);
-    console.log("RESOLVED PICKUP:", pickup);
-    console.log("RESOLVED DROPOFF:", dropoff);
-    console.log("RESOLVED STOPS:", stops);
     console.log("===============================================");
 
     const trip = {
@@ -1801,25 +1458,9 @@ submitTripBtn.onclick = async function(){
       clientName:clientName.value,
       clientPhone:clientPhone.value,
 
-      /*
-        Main saved address objects.
-        These must be stored by backend as objects, not converted to strings.
-      */
-
-      pickup,
-      dropoff,
+      pickup:pickupInput.value,
+      dropoff:dropoffInput.value,
       stops,
-
-      /*
-        Compatibility fields for old backend/frontend code.
-      */
-
-      pickupAddress:pickup.address,
-      dropoffAddress:dropoff.address,
-      pickupLat:pickup.lat,
-      pickupLng:pickup.lng,
-      dropoffLat:dropoff.lat,
-      dropoffLng:dropoff.lng,
 
       tripDate:tripDate.value,
       tripTime:tripTime.value,
@@ -1897,74 +1538,29 @@ submitSharedBtn.onclick = async function(){
     return;
   }
 
+  const passengers = [];
+
+  document.querySelectorAll(".passenger-card").forEach((card,index)=>{
+
+    passengers.push({
+      passengerId:"P" + (index + 1),
+      clientName:card.querySelector(".sharedClientName").value,
+      clientPhone:card.querySelector(".sharedClientPhone").value,
+      pickup:card.querySelector(".sharedPickup").value,
+      dropoff:card.querySelector(".sharedDropoff").value,
+      status:"Scheduled"
+    });
+  });
+
+  if(passengers.length < 2){
+    showAlert("Minimum 2 passengers");
+    return;
+  }
+
   submitSharedBtn.disabled = true;
-  submitSharedBtn.innerText = "Resolving addresses...";
+  submitSharedBtn.innerText = "Submitting...";
 
   try{
-
-    const rawPassengers = [];
-
-    document.querySelectorAll(".passenger-card").forEach((card,index)=>{
-
-      rawPassengers.push({
-        index,
-        passengerId:"P" + (index + 1),
-        clientName:card.querySelector(".sharedClientName").value,
-        clientPhone:card.querySelector(".sharedClientPhone").value,
-        pickupText:card.querySelector(".sharedPickup").value,
-        dropoffText:card.querySelector(".sharedDropoff").value
-      });
-    });
-
-    if(rawPassengers.length < 2){
-      showAlert("Minimum 2 passengers");
-      return;
-    }
-
-    const passengers = [];
-
-    for(const p of rawPassengers){
-
-      const pickup =
-        await resolveAddressForSave(
-          p.pickupText,
-          `Passenger ${p.index + 1} Pickup`
-        );
-
-      const dropoff =
-        await resolveAddressForSave(
-          p.dropoffText,
-          `Passenger ${p.index + 1} Dropoff`
-        );
-
-      passengers.push({
-        passengerId:p.passengerId,
-        clientName:p.clientName,
-        clientPhone:p.clientPhone,
-
-        /*
-          Main passenger address objects.
-        */
-
-        pickup,
-        dropoff,
-
-        /*
-          Compatibility fields for old backend/frontend code.
-        */
-
-        pickupAddress:pickup.address,
-        dropoffAddress:dropoff.address,
-        pickupLat:pickup.lat,
-        pickupLng:pickup.lng,
-        dropoffLat:dropoff.lat,
-        dropoffLng:dropoff.lng,
-
-        status:"Scheduled"
-      });
-    }
-
-    submitSharedBtn.innerText = "Submitting...";
 
     const selected =
       selectedServicePayload();
@@ -1997,35 +1593,6 @@ submitSharedBtn.onclick = async function(){
       passengers,
       passengersCount:passengers.length,
       totalPassengers:passengers.length,
-
-      /*
-        Compatibility: top-level pickup/dropoff from first/last passenger.
-        Shared route should still use passengers[].
-      */
-
-      pickup:
-        passengers[0]?.pickup || null,
-
-      dropoff:
-        passengers[passengers.length - 1]?.dropoff || null,
-
-      pickupAddress:
-        passengers[0]?.pickup?.address || "",
-
-      dropoffAddress:
-        passengers[passengers.length - 1]?.dropoff?.address || "",
-
-      pickupLat:
-        passengers[0]?.pickup?.lat ?? null,
-
-      pickupLng:
-        passengers[0]?.pickup?.lng ?? null,
-
-      dropoffLat:
-        passengers[passengers.length - 1]?.dropoff?.lat ?? null,
-
-      dropoffLng:
-        passengers[passengers.length - 1]?.dropoff?.lng ?? null,
 
       entryName:sharedEntryName.value,
       entryPhone:sharedEntryPhone.value,
