@@ -3,11 +3,7 @@ FILE: add-trip.js
 FINAL COMPLETE VERSION
 Facility Override First
 Service Code Fixed From Company Suffix
-Address Lat/Lng Save Fixed
-- Saves pickup/dropoff/stops as address objects with lat/lng
-- Saves shared passenger pickup/dropoff as address objects with lat/lng
-- Uses Google Places Autocomplete when available
-- Prevents submit if address is typed only and no lat/lng selected
+Address Cache Resolve Only - NO Google Autocomplete
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -43,22 +39,19 @@ let activeSuffix  = "ST";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 
 /*
-  IMPORTANT:
-  These variables store the Google Places result selected by the user.
-  Inputs alone only contain text. These objects carry lat/lng.
+  IMPORTANT REQUEST POLICY
+  ------------------------
+  This file does NOT use Google Places Autocomplete.
+  User can type address manually.
+
+  On submit only:
+  - The file calls backend /api/address-cache/resolve for every address.
+  - Backend should first check Address Cache.
+  - Backend should call Google Geocode only if the address is new/missing lat/lng.
+  - The resolved lat/lng is saved inside the trip payload.
+
+  Frontend Google requests here: ZERO.
 */
-
-let pickupPoint = null;
-let dropoffPoint = null;
-
-const stopPoints =
-  new WeakMap();
-
-const sharedPickupPoints =
-  new WeakMap();
-
-const sharedDropoffPoints =
-  new WeakMap();
 
 /* ================= BILLING ================= */
 
@@ -259,12 +252,22 @@ function hasValidLatLng(point){
   );
 }
 
+function normalizeAddressKey(address){
+
+  return normalizeText(address)
+    .toLowerCase()
+    .replace(/[.,#]/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
 function normalizeAddressPoint(point){
 
   if(!point){
     return {
       address:"",
       fullAddress:"",
+      addressKey:"",
       lat:null,
       lng:null,
       latitude:null,
@@ -304,6 +307,10 @@ function normalizeAddressPoint(point){
       normalizeText(point.fullAddress) ||
       address,
 
+    addressKey:
+      normalizeText(point.addressKey) ||
+      normalizeAddressKey(address),
+
     lat,
     lng,
 
@@ -335,195 +342,176 @@ function normalizeAddressPoint(point){
   };
 }
 
-function buildAddressPoint(input, savedPoint){
+function getAddressText(value){
 
-  const address =
-    normalizeText(input?.value);
-
-  const normalized =
-    normalizeAddressPoint(savedPoint || {});
-
-  return {
-    address,
-    fullAddress:
-      address,
-
-    lat:
-      normalized.lat,
-
-    lng:
-      normalized.lng,
-
-    latitude:
-      normalized.latitude,
-
-    longitude:
-      normalized.longitude,
-
-    placeId:
-      normalized.placeId,
-
-    city:
-      normalized.city,
-
-    state:
-      normalized.state,
-
-    zip:
-      normalized.zip
-  };
-}
-
-function getGoogleAddressComponent(place,type,shortName=false){
-
-  const components =
-    place?.address_components || [];
-
-  const found =
-    components.find(c =>
-      Array.isArray(c.types) &&
-      c.types.includes(type)
-    );
-
-  if(!found){
-    return "";
+  if(typeof value === "string"){
+    return normalizeText(value);
   }
 
-  return shortName
-    ? found.short_name || found.long_name || ""
-    : found.long_name || found.short_name || "";
+  return normalizeText(
+    value?.address ||
+    value?.fullAddress ||
+    value?.formattedAddress ||
+    value?.formatted_address ||
+    ""
+  );
 }
 
-function extractGoogleAddress(place){
+function extractAddressFromResolved(data,originalAddress){
 
-  const loc =
-    place?.geometry?.location;
-
-  const lat =
-    loc && typeof loc.lat === "function"
-      ? loc.lat()
-      : null;
-
-  const lng =
-    loc && typeof loc.lng === "function"
-      ? loc.lng()
-      : null;
+  const raw =
+    data?.addressPoint ||
+    data?.point ||
+    data?.result ||
+    data?.address ||
+    data ||
+    {};
 
   const address =
     normalizeText(
-      place?.formatted_address ||
-      place?.name ||
-      ""
+      raw.address ||
+      raw.fullAddress ||
+      raw.formattedAddress ||
+      raw.formatted_address ||
+      data?.fullAddress ||
+      data?.formattedAddress ||
+      data?.formatted_address ||
+      data?.address ||
+      originalAddress
+    );
+
+  const lat =
+    cleanNumberOrNull(
+      raw.lat ??
+      raw.latitude ??
+      data?.lat ??
+      data?.latitude
+    );
+
+  const lng =
+    cleanNumberOrNull(
+      raw.lng ??
+      raw.longitude ??
+      data?.lng ??
+      data?.longitude
     );
 
   return normalizeAddressPoint({
     address,
-    fullAddress:address,
+    fullAddress:
+      raw.fullAddress ||
+      data?.fullAddress ||
+      address,
+    addressKey:
+      raw.addressKey ||
+      data?.addressKey ||
+      normalizeAddressKey(address),
     lat,
     lng,
-    placeId:place?.place_id || "",
+    placeId:
+      raw.placeId ||
+      raw.place_id ||
+      data?.placeId ||
+      data?.place_id ||
+      "",
     city:
-      getGoogleAddressComponent(place,"locality") ||
-      getGoogleAddressComponent(place,"sublocality") ||
-      getGoogleAddressComponent(place,"administrative_area_level_2"),
+      raw.city ||
+      data?.city ||
+      "",
     state:
-      getGoogleAddressComponent(place,"administrative_area_level_1",true),
+      raw.state ||
+      data?.state ||
+      "",
     zip:
-      getGoogleAddressComponent(place,"postal_code")
+      raw.zip ||
+      raw.postalCode ||
+      raw.postal_code ||
+      data?.zip ||
+      data?.postalCode ||
+      data?.postal_code ||
+      ""
   });
 }
 
-function googlePlacesReady(){
+async function resolveAddressForSave(address,label){
 
-  return (
-    window.google &&
-    google.maps &&
-    google.maps.places &&
-    typeof google.maps.places.Autocomplete === "function"
-  );
+  const clean =
+    getAddressText(address);
+
+  if(!clean){
+    throw new Error((label || "Address") + " required");
+  }
+
+  /*
+    One backend request only.
+    Backend must check DB cache before any Google Geocode call.
+  */
+
+  const res =
+    await fetch("/api/address-cache/resolve",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify({
+        address:clean,
+        addressKey:normalizeAddressKey(clean),
+        company:companyName,
+        companyName:companyName,
+        facilityName:companyName,
+        companyId:companyId,
+        facilityId:companyId,
+        source:"company-add-trip"
+      })
+    });
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(
+      data.message ||
+      data.error ||
+      ("Could not resolve " + (label || "address") + ": " + clean)
+    );
+  }
+
+  const point =
+    extractAddressFromResolved(data,clean);
+
+  if(!hasValidLatLng(point)){
+    throw new Error(
+      "Missing lat/lng for " + (label || "address") + ": " + clean
+    );
+  }
+
+  return point;
 }
 
-function attachAutocomplete(input,onSelect){
+async function resolveAddressListForSave(items,labelPrefix){
 
-  if(!input){
-    return false;
-  }
+  const results = [];
 
-  if(!googlePlacesReady()){
+  for(let i = 0; i < items.length; i++){
 
-    console.warn(
-      "Google Places Autocomplete not loaded. Address lat/lng cannot be selected from this file."
-    );
+    const raw =
+      getAddressText(items[i]);
 
-    return false;
-  }
-
-  const autocomplete =
-    new google.maps.places.Autocomplete(
-      input,
-      {
-        fields:[
-          "formatted_address",
-          "geometry",
-          "place_id",
-          "address_components",
-          "name"
-        ],
-        componentRestrictions:{
-          country:"us"
-        }
-      }
-    );
-
-  autocomplete.addListener("place_changed",()=>{
-
-    const place =
-      autocomplete.getPlace();
-
-    const point =
-      extractGoogleAddress(place);
-
-    if(point.address){
-      input.value = point.address;
+    if(!raw){
+      continue;
     }
 
-    if(hasValidLatLng(point)){
-      onSelect(point);
-      input.dataset.hasLatLng = "1";
-    }else{
-      onSelect(null);
-      input.dataset.hasLatLng = "";
-      showAlert("Selected address has no lat/lng. Please choose another address from suggestions.");
-    }
-  });
+    const resolved =
+      await resolveAddressForSave(
+        raw,
+        `${labelPrefix || "Address"} ${i + 1}`
+      );
 
-  input.addEventListener("input",()=>{
-    onSelect(null);
-    input.dataset.hasLatLng = "";
-  });
-
-  input.dataset.autocompleteAttached = "1";
-
-  return true;
-}
-
-function restoreAddressInput(input,point,setter){
-
-  const p =
-    normalizeAddressPoint(point);
-
-  if(input){
-    input.value =
-      p.address || "";
+    results.push(resolved);
   }
 
-  if(hasValidLatLng(p)){
-    setter(p);
-    if(input) input.dataset.hasLatLng = "1";
-  }else{
-    setter(null);
-    if(input) input.dataset.hasLatLng = "";
-  }
+  return results;
 }
 
 function normalizeServiceCode(v){
@@ -574,6 +562,12 @@ function resolveServiceCode(service){
 
   if(!service) return "";
 
+  /*
+    IMPORTANT:
+    Company service code must come from suffix/code fields first.
+    Do NOT read title/name first because it can make all services ST.
+  */
+
   const directFields = [
 
     service.companySuffix,
@@ -607,6 +601,10 @@ function resolveServiceCode(service){
       return code;
     }
   }
+
+  /*
+    Last fallback only: infer from name.
+  */
 
   const name =
     normalizeServiceCode(
@@ -1027,21 +1025,6 @@ Continue anyway?`
 
 /* ================= VALIDATION ================= */
 
-function validateAddressPoint(input,point,label){
-
-  if(!normalizeText(input?.value)){
-    showAlert(label + " Required");
-    return false;
-  }
-
-  if(!hasValidLatLng(point)){
-    showAlert(label + " must be selected from address suggestions so lat/lng can be saved.");
-    return false;
-  }
-
-  return true;
-}
-
 function validateIndividualTrip(){
 
   if(!normalizeText(entryName.value)){
@@ -1064,33 +1047,14 @@ function validateIndividualTrip(){
     return false;
   }
 
-  if(!validateAddressPoint(pickupInput,pickupPoint,"Pickup")){
+  if(!normalizeText(pickupInput.value)){
+    showAlert("Pickup Required");
     return false;
   }
 
-  if(!validateAddressPoint(dropoffInput,dropoffPoint,"Dropoff")){
+  if(!normalizeText(dropoffInput.value)){
+    showAlert("Dropoff Required");
     return false;
-  }
-
-  const stopInputs =
-    [...document.querySelectorAll(".stop-input")];
-
-  for(let i = 0; i < stopInputs.length; i++){
-
-    const stopInput =
-      stopInputs[i];
-
-    if(!normalizeText(stopInput.value)){
-      continue;
-    }
-
-    const stopPoint =
-      stopPoints.get(stopInput);
-
-    if(!hasValidLatLng(stopPoint)){
-      showAlert(`Stop ${i + 1} must be selected from address suggestions so lat/lng can be saved.`);
-      return false;
-    }
   }
 
   if(!tripDate.value){
@@ -1156,7 +1120,7 @@ function validateSharedTrip(){
     return false;
   }
 
-  for(const [index,card] of [...cards].entries()){
+  for(const card of cards){
 
     if(!normalizeText(card.querySelector(".sharedClientName").value)){
       showAlert("Passenger Name Required");
@@ -1168,25 +1132,13 @@ function validateSharedTrip(){
       return false;
     }
 
-    const pickupEl =
-      card.querySelector(".sharedPickup");
-
-    const dropoffEl =
-      card.querySelector(".sharedDropoff");
-
-    if(!validateAddressPoint(
-      pickupEl,
-      sharedPickupPoints.get(pickupEl),
-      `Passenger ${index + 1} Pickup`
-    )){
+    if(!normalizeText(card.querySelector(".sharedPickup").value)){
+      showAlert("Passenger Pickup Required");
       return false;
     }
 
-    if(!validateAddressPoint(
-      dropoffEl,
-      sharedDropoffPoints.get(dropoffEl),
-      `Passenger ${index + 1} Dropoff`
-    )){
+    if(!normalizeText(card.querySelector(".sharedDropoff").value)){
+      showAlert("Passenger Dropoff Required");
       return false;
     }
   }
@@ -1284,17 +1236,11 @@ function loadDraft(){
   clientPhone.value =
     draft.clientPhone || "";
 
-  restoreAddressInput(
-    pickupInput,
-    draft.pickupPoint || draft.pickup,
-    p => pickupPoint = p
-  );
+  pickupInput.value =
+    getAddressText(draft.pickup) || "";
 
-  restoreAddressInput(
-    dropoffInput,
-    draft.dropoffPoint || draft.dropoff,
-    p => dropoffPoint = p
-  );
+  dropoffInput.value =
+    getAddressText(draft.dropoff) || "";
 
   tripDate.value =
     draft.tripDate || "";
@@ -1314,9 +1260,7 @@ function saveDraft(){
       clientName:clientName.value,
       clientPhone:clientPhone.value,
       pickup:pickupInput.value,
-      pickupPoint:buildAddressPoint(pickupInput,pickupPoint),
       dropoff:dropoffInput.value,
-      dropoffPoint:buildAddressPoint(dropoffInput,dropoffPoint),
       tripDate:tripDate.value,
       tripTime:tripTime.value,
       notes:notes.value
@@ -1371,29 +1315,11 @@ function loadSharedDraft(){
         card.querySelector(".sharedClientPhone").value =
           p.clientPhone || "";
 
-        const pickupEl =
-          card.querySelector(".sharedPickup");
+        card.querySelector(".sharedPickup").value =
+          getAddressText(p.pickup) || "";
 
-        const dropoffEl =
-          card.querySelector(".sharedDropoff");
-
-        restoreAddressInput(
-          pickupEl,
-          p.pickupPoint || p.pickup,
-          point => {
-            if(point) sharedPickupPoints.set(pickupEl,point);
-            else sharedPickupPoints.delete(pickupEl);
-          }
-        );
-
-        restoreAddressInput(
-          dropoffEl,
-          p.dropoffPoint || p.dropoff,
-          point => {
-            if(point) sharedDropoffPoints.set(dropoffEl,point);
-            else sharedDropoffPoints.delete(dropoffEl);
-          }
-        );
+        card.querySelector(".sharedDropoff").value =
+          getAddressText(p.dropoff) || "";
       });
 
     },50);
@@ -1406,25 +1332,11 @@ function saveSharedDraft(){
 
   document.querySelectorAll(".passenger-card").forEach(card=>{
 
-    const pickupEl =
-      card.querySelector(".sharedPickup");
-
-    const dropoffEl =
-      card.querySelector(".sharedDropoff");
-
     passengers.push({
       clientName:card.querySelector(".sharedClientName").value,
       clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:pickupEl.value,
-      pickupPoint:buildAddressPoint(
-        pickupEl,
-        sharedPickupPoints.get(pickupEl)
-      ),
-      dropoff:dropoffEl.value,
-      dropoffPoint:buildAddressPoint(
-        dropoffEl,
-        sharedDropoffPoints.get(dropoffEl)
-      )
+      pickup:card.querySelector(".sharedPickup").value,
+      dropoff:card.querySelector(".sharedDropoff").value
     });
   });
 
@@ -1480,6 +1392,10 @@ async function loadCompanyServices(){
 
     const facilityId =
       companyId || "";
+
+    /* =========================
+       1) FACILITY PRICING OVERRIDE
+    ========================= */
 
     const bootRes =
       await fetch("/api/facility-pricing-override/bootstrap",{
@@ -1560,6 +1476,16 @@ async function loadCompanyServices(){
 
       return;
     }
+
+    /*
+      IMPORTANT:
+      Do NOT use bootData.services here.
+      Those are default pricing services and can make all company individual services become ST.
+    */
+
+    /* =========================
+       2) SERVICE MANAGEMENT COMPANY SERVICES
+    ========================= */
 
     const res =
       await fetch(
@@ -1686,24 +1612,9 @@ function buildDynamicTabs(){
   }
 }
 
-/* ================= AUTOCOMPLETE INIT ================= */
-
-function initBaseAutocompletes(){
-
-  attachAutocomplete(
-    pickupInput,
-    p => pickupPoint = p
-  );
-
-  attachAutocomplete(
-    dropoffInput,
-    p => dropoffPoint = p
-  );
-}
-
 /* ================= STOPS ================= */
 
-function createStopInput(value="",savedPoint=null){
+function createStopInput(value=""){
 
   const currentStops =
     stopsBox.querySelectorAll(".stop-input").length;
@@ -1734,39 +1645,17 @@ function createStopInput(value="",savedPoint=null){
     </button>
   `;
 
-  const stopInput =
+  const input =
     wrapper.querySelector(".stop-input");
 
-  stopInput.value =
-    normalizeText(
-      typeof value === "string"
-        ? value
-        : value?.address || value?.fullAddress || ""
-    );
+  input.value =
+    getAddressText(value);
 
   wrapper.querySelector(".remove-stop-btn").onclick = ()=>{
-    stopPoints.delete(stopInput);
     wrapper.remove();
   };
 
   stopsBox.appendChild(wrapper);
-
-  attachAutocomplete(
-    stopInput,
-    p => {
-      if(p) stopPoints.set(stopInput,p);
-      else stopPoints.delete(stopInput);
-    }
-  );
-
-  restoreAddressInput(
-    stopInput,
-    savedPoint || value,
-    p => {
-      if(p) stopPoints.set(stopInput,p);
-      else stopPoints.delete(stopInput);
-    }
-  );
 }
 
 if(addStopBtn){
@@ -1810,28 +1699,6 @@ function renderSharedPassengers(count){
     `;
 
     passengersContainer.appendChild(card);
-
-    const sharedPickupInput =
-      card.querySelector(".sharedPickup");
-
-    const sharedDropoffInput =
-      card.querySelector(".sharedDropoff");
-
-    attachAutocomplete(
-      sharedPickupInput,
-      p => {
-        if(p) sharedPickupPoints.set(sharedPickupInput,p);
-        else sharedPickupPoints.delete(sharedPickupInput);
-      }
-    );
-
-    attachAutocomplete(
-      sharedDropoffInput,
-      p => {
-        if(p) sharedDropoffPoints.set(sharedDropoffInput,p);
-        else sharedDropoffPoints.delete(sharedDropoffInput);
-      }
-    );
   }
 }
 
@@ -1861,19 +1728,34 @@ submitTripBtn.onclick = async function(){
   }
 
   submitTripBtn.disabled = true;
-  submitTripBtn.innerText = "Submitting...";
+  submitTripBtn.innerText = "Resolving addresses...";
 
   try{
 
-    const stops =
+    const stopTexts =
       [...document.querySelectorAll(".stop-input")]
-        .map(input =>
-          buildAddressPoint(
-            input,
-            stopPoints.get(input)
-          )
-        )
-        .filter(p => p.address);
+        .map(i=>normalizeText(i.value))
+        .filter(Boolean);
+
+    const pickup =
+      await resolveAddressForSave(
+        pickupInput.value,
+        "Pickup"
+      );
+
+    const dropoff =
+      await resolveAddressForSave(
+        dropoffInput.value,
+        "Dropoff"
+      );
+
+    const stops =
+      await resolveAddressListForSave(
+        stopTexts,
+        "Stop"
+      );
+
+    submitTripBtn.innerText = "Submitting...";
 
     const selected =
       selectedServicePayload();
@@ -1883,19 +1765,10 @@ submitTripBtn.onclick = async function(){
     console.log("activeSuffix:", activeSuffix);
     console.log("selected:", selected);
     console.log("selected service object:", selected.service);
+    console.log("RESOLVED PICKUP:", pickup);
+    console.log("RESOLVED DROPOFF:", dropoff);
+    console.log("RESOLVED STOPS:", stops);
     console.log("===============================================");
-
-    const pickup =
-      buildAddressPoint(
-        pickupInput,
-        pickupPoint
-      );
-
-    const dropoff =
-      buildAddressPoint(
-        dropoffInput,
-        dropoffPoint
-      );
 
     const trip = {
       company:companyName,
@@ -1928,13 +1801,21 @@ submitTripBtn.onclick = async function(){
       clientName:clientName.value,
       clientPhone:clientPhone.value,
 
+      /*
+        Main saved address objects.
+        These must be stored by backend as objects, not converted to strings.
+      */
+
       pickup,
       dropoff,
       stops,
 
+      /*
+        Compatibility fields for old backend/frontend code.
+      */
+
       pickupAddress:pickup.address,
       dropoffAddress:dropoff.address,
-
       pickupLat:pickup.lat,
       pickupLng:pickup.lng,
       dropoffLat:dropoff.lat,
@@ -1976,9 +1857,6 @@ submitTripBtn.onclick = async function(){
     notes.value = "";
     stopsBox.innerHTML = "";
 
-    pickupPoint = null;
-    dropoffPoint = null;
-
     localStorage.removeItem("companyTripDraft");
 
   }catch(err){
@@ -2019,56 +1897,74 @@ submitSharedBtn.onclick = async function(){
     return;
   }
 
-  const passengers = [];
-
-  document.querySelectorAll(".passenger-card").forEach((card,index)=>{
-
-    const pickupEl =
-      card.querySelector(".sharedPickup");
-
-    const dropoffEl =
-      card.querySelector(".sharedDropoff");
-
-    const pickup =
-      buildAddressPoint(
-        pickupEl,
-        sharedPickupPoints.get(pickupEl)
-      );
-
-    const dropoff =
-      buildAddressPoint(
-        dropoffEl,
-        sharedDropoffPoints.get(dropoffEl)
-      );
-
-    passengers.push({
-      passengerId:"P" + (index + 1),
-      clientName:card.querySelector(".sharedClientName").value,
-      clientPhone:card.querySelector(".sharedClientPhone").value,
-
-      pickup,
-      dropoff,
-
-      pickupAddress:pickup.address,
-      dropoffAddress:dropoff.address,
-      pickupLat:pickup.lat,
-      pickupLng:pickup.lng,
-      dropoffLat:dropoff.lat,
-      dropoffLng:dropoff.lng,
-
-      status:"Scheduled"
-    });
-  });
-
-  if(passengers.length < 2){
-    showAlert("Minimum 2 passengers");
-    return;
-  }
-
   submitSharedBtn.disabled = true;
-  submitSharedBtn.innerText = "Submitting...";
+  submitSharedBtn.innerText = "Resolving addresses...";
 
   try{
+
+    const rawPassengers = [];
+
+    document.querySelectorAll(".passenger-card").forEach((card,index)=>{
+
+      rawPassengers.push({
+        index,
+        passengerId:"P" + (index + 1),
+        clientName:card.querySelector(".sharedClientName").value,
+        clientPhone:card.querySelector(".sharedClientPhone").value,
+        pickupText:card.querySelector(".sharedPickup").value,
+        dropoffText:card.querySelector(".sharedDropoff").value
+      });
+    });
+
+    if(rawPassengers.length < 2){
+      showAlert("Minimum 2 passengers");
+      return;
+    }
+
+    const passengers = [];
+
+    for(const p of rawPassengers){
+
+      const pickup =
+        await resolveAddressForSave(
+          p.pickupText,
+          `Passenger ${p.index + 1} Pickup`
+        );
+
+      const dropoff =
+        await resolveAddressForSave(
+          p.dropoffText,
+          `Passenger ${p.index + 1} Dropoff`
+        );
+
+      passengers.push({
+        passengerId:p.passengerId,
+        clientName:p.clientName,
+        clientPhone:p.clientPhone,
+
+        /*
+          Main passenger address objects.
+        */
+
+        pickup,
+        dropoff,
+
+        /*
+          Compatibility fields for old backend/frontend code.
+        */
+
+        pickupAddress:pickup.address,
+        dropoffAddress:dropoff.address,
+        pickupLat:pickup.lat,
+        pickupLng:pickup.lng,
+        dropoffLat:dropoff.lat,
+        dropoffLng:dropoff.lng,
+
+        status:"Scheduled"
+      });
+    }
+
+    submitSharedBtn.innerText = "Submitting...";
 
     const selected =
       selectedServicePayload();
@@ -2102,6 +1998,11 @@ submitSharedBtn.onclick = async function(){
       passengersCount:passengers.length,
       totalPassengers:passengers.length,
 
+      /*
+        Compatibility: top-level pickup/dropoff from first/last passenger.
+        Shared route should still use passengers[].
+      */
+
       pickup:
         passengers[0]?.pickup || null,
 
@@ -2113,6 +2014,18 @@ submitSharedBtn.onclick = async function(){
 
       dropoffAddress:
         passengers[passengers.length - 1]?.dropoff?.address || "",
+
+      pickupLat:
+        passengers[0]?.pickup?.lat ?? null,
+
+      pickupLng:
+        passengers[0]?.pickup?.lng ?? null,
+
+      dropoffLat:
+        passengers[passengers.length - 1]?.dropoff?.lat ?? null,
+
+      dropoffLng:
+        passengers[passengers.length - 1]?.dropoff?.lng ?? null,
 
       entryName:sharedEntryName.value,
       entryPhone:sharedEntryPhone.value,
@@ -2167,8 +2080,6 @@ submitSharedBtn.onclick = async function(){
 }
 
 /* ================= INIT ================= */
-
-initBaseAutocompletes();
 
 loadDraft();
 loadSharedDraft();
