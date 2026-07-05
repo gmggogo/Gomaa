@@ -1,17 +1,31 @@
 /* =====================================================
 FILE: routes/addressCacheRoutes.js
 GH Mobility / Sunbeam
-Address Cache Resolve Route
+FINAL COMPLETE SMART ADDRESS CACHE ROUTE
 
-Purpose:
-- Company Add Trip calls this endpoint ONLY on Submit.
-- No Google Suggestions / No Autocomplete requests from frontend.
-- Server checks MongoDB Address Cache first.
-- If address exists with lat/lng: returns from CACHE with ZERO Google request.
-- If address is new: calls Google Geocode ONCE, saves lat/lng, then returns it.
-
-Endpoint:
+Endpoint after mounting in server.js:
 POST /api/address-cache/resolve
+
+Mount in server.js:
+const addressCacheRoutes = require("./routes/addressCacheRoutes");
+app.use("/api/address-cache", addressCacheRoutes);
+
+What this file does:
+1) Checks MongoDB address cache first.
+2) If lat/lng exists in cache => returns CACHE, zero Google request.
+3) If not cached => smart geocode attempts on server only.
+4) Handles short / wrong-city addresses like:
+   - "200 e knox rd"
+   - "200 e knox rd chandler"
+   - "1970 w ray rd"
+5) Saves resolved address + lat/lng in cache.
+6) Saves stripped alias so future short/wrong-city input returns from cache.
+
+Required ENV:
+GOOGLE_MAPS_API_KEY
+or GOOGLE_API_KEY
+or MAPS_API_KEY
+or GOOGLE_KEY
 ===================================================== */
 
 const express = require("express");
@@ -20,7 +34,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 /* =========================
-   ADDRESS CACHE MODEL
+   MODEL
 ========================= */
 
 const AddressCacheSchema = new mongoose.Schema(
@@ -117,6 +131,21 @@ const AddressCacheSchema = new mongoose.Schema(
       default:""
     },
 
+    geocodeSource:{
+      type:String,
+      default:""
+    },
+
+    geocodeQueryUsed:{
+      type:String,
+      default:""
+    },
+
+    googleStatus:{
+      type:String,
+      default:""
+    },
+
     usageCount:{
       type:Number,
       default:0
@@ -137,7 +166,7 @@ const AddressCache =
   mongoose.model("AddressCache", AddressCacheSchema);
 
 /* =========================
-   HELPERS
+   BASIC HELPERS
 ========================= */
 
 function normalizeText(value){
@@ -188,24 +217,47 @@ function hasValidLatLng(point){
   );
 }
 
+function getGoogleKey(){
+
+  return (
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.MAPS_API_KEY ||
+    process.env.GOOGLE_KEY ||
+    ""
+  );
+}
+
+/* =========================
+   GOOGLE PARSING
+========================= */
+
 function parseGoogleAddressComponents(components){
 
   function get(type, shortName = false){
 
-    const c =
-      (components || []).find(item =>
-        Array.isArray(item.types) &&
-        item.types.includes(type)
+    const item =
+      (components || []).find(c =>
+        Array.isArray(c.types) &&
+        c.types.includes(type)
       );
 
-    if(!c) return "";
+    if(!item){
+      return "";
+    }
 
     return shortName
-      ? c.short_name || c.long_name || ""
-      : c.long_name || c.short_name || "";
+      ? item.short_name || item.long_name || ""
+      : item.long_name || item.short_name || "";
   }
 
   return {
+    streetNumber:
+      get("street_number"),
+
+    route:
+      get("route"),
+
     city:
       get("locality") ||
       get("sublocality") ||
@@ -248,6 +300,7 @@ function makeAddressPoint(raw, fallbackAddress, fallbackKey){
 
   return {
     address,
+
     fullAddress:
       normalizeText(raw?.fullAddress) ||
       address,
@@ -285,36 +338,141 @@ function makeAddressPoint(raw, fallbackAddress, fallbackKey){
         raw?.postalCode ||
         raw?.postal_code ||
         ""
-      )
+      ),
+
+    geocodeSource:
+      normalizeText(raw?.geocodeSource),
+
+    geocodeQueryUsed:
+      normalizeText(raw?.geocodeQueryUsed),
+
+    googleStatus:
+      normalizeText(raw?.googleStatus)
   };
 }
 
-function getGoogleKey(){
+function responsePayload(source, point){
 
-  return (
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.MAPS_API_KEY ||
-    process.env.GOOGLE_KEY ||
-    ""
-  );
+  return {
+    success:true,
+    source,
+    addressPoint:point,
+
+    /*
+      Compatibility fields for current add-trip.js
+      and any older frontend code.
+    */
+
+    address:point.address,
+    fullAddress:point.fullAddress,
+    addressKey:point.addressKey,
+
+    lat:point.lat,
+    lng:point.lng,
+    latitude:point.latitude,
+    longitude:point.longitude,
+
+    placeId:point.placeId,
+    city:point.city,
+    state:point.state,
+    zip:point.zip,
+
+    geocodeSource:point.geocodeSource || "",
+    geocodeQueryUsed:point.geocodeQueryUsed || ""
+  };
 }
 
-async function fetchGoogleGeocode(address){
+/* =========================
+   SMART ADDRESS TEXT CLEANUP
+========================= */
 
-  const googleKey =
-    getGoogleKey();
+function stripWrongMetroCity(address){
 
-  if(!googleKey){
-    const err =
-      new Error("Google Maps API key missing on server");
-    err.statusCode = 500;
-    throw err;
+  return String(address || "")
+    .replace(/\b(chandler|tempe|mesa|gilbert|phoenix|scottsdale|glendale|peoria|surprise|avondale|goodyear|queen creek|apache junction|tolleson|paradise valley|fountain hills|casa grande|maricopa)\b/ig, " ")
+    .replace(/\baz\b/ig, " ")
+    .replace(/\barizona\b/ig, " ")
+    .replace(/\busa\b/ig, " ")
+    .replace(/[,]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function uniqueQueries(list){
+
+  const seen =
+    new Set();
+
+  const out =
+    [];
+
+  for(const item of list){
+
+    const clean =
+      String(item || "")
+        .replace(/\s+/g, " ")
+        .replace(/\s+,/g, ",")
+        .replace(/,\s+/g, ", ")
+        .trim();
+
+    const key =
+      clean.toLowerCase();
+
+    if(clean && !seen.has(key)){
+      seen.add(key);
+      out.push(clean);
+    }
   }
+
+  return out;
+}
+
+function buildGeocodeAttempts(address){
+
+  const original =
+    String(address || "").trim();
+
+  const stripped =
+    stripWrongMetroCity(original);
+
+  /*
+    Keep this list limited.
+    It is not autocomplete. It only runs once on submit if cache misses.
+  */
+
+  return uniqueQueries([
+    original,
+    original + ", AZ, USA",
+    original + ", Arizona, USA",
+    original + ", Phoenix metro, AZ, USA",
+
+    stripped,
+    stripped + ", AZ, USA",
+    stripped + ", Arizona, USA",
+    stripped + ", Phoenix, AZ, USA",
+    stripped + ", Tempe, AZ, USA",
+    stripped + ", Chandler, AZ, USA",
+    stripped + ", Mesa, AZ, USA",
+    stripped + ", Gilbert, AZ, USA",
+    stripped + ", Scottsdale, AZ, USA",
+    stripped + ", Glendale, AZ, USA",
+    stripped + ", Peoria, AZ, USA",
+    stripped + ", Goodyear, AZ, USA"
+  ]);
+}
+
+/* =========================
+   GOOGLE GEOCODE
+========================= */
+
+async function geocodeOneQuery(query, googleKey){
 
   const url =
     "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-    encodeURIComponent(address) +
+    encodeURIComponent(query) +
+    "&components=" +
+    encodeURIComponent("country:US|administrative_area:AZ") +
+    "&region=us" +
     "&key=" +
     encodeURIComponent(googleKey);
 
@@ -324,24 +482,13 @@ async function fetchGoogleGeocode(address){
   const data =
     await response.json();
 
-  if(
-    !response.ok ||
-    data.status !== "OK" ||
-    !Array.isArray(data.results) ||
-    !data.results.length
-  ){
-    const err =
-      new Error("Could not geocode address");
+  return {
+    response,
+    data
+  };
+}
 
-    err.statusCode = 400;
-    err.googleStatus = data.status;
-    err.googleErrorMessage = data.error_message || "";
-
-    throw err;
-  }
-
-  const result =
-    data.results[0];
+function googleResultToPoint(result, originalAddress, addressKey, queryUsed){
 
   const location =
     result.geometry && result.geometry.location
@@ -353,10 +500,7 @@ async function fetchGoogleGeocode(address){
     location.lat === undefined ||
     location.lng === undefined
   ){
-    const err =
-      new Error("Google returned address without lat/lng");
-    err.statusCode = 400;
-    throw err;
+    return null;
   }
 
   const parts =
@@ -367,10 +511,12 @@ async function fetchGoogleGeocode(address){
   return makeAddressPoint(
     {
       address:
-        result.formatted_address || address,
+        result.formatted_address || originalAddress,
 
       fullAddress:
-        result.formatted_address || address,
+        result.formatted_address || originalAddress,
+
+      addressKey,
 
       lat:
         Number(location.lat),
@@ -388,15 +534,218 @@ async function fetchGoogleGeocode(address){
         parts.state,
 
       zip:
-        parts.zip
+        parts.zip,
+
+      geocodeSource:
+        "GOOGLE_GEOCODE",
+
+      geocodeQueryUsed:
+        queryUsed,
+
+      googleStatus:
+        "OK"
     },
-    address,
-    normalizeAddressKey(address)
+    originalAddress,
+    addressKey
+  );
+}
+
+async function fetchGoogleGeocode(address){
+
+  const googleKey =
+    getGoogleKey();
+
+  if(!googleKey){
+
+    const err =
+      new Error("Google Maps API key missing on server");
+
+    err.statusCode = 500;
+
+    throw err;
+  }
+
+  const addressKey =
+    normalizeAddressKey(address);
+
+  const attempts =
+    buildGeocodeAttempts(address);
+
+  let lastStatus = "";
+  let lastErrorMessage = "";
+
+  console.log("ADDRESS GEOCODE ATTEMPTS:", attempts);
+
+  for(const query of attempts){
+
+    const { response, data } =
+      await geocodeOneQuery(
+        query,
+        googleKey
+      );
+
+    lastStatus =
+      data.status || "";
+
+    lastErrorMessage =
+      data.error_message || "";
+
+    if(
+      response.ok &&
+      data.status === "OK" &&
+      Array.isArray(data.results) &&
+      data.results.length
+    ){
+
+      for(const result of data.results){
+
+        const point =
+          googleResultToPoint(
+            result,
+            address,
+            addressKey,
+            query
+          );
+
+        if(point && hasValidLatLng(point)){
+
+          console.log("GEOCODE SUCCESS:", {
+            input:address,
+            queryUsed:query,
+            resolved:point.fullAddress,
+            lat:point.lat,
+            lng:point.lng
+          });
+
+          return point;
+        }
+      }
+    }
+
+    console.log("GEOCODE FAILED ATTEMPT:", {
+      query,
+      status:data.status,
+      error:data.error_message || ""
+    });
+  }
+
+  const err =
+    new Error("Could not geocode address");
+
+  err.statusCode =
+    400;
+
+  err.googleStatus =
+    lastStatus;
+
+  err.googleErrorMessage =
+    lastErrorMessage;
+
+  throw err;
+}
+
+/* =========================
+   CACHE HELPERS
+========================= */
+
+async function findCachedPoint(addressKey, fallbackAddress){
+
+  if(!addressKey){
+    return null;
+  }
+
+  const cached =
+    await AddressCache.findOne({
+      addressKey
+    });
+
+  if(!cached || !hasValidLatLng(cached)){
+    return null;
+  }
+
+  cached.usageCount =
+    Number(cached.usageCount || 0) + 1;
+
+  cached.lastUsedAt =
+    new Date();
+
+  await cached.save();
+
+  return makeAddressPoint(
+    cached,
+    fallbackAddress,
+    addressKey
+  );
+}
+
+async function saveCachePoint({
+  point,
+  addressKey,
+  originalAddress,
+  company,
+  companyName,
+  facilityName,
+  companyId,
+  facilityId,
+  source
+}){
+
+  if(!point || !hasValidLatLng(point)){
+    return;
+  }
+
+  await AddressCache.findOneAndUpdate(
+    {
+      addressKey
+    },
+    {
+      $set:{
+        originalAddress,
+
+        address:point.address,
+        fullAddress:point.fullAddress,
+        addressKey,
+
+        lat:point.lat,
+        lng:point.lng,
+        latitude:point.latitude,
+        longitude:point.longitude,
+
+        placeId:point.placeId,
+
+        city:point.city,
+        state:point.state,
+        zip:point.zip,
+
+        company,
+        companyName,
+        facilityName,
+        companyId,
+        facilityId,
+
+        source,
+        geocodeSource:point.geocodeSource || "GOOGLE_GEOCODE",
+        geocodeQueryUsed:point.geocodeQueryUsed || "",
+        googleStatus:point.googleStatus || "OK",
+
+        lastUsedAt:new Date()
+      },
+      $setOnInsert:{
+        createdAt:new Date()
+      },
+      $inc:{
+        usageCount:1
+      }
+    },
+    {
+      upsert:true,
+      new:true
+    }
   );
 }
 
 /* =========================
-   ROUTES
+   ROUTE
 ========================= */
 
 router.post("/resolve", async (req,res)=>{
@@ -422,6 +771,11 @@ router.post("/resolve", async (req,res)=>{
       normalizeText(req.body.addressKey) ||
       normalizeAddressKey(address);
 
+    const strippedKey =
+      normalizeAddressKey(
+        stripWrongMetroCity(address)
+      );
+
     const company =
       normalizeText(
         req.body.company ||
@@ -431,13 +785,22 @@ router.post("/resolve", async (req,res)=>{
       );
 
     const companyName =
-      normalizeText(req.body.companyName || company);
+      normalizeText(
+        req.body.companyName ||
+        company
+      );
 
     const facilityName =
-      normalizeText(req.body.facilityName || company);
+      normalizeText(
+        req.body.facilityName ||
+        company
+      );
 
     const companyId =
-      normalizeText(req.body.companyId || "");
+      normalizeText(
+        req.body.companyId ||
+        ""
+      );
 
     const facilityId =
       normalizeText(
@@ -447,137 +810,113 @@ router.post("/resolve", async (req,res)=>{
       );
 
     const source =
-      normalizeText(req.body.source || "address-cache-resolve");
+      normalizeText(
+        req.body.source ||
+        "address-cache-resolve"
+      );
 
     /* =========================
-       1) CACHE FIRST
+       1) CACHE BY EXACT KEY
     ========================= */
 
-    const cached =
-      await AddressCache.findOne({
-        addressKey
-      });
+    let point =
+      await findCachedPoint(
+        addressKey,
+        address
+      );
 
-    if(cached && hasValidLatLng(cached)){
+    if(point){
 
-      cached.usageCount =
-        Number(cached.usageCount || 0) + 1;
-
-      cached.lastUsedAt =
-        new Date();
-
-      await cached.save();
-
-      const point =
-        makeAddressPoint(
-          cached,
-          address,
-          addressKey
-        );
-
-      return res.json({
-        success:true,
-        source:"CACHE",
-        addressPoint:point,
-
-        /*
-          Compatibility fields for older frontend code.
-        */
-
-        address:point.address,
-        fullAddress:point.fullAddress,
-        addressKey:point.addressKey,
-        lat:point.lat,
-        lng:point.lng,
-        latitude:point.latitude,
-        longitude:point.longitude,
-        placeId:point.placeId,
-        city:point.city,
-        state:point.state,
-        zip:point.zip
-      });
+      return res.json(
+        responsePayload(
+          "CACHE",
+          point
+        )
+      );
     }
 
     /* =========================
-       2) GOOGLE GEOCODE ONLY IF NEW
+       2) CACHE BY STRIPPED KEY
+       Example:
+       "200 e knox rd chandler"
+       stripped key:
+       "200 e knox rd"
     ========================= */
 
-    const point =
+    if(strippedKey && strippedKey !== addressKey){
+
+      point =
+        await findCachedPoint(
+          strippedKey,
+          address
+        );
+
+      if(point){
+
+        return res.json(
+          responsePayload(
+            "CACHE_STRIPPED_KEY",
+            point
+          )
+        );
+      }
+    }
+
+    /* =========================
+       3) GOOGLE ONLY IF NOT CACHED
+    ========================= */
+
+    point =
       await fetchGoogleGeocode(address);
 
     point.addressKey =
       addressKey;
 
     /* =========================
-       3) SAVE CACHE
+       4) SAVE EXACT KEY
     ========================= */
 
-    await AddressCache.findOneAndUpdate(
-      {
-        addressKey
-      },
-      {
-        $set:{
-          originalAddress:address,
-
-          address:point.address,
-          fullAddress:point.fullAddress,
-          addressKey:point.addressKey,
-
-          lat:point.lat,
-          lng:point.lng,
-          latitude:point.latitude,
-          longitude:point.longitude,
-
-          placeId:point.placeId,
-
-          city:point.city,
-          state:point.state,
-          zip:point.zip,
-
-          company,
-          companyName,
-          facilityName,
-          companyId,
-          facilityId,
-
-          source,
-          lastUsedAt:new Date()
-        },
-        $setOnInsert:{
-          createdAt:new Date()
-        },
-        $inc:{
-          usageCount:1
-        }
-      },
-      {
-        upsert:true,
-        new:true
-      }
-    );
-
-    return res.json({
-      success:true,
-      source:"GOOGLE_GEOCODE",
-      addressPoint:point,
-
-      /*
-        Compatibility fields for older frontend code.
-      */
-
-      address:point.address,
-      fullAddress:point.fullAddress,
-      addressKey:point.addressKey,
-      lat:point.lat,
-      lng:point.lng,
-      latitude:point.latitude,
-      longitude:point.longitude,
-      placeId:point.placeId,
-      city:point.city,
-      state:point.state,
-      zip:point.zip
+    await saveCachePoint({
+      point,
+      addressKey,
+      originalAddress:address,
+      company,
+      companyName,
+      facilityName,
+      companyId,
+      facilityId,
+      source
     });
+
+    /* =========================
+       5) SAVE STRIPPED ALIAS
+       This makes future short/wrong-city input free.
+    ========================= */
+
+    if(strippedKey && strippedKey !== addressKey){
+
+      await saveCachePoint({
+        point:{
+          ...point,
+          addressKey:strippedKey
+        },
+        addressKey:strippedKey,
+        originalAddress:address,
+        company,
+        companyName,
+        facilityName,
+        companyId,
+        facilityId,
+        source:"address-cache-alias"
+      });
+    }
+
+    return res.json(
+      responsePayload(
+        "GOOGLE_GEOCODE",
+        point
+      )
+    );
 
   }catch(err){
 
@@ -585,7 +924,10 @@ router.post("/resolve", async (req,res)=>{
 
     return res.status(err.statusCode || 500).json({
       success:false,
-      message:err.message || "Address resolve server error",
+      message:
+        err.googleStatus
+          ? `${err.message}: ${err.googleStatus}`
+          : (err.message || "Address resolve server error"),
       googleStatus:err.googleStatus || "",
       googleErrorMessage:err.googleErrorMessage || ""
     });
