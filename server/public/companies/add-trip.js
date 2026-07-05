@@ -3,6 +3,11 @@ FILE: add-trip.js
 FINAL COMPLETE VERSION
 Facility Override First
 Service Code Fixed From Company Suffix
+Address Lat/Lng Save Fixed
+- Saves pickup/dropoff/stops as address objects with lat/lng
+- Saves shared passenger pickup/dropoff as address objects with lat/lng
+- Uses Google Places Autocomplete when available
+- Prevents submit if address is typed only and no lat/lng selected
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -36,6 +41,24 @@ let activeService = "ST";
 let activeSuffix  = "ST";
 
 let SYSTEM_TIMEZONE = "America/Phoenix";
+
+/*
+  IMPORTANT:
+  These variables store the Google Places result selected by the user.
+  Inputs alone only contain text. These objects carry lat/lng.
+*/
+
+let pickupPoint = null;
+let dropoffPoint = null;
+
+const stopPoints =
+  new WeakMap();
+
+const sharedPickupPoints =
+  new WeakMap();
+
+const sharedDropoffPoints =
+  new WeakMap();
 
 /* ================= BILLING ================= */
 
@@ -200,6 +223,309 @@ function num(v){
   return Number.isFinite(n) ? n : 0;
 }
 
+function cleanNumberOrNull(v){
+
+  if(v === "" || v === null || v === undefined){
+    return null;
+  }
+
+  const n =
+    Number(v);
+
+  return Number.isFinite(n)
+    ? n
+    : null;
+}
+
+function hasValidLatLng(point){
+
+  if(!point) return false;
+
+  const lat =
+    cleanNumberOrNull(
+      point.lat ??
+      point.latitude
+    );
+
+  const lng =
+    cleanNumberOrNull(
+      point.lng ??
+      point.longitude
+    );
+
+  return (
+    lat !== null &&
+    lng !== null
+  );
+}
+
+function normalizeAddressPoint(point){
+
+  if(!point){
+    return {
+      address:"",
+      fullAddress:"",
+      lat:null,
+      lng:null,
+      latitude:null,
+      longitude:null,
+      placeId:"",
+      city:"",
+      state:"",
+      zip:""
+    };
+  }
+
+  const address =
+    normalizeText(
+      point.address ||
+      point.fullAddress ||
+      point.formattedAddress ||
+      point.formatted_address ||
+      point.name ||
+      ""
+    );
+
+  const lat =
+    cleanNumberOrNull(
+      point.lat ??
+      point.latitude
+    );
+
+  const lng =
+    cleanNumberOrNull(
+      point.lng ??
+      point.longitude
+    );
+
+  return {
+    address,
+    fullAddress:
+      normalizeText(point.fullAddress) ||
+      address,
+
+    lat,
+    lng,
+
+    latitude:
+      lat,
+    longitude:
+      lng,
+
+    placeId:
+      normalizeText(
+        point.placeId ||
+        point.place_id ||
+        ""
+      ),
+
+    city:
+      normalizeText(point.city),
+
+    state:
+      normalizeText(point.state),
+
+    zip:
+      normalizeText(
+        point.zip ||
+        point.postalCode ||
+        point.postal_code ||
+        ""
+      )
+  };
+}
+
+function buildAddressPoint(input, savedPoint){
+
+  const address =
+    normalizeText(input?.value);
+
+  const normalized =
+    normalizeAddressPoint(savedPoint || {});
+
+  return {
+    address,
+    fullAddress:
+      address,
+
+    lat:
+      normalized.lat,
+
+    lng:
+      normalized.lng,
+
+    latitude:
+      normalized.latitude,
+
+    longitude:
+      normalized.longitude,
+
+    placeId:
+      normalized.placeId,
+
+    city:
+      normalized.city,
+
+    state:
+      normalized.state,
+
+    zip:
+      normalized.zip
+  };
+}
+
+function getGoogleAddressComponent(place,type,shortName=false){
+
+  const components =
+    place?.address_components || [];
+
+  const found =
+    components.find(c =>
+      Array.isArray(c.types) &&
+      c.types.includes(type)
+    );
+
+  if(!found){
+    return "";
+  }
+
+  return shortName
+    ? found.short_name || found.long_name || ""
+    : found.long_name || found.short_name || "";
+}
+
+function extractGoogleAddress(place){
+
+  const loc =
+    place?.geometry?.location;
+
+  const lat =
+    loc && typeof loc.lat === "function"
+      ? loc.lat()
+      : null;
+
+  const lng =
+    loc && typeof loc.lng === "function"
+      ? loc.lng()
+      : null;
+
+  const address =
+    normalizeText(
+      place?.formatted_address ||
+      place?.name ||
+      ""
+    );
+
+  return normalizeAddressPoint({
+    address,
+    fullAddress:address,
+    lat,
+    lng,
+    placeId:place?.place_id || "",
+    city:
+      getGoogleAddressComponent(place,"locality") ||
+      getGoogleAddressComponent(place,"sublocality") ||
+      getGoogleAddressComponent(place,"administrative_area_level_2"),
+    state:
+      getGoogleAddressComponent(place,"administrative_area_level_1",true),
+    zip:
+      getGoogleAddressComponent(place,"postal_code")
+  });
+}
+
+function googlePlacesReady(){
+
+  return (
+    window.google &&
+    google.maps &&
+    google.maps.places &&
+    typeof google.maps.places.Autocomplete === "function"
+  );
+}
+
+function attachAutocomplete(input,onSelect){
+
+  if(!input){
+    return false;
+  }
+
+  if(!googlePlacesReady()){
+
+    console.warn(
+      "Google Places Autocomplete not loaded. Address lat/lng cannot be selected from this file."
+    );
+
+    return false;
+  }
+
+  const autocomplete =
+    new google.maps.places.Autocomplete(
+      input,
+      {
+        fields:[
+          "formatted_address",
+          "geometry",
+          "place_id",
+          "address_components",
+          "name"
+        ],
+        componentRestrictions:{
+          country:"us"
+        }
+      }
+    );
+
+  autocomplete.addListener("place_changed",()=>{
+
+    const place =
+      autocomplete.getPlace();
+
+    const point =
+      extractGoogleAddress(place);
+
+    if(point.address){
+      input.value = point.address;
+    }
+
+    if(hasValidLatLng(point)){
+      onSelect(point);
+      input.dataset.hasLatLng = "1";
+    }else{
+      onSelect(null);
+      input.dataset.hasLatLng = "";
+      showAlert("Selected address has no lat/lng. Please choose another address from suggestions.");
+    }
+  });
+
+  input.addEventListener("input",()=>{
+    onSelect(null);
+    input.dataset.hasLatLng = "";
+  });
+
+  input.dataset.autocompleteAttached = "1";
+
+  return true;
+}
+
+function restoreAddressInput(input,point,setter){
+
+  const p =
+    normalizeAddressPoint(point);
+
+  if(input){
+    input.value =
+      p.address || "";
+  }
+
+  if(hasValidLatLng(p)){
+    setter(p);
+    if(input) input.dataset.hasLatLng = "1";
+  }else{
+    setter(null);
+    if(input) input.dataset.hasLatLng = "";
+  }
+}
+
 function normalizeServiceCode(v){
 
   const c =
@@ -222,7 +548,7 @@ function normalizeServiceCode(v){
     return "WH";
   }
 
-  if(c === "SHARED" || c === "SH") return "SH";
+  if(c === "SHARED" || c === "SHARE" || c === "SH") return "SH";
   if(c === "LIMO" || c === "LIMOUSINE" || c === "LM") return "LM";
   if(c === "TAXI" || c === "TX") return "TX";
   if(c === "XL") return "XL";
@@ -247,12 +573,6 @@ function isValidServiceCode(code){
 function resolveServiceCode(service){
 
   if(!service) return "";
-
-  /*
-    IMPORTANT:
-    Company service code must come from suffix/code fields first.
-    Do NOT read title/name first because it can make all services ST.
-  */
 
   const directFields = [
 
@@ -287,10 +607,6 @@ function resolveServiceCode(service){
       return code;
     }
   }
-
-  /*
-    Last fallback only: infer from name.
-  */
 
   const name =
     normalizeServiceCode(
@@ -711,6 +1027,21 @@ Continue anyway?`
 
 /* ================= VALIDATION ================= */
 
+function validateAddressPoint(input,point,label){
+
+  if(!normalizeText(input?.value)){
+    showAlert(label + " Required");
+    return false;
+  }
+
+  if(!hasValidLatLng(point)){
+    showAlert(label + " must be selected from address suggestions so lat/lng can be saved.");
+    return false;
+  }
+
+  return true;
+}
+
 function validateIndividualTrip(){
 
   if(!normalizeText(entryName.value)){
@@ -733,14 +1064,33 @@ function validateIndividualTrip(){
     return false;
   }
 
-  if(!normalizeText(pickupInput.value)){
-    showAlert("Pickup Required");
+  if(!validateAddressPoint(pickupInput,pickupPoint,"Pickup")){
     return false;
   }
 
-  if(!normalizeText(dropoffInput.value)){
-    showAlert("Dropoff Required");
+  if(!validateAddressPoint(dropoffInput,dropoffPoint,"Dropoff")){
     return false;
+  }
+
+  const stopInputs =
+    [...document.querySelectorAll(".stop-input")];
+
+  for(let i = 0; i < stopInputs.length; i++){
+
+    const stopInput =
+      stopInputs[i];
+
+    if(!normalizeText(stopInput.value)){
+      continue;
+    }
+
+    const stopPoint =
+      stopPoints.get(stopInput);
+
+    if(!hasValidLatLng(stopPoint)){
+      showAlert(`Stop ${i + 1} must be selected from address suggestions so lat/lng can be saved.`);
+      return false;
+    }
   }
 
   if(!tripDate.value){
@@ -806,7 +1156,7 @@ function validateSharedTrip(){
     return false;
   }
 
-  for(const card of cards){
+  for(const [index,card] of [...cards].entries()){
 
     if(!normalizeText(card.querySelector(".sharedClientName").value)){
       showAlert("Passenger Name Required");
@@ -818,13 +1168,25 @@ function validateSharedTrip(){
       return false;
     }
 
-    if(!normalizeText(card.querySelector(".sharedPickup").value)){
-      showAlert("Passenger Pickup Required");
+    const pickupEl =
+      card.querySelector(".sharedPickup");
+
+    const dropoffEl =
+      card.querySelector(".sharedDropoff");
+
+    if(!validateAddressPoint(
+      pickupEl,
+      sharedPickupPoints.get(pickupEl),
+      `Passenger ${index + 1} Pickup`
+    )){
       return false;
     }
 
-    if(!normalizeText(card.querySelector(".sharedDropoff").value)){
-      showAlert("Passenger Dropoff Required");
+    if(!validateAddressPoint(
+      dropoffEl,
+      sharedDropoffPoints.get(dropoffEl),
+      `Passenger ${index + 1} Dropoff`
+    )){
       return false;
     }
   }
@@ -922,11 +1284,17 @@ function loadDraft(){
   clientPhone.value =
     draft.clientPhone || "";
 
-  pickupInput.value =
-    draft.pickup || "";
+  restoreAddressInput(
+    pickupInput,
+    draft.pickupPoint || draft.pickup,
+    p => pickupPoint = p
+  );
 
-  dropoffInput.value =
-    draft.dropoff || "";
+  restoreAddressInput(
+    dropoffInput,
+    draft.dropoffPoint || draft.dropoff,
+    p => dropoffPoint = p
+  );
 
   tripDate.value =
     draft.tripDate || "";
@@ -946,7 +1314,9 @@ function saveDraft(){
       clientName:clientName.value,
       clientPhone:clientPhone.value,
       pickup:pickupInput.value,
+      pickupPoint:buildAddressPoint(pickupInput,pickupPoint),
       dropoff:dropoffInput.value,
+      dropoffPoint:buildAddressPoint(dropoffInput,dropoffPoint),
       tripDate:tripDate.value,
       tripTime:tripTime.value,
       notes:notes.value
@@ -1001,11 +1371,29 @@ function loadSharedDraft(){
         card.querySelector(".sharedClientPhone").value =
           p.clientPhone || "";
 
-        card.querySelector(".sharedPickup").value =
-          p.pickup || "";
+        const pickupEl =
+          card.querySelector(".sharedPickup");
 
-        card.querySelector(".sharedDropoff").value =
-          p.dropoff || "";
+        const dropoffEl =
+          card.querySelector(".sharedDropoff");
+
+        restoreAddressInput(
+          pickupEl,
+          p.pickupPoint || p.pickup,
+          point => {
+            if(point) sharedPickupPoints.set(pickupEl,point);
+            else sharedPickupPoints.delete(pickupEl);
+          }
+        );
+
+        restoreAddressInput(
+          dropoffEl,
+          p.dropoffPoint || p.dropoff,
+          point => {
+            if(point) sharedDropoffPoints.set(dropoffEl,point);
+            else sharedDropoffPoints.delete(dropoffEl);
+          }
+        );
       });
 
     },50);
@@ -1018,11 +1406,25 @@ function saveSharedDraft(){
 
   document.querySelectorAll(".passenger-card").forEach(card=>{
 
+    const pickupEl =
+      card.querySelector(".sharedPickup");
+
+    const dropoffEl =
+      card.querySelector(".sharedDropoff");
+
     passengers.push({
       clientName:card.querySelector(".sharedClientName").value,
       clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:card.querySelector(".sharedPickup").value,
-      dropoff:card.querySelector(".sharedDropoff").value
+      pickup:pickupEl.value,
+      pickupPoint:buildAddressPoint(
+        pickupEl,
+        sharedPickupPoints.get(pickupEl)
+      ),
+      dropoff:dropoffEl.value,
+      dropoffPoint:buildAddressPoint(
+        dropoffEl,
+        sharedDropoffPoints.get(dropoffEl)
+      )
     });
   });
 
@@ -1078,10 +1480,6 @@ async function loadCompanyServices(){
 
     const facilityId =
       companyId || "";
-
-    /* =========================
-       1) FACILITY PRICING OVERRIDE
-    ========================= */
 
     const bootRes =
       await fetch("/api/facility-pricing-override/bootstrap",{
@@ -1162,16 +1560,6 @@ async function loadCompanyServices(){
 
       return;
     }
-
-    /*
-      IMPORTANT:
-      Do NOT use bootData.services here.
-      Those are default pricing services and can make all company individual services become ST.
-    */
-
-    /* =========================
-       2) SERVICE MANAGEMENT COMPANY SERVICES
-    ========================= */
 
     const res =
       await fetch(
@@ -1298,9 +1686,24 @@ function buildDynamicTabs(){
   }
 }
 
+/* ================= AUTOCOMPLETE INIT ================= */
+
+function initBaseAutocompletes(){
+
+  attachAutocomplete(
+    pickupInput,
+    p => pickupPoint = p
+  );
+
+  attachAutocomplete(
+    dropoffInput,
+    p => dropoffPoint = p
+  );
+}
+
 /* ================= STOPS ================= */
 
-function createStopInput(value=""){
+function createStopInput(value="",savedPoint=null){
 
   const currentStops =
     stopsBox.querySelectorAll(".stop-input").length;
@@ -1321,7 +1724,7 @@ function createStopInput(value=""){
       type="text"
       class="stop-input"
       placeholder="Stop address"
-      value="${value}"
+      value=""
     >
     <button
       type="button"
@@ -1331,11 +1734,39 @@ function createStopInput(value=""){
     </button>
   `;
 
+  const stopInput =
+    wrapper.querySelector(".stop-input");
+
+  stopInput.value =
+    normalizeText(
+      typeof value === "string"
+        ? value
+        : value?.address || value?.fullAddress || ""
+    );
+
   wrapper.querySelector(".remove-stop-btn").onclick = ()=>{
+    stopPoints.delete(stopInput);
     wrapper.remove();
   };
 
   stopsBox.appendChild(wrapper);
+
+  attachAutocomplete(
+    stopInput,
+    p => {
+      if(p) stopPoints.set(stopInput,p);
+      else stopPoints.delete(stopInput);
+    }
+  );
+
+  restoreAddressInput(
+    stopInput,
+    savedPoint || value,
+    p => {
+      if(p) stopPoints.set(stopInput,p);
+      else stopPoints.delete(stopInput);
+    }
+  );
 }
 
 if(addStopBtn){
@@ -1379,6 +1810,28 @@ function renderSharedPassengers(count){
     `;
 
     passengersContainer.appendChild(card);
+
+    const sharedPickupInput =
+      card.querySelector(".sharedPickup");
+
+    const sharedDropoffInput =
+      card.querySelector(".sharedDropoff");
+
+    attachAutocomplete(
+      sharedPickupInput,
+      p => {
+        if(p) sharedPickupPoints.set(sharedPickupInput,p);
+        else sharedPickupPoints.delete(sharedPickupInput);
+      }
+    );
+
+    attachAutocomplete(
+      sharedDropoffInput,
+      p => {
+        if(p) sharedDropoffPoints.set(sharedDropoffInput,p);
+        else sharedDropoffPoints.delete(sharedDropoffInput);
+      }
+    );
   }
 }
 
@@ -1414,8 +1867,13 @@ submitTripBtn.onclick = async function(){
 
     const stops =
       [...document.querySelectorAll(".stop-input")]
-        .map(i=>normalizeText(i.value))
-        .filter(Boolean);
+        .map(input =>
+          buildAddressPoint(
+            input,
+            stopPoints.get(input)
+          )
+        )
+        .filter(p => p.address);
 
     const selected =
       selectedServicePayload();
@@ -1426,6 +1884,18 @@ submitTripBtn.onclick = async function(){
     console.log("selected:", selected);
     console.log("selected service object:", selected.service);
     console.log("===============================================");
+
+    const pickup =
+      buildAddressPoint(
+        pickupInput,
+        pickupPoint
+      );
+
+    const dropoff =
+      buildAddressPoint(
+        dropoffInput,
+        dropoffPoint
+      );
 
     const trip = {
       company:companyName,
@@ -1458,9 +1928,17 @@ submitTripBtn.onclick = async function(){
       clientName:clientName.value,
       clientPhone:clientPhone.value,
 
-      pickup:pickupInput.value,
-      dropoff:dropoffInput.value,
+      pickup,
+      dropoff,
       stops,
+
+      pickupAddress:pickup.address,
+      dropoffAddress:dropoff.address,
+
+      pickupLat:pickup.lat,
+      pickupLng:pickup.lng,
+      dropoffLat:dropoff.lat,
+      dropoffLng:dropoff.lng,
 
       tripDate:tripDate.value,
       tripTime:tripTime.value,
@@ -1497,6 +1975,9 @@ submitTripBtn.onclick = async function(){
     tripTime.value = "";
     notes.value = "";
     stopsBox.innerHTML = "";
+
+    pickupPoint = null;
+    dropoffPoint = null;
 
     localStorage.removeItem("companyTripDraft");
 
@@ -1542,12 +2023,39 @@ submitSharedBtn.onclick = async function(){
 
   document.querySelectorAll(".passenger-card").forEach((card,index)=>{
 
+    const pickupEl =
+      card.querySelector(".sharedPickup");
+
+    const dropoffEl =
+      card.querySelector(".sharedDropoff");
+
+    const pickup =
+      buildAddressPoint(
+        pickupEl,
+        sharedPickupPoints.get(pickupEl)
+      );
+
+    const dropoff =
+      buildAddressPoint(
+        dropoffEl,
+        sharedDropoffPoints.get(dropoffEl)
+      );
+
     passengers.push({
       passengerId:"P" + (index + 1),
       clientName:card.querySelector(".sharedClientName").value,
       clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:card.querySelector(".sharedPickup").value,
-      dropoff:card.querySelector(".sharedDropoff").value,
+
+      pickup,
+      dropoff,
+
+      pickupAddress:pickup.address,
+      dropoffAddress:dropoff.address,
+      pickupLat:pickup.lat,
+      pickupLng:pickup.lng,
+      dropoffLat:dropoff.lat,
+      dropoffLng:dropoff.lng,
+
       status:"Scheduled"
     });
   });
@@ -1593,6 +2101,18 @@ submitSharedBtn.onclick = async function(){
       passengers,
       passengersCount:passengers.length,
       totalPassengers:passengers.length,
+
+      pickup:
+        passengers[0]?.pickup || null,
+
+      dropoff:
+        passengers[passengers.length - 1]?.dropoff || null,
+
+      pickupAddress:
+        passengers[0]?.pickup?.address || "",
+
+      dropoffAddress:
+        passengers[passengers.length - 1]?.dropoff?.address || "",
 
       entryName:sharedEntryName.value,
       entryPhone:sharedEntryPhone.value,
@@ -1647,6 +2167,8 @@ submitSharedBtn.onclick = async function(){
 }
 
 /* ================= INIT ================= */
+
+initBaseAutocompletes();
 
 loadDraft();
 loadSharedDraft();
