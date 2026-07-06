@@ -1,17 +1,26 @@
 /* =====================================================
-FILE: apply-company-review-shared-server-confirm-fix.js
+FILE: company-review-shared-server-confirm-FULL-PATCH.txt
 PURPOSE:
-- Patch public/companies/review.js
-- Make Company Review shared Confirm use the same server confirm flow
-  as Dispatch Add Trip: /api/dispatch-reserved-confirm/:id
-- No frontend shared route ordering
-- No frontend Google Directions for shared confirm
-- No frontend shared price calculation
+- This is NOT a partial replacement for review.js.
+- This patcher keeps your existing Company Review file COMPLETE.
+- It replaces ONLY handleConfirmShared so shared route/order/price comes from server exactly like Dispatch Add Trip.
+- It does NOT touch individual trip calculation.
+- It does NOT delete UI, add-stop, edit, cancel, tables, eye modal, service pricing, or auto refresh logic.
 
-USAGE from project root:
-  node apply-company-review-shared-server-confirm-fix.js
+HOW TO USE:
+1) Save this file content as: fix-company-review-shared-confirm.js
+2) Put it in your project root.
+3) Run:
+   node fix-company-review-shared-confirm.js
 
-It creates a backup next to the original file before writing.
+It will patch:
+- public/companies/review.js
+- public/company/review.js
+- public/review.js
+- review.js
+whichever exists first.
+
+Backup will be created automatically beside the file.
 ===================================================== */
 
 const fs = require("fs");
@@ -27,34 +36,34 @@ const candidates = [
 const filePath = candidates.find(p => fs.existsSync(p));
 
 if(!filePath){
-  console.error("review.js not found. Put this script in the project root, or edit candidates in the script.");
+  console.error("Company review.js not found. Put this script in project root or edit candidates path.");
   process.exit(1);
 }
 
-const original = fs.readFileSync(filePath, "utf8");
+let src = fs.readFileSync(filePath, "utf8");
 
 const startMarker = "async function handleConfirmShared(btn){";
-const start = original.indexOf(startMarker);
+const start = src.indexOf(startMarker);
 
 if(start === -1){
   console.error("handleConfirmShared function not found in:", filePath);
   process.exit(1);
 }
 
-function findFunctionEnd(src, functionStart){
-  const open = src.indexOf("{", functionStart);
-  if(open === -1) return -1;
+function findFunctionEnd(code, startIndex){
+  const braceStart = code.indexOf("{", startIndex);
+  if(braceStart === -1) return -1;
 
   let depth = 0;
   let inString = false;
-  let stringChar = "";
+  let quote = "";
+  let escaped = false;
   let inLineComment = false;
   let inBlockComment = false;
-  let escaped = false;
 
-  for(let i = open; i < src.length; i++){
-    const ch = src[i];
-    const next = src[i + 1];
+  for(let i = braceStart; i < code.length; i++){
+    const ch = code[i];
+    const next = code[i + 1];
 
     if(inLineComment){
       if(ch === "\n") inLineComment = false;
@@ -78,9 +87,9 @@ function findFunctionEnd(src, functionStart){
         escaped = true;
         continue;
       }
-      if(ch === stringChar){
+      if(ch === quote){
         inString = false;
-        stringChar = "";
+        quote = "";
       }
       continue;
     }
@@ -97,14 +106,13 @@ function findFunctionEnd(src, functionStart){
       continue;
     }
 
-    if(ch === "\"" || ch === "'" || ch === "`"){
+    if(ch === '"' || ch === "'" || ch === "`"){
       inString = true;
-      stringChar = ch;
+      quote = ch;
       continue;
     }
 
     if(ch === "{") depth++;
-
     if(ch === "}"){
       depth--;
       if(depth === 0){
@@ -116,14 +124,14 @@ function findFunctionEnd(src, functionStart){
   return -1;
 }
 
-const end = findFunctionEnd(original, start);
+const end = findFunctionEnd(src, start);
 
 if(end === -1){
   console.error("Could not find end of handleConfirmShared function.");
   process.exit(1);
 }
 
-const replacement = `async function handleConfirmShared(btn){
+const replacement = String.raw`async function handleConfirmShared(btn){
   const tr = btn.closest("tr");
   const groupId = tr.dataset.groupId;
 
@@ -153,23 +161,15 @@ const replacement = `async function handleConfirmShared(btn){
     btn.textContent = "Confirming...";
 
     /*
-      IMPORTANT:
-      Company Review shared confirm must use server routing only.
-      This matches Dispatch Add Trip confirm flow.
-
-      Do NOT do these in frontend for shared confirm:
-      - getServerSharedRoutePoints + calculateRouteMiles
-      - Google Directions from browser
-      - calculateServerPrice
-      - manual updateTrip route payload
-
+      SERVER ONLY - SAME AS DISPATCH ADD TRIP
+      Do not calculate shared route in Company Review frontend.
+      Do not call Google Directions from Company Review confirm shared.
+      Do not calculate shared price in frontend.
       Server endpoint must return/save:
       - ordered passengers
-      - sharedRoutePlan / routePlan
-      - routePoints
-      - miles / minutes
+      - routePoints / routePlan / sharedRoutePlan
+      - miles / minutes / googleRoute
       - priceAmount / finalPrice / pricePerPassenger
-      - routeLocked / routeFinalized
     */
 
     await confirmTripOnServer(first._id);
@@ -192,12 +192,12 @@ const replacement = `async function handleConfirmShared(btn){
   }
 }`;
 
-const updated = original.slice(0, start) + replacement + original.slice(end);
-
 const backupPath = filePath + ".backup-before-shared-server-confirm-" + Date.now();
-fs.writeFileSync(backupPath, original, "utf8");
-fs.writeFileSync(filePath, updated, "utf8");
+fs.writeFileSync(backupPath, src, "utf8");
 
+src = src.slice(0, start) + replacement + src.slice(end);
+fs.writeFileSync(filePath, src, "utf8");
+
+console.log("DONE: Company Review shared confirm now uses server confirm only.");
 console.log("Patched:", filePath);
 console.log("Backup:", backupPath);
-console.log("Done. Shared confirm now uses server confirm flow only.");
