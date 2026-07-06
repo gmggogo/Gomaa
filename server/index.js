@@ -1004,6 +1004,24 @@ global.Trip = Trip;
 global.User = User;
 
 /* ==============================
+   COMPANY REVIEW CONFIRM ROUTES
+   Company shared confirm
+   Server route ordering + company/facility pricing
+============================== */
+
+const companyReviewConfirmRoutes =
+  require("./routes/companyReviewConfirmRoutes");
+
+app.use(
+  "/api/company-review",
+  companyReviewConfirmRoutes
+);
+
+console.log(
+  "✅ companyReviewConfirmRoutes mounted on /api/company-review"
+);
+
+/* ==============================
    DISPATCH RESERVED CONFIRM ROUTES
    Server-side route ordering + pricing lock
 ============================== */
@@ -1019,7 +1037,6 @@ app.use(
 console.log(
   "✅ dispatchReservedConfirmRoutes mounted on /api/dispatch-reserved-confirm"
 );
-
 
 /* ==============================
    DISPATCH FINAL CONFIRMATION ROUTES
