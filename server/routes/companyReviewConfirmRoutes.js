@@ -1015,8 +1015,11 @@ router.post("/confirm-shared/:id", async (req,res)=>{
     const routePayload = {
       status:"Confirmed",
       dispatchSelected:true,
-      reservationStatus:"RV",
       reviewOnly:false,
+
+      type:firstTrip.type || "company",
+      source:firstTrip.source || "COMPANY",
+      bookingSource:firstTrip.bookingSource || "COMPANY_REVIEW",
 
       isShared:true,
       tripType:"SHARED",

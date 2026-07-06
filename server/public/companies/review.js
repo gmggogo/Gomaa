@@ -1838,26 +1838,7 @@ async function updateTrip(id,payload){
   return await res.json().catch(()=>null);
 }
 
-async function confirmTripOnServer(id){
-  const res = await fetch(
-    "/api/dispatch-reserved-confirm/" + encodeURIComponent(id),
-    {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      }
-    }
-  );
-
-  const data = await res.json().catch(()=>({}));
-
-  if(!res.ok || data.success === false){
-    throw new Error(data.message || "Confirm failed");
-  }
-
-  return data.trip || data.data || data;
-}
+/* Reserved confirm endpoint removed from Company Review. */
 
 async function confirmCompanySharedOnServer(id){
   const res = await fetch(
@@ -3711,7 +3692,6 @@ window.ReviewApp = {
   fetchTrips,
   updateTrip,
   deleteTrip,
-  confirmTripOnServer,
   confirmCompanySharedOnServer,
 
   getTripsTabData,
