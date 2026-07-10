@@ -1003,6 +1003,22 @@ const Trip =
 global.Trip = Trip;
 global.User = User;
 
+/* =========================
+   CUSTOMER ADD STOP ROUTES
+========================= */
+
+const customerAddStopRoutes =
+  require("./routes/customerAddStopRoutes");
+
+app.use(
+  "/api/customer-add-stop",
+  customerAddStopRoutes
+);
+
+console.log(
+  "customerAddStopRoutes mounted on /api/customer-add-stop"
+);
+
 /* ==============================
    COMPANY REVIEW CONFIRM ROUTES
    Company shared confirm
