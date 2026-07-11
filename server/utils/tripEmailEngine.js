@@ -1,13 +1,18 @@
+"use strict";
+
 /* =========================================
-FILE: tripEmailEngine.js
+FILE: utils/tripEmailEngine.js
 
 GET QUOTE CUSTOMER EMAIL
 
-- Confirmation email
-- Reminder email
-- Route Updated email
+- CONFIRMED
+- REMINDER
+- ROUTE_UPDATED
+- CANCELLED
+- NOSHOW
 - Cancel Trip button
-- Add Stop button based on current Admin Service
+- Add Stop button controlled by
+  Get Quote Service Management only
 ========================================= */
 
 const nodemailer =
@@ -24,9 +29,6 @@ const SystemDesign =
 
 const Service =
   require("../models/Service");
-
-const FacilityPricingOverride =
-  require("../models/FacilityPricingOverride");
 
 /* =========================
    CONFIG
@@ -47,29 +49,26 @@ const CUSTOMER_LINK_SECRET =
   "dev_customer_add_stop_secret";
 
 /* =========================
-   HELPERS
+   BASIC HELPERS
 ========================= */
 
 function clean(value){
 
-  return String(
-    value ?? ""
-  ).trim();
-
+  return String(value ?? "")
+    .replace(/\s+/g," ")
+    .trim();
 }
 
 function upper(value){
 
   return clean(value)
     .toUpperCase();
-
 }
 
 function lower(value){
 
   return clean(value)
     .toLowerCase();
-
 }
 
 function n(value,fallback = 0){
@@ -80,7 +79,6 @@ function n(value,fallback = 0){
   return Number.isFinite(num)
     ? num
     : fallback;
-
 }
 
 function bool(value){
@@ -91,17 +89,6 @@ function bool(value){
     lower(value) === "yes" ||
     lower(value) === "1"
   );
-
-}
-
-function escapeRegex(value){
-
-  return clean(value)
-    .replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&"
-    );
-
 }
 
 function escapeHtml(value){
@@ -112,7 +99,15 @@ function escapeHtml(value){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
+}
 
+function escapeRegex(value){
+
+  return clean(value)
+    .replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    );
 }
 
 function cleanStatus(value){
@@ -121,38 +116,55 @@ function cleanStatus(value){
     .replace(/\s+/g,"")
     .replace(/-/g,"")
     .replace(/_/g,"");
-
 }
 
 /* =========================
-   SERVICE CODE
+   SERVICE HELPERS
 ========================= */
 
-function normalizeCode(value){
+function normalizeServiceCode(value){
 
   const code =
-    upper(value);
+    upper(value)
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  if(code === "STANDARD"){
+  if(
+    code === "STANDARD" ||
+    code === "ST"
+  ){
     return "ST";
   }
 
-  if(code === "WHEELCHAIR"){
+  if(
+    code === "WHEELCHAIR" ||
+    code === "WHEEL CHAIR" ||
+    code === "WC" ||
+    code === "WH"
+  ){
     return "WH";
   }
 
-  if(code === "SHARED"){
+  if(
+    code === "SHARED" ||
+    code === "SH"
+  ){
     return "SH";
   }
 
   if(
     code === "LIMO" ||
-    code === "LIMOUSINE"
+    code === "LIMOUSINE" ||
+    code === "LM"
   ){
     return "LM";
   }
 
-  if(code === "TAXI"){
+  if(
+    code === "TAXI" ||
+    code === "TX"
+  ){
     return "TX";
   }
 
@@ -161,12 +173,11 @@ function normalizeCode(value){
   }
 
   return code;
-
 }
 
-function getTripServiceKey(trip){
+function getTripServiceValue(trip){
 
-  return normalizeCode(
+  return clean(
     trip?.serviceKey ||
     trip?.serviceCode ||
     trip?.serviceType ||
@@ -174,114 +185,135 @@ function getTripServiceKey(trip){
     trip?.vehicle ||
     ""
   );
-
 }
 
-function buildServiceSearchFilter(
-  idOrKey
-){
+function getServiceSearchCandidates(trip){
 
   const raw =
-    clean(idOrKey);
-
-  if(
-    mongoose.Types.ObjectId.isValid(
-      raw
-    )
-  ){
-
-    return {
-      _id:raw
-    };
-
-  }
-
-  const key =
-    normalizeCode(raw);
-
-  const rawUpper =
-    upper(raw);
-
-  const rx =
-    new RegExp(
-      "^" +
-      escapeRegex(raw) +
-      "$",
-      "i"
+    upper(
+      getTripServiceValue(trip)
     );
 
-  return {
+  const normalized =
+    normalizeServiceCode(raw);
+
+  const values = [];
+
+  function add(value){
+
+    const v =
+      upper(value);
+
+    if(
+      v &&
+      !values.includes(v)
+    ){
+      values.push(v);
+    }
+  }
+
+  add(raw);
+  add(normalized);
+
+  if(normalized === "ST"){
+    add("STANDARD");
+  }
+
+  if(normalized === "WH"){
+    add("WHEELCHAIR");
+    add("WC");
+  }
+
+  if(normalized === "TX"){
+    add("TAXI");
+  }
+
+  if(normalized === "LM"){
+    add("LIMO");
+    add("LIMOUSINE");
+  }
+
+  if(normalized === "SH"){
+    add("SHARED");
+  }
+
+  return values;
+}
+
+async function findGetQuoteService(trip){
+
+  const candidates =
+    getServiceSearchCandidates(trip);
+
+  if(!candidates.length){
+    return null;
+  }
+
+  const regexes =
+    candidates.map(value=>
+      new RegExp(
+        "^" +
+        escapeRegex(value) +
+        "$",
+        "i"
+      )
+    );
+
+  return Service.findOne({
 
     $or:[
 
-      { serviceKey:key },
-      { serviceKey:rawUpper },
+      {
+        serviceKey:{
+          $in:candidates
+        }
+      },
 
-      { serviceCode:key },
-      { serviceCode:rawUpper },
+      {
+        serviceCode:{
+          $in:candidates
+        }
+      },
 
-      { serviceType:key },
-      { serviceType:rawUpper },
+      {
+        serviceType:{
+          $in:candidates
+        }
+      },
 
-      { suffix:key },
-      { suffix:rawUpper },
+      {
+        suffix:{
+          $in:candidates
+        }
+      },
 
-      { companySuffix:key },
-      { companySuffix:rawUpper },
+      {
+        getQuoteSuffix:{
+          $in:candidates
+        }
+      },
 
-      { reservedSuffix:key },
-      { reservedSuffix:rawUpper },
+      {
+        title:{
+          $in:regexes
+        }
+      },
 
-      { title:rx },
-      { name:rx },
-      { serviceName:rx }
+      {
+        name:{
+          $in:regexes
+        }
+      },
+
+      {
+        serviceName:{
+          $in:regexes
+        }
+      }
 
     ]
 
-  };
-
-}
-
-function getOverrideServiceCode(service){
-
-  return normalizeCode(
-    service?.serviceKey ||
-    service?.serviceCode ||
-    service?.serviceType ||
-    service?.serviceSuffix ||
-    service?.suffix ||
-    service?.companySuffix ||
-    service?.reservedSuffix ||
-    service?.key ||
-    service?.code ||
-    service?.title ||
-    service?.name ||
-    service?.serviceName ||
-    ""
-  );
-
-}
-
-function isOverrideServiceEnabled(service){
-
-  if(!service){
-    return false;
-  }
-
-  if(service.active !== undefined){
-    return bool(service.active);
-  }
-
-  if(service.enabled !== undefined){
-    return bool(service.enabled);
-  }
-
-  if(service.companyEnabled !== undefined){
-    return bool(service.companyEnabled);
-  }
-
-  return true;
-
+  }).lean();
 }
 
 /* =========================
@@ -317,16 +349,35 @@ function createEmailTransporter(settings){
       pass:
         settings?.smtpPass ||
         process.env.EMAIL_PASS
-
     }
-
   });
-
 }
 
 /* =========================
    DATE / TIME
 ========================= */
+
+function getSystemTimeZone(settings){
+
+  return (
+    settings?.timezone ||
+    process.env.SYSTEM_TIMEZONE ||
+    "America/Phoenix"
+  );
+}
+
+function getSystemNow(settings){
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+          getSystemTimeZone(settings)
+      }
+    )
+  );
+}
 
 function getTripDateTime(trip){
 
@@ -341,82 +392,70 @@ function getTripDateTime(trip){
     );
 
   if(!date || !time){
-
     return null;
-
   }
 
-  let value =
+  const rawTime =
+    time.length === 5
+      ? `${time}:00`
+      : time;
+
+  const result =
     new Date(
-      `${date}T${time}`
+      `${date}T${rawTime}`
     );
 
   if(
     Number.isNaN(
-      value.getTime()
+      result.getTime()
     )
   ){
-
-    value =
-      new Date(
-        `${date} ${time}`
-      );
-
-  }
-
-  if(
-    Number.isNaN(
-      value.getTime()
-    )
-  ){
-
     return null;
-
   }
 
-  return value;
-
+  return result;
 }
 
 function formatTripDateTime(
   trip,
-  timezone
+  settings
 ){
 
-  const date =
+  const rawDate =
     clean(
       trip?.tripDate
     );
 
-  const time =
+  const rawTime =
     clean(
       trip?.tripTime
     );
 
-  const value =
+  const dateObj =
     getTripDateTime(trip);
 
-  if(!value){
+  if(!dateObj){
 
     return {
-      date,
-      time
+      date:rawDate,
+      time:rawTime
     };
-
   }
+
+  const timezone =
+    getSystemTimeZone(
+      settings
+    );
 
   try{
 
     return {
 
       date:
-        value.toLocaleDateString(
+        dateObj.toLocaleDateString(
           "en-US",
           {
-            timeZone:
-              timezone ||
-              "America/Phoenix",
-
+            timeZone:timezone,
             year:"numeric",
             month:"long",
             day:"numeric"
@@ -424,29 +463,23 @@ function formatTripDateTime(
         ),
 
       time:
-        value.toLocaleTimeString(
+        dateObj.toLocaleTimeString(
           "en-US",
           {
-            timeZone:
-              timezone ||
-              "America/Phoenix",
-
+            timeZone:timezone,
             hour:"numeric",
             minute:"2-digit"
           }
         )
-
     };
 
   }catch(err){
 
     return {
-      date,
-      time
+      date:rawDate,
+      time:rawTime
     };
-
   }
-
 }
 
 /* =========================
@@ -465,7 +498,6 @@ function isCompanyTrip(trip){
     type.includes("company") ||
     type.includes("facility")
   );
-
 }
 
 function isSharedTrip(trip){
@@ -485,17 +517,17 @@ function isSharedTrip(trip){
       trip.tripNumber
     );
 
-  const serviceKey =
-    getTripServiceKey(trip);
+  const serviceCode =
+    normalizeServiceCode(
+      getTripServiceValue(trip)
+    );
 
   return (
     trip.isShared === true ||
     tripType === "SHARED" ||
-    serviceKey === "SH" ||
-    serviceKey === "SHARED" ||
+    serviceCode === "SH" ||
     tripNumber.includes("-SH")
   );
-
 }
 
 function isClosedTrip(trip){
@@ -511,7 +543,6 @@ function isClosedTrip(trip){
     status.includes("noshow") ||
     status.includes("notcompleted")
   );
-
 }
 
 function tripIsInProgress(trip){
@@ -531,179 +562,23 @@ function tripIsInProgress(trip){
     "enroute",
     "active"
   ].includes(status);
-
 }
 
 /* =========================
    ADD STOP POLICY
+   GET QUOTE ONLY
 ========================= */
 
-async function findFacilityOverride(trip){
-
-  const facilityId =
-    clean(
-      trip?.facilityId ||
-      trip?.companyId ||
-      ""
-    );
-
-  const company =
-    clean(
-      trip?.company
-    );
-
-  const or = [];
-
-  if(
-    facilityId &&
-    mongoose.Types.ObjectId.isValid(
-      facilityId
-    )
-  ){
-
-    or.push({
-      facilityId
-    });
-
-  }
-
-  if(company){
-
-    const rx =
-      new RegExp(
-        "^" +
-        escapeRegex(company) +
-        "$",
-        "i"
-      );
-
-    or.push({
-      facilityName:rx
-    });
-
-  }
-
-  if(!or.length){
-
-    return null;
-
-  }
-
-  return FacilityPricingOverride
-    .findOne({
-      active:true,
-      $or:or
-    })
-    .sort({
-      updatedAt:-1,
-      createdAt:-1
-    })
-    .lean();
-
-}
-
-async function resolveAddStopPolicy(trip){
-
-  const serviceKey =
-    getTripServiceKey(trip);
-
-  if(!serviceKey){
-
-    return {
-      addStopEnabled:false
-    };
-
-  }
-
-  const override =
-    await findFacilityOverride(
-      trip
-    );
-
-  if(override){
-
-    const services =
-      Array.isArray(
-        override.services
-      )
-        ? override.services
-        : [];
-
-    const overrideService =
-      services.find(
-        service =>
-          getOverrideServiceCode(
-            service
-          ) === serviceKey
-      );
-
-    if(
-      overrideService &&
-      isOverrideServiceEnabled(
-        overrideService
-      )
-    ){
-
-      return {
-
-        source:
-          "FACILITY_OVERRIDE",
-
-        addStopEnabled:
-          bool(
-            overrideService
-              .addStopEnabled ??
-            overrideService
-              .companyAddStopEnabled ??
-            false
-          ),
-
-        addStopCustomTimeEnabled:
-          bool(
-            overrideService
-              .addStopCustomTimeEnabled ??
-            overrideService
-              .companyAddStopCustomTimeEnabled ??
-            false
-          ),
-
-        addStopCutoffMinutes:
-          Math.max(
-            0,
-            n(
-              overrideService
-                .addStopCutoffMinutes ??
-              overrideService
-                .companyAddStopCutoffMinutes ??
-              0
-            )
-          )
-
-      };
-
-    }
-
-  }
-
-  const service =
-    await Service
-      .findOne(
-        buildServiceSearchFilter(
-          serviceKey
-        )
-      )
-      .lean();
+function getGetQuotePolicy(service){
 
   if(!service){
 
     return {
       addStopEnabled:false
     };
-
   }
 
   if(
-    service.companyEnabled === false ||
     service.enabled === false ||
     service.active === false
   ){
@@ -711,27 +586,19 @@ async function resolveAddStopPolicy(trip){
     return {
       addStopEnabled:false
     };
-
   }
 
   return {
 
-    source:
-      "SERVICE_MANAGEMENT",
-
     addStopEnabled:
       bool(
-        service.companyAddStopEnabled ??
         service.addStopEnabled ??
         false
       ),
 
     addStopCustomTimeEnabled:
       bool(
-        service
-          .companyAddStopCustomTimeEnabled ??
-        service
-          .addStopCustomTimeEnabled ??
+        service.addStopCustomTimeEnabled ??
         false
       ),
 
@@ -739,21 +606,24 @@ async function resolveAddStopPolicy(trip){
       Math.max(
         0,
         n(
-          service
-            .companyAddStopCutoffMinutes ??
-          service
-            .addStopCutoffMinutes ??
+          service.addStopCutoffMinutes,
           0
         )
-      )
+      ),
 
+    addStopDuringTripEnabled:
+      service.addStopDuringTripEnabled === undefined
+        ? true
+        : bool(
+            service.addStopDuringTripEnabled
+          )
   };
-
 }
 
-function isAddStopPolicyAllowed(
+function isAddStopAllowed(
   trip,
-  policy
+  policy,
+  settings
 ){
 
   if(
@@ -762,48 +632,56 @@ function isAddStopPolicyAllowed(
   ){
 
     return false;
-
   }
 
   if(
-    policy
-      .addStopCustomTimeEnabled !== true
+    tripIsInProgress(trip)
   ){
 
-    return tripIsInProgress(trip);
-
+    return (
+      policy.addStopDuringTripEnabled !== false
+    );
   }
 
   const tripDateTime =
     getTripDateTime(trip);
 
   if(!tripDateTime){
-
     return false;
-
   }
 
-  const cutoffMinutes =
-    Math.max(
-      0,
-      n(
-        policy
-          .addStopCutoffMinutes,
-        0
-      )
+  const now =
+    getSystemNow(
+      settings
     );
+
+  if(
+    policy.addStopCustomTimeEnabled !== true
+  ){
+
+    return (
+      now.getTime() <=
+      tripDateTime.getTime()
+    );
+  }
 
   const cutoffTime =
     new Date(
       tripDateTime.getTime() -
-      cutoffMinutes * 60000
+      Math.max(
+        0,
+        n(
+          policy.addStopCutoffMinutes,
+          0
+        )
+      ) *
+      60000
     );
 
   return (
-    Date.now() <=
+    now.getTime() <=
     cutoffTime.getTime()
   );
-
 }
 
 /* =========================
@@ -812,37 +690,36 @@ function isAddStopPolicyAllowed(
 
 function buildCancelLink(trip){
 
-  const token =
+  const cancelToken =
     clean(
       trip?.cancelToken
     );
 
-  if(!token){
-
+  if(!cancelToken){
     return "";
-
   }
 
   return (
     `${PUBLIC_BASE_URL}` +
     `/booking/cancel.html?token=` +
-    encodeURIComponent(token)
+    encodeURIComponent(
+      cancelToken
+    )
   );
-
 }
 
 function createCustomerAddStopToken(trip){
 
   if(!trip?._id){
-
     return "";
-
   }
 
   return jwt.sign(
     {
       tripId:
-        String(trip._id),
+        String(
+          trip._id
+        ),
 
       purpose:
         "CUSTOMER_ADD_STOP"
@@ -852,10 +729,12 @@ function createCustomerAddStopToken(trip){
       expiresIn:"30d"
     }
   );
-
 }
 
-async function buildAddStopLink(trip){
+async function buildAddStopLink(
+  trip,
+  settings = null
+){
 
   if(
     !trip ||
@@ -866,23 +745,31 @@ async function buildAddStopLink(trip){
   ){
 
     return "";
-
   }
 
-  const policy =
-    await resolveAddStopPolicy(
+  const service =
+    await findGetQuoteService(
       trip
     );
 
+  if(!service){
+    return "";
+  }
+
+  const policy =
+    getGetQuotePolicy(
+      service
+    );
+
   if(
-    !isAddStopPolicyAllowed(
+    !isAddStopAllowed(
       trip,
-      policy
+      policy,
+      settings
     )
   ){
 
     return "";
-
   }
 
   const token =
@@ -891,9 +778,7 @@ async function buildAddStopLink(trip){
     );
 
   if(!token){
-
     return "";
-
   }
 
   return (
@@ -901,11 +786,10 @@ async function buildAddStopLink(trip){
     `/getquote/customer-add-stop.html?token=` +
     encodeURIComponent(token)
   );
-
 }
 
 /* =========================
-   EMAIL BUTTON
+   BUTTON HTML
 ========================= */
 
 function buildEmailButton({
@@ -916,9 +800,7 @@ function buildEmailButton({
 }){
 
   if(!href){
-
     return "";
-
   }
 
   return `
@@ -930,21 +812,20 @@ function buildEmailButton({
       style="
         display:inline-block;
         padding:13px 20px;
+        margin-top:8px;
+        ${marginRight ? "margin-right:10px;" : ""}
         background:${background};
         color:#ffffff;
         text-decoration:none;
         border-radius:9px;
-        font-weight:bold;
         font-family:Arial,sans-serif;
-        margin-top:8px;
-        ${marginRight ? "margin-right:10px;" : ""}
+        font-weight:bold;
       "
     >
       ${escapeHtml(label)}
     </a>
 
   `;
-
 }
 
 /* =========================
@@ -961,9 +842,7 @@ function buildStopsHtml(stops){
       : [];
 
   if(!list.length){
-
     return "";
-
   }
 
   return list
@@ -974,8 +853,8 @@ function buildStopsHtml(stops){
 
           <td style="
             padding:8px 0;
-            font-weight:bold;
             width:110px;
+            font-weight:bold;
             vertical-align:top;
           ">
             Stop ${index + 1}:
@@ -993,7 +872,6 @@ function buildStopsHtml(stops){
       `
     )
     .join("");
-
 }
 
 /* =========================
@@ -1008,9 +886,7 @@ async function sendTripStatusEmail(
   try{
 
     if(!trip){
-
       return null;
-
     }
 
     const clientEmail =
@@ -1024,7 +900,6 @@ async function sendTripStatusEmail(
     ){
 
       return null;
-
     }
 
     if(
@@ -1033,7 +908,6 @@ async function sendTripStatusEmail(
     ){
 
       return null;
-
     }
 
     const settings =
@@ -1055,7 +929,6 @@ async function sendTripStatusEmail(
       throw new Error(
         "Email SMTP credentials are missing"
       );
-
     }
 
     const transporter =
@@ -1063,14 +936,10 @@ async function sendTripStatusEmail(
         settings
       );
 
-    const timezone =
-      settings?.timezone ||
-      "America/Phoenix";
-
     const formatted =
       formatTripDateTime(
         trip,
-        timezone
+        settings
       );
 
     const cancelLink =
@@ -1080,26 +949,46 @@ async function sendTripStatusEmail(
 
     const addStopLink =
       await buildAddStopLink(
-        trip
+        trip,
+        settings
       );
 
     const addStopButton =
       buildEmailButton({
-        href:addStopLink,
-        label:"Add Stop",
-        background:"#2563eb",
-        marginRight:true
+
+        href:
+          addStopLink,
+
+        label:
+          "Add Stop",
+
+        background:
+          "#2563eb",
+
+        marginRight:
+          true
       });
 
     const cancelButton =
       buildEmailButton({
-        href:cancelLink,
-        label:"Cancel Trip",
-        background:"#dc2626"
+
+        href:
+          cancelLink,
+
+        label:
+          "Cancel Trip",
+
+        background:
+          "#dc2626"
       });
 
     let subject = "";
     let statusBlock = "";
+    let showActions = false;
+
+    /* =========================
+       CONFIRMED
+    ========================= */
 
     if(type === "CONFIRMED"){
 
@@ -1118,11 +1007,11 @@ async function sendTripStatusEmail(
         </p>
 
         <p style="
-          margin:0 0 14px;
+          margin:0;
           color:#111827;
           font-size:15px;
         ">
-          <b>Total Paid:</b>
+          <b>Total:</b>
           $${Number(
             trip.priceAmount || 0
           ).toFixed(2)}
@@ -1130,7 +1019,14 @@ async function sendTripStatusEmail(
 
       `;
 
-    }else if(type === "ROUTE_UPDATED"){
+      showActions = true;
+    }
+
+    /* =========================
+       ROUTE UPDATED
+    ========================= */
+
+    else if(type === "ROUTE_UPDATED"){
 
       subject =
         "Trip Route Updated";
@@ -1147,11 +1043,11 @@ async function sendTripStatusEmail(
         </p>
 
         <p style="
-          margin:0 0 14px;
+          margin:0;
           color:#111827;
           font-size:15px;
         ">
-          <b>New Total:</b>
+          <b>Updated Total:</b>
           $${Number(
             trip.priceAmount || 0
           ).toFixed(2)}
@@ -1159,7 +1055,14 @@ async function sendTripStatusEmail(
 
       `;
 
-    }else if(type === "REMINDER"){
+      showActions = true;
+    }
+
+    /* =========================
+       REMINDER
+    ========================= */
+
+    else if(type === "REMINDER"){
 
       subject =
         "Trip Reminder";
@@ -1177,16 +1080,67 @@ async function sendTripStatusEmail(
 
       `;
 
-    }else{
+      showActions = true;
+    }
+
+    /* =========================
+       CANCELLED
+    ========================= */
+
+    else if(type === "CANCELLED"){
+
+      subject =
+        "Trip Cancelled";
+
+      statusBlock = `
+
+        <p style="
+          margin:0;
+          color:#991b1b;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          Your trip has been cancelled.
+        </p>
+
+      `;
+    }
+
+    /* =========================
+       NO SHOW
+    ========================= */
+
+    else if(type === "NOSHOW"){
+
+      subject =
+        "Trip No Show";
+
+      statusBlock = `
+
+        <p style="
+          margin:0;
+          color:#991b1b;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          This trip was marked as No Show.
+        </p>
+
+      `;
+    }
+
+    else{
 
       return null;
-
     }
 
     const actionButtons =
 
-      addStopButton ||
-      cancelButton
+      showActions &&
+      (
+        addStopButton ||
+        cancelButton
+      )
 
         ? `
 
@@ -1228,18 +1182,18 @@ async function sendTripStatusEmail(
         html:`
 
           <div style="
-            background:#f8fafc;
             padding:24px 12px;
+            background:#f8fafc;
             font-family:Arial,sans-serif;
           ">
 
             <div style="
               max-width:650px;
               margin:0 auto;
+              overflow:hidden;
               background:#ffffff;
               border:1px solid #e5e7eb;
               border-radius:14px;
-              overflow:hidden;
             ">
 
               <div style="
@@ -1275,8 +1229,8 @@ async function sendTripStatusEmail(
 
                     <td style="
                       padding:8px 0;
-                      font-weight:bold;
                       width:110px;
+                      font-weight:bold;
                       vertical-align:top;
                     ">
                       Trip #:
@@ -1400,7 +1354,6 @@ async function sendTripStatusEmail(
           </div>
 
         `
-
       });
 
     console.log(
@@ -1413,15 +1366,13 @@ async function sendTripStatusEmail(
 
   }catch(err){
 
-    console.log(
+    console.error(
       "TRIP EMAIL ERROR:",
       err
     );
 
     return null;
-
   }
-
 }
 
 /* =========================
@@ -1438,8 +1389,9 @@ module.exports = {
 
   createCustomerAddStopToken,
 
-  resolveAddStopPolicy,
+  findGetQuoteService,
 
-  isAddStopPolicyAllowed
+  getGetQuotePolicy,
 
+  isAddStopAllowed
 };

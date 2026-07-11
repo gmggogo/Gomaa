@@ -1,5 +1,7 @@
+"use strict";
+
 /* =========================================
-FILE: customerAddStopRoutes.js
+FILE: routes/customerAddStopRoutes.js
 
 CUSTOMER GET QUOTE ADD STOP
 
@@ -9,46 +11,46 @@ GET
 POST
 /api/customer-add-stop/:token/confirm
 
-FLOW:
-- Secure customer token
-- Individual trips only
-- Admin Service Add Stop permission
-- Add Stop time-window validation
-- Complete route replacement
-- Get Quote price recalculation
-- Save new route and new price
-- Send ROUTE_UPDATED email
+GET QUOTE ONLY:
+- No Facility Override
+- No Company pricing fields
+- No Reserved pricing fields
+- Reads Get Quote Service Management only
+- Calculates route on server
+- Recalculates full Get Quote price
+- Replaces old route and old price
+- Updates the same trip
+- Sends ROUTE_UPDATED email
 ========================================= */
 
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const fetch = require("node-fetch");
+
+const router = express.Router();
 
 const Service =
   require("../models/Service");
 
-const FacilityPricingOverride =
-  require("../models/FacilityPricingOverride");
+const routeMapEngine =
+  require("../utils/routeMapEngine");
 
 const {
   sendTripStatusEmail
 } = require("../utils/tripEmailEngine");
 
-const router = express.Router();
-
 /* =========================
    TRIP MODEL
 ========================= */
 
-const Trip = global.Trip;
+const Trip =
+  global.Trip ||
+  mongoose.models.Trip;
 
 if(!Trip){
-
   throw new Error(
-    "customerAddStopRoutes must be mounted after Trip model is created"
+    "customerAddStopRoutes must be mounted after the Trip model is created"
   );
-
 }
 
 /* =========================
@@ -63,39 +65,22 @@ const CUSTOMER_LINK_SECRET =
   process.env.SECRET_KEY ||
   "dev_customer_add_stop_secret";
 
-const INTERNAL_BASE_URL =
-  String(
-    process.env.INTERNAL_BASE_URL ||
-    process.env.PUBLIC_BASE_URL ||
-    "https://sunbeam-933q.onrender.com"
-  )
-    .trim()
-    .replace(/\/+$/,"");
-
 /* =========================
    BASIC HELPERS
 ========================= */
 
 function clean(value){
-
-  return String(
-    value ?? ""
-  ).trim();
-
+  return String(value ?? "")
+    .replace(/\s+/g," ")
+    .trim();
 }
 
 function upper(value){
-
-  return clean(value)
-    .toUpperCase();
-
+  return clean(value).toUpperCase();
 }
 
 function lower(value){
-
-  return clean(value)
-    .toLowerCase();
-
+  return clean(value).toLowerCase();
 }
 
 function n(value,fallback = 0){
@@ -106,7 +91,6 @@ function n(value,fallback = 0){
   return Number.isFinite(num)
     ? num
     : fallback;
-
 }
 
 function bool(value){
@@ -117,7 +101,6 @@ function bool(value){
     lower(value) === "yes" ||
     lower(value) === "1"
   );
-
 }
 
 function money(value){
@@ -125,7 +108,6 @@ function money(value){
   return Number(
     n(value,0).toFixed(2)
   );
-
 }
 
 function cleanStatus(value){
@@ -134,7 +116,6 @@ function cleanStatus(value){
     .replace(/\s+/g,"")
     .replace(/-/g,"")
     .replace(/_/g,"");
-
 }
 
 function escapeRegex(value){
@@ -144,7 +125,6 @@ function escapeRegex(value){
       /[.*+?^${}()|[\]\\]/g,
       "\\$&"
     );
-
 }
 
 function validObjectId(value){
@@ -152,38 +132,62 @@ function validObjectId(value){
   return mongoose.Types.ObjectId.isValid(
     String(value || "")
   );
+}
 
+function safeArray(value){
+
+  return Array.isArray(value)
+    ? value
+    : [];
 }
 
 /* =========================
-   SERVICE CODE
+   SERVICE HELPERS
 ========================= */
 
-function normalizeCode(value){
+function normalizeServiceCode(value){
 
   const code =
-    upper(value);
+    upper(value)
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  if(code === "STANDARD"){
+  if(
+    code === "STANDARD" ||
+    code === "ST"
+  ){
     return "ST";
   }
 
-  if(code === "WHEELCHAIR"){
+  if(
+    code === "WHEELCHAIR" ||
+    code === "WHEEL CHAIR" ||
+    code === "WC" ||
+    code === "WH"
+  ){
     return "WH";
   }
 
-  if(code === "SHARED"){
+  if(
+    code === "SHARED" ||
+    code === "SH"
+  ){
     return "SH";
   }
 
   if(
     code === "LIMO" ||
-    code === "LIMOUSINE"
+    code === "LIMOUSINE" ||
+    code === "LM"
   ){
     return "LM";
   }
 
-  if(code === "TAXI"){
+  if(
+    code === "TAXI" ||
+    code === "TX"
+  ){
     return "TX";
   }
 
@@ -192,12 +196,11 @@ function normalizeCode(value){
   }
 
   return code;
-
 }
 
-function getTripServiceKey(trip){
+function getTripServiceValue(trip){
 
-  return normalizeCode(
+  return clean(
     trip?.serviceKey ||
     trip?.serviceCode ||
     trip?.serviceType ||
@@ -205,200 +208,163 @@ function getTripServiceKey(trip){
     trip?.vehicle ||
     ""
   );
-
 }
 
-function buildServiceSearchFilter(idOrKey){
+function getServiceSearchCandidates(trip){
 
   const raw =
-    clean(idOrKey);
-
-  if(validObjectId(raw)){
-
-    return {
-      _id:raw
-    };
-
-  }
-
-  const key =
-    normalizeCode(raw);
-
-  const rawUpper =
-    upper(raw);
-
-  const rx =
-    new RegExp(
-      "^" +
-      escapeRegex(raw) +
-      "$",
-      "i"
+    upper(
+      getTripServiceValue(trip)
     );
 
-  return {
+  const normalized =
+    normalizeServiceCode(raw);
 
-    $or:[
+  const names = [];
 
-      { serviceKey:key },
-      { serviceKey:rawUpper },
+  function add(value){
 
-      { serviceCode:key },
-      { serviceCode:rawUpper },
+    const v =
+      upper(value);
 
-      { serviceType:key },
-      { serviceType:rawUpper },
+    if(
+      v &&
+      !names.includes(v)
+    ){
+      names.push(v);
+    }
+  }
 
-      { suffix:key },
-      { suffix:rawUpper },
+  add(raw);
+  add(normalized);
 
-      { companySuffix:key },
-      { companySuffix:rawUpper },
+  if(normalized === "ST"){
+    add("STANDARD");
+  }
 
-      { reservedSuffix:key },
-      { reservedSuffix:rawUpper },
+  if(normalized === "WH"){
+    add("WHEELCHAIR");
+    add("WC");
+  }
 
-      { title:rx },
-      { name:rx },
-      { serviceName:rx }
+  if(normalized === "TX"){
+    add("TAXI");
+  }
 
-    ]
+  if(normalized === "LM"){
+    add("LIMO");
+    add("LIMOUSINE");
+  }
 
-  };
+  if(normalized === "SH"){
+    add("SHARED");
+  }
 
+  return names;
 }
 
-function getOverrideServiceCode(service){
+async function findGetQuoteService(trip){
 
-  return normalizeCode(
-    service?.serviceKey ||
-    service?.serviceCode ||
-    service?.serviceType ||
-    service?.serviceSuffix ||
-    service?.suffix ||
-    service?.companySuffix ||
-    service?.reservedSuffix ||
-    service?.key ||
-    service?.code ||
-    service?.title ||
-    service?.name ||
-    service?.serviceName ||
-    ""
-  );
+  const candidates =
+    getServiceSearchCandidates(trip);
 
-}
+  if(!candidates.length){
 
-function isOverrideServiceEnabled(service){
+    throw new Error(
+      "Trip Get Quote service is missing"
+    );
+  }
+
+  const regexes =
+    candidates.map(value=>
+      new RegExp(
+        "^" +
+        escapeRegex(value) +
+        "$",
+        "i"
+      )
+    );
+
+  const service =
+    await Service.findOne({
+
+      $or:[
+
+        {
+          serviceKey:{
+            $in:candidates
+          }
+        },
+
+        {
+          serviceCode:{
+            $in:candidates
+          }
+        },
+
+        {
+          serviceType:{
+            $in:candidates
+          }
+        },
+
+        {
+          suffix:{
+            $in:candidates
+          }
+        },
+
+        {
+          getQuoteSuffix:{
+            $in:candidates
+          }
+        },
+
+        {
+          title:{
+            $in:regexes
+          }
+        },
+
+        {
+          name:{
+            $in:regexes
+          }
+        },
+
+        {
+          serviceName:{
+            $in:regexes
+          }
+        }
+
+      ]
+
+    }).lean();
 
   if(!service){
-    return false;
+
+    throw new Error(
+      "Get Quote service was not found in Service Management"
+    );
   }
 
-  if(service.active !== undefined){
-    return bool(service.active);
-  }
-
-  if(service.enabled !== undefined){
-    return bool(service.enabled);
-  }
-
-  if(service.companyEnabled !== undefined){
-    return bool(service.companyEnabled);
-  }
-
-  return true;
-
-}
-
-/* =========================
-   ADDRESS HELPERS
-========================= */
-
-function getStopAddress(stop){
-
-  if(typeof stop === "string"){
-
-    return clean(stop);
-
-  }
+  /*
+    Get Quote service only.
+    Never check companyEnabled here.
+  */
 
   if(
-    !stop ||
-    typeof stop !== "object"
+    service.enabled === false ||
+    service.active === false
   ){
 
-    return "";
-
+    throw new Error(
+      "This Get Quote service is disabled"
+    );
   }
 
-  return clean(
-    stop.address ||
-    stop.stopAddress ||
-    stop.fullAddress ||
-    stop.location ||
-    ""
-  );
-
-}
-
-function normalizeStops(stops){
-
-  if(!Array.isArray(stops)){
-
-    return [];
-
-  }
-
-  return stops
-    .map(getStopAddress)
-    .filter(Boolean);
-
-}
-
-function sanitizeAddressArray(value){
-
-  if(!Array.isArray(value)){
-
-    return [];
-
-  }
-
-  return value
-    .map(getStopAddress)
-    .filter(Boolean);
-
-}
-
-function sameAddress(first,second){
-
-  return (
-    lower(first) ===
-    lower(second)
-  );
-
-}
-
-function sameAddressArray(first,second){
-
-  const a =
-    sanitizeAddressArray(first);
-
-  const b =
-    sanitizeAddressArray(second);
-
-  if(a.length !== b.length){
-
-    return false;
-
-  }
-
-  return a.every(
-    (address,index)=>
-      sameAddress(
-        address,
-        b[index]
-      )
-  );
-
+  return service;
 }
 
 /* =========================
@@ -412,7 +378,6 @@ function getPickup(trip){
     trip?.pickupAddress ||
     ""
   );
-
 }
 
 function getDropoff(trip){
@@ -422,7 +387,6 @@ function getDropoff(trip){
     trip?.dropoffAddress ||
     ""
   );
-
 }
 
 function getClientName(trip){
@@ -434,7 +398,89 @@ function getClientName(trip){
     trip?.name ||
     ""
   );
+}
 
+function getStopAddress(stop){
+
+  if(typeof stop === "string"){
+    return clean(stop);
+  }
+
+  if(
+    !stop ||
+    typeof stop !== "object"
+  ){
+    return "";
+  }
+
+  return clean(
+    stop.address ||
+    stop.stopAddress ||
+    stop.fullAddress ||
+    stop.location ||
+    ""
+  );
+}
+
+function normalizeStops(stops){
+
+  return safeArray(stops)
+    .map(getStopAddress)
+    .filter(Boolean);
+}
+
+function sanitizeAddressArray(value){
+
+  return safeArray(value)
+    .map(getStopAddress)
+    .filter(Boolean);
+}
+
+function sameAddress(first,second){
+
+  return (
+    lower(first) ===
+    lower(second)
+  );
+}
+
+function sameAddressArray(first,second){
+
+  const a =
+    sanitizeAddressArray(first);
+
+  const b =
+    sanitizeAddressArray(second);
+
+  if(a.length !== b.length){
+    return false;
+  }
+
+  return a.every(
+    (address,index)=>
+      sameAddress(
+        address,
+        b[index]
+      )
+  );
+}
+
+/* =========================
+   TRIP TYPE / STATUS
+========================= */
+
+function isCompanyTrip(trip){
+
+  const type =
+    lower(
+      trip?.type
+    );
+
+  return (
+    !!clean(trip?.company) ||
+    type.includes("company") ||
+    type.includes("facility")
+  );
 }
 
 function isSharedTrip(trip){
@@ -454,17 +500,17 @@ function isSharedTrip(trip){
       trip.tripNumber
     );
 
-  const serviceKey =
-    getTripServiceKey(trip);
+  const code =
+    normalizeServiceCode(
+      getTripServiceValue(trip)
+    );
 
   return (
     trip.isShared === true ||
     tripType === "SHARED" ||
-    serviceKey === "SH" ||
-    serviceKey === "SHARED" ||
+    code === "SH" ||
     tripNumber.includes("-SH")
   );
-
 }
 
 function tripIsClosed(trip){
@@ -480,7 +526,6 @@ function tripIsClosed(trip){
     status.includes("noshow") ||
     status.includes("notcompleted")
   );
-
 }
 
 function tripIsInProgress(trip){
@@ -500,12 +545,32 @@ function tripIsInProgress(trip){
     "enroute",
     "active"
   ].includes(status);
-
 }
 
 /* =========================
    DATE / TIME
 ========================= */
+
+function getSystemTimeZone(){
+
+  return (
+    process.env.SYSTEM_TIMEZONE ||
+    "America/Phoenix"
+  );
+}
+
+function getSystemNow(){
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+          getSystemTimeZone()
+      }
+    )
+  );
+}
 
 function getTripDateTime(trip){
 
@@ -520,41 +585,312 @@ function getTripDateTime(trip){
     );
 
   if(!date || !time){
-
     return null;
-
   }
 
-  let tripDateTime =
+  const rawTime =
+    time.length === 5
+      ? `${time}:00`
+      : time;
+
+  const parsed =
     new Date(
-      `${date}T${time}`
+      `${date}T${rawTime}`
     );
 
   if(
     Number.isNaN(
-      tripDateTime.getTime()
+      parsed.getTime()
     )
   ){
-
-    tripDateTime =
-      new Date(
-        `${date} ${time}`
-      );
-
+    return null;
   }
+
+  return parsed;
+}
+
+/* =========================
+   GET QUOTE ADD STOP POLICY
+========================= */
+
+function buildAddStopPolicy(service){
+
+  return {
+
+    source:
+      "GET_QUOTE_SERVICE_MANAGEMENT",
+
+    serviceId:
+      String(
+        service?._id || ""
+      ),
+
+    serviceKey:
+      clean(
+        service?.serviceKey ||
+        service?.serviceCode ||
+        service?.title ||
+        service?.name ||
+        ""
+      ),
+
+    addStopEnabled:
+      bool(
+        service?.addStopEnabled ??
+        false
+      ),
+
+    addStopCustomTimeEnabled:
+      bool(
+        service?.addStopCustomTimeEnabled ??
+        false
+      ),
+
+    addStopCutoffMinutes:
+      Math.max(
+        0,
+        n(
+          service?.addStopCutoffMinutes,
+          0
+        )
+      ),
+
+    /*
+      Optional field support.
+
+      If this field does not exist,
+      during-trip Add Stop remains allowed
+      when Add Stop itself is enabled.
+    */
+
+    addStopDuringTripEnabled:
+      service?.addStopDuringTripEnabled === undefined
+        ? true
+        : bool(
+            service.addStopDuringTripEnabled
+          )
+  };
+}
+
+function enforceAddStopPolicy(
+  trip,
+  policy
+){
 
   if(
-    Number.isNaN(
-      tripDateTime.getTime()
-    )
+    !policy ||
+    policy.addStopEnabled !== true
   ){
 
-    return null;
-
+    throw new Error(
+      "Add Stop is disabled for this Get Quote service"
+    );
   }
 
-  return tripDateTime;
+  /*
+    During trip:
+    allowed when Add Stop is enabled,
+    unless Admin explicitly disables
+    addStopDuringTripEnabled.
+  */
 
+  if(tripIsInProgress(trip)){
+
+    if(
+      policy.addStopDuringTripEnabled === false
+    ){
+
+      throw new Error(
+        "Add Stop is not allowed during this trip"
+      );
+    }
+
+    return true;
+  }
+
+  const tripDateTime =
+    getTripDateTime(trip);
+
+  if(!tripDateTime){
+
+    throw new Error(
+      "Trip date or time is invalid"
+    );
+  }
+
+  const now =
+    getSystemNow();
+
+  /*
+    Custom time OFF:
+    allowed until the scheduled trip time.
+  */
+
+  if(
+    policy.addStopCustomTimeEnabled !== true
+  ){
+
+    if(
+      now.getTime() >
+      tripDateTime.getTime()
+    ){
+
+      throw new Error(
+        "The Add Stop time window has ended"
+      );
+    }
+
+    return true;
+  }
+
+  /*
+    Custom time ON:
+    closes X minutes before trip.
+  */
+
+  const cutoffMinutes =
+    Math.max(
+      0,
+      n(
+        policy.addStopCutoffMinutes,
+        0
+      )
+    );
+
+  const cutoffTime =
+    new Date(
+      tripDateTime.getTime() -
+      cutoffMinutes * 60000
+    );
+
+  if(
+    now.getTime() >
+    cutoffTime.getTime()
+  ){
+
+    if(cutoffMinutes > 0){
+
+      throw new Error(
+        `Add Stop closed ${cutoffMinutes} minutes before the trip`
+      );
+    }
+
+    throw new Error(
+      "The Add Stop time window has ended"
+    );
+  }
+
+  return true;
+}
+
+/* =========================
+   TOKEN
+========================= */
+
+function verifyCustomerAddStopToken(token){
+
+  if(!clean(token)){
+
+    throw new Error(
+      "Missing Add Stop token"
+    );
+  }
+
+  let decoded = null;
+
+  try{
+
+    decoded =
+      jwt.verify(
+        token,
+        CUSTOMER_LINK_SECRET
+      );
+
+  }catch(err){
+
+    if(
+      err?.name ===
+      "TokenExpiredError"
+    ){
+
+      throw new Error(
+        "This Add Stop link has expired"
+      );
+    }
+
+    throw new Error(
+      "This Add Stop link is invalid"
+    );
+  }
+
+  const purpose =
+    upper(
+      decoded?.purpose ||
+      decoded?.action ||
+      ""
+    );
+
+  if(
+    purpose !== "CUSTOMER_ADD_STOP" &&
+    purpose !== "ADD_STOP"
+  ){
+
+    throw new Error(
+      "This link cannot be used for Add Stop"
+    );
+  }
+
+  const tripId =
+    clean(
+      decoded?.tripId ||
+      decoded?.id ||
+      decoded?._id
+    );
+
+  if(
+    !tripId ||
+    !validObjectId(tripId)
+  ){
+
+    throw new Error(
+      "Invalid trip in Add Stop link"
+    );
+  }
+
+  return {
+    decoded,
+    tripId
+  };
+}
+
+function createCustomerAddStopToken(
+  tripId,
+  expiresIn = "30d"
+){
+
+  const id =
+    clean(tripId);
+
+  if(
+    !id ||
+    !validObjectId(id)
+  ){
+
+    throw new Error(
+      "Valid trip ID is required"
+    );
+  }
+
+  return jwt.sign(
+    {
+      tripId:id,
+      purpose:"CUSTOMER_ADD_STOP"
+    },
+    CUSTOMER_LINK_SECRET,
+    {
+      expiresIn
+    }
+  );
 }
 
 /* =========================
@@ -567,9 +903,7 @@ function extractLatLngFromObject(obj){
     !obj ||
     typeof obj !== "object"
   ){
-
     return null;
-
   }
 
   const lat =
@@ -597,10 +931,10 @@ function extractLatLngFromObject(obj){
       lat:Number(lat),
       lng:Number(lng)
     };
-
   }
 
   const containers = [
+
     obj.currentLocation,
     obj.driverLocation,
     obj.liveLocation,
@@ -610,6 +944,7 @@ function extractLatLngFromObject(obj){
     obj.assignment,
     obj.driver,
     obj.data
+
   ];
 
   for(const item of containers){
@@ -620,545 +955,255 @@ function extractLatLngFromObject(obj){
     if(found){
       return found;
     }
-
   }
 
   return null;
-
 }
 
-/* =========================
-   TOKEN
-========================= */
+async function getLiveDriverLocation(trip){
 
-function verifyCustomerAddStopToken(token){
+  const direct =
+    extractLatLngFromObject(trip);
 
-  if(!clean(token)){
-
-    throw new Error(
-      "Missing customer Add Stop token"
-    );
-
+  if(direct){
+    return direct;
   }
-
-  let decoded;
-
-  try{
-
-    decoded =
-      jwt.verify(
-        token,
-        CUSTOMER_LINK_SECRET
-      );
-
-  }catch(err){
-
-    if(
-      err?.name ===
-      "TokenExpiredError"
-    ){
-
-      throw new Error(
-        "This Add Stop link has expired"
-      );
-
-    }
-
-    throw new Error(
-      "This Add Stop link is invalid"
-    );
-
-  }
-
-  const purpose =
-    upper(
-      decoded?.purpose ||
-      decoded?.action ||
-      ""
-    );
 
   if(
-    purpose !== "CUSTOMER_ADD_STOP" &&
-    purpose !== "ADD_STOP"
+    !global.liveDrivers ||
+    typeof global.liveDrivers.values !== "function"
   ){
-
-    throw new Error(
-      "This link cannot be used for Add Stop"
-    );
-
+    return null;
   }
 
   const tripId =
-    clean(
-      decoded?.tripId ||
-      decoded?.id ||
-      decoded?._id
+    String(
+      trip?._id || ""
     );
 
-  if(
-    !tripId ||
-    !validObjectId(tripId)
-  ){
-
-    throw new Error(
-      "Invalid trip in Add Stop link"
+  const driverId =
+    String(
+      trip?.driverId || ""
     );
 
-  }
-
-  return {
-    decoded,
-    tripId
-  };
-
-}
-
-function createCustomerAddStopToken(
-  tripId,
-  expiresIn = "30d"
-){
-
-  const id =
-    clean(tripId);
-
-  if(
-    !id ||
-    !validObjectId(id)
-  ){
-
-    throw new Error(
-      "Valid trip ID is required"
+  const list =
+    Array.from(
+      global.liveDrivers.values()
     );
 
-  }
+  const found =
+    list.find(item=>{
 
-  return jwt.sign(
-    {
-      tripId:id,
-      purpose:"CUSTOMER_ADD_STOP"
-    },
-    CUSTOMER_LINK_SECRET,
-    {
-      expiresIn
-    }
+      return (
+        String(item?.tripId || "") === tripId ||
+        (
+          driverId &&
+          String(item?.driverId || "") === driverId
+        )
+      );
+    });
+
+  return extractLatLngFromObject(
+    found
   );
-
 }
 
 /* =========================
-   FACILITY OVERRIDE
+   ROUTE POINT HELPERS
 ========================= */
 
-async function findFacilityOverride(trip){
+function isLatLngPoint(point){
 
-  const facilityId =
-    clean(
-      trip?.facilityId ||
-      trip?.companyId ||
-      ""
-    );
-
-  const company =
-    clean(
-      trip?.company
-    );
-
-  const or = [];
-
-  if(
-    facilityId &&
-    validObjectId(facilityId)
-  ){
-
-    or.push({
-      facilityId
-    });
-
-  }
-
-  if(company){
-
-    const rx =
-      new RegExp(
-        "^" +
-        escapeRegex(company) +
-        "$",
-        "i"
-      );
-
-    or.push({
-      facilityName:rx
-    });
-
-  }
-
-  if(!or.length){
-
-    return null;
-
-  }
-
-  return FacilityPricingOverride
-    .findOne({
-      active:true,
-      $or:or
-    })
-    .sort({
-      updatedAt:-1,
-      createdAt:-1
-    })
-    .lean();
-
+  return (
+    point &&
+    typeof point === "object" &&
+    Number.isFinite(Number(point.lat)) &&
+    Number.isFinite(Number(point.lng))
+  );
 }
-
-/* =========================
-   RESOLVE ADD STOP POLICY
-========================= */
-
-async function resolveAddStopPolicy(trip){
-
-  const serviceKey =
-    getTripServiceKey(trip);
-
-  if(!serviceKey){
-
-    throw new Error(
-      "Trip service is missing"
-    );
-
-  }
-
-  const override =
-    await findFacilityOverride(
-      trip
-    );
-
-  if(override){
-
-    const services =
-      Array.isArray(
-        override.services
-      )
-        ? override.services
-        : [];
-
-    const overrideService =
-      services.find(
-        service =>
-          getOverrideServiceCode(
-            service
-          ) === serviceKey
-      );
-
-    if(
-      overrideService &&
-      isOverrideServiceEnabled(
-        overrideService
-      )
-    ){
-
-      return {
-
-        source:
-          "FACILITY_OVERRIDE",
-
-        serviceKey,
-
-        addStopEnabled:
-          bool(
-            overrideService
-              .addStopEnabled ??
-            overrideService
-              .companyAddStopEnabled ??
-            false
-          ),
-
-        addStopCustomTimeEnabled:
-          bool(
-            overrideService
-              .addStopCustomTimeEnabled ??
-            overrideService
-              .companyAddStopCustomTimeEnabled ??
-            false
-          ),
-
-        addStopCutoffMinutes:
-          Math.max(
-            0,
-            n(
-              overrideService
-                .addStopCutoffMinutes ??
-              overrideService
-                .companyAddStopCutoffMinutes ??
-              0
-            )
-          )
-
-      };
-
-    }
-
-  }
-
-  const service =
-    await Service
-      .findOne(
-        buildServiceSearchFilter(
-          serviceKey
-        )
-      )
-      .lean();
-
-  if(!service){
-
-    throw new Error(
-      "Trip service was not found"
-    );
-
-  }
-
-  if(
-    service.companyEnabled === false ||
-    service.enabled === false ||
-    service.active === false
-  ){
-
-    throw new Error(
-      "This service is disabled"
-    );
-
-  }
-
-  return {
-
-    source:
-      "SERVICE_MANAGEMENT",
-
-    serviceKey,
-
-    addStopEnabled:
-      bool(
-        service.companyAddStopEnabled ??
-        service.addStopEnabled ??
-        false
-      ),
-
-    addStopCustomTimeEnabled:
-      bool(
-        service
-          .companyAddStopCustomTimeEnabled ??
-        service
-          .addStopCustomTimeEnabled ??
-        false
-      ),
-
-    addStopCutoffMinutes:
-      Math.max(
-        0,
-        n(
-          service
-            .companyAddStopCutoffMinutes ??
-          service
-            .addStopCutoffMinutes ??
-          0
-        )
-      )
-
-  };
-
-}
-
-/* =========================
-   ENFORCE ADD STOP POLICY
-========================= */
-
-function enforceAddStopPolicy(
-  trip,
-  policy
-){
-
-  if(
-    !policy ||
-    policy.addStopEnabled !== true
-  ){
-
-    throw new Error(
-      "Add Stop is disabled for this service"
-    );
-
-  }
-
-  const inProgress =
-    tripIsInProgress(trip);
-
-  const customTimeEnabled =
-    policy
-      .addStopCustomTimeEnabled === true;
-
-  const cutoffMinutes =
-    Math.max(
-      0,
-      n(
-        policy
-          .addStopCutoffMinutes,
-        0
-      )
-    );
-
-  /*
-    CUSTOM TIME OFF:
-    Add Stop is allowed during the active trip.
-  */
-
-  if(!customTimeEnabled){
-
-    if(!inProgress){
-
-      throw new Error(
-        "Add Stop is available only while the trip is in progress"
-      );
-
-    }
-
-    return true;
-
-  }
-
-  /*
-    CUSTOM TIME ON:
-    cutoff 0 = until trip time.
-    cutoff > 0 = closes before trip.
-  */
-
-  const tripDateTime =
-    getTripDateTime(trip);
-
-  if(!tripDateTime){
-
-    throw new Error(
-      "Trip date or time is invalid"
-    );
-
-  }
-
-  const cutoffTime =
-    new Date(
-      tripDateTime.getTime() -
-      cutoffMinutes * 60000
-    );
-
-  if(
-    Date.now() >
-    cutoffTime.getTime()
-  ){
-
-    if(cutoffMinutes > 0){
-
-      throw new Error(
-        `Add Stop closed ${cutoffMinutes} minutes before the trip`
-      );
-
-    }
-
-    throw new Error(
-      "The Add Stop time window has ended"
-    );
-
-  }
-
-  return true;
-
-}
-
-/* =========================
-   ROUTE DATA
-========================= */
 
 function sanitizeRoutePoint(point){
 
   if(typeof point === "string"){
 
-    return clean(point);
+    const value =
+      clean(point);
 
+    return value || null;
   }
 
-  if(
-    point &&
-    typeof point === "object" &&
-    Number.isFinite(Number(point.lat)) &&
-    Number.isFinite(Number(point.lng))
-  ){
+  if(isLatLngPoint(point)){
 
     return {
       lat:Number(point.lat),
       lng:Number(point.lng)
     };
-
   }
 
   return null;
-
 }
 
 function sanitizeRoutePoints(points){
 
-  if(!Array.isArray(points)){
-
-    return [];
-
-  }
-
-  return points
+  return safeArray(points)
     .map(sanitizeRoutePoint)
     .filter(Boolean)
-    .slice(0,20);
-
+    .slice(0,25);
 }
 
-function sanitizeRouteData(value){
+function routePointToStoredString(point){
 
-  if(
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value)
-  ){
-
-    return {
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0,
-      googleRoute:{}
-    };
-
+  if(typeof point === "string"){
+    return clean(point);
   }
+
+  if(isLatLngPoint(point)){
+
+    return (
+      `${Number(point.lat)},${Number(point.lng)}`
+    );
+  }
+
+  return "";
+}
+
+function normalizeRouteResult(
+  raw,
+  routePoints
+){
+
+  const distanceMeters =
+    n(
+      raw?.distanceMeters,
+      0
+    );
+
+  const durationSeconds =
+    n(
+      raw?.durationSeconds,
+      0
+    );
+
+  const miles =
+    n(
+      raw?.miles,
+      distanceMeters > 0
+        ? distanceMeters * 0.000621371
+        : 0
+    );
+
+  const estimatedMinutes =
+    n(
+      raw?.estimatedMinutes,
+      durationSeconds > 0
+        ? Math.ceil(durationSeconds / 60)
+        : 0
+    );
 
   return {
 
     miles:
-      n(value.miles,0),
+      Number(
+        miles.toFixed(2)
+      ),
 
     distanceMeters:
-      n(value.distanceMeters,0),
+      Number(distanceMeters),
 
     durationSeconds:
-      n(value.durationSeconds,0),
+      Number(durationSeconds),
 
     estimatedMinutes:
-      n(value.estimatedMinutes,0),
+      Math.ceil(
+        estimatedMinutes
+      ),
 
     googleRoute:
-      value.googleRoute &&
-      typeof value.googleRoute === "object"
-        ? value.googleRoute
-        : {}
+      raw?.googleRoute ||
+      raw?.route ||
+      raw ||
+      {},
 
+    optimizedRoute:
+      raw?.optimizedRoute ||
+      raw?.googleRoute ||
+      raw?.route ||
+      raw ||
+      {},
+
+    polyline:
+      clean(
+        raw?.polyline ||
+        raw?.routePolyline ||
+        raw?.overviewPolyline ||
+        raw?.googleRoute
+          ?.overview_polyline
+          ?.points ||
+        ""
+      ),
+
+    routePoints:
+      routePoints
   };
+}
 
+async function calculateServerRoute(
+  routePoints
+){
+
+  if(
+    !routeMapEngine ||
+    (
+      typeof routeMapEngine.calculateRouteMiles !== "function" &&
+      typeof routeMapEngine.calculateRoute !== "function"
+    )
+  ){
+
+    throw new Error(
+      "Server route engine is unavailable"
+    );
+  }
+
+  let raw = null;
+
+  if(
+    typeof routeMapEngine.calculateRouteMiles === "function"
+  ){
+
+    raw =
+      await routeMapEngine.calculateRouteMiles(
+        routePoints
+      );
+
+  }else{
+
+    raw =
+      await routeMapEngine.calculateRoute(
+        routePoints
+      );
+  }
+
+  const result =
+    normalizeRouteResult(
+      raw,
+      routePoints
+    );
+
+  if(
+    result.miles <= 0 ||
+    result.distanceMeters <= 0
+  ){
+
+    throw new Error(
+      "The updated route could not be calculated"
+    );
+  }
+
+  return result;
 }
 
 /* =========================
-   VALIDATE CHANGE
+   ROUTE PAYLOAD VALIDATION
 ========================= */
 
 function validateRouteChangePayload(
@@ -1179,37 +1224,37 @@ function validateRouteChangePayload(
 
   const submittedPickup =
     clean(
-      body.pickup
+      body?.pickup
     );
 
   const submittedDropoffBefore =
     clean(
-      body.dropoffBefore
+      body?.dropoffBefore
     );
 
-  const existingStopsBefore =
+  const submittedStopsBefore =
     sanitizeAddressArray(
-      body.existingStopsBefore
+      body?.existingStopsBefore
     );
 
   const editedExistingStops =
     sanitizeAddressArray(
-      body.editedExistingStops
+      body?.editedExistingStops
     );
 
   const addedStops =
     sanitizeAddressArray(
-      body.addedStops
+      body?.addedStops
     );
 
   const finalStops =
     sanitizeAddressArray(
-      body.finalStops
+      body?.finalStops
     );
 
   const dropoffAfter =
     clean(
-      body.dropoffAfter
+      body?.dropoffAfter
     );
 
   if(!actualPickup){
@@ -1217,7 +1262,6 @@ function validateRouteChangePayload(
     throw new Error(
       "Trip pickup address is missing"
     );
-
   }
 
   if(!actualDropoff){
@@ -1225,7 +1269,6 @@ function validateRouteChangePayload(
     throw new Error(
       "Trip dropoff address is missing"
     );
-
   }
 
   if(!dropoffAfter){
@@ -1233,7 +1276,6 @@ function validateRouteChangePayload(
     throw new Error(
       "Dropoff address is required"
     );
-
   }
 
   if(
@@ -1247,7 +1289,6 @@ function validateRouteChangePayload(
     throw new Error(
       "Pickup address cannot be changed"
     );
-
   }
 
   if(
@@ -1259,22 +1300,20 @@ function validateRouteChangePayload(
   ){
 
     throw new Error(
-      "Trip changed before the request was submitted. Reload the page."
+      "The trip changed before submission. Reload the page and try again."
     );
-
   }
 
   if(
     !sameAddressArray(
-      existingStopsBefore,
+      submittedStopsBefore,
       actualStops
     )
   ){
 
     throw new Error(
-      "Trip stops changed before the request was submitted. Reload the page."
+      "The trip stops changed before submission. Reload the page and try again."
     );
-
   }
 
   if(
@@ -1285,7 +1324,6 @@ function validateRouteChangePayload(
     throw new Error(
       "Existing stop information is incomplete"
     );
-
   }
 
   if(finalStops.length > MAX_STOPS){
@@ -1293,7 +1331,6 @@ function validateRouteChangePayload(
     throw new Error(
       `Maximum ${MAX_STOPS} total stops allowed`
     );
-
   }
 
   if(
@@ -1305,7 +1342,6 @@ function validateRouteChangePayload(
     throw new Error(
       `Maximum ${MAX_STOPS} total stops allowed`
     );
-
   }
 
   if(
@@ -1317,7 +1353,6 @@ function validateRouteChangePayload(
     throw new Error(
       "Final stop list is invalid"
     );
-
   }
 
   const existingChanged =
@@ -1332,19 +1367,18 @@ function validateRouteChangePayload(
       actualDropoff
     );
 
-  const hasAddedStops =
+  const stopAdded =
     addedStops.length > 0;
 
   if(
     !existingChanged &&
     !dropoffChanged &&
-    !hasAddedStops
+    !stopAdded
   ){
 
     throw new Error(
       "No route changes were submitted"
     );
-
   }
 
   return {
@@ -1365,162 +1399,303 @@ function validateRouteChangePayload(
     addedStops,
 
     finalStops
-
   };
+}
 
+/* =========================
+   BUILD SERVER ROUTE
+========================= */
+
+async function buildUpdatedRoutePoints(
+  trip,
+  validated,
+  body
+){
+
+  const inProgress =
+    tripIsInProgress(trip);
+
+  /*
+    Before trip:
+    Pickup -> all final stops -> Dropoff
+  */
+
+  if(!inProgress){
+
+    return [
+
+      validated.pickup,
+
+      ...validated.finalStops,
+
+      validated.dropoffAfter
+
+    ].filter(Boolean);
+  }
+
+  /*
+    During trip:
+    Prefer the route points submitted by
+    the customer page because it includes:
+
+    Pickup
+    completed/previous route points when present
+    driver current location
+    new stop
+    remaining stops
+    dropoff
+  */
+
+  const submitted =
+    sanitizeRoutePoints(
+      body?.newRoutePoints ||
+      body?.finalRoutePoints
+    );
+
+  if(submitted.length >= 2){
+
+    return submitted;
+  }
+
+  const driverLocation =
+    extractLatLngFromObject(
+      body?.driverLocationAtConfirm
+    ) ||
+    await getLiveDriverLocation(
+      trip
+    );
+
+  if(!driverLocation){
+
+    throw new Error(
+      "Driver current location is unavailable"
+    );
+  }
+
+  return [
+
+    validated.pickup,
+
+    driverLocation,
+
+    ...validated.finalStops,
+
+    validated.dropoffAfter
+
+  ].filter(Boolean);
 }
 
 /* =========================
    GET QUOTE PRICE
+   Same calculation as GetQuoteEngine.js
 ========================= */
 
-async function calculateUpdatedGetQuote({
-  trip,
+function calculateGetQuotePrice({
+  service,
   miles,
+  stops,
   minutes,
-  stopsCount
+  passengersCount = 1
 }){
 
-  const serviceKey =
-    getTripServiceKey(trip);
-
-  if(!serviceKey){
-
-    throw new Error(
-      "Trip service is missing"
+  const pricingMode =
+    upper(
+      service?.pricingMode ||
+      "MILE"
     );
 
-  }
-
-  const response =
-    await fetch(
-      `${INTERNAL_BASE_URL}/api/getquote-core/calculate`,
-      {
-        method:"POST",
-
-        headers:{
-          "Content-Type":"application/json",
-          "Accept":"application/json"
-        },
-
-        body:JSON.stringify({
-
-          serviceKey,
-
-          miles:
-            n(miles,0),
-
-          minutes:
-            n(minutes,0),
-
-          stops:
-            n(stopsCount,0),
-
-          passengersCount:
-            1,
-
-          passengerCount:
-            1,
-
-          company:
-            trip.company || "",
-
-          companyName:
-            trip.company || "",
-
-          facilityId:
-            trip.facilityId ||
-            trip.companyId ||
-            "",
-
-          tripId:
-            String(
-              trip._id
-            ),
-
-          tripType:
-            trip.tripType ||
-            trip.type ||
-            "INDIVIDUAL"
-
-        })
-      }
-    );
-
-  const data =
-    await response
-      .json()
-      .catch(()=>({}));
-
-  if(
-    !response.ok ||
-    data.success === false
-  ){
-
-    throw new Error(
-      data.message ||
-      "Get Quote price calculation failed"
-    );
-
-  }
-
-  const total =
-    money(
-      data.total ??
-      data.priceAmount ??
-      data.finalPrice ??
-      data.price ??
+  const baseFare =
+    n(
+      service?.baseFare,
       0
     );
 
-  if(total < 0){
-
-    throw new Error(
-      "Calculated trip price is invalid"
+  const includedMiles =
+    n(
+      service?.includedMiles,
+      0
     );
 
+  const perMile =
+    n(
+      service?.perMile,
+      0
+    );
+
+  const stopFee =
+    n(
+      service?.stopFee,
+      0
+    );
+
+  const sharedPrice =
+    n(
+      service?.sharedPrice,
+      0
+    );
+
+  const hourlyRate =
+    n(
+      service?.hourlyRate,
+      0
+    );
+
+  let total = 0;
+
+  /* =========================
+     HOURLY
+  ========================= */
+
+  if(pricingMode === "HOURLY"){
+
+    let hours = 1;
+
+    const hourlyBillingMode =
+      upper(
+        service?.hourlyBillingMode ||
+        "FULL"
+      );
+
+    if(hourlyBillingMode === "QUARTER"){
+
+      hours =
+        Math.max(
+          1,
+          Math.ceil(
+            n(minutes) / 15
+          ) / 4
+        );
+
+    }else{
+
+      hours =
+        Math.max(
+          1,
+          Math.ceil(
+            n(minutes) / 60
+          )
+        );
+    }
+
+    total =
+      hours *
+      hourlyRate;
+  }
+
+  /* =========================
+     SHARED
+  ========================= */
+
+  else if(pricingMode === "SHARED"){
+
+    const count =
+      Math.max(
+        1,
+        n(
+          passengersCount,
+          1
+        )
+      );
+
+    if(sharedPrice > 0){
+
+      total =
+        (sharedPrice * count) +
+        (n(stops) * stopFee);
+
+    }else{
+
+      const baseTotal =
+        count *
+        baseFare;
+
+      const includedTotal =
+        count *
+        includedMiles;
+
+      const extraMiles =
+        Math.max(
+          0,
+          n(miles) -
+          includedTotal
+        );
+
+      const milesTotal =
+        extraMiles *
+        perMile;
+
+      const stopsTotal =
+        Math.max(
+          0,
+          count - 1
+        ) *
+        stopFee;
+
+      total =
+        baseTotal +
+        milesTotal +
+        stopsTotal;
+    }
+  }
+
+  /* =========================
+     INDIVIDUAL
+  ========================= */
+
+  else{
+
+    const extraMiles =
+      Math.max(
+        0,
+        n(miles) -
+        includedMiles
+      );
+
+    total =
+      baseFare +
+      (extraMiles * perMile) +
+      (n(stops) * stopFee);
   }
 
   return {
 
-    priceAmount:
-      total,
+    pricingMode,
 
-    finalPrice:
-      total,
+    total:
+      money(total),
 
-    pricingSource:
-      clean(
-        data.pricingSource ||
-        data.source ||
-        "GET_QUOTE_ENGINE"
-      ),
+    usedPricing:{
 
-    pricingDetails:
-      data
+      baseFare,
+      includedMiles,
+      perMile,
+      stopFee,
+      sharedPrice,
+      hourlyRate,
 
+      hourlyBillingMode:
+        service?.hourlyBillingMode ||
+        "FULL"
+    }
   };
-
 }
 
 /* =========================
-   SAFE TRIP RESPONSE
+   SAFE CUSTOMER TRIP
 ========================= */
 
 function buildSafeCustomerTrip(
   trip,
+  service,
   policy
 ){
-
-  const driverLocation =
-    extractLatLngFromObject(
-      trip
-    );
 
   return {
 
     _id:
-      String(trip._id),
+      String(
+        trip._id
+      ),
 
     tripNumber:
       trip.tripNumber || "",
@@ -1542,16 +1717,21 @@ function buildSafeCustomerTrip(
     status:
       trip.status || "",
 
+    type:
+      trip.type || "",
+
     tripType:
-      trip.tripType ||
-      trip.type ||
-      "",
+      trip.tripType || "",
 
     isShared:
       isSharedTrip(trip),
 
     serviceKey:
-      getTripServiceKey(trip),
+      clean(
+        service?.serviceKey ||
+        service?.serviceCode ||
+        getTripServiceValue(trip)
+      ),
 
     tripDate:
       trip.tripDate || "",
@@ -1559,60 +1739,67 @@ function buildSafeCustomerTrip(
     tripTime:
       trip.tripTime || "",
 
-    routePoints:
-      Array.isArray(
-        trip.routePoints
-      )
-        ? trip.routePoints
-        : [],
-
     miles:
-      n(trip.miles,0),
+      n(
+        trip.miles,
+        0
+      ),
+
+    estimatedMinutes:
+      n(
+        trip.estimatedMinutes,
+        0
+      ),
+
+    durationSeconds:
+      n(
+        trip.durationSeconds,
+        0
+      ),
+
+    distanceMeters:
+      n(
+        trip.distanceMeters,
+        0
+      ),
 
     priceAmount:
-      n(trip.priceAmount,0),
+      n(
+        trip.priceAmount,
+        0
+      ),
 
     finalPrice:
-      n(trip.finalPrice,0),
+      n(
+        trip.finalPrice,
+        0
+      ),
+
+    routePoints:
+      safeArray(
+        trip.routePoints
+      ),
 
     safeDriverLocation:
-      driverLocation,
+      extractLatLngFromObject(
+        trip
+      ),
 
     driverLocationAtRequest:
-      driverLocation,
+      extractLatLngFromObject(
+        trip
+      ),
 
     tripInProgress:
       tripIsInProgress(trip),
 
-    addStopPolicy:{
-
-      source:
-        policy.source || "",
-
-      serviceKey:
-        policy.serviceKey || "",
-
-      addStopEnabled:
-        policy.addStopEnabled === true,
-
-      addStopCustomTimeEnabled:
-        policy
-          .addStopCustomTimeEnabled === true,
-
-      addStopCutoffMinutes:
-        n(
-          policy.addStopCutoffMinutes,
-          0
-        )
-
-    }
-
+    addStopPolicy:
+      policy
   };
-
 }
 
 /* =========================
-   GET TRIP
+   GET CUSTOMER TRIP
 ========================= */
 
 router.get(
@@ -1635,36 +1822,55 @@ router.get(
 
       if(!trip){
 
-        return res.status(404).json({
-          success:false,
-          message:"Trip not found"
-        });
+        return res
+          .status(404)
+          .json({
+            success:false,
+            message:"Trip not found"
+          });
+      }
 
+      if(isCompanyTrip(trip)){
+
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "This Add Stop link is only for Get Quote trips"
+          });
       }
 
       if(isSharedTrip(trip)){
 
-        return res.status(400).json({
-          success:false,
-          message:
-            "Add Stop is not available for shared trips"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "Add Stop is not available for shared trips"
+          });
       }
 
       if(tripIsClosed(trip)){
 
-        return res.status(400).json({
-          success:false,
-          message:
-            "This trip is closed and cannot be modified"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "This trip is closed and cannot be modified"
+          });
       }
 
-      const policy =
-        await resolveAddStopPolicy(
+      const service =
+        await findGetQuoteService(
           trip
+        );
+
+      const policy =
+        buildAddStopPolicy(
+          service
         );
 
       enforceAddStopPolicy(
@@ -1679,9 +1885,9 @@ router.get(
         trip:
           buildSafeCustomerTrip(
             trip,
+            service,
             policy
           )
-
       });
 
     }catch(err){
@@ -1691,20 +1897,20 @@ router.get(
         err
       );
 
-      return res.status(400).json({
-        success:false,
-        message:
-          err.message ||
-          "Failed to load Add Stop page"
-      });
-
+      return res
+        .status(400)
+        .json({
+          success:false,
+          message:
+            err.message ||
+            "Failed to load Add Stop page"
+        });
     }
-
   }
 );
 
 /* =========================
-   CONFIRM AND UPDATE
+   CONFIRM / UPDATE TRIP
 ========================= */
 
 router.post(
@@ -1729,12 +1935,13 @@ router.post(
         String(tripId)
       ){
 
-        return res.status(403).json({
-          success:false,
-          message:
-            "Trip does not match this Add Stop link"
-        });
-
+        return res
+          .status(403)
+          .json({
+            success:false,
+            message:
+              "Trip does not match this Add Stop link"
+          });
       }
 
       const trip =
@@ -1744,36 +1951,60 @@ router.post(
 
       if(!trip){
 
-        return res.status(404).json({
-          success:false,
-          message:"Trip not found"
-        });
+        return res
+          .status(404)
+          .json({
+            success:false,
+            message:"Trip not found"
+          });
+      }
 
+      if(isCompanyTrip(trip)){
+
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "This Add Stop link is only for Get Quote trips"
+          });
       }
 
       if(isSharedTrip(trip)){
 
-        return res.status(400).json({
-          success:false,
-          message:
-            "Add Stop is not available for shared trips"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "Add Stop is not available for shared trips"
+          });
       }
 
       if(tripIsClosed(trip)){
 
-        return res.status(400).json({
-          success:false,
-          message:
-            "This trip is closed and cannot be modified"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "This trip is closed and cannot be modified"
+          });
       }
 
-      const policy =
-        await resolveAddStopPolicy(
+      /*
+        Recheck current Get Quote service.
+        An old email link cannot bypass Admin settings.
+      */
+
+      const service =
+        await findGetQuoteService(
           trip
+        );
+
+      const policy =
+        buildAddStopPolicy(
+          service
         );
 
       enforceAddStopPolicy(
@@ -1787,61 +2018,72 @@ router.post(
           body
         );
 
-      const routeData =
-        sanitizeRouteData(
-          body.newRouteData
-        );
-
-      const finalRoutePoints =
-        sanitizeRoutePoints(
-          body.finalRoutePoints ||
-          body.newRoutePoints
+      const updatedRoutePoints =
+        await buildUpdatedRoutePoints(
+          trip,
+          validated,
+          body
         );
 
       if(
-        routeData.miles <= 0 ||
-        routeData.distanceMeters <= 0
+        updatedRoutePoints.length < 2
       ){
 
-        return res.status(400).json({
-          success:false,
-          message:
-            "New route calculation is invalid"
-        });
-
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "Updated route points are invalid"
+          });
       }
 
-      if(finalRoutePoints.length < 2){
+      /*
+        Server calculates the new route.
+      */
 
-        return res.status(400).json({
-          success:false,
-          message:
-            "New route points are invalid"
-        });
+      const routeData =
+        await calculateServerRoute(
+          updatedRoutePoints
+        );
 
-      }
+      /*
+        Get Quote Service Management pricing only.
+      */
 
       const pricing =
-        await calculateUpdatedGetQuote({
+        calculateGetQuotePrice({
 
-          trip,
+          service,
 
           miles:
             routeData.miles,
 
+          stops:
+            validated.finalStops.length,
+
           minutes:
             routeData.estimatedMinutes,
 
-          stopsCount:
-            validated.finalStops.length
-
+          passengersCount:
+            1
         });
 
       const newPrice =
         money(
-          pricing.finalPrice ??
-          pricing.priceAmount
+          pricing.total
         );
+
+      if(newPrice < 0){
+
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "Updated trip price is invalid"
+          });
+      }
 
       const oldTrip = {
 
@@ -1856,8 +2098,28 @@ router.post(
         dropoff:
           getDropoff(trip),
 
+        pickupLat:
+          trip.pickupLat ?? null,
+
+        pickupLng:
+          trip.pickupLng ?? null,
+
+        dropoffLat:
+          trip.dropoffLat ?? null,
+
+        dropoffLng:
+          trip.dropoffLng ?? null,
+
+        stopCoords:
+          safeArray(
+            trip.stopCoords
+          ),
+
         miles:
-          n(trip.miles,0),
+          n(
+            trip.miles,
+            0
+          ),
 
         estimatedMinutes:
           n(
@@ -1890,19 +2152,28 @@ router.post(
           ),
 
         routePoints:
-          Array.isArray(
+          safeArray(
             trip.routePoints
-          )
-            ? trip.routePoints
-            : [],
+          ),
 
         googleRoute:
-          trip.googleRoute || {}
+          trip.googleRoute || {},
 
+        optimizedRoute:
+          trip.optimizedRoute || {},
+
+        routeLocked:
+          trip.routeLocked === true,
+
+        routeFinalized:
+          trip.routeFinalized === true
       };
 
+      const now =
+        new Date();
+
       /*
-        Replace old route.
+        Replace old route data.
       */
 
       trip.stops =
@@ -1912,19 +2183,9 @@ router.post(
         validated.dropoffAfter;
 
       trip.routePoints =
-        finalRoutePoints.map(point=>{
-
-          if(typeof point === "string"){
-
-            return point;
-
-          }
-
-          return (
-            `${point.lat},${point.lng}`
-          );
-
-        });
+        updatedRoutePoints
+          .map(routePointToStoredString)
+          .filter(Boolean);
 
       trip.miles =
         routeData.miles;
@@ -1941,6 +2202,27 @@ router.post(
       trip.googleRoute =
         routeData.googleRoute;
 
+      trip.optimizedRoute =
+        routeData.optimizedRoute;
+
+      /*
+        Old coordinates are no longer trusted
+        after addresses change.
+      */
+
+      trip.stopCoords = [];
+
+      if(
+        !sameAddress(
+          validated.dropoffAfter,
+          validated.dropoffBefore
+        )
+      ){
+
+        trip.dropoffLat = null;
+        trip.dropoffLng = null;
+      }
+
       /*
         Replace old price.
       */
@@ -1952,7 +2234,7 @@ router.post(
         newPrice;
 
       /*
-        Rebuild final state.
+        Updated route state.
       */
 
       trip.routeLocked =
@@ -1962,16 +2244,16 @@ router.post(
         true;
 
       trip.routeSource =
-        "customer-add-stop";
+        "customer-getquote-add-stop";
 
       trip.routeUpdatedAt =
-        new Date();
+        now;
 
       trip.confirmedAt =
-        new Date();
+        now;
 
       trip.isFinalized =
-        true;
+        false;
 
       trip.routeChangePending =
         false;
@@ -1987,7 +2269,7 @@ router.post(
           "customer-email-add-stop",
 
         requestType:
-          "CUSTOMER_ROUTE_CHANGE",
+          "GET_QUOTE_ROUTE_CHANGE",
 
         status:
           "COMPLETED",
@@ -1995,8 +2277,11 @@ router.post(
         submittedBy:
           "CUSTOMER",
 
+        submittedFrom:
+          "GET_QUOTE_EMAIL",
+
         completedAt:
-          new Date(),
+          now,
 
         mode:
           tripIsInProgress(trip)
@@ -2008,7 +2293,7 @@ router.post(
         newTrip:{
 
           pickup:
-            getPickup(trip),
+            validated.pickup,
 
           stops:
             validated.finalStops,
@@ -2016,67 +2301,63 @@ router.post(
           dropoff:
             validated.dropoffAfter,
 
+          routePoints:
+            updatedRoutePoints,
+
           miles:
             routeData.miles,
 
-          estimatedMinutes:
-            routeData.estimatedMinutes,
+          distanceMeters:
+            routeData.distanceMeters,
 
           durationSeconds:
             routeData.durationSeconds,
 
-          distanceMeters:
-            routeData.distanceMeters,
+          estimatedMinutes:
+            routeData.estimatedMinutes,
+
+          googleRoute:
+            routeData.googleRoute,
+
+          optimizedRoute:
+            routeData.optimizedRoute,
 
           priceAmount:
             newPrice,
 
           finalPrice:
-            newPrice,
-
-          routePoints:
-            finalRoutePoints,
-
-          googleRoute:
-            routeData.googleRoute
-
+            newPrice
         },
 
-        policy:{
+        service:{
 
           source:
-            policy.source,
+            "GET_QUOTE_SERVICE_MANAGEMENT",
 
-          addStopEnabled:
-            policy.addStopEnabled === true,
+          serviceId:
+            String(
+              service._id || ""
+            ),
 
-          addStopCustomTimeEnabled:
-            policy
-              .addStopCustomTimeEnabled === true,
-
-          addStopCutoffMinutes:
-            n(
-              policy
-                .addStopCutoffMinutes,
-              0
+          serviceKey:
+            clean(
+              service.serviceKey ||
+              service.serviceCode ||
+              ""
             )
-
         },
 
-        pricing:{
+        policy,
 
-          pricingSource:
-            pricing.pricingSource,
-
-          pricingDetails:
-            pricing.pricingDetails
-
-        }
-
+        pricing
       };
 
       trip.markModified(
         "googleRoute"
+      );
+
+      trip.markModified(
+        "optimizedRoute"
       );
 
       trip.markModified(
@@ -2085,21 +2366,46 @@ router.post(
 
       await trip.save();
 
-      await sendTripStatusEmail(
-        trip,
-        "ROUTE_UPDATED"
-      );
+      /*
+        Send updated email after successful save.
+        Email failure does not undo the trip update.
+      */
+
+      let emailSent = false;
+
+      try{
+
+        const emailResult =
+          await sendTripStatusEmail(
+            trip,
+            "ROUTE_UPDATED"
+          );
+
+        emailSent =
+          !!emailResult;
+
+      }catch(emailErr){
+
+        console.error(
+          "ROUTE UPDATED EMAIL ERROR:",
+          emailErr
+        );
+      }
 
       return res.json({
 
         success:true,
 
         message:
-          "Trip route and price updated successfully",
+          emailSent
+            ? "Trip route and price updated. Updated email sent."
+            : "Trip route and price updated, but the email could not be sent.",
+
+        emailSent,
 
         trip:{
 
-          tripId:
+          _id:
             String(trip._id),
 
           tripNumber:
@@ -2117,11 +2423,26 @@ router.post(
             getDropoff(trip),
 
           miles:
-            n(trip.miles,0),
+            n(
+              trip.miles,
+              0
+            ),
 
           estimatedMinutes:
             n(
               trip.estimatedMinutes,
+              0
+            ),
+
+          distanceMeters:
+            n(
+              trip.distanceMeters,
+              0
+            ),
+
+          durationSeconds:
+            n(
+              trip.durationSeconds,
               0
             ),
 
@@ -2135,10 +2456,11 @@ router.post(
             n(
               trip.finalPrice,
               0
-            )
+            ),
 
+          routeChangeStatus:
+            trip.routeChangeStatus || ""
         }
-
       });
 
     }catch(err){
@@ -2148,15 +2470,15 @@ router.post(
         err
       );
 
-      return res.status(400).json({
-        success:false,
-        message:
-          err.message ||
-          "Failed to update trip"
-      });
-
+      return res
+        .status(400)
+        .json({
+          success:false,
+          message:
+            err.message ||
+            "Failed to update trip"
+        });
     }
-
   }
 );
 
