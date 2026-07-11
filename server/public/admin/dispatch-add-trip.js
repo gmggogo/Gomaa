@@ -1,3 +1,6 @@
+dispatch-add-trip-add-stop-live-policy-v3.txt
+
+
 /* =====================================================
 FILE: public/admin/dispatch-add-trip.js
 DISPATCH ADD TRIP - RESERVED RV DB FIRST
@@ -1181,16 +1184,21 @@ Continue anyway?`
 
 /* ================= LOAD SERVICES ================= */
 
-async function loadReservedServices(){
+async function loadReservedServices(rebuildTabs = true){
 
   try{
 
     const res =
-      await fetch(SERVICES_URL,{
+      await fetch(
+        `${SERVICES_URL}?_=${Date.now()}`,
+        {
+        cache:"no-store",
         headers:{
-          Authorization:"Bearer " + token
+          Authorization:"Bearer " + token,
+          "Cache-Control":"no-cache"
         }
-      });
+      }
+      );
 
     if(!res.ok){
       throw new Error("Failed loading services");
@@ -1227,7 +1235,9 @@ async function loadReservedServices(){
     SERVICES =
       [...unique.values()];
 
-    buildServiceTabs();
+    if(rebuildTabs){
+      buildServiceTabs();
+    }
 
   }catch(err){
 
@@ -1235,7 +1245,9 @@ async function loadReservedServices(){
 
     SERVICES = [];
 
-    buildServiceTabs();
+    if(rebuildTabs){
+      buildServiceTabs();
+    }
 
     showAlert("Failed loading Reserved services");
   }
@@ -4139,6 +4151,7 @@ function loadDrafts(){
 /* ================= REFRESH ================= */
 
 async function refreshReview(){
+  await loadReservedServices(false);
   await fetchReviewTrips();
   renderReviewTable();
 }
@@ -4153,5 +4166,16 @@ await loadReservedServices();
 await refreshReview();
 
 showAddPage();
+
+/* Keep Reserved Add Stop policy synchronized with Service Management. */
+setInterval(async ()=>{
+  try{
+    await loadReservedServices(false);
+    await fetchReviewTrips();
+    renderReviewTable();
+  }catch(err){
+    console.error("Reserved policy refresh failed:",err);
+  }
+},30000);
 
 });
