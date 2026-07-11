@@ -1258,8 +1258,8 @@ async function calculateGoogleRoute(
   routePoints
 ){
 
-  const googleKey =
-    process.env.GOOGLE_KEY;
+const googleKey =
+  process.env.GOOGLE_SERVER_KEY;
 
   if(!googleKey){
 
