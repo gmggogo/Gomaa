@@ -26,6 +26,9 @@ const mongoose =
 const jwt =
   require("jsonwebtoken");
 
+const crypto =
+  require("crypto");
+
 const SystemDesign =
   require("../models/SystemDesign");
 
@@ -1018,6 +1021,24 @@ async function sendTripStatusEmail(
         trip,
         settings
       );
+
+    /*
+      The old immediate-payment webhook created cancelToken.
+      The new saved-card flow sends confirmation before that webhook, so make
+      sure every customer trip has a cancel token before building the button.
+    */
+    if(!clean(trip.cancelToken)){
+
+      trip.cancelToken =
+        crypto
+          .randomBytes(32)
+          .toString("hex");
+
+      if(typeof trip.save === "function"){
+        await trip.save();
+      }
+
+    }
 
     const cancelLink =
       buildCancelLink(
