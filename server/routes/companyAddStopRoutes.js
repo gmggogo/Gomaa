@@ -8,6 +8,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 
+const Service =
+  require("../models/Service");
+
+const FacilityPricingOverride =
+  require("../models/FacilityPricingOverride");
+
 const router = express.Router();
 
 /* =========================
@@ -43,6 +49,220 @@ function clean(v){
 function toNumber(v){
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function bool(v){
+  return (
+    v === true ||
+    String(v ?? "").trim().toLowerCase() === "true" ||
+    String(v ?? "").trim() === "1"
+  );
+}
+
+function upper(v){
+  return clean(v).toUpperCase();
+}
+
+function escapeRegex(v){
+  return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
+
+function normalizeServiceCode(v){
+  const code = upper(v).replace(/[_-]/g," ").replace(/\s+/g," ").trim();
+  if(code === "STANDARD" || code === "ST") return "ST";
+  if(code === "WHEELCHAIR" || code === "WHEEL CHAIR" || code === "WC" || code === "WH") return "WH";
+  if(code === "SHARED" || code === "SH") return "SH";
+  if(code === "LIMO" || code === "LIMOUSINE" || code === "LM") return "LM";
+  if(code === "TAXI" || code === "TX") return "TX";
+  if(code === "XL") return "XL";
+  return code;
+}
+
+function tripServiceCode(trip){
+  const direct =
+    clean(
+      trip.serviceKey ||
+      trip.serviceCode ||
+      trip.serviceType ||
+      trip.serviceSuffix ||
+      trip.vehicle ||
+      ""
+    );
+
+  if(direct){
+    return normalizeServiceCode(direct);
+  }
+
+  const parts = clean(trip.tripNumber).split("-");
+  return normalizeServiceCode(parts[parts.length - 1] || "");
+}
+
+function serviceMatches(entry, code){
+  const values = [
+    entry?.serviceKey,
+    entry?.serviceCode,
+    entry?.serviceType,
+    entry?.serviceSuffix,
+    entry?.suffix,
+    entry?.companySuffix,
+    entry?.title,
+    entry?.name,
+    entry?.serviceName
+  ];
+
+  return values.some(value =>
+    normalizeServiceCode(value) === code
+  );
+}
+
+async function resolveCompanyAddStopPolicy(trip){
+  const code = tripServiceCode(trip);
+
+  if(!code){
+    throw new Error("Trip service is missing");
+  }
+
+  const facilityId =
+    clean(
+      trip.facilityId ||
+      trip.companyId ||
+      trip.userId ||
+      ""
+    );
+
+  const facilityName =
+    clean(
+      trip.facilityName ||
+      trip.companyName ||
+      trip.company ||
+      ""
+    );
+
+  const overrideOr = [];
+
+  if(facilityId && mongoose.Types.ObjectId.isValid(facilityId)){
+    overrideOr.push({facilityId:new mongoose.Types.ObjectId(facilityId)});
+    overrideOr.push({_id:new mongoose.Types.ObjectId(facilityId)});
+  }
+
+  if(facilityId){
+    overrideOr.push({facilityId:facilityId});
+  }
+
+  if(facilityName){
+    const exactName = new RegExp("^" + escapeRegex(facilityName) + "$","i");
+    overrideOr.push({facilityName:exactName});
+    overrideOr.push({companyName:exactName});
+  }
+
+  if(overrideOr.length){
+    const override =
+      await FacilityPricingOverride
+        .findOne({active:true,$or:overrideOr})
+        .lean();
+
+    const entry =
+      Array.isArray(override?.services)
+        ? override.services.find(service => serviceMatches(service,code))
+        : null;
+
+    if(entry){
+      return {
+        source:"FACILITY_OVERRIDE",
+        normalEnabled:bool(entry.addStopEnabled),
+        customEnabled:bool(entry.addStopCustomTimeEnabled),
+        cutoffMinutes:toNumber(entry.addStopCutoffMinutes)
+      };
+    }
+  }
+
+  const candidates = [code];
+  if(code === "ST") candidates.push("STANDARD");
+  if(code === "WH") candidates.push("WHEELCHAIR","WC");
+  if(code === "SH") candidates.push("SHARED");
+  if(code === "LM") candidates.push("LIMO","LIMOUSINE");
+  if(code === "TX") candidates.push("TAXI");
+
+  const regexes = candidates.map(value =>
+    new RegExp("^" + escapeRegex(value) + "$","i")
+  );
+
+  const service = await Service.findOne({
+    $or:[
+      {serviceKey:{$in:candidates}},
+      {serviceCode:{$in:candidates}},
+      {serviceType:{$in:candidates}},
+      {suffix:{$in:candidates}},
+      {title:{$in:regexes}},
+      {name:{$in:regexes}},
+      {serviceName:{$in:regexes}}
+    ]
+  }).lean();
+
+  if(!service){
+    throw new Error("Company service was not found");
+  }
+
+  return {
+    source:"SERVICE_MANAGEMENT",
+    normalEnabled:bool(
+      service.companyAddStopEnabled ??
+      service.addStopEnabled
+    ),
+    customEnabled:bool(
+      service.companyAddStopCustomTimeEnabled ??
+      service.addStopCustomTimeEnabled
+    ),
+    cutoffMinutes:toNumber(
+      service.companyAddStopCutoffMinutes ??
+      service.addStopCutoffMinutes
+    )
+  };
+}
+
+function minutesToTrip(trip){
+  const date = clean(trip.tripDate);
+  const time = clean(trip.tripTime);
+
+  if(!date || !time){
+    return null;
+  }
+
+  const startsAt = new Date(`${date}T${time}:00-07:00`);
+  if(Number.isNaN(startsAt.getTime())){
+    return null;
+  }
+
+  return (startsAt.getTime() - Date.now()) / 60000;
+}
+
+function enforceCompanyAddStopPolicy(trip,policy){
+  if(policy.normalEnabled === true){
+    return;
+  }
+
+  if(policy.customEnabled !== true){
+    const err = new Error("Add Stop is disabled for this company service");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const mins = minutesToTrip(trip);
+  if(mins === null){
+    return;
+  }
+
+  const cutoff = Math.max(0,toNumber(policy.cutoffMinutes));
+
+  if(mins < cutoff){
+    const err = new Error(
+      cutoff > 0
+        ? `Add Stop closed ${cutoff} minutes before the trip`
+        : "The Add Stop time window has ended"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
 }
 
 function isValidObjectId(id){
@@ -208,6 +428,25 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
       });
     }
 
+    if(
+      trip.isShared === true ||
+      upper(trip.tripType) === "SHARED" ||
+      tripServiceCode(trip) === "SH"
+    ){
+      return res.status(400).json({
+        success:false,
+        message:"Add Stop is not available for shared trips"
+      });
+    }
+
+    const addStopPolicy =
+      await resolveCompanyAddStopPolicy(trip);
+
+    enforceCompanyAddStopPolicy(
+      trip,
+      addStopPolicy
+    );
+
     if(hasActiveRouteChange(trip)){
       return res.status(409).json({
         success:false,
@@ -309,6 +548,8 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
         body.source || "company-add-stop",
 
       tripSource,
+
+      addStopPolicy,
 
       calculatePriceOnReview:
         body.calculatePriceOnReview !== false,
@@ -442,6 +683,7 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
       tripId:trip._id,
       tripNumber:trip.tripNumber || "",
       tripSource,
+      addStopPolicy,
       addStopRequest:trip.addStopRequest
     });
 
@@ -449,7 +691,7 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
 
     console.error("ADD STOP CONFIRM ROUTE ERROR:",err);
 
-    return res.status(500).json({
+    return res.status(err.statusCode || 500).json({
       success:false,
       message:"Failed to send added stop request",
       error:err.message

@@ -407,7 +407,29 @@ function tripAllowsAddStop(trip, service){
     return false;
   }
 
-  if(service.companyAddStopEnabled !== true){
+  const status =
+    String(trip.status || "")
+      .toLowerCase()
+      .replace(/\s+/g,"")
+      .replace(/-/g,"")
+      .replace(/_/g,"");
+
+  if(
+    status.includes("complete") ||
+    status.includes("cancel") ||
+    status.includes("noshow") ||
+    status.includes("notcompleted")
+  ){
+    return false;
+  }
+
+  const normalEnabled =
+    service.companyAddStopEnabled === true;
+
+  const customEnabled =
+    service.companyAddStopCustomTimeEnabled === true;
+
+  if(!normalEnabled && !customEnabled){
     return false;
   }
 
@@ -1326,11 +1348,19 @@ function serviceAllowsAddStop(trip){
     return false;
   }
 
+  const normalEnabled =
+    service.companyAddStopEnabled === true;
+
   const customTime =
     service.companyAddStopCustomTimeEnabled === true;
 
-  if(!customTime){
+  /* Normal Add Stop wins and stays active until the trip is closed. */
+  if(normalEnabled){
     return true;
+  }
+
+  if(!customTime){
+    return false;
   }
 
   const mins =
