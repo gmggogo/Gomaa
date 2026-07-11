@@ -850,23 +850,21 @@ function resolveServiceCode(service){
 
   if(!service) return "";
 
+  /*
+    Reserved flow must never identify a service through Company or Get Quote
+    fields. Reserved-specific identity is checked first, then the canonical
+    service identity used by the same Reserved record.
+  */
   const fields = [
-    service.reservedSuffix,
-    service.serviceSuffix,
-    service.suffix,
-    service.companySuffix,
-    service.getQuoteSuffix,
     service.reservedServiceSuffix,
-    service.tripNumberSuffix,
-
     service.reservedServiceCode,
-    service.serviceCode,
-    service.code,
-
     service.reservedServiceKey,
+    service.serviceCode,
     service.serviceKey,
     service.serviceType,
-    service.vehicle
+    service.code,
+    service.serviceSuffix,
+    service.suffix
   ];
 
   for(const field of fields){
@@ -926,9 +924,8 @@ function mapReservedService(s){
 
   const shared =
     bool(s.reservedShared) ||
-    bool(s.shared) ||
     code === "SH" ||
-    normalizeCode(s.reservedPricingMode || s.pricingMode) === "SHARED";
+    normalizeCode(s.reservedPricingMode) === "SHARED";
 
   return {
     ...s,
@@ -997,13 +994,11 @@ function isSharedService(service){
 
   const mode =
     normalizeCode(
-      service.reservedPricingMode ||
-      service.pricingMode
+      service.reservedPricingMode
     );
 
   return (
     bool(service.reservedShared) ||
-    bool(service.shared) ||
     code === "SH" ||
     title === "SH" ||
     title === "SHARED" ||

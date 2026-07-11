@@ -1131,10 +1131,63 @@ function resolveServiceCodeFromTrip(trip){
     trip.serviceKey ||
     trip.serviceCode ||
     trip.serviceType ||
+    trip.serviceSuffix ||
     trip.tripNumberSuffix ||
-    trip.vehicleTypeFromQuote ||
     ""
   );
+}
+
+function serviceHasReservedConfiguration(service){
+
+  if(!service){
+    return false;
+  }
+
+  return (
+    service.reservedEnabled === true ||
+    bool(service.reservedEnabled) ||
+    service.reservedPricingMode !== undefined ||
+    service.reservedBaseFare !== undefined ||
+    service.reservedIncludedMiles !== undefined ||
+    service.reservedPerMile !== undefined ||
+    service.reservedHourlyRate !== undefined ||
+    service.reservedStopFee !== undefined ||
+    service.reservedSharedPrice !== undefined
+  );
+}
+
+function resolveReservedCodeFromService(service){
+
+  const reservedFields = [
+    service?.reservedSuffix,
+    service?.reservedServiceSuffix,
+    service?.reservedServiceCode,
+    service?.reservedServiceKey
+  ];
+
+  for(const field of reservedFields){
+    const code = normalizeCode(field);
+    if(code) return code;
+  }
+
+  /*
+    Canonical service identity is allowed only on a record that actually
+    contains Reserved configuration. Get Quote and Company suffixes are never
+    used to select Reserved pricing.
+  */
+  if(serviceHasReservedConfiguration(service)){
+    return normalizeCode(
+      service?.serviceCode ||
+      service?.serviceKey ||
+      service?.serviceType ||
+      service?.code ||
+      service?.suffix ||
+      service?.serviceSuffix ||
+      ""
+    );
+  }
+
+  return "";
 }
 
 async function getReservedServiceForTrip(trip){
@@ -1148,27 +1201,11 @@ async function getReservedServiceForTrip(trip){
   const services = await Service.find({}).lean();
 
   const found =
-    services.find(service=>{
-
-      const fields = [
-        service.reservedSuffix,
-        service.serviceSuffix,
-        service.suffix,
-        service.companySuffix,
-        service.getQuoteSuffix,
-        service.reservedServiceSuffix,
-        service.tripNumberSuffix,
-        service.reservedServiceCode,
-        service.serviceCode,
-        service.code,
-        service.reservedServiceKey,
-        service.serviceKey,
-        service.serviceType,
-        service.vehicle
-      ];
-
-      return fields.some(field=>normalizeCode(field) === code);
-    });
+    services.find(service=>
+      bool(service.reservedEnabled) === true &&
+      serviceHasReservedConfiguration(service) &&
+      resolveReservedCodeFromService(service) === code
+    );
 
   if(!found){
     throw new Error("Reserved service not found: " + code);
@@ -2442,6 +2479,9 @@ router.post("/:tripId", async (req,res)=>{
     }
 
     const pricingSnapshot = {
+      source:"RESERVED_SERVICE_MANAGEMENT",
+      serviceId:String(service?._id || ""),
+      serviceCode,
       pricingMode:pricing.pricingMode,
       baseFare:pricing.baseFare,
       includedMiles:pricing.includedMiles,
