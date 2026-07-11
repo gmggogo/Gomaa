@@ -1,248 +1,211 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Complete Payment – Sunbeam</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="https://js.stripe.com/v3/"></script>
-
-<style>
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:Arial,sans-serif;
-  background:linear-gradient(135deg,#0f172a,#1d4ed8);
-  color:#fff;
-  padding:16px;
-}
-
-.box{
-  width:100%;
-  max-width:390px;
-  background:#111827;
-  border-radius:18px;
-  padding:24px;
-  box-shadow:0 15px 35px rgba(0,0,0,.45);
-  text-align:center;
-}
-
-h2{
-  margin:0 0 18px;
-  font-size:22px;
-}
-
-.amount{
-  font-size:32px;
-  font-weight:bold;
-  color:#22c55e;
-  margin-bottom:18px;
-}
-
-#card-element{
-  background:#fff;
-  padding:14px;
-  border-radius:10px;
-  margin-bottom:16px;
-}
-
-button{
-  width:100%;
-  padding:15px;
-  border:none;
-  border-radius:10px;
-  background:#22c55e;
-  color:#fff;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-button:disabled{
-  background:#64748b;
-  cursor:not-allowed;
-}
-
-.msg{
-  margin-top:15px;
-  font-size:14px;
-  line-height:1.5;
-}
-
-.success{color:#22c55e}
-.error{color:#ef4444}
-.loading{color:#facc15}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Save Payment Method – Sunbeam</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff;padding:16px}.box{width:100%;max-width:430px;background:#111827;border-radius:18px;padding:24px;box-shadow:0 15px 35px rgba(0,0,0,.45)}h2{text-align:center;margin:0 0 12px}.amount{text-align:center;font-size:30px;font-weight:bold;color:#22c55e;margin-bottom:12px}.note{font-size:13px;line-height:1.55;color:#cbd5e1;margin-bottom:16px}.consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.4;margin:14px 0}.consent input{margin-top:3px}#card-element{background:#fff;padding:14px;border-radius:10px;margin-bottom:16px}button{width:100%;padding:15px;border:0;border-radius:10px;background:#22c55e;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}button:disabled{background:#64748b;cursor:not-allowed}.msg{margin-top:15px;font-size:14px;line-height:1.5}.success{color:#22c55e}.error{color:#ef4444}.loading{color:#facc15}
+  </style>
 </head>
-
 <body>
-
-<div class="box">
-  <h2>Complete Payment</h2>
-
-  <div class="amount" id="amountText">Loading...</div>
-
-  <div id="card-element"></div>
-
-  <button id="payBtn" disabled>Pay Now</button>
-
-  <div id="msg" class="msg"></div>
-</div>
-
-<script>
-let stripe = null;
-let elements = null;
-let card = null;
-let tripId = null;
-let amount = 0;
-
-const amountText = document.getElementById("amountText");
-const payBtn = document.getElementById("payBtn");
-const msg = document.getElementById("msg");
-
-function showError(text){
-  msg.innerHTML = `<div class="error">${text}</div>`;
-}
-
-function showLoading(text){
-  msg.innerHTML = `<div class="loading">${text}</div>`;
-}
-
-function showSuccess(){
-  msg.innerHTML = `
-    <div class="success">
-      Payment successful ✔<br>
-      A confirmation email has been sent with your booking details.
+  <div class="box">
+    <h2>Secure Your Booking</h2>
+    <div class="amount" id="amountText">Loading...</div>
+    <div class="note">
+      Your card will be saved securely by Stripe. No payment is taken now.
+      The current trip price will be authorized 24 hours before pickup and the
+      approved final price will be charged once the trip is completed.
     </div>
-  `;
-}
+    <div id="card-element"></div>
+    <label class="consent">
+      <input id="consent" type="checkbox">
+      <span>I authorize Sunbeam Transportation to save this payment method,
+      place a hold for the displayed trip price before pickup, and charge the
+      approved final fare or applicable cancellation/no-show fee.</span>
+    </label>
+    <button id="saveBtn" disabled>Save Card & Confirm Booking</button>
+    <div id="msg" class="msg"></div>
+  </div>
+<script>
+(async function(){
+  "use strict";
+  const params=new URLSearchParams(location.search);
+  const tripId=params.get("tripId");
+  const amountText=document.getElementById("amountText");
+  const saveBtn=document.getElementById("saveBtn");
+  const consent=document.getElementById("consent");
+  const msg=document.getElementById("msg");
+  let stripe,card,cardComplete=false;
+  const show=(type,text)=>{msg.innerHTML=`<div class="${type}">${text}</div>`};
 
-async function initPaymentPage(){
+  if(!tripId){amountText.textContent="$0.00";show("error","Missing trip ID.");return;}
+
   try{
-    const params = new URLSearchParams(window.location.search);
-    tripId = params.get("tripId");
+    const [tripRes,configRes]=await Promise.all([
+      fetch(`/api/trips/${encodeURIComponent(tripId)}`),
+      fetch("/api/config")
+    ]);
+    const trip=await tripRes.json();
+    const config=await configRes.json();
+    if(!tripRes.ok||!trip?._id)throw new Error("Trip not found.");
+    if(!config.publishableKey)throw new Error("Stripe configuration is missing.");
 
-    if(!tripId){
-      amountText.innerText = "$0";
-      showError("Missing trip ID.");
-      return;
-    }
-
-    showLoading("Loading payment...");
-
-    const tripRes = await fetch(`/api/trips/${tripId}`);
-    const trip = await tripRes.json();
-
-    if(!tripRes.ok || !trip || !trip._id){
-      amountText.innerText = "$0";
-      showError("Trip not found.");
-      return;
-    }
-
-    amount = Number(trip.priceAmount || 0);
-
-    if(!amount || amount <= 0){
-      amountText.innerText = "$0";
-      showError("Invalid trip price.");
-      return;
-    }
-
-    amountText.innerText = `$${amount.toFixed(2)}`;
-
-    const configRes = await fetch("/api/config");
-    const config = await configRes.json();
-
-    if(!config.publishableKey){
-      showError("Stripe publishable key missing.");
-      return;
-    }
-
-    stripe = Stripe(config.publishableKey);
-    elements = stripe.elements();
-    card = elements.create("card");
+    amountText.textContent=`$${Number(trip.priceAmount||0).toFixed(2)}`;
+    stripe=Stripe(config.publishableKey);
+    const elements=stripe.elements();
+    card=elements.create("card");
     card.mount("#card-element");
-
-    payBtn.disabled = false;
-    msg.innerHTML = "";
-
+    card.on("change",e=>{
+      cardComplete=!!e.complete;
+      if(e.error)show("error",e.error.message);else msg.innerHTML="";
+      saveBtn.disabled=!(cardComplete&&consent.checked);
+    });
+    consent.addEventListener("change",()=>{
+      saveBtn.disabled=!(cardComplete&&consent.checked);
+    });
   }catch(err){
-    console.log(err);
-    amountText.innerText = "$0";
-    showError("Payment page failed to load.");
+    amountText.textContent="$0.00";
+    show("error",err.message||"Payment page failed to load.");
+    return;
   }
-}
 
-payBtn.onclick = async function(){
-  try{
-    payBtn.disabled = true;
-    payBtn.innerText = "Processing...";
-    showLoading("Processing payment...");
+  saveBtn.onclick=async()=>{
+    if(!consent.checked)return;
+    saveBtn.disabled=true;saveBtn.textContent="Saving...";show("loading","Saving your payment method securely...");
+    try{
+      const setupRes=await fetch(`/api/trip-payment/${encodeURIComponent(tripId)}/setup-intent`,{method:"POST"});
+      const setup=await setupRes.json();
+      if(!setupRes.ok||!setup.clientSecret)throw new Error(setup.message||"Unable to start card setup.");
 
-    const intentRes = await fetch("/api/create-payment-intent",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        amount: amount,
-        tripId: tripId
-      })
-    });
+      const result=await stripe.confirmCardSetup(setup.clientSecret,{payment_method:{card}});
+      if(result.error)throw new Error(result.error.message);
 
-    const intentData = await intentRes.json();
+      const doneRes=await fetch(`/api/trip-payment/${encodeURIComponent(tripId)}/setup-success`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({setupIntentId:result.setupIntent.id})
+      });
+      const done=await doneRes.json();
+      if(!doneRes.ok)throw new Error(done.message||"Card was saved but booking confirmation failed.");
 
-    if(!intentRes.ok || !intentData.clientSecret){
-      showError("Unable to start payment.");
-      payBtn.disabled = false;
-      payBtn.innerText = "Pay Now";
-      return;
+      show("success","Card saved successfully. No charge has been made. Your booking is confirmed.");
+      saveBtn.style.display="none";
+    }catch(err){
+      show("error",err.message||"Unable to save this card.");
+      saveBtn.disabled=false;saveBtn.textContent="Save Card & Confirm Booking";
     }
-
-    const result = await stripe.confirmCardPayment(intentData.clientSecret,{
-      payment_method:{
-        card:card
-      }
-    });
-
-    if(result.error){
-      showError(result.error.message);
-      payBtn.disabled = false;
-      payBtn.innerText = "Pay Now";
-      return;
-    }
-
-    const paymentIntentId = result.paymentIntent.id;
-
-    const successRes = await fetch("/api/payment-success",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        tripId:tripId,
-        paymentIntentId:paymentIntentId
-      })
-    });
-
-    if(!successRes.ok){
-      showError("Payment completed, but booking confirmation failed.");
-      return;
-    }
-
-    showSuccess();
-    payBtn.style.display = "none";
-
-  }catch(err){
-    console.log(err);
-    showError("Payment failed.");
-    payBtn.disabled = false;
-    payBtn.innerText = "Pay Now";
-  }
-};
-
-initPaymentPage();
+  };
+})();
 </script>
+</body>
+</html>
+Library
+/
+payment-html.txt
 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Save Payment Method – Sunbeam</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff;padding:16px}.box{width:100%;max-width:430px;background:#111827;border-radius:18px;padding:24px;box-shadow:0 15px 35px rgba(0,0,0,.45)}h2{text-align:center;margin:0 0 12px}.amount{text-align:center;font-size:30px;font-weight:bold;color:#22c55e;margin-bottom:12px}.note{font-size:13px;line-height:1.55;color:#cbd5e1;margin-bottom:16px}.consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.4;margin:14px 0}.consent input{margin-top:3px}#card-element{background:#fff;padding:14px;border-radius:10px;margin-bottom:16px}button{width:100%;padding:15px;border:0;border-radius:10px;background:#22c55e;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}button:disabled{background:#64748b;cursor:not-allowed}.msg{margin-top:15px;font-size:14px;line-height:1.5}.success{color:#22c55e}.error{color:#ef4444}.loading{color:#facc15}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Secure Your Booking</h2>
+    <div class="amount" id="amountText">Loading...</div>
+    <div class="note">
+      Your card will be saved securely by Stripe. No payment is taken now.
+      The current trip price will be authorized 24 hours before pickup and the
+      approved final price will be charged once the trip is completed.
+    </div>
+    <div id="card-element"></div>
+    <label class="consent">
+      <input id="consent" type="checkbox">
+      <span>I authorize Sunbeam Transportation to save this payment method,
+      place a hold for the displayed trip price before pickup, and charge the
+      approved final fare or applicable cancellation/no-show fee.</span>
+    </label>
+    <button id="saveBtn" disabled>Save Card & Confirm Booking</button>
+    <div id="msg" class="msg"></div>
+  </div>
+<script>
+(async function(){
+  "use strict";
+  const params=new URLSearchParams(location.search);
+  const tripId=params.get("tripId");
+  const amountText=document.getElementById("amountText");
+  const saveBtn=document.getElementById("saveBtn");
+  const consent=document.getElementById("consent");
+  const msg=document.getElementById("msg");
+  let stripe,card,cardComplete=false;
+  const show=(type,text)=>{msg.innerHTML=`<div class="${type}">${text}</div>`};
+
+  if(!tripId){amountText.textContent="$0.00";show("error","Missing trip ID.");return;}
+
+  try{
+    const [tripRes,configRes]=await Promise.all([
+      fetch(`/api/trips/${encodeURIComponent(tripId)}`),
+      fetch("/api/config")
+    ]);
+    const trip=await tripRes.json();
+    const config=await configRes.json();
+    if(!tripRes.ok||!trip?._id)throw new Error("Trip not found.");
+    if(!config.publishableKey)throw new Error("Stripe configuration is missing.");
+
+    amountText.textContent=`$${Number(trip.priceAmount||0).toFixed(2)}`;
+    stripe=Stripe(config.publishableKey);
+    const elements=stripe.elements();
+    card=elements.create("card");
+    card.mount("#card-element");
+    card.on("change",e=>{
+      cardComplete=!!e.complete;
+      if(e.error)show("error",e.error.message);else msg.innerHTML="";
+      saveBtn.disabled=!(cardComplete&&consent.checked);
+    });
+    consent.addEventListener("change",()=>{
+      saveBtn.disabled=!(cardComplete&&consent.checked);
+    });
+  }catch(err){
+    amountText.textContent="$0.00";
+    show("error",err.message||"Payment page failed to load.");
+    return;
+  }
+
+  saveBtn.onclick=async()=>{
+    if(!consent.checked)return;
+    saveBtn.disabled=true;saveBtn.textContent="Saving...";show("loading","Saving your payment method securely...");
+    try{
+      const setupRes=await fetch(`/api/trip-payment/${encodeURIComponent(tripId)}/setup-intent`,{method:"POST"});
+      const setup=await setupRes.json();
+      if(!setupRes.ok||!setup.clientSecret)throw new Error(setup.message||"Unable to start card setup.");
+
+      const result=await stripe.confirmCardSetup(setup.clientSecret,{payment_method:{card}});
+      if(result.error)throw new Error(result.error.message);
+
+      const doneRes=await fetch(`/api/trip-payment/${encodeURIComponent(tripId)}/setup-success`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({setupIntentId:result.setupIntent.id})
+      });
+      const done=await doneRes.json();
+      if(!doneRes.ok)throw new Error(done.message||"Card was saved but booking confirmation failed.");
+
+      show("success","Card saved successfully. No charge has been made. Your booking is confirmed.");
+      saveBtn.style.display="none";
+    }catch(err){
+      show("error",err.message||"Unable to save this card.");
+      saveBtn.disabled=false;saveBtn.textContent="Save Card & Confirm Booking";
+    }
+  };
+})();
+</script>
 </body>
 </html>
