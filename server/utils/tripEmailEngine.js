@@ -5,19 +5,28 @@ GET QUOTE CUSTOMER EMAIL
 
 - Confirmation email
 - Reminder email
-- Secure Cancel Trip button
-- Secure Add Stop button
-- Add Stop for individual trips only
+- Route Updated email
+- Cancel Trip button
+- Add Stop button based on current Admin Service
 ========================================= */
 
 const nodemailer =
   require("nodemailer");
+
+const mongoose =
+  require("mongoose");
 
 const jwt =
   require("jsonwebtoken");
 
 const SystemDesign =
   require("../models/SystemDesign");
+
+const Service =
+  require("../models/Service");
+
+const FacilityPricingOverride =
+  require("../models/FacilityPricingOverride");
 
 /* =========================
    CONFIG
@@ -38,7 +47,7 @@ const CUSTOMER_LINK_SECRET =
   "dev_customer_add_stop_secret";
 
 /* =========================
-   BASIC HELPERS
+   HELPERS
 ========================= */
 
 function clean(value){
@@ -56,6 +65,45 @@ function upper(value){
 
 }
 
+function lower(value){
+
+  return clean(value)
+    .toLowerCase();
+
+}
+
+function n(value,fallback = 0){
+
+  const num =
+    Number(value);
+
+  return Number.isFinite(num)
+    ? num
+    : fallback;
+
+}
+
+function bool(value){
+
+  return (
+    value === true ||
+    lower(value) === "true" ||
+    lower(value) === "yes" ||
+    lower(value) === "1"
+  );
+
+}
+
+function escapeRegex(value){
+
+  return clean(value)
+    .replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    );
+
+}
+
 function escapeHtml(value){
 
   return String(value ?? "")
@@ -67,8 +115,177 @@ function escapeHtml(value){
 
 }
 
+function cleanStatus(value){
+
+  return lower(value)
+    .replace(/\s+/g,"")
+    .replace(/-/g,"")
+    .replace(/_/g,"");
+
+}
+
 /* =========================
-   CREATE TRANSPORTER
+   SERVICE CODE
+========================= */
+
+function normalizeCode(value){
+
+  const code =
+    upper(value);
+
+  if(code === "STANDARD"){
+    return "ST";
+  }
+
+  if(code === "WHEELCHAIR"){
+    return "WH";
+  }
+
+  if(code === "SHARED"){
+    return "SH";
+  }
+
+  if(
+    code === "LIMO" ||
+    code === "LIMOUSINE"
+  ){
+    return "LM";
+  }
+
+  if(code === "TAXI"){
+    return "TX";
+  }
+
+  if(code === "XL"){
+    return "XL";
+  }
+
+  return code;
+
+}
+
+function getTripServiceKey(trip){
+
+  return normalizeCode(
+    trip?.serviceKey ||
+    trip?.serviceCode ||
+    trip?.serviceType ||
+    trip?.vehicleTypeFromQuote ||
+    trip?.vehicle ||
+    ""
+  );
+
+}
+
+function buildServiceSearchFilter(
+  idOrKey
+){
+
+  const raw =
+    clean(idOrKey);
+
+  if(
+    mongoose.Types.ObjectId.isValid(
+      raw
+    )
+  ){
+
+    return {
+      _id:raw
+    };
+
+  }
+
+  const key =
+    normalizeCode(raw);
+
+  const rawUpper =
+    upper(raw);
+
+  const rx =
+    new RegExp(
+      "^" +
+      escapeRegex(raw) +
+      "$",
+      "i"
+    );
+
+  return {
+
+    $or:[
+
+      { serviceKey:key },
+      { serviceKey:rawUpper },
+
+      { serviceCode:key },
+      { serviceCode:rawUpper },
+
+      { serviceType:key },
+      { serviceType:rawUpper },
+
+      { suffix:key },
+      { suffix:rawUpper },
+
+      { companySuffix:key },
+      { companySuffix:rawUpper },
+
+      { reservedSuffix:key },
+      { reservedSuffix:rawUpper },
+
+      { title:rx },
+      { name:rx },
+      { serviceName:rx }
+
+    ]
+
+  };
+
+}
+
+function getOverrideServiceCode(service){
+
+  return normalizeCode(
+    service?.serviceKey ||
+    service?.serviceCode ||
+    service?.serviceType ||
+    service?.serviceSuffix ||
+    service?.suffix ||
+    service?.companySuffix ||
+    service?.reservedSuffix ||
+    service?.key ||
+    service?.code ||
+    service?.title ||
+    service?.name ||
+    service?.serviceName ||
+    ""
+  );
+
+}
+
+function isOverrideServiceEnabled(service){
+
+  if(!service){
+    return false;
+  }
+
+  if(service.active !== undefined){
+    return bool(service.active);
+  }
+
+  if(service.enabled !== undefined){
+    return bool(service.enabled);
+  }
+
+  if(service.companyEnabled !== undefined){
+    return bool(service.companyEnabled);
+  }
+
+  return true;
+
+}
+
+/* =========================
+   TRANSPORTER
 ========================= */
 
 function createEmailTransporter(settings){
@@ -108,8 +325,58 @@ function createEmailTransporter(settings){
 }
 
 /* =========================
-   TIME FORMAT
+   DATE / TIME
 ========================= */
+
+function getTripDateTime(trip){
+
+  const date =
+    clean(
+      trip?.tripDate
+    );
+
+  const time =
+    clean(
+      trip?.tripTime
+    );
+
+  if(!date || !time){
+
+    return null;
+
+  }
+
+  let value =
+    new Date(
+      `${date}T${time}`
+    );
+
+  if(
+    Number.isNaN(
+      value.getTime()
+    )
+  ){
+
+    value =
+      new Date(
+        `${date} ${time}`
+      );
+
+  }
+
+  if(
+    Number.isNaN(
+      value.getTime()
+    )
+  ){
+
+    return null;
+
+  }
+
+  return value;
+
+}
 
 function formatTripDateTime(
   trip,
@@ -126,38 +393,10 @@ function formatTripDateTime(
       trip?.tripTime
     );
 
-  if(!date || !time){
+  const value =
+    getTripDateTime(trip);
 
-    return {
-      date,
-      time
-    };
-
-  }
-
-  let dateObj =
-    new Date(
-      `${date}T${time}`
-    );
-
-  if(
-    Number.isNaN(
-      dateObj.getTime()
-    )
-  ){
-
-    dateObj =
-      new Date(
-        `${date} ${time}`
-      );
-
-  }
-
-  if(
-    Number.isNaN(
-      dateObj.getTime()
-    )
-  ){
+  if(!value){
 
     return {
       date,
@@ -171,7 +410,7 @@ function formatTripDateTime(
     return {
 
       date:
-        dateObj.toLocaleDateString(
+        value.toLocaleDateString(
           "en-US",
           {
             timeZone:
@@ -185,7 +424,7 @@ function formatTripDateTime(
         ),
 
       time:
-        dateObj.toLocaleTimeString(
+        value.toLocaleTimeString(
           "en-US",
           {
             timeZone:
@@ -211,15 +450,15 @@ function formatTripDateTime(
 }
 
 /* =========================
-   COMPANY CHECK
+   TRIP CHECKS
 ========================= */
 
 function isCompanyTrip(trip){
 
   const type =
-    clean(
+    lower(
       trip?.type
-    ).toLowerCase();
+    );
 
   return (
     !!clean(trip?.company) ||
@@ -229,16 +468,10 @@ function isCompanyTrip(trip){
 
 }
 
-/* =========================
-   SHARED CHECK
-========================= */
-
 function isSharedTrip(trip){
 
   if(!trip){
-
     return false;
-
   }
 
   const tripType =
@@ -253,14 +486,7 @@ function isSharedTrip(trip){
     );
 
   const serviceKey =
-    upper(
-      trip.serviceKey ||
-      trip.serviceCode ||
-      trip.serviceType ||
-      trip.sharedSuffix ||
-      trip.vehicle ||
-      ""
-    );
+    getTripServiceKey(trip);
 
   return (
     trip.isShared === true ||
@@ -272,20 +498,12 @@ function isSharedTrip(trip){
 
 }
 
-/* =========================
-   CLOSED TRIP CHECK
-========================= */
-
 function isClosedTrip(trip){
 
   const status =
-    clean(
+    cleanStatus(
       trip?.status
-    )
-      .toLowerCase()
-      .replace(/\s+/g,"")
-      .replace(/-/g,"")
-      .replace(/_/g,"");
+    );
 
   return (
     status.includes("complete") ||
@@ -296,18 +514,310 @@ function isClosedTrip(trip){
 
 }
 
+function tripIsInProgress(trip){
+
+  const status =
+    cleanStatus(
+      trip?.status
+    );
+
+  return [
+    "ontrip",
+    "started",
+    "inprogress",
+    "pickedup",
+    "pickupcompleted",
+    "passengerpickedup",
+    "enroute",
+    "active"
+  ].includes(status);
+
+}
+
 /* =========================
-   CANCEL LINK
+   ADD STOP POLICY
+========================= */
+
+async function findFacilityOverride(trip){
+
+  const facilityId =
+    clean(
+      trip?.facilityId ||
+      trip?.companyId ||
+      ""
+    );
+
+  const company =
+    clean(
+      trip?.company
+    );
+
+  const or = [];
+
+  if(
+    facilityId &&
+    mongoose.Types.ObjectId.isValid(
+      facilityId
+    )
+  ){
+
+    or.push({
+      facilityId
+    });
+
+  }
+
+  if(company){
+
+    const rx =
+      new RegExp(
+        "^" +
+        escapeRegex(company) +
+        "$",
+        "i"
+      );
+
+    or.push({
+      facilityName:rx
+    });
+
+  }
+
+  if(!or.length){
+
+    return null;
+
+  }
+
+  return FacilityPricingOverride
+    .findOne({
+      active:true,
+      $or:or
+    })
+    .sort({
+      updatedAt:-1,
+      createdAt:-1
+    })
+    .lean();
+
+}
+
+async function resolveAddStopPolicy(trip){
+
+  const serviceKey =
+    getTripServiceKey(trip);
+
+  if(!serviceKey){
+
+    return {
+      addStopEnabled:false
+    };
+
+  }
+
+  const override =
+    await findFacilityOverride(
+      trip
+    );
+
+  if(override){
+
+    const services =
+      Array.isArray(
+        override.services
+      )
+        ? override.services
+        : [];
+
+    const overrideService =
+      services.find(
+        service =>
+          getOverrideServiceCode(
+            service
+          ) === serviceKey
+      );
+
+    if(
+      overrideService &&
+      isOverrideServiceEnabled(
+        overrideService
+      )
+    ){
+
+      return {
+
+        source:
+          "FACILITY_OVERRIDE",
+
+        addStopEnabled:
+          bool(
+            overrideService
+              .addStopEnabled ??
+            overrideService
+              .companyAddStopEnabled ??
+            false
+          ),
+
+        addStopCustomTimeEnabled:
+          bool(
+            overrideService
+              .addStopCustomTimeEnabled ??
+            overrideService
+              .companyAddStopCustomTimeEnabled ??
+            false
+          ),
+
+        addStopCutoffMinutes:
+          Math.max(
+            0,
+            n(
+              overrideService
+                .addStopCutoffMinutes ??
+              overrideService
+                .companyAddStopCutoffMinutes ??
+              0
+            )
+          )
+
+      };
+
+    }
+
+  }
+
+  const service =
+    await Service
+      .findOne(
+        buildServiceSearchFilter(
+          serviceKey
+        )
+      )
+      .lean();
+
+  if(!service){
+
+    return {
+      addStopEnabled:false
+    };
+
+  }
+
+  if(
+    service.companyEnabled === false ||
+    service.enabled === false ||
+    service.active === false
+  ){
+
+    return {
+      addStopEnabled:false
+    };
+
+  }
+
+  return {
+
+    source:
+      "SERVICE_MANAGEMENT",
+
+    addStopEnabled:
+      bool(
+        service.companyAddStopEnabled ??
+        service.addStopEnabled ??
+        false
+      ),
+
+    addStopCustomTimeEnabled:
+      bool(
+        service
+          .companyAddStopCustomTimeEnabled ??
+        service
+          .addStopCustomTimeEnabled ??
+        false
+      ),
+
+    addStopCutoffMinutes:
+      Math.max(
+        0,
+        n(
+          service
+            .companyAddStopCutoffMinutes ??
+          service
+            .addStopCutoffMinutes ??
+          0
+        )
+      )
+
+  };
+
+}
+
+function isAddStopPolicyAllowed(
+  trip,
+  policy
+){
+
+  if(
+    !policy ||
+    policy.addStopEnabled !== true
+  ){
+
+    return false;
+
+  }
+
+  if(
+    policy
+      .addStopCustomTimeEnabled !== true
+  ){
+
+    return tripIsInProgress(trip);
+
+  }
+
+  const tripDateTime =
+    getTripDateTime(trip);
+
+  if(!tripDateTime){
+
+    return false;
+
+  }
+
+  const cutoffMinutes =
+    Math.max(
+      0,
+      n(
+        policy
+          .addStopCutoffMinutes,
+        0
+      )
+    );
+
+  const cutoffTime =
+    new Date(
+      tripDateTime.getTime() -
+      cutoffMinutes * 60000
+    );
+
+  return (
+    Date.now() <=
+    cutoffTime.getTime()
+  );
+
+}
+
+/* =========================
+   LINKS
 ========================= */
 
 function buildCancelLink(trip){
 
-  const cancelToken =
+  const token =
     clean(
       trip?.cancelToken
     );
 
-  if(!cancelToken){
+  if(!token){
 
     return "";
 
@@ -316,18 +826,12 @@ function buildCancelLink(trip){
   return (
     `${PUBLIC_BASE_URL}` +
     `/booking/cancel.html?token=` +
-    encodeURIComponent(cancelToken)
+    encodeURIComponent(token)
   );
 
 }
 
-/* =========================
-   ADD STOP TOKEN
-========================= */
-
-function createCustomerAddStopToken(
-  trip
-){
+function createCustomerAddStopToken(trip){
 
   if(!trip?._id){
 
@@ -351,11 +855,7 @@ function createCustomerAddStopToken(
 
 }
 
-/* =========================
-   ADD STOP LINK
-========================= */
-
-function buildAddStopLink(trip){
+async function buildAddStopLink(trip){
 
   if(
     !trip ||
@@ -369,12 +869,28 @@ function buildAddStopLink(trip){
 
   }
 
-  const addStopToken =
+  const policy =
+    await resolveAddStopPolicy(
+      trip
+    );
+
+  if(
+    !isAddStopPolicyAllowed(
+      trip,
+      policy
+    )
+  ){
+
+    return "";
+
+  }
+
+  const token =
     createCustomerAddStopToken(
       trip
     );
 
-  if(!addStopToken){
+  if(!token){
 
     return "";
 
@@ -383,13 +899,13 @@ function buildAddStopLink(trip){
   return (
     `${PUBLIC_BASE_URL}` +
     `/getquote/customer-add-stop.html?token=` +
-    encodeURIComponent(addStopToken)
+    encodeURIComponent(token)
   );
 
 }
 
 /* =========================
-   BUTTON
+   EMAIL BUTTON
 ========================= */
 
 function buildEmailButton({
@@ -432,6 +948,55 @@ function buildEmailButton({
 }
 
 /* =========================
+   STOPS HTML
+========================= */
+
+function buildStopsHtml(stops){
+
+  const list =
+    Array.isArray(stops)
+      ? stops
+          .map(stop=>clean(stop))
+          .filter(Boolean)
+      : [];
+
+  if(!list.length){
+
+    return "";
+
+  }
+
+  return list
+    .map(
+      (stop,index)=>`
+
+        <tr>
+
+          <td style="
+            padding:8px 0;
+            font-weight:bold;
+            width:110px;
+            vertical-align:top;
+          ">
+            Stop ${index + 1}:
+          </td>
+
+          <td style="
+            padding:8px 0;
+            vertical-align:top;
+          ">
+            ${escapeHtml(stop)}
+          </td>
+
+        </tr>
+
+      `
+    )
+    .join("");
+
+}
+
+/* =========================
    SEND EMAIL
 ========================= */
 
@@ -444,7 +1009,7 @@ async function sendTripStatusEmail(
 
     if(!trip){
 
-      return;
+      return null;
 
     }
 
@@ -458,7 +1023,7 @@ async function sendTripStatusEmail(
       isCompanyTrip(trip)
     ){
 
-      return;
+      return null;
 
     }
 
@@ -467,7 +1032,7 @@ async function sendTripStatusEmail(
       trip.confirmationEmailSent === true
     ){
 
-      return;
+      return null;
 
     }
 
@@ -514,36 +1079,32 @@ async function sendTripStatusEmail(
       );
 
     const addStopLink =
-      buildAddStopLink(
+      await buildAddStopLink(
         trip
       );
 
+    const addStopButton =
+      buildEmailButton({
+        href:addStopLink,
+        label:"Add Stop",
+        background:"#2563eb",
+        marginRight:true
+      });
+
+    const cancelButton =
+      buildEmailButton({
+        href:cancelLink,
+        label:"Cancel Trip",
+        background:"#dc2626"
+      });
+
     let subject = "";
     let statusBlock = "";
-
-    /* =========================
-       CONFIRMED
-    ========================= */
 
     if(type === "CONFIRMED"){
 
       subject =
         "Trip Confirmation";
-
-      const addStopButton =
-        buildEmailButton({
-          href:addStopLink,
-          label:"Add Stop",
-          background:"#2563eb",
-          marginRight:true
-        });
-
-      const cancelButton =
-        buildEmailButton({
-          href:cancelLink,
-          label:"Cancel Trip",
-          background:"#dc2626"
-        });
 
       statusBlock = `
 
@@ -567,31 +1128,38 @@ async function sendTripStatusEmail(
           ).toFixed(2)}
         </p>
 
-        ${
-          addStopButton ||
-          cancelButton
-            ? `
-              <div style="
-                margin-top:18px;
-                padding-top:16px;
-                border-top:1px solid #e5e7eb;
-              ">
-                ${addStopButton}
-                ${cancelButton}
-              </div>
-            `
-            : ""
-        }
+      `;
+
+    }else if(type === "ROUTE_UPDATED"){
+
+      subject =
+        "Trip Route Updated";
+
+      statusBlock = `
+
+        <p style="
+          margin:0 0 12px;
+          color:#111827;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          Your trip route has been updated successfully.
+        </p>
+
+        <p style="
+          margin:0 0 14px;
+          color:#111827;
+          font-size:15px;
+        ">
+          <b>New Total:</b>
+          $${Number(
+            trip.priceAmount || 0
+          ).toFixed(2)}
+        </p>
 
       `;
 
-    }
-
-    /* =========================
-       REMINDER
-    ========================= */
-
-    else if(type === "REMINDER"){
+    }else if(type === "REMINDER"){
 
       subject =
         "Trip Reminder";
@@ -609,17 +1177,31 @@ async function sendTripStatusEmail(
 
       `;
 
-    }
+    }else{
 
-    else{
-
-      return;
+      return null;
 
     }
 
-    /* =========================
-       SAFE EMAIL VALUES
-    ========================= */
+    const actionButtons =
+
+      addStopButton ||
+      cancelButton
+
+        ? `
+
+          <div style="
+            margin-top:18px;
+            padding-top:16px;
+            border-top:1px solid #e5e7eb;
+          ">
+            ${addStopButton}
+            ${cancelButton}
+          </div>
+
+        `
+
+        : "";
 
     const companyDisplayName =
       clean(
@@ -627,34 +1209,10 @@ async function sendTripStatusEmail(
       ) ||
       "Sunbeam Transportation";
 
-    const tripNumber =
-      escapeHtml(
-        trip.tripNumber || ""
+    const stopsHtml =
+      buildStopsHtml(
+        trip.stops
       );
-
-    const pickup =
-      escapeHtml(
-        trip.pickup || ""
-      );
-
-    const dropoff =
-      escapeHtml(
-        trip.dropoff || ""
-      );
-
-    const tripDate =
-      escapeHtml(
-        formatted.date || ""
-      );
-
-    const tripTime =
-      escapeHtml(
-        formatted.time || ""
-      );
-
-    /* =========================
-       SEND
-    ========================= */
 
     const result =
       await transporter.sendMail({
@@ -686,7 +1244,7 @@ async function sendTripStatusEmail(
 
               <div style="
                 padding:20px;
-                background:linear-gradient(135deg,#0f172a,#1d4ed8);
+                background:#1d4ed8;
                 color:#ffffff;
               ">
 
@@ -714,6 +1272,7 @@ async function sendTripStatusEmail(
                 >
 
                   <tr>
+
                     <td style="
                       padding:8px 0;
                       font-weight:bold;
@@ -727,11 +1286,15 @@ async function sendTripStatusEmail(
                       padding:8px 0;
                       vertical-align:top;
                     ">
-                      ${tripNumber}
+                      ${escapeHtml(
+                        trip.tripNumber || ""
+                      )}
                     </td>
+
                   </tr>
 
                   <tr>
+
                     <td style="
                       padding:8px 0;
                       font-weight:bold;
@@ -744,11 +1307,17 @@ async function sendTripStatusEmail(
                       padding:8px 0;
                       vertical-align:top;
                     ">
-                      ${pickup}
+                      ${escapeHtml(
+                        trip.pickup || ""
+                      )}
                     </td>
+
                   </tr>
 
+                  ${stopsHtml}
+
                   <tr>
+
                     <td style="
                       padding:8px 0;
                       font-weight:bold;
@@ -761,11 +1330,15 @@ async function sendTripStatusEmail(
                       padding:8px 0;
                       vertical-align:top;
                     ">
-                      ${dropoff}
+                      ${escapeHtml(
+                        trip.dropoff || ""
+                      )}
                     </td>
+
                   </tr>
 
                   <tr>
+
                     <td style="
                       padding:8px 0;
                       font-weight:bold;
@@ -778,11 +1351,15 @@ async function sendTripStatusEmail(
                       padding:8px 0;
                       vertical-align:top;
                     ">
-                      ${tripDate}
+                      ${escapeHtml(
+                        formatted.date || ""
+                      )}
                     </td>
+
                   </tr>
 
                   <tr>
+
                     <td style="
                       padding:8px 0;
                       font-weight:bold;
@@ -795,8 +1372,11 @@ async function sendTripStatusEmail(
                       padding:8px 0;
                       vertical-align:top;
                     ">
-                      ${tripTime}
+                      ${escapeHtml(
+                        formatted.time || ""
+                      )}
                     </td>
+
                   </tr>
 
                 </table>
@@ -806,7 +1386,11 @@ async function sendTripStatusEmail(
                   padding-top:18px;
                   border-top:1px solid #e5e7eb;
                 ">
+
                   ${statusBlock}
+
+                  ${actionButtons}
+
                 </div>
 
               </div>
@@ -845,8 +1429,17 @@ async function sendTripStatusEmail(
 ========================= */
 
 module.exports = {
+
   sendTripStatusEmail,
+
   buildCancelLink,
+
   buildAddStopLink,
-  createCustomerAddStopToken
+
+  createCustomerAddStopToken,
+
+  resolveAddStopPolicy,
+
+  isAddStopPolicyAllowed
+
 };
