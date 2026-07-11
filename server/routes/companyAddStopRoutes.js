@@ -254,7 +254,7 @@ function enforceCompanyAddStopPolicy(trip,policy){
 
   const cutoff = Math.max(0,toNumber(policy.cutoffMinutes));
 
-  if(mins < cutoff){
+  if(mins <= cutoff){
     const err = new Error(
       cutoff > 0
         ? `Add Stop closed ${cutoff} minutes before the trip`

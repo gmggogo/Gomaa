@@ -1374,10 +1374,10 @@ function serviceAllowsAddStop(trip){
     Number(service.companyAddStopCutoffMinutes || 0);
 
   if(cutoff <= 0){
-    return mins >= 0;
+    return mins > 0;
   }
 
-  return mins >= cutoff;
+  return mins > cutoff;
 }
 
 function renderAddStopButton(trip){
