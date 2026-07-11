@@ -113,12 +113,6 @@ async function authorizeTripAmount(trip, amount, reason = "TRIP_AUTHORIZATION"){
       confirm: true,
       off_session: true,
       payment_method_types: ["card"],
-      payment_method_options: {
-        card: {
-          request_incremental_authorization: "if_available",
-          request_extended_authorization: "if_available"
-        }
-      },
       metadata: {
         tripId: String(trip._id),
         tripNumber: String(trip.tripNumber || ""),
@@ -177,11 +171,37 @@ async function changeAuthorizedAmount(trip, newAmount){
     let updated;
 
     if(newCents > oldCents){
-      updated = await stripe.paymentIntents.incrementAuthorization(
-        intentId,
-        { amount: newCents },
-        { idempotencyKey: `trip-increment-${trip._id}-${newCents}` }
-      );
+      /*
+        Incremental authorization is not enabled on every Stripe account.
+        Authorize the exact replacement amount first. Only after it succeeds
+        do we release the old hold, so a decline leaves the old route/hold.
+      */
+      updated = await stripe.paymentIntents.create({
+        amount:newCents,
+        currency:"usd",
+        customer:trip.stripeCustomerId,
+        payment_method:trip.stripePaymentMethodId,
+        capture_method:"manual",
+        confirm:true,
+        off_session:true,
+        payment_method_types:["card"],
+        metadata:{
+          tripId:String(trip._id),
+          tripNumber:String(trip.tripNumber || ""),
+          purpose:"ROUTE_CHANGE_REPLACEMENT"
+        }
+      },{
+        idempotencyKey:`trip-replacement-auth-${trip._id}-${newCents}`
+      });
+
+      if(updated.status !== "requires_capture"){
+        throw new Error(`Replacement authorization failed: ${updated.status}`);
+      }
+
+      await stripe.paymentIntents.cancel(intentId);
+
+      trip.authorizationPaymentIntentId = updated.id;
+      trip.paymentIntentId = updated.id;
     }else{
       updated = await stripe.paymentIntents.update(
         intentId,

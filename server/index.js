@@ -1,3 +1,6 @@
+
+
+
 require("dotenv").config();
 
 const fetch =
@@ -6023,10 +6026,9 @@ res.json({
   res.status(500).json({
 
     message:
-      err.message || "Server error",
-
-    error:
-      err.toString()
+      err?.paymentFailed
+        ? "We could not process the applicable cancellation fee. Please update your payment method or contact support."
+        : "Unable to cancel this trip. Please contact support."
 
   });
 
