@@ -1159,7 +1159,6 @@ function serviceHasReservedConfiguration(service){
 function resolveReservedCodeFromService(service){
 
   const reservedFields = [
-    service?.reservedSuffix,
     service?.reservedServiceSuffix,
     service?.reservedServiceCode,
     service?.reservedServiceKey
@@ -1167,7 +1166,9 @@ function resolveReservedCodeFromService(service){
 
   for(const field of reservedFields){
     const code = normalizeCode(field);
-    if(code) return code;
+    if(["ST","WH","XL","LM","TX","SH"].includes(code)){
+      return code;
+    }
   }
 
   /*
@@ -1202,7 +1203,6 @@ async function getReservedServiceForTrip(trip){
 
   const found =
     services.find(service=>
-      bool(service.reservedEnabled) === true &&
       serviceHasReservedConfiguration(service) &&
       resolveReservedCodeFromService(service) === code
     );
