@@ -132,6 +132,117 @@ app.post(
 
     try {
 
+/* =========================
+   STRIPE HOSTED CHECKOUT
+   SAVE CARD WITHOUT CHARGING
+========================= */
+
+if(
+  event.type ===
+  "checkout.session.completed"
+){
+
+  const session =
+    event.data.object;
+
+  if(session.mode !== "setup"){
+    return res.sendStatus(200);
+  }
+
+  const tripId =
+    session.metadata?.tripId ||
+    session.client_reference_id;
+
+  if(!tripId){
+    return res.sendStatus(200);
+  }
+
+  const trip =
+    await Trip.findById(tripId);
+
+  if(!trip){
+    return res.sendStatus(200);
+  }
+
+  if(
+    trip.stripeCustomerId &&
+    String(session.customer || "") !==
+    String(trip.stripeCustomerId)
+  ){
+    console.log(
+      "STRIPE CHECKOUT CUSTOMER MISMATCH:",
+      trip.tripNumber
+    );
+
+    return res.sendStatus(400);
+  }
+
+  const setupIntent =
+    await stripe.setupIntents.retrieve(
+      session.setup_intent
+    );
+
+  if(
+    setupIntent.status !== "succeeded" ||
+    String(setupIntent.metadata?.tripId || "") !==
+    String(trip._id)
+  ){
+    return res.sendStatus(400);
+  }
+
+  trip.stripeCustomerId =
+    String(
+      session.customer ||
+      setupIntent.customer ||
+      ""
+    );
+
+  trip.stripePaymentMethodId =
+    String(
+      setupIntent.payment_method ||
+      ""
+    );
+
+  trip.setupIntentId =
+    setupIntent.id;
+
+  trip.paymentStatus =
+    "PAYMENT_METHOD_SAVED";
+
+  trip.paymentFailureCode = "";
+  trip.paymentFailureMessage = "";
+  trip.paymentRequiredEmailSentAt = null;
+
+  if(!trip.cancelToken){
+    trip.cancelToken =
+      crypto
+        .randomBytes(32)
+        .toString("hex");
+  }
+
+  await trip.save();
+
+  if(!trip.confirmationEmailSent){
+    const sent =
+      await sendTripStatusEmail(
+        trip,
+        "CONFIRMED"
+      );
+
+    if(sent){
+      trip.confirmationEmailSent = true;
+      await trip.save();
+    }
+  }
+
+  console.log(
+    "STRIPE CARD SAVED:",
+    trip.tripNumber
+  );
+
+  return res.sendStatus(200);
+}
+
    /* =========================
    PAYMENT SUCCESS
 ========================= */
