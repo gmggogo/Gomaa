@@ -2287,33 +2287,54 @@ function reservedAllowsAddStop(trip){
     return false;
   }
 
+  const status =
+    cleanStatus(trip.status);
+
+  if([
+    "completed",
+    "cancelled",
+    "noshow",
+    "notcompleted"
+  ].includes(status)){
+    return false;
+  }
+
   const service =
     getServiceByTrip(trip);
 
   if(!service) return false;
 
-  if(bool(service.reservedAddStopEnabled) !== true){
-    return false;
-  }
+  const normalEnabled =
+    bool(service.reservedAddStopEnabled);
 
-  const custom =
+  const customEnabled =
     bool(service.reservedAddStopCustomTimeEnabled);
 
-  if(!custom) return true;
+  /* Normal Add Stop is the strongest policy. */
+  if(normalEnabled){
+    return true;
+  }
+
+  /* Both policies are disabled. */
+  if(!customEnabled){
+    return false;
+  }
 
   const mins =
     minutesToTrip(trip);
 
-  if(mins === null) return true;
-
-  const cutoff =
-    Number(service.reservedAddStopCutoffMinutes || 0);
-
-  if(cutoff <= 0){
-    return mins >= 0;
+  if(mins === null){
+    return false;
   }
 
-  return mins >= cutoff;
+  const cutoff =
+    Math.max(
+      0,
+      Number(service.reservedAddStopCutoffMinutes || 0)
+    );
+
+  /* At the configured cutoff, or below it, Add Stop is hidden. */
+  return mins > cutoff;
 }
 
 function renderAddStopButton(t){
@@ -3690,10 +3711,6 @@ async function handleAddStop(btn){
 
   if(!reservedAllowsAddStop(trip)){
     showAlert("Add Stop is not available for this Reserved trip.");
-    return;
-  }
-
-  if(!checkTripWarningByTrip(trip)){
     return;
   }
 
