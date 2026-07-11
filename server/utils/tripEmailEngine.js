@@ -3,7 +3,7 @@
 /* =========================================
 FILE: utils/tripEmailEngine.js
 
-GET QUOTE CUSTOMER EMAIL
+GET QUOTE EMAIL ONLY
 
 - CONFIRMED
 - REMINDER
@@ -11,8 +11,10 @@ GET QUOTE CUSTOMER EMAIL
 - CANCELLED
 - NOSHOW
 - Cancel Trip button
-- Add Stop button controlled by
-  Get Quote Service Management only
+- Add Stop button controlled only by:
+  getQuoteAddStopEnabled
+  getQuoteAddStopCustomTimeEnabled
+  getQuoteAddStopCutoffMinutes
 ========================================= */
 
 const nodemailer =
@@ -54,31 +56,37 @@ const CUSTOMER_LINK_SECRET =
 
 function clean(value){
 
-  return String(value ?? "")
+  return String(
+    value ?? ""
+  )
     .replace(/\s+/g," ")
     .trim();
+
 }
 
 function upper(value){
 
   return clean(value)
     .toUpperCase();
+
 }
 
 function lower(value){
 
   return clean(value)
     .toLowerCase();
+
 }
 
 function n(value,fallback = 0){
 
-  const num =
+  const parsed =
     Number(value);
 
-  return Number.isFinite(num)
-    ? num
+  return Number.isFinite(parsed)
+    ? parsed
     : fallback;
+
 }
 
 function bool(value){
@@ -89,6 +97,7 @@ function bool(value){
     lower(value) === "yes" ||
     lower(value) === "1"
   );
+
 }
 
 function escapeHtml(value){
@@ -99,6 +108,7 @@ function escapeHtml(value){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
+
 }
 
 function escapeRegex(value){
@@ -108,6 +118,7 @@ function escapeRegex(value){
       /[.*+?^${}()|[\]\\]/g,
       "\\$&"
     );
+
 }
 
 function cleanStatus(value){
@@ -116,6 +127,7 @@ function cleanStatus(value){
     .replace(/\s+/g,"")
     .replace(/-/g,"")
     .replace(/_/g,"");
+
 }
 
 /* =========================
@@ -173,6 +185,7 @@ function normalizeServiceCode(value){
   }
 
   return code;
+
 }
 
 function getTripServiceValue(trip){
@@ -185,9 +198,10 @@ function getTripServiceValue(trip){
     trip?.vehicle ||
     ""
   );
+
 }
 
-function getServiceSearchCandidates(trip){
+function getServiceCandidates(trip){
 
   const raw =
     upper(
@@ -208,8 +222,11 @@ function getServiceSearchCandidates(trip){
       v &&
       !values.includes(v)
     ){
+
       values.push(v);
+
     }
+
   }
 
   add(raw);
@@ -238,15 +255,18 @@ function getServiceSearchCandidates(trip){
   }
 
   return values;
+
 }
 
 async function findGetQuoteService(trip){
 
   const candidates =
-    getServiceSearchCandidates(trip);
+    getServiceCandidates(trip);
 
   if(!candidates.length){
+
     return null;
+
   }
 
   const regexes =
@@ -288,12 +308,6 @@ async function findGetQuoteService(trip){
       },
 
       {
-        getQuoteSuffix:{
-          $in:candidates
-        }
-      },
-
-      {
         title:{
           $in:regexes
         }
@@ -314,6 +328,7 @@ async function findGetQuoteService(trip){
     ]
 
   }).lean();
+
 }
 
 /* =========================
@@ -349,21 +364,25 @@ function createEmailTransporter(settings){
       pass:
         settings?.smtpPass ||
         process.env.EMAIL_PASS
+
     }
+
   });
+
 }
 
 /* =========================
    DATE / TIME
 ========================= */
 
-function getSystemTimeZone(settings){
+function getSystemTimezone(settings){
 
   return (
     settings?.timezone ||
     process.env.SYSTEM_TIMEZONE ||
     "America/Phoenix"
   );
+
 }
 
 function getSystemNow(settings){
@@ -373,10 +392,11 @@ function getSystemNow(settings){
       "en-US",
       {
         timeZone:
-          getSystemTimeZone(settings)
+          getSystemTimezone(settings)
       }
     )
   );
+
 }
 
 function getTripDateTime(trip){
@@ -392,17 +412,19 @@ function getTripDateTime(trip){
     );
 
   if(!date || !time){
+
     return null;
+
   }
 
-  const rawTime =
+  const safeTime =
     time.length === 5
       ? `${time}:00`
       : time;
 
   const result =
     new Date(
-      `${date}T${rawTime}`
+      `${date}T${safeTime}`
     );
 
   if(
@@ -410,10 +432,13 @@ function getTripDateTime(trip){
       result.getTime()
     )
   ){
+
     return null;
+
   }
 
   return result;
+
 }
 
 function formatTripDateTime(
@@ -440,10 +465,11 @@ function formatTripDateTime(
       date:rawDate,
       time:rawTime
     };
+
   }
 
   const timezone =
-    getSystemTimeZone(
+    getSystemTimezone(
       settings
     );
 
@@ -471,6 +497,7 @@ function formatTripDateTime(
             minute:"2-digit"
           }
         )
+
     };
 
   }catch(err){
@@ -479,7 +506,9 @@ function formatTripDateTime(
       date:rawDate,
       time:rawTime
     };
+
   }
+
 }
 
 /* =========================
@@ -498,12 +527,15 @@ function isCompanyTrip(trip){
     type.includes("company") ||
     type.includes("facility")
   );
+
 }
 
 function isSharedTrip(trip){
 
   if(!trip){
+
     return false;
+
   }
 
   const tripType =
@@ -528,6 +560,7 @@ function isSharedTrip(trip){
     serviceCode === "SH" ||
     tripNumber.includes("-SH")
   );
+
 }
 
 function isClosedTrip(trip){
@@ -543,30 +576,11 @@ function isClosedTrip(trip){
     status.includes("noshow") ||
     status.includes("notcompleted")
   );
-}
 
-function tripIsInProgress(trip){
-
-  const status =
-    cleanStatus(
-      trip?.status
-    );
-
-  return [
-    "ontrip",
-    "started",
-    "inprogress",
-    "pickedup",
-    "pickupcompleted",
-    "passengerpickedup",
-    "enroute",
-    "active"
-  ].includes(status);
 }
 
 /* =========================
-   ADD STOP POLICY
-   GET QUOTE ONLY
+   GET QUOTE ADD STOP POLICY
 ========================= */
 
 function getGetQuotePolicy(service){
@@ -574,8 +588,15 @@ function getGetQuotePolicy(service){
   if(!service){
 
     return {
-      addStopEnabled:false
+
+      normalAddStopEnabled:false,
+
+      customTimeEnabled:false,
+
+      cutoffMinutes:0
+
     };
+
   }
 
   if(
@@ -584,41 +605,50 @@ function getGetQuotePolicy(service){
   ){
 
     return {
-      addStopEnabled:false
+
+      normalAddStopEnabled:false,
+
+      customTimeEnabled:false,
+
+      cutoffMinutes:0
+
     };
+
   }
 
   return {
 
-    addStopEnabled:
+    normalAddStopEnabled:
       bool(
-        service.addStopEnabled ??
+        service
+          .getQuoteAddStopEnabled ??
         false
       ),
 
-    addStopCustomTimeEnabled:
+    customTimeEnabled:
       bool(
-        service.addStopCustomTimeEnabled ??
+        service
+          .getQuoteAddStopCustomTimeEnabled ??
         false
       ),
 
-    addStopCutoffMinutes:
+    cutoffMinutes:
       Math.max(
         0,
         n(
-          service.addStopCutoffMinutes,
+          service
+            .getQuoteAddStopCutoffMinutes,
           0
         )
-      ),
+      )
 
-    addStopDuringTripEnabled:
-      service.addStopDuringTripEnabled === undefined
-        ? true
-        : bool(
-            service.addStopDuringTripEnabled
-          )
   };
+
 }
+
+/* =========================
+   INDEPENDENT POLICY LOGIC
+========================= */
 
 function isAddStopAllowed(
   trip,
@@ -627,61 +657,82 @@ function isAddStopAllowed(
 ){
 
   if(
-    !policy ||
-    policy.addStopEnabled !== true
+    !trip ||
+    isClosedTrip(trip)
   ){
 
     return false;
+
   }
+
+  const normalEnabled =
+    policy
+      ?.normalAddStopEnabled === true;
+
+  const customEnabled =
+    policy
+      ?.customTimeEnabled === true;
+
+  /*
+    Both disabled.
+  */
 
   if(
-    tripIsInProgress(trip)
+    !normalEnabled &&
+    !customEnabled
   ){
 
-    return (
-      policy.addStopDuringTripEnabled !== false
-    );
+    return false;
+
   }
+
+  /*
+    Normal Add Stop works by itself.
+    It stays available until Dropoff.
+  */
+
+  if(normalEnabled){
+
+    return true;
+
+  }
+
+  /*
+    Only Custom Time is active.
+  */
 
   const tripDateTime =
     getTripDateTime(trip);
 
   if(!tripDateTime){
+
     return false;
+
   }
 
   const now =
-    getSystemNow(
-      settings
-    );
+    getSystemNow(settings);
 
-  if(
-    policy.addStopCustomTimeEnabled !== true
-  ){
-
-    return (
-      now.getTime() <=
-      tripDateTime.getTime()
+  const cutoffMinutes =
+    Math.max(
+      0,
+      n(
+        policy?.cutoffMinutes,
+        0
+      )
     );
-  }
 
   const cutoffTime =
     new Date(
       tripDateTime.getTime() -
-      Math.max(
-        0,
-        n(
-          policy.addStopCutoffMinutes,
-          0
-        )
-      ) *
-      60000
+      cutoffMinutes * 60000
     );
 
   return (
-    now.getTime() <=
+    now.getTime() <
     cutoffTime.getTime()
   );
+
 }
 
 /* =========================
@@ -696,7 +747,9 @@ function buildCancelLink(trip){
     );
 
   if(!cancelToken){
+
     return "";
+
   }
 
   return (
@@ -706,16 +759,20 @@ function buildCancelLink(trip){
       cancelToken
     )
   );
+
 }
 
 function createCustomerAddStopToken(trip){
 
   if(!trip?._id){
+
     return "";
+
   }
 
   return jwt.sign(
     {
+
       tripId:
         String(
           trip._id
@@ -723,12 +780,14 @@ function createCustomerAddStopToken(trip){
 
       purpose:
         "CUSTOMER_ADD_STOP"
+
     },
     CUSTOMER_LINK_SECRET,
     {
       expiresIn:"30d"
     }
   );
+
 }
 
 async function buildAddStopLink(
@@ -745,6 +804,7 @@ async function buildAddStopLink(
   ){
 
     return "";
+
   }
 
   const service =
@@ -753,7 +813,9 @@ async function buildAddStopLink(
     );
 
   if(!service){
+
     return "";
+
   }
 
   const policy =
@@ -770,6 +832,7 @@ async function buildAddStopLink(
   ){
 
     return "";
+
   }
 
   const token =
@@ -778,7 +841,9 @@ async function buildAddStopLink(
     );
 
   if(!token){
+
     return "";
+
   }
 
   return (
@@ -786,6 +851,7 @@ async function buildAddStopLink(
     `/getquote/customer-add-stop.html?token=` +
     encodeURIComponent(token)
   );
+
 }
 
 /* =========================
@@ -800,7 +866,9 @@ function buildEmailButton({
 }){
 
   if(!href){
+
     return "";
+
   }
 
   return `
@@ -826,6 +894,7 @@ function buildEmailButton({
     </a>
 
   `;
+
 }
 
 /* =========================
@@ -842,7 +911,9 @@ function buildStopsHtml(stops){
       : [];
 
   if(!list.length){
+
     return "";
+
   }
 
   return list
@@ -872,6 +943,7 @@ function buildStopsHtml(stops){
       `
     )
     .join("");
+
 }
 
 /* =========================
@@ -886,7 +958,9 @@ async function sendTripStatusEmail(
   try{
 
     if(!trip){
+
       return null;
+
     }
 
     const clientEmail =
@@ -900,6 +974,7 @@ async function sendTripStatusEmail(
     ){
 
       return null;
+
     }
 
     if(
@@ -908,6 +983,7 @@ async function sendTripStatusEmail(
     ){
 
       return null;
+
     }
 
     const settings =
@@ -929,6 +1005,7 @@ async function sendTripStatusEmail(
       throw new Error(
         "Email SMTP credentials are missing"
       );
+
     }
 
     const transporter =
@@ -956,39 +1033,30 @@ async function sendTripStatusEmail(
     const addStopButton =
       buildEmailButton({
 
-        href:
-          addStopLink,
+        href:addStopLink,
 
-        label:
-          "Add Stop",
+        label:"Add Stop",
 
-        background:
-          "#2563eb",
+        background:"#2563eb",
 
-        marginRight:
-          true
+        marginRight:true
+
       });
 
     const cancelButton =
       buildEmailButton({
 
-        href:
-          cancelLink,
+        href:cancelLink,
 
-        label:
-          "Cancel Trip",
+        label:"Cancel Trip",
 
-        background:
-          "#dc2626"
+        background:"#dc2626"
+
       });
 
     let subject = "";
     let statusBlock = "";
     let showActions = false;
-
-    /* =========================
-       CONFIRMED
-    ========================= */
 
     if(type === "CONFIRMED"){
 
@@ -1020,13 +1088,8 @@ async function sendTripStatusEmail(
       `;
 
       showActions = true;
-    }
 
-    /* =========================
-       ROUTE UPDATED
-    ========================= */
-
-    else if(type === "ROUTE_UPDATED"){
+    }else if(type === "ROUTE_UPDATED"){
 
       subject =
         "Trip Route Updated";
@@ -1056,13 +1119,8 @@ async function sendTripStatusEmail(
       `;
 
       showActions = true;
-    }
 
-    /* =========================
-       REMINDER
-    ========================= */
-
-    else if(type === "REMINDER"){
+    }else if(type === "REMINDER"){
 
       subject =
         "Trip Reminder";
@@ -1081,13 +1139,8 @@ async function sendTripStatusEmail(
       `;
 
       showActions = true;
-    }
 
-    /* =========================
-       CANCELLED
-    ========================= */
-
-    else if(type === "CANCELLED"){
+    }else if(type === "CANCELLED"){
 
       subject =
         "Trip Cancelled";
@@ -1104,13 +1157,8 @@ async function sendTripStatusEmail(
         </p>
 
       `;
-    }
 
-    /* =========================
-       NO SHOW
-    ========================= */
-
-    else if(type === "NOSHOW"){
+    }else if(type === "NOSHOW"){
 
       subject =
         "Trip No Show";
@@ -1127,11 +1175,11 @@ async function sendTripStatusEmail(
         </p>
 
       `;
-    }
 
-    else{
+    }else{
 
       return null;
+
     }
 
     const actionButtons =
@@ -1354,6 +1402,7 @@ async function sendTripStatusEmail(
           </div>
 
         `
+
       });
 
     console.log(
@@ -1372,7 +1421,9 @@ async function sendTripStatusEmail(
     );
 
     return null;
+
   }
+
 }
 
 /* =========================
@@ -1394,4 +1445,5 @@ module.exports = {
   getGetQuotePolicy,
 
   isAddStopAllowed
+
 };

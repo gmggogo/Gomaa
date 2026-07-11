@@ -5,39 +5,41 @@ FILE: routes/customerAddStopRoutes.js
 
 CUSTOMER GET QUOTE ADD STOP
 
-GET
-/api/customer-add-stop/:token
+GET:
+  /api/customer-add-stop/:token
 
-POST
-/api/customer-add-stop/:token/confirm
+POST:
+  /api/customer-add-stop/:token/confirm
 
 GET QUOTE ONLY:
+- Service Management Get Quote fields only
 - No Facility Override
-- No Company pricing fields
-- No Reserved pricing fields
-- Reads Get Quote Service Management only
-- Calculates route on server
-- Recalculates full Get Quote price
-- Replaces old route and old price
-- Updates the same trip
+- No Company fields
+- No Reserved fields
+- Add Stop and Custom Time work independently
+- Server calculates the new Google route
+- Server recalculates complete Get Quote price
+- Updates the existing trip
 - Sends ROUTE_UPDATED email
 ========================================= */
 
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-
-const router = express.Router();
+const fetch = require("node-fetch");
 
 const Service =
   require("../models/Service");
 
-const routeMapEngine =
-  require("../utils/routeMapEngine");
+const SystemDesign =
+  require("../models/SystemDesign");
 
 const {
   sendTripStatusEmail
 } = require("../utils/tripEmailEngine");
+
+const router =
+  express.Router();
 
 /* =========================
    TRIP MODEL
@@ -48,9 +50,11 @@ const Trip =
   mongoose.models.Trip;
 
 if(!Trip){
+
   throw new Error(
-    "customerAddStopRoutes must be mounted after the Trip model is created"
+    "customerAddStopRoutes must be mounted after Trip model is created"
   );
+
 }
 
 /* =========================
@@ -70,27 +74,38 @@ const CUSTOMER_LINK_SECRET =
 ========================= */
 
 function clean(value){
-  return String(value ?? "")
+
+  return String(
+    value ?? ""
+  )
     .replace(/\s+/g," ")
     .trim();
+
 }
 
 function upper(value){
-  return clean(value).toUpperCase();
+
+  return clean(value)
+    .toUpperCase();
+
 }
 
 function lower(value){
-  return clean(value).toLowerCase();
+
+  return clean(value)
+    .toLowerCase();
+
 }
 
 function n(value,fallback = 0){
 
-  const num =
+  const parsed =
     Number(value);
 
-  return Number.isFinite(num)
-    ? num
+  return Number.isFinite(parsed)
+    ? parsed
     : fallback;
+
 }
 
 function bool(value){
@@ -101,6 +116,7 @@ function bool(value){
     lower(value) === "yes" ||
     lower(value) === "1"
   );
+
 }
 
 function money(value){
@@ -108,6 +124,7 @@ function money(value){
   return Number(
     n(value,0).toFixed(2)
   );
+
 }
 
 function cleanStatus(value){
@@ -116,6 +133,7 @@ function cleanStatus(value){
     .replace(/\s+/g,"")
     .replace(/-/g,"")
     .replace(/_/g,"");
+
 }
 
 function escapeRegex(value){
@@ -125,6 +143,7 @@ function escapeRegex(value){
       /[.*+?^${}()|[\]\\]/g,
       "\\$&"
     );
+
 }
 
 function validObjectId(value){
@@ -132,6 +151,7 @@ function validObjectId(value){
   return mongoose.Types.ObjectId.isValid(
     String(value || "")
   );
+
 }
 
 function safeArray(value){
@@ -139,10 +159,11 @@ function safeArray(value){
   return Array.isArray(value)
     ? value
     : [];
+
 }
 
 /* =========================
-   SERVICE HELPERS
+   SERVICE CODE
 ========================= */
 
 function normalizeServiceCode(value){
@@ -196,6 +217,7 @@ function normalizeServiceCode(value){
   }
 
   return code;
+
 }
 
 function getTripServiceValue(trip){
@@ -208,9 +230,10 @@ function getTripServiceValue(trip){
     trip?.vehicle ||
     ""
   );
+
 }
 
-function getServiceSearchCandidates(trip){
+function getServiceCandidates(trip){
 
   const raw =
     upper(
@@ -220,7 +243,7 @@ function getServiceSearchCandidates(trip){
   const normalized =
     normalizeServiceCode(raw);
 
-  const names = [];
+  const values = [];
 
   function add(value){
 
@@ -229,10 +252,11 @@ function getServiceSearchCandidates(trip){
 
     if(
       v &&
-      !names.includes(v)
+      !values.includes(v)
     ){
-      names.push(v);
+      values.push(v);
     }
+
   }
 
   add(raw);
@@ -260,19 +284,21 @@ function getServiceSearchCandidates(trip){
     add("SHARED");
   }
 
-  return names;
+  return values;
+
 }
 
 async function findGetQuoteService(trip){
 
   const candidates =
-    getServiceSearchCandidates(trip);
+    getServiceCandidates(trip);
 
   if(!candidates.length){
 
     throw new Error(
       "Trip Get Quote service is missing"
     );
+
   }
 
   const regexes =
@@ -315,12 +341,6 @@ async function findGetQuoteService(trip){
         },
 
         {
-          getQuoteSuffix:{
-            $in:candidates
-          }
-        },
-
-        {
           title:{
             $in:regexes
           }
@@ -347,12 +367,8 @@ async function findGetQuoteService(trip){
     throw new Error(
       "Get Quote service was not found in Service Management"
     );
-  }
 
-  /*
-    Get Quote service only.
-    Never check companyEnabled here.
-  */
+  }
 
   if(
     service.enabled === false ||
@@ -362,13 +378,15 @@ async function findGetQuoteService(trip){
     throw new Error(
       "This Get Quote service is disabled"
     );
+
   }
 
   return service;
+
 }
 
 /* =========================
-   TRIP HELPERS
+   ADDRESS HELPERS
 ========================= */
 
 function getPickup(trip){
@@ -378,6 +396,7 @@ function getPickup(trip){
     trip?.pickupAddress ||
     ""
   );
+
 }
 
 function getDropoff(trip){
@@ -387,6 +406,7 @@ function getDropoff(trip){
     trip?.dropoffAddress ||
     ""
   );
+
 }
 
 function getClientName(trip){
@@ -398,19 +418,24 @@ function getClientName(trip){
     trip?.name ||
     ""
   );
+
 }
 
 function getStopAddress(stop){
 
   if(typeof stop === "string"){
+
     return clean(stop);
+
   }
 
   if(
     !stop ||
     typeof stop !== "object"
   ){
+
     return "";
+
   }
 
   return clean(
@@ -420,6 +445,7 @@ function getStopAddress(stop){
     stop.location ||
     ""
   );
+
 }
 
 function normalizeStops(stops){
@@ -427,6 +453,7 @@ function normalizeStops(stops){
   return safeArray(stops)
     .map(getStopAddress)
     .filter(Boolean);
+
 }
 
 function sanitizeAddressArray(value){
@@ -434,6 +461,7 @@ function sanitizeAddressArray(value){
   return safeArray(value)
     .map(getStopAddress)
     .filter(Boolean);
+
 }
 
 function sameAddress(first,second){
@@ -442,6 +470,7 @@ function sameAddress(first,second){
     lower(first) ===
     lower(second)
   );
+
 }
 
 function sameAddressArray(first,second){
@@ -453,7 +482,9 @@ function sameAddressArray(first,second){
     sanitizeAddressArray(second);
 
   if(a.length !== b.length){
+
     return false;
+
   }
 
   return a.every(
@@ -463,10 +494,11 @@ function sameAddressArray(first,second){
         b[index]
       )
   );
+
 }
 
 /* =========================
-   TRIP TYPE / STATUS
+   TRIP CHECKS
 ========================= */
 
 function isCompanyTrip(trip){
@@ -481,12 +513,15 @@ function isCompanyTrip(trip){
     type.includes("company") ||
     type.includes("facility")
   );
+
 }
 
 function isSharedTrip(trip){
 
   if(!trip){
+
     return false;
+
   }
 
   const tripType =
@@ -500,7 +535,7 @@ function isSharedTrip(trip){
       trip.tripNumber
     );
 
-  const code =
+  const serviceCode =
     normalizeServiceCode(
       getTripServiceValue(trip)
     );
@@ -508,9 +543,10 @@ function isSharedTrip(trip){
   return (
     trip.isShared === true ||
     tripType === "SHARED" ||
-    code === "SH" ||
+    serviceCode === "SH" ||
     tripNumber.includes("-SH")
   );
+
 }
 
 function tripIsClosed(trip){
@@ -526,6 +562,7 @@ function tripIsClosed(trip){
     status.includes("noshow") ||
     status.includes("notcompleted")
   );
+
 }
 
 function tripIsInProgress(trip){
@@ -545,31 +582,51 @@ function tripIsInProgress(trip){
     "enroute",
     "active"
   ].includes(status);
+
 }
 
 /* =========================
-   DATE / TIME
+   SYSTEM TIME
 ========================= */
 
-function getSystemTimeZone(){
+async function getSystemSettings(){
+
+  try{
+
+    return (
+      await SystemDesign.findOne({}).lean()
+    ) || {};
+
+  }catch(err){
+
+    return {};
+
+  }
+
+}
+
+function getSystemTimezone(settings){
 
   return (
+    settings?.timezone ||
     process.env.SYSTEM_TIMEZONE ||
     "America/Phoenix"
   );
+
 }
 
-function getSystemNow(){
+function getSystemNow(settings){
 
   return new Date(
     new Date().toLocaleString(
       "en-US",
       {
         timeZone:
-          getSystemTimeZone()
+          getSystemTimezone(settings)
       }
     )
   );
+
 }
 
 function getTripDateTime(trip){
@@ -585,35 +642,49 @@ function getTripDateTime(trip){
     );
 
   if(!date || !time){
+
     return null;
+
   }
 
-  const rawTime =
+  const safeTime =
     time.length === 5
       ? `${time}:00`
       : time;
 
-  const parsed =
+  const result =
     new Date(
-      `${date}T${rawTime}`
+      `${date}T${safeTime}`
     );
 
   if(
     Number.isNaN(
-      parsed.getTime()
+      result.getTime()
     )
   ){
+
     return null;
+
   }
 
-  return parsed;
+  return result;
+
 }
 
 /* =========================
    GET QUOTE ADD STOP POLICY
+
+   The two settings are independent:
+
+   Normal Add Stop:
+   getQuoteAddStopEnabled
+
+   Custom Time:
+   getQuoteAddStopCustomTimeEnabled
+   getQuoteAddStopCutoffMinutes
 ========================= */
 
-function buildAddStopPolicy(service){
+function buildGetQuoteAddStopPolicy(service){
 
   return {
 
@@ -634,125 +705,110 @@ function buildAddStopPolicy(service){
         ""
       ),
 
-    addStopEnabled:
+    normalAddStopEnabled:
       bool(
-        service?.addStopEnabled ??
+        service
+          ?.getQuoteAddStopEnabled ??
         false
       ),
 
-    addStopCustomTimeEnabled:
+    customTimeEnabled:
       bool(
-        service?.addStopCustomTimeEnabled ??
+        service
+          ?.getQuoteAddStopCustomTimeEnabled ??
         false
       ),
 
-    addStopCutoffMinutes:
+    cutoffMinutes:
       Math.max(
         0,
         n(
-          service?.addStopCutoffMinutes,
+          service
+            ?.getQuoteAddStopCutoffMinutes,
           0
         )
-      ),
+      )
 
-    /*
-      Optional field support.
-
-      If this field does not exist,
-      during-trip Add Stop remains allowed
-      when Add Stop itself is enabled.
-    */
-
-    addStopDuringTripEnabled:
-      service?.addStopDuringTripEnabled === undefined
-        ? true
-        : bool(
-            service.addStopDuringTripEnabled
-          )
   };
+
 }
 
-function enforceAddStopPolicy(
+/* =========================
+   POLICY LOGIC
+
+   OFF + OFF:
+   Hidden
+
+   ON + OFF:
+   Available until Dropoff
+
+   OFF + ON:
+   Available until cutoff time
+
+   ON + ON:
+   Normal Add Stop wins
+   Available until Dropoff
+========================= */
+
+function isAddStopAllowed(
   trip,
-  policy
+  policy,
+  settings
 ){
 
+  if(!trip || tripIsClosed(trip)){
+
+    return false;
+
+  }
+
+  const normalEnabled =
+    policy?.normalAddStopEnabled === true;
+
+  const customEnabled =
+    policy?.customTimeEnabled === true;
+
   if(
-    !policy ||
-    policy.addStopEnabled !== true
+    !normalEnabled &&
+    !customEnabled
   ){
 
-    throw new Error(
-      "Add Stop is disabled for this Get Quote service"
-    );
+    return false;
+
   }
 
   /*
-    During trip:
-    allowed when Add Stop is enabled,
-    unless Admin explicitly disables
-    addStopDuringTripEnabled.
+    Normal Add Stop works independently
+    and stays available until Dropoff.
   */
 
-  if(tripIsInProgress(trip)){
-
-    if(
-      policy.addStopDuringTripEnabled === false
-    ){
-
-      throw new Error(
-        "Add Stop is not allowed during this trip"
-      );
-    }
+  if(normalEnabled){
 
     return true;
+
   }
+
+  /*
+    Only Custom Time is enabled.
+  */
 
   const tripDateTime =
     getTripDateTime(trip);
 
   if(!tripDateTime){
 
-    throw new Error(
-      "Trip date or time is invalid"
-    );
+    return false;
+
   }
 
   const now =
-    getSystemNow();
-
-  /*
-    Custom time OFF:
-    allowed until the scheduled trip time.
-  */
-
-  if(
-    policy.addStopCustomTimeEnabled !== true
-  ){
-
-    if(
-      now.getTime() >
-      tripDateTime.getTime()
-    ){
-
-      throw new Error(
-        "The Add Stop time window has ended"
-      );
-    }
-
-    return true;
-  }
-
-  /*
-    Custom time ON:
-    closes X minutes before trip.
-  */
+    getSystemNow(settings);
 
   const cutoffMinutes =
     Math.max(
       0,
       n(
-        policy.addStopCutoffMinutes,
+        policy?.cutoffMinutes,
         0
       )
     );
@@ -763,24 +819,88 @@ function enforceAddStopPolicy(
       cutoffMinutes * 60000
     );
 
-  if(
-    now.getTime() >
+  return (
+    now.getTime() <
     cutoffTime.getTime()
+  );
+
+}
+
+function enforceAddStopPolicy(
+  trip,
+  policy,
+  settings
+){
+
+  if(
+    isAddStopAllowed(
+      trip,
+      policy,
+      settings
+    )
   ){
+
+    return true;
+
+  }
+
+  if(tripIsClosed(trip)){
+
+    throw new Error(
+      "This trip is closed and cannot be modified"
+    );
+
+  }
+
+  const normalEnabled =
+    policy?.normalAddStopEnabled === true;
+
+  const customEnabled =
+    policy?.customTimeEnabled === true;
+
+  if(
+    !normalEnabled &&
+    !customEnabled
+  ){
+
+    throw new Error(
+      "Add Stop is disabled for this Get Quote service"
+    );
+
+  }
+
+  if(
+    customEnabled &&
+    !normalEnabled
+  ){
+
+    const cutoffMinutes =
+      Math.max(
+        0,
+        n(
+          policy?.cutoffMinutes,
+          0
+        )
+      );
 
     if(cutoffMinutes > 0){
 
       throw new Error(
         `Add Stop closed ${cutoffMinutes} minutes before the trip`
       );
+
     }
 
     throw new Error(
       "The Add Stop time window has ended"
     );
+
   }
 
-  return true;
+  throw new Error(
+    "Add Stop is not available"
+  );
+
 }
 
 /* =========================
@@ -794,6 +914,7 @@ function verifyCustomerAddStopToken(token){
     throw new Error(
       "Missing Add Stop token"
     );
+
   }
 
   let decoded = null;
@@ -816,11 +937,13 @@ function verifyCustomerAddStopToken(token){
       throw new Error(
         "This Add Stop link has expired"
       );
+
     }
 
     throw new Error(
       "This Add Stop link is invalid"
     );
+
   }
 
   const purpose =
@@ -838,6 +961,7 @@ function verifyCustomerAddStopToken(token){
     throw new Error(
       "This link cannot be used for Add Stop"
     );
+
   }
 
   const tripId =
@@ -855,12 +979,14 @@ function verifyCustomerAddStopToken(token){
     throw new Error(
       "Invalid trip in Add Stop link"
     );
+
   }
 
   return {
     decoded,
     tripId
   };
+
 }
 
 function createCustomerAddStopToken(
@@ -879,6 +1005,7 @@ function createCustomerAddStopToken(
     throw new Error(
       "Valid trip ID is required"
     );
+
   }
 
   return jwt.sign(
@@ -891,6 +1018,7 @@ function createCustomerAddStopToken(
       expiresIn
     }
   );
+
 }
 
 /* =========================
@@ -903,7 +1031,9 @@ function extractLatLngFromObject(obj){
     !obj ||
     typeof obj !== "object"
   ){
+
     return null;
+
   }
 
   const lat =
@@ -931,6 +1061,7 @@ function extractLatLngFromObject(obj){
       lat:Number(lat),
       lng:Number(lng)
     };
+
   }
 
   const containers = [
@@ -953,27 +1084,37 @@ function extractLatLngFromObject(obj){
       extractLatLngFromObject(item);
 
     if(found){
+
       return found;
+
     }
+
   }
 
   return null;
+
 }
 
 async function getLiveDriverLocation(trip){
 
   const direct =
-    extractLatLngFromObject(trip);
+    extractLatLngFromObject(
+      trip
+    );
 
   if(direct){
+
     return direct;
+
   }
 
   if(
     !global.liveDrivers ||
     typeof global.liveDrivers.values !== "function"
   ){
+
     return null;
+
   }
 
   const tripId =
@@ -994,18 +1135,30 @@ async function getLiveDriverLocation(trip){
   const found =
     list.find(item=>{
 
+      const itemTripId =
+        String(
+          item?.tripId || ""
+        );
+
+      const itemDriverId =
+        String(
+          item?.driverId || ""
+        );
+
       return (
-        String(item?.tripId || "") === tripId ||
+        itemTripId === tripId ||
         (
           driverId &&
-          String(item?.driverId || "") === driverId
+          itemDriverId === driverId
         )
       );
+
     });
 
   return extractLatLngFromObject(
     found
   );
+
 }
 
 /* =========================
@@ -1020,6 +1173,7 @@ function isLatLngPoint(point){
     Number.isFinite(Number(point.lat)) &&
     Number.isFinite(Number(point.lng))
   );
+
 }
 
 function sanitizeRoutePoint(point){
@@ -1030,6 +1184,7 @@ function sanitizeRoutePoint(point){
       clean(point);
 
     return value || null;
+
   }
 
   if(isLatLngPoint(point)){
@@ -1038,9 +1193,11 @@ function sanitizeRoutePoint(point){
       lat:Number(point.lat),
       lng:Number(point.lng)
     };
+
   }
 
   return null;
+
 }
 
 function sanitizeRoutePoints(points){
@@ -1049,12 +1206,15 @@ function sanitizeRoutePoints(points){
     .map(sanitizeRoutePoint)
     .filter(Boolean)
     .slice(0,25);
+
 }
 
-function routePointToStoredString(point){
+function pointToGoogleValue(point){
 
   if(typeof point === "string"){
-    return clean(point);
+
+    return point;
+
   }
 
   if(isLatLngPoint(point)){
@@ -1062,148 +1222,277 @@ function routePointToStoredString(point){
     return (
       `${Number(point.lat)},${Number(point.lng)}`
     );
+
   }
 
   return "";
+
 }
 
-function normalizeRouteResult(
-  raw,
+function routePointToStoredString(point){
+
+  if(typeof point === "string"){
+
+    return clean(point);
+
+  }
+
+  if(isLatLngPoint(point)){
+
+    return (
+      `${Number(point.lat)},${Number(point.lng)}`
+    );
+
+  }
+
+  return "";
+
+}
+
+/* =========================
+   GOOGLE DIRECTIONS
+   SERVER CALCULATION
+========================= */
+
+async function calculateGoogleRoute(
   routePoints
 ){
 
-  const distanceMeters =
-    n(
-      raw?.distanceMeters,
-      0
+  const googleKey =
+    process.env.GOOGLE_KEY;
+
+  if(!googleKey){
+
+    throw new Error(
+      "Google Maps key is missing"
     );
 
-  const durationSeconds =
-    n(
-      raw?.durationSeconds,
-      0
+  }
+
+  const points =
+    sanitizeRoutePoints(
+      routePoints
     );
+
+  if(points.length < 2){
+
+    throw new Error(
+      "At least two route points are required"
+    );
+
+  }
+
+  const origin =
+    pointToGoogleValue(
+      points[0]
+    );
+
+  const destination =
+    pointToGoogleValue(
+      points[
+        points.length - 1
+      ]
+    );
+
+  const middle =
+    points.slice(
+      1,
+      -1
+    );
+
+  const params =
+    new URLSearchParams();
+
+  params.set(
+    "origin",
+    origin
+  );
+
+  params.set(
+    "destination",
+    destination
+  );
+
+  params.set(
+    "mode",
+    "driving"
+  );
+
+  params.set(
+    "units",
+    "imperial"
+  );
+
+  params.set(
+    "key",
+    googleKey
+  );
+
+  if(middle.length){
+
+    params.set(
+      "waypoints",
+      middle
+        .map(pointToGoogleValue)
+        .join("|")
+    );
+
+  }
+
+  const url =
+    "https://maps.googleapis.com/maps/api/directions/json?" +
+    params.toString();
+
+  const response =
+    await fetch(url);
+
+  const data =
+    await response
+      .json()
+      .catch(()=>({}));
+
+  if(
+    !response.ok ||
+    data.status !== "OK" ||
+    !data.routes?.[0]
+  ){
+
+    throw new Error(
+      data.error_message ||
+      `Google route failed: ${data.status || response.status}`
+    );
+
+  }
+
+  const route =
+    data.routes[0];
+
+  const legs =
+    safeArray(
+      route.legs
+    );
+
+  let distanceMeters = 0;
+  let durationSeconds = 0;
+
+  legs.forEach(leg=>{
+
+    distanceMeters +=
+      n(
+        leg?.distance?.value,
+        0
+      );
+
+    durationSeconds +=
+      n(
+        leg?.duration?.value,
+        0
+      );
+
+  });
 
   const miles =
-    n(
-      raw?.miles,
-      distanceMeters > 0
-        ? distanceMeters * 0.000621371
-        : 0
+    Number(
+      (
+        distanceMeters *
+        0.000621371
+      ).toFixed(2)
     );
 
   const estimatedMinutes =
-    n(
-      raw?.estimatedMinutes,
-      durationSeconds > 0
-        ? Math.ceil(durationSeconds / 60)
-        : 0
+    Math.ceil(
+      durationSeconds / 60
     );
 
   return {
 
-    miles:
-      Number(
-        miles.toFixed(2)
-      ),
+    miles,
 
-    distanceMeters:
-      Number(distanceMeters),
+    distanceMeters,
 
-    durationSeconds:
-      Number(durationSeconds),
+    durationSeconds,
 
-    estimatedMinutes:
-      Math.ceil(
-        estimatedMinutes
-      ),
-
-    googleRoute:
-      raw?.googleRoute ||
-      raw?.route ||
-      raw ||
-      {},
-
-    optimizedRoute:
-      raw?.optimizedRoute ||
-      raw?.googleRoute ||
-      raw?.route ||
-      raw ||
-      {},
-
-    polyline:
-      clean(
-        raw?.polyline ||
-        raw?.routePolyline ||
-        raw?.overviewPolyline ||
-        raw?.googleRoute
-          ?.overview_polyline
-          ?.points ||
-        ""
-      ),
+    estimatedMinutes,
 
     routePoints:
-      routePoints
+      points,
+
+    googleRoute:{
+
+      summary:
+        route.summary || "",
+
+      waypointOrder:
+        safeArray(
+          route.waypoint_order
+        ),
+
+      overviewPolyline:
+        route
+          ?.overview_polyline
+          ?.points ||
+        "",
+
+      legs:
+        legs.map(
+          (leg,index)=>({
+
+            legIndex:index,
+
+            startAddress:
+              leg?.start_address || "",
+
+            endAddress:
+              leg?.end_address || "",
+
+            distanceText:
+              leg?.distance?.text || "",
+
+            distanceMeters:
+              n(
+                leg?.distance?.value,
+                0
+              ),
+
+            durationText:
+              leg?.duration?.text || "",
+
+            durationSeconds:
+              n(
+                leg?.duration?.value,
+                0
+              )
+
+          })
+        )
+
+    },
+
+    optimizedRoute:{
+
+      source:
+        "GOOGLE_DIRECTIONS_SERVER",
+
+      summary:
+        route.summary || "",
+
+      overviewPolyline:
+        route
+          ?.overview_polyline
+          ?.points ||
+        "",
+
+      routePoints:
+        points
+
+    }
+
   };
-}
 
-async function calculateServerRoute(
-  routePoints
-){
-
-  if(
-    !routeMapEngine ||
-    (
-      typeof routeMapEngine.calculateRouteMiles !== "function" &&
-      typeof routeMapEngine.calculateRoute !== "function"
-    )
-  ){
-
-    throw new Error(
-      "Server route engine is unavailable"
-    );
-  }
-
-  let raw = null;
-
-  if(
-    typeof routeMapEngine.calculateRouteMiles === "function"
-  ){
-
-    raw =
-      await routeMapEngine.calculateRouteMiles(
-        routePoints
-      );
-
-  }else{
-
-    raw =
-      await routeMapEngine.calculateRoute(
-        routePoints
-      );
-  }
-
-  const result =
-    normalizeRouteResult(
-      raw,
-      routePoints
-    );
-
-  if(
-    result.miles <= 0 ||
-    result.distanceMeters <= 0
-  ){
-
-    throw new Error(
-      "The updated route could not be calculated"
-    );
-  }
-
-  return result;
 }
 
 /* =========================
-   ROUTE PAYLOAD VALIDATION
+   PAYLOAD VALIDATION
 ========================= */
 
 function validateRouteChangePayload(
@@ -1262,6 +1551,7 @@ function validateRouteChangePayload(
     throw new Error(
       "Trip pickup address is missing"
     );
+
   }
 
   if(!actualDropoff){
@@ -1269,6 +1559,7 @@ function validateRouteChangePayload(
     throw new Error(
       "Trip dropoff address is missing"
     );
+
   }
 
   if(!dropoffAfter){
@@ -1276,6 +1567,7 @@ function validateRouteChangePayload(
     throw new Error(
       "Dropoff address is required"
     );
+
   }
 
   if(
@@ -1289,6 +1581,7 @@ function validateRouteChangePayload(
     throw new Error(
       "Pickup address cannot be changed"
     );
+
   }
 
   if(
@@ -1300,8 +1593,9 @@ function validateRouteChangePayload(
   ){
 
     throw new Error(
-      "The trip changed before submission. Reload the page and try again."
+      "The trip changed before submission. Reload the page."
     );
+
   }
 
   if(
@@ -1312,8 +1606,9 @@ function validateRouteChangePayload(
   ){
 
     throw new Error(
-      "The trip stops changed before submission. Reload the page and try again."
+      "The trip stops changed before submission. Reload the page."
     );
+
   }
 
   if(
@@ -1324,6 +1619,7 @@ function validateRouteChangePayload(
     throw new Error(
       "Existing stop information is incomplete"
     );
+
   }
 
   if(finalStops.length > MAX_STOPS){
@@ -1331,6 +1627,7 @@ function validateRouteChangePayload(
     throw new Error(
       `Maximum ${MAX_STOPS} total stops allowed`
     );
+
   }
 
   if(
@@ -1342,6 +1639,7 @@ function validateRouteChangePayload(
     throw new Error(
       `Maximum ${MAX_STOPS} total stops allowed`
     );
+
   }
 
   if(
@@ -1353,6 +1651,7 @@ function validateRouteChangePayload(
     throw new Error(
       "Final stop list is invalid"
     );
+
   }
 
   const existingChanged =
@@ -1379,6 +1678,7 @@ function validateRouteChangePayload(
     throw new Error(
       "No route changes were submitted"
     );
+
   }
 
   return {
@@ -1399,11 +1699,13 @@ function validateRouteChangePayload(
     addedStops,
 
     finalStops
+
   };
+
 }
 
 /* =========================
-   BUILD SERVER ROUTE
+   BUILD ROUTE POINTS
 ========================= */
 
 async function buildUpdatedRoutePoints(
@@ -1416,8 +1718,8 @@ async function buildUpdatedRoutePoints(
     tripIsInProgress(trip);
 
   /*
-    Before trip:
-    Pickup -> all final stops -> Dropoff
+    Before start:
+    Pickup -> Stops -> Dropoff
   */
 
   if(!inProgress){
@@ -1431,19 +1733,18 @@ async function buildUpdatedRoutePoints(
       validated.dropoffAfter
 
     ].filter(Boolean);
+
   }
 
   /*
     During trip:
-    Prefer the route points submitted by
-    the customer page because it includes:
+    Keep any already-travelled route points
+    submitted by the page.
 
-    Pickup
-    completed/previous route points when present
-    driver current location
-    new stop
-    remaining stops
-    dropoff
+    Expected:
+    Pickup -> previous/completed stop(s)
+    -> driver location -> new/remaining stops
+    -> Dropoff
   */
 
   const submitted =
@@ -1455,6 +1756,7 @@ async function buildUpdatedRoutePoints(
   if(submitted.length >= 2){
 
     return submitted;
+
   }
 
   const driverLocation =
@@ -1470,6 +1772,7 @@ async function buildUpdatedRoutePoints(
     throw new Error(
       "Driver current location is unavailable"
     );
+
   }
 
   return [
@@ -1483,11 +1786,12 @@ async function buildUpdatedRoutePoints(
     validated.dropoffAfter
 
   ].filter(Boolean);
+
 }
 
 /* =========================
    GET QUOTE PRICE
-   Same calculation as GetQuoteEngine.js
+   Same logic as GetQuoteEngine.js
 ========================= */
 
 function calculateGetQuotePrice({
@@ -1542,10 +1846,6 @@ function calculateGetQuotePrice({
 
   let total = 0;
 
-  /* =========================
-     HOURLY
-  ========================= */
-
   if(pricingMode === "HOURLY"){
 
     let hours = 1;
@@ -1575,18 +1875,14 @@ function calculateGetQuotePrice({
             n(minutes) / 60
           )
         );
+
     }
 
     total =
       hours *
       hourlyRate;
-  }
 
-  /* =========================
-     SHARED
-  ========================= */
-
-  else if(pricingMode === "SHARED"){
+  }else if(pricingMode === "SHARED"){
 
     const count =
       Math.max(
@@ -1635,14 +1931,10 @@ function calculateGetQuotePrice({
         baseTotal +
         milesTotal +
         stopsTotal;
+
     }
-  }
 
-  /* =========================
-     INDIVIDUAL
-  ========================= */
-
-  else{
+  }else{
 
     const extraMiles =
       Math.max(
@@ -1655,6 +1947,7 @@ function calculateGetQuotePrice({
       baseFare +
       (extraMiles * perMile) +
       (n(stops) * stopFee);
+
   }
 
   return {
@@ -1676,12 +1969,15 @@ function calculateGetQuotePrice({
       hourlyBillingMode:
         service?.hourlyBillingMode ||
         "FULL"
+
     }
+
   };
+
 }
 
 /* =========================
-   SAFE CUSTOMER TRIP
+   SAFE TRIP RESPONSE
 ========================= */
 
 function buildSafeCustomerTrip(
@@ -1795,7 +2091,9 @@ function buildSafeCustomerTrip(
 
     addStopPolicy:
       policy
+
   };
+
 }
 
 /* =========================
@@ -1828,6 +2126,7 @@ router.get(
             success:false,
             message:"Trip not found"
           });
+
       }
 
       if(isCompanyTrip(trip)){
@@ -1839,6 +2138,7 @@ router.get(
             message:
               "This Add Stop link is only for Get Quote trips"
           });
+
       }
 
       if(isSharedTrip(trip)){
@@ -1850,6 +2150,7 @@ router.get(
             message:
               "Add Stop is not available for shared trips"
           });
+
       }
 
       if(tripIsClosed(trip)){
@@ -1861,6 +2162,7 @@ router.get(
             message:
               "This trip is closed and cannot be modified"
           });
+
       }
 
       const service =
@@ -1869,13 +2171,17 @@ router.get(
         );
 
       const policy =
-        buildAddStopPolicy(
+        buildGetQuoteAddStopPolicy(
           service
         );
 
+      const settings =
+        await getSystemSettings();
+
       enforceAddStopPolicy(
         trip,
-        policy
+        policy,
+        settings
       );
 
       return res.json({
@@ -1888,6 +2194,7 @@ router.get(
             service,
             policy
           )
+
       });
 
     }catch(err){
@@ -1905,12 +2212,14 @@ router.get(
             err.message ||
             "Failed to load Add Stop page"
         });
+
     }
+
   }
 );
 
 /* =========================
-   CONFIRM / UPDATE TRIP
+   CONFIRM AND UPDATE TRIP
 ========================= */
 
 router.post(
@@ -1942,6 +2251,7 @@ router.post(
             message:
               "Trip does not match this Add Stop link"
           });
+
       }
 
       const trip =
@@ -1957,6 +2267,7 @@ router.post(
             success:false,
             message:"Trip not found"
           });
+
       }
 
       if(isCompanyTrip(trip)){
@@ -1968,6 +2279,7 @@ router.post(
             message:
               "This Add Stop link is only for Get Quote trips"
           });
+
       }
 
       if(isSharedTrip(trip)){
@@ -1979,6 +2291,7 @@ router.post(
             message:
               "Add Stop is not available for shared trips"
           });
+
       }
 
       if(tripIsClosed(trip)){
@@ -1990,11 +2303,12 @@ router.post(
             message:
               "This trip is closed and cannot be modified"
           });
+
       }
 
       /*
-        Recheck current Get Quote service.
-        An old email link cannot bypass Admin settings.
+        Recheck Service Management.
+        Old emails cannot bypass current policy.
       */
 
       const service =
@@ -2003,13 +2317,17 @@ router.post(
         );
 
       const policy =
-        buildAddStopPolicy(
+        buildGetQuoteAddStopPolicy(
           service
         );
 
+      const settings =
+        await getSystemSettings();
+
       enforceAddStopPolicy(
         trip,
-        policy
+        policy,
+        settings
       );
 
       const validated =
@@ -2018,38 +2336,17 @@ router.post(
           body
         );
 
-      const updatedRoutePoints =
+      const routePoints =
         await buildUpdatedRoutePoints(
           trip,
           validated,
           body
         );
 
-      if(
-        updatedRoutePoints.length < 2
-      ){
-
-        return res
-          .status(400)
-          .json({
-            success:false,
-            message:
-              "Updated route points are invalid"
-          });
-      }
-
-      /*
-        Server calculates the new route.
-      */
-
       const routeData =
-        await calculateServerRoute(
-          updatedRoutePoints
+        await calculateGoogleRoute(
+          routePoints
         );
-
-      /*
-        Get Quote Service Management pricing only.
-      */
 
       const pricing =
         calculateGetQuotePrice({
@@ -2067,23 +2364,13 @@ router.post(
 
           passengersCount:
             1
+
         });
 
       const newPrice =
         money(
           pricing.total
         );
-
-      if(newPrice < 0){
-
-        return res
-          .status(400)
-          .json({
-            success:false,
-            message:
-              "Updated trip price is invalid"
-          });
-      }
 
       const oldTrip = {
 
@@ -2097,23 +2384,6 @@ router.post(
 
         dropoff:
           getDropoff(trip),
-
-        pickupLat:
-          trip.pickupLat ?? null,
-
-        pickupLng:
-          trip.pickupLng ?? null,
-
-        dropoffLat:
-          trip.dropoffLat ?? null,
-
-        dropoffLng:
-          trip.dropoffLng ?? null,
-
-        stopCoords:
-          safeArray(
-            trip.stopCoords
-          ),
 
         miles:
           n(
@@ -2160,20 +2430,15 @@ router.post(
           trip.googleRoute || {},
 
         optimizedRoute:
-          trip.optimizedRoute || {},
+          trip.optimizedRoute || {}
 
-        routeLocked:
-          trip.routeLocked === true,
-
-        routeFinalized:
-          trip.routeFinalized === true
       };
 
       const now =
         new Date();
 
       /*
-        Replace old route data.
+        Replace route.
       */
 
       trip.stops =
@@ -2183,7 +2448,7 @@ router.post(
         validated.dropoffAfter;
 
       trip.routePoints =
-        updatedRoutePoints
+        routePoints
           .map(routePointToStoredString)
           .filter(Boolean);
 
@@ -2206,8 +2471,8 @@ router.post(
         routeData.optimizedRoute;
 
       /*
-        Old coordinates are no longer trusted
-        after addresses change.
+        Addresses changed.
+        Old stop/dropoff coordinates are invalid.
       */
 
       trip.stopCoords = [];
@@ -2221,10 +2486,11 @@ router.post(
 
         trip.dropoffLat = null;
         trip.dropoffLng = null;
+
       }
 
       /*
-        Replace old price.
+        Replace price.
       */
 
       trip.priceAmount =
@@ -2234,7 +2500,7 @@ router.post(
         newPrice;
 
       /*
-        Updated route state.
+        Route state.
       */
 
       trip.routeLocked =
@@ -2302,7 +2568,7 @@ router.post(
             validated.dropoffAfter,
 
           routePoints:
-            updatedRoutePoints,
+            routePoints,
 
           miles:
             routeData.miles,
@@ -2327,6 +2593,7 @@ router.post(
 
           finalPrice:
             newPrice
+
         },
 
         service:{
@@ -2345,11 +2612,13 @@ router.post(
               service.serviceCode ||
               ""
             )
+
         },
 
         policy,
 
         pricing
+
       };
 
       trip.markModified(
@@ -2367,8 +2636,7 @@ router.post(
       await trip.save();
 
       /*
-        Send updated email after successful save.
-        Email failure does not undo the trip update.
+        Send update email after save.
       */
 
       let emailSent = false;
@@ -2390,18 +2658,19 @@ router.post(
           "ROUTE UPDATED EMAIL ERROR:",
           emailErr
         );
+
       }
 
       return res.json({
 
         success:true,
 
+        emailSent,
+
         message:
           emailSent
-            ? "Trip route and price updated. Updated email sent."
-            : "Trip route and price updated, but the email could not be sent.",
-
-        emailSent,
+            ? "Trip updated and updated email sent."
+            : "Trip updated, but updated email could not be sent.",
 
         trip:{
 
@@ -2434,18 +2703,6 @@ router.post(
               0
             ),
 
-          distanceMeters:
-            n(
-              trip.distanceMeters,
-              0
-            ),
-
-          durationSeconds:
-            n(
-              trip.durationSeconds,
-              0
-            ),
-
           priceAmount:
             n(
               trip.priceAmount,
@@ -2460,7 +2717,9 @@ router.post(
 
           routeChangeStatus:
             trip.routeChangeStatus || ""
+
         }
+
       });
 
     }catch(err){
@@ -2478,7 +2737,9 @@ router.post(
             err.message ||
             "Failed to update trip"
         });
+
     }
+
   }
 );
 
@@ -2489,4 +2750,5 @@ router.post(
 router.createCustomerAddStopToken =
   createCustomerAddStopToken;
 
-module.exports = router;
+module.exports =
+  router;
