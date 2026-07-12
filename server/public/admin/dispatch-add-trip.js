@@ -1021,6 +1021,30 @@ function getServiceByTrip(trip){
 
   if(!trip) return null;
 
+  /*
+    Use the exact Service document saved on the trip first.
+    This prevents an XL / Wheelchair / Standard trip from reading
+    another Reserved service's Add Stop policy.
+  */
+  const savedServiceId =
+    normalizeText(
+      trip.serviceId ||
+      trip.reservedServiceId ||
+      ""
+    );
+
+  if(savedServiceId){
+
+    const exactService =
+      SERVICES.find(service=>{
+        return String(service?._id || "") === savedServiceId;
+      });
+
+    if(exactService){
+      return exactService;
+    }
+  }
+
   const direct =
     normalizeCode(
       trip.serviceKey ||
@@ -1039,9 +1063,38 @@ function getServiceByTrip(trip){
     return SERVICES.find(s=>isSharedService(s)) || null;
   }
 
-  return SERVICES.find(s=>{
-    return resolveServiceCode(s) === direct;
-  }) || null;
+  if(direct){
+
+    const serviceByCode =
+      SERVICES.find(s=>{
+        return resolveServiceCode(s) === direct;
+      });
+
+    if(serviceByCode){
+      return serviceByCode;
+    }
+  }
+
+  /* Old Reserved trips may only carry the service inside the trip number. */
+  const tripNumber =
+    normalizeText(trip.tripNumber).toUpperCase();
+
+  const tripNumberCode =
+    ["ST","WH","XL","LM","TX","SH"]
+      .find(code=>{
+        return (
+          tripNumber.startsWith(`RV-${code}-`) ||
+          tripNumber.includes(`-${code}-`)
+        );
+      }) || "";
+
+  if(tripNumberCode){
+    return SERVICES.find(s=>{
+      return resolveServiceCode(s) === tripNumberCode;
+    }) || null;
+  }
+
+  return null;
 }
 
 function getReservedPricing(service){
