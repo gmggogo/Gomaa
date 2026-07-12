@@ -1045,15 +1045,33 @@ function getServiceByTrip(trip){
     }
   }
 
-  const direct =
-    normalizeCode(
-      trip.serviceKey ||
-      trip.serviceCode ||
-      trip.serviceType ||
-      trip.serviceSuffix ||
-      trip.tripNumberSuffix ||
-      ""
-    );
+  /*
+    Check every possible trip field separately. Do not let a generic value
+    such as RV in one field hide the real XL / TX / LM code in another.
+  */
+  const tripCodeCandidates = [
+    trip.serviceKey,
+    trip.serviceCode,
+    trip.serviceType,
+    trip.serviceName,
+    trip.serviceTitle,
+    trip.vehicleType,
+    trip.serviceSuffix,
+    trip.tripNumberSuffix
+  ];
+
+  let direct = "";
+
+  for(const candidate of tripCodeCandidates){
+
+    const code =
+      normalizeCode(candidate);
+
+    if(isValidServiceCode(code)){
+      direct = code;
+      break;
+    }
+  }
 
   if(
     trip.isShared === true ||
@@ -1079,14 +1097,21 @@ function getServiceByTrip(trip){
   const tripNumber =
     normalizeText(trip.tripNumber).toUpperCase();
 
-  const tripNumberCode =
-    ["ST","WH","XL","LM","TX","SH"]
-      .find(code=>{
-        return (
-          tripNumber.startsWith(`RV-${code}-`) ||
-          tripNumber.includes(`-${code}-`)
-        );
-      }) || "";
+  let tripNumberCode = "";
+
+  const tripNumberParts =
+    tripNumber
+      .split("-")
+      .map(part=>normalizeCode(part))
+      .filter(Boolean);
+
+  for(let i = tripNumberParts.length - 1; i >= 0; i--){
+
+    if(isValidServiceCode(tripNumberParts[i])){
+      tripNumberCode = tripNumberParts[i];
+      break;
+    }
+  }
 
   if(tripNumberCode){
     return SERVICES.find(s=>{
