@@ -2373,14 +2373,14 @@ function reservedAllowsAddStop(trip){
     return false;
   }
 
-  /* Add Stop is the master switch. */
-  if(!normalEnabled){
-    return false;
+  /* Normal Add Stop wins and stays available until the trip closes. */
+  if(normalEnabled){
+    return true;
   }
 
-  /* Without Custom Time, Add Stop stays available until the trip closes. */
+  /* Custom Time is an independent alternative policy. */
   if(!customEnabled){
-    return true;
+    return false;
   }
 
   const mins =
@@ -4211,6 +4211,45 @@ async function refreshReview(){
   renderReviewTable();
 }
 
+/*
+  Re-check time-based button policies while the Review page is open.
+  This makes a 10-minute cutoff hide Add Stop exactly when the trip
+  enters the final 10 minutes, without requiring a page refresh.
+*/
+function refreshTimeSensitiveButtons(){
+
+  if(
+    !dispatchReviewPage ||
+    dispatchReviewPage.style.display === "none"
+  ){
+    return;
+  }
+
+  document
+    .querySelectorAll("#dispatchReviewTbody tr[data-id]")
+    .forEach(tr=>{
+
+      const id =
+        tr.dataset.id;
+
+      const trip =
+        reviewTrips.find(t=>{
+          return String(t._id || t.id) === String(id);
+        });
+
+      if(!trip || trip.__editing === true){
+        return;
+      }
+
+      const actionsCell =
+        tr.querySelector(".col-actions");
+
+      if(actionsCell){
+        actionsCell.innerHTML = renderTripButtons(trip);
+      }
+    });
+}
+
 /* ================= INIT ================= */
 
 loadEntryInfo();
@@ -4221,5 +4260,10 @@ await loadReservedServices();
 await refreshReview();
 
 showAddPage();
+
+setInterval(
+  refreshTimeSensitiveButtons,
+  5000
+);
 
 });
