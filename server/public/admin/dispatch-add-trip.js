@@ -1261,7 +1261,7 @@ Continue anyway?`
 
 /* ================= LOAD SERVICES ================= */
 
-async function loadReservedServices(){
+async function loadReservedServices(rebuildTabs = true){
 
   try{
 
@@ -1309,7 +1309,28 @@ async function loadReservedServices(){
     SERVICES =
       [...unique.values()];
 
-    buildServiceTabs();
+    if(rebuildTabs){
+      buildServiceTabs();
+    }else if(activeService){
+
+      const activeId =
+        normalizeText(activeService._id || "");
+
+      const activeCode =
+        resolveServiceCode(activeService);
+
+      const freshActive =
+        SERVICES.find(service=>{
+          return (
+            (activeId && String(service._id || "") === activeId) ||
+            (activeCode && resolveServiceCode(service) === activeCode)
+          );
+        });
+
+      if(freshActive){
+        activeService = freshActive;
+      }
+    }
 
   }catch(err){
 
@@ -1317,7 +1338,9 @@ async function loadReservedServices(){
 
     SERVICES = [];
 
-    buildServiceTabs();
+    if(rebuildTabs){
+      buildServiceTabs();
+    }
 
     showAlert("Failed loading Reserved services");
   }
@@ -1326,6 +1349,12 @@ async function loadReservedServices(){
 function buildServiceTabs(){
 
   if(!companyTabs) return;
+
+  const previousActiveId =
+    normalizeText(activeService?._id || "");
+
+  const previousActiveCode =
+    resolveServiceCode(activeService);
 
   companyTabs.innerHTML = "";
 
@@ -1343,6 +1372,24 @@ function buildServiceTabs(){
     return;
   }
 
+  let selectedIndex =
+    SERVICES.findIndex(service=>{
+
+      const sameId =
+        previousActiveId &&
+        String(service?._id || "") === previousActiveId;
+
+      const sameCode =
+        previousActiveCode &&
+        resolveServiceCode(service) === previousActiveCode;
+
+      return sameId || sameCode;
+    });
+
+  if(selectedIndex < 0){
+    selectedIndex = 0;
+  }
+
   SERVICES.forEach((service,index)=>{
 
     const btn =
@@ -1358,7 +1405,7 @@ function buildServiceTabs(){
       );
 
     btn.className =
-      index === 0
+      index === selectedIndex
         ? "btn-blue"
         : "btn-gray";
 
@@ -1368,7 +1415,10 @@ function buildServiceTabs(){
     companyTabs.appendChild(btn);
   });
 
-  setActiveService(SERVICES[0],0);
+  setActiveService(
+    SERVICES[selectedIndex],
+    selectedIndex
+  );
 }
 
 function setActiveService(service,index){
@@ -4287,7 +4337,7 @@ async function refreshReservedPolicies(){
 
     refreshingReservedPolicies = true;
 
-    await loadReservedServices();
+    await loadReservedServices(false);
 
     refreshTimeSensitiveButtons();
 
