@@ -4250,6 +4250,44 @@ function refreshTimeSensitiveButtons(){
     });
 }
 
+let refreshingReservedPolicies = false;
+
+async function refreshReservedPolicies(){
+
+  if(refreshingReservedPolicies){
+    return;
+  }
+
+  try{
+
+    refreshingReservedPolicies = true;
+
+    await loadReservedServices();
+
+    refreshTimeSensitiveButtons();
+
+  }catch(err){
+
+    console.error("RESERVED POLICY REFRESH ERROR:",err);
+
+  }finally{
+
+    refreshingReservedPolicies = false;
+  }
+}
+
+/* Reload live Reserved settings when returning from Service Management. */
+window.addEventListener("focus",()=>{
+  refreshReservedPolicies();
+});
+
+document.addEventListener("visibilitychange",()=>{
+
+  if(document.visibilityState === "visible"){
+    refreshReservedPolicies();
+  }
+});
+
 /* ================= INIT ================= */
 
 loadEntryInfo();
@@ -4264,6 +4302,12 @@ showAddPage();
 setInterval(
   refreshTimeSensitiveButtons,
   5000
+);
+
+/* Backup refresh in case the tab stays open while another admin changes policy. */
+setInterval(
+  refreshReservedPolicies,
+  30000
 );
 
 });
