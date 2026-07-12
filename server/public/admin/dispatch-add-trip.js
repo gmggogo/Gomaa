@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", async function(){
 
 const API_URL = "/api/trips";
 const SERVICES_URL = "/api/services/admin";
+const ADD_STOP_ACTIVE_FROM =
+  new Date("2026-06-20T05:58:00");
 
 const token = localStorage.getItem("token") || "";
 const role  = localStorage.getItem("role") || "";
@@ -2307,14 +2309,25 @@ function reservedAllowsAddStop(trip){
   const customEnabled =
     bool(service.reservedAddStopCustomTimeEnabled);
 
-  /* Normal Add Stop is the strongest policy. */
-  if(normalEnabled){
-    return true;
+  const created =
+    new Date(
+      trip.createdAt ||
+      trip.bookedAt ||
+      0
+    );
+
+  if(created < ADD_STOP_ACTIVE_FROM){
+    return false;
   }
 
-  /* Both policies are disabled. */
-  if(!customEnabled){
+  /* Add Stop is the master switch. */
+  if(!normalEnabled){
     return false;
+  }
+
+  /* Without Custom Time, Add Stop stays available until the trip closes. */
+  if(!customEnabled){
+    return true;
   }
 
   const mins =
