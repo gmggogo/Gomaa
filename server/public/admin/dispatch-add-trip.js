@@ -3852,70 +3852,8 @@ async function handleAddStop(btn){
     return;
   }
 
-  const stop =
-    prompt("Enter stop address:");
-
-  if(!normalizeText(stop)){
-    return;
-  }
-
-  const stops =
-    Array.isArray(trip.stops)
-      ? [...trip.stops]
-      : [];
-
-  if(stops.length >= 5){
-    showAlert("Maximum 5 stops allowed.");
-    return;
-  }
-
-  const newStop =
-    normalizeAddress(stop);
-
-  const finalStops =
-    [...stops,newStop];
-
-  await updateTrip(id,{
-    stops:finalStops,
-
-    priceAmount:0,
-    finalPrice:0,
-    pricePerPassenger:0,
-
-    miles:0,
-    distanceMeters:0,
-    durationSeconds:0,
-    estimatedMinutes:0,
-
-    googleRoute:null,
-    routePoints:[],
-    optimizedRoute:null,
-
-    routeLocked:false,
-    routeFinalized:false,
-    routeSource:"",
-    routeUpdatedAt:null,
-
-    addStopRequest:{
-      active:true,
-      status:"PENDING",
-      source:"dispatch-add-trip",
-      createdAt:new Date().toISOString(),
-      pickup:trip.pickup,
-      dropoffBefore:trip.dropoff,
-      dropoffAfter:trip.dropoff,
-      existingStopsBefore:stops,
-      addedStops:[newStop],
-      finalStops
-    },
-
-    routeChangePending:true,
-    routeChangeStatus:"PENDING"
-  });
-
-  await refreshReview();
-
-  showAlert("Stop Added ✔");
+  window.location.href =
+    `/admin/reserved-add-stop.html?tripId=${encodeURIComponent(id)}`;
 }
 
 async function handleCancelStop(btn){
@@ -3943,40 +3881,29 @@ async function handleCancelStop(btn){
     return;
   }
 
-  const restoredStops =
-    Array.isArray(req.existingStopsBefore)
-      ? req.existingStopsBefore
-      : [];
+  const res =
+    await fetch(
+      `/api/reserved/add-stop/${encodeURIComponent(id)}/cancel`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        },
+        body:JSON.stringify({
+          status:"CANCELLED_BY_DISPATCH"
+        })
+      }
+    );
 
-  await updateTrip(id,{
-    stops:restoredStops,
+  const data =
+    await res.json().catch(()=>({}));
 
-    priceAmount:0,
-    finalPrice:0,
-    pricePerPassenger:0,
-
-    miles:0,
-    distanceMeters:0,
-    durationSeconds:0,
-    estimatedMinutes:0,
-
-    googleRoute:null,
-    routePoints:[],
-    optimizedRoute:null,
-
-    routeLocked:false,
-    routeFinalized:false,
-
-    addStopRequest:{
-      ...req,
-      active:false,
-      status:"CANCELLED_BY_DISPATCH",
-      cancelledAt:new Date().toISOString()
-    },
-
-    routeChangePending:false,
-    routeChangeStatus:"CANCELLED"
-  });
+  if(!res.ok || data.success === false){
+    throw new Error(
+      data.message || "Cancel Stop failed"
+    );
+  }
 
   await refreshReview();
 
@@ -4372,7 +4299,14 @@ await loadSystemInfo();
 await loadReservedServices();
 await refreshReview();
 
-showAddPage();
+const initialView =
+  new URLSearchParams(window.location.search).get("view");
+
+if(initialView === "review"){
+  showReviewPage();
+}else{
+  showAddPage();
+}
 
 setInterval(
   refreshTimeSensitiveButtons,

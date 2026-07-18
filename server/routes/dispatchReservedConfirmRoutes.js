@@ -2337,6 +2337,56 @@ router.post("/:tripId", async (req,res)=>{
     }
 
     const shared = isSharedTrip(trip);
+
+    /*
+      Apply a pending Reserved Add Stop request before route calculation.
+      Confirm must calculate the new route and Reserved price, not the old trip.
+    */
+    const pendingAddStop =
+      !shared &&
+      trip.addStopRequest?.active === true &&
+      clean(trip.addStopRequest?.source).toLowerCase() === "reserved-add-stop"
+        ? trip.addStopRequest
+        : null;
+
+    if(pendingAddStop){
+
+      const requestPickup =
+        normalizePossibleAddress(
+          pendingAddStop.pickup || trip.pickup
+        );
+
+      const requestDropoff =
+        normalizePossibleAddress(
+          pendingAddStop.dropoffAfter ||
+          pendingAddStop.dropoffBefore ||
+          trip.dropoff
+        );
+
+      const requestStops =
+        uniqueAddressList(
+          safeArray(pendingAddStop.finalStops)
+        );
+
+      if(requestPickup){
+        trip.pickup = requestPickup;
+      }
+
+      if(requestDropoff){
+        trip.dropoff = requestDropoff;
+      }
+
+      trip.stops = requestStops;
+      trip.routeLocked = false;
+      trip.routeFinalized = false;
+      trip.routeSignature = "";
+      trip.routePoints = [];
+      trip.googleRoute = {};
+      trip.optimizedRoute = {};
+      trip.markModified("stops");
+      trip.markModified("addStopRequest");
+    }
+
     const currentSignature = buildCurrentRouteSignature(trip);
     const service = await getReservedServiceForTrip(trip);
     const pricing = getReservedPricing(service);
@@ -2602,6 +2652,30 @@ router.post("/:tripId", async (req,res)=>{
       routeReused ? 0 : requestStats.geocodeCacheHits;
     updatedTrip.directionsRequestsUsed =
       routeReused ? 0 : requestStats.directionsRequestsUsed;
+
+    if(pendingAddStop){
+      updatedTrip.addStopRequest = {
+        ...(
+          typeof pendingAddStop.toObject === "function"
+            ? pendingAddStop.toObject()
+            : pendingAddStop
+        ),
+        active:false,
+        status:"COMPLETED",
+        completedAt:new Date(),
+        updatedAt:new Date(),
+        appliedAutomatically:true,
+        appliedPickup:updatedTrip.pickup,
+        appliedStops:safeArray(updatedTrip.stops),
+        appliedDropoff:updatedTrip.dropoff,
+        appliedMiles:n(routeData.miles),
+        appliedPrice:n(total)
+      };
+
+      updatedTrip.routeChangePending = false;
+      updatedTrip.routeChangeStatus = "COMPLETED";
+      updatedTrip.markModified("addStopRequest");
+    }
 
     if(shared){
 

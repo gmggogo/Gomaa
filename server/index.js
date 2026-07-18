@@ -1,6 +1,3 @@
-
-
-
 require("dotenv").config();
 
 const fetch =
@@ -1278,6 +1275,21 @@ app.use(
 );
 
 console.log("✅ companyAddStopRoutes mounted on /api/company");
+
+/* =========================
+   RESERVED ADD STOP ROUTES
+   Must stay after Trip model
+========================= */
+
+const reservedAddStopRoutes =
+  require("./routes/reservedAddStopRoutes");
+
+app.use(
+  "/api/reserved",
+  reservedAddStopRoutes
+);
+
+console.log("✅ reservedAddStopRoutes mounted on /api/reserved");
 /* ==============================
    DISPATCH ROUTES
 ============================== */

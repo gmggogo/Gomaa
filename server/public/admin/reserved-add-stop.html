@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Add Stop</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:Segoe UI,Arial,sans-serif;
+  background:#f1f5f9;
+  color:#0f172a;
+}
+
+/* ================= PAGE ================= */
+
+.add-stop-page{
+  min-height:100vh;
+  padding:22px;
+  background:
+    radial-gradient(circle at top left, rgba(37,99,235,.13), transparent 34%),
+    linear-gradient(180deg,#f8fafc,#eef2f7);
+}
+
+.page-shell{
+  max-width:850px;
+  margin:0 auto;
+}
+
+/* ================= HEADER ================= */
+
+.page-header{
+  background:#0f172a;
+  color:#fff;
+  border-radius:18px;
+  padding:20px 22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
+  box-shadow:0 12px 30px rgba(15,23,42,.22);
+  margin-bottom:18px;
+}
+
+.header-left h1{
+  margin:0;
+  font-size:26px;
+  font-weight:900;
+  letter-spacing:.3px;
+}
+
+.header-left p{
+  margin:6px 0 0;
+  color:#cbd5e1;
+  font-size:14px;
+  font-weight:600;
+}
+
+.header-badge{
+  background:#2563eb;
+  color:#fff;
+  padding:9px 14px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+/* ================= CARD ================= */
+
+.card{
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 10px 28px rgba(15,23,42,.09);
+  border:1px solid #e2e8f0;
+  overflow:hidden;
+  margin-bottom:18px;
+}
+
+.card-title{
+  padding:16px 18px;
+  background:#f8fafc;
+  border-bottom:1px solid #e2e8f0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.card-title h2{
+  margin:0;
+  font-size:17px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.card-title span{
+  font-size:12px;
+  font-weight:800;
+  color:#64748b;
+}
+
+/* ================= FORM ================= */
+
+.form-grid{
+  padding:18px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+
+.form-group{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+
+.form-group.full{
+  grid-column:1 / -1;
+}
+
+label{
+  font-size:12px;
+  font-weight:900;
+  color:#334155;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+}
+
+input,
+textarea{
+  width:100%;
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+  padding:13px 14px;
+  font-size:14px;
+  font-weight:700;
+  outline:none;
+  background:#fff;
+  color:#0f172a;
+}
+
+textarea{
+  min-height:78px;
+  resize:vertical;
+}
+
+input:focus,
+textarea:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+input[readonly],
+textarea[readonly]{
+  background:#f1f5f9;
+  color:#475569;
+  border-color:#d7dde6;
+  cursor:not-allowed;
+}
+
+/* ================= ROUTE ================= */
+
+.route-box{
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.route-block{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+
+.add-stop-line{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+}
+
+.add-stop-btn{
+  background:#ea580c;
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:12px 18px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(234,88,12,.22);
+}
+
+.add-stop-btn:hover{
+  background:#c2410c;
+}
+
+.add-stop-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.stop-item{
+  border:1px solid #e2e8f0;
+  border-radius:15px;
+  background:#f8fafc;
+  padding:12px;
+}
+
+.stop-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.stop-label{
+  font-size:12px;
+  font-weight:900;
+  color:#1d4ed8;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+}
+
+.remove-stop-btn{
+  width:34px;
+  height:34px;
+  border:none;
+  border-radius:10px;
+  background:#fee2e2;
+  color:#991b1b;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+  line-height:1;
+}
+
+.remove-stop-btn:hover{
+  background:#fecaca;
+}
+
+.stop-note{
+  margin:0;
+  padding:0 18px 18px;
+  font-size:13px;
+  color:#64748b;
+  font-weight:700;
+}
+
+/* ================= ACTIONS ================= */
+
+.actions-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:18px;
+  background:#f8fafc;
+  border-top:1px solid #e2e8f0;
+}
+
+.left-actions,
+.right-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.btn{
+  border:none;
+  border-radius:12px;
+  padding:13px 18px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:46px;
+}
+
+.btn-primary{
+  background:#16a34a;
+  color:#fff;
+  box-shadow:0 8px 18px rgba(22,163,74,.25);
+}
+
+.btn-primary:hover{
+  background:#15803d;
+}
+
+.btn-light{
+  background:#e2e8f0;
+  color:#0f172a;
+}
+
+.btn-light:hover{
+  background:#cbd5e1;
+}
+
+.btn:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* ================= ALERTS ================= */
+
+.alert{
+  display:none;
+  border-radius:14px;
+  padding:13px 15px;
+  margin-bottom:14px;
+  font-size:14px;
+  font-weight:800;
+}
+
+.alert.show{
+  display:block;
+}
+
+.alert.error{
+  background:#fee2e2;
+  color:#991b1b;
+  border:1px solid #fecaca;
+}
+
+.alert.success{
+  background:#dcfce7;
+  color:#166534;
+  border:1px solid #bbf7d0;
+}
+
+.alert.info{
+  background:#dbeafe;
+  color:#1e40af;
+  border:1px solid #bfdbfe;
+}
+
+/* ================= LOADING ================= */
+
+.loading-box{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:#fff;
+  border-radius:18px;
+  padding:28px;
+  border:1px solid #e2e8f0;
+  box-shadow:0 10px 28px rgba(15,23,42,.09);
+  font-weight:900;
+  color:#334155;
+}
+
+.spinner{
+  width:22px;
+  height:22px;
+  border:3px solid #cbd5e1;
+  border-top-color:#2563eb;
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg);}
+}
+
+/* ================= MOBILE ================= */
+
+@media(max-width:780px){
+  .add-stop-page{
+    padding:14px;
+  }
+
+  .page-header{
+    flex-direction:column;
+    align-items:flex-start;
+    border-radius:15px;
+  }
+
+  .header-left h1{
+    font-size:22px;
+  }
+
+  .form-grid{
+    grid-template-columns:1fr;
+    padding:14px;
+  }
+
+  .actions-bar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .left-actions,
+  .right-actions{
+    width:100%;
+  }
+
+  .btn{
+    flex:1;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="add-stop-page">
+
+  <div class="page-shell">
+
+    <div class="page-header">
+      <div class="header-left">
+        <h1>Add Stop</h1>
+        <p>Add up to 5 additional stops to an existing trip.</p>
+      </div>
+
+      <div class="header-badge" id="pageStatusBadge">
+        Reserved Request
+      </div>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div id="loadingBox" class="loading-box">
+      <div class="spinner"></div>
+      Loading trip details...
+    </div>
+
+    <form id="addStopForm" style="display:none;">
+
+      <div class="card">
+
+        <div class="card-title">
+          <h2>Trip Information</h2>
+          <span>Locked trip details</span>
+        </div>
+
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label for="tripNumber">Trip Number</label>
+            <input id="tripNumber" type="text" readonly>
+          </div>
+
+          <div class="form-group">
+            <label for="clientName">Client Name</label>
+            <input id="clientName" type="text" readonly>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="card-title">
+          <h2>Trip Route</h2>
+          <span>Stops will be reviewed before price update</span>
+        </div>
+
+        <div class="route-box">
+
+          <div class="route-block">
+            <label for="pickupAddress">Pickup Address</label>
+            <textarea id="pickupAddress" readonly></textarea>
+          </div>
+
+          <div id="stopsContainer"></div>
+
+          <div class="add-stop-line">
+            <button type="button" class="add-stop-btn" id="addStopBtn">
+              + Add Stop
+            </button>
+          </div>
+
+          <div class="route-block">
+            <label for="dropoffAddress">Dropoff Address</label>
+            <textarea id="dropoffAddress" readonly></textarea>
+          </div>
+
+        </div>
+
+        <p class="stop-note">
+          Mileage will be calculated after confirmation. Price will be calculated from Reserved Services on Dispatch Review.
+        </p>
+
+      </div>
+
+      <div class="card">
+        <div class="actions-bar">
+
+          <div class="left-actions">
+            <button type="button" class="btn btn-light" id="backBtn">
+              ← Back
+            </button>
+          </div>
+
+          <div class="right-actions">
+            <button type="submit" class="btn btn-primary" id="confirmAddStopBtn">
+              Confirm Add Stop
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+<script src="/admin/reserved-add-stop.js"></script>
+
+</body>
+</html>
