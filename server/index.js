@@ -209,6 +209,25 @@ if(
   trip.paymentStatus =
     "PAYMENT_METHOD_SAVED";
 
+  /*
+    The card was saved successfully and the Get Quote booking is now ready
+    for Admin Trips / Dispatch. This is confirmation, not a charge.
+  */
+  trip.dispatchSelected = true;
+
+  const checkoutStatus =
+    String(trip.status || "")
+      .trim()
+      .toLowerCase();
+
+  if(
+    !checkoutStatus ||
+    checkoutStatus === "booked" ||
+    checkoutStatus === "scheduled"
+  ){
+    trip.status = "Confirmed";
+  }
+
   trip.paymentFailureCode = "";
   trip.paymentFailureMessage = "";
   trip.paymentRequiredEmailSentAt = null;
@@ -487,6 +506,19 @@ app.post(
 
       trip.dispatchSelected =
         true;
+
+      const currentStatus =
+        String(trip.status || "")
+          .trim()
+          .toLowerCase();
+
+      if(
+        !currentStatus ||
+        currentStatus === "booked" ||
+        currentStatus === "scheduled"
+      ){
+        trip.status = "Confirmed";
+      }
 
       if(!trip.cancelToken){
 

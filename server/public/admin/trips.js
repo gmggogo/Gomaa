@@ -1085,6 +1085,29 @@ function isDispatchTrip(t){
   if(isDispatchStatus(t.status))
     return true;
 
+  /*
+    Get Quote now saves the card through Stripe SetupIntent without charging.
+    Older trips can therefore remain Booked/Scheduled even though checkout
+    finished successfully. Only treat those trips as dispatch-ready when the
+    server confirms that checkout/card setup was completed.
+  */
+  const currentStatus = statusKey(t.status);
+  const paymentStatus = String(t.paymentStatus || "").toUpperCase();
+  const getQuoteReady =
+    getTripKind(t) === "GQ" &&
+    (
+      t.dispatchSelected === true ||
+      !!clean(t.stripePaymentMethodId) ||
+      ["PAYMENT_METHOD_SAVED","AUTHORIZED","PAID"].includes(paymentStatus)
+    );
+
+  if(
+    getQuoteReady &&
+    (currentStatus === "booked" || currentStatus === "scheduled")
+  ){
+    return true;
+  }
+
   if(isSharedTrip(t) && Array.isArray(t.passengers)){
     return t.passengers.some(p=>isDispatchStatus(p.status || t.status));
   }

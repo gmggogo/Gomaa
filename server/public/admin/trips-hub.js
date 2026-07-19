@@ -954,7 +954,10 @@ function statusKey(v){ return cleanStatus(v).replace(/\s+/g,""); }
 
 function isActiveStatus(status){
   const s = statusKey(status);
-  return s === "scheduled" || s === "confirmed" || s === "paid";
+  return s === "booked" ||
+    s === "scheduled" ||
+    s === "confirmed" ||
+    s === "paid";
 }
 
 function isClosedStatus(status){
