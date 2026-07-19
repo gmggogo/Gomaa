@@ -1163,7 +1163,11 @@ function extractServices(data){
 
 function serviceEnabled(s){
   if(!s) return false;
-  return s.enabled === true || s.companyEnabled === true;
+  return (
+    s.enabled === true ||
+    s.companyEnabled === true ||
+    s.reservedEnabled === true
+  );
 }
 
 function normalizeKnownCode(code){
