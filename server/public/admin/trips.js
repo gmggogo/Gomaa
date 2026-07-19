@@ -773,7 +773,13 @@ function serviceCodeFromValue(v){
 }
 
 function isServiceVisible(s){
-  return s.enabled === true || s.companyEnabled === true;
+  if(!s) return false;
+
+  return (
+    s.enabled === true ||
+    s.companyEnabled === true ||
+    s.reservedEnabled === true
+  );
 }
 
 function getServiceCodeFromService(s){
