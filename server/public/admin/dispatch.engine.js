@@ -765,48 +765,31 @@ async function autoAssign(){
     return;
   }
 
-  let assigned = 0;
+  try{
+    /*
+      The page never chooses the driver.
+      Smart Dispatch runs on the server and saves the full result atomically.
+    */
+    const result = await Store.autoAssign(
+      sortedTrips.map(trip=>trip._id)
+    );
 
-  for(const trip of sortedTrips){
-    const best = pickBestDriver(trip);
-
-    if(!best){
-      console.log("NO SMART DRIVER:",getTripNumber(trip),trip.tripDate,getTripServiceCode(trip));
-      continue;
+    if(!result || result.success === false){
+      toast(result?.message || "Smart assignment failed");
+      return;
     }
 
-    trip.driverId = best.driverId;
-    trip.driverName = best.driverName;
-    trip.vehicle = best.vehicle;
-    trip.manual = false;
-    trip.manualAssigned = false;
-    trip.autoAssigned = true;
-    trip.smartScore = best.score;
-    trip.smartReason = best.reason;
-    trip.smartDistance = best.distanceMiles;
+    await loadAll();
+    renderAll();
 
-    try{
-      const res = await Store.saveDriver(trip._id,best.driverId);
+    toast(
+      `${Number(result.assignedCount || 0)} trip(s) smart assigned`
+    );
 
-      if(res && res.success === false){
-        trip.driverId = "";
-        trip.driverName = "";
-        trip.vehicle = "";
-        continue;
-      }
-
-      assigned++;
-
-    }catch(err){
-      console.log("SMART SAVE DRIVER ERROR:",err);
-      trip.driverId = "";
-      trip.driverName = "";
-      trip.vehicle = "";
-    }
+  }catch(err){
+    console.log("SMART AUTO ASSIGN ERROR:",err);
+    toast("Smart assignment failed");
   }
-
-  renderAll();
-  toast(`${assigned} trip(s) smart assigned`);
 }
 
 async function saveAssignment(trip,driverId,manual=true){
@@ -1240,6 +1223,18 @@ document.addEventListener("DOMContentLoaded",async()=>{
   bindActions();
 
   await refresh();
+
+  /*
+    New trips are auto-assigned only when the Admin setting is enabled.
+    Existing manual assignments are never replaced.
+  */
+  if(
+    SMART.enabled !== false &&
+    SMART.autoAssignNewTrips === true &&
+    trips.some(trip=>!clean(trip.driverId))
+  ){
+    await autoAssign();
+  }
 
   if(refreshTimer) clearInterval(refreshTimer);
 

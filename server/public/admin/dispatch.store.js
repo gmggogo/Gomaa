@@ -1,166 +1,121 @@
 /* =========================================
-   DISPATCH STORE V2
+   DISPATCH STORE V3
 ========================================= */
 
 const Store = {
 
-  API_TRIPS    : "/api/trips",
-  API_DRIVERS  : "/api/drivers",
-  API_SCHEDULE : "/api/driver-schedule",
+  API_DISPATCH : "/api/dispatch",
   API_SERVICES : "/api/services/admin",
   API_SYSTEM   : "/api/system-design",
 
-  async getJSON(url){
+  headers(json = false){
+    const token = localStorage.getItem("token") || "";
+    return {
+      ...(json ? {"Content-Type":"application/json"} : {}),
+      ...(token ? {Authorization:`Bearer ${token}`} : {})
+    };
+  },
 
-    try{
+  async request(url,options = {}){
+    const res = await fetch(url,{
+      ...options,
+      headers:{
+        ...this.headers(Boolean(options.body)),
+        ...(options.headers || {})
+      }
+    });
 
-      const res = await fetch(url);
+    const data = await res.json().catch(()=>({}));
 
-      if(!res.ok)
-        throw new Error(url);
-
-      return await res.json();
-
-    }catch(err){
-
-      console.log("STORE ERROR:",url,err);
-
-      return null;
-
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        data.error ||
+        "Dispatch request failed"
+      );
     }
 
+    return data;
   },
 
   async load(){
+    try{
+      const [dispatchData,servicesData,systemData] =
+        await Promise.all([
+          this.request(this.API_DISPATCH),
+          this.request(this.API_SERVICES),
+          this.request(this.API_SYSTEM)
+        ]);
 
-    const [
-      tripsData,
-      driversData,
-      scheduleData,
-      servicesData,
-      systemData
-    ] = await Promise.all([
-
-      this.getJSON(this.API_TRIPS),
-      this.getJSON(this.API_DRIVERS),
-      this.getJSON(this.API_SCHEDULE),
-      this.getJSON(this.API_SERVICES),
-      this.getJSON(this.API_SYSTEM)
-
-    ]);
-
-    return {
-
-      trips:
-        Array.isArray(tripsData)
-          ? tripsData
-          : tripsData?.trips || [],
-
-      drivers:
-        Array.isArray(driversData)
-          ? driversData
-          : driversData?.drivers || [],
-
-      schedule:
-        scheduleData || {},
-
-      services:
-        Array.isArray(servicesData)
-          ? servicesData
+      return {
+        trips:Array.isArray(dispatchData?.trips)
+          ? dispatchData.trips
           : [],
-
-      timezone:
-        systemData?.timezone ||
-        "America/Phoenix"
-
-    };
-
+        drivers:Array.isArray(dispatchData?.drivers)
+          ? dispatchData.drivers
+          : [],
+        schedule:dispatchData?.schedule || {},
+        services:Array.isArray(servicesData)
+          ? servicesData
+          : servicesData?.services || [],
+        timezone:systemData?.timezone || "America/Phoenix"
+      };
+    }catch(err){
+      console.log("STORE LOAD ERROR:",err);
+      return {
+        trips:[],
+        drivers:[],
+        schedule:{},
+        services:[],
+        timezone:"America/Phoenix"
+      };
+    }
   },
 
   async saveDriver(tripId,driverId){
-
     try{
-
-      const res = await fetch(
-        `/api/dispatch/${tripId}/driver`,
+      return await this.request(
+        `/api/dispatch/${encodeURIComponent(tripId)}/driver`,
         {
           method:"PATCH",
-          headers:{
-            "Content-Type":"application/json"
-          },
           body:JSON.stringify({
-            driverId
+            driverId:driverId || "",
+            assignmentType:"MANUAL"
           })
         }
       );
-
-      const data =
-        await res.json();
-
-      if(!res.ok){
-
-        return {
-          success:false,
-          message:
-            data.message ||
-            "Driver assignment failed"
-        };
-
-      }
-
-      return data;
-
     }catch(err){
-
-      console.log(
-        "SAVE DRIVER ERROR:",
-        err
-      );
-
-      return {
-        success:false,
-        message:
-          "Driver assignment failed"
-      };
-
+      return {success:false,message:err.message};
     }
+  },
 
+  async autoAssign(ids = []){
+    try{
+      return await this.request(
+        "/api/dispatch/auto-assign",
+        {
+          method:"POST",
+          body:JSON.stringify({ids})
+        }
+      );
+    }catch(err){
+      return {success:false,message:err.message};
+    }
   },
 
   async sendTrips(ids){
-
     try{
-
-      const res = await fetch(
+      return await this.request(
         "/api/dispatch/send",
         {
           method:"PATCH",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify({
-            ids
-          })
+          body:JSON.stringify({ids})
         }
       );
-
-      return await res.json();
-
     }catch(err){
-
-      console.log(
-        "SEND TRIPS ERROR:",
-        err
-      );
-
-      return {
-        success:false
-      };
-
+      return {success:false,message:err.message};
     }
-
   }
-
 };
 
 window.Store = Store;
