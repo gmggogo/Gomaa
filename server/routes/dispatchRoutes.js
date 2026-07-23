@@ -7,7 +7,7 @@ const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
 const SmartDispatchEngine = require("../models/SmartDispatchEngine");
 
-// GH DISPATCH ROUTES — DRIVER QUERY FIX — 2026-07-23
+// GH DISPATCH ROUTES — SHARED DRIVER MATCH FIX — 2026-07-23
 
 function TripModel(){
   const Trip = global.Trip || mongoose.models.Trip;
@@ -26,24 +26,79 @@ function id(v){
     : null;
 }
 function code(v){
-  const c = clean(v).toUpperCase().replace(/[_-]/g," ");
-  if(c === "STANDARD") return "ST";
-  if(c === "WHEELCHAIR" || c === "WHEEL CHAIR" || c === "WC") return "WH";
-  if(c === "SHARED") return "SH";
-  if(c === "LIMO" || c === "LIMOUSINE") return "LM";
-  if(c === "TAXI") return "TX";
+  if(v && typeof v === "object"){
+    v =
+      v.serviceCode ??
+      v.serviceKey ??
+      v.code ??
+      v.key ??
+      v.value ??
+      v.name ??
+      v.title ??
+      "";
+  }
+
+  const c = clean(v)
+    .toUpperCase()
+    .replace(/[_/|-]+/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+
+  const words = c.split(" ").filter(Boolean);
+
+  if(
+    c === "SH" ||
+    c === "SHARED" ||
+    words.includes("SH") ||
+    words.includes("SHARED")
+  ) return "SH";
+
+  if(
+    c === "WH" ||
+    c === "WC" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    words.includes("WH") ||
+    words.includes("WC") ||
+    words.includes("WHEELCHAIR")
+  ) return "WH";
+
+  if(c === "ST" || c === "STANDARD" || words.includes("ST") || words.includes("STANDARD")){
+    return "ST";
+  }
+  if(c === "LM" || c === "LIMO" || c === "LIMOUSINE" || words.includes("LM")){
+    return "LM";
+  }
+  if(c === "TX" || c === "TAXI" || words.includes("TX") || words.includes("TAXI")){
+    return "TX";
+  }
+  if(c === "XL" || words.includes("XL")) return "XL";
+  if(c === "ALL" || words.includes("ALL")) return "ALL";
+
   return c;
 }
 function tripService(trip){
-  return code(
+  const service = code(
     trip.serviceCode ||
     trip.serviceKey ||
     trip.service ||
     trip.tripType
   );
+  if(
+    trip.isShared === true ||
+    trip.shared === true ||
+    trip.sharedTrip === true ||
+    Array.isArray(trip.passengers) && trip.passengers.length > 1 ||
+    service === "SH"
+  ){
+    return "SH";
+  }
+  return service;
 }
 function isShared(trip){
   return trip.isShared === true ||
+    trip.shared === true ||
+    trip.sharedTrip === true ||
     code(trip.tripType) === "SH" ||
     tripService(trip) === "SH";
 }
@@ -121,7 +176,8 @@ function scheduleAllows(row,trip,settings){
     const services = Array.isArray(row.services)
       ? row.services.map(code)
       : ["ALL"];
-    if(!services.includes("ALL") && !services.includes(tripService(trip))){
+    const requiredService = tripService(trip);
+    if(!services.includes("ALL") && !services.includes(requiredService)){
       return false;
     }
   }
