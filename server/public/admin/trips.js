@@ -1311,18 +1311,48 @@ function updateSelectionButtons(){
 async function setItemSelected(item,val){
   const group = item.kind === "shared" ? item.group : [item.trip];
 
-  await Promise.all(group.map(t=>
-    fetch(API + "/" + t._id,{
-      method:"PUT",
+  const results = await Promise.all(group.map(async t=>{
+
+    const tripId = String(t._id || t.id || "").trim();
+
+    if(!tripId){
+      throw new Error("Trip id is missing");
+    }
+
+    const res = await fetch("/api/dispatch/" + tripId + "/selection",{
+      method:"PATCH",
       headers:authHeaders(true),
       body:JSON.stringify({dispatchSelected:val})
-    })
-  ));
+    });
+
+    let data = {};
+
+    try{
+      data = await res.json();
+    }catch(err){
+      data = {};
+    }
+
+    if(!res.ok || data.success === false){
+      throw new Error(data.message || "Dispatch selection was not saved");
+    }
+
+    t.dispatchSelected = data.dispatchSelected === true;
+    return data;
+  }));
+
+  return results;
 }
 
 async function bulkSetSelected(items,val){
-  await Promise.all(items.map(item=>setItemSelected(item,val)));
-  await loadTrips();
+  try{
+    await Promise.all(items.map(item=>setItemSelected(item,val)));
+    await loadTrips();
+  }catch(err){
+    console.error("DISPATCH SELECT:",err);
+    alert("❌ " + (err.message || "Dispatch selection was not saved"));
+    await loadTrips();
+  }
 }
 
 function toggleSelectAll(){
@@ -1344,12 +1374,14 @@ async function sendDispatchItem(key,val){
   const item = displayItems.find(x=>x.key === key);
   if(!item) return;
 
-  await setItemSelected(item,val);
-
-  if(item.kind === "trip") item.trip.dispatchSelected = val;
-  else item.group.forEach(t=>t.dispatchSelected = val);
-
-  updateSelectionButtons();
+  try{
+    await setItemSelected(item,val);
+    updateSelectionButtons();
+  }catch(err){
+    console.error("DISPATCH SELECT:",err);
+    alert("❌ " + (err.message || "Dispatch selection was not saved"));
+    await loadTrips();
+  }
 }
 
 /* ===============================

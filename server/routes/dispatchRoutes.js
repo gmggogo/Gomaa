@@ -358,6 +358,71 @@ router.patch("/send",async(req,res)=>{
   }
 });
 
+/* =========================
+   SAVE TRIP DISPATCH SELECT
+========================= */
+
+router.patch("/:tripId/selection",async(req,res)=>{
+  try{
+    const tripId=id(req.params.tripId);
+
+    if(!tripId){
+      return res.status(400).json({
+        success:false,
+        message:"Invalid trip id"
+      });
+    }
+
+    if(typeof req.body.dispatchSelected !== "boolean"){
+      return res.status(400).json({
+        success:false,
+        message:"dispatchSelected must be true or false"
+      });
+    }
+
+    const Trip=TripModel();
+    const dispatchSelected=req.body.dispatchSelected;
+
+    const trip=await Trip.findByIdAndUpdate(
+      tripId,
+      {$set:{dispatchSelected}},
+      {new:true,runValidators:true}
+    ).lean();
+
+    if(!trip){
+      return res.status(404).json({
+        success:false,
+        message:"Trip not found"
+      });
+    }
+
+    /*
+      Removing Select must also remove any unsent assignment, otherwise an
+      old driver assignment can return if the trip is selected again later.
+      Sent/accepted/on-trip/completed history is kept intact.
+    */
+    if(!dispatchSelected){
+      await DispatchAssignment.deleteOne({
+        tripId,
+        dispatchStatus:{$in:["UNASSIGNED","ASSIGNED"]}
+      });
+    }
+
+    res.json({
+      success:true,
+      tripId:String(trip._id),
+      dispatchSelected:trip.dispatchSelected === true
+    });
+
+  }catch(err){
+    console.error("SAVE DISPATCH SELECT:",err);
+    res.status(500).json({
+      success:false,
+      message:"Dispatch selection save failed"
+    });
+  }
+});
+
 router.patch("/:tripId/driver",async(req,res)=>{
   try{
     const tripId=id(req.params.tripId);
