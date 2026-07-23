@@ -68,6 +68,7 @@ const CLOSED_STATUSES = [
 ];
 
 const ACTIVE_STATUSES = [
+  "unassigned",
   "scheduled",
   "confirmed",
   "paid",
@@ -75,7 +76,10 @@ const ACTIVE_STATUSES = [
   "reserved",
   "review",
   "assigned",
-  "dispatched"
+  "dispatched",
+  "sent",
+  "accepted",
+  "on trip"
 ];
 /* ================= BASIC HELPERS ================= */
 
