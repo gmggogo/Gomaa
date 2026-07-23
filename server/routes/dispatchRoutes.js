@@ -42,6 +42,17 @@ function objectId(value){
 }
 
 function serviceCode(value){
+  if(value && typeof value === "object"){
+    value =
+      value.serviceKey ||
+      value.serviceCode ||
+      value.code ||
+      value.key ||
+      value.title ||
+      value.name ||
+      "";
+  }
+
   const valueCode = clean(value)
     .toUpperCase()
     .replace(/[_-]/g, " ")
@@ -58,20 +69,54 @@ function serviceCode(value){
   return valueCode;
 }
 
-function tripService(trip){
+function isSharedTrip(trip){
+  if(!trip) return false;
+
   if(
-    trip?.isShared === true ||
-    serviceCode(trip?.tripType) === "SH"
+    trip.isShared === true ||
+    trip.shared === true ||
+    trip.sharedTrip === true
   ){
-    return "SH";
+    return true;
   }
 
-  return serviceCode(
-    trip?.serviceCode ||
-    trip?.serviceKey ||
-    trip?.service ||
-    trip?.tripType
-  );
+  const serviceValues = [
+    trip.serviceKey,
+    trip.serviceCode,
+    trip.service,
+    trip.serviceType,
+    trip.tripType,
+    trip.type
+  ];
+
+  if(serviceValues.some(value => serviceCode(value) === "SH")){
+    return true;
+  }
+
+  return Array.isArray(trip.passengers) && trip.passengers.length > 0;
+}
+
+function tripService(trip){
+  if(isSharedTrip(trip)) return "SH";
+
+  const serviceValues = [
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.service,
+    trip?.serviceType,
+    trip?.tripType,
+    trip?.type
+  ];
+
+  return serviceValues
+    .map(serviceCode)
+    .find(Boolean) || "";
+}
+
+function requiredService(trip){
+  return isSharedTrip(trip)
+    ? "SH"
+    : tripService(trip);
 }
 
 function driverServices(row){
@@ -87,8 +132,9 @@ function driverServices(row){
 
 function serviceTier(row, trip){
   const services = driverServices(row);
-  const required = tripService(trip);
+  const required = requiredService(trip);
 
+  if(!required) return null;
   if(services.includes(required)) return 0;
   if(services.includes("ALL")) return 1;
   return null;
@@ -104,7 +150,7 @@ function point(lat, lng){
 }
 
 function pickupPoint(trip){
-  if(tripService(trip) === "SH"){
+  if(requiredService(trip) === "SH"){
     const passenger = (trip.passengers || []).find(item =>
       point(item.pickupLat, item.pickupLng)
     );
@@ -333,10 +379,10 @@ function rankDrivers(trip, context){
       row,
       driverId,
       serviceTier: tier,
-      serviceMatch: tier === 0 ? tripService(trip) : "ALL",
+      serviceMatch: tier === 0 ? requiredService(trip) : "ALL",
       score: Math.round(ranking.score),
       reason: tier === 0
-        ? `${ranking.reason} | Service ${tripService(trip)}`
+        ? `${ranking.reason} | Service ${requiredService(trip)}`
         : `${ranking.reason} | ALL fallback`,
       distance: distance === null ? null : Number(distance.toFixed(2))
     }];
@@ -356,7 +402,7 @@ function rankDrivers(trip, context){
 }
 
 function rejectionReason(trip, context){
-  const required = tripService(trip);
+  const required = requiredService(trip);
   const activeRows = context.drivers
     .map(driver => ({
       driver,
@@ -501,7 +547,7 @@ router.post("/auto-assign", async (req, res) => {
       if(!best){
         results.push({
           tripId: trip._id,
-          service: tripService(trip),
+          service: requiredService(trip),
           assigned: false,
           reason: rejectionReason(trip, context)
         });
