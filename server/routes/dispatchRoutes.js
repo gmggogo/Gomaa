@@ -7,6 +7,8 @@ const DriverSchedule = require("../models/DriverSchedule");
 const DispatchAssignment = require("../models/DispatchAssignment");
 const SmartDispatchEngine = require("../models/SmartDispatchEngine");
 
+// GH DISPATCH ROUTES — DRIVER QUERY FIX — 2026-07-23
+
 function TripModel(){
   const Trip = global.Trip || mongoose.models.Trip;
   if(!Trip) throw new Error("Trip model not loaded");
@@ -86,8 +88,26 @@ function dayKey(date){
   const d = new Date(`${date}T12:00:00`);
   return ["sun","mon","tue","wed","thu","fri","sat"][d.getDay()];
 }
+function driverUserFilter(){
+  return {
+    role:/^driver$/i,
+    enabled:{$ne:false},
+    disabled:{$ne:true}
+  };
+}
 function scheduleAllows(row,trip,settings){
-  if(settings.requireActiveDriver !== false && row.enabled === false) return false;
+  const rowStatus = clean(row.status).toUpperCase();
+  if(
+    settings.requireActiveDriver !== false &&
+    (
+      row.enabled === false ||
+      row.active === false ||
+      rowStatus === "INACTIVE" ||
+      rowStatus === "DISABLED"
+    )
+  ){
+    return false;
+  }
   if(settings.requireScheduleMatch !== false){
     const day = row.days?.[dayKey(trip.tripDate)];
     if(day === false || day?.enabled === false) return false;
@@ -110,7 +130,7 @@ function scheduleAllows(row,trip,settings){
 
 async function buildContext(){
   const [drivers,rows,assignments,settings] = await Promise.all([
-    User.find({role:"driver",enabled:true}).sort({name:1}).lean(),
+    User.find(driverUserFilter()).sort({name:1}).lean(),
     DriverSchedule.find({}).lean(),
     DispatchAssignment.find({
       dispatchStatus:{$in:["ASSIGNED","SENT","ACCEPTED","ON_TRIP"]}
@@ -209,7 +229,7 @@ router.get("/",async(req,res)=>{
       Trip.find({dispatchSelected:true,disabled:false})
         .sort({tripDate:1,tripTime:1,createdAt:1}).lean(),
       DispatchAssignment.find({}).lean(),
-      User.find({role:"driver",enabled:true}).sort({name:1}).lean(),
+      User.find(driverUserFilter()).sort({name:1}).lean(),
       DriverSchedule.find({}).lean()
     ]);
     const assignmentMap = new Map(
@@ -453,7 +473,8 @@ router.patch("/:tripId/driver",async(req,res)=>{
       return res.json({success:true,assignment});
     }
     const driver=await User.findOne({
-      _id:driverId,role:"driver",enabled:true
+      _id:driverId,
+      ...driverUserFilter()
     }).lean();
     if(!driver){
       return res.status(404).json({success:false,message:"Active driver not found"});
