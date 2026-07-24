@@ -35,6 +35,7 @@ const router = express.Router();
 const routeMapEngine = require("../utils/routeMapEngine");
 const Service = require("../models/Service");
 const FacilityPricingOverride = require("../models/FacilityPricingOverride");
+const dispatchRoutes = require("./dispatchRoutes");
 
 /* =========================
    OPTIONAL ADDRESS CACHE
@@ -2318,10 +2319,41 @@ router.post("/confirm-shared/:id", async (req,res)=>{
       updatedTrips.push(trip);
     }
 
+    /*
+      Company Shared can be stored as a group of documents. Assign each newly
+      confirmed Dispatch trip once; already-assigned documents are skipped.
+    */
+    const autoAssignments = [];
+
+    for(const trip of updatedTrips){
+      try{
+        autoAssignments.push(
+          await dispatchRoutes.autoAssignTripById(
+            trip._id,
+            req.user?._id ? String(req.user._id) : "SYSTEM_COMPANY_CONFIRM"
+          )
+        );
+      }catch(autoAssignError){
+        console.log(
+          "COMPANY SHARED AUTO ASSIGN ERROR:",
+          autoAssignError
+        );
+
+        autoAssignments.push({
+          success:false,
+          assigned:false,
+          tripId:String(trip._id),
+          reason:autoAssignError.message || "Auto assignment failed"
+        });
+      }
+    }
+
     return res.json({
       success:true,
       trip:updatedTrips[0],
       trips:updatedTrips,
+      autoAssignment:autoAssignments[0] || null,
+      autoAssignments,
       routeReused,
       routeMode:routeReused
         ? "SAVED_ROUTE_REUSED"

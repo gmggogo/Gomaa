@@ -431,6 +431,119 @@ function rejectionReason(trip, context){
   return `No eligible ${required} or ALL driver after limits/conflicts/distance`;
 }
 
+/*
+  Internal server trigger used immediately after a new trip is confirmed.
+  This does not depend on the Dispatch page or the Auto Assign button.
+*/
+async function autoAssignTripById(tripId, assignedBy = "SYSTEM"){
+  const Trip = TripModel();
+  const validTripId = objectId(tripId);
+
+  if(!validTripId){
+    return {
+      success:false,
+      assigned:false,
+      reason:"Invalid trip id"
+    };
+  }
+
+  const settings = await SmartDispatchEngine.findOne().lean();
+
+  if(settings?.enabled === false){
+    return {
+      success:true,
+      assigned:false,
+      reason:"Smart Dispatch is disabled"
+    };
+  }
+
+  const trip = await Trip.findOne({
+    _id:validTripId,
+    dispatchSelected:true,
+    disabled:false
+  }).lean();
+
+  if(!trip){
+    return {
+      success:true,
+      assigned:false,
+      reason:"Trip is not available in Dispatch"
+    };
+  }
+
+  const existing = await DispatchAssignment.findOne({
+    tripId:trip._id,
+    driverId:{$ne:null}
+  }).lean();
+
+  if(existing){
+    return {
+      success:true,
+      assigned:false,
+      skipped:true,
+      reason:"Already assigned",
+      driverId:String(existing.driverId),
+      driverName:existing.driverName || ""
+    };
+  }
+
+  const context = await buildContext();
+  await attachAssignedTrips(context);
+
+  const best = rankDrivers(trip,context)[0];
+
+  if(!best){
+    return {
+      success:true,
+      assigned:false,
+      service:requiredService(trip),
+      reason:rejectionReason(trip,context)
+    };
+  }
+
+  const assignment = await DispatchAssignment.findOneAndUpdate(
+    {tripId:trip._id,driverId:null},
+    {$set:{
+      tripId:trip._id,
+      driverId:best.driver._id,
+      driverName:best.driver.name || best.driver.fullName || "",
+      driverPhone:best.row.phone || best.driver.phone || "",
+      vehicleNumber:best.row.vehicleNumber || "",
+      driverAddress:best.row.address || "",
+      services:driverServices(best.row),
+      dispatchStatus:"ASSIGNED",
+      assignedBy:clean(assignedBy) || "SYSTEM",
+      assignmentType:"AUTO",
+      smartScore:best.score,
+      smartReason:best.reason,
+      smartDistance:best.distance,
+      assignedAt:new Date()
+    }},
+    {upsert:true,new:true}
+  );
+
+  if(!assignment){
+    return {
+      success:true,
+      assigned:false,
+      service:requiredService(trip),
+      reason:"Trip assignment changed before save"
+    };
+  }
+
+  return {
+    success:true,
+    assigned:true,
+    tripId:String(trip._id),
+    service:requiredService(trip),
+    driverId:best.driverId,
+    driverName:assignment.driverName,
+    serviceMatch:best.serviceMatch,
+    score:best.score,
+    reason:best.reason
+  };
+}
+
 router.get("/", async (req, res) => {
   try{
     const Trip = TripModel();
@@ -724,10 +837,20 @@ router.patch("/:tripId/selection", async (req, res) => {
       });
     }
 
+    let autoAssignment = null;
+
+    if(dispatchSelected){
+      autoAssignment = await autoAssignTripById(
+        trip._id,
+        req.user?._id ? String(req.user._id) : "SYSTEM_SELECTION"
+      );
+    }
+
     res.json({
       success: true,
       tripId: String(trip._id),
-      dispatchSelected: trip.dispatchSelected === true
+      dispatchSelected: trip.dispatchSelected === true,
+      autoAssignment
     });
   }catch(error){
     console.error("SAVE DISPATCH SELECT:", error);
@@ -869,5 +992,7 @@ router.patch("/:tripId/note", async (req, res) => {
     });
   }
 });
+
+router.autoAssignTripById = autoAssignTripById;
 
 module.exports = router;

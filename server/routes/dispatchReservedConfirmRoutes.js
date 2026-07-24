@@ -34,6 +34,7 @@ const https = require("https");
 const tripFinalizer = require("../utils/trip-finalizer");
 const routeMapEngine = require("../utils/routeMapEngine");
 const Service = require("../models/Service");
+const dispatchRoutes = require("./dispatchRoutes");
 
 /* =========================
    OPTIONAL ADDRESS CACHE
@@ -2698,9 +2699,35 @@ router.post("/:tripId", async (req,res)=>{
 
     await updatedTrip.save();
 
+    /*
+      A confirmed trip enters Dispatch and receives an eligible driver now.
+      Confirm must remain successful when no driver is currently eligible.
+    */
+    let autoAssignment = null;
+
+    try{
+      autoAssignment =
+        await dispatchRoutes.autoAssignTripById(
+          updatedTrip._id,
+          req.user?._id ? String(req.user._id) : "SYSTEM_CONFIRM"
+        );
+    }catch(autoAssignError){
+      console.log(
+        "RESERVED CONFIRM AUTO ASSIGN ERROR:",
+        autoAssignError
+      );
+
+      autoAssignment = {
+        success:false,
+        assigned:false,
+        reason:autoAssignError.message || "Auto assignment failed"
+      };
+    }
+
     return res.json({
       success:true,
       trip:updatedTrip,
+      autoAssignment,
       requestsUsed:googleRequestsUsed,
       googleRequestsUsed,
       geocodeRequestsUsed:
