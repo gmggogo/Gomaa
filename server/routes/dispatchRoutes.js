@@ -235,7 +235,11 @@ function scheduleTimeAllows(row, trip, settings){
 }
 
 function eligibleServiceTier(row, trip, settings){
-  if(settings.requireServiceMatch === false) return 0;
+  /*
+    GH policy is stricter than the optional Smart Dispatch setting:
+    the exact service owner must always rank first and ALL is the only
+    fallback. A driver who owns another service is never eligible.
+  */
   return serviceTier(row, trip);
 }
 
@@ -541,6 +545,139 @@ async function autoAssignTripById(tripId, assignedBy = "SYSTEM"){
     serviceMatch:best.serviceMatch,
     score:best.score,
     reason:best.reason
+  };
+}
+
+/*
+  A Company Shared booking can be stored as several Trip documents. They are
+  one physical route, so they must receive one driver together. Ranking is
+  performed once on the first document, then the same assignment is copied to
+  the remaining unassigned documents. Existing assignments are never
+  overwritten.
+*/
+async function autoAssignTripGroupByIds(tripIds, assignedBy = "SYSTEM"){
+  const Trip = TripModel();
+  const ids = [...new Set(
+    (Array.isArray(tripIds) ? tripIds : [])
+      .map(objectId)
+      .filter(Boolean)
+      .map(value => String(value))
+  )].map(value => new mongoose.Types.ObjectId(value));
+
+  if(!ids.length){
+    return {
+      success:false,
+      assigned:false,
+      assignedCount:0,
+      reason:"No valid shared trip ids"
+    };
+  }
+
+  const trips = await Trip.find({
+    _id:{$in:ids},
+    dispatchSelected:true,
+    disabled:false
+  }).sort({passengerIndex:1,createdAt:1}).lean();
+
+  if(!trips.length){
+    return {
+      success:true,
+      assigned:false,
+      assignedCount:0,
+      reason:"Shared trip group is not available in Dispatch"
+    };
+  }
+
+  const tripIdStrings = trips.map(trip => String(trip._id));
+  let master = await DispatchAssignment.findOne({
+    tripId:{$in:trips.map(trip => trip._id)},
+    driverId:{$ne:null}
+  }).sort({assignedAt:1}).lean();
+
+  let primaryResult = null;
+
+  if(!master){
+    primaryResult = await autoAssignTripById(
+      trips[0]._id,
+      clean(assignedBy) || "SYSTEM"
+    );
+
+    if(!primaryResult?.assigned){
+      return {
+        ...primaryResult,
+        group:true,
+        tripIds:tripIdStrings,
+        assignedCount:0
+      };
+    }
+
+    master = await DispatchAssignment.findOne({
+      tripId:trips[0]._id,
+      driverId:{$ne:null}
+    }).lean();
+  }
+
+  if(!master?.driverId){
+    return {
+      success:true,
+      assigned:false,
+      group:true,
+      tripIds:tripIdStrings,
+      assignedCount:0,
+      reason:"Shared group driver was not saved"
+    };
+  }
+
+  let assignedCount = primaryResult?.assigned ? 1 : 0;
+
+  for(const trip of trips){
+    if(String(trip._id) === String(master.tripId)) continue;
+
+    const existingForTrip = await DispatchAssignment.findOne({
+      tripId:trip._id,
+      driverId:{$ne:null}
+    }).lean();
+
+    if(existingForTrip) continue;
+
+    const assignment = await DispatchAssignment.findOneAndUpdate(
+      {tripId:trip._id,driverId:null},
+      {$set:{
+        tripId:trip._id,
+        driverId:master.driverId,
+        driverName:master.driverName || "",
+        driverPhone:master.driverPhone || "",
+        vehicleNumber:master.vehicleNumber || "",
+        driverAddress:master.driverAddress || "",
+        services:Array.isArray(master.services)
+          ? master.services
+          : [requiredService(trip)],
+        dispatchStatus:"ASSIGNED",
+        assignedBy:clean(assignedBy) || "SYSTEM",
+        assignmentType:master.assignmentType || "AUTO",
+        smartScore:master.smartScore ?? null,
+        smartReason:master.smartReason || "Shared group same driver",
+        smartDistance:master.smartDistance ?? null,
+        assignedAt:master.assignedAt || new Date()
+      }},
+      {upsert:true,new:true}
+    );
+
+    if(assignment) assignedCount += 1;
+  }
+
+  return {
+    success:true,
+    assigned:true,
+    group:true,
+    tripIds:tripIdStrings,
+    assignedCount,
+    driverId:String(master.driverId),
+    driverName:master.driverName || "",
+    service:"SH",
+    serviceMatch:"SH",
+    score:master.smartScore ?? null,
+    reason:master.smartReason || "Shared group same driver"
   };
 }
 
@@ -994,5 +1131,6 @@ router.patch("/:tripId/note", async (req, res) => {
 });
 
 router.autoAssignTripById = autoAssignTripById;
+router.autoAssignTripGroupByIds = autoAssignTripGroupByIds;
 
 module.exports = router;
