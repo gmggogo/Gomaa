@@ -93,7 +93,13 @@ function isSharedTrip(trip){
     return true;
   }
 
-  return Array.isArray(trip.passengers) && trip.passengers.length > 0;
+  /*
+    Individual trips can also carry a passengers array, including one
+    passenger. The presence of that array alone must never turn ST/WH/etc.
+    into SH. Shared is identified only by an explicit shared flag or an SH
+    service value above.
+  */
+  return false;
 }
 
 function tripService(trip){
