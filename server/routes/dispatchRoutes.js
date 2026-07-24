@@ -392,16 +392,22 @@ function rankDrivers(trip, context){
     }];
   });
 
-  /*
-    This is a hard priority, not a score bonus:
-    a matching-service driver always ranks before an ALL driver.
-  */
-  return candidates.sort((first, second) =>
-    first.serviceTier - second.serviceTier ||
+  const sortSelectedTier = list => list.sort((first, second) =>
     second.score - first.score ||
     (first.distance ?? Infinity) - (second.distance ?? Infinity) ||
     clean(first.driver.name || first.driver.fullName)
       .localeCompare(clean(second.driver.name || second.driver.fullName))
+  );
+
+  /*
+    Two separate stages are intentional. ALL drivers never compete by score
+    with an eligible owner of the requested service.
+  */
+  const serviceOwners = candidates.filter(item => item.serviceTier === 0);
+  if(serviceOwners.length) return sortSelectedTier(serviceOwners);
+
+  return sortSelectedTier(
+    candidates.filter(item => item.serviceTier === 1)
   );
 }
 
@@ -766,10 +772,13 @@ router.post("/auto-assign", async (req, res) => {
     const existingAssignments = await DispatchAssignment.find({
       tripId: {$in: trips.map(trip => trip._id)},
       driverId: {$ne: null}
-    }).select("tripId").lean();
+    }).lean();
 
-    const assignedIds = new Set(
-      existingAssignments.map(assignment => String(assignment.tripId))
+    const existingAssignmentMap = new Map(
+      existingAssignments.map(assignment => [
+        String(assignment.tripId),
+        assignment
+      ])
     );
 
     const context = await buildContext();
@@ -778,12 +787,33 @@ router.post("/auto-assign", async (req, res) => {
     const results = [];
 
     for(const trip of trips){
-      if(assignedIds.has(String(trip._id))){
+      const previousAssignment =
+        existingAssignmentMap.get(String(trip._id));
+
+      /*
+        Never overwrite a manual decision or a trip already sent/started.
+        An AUTO assignment that is still only ASSIGNED is re-evaluated, so an
+        older ALL fallback can be corrected when a service owner is available.
+      */
+      const previousStatus =
+        clean(previousAssignment?.dispatchStatus).toUpperCase();
+      const previousType =
+        clean(previousAssignment?.assignmentType).toUpperCase();
+
+      if(
+        previousAssignment &&
+        (
+          previousType === "MANUAL" ||
+          ["SENT", "ACCEPTED", "ON_TRIP"].includes(previousStatus)
+        )
+      ){
         results.push({
           tripId: trip._id,
           assigned: false,
           skipped: true,
-          reason: "Already assigned"
+          reason: previousType === "MANUAL"
+            ? "Manual assignment preserved"
+            : `Assignment preserved because status is ${previousStatus}`
         });
         continue;
       }
@@ -804,8 +834,12 @@ router.post("/auto-assign", async (req, res) => {
         continue;
       }
 
+      const assignmentFilter = previousAssignment
+        ? {_id: previousAssignment._id}
+        : {tripId: trip._id, driverId: null};
+
       const assignment = await DispatchAssignment.findOneAndUpdate(
-        {tripId: trip._id, driverId: null},
+        assignmentFilter,
         {$set: {
           tripId: trip._id,
           driverId: best.driver._id,
@@ -852,6 +886,8 @@ router.post("/auto-assign", async (req, res) => {
         tripId: trip._id,
         service: tripService(trip),
         assigned: true,
+        reassigned: !!previousAssignment &&
+          String(previousAssignment.driverId) !== best.driverId,
         driverId: best.driverId,
         driverName: assignment.driverName,
         serviceMatch: best.serviceMatch,

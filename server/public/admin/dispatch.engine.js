@@ -27,6 +27,7 @@ let selectedIds = new Set();
 let editMode = false;
 let activeTab = "dispatch";
 let refreshTimer = null;
+let autoAssignRunning = false;
 
 /* ================= DEFAULT SMART SETTINGS ================= */
 
@@ -50,7 +51,7 @@ requireServiceMatch:false,
   enableFairDistribution:true,
   maxDriverLoadPercent:80,
 
-  autoAssignNewTrips:false,
+  autoAssignNewTrips:true,
   autoReassignUnassigned:true,
   autoAssignSharedTrips:true,
 
@@ -754,9 +755,13 @@ async function loadAll(){
 
 /* ================= ASSIGNMENT ================= */
 
-async function autoAssign(){
+async function autoAssign(options={}){
+  const silent = options.silent === true;
+
+  if(autoAssignRunning) return;
+
   if(SMART.enabled === false){
-    toast("Smart Dispatch is disabled");
+    if(!silent) toast("Smart Dispatch is disabled");
     return;
   }
 
@@ -765,9 +770,11 @@ async function autoAssign(){
     .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
 
   if(!sortedTrips.length){
-    toast("No unassigned trips");
+    if(!silent) toast("No unassigned trips");
     return;
   }
+
+  autoAssignRunning = true;
 
   try{
     /*
@@ -779,21 +786,38 @@ async function autoAssign(){
     );
 
     if(!result || result.success === false){
-      toast(result?.message || "Smart assignment failed");
+      if(!silent) toast(result?.message || "Smart assignment failed");
       return;
     }
 
     await loadAll();
     renderAll();
 
-    toast(
-      `${Number(result.assignedCount || 0)} trip(s) smart assigned`
-    );
+    if(!silent || Number(result.assignedCount || 0) > 0){
+      toast(
+        `${Number(result.assignedCount || 0)} trip(s) smart assigned`
+      );
+    }
 
   }catch(err){
     console.log("SMART AUTO ASSIGN ERROR:",err);
-    toast("Smart assignment failed");
+    if(!silent) toast("Smart assignment failed");
+  }finally{
+    autoAssignRunning = false;
   }
+}
+
+async function autoAssignNewTrips(){
+  if(
+    SMART.enabled === false ||
+    SMART.autoAssignNewTrips !== true ||
+    autoAssignRunning ||
+    !trips.some(trip=>!clean(trip.driverId))
+  ){
+    return;
+  }
+
+  await autoAssign({silent:true});
 }
 
 async function saveAssignment(trip,driverId,manual=true){
@@ -1232,18 +1256,13 @@ document.addEventListener("DOMContentLoaded",async()=>{
     New trips are auto-assigned only when the Admin setting is enabled.
     Existing manual assignments are never replaced.
   */
-  if(
-    SMART.enabled !== false &&
-    SMART.autoAssignNewTrips === true &&
-    trips.some(trip=>!clean(trip.driverId))
-  ){
-    await autoAssign();
-  }
+  await autoAssignNewTrips();
 
   if(refreshTimer) clearInterval(refreshTimer);
 
   refreshTimer = setInterval(async()=>{
     if(editMode) return;
     await refresh();
+    await autoAssignNewTrips();
   },30000);
 });
