@@ -117,6 +117,17 @@ function isClosedTrip(t){
   return CLOSED_STATUSES.includes(statusKey(t.status));
 }
 
+function isSentTrip(t){
+  return [
+    t.dispatchStatus,
+    t.status,
+    t.driverStatus,
+    t.assignmentStatus
+  ].map(statusKey).some(s=>[
+    "sent","dispatched","accepted","on trip"
+  ].includes(s));
+}
+
 function isActiveTrip(t){
 
   const status =
@@ -301,6 +312,33 @@ function getEmail(t,p=null){
 
 function getNotes(t){
   return t.notes ?? t.tripNotes ?? t.note ?? "";
+}
+
+function escortValue(v){
+  if(v === true || v === 1) return "Yes";
+  if(v === false || v === 0) return "No";
+  const x = lower(v);
+  if(["yes","y","true","1","with escort","escort"].includes(x)) return "Yes";
+  if(["no","n","false","0","none","without escort"].includes(x)) return "No";
+  return clean(v);
+}
+
+function getEscort(t){
+  const direct = escortValue(
+    t.escort ?? t.hasEscort ?? t.withEscort ??
+    t.escortRequired ?? t.clientEscort ?? t.passengerEscort
+  );
+  if(direct) return direct;
+
+  if(Array.isArray(t.passengers) && t.passengers.length){
+    return t.passengers.map((p,i)=>{
+      const value = escortValue(
+        p.escort ?? p.hasEscort ?? p.withEscort ?? p.escortRequired
+      ) || "No";
+      return t.passengers.length > 1 ? `${i+1}. ${value}` : value;
+    }).join("\n");
+  }
+  return "No";
 }
 
 function getStops(t){
@@ -906,12 +944,11 @@ async function sendTrips(ids){
 
     selectedTrips.forEach(t=>{
       t.status = "Dispatched";
+      t.dispatchStatus = "SENT";
       t.dispatchSelected = false;
       t.selected = false;
       selectedIds.delete(t._id);
     });
-
-    trips = trips.filter(t=>!ids.includes(t._id));
 
     renderAll();
     toast(`${ids.length} trip(s) sent`);
@@ -923,12 +960,16 @@ async function sendTrips(ids){
 }
 
 function sendSelected(){
-  const ids = trips.filter(t=>selectedIds.has(t._id)).map(t=>t._id);
+  const ids = trips
+    .filter(t=>selectedIds.has(t._id) && !isSentTrip(t))
+    .map(t=>t._id);
   sendTrips(ids);
 }
 
 function sendAll(){
-  const ids = trips.filter(t=>clean(t.driverId)).map(t=>t._id);
+  const ids = trips
+    .filter(t=>clean(t.driverId) && !isSentTrip(t))
+    .map(t=>t._id);
   sendTrips(ids);
 }
 
@@ -939,12 +980,14 @@ function sendOne(id){
 /* ================= SELECTION ================= */
 
 function toggleSelectAll(){
-  const allAreSelected = trips.length && trips.every(t=>selectedIds.has(t._id));
+  const selectable = trips.filter(t=>!isSentTrip(t));
+  const allAreSelected = selectable.length &&
+    selectable.every(t=>selectedIds.has(t._id));
 
   if(allAreSelected){
-    trips.forEach(t=>selectedIds.delete(t._id));
+    selectable.forEach(t=>selectedIds.delete(t._id));
   }else{
-    trips.forEach(t=>selectedIds.add(t._id));
+    selectable.forEach(t=>selectedIds.add(t._id));
   }
 
   renderAll();
@@ -952,6 +995,8 @@ function toggleSelectAll(){
 
 function toggleTrip(id){
   id = String(id);
+  const trip = trips.find(t=>String(t._id) === id);
+  if(!trip || isSentTrip(trip)) return;
 
   if(selectedIds.has(id)) selectedIds.delete(id);
   else selectedIds.add(id);
@@ -992,7 +1037,9 @@ function renderStats(){
 
   const btn = document.getElementById("selectBtn");
   if(btn){
-    const allSelected = trips.length && trips.every(t=>selectedIds.has(t._id));
+    const selectable = trips.filter(t=>!isSentTrip(t));
+    const allSelected = selectable.length &&
+      selectable.every(t=>selectedIds.has(t._id));
     btn.textContent = allSelected ? "Remove All" : "Select All";
   }
 
@@ -1004,10 +1051,11 @@ function renderStats(){
 
 function driverOptions(t){
   const valid = rankDriversForTrip(t);
+  const locked = isSentTrip(t);
 
   return `
     <select class="driver-select"
-      ${editMode ? "" : "disabled"}
+      ${editMode && !locked ? "" : "disabled"}
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
       ${valid.map(x=>{
@@ -1024,6 +1072,7 @@ function driverOptions(t){
 
 function renderTripRow(t,index){
   const shared = isSharedTrip(t);
+  const sent = isSentTrip(t);
 
   const passengerName = shared ? sharedCell(t,"name") : (t.clientName || t.name || "");
   const phone = shared ? sharedCell(t,"phone") : (t.clientPhone || t.phone || "");
@@ -1033,7 +1082,8 @@ function renderTripRow(t,index){
 
   const cls = [
     rowClass(t),
-    clean(t.driverId) ? "" : "row-unassigned"
+    clean(t.driverId) ? "" : "row-unassigned",
+    sent ? "row-dispatched" : ""
   ].join(" ");
 
   return `
@@ -1041,6 +1091,7 @@ function renderTripRow(t,index){
       <td>
         <input type="checkbox"
           ${selectedIds.has(t._id) ? "checked" : ""}
+          ${sent ? "disabled" : ""}
           onchange="toggleTrip('${safe(t._id)}')">
       </td>
 
@@ -1086,11 +1137,19 @@ function renderTripRow(t,index){
 
       <td class="wide-notes">${safe(getNotes(t) || "")}</td>
 
-      <td><span class="status-pill">${safe(t.status || "Scheduled")}</span></td>
+      <td class="wide-escort">${safe(getEscort(t))}</td>
 
       <td>
-        <button class="btn green" onclick="sendOne('${safe(t._id)}')">
-          Send
+        <span class="status-pill ${sent ? "status-sent" : ""}">
+          ${safe(sent ? "SENT" : (t.status || "Scheduled"))}
+        </span>
+      </td>
+
+      <td>
+        <button class="btn ${sent ? "gray" : "green"}"
+          ${sent ? "disabled" : ""}
+          onclick="sendOne('${safe(t._id)}')">
+          ${sent ? "Sent" : "Send"}
         </button>
       </td>
     </tr>
@@ -1104,7 +1163,7 @@ function renderTable(bodyId,list){
   if(!list.length){
     body.innerHTML = `
       <tr>
-        <td colspan="22" class="empty-row">No Trips</td>
+        <td colspan="23" class="empty-row">No Trips</td>
       </tr>
     `;
     return;
