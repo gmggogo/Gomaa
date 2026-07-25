@@ -274,22 +274,34 @@ body{
 .cell-box{
   width:100%;
   min-height:42px;
+  display:block;
+  padding:0;
+  background:#fff;
+  border:1px solid rgba(148,163,184,.58);
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.cell-item{
+  min-height:40px;
   display:flex;
   align-items:center;
   justify-content:center;
   padding:7px 8px;
-  background:rgba(255,255,255,.76);
-  border:1px solid rgba(148,163,184,.58);
-  border-radius:8px;
+  background:#fff;
   white-space:pre-line;
   overflow-wrap:anywhere;
   line-height:1.35;
 }
 
-.wide-client .cell-box,
-.wide-phone .cell-box,
-.wide-address .cell-box,
-.wide-notes .cell-box{
+.cell-item + .cell-item{
+  border-top:1px solid rgba(15,23,42,.72);
+}
+
+.wide-client .cell-item,
+.wide-phone .cell-item,
+.wide-address .cell-item,
+.wide-notes .cell-item{
   justify-content:flex-start;
   text-align:left;
 }
@@ -344,6 +356,26 @@ body{
 
 .row-dispatched .cell-box{
   background:rgba(241,245,249,.88);
+}
+
+.shared-trip-group td{
+  vertical-align:middle;
+}
+
+.shared-passenger-first td{
+  border-top:3px solid #7c3aed;
+}
+
+.shared-passenger-continuation td{
+  border-top:2px solid #a78bfa;
+}
+
+.shared-trip-group .cell-box{
+  min-height:48px;
+}
+
+.shared-trip-group .cell-item{
+  min-height:46px;
 }
 
 /* ================= VIEW MODAL ================= */

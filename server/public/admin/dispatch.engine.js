@@ -358,6 +358,19 @@ function isSentTrip(t){
   );
 }
 
+function isTripInProgress(t){
+  const values = [
+    t.dispatchStatus,
+    t.status,
+    t.tripStatus,
+    t.driverStatus
+  ].map(statusKey);
+
+  return values.some(value=>
+    ["in progress","inprogress","on trip","ontrip","started"].includes(value)
+  );
+}
+
 function getStops(t){
   if(Array.isArray(t.stops)) return t.stops;
   if(Array.isArray(t.stopAddresses)) return t.stopAddresses;
@@ -392,7 +405,7 @@ function getPassengers(t){
   }];
 }
 
-function sharedCell(t,field){
+function sharedValues(t,field){
   const passengers = getPassengers(t);
 
   return passengers.map((p,i)=>{
@@ -402,7 +415,11 @@ function sharedCell(t,field){
     if(field === "pickup") return `${i+1}. ${p.pickup || ""}`;
     if(field === "dropoff") return `${i+1}. ${p.dropoff || ""}`;
     return "";
-  }).join("\n");
+  });
+}
+
+function sharedCell(t,field){
+  return sharedValues(t,field).join("\n");
 }
 
 /* ================= LOCATION HELPERS ================= */
@@ -878,6 +895,12 @@ async function autoAssignNewTrips(){
 async function saveAssignment(trip,driverId,manual=true){
   driverId = clean(driverId);
 
+  if(isTripInProgress(trip)){
+    toast("Driver cannot be changed while trip is in progress");
+    renderAll();
+    return;
+  }
+
   if(driverId){
     if(!isDriverActiveForDate(driverId,trip.tripDate)){
       toast("Driver is not active for this trip date");
@@ -1014,7 +1037,7 @@ function toggleSelectAll(){
 function toggleTrip(id){
   id = String(id);
   const trip = trips.find(t=>String(t._id) === id);
-  if(!trip || isSentTrip(trip)) return;
+  if(!trip) return;
 
   if(selectedIds.has(id)) selectedIds.delete(id);
   else selectedIds.add(id);
@@ -1023,6 +1046,11 @@ function toggleTrip(id){
 }
 
 function toggleEdit(){
+  if(!editMode && !selectedIds.size){
+    toast("Select a trip to edit");
+    return;
+  }
+
   editMode = !editMode;
   renderAll();
   toast(editMode ? "Edit mode enabled" : "Edit mode disabled");
@@ -1069,14 +1097,46 @@ function renderStats(){
 }
 
 function driverOptions(t){
-  const valid = rankDriversForTrip(t);
+  const currentId = clean(t.driverId);
+  const ranked = rankDriversForTrip(t);
+  const rankedById = new Map(
+    ranked.map(item=>[String(item.driverId),item])
+  );
+
+  /*
+    The saved assignment is the source of truth. Manual edit must never make
+    the browser silently display a different first option when the saved
+    driver is no longer present in the current smart-ranking result.
+  */
+  const options = [];
+
+  if(currentId){
+    const savedRank = rankedById.get(currentId);
+    options.push(
+      savedRank || {
+        driverId:currentId,
+        driverName:t.driverName || getDriverName(currentId) || "Saved driver",
+        vehicle:t.vehicle || getDriverVehicle(currentId) || "-",
+        score:t.smartScore || "-"
+      }
+    );
+  }
+
+  ranked.forEach(item=>{
+    if(String(item.driverId) !== currentId) options.push(item);
+  });
+
+  const canEdit =
+    editMode &&
+    selectedIds.has(String(t._id)) &&
+    !isTripInProgress(t);
 
   return `
     <select class="driver-select"
-      ${editMode ? "" : "disabled"}
+      ${canEdit ? "" : "disabled"}
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
-      ${valid.map(x=>{
+      ${options.map(x=>{
         const id = String(x.driverId);
         return `
           <option value="${safe(id)}" ${String(t.driverId)===id ? "selected" : ""}>
@@ -1089,7 +1149,15 @@ function driverOptions(t){
 }
 
 function cellBox(value){
-  return `<div class="cell-box">${value}</div>`;
+  const items = Array.isArray(value) ? value : [value];
+
+  return `
+    <div class="cell-box">
+      ${items.map(item=>`
+        <div class="cell-item">${item || "--"}</div>
+      `).join("")}
+    </div>
+  `;
 }
 
 function viewLine(label,value){
@@ -1142,11 +1210,15 @@ function closeTripView(){
 function renderTripRow(t,index){
   const shared = isSharedTrip(t);
 
-  const passengerName = shared ? sharedCell(t,"name") : (t.clientName || t.name || "");
-  const phone = shared ? sharedCell(t,"phone") : (t.clientPhone || t.phone || "");
-  const email = shared ? sharedCell(t,"email") : getEmail(t);
-  const pickup = shared ? sharedCell(t,"pickup") : (t.pickup || "");
-  const dropoff = shared ? sharedCell(t,"dropoff") : (t.dropoff || "");
+  if(shared){
+    return renderSharedTripRows(t,index);
+  }
+
+  const passengerName = t.clientName || t.name || "";
+  const phone = t.clientPhone || t.phone || "";
+  const email = getEmail(t);
+  const pickup = t.pickup || "";
+  const dropoff = t.dropoff || "";
 
   const cls = [
     rowClass(t),
@@ -1159,7 +1231,6 @@ function renderTripRow(t,index){
       <td>
         <input type="checkbox"
           ${selectedIds.has(t._id) ? "checked" : ""}
-          ${isSentTrip(t) ? "disabled" : ""}
           onchange="toggleTrip('${safe(t._id)}')">
       </td>
 
@@ -1169,19 +1240,35 @@ function renderTripRow(t,index){
 
       <td>${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
 
-      <td>${cellBox(safe(shared ? "Shared" : getTripKind(t)))}</td>
+      <td>${cellBox(safe(getTripKind(t)))}</td>
 
       <td>${cellBox(safe(t.company || t.companyName || t.facilityName || "--"))}</td>
 
-      <td class="wide-client">${cellBox(safe(passengerName || "--"))}</td>
+      <td class="wide-client">${
+        cellBox(
+          safe(passengerName || "--")
+        )
+      }</td>
 
-      <td class="wide-phone">${cellBox(safe(phone || "--"))}</td>
+      <td class="wide-phone">${
+        cellBox(
+          safe(phone || "--")
+        )
+      }</td>
 
-      <td class="wide-address">${cellBox(safe(pickup || "--"))}</td>
+      <td class="wide-address">${
+        cellBox(
+          safe(pickup || "--")
+        )
+      }</td>
 
-      <td class="wide-address">${cellBox(safe(shared ? "Route optimized per passenger" : stopsText(t)))}</td>
+      <td class="wide-address">${cellBox(safe(stopsText(t)))}</td>
 
-      <td class="wide-address">${cellBox(safe(dropoff || "--"))}</td>
+      <td class="wide-address">${
+        cellBox(
+          safe(dropoff || "--")
+        )
+      }</td>
 
       <td class="wide-notes">${cellBox(safe(getNotes(t) || "--"))}</td>
 
@@ -1217,6 +1304,96 @@ function renderTripRow(t,index){
       </td>
     </tr>
   `;
+}
+
+function passengerNotes(t,p){
+  return p?.notes ?? p?.tripNotes ?? p?.note ?? getNotes(t) ?? "";
+}
+
+function passengerEscort(t,p){
+  const passengerValue =
+    p?.escort ??
+    p?.hasEscort ??
+    p?.escortRequired ??
+    p?.withEscort ??
+    p?.passengerEscort;
+
+  return passengerValue === undefined || passengerValue === null
+    ? getEscort(t)
+    : getEscort({...t,escort:passengerValue});
+}
+
+function passengerStops(t,p){
+  const ownStops =
+    Array.isArray(p?.stops) ? p.stops :
+    Array.isArray(p?.stopAddresses) ? p.stopAddresses :
+    Array.isArray(p?.extraStops) ? p.extraStops :
+    [];
+
+  if(ownStops.length){
+    return ownStops.map(stopText).filter(Boolean)
+      .map((value,i)=>`${i+1}. ${value}`).join("\n") || "-";
+  }
+
+  return "Route optimized";
+}
+
+function renderSharedTripRows(t,index){
+  const passengers = getPassengers(t);
+  const rowSpan = Math.max(passengers.length,1);
+  const cls = [
+    rowClass(t),
+    clean(t.driverId) ? "" : "row-unassigned",
+    isSentTrip(t) ? "row-dispatched" : "",
+    "shared-trip-group"
+  ].join(" ");
+
+  const commonStart = `
+    <td rowspan="${rowSpan}">
+      <input type="checkbox"
+        ${selectedIds.has(t._id) ? "checked" : ""}
+        onchange="toggleTrip('${safe(t._id)}')">
+    </td>
+    <td rowspan="${rowSpan}">${cellBox(index)}</td>
+    <td rowspan="${rowSpan}">${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
+    <td rowspan="${rowSpan}">${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
+    <td rowspan="${rowSpan}">${cellBox("Shared")}</td>
+    <td rowspan="${rowSpan}">${cellBox(safe(t.company || t.companyName || t.facilityName || "--"))}</td>
+  `;
+
+  const commonEnd = `
+    <td rowspan="${rowSpan}">${cellBox(safe(t.tripDate || "--"))}</td>
+    <td rowspan="${rowSpan}">${cellBox(safe(t.tripTime || "--"))}</td>
+    <td rowspan="${rowSpan}">${cellBox(driverOptions(t))}</td>
+    <td rowspan="${rowSpan}">${cellBox(`<span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span>`)}</td>
+    <td rowspan="${rowSpan}">${cellBox(`<span class="status-pill">${safe(t.smartScore ? `Score ${t.smartScore}` : "-")}</span>`)}</td>
+    <td rowspan="${rowSpan}">${cellBox(`<span class="status-pill">${safe(isSentTrip(t) ? "SENT" : (t.status || "Scheduled"))}</span>`)}</td>
+    <td rowspan="${rowSpan}">
+      <button class="eye-btn" type="button" title="View"
+        onclick="openTripView('${safe(t._id)}')">👁️</button>
+    </td>
+    <td rowspan="${rowSpan}">
+      ${
+        isSentTrip(t)
+          ? `<button class="btn sent-btn" type="button" disabled>Sent</button>`
+          : `<button class="btn green" type="button" onclick="sendOne('${safe(t._id)}')">Send</button>`
+      }
+    </td>
+  `;
+
+  return passengers.map((p,passengerIndex)=>`
+    <tr class="${cls} ${passengerIndex ? "shared-passenger-continuation" : "shared-passenger-first"}">
+      ${passengerIndex === 0 ? commonStart : ""}
+      <td class="wide-client">${cellBox(safe(p.name || p.clientName || "--"))}</td>
+      <td class="wide-phone">${cellBox(safe(p.phone || p.clientPhone || "--"))}</td>
+      <td class="wide-address">${cellBox(safe(p.pickup || "--"))}</td>
+      <td class="wide-address">${cellBox(safe(passengerStops(t,p)))}</td>
+      <td class="wide-address">${cellBox(safe(p.dropoff || "--"))}</td>
+      <td class="wide-notes">${cellBox(safe(passengerNotes(t,p) || "--"))}</td>
+      <td>${cellBox(safe(passengerEscort(t,p)))}</td>
+      ${passengerIndex === 0 ? commonEnd : ""}
+    </tr>
+  `).join("");
 }
 
 function renderTable(bodyId,list){
