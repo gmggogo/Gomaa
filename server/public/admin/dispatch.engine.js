@@ -117,17 +117,6 @@ function isClosedTrip(t){
   return CLOSED_STATUSES.includes(statusKey(t.status));
 }
 
-function isSentTrip(t){
-  return [
-    t.dispatchStatus,
-    t.status,
-    t.driverStatus,
-    t.assignmentStatus
-  ].map(statusKey).some(s=>[
-    "sent","dispatched","accepted","on trip"
-  ].includes(s));
-}
-
 function isActiveTrip(t){
 
   const status =
@@ -314,31 +303,59 @@ function getNotes(t){
   return t.notes ?? t.tripNotes ?? t.note ?? "";
 }
 
-function escortValue(v){
-  if(v === true || v === 1) return "Yes";
-  if(v === false || v === 0) return "No";
-  const x = lower(v);
-  if(["yes","y","true","1","with escort","escort"].includes(x)) return "Yes";
-  if(["no","n","false","0","none","without escort"].includes(x)) return "No";
-  return clean(v);
+function getEscort(t){
+  const value =
+    t.escort ??
+    t.hasEscort ??
+    t.escortRequired ??
+    t.withEscort ??
+    t.passengerEscort;
+
+  if(value === true) return "Yes";
+  if(value === false) return "No";
+
+  const text = clean(value);
+  if(!text) return "No";
+  if(["true","yes","1","required"].includes(lower(text))) return "Yes";
+  if(["false","no","0","none"].includes(lower(text))) return "No";
+  return text;
 }
 
-function getEscort(t){
-  const direct = escortValue(
-    t.escort ?? t.hasEscort ?? t.withEscort ??
-    t.escortRequired ?? t.clientEscort ?? t.passengerEscort
-  );
+function getBookedDate(t){
+  const raw = t.bookedDate || t.bookingDate || t.createdAt || "";
+  if(!raw) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) return String(raw);
+
+  const date = new Date(raw);
+  if(Number.isNaN(date.getTime())) return clean(raw);
+
+  return new Intl.DateTimeFormat("en-CA",{
+    timeZone:timezone,
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit"
+  }).format(date);
+}
+
+function getBookedTime(t){
+  const direct = clean(t.bookedTime || t.bookingTime || "");
   if(direct) return direct;
 
-  if(Array.isArray(t.passengers) && t.passengers.length){
-    return t.passengers.map((p,i)=>{
-      const value = escortValue(
-        p.escort ?? p.hasEscort ?? p.withEscort ?? p.escortRequired
-      ) || "No";
-      return t.passengers.length > 1 ? `${i+1}. ${value}` : value;
-    }).join("\n");
-  }
-  return "No";
+  const date = new Date(t.createdAt || "");
+  if(Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-US",{
+    timeZone:timezone,
+    hour:"numeric",
+    minute:"2-digit",
+    hour12:true
+  }).format(date);
+}
+
+function isSentTrip(t){
+  return ["sent","dispatched"].includes(
+    statusKey(t.dispatchStatus || t.status)
+  );
 }
 
 function getStops(t){
@@ -943,7 +960,7 @@ async function sendTrips(ids){
     }
 
     selectedTrips.forEach(t=>{
-      t.status = "Dispatched";
+      t.status = "SENT";
       t.dispatchStatus = "SENT";
       t.dispatchSelected = false;
       t.selected = false;
@@ -981,7 +998,8 @@ function sendOne(id){
 
 function toggleSelectAll(){
   const selectable = trips.filter(t=>!isSentTrip(t));
-  const allAreSelected = selectable.length &&
+  const allAreSelected =
+    selectable.length &&
     selectable.every(t=>selectedIds.has(t._id));
 
   if(allAreSelected){
@@ -1038,7 +1056,8 @@ function renderStats(){
   const btn = document.getElementById("selectBtn");
   if(btn){
     const selectable = trips.filter(t=>!isSentTrip(t));
-    const allSelected = selectable.length &&
+    const allSelected =
+      selectable.length &&
       selectable.every(t=>selectedIds.has(t._id));
     btn.textContent = allSelected ? "Remove All" : "Select All";
   }
@@ -1051,11 +1070,10 @@ function renderStats(){
 
 function driverOptions(t){
   const valid = rankDriversForTrip(t);
-  const locked = isSentTrip(t);
 
   return `
     <select class="driver-select"
-      ${editMode && !locked ? "" : "disabled"}
+      ${editMode ? "" : "disabled"}
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
       ${valid.map(x=>{
@@ -1070,9 +1088,59 @@ function driverOptions(t){
   `;
 }
 
+function cellBox(value){
+  return `<div class="cell-box">${value}</div>`;
+}
+
+function viewLine(label,value){
+  return `
+    <div class="view-line">
+      <div class="view-label">${safe(label)}</div>
+      <div class="view-value">${safe(value || "--")}</div>
+    </div>
+  `;
+}
+
+function openTripView(id){
+  const t = trips.find(trip=>String(trip._id) === String(id));
+  if(!t) return;
+
+  closeTripView();
+
+  const overlay = document.createElement("div");
+  overlay.id = "dispatchViewOverlay";
+  overlay.className = "hub-view-overlay";
+  overlay.innerHTML = `
+    <div class="hub-view-box" role="dialog" aria-modal="true">
+      <div class="hub-view-head">
+        <div>Trip Details</div>
+        <button class="hub-view-close" type="button" onclick="closeTripView()">×</button>
+      </div>
+      <div class="hub-view-body">
+        ${viewLine("Service",getServiceTitle(getTripServiceCode(t)))}
+        ${viewLine("Type",isSharedTrip(t) ? "Shared" : getTripKind(t))}
+        ${viewLine("Entry Name",t.entryName || "")}
+        ${viewLine("Entry Phone",t.entryPhone || "")}
+        ${viewLine("Client Email",isSharedTrip(t) ? sharedCell(t,"email") : getEmail(t))}
+        ${viewLine("Booked Date",getBookedDate(t))}
+        ${viewLine("Booked Time",getBookedTime(t))}
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click",event=>{
+    if(event.target === overlay) closeTripView();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function closeTripView(){
+  document.getElementById("dispatchViewOverlay")?.remove();
+}
+
 function renderTripRow(t,index){
   const shared = isSharedTrip(t);
-  const sent = isSentTrip(t);
 
   const passengerName = shared ? sharedCell(t,"name") : (t.clientName || t.name || "");
   const phone = shared ? sharedCell(t,"phone") : (t.clientPhone || t.phone || "");
@@ -1083,7 +1151,7 @@ function renderTripRow(t,index){
   const cls = [
     rowClass(t),
     clean(t.driverId) ? "" : "row-unassigned",
-    sent ? "row-dispatched" : ""
+    isSentTrip(t) ? "row-dispatched" : ""
   ].join(" ");
 
   return `
@@ -1091,66 +1159,61 @@ function renderTripRow(t,index){
       <td>
         <input type="checkbox"
           ${selectedIds.has(t._id) ? "checked" : ""}
-          ${sent ? "disabled" : ""}
+          ${isSentTrip(t) ? "disabled" : ""}
           onchange="toggleTrip('${safe(t._id)}')">
       </td>
 
-      <td>${index}</td>
+      <td>${cellBox(index)}</td>
 
-      <td><span class="trip-number-badge">${safe(getTripNumber(t))}</span></td>
+      <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
 
-      <td><span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span></td>
+      <td>${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
 
-      <td>${safe(shared ? "Shared" : getTripKind(t))}</td>
+      <td>${cellBox(safe(shared ? "Shared" : getTripKind(t)))}</td>
 
-      <td>${safe(t.company || t.companyName || t.facilityName || "")}</td>
+      <td>${cellBox(safe(t.company || t.companyName || t.facilityName || "--"))}</td>
 
-      <td>${safe(t.entryName || "")}</td>
+      <td class="wide-client">${cellBox(safe(passengerName || "--"))}</td>
 
-      <td>${safe(t.entryPhone || "")}</td>
+      <td class="wide-phone">${cellBox(safe(phone || "--"))}</td>
 
-      <td class="wide-client">${safe(passengerName)}</td>
+      <td class="wide-address">${cellBox(safe(pickup || "--"))}</td>
 
-      <td class="wide-phone">${safe(phone)}</td>
+      <td class="wide-address">${cellBox(safe(shared ? "Route optimized per passenger" : stopsText(t)))}</td>
 
-      <td class="wide-email">${safe(email)}</td>
+      <td class="wide-address">${cellBox(safe(dropoff || "--"))}</td>
 
-      <td class="wide-address">${safe(pickup)}</td>
+      <td class="wide-notes">${cellBox(safe(getNotes(t) || "--"))}</td>
 
-      <td class="wide-address">${safe(shared ? "Route optimized per passenger" : stopsText(t))}</td>
+      <td>${cellBox(safe(getEscort(t)))}</td>
 
-      <td class="wide-address">${safe(dropoff)}</td>
+      <td>${cellBox(safe(t.tripDate || "--"))}</td>
 
-      <td>${safe(t.tripDate || "")}</td>
+      <td>${cellBox(safe(t.tripTime || "--"))}</td>
 
-      <td>${safe(t.tripTime || "")}</td>
+      <td>${cellBox(driverOptions(t))}</td>
 
-      <td>${driverOptions(t)}</td>
+      <td>${cellBox(`<span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span>`)}</td>
 
-      <td><span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span></td>
-
-      <td>
+      <td>${cellBox(`
         <span class="status-pill">
           ${safe(t.smartScore ? `Score ${t.smartScore}` : "-")}
         </span>
-      </td>
+      `)}</td>
 
-      <td class="wide-notes">${safe(getNotes(t) || "")}</td>
-
-      <td class="wide-escort">${safe(getEscort(t))}</td>
+      <td>${cellBox(`<span class="status-pill">${safe(isSentTrip(t) ? "SENT" : (t.status || "Scheduled"))}</span>`)}</td>
 
       <td>
-        <span class="status-pill ${sent ? "status-sent" : ""}">
-          ${safe(sent ? "SENT" : (t.status || "Scheduled"))}
-        </span>
+        <button class="eye-btn" type="button" title="View"
+          onclick="openTripView('${safe(t._id)}')">👁️</button>
       </td>
 
       <td>
-        <button class="btn ${sent ? "gray" : "green"}"
-          ${sent ? "disabled" : ""}
-          onclick="sendOne('${safe(t._id)}')">
-          ${sent ? "Sent" : "Send"}
-        </button>
+        ${
+          isSentTrip(t)
+            ? `<button class="btn sent-btn" type="button" disabled>Sent</button>`
+            : `<button class="btn green" type="button" onclick="sendOne('${safe(t._id)}')">Send</button>`
+        }
       </td>
     </tr>
   `;
@@ -1163,7 +1226,7 @@ function renderTable(bodyId,list){
   if(!list.length){
     body.innerHTML = `
       <tr>
-        <td colspan="23" class="empty-row">No Trips</td>
+        <td colspan="21" class="empty-row">No Trips</td>
       </tr>
     `;
     return;
@@ -1289,6 +1352,8 @@ window.sendOne = sendOne;
 window.autoAssign = autoAssign;
 window.sendSelected = sendSelected;
 window.sendAll = sendAll;
+window.openTripView = openTripView;
+window.closeTripView = closeTripView;
 
 /* ================= INIT ================= */
 
