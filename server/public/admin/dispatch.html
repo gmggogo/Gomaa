@@ -60,39 +60,45 @@ body{
 }
 
 .stat-card{
-  background:#fff;
-  border:1px solid #dbe3ee;
+  position:relative;
+  overflow:hidden;
+  border:0;
   border-radius:15px;
-  padding:13px 10px;
+  padding:16px 12px;
   text-align:center;
-  box-shadow:0 6px 16px rgba(15,23,42,.07);
+  color:#fff;
+  box-shadow:0 10px 24px rgba(15,23,42,.14);
 }
 
-.stat-card.total{border-left:6px solid #2563eb;}
-.stat-card.assigned{border-left:6px solid #16a34a;}
-.stat-card.unassigned{border-left:6px solid #dc2626;}
-.stat-card.drivers{border-left:6px solid #7c3aed;}
-.stat-card.today{border-left:6px solid #0ea5e9;}
-.stat-card.tomorrow{border-left:6px solid #f59e0b;}
+.stat-card::after{
+  content:"";
+  position:absolute;
+  width:82px;
+  height:82px;
+  right:-28px;
+  top:-30px;
+  border-radius:50%;
+  background:rgba(255,255,255,.14);
+}
 
-.stat-card.total{background:linear-gradient(135deg,#dbeafe,#eff6ff);}
-.stat-card.assigned{background:linear-gradient(135deg,#dcfce7,#f0fdf4);}
-.stat-card.unassigned{background:linear-gradient(135deg,#fee2e2,#fff1f2);}
-.stat-card.drivers{background:linear-gradient(135deg,#ede9fe,#f5f3ff);}
-.stat-card.today{background:linear-gradient(135deg,#cffafe,#ecfeff);}
-.stat-card.tomorrow{background:linear-gradient(135deg,#fef3c7,#fffbeb);}
+.stat-card.total{background:linear-gradient(135deg,#2563eb,#1d4ed8);}
+.stat-card.assigned{background:linear-gradient(135deg,#16a34a,#15803d);}
+.stat-card.unassigned{background:linear-gradient(135deg,#ef4444,#b91c1c);}
+.stat-card.drivers{background:linear-gradient(135deg,#8b5cf6,#6d28d9);}
+.stat-card.today{background:linear-gradient(135deg,#06b6d4,#0284c7);}
+.stat-card.tomorrow{background:linear-gradient(135deg,#f59e0b,#ea580c);}
 
 .stat-title{
   font-size:12px;
   font-weight:900;
-  color:#64748b;
+  color:rgba(255,255,255,.88);
   letter-spacing:.3px;
 }
 
 .stat-value{
   font-size:27px;
   font-weight:900;
-  color:#0f172a;
+  color:#fff;
   margin-top:4px;
 }
 
@@ -179,20 +185,24 @@ body{
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
   background:#fff;
-  border-radius:14px;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  border:1px solid #cbd5e1;
+  border-radius:16px;
+  box-shadow:0 12px 28px rgba(15,23,42,.10);
   margin-bottom:20px;
 }
 
 .dispatch-table{
-  min-width:2200px;
+  min-width:2450px;
   width:max-content;
   border-collapse:collapse;
   background:#fff;
 }
 
 .dispatch-table th{
-  background:#2563eb;
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:linear-gradient(180deg,#1d4ed8,#1e40af);
   color:#fff;
   padding:8px;
   font-size:12px;
@@ -203,12 +213,14 @@ body{
 }
 
 .dispatch-table td{
-  border:1px solid #dbe3ee;
-  padding:7px;
+  border:4px solid #fff;
+  padding:9px 8px;
   font-size:12px;
   text-align:center;
   vertical-align:middle;
-  line-height:1.35;
+  line-height:1.4;
+  background:#f8fafc;
+  box-shadow:inset 0 0 0 1px #dbe3ee;
 }
 
 .dispatch-table tbody tr:hover td{
@@ -252,216 +264,33 @@ body{
 }
 
 .wide-notes{
-  min-width:190px;
-  max-width:300px;
+  min-width:230px;
+  max-width:360px;
   text-align:left!important;
   white-space:pre-line;
   word-break:break-word;
 }
 
-/* ================= TRIPS HUB CELLS ================= */
-
-.dispatch-table{
-  table-layout:fixed;
-  min-width:2240px;
-}
-
-.dispatch-table th,
-.dispatch-table td{
-  padding:5px;
-}
-
-.cell-box{
-  width:100%;
-  min-height:42px;
-  display:block;
-  padding:0;
-  background:#fff;
-  border:1px solid rgba(148,163,184,.58);
-  border-radius:8px;
-  overflow:hidden;
-}
-
-.cell-item{
-  min-height:40px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:7px 8px;
-  background:#fff;
+.wide-escort{
+  min-width:95px;
   white-space:pre-line;
-  overflow-wrap:anywhere;
-  line-height:1.35;
-}
-
-.cell-item + .cell-item{
-  border-top:1px solid rgba(15,23,42,.72);
-}
-
-.wide-client .cell-item,
-.wide-phone .cell-item,
-.wide-address .cell-item,
-.wide-notes .cell-item{
-  justify-content:flex-start;
-  text-align:left;
-}
-
-.dispatch-table th:nth-child(1){width:68px;}
-.dispatch-table th:nth-child(2){width:54px;}
-.dispatch-table th:nth-child(3){width:125px;}
-.dispatch-table th:nth-child(4){width:125px;}
-.dispatch-table th:nth-child(5){width:85px;}
-.dispatch-table th:nth-child(6){width:150px;}
-.dispatch-table th:nth-child(7){width:190px;}
-.dispatch-table th:nth-child(8){width:155px;}
-.dispatch-table th:nth-child(9){width:275px;}
-.dispatch-table th:nth-child(10){width:230px;}
-.dispatch-table th:nth-child(11){width:275px;}
-.dispatch-table th:nth-child(12){width:210px;}
-.dispatch-table th:nth-child(13){width:85px;}
-.dispatch-table th:nth-child(14){width:110px;}
-.dispatch-table th:nth-child(15){width:100px;}
-.dispatch-table th:nth-child(16){width:200px;}
-.dispatch-table th:nth-child(17){width:125px;}
-.dispatch-table th:nth-child(18){width:100px;}
-.dispatch-table th:nth-child(19){width:120px;}
-.dispatch-table th:nth-child(20){width:70px;}
-.dispatch-table th:nth-child(21){width:100px;}
-
-.eye-btn{
-  width:38px;
-  height:34px;
-  border:none;
-  border-radius:9px;
-  background:#e0e7ff;
-  color:#3730a3;
-  cursor:pointer;
-  font-size:18px;
-  box-shadow:inset 0 0 0 1px #c7d2fe;
-}
-
-.eye-btn:hover{
-  background:#c7d2fe;
-  transform:translateY(-1px);
-}
-
-.sent-btn{
-  background:#64748b;
-  color:#fff;
-}
-
-.row-dispatched td{
-  opacity:1;
-}
-
-.row-dispatched .cell-box{
-  background:rgba(241,245,249,.88);
-}
-
-.shared-trip-group td{
-  vertical-align:middle;
-}
-
-.shared-passenger-first td{
-  border-top:3px solid #7c3aed;
-}
-
-.shared-passenger-continuation td{
-  border-top:2px solid #a78bfa;
-}
-
-.shared-trip-group .cell-box{
-  min-height:48px;
-}
-
-.shared-trip-group .cell-item{
-  min-height:46px;
-}
-
-/* ================= VIEW MODAL ================= */
-
-.hub-view-overlay{
-  position:fixed;
-  inset:0;
-  z-index:10000;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:rgba(15,23,42,.62);
-}
-
-.hub-view-box{
-  width:min(720px,100%);
-  max-height:86vh;
-  overflow:hidden;
-  border-radius:16px;
-  background:#fff;
-  box-shadow:0 24px 70px rgba(15,23,42,.35);
-}
-
-.hub-view-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:15px 18px;
-  background:#1d4ed8;
-  color:#fff;
-  font-size:17px;
   font-weight:900;
-}
-
-.hub-view-close{
-  width:34px;
-  height:34px;
-  border:none;
-  border-radius:9px;
-  background:rgba(255,255,255,.18);
-  color:#fff;
-  cursor:pointer;
-  font-size:23px;
-  line-height:1;
-}
-
-.hub-view-body{
-  max-height:calc(86vh - 65px);
-  overflow-y:auto;
-  padding:16px;
-}
-
-.view-line{
-  display:grid;
-  grid-template-columns:160px minmax(0,1fr);
-  gap:10px;
-  padding:10px 0;
-  border-bottom:1px solid #e2e8f0;
-}
-
-.view-label{
-  font-weight:900;
-  color:#334155;
-}
-
-.view-value{
-  min-width:0;
-  color:#0f172a;
-  overflow-wrap:anywhere;
-  white-space:pre-line;
 }
 
 /* ================= COLORS ================= */
 
-.row-facility td{background:#dbeafe;}
-.row-gq td{background:#dcfce7;}
-.row-rv td{background:#fef3c7;}
-.row-shared td{background:#ede9fe;}
+.row-facility td{background:#eff6ff;}
+.row-gq td{background:#f0fdf4;}
+.row-rv td{background:#fffbeb;}
+.row-shared td{background:#f5f3ff;}
 
 .row-unassigned td{
   box-shadow:inset 0 0 0 9999px rgba(220,38,38,.04);
 }
 
 .row-dispatched td{
-  opacity:.75;
+  background:#f1f5f9;
+  color:#475569;
 }
 
 /* ================= BADGES ================= */
@@ -489,6 +318,12 @@ body{
   background:#f1f5f9;
   color:#0f172a;
   border:1px solid #cbd5e1;
+}
+
+.status-pill.status-sent{
+  background:#dcfce7;
+  color:#166534;
+  border-color:#86efac;
 }
 
 .driver-pill{
@@ -697,20 +532,22 @@ body{
             <th>Service</th>
             <th>Type</th>
             <th>Facility</th>
+            <th>Entry</th>
+            <th>Entry Phone</th>
             <th>Client / Passengers</th>
             <th>Phone</th>
+            <th>Email</th>
             <th>Pickup</th>
             <th>Stops</th>
             <th>Dropoff</th>
-            <th>Notes</th>
-            <th>Escort</th>
             <th>Date</th>
             <th>Time</th>
             <th>Driver</th>
             <th>Vehicle</th>
             <th>Score</th>
+            <th>Notes</th>
+            <th>Escort</th>
             <th>Status</th>
-            <th>👁️</th>
             <th>Send</th>
           </tr>
         </thead>
@@ -732,20 +569,22 @@ body{
             <th>Service</th>
             <th>Type</th>
             <th>Facility</th>
+            <th>Entry</th>
+            <th>Entry Phone</th>
             <th>Client / Passengers</th>
             <th>Phone</th>
+            <th>Email</th>
             <th>Pickup</th>
             <th>Stops</th>
             <th>Dropoff</th>
-            <th>Notes</th>
-            <th>Escort</th>
             <th>Date</th>
             <th>Time</th>
             <th>Driver</th>
             <th>Vehicle</th>
             <th>Score</th>
+            <th>Notes</th>
+            <th>Escort</th>
             <th>Status</th>
-            <th>👁️</th>
             <th>Send</th>
           </tr>
         </thead>

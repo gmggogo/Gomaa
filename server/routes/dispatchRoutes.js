@@ -507,8 +507,13 @@ router.patch("/:tripId/driver",async(req,res)=>{
       return res.status(400).json({success:false,message:"Invalid trip id"});
     }
     const Trip=TripModel();
+    /*
+      A sent trip may no longer have dispatchSelected=true. That flag controls
+      whether the trip enters dispatch; it must not block a manual driver
+      replacement after SENT. Progress status below is the real safety lock.
+    */
     const trip=await Trip.findOne({
-      _id:tripId,dispatchSelected:true,disabled:false
+      _id:tripId,disabled:false
     }).lean();
     if(!trip){
       return res.status(404).json({success:false,message:"Trip not found"});

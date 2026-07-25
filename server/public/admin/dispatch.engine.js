@@ -28,6 +28,7 @@ let editMode = false;
 let activeTab = "dispatch";
 let refreshTimer = null;
 let autoAssignRunning = false;
+let selectionSaving = false;
 
 /* ================= DEFAULT SMART SETTINGS ================= */
 
@@ -1019,30 +1020,91 @@ function sendOne(id){
 
 /* ================= SELECTION ================= */
 
-function toggleSelectAll(){
-  const selectable = trips.filter(t=>!isSentTrip(t));
+async function persistSelection(trip,selected){
+  const result = await Store.saveSelection(trip._id,selected);
+
+  if(!result || result.success === false){
+    throw new Error(result?.message || "Selection save failed");
+  }
+
+  trip.dispatchSelected = selected;
+  trip.selected = selected;
+}
+
+async function toggleSelectAll(){
+  if(selectionSaving) return;
+
+  /*
+    SENT only blocks a second send. It must stay selectable so dispatch can
+    replace the driver until the trip actually starts.
+  */
+  const selectable = trips.filter(t=>!isTripInProgress(t));
   const allAreSelected =
     selectable.length &&
     selectable.every(t=>selectedIds.has(t._id));
+  const nextSelected = !allAreSelected;
+  const previous = new Set(selectedIds);
 
-  if(allAreSelected){
-    selectable.forEach(t=>selectedIds.delete(t._id));
-  }else{
+  selectionSaving = true;
+
+  if(nextSelected){
     selectable.forEach(t=>selectedIds.add(t._id));
+  }else{
+    selectable.forEach(t=>selectedIds.delete(t._id));
   }
 
   renderAll();
+
+  try{
+    const results = await Promise.all(
+      selectable.map(trip=>persistSelection(trip,nextSelected))
+    );
+
+    if(results.some(result=>result?.success === false)){
+      throw new Error("One or more selections were not saved");
+    }
+
+    toast(nextSelected ? "All trips selected" : "All trips removed");
+  }catch(err){
+    selectedIds = previous;
+    renderAll();
+    toast(err.message || "Selection save failed");
+  }finally{
+    selectionSaving = false;
+  }
 }
 
-function toggleTrip(id){
+async function toggleTrip(id){
+  if(selectionSaving) return;
+
   id = String(id);
   const trip = trips.find(t=>String(t._id) === id);
   if(!trip) return;
+  if(isTripInProgress(trip)){
+    toast("Trip in progress cannot be edited");
+    return;
+  }
 
-  if(selectedIds.has(id)) selectedIds.delete(id);
-  else selectedIds.add(id);
+  const wasSelected = selectedIds.has(id);
+  const nextSelected = !wasSelected;
 
+  if(nextSelected) selectedIds.add(id);
+  else selectedIds.delete(id);
   renderAll();
+
+  selectionSaving = true;
+
+  try{
+    await persistSelection(trip,nextSelected);
+    toast(nextSelected ? "Trip selected" : "Trip removed");
+  }catch(err){
+    if(wasSelected) selectedIds.add(id);
+    else selectedIds.delete(id);
+    renderAll();
+    toast(err.message || "Selection save failed");
+  }finally{
+    selectionSaving = false;
+  }
 }
 
 function toggleEdit(){
@@ -1083,7 +1145,7 @@ function renderStats(){
 
   const btn = document.getElementById("selectBtn");
   if(btn){
-    const selectable = trips.filter(t=>!isSentTrip(t));
+    const selectable = trips.filter(t=>!isTripInProgress(t));
     const allSelected =
       selectable.length &&
       selectable.every(t=>selectedIds.has(t._id));
@@ -1231,6 +1293,7 @@ function renderTripRow(t,index){
       <td>
         <input type="checkbox"
           ${selectedIds.has(t._id) ? "checked" : ""}
+          ${isTripInProgress(t) ? "disabled" : ""}
           onchange="toggleTrip('${safe(t._id)}')">
       </td>
 
@@ -1352,6 +1415,7 @@ function renderSharedTripRows(t,index){
     <td rowspan="${rowSpan}">
       <input type="checkbox"
         ${selectedIds.has(t._id) ? "checked" : ""}
+        ${isTripInProgress(t) ? "disabled" : ""}
         onchange="toggleTrip('${safe(t._id)}')">
     </td>
     <td rowspan="${rowSpan}">${cellBox(index)}</td>
