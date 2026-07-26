@@ -1285,19 +1285,20 @@ function renderTripRow(t,index){
   const cls = [
     rowClass(t),
     clean(t.driverId) ? "" : "row-unassigned",
-    isSentTrip(t) ? "row-dispatched" : ""
+    isSentTrip(t) ? "row-dispatched" : "",
+    "trip-divider"
   ].join(" ");
 
   return `
     <tr class="${cls}">
+      <td>${index}</td>
+
       <td>
         <input type="checkbox"
           ${selectedIds.has(t._id) ? "checked" : ""}
           ${isTripInProgress(t) ? "disabled" : ""}
           onchange="toggleTrip('${safe(t._id)}')">
       </td>
-
-      <td>${cellBox(index)}</td>
 
       <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
 
@@ -1403,61 +1404,70 @@ function passengerStops(t,p){
 
 function renderSharedTripRows(t,index){
   const passengers = getPassengers(t);
-  const rowSpan = Math.max(passengers.length,1);
   const cls = [
     rowClass(t),
     clean(t.driverId) ? "" : "row-unassigned",
     isSentTrip(t) ? "row-dispatched" : "",
-    "shared-trip-group"
+    "shared-trip-group",
+    "trip-divider"
   ].join(" ");
 
-  const commonStart = `
-    <td rowspan="${rowSpan}">
+  const passengerItems = (getter,emptyValue="--") =>
+    passengers.map((passenger,passengerIndex)=>{
+      const value = getter(passenger);
+      return `${passengerIndex + 1}. ${safe(value || emptyValue)}`;
+    });
+
+  const names = passengerItems(p=>p.name || p.clientName);
+  const phones = passengerItems(p=>p.phone || p.clientPhone);
+  const pickups = passengerItems(p=>p.pickup);
+  const dropoffs = passengerItems(p=>p.dropoff);
+  const notes = passengerItems(p=>passengerNotes(t,p));
+  const escorts = passengerItems(p=>passengerEscort(t,p),"-");
+
+  return `
+    <tr class="${cls}">
+      <td>${index}</td>
+
+      <td>
       <input type="checkbox"
         ${selectedIds.has(t._id) ? "checked" : ""}
         ${isTripInProgress(t) ? "disabled" : ""}
         onchange="toggleTrip('${safe(t._id)}')">
-    </td>
-    <td rowspan="${rowSpan}">${cellBox(index)}</td>
-    <td rowspan="${rowSpan}">${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
-    <td rowspan="${rowSpan}">${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
-    <td rowspan="${rowSpan}">${cellBox("Shared")}</td>
-    <td rowspan="${rowSpan}">${cellBox(safe(t.company || t.companyName || t.facilityName || "--"))}</td>
-  `;
+      </td>
 
-  const commonEnd = `
-    <td rowspan="${rowSpan}">${cellBox(safe(t.tripDate || "--"))}</td>
-    <td rowspan="${rowSpan}">${cellBox(safe(t.tripTime || "--"))}</td>
-    <td rowspan="${rowSpan}">${cellBox(driverOptions(t))}</td>
-    <td rowspan="${rowSpan}">${cellBox(`<span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span>`)}</td>
-    <td rowspan="${rowSpan}">${cellBox(`<span class="status-pill">${safe(t.smartScore ? `Score ${t.smartScore}` : "-")}</span>`)}</td>
-    <td rowspan="${rowSpan}">${cellBox(`<span class="status-pill">${safe(isSentTrip(t) ? "SENT" : (t.status || "Scheduled"))}</span>`)}</td>
-    <td rowspan="${rowSpan}">
+      <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
+      <td>${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
+      <td>${cellBox("Shared")}</td>
+      <td>${cellBox(safe(t.company || t.companyName || t.facilityName || "--"))}</td>
+
+      <td class="wide-client">${cellBox(names)}</td>
+      <td class="wide-phone">${cellBox(phones)}</td>
+      <td class="wide-address">${cellBox(pickups)}</td>
+      <td class="wide-stops">${cellBox("Route optimized per passenger")}</td>
+      <td class="wide-address">${cellBox(dropoffs)}</td>
+      <td class="wide-notes">${cellBox(notes)}</td>
+      <td>${cellBox(escorts)}</td>
+
+      <td>${cellBox(safe(t.tripDate || "--"))}</td>
+      <td>${cellBox(safe(t.tripTime || "--"))}</td>
+      <td>${cellBox(driverOptions(t))}</td>
+      <td>${cellBox(`<span class="vehicle-pill">${safe(t.vehicle || getDriverVehicle(t.driverId) || "-")}</span>`)}</td>
+      <td>${cellBox(`<span class="status-pill">${safe(t.smartScore ? `Score ${t.smartScore}` : "-")}</span>`)}</td>
+      <td>${cellBox(`<span class="status-pill">${safe(isSentTrip(t) ? "SENT" : (t.status || "Scheduled"))}</span>`)}</td>
+      <td>
       <button class="eye-btn" type="button" title="View"
         onclick="openTripView('${safe(t._id)}')">👁️</button>
-    </td>
-    <td rowspan="${rowSpan}">
-      ${
-        isSentTrip(t)
-          ? `<button class="btn sent-btn" type="button" disabled>Sent</button>`
-          : `<button class="btn green" type="button" onclick="sendOne('${safe(t._id)}')">Send</button>`
-      }
-    </td>
-  `;
-
-  return passengers.map((p,passengerIndex)=>`
-    <tr class="${cls} ${passengerIndex ? "shared-passenger-continuation" : "shared-passenger-first"}">
-      ${passengerIndex === 0 ? commonStart : ""}
-      <td class="wide-client">${cellBox(safe(p.name || p.clientName || "--"))}</td>
-      <td class="wide-phone">${cellBox(safe(p.phone || p.clientPhone || "--"))}</td>
-      <td class="wide-address">${cellBox(safe(p.pickup || "--"))}</td>
-      <td class="wide-address">${cellBox(safe(passengerStops(t,p)))}</td>
-      <td class="wide-address">${cellBox(safe(p.dropoff || "--"))}</td>
-      <td class="wide-notes">${cellBox(safe(passengerNotes(t,p) || "--"))}</td>
-      <td>${cellBox(safe(passengerEscort(t,p)))}</td>
-      ${passengerIndex === 0 ? commonEnd : ""}
+      </td>
+      <td>
+        ${
+          isSentTrip(t)
+            ? `<button class="btn sent-btn" type="button" disabled>Sent</button>`
+            : `<button class="btn green" type="button" onclick="sendOne('${safe(t._id)}')">Send</button>`
+        }
+      </td>
     </tr>
-  `).join("");
+  `;
 }
 
 function renderTable(bodyId,list){
