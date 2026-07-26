@@ -10,6 +10,7 @@ const Store = {
 
   headers(json = false){
     const token = localStorage.getItem("token") || "";
+
     return {
       ...(json ? {"Content-Type":"application/json"} : {}),
       ...(token ? {Authorization:`Bearer ${token}`} : {})
@@ -51,17 +52,23 @@ const Store = {
         trips:Array.isArray(dispatchData?.trips)
           ? dispatchData.trips
           : [],
+
         drivers:Array.isArray(dispatchData?.drivers)
           ? dispatchData.drivers
           : [],
+
         schedule:dispatchData?.schedule || {},
+
         services:Array.isArray(servicesData)
           ? servicesData
           : servicesData?.services || [],
+
         timezone:systemData?.timezone || "America/Phoenix"
       };
+
     }catch(err){
       console.log("STORE LOAD ERROR:",err);
+
       return {
         trips:[],
         drivers:[],
@@ -84,8 +91,32 @@ const Store = {
           })
         }
       );
+
     }catch(err){
-      return {success:false,message:err.message};
+      return {
+        success:false,
+        message:err.message
+      };
+    }
+  },
+
+  async saveSelection(tripId,selected){
+    try{
+      return await this.request(
+        `/api/dispatch/${encodeURIComponent(tripId)}/selection`,
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            selected:selected === true
+          })
+        }
+      );
+
+    }catch(err){
+      return {
+        success:false,
+        message:err.message
+      };
     }
   },
 
@@ -98,8 +129,12 @@ const Store = {
           body:JSON.stringify({ids})
         }
       );
+
     }catch(err){
-      return {success:false,message:err.message};
+      return {
+        success:false,
+        message:err.message
+      };
     }
   },
 
@@ -112,8 +147,12 @@ const Store = {
           body:JSON.stringify({ids})
         }
       );
+
     }catch(err){
-      return {success:false,message:err.message};
+      return {
+        success:false,
+        message:err.message
+      };
     }
   }
 };
