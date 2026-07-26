@@ -200,29 +200,38 @@ if(!container) console.error("Missing #hubContainer");
       box-shadow:0 5px 14px rgba(15,23,42,.07);
     }
 
+    /*
+      TRIP HUB CARD COLORS — 2026-07-26 V2
+      !important is intentional here because the shared admin stylesheet can
+      otherwise restore the generic white card background after this block.
+    */
     .stat-card.total{
-      border-left:6px solid #2563eb;
-      background:linear-gradient(135deg,#bfdbfe,#eff6ff);
+      border-left:6px solid #4f46e5!important;
+      background:#e0e7ff!important;
     }
 
     .stat-card.new{
-      border-left:6px solid #16a34a;
-      background:linear-gradient(135deg,#bbf7d0,#f0fdf4);
+      border-left:6px solid #e11d48!important;
+      background:#ffe4e6!important;
     }
 
+    /*
+      Source counters deliberately use the exact same background colors as
+      their corresponding rows in the table below.
+    */
     .stat-card.facility{
-      border-left:6px solid #1d4ed8;
-      background:linear-gradient(135deg,#dbeafe,#eff6ff);
+      border-left:6px solid #1d4ed8!important;
+      background:#dbeafe!important;
     }
 
     .stat-card.gq{
-      border-left:6px solid #22c55e;
-      background:linear-gradient(135deg,#dcfce7,#f0fdf4);
+      border-left:6px solid #16a34a!important;
+      background:#dcfce7!important;
     }
 
     .stat-card.reserved{
-      border-left:6px solid #f59e0b;
-      background:linear-gradient(135deg,#fef3c7,#fffbeb);
+      border-left:6px solid #d97706!important;
+      background:#fef3c7!important;
     }
 
     .stat-title{
@@ -292,44 +301,20 @@ if(!container) console.error("Missing #hubContainer");
       transform:translateY(-1px);
     }
 
-    .service-tab.service-all{
-      background:linear-gradient(135deg,#93c5fd,#dbeafe);
-      border-left:6px solid #2563eb;
-    }
-
-    .service-tab.service-st{
-      background:linear-gradient(135deg,#bae6fd,#e0f2fe);
-      border-left:6px solid #0284c7;
-    }
-
-    .service-tab.service-xl{
-      background:linear-gradient(135deg,#fed7aa,#fff7ed);
-      border-left:6px solid #f97316;
-    }
-
-    .service-tab.service-wh{
-      background:linear-gradient(135deg,#a7f3d0,#ecfdf5);
-      border-left:6px solid #059669;
-    }
-
-    .service-tab.service-sh{
-      background:linear-gradient(135deg,#ddd6fe,#f5f3ff);
-      border-left:6px solid #7c3aed;
-    }
-
-    .service-tab.service-tx{
-      background:linear-gradient(135deg,#fde68a,#fefce8);
-      border-left:6px solid #ca8a04;
-    }
-
-    .service-tab.service-lm{
-      background:linear-gradient(135deg,#fbcfe8,#fdf2f8);
-      border-left:6px solid #db2777;
-    }
-
+    /*
+      ALL and every service card share one unified color. The active card is
+      identified by its dark outline, without replacing the service color.
+    */
+    .service-tab.service-all,
+    .service-tab.service-st,
+    .service-tab.service-xl,
+    .service-tab.service-wh,
+    .service-tab.service-sh,
+    .service-tab.service-tx,
+    .service-tab.service-lm,
     .service-tab.service-other{
-      background:linear-gradient(135deg,#e2e8f0,#f8fafc);
-      border-left:6px solid #64748b;
+      background:#ede9fe!important;
+      border-left:6px solid #7c3aed!important;
     }
 
     .service-title{
