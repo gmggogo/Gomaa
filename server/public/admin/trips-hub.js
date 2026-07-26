@@ -1,9 +1,13 @@
 /* ==========================================================================
-   TRIPS HUB V6
+   TRIPS HUB V6 — 12 HOUR NOT COMPLETED POLICY
    Facility / Get Quote / Reserved
    Year Month Day Filters
-   Modified UI Only:
    Sticky Top / Responsive Table / Company Visible / Eye View / Nested Cells
+   Expired Trip Policy:
+   - Keep the trip visible and editable for 12 hours after Trip Date + Trip Time
+   - After the full 12 hours, save status as Not Completed
+   - Hide the trip only after the server confirms the status update
+   - Trip times are interpreted in America/Phoenix
    ========================================================================== */
 
 const API_URL = "/api/trips";
@@ -29,7 +33,9 @@ let filterDay = "";
 
 const selectedItems = new Set();
 const markedNotCompleted = new Set();
+const markingNotCompleted = new Set();
 const OVERDUE_HOURS = 12;
+const PHOENIX_UTC_OFFSET_HOURS = 7;
 
 const container = document.getElementById("hubContainer");
 const searchInput = document.getElementById("searchInput");
@@ -194,11 +200,30 @@ if(!container) console.error("Missing #hubContainer");
       box-shadow:0 5px 14px rgba(15,23,42,.07);
     }
 
-    .stat-card.total{border-left:6px solid #2563eb;}
-    .stat-card.new{border-left:6px solid #16a34a;}
-    .stat-card.facility{border-left:6px solid #1d4ed8;}
-    .stat-card.gq{border-left:6px solid #22c55e;}
-    .stat-card.reserved{border-left:6px solid #f59e0b;}
+    .stat-card.total{
+      border-left:6px solid #2563eb;
+      background:linear-gradient(135deg,#bfdbfe,#eff6ff);
+    }
+
+    .stat-card.new{
+      border-left:6px solid #16a34a;
+      background:linear-gradient(135deg,#bbf7d0,#f0fdf4);
+    }
+
+    .stat-card.facility{
+      border-left:6px solid #1d4ed8;
+      background:linear-gradient(135deg,#dbeafe,#eff6ff);
+    }
+
+    .stat-card.gq{
+      border-left:6px solid #22c55e;
+      background:linear-gradient(135deg,#dcfce7,#f0fdf4);
+    }
+
+    .stat-card.reserved{
+      border-left:6px solid #f59e0b;
+      background:linear-gradient(135deg,#fef3c7,#fffbeb);
+    }
 
     .stat-title{
       font-size:11px;
@@ -254,12 +279,57 @@ if(!container) console.error("Missing #hubContainer");
       box-shadow:0 4px 12px rgba(15,23,42,.06);
       text-align:center;
       min-height:78px;
+      transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
     }
 
     .service-tab.active{
-      background:#2563eb;
-      color:#fff;
-      border-color:#2563eb;
+      color:#0f172a;
+      border-color:#0f172a;
+      box-shadow:
+        0 0 0 2px #fff,
+        0 0 0 4px #0f172a,
+        0 7px 16px rgba(15,23,42,.18);
+      transform:translateY(-1px);
+    }
+
+    .service-tab.service-all{
+      background:linear-gradient(135deg,#93c5fd,#dbeafe);
+      border-left:6px solid #2563eb;
+    }
+
+    .service-tab.service-st{
+      background:linear-gradient(135deg,#bae6fd,#e0f2fe);
+      border-left:6px solid #0284c7;
+    }
+
+    .service-tab.service-xl{
+      background:linear-gradient(135deg,#fed7aa,#fff7ed);
+      border-left:6px solid #f97316;
+    }
+
+    .service-tab.service-wh{
+      background:linear-gradient(135deg,#a7f3d0,#ecfdf5);
+      border-left:6px solid #059669;
+    }
+
+    .service-tab.service-sh{
+      background:linear-gradient(135deg,#ddd6fe,#f5f3ff);
+      border-left:6px solid #7c3aed;
+    }
+
+    .service-tab.service-tx{
+      background:linear-gradient(135deg,#fde68a,#fefce8);
+      border-left:6px solid #ca8a04;
+    }
+
+    .service-tab.service-lm{
+      background:linear-gradient(135deg,#fbcfe8,#fdf2f8);
+      border-left:6px solid #db2777;
+    }
+
+    .service-tab.service-other{
+      background:linear-gradient(135deg,#e2e8f0,#f8fafc);
+      border-left:6px solid #64748b;
     }
 
     .service-title{
@@ -276,7 +346,7 @@ if(!container) console.error("Missing #hubContainer");
 
     .service-tab.active .mini-head,
     .service-tab.active .mini-values{
-      color:#fff;
+      color:#0f172a;
     }
 
     .hub-date-filters{
@@ -982,26 +1052,105 @@ function getStatusClass(status){
 }
 
 function parseTripDateTime(t){
-  if(!t?.tripDate) return null;
-  const date = String(t.tripDate || "").trim();
-  let time = String(t.tripTime || "00:00").trim() || "00:00";
-  let d = new Date(`${date}T${time}:00`);
-  if(isNaN(d)) d = new Date(`${date} ${time}`);
-  if(isNaN(d)) return null;
-  return d;
+  const date = normalizeText(t?.tripDate);
+  let time = normalizeText(t?.tripTime) || "00:00";
+
+  const dateMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!dateMatch) return null;
+
+  const ampmMatch =
+    time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+
+  if(ampmMatch){
+    let hour = Number(ampmMatch[1]);
+    const minute = Number(ampmMatch[2]);
+    const second = Number(ampmMatch[3] || 0);
+    const period = ampmMatch[4].toUpperCase();
+
+    if(hour < 1 || hour > 12 || minute > 59 || second > 59){
+      return null;
+    }
+
+    if(period === "PM" && hour < 12) hour += 12;
+    if(period === "AM" && hour === 12) hour = 0;
+
+    time =
+      `${String(hour).padStart(2,"0")}:` +
+      `${String(minute).padStart(2,"0")}:` +
+      `${String(second).padStart(2,"0")}`;
+  }
+
+  const timeMatch = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if(!timeMatch) return null;
+
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[3]);
+  const hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const second = Number(timeMatch[3] || 0);
+
+  if(
+    month < 1 || month > 12 ||
+    day < 1 || day > 31 ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+  ){
+    return null;
+  }
+
+  /*
+    Trip Date + Trip Time are Arizona/Phoenix wall-clock values.
+    Phoenix stays on UTC-7, so build an absolute Date without depending
+    on the browser/device timezone.
+  */
+  const value = new Date(Date.UTC(
+    year,
+    month - 1,
+    day,
+    hour + PHOENIX_UTC_OFFSET_HOURS,
+    minute,
+    second
+  ));
+
+  const phoenixCheck = new Date(
+    value.toLocaleString("en-US",{timeZone:"America/Phoenix"})
+  );
+
+  if(
+    phoenixCheck.getFullYear() !== year ||
+    phoenixCheck.getMonth() + 1 !== month ||
+    phoenixCheck.getDate() !== day ||
+    phoenixCheck.getHours() !== hour ||
+    phoenixCheck.getMinutes() !== minute
+  ){
+    return null;
+  }
+
+  return value;
+}
+
+function getNotCompletedAt(t){
+  const tripDateTime = parseTripDateTime(t);
+  if(!tripDateTime) return null;
+
+  return new Date(
+    tripDateTime.getTime() +
+    OVERDUE_HOURS * 60 * 60 * 1000
+  );
 }
 
 function isOverdueNotCompleted(t){
   if(!isActiveStatus(t?.status)) return false;
-  const dt = parseTripDateTime(t);
-  if(!dt) return false;
-  return Date.now() - dt.getTime() >= OVERDUE_HOURS * 60 * 60 * 1000;
+  const notCompletedAt = getNotCompletedAt(t);
+  if(!notCompletedAt) return false;
+  return Date.now() >= notCompletedAt.getTime();
 }
 
 function isTripVisibleInHub(t){
   if(!t) return false;
   if(isClosedStatus(t.status)) return false;
-  if(isOverdueNotCompleted(t)) return false;
   return isActiveStatus(t.status);
 }
 
@@ -1265,7 +1414,7 @@ function getGroupStatus(group){
 
 function isSharedVisibleInHub(group){
   const first = group[0] || {};
-  if(isOverdueNotCompleted(first)) return false;
+  if(isClosedStatus(first.status)) return false;
 
   const passengers = getRealPassengersFromGroup(group);
   if(!passengers.length) return isTripVisibleInHub(first);
@@ -1278,15 +1427,20 @@ function isSharedVisibleInHub(group){
 async function autoMarkNotCompleted(list){
   const overdue = list.filter(t=>{
     const id = String(t?._id || t?.id || "");
-    return id && isOverdueNotCompleted(t) && !markedNotCompleted.has(id);
+    return (
+      id &&
+      isOverdueNotCompleted(t) &&
+      !markedNotCompleted.has(id) &&
+      !markingNotCompleted.has(id)
+    );
   });
 
   for(const t of overdue){
     const id = String(t._id || t.id);
-    markedNotCompleted.add(id);
+    markingNotCompleted.add(id);
 
     try{
-      await fetch(`${API_URL}/${id}`,{
+      const res = await fetch(`${API_URL}/${id}`,{
         method:"PUT",
         headers:{
           "Content-Type":"application/json",
@@ -1295,10 +1449,22 @@ async function autoMarkNotCompleted(list){
         body:JSON.stringify({status:"Not Completed"})
       });
 
+      const data = await res.json().catch(()=>null);
+
+      if(!res.ok){
+        throw new Error(
+          data?.message ||
+          `Status update failed (${res.status})`
+        );
+      }
+
       t.status = "Not Completed";
+      markedNotCompleted.add(id);
 
     }catch(err){
       console.log("Auto Not Completed Failed",err);
+    }finally{
+      markingNotCompleted.delete(id);
     }
   }
 }
@@ -1591,6 +1757,20 @@ function countItemsByService(code){
   return countItems(selected);
 }
 
+function getServiceColorClass(code){
+  const normalized = normalizeKnownCode(code);
+
+  if(normalized === "ALL") return "service-all";
+  if(normalized === "ST") return "service-st";
+  if(normalized === "XL") return "service-xl";
+  if(normalized === "WH") return "service-wh";
+  if(normalized === "SH") return "service-sh";
+  if(normalized === "TX") return "service-tx";
+  if(normalized === "LM") return "service-lm";
+
+  return "service-other";
+}
+
 function renderServiceTabs(){
   const wrap = document.getElementById("serviceTabs");
   if(!wrap) return;
@@ -1605,9 +1785,10 @@ function renderServiceTabs(){
 
   wrap.innerHTML = tabs.map(tab=>{
     const c = countItemsByService(tab.code);
+    const colorClass = getServiceColorClass(tab.code);
 
     return `
-      <button class="service-tab ${activeService === tab.code ? "active" : ""}" data-service="${safe(tab.code)}" type="button">
+      <button class="service-tab ${colorClass} ${activeService === tab.code ? "active" : ""}" data-service="${safe(tab.code)}" type="button">
         <div class="service-title">${safe(tab.title)}</div>
         <div class="service-total">${c.total}</div>
         <div class="mini-head"><span>FA</span><span>GQ</span><span>RV</span></div>
