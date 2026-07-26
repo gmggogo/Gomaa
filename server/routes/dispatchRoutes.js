@@ -95,6 +95,39 @@ function tripService(trip){
   }
   return service;
 }
+
+/*
+  AUTO ASSIGN SERVICE POLICY
+
+  Tier 0: the driver owns the exact trip service.
+  Tier 1: the driver is an ALL-services fallback.
+  null  : the driver must never receive this service automatically.
+
+  This policy is mandatory for Auto Assign. The Smart Dispatch
+  requireServiceMatch switch must not allow a driver assigned to a different
+  specific service to take the trip.
+*/
+function driverServices(row){
+  const raw = Array.isArray(row?.services)
+    ? row.services
+    : clean(row?.services)
+      ? clean(row.services).split(",")
+      : ["ALL"];
+
+  const normalized = [...new Set(raw.map(code).filter(Boolean))];
+  return normalized.length ? normalized : ["ALL"];
+}
+
+function serviceTier(row,trip){
+  const required = tripService(trip);
+  const services = driverServices(row);
+
+  if(!required) return null;
+  if(services.includes(required)) return 0;
+  if(services.includes("ALL")) return 1;
+  return null;
+}
+
 function isShared(trip){
   return trip.isShared === true ||
     trip.shared === true ||
@@ -172,15 +205,6 @@ function scheduleAllows(row,trip,settings){
       if(day.end && t > day.end) return false;
     }
   }
-  if(settings.requireServiceMatch !== false){
-    const services = Array.isArray(row.services)
-      ? row.services.map(code)
-      : ["ALL"];
-    const requiredService = tripService(trip);
-    if(!services.includes("ALL") && !services.includes(requiredService)){
-      return false;
-    }
-  }
   return true;
 }
 
@@ -221,6 +245,13 @@ function rankDrivers(trip,ctx){
     const row = ctx.schedule.get(driverId) || {};
     if(!scheduleAllows(row,trip,ctx.settings)) return [];
 
+    /*
+      Service ownership is a hard Auto Assign condition:
+      exact service first, ALL only as fallback, other services rejected.
+    */
+    const tier = serviceTier(row,trip);
+    if(tier === null) return [];
+
     const today = ctx.assignments.filter(a=>
       String(a.driverId) === driverId &&
       clean(a.__trip?.tripDate) === clean(trip.tripDate)
@@ -259,11 +290,16 @@ function rankDrivers(trip,ctx){
     return [{
       driver,row,
       driverId,
+      serviceTier:tier,
+      serviceMatch:tier === 0 ? tripService(trip) : "ALL",
       score:Math.round(score),
-      reason,
+      reason:tier === 0
+        ? `${reason} | Service ${tripService(trip)}`
+        : `${reason} | ALL fallback`,
       distance:distance === null ? null : Number(distance.toFixed(2))
     }];
   }).sort((a,b)=>
+    a.serviceTier-b.serviceTier ||
     b.score-a.score ||
     (a.distance ?? Infinity)-(b.distance ?? Infinity) ||
     clean(a.driver.name).localeCompare(clean(b.driver.name))
@@ -369,7 +405,7 @@ router.post("/auto-assign",async(req,res)=>{
           driverPhone:best.row.phone || best.driver.phone || "",
           vehicleNumber:best.row.vehicleNumber || "",
           driverAddress:best.row.address || "",
-          services:Array.isArray(best.row.services) ? best.row.services : ["ALL"],
+          services:driverServices(best.row),
           dispatchStatus:"ASSIGNED",
           assignedBy:req.user?._id ? String(req.user._id) : "SYSTEM",
           assignmentType:"AUTO",
