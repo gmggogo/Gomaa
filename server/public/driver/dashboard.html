@@ -18,7 +18,7 @@
 
       <div class="top-datetime" id="datetime"></div>
 
-      <div class="profile-logo-box">
+      <div class="profile-logo-standalone">
         <img
           class="logo app-logo"
           src="sunbeamllc.jpeg"
@@ -35,8 +35,11 @@
     </header>
 
     <section class="status-pill" aria-label="Driver status">
-      <span class="status-dot"></span>
-      <span class="status-label">Status:</span>
+      <div class="status-left">
+        <span class="status-dot"></span>
+        <span class="status-label">Status:</span>
+      </div>
+
       <span class="status-value">ONLINE</span>
     </section>
 
@@ -49,7 +52,6 @@
           alt=""
         />
         <span class="dashboard-card-title">Trips</span>
-        <span class="dashboard-card-arrow">→</span>
       </button>
 
       <button class="dashboard-card glow-cyan" id="cardMap" type="button">
@@ -59,7 +61,6 @@
           alt=""
         />
         <span class="dashboard-card-title">Live Map</span>
-        <span class="dashboard-card-arrow">→</span>
       </button>
 
       <button class="dashboard-card glow-purple" id="cardHours" type="button">
@@ -69,7 +70,6 @@
           alt=""
         />
         <span class="dashboard-card-title">Work Hours</span>
-        <span class="dashboard-card-arrow">→</span>
       </button>
 
       <button class="dashboard-card glow-gold" id="cardEarnings" type="button">
@@ -79,7 +79,6 @@
           alt=""
         />
         <span class="dashboard-card-title">Earnings</span>
-        <span class="dashboard-card-arrow">→</span>
       </button>
 
     </section>

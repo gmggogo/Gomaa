@@ -527,3 +527,155 @@ body.driver-dashboard-page{
     font-size:18px !important;
   }
 }
+
+
+/* =========================================
+   THREE FINAL FIXES
+========================================= */
+
+/* 1) Bottom icons only: no grey square, no shadow, no background. */
+.nav-icon{
+  width:38px !important;
+  height:38px !important;
+  display:block !important;
+  object-fit:contain !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  filter:none !important;
+  opacity:1 !important;
+}
+
+/* Keep each icon's original approved color; remove any tint/shadow. */
+.nav button,
+.nav button.active{
+  text-shadow:none !important;
+}
+
+.nav button img{
+  background:transparent !important;
+  box-shadow:none !important;
+  filter:none !important;
+}
+
+/* 2) ONLINE at the far right of the status row. */
+.status-pill{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  width:auto !important;
+}
+
+.status-left{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.status-value{
+  margin-left:auto !important;
+  text-align:right !important;
+}
+
+/* 3) No arrows inside the four icon cards. */
+.dashboard-card-arrow{
+  display:none !important;
+}
+
+/* Slightly smaller card icons for a better phone fit. */
+.trips-icon{
+  width:76px !important;
+  height:58px !important;
+}
+
+.map-icon{
+  width:80px !important;
+  height:60px !important;
+}
+
+.hours-icon{
+  width:64px !important;
+  height:64px !important;
+}
+
+.earnings-icon{
+  width:66px !important;
+  height:72px !important;
+}
+
+@media(max-width:390px){
+  .nav-icon{
+    width:34px !important;
+    height:34px !important;
+  }
+
+  .trips-icon{
+    width:70px !important;
+    height:54px !important;
+  }
+
+  .map-icon{
+    width:74px !important;
+    height:56px !important;
+  }
+
+  .hours-icon{
+    width:59px !important;
+    height:59px !important;
+  }
+
+  .earnings-icon{
+    width:61px !important;
+    height:67px !important;
+  }
+}
+
+
+/* =========================================
+   FINAL FIX 4 — LOGO DIRECTLY ON MAP
+========================================= */
+
+.profile-logo-standalone{
+  width:auto !important;
+  height:auto !important;
+  margin:88px auto 12px !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+}
+
+.profile-logo-standalone .logo{
+  width:92px !important;
+  max-height:92px !important;
+  object-fit:contain !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.20)) !important;
+}
+
+/* Disable the old box completely if it still exists anywhere. */
+.profile-logo-box{
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+
+@media(max-width:390px){
+  .profile-logo-standalone{
+    margin-top:86px !important;
+  }
+
+  .profile-logo-standalone .logo{
+    width:86px !important;
+    max-height:86px !important;
+  }
+}
