@@ -571,6 +571,41 @@ function isDriverActiveForDate(driverId,dateStr){
   return s.days?.[day] === true;
 }
 
+
+function isManualDriverActiveForDate(driverId,dateStr){
+  const driver = allDrivers.find(d=>String(d._id) === String(driverId));
+  if(!driver || driver.enabled === false || driver.disabled === true){
+    return false;
+  }
+
+  const raw = getSchedule(driverId) || {};
+  const status = clean(raw.status).toUpperCase();
+
+  if(
+    raw.enabled === false ||
+    raw.active === false ||
+    status === "INACTIVE" ||
+    status === "DISABLED"
+  ){
+    return false;
+  }
+
+  /*
+    Manual Assign shows every active driver for the trip day.
+    Service ownership, smart score, distance and time conflict are not
+    restrictions for an administrator's manual override.
+  */
+  const day = getSystemDayKeyByDate(dateStr);
+  const days = raw.days || raw.weekly;
+
+  if(days && Object.prototype.hasOwnProperty.call(days,day)){
+    const value = days[day];
+    if(value === false || value?.enabled === false) return false;
+  }
+
+  return true;
+}
+
 function serviceMatchesDriver(driverId,trip){
   if(SMART.requireServiceMatch === false) return true;
 
@@ -830,6 +865,7 @@ async function loadAll(){
 
 async function autoAssign(options={}){
   const silent = options.silent === true;
+  const onlyUnassigned = options.onlyUnassigned === true;
 
   if(autoAssignRunning) return;
 
@@ -838,24 +874,53 @@ async function autoAssign(options={}){
     return;
   }
 
-  const sortedTrips = trips
-    .filter(t=>!clean(t.driverId))
-    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
-
-  if(!sortedTrips.length){
-    if(!silent) toast("No unassigned trips");
-    return;
-  }
-
   autoAssignRunning = true;
 
   try{
     /*
-      The page never chooses the driver.
-      Smart Dispatch runs on the server and saves the full result atomically.
+      Every Auto Assign click reloads the current drivers, schedules,
+      services and assignments before asking the server to calculate again.
     */
+    const keepSelected = new Set(selectedIds);
+    await loadAll();
+    selectedIds = new Set(
+      [...keepSelected].filter(id=>trips.some(t=>t._id === id))
+    );
+
+    let targetTrips;
+
+    if(onlyUnassigned){
+      targetTrips = trips.filter(t=>!clean(t.driverId));
+    }else if(selectedIds.size){
+      targetTrips = trips.filter(t=>
+        selectedIds.has(t._id) &&
+        !isTripInProgress(t) &&
+        !isSentTrip(t)
+      );
+    }else{
+      targetTrips = trips.filter(t=>
+        !clean(t.driverId) &&
+        !isTripInProgress(t) &&
+        !isSentTrip(t)
+      );
+    }
+
+    targetTrips.sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
+
+    if(!targetTrips.length){
+      renderAll();
+      if(!silent){
+        toast(
+          selectedIds.size
+            ? "No selected trips available for Auto Assign"
+            : "No unassigned trips"
+        );
+      }
+      return;
+    }
+
     const result = await Store.autoAssign(
-      sortedTrips.map(trip=>trip._id)
+      targetTrips.map(trip=>trip._id)
     );
 
     if(!result || result.success === false){
@@ -864,6 +929,11 @@ async function autoAssign(options={}){
     }
 
     await loadAll();
+
+    selectedIds = new Set(
+      [...keepSelected].filter(id=>trips.some(t=>t._id === id))
+    );
+
     renderAll();
 
     if(!silent || Number(result.assignedCount || 0) > 0){
@@ -890,7 +960,7 @@ async function autoAssignNewTrips(){
     return;
   }
 
-  await autoAssign({silent:true});
+  await autoAssign({silent:true,onlyUnassigned:true});
 }
 
 async function saveAssignment(trip,driverId,manual=true){
@@ -902,24 +972,10 @@ async function saveAssignment(trip,driverId,manual=true){
     return;
   }
 
-  if(driverId){
-    if(!isDriverActiveForDate(driverId,trip.tripDate)){
-      toast("Driver is not active for this trip date");
-      renderAll();
-      return;
-    }
-
-    if(!serviceMatchesDriver(driverId,trip)){
-      toast("Driver service does not match trip");
-      renderAll();
-      return;
-    }
-
-    if(hasTimeConflict(driverId,trip)){
-      toast("Driver has time conflict");
-      renderAll();
-      return;
-    }
+  if(driverId && !isManualDriverActiveForDate(driverId,trip.tripDate)){
+    toast("Driver is not active for this trip date");
+    renderAll();
+    return;
   }
 
   const oldDriver = trip.driverId;
@@ -959,14 +1015,25 @@ async function saveAssignment(trip,driverId,manual=true){
 /* ================= SEND ================= */
 
 async function sendTrips(ids){
-  ids = ids.filter(Boolean);
+  ids = [...new Set(ids.map(String).filter(Boolean))];
 
   if(!ids.length){
-    toast("No trips to send");
+    toast("Select at least one trip before sending");
     return;
   }
 
-  const selectedTrips = trips.filter(t=>ids.includes(t._id));
+  const notSelected = ids.filter(id=>!selectedIds.has(id));
+  if(notSelected.length){
+    toast("Select the trip before sending");
+    return;
+  }
+
+  const selectedTrips = trips.filter(t=>ids.includes(String(t._id)));
+
+  if(selectedTrips.some(isSentTrip)){
+    toast("A sent trip cannot be sent again");
+    return;
+  }
 
   for(const t of selectedTrips){
     if(!clean(t.driverId)){
@@ -986,7 +1053,6 @@ async function sendTrips(ids){
     selectedTrips.forEach(t=>{
       t.status = "SENT";
       t.dispatchStatus = "SENT";
-      t.dispatchSelected = false;
       t.selected = false;
       selectedIds.delete(t._id);
     });
@@ -1004,18 +1070,35 @@ function sendSelected(){
   const ids = trips
     .filter(t=>selectedIds.has(t._id) && !isSentTrip(t))
     .map(t=>t._id);
+
   sendTrips(ids);
 }
 
 function sendAll(){
+  /*
+    Safety rule: even this button sends only rows explicitly selected
+    by the administrator. An unselected trip is never sent.
+  */
   const ids = trips
-    .filter(t=>clean(t.driverId) && !isSentTrip(t))
+    .filter(t=>
+      selectedIds.has(t._id) &&
+      clean(t.driverId) &&
+      !isSentTrip(t)
+    )
     .map(t=>t._id);
+
   sendTrips(ids);
 }
 
 function sendOne(id){
-  sendTrips([String(id)]);
+  id = String(id);
+
+  if(!selectedIds.has(id)){
+    toast("Select this trip before sending");
+    return;
+  }
+
+  sendTrips([id]);
 }
 
 /* ================= SELECTION ================= */
@@ -1160,33 +1243,49 @@ function renderStats(){
 
 function driverOptions(t){
   const currentId = clean(t.driverId);
-  const ranked = rankDriversForTrip(t);
-  const rankedById = new Map(
-    ranked.map(item=>[String(item.driverId),item])
-  );
+
+  const available = allDrivers
+    .map(normalizeDriver)
+    .filter(driver=>
+      driver._id &&
+      isManualDriverActiveForDate(driver._id,t.tripDate)
+    )
+    .sort((a,b)=>
+      clean(a.name || a.fullName)
+        .localeCompare(clean(b.name || b.fullName))
+    );
 
   /*
-    The saved assignment is the source of truth. Manual edit must never make
-    the browser silently display a different first option when the saved
-    driver is no longer present in the current smart-ranking result.
+    Manual Assign intentionally lists every active driver for the trip day.
+    A service mismatch is displayed as information only and never blocks the
+    administrator from choosing that driver.
   */
-  const options = [];
+  const options = available.map(driver=>{
+    const driverId = String(driver._id);
+    const driverServices = getDriverServices(driverId);
+    const tripService = getTripServiceCode(t);
+    const matches =
+      driverServices.includes("ALL") ||
+      driverServices.includes(tripService);
 
-  if(currentId){
-    const savedRank = rankedById.get(currentId);
-    options.push(
-      savedRank || {
-        driverId:currentId,
-        driverName:t.driverName || getDriverName(currentId) || "Saved driver",
-        vehicle:t.vehicle || getDriverVehicle(currentId) || "-",
-        score:t.smartScore || "-"
-      }
-    );
-  }
-
-  ranked.forEach(item=>{
-    if(String(item.driverId) !== currentId) options.push(item);
+    return {
+      driverId,
+      driverName:driver.name || driver.fullName || "",
+      vehicle:getDriverVehicle(driverId) || "-",
+      services:driverServices.join(", "),
+      matches
+    };
   });
+
+  if(currentId && !options.some(x=>x.driverId === currentId)){
+    options.unshift({
+      driverId:currentId,
+      driverName:t.driverName || getDriverName(currentId) || "Saved driver",
+      vehicle:t.vehicle || getDriverVehicle(currentId) || "-",
+      services:getDriverServices(currentId).join(", "),
+      matches:true
+    });
+  }
 
   const canEdit =
     editMode &&
@@ -1199,10 +1298,10 @@ function driverOptions(t){
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
       ${options.map(x=>{
-        const id = String(x.driverId);
+        const mismatch = x.matches ? "" : " | Service Override";
         return `
-          <option value="${safe(id)}" ${String(t.driverId)===id ? "selected" : ""}>
-            ${safe(x.driverName || "")} - ${safe(x.vehicle || "-")} | Score ${safe(x.score)}
+          <option value="${safe(x.driverId)}" ${currentId===x.driverId ? "selected" : ""}>
+            ${safe(x.driverName)} - ${safe(x.vehicle)} | ${safe(x.services)}${safe(mismatch)}
           </option>
         `;
       }).join("")}

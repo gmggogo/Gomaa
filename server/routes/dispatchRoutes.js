@@ -363,41 +363,90 @@ router.post("/auto-assign",async(req,res)=>{
   try{
     const Trip = TripModel();
     const settings = await SmartDispatchEngine.findOne().lean();
+
     if(settings?.enabled === false){
       return res.status(400).json({
         success:false,
         message:"Smart Dispatch is disabled"
       });
     }
+
     const requested = Array.isArray(req.body.ids)
-      ? req.body.ids.map(id).filter(Boolean)
+      ? [...new Set(req.body.ids.map(id).filter(Boolean).map(String))]
       : [];
+
     const filter = {
       dispatchSelected:true,
       disabled:false,
       ...(requested.length ? {_id:{$in:requested}} : {})
     };
+
     const trips = await Trip.find(filter)
-      .sort({tripDate:1,tripTime:1,createdAt:1}).lean();
-    const existing = await DispatchAssignment.find({
-      tripId:{$in:trips.map(t=>t._id)},
-      driverId:{$ne:null}
-    }).select("tripId").lean();
-    const assignedIds = new Set(existing.map(a=>String(a.tripId)));
+      .sort({tripDate:1,tripTime:1,createdAt:1})
+      .lean();
+
+    const tripIds = trips.map(t=>t._id);
+
+    /*
+      Explicit IDs mean the administrator intentionally requested a new
+      calculation. Existing unsent assignments are cleared first so the
+      latest driver table, schedule and services are used immediately.
+      Sent, accepted and active-trip assignments remain locked.
+    */
+    if(requested.length && tripIds.length){
+      await DispatchAssignment.deleteMany({
+        tripId:{$in:tripIds},
+        dispatchStatus:{$in:["UNASSIGNED","ASSIGNED"]}
+      });
+    }
+
+    const lockedAssignments = await DispatchAssignment.find({
+      tripId:{$in:tripIds},
+      driverId:{$ne:null},
+      dispatchStatus:{$in:["SENT","ACCEPTED","ON_TRIP","COMPLETED"]}
+    }).select("tripId dispatchStatus").lean();
+
+    const lockedIds = new Set(
+      lockedAssignments.map(a=>String(a.tripId))
+    );
+
     const ctx = await buildContext();
     await attachTrips(ctx);
+
     const results = [];
 
     for(const trip of trips){
-      if(assignedIds.has(String(trip._id))) continue;
-      if(isShared(trip) && ctx.settings.autoAssignSharedTrips === false) continue;
-      const best = rankDrivers(trip,ctx)[0];
-      if(!best){
-        results.push({tripId:trip._id,assigned:false,reason:"No eligible driver"});
+      if(lockedIds.has(String(trip._id))){
+        results.push({
+          tripId:trip._id,
+          assigned:false,
+          reason:"Trip assignment is locked"
+        });
         continue;
       }
+
+      if(isShared(trip) && ctx.settings.autoAssignSharedTrips === false){
+        results.push({
+          tripId:trip._id,
+          assigned:false,
+          reason:"Shared Auto Assign is disabled"
+        });
+        continue;
+      }
+
+      const best = rankDrivers(trip,ctx)[0];
+
+      if(!best){
+        results.push({
+          tripId:trip._id,
+          assigned:false,
+          reason:"No eligible driver"
+        });
+        continue;
+      }
+
       const assignment = await DispatchAssignment.findOneAndUpdate(
-        {tripId:trip._id,driverId:null},
+        {tripId:trip._id},
         {$set:{
           tripId:trip._id,
           driverId:best.driver._id,
@@ -416,7 +465,12 @@ router.post("/auto-assign",async(req,res)=>{
         }},
         {upsert:true,new:true}
       );
-      ctx.assignments.push({...assignment.toObject(),__trip:trip});
+
+      ctx.assignments.push({
+        ...assignment.toObject(),
+        __trip:trip
+      });
+
       results.push({
         tripId:trip._id,
         assigned:true,
@@ -425,20 +479,32 @@ router.post("/auto-assign",async(req,res)=>{
         score:best.score
       });
     }
+
     res.json({
       success:true,
       assignedCount:results.filter(x=>x.assigned).length,
       unassignedCount:results.filter(x=>!x.assigned).length,
       results
     });
+
   }catch(err){
     console.error("AUTO ASSIGN:",err);
-    res.status(500).json({success:false,message:"Smart assignment failed"});
+    res.status(500).json({
+      success:false,
+      message:"Smart assignment failed"
+    });
   }
 });
 
 router.patch("/send",async(req,res)=>{
   try{
+    if(req.body.selected !== true){
+      return res.status(400).json({
+        success:false,
+        message:"Select the trip before sending"
+      });
+    }
+
     const ids = Array.isArray(req.body.ids)
       ? req.body.ids.map(id).filter(Boolean)
       : [];

@@ -1,5 +1,5 @@
 /* =========================================
-   DISPATCH STORE V3
+   DISPATCH STORE V4
 ========================================= */
 
 const Store = {
@@ -102,9 +102,8 @@ const Store = {
 
   async saveSelection(tripId,selected){
     /*
-      The table checkbox is page-local UI state.
-      Do not update Trip.dispatchSelected here because that field controls
-      whether the trip belongs on the Dispatch page.
+      The row checkbox is local Dispatch-page state. It does not remove the
+      trip from Dispatch because Trip.dispatchSelected controls page entry.
     */
     return {
       success:true,
@@ -120,7 +119,9 @@ const Store = {
         "/api/dispatch/auto-assign",
         {
           method:"POST",
-          body:JSON.stringify({ids})
+          body:JSON.stringify({
+            ids:Array.isArray(ids) ? ids : []
+          })
         }
       );
 
@@ -132,13 +133,16 @@ const Store = {
     }
   },
 
-  async sendTrips(ids){
+  async sendTrips(ids = []){
     try{
       return await this.request(
         "/api/dispatch/send",
         {
           method:"PATCH",
-          body:JSON.stringify({ids})
+          body:JSON.stringify({
+            ids:Array.isArray(ids) ? ids : [],
+            selected:true
+          })
         }
       );
 
