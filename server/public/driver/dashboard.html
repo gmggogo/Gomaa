@@ -4,104 +4,116 @@
   <meta charset="UTF-8" />
   <title>Sunbeam Driver Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
   <link rel="stylesheet" href="driver.css" />
 </head>
+
 <body class="driver-dashboard-page">
 
-  <div class="dashboard-shell">
-    <div class="dashboard-header">
+  <main class="dashboard-shell">
+
+    <header class="dashboard-header">
+
       <div class="top-datetime" id="datetime"></div>
 
       <div class="profile-logo-box">
-        <img class="logo app-logo" alt="Company Logo" />
+        <img
+          class="logo app-logo"
+          src="sunbeamllc.jpeg"
+          alt="Company Logo"
+        />
       </div>
 
       <div class="company-name">SUNSET</div>
-      <div class="driver-name" id="driverName">Driver</div>
-    </div>
 
-    <div class="status-pill">
+      <div class="driver-name" id="driverName">
+        Driver
+      </div>
+
+    </header>
+
+    <section class="status-pill" aria-label="Driver status">
       <span class="status-dot"></span>
       <span class="status-label">Status:</span>
       <span class="status-value">ONLINE</span>
-    </div>
+    </section>
 
-    <div class="dashboard-grid">
-      <div class="dashboard-card glow-blue" id="cardTrips">
-        <div class="dashboard-card-icon icon-trips"></div>
-        <div class="dashboard-card-title">Trips</div>
-        <div class="dashboard-card-arrow">→</div>
-      </div>
+    <section class="dashboard-grid">
 
-      <div class="dashboard-card glow-cyan" id="cardMap">
-        <div class="dashboard-card-icon icon-map"></div>
-        <div class="dashboard-card-title">Live Map</div>
-        <div class="dashboard-card-arrow">→</div>
-      </div>
-
-      <div class="dashboard-card glow-purple" id="cardHours">
-        <div class="dashboard-card-icon icon-hours"></div>
-        <div class="dashboard-card-title">Work Hours</div>
-        <div class="dashboard-card-arrow">→</div>
-      </div>
-
-      <div class="dashboard-card glow-gold" id="cardEarnings">
-        <div class="dashboard-card-icon icon-earnings"></div>
-        <div class="dashboard-card-title">Earnings</div>
-        <div class="dashboard-card-arrow">→</div>
-      </div>
-    </div>
-
-    <div class="summary-card-pro" id="cardSummary">
-      <div class="summary-left">
-        <div class="summary-icon icon-summary"></div>
-        <div class="summary-text">View Summary</div>
-      </div>
-      <div class="summary-arrow">→</div>
-    </div>
-  </div>
-
-  <div class="driver-nav-wrap">
-    <div class="nav">
-      <button class="active" id="navHome" type="button">
-        <span class="nav-icon nav-home-icon"></span>
-        Home
+      <button class="dashboard-card glow-blue" id="cardTrips" type="button">
+        <img
+          class="dashboard-card-icon trips-icon"
+          src="assets/trips.png"
+          alt=""
+        />
+        <span class="dashboard-card-title">Trips</span>
+        <span class="dashboard-card-arrow">→</span>
       </button>
 
-      <button id="navTrips" type="button">
-        <span class="nav-icon nav-trips-icon"></span>
-        Trips
+      <button class="dashboard-card glow-cyan" id="cardMap" type="button">
+        <img
+          class="dashboard-card-icon map-icon"
+          src="assets/live-map.png"
+          alt=""
+        />
+        <span class="dashboard-card-title">Live Map</span>
+        <span class="dashboard-card-arrow">→</span>
       </button>
 
-      <button id="navMap" type="button">
-        <span class="nav-icon nav-map-icon"></span>
-        Map
+      <button class="dashboard-card glow-purple" id="cardHours" type="button">
+        <img
+          class="dashboard-card-icon hours-icon"
+          src="assets/work-hours.png"
+          alt=""
+        />
+        <span class="dashboard-card-title">Work Hours</span>
+        <span class="dashboard-card-arrow">→</span>
       </button>
 
-      <button id="navChat" type="button">
-        <span class="nav-icon nav-chat-icon"></span>
-        Chat
+      <button class="dashboard-card glow-gold" id="cardEarnings" type="button">
+        <img
+          class="dashboard-card-icon earnings-icon"
+          src="assets/earnings.png"
+          alt=""
+        />
+        <span class="dashboard-card-title">Earnings</span>
+        <span class="dashboard-card-arrow">→</span>
       </button>
 
-      <button id="navLogout" type="button">
-        <span class="nav-icon nav-logout-icon"></span>
-        Logout
-      </button>
-    </div>
-  </div>
+    </section>
+
+    <button class="summary-card" id="cardSummary" type="button">
+      <span class="summary-left">
+        <img
+          class="summary-icon"
+          src="assets/summary.png"
+          alt=""
+        />
+        <span class="summary-text">View Summary</span>
+      </span>
+
+      <span class="summary-arrow">→</span>
+    </button>
+
+  </main>
+
+  <div id="driverNav"></div>
 
   <script src="/core/branding.js"></script>
+
   <script>
-    window.addEventListener("DOMContentLoaded", async ()=>{
-      if(window.Branding) {
-        await Branding.load();
+    window.addEventListener("DOMContentLoaded", async () => {
+      if (window.Branding) {
+        await window.Branding.load();
       }
     });
   </script>
+
   <script src="driver-nav.js"></script>
   <script src="dashboard.js" defer></script>
   <script src="/driver/location.js"></script>
+
 </body>
 </html>
