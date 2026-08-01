@@ -4,344 +4,14 @@
   <meta charset="UTF-8" />
   <title>Sunbeam Driver Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
-
-  <style>
-    :root{
-      --navy:#03152f;
-      --navy2:#08254f;
-      --gold:#ffd325;
-      --gold2:#e7a900;
-      --green:#32f064;
-      --text:#fff;
-      --muted:#cdd5df;
-      --blue:#39a7ff;
-      --cyan:#36efff;
-      --purple:#c966ff;
-      --shadow:0 16px 34px rgba(5,20,43,.28);
-    }
-
-    *{
-      box-sizing:border-box;
-      font-family:Arial,sans-serif;
-      -webkit-tap-highlight-color:transparent;
-    }
-
-    html,body{
-      margin:0;
-      min-height:100%;
-    }
-
-    body{
-      min-height:100vh;
-      padding-bottom:112px;
-      overflow-x:hidden;
-      color:var(--text);
-      background:
-        linear-gradient(rgba(255,255,255,.16),rgba(255,255,255,.16)),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='1700' viewBox='0 0 900 1700'%3E%3Crect width='900' height='1700' fill='%23edf3f5'/%3E%3Cg stroke='%23d2dbe0' stroke-width='3' opacity='.95'%3E%3Cpath d='M0 120H900M0 220H900M0 320H900M0 420H900M0 520H900M0 620H900M0 720H900M0 820H900M0 920H900M0 1020H900M0 1120H900M0 1220H900M0 1320H900M0 1420H900M0 1520H900M90 0V1700M190 0V1700M290 0V1700M390 0V1700M490 0V1700M590 0V1700M690 0V1700M790 0V1700'/%3E%3C/g%3E%3Cpath d='M-80 290L980 40' stroke='%23efc565' stroke-width='13' opacity='.85'/%3E%3Cpath d='M570 -50L350 1750' stroke='%23f3ce7a' stroke-width='11' opacity='.8'/%3E%3Cpath d='M665 90C770 75 865 150 885 260C905 365 840 465 735 480C635 495 550 420 545 320C540 210 575 105 665 90Z' fill='%239ed4ef'/%3E%3Cpath d='M185 260C260 220 345 245 385 310C425 375 390 455 320 480C245 505 165 470 145 400C125 330 135 290 185 260Z' fill='%23bce4a7'/%3E%3Cpath d='M470 650C560 610 655 655 690 735C725 815 675 905 590 930C500 955 420 900 410 815C400 730 410 680 470 650Z' fill='%23bce4a7'/%3E%3Cpath d='M20 1030C120 980 240 1035 270 1130C300 1225 220 1310 120 1295C25 1280 -25 1165 20 1030Z' fill='%239ed4ef'/%3E%3C/svg%3E");
-      background-size:cover;
-      background-position:center;
-      background-attachment:fixed;
-    }
-
-    .dashboard-shell{
-      min-height:100vh;
-      padding-bottom:12px;
-    }
-
-    .dashboard-header{
-      position:relative;
-      padding:34px 18px 12px;
-      text-align:center;
-    }
-
-    .top-datetime{
-      position:absolute;
-      top:10px;
-      left:14px;
-      text-align:left;
-      z-index:2;
-    }
-
-    .profile-logo-box{
-      width:116px;
-      height:116px;
-      margin:70px auto 14px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:28px;
-      background:
-        radial-gradient(circle at 30% 25%,rgba(28,98,198,.22),transparent 40%),
-        linear-gradient(160deg,#00132c,#08234a 52%,#02142d);
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow:0 18px 34px rgba(6,17,37,.24);
-    }
-
-    .logo{
-      width:88px;
-      max-height:88px;
-      object-fit:contain;
-      filter:drop-shadow(0 5px 10px rgba(0,0,0,.25));
-    }
-
-    .company-name{
-      font-size:35px;
-      line-height:1;
-      font-weight:900;
-      letter-spacing:1px;
-      color:var(--gold);
-      text-shadow:
-        0 2px 0 #cf8f00,
-        0 4px 0 #a96800,
-        0 8px 18px rgba(0,0,0,.24),
-        0 0 12px rgba(255,211,37,.34);
-    }
-
-    .driver-name{
-      margin-top:10px;
-      font-size:17px;
-      font-weight:700;
-      color:#414959;
-    }
-
-    .status{
-      margin:10px 18px 20px;
-      min-height:62px;
-      padding:16px 20px;
-      display:flex;
-      align-items:center;
-      gap:12px;
-      border-radius:30px;
-      background:
-        radial-gradient(circle at 18% 20%,rgba(32,103,255,.16),transparent 36%),
-        linear-gradient(160deg,#02142d,#07244d 52%,#02142d);
-      border:1px solid rgba(61,255,111,.34);
-      box-shadow:
-        var(--shadow),
-        0 0 18px rgba(61,255,111,.08);
-      font-size:18px;
-      font-weight:900;
-    }
-
-    .status::before{
-      content:"";
-      width:18px;
-      height:18px;
-      flex:0 0 auto;
-      border-radius:50%;
-      background:#29ef5c;
-      box-shadow:0 0 14px rgba(41,239,92,.75);
-    }
-
-    .status span{
-      color:var(--green);
-      font-weight:900;
-    }
-
-    .grid{
-      padding:0 18px;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:18px;
-    }
-
-    .card{
-      position:relative;
-      min-height:184px;
-      padding:22px 18px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      overflow:hidden;
-      border-radius:28px;
-      cursor:pointer;
-      color:#fff;
-      background:
-        radial-gradient(circle at 25% 22%,rgba(33,117,255,.12),transparent 34%),
-        linear-gradient(160deg,#02152e,#072249 52%,#02132b);
-      border:2px solid rgba(255,255,255,.12);
-      box-shadow:
-        var(--shadow),
-        inset 0 1px 0 rgba(255,255,255,.16);
-    }
-
-    .card:nth-child(1){
-      box-shadow:var(--shadow),0 0 0 2px rgba(61,164,255,.28),0 0 20px rgba(61,164,255,.20);
-    }
-
-    .card:nth-child(2){
-      box-shadow:var(--shadow),0 0 0 2px rgba(53,242,255,.28),0 0 20px rgba(53,242,255,.18);
-    }
-
-    .card:nth-child(3){
-      box-shadow:var(--shadow),0 0 0 2px rgba(203,99,255,.28),0 0 20px rgba(203,99,255,.18);
-    }
-
-    .card:nth-child(4){
-      box-shadow:var(--shadow),0 0 0 2px rgba(255,211,37,.28),0 0 20px rgba(255,211,37,.18);
-    }
-
-    .card:active,.summary:active{
-      transform:scale(.98);
-    }
-
-    .card .icon{
-      font-size:54px;
-      line-height:1;
-      margin-bottom:14px;
-      filter:drop-shadow(0 6px 10px rgba(0,0,0,.18));
-    }
-
-    .card .title{
-      font-size:18px;
-      font-weight:500;
-    }
-
-    .card::after{
-      content:"→";
-      position:absolute;
-      right:20px;
-      bottom:16px;
-      font-size:34px;
-      font-weight:300;
-      color:rgba(255,255,255,.9);
-    }
-
-    .summary{
-      margin:18px 18px 8px;
-      min-height:88px;
-      padding:18px 22px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:14px;
-      border-radius:28px;
-      cursor:pointer;
-      color:#fff;
-      background:
-        radial-gradient(circle at 22% 18%,rgba(33,117,255,.12),transparent 34%),
-        linear-gradient(160deg,#02152e,#072249 52%,#02132b);
-      border:2px solid rgba(255,255,255,.12);
-      box-shadow:
-        var(--shadow),
-        0 0 0 2px rgba(94,82,255,.18),
-        0 0 20px rgba(111,80,255,.16);
-      font-size:18px;
-      font-weight:700;
-      position:relative;
-    }
-
-    .summary::after{
-      content:"→";
-      position:absolute;
-      right:22px;
-      font-size:32px;
-      font-weight:300;
-    }
-
-    .nav{
-      position:fixed;
-      left:10px;
-      right:10px;
-      bottom:10px;
-      min-height:90px;
-      padding:8px 5px 10px;
-      display:flex;
-      justify-content:space-around;
-      align-items:center;
-      gap:3px;
-      z-index:9999;
-      border-radius:32px;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.04)),
-        linear-gradient(180deg,#6d7a8b 0%,#303c4c 45%,#0b1422 100%);
-      border:1px solid rgba(255,255,255,.34);
-      box-shadow:
-        0 18px 36px rgba(1,10,25,.34),
-        inset 0 1px 0 rgba(255,255,255,.45),
-        inset 0 -1px 0 rgba(0,0,0,.42);
-      backdrop-filter:blur(12px);
-    }
-
-    .nav button{
-      min-width:56px;
-      padding:6px 3px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      gap:5px;
-      border:0;
-      background:transparent;
-      color:#cfd7e2;
-      font-size:11px;
-      font-weight:500;
-      cursor:pointer;
-    }
-
-    .nav button span{
-      width:44px;
-      height:44px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:15px;
-      font-size:22px;
-      background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
-    }
-
-    .nav button.active{
-      color:var(--gold);
-    }
-
-    .nav button.active span{
-      color:var(--gold);
-      border-color:rgba(255,211,37,.75);
-      box-shadow:0 0 16px rgba(255,211,37,.22);
-    }
-
-    @media(max-width:390px){
-      .dashboard-grid,.grid{
-        gap:14px;
-        padding-left:14px;
-        padding-right:14px;
-      }
-
-      .card{
-        min-height:170px;
-      }
-
-      .company-name{
-        font-size:32px;
-      }
-
-      .nav button{
-        min-width:50px;
-        font-size:10px;
-      }
-
-      .nav button span{
-        width:40px;
-        height:40px;
-        font-size:20px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="driver.css" />
 </head>
-
-<body>
+<body class="driver-dashboard-page">
 
   <div class="dashboard-shell">
-
     <div class="dashboard-header">
-
       <div class="top-datetime" id="datetime"></div>
 
       <div class="profile-logo-box">
@@ -349,87 +19,89 @@
       </div>
 
       <div class="company-name">SUNSET</div>
-
       <div class="driver-name" id="driverName">Driver</div>
-
     </div>
 
-    <div class="status">
-      Status: <span>ONLINE</span>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      <span class="status-label">Status:</span>
+      <span class="status-value">ONLINE</span>
     </div>
 
-    <div class="grid">
-
-      <div class="card" id="cardTrips">
-        <div class="icon">🚗</div>
-        <div class="title">Trips</div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card glow-blue" id="cardTrips">
+        <div class="dashboard-card-icon icon-trips"></div>
+        <div class="dashboard-card-title">Trips</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
-      <div class="card" id="cardMap">
-        <div class="icon">🗺️</div>
-        <div class="title">Live Map</div>
+      <div class="dashboard-card glow-cyan" id="cardMap">
+        <div class="dashboard-card-icon icon-map"></div>
+        <div class="dashboard-card-title">Live Map</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
-      <div class="card" id="cardHours">
-        <div class="icon">⏱️</div>
-        <div class="title">Work Hours</div>
+      <div class="dashboard-card glow-purple" id="cardHours">
+        <div class="dashboard-card-icon icon-hours"></div>
+        <div class="dashboard-card-title">Work Hours</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
-      <div class="card" id="cardEarnings">
-        <div class="icon">💰</div>
-        <div class="title">Earnings</div>
+      <div class="dashboard-card glow-gold" id="cardEarnings">
+        <div class="dashboard-card-icon icon-earnings"></div>
+        <div class="dashboard-card-title">Earnings</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
-
     </div>
 
-    <div class="summary" id="cardSummary">
-      <span>📊</span>
-      <span>View Summary</span>
+    <div class="summary-card-pro" id="cardSummary">
+      <div class="summary-left">
+        <div class="summary-icon icon-summary"></div>
+        <div class="summary-text">View Summary</div>
+      </div>
+      <div class="summary-arrow">→</div>
     </div>
-
   </div>
 
-  <div class="nav">
+  <div class="driver-nav-wrap">
+    <div class="nav">
+      <button class="active" id="navHome" type="button">
+        <span class="nav-icon nav-home-icon"></span>
+        Home
+      </button>
 
-    <button class="active" id="navHome" type="button">
-      <span>🏠</span>
-      Home
-    </button>
+      <button id="navTrips" type="button">
+        <span class="nav-icon nav-trips-icon"></span>
+        Trips
+      </button>
 
-    <button id="navTrips" type="button">
-      <span>🚗</span>
-      Trips
-    </button>
+      <button id="navMap" type="button">
+        <span class="nav-icon nav-map-icon"></span>
+        Map
+      </button>
 
-    <button id="navMap" type="button">
-      <span>🗺️</span>
-      Map
-    </button>
+      <button id="navChat" type="button">
+        <span class="nav-icon nav-chat-icon"></span>
+        Chat
+      </button>
 
-    <button id="navChat" type="button">
-      <span>💬</span>
-      Chat
-    </button>
-
-    <button id="navLogout" type="button">
-      <span>🚪</span>
-      Logout
-    </button>
-
+      <button id="navLogout" type="button">
+        <span class="nav-icon nav-logout-icon"></span>
+        Logout
+      </button>
+    </div>
   </div>
 
   <script src="/core/branding.js"></script>
-
   <script>
     window.addEventListener("DOMContentLoaded", async ()=>{
-      if(window.Branding){
+      if(window.Branding) {
         await Branding.load();
       }
     });
   </script>
-
+  <script src="driver-nav.js"></script>
   <script src="dashboard.js" defer></script>
   <script src="/driver/location.js"></script>
-
 </body>
 </html>
