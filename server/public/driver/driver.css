@@ -788,3 +788,150 @@ body.driver-dashboard-page{
     height:32px !important;
   }
 }
+
+
+/* =========================================
+   FINAL LAYOUT FIX — HALF-SIZE CARD ICONS
+========================================= */
+
+/* Move logo/company/driver upward to free vertical space. */
+.profile-logo-standalone{
+  margin:44px auto 4px !important;
+}
+
+.profile-logo-standalone .logo{
+  width:150px !important;
+  max-width:42vw !important;
+  max-height:150px !important;
+}
+
+.company-name{
+  margin-top:0 !important;
+  font-size:32px !important;
+}
+
+.driver-name{
+  margin-top:5px !important;
+}
+
+/* Main four icons reduced to half size. */
+.trips-icon{
+  width:38px !important;
+  height:29px !important;
+}
+
+.map-icon{
+  width:40px !important;
+  height:30px !important;
+}
+
+.hours-icon{
+  width:32px !important;
+  height:32px !important;
+}
+
+.earnings-icon{
+  width:33px !important;
+  height:36px !important;
+}
+
+.dashboard-card-icon{
+  margin-bottom:10px !important;
+}
+
+/* Slightly reduce card height so more of the page fits. */
+.dashboard-card{
+  min-height:150px !important;
+}
+
+.dashboard-grid{
+  gap:14px !important;
+}
+
+/* View Summary image smaller so its built-in text is fully visible. */
+.summary-card-image-only{
+  min-height:118px !important;
+  overflow:visible !important;
+}
+
+.summary-image-only{
+  width:92px !important;
+  max-width:32% !important;
+  height:auto !important;
+  object-fit:contain !important;
+}
+
+/* Completely flat nav icons: no tiles, no shadows, no backgrounds. */
+.nav-icon,
+.nav button img,
+.nav button.active img{
+  width:28px !important;
+  height:28px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  filter:none !important;
+  outline:0 !important;
+}
+
+.nav button{
+  background:transparent !important;
+  box-shadow:none !important;
+}
+
+@media(max-width:390px){
+  .profile-logo-standalone{
+    margin-top:38px !important;
+  }
+
+  .profile-logo-standalone .logo{
+    width:138px !important;
+    max-width:44vw !important;
+    max-height:138px !important;
+  }
+
+  .company-name{
+    font-size:30px !important;
+  }
+
+  .trips-icon{
+    width:35px !important;
+    height:27px !important;
+  }
+
+  .map-icon{
+    width:37px !important;
+    height:28px !important;
+  }
+
+  .hours-icon{
+    width:30px !important;
+    height:30px !important;
+  }
+
+  .earnings-icon{
+    width:30px !important;
+    height:33px !important;
+  }
+
+  .dashboard-card{
+    min-height:142px !important;
+  }
+
+  .summary-card-image-only{
+    min-height:110px !important;
+  }
+
+  .summary-image-only{
+    width:86px !important;
+    max-width:34% !important;
+  }
+
+  .nav-icon,
+  .nav button img,
+  .nav button.active img{
+    width:26px !important;
+    height:26px !important;
+  }
+}
