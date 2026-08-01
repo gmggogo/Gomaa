@@ -1498,3 +1498,60 @@ body.driver-dashboard-page{
     height:100vh !important;
   }
 }
+
+
+/* =========================================
+   SMALLER DARK-BLUE BOXES
+   shrink the blue card boxes only
+   keep icons and text sizes unchanged
+========================================= */
+
+/* Main 4 dashboard blue cards */
+.dashboard-card{
+  min-height:128px !important;
+  height:128px !important;
+  padding:16px 14px !important;
+  border-radius:28px !important;
+}
+
+/* Keep spacing nice while boxes become smaller */
+.dashboard-grid{
+  gap:12px !important;
+  padding-top:0 !important;
+}
+
+/* Summary blue box a bit smaller too, without shrinking icon/text */
+.summary-card.summary-final-card{
+  min-height:108px !important;
+  height:108px !important;
+  padding:10px 16px !important;
+  border-radius:24px !important;
+}
+
+/* Do NOT shrink inner content */
+.dashboard-card-icon,
+.summary-final-icon,
+.summary-final-text,
+.dashboard-card-title{
+  transform:none !important;
+}
+
+@media(max-width:390px){
+  .dashboard-card{
+    min-height:122px !important;
+    height:122px !important;
+    padding:14px 12px !important;
+    border-radius:26px !important;
+  }
+
+  .dashboard-grid{
+    gap:10px !important;
+  }
+
+  .summary-card.summary-final-card{
+    min-height:102px !important;
+    height:102px !important;
+    padding:9px 14px !important;
+    border-radius:22px !important;
+  }
+}
