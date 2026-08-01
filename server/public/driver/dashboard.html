@@ -7,447 +7,81 @@
 
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
-
-  <style>
-    :root{
-      --navy:#06152b;
-      --navy-2:#0b2a52;
-      --navy-3:#123d73;
-      --gold:#ffd84d;
-      --gold-2:#f4b400;
-      --silver:#d7dde7;
-      --silver-2:#78869a;
-      --text:#ffffff;
-      --muted:#dbe4ef;
-      --green:#25d366;
-      --glass:rgba(7,24,49,.88);
-      --glass-soft:rgba(8,31,63,.80);
-      --line:rgba(255,255,255,.14);
-      --shadow:0 12px 30px rgba(3,16,35,.30);
-    }
-
-    *{
-      box-sizing:border-box;
-      font-family:Arial, sans-serif;
-      -webkit-tap-highlight-color:transparent;
-    }
-
-    html,
-    body{
-      margin:0;
-      min-height:100%;
-    }
-
-    body{
-      color:var(--text);
-      min-height:100vh;
-      padding-bottom:100px;
-      overflow-x:hidden;
-      background:#dbe7ec;
-      position:relative;
-    }
-
-    body::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      z-index:-3;
-      background:
-        linear-gradient(rgba(236,244,246,.25),rgba(236,244,246,.25)),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='1600' viewBox='0 0 900 1600'%3E%3Crect width='900' height='1600' fill='%23dce6e8'/%3E%3Cpath d='M-50 120 C150 170 250 40 480 120 S760 240 950 120' fill='none' stroke='%23ffffff' stroke-width='26' opacity='.92'/%3E%3Cpath d='M-70 340 C120 250 270 420 470 320 S760 220 980 360' fill='none' stroke='%23f7f9fa' stroke-width='22'/%3E%3Cpath d='M20 640 C250 520 350 720 560 620 S760 540 980 690' fill='none' stroke='%23ffffff' stroke-width='24'/%3E%3Cpath d='M-60 950 C170 860 280 1060 510 930 S770 840 970 980' fill='none' stroke='%23f8fafb' stroke-width='25'/%3E%3Cpath d='M120 -100 C190 180 130 430 250 670 S330 1100 250 1700' fill='none' stroke='%23ffffff' stroke-width='20'/%3E%3Cpath d='M570 -80 C500 190 620 420 530 700 S470 1100 610 1700' fill='none' stroke='%23ffffff' stroke-width='22'/%3E%3Cpath d='M-20 520 L920 1320' stroke='%23f0c65a' stroke-width='12' opacity='.82'/%3E%3Cpath d='M810 -50 L120 1650' stroke='%23e9bd48' stroke-width='10' opacity='.78'/%3E%3Cpath d='M650 80 C840 160 920 290 860 470 C820 590 690 610 610 520 C530 420 540 240 650 80Z' fill='%238fc8d7' opacity='.92'/%3E%3Cpath d='M40 760 C120 690 220 700 290 780 C340 840 310 940 220 980 C120 1020 30 920 40 760Z' fill='%239bcf9b' opacity='.95'/%3E%3Cpath d='M520 1080 C650 1030 790 1110 820 1240 C850 1370 740 1450 610 1400 C500 1360 440 1170 520 1080Z' fill='%2397c99a' opacity='.95'/%3E%3Cg stroke='%23b8c2c8' stroke-width='4' opacity='.9'%3E%3Cpath d='M0 220 L900 220'/%3E%3Cpath d='M0 460 L900 460'/%3E%3Cpath d='M0 820 L900 820'/%3E%3Cpath d='M0 1180 L900 1180'/%3E%3Cpath d='M90 0 L90 1600'/%3E%3Cpath d='M370 0 L370 1600'/%3E%3Cpath d='M730 0 L730 1600'/%3E%3C/g%3E%3C/svg%3E");
-      background-size:cover;
-      background-position:center;
-      filter:saturate(.92) brightness(1.03);
-    }
-
-    body::after{
-      content:"";
-      position:fixed;
-      inset:0;
-      z-index:-2;
-      background:
-        linear-gradient(
-          180deg,
-          rgba(255,255,255,.08) 0%,
-          rgba(235,243,247,.18) 42%,
-          rgba(10,33,65,.14) 100%
-        );
-      pointer-events:none;
-    }
-
-    .app-shell{
-      min-height:100vh;
-      padding-bottom:12px;
-    }
-
-    .header{
-      position:relative;
-      padding:44px 20px 18px;
-      text-align:center;
-    }
-
-    .top-datetime{
-      position:absolute;
-      top:10px;
-      left:14px;
-      text-align:left;
-      text-shadow:0 2px 7px rgba(0,0,0,.35);
-    }
-
-    .logo-wrap{
-      width:106px;
-      height:106px;
-      margin:0 auto 10px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:26px;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.06)),
-        rgba(8,31,63,.72);
-      border:1px solid rgba(255,255,255,.28);
-      box-shadow:
-        0 12px 28px rgba(7,27,55,.28),
-        inset 0 1px 0 rgba(255,255,255,.35);
-      backdrop-filter:blur(10px);
-    }
-
-    .logo{
-      width:86px;
-      max-height:86px;
-      object-fit:contain;
-      filter:drop-shadow(0 4px 9px rgba(0,0,0,.28));
-    }
-
-    .company-name{
-      font-size:32px;
-      line-height:1;
-      font-weight:900;
-      letter-spacing:2px;
-      color:#fff2a8;
-      text-shadow:
-        0 1px 0 #8b6400,
-        0 2px 0 #6d4c00,
-        0 0 8px rgba(255,216,77,.95),
-        0 0 18px rgba(255,180,0,.72),
-        0 4px 14px rgba(2,6,23,.45);
-    }
-
-    .driver-name{
-      display:inline-block;
-      margin-top:9px;
-      padding:5px 14px;
-      border-radius:999px;
-      background:rgba(6,21,43,.70);
-      border:1px solid rgba(255,255,255,.18);
-      color:#f8fafc;
-      font-size:15px;
-      font-weight:700;
-      box-shadow:0 5px 14px rgba(7,25,52,.18);
-      backdrop-filter:blur(8px);
-    }
-
-    .status{
-      margin:10px 20px 18px;
-      padding:17px 18px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      border-radius:18px;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.02)),
-        var(--glass);
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow:var(--shadow);
-      backdrop-filter:blur(12px);
-      font-size:18px;
-      font-weight:800;
-    }
-
-    .status span{
-      color:var(--green);
-      font-weight:900;
-      text-shadow:0 0 12px rgba(37,211,102,.35);
-    }
-
-    .grid{
-      padding:4px 20px 0;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:16px;
-    }
-
-    .card{
-      position:relative;
-      overflow:hidden;
-      min-height:145px;
-      padding:25px 16px;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      border-radius:22px;
-      cursor:pointer;
-      color:#fff;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.025)),
-        linear-gradient(160deg,var(--navy-3),var(--navy));
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow:
-        0 14px 28px rgba(3,18,40,.25),
-        inset 0 1px 0 rgba(255,255,255,.22);
-      transition:transform .15s ease, box-shadow .15s ease;
-      backdrop-filter:blur(10px);
-    }
-
-    .card::before{
-      content:"";
-      position:absolute;
-      top:-45%;
-      left:-25%;
-      width:75%;
-      height:160%;
-      transform:rotate(20deg);
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
-      pointer-events:none;
-    }
-
-    .card:active{
-      transform:scale(.97);
-      box-shadow:
-        0 7px 16px rgba(3,18,40,.22),
-        inset 0 1px 0 rgba(255,255,255,.18);
-    }
-
-    .card .icon{
-      width:56px;
-      height:56px;
-      margin-bottom:10px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:16px;
-      font-size:29px;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.18),rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.20);
-    }
-
-    .card .title{
-      font-size:16px;
-      font-weight:900;
-      letter-spacing:.2px;
-    }
-
-    .summary{
-      position:relative;
-      overflow:hidden;
-      margin:18px 20px 20px;
-      padding:19px 18px;
-      border-radius:19px;
-      text-align:center;
-      font-size:17px;
-      font-weight:900;
-      cursor:pointer;
-      color:#fff;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.02)),
-        linear-gradient(160deg,var(--navy-2),var(--navy));
-      border:1px solid rgba(255,255,255,.19);
-      box-shadow:var(--shadow);
-      backdrop-filter:blur(11px);
-    }
-
-    .summary:active{
-      transform:scale(.985);
-    }
-
-    .nav{
-      position:fixed;
-      left:12px;
-      right:12px;
-      bottom:10px;
-      min-height:78px;
-      padding:7px 6px;
-      display:flex;
-      justify-content:space-around;
-      align-items:center;
-      border-radius:24px;
-      z-index:999;
-      background:
-        linear-gradient(145deg,rgba(255,255,255,.45),rgba(255,255,255,.06)),
-        linear-gradient(180deg,#5f6c7b 0%,#1f2a38 46%,#091321 100%);
-      border:1px solid rgba(255,255,255,.45);
-      box-shadow:
-        0 10px 30px rgba(1,10,25,.35),
-        inset 0 1px 0 rgba(255,255,255,.60),
-        inset 0 -1px 0 rgba(0,0,0,.40);
-      backdrop-filter:blur(14px);
-    }
-
-    .nav button{
-      position:relative;
-      min-width:58px;
-      padding:7px 6px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:4px;
-      border:0;
-      border-radius:15px;
-      background:transparent;
-      color:#d7dde7;
-      font-size:11px;
-      font-weight:800;
-      cursor:pointer;
-      text-shadow:0 1px 3px rgba(0,0,0,.45);
-    }
-
-    .nav button span{
-      font-size:19px;
-      line-height:1;
-      filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
-    }
-
-    .nav button.active{
-      color:#1c1500;
-      background:
-        linear-gradient(180deg,#fff5ad 0%,#ffd84d 48%,#e5a900 100%);
-      border:1px solid rgba(255,255,255,.70);
-      box-shadow:
-        0 5px 14px rgba(244,180,0,.35),
-        inset 0 1px 0 rgba(255,255,255,.70);
-      text-shadow:none;
-    }
-
-    @media (max-width:390px){
-      .header{
-        padding-left:14px;
-        padding-right:14px;
-      }
-
-      .grid{
-        padding-left:14px;
-        padding-right:14px;
-        gap:12px;
-      }
-
-      .status,
-      .summary{
-        margin-left:14px;
-        margin-right:14px;
-      }
-
-      .card{
-        min-height:132px;
-        padding:20px 12px;
-      }
-
-      .company-name{
-        font-size:29px;
-      }
-
-      .nav{
-        left:8px;
-        right:8px;
-      }
-
-      .nav button{
-        min-width:50px;
-        font-size:10px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="driver-style.css" />
 </head>
 
-<body>
-  <div class="app-shell">
+<body class="dashboard-page">
 
-    <div class="header">
+  <div class="dashboard-shell">
+
+    <div class="dashboard-header">
 
       <div class="top-datetime" id="datetime"></div>
 
-      <div class="logo-wrap">
+      <div class="profile-logo-box">
         <img
           class="logo app-logo"
           alt="Company Logo"
         />
       </div>
 
-      <div class="company-name">
+      <div class="company-name-glow">
         SUNSET
       </div>
 
-      <div class="driver-name" id="driverName">
+      <div class="driver-name-inline" id="driverName">
         Driver
       </div>
 
     </div>
 
-    <div class="status">
-      <div>Status</div>
-      <span>ONLINE</span>
+    <div class="status-pill">
+      <div class="status-left">
+        <span class="status-dot"></span>
+        <span class="status-label">Status:</span>
+      </div>
+      <span class="status-value">ONLINE</span>
     </div>
 
-    <div class="grid">
+    <div class="dashboard-grid">
 
-      <div class="card" id="cardTrips">
-        <div class="icon">🚗</div>
-        <div class="title">Trips</div>
+      <div class="dashboard-card glow-blue" id="cardTrips">
+        <div class="dashboard-card-icon">🚗</div>
+        <div class="dashboard-card-title">Trips</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
-      <div class="card" id="cardMap">
-        <div class="icon">🗺️</div>
-        <div class="title">Live Map</div>
+      <div class="dashboard-card glow-cyan" id="cardMap">
+        <div class="dashboard-card-icon">🗺️</div>
+        <div class="dashboard-card-title">Live Map</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
-      <div class="card" id="cardHours">
-        <div class="icon">⏱️</div>
-        <div class="title">Work Hours</div>
+      <div class="dashboard-card glow-purple" id="cardHours">
+        <div class="dashboard-card-icon">⏱️</div>
+        <div class="dashboard-card-title">Work Hours</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
-      <div class="card" id="cardEarnings">
-        <div class="icon">💰</div>
-        <div class="title">Earnings</div>
+      <div class="dashboard-card glow-gold" id="cardEarnings">
+        <div class="dashboard-card-icon">💰</div>
+        <div class="dashboard-card-title">Earnings</div>
+        <div class="dashboard-card-arrow">→</div>
       </div>
 
     </div>
 
-    <div class="summary" id="cardSummary">
-      📊 View Summary
-    </div>
-
-    <div class="nav">
-
-      <button class="active" id="navHome" type="button">
-        <span>🏠</span>
-        Home
-      </button>
-
-      <button id="navTrips" type="button">
-        <span>🚗</span>
-        Trips
-      </button>
-
-      <button id="navMap" type="button">
-        <span>🗺️</span>
-        Map
-      </button>
-
-      <button id="navChat" type="button">
-        <span>💬</span>
-        Chat
-      </button>
-
-      <button id="navLogout" type="button">
-        <span>🚪</span>
-        Logout
-      </button>
-
+    <div class="summary-card-pro" id="cardSummary">
+      <div class="summary-left">
+        <div class="summary-icon">📊</div>
+        <div class="summary-text">View Summary</div>
+      </div>
+      <div class="summary-arrow">→</div>
     </div>
 
   </div>
+
+  <div id="driverNav"></div>
 
   <script src="/core/branding.js"></script>
 
@@ -464,6 +98,7 @@
     );
   </script>
 
+  <script src="driver-nav.js"></script>
   <script src="dashboard.js" defer></script>
   <script src="/driver/location.js"></script>
 
