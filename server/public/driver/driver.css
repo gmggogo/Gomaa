@@ -1191,3 +1191,126 @@ body.driver-dashboard-page{
     max-height:80px !important;
   }
 }
+
+
+/* =========================================
+   TRUE FINAL FIX
+   1) map continues behind the whole page
+   2) summary box larger
+   3) summary wording fully visible
+========================================= */
+
+/* Prevent the white cut under the map. */
+html{
+  min-height:100%;
+  background:
+    linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.10)),
+    url("assets/map-background.png")
+    center top / cover
+    repeat-y !important;
+}
+
+body.driver-dashboard-page{
+  min-height:100dvh !important;
+  background:
+    linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.10)),
+    url("assets/map-background.png")
+    center top / cover
+    repeat-y !important;
+  background-attachment:scroll !important;
+  padding-bottom:94px !important;
+}
+
+/* Remove any white section before the fixed bottom bar. */
+.dashboard-shell,
+#driverNav{
+  background:transparent !important;
+}
+
+/* Bigger summary box, but still close to the bottom bar. */
+.summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  min-height:122px !important;
+  height:122px !important;
+  margin:12px 18px 8px !important;
+  padding:12px 18px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  overflow:hidden !important;
+  border-radius:27px !important;
+}
+
+/* Crop the old built-in wording from the image and show only the chart icon. */
+.summary-icon-crop{
+  width:70px !important;
+  height:62px !important;
+  display:block !important;
+  overflow:hidden !important;
+  flex:0 0 auto !important;
+}
+
+.summary-final-icon{
+  width:70px !important;
+  height:auto !important;
+  display:block !important;
+  object-fit:contain !important;
+  object-position:center top !important;
+  margin:0 auto !important;
+  transform:none !important;
+  filter:none !important;
+}
+
+/* Clear wording under the icon. */
+.summary-final-text{
+  display:block !important;
+  color:#ffffff !important;
+  font-size:18px !important;
+  line-height:1.1 !important;
+  font-weight:800 !important;
+  text-align:center !important;
+  white-space:nowrap !important;
+  text-shadow:0 2px 5px rgba(0,0,0,.35) !important;
+}
+
+/* Hide previous summary-only classes if they remain in the cascade. */
+.summary-image-only,
+.summary-arrow,
+.summary-text,
+.summary-left{
+  display:none !important;
+}
+
+/* Keep bottom bar close without covering summary. */
+.nav{
+  bottom:8px !important;
+}
+
+@media(max-width:390px){
+  body.driver-dashboard-page{
+    padding-bottom:90px !important;
+  }
+
+  .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    min-height:116px !important;
+    height:116px !important;
+    margin:10px 16px 6px !important;
+    padding:10px 14px !important;
+  }
+
+  .summary-icon-crop{
+    width:66px !important;
+    height:58px !important;
+  }
+
+  .summary-final-icon{
+    width:66px !important;
+  }
+
+  .summary-final-text{
+    font-size:17px !important;
+  }
+}
