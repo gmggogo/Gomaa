@@ -679,3 +679,112 @@ body.driver-dashboard-page{
     max-height:86px !important;
   }
 }
+
+
+/* =========================================
+   FINAL APPROVED ADJUSTMENTS
+========================================= */
+
+/* Make the company logo much larger, directly on the map. */
+.profile-logo-standalone{
+  margin:82px auto 10px !important;
+}
+
+.profile-logo-standalone .logo{
+  width:180px !important;
+  max-width:46vw !important;
+  max-height:180px !important;
+  object-fit:contain !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  filter:drop-shadow(0 5px 9px rgba(0,0,0,.18)) !important;
+}
+
+/* Bottom navigation icons: icon only, no grey box, no shadow, no glow. */
+.nav-icon,
+.nav button img,
+.nav button.active img{
+  width:34px !important;
+  height:34px !important;
+  object-fit:contain !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  filter:none !important;
+  outline:0 !important;
+}
+
+/* Remove any inherited visual tile behind nav icons. */
+.nav button,
+.nav button::before,
+.nav button::after{
+  box-shadow:none !important;
+}
+
+.nav button{
+  background:transparent !important;
+}
+
+/* Keep only the small active underline. */
+.nav button.active::after{
+  box-shadow:none !important;
+}
+
+/* View Summary: image centered, no outside text, no arrow. */
+.summary-card-image-only{
+  min-height:150px !important;
+  padding:12px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+.summary-image-only{
+  width:150px !important;
+  max-width:52% !important;
+  height:auto !important;
+  display:block !important;
+  margin:0 auto !important;
+  object-fit:contain !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  filter:none !important;
+}
+
+.summary-card .summary-arrow,
+.summary-card .summary-text,
+.summary-card .summary-left{
+  display:none !important;
+}
+
+@media(max-width:390px){
+  .profile-logo-standalone{
+    margin-top:80px !important;
+  }
+
+  .profile-logo-standalone .logo{
+    width:165px !important;
+    max-width:48vw !important;
+    max-height:165px !important;
+  }
+
+  .summary-card-image-only{
+    min-height:138px !important;
+  }
+
+  .summary-image-only{
+    width:140px !important;
+    max-width:56% !important;
+  }
+
+  .nav-icon,
+  .nav button img,
+  .nav button.active img{
+    width:32px !important;
+    height:32px !important;
+  }
+}
