@@ -81,9 +81,7 @@ const ACTIVE_STATUSES = [
   "dispatched",
   "sent",
   "accepted",
-  "on trip",
-  "in progress",
-  "started"
+  "on trip"
 ];
 /* ================= BASIC HELPERS ================= */
 
@@ -117,12 +115,7 @@ function statusKey(v){
 }
 
 function isClosedTrip(t){
-  return [
-    t.status,
-    t.dispatchStatus,
-    t.tripStatus,
-    t.driverStatus
-  ].some(value=>CLOSED_STATUSES.includes(statusKey(value)));
+  return CLOSED_STATUSES.includes(statusKey(t.status));
 }
 
 function isActiveTrip(t){
@@ -1042,12 +1035,10 @@ async function toggleSelectAll(){
   if(selectionSaving) return;
 
   /*
-    Row selection is never the trip-progress safety lock.
-    ASSIGNED and SENT trips must remain selectable for manual editing.
-    If a trip is already in progress, driverOptions/saveAssignment below
-    keep the driver field locked without disabling the row checkbox.
+    SENT only blocks a second send. It must stay selectable so dispatch can
+    replace the driver until the trip actually starts.
   */
-  const selectable = [...trips];
+  const selectable = trips.filter(t=>!isTripInProgress(t));
   const allAreSelected =
     selectable.length &&
     selectable.every(t=>selectedIds.has(t._id));
@@ -1089,6 +1080,10 @@ async function toggleTrip(id){
   id = String(id);
   const trip = trips.find(t=>String(t._id) === id);
   if(!trip) return;
+  if(isTripInProgress(trip)){
+    toast("Trip in progress cannot be edited");
+    return;
+  }
 
   const wasSelected = selectedIds.has(id);
   const nextSelected = !wasSelected;
@@ -1150,7 +1145,7 @@ function renderStats(){
 
   const btn = document.getElementById("selectBtn");
   if(btn){
-    const selectable = trips;
+    const selectable = trips.filter(t=>!isTripInProgress(t));
     const allSelected =
       selectable.length &&
       selectable.every(t=>selectedIds.has(t._id));
@@ -1301,6 +1296,7 @@ function renderTripRow(t,index){
       <td>
         <input type="checkbox"
           ${selectedIds.has(t._id) ? "checked" : ""}
+          ${isTripInProgress(t) ? "disabled" : ""}
           onchange="toggleTrip('${safe(t._id)}')">
       </td>
 
@@ -1436,6 +1432,7 @@ function renderSharedTripRows(t,index){
       <td>
       <input type="checkbox"
         ${selectedIds.has(t._id) ? "checked" : ""}
+        ${isTripInProgress(t) ? "disabled" : ""}
         onchange="toggleTrip('${safe(t._id)}')">
       </td>
 

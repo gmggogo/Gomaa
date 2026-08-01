@@ -101,23 +101,17 @@ const Store = {
   },
 
   async saveSelection(tripId,selected){
-    try{
-      return await this.request(
-        `/api/dispatch/${encodeURIComponent(tripId)}/selection`,
-        {
-          method:"PATCH",
-          body:JSON.stringify({
-            selected:selected === true
-          })
-        }
-      );
-
-    }catch(err){
-      return {
-        success:false,
-        message:err.message
-      };
-    }
+    /*
+      The table checkbox is page-local UI state.
+      Do not update Trip.dispatchSelected here because that field controls
+      whether the trip belongs on the Dispatch page.
+    */
+    return {
+      success:true,
+      tripId:String(tripId || ""),
+      selected:selected === true,
+      localOnly:true
+    };
   },
 
   async autoAssign(ids = []){
