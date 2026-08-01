@@ -473,3 +473,57 @@ body.driver-dashboard-page{
   }
 
 }
+
+
+/* =========================================
+   FINAL TEXT COLOR OVERRIDES
+========================================= */
+
+/* Date and time are injected with inline colors by dashboard.js,
+   therefore !important is required here. */
+#datetime,
+#datetime > div,
+#datetime div{
+  color:#000000 !important;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.90),
+    0 2px 4px rgba(255,255,255,.70) !important;
+}
+
+#datetime > div:first-child{
+  color:#000000 !important;
+  font-weight:900 !important;
+}
+
+#datetime > div:last-child{
+  color:#000000 !important;
+  font-weight:900 !important;
+}
+
+/* Gold company name with a clear black outline. */
+.company-name{
+  color:#ffd226 !important;
+  -webkit-text-stroke:1.25px #000000;
+  paint-order:stroke fill;
+  text-shadow:
+    0 2px 0 #9a6600,
+    0 4px 0 #704800,
+    0 6px 12px rgba(0,0,0,.30) !important;
+}
+
+/* Driver name: larger, black and very clear. */
+.driver-name{
+  color:#000000 !important;
+  font-size:19px !important;
+  font-weight:900 !important;
+  letter-spacing:.2px;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.95),
+    0 2px 5px rgba(255,255,255,.82) !important;
+}
+
+@media(max-width:390px){
+  .driver-name{
+    font-size:18px !important;
+  }
+}
