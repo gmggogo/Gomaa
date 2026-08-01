@@ -1314,3 +1314,53 @@ body.driver-dashboard-page{
     font-size:17px !important;
   }
 }
+
+
+/* =========================================
+   FIXED BOTTOM NAV — STAYS AT PAGE BOTTOM
+========================================= */
+
+html,
+body{
+  min-height:100%;
+}
+
+body.driver-dashboard-page{
+  padding-bottom:118px !important;
+}
+
+/* Keep the bottom bar fixed to the real bottom of the phone screen. */
+.nav{
+  position:fixed !important;
+  left:12px !important;
+  right:12px !important;
+  bottom:max(8px, env(safe-area-inset-bottom)) !important;
+  top:auto !important;
+  transform:none !important;
+  margin:0 !important;
+  z-index:99999 !important;
+  will-change:auto !important;
+}
+
+/* Prevent the content from hiding behind the fixed bar. */
+.dashboard-shell{
+  padding-bottom:18px !important;
+}
+
+@supports (height: 100dvh){
+  body.driver-dashboard-page{
+    min-height:100dvh !important;
+  }
+}
+
+@media(max-width:390px){
+  body.driver-dashboard-page{
+    padding-bottom:112px !important;
+  }
+
+  .nav{
+    left:10px !important;
+    right:10px !important;
+    bottom:max(6px, env(safe-area-inset-bottom)) !important;
+  }
+}
