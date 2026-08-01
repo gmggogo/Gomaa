@@ -935,3 +935,215 @@ body.driver-dashboard-page{
     height:26px !important;
   }
 }
+
+
+/* =========================================
+   FINAL FIXES — SVG NAV + SMALLER SUMMARY
+========================================= */
+
+/* Less bottom reserved space and smaller gap before bottom nav */
+body.driver-dashboard-page{
+  padding-bottom:96px !important;
+}
+
+.dashboard-shell{
+  padding-bottom:4px !important;
+}
+
+/* Keep header a little tighter so more content shows */
+.dashboard-header{
+  padding-bottom:10px !important;
+}
+
+.profile-logo-standalone{
+  margin-top:34px !important;
+  margin-bottom:2px !important;
+}
+
+.company-name{
+  margin-top:2px !important;
+}
+
+.driver-name{
+  margin-top:4px !important;
+  margin-bottom:0 !important;
+}
+
+/* View Summary smaller so the built-in text inside the image is fully visible */
+.summary-card{
+  margin:12px 18px 6px !important;
+  min-height:96px !important;
+  padding:8px 12px !important;
+  overflow:visible !important;
+}
+
+.summary-card-image-only{
+  min-height:96px !important;
+  padding:8px 12px !important;
+  margin:12px 18px 6px !important;
+}
+
+.summary-image-only{
+  width:72px !important;
+  max-width:none !important;
+  max-height:72px !important;
+  height:auto !important;
+  display:block !important;
+  margin:0 auto !important;
+  object-fit:contain !important;
+}
+
+/* Bottom nav closer and slightly shorter */
+.nav{
+  left:12px !important;
+  right:12px !important;
+  bottom:8px !important;
+  min-height:80px !important;
+  height:80px !important;
+  padding:8px 8px 9px !important;
+  gap:2px !important;
+}
+
+/* Plain icon containers: not images, no tile, no shadow */
+.nav button{
+  min-width:56px !important;
+  gap:4px !important;
+  font-size:10px !important;
+  font-weight:500 !important;
+  color:#d7dce4 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+
+.nav button.active{
+  color:#ffd226 !important;
+}
+
+.nav button::before{
+  content:none !important;
+}
+
+.nav-svg{
+  width:24px;
+  height:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent !important;
+  box-shadow:none !important;
+  filter:none !important;
+}
+
+.nav-svg svg{
+  width:24px;
+  height:24px;
+  display:block;
+  overflow:visible;
+}
+
+.nav-home svg{ fill:#ffd226; stroke:#ffd226; }
+.nav-trips svg{ fill:#dce3ee; stroke:#dce3ee; }
+.nav-map svg{ fill:#12d8d6; stroke:#12d8d6; }
+.nav-chat svg{ fill:#b784ff; stroke:#b784ff; }
+.nav-logout svg{ fill:#ff8b2f; stroke:#ff8b2f; }
+
+/* Remove old image-based nav icon styling if any remains */
+.nav-icon{
+  display:none !important;
+}
+
+.nav button.active::after{
+  width:22px !important;
+  height:4px !important;
+  margin-top:0 !important;
+  background:#ffd226 !important;
+  border-radius:999px !important;
+  box-shadow:none !important;
+}
+
+/* Keep four main cards visible together comfortably */
+.dashboard-grid{
+  gap:14px !important;
+}
+
+.dashboard-card{
+  min-height:142px !important;
+}
+
+/* Mobile */
+@media(max-width:390px){
+  body.driver-dashboard-page{
+    padding-bottom:92px !important;
+  }
+
+  .summary-card,
+  .summary-card-image-only{
+    margin:10px 16px 4px !important;
+    min-height:92px !important;
+  }
+
+  .summary-image-only{
+    width:68px !important;
+    max-height:68px !important;
+  }
+
+  .nav{
+    left:10px !important;
+    right:10px !important;
+    bottom:8px !important;
+    min-height:78px !important;
+    height:78px !important;
+    padding:7px 6px 8px !important;
+  }
+
+  .nav button{
+    min-width:52px !important;
+    font-size:10px !important;
+  }
+
+  .nav-svg,
+  .nav-svg svg{
+    width:22px !important;
+    height:22px !important;
+  }
+}
+
+
+/* =========================================
+   FINAL SUMMARY TWEAK
+   smaller dark-blue container + bigger image inside
+========================================= */
+
+.summary-card,
+.summary-card-image-only{
+  min-height:82px !important;
+  height:82px !important;
+  padding:4px 10px !important;
+  margin:8px 18px 4px !important;
+  border-radius:24px !important;
+}
+
+.summary-image-only{
+  width:92px !important;
+  max-width:none !important;
+  max-height:92px !important;
+  height:auto !important;
+  transform:scale(1.08) !important;
+}
+
+@media(max-width:390px){
+  .summary-card,
+  .summary-card-image-only{
+    min-height:78px !important;
+    height:78px !important;
+    margin:8px 16px 4px !important;
+    padding:4px 8px !important;
+    border-radius:22px !important;
+  }
+
+  .summary-image-only{
+    width:86px !important;
+    max-height:86px !important;
+    transform:scale(1.08) !important;
+  }
+}
