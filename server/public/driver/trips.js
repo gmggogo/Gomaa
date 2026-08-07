@@ -346,6 +346,162 @@ function getClass(status){
   return "";
 }
 
+
+function getExecutionStatus(t){
+
+  const s =
+    rawStatus(t);
+
+  if(s === "COMPLETED"){
+    return {
+      key:"completed",
+      label:"Completed"
+    };
+  }
+
+  if(
+    s === "CANCELLED" ||
+    s === "CANCELED"
+  ){
+    return {
+      key:"cancelled",
+      label:"Canceled"
+    };
+  }
+
+  if(s === "NOSHOW"){
+    return {
+      key:"noshow",
+      label:"No Show"
+    };
+  }
+
+  if(s === "NOTCOMPLETED"){
+    return {
+      key:"notcompleted",
+      label:"Not Completed"
+    };
+  }
+
+  if(
+    s === "INPROGRESS" ||
+    s === "ONTRIP"
+  ){
+    return {
+      key:"ontrip",
+      label:"On Trip"
+    };
+  }
+
+  if(s === "ARRIVED"){
+    return {
+      key:"arrived",
+      label:"Arrived"
+    };
+  }
+
+  if(s === "ACCEPTED"){
+    return {
+      key:"accepted",
+      label:"Accepted"
+    };
+  }
+
+  return {
+    key:"upcoming",
+    label:"Upcoming"
+  };
+}
+
+function getTripCountdown(t){
+
+  const tripDate =
+    getTripDate(t);
+
+  if(
+    !tripDate ||
+    isNaN(tripDate)
+  ){
+    return "";
+  }
+
+  const diffMs =
+    tripDate.getTime() -
+    getNow().getTime();
+
+  if(diffMs <= 0){
+    return "Ready";
+  }
+
+  const totalMinutes =
+    Math.ceil(
+      diffMs / 60000
+    );
+
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  if(hours > 0){
+    return `${String(hours).padStart(2,"0")}h ${String(minutes).padStart(2,"0")}m`;
+  }
+
+  return `${String(minutes).padStart(2,"0")}m`;
+}
+
+function executionStatusHtml(t){
+
+  const status =
+    getExecutionStatus(t);
+
+  const countdown =
+    status.key === "upcoming"
+      ? getTripCountdown(t)
+      : "";
+
+  return `
+    <div class="execution-status-box">
+
+      <div class="execution-status-left">
+
+        <span class="execution-status-title">
+          Trip Status:
+        </span>
+
+        <span class="execution-status-pill execution-${esc(status.key)}">
+          ${esc(status.label)}
+        </span>
+
+      </div>
+
+      ${
+        status.key === "upcoming"
+          ? `
+            <div class="execution-countdown">
+              <span>
+                ${
+                  countdown === "Ready"
+                    ? "Trip"
+                    : "Trip starts in"
+                }
+              </span>
+
+              <strong>
+                ${esc(countdown)}
+              </strong>
+            </div>
+          `
+          : ""
+      }
+
+    </div>
+  `;
+}
+
 /* =========================
    SERVICE
    Shared ONLY when actual service = SH
@@ -671,167 +827,227 @@ function sharedStops(t){
 
 /* =========================
    EYE DETAILS
+   Passenger information only
 ========================= */
 
-function extraLine(label,value){
+function passengerNameValue(p,index=0){
+  return clean(
+    firstValue(
+      p?.clientName,
+      p?.passengerName,
+      p?.memberName,
+      p?.patientName,
+      p?.riderName,
+      p?.name,
+      `Passenger ${index + 1}`
+    )
+  );
+}
 
-  if(
-    value === undefined ||
-    value === null ||
-    clean(value) === ""
-  ){
-    return "";
-  }
+function passengerPhoneValue(p){
+  return clean(
+    firstValue(
+      p?.clientPhone,
+      p?.passengerPhone,
+      p?.memberPhone,
+      p?.patientPhone,
+      p?.riderPhone,
+      p?.phone,
+      p?.mobile,
+      p?.phoneNumber
+    )
+  );
+}
+
+function passengerPickupValue(p,t=null){
+  return clean(
+    firstValue(
+      p?.pickupAddress,
+      p?.pickup,
+      p?.fromAddress,
+      p?.originAddress,
+      p?.origin,
+      t ? getPickup(t) : ""
+    )
+  );
+}
+
+function passengerDropoffValue(p,t=null){
+  return clean(
+    firstValue(
+      p?.dropoffAddress,
+      p?.dropoff,
+      p?.toAddress,
+      p?.destinationAddress,
+      p?.destination,
+      t ? getDropoff(t) : ""
+    )
+  );
+}
+
+function passengerNoteValue(p){
+  return clean(
+    firstValue(
+      p?.driverNotes,
+      p?.notes,
+      p?.tripNotes,
+      p?.note
+    )
+  );
+}
+
+function passengerDetailCard(p,index,t){
+
+  const name =
+    passengerNameValue(p,index);
+
+  const phone =
+    passengerPhoneValue(p);
+
+  const pickup =
+    passengerPickupValue(p,t);
+
+  const dropoff =
+    passengerDropoffValue(p,t);
+
+  const note =
+    passengerNoteValue(p);
 
   return `
-    <div class="extra-block">
-      <div class="extra-title">
-        ${esc(label)}
+    <div class="eye-passenger-card">
+
+      <div class="eye-passenger-head">
+
+        <div class="eye-passenger-number">
+          ${index + 1}
+        </div>
+
+        <div class="eye-passenger-name">
+          ${esc(name || `Passenger ${index + 1}`)}
+        </div>
+
+        ${
+          phone
+            ? `
+              <a
+                class="eye-phone-btn"
+                href="tel:${esc(phone)}"
+                aria-label="Call ${esc(name || `Passenger ${index + 1}`)}"
+              >
+                ${phoneIcon()}
+              </a>
+            `
+            : ""
+        }
+
       </div>
 
-      <div class="extra-text">
-        ${esc(value)}
+      <div class="eye-detail-line">
+        <span>Phone</span>
+        <strong>
+          ${
+            phone
+              ? `<a class="eye-phone-text" href="tel:${esc(phone)}">${esc(phone)}</a>`
+              : "-"
+          }
+        </strong>
       </div>
+
+      <div class="eye-detail-line">
+        <span>Pickup</span>
+        <strong>${esc(pickup || "-")}</strong>
+      </div>
+
+      <div class="eye-detail-line">
+        <span>Dropoff</span>
+        <strong>${esc(dropoff || "-")}</strong>
+      </div>
+
+      ${
+        note
+          ? `
+            <div class="eye-passenger-note">
+              <span>Passenger Note</span>
+              <strong>${esc(note)}</strong>
+            </div>
+          `
+          : ""
+      }
+
     </div>
   `;
 }
 
 function buildExtraHtml(t){
 
-  const pieces = [];
+  let passengers =
+    isShared(t)
+      ? getSharedPassengers(t)
+      : [];
 
-  pieces.push(
-    extraLine(
-      "Service",
-      getServiceTitle(t)
-    ),
+  /*
+    Individual trips may not have a passengers array,
+    so build one passenger from the trip itself.
+  */
+  if(!passengers.length){
 
-    extraLine(
-      "Trip Number",
-      getTripNo(t)
-    ),
-
-    extraLine(
-      "Company / Facility",
-      firstValue(
-        t.company,
-        t.companyName,
-        t.facilityName,
-        t.providerName
-      )
-    ),
-
-    extraLine(
-      "Entry Name",
-      firstValue(
-        t.entryName,
-        t.bookedByName
-      )
-    ),
-
-    extraLine(
-      "Entry Phone",
-      firstValue(
-        t.entryPhone,
-        t.bookedByPhone
-      )
-    ),
-
-    extraLine(
-      "Vehicle",
-      firstValue(
-        t.vehicle,
-        t.vehicleNumber,
-        t.vehicleType,
-        t.requiredVehicle
-      )
-    ),
-
-    extraLine(
-      "Escort",
-      firstValue(
-        t.escort,
-        t.hasEscort,
-        t.escortRequired,
-        t.withEscort,
-        t.passengerEscort
-      )
-    ),
-
-    extraLine(
-      "Assignment",
-      t.assignmentType
-    ),
-
-    extraLine(
-      "Driver Notes",
-      getNotes(t)
-    ),
-
-    extraLine(
-      "Dispatch Note",
-      getDispatchNote(t)
-    )
-  );
-
-  if(isShared(t)){
-
-    getSharedPassengers(t)
-      .forEach((p,index)=>{
-
-        const text =
-          [
-            clean(
-              firstValue(
-                p.clientName,
-                p.name,
-                `Passenger ${index + 1}`
-              )
-            ),
-
-            firstValue(
-              p.clientPhone,
-              p.phone
-            )
-              ? `Phone: ${clean(firstValue(p.clientPhone,p.phone))}`
-              : "",
-
-            p.pickup
-              ? `Pickup: ${clean(p.pickup)}`
-              : "",
-
-            p.dropoff
-              ? `Dropoff: ${clean(p.dropoff)}`
-              : ""
-          ]
-          .filter(Boolean)
-          .join("\n");
-
-        pieces.push(
-          extraLine(
-            `Passenger ${index + 1}`,
-            text
-          )
-        );
-
-      });
+    passengers = [{
+      clientName:getPassenger(t),
+      clientPhone:getPhone(t),
+      pickup:getPickup(t),
+      dropoff:getDropoff(t),
+      notes:getNotes(t)
+    }];
   }
 
-  const result =
-    pieces
-      .filter(Boolean)
+  const passengerHtml =
+    passengers
+      .map(
+        (p,index)=>
+          passengerDetailCard(
+            p,
+            index,
+            isShared(t) ? null : t
+          )
+      )
       .join("");
 
-  return result || `
-    <div class="extra-block">
-      <div class="extra-title">
-        Additional Information
-      </div>
+  const tripNote =
+    clean(
+      firstValue(
+        t.dispatchNote,
+        t.assignmentNote,
+        t.driverNotes,
+        t.notes,
+        t.tripNotes,
+        t.note
+      )
+    );
 
-      <div class="extra-text">
-        No additional information
-      </div>
+  return `
+    <div class="eye-details-title">
+      Passenger Details
     </div>
+
+    <div class="eye-passengers-list">
+      ${passengerHtml}
+    </div>
+
+    ${
+      tripNote
+        ? `
+          <div class="eye-trip-note">
+            <div class="eye-trip-note-title">
+              Trip Note
+            </div>
+
+            <div class="eye-trip-note-text">
+              ${esc(tripNote)}
+            </div>
+          </div>
+        `
+        : ""
+    }
   `;
 }
 
@@ -1104,6 +1320,8 @@ function card(t){
         }
 
       </div>
+
+      ${executionStatusHtml(t)}
 
       <div class="compact-route">
 

@@ -1074,6 +1074,308 @@ body{
 
 }
 
+
+
+/* =========================================
+   EYE — PASSENGER DETAILS
+========================================= */
+
+.extra-panel.open{
+  display:block;
+  max-height:48vh;
+  overflow-y:auto;
+  padding:10px;
+}
+
+.eye-details-title{
+  margin-bottom:9px;
+  color:#8fc5ff;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+
+.eye-passengers-list{
+  display:grid;
+  gap:9px;
+}
+
+.eye-passenger-card{
+  padding:11px;
+  border-radius:15px;
+  background:rgba(13,38,73,.72);
+  border:1px solid rgba(82,157,255,.16);
+}
+
+.eye-passenger-head{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding-bottom:9px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+
+.eye-passenger-number{
+  width:28px;
+  height:28px;
+  flex:0 0 auto;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#173d72;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+
+.eye-passenger-name{
+  min-width:0;
+  flex:1;
+  color:#fff;
+  font-size:14px;
+  font-weight:900;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.eye-phone-btn{
+  width:34px;
+  height:34px;
+  flex:0 0 auto;
+  border-radius:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#15803d;
+  color:#fff;
+  text-decoration:none;
+}
+
+.eye-phone-btn svg{
+  width:18px;
+  height:18px;
+  fill:currentColor;
+}
+
+.eye-detail-line{
+  display:grid;
+  grid-template-columns:58px 1fr;
+  gap:8px;
+  padding-top:8px;
+  align-items:start;
+}
+
+.eye-detail-line span,
+.eye-passenger-note span{
+  color:#8c9bb0;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+}
+
+.eye-detail-line strong{
+  color:#eef4fb;
+  font-size:11px;
+  line-height:1.4;
+  font-weight:700;
+  word-break:break-word;
+}
+
+.eye-phone-text{
+  color:#6ee7a0;
+  text-decoration:none;
+}
+
+.eye-passenger-note{
+  margin-top:9px;
+  padding:9px;
+  border-radius:11px;
+  background:rgba(250,204,21,.08);
+  border:1px solid rgba(250,204,21,.14);
+}
+
+.eye-passenger-note strong{
+  display:block;
+  margin-top:4px;
+  color:#fff3b0;
+  font-size:11px;
+  line-height:1.4;
+}
+
+.eye-trip-note{
+  margin-top:10px;
+  padding:10px;
+  border-radius:13px;
+  background:rgba(250,204,21,.09);
+  border:1px solid rgba(250,204,21,.18);
+}
+
+.eye-trip-note-title{
+  color:#ffd43b;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+}
+
+.eye-trip-note-text{
+  margin-top:5px;
+  color:#fff;
+  font-size:11px;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+
+
+
+
+/* =========================================
+   EXECUTION TRIP STATUS
+========================================= */
+
+.execution-status-box{
+  margin-top:10px;
+  min-height:48px;
+  padding:8px 10px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  background:rgba(4,18,42,.76);
+  border:1px solid rgba(112,137,173,.18);
+}
+
+.execution-status-left{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.execution-status-title{
+  color:#9ca9bb;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+}
+
+.execution-status-pill{
+  min-height:30px;
+  padding:6px 11px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+}
+
+.execution-upcoming{
+  color:#c285ff;
+  background:rgba(146,67,255,.16);
+  border:1px solid rgba(172,106,255,.30);
+}
+
+.execution-accepted{
+  color:#64b5ff;
+  background:rgba(47,125,246,.16);
+  border:1px solid rgba(75,145,255,.30);
+}
+
+.execution-arrived{
+  color:#f3b6ff;
+  background:rgba(169,78,210,.16);
+  border:1px solid rgba(205,123,238,.28);
+}
+
+.execution-ontrip{
+  color:#73c7ff;
+  background:rgba(37,99,235,.19);
+  border:1px solid rgba(59,130,246,.32);
+}
+
+.execution-completed{
+  color:#7df0a3;
+  background:rgba(34,197,94,.15);
+  border:1px solid rgba(74,222,128,.28);
+}
+
+.execution-noshow{
+  color:#ffe178;
+  background:rgba(250,204,21,.13);
+  border:1px solid rgba(250,204,21,.26);
+}
+
+.execution-cancelled,
+.execution-notcompleted{
+  color:#ff9c9c;
+  background:rgba(239,68,68,.13);
+  border:1px solid rgba(239,68,68,.26);
+}
+
+.execution-countdown{
+  flex:0 0 auto;
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+}
+
+.execution-countdown span{
+  color:#9aa8bb;
+  font-size:9px;
+  font-weight:700;
+}
+
+.execution-countdown strong{
+  color:#c285ff;
+  font-size:15px;
+  line-height:1;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+@media(max-width:390px){
+
+  .execution-status-box{
+    min-height:44px;
+    padding:7px 8px;
+    gap:7px;
+  }
+
+  .execution-status-title{
+    font-size:8px;
+  }
+
+  .execution-status-pill{
+    min-height:28px;
+    padding:5px 9px;
+    font-size:9px;
+  }
+
+  .execution-countdown{
+    gap:5px;
+  }
+
+  .execution-countdown span{
+    font-size:8px;
+  }
+
+  .execution-countdown strong{
+    font-size:13px;
+  }
+
+}
+
 </style>
 <link rel="stylesheet" href="driver.css">
 </head>
