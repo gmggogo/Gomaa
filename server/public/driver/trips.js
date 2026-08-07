@@ -34,6 +34,12 @@ const tripAlertText =
 const todayDate =
   document.getElementById("todayDate");
 
+/*
+  Keep the eye/details panel open across the 5-second auto refresh.
+  Without this, render() rebuilds the card and closes the panel.
+*/
+let openDetailsTripId = "";
+
 /* =========================
    HELPERS
 ========================= */
@@ -1063,12 +1069,24 @@ function openTrip(id){
 
 function toggleExtra(id){
 
-  document
-    .getElementById(
+  const panel =
+    document.getElementById(
       `extra-${id}`
-    )
-    ?.classList
-    .toggle("open");
+    );
+
+  if(!panel){
+    return;
+  }
+
+  const willOpen =
+    !panel.classList.contains("open");
+
+  panel.classList.toggle("open");
+
+  openDetailsTripId =
+    willOpen
+      ? String(id)
+      : "";
 }
 
 /* =========================
@@ -1392,7 +1410,7 @@ function card(t){
       </div>
 
       <div
-        class="extra-panel"
+        class="extra-panel ${openDetailsTripId === safeId ? "open" : ""}"
         id="extra-${safeId}"
       >
         ${buildExtraHtml(t)}
@@ -1509,6 +1527,29 @@ function render(trips){
   const currentTrip =
     remainingTrips[0] ||
     null;
+
+  if(currentTrip){
+
+    const currentId =
+      clean(
+        currentTrip._id ||
+        currentTrip.id
+      )
+      .replace(
+        /[^a-zA-Z0-9_-]/g,
+        ""
+      );
+
+    if(
+      openDetailsTripId &&
+      openDetailsTripId !== currentId
+    ){
+      openDetailsTripId = "";
+    }
+
+  }else{
+    openDetailsTripId = "";
+  }
 
   updateHeader(
     todayTrips,
