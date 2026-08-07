@@ -1,4 +1,4 @@
-console.log("driver trips FINAL PROFESSIONAL - SERVICE FIX");
+console.log("driver trips ONE BY ONE");
 
 const user =
   JSON.parse(localStorage.getItem("loggedDriver")) ||
@@ -9,154 +9,31 @@ if(!user){
 }
 
 const driverId = user?._id || user?.id;
-const container = document.getElementById("container");
-const tripCount = document.getElementById("tripCount");
 
-const newTripCount =
-  document.getElementById("newTripCount");
+const container =
+  document.getElementById("container");
 
-const newTripsBox =
-  document.getElementById("newTripsBox");
+const todayTripCount =
+  document.getElementById("todayTripCount");
 
-const newTripLight =
-  document.getElementById("newTripLight");
+const completedTripCount =
+  document.getElementById("completedTripCount");
 
-/*
-  New-trip logic:
-  - First successful load creates the baseline; old trips do not count as new.
-  - Any trip that appears after that is marked NEW and turns the green light on.
-  - The light stays on until the driver taps the New box.
-*/
-const NEW_TRIPS_STORAGE_KEY =
-  `driverTripsSeen:${String(driverId || "")}`;
+const remainingTripCount =
+  document.getElementById("remainingTripCount");
 
-let firstTripsLoad = true;
-let currentVisibleTrips = [];
-let newTripIds = new Set();
+const tripAlert =
+  document.getElementById("tripAlert");
 
-function readSeenTripIds(){
-  try{
-    const raw =
-      JSON.parse(
-        localStorage.getItem(
-          NEW_TRIPS_STORAGE_KEY
-        ) || "[]"
-      );
+const tripAlertText =
+  document.getElementById("tripAlertText");
 
-    return new Set(
-      Array.isArray(raw)
-        ? raw.map(String)
-        : []
-    );
-  }catch{
-    return new Set();
-  }
-}
+const todayDate =
+  document.getElementById("todayDate");
 
-function saveSeenTripIds(ids){
-  try{
-    localStorage.setItem(
-      NEW_TRIPS_STORAGE_KEY,
-      JSON.stringify(
-        [...ids]
-      )
-    );
-  }catch{}
-}
-
-function getTripId(t){
-  return String(
-    t?._id ||
-    t?.id ||
-    ""
-  );
-}
-
-function updateNewTripIndicator(){
-  const count =
-    newTripIds.size;
-
-  if(newTripCount){
-    newTripCount.textContent =
-      String(count);
-  }
-
-  if(newTripsBox){
-    newTripsBox.classList.toggle(
-      "has-new",
-      count > 0
-    );
-  }
-
-  if(newTripLight){
-    newTripLight.setAttribute(
-      "aria-label",
-      count > 0
-        ? `${count} new trip${count === 1 ? "" : "s"}`
-        : "No new trips"
-    );
-  }
-}
-
-function detectNewTrips(trips){
-  const ids =
-    trips
-      .map(getTripId)
-      .filter(Boolean);
-
-  const seen =
-    readSeenTripIds();
-
-  /*
-    First load:
-    if this driver has no saved baseline yet,
-    treat everything already on the screen as old.
-  */
-  if(firstTripsLoad && seen.size === 0){
-    ids.forEach(id=>seen.add(id));
-    saveSeenTripIds(seen);
-    newTripIds.clear();
-    firstTripsLoad = false;
-    updateNewTripIndicator();
-    return;
-  }
-
-  firstTripsLoad = false;
-
-  newTripIds = new Set(
-    ids.filter(id=>!seen.has(id))
-  );
-
-  updateNewTripIndicator();
-}
-
-function markNewTripsSeen(){
-  const seen =
-    readSeenTripIds();
-
-  currentVisibleTrips
-    .map(getTripId)
-    .filter(Boolean)
-    .forEach(id=>seen.add(id));
-
-  saveSeenTripIds(seen);
-
-  newTripIds.clear();
-  updateNewTripIndicator();
-
-  document
-    .querySelector(".scroll-area")
-    ?.scrollTo({
-      top:0,
-      behavior:"smooth"
-    });
-
-  render(currentVisibleTrips);
-}
-
-window.markNewTripsSeen =
-  markNewTripsSeen;
-
+/* =========================
+   HELPERS
+========================= */
 
 function clean(v){
   return String(v ?? "").trim();
@@ -164,7 +41,11 @@ function clean(v){
 
 function firstValue(...values){
   for(const value of values){
-    if(value !== undefined && value !== null && clean(value) !== ""){
+    if(
+      value !== undefined &&
+      value !== null &&
+      clean(value) !== ""
+    ){
       return value;
     }
   }
@@ -180,44 +61,157 @@ function esc(v){
     .replace(/'/g,"&#039;");
 }
 
+/* =========================
+   PHOENIX DATE / TIME
+========================= */
+
+function getPhoenixDateKey(){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:"America/Phoenix",
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(
+      new Date()
+    );
+
+  const y =
+    parts.find(p=>p.type==="year")?.value;
+
+  const m =
+    parts.find(p=>p.type==="month")?.value;
+
+  const d =
+    parts.find(p=>p.type==="day")?.value;
+
+  return `${y}-${m}-${d}`;
+}
+
 function getNow(){
+
   return new Date(
     new Date().toLocaleString(
       "en-US",
-      {timeZone:"America/Phoenix"}
+      {
+        timeZone:"America/Phoenix"
+      }
     )
   );
 }
 
 function getTripDate(t){
-  const date = firstValue(t.tripDate,t.date,t.serviceDate);
-  const time = firstValue(t.tripTime,t.time,t.pickupTime,t.scheduledTime,"00:00");
-  return new Date(`${date}T${time}`);
+
+  const date =
+    firstValue(
+      t.tripDate,
+      t.date,
+      t.serviceDate
+    );
+
+  const time =
+    firstValue(
+      t.tripTime,
+      t.time,
+      t.pickupTime,
+      t.scheduledTime,
+      "00:00"
+    );
+
+  return new Date(
+    `${date}T${time}`
+  );
 }
 
 function isExpired(t){
-  const d = getTripDate(t);
-  if(isNaN(d)) return false;
-  return ((getNow() - d) / (1000*60*60)) >= 6;
+
+  const date =
+    getTripDate(t);
+
+  if(isNaN(date)){
+    return false;
+  }
+
+  return (
+    (getNow() - date) /
+    (1000 * 60 * 60)
+  ) >= 6;
+}
+
+function isTodayTrip(t){
+
+  return clean(t.tripDate) ===
+    getPhoenixDateKey();
 }
 
 function formatTime(t){
-  const raw = clean(firstValue(t.tripTime,t.time,t.pickupTime,t.scheduledTime));
-  const m = raw.match(/^(\d{1,2}):(\d{2})/);
+
+  const raw =
+    clean(
+      firstValue(
+        t.tripTime,
+        t.time,
+        t.pickupTime,
+        t.scheduledTime
+      )
+    );
+
+  const m =
+    raw.match(
+      /^(\d{1,2}):(\d{2})/
+    );
 
   if(!m){
     return esc(raw || "--:--");
   }
 
-  let h = Number(m[1]);
-  const ap = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
+  let h =
+    Number(m[1]);
+
+  const ap =
+    h >= 12
+      ? "PM"
+      : "AM";
+
+  h =
+    h % 12 ||
+    12;
 
   return `${h}:${m[2]} ${ap}`;
 }
 
-function getStatus(t){
-  const raw = clean(
+function updateTodayLabel(){
+
+  if(!todayDate){
+    return;
+  }
+
+  todayDate.textContent =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:"America/Phoenix",
+        month:"short",
+        day:"numeric"
+      }
+    )
+    .format(
+      new Date()
+    );
+}
+
+/* =========================
+   STATUS
+========================= */
+
+function rawStatus(t){
+
+  return clean(
     firstValue(
       t.dispatchStatus,
       t.status,
@@ -225,80 +219,194 @@ function getStatus(t){
     )
   )
   .toUpperCase()
-  .replace(/[\s-]+/g,"_");
+  .replace(/[\s_-]+/g,"");
+}
 
-  if(raw === "NO_SHOW" || raw === "NOSHOW") return "NoShow";
-  if(["IN_PROGRESS","INPROGRESS","ON_TRIP","ONTRIP"].includes(raw)) return "OnTrip";
-  if(raw === "ARRIVED") return "Arrived";
-  if(["SCHEDULED","ASSIGNED","SENT","ACCEPTED"].includes(raw)) return "Dispatched";
-  if(raw === "COMPLETED") return "Completed";
-  if(raw === "CANCELLED" || raw === "CANCELED") return "Cancelled";
+function getStatus(t){
 
-  return clean(firstValue(t.dispatchStatus,t.status,"Dispatched"));
+  const s =
+    rawStatus(t);
+
+  if(s === "NOSHOW"){
+    return "NoShow";
+  }
+
+  if(
+    s === "INPROGRESS" ||
+    s === "ONTRIP"
+  ){
+    return "OnTrip";
+  }
+
+  if(s === "ARRIVED"){
+    return "Arrived";
+  }
+
+  if(
+    s === "SCHEDULED" ||
+    s === "ASSIGNED" ||
+    s === "SENT" ||
+    s === "ACCEPTED"
+  ){
+    return "Dispatched";
+  }
+
+  if(s === "COMPLETED"){
+    return "Completed";
+  }
+
+  if(
+    s === "CANCELLED" ||
+    s === "CANCELED"
+  ){
+    return "Cancelled";
+  }
+
+  if(s === "NOTCOMPLETED"){
+    return "NotCompleted";
+  }
+
+  return clean(
+    firstValue(
+      t.dispatchStatus,
+      t.status,
+      "Dispatched"
+    )
+  );
+}
+
+function isClosedTrip(t){
+
+  const s =
+    rawStatus(t);
+
+  return (
+    s === "COMPLETED" ||
+    s === "CANCELLED" ||
+    s === "CANCELED" ||
+    s === "NOSHOW" ||
+    s === "NOTCOMPLETED"
+  );
+}
+
+function isCompletedTrip(t){
+
+  return rawStatus(t) === "COMPLETED";
 }
 
 function isActive(status){
-  return status === "OnTrip" || status === "Arrived";
+
+  return (
+    status === "OnTrip" ||
+    status === "Arrived"
+  );
 }
 
 function getClass(status){
-  if(status === "Completed") return "trip-completed";
-  if(status === "Cancelled") return "trip-cancelled";
-  if(status === "NoShow") return "trip-noshow";
-  if(isActive(status)) return "trip-active";
+
+  if(status === "Completed"){
+    return "trip-completed";
+  }
+
+  if(status === "Cancelled"){
+    return "trip-cancelled";
+  }
+
+  if(status === "NoShow"){
+    return "trip-noshow";
+  }
+
+  if(isActive(status)){
+    return "trip-active";
+  }
+
   return "";
 }
 
-/* =========================================
-   REAL SERVICE TYPE
-   Shared is ONLY SH / SHARED
-========================================= */
+/* =========================
+   SERVICE
+   Shared ONLY when actual service = SH
+========================= */
 
 function normalizeServiceCode(v){
-  const raw = clean(v)
-    .toUpperCase()
-    .replace(/[_\s-]+/g,"");
 
-  if(["WH","WC","WHEELCHAIR"].includes(raw)) return "WH";
-  if(["SH","SHARED"].includes(raw)) return "SH";
-  if(["ST","STANDARD","X"].includes(raw)) return "ST";
-  if(["LM","LIMO","LIMOUSINE"].includes(raw)) return "LM";
-  if(["TX","TAXI"].includes(raw)) return "TX";
-  if(raw === "XL") return "XL";
+  const raw =
+    clean(v)
+      .toUpperCase()
+      .replace(/[_\s-]+/g,"");
+
+  if(["WH","WC","WHEELCHAIR"].includes(raw)){
+    return "WH";
+  }
+
+  if(["SH","SHARED"].includes(raw)){
+    return "SH";
+  }
+
+  if(["ST","STANDARD","X"].includes(raw)){
+    return "ST";
+  }
+
+  if(["LM","LIMO","LIMOUSINE"].includes(raw)){
+    return "LM";
+  }
+
+  if(["TX","TAXI"].includes(raw)){
+    return "TX";
+  }
+
+  if(raw === "XL"){
+    return "XL";
+  }
 
   return raw;
 }
 
 function getServiceCode(t){
-  const direct = firstValue(
-    t.serviceCode,
-    t.serviceKey,
-    t.serviceType,
-    t.vehicleTypeFromQuote,
-    t.serviceName,
-    t.service
-  );
 
-  const normalized = normalizeServiceCode(direct);
+  const direct =
+    firstValue(
+      t.serviceCode,
+      t.serviceKey,
+      t.serviceType,
+      t.vehicleTypeFromQuote,
+      t.serviceName,
+      t.service
+    );
+
+  const normalized =
+    normalizeServiceCode(
+      direct
+    );
 
   if(normalized){
     return normalized;
   }
 
-  const tripNo = clean(
-    firstValue(
-      t.tripNumber,
-      t.tripNo
+  const tripNo =
+    clean(
+      firstValue(
+        t.tripNumber,
+        t.tripNo
+      )
     )
-  ).toUpperCase();
+    .toUpperCase();
 
-  const match = tripNo.match(/-(WH|WC|SH|ST|LM|TX|XL)$/);
+  const match =
+    tripNo.match(
+      /-(WH|WC|SH|ST|LM|TX|XL)$/
+    );
 
   if(match){
-    return normalizeServiceCode(match[1]);
+    return normalizeServiceCode(
+      match[1]
+    );
   }
 
-  const tripType = normalizeServiceCode(t.tripType);
+  const tripType =
+    normalizeServiceCode(
+      t.tripType
+    );
 
   if(tripType === "SH"){
     return "SH";
@@ -308,7 +416,9 @@ function getServiceCode(t){
 }
 
 function getServiceTitle(t){
-  const code = getServiceCode(t);
+
+  const code =
+    getServiceCode(t);
 
   if(code === "WH") return "Wheelchair";
   if(code === "SH") return "Shared";
@@ -333,169 +443,274 @@ function isShared(t){
   return getServiceCode(t) === "SH";
 }
 
-const getPassenger = t => clean(
-  firstValue(
-    t.clientName,
-    t.passengerName,
-    t.memberName,
-    t.patientName,
-    t.riderName,
-    t.name,
-    "Passenger"
-  )
-);
+/* =========================
+   TRIP DATA
+========================= */
 
-const getPhone = t => clean(
-  firstValue(
-    t.clientPhone,
-    t.passengerPhone,
-    t.memberPhone,
-    t.phone
-  )
-);
+const getPassenger =
+  t => clean(
+    firstValue(
+      t.clientName,
+      t.passengerName,
+      t.memberName,
+      t.patientName,
+      t.riderName,
+      t.name,
+      "Passenger"
+    )
+  );
 
-const getPickup = t => clean(
-  firstValue(
-    t.pickupAddress,
-    t.pickup,
-    t.fromAddress,
-    t.originAddress,
-    t.origin
-  )
-);
+const getPhone =
+  t => clean(
+    firstValue(
+      t.clientPhone,
+      t.passengerPhone,
+      t.memberPhone,
+      t.phone
+    )
+  );
 
-const getDropoff = t => clean(
-  firstValue(
-    t.dropoffAddress,
-    t.dropoff,
-    t.toAddress,
-    t.destinationAddress,
-    t.destination
-  )
-);
+const getPickup =
+  t => clean(
+    firstValue(
+      t.pickupAddress,
+      t.pickup,
+      t.fromAddress,
+      t.originAddress,
+      t.origin
+    )
+  );
 
-const getTripNo = t => clean(
-  firstValue(
-    t.tripNumber,
-    t.tripNo,
-    t.reservationNumber,
-    t.confirmationNumber,
-    t._id,
-    t.id
-  )
-);
+const getDropoff =
+  t => clean(
+    firstValue(
+      t.dropoffAddress,
+      t.dropoff,
+      t.toAddress,
+      t.destinationAddress,
+      t.destination
+    )
+  );
 
-const getNotes = t => clean(
-  firstValue(
-    t.driverNotes,
-    t.notes,
-    t.tripNotes,
-    t.note
-  )
-);
+const getTripNo =
+  t => clean(
+    firstValue(
+      t.tripNumber,
+      t.tripNo,
+      t.reservationNumber,
+      t.confirmationNumber,
+      t._id,
+      t.id
+    )
+  );
 
-const getDispatchNote = t => clean(
-  firstValue(
-    t.dispatchNote,
-    t.assignmentNote
-  )
-);
+const getNotes =
+  t => clean(
+    firstValue(
+      t.driverNotes,
+      t.notes,
+      t.tripNotes,
+      t.note
+    )
+  );
+
+const getDispatchNote =
+  t => clean(
+    firstValue(
+      t.dispatchNote,
+      t.assignmentNote
+    )
+  );
+
+/* =========================
+   SHARED
+========================= */
 
 function getSharedPassengers(t){
+
   return Array.isArray(t.passengers)
     ? t.passengers
     : [];
 }
 
 function sharedStops(t){
-  const passengers = getSharedPassengers(t);
+
+  const passengers =
+    getSharedPassengers(t);
+
   const stops = [];
 
   passengers.forEach((p,index)=>{
-    const passengerName = clean(
-      firstValue(
-        p.clientName,
-        p.name,
-        `Passenger ${index + 1}`
-      )
-    );
 
-    const pickupOrder = Number(p.pickupOrder || 0);
-    const dropoffOrder = Number(p.dropoffOrder || 0);
+    const passengerName =
+      clean(
+        firstValue(
+          p.clientName,
+          p.name,
+          `Passenger ${index + 1}`
+        )
+      );
 
-    const pickup = clean(p.pickup);
-    const dropoff = clean(p.dropoff);
+    const pickupOrder =
+      Number(
+        p.pickupOrder || 0
+      );
 
-    if(pickup){
+    const dropoffOrder =
+      Number(
+        p.dropoffOrder || 0
+      );
+
+    if(clean(p.pickup)){
+
       stops.push({
-        order:pickupOrder > 0 ? pickupOrder : null,
-        fallbackOrder:index * 2 + 1,
+        order:
+          pickupOrder > 0
+            ? pickupOrder
+            : null,
+
+        fallback:
+          index * 2 + 1,
+
         type:"pickup",
-        passenger:passengerName,
-        phone:clean(firstValue(p.clientPhone,p.phone)),
-        address:pickup
+
+        passenger:
+          passengerName,
+
+        address:
+          clean(p.pickup)
       });
     }
 
-    if(dropoff){
+    if(clean(p.dropoff)){
+
       stops.push({
-        order:dropoffOrder > 0 ? dropoffOrder : null,
-        fallbackOrder:index * 2 + 2,
+        order:
+          dropoffOrder > 0
+            ? dropoffOrder
+            : null,
+
+        fallback:
+          index * 2 + 2,
+
         type:"dropoff",
-        passenger:passengerName,
-        phone:clean(firstValue(p.clientPhone,p.phone)),
-        address:dropoff
+
+        passenger:
+          passengerName,
+
+        address:
+          clean(p.dropoff)
       });
     }
+
   });
 
-  const hasRealOrder = stops.some(
-    stop => Number.isFinite(stop.order) && stop.order > 0
-  );
+  const hasRealOrder =
+    stops.some(
+      s =>
+        Number.isFinite(s.order) &&
+        s.order > 0
+    );
 
   return stops.sort((a,b)=>{
+
     if(hasRealOrder){
-      const ao = a.order || 9999;
-      const bo = b.order || 9999;
-      if(ao !== bo) return ao - bo;
+
+      const ao =
+        a.order || 9999;
+
+      const bo =
+        b.order || 9999;
+
+      if(ao !== bo){
+        return ao - bo;
+      }
     }
 
-    return a.fallbackOrder - b.fallbackOrder;
+    return a.fallback - b.fallback;
   });
 }
 
+/* =========================
+   EYE DETAILS
+========================= */
+
 function extraLine(label,value){
-  if(value === undefined || value === null || clean(value) === ""){
+
+  if(
+    value === undefined ||
+    value === null ||
+    clean(value) === ""
+  ){
     return "";
   }
 
   return `
     <div class="extra-block">
-      <div class="extra-title">${esc(label)}</div>
-      <div class="extra-text">${esc(value)}</div>
+      <div class="extra-title">
+        ${esc(label)}
+      </div>
+
+      <div class="extra-text">
+        ${esc(value)}
+      </div>
     </div>
   `;
 }
 
 function buildExtraHtml(t){
+
   const pieces = [];
 
   pieces.push(
-    extraLine("Service",getServiceTitle(t)),
-    extraLine("Trip Number",getTripNo(t)),
-    extraLine("Company / Facility",
-      firstValue(t.company,t.companyName,t.facilityName,t.providerName)
+    extraLine(
+      "Service",
+      getServiceTitle(t)
     ),
-    extraLine("Entry Name",
-      firstValue(t.entryName,t.bookedByName)
+
+    extraLine(
+      "Trip Number",
+      getTripNo(t)
     ),
-    extraLine("Entry Phone",
-      firstValue(t.entryPhone,t.bookedByPhone)
+
+    extraLine(
+      "Company / Facility",
+      firstValue(
+        t.company,
+        t.companyName,
+        t.facilityName,
+        t.providerName
+      )
     ),
-    extraLine("Vehicle",
-      firstValue(t.vehicle,t.vehicleNumber,t.vehicleType,t.requiredVehicle)
+
+    extraLine(
+      "Entry Name",
+      firstValue(
+        t.entryName,
+        t.bookedByName
+      )
     ),
-    extraLine("Escort",
+
+    extraLine(
+      "Entry Phone",
+      firstValue(
+        t.entryPhone,
+        t.bookedByPhone
+      )
+    ),
+
+    extraLine(
+      "Vehicle",
+      firstValue(
+        t.vehicle,
+        t.vehicleNumber,
+        t.vehicleType,
+        t.requiredVehicle
+      )
+    ),
+
+    extraLine(
+      "Escort",
       firstValue(
         t.escort,
         t.hasEscort,
@@ -504,106 +719,157 @@ function buildExtraHtml(t){
         t.passengerEscort
       )
     ),
-    extraLine("Assignment",t.assignmentType),
-    extraLine("Driver Notes",getNotes(t)),
-    extraLine("Dispatch Note",getDispatchNote(t))
+
+    extraLine(
+      "Assignment",
+      t.assignmentType
+    ),
+
+    extraLine(
+      "Driver Notes",
+      getNotes(t)
+    ),
+
+    extraLine(
+      "Dispatch Note",
+      getDispatchNote(t)
+    )
   );
 
   if(isShared(t)){
-    const passengers = getSharedPassengers(t);
 
-    passengers.forEach((p,index)=>{
-      const text = [
-        clean(firstValue(p.clientName,p.name,`Passenger ${index + 1}`)),
-        firstValue(p.clientPhone,p.phone)
-          ? `Phone: ${clean(firstValue(p.clientPhone,p.phone))}`
-          : "",
-        p.pickup ? `Pickup: ${clean(p.pickup)}` : "",
-        p.dropoff ? `Dropoff: ${clean(p.dropoff)}` : ""
-      ]
-      .filter(Boolean)
-      .join("\n");
+    getSharedPassengers(t)
+      .forEach((p,index)=>{
 
-      pieces.push(
-        extraLine(
-          `Passenger ${index + 1}`,
-          text
-        )
-      );
-    });
+        const text =
+          [
+            clean(
+              firstValue(
+                p.clientName,
+                p.name,
+                `Passenger ${index + 1}`
+              )
+            ),
+
+            firstValue(
+              p.clientPhone,
+              p.phone
+            )
+              ? `Phone: ${clean(firstValue(p.clientPhone,p.phone))}`
+              : "",
+
+            p.pickup
+              ? `Pickup: ${clean(p.pickup)}`
+              : "",
+
+            p.dropoff
+              ? `Dropoff: ${clean(p.dropoff)}`
+              : ""
+          ]
+          .filter(Boolean)
+          .join("\n");
+
+        pieces.push(
+          extraLine(
+            `Passenger ${index + 1}`,
+            text
+          )
+        );
+
+      });
   }
 
-  const html = pieces.filter(Boolean).join("");
+  const result =
+    pieces
+      .filter(Boolean)
+      .join("");
 
-  return html || `
+  return result || `
     <div class="extra-block">
-      <div class="extra-title">Additional Information</div>
-      <div class="extra-text">No additional information</div>
+      <div class="extra-title">
+        Additional Information
+      </div>
+
+      <div class="extra-text">
+        No additional information
+      </div>
     </div>
   `;
 }
 
-/* Address rows are display-only. Navigation is opened only from Open Trip. */
-function navigate(address){
-  if(!clean(address)) return;
-
-  window.open(
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
-    "_blank"
-  );
-}
+/* =========================
+   ACTIONS
+========================= */
 
 function openTrip(id){
-  location.href = `map.html?tripId=${encodeURIComponent(id)}`;
+
+  location.href =
+    `map.html?tripId=${encodeURIComponent(id)}`;
 }
 
 function toggleExtra(id){
+
   document
-    .getElementById(`extra-${id}`)
+    .getElementById(
+      `extra-${id}`
+    )
     ?.classList
     .toggle("open");
 }
 
-const mapIcon = () => `
-  <svg viewBox="0 0 24 24">
-    <path d="M12 22s6-6.2 6-11a6 6 0 1 0-12 0c0 4.8 6 11 6 11zm0-8.2a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6z"/>
-  </svg>
-`;
+/* =========================
+   ICONS
+========================= */
 
-const phoneIcon = () => `
-  <svg viewBox="0 0 24 24">
-    <path d="M6.5 3.5 9 8l-1.7 1.7c.9 2 2.5 3.6 4.5 4.5l1.7-1.7 4.5 2.5c.5.3.7.8.5 1.4l-.7 3c-.1.5-.6.9-1.1.9C9.5 20.3 3.7 14.5 3.7 7.3c0-.5.4-1 .9-1.1l3-.7c.5-.1 1.1.1 1.4.5z"/>
-  </svg>
-`;
+const phoneIcon =
+  () => `
+    <svg viewBox="0 0 24 24">
+      <path d="M6.5 3.5 9 8l-1.7 1.7c.9 2 2.5 3.6 4.5 4.5l1.7-1.7 4.5 2.5c.5.3.7.8.5 1.4l-.7 3c-.1.5-.6.9-1.1.9C9.5 20.3 3.7 14.5 3.7 7.3c0-.5.4-1 .9-1.1l3-.7c.5-.1 1.1.1 1.4.5z"/>
+    </svg>
+  `;
 
-const eyeIcon = () => `
-  <svg viewBox="0 0 24 24">
-    <path d="M12 5C6.5 5 2.3 9.1 1 12c1.3 2.9 5.5 7 11 7s9.7-4.1 11-7c-1.3-2.9-5.5-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-2.1A1.9 1.9 0 1 0 12 10a1.9 1.9 0 0 0 0 3.9z"/>
-  </svg>
-`;
+const eyeIcon =
+  () => `
+    <svg viewBox="0 0 24 24">
+      <path d="M12 5C6.5 5 2.3 9.1 1 12c1.3 2.9 5.5 7 11 7s9.7-4.1 11-7c-1.3-2.9-5.5-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-2.1A1.9 1.9 0 1 0 12 10a1.9 1.9 0 0 0 0 3.9z"/>
+    </svg>
+  `;
+
+/* =========================
+   ROUTE VIEW
+   ADDRESS IS DISPLAY ONLY
+========================= */
 
 function normalRoute(t){
-  const pickup = getPickup(t);
-  const dropoff = getDropoff(t);
 
   return `
     <div class="route">
 
-      <div class="address-row address-display-only">
+      <div class="address-row">
         <div class="marker pickup">P</div>
 
-        <div class="address-content">
-          <div class="address-label">Pickup</div>
-          <div class="address-text">${esc(pickup || "-")}</div>
+        <div>
+          <div class="address-label">
+            Pickup
+          </div>
+
+          <div class="address-text">
+            ${esc(getPickup(t) || "-")}
+          </div>
         </div>
       </div>
 
-      <div class="address-row address-display-only">
+      <div class="address-row">
         <div class="marker dropoff">D</div>
 
-        <div class="address-content">
-          <div class="address-label">Dropoff</div>
-          <div class="address-text">${esc(dropoff || "-")}</div>
+        <div>
+          <div class="address-label">
+            Dropoff
+          </div>
+
+          <div class="address-text">
+            ${esc(getDropoff(t) || "-")}
+          </div>
         </div>
       </div>
 
@@ -612,15 +878,20 @@ function normalRoute(t){
 }
 
 function sharedRoute(t){
-  const stops = sharedStops(t);
+
+  const stops =
+    sharedStops(t);
 
   if(!stops.length){
+
     return `
       <div class="shared-route">
+
         <div class="shared-head">
           <strong>Shared Route</strong>
           <span>No route stops</span>
         </div>
+
       </div>
     `;
   }
@@ -633,64 +904,115 @@ function sharedRoute(t){
         <span>${stops.length} stops</span>
       </div>
 
-      ${stops.map((stop,index)=>`
-        <div class="shared-stop">
+      ${
+        stops
+          .map((stop,index)=>`
 
-          <div class="stop-number">
-            ${index + 1}
-          </div>
+            <div class="shared-stop">
 
-          <div>
-            <div class="stop-top">
-              <span class="stop-type ${stop.type}">
-                ${stop.type === "pickup" ? "PICKUP" : "DROPOFF"}
-              </span>
+              <div class="stop-number">
+                ${index + 1}
+              </div>
 
-              <span class="stop-name">
-                ${esc(stop.passenger)}
-              </span>
+              <div>
+
+                <div class="stop-top">
+
+                  <span class="stop-type ${stop.type}">
+                    ${
+                      stop.type === "pickup"
+                        ? "PICKUP"
+                        : "DROPOFF"
+                    }
+                  </span>
+
+                  <span class="stop-name">
+                    ${esc(stop.passenger)}
+                  </span>
+
+                </div>
+
+                <div class="stop-address">
+                  ${esc(stop.address || "-")}
+                </div>
+
+              </div>
+
             </div>
 
-            <div class="stop-address">
-              ${esc(stop.address || "-")}
-            </div>
-          </div>
-
-        </div>
-      `).join("")}
+          `)
+          .join("")
+      }
 
     </div>
   `;
 }
 
-function card(t){
-  const status = getStatus(t);
-  const shared = isShared(t);
-  const passenger = getPassenger(t);
-  const phone = getPhone(t);
-  const serviceTitle = getServiceTitle(t);
-  const serviceCode = getServiceCode(t);
+/* =========================
+   CURRENT TRIP CARD
+========================= */
 
-  const id = clean(t._id || t.id);
+function card(t){
+
+  const status =
+    getStatus(t);
+
+  const shared =
+    isShared(t);
+
+  const passenger =
+    getPassenger(t);
+
+  const phone =
+    getPhone(t);
+
+  const serviceTitle =
+    getServiceTitle(t);
+
+  const serviceCode =
+    getServiceCode(t);
+
+  const id =
+    clean(
+      t._id ||
+      t.id
+    );
 
   const safeId =
-    id.replace(/[^a-zA-Z0-9_-]/g,"") ||
-    Math.random().toString(36).slice(2);
+    id.replace(
+      /[^a-zA-Z0-9_-]/g,
+      ""
+    )
+    ||
+    Math.random()
+      .toString(36)
+      .slice(2);
 
   const initials =
     passenger
       .split(/\s+/)
       .filter(Boolean)
       .slice(0,2)
-      .map(x => x[0].toUpperCase())
-      .join("") ||
-    "P";
+      .map(
+        x =>
+          x[0]
+            .toUpperCase()
+      )
+      .join("")
+      ||
+      "P";
 
   return `
-    <article class="trip-card ${getClass(status)} ${newTripIds.has(id) ? "trip-new" : ""}">
+    <div class="current-label">
+      Current Trip
+    </div>
+
+    <article class="trip-card ${getClass(status)}">
 
       <div class="trip-top">
+
         <div>
+
           <div class="trip-no">
             TRIP ${esc(getTripNo(t) || "-")}
           </div>
@@ -698,23 +1020,33 @@ function card(t){
           <div class="trip-time">
             ${formatTime(t)}
           </div>
+
         </div>
 
         <div class="service ${shared ? "shared" : ""}">
           ${esc(serviceTitle)}
         </div>
+
       </div>
 
       <div class="passenger">
 
         <div class="avatar">
-          ${shared ? "SH" : esc(initials)}
+          ${
+            shared
+              ? "SH"
+              : esc(initials)
+          }
         </div>
 
         <div class="passenger-data">
 
           <div class="passenger-name">
-            ${shared ? "Shared Trip" : esc(passenger)}
+            ${
+              shared
+                ? "Shared Trip"
+                : esc(passenger)
+            }
           </div>
 
           <div class="passenger-sub">
@@ -743,7 +1075,11 @@ function card(t){
 
       </div>
 
-      ${shared ? sharedRoute(t) : normalRoute(t)}
+      ${
+        shared
+          ? sharedRoute(t)
+          : normalRoute(t)
+      }
 
       <div class="card-bottom">
 
@@ -775,24 +1111,186 @@ function card(t){
         type="button"
         onclick='openTrip(${JSON.stringify(id)})'
       >
-        Open Trip
+        Open Trip / Navigation
       </button>
 
     </article>
   `;
 }
 
-async function loadTrips(){
-  try{
-    const res = await fetch(
-      `/api/driver/my-trips/${encodeURIComponent(driverId)}`
-    );
+/* =========================
+   HEADER COUNTERS
+========================= */
 
-    if(!res.ok){
-      throw new Error(`HTTP ${res.status}`);
+function updateHeader(
+  todayTrips,
+  completedTrips,
+  remainingTrips,
+  currentTrip
+){
+
+  if(todayTripCount){
+    todayTripCount.textContent =
+      String(
+        todayTrips.length
+      );
+  }
+
+  if(completedTripCount){
+    completedTripCount.textContent =
+      String(
+        completedTrips.length
+      );
+  }
+
+  if(remainingTripCount){
+    remainingTripCount.textContent =
+      String(
+        remainingTrips.length
+      );
+  }
+
+  if(
+    currentTrip &&
+    remainingTrips.length
+  ){
+
+    tripAlert
+      ?.classList
+      .remove("done");
+
+    if(tripAlertText){
+
+      tripAlertText.textContent =
+        remainingTrips.length > 1
+          ? "YOU HAVE A TRIP"
+          : "YOU HAVE YOUR LAST TRIP";
     }
 
-    const data = await res.json();
+  }else{
+
+    tripAlert
+      ?.classList
+      .add("done");
+
+    if(tripAlertText){
+
+      tripAlertText.textContent =
+        todayTrips.length
+          ? "ALL TRIPS COMPLETED"
+          : "NO TRIPS TODAY";
+    }
+
+  }
+
+}
+
+/* =========================
+   RENDER ONE TRIP ONLY
+========================= */
+
+function render(trips){
+
+  const todayTrips =
+    trips
+      .filter(isTodayTrip)
+      .filter(
+        t =>
+          !isExpired(t) ||
+          isClosedTrip(t)
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
+  const completedTrips =
+    todayTrips.filter(
+      isCompletedTrip
+    );
+
+  const remainingTrips =
+    todayTrips
+      .filter(
+        t =>
+          !isClosedTrip(t)
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
+  /*
+    The driver sees ONE trip only.
+    All future trips stay hidden.
+    Dispatcher can change them before their turn.
+  */
+  const currentTrip =
+    remainingTrips[0] ||
+    null;
+
+  updateHeader(
+    todayTrips,
+    completedTrips,
+    remainingTrips,
+    currentTrip
+  );
+
+  if(currentTrip){
+
+    container.innerHTML =
+      card(currentTrip);
+
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="empty">
+
+      <strong>
+        ${
+          todayTrips.length
+            ? "All Trips Completed"
+            : "No Trips Today"
+        }
+      </strong>
+
+      <br>
+
+      ${
+        todayTrips.length
+          ? "There are no more trips waiting for you."
+          : "New dispatched trips will appear here automatically."
+      }
+
+    </div>
+  `;
+}
+
+/* =========================
+   LOAD
+========================= */
+
+async function loadTrips(){
+
+  try{
+
+    const res =
+      await fetch(
+        `/api/driver/my-trips/${encodeURIComponent(driverId)}`
+      );
+
+    if(!res.ok){
+
+      throw new Error(
+        `HTTP ${res.status}`
+      );
+    }
+
+    const data =
+      await res.json();
 
     const trips =
       Array.isArray(data)
@@ -804,7 +1302,32 @@ async function loadTrips(){
     render(trips);
 
   }catch(err){
-    console.error("DRIVER TRIPS LOAD ERROR:",err);
+
+    console.error(
+      "DRIVER TRIPS LOAD ERROR:",
+      err
+    );
+
+    if(todayTripCount){
+      todayTripCount.textContent = "0";
+    }
+
+    if(completedTripCount){
+      completedTripCount.textContent = "0";
+    }
+
+    if(remainingTripCount){
+      remainingTripCount.textContent = "0";
+    }
+
+    tripAlert
+      ?.classList
+      .add("done");
+
+    if(tripAlertText){
+      tripAlertText.textContent =
+        "TRIPS CONNECTION ERROR";
+    }
 
     container.innerHTML = `
       <div class="empty">
@@ -813,45 +1336,14 @@ async function loadTrips(){
         Please try again.
       </div>
     `;
-
-    if(tripCount){
-      tripCount.textContent = "0";
-    }
   }
 }
 
-function render(trips){
-  let filtered = trips.filter(t => !isExpired(t));
+/* =========================
+   START
+========================= */
 
-  filtered.sort((a,b)=>{
-    const statusA = getStatus(a);
-    const statusB = getStatus(b);
-
-    if(isActive(statusA) && !isActive(statusB)) return -1;
-    if(!isActive(statusA) && isActive(statusB)) return 1;
-
-    return getTripDate(a) - getTripDate(b);
-  });
-
-  currentVisibleTrips = filtered;
-
-  detectNewTrips(filtered);
-
-  if(tripCount){
-    tripCount.textContent = String(filtered.length);
-  }
-
-  container.innerHTML =
-    filtered.length
-      ? filtered.map(card).join("")
-      : `
-        <div class="empty">
-          <strong>No Trips Today</strong>
-          <br>
-          New dispatched trips will appear automatically.
-        </div>
-      `;
-}
+updateTodayLabel();
 
 loadTrips();
 
