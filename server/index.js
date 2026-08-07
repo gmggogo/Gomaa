@@ -5548,6 +5548,27 @@ app.patch("/api/driver/trips/:id/start", async (req, res) => {
 
 });
 
+/* =========================
+   DRIVER COMPLETE TRIP
+========================= */
+
+app.patch("/api/driver/trips/:id/complete", async (req, res) => {
+
+  try {
+
+    const trip =
+      await Trip.findById(
+        req.params.id
+      );
+
+    if (!trip) {
+
+      return res.status(404).json({
+        message: "Trip not found"
+      });
+
+    }
+
     /* =========================
        FINALIZED
     ========================= */
