@@ -522,6 +522,21 @@ const getDispatchNote =
     )
   );
 
+function getVisibleNote(t){
+  return clean(
+    firstValue(
+      t.dispatchNote,
+      t.assignmentNote,
+      t.driverNotes,
+      t.notes,
+      t.tripNotes,
+      t.note,
+      "No notes"
+    )
+  );
+}
+
+
 /* =========================
    SHARED
 ========================= */
@@ -972,6 +987,9 @@ function card(t){
   const serviceCode =
     getServiceCode(t);
 
+  const noteText =
+    getVisibleNote(t);
+
   const id =
     clean(
       t._id ||
@@ -1029,6 +1047,12 @@ function card(t){
 
       </div>
 
+      <div class="current-status-row">
+        <div class="current-status-pill status-${esc(status)}">
+          ${esc(status)}
+        </div>
+      </div>
+
       <div class="passenger">
 
         <div class="avatar">
@@ -1081,12 +1105,17 @@ function card(t){
           : normalRoute(t)
       }
 
-      <div class="card-bottom">
-
-        <div class="status-box status-${esc(status)}">
-          ${esc(status)}
+      <div class="note-box">
+        <div class="note-box-label">
+          Note
         </div>
 
+        <div class="note-box-text">
+          ${esc(noteText)}
+        </div>
+      </div>
+
+      <div class="note-eye-row">
         <button
           class="eye-btn"
           type="button"
@@ -1096,7 +1125,6 @@ function card(t){
         >
           ${eyeIcon()}
         </button>
-
       </div>
 
       <div
