@@ -19,8 +19,11 @@ const todayTripCount =
 const completedTripCount =
   document.getElementById("completedTripCount");
 
-const remainingTripCount =
-  document.getElementById("remainingTripCount");
+const noShowTripCount =
+  document.getElementById("noShowTripCount");
+
+const cancelledTripCount =
+  document.getElementById("cancelledTripCount");
 
 const tripAlert =
   document.getElementById("tripAlert");
@@ -185,6 +188,18 @@ function formatTime(t){
   return `${h}:${m[2]} ${ap}`;
 }
 
+function formatTripDate(t){
+  const raw = clean(firstValue(t.tripDate,t.date,t.serviceDate));
+  if(!raw) return "-";
+  const d = new Date(`${raw}T12:00:00`);
+  if(isNaN(d)) return raw;
+  return new Intl.DateTimeFormat("en-US",{
+    month:"short",
+    day:"numeric",
+    year:"numeric"
+  }).format(d);
+}
+
 function updateTodayLabel(){
 
   if(!todayDate){
@@ -290,8 +305,16 @@ function isClosedTrip(t){
 }
 
 function isCompletedTrip(t){
-
   return rawStatus(t) === "COMPLETED";
+}
+
+function isNoShowTrip(t){
+  return rawStatus(t) === "NOSHOW";
+}
+
+function isCancelledTrip(t){
+  const s = rawStatus(t);
+  return s === "CANCELLED" || s === "CANCELED";
 }
 
 function isActive(status){
@@ -969,80 +992,73 @@ function sharedRoute(t){
 
 function card(t){
 
-  const status =
-    getStatus(t);
+  const status = getStatus(t);
+  const shared = isShared(t);
+  const passenger = getPassenger(t);
+  const serviceTitle = getServiceTitle(t);
+  const serviceCode = getServiceCode(t);
+  const noteText = getVisibleNote(t);
 
-  const shared =
-    isShared(t);
-
-  const passenger =
-    getPassenger(t);
-
-  const phone =
-    getPhone(t);
-
-  const serviceTitle =
-    getServiceTitle(t);
-
-  const serviceCode =
-    getServiceCode(t);
-
-  const noteText =
-    getVisibleNote(t);
-
-  const id =
-    clean(
-      t._id ||
-      t.id
-    );
+  const id = clean(t._id || t.id);
 
   const safeId =
-    id.replace(
-      /[^a-zA-Z0-9_-]/g,
-      ""
-    )
-    ||
-    Math.random()
-      .toString(36)
-      .slice(2);
+    id.replace(/[^a-zA-Z0-9_-]/g,"") ||
+    Math.random().toString(36).slice(2);
 
   const initials =
     passenger
       .split(/\s+/)
       .filter(Boolean)
       .slice(0,2)
-      .map(
-        x =>
-          x[0]
-            .toUpperCase()
-      )
-      .join("")
-      ||
-      "P";
+      .map(x=>x[0].toUpperCase())
+      .join("") || "P";
+
+  const stops = shared ? sharedStops(t) : [];
+
+  const passengerCount =
+    shared
+      ? Math.max(
+          getSharedPassengers(t).length,
+          Math.ceil(stops.length / 2)
+        )
+      : 1;
+
+  const firstPickup =
+    shared
+      ? (
+          stops.find(s=>s.type === "pickup")?.address ||
+          getPickup(t) ||
+          "-"
+        )
+      : (getPickup(t) || "-");
+
+  const lastDropoff =
+    shared
+      ? (
+          [...stops].reverse().find(s=>s.type === "dropoff")?.address ||
+          getDropoff(t) ||
+          "-"
+        )
+      : (getDropoff(t) || "-");
 
   return `
-    <div class="current-label">
-      Current Trip
-    </div>
-
     <article class="trip-card ${getClass(status)}">
 
-      <div class="trip-top">
+      <div class="trip-meta-grid">
 
-        <div>
-
-          <div class="trip-no">
-            TRIP ${esc(getTripNo(t) || "-")}
-          </div>
-
-          <div class="trip-time">
-            ${formatTime(t)}
-          </div>
-
+        <div class="trip-meta-box">
+          <div class="trip-meta-label">Time</div>
+          <div class="trip-meta-value">${formatTime(t)}</div>
         </div>
 
-        <div class="service ${shared ? "shared" : ""}">
-          ${esc(serviceTitle)}
+        <div class="trip-meta-box">
+          <div class="trip-meta-label">Date</div>
+          <div class="trip-meta-value">${esc(formatTripDate(t))}</div>
+        </div>
+
+        <div class="trip-meta-box">
+          <div class="trip-meta-label">Trip #</div>
+          <div class="trip-meta-value">${esc(getTripNo(t) || "-")}</div>
         </div>
 
       </div>
@@ -1053,24 +1069,16 @@ function card(t){
         </div>
       </div>
 
-      <div class="passenger">
+      <div class="trip-summary-row">
 
         <div class="avatar">
-          ${
-            shared
-              ? "SH"
-              : esc(initials)
-          }
+          ${shared ? "SH" : esc(initials)}
         </div>
 
         <div class="passenger-data">
 
           <div class="passenger-name">
-            ${
-              shared
-                ? "Shared Trip"
-                : esc(passenger)
-            }
+            ${shared ? "Shared Trip" : esc(serviceTitle)}
           </div>
 
           <div class="passenger-sub">
@@ -1084,28 +1092,63 @@ function card(t){
         </div>
 
         ${
-          phone && !shared
+          shared
             ? `
-              <a
-                class="phone-btn"
-                href="tel:${esc(phone)}"
-                aria-label="Call passenger"
-              >
-                ${phoneIcon()}
-              </a>
+              <div class="shared-count">
+                <strong>${passengerCount}</strong>
+                <span>Passengers</span>
+                <small>${stops.length} Stops</small>
+              </div>
             `
             : ""
         }
 
       </div>
 
-      ${
-        shared
-          ? sharedRoute(t)
-          : normalRoute(t)
-      }
+      <div class="compact-route">
+
+        <div class="compact-route-row">
+
+          <div class="route-pin pickup"></div>
+
+          <div class="compact-route-data">
+
+            <div class="compact-route-label">
+              Pickup
+              ${shared ? `<span>(1st Stop)</span>` : ""}
+            </div>
+
+            <div class="compact-route-address">
+              ${esc(firstPickup)}
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="compact-route-row">
+
+          <div class="route-pin dropoff"></div>
+
+          <div class="compact-route-data">
+
+            <div class="compact-route-label">
+              Dropoff
+              ${shared ? `<span>(Last Stop)</span>` : ""}
+            </div>
+
+            <div class="compact-route-address">
+              ${esc(lastDropoff)}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
 
       <div class="note-box">
+
         <div class="note-box-label">
           Note
         </div>
@@ -1113,18 +1156,21 @@ function card(t){
         <div class="note-box-text">
           ${esc(noteText)}
         </div>
+
       </div>
 
-      <div class="note-eye-row">
+      <div class="details-row">
+
         <button
           class="eye-btn"
           type="button"
           onclick="toggleExtra('${safeId}')"
-          aria-label="View trip information"
-          title="View details"
+          aria-label="View all trip information"
+          title="View all trip information"
         >
           ${eyeIcon()}
         </button>
+
       </div>
 
       <div
@@ -1135,11 +1181,11 @@ function card(t){
       </div>
 
       <button
-        class="open-btn"
+        class="notification-btn"
         type="button"
         onclick='openTrip(${JSON.stringify(id)})'
       >
-        Open Trip / Navigation
+        Go To Notification
       </button>
 
     </article>
@@ -1153,42 +1199,33 @@ function card(t){
 function updateHeader(
   todayTrips,
   completedTrips,
+  noShowTrips,
+  cancelledTrips,
   remainingTrips,
   currentTrip
 ){
 
   if(todayTripCount){
-    todayTripCount.textContent =
-      String(
-        todayTrips.length
-      );
+    todayTripCount.textContent = String(todayTrips.length);
   }
 
   if(completedTripCount){
-    completedTripCount.textContent =
-      String(
-        completedTrips.length
-      );
+    completedTripCount.textContent = String(completedTrips.length);
   }
 
-  if(remainingTripCount){
-    remainingTripCount.textContent =
-      String(
-        remainingTrips.length
-      );
+  if(noShowTripCount){
+    noShowTripCount.textContent = String(noShowTrips.length);
   }
 
-  if(
-    currentTrip &&
-    remainingTrips.length
-  ){
+  if(cancelledTripCount){
+    cancelledTripCount.textContent = String(cancelledTrips.length);
+  }
 
-    tripAlert
-      ?.classList
-      .remove("done");
+  if(currentTrip && remainingTrips.length){
+
+    tripAlert?.classList.remove("done");
 
     if(tripAlertText){
-
       tripAlertText.textContent =
         remainingTrips.length > 1
           ? "YOU HAVE A TRIP"
@@ -1197,15 +1234,12 @@ function updateHeader(
 
   }else{
 
-    tripAlert
-      ?.classList
-      .add("done");
+    tripAlert?.classList.add("done");
 
     if(tripAlertText){
-
       tripAlertText.textContent =
         todayTrips.length
-          ? "ALL TRIPS COMPLETED"
+          ? "NO MORE ACTIVE TRIPS"
           : "NO TRIPS TODAY";
     }
 
@@ -1238,17 +1272,16 @@ function render(trips){
       isCompletedTrip
     );
 
+  const noShowTrips =
+    todayTrips.filter(isNoShowTrip);
+
+  const cancelledTrips =
+    todayTrips.filter(isCancelledTrip);
+
   const remainingTrips =
     todayTrips
-      .filter(
-        t =>
-          !isClosedTrip(t)
-      )
-      .sort(
-        (a,b)=>
-          getTripDate(a) -
-          getTripDate(b)
-      );
+      .filter(t=>!isClosedTrip(t))
+      .sort((a,b)=>getTripDate(a)-getTripDate(b));
 
   /*
     The driver sees ONE trip only.
@@ -1262,6 +1295,8 @@ function render(trips){
   updateHeader(
     todayTrips,
     completedTrips,
+    noShowTrips,
+    cancelledTrips,
     remainingTrips,
     currentTrip
   );
@@ -1344,8 +1379,12 @@ async function loadTrips(){
       completedTripCount.textContent = "0";
     }
 
-    if(remainingTripCount){
-      remainingTripCount.textContent = "0";
+    if(noShowTripCount){
+      noShowTripCount.textContent = "0";
+    }
+
+    if(cancelledTripCount){
+      cancelledTripCount.textContent = "0";
     }
 
     tripAlert
