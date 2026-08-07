@@ -59,10 +59,13 @@ const {
   "./utils/trip-finalizer"
 );
 
+const DispatchAssignment =
+require("./models/DispatchAssignment"
+);
+
 const BillingHistory =
 require("./models/BillingHistory"
 );
-
 const FacilityPricingOverride =
 require("./models/FacilityPricingOverride");
 
@@ -5249,74 +5252,174 @@ app.delete("/api/trips/:id", async (req, res) => {
 /* =========================
    DRIVER API
 ========================= */
+
 app.get("/api/driver/my-trips/:driverId", async (req, res) => {
+
   try {
-    const driverId = String(req.params.driverId || "").trim();
+
+    const driverId =
+      String(req.params.driverId || "").trim();
 
     if (!driverId) {
-      return res.status(400).json({ message: "Driver ID required" });
+
+      return res.status(400).json({
+        message: "Driver ID required"
+      });
+
     }
 
-    const trips = await Trip.find({
-      driverId: driverId,
-      disabled: false,
-      status: { $ne: "Cancelled" }
-    }).sort({ tripDate: 1, tripTime: 1 });
+    const assignments =
+      await DispatchAssignment.find({
 
-    res.json(trips);
+        driverId: driverId,
+
+        dispatchStatus: {
+          $in: [
+            "SENT",
+            "ACCEPTED",
+            "ON_TRIP"
+          ]
+        }
+
+      })
+      .sort({
+        sentAt: 1,
+        assignedAt: 1
+      })
+      .lean();
+
+    if (!assignments.length) {
+      return res.json([]);
+    }
+
+    const tripIds =
+      assignments
+        .map(a => a.tripId)
+        .filter(Boolean);
+
+    const tripRows =
+      await Trip.find({
+
+        _id: {
+          $in: tripIds
+        },
+
+        disabled: {
+          $ne: true
+        }
+
+      })
+      .lean();
+
+    const tripMap =
+      new Map(
+        tripRows.map(t => [
+          String(t._id),
+          t
+        ])
+      );
+
+    const result = [];
+
+    for (const assignment of assignments) {
+
+      const trip =
+        tripMap.get(
+          String(assignment.tripId)
+        );
+
+      if (!trip) {
+        continue;
+      }
+
+      result.push({
+
+        ...trip,
+
+        driverId:
+          String(
+            assignment.driverId || ""
+          ),
+
+        driverName:
+          assignment.driverName ||
+          trip.driverName ||
+          "",
+
+        vehicle:
+          assignment.vehicleNumber ||
+          trip.vehicle ||
+          "",
+
+        driverAddress:
+          assignment.driverAddress ||
+          trip.driverAddress ||
+          "",
+
+        driverPhone:
+          assignment.driverPhone ||
+          "",
+
+        dispatchStatus:
+          assignment.dispatchStatus ||
+          "",
+
+        dispatchNote:
+          assignment.note ||
+          trip.dispatchNote ||
+          "",
+
+        assignmentType:
+          assignment.assignmentType ||
+          "",
+
+        sentAt:
+          assignment.sentAt ||
+          null
+
+      });
+
+    }
+
+    result.sort((a, b) => {
+
+      const aTime =
+        new Date(
+          `${a.tripDate || "9999-12-31"}T${a.tripTime || "23:59"}`
+        ).getTime();
+
+      const bTime =
+        new Date(
+          `${b.tripDate || "9999-12-31"}T${b.tripTime || "23:59"}`
+        ).getTime();
+
+      return aTime - bTime;
+
+    });
+
+    return res.json(result);
+
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Driver trips error" });
+
+    console.log(
+      "DRIVER MY TRIPS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message: "Driver trips error"
+    });
+
   }
+
 });
+
+/* =========================
+   DRIVER ACCEPT TRIP
+========================= */
 
 app.patch("/api/driver/trips/:id/accept", async (req, res) => {
-  try {
-    const trip = await Trip.findById(req.params.id);
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    trip.status = "Accepted";
-    await trip.save();
-
-    res.json(trip);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Accept trip error" });
-  }
-});
-
-app.patch("/api/driver/trips/:id/start", async (req, res) => {
-  try {
-    const trip = await Trip.findById(req.params.id);
-
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
-    }
-
-    if(
-      trip.stripePaymentMethodId &&
-      trip.paymentStatus !== "AUTHORIZED"
-    ){
-      return res.status(402).json({
-        message:"Trip cannot start until the exact fare is authorized.",
-        paymentStatus:trip.paymentStatus || "PAYMENT_REQUIRED"
-      });
-    }
-
-    trip.status = "On Trip";
-    await trip.save();
-
-    res.json(trip);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Start trip error" });
-  }
-});
-
-app.patch("/api/driver/trips/:id/complete", async (req, res) => {
   try {
 
     const trip =
@@ -5331,6 +5434,119 @@ app.patch("/api/driver/trips/:id/complete", async (req, res) => {
       });
 
     }
+
+    trip.status =
+      "Accepted";
+
+    await trip.save();
+
+    await DispatchAssignment.findOneAndUpdate(
+
+      {
+        tripId: trip._id
+      },
+
+      {
+        $set: {
+          dispatchStatus: "ACCEPTED",
+          acceptedAt: new Date()
+        }
+      }
+
+    );
+
+    return res.json(trip);
+
+  } catch (err) {
+
+    console.log(
+      "ACCEPT TRIP ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message: "Accept trip error"
+    });
+
+  }
+
+});
+
+/* =========================
+   DRIVER START TRIP
+========================= */
+
+app.patch("/api/driver/trips/:id/start", async (req, res) => {
+
+  try {
+
+    const trip =
+      await Trip.findById(
+        req.params.id
+      );
+
+    if (!trip) {
+
+      return res.status(404).json({
+        message: "Trip not found"
+      });
+
+    }
+
+    if (
+      trip.stripePaymentMethodId &&
+      trip.paymentStatus !== "AUTHORIZED"
+    ) {
+
+      return res.status(402).json({
+
+        message:
+          "Trip cannot start until the exact fare is authorized.",
+
+        paymentStatus:
+          trip.paymentStatus ||
+          "PAYMENT_REQUIRED"
+
+      });
+
+    }
+
+    trip.status =
+      "On Trip";
+
+    await trip.save();
+
+    await DispatchAssignment.findOneAndUpdate(
+
+      {
+        tripId: trip._id
+      },
+
+      {
+        $set: {
+          dispatchStatus: "ON_TRIP",
+          startedAt: new Date()
+        }
+      }
+
+    );
+
+    return res.json(trip);
+
+  } catch (err) {
+
+    console.log(
+      "START TRIP ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message: "Start trip error"
+    });
+
+  }
+
+});
 
     /* =========================
        FINALIZED
