@@ -871,8 +871,9 @@ function pickupPoint(
         firstValue(
           p?.pickupLat,
           p?.pickupLatitude,
-          trip?.pickupLat,
-          trip?.pickupLatitude
+          p?.pickup?.lat,
+          p?.pickupCoords?.lat,
+          tripPickupPoint(trip).lat
         )
       ),
 
@@ -881,8 +882,11 @@ function pickupPoint(
         firstValue(
           p?.pickupLng,
           p?.pickupLongitude,
-          trip?.pickupLng,
-          trip?.pickupLongitude
+          p?.pickup?.lng,
+          p?.pickup?.lon,
+          p?.pickupCoords?.lng,
+          p?.pickupCoords?.lon,
+          tripPickupPoint(trip).lng
         )
       )
   };
@@ -901,8 +905,9 @@ function dropoffPoint(
           p?.dropoffLat,
           p?.dropLat,
           p?.dropoffLatitude,
-          trip?.dropoffLat,
-          trip?.dropLat
+          p?.dropoff?.lat,
+          p?.dropoffCoords?.lat,
+          tripDropoffPoint(trip).lat
         )
       ),
 
@@ -912,8 +917,75 @@ function dropoffPoint(
           p?.dropoffLng,
           p?.dropLng,
           p?.dropoffLongitude,
+          p?.dropoff?.lng,
+          p?.dropoff?.lon,
+          p?.dropoffCoords?.lng,
+          p?.dropoffCoords?.lon,
+          tripDropoffPoint(trip).lng
+        )
+      )
+  };
+}
+
+function tripPickupPoint(trip){
+
+  return {
+    lat:
+      num(
+        firstValue(
+          trip?.pickupLat,
+          trip?.pickupLatitude,
+          trip?.pickup?.lat,
+          trip?.pickup?.latitude,
+          trip?.pickupCoords?.lat,
+          trip?.pickupCoords?.latitude
+        )
+      ),
+
+    lng:
+      num(
+        firstValue(
+          trip?.pickupLng,
+          trip?.pickupLongitude,
+          trip?.pickup?.lng,
+          trip?.pickup?.lon,
+          trip?.pickup?.longitude,
+          trip?.pickupCoords?.lng,
+          trip?.pickupCoords?.lon,
+          trip?.pickupCoords?.longitude
+        )
+      )
+  };
+}
+
+function tripDropoffPoint(trip){
+
+  return {
+    lat:
+      num(
+        firstValue(
+          trip?.dropoffLat,
+          trip?.dropLat,
+          trip?.dropoffLatitude,
+          trip?.dropoff?.lat,
+          trip?.dropoff?.latitude,
+          trip?.dropoffCoords?.lat,
+          trip?.dropoffCoords?.latitude
+        )
+      ),
+
+    lng:
+      num(
+        firstValue(
           trip?.dropoffLng,
-          trip?.dropLng
+          trip?.dropLng,
+          trip?.dropoffLongitude,
+          trip?.dropoff?.lng,
+          trip?.dropoff?.lon,
+          trip?.dropoff?.longitude,
+          trip?.dropoffCoords?.lng,
+          trip?.dropoffCoords?.lon,
+          trip?.dropoffCoords?.longitude
         )
       )
   };
@@ -961,19 +1033,13 @@ function getPassengers(
         trip?.dropoffAddress
       ),
     pickupLat:
-      trip?.pickupLat,
+      tripPickupPoint(trip).lat,
     pickupLng:
-      trip?.pickupLng,
+      tripPickupPoint(trip).lng,
     dropoffLat:
-      firstValue(
-        trip?.dropoffLat,
-        trip?.dropLat
-      ),
+      tripDropoffPoint(trip).lat,
     dropoffLng:
-      firstValue(
-        trip?.dropoffLng,
-        trip?.dropLng
-      ),
+      tripDropoffPoint(trip).lng,
     pickupOrder:1,
     dropoffOrder:999999,
     tripDate:
@@ -987,7 +1053,109 @@ function getPassengers(
    NORMAL TRIP EXTRA STOPS
 ========================= */
 
+function getStopCoordRows(trip){
+
+  if(
+    Array.isArray(
+      trip?.stopCoords
+    )
+  ){
+    return trip.stopCoords;
+  }
+
+  if(
+    Array.isArray(
+      trip?.routeStops
+    )
+  ){
+    return trip.routeStops;
+  }
+
+  return [];
+}
+
+function matchStopCoord(
+  trip,
+  rawStop,
+  index
+){
+
+  const coords =
+    getStopCoordRows(
+      trip
+    );
+
+  if(!coords.length){
+    return null;
+  }
+
+  const rawId =
+    clean(
+      firstValue(
+        rawStop?.stopId,
+        rawStop?._id,
+        rawStop?.id
+      )
+    );
+
+  const rawAddress =
+    normalizeAddressKey(
+      firstValue(
+        rawStop?.address,
+        rawStop?.fullAddress,
+        rawStop?.location,
+        rawStop?.stopAddress,
+        typeof rawStop === "string"
+          ? rawStop
+          : ""
+      )
+    );
+
+  if(rawId){
+
+    const byId =
+      coords.find(
+        row =>
+          clean(
+            firstValue(
+              row?.stopId,
+              row?._id,
+              row?.id
+            )
+          ) === rawId
+      );
+
+    if(byId){
+      return byId;
+    }
+  }
+
+  if(rawAddress){
+
+    const byAddress =
+      coords.find(
+        row =>
+          normalizeAddressKey(
+            firstValue(
+              row?.address,
+              row?.fullAddress,
+              row?.location,
+              row?.stopAddress
+            )
+          ) === rawAddress
+      );
+
+    if(byAddress){
+      return byAddress;
+    }
+  }
+
+  return coords[index] || null;
+}
+
+
 function normalizeExtraStop(
+  trip,
   raw,
   index
 ){
@@ -996,6 +1164,13 @@ function normalizeExtraStop(
     return null;
   }
 
+  const coordRow =
+    matchStopCoord(
+      trip,
+      raw,
+      index
+    );
+
   if(
     typeof raw ===
     "string"
@@ -1003,17 +1178,52 @@ function normalizeExtraStop(
 
     return {
       stopId:
-        `mid-${index+1}`,
+        clean(
+          firstValue(
+            coordRow?.stopId,
+            coordRow?._id,
+            coordRow?.id,
+            `mid-${index+1}`
+          )
+        ),
       type:"stop",
       order:
-        1000 +
-        index,
+        num(
+          firstValue(
+            coordRow?.order,
+            coordRow?.routeOrder,
+            coordRow?.sequence,
+            index + 2
+          ),
+          index + 2
+        ),
       address:
         clean(raw),
-      lat:null,
-      lng:null,
+      lat:
+        num(
+          firstValue(
+            coordRow?.lat,
+            coordRow?.latitude,
+            coordRow?.stopLat
+          )
+        ),
+      lng:
+        num(
+          firstValue(
+            coordRow?.lng,
+            coordRow?.lon,
+            coordRow?.longitude,
+            coordRow?.stopLng
+          )
+        ),
       title:
-        `Stop ${index+1}`,
+        clean(
+          firstValue(
+            coordRow?.title,
+            coordRow?.label,
+            `Stop ${index+1}`
+          )
+        ),
       sourceIndex:index
     };
   }
@@ -1025,7 +1235,9 @@ function normalizeExtraStop(
         raw.fullAddress,
         raw.location,
         raw.name,
-        raw.stopAddress
+        raw.stopAddress,
+        coordRow?.address,
+        coordRow?.fullAddress
       )
     );
 
@@ -1034,7 +1246,10 @@ function normalizeExtraStop(
       firstValue(
         raw.lat,
         raw.latitude,
-        raw.stopLat
+        raw.stopLat,
+        coordRow?.lat,
+        coordRow?.latitude,
+        coordRow?.stopLat
       )
     );
 
@@ -1044,7 +1259,11 @@ function normalizeExtraStop(
         raw.lng,
         raw.lon,
         raw.longitude,
-        raw.stopLng
+        raw.stopLng,
+        coordRow?.lng,
+        coordRow?.lon,
+        coordRow?.longitude,
+        coordRow?.stopLng
       )
     );
 
@@ -1055,10 +1274,12 @@ function normalizeExtraStop(
         raw.routeOrder,
         raw.sequence,
         raw.stopOrder,
-        raw.index
+        raw.index,
+        coordRow?.order,
+        coordRow?.routeOrder,
+        coordRow?.sequence
       ),
-      1000 +
-      index
+      index + 2
     );
 
   return {
@@ -1068,6 +1289,9 @@ function normalizeExtraStop(
           raw.stopId,
           raw._id,
           raw.id,
+          coordRow?.stopId,
+          coordRow?._id,
+          coordRow?.id,
           `mid-${index+1}`
         )
       ),
@@ -1082,6 +1306,8 @@ function normalizeExtraStop(
           raw.title,
           raw.label,
           raw.name,
+          coordRow?.title,
+          coordRow?.label,
           `Stop ${index+1}`
         )
       ),
@@ -1110,7 +1336,12 @@ function getNormalTripStops(
 
   return rawStops
     .map(
-      normalizeExtraStop
+      (raw,index)=>
+        normalizeExtraStop(
+          trip,
+          raw,
+          index
+        )
     )
     .filter(Boolean);
 }
@@ -1247,9 +1478,163 @@ function pickupGroupMatches(
    BUILD COMPLETE ROUTE
 ========================= */
 
+function buildExplicitServerRouteStops(trip){
+
+  const rows =
+    Array.isArray(trip?.routeStops)
+      ? trip.routeStops
+      : [];
+
+  if(!rows.length){
+    return [];
+  }
+
+  return rows
+    .map(
+      (row,index)=>{
+
+        const rawType =
+          normalizeStatus(
+            firstValue(
+              row?.type,
+              row?.stopType,
+              row?.action,
+              row?.kind
+            )
+          );
+
+        let type =
+          "stop";
+
+        if(
+          rawType.includes("pickup")
+        ){
+          type = "pickup";
+        }else if(
+          rawType.includes("dropoff") ||
+          rawType.includes("drop off")
+        ){
+          type = "dropoff";
+        }
+
+        const lat =
+          num(
+            firstValue(
+              row?.lat,
+              row?.latitude,
+              row?.stopLat
+            )
+          );
+
+        const lng =
+          num(
+            firstValue(
+              row?.lng,
+              row?.lon,
+              row?.longitude,
+              row?.stopLng
+            )
+          );
+
+        const passengerRows =
+          Array.isArray(row?.passengers)
+            ? row.passengers
+            : [];
+
+        return {
+          stopId:
+            String(
+              firstValue(
+                row?.stopId,
+                row?._id,
+                row?.id,
+                `route-${index+1}`
+              )
+            ),
+          type,
+          order:
+            num(
+              firstValue(
+                row?.order,
+                row?.routeOrder,
+                row?.sequence
+              ),
+              index + 1
+            ),
+          address:
+            clean(
+              firstValue(
+                row?.address,
+                row?.fullAddress,
+                row?.stopAddress,
+                row?.location
+              )
+            ),
+          lat,
+          lng,
+          scheduledAt:
+            buildScheduledTime(
+              trip,
+              row
+            ),
+          passengers:
+            passengerRows.map(
+              (p,pIndex)=>({
+                passengerId:
+                  passengerId(
+                    p,
+                    pIndex
+                  ),
+                name:
+                  passengerName(
+                    p,
+                    pIndex
+                  ),
+                phone:
+                  passengerPhone(
+                    p
+                  ),
+                sourceIndex:
+                  pIndex,
+                status:
+                  clean(
+                    p?.status ||
+                    "Scheduled"
+                  )
+              })
+            )
+        };
+      }
+    )
+    .filter(
+      stop =>
+        clean(stop.address) ||
+        validPoint(
+          stop.lat,
+          stop.lng
+        )
+    )
+    .sort(
+      (a,b)=>
+        num(a.order,999999) -
+        num(b.order,999999)
+    );
+}
+
 function buildRouteStops(
   trip
 ){
+
+  const explicitRoute =
+    buildExplicitServerRouteStops(
+      trip
+    );
+
+  if(
+    explicitRoute.length
+  ){
+    return explicitRoute;
+  }
 
   const passengers =
     getPassengers(
@@ -3031,6 +3416,16 @@ function renderExecutionState(){
         setStopStatus(
           "Drive to current stop"
         );
+      }
+
+      if(btnDirections){
+
+        btnDirections.textContent =
+          stop.type === "pickup"
+            ? "Go To Pickup / Directions"
+            : stop.type === "dropoff"
+              ? "Go To Dropoff / Directions"
+              : "Go To Stop / Directions";
       }
 
       show(
