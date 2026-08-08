@@ -277,6 +277,212 @@ function validPoint(lat,lng){
   );
 }
 
+
+/* ================= SAVED ROUTE COORDINATE FALLBACK =================
+   IMPORTANT:
+   The Driver Map still does NOT geocode and does NOT calculate a road route.
+   It only reuses coordinates already saved on the trip by Confirm:
+   - sharedRoutePlan / routePlan
+   - googleRoute / optimizedRoute legs
+=================================================================== */
+
+function routeAddressMatch(a,b){
+  const aKey = normalizeAddressKey(a);
+  const bKey = normalizeAddressKey(b);
+  return Boolean(aKey && bKey && aKey === bKey);
+}
+
+function getSavedRoutePlans(){
+
+  const plans = [];
+
+  if(Array.isArray(tripDoc?.sharedRoutePlan)){
+    plans.push(...tripDoc.sharedRoutePlan);
+  }
+
+  if(Array.isArray(tripDoc?.routePlan)){
+    plans.push(...tripDoc.routePlan);
+  }
+
+  return plans;
+}
+
+function getSavedGoogleLegs(){
+
+  const candidates = [
+    tripDoc?.googleRoute?.legs,
+    tripDoc?.googleRoute?.routes?.[0]?.legs,
+    tripDoc?.optimizedRoute?.legs,
+    tripDoc?.optimizedRoute?.routes?.[0]?.legs
+  ];
+
+  for(const legs of candidates){
+    if(Array.isArray(legs) && legs.length){
+      return legs;
+    }
+  }
+
+  return [];
+}
+
+function savedPointFromTrip(address,type=""){
+
+  const wantedType = lower(type);
+
+  /* 1) Preferred source: saved server route plan */
+  const plans =
+    getSavedRoutePlans()
+      .filter(point=>{
+        if(!routeAddressMatch(point?.address,address)){
+          return false;
+        }
+
+        if(
+          wantedType &&
+          clean(point?.type) &&
+          lower(point.type) !== wantedType
+        ){
+          return false;
+        }
+
+        return true;
+      })
+      .sort((a,b)=>
+        num(a?.order,999999) -
+        num(b?.order,999999)
+      );
+
+  for(const point of plans){
+
+    const lat =
+      num(
+        firstValue(
+          point?.lat,
+          point?.latitude
+        )
+      );
+
+    const lng =
+      num(
+        firstValue(
+          point?.lng,
+          point?.lon,
+          point?.longitude
+        )
+      );
+
+    if(validPoint(lat,lng)){
+      return {lat,lng,source:"saved-route-plan"};
+    }
+  }
+
+  /* 2) Fallback: saved Google route legs */
+  const legs = getSavedGoogleLegs();
+
+  for(const leg of legs){
+
+    const startAddress =
+      firstValue(
+        leg?.startAddress,
+        leg?.start_address
+      );
+
+    const endAddress =
+      firstValue(
+        leg?.endAddress,
+        leg?.end_address
+      );
+
+    if(routeAddressMatch(startAddress,address)){
+
+      const lat =
+        num(
+          firstValue(
+            leg?.startLat,
+            leg?.start_lat,
+            leg?.startLocation?.lat,
+            leg?.start_location?.lat
+          )
+        );
+
+      const lng =
+        num(
+          firstValue(
+            leg?.startLng,
+            leg?.startLon,
+            leg?.start_lng,
+            leg?.startLocation?.lng,
+            leg?.start_location?.lng
+          )
+        );
+
+      if(validPoint(lat,lng)){
+        return {lat,lng,source:"saved-google-leg"};
+      }
+    }
+
+    if(routeAddressMatch(endAddress,address)){
+
+      const lat =
+        num(
+          firstValue(
+            leg?.endLat,
+            leg?.end_lat,
+            leg?.endLocation?.lat,
+            leg?.end_location?.lat
+          )
+        );
+
+      const lng =
+        num(
+          firstValue(
+            leg?.endLng,
+            leg?.endLon,
+            leg?.end_lng,
+            leg?.endLocation?.lng,
+            leg?.end_location?.lng
+          )
+        );
+
+      if(validPoint(lat,lng)){
+        return {lat,lng,source:"saved-google-leg"};
+      }
+    }
+  }
+
+  return null;
+}
+
+function hydrateRouteStopCoordinates(){
+
+  for(const stop of routeStops){
+
+    if(
+      validPoint(
+        stop?.lat,
+        stop?.lng
+      )
+    ){
+      continue;
+    }
+
+    const saved =
+      savedPointFromTrip(
+        stop?.address,
+        stop?.type
+      ) ||
+      savedPointFromTrip(
+        stop?.address
+      );
+
+    if(saved){
+      stop.lat = saved.lat;
+      stop.lng = saved.lng;
+      stop.coordSource = saved.source;
+    }
+  }
+}
+
 function show(el,display="block"){
   if(el) el.style.display = display;
 }
@@ -1262,10 +1468,32 @@ async function ensureStopCoordinates(stop){
     return false;
   }
 
-  return validPoint(
-    stop.lat,
-    stop.lng
-  );
+  if(
+    validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
+    return true;
+  }
+
+  const saved =
+    savedPointFromTrip(
+      stop.address,
+      stop.type
+    ) ||
+    savedPointFromTrip(
+      stop.address
+    );
+
+  if(saved){
+    stop.lat = saved.lat;
+    stop.lng = saved.lng;
+    stop.coordSource = saved.source;
+    return true;
+  }
+
+  return false;
 }
 
 /* ================= ACTIVE PASSENGERS ================= */
@@ -2052,6 +2280,34 @@ function renderExecutionState(){
   hide(scheduledTimeBox);
 
   renderStopHeader();
+
+  /*
+    Old/legacy trips can have coordinates in routePlan/googleRoute even when
+    passenger pickupLat/dropoffLat fields are empty. Reuse them before locking
+    ARRIVED.
+  */
+  if(
+    !validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
+    const saved =
+      savedPointFromTrip(
+        stop.address,
+        stop.type
+      ) ||
+      savedPointFromTrip(
+        stop.address
+      );
+
+    if(saved){
+      stop.lat = saved.lat;
+      stop.lng = saved.lng;
+      stop.coordSource = saved.source;
+      updateStopMarker();
+    }
+  }
 
   const distance =
     currentDistance();
@@ -3221,6 +3477,12 @@ async function initPage(){
       buildRouteStops(
         tripDoc
       );
+
+    /*
+      Restore coordinates from the already-saved server route before the
+      geofence and markers render. No new Google request is made here.
+    */
+    hydrateRouteStopCoordinates();
 
     if(!routeStops.length){
       throw new Error(
