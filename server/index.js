@@ -1720,55 +1720,373 @@ const url =
 
 async function ensureTripCoords(trip) {
 
-  if (!trip) return trip;
+  if(!trip){
+    return trip;
+  }
 
-  const valid = (lat,lng) => {
-    const a = normalizeNumber(lat);
-    const b = normalizeNumber(lng);
+  function coordOk(lat,lng){
+
+    const a =
+      normalizeNumber(lat);
+
+    const b =
+      normalizeNumber(lng);
+
     return (
       a !== null &&
       b !== null &&
-      a >= -90 && a <= 90 &&
-      b >= -180 && b <= 180 &&
+      a >= -90 &&
+      a <= 90 &&
+      b >= -180 &&
+      b <= 180 &&
       !(a === 0 && b === 0)
     );
-  };
+  }
 
-  const addressKey = (v) =>
-    normalizeText(v)
+  function addressKey(v){
+
+    return normalizeText(v)
       .toLowerCase()
       .replace(/[.,#]/g," ")
       .replace(/\s+/g," ")
       .trim();
+  }
 
-  async function resolvePoint(address,lat,lng) {
+  function readLat(v){
 
-    const cleanAddress = normalizeText(address);
-    let finalLat = normalizeNumber(lat);
-    let finalLng = normalizeNumber(lng);
-
-    if (valid(finalLat,finalLng)) {
-      return { lat:finalLat, lng:finalLng };
+    if(v === undefined || v === null){
+      return null;
     }
 
-    if (!cleanAddress) {
-      return { lat:null, lng:null };
+    if(typeof v === "function"){
+      try{
+        return normalizeNumber(v());
+      }catch{
+        return null;
+      }
     }
 
-    const geo = await geocodeAddress(cleanAddress);
+    return normalizeNumber(v);
+  }
 
-    finalLat = normalizeNumber(geo?.lat);
-    finalLng = normalizeNumber(geo?.lng);
+  function readLng(v){
+
+    if(v === undefined || v === null){
+      return null;
+    }
+
+    if(typeof v === "function"){
+      try{
+        return normalizeNumber(v());
+      }catch{
+        return null;
+      }
+    }
+
+    return normalizeNumber(v);
+  }
+
+  function pointFromLocation(location){
+
+    if(!location){
+      return null;
+    }
+
+    const lat =
+      readLat(
+        location.lat ??
+        location.latitude
+      );
+
+    const lng =
+      readLng(
+        location.lng ??
+        location.lon ??
+        location.longitude
+      );
+
+    return coordOk(lat,lng)
+      ? {lat,lng}
+      : null;
+  }
+
+  function getSavedRouteLegs(){
+
+    const candidates = [
+
+      trip?.googleRoute?.legs,
+
+      trip?.googleRoute?.routes?.[0]?.legs,
+
+      trip?.optimizedRoute?.legs,
+
+      trip?.optimizedRoute?.routes?.[0]?.legs
+
+    ];
+
+    for(const rows of candidates){
+
+      if(
+        Array.isArray(rows) &&
+        rows.length
+      ){
+        return rows;
+      }
+    }
+
+    return [];
+  }
+
+  function extractLegPoint(
+    leg,
+    side
+  ){
+
+    if(!leg){
+      return null;
+    }
+
+    const prefix =
+      side === "start"
+        ? "start"
+        : "end";
+
+    const directLat =
+      normalizeNumber(
+        leg?.[`${prefix}Lat`] ??
+        leg?.[`${prefix}_lat`]
+      );
+
+    const directLng =
+      normalizeNumber(
+        leg?.[`${prefix}Lng`] ??
+        leg?.[`${prefix}Lon`] ??
+        leg?.[`${prefix}_lng`]
+      );
+
+    if(
+      coordOk(
+        directLat,
+        directLng
+      )
+    ){
+      return {
+        lat:directLat,
+        lng:directLng
+      };
+    }
+
+    return (
+      pointFromLocation(
+        leg?.[`${prefix}Location`]
+      ) ||
+      pointFromLocation(
+        leg?.[`${prefix}_location`]
+      ) ||
+      pointFromLocation(
+        leg?.[`${prefix}Point`]
+      )
+    );
+  }
+
+  function extractLegAddress(
+    leg,
+    side
+  ){
+
+    const prefix =
+      side === "start"
+        ? "start"
+        : "end";
+
+    return normalizeText(
+      leg?.[`${prefix}Address`] ??
+      leg?.[`${prefix}_address`] ??
+      ""
+    );
+  }
+
+  /*
+    IMPORTANT:
+    First use the saved Google route already stored on the Trip.
+    This costs ZERO new Directions / Geocode requests.
+  */
+  const savedLegs =
+    getSavedRouteLegs();
+
+  const savedCoordMap =
+    new Map();
+
+  if(savedLegs.length){
+
+    savedLegs.forEach(
+      leg=>{
+
+        const startAddress =
+          extractLegAddress(
+            leg,
+            "start"
+          );
+
+        const endAddress =
+          extractLegAddress(
+            leg,
+            "end"
+          );
+
+        const startPoint =
+          extractLegPoint(
+            leg,
+            "start"
+          );
+
+        const endPoint =
+          extractLegPoint(
+            leg,
+            "end"
+          );
+
+        if(
+          startAddress &&
+          startPoint
+        ){
+          savedCoordMap.set(
+            addressKey(startAddress),
+            {
+              address:startAddress,
+              ...startPoint
+            }
+          );
+        }
+
+        if(
+          endAddress &&
+          endPoint
+        ){
+          savedCoordMap.set(
+            addressKey(endAddress),
+            {
+              address:endAddress,
+              ...endPoint
+            }
+          );
+        }
+      }
+    );
+  }
+
+  function findSavedPoint(address){
+
+    const key =
+      addressKey(
+        address
+      );
+
+    if(
+      key &&
+      savedCoordMap.has(key)
+    ){
+      return savedCoordMap.get(key);
+    }
+
+    return null;
+  }
+
+  async function resolvePoint(
+    address,
+    lat,
+    lng
+  ){
+
+    let finalLat =
+      normalizeNumber(lat);
+
+    let finalLng =
+      normalizeNumber(lng);
+
+    if(
+      coordOk(
+        finalLat,
+        finalLng
+      )
+    ){
+      return {
+        lat:finalLat,
+        lng:finalLng,
+        source:"trip"
+      };
+    }
+
+    const saved =
+      findSavedPoint(
+        address
+      );
+
+    if(
+      saved &&
+      coordOk(
+        saved.lat,
+        saved.lng
+      )
+    ){
+      return {
+        lat:saved.lat,
+        lng:saved.lng,
+        source:"saved-route"
+      };
+    }
+
+    /*
+      Last fallback only:
+      server geocodes one time if the Trip has never stored coordinates
+      and no saved route contains them.
+    */
+    const cleanAddress =
+      normalizeText(
+        address
+      );
+
+    if(!cleanAddress){
+      return {
+        lat:null,
+        lng:null,
+        source:"missing"
+      };
+    }
+
+    const geo =
+      await geocodeAddress(
+        cleanAddress
+      );
+
+    finalLat =
+      normalizeNumber(
+        geo?.lat
+      );
+
+    finalLng =
+      normalizeNumber(
+        geo?.lng
+      );
 
     return {
       lat:finalLat,
-      lng:finalLng
+      lng:finalLng,
+      source:
+        coordOk(
+          finalLat,
+          finalLng
+        )
+          ? "server-geocode"
+          : "missing"
     };
   }
 
   let changed = false;
 
-  /* ===== TRIP PICKUP ===== */
+  /* =========================
+     TRIP PICKUP
+  ========================= */
 
   const pickup =
     await resolvePoint(
@@ -1777,17 +2095,26 @@ async function ensureTripCoords(trip) {
       trip.pickupLng
     );
 
-  if (
-    normalizeNumber(trip.pickupLat) !== pickup.lat ||
-    normalizeNumber(trip.pickupLng) !== pickup.lng
-  ) {
+  if(
+    normalizeNumber(
+      trip.pickupLat
+    ) !== pickup.lat ||
+    normalizeNumber(
+      trip.pickupLng
+    ) !== pickup.lng
+  ){
     changed = true;
   }
 
-  trip.pickupLat = pickup.lat;
-  trip.pickupLng = pickup.lng;
+  trip.pickupLat =
+    pickup.lat;
 
-  /* ===== TRIP DROPOFF ===== */
+  trip.pickupLng =
+    pickup.lng;
+
+  /* =========================
+     TRIP DROPOFF
+  ========================= */
 
   const dropoff =
     await resolvePoint(
@@ -1796,98 +2123,151 @@ async function ensureTripCoords(trip) {
       trip.dropoffLng
     );
 
-  if (
-    normalizeNumber(trip.dropoffLat) !== dropoff.lat ||
-    normalizeNumber(trip.dropoffLng) !== dropoff.lng
-  ) {
+  if(
+    normalizeNumber(
+      trip.dropoffLat
+    ) !== dropoff.lat ||
+    normalizeNumber(
+      trip.dropoffLng
+    ) !== dropoff.lng
+  ){
     changed = true;
   }
 
-  trip.dropoffLat = dropoff.lat;
-  trip.dropoffLng = dropoff.lng;
+  trip.dropoffLat =
+    dropoff.lat;
 
-  /* ===== NORMAL STOPS ===== */
+  trip.dropoffLng =
+    dropoff.lng;
+
+  /* =========================
+     NORMAL STOPS
+  ========================= */
 
   const stops =
-    Array.isArray(trip.stops)
-      ? trip.stops.map(normalizeText).filter(Boolean)
+    Array.isArray(
+      trip.stops
+    )
+      ? trip.stops
+          .map(normalizeText)
+          .filter(Boolean)
       : [];
 
   const oldStopCoords =
-    Array.isArray(trip.stopCoords)
+    Array.isArray(
+      trip.stopCoords
+    )
       ? trip.stopCoords
       : [];
 
-  const byAddress = new Map();
+  const oldByAddress =
+    new Map();
 
-  oldStopCoords.forEach(row => {
-    const key = addressKey(row?.address);
-    if (key) byAddress.set(key,row);
-  });
+  oldStopCoords.forEach(
+    row=>{
+
+      const key =
+        addressKey(
+          row?.address
+        );
+
+      if(key){
+        oldByAddress.set(
+          key,
+          row
+        );
+      }
+    }
+  );
 
   const nextStopCoords = [];
 
-  for (let i=0; i<stops.length; i++) {
+  for(
+    let i=0;
+    i<stops.length;
+    i++
+  ){
 
-    const address = stops[i];
+    const stopAddress =
+      stops[i];
 
     const old =
-      byAddress.get(addressKey(address)) ||
+      oldByAddress.get(
+        addressKey(
+          stopAddress
+        )
+      ) ||
       oldStopCoords[i] ||
       {};
 
     const point =
       await resolvePoint(
-        address,
+        stopAddress,
         old?.lat,
         old?.lng
       );
 
     nextStopCoords.push({
-      address,
+      address:stopAddress,
       lat:point.lat,
       lng:point.lng
     });
   }
 
-  if (
-    JSON.stringify(parseStopCoords(oldStopCoords)) !==
-    JSON.stringify(nextStopCoords)
-  ) {
+  if(
+    JSON.stringify(
+      parseStopCoords(
+        oldStopCoords
+      )
+    ) !==
+    JSON.stringify(
+      nextStopCoords
+    )
+  ){
     changed = true;
   }
 
-  trip.stopCoords = nextStopCoords;
+  trip.stopCoords =
+    nextStopCoords;
 
-  /* ===== SHARED PASSENGERS ===== */
+  /* =========================
+     SHARED PASSENGERS
+  ========================= */
 
-  if (
-    Array.isArray(trip.passengers) &&
+  if(
+    Array.isArray(
+      trip.passengers
+    ) &&
     trip.passengers.length
-  ) {
+  ){
 
     const nextPassengers = [];
 
-    for (let i=0; i<trip.passengers.length; i++) {
+    for(
+      let i=0;
+      i<trip.passengers.length;
+      i++
+    ){
 
-      const source = trip.passengers[i];
+      const source =
+        trip.passengers[i];
 
       const p =
         source?.toObject
           ? source.toObject()
-          : { ...source };
+          : {
+              ...source
+            };
 
       const passengerPickup =
         normalizeText(
           p.pickup ||
-          p.pickupAddress ||
           trip.pickup
         );
 
       const passengerDropoff =
         normalizeText(
           p.dropoff ||
-          p.dropoffAddress ||
           trip.dropoff
         );
 
@@ -1905,56 +2285,95 @@ async function ensureTripCoords(trip) {
           p.dropoffLng
         );
 
-      if (
-        normalizeNumber(p.pickupLat) !== pu.lat ||
-        normalizeNumber(p.pickupLng) !== pu.lng ||
-        normalizeNumber(p.dropoffLat) !== dr.lat ||
-        normalizeNumber(p.dropoffLng) !== dr.lng
-      ) {
+      if(
+        normalizeNumber(
+          p.pickupLat
+        ) !== pu.lat ||
+        normalizeNumber(
+          p.pickupLng
+        ) !== pu.lng ||
+        normalizeNumber(
+          p.dropoffLat
+        ) !== dr.lat ||
+        normalizeNumber(
+          p.dropoffLng
+        ) !== dr.lng
+      ){
         changed = true;
       }
 
       nextPassengers.push({
         ...p,
 
-        pickup:passengerPickup,
-        pickupLat:pu.lat,
-        pickupLng:pu.lng,
+        pickup:
+          passengerPickup,
 
-        dropoff:passengerDropoff,
-        dropoffLat:dr.lat,
-        dropoffLng:dr.lng
+        pickupLat:
+          pu.lat,
+
+        pickupLng:
+          pu.lng,
+
+        dropoff:
+          passengerDropoff,
+
+        dropoffLat:
+          dr.lat,
+
+        dropoffLng:
+          dr.lng
       });
     }
 
-    trip.passengers = nextPassengers;
+    trip.passengers =
+      nextPassengers;
   }
 
-  /* ===== SAVE ON TRIP ===== */
+  /* =========================
+     SAVE REPAIRED COORDS
+  ========================= */
 
-  if (changed && trip._id) {
+  if(
+    changed &&
+    trip._id
+  ){
 
-    try {
+    try{
 
       await Trip.findByIdAndUpdate(
         trip._id,
         {
           $set:{
-            pickupLat:trip.pickupLat,
-            pickupLng:trip.pickupLng,
-            dropoffLat:trip.dropoffLat,
-            dropoffLng:trip.dropoffLng,
-            stopCoords:trip.stopCoords || [],
-            passengers:trip.passengers || []
+
+            pickupLat:
+              trip.pickupLat,
+
+            pickupLng:
+              trip.pickupLng,
+
+            dropoffLat:
+              trip.dropoffLat,
+
+            dropoffLng:
+              trip.dropoffLng,
+
+            stopCoords:
+              trip.stopCoords ||
+              [],
+
+            passengers:
+              trip.passengers ||
+              []
           }
         }
       );
 
-    } catch (err) {
+    }catch(err){
 
       console.log(
         "Trip coord save error:",
-        err?.message || err
+        err?.message ||
+        err
       );
     }
   }
@@ -1963,10 +2382,10 @@ async function ensureTripCoords(trip) {
 }
 
 /*
-  Makes the existing central coordinate engine available to dispatchRoutes.
-  Driver Map itself does NOT geocode and does NOT request internal directions.
+  Dispatch routes can call the same central coordinate engine.
 */
-global.ensureTripCoords = ensureTripCoords;
+global.ensureTripCoords =
+  ensureTripCoords;
 
 async function ensureDriverScheduleCoords(driverId, scheduleRow) {
   const lat = normalizeNumber(scheduleRow?.lat);
@@ -5084,17 +5503,45 @@ else {
 ========================= */
 app.get("/api/trips/:id", async (req, res) => {
   try {
-    const trip = await Trip.findById(req.params.id);
 
-    if (!trip) {
-      return res.status(404).json({ message: "Trip not found" });
+    const trip =
+      await Trip.findById(
+        req.params.id
+      );
+
+    if(!trip){
+
+      return res.status(404).json({
+        message:"Trip not found"
+      });
     }
 
-    res.json(trip);
+    /*
+      Repair an old trip once before Driver Map receives it.
+      Saved route coordinates are reused first, so normally this creates
+      zero new Google requests.
+    */
+    await ensureTripCoords(
+      trip
+    );
 
-  } catch (err) {
+    const freshTrip =
+      await Trip.findById(
+        req.params.id
+      );
+
+    res.json(
+      freshTrip ||
+      trip
+    );
+
+  }catch(err){
+
     console.log(err);
-    res.status(500).json({ message: "Error loading trip" });
+
+    res.status(500).json({
+      message:"Error loading trip"
+    });
   }
 });
 
