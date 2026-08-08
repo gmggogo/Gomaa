@@ -154,6 +154,181 @@ function pickupPoint(trip){
     trip.pickupLng ?? trip.pickupLongitude
   );
 }
+
+function dispatchCoordOk(lat,lng){
+
+  lat = Number(lat);
+  lng = Number(lng);
+
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180 &&
+    !(lat === 0 && lng === 0)
+  );
+}
+
+function dispatchCoordinateProblems(trip){
+
+  const problems = [];
+
+  if (isShared(trip)) {
+
+    const passengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+        : [];
+
+    passengers.forEach((p,index)=>{
+
+      const status =
+        clean(p?.status)
+          .toUpperCase()
+          .replace(/[\s_-]+/g,"");
+
+      if (
+        status.includes("CANCEL") ||
+        status.includes("NOSHOW")
+      ) {
+        return;
+      }
+
+      if (
+        !dispatchCoordOk(
+          p?.pickupLat,
+          p?.pickupLng
+        )
+      ) {
+        problems.push(
+          `Passenger ${index+1} pickup`
+        );
+      }
+
+      if (
+        !dispatchCoordOk(
+          p?.dropoffLat,
+          p?.dropoffLng
+        )
+      ) {
+        problems.push(
+          `Passenger ${index+1} dropoff`
+        );
+      }
+    });
+
+    return problems;
+  }
+
+  if (
+    !dispatchCoordOk(
+      trip.pickupLat,
+      trip.pickupLng
+    )
+  ) {
+    problems.push("pickup");
+  }
+
+  const stops =
+    Array.isArray(trip.stops)
+      ? trip.stops
+      : [];
+
+  const stopCoords =
+    Array.isArray(trip.stopCoords)
+      ? trip.stopCoords
+      : [];
+
+  stops.forEach((address,index)=>{
+
+    const row =
+      stopCoords[index];
+
+    if (
+      !row ||
+      !dispatchCoordOk(
+        row.lat,
+        row.lng
+      )
+    ) {
+      problems.push(
+        `stop ${index+1}`
+      );
+    }
+  });
+
+  if (
+    !dispatchCoordOk(
+      trip.dropoffLat,
+      trip.dropoffLng
+    )
+  ) {
+    problems.push("dropoff");
+  }
+
+  return problems;
+}
+
+async function prepareTripsForDriver(Trip,ids){
+
+  if (
+    typeof global.ensureTripCoords !==
+    "function"
+  ) {
+    throw new Error(
+      "Central trip coordinate engine is not ready"
+    );
+  }
+
+  const trips =
+    await Trip.find({
+      _id:{ $in:ids }
+    });
+
+  const failed = [];
+
+  for (const trip of trips) {
+
+    try {
+
+      await global.ensureTripCoords(
+        trip
+      );
+
+      const missing =
+        dispatchCoordinateProblems(
+          trip
+        );
+
+      if (missing.length) {
+
+        failed.push({
+          tripId:String(trip._id),
+          tripNumber:
+            trip.tripNumber || "",
+          missing
+        });
+      }
+
+    } catch (err) {
+
+      failed.push({
+        tripId:String(trip._id),
+        tripNumber:
+          trip.tripNumber || "",
+        missing:[
+          "coordinate preparation failed"
+        ],
+        error:
+          err?.message ||
+          String(err)
+      });
+    }
+  }
+
+  return failed;
+}
+
 function miles(a,b){
   if(!a || !b) return null;
   const rad = x=>x*Math.PI/180;
@@ -416,6 +591,31 @@ router.post("/auto-assign",async(req,res)=>{
     const results = [];
 
     for(const trip of trips){
+
+      try {
+
+        if (
+          typeof global.ensureTripCoords ===
+          "function"
+        ) {
+          await global.ensureTripCoords(
+            trip
+          );
+        }
+
+      } catch (err) {
+
+        results.push({
+          tripId:trip._id,
+          assigned:false,
+          reason:
+            "Trip coordinate preparation failed: " +
+            (err?.message || err)
+        });
+
+        continue;
+      }
+
       if(lockedIds.has(String(trip._id))){
         results.push({
           tripId:trip._id,
@@ -511,6 +711,29 @@ router.patch("/send",async(req,res)=>{
     if(!ids.length){
       return res.status(400).json({success:false,message:"No trips selected"});
     }
+    const Trip = TripModel();
+
+    /*
+      FINAL GATE BEFORE DRIVER:
+      Any trip source must have pickup / stops / dropoff coordinates.
+      Shared trips must have pickup/dropoff coordinates for each active passenger.
+    */
+    const coordinateFailures =
+      await prepareTripsForDriver(
+        Trip,
+        ids
+      );
+
+    if (coordinateFailures.length) {
+
+      return res.status(400).json({
+        success:false,
+        message:
+          "Trip coordinates are not ready for Driver Map",
+        coordinateFailures
+      });
+    }
+
     const assignments = await DispatchAssignment.find({
       tripId:{$in:ids}
     }).lean();

@@ -1719,56 +1719,254 @@ const url =
 }
 
 async function ensureTripCoords(trip) {
-  const pickupLat = normalizeNumber(trip.pickupLat);
-  const pickupLng = normalizeNumber(trip.pickupLng);
-  const dropoffLat = normalizeNumber(trip.dropoffLat);
-  const dropoffLng = normalizeNumber(trip.dropoffLng);
+
+  if (!trip) return trip;
+
+  const valid = (lat,lng) => {
+    const a = normalizeNumber(lat);
+    const b = normalizeNumber(lng);
+    return (
+      a !== null &&
+      b !== null &&
+      a >= -90 && a <= 90 &&
+      b >= -180 && b <= 180 &&
+      !(a === 0 && b === 0)
+    );
+  };
+
+  const addressKey = (v) =>
+    normalizeText(v)
+      .toLowerCase()
+      .replace(/[.,#]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  async function resolvePoint(address,lat,lng) {
+
+    const cleanAddress = normalizeText(address);
+    let finalLat = normalizeNumber(lat);
+    let finalLng = normalizeNumber(lng);
+
+    if (valid(finalLat,finalLng)) {
+      return { lat:finalLat, lng:finalLng };
+    }
+
+    if (!cleanAddress) {
+      return { lat:null, lng:null };
+    }
+
+    const geo = await geocodeAddress(cleanAddress);
+
+    finalLat = normalizeNumber(geo?.lat);
+    finalLng = normalizeNumber(geo?.lng);
+
+    return {
+      lat:finalLat,
+      lng:finalLng
+    };
+  }
 
   let changed = false;
 
-  let finalPickupLat = pickupLat;
-  let finalPickupLng = pickupLng;
-  let finalDropoffLat = dropoffLat;
-  let finalDropoffLng = dropoffLng;
+  /* ===== TRIP PICKUP ===== */
 
-  if (finalPickupLat === null || finalPickupLng === null) {
-    const geo = await geocodeAddress(trip.pickup);
-    if (geo.lat !== null && geo.lng !== null) {
-      finalPickupLat = geo.lat;
-      finalPickupLng = geo.lng;
-      changed = true;
-    }
+  const pickup =
+    await resolvePoint(
+      trip.pickup,
+      trip.pickupLat,
+      trip.pickupLng
+    );
+
+  if (
+    normalizeNumber(trip.pickupLat) !== pickup.lat ||
+    normalizeNumber(trip.pickupLng) !== pickup.lng
+  ) {
+    changed = true;
   }
 
-  if (finalDropoffLat === null || finalDropoffLng === null) {
-    const geo = await geocodeAddress(trip.dropoff);
-    if (geo.lat !== null && geo.lng !== null) {
-      finalDropoffLat = geo.lat;
-      finalDropoffLng = geo.lng;
-      changed = true;
-    }
+  trip.pickupLat = pickup.lat;
+  trip.pickupLng = pickup.lng;
+
+  /* ===== TRIP DROPOFF ===== */
+
+  const dropoff =
+    await resolvePoint(
+      trip.dropoff,
+      trip.dropoffLat,
+      trip.dropoffLng
+    );
+
+  if (
+    normalizeNumber(trip.dropoffLat) !== dropoff.lat ||
+    normalizeNumber(trip.dropoffLng) !== dropoff.lng
+  ) {
+    changed = true;
   }
 
-  trip.pickupLat = finalPickupLat;
-  trip.pickupLng = finalPickupLng;
-  trip.dropoffLat = finalDropoffLat;
-  trip.dropoffLng = finalDropoffLng;
+  trip.dropoffLat = dropoff.lat;
+  trip.dropoffLng = dropoff.lng;
+
+  /* ===== NORMAL STOPS ===== */
+
+  const stops =
+    Array.isArray(trip.stops)
+      ? trip.stops.map(normalizeText).filter(Boolean)
+      : [];
+
+  const oldStopCoords =
+    Array.isArray(trip.stopCoords)
+      ? trip.stopCoords
+      : [];
+
+  const byAddress = new Map();
+
+  oldStopCoords.forEach(row => {
+    const key = addressKey(row?.address);
+    if (key) byAddress.set(key,row);
+  });
+
+  const nextStopCoords = [];
+
+  for (let i=0; i<stops.length; i++) {
+
+    const address = stops[i];
+
+    const old =
+      byAddress.get(addressKey(address)) ||
+      oldStopCoords[i] ||
+      {};
+
+    const point =
+      await resolvePoint(
+        address,
+        old?.lat,
+        old?.lng
+      );
+
+    nextStopCoords.push({
+      address,
+      lat:point.lat,
+      lng:point.lng
+    });
+  }
+
+  if (
+    JSON.stringify(parseStopCoords(oldStopCoords)) !==
+    JSON.stringify(nextStopCoords)
+  ) {
+    changed = true;
+  }
+
+  trip.stopCoords = nextStopCoords;
+
+  /* ===== SHARED PASSENGERS ===== */
+
+  if (
+    Array.isArray(trip.passengers) &&
+    trip.passengers.length
+  ) {
+
+    const nextPassengers = [];
+
+    for (let i=0; i<trip.passengers.length; i++) {
+
+      const source = trip.passengers[i];
+
+      const p =
+        source?.toObject
+          ? source.toObject()
+          : { ...source };
+
+      const passengerPickup =
+        normalizeText(
+          p.pickup ||
+          p.pickupAddress ||
+          trip.pickup
+        );
+
+      const passengerDropoff =
+        normalizeText(
+          p.dropoff ||
+          p.dropoffAddress ||
+          trip.dropoff
+        );
+
+      const pu =
+        await resolvePoint(
+          passengerPickup,
+          p.pickupLat,
+          p.pickupLng
+        );
+
+      const dr =
+        await resolvePoint(
+          passengerDropoff,
+          p.dropoffLat,
+          p.dropoffLng
+        );
+
+      if (
+        normalizeNumber(p.pickupLat) !== pu.lat ||
+        normalizeNumber(p.pickupLng) !== pu.lng ||
+        normalizeNumber(p.dropoffLat) !== dr.lat ||
+        normalizeNumber(p.dropoffLng) !== dr.lng
+      ) {
+        changed = true;
+      }
+
+      nextPassengers.push({
+        ...p,
+
+        pickup:passengerPickup,
+        pickupLat:pu.lat,
+        pickupLng:pu.lng,
+
+        dropoff:passengerDropoff,
+        dropoffLat:dr.lat,
+        dropoffLng:dr.lng
+      });
+    }
+
+    trip.passengers = nextPassengers;
+  }
+
+  /* ===== SAVE ON TRIP ===== */
 
   if (changed && trip._id) {
+
     try {
-      await Trip.findByIdAndUpdate(trip._id, {
-        pickupLat: finalPickupLat,
-        pickupLng: finalPickupLng,
-        dropoffLat: finalDropoffLat,
-        dropoffLng: finalDropoffLng
-      });
+
+      await Trip.findByIdAndUpdate(
+        trip._id,
+        {
+          $set:{
+            pickupLat:trip.pickupLat,
+            pickupLng:trip.pickupLng,
+            dropoffLat:trip.dropoffLat,
+            dropoffLng:trip.dropoffLng,
+            stopCoords:trip.stopCoords || [],
+            passengers:trip.passengers || []
+          }
+        }
+      );
+
     } catch (err) {
-      console.log("Trip coord save error:", err?.message || err);
+
+      console.log(
+        "Trip coord save error:",
+        err?.message || err
+      );
     }
   }
 
   return trip;
 }
+
+/*
+  Makes the existing central coordinate engine available to dispatchRoutes.
+  Driver Map itself does NOT geocode and does NOT request internal directions.
+*/
+global.ensureTripCoords = ensureTripCoords;
 
 async function ensureDriverScheduleCoords(driverId, scheduleRow) {
   const lat = normalizeNumber(scheduleRow?.lat);
