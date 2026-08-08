@@ -1793,3 +1793,50 @@ body.driver-dashboard-page{
     margin-bottom:9px !important;
   }
 }
+
+
+/* =========================================
+   DASHBOARD HEADER SAFETY FIX
+========================================= */
+
+.driver-identity-header > .driver-avatar{
+  overflow:hidden !important;
+}
+
+.driver-identity-header > .driver-avatar svg{
+  display:block !important;
+  max-width:31px !important;
+  max-height:31px !important;
+}
+
+.profile-logo-standalone.clean-logo{
+  min-height:74px !important;
+}
+
+.profile-logo-standalone.clean-logo img.app-logo{
+  display:block !important;
+  width:155px !important;
+  max-width:44vw !important;
+  max-height:105px !important;
+  height:auto !important;
+  object-fit:contain !important;
+  margin:0 auto !important;
+}
+
+/* Branding may replace the image source; never allow the logo to become an app-icon-sized tile. */
+.dashboard-header-clean img{
+  border-radius:0 !important;
+}
+
+@media(max-width:390px){
+  .driver-identity-header > .driver-avatar svg{
+    max-width:27px !important;
+    max-height:27px !important;
+  }
+
+  .profile-logo-standalone.clean-logo img.app-logo{
+    width:138px !important;
+    max-width:45vw !important;
+    max-height:92px !important;
+  }
+}
