@@ -264,6 +264,83 @@ function normalizeAddressKey(v){
     .trim();
 }
 
+function findSavedRoutePoint(address,type){
+
+  if(!tripDoc){
+    return null;
+  }
+
+  const wantedAddress =
+    normalizeAddressKey(
+      address
+    );
+
+  const wantedType =
+    clean(type)
+      .toLowerCase();
+
+  if(!wantedAddress){
+    return null;
+  }
+
+  const plans = [
+    tripDoc.sharedRoutePlan,
+    tripDoc.routePlan
+  ];
+
+  for(const plan of plans){
+
+    if(!Array.isArray(plan)){
+      continue;
+    }
+
+    const found =
+      plan.find(point=>{
+
+        const pointAddress =
+          normalizeAddressKey(
+            point?.address
+          );
+
+        if(
+          pointAddress !==
+          wantedAddress
+        ){
+          return false;
+        }
+
+        const pointType =
+          clean(
+            point?.type
+          )
+          .toLowerCase();
+
+        if(
+          wantedType &&
+          pointType &&
+          pointType !==
+          wantedType
+        ){
+          return false;
+        }
+
+        return validPoint(
+          Number(point?.lat),
+          Number(point?.lng)
+        );
+      });
+
+    if(found){
+      return {
+        lat:Number(found.lat),
+        lng:Number(found.lng)
+      };
+    }
+  }
+
+  return null;
+}
+
 function validPoint(lat,lng){
 
   return (
@@ -275,212 +352,6 @@ function validPoint(lat,lng){
     lng <= 180 &&
     !(lat === 0 && lng === 0)
   );
-}
-
-
-/* ================= SAVED ROUTE COORDINATE FALLBACK =================
-   IMPORTANT:
-   The Driver Map still does NOT geocode and does NOT calculate a road route.
-   It only reuses coordinates already saved on the trip by Confirm:
-   - sharedRoutePlan / routePlan
-   - googleRoute / optimizedRoute legs
-=================================================================== */
-
-function routeAddressMatch(a,b){
-  const aKey = normalizeAddressKey(a);
-  const bKey = normalizeAddressKey(b);
-  return Boolean(aKey && bKey && aKey === bKey);
-}
-
-function getSavedRoutePlans(){
-
-  const plans = [];
-
-  if(Array.isArray(tripDoc?.sharedRoutePlan)){
-    plans.push(...tripDoc.sharedRoutePlan);
-  }
-
-  if(Array.isArray(tripDoc?.routePlan)){
-    plans.push(...tripDoc.routePlan);
-  }
-
-  return plans;
-}
-
-function getSavedGoogleLegs(){
-
-  const candidates = [
-    tripDoc?.googleRoute?.legs,
-    tripDoc?.googleRoute?.routes?.[0]?.legs,
-    tripDoc?.optimizedRoute?.legs,
-    tripDoc?.optimizedRoute?.routes?.[0]?.legs
-  ];
-
-  for(const legs of candidates){
-    if(Array.isArray(legs) && legs.length){
-      return legs;
-    }
-  }
-
-  return [];
-}
-
-function savedPointFromTrip(address,type=""){
-
-  const wantedType = lower(type);
-
-  /* 1) Preferred source: saved server route plan */
-  const plans =
-    getSavedRoutePlans()
-      .filter(point=>{
-        if(!routeAddressMatch(point?.address,address)){
-          return false;
-        }
-
-        if(
-          wantedType &&
-          clean(point?.type) &&
-          lower(point.type) !== wantedType
-        ){
-          return false;
-        }
-
-        return true;
-      })
-      .sort((a,b)=>
-        num(a?.order,999999) -
-        num(b?.order,999999)
-      );
-
-  for(const point of plans){
-
-    const lat =
-      num(
-        firstValue(
-          point?.lat,
-          point?.latitude
-        )
-      );
-
-    const lng =
-      num(
-        firstValue(
-          point?.lng,
-          point?.lon,
-          point?.longitude
-        )
-      );
-
-    if(validPoint(lat,lng)){
-      return {lat,lng,source:"saved-route-plan"};
-    }
-  }
-
-  /* 2) Fallback: saved Google route legs */
-  const legs = getSavedGoogleLegs();
-
-  for(const leg of legs){
-
-    const startAddress =
-      firstValue(
-        leg?.startAddress,
-        leg?.start_address
-      );
-
-    const endAddress =
-      firstValue(
-        leg?.endAddress,
-        leg?.end_address
-      );
-
-    if(routeAddressMatch(startAddress,address)){
-
-      const lat =
-        num(
-          firstValue(
-            leg?.startLat,
-            leg?.start_lat,
-            leg?.startLocation?.lat,
-            leg?.start_location?.lat
-          )
-        );
-
-      const lng =
-        num(
-          firstValue(
-            leg?.startLng,
-            leg?.startLon,
-            leg?.start_lng,
-            leg?.startLocation?.lng,
-            leg?.start_location?.lng
-          )
-        );
-
-      if(validPoint(lat,lng)){
-        return {lat,lng,source:"saved-google-leg"};
-      }
-    }
-
-    if(routeAddressMatch(endAddress,address)){
-
-      const lat =
-        num(
-          firstValue(
-            leg?.endLat,
-            leg?.end_lat,
-            leg?.endLocation?.lat,
-            leg?.end_location?.lat
-          )
-        );
-
-      const lng =
-        num(
-          firstValue(
-            leg?.endLng,
-            leg?.endLon,
-            leg?.end_lng,
-            leg?.endLocation?.lng,
-            leg?.end_location?.lng
-          )
-        );
-
-      if(validPoint(lat,lng)){
-        return {lat,lng,source:"saved-google-leg"};
-      }
-    }
-  }
-
-  return null;
-}
-
-function hydrateRouteStopCoordinates(){
-
-  for(const stop of routeStops){
-
-    if(
-      validPoint(
-        stop?.lat,
-        stop?.lng
-      )
-    ){
-      continue;
-    }
-
-    const saved =
-      savedPointFromTrip(
-        stop?.address,
-        stop?.type
-      ) ||
-      savedPointFromTrip(
-        stop?.address
-      );
-
-    if(saved){
-      stop.lat = saved.lat;
-      stop.lng = saved.lng;
-      stop.coordSource = saved.source;
-    }
-  }
 }
 
 function show(el,display="block"){
@@ -1477,19 +1348,47 @@ async function ensureStopCoordinates(stop){
     return true;
   }
 
+  /*
+    First fallback:
+    use the already-saved server route plan.
+    This makes ZERO new Google requests.
+  */
   const saved =
-    savedPointFromTrip(
+    findSavedRoutePoint(
       stop.address,
       stop.type
-    ) ||
-    savedPointFromTrip(
-      stop.address
     );
 
   if(saved){
-    stop.lat = saved.lat;
-    stop.lng = saved.lng;
-    stop.coordSource = saved.source;
+
+    stop.lat =
+      saved.lat;
+
+    stop.lng =
+      saved.lng;
+
+    return true;
+  }
+
+  /*
+    Second fallback:
+    same saved address regardless of route type.
+    Useful for older saved route plans.
+  */
+  const anySaved =
+    findSavedRoutePoint(
+      stop.address,
+      ""
+    );
+
+  if(anySaved){
+
+    stop.lat =
+      anySaved.lat;
+
+    stop.lng =
+      anySaved.lng;
+
     return true;
   }
 
@@ -2280,34 +2179,6 @@ function renderExecutionState(){
   hide(scheduledTimeBox);
 
   renderStopHeader();
-
-  /*
-    Old/legacy trips can have coordinates in routePlan/googleRoute even when
-    passenger pickupLat/dropoffLat fields are empty. Reuse them before locking
-    ARRIVED.
-  */
-  if(
-    !validPoint(
-      stop.lat,
-      stop.lng
-    )
-  ){
-    const saved =
-      savedPointFromTrip(
-        stop.address,
-        stop.type
-      ) ||
-      savedPointFromTrip(
-        stop.address
-      );
-
-    if(saved){
-      stop.lat = saved.lat;
-      stop.lng = saved.lng;
-      stop.coordSource = saved.source;
-      updateStopMarker();
-    }
-  }
 
   const distance =
     currentDistance();
@@ -3269,7 +3140,6 @@ recenterBtn
 
       userMovedMap = false;
       fitMap();
-      fitMap();
     }
   );
 
@@ -3478,11 +3348,11 @@ async function initPage(){
         tripDoc
       );
 
-    /*
-      Restore coordinates from the already-saved server route before the
-      geofence and markers render. No new Google request is made here.
-    */
-    hydrateRouteStopCoordinates();
+    for(const stop of routeStops){
+      await ensureStopCoordinates(
+        stop
+      );
+    }
 
     if(!routeStops.length){
       throw new Error(
