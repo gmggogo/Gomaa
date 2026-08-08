@@ -7,21 +7,47 @@
 
 <link rel="stylesheet" href="driver.css">
 
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+>
+
 <style>
 :root{
-  --navy:#03152f;
-  --navy2:#08234a;
+  --bg:#06152d;
+  --panel:#071d3d;
+  --panel2:#0a284f;
+  --text:#ffffff;
+  --muted:#93a4ba;
   --blue:#2f7df6;
-  --green:#22c55e;
-  --red:#ef4444;
-  --yellow:#facc15;
-  --purple:#9d63ff;
-  --text:#fff;
-  --muted:#94a3b8;
+  --green:#1db954;
+  --red:#d94a4a;
+  --gold:#d4a51d;
+  --yellow:#ffd43b;
 }
 
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#07162f;color:#fff}
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html,
+body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+}
+
+button,
+textarea{
+  font:inherit;
+}
 
 .map-page{
   height:100dvh;
@@ -30,44 +56,59 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   overflow:hidden;
 }
 
+/* ================= HEADER ================= */
+
 .map-top{
   flex:0 0 auto;
   padding:max(10px,env(safe-area-inset-top)) 12px 9px;
-  background:linear-gradient(180deg,rgba(2,6,23,.98),rgba(3,21,47,.94));
+  z-index:30;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(2,9,24,.99),
+      rgba(4,24,51,.96)
+    );
   border-bottom:1px solid rgba(255,255,255,.08);
-  z-index:20;
 }
 
-.trip-head{
+.top-line{
   display:grid;
-  grid-template-columns:1fr auto;
-  gap:10px;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
   align-items:center;
 }
 
-.trip-head-left{min-width:0}
-.trip-head-label{
-  color:#8696ac;
+.top-label{
+  color:#8293aa;
   font-size:8px;
   font-weight:900;
   letter-spacing:1px;
   text-transform:uppercase;
 }
+
 #navText{
   margin-top:3px;
   color:#fff;
   font-size:17px;
+  line-height:1.15;
   font-weight:900;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.gps-badge{
-  padding:7px 10px;
+
+#gspWrap{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+
+#gpsBadge{
+  padding:7px 9px;
   border-radius:999px;
-  color:#8ff0ad;
+  color:#92f2ad;
   background:rgba(34,197,94,.11);
-  border:1px solid rgba(74,222,128,.25);
+  border:1px solid rgba(74,222,128,.22);
   font-size:9px;
   font-weight:900;
 }
@@ -76,7 +117,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   margin-top:8px;
   padding:10px;
   border-radius:17px;
-  background:rgba(8,35,74,.90);
+  background:rgba(9,37,77,.92);
   border:1px solid rgba(255,255,255,.08);
 }
 
@@ -86,26 +127,34 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   gap:8px;
   align-items:center;
 }
+
 .stop-type{
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
   padding:5px 8px;
   border-radius:999px;
-  color:#7df0a3;
+  color:#82ef9e;
   background:rgba(34,197,94,.12);
+  border:1px solid rgba(34,197,94,.16);
   font-size:9px;
   font-weight:900;
-  text-transform:uppercase;
+  letter-spacing:.5px;
 }
+
 .stop-type.dropoff{
   color:#ff9d9d;
   background:rgba(239,68,68,.12);
+  border-color:rgba(239,68,68,.16);
 }
-.stop-progress{
-  color:#9fb0c5;
+
+#stopProgress{
+  color:#9db0c7;
   font-size:9px;
   font-weight:800;
 }
 
-.stop-address{
+#currentStopAddress{
   margin-top:7px;
   color:#fff;
   font-size:13px;
@@ -113,35 +162,46 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   font-weight:800;
 }
 
-.passenger-strip{
+#currentPassengers{
   margin-top:8px;
   display:flex;
   gap:6px;
   overflow-x:auto;
   scrollbar-width:none;
 }
-.passenger-strip::-webkit-scrollbar{display:none}
+
+#currentPassengers::-webkit-scrollbar{
+  display:none;
+}
+
 .passenger-chip{
   flex:0 0 auto;
-  max-width:170px;
+  min-width:112px;
+  max-width:175px;
   padding:7px 9px;
   border-radius:12px;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.07);
 }
+
 .passenger-chip strong{
   display:block;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  font-size:10px;
 }
+
 .passenger-chip span{
   display:block;
   margin-top:2px;
   color:#8fa0b7;
   font-size:8px;
 }
+
+/* ================= REAL MAP ================= */
 
 .map-wrap{
   position:relative;
@@ -153,25 +213,29 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
 #map{
   position:absolute;
   inset:0;
-  background:
-    linear-gradient(rgba(234,240,245,.72),rgba(234,240,245,.72)),
-    url("assets/map-background.png") center/cover no-repeat;
+  z-index:1;
+  background:#dbe4e9;
 }
 
-.map-note{
+.leaflet-container{
+  font-family:inherit;
+}
+
+.map-source-note{
   position:absolute;
-  top:10px;
+  top:9px;
   left:50%;
   transform:translateX(-50%);
+  z-index:500;
   max-width:88%;
   padding:6px 9px;
   border-radius:999px;
-  color:#53657a;
+  color:#52657c;
   background:rgba(255,255,255,.90);
-  border:1px solid rgba(55,83,112,.13);
+  border:1px solid rgba(50,72,98,.12);
   font-size:8px;
   font-weight:800;
-  z-index:5;
+  text-align:center;
   pointer-events:none;
 }
 
@@ -179,34 +243,52 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   position:absolute;
   right:12px;
   bottom:12px;
+  z-index:600;
   width:44px;
   height:44px;
   border:0;
   border-radius:50%;
-  background:#061a38;
   color:#fff;
-  font-size:18px;
-  box-shadow:0 6px 16px rgba(0,0,0,.24);
-  z-index:6;
+  background:#061a38;
+  font-size:19px;
+  font-weight:900;
+  box-shadow:0 7px 18px rgba(0,0,0,.26);
 }
 
+/* ================= ACTION PANEL ================= */
+
 .action-panel{
+  position:relative;
   flex:0 0 auto;
   padding:9px 12px calc(94px + env(safe-area-inset-bottom));
-  background:linear-gradient(180deg,rgba(3,21,47,.97),rgba(2,13,31,.99));
+  background:
+    linear-gradient(
+      180deg,
+      rgba(4,24,51,.98),
+      rgba(2,12,28,.99)
+    );
   border-top:1px solid rgba(255,255,255,.08);
+  z-index:25;
 }
 
 .action-info{
   display:grid;
-  grid-template-columns:1fr auto;
+  grid-template-columns:minmax(0,1fr) auto;
   gap:8px;
   align-items:center;
   margin-bottom:7px;
 }
 
+#stopStatusText{
+  min-width:0;
+  color:#9eb0c6;
+  font-size:10px;
+  line-height:1.3;
+  font-weight:800;
+}
+
 #waitTimer{
-  min-width:74px;
+  min-width:76px;
   padding:8px 10px;
   border-radius:12px;
   text-align:center;
@@ -214,14 +296,22 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   background:rgba(250,204,21,.10);
   border:1px solid rgba(250,204,21,.22);
   font-size:18px;
+  line-height:1;
   font-weight:900;
   font-variant-numeric:tabular-nums;
 }
 
-.stop-status{
-  color:#9babc0;
-  font-size:10px;
-  font-weight:800;
+#scheduledTimeBox{
+  display:none;
+  min-width:104px;
+  padding:7px 9px;
+  border-radius:12px;
+  text-align:center;
+  color:#a9c8ff;
+  background:rgba(47,125,246,.10);
+  border:1px solid rgba(47,125,246,.20);
+  font-size:9px;
+  font-weight:900;
 }
 
 .actions{
@@ -240,53 +330,124 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   font-weight:900;
   cursor:pointer;
 }
-.btn.primary{background:#2f7df6}
-.btn.green{background:#169447}
-.btn.red{background:#c93f3f}
-.btn.gold{background:#c99718}
-.btn.dark{background:#173153}
-.btn.full{grid-column:1/-1}
-.btn:disabled{opacity:.4;cursor:not-allowed}
 
-#noShowBox{
+.btn.full{
+  grid-column:1/-1;
+}
+
+.btn.blue{background:#2f7df6}
+.btn.green{background:#15964a}
+.btn.red{background:#c94040}
+.btn.gold{background:#bd8f16}
+.btn.dark{background:#183453}
+
+.btn:disabled{
+  opacity:.38;
+  cursor:not-allowed;
+}
+
+/* ================= REASON MODAL ================= */
+
+.reason-box{
   display:none;
   position:absolute;
   left:12px;
   right:12px;
   bottom:calc(96px + env(safe-area-inset-bottom));
-  z-index:100;
+  z-index:1000;
   padding:12px;
   flex-direction:column;
   border-radius:18px;
   background:#04152f;
   border:1px solid rgba(255,255,255,.10);
-  box-shadow:0 14px 30px rgba(0,0,0,.35);
+  box-shadow:0 16px 34px rgba(0,0,0,.38);
 }
-#noShowHeader{display:flex;align-items:center;justify-content:space-between;gap:10px}
-#noShowTitle{font-size:14px;font-weight:900}
-#btnCloseNoShow{
-  width:34px;height:34px;border:0;border-radius:10px;background:#182b49;color:#fff;font-weight:900
+
+.reason-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
 }
-#noShowNotes{
+
+.reason-title{
+  font-size:14px;
+  font-weight:900;
+}
+
+.reason-close{
+  width:34px;
+  height:34px;
+  border:0;
+  border-radius:10px;
+  color:#fff;
+  background:#182c4c;
+  font-weight:900;
+}
+
+.reason-text{
   width:100%;
-  min-height:86px;
+  min-height:88px;
   margin-top:9px;
   padding:10px;
   resize:none;
   border-radius:12px;
   border:1px solid rgba(255,255,255,.10);
-  background:#020d20;
   color:#fff;
-  font:inherit;
+  background:#020d20;
+  outline:none;
 }
-#btnCompleteNoShow{margin-top:9px;background:#c93f3f}
+
+.reason-submit{
+  margin-top:9px;
+}
+
+/* ================= MARKERS ================= */
+
+.driver-pin,
+.stop-pin{
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  border:3px solid #fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.28);
+}
+
+.driver-pin{background:#f59e0b}
+.pickup-pin{background:#2563eb}
+.dropoff-pin{background:#16a34a}
+
+/* ================= MOBILE ================= */
 
 @media(max-width:390px){
-  #navText{font-size:15px}
-  .current-stop-card{padding:9px}
-  .stop-address{font-size:12px}
-  .action-panel{padding-left:10px;padding-right:10px}
-  .btn{min-height:42px;font-size:10px}
+
+  #navText{
+    font-size:15px;
+  }
+
+  .current-stop-card{
+    padding:9px;
+  }
+
+  #currentStopAddress{
+    font-size:12px;
+  }
+
+  .action-panel{
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  .btn{
+    min-height:42px;
+    font-size:10px;
+  }
 }
 </style>
 </head>
@@ -297,29 +458,45 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
 
   <header class="map-top">
 
-    <div class="trip-head">
-      <div class="trip-head-left">
-        <div class="trip-head-label">Current Action</div>
-        <div id="navText">Loading trip...</div>
+    <div class="top-line">
+
+      <div>
+        <div class="top-label">
+          Current Action
+        </div>
+
+        <div id="navText">
+          Loading trip...
+        </div>
       </div>
 
-      <div class="gps-badge" id="gpsBadge">
-        GPS
+      <div id="gspWrap">
+        <div id="gpsBadge">
+          GPS
+        </div>
       </div>
+
     </div>
 
-    <section class="current-stop-card" id="tripInfo">
+    <section class="current-stop-card">
 
       <div class="stop-meta">
-        <span class="stop-type" id="stopTypeBadge">PICKUP</span>
-        <span class="stop-progress" id="stopProgress">Stop 1</span>
+
+        <span class="stop-type" id="stopTypeBadge">
+          PICKUP
+        </span>
+
+        <span id="stopProgress">
+          Stop 1
+        </span>
+
       </div>
 
-      <div class="stop-address" id="currentStopAddress">
+      <div id="currentStopAddress">
         Loading stop...
       </div>
 
-      <div class="passenger-strip" id="currentPassengers"></div>
+      <div id="currentPassengers"></div>
 
     </section>
 
@@ -329,11 +506,15 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
 
     <div id="map"></div>
 
-    <div class="map-note">
-      Map display only — route order comes from server
+    <div class="map-source-note">
+      Live street map • current stop only
     </div>
 
-    <button id="recenterBtn" type="button" aria-label="Recenter map">
+    <button
+      id="recenterBtn"
+      type="button"
+      aria-label="Recenter map"
+    >
       ◎
     </button>
 
@@ -342,57 +523,142 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   <section class="action-panel">
 
     <div class="action-info">
-      <div class="stop-status" id="stopStatusText">
+
+      <div id="stopStatusText">
         Waiting for trip data
       </div>
 
-      <div id="waitTimer" style="display:none">
+      <div id="scheduledTimeBox"></div>
+
+      <div id="waitTimer">
         10:00
       </div>
+
     </div>
 
     <div class="actions">
 
-      <button id="btnGoogle" class="btn primary full" type="button">
-        Directions
+      <button
+        id="btnGoPickup"
+        class="btn blue full"
+        type="button"
+      >
+        Go To Pickup
       </button>
 
-      <button id="btnArrived" class="btn green" type="button">
+      <button
+        id="btnArrived"
+        class="btn green full"
+        type="button"
+      >
         Arrived
       </button>
 
-      <button id="btnCallClient" class="btn dark" type="button">
+      <button
+        id="btnStartRide"
+        class="btn green"
+        type="button"
+      >
+        Start Ride
+      </button>
+
+      <button
+        id="btnCancel"
+        class="btn red"
+        type="button"
+      >
+        Cancel
+      </button>
+
+      <button
+        id="btnCall"
+        class="btn dark"
+        type="button"
+      >
         Call
       </button>
 
-      <button id="btnStart" class="btn green" type="button">
-        Picked Up
-      </button>
-
-      <button id="btnNoShow" class="btn red" type="button">
+      <button
+        id="btnNoShow"
+        class="btn red"
+        type="button"
+      >
         No Show
       </button>
 
-      <button id="btnCompleteStop" class="btn gold full" type="button">
-        Complete Dropoff
+      <button
+        id="btnDropoff"
+        class="btn gold full"
+        type="button"
+      >
+        Drop Off / Complete
       </button>
 
     </div>
 
   </section>
 
-  <div id="noShowBox">
+  <!-- CANCEL REASON -->
 
-    <div id="noShowHeader">
-      <div id="noShowTitle">Enter no show reason</div>
-      <button id="btnCloseNoShow" type="button">✕</button>
+  <div class="reason-box" id="cancelBox">
+
+    <div class="reason-head">
+      <div class="reason-title">
+        Enter cancel reason
+      </div>
+
+      <button
+        class="reason-close"
+        id="btnCloseCancel"
+        type="button"
+      >
+        ✕
+      </button>
     </div>
 
     <textarea
+      class="reason-text"
+      id="cancelNotes"
+      placeholder="Reason for cancel"></textarea>
+
+    <button
+      id="btnCompleteCancel"
+      class="btn red reason-submit"
+      type="button"
+    >
+      Complete Cancel
+    </button>
+
+  </div>
+
+  <!-- NO SHOW REASON -->
+
+  <div class="reason-box" id="noShowBox">
+
+    <div class="reason-head">
+      <div class="reason-title">
+        Enter no show reason
+      </div>
+
+      <button
+        class="reason-close"
+        id="btnCloseNoShow"
+        type="button"
+      >
+        ✕
+      </button>
+    </div>
+
+    <textarea
+      class="reason-text"
       id="noShowNotes"
       placeholder="Reason for no show"></textarea>
 
-    <button id="btnCompleteNoShow" class="btn" type="button">
+    <button
+      id="btnCompleteNoShow"
+      class="btn red reason-submit"
+      type="button"
+    >
       Complete No Show
     </button>
 
@@ -401,6 +667,12 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-sys
   <div id="driverNav"></div>
 
 </div>
+
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
 
 <script src="driver-nav.js"></script>
 <script src="map.js"></script>
