@@ -718,20 +718,34 @@ router.patch("/send",async(req,res)=>{
       Any trip source must have pickup / stops / dropoff coordinates.
       Shared trips must have pickup/dropoff coordinates for each active passenger.
     */
-    const coordinateFailures =
-      await prepareTripsForDriver(
-        Trip,
-        ids
+    /*
+      Try to repair coordinates before send, but NEVER block dispatch.
+      Sending the trip is operationally more important.
+      Driver Map will use coordinates when available.
+    */
+    let coordinateFailures = [];
+
+    try {
+
+      coordinateFailures =
+        await prepareTripsForDriver(
+          Trip,
+          ids
+        );
+
+      if(coordinateFailures.length){
+        console.log(
+          "DISPATCH COORDINATE WARNING:",
+          coordinateFailures
+        );
+      }
+
+    } catch (coordErr) {
+
+      console.log(
+        "DISPATCH COORDINATE PREP ERROR:",
+        coordErr?.message || coordErr
       );
-
-    if (coordinateFailures.length) {
-
-      return res.status(400).json({
-        success:false,
-        message:
-          "Trip coordinates are not ready for Driver Map",
-        coordinateFailures
-      });
     }
 
     const assignments = await DispatchAssignment.find({
@@ -752,7 +766,12 @@ router.patch("/send",async(req,res)=>{
       {tripId:{$in:ids}},
       {$set:{dispatchStatus:"SENT",sentAt:new Date()}}
     );
-    res.json({success:true,sentCount:ids.length});
+    res.json({
+      success:true,
+      sentCount:ids.length,
+      coordinateWarnings:
+        coordinateFailures
+    });
   }catch(err){
     console.error("SEND TRIPS:",err);
     res.status(500).json({success:false,message:"Send failed"});
