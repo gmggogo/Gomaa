@@ -2,539 +2,390 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Driver Map</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Driver Map</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+
+<link rel="stylesheet" href="driver.css">
 
 <style>
 :root{
-  --bg:#020617;
-  --panel:#020617;
-  --panel2:#0f172a;
-  --card:#111827;
-  --text:#ffffff;
-  --muted:#cbd5e1;
+  --navy:#03152f;
+  --navy2:#08234a;
+  --blue:#2f7df6;
+  --green:#22c55e;
+  --red:#ef4444;
   --yellow:#facc15;
-  --blue:#2563eb;
-  --green:#16a34a;
-  --green2:#059669;
-  --red:#dc2626;
-  --orange:#f59e0b;
-  --gray:#475569;
-  --border:rgba(255,255,255,.10);
-  --shadow:0 12px 28px rgba(0,0,0,.35);
-  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --purple:#9d63ff;
+  --text:#fff;
+  --muted:#94a3b8;
 }
 
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#07162f;color:#fff}
 
-html,
-body{
-  margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:var(--bg);
-  color:var(--text);
-  font-family:Arial,Helvetica,sans-serif;
-}
-
-/* HEADER */
-
-#header{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  height:58px;
-  background:linear-gradient(135deg,#020617,#0f172a);
-  z-index:1200;
+.map-page{
+  height:100dvh;
   display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 14px;
-  border-bottom:1px solid var(--border);
-  box-shadow:0 4px 14px rgba(0,0,0,.28);
+  flex-direction:column;
+  overflow:hidden;
 }
 
-#driverName{
-  font-size:16px;
+.map-top{
+  flex:0 0 auto;
+  padding:max(10px,env(safe-area-inset-top)) 12px 9px;
+  background:linear-gradient(180deg,rgba(2,6,23,.98),rgba(3,21,47,.94));
+  border-bottom:1px solid rgba(255,255,255,.08);
+  z-index:20;
+}
+
+.trip-head{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:center;
+}
+
+.trip-head-left{min-width:0}
+.trip-head-label{
+  color:#8696ac;
+  font-size:8px;
   font-weight:900;
-  color:var(--yellow);
-  max-width:48%;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+#navText{
+  margin-top:3px;
+  color:#fff;
+  font-size:17px;
+  font-weight:900;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.gps-badge{
+  padding:7px 10px;
+  border-radius:999px;
+  color:#8ff0ad;
+  background:rgba(34,197,94,.11);
+  border:1px solid rgba(74,222,128,.25);
+  font-size:9px;
+  font-weight:900;
+}
 
-#datetime{
-  font-size:12px;
-  color:var(--muted);
-  text-align:right;
+.current-stop-card{
+  margin-top:8px;
+  padding:10px;
+  border-radius:17px;
+  background:rgba(8,35,74,.90);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.stop-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  align-items:center;
+}
+.stop-type{
+  padding:5px 8px;
+  border-radius:999px;
+  color:#7df0a3;
+  background:rgba(34,197,94,.12);
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.stop-type.dropoff{
+  color:#ff9d9d;
+  background:rgba(239,68,68,.12);
+}
+.stop-progress{
+  color:#9fb0c5;
+  font-size:9px;
+  font-weight:800;
+}
+
+.stop-address{
+  margin-top:7px;
+  color:#fff;
+  font-size:13px;
   line-height:1.35;
   font-weight:800;
 }
 
-/* STATUS */
-
-#navText{
-  position:fixed;
-  top:66px;
-  left:12px;
-  right:12px;
-  min-height:50px;
-  background:rgba(2,6,23,.94);
-  border-radius:16px;
-  box-shadow:var(--shadow);
-  z-index:1190;
+.passenger-strip{
+  margin-top:8px;
   display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:12px 14px;
-  font-size:15px;
-  font-weight:900;
-  border:1px solid var(--border);
-  backdrop-filter:blur(8px);
+  gap:6px;
+  overflow-x:auto;
+  scrollbar-width:none;
 }
-
-/* MINI INFO */
-
-#tripInfo{
-  position:fixed;
-  top:124px;
-  left:12px;
-  right:12px;
-  min-height:48px;
-  background:rgba(15,23,42,.92);
-  border:1px solid var(--border);
-  border-radius:16px;
-  z-index:1190;
-  box-shadow:var(--shadow);
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  padding:9px 12px;
-  backdrop-filter:blur(8px);
+.passenger-strip::-webkit-scrollbar{display:none}
+.passenger-chip{
+  flex:0 0 auto;
+  max-width:170px;
+  padding:7px 9px;
+  border-radius:12px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.07);
 }
-
-.info-box{
-  min-width:0;
-}
-
-.info-label{
-  font-size:10px;
-  color:#94a3b8;
-  font-weight:900;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-}
-
-.info-value{
-  margin-top:3px;
-  font-size:13px;
-  color:#fff;
-  font-weight:900;
+.passenger-chip strong{
+  display:block;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  font-size:10px;
+}
+.passenger-chip span{
+  display:block;
+  margin-top:2px;
+  color:#8fa0b7;
+  font-size:8px;
 }
 
-/* MAP */
+.map-wrap{
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+}
 
 #map{
-  position:fixed;
-  top:182px;
-  left:0;
-  right:0;
-  bottom:330px;
-  z-index:1;
-  background:#0f172a;
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(rgba(234,240,245,.72),rgba(234,240,245,.72)),
+    url("assets/map-background.png") center/cover no-repeat;
 }
 
-/* FLOAT GPS */
-
-#gpsBadge{
-  position:fixed;
-  top:190px;
-  right:12px;
-  z-index:1195;
-  background:rgba(2,6,23,.92);
-  color:#fff;
-  border:1px solid var(--border);
+.map-note{
+  position:absolute;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  max-width:88%;
+  padding:6px 9px;
   border-radius:999px;
-  padding:8px 12px;
-  font-size:12px;
-  font-weight:900;
-  box-shadow:var(--shadow);
-  display:none;
+  color:#53657a;
+  background:rgba(255,255,255,.90);
+  border:1px solid rgba(55,83,112,.13);
+  font-size:8px;
+  font-weight:800;
+  z-index:5;
+  pointer-events:none;
 }
 
 #recenterBtn{
-  position:fixed;
+  position:absolute;
   right:12px;
-  bottom:344px;
-  z-index:1195;
-  width:46px;
-  height:46px;
-  border:none;
+  bottom:12px;
+  width:44px;
+  height:44px;
+  border:0;
   border-radius:50%;
-  background:#fff;
-  color:#111827;
-  font-size:22px;
-  font-weight:900;
-  box-shadow:var(--shadow);
-  cursor:pointer;
+  background:#061a38;
+  color:#fff;
+  font-size:18px;
+  box-shadow:0 6px 16px rgba(0,0,0,.24);
+  z-index:6;
 }
 
-/* CONTROLS */
+.action-panel{
+  flex:0 0 auto;
+  padding:9px 12px calc(94px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,rgba(3,21,47,.97),rgba(2,13,31,.99));
+  border-top:1px solid rgba(255,255,255,.08);
+}
 
-#controls{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:82px;
-  background:linear-gradient(180deg,#020617,#030712);
-  z-index:1250;
-  padding:12px 12px 14px;
-  border-top:1px solid var(--border);
-  box-shadow:0 -8px 24px rgba(0,0,0,.34);
-  max-height:248px;
-  overflow:auto;
+.action-info{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:center;
+  margin-bottom:7px;
+}
+
+#waitTimer{
+  min-width:74px;
+  padding:8px 10px;
+  border-radius:12px;
+  text-align:center;
+  color:#ffd43b;
+  background:rgba(250,204,21,.10);
+  border:1px solid rgba(250,204,21,.22);
+  font-size:18px;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+}
+
+.stop-status{
+  color:#9babc0;
+  font-size:10px;
+  font-weight:800;
+}
+
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
 }
 
 .btn{
-  width:100%;
-  border:none;
-  border-radius:16px;
-  padding:15px 14px;
-  font-size:15px;
-  font-weight:900;
-  color:#fff;
-  cursor:pointer;
-  margin:0;
-  transition:transform .12s ease,opacity .12s ease,box-shadow .12s ease;
-  box-shadow:0 8px 18px rgba(0,0,0,.25);
-}
-
-.btn:active{
-  transform:scale(.985);
-}
-
-.btn + .btn,
-.btn + #waitTimer,
-.btn + #noShowBox,
-#waitTimer + .btn,
-#waitTimer + #noShowBox{
-  margin-top:8px;
-}
-
-#btnGoogle{
-  display:none;
-  background:linear-gradient(135deg,#111827,#020617);
-  border:1px solid #475569;
-}
-
-#btnGoPickup{
-  display:none;
-  background:linear-gradient(135deg,#2563eb,#1d4ed8);
-}
-
-#btnGoDropoff{
-  display:none;
-  background:linear-gradient(135deg,#1d4ed8,#1e40af);
-}
-
-#btnStart{
-  display:none;
-  background:linear-gradient(135deg,#22c55e,#16a34a);
-}
-
-#btnComplete{
-  display:none;
-  background:linear-gradient(135deg,#10b981,#059669);
-  opacity:.65;
-}
-
-#btnComplete.enabled{
-  opacity:1;
-  box-shadow:0 0 0 2px rgba(255,255,255,.18) inset,0 8px 18px rgba(0,0,0,.25);
-}
-
-#btnNoShow{
-  display:none;
-  background:linear-gradient(135deg,#ef4444,#dc2626);
-}
-
-#btnCallClient{
-  display:none;
-  background:linear-gradient(135deg,#f59e0b,#ea580c);
-}
-
-/* TIMER */
-
-#waitTimer{
-  display:none;
-  width:100%;
-  text-align:center;
-  color:var(--yellow);
-  font-size:28px;
-  font-weight:900;
-  padding:8px 0 4px;
-  letter-spacing:1px;
-}
-
-/* NO SHOW */
-
-#noShowBox{
-  display:none;
-  flex-direction:column;
-  gap:8px;
-  background:#111827;
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:10px;
-  margin-top:8px;
-}
-
-#noShowHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-#noShowTitle{
-  font-size:14px;
-  font-weight:900;
-  color:#fff;
-}
-
-#btnCloseNoShow{
-  width:40px;
-  min-width:40px;
-  height:40px;
-  border:none;
-  border-radius:12px;
-  background:#334155;
-  color:#fff;
-  font-size:18px;
-  font-weight:900;
-  cursor:pointer;
-}
-
-#noShowNotes{
-  width:100%;
-  min-height:86px;
-  resize:none;
-  border:none;
-  outline:none;
+  min-height:44px;
+  border:0;
   border-radius:14px;
-  padding:12px;
-  font-size:14px;
-  background:#fff;
-  color:#111827;
-  font-family:Arial,Helvetica,sans-serif;
-}
-
-#btnCompleteNoShow{
-  background:linear-gradient(135deg,#dc2626,#991b1b);
-}
-
-/* BOTTOM NAV */
-
-.bottom-nav{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  height:82px;
-  padding-bottom:var(--safe-bottom);
-  background:#000;
-  border-top:1px solid var(--border);
-  z-index:1300;
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-around;
-  padding-top:8px;
-}
-
-.nav-btn{
-  width:20%;
-  background:none;
-  border:none;
-  color:#9ca3af;
-  padding:0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:flex-start;
-  gap:4px;
+  padding:9px 10px;
+  color:#fff;
   font-size:11px;
   font-weight:900;
   cursor:pointer;
 }
+.btn.primary{background:#2f7df6}
+.btn.green{background:#169447}
+.btn.red{background:#c93f3f}
+.btn.gold{background:#c99718}
+.btn.dark{background:#173153}
+.btn.full{grid-column:1/-1}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 
-.nav-btn .icon{
-  font-size:24px;
-  line-height:1;
+#noShowBox{
+  display:none;
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:calc(96px + env(safe-area-inset-bottom));
+  z-index:100;
+  padding:12px;
+  flex-direction:column;
+  border-radius:18px;
+  background:#04152f;
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 14px 30px rgba(0,0,0,.35);
 }
-
-.nav-btn.active{
-  color:var(--yellow);
+#noShowHeader{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#noShowTitle{font-size:14px;font-weight:900}
+#btnCloseNoShow{
+  width:34px;height:34px;border:0;border-radius:10px;background:#182b49;color:#fff;font-weight:900
 }
-
-/* GOOGLE CONTROLS CLEAN */
-
-.gm-style-cc,
-.gmnoprint.gm-style-cc{
-  display:none !important;
+#noShowNotes{
+  width:100%;
+  min-height:86px;
+  margin-top:9px;
+  padding:10px;
+  resize:none;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:#020d20;
+  color:#fff;
+  font:inherit;
 }
+#btnCompleteNoShow{margin-top:9px;background:#c93f3f}
 
-@media(max-width:420px){
-
-  #driverName{
-    font-size:15px;
-  }
-
-  #datetime{
-    font-size:11px;
-  }
-
-  #navText{
-    font-size:14px;
-  }
-
-  #tripInfo{
-    grid-template-columns:1fr;
-    gap:6px;
-  }
-
-  #map{
-    top:224px;
-    bottom:350px;
-  }
-
-  #recenterBtn{
-    bottom:364px;
-  }
-
-  #controls{
-    max-height:268px;
-  }
-
-  .btn{
-    font-size:14px;
-    padding:14px 12px;
-  }
-
-  #waitTimer{
-    font-size:25px;
-  }
-
-}
-
-@media(max-height:720px){
-
-  #tripInfo{
-    display:none;
-  }
-
-  #map{
-    top:124px;
-    bottom:315px;
-  }
-
-  #recenterBtn{
-    bottom:330px;
-  }
-
-  #controls{
-    max-height:233px;
-  }
-
+@media(max-width:390px){
+  #navText{font-size:15px}
+  .current-stop-card{padding:9px}
+  .stop-address{font-size:12px}
+  .action-panel{padding-left:10px;padding-right:10px}
+  .btn{min-height:42px;font-size:10px}
 }
 </style>
 </head>
 
 <body>
 
-<div id="header">
-  <div id="driverName">Driver</div>
-  <div id="datetime">--</div>
-</div>
+<div class="map-page">
 
-<div id="navText">
-  Loading trip...
-</div>
+  <header class="map-top">
 
-<div id="tripInfo">
-  <div class="info-box">
-    <div class="info-label">Pickup</div>
-    <div class="info-value" id="pickupText">--</div>
-  </div>
+    <div class="trip-head">
+      <div class="trip-head-left">
+        <div class="trip-head-label">Current Action</div>
+        <div id="navText">Loading trip...</div>
+      </div>
 
-  <div class="info-box">
-    <div class="info-label">Dropoff</div>
-    <div class="info-value" id="dropoffText">--</div>
-  </div>
-</div>
+      <div class="gps-badge" id="gpsBadge">
+        GPS
+      </div>
+    </div>
 
-<div id="gpsBadge">
-  GPS Active
-</div>
+    <section class="current-stop-card" id="tripInfo">
 
-<div id="map"></div>
+      <div class="stop-meta">
+        <span class="stop-type" id="stopTypeBadge">PICKUP</span>
+        <span class="stop-progress" id="stopProgress">Stop 1</span>
+      </div>
 
-<button id="recenterBtn" type="button">◎</button>
+      <div class="stop-address" id="currentStopAddress">
+        Loading stop...
+      </div>
 
-<div id="controls">
+      <div class="passenger-strip" id="currentPassengers"></div>
 
-  <button id="btnGoPickup" class="btn" type="button">
-    GO TO PICKUP
-  </button>
+    </section>
 
-  <button id="btnGoDropoff" class="btn" type="button">
-    GO TO DROPOFF
-  </button>
+  </header>
 
-  <button id="btnGoogle" class="btn" type="button">
-    OPEN GOOGLE MAPS
-  </button>
+  <main class="map-wrap">
 
-  <button id="btnStart" class="btn" type="button">
-    START RIDE
-  </button>
+    <div id="map"></div>
 
-  <button id="btnCallClient" class="btn" type="button">
-    CALL CLIENT
-  </button>
+    <div class="map-note">
+      Map display only — route order comes from server
+    </div>
 
-  <button id="btnNoShow" class="btn" type="button">
-    NO SHOW
-  </button>
+    <button id="recenterBtn" type="button" aria-label="Recenter map">
+      ◎
+    </button>
 
-  <button id="btnComplete" class="btn" type="button">
-    COMPLETE
-  </button>
+  </main>
 
-  <div id="waitTimer">
-    15:00
-  </div>
+  <section class="action-panel">
+
+    <div class="action-info">
+      <div class="stop-status" id="stopStatusText">
+        Waiting for trip data
+      </div>
+
+      <div id="waitTimer" style="display:none">
+        10:00
+      </div>
+    </div>
+
+    <div class="actions">
+
+      <button id="btnGoogle" class="btn primary full" type="button">
+        Directions
+      </button>
+
+      <button id="btnArrived" class="btn green" type="button">
+        Arrived
+      </button>
+
+      <button id="btnCallClient" class="btn dark" type="button">
+        Call
+      </button>
+
+      <button id="btnStart" class="btn green" type="button">
+        Picked Up
+      </button>
+
+      <button id="btnNoShow" class="btn red" type="button">
+        No Show
+      </button>
+
+      <button id="btnCompleteStop" class="btn gold full" type="button">
+        Complete Dropoff
+      </button>
+
+    </div>
+
+  </section>
 
   <div id="noShowBox">
 
     <div id="noShowHeader">
-      <div id="noShowTitle">
-        Enter no show reason
-      </div>
-
-      <button id="btnCloseNoShow" type="button">
-        ✕
-      </button>
+      <div id="noShowTitle">Enter no show reason</div>
+      <button id="btnCloseNoShow" type="button">✕</button>
     </div>
 
     <textarea
@@ -547,38 +398,12 @@ body{
 
   </div>
 
-</div>
-
-<div class="bottom-nav">
-
-  <button class="nav-btn" id="navHome" type="button">
-    <span class="icon">🏠</span>
-    <span>Home</span>
-  </button>
-
-  <button class="nav-btn" id="navTrips" type="button">
-    <span class="icon">🚗</span>
-    <span>Trips</span>
-  </button>
-
-  <button class="nav-btn active" id="navMap" type="button">
-    <span class="icon">🗺️</span>
-    <span>Map</span>
-  </button>
-
-  <button class="nav-btn" id="navChat" type="button">
-    <span class="icon">💬</span>
-    <span>Chat</span>
-  </button>
-
-  <button class="nav-btn" id="navLogout" type="button">
-    <span class="icon">🚪</span>
-    <span>Logout</span>
-  </button>
+  <div id="driverNav"></div>
 
 </div>
 
-<script src="/driver/map.js"></script>
+<script src="driver-nav.js"></script>
+<script src="map.js"></script>
 
 </body>
 </html>
