@@ -2656,6 +2656,222 @@ async function sendLocation(
 }
 
 /* =========================
+   RESOLVE MISSING STOP COORDINATES
+
+   Uses existing server endpoint:
+   POST /api/address-cache/resolve
+
+   Cache first. If not cached, server may geocode and save.
+========================= */
+
+async function resolveAddressPoint(address){
+
+  const cleanAddress =
+    clean(address);
+
+  if(!cleanAddress){
+    return null;
+  }
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/address-cache/resolve",
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({
+            address:cleanAddress,
+            addressKey:
+              normalizeAddressKey(
+                cleanAddress
+              ),
+            company:
+              firstValue(
+                tripDoc?.companyName,
+                tripDoc?.facilityName,
+                tripDoc?.company,
+                ""
+              ),
+            companyName:
+              firstValue(
+                tripDoc?.companyName,
+                tripDoc?.company,
+                ""
+              ),
+            facilityName:
+              firstValue(
+                tripDoc?.facilityName,
+                tripDoc?.companyName,
+                ""
+              ),
+            companyId:
+              firstValue(
+                tripDoc?.companyId,
+                tripDoc?.facilityId,
+                ""
+              ),
+            facilityId:
+              firstValue(
+                tripDoc?.facilityId,
+                tripDoc?.companyId,
+                ""
+              ),
+            source:
+              "driver-map-stop-resolve"
+          })
+        }
+      );
+
+    if(!res.ok){
+      console.log(
+        "ADDRESS RESOLVE HTTP:",
+        res.status
+      );
+      return null;
+    }
+
+    const data =
+      await res.json();
+
+    const point =
+      data?.addressPoint ||
+      data ||
+      null;
+
+    const lat =
+      num(
+        firstValue(
+          point?.lat,
+          point?.latitude,
+          data?.lat,
+          data?.latitude
+        )
+      );
+
+    const lng =
+      num(
+        firstValue(
+          point?.lng,
+          point?.longitude,
+          data?.lng,
+          data?.longitude
+        )
+      );
+
+    if(
+      !validPoint(
+        lat,
+        lng
+      )
+    ){
+      return null;
+    }
+
+    return {
+      lat,
+      lng,
+      address:
+        clean(
+          firstValue(
+            point?.fullAddress,
+            point?.address,
+            data?.fullAddress,
+            data?.address,
+            cleanAddress
+          )
+        )
+    };
+
+  }catch(err){
+
+    console.log(
+      "ADDRESS RESOLVE ERROR:",
+      err
+    );
+
+    return null;
+  }
+}
+
+async function ensureStopCoordinates(stop){
+
+  if(!stop){
+    return false;
+  }
+
+  if(
+    validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
+    return true;
+  }
+
+  if(
+    !clean(
+      stop.address
+    )
+  ){
+    return false;
+  }
+
+  setStopStatus(
+    "Resolving stop location..."
+  );
+
+  const point =
+    await resolveAddressPoint(
+      stop.address
+    );
+
+  if(!point){
+    return false;
+  }
+
+  stop.lat =
+    point.lat;
+
+  stop.lng =
+    point.lng;
+
+  if(
+    point.address
+  ){
+    stop.resolvedAddress =
+      point.address;
+  }
+
+  return true;
+}
+
+async function ensureCurrentStopCoordinates(){
+
+  const stop =
+    currentStop();
+
+  const ok =
+    await ensureStopCoordinates(
+      stop
+    );
+
+  if(ok){
+
+    updateMapTarget();
+
+    renderExecutionState();
+
+    return true;
+  }
+
+  return false;
+}
+
+/* =========================
    REAL OSM MAP
 ========================= */
 
@@ -3709,19 +3925,28 @@ function advanceStop(
 
     currentStopIndex++;
 
-    updateMapTarget();
+    Promise.resolve(
+      ensureStopCoordinates(
+        currentStop()
+      )
+    )
+    .finally(()=>{
 
-    renderExecutionState();
+      updateMapTarget();
 
-    if(
-      autoOpenDirections
-    ){
+      renderExecutionState();
 
-      setTimeout(
-        openDirections,
-        250
-      );
-    }
+      if(
+        autoOpenDirections
+      ){
+
+        setTimeout(
+          openDirections,
+          250
+        );
+      }
+
+    });
 
     return;
   }
@@ -4525,7 +4750,16 @@ function startGpsWatch(){
             Every GPS update can change
             which button is allowed.
           */
-          renderExecutionState();
+          if(
+            !validPoint(
+              currentStop()?.lat,
+              currentStop()?.lng
+            )
+          ){
+            await ensureCurrentStopCoordinates();
+          }else{
+            renderExecutionState();
+          }
         },
 
         error=>{
@@ -4592,6 +4826,10 @@ async function initPage(){
     }
 
     restoreCurrentStop();
+
+    await ensureStopCoordinates(
+      currentStop()
+    );
 
     initMap();
 
