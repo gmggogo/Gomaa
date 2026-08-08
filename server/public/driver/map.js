@@ -1,72 +1,51 @@
 /* =====================================================
-   SUNBEAM DRIVER MAP — FINAL REBUILD V1
+   SUNBEAM DRIVER MAP — GOOGLE FINAL
 
-   CORE RULES
-   -----------------------------------------------------
-   1) REAL MAP = Leaflet + OpenStreetMap tiles.
-   2) NO geocoding in driver app.
-   3) NO Google Directions API request.
-   4) External Google Maps opens only from Directions.
-   5) Server route order wins.
-   6) One stop at a time.
-   7) Every physical stop uses SAME 250 meter geofence.
-   8) Pickup / Intermediate Stop / Dropoff are different
-      execution types.
-   9) Shared passengers at same pickup share one timer.
-   10) Different shared pickup location = different timer.
-   11) Wait timer never starts before scheduled trip time.
-   12) No Show fee is NEVER calculated in client.
+   - Google Maps inside Driver App for DISPLAY ONLY
+   - NO internal road-route calculation
+   - 250 meter geofence for Pickup / Stop / Dropoff
+   - Strict button flow: no button can skip another
+   - Individual: Pickup -> 0..N Stops -> Dropoff
+   - Shared: server pickupOrder/dropoffOrder, grouped same pickups
+   - Same pickup location = one wait timer
+   - Different pickup location = separate timer
+   - Wait timer never starts before scheduled trip time
+   - No Show reason required
+   - External Google Maps handles navigation
+   - No Show fee is passed to server; client never calculates price
 ===================================================== */
 
-console.log("Sunbeam Driver Map FINAL rebuild");
+console.log("Sunbeam Driver Map GOOGLE FINAL");
 
-/* =========================
-   CONSTANTS
-========================= */
+/* ================= CONFIG ================= */
 
-const METERS_PER_MILE =
-  1609.344;
+const METERS_PER_MILE = 1609.344;
 
-const STOP_RADIUS_METERS =
-  250;
+const STOP_RADIUS_METERS = 250;
 
+/* Internal map: display only. No routing/geocoding requests. */
 const STOP_RADIUS_MILES =
   STOP_RADIUS_METERS /
   METERS_PER_MILE;
 
-/*
-  Temporary.
-  Later Admin controls these.
-*/
 const EXECUTION = {
-
   waitTimerEnabled:true,
-
   waitMinutes:10,
-
-  stopRadiusMiles:
-    STOP_RADIUS_MILES,
-
-  noShowRequiresTimer:true,
-
-  noShowRequiresCall:false
-
+  stopRadiusMiles:STOP_RADIUS_MILES,
+  noShowRequiresTimer:true
 };
 
-/* =========================
-   AUTH
-========================= */
+
+const LOCATION_PUSH_MS = 20000;
+const LOCATION_PUSH_MILES = 0.25;
+
+/* ================= AUTH ================= */
 
 const rawDriver =
-  localStorage.getItem(
-    "loggedDriver"
-  ) ||
-  localStorage.getItem(
-    "user"
-  );
+  localStorage.getItem("loggedDriver") ||
+  localStorage.getItem("user");
 
 if(!rawDriver){
-
   window.location.href =
     "/driver/login.html";
 }
@@ -74,14 +53,8 @@ if(!rawDriver){
 let driver = {};
 
 try{
-
-  driver =
-    JSON.parse(
-      rawDriver
-    );
-
+  driver = JSON.parse(rawDriver);
 }catch(err){
-
   window.location.href =
     "/driver/login.html";
 }
@@ -94,24 +67,22 @@ const DRIVER_ID =
   );
 
 const DRIVER_NAME =
-  String(
+  clean(
     driver.name ||
     driver.fullName ||
     driver.username ||
     "Driver"
-  ).trim();
+  );
 
 const DRIVER_PHONE =
-  String(
+  clean(
     driver.phone ||
     driver.mobile ||
     driver.phoneNumber ||
     ""
-  ).trim();
+  );
 
-/* =========================
-   TRIP ID
-========================= */
+/* ================= TRIP ID ================= */
 
 const params =
   new URLSearchParams(
@@ -119,213 +90,131 @@ const params =
   );
 
 const TRIP_ID =
-  String(
-    params.get(
-      "tripId"
-    ) ||
-    ""
+  clean(
+    params.get("tripId")
   );
 
-/* =========================
-   DOM
-========================= */
+/* ================= DOM ================= */
 
 const navTextEl =
-  document.getElementById(
-    "navText"
-  );
+  document.getElementById("navText");
 
 const gpsBadge =
-  document.getElementById(
-    "gpsBadge"
-  );
+  document.getElementById("gpsBadge");
 
 const stopTypeBadge =
-  document.getElementById(
-    "stopTypeBadge"
-  );
+  document.getElementById("stopTypeBadge");
 
 const stopProgress =
-  document.getElementById(
-    "stopProgress"
-  );
+  document.getElementById("stopProgress");
 
 const currentStopAddressEl =
-  document.getElementById(
-    "currentStopAddress"
-  );
+  document.getElementById("currentStopAddress");
 
 const currentPassengersEl =
-  document.getElementById(
-    "currentPassengers"
-  );
+  document.getElementById("currentPassengers");
 
 const stopStatusText =
-  document.getElementById(
-    "stopStatusText"
-  );
+  document.getElementById("stopStatusText");
 
 const waitTimerEl =
-  document.getElementById(
-    "waitTimer"
-  );
+  document.getElementById("waitTimer");
 
 const scheduledTimeBox =
-  document.getElementById(
-    "scheduledTimeBox"
-  );
+  document.getElementById("scheduledTimeBox");
 
 const recenterBtn =
-  document.getElementById(
-    "recenterBtn"
-  );
+  document.getElementById("recenterBtn");
 
 const btnDirections =
-  document.getElementById(
-    "btnDirections"
-  );
+  document.getElementById("btnDirections");
 
 const btnArrived =
-  document.getElementById(
-    "btnArrived"
-  );
+  document.getElementById("btnArrived");
 
 const btnStartRide =
-  document.getElementById(
-    "btnStartRide"
-  );
+  document.getElementById("btnStartRide");
 
 const btnCancel =
-  document.getElementById(
-    "btnCancel"
-  );
+  document.getElementById("btnCancel");
 
 const btnCall =
-  document.getElementById(
-    "btnCall"
-  );
+  document.getElementById("btnCall");
 
 const btnNoShow =
-  document.getElementById(
-    "btnNoShow"
-  );
+  document.getElementById("btnNoShow");
 
 const btnCompleteStop =
-  document.getElementById(
-    "btnCompleteStop"
-  );
+  document.getElementById("btnCompleteStop");
 
 const btnCompleteDropoff =
-  document.getElementById(
-    "btnCompleteDropoff"
-  );
+  document.getElementById("btnCompleteDropoff");
 
 const cancelBox =
-  document.getElementById(
-    "cancelBox"
-  );
+  document.getElementById("cancelBox");
 
 const btnCloseCancel =
-  document.getElementById(
-    "btnCloseCancel"
-  );
+  document.getElementById("btnCloseCancel");
 
 const cancelNotes =
-  document.getElementById(
-    "cancelNotes"
-  );
+  document.getElementById("cancelNotes");
 
 const btnCompleteCancel =
-  document.getElementById(
-    "btnCompleteCancel"
-  );
+  document.getElementById("btnCompleteCancel");
 
 const noShowBox =
-  document.getElementById(
-    "noShowBox"
-  );
+  document.getElementById("noShowBox");
 
 const btnCloseNoShow =
-  document.getElementById(
-    "btnCloseNoShow"
-  );
+  document.getElementById("btnCloseNoShow");
 
 const noShowNotes =
-  document.getElementById(
-    "noShowNotes"
-  );
+  document.getElementById("noShowNotes");
 
 const btnCompleteNoShow =
-  document.getElementById(
-    "btnCompleteNoShow"
-  );
+  document.getElementById("btnCompleteNoShow");
 
-/* =========================
-   GLOBAL STATE
-========================= */
+/* ================= STATE ================= */
+
+let appConfig = {};
+let systemDesign = {};
+let appTimezone = "America/Phoenix";
+let serverOffset = 0;
 
 let tripDoc = null;
-
 let routeStops = [];
-
 let currentStopIndex = 0;
 
 let map = null;
 
 let driverMarker = null;
-
 let stopMarker = null;
 
-let straightLine = null;
-
 let driverLat = null;
-
 let driverLng = null;
+let watchId = null;
 
 let firstGpsFix = true;
-
 let userMovedMap = false;
-
-let watchId = null;
 
 let timerInterval = null;
 
-let serverOffset = 0;
 
 let lastSentLocationAt = 0;
-
 let lastSentLat = null;
-
 let lastSentLng = null;
 
-const LOCATION_PUSH_MS =
-  20000;
-
-const LOCATION_PUSH_MILES =
-  0.25;
-
-/* =========================
-   HELPERS
-========================= */
+/* ================= HELPERS ================= */
 
 function clean(v){
-
-  return String(
-    v ?? ""
-  )
-  .trim();
+  return String(v ?? "").trim();
 }
 
 function lower(v){
-
-  return clean(v)
-    .toLowerCase();
+  return clean(v).toLowerCase();
 }
 
-function num(
-  v,
-  def=null
-){
+function num(v,def=null){
 
   if(
     v === undefined ||
@@ -343,13 +232,9 @@ function num(
     : def;
 }
 
-function firstValue(
-  ...values
-){
+function firstValue(...values){
 
-  for(
-    const value of values
-  ){
+  for(const value of values){
 
     if(
       value !== undefined &&
@@ -363,174 +248,54 @@ function firstValue(
   return "";
 }
 
-function esc(v){
-
-  return clean(v)
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
-    );
-}
-
 function normalizeStatus(v){
 
   return lower(v)
-    .replace(
-      /[_-]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    )
+    .replace(/[_-]/g," ")
+    .replace(/\s+/g," ")
     .trim();
 }
 
-function show(
-  el,
-  display="block"
-){
+function normalizeAddressKey(v){
 
-  if(el){
-    el.style.display =
-      display;
-  }
+  return lower(v)
+    .replace(/[.,#]/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function validPoint(lat,lng){
+
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180 &&
+    !(lat === 0 && lng === 0)
+  );
+}
+
+function show(el,display="block"){
+  if(el) el.style.display = display;
 }
 
 function hide(el){
-
-  if(el){
-    el.style.display =
-      "none";
-  }
+  if(el) el.style.display = "none";
 }
 
 function setNavText(text){
-
-  if(navTextEl){
-    navTextEl.textContent =
-      text;
-  }
+  if(navTextEl) navTextEl.textContent = text;
 }
 
 function setStopStatus(text){
-
-  if(stopStatusText){
-    stopStatusText.textContent =
-      text;
-  }
+  if(stopStatusText) stopStatusText.textContent = text;
 }
-
-function validLatitude(v){
-
-  return (
-    Number.isFinite(v) &&
-    v >= -90 &&
-    v <= 90
-  );
-}
-
-function validLongitude(v){
-
-  return (
-    Number.isFinite(v) &&
-    v >= -180 &&
-    v <= 180
-  );
-}
-
-function validPoint(
-  lat,
-  lng
-){
-
-  return (
-    validLatitude(lat) &&
-    validLongitude(lng) &&
-    !(
-      lat === 0 &&
-      lng === 0
-    )
-  );
-}
-
-/* =========================
-   SERVER CLOCK
-========================= */
 
 function serverNow(){
-
-  return (
-    Date.now() +
-    serverOffset
-  );
+  return Date.now() + serverOffset;
 }
-
-async function syncServerClock(){
-
-  try{
-
-    const res =
-      await fetch(
-        "/api/config",
-        {
-          cache:"no-store"
-        }
-      );
-
-    const dateHeader =
-      res.headers.get(
-        "date"
-      );
-
-    if(dateHeader){
-
-      const serverMs =
-        new Date(
-          dateHeader
-        )
-        .getTime();
-
-      if(
-        Number.isFinite(
-          serverMs
-        )
-      ){
-
-        serverOffset =
-          serverMs -
-          Date.now();
-      }
-    }
-
-  }catch(err){
-
-    console.log(
-      "SERVER CLOCK ERROR:",
-      err
-    );
-  }
-}
-
-/* =========================
-   DISTANCE
-========================= */
 
 function distanceMiles(
   lat1,
@@ -539,40 +304,19 @@ function distanceMiles(
   lon2
 ){
 
-  const R =
-    3958.8;
+  const R = 3958.8;
 
   const dLat =
-    (
-      (lat2-lat1) *
-      Math.PI
-    ) /
-    180;
+    ((lat2-lat1)*Math.PI)/180;
 
   const dLon =
-    (
-      (lon2-lon1) *
-      Math.PI
-    ) /
-    180;
+    ((lon2-lon1)*Math.PI)/180;
 
   const a =
-    Math.sin(
-      dLat/2
-    ) ** 2 +
-    Math.cos(
-      lat1 *
-      Math.PI /
-      180
-    ) *
-    Math.cos(
-      lat2 *
-      Math.PI /
-      180
-    ) *
-    Math.sin(
-      dLon/2
-    ) ** 2;
+    Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180) *
+    Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLon/2)**2;
 
   return (
     R *
@@ -584,95 +328,22 @@ function distanceMiles(
   );
 }
 
-function currentStop(){
-
-  return (
-    routeStops[
-      currentStopIndex
-    ] ||
-    null
-  );
-}
-
-function currentDistance(){
-
-  const stop =
-    currentStop();
-
-  if(
-    !stop ||
-    !validPoint(
-      stop.lat,
-      stop.lng
-    ) ||
-    !validPoint(
-      driverLat,
-      driverLng
-    )
-  ){
-    return null;
-  }
-
-  return distanceMiles(
-    driverLat,
-    driverLng,
-    stop.lat,
-    stop.lng
-  );
-}
-
-function insideCurrentStopRadius(){
-
-  const d =
-    currentDistance();
-
-  return (
-    d !== null &&
-    d <=
-    EXECUTION.stopRadiusMiles
-  );
-}
-
-/* =========================
-   DRIVER IDENTITY GUARD
-========================= */
-
 function normalizePhone(v){
-
-  return clean(v)
-    .replace(
-      /\D/g,
-      ""
-    );
+  return clean(v).replace(/\D/g,"");
 }
 
-function isDriverIdentity(
-  name,
-  phone
-){
-
-  const n1 =
-    lower(name);
-
-  const n2 =
-    lower(
-      DRIVER_NAME
-    );
-
-  const p1 =
-    normalizePhone(
-      phone
-    );
-
-  const p2 =
-    normalizePhone(
-      DRIVER_PHONE
-    );
+function isDriverIdentity(name,phone){
 
   const sameName =
-    n1 &&
-    n2 &&
-    n1 === n2;
+    lower(name) &&
+    lower(name) ===
+    lower(DRIVER_NAME);
+
+  const p1 =
+    normalizePhone(phone);
+
+  const p2 =
+    normalizePhone(DRIVER_PHONE);
 
   const samePhone =
     p1 &&
@@ -685,107 +356,235 @@ function isDriverIdentity(
   );
 }
 
-/* =========================
-   TRIP TIME
-========================= */
+/* ================= SERVER CLOCK ================= */
 
-function buildScheduledTime(
-  trip,
-  source=null
-){
+async function syncServerClock(){
 
-  const direct =
-    firstValue(
-      source?.scheduledAt,
-      source?.tripDateTime,
-      source?.pickupDateTime
-    );
+  try{
 
-  if(direct){
+    const res =
+      await fetch(
+        "/api/config",
+        {cache:"no-store"}
+      );
 
-    const ms =
-      new Date(
-        direct
-      )
-      .getTime();
+    const header =
+      res.headers.get("date");
 
-    if(
-      Number.isFinite(
-        ms
-      )
-    ){
-      return ms;
+    if(header){
+
+      const ms =
+        new Date(header)
+        .getTime();
+
+      if(Number.isFinite(ms)){
+        serverOffset =
+          ms - Date.now();
+      }
     }
-  }
 
-  const date =
-    clean(
-      firstValue(
-        source?.tripDate,
-        trip?.tripDate,
-        trip?.date
-      )
-    );
-
-  const time =
-    clean(
-      firstValue(
-        source?.tripTime,
-        source?.pickupTime,
-        trip?.tripTime,
-        trip?.time
-      )
-    );
-
-  if(
-    !date ||
-    !time
-  ){
-    return null;
-  }
-
-  const ms =
-    new Date(
-      `${date}T${time}`
-    )
-    .getTime();
-
-  return Number.isFinite(ms)
-    ? ms
-    : null;
+  }catch{}
 }
 
-function formatScheduledTime(ms){
+/* ================= GOOGLE LOAD ================= */
 
-  if(
-    !Number.isFinite(ms)
-  ){
-    return "";
+async function loadAppConfig(){
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/config",
+        {cache:"no-store"}
+      );
+
+    if(res.ok){
+      appConfig =
+        await res.json();
+    }
+
+  }catch{
+    appConfig = {};
+  }
+}
+
+async function loadSystemDesign(){
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/system-design",
+        {cache:"no-store"}
+      );
+
+    if(res.ok){
+      systemDesign =
+        await res.json();
+    }
+
+  }catch{
+    systemDesign = {};
   }
 
+  appTimezone =
+    systemDesign.timezone ||
+    systemDesign.appTimezone ||
+    "America/Phoenix";
+}
+
+function getGoogleMapsKey(){
+
   return (
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        hour:"numeric",
-        minute:"2-digit",
-        hour12:true
-      }
-    )
-    .format(
-      new Date(ms)
-    )
+    appConfig.googleKey ||
+    appConfig.googleMapsKey ||
+    systemDesign.googleKey ||
+    systemDesign.googleMapsKey ||
+    systemDesign.googleMapKey ||
+    systemDesign.googleMapsApiKey ||
+    systemDesign.mapsApiKey ||
+    ""
   );
 }
 
-/* =========================
-   PASSENGER HELPERS
-========================= */
+function loadGoogleMaps(){
 
-function passengerId(
-  p,
-  index
+  return new Promise(
+    (resolve,reject)=>{
+
+      if(
+        window.google &&
+        google.maps &&
+        google.maps.Map
+      ){
+        resolve();
+        return;
+      }
+
+      const key =
+        getGoogleMapsKey();
+
+      if(!key){
+        reject(
+          new Error(
+            "Google Maps API key missing"
+          )
+        );
+        return;
+      }
+
+      const old =
+        document.getElementById(
+          "google-maps-script"
+        );
+
+      if(old){
+        old.remove();
+      }
+
+      const script =
+        document.createElement(
+          "script"
+        );
+
+      script.id =
+        "google-maps-script";
+
+      script.async = true;
+      script.defer = true;
+
+      script.src =
+        "https://maps.googleapis.com/maps/api/js?key=" +
+        encodeURIComponent(key) +
+        "&v=weekly";
+
+      script.onload =
+        ()=>resolve();
+
+      script.onerror =
+        ()=>reject(
+          new Error(
+            "Google Maps failed to load"
+          )
+        );
+
+      document.head
+        .appendChild(
+          script
+        );
+    }
+  );
+}
+
+/* ================= TRIP API ================= */
+
+async function fetchTrip(){
+
+  if(!TRIP_ID){
+
+    alert("No trip found");
+
+    window.location.href =
+      "/driver/trips.html";
+
+    return null;
+  }
+
+  const res =
+    await fetch(
+      `/api/trips/${TRIP_ID}`,
+      {cache:"no-store"}
+    );
+
+  if(!res.ok){
+    throw new Error(
+      "Trip load failed"
+    );
+  }
+
+  return await res.json();
+}
+
+async function updateTrip(
+  body
 ){
+
+  const res =
+    await fetch(
+      `/api/trips/${TRIP_ID}`,
+      {
+        method:"PUT",
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+        body:
+          JSON.stringify(body)
+      }
+    );
+
+  if(!res.ok){
+
+    const data =
+      await res
+      .json()
+      .catch(()=>({}));
+
+    throw new Error(
+      data.message ||
+      "Trip update failed"
+    );
+  }
+
+  tripDoc =
+    await res.json();
+
+  return tripDoc;
+}
+
+/* ================= PASSENGERS ================= */
+
+function passengerId(p,index){
 
   return String(
     firstValue(
@@ -797,10 +596,7 @@ function passengerId(
   );
 }
 
-function passengerName(
-  p,
-  index
-){
+function passengerName(p,index){
 
   return clean(
     firstValue(
@@ -808,7 +604,7 @@ function passengerName(
       p?.passengerName,
       p?.memberName,
       p?.patientName,
-      p?.riderName,
+      p?.name,
       `Passenger ${index+1}`
     )
   );
@@ -822,17 +618,13 @@ function passengerPhone(p){
       p?.passengerPhone,
       p?.memberPhone,
       p?.patientPhone,
-      p?.riderPhone,
       p?.phone,
       p?.mobile
     )
   );
 }
 
-function passengerPickup(
-  p,
-  trip
-){
+function passengerPickup(p,trip){
 
   return clean(
     firstValue(
@@ -844,10 +636,7 @@ function passengerPickup(
   );
 }
 
-function passengerDropoff(
-  p,
-  trip
-){
+function passengerDropoff(p,trip){
 
   return clean(
     firstValue(
@@ -859,149 +648,62 @@ function passengerDropoff(
   );
 }
 
-function pickupPoint(
-  p,
-  trip
-){
+function pickupPoint(p,trip){
 
   return {
-
     lat:
       num(
         firstValue(
           p?.pickupLat,
           p?.pickupLatitude,
-          p?.pickup?.lat,
-          p?.pickupCoords?.lat,
-          tripPickupPoint(trip).lat
+          trip?.pickupLat,
+          trip?.pickupLatitude
         )
       ),
-
     lng:
       num(
         firstValue(
           p?.pickupLng,
           p?.pickupLongitude,
-          p?.pickup?.lng,
-          p?.pickup?.lon,
-          p?.pickupCoords?.lng,
-          p?.pickupCoords?.lon,
-          tripPickupPoint(trip).lng
+          trip?.pickupLng,
+          trip?.pickupLongitude
         )
       )
   };
 }
 
-function dropoffPoint(
-  p,
-  trip
-){
+function dropoffPoint(p,trip){
 
   return {
-
     lat:
       num(
         firstValue(
           p?.dropoffLat,
           p?.dropLat,
           p?.dropoffLatitude,
-          p?.dropoff?.lat,
-          p?.dropoffCoords?.lat,
-          tripDropoffPoint(trip).lat
+          trip?.dropoffLat,
+          trip?.dropLat
         )
       ),
-
     lng:
       num(
         firstValue(
           p?.dropoffLng,
           p?.dropLng,
           p?.dropoffLongitude,
-          p?.dropoff?.lng,
-          p?.dropoff?.lon,
-          p?.dropoffCoords?.lng,
-          p?.dropoffCoords?.lon,
-          tripDropoffPoint(trip).lng
-        )
-      )
-  };
-}
-
-function tripPickupPoint(trip){
-
-  return {
-    lat:
-      num(
-        firstValue(
-          trip?.pickupLat,
-          trip?.pickupLatitude,
-          trip?.pickup?.lat,
-          trip?.pickup?.latitude,
-          trip?.pickupCoords?.lat,
-          trip?.pickupCoords?.latitude
-        )
-      ),
-
-    lng:
-      num(
-        firstValue(
-          trip?.pickupLng,
-          trip?.pickupLongitude,
-          trip?.pickup?.lng,
-          trip?.pickup?.lon,
-          trip?.pickup?.longitude,
-          trip?.pickupCoords?.lng,
-          trip?.pickupCoords?.lon,
-          trip?.pickupCoords?.longitude
-        )
-      )
-  };
-}
-
-function tripDropoffPoint(trip){
-
-  return {
-    lat:
-      num(
-        firstValue(
-          trip?.dropoffLat,
-          trip?.dropLat,
-          trip?.dropoffLatitude,
-          trip?.dropoff?.lat,
-          trip?.dropoff?.latitude,
-          trip?.dropoffCoords?.lat,
-          trip?.dropoffCoords?.latitude
-        )
-      ),
-
-    lng:
-      num(
-        firstValue(
           trip?.dropoffLng,
-          trip?.dropLng,
-          trip?.dropoffLongitude,
-          trip?.dropoff?.lng,
-          trip?.dropoff?.lon,
-          trip?.dropoff?.longitude,
-          trip?.dropoffCoords?.lng,
-          trip?.dropoffCoords?.lon,
-          trip?.dropoffCoords?.longitude
+          trip?.dropLng
         )
       )
   };
 }
 
-function getPassengers(
-  trip
-){
+function getPassengers(trip){
 
   if(
-    Array.isArray(
-      trip?.passengers
-    ) &&
+    Array.isArray(trip?.passengers) &&
     trip.passengers.length
   ){
-
     return trip.passengers;
   }
 
@@ -1033,661 +735,286 @@ function getPassengers(
         trip?.dropoffAddress
       ),
     pickupLat:
-      tripPickupPoint(trip).lat,
+      trip?.pickupLat,
     pickupLng:
-      tripPickupPoint(trip).lng,
+      trip?.pickupLng,
     dropoffLat:
-      tripDropoffPoint(trip).lat,
+      firstValue(
+        trip?.dropoffLat,
+        trip?.dropLat
+      ),
     dropoffLng:
-      tripDropoffPoint(trip).lng,
+      firstValue(
+        trip?.dropoffLng,
+        trip?.dropLng
+      ),
     pickupOrder:1,
     dropoffOrder:999999,
-    tripDate:
-      trip?.tripDate,
-    tripTime:
-      trip?.tripTime
+    tripDate:trip?.tripDate,
+    tripTime:trip?.tripTime
   }];
 }
 
-/* =========================
-   NORMAL TRIP EXTRA STOPS
-========================= */
+/* ================= TRIP TIME ================= */
 
-function getStopCoordRows(trip){
-
-  if(
-    Array.isArray(
-      trip?.stopCoords
-    )
-  ){
-    return trip.stopCoords;
-  }
-
-  if(
-    Array.isArray(
-      trip?.routeStops
-    )
-  ){
-    return trip.routeStops;
-  }
-
-  return [];
-}
-
-function matchStopCoord(
+function buildScheduledTime(
   trip,
-  rawStop,
-  index
+  source=null
 ){
 
-  const coords =
-    getStopCoordRows(
-      trip
+  const direct =
+    firstValue(
+      source?.scheduledAt,
+      source?.tripDateTime,
+      source?.pickupDateTime
     );
 
-  if(!coords.length){
-    return null;
+  if(direct){
+
+    const ms =
+      new Date(direct)
+      .getTime();
+
+    if(Number.isFinite(ms)){
+      return ms;
+    }
   }
 
-  const rawId =
+  const date =
     clean(
       firstValue(
-        rawStop?.stopId,
-        rawStop?._id,
-        rawStop?.id
+        source?.tripDate,
+        trip?.tripDate,
+        trip?.date
       )
     );
 
-  const rawAddress =
-    normalizeAddressKey(
+  const time =
+    clean(
       firstValue(
-        rawStop?.address,
-        rawStop?.fullAddress,
-        rawStop?.location,
-        rawStop?.stopAddress,
-        typeof rawStop === "string"
-          ? rawStop
-          : ""
+        source?.tripTime,
+        source?.pickupTime,
+        trip?.tripTime,
+        trip?.time
       )
     );
 
-  if(rawId){
-
-    const byId =
-      coords.find(
-        row =>
-          clean(
-            firstValue(
-              row?.stopId,
-              row?._id,
-              row?.id
-            )
-          ) === rawId
-      );
-
-    if(byId){
-      return byId;
-    }
-  }
-
-  if(rawAddress){
-
-    const byAddress =
-      coords.find(
-        row =>
-          normalizeAddressKey(
-            firstValue(
-              row?.address,
-              row?.fullAddress,
-              row?.location,
-              row?.stopAddress
-            )
-          ) === rawAddress
-      );
-
-    if(byAddress){
-      return byAddress;
-    }
-  }
-
-  return coords[index] || null;
-}
-
-
-function normalizeExtraStop(
-  trip,
-  raw,
-  index
-){
-
-  if(!raw){
+  if(!date || !time){
     return null;
   }
 
-  const coordRow =
-    matchStopCoord(
-      trip,
-      raw,
-      index
-    );
+  const ms =
+    new Date(
+      `${date}T${time}`
+    )
+    .getTime();
 
-  if(
-    typeof raw ===
-    "string"
+  return Number.isFinite(ms)
+    ? ms
+    : null;
+}
+
+function formatScheduledTime(ms){
+
+  if(!Number.isFinite(ms)){
+    return "";
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone:appTimezone,
+      hour:"numeric",
+      minute:"2-digit",
+      hour12:true
+    }
+  )
+  .format(
+    new Date(ms)
+  );
+}
+
+/* ================= NORMAL STOPS ================= */
+
+function buildNormalStops(trip){
+
+  const stops =
+    Array.isArray(trip?.stops)
+      ? trip.stops
+      : [];
+
+  const coords =
+    Array.isArray(trip?.stopCoords)
+      ? trip.stopCoords
+      : [];
+
+  const out = [];
+
+  for(
+    let i=0;
+    i<stops.length;
+    i++
   ){
 
-    return {
+    const raw =
+      stops[i];
+
+    const address =
+      clean(
+        typeof raw === "string"
+          ? raw
+          : firstValue(
+              raw?.address,
+              raw?.fullAddress,
+              raw?.stopAddress,
+              raw?.location
+            )
+      );
+
+    const coordByAddress =
+      coords.find(
+        c =>
+          normalizeAddressKey(
+            firstValue(
+              c?.address,
+              c?.fullAddress
+            )
+          ) ===
+          normalizeAddressKey(
+            address
+          )
+      );
+
+    const coord =
+      coordByAddress ||
+      coords[i] ||
+      {};
+
+    out.push({
       stopId:
-        clean(
+        String(
           firstValue(
-            coordRow?.stopId,
-            coordRow?._id,
-            coordRow?.id,
-            `mid-${index+1}`
+            raw?.stopId,
+            raw?._id,
+            raw?.id,
+            `stop-${i+1}`
           )
         ),
       type:"stop",
-      order:
-        num(
-          firstValue(
-            coordRow?.order,
-            coordRow?.routeOrder,
-            coordRow?.sequence,
-            index + 2
-          ),
-          index + 2
-        ),
-      address:
-        clean(raw),
+      order:i+2,
+      address,
       lat:
         num(
           firstValue(
-            coordRow?.lat,
-            coordRow?.latitude,
-            coordRow?.stopLat
+            raw?.lat,
+            raw?.latitude,
+            coord?.lat,
+            coord?.latitude
           )
         ),
       lng:
         num(
           firstValue(
-            coordRow?.lng,
-            coordRow?.lon,
-            coordRow?.longitude,
-            coordRow?.stopLng
+            raw?.lng,
+            raw?.lon,
+            raw?.longitude,
+            coord?.lng,
+            coord?.lon,
+            coord?.longitude
           )
         ),
-      title:
-        clean(
-          firstValue(
-            coordRow?.title,
-            coordRow?.label,
-            `Stop ${index+1}`
-          )
-        ),
-      sourceIndex:index
-    };
+      passengers:[]
+    });
   }
+
+  return out;
+}
+
+/* ================= SHARED GROUPS ================= */
+
+function samePickupGroup(
+  group,
+  p,
+  trip
+){
 
   const address =
-    clean(
-      firstValue(
-        raw.address,
-        raw.fullAddress,
-        raw.location,
-        raw.name,
-        raw.stopAddress,
-        coordRow?.address,
-        coordRow?.fullAddress
-      )
-    );
-
-  const lat =
-    num(
-      firstValue(
-        raw.lat,
-        raw.latitude,
-        raw.stopLat,
-        coordRow?.lat,
-        coordRow?.latitude,
-        coordRow?.stopLat
-      )
-    );
-
-  const lng =
-    num(
-      firstValue(
-        raw.lng,
-        raw.lon,
-        raw.longitude,
-        raw.stopLng,
-        coordRow?.lng,
-        coordRow?.lon,
-        coordRow?.longitude,
-        coordRow?.stopLng
-      )
-    );
-
-  const order =
-    num(
-      firstValue(
-        raw.order,
-        raw.routeOrder,
-        raw.sequence,
-        raw.stopOrder,
-        raw.index,
-        coordRow?.order,
-        coordRow?.routeOrder,
-        coordRow?.sequence
-      ),
-      index + 2
-    );
-
-  return {
-    stopId:
-      String(
-        firstValue(
-          raw.stopId,
-          raw._id,
-          raw.id,
-          coordRow?.stopId,
-          coordRow?._id,
-          coordRow?.id,
-          `mid-${index+1}`
-        )
-      ),
-    type:"stop",
-    order,
-    address,
-    lat,
-    lng,
-    title:
-      clean(
-        firstValue(
-          raw.title,
-          raw.label,
-          raw.name,
-          coordRow?.title,
-          coordRow?.label,
-          `Stop ${index+1}`
-        )
-      ),
-    sourceIndex:index
-  };
-}
-
-function getNormalTripStops(
-  trip
-){
-
-  const rawStops =
-    Array.isArray(
-      trip?.stops
-    )
-      ? trip.stops
-      : Array.isArray(
-          trip?.extraStops
-        )
-        ? trip.extraStops
-        : Array.isArray(
-            trip?.stopAddresses
-          )
-          ? trip.stopAddresses
-          : [];
-
-  return rawStops
-    .map(
-      (raw,index)=>
-        normalizeExtraStop(
-          trip,
-          raw,
-          index
-        )
-    )
-    .filter(Boolean);
-}
-
-/* =========================
-   SAME PICKUP GROUP
-========================= */
-
-function normalizeAddressKey(v){
-
-  return clean(v)
-    .toLowerCase()
-    .replace(
-      /[.,#]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    )
-    .trim();
-}
-
-function sameCoordinate(
-  a,
-  b
-){
-
-  if(
-    !a ||
-    !b ||
-    !validPoint(
-      a.lat,
-      a.lng
-    ) ||
-    !validPoint(
-      b.lat,
-      b.lng
-    )
-  ){
-    return false;
-  }
-
-  return (
-    distanceMiles(
-      a.lat,
-      a.lng,
-      b.lat,
-      b.lng
-    )
-    <=
-    0.02
-  );
-}
-
-function pickupIdentity(
-  passenger,
-  trip
-){
-
-  const explicit =
-    clean(
-      firstValue(
-        passenger?.pickupGroupId,
-        passenger?.pickupStopId,
-        passenger?.pickupAddressKey,
-        passenger?.addressKey
-      )
-    );
-
-  return {
-
-    explicit:
-      explicit
-        ? `KEY:${explicit.toLowerCase()}`
-        : "",
-
-    address:
-      normalizeAddressKey(
-        passengerPickup(
-          passenger,
-          trip
-        )
-      ),
-
-    point:
-      pickupPoint(
-        passenger,
+    normalizeAddressKey(
+      passengerPickup(
+        p,
         trip
       )
-  };
-}
+    );
 
-function pickupGroupMatches(
-  group,
-  passenger,
-  trip
-){
-
-  const identity =
-    pickupIdentity(
-      passenger,
+  const point =
+    pickupPoint(
+      p,
       trip
     );
 
   if(
-    identity.explicit &&
-    group.explicit
+    address &&
+    group.addressKey ===
+    address
   ){
-
-    return (
-      identity.explicit ===
-      group.explicit
-    );
-  }
-
-  if(
-    identity.address &&
-    group.addressKey &&
-    identity.address ===
-    group.addressKey
-  ){
-
     return true;
   }
 
-  return sameCoordinate(
-    group.point,
-    identity.point
-  );
-}
-
-/* =========================
-   BUILD COMPLETE ROUTE
-========================= */
-
-function buildExplicitServerRouteStops(trip){
-
-  const rows =
-    Array.isArray(trip?.routeStops)
-      ? trip.routeStops
-      : [];
-
-  if(!rows.length){
-    return [];
-  }
-
-  return rows
-    .map(
-      (row,index)=>{
-
-        const rawType =
-          normalizeStatus(
-            firstValue(
-              row?.type,
-              row?.stopType,
-              row?.action,
-              row?.kind
-            )
-          );
-
-        let type =
-          "stop";
-
-        if(
-          rawType.includes("pickup")
-        ){
-          type = "pickup";
-        }else if(
-          rawType.includes("dropoff") ||
-          rawType.includes("drop off")
-        ){
-          type = "dropoff";
-        }
-
-        const lat =
-          num(
-            firstValue(
-              row?.lat,
-              row?.latitude,
-              row?.stopLat
-            )
-          );
-
-        const lng =
-          num(
-            firstValue(
-              row?.lng,
-              row?.lon,
-              row?.longitude,
-              row?.stopLng
-            )
-          );
-
-        const passengerRows =
-          Array.isArray(row?.passengers)
-            ? row.passengers
-            : [];
-
-        return {
-          stopId:
-            String(
-              firstValue(
-                row?.stopId,
-                row?._id,
-                row?.id,
-                `route-${index+1}`
-              )
-            ),
-          type,
-          order:
-            num(
-              firstValue(
-                row?.order,
-                row?.routeOrder,
-                row?.sequence
-              ),
-              index + 1
-            ),
-          address:
-            clean(
-              firstValue(
-                row?.address,
-                row?.fullAddress,
-                row?.stopAddress,
-                row?.location
-              )
-            ),
-          lat,
-          lng,
-          scheduledAt:
-            buildScheduledTime(
-              trip,
-              row
-            ),
-          passengers:
-            passengerRows.map(
-              (p,pIndex)=>({
-                passengerId:
-                  passengerId(
-                    p,
-                    pIndex
-                  ),
-                name:
-                  passengerName(
-                    p,
-                    pIndex
-                  ),
-                phone:
-                  passengerPhone(
-                    p
-                  ),
-                sourceIndex:
-                  pIndex,
-                status:
-                  clean(
-                    p?.status ||
-                    "Scheduled"
-                  )
-              })
-            )
-        };
-      }
-    )
-    .filter(
-      stop =>
-        clean(stop.address) ||
-        validPoint(
-          stop.lat,
-          stop.lng
-        )
-    )
-    .sort(
-      (a,b)=>
-        num(a.order,999999) -
-        num(b.order,999999)
-    );
-}
-
-function buildRouteStops(
-  trip
-){
-
-  const explicitRoute =
-    buildExplicitServerRouteStops(
-      trip
-    );
-
   if(
-    explicitRoute.length
+    validPoint(
+      group.lat,
+      group.lng
+    ) &&
+    validPoint(
+      point.lat,
+      point.lng
+    )
   ){
-    return explicitRoute;
+
+    return (
+      distanceMiles(
+        group.lat,
+        group.lng,
+        point.lat,
+        point.lng
+      ) <= 0.02
+    );
   }
+
+  return false;
+}
+
+function buildSharedStops(trip){
 
   const passengers =
-    getPassengers(
-      trip
-    );
+    getPassengers(trip);
 
   const pickupGroups = [];
-
   const dropoffs = [];
 
   passengers.forEach(
     (p,index)=>{
 
       const id =
-        passengerId(
-          p,
-          index
-        );
+        passengerId(p,index);
 
       const name =
-        passengerName(
-          p,
-          index
-        );
+        passengerName(p,index);
 
       const phone =
-        passengerPhone(
-          p
-        );
+        passengerPhone(p);
 
-      const pickup =
-        passengerPickup(
-          p,
-          trip
-        );
+      const pPickup =
+        passengerPickup(p,trip);
 
-      const dropoff =
-        passengerDropoff(
-          p,
-          trip
-        );
+      const pDropoff =
+        passengerDropoff(p,trip);
 
-      const pPoint =
-        pickupPoint(
-          p,
-          trip
-        );
+      const pu =
+        pickupPoint(p,trip);
 
-      const dPoint =
-        dropoffPoint(
-          p,
-          trip
-        );
+      const dr =
+        dropoffPoint(p,trip);
 
       const pickupOrder =
         num(
@@ -1709,16 +1036,10 @@ function buildRouteStops(
           index*10+9
         );
 
-      const identity =
-        pickupIdentity(
-          p,
-          trip
-        );
-
       let group =
         pickupGroups.find(
           g =>
-            pickupGroupMatches(
+            samePickupGroup(
               g,
               p,
               trip
@@ -1728,39 +1049,22 @@ function buildRouteStops(
       if(!group){
 
         group = {
-
           stopId:
             `pickup-${pickupGroups.length+1}`,
-
           type:"pickup",
-
-          order:
-            pickupOrder,
-
-          address:
-            pickup,
-
-          lat:
-            pPoint.lat,
-
-          lng:
-            pPoint.lng,
-
-          point:
-            pPoint,
-
-          explicit:
-            identity.explicit,
-
+          order:pickupOrder,
+          address:pPickup,
           addressKey:
-            identity.address,
-
+            normalizeAddressKey(
+              pPickup
+            ),
+          lat:pu.lat,
+          lng:pu.lng,
           scheduledAt:
             buildScheduledTime(
               trip,
               p
             ),
-
           passengers:[]
         };
 
@@ -1776,40 +1080,31 @@ function buildRouteStops(
             pickupOrder
           );
 
-        const nextTime =
+        const t =
           buildScheduledTime(
             trip,
             p
           );
 
         if(
-          Number.isFinite(
-            nextTime
-          ) &&
+          Number.isFinite(t) &&
           (
             !Number.isFinite(
               group.scheduledAt
             ) ||
-            nextTime <
+            t <
             group.scheduledAt
           )
         ){
-
-          group.scheduledAt =
-            nextTime;
+          group.scheduledAt = t;
         }
       }
 
       group.passengers.push({
-
         passengerId:id,
-
         name,
-
         phone,
-
         sourceIndex:index,
-
         status:
           clean(
             p?.status ||
@@ -1818,34 +1113,18 @@ function buildRouteStops(
       });
 
       dropoffs.push({
-
         stopId:
           `dropoff-${id}`,
-
         type:"dropoff",
-
-        order:
-          dropoffOrder,
-
-        address:
-          dropoff,
-
-        lat:
-          dPoint.lat,
-
-        lng:
-          dPoint.lng,
-
+        order:dropoffOrder,
+        address:pDropoff,
+        lat:dr.lat,
+        lng:dr.lng,
         passengers:[{
-
           passengerId:id,
-
           name,
-
           phone,
-
           sourceIndex:index,
-
           status:
             clean(
               p?.status ||
@@ -1856,221 +1135,175 @@ function buildRouteStops(
     }
   );
 
-  const extraStops =
-    getNormalTripStops(
-      trip
-    );
-
-  /*
-    If explicit order exists in data,
-    it wins.
-
-    If normal trip has old simple stops
-    without order:
-    Pickup = first
-    Extra stops = middle
-    Dropoff = last
-  */
-  const hasSharedPassengers =
-    Array.isArray(
-      trip?.passengers
-    ) &&
-    trip.passengers.length > 1;
-
-  if(
-    !hasSharedPassengers &&
-    pickupGroups.length === 1 &&
-    dropoffs.length === 1 &&
-    extraStops.length
-  ){
-
-    pickupGroups[0].order =
-      1;
-
-    extraStops.forEach(
-      (stop,index)=>{
-
-        if(
-          !Number.isFinite(
-            num(
-              stop.order,
-              null
-            )
-          ) ||
-          stop.order >= 1000
-        ){
-
-          stop.order =
-            index + 2;
-        }
-      }
-    );
-
-    dropoffs[0].order =
-      extraStops.length +
-      2;
-  }
-
   return [
     ...pickupGroups,
-    ...extraStops,
     ...dropoffs
   ]
-  .filter(
-    stop =>
-      clean(
-        stop.address
-      ) ||
-      validPoint(
-        stop.lat,
-        stop.lng
-      )
-  )
   .sort(
     (a,b)=>
-      num(
-        a.order,
-        999999
-      ) -
-      num(
-        b.order,
-        999999
-      )
+      a.order-b.order
   );
 }
 
-/* =========================
-   ACTIVE PASSENGERS
+/* ================= ROUTE BUILD ================= */
+
+function buildRouteStops(trip){
+
+  const shared =
+    trip?.isShared === true ||
+    clean(trip?.tripType)
+      .toUpperCase() ===
+      "SHARED" ||
+    (
+      Array.isArray(
+        trip?.passengers
+      ) &&
+      trip.passengers.length > 1
+    );
+
+  if(shared){
+    return buildSharedStops(
+      trip
+    );
+  }
+
+  const passengers =
+    getPassengers(trip);
+
+  const p =
+    passengers[0];
+
+  const pu =
+    pickupPoint(p,trip);
+
+  const dr =
+    dropoffPoint(p,trip);
+
+  const pickup = {
+    stopId:"pickup-1",
+    type:"pickup",
+    order:1,
+    address:
+      passengerPickup(p,trip),
+    lat:pu.lat,
+    lng:pu.lng,
+    scheduledAt:
+      buildScheduledTime(
+        trip,
+        p
+      ),
+    passengers:[{
+      passengerId:
+        passengerId(p,0),
+      name:
+        passengerName(p,0),
+      phone:
+        passengerPhone(p),
+      sourceIndex:0,
+      status:
+        clean(
+          p?.status ||
+          "Scheduled"
+        )
+    }]
+  };
+
+  const middle =
+    buildNormalStops(
+      trip
+    );
+
+  const dropoff = {
+    stopId:"dropoff-1",
+    type:"dropoff",
+    order:
+      middle.length + 2,
+    address:
+      passengerDropoff(p,trip),
+    lat:dr.lat,
+    lng:dr.lng,
+    passengers:[{
+      passengerId:
+        passengerId(p,0),
+      name:
+        passengerName(p,0),
+      phone:
+        passengerPhone(p),
+      sourceIndex:0,
+      status:
+        clean(
+          p?.status ||
+          "Scheduled"
+        )
+    }]
+  };
+
+  return [
+    pickup,
+    ...middle,
+    dropoff
+  ];
+}
+
+/* ================= STOP COORDINATES =================
+
+   DISPLAY-ONLY POLICY:
+   - No Address Cache request from Driver Map.
+   - No Google Geocoder request.
+   - No Directions API request.
+   - The page uses ONLY lat/lng already saved with the trip.
+   - If coordinates are missing, external Google Maps can still open by address,
+     but ARRIVED remains locked because a 250m geofence cannot be verified safely.
 ========================= */
 
-function activePassengers(
-  stop
-){
+async function ensureStopCoordinates(stop){
 
   if(!stop){
+    return false;
+  }
+
+  return validPoint(
+    stop.lat,
+    stop.lng
+  );
+}
+
+/* ================= ACTIVE PASSENGERS ================= */
+
+function activePassengers(stop){
+
+  if(
+    !stop ||
+    !Array.isArray(
+      stop.passengers
+    )
+  ){
     return [];
   }
 
-  return (
-    Array.isArray(
-      stop.passengers
-    )
-      ? stop.passengers
-      : []
-  )
-  .filter(
-    p=>{
+  return stop.passengers
+    .filter(
+      p=>{
 
-      const s =
-        normalizeStatus(
-          p.status
-        );
+        const s =
+          normalizeStatus(
+            p.status
+          );
 
-      return ![
-        "completed",
-        "cancelled",
-        "canceled",
-        "no show"
-      ]
-      .includes(
-        s
-      );
-    }
-  );
+        return ![
+          "completed",
+          "cancelled",
+          "canceled",
+          "no show"
+        ]
+        .includes(s);
+      }
+    );
 }
 
-/* =========================
-   SERVER AUTHORITY
-========================= */
+/* ================= LOCAL STOP STATE ================= */
 
-function tripExecutionStartedOnServer(
-  trip
-){
-
-  if(!trip){
-    return false;
-  }
-
-  const status =
-    normalizeStatus(
-      firstValue(
-        trip.dispatchStatus,
-        trip.status,
-        trip.tripStatus
-      )
-    );
-
-  if(
-    [
-      "arrived",
-      "on trip",
-      "in progress",
-      "started"
-    ]
-    .includes(
-      status
-    )
-  ){
-    return true;
-  }
-
-  return Boolean(
-    firstValue(
-      trip.arrivedAt,
-      trip.startedAt,
-      trip.driverExecutionAt,
-      trip.currentStopId
-    )
-  );
-}
-
-function tripIsFreshDispatch(
-  trip
-){
-
-  if(!trip){
-    return false;
-  }
-
-  const status =
-    normalizeStatus(
-      firstValue(
-        trip.dispatchStatus,
-        trip.status,
-        "scheduled"
-      )
-    );
-
-  const fresh =
-    [
-      "scheduled",
-      "confirmed",
-      "assigned",
-      "sent",
-      "dispatched",
-      "accepted",
-      "upcoming",
-      "ready"
-    ]
-    .includes(
-      status
-    );
-
-  return (
-    fresh &&
-    !tripExecutionStartedOnServer(
-      trip
-    )
-  );
-}
-
-/* =========================
-   LOCAL STOP STATE
-========================= */
-
-function stopStateKey(
-  stop
-){
+function stateKey(stop){
 
   return (
     `driver_stop_state_` +
@@ -2079,9 +1312,7 @@ function stopStateKey(
   );
 }
 
-function readStopState(
-  stop
-){
+function readStopState(stop){
 
   if(!stop){
     return {};
@@ -2091,15 +1322,12 @@ function readStopState(
 
     return JSON.parse(
       localStorage.getItem(
-        stopStateKey(
-          stop
-        )
+        stateKey(stop)
       ) ||
       "{}"
     );
 
   }catch{
-
     return {};
   }
 }
@@ -2119,14 +1347,12 @@ function saveStopState(
     );
 
   localStorage.setItem(
-    stopStateKey(
-      stop
-    ),
+    stateKey(stop),
     JSON.stringify({
       ...old,
       ...patch,
-      tripId:TRIP_ID,
-      stopId:stop.stopId
+      stopId:stop.stopId,
+      tripId:TRIP_ID
     })
   );
 }
@@ -2153,10 +1379,7 @@ function clearTripLocalState(){
         prefix
       )
     ){
-
-      keys.push(
-        key
-      );
+      keys.push(key);
     }
   }
 
@@ -2168,19 +1391,43 @@ function clearTripLocalState(){
   );
 }
 
+function tripIsFresh(){
+
+  const s =
+    normalizeStatus(
+      firstValue(
+        tripDoc?.dispatchStatus,
+        tripDoc?.status,
+        "scheduled"
+      )
+    );
+
+  const fresh =
+    [
+      "scheduled",
+      "confirmed",
+      "assigned",
+      "sent",
+      "accepted",
+      "dispatched",
+      "upcoming",
+      "ready",
+      "paid"
+    ]
+    .includes(s);
+
+  return (
+    fresh &&
+    !tripDoc?.startedAt &&
+    !tripDoc?.arrivedAt
+  );
+}
+
 function restoreCurrentStop(){
 
-  if(
-    tripIsFreshDispatch(
-      tripDoc
-    )
-  ){
-
+  if(tripIsFresh()){
     clearTripLocalState();
-
-    currentStopIndex =
-      0;
-
+    currentStopIndex = 0;
     return;
   }
 
@@ -2190,19 +1437,12 @@ function restoreCurrentStop(){
     i++
   ){
 
-    const state =
+    if(
       readStopState(
         routeStops[i]
-      );
-
-    if(
-      state.completed !==
-      true
+      ).completed !== true
     ){
-
-      currentStopIndex =
-        i;
-
+      currentStopIndex = i;
       return;
     }
   }
@@ -2214,41 +1454,81 @@ function restoreCurrentStop(){
     );
 }
 
-/* =========================
-   WAIT TIMER
-========================= */
+function currentStop(){
+
+  return (
+    routeStops[
+      currentStopIndex
+    ] ||
+    null
+  );
+}
+
+/* ================= GEOFENCE ================= */
+
+function currentDistance(){
+
+  const stop =
+    currentStop();
+
+  if(
+    !stop ||
+    !validPoint(
+      driverLat,
+      driverLng
+    ) ||
+    !validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
+    return null;
+  }
+
+  return distanceMiles(
+    driverLat,
+    driverLng,
+    stop.lat,
+    stop.lng
+  );
+}
+
+function inside250(){
+
+  const d =
+    currentDistance();
+
+  return (
+    d !== null &&
+    d <=
+    EXECUTION.stopRadiusMiles
+  );
+}
+
+/* ================= TIMER ================= */
 
 function waitDurationSeconds(){
 
-  return Math.max(
-    0,
-    Number(
-      EXECUTION.waitMinutes ||
-      0
+  return (
+    Math.max(
+      0,
+      Number(
+        EXECUTION.waitMinutes ||
+        0
+      )
     ) *
     60
   );
 }
 
-function waitStart(
-  stop
-){
+function waitStart(stop){
 
   const state =
-    readStopState(
-      stop
-    );
+    readStopState(stop);
 
   const arrivedAt =
     num(
-      state.arrivedAt,
-      null
-    );
-
-  const scheduledAt =
-    num(
-      stop?.scheduledAt,
-      null
+      state.arrivedAt
     );
 
   if(
@@ -2256,9 +1536,13 @@ function waitStart(
       arrivedAt
     )
   ){
-
     return null;
   }
+
+  const scheduledAt =
+    num(
+      stop?.scheduledAt
+    );
 
   if(
     Number.isFinite(
@@ -2266,13 +1550,6 @@ function waitStart(
     )
   ){
 
-    /*
-      If early:
-      timer begins at scheduled time.
-
-      If late:
-      timer begins at arrived time.
-    */
     return Math.max(
       arrivedAt,
       scheduledAt
@@ -2282,53 +1559,37 @@ function waitStart(
   return arrivedAt;
 }
 
-function timerStarted(
-  stop
-){
+function timerStarted(stop){
 
   if(
     !EXECUTION.waitTimerEnabled
   ){
-
     return true;
   }
 
   const start =
-    waitStart(
-      stop
-    );
+    waitStart(stop);
 
   return (
-    Number.isFinite(
-      start
-    ) &&
-    serverNow() >=
-    start
+    Number.isFinite(start) &&
+    serverNow() >= start
   );
 }
 
-function timerRemaining(
-  stop
-){
+function timerRemaining(stop){
 
   if(
     !EXECUTION.waitTimerEnabled
   ){
-
     return 0;
   }
 
   const start =
-    waitStart(
-      stop
-    );
+    waitStart(stop);
 
   if(
-    !Number.isFinite(
-      start
-    )
+    !Number.isFinite(start)
   ){
-
     return waitDurationSeconds();
   }
 
@@ -2348,64 +1609,46 @@ function timerRemaining(
   );
 }
 
-function timerExpired(
-  stop
-){
+function timerExpired(stop){
 
   if(
     !EXECUTION.waitTimerEnabled
   ){
-
     return true;
   }
 
   return (
-    timerStarted(
-      stop
-    ) &&
-    timerRemaining(
-      stop
-    ) <= 0
+    timerStarted(stop) &&
+    timerRemaining(stop) <= 0
   );
 }
 
-function formatTimer(
-  seconds
-){
+function formatTimer(sec){
 
   const safe =
     Math.max(
       0,
-      Math.floor(
-        seconds
-      )
+      Math.floor(sec)
     );
 
   const min =
     Math.floor(
-      safe /
-      60
+      safe/60
     );
 
-  const sec =
-    safe %
-    60;
+  const s =
+    safe%60;
 
   return (
     `${String(min).padStart(2,"0")}:` +
-    `${String(sec).padStart(2,"0")}`
+    `${String(s).padStart(2,"0")}`
   );
 }
 
 function startTimerWatcher(){
 
-  if(
-    timerInterval
-  ){
-
-    clearInterval(
-      timerInterval
-    );
+  if(timerInterval){
+    clearInterval(timerInterval);
   }
 
   timerInterval =
@@ -2415,791 +1658,149 @@ function startTimerWatcher(){
     );
 }
 
-/* =========================
-   API
-========================= */
+/* ================= GOOGLE MAP ================= */
 
-async function fetchTrip(){
+function markerIcon(color){
 
-  if(!TRIP_ID){
-
-    alert(
-      "No trip found"
-    );
-
-    window.location.href =
-      "/driver/trips.html";
-
-    return null;
-  }
-
-  const res =
-    await fetch(
-      `/api/trips/${TRIP_ID}`,
-      {
-        cache:"no-store"
-      }
-    );
-
-  if(!res.ok){
-
-    throw new Error(
-      "Trip load failed"
-    );
-  }
-
-  return await res.json();
+  return {
+    path:
+      google.maps.SymbolPath.CIRCLE,
+    fillColor:color,
+    fillOpacity:1,
+    strokeColor:"#ffffff",
+    strokeWeight:3,
+    scale:10
+  };
 }
 
-async function saveExecutionEvent(
-  event,
-  payload={}
-){
-
-  const stop =
-    currentStop();
-
-  try{
-
-    const res =
-      await fetch(
-        `/api/trips/${TRIP_ID}`,
-        {
-          method:"PUT",
-
-          headers:{
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-
-              driverId:
-                DRIVER_ID,
-
-              driverName:
-                DRIVER_NAME,
-
-              driverExecutionEvent:
-                event,
-
-              driverExecutionAt:
-                serverNow(),
-
-              currentStopId:
-                stop?.stopId ||
-                "",
-
-              currentStopIndex,
-
-              currentStopType:
-                stop?.type ||
-                "",
-
-              ...payload
-            })
-        }
-      );
-
-    if(res.ok){
-
-      try{
-
-        tripDoc =
-          await res.json();
-
-      }catch{}
-    }
-
-    return res.ok;
-
-  }catch(err){
-
-    console.log(
-      "SAVE EXECUTION ERROR:",
-      err
-    );
-
-    return false;
-  }
-}
-
-/* =========================
-   LOCATION PUSH
-========================= */
-
-function shouldSendLocation(
-  lat,
-  lng
-){
-
-  if(
-    !lastSentLocationAt
-  ){
-
-    return true;
-  }
-
-  const now =
-    serverNow();
-
-  if(
-    now -
-    lastSentLocationAt
-    >=
-    LOCATION_PUSH_MS
-  ){
-
-    return true;
-  }
-
-  if(
-    validPoint(
-      lastSentLat,
-      lastSentLng
-    )
-  ){
-
-    const moved =
-      distanceMiles(
-        lastSentLat,
-        lastSentLng,
-        lat,
-        lng
-      );
-
-    if(
-      moved >=
-      LOCATION_PUSH_MILES
-    ){
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
-async function sendLocation(
-  lat,
-  lng
-){
-
-  if(
-    !DRIVER_ID ||
-    !shouldSendLocation(
-      lat,
-      lng
-    )
-  ){
-
-    return;
-  }
-
-  lastSentLocationAt =
-    serverNow();
-
-  lastSentLat =
-    lat;
-
-  lastSentLng =
-    lng;
-
-  try{
-
-    await fetch(
-      "/api/driver/location",
-      {
-        method:"POST",
-
-        headers:{
-          "Content-Type":
-            "application/json"
-        },
-
-        body:
-          JSON.stringify({
-
-            driverId:
-              DRIVER_ID,
-
-            name:
-              DRIVER_NAME,
-
-            lat,
-
-            lng,
-
-            tripId:
-              TRIP_ID,
-
-            currentStopId:
-              currentStop()?.stopId ||
-              "",
-
-            currentStopIndex,
-
-            time:
-              lastSentLocationAt
-          })
-      }
-    );
-
-  }catch(err){
-
-    console.log(
-      "LOCATION PUSH ERROR:",
-      err
-    );
-  }
-}
-
-/* =========================
-   RESOLVE MISSING STOP COORDINATES
-
-   Uses existing server endpoint:
-   POST /api/address-cache/resolve
-
-   Cache first. If not cached, server may geocode and save.
-========================= */
-
-async function resolveAddressPoint(address){
-
-  const cleanAddress =
-    clean(address);
-
-  if(!cleanAddress){
-    return null;
-  }
-
-  try{
-
-    const res =
-      await fetch(
-        "/api/address-cache/resolve",
-        {
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify({
-            address:cleanAddress,
-            addressKey:
-              normalizeAddressKey(
-                cleanAddress
-              ),
-            company:
-              firstValue(
-                tripDoc?.companyName,
-                tripDoc?.facilityName,
-                tripDoc?.company,
-                ""
-              ),
-            companyName:
-              firstValue(
-                tripDoc?.companyName,
-                tripDoc?.company,
-                ""
-              ),
-            facilityName:
-              firstValue(
-                tripDoc?.facilityName,
-                tripDoc?.companyName,
-                ""
-              ),
-            companyId:
-              firstValue(
-                tripDoc?.companyId,
-                tripDoc?.facilityId,
-                ""
-              ),
-            facilityId:
-              firstValue(
-                tripDoc?.facilityId,
-                tripDoc?.companyId,
-                ""
-              ),
-            source:
-              "driver-map-stop-resolve"
-          })
-        }
-      );
-
-    if(!res.ok){
-      console.log(
-        "ADDRESS RESOLVE HTTP:",
-        res.status
-      );
-      return null;
-    }
-
-    const data =
-      await res.json();
-
-    const point =
-      data?.addressPoint ||
-      data ||
-      null;
-
-    const lat =
-      num(
-        firstValue(
-          point?.lat,
-          point?.latitude,
-          data?.lat,
-          data?.latitude
-        )
-      );
-
-    const lng =
-      num(
-        firstValue(
-          point?.lng,
-          point?.longitude,
-          data?.lng,
-          data?.longitude
-        )
-      );
-
-    if(
-      !validPoint(
-        lat,
-        lng
-      )
-    ){
-      return null;
-    }
-
-    return {
-      lat,
-      lng,
-      address:
-        clean(
-          firstValue(
-            point?.fullAddress,
-            point?.address,
-            data?.fullAddress,
-            data?.address,
-            cleanAddress
-          )
-        )
-    };
-
-  }catch(err){
-
-    console.log(
-      "ADDRESS RESOLVE ERROR:",
-      err
-    );
-
-    return null;
-  }
-}
-
-async function ensureStopCoordinates(stop){
-
-  if(!stop){
-    return false;
-  }
-
-  if(
-    validPoint(
-      stop.lat,
-      stop.lng
-    )
-  ){
-    return true;
-  }
-
-  if(
-    !clean(
-      stop.address
-    )
-  ){
-    return false;
-  }
-
-  setStopStatus(
-    "Resolving stop location..."
-  );
-
-  const point =
-    await resolveAddressPoint(
-      stop.address
-    );
-
-  if(!point){
-    return false;
-  }
-
-  stop.lat =
-    point.lat;
-
-  stop.lng =
-    point.lng;
-
-  if(
-    point.address
-  ){
-    stop.resolvedAddress =
-      point.address;
-  }
-
-  return true;
-}
-
-async function ensureCurrentStopCoordinates(){
-
-  const stop =
-    currentStop();
-
-  const ok =
-    await ensureStopCoordinates(
-      stop
-    );
-
-  if(ok){
-
-    updateMapTarget();
-
-    renderExecutionState();
-
-    return true;
-  }
-
-  return false;
-}
-
-/* =========================
-   REAL OSM MAP
-========================= */
-
-function markerIcon(
-  type
-){
-
-  let cssClass =
-    "stop-pin pickup-pin";
-
-  let text =
-    "P";
-
-  if(
-    type === "driver"
-  ){
-
-    cssClass =
-      "driver-pin";
-
-    text =
-      "●";
-
-  }else if(
-    type === "stop"
-  ){
-
-    cssClass =
-      "stop-pin stop-mid-pin";
-
-    text =
-      "S";
-
-  }else if(
-    type === "dropoff"
-  ){
-
-    cssClass =
-      "stop-pin dropoff-pin";
-
-    text =
-      "D";
-  }
-
-  return L.divIcon({
-
-    className:"",
-
-    html:
-      `<div class="${cssClass}">` +
-      `${text}` +
-      `</div>`,
-
-    iconSize:[
-      28,
-      28
-    ],
-
-    iconAnchor:[
-      14,
-      14
-    ]
-  });
-}
-
-function initMap(){
-
-  if(
-    typeof L ===
-    "undefined"
-  ){
-
-    throw new Error(
-      "Map library failed to load"
-    );
-  }
-
-  const stop =
-    currentStop();
-
-  const startPoint =
-    validPoint(
-      stop?.lat,
-      stop?.lng
-    )
-      ? [
-          stop.lat,
-          stop.lng
-        ]
-      : [
-          33.4484,
-          -112.0740
-        ];
+function initGoogleMap(){
 
   map =
-    L.map(
-      "map",
+    new google.maps.Map(
+      document.getElementById("map"),
       {
-        zoomControl:false,
-        attributionControl:true
+        center:{
+          lat:33.4484,
+          lng:-112.0740
+        },
+        zoom:15,
+        mapTypeId:
+          google.maps.MapTypeId.ROADMAP,
+        streetViewControl:false,
+        fullscreenControl:false,
+        mapTypeControl:false,
+        clickableIcons:false,
+        gestureHandling:"greedy"
       }
-    )
-    .setView(
-      startPoint,
-      15
     );
 
-  L.tileLayer(
-    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    {
-      maxZoom:19,
-      attribution:
-        '&copy; OpenStreetMap contributors'
-    }
-  )
-  .addTo(
-    map
-  );
-
-  L.control.zoom({
-    position:"bottomleft"
-  })
-  .addTo(
-    map
-  );
-
-  map.on(
+  map.addListener(
     "dragstart",
     ()=>{
-      userMovedMap =
-        true;
+      userMovedMap = true;
     }
   );
 
-  map.on(
-    "zoomstart",
+  map.addListener(
+    "zoom_changed",
     ()=>{
-
-      if(
-        !firstGpsFix
-      ){
-
-        userMovedMap =
-          true;
+      if(!firstGpsFix){
+        userMovedMap = true;
       }
     }
   );
-
-  updateMapTarget();
 }
 
-function updateDriverMarker(
-  lat,
-  lng
-){
-
-  if(!map){
-    return;
-  }
-
-  if(!driverMarker){
-
-    driverMarker =
-      L.marker(
-        [
-          lat,
-          lng
-        ],
-        {
-          icon:
-            markerIcon(
-              "driver"
-            )
-        }
-      )
-      .addTo(
-        map
-      );
-
-  }else{
-
-    driverMarker
-      .setLatLng(
-        [
-          lat,
-          lng
-        ]
-      );
-  }
-}
-
-function updateMapTarget(){
-
-  if(!map){
-    return;
-  }
-
-  const stop =
-    currentStop();
+function updateDriverMarker(){
 
   if(
-    stopMarker
-  ){
-
-    map.removeLayer(
-      stopMarker
-    );
-
-    stopMarker =
-      null;
-  }
-
-  if(
-    stop &&
-    validPoint(
-      stop.lat,
-      stop.lng
-    )
-  ){
-
-    stopMarker =
-      L.marker(
-        [
-          stop.lat,
-          stop.lng
-        ],
-        {
-          icon:
-            markerIcon(
-              stop.type
-            )
-        }
-      )
-      .addTo(
-        map
-      );
-
-    stopMarker
-      .bindPopup(
-        esc(
-          stop.address ||
-          (
-            stop.type ===
-            "pickup"
-              ? "Pickup"
-              : stop.type ===
-                "dropoff"
-                ? "Dropoff"
-                : "Stop"
-          )
-        )
-      );
-  }
-
-  drawStraightLine();
-
-  if(
-    !userMovedMap
-  ){
-
-    fitMap();
-  }
-}
-
-function drawStraightLine(){
-
-  if(!map){
-    return;
-  }
-
-  if(
-    straightLine
-  ){
-
-    map.removeLayer(
-      straightLine
-    );
-
-    straightLine =
-      null;
-  }
-
-  const stop =
-    currentStop();
-
-  if(
-    !stop ||
-    !validPoint(
-      stop.lat,
-      stop.lng
-    ) ||
+    !map ||
     !validPoint(
       driverLat,
       driverLng
     )
   ){
-
     return;
   }
 
-  straightLine =
-    L.polyline(
-      [
-        [
-          driverLat,
-          driverLng
-        ],
-        [
-          stop.lat,
-          stop.lng
-        ]
-      ],
-      {
-        color:
-          stop.type ===
-          "pickup"
-            ? "#2563eb"
-            : stop.type ===
-              "dropoff"
-              ? "#16a34a"
-              : "#7c3aed",
-        weight:5,
-        opacity:.85
-      }
-    )
-    .addTo(
-      map
+  const pos = {
+    lat:driverLat,
+    lng:driverLng
+  };
+
+  if(!driverMarker){
+
+    driverMarker =
+      new google.maps.Marker({
+        map,
+        position:pos,
+        title:"Driver",
+        icon:
+          markerIcon(
+            "#f59e0b"
+          )
+      });
+
+  }else{
+    driverMarker.setPosition(
+      pos
     );
+  }
+}
+
+function updateStopMarker(){
+
+  const stop =
+    currentStop();
+
+  if(!map || !stop){
+    return;
+  }
+
+  if(stopMarker){
+    stopMarker.setMap(null);
+    stopMarker = null;
+  }
+
+  if(
+    !validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
+    return;
+  }
+
+  const color =
+    stop.type === "pickup"
+      ? "#2563eb"
+      : stop.type === "dropoff"
+        ? "#16a34a"
+        : "#7c3aed";
+
+  stopMarker =
+    new google.maps.Marker({
+      map,
+      position:{
+        lat:stop.lat,
+        lng:stop.lng
+      },
+      title:
+        stop.address ||
+        stop.type,
+      label:{
+        text:
+          stop.type === "pickup"
+            ? "P"
+            : stop.type === "dropoff"
+              ? "D"
+              : "S",
+        color:"#fff",
+        fontWeight:"900"
+      },
+      icon:
+        markerIcon(color)
+    });
 }
 
 function fitMap(){
@@ -3208,7 +1809,10 @@ function fitMap(){
     return;
   }
 
-  const points = [];
+  const bounds =
+    new google.maps.LatLngBounds();
+
+  let count = 0;
 
   if(
     validPoint(
@@ -3216,13 +1820,11 @@ function fitMap(){
       driverLng
     )
   ){
-
-    points.push(
-      [
-        driverLat,
-        driverLng
-      ]
-    );
+    bounds.extend({
+      lat:driverLat,
+      lng:driverLng
+    });
+    count++;
   }
 
   const stop =
@@ -3234,46 +1836,32 @@ function fitMap(){
       stop?.lng
     )
   ){
-
-    points.push(
-      [
-        stop.lat,
-        stop.lng
-      ]
-    );
+    bounds.extend({
+      lat:stop.lat,
+      lng:stop.lng
+    });
+    count++;
   }
 
-  if(
-    points.length >= 2
-  ){
-
-    map.fitBounds(
-      points,
-      {
-        padding:[
-          55,
-          55
-        ],
-        maxZoom:16
-      }
-    );
-
-  }else if(
-    points.length === 1
-  ){
-
-    map.setView(
-      points[0],
-      15
-    );
+  if(count >= 2){
+    map.fitBounds(bounds,70);
+  }else if(count === 1){
+    map.fitBounds(bounds,70);
   }
 }
 
-/* =========================
-   EXTERNAL GOOGLE DIRECTIONS
-========================= */
+function drawDisplayLine(){
 
-function openDirections(){
+  /*
+    Intentionally empty:
+    Internal map is display-only.
+    No route calculation and no Directions request.
+  */
+}
+
+/* ================= EXTERNAL NAVIGATION ================= */
+
+function openGoogleNavigation(){
 
   const stop =
     currentStop();
@@ -3290,56 +1878,39 @@ function openDirections(){
       stop.lng
     )
   ){
-
     destination =
       `${stop.lat},${stop.lng}`;
-
-  }else if(
-    stop.address
-  ){
-
+  }else{
     destination =
       encodeURIComponent(
-        stop.address
+        stop.address || ""
       );
+  }
 
-  }else{
-
-    alert(
-      "Destination not found"
-    );
-
+  if(!destination){
+    alert("Destination not found");
     return;
   }
 
-  let origin = "";
-
-  if(
+  const origin =
     validPoint(
       driverLat,
       driverLng
     )
-  ){
-
-    origin =
-      `&origin=${driverLat},${driverLng}`;
-  }
-
-  const url =
-    `https://www.google.com/maps/dir/?api=1` +
-    `${origin}` +
-    `&destination=${destination}` +
-    `&travelmode=driving`;
+      ? `&origin=${driverLat},${driverLng}`
+      : "";
 
   window.open(
-    url,
+    "https://www.google.com/maps/dir/?api=1" +
+    origin +
+    "&destination=" +
+    destination +
+    "&travelmode=driving",
     "_blank"
   );
 }
 
-/* =========================
-   RENDER PASSENGERS
-========================= */
+/* ================= RENDER PASSENGERS ================= */
 
 function renderPassengers(){
 
@@ -3347,17 +1918,14 @@ function renderPassengers(){
     currentStop();
 
   if(
-    !currentPassengersEl ||
-    !stop
+    !stop ||
+    !currentPassengersEl
   ){
-
     return;
   }
 
   const visible =
-    activePassengers(
-      stop
-    )
+    activePassengers(stop)
     .filter(
       p =>
         !isDriverIdentity(
@@ -3369,88 +1937,46 @@ function renderPassengers(){
   currentPassengersEl
     .innerHTML =
       visible
-        .map(
-          p=>`
-            <div class="passenger-chip">
-              <strong>
-                ${esc(p.name)}
-              </strong>
-
-              ${
-                p.phone
-                  ? `
-                    <span>
-                      ${esc(p.phone)}
-                    </span>
-                  `
-                  : ""
-              }
-            </div>
-          `
-        )
-        .join("");
+      .map(
+        p=>`
+          <div class="passenger-chip">
+            <strong>${p.name}</strong>
+            ${
+              p.phone
+                ? `<span>${p.phone}</span>`
+                : ""
+            }
+          </div>
+        `
+      )
+      .join("");
 
   currentPassengersEl
-    .style
-    .display =
+    .style.display =
       visible.length
         ? "flex"
         : "none";
 }
 
-/* =========================
-   UI BUTTONS
-========================= */
+/* ================= BUTTON VISIBILITY ================= */
 
 function hideAllButtons(){
 
-  hide(
-    btnDirections
-  );
-
-  hide(
-    btnArrived
-  );
-
-  hide(
-    btnStartRide
-  );
-
-  hide(
-    btnCancel
-  );
-
-  hide(
-    btnCall
-  );
-
-  hide(
-    btnNoShow
-  );
-
-  hide(
-    btnCompleteStop
-  );
-
-  hide(
-    btnCompleteDropoff
-  );
+  hide(btnDirections);
+  hide(btnArrived);
+  hide(btnStartRide);
+  hide(btnCancel);
+  hide(btnCall);
+  hide(btnNoShow);
+  hide(btnCompleteStop);
+  hide(btnCompleteDropoff);
 }
 
 function closeReasonBoxes(){
 
-  hide(
-    cancelBox
-  );
-
-  hide(
-    noShowBox
-  );
+  hide(cancelBox);
+  hide(noShowBox);
 }
-
-/* =========================
-   CURRENT STOP LABEL
-========================= */
 
 function renderStopHeader(){
 
@@ -3461,80 +1987,52 @@ function renderStopHeader(){
     return;
   }
 
-  if(
-    stopTypeBadge
+  stopTypeBadge
+    ?.classList
+    .remove(
+      "dropoff",
+      "stop"
+    );
+
+  if(stop.type === "pickup"){
+
+    stopTypeBadge.textContent =
+      "PICKUP";
+
+  }else if(
+    stop.type === "dropoff"
   ){
+
+    stopTypeBadge.textContent =
+      "DROPOFF";
 
     stopTypeBadge
       .classList
-      .remove(
-        "dropoff",
-        "stop"
-      );
+      .add("dropoff");
 
-    if(
-      stop.type ===
-      "pickup"
-    ){
+  }else{
 
-      stopTypeBadge
-        .textContent =
-          "PICKUP";
+    stopTypeBadge.textContent =
+      "STOP";
 
-    }else if(
-      stop.type ===
-      "dropoff"
-    ){
-
-      stopTypeBadge
-        .textContent =
-          "DROPOFF";
-
-      stopTypeBadge
-        .classList
-        .add(
-          "dropoff"
-        );
-
-    }else{
-
-      stopTypeBadge
-        .textContent =
-          "STOP";
-
-      stopTypeBadge
-        .classList
-        .add(
-          "stop"
-        );
-    }
+    stopTypeBadge
+      .classList
+      .add("stop");
   }
 
-  if(
-    stopProgress
-  ){
+  stopProgress.textContent =
+    `Stop ${currentStopIndex+1} of ${routeStops.length}`;
 
-    stopProgress
-      .textContent =
-        `Stop ${currentStopIndex+1} of ${routeStops.length}`;
-  }
-
-  if(
-    currentStopAddressEl
-  ){
-
-    currentStopAddressEl
-      .textContent =
-        stop.address ||
-        "Address unavailable";
-  }
+  currentStopAddressEl
+    .textContent =
+      stop.address ||
+      stop.resolvedAddress ||
+      "Address unavailable";
 
   renderPassengers();
 }
 
-/* =========================
-   STRICT STATE MACHINE
-========================= */
+/* ================= STRICT FLOW ================= */
 
 function renderExecutionState(){
 
@@ -3546,176 +2044,89 @@ function renderExecutionState(){
   }
 
   const state =
-    readStopState(
-      stop
-    );
+    readStopState(stop);
+
+  hideAllButtons();
+  closeReasonBoxes();
+  hide(waitTimerEl);
+  hide(scheduledTimeBox);
+
+  renderStopHeader();
 
   const distance =
     currentDistance();
 
-  hideAllButtons();
-
-  closeReasonBoxes();
-
-  hide(
-    waitTimerEl
-  );
-
-  hide(
-    scheduledTimeBox
-  );
-
-  renderStopHeader();
-
-  /* =====================================
-     STEP A
-     BEFORE ARRIVED
-  ===================================== */
+  /* BEFORE ARRIVED */
 
   if(
-    state.arrived !==
-    true
+    state.arrived !== true
   ){
 
     if(
-      !insideCurrentStopRadius()
+      !inside250()
     ){
 
-      if(
-        stop.type ===
-        "pickup"
-      ){
-
-        setNavText(
-          "Go to pickup"
-        );
-
-      }else if(
-        stop.type ===
-        "dropoff"
-      ){
-
-        setNavText(
-          "Go to dropoff"
-        );
-
-      }else{
-
-        setNavText(
-          "Go to stop"
-        );
-      }
-
-      if(
-        distance !==
-        null
-      ){
-
-        setStopStatus(
-          `${distance.toFixed(2)} mi from stop`
-        );
-
-      }else if(
-        stop.address &&
-        !validPoint(
-          stop.lat,
-          stop.lng
-        )
-      ){
-
-        setStopStatus(
-          "Coordinates missing — use address directions"
-        );
-
-      }else{
-
-        setStopStatus(
-          "Drive to current stop"
-        );
-      }
-
-      if(btnDirections){
-
-        btnDirections.textContent =
-          stop.type === "pickup"
-            ? "Go To Pickup / Directions"
-            : stop.type === "dropoff"
-              ? "Go To Dropoff / Directions"
-              : "Go To Stop / Directions";
-      }
-
-      show(
-        btnDirections
+      setNavText(
+        stop.type === "pickup"
+          ? "Go to pickup"
+          : stop.type === "dropoff"
+            ? "Go to dropoff"
+            : "Go to stop"
       );
+
+      if(distance !== null){
+
+        setStopStatus(
+          `${distance.toFixed(2)} mi from current stop`
+        );
+
+      }else{
+
+        setStopStatus(
+          "Stop coordinates are not saved — Directions can open by address"
+        );
+      }
+
+      btnDirections.textContent =
+        stop.type === "pickup"
+          ? "Go To Pickup / Directions"
+          : stop.type === "dropoff"
+            ? "Go To Dropoff / Directions"
+            : "Go To Stop / Directions";
+
+      show(btnDirections);
 
       return;
     }
 
-    /*
-      Inside 250m:
-      ARRIVED is the only execution button.
-    */
-
-    if(
-      stop.type ===
-      "pickup"
-    ){
-
-      setNavText(
-        "Pickup reached"
-      );
-
-    }else if(
-      stop.type ===
-      "dropoff"
-    ){
-
-      setNavText(
-        "Dropoff reached"
-      );
-
-    }else{
-
-      setNavText(
-        "Stop reached"
-      );
-    }
+    setNavText(
+      stop.type === "pickup"
+        ? "Pickup reached"
+        : stop.type === "dropoff"
+          ? "Dropoff reached"
+          : "Stop reached"
+    );
 
     setStopStatus(
       "Press ARRIVED"
     );
 
-    show(
-      btnArrived
-    );
+    show(btnArrived);
 
     return;
   }
 
-  /* =====================================
-     PICKUP AFTER ARRIVED
-  ===================================== */
+  /* PICKUP AFTER ARRIVED */
 
-  if(
-    stop.type ===
-    "pickup"
-  ){
+  if(stop.type === "pickup"){
 
     const scheduledAt =
       num(
-        stop.scheduledAt,
-        null
+        stop.scheduledAt
       );
 
-    /*
-      Arrived early:
-      timer not active.
-      no action can jump ahead.
-    */
     if(
-      Number.isFinite(
-        scheduledAt
-      ) &&
+      Number.isFinite(scheduledAt) &&
       serverNow() <
       scheduledAt
     ){
@@ -3728,31 +2139,17 @@ function renderExecutionState(){
         "Wait timer has not started"
       );
 
-      if(
-        scheduledTimeBox
-      ){
+      scheduledTimeBox.textContent =
+        `Starts ${formatScheduledTime(scheduledAt)}`;
 
-        scheduledTimeBox
-          .textContent =
-            `Starts ${formatScheduledTime(scheduledAt)}`;
-
-        show(
-          scheduledTimeBox
-        );
-      }
+      show(scheduledTimeBox);
 
       return;
     }
 
-    /*
-      Timer active:
-      START RIDE + CANCEL
-    */
     if(
       EXECUTION.waitTimerEnabled &&
-      !timerExpired(
-        stop
-      )
+      !timerExpired(stop)
     ){
 
       setNavText(
@@ -3760,45 +2157,23 @@ function renderExecutionState(){
       );
 
       setStopStatus(
-        activePassengers(
-          stop
-        ).length > 1
+        activePassengers(stop).length > 1
           ? "Shared pickup timer running"
           : "Passenger wait timer running"
       );
 
-      if(
-        waitTimerEl
-      ){
-
-        waitTimerEl
-          .textContent =
-            formatTimer(
-              timerRemaining(
-                stop
-              )
-            );
-
-        show(
-          waitTimerEl
+      waitTimerEl.textContent =
+        formatTimer(
+          timerRemaining(stop)
         );
-      }
 
-      show(
-        btnStartRide
-      );
+      show(waitTimerEl);
 
-      show(
-        btnCancel
-      );
+      show(btnStartRide);
+      show(btnCancel);
 
       return;
     }
-
-    /*
-      Timer expired:
-      START RIDE + NO SHOW
-    */
 
     setNavText(
       "Waiting time finished"
@@ -3809,42 +2184,24 @@ function renderExecutionState(){
     );
 
     if(
-      EXECUTION.waitTimerEnabled &&
-      waitTimerEl
+      EXECUTION.waitTimerEnabled
     ){
+      waitTimerEl.textContent =
+        "TIME UP";
 
-      waitTimerEl
-        .textContent =
-          "TIME UP";
-
-      show(
-        waitTimerEl
-      );
+      show(waitTimerEl);
     }
 
-    show(
-      btnStartRide
-    );
-
-    show(
-      btnCall
-    );
-
-    show(
-      btnNoShow
-    );
+    show(btnStartRide);
+    show(btnCall);
+    show(btnNoShow);
 
     return;
   }
 
-  /* =====================================
-     INTERMEDIATE STOP AFTER ARRIVED
-  ===================================== */
+  /* INTERMEDIATE STOP AFTER ARRIVED */
 
-  if(
-    stop.type ===
-    "stop"
-  ){
+  if(stop.type === "stop"){
 
     setNavText(
       "Stop reached"
@@ -3854,21 +2211,14 @@ function renderExecutionState(){
       "Complete this stop to continue"
     );
 
-    show(
-      btnCompleteStop
-    );
+    show(btnCompleteStop);
 
     return;
   }
 
-  /* =====================================
-     DROPOFF AFTER ARRIVED
-  ===================================== */
+  /* DROPOFF AFTER ARRIVED */
 
-  if(
-    stop.type ===
-    "dropoff"
-  ){
+  if(stop.type === "dropoff"){
 
     setNavText(
       "Dropoff reached"
@@ -3878,34 +2228,102 @@ function renderExecutionState(){
       "Complete this dropoff"
     );
 
-    show(
-      btnCompleteDropoff
-    );
+    show(btnCompleteDropoff);
   }
 }
 
-/* =========================
-   ADVANCE
-========================= */
+/* ================= PASSENGER STATUS UPDATES ================= */
 
-function markStopCompleted(
+function isSharedTrip(){
+
+  return (
+    tripDoc?.isShared === true ||
+    clean(tripDoc?.tripType)
+      .toUpperCase() ===
+      "SHARED" ||
+    (
+      Array.isArray(
+        tripDoc?.passengers
+      ) &&
+      tripDoc.passengers.length > 1
+    )
+  );
+}
+
+function updateSharedPassengers(
   stop,
+  status,
   extra={}
 ){
 
-  saveStopState(
-    stop,
-    {
-      completed:true,
-      completedAt:
-        serverNow(),
-      ...extra
+  const ids =
+    new Set(
+      activePassengers(stop)
+      .map(
+        p =>
+          String(
+            p.passengerId
+          )
+      )
+    );
+
+  const next =
+    (tripDoc.passengers || [])
+    .map(
+      (p,index)=>{
+
+        const id =
+          passengerId(
+            p,
+            index
+          );
+
+        if(
+          !ids.has(
+            String(id)
+          )
+        ){
+          return p;
+        }
+
+        return {
+          ...p,
+          status,
+          ...extra
+        };
+      }
+    );
+
+  return next;
+}
+
+function allSharedPassengersFinal(
+  passengers
+){
+
+  return passengers.every(
+    p=>{
+
+      const s =
+        normalizeStatus(
+          p.status
+        );
+
+      return [
+        "completed",
+        "cancelled",
+        "canceled",
+        "no show"
+      ]
+      .includes(s);
     }
   );
 }
 
-function advanceStop(
-  autoOpenDirections=true
+/* ================= ADVANCE ================= */
+
+async function advanceStop(
+  autoOpenGoogle=true
 ){
 
   const stop =
@@ -3913,40 +2331,35 @@ function advanceStop(
 
   if(stop){
 
-    markStopCompleted(
-      stop
+    saveStopState(
+      stop,
+      {
+        completed:true,
+        completedAt:
+          serverNow()
+      }
     );
   }
 
   if(
     currentStopIndex <
-    routeStops.length-1
+    routeStops.length - 1
   ){
 
     currentStopIndex++;
 
-    Promise.resolve(
-      ensureStopCoordinates(
-        currentStop()
-      )
-    )
-    .finally(()=>{
+    updateStopMarker();
 
-      updateMapTarget();
+    renderExecutionState();
 
-      renderExecutionState();
+    fitMap();
 
-      if(
-        autoOpenDirections
-      ){
-
-        setTimeout(
-          openDirections,
-          250
-        );
-      }
-
-    });
+    if(autoOpenGoogle){
+      setTimeout(
+        openGoogleNavigation,
+        250
+      );
+    }
 
     return;
   }
@@ -3960,16 +2373,20 @@ function advanceStop(
   );
 
   hideAllButtons();
+
+  localStorage.removeItem(
+    "activeDriverTripId"
+  );
 }
 
-/* =========================
-   BUTTON EVENTS
-========================= */
+/* ================= BUTTONS ================= */
 
 btnDirections
   ?.addEventListener(
     "click",
-    openDirections
+    ()=>{
+      openGoogleNavigation();
+    }
   );
 
 btnArrived
@@ -3985,11 +2402,11 @@ btnArrived
       }
 
       if(
-        !insideCurrentStopRadius()
+        !inside250()
       ){
 
         alert(
-          "You must be inside the 250 meter stop area first."
+          "You must be inside the 250 meter area first."
         );
 
         renderExecutionState();
@@ -4008,34 +2425,29 @@ btnArrived
         }
       );
 
-      await saveExecutionEvent(
-        "STOP_ARRIVED",
-        {
-          stopId:
-            stop.stopId,
+      /*
+        Trip-level Arrived is only used for the first pickup.
+        Other stops remain local/per-stop so they do not overwrite
+        the entire trip workflow.
+      */
+      if(
+        stop.type === "pickup" &&
+        currentStopIndex === 0
+      ){
 
-          stopType:
-            stop.type,
+        try{
 
-          passengerIds:
-            activePassengers(
-              stop
-            )
-            .map(
-              p =>
-                p.passengerId
-            ),
+          await updateTrip({
+            status:"Arrived",
+            arrivedAt,
+            driverId:DRIVER_ID,
+            driverName:DRIVER_NAME
+          });
 
-          arrivedAt,
-
-          scheduledAt:
-            stop.scheduledAt ||
-            null,
-
-          geofenceMeters:
-            STOP_RADIUS_METERS
+        }catch(err){
+          console.log(err);
         }
-      );
+      }
 
       renderExecutionState();
     }
@@ -4051,23 +2463,8 @@ btnStartRide
 
       if(
         !stop ||
-        stop.type !==
-        "pickup"
+        stop.type !== "pickup"
       ){
-
-        return;
-      }
-
-      const state =
-        readStopState(
-          stop
-        );
-
-      if(
-        state.arrived !==
-        true
-      ){
-
         return;
       }
 
@@ -4089,38 +2486,41 @@ btnStartRide
       const startedAt =
         serverNow();
 
-      await saveExecutionEvent(
-        "PICKUP_STARTED",
-        {
-          pickupGroupId:
-            stop.stopId,
+      try{
 
-          passengerIds:
-            activePassengers(
-              stop
-            )
-            .map(
-              p =>
-                p.passengerId
-            ),
+        if(isSharedTrip()){
 
-          startedAt,
+          const passengers =
+            updateSharedPassengers(
+              stop,
+              "On Trip",
+              {
+                startedAt
+              }
+            );
 
-          arrivedAt:
-            state.arrivedAt ||
-            null,
+          await updateTrip({
+            status:"InProgress",
+            passengers,
+            driverId:DRIVER_ID,
+            driverName:DRIVER_NAME
+          });
 
-          waitStartedAt:
-            waitStart(
-              stop
-            ),
+        }else{
 
-          waitExpired:
-            timerExpired(
-              stop
-            )
+          await updateTrip({
+            status:"InProgress",
+            startedAt,
+            driverId:DRIVER_ID,
+            driverName:DRIVER_NAME
+          });
         }
-      );
+
+      }catch(err){
+
+        alert(err.message);
+        return;
+      }
 
       saveStopState(
         stop,
@@ -4132,11 +2532,7 @@ btnStartRide
         }
       );
 
-      /*
-        Mandatory automatic Google Maps
-        navigation to NEXT server-ordered stop.
-      */
-      advanceStop(
+      await advanceStop(
         true
       );
     }
@@ -4152,31 +2548,19 @@ btnCancel
 
       if(
         !stop ||
-        stop.type !==
-        "pickup"
+        stop.type !== "pickup"
       ){
-
         return;
       }
 
       if(
-        timerExpired(
-          stop
-        )
+        timerExpired(stop)
       ){
-
         renderExecutionState();
-
         return;
       }
 
-      if(
-        cancelNotes
-      ){
-
-        cancelNotes.value =
-          "";
-      }
+      cancelNotes.value = "";
 
       show(
         cancelBox,
@@ -4190,17 +2574,9 @@ btnCloseCancel
     "click",
     ()=>{
 
-      hide(
-        cancelBox
-      );
-
-      if(
-        cancelNotes
-      ){
-
-        cancelNotes.value =
-          "";
-      }
+      hide(cancelBox);
+      cancelNotes.value = "";
+      renderExecutionState();
     }
   );
 
@@ -4212,14 +2588,9 @@ btnCompleteCancel
       const stop =
         currentStop();
 
-      if(!stop){
-        return;
-      }
-
       const reason =
         clean(
-          cancelNotes
-            ?.value
+          cancelNotes.value
         );
 
       if(!reason){
@@ -4231,49 +2602,65 @@ btnCompleteCancel
         return;
       }
 
-      await saveExecutionEvent(
-        "PICKUP_CANCELLED",
-        {
-          pickupGroupId:
-            stop.stopId,
+      try{
 
-          passengerIds:
-            activePassengers(
-              stop
-            )
-            .map(
-              p =>
-                p.passengerId
-            ),
+        if(isSharedTrip()){
 
-          cancelReason:
-            reason,
+          const passengers =
+            updateSharedPassengers(
+              stop,
+              "Cancelled",
+              {
+                cancelReason:reason,
+                cancelFee:
+                  Number(
+                    tripDoc.cancelFee ||
+                    0
+                  )
+              }
+            );
 
-          cancelledAt:
-            serverNow(),
+          await updateTrip({
+            status:
+              allSharedPassengersFinal(
+                passengers
+              )
+                ? "Cancelled"
+                : "InProgress",
+            passengers
+          });
 
-          noShowEligible:
-            false
+        }else{
+
+          await updateTrip({
+            status:"Cancelled",
+            cancelReason:reason,
+            cancelFee:
+              Number(
+                tripDoc.cancelFee ||
+                0
+              )
+          });
         }
-      );
+
+      }catch(err){
+
+        alert(err.message);
+        return;
+      }
 
       saveStopState(
         stop,
         {
           cancelled:true,
-          cancelReason:
-            reason,
+          cancelReason:reason,
           completed:true
         }
       );
 
-      hide(
-        cancelBox
-      );
+      hide(cancelBox);
 
-      advanceStop(
-        true
-      );
+      await advanceStop(true);
     }
   );
 
@@ -4282,16 +2669,9 @@ btnCall
     "click",
     ()=>{
 
-      const stop =
-        currentStop();
-
-      if(!stop){
-        return;
-      }
-
       const phone =
         activePassengers(
-          stop
+          currentStop()
         )
         .filter(
           p =>
@@ -4316,15 +2696,6 @@ btnCall
         return;
       }
 
-      saveStopState(
-        stop,
-        {
-          called:true,
-          calledAt:
-            serverNow()
-        }
-      );
-
       window.location.href =
         `tel:${phone}`;
     }
@@ -4340,18 +2711,14 @@ btnNoShow
 
       if(
         !stop ||
-        stop.type !==
-        "pickup"
+        stop.type !== "pickup"
       ){
-
         return;
       }
 
       if(
         EXECUTION.noShowRequiresTimer &&
-        !timerExpired(
-          stop
-        )
+        !timerExpired(stop)
       ){
 
         alert(
@@ -4361,13 +2728,7 @@ btnNoShow
         return;
       }
 
-      if(
-        noShowNotes
-      ){
-
-        noShowNotes.value =
-          "";
-      }
+      noShowNotes.value = "";
 
       show(
         noShowBox,
@@ -4381,17 +2742,9 @@ btnCloseNoShow
     "click",
     ()=>{
 
-      hide(
-        noShowBox
-      );
-
-      if(
-        noShowNotes
-      ){
-
-        noShowNotes.value =
-          "";
-      }
+      hide(noShowBox);
+      noShowNotes.value = "";
+      renderExecutionState();
     }
   );
 
@@ -4403,14 +2756,9 @@ btnCompleteNoShow
       const stop =
         currentStop();
 
-      if(!stop){
-        return;
-      }
-
       const reason =
         clean(
-          noShowNotes
-            ?.value
+          noShowNotes.value
         );
 
       if(!reason){
@@ -4424,100 +2772,80 @@ btnCompleteNoShow
 
       if(
         EXECUTION.noShowRequiresTimer &&
-        !timerExpired(
-          stop
-        )
+        !timerExpired(stop)
       ){
 
         alert(
           "Wait timer must finish first."
         );
 
-        hide(
-          noShowBox
-        );
-
-        renderExecutionState();
-
         return;
       }
 
-      const state =
-        readStopState(
-          stop
+      const fee =
+        Number(
+          tripDoc.noShowFee ||
+          0
         );
 
-      const noShowAt =
-        serverNow();
+      try{
 
-      await saveExecutionEvent(
-        "PICKUP_NO_SHOW",
-        {
-          pickupGroupId:
-            stop.stopId,
+        if(isSharedTrip()){
 
-          passengerIds:
-            activePassengers(
-              stop
-            )
-            .map(
-              p =>
-                p.passengerId
-            ),
+          const passengers =
+            updateSharedPassengers(
+              stop,
+              "No Show",
+              {
+                noShowReason:reason,
+                noShowFee:fee,
+                finalPrice:fee,
+                priceAmount:fee
+              }
+            );
 
-          noShowReason:
-            reason,
+          await updateTrip({
+            status:
+              allSharedPassengersFinal(
+                passengers
+              )
+                ? "No Show"
+                : "InProgress",
+            passengers,
+            noShowFee:fee
+          });
 
-          arrivedAt:
-            state.arrivedAt ||
-            null,
+        }else{
 
-          scheduledAt:
-            stop.scheduledAt ||
-            null,
-
-          waitStartedAt:
-            waitStart(
-              stop
-            ),
-
-          waitDurationSeconds:
-            waitDurationSeconds(),
-
-          waitExpired:
-            true,
-
-          noShowAt,
-
-          noShowFeeEvidence:{
-            timerRequired:
-              EXECUTION.noShowRequiresTimer,
-            timerExpired:
-              true,
-            feeCalculatedByClient:
-              false
-          }
+          /*
+            Server finalizer owns the actual No Show fee logic.
+            The driver app passes the configured trip noShowFee only.
+          */
+          await updateTrip({
+            status:"No Show",
+            noShowReason:reason,
+            noShowFee:fee
+          });
         }
-      );
+
+      }catch(err){
+
+        alert(err.message);
+        return;
+      }
 
       saveStopState(
         stop,
         {
           noShow:true,
-          noShowReason:
-            reason,
-          noShowAt,
+          noShowReason:reason,
           completed:true
         }
       );
 
-      hide(
-        noShowBox
-      );
+      hide(noShowBox);
 
-      advanceStop(
-        true
-      );
+      await advanceStop(true);
     }
   );
 
@@ -4531,53 +2859,30 @@ btnCompleteStop
 
       if(
         !stop ||
-        stop.type !==
-        "stop"
+        stop.type !== "stop"
       ){
-
         return;
       }
 
-      if(
-        !insideCurrentStopRadius()
-      ){
+      if(!inside250()){
 
         alert(
           "You must be inside the 250 meter stop area first."
         );
 
-        renderExecutionState();
-
         return;
       }
-
-      const completedAt =
-        serverNow();
-
-      await saveExecutionEvent(
-        "INTERMEDIATE_STOP_COMPLETED",
-        {
-          stopId:
-            stop.stopId,
-
-          completedAt,
-
-          geofenceMeters:
-            STOP_RADIUS_METERS
-        }
-      );
 
       saveStopState(
         stop,
         {
           completed:true,
-          completedAt
+          completedAt:
+            serverNow()
         }
       );
 
-      advanceStop(
-        true
-      );
+      await advanceStop(true);
     }
   );
 
@@ -4591,58 +2896,113 @@ btnCompleteDropoff
 
       if(
         !stop ||
-        stop.type !==
-        "dropoff"
+        stop.type !== "dropoff"
       ){
-
         return;
       }
 
-      if(
-        !insideCurrentStopRadius()
-      ){
+      if(!inside250()){
 
         alert(
           "You must be inside the 250 meter dropoff area first."
         );
 
-        renderExecutionState();
-
         return;
       }
 
-      const completedAt =
-        serverNow();
+      try{
 
-      await saveExecutionEvent(
-        "DROPOFF_COMPLETED",
-        {
-          passengerId:
-            stop.passengers?.[0]
-              ?.passengerId ||
-            "",
+        if(isSharedTrip()){
 
-          stopId:
-            stop.stopId,
+          const ids =
+            new Set(
+              stop.passengers
+              .map(
+                p =>
+                  String(
+                    p.passengerId
+                  )
+              )
+            );
 
-          completedAt,
+          const passengers =
+            (tripDoc.passengers || [])
+            .map(
+              (p,index)=>{
 
-          geofenceMeters:
-            STOP_RADIUS_METERS
+                const id =
+                  passengerId(
+                    p,
+                    index
+                  );
+
+                if(
+                  ids.has(
+                    String(id)
+                  )
+                ){
+                  return {
+                    ...p,
+                    status:"Completed",
+                    completedAt:
+                      serverNow()
+                  };
+                }
+
+                return p;
+              }
+            );
+
+          const allFinal =
+            allSharedPassengersFinal(
+              passengers
+            );
+
+          await updateTrip({
+            status:
+              allFinal
+                ? "Completed"
+                : "InProgress",
+            passengers,
+            finalPrice:
+              Number(
+                tripDoc.finalPrice ||
+                tripDoc.priceAmount ||
+                0
+              )
+          });
+
+        }else{
+
+          await updateTrip({
+            status:"Completed",
+            completedAt:
+              serverNow(),
+            finalPrice:
+              Number(
+                tripDoc.finalPrice ||
+                tripDoc.priceAmount ||
+                0
+              )
+          });
         }
-      );
+
+      }catch(err){
+
+        alert(err.message);
+        return;
+      }
 
       saveStopState(
         stop,
         {
           completed:true,
-          completedAt
+          completedAt:
+            serverNow()
         }
       );
 
-      advanceStop(
-        true
-      );
+      await advanceStop(true);
     }
   );
 
@@ -4651,148 +3011,192 @@ recenterBtn
     "click",
     ()=>{
 
-      userMovedMap =
-        false;
-
+      userMovedMap = false;
+      fitMap();
       fitMap();
     }
   );
 
-/* =========================
-   GPS
-========================= */
+/* ================= LOCATION PUSH ================= */
 
-function startGpsWatch(){
+function shouldSendLocation(
+  lat,
+  lng
+){
+
+  if(!lastSentLocationAt){
+    return true;
+  }
+
+  if(
+    serverNow() -
+    lastSentLocationAt >=
+    LOCATION_PUSH_MS
+  ){
+    return true;
+  }
+
+  if(
+    validPoint(
+      lastSentLat,
+      lastSentLng
+    )
+  ){
+
+    return (
+      distanceMiles(
+        lastSentLat,
+        lastSentLng,
+        lat,
+        lng
+      ) >=
+      LOCATION_PUSH_MILES
+    );
+  }
+
+  return false;
+}
+
+async function sendLocation(
+  lat,
+  lng
+){
+
+  if(
+    !DRIVER_ID ||
+    !shouldSendLocation(
+      lat,
+      lng
+    )
+  ){
+    return;
+  }
+
+  lastSentLocationAt =
+    serverNow();
+
+  lastSentLat = lat;
+  lastSentLng = lng;
+
+  try{
+
+    await fetch(
+      "/api/driver/location",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
+        body:
+          JSON.stringify({
+            driverId:DRIVER_ID,
+            name:DRIVER_NAME,
+            lat,
+            lng,
+            tripId:TRIP_ID,
+            currentStopId:
+              currentStop()?.stopId ||
+              "",
+            currentStopIndex,
+            time:
+              lastSentLocationAt
+          })
+      }
+    );
+
+  }catch{}
+}
+
+/* ================= GPS ================= */
+
+function startGps(){
 
   if(
     !navigator.geolocation
   ){
 
-    if(
-      gpsBadge
-    ){
-
-      gpsBadge.textContent =
-        "GPS unavailable";
-    }
+    gpsBadge.textContent =
+      "GPS unavailable";
 
     return;
   }
 
-  if(
-    watchId !==
-    null
-  ){
+  if(watchId !== null){
 
-    navigator
-      .geolocation
+    navigator.geolocation
       .clearWatch(
         watchId
       );
-
-    watchId =
-      null;
   }
 
   watchId =
-    navigator
-      .geolocation
-      .watchPosition(
+    navigator.geolocation
+    .watchPosition(
 
-        async position=>{
+      async pos=>{
 
-          driverLat =
-            position.coords.latitude;
+        driverLat =
+          pos.coords.latitude;
 
-          driverLng =
-            position.coords.longitude;
+        driverLng =
+          pos.coords.longitude;
 
-          if(
-            gpsBadge
-          ){
+        gpsBadge.textContent =
+          "GPS Active";
 
-            gpsBadge.textContent =
-              "GPS Active";
-          }
+        updateDriverMarker();
 
-          updateDriverMarker(
-            driverLat,
-            driverLng
-          );
+        await sendLocation(
+          driverLat,
+          driverLng
+        );
 
-          drawStraightLine();
+        const stop =
+          currentStop();
 
-          if(
-            firstGpsFix
-          ){
+        if(firstGpsFix){
 
-            firstGpsFix =
-              false;
+          firstGpsFix = false;
+          userMovedMap = false;
 
-            userMovedMap =
-              false;
+          updateStopMarker();
+          fitMap();
 
-            fitMap();
+        }else if(
+          !userMovedMap
+        ){
 
-          }else if(
-            !userMovedMap
-          ){
-
-            fitMap();
-          }
-
-          await sendLocation(
-            driverLat,
-            driverLng
-          );
-
-          /*
-            Every GPS update can change
-            which button is allowed.
-          */
-          if(
-            !validPoint(
-              currentStop()?.lat,
-              currentStop()?.lng
-            )
-          ){
-            await ensureCurrentStopCoordinates();
-          }else{
-            renderExecutionState();
-          }
-        },
-
-        error=>{
-
-          console.log(
-            "GPS ERROR:",
-            error
-          );
-
-          if(
-            gpsBadge
-          ){
-
-            gpsBadge.textContent =
-              "GPS Error";
-          }
-
-          setStopStatus(
-            "Enable location access"
-          );
-        },
-
-        {
-          enableHighAccuracy:true,
-          maximumAge:1000,
-          timeout:10000
+          fitMap();
         }
-      );
+
+        renderExecutionState();
+      },
+
+      err=>{
+
+        console.log(
+          "GPS error:",
+          err
+        );
+
+        gpsBadge.textContent =
+          "GPS Error";
+
+        setStopStatus(
+          "Enable location access"
+        );
+      },
+
+      {
+        enableHighAccuracy:true,
+        maximumAge:1000,
+        timeout:10000
+      }
+    );
 }
 
-/* =========================
-   INIT
-========================= */
+/* ================= INIT ================= */
 
 async function initPage(){
 
@@ -4803,23 +3207,22 @@ async function initPage(){
     );
 
     await syncServerClock();
+    await loadSystemDesign();
+    await loadAppConfig();
+    await loadGoogleMaps();
+    await syncServerClock();
+
+    initGoogleMap();
 
     tripDoc =
       await fetchTrip();
-
-    if(!tripDoc){
-      return;
-    }
 
     routeStops =
       buildRouteStops(
         tripDoc
       );
 
-    if(
-      !routeStops.length
-    ){
-
+    if(!routeStops.length){
       throw new Error(
         "No route stops found"
       );
@@ -4827,17 +3230,11 @@ async function initPage(){
 
     restoreCurrentStop();
 
-    await ensureStopCoordinates(
-      currentStop()
-    );
-
-    initMap();
-
+    updateStopMarker();
     renderExecutionState();
 
     startTimerWatcher();
-
-    startGpsWatch();
+    startGps();
 
   }catch(err){
 
@@ -4857,18 +3254,13 @@ async function initPage(){
   }
 }
 
-/* =========================
-   RETURN FROM GOOGLE MAPS
-========================= */
+/* ================= RETURN FROM GOOGLE NAV ================= */
 
 document.addEventListener(
   "visibilitychange",
   async ()=>{
 
-    if(
-      document.hidden
-    ){
-
+    if(document.hidden){
       return;
     }
 
@@ -4877,14 +3269,7 @@ document.addEventListener(
     renderExecutionState();
 
     if(map){
-
-      setTimeout(
-        ()=>{
-          map.invalidateSize();
-          updateMapTarget();
-        },
-        150
-      );
+      fitMap();
     }
   }
 );
@@ -4894,18 +3279,7 @@ window.addEventListener(
   async ()=>{
 
     await syncServerClock();
-
     renderExecutionState();
-
-    if(map){
-
-      setTimeout(
-        ()=>{
-          map.invalidateSize();
-        },
-        150
-      );
-    }
   }
 );
 
@@ -4913,23 +3287,17 @@ window.addEventListener(
   "beforeunload",
   ()=>{
 
-    if(
-      timerInterval
-    ){
-
+    if(timerInterval){
       clearInterval(
         timerInterval
       );
     }
 
     if(
-      watchId !==
-      null &&
+      watchId !== null &&
       navigator.geolocation
     ){
-
-      navigator
-        .geolocation
+      navigator.geolocation
         .clearWatch(
           watchId
         );
@@ -4937,8 +3305,6 @@ window.addEventListener(
   }
 );
 
-/* =========================
-   START
-========================= */
+/* ================= START ================= */
 
 initPage();
