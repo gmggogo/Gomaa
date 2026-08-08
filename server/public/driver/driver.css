@@ -1555,4 +1555,241 @@ body.driver-dashboard-page{
     border-radius:22px !important;
   }
 }
-/* Trips page continues to use this same shared driver navigation. */
+
+/* =========================================
+   DRIVER DASHBOARD — IDENTITY HEADER FINAL
+========================================= */
+
+.top-datetime,
+#datetime{
+  display:none !important;
+}
+
+.dashboard-shell{
+  padding-top:0 !important;
+}
+
+.driver-identity-header{
+  position:relative;
+  flex:0 0 auto;
+  min-height:82px;
+  padding:max(12px,env(safe-area-inset-top)) 18px 10px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  z-index:60;
+  background:
+    radial-gradient(circle at 20% 10%,rgba(25,93,178,.14),transparent 38%),
+    linear-gradient(160deg,rgba(1,13,31,.98),rgba(3,24,51,.97));
+  border-bottom:3px solid #d9a817;
+  border-radius:0 0 30px 30px;
+  box-shadow:
+    0 10px 18px rgba(0,0,0,.18),
+    inset 0 -1px 0 rgba(255,226,104,.32);
+}
+
+.driver-avatar{
+  width:52px;
+  height:52px;
+  flex:0 0 auto;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#ffd24a;
+  background:
+    radial-gradient(circle at 34% 26%,rgba(255,220,95,.14),transparent 38%),
+    linear-gradient(160deg,#061831,#031022);
+  border:2px solid #d8a817;
+  box-shadow:
+    0 0 0 3px rgba(255,210,38,.06),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.driver-avatar svg{
+  width:31px;
+  height:31px;
+  fill:currentColor;
+}
+
+.driver-identity-text{
+  min-width:0;
+  flex:1;
+  text-align:left;
+}
+
+.driver-name-header{
+  max-width:100%;
+  color:#ffffff;
+  font-size:22px;
+  line-height:1.05;
+  font-weight:900;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-shadow:0 2px 7px rgba(0,0,0,.38);
+}
+
+.driver-role-header{
+  margin-top:4px;
+  color:#ffd226;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
+
+.driver-online-header{
+  flex:0 0 auto;
+  min-height:38px;
+  padding:8px 12px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border-radius:999px;
+  color:#22f168;
+  background:rgba(2,19,41,.80);
+  border:1px solid rgba(75,156,255,.24);
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.3px;
+}
+
+.driver-online-dot{
+  width:11px;
+  height:11px;
+  border-radius:50%;
+  background:#1ff06a;
+  box-shadow:0 0 10px rgba(31,240,106,.70);
+}
+
+.dashboard-header .driver-name{
+  display:none !important;
+}
+
+.dashboard-header.dashboard-header-clean{
+  position:relative !important;
+  flex:0 0 auto !important;
+  padding:8px 18px 4px !important;
+  text-align:center !important;
+  background:transparent !important;
+}
+
+.profile-logo-standalone.clean-logo{
+  width:auto !important;
+  height:auto !important;
+  margin:2px auto 1px !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+}
+
+.profile-logo-standalone.clean-logo .logo{
+  width:155px !important;
+  max-width:44vw !important;
+  height:auto !important;
+  max-height:105px !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  mix-blend-mode:multiply;
+  filter:
+    contrast(1.07)
+    saturate(1.12)
+    drop-shadow(0 4px 7px rgba(0,0,0,.18)) !important;
+}
+
+.dashboard-header-clean .company-name{
+  margin:0 !important;
+  color:#ffd226 !important;
+  font-size:31px !important;
+  line-height:.98 !important;
+  font-weight:900 !important;
+  letter-spacing:.6px !important;
+  -webkit-text-stroke:1.2px #000;
+  paint-order:stroke fill;
+  text-shadow:
+    0 2px 0 #9d6c00,
+    0 4px 0 #6f4b00,
+    0 5px 10px rgba(0,0,0,.24) !important;
+}
+
+.status-pill{
+  margin-top:5px !important;
+  margin-bottom:10px !important;
+}
+
+.dashboard-scroll{
+  padding-top:0 !important;
+}
+
+@media(max-width:390px){
+
+  .driver-identity-header{
+    min-height:76px;
+    padding-left:14px;
+    padding-right:14px;
+    gap:9px;
+    border-radius:0 0 26px 26px;
+  }
+
+  .driver-avatar{
+    width:46px;
+    height:46px;
+  }
+
+  .driver-avatar svg{
+    width:27px;
+    height:27px;
+  }
+
+  .driver-name-header{
+    font-size:19px;
+  }
+
+  .driver-role-header{
+    font-size:11px;
+  }
+
+  .driver-online-header{
+    min-height:34px;
+    padding:7px 9px;
+    gap:6px;
+    font-size:10px;
+  }
+
+  .driver-online-dot{
+    width:9px;
+    height:9px;
+  }
+
+  .dashboard-header.dashboard-header-clean{
+    padding-top:5px !important;
+    padding-bottom:2px !important;
+  }
+
+  .profile-logo-standalone.clean-logo .logo{
+    width:138px !important;
+    max-width:45vw !important;
+    max-height:92px !important;
+  }
+
+  .dashboard-header-clean .company-name{
+    font-size:28px !important;
+  }
+
+  .status-pill{
+    margin-top:3px !important;
+    margin-bottom:9px !important;
+  }
+}
