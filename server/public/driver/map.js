@@ -1,51 +1,89 @@
 /* =====================================================
-   SUNBEAM DRIVER MAP V2 — STRICT EXECUTION FLOW
+   SUNBEAM DRIVER MAP — FINAL REBUILD V1
 
-   REAL MAP:
-   - Leaflet + OpenStreetMap tiles.
-   - NO route calculation.
-   - NO geocoding.
-   - NO Google Directions API.
-   - External navigation opens Google Maps only when required.
-
-   STRICT BUTTON ORDER:
-   1) GO TO PICKUP while outside pickup radius.
-   2) ARRIVED only inside pickup radius.
-   3) If early, wait until scheduled trip time.
-   4) At scheduled time, wait timer starts.
-      START RIDE + CANCEL are available during timer.
-   5) After timer expires:
-      START RIDE + NO SHOW.
-   6) START RIDE automatically opens Google Maps to next stop.
-   7) At dropoff radius:
-      DROP OFF / COMPLETE.
-
-   SHARED:
-   - Same physical pickup => one pickup group and one timer.
-   - Different pickup => separate pickup group and timer.
-   - Server route order is preserved.
+   CORE RULES
+   -----------------------------------------------------
+   1) REAL MAP = Leaflet + OpenStreetMap tiles.
+   2) NO geocoding in driver app.
+   3) NO Google Directions API request.
+   4) External Google Maps opens only from Directions.
+   5) Server route order wins.
+   6) One stop at a time.
+   7) Every physical stop uses SAME 250 meter geofence.
+   8) Pickup / Intermediate Stop / Dropoff are different
+      execution types.
+   9) Shared passengers at same pickup share one timer.
+   10) Different shared pickup location = different timer.
+   11) Wait timer never starts before scheduled trip time.
+   12) No Show fee is NEVER calculated in client.
 ===================================================== */
 
-console.log("Sunbeam Driver Map V2 strict flow");
+console.log("Sunbeam Driver Map FINAL rebuild");
+
+/* =========================
+   CONSTANTS
+========================= */
+
+const METERS_PER_MILE =
+  1609.344;
+
+const STOP_RADIUS_METERS =
+  250;
+
+const STOP_RADIUS_MILES =
+  STOP_RADIUS_METERS /
+  METERS_PER_MILE;
+
+/*
+  Temporary.
+  Later Admin controls these.
+*/
+const EXECUTION = {
+
+  waitTimerEnabled:true,
+
+  waitMinutes:10,
+
+  stopRadiusMiles:
+    STOP_RADIUS_MILES,
+
+  noShowRequiresTimer:true,
+
+  noShowRequiresCall:false
+
+};
 
 /* =========================
    AUTH
 ========================= */
 
 const rawDriver =
-  localStorage.getItem("loggedDriver") ||
-  localStorage.getItem("user");
+  localStorage.getItem(
+    "loggedDriver"
+  ) ||
+  localStorage.getItem(
+    "user"
+  );
 
 if(!rawDriver){
-  window.location.href = "/driver/login.html";
+
+  window.location.href =
+    "/driver/login.html";
 }
 
 let driver = {};
 
 try{
-  driver = JSON.parse(rawDriver);
+
+  driver =
+    JSON.parse(
+      rawDriver
+    );
+
 }catch(err){
-  window.location.href = "/driver/login.html";
+
+  window.location.href =
+    "/driver/login.html";
 }
 
 const DRIVER_ID =
@@ -56,10 +94,20 @@ const DRIVER_ID =
   );
 
 const DRIVER_NAME =
-  driver.name ||
-  driver.fullName ||
-  driver.username ||
-  "Driver";
+  String(
+    driver.name ||
+    driver.fullName ||
+    driver.username ||
+    "Driver"
+  ).trim();
+
+const DRIVER_PHONE =
+  String(
+    driver.phone ||
+    driver.mobile ||
+    driver.phoneNumber ||
+    ""
+  ).trim();
 
 /* =========================
    TRIP ID
@@ -72,113 +120,148 @@ const params =
 
 const TRIP_ID =
   String(
-    params.get("tripId") ||
+    params.get(
+      "tripId"
+    ) ||
     ""
   );
-
-/* =========================
-   TEMP EXECUTION SETTINGS
-
-   Later these values come from Admin.
-========================= */
-
-const EXECUTION = {
-
-  waitTimerEnabled:true,
-
-  waitMinutes:10,
-
-  pickupRadiusMiles:0.15,
-
-  dropoffRadiusMiles:0.10,
-
-  noShowRequiresTimer:true,
-
-  noShowRequiresCall:false
-
-};
 
 /* =========================
    DOM
 ========================= */
 
 const navTextEl =
-  document.getElementById("navText");
+  document.getElementById(
+    "navText"
+  );
 
 const gpsBadge =
-  document.getElementById("gpsBadge");
+  document.getElementById(
+    "gpsBadge"
+  );
 
 const stopTypeBadge =
-  document.getElementById("stopTypeBadge");
+  document.getElementById(
+    "stopTypeBadge"
+  );
 
 const stopProgress =
-  document.getElementById("stopProgress");
+  document.getElementById(
+    "stopProgress"
+  );
 
 const currentStopAddressEl =
-  document.getElementById("currentStopAddress");
+  document.getElementById(
+    "currentStopAddress"
+  );
 
 const currentPassengersEl =
-  document.getElementById("currentPassengers");
+  document.getElementById(
+    "currentPassengers"
+  );
 
 const stopStatusText =
-  document.getElementById("stopStatusText");
+  document.getElementById(
+    "stopStatusText"
+  );
 
 const waitTimerEl =
-  document.getElementById("waitTimer");
+  document.getElementById(
+    "waitTimer"
+  );
 
 const scheduledTimeBox =
-  document.getElementById("scheduledTimeBox");
+  document.getElementById(
+    "scheduledTimeBox"
+  );
 
 const recenterBtn =
-  document.getElementById("recenterBtn");
+  document.getElementById(
+    "recenterBtn"
+  );
 
-const btnGoPickup =
-  document.getElementById("btnGoPickup");
+const btnDirections =
+  document.getElementById(
+    "btnDirections"
+  );
 
 const btnArrived =
-  document.getElementById("btnArrived");
+  document.getElementById(
+    "btnArrived"
+  );
 
 const btnStartRide =
-  document.getElementById("btnStartRide");
+  document.getElementById(
+    "btnStartRide"
+  );
 
 const btnCancel =
-  document.getElementById("btnCancel");
+  document.getElementById(
+    "btnCancel"
+  );
 
 const btnCall =
-  document.getElementById("btnCall");
+  document.getElementById(
+    "btnCall"
+  );
 
 const btnNoShow =
-  document.getElementById("btnNoShow");
+  document.getElementById(
+    "btnNoShow"
+  );
 
-const btnDropoff =
-  document.getElementById("btnDropoff");
+const btnCompleteStop =
+  document.getElementById(
+    "btnCompleteStop"
+  );
+
+const btnCompleteDropoff =
+  document.getElementById(
+    "btnCompleteDropoff"
+  );
 
 const cancelBox =
-  document.getElementById("cancelBox");
+  document.getElementById(
+    "cancelBox"
+  );
 
 const btnCloseCancel =
-  document.getElementById("btnCloseCancel");
+  document.getElementById(
+    "btnCloseCancel"
+  );
 
 const cancelNotes =
-  document.getElementById("cancelNotes");
+  document.getElementById(
+    "cancelNotes"
+  );
 
 const btnCompleteCancel =
-  document.getElementById("btnCompleteCancel");
+  document.getElementById(
+    "btnCompleteCancel"
+  );
 
 const noShowBox =
-  document.getElementById("noShowBox");
+  document.getElementById(
+    "noShowBox"
+  );
 
 const btnCloseNoShow =
-  document.getElementById("btnCloseNoShow");
+  document.getElementById(
+    "btnCloseNoShow"
+  );
 
 const noShowNotes =
-  document.getElementById("noShowNotes");
+  document.getElementById(
+    "noShowNotes"
+  );
 
 const btnCompleteNoShow =
-  document.getElementById("btnCompleteNoShow");
+  document.getElementById(
+    "btnCompleteNoShow"
+  );
 
 /* =========================
-   PAGE STATE
+   GLOBAL STATE
 ========================= */
 
 let tripDoc = null;
@@ -205,7 +288,7 @@ let userMovedMap = false;
 
 let watchId = null;
 
-let waitInterval = null;
+let timerInterval = null;
 
 let serverOffset = 0;
 
@@ -215,19 +298,34 @@ let lastSentLat = null;
 
 let lastSentLng = null;
 
-const LOCATION_PUSH_MS = 20000;
+const LOCATION_PUSH_MS =
+  20000;
 
-const LOCATION_PUSH_MILES = 0.25;
+const LOCATION_PUSH_MILES =
+  0.25;
 
 /* =========================
-   BASIC HELPERS
+   HELPERS
 ========================= */
 
 function clean(v){
-  return String(v ?? "").trim();
+
+  return String(
+    v ?? ""
+  )
+  .trim();
 }
 
-function num(v,def=null){
+function lower(v){
+
+  return clean(v)
+    .toLowerCase();
+}
+
+function num(
+  v,
+  def=null
+){
 
   if(
     v === undefined ||
@@ -245,19 +343,13 @@ function num(v,def=null){
     : def;
 }
 
-function esc(v){
+function firstValue(
+  ...values
+){
 
-  return clean(v)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-}
-
-function firstValue(...values){
-
-  for(const value of values){
+  for(
+    const value of values
+  ){
 
     if(
       value !== undefined &&
@@ -271,51 +363,123 @@ function firstValue(...values){
   return "";
 }
 
-function show(el,display="block"){
+function esc(v){
+
+  return clean(v)
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+}
+
+function normalizeStatus(v){
+
+  return lower(v)
+    .replace(
+      /[_-]/g,
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
+}
+
+function show(
+  el,
+  display="block"
+){
 
   if(el){
-    el.style.display = display;
+    el.style.display =
+      display;
   }
 }
 
 function hide(el){
 
   if(el){
-    el.style.display = "none";
+    el.style.display =
+      "none";
   }
 }
 
 function setNavText(text){
 
   if(navTextEl){
-    navTextEl.textContent = text;
+    navTextEl.textContent =
+      text;
   }
 }
 
 function setStopStatus(text){
 
   if(stopStatusText){
-    stopStatusText.textContent = text;
+    stopStatusText.textContent =
+      text;
   }
 }
 
-function normalizeStatus(v){
+function validLatitude(v){
 
-  return clean(v)
-    .toLowerCase()
-    .replace(/[_-]/g," ")
-    .replace(/\s+/g," ")
-    .trim();
+  return (
+    Number.isFinite(v) &&
+    v >= -90 &&
+    v <= 90
+  );
+}
+
+function validLongitude(v){
+
+  return (
+    Number.isFinite(v) &&
+    v >= -180 &&
+    v <= 180
+  );
+}
+
+function validPoint(
+  lat,
+  lng
+){
+
+  return (
+    validLatitude(lat) &&
+    validLongitude(lng) &&
+    !(
+      lat === 0 &&
+      lng === 0
+    )
+  );
 }
 
 /* =========================
    SERVER CLOCK
-
-   App logic never trusts phone clock directly.
 ========================= */
 
 function serverNow(){
-  return Date.now() + serverOffset;
+
+  return (
+    Date.now() +
+    serverOffset
+  );
 }
 
 async function syncServerClock(){
@@ -331,24 +495,36 @@ async function syncServerClock(){
       );
 
     const dateHeader =
-      res.headers.get("date");
+      res.headers.get(
+        "date"
+      );
 
     if(dateHeader){
 
       const serverMs =
         new Date(
           dateHeader
-        ).getTime();
+        )
+        .getTime();
 
-      if(Number.isFinite(serverMs)){
+      if(
+        Number.isFinite(
+          serverMs
+        )
+      ){
 
         serverOffset =
-          serverMs - Date.now();
+          serverMs -
+          Date.now();
       }
     }
 
   }catch(err){
-    console.log("SERVER CLOCK:",err);
+
+    console.log(
+      "SERVER CLOCK ERROR:",
+      err
+    );
   }
 }
 
@@ -370,19 +546,33 @@ function distanceMiles(
     (
       (lat2-lat1) *
       Math.PI
-    ) / 180;
+    ) /
+    180;
 
   const dLon =
     (
       (lon2-lon1) *
       Math.PI
-    ) / 180;
+    ) /
+    180;
 
   const a =
-    Math.sin(dLat/2) ** 2 +
-    Math.cos(lat1*Math.PI/180) *
-    Math.cos(lat2*Math.PI/180) *
-    Math.sin(dLon/2) ** 2;
+    Math.sin(
+      dLat/2
+    ) ** 2 +
+    Math.cos(
+      lat1 *
+      Math.PI /
+      180
+    ) *
+    Math.cos(
+      lat2 *
+      Math.PI /
+      180
+    ) *
+    Math.sin(
+      dLon/2
+    ) ** 2;
 
   return (
     R *
@@ -394,39 +584,31 @@ function distanceMiles(
   );
 }
 
-function validLatitude(v){
+function currentStop(){
+
   return (
-    Number.isFinite(v) &&
-    v >= -90 &&
-    v <= 90
+    routeStops[
+      currentStopIndex
+    ] ||
+    null
   );
 }
 
-function validLongitude(v){
-  return (
-    Number.isFinite(v) &&
-    v >= -180 &&
-    v <= 180
-  );
-}
-
-function validPoint(lat,lng){
-  return (
-    validLatitude(lat) &&
-    validLongitude(lng) &&
-    !(lat === 0 && lng === 0)
-  );
-}
-
-function currentDistanceToStop(){
+function currentDistance(){
 
   const stop =
     currentStop();
 
   if(
     !stop ||
-    !validPoint(stop.lat,stop.lng) ||
-    !validPoint(driverLat,driverLng)
+    !validPoint(
+      stop.lat,
+      stop.lng
+    ) ||
+    !validPoint(
+      driverLat,
+      driverLng
+    )
   ){
     return null;
   }
@@ -439,25 +621,67 @@ function currentDistanceToStop(){
   );
 }
 
-function insidePickupRadius(){
+function insideCurrentStopRadius(){
 
   const d =
-    currentDistanceToStop();
+    currentDistance();
 
   return (
     d !== null &&
-    d <= EXECUTION.pickupRadiusMiles
+    d <=
+    EXECUTION.stopRadiusMiles
   );
 }
 
-function insideDropoffRadius(){
+/* =========================
+   DRIVER IDENTITY GUARD
+========================= */
 
-  const d =
-    currentDistanceToStop();
+function normalizePhone(v){
+
+  return clean(v)
+    .replace(
+      /\D/g,
+      ""
+    );
+}
+
+function isDriverIdentity(
+  name,
+  phone
+){
+
+  const n1 =
+    lower(name);
+
+  const n2 =
+    lower(
+      DRIVER_NAME
+    );
+
+  const p1 =
+    normalizePhone(
+      phone
+    );
+
+  const p2 =
+    normalizePhone(
+      DRIVER_PHONE
+    );
+
+  const sameName =
+    n1 &&
+    n2 &&
+    n1 === n2;
+
+  const samePhone =
+    p1 &&
+    p2 &&
+    p1 === p2;
 
   return (
-    d !== null &&
-    d <= EXECUTION.dropoffRadiusMiles
+    sameName ||
+    samePhone
   );
 }
 
@@ -465,16 +689,16 @@ function insideDropoffRadius(){
    TRIP TIME
 ========================= */
 
-function buildTripScheduledTime(
+function buildScheduledTime(
   trip,
-  stop=null
+  source=null
 ){
 
   const direct =
     firstValue(
-      stop?.scheduledAt,
-      stop?.tripDateTime,
-      stop?.pickupDateTime
+      source?.scheduledAt,
+      source?.tripDateTime,
+      source?.pickupDateTime
     );
 
   if(direct){
@@ -482,9 +706,14 @@ function buildTripScheduledTime(
     const ms =
       new Date(
         direct
-      ).getTime();
+      )
+      .getTime();
 
-    if(Number.isFinite(ms)){
+    if(
+      Number.isFinite(
+        ms
+      )
+    ){
       return ms;
     }
   }
@@ -492,7 +721,7 @@ function buildTripScheduledTime(
   const date =
     clean(
       firstValue(
-        stop?.tripDate,
+        source?.tripDate,
         trip?.tripDate,
         trip?.date
       )
@@ -501,8 +730,8 @@ function buildTripScheduledTime(
   const time =
     clean(
       firstValue(
-        stop?.tripTime,
-        stop?.pickupTime,
+        source?.tripTime,
+        source?.pickupTime,
         trip?.tripTime,
         trip?.time
       )
@@ -515,39 +744,48 @@ function buildTripScheduledTime(
     return null;
   }
 
-  const parsed =
+  const ms =
     new Date(
       `${date}T${time}`
-    ).getTime();
+    )
+    .getTime();
 
-  return Number.isFinite(parsed)
-    ? parsed
+  return Number.isFinite(ms)
+    ? ms
     : null;
 }
 
 function formatScheduledTime(ms){
 
-  if(!Number.isFinite(ms)){
+  if(
+    !Number.isFinite(ms)
+  ){
     return "";
   }
 
-  return new Intl.DateTimeFormat(
-    "en-US",
-    {
-      hour:"numeric",
-      minute:"2-digit",
-      hour12:true
-    }
-  ).format(
-    new Date(ms)
+  return (
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        hour:"numeric",
+        minute:"2-digit",
+        hour12:true
+      }
+    )
+    .format(
+      new Date(ms)
+    )
   );
 }
 
 /* =========================
-   PASSENGERS
+   PASSENGER HELPERS
 ========================= */
 
-function passengerId(p,index){
+function passengerId(
+  p,
+  index
+){
 
   return String(
     firstValue(
@@ -570,7 +808,7 @@ function passengerName(
       p?.passengerName,
       p?.memberName,
       p?.patientName,
-      p?.name,
+      p?.riderName,
       `Passenger ${index+1}`
     )
   );
@@ -584,6 +822,7 @@ function passengerPhone(p){
       p?.passengerPhone,
       p?.memberPhone,
       p?.patientPhone,
+      p?.riderPhone,
       p?.phone,
       p?.mobile
     )
@@ -626,6 +865,7 @@ function pickupPoint(
 ){
 
   return {
+
     lat:
       num(
         firstValue(
@@ -654,6 +894,7 @@ function dropoffPoint(
 ){
 
   return {
+
     lat:
       num(
         firstValue(
@@ -678,7 +919,9 @@ function dropoffPoint(
   };
 }
 
-function getPassengers(trip){
+function getPassengers(
+  trip
+){
 
   if(
     Array.isArray(
@@ -686,6 +929,7 @@ function getPassengers(trip){
     ) &&
     trip.passengers.length
   ){
+
     return trip.passengers;
   }
 
@@ -695,13 +939,16 @@ function getPassengers(trip){
       firstValue(
         trip?.clientName,
         trip?.passengerName,
-        trip?.name,
+        trip?.memberName,
+        trip?.patientName,
         "Passenger"
       ),
     clientPhone:
       firstValue(
         trip?.clientPhone,
-        trip?.phone
+        trip?.passengerPhone,
+        trip?.memberPhone,
+        trip?.patientPhone
       ),
     pickup:
       firstValue(
@@ -728,22 +975,162 @@ function getPassengers(trip){
         trip?.dropLng
       ),
     pickupOrder:1,
-    dropoffOrder:2,
-    tripDate:trip?.tripDate,
-    tripTime:trip?.tripTime
+    dropoffOrder:999999,
+    tripDate:
+      trip?.tripDate,
+    tripTime:
+      trip?.tripTime
   }];
 }
 
 /* =========================
-   PICKUP GROUP MATCHING
+   NORMAL TRIP EXTRA STOPS
+========================= */
+
+function normalizeExtraStop(
+  raw,
+  index
+){
+
+  if(!raw){
+    return null;
+  }
+
+  if(
+    typeof raw ===
+    "string"
+  ){
+
+    return {
+      stopId:
+        `mid-${index+1}`,
+      type:"stop",
+      order:
+        1000 +
+        index,
+      address:
+        clean(raw),
+      lat:null,
+      lng:null,
+      title:
+        `Stop ${index+1}`,
+      sourceIndex:index
+    };
+  }
+
+  const address =
+    clean(
+      firstValue(
+        raw.address,
+        raw.fullAddress,
+        raw.location,
+        raw.name,
+        raw.stopAddress
+      )
+    );
+
+  const lat =
+    num(
+      firstValue(
+        raw.lat,
+        raw.latitude,
+        raw.stopLat
+      )
+    );
+
+  const lng =
+    num(
+      firstValue(
+        raw.lng,
+        raw.lon,
+        raw.longitude,
+        raw.stopLng
+      )
+    );
+
+  const order =
+    num(
+      firstValue(
+        raw.order,
+        raw.routeOrder,
+        raw.sequence,
+        raw.stopOrder,
+        raw.index
+      ),
+      1000 +
+      index
+    );
+
+  return {
+    stopId:
+      String(
+        firstValue(
+          raw.stopId,
+          raw._id,
+          raw.id,
+          `mid-${index+1}`
+        )
+      ),
+    type:"stop",
+    order,
+    address,
+    lat,
+    lng,
+    title:
+      clean(
+        firstValue(
+          raw.title,
+          raw.label,
+          raw.name,
+          `Stop ${index+1}`
+        )
+      ),
+    sourceIndex:index
+  };
+}
+
+function getNormalTripStops(
+  trip
+){
+
+  const rawStops =
+    Array.isArray(
+      trip?.stops
+    )
+      ? trip.stops
+      : Array.isArray(
+          trip?.extraStops
+        )
+        ? trip.extraStops
+        : Array.isArray(
+            trip?.stopAddresses
+          )
+          ? trip.stopAddresses
+          : [];
+
+  return rawStops
+    .map(
+      normalizeExtraStop
+    )
+    .filter(Boolean);
+}
+
+/* =========================
+   SAME PICKUP GROUP
 ========================= */
 
 function normalizeAddressKey(v){
 
   return clean(v)
     .toLowerCase()
-    .replace(/[.,#]/g," ")
-    .replace(/\s+/g," ")
+    .replace(
+      /[.,#]/g,
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
     .trim();
 }
 
@@ -755,25 +1142,27 @@ function sameCoordinate(
   if(
     !a ||
     !b ||
-    !Number.isFinite(a.lat) ||
-    !Number.isFinite(a.lng) ||
-    !Number.isFinite(b.lat) ||
-    !Number.isFinite(b.lng)
+    !validPoint(
+      a.lat,
+      a.lng
+    ) ||
+    !validPoint(
+      b.lat,
+      b.lng
+    )
   ){
     return false;
   }
 
-  /*
-    ~100 feet.
-    Same physical pickup can share one wait timer.
-  */
   return (
     distanceMiles(
       a.lat,
       a.lng,
       b.lat,
       b.lng
-    ) <= 0.02
+    )
+    <=
+    0.02
   );
 }
 
@@ -792,22 +1181,13 @@ function pickupIdentity(
       )
     );
 
-  if(explicit){
-
-    return {
-      explicit:
-        `KEY:${explicit.toLowerCase()}`,
-      address:"",
-      point:
-        pickupPoint(
-          passenger,
-          trip
-        )
-    };
-  }
-
   return {
-    explicit:"",
+
+    explicit:
+      explicit
+        ? `KEY:${explicit.toLowerCase()}`
+        : "",
+
     address:
       normalizeAddressKey(
         passengerPickup(
@@ -815,6 +1195,7 @@ function pickupIdentity(
           trip
         )
       ),
+
     point:
       pickupPoint(
         passenger,
@@ -839,6 +1220,7 @@ function pickupGroupMatches(
     identity.explicit &&
     group.explicit
   ){
+
     return (
       identity.explicit ===
       group.explicit
@@ -851,6 +1233,7 @@ function pickupGroupMatches(
     identity.address ===
     group.addressKey
   ){
+
     return true;
   }
 
@@ -861,15 +1244,17 @@ function pickupGroupMatches(
 }
 
 /* =========================
-   ROUTE BUILD
-
-   Saved server order always wins.
+   BUILD COMPLETE ROUTE
 ========================= */
 
-function buildRouteStops(trip){
+function buildRouteStops(
+  trip
+){
 
   const passengers =
-    getPassengers(trip);
+    getPassengers(
+      trip
+    );
 
   const pickupGroups = [];
 
@@ -878,28 +1263,30 @@ function buildRouteStops(trip){
   passengers.forEach(
     (p,index)=>{
 
-      const pId =
+      const id =
         passengerId(
           p,
           index
         );
 
-      const pName =
+      const name =
         passengerName(
           p,
           index
         );
 
       const phone =
-        passengerPhone(p);
+        passengerPhone(
+          p
+        );
 
-      const pPickup =
+      const pickup =
         passengerPickup(
           p,
           trip
         );
 
-      const pDropoff =
+      const dropoff =
         passengerDropoff(
           p,
           trip
@@ -924,7 +1311,7 @@ function buildRouteStops(trip){
             p?.pickupSequence,
             p?.routePickupOrder
           ),
-          index*2+1
+          index*10+1
         );
 
       const dropoffOrder =
@@ -934,7 +1321,7 @@ function buildRouteStops(trip){
             p?.dropoffSequence,
             p?.routeDropoffOrder
           ),
-          index*2+2
+          index*10+9
         );
 
       const identity =
@@ -945,9 +1332,9 @@ function buildRouteStops(trip){
 
       let group =
         pickupGroups.find(
-          existing =>
+          g =>
             pickupGroupMatches(
-              existing,
+              g,
               p,
               trip
             )
@@ -966,7 +1353,7 @@ function buildRouteStops(trip){
             pickupOrder,
 
           address:
-            pPickup,
+            pickup,
 
           lat:
             pPoint.lat,
@@ -984,7 +1371,7 @@ function buildRouteStops(trip){
             identity.address,
 
           scheduledAt:
-            buildTripScheduledTime(
+            buildScheduledTime(
               trip,
               p
             ),
@@ -1004,36 +1391,35 @@ function buildRouteStops(trip){
             pickupOrder
           );
 
-        const schedule =
-          buildTripScheduledTime(
+        const nextTime =
+          buildScheduledTime(
             trip,
             p
           );
 
-        /*
-          Same pickup group uses the earliest scheduled pickup time
-          if passengers at that location have different times.
-        */
         if(
-          Number.isFinite(schedule) &&
+          Number.isFinite(
+            nextTime
+          ) &&
           (
             !Number.isFinite(
               group.scheduledAt
             ) ||
-            schedule <
+            nextTime <
             group.scheduledAt
           )
         ){
+
           group.scheduledAt =
-            schedule;
+            nextTime;
         }
       }
 
       group.passengers.push({
 
-        passengerId:pId,
+        passengerId:id,
 
-        name:pName,
+        name,
 
         phone,
 
@@ -1049,7 +1435,7 @@ function buildRouteStops(trip){
       dropoffs.push({
 
         stopId:
-          `dropoff-${pId}`,
+          `dropoff-${id}`,
 
         type:"dropoff",
 
@@ -1057,7 +1443,7 @@ function buildRouteStops(trip){
           dropoffOrder,
 
         address:
-          pDropoff,
+          dropoff,
 
         lat:
           dPoint.lat,
@@ -1066,10 +1452,15 @@ function buildRouteStops(trip){
           dPoint.lng,
 
         passengers:[{
-          passengerId:pId,
-          name:pName,
+
+          passengerId:id,
+
+          name,
+
           phone,
+
           sourceIndex:index,
+
           status:
             clean(
               p?.status ||
@@ -1077,38 +1468,95 @@ function buildRouteStops(trip){
             )
         }]
       });
-
     }
   );
 
+  const extraStops =
+    getNormalTripStops(
+      trip
+    );
+
+  /*
+    If explicit order exists in data,
+    it wins.
+
+    If normal trip has old simple stops
+    without order:
+    Pickup = first
+    Extra stops = middle
+    Dropoff = last
+  */
+  const hasSharedPassengers =
+    Array.isArray(
+      trip?.passengers
+    ) &&
+    trip.passengers.length > 1;
+
+  if(
+    !hasSharedPassengers &&
+    pickupGroups.length === 1 &&
+    dropoffs.length === 1 &&
+    extraStops.length
+  ){
+
+    pickupGroups[0].order =
+      1;
+
+    extraStops.forEach(
+      (stop,index)=>{
+
+        if(
+          !Number.isFinite(
+            num(
+              stop.order,
+              null
+            )
+          ) ||
+          stop.order >= 1000
+        ){
+
+          stop.order =
+            index + 2;
+        }
+      }
+    );
+
+    dropoffs[0].order =
+      extraStops.length +
+      2;
+  }
+
   return [
     ...pickupGroups,
+    ...extraStops,
     ...dropoffs
   ]
+  .filter(
+    stop =>
+      clean(
+        stop.address
+      ) ||
+      validPoint(
+        stop.lat,
+        stop.lng
+      )
+  )
   .sort(
     (a,b)=>
-      a.order-b.order ||
-      (
-        a.type === "pickup"
-          ? -1
-          : 1
+      num(
+        a.order,
+        999999
+      ) -
+      num(
+        b.order,
+        999999
       )
   );
 }
 
 /* =========================
-   CURRENT STOP
+   ACTIVE PASSENGERS
 ========================= */
-
-function currentStop(){
-
-  return (
-    routeStops[
-      currentStopIndex
-    ] ||
-    null
-  );
-}
 
 function activePassengers(
   stop
@@ -1118,7 +1566,14 @@ function activePassengers(
     return [];
   }
 
-  return stop.passengers.filter(
+  return (
+    Array.isArray(
+      stop.passengers
+    )
+      ? stop.passengers
+      : []
+  )
+  .filter(
     p=>{
 
       const s =
@@ -1127,26 +1582,31 @@ function activePassengers(
         );
 
       return ![
-        "no show",
+        "completed",
         "cancelled",
         "canceled",
-        "completed"
-      ].includes(s);
+        "no show"
+      ]
+      .includes(
+        s
+      );
     }
   );
 }
 
 /* =========================
-   SERVER / LOCAL STATE AUTHORITY
+   SERVER AUTHORITY
 ========================= */
 
-function tripExecutionStartedOnServer(trip){
+function tripExecutionStartedOnServer(
+  trip
+){
 
   if(!trip){
     return false;
   }
 
-  const s =
+  const status =
     normalizeStatus(
       firstValue(
         trip.dispatchStatus,
@@ -1159,11 +1619,12 @@ function tripExecutionStartedOnServer(trip){
     [
       "arrived",
       "on trip",
-      "ontrip",
       "in progress",
-      "inprogress",
       "started"
-    ].includes(s)
+    ]
+    .includes(
+      status
+    )
   ){
     return true;
   }
@@ -1178,13 +1639,15 @@ function tripExecutionStartedOnServer(trip){
   );
 }
 
-function tripIsFreshDispatch(trip){
+function tripIsFreshDispatch(
+  trip
+){
 
   if(!trip){
     return false;
   }
 
-  const s =
+  const status =
     normalizeStatus(
       firstValue(
         trip.dispatchStatus,
@@ -1193,7 +1656,7 @@ function tripIsFreshDispatch(trip){
       )
     );
 
-  const freshStatus =
+  const fresh =
     [
       "scheduled",
       "confirmed",
@@ -1203,62 +1666,17 @@ function tripIsFreshDispatch(trip){
       "accepted",
       "upcoming",
       "ready"
-    ].includes(s);
+    ]
+    .includes(
+      status
+    );
 
   return (
-    freshStatus &&
-    !tripExecutionStartedOnServer(trip)
-  );
-}
-
-function clearTripLocalExecutionState(){
-
-  if(!TRIP_ID){
-    return;
-  }
-
-  const prefix =
-    `driver_stop_state_${TRIP_ID}_`;
-
-  const keys = [];
-
-  for(
-    let i=0;
-    i<localStorage.length;
-    i++
-  ){
-
-    const key =
-      localStorage.key(i);
-
-    if(
-      key &&
-      key.startsWith(prefix)
-    ){
-      keys.push(key);
-    }
-  }
-
-  keys.forEach(
-    key =>
-      localStorage.removeItem(key)
-  );
-}
-
-function reconcileLocalStateWithServer(){
-
-  /*
-    If the server says this is still a fresh dispatched/upcoming trip,
-    stale stop-completion state from a previous test must never skip pickup.
-  */
-  if(
-    tripIsFreshDispatch(
-      tripDoc
+    fresh &&
+    !tripExecutionStartedOnServer(
+      trip
     )
-  ){
-    clearTripLocalExecutionState();
-    currentStopIndex = 0;
-  }
+  );
 }
 
 /* =========================
@@ -1296,6 +1714,7 @@ function readStopState(
     );
 
   }catch{
+
     return {};
   }
 }
@@ -1327,7 +1746,58 @@ function saveStopState(
   );
 }
 
+function clearTripLocalState(){
+
+  const prefix =
+    `driver_stop_state_${TRIP_ID}_`;
+
+  const keys = [];
+
+  for(
+    let i=0;
+    i<localStorage.length;
+    i++
+  ){
+
+    const key =
+      localStorage.key(i);
+
+    if(
+      key &&
+      key.startsWith(
+        prefix
+      )
+    ){
+
+      keys.push(
+        key
+      );
+    }
+  }
+
+  keys.forEach(
+    key =>
+      localStorage.removeItem(
+        key
+      )
+  );
+}
+
 function restoreCurrentStop(){
+
+  if(
+    tripIsFreshDispatch(
+      tripDoc
+    )
+  ){
+
+    clearTripLocalState();
+
+    currentStopIndex =
+      0;
+
+    return;
+  }
 
   for(
     let i=0;
@@ -1341,9 +1811,13 @@ function restoreCurrentStop(){
       );
 
     if(
-      state.completed !== true
+      state.completed !==
+      true
     ){
-      currentStopIndex = i;
+
+      currentStopIndex =
+        i;
+
       return;
     }
   }
@@ -1356,30 +1830,22 @@ function restoreCurrentStop(){
 }
 
 /* =========================
-   TIMER
-
-   If driver arrives early:
-   timerStart = scheduled trip time.
-
-   If driver arrives late:
-   timerStart = arrived time.
-
-   Therefore:
-   waitStart = max(arrivedAt, scheduledAt)
+   WAIT TIMER
 ========================= */
 
-function waitSeconds(){
+function waitDurationSeconds(){
 
   return Math.max(
     0,
     Number(
       EXECUTION.waitMinutes ||
       0
-    ) * 60
+    ) *
+    60
   );
 }
 
-function waitStartForStop(
+function waitStart(
   stop
 ){
 
@@ -1405,6 +1871,7 @@ function waitStartForStop(
       arrivedAt
     )
   ){
+
     return null;
   }
 
@@ -1413,6 +1880,14 @@ function waitStartForStop(
       scheduledAt
     )
   ){
+
+    /*
+      If early:
+      timer begins at scheduled time.
+
+      If late:
+      timer begins at arrived time.
+    */
     return Math.max(
       arrivedAt,
       scheduledAt
@@ -1422,47 +1897,44 @@ function waitStartForStop(
   return arrivedAt;
 }
 
-function waitHasStarted(
+function timerStarted(
   stop
 ){
 
   if(
     !EXECUTION.waitTimerEnabled
   ){
+
     return true;
   }
 
   const start =
-    waitStartForStop(
+    waitStart(
       stop
     );
 
-  if(
-    !Number.isFinite(
-      start
-    )
-  ){
-    return false;
-  }
-
   return (
+    Number.isFinite(
+      start
+    ) &&
     serverNow() >=
     start
   );
 }
 
-function waitRemaining(
+function timerRemaining(
   stop
 ){
 
   if(
     !EXECUTION.waitTimerEnabled
   ){
+
     return 0;
   }
 
   const start =
-    waitStartForStop(
+    waitStart(
       stop
     );
 
@@ -1471,7 +1943,8 @@ function waitRemaining(
       start
     )
   ){
-    return waitSeconds();
+
+    return waitDurationSeconds();
   }
 
   const elapsed =
@@ -1485,7 +1958,7 @@ function waitRemaining(
 
   return Math.max(
     0,
-    waitSeconds() -
+    waitDurationSeconds() -
     elapsed
   );
 }
@@ -1497,60 +1970,62 @@ function timerExpired(
   if(
     !EXECUTION.waitTimerEnabled
   ){
+
     return true;
   }
 
   return (
-    waitHasStarted(stop) &&
-    waitRemaining(stop) <= 0
+    timerStarted(
+      stop
+    ) &&
+    timerRemaining(
+      stop
+    ) <= 0
   );
 }
 
-function formatTimer(sec){
+function formatTimer(
+  seconds
+){
 
   const safe =
     Math.max(
       0,
-      Math.floor(sec)
+      Math.floor(
+        seconds
+      )
     );
 
-  const m =
+  const min =
     Math.floor(
-      safe/60
+      safe /
+      60
     );
 
-  const s =
-    safe%60;
+  const sec =
+    safe %
+    60;
 
   return (
-    `${String(m).padStart(2,"0")}:` +
-    `${String(s).padStart(2,"0")}`
+    `${String(min).padStart(2,"0")}:` +
+    `${String(sec).padStart(2,"0")}`
   );
-}
-
-function stopTimer(){
-
-  if(waitInterval){
-
-    clearInterval(
-      waitInterval
-    );
-
-    waitInterval = null;
-  }
-
-  hide(waitTimerEl);
 }
 
 function startTimerWatcher(){
 
-  stopTimer();
+  if(
+    timerInterval
+  ){
 
-  waitInterval =
+    clearInterval(
+      timerInterval
+    );
+  }
+
+  timerInterval =
     setInterval(
-      ()=>{
-        renderExecutionState();
-      },
+      renderExecutionState,
       1000
     );
 }
@@ -1591,12 +2066,6 @@ async function fetchTrip(){
   return await res.json();
 }
 
-/*
-  IMPORTANT:
-  This sends execution evidence only.
-  The DRIVER APP does NOT calculate No Show fees.
-  The server/service pricing policy decides any fee.
-*/
 async function saveExecutionEvent(
   event,
   payload={}
@@ -1639,6 +2108,10 @@ async function saveExecutionEvent(
 
               currentStopIndex,
 
+              currentStopType:
+                stop?.type ||
+                "",
+
               ...payload
             })
         }
@@ -1647,8 +2120,10 @@ async function saveExecutionEvent(
     if(res.ok){
 
       try{
+
         tripDoc =
           await res.json();
+
       }catch{}
     }
 
@@ -1657,7 +2132,7 @@ async function saveExecutionEvent(
   }catch(err){
 
     console.log(
-      "EXECUTION SAVE:",
+      "SAVE EXECUTION ERROR:",
       err
     );
 
@@ -1674,7 +2149,10 @@ function shouldSendLocation(
   lng
 ){
 
-  if(!lastSentLocationAt){
+  if(
+    !lastSentLocationAt
+  ){
+
     return true;
   }
 
@@ -1687,14 +2165,13 @@ function shouldSendLocation(
     >=
     LOCATION_PUSH_MS
   ){
+
     return true;
   }
 
   if(
-    Number.isFinite(
-      lastSentLat
-    ) &&
-    Number.isFinite(
+    validPoint(
+      lastSentLat,
       lastSentLng
     )
   ){
@@ -1711,6 +2188,7 @@ function shouldSendLocation(
       moved >=
       LOCATION_PUSH_MILES
     ){
+
       return true;
     }
   }
@@ -1730,6 +2208,7 @@ async function sendLocation(
       lng
     )
   ){
+
     return;
   }
 
@@ -1774,6 +2253,8 @@ async function sendLocation(
               currentStop()?.stopId ||
               "",
 
+            currentStopIndex,
+
             time:
               lastSentLocationAt
           })
@@ -1781,8 +2262,9 @@ async function sendLocation(
     );
 
   }catch(err){
+
     console.log(
-      "LOCATION PUSH:",
+      "LOCATION PUSH ERROR:",
       err
     );
   }
@@ -1793,35 +2275,64 @@ async function sendLocation(
 ========================= */
 
 function markerIcon(
-  kind
+  type
 ){
 
-  const className =
-    kind === "driver"
-      ? "driver-pin"
-      : kind === "pickup"
-        ? "stop-pin pickup-pin"
-        : "stop-pin dropoff-pin";
+  let cssClass =
+    "stop-pin pickup-pin";
 
-  const text =
-    kind === "driver"
-      ? "●"
-      : kind === "pickup"
-        ? "P"
-        : "D";
+  let text =
+    "P";
+
+  if(
+    type === "driver"
+  ){
+
+    cssClass =
+      "driver-pin";
+
+    text =
+      "●";
+
+  }else if(
+    type === "stop"
+  ){
+
+    cssClass =
+      "stop-pin stop-mid-pin";
+
+    text =
+      "S";
+
+  }else if(
+    type === "dropoff"
+  ){
+
+    cssClass =
+      "stop-pin dropoff-pin";
+
+    text =
+      "D";
+  }
 
   return L.divIcon({
 
     className:"",
 
     html:
-      `<div class="${className}">` +
+      `<div class="${cssClass}">` +
       `${text}` +
       `</div>`,
 
-    iconSize:[28,28],
+    iconSize:[
+      28,
+      28
+    ],
 
-    iconAnchor:[14,14]
+    iconAnchor:[
+      14,
+      14
+    ]
   });
 }
 
@@ -1831,6 +2342,7 @@ function initMap(){
     typeof L ===
     "undefined"
   ){
+
     throw new Error(
       "Map library failed to load"
     );
@@ -1839,29 +2351,19 @@ function initMap(){
   const stop =
     currentStop();
 
-  const hasStopPoint =
+  const startPoint =
     validPoint(
       stop?.lat,
       stop?.lng
-    );
-
-  const lat =
-    hasStopPoint
-      ? stop.lat
-      : (
-          validPoint(driverLat,driverLng)
-            ? driverLat
-            : 33.4484
-        );
-
-  const lng =
-    hasStopPoint
-      ? stop.lng
-      : (
-          validPoint(driverLat,driverLng)
-            ? driverLng
-            : -112.0740
-        );
+    )
+      ? [
+          stop.lat,
+          stop.lng
+        ]
+      : [
+          33.4484,
+          -112.0740
+        ];
 
   map =
     L.map(
@@ -1872,7 +2374,7 @@ function initMap(){
       }
     )
     .setView(
-      [lat,lng],
+      startPoint,
       15
     );
 
@@ -1881,28 +2383,38 @@ function initMap(){
     {
       maxZoom:19,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        '&copy; OpenStreetMap contributors'
     }
   )
-  .addTo(map);
+  .addTo(
+    map
+  );
 
   L.control.zoom({
     position:"bottomleft"
   })
-  .addTo(map);
+  .addTo(
+    map
+  );
 
   map.on(
     "dragstart",
     ()=>{
-      userMovedMap = true;
+      userMovedMap =
+        true;
     }
   );
 
   map.on(
     "zoomstart",
     ()=>{
-      if(!firstGpsFix){
-        userMovedMap = true;
+
+      if(
+        !firstGpsFix
+      ){
+
+        userMovedMap =
+          true;
       }
     }
   );
@@ -1923,7 +2435,10 @@ function updateDriverMarker(
 
     driverMarker =
       L.marker(
-        [lat,lng],
+        [
+          lat,
+          lng
+        ],
         {
           icon:
             markerIcon(
@@ -1931,13 +2446,19 @@ function updateDriverMarker(
             )
         }
       )
-      .addTo(map);
+      .addTo(
+        map
+      );
 
   }else{
 
-    driverMarker.setLatLng(
-      [lat,lng]
-    );
+    driverMarker
+      .setLatLng(
+        [
+          lat,
+          lng
+        ]
+      );
   }
 }
 
@@ -1950,18 +2471,24 @@ function updateMapTarget(){
   const stop =
     currentStop();
 
-  if(stopMarker){
+  if(
+    stopMarker
+  ){
 
     map.removeLayer(
       stopMarker
     );
 
-    stopMarker = null;
+    stopMarker =
+      null;
   }
 
   if(
     stop &&
-    validPoint(stop.lat,stop.lng)
+    validPoint(
+      stop.lat,
+      stop.lng
+    )
   ){
 
     stopMarker =
@@ -1977,23 +2504,33 @@ function updateMapTarget(){
             )
         }
       )
-      .addTo(map);
+      .addTo(
+        map
+      );
 
-    stopMarker.bindPopup(
-      esc(
-        stop.address ||
-        (
-          stop.type === "pickup"
-            ? "Pickup"
-            : "Dropoff"
+    stopMarker
+      .bindPopup(
+        esc(
+          stop.address ||
+          (
+            stop.type ===
+            "pickup"
+              ? "Pickup"
+              : stop.type ===
+                "dropoff"
+                ? "Dropoff"
+                : "Stop"
+          )
         )
-      )
-    );
+      );
   }
 
   drawStraightLine();
 
-  if(!userMovedMap){
+  if(
+    !userMovedMap
+  ){
+
     fitMap();
   }
 }
@@ -2004,13 +2541,16 @@ function drawStraightLine(){
     return;
   }
 
-  if(straightLine){
+  if(
+    straightLine
+  ){
 
     map.removeLayer(
       straightLine
     );
 
-    straightLine = null;
+    straightLine =
+      null;
   }
 
   const stop =
@@ -2018,11 +2558,16 @@ function drawStraightLine(){
 
   if(
     !stop ||
-    !Number.isFinite(stop.lat) ||
-    !Number.isFinite(stop.lng) ||
-    !Number.isFinite(driverLat) ||
-    !Number.isFinite(driverLng)
+    !validPoint(
+      stop.lat,
+      stop.lng
+    ) ||
+    !validPoint(
+      driverLat,
+      driverLng
+    )
   ){
+
     return;
   }
 
@@ -2040,14 +2585,20 @@ function drawStraightLine(){
       ],
       {
         color:
-          stop.type === "pickup"
+          stop.type ===
+          "pickup"
             ? "#2563eb"
-            : "#16a34a",
+            : stop.type ===
+              "dropoff"
+              ? "#16a34a"
+              : "#7c3aed",
         weight:5,
         opacity:.85
       }
     )
-    .addTo(map);
+    .addTo(
+      map
+    );
 }
 
 function fitMap(){
@@ -2059,7 +2610,10 @@ function fitMap(){
   const points = [];
 
   if(
-    validPoint(driverLat,driverLng)
+    validPoint(
+      driverLat,
+      driverLng
+    )
   ){
 
     points.push(
@@ -2088,12 +2642,17 @@ function fitMap(){
     );
   }
 
-  if(points.length >= 2){
+  if(
+    points.length >= 2
+  ){
 
     map.fitBounds(
       points,
       {
-        padding:[55,55],
+        padding:[
+          55,
+          55
+        ],
         maxZoom:16
       }
     );
@@ -2110,12 +2669,10 @@ function fitMap(){
 }
 
 /* =========================
-   GOOGLE MAPS EXTERNAL NAV
-
-   No API request.
+   EXTERNAL GOOGLE DIRECTIONS
 ========================= */
 
-function openDirectionsToStop(){
+function openDirections(){
 
   const stop =
     currentStop();
@@ -2157,22 +2714,18 @@ function openDirectionsToStop(){
   let origin = "";
 
   if(
-    Number.isFinite(
-      driverLat
-    ) &&
-    Number.isFinite(
+    validPoint(
+      driverLat,
       driverLng
     )
   ){
 
     origin =
-      `&origin=` +
-      `${driverLat},${driverLng}`;
+      `&origin=${driverLat},${driverLng}`;
   }
 
   const url =
-    `https://www.google.com/maps/dir/` +
-    `?api=1` +
+    `https://www.google.com/maps/dir/?api=1` +
     `${origin}` +
     `&destination=${destination}` +
     `&travelmode=driving`;
@@ -2184,7 +2737,7 @@ function openDirectionsToStop(){
 }
 
 /* =========================
-   UI PASSENGERS
+   RENDER PASSENGERS
 ========================= */
 
 function renderPassengers(){
@@ -2196,47 +2749,191 @@ function renderPassengers(){
     !currentPassengersEl ||
     !stop
   ){
+
     return;
   }
 
-  currentPassengersEl.innerHTML =
-    activePassengers(stop)
-      .map(
-        p=>`
-          <div class="passenger-chip">
-            <strong>
-              ${esc(p.name)}
-            </strong>
+  const visible =
+    activePassengers(
+      stop
+    )
+    .filter(
+      p =>
+        !isDriverIdentity(
+          p.name,
+          p.phone
+        )
+    );
 
-            <span>
-              ${esc(p.phone || "No phone")}
-            </span>
-          </div>
-        `
-      )
-      .join("");
+  currentPassengersEl
+    .innerHTML =
+      visible
+        .map(
+          p=>`
+            <div class="passenger-chip">
+              <strong>
+                ${esc(p.name)}
+              </strong>
+
+              ${
+                p.phone
+                  ? `
+                    <span>
+                      ${esc(p.phone)}
+                    </span>
+                  `
+                  : ""
+              }
+            </div>
+          `
+        )
+        .join("");
+
+  currentPassengersEl
+    .style
+    .display =
+      visible.length
+        ? "flex"
+        : "none";
+}
+
+/* =========================
+   UI BUTTONS
+========================= */
+
+function hideAllButtons(){
+
+  hide(
+    btnDirections
+  );
+
+  hide(
+    btnArrived
+  );
+
+  hide(
+    btnStartRide
+  );
+
+  hide(
+    btnCancel
+  );
+
+  hide(
+    btnCall
+  );
+
+  hide(
+    btnNoShow
+  );
+
+  hide(
+    btnCompleteStop
+  );
+
+  hide(
+    btnCompleteDropoff
+  );
+}
+
+function closeReasonBoxes(){
+
+  hide(
+    cancelBox
+  );
+
+  hide(
+    noShowBox
+  );
+}
+
+/* =========================
+   CURRENT STOP LABEL
+========================= */
+
+function renderStopHeader(){
+
+  const stop =
+    currentStop();
+
+  if(!stop){
+    return;
+  }
+
+  if(
+    stopTypeBadge
+  ){
+
+    stopTypeBadge
+      .classList
+      .remove(
+        "dropoff",
+        "stop"
+      );
+
+    if(
+      stop.type ===
+      "pickup"
+    ){
+
+      stopTypeBadge
+        .textContent =
+          "PICKUP";
+
+    }else if(
+      stop.type ===
+      "dropoff"
+    ){
+
+      stopTypeBadge
+        .textContent =
+          "DROPOFF";
+
+      stopTypeBadge
+        .classList
+        .add(
+          "dropoff"
+        );
+
+    }else{
+
+      stopTypeBadge
+        .textContent =
+          "STOP";
+
+      stopTypeBadge
+        .classList
+        .add(
+          "stop"
+        );
+    }
+  }
+
+  if(
+    stopProgress
+  ){
+
+    stopProgress
+      .textContent =
+        `Stop ${currentStopIndex+1} of ${routeStops.length}`;
+  }
+
+  if(
+    currentStopAddressEl
+  ){
+
+    currentStopAddressEl
+      .textContent =
+        stop.address ||
+        "Address unavailable";
+  }
+
+  renderPassengers();
 }
 
 /* =========================
    STRICT STATE MACHINE
 ========================= */
-
-function hideActionButtons(){
-
-  hide(btnGoPickup);
-  hide(btnArrived);
-  hide(btnStartRide);
-  hide(btnCancel);
-  hide(btnCall);
-  hide(btnNoShow);
-  hide(btnDropoff);
-}
-
-function closeReasonBoxes(){
-
-  hide(cancelBox);
-  hide(noShowBox);
-}
 
 function renderExecutionState(){
 
@@ -2253,143 +2950,145 @@ function renderExecutionState(){
     );
 
   const distance =
-    currentDistanceToStop();
+    currentDistance();
 
-  hideActionButtons();
+  hideAllButtons();
 
   closeReasonBoxes();
 
-  hide(waitTimerEl);
+  hide(
+    waitTimerEl
+  );
 
-  hide(scheduledTimeBox);
+  hide(
+    scheduledTimeBox
+  );
 
-  if(stopTypeBadge){
+  renderStopHeader();
 
-    stopTypeBadge.textContent =
-      stop.type === "pickup"
-        ? "PICKUP"
-        : "DROPOFF";
-
-    stopTypeBadge.classList.toggle(
-      "dropoff",
-      stop.type === "dropoff"
-    );
-  }
-
-  if(stopProgress){
-
-    stopProgress.textContent =
-      `Stop ${currentStopIndex+1} of ${routeStops.length}`;
-  }
-
-  if(currentStopAddressEl){
-
-    currentStopAddressEl.textContent =
-      stop.address ||
-      "Address unavailable";
-  }
-
-  renderPassengers();
-
-  /* =================
-     PICKUP
-  ================= */
+  /* =====================================
+     STEP A
+     BEFORE ARRIVED
+  ===================================== */
 
   if(
-    stop.type === "pickup"
+    state.arrived !==
+    true
   ){
 
-    /*
-      STEP 1
-      Outside pickup radius.
-      GO TO PICKUP only.
-    */
     if(
-      state.arrived !== true
+      !insideCurrentStopRadius()
     ){
 
       if(
+        stop.type ===
+        "pickup"
+      ){
+
+        setNavText(
+          "Go to pickup"
+        );
+
+      }else if(
+        stop.type ===
+        "dropoff"
+      ){
+
+        setNavText(
+          "Go to dropoff"
+        );
+
+      }else{
+
+        setNavText(
+          "Go to stop"
+        );
+      }
+
+      if(
+        distance !==
+        null
+      ){
+
+        setStopStatus(
+          `${distance.toFixed(2)} mi from stop`
+        );
+
+      }else if(
+        stop.address &&
         !validPoint(
           stop.lat,
           stop.lng
         )
       ){
 
-        setNavText(
-          "Go to pickup"
+        setStopStatus(
+          "Coordinates missing — use address directions"
         );
+
+      }else{
 
         setStopStatus(
-          "Pickup coordinates missing — use address directions"
+          "Drive to current stop"
         );
-
-        if(btnGoPickup){
-          btnGoPickup.textContent =
-            "Go To Pickup";
-        }
-
-        show(
-          btnGoPickup
-        );
-
-        return;
       }
 
-      if(
-        !insidePickupRadius()
-      ){
+      show(
+        btnDirections
+      );
 
-        setNavText(
-          "Go to pickup"
-        );
+      return;
+    }
 
-        if(
-          distance !== null
-        ){
+    /*
+      Inside 250m:
+      ARRIVED is the only execution button.
+    */
 
-          setStopStatus(
-            `${distance.toFixed(2)} mi from pickup`
-          );
-
-        }else{
-
-          setStopStatus(
-            "Drive to the pickup location"
-          );
-        }
-
-        if(btnGoPickup){
-          btnGoPickup.textContent =
-            "Go To Pickup";
-        }
-
-        show(
-          btnGoPickup
-        );
-
-        return;
-      }
-
-      /*
-        STEP 2
-        Inside pickup radius.
-        ARRIVED only.
-      */
+    if(
+      stop.type ===
+      "pickup"
+    ){
 
       setNavText(
         "Pickup reached"
       );
 
-      setStopStatus(
-        "Press ARRIVED"
+    }else if(
+      stop.type ===
+      "dropoff"
+    ){
+
+      setNavText(
+        "Dropoff reached"
       );
 
-      show(
-        btnArrived
-      );
+    }else{
 
-      return;
+      setNavText(
+        "Stop reached"
+      );
     }
+
+    setStopStatus(
+      "Press ARRIVED"
+    );
+
+    show(
+      btnArrived
+    );
+
+    return;
+  }
+
+  /* =====================================
+     PICKUP AFTER ARRIVED
+  ===================================== */
+
+  if(
+    stop.type ===
+    "pickup"
+  ){
 
     const scheduledAt =
       num(
@@ -2398,12 +3097,9 @@ function renderExecutionState(){
       );
 
     /*
-      STEP 3
-      Driver arrived before scheduled time.
-      NO TIMER.
-      NO START.
-      NO CANCEL.
-      Wait for server/app time.
+      Arrived early:
+      timer not active.
+      no action can jump ahead.
     */
     if(
       Number.isFinite(
@@ -2425,8 +3121,9 @@ function renderExecutionState(){
         scheduledTimeBox
       ){
 
-        scheduledTimeBox.textContent =
-          `Starts ${formatScheduledTime(scheduledAt)}`;
+        scheduledTimeBox
+          .textContent =
+            `Starts ${formatScheduledTime(scheduledAt)}`;
 
         show(
           scheduledTimeBox
@@ -2437,17 +3134,14 @@ function renderExecutionState(){
     }
 
     /*
-      STEP 4
-      Scheduled time reached.
-      Timer starts.
-
-      During timer:
+      Timer active:
       START RIDE + CANCEL
     */
-
     if(
       EXECUTION.waitTimerEnabled &&
-      !timerExpired(stop)
+      !timerExpired(
+        stop
+      )
     ){
 
       setNavText(
@@ -2455,17 +3149,24 @@ function renderExecutionState(){
       );
 
       setStopStatus(
-        activePassengers(stop).length > 1
+        activePassengers(
+          stop
+        ).length > 1
           ? "Shared pickup timer running"
           : "Passenger wait timer running"
       );
 
-      if(waitTimerEl){
+      if(
+        waitTimerEl
+      ){
 
-        waitTimerEl.textContent =
-          formatTimer(
-            waitRemaining(stop)
-          );
+        waitTimerEl
+          .textContent =
+            formatTimer(
+              timerRemaining(
+                stop
+              )
+            );
 
         show(
           waitTimerEl
@@ -2484,11 +3185,8 @@ function renderExecutionState(){
     }
 
     /*
-      STEP 5
-      Timer expired.
-
-      START RIDE + NO SHOW.
-      CALL is available as an additional helper.
+      Timer expired:
+      START RIDE + NO SHOW
     */
 
     setNavText(
@@ -2504,8 +3202,9 @@ function renderExecutionState(){
       waitTimerEl
     ){
 
-      waitTimerEl.textContent =
-        "TIME UP";
+      waitTimerEl
+        .textContent =
+          "TIME UP";
 
       show(
         waitTimerEl
@@ -2527,72 +3226,38 @@ function renderExecutionState(){
     return;
   }
 
-  /* =================
-     DROPOFF
-  ================= */
+  /* =====================================
+     INTERMEDIATE STOP AFTER ARRIVED
+  ===================================== */
 
   if(
-    stop.type === "dropoff"
+    stop.type ===
+    "stop"
   ){
 
-    /*
-      Driver is still outside the dropoff radius.
-      There is no Complete button yet.
-      Google navigation is already opened automatically
-      after Start Ride / previous stop.
-    */
+    setNavText(
+      "Stop reached"
+    );
 
-    if(
-      !insideDropoffRadius()
-    ){
+    setStopStatus(
+      "Complete this stop to continue"
+    );
 
-      setNavText(
-        "Go to dropoff"
-      );
+    show(
+      btnCompleteStop
+    );
 
-      if(
-        distance !== null
-      ){
+    return;
+  }
 
-        setStopStatus(
-          `${distance.toFixed(2)} mi from dropoff`
-        );
+  /* =====================================
+     DROPOFF AFTER ARRIVED
+  ===================================== */
 
-      }else if(
-        stop.address &&
-        !validPoint(
-          stop.lat,
-          stop.lng
-        )
-      ){
-
-        setStopStatus(
-          "Stop coordinates missing — use address directions"
-        );
-
-      }else{
-
-        setStopStatus(
-          "Driving to dropoff"
-        );
-      }
-
-      if(btnGoPickup){
-        btnGoPickup.textContent =
-          "Directions To Dropoff";
-
-        show(
-          btnGoPickup
-        );
-      }
-
-      return;
-    }
-
-    /*
-      STEP 7
-      Inside dropoff radius.
-    */
+  if(
+    stop.type ===
+    "dropoff"
+  ){
 
     setNavText(
       "Dropoff reached"
@@ -2603,16 +3268,16 @@ function renderExecutionState(){
     );
 
     show(
-      btnDropoff
+      btnCompleteDropoff
     );
   }
 }
 
 /* =========================
-   ADVANCE STOP
+   ADVANCE
 ========================= */
 
-function markStopComplete(
+function markStopCompleted(
   stop,
   extra={}
 ){
@@ -2629,7 +3294,7 @@ function markStopComplete(
 }
 
 function advanceStop(
-  openNavigation=true
+  autoOpenDirections=true
 ){
 
   const stop =
@@ -2637,12 +3302,10 @@ function advanceStop(
 
   if(stop){
 
-    markStopComplete(
+    markStopCompleted(
       stop
     );
   }
-
-  stopTimer();
 
   if(
     currentStopIndex <
@@ -2651,19 +3314,16 @@ function advanceStop(
 
     currentStopIndex++;
 
-    renderExecutionState();
-
     updateMapTarget();
 
-    if(openNavigation){
+    renderExecutionState();
 
-      /*
-        Start Ride / completed previous stop
-        automatically opens Google Maps
-        to the NEXT server-ordered stop.
-      */
+    if(
+      autoOpenDirections
+    ){
+
       setTimeout(
-        openDirectionsToStop,
+        openDirections,
         250
       );
     }
@@ -2679,31 +3339,17 @@ function advanceStop(
     "All trip stops finished"
   );
 
-  hideActionButtons();
+  hideAllButtons();
 }
 
 /* =========================
    BUTTON EVENTS
 ========================= */
 
-btnGoPickup
+btnDirections
   ?.addEventListener(
     "click",
-    ()=>{
-
-      const stop =
-        currentStop();
-
-      if(!stop){
-        return;
-      }
-
-      /*
-        Current-stop Directions:
-        pickup before arrival, or dropoff while driving.
-      */
-      openDirectionsToStop();
-    }
+    openDirections
   );
 
 btnArrived
@@ -2714,22 +3360,16 @@ btnArrived
       const stop =
         currentStop();
 
-      if(
-        !stop ||
-        stop.type !== "pickup"
-      ){
+      if(!stop){
         return;
       }
 
-      /*
-        ARRIVED is blocked outside the pickup radius.
-      */
       if(
-        !insidePickupRadius()
+        !insideCurrentStopRadius()
       ){
 
         alert(
-          "You must be inside the pickup area first."
+          "You must be inside the 250 meter stop area first."
         );
 
         renderExecutionState();
@@ -2749,25 +3389,33 @@ btnArrived
       );
 
       await saveExecutionEvent(
-        "PICKUP_GROUP_ARRIVED",
+        "STOP_ARRIVED",
         {
-          pickupGroupId:
+          stopId:
             stop.stopId,
 
+          stopType:
+            stop.type,
+
           passengerIds:
-            stop.passengers.map(
-              p=>p.passengerId
+            activePassengers(
+              stop
+            )
+            .map(
+              p =>
+                p.passengerId
             ),
 
           arrivedAt,
 
           scheduledAt:
             stop.scheduledAt ||
-            null
+            null,
+
+          geofenceMeters:
+            STOP_RADIUS_METERS
         }
       );
-
-      startTimerWatcher();
 
       renderExecutionState();
     }
@@ -2783,8 +3431,10 @@ btnStartRide
 
       if(
         !stop ||
-        stop.type !== "pickup"
+        stop.type !==
+        "pickup"
       ){
+
         return;
       }
 
@@ -2794,14 +3444,13 @@ btnStartRide
         );
 
       if(
-        state.arrived !== true
+        state.arrived !==
+        true
       ){
+
         return;
       }
 
-      /*
-        Cannot start ride before scheduled trip time.
-      */
       if(
         Number.isFinite(
           stop.scheduledAt
@@ -2817,13 +3466,41 @@ btnStartRide
         return;
       }
 
-      const passengers =
-        activePassengers(
-          stop
-        );
-
       const startedAt =
         serverNow();
+
+      await saveExecutionEvent(
+        "PICKUP_STARTED",
+        {
+          pickupGroupId:
+            stop.stopId,
+
+          passengerIds:
+            activePassengers(
+              stop
+            )
+            .map(
+              p =>
+                p.passengerId
+            ),
+
+          startedAt,
+
+          arrivedAt:
+            state.arrivedAt ||
+            null,
+
+          waitStartedAt:
+            waitStart(
+              stop
+            ),
+
+          waitExpired:
+            timerExpired(
+              stop
+            )
+        }
+      );
 
       saveStopState(
         stop,
@@ -2835,36 +3512,10 @@ btnStartRide
         }
       );
 
-      await saveExecutionEvent(
-        "PICKUP_GROUP_STARTED",
-        {
-          pickupGroupId:
-            stop.stopId,
-
-          passengerIds:
-            passengers.map(
-              p=>p.passengerId
-            ),
-
-          startedAt,
-
-          arrivedAt:
-            readStopState(stop)
-              .arrivedAt ||
-            null,
-
-          waitStartedAt:
-            waitStartForStop(
-              stop
-            ),
-
-          waitExpired:
-            timerExpired(
-              stop
-            )
-        }
-      );
-
+      /*
+        Mandatory automatic Google Maps
+        navigation to NEXT server-ordered stop.
+      */
       advanceStop(
         true
       );
@@ -2881,15 +3532,13 @@ btnCancel
 
       if(
         !stop ||
-        stop.type !== "pickup"
+        stop.type !==
+        "pickup"
       ){
+
         return;
       }
 
-      /*
-        CANCEL is allowed only while timer is active.
-        It is not No Show and does not create No Show fee evidence.
-      */
       if(
         timerExpired(
           stop
@@ -2901,8 +3550,12 @@ btnCancel
         return;
       }
 
-      if(cancelNotes){
-        cancelNotes.value = "";
+      if(
+        cancelNotes
+      ){
+
+        cancelNotes.value =
+          "";
       }
 
       show(
@@ -2921,8 +3574,12 @@ btnCloseCancel
         cancelBox
       );
 
-      if(cancelNotes){
-        cancelNotes.value = "";
+      if(
+        cancelNotes
+      ){
+
+        cancelNotes.value =
+          "";
       }
     }
   );
@@ -2941,7 +3598,8 @@ btnCompleteCancel
 
       const reason =
         clean(
-          cancelNotes?.value
+          cancelNotes
+            ?.value
         );
 
       if(!reason){
@@ -2953,21 +3611,20 @@ btnCompleteCancel
         return;
       }
 
-      /*
-        This is CANCEL, not NO SHOW.
-        Server pricing should not treat this event as No Show.
-      */
       await saveExecutionEvent(
-        "PICKUP_GROUP_CANCELLED",
+        "PICKUP_CANCELLED",
         {
           pickupGroupId:
             stop.stopId,
 
           passengerIds:
-            activePassengers(stop)
-              .map(
-                p=>p.passengerId
-              ),
+            activePassengers(
+              stop
+            )
+            .map(
+              p =>
+                p.passengerId
+            ),
 
           cancelReason:
             reason,
@@ -3013,11 +3670,21 @@ btnCall
       }
 
       const phone =
-        activePassengers(stop)
-          .find(
-            p=>p.phone
-          )
-          ?.phone ||
+        activePassengers(
+          stop
+        )
+        .filter(
+          p =>
+            !isDriverIdentity(
+              p.name,
+              p.phone
+            )
+        )
+        .find(
+          p =>
+            p.phone
+        )
+        ?.phone ||
         "";
 
       if(!phone){
@@ -3053,18 +3720,18 @@ btnNoShow
 
       if(
         !stop ||
-        stop.type !== "pickup"
+        stop.type !==
+        "pickup"
       ){
+
         return;
       }
 
-      /*
-        No Show cannot exist before timer expiration
-        when timer enforcement is enabled.
-      */
       if(
         EXECUTION.noShowRequiresTimer &&
-        !timerExpired(stop)
+        !timerExpired(
+          stop
+        )
       ){
 
         alert(
@@ -3074,8 +3741,12 @@ btnNoShow
         return;
       }
 
-      if(noShowNotes){
-        noShowNotes.value = "";
+      if(
+        noShowNotes
+      ){
+
+        noShowNotes.value =
+          "";
       }
 
       show(
@@ -3094,8 +3765,12 @@ btnCloseNoShow
         noShowBox
       );
 
-      if(noShowNotes){
-        noShowNotes.value = "";
+      if(
+        noShowNotes
+      ){
+
+        noShowNotes.value =
+          "";
       }
     }
   );
@@ -3114,7 +3789,8 @@ btnCompleteNoShow
 
       const reason =
         clean(
-          noShowNotes?.value
+          noShowNotes
+            ?.value
         );
 
       if(!reason){
@@ -3128,7 +3804,9 @@ btnCompleteNoShow
 
       if(
         EXECUTION.noShowRequiresTimer &&
-        !timerExpired(stop)
+        !timerExpired(
+          stop
+        )
       ){
 
         alert(
@@ -3152,30 +3830,20 @@ btnCompleteNoShow
       const noShowAt =
         serverNow();
 
-      const waitStartedAt =
-        waitStartForStop(
-          stop
-        );
-
-      /*
-        IMPORTANT NO SHOW FEE SAFETY:
-
-        Client does NOT calculate or apply money.
-        It sends evidence that the timer expired.
-        Server/service pricing decides whether a fee exists
-        and what amount applies.
-      */
       await saveExecutionEvent(
-        "PICKUP_GROUP_NO_SHOW",
+        "PICKUP_NO_SHOW",
         {
           pickupGroupId:
             stop.stopId,
 
           passengerIds:
-            activePassengers(stop)
-              .map(
-                p=>p.passengerId
-              ),
+            activePassengers(
+              stop
+            )
+            .map(
+              p =>
+                p.passengerId
+            ),
 
           noShowReason:
             reason,
@@ -3188,10 +3856,13 @@ btnCompleteNoShow
             stop.scheduledAt ||
             null,
 
-          waitStartedAt,
+          waitStartedAt:
+            waitStart(
+              stop
+            ),
 
           waitDurationSeconds:
-            waitSeconds(),
+            waitDurationSeconds(),
 
           waitExpired:
             true,
@@ -3230,7 +3901,7 @@ btnCompleteNoShow
     }
   );
 
-btnDropoff
+btnCompleteStop
   ?.addEventListener(
     "click",
     async ()=>{
@@ -3240,17 +3911,79 @@ btnDropoff
 
       if(
         !stop ||
-        stop.type !== "dropoff"
+        stop.type !==
+        "stop"
       ){
+
         return;
       }
 
       if(
-        !insideDropoffRadius()
+        !insideCurrentStopRadius()
       ){
 
         alert(
-          "You must be inside the dropoff area first."
+          "You must be inside the 250 meter stop area first."
+        );
+
+        renderExecutionState();
+
+        return;
+      }
+
+      const completedAt =
+        serverNow();
+
+      await saveExecutionEvent(
+        "INTERMEDIATE_STOP_COMPLETED",
+        {
+          stopId:
+            stop.stopId,
+
+          completedAt,
+
+          geofenceMeters:
+            STOP_RADIUS_METERS
+        }
+      );
+
+      saveStopState(
+        stop,
+        {
+          completed:true,
+          completedAt
+        }
+      );
+
+      advanceStop(
+        true
+      );
+    }
+  );
+
+btnCompleteDropoff
+  ?.addEventListener(
+    "click",
+    async ()=>{
+
+      const stop =
+        currentStop();
+
+      if(
+        !stop ||
+        stop.type !==
+        "dropoff"
+      ){
+
+        return;
+      }
+
+      if(
+        !insideCurrentStopRadius()
+      ){
+
+        alert(
+          "You must be inside the 250 meter dropoff area first."
         );
 
         renderExecutionState();
@@ -3265,11 +3998,17 @@ btnDropoff
         "DROPOFF_COMPLETED",
         {
           passengerId:
-            stop.passengers[0]
+            stop.passengers?.[0]
               ?.passengerId ||
             "",
 
-          completedAt
+          stopId:
+            stop.stopId,
+
+          completedAt,
+
+          geofenceMeters:
+            STOP_RADIUS_METERS
         }
       );
 
@@ -3292,14 +4031,15 @@ recenterBtn
     "click",
     ()=>{
 
-      userMovedMap = false;
+      userMovedMap =
+        false;
 
       fitMap();
     }
   );
 
 /* =========================
-   GPS WATCH
+   GPS
 ========================= */
 
 function startGpsWatch(){
@@ -3308,7 +4048,10 @@ function startGpsWatch(){
     !navigator.geolocation
   ){
 
-    if(gpsBadge){
+    if(
+      gpsBadge
+    ){
+
       gpsBadge.textContent =
         "GPS unavailable";
     }
@@ -3317,30 +4060,37 @@ function startGpsWatch(){
   }
 
   if(
-    watchId !== null
+    watchId !==
+    null
   ){
 
-    navigator.geolocation
+    navigator
+      .geolocation
       .clearWatch(
         watchId
       );
 
-    watchId = null;
+    watchId =
+      null;
   }
 
   watchId =
-    navigator.geolocation
+    navigator
+      .geolocation
       .watchPosition(
 
-        async pos=>{
+        async position=>{
 
           driverLat =
-            pos.coords.latitude;
+            position.coords.latitude;
 
           driverLng =
-            pos.coords.longitude;
+            position.coords.longitude;
 
-          if(gpsBadge){
+          if(
+            gpsBadge
+          ){
+
             gpsBadge.textContent =
               "GPS Active";
           }
@@ -3352,11 +4102,15 @@ function startGpsWatch(){
 
           drawStraightLine();
 
-          if(firstGpsFix){
+          if(
+            firstGpsFix
+          ){
 
-            firstGpsFix = false;
+            firstGpsFix =
+              false;
 
-            userMovedMap = false;
+            userMovedMap =
+              false;
 
             fitMap();
 
@@ -3373,20 +4127,23 @@ function startGpsWatch(){
           );
 
           /*
-            GPS changes which strict button
-            is allowed to appear.
+            Every GPS update can change
+            which button is allowed.
           */
           renderExecutionState();
         },
 
-        err=>{
+        error=>{
 
           console.log(
             "GPS ERROR:",
-            err
+            error
           );
 
-          if(gpsBadge){
+          if(
+            gpsBadge
+          ){
+
             gpsBadge.textContent =
               "GPS Error";
           }
@@ -3439,8 +4196,6 @@ async function initPage(){
       );
     }
 
-    reconcileLocalStateWithServer();
-
     restoreCurrentStop();
 
     initMap();
@@ -3454,7 +4209,7 @@ async function initPage(){
   }catch(err){
 
     console.log(
-      "MAP INIT:",
+      "MAP INIT ERROR:",
       err
     );
 
@@ -3477,19 +4232,19 @@ document.addEventListener(
   "visibilitychange",
   async ()=>{
 
-    if(document.hidden){
+    if(
+      document.hidden
+    ){
+
       return;
     }
 
     await syncServerClock();
 
-    /*
-      Restore strict state after returning from
-      external Google Maps navigation.
-    */
     renderExecutionState();
 
     if(map){
+
       setTimeout(
         ()=>{
           map.invalidateSize();
@@ -3525,14 +4280,23 @@ window.addEventListener(
   "beforeunload",
   ()=>{
 
-    stopTimer();
+    if(
+      timerInterval
+    ){
+
+      clearInterval(
+        timerInterval
+      );
+    }
 
     if(
-      watchId !== null &&
+      watchId !==
+      null &&
       navigator.geolocation
     ){
 
-      navigator.geolocation
+      navigator
+        .geolocation
         .clearWatch(
           watchId
         );

@@ -1,681 +1,740 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Driver Map</title>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+  <meta charset="UTF-8">
+  <title>Driver Map</title>
 
-<link rel="stylesheet" href="driver.css">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0,viewport-fit=cover"
+  >
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  crossorigin=""
->
+  <link rel="stylesheet" href="driver.css">
 
-<style>
-:root{
-  --bg:#06152d;
-  --panel:#071d3d;
-  --panel2:#0a284f;
-  --text:#ffffff;
-  --muted:#93a4ba;
-  --blue:#2f7df6;
-  --green:#1db954;
-  --red:#d94a4a;
-  --gold:#d4a51d;
-  --yellow:#ffd43b;
-}
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
 
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
+  <style>
 
-html,
-body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:var(--bg);
-  color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-}
+    :root{
+      --bg:#04132b;
+      --panel:#08234a;
+      --panel2:#0b2d5d;
+      --text:#ffffff;
+      --muted:#9aa8bb;
+      --blue:#2f7df6;
+      --green:#16a34a;
+      --red:#c93f3f;
+      --gold:#b98612;
+      --yellow:#facc15;
+    }
 
-button,
-textarea{
-  font:inherit;
-}
+    *{
+      box-sizing:border-box;
+      -webkit-tap-highlight-color:transparent;
+    }
 
-.map-page{
-  height:100dvh;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
+    html,
+    body{
+      width:100%;
+      height:100%;
+      margin:0;
+      overflow:hidden;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    }
 
-/* ================= HEADER ================= */
+    button,
+    textarea{
+      font:inherit;
+    }
 
-.map-top{
-  flex:0 0 auto;
-  padding:max(10px,env(safe-area-inset-top)) 12px 9px;
-  z-index:30;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(2,9,24,.99),
-      rgba(4,24,51,.96)
-    );
-  border-bottom:1px solid rgba(255,255,255,.08);
-}
+    .map-page{
+      height:100dvh;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
 
-.top-line{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  gap:8px;
-  align-items:center;
-}
+    /* =========================
+       HEADER
+    ========================= */
 
-.top-label{
-  color:#8293aa;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:1px;
-  text-transform:uppercase;
-}
+    .map-header{
+      flex:0 0 auto;
+      padding:
+        max(10px,env(safe-area-inset-top))
+        12px
+        9px;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(2,8,22,.99),
+          rgba(4,24,52,.97)
+        );
+      border-bottom:
+        1px solid rgba(255,255,255,.08);
+      z-index:30;
+    }
 
-#navText{
-  margin-top:3px;
-  color:#fff;
-  font-size:17px;
-  line-height:1.15;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+    .header-line{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:10px;
+      align-items:center;
+    }
 
-#gspWrap{
-  display:flex;
-  align-items:center;
-  gap:5px;
-}
+    .header-kicker{
+      color:#8191a8;
+      font-size:8px;
+      font-weight:900;
+      letter-spacing:1px;
+      text-transform:uppercase;
+    }
 
-#gpsBadge{
-  padding:7px 9px;
-  border-radius:999px;
-  color:#92f2ad;
-  background:rgba(34,197,94,.11);
-  border:1px solid rgba(74,222,128,.22);
-  font-size:9px;
-  font-weight:900;
-}
+    #navText{
+      margin-top:3px;
+      color:#fff;
+      font-size:17px;
+      line-height:1.15;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
 
-.current-stop-card{
-  margin-top:8px;
-  padding:10px;
-  border-radius:17px;
-  background:rgba(9,37,77,.92);
-  border:1px solid rgba(255,255,255,.08);
-}
+    #gpsBadge{
+      padding:7px 9px;
+      border-radius:999px;
+      color:#8ff0ac;
+      background:rgba(34,197,94,.11);
+      border:1px solid rgba(74,222,128,.22);
+      font-size:9px;
+      font-weight:900;
+    }
 
-.stop-meta{
-  display:flex;
-  justify-content:space-between;
-  gap:8px;
-  align-items:center;
-}
+    .current-stop-card{
+      margin-top:8px;
+      padding:10px;
+      border-radius:17px;
+      background:rgba(9,37,77,.93);
+      border:1px solid rgba(255,255,255,.08);
+    }
 
-.stop-type{
-  display:inline-flex;
-  align-items:center;
-  min-height:24px;
-  padding:5px 8px;
-  border-radius:999px;
-  color:#82ef9e;
-  background:rgba(34,197,94,.12);
-  border:1px solid rgba(34,197,94,.16);
-  font-size:9px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
+    .stop-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
 
-.stop-type.dropoff{
-  color:#ff9d9d;
-  background:rgba(239,68,68,.12);
-  border-color:rgba(239,68,68,.16);
-}
+    #stopTypeBadge{
+      min-height:24px;
+      padding:5px 8px;
+      border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      color:#7df09b;
+      background:rgba(34,197,94,.12);
+      border:1px solid rgba(34,197,94,.16);
+      font-size:9px;
+      font-weight:900;
+      letter-spacing:.5px;
+    }
 
-#stopProgress{
-  color:#9db0c7;
-  font-size:9px;
-  font-weight:800;
-}
+    #stopTypeBadge.dropoff{
+      color:#ff9a9a;
+      background:rgba(239,68,68,.12);
+      border-color:rgba(239,68,68,.16);
+    }
 
-#currentStopAddress{
-  margin-top:7px;
-  color:#fff;
-  font-size:13px;
-  line-height:1.35;
-  font-weight:800;
-}
+    #stopTypeBadge.stop{
+      color:#9bc8ff;
+      background:rgba(47,125,246,.12);
+      border-color:rgba(47,125,246,.17);
+    }
 
-#currentPassengers{
-  margin-top:8px;
-  display:flex;
-  gap:6px;
-  overflow-x:auto;
-  scrollbar-width:none;
-}
+    #stopProgress{
+      color:#9db0c6;
+      font-size:9px;
+      font-weight:800;
+    }
 
-#currentPassengers::-webkit-scrollbar{
-  display:none;
-}
+    #currentStopAddress{
+      margin-top:7px;
+      color:#fff;
+      font-size:13px;
+      line-height:1.35;
+      font-weight:800;
+    }
 
-.passenger-chip{
-  flex:0 0 auto;
-  min-width:112px;
-  max-width:175px;
-  padding:7px 9px;
-  border-radius:12px;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.07);
-}
+    #currentPassengers{
+      margin-top:8px;
+      display:flex;
+      gap:6px;
+      overflow-x:auto;
+      scrollbar-width:none;
+    }
 
-.passenger-chip strong{
-  display:block;
-  color:#fff;
-  font-size:10px;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+    #currentPassengers::-webkit-scrollbar{
+      display:none;
+    }
 
-.passenger-chip span{
-  display:block;
-  margin-top:2px;
-  color:#8fa0b7;
-  font-size:8px;
-}
+    .passenger-chip{
+      flex:0 0 auto;
+      min-width:112px;
+      max-width:175px;
+      padding:7px 9px;
+      border-radius:12px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.07);
+    }
 
-/* ================= REAL MAP ================= */
+    .passenger-chip strong{
+      display:block;
+      color:#fff;
+      font-size:10px;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
 
-.map-wrap{
-  position:relative;
-  flex:1 1 auto;
-  min-height:0;
-  overflow:hidden;
-}
+    .passenger-chip span{
+      display:block;
+      margin-top:2px;
+      color:#8fa0b7;
+      font-size:8px;
+    }
 
-#map{
-  position:absolute;
-  inset:0;
-  z-index:1;
-  background:#dbe4e9;
-}
+    /* =========================
+       REAL MAP
+    ========================= */
 
-.leaflet-container{
-  font-family:inherit;
-}
+    .map-wrap{
+      position:relative;
+      flex:1 1 auto;
+      min-height:0;
+      overflow:hidden;
+    }
 
-.map-source-note{
-  position:absolute;
-  top:9px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:500;
-  max-width:88%;
-  padding:6px 9px;
-  border-radius:999px;
-  color:#52657c;
-  background:rgba(255,255,255,.90);
-  border:1px solid rgba(50,72,98,.12);
-  font-size:8px;
-  font-weight:800;
-  text-align:center;
-  pointer-events:none;
-}
+    #map{
+      position:absolute;
+      inset:0;
+      z-index:1;
+      background:#dce6eb;
+    }
 
-#recenterBtn{
-  position:absolute;
-  right:12px;
-  bottom:12px;
-  z-index:600;
-  width:44px;
-  height:44px;
-  border:0;
-  border-radius:50%;
-  color:#fff;
-  background:#061a38;
-  font-size:19px;
-  font-weight:900;
-  box-shadow:0 7px 18px rgba(0,0,0,.26);
-}
+    .leaflet-container{
+      font-family:inherit;
+    }
 
-/* ================= ACTION PANEL ================= */
+    .map-note{
+      position:absolute;
+      top:9px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:500;
+      max-width:88%;
+      padding:6px 9px;
+      border-radius:999px;
+      color:#52667d;
+      background:rgba(255,255,255,.91);
+      border:1px solid rgba(50,72,98,.13);
+      font-size:8px;
+      font-weight:800;
+      text-align:center;
+      pointer-events:none;
+    }
 
-.action-panel{
-  position:relative;
-  flex:0 0 auto;
-  padding:9px 12px calc(94px + env(safe-area-inset-bottom));
-  background:
-    linear-gradient(
-      180deg,
-      rgba(4,24,51,.98),
-      rgba(2,12,28,.99)
-    );
-  border-top:1px solid rgba(255,255,255,.08);
-  z-index:25;
-}
+    #recenterBtn{
+      position:absolute;
+      right:12px;
+      bottom:12px;
+      z-index:600;
+      width:44px;
+      height:44px;
+      border:0;
+      border-radius:50%;
+      color:#fff;
+      background:#061a38;
+      font-size:19px;
+      font-weight:900;
+      box-shadow:0 7px 18px rgba(0,0,0,.26);
+    }
 
-.action-info{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  gap:8px;
-  align-items:center;
-  margin-bottom:7px;
-}
+    /* =========================
+       ACTION PANEL
+    ========================= */
 
-#stopStatusText{
-  min-width:0;
-  color:#9eb0c6;
-  font-size:10px;
-  line-height:1.3;
-  font-weight:800;
-}
+    .action-panel{
+      position:relative;
+      flex:0 0 auto;
+      padding:
+        9px
+        12px
+        calc(94px + env(safe-area-inset-bottom));
+      background:
+        linear-gradient(
+          180deg,
+          rgba(4,24,51,.98),
+          rgba(2,12,28,.99)
+        );
+      border-top:
+        1px solid rgba(255,255,255,.08);
+      z-index:25;
+    }
 
-#waitTimer{
-  min-width:76px;
-  padding:8px 10px;
-  border-radius:12px;
-  text-align:center;
-  color:#ffd43b;
-  background:rgba(250,204,21,.10);
-  border:1px solid rgba(250,204,21,.22);
-  font-size:18px;
-  line-height:1;
-  font-weight:900;
-  font-variant-numeric:tabular-nums;
-}
+    .action-info{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:8px;
+      align-items:center;
+      margin-bottom:7px;
+    }
 
-#scheduledTimeBox{
-  display:none;
-  min-width:104px;
-  padding:7px 9px;
-  border-radius:12px;
-  text-align:center;
-  color:#a9c8ff;
-  background:rgba(47,125,246,.10);
-  border:1px solid rgba(47,125,246,.20);
-  font-size:9px;
-  font-weight:900;
-}
+    #stopStatusText{
+      min-width:0;
+      color:#9eb0c6;
+      font-size:10px;
+      line-height:1.3;
+      font-weight:800;
+    }
 
-.actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:7px;
-}
+    #waitTimer{
+      min-width:76px;
+      padding:8px 10px;
+      border-radius:12px;
+      text-align:center;
+      color:#ffd43b;
+      background:rgba(250,204,21,.10);
+      border:1px solid rgba(250,204,21,.22);
+      font-size:18px;
+      line-height:1;
+      font-weight:900;
+      font-variant-numeric:tabular-nums;
+    }
 
-.btn{
-  min-height:44px;
-  border:0;
-  border-radius:14px;
-  padding:9px 10px;
-  color:#fff;
-  font-size:11px;
-  font-weight:900;
-  cursor:pointer;
-}
+    #scheduledTimeBox{
+      display:none;
+      min-width:108px;
+      padding:7px 9px;
+      border-radius:12px;
+      text-align:center;
+      color:#afd0ff;
+      background:rgba(47,125,246,.10);
+      border:1px solid rgba(47,125,246,.20);
+      font-size:9px;
+      font-weight:900;
+    }
 
-.btn.full{
-  grid-column:1/-1;
-}
+    .actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:7px;
+    }
 
-.btn.blue{background:#2f7df6}
-.btn.green{background:#15964a}
-.btn.red{background:#c94040}
-.btn.gold{background:#bd8f16}
-.btn.dark{background:#183453}
+    .btn{
+      min-height:44px;
+      border:0;
+      border-radius:14px;
+      padding:9px 10px;
+      color:#fff;
+      font-size:11px;
+      font-weight:900;
+      cursor:pointer;
+    }
 
-.btn:disabled{
-  opacity:.38;
-  cursor:not-allowed;
-}
+    .btn.full{
+      grid-column:1/-1;
+    }
 
-/* ================= REASON MODAL ================= */
+    .btn.blue{
+      background:#2f7df6;
+    }
 
-.reason-box{
-  display:none;
-  position:absolute;
-  left:12px;
-  right:12px;
-  bottom:calc(96px + env(safe-area-inset-bottom));
-  z-index:1000;
-  padding:12px;
-  flex-direction:column;
-  border-radius:18px;
-  background:#04152f;
-  border:1px solid rgba(255,255,255,.10);
-  box-shadow:0 16px 34px rgba(0,0,0,.38);
-}
+    .btn.green{
+      background:#15964a;
+    }
 
-.reason-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
+    .btn.red{
+      background:#c94040;
+    }
 
-.reason-title{
-  font-size:14px;
-  font-weight:900;
-}
+    .btn.gold{
+      background:#b98612;
+    }
 
-.reason-close{
-  width:34px;
-  height:34px;
-  border:0;
-  border-radius:10px;
-  color:#fff;
-  background:#182c4c;
-  font-weight:900;
-}
+    .btn.dark{
+      background:#183453;
+    }
 
-.reason-text{
-  width:100%;
-  min-height:88px;
-  margin-top:9px;
-  padding:10px;
-  resize:none;
-  border-radius:12px;
-  border:1px solid rgba(255,255,255,.10);
-  color:#fff;
-  background:#020d20;
-  outline:none;
-}
+    .btn:disabled{
+      opacity:.38;
+      cursor:not-allowed;
+    }
 
-.reason-submit{
-  margin-top:9px;
-}
+    /* =========================
+       REASON MODALS
+    ========================= */
 
-/* ================= MARKERS ================= */
+    .reason-box{
+      display:none;
+      position:absolute;
+      left:12px;
+      right:12px;
+      bottom:
+        calc(
+          96px +
+          env(safe-area-inset-bottom)
+        );
+      z-index:1000;
+      padding:12px;
+      flex-direction:column;
+      border-radius:18px;
+      background:#04152f;
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow:0 16px 34px rgba(0,0,0,.38);
+    }
 
-.driver-pin,
-.stop-pin{
-  width:28px;
-  height:28px;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#fff;
-  font-size:11px;
-  font-weight:900;
-  border:3px solid #fff;
-  box-shadow:0 3px 10px rgba(0,0,0,.28);
-}
+    .reason-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
 
-.driver-pin{background:#f59e0b}
-.pickup-pin{background:#2563eb}
-.dropoff-pin{background:#16a34a}
+    .reason-title{
+      font-size:14px;
+      font-weight:900;
+    }
 
-/* ================= MOBILE ================= */
+    .reason-close{
+      width:34px;
+      height:34px;
+      border:0;
+      border-radius:10px;
+      color:#fff;
+      background:#182c4c;
+      font-weight:900;
+    }
 
-@media(max-width:390px){
+    .reason-text{
+      width:100%;
+      min-height:88px;
+      margin-top:9px;
+      padding:10px;
+      resize:none;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      color:#fff;
+      background:#020d20;
+      outline:none;
+    }
 
-  #navText{
-    font-size:15px;
-  }
+    .reason-submit{
+      margin-top:9px;
+    }
 
-  .current-stop-card{
-    padding:9px;
-  }
+    /* =========================
+       MAP MARKERS
+    ========================= */
 
-  #currentStopAddress{
-    font-size:12px;
-  }
+    .driver-pin,
+    .stop-pin{
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:11px;
+      font-weight:900;
+      border:3px solid #fff;
+      box-shadow:0 3px 10px rgba(0,0,0,.28);
+    }
 
-  .action-panel{
-    padding-left:10px;
-    padding-right:10px;
-  }
+    .driver-pin{
+      background:#f59e0b;
+    }
 
-  .btn{
-    min-height:42px;
-    font-size:10px;
-  }
-}
-</style>
+    .pickup-pin{
+      background:#2563eb;
+    }
+
+    .stop-mid-pin{
+      background:#7c3aed;
+    }
+
+    .dropoff-pin{
+      background:#16a34a;
+    }
+
+    @media(max-width:390px){
+
+      #navText{
+        font-size:15px;
+      }
+
+      .current-stop-card{
+        padding:9px;
+      }
+
+      #currentStopAddress{
+        font-size:12px;
+      }
+
+      .action-panel{
+        padding-left:10px;
+        padding-right:10px;
+      }
+
+      .btn{
+        min-height:42px;
+        font-size:10px;
+      }
+    }
+
+  </style>
 </head>
 
 <body>
 
-<div class="map-page">
+  <div class="map-page">
 
-  <header class="map-top">
+    <header class="map-header">
 
-    <div class="top-line">
+      <div class="header-line">
 
-      <div>
-        <div class="top-label">
-          Current Action
+        <div>
+          <div class="header-kicker">
+            Current Action
+          </div>
+
+          <div id="navText">
+            Loading trip...
+          </div>
         </div>
 
-        <div id="navText">
-          Loading trip...
-        </div>
-      </div>
-
-      <div id="gspWrap">
         <div id="gpsBadge">
           GPS
         </div>
-      </div>
-
-    </div>
-
-    <section class="current-stop-card">
-
-      <div class="stop-meta">
-
-        <span class="stop-type" id="stopTypeBadge">
-          PICKUP
-        </span>
-
-        <span id="stopProgress">
-          Stop 1
-        </span>
 
       </div>
 
-      <div id="currentStopAddress">
-        Loading stop...
+      <section class="current-stop-card">
+
+        <div class="stop-top">
+
+          <span id="stopTypeBadge">
+            PICKUP
+          </span>
+
+          <span id="stopProgress">
+            Stop 1
+          </span>
+
+        </div>
+
+        <div id="currentStopAddress">
+          Loading stop...
+        </div>
+
+        <div id="currentPassengers"></div>
+
+      </section>
+
+    </header>
+
+    <main class="map-wrap">
+
+      <div id="map"></div>
+
+      <div class="map-note">
+        Live street map • current stop only
       </div>
 
-      <div id="currentPassengers"></div>
+      <button
+        id="recenterBtn"
+        type="button"
+        aria-label="Recenter map"
+      >
+        ◎
+      </button>
+
+    </main>
+
+    <section class="action-panel">
+
+      <div class="action-info">
+
+        <div id="stopStatusText">
+          Waiting for trip data
+        </div>
+
+        <div id="scheduledTimeBox"></div>
+
+        <div id="waitTimer">
+          10:00
+        </div>
+
+      </div>
+
+      <div class="actions">
+
+        <button
+          id="btnDirections"
+          class="btn blue full"
+          type="button"
+        >
+          Directions
+        </button>
+
+        <button
+          id="btnArrived"
+          class="btn green full"
+          type="button"
+        >
+          Arrived
+        </button>
+
+        <button
+          id="btnStartRide"
+          class="btn green"
+          type="button"
+        >
+          Start Ride
+        </button>
+
+        <button
+          id="btnCancel"
+          class="btn red"
+          type="button"
+        >
+          Cancel
+        </button>
+
+        <button
+          id="btnCall"
+          class="btn dark"
+          type="button"
+        >
+          Call
+        </button>
+
+        <button
+          id="btnNoShow"
+          class="btn red"
+          type="button"
+        >
+          No Show
+        </button>
+
+        <button
+          id="btnCompleteStop"
+          class="btn gold full"
+          type="button"
+        >
+          Complete Stop
+        </button>
+
+        <button
+          id="btnCompleteDropoff"
+          class="btn gold full"
+          type="button"
+        >
+          Drop Off / Complete
+        </button>
+
+      </div>
 
     </section>
 
-  </header>
+    <div class="reason-box" id="cancelBox">
 
-  <main class="map-wrap">
+      <div class="reason-head">
 
-    <div id="map"></div>
+        <div class="reason-title">
+          Enter cancel reason
+        </div>
 
-    <div class="map-source-note">
-      Live street map • current stop only
-    </div>
+        <button
+          class="reason-close"
+          id="btnCloseCancel"
+          type="button"
+        >
+          ✕
+        </button>
 
-    <button
-      id="recenterBtn"
-      type="button"
-      aria-label="Recenter map"
-    >
-      ◎
-    </button>
-
-  </main>
-
-  <section class="action-panel">
-
-    <div class="action-info">
-
-      <div id="stopStatusText">
-        Waiting for trip data
       </div>
 
-      <div id="scheduledTimeBox"></div>
+      <textarea
+        class="reason-text"
+        id="cancelNotes"
+        placeholder="Reason for cancel"></textarea>
 
-      <div id="waitTimer">
-        10:00
+      <button
+        id="btnCompleteCancel"
+        class="btn red reason-submit"
+        type="button"
+      >
+        Complete Cancel
+      </button>
+
+    </div>
+
+    <div class="reason-box" id="noShowBox">
+
+      <div class="reason-head">
+
+        <div class="reason-title">
+          Enter no show reason
+        </div>
+
+        <button
+          class="reason-close"
+          id="btnCloseNoShow"
+          type="button"
+        >
+          ✕
+        </button>
+
       </div>
 
-    </div>
-
-    <div class="actions">
-
-      <button
-        id="btnGoPickup"
-        class="btn blue full"
-        type="button"
-      >
-        Go To Pickup
-      </button>
+      <textarea
+        class="reason-text"
+        id="noShowNotes"
+        placeholder="Reason for no show"></textarea>
 
       <button
-        id="btnArrived"
-        class="btn green full"
+        id="btnCompleteNoShow"
+        class="btn red reason-submit"
         type="button"
       >
-        Arrived
-      </button>
-
-      <button
-        id="btnStartRide"
-        class="btn green"
-        type="button"
-      >
-        Start Ride
-      </button>
-
-      <button
-        id="btnCancel"
-        class="btn red"
-        type="button"
-      >
-        Cancel
-      </button>
-
-      <button
-        id="btnCall"
-        class="btn dark"
-        type="button"
-      >
-        Call
-      </button>
-
-      <button
-        id="btnNoShow"
-        class="btn red"
-        type="button"
-      >
-        No Show
-      </button>
-
-      <button
-        id="btnDropoff"
-        class="btn gold full"
-        type="button"
-      >
-        Drop Off / Complete
+        Complete No Show
       </button>
 
     </div>
 
-  </section>
-
-  <!-- CANCEL REASON -->
-
-  <div class="reason-box" id="cancelBox">
-
-    <div class="reason-head">
-      <div class="reason-title">
-        Enter cancel reason
-      </div>
-
-      <button
-        class="reason-close"
-        id="btnCloseCancel"
-        type="button"
-      >
-        ✕
-      </button>
-    </div>
-
-    <textarea
-      class="reason-text"
-      id="cancelNotes"
-      placeholder="Reason for cancel"></textarea>
-
-    <button
-      id="btnCompleteCancel"
-      class="btn red reason-submit"
-      type="button"
-    >
-      Complete Cancel
-    </button>
+    <div id="driverNav"></div>
 
   </div>
 
-  <!-- NO SHOW REASON -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
 
-  <div class="reason-box" id="noShowBox">
-
-    <div class="reason-head">
-      <div class="reason-title">
-        Enter no show reason
-      </div>
-
-      <button
-        class="reason-close"
-        id="btnCloseNoShow"
-        type="button"
-      >
-        ✕
-      </button>
-    </div>
-
-    <textarea
-      class="reason-text"
-      id="noShowNotes"
-      placeholder="Reason for no show"></textarea>
-
-    <button
-      id="btnCompleteNoShow"
-      class="btn red reason-submit"
-      type="button"
-    >
-      Complete No Show
-    </button>
-
-  </div>
-
-  <div id="driverNav"></div>
-
-</div>
-
-<script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-  crossorigin=""
-></script>
-
-<script src="driver-nav.js"></script>
-<script src="map.js"></script>
+  <script src="driver-nav.js"></script>
+  <script src="map.js"></script>
 
 </body>
 </html>
