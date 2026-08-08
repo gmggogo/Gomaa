@@ -229,6 +229,14 @@ function clean(v){
 
 function num(v,def=null){
 
+  if(
+    v === undefined ||
+    v === null ||
+    clean(v) === ""
+  ){
+    return def;
+  }
+
   const n =
     Number(v);
 
@@ -386,6 +394,30 @@ function distanceMiles(
   );
 }
 
+function validLatitude(v){
+  return (
+    Number.isFinite(v) &&
+    v >= -90 &&
+    v <= 90
+  );
+}
+
+function validLongitude(v){
+  return (
+    Number.isFinite(v) &&
+    v >= -180 &&
+    v <= 180
+  );
+}
+
+function validPoint(lat,lng){
+  return (
+    validLatitude(lat) &&
+    validLongitude(lng) &&
+    !(lat === 0 && lng === 0)
+  );
+}
+
 function currentDistanceToStop(){
 
   const stop =
@@ -393,10 +425,8 @@ function currentDistanceToStop(){
 
   if(
     !stop ||
-    !Number.isFinite(stop.lat) ||
-    !Number.isFinite(stop.lng) ||
-    !Number.isFinite(driverLat) ||
-    !Number.isFinite(driverLng)
+    !validPoint(stop.lat,stop.lng) ||
+    !validPoint(driverLat,driverLng)
   ){
     return null;
   }
@@ -1107,6 +1137,131 @@ function activePassengers(
 }
 
 /* =========================
+   SERVER / LOCAL STATE AUTHORITY
+========================= */
+
+function tripExecutionStartedOnServer(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  const s =
+    normalizeStatus(
+      firstValue(
+        trip.dispatchStatus,
+        trip.status,
+        trip.tripStatus
+      )
+    );
+
+  if(
+    [
+      "arrived",
+      "on trip",
+      "ontrip",
+      "in progress",
+      "inprogress",
+      "started"
+    ].includes(s)
+  ){
+    return true;
+  }
+
+  return Boolean(
+    firstValue(
+      trip.arrivedAt,
+      trip.startedAt,
+      trip.driverExecutionAt,
+      trip.currentStopId
+    )
+  );
+}
+
+function tripIsFreshDispatch(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  const s =
+    normalizeStatus(
+      firstValue(
+        trip.dispatchStatus,
+        trip.status,
+        "scheduled"
+      )
+    );
+
+  const freshStatus =
+    [
+      "scheduled",
+      "confirmed",
+      "assigned",
+      "sent",
+      "dispatched",
+      "accepted",
+      "upcoming",
+      "ready"
+    ].includes(s);
+
+  return (
+    freshStatus &&
+    !tripExecutionStartedOnServer(trip)
+  );
+}
+
+function clearTripLocalExecutionState(){
+
+  if(!TRIP_ID){
+    return;
+  }
+
+  const prefix =
+    `driver_stop_state_${TRIP_ID}_`;
+
+  const keys = [];
+
+  for(
+    let i=0;
+    i<localStorage.length;
+    i++
+  ){
+
+    const key =
+      localStorage.key(i);
+
+    if(
+      key &&
+      key.startsWith(prefix)
+    ){
+      keys.push(key);
+    }
+  }
+
+  keys.forEach(
+    key =>
+      localStorage.removeItem(key)
+  );
+}
+
+function reconcileLocalStateWithServer(){
+
+  /*
+    If the server says this is still a fresh dispatched/upcoming trip,
+    stale stop-completion state from a previous test must never skip pickup.
+  */
+  if(
+    tripIsFreshDispatch(
+      tripDoc
+    )
+  ){
+    clearTripLocalExecutionState();
+    currentStopIndex = 0;
+  }
+}
+
+/* =========================
    LOCAL STOP STATE
 ========================= */
 
@@ -1684,19 +1839,29 @@ function initMap(){
   const stop =
     currentStop();
 
+  const hasStopPoint =
+    validPoint(
+      stop?.lat,
+      stop?.lng
+    );
+
   const lat =
-    Number.isFinite(
-      stop?.lat
-    )
+    hasStopPoint
       ? stop.lat
-      : 33.4484;
+      : (
+          validPoint(driverLat,driverLng)
+            ? driverLat
+            : 33.4484
+        );
 
   const lng =
-    Number.isFinite(
-      stop?.lng
-    )
+    hasStopPoint
       ? stop.lng
-      : -112.0740;
+      : (
+          validPoint(driverLat,driverLng)
+            ? driverLng
+            : -112.0740
+        );
 
   map =
     L.map(
@@ -1796,8 +1961,7 @@ function updateMapTarget(){
 
   if(
     stop &&
-    Number.isFinite(stop.lat) &&
-    Number.isFinite(stop.lng)
+    validPoint(stop.lat,stop.lng)
   ){
 
     stopMarker =
@@ -1895,8 +2059,7 @@ function fitMap(){
   const points = [];
 
   if(
-    Number.isFinite(driverLat) &&
-    Number.isFinite(driverLng)
+    validPoint(driverLat,driverLng)
   ){
 
     points.push(
@@ -1911,8 +2074,10 @@ function fitMap(){
     currentStop();
 
   if(
-    Number.isFinite(stop?.lat) &&
-    Number.isFinite(stop?.lng)
+    validPoint(
+      stop?.lat,
+      stop?.lng
+    )
   ){
 
     points.push(
@@ -1962,10 +2127,8 @@ function openDirectionsToStop(){
   let destination = "";
 
   if(
-    Number.isFinite(
-      stop.lat
-    ) &&
-    Number.isFinite(
+    validPoint(
+      stop.lat,
       stop.lng
     )
   ){
@@ -2146,6 +2309,33 @@ function renderExecutionState(){
     ){
 
       if(
+        !validPoint(
+          stop.lat,
+          stop.lng
+        )
+      ){
+
+        setNavText(
+          "Go to pickup"
+        );
+
+        setStopStatus(
+          "Pickup coordinates missing — use address directions"
+        );
+
+        if(btnGoPickup){
+          btnGoPickup.textContent =
+            "Go To Pickup";
+        }
+
+        show(
+          btnGoPickup
+        );
+
+        return;
+      }
+
+      if(
         !insidePickupRadius()
       ){
 
@@ -2166,6 +2356,11 @@ function renderExecutionState(){
           setStopStatus(
             "Drive to the pickup location"
           );
+        }
+
+        if(btnGoPickup){
+          btnGoPickup.textContent =
+            "Go To Pickup";
         }
 
         show(
@@ -2363,10 +2558,31 @@ function renderExecutionState(){
           `${distance.toFixed(2)} mi from dropoff`
         );
 
+      }else if(
+        stop.address &&
+        !validPoint(
+          stop.lat,
+          stop.lng
+        )
+      ){
+
+        setStopStatus(
+          "Stop coordinates missing — use address directions"
+        );
+
       }else{
 
         setStopStatus(
           "Driving to dropoff"
+        );
+      }
+
+      if(btnGoPickup){
+        btnGoPickup.textContent =
+          "Directions To Dropoff";
+
+        show(
+          btnGoPickup
         );
       }
 
@@ -2478,15 +2694,13 @@ btnGoPickup
       const stop =
         currentStop();
 
-      if(
-        !stop ||
-        stop.type !== "pickup"
-      ){
+      if(!stop){
         return;
       }
 
       /*
-        GO TO PICKUP always launches directions.
+        Current-stop Directions:
+        pickup before arrival, or dropoff while driving.
       */
       openDirectionsToStop();
     }
@@ -3224,6 +3438,8 @@ async function initPage(){
         "No route stops found"
       );
     }
+
+    reconcileLocalStateWithServer();
 
     restoreCurrentStop();
 
