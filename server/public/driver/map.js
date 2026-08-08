@@ -1333,6 +1333,212 @@ function buildRouteStops(trip){
      but ARRIVED remains locked because a 250m geofence cannot be verified safely.
 ========================= */
 
+
+function readSavedRouteLegs(){
+
+  if(!tripDoc){
+    return [];
+  }
+
+  const candidates = [
+    tripDoc?.googleRoute?.legs,
+    tripDoc?.googleRoute?.routes?.[0]?.legs,
+    tripDoc?.optimizedRoute?.legs,
+    tripDoc?.optimizedRoute?.routes?.[0]?.legs
+  ];
+
+  for(const legs of candidates){
+
+    if(
+      Array.isArray(legs) &&
+      legs.length
+    ){
+      return legs;
+    }
+  }
+
+  return [];
+}
+
+function legLocationPoint(leg,side){
+
+  if(!leg){
+    return null;
+  }
+
+  const prefix =
+    side === "start"
+      ? "start"
+      : "end";
+
+  const directLat =
+    num(
+      firstValue(
+        leg?.[`${prefix}Lat`],
+        leg?.[`${prefix}_lat`]
+      )
+    );
+
+  const directLng =
+    num(
+      firstValue(
+        leg?.[`${prefix}Lng`],
+        leg?.[`${prefix}Lon`],
+        leg?.[`${prefix}_lng`]
+      )
+    );
+
+  if(
+    validPoint(
+      directLat,
+      directLng
+    )
+  ){
+    return {
+      lat:directLat,
+      lng:directLng
+    };
+  }
+
+  const location =
+    firstValue(
+      leg?.[`${prefix}Location`],
+      leg?.[`${prefix}_location`],
+      leg?.[`${prefix}Point`]
+    );
+
+  if(
+    location &&
+    typeof location === "object"
+  ){
+
+    const latValue =
+      typeof location.lat === "function"
+        ? location.lat()
+        : firstValue(
+            location.lat,
+            location.latitude
+          );
+
+    const lngValue =
+      typeof location.lng === "function"
+        ? location.lng()
+        : firstValue(
+            location.lng,
+            location.lon,
+            location.longitude
+          );
+
+    const lat = num(latValue);
+    const lng = num(lngValue);
+
+    if(validPoint(lat,lng)){
+      return {lat,lng};
+    }
+  }
+
+  return null;
+}
+
+function savedRouteCoordinateSequence(){
+
+  const legs =
+    readSavedRouteLegs();
+
+  if(!legs.length){
+    return [];
+  }
+
+  const out = [];
+
+  const first =
+    legLocationPoint(
+      legs[0],
+      "start"
+    );
+
+  if(first){
+    out.push(first);
+  }
+
+  for(const leg of legs){
+
+    const end =
+      legLocationPoint(
+        leg,
+        "end"
+      );
+
+    if(end){
+      out.push(end);
+    }
+  }
+
+  return out;
+}
+
+function findSavedLegPointByAddress(address){
+
+  const wanted =
+    normalizeAddressKey(
+      address
+    );
+
+  if(!wanted){
+    return null;
+  }
+
+  const legs =
+    readSavedRouteLegs();
+
+  for(const leg of legs){
+
+    const startAddress =
+      normalizeAddressKey(
+        firstValue(
+          leg?.startAddress,
+          leg?.start_address
+        )
+      );
+
+    const endAddress =
+      normalizeAddressKey(
+        firstValue(
+          leg?.endAddress,
+          leg?.end_address
+        )
+      );
+
+    if(startAddress === wanted){
+
+      const point =
+        legLocationPoint(
+          leg,
+          "start"
+        );
+
+      if(point){
+        return point;
+      }
+    }
+
+    if(endAddress === wanted){
+
+      const point =
+        legLocationPoint(
+          leg,
+          "end"
+        );
+
+      if(point){
+        return point;
+      }
+    }
+  }
+
+  return null;
+}
+
 async function ensureStopCoordinates(stop){
 
   if(!stop){
@@ -1349,45 +1555,76 @@ async function ensureStopCoordinates(stop){
   }
 
   /*
-    First fallback:
-    use the already-saved server route plan.
-    This makes ZERO new Google requests.
+    1) Saved routePlan/sharedRoutePlan exact point.
   */
   const saved =
     findSavedRoutePoint(
       stop.address,
       stop.type
-    );
-
-  if(saved){
-
-    stop.lat =
-      saved.lat;
-
-    stop.lng =
-      saved.lng;
-
-    return true;
-  }
-
-  /*
-    Second fallback:
-    same saved address regardless of route type.
-    Useful for older saved route plans.
-  */
-  const anySaved =
+    ) ||
     findSavedRoutePoint(
       stop.address,
       ""
     );
 
-  if(anySaved){
+  if(saved){
+
+    stop.lat = saved.lat;
+    stop.lng = saved.lng;
+
+    return true;
+  }
+
+  /*
+    2) Saved Google/optimized route leg matched by address.
+  */
+  const legPoint =
+    findSavedLegPointByAddress(
+      stop.address
+    );
+
+  if(legPoint){
+
+    stop.lat = legPoint.lat;
+    stop.lng = legPoint.lng;
+
+    return true;
+  }
+
+  /*
+    3) Strong fallback:
+    the saved route legs already represent the exact final stop order.
+    Point 0 = first leg start.
+    Point 1 = first leg end.
+    Point 2 = second leg end, etc.
+
+    This avoids depending on Google's formatted address text.
+  */
+  const sequence =
+    savedRouteCoordinateSequence();
+
+  const index =
+    routeStops.indexOf(
+      stop
+    );
+
+  if(
+    index >= 0 &&
+    validPoint(
+      sequence?.[index]?.lat,
+      sequence?.[index]?.lng
+    )
+  ){
 
     stop.lat =
-      anySaved.lat;
+      Number(
+        sequence[index].lat
+      );
 
     stop.lng =
-      anySaved.lng;
+      Number(
+        sequence[index].lng
+      );
 
     return true;
   }
