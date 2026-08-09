@@ -741,11 +741,20 @@ function buildNormalStops(trip){
 
 function samePickupGroup(group, p, trip){
   const address = normalizeAddressKey(passengerPickup(p, trip));
-  const point = pickupPoint(p, trip);
+  const groupAddress = normalizeAddressKey(group?.addressKey || group?.address);
 
-  if(address && group.addressKey === address){
-    return true;
+  /*
+    IMPORTANT:
+    If both passengers have real pickup addresses, the address decides the group.
+    Do NOT fall back to trip-level coordinates when the addresses are different,
+    because shared passengers may inherit the same trip pickup lat/lng fallback.
+  */
+  if(address && groupAddress){
+    return address === groupAddress;
   }
+
+  /* Coordinate fallback is allowed only when one side has no usable address. */
+  const point = pickupPoint(p, trip);
 
   if(
     validPoint(group.lat, group.lng) &&
@@ -1254,10 +1263,21 @@ function restoreCurrentStop(){
   }
 
   for(let i = 0; i < routeStops.length; i++){
-    if(readStopState(routeStops[i]).completed !== true){
-      currentStopIndex = i;
-      return;
+    if(readStopState(routeStops[i]).completed === true){
+      continue;
     }
+
+    if(!stopHasActionablePassenger(routeStops[i])){
+      saveStopState(routeStops[i],{
+        completed:true,
+        skipped:true,
+        completedAt:serverNow()
+      });
+      continue;
+    }
+
+    currentStopIndex = i;
+    return;
   }
 
   currentStopIndex = Math.max(0, routeStops.length - 1);
@@ -1394,61 +1414,277 @@ function allPickupPassengersNonRideFinal(stop){
   );
 }
 
-async function finishPickupWithoutRide(stop){
-  const summary = pickupResolutionSummary(stop);
+function tripPassengerRecords(){
+  if(Array.isArray(tripDoc?.passengers) && tripDoc.passengers.length){
+    return tripDoc.passengers.map((p,index)=>(
+      {
+        id:passengerId(p,index),
+        status:firstValue(p?.status,"Scheduled"),
+        source:p
+      }
+    ));
+  }
 
+  return [{
+    id:"single",
+    status:firstValue(
+      tripDoc?.passengerStatus,
+      tripDoc?.status,
+      "Scheduled"
+    ),
+    source:tripDoc
+  }];
+}
+
+function tripPassengerStatus(passengerIdValue){
+  const wanted = String(passengerIdValue ?? "");
+  const record = tripPassengerRecords()
+    .find(r=>String(r.id) === wanted);
+
+  return normalizeStatus(record?.status || "");
+}
+
+function isTerminalPassengerStatus(status){
+  const s = normalizeStatus(status);
+
+  return [
+    "completed",
+    "cancelled",
+    "canceled",
+    "no show",
+    "noshow"
+  ].includes(s);
+}
+
+function isNonRidePassengerStatus(status){
+  const s = normalizeStatus(status);
+
+  return [
+    "cancelled",
+    "canceled",
+    "no show",
+    "noshow"
+  ].includes(s);
+}
+
+function isRidePassengerStatus(status){
+  const s = normalizeStatus(status);
+
+  return [
+    "picked",
+    "picked up",
+    "on trip",
+    "ontrip",
+    "in progress",
+    "inprogress"
+  ].includes(s);
+}
+
+function allTripPassengersTerminal(){
+  const records = tripPassengerRecords();
+
+  return (
+    records.length > 0 &&
+    records.every(r=>isTerminalPassengerStatus(r.status))
+  );
+}
+
+function tripHasRidePassenger(){
+  return tripPassengerRecords()
+    .some(r=>isRidePassengerStatus(r.status));
+}
+
+function finalTripStatusFromPassengers(){
+  const statuses = tripPassengerRecords()
+    .map(r=>normalizeStatus(r.status));
+
+  if(statuses.some(s=>s === "completed")){
+    return "Completed";
+  }
+
+  const allNoShow = statuses.length > 0 &&
+    statuses.every(s=>["no show","noshow"].includes(s));
+
+  if(allNoShow){
+    return "No Show";
+  }
+
+  const allCancelled = statuses.length > 0 &&
+    statuses.every(s=>["cancelled","canceled"].includes(s));
+
+  if(allCancelled){
+    return "Cancelled";
+  }
+
+  /* Mixed Cancelled + No Show, with nobody transported. */
+  return "Cancelled";
+}
+
+function stopHasActionablePassenger(stop){
+  if(!stop){
+    return false;
+  }
+
+  if(stop.type === "stop"){
+    return !allTripPassengersTerminal();
+  }
+
+  const passengers = Array.isArray(stop.passengers)
+    ? stop.passengers
+    : [];
+
+  if(!passengers.length){
+    return stop.type === "pickup";
+  }
+
+  if(stop.type === "pickup"){
+    return passengers.some(p=>{
+      const local = pickupPassengerState(stop,p);
+
+      if(["CANCELLED","NO_SHOW"].includes(local)){
+        return false;
+      }
+
+      const serverStatus = tripPassengerStatus(p.passengerId);
+      return !isTerminalPassengerStatus(serverStatus);
+    });
+  }
+
+  if(stop.type === "dropoff"){
+    return passengers.some(p=>{
+      const status = tripPassengerStatus(p.passengerId);
+      return !isTerminalPassengerStatus(status) &&
+             !isNonRidePassengerStatus(status);
+    });
+  }
+
+  return true;
+}
+
+function nextActionableStopIndex(fromIndex=currentStopIndex+1){
+  for(let i=fromIndex;i<routeStops.length;i++){
+    const stop = routeStops[i];
+
+    if(readStopState(stop).completed === true){
+      continue;
+    }
+
+    if(!stopHasActionablePassenger(stop)){
+      saveStopState(stop,{
+        completed:true,
+        skipped:true,
+        completedAt:serverNow()
+      });
+      continue;
+    }
+
+    return i;
+  }
+
+  return -1;
+}
+
+async function finishTripAndReturnToTrips(forceStatus=""){
+  const status = clean(forceStatus) || finalTripStatusFromPassengers();
+  const now = serverNow();
+
+  try{
+    await updateTrip({
+      status,
+      completedAt:
+        status === "Completed"
+          ? now
+          : tripDoc?.completedAt,
+      finalStatusAt:now,
+      driverId:DRIVER_ID,
+      driverName:DRIVER_NAME
+    });
+  }catch(err){
+    console.log("FINAL TRIP UPDATE ERROR:",err);
+  }
+
+  clearTripLocalState();
+  localStorage.removeItem("activeDriverTripId");
+
+  if(timerInterval){
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  if(
+    watchId !== null &&
+    navigator.geolocation
+  ){
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+
+  window.location.replace("/driver/trips.html");
+}
+
+async function handleResolvedPickupGroup(stop,autoOpenGoogle=true){
+  if(!stop || stop.type !== "pickup"){
+    return false;
+  }
+
+  if(!allPickupPassengersResolved(stop)){
+    return false;
+  }
+
+  /* If the entire trip is terminal, remove it immediately from driver execution. */
+  if(allTripPassengersTerminal()){
+    await finishTripAndReturnToTrips();
+    return true;
+  }
+
+  const nextIndex = nextActionableStopIndex(currentStopIndex+1);
+
+  /*
+    Different pickup location:
+    once the CURRENT pickup group's passengers are all resolved,
+    automatically move to the next pickup group and show only its passengers.
+  */
+  if(
+    nextIndex >= 0 &&
+    routeStops[nextIndex]?.type === "pickup"
+  ){
+    saveStopState(stop,{
+      completed:true,
+      completedAt:serverNow(),
+      pickupGroupResolved:true
+    });
+
+    currentStopIndex = nextIndex;
+    renderExecutionState();
+    fitMap();
+
+    if(autoOpenGoogle){
+      setTimeout(openGoogleNavigation,250);
+    }
+
+    return true;
+  }
+
+  /*
+    No more pickup groups before the next ride leg.
+    Keep the current pickup screen and enable START RIDE only if at least
+    one passenger anywhere in the trip was actually picked up.
+  */
+  renderExecutionState();
+  return true;
+}
+
+async function finishPickupWithoutRide(stop){
   if(!allPickupPassengersNonRideFinal(stop)){
     return false;
   }
 
-  saveStopState(stop, {
-    completed: true,
-    completedAt: serverNow(),
-    noRideStarted: true
-  });
-
-  /*
-    When every passenger at this pickup is Cancelled / No Show,
-    there is no ride to start from this pickup.
-    Shared trips continue to their next server-prepared stop.
-    Individual trips end here.
-  */
-  if(isSharedTrip()){
-    try{
-      const finalStatus =
-        summary.noShow > 0 &&
-        summary.cancelled === 0
-          ? "No Show"
-          : summary.cancelled > 0 &&
-            summary.noShow === 0
-            ? "Cancelled"
-            : "Cancelled";
-
-      await updateTrip({
-        status: finalStatus,
-        driverId: DRIVER_ID,
-        driverName: DRIVER_NAME
-      });
-    }catch(err){
-      console.log("FINAL PICKUP STATUS UPDATE:", err);
-    }
-
-    await advanceStop(false);
+  if(allTripPassengersTerminal()){
+    await finishTripAndReturnToTrips();
     return true;
   }
 
-  localStorage.removeItem("activeDriverTripId");
-
-  setStopStatus(
-    summary.noShow > 0
-      ? "Trip finished — passenger did not ride"
-      : "Trip cancelled"
-  );
-
-  hidePrimaryButton();
-  btnStartRide.style.display = "none";
-
-  return true;
+  return await handleResolvedPickupGroup(stop,true);
 }
 
 /* ================= GEOFENCE ================= */
@@ -2085,8 +2321,28 @@ async function persistPassengerPickupState(stop, passenger, pickupState, reason 
     );
 
     if(passengers){
+      const allTerminal = passengers.every(p=>
+        isTerminalPassengerStatus(p?.status)
+      );
+
+      const nextTripStatus = allTerminal
+        ? (()=>{
+            const statuses = passengers.map(p=>normalizeStatus(p?.status));
+
+            if(statuses.some(s=>s === "completed")){
+              return "Completed";
+            }
+
+            if(statuses.every(s=>["no show","noshow"].includes(s))){
+              return "No Show";
+            }
+
+            return "Cancelled";
+          })()
+        : "InProgress";
+
       await updateTrip({
-        status: "InProgress",
+        status: nextTripStatus,
         passengers,
         driverId: DRIVER_ID,
         driverName: DRIVER_NAME
@@ -2245,6 +2501,11 @@ function renderPickupPassengers(stop){
               passenger,
               "PICKED"
             );
+
+            if(allPickupPassengersResolved(stop)){
+              await handleResolvedPickupGroup(stop,true);
+              return;
+            }
 
             renderExecutionState();
           }catch(err){
@@ -2550,7 +2811,10 @@ function renderExecutionState(){
 
     hidePrimaryButton();
 
-    if(allPickupPassengersNonRideFinal(stop)){
+    if(
+      allPickupPassengersNonRideFinal(stop) &&
+      !tripHasRidePassenger()
+    ){
       btnStartRide.style.display = "none";
       btnStartRide.disabled = true;
       btnStartRide.classList.remove("ready");
@@ -2562,7 +2826,7 @@ function renderExecutionState(){
 
     const canStart =
       canStartRideNow(stop) &&
-      hasAnyPickedPassenger(stop);
+      tripHasRidePassenger();
 
     btnStartRide.disabled = !canStart;
     btnStartRide.classList.toggle("ready", canStart);
@@ -2627,8 +2891,15 @@ async function advanceStop(autoOpenGoogle = true){
     });
   }
 
-  if(currentStopIndex < routeStops.length - 1){
-    currentStopIndex++;
+  if(allTripPassengersTerminal()){
+    await finishTripAndReturnToTrips();
+    return;
+  }
+
+  const nextIndex = nextActionableStopIndex(currentStopIndex + 1);
+
+  if(nextIndex >= 0){
+    currentStopIndex = nextIndex;
     renderExecutionState();
     fitMap();
 
@@ -2639,10 +2910,15 @@ async function advanceStop(autoOpenGoogle = true){
     return;
   }
 
-  setStopStatus("All trip stops finished");
+  /* No actionable stop remains. If passengers are terminal, close the trip. */
+  if(allTripPassengersTerminal()){
+    await finishTripAndReturnToTrips();
+    return;
+  }
+
+  setStopStatus("All route stops finished");
   hidePrimaryButton();
   btnStartRide.style.display = "none";
-
   localStorage.removeItem("activeDriverTripId");
 }
 
@@ -2762,6 +3038,11 @@ btnPrimaryAction?.addEventListener("click", async () => {
       return;
     }
 
+    if(allTripPassengersTerminal()){
+      await finishTripAndReturnToTrips();
+      return;
+    }
+
     await advanceStop(true);
   }
 });
@@ -2778,7 +3059,7 @@ btnStartRide?.addEventListener("click", async () => {
   */
   if(
     !canStartRideNow(stop) ||
-    !hasAnyPickedPassenger(stop)
+    !tripHasRidePassenger()
   ){
     btnStartRide.disabled = true;
     btnStartRide.classList.remove("ready");
@@ -2799,15 +3080,14 @@ btnStartRide?.addEventListener("click", async () => {
 
   try{
     if(isSharedTrip()){
-      const pickedIds = new Set(
-        picked.map(p => String(p.passengerId))
-      );
-
       const passengers = (tripDoc.passengers || [])
         .map((p, index) => {
-          const id = passengerId(p, index);
+          const status = normalizeStatus(p?.status);
 
-          if(pickedIds.has(String(id))){
+          if([
+            "picked",
+            "picked up"
+          ].includes(status)){
             return {
               ...p,
               status: "On Trip",
@@ -2829,7 +3109,7 @@ btnStartRide?.addEventListener("click", async () => {
         If the only individual passenger was cancelled/no-show,
         do not convert the trip back to InProgress.
       */
-      if(picked.length){
+      if(tripHasRidePassenger()){
         await updateTrip({
           status: "InProgress",
           startedAt,
@@ -2917,11 +3197,13 @@ btnSubmitReason?.addEventListener("click", async () => {
 
   closeReasonModal();
 
+  const resolvedStop = currentStop();
+
   if(
-    currentStop()?.type === "pickup" &&
-    allPickupPassengersNonRideFinal(currentStop())
+    resolvedStop?.type === "pickup" &&
+    allPickupPassengersResolved(resolvedStop)
   ){
-    await finishPickupWithoutRide(currentStop());
+    await handleResolvedPickupGroup(resolvedStop,true);
     return;
   }
 
@@ -3078,6 +3360,11 @@ async function initPage(){
 
     if(!routeStops.length){
       throw new Error("No route stops found");
+    }
+
+    if(allTripPassengersTerminal()){
+      await finishTripAndReturnToTrips();
+      return;
     }
 
     restoreCurrentStop();
