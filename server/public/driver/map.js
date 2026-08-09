@@ -33,7 +33,9 @@ const STOP_RADIUS_METERS = 250;
 const STOP_RADIUS_MILES = STOP_RADIUS_METERS / METERS_PER_MILE;
 
 const DEFAULT_EXECUTION = {
+  pickupWaitEnabled: true,
   pickupWaitMinutes: 10,
+  stopWaitEnabled: true,
   stopWaitMinutes: 5,
   stopRadiusMiles: STOP_RADIUS_MILES,
   noShowRequiresTimer: true
@@ -305,7 +307,41 @@ function pickPositiveMinutes(...values){
   return null;
 }
 
+function pickBoolean(...values){
+  for(const value of values){
+    if(value === true || value === false){
+      return value;
+    }
+
+    const s = clean(value).toLowerCase();
+
+    if(["true","1","yes","on","enabled"].includes(s)){
+      return true;
+    }
+
+    if(["false","0","no","off","disabled"].includes(s)){
+      return false;
+    }
+  }
+
+  return null;
+}
+
 function applyExecutionSettings(){
+  const pickupEnabled = pickBoolean(
+    systemDesign.driverPickupWaitEnabled,
+    systemDesign.pickupWaitEnabled,
+    systemDesign.driverPickupTimerEnabled,
+    systemDesign.pickupTimerEnabled
+  );
+
+  const stopEnabled = pickBoolean(
+    systemDesign.driverStopWaitEnabled,
+    systemDesign.stopWaitEnabled,
+    systemDesign.driverStopTimerEnabled,
+    systemDesign.stopTimerEnabled
+  );
+
   const pickup = pickPositiveMinutes(
     systemDesign.driverPickupWaitMinutes,
     systemDesign.pickupWaitMinutes,
@@ -321,6 +357,16 @@ function applyExecutionSettings(){
     systemDesign.stopTimerMinutes,
     systemDesign.intermediateStopWaitMinutes
   );
+
+  EXECUTION.pickupWaitEnabled =
+    pickupEnabled === null
+      ? DEFAULT_EXECUTION.pickupWaitEnabled
+      : pickupEnabled;
+
+  EXECUTION.stopWaitEnabled =
+    stopEnabled === null
+      ? DEFAULT_EXECUTION.stopWaitEnabled
+      : stopEnabled;
 
   EXECUTION.pickupWaitMinutes =
     pickup === null
@@ -389,7 +435,7 @@ function loadGoogleMaps(){
     script.src =
       "https://maps.googleapis.com/maps/api/js?key=" +
       encodeURIComponent(key) +
-      "&v=weekly";
+      "&v=weekly&libraries=geometry";
 
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("Google Maps failed to load"));
@@ -1231,9 +1277,7 @@ function canonicalPickupState(status){
     "picked up",
     "pickup complete",
     "on trip",
-    "ontrip",
-    "in progress",
-    "inprogress"
+    "ontrip"
   ].includes(s)){
     return "PICKED";
   }
@@ -1285,6 +1329,35 @@ function allPickupPassengersResolved(stop){
   );
 }
 
+function canStartRideNow(stop){
+  if(!stop || stop.type !== "pickup"){
+    return false;
+  }
+
+  const stopState = readStopState(stop);
+
+  if(stopState.arrived !== true){
+    return false;
+  }
+
+  const list = (stop.passengers || [])
+    .filter(p => !isDriverIdentity(p.name, p.phone));
+
+  if(!list.length){
+    return false;
+  }
+
+  /*
+    HARD SAFETY GATE:
+    every passenger must have an explicit final passenger state.
+    WAITING blocks Start Ride.
+  */
+  return list.every(p => {
+    const state = pickupPassengerState(stop, p);
+    return ["PICKED", "CANCELLED", "NO_SHOW"].includes(state);
+  });
+}
+
 function pickedPassengers(stop){
   return (stop?.passengers || [])
     .filter(p => !isDriverIdentity(p.name, p.phone))
@@ -1323,6 +1396,18 @@ function inside250(){
 
 /* ================= TIMER ================= */
 
+function waitEnabledForStop(stop){
+  if(stop?.type === "pickup"){
+    return EXECUTION.pickupWaitEnabled === true;
+  }
+
+  if(stop?.type === "stop"){
+    return EXECUTION.stopWaitEnabled === true;
+  }
+
+  return false;
+}
+
 function waitMinutesForStop(stop){
   if(stop?.type === "pickup"){
     return EXECUTION.pickupWaitMinutes;
@@ -1336,6 +1421,10 @@ function waitMinutesForStop(stop){
 }
 
 function waitDurationSeconds(stop){
+  if(!waitEnabledForStop(stop)){
+    return 0;
+  }
+
   return Math.max(
     0,
     Number(waitMinutesForStop(stop) || 0)
@@ -1343,6 +1432,10 @@ function waitDurationSeconds(stop){
 }
 
 function waitStart(stop){
+  if(!waitEnabledForStop(stop)){
+    return null;
+  }
+
   const state = readStopState(stop);
   const arrivedAt = num(state.arrivedAt);
 
@@ -1362,6 +1455,10 @@ function waitStart(stop){
 }
 
 function timerStarted(stop){
+  if(!waitEnabledForStop(stop)){
+    return false;
+  }
+
   const start = waitStart(stop);
 
   return (
@@ -1371,6 +1468,10 @@ function timerStarted(stop){
 }
 
 function timerRemaining(stop){
+  if(!waitEnabledForStop(stop)){
+    return 0;
+  }
+
   const start = waitStart(stop);
   const duration = waitDurationSeconds(stop);
 
@@ -1387,6 +1488,10 @@ function timerRemaining(stop){
 }
 
 function timerExpired(stop){
+  if(!waitEnabledForStop(stop)){
+    return false;
+  }
+
   return (
     timerStarted(stop) &&
     timerRemaining(stop) <= 0
@@ -1512,6 +1617,24 @@ function drawRouteMarkers(){
   });
 }
 
+function savedEncodedPolyline(){
+  return clean(
+    firstValue(
+      tripDoc?.googleRoute?.overviewPolyline?.points,
+      tripDoc?.googleRoute?.overview_polyline?.points,
+      tripDoc?.googleRoute?.routes?.[0]?.overviewPolyline?.points,
+      tripDoc?.googleRoute?.routes?.[0]?.overview_polyline?.points,
+      tripDoc?.optimizedRoute?.overviewPolyline?.points,
+      tripDoc?.optimizedRoute?.overview_polyline?.points,
+      tripDoc?.optimizedRoute?.routes?.[0]?.overviewPolyline?.points,
+      tripDoc?.optimizedRoute?.routes?.[0]?.overview_polyline?.points,
+      tripDoc?.routePolyline,
+      tripDoc?.encodedPolyline,
+      tripDoc?.polyline
+    )
+  );
+}
+
 function drawDisplayLine(){
   if(!map) return;
 
@@ -1525,57 +1648,41 @@ function drawDisplayLine(){
     guidePolyline = null;
   }
 
-  const path = routeStops
-    .slice(currentStopIndex)
-    .filter(stop => validPoint(stop.lat, stop.lng))
-    .map(stop => ({
-      lat: Number(stop.lat),
-      lng: Number(stop.lng)
-    }));
-
-  if(path.length >= 2){
-    routePolyline = new google.maps.Polyline({
-      map,
-      path,
-      geodesic: true,
-      strokeColor: "#2f7df6",
-      strokeOpacity: 0.86,
-      strokeWeight: 5
-    });
-  }
-
-  const stop = currentStop();
+  /*
+    Show a TRUE saved road route only when the server already saved
+    an encoded polyline. This does NOT call Directions API.
+  */
+  const encoded = savedEncodedPolyline();
 
   if(
-    validPoint(driverLat, driverLng) &&
-    validPoint(stop?.lat, stop?.lng)
+    encoded &&
+    google?.maps?.geometry?.encoding
   ){
-    guidePolyline = new google.maps.Polyline({
-      map,
-      path: [
-        {
-          lat: Number(driverLat),
-          lng: Number(driverLng)
-        },
-        {
-          lat: Number(stop.lat),
-          lng: Number(stop.lng)
-        }
-      ],
-      geodesic: true,
-      strokeColor: "#f59e0b",
-      strokeOpacity: 0.75,
-      strokeWeight: 4,
-      icons: [{
-        icon: {
-          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          scale: 2.4,
-          strokeColor: "#f59e0b"
-        },
-        offset: "100%"
-      }]
-    });
+    try{
+      const fullPath =
+        google.maps.geometry.encoding.decodePath(encoded);
+
+      if(fullPath?.length){
+        routePolyline = new google.maps.Polyline({
+          map,
+          path: fullPath,
+          geodesic: false,
+          strokeColor: "#2f7df6",
+          strokeOpacity: 0.90,
+          strokeWeight: 5
+        });
+      }
+    }catch(err){
+      console.log("SAVED POLYLINE DRAW ERROR:", err);
+    }
   }
+
+  /*
+    If no saved road polyline exists, do NOT draw fake straight
+    stop-to-stop route lines. The numbered markers remain visible.
+    A short driver-to-current-stop guide is intentionally omitted too,
+    so the map cannot be mistaken for real turn-by-turn routing.
+  */
 }
 
 function fitMap(){
@@ -1962,7 +2069,14 @@ function renderPickupPassengers(stop){
   currentPassengersEl.innerHTML = passengers.map(p => {
     const state = pickupPassengerState(stop, p);
     const final = pickupPassengerFinal(stop, p);
-    const cancelLabel = timerExpired(stop) ? "NO SHOW" : "CANCEL";
+    const noShowMode =
+      waitEnabledForStop(stop) &&
+      timerExpired(stop);
+
+    const cancelLabel =
+      noShowMode
+        ? "NO SHOW"
+        : "CANCEL";
 
     return `
       <div class="passenger-row" data-passenger-id="${escapeHtml(p.passengerId)}">
@@ -2009,7 +2123,7 @@ function renderPickupPassengers(stop){
                 <button
                   class="passenger-btn danger"
                   type="button"
-                  data-action="${timerExpired(stop) ? "no-show" : "cancel"}"
+                  data-action="${noShowMode ? "no-show" : "cancel"}"
                 >
                   ${cancelLabel}
                 </button>
@@ -2065,6 +2179,7 @@ function renderPickupPassengers(stop){
         ?.addEventListener("click", () => {
           if(
             EXECUTION.noShowRequiresTimer &&
+            waitEnabledForStop(stop) &&
             !timerExpired(stop)
           ){
             alert("Wait timer must finish first.");
@@ -2201,6 +2316,25 @@ function renderTripDetails(){
       </div>
     </div>
 
+    <div class="detail-grid timer-detail-grid">
+      <div>
+        <span>Pickup Timer</span>
+        <strong>${
+          EXECUTION.pickupWaitEnabled
+            ? `${EXECUTION.pickupWaitMinutes} min`
+            : "Off"
+        }</strong>
+      </div>
+      <div>
+        <span>Stop Timer</span>
+        <strong>${
+          EXECUTION.stopWaitEnabled
+            ? `${EXECUTION.stopWaitMinutes} min`
+            : "Off"
+        }</strong>
+      </div>
+    </div>
+
     <div class="detail-passengers">
       ${passengerCards}
     </div>
@@ -2292,7 +2426,12 @@ function renderExecutionState(){
       serverNow() < scheduledAt
     ){
       setStopStatus(`Scheduled ${formatScheduledTime(scheduledAt)}`);
-      showTimer(waitDurationSeconds(stop));
+
+      if(waitEnabledForStop(stop)){
+        showTimer(waitDurationSeconds(stop));
+      }else{
+        hideTimer();
+      }
 
       setPrimaryButton(
         "WAITING FOR TRIP TIME",
@@ -2301,28 +2440,39 @@ function renderExecutionState(){
       );
 
       btnPrimaryAction.dataset.mode = "waiting";
+
       btnStartRide.style.display = "block";
       btnStartRide.disabled = true;
       btnStartRide.classList.remove("ready");
+      btnStartRide.setAttribute("aria-disabled", "true");
       return;
     }
 
-    showTimer(timerRemaining(stop));
+    if(waitEnabledForStop(stop)){
+      showTimer(timerRemaining(stop));
 
-    setStopStatus(
-      timerExpired(stop)
-        ? "Waiting time finished"
-        : "Pickup waiting time"
-    );
+      setStopStatus(
+        timerExpired(stop)
+          ? "Waiting time finished"
+          : "Pickup waiting time"
+      );
+    }else{
+      hideTimer();
+      setStopStatus("Pickup");
+    }
 
     hidePrimaryButton();
 
     btnStartRide.style.display = "block";
 
-    const canStart = allPickupPassengersResolved(stop);
+    const canStart = canStartRideNow(stop);
 
     btnStartRide.disabled = !canStart;
     btnStartRide.classList.toggle("ready", canStart);
+    btnStartRide.setAttribute(
+      "aria-disabled",
+      canStart ? "false" : "true"
+    );
 
     return;
   }
@@ -2330,13 +2480,18 @@ function renderExecutionState(){
   /* ---------- INTERMEDIATE STOP ---------- */
 
   if(stop.type === "stop"){
-    showTimer(timerRemaining(stop));
+    if(waitEnabledForStop(stop)){
+      showTimer(timerRemaining(stop));
 
-    setStopStatus(
-      timerExpired(stop)
-        ? "Stop waiting time finished"
-        : "Stop waiting time"
-    );
+      setStopStatus(
+        timerExpired(stop)
+          ? "Stop waiting time finished"
+          : "Stop waiting time"
+      );
+    }else{
+      hideTimer();
+      setStopStatus("Stop reached");
+    }
 
     setPrimaryButton(
       "CONTINUE TO NEXT STOP",
@@ -2519,11 +2674,15 @@ btnPrimaryAction?.addEventListener("click", async () => {
 btnStartRide?.addEventListener("click", async () => {
   const stop = currentStop();
 
-  if(
-    !stop ||
-    stop.type !== "pickup" ||
-    !allPickupPassengersResolved(stop)
-  ){
+  /*
+    SECOND HARD SAFETY GATE:
+    even if CSS/UI state is wrong, click cannot start the ride until
+    every passenger has PICKED / CANCELLED / NO SHOW.
+  */
+  if(!canStartRideNow(stop)){
+    btnStartRide.disabled = true;
+    btnStartRide.classList.remove("ready");
+    btnStartRide.setAttribute("aria-disabled", "true");
     return;
   }
 
@@ -2635,6 +2794,7 @@ btnSubmitReason?.addEventListener("click", async () => {
   if(
     reasonContext.action === "NO_SHOW" &&
     EXECUTION.noShowRequiresTimer &&
+    waitEnabledForStop(stop) &&
     !timerExpired(stop)
   ){
     alert("Wait timer must finish first.");

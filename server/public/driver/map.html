@@ -445,6 +445,8 @@ button{
   border-radius:15px;
   color:#74849a;
   background:#12243a;
+  opacity:.48;
+  pointer-events:none;
   font-size:13px;
   font-weight:900;
   transition:.18s ease;
@@ -454,10 +456,15 @@ button{
   color:#fff;
   background:#139447;
   border-color:rgba(80,240,130,.16);
+  opacity:1;
+  pointer-events:auto;
 }
 
 #btnStartRide:disabled{
-  opacity:1;
+  color:#74849a;
+  background:#12243a;
+  opacity:.48;
+  pointer-events:none;
 }
 
 /* ================= MODALS ================= */
@@ -574,6 +581,10 @@ button{
 }
 
 .detail-passengers{
+  margin-top:9px;
+}
+
+.timer-detail-grid{
   margin-top:9px;
 }
 
@@ -741,6 +752,7 @@ button{
       id="btnStartRide"
       type="button"
       disabled
+      aria-disabled="true"
     >
       START RIDE
     </button>
