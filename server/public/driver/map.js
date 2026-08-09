@@ -1364,6 +1364,93 @@ function pickedPassengers(stop){
     .filter(p => pickupPassengerState(stop, p) === "PICKED");
 }
 
+function pickupResolutionSummary(stop){
+  const list = (stop?.passengers || [])
+    .filter(p => !isDriverIdentity(p.name, p.phone));
+
+  const states = list.map(p => pickupPassengerState(stop, p));
+
+  return {
+    total: list.length,
+    picked: states.filter(s => s === "PICKED").length,
+    cancelled: states.filter(s => s === "CANCELLED").length,
+    noShow: states.filter(s => s === "NO_SHOW").length,
+    waiting: states.filter(s => s === "WAITING").length
+  };
+}
+
+function hasAnyPickedPassenger(stop){
+  return pickupResolutionSummary(stop).picked > 0;
+}
+
+function allPickupPassengersNonRideFinal(stop){
+  const summary = pickupResolutionSummary(stop);
+
+  return (
+    summary.total > 0 &&
+    summary.waiting === 0 &&
+    summary.picked === 0 &&
+    (summary.cancelled + summary.noShow) === summary.total
+  );
+}
+
+async function finishPickupWithoutRide(stop){
+  const summary = pickupResolutionSummary(stop);
+
+  if(!allPickupPassengersNonRideFinal(stop)){
+    return false;
+  }
+
+  saveStopState(stop, {
+    completed: true,
+    completedAt: serverNow(),
+    noRideStarted: true
+  });
+
+  /*
+    When every passenger at this pickup is Cancelled / No Show,
+    there is no ride to start from this pickup.
+    Shared trips continue to their next server-prepared stop.
+    Individual trips end here.
+  */
+  if(isSharedTrip()){
+    try{
+      const finalStatus =
+        summary.noShow > 0 &&
+        summary.cancelled === 0
+          ? "No Show"
+          : summary.cancelled > 0 &&
+            summary.noShow === 0
+            ? "Cancelled"
+            : "Cancelled";
+
+      await updateTrip({
+        status: finalStatus,
+        driverId: DRIVER_ID,
+        driverName: DRIVER_NAME
+      });
+    }catch(err){
+      console.log("FINAL PICKUP STATUS UPDATE:", err);
+    }
+
+    await advanceStop(false);
+    return true;
+  }
+
+  localStorage.removeItem("activeDriverTripId");
+
+  setStopStatus(
+    summary.noShow > 0
+      ? "Trip finished — passenger did not ride"
+      : "Trip cancelled"
+  );
+
+  hidePrimaryButton();
+  btnStartRide.style.display = "none";
+
+  return true;
+}
+
 /* ================= GEOFENCE ================= */
 
 function currentDistance(){
@@ -2463,9 +2550,19 @@ function renderExecutionState(){
 
     hidePrimaryButton();
 
+    if(allPickupPassengersNonRideFinal(stop)){
+      btnStartRide.style.display = "none";
+      btnStartRide.disabled = true;
+      btnStartRide.classList.remove("ready");
+      btnStartRide.setAttribute("aria-disabled", "true");
+      return;
+    }
+
     btnStartRide.style.display = "block";
 
-    const canStart = canStartRideNow(stop);
+    const canStart =
+      canStartRideNow(stop) &&
+      hasAnyPickedPassenger(stop);
 
     btnStartRide.disabled = !canStart;
     btnStartRide.classList.toggle("ready", canStart);
@@ -2679,7 +2776,10 @@ btnStartRide?.addEventListener("click", async () => {
     even if CSS/UI state is wrong, click cannot start the ride until
     every passenger has PICKED / CANCELLED / NO SHOW.
   */
-  if(!canStartRideNow(stop)){
+  if(
+    !canStartRideNow(stop) ||
+    !hasAnyPickedPassenger(stop)
+  ){
     btnStartRide.disabled = true;
     btnStartRide.classList.remove("ready");
     btnStartRide.setAttribute("aria-disabled", "true");
@@ -2816,6 +2916,15 @@ btnSubmitReason?.addEventListener("click", async () => {
   }
 
   closeReasonModal();
+
+  if(
+    currentStop()?.type === "pickup" &&
+    allPickupPassengersNonRideFinal(currentStop())
+  ){
+    await finishPickupWithoutRide(currentStop());
+    return;
+  }
+
   renderExecutionState();
 });
 
