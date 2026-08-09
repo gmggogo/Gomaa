@@ -1287,6 +1287,19 @@ function currentStop(){
   return routeStops[currentStopIndex] || null;
 }
 
+function stopIsArrived(stop){
+  return readStopState(stop).arrived === true;
+}
+
+function requireArrived(stop){
+  if(!stop || !stopIsArrived(stop)){
+    alert("Press ARRIVED first.");
+    return false;
+  }
+
+  return true;
+}
+
 /* ================= PASSENGER STATUS ================= */
 
 function canonicalPickupState(status){
@@ -2490,11 +2503,19 @@ function renderPickupPassengers(stop){
 
       row.querySelector('[data-action="call"]')
         ?.addEventListener("click", () => {
+          if(!requireArrived(stop)){
+            return;
+          }
+
           dialPassenger(stop, passenger);
         });
 
       row.querySelector('[data-action="pickup"]')
         ?.addEventListener("click", async () => {
+          if(!requireArrived(stop)){
+            return;
+          }
+
           try{
             await persistPassengerPickupState(
               stop,
@@ -2515,6 +2536,10 @@ function renderPickupPassengers(stop){
 
       row.querySelector('[data-action="cancel"]')
         ?.addEventListener("click", () => {
+          if(!requireArrived(stop)){
+            return;
+          }
+
           if(!passengerWasCalled(stop, passenger)){
             dialPassenger(stop, passenger, "CANCELLED");
             return;
@@ -2525,6 +2550,10 @@ function renderPickupPassengers(stop){
 
       row.querySelector('[data-action="no-show"]')
         ?.addEventListener("click", () => {
+          if(!requireArrived(stop)){
+            return;
+          }
+
           if(
             EXECUTION.noShowRequiresTimer &&
             waitEnabledForStop(stop) &&
@@ -2595,6 +2624,10 @@ function renderNonPickupPassenger(stop){
 
       if(passenger){
         button.addEventListener("click", () => {
+          if(!requireArrived(stop)){
+            return;
+          }
+
           dialPassenger(stop, passenger);
         });
       }
@@ -2708,7 +2741,6 @@ function renderExecutionState(){
   }
 
   setCurrentInfo();
-  renderPassengers();
   drawRouteMarkers();
   drawDisplayLine();
 
@@ -2718,14 +2750,19 @@ function renderExecutionState(){
   hideTimer();
   showPrimaryButton();
 
-  if(stop.type !== "pickup"){
-    btnStartRide.style.display = "none";
-  }
-
-  /* ---------- BEFORE ARRIVED ---------- */
-
+  /*
+    STRICT FLOW:
+    Before ARRIVED, no passenger execution controls are visible.
+  */
   if(state.arrived !== true){
+    passengersSection.style.display = "none";
+    currentPassengersEl.innerHTML = "";
     btnStartRide.style.display = "none";
+    btnStartRide.disabled = true;
+    btnStartRide.classList.remove("ready");
+    btnStartRide.setAttribute("aria-disabled", "true");
+
+    /* ---------- BEFORE ARRIVED ---------- */
 
     if(!inside250()){
       gpsBadge.textContent = validPoint(driverLat, driverLng)
@@ -2762,6 +2799,16 @@ function renderExecutionState(){
 
     btnPrimaryAction.dataset.mode = "arrived";
     return;
+  }
+
+  /*
+    ARRIVED has been confirmed.
+    Only now may passenger/action controls appear.
+  */
+  renderPassengers();
+
+  if(stop.type !== "pickup"){
+    btnStartRide.style.display = "none";
   }
 
   /* ---------- PICKUP ---------- */
@@ -2942,6 +2989,11 @@ btnPrimaryAction?.addEventListener("click", async () => {
       return;
     }
 
+    if(stopIsArrived(stop)){
+      renderExecutionState();
+      return;
+    }
+
     const arrivedAt = serverNow();
 
     saveStopState(stop, {
@@ -2967,6 +3019,10 @@ btnPrimaryAction?.addEventListener("click", async () => {
   }
 
   if(mode === "complete-stop"){
+    if(!requireArrived(stop)){
+      return;
+    }
+
     if(!inside250()){
       alert("You must be inside the 250 meter stop area first.");
       return;
@@ -2977,6 +3033,10 @@ btnPrimaryAction?.addEventListener("click", async () => {
   }
 
   if(mode === "complete-dropoff"){
+    if(!requireArrived(stop)){
+      return;
+    }
+
     if(!inside250()){
       alert("You must be inside the 250 meter dropoff area first.");
       return;
@@ -3051,6 +3111,10 @@ btnPrimaryAction?.addEventListener("click", async () => {
 
 btnStartRide?.addEventListener("click", async () => {
   const stop = currentStop();
+
+  if(!requireArrived(stop)){
+    return;
+  }
 
   /*
     SECOND HARD SAFETY GATE:
@@ -3141,6 +3205,11 @@ btnSubmitReason?.addEventListener("click", async () => {
   if(!reasonContext) return;
 
   const stop = currentStop();
+
+  if(!requireArrived(stop)){
+    closeReasonModal();
+    return;
+  }
 
   if(!stop || stop.stopId !== reasonContext.stopId){
     closeReasonModal();
