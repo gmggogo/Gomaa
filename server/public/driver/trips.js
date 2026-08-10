@@ -322,7 +322,7 @@ function finalStatusKey(v){
 
   return clean(v)
     .toUpperCase()
-    .replace(/[\\s_-]+/g,"");
+    .replace(/[\s_-]+/g,"");
 }
 
 function isFinalStatusValue(v){
@@ -368,32 +368,35 @@ function sharedPassengersAllFinal(t){
 function isClosedTrip(t){
 
   /*
-    INDIVIDUAL:
-    Final trip status removes the trip.
+    IMPORTANT:
+    Do NOT use firstValue(dispatchStatus,status) here.
+    dispatchStatus can still be SENT / ASSIGNED while status is already
+    Completed / Cancelled / No Show.
 
-    SHARED:
-    The trip is removed when either:
-      1) trip status itself is final, OR
-      2) EVERY passenger has a final status.
-
-    Valid mixed Shared endings include:
-      Completed + Cancelled
-      Completed + No Show
-      Cancelled + No Show
-      Completed + Cancelled + No Show
+    A terminal value in EITHER field closes the trip.
   */
 
   if(
     isFinalStatusValue(
-      firstValue(
-        t.dispatchStatus,
-        t.status
-      )
+      t?.status
     )
   ){
     return true;
   }
 
+  if(
+    isFinalStatusValue(
+      t?.dispatchStatus
+    )
+  ){
+    return true;
+  }
+
+  /*
+    SHARED:
+    Even if the parent trip status is stale, hide the trip when every
+    passenger is final in any mixture of Completed / Cancelled / No Show.
+  */
   if(
     isShared(t) &&
     sharedPassengersAllFinal(t)
@@ -402,6 +405,27 @@ function isClosedTrip(t){
   }
 
   return false;
+}
+
+function canShowAsCurrentTrip(t){
+
+  if(!t){
+    return false;
+  }
+
+  if(isClosedTrip(t)){
+    return false;
+  }
+
+  const status =
+    getStatus(t);
+
+  return ![
+    "Completed",
+    "Cancelled",
+    "NoShow",
+    "NotCompleted"
+  ].includes(status);
 }
 
 function isCompletedTrip(t){
@@ -1320,6 +1344,12 @@ function sharedRoute(t){
 
 function card(t){
 
+  if(
+    !canShowAsCurrentTrip(t)
+  ){
+    return "";
+  }
+
   const status = getStatus(t);
   const shared = isShared(t);
   const passenger = getPassenger(t);
@@ -1644,8 +1674,14 @@ function render(trips){
 
   const remainingTrips =
     todayTrips
-      .filter(t=>!isClosedTrip(t))
-      .sort((a,b)=>getTripDate(a)-getTripDate(b));
+      .filter(
+        canShowAsCurrentTrip
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
 
   /*
     The driver sees ONE trip only.
