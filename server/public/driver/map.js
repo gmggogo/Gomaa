@@ -2034,6 +2034,14 @@ async function finishTripAndReturnToTrips(forceStatus=""){
   try{
     await updateTrip({
       status,
+      dispatchStatus:
+        normalizeStatus(status) === "completed"
+          ? "COMPLETED"
+          : normalizeStatus(status) === "no show"
+            ? "NOSHOW"
+            : normalizeStatus(status) === "not completed"
+              ? "NOTCOMPLETED"
+              : "CANCELLED",
       completedAt:
         status === "Completed"
           ? now
@@ -2988,6 +2996,14 @@ async function persistPassengerPickupState(stop, passenger, pickupState, reason 
 
       await updateTrip({
         status: nextTripStatus,
+        dispatchStatus:
+          nextTripStatus === "Completed"
+            ? "COMPLETED"
+            : nextTripStatus === "No Show"
+              ? "NOSHOW"
+              : nextTripStatus === "Cancelled"
+                ? "CANCELLED"
+                : "ON_TRIP",
         passengers,
         driverId: DRIVER_ID,
         driverName: DRIVER_NAME
@@ -3012,6 +3028,7 @@ async function persistPassengerPickupState(stop, passenger, pickupState, reason 
   }else if(pickupState === "CANCELLED"){
     await updateTrip({
       status: "Cancelled",
+      dispatchStatus: "CANCELLED",
       passengerStatus: status,
       cancelReason: reason,
       cancelFee: Number(tripDoc?.cancelFee || 0),
@@ -3021,6 +3038,7 @@ async function persistPassengerPickupState(stop, passenger, pickupState, reason 
   }else if(pickupState === "NO_SHOW"){
     await updateTrip({
       status: "No Show",
+      dispatchStatus: "NOSHOW",
       passengerStatus: status,
       noShowReason: reason,
       noShowFee: Number(tripDoc?.noShowFee || 0),
@@ -3797,6 +3815,7 @@ btnPrimaryAction?.addEventListener("click", async () => {
 
         await updateTrip({
           status: allCompleted ? "Completed" : "InProgress",
+          dispatchStatus: allCompleted ? "COMPLETED" : "ON_TRIP",
           passengers,
           finalPrice: Number(
             tripDoc.finalPrice ||
@@ -3807,6 +3826,7 @@ btnPrimaryAction?.addEventListener("click", async () => {
       }else{
         await updateTrip({
           status: "Completed",
+          dispatchStatus: "COMPLETED",
           completedAt: serverNow(),
           finalPrice: Number(
             tripDoc.finalPrice ||

@@ -232,6 +232,28 @@ function updateTodayLabel(){
 
 function rawStatus(t){
 
+  /*
+    IMPORTANT:
+    dispatchStatus may stay SENT / ASSIGNED after Driver Map finishes.
+    A terminal trip status must always win so the trip disappears and
+    the Completed / No Show / Canceled counters update immediately.
+  */
+
+  const tripStatus =
+    clean(t?.status)
+    .toUpperCase()
+    .replace(/[\s_-]+/g,"");
+
+  if(
+    tripStatus === "COMPLETED" ||
+    tripStatus === "CANCELLED" ||
+    tripStatus === "CANCELED" ||
+    tripStatus === "NOSHOW" ||
+    tripStatus === "NOTCOMPLETED"
+  ){
+    return tripStatus;
+  }
+
   return clean(
     firstValue(
       t.dispatchStatus,
@@ -1305,6 +1327,18 @@ function card(t){
   const serviceCode = getServiceCode(t);
   const noteText = getVisibleNote(t);
 
+  const hasImportantNote =
+    clean(
+      firstValue(
+        t.dispatchNote,
+        t.assignmentNote,
+        t.driverNotes,
+        t.notes,
+        t.tripNotes,
+        t.note
+      )
+    ) !== "";
+
   const id = clean(t._id || t.id);
 
   const safeId =
@@ -1455,10 +1489,32 @@ function card(t){
 
       </div>
 
+      ${
+        hasImportantNote
+          ? `
+            <div
+              style="
+                margin:14px 0 10px;
+                padding:12px 14px;
+                border-radius:14px;
+                background:#fef3c7;
+                border:2px solid #f59e0b;
+                color:#92400e;
+                font-weight:900;
+                text-align:center;
+                letter-spacing:.3px;
+              "
+            >
+              ⚠ DRIVER NOTE — READ BEFORE STARTING
+            </div>
+          `
+          : ""
+      }
+
       <div class="note-box">
 
         <div class="note-box-label">
-          Note
+          ${hasImportantNote ? "IMPORTANT NOTE" : "NOTE"}
         </div>
 
         <div class="note-box-text">
