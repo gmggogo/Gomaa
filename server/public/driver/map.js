@@ -250,6 +250,7 @@ let routeMarkers = [];
 
 let driverLat = null;
 let driverLng = null;
+let lastGpsAccuracyMeters = 0;
 let watchId = null;
 
 let firstGpsFix = true;
@@ -587,6 +588,42 @@ function dropoffPoint(p, trip){
   };
 }
 
+function sharedPickupPoint(p){
+  return {
+    lat: num(
+      firstValue(
+        p?.pickupLat,
+        p?.pickupLatitude
+      )
+    ),
+    lng: num(
+      firstValue(
+        p?.pickupLng,
+        p?.pickupLongitude
+      )
+    )
+  };
+}
+
+function sharedDropoffPoint(p){
+  return {
+    lat: num(
+      firstValue(
+        p?.dropoffLat,
+        p?.dropLat,
+        p?.dropoffLatitude
+      )
+    ),
+    lng: num(
+      firstValue(
+        p?.dropoffLng,
+        p?.dropLng,
+        p?.dropoffLongitude
+      )
+    )
+  };
+}
+
 function getPassengers(trip){
   if(Array.isArray(trip?.passengers) && trip.passengers.length){
     return trip.passengers;
@@ -754,7 +791,7 @@ function samePickupGroup(group, p, trip){
   }
 
   /* Coordinate fallback is allowed only when one side has no usable address. */
-  const point = pickupPoint(p, trip);
+  const point = sharedPickupPoint(p);
 
   if(
     validPoint(group.lat, group.lng) &&
@@ -786,8 +823,8 @@ function buildSharedStops(trip){
     const pPickup = passengerPickup(p, trip);
     const pDropoff = passengerDropoff(p, trip);
 
-    const pu = pickupPoint(p, trip);
-    const dr = dropoffPoint(p, trip);
+    const pu = sharedPickupPoint(p);
+    const dr = sharedDropoffPoint(p);
 
     const pickupOrder = num(
       firstValue(
@@ -1099,39 +1136,98 @@ function findSavedLegPointByAddress(address){
 }
 
 async function ensureStopCoordinates(stop){
-  if(!stop) return false;
 
-  if(validPoint(stop.lat, stop.lng)){
-    return true;
+  if(!stop){
+    return false;
   }
+
+  /*
+    ARRIVED depends on this coordinate.
+    Use the route that was already saved by the server.
+    This applies to BOTH Individual and Shared.
+
+    Priority:
+      1) exact routePlan/sharedRoutePlan address
+      2) exact saved Google/optimized leg address
+      3) saved route-leg sequence by current route order
+      4) coordinates already stored directly on the stop/trip
+
+    ZERO Directions requests.
+    ZERO Geocoder requests.
+  */
 
   const saved =
-    findSavedRoutePoint(stop.address, stop.type) ||
-    findSavedRoutePoint(stop.address, "");
+    findSavedRoutePoint(
+      stop.address,
+      stop.type
+    ) ||
+    findSavedRoutePoint(
+      stop.address,
+      ""
+    );
 
   if(saved){
-    stop.lat = saved.lat;
-    stop.lng = saved.lng;
+
+    stop.lat =
+      Number(saved.lat);
+
+    stop.lng =
+      Number(saved.lng);
+
     return true;
   }
 
-  const legPoint = findSavedLegPointByAddress(stop.address);
+  const legPoint =
+    findSavedLegPointByAddress(
+      stop.address
+    );
 
   if(legPoint){
-    stop.lat = legPoint.lat;
-    stop.lng = legPoint.lng;
+
+    stop.lat =
+      Number(legPoint.lat);
+
+    stop.lng =
+      Number(legPoint.lng);
+
     return true;
   }
 
-  const sequence = savedRouteCoordinateSequence();
-  const index = routeStops.indexOf(stop);
+  const sequence =
+    savedRouteCoordinateSequence();
+
+  const index =
+    routeStops.indexOf(
+      stop
+    );
 
   if(
     index >= 0 &&
-    validPoint(sequence?.[index]?.lat, sequence?.[index]?.lng)
+    validPoint(
+      sequence?.[index]?.lat,
+      sequence?.[index]?.lng
+    )
   ){
-    stop.lat = Number(sequence[index].lat);
-    stop.lng = Number(sequence[index].lng);
+
+    stop.lat =
+      Number(
+        sequence[index].lat
+      );
+
+    stop.lng =
+      Number(
+        sequence[index].lng
+      );
+
+    return true;
+  }
+
+  if(
+    validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
     return true;
   }
 
@@ -1292,12 +1388,44 @@ function stopIsArrived(stop){
 }
 
 function requireArrived(stop){
-  if(!stop || !stopIsArrived(stop)){
-    alert("Press ARRIVED first.");
+
+  const active =
+    currentStop();
+
+  if(
+    !stop ||
+    !active ||
+    String(active.stopId) !==
+    String(stop.stopId)
+  ){
+    return false;
+  }
+
+  if(
+    !stopIsArrived(stop)
+  ){
+    alert(
+      "Press ARRIVED first."
+    );
+
     return false;
   }
 
   return true;
+}
+
+function currentStopCanShowActions(stop){
+
+  const active =
+    currentStop();
+
+  return (
+    !!stop &&
+    !!active &&
+    String(active.stopId) ===
+      String(stop.stopId) &&
+    stopIsArrived(stop)
+  );
 }
 
 /* ================= PASSENGER STATUS ================= */
@@ -1724,10 +1852,27 @@ function currentDistance(){
 function inside250(){
   const d = currentDistance();
 
-  return (
-    d !== null &&
-    d <= EXECUTION.stopRadiusMiles
-  );
+  if(d === null){
+    return false;
+  }
+
+  /*
+    Main arrival radius = 250m.
+    Allow up to 40m extra only for the phone's reported GPS accuracy,
+    preventing false lockout while standing at the pickup point.
+  */
+  const accuracy = Number(lastGpsAccuracyMeters || 0);
+
+  const allowanceMeters =
+    Number.isFinite(accuracy)
+      ? Math.min(Math.max(accuracy, 0), 40)
+      : 0;
+
+  const allowedMiles =
+    (STOP_RADIUS_METERS + allowanceMeters) /
+    METERS_PER_MILE;
+
+  return d <= allowedMiles;
 }
 
 /* ================= TIMER ================= */
@@ -2512,7 +2657,11 @@ function renderPickupPassengers(stop){
 
       row.querySelector('[data-action="pickup"]')
         ?.addEventListener("click", async () => {
-          if(!requireArrived(stop)){
+
+          if(
+            !requireArrived(stop)
+          ){
+            renderExecutionState();
             return;
           }
 
@@ -2771,8 +2920,20 @@ function renderExecutionState(){
 
       setStopStatus(
         distance !== null
-          ? `${distance.toFixed(2)} mi from current stop`
-          : "Directions available by saved stop address"
+          ? (
+              distance <= 0.25
+                ? `${Math.round(
+                    distance *
+                    METERS_PER_MILE
+                  )} m from current stop`
+                : `${distance.toFixed(2)} mi from current stop`
+            )
+          : validPoint(
+              driverLat,
+              driverLng
+            )
+            ? "Current stop coordinates unavailable for ARRIVED check"
+            : "Waiting for GPS location"
       );
 
       setPrimaryButton(
@@ -2802,9 +2963,24 @@ function renderExecutionState(){
   }
 
   /*
-    ARRIVED has been confirmed.
+    ARRIVED has been confirmed for the CURRENT stop.
     Only now may passenger/action controls appear.
   */
+  if(
+    !currentStopCanShowActions(stop)
+  ){
+    passengersSection.style.display =
+      "none";
+
+    currentPassengersEl.innerHTML =
+      "";
+
+    btnStartRide.style.display =
+      "none";
+
+    return;
+  }
+
   renderPassengers();
 
   if(stop.type !== "pickup"){
@@ -2946,7 +3122,33 @@ async function advanceStop(autoOpenGoogle = true){
   const nextIndex = nextActionableStopIndex(currentStopIndex + 1);
 
   if(nextIndex >= 0){
-    currentStopIndex = nextIndex;
+
+    currentStopIndex =
+      nextIndex;
+
+    /*
+      Each new Pickup / Stop / Dropoff has its OWN ARRIVED gate.
+      Do not inherit arrival from the previous point.
+    */
+    const nextStop =
+      currentStop();
+
+    const nextState =
+      readStopState(
+        nextStop
+      );
+
+    if(
+      nextState.arrived === true &&
+      nextState.completed !== true
+    ){
+      /*
+        Preserve a real previous arrival only when returning to the
+        same unfinished stop after refresh. Normal advance uses a
+        different stopId and therefore remains locked.
+      */
+    }
+
     renderExecutionState();
     fitMap();
 
@@ -2983,18 +3185,41 @@ btnPrimaryAction?.addEventListener("click", async () => {
   }
 
   if(mode === "arrived"){
+
+    if(
+      String(
+        currentStop()?.stopId ||
+        ""
+      ) !==
+      String(
+        stop.stopId ||
+        ""
+      )
+    ){
+      renderExecutionState();
+      return;
+    }
+
     if(!inside250()){
-      alert("You must be inside the 250 meter area first.");
+
+      alert(
+        "You must be inside the 250 meter area first."
+      );
+
+      renderExecutionState();
+
+      return;
+    }
+
+    if(
+      stopIsArrived(stop)
+    ){
       renderExecutionState();
       return;
     }
 
-    if(stopIsArrived(stop)){
-      renderExecutionState();
-      return;
-    }
-
-    const arrivedAt = serverNow();
+    const arrivedAt =
+      serverNow();
 
     saveStopState(stop, {
       arrived: true,
@@ -3019,12 +3244,11 @@ btnPrimaryAction?.addEventListener("click", async () => {
   }
 
   if(mode === "complete-stop"){
-    if(!requireArrived(stop)){
-      return;
-    }
 
-    if(!inside250()){
-      alert("You must be inside the 250 meter stop area first.");
+    if(
+      !requireArrived(stop)
+    ){
+      renderExecutionState();
       return;
     }
 
@@ -3033,12 +3257,11 @@ btnPrimaryAction?.addEventListener("click", async () => {
   }
 
   if(mode === "complete-dropoff"){
-    if(!requireArrived(stop)){
-      return;
-    }
 
-    if(!inside250()){
-      alert("You must be inside the 250 meter dropoff area first.");
+    if(
+      !requireArrived(stop)
+    ){
+      renderExecutionState();
       return;
     }
 
@@ -3370,6 +3593,8 @@ function startGps(){
     async pos => {
       driverLat = pos.coords.latitude;
       driverLng = pos.coords.longitude;
+      lastGpsAccuracyMeters =
+        Number(pos.coords.accuracy || 0);
 
       gpsBadge.textContent = "GPS Active";
 
@@ -3437,6 +3662,14 @@ async function initPage(){
     }
 
     restoreCurrentStop();
+
+    /*
+      Final coordinate pass for the CURRENT stop.
+      Important for both Individual and Shared ARRIVED geofence.
+    */
+    await ensureStopCoordinates(
+      currentStop()
+    );
 
     setCurrentInfo();
     renderExecutionState();
