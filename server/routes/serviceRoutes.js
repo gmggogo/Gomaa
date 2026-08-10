@@ -20,20 +20,129 @@ function isMongoId(v){
   return /^[0-9a-fA-F]{24}$/.test(String(v || ""));
 }
 
+function escapeRegex(v){
+  return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
+
 function getServiceFilter(idOrKey){
 
-  const value =
-    clean(idOrKey);
+  const value = clean(idOrKey);
 
   if(isMongoId(value)){
-    return {
-      _id:value
-    };
+    return { _id:value };
   }
 
+  return { serviceKey:upper(value) };
+}
+
+function getDriverConfigFilter(idOrKey){
+
+  const value = clean(idOrKey);
+
+  if(isMongoId(value)){
+    return { _id:value };
+  }
+
+  const exact = new RegExp(
+    `^${escapeRegex(value)}$`,
+    "i"
+  );
+
   return {
-    serviceKey:upper(value)
+    $or:[
+      { serviceKey:upper(value) },
+      { title:exact },
+      { companySuffix:upper(value) },
+      { reservedSuffix:upper(value) }
+    ]
   };
+}
+
+function bool(v){
+
+  if(v === true || v === false){
+    return v;
+  }
+
+  const s = clean(v).toLowerCase();
+
+  if(["true","1","yes","on","enabled"].includes(s)){
+    return true;
+  }
+
+  if(["false","0","no","off","disabled"].includes(s)){
+    return false;
+  }
+
+  return null;
+}
+
+function safeMinutes(v,fallback=0){
+
+  const n = Number(v);
+
+  if(!Number.isFinite(n)){
+    return fallback;
+  }
+
+  return Math.max(0,Math.min(1440,Math.round(n)));
+}
+
+function normalizeDriverTimerPayload(payload){
+
+  const out = { ...payload };
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "driverPickupWaitEnabled"
+    )
+  ){
+    const value = bool(out.driverPickupWaitEnabled);
+
+    if(value !== null){
+      out.driverPickupWaitEnabled = value;
+    }else{
+      delete out.driverPickupWaitEnabled;
+    }
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "driverStopWaitEnabled"
+    )
+  ){
+    const value = bool(out.driverStopWaitEnabled);
+
+    if(value !== null){
+      out.driverStopWaitEnabled = value;
+    }else{
+      delete out.driverStopWaitEnabled;
+    }
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "driverPickupWaitMinutes"
+    )
+  ){
+    out.driverPickupWaitMinutes =
+      safeMinutes(out.driverPickupWaitMinutes,10);
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "driverStopWaitMinutes"
+    )
+  ){
+    out.driverStopWaitMinutes =
+      safeMinutes(out.driverStopWaitMinutes,5);
+  }
+
+  return out;
 }
 
 function isSharedAfterUpdate(current,payload){
@@ -82,8 +191,6 @@ function lockAddStopForShared(payload,current){
 /* =========================
    PUBLIC SERVICES
    /api/services
-   /api/services?company=true
-   /api/services?reserved=true
 ========================= */
 
 router.get("/", async (req,res)=>{
@@ -101,23 +208,11 @@ router.get("/", async (req,res)=>{
     let filter = {};
 
     if(isReserved){
-
-      filter = {
-        reservedEnabled:true
-      };
-
+      filter = { reservedEnabled:true };
     }else if(isCompany){
-
-      filter = {
-        companyEnabled:true
-      };
-
+      filter = { companyEnabled:true };
     }else{
-
-      filter = {
-        enabled:true
-      };
-
+      filter = { enabled:true };
     }
 
     const services =
@@ -134,9 +229,7 @@ router.get("/", async (req,res)=>{
       success:false,
       message:"Failed To Load Services"
     });
-
   }
-
 });
 
 /* =========================
@@ -162,14 +255,72 @@ router.get("/admin", async (req,res)=>{
       success:false,
       message:"Failed To Load Services"
     });
-
   }
+});
 
+/* =========================
+   DRIVER WAIT CONFIG
+   /api/services/driver-config/:idOrKey
+
+   Returns only fields needed by Driver Map.
+   Works for Individual and Shared services.
+========================= */
+
+router.get("/driver-config/:idOrKey", async (req,res)=>{
+
+  try{
+
+    const service =
+      await Service.findOne(
+        getDriverConfigFilter(
+          req.params.idOrKey
+        )
+      )
+      .select({
+        _id:1,
+        serviceKey:1,
+        title:1,
+        driverPickupWaitEnabled:1,
+        driverPickupWaitMinutes:1,
+        driverStopWaitEnabled:1,
+        driverStopWaitMinutes:1
+      })
+      .lean();
+
+    if(!service){
+      return res.status(404).json({
+        success:false,
+        message:"Service Driver Config Not Found"
+      });
+    }
+
+    return res.json({
+      success:true,
+      serviceKey:service.serviceKey,
+      title:service.title,
+      driverPickupWaitEnabled:
+        service.driverPickupWaitEnabled !== false,
+      driverPickupWaitMinutes:
+        safeMinutes(service.driverPickupWaitMinutes,10),
+      driverStopWaitEnabled:
+        service.driverStopWaitEnabled !== false,
+      driverStopWaitMinutes:
+        safeMinutes(service.driverStopWaitMinutes,5)
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Failed To Load Driver Timer Config"
+    });
+  }
 });
 
 /* =========================
    UPDATE SERVICE
-   GET QUOTE + FACILITY + RESERVED
    /api/services/:idOrKey
 ========================= */
 
@@ -178,32 +329,35 @@ router.put("/:idOrKey", async (req,res)=>{
   try{
 
     const filter =
-      getServiceFilter(req.params.idOrKey);
+      getServiceFilter(
+        req.params.idOrKey
+      );
 
     const current =
       await Service.findOne(filter);
 
     if(!current){
-
       return res.status(404).json({
         success:false,
         message:"Service Not Found"
       });
-
     }
+
+    const normalized =
+      normalizeDriverTimerPayload(
+        { ...req.body }
+      );
 
     const payload =
       lockAddStopForShared(
-        { ...req.body },
+        normalized,
         current
       );
 
     const updated =
       await Service.findOneAndUpdate(
         filter,
-        {
-          $set:payload
-        },
+        { $set:payload },
         {
           new:true,
           runValidators:true
@@ -223,9 +377,7 @@ router.put("/:idOrKey", async (req,res)=>{
       success:false,
       message:"Update Failed"
     });
-
   }
-
 });
 
 module.exports = router;

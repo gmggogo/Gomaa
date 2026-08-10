@@ -20,6 +20,9 @@ document.getElementById("companyServicesGrid");
 const reservedServicesGrid =
 document.getElementById("reservedServicesGrid");
 
+const driverServicesGrid =
+document.getElementById("driverServicesGrid");
+
 /* =========================
    STATE
 ========================= */
@@ -135,6 +138,10 @@ function fieldId(section,id,name){
 
   if(section === "reserved"){
     return `reserved-${name}-${id}`;
+  }
+
+  if(section === "driver"){
+    return `driver-${name}-${id}`;
   }
 
   return `${name}-${id}`;
@@ -454,6 +461,226 @@ function addStopBlock(section,service){
       If minutes = 15 and trip time is 9:00, the button hides at 8:45.
     </div>
   `;
+}
+
+/* =========================
+   DRIVER WAIT TIMER BLOCK
+========================= */
+
+function driverWaitTimerFields(service){
+
+  return `
+    <div class="policy-title">
+      Driver Wait Timers
+    </div>
+
+    ${
+      onOffSelect({
+        section:"driver",
+        service,
+        name:"pickupwaitenabled",
+        label:"Pickup Wait Timer",
+        value:service.driverPickupWaitEnabled !== false,
+        enabledLabel:"ENABLED",
+        disabledLabel:"DISABLED"
+      })
+    }
+
+    ${
+      inputField({
+        section:"driver",
+        service,
+        name:"pickupwaitminutes",
+        label:"Pickup Wait Minutes",
+        value:Number(
+          service.driverPickupWaitMinutes ?? 10
+        ),
+        type:"number",
+        min:0,
+        step:1
+      })
+    }
+
+    ${
+      onOffSelect({
+        section:"driver",
+        service,
+        name:"stopwaitenabled",
+        label:"Stop Wait Timer",
+        value:service.driverStopWaitEnabled !== false,
+        enabledLabel:"ENABLED",
+        disabledLabel:"DISABLED"
+      })
+    }
+
+    ${
+      inputField({
+        section:"driver",
+        service,
+        name:"stopwaitminutes",
+        label:"Stop Wait Minutes",
+        value:Number(
+          service.driverStopWaitMinutes ?? 5
+        ),
+        type:"number",
+        min:0,
+        step:1
+      })
+    }
+
+    <div class="add-stop-note">
+      Pickup and Stop timers are independent.
+      If a timer is disabled, it will not appear in Driver Map.
+      If enabled, Driver Map uses the minutes saved for this service.
+      Shared passengers at the same pickup use one Pickup timer.
+    </div>
+  `;
+}
+
+function renderDriverTimerCard(service){
+
+  const card =
+    document.createElement("div");
+
+  card.className =
+    "service-card driver-timer-card";
+
+  card.innerHTML = `
+
+    <div class="service-top">
+
+      <div class="service-info">
+
+        <div class="service-icon">
+          ${service.icon || "🚘"}
+        </div>
+
+        <div>
+          <div class="service-name">
+            ${esc(service.title || service.name || "")}
+          </div>
+
+          <div class="service-status">
+            Driver App • ${esc(service.serviceKey || "")}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="warning-box warning-blue">
+      Configure Driver Map waiting behavior for this service.
+    </div>
+
+    <div class="fields">
+      ${driverWaitTimerFields(service)}
+    </div>
+
+    <div class="buttons">
+
+      <button
+        class="edit-btn"
+        onclick="enableDriverTimerEdit('${service._id}')"
+      >
+        EDIT
+      </button>
+
+      <button
+        class="save-btn"
+        onclick="saveDriverTimerService('${service._id}')"
+      >
+        SAVE
+      </button>
+
+    </div>
+  `;
+
+  return card;
+}
+
+function buildDriverTimerPayload(id){
+
+  return {
+    driverPickupWaitEnabled:
+      getValue(
+        "driver",
+        id,
+        "pickupwaitenabled"
+      ) === "true",
+
+    driverPickupWaitMinutes:
+      getNumberValue(
+        "driver",
+        id,
+        "pickupwaitminutes"
+      ),
+
+    driverStopWaitEnabled:
+      getValue(
+        "driver",
+        id,
+        "stopwaitenabled"
+      ) === "true",
+
+    driverStopWaitMinutes:
+      getNumberValue(
+        "driver",
+        id,
+        "stopwaitminutes"
+      )
+  };
+}
+
+function enableDriverTimerEdit(id){
+  enableSectionEdit(
+    "driver",
+    id
+  );
+}
+
+async function saveDriverTimerService(id){
+
+  try{
+
+    const payload =
+      buildDriverTimerPayload(id);
+
+    const res =
+      await fetch(
+        `/api/services/${id}`,
+        {
+          method:"PUT",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify(payload)
+        }
+      );
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    if(
+      !res.ok ||
+      data.success === false
+    ){
+      alert(
+        data.message ||
+        "Driver Timer Save Failed"
+      );
+      return;
+    }
+
+    alert("Driver Wait Timers Saved");
+
+    await loadServices();
+
+  }catch(err){
+
+    console.log(err);
+    alert("Driver Timer Save Failed");
+  }
 }
 
 /* =========================
@@ -971,6 +1198,16 @@ function renderCard(section,service){
 ========================= */
 
 function renderServices(){
+
+  if(driverServicesGrid){
+    driverServicesGrid.innerHTML = "";
+
+    services.forEach(service=>{
+      driverServicesGrid.appendChild(
+        renderDriverTimerCard(service)
+      );
+    });
+  }
 
   if(servicesGrid){
     servicesGrid.innerHTML = "";
@@ -1500,7 +1737,9 @@ Object.assign(window,{
   enableSectionEdit,
   saveSectionService,
   toggleSectionService,
-  updateVisualSelect
+  updateVisualSelect,
+  enableDriverTimerEdit,
+  saveDriverTimerService
 });
 
 /* =========================

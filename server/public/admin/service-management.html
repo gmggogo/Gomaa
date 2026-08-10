@@ -227,6 +227,16 @@ body{
   background:#f59e0b;
 }
 
+.service-card.driver-timer-card::before{
+  background:#0f766e;
+}
+
+.badge-driver{
+  background:#ccfbf1;
+  color:#115e59;
+  border-color:#99f6e4;
+}
+
 @media(max-width:768px){
   .service-card{
     padding:18px;
@@ -641,11 +651,42 @@ body{
   <div class="management-hero">
     <h1>Service Management</h1>
     <p>
-      Manage Get Quote, Facility, and Reserved services from one place.
-      Control visibility, pricing, warning rules, cancellation policy,
-      Add Stop availability, and custom cutoff time for every service.
+      Manage Driver Wait Timers, Get Quote, Facility, and Reserved services
+      from one place. Control Driver Pickup / Stop waiting rules, visibility,
+      pricing, warning rules, cancellation policy, Add Stop availability,
+      and custom cutoff time for every service.
     </p>
   </div>
+
+  <!-- =========================
+       DRIVER WAIT TIMERS
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Driver Wait Timers
+      </div>
+
+      <div class="section-subtitle">
+        Configure Pickup and intermediate Stop waiting time for each service.
+        Pickup and Stop timers are independent. Each timer can be enabled or
+        disabled and can use its own number of minutes. Disabled timers do not
+        appear in Driver Map.
+      </div>
+    </div>
+
+    <div class="section-badge badge-driver">
+      Driver App Execution
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="driverServicesGrid"
+  ></div>
+
+  <hr class="section-divider">
 
   <!-- =========================
        GET QUOTE SERVICES

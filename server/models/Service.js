@@ -33,6 +33,33 @@ const serviceSchema = new mongoose.Schema({
   },
 
   /* =========================
+     DRIVER WAIT TIMERS
+     Applies to this service in Driver Map
+  ========================= */
+
+  driverPickupWaitEnabled:{
+    type:Boolean,
+    default:true
+  },
+
+  driverPickupWaitMinutes:{
+    type:Number,
+    default:10,
+    min:0
+  },
+
+  driverStopWaitEnabled:{
+    type:Boolean,
+    default:true
+  },
+
+  driverStopWaitMinutes:{
+    type:Number,
+    default:5,
+    min:0
+  },
+
+  /* =========================
      INDIVIDUAL / GET QUOTE PRICING
   ========================= */
 
@@ -107,7 +134,6 @@ const serviceSchema = new mongoose.Schema({
 
   /* =========================
      ADD STOP - GET QUOTE
-     Used by customer email link
   ========================= */
 
   getQuoteAddStopEnabled:{
@@ -219,7 +245,6 @@ const serviceSchema = new mongoose.Schema({
 
   /* =========================
      ADD STOP - FACILITY
-     Used by Company Review
   ========================= */
 
   companyAddStopEnabled:{
@@ -331,7 +356,6 @@ const serviceSchema = new mongoose.Schema({
 
   /* =========================
      ADD STOP - RESERVED
-     Used by Admin Add Trip / RV
   ========================= */
 
   reservedAddStopEnabled:{

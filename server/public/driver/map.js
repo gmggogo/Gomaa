@@ -12,8 +12,8 @@
    EXECUTION
    - 250 meter geofence for Pickup / Stop / Dropoff.
    - Shared same-pickup passengers use ONE pickup timer.
-   - Pickup timer duration is read from System Design when available.
-   - Intermediate stop timer duration is read from System Design when available.
+   - Pickup timer is read from Service Management for the trip service.
+   - Intermediate Stop timer is read from Service Management for the trip service.
    - Timer never starts before scheduled trip time for the first/current pickup.
    - Every passenger at a pickup has independent state:
        PICKED / CANCELLED / NO SHOW
@@ -235,6 +235,7 @@ const btnCloseDetails = document.getElementById("btnCloseDetails");
 
 let appConfig = {};
 let systemDesign = {};
+let serviceWaitConfig = {};
 let appTimezone = "America/Phoenix";
 let serverOffset = 0;
 
@@ -328,35 +329,22 @@ function pickBoolean(...values){
   return null;
 }
 
-function applyExecutionSettings(){
+function applyServiceExecutionSettings(config={}){
+
   const pickupEnabled = pickBoolean(
-    systemDesign.driverPickupWaitEnabled,
-    systemDesign.pickupWaitEnabled,
-    systemDesign.driverPickupTimerEnabled,
-    systemDesign.pickupTimerEnabled
+    config.driverPickupWaitEnabled
   );
 
   const stopEnabled = pickBoolean(
-    systemDesign.driverStopWaitEnabled,
-    systemDesign.stopWaitEnabled,
-    systemDesign.driverStopTimerEnabled,
-    systemDesign.stopTimerEnabled
+    config.driverStopWaitEnabled
   );
 
   const pickup = pickPositiveMinutes(
-    systemDesign.driverPickupWaitMinutes,
-    systemDesign.pickupWaitMinutes,
-    systemDesign.driverPickupTimerMinutes,
-    systemDesign.pickupTimerMinutes,
-    systemDesign.sharedPickupWaitMinutes
+    config.driverPickupWaitMinutes
   );
 
   const stop = pickPositiveMinutes(
-    systemDesign.driverStopWaitMinutes,
-    systemDesign.stopWaitMinutes,
-    systemDesign.driverStopTimerMinutes,
-    systemDesign.stopTimerMinutes,
-    systemDesign.intermediateStopWaitMinutes
+    config.driverStopWaitMinutes
   );
 
   EXECUTION.pickupWaitEnabled =
@@ -396,7 +384,6 @@ async function loadSystemDesign(){
     systemDesign.appTimezone ||
     "America/Phoenix";
 
-  applyExecutionSettings();
 }
 
 function getGoogleMapsKey(){
@@ -463,6 +450,127 @@ async function fetchTrip(){
   }
 
   return await res.json();
+}
+
+function addServiceCandidate(list,value){
+
+  if(
+    value === undefined ||
+    value === null
+  ){
+    return;
+  }
+
+  if(typeof value === "object"){
+    [
+      value._id,
+      value.id,
+      value.serviceKey,
+      value.key,
+      value.code,
+      value.title,
+      value.name
+    ].forEach(v=>
+      addServiceCandidate(list,v)
+    );
+    return;
+  }
+
+  const text = clean(value);
+
+  if(
+    text &&
+    text !== "[object Object]" &&
+    !list.includes(text)
+  ){
+    list.push(text);
+  }
+}
+
+function tripServiceCandidates(trip){
+
+  const list = [];
+
+  [
+    trip?.serviceId,
+    trip?.service?._id,
+    trip?.service,
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.serviceType,
+    trip?.serviceName,
+    trip?.serviceTitle,
+    trip?.reservedServiceKey,
+    trip?.companyServiceKey
+  ].forEach(v=>
+    addServiceCandidate(list,v)
+  );
+
+  return list;
+}
+
+async function loadTripServiceWaitConfig(){
+
+  serviceWaitConfig = {};
+
+  const candidates =
+    tripServiceCandidates(
+      tripDoc
+    );
+
+  for(const candidate of candidates){
+
+    try{
+
+      const res =
+        await fetch(
+          `/api/services/driver-config/${encodeURIComponent(candidate)}`,
+          { cache:"no-store" }
+        );
+
+      if(!res.ok){
+        continue;
+      }
+
+      const data =
+        await res.json();
+
+      if(data?.success === false){
+        continue;
+      }
+
+      serviceWaitConfig = data || {};
+
+      applyServiceExecutionSettings(
+        serviceWaitConfig
+      );
+
+      console.log(
+        "Driver wait config loaded:",
+        candidate,
+        serviceWaitConfig
+      );
+
+      return true;
+
+    }catch(err){
+      console.log(
+        "Driver wait config lookup failed:",
+        candidate,
+        err
+      );
+    }
+  }
+
+  /* Safe fallback if an old trip has no recognized service identifier. */
+  applyServiceExecutionSettings({});
+
+  console.log(
+    "Driver wait config fallback used",
+    candidates
+  );
+
+  return false;
 }
 
 async function updateTrip(body){
@@ -3645,6 +3753,8 @@ async function initPage(){
     initGoogleMap();
 
     tripDoc = await fetchTrip();
+
+    await loadTripServiceWaitConfig();
 
     routeStops = buildRouteStops(tripDoc);
 
