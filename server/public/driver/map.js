@@ -768,41 +768,150 @@ function getPassengers(trip){
 
 /* ================= TRIP TIME ================= */
 
-function buildScheduledTime(trip, source = null){
-  const direct = firstValue(
-    source?.scheduledAt,
-    source?.tripDateTime,
-    source?.pickupDateTime
-  );
+function phoenixLocalDateTimeToMs(date,time){
 
-  if(direct){
-    const ms = new Date(direct).getTime();
-    if(Number.isFinite(ms)) return ms;
-  }
+  const d =
+    clean(date);
 
-  const date = clean(
-    firstValue(
-      source?.tripDate,
-      trip?.tripDate,
-      trip?.date
-    )
-  );
+  const t =
+    clean(time);
 
-  const time = clean(
-    firstValue(
-      source?.tripTime,
-      source?.pickupTime,
-      trip?.tripTime,
-      trip?.time
-    )
-  );
-
-  if(!date || !time){
+  if(
+    !d ||
+    !t
+  ){
     return null;
   }
 
-  const ms = new Date(`${date}T${time}`).getTime();
-  return Number.isFinite(ms) ? ms : null;
+  const match =
+    t.match(
+      /^(\d{1,2}):(\d{2})(?::(\d{2}))?/
+    );
+
+  if(!match){
+    return null;
+  }
+
+  const hh =
+    Number(match[1]);
+
+  const mm =
+    Number(match[2]);
+
+  const ss =
+    Number(
+      match[3] || 0
+    );
+
+  const dateMatch =
+    d.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    );
+
+  if(!dateMatch){
+    return null;
+  }
+
+  const year =
+    Number(dateMatch[1]);
+
+  const month =
+    Number(dateMatch[2]);
+
+  const day =
+    Number(dateMatch[3]);
+
+  /*
+    Arizona / America-Phoenix = UTC-7 year-round.
+    Convert stored app-local trip date/time to one absolute UTC instant.
+  */
+  return Date.UTC(
+    year,
+    month - 1,
+    day,
+    hh + 7,
+    mm,
+    ss,
+    0
+  );
+}
+
+function buildScheduledTime(trip, source = null){
+
+  const direct =
+    firstValue(
+      source?.scheduledAt,
+      source?.tripDateTime,
+      source?.pickupDateTime
+    );
+
+  if(direct){
+
+    const ms =
+      new Date(
+        direct
+      ).getTime();
+
+    if(
+      Number.isFinite(ms)
+    ){
+      return ms;
+    }
+  }
+
+  const date =
+    clean(
+      firstValue(
+        source?.tripDate,
+        trip?.tripDate,
+        trip?.date
+      )
+    );
+
+  const time =
+    clean(
+      firstValue(
+        source?.tripTime,
+        source?.pickupTime,
+        trip?.tripTime,
+        trip?.time
+      )
+    );
+
+  if(
+    !date ||
+    !time
+  ){
+    return null;
+  }
+
+  if(
+    appTimezone ===
+    "America/Phoenix"
+  ){
+    const phoenixMs =
+      phoenixLocalDateTimeToMs(
+        date,
+        time
+      );
+
+    if(
+      Number.isFinite(
+        phoenixMs
+      )
+    ){
+      return phoenixMs;
+    }
+  }
+
+  const ms =
+    new Date(
+      `${date}T${time}`
+    ).getTime();
+
+  return Number.isFinite(ms)
+    ? ms
+    : null;
 }
 
 function formatScheduledTime(ms){
@@ -2021,25 +2130,58 @@ function waitDurationSeconds(stop){
 }
 
 function waitStart(stop){
-  if(!waitEnabledForStop(stop)){
+
+  if(
+    !waitEnabledForStop(stop)
+  ){
     return null;
   }
 
-  const state = readStopState(stop);
-  const arrivedAt = num(state.arrivedAt);
+  const state =
+    readStopState(stop);
 
-  if(!Number.isFinite(arrivedAt)){
+  const arrivedAt =
+    num(state.arrivedAt);
+
+  if(
+    !Number.isFinite(arrivedAt)
+  ){
     return null;
   }
 
-  if(stop?.type === "pickup"){
-    const scheduledAt = num(stop?.scheduledAt);
+  /*
+    PICKUP TIMER RULE:
+    start = max(TRIP_TIME, ARRIVED_TIME)
 
-    if(Number.isFinite(scheduledAt)){
-      return Math.max(arrivedAt, scheduledAt);
+    - Driver arrives early:
+      timer waits until the exact scheduled trip time.
+    - Driver arrives late:
+      timer starts from ARRIVED time.
+    - Uses serverNow() / serverOffset, so device clock cannot start it early.
+  */
+  if(
+    stop?.type === "pickup"
+  ){
+    const scheduledAt =
+      num(stop?.scheduledAt);
+
+    if(
+      Number.isFinite(
+        scheduledAt
+      )
+    ){
+      return Math.max(
+        scheduledAt,
+        arrivedAt
+      );
     }
   }
 
+  /*
+    STOP TIMER:
+    no independent booking time.
+    It starts from ARRIVED at that stop.
+  */
   return arrivedAt;
 }
 
@@ -2088,11 +2230,40 @@ function timerExpired(stop){
 }
 
 function startTimerWatcher(){
-  if(timerInterval){
-    clearInterval(timerInterval);
+
+  if(
+    timerInterval
+  ){
+    clearInterval(
+      timerInterval
+    );
   }
 
-  timerInterval = setInterval(renderExecutionState, 1000);
+  let syncCounter = 0;
+
+  timerInterval =
+    setInterval(
+      async ()=>{
+
+        syncCounter++;
+
+        /*
+          Re-sync server clock every 30 seconds.
+          Timer always uses serverNow(), never raw device Date.now().
+        */
+        if(
+          syncCounter >= 30
+        ){
+          syncCounter = 0;
+
+          await syncServerClock();
+        }
+
+        renderExecutionState();
+
+      },
+      1000
+    );
 }
 
 /* ================= GOOGLE MAP ================= */
@@ -2207,7 +2378,8 @@ function drawRouteMarkers(){
 }
 
 function savedEncodedPolyline(){
-  return clean(
+
+  const direct =
     firstValue(
       tripDoc?.googleRoute?.overviewPolyline?.points,
       tripDoc?.googleRoute?.overview_polyline?.points,
@@ -2217,15 +2389,97 @@ function savedEncodedPolyline(){
       tripDoc?.optimizedRoute?.overview_polyline?.points,
       tripDoc?.optimizedRoute?.routes?.[0]?.overviewPolyline?.points,
       tripDoc?.optimizedRoute?.routes?.[0]?.overview_polyline?.points,
+      tripDoc?.routePolyline?.points,
+      tripDoc?.encodedPolyline?.points,
       tripDoc?.routePolyline,
       tripDoc?.encodedPolyline,
       tripDoc?.polyline
-    )
-  );
+    );
+
+  if(
+    typeof direct === "string"
+  ){
+    return clean(direct);
+  }
+
+  return "";
+}
+
+function savedRoutePathArray(){
+
+  const candidates = [
+    tripDoc?.googleRoute?.path,
+    tripDoc?.googleRoute?.routePath,
+    tripDoc?.googleRoute?.polylinePath,
+    tripDoc?.optimizedRoute?.path,
+    tripDoc?.optimizedRoute?.routePath,
+    tripDoc?.routePath,
+    tripDoc?.polylinePath
+  ];
+
+  for(
+    const candidate of candidates
+  ){
+
+    if(
+      !Array.isArray(candidate) ||
+      !candidate.length
+    ){
+      continue;
+    }
+
+    const path =
+      candidate
+      .map(point=>{
+
+        const lat =
+          num(
+            firstValue(
+              point?.lat,
+              point?.latitude
+            )
+          );
+
+        const lng =
+          num(
+            firstValue(
+              point?.lng,
+              point?.lon,
+              point?.longitude
+            )
+          );
+
+        if(
+          !validPoint(
+            lat,
+            lng
+          )
+        ){
+          return null;
+        }
+
+        return {
+          lat:Number(lat),
+          lng:Number(lng)
+        };
+      })
+      .filter(Boolean);
+
+    if(
+      path.length >= 2
+    ){
+      return path;
+    }
+  }
+
+  return [];
 }
 
 function drawDisplayLine(){
-  if(!map) return;
+
+  if(!map){
+    return;
+  }
 
   if(routePolyline){
     routePolyline.setMap(null);
@@ -2238,39 +2492,79 @@ function drawDisplayLine(){
   }
 
   /*
-    Show a TRUE saved road route only when the server already saved
-    an encoded polyline. This does NOT call Directions API.
+    PRIORITY 1:
+    draw the TRUE encoded road polyline already saved with the trip.
+    This makes ZERO Directions requests.
   */
-  const encoded = savedEncodedPolyline();
+  const encoded =
+    savedEncodedPolyline();
 
   if(
     encoded &&
     google?.maps?.geometry?.encoding
   ){
     try{
-      const fullPath =
-        google.maps.geometry.encoding.decodePath(encoded);
 
-      if(fullPath?.length){
-        routePolyline = new google.maps.Polyline({
-          map,
-          path: fullPath,
-          geodesic: false,
-          strokeColor: "#2f7df6",
-          strokeOpacity: 0.90,
-          strokeWeight: 5
-        });
+      const fullPath =
+        google.maps.geometry.encoding.decodePath(
+          encoded
+        );
+
+      if(
+        fullPath?.length >= 2
+      ){
+
+        routePolyline =
+          new google.maps.Polyline({
+            map,
+            path:fullPath,
+            geodesic:false,
+            strokeColor:"#2f7df6",
+            strokeOpacity:0.90,
+            strokeWeight:5
+          });
+
+        return;
       }
+
     }catch(err){
-      console.log("SAVED POLYLINE DRAW ERROR:", err);
+
+      console.log(
+        "SAVED POLYLINE DRAW ERROR:",
+        err
+      );
     }
   }
 
   /*
-    If no saved road polyline exists, do NOT draw fake straight
-    stop-to-stop route lines. The numbered markers remain visible.
-    A short driver-to-current-stop guide is intentionally omitted too,
-    so the map cannot be mistaken for real turn-by-turn routing.
+    PRIORITY 2:
+    some server route objects store the already-calculated route
+    as an array of lat/lng road points instead of an encoded string.
+  */
+  const savedPath =
+    savedRoutePathArray();
+
+  if(
+    savedPath.length >= 2
+  ){
+
+    routePolyline =
+      new google.maps.Polyline({
+        map,
+        path:savedPath,
+        geodesic:false,
+        strokeColor:"#2f7df6",
+        strokeOpacity:0.90,
+        strokeWeight:5
+      });
+
+    return;
+  }
+
+  /*
+    NO FAKE ROUTE:
+    If no real saved road path exists, keep numbered stop markers only.
+    Never draw a straight stop-to-stop line and call it a route.
   */
 }
 
@@ -3104,10 +3398,22 @@ function renderExecutionState(){
       Number.isFinite(scheduledAt) &&
       serverNow() < scheduledAt
     ){
-      setStopStatus(`Scheduled ${formatScheduledTime(scheduledAt)}`);
 
-      if(waitEnabledForStop(stop)){
-        showTimer(waitDurationSeconds(stop));
+      setStopStatus(
+        `Scheduled ${formatScheduledTime(scheduledAt)}`
+      );
+
+      /*
+        Arrived early:
+        keep the timer visible at its FULL value.
+        It does not count down until serverNow() reaches trip time exactly.
+      */
+      if(
+        waitEnabledForStop(stop)
+      ){
+        showTimer(
+          waitDurationSeconds(stop)
+        );
       }else{
         hideTimer();
       }

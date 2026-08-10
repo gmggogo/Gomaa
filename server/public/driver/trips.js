@@ -296,18 +296,90 @@ function getStatus(t){
   );
 }
 
-function isClosedTrip(t){
+function finalStatusKey(v){
+
+  return clean(v)
+    .toUpperCase()
+    .replace(/[\\s_-]+/g,"");
+}
+
+function isFinalStatusValue(v){
 
   const s =
-    rawStatus(t);
+    finalStatusKey(v);
 
   return (
     s === "COMPLETED" ||
+    s === "COMPLETE" ||
     s === "CANCELLED" ||
     s === "CANCELED" ||
     s === "NOSHOW" ||
     s === "NOTCOMPLETED"
   );
+}
+
+function sharedPassengersAllFinal(t){
+
+  if(!isShared(t)){
+    return false;
+  }
+
+  const passengers =
+    getSharedPassengers(t);
+
+  if(!passengers.length){
+    return false;
+  }
+
+  return passengers.every(
+    p =>
+      isFinalStatusValue(
+        firstValue(
+          p?.status,
+          p?.tripStatus,
+          p?.dispatchStatus
+        )
+      )
+  );
+}
+
+function isClosedTrip(t){
+
+  /*
+    INDIVIDUAL:
+    Final trip status removes the trip.
+
+    SHARED:
+    The trip is removed when either:
+      1) trip status itself is final, OR
+      2) EVERY passenger has a final status.
+
+    Valid mixed Shared endings include:
+      Completed + Cancelled
+      Completed + No Show
+      Cancelled + No Show
+      Completed + Cancelled + No Show
+  */
+
+  if(
+    isFinalStatusValue(
+      firstValue(
+        t.dispatchStatus,
+        t.status
+      )
+    )
+  ){
+    return true;
+  }
+
+  if(
+    isShared(t) &&
+    sharedPassengersAllFinal(t)
+  ){
+    return true;
+  }
+
+  return false;
 }
 
 function isCompletedTrip(t){
@@ -1601,7 +1673,13 @@ async function loadTrips(){
 
     const res =
       await fetch(
-        `/api/driver/my-trips/${encodeURIComponent(driverId)}`
+        `/api/driver/my-trips/${encodeURIComponent(driverId)}`,
+        {
+          cache:"no-store",
+          headers:{
+            "Cache-Control":"no-cache"
+          }
+        }
       );
 
     if(!res.ok){
