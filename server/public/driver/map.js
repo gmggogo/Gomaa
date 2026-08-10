@@ -574,20 +574,53 @@ async function loadTripServiceWaitConfig(){
 }
 
 async function updateTrip(body){
-  const res = await fetch(`/api/trips/${TRIP_ID}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
+
+  const res =
+    await fetch(
+      `/api/trips/${TRIP_ID}`,
+      {
+        method:"PUT",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify(body)
+      }
+    );
+
+  const data =
+    await res.json().catch(
+      ()=>({})
+    );
 
   if(!res.ok){
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || "Trip update failed");
+
+    throw new Error(
+      data.message ||
+      "Trip update failed"
+    );
   }
 
-  tripDoc = await res.json();
+  /*
+    Different trip routes may return:
+      trip document directly
+      { success:true, trip:{...} }
+      { success:true, item:{...} }
+
+    Keep tripDoc pointing to the actual trip.
+  */
+  const nextTrip =
+    data?.trip ||
+    data?.item ||
+    data?.data ||
+    data;
+
+  if(
+    nextTrip &&
+    typeof nextTrip === "object"
+  ){
+    tripDoc = nextTrip;
+  }
+
   return tripDoc;
 }
 
@@ -1850,6 +1883,58 @@ function allTripPassengersTerminal(){
 function tripHasRidePassenger(){
   return tripPassengerRecords()
     .some(r=>isRidePassengerStatus(r.status));
+}
+
+function hasAnyPickedPassengerForRide(){
+
+  /*
+    Local pickup state is the source of truth immediately after the
+    driver presses PICK UP. This avoids waiting for a server response
+    shape or refresh before START RIDE becomes active.
+  */
+  for(
+    const stop of routeStops
+  ){
+
+    if(
+      stop?.type !== "pickup"
+    ){
+      continue;
+    }
+
+    const passengers =
+      Array.isArray(stop.passengers)
+        ? stop.passengers
+        : [];
+
+    for(
+      const passenger of passengers
+    ){
+
+      if(
+        isDriverIdentity(
+          passenger.name,
+          passenger.phone
+        )
+      ){
+        continue;
+      }
+
+      if(
+        pickupPassengerState(
+          stop,
+          passenger
+        ) === "PICKED"
+      ){
+        return true;
+      }
+    }
+  }
+
+  /*
+    Server state remains a second source of truth after refresh.
+  */
+  return tripHasRidePassenger();
 }
 
 function finalTripStatusFromPassengers(){
@@ -3450,7 +3535,7 @@ function renderExecutionState(){
 
     if(
       allPickupPassengersNonRideFinal(stop) &&
-      !tripHasRidePassenger()
+      !hasAnyPickedPassengerForRide()
     ){
       btnStartRide.style.display = "none";
       btnStartRide.disabled = true;
@@ -3463,7 +3548,7 @@ function renderExecutionState(){
 
     const canStart =
       canStartRideNow(stop) &&
-      tripHasRidePassenger();
+      hasAnyPickedPassengerForRide();
 
     btnStartRide.disabled = !canStart;
     btnStartRide.classList.toggle("ready", canStart);
@@ -3760,7 +3845,7 @@ btnStartRide?.addEventListener("click", async () => {
   */
   if(
     !canStartRideNow(stop) ||
-    !tripHasRidePassenger()
+    !hasAnyPickedPassengerForRide()
   ){
     btnStartRide.disabled = true;
     btnStartRide.classList.remove("ready");
@@ -3810,7 +3895,7 @@ btnStartRide?.addEventListener("click", async () => {
         If the only individual passenger was cancelled/no-show,
         do not convert the trip back to InProgress.
       */
-      if(tripHasRidePassenger()){
+      if(hasAnyPickedPassengerForRide()){
         await updateTrip({
           status: "InProgress",
           startedAt,
