@@ -1726,13 +1726,11 @@ function unresolvedPickupPassengers(stop){
   }
 
   return (stop.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone))
     .filter(p => !pickupPassengerFinal(stop, p));
 }
 
 function allPickupPassengersResolved(stop){
-  const list = (stop?.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone));
+  const list = (stop?.passengers || []);
 
   return (
     list.length > 0 &&
@@ -1751,8 +1749,7 @@ function canStartRideNow(stop){
     return false;
   }
 
-  const list = (stop.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone));
+  const list = (stop.passengers || []);
 
   if(!list.length){
     return false;
@@ -1771,13 +1768,11 @@ function canStartRideNow(stop){
 
 function pickedPassengers(stop){
   return (stop?.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone))
     .filter(p => pickupPassengerState(stop, p) === "PICKED");
 }
 
 function pickupResolutionSummary(stop){
-  const list = (stop?.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone));
+  const list = (stop?.passengers || []);
 
   const states = list.map(p => pickupPassengerState(stop, p));
 
@@ -1911,15 +1906,8 @@ function hasAnyPickedPassengerForRide(){
       const passenger of passengers
     ){
 
-      if(
-        isDriverIdentity(
-          passenger.name,
-          passenger.phone
-        )
-      ){
-        continue;
-      }
-
+      /* Every record in stop.passengers is a real rider.
+         Never hide a rider because their name/phone happens to match the driver. */
       if(
         pickupPassengerState(
           stop,
@@ -2721,14 +2709,12 @@ function openGoogleNavigation(){
       ? `&origin=${driverLat},${driverLng}`
       : "";
 
-  window.open(
+  window.location.href =
     "https://www.google.com/maps/dir/?api=1" +
     origin +
     "&destination=" +
     destination +
-    "&travelmode=driving",
-    "_blank"
-  );
+    "&travelmode=driving";
 }
 
 /* ================= CURRENT TRIP UI ================= */
@@ -3066,9 +3052,81 @@ function passengerStatusBadge(state){
   return "";
 }
 
+
+function refreshCurrentPickupPassengersFromTrip(){
+
+  const stop = currentStop();
+
+  if(
+    !stop ||
+    stop.type !== "pickup" ||
+    !isSharedTrip()
+  ){
+    return;
+  }
+
+  const latestPassengers =
+    Array.isArray(tripDoc?.passengers)
+      ? tripDoc.passengers
+      : [];
+
+  if(!latestPassengers.length){
+    return;
+  }
+
+  const wantedAddress =
+    normalizeAddressKey(stop.address);
+
+  const matched = [];
+
+  latestPassengers.forEach((p,index)=>{
+
+    const pickupAddress =
+      normalizeAddressKey(
+        passengerPickup(p,tripDoc)
+      );
+
+    if(
+      wantedAddress &&
+      pickupAddress &&
+      pickupAddress !== wantedAddress
+    ){
+      return;
+    }
+
+    const point =
+      sharedPickupPoint(p);
+
+    if(
+      !wantedAddress &&
+      validPoint(stop.lat,stop.lng) &&
+      validPoint(point.lat,point.lng) &&
+      distanceMiles(
+        Number(stop.lat),
+        Number(stop.lng),
+        Number(point.lat),
+        Number(point.lng)
+      ) > 0.02
+    ){
+      return;
+    }
+
+    matched.push({
+      passengerId:passengerId(p,index),
+      name:passengerName(p,index),
+      phone:passengerPhone(p),
+      sourceIndex:index,
+      status:clean(p?.status || "Scheduled")
+    });
+  });
+
+  if(matched.length){
+    stop.passengers = matched;
+  }
+}
+
 function renderPickupPassengers(stop){
-  const passengers = (stop.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone));
+  const passengers = (stop.passengers || []);
 
   passengersSection.style.display = passengers.length ? "block" : "none";
 
@@ -3228,8 +3286,7 @@ function renderPickupPassengers(stop){
 }
 
 function renderNonPickupPassenger(stop){
-  const passengers = (stop.passengers || [])
-    .filter(p => !isDriverIdentity(p.name, p.phone));
+  const passengers = (stop.passengers || []);
 
   if(!passengers.length){
     passengersSection.style.display = "none";
@@ -3484,6 +3541,10 @@ function renderExecutionState(){
       "none";
 
     return;
+  }
+
+  if(stop.type === "pickup"){
+    refreshCurrentPickupPassengersFromTrip();
   }
 
   renderPassengers();
