@@ -2470,6 +2470,10 @@ function savedEncodedPolyline(){
       tripDoc?.optimizedRoute?.overview_polyline?.points,
       tripDoc?.optimizedRoute?.routes?.[0]?.overviewPolyline?.points,
       tripDoc?.optimizedRoute?.routes?.[0]?.overview_polyline?.points,
+      tripDoc?.overviewPolyline?.points,
+      tripDoc?.overview_polyline?.points,
+      tripDoc?.overviewPolyline,
+      tripDoc?.overview_polyline,
       tripDoc?.routePolyline?.points,
       tripDoc?.encodedPolyline?.points,
       tripDoc?.routePolyline,
@@ -3152,51 +3156,118 @@ function refreshCurrentPickupPassengersFromTrip(){
     return;
   }
 
-  const wantedAddress =
-    normalizeAddressKey(stop.address);
+  /*
+    IMPORTANT:
+    Keep the passenger membership of the pickup group that was built when
+    routeStops was created.  After Passenger #1 is updated on the server,
+    tripDoc is replaced with the server response.  Re-hydrate the CURRENT
+    pickup group by passengerId first so Pickup #2/#3 can never lose its
+    passenger controls.
 
-  const matched = [];
+    Address matching remains a fallback for older trips without stable IDs.
+  */
+  const existingIds =
+    new Set(
+      (stop.passengers || [])
+        .map(p=>String(p?.passengerId || ""))
+        .filter(Boolean)
+    );
 
-  latestPassengers.forEach((p,index)=>{
+  let matched = [];
 
-    const pickupAddress =
+  if(existingIds.size){
+
+    latestPassengers.forEach((p,index)=>{
+
+      const id =
+        passengerId(p,index);
+
+      if(
+        !existingIds.has(
+          String(id)
+        )
+      ){
+        return;
+      }
+
+      matched.push({
+        passengerId:id,
+        name:passengerName(p,index),
+        phone:passengerPhone(p),
+        sourceIndex:index,
+        status:clean(p?.status || "Scheduled")
+      });
+    });
+  }
+
+  /*
+    Older data fallback:
+    if IDs could not be matched, rebuild this pickup group from its address.
+  */
+  if(!matched.length){
+
+    const wantedAddress =
       normalizeAddressKey(
-        passengerPickup(p,tripDoc)
+        stop.address
       );
 
-    if(
-      wantedAddress &&
-      pickupAddress &&
-      pickupAddress !== wantedAddress
-    ){
-      return;
-    }
+    latestPassengers.forEach((p,index)=>{
 
-    const point =
-      sharedPickupPoint(p);
+      const pickupAddress =
+        normalizeAddressKey(
+          passengerPickup(
+            p,
+            tripDoc
+          )
+        );
 
-    if(
-      !wantedAddress &&
-      validPoint(stop.lat,stop.lng) &&
-      validPoint(point.lat,point.lng) &&
-      distanceMiles(
-        Number(stop.lat),
-        Number(stop.lng),
-        Number(point.lat),
-        Number(point.lng)
-      ) > 0.02
-    ){
-      return;
-    }
+      if(
+        wantedAddress &&
+        pickupAddress &&
+        pickupAddress !== wantedAddress
+      ){
+        return;
+      }
 
-    matched.push({
-      passengerId:passengerId(p,index),
-      name:passengerName(p,index),
-      phone:passengerPhone(p),
-      sourceIndex:index,
-      status:clean(p?.status || "Scheduled")
+      const point =
+        sharedPickupPoint(p);
+
+      if(
+        !wantedAddress &&
+        validPoint(
+          stop.lat,
+          stop.lng
+        ) &&
+        validPoint(
+          point.lat,
+          point.lng
+        ) &&
+        distanceMiles(
+          Number(stop.lat),
+          Number(stop.lng),
+          Number(point.lat),
+          Number(point.lng)
+        ) > 0.02
+      ){
+        return;
+      }
+
+      matched.push({
+        passengerId:
+          passengerId(p,index),
+        name:
+          passengerName(p,index),
+        phone:
+          passengerPhone(p),
+        sourceIndex:index,
+        status:
+          clean(
+            p?.status ||
+            "Scheduled"
+          )
+      });
     });
-  });
+  }
 
   if(matched.length){
     stop.passengers = matched;
@@ -3204,100 +3275,158 @@ function refreshCurrentPickupPassengersFromTrip(){
 }
 
 function renderPickupPassengers(stop){
-  const passengers = (stop.passengers || []);
 
-  passengersSection.style.display = passengers.length ? "block" : "none";
+  const passengers =
+    (stop.passengers || []);
 
-  currentPassengersEl.innerHTML = passengers.map(p => {
-    const state = pickupPassengerState(stop, p);
-    const final = pickupPassengerFinal(stop, p);
-    const noShowMode =
-      waitEnabledForStop(stop) &&
-      timerExpired(stop);
+  passengersSection.style.display =
+    passengers.length
+      ? "block"
+      : "none";
 
-    const cancelLabel =
-      noShowMode
-        ? "NO SHOW"
-        : "CANCEL";
+  currentPassengersEl.innerHTML =
+    passengers.map(p => {
 
-    return `
-      <div class="passenger-row" data-passenger-id="${escapeHtml(p.passengerId)}">
-        <div class="passenger-main">
-          <div class="passenger-avatar" aria-hidden="true">●</div>
+      const state =
+        pickupPassengerState(
+          stop,
+          p
+        );
 
-          <div class="passenger-name-wrap">
-            <div class="passenger-name-line">
-              <strong>${escapeHtml(p.name)}</strong>
+      const final =
+        pickupPassengerFinal(
+          stop,
+          p
+        );
 
-              ${
-                p.phone
-                  ? `
-                    <button
-                      class="passenger-call"
-                      type="button"
-                      data-action="call"
-                      aria-label="Call ${escapeHtml(p.name)}"
-                    >
-                      ☎
-                    </button>
-                  `
-                  : ""
-              }
+      const noShowMode =
+        waitEnabledForStop(stop) &&
+        timerExpired(stop);
+
+      const cancelLabel =
+        noShowMode
+          ? "NO SHOW"
+          : "CANCEL";
+
+      const stateClass =
+        state === "PICKED"
+          ? "picked-card"
+          : state === "CANCELLED"
+            ? "cancelled-card"
+            : state === "NO_SHOW"
+              ? "noshow-card"
+              : "waiting-card";
+
+      const finalLabel =
+        state === "PICKED"
+          ? "✓ PICKED"
+          : state === "CANCELLED"
+            ? "✕ CANCELLED"
+            : state === "NO_SHOW"
+              ? "✕ NO SHOW"
+              : "";
+
+      return `
+        <div
+          class="passenger-row ${stateClass}"
+          data-passenger-id="${escapeHtml(p.passengerId)}"
+        >
+
+          <div class="passenger-main">
+            <div class="passenger-name-wrap">
+              <div class="passenger-name-line">
+                <strong>${escapeHtml(p.name)}</strong>
+              </div>
             </div>
-
-            ${passengerStatusBadge(state)}
           </div>
-        </div>
 
-        <div class="passenger-actions">
           ${
             final
-              ? ""
+              ? `
+                <div class="passenger-final-state">
+                  ${escapeHtml(finalLabel)}
+                </div>
+              `
               : `
-                <button
-                  class="passenger-btn pickup"
-                  type="button"
-                  data-action="pickup"
-                >
-                  PICK UP
-                </button>
+                <div class="passenger-actions">
 
-                <button
-                  class="passenger-btn danger"
-                  type="button"
-                  data-action="${noShowMode ? "no-show" : "cancel"}"
-                >
-                  ${cancelLabel}
-                </button>
+                  <button
+                    class="passenger-btn pickup"
+                    type="button"
+                    data-action="pickup"
+                  >
+                    ▲<span>PICK UP</span>
+                  </button>
+
+                  <button
+                    class="passenger-btn danger"
+                    type="button"
+                    data-action="${noShowMode ? "no-show" : "cancel"}"
+                  >
+                    ✕<span>${cancelLabel}</span>
+                  </button>
+
+                  <button
+                    class="passenger-btn call"
+                    type="button"
+                    data-action="call"
+                    ${p.phone ? "" : "disabled"}
+                    aria-label="Call ${escapeHtml(p.name)}"
+                  >
+                    ☎<span>CALL</span>
+                  </button>
+
+                </div>
               `
           }
+
         </div>
-      </div>
-    `;
-  }).join("");
+      `;
+    }).join("");
 
   currentPassengersEl
-    .querySelectorAll(".passenger-row")
+    .querySelectorAll(
+      ".passenger-row"
+    )
     .forEach(row => {
-      const passengerIdValue = row.dataset.passengerId;
 
-      const passenger = passengers.find(p =>
-        String(p.passengerId) === String(passengerIdValue)
-      );
+      const passengerIdValue =
+        row.dataset.passengerId;
 
-      if(!passenger) return;
+      const passenger =
+        passengers.find(p =>
+          String(p.passengerId) ===
+          String(passengerIdValue)
+        );
 
-      row.querySelector('[data-action="call"]')
-        ?.addEventListener("click", () => {
-          if(!requireArrived(stop)){
+      if(!passenger){
+        return;
+      }
+
+      row.querySelector(
+        '[data-action="call"]'
+      )?.addEventListener(
+        "click",
+        () => {
+
+          if(
+            !requireArrived(stop)
+          ){
             return;
           }
 
-          dialPassenger(stop, passenger);
-        });
+          dialPassenger(
+            stop,
+            passenger
+          );
+        }
+      );
 
-      row.querySelector('[data-action="pickup"]')
-        ?.addEventListener("click", async () => {
+      row.querySelector(
+        '[data-action="pickup"]'
+      )?.addEventListener(
+        "click",
+        async () => {
 
           if(
             !requireArrived(stop)
@@ -3307,40 +3436,79 @@ function renderPickupPassengers(stop){
           }
 
           try{
+
             await persistPassengerPickupState(
               stop,
               passenger,
               "PICKED"
             );
 
-            if(allPickupPassengersResolved(stop)){
-              await handleResolvedPickupGroup(stop,true);
+            if(
+              allPickupPassengersResolved(
+                stop
+              )
+            ){
+              await handleResolvedPickupGroup(
+                stop,
+                true
+              );
               return;
             }
 
             renderExecutionState();
+
           }catch(err){
-            alert(err.message);
-          }
-        });
 
-      row.querySelector('[data-action="cancel"]')
-        ?.addEventListener("click", () => {
-          if(!requireArrived(stop)){
+            alert(
+              err.message
+            );
+          }
+        }
+      );
+
+      row.querySelector(
+        '[data-action="cancel"]'
+      )?.addEventListener(
+        "click",
+        () => {
+
+          if(
+            !requireArrived(stop)
+          ){
             return;
           }
 
-          if(!passengerWasCalled(stop, passenger)){
-            dialPassenger(stop, passenger, "CANCELLED");
+          if(
+            !passengerWasCalled(
+              stop,
+              passenger
+            )
+          ){
+            dialPassenger(
+              stop,
+              passenger,
+              "CANCELLED"
+            );
             return;
           }
 
-          openReasonModal("CANCELLED", stop, passenger);
-        });
+          openReasonModal(
+            "CANCELLED",
+            stop,
+            passenger
+          );
+        }
+      );
 
-      row.querySelector('[data-action="no-show"]')
-        ?.addEventListener("click", () => {
-          if(!requireArrived(stop)){
+      row.querySelector(
+        '[data-action="no-show"]'
+      )?.addEventListener(
+        "click",
+        () => {
+
+          if(
+            !requireArrived(stop)
+          ){
             return;
           }
 
@@ -3349,78 +3517,67 @@ function renderPickupPassengers(stop){
             waitEnabledForStop(stop) &&
             !timerExpired(stop)
           ){
-            alert("Wait timer must finish first.");
+            alert(
+              "Wait timer must finish first."
+            );
             return;
           }
 
-          if(!passengerWasCalled(stop, passenger)){
-            dialPassenger(stop, passenger, "NO_SHOW");
+          if(
+            !passengerWasCalled(
+              stop,
+              passenger
+            )
+          ){
+            dialPassenger(
+              stop,
+              passenger,
+              "NO_SHOW"
+            );
             return;
           }
 
-          openReasonModal("NO_SHOW", stop, passenger);
-        });
+          openReasonModal(
+            "NO_SHOW",
+            stop,
+            passenger
+          );
+        }
+      );
     });
 }
 
 function renderNonPickupPassenger(stop){
-  const passengers = (stop.passengers || []);
+
+  const passengers =
+    (stop.passengers || []);
 
   if(!passengers.length){
-    passengersSection.style.display = "none";
-    currentPassengersEl.innerHTML = "";
+
+    passengersSection.style.display =
+      "none";
+
+    currentPassengersEl.innerHTML =
+      "";
+
     return;
   }
 
-  passengersSection.style.display = "block";
+  passengersSection.style.display =
+    "block";
 
-  currentPassengersEl.innerHTML = passengers.map(p => `
-    <div class="passenger-row simple">
-      <div class="passenger-main">
-        <div class="passenger-avatar" aria-hidden="true">●</div>
-
-        <div class="passenger-name-wrap">
-          <div class="passenger-name-line">
-            <strong>${escapeHtml(p.name)}</strong>
-
-            ${
-              p.phone
-                ? `
-                  <button
-                    class="passenger-call"
-                    type="button"
-                    data-passenger-id="${escapeHtml(p.passengerId)}"
-                    aria-label="Call ${escapeHtml(p.name)}"
-                  >
-                    ☎
-                  </button>
-                `
-                : ""
-            }
+  currentPassengersEl.innerHTML =
+    passengers.map(p => `
+      <div class="passenger-row simple">
+        <div class="passenger-main">
+          <div class="passenger-name-wrap">
+            <div class="passenger-name-line">
+              <strong>${escapeHtml(p.name)}</strong>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  `).join("");
-
-  currentPassengersEl
-    .querySelectorAll(".passenger-call")
-    .forEach(button => {
-      const passenger = passengers.find(p =>
-        String(p.passengerId) ===
-        String(button.dataset.passengerId)
-      );
-
-      if(passenger){
-        button.addEventListener("click", () => {
-          if(!requireArrived(stop)){
-            return;
-          }
-
-          dialPassenger(stop, passenger);
-        });
-      }
-    });
+    `).join("");
 }
 
 function renderPassengers(){
