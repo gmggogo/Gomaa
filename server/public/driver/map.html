@@ -198,6 +198,66 @@ button{
   box-shadow:0 7px 18px rgba(0,0,0,.24);
 }
 
+
+/* ================= RETRO TOP / MAP INFO ================= */
+
+.map-card,
+#currentActionBadge,
+#gpsBadge,
+#stopProgress{
+  border-radius:7px;
+  backdrop-filter:none;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(242,242,242,.98) 0%,
+      rgba(196,196,196,.98) 58%,
+      rgba(141,141,141,.98) 100%
+    );
+
+  border-top:3px solid rgba(255,255,255,.98);
+  border-left:3px solid rgba(255,255,255,.98);
+  border-right:3px solid rgba(0,0,0,.68);
+  border-bottom:3px solid rgba(0,0,0,.78);
+
+  box-shadow:
+    0 3px 0 rgba(0,0,0,.65),
+    0 7px 16px rgba(0,0,0,.22),
+    inset 0 0 0 1px rgba(0,0,0,.20);
+
+  color:#111;
+  text-shadow:0 1px 0 rgba(255,255,255,.75);
+}
+
+.map-card-label{
+  color:#34455d;
+}
+
+#tripTimeValue{
+  color:#111;
+}
+
+#currentActionBadge{
+  color:#123b77;
+}
+
+#gpsBadge{
+  color:#0b6628;
+
+  background:
+    linear-gradient(
+      180deg,
+      #e1f6df 0%,
+      #a4d39e 58%,
+      #72ad69 100%
+    );
+}
+
+#stopProgress{
+  color:#111;
+}
+
 /* ================= EXECUTION PANEL ================= */
 
 .execution-panel{
@@ -273,6 +333,71 @@ button{
   letter-spacing:1px;
   font-variant-numeric:tabular-nums;
   border-bottom:1px solid var(--line);
+}
+
+
+/* ================= RETRO LOCATION / TIMER ================= */
+
+.location-block{
+  margin-top:10px;
+  padding:12px 11px;
+  border-radius:7px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f5f5f5 0%,
+      #d2d2d2 58%,
+      #a8a8a8 100%
+    );
+
+  border-top:3px solid #ffffff;
+  border-left:3px solid #ffffff;
+  border-right:3px solid #5f5f5f;
+  border-bottom:3px solid #4b4b4b;
+
+  box-shadow:
+    0 3px 0 rgba(0,0,0,.65),
+    inset 0 0 0 1px rgba(0,0,0,.18);
+}
+
+.location-title{
+  color:#174f91;
+  text-shadow:0 1px 0 #fff;
+}
+
+#currentStopAddress{
+  color:#111;
+  text-shadow:0 1px 0 rgba(255,255,255,.72);
+}
+
+#stopStatusText{
+  color:#38414c;
+}
+
+#waitTimer{
+  margin-top:10px;
+  border-radius:7px;
+  color:#0d4f9b;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f2f2f2,
+      #c9c9c9 58%,
+      #9f9f9f
+    );
+
+  border-top:3px solid #ffffff;
+  border-left:3px solid #ffffff;
+  border-right:3px solid #5a5a5a;
+  border-bottom:3px solid #454545;
+
+  box-shadow:
+    0 3px 0 rgba(0,0,0,.65),
+    inset 0 0 0 1px rgba(0,0,0,.18);
+
+  text-shadow:0 1px 0 #fff;
 }
 
 /* ================= PASSENGERS ================= */

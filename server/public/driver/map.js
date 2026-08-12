@@ -2410,52 +2410,193 @@ function updateDriverMarker(){
 }
 
 function clearRouteMarkers(){
-  routeMarkers.forEach(marker => marker.setMap(null));
+
+  routeMarkers.forEach(marker => {
+    if(marker){
+      marker.setMap(null);
+    }
+  });
+
   routeMarkers = [];
 }
 
+/*
+  PERSISTENT ROUTE MARKERS
+
+  IMPORTANT:
+  renderExecutionState() runs every second because of the timer.
+  The old code deleted and recreated every marker every second,
+  which caused Pickup / Dropoff markers to flash.
+
+  This version creates each marker once and only updates it when
+  position / active-state actually changes.
+*/
 function drawRouteMarkers(){
-  if(!map) return;
 
-  clearRouteMarkers();
+  if(!map){
+    return;
+  }
 
-  routeStops.forEach((stop, index) => {
-    if(!validPoint(stop.lat, stop.lng)){
+  routeStops.forEach((stop,index)=>{
+
+    if(
+      !validPoint(
+        stop.lat,
+        stop.lng
+      )
+    ){
+      if(routeMarkers[index]){
+        routeMarkers[index].setMap(null);
+        routeMarkers[index] = null;
+      }
+
       return;
     }
 
-    let color = "#64748b";
+    let color =
+      "#64748b";
 
-    if(index === currentStopIndex){
+    if(
+      index ===
+      currentStopIndex
+    ){
       color =
         stop.type === "pickup"
           ? "#2563eb"
           : stop.type === "dropoff"
             ? "#16a34a"
             : "#7c3aed";
-    }else if(index > currentStopIndex){
-      color = "#64748b";
     }
 
-    const marker = new google.maps.Marker({
-      map,
-      position: {
-        lat: stop.lat,
-        lng: stop.lng
-      },
-      title: stop.address || stop.type,
-      label: {
-        text: String(index + 1),
-        color: "#fff",
-        fontWeight: "900",
-        fontSize: "11px"
-      },
-      icon: markerIcon(color, index === currentStopIndex ? 11 : 8),
-      zIndex: index === currentStopIndex ? 30 : 10
-    });
+    const scale =
+      index === currentStopIndex
+        ? 11
+        : 8;
 
-    routeMarkers.push(marker);
+    const stateKey =
+      `${index}|${color}|${scale}|${stop.type}`;
+
+    const position = {
+      lat:Number(stop.lat),
+      lng:Number(stop.lng)
+    };
+
+    let marker =
+      routeMarkers[index];
+
+    if(!marker){
+
+      marker =
+        new google.maps.Marker({
+          map,
+          position,
+          title:
+            stop.address ||
+            stop.type,
+          label:{
+            text:String(index + 1),
+            color:"#fff",
+            fontWeight:"900",
+            fontSize:"11px"
+          },
+          icon:
+            markerIcon(
+              color,
+              scale
+            ),
+          zIndex:
+            index === currentStopIndex
+              ? 30
+              : 10
+        });
+
+      marker.__sunbeamStateKey =
+        stateKey;
+
+      marker.__sunbeamLat =
+        position.lat;
+
+      marker.__sunbeamLng =
+        position.lng;
+
+      routeMarkers[index] =
+        marker;
+
+      return;
+    }
+
+    if(
+      marker.getMap() !== map
+    ){
+      marker.setMap(map);
+    }
+
+    if(
+      marker.__sunbeamLat !== position.lat ||
+      marker.__sunbeamLng !== position.lng
+    ){
+      marker.setPosition(
+        position
+      );
+
+      marker.__sunbeamLat =
+        position.lat;
+
+      marker.__sunbeamLng =
+        position.lng;
+    }
+
+    if(
+      marker.__sunbeamStateKey !==
+      stateKey
+    ){
+      marker.setIcon(
+        markerIcon(
+          color,
+          scale
+        )
+      );
+
+      marker.setZIndex(
+        index === currentStopIndex
+          ? 30
+          : 10
+      );
+
+      marker.__sunbeamStateKey =
+        stateKey;
+    }
+
+    const title =
+      stop.address ||
+      stop.type;
+
+    if(
+      marker.getTitle() !==
+      title
+    ){
+      marker.setTitle(
+        title
+      );
+    }
   });
+
+  /*
+    Remove only markers that no longer belong to this route.
+    Normal timer re-renders never touch existing route markers.
+  */
+  for(
+    let i = routeStops.length;
+    i < routeMarkers.length;
+    i++
+  ){
+    if(routeMarkers[i]){
+      routeMarkers[i].setMap(null);
+    }
+  }
+
+  routeMarkers.length =
+    routeStops.length;
 }
 
 function savedEncodedPolyline(){
@@ -2566,9 +2707,13 @@ function drawDisplayLine(){
     return;
   }
 
+  /*
+    The saved road line is static for this trip.
+    If it already exists, keep it on the map instead of rebuilding it
+    every second with the timer render.
+  */
   if(routePolyline){
-    routePolyline.setMap(null);
-    routePolyline = null;
+    return;
   }
 
   if(guidePolyline){
@@ -2578,8 +2723,8 @@ function drawDisplayLine(){
 
   /*
     PRIORITY 1:
-    draw the TRUE encoded road polyline already saved with the trip.
-    This makes ZERO Directions requests.
+    TRUE encoded road polyline already stored with the trip.
+    ZERO Directions requests.
   */
   const encoded =
     savedEncodedPolyline();
@@ -2598,15 +2743,15 @@ function drawDisplayLine(){
       if(
         fullPath?.length >= 2
       ){
-
         routePolyline =
           new google.maps.Polyline({
             map,
             path:fullPath,
             geodesic:false,
             strokeColor:"#2f7df6",
-            strokeOpacity:0.90,
-            strokeWeight:5
+            strokeOpacity:0.92,
+            strokeWeight:5,
+            zIndex:5
           });
 
         return;
@@ -2623,8 +2768,8 @@ function drawDisplayLine(){
 
   /*
     PRIORITY 2:
-    some server route objects store the already-calculated route
-    as an array of lat/lng road points instead of an encoded string.
+    saved road path as lat/lng points.
+    This is also a real previously-calculated route and makes ZERO requests.
   */
   const savedPath =
     savedRoutePathArray();
@@ -2632,15 +2777,15 @@ function drawDisplayLine(){
   if(
     savedPath.length >= 2
   ){
-
     routePolyline =
       new google.maps.Polyline({
         map,
         path:savedPath,
         geodesic:false,
         strokeColor:"#2f7df6",
-        strokeOpacity:0.90,
-        strokeWeight:5
+        strokeOpacity:0.92,
+        strokeWeight:5,
+        zIndex:5
       });
 
     return;
@@ -2648,8 +2793,8 @@ function drawDisplayLine(){
 
   /*
     NO FAKE ROUTE:
-    If no real saved road path exists, keep numbered stop markers only.
-    Never draw a straight stop-to-stop line and call it a route.
+    if the trip has no saved road path, show only the fixed markers.
+    Never invent a straight line between stops.
   */
 }
 
@@ -3798,18 +3943,34 @@ function renderExecutionState(){
       serverNow() < scheduledAt
     ){
 
-      setStopStatus(
-        `Scheduled ${formatScheduledTime(scheduledAt)}`
-      );
-
       /*
-        Arrived early:
-        keep the timer visible at its FULL value.
-        It does not count down until serverNow() reaches trip time exactly.
+        EARLY ARRIVAL POLICY
+
+        The official trip time controls the WAIT TIMER only.
+
+        If the passenger is physically ready and the driver has already
+        completed a real PICK UP, START RIDE may become active before
+        the scheduled time.
+
+        Safety gates remain:
+          - ARRIVED must already be pressed.
+          - Every passenger in the CURRENT pickup group must be resolved.
+          - At least one real passenger must be PICKED.
+          - If another pickup group is still ahead, handleResolvedPickupGroup()
+            advances there first, so Start Ride cannot skip required pickups.
       */
+
+      const canStartEarly =
+        canStartRideNow(stop) &&
+        hasAnyPickedPassengerForRide();
+
       if(
         waitEnabledForStop(stop)
       ){
+        /*
+          Timer remains frozen at its full configured value until the
+          official scheduled time. Early Ride Start does not back-start it.
+        */
         showTimer(
           waitDurationSeconds(stop)
         );
@@ -3817,18 +3978,60 @@ function renderExecutionState(){
         hideTimer();
       }
 
+      if(canStartEarly){
+
+        setStopStatus(
+          "Passenger picked up — ready to start early"
+        );
+
+        hidePrimaryButton();
+
+        btnStartRide.style.display =
+          "block";
+
+        btnStartRide.disabled =
+          false;
+
+        btnStartRide.classList.add(
+          "ready"
+        );
+
+        btnStartRide.setAttribute(
+          "aria-disabled",
+          "false"
+        );
+
+        return;
+      }
+
+      setStopStatus(
+        `Scheduled ${formatScheduledTime(scheduledAt)}`
+      );
+
       setPrimaryButton(
         "WAITING FOR TRIP TIME",
         false,
         "muted"
       );
 
-      btnPrimaryAction.dataset.mode = "waiting";
+      btnPrimaryAction.dataset.mode =
+        "waiting";
 
-      btnStartRide.style.display = "block";
-      btnStartRide.disabled = true;
-      btnStartRide.classList.remove("ready");
-      btnStartRide.setAttribute("aria-disabled", "true");
+      btnStartRide.style.display =
+        "block";
+
+      btnStartRide.disabled =
+        true;
+
+      btnStartRide.classList.remove(
+        "ready"
+      );
+
+      btnStartRide.setAttribute(
+        "aria-disabled",
+        "true"
+      );
+
       return;
     }
 
@@ -4166,14 +4369,6 @@ btnStartRide?.addEventListener("click", async () => {
     btnStartRide.disabled = true;
     btnStartRide.classList.remove("ready");
     btnStartRide.setAttribute("aria-disabled", "true");
-    return;
-  }
-
-  if(
-    Number.isFinite(stop.scheduledAt) &&
-    serverNow() < stop.scheduledAt
-  ){
-    alert("Trip time has not started yet.");
     return;
   }
 
