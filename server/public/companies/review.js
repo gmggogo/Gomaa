@@ -1688,18 +1688,87 @@ async function calculateRouteMiles(points){
           seconds += leg.duration ? leg.duration.value : 0;
         });
 
+        const firstLeg = route.legs[0] || null;
+        const lastLeg = route.legs[route.legs.length - 1] || null;
+
+        const pickupLat =
+          firstLeg?.start_location?.lat
+            ? Number(firstLeg.start_location.lat())
+            : null;
+
+        const pickupLng =
+          firstLeg?.start_location?.lng
+            ? Number(firstLeg.start_location.lng())
+            : null;
+
+        const dropoffLat =
+          lastLeg?.end_location?.lat
+            ? Number(lastLeg.end_location.lat())
+            : null;
+
+        const dropoffLng =
+          lastLeg?.end_location?.lng
+            ? Number(lastLeg.end_location.lng())
+            : null;
+
+        const stopCoords =
+          route.legs.slice(0,-1).map((leg,index)=>({
+            stopIndex:index,
+            address:cleanPoints[index + 1] || leg.end_address || "",
+            lat:leg?.end_location?.lat
+              ? Number(leg.end_location.lat())
+              : null,
+            lng:leg?.end_location?.lng
+              ? Number(leg.end_location.lng())
+              : null
+          }));
+
+        const routePath =
+          Array.isArray(route.overview_path)
+            ? route.overview_path.map(point=>({
+                lat:Number(point.lat()),
+                lng:Number(point.lng())
+              }))
+            : [];
+
+        const overviewPolyline =
+          route.overview_polyline?.points || "";
+
         resolve({
           miles:Number((meters * 0.000621371).toFixed(2)),
           distanceMeters:meters,
           durationSeconds:seconds,
           estimatedMinutes:Math.ceil(seconds / 60),
+
+          pickupLat,
+          pickupLng,
+          dropoffLat,
+          dropoffLng,
+          stopCoords,
+          routePath,
+          overviewPolyline,
+
           googleRoute:{
             summary:route.summary || "",
             waypointOrder:route.waypoint_order || [],
+            overviewPolyline,
+            routePath,
             legs:route.legs.map((leg,index)=>({
               legIndex:index,
               startAddress:leg.start_address,
               endAddress:leg.end_address,
+              startLat:leg?.start_location?.lat
+                ? Number(leg.start_location.lat())
+                : null,
+              startLng:leg?.start_location?.lng
+                ? Number(leg.start_location.lng())
+                : null,
+              endLat:leg?.end_location?.lat
+                ? Number(leg.end_location.lat())
+                : null,
+              endLng:leg?.end_location?.lng
+                ? Number(leg.end_location.lng())
+                : null,
               distanceText:leg.distance ? leg.distance.text : "",
               distanceMeters:leg.distance ? leg.distance.value : 0,
               durationText:leg.duration ? leg.duration.text : "",
@@ -3297,10 +3366,21 @@ async function handleConfirmTrip(btn){
     routePoints:routePoints,
     optimizedRoute:routeData.googleRoute,
 
-    pickupLat:coordinatesValue(trip.pickupLat),
-    pickupLng:coordinatesValue(trip.pickupLng),
-    dropoffLat:coordinatesValue(trip.dropoffLat),
-    dropoffLng:coordinatesValue(trip.dropoffLng),
+    pickupLat:coordinatesValue(routeData.pickupLat),
+    pickupLng:coordinatesValue(routeData.pickupLng),
+    dropoffLat:coordinatesValue(routeData.dropoffLat),
+    dropoffLng:coordinatesValue(routeData.dropoffLng),
+
+    stopCoords:Array.isArray(routeData.stopCoords)
+      ? routeData.stopCoords
+      : [],
+
+    routePath:Array.isArray(routeData.routePath)
+      ? routeData.routePath
+      : [],
+
+    overviewPolyline:
+      routeData.overviewPolyline || "",
 
     routeLocked:true,
     routeFinalized:true,
