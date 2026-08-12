@@ -147,17 +147,6 @@ button{
   color:#7ff1a1;
 }
 
-#eyeBtn{
-  width:36px;
-  height:36px;
-  border:1px solid rgba(255,255,255,.11);
-  border-radius:50%;
-  color:#fff;
-  background:rgba(3,19,41,.92);
-  font-size:18px;
-  font-weight:900;
-  backdrop-filter:blur(8px);
-}
 
 .map-bottom{
   position:absolute;
@@ -182,21 +171,6 @@ button{
   backdrop-filter:blur(8px);
 }
 
-#recenterBtn{
-  position:absolute;
-  right:12px;
-  bottom:12px;
-  z-index:8;
-  width:46px;
-  height:46px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:50%;
-  color:#fff;
-  background:#061a38;
-  font-size:21px;
-  font-weight:900;
-  box-shadow:0 7px 18px rgba(0,0,0,.24);
-}
 
 
 /* ================= RETRO TOP / MAP INFO ================= */
@@ -211,9 +185,9 @@ button{
   background:
     linear-gradient(
       180deg,
-      rgba(242,242,242,.98) 0%,
-      rgba(196,196,196,.98) 58%,
-      rgba(141,141,141,.98) 100%
+      #173862 0%,
+      #0b2344 58%,
+      #05162d 100%
     );
 
   border-top:3px solid rgba(255,255,255,.98);
@@ -226,36 +200,36 @@ button{
     0 7px 16px rgba(0,0,0,.22),
     inset 0 0 0 1px rgba(0,0,0,.20);
 
-  color:#111;
-  text-shadow:0 1px 0 rgba(255,255,255,.75);
+  color:#fff;
+  text-shadow:0 1px 0 rgba(0,0,0,.65);
 }
 
 .map-card-label{
-  color:#34455d;
+  color:#9ebbe0;
 }
 
 #tripTimeValue{
-  color:#111;
+  color:#fff;
 }
 
 #currentActionBadge{
-  color:#123b77;
+  color:#b9d4ff;
 }
 
 #gpsBadge{
-  color:#0b6628;
+  color:#d8ffe4;
 
   background:
     linear-gradient(
       180deg,
-      #e1f6df 0%,
-      #a4d39e 58%,
-      #72ad69 100%
+      #3e8d56 0%,
+      #1f6f3a 58%,
+      #0e4a26 100%
     );
 }
 
 #stopProgress{
-  color:#111;
+  color:#fff;
 }
 
 /* ================= EXECUTION PANEL ================= */
@@ -346,9 +320,9 @@ button{
   background:
     linear-gradient(
       180deg,
-      #f5f5f5 0%,
-      #d2d2d2 58%,
-      #a8a8a8 100%
+      #173862 0%,
+      #0b2344 58%,
+      #05162d 100%
     );
 
   border-top:3px solid #ffffff;
@@ -362,30 +336,30 @@ button{
 }
 
 .location-title{
-  color:#174f91;
-  text-shadow:0 1px 0 #fff;
+  color:#74b3ff;
+  text-shadow:0 1px 0 rgba(0,0,0,.65);
 }
 
 #currentStopAddress{
-  color:#111;
-  text-shadow:0 1px 0 rgba(255,255,255,.72);
+  color:#fff;
+  text-shadow:0 1px 0 rgba(0,0,0,.65);
 }
 
 #stopStatusText{
-  color:#38414c;
+  color:#a8bdd7;
 }
 
 #waitTimer{
   margin-top:10px;
   border-radius:7px;
-  color:#0d4f9b;
+  color:#57a3ff;
 
   background:
     linear-gradient(
       180deg,
-      #f2f2f2,
-      #c9c9c9 58%,
-      #9f9f9f
+      #173862,
+      #0b2344 58%,
+      #05162d
     );
 
   border-top:3px solid #ffffff;
@@ -429,9 +403,9 @@ button{
   background:
     linear-gradient(
       180deg,
-      #f7f7f7 0%,
-      #d7d7d7 52%,
-      #bdbdbd 100%
+      #173862 0%,
+      #0b2344 52%,
+      #05162d 100%
     );
 
   border-top:3px solid #ffffff;
@@ -456,15 +430,15 @@ button{
   background:
     linear-gradient(
       180deg,
-      #d7f7cf 0%,
-      #9dd58f 55%,
-      #76b767 100%
+      #c9f6bc 0%,
+      #72cf62 55%,
+      #3e9f37 100%
     );
 
   border-top-color:#efffe9;
   border-left-color:#efffe9;
-  border-right-color:#3f7138;
-  border-bottom-color:#315e2c;
+  border-right-color:#2f6f2a;
+  border-bottom-color:#245a20;
 }
 
 .passenger-row.cancelled-card,
@@ -509,14 +483,14 @@ button{
   display:block;
   width:100%;
   min-width:0;
-  color:#111;
+  color:#fff;
   font-size:16px;
   line-height:1.2;
   font-weight:900;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  text-shadow:0 1px 0 rgba(255,255,255,.8);
+  text-shadow:0 1px 0 rgba(0,0,0,.65);
 }
 
 .passenger-actions{
@@ -534,8 +508,6 @@ button{
 .passenger-btn,
 #btnPrimaryAction,
 #btnStartRide,
-#eyeBtn,
-#recenterBtn,
 .modal-close,
 #btnSubmitReason{
   border-radius:6px;
@@ -559,8 +531,6 @@ button{
 .passenger-btn:active:not(:disabled),
 #btnPrimaryAction:active:not(:disabled),
 #btnStartRide:active:not(:disabled),
-#eyeBtn:active:not(:disabled),
-#recenterBtn:active:not(:disabled),
 .modal-close:active:not(:disabled),
 #btnSubmitReason:active:not(:disabled){
   transform:translateY(2px);
@@ -599,12 +569,13 @@ button{
 }
 
 .passenger-btn.pickup{
+  color:#fff;
   background:
     linear-gradient(
       180deg,
-      #dff4df,
-      #9fd29f 58%,
-      #6cac6c
+      #214f82,
+      #0e315d 58%,
+      #071c38
     );
 }
 
@@ -620,13 +591,13 @@ button{
 }
 
 .passenger-btn.call{
-  color:#082a73;
+  color:#ffffff;
   background:
     linear-gradient(
       180deg,
-      #e9eef8,
-      #bcc8df 58%,
-      #899bbd
+      #214f82,
+      #0e315d 58%,
+      #071c38
     );
 }
 
@@ -662,8 +633,9 @@ button{
   box-shadow:
     inset 0 0 0 1px rgba(0,0,0,.15);
 
-  font-size:15px;
+  font-size:22px;
   font-weight:1000;
+  letter-spacing:.4px;
   text-shadow:0 1px 0 rgba(255,255,255,.75);
 }
 
@@ -697,7 +669,9 @@ button{
 }
 
 #btnPrimaryAction.blue{
-  background:linear-gradient(180deg,#dcecff,#8bb8ee 58%,#5c8bc5);
+  color:#fff;
+  background:linear-gradient(180deg,#214f82,#0e315d 58%,#071c38);
+  text-shadow:0 1px 0 rgba(0,0,0,.70);
 }
 
 #btnPrimaryAction.green{
@@ -705,7 +679,9 @@ button{
 }
 
 #btnPrimaryAction.gold{
-  background:linear-gradient(180deg,#fff3bf,#e2bd59 58%,#b88d26);
+  color:#fff;
+  background:linear-gradient(180deg,#214f82,#0e315d 58%,#071c38);
+  text-shadow:0 1px 0 rgba(0,0,0,.70);
 }
 
 #btnPrimaryAction.red{
@@ -713,8 +689,8 @@ button{
 }
 
 #btnPrimaryAction.muted{
-  color:#5f6874;
-  background:linear-gradient(180deg,#e3e6ea,#b4bac2 58%,#8f969f);
+  color:#879ab2;
+  background:linear-gradient(180deg,#18314f,#10243e 58%,#09172a);
 }
 
 #btnPrimaryAction:disabled{
@@ -728,8 +704,8 @@ button{
   min-height:56px;
   margin:13px auto 3px;
   padding:8px 12px;
-  color:#70757c;
-  background:linear-gradient(180deg,#dadde2,#adb3ba 58%,#868d96);
+  color:#8092aa;
+  background:linear-gradient(180deg,#173758,#0d2849 58%,#07182d);
   opacity:.55;
   pointer-events:none;
   font-size:13px;
@@ -744,8 +720,8 @@ button{
 }
 
 #btnStartRide:disabled{
-  color:#70757c;
-  background:linear-gradient(180deg,#dadde2,#adb3ba 58%,#868d96);
+  color:#8092aa;
+  background:linear-gradient(180deg,#173758,#0d2849 58%,#07182d);
   opacity:.55;
   pointer-events:none;
 }
@@ -889,14 +865,6 @@ button{
 
 /* ================= RETRO CONTROL OVERRIDES ================= */
 
-#eyeBtn,
-#recenterBtn{
-  border-radius:8px;
-  color:#111;
-  background:linear-gradient(180deg,#f4f4f4,#c6c6c6 58%,#929292);
-  backdrop-filter:none;
-}
-
 .modal-close{
   color:#111;
   background:linear-gradient(180deg,#f4f4f4,#c6c6c6 58%,#929292);
@@ -1004,7 +972,7 @@ button{
 
   .passenger-final-state{
     min-height:52px;
-    font-size:13px;
+    font-size:19px;
   }
 }
 
@@ -1029,31 +997,14 @@ button{
       <div class="map-right">
         <div id="currentActionBadge">PICKUP</div>
         <div id="gpsBadge">GPS</div>
-
-        <button
-          id="eyeBtn"
-          type="button"
-          aria-label="View trip details"
-        >
-          ◉
-        </button>
-      </div>
+</div>
 
     </div>
 
     <div class="map-bottom">
       <div id="stopProgress">Stop 1</div>
     </div>
-
-    <button
-      id="recenterBtn"
-      type="button"
-      aria-label="Recenter map"
-    >
-      ◎
-    </button>
-
-  </main>
+</main>
 
   <section class="execution-panel">
 

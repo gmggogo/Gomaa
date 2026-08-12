@@ -3464,7 +3464,7 @@ function renderPickupPassengers(stop){
 
       const finalLabel =
         state === "PICKED"
-          ? "✓ PICKED"
+          ? "PICKED UP"
           : state === "CANCELLED"
             ? "✕ CANCELLED"
             : state === "NO_SHOW"
@@ -4514,10 +4514,6 @@ btnSubmitReason?.addEventListener("click", async () => {
 
 /* ================= DETAILS ================= */
 
-eyeBtn?.addEventListener("click", () => {
-  renderTripDetails();
-  show(detailsBox, "flex");
-});
 
 btnCloseDetails?.addEventListener("click", () => {
   hide(detailsBox);
@@ -4525,10 +4521,6 @@ btnCloseDetails?.addEventListener("click", () => {
 
 /* ================= RECENTER ================= */
 
-recenterBtn?.addEventListener("click", () => {
-  userMovedMap = false;
-  fitMap();
-});
 
 /* ================= LOCATION PUSH ================= */
 
