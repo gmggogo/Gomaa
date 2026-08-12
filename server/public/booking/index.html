@@ -982,6 +982,72 @@ Do you want to continue?`
     stops:
     tripData.stops || [],
 
+    /* =========================
+       SAVED COORDINATES + ROUTE
+       Passed unchanged from Get Quote.
+    ========================= */
+
+    pickupLat:
+    tripData.pickupLat ?? null,
+
+    pickupLng:
+    tripData.pickupLng ?? null,
+
+    dropoffLat:
+    tripData.dropoffLat ?? null,
+
+    dropoffLng:
+    tripData.dropoffLng ?? null,
+
+    stopCoords:
+    Array.isArray(tripData.stopCoords)
+      ? tripData.stopCoords
+      : [],
+
+    miles:
+    Number(tripData.miles || 0),
+
+    distanceMeters:
+    Number(tripData.distanceMeters || 0),
+
+    durationSeconds:
+    Number(tripData.durationSeconds || 0),
+
+    estimatedMinutes:
+    Number(tripData.estimatedMinutes || 0),
+
+    googleRoute:
+    tripData.googleRoute || {},
+
+    optimizedRoute:
+    tripData.optimizedRoute ||
+    tripData.googleRoute ||
+    {},
+
+    routePath:
+    Array.isArray(tripData.routePath)
+      ? tripData.routePath
+      : [],
+
+    routePoints:
+    Array.isArray(tripData.routePoints)
+      ? tripData.routePoints
+      : [
+          tripData.pickup,
+          ...(tripData.stops || []),
+          tripData.dropoff
+        ],
+
+    routeLocked:
+    tripData.routeLocked === true,
+
+    routeFinalized:
+    tripData.routeFinalized === true,
+
+    routeSource:
+    tripData.routeSource ||
+    "getquote-browser-directions",
+
     priceAmount:
     cleanPrice,
 
