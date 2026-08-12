@@ -805,6 +805,19 @@ routePoints: {
   default: []
 },
 
+routePath: {
+  type: [{
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null }
+  }],
+  default: []
+},
+
+overviewPolyline: {
+  type: String,
+  default: ""
+},
+
 routeLocked: {
   type: Boolean,
   default: false
@@ -4669,8 +4682,29 @@ if (isShared) {
       pickup:
         normalizeText(p.pickup),
 
+      pickupLat:
+        normalizeNumber(p.pickupLat),
+
+      pickupLng:
+        normalizeNumber(p.pickupLng),
+
       dropoff:
         normalizeText(p.dropoff),
+
+      dropoffLat:
+        normalizeNumber(p.dropoffLat),
+
+      dropoffLng:
+        normalizeNumber(p.dropoffLng),
+
+      pickupOrder:
+        Number(p.pickupOrder || 0),
+
+      dropoffOrder:
+        Number(p.dropoffOrder || 0),
+
+      routeOrder:
+        Number(p.routeOrder || (i + 1)),
 
       status:
         normalizeText(
@@ -4838,6 +4872,44 @@ if (isShared) {
             ? parseStopCoords(req.body.stopCoords)
             : [],
 
+        googleRoute:
+          req.body.googleRoute && typeof req.body.googleRoute === "object"
+            ? req.body.googleRoute
+            : {},
+
+        optimizedRoute:
+          req.body.optimizedRoute && typeof req.body.optimizedRoute === "object"
+            ? req.body.optimizedRoute
+            : {},
+
+        routePoints:
+          Array.isArray(req.body.routePoints)
+            ? req.body.routePoints.map(normalizeText).filter(Boolean)
+            : [],
+
+        routePath:
+          Array.isArray(req.body.routePath)
+            ? req.body.routePath.map(p=>({
+                lat:normalizeNumber(p?.lat),
+                lng:normalizeNumber(p?.lng)
+              })).filter(p=>p.lat !== null && p.lng !== null)
+            : [],
+
+        overviewPolyline:
+          normalizeText(req.body.overviewPolyline),
+
+        routeLocked:
+          req.body.routeLocked === true,
+
+        routeFinalized:
+          req.body.routeFinalized === true,
+
+        routeSource:
+          normalizeText(req.body.routeSource),
+
+        routeUpdatedAt:
+          req.body.routeUpdatedAt || null,
+
         /* DATE */
 
         tripDate:
@@ -4978,6 +5050,44 @@ serviceCode: vehicleTypeFromQuote,
       dropoffLat: normalizeNumber(req.body.dropoffLat),
       dropoffLng: normalizeNumber(req.body.dropoffLng),
       stopCoords: parseStopCoords(req.body.stopCoords),
+
+      googleRoute:
+        req.body.googleRoute && typeof req.body.googleRoute === "object"
+          ? req.body.googleRoute
+          : {},
+
+      optimizedRoute:
+        req.body.optimizedRoute && typeof req.body.optimizedRoute === "object"
+          ? req.body.optimizedRoute
+          : {},
+
+      routePoints:
+        Array.isArray(req.body.routePoints)
+          ? req.body.routePoints.map(normalizeText).filter(Boolean)
+          : [],
+
+      routePath:
+        Array.isArray(req.body.routePath)
+          ? req.body.routePath.map(p=>({
+              lat:normalizeNumber(p?.lat),
+              lng:normalizeNumber(p?.lng)
+            })).filter(p=>p.lat !== null && p.lng !== null)
+          : [],
+
+      overviewPolyline:
+        normalizeText(req.body.overviewPolyline),
+
+      routeLocked:
+        req.body.routeLocked === true,
+
+      routeFinalized:
+        req.body.routeFinalized === true,
+
+      routeSource:
+        normalizeText(req.body.routeSource),
+
+      routeUpdatedAt:
+        req.body.routeUpdatedAt || null,
 
       tripDate: normalizeText(req.body.tripDate),
       tripTime: normalizeText(req.body.tripTime),
@@ -5611,6 +5721,15 @@ app.put("/api/trips/:id", async (req, res) => {
       clientName: req.body.clientName ?? existing.clientName,
       clientPhone: req.body.clientPhone ?? existing.clientPhone,
 
+      serviceType:
+        req.body.serviceType ?? existing.serviceType,
+
+      serviceKey:
+        req.body.serviceKey ?? existing.serviceKey,
+
+      serviceCode:
+        req.body.serviceCode ?? existing.serviceCode,
+
       // LOCATIONS
       pickup: req.body.pickup ?? existing.pickup,
       dropoff: req.body.dropoff ?? existing.dropoff,
@@ -5675,6 +5794,39 @@ optimizedRoute:
   req.body.optimizedRoute !== undefined
     ? req.body.optimizedRoute
     : existing.optimizedRoute,
+
+routePath:
+  Array.isArray(req.body.routePath)
+    ? req.body.routePath.map(p=>({
+        lat:normalizeNumber(p?.lat),
+        lng:normalizeNumber(p?.lng)
+      })).filter(p=>p.lat !== null && p.lng !== null)
+    : existing.routePath,
+
+overviewPolyline:
+  req.body.overviewPolyline !== undefined
+    ? normalizeText(req.body.overviewPolyline)
+    : existing.overviewPolyline,
+
+routeLocked:
+  req.body.routeLocked !== undefined
+    ? req.body.routeLocked === true
+    : existing.routeLocked,
+
+routeFinalized:
+  req.body.routeFinalized !== undefined
+    ? req.body.routeFinalized === true
+    : existing.routeFinalized,
+
+routeSource:
+  req.body.routeSource !== undefined
+    ? normalizeText(req.body.routeSource)
+    : existing.routeSource,
+
+routeUpdatedAt:
+  req.body.routeUpdatedAt !== undefined
+    ? req.body.routeUpdatedAt
+    : existing.routeUpdatedAt,
 
       // SHARED
       passengers: Array.isArray(req.body.passengers)
@@ -5942,7 +6094,7 @@ app.get("/api/driver/my-trips/:driverId", async (req, res) => {
         .map(a => a.tripId)
         .filter(Boolean);
 
-    const tripRows =
+    const tripDocs =
       await Trip.find({
 
         _id: {
@@ -5953,8 +6105,23 @@ app.get("/api/driver/my-trips/:driverId", async (req, res) => {
           $ne: true
         }
 
-      })
-      .lean();
+      });
+
+    /*
+      Repair missing coordinates BEFORE Driver Trips / Driver Map receives
+      the trip. Existing saved route data is reused first; geocode is only
+      the last fallback.
+    */
+    for(const tripDoc of tripDocs){
+      await ensureTripCoords(tripDoc);
+    }
+
+    const tripRows =
+      tripDocs.map(t=>
+        t?.toObject
+          ? t.toObject()
+          : t
+      );
 
     const tripMap =
       new Map(
