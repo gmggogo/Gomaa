@@ -2688,33 +2688,111 @@ function fitMap(){
 /* ================= EXTERNAL NAVIGATION ================= */
 
 function openGoogleNavigation(){
-  const stop = currentStop();
-  if(!stop) return;
 
-  let destination = "";
+  const stop =
+    currentStop();
 
-  if(validPoint(stop.lat, stop.lng)){
-    destination = `${stop.lat},${stop.lng}`;
+  if(!stop){
+    return;
+  }
+
+  let destination =
+    "";
+
+  if(
+    validPoint(
+      stop.lat,
+      stop.lng
+    )
+  ){
+
+    destination =
+      `${Number(stop.lat)},${Number(stop.lng)}`;
+
   }else{
-    destination = encodeURIComponent(stop.address || "");
+
+    destination =
+      clean(
+        stop.address
+      );
+
   }
 
   if(!destination){
-    alert("Destination not found");
+
+    alert(
+      "Destination not found"
+    );
+
+    return;
+  }
+
+  /*
+    DIRECT GOOGLE MAPS OPEN
+
+    - No window.open()
+    - No target="_blank"
+    - No extra app-created blank tab/page
+
+    Android:
+      google.navigation: opens Google Maps navigation directly.
+
+    iPhone / other:
+      Google Maps universal URL in the same browsing context.
+  */
+
+  const isAndroid =
+    /Android/i.test(
+      navigator.userAgent
+    );
+
+  if(isAndroid){
+
+    const navigationUrl =
+      "google.navigation:q=" +
+      encodeURIComponent(
+        destination
+      ) +
+      "&mode=d";
+
+    window.location.replace(
+      navigationUrl
+    );
+
     return;
   }
 
   const origin =
-    validPoint(driverLat, driverLng)
-      ? `&origin=${driverLat},${driverLng}`
+    validPoint(
+      driverLat,
+      driverLng
+    )
+      ? `${driverLat},${driverLng}`
       : "";
 
-  window.location.href =
-    "https://www.google.com/maps/dir/?api=1" +
-    origin +
+  let mapsUrl =
+    "https://www.google.com/maps/dir/?api=1";
+
+  if(origin){
+
+    mapsUrl +=
+      "&origin=" +
+      encodeURIComponent(
+        origin
+      );
+
+  }
+
+  mapsUrl +=
     "&destination=" +
-    destination +
+    encodeURIComponent(
+      destination
+    ) +
     "&travelmode=driving";
+
+  window.location.replace(
+    mapsUrl
+  );
 }
 
 /* ================= CURRENT TRIP UI ================= */
