@@ -478,6 +478,8 @@ let map;
 let directionsService;
 let directionsRenderer;
 
+let calculatedRouteData = null;
+
 /* ================= TRANSLATE ================= */
 
 const words = {
@@ -930,6 +932,8 @@ document
 
 function resetUI(){
 
+calculatedRouteData = null;
+
 bookBtn.classList.add("hidden");
 
 bookBtn.classList.remove("active");
@@ -1096,6 +1100,206 @@ leg.end_location
 
 map.fitBounds(bounds);
 
+const route =
+  res?.routes?.[0] || null;
+
+const legs =
+  Array.isArray(route?.legs)
+    ? route.legs
+    : [];
+
+const firstLeg =
+  legs[0] || null;
+
+const lastLeg =
+  legs[legs.length - 1] || null;
+
+function pointValue(point,key){
+
+  if(!point){
+    return null;
+  }
+
+  try{
+
+    const value =
+      typeof point[key] === "function"
+        ? point[key]()
+        : point[key];
+
+    const num =
+      Number(value);
+
+    return Number.isFinite(num)
+      ? num
+      : null;
+
+  }catch(err){
+
+    return null;
+  }
+}
+
+const pickupLat =
+  pointValue(
+    firstLeg?.start_location,
+    "lat"
+  );
+
+const pickupLng =
+  pointValue(
+    firstLeg?.start_location,
+    "lng"
+  );
+
+const dropoffLat =
+  pointValue(
+    lastLeg?.end_location,
+    "lat"
+  );
+
+const dropoffLng =
+  pointValue(
+    lastLeg?.end_location,
+    "lng"
+  );
+
+const stopCoords =
+  stopsInputs.map(
+    (stop,index)=>{
+
+      const leg =
+        legs[index] || null;
+
+      return {
+        address:
+          fixRegion(
+            String(
+              stop?.location || ""
+            )
+          ),
+
+        lat:
+          pointValue(
+            leg?.end_location,
+            "lat"
+          ),
+
+        lng:
+          pointValue(
+            leg?.end_location,
+            "lng"
+          )
+      };
+    }
+  );
+
+const routePath =
+  Array.isArray(
+    route?.overview_path
+  )
+    ? route.overview_path.map(
+        point=>({
+          lat:
+            pointValue(
+              point,
+              "lat"
+            ),
+          lng:
+            pointValue(
+              point,
+              "lng"
+            )
+        })
+      )
+      .filter(
+        point=>
+          Number.isFinite(point.lat) &&
+          Number.isFinite(point.lng)
+      )
+    : [];
+
+calculatedRouteData = {
+  pickupLat,
+  pickupLng,
+  dropoffLat,
+  dropoffLng,
+  stopCoords,
+  routePath,
+
+  distanceMeters:0,
+  durationSeconds:0,
+  estimatedMinutes:0,
+  miles:0,
+
+  googleRoute:{
+    summary:
+      route?.summary || "",
+
+    waypointOrder:
+      Array.isArray(
+        route?.waypoint_order
+      )
+        ? route.waypoint_order
+        : [],
+
+    legs:
+      legs.map(
+        (leg,index)=>({
+          legIndex:index,
+
+          startAddress:
+            leg?.start_address || "",
+
+          endAddress:
+            leg?.end_address || "",
+
+          startLat:
+            pointValue(
+              leg?.start_location,
+              "lat"
+            ),
+
+          startLng:
+            pointValue(
+              leg?.start_location,
+              "lng"
+            ),
+
+          endLat:
+            pointValue(
+              leg?.end_location,
+              "lat"
+            ),
+
+          endLng:
+            pointValue(
+              leg?.end_location,
+              "lng"
+            ),
+
+          distanceText:
+            leg?.distance?.text || "",
+
+          distanceMeters:
+            Number(
+              leg?.distance?.value || 0
+            ),
+
+          durationText:
+            leg?.duration?.text || "",
+
+          durationSeconds:
+            Number(
+              leg?.duration?.value || 0
+            )
+        })
+      ),
+
+    routePath
+  }
+};
+
 let meters = 0;
 let sec = 0;
 
@@ -1114,6 +1318,21 @@ Math.round(sec / 60);
 
 const stops =
 stopsInputs.length;
+
+if(calculatedRouteData){
+
+  calculatedRouteData.miles =
+    Number(miles || 0);
+
+  calculatedRouteData.distanceMeters =
+    Number(meters || 0);
+
+  calculatedRouteData.durationSeconds =
+    Number(sec || 0);
+
+  calculatedRouteData.estimatedMinutes =
+    Number(mins || 0);
+}
 
 try{
 
@@ -1328,6 +1547,68 @@ const tripData = {
 
   vehicleType:
   selectedService,
+
+  pickupLat:
+    calculatedRouteData?.pickupLat ?? null,
+
+  pickupLng:
+    calculatedRouteData?.pickupLng ?? null,
+
+  dropoffLat:
+    calculatedRouteData?.dropoffLat ?? null,
+
+  dropoffLng:
+    calculatedRouteData?.dropoffLng ?? null,
+
+  stopCoords:
+    Array.isArray(
+      calculatedRouteData?.stopCoords
+    )
+      ? calculatedRouteData.stopCoords
+      : [],
+
+  miles:
+    Number(
+      calculatedRouteData?.miles || 0
+    ),
+
+  distanceMeters:
+    Number(
+      calculatedRouteData?.distanceMeters || 0
+    ),
+
+  durationSeconds:
+    Number(
+      calculatedRouteData?.durationSeconds || 0
+    ),
+
+  estimatedMinutes:
+    Number(
+      calculatedRouteData?.estimatedMinutes || 0
+    ),
+
+  googleRoute:
+    calculatedRouteData?.googleRoute || {},
+
+  optimizedRoute:
+    calculatedRouteData?.googleRoute || {},
+
+  routePath:
+    Array.isArray(
+      calculatedRouteData?.routePath
+    )
+      ? calculatedRouteData.routePath
+      : [],
+
+  routePoints:[
+    pickupVal,
+    ...stops,
+    dropVal
+  ],
+
+  routeLocked:true,
+  routeFinalized:true,
+  routeSource:"getquote-browser-directions",
 
   /* =========================
      WARNING POLICY
