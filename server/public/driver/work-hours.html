@@ -21,17 +21,24 @@
 
 html,body{
   margin:0;
-  min-height:100%;
+  width:100%;
+  height:100%;
 }
 
 body.work-hours-page{
   color:var(--text);
-  padding-bottom:150px;
+  height:100dvh;
+  min-height:100dvh;
+  overflow:hidden !important;
+  padding:0 !important;
+  display:flex;
+  flex-direction:column;
+  overscroll-behavior:none;
 }
 
 .work-hours-header{
-  position:sticky;
-  top:0;
+  position:relative;
+  flex:0 0 auto;
   z-index:20;
   text-align:center;
   padding:22px 18px 18px;
@@ -58,7 +65,12 @@ body.work-hours-page{
 }
 
 .work-hours-shell{
-  padding:16px 18px 30px;
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:16px 18px calc(108px + env(safe-area-inset-bottom));
 }
 
 .filters{
@@ -66,6 +78,7 @@ body.work-hours-page{
   grid-template-columns:repeat(3,1fr);
   gap:9px;
   margin-bottom:16px;
+  flex:0 0 auto;
 }
 
 .filters button{
@@ -90,9 +103,10 @@ body.work-hours-page{
 
 .hours-summary{
   position:relative;
+  flex:0 0 auto;
   overflow:hidden;
   padding:20px 22px;
-  margin-bottom:20px;
+  margin-bottom:16px;
   border-radius:25px;
   background:linear-gradient(145deg,#0d3768 0%,#061a36 72%);
   border:2px solid rgba(255,210,31,.72);
@@ -146,6 +160,22 @@ body.work-hours-page{
   text-transform:uppercase;
 }
 
+#list{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto !important;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+  overscroll-behavior-y:contain;
+  scrollbar-width:none;
+  padding:2px 2px 24px;
+}
+
+#list::-webkit-scrollbar{
+  display:none;
+}
+
 .day-section{
   margin:0 0 20px;
 }
@@ -154,17 +184,22 @@ body.work-hours-page{
   display:flex;
   align-items:center;
   gap:12px;
-  margin:0 4px 11px;
+  margin:0 4px 12px;
   color:var(--gold);
   font-size:19px;
   font-weight:900;
+  white-space:nowrap;
+  text-shadow:0 2px 3px rgba(0,0,0,.35);
 }
 
 .day-heading::after{
   content:"";
-  flex:1;
-  height:1px;
-  background:linear-gradient(90deg,var(--gold),transparent);
+  flex:1 1 auto;
+  min-width:34px;
+  height:3px;
+  border-radius:999px;
+  background:linear-gradient(90deg,#ffd21f 0%,#ffe98a 55%,rgba(255,210,31,.18) 100%);
+  box-shadow:0 1px 0 rgba(0,0,0,.35),0 0 7px rgba(255,210,31,.28);
 }
 
 .hours-card{
