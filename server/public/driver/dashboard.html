@@ -18,10 +18,6 @@
 
   <main class="dashboard-shell">
 
-    <!-- =========================================
-         DRIVER HEADER
-    ========================================== -->
-
     <section class="driver-identity-header">
 
       <div class="driver-avatar" aria-hidden="true">
@@ -52,10 +48,6 @@
 
     </section>
 
-    <!-- =========================================
-         BRAND / LOGO
-    ========================================== -->
-
     <header class="dashboard-header dashboard-header-clean">
 
       <div class="profile-logo-standalone clean-logo">
@@ -73,10 +65,6 @@
 
     </header>
 
-    <!-- =========================================
-         STATUS
-    ========================================== -->
-
     <section
       class="status-pill"
       aria-label="Driver status"
@@ -93,10 +81,6 @@
 
     </section>
 
-    <!-- =========================================
-         SCROLLABLE DASHBOARD AREA
-    ========================================== -->
-
     <div
       class="dashboard-scroll"
       id="dashboardScroll"
@@ -109,17 +93,14 @@
           id="cardTrips"
           type="button"
         >
-
           <img
             class="dashboard-card-icon trips-icon"
             src="assets/trips.png"
             alt=""
           />
-
           <span class="dashboard-card-title">
             Trips
           </span>
-
         </button>
 
         <button
@@ -127,17 +108,14 @@
           id="cardMap"
           type="button"
         >
-
           <img
             class="dashboard-card-icon map-icon"
             src="assets/live-map.png"
             alt=""
           />
-
           <span class="dashboard-card-title">
             Live Map
           </span>
-
         </button>
 
         <button
@@ -145,17 +123,14 @@
           id="cardHours"
           type="button"
         >
-
           <img
             class="dashboard-card-icon hours-icon"
             src="assets/work-hours.png"
             alt=""
           />
-
           <span class="dashboard-card-title">
             Work Hours
           </span>
-
         </button>
 
         <button
@@ -163,17 +138,30 @@
           id="cardEarnings"
           type="button"
         >
-
           <img
             class="dashboard-card-icon earnings-icon"
             src="assets/earnings.png"
             alt=""
           />
-
           <span class="dashboard-card-title">
             Earnings
           </span>
+        </button>
 
+        <button
+          class="dashboard-card glow-blue"
+          id="cardHistory"
+          type="button"
+        >
+          <span
+            class="dashboard-card-icon history-icon"
+            aria-hidden="true"
+            style="display:flex;align-items:center;justify-content:center;font-size:30px;"
+          >🕘</span>
+
+          <span class="dashboard-card-title">
+            Trip History
+          </span>
         </button>
 
       </section>
@@ -183,36 +171,24 @@
         id="cardSummary"
         type="button"
       >
-
         <span class="summary-icon-crop">
-
           <img
             class="summary-final-icon"
             src="assets/summary.png"
             alt=""
           />
-
         </span>
 
         <span class="summary-final-text">
           View Summary
         </span>
-
       </button>
 
     </div>
 
   </main>
 
-  <!-- =========================================
-       SHARED BOTTOM NAV
-  ========================================== -->
-
   <div id="driverNav"></div>
-
-  <!-- =========================================
-       APP SCRIPTS
-  ========================================== -->
 
   <script src="/core/branding.js"></script>
 

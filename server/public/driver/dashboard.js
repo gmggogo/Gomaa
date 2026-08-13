@@ -9,6 +9,7 @@ window.SUNBEAM_DRIVER_DASHBOARD = true;
 const ROUTES = {
   dashboard:"dashboard.html",
   trips:"trips.html",
+  history:"trip-history.html",
   map:"map.html",
   hours:"work-hours.html",
   earnings:"earnings.html",
@@ -103,6 +104,7 @@ function bindClick(id,handler){
 function bindNavigation(){
 
   bindClick("cardTrips",()=>go("trips"));
+  bindClick("cardHistory",()=>go("history"));
   bindClick("cardMap",()=>go("map"));
   bindClick("cardHours",()=>go("hours"));
   bindClick("cardEarnings",()=>go("earnings"));
@@ -118,6 +120,7 @@ function bindNavigation(){
 function exposeGlobals(){
 
   window.goTrips = ()=>go("trips");
+  window.goHistory = ()=>go("history");
   window.goMap = ()=>go("map");
   window.goHours = ()=>go("hours");
   window.goEarnings = ()=>go("earnings");
