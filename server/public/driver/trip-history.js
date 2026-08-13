@@ -179,25 +179,23 @@
 
   function finalStatus(trip){
 
-    const raw =
+    const tripStatus =
       normalizeStatus(
-        trip?.dispatchStatus ||
-        trip?.status ||
-        trip?.passengerStatus
+        trip?.status
       );
 
     if([
       "completed",
       "complete",
       "done"
-    ].includes(raw)){
+    ].includes(tripStatus)){
       return "COMPLETED";
     }
 
     if([
       "no show",
       "noshow"
-    ].includes(raw)){
+    ].includes(tripStatus)){
       return "NO SHOW";
     }
 
@@ -205,21 +203,34 @@
       "cancelled",
       "canceled",
       "cancel"
-    ].includes(raw)){
+    ].includes(tripStatus)){
       return "CANCELLED";
     }
 
     if([
       "not completed",
       "notcompleted"
-    ].includes(raw)){
+    ].includes(tripStatus)){
       return "NOT COMPLETED";
     }
 
-    /*
-      Shared trip fallback:
-      if all passengers are terminal, derive a final trip state.
-    */
+    const dispatchStatus =
+      normalizeStatus(
+        trip?.dispatchStatus
+      );
+
+    if(["completed","complete"].includes(dispatchStatus)){
+      return "COMPLETED";
+    }
+
+    if(["no show","noshow"].includes(dispatchStatus)){
+      return "NO SHOW";
+    }
+
+    if(["cancelled","canceled","cancel"].includes(dispatchStatus)){
+      return "CANCELLED";
+    }
+
     const passengers =
       Array.isArray(trip?.passengers)
         ? trip.passengers
@@ -236,6 +247,7 @@
         statuses.every(s=>
           [
             "completed",
+            "complete",
             "cancelled",
             "canceled",
             "no show",
@@ -245,15 +257,11 @@
 
       if(allTerminal){
 
-        if(statuses.some(s=>s === "completed")){
+        if(statuses.some(s=>["completed","complete"].includes(s))){
           return "COMPLETED";
         }
 
-        if(
-          statuses.every(
-            s=>["no show","noshow"].includes(s)
-          )
-        ){
+        if(statuses.every(s=>["no show","noshow"].includes(s))){
           return "NO SHOW";
         }
 
@@ -287,16 +295,16 @@
 
   function parseTripDate(trip){
 
-    const directCandidates = [
-      trip?.tripDateTime,
-      trip?.scheduledAt,
-      trip?.pickupDateTime,
-      trip?.finalStatusAt,
-      trip?.completedAt,
-      trip?.updatedAt
+    const finalCandidates = [
+      trip?.historyAt,
+      trip?.cancelDateTime,
+      trip?.finalStatusConfirmedAt,
+      trip?.sharedFinalConfirmedAt,
+      trip?.dispatchFinalConfirmedAt,
+      trip?.finalizedAt
     ];
 
-    for(const value of directCandidates){
+    for(const value of finalCandidates){
 
       if(!value){
         continue;
@@ -430,42 +438,13 @@
 
   async function loadTrips(){
 
-    /*
-      First choice: existing driver trip feed.
-      Second choice: general trips endpoint filtered by driver.
-      No data is copied or moved; this page only reads saved trips.
-    */
-    const urls = [
-      `/api/driver/my-trips/${encodeURIComponent(DRIVER_ID)}?includeFinal=true`,
-      `/api/trips?driverId=${encodeURIComponent(DRIVER_ID)}`
-    ];
+    const url =
+      `/api/driver/my-trips/${encodeURIComponent(DRIVER_ID)}?includeFinal=true`;
 
-    let lastError = null;
+    const data =
+      await fetchJson(url);
 
-    for(const url of urls){
-
-      try{
-
-        const data =
-          await fetchJson(url);
-
-        const trips =
-          extractTrips(data);
-
-        if(trips.length){
-          return trips;
-        }
-
-      }catch(err){
-        lastError = err;
-      }
-    }
-
-    if(lastError){
-      throw lastError;
-    }
-
-    return [];
+    return extractTrips(data);
   }
 
   /* =========================

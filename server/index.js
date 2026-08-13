@@ -1184,6 +1184,11 @@ finalStatusConfirmedBy: {
   default: ""
 },
 
+historyAt: {
+  type: Date,
+  default: null
+},
+
 bookedAt: { type: Date, default: Date.now },
 createdAt: { type: Date, default: Date.now }
 
@@ -5970,6 +5975,11 @@ if(updateData.status === "Cancelled"){
   updateData.isFinalized = true;
 
   updateData.cancelDateTime =
+    existing.cancelDateTime ||
+    new Date();
+
+  updateData.historyAt =
+    existing.historyAt ||
     new Date();
 
   updateData.finalPrice =
@@ -5986,6 +5996,10 @@ else if(updateData.status === "No Show"){
 
   updateData.isFinalized = true;
 
+  updateData.historyAt =
+    existing.historyAt ||
+    new Date();
+
   updateData.finalPrice =
     Number(
       existing.noShowFee ||
@@ -5999,6 +6013,10 @@ else if(updateData.status === "No Show"){
 else if(updateData.status === "Completed"){
 
   updateData.isFinalized = true;
+
+  updateData.historyAt =
+    existing.historyAt ||
+    new Date();
 
   updateData.finalPrice =
     Number(
@@ -6065,20 +6083,29 @@ app.get("/api/driver/my-trips/:driverId", async (req, res) => {
 
     }
 
+    const includeFinal =
+      String(req.query.includeFinal || "")
+      .trim()
+      .toLowerCase() === "true";
+
+    const assignmentFilter = {
+      driverId: driverId
+    };
+
+    if(!includeFinal){
+      assignmentFilter.dispatchStatus = {
+        $in: [
+          "SENT",
+          "ACCEPTED",
+          "ON_TRIP"
+        ]
+      };
+    }
+
     const assignments =
-      await DispatchAssignment.find({
-
-        driverId: driverId,
-
-        dispatchStatus: {
-          $in: [
-            "SENT",
-            "ACCEPTED",
-            "ON_TRIP"
-          ]
-        }
-
-      })
+      await DispatchAssignment.find(
+        assignmentFilter
+      )
       .sort({
         sentAt: 1,
         assignedAt: 1
@@ -6408,6 +6435,11 @@ await finalizeIndividualTrip(
   }
 );
 
+if(!trip.historyAt){
+  trip.historyAt = new Date();
+  await trip.save();
+}
+
     /* =========================
        SHARED
     ========================= */
@@ -6611,6 +6643,11 @@ await finalizeIndividualTrip(
     noShowFee
   }
 );
+
+if(!trip.historyAt){
+  trip.historyAt = new Date();
+  await trip.save();
+}
 
     /* =========================
        SHARED SUPPORT
@@ -7010,6 +7047,11 @@ await finalizeIndividualTrip(
     refundAmount
   }
 );
+
+if(!trip.historyAt){
+  trip.historyAt = new Date();
+}
+
 trip.simpleRefundId =
   simpleRefundId;
 
@@ -7504,6 +7546,7 @@ const totalCancelFee =
       trip.priceAmount = totalCancelFee;
       trip.refundAmount = 0;
       trip.cancelDateTime = new Date();
+      trip.historyAt = trip.historyAt || new Date();
       trip.isFinalized = true;
       trip.finalizedAt = new Date();
 
@@ -7557,6 +7600,10 @@ const totalCancelFee =
         refundAmount: 0
       }
     );
+
+    trip.historyAt =
+      trip.historyAt ||
+      new Date();
 
     trip.priceAmount = totalCancelFee;
 
