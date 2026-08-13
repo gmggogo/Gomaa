@@ -18,6 +18,7 @@
 
   <main class="dashboard-shell">
 
+    <!-- DRIVER HEADER -->
     <section class="driver-identity-header">
 
       <div class="driver-avatar" aria-hidden="true">
@@ -27,7 +28,6 @@
       </div>
 
       <div class="driver-identity-text">
-
         <div
           class="driver-name-header"
           id="driverName"
@@ -38,7 +38,6 @@
         <div class="driver-role-header">
           Driver
         </div>
-
       </div>
 
       <div class="driver-online-header">
@@ -48,15 +47,14 @@
 
     </section>
 
+    <!-- BRAND / LOGO -->
     <header class="dashboard-header dashboard-header-clean">
 
       <div class="profile-logo-standalone clean-logo">
-
         <img
           class="logo app-logo"
           alt="Company Logo"
         />
-
       </div>
 
       <div class="company-name">
@@ -65,6 +63,7 @@
 
     </header>
 
+    <!-- STATUS -->
     <section
       class="status-pill"
       aria-label="Driver status"
@@ -81,6 +80,7 @@
 
     </section>
 
+    <!-- SCROLLABLE DASHBOARD -->
     <div
       class="dashboard-scroll"
       id="dashboardScroll"
@@ -88,6 +88,7 @@
 
       <section class="dashboard-grid">
 
+        <!-- FULL WIDTH: TRIPS -->
         <button
           class="dashboard-card glow-blue"
           id="cardTrips"
@@ -98,11 +99,13 @@
             src="assets/trips.png"
             alt=""
           />
+
           <span class="dashboard-card-title">
             Trips
           </span>
         </button>
 
+        <!-- ROW 2: LIVE MAP | TRIP HISTORY -->
         <button
           class="dashboard-card glow-cyan"
           id="cardMap"
@@ -113,11 +116,28 @@
             src="assets/live-map.png"
             alt=""
           />
+
           <span class="dashboard-card-title">
             Live Map
           </span>
         </button>
 
+        <button
+          class="dashboard-card glow-blue"
+          id="cardHistory"
+          type="button"
+        >
+          <span
+            class="dashboard-card-icon history-icon"
+            aria-hidden="true"
+          >🕘</span>
+
+          <span class="dashboard-card-title">
+            Trip History
+          </span>
+        </button>
+
+        <!-- ROW 3: WORK HOURS | EARNINGS -->
         <button
           class="dashboard-card glow-purple"
           id="cardHours"
@@ -128,6 +148,7 @@
             src="assets/work-hours.png"
             alt=""
           />
+
           <span class="dashboard-card-title">
             Work Hours
           </span>
@@ -143,34 +164,21 @@
             src="assets/earnings.png"
             alt=""
           />
+
           <span class="dashboard-card-title">
             Earnings
           </span>
         </button>
 
-        <button
-          class="dashboard-card glow-blue"
-          id="cardHistory"
-          type="button"
-        >
-          <span
-            class="dashboard-card-icon history-icon"
-            aria-hidden="true"
-            style="display:flex;align-items:center;justify-content:center;font-size:30px;"
-          >🕘</span>
-
-          <span class="dashboard-card-title">
-            Trip History
-          </span>
-        </button>
-
       </section>
 
+      <!-- FULL WIDTH: VIEW SUMMARY -->
       <button
         class="summary-card summary-final-card"
         id="cardSummary"
         type="button"
       >
+
         <span class="summary-icon-crop">
           <img
             class="summary-final-icon"
@@ -182,14 +190,17 @@
         <span class="summary-final-text">
           View Summary
         </span>
+
       </button>
 
     </div>
 
   </main>
 
+  <!-- SHARED BOTTOM NAV -->
   <div id="driverNav"></div>
 
+  <!-- APP SCRIPTS -->
   <script src="/core/branding.js"></script>
 
   <script>
