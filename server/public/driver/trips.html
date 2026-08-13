@@ -1383,6 +1383,190 @@ body{
   display:block !important;
 }
 
+
+/* =====================================================
+   TRIP CARD — MODERN + CLASSIC NAVY HYBRID
+   Visual-only override. No trip logic changed.
+===================================================== */
+
+.trip-card{
+  position:relative;
+  margin-bottom:14px;
+  padding:13px;
+  border-radius:19px;
+  overflow:visible;
+
+  background:
+    radial-gradient(circle at 18% 8%,rgba(63,126,207,.18),transparent 34%),
+    linear-gradient(160deg,#153961 0%,#0a274b 42%,#061a35 72%,#04142b 100%);
+
+  border-top:2px solid rgba(255,255,255,.24);
+  border-left:2px solid rgba(255,255,255,.17);
+  border-right:2px solid rgba(0,0,0,.58);
+  border-bottom:3px solid rgba(0,0,0,.72);
+
+  box-shadow:
+    0 5px 0 rgba(1,8,19,.70),
+    0 14px 28px rgba(0,0,0,.28),
+    inset 0 1px 0 rgba(255,255,255,.12),
+    inset 0 -1px 0 rgba(0,0,0,.34);
+}
+
+.trip-card::after{
+  content:"";
+  position:absolute;
+  inset:4px;
+  border-radius:15px;
+  pointer-events:none;
+  border:1px solid rgba(117,170,235,.10);
+}
+
+.trip-card::before{
+  width:5px;
+  top:10px;
+  bottom:10px;
+  left:0;
+  border-radius:0 5px 5px 0;
+  box-shadow:0 0 12px rgba(47,125,246,.22);
+}
+
+.trip-meta-box{
+  min-height:58px;
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(28,66,111,.92),rgba(9,35,70,.94) 58%,rgba(4,22,47,.96));
+  border-top:1px solid rgba(255,255,255,.20);
+  border-left:1px solid rgba(255,255,255,.13);
+  border-right:1px solid rgba(0,0,0,.46);
+  border-bottom:2px solid rgba(0,0,0,.54);
+  box-shadow:0 2px 0 rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+.trip-meta-label{color:#9eb7d6;}
+.trip-meta-value{color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.72);}
+
+.trip-summary-row{
+  margin-top:11px;
+  padding:10px;
+  border-radius:13px;
+  background:linear-gradient(180deg,rgba(13,45,83,.76),rgba(5,25,52,.78));
+  border-top:1px solid rgba(255,255,255,.12);
+  border-left:1px solid rgba(255,255,255,.08);
+  border-right:1px solid rgba(0,0,0,.34);
+  border-bottom:1px solid rgba(0,0,0,.42);
+}
+
+.trip-summary-row .avatar{
+  border-radius:11px;
+  background:linear-gradient(145deg,#28588f,#102f5a 58%,#081d3a);
+  border-top:1px solid rgba(255,255,255,.22);
+  border-left:1px solid rgba(255,255,255,.15);
+  border-right:2px solid rgba(0,0,0,.42);
+  border-bottom:2px solid rgba(0,0,0,.52);
+  box-shadow:0 2px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.execution-status-box{
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(14,48,87,.84),rgba(5,26,54,.88));
+  border-top:1px solid rgba(255,255,255,.14);
+  border-left:1px solid rgba(255,255,255,.08);
+  border-right:1px solid rgba(0,0,0,.35);
+  border-bottom:2px solid rgba(0,0,0,.44);
+  box-shadow:0 2px 0 rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.compact-route{
+  margin-top:11px;
+  padding:4px 9px;
+  border-radius:13px;
+  background:linear-gradient(180deg,rgba(10,39,74,.76),rgba(4,22,47,.84));
+  border-top:1px solid rgba(255,255,255,.11);
+  border-left:1px solid rgba(255,255,255,.07);
+  border-right:1px solid rgba(0,0,0,.30);
+  border-bottom:2px solid rgba(0,0,0,.40);
+}
+
+.compact-route-row{
+  padding-left:1px;
+  padding-right:1px;
+}
+
+.note-box{
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(15,48,87,.72),rgba(5,25,52,.78));
+  border-top:1px solid rgba(255,255,255,.11);
+  border-left:1px solid rgba(255,255,255,.07);
+  border-right:1px solid rgba(0,0,0,.30);
+  border-bottom:2px solid rgba(0,0,0,.40);
+}
+
+.eye-btn{
+  border-radius:10px;
+  background:linear-gradient(180deg,#294e7a,#15375f 58%,#0a2345);
+  color:#dcecff;
+  border-top:2px solid rgba(255,255,255,.30);
+  border-left:2px solid rgba(255,255,255,.20);
+  border-right:2px solid rgba(0,0,0,.52);
+  border-bottom:3px solid rgba(0,0,0,.62);
+  box-shadow:0 3px 0 rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.eye-btn:active{
+  transform:translateY(2px);
+  box-shadow:0 1px 0 rgba(0,0,0,.50),inset 0 2px 4px rgba(0,0,0,.22);
+}
+
+.notification-btn{
+  min-height:47px;
+  border-radius:12px;
+  color:#fff;
+  background:linear-gradient(180deg,#2d5f97 0%,#174474 56%,#0b2b54 100%);
+  border-top:2px solid rgba(255,255,255,.34);
+  border-left:2px solid rgba(255,255,255,.22);
+  border-right:2px solid rgba(0,0,0,.55);
+  border-bottom:3px solid rgba(0,0,0,.68);
+  box-shadow:0 4px 0 rgba(0,0,0,.52),0 8px 16px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.10);
+  text-shadow:0 1px 0 rgba(0,0,0,.72);
+}
+
+.notification-btn:active{
+  transform:translateY(2px);
+  border-top-color:rgba(0,0,0,.42);
+  border-left-color:rgba(0,0,0,.42);
+  border-right-color:rgba(255,255,255,.20);
+  border-bottom-color:rgba(255,255,255,.24);
+  box-shadow:0 1px 0 rgba(0,0,0,.54),inset 0 2px 5px rgba(0,0,0,.25);
+}
+
+.extra-panel{
+  border-radius:12px;
+  background:linear-gradient(180deg,#081f3f,#03142c);
+  border-top:1px solid rgba(255,255,255,.12);
+  border-left:1px solid rgba(255,255,255,.07);
+  border-right:1px solid rgba(0,0,0,.34);
+  border-bottom:2px solid rgba(0,0,0,.44);
+}
+
+.eye-passenger-card{
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(24,66,112,.82),rgba(8,35,70,.86));
+  border-top:1px solid rgba(255,255,255,.13);
+  border-left:1px solid rgba(255,255,255,.08);
+  border-right:1px solid rgba(0,0,0,.32);
+  border-bottom:2px solid rgba(0,0,0,.40);
+}
+
+@media(max-width:390px){
+  .trip-card{border-radius:17px;padding:10px;}
+  .trip-card::after{border-radius:13px;}
+  .trip-meta-box{border-radius:11px;}
+  .trip-summary-row,
+  .execution-status-box,
+  .compact-route,
+  .note-box{border-radius:11px;}
+  .notification-btn{border-radius:11px;}
+}
+
 </style>
 <link rel="stylesheet" href="driver.css">
 </head>
