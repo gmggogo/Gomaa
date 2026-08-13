@@ -1840,3 +1840,117 @@ body.driver-dashboard-page{
     max-height:92px !important;
   }
 }
+
+
+/* =========================================
+   DASHBOARD — MODERN × NAVY CLASSIC MIX
+   FINAL VISUAL OVERRIDE
+   Visual only: cards / status / summary.
+========================================= */
+
+.driver-dashboard-page .dashboard-card{
+  position:relative !important;
+  overflow:hidden !important;
+  color:#ffffff !important;
+  background:
+    radial-gradient(circle at 28% 18%,rgba(91,161,255,.15),transparent 34%),
+    linear-gradient(160deg,#0b2a53 0%,#061d3d 48%,#03142d 100%) !important;
+  border-top:2px solid rgba(160,199,255,.70) !important;
+  border-left:2px solid rgba(117,169,235,.54) !important;
+  border-right:2px solid rgba(0,7,20,.84) !important;
+  border-bottom:3px solid rgba(0,5,16,.94) !important;
+  box-shadow:
+    0 9px 0 rgba(1,9,22,.74),
+    0 15px 28px rgba(2,12,30,.30),
+    inset 0 1px 0 rgba(255,255,255,.13),
+    inset 0 -2px 0 rgba(0,0,0,.27) !important;
+  transition:transform .08s ease,filter .08s ease !important;
+}
+
+.driver-dashboard-page .dashboard-card::before{
+  content:"" !important;
+  position:absolute !important;
+  inset:4px !important;
+  pointer-events:none !important;
+  border-radius:calc(28px - 5px) !important;
+  border:1px solid rgba(145,188,244,.10) !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,0) 42%) !important;
+}
+
+.driver-dashboard-page .dashboard-card:active{
+  transform:translateY(3px) scale(.992) !important;
+  border-top-color:rgba(0,8,22,.78) !important;
+  border-left-color:rgba(0,8,22,.78) !important;
+  border-right-color:rgba(131,181,244,.54) !important;
+  border-bottom-color:rgba(131,181,244,.54) !important;
+  box-shadow:
+    0 5px 0 rgba(1,9,22,.72),
+    0 9px 18px rgba(2,12,30,.26),
+    inset 0 2px 5px rgba(0,0,0,.26) !important;
+}
+
+.driver-dashboard-page .dashboard-card-title{
+  color:#ffffff !important;
+  font-weight:800 !important;
+  letter-spacing:.15px !important;
+  text-shadow:0 2px 4px rgba(0,0,0,.45) !important;
+}
+
+.driver-dashboard-page .summary-card.summary-final-card{
+  background:
+    radial-gradient(circle at 25% 16%,rgba(88,145,255,.14),transparent 35%),
+    linear-gradient(160deg,#0b2a53 0%,#061d3d 50%,#03142d 100%) !important;
+  border-top:2px solid rgba(160,199,255,.70) !important;
+  border-left:2px solid rgba(117,169,235,.54) !important;
+  border-right:2px solid rgba(0,7,20,.84) !important;
+  border-bottom:3px solid rgba(0,5,16,.94) !important;
+  box-shadow:
+    0 8px 0 rgba(1,9,22,.72),
+    0 14px 26px rgba(2,12,30,.28),
+    0 0 0 2px rgba(106,91,255,.10),
+    inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+
+.driver-dashboard-page .summary-card.summary-final-card:active{
+  transform:translateY(3px) scale(.994) !important;
+  box-shadow:
+    0 4px 0 rgba(1,9,22,.72),
+    0 8px 16px rgba(2,12,30,.24),
+    inset 0 2px 5px rgba(0,0,0,.24) !important;
+}
+
+.driver-dashboard-page .summary-final-text{
+  color:#ffffff !important;
+  font-weight:900 !important;
+  text-shadow:0 2px 5px rgba(0,0,0,.42) !important;
+}
+
+.driver-dashboard-page .status-pill{
+  background:
+    radial-gradient(circle at 18% 18%,rgba(60,128,235,.14),transparent 34%),
+    linear-gradient(160deg,#0a2a51 0%,#061d3b 52%,#03142b 100%) !important;
+  border-top:2px solid rgba(126,178,240,.48) !important;
+  border-left:2px solid rgba(91,148,216,.38) !important;
+  border-right:2px solid rgba(0,8,21,.72) !important;
+  border-bottom:3px solid rgba(0,6,18,.82) !important;
+  box-shadow:
+    0 7px 0 rgba(1,9,22,.66),
+    0 12px 22px rgba(2,12,30,.23),
+    0 0 16px rgba(36,240,95,.07),
+    inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+
+.driver-dashboard-page .driver-identity-header{
+  box-shadow:
+    0 7px 0 rgba(1,9,22,.58),
+    0 12px 20px rgba(0,0,0,.16),
+    inset 0 -1px 0 rgba(255,226,104,.30) !important;
+}
+
+/* Bottom nav intentionally left unchanged. */
+
+@media(max-width:390px){
+  .driver-dashboard-page .dashboard-card::before{
+    border-radius:calc(26px - 5px) !important;
+  }
+}
