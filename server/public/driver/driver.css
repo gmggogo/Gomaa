@@ -2138,3 +2138,209 @@ body.driver-dashboard-page{
     height:22px !important;
   }
 }
+
+
+
+/* =========================================
+   GLOBAL BOTTOM NAV — SAME ON ALL DRIVER PAGES
+   Dashboard / Trips / Map / Chat
+   Modern × Navy Classic
+   No icon/image shadows
+========================================= */
+
+.nav{
+  position:fixed !important;
+  left:12px !important;
+  right:12px !important;
+  bottom:max(8px, env(safe-area-inset-bottom)) !important;
+  top:auto !important;
+
+  min-height:80px !important;
+  height:80px !important;
+  padding:8px 8px 9px !important;
+
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-around !important;
+  gap:2px !important;
+
+  z-index:99999 !important;
+
+  border-radius:28px !important;
+
+  background:
+    radial-gradient(
+      circle at 22% 14%,
+      rgba(82,145,230,.14),
+      transparent 36%
+    ),
+    linear-gradient(
+      180deg,
+      #173862 0%,
+      #0b2445 52%,
+      #04152e 100%
+    ) !important;
+
+  border-top:2px solid rgba(154,195,246,.62) !important;
+  border-left:2px solid rgba(116,167,228,.46) !important;
+  border-right:2px solid rgba(0,7,19,.82) !important;
+  border-bottom:3px solid rgba(0,5,15,.92) !important;
+
+  box-shadow:
+    0 8px 0 rgba(1,9,22,.68),
+    0 14px 26px rgba(2,12,30,.26),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -2px 0 rgba(0,0,0,.24) !important;
+
+  backdrop-filter:none !important;
+  transform:none !important;
+  margin:0 !important;
+}
+
+.nav button{
+  min-width:56px !important;
+  padding:6px 4px !important;
+
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:4px !important;
+
+  border:0 !important;
+  border-radius:14px !important;
+
+  color:#d7dce4 !important;
+  background:transparent !important;
+
+  box-shadow:none !important;
+  filter:none !important;
+  text-shadow:none !important;
+  outline:0 !important;
+
+  font-size:10px !important;
+  font-weight:700 !important;
+  cursor:pointer !important;
+}
+
+.nav button.active{
+  color:#ffd226 !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(30,77,130,.72),
+      rgba(8,34,70,.72)
+    ) !important;
+
+  border-top:1px solid rgba(156,196,245,.34) !important;
+  border-left:1px solid rgba(122,172,231,.26) !important;
+  border-right:1px solid rgba(0,8,20,.50) !important;
+  border-bottom:2px solid rgba(0,5,16,.64) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07) !important;
+}
+
+/* Absolutely no tile, glow, drop shadow or image shadow on icons. */
+.nav-svg,
+.nav-svg svg,
+.nav button img,
+.nav-icon{
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  filter:none !important;
+  text-shadow:none !important;
+  outline:0 !important;
+}
+
+.nav-svg{
+  width:24px !important;
+  height:24px !important;
+
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+.nav-svg svg{
+  width:24px !important;
+  height:24px !important;
+  display:block !important;
+  overflow:visible !important;
+}
+
+/* Approved icon colors. */
+.nav-home svg{
+  fill:#ffd226 !important;
+  stroke:#ffd226 !important;
+}
+
+.nav-trips svg{
+  fill:#dce3ee !important;
+  stroke:#dce3ee !important;
+}
+
+.nav-map svg{
+  fill:#12d8d6 !important;
+  stroke:#12d8d6 !important;
+}
+
+.nav-chat svg{
+  fill:#b784ff !important;
+  stroke:#b784ff !important;
+}
+
+.nav-logout svg{
+  fill:#ff8b2f !important;
+  stroke:#ff8b2f !important;
+}
+
+/* Small active underline only, no glow. */
+.nav button.active::after{
+  content:"" !important;
+  width:22px !important;
+  height:4px !important;
+  margin-top:0 !important;
+  border-radius:999px !important;
+  background:#ffd226 !important;
+  box-shadow:none !important;
+}
+
+/* Remove old generated tiles/pseudo shadows. */
+.nav button::before{
+  content:none !important;
+  display:none !important;
+}
+
+/* If old image nav icons still exist anywhere, hide them.
+   driver-nav.js uses SVG, so this is safe. */
+.nav-icon{
+  display:none !important;
+}
+
+@media(max-width:390px){
+  .nav{
+    left:10px !important;
+    right:10px !important;
+    bottom:max(6px, env(safe-area-inset-bottom)) !important;
+
+    min-height:78px !important;
+    height:78px !important;
+    padding:7px 6px 8px !important;
+    border-radius:26px !important;
+  }
+
+  .nav button{
+    min-width:52px !important;
+    font-size:10px !important;
+  }
+
+  .nav-svg,
+  .nav-svg svg{
+    width:22px !important;
+    height:22px !important;
+  }
+}
