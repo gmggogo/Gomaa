@@ -169,6 +169,42 @@ function scheduledDate(trip){
   return d;
 }
 
+
+function actualCompletedDate(trip){
+
+  const candidates = [];
+
+  const direct = [
+    trip?.completedAt,
+    trip?.finalStatusAt
+  ];
+
+  direct.forEach(value=>{
+    if(value !== undefined && value !== null && value !== ""){
+      const d = new Date(value);
+      if(!Number.isNaN(d.getTime())) candidates.push(d);
+    }
+  });
+
+  if(Array.isArray(trip?.passengers)){
+    trip.passengers.forEach(passenger=>{
+      const value = passenger?.completedAt;
+      if(value !== undefined && value !== null && value !== ""){
+        const d = new Date(value);
+        if(!Number.isNaN(d.getTime())) candidates.push(d);
+      }
+    });
+  }
+
+  if(!candidates.length){
+    return null;
+  }
+
+  return new Date(
+    Math.max(...candidates.map(d=>d.getTime()))
+  );
+}
+
 function startOfToday(){
 
   const d = new Date();
@@ -469,20 +505,23 @@ function render(items){
         );
 
       /*
-        Preserve the existing Work Hours rule:
-        the working day ends 30 minutes after
-        the final completed trip's scheduled time.
+        WORK HOURS RULE:
+        Start = first pickup time of the day.
+        End   = actual completion/dropoff time of the last completed trip.
+        Do NOT add 30 minutes per trip.
       */
-      const end =
-        new Date(
-          dayItems[
-            dayItems.length - 1
-          ].date
-        );
+      const actualEnds =
+        dayItems
+          .map(item=>actualCompletedDate(item.trip))
+          .filter(Boolean);
 
-      end.setMinutes(
-        end.getMinutes() + 30
-      );
+      const end = actualEnds.length
+        ? new Date(
+            Math.max(...actualEnds.map(d=>d.getTime()))
+          )
+        : new Date(
+            dayItems[dayItems.length - 1].date
+          );
 
       const hours =
         Math.max(
