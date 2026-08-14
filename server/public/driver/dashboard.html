@@ -18,25 +18,34 @@
       --navy:#04172f;
       --navy2:#0b315f;
       --gold:#ffd226;
-      --gold2:#d99a00;
-      --gold-dark:#7d5200;
-      --white:#ffffff;
+      --gold2:#e1a900;
+      --gold-dark:#765000;
       --green:#28ef70;
+      --white:#ffffff;
     }
 
     *{
       box-sizing:border-box;
     }
 
-    body.driver-dashboard-page{
+    html,
+    body{
       margin:0;
+      width:100%;
+      min-height:100%;
+    }
+
+    body.driver-dashboard-page{
       min-height:100dvh;
       color:#fff;
       padding-bottom:150px;
+      overflow-x:hidden;
     }
 
     .dashboard-shell{
+      width:100%;
       min-height:100dvh;
+      overflow-x:hidden;
     }
 
     /* =========================
@@ -44,8 +53,10 @@
     ========================= */
 
     .driver-identity-header{
+      width:100%;
+
       display:grid;
-      grid-template-columns:auto 1fr auto;
+      grid-template-columns:auto minmax(0,1fr) auto;
       align-items:center;
       gap:12px;
 
@@ -64,9 +75,12 @@
       border-bottom:
         4px solid var(--gold);
 
+      border-radius:
+        0 0 34px 34px;
+
       box-shadow:
-        0 7px 0 rgba(92,60,0,.34),
-        0 13px 24px rgba(0,0,0,.22);
+        0 8px 0 rgba(91,59,0,.34),
+        0 14px 24px rgba(0,0,0,.22);
     }
 
     .driver-avatar{
@@ -104,11 +118,9 @@
       min-width:0;
     }
 
-    /* NAME SLIGHTLY SMALLER */
     .driver-name-header{
       color:#fff;
-
-      font-size:22px;
+      font-size:20px;
       line-height:1;
       font-weight:900;
       letter-spacing:.2px;
@@ -120,22 +132,20 @@
 
     .driver-role-header{
       margin-top:5px;
-
       color:var(--gold);
-
       font-size:14px;
       font-weight:900;
     }
 
-    /* LOGO TOP RIGHT */
     .driver-header-logo{
-      width:124px;
+      width:122px;
       max-width:31vw;
-      height:64px;
+      height:62px;
 
       display:flex;
       align-items:center;
       justify-content:flex-end;
+      overflow:hidden;
     }
 
     .driver-header-logo img{
@@ -151,15 +161,14 @@
     }
 
     /* =========================
-       COMPANY TITLE
+       COMPANY NAME
     ========================= */
 
-    /* MOVED DOWN A LITTLE */
     .dashboard-company{
       margin:
-        34px
+        42px
         18px
-        18px;
+        22px;
 
       text-align:center;
 
@@ -204,7 +213,7 @@
         );
 
       border:
-        2px solid rgba(255,210,38,.82);
+        2px solid rgba(255,210,38,.84);
 
       box-shadow:
         0 7px 0 rgba(79,51,0,.42),
@@ -223,7 +232,6 @@
       height:22px;
 
       border-radius:50%;
-
       background:var(--green);
 
       box-shadow:
@@ -243,19 +251,23 @@
     }
 
     /* =========================
-       DASHBOARD GRID
+       DASHBOARD CONTENT
     ========================= */
 
     .dashboard-scroll{
+      width:100%;
       padding:
         0
         18px
         28px;
+      overflow-x:hidden;
     }
 
     .dashboard-grid{
+      width:100%;
+
       display:grid;
-      grid-template-columns:1fr 1fr;
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
       gap:14px;
     }
 
@@ -263,6 +275,8 @@
     .summary-card{
       position:relative;
       overflow:hidden;
+
+      width:100%;
 
       appearance:none;
       -webkit-tap-highlight-color:transparent;
@@ -339,7 +353,7 @@
     #cardTrips{
       grid-column:1 / -1;
 
-      min-height:145px;
+      min-height:150px;
 
       color:#07172d;
 
@@ -380,15 +394,35 @@
         2px solid rgba(105,67,0,.42);
     }
 
+    .trips-main-icon{
+      position:relative;
+      z-index:2;
+
+      width:52px;
+      height:52px;
+
+      object-fit:contain;
+
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      filter:none !important;
+    }
+
     #cardTrips .dashboard-card-title{
       color:#07172d;
 
       font-size:29px;
+      line-height:1;
       font-weight:900;
 
       text-shadow:
         0 1px 0 rgba(255,255,255,.45);
     }
+
+    /* =========================
+       OTHER CARDS
+    ========================= */
 
     .dashboard-card-title{
       position:relative;
@@ -433,20 +467,25 @@
     }
 
     /* =========================
-       SUMMARY — CLEANER / BETTER
+       VIEW SUMMARY
     ========================= */
+
+    .summary-wrap{
+      width:100%;
+      margin-top:14px;
+    }
 
     .summary-card{
       width:100%;
+      max-width:100%;
       min-height:118px;
 
-      margin-top:14px;
-      padding:18px 24px;
+      margin:0;
+      padding:18px 22px;
 
-      display:grid;
-      grid-template-columns:auto 1fr;
+      display:flex;
       align-items:center;
-      justify-items:center;
+      justify-content:center;
       gap:16px;
 
       border-radius:23px;
@@ -484,32 +523,27 @@
 
     .summary-card::after{
       inset:7px;
-
       border-radius:17px;
-
-      border:
-        1.5px solid rgba(255,210,38,.62);
     }
 
     .summary-icon-crop{
       position:relative;
       z-index:2;
 
-      width:54px;
-      height:54px;
+      width:52px;
+      height:52px;
 
       display:flex;
       align-items:center;
       justify-content:center;
 
       overflow:hidden;
-
-      border-radius:12px;
+      flex:0 0 auto;
     }
 
     .summary-final-icon{
-      width:54px;
-      height:54px;
+      width:52px;
+      height:52px;
 
       object-fit:contain;
 
@@ -522,8 +556,6 @@
     .summary-final-text{
       position:relative;
       z-index:2;
-
-      justify-self:start;
 
       color:#fff;
 
@@ -564,16 +596,17 @@
       }
 
       .driver-name-header{
-        font-size:20px;
+        font-size:19px;
       }
 
       .driver-header-logo{
-        width:112px;
+        width:110px;
         height:58px;
       }
 
       .dashboard-company{
-        margin-top:32px;
+        margin-top:40px;
+        margin-bottom:20px;
         font-size:27px;
       }
 
@@ -592,7 +625,12 @@
       }
 
       #cardTrips{
-        min-height:138px;
+        min-height:142px;
+      }
+
+      .trips-main-icon{
+        width:46px;
+        height:46px;
       }
 
       .dashboard-card-title{
@@ -605,8 +643,8 @@
 
       .summary-card{
         min-height:108px;
-        padding-left:20px;
-        padding-right:20px;
+        padding-left:18px;
+        padding-right:18px;
       }
 
       .summary-final-text{
@@ -684,15 +722,23 @@
 
       <section class="dashboard-grid">
 
-        <!-- MAIN GOLD BUTTON -->
+        <!-- MAIN GOLD TRIPS BUTTON -->
         <button
           class="dashboard-card"
           id="cardTrips"
           type="button"
         >
+
+          <img
+            class="trips-main-icon"
+            src="assets/trips.png"
+            alt=""
+          />
+
           <span class="dashboard-card-title">
             Trips
           </span>
+
         </button>
 
         <!-- LIVE MAP -->
@@ -765,25 +811,29 @@
       </section>
 
       <!-- VIEW SUMMARY -->
-      <button
-        class="summary-card"
-        id="cardSummary"
-        type="button"
-      >
+      <div class="summary-wrap">
 
-        <span class="summary-icon-crop">
-          <img
-            class="summary-final-icon"
-            src="assets/summary.png"
-            alt=""
-          />
-        </span>
+        <button
+          class="summary-card"
+          id="cardSummary"
+          type="button"
+        >
 
-        <span class="summary-final-text">
-          View Summary
-        </span>
+          <span class="summary-icon-crop">
+            <img
+              class="summary-final-icon"
+              src="assets/summary.png"
+              alt=""
+            />
+          </span>
 
-      </button>
+          <span class="summary-final-text">
+            View Summary
+          </span>
+
+        </button>
+
+      </div>
 
     </div>
 
