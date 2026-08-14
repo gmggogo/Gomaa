@@ -2,6 +2,12 @@
    DISPATCH FINAL CONFIRMATION
    Admin / SuperAdmin / Dispatcher
    Final page before Dispatch Review
+
+   Added:
+   - RETURN TO DRIVER for SINGLE trips
+   - Reopens a closed trip if driver closed it by mistake
+   - Uses server endpoint:
+       PATCH /api/dispatch-final-confirmation/:id/return-to-driver
    ========================================================================== */
 
 const API_URL = "/api/dispatch-final-confirmation";
@@ -97,9 +103,11 @@ function parseTripDateTime(t){
 
   const date = String(t.tripDate || "").trim();
   let time = String(t.tripTime || "00:00").trim();
+
   if(!time) time = "00:00";
 
   let d = new Date(`${date}T${time}`);
+
   if(isNaN(d)) d = new Date(`${date} ${time}`);
   if(isNaN(d)) return null;
 
@@ -123,6 +131,7 @@ function formatDateObj(d){
 
 function formatTimeObj(d){
   if(!d || isNaN(d)) return "-";
+
   return d.toLocaleTimeString([],{
     hour:"2-digit",
     minute:"2-digit"
@@ -139,7 +148,9 @@ function getBookedTime(t){
 
 function getHoursDiff(fromDate){
   const d = new Date(fromDate);
+
   if(isNaN(d)) return 0;
+
   return (Date.now() - d.getTime()) / (1000 * 60 * 60);
 }
 
@@ -166,8 +177,12 @@ function getStops(t){
 
 function stopsDisplay(t){
   const arr = getStops(t).map(stopText).filter(Boolean);
+
   if(!arr.length) return "--";
-  return arr.map((x,i)=>`${i+1}. ${x}`).join("\n");
+
+  return arr
+    .map((x,i)=>`${i+1}. ${x}`)
+    .join("\n");
 }
 
 function getFacilityName(t){
@@ -268,9 +283,11 @@ function normalizeFinalStatusValue(status){
 
 function getStatusOptionValue(status){
   const label = normalizeFinalStatusValue(status);
+
   if(label === "Completed") return "completed";
   if(label === "Cancelled") return "cancelled";
   if(label === "No Show") return "noshow";
+
   return "notcompleted";
 }
 
@@ -281,17 +298,20 @@ function statusValueToLabel(v){
   return "Not Completed";
 }
 
-function statusCellHTML(status, isConfirmed){
+function statusCellHTML(status,isConfirmed){
   const label = displayStatus(status);
   const cls = statusClass(status);
   const confirmedClass = isConfirmed ? "confirmed-blue" : cls;
-  return `<div class="status-box ${confirmedClass}">${safe(label)}</div>`;
+
+  return `
+    <div class="status-box ${confirmedClass}">
+      ${safe(label)}
+    </div>
+  `;
 }
 
 /* ===============================
    ENTERED PAGE / CONFIRM ENGINE
-   Closed trips enter Final Confirmation
-   Confirmed trips leave to Dispatch Review
 ================================ */
 
 function getEnteredAt(t){
@@ -424,8 +444,10 @@ function getSourceCode(t){
 
 function sourceLabel(t){
   const code = getSourceCode(t);
+
   if(code === "RV") return "Reserved";
   if(code === "FACILITY") return "Facility";
+
   return "Get Quote";
 }
 
@@ -532,7 +554,7 @@ function getRealPassengersFromGroup(group){
   }
 
   return group.map((t,i)=>({
-    __idx: i,
+    __idx:i,
     passengerId:"P" + (i + 1),
     name:t.name || t.clientName || "",
     phone:t.phone || t.clientPhone || "",
@@ -549,11 +571,17 @@ function getRealPassengersFromGroup(group){
 function getSharedGroups(list = allTrips){
   const map = {};
 
-  list.filter(isSharedTrip).forEach(t=>{
-    const key = getSharedKey(t);
-    if(!map[key]) map[key] = [];
-    map[key].push(t);
-  });
+  list
+    .filter(isSharedTrip)
+    .forEach(t=>{
+      const key = getSharedKey(t);
+
+      if(!map[key]){
+        map[key] = [];
+      }
+
+      map[key].push(t);
+    });
 
   return Object.values(map).map(group =>
     group.sort((a,b)=>
@@ -567,10 +595,6 @@ function groupPassengersReadyForPage(group){
   const first = group[0] || {};
   const passengers = getRealPassengersFromGroup(group);
 
-  /*
-    أي راكب حالته مقفولة يدخل Final Confirmation
-    سواء الحالة جاية من المصدر أو من السواق أو من الأدمن
-  */
   return passengers.filter(p=>{
     const st = p.status || first.status;
     return isAllowedFinalStatus(st);
@@ -587,10 +611,6 @@ function singleTripReadyForPage(t){
     return false;
   }
 
-  /*
-    أي رحلة مقفولة تدخل Final Confirmation:
-    Completed / Cancelled / No Show / Not Completed
-  */
   return isAllowedFinalStatus(t.status);
 }
 
@@ -604,14 +624,6 @@ function singleTripShouldShow(t){
     return false;
   }
 
-  /*
-    قبل Confirm:
-    تظهر في Final Confirmation
-
-    بعد Confirm:
-    تفضل في Final Confirmation لمدة 12 ساعة
-    من وقت الضغط على Confirm
-  */
   if(isTripConfirmed(t)){
     return !isOlderThanHours(
       getTripConfirmedAt(t),
@@ -628,11 +640,6 @@ function sharedTripShouldShow(first,group){
     return false;
   }
 
-  /*
-    الشير نفس القاعدة:
-    بعد Confirm يفضل في Final لمدة 12 ساعة
-    من وقت الضغط على Confirm
-  */
   if(isSharedConfirmed(first)){
     return !isOlderThanHours(
       getSharedConfirmedAt(first),
@@ -649,43 +656,81 @@ function sharedTripShouldShow(first,group){
 
 async function loadServices(){
   try{
-    const res = await fetch(SERVICES_URL,{
-      headers: token ? { Authorization:"Bearer " + token } : {}
-    });
 
-    if(!res.ok) throw new Error("Failed services");
+    const res = await fetch(
+      SERVICES_URL,
+      {
+        headers:
+          token
+            ? {
+                Authorization:"Bearer " + token
+              }
+            : {}
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Failed services");
+    }
 
     const data = await res.json();
-    services = extractServices(data).filter(serviceEnabled);
+
+    services =
+      extractServices(data)
+      .filter(serviceEnabled);
+
   }catch(err){
+
     services = [];
   }
 }
 
 async function loadTrips(){
   try{
-    const res = await fetch(API_URL,{
-      headers: token ? { Authorization:"Bearer " + token } : {}
-    });
 
-    if(!res.ok) throw new Error("Failed trips");
+    const res = await fetch(
+      API_URL,
+      {
+        headers:
+          token
+            ? {
+                Authorization:"Bearer " + token
+              }
+            : {}
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Failed trips");
+    }
 
     const data = await res.json();
-   const trips =
-  Array.isArray(data)
-    ? data
-    : Array.isArray(data?.trips)
-      ? data.trips
-      : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.items)
-          ? data.items
-          : [];
 
-    allTrips = trips.sort((a,b)=>getBookedDateObj(b) - getBookedDateObj(a));
+    const trips =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data?.trips)
+          ? data.trips
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.items)
+              ? data.items
+              : [];
+
+    allTrips =
+      trips.sort(
+        (a,b)=>
+          getBookedDateObj(b) -
+          getBookedDateObj(a)
+      );
 
     allTrips = allTrips.map(t=>{
-      if(!t.company || t.company === "Sunbeam Transportation"){
+
+      if(
+        !t.company ||
+        t.company === "Sunbeam Transportation"
+      ){
+
         const facilityName =
           t.companyName ||
           t.facilityName ||
@@ -697,6 +742,7 @@ async function loadTrips(){
           t.company = facilityName;
         }
       }
+
       return t;
     });
 
@@ -704,9 +750,12 @@ async function loadTrips(){
     applyFilters();
 
   }catch(err){
+
     console.log(err);
+
     allTrips = [];
     displayItems = [];
+
     render();
   }
 }
@@ -720,46 +769,86 @@ function buildDisplayItems(trips){
   const usedShared = new Set();
 
   trips.forEach(t=>{
+
     if(isSharedTrip(t)){
+
       const key = getSharedKey(t);
-      if(usedShared.has(key)) return;
+
+      if(usedShared.has(key)){
+        return;
+      }
 
       usedShared.add(key);
 
       const group =
-        getSharedGroups(trips).find(g => getSharedKey(g[0]) === key) ||
+        getSharedGroups(trips)
+        .find(
+          g =>
+            getSharedKey(g[0]) === key
+        ) ||
         [t];
 
-      if(!sharedTripShouldShow(group[0],group)) return;
+      if(
+        !sharedTripShouldShow(
+          group[0],
+          group
+        )
+      ){
+        return;
+      }
 
       items.push({
         kind:"shared",
         key,
-        date: parseTripDateTime(group[0]) || getBookedDateObj(group[0]),
-        tripDate: getTripDateKey(group[0]),
+        date:
+          parseTripDateTime(group[0]) ||
+          getBookedDateObj(group[0]),
+        tripDate:
+          getTripDateKey(group[0]),
         group
       });
 
       return;
     }
 
-    if(!singleTripShouldShow(t)) return;
+    if(!singleTripShouldShow(t)){
+      return;
+    }
 
     items.push({
       kind:"trip",
-      key:String(t._id || t.id || getTripNumber(t)),
-      date: parseTripDateTime(t) || getBookedDateObj(t),
-      tripDate: getTripDateKey(t),
+      key:
+        String(
+          t._id ||
+          t.id ||
+          getTripNumber(t)
+        ),
+      date:
+        parseTripDateTime(t) ||
+        getBookedDateObj(t),
+      tripDate:
+        getTripDateKey(t),
       trip:t
     });
   });
 
-  return items.sort((a,b)=>b.date-a.date);
+  return items.sort(
+    (a,b)=>b.date-a.date
+  );
 }
 
 function searchableText(item){
-  const first = item.kind === "trip" ? item.trip : item.group[0];
-  const passengers = item.kind === "shared" ? getRealPassengersFromGroup(item.group) : [];
+  const first =
+    item.kind === "trip"
+      ? item.trip
+      : item.group[0];
+
+  const passengers =
+    item.kind === "shared"
+      ? getRealPassengersFromGroup(
+          item.group
+        )
+      : [];
 
   return [
     getTripNumber(first),
@@ -772,70 +861,134 @@ function searchableText(item){
     first.tripTime,
     first.status,
     JSON.stringify(passengers)
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function itemMatchesStatusFilter(item){
-  if(activeStatus === "ALL") return true;
+
+  if(activeStatus === "ALL"){
+    return true;
+  }
 
   if(item.kind === "trip"){
+
     const t = item.trip;
 
     if(activeStatus === "notconfirmed"){
       return isTripNotConfirmed(t);
     }
 
-    return statusClass(t.status) === activeStatus;
+    return (
+      statusClass(t.status) ===
+      activeStatus
+    );
   }
 
-  const first = item.group[0];
-  const readyPassengers = groupPassengersReadyForPage(item.group);
+  const first =
+    item.group[0];
+
+  const readyPassengers =
+    groupPassengersReadyForPage(
+      item.group
+    );
 
   if(activeStatus === "notconfirmed"){
     return isSharedNotConfirmed(first);
   }
 
-  return readyPassengers.some(p => statusClass(p.status || first.status) === activeStatus);
+  return readyPassengers.some(
+    p =>
+      statusClass(
+        p.status ||
+        first.status
+      ) === activeStatus
+  );
 }
 
 function filterItems(items){
   let out = [...items];
 
   if(activeSource !== "ALL"){
+
     out = out.filter(item=>{
-      const t = item.kind === "trip" ? item.trip : item.group[0];
-      return getSourceCode(t) === activeSource;
+
+      const t =
+        item.kind === "trip"
+          ? item.trip
+          : item.group[0];
+
+      return (
+        getSourceCode(t) ===
+        activeSource
+      );
     });
   }
 
-  out = out.filter(item => itemMatchesStatusFilter(item));
+  out =
+    out.filter(
+      item =>
+        itemMatchesStatusFilter(item)
+    );
 
-  const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+  const q =
+    searchInput
+      ? searchInput.value
+          .toLowerCase()
+          .trim()
+      : "";
+
   if(q){
-    out = out.filter(item => searchableText(item).includes(q));
+
+    out =
+      out.filter(
+        item =>
+          searchableText(item)
+          .includes(q)
+      );
   }
 
-  const y = yearFilter?.value || "";
-  const m = monthFilter?.value || "";
+  const y =
+    yearFilter?.value || "";
+
+  const m =
+    monthFilter?.value || "";
 
   if(y){
-    out = out.filter(item =>
-      String(item.tripDate || "").split("-")[0] === y
-    );
+
+    out =
+      out.filter(
+        item =>
+          String(
+            item.tripDate || ""
+          )
+          .split("-")[0] === y
+      );
   }
 
   if(m){
-    out = out.filter(item =>
-      String(item.tripDate || "").split("-")[1] === m
-    );
+
+    out =
+      out.filter(
+        item =>
+          String(
+            item.tripDate || ""
+          )
+          .split("-")[1] === m
+      );
   }
 
   return out;
 }
 
 function applyFilters(){
-  const baseItems = buildDisplayItems(allTrips);
-  displayItems = filterItems(baseItems);
+  const baseItems =
+    buildDisplayItems(allTrips);
+
+  displayItems =
+    filterItems(baseItems);
+
   render();
 }
 
@@ -844,30 +997,53 @@ function applyFilters(){
 ================================ */
 
 function buildDateFilters(){
-  if(!yearFilter || !monthFilter) return;
 
-  const oldYear = yearFilter.value || "";
-  const oldMonth = monthFilter.value || "";
+  if(!yearFilter || !monthFilter){
+    return;
+  }
 
-  const years = new Set();
+  const oldYear =
+    yearFilter.value || "";
+
+  const oldMonth =
+    monthFilter.value || "";
+
+  const years =
+    new Set();
 
   allTrips.forEach(t=>{
+
     if(t.tripDate){
-      const y = String(t.tripDate).split("-")[0];
-      if(y) years.add(y);
+
+      const y =
+        String(t.tripDate)
+        .split("-")[0];
+
+      if(y){
+        years.add(y);
+      }
     }
   });
 
-  yearFilter.innerHTML = `<option value="">All Years</option>`;
+  yearFilter.innerHTML =
+    `<option value="">All Years</option>`;
 
   [...years]
-    .sort((a,b)=>Number(b)-Number(a))
+    .sort(
+      (a,b)=>
+        Number(b)-Number(a)
+    )
     .forEach(y=>{
-      yearFilter.innerHTML += `<option value="${safe(y)}">${safe(y)}</option>`;
+
+      yearFilter.innerHTML +=
+        `<option value="${safe(y)}">${safe(y)}</option>`;
     });
 
-  yearFilter.value = oldYear;
-  monthFilter.value = oldMonth;
+  yearFilter.value =
+    oldYear;
+
+  monthFilter.value =
+    oldMonth;
 }
 
 /* ===============================
@@ -893,60 +1069,149 @@ function createCounts(){
 }
 
 function countTripInto(counts,t){
+
   counts.source.ALL++;
-  counts.source[getSourceCode(t)] = (counts.source[getSourceCode(t)] || 0) + 1;
+
+  counts.source[
+    getSourceCode(t)
+  ] =
+    (
+      counts.source[
+        getSourceCode(t)
+      ] ||
+      0
+    ) +
+    1;
 
   if(isTripNotConfirmed(t)){
     counts.status.notconfirmed++;
   }
 
-  const cls = statusClass(t.status);
+  const cls =
+    statusClass(t.status);
+
   if(cls){
     counts.status[cls]++;
   }
 }
 
-function countSharedInto(counts,first,group){
+function countSharedInto(
+  counts,
+  first,
+  group
+){
+
   counts.source.ALL++;
-  counts.source[getSourceCode(first)] = (counts.source[getSourceCode(first)] || 0) + 1;
+
+  counts.source[
+    getSourceCode(first)
+  ] =
+    (
+      counts.source[
+        getSourceCode(first)
+      ] ||
+      0
+    ) +
+    1;
 
   if(isSharedNotConfirmed(first)){
     counts.status.notconfirmed++;
   }
 
-  groupPassengersReadyForPage(group).forEach(p=>{
-    const cls = statusClass(p.status || first.status);
-    if(cls){
-      counts.status[cls]++;
-    }
-  });
+  groupPassengersReadyForPage(group)
+    .forEach(p=>{
+
+      const cls =
+        statusClass(
+          p.status ||
+          first.status
+        );
+
+      if(cls){
+        counts.status[cls]++;
+      }
+    });
 }
 
 function getCounts(){
-  const counts = createCounts();
+  const counts =
+    createCounts();
 
-  const items = buildDisplayItems(allTrips).filter(item=>{
-    const y = yearFilter?.value || "";
-    const m = monthFilter?.value || "";
-    const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+  const items =
+    buildDisplayItems(allTrips)
+    .filter(item=>{
 
-    if(y && String(item.tripDate || "").split("-")[0] !== y) return false;
-    if(m && String(item.tripDate || "").split("-")[1] !== m) return false;
-    if(q && !searchableText(item).includes(q)) return false;
+      const y =
+        yearFilter?.value || "";
 
-    if(activeSource !== "ALL"){
-      const t = item.kind === "trip" ? item.trip : item.group[0];
-      if(getSourceCode(t) !== activeSource) return false;
-    }
+      const m =
+        monthFilter?.value || "";
 
-    return true;
-  });
+      const q =
+        searchInput
+          ? searchInput.value
+              .toLowerCase()
+              .trim()
+          : "";
+
+      if(
+        y &&
+        String(item.tripDate || "")
+          .split("-")[0] !== y
+      ){
+        return false;
+      }
+
+      if(
+        m &&
+        String(item.tripDate || "")
+          .split("-")[1] !== m
+      ){
+        return false;
+      }
+
+      if(
+        q &&
+        !searchableText(item)
+          .includes(q)
+      ){
+        return false;
+      }
+
+      if(activeSource !== "ALL"){
+
+        const t =
+          item.kind === "trip"
+            ? item.trip
+            : item.group[0];
+
+        if(
+          getSourceCode(t) !==
+          activeSource
+        ){
+          return false;
+        }
+      }
+
+      return true;
+    });
 
   items.forEach(item=>{
+
     if(item.kind === "trip"){
-      countTripInto(counts,item.trip);
+
+      countTripInto(
+        counts,
+        item.trip
+      );
+
     }else{
-      countSharedInto(counts,item.group[0],item.group);
+
+      countSharedInto(
+        counts,
+        item.group[0],
+        item.group
+      );
     }
   });
 
@@ -958,68 +1223,182 @@ function getCounts(){
 ================================ */
 
 function renderSourceCards(){
-  if(!sourceCardsWrap) return;
 
-  const counts = getCounts();
+  if(!sourceCardsWrap){
+    return;
+  }
+
+  const counts =
+    getCounts();
 
   const cards = [
-    {code:"ALL", label:"All", cls:"all"},
-    {code:"FACILITY", label:"Facility", cls:"facility"},
-    {code:"GQ", label:"Get Quote", cls:"gq"},
-    {code:"RV", label:"Reserved", cls:"rv"}
+    {
+      code:"ALL",
+      label:"All",
+      cls:"all"
+    },
+    {
+      code:"FACILITY",
+      label:"Facility",
+      cls:"facility"
+    },
+    {
+      code:"GQ",
+      label:"Get Quote",
+      cls:"gq"
+    },
+    {
+      code:"RV",
+      label:"Reserved",
+      cls:"rv"
+    }
   ];
 
-  sourceCardsWrap.innerHTML = cards.map(card=>{
-    const active = activeSource === card.code ? "active" : "";
-    return `
-      <div class="filter-card ${card.cls} ${active}" data-source="${safe(card.code)}">
-        <div class="card-number">${counts.source[card.code] || 0}</div>
-        <div class="card-label">${safe(card.label)}</div>
-        <div class="card-sub">Click to filter</div>
-      </div>
-    `;
-  }).join("");
+  sourceCardsWrap.innerHTML =
+    cards.map(card=>{
 
-  sourceCardsWrap.querySelectorAll(".filter-card").forEach(card=>{
-    card.onclick = ()=>{
-      activeSource = card.dataset.source || "ALL";
-      applyFilters();
-    };
-  });
+      const active =
+        activeSource === card.code
+          ? "active"
+          : "";
+
+      return `
+        <div
+          class="filter-card ${card.cls} ${active}"
+          data-source="${safe(card.code)}"
+        >
+          <div class="card-number">
+            ${counts.source[card.code] || 0}
+          </div>
+
+          <div class="card-label">
+            ${safe(card.label)}
+          </div>
+
+          <div class="card-sub">
+            Click to filter
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  sourceCardsWrap
+    .querySelectorAll(
+      ".filter-card"
+    )
+    .forEach(card=>{
+
+      card.onclick = ()=>{
+
+        activeSource =
+          card.dataset.source ||
+          "ALL";
+
+        applyFilters();
+      };
+    });
 }
 
 function renderStatusCards(){
-  if(!statusCardsWrap) return;
 
-  const counts = getCounts();
+  if(!statusCardsWrap){
+    return;
+  }
+
+  const counts =
+    getCounts();
 
   const cards = [
-    {code:"completed", label:"Completed", cls:"completed"},
-    {code:"cancelled", label:"Cancelled", cls:"cancelled"},
-    {code:"noshow", label:"No Show", cls:"noshow"},
-    {code:"notcompleted", label:"Not Completed", cls:"notcompleted"},
-    {code:"notconfirmed", label:"Not Confirmed", cls:"notconfirmed", alert: counts.status.notconfirmed > 0}
+    {
+      code:"completed",
+      label:"Completed",
+      cls:"completed"
+    },
+    {
+      code:"cancelled",
+      label:"Cancelled",
+      cls:"cancelled"
+    },
+    {
+      code:"noshow",
+      label:"No Show",
+      cls:"noshow"
+    },
+    {
+      code:"notcompleted",
+      label:"Not Completed",
+      cls:"notcompleted"
+    },
+    {
+      code:"notconfirmed",
+      label:"Not Confirmed",
+      cls:"notconfirmed",
+      alert:
+        counts.status
+          .notconfirmed > 0
+    }
   ];
 
-  statusCardsWrap.innerHTML = cards.map(card=>{
-    const active = activeStatus === card.code ? "active" : "";
-    const alert = card.alert ? "alert" : "";
-    return `
-      <div class="stat-card clickable ${card.cls} ${active} ${alert}" data-status="${safe(card.code)}">
-        <div class="card-number">${counts.status[card.code] || 0}</div>
-        <div class="card-label">${safe(card.label)}</div>
-        <div class="card-sub">${card.code === "notconfirmed" ? "Trips still waiting confirmation" : "Click to filter"}</div>
-      </div>
-    `;
-  }).join("");
+  statusCardsWrap.innerHTML =
+    cards.map(card=>{
 
-  statusCardsWrap.querySelectorAll(".stat-card.clickable").forEach(card=>{
-    card.onclick = ()=>{
-      const next = card.dataset.status || "ALL";
-      activeStatus = activeStatus === next ? "ALL" : next;
-      applyFilters();
-    };
-  });
+      const active =
+        activeStatus === card.code
+          ? "active"
+          : "";
+
+      const alert =
+        card.alert
+          ? "alert"
+          : "";
+
+      return `
+        <div
+          class="stat-card clickable ${card.cls} ${active} ${alert}"
+          data-status="${safe(card.code)}"
+        >
+          <div class="card-number">
+            ${counts.status[card.code] || 0}
+          </div>
+
+          <div class="card-label">
+            ${safe(card.label)}
+          </div>
+
+          <div class="card-sub">
+            ${
+              card.code ===
+              "notconfirmed"
+                ? "Trips still waiting confirmation"
+                : "Click to filter"
+            }
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  statusCardsWrap
+    .querySelectorAll(
+      ".stat-card.clickable"
+    )
+    .forEach(card=>{
+
+      card.onclick = ()=>{
+
+        const next =
+          card.dataset.status ||
+          "ALL";
+
+        activeStatus =
+          activeStatus === next
+            ? "ALL"
+            : next;
+
+        applyFilters();
+      };
+    });
 }
 
 /* ===============================
@@ -1029,152 +1408,313 @@ function renderStatusCards(){
 function viewLine(label,value){
   return `
     <div class="view-line">
-      <div class="view-label">${safe(label)}</div>
-      <div class="view-value">${safe(value || "--")}</div>
+      <div class="view-label">
+        ${safe(label)}
+      </div>
+
+      <div class="view-value">
+        ${safe(value || "--")}
+      </div>
     </div>
   `;
 }
 
 function openFinalView(key){
-  const item = displayItems.find(x=>x.key === key);
-  if(!item) return;
 
-  const t = item.kind === "trip" ? item.trip : item.group[0];
+  const item =
+    displayItems.find(
+      x=>x.key === key
+    );
+
+  if(!item){
+    return;
+  }
+
+  const t =
+    item.kind === "trip"
+      ? item.trip
+      : item.group[0];
+
   closeFinalView();
 
-  let sharedPassengerBlock = "";
+  let sharedPassengerBlock =
+    "";
 
   if(item.kind === "shared"){
-    const passengers = groupPassengersReadyForPage(item.group);
+
+    const passengers =
+      groupPassengersReadyForPage(
+        item.group
+      );
 
     sharedPassengerBlock = `
       ${viewLine(
         "Passengers",
-        passengers.map((p,i)=>[
-          `${i+1}. ${getPassengerName(p,t)}`,
-          `Phone: ${getPassengerPhone(p,t)}`,
-          `Pickup: ${getPickup(t,p)}`,
-          `Dropoff: ${getDropoff(t,p)}`,
-          `Status: ${displayStatus(p.status || t.status)}`
-        ].join("\n")).join("\n\n")
+        passengers
+          .map(
+            (p,i)=>[
+              `${i+1}. ${getPassengerName(p,t)}`,
+              `Phone: ${getPassengerPhone(p,t)}`,
+              `Pickup: ${getPickup(t,p)}`,
+              `Dropoff: ${getDropoff(t,p)}`,
+              `Status: ${displayStatus(p.status || t.status)}`
+            ]
+            .join("\n")
+          )
+          .join("\n\n")
       )}
     `;
   }
 
-  const overlay = document.createElement("div");
-  overlay.id = "finalViewOverlay";
-  overlay.className = "view-overlay";
+  const overlay =
+    document.createElement(
+      "div"
+    );
+
+  overlay.id =
+    "finalViewOverlay";
+
+  overlay.className =
+    "view-overlay";
 
   overlay.innerHTML = `
     <div class="view-box">
+
       <div class="view-head">
-        <div>Final Confirmation Details</div>
-        <button class="view-close" type="button" onclick="closeFinalView()">×</button>
+
+        <div>
+          Final Confirmation Details
+        </div>
+
+        <button
+          class="view-close"
+          type="button"
+          onclick="closeFinalView()"
+        >
+          ×
+        </button>
+
       </div>
 
       <div class="view-body">
-        ${viewLine("Trip Number", getTripNumber(t))}
-        ${viewLine("Source", sourceLabel(t))}
-        ${viewLine("Facility", getCompanyDisplay(t))}
-        ${viewLine("Entry Name", t.entryName || "")}
-        ${viewLine("Entry Phone", t.entryPhone || "")}
-        ${viewLine("Client Phone", t.clientPhone || t.phone || "")}
-        ${viewLine("Pickup", t.pickup || "")}
-        ${viewLine("Stops", stopsDisplay(t))}
-        ${viewLine("Dropoff", t.dropoff || "")}
-        ${viewLine("Trip Date", t.tripDate || "")}
-        ${viewLine("Trip Time", t.tripTime || "")}
-        ${viewLine("Notes", getNotes(t) || "")}
-        ${viewLine("Booked Date", getBookedDate(t))}
-        ${viewLine("Booked Time", getBookedTime(t))}
-        ${viewLine("Entered Page", getEnteredAt(t) ? new Date(getEnteredAt(t)).toLocaleString() : "")}
-        ${viewLine("Confirmed", item.kind === "trip" ? (isTripConfirmed(t) ? "Yes" : "No") : (isSharedConfirmed(t) ? "Yes" : "No"))}
+
+        ${viewLine("Trip Number",getTripNumber(t))}
+        ${viewLine("Source",sourceLabel(t))}
+        ${viewLine("Facility",getCompanyDisplay(t))}
+        ${viewLine("Entry Name",t.entryName || "")}
+        ${viewLine("Entry Phone",t.entryPhone || "")}
+        ${viewLine("Client Phone",t.clientPhone || t.phone || "")}
+        ${viewLine("Pickup",t.pickup || "")}
+        ${viewLine("Stops",stopsDisplay(t))}
+        ${viewLine("Dropoff",t.dropoff || "")}
+        ${viewLine("Trip Date",t.tripDate || "")}
+        ${viewLine("Trip Time",t.tripTime || "")}
+        ${viewLine("Notes",getNotes(t) || "")}
+        ${viewLine("Booked Date",getBookedDate(t))}
+        ${viewLine("Booked Time",getBookedTime(t))}
+        ${viewLine(
+          "Entered Page",
+          getEnteredAt(t)
+            ? new Date(
+                getEnteredAt(t)
+              ).toLocaleString()
+            : ""
+        )}
+        ${viewLine(
+          "Confirmed",
+          item.kind === "trip"
+            ? (
+                isTripConfirmed(t)
+                  ? "Yes"
+                  : "No"
+              )
+            : (
+                isSharedConfirmed(t)
+                  ? "Yes"
+                  : "No"
+              )
+        )}
+
         ${sharedPassengerBlock}
+
       </div>
+
     </div>
   `;
 
-  overlay.addEventListener("click",e=>{
-    if(e.target === overlay) closeFinalView();
-  });
+  overlay.addEventListener(
+    "click",
+    e=>{
 
-  document.body.appendChild(overlay);
+      if(e.target === overlay){
+        closeFinalView();
+      }
+    }
+  );
+
+  document.body.appendChild(
+    overlay
+  );
 }
 
 function closeFinalView(){
-  document.getElementById("finalViewOverlay")?.remove();
+
+  document
+    .getElementById(
+      "finalViewOverlay"
+    )
+    ?.remove();
 }
 
 /* ===============================
    API PATCH HELPERS
 ================================ */
 
-async function patchSingleStatus(tripId,body){
+async function patchSingleStatus(
+  tripId,
+  body
+){
+
   const res = await fetch(
     `${API_URL}/${encodeURIComponent(tripId)}/status`,
     {
       method:"PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(body)
+      headers:authHeaders(),
+      body:JSON.stringify(body)
     }
   );
 
   if(!res.ok){
-    throw new Error("Single status patch failed");
+    throw new Error(
+      "Single status patch failed"
+    );
   }
 
-  return await res.json().catch(()=>null);
+  return await res
+    .json()
+    .catch(()=>null);
 }
 
-async function patchSingleConfirm(tripId,body){
+async function patchSingleConfirm(
+  tripId,
+  body
+){
+
   const res = await fetch(
     `${API_URL}/${encodeURIComponent(tripId)}/confirm`,
     {
       method:"PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(body)
+      headers:authHeaders(),
+      body:JSON.stringify(body)
     }
   );
 
   if(!res.ok){
-    throw new Error("Single confirm failed");
+    throw new Error(
+      "Single confirm failed"
+    );
   }
 
-  return await res.json().catch(()=>null);
+  return await res
+    .json()
+    .catch(()=>null);
 }
 
-async function patchSharedStatus(tripId,body){
+async function patchSharedStatus(
+  tripId,
+  body
+){
+
   const res = await fetch(
     `${API_URL}/${encodeURIComponent(tripId)}/shared-status`,
     {
       method:"PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(body)
+      headers:authHeaders(),
+      body:JSON.stringify(body)
     }
   );
 
   if(!res.ok){
-    throw new Error("Shared status patch failed");
+    throw new Error(
+      "Shared status patch failed"
+    );
   }
 
-  return await res.json().catch(()=>null);
+  return await res
+    .json()
+    .catch(()=>null);
 }
 
-async function patchSharedConfirm(tripId,body){
+async function patchSharedConfirm(
+  tripId,
+  body
+){
+
   const res = await fetch(
     `${API_URL}/${encodeURIComponent(tripId)}/shared-confirm`,
     {
       method:"PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(body)
+      headers:authHeaders(),
+      body:JSON.stringify(body)
     }
   );
 
   if(!res.ok){
-    throw new Error("Shared confirm failed");
+    throw new Error(
+      "Shared confirm failed"
+    );
   }
 
-  return await res.json().catch(()=>null);
+  return await res
+    .json()
+    .catch(()=>null);
+}
+
+/* ===============================
+   RETURN TO DRIVER
+================================ */
+
+async function patchReturnToDriver(
+  tripId,
+  body
+){
+
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/return-to-driver`,
+    {
+      method:"PATCH",
+      headers:authHeaders(),
+      body:JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+
+    let message = "";
+
+    try{
+
+      const data =
+        await res.json();
+
+      message =
+        data?.message ||
+        data?.error ||
+        "";
+
+    }catch{
+      message = "";
+    }
+
+    throw new Error(
+      message ||
+      "Return to driver failed"
+    );
+  }
+
+  return await res
+    .json()
+    .catch(()=>null);
 }
 
 /* ===============================
@@ -1186,11 +1726,21 @@ function getTripId(t){
 }
 
 function findLiveTripByKey(key){
-  return allTrips.find(t => String(t._id || t.id || getTripNumber(t)) === key);
+  return allTrips.find(
+    t =>
+      String(
+        t._id ||
+        t.id ||
+        getTripNumber(t)
+      ) === key
+  );
 }
 
 function findLiveSharedRootByKey(key){
-  return allTrips.find(t => getSharedKey(t) === key);
+  return allTrips.find(
+    t =>
+      getSharedKey(t) === key
+  );
 }
 
 /* ===============================
@@ -1208,89 +1758,247 @@ function beginEditShared(key){
 }
 
 function cancelEditSingle(key){
+
   editingSingles.delete(key);
-  const t = findLiveTripByKey(key);
+
+  const t =
+    findLiveTripByKey(key);
+
   if(t?.__draftStatus){
     delete t.__draftStatus;
   }
+
   render();
 }
 
 function cancelEditShared(key){
+
   editingShared.delete(key);
-  const root = findLiveSharedRootByKey(key);
+
+  const root =
+    findLiveSharedRootByKey(key);
+
   if(root?.__draftPassengers){
     delete root.__draftPassengers;
   }
+
   render();
 }
 
-async function confirmSingleTrip(key){
-  const t = findLiveTripByKey(key);
-  if(!t) return;
+async function returnSingleTripToDriver(
+  key
+){
 
-  const newStatus = t.__draftStatus || t.status || "Completed";
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  const status =
+    displayStatus(t.status);
+
+  const ok =
+    window.confirm(
+      `Return trip ${getTripNumber(t)} to the driver?\n\nCurrent status: ${status}\n\nThe trip will leave Final Confirmation and become active again for the assigned driver.`
+    );
+
+  if(!ok){
+    return;
+  }
 
   try{
-    const tripId = getTripId(t);
-    if(!tripId) throw new Error("Missing trip id");
 
-    const res = await patchSingleConfirm(tripId,{
-      status: statusValueToLabel(getStatusOptionValue(newStatus)),
-      confirmedBy: adminName
-    });
+    const tripId =
+      getTripId(t);
 
-    const savedTrip = res?.trip || {};
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
 
-    t.status = savedTrip.status || statusValueToLabel(getStatusOptionValue(newStatus));
-    t.finalStatusConfirmed = true;
+    await patchReturnToDriver(
+      tripId,
+      {
+        returnedBy:adminName,
+        reason:
+          "Dispatcher returned trip to driver from Final Confirmation"
+      }
+    );
+
+    editingSingles.delete(key);
+
+    if(t.__draftStatus){
+      delete t.__draftStatus;
+    }
+
+    /*
+      Reload from server.
+      Because status is now active/InProgress,
+      singleTripReadyForPage() will return false
+      and the trip disappears from Final Confirmation.
+    */
+    await loadTrips();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err?.message ||
+      "Failed to return trip to driver."
+    );
+  }
+}
+
+async function confirmSingleTrip(key){
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  const newStatus =
+    t.__draftStatus ||
+    t.status ||
+    "Completed";
+
+  try{
+
+    const tripId =
+      getTripId(t);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSingleConfirm(
+        tripId,
+        {
+          status:
+            statusValueToLabel(
+              getStatusOptionValue(
+                newStatus
+              )
+            ),
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
+
+    t.status =
+      savedTrip.status ||
+      statusValueToLabel(
+        getStatusOptionValue(
+          newStatus
+        )
+      );
+
+    t.finalStatusConfirmed =
+      true;
+
     t.finalStatusConfirmedAt =
       savedTrip.finalStatusConfirmedAt ||
       new Date().toISOString();
+
     t.dispatchFinalConfirmedAt =
       savedTrip.dispatchFinalConfirmedAt ||
       t.finalStatusConfirmedAt;
 
-    if(savedTrip.finalPageEnteredAt) t.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
-    if(savedTrip.dispatchFinalPageEnteredAt) t.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      t.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
+    }
+
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      t.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
+    }
 
     editingSingles.delete(key);
+
     delete t.__draftStatus;
 
     applyFilters();
+
   }catch(err){
+
     console.log(err);
-    alert("Failed to confirm trip.");
+
+    alert(
+      "Failed to confirm trip."
+    );
   }
 }
 
 async function saveSingleEdit(key){
-  const t = findLiveTripByKey(key);
-  if(!t) return;
 
-  const newStatus = t.__draftStatus || t.status || "Completed";
-  const wasConfirmed = isTripConfirmed(t);
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  const newStatus =
+    t.__draftStatus ||
+    t.status ||
+    "Completed";
+
+  const wasConfirmed =
+    isTripConfirmed(t);
 
   try{
-    const tripId = getTripId(t);
-    if(!tripId) throw new Error("Missing trip id");
 
-    const res = await patchSingleStatus(tripId,{
-      status: statusValueToLabel(getStatusOptionValue(newStatus)),
-      confirmedBy: adminName
-    });
+    const tripId =
+      getTripId(t);
 
-    const savedTrip = res?.trip || {};
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSingleStatus(
+        tripId,
+        {
+          status:
+            statusValueToLabel(
+              getStatusOptionValue(
+                newStatus
+              )
+            ),
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
 
     t.status =
       savedTrip.status ||
-      statusValueToLabel(getStatusOptionValue(newStatus));
+      statusValueToLabel(
+        getStatusOptionValue(
+          newStatus
+        )
+      );
 
-    /*
-      لو الرحلة كانت Confirmed ولسه داخل الـ 12 ساعة:
-      ما نمسحش علامات الـ Confirm
-      عشان تفضل ظاهرة في Review
-    */
     t.finalStatusConfirmed =
       savedTrip.finalStatusConfirmed === true ||
       wasConfirmed ||
@@ -1307,116 +2015,214 @@ async function saveSingleEdit(key){
       t.dispatchFinalConfirmedAt ||
       null;
 
-    if(savedTrip.finalPageEnteredAt){
-      t.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      t.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
     }
 
-    if(savedTrip.dispatchFinalPageEnteredAt){
-      t.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      t.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
     }
 
     editingSingles.delete(key);
+
     delete t.__draftStatus;
 
     applyFilters();
 
   }catch(err){
+
     console.log(err);
-    alert("Failed to edit trip.");
+
+    alert(
+      "Failed to edit trip."
+    );
   }
 }
 
 async function confirmSharedTrip(key){
-  const root = findLiveSharedRootByKey(key);
-  if(!root) return;
 
-  const passengers = Array.isArray(root.passengers)
-    ? root.passengers.map((p,idx)=>{
-        const draft = root.__draftPassengers?.[idx];
-        const nextStatus = draft || p.status || "Completed";
-        return {
-          ...p,
-          status: statusValueToLabel(getStatusOptionValue(nextStatus))
-        };
-      })
-    : [];
+  const root =
+    findLiveSharedRootByKey(key);
 
-  try{
-    const tripId = getTripId(root);
-    if(!tripId) throw new Error("Missing trip id");
-
-    const res = await patchSharedConfirm(tripId,{
-      passengers,
-      confirmedBy: adminName
-    });
-
-    const savedTrip = res?.trip || {};
-
-    root.passengers = savedTrip.passengers || passengers;
-    root.sharedFinalConfirmed = true;
-    root.sharedFinalConfirmedAt =
-      savedTrip.sharedFinalConfirmedAt ||
-      savedTrip.finalStatusConfirmedAt ||
-      new Date().toISOString();
-    root.finalStatusConfirmed = true;
-    root.finalStatusConfirmedAt =
-      savedTrip.finalStatusConfirmedAt ||
-      root.sharedFinalConfirmedAt;
-    root.dispatchFinalConfirmedAt =
-      savedTrip.dispatchFinalConfirmedAt ||
-      root.sharedFinalConfirmedAt;
-
-    if(savedTrip.finalPageEnteredAt) root.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
-    if(savedTrip.dispatchFinalPageEnteredAt) root.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
-
-    editingShared.delete(key);
-    delete root.__draftPassengers;
-
-    applyFilters();
-  }catch(err){
-    console.log(err);
-    alert("Failed to confirm shared trip.");
+  if(!root){
+    return;
   }
-}
 
-async function saveSharedEdit(key){
-  const root = findLiveSharedRootByKey(key);
-  if(!root) return;
+  const passengers =
+    Array.isArray(root.passengers)
+      ? root.passengers.map(
+          (p,idx)=>{
 
-  const wasConfirmed = isSharedConfirmed(root);
+            const draft =
+              root.__draftPassengers?.[idx];
 
-  const passengers = Array.isArray(root.passengers)
-    ? root.passengers.map((p,idx)=>{
-        const draft = root.__draftPassengers?.[idx];
-        const nextStatus = draft || p.status || "Completed";
+            const nextStatus =
+              draft ||
+              p.status ||
+              "Completed";
 
-        return {
-          ...p,
-          status: statusValueToLabel(getStatusOptionValue(nextStatus))
-        };
-      })
-    : [];
+            return {
+              ...p,
+              status:
+                statusValueToLabel(
+                  getStatusOptionValue(
+                    nextStatus
+                  )
+                )
+            };
+          }
+        )
+      : [];
 
   try{
-    const tripId = getTripId(root);
-    if(!tripId) throw new Error("Missing trip id");
 
-    const res = await patchSharedStatus(tripId,{
-      passengers,
-      confirmedBy: adminName
-    });
+    const tripId =
+      getTripId(root);
 
-    const savedTrip = res?.trip || {};
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSharedConfirm(
+        tripId,
+        {
+          passengers,
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
 
     root.passengers =
       savedTrip.passengers ||
       passengers;
 
-    /*
-      لو الشير كان Confirmed ولسه داخل الـ 12 ساعة:
-      ما نمسحش علامات الـ Confirm
-      عشان التعديل يظهر في Review
-    */
+    root.sharedFinalConfirmed =
+      true;
+
+    root.sharedFinalConfirmedAt =
+      savedTrip.sharedFinalConfirmedAt ||
+      savedTrip.finalStatusConfirmedAt ||
+      new Date().toISOString();
+
+    root.finalStatusConfirmed =
+      true;
+
+    root.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      root.sharedFinalConfirmedAt;
+
+    root.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      root.sharedFinalConfirmedAt;
+
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      root.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
+    }
+
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      root.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
+    }
+
+    editingShared.delete(key);
+
+    delete root.__draftPassengers;
+
+    applyFilters();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      "Failed to confirm shared trip."
+    );
+  }
+}
+
+async function saveSharedEdit(key){
+
+  const root =
+    findLiveSharedRootByKey(key);
+
+  if(!root){
+    return;
+  }
+
+  const wasConfirmed =
+    isSharedConfirmed(root);
+
+  const passengers =
+    Array.isArray(root.passengers)
+      ? root.passengers.map(
+          (p,idx)=>{
+
+            const draft =
+              root.__draftPassengers?.[idx];
+
+            const nextStatus =
+              draft ||
+              p.status ||
+              "Completed";
+
+            return {
+              ...p,
+              status:
+                statusValueToLabel(
+                  getStatusOptionValue(
+                    nextStatus
+                  )
+                )
+            };
+          }
+        )
+      : [];
+
+  try{
+
+    const tripId =
+      getTripId(root);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSharedStatus(
+        tripId,
+        {
+          passengers,
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
+
+    root.passengers =
+      savedTrip.passengers ||
+      passengers;
+
     root.sharedFinalConfirmed =
       savedTrip.sharedFinalConfirmed === true ||
       wasConfirmed ||
@@ -1445,40 +2251,75 @@ async function saveSharedEdit(key){
       root.dispatchFinalConfirmedAt ||
       null;
 
-    if(savedTrip.finalPageEnteredAt){
-      root.finalPageEnteredAt = savedTrip.finalPageEnteredAt;
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      root.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
     }
 
-    if(savedTrip.dispatchFinalPageEnteredAt){
-      root.dispatchFinalPageEnteredAt = savedTrip.dispatchFinalPageEnteredAt;
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      root.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
     }
 
     editingShared.delete(key);
+
     delete root.__draftPassengers;
 
     applyFilters();
 
   }catch(err){
+
     console.log(err);
-    alert("Failed to edit shared trip.");
+
+    alert(
+      "Failed to edit shared trip."
+    );
   }
 }
 
-function handleSingleStatusChange(key,value){
-  const t = findLiveTripByKey(key);
-  if(!t) return;
-  t.__draftStatus = statusValueToLabel(value);
+function handleSingleStatusChange(
+  key,
+  value
+){
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  t.__draftStatus =
+    statusValueToLabel(value);
 }
 
-function handleSharedPassengerStatusChange(groupKey,idx,value){
-  const root = findLiveSharedRootByKey(groupKey);
-  if(!root) return;
+function handleSharedPassengerStatusChange(
+  groupKey,
+  idx,
+  value
+){
 
-  if(!root.__draftPassengers){
+  const root =
+    findLiveSharedRootByKey(
+      groupKey
+    );
+
+  if(!root){
+    return;
+  }
+
+  if(
+    !root.__draftPassengers
+  ){
     root.__draftPassengers = {};
   }
 
-  root.__draftPassengers[idx] = statusValueToLabel(value);
+  root.__draftPassengers[idx] =
+    statusValueToLabel(value);
 }
 
 /* ===============================
@@ -1486,32 +2327,69 @@ function handleSharedPassengerStatusChange(groupKey,idx,value){
 ================================ */
 
 function rowSourceClass(t){
-  const src = getSourceCode(t);
-  if(src === "FACILITY") return "row-facility";
-  if(src === "RV") return "row-rv";
+
+  const src =
+    getSourceCode(t);
+
+  if(src === "FACILITY"){
+    return "row-facility";
+  }
+
+  if(src === "RV"){
+    return "row-rv";
+  }
+
   return "row-gq";
 }
 
 function rowOverdueClass(item){
+
   if(item.kind === "trip"){
-    return isTripNotConfirmed(item.trip) ? "pending-overdue" : "";
+    return isTripNotConfirmed(
+      item.trip
+    )
+      ? "pending-overdue"
+      : "";
   }
-  return isSharedNotConfirmed(item.group[0]) ? "pending-overdue" : "";
+
+  return isSharedNotConfirmed(
+    item.group[0]
+  )
+    ? "pending-overdue"
+    : "";
 }
 
 function rowConfirmedClass(item){
+
   if(item.kind === "trip"){
-    return isTripConfirmed(item.trip) ? "confirmed-row" : "";
+    return isTripConfirmed(
+      item.trip
+    )
+      ? "confirmed-row"
+      : "";
   }
-  return isSharedConfirmed(item.group[0]) ? "confirmed-row confirmed-shared-head" : "";
+
+  return isSharedConfirmed(
+    item.group[0]
+  )
+    ? "confirmed-row confirmed-shared-head"
+    : "";
 }
 
 function groupByTripDate(items){
+
   const groups = {};
 
   items.forEach(item=>{
-    const key = item.tripDate || "Unknown";
-    if(!groups[key]) groups[key] = [];
+
+    const key =
+      item.tripDate ||
+      "Unknown";
+
+    if(!groups[key]){
+      groups[key] = [];
+    }
+
     groups[key].push(item);
   });
 
@@ -1519,11 +2397,20 @@ function groupByTripDate(items){
 }
 
 function singleStatusEditHTML(item){
+
   const t = item.trip;
-  const current = getStatusOptionValue(t.__draftStatus || t.status);
+
+  const current =
+    getStatusOptionValue(
+      t.__draftStatus ||
+      t.status
+    );
 
   return `
-    <select class="status-select" onchange="handleSingleStatusChange('${safe(item.key)}', this.value)">
+    <select
+      class="status-select"
+      onchange="handleSingleStatusChange('${safe(item.key)}', this.value)"
+    >
       <option value="completed" ${current === "completed" ? "selected" : ""}>Completed</option>
       <option value="cancelled" ${current === "cancelled" ? "selected" : ""}>Cancelled</option>
       <option value="noshow" ${current === "noshow" ? "selected" : ""}>No Show</option>
@@ -1532,14 +2419,35 @@ function singleStatusEditHTML(item){
   `;
 }
 
-function sharedPassengerStatusEditHTML(groupKey,p,trip){
-  const idx = Number(p.__idx || 0);
-  const root = findLiveSharedRootByKey(groupKey);
-  const draft = root?.__draftPassengers?.[idx];
-  const current = getStatusOptionValue(draft || p.status || trip.status);
+function sharedPassengerStatusEditHTML(
+  groupKey,
+  p,
+  trip
+){
+
+  const idx =
+    Number(p.__idx || 0);
+
+  const root =
+    findLiveSharedRootByKey(
+      groupKey
+    );
+
+  const draft =
+    root?.__draftPassengers?.[idx];
+
+  const current =
+    getStatusOptionValue(
+      draft ||
+      p.status ||
+      trip.status
+    );
 
   return `
-    <select class="status-select" onchange="handleSharedPassengerStatusChange('${safe(groupKey)}', ${idx}, this.value)">
+    <select
+      class="status-select"
+      onchange="handleSharedPassengerStatusChange('${safe(groupKey)}', ${idx}, this.value)"
+    >
       <option value="completed" ${current === "completed" ? "selected" : ""}>Completed</option>
       <option value="cancelled" ${current === "cancelled" ? "selected" : ""}>Cancelled</option>
       <option value="noshow" ${current === "noshow" ? "selected" : ""}>No Show</option>
@@ -1549,26 +2457,46 @@ function sharedPassengerStatusEditHTML(groupKey,p,trip){
 }
 
 function render(){
+
   tripCounter = 1;
+
   renderSourceCards();
   renderStatusCards();
 
-  if(!finalContent) return;
+  if(!finalContent){
+    return;
+  }
 
   finalContent.innerHTML = "";
 
   if(!displayItems.length){
-    finalContent.innerHTML = `<div class="empty-state">No Final Confirmation Trips Found</div>`;
+
+    finalContent.innerHTML =
+      `<div class="empty-state">No Final Confirmation Trips Found</div>`;
+
     return;
   }
 
-  const groups = groupByTripDate(displayItems);
+  const groups =
+    groupByTripDate(
+      displayItems
+    );
 
-  const wrap = document.createElement("div");
-  wrap.className = "table-wrap";
+  const wrap =
+    document.createElement(
+      "div"
+    );
 
-  const table = document.createElement("table");
-  table.className = "review-table";
+  wrap.className =
+    "table-wrap";
+
+  const table =
+    document.createElement(
+      "table"
+    );
+
+  table.className =
+    "review-table";
 
   table.innerHTML = `
     <thead>
@@ -1587,104 +2515,236 @@ function render(){
         <th class="col-eye">👁️</th>
       </tr>
     </thead>
+
     <tbody></tbody>
   `;
 
-  const tbody = table.querySelector("tbody");
+  const tbody =
+    table.querySelector(
+      "tbody"
+    );
 
   Object.keys(groups)
-    .sort((a,b)=>new Date(b)-new Date(a))
+    .sort(
+      (a,b)=>
+        new Date(b) -
+        new Date(a)
+    )
     .forEach(day=>{
 
-      const dateRow = document.createElement("tr");
-      dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="12">Trip Date: ${safe(day)}</td>`;
-      tbody.appendChild(dateRow);
+      const dateRow =
+        document.createElement(
+          "tr"
+        );
 
-      groups[day].forEach(item=>{
-        if(item.kind === "trip"){
-          tbody.appendChild(renderTripRow(item));
-        }else{
-          tbody.appendChild(renderSharedRow(item));
-        }
-      });
+      dateRow.className =
+        "date-row";
+
+      dateRow.innerHTML =
+        `<td colspan="12">Trip Date: ${safe(day)}</td>`;
+
+      tbody.appendChild(
+        dateRow
+      );
+
+      groups[day]
+        .forEach(item=>{
+
+          if(
+            item.kind === "trip"
+          ){
+
+            tbody.appendChild(
+              renderTripRow(item)
+            );
+
+          }else{
+
+            tbody.appendChild(
+              renderSharedRow(item)
+            );
+          }
+        });
     });
 
   wrap.appendChild(table);
-  finalContent.appendChild(wrap);
+
+  finalContent.appendChild(
+    wrap
+  );
 }
 
 function renderTripRow(item){
-  const t = item.trip;
-  const isEditing = editingSingles.has(item.key);
-  const confirmed = isTripConfirmed(t);
 
-  const tr = document.createElement("tr");
+  const t =
+    item.trip;
+
+  const isEditing =
+    editingSingles.has(
+      item.key
+    );
+
+  const confirmed =
+    isTripConfirmed(t);
+
+  const tr =
+    document.createElement(
+      "tr"
+    );
+
   tr.className = [
     rowSourceClass(t),
     rowConfirmedClass(item),
     rowOverdueClass(item),
     "trip-divider"
-  ].join(" ").trim();
+  ]
+    .join(" ")
+    .trim();
 
   tr.innerHTML = `
-    <td class="col-num">${tripCounter++}</td>
+    <td class="col-num">
+      ${tripCounter++}
+    </td>
 
     <td class="col-trip">
-      <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
+      <span class="trip-number-badge">
+        ${safe(getTripNumber(t))}
+      </span>
     </td>
 
     <td class="company-cell">
-      ${cellBox(safe(getCompanyDisplay(t)))}
+      ${cellBox(
+        safe(
+          getCompanyDisplay(t)
+        )
+      )}
     </td>
 
     <td class="wide-client">
-      ${cellBox(safe(t.clientName || t.name || "--"))}
+      ${cellBox(
+        safe(
+          t.clientName ||
+          t.name ||
+          "--"
+        )
+      )}
     </td>
 
     <td class="wide-address">
-      ${cellBox(safe(t.pickup || "--"))}
+      ${cellBox(
+        safe(
+          t.pickup ||
+          "--"
+        )
+      )}
     </td>
 
     <td class="wide-stops">
-      ${cellBox(stopsDisplay(t))}
+      ${cellBox(
+        stopsDisplay(t)
+      )}
     </td>
 
     <td class="wide-address">
-      ${cellBox(safe(t.dropoff || "--"))}
+      ${cellBox(
+        safe(
+          t.dropoff ||
+          "--"
+        )
+      )}
     </td>
 
-    <td class="col-date">${safe(t.tripDate || "-")}</td>
-    <td class="col-time">${safe(t.tripTime || "-")}</td>
+    <td class="col-date">
+      ${safe(t.tripDate || "-")}
+    </td>
+
+    <td class="col-time">
+      ${safe(t.tripTime || "-")}
+    </td>
 
     <td class="col-status">
       ${
         isEditing
-          ? singleStatusEditHTML(item)
-          : statusCellHTML(t.__draftStatus || t.status, confirmed)
+          ? singleStatusEditHTML(
+              item
+            )
+          : statusCellHTML(
+              t.__draftStatus ||
+              t.status,
+              confirmed
+            )
       }
     </td>
 
     <td class="col-actions">
+
       <div class="actions-wrap">
+
         ${
           isEditing
-          ? `
-            <button class="btn-action btn-edit" type="button" onclick="saveSingleEdit('${safe(item.key)}')">Save</button>
-            <button class="btn-action" type="button" onclick="cancelEditSingle('${safe(item.key)}')">Cancel</button>
-          `
-          : `
-            <button class="btn-action btn-edit" type="button" onclick="beginEditSingle('${safe(item.key)}')">Edit</button>
-            <button class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}" type="button" onclick="confirmSingleTrip('${safe(item.key)}')">
-              ${confirmed ? "Confirmed" : "Confirm"}
-            </button>
-          `
+            ? `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="saveSingleEdit('${safe(item.key)}')"
+              >
+                Save
+              </button>
+
+              <button
+                class="btn-action"
+                type="button"
+                onclick="cancelEditSingle('${safe(item.key)}')"
+              >
+                Cancel
+              </button>
+            `
+            : `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="beginEditSingle('${safe(item.key)}')"
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn-action btn-return-driver"
+                type="button"
+                onclick="returnSingleTripToDriver('${safe(item.key)}')"
+              >
+                Return To Driver
+              </button>
+
+              <button
+                class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
+                type="button"
+                onclick="confirmSingleTrip('${safe(item.key)}')"
+              >
+                ${
+                  confirmed
+                    ? "Confirmed"
+                    : "Confirm"
+                }
+              </button>
+            `
         }
+
       </div>
+
     </td>
 
     <td class="col-eye">
-      <button class="eye-btn" type="button" title="View" onclick="openFinalView('${safe(item.key)}')">👁️</button>
+
+      <button
+        class="eye-btn"
+        type="button"
+        title="View"
+        onclick="openFinalView('${safe(item.key)}')"
+      >
+        👁️
+      </button>
+
     </td>
   `;
 
@@ -1692,83 +2752,224 @@ function renderTripRow(item){
 }
 
 function renderSharedRow(item){
-  const group = item.group;
-  const first = group[0] || {};
-  const passengers = groupPassengersReadyForPage(group);
-  const isEditing = editingShared.has(item.key);
-  const confirmed = isSharedConfirmed(first);
 
-  const names = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getPassengerName(p,first) || "--")}`
-  ));
+  const group =
+    item.group;
 
-  const pickups = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getPickup(first,p) || "--")}`
-  ));
+  const first =
+    group[0] || {};
 
-  const dropoffs = cellBox(passengers.map((p,i)=>
-    `${i+1}. ${safe(getDropoff(first,p) || "--")}`
-  ));
+  const passengers =
+    groupPassengersReadyForPage(
+      group
+    );
 
-  const statusBox = isEditing
-    ? cellBox(passengers.map(p => sharedPassengerStatusEditHTML(item.key,p,first)))
-    : cellBox(passengers.map(p => statusCellHTML(p.status || first.status, confirmed)));
+  const isEditing =
+    editingShared.has(
+      item.key
+    );
 
-  const tr = document.createElement("tr");
+  const confirmed =
+    isSharedConfirmed(first);
+
+  const names =
+    cellBox(
+      passengers.map(
+        (p,i)=>
+          `${i+1}. ${safe(
+            getPassengerName(
+              p,
+              first
+            ) ||
+            "--"
+          )}`
+      )
+    );
+
+  const pickups =
+    cellBox(
+      passengers.map(
+        (p,i)=>
+          `${i+1}. ${safe(
+            getPickup(
+              first,
+              p
+            ) ||
+            "--"
+          )}`
+      )
+    );
+
+  const dropoffs =
+    cellBox(
+      passengers.map(
+        (p,i)=>
+          `${i+1}. ${safe(
+            getDropoff(
+              first,
+              p
+            ) ||
+            "--"
+          )}`
+      )
+    );
+
+  const statusBox =
+    isEditing
+      ? cellBox(
+          passengers.map(
+            p =>
+              sharedPassengerStatusEditHTML(
+                item.key,
+                p,
+                first
+              )
+          )
+        )
+      : cellBox(
+          passengers.map(
+            p =>
+              statusCellHTML(
+                p.status ||
+                first.status,
+                confirmed
+              )
+          )
+        );
+
+  const tr =
+    document.createElement(
+      "tr"
+    );
+
   tr.className = [
     "shared-row",
     rowSourceClass(first),
     rowConfirmedClass(item),
     rowOverdueClass(item),
     "trip-divider"
-  ].join(" ").trim();
+  ]
+    .join(" ")
+    .trim();
 
   tr.innerHTML = `
-    <td class="col-num">${tripCounter++}</td>
+    <td class="col-num">
+      ${tripCounter++}
+    </td>
 
     <td class="col-trip">
-      <span class="trip-number-badge">${safe(getTripNumber(first))}</span>
+      <span class="trip-number-badge">
+        ${safe(
+          getTripNumber(first)
+        )}
+      </span>
     </td>
 
     <td class="company-cell">
-      ${cellBox(safe(getCompanyDisplay(first)))}
+      ${cellBox(
+        safe(
+          getCompanyDisplay(first)
+        )
+      )}
     </td>
 
-    <td class="wide-client">${names}</td>
+    <td class="wide-client">
+      ${names}
+    </td>
 
-    <td class="wide-address">${pickups}</td>
+    <td class="wide-address">
+      ${pickups}
+    </td>
 
     <td class="wide-stops">
-      ${cellBox(stopsDisplay(first))}
+      ${cellBox(
+        stopsDisplay(first)
+      )}
     </td>
 
-    <td class="wide-address">${dropoffs}</td>
+    <td class="wide-address">
+      ${dropoffs}
+    </td>
 
-    <td class="col-date">${safe(first.tripDate || "-")}</td>
-    <td class="col-time">${safe(first.tripTime || "-")}</td>
+    <td class="col-date">
+      ${safe(
+        first.tripDate ||
+        "-"
+      )}
+    </td>
 
-    <td class="col-status">${statusBox}</td>
+    <td class="col-time">
+      ${safe(
+        first.tripTime ||
+        "-"
+      )}
+    </td>
+
+    <td class="col-status">
+      ${statusBox}
+    </td>
 
     <td class="col-actions">
+
       <div class="actions-wrap">
+
         ${
           isEditing
-          ? `
-            <button class="btn-action btn-edit" type="button" onclick="saveSharedEdit('${safe(item.key)}')">Save</button>
-            <button class="btn-action" type="button" onclick="cancelEditShared('${safe(item.key)}')">Cancel</button>
-          `
-          : `
-            <button class="btn-action btn-edit" type="button" onclick="beginEditShared('${safe(item.key)}')">Edit</button>
-            <button class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}" type="button" onclick="confirmSharedTrip('${safe(item.key)}')">
-              ${confirmed ? "Confirmed" : "Confirm"}
-            </button>
-          `
+            ? `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="saveSharedEdit('${safe(item.key)}')"
+              >
+                Save
+              </button>
+
+              <button
+                class="btn-action"
+                type="button"
+                onclick="cancelEditShared('${safe(item.key)}')"
+              >
+                Cancel
+              </button>
+            `
+            : `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="beginEditShared('${safe(item.key)}')"
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
+                type="button"
+                onclick="confirmSharedTrip('${safe(item.key)}')"
+              >
+                ${
+                  confirmed
+                    ? "Confirmed"
+                    : "Confirm"
+                }
+              </button>
+            `
         }
+
       </div>
+
     </td>
 
     <td class="col-eye">
-      <button class="eye-btn" type="button" title="View" onclick="openFinalView('${safe(item.key)}')">👁️</button>
+
+      <button
+        class="eye-btn"
+        type="button"
+        title="View"
+        onclick="openFinalView('${safe(item.key)}')"
+      >
+        👁️
+      </button>
+
     </td>
   `;
 
@@ -1779,30 +2980,52 @@ function renderSharedRow(item){
    EVENTS
 ================================ */
 
-searchInput?.addEventListener("input",applyFilters);
-yearFilter?.addEventListener("change",applyFilters);
-monthFilter?.addEventListener("change",applyFilters);
+searchInput?.addEventListener(
+  "input",
+  applyFilters
+);
 
-Object.assign(window,{
-  openFinalView,
-  closeFinalView,
-  beginEditSingle,
-  beginEditShared,
-  cancelEditSingle,
-  cancelEditShared,
-  confirmSingleTrip,
-  confirmSharedTrip,
-  saveSingleEdit,
-  saveSharedEdit,
-  handleSingleStatusChange,
-  handleSharedPassengerStatusChange
-});
+yearFilter?.addEventListener(
+  "change",
+  applyFilters
+);
+
+monthFilter?.addEventListener(
+  "change",
+  applyFilters
+);
+
+Object.assign(
+  window,
+  {
+    openFinalView,
+    closeFinalView,
+
+    beginEditSingle,
+    beginEditShared,
+
+    cancelEditSingle,
+    cancelEditShared,
+
+    confirmSingleTrip,
+    confirmSharedTrip,
+
+    saveSingleEdit,
+    saveSharedEdit,
+
+    returnSingleTripToDriver,
+
+    handleSingleStatusChange,
+    handleSharedPassengerStatusChange
+  }
+);
 
 /* ===============================
    INIT
 ================================ */
 
 async function refreshEverything(){
+
   await Promise.all([
     loadServices(),
     loadTrips()
@@ -1810,8 +3033,19 @@ async function refreshEverything(){
 }
 
 (async function init(){
+
   await refreshEverything();
 
-  if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(refreshEverything,30000);
+  if(refreshTimer){
+    clearInterval(
+      refreshTimer
+    );
+  }
+
+  refreshTimer =
+    setInterval(
+      refreshEverything,
+      30000
+    );
+
 })();

@@ -64,12 +64,22 @@ function nowDate(){
 
 function hoursDiff(dateValue){
   const d = new Date(dateValue);
-  if(isNaN(d)) return 0;
-  return (Date.now() - d.getTime()) / (1000 * 60 * 60);
+
+  if(isNaN(d)){
+    return 0;
+  }
+
+  return (
+    Date.now() - d.getTime()
+  ) / (1000 * 60 * 60);
 }
 
 function olderThanHours(dateValue,hours){
-  if(!dateValue) return false;
+
+  if(!dateValue){
+    return false;
+  }
+
   return hoursDiff(dateValue) >= hours;
 }
 
@@ -79,7 +89,10 @@ function isSharedTrip(trip){
     String(trip?.tripType || "").toUpperCase() === "SHARED" ||
     String(trip?.type || "").toLowerCase() === "shared" ||
     String(trip?.tripNumber || "").toUpperCase().includes("-SH") ||
-    (Array.isArray(trip?.passengers) && trip.passengers.length > 0)
+    (
+      Array.isArray(trip?.passengers) &&
+      trip.passengers.length > 0
+    )
   );
 }
 
@@ -150,11 +163,15 @@ function ensurePageEntryStamp(trip){
   }
 
   if(!trip.dispatchFinalPageEnteredAt){
-    trip.dispatchFinalPageEnteredAt = trip.finalPageEnteredAt || now;
+    trip.dispatchFinalPageEnteredAt =
+      trip.finalPageEnteredAt ||
+      now;
   }
 
   if(!trip.enteredFinalConfirmationAt){
-    trip.enteredFinalConfirmationAt = trip.finalPageEnteredAt || now;
+    trip.enteredFinalConfirmationAt =
+      trip.finalPageEnteredAt ||
+      now;
   }
 
   return true;
@@ -162,7 +179,6 @@ function ensurePageEntryStamp(trip){
 
 /* =========================
    CLEAR CONFIRM STATE
-   يستخدم فقط لو الرحلة لسه مش Confirmed
 ========================= */
 
 function clearSingleConfirmState(trip){
@@ -209,20 +225,24 @@ function getReadySharedPassengers(trip){
       : [];
 
   return passengers.filter((p)=>{
-    const status = p?.status || trip?.status;
+
+    const status =
+      p?.status ||
+      trip?.status;
+
     return isFinalStatus(status);
   });
 }
 
 function sharedTripReadyForPage(trip){
-  return getReadySharedPassengers(trip).length > 0;
+  return (
+    getReadySharedPassengers(trip)
+      .length > 0
+  );
 }
 
 /* =========================
    SHOULD APPEAR
-   القاعدة:
-   - قبل Confirm يظهر في Final
-   - بعد Confirm يفضل 12 ساعة من وقت Confirm
 ========================= */
 
 function singleTripShouldAppear(trip){
@@ -232,6 +252,7 @@ function singleTripShouldAppear(trip){
   }
 
   if(getTripFinalConfirmed(trip)){
+
     return !olderThanHours(
       getTripFinalConfirmedAt(trip),
       HOLD_HOURS
@@ -248,6 +269,7 @@ function sharedTripShouldAppear(trip){
   }
 
   if(getSharedFinalConfirmed(trip)){
+
     return !olderThanHours(
       getSharedFinalConfirmedAt(trip),
       HOLD_HOURS
@@ -264,17 +286,21 @@ function sharedTripShouldAppear(trip){
 function sanitizeTripForFinalPage(trip){
 
   const obj =
-    trip.toObject
+    trip?.toObject
       ? trip.toObject()
       : trip;
 
   if(isSharedTrip(obj)){
+
     return {
       ...obj,
       __pageType:"shared",
-      __readyPassengers:getReadySharedPassengers(obj),
-      __finalConfirmed:getSharedFinalConfirmed(obj),
-      __finalConfirmedAt:getSharedFinalConfirmedAt(obj),
+      __readyPassengers:
+        getReadySharedPassengers(obj),
+      __finalConfirmed:
+        getSharedFinalConfirmed(obj),
+      __finalConfirmedAt:
+        getSharedFinalConfirmedAt(obj),
       __holdHours:HOLD_HOURS
     };
   }
@@ -282,8 +308,10 @@ function sanitizeTripForFinalPage(trip){
   return {
     ...obj,
     __pageType:"single",
-    __finalConfirmed:getTripFinalConfirmed(obj),
-    __finalConfirmedAt:getTripFinalConfirmedAt(obj),
+    __finalConfirmed:
+      getTripFinalConfirmed(obj),
+    __finalConfirmedAt:
+      getTripFinalConfirmedAt(obj),
     __holdHours:HOLD_HOURS
   };
 }
@@ -297,18 +325,21 @@ router.get("/", async (req,res)=>{
   try{
 
     if(!Trip){
+
       return res.status(500).json({
         success:false,
         message:"Trip model not loaded"
       });
     }
 
-    const trips = await Trip.find({})
-      .sort({
-        tripDate:-1,
-        tripTime:-1,
-        createdAt:-1
-      });
+    const trips =
+      await Trip
+        .find({})
+        .sort({
+          tripDate:-1,
+          tripTime:-1,
+          createdAt:-1
+        });
 
     const result = [];
     const saveOps = [];
@@ -324,13 +355,18 @@ router.get("/", async (req,res)=>{
         continue;
       }
 
-      const stamped = ensurePageEntryStamp(trip);
+      const stamped =
+        ensurePageEntryStamp(trip);
 
       if(stamped){
-        saveOps.push(trip.save());
+        saveOps.push(
+          trip.save()
+        );
       }
 
-      result.push(sanitizeTripForFinalPage(trip));
+      result.push(
+        sanitizeTripForFinalPage(trip)
+      );
     }
 
     if(saveOps.length){
@@ -346,21 +382,21 @@ router.get("/", async (req,res)=>{
 
   }catch(err){
 
-    console.log("DISPATCH FINAL CONFIRMATION GET ERROR:",err);
+    console.log(
+      "DISPATCH FINAL CONFIRMATION GET ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
-      message:"Failed to load dispatch final confirmation trips"
+      message:
+        "Failed to load dispatch final confirmation trips"
     });
-
   }
-
 });
 
 /* =========================
    UPDATE SINGLE STATUS
-   Edit فقط
-   لو كانت Confirmed لا نمسح علامات Confirm
 ========================= */
 
 router.patch("/:id/status", async (req,res)=>{
@@ -368,9 +404,17 @@ router.patch("/:id/status", async (req,res)=>{
   try{
 
     const { id } = req.params;
-    const status = normalizeFinalStatus(req.body?.status);
 
-    if(!mongoose.Types.ObjectId.isValid(String(id))){
+    const status =
+      normalizeFinalStatus(
+        req.body?.status
+      );
+
+    if(
+      !mongoose.Types.ObjectId
+        .isValid(String(id))
+    ){
+
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -378,15 +422,18 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     if(!status){
+
       return res.status(400).json({
         success:false,
         message:"Invalid final status"
       });
     }
 
-    const trip = await Trip.findById(id);
+    const trip =
+      await Trip.findById(id);
 
     if(!trip){
+
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -394,22 +441,21 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     if(isSharedTrip(trip)){
+
       return res.status(400).json({
         success:false,
-        message:"Use shared-status endpoint for shared trip"
+        message:
+          "Use shared-status endpoint for shared trip"
       });
     }
 
-    const wasConfirmed = getTripFinalConfirmed(trip);
+    const wasConfirmed =
+      getTripFinalConfirmed(trip);
 
     trip.status = status;
 
     ensurePageEntryStamp(trip);
 
-    /*
-      لو قبل Confirm: يفضل Not Confirmed
-      لو بعد Confirm خلال 12 ساعة: يفضل Confirmed عشان Review يتحدث
-    */
     if(!wasConfirmed){
       clearSingleConfirmState(trip);
     }
@@ -419,20 +465,23 @@ router.patch("/:id/status", async (req,res)=>{
     return res.json({
       success:true,
       message:"Trip status updated",
-      trip:sanitizeTripForFinalPage(trip)
+      trip:
+        sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
 
-    console.log("DISPATCH FINAL SINGLE STATUS ERROR:",err);
+    console.log(
+      "DISPATCH FINAL SINGLE STATUS ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
-      message:"Failed to update trip status"
+      message:
+        "Failed to update trip status"
     });
-
   }
-
 });
 
 /* =========================
@@ -444,19 +493,33 @@ router.patch("/:id/confirm", async (req,res)=>{
   try{
 
     const { id } = req.params;
-    const status = normalizeFinalStatus(req.body?.status || "");
-    const confirmedBy = String(req.body?.confirmedBy || "").trim();
 
-    if(!mongoose.Types.ObjectId.isValid(String(id))){
+    const status =
+      normalizeFinalStatus(
+        req.body?.status || ""
+      );
+
+    const confirmedBy =
+      String(
+        req.body?.confirmedBy || ""
+      ).trim();
+
+    if(
+      !mongoose.Types.ObjectId
+        .isValid(String(id))
+    ){
+
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
       });
     }
 
-    const trip = await Trip.findById(id);
+    const trip =
+      await Trip.findById(id);
 
     if(!trip){
+
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -464,9 +527,11 @@ router.patch("/:id/confirm", async (req,res)=>{
     }
 
     if(isSharedTrip(trip)){
+
       return res.status(400).json({
         success:false,
-        message:"Use shared-confirm endpoint for shared trip"
+        message:
+          "Use shared-confirm endpoint for shared trip"
       });
     }
 
@@ -475,9 +540,11 @@ router.patch("/:id/confirm", async (req,res)=>{
     }
 
     if(!isFinalStatus(trip.status)){
+
       return res.status(400).json({
         success:false,
-        message:"Trip status is not final"
+        message:
+          "Trip status is not final"
       });
     }
 
@@ -490,7 +557,8 @@ router.patch("/:id/confirm", async (req,res)=>{
     trip.dispatchFinalConfirmedAt = now;
 
     if(confirmedBy){
-      trip.finalStatusConfirmedBy = confirmedBy;
+      trip.finalStatusConfirmedBy =
+        confirmedBy;
     }
 
     await trip.save();
@@ -498,26 +566,27 @@ router.patch("/:id/confirm", async (req,res)=>{
     return res.json({
       success:true,
       message:"Trip confirmed",
-      trip:sanitizeTripForFinalPage(trip)
+      trip:
+        sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
 
-    console.log("DISPATCH FINAL SINGLE CONFIRM ERROR:",err);
+    console.log(
+      "DISPATCH FINAL SINGLE CONFIRM ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
-      message:"Failed to confirm trip"
+      message:
+        "Failed to confirm trip"
     });
-
   }
-
 });
 
 /* =========================
    UPDATE SHARED PASSENGERS
-   Edit فقط
-   لو كانت Confirmed لا نمسح علامات Confirm
 ========================= */
 
 router.patch("/:id/shared-status", async (req,res)=>{
@@ -527,11 +596,17 @@ router.patch("/:id/shared-status", async (req,res)=>{
     const { id } = req.params;
 
     const passengersInput =
-      Array.isArray(req.body?.passengers)
+      Array.isArray(
+        req.body?.passengers
+      )
         ? req.body.passengers
         : null;
 
-    if(!mongoose.Types.ObjectId.isValid(String(id))){
+    if(
+      !mongoose.Types.ObjectId
+        .isValid(String(id))
+    ){
+
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -539,15 +614,19 @@ router.patch("/:id/shared-status", async (req,res)=>{
     }
 
     if(!passengersInput){
+
       return res.status(400).json({
         success:false,
-        message:"Passengers array is required"
+        message:
+          "Passengers array is required"
       });
     }
 
-    const trip = await Trip.findById(id);
+    const trip =
+      await Trip.findById(id);
 
     if(!trip){
+
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -555,42 +634,49 @@ router.patch("/:id/shared-status", async (req,res)=>{
     }
 
     if(!isSharedTrip(trip)){
+
       return res.status(400).json({
         success:false,
-        message:"Trip is not shared"
+        message:
+          "Trip is not shared"
       });
     }
 
-    const wasConfirmed = getSharedFinalConfirmed(trip);
+    const wasConfirmed =
+      getSharedFinalConfirmed(trip);
 
     const currentPassengers =
-      Array.isArray(trip.passengers)
+      Array.isArray(
+        trip.passengers
+      )
         ? trip.passengers
         : [];
 
-    passengersInput.forEach((inputPassenger,idx)=>{
+    passengersInput
+      .forEach(
+        (inputPassenger,idx)=>{
 
-      if(!currentPassengers[idx]){
-        return;
-      }
+          if(!currentPassengers[idx]){
+            return;
+          }
 
-      const nextStatus =
-        normalizeFinalStatus(inputPassenger?.status);
+          const nextStatus =
+            normalizeFinalStatus(
+              inputPassenger?.status
+            );
 
-      if(nextStatus){
-        currentPassengers[idx].status = nextStatus;
-      }
+          if(nextStatus){
+            currentPassengers[idx].status =
+              nextStatus;
+          }
+        }
+      );
 
-    });
-
-    trip.passengers = currentPassengers;
+    trip.passengers =
+      currentPassengers;
 
     ensurePageEntryStamp(trip);
 
-    /*
-      لو قبل Confirm: يفضل Not Confirmed
-      لو بعد Confirm خلال 12 ساعة: يفضل Confirmed عشان Review يتحدث
-    */
     if(!wasConfirmed){
       clearSharedConfirmState(trip);
     }
@@ -599,21 +685,25 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
     return res.json({
       success:true,
-      message:"Shared passenger statuses updated",
-      trip:sanitizeTripForFinalPage(trip)
+      message:
+        "Shared passenger statuses updated",
+      trip:
+        sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
 
-    console.log("DISPATCH FINAL SHARED STATUS ERROR:",err);
+    console.log(
+      "DISPATCH FINAL SHARED STATUS ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
-      message:"Failed to update shared statuses"
+      message:
+        "Failed to update shared statuses"
     });
-
   }
-
 });
 
 /* =========================
@@ -627,23 +717,33 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
     const { id } = req.params;
 
     const passengersInput =
-      Array.isArray(req.body?.passengers)
+      Array.isArray(
+        req.body?.passengers
+      )
         ? req.body.passengers
         : null;
 
     const confirmedBy =
-      String(req.body?.confirmedBy || "").trim();
+      String(
+        req.body?.confirmedBy || ""
+      ).trim();
 
-    if(!mongoose.Types.ObjectId.isValid(String(id))){
+    if(
+      !mongoose.Types.ObjectId
+        .isValid(String(id))
+    ){
+
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
       });
     }
 
-    const trip = await Trip.findById(id);
+    const trip =
+      await Trip.findById(id);
 
     if(!trip){
+
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -651,42 +751,56 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
     }
 
     if(!isSharedTrip(trip)){
+
       return res.status(400).json({
         success:false,
-        message:"Trip is not shared"
+        message:
+          "Trip is not shared"
       });
     }
 
     const currentPassengers =
-      Array.isArray(trip.passengers)
+      Array.isArray(
+        trip.passengers
+      )
         ? trip.passengers
         : [];
 
     if(passengersInput){
-      passengersInput.forEach((inputPassenger,idx)=>{
 
-        if(!currentPassengers[idx]){
-          return;
-        }
+      passengersInput
+        .forEach(
+          (inputPassenger,idx)=>{
 
-        const nextStatus =
-          normalizeFinalStatus(inputPassenger?.status);
+            if(!currentPassengers[idx]){
+              return;
+            }
 
-        if(nextStatus){
-          currentPassengers[idx].status = nextStatus;
-        }
+            const nextStatus =
+              normalizeFinalStatus(
+                inputPassenger?.status
+              );
 
-      });
+            if(nextStatus){
+              currentPassengers[idx].status =
+                nextStatus;
+            }
+          }
+        );
     }
 
-    trip.passengers = currentPassengers;
+    trip.passengers =
+      currentPassengers;
 
-    const readyPassengers = getReadySharedPassengers(trip);
+    const readyPassengers =
+      getReadySharedPassengers(trip);
 
     if(!readyPassengers.length){
+
       return res.status(400).json({
         success:false,
-        message:"No shared passengers ready for final confirmation"
+        message:
+          "No shared passengers ready for final confirmation"
       });
     }
 
@@ -702,28 +816,261 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
     trip.dispatchFinalConfirmedAt = now;
 
     if(confirmedBy){
-      trip.finalStatusConfirmedBy = confirmedBy;
+      trip.finalStatusConfirmedBy =
+        confirmedBy;
     }
 
     await trip.save();
 
     return res.json({
       success:true,
-      message:"Shared trip confirmed",
-      trip:sanitizeTripForFinalPage(trip)
+      message:
+        "Shared trip confirmed",
+      trip:
+        sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
 
-    console.log("DISPATCH FINAL SHARED CONFIRM ERROR:",err);
+    console.log(
+      "DISPATCH FINAL SHARED CONFIRM ERROR:",
+      err
+    );
 
     return res.status(500).json({
       success:false,
-      message:"Failed to confirm shared trip"
+      message:
+        "Failed to confirm shared trip"
+    });
+  }
+});
+
+/* =========================
+   RETURN SINGLE TRIP TO DRIVER
+   Rescue action:
+   Driver closed trip by mistake.
+   Dispatch reopens SAME trip for SAME assigned driver.
+========================= */
+
+router.patch("/:id/return-to-driver", async (req,res)=>{
+
+  try{
+
+    const { id } = req.params;
+
+    if(
+      !mongoose.Types.ObjectId
+        .isValid(String(id))
+    ){
+
+      return res.status(400).json({
+        success:false,
+        message:"Invalid trip id"
+      });
+    }
+
+    const trip =
+      await Trip.findById(id);
+
+    if(!trip){
+
+      return res.status(404).json({
+        success:false,
+        message:"Trip not found"
+      });
+    }
+
+    if(isSharedTrip(trip)){
+
+      return res.status(400).json({
+        success:false,
+        message:
+          "Return To Driver currently supports single trips only"
+      });
+    }
+
+    if(!isFinalStatus(trip.status)){
+
+      return res.status(400).json({
+        success:false,
+        message:
+          "Only a closed trip can be returned to the driver"
+      });
+    }
+
+    const previousStatus =
+      normalizeFinalStatus(
+        trip.status
+      ) ||
+      String(
+        trip.status || ""
+      );
+
+    const returnedBy =
+      String(
+        req.body?.returnedBy || ""
+      ).trim();
+
+    const reason =
+      String(
+        req.body?.reason || ""
+      ).trim();
+
+    const now =
+      nowDate();
+
+    /*
+      Use the raw Mongo collection intentionally here.
+      This lets us clear old close/final fields even if some of them
+      are not explicitly declared in the current Mongoose schema.
+    */
+    await Trip.collection.updateOne(
+      {
+        _id:
+          new mongoose.Types.ObjectId(
+            String(id)
+          )
+      },
+      {
+        $set:{
+          status:"InProgress",
+
+          returnToDriver:true,
+          returnedToDriverAt:now,
+          returnedToDriverBy:
+            returnedBy ||
+            "dispatcher",
+
+          returnToDriverReason:
+            reason ||
+            "Returned to driver from Final Confirmation",
+
+          previousFinalStatus:
+            previousStatus,
+
+          updatedAt:now
+        },
+
+        $unset:{
+          finalStatusConfirmed:"",
+          finalStatusConfirmedAt:"",
+          dispatchFinalConfirmedAt:"",
+          finalStatusConfirmedBy:"",
+
+          sharedFinalConfirmed:"",
+          sharedFinalConfirmedAt:"",
+
+          finalPageEnteredAt:"",
+          dispatchFinalPageEnteredAt:"",
+          enteredFinalConfirmationAt:"",
+
+          completedAt:"",
+          completeAt:"",
+          cancelledAt:"",
+          canceledAt:"",
+          noShowAt:"",
+          noshowAt:"",
+          notCompletedAt:"",
+
+          driverReportedFinalStatus:"",
+          finalStatusFromDriver:"",
+          driverFinalStatusReported:"",
+          reportedByDriver:""
+        }
+      }
+    );
+
+    /*
+      If DispatchAssignment exists, reopen that same assignment.
+      We do NOT create a new assignment and we do NOT change driverId.
+    */
+    const DispatchAssignment =
+      mongoose.models
+        .DispatchAssignment ||
+      global.DispatchAssignment ||
+      null;
+
+    if(DispatchAssignment){
+
+      const tripIdCandidates = [
+        String(id),
+        trip?._id,
+        trip?.tripNumber,
+        trip?.bookingNumber
+      ].filter(Boolean);
+
+      try{
+
+        await DispatchAssignment.updateMany(
+          {
+            $or:[
+              {
+                tripId:{
+                  $in:tripIdCandidates
+                }
+              },
+              {
+                tripNumber:{
+                  $in:tripIdCandidates
+                }
+              }
+            ]
+          },
+          {
+            $set:{
+              dispatchStatus:"ON_TRIP",
+              status:"ON_TRIP",
+              updatedAt:now
+            },
+            $unset:{
+              completedAt:"",
+              cancelledAt:"",
+              canceledAt:"",
+              noShowAt:"",
+              noshowAt:""
+            }
+          }
+        );
+
+      }catch(assignmentErr){
+
+        console.log(
+          "RETURN TO DRIVER ASSIGNMENT UPDATE WARNING:",
+          assignmentErr
+        );
+      }
+    }
+
+    const reopenedTrip =
+      await Trip.findById(id);
+
+    return res.json({
+      success:true,
+      message:
+        "Trip returned to driver",
+      previousStatus,
+      status:
+        reopenedTrip?.status ||
+        "InProgress",
+      trip:
+        reopenedTrip
+          ? reopenedTrip.toObject()
+          : null
     });
 
-  }
+  }catch(err){
 
+    console.log(
+      "RETURN TO DRIVER ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success:false,
+      message:
+        "Failed to return trip to driver"
+    });
+  }
 });
 
 module.exports = router;
