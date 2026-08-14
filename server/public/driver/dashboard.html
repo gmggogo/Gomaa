@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <title>Sunbeam Driver Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
   <link rel="stylesheet" href="driver.css" />
@@ -11,15 +16,18 @@
   <style>
     :root{
       --navy:#04172f;
-      --navy2:#0b315f;
+      --navy-mid:#0a315e;
       --gold:#ffd226;
-      --gold-dark:#765000;
+      --gold-deep:#765000;
       --green:#28ef70;
     }
 
-    *{ box-sizing:border-box; }
+    *{
+      box-sizing:border-box;
+    }
 
-    html,body{
+    html,
+    body{
       margin:0;
       width:100%;
       min-height:100%;
@@ -28,8 +36,8 @@
     body.driver-dashboard-page{
       min-height:100dvh;
       color:#fff;
-      padding-bottom:150px;
       overflow-x:hidden;
+      padding-bottom:145px;
     }
 
     .dashboard-shell{
@@ -38,28 +46,52 @@
       overflow-x:hidden;
     }
 
-    .driver-identity-header{
-      display:grid;
-      grid-template-columns:auto minmax(0,1fr) 128px;
-      align-items:center;
-      gap:12px;
+    /* =========================
+       HEADER
+    ========================= */
+
+    .driver-header{
       width:100%;
-      padding:max(15px,env(safe-area-inset-top)) 18px 15px;
-      background:linear-gradient(180deg,#031329 0%,#061b38 100%);
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) 74px;
+      align-items:center;
+      gap:14px;
+
+      padding:
+        max(15px, env(safe-area-inset-top))
+        18px
+        16px;
+
+      background:linear-gradient(
+        180deg,
+        #031329 0%,
+        #061b38 100%
+      );
+
       border-bottom:4px solid var(--gold);
       border-radius:0 0 34px 34px;
-      box-shadow:0 8px 0 rgba(91,59,0,.34),0 14px 24px rgba(0,0,0,.22);
+
+      box-shadow:
+        0 8px 0 rgba(91,59,0,.34),
+        0 14px 24px rgba(0,0,0,.22);
     }
 
     .driver-avatar{
       width:54px;
       height:54px;
+
       display:flex;
       align-items:center;
       justify-content:center;
+
       border-radius:50%;
-      background:radial-gradient(circle at 50% 35%,#183f70,#04162f 72%);
       border:3px solid var(--gold);
+
+      background:radial-gradient(
+        circle at 50% 35%,
+        #183f70,
+        #04162f 72%
+      );
     }
 
     .driver-avatar svg{
@@ -68,62 +100,109 @@
       fill:var(--gold);
     }
 
-    .driver-identity-text{ min-width:0; }
+    .driver-info{
+      min-width:0;
+    }
 
-    .driver-name-header{
+    .driver-name{
       color:#fff;
       font-size:19px;
       line-height:1;
       font-weight:900;
+
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
 
-    .driver-role-header{
+    .driver-role{
       margin-top:5px;
       color:var(--gold);
       font-size:14px;
       font-weight:900;
     }
 
-    .driver-company-box{
-      width:128px;
-      min-height:58px;
+    .driver-logo-box{
+      width:74px;
+      height:58px;
+
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:8px 6px;
-      border:1px solid rgba(255,255,255,.28);
+
       overflow:hidden;
+      border:1px solid rgba(255,255,255,.30);
+    }
+
+    .driver-logo-box img{
+      display:block;
+      width:100%;
+      height:100%;
+      object-fit:contain;
+
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      filter:none !important;
+    }
+
+    /* =========================
+       COMPANY NAME
+    ========================= */
+
+    .company-name-wrap{
+      width:100%;
+      display:flex;
+      justify-content:center;
+
+      margin-top:18px;
+      margin-bottom:22px;
     }
 
     .dashboard-company{
-      width:100%;
       margin:0;
-      text-align:center;
+      padding:0 12px;
+
       color:var(--gold);
-      font-size:18px;
-      line-height:1.05;
+      text-align:center;
+
+      font-size:29px;
+      line-height:1;
       font-weight:900;
-      letter-spacing:.5px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      text-shadow:0 2px 0 #765000,0 4px 7px rgba(0,0,0,.22);
+      letter-spacing:1px;
+
+      text-shadow:
+        0 2px 0 #765000,
+        0 4px 7px rgba(0,0,0,.22);
     }
 
+    /* =========================
+       STATUS
+    ========================= */
+
     .status-pill{
-      margin:48px 18px 18px;
+      margin:0 18px 18px;
+
       min-height:60px;
       padding:0 20px;
+
       display:flex;
       align-items:center;
       justify-content:space-between;
+
       border-radius:30px;
-      background:linear-gradient(180deg,#0b315d 0%,#04172f 100%);
+
+      background:linear-gradient(
+        180deg,
+        #0b315d 0%,
+        #04172f 100%
+      );
+
       border:2px solid rgba(255,210,38,.84);
-      box-shadow:0 7px 0 rgba(79,51,0,.42),0 13px 20px rgba(0,0,0,.18);
+
+      box-shadow:
+        0 7px 0 rgba(79,51,0,.42),
+        0 13px 20px rgba(0,0,0,.18);
     }
 
     .status-left{
@@ -135,9 +214,12 @@
     .status-dot{
       width:21px;
       height:21px;
+
       border-radius:50%;
       background:var(--green);
-      box-shadow:0 0 14px rgba(39,242,111,.55);
+
+      box-shadow:
+        0 0 14px rgba(39,242,111,.55);
     }
 
     .status-label{
@@ -152,101 +234,150 @@
       font-weight:900;
     }
 
-    .dashboard-scroll{
+    /* =========================
+       CONTENT
+    ========================= */
+
+    .dashboard-content{
       width:100%;
-      max-width:100%;
       padding:0 18px 28px;
       overflow-x:hidden;
     }
 
     .dashboard-grid{
       width:100%;
-      max-width:100%;
+
       display:grid;
       grid-template-columns:minmax(0,1fr) minmax(0,1fr);
       gap:12px;
     }
 
-    .dashboard-card,.summary-card{
+    .dashboard-card,
+    .summary-card{
       position:relative;
-      overflow:hidden;
       width:100%;
-      max-width:100%;
+
       appearance:none;
       -webkit-tap-highlight-color:transparent;
-      color:#fff;
+
       font-family:inherit;
       cursor:pointer;
+      overflow:hidden;
     }
 
     .dashboard-card{
-      min-height:148px;
-      padding:17px 12px;
+      min-height:112px;
+      padding:14px 10px;
+
       display:flex;
       flex-direction:column;
       align-items:center;
       justify-content:center;
-      gap:9px;
+      gap:8px;
+
+      color:#fff;
+
       border-radius:22px;
+
       background:
-        radial-gradient(circle at 24% 14%,rgba(74,141,232,.12),transparent 35%),
-        linear-gradient(160deg,#0a315e 0%,#061c3b 54%,#03142d 100%);
+        radial-gradient(
+          circle at 24% 14%,
+          rgba(74,141,232,.12),
+          transparent 35%
+        ),
+        linear-gradient(
+          160deg,
+          #0a315e 0%,
+          #061c3b 54%,
+          #03142d 100%
+        );
+
       border-top:3px solid #ffe27a;
       border-left:3px solid #edb72a;
       border-right:3px solid #9e6800;
       border-bottom:5px solid #6f4900;
-      box-shadow:0 7px 0 rgba(57,36,0,.50),0 12px 18px rgba(2,12,30,.22),inset 0 1px 0 rgba(255,255,255,.08);
+
+      box-shadow:
+        0 7px 0 rgba(57,36,0,.50),
+        0 12px 18px rgba(2,12,30,.22),
+        inset 0 1px 0 rgba(255,255,255,.08);
     }
 
-    .dashboard-card::after,.summary-card::after{
+    .dashboard-card::after,
+    .summary-card::after{
       content:"";
+
       position:absolute;
       inset:7px;
+
       border-radius:17px;
       border:1.5px solid rgba(255,210,38,.62);
+
       pointer-events:none;
     }
 
+    /* =========================
+       TRIPS
+    ========================= */
+
     #cardTrips{
       grid-column:1 / -1;
-      min-height:128px;
+
+      min-height:116px;
+
       color:#07172d;
+
       background:
-        radial-gradient(circle at 24% 15%,rgba(255,255,255,.52),transparent 32%),
-        linear-gradient(180deg,#ffe86f 0%,#ffd226 52%,#dda300 100%);
+        radial-gradient(
+          circle at 24% 15%,
+          rgba(255,255,255,.52),
+          transparent 32%
+        ),
+        linear-gradient(
+          180deg,
+          #ffe86f 0%,
+          #ffd226 52%,
+          #dda300 100%
+        );
+
       border-top:3px solid #fff2a6;
       border-left:3px solid #ffdc45;
       border-right:3px solid #a36a00;
       border-bottom:5px solid #805300;
-      box-shadow:0 8px 0 rgba(92,58,0,.48),0 14px 22px rgba(0,0,0,.22),inset 0 2px 0 rgba(255,255,255,.48);
+
+      box-shadow:
+        0 8px 0 rgba(92,58,0,.48),
+        0 14px 22px rgba(0,0,0,.22),
+        inset 0 2px 0 rgba(255,255,255,.48);
     }
 
-    #cardTrips::after{ border:2px solid rgba(105,67,0,.42); }
+    #cardTrips::after{
+      border:2px solid rgba(105,67,0,.42);
+    }
 
     #cardTrips .dashboard-card-title{
       color:#07172d;
-      font-size:28px;
+      font-size:26px;
       line-height:1;
       font-weight:900;
-      text-shadow:0 1px 0 rgba(255,255,255,.45);
+
+      text-shadow:
+        0 1px 0 rgba(255,255,255,.45);
     }
 
-    .dashboard-card-title{
-      position:relative;
-      z-index:2;
-      color:#fff;
-      font-size:18px;
-      line-height:1.1;
-      font-weight:900;
-      text-align:center;
-    }
+    /* =========================
+       OTHER BUTTONS
+    ========================= */
 
     .dashboard-card-icon{
       position:relative;
       z-index:2;
-      width:32px;
-      height:32px;
+
+      width:28px;
+      height:28px;
+
       object-fit:contain;
+
       background:transparent !important;
       border:0 !important;
       box-shadow:none !important;
@@ -254,223 +385,392 @@
     }
 
     .history-icon{
+      position:relative;
+      z-index:2;
+
+      display:block;
       width:auto;
       height:auto;
-      display:block;
-      font-size:30px;
+
+      font-size:27px;
       line-height:1;
+
       background:transparent !important;
       box-shadow:none !important;
       filter:none !important;
     }
 
+    .dashboard-card-title{
+      position:relative;
+      z-index:2;
+
+      color:#fff;
+
+      font-size:17px;
+      line-height:1.1;
+      font-weight:900;
+
+      text-align:center;
+    }
+
+    /* =========================
+       REVIEW SUMMARY
+    ========================= */
+
     .summary-wrap{
       width:100%;
-      max-width:100%;
       margin-top:12px;
-      overflow:hidden;
     }
 
     .summary-card{
       width:100%;
-      max-width:100%;
-      min-width:0;
-      min-height:104px;
-      margin:0;
-      padding:16px 20px;
+      min-height:88px;
+      padding:14px 18px;
+
       display:flex;
       align-items:center;
       justify-content:center;
       gap:12px;
+
+      color:#fff;
+
       border-radius:22px;
+
       background:
-        radial-gradient(circle at 18% 12%,rgba(72,140,230,.12),transparent 34%),
-        linear-gradient(160deg,#0a315e 0%,#061c3b 54%,#03142d 100%);
+        radial-gradient(
+          circle at 18% 12%,
+          rgba(72,140,230,.12),
+          transparent 34%
+        ),
+        linear-gradient(
+          160deg,
+          #0a315e 0%,
+          #061c3b 54%,
+          #03142d 100%
+        );
+
       border-top:3px solid #ffe27a;
       border-left:3px solid #edb72a;
       border-right:3px solid #9e6800;
       border-bottom:5px solid #6f4900;
-      box-shadow:0 7px 0 rgba(57,36,0,.50),0 12px 18px rgba(2,12,30,.22),inset 0 1px 0 rgba(255,255,255,.08);
+
+      box-shadow:
+        0 7px 0 rgba(57,36,0,.50),
+        0 12px 18px rgba(2,12,30,.22),
+        inset 0 1px 0 rgba(255,255,255,.08);
     }
 
-    .summary-icon-crop{
+    .summary-icon-wrap{
       position:relative;
       z-index:2;
-      width:32px;
-      height:32px;
+
+      width:30px;
+      height:30px;
+      flex:0 0 30px;
+
       display:flex;
       align-items:center;
       justify-content:center;
+
       overflow:hidden;
-      flex:0 0 32px;
     }
 
-    .summary-final-icon{
+    .summary-icon{
       display:block;
-      width:32px;
-      height:32px;
+      width:30px;
+      height:30px;
+
       object-fit:contain;
+
       background:transparent !important;
       border:0 !important;
       box-shadow:none !important;
       filter:none !important;
     }
 
-    .summary-final-text{
+    .summary-title{
       position:relative;
       z-index:2;
+
       min-width:0;
+
       color:#fff;
-      font-size:21px;
+
+      font-size:20px;
       line-height:1;
       font-weight:900;
+
       white-space:nowrap;
     }
 
+    /* =========================
+       MOBILE
+    ========================= */
+
     @media(max-width:390px){
-      .driver-identity-header{
-        grid-template-columns:auto minmax(0,1fr) 108px;
+
+      .driver-header{
+        grid-template-columns:auto minmax(0,1fr) 70px;
         padding-left:14px;
         padding-right:14px;
       }
 
-      .driver-avatar{ width:50px; height:50px; }
-      .driver-name-header{ font-size:18px; }
-
-      .driver-company-box{
-        width:108px;
-        min-height:55px;
+      .driver-avatar{
+        width:50px;
+        height:50px;
       }
 
-      .dashboard-company{ font-size:16px; }
-      .status-pill{ margin-top:46px; }
+      .driver-name{
+        font-size:18px;
+      }
 
-      .dashboard-scroll{
+      .driver-logo-box{
+        width:70px;
+        height:55px;
+      }
+
+      .company-name-wrap{
+        margin-top:22px;
+        margin-bottom:22px;
+      }
+
+      .dashboard-company{
+        font-size:26px;
+      }
+
+      .dashboard-content{
         padding-left:12px;
         padding-right:12px;
       }
 
-      .dashboard-grid{ gap:10px; }
+      .dashboard-grid{
+        gap:10px;
+      }
 
       .dashboard-card{
-        min-height:138px;
+        min-height:106px;
         border-radius:21px;
       }
 
-      #cardTrips{ min-height:122px; }
+      #cardTrips{
+        min-height:110px;
+      }
 
       .dashboard-card-icon{
-        width:30px;
-        height:30px;
+        width:26px;
+        height:26px;
       }
 
-      .history-icon{ font-size:28px; }
-      .dashboard-card-title{ font-size:17px; }
-      #cardTrips .dashboard-card-title{ font-size:26px; }
+      .history-icon{
+        font-size:25px;
+      }
+
+      .dashboard-card-title{
+        font-size:16px;
+      }
+
+      #cardTrips .dashboard-card-title{
+        font-size:25px;
+      }
 
       .summary-card{
-        min-height:96px;
-        padding-left:16px;
-        padding-right:16px;
+        min-height:84px;
+        padding-left:14px;
+        padding-right:14px;
       }
 
-      .summary-icon-crop{
-        width:30px;
-        height:30px;
-        flex-basis:30px;
+      .summary-icon-wrap,
+      .summary-icon{
+        width:28px;
+        height:28px;
       }
 
-      .summary-final-icon{
-        width:30px;
-        height:30px;
+      .summary-icon-wrap{
+        flex-basis:28px;
       }
 
-      .summary-final-text{ font-size:19px; }
+      .summary-title{
+        font-size:18px;
+      }
     }
   </style>
 </head>
 
 <body class="driver-dashboard-page">
+
   <main class="dashboard-shell">
 
-    <section class="driver-identity-header">
+    <section class="driver-header">
+
       <div class="driver-avatar" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8zm-7.3 8.2c.5-4.1 3-6.5 7.3-6.5s6.8 2.4 7.3 6.5c.1.7-.4 1.3-1.1 1.3H5.8c-.7 0-1.2-.6-1.1-1.3z"/>
         </svg>
       </div>
 
-      <div class="driver-identity-text">
-        <div class="driver-name-header" id="driverName">Driver</div>
-        <div class="driver-role-header">Driver</div>
+      <div class="driver-info">
+        <div class="driver-name" id="driverName">
+          Driver
+        </div>
+
+        <div class="driver-role">
+          Driver
+        </div>
       </div>
 
-      <div class="driver-company-box">
-        <div class="dashboard-company company-name">SUNSET</div>
+      <div class="driver-logo-box">
+        <img
+          class="logo app-logo"
+          alt="Company Logo"
+        />
       </div>
+
     </section>
 
-    <section class="status-pill" aria-label="Driver status">
+    <div class="company-name-wrap">
+      <div class="dashboard-company company-name">
+        SUNBEAM
+      </div>
+    </div>
+
+    <section
+      class="status-pill"
+      aria-label="Driver status"
+    >
       <div class="status-left">
         <span class="status-dot"></span>
         <span class="status-label">Status:</span>
       </div>
-      <span class="status-value">ONLINE</span>
+
+      <span class="status-value">
+        ONLINE
+      </span>
     </section>
 
-    <div class="dashboard-scroll" id="dashboardScroll">
+    <div class="dashboard-content">
+
       <section class="dashboard-grid">
 
-        <button class="dashboard-card" id="cardTrips" type="button">
-          <span class="dashboard-card-title">Trips</span>
+        <!-- TRIPS: NO CAR ICON -->
+        <button
+          class="dashboard-card"
+          id="cardTrips"
+          type="button"
+        >
+          <span class="dashboard-card-title">
+            Trips
+          </span>
         </button>
 
-        <button class="dashboard-card" id="cardMap" type="button">
-          <img class="dashboard-card-icon map-icon" src="assets/live-map.png" alt="" />
-          <span class="dashboard-card-title">Live Map</span>
+        <button
+          class="dashboard-card"
+          id="cardMap"
+          type="button"
+        >
+          <img
+            class="dashboard-card-icon"
+            src="assets/live-map.png"
+            alt=""
+          />
+
+          <span class="dashboard-card-title">
+            Live Map
+          </span>
         </button>
 
-        <button class="dashboard-card" id="cardHistory" type="button">
-          <span class="dashboard-card-icon history-icon" aria-hidden="true">🕘</span>
-          <span class="dashboard-card-title">Trip History</span>
+        <button
+          class="dashboard-card"
+          id="cardHistory"
+          type="button"
+        >
+          <span
+            class="history-icon"
+            aria-hidden="true"
+          >🕘</span>
+
+          <span class="dashboard-card-title">
+            Trip History
+          </span>
         </button>
 
-        <button class="dashboard-card" id="cardHours" type="button">
-          <img class="dashboard-card-icon hours-icon" src="assets/work-hours.png" alt="" />
-          <span class="dashboard-card-title">Work Hours</span>
+        <button
+          class="dashboard-card"
+          id="cardHours"
+          type="button"
+        >
+          <img
+            class="dashboard-card-icon"
+            src="assets/work-hours.png"
+            alt=""
+          />
+
+          <span class="dashboard-card-title">
+            Work Hours
+          </span>
         </button>
 
-        <button class="dashboard-card" id="cardEarnings" type="button">
-          <img class="dashboard-card-icon earnings-icon" src="assets/earnings.png" alt="" />
-          <span class="dashboard-card-title">Earnings</span>
+        <button
+          class="dashboard-card"
+          id="cardEarnings"
+          type="button"
+        >
+          <img
+            class="dashboard-card-icon"
+            src="assets/earnings.png"
+            alt=""
+          />
+
+          <span class="dashboard-card-title">
+            Earnings
+          </span>
         </button>
 
       </section>
 
       <div class="summary-wrap">
-        <button class="summary-card" id="cardSummary" type="button">
-          <span class="summary-icon-crop">
-            <img class="summary-final-icon" src="assets/summary.png" alt="" />
+
+        <button
+          class="summary-card"
+          id="cardSummary"
+          type="button"
+        >
+          <span class="summary-icon-wrap">
+            <img
+              class="summary-icon"
+              src="assets/summary.png"
+              alt=""
+            />
           </span>
-          <span class="summary-final-text">View Summary</span>
+
+          <span class="summary-title">
+            Review Summary
+          </span>
         </button>
+
       </div>
+
     </div>
+
   </main>
 
   <div id="driverNav"></div>
 
   <script src="/core/branding.js"></script>
+
   <script>
-    window.addEventListener("DOMContentLoaded", async () => {
-      if(window.Branding){
-        await window.Branding.load();
+    window.addEventListener(
+      "DOMContentLoaded",
+      async () => {
+        if(window.Branding){
+          await window.Branding.load();
+        }
       }
-    });
+    );
   </script>
 
   <script src="driver-nav.js"></script>
   <script src="dashboard.js" defer></script>
   <script src="/driver/location.js"></script>
+
 </body>
 </html>
