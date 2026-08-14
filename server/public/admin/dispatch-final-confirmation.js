@@ -1966,6 +1966,18 @@ async function saveSingleEdit(key){
     return;
   }
 
+  if(
+    t.__draftStatus ===
+    "__RETURN_TO_DRIVER__"
+  ){
+
+    await returnSingleTripToDriver(
+      key
+    );
+
+    return;
+  }
+
   const newStatus =
     t.__draftStatus ||
     t.status ||
@@ -2313,6 +2325,21 @@ function handleSingleStatusChange(
     return;
   }
 
+  if(
+    value ===
+    "returntodriver"
+  ){
+
+    if(isTripConfirmed(t)){
+      return;
+    }
+
+    t.__draftStatus =
+      "__RETURN_TO_DRIVER__";
+
+    return;
+  }
+
   t.__draftStatus =
     statusValueToLabel(value);
 }
@@ -2426,15 +2453,30 @@ function singleStatusEditHTML(item){
       t.status
     );
 
+  const confirmed =
+    isTripConfirmed(t);
+
+  const isReturnDraft =
+    t.__draftStatus ===
+    "__RETURN_TO_DRIVER__";
+
   return `
     <select
       class="status-select"
       onchange="handleSingleStatusChange('${safe(item.key)}', this.value)"
     >
-      <option value="completed" ${current === "completed" ? "selected" : ""}>Completed</option>
-      <option value="cancelled" ${current === "cancelled" ? "selected" : ""}>Cancelled</option>
-      <option value="noshow" ${current === "noshow" ? "selected" : ""}>No Show</option>
-      <option value="notcompleted" ${current === "notcompleted" ? "selected" : ""}>Not Completed</option>
+      <option value="completed" ${!isReturnDraft && current === "completed" ? "selected" : ""}>Completed</option>
+      <option value="cancelled" ${!isReturnDraft && current === "cancelled" ? "selected" : ""}>Cancelled</option>
+      <option value="noshow" ${!isReturnDraft && current === "noshow" ? "selected" : ""}>No Show</option>
+      <option value="notcompleted" ${!isReturnDraft && current === "notcompleted" ? "selected" : ""}>Not Completed</option>
+
+      <option
+        value="returntodriver"
+        ${isReturnDraft ? "selected" : ""}
+        ${confirmed ? "disabled" : ""}
+      >
+        Return To Driver
+      </option>
     </select>
   `;
 }
@@ -2730,17 +2772,6 @@ function renderTripRow(item){
               </button>
 
               <button
-                class="btn-action btn-return-driver"
-                type="button"
-                onclick="returnSingleTripToDriver('${safe(item.key)}')"
-                ${confirmed ? "disabled" : ""}
-                aria-disabled="${confirmed ? "true" : "false"}"
-                title="${confirmed ? "Trip already confirmed" : "Return trip to driver"}"
-              >
-                Return To Driver
-              </button>
-
-              <button
                 class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
                 type="button"
                 onclick="confirmSingleTrip('${safe(item.key)}')"
@@ -2962,7 +2993,6 @@ function renderSharedRow(item){
                 class="btn-action btn-edit"
                 type="button"
                 onclick="beginEditShared('${safe(item.key)}')"
-                ${confirmed ? "disabled" : ""}
               >
                 Edit
               </button>
@@ -2971,7 +3001,6 @@ function renderSharedRow(item){
                 class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
                 type="button"
                 onclick="confirmSharedTrip('${safe(item.key)}')"
-                ${confirmed ? "disabled" : ""}
               >
                 ${
                   confirmed
@@ -3052,21 +3081,35 @@ Object.assign(
    DISABLED FINAL ACTIONS STYLE
 ================================ */
 (function ensureFinalActionDisabledStyle(){
-  if(document.getElementById("finalActionDisabledStyle")) return;
 
-  const style = document.createElement("style");
-  style.id = "finalActionDisabledStyle";
+  if(
+    document.getElementById(
+      "finalActionDisabledStyle"
+    )
+  ){
+    return;
+  }
+
+  const style =
+    document.createElement(
+      "style"
+    );
+
+  style.id =
+    "finalActionDisabledStyle";
+
   style.textContent = `
     .btn-action:disabled{
       opacity:.45 !important;
       cursor:not-allowed !important;
-      filter:grayscale(.35);
       box-shadow:none !important;
-      pointer-events:none;
+      pointer-events:none !important;
     }
   `;
 
-  document.head.appendChild(style);
+  document.head.appendChild(
+    style
+  );
 })();
 
 /* ===============================
