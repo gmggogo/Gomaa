@@ -155,7 +155,7 @@
       display:flex;
       justify-content:center;
 
-      margin-top:18px;
+      margin-top:22px;
       margin-bottom:22px;
     }
 
@@ -240,22 +240,24 @@
 
     .dashboard-content{
       width:100%;
+      max-width:100%;
       padding:0 18px 28px;
       overflow-x:hidden;
     }
 
     .dashboard-grid{
       width:100%;
+      max-width:100%;
 
       display:grid;
       grid-template-columns:minmax(0,1fr) minmax(0,1fr);
       gap:12px;
     }
 
-    .dashboard-card,
-    .summary-card{
+    .dashboard-card{
       position:relative;
       width:100%;
+      max-width:100%;
 
       appearance:none;
       -webkit-tap-highlight-color:transparent;
@@ -263,9 +265,7 @@
       font-family:inherit;
       cursor:pointer;
       overflow:hidden;
-    }
 
-    .dashboard-card{
       min-height:112px;
       padding:14px 10px;
 
@@ -303,8 +303,7 @@
         inset 0 1px 0 rgba(255,255,255,.08);
     }
 
-    .dashboard-card::after,
-    .summary-card::after{
+    .dashboard-card::after{
       content:"";
 
       position:absolute;
@@ -414,23 +413,53 @@
     }
 
     /* =========================
-       REVIEW SUMMARY
+       REVIEW SUMMARY - FIXED
     ========================= */
 
     .summary-wrap{
+      display:block;
+
       width:100%;
-      margin-top:12px;
+      max-width:100%;
+      min-width:0;
+
+      margin:12px 0 0 0;
+      padding:0;
+
+      overflow:hidden;
+      box-sizing:border-box;
     }
 
-    .summary-card{
-      width:100%;
-      min-height:88px;
-      padding:14px 18px;
+    #cardSummary.summary-card{
+      position:relative;
 
       display:flex;
       align-items:center;
       justify-content:center;
-      gap:12px;
+
+      width:100% !important;
+      max-width:100% !important;
+      min-width:0 !important;
+
+      height:auto;
+      min-height:88px;
+
+      margin:0 !important;
+      padding:14px 18px !important;
+
+      left:auto !important;
+      right:auto !important;
+
+      transform:none !important;
+
+      appearance:none;
+      -webkit-tap-highlight-color:transparent;
+
+      font-family:inherit;
+      cursor:pointer;
+
+      box-sizing:border-box !important;
+      overflow:hidden;
 
       color:#fff;
 
@@ -458,15 +487,30 @@
         0 7px 0 rgba(57,36,0,.50),
         0 12px 18px rgba(2,12,30,.22),
         inset 0 1px 0 rgba(255,255,255,.08);
+
+      gap:12px;
+    }
+
+    #cardSummary.summary-card::after{
+      content:"";
+
+      position:absolute;
+      inset:7px;
+
+      border-radius:17px;
+      border:1.5px solid rgba(255,210,38,.62);
+
+      pointer-events:none;
     }
 
     .summary-icon-wrap{
       position:relative;
       z-index:2;
 
-      width:30px;
-      height:30px;
-      flex:0 0 30px;
+      width:28px;
+      height:28px;
+      min-width:28px;
+      flex:0 0 28px;
 
       display:flex;
       align-items:center;
@@ -477,8 +521,9 @@
 
     .summary-icon{
       display:block;
-      width:30px;
-      height:30px;
+
+      width:28px;
+      height:28px;
 
       object-fit:contain;
 
@@ -493,13 +538,15 @@
       z-index:2;
 
       min-width:0;
+      max-width:100%;
 
       color:#fff;
 
-      font-size:20px;
-      line-height:1;
+      font-size:19px;
+      line-height:1.1;
       font-weight:900;
 
+      text-align:center;
       white-space:nowrap;
     }
 
@@ -530,7 +577,7 @@
       }
 
       .company-name-wrap{
-        margin-top:22px;
+        margin-top:24px;
         margin-bottom:22px;
       }
 
@@ -573,20 +620,21 @@
         font-size:25px;
       }
 
-      .summary-card{
+      #cardSummary.summary-card{
         min-height:84px;
-        padding-left:14px;
-        padding-right:14px;
-      }
-
-      .summary-icon-wrap,
-      .summary-icon{
-        width:28px;
-        height:28px;
+        padding-left:14px !important;
+        padding-right:14px !important;
       }
 
       .summary-icon-wrap{
+        width:28px;
+        height:28px;
         flex-basis:28px;
+      }
+
+      .summary-icon{
+        width:28px;
+        height:28px;
       }
 
       .summary-title{
@@ -609,13 +657,18 @@
       </div>
 
       <div class="driver-info">
-        <div class="driver-name" id="driverName">
+
+        <div
+          class="driver-name"
+          id="driverName"
+        >
           Driver
         </div>
 
         <div class="driver-role">
           Driver
         </div>
+
       </div>
 
       <div class="driver-logo-box">
@@ -637,6 +690,7 @@
       class="status-pill"
       aria-label="Driver status"
     >
+
       <div class="status-left">
         <span class="status-dot"></span>
         <span class="status-label">Status:</span>
@@ -645,6 +699,7 @@
       <span class="status-value">
         ONLINE
       </span>
+
     </section>
 
     <div class="dashboard-content">
@@ -734,6 +789,7 @@
           id="cardSummary"
           type="button"
         >
+
           <span class="summary-icon-wrap">
             <img
               class="summary-icon"
@@ -745,6 +801,7 @@
           <span class="summary-title">
             Review Summary
           </span>
+
         </button>
 
       </div>
@@ -761,9 +818,11 @@
     window.addEventListener(
       "DOMContentLoaded",
       async () => {
+
         if(window.Branding){
           await window.Branding.load();
         }
+
       }
     );
   </script>

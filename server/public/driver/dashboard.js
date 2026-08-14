@@ -92,9 +92,13 @@
   function bindClick(id,handler){
 
     const el = $(id);
-    if(!el) return;
 
-    el.addEventListener("click",handler);
+    if(el){
+      el.addEventListener(
+        "click",
+        handler
+      );
+    }
   }
 
   function bindNavigation(){
