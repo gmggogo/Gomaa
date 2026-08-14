@@ -400,12 +400,19 @@
        OTHER BUTTONS
     ========================= */
 
-    .dashboard-card-icon{
+    .dashboard-card-icon,
+    .history-icon{
       position:relative;
       z-index:2;
 
       width:28px;
       height:28px;
+      min-width:28px;
+      min-height:28px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
 
       object-fit:contain;
 
@@ -415,24 +422,10 @@
       filter:none !important;
     }
 
-    .history-icon{
-      position:relative;
-      z-index:2;
-
+    .history-icon svg{
+      display:block;
       width:28px;
       height:28px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      color:#ffffff;
-      font-size:0;
-      line-height:1;
-
-      background:transparent !important;
-      box-shadow:none !important;
-      filter:none !important;
     }
 
     .dashboard-card-title{
@@ -632,19 +625,13 @@
         min-height:110px;
       }
 
-      .dashboard-card-icon{
-        width:26px;
-        height:26px;
-      }
-
-      .history-icon{
-        width:26px;
-        height:26px;
-      }
-
+      .dashboard-card-icon,
+      .history-icon,
       .history-icon svg{
         width:26px;
         height:26px;
+        min-width:26px;
+        min-height:26px;
       }
 
       .dashboard-card-title{
@@ -776,10 +763,11 @@
             class="history-icon"
             aria-hidden="true"
           >
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 3-6.7"/>
-              <path d="M3 4v5h5"/>
-              <path d="M12 7v5l3 2"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 3h7l4 4v14H7z"/>
+              <path d="M14 3v5h5"/>
+              <path d="M10 12h5"/>
+              <path d="M10 16h5"/>
             </svg>
           </span>
 
