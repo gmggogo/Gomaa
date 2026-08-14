@@ -39,7 +39,7 @@
       min-height:100dvh;
       color:#fff;
       overflow-x:hidden;
-      padding-bottom:132px;
+      padding-bottom:118px;
     }
 
     .chat-shell{
@@ -266,7 +266,9 @@
       position:relative;
 
       width:100%;
-      min-height:460px;
+      height:clamp(390px,52dvh,560px);
+      min-height:390px;
+      max-height:560px;
 
       display:flex;
       flex-direction:column;
@@ -358,9 +360,8 @@
       z-index:2;
 
       flex:1;
-
-      min-height:330px;
-      max-height:52dvh;
+      min-height:0;
+      max-height:none;
 
       overflow-y:auto;
       overscroll-behavior:contain;
@@ -423,11 +424,11 @@
     }
 
     .message-row.driver{
-      justify-content:flex-end;
+      justify-content:flex-start;
     }
 
     .message-row.dispatch{
-      justify-content:flex-start;
+      justify-content:flex-end;
     }
 
     .message-bubble{
@@ -454,7 +455,7 @@
 
       border:1px solid #9e6800;
 
-      border-bottom-right-radius:6px;
+      border-bottom-left-radius:6px;
     }
 
     .message-row.dispatch .message-bubble{
@@ -468,7 +469,7 @@
 
       border:1px solid rgba(255,210,38,.38);
 
-      border-bottom-left-radius:6px;
+      border-bottom-right-radius:6px;
     }
 
     .message-meta{
@@ -502,9 +503,10 @@
 
     .chat-composer{
       position:relative;
-      z-index:2;
+      z-index:3;
 
       width:100%;
+      flex:0 0 auto;
 
       display:grid;
       grid-template-columns:minmax(0,1fr) auto;
@@ -663,6 +665,11 @@
 
       .message-bubble{
         max-width:86%;
+      }
+
+      .chat-panel{
+        height:clamp(370px,50dvh,500px);
+        min-height:370px;
       }
     }
   </style>
