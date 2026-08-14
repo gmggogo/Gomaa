@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
+const {
+  settleIndividualTripPayment
+} = require("../utils/trip-finalizer");
+
 const Trip = global.Trip || mongoose.models.Trip;
 
 /* =========================
@@ -54,6 +58,30 @@ function normalizeFinalStatus(v){
   return "";
 }
 
+function settlementActionFromStatus(status){
+
+  const normalized =
+    normalizeFinalStatus(status);
+
+  if(normalized === "Completed"){
+    return "COMPLETE";
+  }
+
+  if(normalized === "Cancelled"){
+    return "CANCEL";
+  }
+
+  if(normalized === "No Show"){
+    return "NOSHOW";
+  }
+
+  if(normalized === "Not Completed"){
+    return "NOTCOMPLETED";
+  }
+
+  return "";
+}
+
 function isFinalStatus(v){
   return !!normalizeFinalStatus(v);
 }
@@ -64,22 +92,12 @@ function nowDate(){
 
 function hoursDiff(dateValue){
   const d = new Date(dateValue);
-
-  if(isNaN(d)){
-    return 0;
-  }
-
-  return (
-    Date.now() - d.getTime()
-  ) / (1000 * 60 * 60);
+  if(isNaN(d)) return 0;
+  return (Date.now() - d.getTime()) / (1000 * 60 * 60);
 }
 
 function olderThanHours(dateValue,hours){
-
-  if(!dateValue){
-    return false;
-  }
-
+  if(!dateValue) return false;
   return hoursDiff(dateValue) >= hours;
 }
 
@@ -89,10 +107,7 @@ function isSharedTrip(trip){
     String(trip?.tripType || "").toUpperCase() === "SHARED" ||
     String(trip?.type || "").toLowerCase() === "shared" ||
     String(trip?.tripNumber || "").toUpperCase().includes("-SH") ||
-    (
-      Array.isArray(trip?.passengers) &&
-      trip.passengers.length > 0
-    )
+    (Array.isArray(trip?.passengers) && trip.passengers.length > 0)
   );
 }
 
@@ -150,9 +165,7 @@ function getEnteredAt(trip){
 
 function ensurePageEntryStamp(trip){
 
-  const stamp = getEnteredAt(trip);
-
-  if(stamp){
+  if(getEnteredAt(trip)){
     return false;
   }
 
@@ -164,25 +177,18 @@ function ensurePageEntryStamp(trip){
 
   if(!trip.dispatchFinalPageEnteredAt){
     trip.dispatchFinalPageEnteredAt =
-      trip.finalPageEnteredAt ||
-      now;
+      trip.finalPageEnteredAt || now;
   }
 
   if(!trip.enteredFinalConfirmationAt){
     trip.enteredFinalConfirmationAt =
-      trip.finalPageEnteredAt ||
-      now;
+      trip.finalPageEnteredAt || now;
   }
 
   return true;
 }
 
-/* =========================
-   CLEAR CONFIRM STATE
-========================= */
-
 function clearSingleConfirmState(trip){
-
   trip.finalStatusConfirmed = false;
   trip.finalStatusConfirmedAt = null;
   trip.dispatchFinalConfirmedAt = null;
@@ -190,10 +196,8 @@ function clearSingleConfirmState(trip){
 }
 
 function clearSharedConfirmState(trip){
-
   trip.sharedFinalConfirmed = false;
   trip.sharedFinalConfirmedAt = null;
-
   trip.finalStatusConfirmed = false;
   trip.finalStatusConfirmedAt = null;
   trip.dispatchFinalConfirmedAt = null;
@@ -205,45 +209,27 @@ function clearSharedConfirmState(trip){
 ========================= */
 
 function singleTripReadyForPage(trip){
-
-  if(!trip){
+  if(!trip || isSharedTrip(trip)){
     return false;
   }
-
-  if(isSharedTrip(trip)){
-    return false;
-  }
-
   return isFinalStatus(trip.status);
 }
 
 function getReadySharedPassengers(trip){
-
   const passengers =
     Array.isArray(trip?.passengers)
       ? trip.passengers
       : [];
 
-  return passengers.filter((p)=>{
-
-    const status =
-      p?.status ||
-      trip?.status;
-
+  return passengers.filter(p=>{
+    const status = p?.status || trip?.status;
     return isFinalStatus(status);
   });
 }
 
 function sharedTripReadyForPage(trip){
-  return (
-    getReadySharedPassengers(trip)
-      .length > 0
-  );
+  return getReadySharedPassengers(trip).length > 0;
 }
-
-/* =========================
-   SHOULD APPEAR
-========================= */
 
 function singleTripShouldAppear(trip){
 
@@ -252,7 +238,6 @@ function singleTripShouldAppear(trip){
   }
 
   if(getTripFinalConfirmed(trip)){
-
     return !olderThanHours(
       getTripFinalConfirmedAt(trip),
       HOLD_HOURS
@@ -269,7 +254,6 @@ function sharedTripShouldAppear(trip){
   }
 
   if(getSharedFinalConfirmed(trip)){
-
     return !olderThanHours(
       getSharedFinalConfirmedAt(trip),
       HOLD_HOURS
@@ -286,21 +270,17 @@ function sharedTripShouldAppear(trip){
 function sanitizeTripForFinalPage(trip){
 
   const obj =
-    trip?.toObject
+    trip.toObject
       ? trip.toObject()
       : trip;
 
   if(isSharedTrip(obj)){
-
     return {
       ...obj,
       __pageType:"shared",
-      __readyPassengers:
-        getReadySharedPassengers(obj),
-      __finalConfirmed:
-        getSharedFinalConfirmed(obj),
-      __finalConfirmedAt:
-        getSharedFinalConfirmedAt(obj),
+      __readyPassengers:getReadySharedPassengers(obj),
+      __finalConfirmed:getSharedFinalConfirmed(obj),
+      __finalConfirmedAt:getSharedFinalConfirmedAt(obj),
       __holdHours:HOLD_HOURS
     };
   }
@@ -308,10 +288,8 @@ function sanitizeTripForFinalPage(trip){
   return {
     ...obj,
     __pageType:"single",
-    __finalConfirmed:
-      getTripFinalConfirmed(obj),
-    __finalConfirmedAt:
-      getTripFinalConfirmedAt(obj),
+    __finalConfirmed:getTripFinalConfirmed(obj),
+    __finalConfirmedAt:getTripFinalConfirmedAt(obj),
     __holdHours:HOLD_HOURS
   };
 }
@@ -325,21 +303,18 @@ router.get("/", async (req,res)=>{
   try{
 
     if(!Trip){
-
       return res.status(500).json({
         success:false,
         message:"Trip model not loaded"
       });
     }
 
-    const trips =
-      await Trip
-        .find({})
-        .sort({
-          tripDate:-1,
-          tripTime:-1,
-          createdAt:-1
-        });
+    const trips = await Trip.find({})
+      .sort({
+        tripDate:-1,
+        tripTime:-1,
+        createdAt:-1
+      });
 
     const result = [];
     const saveOps = [];
@@ -359,9 +334,7 @@ router.get("/", async (req,res)=>{
         ensurePageEntryStamp(trip);
 
       if(stamped){
-        saveOps.push(
-          trip.save()
-        );
+        saveOps.push(trip.save());
       }
 
       result.push(
@@ -397,6 +370,7 @@ router.get("/", async (req,res)=>{
 
 /* =========================
    UPDATE SINGLE STATUS
+   Edit only - NO MONEY
 ========================= */
 
 router.patch("/:id/status", async (req,res)=>{
@@ -404,17 +378,12 @@ router.patch("/:id/status", async (req,res)=>{
   try{
 
     const { id } = req.params;
-
     const status =
       normalizeFinalStatus(
         req.body?.status
       );
 
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(String(id))
-    ){
-
+    if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -422,7 +391,6 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     if(!status){
-
       return res.status(400).json({
         success:false,
         message:"Invalid final status"
@@ -433,7 +401,6 @@ router.patch("/:id/status", async (req,res)=>{
       await Trip.findById(id);
 
     if(!trip){
-
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -441,7 +408,6 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     if(isSharedTrip(trip)){
-
       return res.status(400).json({
         success:false,
         message:
@@ -454,6 +420,33 @@ router.patch("/:id/status", async (req,res)=>{
 
     trip.status = status;
 
+    /*
+      Edit changes the pending final status only.
+      Stripe is NOT touched here.
+    */
+    if(status === "Completed"){
+      trip.finalPrice =
+        Number(
+          trip.finalPrice ||
+          trip.priceAmount ||
+          0
+        );
+    }else if(status === "Cancelled"){
+      trip.finalPrice =
+        Number(
+          trip.cancelFee ||
+          0
+        );
+    }else if(status === "No Show"){
+      trip.finalPrice =
+        Number(
+          trip.noShowFee ||
+          0
+        );
+    }else{
+      trip.finalPrice = 0;
+    }
+
     ensurePageEntryStamp(trip);
 
     if(!wasConfirmed){
@@ -465,8 +458,7 @@ router.patch("/:id/status", async (req,res)=>{
     return res.json({
       success:true,
       message:"Trip status updated",
-      trip:
-        sanitizeTripForFinalPage(trip)
+      trip:sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
@@ -478,14 +470,14 @@ router.patch("/:id/status", async (req,res)=>{
 
     return res.status(500).json({
       success:false,
-      message:
-        "Failed to update trip status"
+      message:"Failed to update trip status"
     });
   }
 });
 
 /* =========================
    CONFIRM SINGLE TRIP
+   MONEY IS SETTLED HERE
 ========================= */
 
 router.patch("/:id/confirm", async (req,res)=>{
@@ -493,7 +485,6 @@ router.patch("/:id/confirm", async (req,res)=>{
   try{
 
     const { id } = req.params;
-
     const status =
       normalizeFinalStatus(
         req.body?.status || ""
@@ -504,11 +495,7 @@ router.patch("/:id/confirm", async (req,res)=>{
         req.body?.confirmedBy || ""
       ).trim();
 
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(String(id))
-    ){
-
+    if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -519,7 +506,6 @@ router.patch("/:id/confirm", async (req,res)=>{
       await Trip.findById(id);
 
     if(!trip){
-
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -527,7 +513,6 @@ router.patch("/:id/confirm", async (req,res)=>{
     }
 
     if(isSharedTrip(trip)){
-
       return res.status(400).json({
         success:false,
         message:
@@ -540,13 +525,42 @@ router.patch("/:id/confirm", async (req,res)=>{
     }
 
     if(!isFinalStatus(trip.status)){
-
       return res.status(400).json({
         success:false,
-        message:
-          "Trip status is not final"
+        message:"Trip status is not final"
       });
     }
+
+    /*
+      IMPORTANT:
+      Dispatcher Confirm is now the financial gate.
+      Payment happens BEFORE confirm markers are saved.
+      If Stripe fails, the trip remains Not Confirmed.
+    */
+    const action =
+      settlementActionFromStatus(
+        trip.status
+      );
+
+    await settleIndividualTripPayment(
+      trip,
+      action,
+      {
+        finalPrice:Number(
+          trip.finalPrice ||
+          trip.priceAmount ||
+          0
+        ),
+        cancelFee:Number(
+          trip.cancelFee ||
+          0
+        ),
+        noShowFee:Number(
+          trip.noShowFee ||
+          0
+        )
+      }
+    );
 
     ensurePageEntryStamp(trip);
 
@@ -565,9 +579,8 @@ router.patch("/:id/confirm", async (req,res)=>{
 
     return res.json({
       success:true,
-      message:"Trip confirmed",
-      trip:
-        sanitizeTripForFinalPage(trip)
+      message:"Trip confirmed and payment finalized",
+      trip:sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
@@ -577,9 +590,12 @@ router.patch("/:id/confirm", async (req,res)=>{
       err
     );
 
-    return res.status(500).json({
+    return res.status(
+      err?.paymentFailed ? 402 : 500
+    ).json({
       success:false,
       message:
+        err?.message ||
         "Failed to confirm trip"
     });
   }
@@ -587,6 +603,7 @@ router.patch("/:id/confirm", async (req,res)=>{
 
 /* =========================
    UPDATE SHARED PASSENGERS
+   Edit only - NO PAYMENT CHANGE
 ========================= */
 
 router.patch("/:id/shared-status", async (req,res)=>{
@@ -596,17 +613,11 @@ router.patch("/:id/shared-status", async (req,res)=>{
     const { id } = req.params;
 
     const passengersInput =
-      Array.isArray(
-        req.body?.passengers
-      )
+      Array.isArray(req.body?.passengers)
         ? req.body.passengers
         : null;
 
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(String(id))
-    ){
-
+    if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -614,11 +625,9 @@ router.patch("/:id/shared-status", async (req,res)=>{
     }
 
     if(!passengersInput){
-
       return res.status(400).json({
         success:false,
-        message:
-          "Passengers array is required"
+        message:"Passengers array is required"
       });
     }
 
@@ -626,7 +635,6 @@ router.patch("/:id/shared-status", async (req,res)=>{
       await Trip.findById(id);
 
     if(!trip){
-
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -634,11 +642,9 @@ router.patch("/:id/shared-status", async (req,res)=>{
     }
 
     if(!isSharedTrip(trip)){
-
       return res.status(400).json({
         success:false,
-        message:
-          "Trip is not shared"
+        message:"Trip is not shared"
       });
     }
 
@@ -646,31 +652,28 @@ router.patch("/:id/shared-status", async (req,res)=>{
       getSharedFinalConfirmed(trip);
 
     const currentPassengers =
-      Array.isArray(
-        trip.passengers
-      )
+      Array.isArray(trip.passengers)
         ? trip.passengers
         : [];
 
-    passengersInput
-      .forEach(
-        (inputPassenger,idx)=>{
+    passengersInput.forEach(
+      (inputPassenger,idx)=>{
 
-          if(!currentPassengers[idx]){
-            return;
-          }
-
-          const nextStatus =
-            normalizeFinalStatus(
-              inputPassenger?.status
-            );
-
-          if(nextStatus){
-            currentPassengers[idx].status =
-              nextStatus;
-          }
+        if(!currentPassengers[idx]){
+          return;
         }
-      );
+
+        const nextStatus =
+          normalizeFinalStatus(
+            inputPassenger?.status
+          );
+
+        if(nextStatus){
+          currentPassengers[idx].status =
+            nextStatus;
+        }
+      }
+    );
 
     trip.passengers =
       currentPassengers;
@@ -687,8 +690,7 @@ router.patch("/:id/shared-status", async (req,res)=>{
       success:true,
       message:
         "Shared passenger statuses updated",
-      trip:
-        sanitizeTripForFinalPage(trip)
+      trip:sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
@@ -708,6 +710,9 @@ router.patch("/:id/shared-status", async (req,res)=>{
 
 /* =========================
    CONFIRM SHARED TRIP
+   NOTE:
+   Shared Stripe settlement is NOT invented here because the supplied
+   shared finalizer currently has no Stripe capture logic.
 ========================= */
 
 router.patch("/:id/shared-confirm", async (req,res)=>{
@@ -717,9 +722,7 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
     const { id } = req.params;
 
     const passengersInput =
-      Array.isArray(
-        req.body?.passengers
-      )
+      Array.isArray(req.body?.passengers)
         ? req.body.passengers
         : null;
 
@@ -728,11 +731,7 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
         req.body?.confirmedBy || ""
       ).trim();
 
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(String(id))
-    ){
-
+    if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -743,7 +742,6 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
       await Trip.findById(id);
 
     if(!trip){
-
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -751,42 +749,37 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
     }
 
     if(!isSharedTrip(trip)){
-
       return res.status(400).json({
         success:false,
-        message:
-          "Trip is not shared"
+        message:"Trip is not shared"
       });
     }
 
     const currentPassengers =
-      Array.isArray(
-        trip.passengers
-      )
+      Array.isArray(trip.passengers)
         ? trip.passengers
         : [];
 
     if(passengersInput){
 
-      passengersInput
-        .forEach(
-          (inputPassenger,idx)=>{
+      passengersInput.forEach(
+        (inputPassenger,idx)=>{
 
-            if(!currentPassengers[idx]){
-              return;
-            }
-
-            const nextStatus =
-              normalizeFinalStatus(
-                inputPassenger?.status
-              );
-
-            if(nextStatus){
-              currentPassengers[idx].status =
-                nextStatus;
-            }
+          if(!currentPassengers[idx]){
+            return;
           }
-        );
+
+          const nextStatus =
+            normalizeFinalStatus(
+              inputPassenger?.status
+            );
+
+          if(nextStatus){
+            currentPassengers[idx].status =
+              nextStatus;
+          }
+        }
+      );
     }
 
     trip.passengers =
@@ -796,7 +789,6 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
       getReadySharedPassengers(trip);
 
     if(!readyPassengers.length){
-
       return res.status(400).json({
         success:false,
         message:
@@ -824,10 +816,8 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
 
     return res.json({
       success:true,
-      message:
-        "Shared trip confirmed",
-      trip:
-        sanitizeTripForFinalPage(trip)
+      message:"Shared trip confirmed",
+      trip:sanitizeTripForFinalPage(trip)
     });
 
   }catch(err){
@@ -839,17 +829,13 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
 
     return res.status(500).json({
       success:false,
-      message:
-        "Failed to confirm shared trip"
+      message:"Failed to confirm shared trip"
     });
   }
 });
 
 /* =========================
    RETURN SINGLE TRIP TO DRIVER
-   Rescue action:
-   Driver closed trip by mistake.
-   Dispatch reopens SAME trip for SAME assigned driver.
 ========================= */
 
 router.patch("/:id/return-to-driver", async (req,res)=>{
@@ -858,11 +844,7 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
 
     const { id } = req.params;
 
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(String(id))
-    ){
-
+    if(!mongoose.Types.ObjectId.isValid(String(id))){
       return res.status(400).json({
         success:false,
         message:"Invalid trip id"
@@ -873,7 +855,6 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       await Trip.findById(id);
 
     if(!trip){
-
       return res.status(404).json({
         success:false,
         message:"Trip not found"
@@ -881,7 +862,6 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
     }
 
     if(isSharedTrip(trip)){
-
       return res.status(400).json({
         success:false,
         message:
@@ -890,7 +870,6 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
     }
 
     if(!isFinalStatus(trip.status)){
-
       return res.status(400).json({
         success:false,
         message:
@@ -898,13 +877,26 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       });
     }
 
+    /*
+      Safety:
+      under the new flow, money is not captured until Confirm.
+      A trip that is already financially settled should not be reopened
+      automatically because that would require a separate refund/void policy.
+    */
+    if(
+      String(trip.paymentStatus || "").toUpperCase() === "PAID" ||
+      Number(trip.capturedAmount || 0) > 0
+    ){
+      return res.status(409).json({
+        success:false,
+        message:
+          "This trip already has a captured payment and cannot be returned automatically."
+      });
+    }
+
     const previousStatus =
-      normalizeFinalStatus(
-        trip.status
-      ) ||
-      String(
-        trip.status || ""
-      );
+      normalizeFinalStatus(trip.status) ||
+      String(trip.status || "");
 
     const returnedBy =
       String(
@@ -919,39 +911,34 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
     const now =
       nowDate();
 
-    /*
-      Use the raw Mongo collection intentionally here.
-      This lets us clear old close/final fields even if some of them
-      are not explicitly declared in the current Mongoose schema.
-    */
     await Trip.collection.updateOne(
       {
-        _id:
-          new mongoose.Types.ObjectId(
-            String(id)
-          )
+        _id:new mongoose.Types.ObjectId(
+          String(id)
+        )
       },
       {
         $set:{
           status:"InProgress",
 
+          isFinalized:false,
+
           returnToDriver:true,
           returnedToDriverAt:now,
           returnedToDriverBy:
-            returnedBy ||
-            "dispatcher",
+            returnedBy || "dispatcher",
 
           returnToDriverReason:
             reason ||
             "Returned to driver from Final Confirmation",
 
-          previousFinalStatus:
-            previousStatus,
-
+          previousFinalStatus,
           updatedAt:now
         },
 
         $unset:{
+          finalizedAt:"",
+
           finalStatusConfirmed:"",
           finalStatusConfirmedAt:"",
           dispatchFinalConfirmedAt:"",
@@ -980,40 +967,21 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       }
     );
 
-    /*
-      If DispatchAssignment exists, reopen that same assignment.
-      We do NOT create a new assignment and we do NOT change driverId.
-    */
     const DispatchAssignment =
-      mongoose.models
-        .DispatchAssignment ||
+      mongoose.models.DispatchAssignment ||
       global.DispatchAssignment ||
       null;
 
     if(DispatchAssignment){
-
-      const tripIdCandidates = [
-        String(id),
-        trip?._id,
-        trip?.tripNumber,
-        trip?.bookingNumber
-      ].filter(Boolean);
 
       try{
 
         await DispatchAssignment.updateMany(
           {
             $or:[
-              {
-                tripId:{
-                  $in:tripIdCandidates
-                }
-              },
-              {
-                tripNumber:{
-                  $in:tripIdCandidates
-                }
-              }
+              {tripId:trip._id},
+              {tripId:String(trip._id)},
+              {tripNumber:String(trip.tripNumber || "")}
             ]
           },
           {
@@ -1046,8 +1014,7 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
 
     return res.json({
       success:true,
-      message:
-        "Trip returned to driver",
+      message:"Trip returned to driver",
       previousStatus,
       status:
         reopenedTrip?.status ||

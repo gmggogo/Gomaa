@@ -903,44 +903,17 @@ async function finalizeIndividualTrip(
     n(options.refundAmount);
 
   /*
-    PAYMENT FIRST, DATABASE STATUS SECOND.
-    If Stripe fails, this function throws and the old trip status/route remains.
+    DRIVER FINALIZATION DOES NOT CAPTURE MONEY.
+
+    The driver only reports the operational final state here:
+    COMPLETE / NOSHOW / CANCEL.
+
+    Stripe capture is deferred until Dispatch Final Confirmation.
+    This keeps Return To Driver safe when the driver closes a trip by mistake.
   */
 
   const normalizedAction =
     String(action || "").toUpperCase();
-
-  const usesDeferredPayment =
-    !!trip.stripePaymentMethodId ||
-    [
-      "PAYMENT_METHOD_SAVED",
-      "PAYMENT_REQUIRED",
-      "AUTHORIZED",
-      "CAPTURE_FAILED"
-    ].includes(String(trip.paymentStatus || "").toUpperCase());
-
-  if(usesDeferredPayment && normalizedAction === "COMPLETE"){
-    await captureAuthorizedTrip(
-      trip,
-      finalPrice
-    );
-  }
-
-  if(usesDeferredPayment && normalizedAction === "NOSHOW"){
-    await captureFeeAndReleaseRest(
-      trip,
-      noShowFee,
-      "NO_SHOW_FEE"
-    );
-  }
-
-  if(usesDeferredPayment && normalizedAction === "CANCEL"){
-    await captureFeeAndReleaseRest(
-      trip,
-      cancelFee,
-      "CANCELLATION_FEE"
-    );
-  }
 
   switch(
     normalizedAction
@@ -1016,6 +989,104 @@ async function finalizeIndividualTrip(
   await trip.save();
 
   return trip;
+}
+
+/* =========================================
+   DISPATCH PAYMENT SETTLEMENT
+   Called ONLY after dispatcher confirms final status.
+   COMPLETE / NOSHOW / CANCEL
+========================================= */
+
+async function settleIndividualTripPayment(
+  trip,
+  action,
+  options = {}
+){
+
+  if(!trip){
+    throw new Error("Trip Missing");
+  }
+
+  const normalizedAction =
+    String(action || "").toUpperCase();
+
+  const finalPrice =
+    n(options.finalPrice ?? trip.finalPrice ?? trip.priceAmount);
+
+  const cancelFee =
+    n(options.cancelFee ?? trip.cancelFee);
+
+  const noShowFee =
+    n(options.noShowFee ?? trip.noShowFee);
+
+  const usesDeferredPayment =
+    !!trip.stripePaymentMethodId ||
+    [
+      "PAYMENT_METHOD_SAVED",
+      "PAYMENT_REQUIRED",
+      "AUTHORIZED",
+      "CAPTURE_FAILED"
+    ].includes(
+      String(trip.paymentStatus || "").toUpperCase()
+    );
+
+  /*
+    Company / reserved / cash-style trips may not use Stripe deferred payment.
+    In that case confirmation only locks the final status; there is nothing
+    to capture here.
+  */
+  if(!usesDeferredPayment){
+    return trip;
+  }
+
+  /*
+    Idempotency guard:
+    if Stripe already succeeded, do not attempt a second capture.
+  */
+  if(
+    String(trip.paymentStatus || "").toUpperCase() === "PAID" ||
+    n(trip.capturedAmount) > 0
+  ){
+    return trip;
+  }
+
+  if(normalizedAction === "COMPLETE"){
+
+    await captureAuthorizedTrip(
+      trip,
+      finalPrice
+    );
+
+    return trip;
+  }
+
+  if(normalizedAction === "NOSHOW"){
+
+    await captureFeeAndReleaseRest(
+      trip,
+      noShowFee,
+      "NO_SHOW_FEE"
+    );
+
+    return trip;
+  }
+
+  if(normalizedAction === "CANCEL"){
+
+    await captureFeeAndReleaseRest(
+      trip,
+      cancelFee,
+      "CANCELLATION_FEE"
+    );
+
+    return trip;
+  }
+
+  if(normalizedAction === "NOTCOMPLETED"){
+    return trip;
+  }
+
+  throw new Error("Unknown Settlement Action");
 }
 
 /* =========================================
@@ -1201,6 +1272,7 @@ module.exports = {
   unlockTripRouteAfterEdit,
 
   finalizeIndividualTrip,
+  settleIndividualTripPayment,
   finalizeSharedPassenger,
 
   calculateGroupTotal,
