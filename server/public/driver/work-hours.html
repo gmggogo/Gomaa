@@ -4,55 +4,324 @@
 <meta charset="UTF-8">
 <title>Work Hours</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
 <link rel="stylesheet" href="driver.css">
+
 <style>
-:root{--navy:#061a36;--navy2:#0b315f;--gold:#ffd21f;--text:#fff;--muted:#c7d0df}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%}
-body.work-hours-page{color:var(--text);padding-bottom:150px}
-.work-hours-header{position:sticky;top:0;z-index:20;text-align:center;padding:22px 18px 18px;background:linear-gradient(180deg,#03152d 0%,#061a36 100%);border-bottom:4px solid var(--gold);box-shadow:0 8px 20px rgba(0,0,0,.28)}
-.work-hours-title{margin:0;color:var(--gold);font-size:34px;line-height:1;font-weight:900;letter-spacing:.8px;text-shadow:0 2px 3px rgba(0,0,0,.45)}
-.work-hours-subtitle{margin-top:9px;color:#eef3fb;font-size:15px;font-weight:700}
-.work-hours-shell{padding:16px 18px 30px}
-.filters{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:16px}
-.filters button{min-height:52px;border:1px solid rgba(255,210,31,.42);border-radius:16px;background:linear-gradient(180deg,#0c315d,#061b38);color:white;font-size:15px;font-weight:900;box-shadow:0 6px 12px rgba(0,0,0,.24)}
-.filters button.active{color:#06162d;background:linear-gradient(180deg,#ffe467,#ffc400);border-color:#ffe676;box-shadow:0 0 0 2px rgba(255,210,31,.18),0 7px 15px rgba(0,0,0,.30)}
-.hours-summary{padding:20px 22px;margin-bottom:20px;border-radius:25px;background:linear-gradient(145deg,#0d3768 0%,#061a36 72%);border:2px solid rgba(255,210,31,.72);box-shadow:0 9px 0 rgba(91,61,0,.48),0 15px 24px rgba(0,0,0,.25)}
-.summary-label{color:#fff;font-size:14px;font-weight:900;letter-spacing:.5px}
-.summary-period{color:#f4f7fb;margin-top:5px;font-size:13px;font-weight:800}
-.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:17px}
-.summary-stat{padding:14px;text-align:center;border-radius:18px;background:rgba(1,16,36,.58);border:1px solid rgba(255,210,31,.28)}
-.summary-number{display:block;color:var(--gold);font-size:29px;font-weight:900}
-.summary-name{display:block;margin-top:4px;color:#e7edf7;font-size:12px;font-weight:800;text-transform:uppercase}
-.day-section{margin:0 0 20px}
-.day-heading{display:flex;align-items:center;gap:12px;margin:0 4px 11px;color:#fff;font-size:20px;font-weight:900;text-shadow:0 2px 5px rgba(0,0,0,.55)}
-.day-heading::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.85),transparent)}
-.hours-card{padding:18px 20px;border-radius:23px;background:linear-gradient(145deg,#0d3768 0%,#061a36 75%);border:2px solid rgba(255,210,31,.62);box-shadow:0 8px 0 rgba(78,52,0,.45),0 13px 20px rgba(0,0,0,.22)}
-.hours-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}
-.trip-count{color:#fff;font-size:18px;font-weight:900}
-.hours-badge{padding:7px 12px;border-radius:999px;background:var(--gold);color:#07172d;font-weight:900;white-space:nowrap}
-.time-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:10px 0;border-top:1px solid rgba(255,255,255,.10)}
-.time-label{color:#d1dae8;font-weight:900}.time-value{color:#fff;font-weight:900;text-align:right}
-.running-note{margin-top:10px;color:#72f2a2;font-size:12px;font-weight:900;text-align:right}
-.empty-state,.error-state{margin-top:30px;padding:30px 20px;text-align:center;border-radius:24px;background:linear-gradient(145deg,#0d3768,#061a36);border:2px solid rgba(255,210,31,.55);color:#fff;font-weight:800}
-@media(max-width:380px){.work-hours-title{font-size:29px}.work-hours-shell{padding-left:12px;padding-right:12px}.filters button{font-size:13px}}
+:root{
+  --navy:#061a36;
+  --navy2:#0b315f;
+  --gold:#ffd21f;
+  --text:#ffffff;
+  --muted:#c7d0df;
+  --date:#07172d;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+html,body{
+  margin:0;
+  min-height:100%;
+}
+
+body.work-hours-page{
+  color:var(--text);
+  padding-bottom:150px;
+}
+
+.work-hours-header{
+  position:sticky;
+  top:0;
+  z-index:20;
+  text-align:center;
+  padding:22px 18px 18px;
+  background:
+    linear-gradient(
+      180deg,
+      #03152d 0%,
+      #061a36 100%
+    );
+  border-bottom:4px solid var(--gold);
+  box-shadow:0 8px 20px rgba(0,0,0,.28);
+}
+
+.work-hours-title{
+  margin:0;
+  color:var(--gold);
+  font-size:34px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.8px;
+  text-shadow:0 2px 3px rgba(0,0,0,.45);
+}
+
+.work-hours-subtitle{
+  margin-top:9px;
+  color:#eef3fb;
+  font-size:15px;
+  font-weight:700;
+}
+
+.work-hours-shell{
+  padding:16px 18px 30px;
+}
+
+.filters{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px;
+  margin-bottom:16px;
+}
+
+.filters button{
+  min-height:52px;
+  border:1px solid rgba(255,210,31,.42);
+  border-radius:16px;
+  background:
+    linear-gradient(
+      180deg,
+      #0c315d,
+      #061b38
+    );
+  color:#fff;
+  font-size:15px;
+  font-weight:900;
+  box-shadow:0 6px 12px rgba(0,0,0,.24);
+}
+
+.filters button.active{
+  color:#06162d;
+  background:
+    linear-gradient(
+      180deg,
+      #ffe467,
+      #ffc400
+    );
+  border-color:#ffe676;
+  box-shadow:
+    0 0 0 2px rgba(255,210,31,.18),
+    0 7px 15px rgba(0,0,0,.30);
+}
+
+.hours-summary{
+  padding:20px 22px;
+  margin-bottom:22px;
+  border-radius:25px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768 0%,
+      #061a36 72%
+    );
+  border:2px solid rgba(255,210,31,.72);
+  box-shadow:
+    0 9px 0 rgba(91,61,0,.48),
+    0 15px 24px rgba(0,0,0,.25);
+}
+
+.summary-label{
+  color:#fff;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.5px;
+}
+
+.summary-period{
+  margin-top:5px;
+  color:#eef3fb;
+  font-size:13px;
+  font-weight:800;
+}
+
+.total-hours-box{
+  margin-top:18px;
+  padding:18px;
+  border-radius:20px;
+  text-align:center;
+  background:rgba(1,16,36,.58);
+  border:1px solid rgba(255,210,31,.30);
+}
+
+.total-hours-number{
+  display:block;
+  color:var(--gold);
+  font-size:38px;
+  line-height:1;
+  font-weight:900;
+}
+
+.total-hours-label{
+  display:block;
+  margin-top:8px;
+  color:#e7edf7;
+  font-size:13px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.day-section{
+  margin-bottom:18px;
+}
+
+/* DATE OUTSIDE THE BOX — DARK NAVY / BLACK */
+.day-heading{
+  margin:0 0 8px 6px;
+  color:var(--date);
+  font-size:20px;
+  line-height:1.15;
+  font-weight:900;
+  text-shadow:none;
+}
+
+.hours-card{
+  padding:15px 18px;
+  border-radius:20px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768 0%,
+      #061a36 75%
+    );
+  border:2px solid rgba(255,210,31,.62);
+  box-shadow:
+    0 7px 0 rgba(78,52,0,.42),
+    0 12px 18px rgba(0,0,0,.20);
+}
+
+.hours-row{
+  display:grid;
+  grid-template-columns:1fr 1fr auto;
+  align-items:center;
+  gap:14px;
+}
+
+.time-block{
+  min-width:0;
+}
+
+.time-block + .time-block{
+  border-left:1px solid rgba(255,255,255,.30);
+  padding-left:14px;
+}
+
+.time-label{
+  color:#cdd6e4;
+  font-size:12px;
+  font-weight:900;
+}
+
+.time-value{
+  display:block;
+  margin-top:3px;
+  color:#fff;
+  font-size:19px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.hours-badge{
+  padding:9px 14px;
+  border-radius:999px;
+  background:var(--gold);
+  color:#07172d;
+  font-size:14px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.running-note{
+  margin-top:10px;
+  color:#72f2a2;
+  font-size:11px;
+  font-weight:900;
+  text-align:right;
+}
+
+.empty-state,
+.error-state{
+  margin-top:24px;
+  padding:26px 18px;
+  text-align:center;
+  border-radius:22px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768,
+      #061a36
+    );
+  border:2px solid rgba(255,210,31,.55);
+  color:#fff;
+  font-weight:800;
+}
+
+@media(max-width:390px){
+
+  .work-hours-title{
+    font-size:29px;
+  }
+
+  .work-hours-shell{
+    padding-left:12px;
+    padding-right:12px;
+  }
+
+  .filters button{
+    font-size:13px;
+  }
+
+  .hours-row{
+    gap:10px;
+  }
+
+  .time-block + .time-block{
+    padding-left:10px;
+  }
+
+  .time-value{
+    font-size:17px;
+  }
+
+  .hours-badge{
+    padding:8px 11px;
+    font-size:12px;
+  }
+
+  .day-heading{
+    font-size:18px;
+  }
+}
 </style>
 </head>
+
 <body class="work-hours-page">
+
 <header class="work-hours-header">
   <h1 class="work-hours-title">WORK HOURS</h1>
   <div class="work-hours-subtitle">Driver working time</div>
 </header>
+
 <main class="work-hours-shell">
-  <section class="filters" aria-label="Work hours period">
+
+  <section class="filters">
     <button id="btn-today" type="button">TODAY</button>
     <button id="btn-week" type="button">THIS WEEK</button>
     <button id="btn-month" type="button">THIS MONTH</button>
   </section>
-  <section id="total" class="hours-summary">Loading...</section>
+
+  <section id="total" class="hours-summary">
+    Loading...
+  </section>
+
   <div id="list"></div>
+
 </main>
+
 <div id="driverNav"></div>
+
 <script src="driver-nav.js"></script>
 <script src="work-hours.js"></script>
+
 </body>
 </html>
