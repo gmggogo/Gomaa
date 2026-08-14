@@ -18,18 +18,15 @@
       --navy:#04172f;
       --navy2:#0b315f;
       --gold:#ffd226;
-      --gold2:#e1a900;
       --gold-dark:#765000;
       --green:#28ef70;
-      --white:#ffffff;
     }
 
     *{
       box-sizing:border-box;
     }
 
-    html,
-    body{
+    html,body{
       margin:0;
       width:100%;
       min-height:100%;
@@ -49,16 +46,16 @@
     }
 
     /* =========================
-       DRIVER HEADER
+       HEADER
     ========================= */
 
     .driver-identity-header{
-      width:100%;
-
       display:grid;
       grid-template-columns:auto minmax(0,1fr) auto;
       align-items:center;
       gap:12px;
+
+      width:100%;
 
       padding:
         max(15px,env(safe-area-inset-top))
@@ -72,11 +69,8 @@
           #061b38 100%
         );
 
-      border-bottom:
-        4px solid var(--gold);
-
-      border-radius:
-        0 0 34px 34px;
+      border-bottom:4px solid var(--gold);
+      border-radius:0 0 34px 34px;
 
       box-shadow:
         0 8px 0 rgba(91,59,0,.34),
@@ -84,8 +78,8 @@
     }
 
     .driver-avatar{
-      width:56px;
-      height:56px;
+      width:54px;
+      height:54px;
 
       display:flex;
       align-items:center;
@@ -100,17 +94,12 @@
           #04162f 72%
         );
 
-      border:
-        3px solid var(--gold);
-
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.12),
-        0 4px 0 rgba(70,45,0,.32);
+      border:3px solid var(--gold);
     }
 
     .driver-avatar svg{
-      width:30px;
-      height:30px;
+      width:28px;
+      height:28px;
       fill:var(--gold);
     }
 
@@ -120,10 +109,9 @@
 
     .driver-name-header{
       color:#fff;
-      font-size:20px;
+      font-size:19px;
       line-height:1;
       font-weight:900;
-      letter-spacing:.2px;
 
       white-space:nowrap;
       overflow:hidden;
@@ -138,9 +126,9 @@
     }
 
     .driver-header-logo{
-      width:122px;
-      max-width:31vw;
-      height:62px;
+      width:112px;
+      max-width:30vw;
+      height:58px;
 
       display:flex;
       align-items:center;
@@ -152,6 +140,7 @@
       display:block;
       max-width:100%;
       max-height:100%;
+
       object-fit:contain;
 
       background:transparent !important;
@@ -161,20 +150,20 @@
     }
 
     /* =========================
-       COMPANY NAME
+       COMPANY TITLE
     ========================= */
 
     .dashboard-company{
       margin:
-        42px
+        48px
         18px
-        22px;
+        24px;
 
       text-align:center;
 
       color:var(--gold);
 
-      font-size:30px;
+      font-size:29px;
       line-height:1;
       font-weight:900;
       letter-spacing:1px;
@@ -194,16 +183,14 @@
         18px
         18px;
 
-      min-height:62px;
-      padding:
-        0
-        20px;
+      min-height:60px;
+      padding:0 20px;
 
       display:flex;
       align-items:center;
       justify-content:space-between;
 
-      border-radius:31px;
+      border-radius:30px;
 
       background:
         linear-gradient(
@@ -212,13 +199,11 @@
           #04172f 100%
         );
 
-      border:
-        2px solid rgba(255,210,38,.84);
+      border:2px solid rgba(255,210,38,.84);
 
       box-shadow:
         0 7px 0 rgba(79,51,0,.42),
-        0 13px 20px rgba(0,0,0,.18),
-        inset 0 1px 0 rgba(255,255,255,.08);
+        0 13px 20px rgba(0,0,0,.18);
     }
 
     .status-left{
@@ -228,9 +213,8 @@
     }
 
     .status-dot{
-      width:22px;
-      height:22px;
-
+      width:21px;
+      height:21px;
       border-radius:50%;
       background:var(--green);
 
@@ -251,15 +235,12 @@
     }
 
     /* =========================
-       DASHBOARD CONTENT
+       CONTENT
     ========================= */
 
     .dashboard-scroll{
       width:100%;
-      padding:
-        0
-        18px
-        28px;
+      padding:0 18px 28px;
       overflow-x:hidden;
     }
 
@@ -268,7 +249,7 @@
 
       display:grid;
       grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-      gap:14px;
+      gap:12px;
     }
 
     .dashboard-card,
@@ -288,16 +269,16 @@
     }
 
     .dashboard-card{
-      min-height:176px;
-      padding:20px 14px;
+      min-height:148px;
+      padding:17px 12px;
 
       display:flex;
       flex-direction:column;
       align-items:center;
       justify-content:center;
-      gap:12px;
+      gap:9px;
 
-      border-radius:24px;
+      border-radius:22px;
 
       background:
         radial-gradient(
@@ -312,23 +293,15 @@
           #03142d 100%
         );
 
-      border-top:
-        3px solid #ffe27a;
-
-      border-left:
-        3px solid #edb72a;
-
-      border-right:
-        3px solid #9e6800;
-
-      border-bottom:
-        5px solid #6f4900;
+      border-top:3px solid #ffe27a;
+      border-left:3px solid #edb72a;
+      border-right:3px solid #9e6800;
+      border-bottom:5px solid #6f4900;
 
       box-shadow:
-        0 8px 0 rgba(57,36,0,.50),
-        0 14px 22px rgba(2,12,30,.24),
-        inset 0 1px 0 rgba(255,255,255,.08),
-        inset 0 -2px 0 rgba(59,37,0,.26);
+        0 7px 0 rgba(57,36,0,.50),
+        0 12px 18px rgba(2,12,30,.22),
+        inset 0 1px 0 rgba(255,255,255,.08);
     }
 
     .dashboard-card::after,
@@ -338,22 +311,20 @@
       position:absolute;
       inset:7px;
 
-      border-radius:18px;
-
-      border:
-        1.5px solid rgba(255,210,38,.62);
+      border-radius:17px;
+      border:1.5px solid rgba(255,210,38,.62);
 
       pointer-events:none;
     }
 
     /* =========================
-       MAIN TRIPS BUTTON
+       TRIPS
     ========================= */
 
     #cardTrips{
       grid-column:1 / -1;
 
-      min-height:150px;
+      min-height:128px;
 
       color:#07172d;
 
@@ -370,49 +341,25 @@
           #dda300 100%
         );
 
-      border-top:
-        3px solid #fff2a6;
-
-      border-left:
-        3px solid #ffdc45;
-
-      border-right:
-        3px solid #a36a00;
-
-      border-bottom:
-        5px solid #805300;
+      border-top:3px solid #fff2a6;
+      border-left:3px solid #ffdc45;
+      border-right:3px solid #a36a00;
+      border-bottom:5px solid #805300;
 
       box-shadow:
-        0 9px 0 rgba(92,58,0,.48),
-        0 16px 24px rgba(0,0,0,.23),
-        inset 0 2px 0 rgba(255,255,255,.48),
-        inset 0 -3px 0 rgba(133,84,0,.20);
+        0 8px 0 rgba(92,58,0,.48),
+        0 14px 22px rgba(0,0,0,.22),
+        inset 0 2px 0 rgba(255,255,255,.48);
     }
 
     #cardTrips::after{
-      border:
-        2px solid rgba(105,67,0,.42);
+      border:2px solid rgba(105,67,0,.42);
     }
 
-    .trips-main-icon{
-      position:relative;
-      z-index:2;
-
-      width:52px;
-      height:52px;
-
-      object-fit:contain;
-
-      background:transparent !important;
-      border:0 !important;
-      box-shadow:none !important;
-      filter:none !important;
-    }
-
+    /* NO CAR ICON */
     #cardTrips .dashboard-card-title{
       color:#07172d;
-
-      font-size:29px;
+      font-size:28px;
       line-height:1;
       font-weight:900;
 
@@ -421,7 +368,7 @@
     }
 
     /* =========================
-       OTHER CARDS
+       OTHER BUTTONS
     ========================= */
 
     .dashboard-card-title{
@@ -430,7 +377,7 @@
 
       color:#fff;
 
-      font-size:19px;
+      font-size:18px;
       line-height:1.1;
       font-weight:900;
 
@@ -441,8 +388,8 @@
       position:relative;
       z-index:2;
 
-      width:54px;
-      height:54px;
+      width:44px;
+      height:44px;
 
       object-fit:contain;
 
@@ -458,7 +405,7 @@
 
       display:block;
 
-      font-size:47px;
+      font-size:40px;
       line-height:1;
 
       background:transparent !important;
@@ -472,23 +419,22 @@
 
     .summary-wrap{
       width:100%;
-      margin-top:14px;
+      margin-top:12px;
     }
 
     .summary-card{
       width:100%;
-      max-width:100%;
-      min-height:118px;
+      min-height:104px;
 
       margin:0;
-      padding:18px 22px;
+      padding:16px 20px;
 
       display:flex;
       align-items:center;
       justify-content:center;
-      gap:16px;
+      gap:14px;
 
-      border-radius:23px;
+      border-radius:22px;
 
       background:
         radial-gradient(
@@ -503,35 +449,23 @@
           #03142d 100%
         );
 
-      border-top:
-        3px solid #ffe27a;
-
-      border-left:
-        3px solid #edb72a;
-
-      border-right:
-        3px solid #9e6800;
-
-      border-bottom:
-        5px solid #6f4900;
+      border-top:3px solid #ffe27a;
+      border-left:3px solid #edb72a;
+      border-right:3px solid #9e6800;
+      border-bottom:5px solid #6f4900;
 
       box-shadow:
-        0 8px 0 rgba(57,36,0,.50),
-        0 14px 22px rgba(2,12,30,.24),
+        0 7px 0 rgba(57,36,0,.50),
+        0 12px 18px rgba(2,12,30,.22),
         inset 0 1px 0 rgba(255,255,255,.08);
-    }
-
-    .summary-card::after{
-      inset:7px;
-      border-radius:17px;
     }
 
     .summary-icon-crop{
       position:relative;
       z-index:2;
 
-      width:52px;
-      height:52px;
+      width:44px;
+      height:44px;
 
       display:flex;
       align-items:center;
@@ -542,8 +476,8 @@
     }
 
     .summary-final-icon{
-      width:52px;
-      height:52px;
+      width:44px;
+      height:44px;
 
       object-fit:contain;
 
@@ -559,24 +493,11 @@
 
       color:#fff;
 
-      font-size:22px;
+      font-size:21px;
       line-height:1;
       font-weight:900;
 
       white-space:nowrap;
-    }
-
-    /* =========================
-       CLICK FEEL
-    ========================= */
-
-    .dashboard-card:active,
-    .summary-card:active{
-      transform:translateY(3px);
-
-      box-shadow:
-        0 4px 0 rgba(57,36,0,.50),
-        0 8px 15px rgba(2,12,30,.22);
     }
 
     /* =========================
@@ -591,23 +512,23 @@
       }
 
       .driver-avatar{
-        width:52px;
-        height:52px;
+        width:50px;
+        height:50px;
       }
 
       .driver-name-header{
-        font-size:19px;
+        font-size:18px;
       }
 
       .driver-header-logo{
-        width:110px;
-        height:58px;
+        width:106px;
+        height:55px;
       }
 
       .dashboard-company{
-        margin-top:40px;
-        margin-bottom:20px;
-        font-size:27px;
+        margin-top:46px;
+        margin-bottom:23px;
+        font-size:26px;
       }
 
       .dashboard-scroll{
@@ -616,21 +537,25 @@
       }
 
       .dashboard-grid{
-        gap:11px;
+        gap:10px;
       }
 
       .dashboard-card{
-        min-height:164px;
-        border-radius:22px;
+        min-height:138px;
+        border-radius:21px;
       }
 
       #cardTrips{
-        min-height:142px;
+        min-height:122px;
       }
 
-      .trips-main-icon{
-        width:46px;
-        height:46px;
+      .dashboard-card-icon{
+        width:40px;
+        height:40px;
+      }
+
+      .history-icon{
+        font-size:36px;
       }
 
       .dashboard-card-title{
@@ -638,17 +563,23 @@
       }
 
       #cardTrips .dashboard-card-title{
-        font-size:27px;
+        font-size:26px;
       }
 
       .summary-card{
-        min-height:108px;
-        padding-left:18px;
-        padding-right:18px;
+        min-height:96px;
+        padding-left:16px;
+        padding-right:16px;
+      }
+
+      .summary-icon-crop,
+      .summary-final-icon{
+        width:40px;
+        height:40px;
       }
 
       .summary-final-text{
-        font-size:20px;
+        font-size:19px;
       }
     }
   </style>
@@ -658,7 +589,6 @@
 
   <main class="dashboard-shell">
 
-    <!-- DRIVER HEADER -->
     <section class="driver-identity-header">
 
       <div class="driver-avatar" aria-hidden="true">
@@ -682,7 +612,6 @@
 
       </div>
 
-      <!-- COMPANY LOGO -->
       <div class="driver-header-logo">
         <img
           class="logo app-logo"
@@ -692,12 +621,10 @@
 
     </section>
 
-    <!-- COMPANY NAME -->
     <div class="dashboard-company company-name">
       SUNSET
     </div>
 
-    <!-- STATUS -->
     <section
       class="status-pill"
       aria-label="Driver status"
@@ -714,7 +641,6 @@
 
     </section>
 
-    <!-- DASHBOARD -->
     <div
       class="dashboard-scroll"
       id="dashboardScroll"
@@ -722,26 +648,17 @@
 
       <section class="dashboard-grid">
 
-        <!-- MAIN GOLD TRIPS BUTTON -->
+        <!-- TRIPS: NO CAR ICON -->
         <button
           class="dashboard-card"
           id="cardTrips"
           type="button"
         >
-
-          <img
-            class="trips-main-icon"
-            src="assets/trips.png"
-            alt=""
-          />
-
           <span class="dashboard-card-title">
             Trips
           </span>
-
         </button>
 
-        <!-- LIVE MAP -->
         <button
           class="dashboard-card"
           id="cardMap"
@@ -758,7 +675,6 @@
           </span>
         </button>
 
-        <!-- TRIP HISTORY -->
         <button
           class="dashboard-card"
           id="cardHistory"
@@ -774,7 +690,6 @@
           </span>
         </button>
 
-        <!-- WORK HOURS -->
         <button
           class="dashboard-card"
           id="cardHours"
@@ -791,7 +706,6 @@
           </span>
         </button>
 
-        <!-- EARNINGS -->
         <button
           class="dashboard-card"
           id="cardEarnings"
@@ -839,10 +753,8 @@
 
   </main>
 
-  <!-- SHARED BOTTOM NAV -->
   <div id="driverNav"></div>
 
-  <!-- APP SCRIPTS -->
   <script src="/core/branding.js"></script>
 
   <script>
