@@ -35,6 +35,18 @@
     );
   }
 
+  function getDriverId(){
+
+    const driver = getLoggedDriver();
+
+    return String(
+      driver?._id ||
+      driver?.id ||
+      driver?.driverId ||
+      ""
+    ).trim();
+  }
+
   function getToken(){
     return (
       localStorage.getItem("driverToken") ||
@@ -143,10 +155,6 @@
     return [];
   }
 
-  function escapeText(value){
-    return String(value ?? "");
-  }
-
   function senderType(message){
 
     const raw = String(
@@ -154,16 +162,11 @@
       message?.senderRole ||
       message?.role ||
       ""
-    ).toLowerCase();
+    ).toUpperCase();
 
-    if(
-      raw === "driver" ||
-      raw === "DRIVER".toLowerCase()
-    ){
-      return "driver";
-    }
-
-    return "dispatch";
+    return raw === "DRIVER"
+      ? "driver"
+      : "dispatch";
   }
 
   function formatTime(value){
@@ -209,7 +212,6 @@
   function renderMessages(messages){
 
     const list = $("messages");
-    const empty = $("emptyChat");
 
     if(!list) return;
 
@@ -225,11 +227,17 @@
 
     if(!messages.length){
 
-      if(empty){
-        list.appendChild(empty);
-        empty.style.display = "";
-      }
+      const empty = document.createElement("div");
+      empty.className = "empty-chat";
+      empty.innerHTML = `
+        <div class="empty-chat-icon">💬</div>
+        <div class="empty-chat-title">Dispatch Chat</div>
+        <div class="empty-chat-text">
+          Messages between the driver and dispatch will appear here.
+        </div>
+      `;
 
+      list.appendChild(empty);
       return;
     }
 
@@ -258,11 +266,12 @@
 
       const body = document.createElement("div");
       body.className = "message-text";
-      body.textContent = escapeText(
-        message?.text ??
-        message?.message ??
-        ""
-      );
+      body.textContent =
+        String(
+          message?.text ??
+          message?.message ??
+          ""
+        );
 
       const time = document.createElement("div");
       time.className = "message-time";
@@ -288,10 +297,18 @@
 
   async function loadMessages(){
 
+    const driverId = getDriverId();
+
+    if(!driverId){
+      setConnection(false,"Driver ID missing");
+      showError("Driver ID missing.");
+      return;
+    }
+
     try{
 
       const response = await fetch(
-        API.messages,
+        `${API.messages}?driverId=${encodeURIComponent(driverId)}`,
         {
           method:"GET",
           headers:authHeaders(),
@@ -300,7 +317,21 @@
       );
 
       if(!response.ok){
+
+        let message = "";
+
+        try{
+          const data = await response.json();
+          message =
+            data?.message ||
+            data?.error ||
+            "";
+        }catch{
+          message = "";
+        }
+
         throw new Error(
+          message ||
           `Chat server returned ${response.status}`
         );
       }
@@ -317,17 +348,10 @@
 
       setConnection(false,"Waiting for server");
 
-      /*
-        The backend will be created next.
-        Keep the page working visually without inventing messages.
-      */
-
-      if(
-        error &&
-        String(error.message || "").includes("404")
-      ){
-        showError("");
-      }
+      showError(
+        error?.message ||
+        "Unable to load messages."
+      );
 
     }
 
@@ -338,8 +362,14 @@
     if(sending) return;
 
     const cleanText = String(text || "").trim();
+    const driverId = getDriverId();
 
     if(!cleanText){
+      return;
+    }
+
+    if(!driverId){
+      showError("Driver ID missing.");
       return;
     }
 
@@ -366,11 +396,12 @@
           body:JSON.stringify({
             text:cleanText,
             senderType:"DRIVER",
-            driverId:
-              driver?._id ||
-              driver?.id ||
-              driver?.driverId ||
-              null
+            senderName:
+              driver?.name ||
+              driver?.fullName ||
+              driver?.username ||
+              "Driver",
+            driverId
           })
         }
       );
@@ -399,6 +430,8 @@
         input.value = "";
         autoResizeInput();
       }
+
+      lastSignature = "";
 
       await loadMessages();
 
