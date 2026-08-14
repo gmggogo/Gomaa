@@ -176,16 +176,20 @@
 
     .dashboard-company{
       margin:0;
-      padding:0 12px;
+      padding:0 10px;
 
       color:var(--gold);
-
       text-align:center;
 
-      font-size:29px;
+      font-size:23px;
       line-height:1;
       font-weight:900;
-      letter-spacing:1px;
+      letter-spacing:.4px;
+
+      white-space:nowrap;
+      max-width:94vw;
+      overflow:hidden;
+      text-overflow:ellipsis;
 
       text-shadow:
         0 2px 0 #765000,
@@ -594,7 +598,8 @@
       }
 
       .dashboard-company{
-        font-size:26px;
+        font-size:21px;
+        letter-spacing:.2px;
       }
 
       .status-pill{
