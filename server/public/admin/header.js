@@ -1,3 +1,67 @@
+/* =========================
+   ADMIN FLOATING CHAT LOADER
+   Loads once on every admin page
+========================= */
+
+(function loadAdminFloatingChat(){
+
+  if(window.ADMIN_CHAT_LOADER_STARTED){
+    return;
+  }
+
+  window.ADMIN_CHAT_LOADER_STARTED = true;
+
+  function injectChatScript(){
+
+    if(
+      window.SUNBEAM_ADMIN_FLOATING_CHAT ||
+      document.querySelector('script[src="/admin/admin-chat.js"]') ||
+      document.querySelector('script[src="admin-chat.js"]')
+    ){
+      return;
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.src =
+      "/admin/admin-chat.js";
+
+    script.defer = true;
+
+    script.onerror = function(){
+
+      console.log(
+        "ADMIN CHAT LOAD ERROR"
+      );
+
+    };
+
+    document.body.appendChild(
+      script
+    );
+
+  }
+
+  if(document.readyState === "loading"){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      injectChatScript,
+      {
+        once:true
+      }
+    );
+
+  }else{
+
+    injectChatScript();
+
+  }
+
+})();
+
+
 document.addEventListener("DOMContentLoaded", async () => {
 
   const headerContainer =
