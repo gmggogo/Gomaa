@@ -15,12 +15,13 @@
 
   <style>
     :root{
-      --dash-navy:#04172f;
-      --dash-navy2:#0a315f;
-      --dash-gold:#ffd226;
-      --dash-gold-dark:#8b5c00;
-      --dash-white:#ffffff;
-      --dash-green:#27f26f;
+      --navy:#04172f;
+      --navy2:#0b315f;
+      --gold:#ffd226;
+      --gold2:#d99a00;
+      --gold-dark:#7d5200;
+      --white:#ffffff;
+      --green:#28ef70;
     }
 
     *{
@@ -39,7 +40,7 @@
     }
 
     /* =========================
-       TOP DRIVER HEADER
+       DRIVER HEADER
     ========================= */
 
     .driver-identity-header{
@@ -49,9 +50,9 @@
       gap:12px;
 
       padding:
-        max(16px,env(safe-area-inset-top))
+        max(15px,env(safe-area-inset-top))
         18px
-        16px;
+        15px;
 
       background:
         linear-gradient(
@@ -61,16 +62,16 @@
         );
 
       border-bottom:
-        4px solid var(--dash-gold);
+        4px solid var(--gold);
 
       box-shadow:
-        0 7px 0 rgba(93,60,0,.35),
+        0 7px 0 rgba(92,60,0,.34),
         0 13px 24px rgba(0,0,0,.22);
     }
 
     .driver-avatar{
-      width:58px;
-      height:58px;
+      width:56px;
+      height:56px;
 
       display:flex;
       align-items:center;
@@ -86,7 +87,7 @@
         );
 
       border:
-        3px solid var(--dash-gold);
+        3px solid var(--gold);
 
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,.12),
@@ -94,21 +95,23 @@
     }
 
     .driver-avatar svg{
-      width:31px;
-      height:31px;
-      fill:var(--dash-gold);
+      width:30px;
+      height:30px;
+      fill:var(--gold);
     }
 
     .driver-identity-text{
       min-width:0;
     }
 
+    /* NAME SLIGHTLY SMALLER */
     .driver-name-header{
       color:#fff;
-      font-size:25px;
+
+      font-size:22px;
       line-height:1;
       font-weight:900;
-      letter-spacing:.3px;
+      letter-spacing:.2px;
 
       white-space:nowrap;
       overflow:hidden;
@@ -118,17 +121,17 @@
     .driver-role-header{
       margin-top:5px;
 
-      color:var(--dash-gold);
+      color:var(--gold);
 
       font-size:14px;
       font-weight:900;
     }
 
-    /* LOGO MOVED TO TOP RIGHT */
+    /* LOGO TOP RIGHT */
     .driver-header-logo{
-      width:132px;
+      width:124px;
       max-width:31vw;
-      height:68px;
+      height:64px;
 
       display:flex;
       align-items:center;
@@ -139,27 +142,28 @@
       display:block;
       max-width:100%;
       max-height:100%;
-
       object-fit:contain;
 
       background:transparent !important;
+      border:0 !important;
       box-shadow:none !important;
       filter:none !important;
     }
 
     /* =========================
-       COMPANY NAME
+       COMPANY TITLE
     ========================= */
 
+    /* MOVED DOWN A LITTLE */
     .dashboard-company{
       margin:
-        24px
+        34px
         18px
-        14px;
+        18px;
 
       text-align:center;
 
-      color:var(--dash-gold);
+      color:var(--gold);
 
       font-size:30px;
       line-height:1;
@@ -167,7 +171,7 @@
       letter-spacing:1px;
 
       text-shadow:
-        0 2px 0 #7b5200,
+        0 2px 0 #765000,
         0 4px 7px rgba(0,0,0,.22);
     }
 
@@ -200,7 +204,7 @@
         );
 
       border:
-        2px solid rgba(255,210,38,.78);
+        2px solid rgba(255,210,38,.82);
 
       box-shadow:
         0 7px 0 rgba(79,51,0,.42),
@@ -220,7 +224,7 @@
 
       border-radius:50%;
 
-      background:var(--dash-green);
+      background:var(--green);
 
       box-shadow:
         0 0 14px rgba(39,242,111,.55);
@@ -233,13 +237,13 @@
     }
 
     .status-value{
-      color:var(--dash-green);
+      color:var(--green);
       font-size:18px;
       font-weight:900;
     }
 
     /* =========================
-       DASHBOARD CONTENT
+       DASHBOARD GRID
     ========================= */
 
     .dashboard-scroll{
@@ -257,8 +261,11 @@
 
     .dashboard-card,
     .summary-card{
-      -webkit-tap-highlight-color:transparent;
+      position:relative;
+      overflow:hidden;
+
       appearance:none;
+      -webkit-tap-highlight-color:transparent;
 
       color:#fff;
       font-family:inherit;
@@ -266,12 +273,8 @@
       cursor:pointer;
     }
 
-    /* CLASSIC NAVY CARDS */
     .dashboard-card{
-      position:relative;
-      overflow:hidden;
-
-      min-height:178px;
+      min-height:176px;
       padding:20px 14px;
 
       display:flex;
@@ -285,7 +288,7 @@
       background:
         radial-gradient(
           circle at 24% 14%,
-          rgba(75,142,232,.12),
+          rgba(74,141,232,.12),
           transparent 35%
         ),
         linear-gradient(
@@ -296,16 +299,16 @@
         );
 
       border-top:
-        3px solid #ffe071;
+        3px solid #ffe27a;
 
       border-left:
-        3px solid #e7b327;
+        3px solid #edb72a;
 
       border-right:
-        3px solid #a26d00;
+        3px solid #9e6800;
 
       border-bottom:
-        4px solid #765000;
+        5px solid #6f4900;
 
       box-shadow:
         0 8px 0 rgba(57,36,0,.50),
@@ -314,7 +317,6 @@
         inset 0 -2px 0 rgba(59,37,0,.26);
     }
 
-    /* CLASSIC INNER GOLD FRAME */
     .dashboard-card::after,
     .summary-card::after{
       content:"";
@@ -325,7 +327,7 @@
       border-radius:18px;
 
       border:
-        1px solid rgba(255,210,38,.52);
+        1.5px solid rgba(255,210,38,.62);
 
       pointer-events:none;
     }
@@ -337,34 +339,34 @@
     #cardTrips{
       grid-column:1 / -1;
 
-      min-height:148px;
+      min-height:145px;
 
       color:#07172d;
 
       background:
         radial-gradient(
-          circle at 25% 15%,
-          rgba(255,255,255,.48),
+          circle at 24% 15%,
+          rgba(255,255,255,.52),
           transparent 32%
         ),
         linear-gradient(
           180deg,
-          #ffe66f 0%,
-          #ffd226 50%,
-          #e4ac00 100%
+          #ffe86f 0%,
+          #ffd226 52%,
+          #dda300 100%
         );
 
       border-top:
-        3px solid #fff0a4;
+        3px solid #fff2a6;
 
       border-left:
-        3px solid #ffdb42;
+        3px solid #ffdc45;
 
       border-right:
-        3px solid #a46a00;
+        3px solid #a36a00;
 
       border-bottom:
-        5px solid #835600;
+        5px solid #805300;
 
       box-shadow:
         0 9px 0 rgba(92,58,0,.48),
@@ -375,14 +377,14 @@
 
     #cardTrips::after{
       border:
-        2px solid rgba(105,67,0,.34);
+        2px solid rgba(105,67,0,.42);
     }
 
     #cardTrips .dashboard-card-title{
       color:#07172d;
-      font-size:30px;
-      text-transform:none;
-      letter-spacing:.2px;
+
+      font-size:29px;
+      font-weight:900;
 
       text-shadow:
         0 1px 0 rgba(255,255,255,.45);
@@ -431,30 +433,28 @@
     }
 
     /* =========================
-       SUMMARY
+       SUMMARY — CLEANER / BETTER
     ========================= */
 
     .summary-card{
-      position:relative;
-      overflow:hidden;
-
       width:100%;
-      min-height:132px;
+      min-height:118px;
 
       margin-top:14px;
-      padding:18px 20px;
+      padding:18px 24px;
 
-      display:flex;
+      display:grid;
+      grid-template-columns:auto 1fr;
       align-items:center;
-      justify-content:center;
-      gap:18px;
+      justify-items:center;
+      gap:16px;
 
-      border-radius:24px;
+      border-radius:23px;
 
       background:
         radial-gradient(
-          circle at 22% 14%,
-          rgba(70,136,225,.12),
+          circle at 18% 12%,
+          rgba(72,140,230,.12),
           transparent 34%
         ),
         linear-gradient(
@@ -465,16 +465,16 @@
         );
 
       border-top:
-        3px solid #ffe071;
+        3px solid #ffe27a;
 
       border-left:
-        3px solid #e7b327;
+        3px solid #edb72a;
 
       border-right:
-        3px solid #a26d00;
+        3px solid #9e6800;
 
       border-bottom:
-        4px solid #765000;
+        5px solid #6f4900;
 
       box-shadow:
         0 8px 0 rgba(57,36,0,.50),
@@ -482,23 +482,34 @@
         inset 0 1px 0 rgba(255,255,255,.08);
     }
 
+    .summary-card::after{
+      inset:7px;
+
+      border-radius:17px;
+
+      border:
+        1.5px solid rgba(255,210,38,.62);
+    }
+
     .summary-icon-crop{
       position:relative;
       z-index:2;
 
-      width:58px;
-      height:58px;
+      width:54px;
+      height:54px;
 
       display:flex;
       align-items:center;
       justify-content:center;
 
       overflow:hidden;
+
+      border-radius:12px;
     }
 
     .summary-final-icon{
-      width:58px;
-      height:58px;
+      width:54px;
+      height:54px;
 
       object-fit:contain;
 
@@ -512,9 +523,15 @@
       position:relative;
       z-index:2;
 
+      justify-self:start;
+
       color:#fff;
-      font-size:23px;
+
+      font-size:22px;
+      line-height:1;
       font-weight:900;
+
+      white-space:nowrap;
     }
 
     /* =========================
@@ -547,15 +564,16 @@
       }
 
       .driver-name-header{
-        font-size:22px;
+        font-size:20px;
       }
 
       .driver-header-logo{
-        width:115px;
-        height:60px;
+        width:112px;
+        height:58px;
       }
 
       .dashboard-company{
+        margin-top:32px;
         font-size:27px;
       }
 
@@ -569,7 +587,7 @@
       }
 
       .dashboard-card{
-        min-height:165px;
+        min-height:164px;
         border-radius:22px;
       }
 
@@ -582,11 +600,17 @@
       }
 
       #cardTrips .dashboard-card-title{
-        font-size:28px;
+        font-size:27px;
+      }
+
+      .summary-card{
+        min-height:108px;
+        padding-left:20px;
+        padding-right:20px;
       }
 
       .summary-final-text{
-        font-size:21px;
+        font-size:20px;
       }
     }
   </style>
@@ -620,7 +644,7 @@
 
       </div>
 
-      <!-- COMPANY LOGO MOVED HERE -->
+      <!-- COMPANY LOGO -->
       <div class="driver-header-logo">
         <img
           class="logo app-logo"
