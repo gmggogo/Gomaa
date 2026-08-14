@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Sunbeam Admin Chat</title>
+  <title>Sunbeam Admin</title>
 
   <meta
     name="viewport"
@@ -12,20 +12,12 @@
   <link rel="stylesheet" href="admin.css" />
 
   <style>
-    :root{
-      --navy:#04172f;
-      --navy2:#0a315e;
-      --gold:#ffd226;
-      --gold-dark:#765000;
-      --green:#28ef70;
-      --muted:#aeb9ca;
-    }
-
     *{
       box-sizing:border-box;
     }
 
-    html,body{
+    html,
+    body{
       margin:0;
       width:100%;
       min-height:100%;
@@ -33,544 +25,13 @@
 
     body{
       min-height:100dvh;
-      color:#fff;
       background:#eef3f8;
       overflow-x:hidden;
       font-family:Arial,Helvetica,sans-serif;
     }
 
-    .admin-chat-page{
-      width:100%;
-      min-height:100dvh;
-      padding:18px;
-    }
-
-    .admin-chat-layout{
-      width:100%;
-
-      display:grid;
-      grid-template-columns:300px minmax(0,1fr);
-      gap:16px;
-
-      margin-top:22px;
-    }
-
-    .driver-list-card,
-    .conversation-card{
-      position:relative;
-
-      overflow:hidden;
-
-      border-radius:24px;
-
-      background:
-        linear-gradient(
-          160deg,
-          #0a315e 0%,
-          #061c3b 54%,
-          #03142d 100%
-        );
-
-      border-top:3px solid #ffe27a;
-      border-left:3px solid #edb72a;
-      border-right:3px solid #9e6800;
-      border-bottom:5px solid #6f4900;
-
-      box-shadow:
-        0 7px 0 rgba(57,36,0,.48),
-        0 12px 18px rgba(2,12,30,.20);
-    }
-
-    .driver-list-card{
-      min-height:640px;
-    }
-
-    .conversation-card{
-      min-height:640px;
-
-      display:flex;
-      flex-direction:column;
-    }
-
-    .panel-heading{
-      min-height:62px;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-
-      padding:14px 16px;
-
-      border-bottom:1px solid rgba(255,210,38,.25);
-    }
-
-    .panel-heading-title{
-      color:#fff;
-
-      font-size:17px;
-      font-weight:900;
-    }
-
-    .panel-heading-sub{
-      color:var(--muted);
-
-      font-size:12px;
-      font-weight:700;
-    }
-
-    .driver-search-wrap{
-      padding:12px;
-    }
-
-    .driver-search{
-      width:100%;
-      min-height:42px;
-
-      padding:0 13px;
-
-      color:#fff;
-      background:rgba(255,255,255,.07);
-
-      border:1.5px solid rgba(255,210,38,.40);
-      border-radius:16px;
-
-      outline:none;
-
-      font-size:14px;
-      font-weight:700;
-    }
-
-    .driver-search::placeholder{
-      color:#9aa7ba;
-    }
-
-    .driver-list{
-      max-height:540px;
-
-      overflow-y:auto;
-
-      padding:0 10px 12px;
-    }
-
-    .driver-list::-webkit-scrollbar,
-    .admin-messages::-webkit-scrollbar{
-      width:5px;
-    }
-
-    .driver-list::-webkit-scrollbar-thumb,
-    .admin-messages::-webkit-scrollbar-thumb{
-      background:rgba(255,210,38,.40);
-      border-radius:8px;
-    }
-
-    .driver-item{
-      width:100%;
-
-      display:flex;
-      align-items:center;
-      gap:11px;
-
-      padding:12px;
-
-      margin-top:8px;
-
-      border:1px solid rgba(255,210,38,.20);
-      border-radius:17px;
-
-      background:rgba(255,255,255,.045);
-
-      color:#fff;
-      text-align:left;
-
-      cursor:pointer;
-    }
-
-    .driver-item.active{
-      background:
-        linear-gradient(
-          180deg,
-          #ffe76c 0%,
-          #ffd226 100%
-        );
-
-      color:#07172d;
-
-      border-color:#8d5c00;
-    }
-
-    .driver-avatar-small{
-      width:38px;
-      height:38px;
-
-      flex:0 0 38px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      border-radius:50%;
-
-      background:#0c315e;
-      border:2px solid var(--gold);
-
-      font-weight:900;
-      color:var(--gold);
-    }
-
-    .driver-item.active .driver-avatar-small{
-      background:#07172d;
-    }
-
-    .driver-item-main{
-      min-width:0;
-      flex:1;
-    }
-
-    .driver-item-name{
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-
-      font-size:14px;
-      font-weight:900;
-    }
-
-    .driver-item-meta{
-      margin-top:4px;
-
-      font-size:11px;
-      font-weight:700;
-
-      opacity:.72;
-    }
-
-    .driver-unread{
-      min-width:22px;
-      height:22px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      padding:0 7px;
-
-      border-radius:11px;
-
-      background:var(--green);
-      color:#04172f;
-
-      font-size:11px;
-      font-weight:900;
-    }
-
-    .conversation-top{
-      min-height:70px;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-
-      padding:14px 18px;
-
-      border-bottom:1px solid rgba(255,210,38,.25);
-    }
-
-    .conversation-driver{
-      min-width:0;
-    }
-
-    .conversation-driver-name{
-      color:#fff;
-
-      font-size:18px;
-      font-weight:900;
-
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .conversation-driver-status{
-      margin-top:5px;
-
-      color:var(--muted);
-
-      font-size:12px;
-      font-weight:700;
-    }
-
-    .dispatch-badge{
-      min-width:100px;
-      min-height:38px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      padding:0 12px;
-
-      border-radius:20px;
-
-      color:#07172d;
-
-      background:
-        linear-gradient(
-          180deg,
-          #ffe76c 0%,
-          #ffd226 60%,
-          #dda300 100%
-        );
-
-      border:1px solid #8a5b00;
-
-      font-size:12px;
-      font-weight:900;
-    }
-
-    .admin-messages{
-      flex:1;
-
-      min-height:430px;
-      max-height:58dvh;
-
-      overflow-y:auto;
-
-      padding:18px;
-
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
-
-    .admin-empty{
-      margin:auto;
-
-      width:min(90%,480px);
-
-      padding:24px;
-
-      text-align:center;
-
-      border-radius:20px;
-
-      background:rgba(255,255,255,.045);
-      border:1px solid rgba(255,255,255,.08);
-    }
-
-    .admin-empty-title{
-      color:#fff;
-      font-size:18px;
-      font-weight:900;
-    }
-
-    .admin-empty-text{
-      margin-top:7px;
-
-      color:var(--muted);
-
-      font-size:13px;
-      line-height:1.5;
-      font-weight:700;
-    }
-
-    .message-row{
-      width:100%;
-      display:flex;
-    }
-
-    .message-row.dispatch{
-      justify-content:flex-end;
-    }
-
-    .message-row.driver{
-      justify-content:flex-start;
-    }
-
-    .message-bubble{
-      max-width:76%;
-
-      padding:10px 12px 8px;
-
-      border-radius:17px;
-
-      font-size:14px;
-      line-height:1.4;
-
-      box-shadow:0 5px 10px rgba(0,0,0,.15);
-    }
-
-    .message-row.dispatch .message-bubble{
-      color:#07172d;
-
-      background:
-        linear-gradient(
-          180deg,
-          #ffe76c 0%,
-          #ffd226 100%
-        );
-
-      border:1px solid #9e6800;
-
-      border-bottom-right-radius:6px;
-    }
-
-    .message-row.driver .message-bubble{
-      color:#fff;
-
-      background:
-        linear-gradient(
-          180deg,
-          #123d70 0%,
-          #09274d 100%
-        );
-
-      border:1px solid rgba(255,210,38,.38);
-
-      border-bottom-left-radius:6px;
-    }
-
-    .message-meta{
-      margin-bottom:4px;
-
-      font-size:10px;
-      line-height:1;
-      font-weight:900;
-
-      opacity:.72;
-    }
-
-    .message-text{
-      white-space:pre-wrap;
-      word-break:break-word;
-    }
-
-    .message-time{
-      margin-top:5px;
-
-      text-align:right;
-
-      font-size:10px;
-      font-weight:800;
-
-      opacity:.70;
-    }
-
-    .admin-composer{
-      display:grid;
-      grid-template-columns:minmax(0,1fr) auto;
-      gap:10px;
-
-      align-items:end;
-
-      padding:12px 14px 14px;
-
-      border-top:1px solid rgba(255,210,38,.25);
-
-      background:rgba(1,14,31,.62);
-    }
-
-    .admin-message-input{
-      width:100%;
-      min-height:46px;
-      max-height:120px;
-
-      resize:none;
-
-      padding:12px 14px;
-
-      color:#fff;
-
-      background:rgba(255,255,255,.07);
-
-      border:1.5px solid rgba(255,210,38,.48);
-      border-radius:19px;
-
-      outline:none;
-
-      font-family:inherit;
-      font-size:14px;
-      font-weight:700;
-    }
-
-    .admin-message-input::placeholder{
-      color:#9aa7ba;
-    }
-
-    .admin-send-button{
-      width:48px;
-      height:48px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      padding:0;
-
-      border-radius:50%;
-
-      color:#07172d;
-
-      background:
-        linear-gradient(
-          180deg,
-          #ffe76c 0%,
-          #ffd226 60%,
-          #dda300 100%
-        );
-
-      border:1px solid #8b5a00;
-
-      box-shadow:
-        0 5px 0 rgba(92,58,0,.42);
-
-      font-size:21px;
-      font-weight:900;
-
-      cursor:pointer;
-    }
-
-    .admin-send-button:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-    }
-
-    .admin-chat-error{
-      display:none;
-
-      margin-top:14px;
-      padding:10px 12px;
-
-      border-radius:14px;
-
-      color:#fff;
-
-      background:rgba(160,28,28,.82);
-      border:1px solid rgba(255,110,110,.42);
-
-      font-size:12px;
-      font-weight:800;
-    }
-
-    .admin-chat-error.show{
-      display:block;
-    }
-
-    @media(max-width:900px){
-
-      .admin-chat-layout{
-        grid-template-columns:1fr;
-      }
-
-      .driver-list-card{
-        min-height:auto;
-      }
-
-      .driver-list{
-        max-height:300px;
-      }
-
+    .admin-chat-placeholder{
+      min-height:calc(100dvh - 160px);
     }
   </style>
 </head>
@@ -610,9 +71,7 @@
     <div
       class="company"
       id="dynamicCompanyName">
-
       Loading...
-
     </div>
 
     <div class="welcome-box">
@@ -634,9 +93,7 @@
     <button
       class="logout-btn"
       onclick="logout()">
-
       Logout
-
     </button>
 
   </div>
@@ -723,16 +180,10 @@ Facility Pricing Override
 Smart Dispatch
 </a>
 
-<a href="admin-chat.html" class="nav-btn active">
-Chat
-</a>
-
 </nav>
 
 <div class="gh-powered">
-
 Powered by GH Mobility
-
 </div>
 
 </div>
@@ -795,128 +246,15 @@ Powered by GH Mobility
 
 </header>
 
-<main class="admin-chat-page">
+<!--
+  IMPORTANT:
+  NO BIG CHAT HTML HERE.
 
-  <div
-    class="admin-chat-error"
-    id="adminChatError"
-  ></div>
+  admin-chat.js creates only the floating green Chat button.
+  The panel stays hidden until the admin clicks the button.
+-->
 
-  <section class="admin-chat-layout">
-
-    <aside class="driver-list-card">
-
-      <div class="panel-heading">
-
-        <div>
-          <div class="panel-heading-title">
-            Drivers
-          </div>
-
-          <div class="panel-heading-sub">
-            Select a driver
-          </div>
-        </div>
-
-      </div>
-
-      <div class="driver-search-wrap">
-
-        <input
-          class="driver-search"
-          id="driverSearch"
-          type="search"
-          placeholder="Search drivers..."
-          autocomplete="off"
-        />
-
-      </div>
-
-      <div
-        class="driver-list"
-        id="driverList"
-      ></div>
-
-    </aside>
-
-    <section class="conversation-card">
-
-      <div class="conversation-top">
-
-        <div class="conversation-driver">
-
-          <div
-            class="conversation-driver-name"
-            id="selectedDriverName"
-          >
-            Select a driver
-          </div>
-
-          <div
-            class="conversation-driver-status"
-            id="selectedDriverStatus"
-          >
-            No conversation selected
-          </div>
-
-        </div>
-
-        <div class="dispatch-badge">
-          DISPATCH
-        </div>
-
-      </div>
-
-      <div
-        class="admin-messages"
-        id="adminMessages"
-      >
-
-        <div
-          class="admin-empty"
-          id="adminEmpty"
-        >
-          <div class="admin-empty-title">
-            Select a Driver
-          </div>
-
-          <div class="admin-empty-text">
-            Choose a driver from the left to open the dispatch conversation.
-          </div>
-        </div>
-
-      </div>
-
-      <form
-        class="admin-composer"
-        id="adminChatForm"
-      >
-
-        <textarea
-          class="admin-message-input"
-          id="adminMessageInput"
-          rows="1"
-          maxlength="2000"
-          placeholder="Message driver..."
-          disabled
-        ></textarea>
-
-        <button
-          class="admin-send-button"
-          id="adminSendButton"
-          type="submit"
-          disabled
-        >
-          ➤
-        </button>
-
-      </form>
-
-    </section>
-
-  </section>
-
-</main>
+<main class="admin-chat-placeholder"></main>
 
 <script src="/core/branding.js"></script>
 
@@ -934,6 +272,8 @@ Powered by GH Mobility
 </script>
 
 <script src="admin.js"></script>
+
+<!-- FLOATING ADMIN CHAT ONLY -->
 <script src="admin-chat.js" defer></script>
 
 </body>
