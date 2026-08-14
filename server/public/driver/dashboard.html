@@ -12,6 +12,584 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="apple-touch-icon.jpeg" />
   <link rel="stylesheet" href="driver.css" />
+
+  <style>
+    :root{
+      --dash-navy:#04172f;
+      --dash-navy2:#0a315f;
+      --dash-gold:#ffd226;
+      --dash-gold-dark:#8b5c00;
+      --dash-white:#ffffff;
+      --dash-green:#27f26f;
+    }
+
+    *{
+      box-sizing:border-box;
+    }
+
+    body.driver-dashboard-page{
+      margin:0;
+      min-height:100dvh;
+      color:#fff;
+      padding-bottom:150px;
+    }
+
+    .dashboard-shell{
+      min-height:100dvh;
+    }
+
+    /* =========================
+       TOP DRIVER HEADER
+    ========================= */
+
+    .driver-identity-header{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      align-items:center;
+      gap:12px;
+
+      padding:
+        max(16px,env(safe-area-inset-top))
+        18px
+        16px;
+
+      background:
+        linear-gradient(
+          180deg,
+          #031329 0%,
+          #061b38 100%
+        );
+
+      border-bottom:
+        4px solid var(--dash-gold);
+
+      box-shadow:
+        0 7px 0 rgba(93,60,0,.35),
+        0 13px 24px rgba(0,0,0,.22);
+    }
+
+    .driver-avatar{
+      width:58px;
+      height:58px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+
+      border-radius:50%;
+
+      background:
+        radial-gradient(
+          circle at 50% 35%,
+          #183f70,
+          #04162f 72%
+        );
+
+      border:
+        3px solid var(--dash-gold);
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.12),
+        0 4px 0 rgba(70,45,0,.32);
+    }
+
+    .driver-avatar svg{
+      width:31px;
+      height:31px;
+      fill:var(--dash-gold);
+    }
+
+    .driver-identity-text{
+      min-width:0;
+    }
+
+    .driver-name-header{
+      color:#fff;
+      font-size:25px;
+      line-height:1;
+      font-weight:900;
+      letter-spacing:.3px;
+
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .driver-role-header{
+      margin-top:5px;
+
+      color:var(--dash-gold);
+
+      font-size:14px;
+      font-weight:900;
+    }
+
+    /* LOGO MOVED TO TOP RIGHT */
+    .driver-header-logo{
+      width:132px;
+      max-width:31vw;
+      height:68px;
+
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+    }
+
+    .driver-header-logo img{
+      display:block;
+      max-width:100%;
+      max-height:100%;
+
+      object-fit:contain;
+
+      background:transparent !important;
+      box-shadow:none !important;
+      filter:none !important;
+    }
+
+    /* =========================
+       COMPANY NAME
+    ========================= */
+
+    .dashboard-company{
+      margin:
+        24px
+        18px
+        14px;
+
+      text-align:center;
+
+      color:var(--dash-gold);
+
+      font-size:30px;
+      line-height:1;
+      font-weight:900;
+      letter-spacing:1px;
+
+      text-shadow:
+        0 2px 0 #7b5200,
+        0 4px 7px rgba(0,0,0,.22);
+    }
+
+    /* =========================
+       STATUS
+    ========================= */
+
+    .status-pill{
+      margin:
+        0
+        18px
+        18px;
+
+      min-height:62px;
+      padding:
+        0
+        20px;
+
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+
+      border-radius:31px;
+
+      background:
+        linear-gradient(
+          180deg,
+          #0b315d 0%,
+          #04172f 100%
+        );
+
+      border:
+        2px solid rgba(255,210,38,.78);
+
+      box-shadow:
+        0 7px 0 rgba(79,51,0,.42),
+        0 13px 20px rgba(0,0,0,.18),
+        inset 0 1px 0 rgba(255,255,255,.08);
+    }
+
+    .status-left{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .status-dot{
+      width:22px;
+      height:22px;
+
+      border-radius:50%;
+
+      background:var(--dash-green);
+
+      box-shadow:
+        0 0 14px rgba(39,242,111,.55);
+    }
+
+    .status-label{
+      color:#fff;
+      font-size:17px;
+      font-weight:900;
+    }
+
+    .status-value{
+      color:var(--dash-green);
+      font-size:18px;
+      font-weight:900;
+    }
+
+    /* =========================
+       DASHBOARD CONTENT
+    ========================= */
+
+    .dashboard-scroll{
+      padding:
+        0
+        18px
+        28px;
+    }
+
+    .dashboard-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .dashboard-card,
+    .summary-card{
+      -webkit-tap-highlight-color:transparent;
+      appearance:none;
+
+      color:#fff;
+      font-family:inherit;
+
+      cursor:pointer;
+    }
+
+    /* CLASSIC NAVY CARDS */
+    .dashboard-card{
+      position:relative;
+      overflow:hidden;
+
+      min-height:178px;
+      padding:20px 14px;
+
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+
+      border-radius:24px;
+
+      background:
+        radial-gradient(
+          circle at 24% 14%,
+          rgba(75,142,232,.12),
+          transparent 35%
+        ),
+        linear-gradient(
+          160deg,
+          #0a315e 0%,
+          #061c3b 54%,
+          #03142d 100%
+        );
+
+      border-top:
+        3px solid #ffe071;
+
+      border-left:
+        3px solid #e7b327;
+
+      border-right:
+        3px solid #a26d00;
+
+      border-bottom:
+        4px solid #765000;
+
+      box-shadow:
+        0 8px 0 rgba(57,36,0,.50),
+        0 14px 22px rgba(2,12,30,.24),
+        inset 0 1px 0 rgba(255,255,255,.08),
+        inset 0 -2px 0 rgba(59,37,0,.26);
+    }
+
+    /* CLASSIC INNER GOLD FRAME */
+    .dashboard-card::after,
+    .summary-card::after{
+      content:"";
+
+      position:absolute;
+      inset:7px;
+
+      border-radius:18px;
+
+      border:
+        1px solid rgba(255,210,38,.52);
+
+      pointer-events:none;
+    }
+
+    /* =========================
+       MAIN TRIPS BUTTON
+    ========================= */
+
+    #cardTrips{
+      grid-column:1 / -1;
+
+      min-height:148px;
+
+      color:#07172d;
+
+      background:
+        radial-gradient(
+          circle at 25% 15%,
+          rgba(255,255,255,.48),
+          transparent 32%
+        ),
+        linear-gradient(
+          180deg,
+          #ffe66f 0%,
+          #ffd226 50%,
+          #e4ac00 100%
+        );
+
+      border-top:
+        3px solid #fff0a4;
+
+      border-left:
+        3px solid #ffdb42;
+
+      border-right:
+        3px solid #a46a00;
+
+      border-bottom:
+        5px solid #835600;
+
+      box-shadow:
+        0 9px 0 rgba(92,58,0,.48),
+        0 16px 24px rgba(0,0,0,.23),
+        inset 0 2px 0 rgba(255,255,255,.48),
+        inset 0 -3px 0 rgba(133,84,0,.20);
+    }
+
+    #cardTrips::after{
+      border:
+        2px solid rgba(105,67,0,.34);
+    }
+
+    #cardTrips .dashboard-card-title{
+      color:#07172d;
+      font-size:30px;
+      text-transform:none;
+      letter-spacing:.2px;
+
+      text-shadow:
+        0 1px 0 rgba(255,255,255,.45);
+    }
+
+    .dashboard-card-title{
+      position:relative;
+      z-index:2;
+
+      color:#fff;
+
+      font-size:19px;
+      line-height:1.1;
+      font-weight:900;
+
+      text-align:center;
+    }
+
+    .dashboard-card-icon{
+      position:relative;
+      z-index:2;
+
+      width:54px;
+      height:54px;
+
+      object-fit:contain;
+
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      filter:none !important;
+    }
+
+    .history-icon{
+      width:auto;
+      height:auto;
+
+      display:block;
+
+      font-size:47px;
+      line-height:1;
+
+      background:transparent !important;
+      box-shadow:none !important;
+      filter:none !important;
+    }
+
+    /* =========================
+       SUMMARY
+    ========================= */
+
+    .summary-card{
+      position:relative;
+      overflow:hidden;
+
+      width:100%;
+      min-height:132px;
+
+      margin-top:14px;
+      padding:18px 20px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+
+      border-radius:24px;
+
+      background:
+        radial-gradient(
+          circle at 22% 14%,
+          rgba(70,136,225,.12),
+          transparent 34%
+        ),
+        linear-gradient(
+          160deg,
+          #0a315e 0%,
+          #061c3b 54%,
+          #03142d 100%
+        );
+
+      border-top:
+        3px solid #ffe071;
+
+      border-left:
+        3px solid #e7b327;
+
+      border-right:
+        3px solid #a26d00;
+
+      border-bottom:
+        4px solid #765000;
+
+      box-shadow:
+        0 8px 0 rgba(57,36,0,.50),
+        0 14px 22px rgba(2,12,30,.24),
+        inset 0 1px 0 rgba(255,255,255,.08);
+    }
+
+    .summary-icon-crop{
+      position:relative;
+      z-index:2;
+
+      width:58px;
+      height:58px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+
+      overflow:hidden;
+    }
+
+    .summary-final-icon{
+      width:58px;
+      height:58px;
+
+      object-fit:contain;
+
+      background:transparent !important;
+      border:0 !important;
+      box-shadow:none !important;
+      filter:none !important;
+    }
+
+    .summary-final-text{
+      position:relative;
+      z-index:2;
+
+      color:#fff;
+      font-size:23px;
+      font-weight:900;
+    }
+
+    /* =========================
+       CLICK FEEL
+    ========================= */
+
+    .dashboard-card:active,
+    .summary-card:active{
+      transform:translateY(3px);
+
+      box-shadow:
+        0 4px 0 rgba(57,36,0,.50),
+        0 8px 15px rgba(2,12,30,.22);
+    }
+
+    /* =========================
+       MOBILE
+    ========================= */
+
+    @media(max-width:390px){
+
+      .driver-identity-header{
+        padding-left:14px;
+        padding-right:14px;
+      }
+
+      .driver-avatar{
+        width:52px;
+        height:52px;
+      }
+
+      .driver-name-header{
+        font-size:22px;
+      }
+
+      .driver-header-logo{
+        width:115px;
+        height:60px;
+      }
+
+      .dashboard-company{
+        font-size:27px;
+      }
+
+      .dashboard-scroll{
+        padding-left:12px;
+        padding-right:12px;
+      }
+
+      .dashboard-grid{
+        gap:11px;
+      }
+
+      .dashboard-card{
+        min-height:165px;
+        border-radius:22px;
+      }
+
+      #cardTrips{
+        min-height:138px;
+      }
+
+      .dashboard-card-title{
+        font-size:17px;
+      }
+
+      #cardTrips .dashboard-card-title{
+        font-size:28px;
+      }
+
+      .summary-final-text{
+        font-size:21px;
+      }
+    }
+  </style>
 </head>
 
 <body class="driver-dashboard-page">
@@ -28,6 +606,7 @@
       </div>
 
       <div class="driver-identity-text">
+
         <div
           class="driver-name-header"
           id="driverName"
@@ -38,30 +617,23 @@
         <div class="driver-role-header">
           Driver
         </div>
+
       </div>
 
-      <div class="driver-online-header">
-        <span class="driver-online-dot"></span>
-        <span>ONLINE</span>
-      </div>
-
-    </section>
-
-    <!-- BRAND / LOGO -->
-    <header class="dashboard-header dashboard-header-clean">
-
-      <div class="profile-logo-standalone clean-logo">
+      <!-- COMPANY LOGO MOVED HERE -->
+      <div class="driver-header-logo">
         <img
           class="logo app-logo"
           alt="Company Logo"
         />
       </div>
 
-      <div class="company-name">
-        SUNSET
-      </div>
+    </section>
 
-    </header>
+    <!-- COMPANY NAME -->
+    <div class="dashboard-company company-name">
+      SUNSET
+    </div>
 
     <!-- STATUS -->
     <section
@@ -80,7 +652,7 @@
 
     </section>
 
-    <!-- SCROLLABLE DASHBOARD -->
+    <!-- DASHBOARD -->
     <div
       class="dashboard-scroll"
       id="dashboardScroll"
@@ -88,9 +660,9 @@
 
       <section class="dashboard-grid">
 
-        <!-- FULL WIDTH: TRIPS -->
+        <!-- MAIN GOLD BUTTON -->
         <button
-          class="dashboard-card glow-blue"
+          class="dashboard-card"
           id="cardTrips"
           type="button"
         >
@@ -99,9 +671,9 @@
           </span>
         </button>
 
-        <!-- ROW 2: LIVE MAP | TRIP HISTORY -->
+        <!-- LIVE MAP -->
         <button
-          class="dashboard-card glow-cyan"
+          class="dashboard-card"
           id="cardMap"
           type="button"
         >
@@ -116,8 +688,9 @@
           </span>
         </button>
 
+        <!-- TRIP HISTORY -->
         <button
-          class="dashboard-card glow-blue"
+          class="dashboard-card"
           id="cardHistory"
           type="button"
         >
@@ -131,9 +704,9 @@
           </span>
         </button>
 
-        <!-- ROW 3: WORK HOURS | EARNINGS -->
+        <!-- WORK HOURS -->
         <button
-          class="dashboard-card glow-purple"
+          class="dashboard-card"
           id="cardHours"
           type="button"
         >
@@ -148,8 +721,9 @@
           </span>
         </button>
 
+        <!-- EARNINGS -->
         <button
-          class="dashboard-card glow-gold"
+          class="dashboard-card"
           id="cardEarnings"
           type="button"
         >
@@ -166,9 +740,9 @@
 
       </section>
 
-      <!-- FULL WIDTH: VIEW SUMMARY -->
+      <!-- VIEW SUMMARY -->
       <button
-        class="summary-card summary-final-card"
+        class="summary-card"
         id="cardSummary"
         type="button"
       >
